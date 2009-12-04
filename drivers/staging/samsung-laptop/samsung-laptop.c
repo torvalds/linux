@@ -9,7 +9,6 @@
  * the Free Software Foundation.
  *
  */
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -274,7 +273,6 @@ static struct backlight_ops backlight_ops = {
 	.update_status	= update_status,
 };
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
 static int rfkill_set(void *data, bool blocked)
 {
 	/* Do something with blocked...*/
@@ -317,44 +315,6 @@ static void destroy_wireless(void)
 	rfkill_unregister(rfk);
 	rfkill_destroy(rfk);
 }
-
-#else
-
-static int rfkill_set(void *data, enum rfkill_state state)
-{
-	if (state ==  RFKILL_STATE_UNBLOCKED)
-		sabi_set_command(SET_WIRELESS_BUTTON, 1);
-	else
-		sabi_set_command(SET_WIRELESS_BUTTON, 0);
-
-	return 0;
-}
-
-static int init_wireless(struct platform_device *sdev)
-{
-	int retval;
-
-	rfk = rfkill_allocate(&sdev->dev, RFKILL_TYPE_WLAN);
-	if (!rfk)
-		return -ENOMEM;
-	rfk->toggle_radio = rfkill_set;
-	rfk->name = "samsung-wifi";
-
-	retval = rfkill_register(rfk);
-	if (retval) {
-		rfkill_free(rfk);
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
-static void destroy_wireless(void)
-{
-	rfkill_unregister(rfk);
-}
-
-#endif
 
 static ssize_t get_silent_state(struct device *dev,
 				struct device_attribute *attr, char *buf)
