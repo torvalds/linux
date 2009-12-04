@@ -15,20 +15,15 @@
  * must not be used by drivers.
  */
 #ifndef __arch_page_to_dma
-
-#if !defined(CONFIG_HIGHMEM)
-static inline dma_addr_t page_to_dma(struct device *dev, struct page *page)
-{
-	return (dma_addr_t)__virt_to_bus((unsigned long)page_address(page));
-}
-#elif defined(__pfn_to_bus)
 static inline dma_addr_t page_to_dma(struct device *dev, struct page *page)
 {
 	return (dma_addr_t)__pfn_to_bus(page_to_pfn(page));
 }
-#else
-#error "this machine class needs to define __arch_page_to_dma to use HIGHMEM"
-#endif
+
+static inline struct page *dma_to_page(struct device *dev, dma_addr_t addr)
+{
+	return pfn_to_page(__bus_to_pfn(addr));
+}
 
 static inline void *dma_to_virt(struct device *dev, dma_addr_t addr)
 {
@@ -43,6 +38,11 @@ static inline dma_addr_t virt_to_dma(struct device *dev, void *addr)
 static inline dma_addr_t page_to_dma(struct device *dev, struct page *page)
 {
 	return __arch_page_to_dma(dev, page);
+}
+
+static inline struct page *dma_to_page(struct device *dev, dma_addr_t addr)
+{
+	return __arch_dma_to_page(dev, addr);
 }
 
 static inline void *dma_to_virt(struct device *dev, dma_addr_t addr)
@@ -257,9 +257,11 @@ extern int dma_needs_bounce(struct device*, dma_addr_t, size_t);
  */
 extern dma_addr_t dma_map_single(struct device *, void *, size_t,
 		enum dma_data_direction);
+extern void dma_unmap_single(struct device *, dma_addr_t, size_t,
+		enum dma_data_direction);
 extern dma_addr_t dma_map_page(struct device *, struct page *,
 		unsigned long, size_t, enum dma_data_direction);
-extern void dma_unmap_single(struct device *, dma_addr_t, size_t,
+extern void dma_unmap_page(struct device *, dma_addr_t, size_t,
 		enum dma_data_direction);
 
 /*
@@ -352,7 +354,6 @@ static inline void dma_unmap_single(struct device *dev, dma_addr_t handle,
 {
 	/* nothing to do */
 }
-#endif /* CONFIG_DMABOUNCE */
 
 /**
  * dma_unmap_page - unmap a buffer previously mapped through dma_map_page()
@@ -371,8 +372,9 @@ static inline void dma_unmap_single(struct device *dev, dma_addr_t handle,
 static inline void dma_unmap_page(struct device *dev, dma_addr_t handle,
 		size_t size, enum dma_data_direction dir)
 {
-	dma_unmap_single(dev, handle, size, dir);
+	/* nothing to do */
 }
+#endif /* CONFIG_DMABOUNCE */
 
 /**
  * dma_sync_single_range_for_cpu

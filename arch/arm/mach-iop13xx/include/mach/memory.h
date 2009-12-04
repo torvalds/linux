@@ -64,6 +64,8 @@ static inline unsigned long __lbus_to_virt(dma_addr_t x)
 		(dma_addr_t)page_to_phys(page);				\
 	})
 
+#define __arch_dma_to_page(dev, addr)	phys_to_page(addr)
+
 #endif /* CONFIG_ARCH_IOP13XX */
 #endif /* !ASSEMBLY */
 
