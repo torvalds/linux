@@ -24,6 +24,8 @@
 
 #include <asm/atomic.h>
 
+#include "internal.h"
+
 /* sysctl tunables... */
 struct files_stat_struct files_stat = {
 	.max_files = NR_FILE
