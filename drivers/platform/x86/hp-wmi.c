@@ -381,6 +381,8 @@ static void hp_wmi_notify(u32 value, void *context)
 	} else
 		printk(KERN_INFO "HP WMI: Unknown key pressed - %x\n",
 			eventcode);
+
+	kfree(obj);
 }
 
 static int __init hp_wmi_input_setup(void)
