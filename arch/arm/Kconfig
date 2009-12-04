@@ -760,6 +760,7 @@ source "arch/arm/mach-kirkwood/Kconfig"
 
 source "arch/arm/mach-dove/Kconfig"
 
+source "arch/arm/plat-samsung/Kconfig"
 source "arch/arm/plat-s3c24xx/Kconfig"
 source "arch/arm/plat-s3c64xx/Kconfig"
 source "arch/arm/plat-s3c/Kconfig"

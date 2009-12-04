@@ -1,6 +1,6 @@
 /* linux/arch/arm/plat-s3c24xx/pm-simtec.c
  *
- * Copyright (c) 2004 Simtec Electronics
+ * Copyright 2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * http://armlinux.simtec.co.uk/
@@ -35,7 +35,7 @@
 
 #include <plat/pm.h>
 
-#define COPYRIGHT ", (c) 2005 Simtec Electronics"
+#define COPYRIGHT ", Copyright 2005 Simtec Electronics"
 
 /* pm_simtec_init
  *

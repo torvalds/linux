@@ -19,6 +19,7 @@
 
 static struct clk *armclk;
 static struct regulator *vddarm;
+static unsigned long regulator_latency;
 
 #ifdef CONFIG_CPU_S3C6410
 struct s3c64xx_dvfs {
@@ -27,11 +28,10 @@ struct s3c64xx_dvfs {
 };
 
 static struct s3c64xx_dvfs s3c64xx_dvfs_table[] = {
-	[0] = { 1000000, 1000000 },
-	[1] = { 1000000, 1050000 },
-	[2] = { 1050000, 1100000 },
-	[3] = { 1050000, 1150000 },
-	[4] = { 1250000, 1350000 },
+	[0] = { 1000000, 1150000 },
+	[1] = { 1050000, 1150000 },
+	[2] = { 1100000, 1150000 },
+	[3] = { 1200000, 1350000 },
 };
 
 static struct cpufreq_frequency_table s3c64xx_freq_table[] = {
@@ -41,9 +41,9 @@ static struct cpufreq_frequency_table s3c64xx_freq_table[] = {
 	{ 1, 266000 },
 	{ 2, 333000 },
 	{ 2, 400000 },
-	{ 3, 532000 },
-	{ 3, 533000 },
-	{ 4, 667000 },
+	{ 2, 532000 },
+	{ 2, 533000 },
+	{ 3, 667000 },
 	{ 0, CPUFREQ_TABLE_END },
 };
 #endif
@@ -141,7 +141,7 @@ err:
 }
 
 #ifdef CONFIG_REGULATOR
-static void __init s3c64xx_cpufreq_constrain_voltages(void)
+static void __init s3c64xx_cpufreq_config_regulator(void)
 {
 	int count, v, i, found;
 	struct cpufreq_frequency_table *freq;
@@ -150,11 +150,10 @@ static void __init s3c64xx_cpufreq_constrain_voltages(void)
 	count = regulator_count_voltages(vddarm);
 	if (count < 0) {
 		pr_err("cpufreq: Unable to check supported voltages\n");
-		return;
 	}
 
 	freq = s3c64xx_freq_table;
-	while (freq->frequency != CPUFREQ_TABLE_END) {
+	while (count > 0 && freq->frequency != CPUFREQ_TABLE_END) {
 		if (freq->frequency == CPUFREQ_ENTRY_INVALID)
 			continue;
 
@@ -175,6 +174,10 @@ static void __init s3c64xx_cpufreq_constrain_voltages(void)
 
 		freq++;
 	}
+
+	/* Guess based on having to do an I2C/SPI write; in future we
+	 * will be able to query the regulator performance here. */
+	regulator_latency = 1 * 1000 * 1000;
 }
 #endif
 
@@ -206,7 +209,7 @@ static int __init s3c64xx_cpufreq_driver_init(struct cpufreq_policy *policy)
 		pr_err("cpufreq: Only frequency scaling available\n");
 		vddarm = NULL;
 	} else {
-		s3c64xx_cpufreq_constrain_voltages();
+		s3c64xx_cpufreq_config_regulator();
 	}
 #endif
 
@@ -217,8 +220,11 @@ static int __init s3c64xx_cpufreq_driver_init(struct cpufreq_policy *policy)
 		/* Check for frequencies we can generate */
 		r = clk_round_rate(armclk, freq->frequency * 1000);
 		r /= 1000;
-		if (r != freq->frequency)
+		if (r != freq->frequency) {
+			pr_debug("cpufreq: %dkHz unsupported by clock\n",
+				 freq->frequency);
 			freq->frequency = CPUFREQ_ENTRY_INVALID;
+		}
 
 		/* If we have no regulator then assume startup
 		 * frequency is the maximum we can support. */
@@ -230,9 +236,11 @@ static int __init s3c64xx_cpufreq_driver_init(struct cpufreq_policy *policy)
 
 	policy->cur = clk_get_rate(armclk) / 1000;
 
-	/* Pick a conservative guess in ns: we'll need ~1 I2C/SPI
-	 * write plus clock reprogramming. */
-	policy->cpuinfo.transition_latency = 2 * 1000 * 1000;
+	/* Datasheet says PLL stabalisation time (if we were to use
+	 * the PLLs, which we don't currently) is ~300us worst case,
+	 * but add some fudge.
+	 */
+	policy->cpuinfo.transition_latency = (500 * 1000) + regulator_latency;
 
 	ret = cpufreq_frequency_table_cpuinfo(policy, s3c64xx_freq_table);
 	if (ret != 0) {

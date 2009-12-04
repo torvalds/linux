@@ -1,6 +1,6 @@
 /* arch/arm/mach-s3c2410/include/mach/dma.h
  *
- * Copyright (C) 2003,2004,2006 Simtec Electronics
+ * Copyright (C) 2003-2006 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * Samsung S3C24XX DMA support

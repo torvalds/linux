@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2440/mach-rx3715.c
  *
- * Copyright (c) 2003,2004 Simtec Electronics
+ * Copyright (c) 2003-2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * http://www.handhelds.org/projects/rx3715.html
@@ -149,7 +149,7 @@ static struct s3c2410fb_mach_info rx3715_fb_info __initdata = {
 	.gpdup_mask =	0xffffffff,
 };
 
-static struct mtd_partition rx3715_nand_part[] = {
+static struct mtd_partition __initdata rx3715_nand_part[] = {
 	[0] = {
 		.name		= "Whole Flash",
 		.offset		= 0,
@@ -158,7 +158,7 @@ static struct mtd_partition rx3715_nand_part[] = {
 	}
 };
 
-static struct s3c2410_nand_set rx3715_nand_sets[] = {
+static struct s3c2410_nand_set __initdata rx3715_nand_sets[] = {
 	[0] = {
 		.name		= "Internal",
 		.nr_chips	= 1,
@@ -167,7 +167,7 @@ static struct s3c2410_nand_set rx3715_nand_sets[] = {
 	},
 };
 
-static struct s3c2410_platform_nand rx3715_nand_info = {
+static struct s3c2410_platform_nand __initdata rx3715_nand_info = {
 	.tacls		= 25,
 	.twrph0		= 50,
 	.twrph1		= 15,
@@ -186,8 +186,6 @@ static struct platform_device *rx3715_devices[] __initdata = {
 
 static void __init rx3715_map_io(void)
 {
-	s3c_device_nand.dev.platform_data = &rx3715_nand_info;
-
 	s3c24xx_init_io(rx3715_iodesc, ARRAY_SIZE(rx3715_iodesc));
 	s3c24xx_init_clocks(16934000);
 	s3c24xx_init_uarts(rx3715_uartcfgs, ARRAY_SIZE(rx3715_uartcfgs));
@@ -205,6 +203,7 @@ static void __init rx3715_init_machine(void)
 #endif
 	s3c_pm_init();
 
+	s3c_nand_set_platdata(&rx3715_nand_info);
 	s3c24xx_fb_set_platdata(&rx3715_fb_info);
 	platform_add_devices(rx3715_devices, ARRAY_SIZE(rx3715_devices));
 }

@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2440/mach-smdk2440.c
  *
- * Copyright (c) 2004,2005 Simtec Electronics
+ * Copyright (c) 2004-2005 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * http://www.fluff.org/ben/smdk2440/

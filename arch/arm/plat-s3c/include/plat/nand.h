@@ -55,3 +55,11 @@ struct s3c2410_platform_nand {
 					       int chip);
 };
 
+/**
+ * s3c_nand_set_platdata() - register NAND platform data.
+ * @nand: The NAND platform data to register with s3c_device_nand.
+ *
+ * This function copies the given NAND platform data, @nand and registers
+ * it with the s3c_device_nand. This allows @nand to be __initdata.
+*/
+extern void s3c_nand_set_platdata(struct s3c2410_platform_nand *nand);
