@@ -25,11 +25,13 @@ struct lifebook_data {
 	char phys[32];
 };
 
+static bool lifebook_present;
+
 static const char *desired_serio_phys;
 
-static int lifebook_set_serio_phys(const struct dmi_system_id *d)
+static int lifebook_limit_serio3(const struct dmi_system_id *d)
 {
-	desired_serio_phys = d->driver_data;
+	desired_serio_phys = "isa0060/serio3";
 	return 0;
 }
 
@@ -41,7 +43,8 @@ static int lifebook_set_6byte_proto(const struct dmi_system_id *d)
 	return 0;
 }
 
-static const struct dmi_system_id lifebook_dmi_table[] = {
+static const struct dmi_system_id __initconst lifebook_dmi_table[] = {
+#if defined(CONFIG_DMI) && defined(CONFIG_X86)
 	{
 		.ident = "FLORA-ie 55mi",
 		.matches = {
@@ -83,8 +86,7 @@ static const struct dmi_system_id lifebook_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "CF-18"),
 		},
-		.callback = lifebook_set_serio_phys,
-		.driver_data = "isa0060/serio3",
+		.callback = lifebook_limit_serio3,
 	},
 	{
 		.ident = "Panasonic CF-28",
@@ -116,7 +118,13 @@ static const struct dmi_system_id lifebook_dmi_table[] = {
 		},
 	},
 	{ }
+#endif
 };
+
+void __init lifebook_module_init(void)
+{
+	lifebook_present = dmi_check_system(lifebook_dmi_table);
+}
 
 static psmouse_ret_t lifebook_process_byte(struct psmouse *psmouse)
 {
@@ -243,7 +251,7 @@ static void lifebook_disconnect(struct psmouse *psmouse)
 
 int lifebook_detect(struct psmouse *psmouse, bool set_properties)
 {
-        if (!dmi_check_system(lifebook_dmi_table))
+        if (!lifebook_present)
                 return -1;
 
 	if (desired_serio_phys &&
