@@ -77,6 +77,8 @@ struct mantis_hwconfig {
 };
 
 struct mantis_pci {
+	unsigned int		verbose;
+
 	/*	PCI stuff		*/
 	u16			vendor_id;
 	u16			device_id;
