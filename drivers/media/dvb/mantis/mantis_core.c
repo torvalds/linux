@@ -111,7 +111,6 @@ static void mantis_load_config(struct mantis_pci *mantis)
 		mantis->hwconfig = &vp1034_mantis_config;
 		break;
 	case MANTIS_VP_2033_DVB_C:	// VP-2033
-	case TERRATEC_CINERGY_C_PCI:	// Terratec Cinergy C PCI
 		mantis->hwconfig = &vp2033_mantis_config;
 		break;
 	case MANTIS_VP_3030_DVB_T:	// VP-3030

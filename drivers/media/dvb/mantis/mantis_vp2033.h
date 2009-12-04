@@ -26,7 +26,6 @@
 #include "tda1002x.h"
 
 #define MANTIS_VP_2033_DVB_C	0x0008
-#define TERRATEC_CINERGY_C_PCI	0x1178
 
 extern struct tda1002x_config philips_cu1216_config;
 extern struct mantis_hwconfig vp2033_mantis_config;
