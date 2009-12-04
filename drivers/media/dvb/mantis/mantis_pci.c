@@ -27,6 +27,7 @@
 #include <linux/device.h>
 #include "mantis_common.h"
 #include "mantis_core.h"
+#include "mantis_uart.h"
 
 #include <asm/irq.h>
 #include <linux/signal.h>
@@ -94,6 +95,7 @@ static irqreturn_t mantis_pci_irq(int irq, void *dev_id)
 	}
 	if (stat & MANTIS_INT_IRQ1) {
 		dprintk(verbose, MANTIS_DEBUG, 0, "* INT IRQ-1 *");
+		schedule_work(&mantis->uart_work);
 	}
 	if (stat & MANTIS_INT_OCERR) {
 		dprintk(verbose, MANTIS_DEBUG, 0, "* INT OCERR *");

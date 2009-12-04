@@ -165,6 +165,10 @@ int mantis_core_init(struct mantis_pci *mantis)
 		dprintk(verbose, MANTIS_DEBUG, 1, "Mantis DVB init failed");
 		return err;
 	}
+	if ((err = mantis_uart_init(mantis)) < 0) {
+		dprintk(verbose, MANTIS_DEBUG, 1, "Mantis UART init failed");
+		return err;
+	}
 
 	return 0;
 }
@@ -173,6 +177,10 @@ int mantis_core_exit(struct mantis_pci *mantis)
 {
 	mantis_dma_stop(mantis);
 	dprintk(verbose, MANTIS_ERROR, 1, "DMA engine stopping");
+
+	mantis_uart_exit(mantis);
+	dprintk(verbose, MANTIS_ERROR, 1, "UART exit failed");
+
 	if (mantis_dma_exit(mantis) < 0)
 		dprintk(verbose, MANTIS_ERROR, 1, "DMA exit failed");
 	if (mantis_dvb_exit(mantis) < 0)

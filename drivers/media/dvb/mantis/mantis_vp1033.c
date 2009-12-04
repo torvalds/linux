@@ -88,6 +88,9 @@ struct mantis_hwconfig vp1033_mantis_config = {
 	.model_name		= MANTIS_MODEL_NAME,
 	.dev_type		= MANTIS_DEV_TYPE,
 	.ts_size		= MANTIS_TS_204,
+	.baud_rate		= MANTIS_BAUD_9600,
+	.parity			= MANTIS_PARITY_NONE,
+	.bytes			= 0,
 };
 
 int lgtdqcs001f_tuner_set(struct dvb_frontend *fe,

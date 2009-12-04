@@ -26,6 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/mutex.h>
+#include <linux/workqueue.h>
 
 #include "dvbdev.h"
 #include "dvb_demux.h"
@@ -34,6 +35,7 @@
 #include "dvb_net.h"
 #include <linux/i2c.h>
 #include "mantis_reg.h"
+#include "mantis_uart.h"
 
 #include "mantis_link.h"
 
@@ -74,6 +76,10 @@ struct mantis_hwconfig {
 	char			*model_name;
 	char			*dev_type;
 	u32			ts_size;
+
+	enum mantis_baud	baud_rate;
+	enum mantis_parity	parity;
+	u32			bytes;
 };
 
 struct mantis_pci {
@@ -142,6 +148,10 @@ struct mantis_pci {
 	u32			gpif_status;
 
 	struct mantis_ca	*mantis_ca;
+
+	wait_queue_head_t	uart_wq;
+	struct work_struct	uart_work;
+	spinlock_t		uart_lock;
 };
 
 #define MANTIS_HIF_STATUS	(mantis->gpio_status)
