@@ -1211,7 +1211,7 @@ done:
  *
  * exported to ep0 code
  */
-int musb_gadget_set_halt(struct usb_ep *ep, int value)
+static int musb_gadget_set_halt(struct usb_ep *ep, int value)
 {
 	struct musb_ep		*musb_ep = to_musb_ep(ep);
 	u8			epnum = musb_ep->current_epnum;
@@ -1296,7 +1296,7 @@ done:
 /*
  * Sets the halt feature with the clear requests ignored
  */
-int musb_gadget_set_wedge(struct usb_ep *ep)
+static int musb_gadget_set_wedge(struct usb_ep *ep)
 {
 	struct musb_ep		*musb_ep = to_musb_ep(ep);
 
