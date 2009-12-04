@@ -22,9 +22,9 @@
 #include "mantis_link.h"
 #include "mantis_hif.h"
 
-void mantis_hifevm_tasklet(unsigned long data)
+static void mantis_hifevm_work(struct work_struct *work)
 {
-	struct mantis_ca *ca = (struct mantis_ca *) data;
+	struct mantis_ca *ca = container_of(work, struct mantis_ca, hif_evm_work);
 	struct mantis_pci *mantis = ca->ca_priv;
 
 	u32 gpif_stat, gpif_mask;
@@ -38,15 +38,13 @@ void mantis_hifevm_tasklet(unsigned long data)
 		if (gpif_stat & MANTIS_CARD_PLUGIN) {
 			dprintk(verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): CAM Plugin", mantis->num);
 			mmwrite(0xdada0000, MANTIS_CARD_RESET);
-			// Plugin call here
-			gpif_stat = 0; // crude !
+			mantis_event_cam_plugin(ca);
 		}
 	} else {
 		if (gpif_stat & MANTIS_CARD_PLUGOUT) {
 			dprintk(verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): CAM Unplug", mantis->num);
 			mmwrite(0xdada0000, MANTIS_CARD_RESET);
-			// Unplug call here
-			gpif_stat = 0; // crude !
+			mantis_event_cam_unplug(ca);
 		}
 	}
 
@@ -91,9 +89,9 @@ int mantis_evmgr_init(struct mantis_ca *ca)
 	struct mantis_pci *mantis = ca->ca_priv;
 
 	dprintk(verbose, MANTIS_DEBUG, 1, "Initializing Mantis Host I/F Event manager");
-	tasklet_init(&ca->hif_evm_tasklet, mantis_hifevm_tasklet, (unsigned long) ca);
-
+	INIT_WORK(&ca->hif_evm_work, mantis_hifevm_work);
 	mantis_pcmcia_init(ca);
+	schedule_work(&ca->hif_evm_work);
 
 	return 0;
 }
@@ -103,7 +101,6 @@ void mantis_evmgr_exit(struct mantis_ca *ca)
 	struct mantis_pci *mantis = ca->ca_priv;
 
 	dprintk(verbose, MANTIS_DEBUG, 1, "Mantis Host I/F Event manager exiting");
-	tasklet_kill(&ca->hif_evm_tasklet);
-
+	flush_scheduled_work();
 	mantis_pcmcia_exit(ca);
 }

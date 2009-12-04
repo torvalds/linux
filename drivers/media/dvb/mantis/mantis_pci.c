@@ -77,7 +77,7 @@ static irqreturn_t mantis_pci_irq(int irq, void *dev_id)
 	}
 	if (stat & MANTIS_INT_IRQ0) {
 		dprintk(verbose, MANTIS_DEBUG, 0, "* INT IRQ-0 *");
-		tasklet_schedule(&ca->hif_evm_tasklet);
+		schedule_work(&ca->hif_evm_work);
 	}
 	if (stat & MANTIS_INT_IRQ1) {
 		dprintk(verbose, MANTIS_DEBUG, 0, "* INT IRQ-1 *");

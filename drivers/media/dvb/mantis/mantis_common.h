@@ -151,4 +151,8 @@ extern int mantis_dvb_exit(struct mantis_pci *mantis);
 extern void mantis_dma_xfer(unsigned long data);
 extern void gpio_set_bits(struct mantis_pci *mantis, u32 bitpos, u8 value);
 
+extern struct dvb_device *mantis_ca_init(struct mantis_pci *mantis);
+extern void mantis_ca_exit(struct mantis_pci *mantis);
+
+
 #endif //__MANTIS_COMMON_H

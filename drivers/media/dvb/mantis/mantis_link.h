@@ -21,6 +21,8 @@
 #ifndef __MANTIS_LINK_H
 #define __MANTIS_LINK_H
 
+#include <linux/workqueue.h>
+
 enum mantis_sbuf_status {
 	MANTIS_SBUF_DATA_AVAIL		= 1,
 	MANTIS_SBUF_DATA_EMPTY		= 2,
@@ -40,7 +42,7 @@ enum mantis_slot_state {
 struct mantis_ca {
 	struct mantis_slot		slot;
 
-	struct tasklet_struct		hif_evm_tasklet;
+	struct work_struct		hif_evm_work;
 
 	u32				hif_event;
 	wait_queue_head_t		hif_opdone_wq;
