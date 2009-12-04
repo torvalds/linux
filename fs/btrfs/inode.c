@@ -2153,7 +2153,7 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 		found_key.objectid = found_key.offset;
 		found_key.type = BTRFS_INODE_ITEM_KEY;
 		found_key.offset = 0;
-		inode = btrfs_iget(root->fs_info->sb, &found_key, root);
+		inode = btrfs_iget(root->fs_info->sb, &found_key, root, NULL);
 		if (IS_ERR(inode))
 			break;
 
@@ -3687,7 +3687,7 @@ static struct inode *btrfs_iget_locked(struct super_block *s,
  * Returns in *is_new if the inode was read from disk
  */
 struct inode *btrfs_iget(struct super_block *s, struct btrfs_key *location,
-			 struct btrfs_root *root)
+			 struct btrfs_root *root, int *new)
 {
 	struct inode *inode;
 
@@ -3702,6 +3702,8 @@ struct inode *btrfs_iget(struct super_block *s, struct btrfs_key *location,
 
 		inode_tree_add(inode);
 		unlock_new_inode(inode);
+		if (new)
+			*new = 1;
 	}
 
 	return inode;
@@ -3754,7 +3756,7 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 		return NULL;
 
 	if (location.type == BTRFS_INODE_ITEM_KEY) {
-		inode = btrfs_iget(dir->i_sb, &location, root);
+		inode = btrfs_iget(dir->i_sb, &location, root, NULL);
 		return inode;
 	}
 
@@ -3769,7 +3771,7 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 		else
 			inode = new_simple_dir(dir->i_sb, &location, sub_root);
 	} else {
-		inode = btrfs_iget(dir->i_sb, &location, sub_root);
+		inode = btrfs_iget(dir->i_sb, &location, sub_root, NULL);
 	}
 	srcu_read_unlock(&root->fs_info->subvol_srcu, index);
 
