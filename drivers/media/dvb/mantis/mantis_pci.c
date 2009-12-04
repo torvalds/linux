@@ -181,8 +181,11 @@ static int __devinit mantis_pci_probe(struct pci_dev *pdev,
 	// Clear and disable all interrupts at startup
 	// to avoid lockup situations
 	mmwrite(0x00, MANTIS_INT_MASK);
-	if (request_irq(pdev->irq, mantis_pci_irq, IRQF_SHARED | IRQF_DISABLED,
-						DRIVER_NAME, mantis) < 0) {
+	if (request_irq(pdev->irq,
+			mantis_pci_irq,
+			IRQF_SHARED,
+			DRIVER_NAME,
+			mantis) < 0) {
 
 		dprintk(verbose, MANTIS_ERROR, 1, "Mantis IRQ reg failed");
 		ret = -ENODEV;
