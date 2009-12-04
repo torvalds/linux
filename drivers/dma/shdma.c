@@ -677,6 +677,8 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 	shdev->common.device_is_tx_complete = sh_dmae_is_complete;
 	shdev->common.device_issue_pending = sh_dmae_memcpy_issue_pending;
 	shdev->common.dev = &pdev->dev;
+	/* Default transfer size of 32 bytes requires 32-byte alignment */
+	shdev->common.copy_align = 5;
 
 #if defined(CONFIG_CPU_SH4)
 	/* Non Mix IRQ mode SH7722/SH7730 etc... */
