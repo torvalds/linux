@@ -361,6 +361,16 @@ void nfs41_sequence_free_slot(const struct nfs_client *clp,
 	}
 	nfs4_free_slot(tbl, res->sr_slotid);
 	res->sr_slotid = NFS4_MAX_SLOT_TABLE;
+
+	/* Signal state manager thread if session is drained */
+	if (test_bit(NFS4CLNT_SESSION_DRAINING, &clp->cl_state)) {
+		spin_lock(&tbl->slot_tbl_lock);
+		if (tbl->highest_used_slotid == -1) {
+			dprintk("%s COMPLETE: Session Drained\n", __func__);
+			complete(&clp->cl_session->complete);
+		}
+		spin_unlock(&tbl->slot_tbl_lock);
+	}
 }
 
 static void nfs41_sequence_done(struct nfs_client *clp,
@@ -457,15 +467,11 @@ static int nfs41_setup_sequence(struct nfs4_session *session,
 
 	spin_lock(&tbl->slot_tbl_lock);
 	if (test_bit(NFS4CLNT_SESSION_RESET, &session->clp->cl_state)) {
-		if (tbl->highest_used_slotid != -1) {
-			rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
-			spin_unlock(&tbl->slot_tbl_lock);
-			dprintk("<-- %s: Session reset: draining\n", __func__);
-			return -EAGAIN;
-		}
-
-		/* The slot table is empty; start the reset thread */
-		dprintk("%s Session Reset\n", __func__);
+		/*
+		 * The state manager will wait until the slot table is empty.
+		 * Schedule the reset thread
+		 */
+		dprintk("%s Schedule Session Reset\n", __func__);
 		rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
 		nfs4_schedule_state_manager(session->clp);
 		spin_unlock(&tbl->slot_tbl_lock);
@@ -4506,6 +4512,7 @@ static int nfs4_reset_slot_tables(struct nfs4_session *session)
 			1);
 	if (status)
 		return status;
+	init_completion(&session->complete);
 
 	status = nfs4_reset_slot_table(&session->bc_slot_table,
 			session->bc_attrs.max_reqs,
@@ -4608,6 +4615,7 @@ struct nfs4_session *nfs4_alloc_session(struct nfs_client *clp)
 	 * nfs_client struct
 	 */
 	clp->cl_cons_state = NFS_CS_SESSION_INITING;
+	init_completion(&session->complete);
 
 	tbl = &session->fc_slot_table;
 	spin_lock_init(&tbl->slot_tbl_lock);

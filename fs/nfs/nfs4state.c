@@ -1181,7 +1181,22 @@ static void nfs4_session_recovery_handle_error(struct nfs_client *clp, int err)
 
 static int nfs4_reset_session(struct nfs_client *clp)
 {
+	struct nfs4_session *ses = clp->cl_session;
+	struct nfs4_slot_table *tbl = &ses->fc_slot_table;
 	int status;
+
+	INIT_COMPLETION(ses->complete);
+	spin_lock(&tbl->slot_tbl_lock);
+	if (tbl->highest_used_slotid != -1) {
+		set_bit(NFS4CLNT_SESSION_DRAINING, &clp->cl_state);
+		spin_unlock(&tbl->slot_tbl_lock);
+		status = wait_for_completion_interruptible(&ses->complete);
+		clear_bit(NFS4CLNT_SESSION_DRAINING, &clp->cl_state);
+		if (status) /* -ERESTARTSYS */
+			goto out;
+	} else {
+		spin_unlock(&tbl->slot_tbl_lock);
+	}
 
 	status = nfs4_proc_destroy_session(clp->cl_session);
 	if (status && status != -NFS4ERR_BADSESSION &&
