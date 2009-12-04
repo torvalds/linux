@@ -183,30 +183,15 @@ static DEVICE_ATTR(value, S_IWUGO | S_IRUGO | S_IWUSR, \
 show_set_bool(wireless, TC1100_INSTANCE_WIRELESS);
 show_set_bool(jogdial, TC1100_INSTANCE_JOGDIAL);
 
-static void remove_fs(void)
-{
-	device_remove_file(&tc1100_device->dev, &dev_attr_wireless);
-	device_remove_file(&tc1100_device->dev, &dev_attr_jogdial);
-}
+static struct attribute *tc1100_attributes[] = {
+	&dev_attr_wireless.attr,
+	&dev_attr_jogdial.attr,
+	NULL
+};
 
-static int add_fs(void)
-{
-	int ret;
-
-	ret = device_create_file(&tc1100_device->dev, &dev_attr_wireless);
-	if (ret)
-		goto add_sysfs_error;
-
-	ret = device_create_file(&tc1100_device->dev, &dev_attr_jogdial);
-	if (ret)
-		goto add_sysfs_error;
-
-	return ret;
-
-add_sysfs_error:
-	remove_fs();
-	return ret;
-}
+static struct attribute_group tc1100_attribute_group = {
+	.attrs	= tc1100_attributes,
+};
 
 /* --------------------------------------------------------------------------
 				Driver Model
@@ -214,16 +199,14 @@ add_sysfs_error:
 
 static int tc1100_probe(struct platform_device *device)
 {
-	int result = 0;
-
-	result = add_fs();
-	return result;
+	return sysfs_create_group(&device->dev.kobj, &tc1100_attribute_group);
 }
 
 
 static int tc1100_remove(struct platform_device *device)
 {
-	remove_fs();
+	sysfs_remove_group(&device->dev.kobj, &tc1100_attribute_group);
+
 	return 0;
 }
 
