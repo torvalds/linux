@@ -2318,6 +2318,7 @@ static void get_tcp4_sock(struct sock *sk, struct seq_file *f, int i, int *len)
 	__be32 src = inet->inet_rcv_saddr;
 	__u16 destp = ntohs(inet->inet_dport);
 	__u16 srcp = ntohs(inet->inet_sport);
+	int rx_queue;
 
 	if (icsk->icsk_pending == ICSK_TIME_RETRANS) {
 		timer_active	= 1;
@@ -2333,12 +2334,19 @@ static void get_tcp4_sock(struct sock *sk, struct seq_file *f, int i, int *len)
 		timer_expires = jiffies;
 	}
 
+	if (sk->sk_state == TCP_LISTEN)
+		rx_queue = sk->sk_ack_backlog;
+	else
+		/*
+		 * because we dont lock socket, we might find a transient negative value
+		 */
+		rx_queue = max_t(int, tp->rcv_nxt - tp->copied_seq, 0);
+
 	seq_printf(f, "%4d: %08X:%04X %08X:%04X %02X %08X:%08X %02X:%08lX "
 			"%08X %5d %8d %lu %d %p %lu %lu %u %u %d%n",
 		i, src, srcp, dest, destp, sk->sk_state,
 		tp->write_seq - tp->snd_una,
-		sk->sk_state == TCP_LISTEN ? sk->sk_ack_backlog :
-					     (tp->rcv_nxt - tp->copied_seq),
+		rx_queue,
 		timer_active,
 		jiffies_to_clock_t(timer_expires - jiffies),
 		icsk->icsk_retransmits,
