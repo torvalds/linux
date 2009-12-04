@@ -72,9 +72,9 @@ static void mantis_hifevm_work(struct work_struct *work)
 	if (gpif_stat & MANTIS_SBUF_OVFLW)
 		dprintk(verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): Smart Buffer Overflow", mantis->num);
 
-	if (gpif_stat & MANTIS_GPIF_BRRDY) {
+	if (gpif_stat & MANTIS_GPIF_BRRDY)
 		dprintk(verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): Smart Buffer Read Ready", mantis->num);
-	}
+
 	if (gpif_stat & MANTIS_GPIF_WRACK)
 		dprintk(verbose, MANTIS_DEBUG, 1, "Event Mgr: Adapter(%d) Slot(0): Slave Write ACK", mantis->num);
 
