@@ -209,9 +209,6 @@ int mantis_hif_init(struct mantis_ca *ca)
 
 	slot[0].slave_cfg = 0x70773028;
 	dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Initializing Mantis Host Interface", mantis->num);
-	init_waitqueue_head(&ca->hif_data_wq);
-	init_waitqueue_head(&ca->hif_opdone_wq);
-	init_waitqueue_head(&ca->hif_write_wq);
 
 	mutex_lock(&ca->ca_lock);
 	irqcfg = mmread(MANTIS_GPIF_IRQCFG);

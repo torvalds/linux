@@ -158,6 +158,10 @@ int mantis_ca_init(struct mantis_pci *mantis)
 
 	mutex_init(&ca->ca_lock);
 
+	init_waitqueue_head(&ca->hif_data_wq);
+	init_waitqueue_head(&ca->hif_opdone_wq);
+	init_waitqueue_head(&ca->hif_write_wq);
+
 	dprintk(verbose, MANTIS_ERROR, 1, "Registering EN50221 device");
 	if ((result = dvb_ca_en50221_init(dvb_adapter, &ca->en50221, ca_flags, 1)) != 0) {
 		dprintk(verbose, MANTIS_ERROR, 1, "EN50221: Initialization failed");
