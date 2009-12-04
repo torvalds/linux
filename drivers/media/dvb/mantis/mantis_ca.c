@@ -80,6 +80,11 @@ static int mantis_ca_slot_reset(struct dvb_ca_en50221 *en50221, int slot)
 	struct mantis_pci *mantis = ca->ca_priv;
 
 	dprintk(verbose, MANTIS_DEBUG, 1, "Slot(%d): Slot RESET", slot);
+	udelay(500); /* Wait.. */
+	mmwrite(0xda, MANTIS_PCMCIA_RESET); /* Leading edge assert */
+	udelay(500);
+	mmwrite(0x00, MANTIS_PCMCIA_RESET); /* Trailing edge deassert */
+	msleep(1000);
 
 	return 0;
 }
