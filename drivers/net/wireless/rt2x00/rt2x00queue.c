@@ -387,10 +387,13 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 
 	/*
 	 * Beacons and probe responses require the tsf timestamp
-	 * to be inserted into the frame.
+	 * to be inserted into the frame, except for a frame that has been injected
+	 * through a monitor interface. This latter is needed for testing a
+	 * monitor interface.
 	 */
-	if (ieee80211_is_beacon(hdr->frame_control) ||
-	    ieee80211_is_probe_resp(hdr->frame_control))
+	if ((ieee80211_is_beacon(hdr->frame_control) ||
+	    ieee80211_is_probe_resp(hdr->frame_control)) &&
+	    (!(tx_info->flags & IEEE80211_TX_CTL_INJECTED)))
 		__set_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags);
 
 	/*
