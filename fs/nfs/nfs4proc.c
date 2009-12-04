@@ -336,7 +336,6 @@ nfs4_free_slot(struct nfs4_slot_table *tbl, u8 free_slotid)
 		else
 			tbl->highest_used_slotid = -1;
 	}
-	rpc_wake_up_next(&tbl->slot_tbl_waitq);
 	spin_unlock(&tbl->slot_tbl_lock);
 	dprintk("%s: free_slotid %u highest_used_slotid %d\n", __func__,
 		free_slotid, tbl->highest_used_slotid);
@@ -353,14 +352,13 @@ void nfs41_sequence_free_slot(const struct nfs_client *clp,
 	}
 	tbl = &clp->cl_session->fc_slot_table;
 	if (res->sr_slotid == NFS4_MAX_SLOT_TABLE) {
-		dprintk("%s: No slot\n", __func__);
 		/* just wake up the next guy waiting since
 		 * we may have not consumed a slot after all */
-		rpc_wake_up_next(&tbl->slot_tbl_waitq);
-		return;
+		dprintk("%s: No slot\n", __func__);
+	} else {
+		nfs4_free_slot(tbl, res->sr_slotid);
+		res->sr_slotid = NFS4_MAX_SLOT_TABLE;
 	}
-	nfs4_free_slot(tbl, res->sr_slotid);
-	res->sr_slotid = NFS4_MAX_SLOT_TABLE;
 
 	/* Signal state manager thread if session is drained */
 	if (test_bit(NFS4CLNT_SESSION_DRAINING, &clp->cl_state)) {
@@ -370,6 +368,8 @@ void nfs41_sequence_free_slot(const struct nfs_client *clp,
 			complete(&clp->cl_session->complete);
 		}
 		spin_unlock(&tbl->slot_tbl_lock);
+	} else {
+		rpc_wake_up_next(&tbl->slot_tbl_waitq);
 	}
 }
 
@@ -394,10 +394,10 @@ static void nfs41_sequence_done(struct nfs_client *clp,
 	if (res->sr_slotid == NFS4_MAX_SLOT_TABLE)
 		goto out;
 
-	tbl = &clp->cl_session->fc_slot_table;
-	slot = tbl->slots + res->sr_slotid;
-
+	/* Check the SEQUENCE operation status */
 	if (res->sr_status == 0) {
+		tbl = &clp->cl_session->fc_slot_table;
+		slot = tbl->slots + res->sr_slotid;
 		/* Update the slot's sequence and clientid lease timer */
 		++slot->seq_nr;
 		timestamp = res->sr_renewal_time;
