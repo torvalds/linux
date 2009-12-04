@@ -118,8 +118,12 @@ static int mantis_slot_status(struct dvb_ca_en50221 *en50221, int slot, int open
 
 	dprintk(verbose, MANTIS_DEBUG, 1, "Slot(%d): Poll Slot status", slot);
 
-	if (ca->slot_state == MODULE_INSERTED)
+	if (ca->slot_state == MODULE_INSERTED) {
+		dprintk(verbose, MANTIS_DEBUG, 1, "CA Module present and ready");
 		return DVB_CA_EN50221_POLL_CAM_PRESENT | DVB_CA_EN50221_POLL_CAM_READY;
+	} else {
+		dprintk(verbose, MANTIS_DEBUG, 1, "CA Module not present or not ready");
+	}
 
 	return 0;
 }
