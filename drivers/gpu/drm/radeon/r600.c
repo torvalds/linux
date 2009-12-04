@@ -131,7 +131,7 @@ bool r600_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd)
 }
 
 void r600_hpd_set_polarity(struct radeon_device *rdev,
-			    enum radeon_hpd_id hpd)
+			   enum radeon_hpd_id hpd)
 {
 	u32 tmp;
 	bool connected = r600_hpd_sense(rdev, hpd);
