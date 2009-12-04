@@ -1067,7 +1067,7 @@ static struct notifier_block usb_bus_nb = {
 struct dentry *usb_debug_root;
 EXPORT_SYMBOL_GPL(usb_debug_root);
 
-struct dentry *usb_debug_devices;
+static struct dentry *usb_debug_devices;
 
 static int usb_debugfs_init(void)
 {
