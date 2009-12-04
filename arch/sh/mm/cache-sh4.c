@@ -98,7 +98,7 @@ static inline void flush_cache_one(unsigned long start, unsigned long phys)
 		exec_offset = cached_to_uncached;
 
 	local_irq_save(flags);
-	__flush_cache_one(start | SH_CACHE_ASSOC, phys, exec_offset);
+	__flush_cache_one(start, phys, exec_offset);
 	local_irq_restore(flags);
 }
 
@@ -123,7 +123,7 @@ static void sh4_flush_dcache_page(void *arg)
 
 		/* Loop all the D-cache */
 		n = boot_cpu_data.dcache.n_aliases;
-		for (i = 0; i <= n; i++, addr += PAGE_SIZE)
+		for (i = 0; i < n; i++, addr += PAGE_SIZE)
 			flush_cache_one(addr, phys);
 	}
 
