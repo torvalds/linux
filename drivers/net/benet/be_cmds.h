@@ -112,6 +112,7 @@ struct be_mcc_mailbox {
 
 #define CMD_SUBSYSTEM_COMMON	0x1
 #define CMD_SUBSYSTEM_ETH 	0x3
+#define CMD_SUBSYSTEM_LOWLEVEL  0xb
 
 #define OPCODE_COMMON_NTWK_MAC_QUERY			1
 #define OPCODE_COMMON_NTWK_MAC_SET			2
@@ -151,6 +152,9 @@ struct be_mcc_mailbox {
 #define OPCODE_ETH_TX_DESTROY           		9
 #define OPCODE_ETH_RX_DESTROY           		10
 #define OPCODE_ETH_ACPI_WOL_MAGIC_CONFIG		12
+
+#define OPCODE_LOWLEVEL_HOST_DDR_DMA                    17
+#define OPCODE_LOWLEVEL_LOOPBACK_TEST                   18
 
 struct be_cmd_req_hdr {
 	u8 opcode;		/* dword 0 */
@@ -797,6 +801,45 @@ struct be_cmd_req_acpi_wol_magic_config{
 	u8 rsvd2[2];
 } __packed;
 
+/********************** LoopBack test *********************/
+struct be_cmd_req_loopback_test {
+	struct be_cmd_req_hdr hdr;
+	u32 loopback_type;
+	u32 num_pkts;
+	u64 pattern;
+	u32 src_port;
+	u32 dest_port;
+	u32 pkt_size;
+};
+
+struct be_cmd_resp_loopback_test {
+	struct be_cmd_resp_hdr resp_hdr;
+	u32    status;
+	u32    num_txfer;
+	u32    num_rx;
+	u32    miscomp_off;
+	u32    ticks_compl;
+};
+
+/********************** DDR DMA test *********************/
+struct be_cmd_req_ddrdma_test {
+	struct be_cmd_req_hdr hdr;
+	u64 pattern;
+	u32 byte_count;
+	u32 rsvd0;
+	u8  snd_buff[4096];
+	u8  rsvd1[4096];
+};
+
+struct be_cmd_resp_ddrdma_test {
+	struct be_cmd_resp_hdr hdr;
+	u64 pattern;
+	u32 byte_cnt;
+	u32 snd_err;
+	u8  rsvd0[4096];
+	u8  rcv_buff[4096];
+};
+
 extern int be_pci_fnum_get(struct be_adapter *adapter);
 extern int be_cmd_POST(struct be_adapter *adapter);
 extern int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
@@ -864,3 +907,8 @@ extern int be_cmd_enable_magic_wol(struct be_adapter *adapter, u8 *mac,
 				struct be_dma_mem *nonemb_cmd);
 extern int be_cmd_fw_init(struct be_adapter *adapter);
 extern int be_cmd_fw_clean(struct be_adapter *adapter);
+extern int be_cmd_loopback_test(struct be_adapter *adapter, u32 port_num,
+				u32 loopback_type, u32 pkt_size,
+				u32 num_pkts, u64 pattern);
+extern int be_cmd_ddr_dma_test(struct be_adapter *adapter, u64 pattern,
+			u32 byte_cnt, struct be_dma_mem *cmd);

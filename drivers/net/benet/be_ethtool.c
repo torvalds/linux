@@ -107,6 +107,18 @@ static const struct be_ethtool_stat et_stats[] = {
 };
 #define ETHTOOL_STATS_NUM ARRAY_SIZE(et_stats)
 
+static const char et_self_tests[][ETH_GSTRING_LEN] = {
+	"MAC Loopback test",
+	"PHY Loopback test",
+	"External Loopback test",
+	"DDR DMA test"
+};
+
+#define ETHTOOL_TESTS_NUM ARRAY_SIZE(et_self_tests)
+#define BE_MAC_LOOPBACK 0x0
+#define BE_PHY_LOOPBACK 0x1
+#define BE_ONE_PORT_EXT_LOOPBACK 0x2
+
 static void
 be_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 {
@@ -278,12 +290,20 @@ be_get_stat_strings(struct net_device *netdev, uint32_t stringset,
 			data += ETH_GSTRING_LEN;
 		}
 		break;
+	case ETH_SS_TEST:
+		for (i = 0; i < ETHTOOL_TESTS_NUM; i++) {
+			memcpy(data, et_self_tests[i], ETH_GSTRING_LEN);
+			data += ETH_GSTRING_LEN;
+		}
+		break;
 	}
 }
 
 static int be_get_sset_count(struct net_device *netdev, int stringset)
 {
 	switch (stringset) {
+	case ETH_SS_TEST:
+		return ETHTOOL_TESTS_NUM;
 	case ETH_SS_STATS:
 		return ETHTOOL_STATS_NUM;
 	default:
@@ -442,6 +462,67 @@ be_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 }
 
 static int
+be_test_ddr_dma(struct be_adapter *adapter)
+{
+	int ret, i;
+	struct be_dma_mem ddrdma_cmd;
+	u64 pattern[2] = {0x5a5a5a5a5a5a5a5a, 0xa5a5a5a5a5a5a5a5};
+
+	ddrdma_cmd.size = sizeof(struct be_cmd_req_ddrdma_test);
+	ddrdma_cmd.va = pci_alloc_consistent(adapter->pdev, ddrdma_cmd.size,
+					&ddrdma_cmd.dma);
+	if (!ddrdma_cmd.va) {
+		dev_err(&adapter->pdev->dev, "Memory allocation failure \n");
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < 2; i++) {
+		ret = be_cmd_ddr_dma_test(adapter, pattern[i],
+					4096, &ddrdma_cmd);
+		if (ret != 0)
+			goto err;
+	}
+
+err:
+	pci_free_consistent(adapter->pdev, ddrdma_cmd.size,
+			ddrdma_cmd.va, ddrdma_cmd.dma);
+	return ret;
+}
+
+static void
+be_self_test(struct net_device *netdev, struct ethtool_test *test, u64 *data)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	memset(data, 0, sizeof(u64) * ETHTOOL_TESTS_NUM);
+
+	if (test->flags & ETH_TEST_FL_OFFLINE) {
+		data[0] = be_cmd_loopback_test(adapter, adapter->port_num,
+						BE_MAC_LOOPBACK, 1500,
+						2, 0xabc);
+		if (data[0] != 0)
+			test->flags |= ETH_TEST_FL_FAILED;
+
+		data[1] = be_cmd_loopback_test(adapter, adapter->port_num,
+						BE_PHY_LOOPBACK, 1500,
+						2, 0xabc);
+		if (data[1] != 0)
+			test->flags |= ETH_TEST_FL_FAILED;
+
+		data[2] = be_cmd_loopback_test(adapter, adapter->port_num,
+						BE_ONE_PORT_EXT_LOOPBACK,
+						1500, 2, 0xabc);
+		if (data[2] != 0)
+			test->flags |= ETH_TEST_FL_FAILED;
+
+		data[3] = be_test_ddr_dma(adapter);
+		if (data[3] != 0)
+			test->flags |= ETH_TEST_FL_FAILED;
+	}
+
+}
+
+static int
 be_do_flash(struct net_device *netdev, struct ethtool_flash *efl)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
@@ -479,4 +560,5 @@ const struct ethtool_ops be_ethtool_ops = {
 	.get_sset_count = be_get_sset_count,
 	.get_ethtool_stats = be_get_ethtool_stats,
 	.flash_device = be_do_flash,
+	.self_test = be_self_test,
 };

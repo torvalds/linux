@@ -1478,3 +1478,96 @@ err:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }
+
+int be_cmd_loopback_test(struct be_adapter *adapter, u32 port_num,
+		u32 loopback_type, u32 pkt_size, u32 num_pkts, u64 pattern)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_loopback_test *req;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = embedded_payload(wrb);
+
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0,
+				OPCODE_LOWLEVEL_LOOPBACK_TEST);
+
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_LOWLEVEL,
+			OPCODE_LOWLEVEL_LOOPBACK_TEST, sizeof(*req));
+
+	req->pattern = cpu_to_le64(pattern);
+	req->src_port = cpu_to_le32(port_num);
+	req->dest_port = cpu_to_le32(port_num);
+	req->pkt_size = cpu_to_le32(pkt_size);
+	req->num_pkts = cpu_to_le32(num_pkts);
+	req->loopback_type = cpu_to_le32(loopback_type);
+
+	status = be_mcc_notify_wait(adapter);
+	if (!status) {
+		struct be_cmd_resp_loopback_test *resp = embedded_payload(wrb);
+		status = le32_to_cpu(resp->status);
+	}
+
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
+int be_cmd_ddr_dma_test(struct be_adapter *adapter, u64 pattern,
+				u32 byte_cnt, struct be_dma_mem *cmd)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_ddrdma_test *req;
+	struct be_sge *sge;
+	int status;
+	int i, j = 0;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+	req = cmd->va;
+	sge = nonembedded_sgl(wrb);
+	be_wrb_hdr_prepare(wrb, cmd->size, false, 1,
+				OPCODE_LOWLEVEL_HOST_DDR_DMA);
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_LOWLEVEL,
+			OPCODE_LOWLEVEL_HOST_DDR_DMA, cmd->size);
+
+	sge->pa_hi = cpu_to_le32(upper_32_bits(cmd->dma));
+	sge->pa_lo = cpu_to_le32(cmd->dma & 0xFFFFFFFF);
+	sge->len = cpu_to_le32(cmd->size);
+
+	req->pattern = cpu_to_le64(pattern);
+	req->byte_count = cpu_to_le32(byte_cnt);
+	for (i = 0; i < byte_cnt; i++) {
+		req->snd_buff[i] = (u8)(pattern >> (j*8));
+		j++;
+		if (j > 7)
+			j = 0;
+	}
+
+	status = be_mcc_notify_wait(adapter);
+
+	if (!status) {
+		struct be_cmd_resp_ddrdma_test *resp;
+		resp = cmd->va;
+		if ((memcmp(resp->rcv_buff, req->snd_buff, byte_cnt) != 0) ||
+				resp->snd_err) {
+			status = -1;
+		}
+	}
+
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
