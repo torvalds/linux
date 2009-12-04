@@ -137,7 +137,7 @@ struct mantis_pci {
 	u32			sub_device_id;
 
 	 /*	A12 A13 A14		*/
-	int			gpio_status;
+	u32			gpio_status;
 
 	struct mantis_ca	*mantis_ca;
 };

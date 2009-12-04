@@ -185,16 +185,15 @@ int mantis_core_exit(struct mantis_pci *mantis)
 // Turn the given bit on or off.
 void gpio_set_bits(struct mantis_pci *mantis, u32 bitpos, u8 value)
 {
-	u32 currVal, newVal;
+	u32 cur;
 
-	currVal = mmread(MANTIS_GPIF_ADDR);
-
+	cur = mmread(MANTIS_GPIF_ADDR);
 	if (value)
-		newVal = currVal | (1 << bitpos);
+		mantis->gpio_status = cur | (1 << bitpos);
 	else
-		newVal = currVal & (~(1 << bitpos));
+		mantis->gpio_status = cur & (~(1 << bitpos));
 
-	mmwrite(newVal, MANTIS_GPIF_ADDR);
+	mmwrite(mantis->gpio_status, MANTIS_GPIF_ADDR);
 	mmwrite(0x00, MANTIS_GPIF_DOUT);
 	udelay(100);
 }
