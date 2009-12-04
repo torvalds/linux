@@ -1796,7 +1796,8 @@ static bool cfq_should_idle(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 		return false;
 
 	/* We do for queues that were marked with idle window flag. */
-	if (cfq_cfqq_idle_window(cfqq))
+	if (cfq_cfqq_idle_window(cfqq) &&
+	   !(blk_queue_nonrot(cfqd->queue) && cfqd->hw_tag))
 		return true;
 
 	/*
