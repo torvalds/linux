@@ -169,7 +169,10 @@ static int __devinit mantis_pci_probe(struct pci_dev *pdev,
 		goto err0;
 	}
 
-	if ((mantis->mantis_mmio = ioremap(mantis->mantis_addr, 0x1000)) == NULL) {
+	mantis->mantis_mmio = ioremap(pci_resource_start(pdev, 0),
+				      pci_resource_len(pdev, 0));
+
+	if (!mantis->mantis_mmio) {
 		dprintk(verbose, MANTIS_ERROR, 1, "IO remap failed");
 		ret = -ENODEV;
 		goto err1;
