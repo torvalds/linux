@@ -121,6 +121,7 @@ static void mantis_load_config(struct mantis_pci *mantis)
 		break;
 	case MANTIS_VP_2040_DVB_C:	// VP-2040
 	case TERRATEC_CINERGY_C_PCI:	// VP-2040 clone
+	case TECHNISAT_CABLESTAR_HD2:
 		mantis->hwconfig = &vp2040_mantis_config;
 		break;
 	case MANTIS_VP_3030_DVB_T:	// VP-3030
