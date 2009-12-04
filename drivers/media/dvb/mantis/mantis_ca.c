@@ -143,10 +143,7 @@ int mantis_ca_init(struct mantis_pci *mantis)
 
 	ca->ca_priv = mantis;
 	mantis->mantis_ca = ca;
-	ca_flags = DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE	|
-		   DVB_CA_EN50221_FLAG_IRQ_FR		|
-		   DVB_CA_EN50221_FLAG_IRQ_DA;
-
+	ca_flags = DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE;
 	/* register CA interface */
 	ca->en50221.owner		= THIS_MODULE;
 	ca->en50221.read_attribute_mem	= mantis_ca_read_attr_mem;
