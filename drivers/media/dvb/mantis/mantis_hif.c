@@ -51,6 +51,7 @@ static int mantis_hif_sbuf_opdone_wait(struct mantis_ca *ca)
 		dprintk(verbose, MANTIS_ERROR, 1, "Adapter(%d) Slot(0): Smart buffer operation timeout !", mantis->num);
 		rc = -EREMOTEIO;
 	}
+	dprintk(verbose, MANTIS_DEBUG, 1, "Smart Buffer Operation complete");
 	ca->hif_event &= ~MANTIS_SBUF_OPDONE;
 	udelay(5);
 	return rc;
@@ -83,7 +84,7 @@ int mantis_hif_read_mem(struct mantis_ca *ca, u32 addr)
 		return -EREMOTEIO;
 	}
 	data = mmread(MANTIS_GPIF_DIN);
-
+	dprintk(verbose, MANTIS_DEBUG, 1, "Mem Read: 0x%02x", data);
 	return (data >> 24) & 0xff;
 }
 
@@ -111,6 +112,8 @@ int mantis_hif_write_mem(struct mantis_ca *ca, u32 addr, u8 data)
 		return -EREMOTEIO;
 	}
 	ca->hif_job_queue &= ~MANTIS_HIF_MEMWR;
+	dprintk(verbose, MANTIS_DEBUG, 1, "Mem Write: (0x%02x to 0x%02x)", data, addr);
+
 	return 0;
 }
 
@@ -137,6 +140,7 @@ int mantis_hif_read_iom(struct mantis_ca *ca, u32 addr)
 	data = mmread(MANTIS_GPIF_DIN);
 	hif_addr |= MANTIS_GPIF_PCMCIAREG;
 	mmwrite(hif_addr, MANTIS_GPIF_ADDR);
+	dprintk(verbose, MANTIS_DEBUG, 1, "I/O Read: 0x%02x", data);
 	udelay(50);
 
 	return (u8) data;
@@ -165,6 +169,7 @@ int mantis_hif_write_iom(struct mantis_ca *ca, u32 addr, u8 data)
 	ca->hif_job_queue &= ~MANTIS_HIF_IOMWR;
 	hif_addr |= MANTIS_GPIF_PCMCIAREG;
 	mmwrite(hif_addr, MANTIS_GPIF_ADDR);
+	dprintk(verbose, MANTIS_DEBUG, 1, "I/O Write: (0x%02x to 0x%02x)", data, addr);
 	udelay(50);
 
 	return 0;
