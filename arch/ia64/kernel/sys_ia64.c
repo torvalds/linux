@@ -100,51 +100,7 @@ sys_getpagesize (void)
 asmlinkage unsigned long
 ia64_brk (unsigned long brk)
 {
-	unsigned long rlim, retval, newbrk, oldbrk;
-	struct mm_struct *mm = current->mm;
-
-	/*
-	 * Most of this replicates the code in sys_brk() except for an additional safety
-	 * check and the clearing of r8.  However, we can't call sys_brk() because we need
-	 * to acquire the mmap_sem before we can do the test...
-	 */
-	down_write(&mm->mmap_sem);
-
-	if (brk < mm->end_code)
-		goto out;
-	newbrk = PAGE_ALIGN(brk);
-	oldbrk = PAGE_ALIGN(mm->brk);
-	if (oldbrk == newbrk)
-		goto set_brk;
-
-	/* Always allow shrinking brk. */
-	if (brk <= mm->brk) {
-		if (!do_munmap(mm, newbrk, oldbrk-newbrk))
-			goto set_brk;
-		goto out;
-	}
-
-	/* Check against unimplemented/unmapped addresses: */
-	if ((newbrk - oldbrk) > RGN_MAP_LIMIT || REGION_OFFSET(newbrk) > RGN_MAP_LIMIT)
-		goto out;
-
-	/* Check against rlimit.. */
-	rlim = current->signal->rlim[RLIMIT_DATA].rlim_cur;
-	if (rlim < RLIM_INFINITY && brk - mm->start_data > rlim)
-		goto out;
-
-	/* Check against existing mmap mappings. */
-	if (find_vma_intersection(mm, oldbrk, newbrk+PAGE_SIZE))
-		goto out;
-
-	/* Ok, looks good - let it rip. */
-	if (do_brk(oldbrk, newbrk-oldbrk) != oldbrk)
-		goto out;
-set_brk:
-	mm->brk = brk;
-out:
-	retval = mm->brk;
-	up_write(&mm->mmap_sem);
+	unsigned long retval = sys_brk(brk);
 	force_successful_syscall_return();
 	return retval;
 }
