@@ -1046,6 +1046,9 @@ static void nfs4_state_end_reclaim_reboot(struct nfs_client *clp)
 	struct rb_node *pos;
 	struct nfs4_state *state;
 
+	nfs4_reclaim_complete(clp,
+		nfs4_reboot_recovery_ops[clp->cl_minorversion]);
+
 	if (!test_and_clear_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state))
 		return;
 
