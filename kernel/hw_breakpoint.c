@@ -312,9 +312,7 @@ EXPORT_SYMBOL_GPL(register_user_hw_breakpoint);
  * @tsk: pointer to 'task_struct' of the process to which the address belongs
  */
 struct perf_event *
-modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *attr,
-			  perf_callback_t triggered,
-			  struct task_struct *tsk)
+modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *attr)
 {
 	/*
 	 * FIXME: do it without unregistering
@@ -323,7 +321,8 @@ modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *attr,
 	 */
 	unregister_hw_breakpoint(bp);
 
-	return perf_event_create_kernel_counter(attr, -1, tsk->pid, triggered);
+	return perf_event_create_kernel_counter(attr, -1, bp->ctx->task->pid,
+						bp->callback);
 }
 EXPORT_SYMBOL_GPL(modify_user_hw_breakpoint);
 

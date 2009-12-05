@@ -618,7 +618,7 @@ ptrace_modify_breakpoint(struct perf_event *bp, int len, int type,
 	attr.bp_type = gen_type;
 	attr.disabled = disabled;
 
-	return modify_user_hw_breakpoint(bp, &attr, bp->callback, tsk);
+	return modify_user_hw_breakpoint(bp, &attr);
 }
 
 /*
@@ -740,7 +740,7 @@ static int ptrace_set_breakpoint_addr(struct task_struct *tsk, int nr,
 
 		attr = bp->attr;
 		attr.bp_addr = addr;
-		bp = modify_user_hw_breakpoint(bp, &attr, bp->callback, tsk);
+		bp = modify_user_hw_breakpoint(bp, &attr);
 	}
 	/*
 	 * CHECKME: the previous code returned -EIO if the addr wasn't a
