@@ -376,6 +376,17 @@ static inline unsigned int dquot_generic_flag(unsigned int flags, int type)
 	return flags >> _DQUOT_STATE_FLAGS;
 }
 
+#ifdef CONFIG_QUOTA_NETLINK_INTERFACE
+extern void quota_send_warning(short type, unsigned int id, dev_t dev,
+			       const char warntype);
+#else
+static inline void quota_send_warning(short type, unsigned int id, dev_t dev,
+				      const char warntype)
+{
+	return;
+}
+#endif /* CONFIG_QUOTA_NETLINK_INTERFACE */
+
 struct quota_info {
 	unsigned int flags;			/* Flags for diskquotas on this device */
 	struct mutex dqio_mutex;		/* lock device while I/O in progress */

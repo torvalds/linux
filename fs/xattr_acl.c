@@ -36,7 +36,7 @@ posix_acl_from_xattr(const void *value, size_t size)
 	if (count == 0)
 		return NULL;
 	
-	acl = posix_acl_alloc(count, GFP_KERNEL);
+	acl = posix_acl_alloc(count, GFP_NOFS);
 	if (!acl)
 		return ERR_PTR(-ENOMEM);
 	acl_e = acl->a_entries;
