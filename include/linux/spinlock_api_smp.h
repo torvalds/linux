@@ -60,136 +60,117 @@ void __lockfunc _read_unlock_irqrestore(rwlock_t *lock, unsigned long flags)
 void __lockfunc _write_unlock_irqrestore(rwlock_t *lock, unsigned long flags)
 							__releases(lock);
 
-/*
- * We inline the unlock functions in the nondebug case:
- */
-#if !defined(CONFIG_DEBUG_SPINLOCK) && !defined(CONFIG_PREEMPT)
-#define __always_inline__spin_unlock
-#define __always_inline__read_unlock
-#define __always_inline__write_unlock
-#define __always_inline__spin_unlock_irq
-#define __always_inline__read_unlock_irq
-#define __always_inline__write_unlock_irq
-#endif
-
-#ifndef CONFIG_DEBUG_SPINLOCK
-#ifndef CONFIG_GENERIC_LOCKBREAK
-
-#ifdef __always_inline__spin_lock
+#ifdef CONFIG_INLINE_SPIN_LOCK
 #define _spin_lock(lock) __spin_lock(lock)
 #endif
 
-#ifdef __always_inline__read_lock
+#ifdef CONFIG_INLINE_READ_LOCK
 #define _read_lock(lock) __read_lock(lock)
 #endif
 
-#ifdef __always_inline__write_lock
+#ifdef CONFIG_INLINE_WRITE_LOCK
 #define _write_lock(lock) __write_lock(lock)
 #endif
 
-#ifdef __always_inline__spin_lock_bh
+#ifdef CONFIG_INLINE_SPIN_LOCK_BH
 #define _spin_lock_bh(lock) __spin_lock_bh(lock)
 #endif
 
-#ifdef __always_inline__read_lock_bh
+#ifdef CONFIG_INLINE_READ_LOCK_BH
 #define _read_lock_bh(lock) __read_lock_bh(lock)
 #endif
 
-#ifdef __always_inline__write_lock_bh
+#ifdef CONFIG_INLINE_WRITE_LOCK_BH
 #define _write_lock_bh(lock) __write_lock_bh(lock)
 #endif
 
-#ifdef __always_inline__spin_lock_irq
+#ifdef CONFIG_INLINE_SPIN_LOCK_IRQ
 #define _spin_lock_irq(lock) __spin_lock_irq(lock)
 #endif
 
-#ifdef __always_inline__read_lock_irq
+#ifdef CONFIG_INLINE_READ_LOCK_IRQ
 #define _read_lock_irq(lock) __read_lock_irq(lock)
 #endif
 
-#ifdef __always_inline__write_lock_irq
+#ifdef CONFIG_INLINE_WRITE_LOCK_IRQ
 #define _write_lock_irq(lock) __write_lock_irq(lock)
 #endif
 
-#ifdef __always_inline__spin_lock_irqsave
+#ifdef CONFIG_INLINE_SPIN_LOCK_IRQSAVE
 #define _spin_lock_irqsave(lock) __spin_lock_irqsave(lock)
 #endif
 
-#ifdef __always_inline__read_lock_irqsave
+#ifdef CONFIG_INLINE_READ_LOCK_IRQSAVE
 #define _read_lock_irqsave(lock) __read_lock_irqsave(lock)
 #endif
 
-#ifdef __always_inline__write_lock_irqsave
+#ifdef CONFIG_INLINE_WRITE_LOCK_IRQSAVE
 #define _write_lock_irqsave(lock) __write_lock_irqsave(lock)
 #endif
 
-#endif /* !CONFIG_GENERIC_LOCKBREAK */
-
-#ifdef __always_inline__spin_trylock
+#ifdef CONFIG_INLINE_SPIN_TRYLOCK
 #define _spin_trylock(lock) __spin_trylock(lock)
 #endif
 
-#ifdef __always_inline__read_trylock
+#ifdef CONFIG_INLINE_READ_TRYLOCK
 #define _read_trylock(lock) __read_trylock(lock)
 #endif
 
-#ifdef __always_inline__write_trylock
+#ifdef CONFIG_INLINE_WRITE_TRYLOCK
 #define _write_trylock(lock) __write_trylock(lock)
 #endif
 
-#ifdef __always_inline__spin_trylock_bh
+#ifdef CONFIG_INLINE_SPIN_TRYLOCK_BH
 #define _spin_trylock_bh(lock) __spin_trylock_bh(lock)
 #endif
 
-#ifdef __always_inline__spin_unlock
+#ifdef CONFIG_INLINE_SPIN_UNLOCK
 #define _spin_unlock(lock) __spin_unlock(lock)
 #endif
 
-#ifdef __always_inline__read_unlock
+#ifdef CONFIG_INLINE_READ_UNLOCK
 #define _read_unlock(lock) __read_unlock(lock)
 #endif
 
-#ifdef __always_inline__write_unlock
+#ifdef CONFIG_INLINE_WRITE_UNLOCK
 #define _write_unlock(lock) __write_unlock(lock)
 #endif
 
-#ifdef __always_inline__spin_unlock_bh
+#ifdef CONFIG_INLINE_SPIN_UNLOCK_BH
 #define _spin_unlock_bh(lock) __spin_unlock_bh(lock)
 #endif
 
-#ifdef __always_inline__read_unlock_bh
+#ifdef CONFIG_INLINE_READ_UNLOCK_BH
 #define _read_unlock_bh(lock) __read_unlock_bh(lock)
 #endif
 
-#ifdef __always_inline__write_unlock_bh
+#ifdef CONFIG_INLINE_WRITE_UNLOCK_BH
 #define _write_unlock_bh(lock) __write_unlock_bh(lock)
 #endif
 
-#ifdef __always_inline__spin_unlock_irq
+#ifdef CONFIG_INLINE_SPIN_UNLOCK_IRQ
 #define _spin_unlock_irq(lock) __spin_unlock_irq(lock)
 #endif
 
-#ifdef __always_inline__read_unlock_irq
+#ifdef CONFIG_INLINE_READ_UNLOCK_IRQ
 #define _read_unlock_irq(lock) __read_unlock_irq(lock)
 #endif
 
-#ifdef __always_inline__write_unlock_irq
+#ifdef CONFIG_INLINE_WRITE_UNLOCK_IRQ
 #define _write_unlock_irq(lock) __write_unlock_irq(lock)
 #endif
 
-#ifdef __always_inline__spin_unlock_irqrestore
+#ifdef CONFIG_INLINE_SPIN_UNLOCK_IRQRESTORE
 #define _spin_unlock_irqrestore(lock, flags) __spin_unlock_irqrestore(lock, flags)
 #endif
 
-#ifdef __always_inline__read_unlock_irqrestore
+#ifdef CONFIG_INLINE_READ_UNLOCK_IRQRESTORE
 #define _read_unlock_irqrestore(lock, flags) __read_unlock_irqrestore(lock, flags)
 #endif
 
-#ifdef __always_inline__write_unlock_irqrestore
+#ifdef CONFIG_INLINE_WRITE_UNLOCK_IRQRESTORE
 #define _write_unlock_irqrestore(lock, flags) __write_unlock_irqrestore(lock, flags)
 #endif
-
-#endif /* CONFIG_DEBUG_SPINLOCK */
 
 static inline int __spin_trylock(spinlock_t *lock)
 {
