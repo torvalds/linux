@@ -391,8 +391,7 @@ static void nfs_client_mark_return_all_delegations(struct nfs_client *clp)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(delegation, &clp->cl_delegations, super_list) {
-		set_bit(NFS_DELEGATION_RETURN, &delegation->flags);
-		set_bit(NFS4CLNT_DELEGRETURN, &clp->cl_state);
+		nfs_mark_return_delegation(clp, delegation);
 	}
 	rcu_read_unlock();
 }
@@ -427,8 +426,7 @@ static void nfs_client_mark_return_unreferenced_delegations(struct nfs_client *c
 	list_for_each_entry_rcu(delegation, &clp->cl_delegations, super_list) {
 		if (test_and_clear_bit(NFS_DELEGATION_REFERENCED, &delegation->flags))
 			continue;
-		set_bit(NFS_DELEGATION_RETURN, &delegation->flags);
-		set_bit(NFS4CLNT_DELEGRETURN, &clp->cl_state);
+		nfs_mark_return_delegation(clp, delegation);
 	}
 	rcu_read_unlock();
 }
