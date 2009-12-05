@@ -455,8 +455,6 @@ out_unlock:
 static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 {
 	struct kvm_shadow_walk_iterator iterator;
-	pt_element_t gpte;
-	gpa_t pte_gpa = -1;
 	int level;
 	u64 *sptep;
 	int need_flush = 0;
@@ -471,10 +469,6 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 		if (level == PT_PAGE_TABLE_LEVEL  ||
 		    ((level == PT_DIRECTORY_LEVEL && is_large_pte(*sptep))) ||
 		    ((level == PT_PDPE_LEVEL && is_large_pte(*sptep)))) {
-			struct kvm_mmu_page *sp = page_header(__pa(sptep));
-
-			pte_gpa = (sp->gfn << PAGE_SHIFT);
-			pte_gpa += (sptep - sp->spt) * sizeof(pt_element_t);
 
 			if (is_shadow_present_pte(*sptep)) {
 				rmap_remove(vcpu->kvm, sptep);
@@ -493,18 +487,6 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 	if (need_flush)
 		kvm_flush_remote_tlbs(vcpu->kvm);
 	spin_unlock(&vcpu->kvm->mmu_lock);
-
-	if (pte_gpa == -1)
-		return;
-	if (kvm_read_guest_atomic(vcpu->kvm, pte_gpa, &gpte,
-				  sizeof(pt_element_t)))
-		return;
-	if (is_present_gpte(gpte) && (gpte & PT_ACCESSED_MASK)) {
-		if (mmu_topup_memory_caches(vcpu))
-			return;
-		kvm_mmu_pte_write(vcpu, pte_gpa, (const u8 *)&gpte,
-				  sizeof(pt_element_t), 0);
-	}
 }
 
 static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr)
