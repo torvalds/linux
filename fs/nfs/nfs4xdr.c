@@ -5340,7 +5340,7 @@ out:
 }
 
 /*
- * FSINFO request
+ * Decode FSINFO response
  */
 static int nfs4_xdr_dec_fsinfo(struct rpc_rqst *req, __be32 *p,
 			       struct nfs4_fsinfo_res *res)
@@ -5361,7 +5361,7 @@ static int nfs4_xdr_dec_fsinfo(struct rpc_rqst *req, __be32 *p,
 }
 
 /*
- * PATHCONF request
+ * Decode PATHCONF response
  */
 static int nfs4_xdr_dec_pathconf(struct rpc_rqst *req, __be32 *p,
 				 struct nfs4_pathconf_res *res)
@@ -5382,7 +5382,7 @@ static int nfs4_xdr_dec_pathconf(struct rpc_rqst *req, __be32 *p,
 }
 
 /*
- * STATFS request
+ * Decode STATFS response
  */
 static int nfs4_xdr_dec_statfs(struct rpc_rqst *req, __be32 *p,
 			       struct nfs4_statfs_res *res)
@@ -5403,7 +5403,7 @@ static int nfs4_xdr_dec_statfs(struct rpc_rqst *req, __be32 *p,
 }
 
 /*
- * GETATTR_BITMAP request
+ * Decode GETATTR_BITMAP response
  */
 static int nfs4_xdr_dec_server_caps(struct rpc_rqst *req, __be32 *p, struct nfs4_server_caps_res *res)
 {
@@ -5442,7 +5442,7 @@ static int nfs4_xdr_dec_renew(struct rpc_rqst *rqstp, __be32 *p, void *dummy)
 }
 
 /*
- * a SETCLIENTID request
+ * Decode SETCLIENTID response
  */
 static int nfs4_xdr_dec_setclientid(struct rpc_rqst *req, __be32 *p,
 		struct nfs_client *clp)
@@ -5459,7 +5459,7 @@ static int nfs4_xdr_dec_setclientid(struct rpc_rqst *req, __be32 *p,
 }
 
 /*
- * a SETCLIENTID_CONFIRM request
+ * Decode SETCLIENTID_CONFIRM response
  */
 static int nfs4_xdr_dec_setclientid_confirm(struct rpc_rqst *req, __be32 *p, struct nfs_fsinfo *fsinfo)
 {
@@ -5479,7 +5479,7 @@ static int nfs4_xdr_dec_setclientid_confirm(struct rpc_rqst *req, __be32 *p, str
 }
 
 /*
- * DELEGRETURN request
+ * Decode DELEGRETURN response
  */
 static int nfs4_xdr_dec_delegreturn(struct rpc_rqst *rqstp, __be32 *p, struct nfs4_delegreturnres *res)
 {
@@ -5505,7 +5505,7 @@ out:
 }
 
 /*
- * FS_LOCATIONS request
+ * Decode FS_LOCATIONS response
  */
 static int nfs4_xdr_dec_fs_locations(struct rpc_rqst *req, __be32 *p,
 				     struct nfs4_fs_locations_res *res)
@@ -5535,7 +5535,7 @@ out:
 
 #if defined(CONFIG_NFS_V4_1)
 /*
- * EXCHANGE_ID request
+ * Decode EXCHANGE_ID response
  */
 static int nfs4_xdr_dec_exchange_id(struct rpc_rqst *rqstp, uint32_t *p,
 				    void *res)
@@ -5552,7 +5552,7 @@ static int nfs4_xdr_dec_exchange_id(struct rpc_rqst *rqstp, uint32_t *p,
 }
 
 /*
- * a CREATE_SESSION request
+ * Decode CREATE_SESSION response
  */
 static int nfs4_xdr_dec_create_session(struct rpc_rqst *rqstp, uint32_t *p,
 				       struct nfs41_create_session_res *res)
@@ -5569,7 +5569,7 @@ static int nfs4_xdr_dec_create_session(struct rpc_rqst *rqstp, uint32_t *p,
 }
 
 /*
- * a DESTROY_SESSION request
+ * Decode DESTROY_SESSION response
  */
 static int nfs4_xdr_dec_destroy_session(struct rpc_rqst *rqstp, uint32_t *p,
 					void *dummy)
@@ -5586,7 +5586,7 @@ static int nfs4_xdr_dec_destroy_session(struct rpc_rqst *rqstp, uint32_t *p,
 }
 
 /*
- * a SEQUENCE request
+ * Decode SEQUENCE response
  */
 static int nfs4_xdr_dec_sequence(struct rpc_rqst *rqstp, uint32_t *p,
 				 struct nfs4_sequence_res *res)
@@ -5603,7 +5603,7 @@ static int nfs4_xdr_dec_sequence(struct rpc_rqst *rqstp, uint32_t *p,
 }
 
 /*
- * a GET_LEASE_TIME request
+ * Decode GET_LEASE_TIME response
  */
 static int nfs4_xdr_dec_get_lease_time(struct rpc_rqst *rqstp, uint32_t *p,
 				       struct nfs4_get_lease_time_res *res)
