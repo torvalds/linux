@@ -30,6 +30,7 @@
 #include <mach/pm.h>
 #include <mach/dma.h>
 #include <mach/ssp.h>
+#include <mach/regs-intc.h>
 #include <plat/i2c.h>
 
 #include "generic.h"
@@ -44,6 +45,9 @@
 
 #define ACCR_D0CS	(1 << 26)
 #define ACCR_PCCE	(1 << 11)
+
+#define PECR_IE(n)	((1 << ((n) * 2)) << 28)
+#define PECR_IS(n)	((1 << ((n) * 2)) << 29)
 
 /* crystal frequency to static memory controller multiplier (SMCFS) */
 static unsigned char smcfs_mult[8] = { 6, 0, 8, 0, 0, 16, };
@@ -237,6 +241,7 @@ static DEFINE_PXA3_CKEN(pxa3xx_stuart, STUART, 14857000, 1);
 static DEFINE_PXA3_CKEN(pxa3xx_i2c, I2C, 32842000, 0);
 static DEFINE_PXA3_CKEN(pxa3xx_udc, UDC, 48000000, 5);
 static DEFINE_PXA3_CKEN(pxa3xx_usbh, USBH, 48000000, 0);
+static DEFINE_PXA3_CKEN(pxa3xx_u2d, USB2, 48000000, 0);
 static DEFINE_PXA3_CKEN(pxa3xx_keypad, KEYPAD, 32768, 0);
 static DEFINE_PXA3_CKEN(pxa3xx_ssp1, SSP1, 13000000, 0);
 static DEFINE_PXA3_CKEN(pxa3xx_ssp2, SSP2, 13000000, 0);
@@ -261,6 +266,7 @@ static struct clk_lookup pxa3xx_clkregs[] = {
 	INIT_CLKREG(&clk_pxa3xx_i2c, "pxa2xx-i2c.0", NULL),
 	INIT_CLKREG(&clk_pxa3xx_udc, "pxa27x-udc", NULL),
 	INIT_CLKREG(&clk_pxa3xx_usbh, "pxa27x-ohci", NULL),
+	INIT_CLKREG(&clk_pxa3xx_u2d, NULL, "U2DCLK"),
 	INIT_CLKREG(&clk_pxa3xx_keypad, "pxa27x-keypad", NULL),
 	INIT_CLKREG(&clk_pxa3xx_ssp1, "pxa27x-ssp.0", NULL),
 	INIT_CLKREG(&clk_pxa3xx_ssp2, "pxa27x-ssp.1", NULL),
@@ -530,6 +536,43 @@ static inline void pxa3xx_init_pm(void) {}
 #define pxa3xx_set_wake	NULL
 #endif
 
+static void pxa_ack_ext_wakeup(unsigned int irq)
+{
+	PECR |= PECR_IS(irq - IRQ_WAKEUP0);
+}
+
+static void pxa_mask_ext_wakeup(unsigned int irq)
+{
+	ICMR2 &= ~(1 << ((irq - PXA_IRQ(0)) & 0x1f));
+	PECR &= ~PECR_IE(irq - IRQ_WAKEUP0);
+}
+
+static void pxa_unmask_ext_wakeup(unsigned int irq)
+{
+	ICMR2 |= 1 << ((irq - PXA_IRQ(0)) & 0x1f);
+	PECR |= PECR_IE(irq - IRQ_WAKEUP0);
+}
+
+static struct irq_chip pxa_ext_wakeup_chip = {
+	.name		= "WAKEUP",
+	.ack		= pxa_ack_ext_wakeup,
+	.mask		= pxa_mask_ext_wakeup,
+	.unmask		= pxa_unmask_ext_wakeup,
+};
+
+static void __init pxa_init_ext_wakeup_irq(set_wake_t fn)
+{
+	int irq;
+
+	for (irq = IRQ_WAKEUP0; irq <= IRQ_WAKEUP1; irq++) {
+		set_irq_chip(irq, &pxa_ext_wakeup_chip);
+		set_irq_handler(irq, handle_edge_irq);
+		set_irq_flags(irq, IRQF_VALID);
+	}
+
+	pxa_ext_wakeup_chip.set_wake = fn;
+}
+
 void __init pxa3xx_init_irq(void)
 {
 	/* enable CP6 access */
@@ -539,6 +582,7 @@ void __init pxa3xx_init_irq(void)
 	__asm__ __volatile__("mcr p15, 0, %0, c15, c1, 0\n": :"r"(value));
 
 	pxa_init_irq(56, pxa3xx_set_wake);
+	pxa_init_ext_wakeup_irq(pxa3xx_set_wake);
 	pxa_init_gpio(IRQ_GPIO_2_x, 2, 127, NULL);
 }
 
@@ -553,9 +597,6 @@ void __init pxa3xx_set_i2c_power_info(struct i2c_pxa_platform_data *info)
 
 static struct platform_device *devices[] __initdata = {
 	&pxa27x_device_udc,
-	&pxa_device_ffuart,
-	&pxa_device_btuart,
-	&pxa_device_stuart,
 	&pxa_device_i2s,
 	&sa1100_device_rtc,
 	&pxa_device_rtc,

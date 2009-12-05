@@ -687,6 +687,7 @@ static int __init pxa168fb_probe(struct platform_device *pdev)
 	}
 
 	info->fix.smem_start = (unsigned long)fbi->fb_start_dma;
+	set_graphics_start(info, 0, 0);
 
 	/*
 	 * Set video mode according to platform data.

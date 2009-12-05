@@ -47,7 +47,6 @@ static void __init glantank_timer_init(void)
 
 static struct sys_timer glantank_timer = {
 	.init		= glantank_timer_init,
-	.offset		= iop_gettimeoffset,
 };
 
 

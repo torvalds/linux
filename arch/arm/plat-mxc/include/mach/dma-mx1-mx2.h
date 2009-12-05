@@ -58,6 +58,14 @@ imx_dma_setup_single(int channel, dma_addr_t dma_address,
 		unsigned int dma_length, unsigned int dev_addr,
 		unsigned int dmamode);
 
+
+/*
+ * Use this flag as the dma_length argument to imx_dma_setup_sg()
+ * to create an endless running dma loop. The end of the scatterlist
+ * must be linked to the beginning for this to work.
+ */
+#define IMX_DMA_LENGTH_LOOP	((unsigned int)-1)
+
 int
 imx_dma_setup_sg(int channel, struct scatterlist *sg,
 		unsigned int sgcount, unsigned int dma_length,

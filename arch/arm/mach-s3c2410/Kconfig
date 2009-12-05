@@ -81,6 +81,14 @@ config ARCH_H1940
 	help
 	  Say Y here if you are using the HP IPAQ H1940
 
+config H1940BT
+        tristate "Control the state of H1940 bluetooth chip"
+        depends on ARCH_H1940
+        select RFKILL
+        help
+          This is a simple driver that is able to control
+          the state of built in bluetooth chip on h1940.
+
 config PM_H1940
 	bool
 	help

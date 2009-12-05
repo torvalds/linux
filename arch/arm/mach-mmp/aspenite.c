@@ -13,6 +13,9 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/smc91x.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
+#include <linux/mtd/nand.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -85,12 +88,48 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
+static struct mtd_partition aspenite_nand_partitions[] = {
+	{
+		.name		= "bootloader",
+		.offset		= 0,
+		.size		= SZ_1M,
+		.mask_flags	= MTD_WRITEABLE,
+	}, {
+		.name		= "reserved",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_128K,
+		.mask_flags	= MTD_WRITEABLE,
+	}, {
+		.name		= "reserved",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_8M,
+		.mask_flags	= MTD_WRITEABLE,
+	}, {
+		.name		= "kernel",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= (SZ_2M + SZ_1M),
+		.mask_flags	= 0,
+	}, {
+		.name		= "filesystem",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_48M,
+		.mask_flags	= 0,
+	}
+};
+
+static struct pxa3xx_nand_platform_data aspenite_nand_info = {
+	.enable_arbiter	= 1,
+	.parts		= aspenite_nand_partitions,
+	.nr_parts	= ARRAY_SIZE(aspenite_nand_partitions),
+};
+
 static void __init common_init(void)
 {
 	mfp_config(ARRAY_AND_SIZE(common_pin_config));
 
 	/* on-chip devices */
 	pxa168_add_uart(1);
+	pxa168_add_nand(&aspenite_nand_info);
 
 	/* off-chip devices */
 	platform_device_register(&smc91x_device);

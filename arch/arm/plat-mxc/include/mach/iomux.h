@@ -123,6 +123,7 @@
 #define IRQ_GPIOC(x)  (IRQ_GPIOB(32) + x)
 #define IRQ_GPIOD(x)  (IRQ_GPIOC(32) + x)
 #define IRQ_GPIOE(x)  (IRQ_GPIOD(32) + x)
+#define IRQ_GPIOF(x)  (IRQ_GPIOE(32) + x)
 
 
 extern void mxc_gpio_mode(int gpio_mode);

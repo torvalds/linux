@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2440/mach-anubis.c
  *
- * Copyright (c) 2003-2005,2008 Simtec Electronics
+ * Copyright 2003-2009 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
@@ -53,8 +53,9 @@
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
+#include <plat/audio-simtec.h>
 
-#define COPYRIGHT ", (c) 2005 Simtec Electronics"
+#define COPYRIGHT ", Copyright 2005-2009 Simtec Electronics"
 
 static struct map_desc anubis_iodesc[] __initdata = {
   /* ISA IO areas */
@@ -138,7 +139,7 @@ static int external_map[]   = { 2 };
 static int chip0_map[]      = { 0 };
 static int chip1_map[]      = { 1 };
 
-static struct mtd_partition anubis_default_nand_part[] = {
+static struct mtd_partition __initdata anubis_default_nand_part[] = {
 	[0] = {
 		.name	= "Boot Agent",
 		.size	= SZ_16K,
@@ -161,7 +162,7 @@ static struct mtd_partition anubis_default_nand_part[] = {
 	}
 };
 
-static struct mtd_partition anubis_default_nand_part_large[] = {
+static struct mtd_partition __initdata anubis_default_nand_part_large[] = {
 	[0] = {
 		.name	= "Boot Agent",
 		.size	= SZ_128K,
@@ -191,7 +192,7 @@ static struct mtd_partition anubis_default_nand_part_large[] = {
  * socket.
 */
 
-static struct s3c2410_nand_set anubis_nand_sets[] = {
+static struct s3c2410_nand_set __initdata anubis_nand_sets[] = {
 	[1] = {
 		.name		= "External",
 		.nr_chips	= 1,
@@ -233,7 +234,7 @@ static void anubis_nand_select(struct s3c2410_nand_set *set, int slot)
 	__raw_writeb(tmp, ANUBIS_VA_CTRL1);
 }
 
-static struct s3c2410_platform_nand anubis_nand_info = {
+static struct s3c2410_platform_nand __initdata anubis_nand_info = {
 	.tacls		= 25,
 	.twrph0		= 55,
 	.twrph1		= 40,
@@ -437,6 +438,17 @@ static struct i2c_board_info anubis_i2c_devs[] __initdata = {
 	}
 };
 
+/* Audio setup */
+static struct s3c24xx_audio_simtec_pdata __initdata anubis_audio = {
+	.have_mic	= 1,
+	.have_lout	= 1,
+	.output_cdclk	= 1,
+	.use_mpllin	= 1,
+	.amp_gpio	= S3C2410_GPB(2),
+	.amp_gain[0]	= S3C2410_GPD(10),
+	.amp_gain[1]	= S3C2410_GPD(11),
+};
+
 static void __init anubis_map_io(void)
 {
 	/* initialise the clocks */
@@ -453,8 +465,6 @@ static void __init anubis_map_io(void)
 	s3c24xx_uclk.parent  = &s3c24xx_clkout1;
 
 	s3c24xx_register_clocks(anubis_clocks, ARRAY_SIZE(anubis_clocks));
-
-	s3c_device_nand.dev.platform_data = &anubis_nand_info;
 
 	s3c24xx_init_io(anubis_iodesc, ARRAY_SIZE(anubis_iodesc));
 	s3c24xx_init_clocks(0);
@@ -476,6 +486,9 @@ static void __init anubis_map_io(void)
 static void __init anubis_init(void)
 {
 	s3c_i2c0_set_platdata(NULL);
+	s3c_nand_set_platdata(&anubis_nand_info);
+	simtec_audio_add(NULL, false, &anubis_audio);
+
 	platform_add_devices(anubis_devices, ARRAY_SIZE(anubis_devices));
 
 	i2c_register_board_info(0, anubis_i2c_devs,

@@ -1,6 +1,6 @@
 /*
  *
- * QNAP TS-119/TS-219 Turbo NAS Board Setup
+ * QNAP TS-11x/TS-21x Turbo NAS Board Setup
  *
  * Copyright (C) 2009  Martin Michlmayr <tbm@cyrius.com>
  * Copyright (C) 2008  Byron Bradley <byron.bbradley@gmail.com>
@@ -14,87 +14,17 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/mtd/physmap.h>
-#include <linux/spi/flash.h>
-#include <linux/spi/spi.h>
-#include <linux/spi/orion_spi.h>
 #include <linux/i2c.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/ata_platform.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
-#include <linux/timex.h>
-#include <linux/serial_reg.h>
-#include <linux/pci.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/kirkwood.h>
 #include "common.h"
 #include "mpp.h"
-
-/****************************************************************************
- * 16 MiB NOR flash. The struct mtd_partition is not in the same order as the
- *     partitions on the device because we want to keep compatability with
- *     the QNAP firmware.
- * Layout as used by QNAP:
- *  0x00000000-0x00080000 : "U-Boot"
- *  0x00200000-0x00400000 : "Kernel"
- *  0x00400000-0x00d00000 : "RootFS"
- *  0x00d00000-0x01000000 : "RootFS2"
- *  0x00080000-0x000c0000 : "U-Boot Config"
- *  0x000c0000-0x00200000 : "NAS Config"
- *
- * We'll use "RootFS1" instead of "RootFS" to stay compatible with the layout
- * used by the QNAP TS-109/TS-209.
- *
- ***************************************************************************/
-
-static struct mtd_partition qnap_ts219_partitions[] = {
-	{
-		.name		= "U-Boot",
-		.size		= 0x00080000,
-		.offset		= 0,
-		.mask_flags	= MTD_WRITEABLE,
-	}, {
-		.name		= "Kernel",
-		.size		= 0x00200000,
-		.offset		= 0x00200000,
-	}, {
-		.name		= "RootFS1",
-		.size		= 0x00900000,
-		.offset		= 0x00400000,
-	}, {
-		.name		= "RootFS2",
-		.size		= 0x00300000,
-		.offset		= 0x00d00000,
-	}, {
-		.name		= "U-Boot Config",
-		.size		= 0x00040000,
-		.offset		= 0x00080000,
-	}, {
-		.name		= "NAS Config",
-		.size		= 0x00140000,
-		.offset		= 0x000c0000,
-	},
-};
-
-static const struct flash_platform_data qnap_ts219_flash = {
-	.type		= "m25p128",
-	.name		= "spi_flash",
-	.parts		= qnap_ts219_partitions,
-	.nr_parts	= ARRAY_SIZE(qnap_ts219_partitions),
-};
-
-static struct spi_board_info __initdata qnap_ts219_spi_slave_info[] = {
-	{
-		.modalias	= "m25p80",
-		.platform_data	= &qnap_ts219_flash,
-		.irq		= -1,
-		.max_speed_hz	= 20000000,
-		.bus_num	= 0,
-		.chip_select	= 0,
-	},
-};
+#include "tsx1x-common.h"
 
 static struct i2c_board_info __initdata qnap_ts219_i2c_rtc = {
 	I2C_BOARD_INFO("s35390a", 0x30),
@@ -152,35 +82,9 @@ static unsigned int qnap_ts219_mpp_config[] __initdata = {
 	MPP14_UART1_RXD,	/* PIC controller */
 	MPP15_GPIO,		/* USB Copy button */
 	MPP16_GPIO,		/* Reset button */
+	MPP36_GPIO,		/* RAM: 0: 256 MB, 1: 512 MB */
 	0
 };
-
-
-/*****************************************************************************
- * QNAP TS-x19 specific power off method via UART1-attached PIC
- ****************************************************************************/
-
-#define UART1_REG(x)	(UART1_VIRT_BASE + ((UART_##x) << 2))
-
-void qnap_ts219_power_off(void)
-{
-	/* 19200 baud divisor */
-	const unsigned divisor = ((kirkwood_tclk + (8 * 19200)) / (16 * 19200));
-
-	pr_info("%s: triggering power-off...\n", __func__);
-
-	/* hijack UART1 and reset into sane state (19200,8n1) */
-	writel(0x83, UART1_REG(LCR));
-	writel(divisor & 0xff, UART1_REG(DLL));
-	writel((divisor >> 8) & 0xff, UART1_REG(DLM));
-	writel(0x03, UART1_REG(LCR));
-	writel(0x00, UART1_REG(IER));
-	writel(0x00, UART1_REG(FCR));
-	writel(0x00, UART1_REG(MCR));
-
-	/* send the power-off command 'A' to PIC */
-	writel('A', UART1_REG(TX));
-}
 
 static void __init qnap_ts219_init(void)
 {
@@ -192,9 +96,7 @@ static void __init qnap_ts219_init(void)
 
 	kirkwood_uart0_init();
 	kirkwood_uart1_init(); /* A PIC controller is connected here. */
-	spi_register_board_info(qnap_ts219_spi_slave_info,
-				ARRAY_SIZE(qnap_ts219_spi_slave_info));
-	kirkwood_spi_init();
+	qnap_tsx1x_register_flash();
 	kirkwood_i2c_init();
 	i2c_register_board_info(0, &qnap_ts219_i2c_rtc, 1);
 	kirkwood_ge00_init(&qnap_ts219_ge00_data);
@@ -202,7 +104,7 @@ static void __init qnap_ts219_init(void)
 	kirkwood_ehci_init();
 	platform_device_register(&qnap_ts219_button_device);
 
-	pm_power_off = qnap_ts219_power_off;
+	pm_power_off = qnap_tsx1x_power_off;
 
 }
 

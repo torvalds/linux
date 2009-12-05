@@ -530,6 +530,84 @@ struct platform_device mxc_usbh2 = {
 };
 #endif
 
+static struct resource imx_ssi_resources0[] = {
+	{
+		.start	= SSI1_BASE_ADDR,
+		.end	= SSI1_BASE_ADDR + 0x6F,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= MXC_INT_SSI1,
+		.end	= MXC_INT_SSI1,
+		.flags	= IORESOURCE_IRQ,
+	}, {
+		.name	= "tx0",
+		.start	= DMA_REQ_SSI1_TX0,
+		.end	= DMA_REQ_SSI1_TX0,
+		.flags	= IORESOURCE_DMA,
+	}, {
+		.name	= "rx0",
+		.start	= DMA_REQ_SSI1_RX0,
+		.end	= DMA_REQ_SSI1_RX0,
+		.flags	= IORESOURCE_DMA,
+	}, {
+		.name	= "tx1",
+		.start	= DMA_REQ_SSI1_TX1,
+		.end	= DMA_REQ_SSI1_TX1,
+		.flags	= IORESOURCE_DMA,
+	}, {
+		.name	= "rx1",
+		.start	= DMA_REQ_SSI1_RX1,
+		.end	= DMA_REQ_SSI1_RX1,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct resource imx_ssi_resources1[] = {
+	{
+		.start	= SSI2_BASE_ADDR,
+		.end	= SSI2_BASE_ADDR + 0x6F,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= MXC_INT_SSI2,
+		.end	= MXC_INT_SSI2,
+		.flags	= IORESOURCE_IRQ,
+	}, {
+		.name	= "tx0",
+		.start	= DMA_REQ_SSI2_TX0,
+		.end	= DMA_REQ_SSI2_TX0,
+		.flags	= IORESOURCE_DMA,
+	}, {
+		.name	= "rx0",
+		.start	= DMA_REQ_SSI2_RX0,
+		.end	= DMA_REQ_SSI2_RX0,
+		.flags	= IORESOURCE_DMA,
+	}, {
+		.name	= "tx1",
+		.start	= DMA_REQ_SSI2_TX1,
+		.end	= DMA_REQ_SSI2_TX1,
+		.flags	= IORESOURCE_DMA,
+	}, {
+		.name	= "rx1",
+		.start	= DMA_REQ_SSI2_RX1,
+		.end	= DMA_REQ_SSI2_RX1,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+struct platform_device imx_ssi_device0 = {
+	.name = "imx-ssi",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(imx_ssi_resources0),
+	.resource = imx_ssi_resources0,
+};
+
+struct platform_device imx_ssi_device1 = {
+	.name = "imx-ssi",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(imx_ssi_resources1),
+	.resource = imx_ssi_resources1,
+};
+
 /* GPIO port description */
 static struct mxc_gpio_port imx_gpio_ports[] = {
 	{

@@ -96,7 +96,7 @@ static struct s3c2410_uartcfg jive_uartcfgs[] = {
  * 0x017d0000-0x02bd0000 : cramfs B
  * 0x02bd0000-0x03fd0000 : yaffs
  */
-static struct mtd_partition jive_imageA_nand_part[] = {
+static struct mtd_partition __initdata jive_imageA_nand_part[] = {
 
 #ifdef CONFIG_MACH_JIVE_SHOW_BOOTLOADER
 	/* Don't allow access to the bootloader from linux */
@@ -154,7 +154,7 @@ static struct mtd_partition jive_imageA_nand_part[] = {
         },
 };
 
-static struct mtd_partition jive_imageB_nand_part[] = {
+static struct mtd_partition __initdata jive_imageB_nand_part[] = {
 
 #ifdef CONFIG_MACH_JIVE_SHOW_BOOTLOADER
 	/* Don't allow access to the bootloader from linux */
@@ -213,7 +213,7 @@ static struct mtd_partition jive_imageB_nand_part[] = {
         },
 };
 
-static struct s3c2410_nand_set jive_nand_sets[] = {
+static struct s3c2410_nand_set __initdata jive_nand_sets[] = {
 	[0] = {
 		.name           = "flash",
 		.nr_chips       = 1,
@@ -222,7 +222,7 @@ static struct s3c2410_nand_set jive_nand_sets[] = {
 	},
 };
 
-static struct s3c2410_platform_nand jive_nand_info = {
+static struct s3c2410_platform_nand __initdata jive_nand_info = {
 	/* set taken from osiris nand timings, possibly still conservative */
 	.tacls		= 30,
 	.twrph0		= 55,
@@ -631,7 +631,8 @@ static void __init jive_machine_init(void)
 
 	s3c_pm_init();
 
-	s3c_device_nand.dev.platform_data = &jive_nand_info;
+	/** TODO - check that this is after the cmdline option! */
+	s3c_nand_set_platdata(&jive_nand_info);
 
 	/* initialise the spi */
 

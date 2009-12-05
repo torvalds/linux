@@ -358,7 +358,7 @@ endchoice
 
 config MTD_NAND_PXA3xx
 	tristate "Support for NAND flash devices on PXA3xx"
-	depends on MTD_NAND && PXA3xx
+	depends on MTD_NAND && (PXA3xx || ARCH_MMP)
 	help
 	  This enables the driver for the NAND flash device found on
 	  PXA3xx processors

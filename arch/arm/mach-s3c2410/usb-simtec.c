@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2410/usb-simtec.c
  *
- * Copyright (c) 2004,2005 Simtec Electronics
+ * Copyright 2004-2005 Simtec Electronics
  *   Ben Dooks <ben@simtec.co.uk>
  *
  * http://www.simtec.co.uk/products/EB2410ITX/
@@ -108,7 +108,7 @@ int usb_simtec_init(void)
 {
 	int ret;
 
-	printk("USB Power Control, (c) 2004 Simtec Electronics\n");
+	printk("USB Power Control, Copyright 2004 Simtec Electronics\n");
 
 	ret = gpio_request(S3C2410_GPB(4), "USB power control");
 	if (ret < 0) {

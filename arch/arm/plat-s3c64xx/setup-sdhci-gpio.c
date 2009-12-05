@@ -53,3 +53,23 @@ void s3c64xx_setup_sdhci1_cfg_gpio(struct platform_device *dev, int width)
 	s3c_gpio_setpull(S3C64XX_GPG(6), S3C_GPIO_PULL_UP);
 	s3c_gpio_cfgpin(S3C64XX_GPG(6), S3C_GPIO_SFN(3));
 }
+
+void s3c64xx_setup_sdhci2_cfg_gpio(struct platform_device *dev, int width)
+{
+	unsigned int gpio;
+	unsigned int end;
+
+	end = S3C64XX_GPH(6 + width);
+
+	/* Set all the necessary GPH pins to special-function 1 */
+	for (gpio = S3C64XX_GPH(6); gpio < end; gpio++) {
+		s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(3));
+		s3c_gpio_setpull(gpio, S3C_GPIO_PULL_NONE);
+	}
+
+	/* Set all the necessary GPC pins to special-function 1 */
+	for (gpio = S3C64XX_GPC(4); gpio < S3C64XX_GPC(6); gpio++) {
+		s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(3));
+		s3c_gpio_setpull(gpio, S3C_GPIO_PULL_NONE);
+	}
+}

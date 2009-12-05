@@ -31,7 +31,7 @@
 #include <mach/mmc.h>
 #include <mach/ohci.h>
 #include <mach/pxa27x_keypad.h>
-#include <mach/pxa3xx_nand.h>
+#include <plat/pxa3xx_nand.h>
 
 #include "devices.h"
 #include "generic.h"
@@ -444,6 +444,10 @@ static inline void zylonite_init_ohci(void) {}
 
 static void __init zylonite_init(void)
 {
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	/* board-processor specific initialization */
 	zylonite_pxa300_init();
 	zylonite_pxa320_init();

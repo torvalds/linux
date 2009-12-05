@@ -1,0 +1,17 @@
+# arch/arm/plat-samsung/Kconfig
+#
+# Copyright 2009 Simtec Electronics
+#
+# Licensed under GPLv2
+
+config PLAT_SAMSUNG
+	bool
+	depends on ARCH_S3C2410 || ARCH_S3C24A0 || ARCH_S3C64XX || ARCH_S5PC1XX
+	default y
+	help
+	  Base platform code for all Samsung SoC based systems
+
+if PLAT_SAMSUNG
+
+
+endif

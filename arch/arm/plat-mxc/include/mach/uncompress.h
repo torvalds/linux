@@ -83,6 +83,8 @@ static __inline__ void __arch_decomp_setup(unsigned long arch_id)
 	case MACH_TYPE_MX27ADS:
 	case MACH_TYPE_PCM038:
 	case MACH_TYPE_MX21ADS:
+	case MACH_TYPE_PCA100:
+	case MACH_TYPE_MXT_TD60:
 		uart_base = MX2X_UART1_BASE_ADDR;
 		break;
 	case MACH_TYPE_MX31LITE:
@@ -94,6 +96,7 @@ static __inline__ void __arch_decomp_setup(unsigned long arch_id)
 	case MACH_TYPE_MX31ADS:
 	case MACH_TYPE_MX35_3DS:
 	case MACH_TYPE_PCM043:
+	case MACH_TYPE_LILLY1131:
 		uart_base = MX3X_UART1_BASE_ADDR;
 		break;
 	case MACH_TYPE_MAGX_ZN5:

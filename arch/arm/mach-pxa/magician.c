@@ -742,6 +742,10 @@ static void __init magician_init(void)
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(magician_pin_config));
 
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	platform_add_devices(ARRAY_AND_SIZE(devices));
 
 	err = gpio_request(GPIO83_MAGICIAN_nIR_EN, "nIR_EN");
