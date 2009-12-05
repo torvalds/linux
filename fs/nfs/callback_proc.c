@@ -61,6 +61,16 @@ out:
 	return res->status;
 }
 
+static int (*nfs_validate_delegation_stateid(struct nfs_client *clp))(struct nfs_delegation *, const nfs4_stateid *)
+{
+#if defined(CONFIG_NFS_V4_1)
+	if (clp->cl_minorversion > 0)
+		return nfs41_validate_delegation_stateid;
+#endif
+	return nfs4_validate_delegation_stateid;
+}
+
+
 __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy)
 {
 	struct nfs_client *clp;
@@ -81,7 +91,8 @@ __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy)
 		inode = nfs_delegation_find_inode(clp, &args->fh);
 		if (inode != NULL) {
 			/* Set up a helper thread to actually return the delegation */
-			switch(nfs_async_inode_return_delegation(inode, &args->stateid)) {
+			switch (nfs_async_inode_return_delegation(inode, &args->stateid,
+								  nfs_validate_delegation_stateid(clp))) {
 				case 0:
 					res = 0;
 					break;
@@ -102,7 +113,30 @@ out:
 	return res;
 }
 
+int nfs4_validate_delegation_stateid(struct nfs_delegation *delegation, const nfs4_stateid *stateid)
+{
+	if (delegation == NULL || memcmp(delegation->stateid.data, stateid->data,
+					 sizeof(delegation->stateid.data)) != 0)
+		return 0;
+	return 1;
+}
+
 #if defined(CONFIG_NFS_V4_1)
+
+int nfs41_validate_delegation_stateid(struct nfs_delegation *delegation, const nfs4_stateid *stateid)
+{
+	if (delegation == NULL)
+		return 0;
+
+	/* seqid is 4-bytes long */
+	if (((u32 *) &stateid->data)[0] != 0)
+		return 0;
+	if (memcmp(&delegation->stateid.data[4], &stateid->data[4],
+		   sizeof(stateid->data)-4))
+		return 0;
+
+	return 1;
+}
 
 /*
  * Validate the sequenceID sent by the server.
@@ -255,5 +289,4 @@ out:
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
 	return status;
 }
-
 #endif /* CONFIG_NFS_V4_1 */

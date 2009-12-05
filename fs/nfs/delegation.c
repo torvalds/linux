@@ -454,18 +454,21 @@ void nfs_expire_unreferenced_delegations(struct nfs_client *clp)
 /*
  * Asynchronous delegation recall!
  */
-int nfs_async_inode_return_delegation(struct inode *inode, const nfs4_stateid *stateid)
+int nfs_async_inode_return_delegation(struct inode *inode, const nfs4_stateid *stateid,
+				      int (*validate_stateid)(struct nfs_delegation *delegation,
+							      const nfs4_stateid *stateid))
 {
 	struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
 	struct nfs_delegation *delegation;
 
 	rcu_read_lock();
 	delegation = rcu_dereference(NFS_I(inode)->delegation);
-	if (delegation == NULL || memcmp(delegation->stateid.data, stateid->data,
-				sizeof(delegation->stateid.data)) != 0) {
+
+	if (!validate_stateid(delegation, stateid)) {
 		rcu_read_unlock();
 		return -ENOENT;
 	}
+
 	nfs_mark_return_delegation(clp, delegation);
 	rcu_read_unlock();
 	nfs_delegation_run_state_manager(clp);
