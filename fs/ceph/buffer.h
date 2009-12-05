@@ -1,6 +1,7 @@
 #ifndef __FS_CEPH_BUFFER_H
 #define __FS_CEPH_BUFFER_H
 
+#include <linux/kref.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/types.h>
@@ -13,7 +14,7 @@
  * sizes.
  */
 struct ceph_buffer {
-	atomic_t nref;
+	struct kref kref;
 	struct kvec vec;
 	size_t alloc_len;
 	bool is_vmalloc;
@@ -24,21 +25,16 @@ int ceph_buffer_alloc(struct ceph_buffer *b, int len, gfp_t gfp);
 
 static inline struct ceph_buffer *ceph_buffer_get(struct ceph_buffer *b)
 {
-	atomic_inc(&b->nref);
+	kref_get(&b->kref);
 	return b;
 }
 
+void ceph_buffer_release(struct kref *kref);
+
 static inline void ceph_buffer_put(struct ceph_buffer *b)
 {
-	if (b && atomic_dec_and_test(&b->nref)) {
-		if (b->vec.iov_base) {
-			if (b->is_vmalloc)
-				vfree(b->vec.iov_base);
-			else
-				kfree(b->vec.iov_base);
-		}
-		kfree(b);
-	}
+	if (b)
+		kref_put(&b->kref, ceph_buffer_release);
 }
 
 static inline struct ceph_buffer *ceph_buffer_new_alloc(int len, gfp_t gfp)
