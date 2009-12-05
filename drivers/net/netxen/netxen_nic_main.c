@@ -1011,8 +1011,10 @@ __netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
 	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
 		return;
 
-	clear_bit(__NX_DEV_UP, &adapter->state);
+	if (!test_and_clear_bit(__NX_DEV_UP, &adapter->state))
+		return;
 
+	smp_mb();
 	spin_lock(&adapter->tx_clean_lock);
 	netif_carrier_off(netdev);
 	netif_tx_disable(netdev);
@@ -2053,7 +2055,7 @@ static int netxen_nic_poll(struct napi_struct *napi, int budget)
 
 	if ((work_done < budget) && tx_complete) {
 		napi_complete(&sds_ring->napi);
-		if (netif_running(adapter->netdev))
+		if (test_bit(__NX_DEV_UP, &adapter->state))
 			netxen_nic_enable_int(sds_ring);
 	}
 
