@@ -411,7 +411,7 @@ static void nfs_delegation_run_state_manager(struct nfs_client *clp)
 		nfs4_schedule_state_manager(clp);
 }
 
-static void nfs_expire_all_delegation_types(struct nfs_client *clp, fmode_t flags)
+void nfs_expire_all_delegation_types(struct nfs_client *clp, fmode_t flags)
 {
 	nfs_client_mark_return_all_delegation_types(clp, flags);
 	nfs_delegation_run_state_manager(clp);

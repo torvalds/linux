@@ -106,6 +106,17 @@ struct cb_sequenceres {
 extern unsigned nfs4_callback_sequence(struct cb_sequenceargs *args,
 				       struct cb_sequenceres *res);
 
+
+#define RCA4_TYPE_MASK_RDATA_DLG	0
+#define RCA4_TYPE_MASK_WDATA_DLG	1
+
+struct cb_recallanyargs {
+	struct sockaddr	*craa_addr;
+	uint32_t	craa_objs_to_keep;
+	uint32_t	craa_type_mask;
+};
+
+extern unsigned nfs4_callback_recallany(struct cb_recallanyargs *args, void *dummy);
 #endif /* CONFIG_NFS_V4_1 */
 
 extern __be32 nfs4_callback_getattr(struct cb_getattrargs *args, struct cb_getattrres *res);

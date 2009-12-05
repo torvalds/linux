@@ -227,4 +227,33 @@ out:
 	return res->csr_status;
 }
 
+unsigned nfs4_callback_recallany(struct cb_recallanyargs *args, void *dummy)
+{
+	struct nfs_client *clp;
+	int status;
+	fmode_t flags = 0;
+
+	status = htonl(NFS4ERR_OP_NOT_IN_SESSION);
+	clp = nfs_find_client(args->craa_addr, 4);
+	if (clp == NULL)
+		goto out;
+
+	dprintk("NFS: RECALL_ANY callback request from %s\n",
+		rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_ADDR));
+
+	if (test_bit(RCA4_TYPE_MASK_RDATA_DLG, (const unsigned long *)
+		     &args->craa_type_mask))
+		flags = FMODE_READ;
+	if (test_bit(RCA4_TYPE_MASK_WDATA_DLG, (const unsigned long *)
+		     &args->craa_type_mask))
+		flags |= FMODE_WRITE;
+
+	if (flags)
+		nfs_expire_all_delegation_types(clp, flags);
+	status = htonl(NFS4_OK);
+out:
+	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
+	return status;
+}
+
 #endif /* CONFIG_NFS_V4_1 */
