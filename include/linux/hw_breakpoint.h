@@ -20,19 +20,16 @@ enum {
 
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 
-/* As it's for in-kernel or ptrace use, we want it to be pinned */
-#define DEFINE_BREAKPOINT_ATTR(name)	\
-struct perf_event_attr name = {		\
-	.type = PERF_TYPE_BREAKPOINT,	\
-	.size = sizeof(name),		\
-	.pinned = 1,			\
-};
-
 static inline void hw_breakpoint_init(struct perf_event_attr *attr)
 {
 	attr->type = PERF_TYPE_BREAKPOINT;
 	attr->size = sizeof(*attr);
+	/*
+	 * As it's for in-kernel or ptrace use, we want it to be pinned
+	 * and to call its callback every hits.
+	 */
 	attr->pinned = 1;
+	attr->sample_period = 1;
 }
 
 static inline unsigned long hw_breakpoint_addr(struct perf_event *bp)
@@ -52,7 +49,7 @@ static inline int hw_breakpoint_len(struct perf_event *bp)
 
 extern struct perf_event *
 register_user_hw_breakpoint(struct perf_event_attr *attr,
-			    perf_callback_t triggered,
+			    perf_overflow_handler_t triggered,
 			    struct task_struct *tsk);
 
 /* FIXME: only change from the attr, and don't unregister */
@@ -64,12 +61,12 @@ modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *attr);
  */
 extern struct perf_event *
 register_wide_hw_breakpoint_cpu(struct perf_event_attr *attr,
-				perf_callback_t triggered,
+				perf_overflow_handler_t	triggered,
 				int cpu);
 
 extern struct perf_event **
 register_wide_hw_breakpoint(struct perf_event_attr *attr,
-			    perf_callback_t triggered);
+			    perf_overflow_handler_t triggered);
 
 extern int register_perf_hw_breakpoint(struct perf_event *bp);
 extern int __register_perf_hw_breakpoint(struct perf_event *bp);
@@ -90,18 +87,18 @@ static inline struct arch_hw_breakpoint *counter_arch_bp(struct perf_event *bp)
 
 static inline struct perf_event *
 register_user_hw_breakpoint(struct perf_event_attr *attr,
-			    perf_callback_t triggered,
+			    perf_overflow_handler_t triggered,
 			    struct task_struct *tsk)	{ return NULL; }
 static inline struct perf_event *
 modify_user_hw_breakpoint(struct perf_event *bp,
 			  struct perf_event_attr *attr)	{ return NULL; }
 static inline struct perf_event *
 register_wide_hw_breakpoint_cpu(struct perf_event_attr *attr,
-				perf_callback_t triggered,
+				perf_overflow_handler_t	 triggered,
 				int cpu)		{ return NULL; }
 static inline struct perf_event **
 register_wide_hw_breakpoint(struct perf_event_attr *attr,
-			    perf_callback_t triggered)	{ return NULL; }
+			    perf_overflow_handler_t triggered)	{ return NULL; }
 static inline int
 register_perf_hw_breakpoint(struct perf_event *bp)	{ return -ENOSYS; }
 static inline int

@@ -79,11 +79,12 @@ void ksym_collect_stats(unsigned long hbp_hit_addr)
 }
 #endif /* CONFIG_PROFILE_KSYM_TRACER */
 
-void ksym_hbp_handler(struct perf_event *hbp, void *data)
+void ksym_hbp_handler(struct perf_event *hbp, int nmi,
+		      struct perf_sample_data *data,
+		      struct pt_regs *regs)
 {
 	struct ring_buffer_event *event;
 	struct ksym_trace_entry *entry;
-	struct pt_regs *regs = data;
 	struct ring_buffer *buffer;
 	int pc;
 

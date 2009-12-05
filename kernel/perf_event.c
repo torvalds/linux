@@ -4286,15 +4286,8 @@ static void bp_perf_event_destroy(struct perf_event *event)
 static const struct pmu *bp_perf_event_init(struct perf_event *bp)
 {
 	int err;
-	/*
-	 * The breakpoint is already filled if we haven't created the counter
-	 * through perf syscall
-	 * FIXME: manage to get trigerred to NULL if it comes from syscalls
-	 */
-	if (!bp->callback)
-		err = register_perf_hw_breakpoint(bp);
-	else
-		err = __register_perf_hw_breakpoint(bp);
+
+	err = register_perf_hw_breakpoint(bp);
 	if (err)
 		return ERR_PTR(err);
 
@@ -4390,7 +4383,7 @@ perf_event_alloc(struct perf_event_attr *attr,
 		   struct perf_event_context *ctx,
 		   struct perf_event *group_leader,
 		   struct perf_event *parent_event,
-		   perf_callback_t callback,
+		   perf_overflow_handler_t overflow_handler,
 		   gfp_t gfpflags)
 {
 	const struct pmu *pmu;
@@ -4433,10 +4426,10 @@ perf_event_alloc(struct perf_event_attr *attr,
 
 	event->state		= PERF_EVENT_STATE_INACTIVE;
 
-	if (!callback && parent_event)
-		callback = parent_event->callback;
+	if (!overflow_handler && parent_event)
+		overflow_handler = parent_event->overflow_handler;
 	
-	event->callback	= callback;
+	event->overflow_handler	= overflow_handler;
 
 	if (attr->disabled)
 		event->state = PERF_EVENT_STATE_OFF;
@@ -4776,7 +4769,8 @@ err_put_context:
  */
 struct perf_event *
 perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
-				 pid_t pid, perf_callback_t callback)
+				 pid_t pid,
+				 perf_overflow_handler_t overflow_handler)
 {
 	struct perf_event *event;
 	struct perf_event_context *ctx;
@@ -4793,7 +4787,7 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
 	}
 
 	event = perf_event_alloc(attr, cpu, ctx, NULL,
-				     NULL, callback, GFP_KERNEL);
+				 NULL, overflow_handler, GFP_KERNEL);
 	if (IS_ERR(event)) {
 		err = PTR_ERR(event);
 		goto err_put_context;

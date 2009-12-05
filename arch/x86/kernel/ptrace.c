@@ -555,7 +555,9 @@ static int genregs_set(struct task_struct *target,
 	return ret;
 }
 
-static void ptrace_triggered(struct perf_event *bp, void *data)
+static void ptrace_triggered(struct perf_event *bp, int nmi,
+			     struct perf_sample_data *data,
+			     struct pt_regs *regs)
 {
 	int i;
 	struct thread_struct *thread = &(current->thread);
@@ -599,7 +601,7 @@ ptrace_modify_breakpoint(struct perf_event *bp, int len, int type,
 {
 	int err;
 	int gen_len, gen_type;
-	DEFINE_BREAKPOINT_ATTR(attr);
+	struct perf_event_attr attr;
 
 	/*
 	 * We shoud have at least an inactive breakpoint at this
@@ -721,9 +723,10 @@ static int ptrace_set_breakpoint_addr(struct task_struct *tsk, int nr,
 {
 	struct perf_event *bp;
 	struct thread_struct *t = &tsk->thread;
-	DEFINE_BREAKPOINT_ATTR(attr);
+	struct perf_event_attr attr;
 
 	if (!t->ptrace_bps[nr]) {
+		hw_breakpoint_init(&attr);
 		/*
 		 * Put stub len and type to register (reserve) an inactive but
 		 * correct bp
