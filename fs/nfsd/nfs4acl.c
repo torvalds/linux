@@ -1,6 +1,4 @@
 /*
- *  fs/nfs4acl/acl.c
- *
  *  Common NFSv4 ACL handling code.
  *
  *  Copyright (c) 2002, 2003 The Regents of the University of Michigan.

@@ -1,6 +1,4 @@
 /*
- *  fs/nfsd/nfs4proc.c
- *
  *  Server-side procedures for NFSv4.
  *
  *  Copyright (c) 2002 The Regents of the University of Michigan.

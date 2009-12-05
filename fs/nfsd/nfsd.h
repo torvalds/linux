@@ -1,6 +1,4 @@
 /*
- * linux/include/linux/nfsd/nfsd.h
- *
  * Hodge-podge collection of knfsd-related stuff.
  * I will sort this out later.
  *

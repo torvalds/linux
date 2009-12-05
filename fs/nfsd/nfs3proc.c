@@ -1,6 +1,4 @@
 /*
- * linux/fs/nfsd/nfs3proc.c
- *
  * Process version 3 NFS requests.
  *
  * Copyright (C) 1996, 1997, 1998 Olaf Kirch <okir@monad.swb.de>

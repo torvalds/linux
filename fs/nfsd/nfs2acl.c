@@ -1,6 +1,4 @@
 /*
- * linux/fs/nfsd/nfs2acl.c
- *
  * Process version 2 NFSACL requests.
  *
  * Copyright (C) 2002-2003 Andreas Gruenbacher <agruen@suse.de>

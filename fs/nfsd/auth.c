@@ -1,8 +1,4 @@
-/*
- * linux/fs/nfsd/auth.c
- *
- * Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de>
- */
+/* Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de> */
 
 #include <linux/sched.h>
 #include "nfsd.h"

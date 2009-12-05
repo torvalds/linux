@@ -1,6 +1,4 @@
 /*
- * linux/fs/nfsd/lockd.c
- *
  * This file contains all the stubs needed when communicating with lockd.
  * This level of indirection is necessary so we can run nfsd+lockd without
  * requiring the nfs client to be compiled in/loaded, and vice versa.

@@ -1,7 +1,4 @@
 /*
- * nfsproc2.c	Process version 2 NFS requests.
- * linux/fs/nfsd/nfs2proc.c
- * 
  * Process version 2 NFS requests.
  *
  * Copyright (C) 1995-1997 Olaf Kirch <okir@monad.swb.de>

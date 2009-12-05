@@ -1,6 +1,4 @@
 /*
- *  include/linux/nfsd/xdr4.h
- *
  *  Server-side types for NFSv4.
  *
  *  Copyright (c) 2002 The Regents of the University of Michigan.

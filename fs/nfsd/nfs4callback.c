@@ -1,6 +1,4 @@
 /*
- *  linux/fs/nfsd/nfs4callback.c
- *
  *  Copyright (c) 2001 The Regents of the University of Michigan.
  *  All rights reserved.
  *

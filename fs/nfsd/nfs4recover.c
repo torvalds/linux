@@ -1,6 +1,4 @@
 /*
-*  linux/fs/nfsd/nfs4recover.c
-*
 *  Copyright (c) 2004 The Regents of the University of Michigan.
 *  All rights reserved.
 *

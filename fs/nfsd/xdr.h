@@ -1,8 +1,4 @@
-/*
- * linux/include/linux/nfsd/xdr.h
- *
- * XDR types for nfsd. This is mainly a typing exercise.
- */
+/* XDR types for nfsd. This is mainly a typing exercise. */
 
 #ifndef LINUX_NFSD_H
 #define LINUX_NFSD_H

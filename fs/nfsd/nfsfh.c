@@ -1,6 +1,4 @@
 /*
- * linux/fs/nfsd/nfsfh.c
- *
  * NFS server file handle treatment.
  *
  * Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de>

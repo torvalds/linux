@@ -1,6 +1,4 @@
 /*
- *  linux/include/nfsd/state.h
- *
  *  Copyright (c) 2001 The Regents of the University of Michigan.
  *  All rights reserved.
  *

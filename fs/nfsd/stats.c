@@ -1,6 +1,4 @@
 /*
- * linux/fs/nfsd/stats.c
- *
  * procfs-based user access to knfsd statistics
  *
  * /proc/net/rpc/nfsd

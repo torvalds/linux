@@ -1,6 +1,4 @@
 /*
- * include/linux/nfsd/cache.h
- *
  * Request reply cache. This was heavily inspired by the
  * implementation in 4.3BSD/4.4BSD.
  *

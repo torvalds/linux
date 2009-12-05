@@ -1,6 +1,4 @@
 /*
- * linux/fs/nfsd/nfs3acl.c
- *
  * Process version 3 NFSACL requests.
  *
  * Copyright (C) 2002-2003 Andreas Gruenbacher <agruen@suse.de>
