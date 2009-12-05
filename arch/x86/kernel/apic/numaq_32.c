@@ -334,10 +334,9 @@ static inline const struct cpumask *numaq_target_cpus(void)
 	return cpu_all_mask;
 }
 
-static inline unsigned long
-numaq_check_apicid_used(physid_mask_t bitmap, int apicid)
+static unsigned long numaq_check_apicid_used(physid_mask_t *map, int apicid)
 {
-	return physid_isset(apicid, bitmap);
+	return physid_isset(apicid, *map);
 }
 
 static inline unsigned long numaq_check_apicid_present(int bit)
@@ -371,10 +370,10 @@ static inline int numaq_multi_timer_check(int apic, int irq)
 	return apic != 0 && irq == 0;
 }
 
-static inline physid_mask_t numaq_ioapic_phys_id_map(physid_mask_t phys_map)
+static inline void numaq_ioapic_phys_id_map(physid_mask_t *phys_map, physid_mask_t *retmap)
 {
 	/* We don't have a good way to do this yet - hack */
-	return physids_promote(0xFUL);
+	return physids_promote(0xFUL, retmap);
 }
 
 static inline int numaq_cpu_to_logical_apicid(int cpu)
@@ -402,12 +401,12 @@ static inline int numaq_apicid_to_node(int logical_apicid)
 	return logical_apicid >> 4;
 }
 
-static inline physid_mask_t numaq_apicid_to_cpu_present(int logical_apicid)
+static void numaq_apicid_to_cpu_present(int logical_apicid, physid_mask_t *retmap)
 {
 	int node = numaq_apicid_to_node(logical_apicid);
 	int cpu = __ffs(logical_apicid & 0xf);
 
-	return physid_mask_of_physid(cpu + 4*node);
+	physid_set_mask_of_physid(cpu + 4*node, retmap);
 }
 
 /* Where the IO area was mapped on multiquad, always 0 otherwise */
