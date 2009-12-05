@@ -63,19 +63,7 @@ void jprobe_return_end(void);
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
-#ifdef CONFIG_X86_64
-#define stack_addr(regs) ((unsigned long *)regs->sp)
-#else
-/*
- * "&regs->sp" looks wrong, but it's correct for x86_32.  x86_32 CPUs
- * don't save the ss and esp registers if the CPU is already in kernel
- * mode when it traps.  So for kprobes, regs->sp and regs->ss are not
- * the [nonexistent] saved stack pointer and ss register, but rather
- * the top 8 bytes of the pre-int3 stack.  So &regs->sp happens to
- * point to the top of the pre-int3 stack.
- */
-#define stack_addr(regs) ((unsigned long *)&regs->sp)
-#endif
+#define stack_addr(regs) ((unsigned long *)kernel_stack_pointer(regs))
 
 #define W(row, b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, ba, bb, bc, bd, be, bf)\
 	(((b0##UL << 0x0)|(b1##UL << 0x1)|(b2##UL << 0x2)|(b3##UL << 0x3) |   \

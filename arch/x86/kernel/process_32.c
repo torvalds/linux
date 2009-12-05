@@ -135,7 +135,7 @@ void __show_regs(struct pt_regs *regs, int all)
 		ss = regs->ss & 0xffff;
 		gs = get_user_gs(regs);
 	} else {
-		sp = (unsigned long) (&regs->sp);
+		sp = kernel_stack_pointer(regs);
 		savesegment(ss, ss);
 		savesegment(gs, gs);
 	}
