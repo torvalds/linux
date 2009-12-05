@@ -155,11 +155,11 @@ GLOBAL(return_to_handler)
 
 	call ftrace_return_to_handler
 
-	movq %rax, 16(%rsp)
+	movq %rax, %rdi
 	movq 8(%rsp), %rdx
 	movq (%rsp), %rax
-	addq $16, %rsp
-	retq
+	addq $24, %rsp
+	jmp *%rdi
 #endif
 
 

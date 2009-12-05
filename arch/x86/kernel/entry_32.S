@@ -1185,17 +1185,14 @@ END(ftrace_graph_caller)
 
 .globl return_to_handler
 return_to_handler:
-	pushl $0
 	pushl %eax
-	pushl %ecx
 	pushl %edx
 	movl %ebp, %eax
 	call ftrace_return_to_handler
-	movl %eax, 0xc(%esp)
+	movl %eax, %ecx
 	popl %edx
-	popl %ecx
 	popl %eax
-	ret
+	jmp *%ecx
 #endif
 
 .section .rodata,"a"
