@@ -2186,6 +2186,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	sbni=		[NET] Granch SBNI12 leased line adapter
 
+	sched_debug	[KNL] Enables verbose scheduler debug messages.
+
 	sc1200wdt=	[HW,WDT] SC1200 WDT (watchdog) driver
 			Format: <io>[,<timeout>[,<isapnp>]]
 

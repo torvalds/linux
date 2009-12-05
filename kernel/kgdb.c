@@ -870,7 +870,7 @@ static void gdb_cmd_getregs(struct kgdb_state *ks)
 
 	/*
 	 * All threads that don't have debuggerinfo should be
-	 * in __schedule() sleeping, since all other CPUs
+	 * in schedule() sleeping, since all other CPUs
 	 * are in kgdb_wait, and thus have debuggerinfo.
 	 */
 	if (local_debuggerinfo) {
