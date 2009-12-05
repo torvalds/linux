@@ -200,4 +200,5 @@ extern struct ir_scancode_table ir_codes_evga_indtube_table;
 extern struct ir_scancode_table ir_codes_terratec_cinergy_xs_table;
 extern struct ir_scancode_table ir_codes_videomate_s350_table;
 extern struct ir_scancode_table ir_codes_gadmei_rm008z_table;
+extern struct ir_scancode_table ir_codes_nec_terratec_cinergy_xs_table;
 #endif
