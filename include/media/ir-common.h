@@ -32,9 +32,13 @@ extern int media_ir_debug;    /* media_ir_debug level (0,1,2) */
 #define IR_dprintk(level, fmt, arg...)	if (media_ir_debug >= level) \
 	printk(KERN_DEBUG "%s: " fmt , __func__, ## arg)
 
-#define IR_TYPE_RC5     1
-#define IR_TYPE_PD      2 /* Pulse distance encoded IR */
-#define IR_TYPE_OTHER  99
+enum ir_type {
+	IR_TYPE_UNKNOWN = 0,
+	IR_TYPE_RC5 = 1,
+	IR_TYPE_PD = 2,		 /* Pulse distance encoded IR */
+	IR_TYPE_NEC = 3,
+	IR_TYPE_OTHER = 99,
+};
 
 struct ir_scancode {
 	u16	scancode;
@@ -44,6 +48,7 @@ struct ir_scancode {
 struct ir_scancode_table {
 	struct ir_scancode *scan;
 	int size;
+	enum ir_type ir_type;
 	spinlock_t lock;
 };
 
