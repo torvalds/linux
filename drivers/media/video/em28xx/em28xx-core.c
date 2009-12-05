@@ -216,7 +216,7 @@ int em28xx_write_reg(struct em28xx *dev, u16 reg, u8 val)
  * sets only some bits (specified by bitmask) of a register, by first reading
  * the actual value
  */
-static int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
+int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
 				 u8 bitmask)
 {
 	int oldval;

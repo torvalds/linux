@@ -337,19 +337,28 @@ int em28xx_ir_init(struct em28xx *dev)
 		goto err_out_free;
 
 	ir->input = input_dev;
+	ir_config = EM2874_IR_RC5;
+
+	/* Adjust xclk based o IR table for RC5/NEC tables */
+	if (dev->board.ir_codes->ir_type == IR_TYPE_RC5) {
+		dev->board.xclk |= EM28XX_XCLK_IR_RC5_MODE;
+		ir->full_code = 1;
+	} else  if (dev->board.ir_codes->ir_type == IR_TYPE_NEC) {
+		dev->board.xclk &= ~EM28XX_XCLK_IR_RC5_MODE;
+		ir_config = EM2874_IR_NEC;
+		ir->full_code = 1;
+	}
+	em28xx_write_reg_bits(dev, EM28XX_R0F_XCLK, dev->board.xclk,
+			      EM28XX_XCLK_IR_RC5_MODE);
 
 	/* Setup the proper handler based on the chip */
 	switch (dev->chip_id) {
 	case CHIP_ID_EM2860:
 	case CHIP_ID_EM2883:
-		if (dev->model == EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950)
-			ir->full_code = 1;
 		ir->get_key = default_polling_getkey;
 		break;
 	case CHIP_ID_EM2874:
 		ir->get_key = em2874_polling_getkey;
-		/* For now we only support RC5, so enable it */
-		ir_config = EM2874_IR_RC5;
 		em28xx_write_regs(dev, EM2874_R50_IR_CONFIG, &ir_config, 1);
 		break;
 	default:
