@@ -17,55 +17,52 @@
 #include "util/header.h"
 #include "util/event.h"
 #include "util/debug.h"
-#include "util/trace-event.h"
+#include "util/symbol.h"
 
 #include <unistd.h>
 #include <sched.h>
 
-#define ALIGN(x, a)		__ALIGN_MASK(x, (typeof(x))(a)-1)
-#define __ALIGN_MASK(x, mask)	(((x)+(mask))&~(mask))
-
 static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
 
-static long			default_interval		= 100000;
+static long			default_interval		=      0;
 
-static int			nr_cpus				= 0;
+static int			nr_cpus				=      0;
 static unsigned int		page_size;
-static unsigned int		mmap_pages			= 128;
-static int			freq				= 0;
+static unsigned int		mmap_pages			=    128;
+static int			freq				=   1000;
 static int			output;
 static const char		*output_name			= "perf.data";
-static int			group				= 0;
-static unsigned int		realtime_prio			= 0;
-static int			raw_samples			= 0;
-static int			system_wide			= 0;
-static int			profile_cpu			= -1;
-static pid_t			target_pid			= -1;
-static pid_t			child_pid			= -1;
-static int			inherit				= 1;
-static int			force				= 0;
-static int			append_file			= 0;
-static int			call_graph			= 0;
-static int			inherit_stat			= 0;
-static int			no_samples			= 0;
-static int			sample_address			= 0;
-static int			multiplex			= 0;
-static int			multiplex_fd			= -1;
+static int			group				=      0;
+static unsigned int		realtime_prio			=      0;
+static int			raw_samples			=      0;
+static int			system_wide			=      0;
+static int			profile_cpu			=     -1;
+static pid_t			target_pid			=     -1;
+static pid_t			child_pid			=     -1;
+static int			inherit				=      1;
+static int			force				=      0;
+static int			append_file			=      0;
+static int			call_graph			=      0;
+static int			inherit_stat			=      0;
+static int			no_samples			=      0;
+static int			sample_address			=      0;
+static int			multiplex			=      0;
+static int			multiplex_fd			=     -1;
 
-static long			samples;
+static long			samples				=      0;
 static struct timeval		last_read;
 static struct timeval		this_read;
 
-static u64			bytes_written;
+static u64			bytes_written			=      0;
 
 static struct pollfd		event_array[MAX_NR_CPUS * MAX_COUNTERS];
 
-static int			nr_poll;
-static int			nr_cpu;
+static int			nr_poll				=      0;
+static int			nr_cpu				=      0;
 
-static int			file_new = 1;
+static int			file_new			=      1;
 
-struct perf_header		*header;
+struct perf_header		*header				=   NULL;
 
 struct mmap_data {
 	int			counter;
@@ -111,6 +108,24 @@ static void write_output(void *buf, size_t size)
 
 		bytes_written += ret;
 	}
+}
+
+static void write_event(event_t *buf, size_t size)
+{
+	/*
+	* Add it to the list of DSOs, so that when we finish this
+	 * record session we can pick the available build-ids.
+	 */
+	if (buf->header.type == PERF_RECORD_MMAP)
+		dsos__findnew(buf->mmap.filename);
+
+	write_output(buf, size);
+}
+
+static int process_synthesized_event(event_t *event)
+{
+	write_event(event, event->header.size);
+	return 0;
 }
 
 static void mmap_read(struct mmap_data *md)
@@ -161,14 +176,14 @@ static void mmap_read(struct mmap_data *md)
 		size = md->mask + 1 - (old & md->mask);
 		old += size;
 
-		write_output(buf, size);
+		write_event(buf, size);
 	}
 
 	buf = &data[old & md->mask];
 	size = head - old;
 	old += size;
 
-	write_output(buf, size);
+	write_event(buf, size);
 
 	md->prev = old;
 	mmap_write_tail(md, old);
@@ -195,168 +210,6 @@ static void sig_atexit(void)
 	kill(getpid(), signr);
 }
 
-static pid_t pid_synthesize_comm_event(pid_t pid, int full)
-{
-	struct comm_event comm_ev;
-	char filename[PATH_MAX];
-	char bf[BUFSIZ];
-	FILE *fp;
-	size_t size = 0;
-	DIR *tasks;
-	struct dirent dirent, *next;
-	pid_t tgid = 0;
-
-	snprintf(filename, sizeof(filename), "/proc/%d/status", pid);
-
-	fp = fopen(filename, "r");
-	if (fp == NULL) {
-		/*
-		 * We raced with a task exiting - just return:
-		 */
-		if (verbose)
-			fprintf(stderr, "couldn't open %s\n", filename);
-		return 0;
-	}
-
-	memset(&comm_ev, 0, sizeof(comm_ev));
-	while (!comm_ev.comm[0] || !comm_ev.pid) {
-		if (fgets(bf, sizeof(bf), fp) == NULL)
-			goto out_failure;
-
-		if (memcmp(bf, "Name:", 5) == 0) {
-			char *name = bf + 5;
-			while (*name && isspace(*name))
-				++name;
-			size = strlen(name) - 1;
-			memcpy(comm_ev.comm, name, size++);
-		} else if (memcmp(bf, "Tgid:", 5) == 0) {
-			char *tgids = bf + 5;
-			while (*tgids && isspace(*tgids))
-				++tgids;
-			tgid = comm_ev.pid = atoi(tgids);
-		}
-	}
-
-	comm_ev.header.type = PERF_RECORD_COMM;
-	size = ALIGN(size, sizeof(u64));
-	comm_ev.header.size = sizeof(comm_ev) - (sizeof(comm_ev.comm) - size);
-
-	if (!full) {
-		comm_ev.tid = pid;
-
-		write_output(&comm_ev, comm_ev.header.size);
-		goto out_fclose;
-	}
-
-	snprintf(filename, sizeof(filename), "/proc/%d/task", pid);
-
-	tasks = opendir(filename);
-	while (!readdir_r(tasks, &dirent, &next) && next) {
-		char *end;
-		pid = strtol(dirent.d_name, &end, 10);
-		if (*end)
-			continue;
-
-		comm_ev.tid = pid;
-
-		write_output(&comm_ev, comm_ev.header.size);
-	}
-	closedir(tasks);
-
-out_fclose:
-	fclose(fp);
-	return tgid;
-
-out_failure:
-	fprintf(stderr, "couldn't get COMM and pgid, malformed %s\n",
-		filename);
-	exit(EXIT_FAILURE);
-}
-
-static void pid_synthesize_mmap_samples(pid_t pid, pid_t tgid)
-{
-	char filename[PATH_MAX];
-	FILE *fp;
-
-	snprintf(filename, sizeof(filename), "/proc/%d/maps", pid);
-
-	fp = fopen(filename, "r");
-	if (fp == NULL) {
-		/*
-		 * We raced with a task exiting - just return:
-		 */
-		if (verbose)
-			fprintf(stderr, "couldn't open %s\n", filename);
-		return;
-	}
-	while (1) {
-		char bf[BUFSIZ], *pbf = bf;
-		struct mmap_event mmap_ev = {
-			.header = { .type = PERF_RECORD_MMAP },
-		};
-		int n;
-		size_t size;
-		if (fgets(bf, sizeof(bf), fp) == NULL)
-			break;
-
-		/* 00400000-0040c000 r-xp 00000000 fd:01 41038  /bin/cat */
-		n = hex2u64(pbf, &mmap_ev.start);
-		if (n < 0)
-			continue;
-		pbf += n + 1;
-		n = hex2u64(pbf, &mmap_ev.len);
-		if (n < 0)
-			continue;
-		pbf += n + 3;
-		if (*pbf == 'x') { /* vm_exec */
-			char *execname = strchr(bf, '/');
-
-			/* Catch VDSO */
-			if (execname == NULL)
-				execname = strstr(bf, "[vdso]");
-
-			if (execname == NULL)
-				continue;
-
-			size = strlen(execname);
-			execname[size - 1] = '\0'; /* Remove \n */
-			memcpy(mmap_ev.filename, execname, size);
-			size = ALIGN(size, sizeof(u64));
-			mmap_ev.len -= mmap_ev.start;
-			mmap_ev.header.size = (sizeof(mmap_ev) -
-					       (sizeof(mmap_ev.filename) - size));
-			mmap_ev.pid = tgid;
-			mmap_ev.tid = pid;
-
-			write_output(&mmap_ev, mmap_ev.header.size);
-		}
-	}
-
-	fclose(fp);
-}
-
-static void synthesize_all(void)
-{
-	DIR *proc;
-	struct dirent dirent, *next;
-
-	proc = opendir("/proc");
-
-	while (!readdir_r(proc, &dirent, &next) && next) {
-		char *end;
-		pid_t pid, tgid;
-
-		pid = strtol(dirent.d_name, &end, 10);
-		if (*end) /* only interested in proper numerical dirents */
-			continue;
-
-		tgid = pid_synthesize_comm_event(pid, 1);
-		pid_synthesize_mmap_samples(pid, tgid);
-	}
-
-	closedir(proc);
-}
-
 static int group_fd;
 
 static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int nr)
@@ -367,7 +220,11 @@ static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int n
 		h_attr = header->attr[nr];
 	} else {
 		h_attr = perf_header_attr__new(a);
-		perf_header__add_attr(header, h_attr);
+		if (h_attr != NULL)
+			if (perf_header__add_attr(header, h_attr) < 0) {
+				perf_header_attr__delete(h_attr);
+				h_attr = NULL;
+			}
 	}
 
 	return h_attr;
@@ -375,9 +232,11 @@ static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int n
 
 static void create_counter(int counter, int cpu, pid_t pid)
 {
+	char *filter = filters[counter];
 	struct perf_event_attr *attr = attrs + counter;
 	struct perf_header_attr *h_attr;
 	int track = !counter; /* only the first counter needs these */
+	int ret;
 	struct {
 		u64 count;
 		u64 time_enabled;
@@ -448,11 +307,19 @@ try_again:
 		printf("\n");
 		error("perfcounter syscall returned with %d (%s)\n",
 			fd[nr_cpu][counter], strerror(err));
+
+#if defined(__i386__) || defined(__x86_64__)
+		if (attr->type == PERF_TYPE_HARDWARE && err == EOPNOTSUPP)
+			die("No hardware sampling interrupt available. No APIC? If so then you can boot the kernel with the \"lapic\" boot parameter to force-enable it.\n");
+#endif
+
 		die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
 		exit(-1);
 	}
 
 	h_attr = get_header_attr(attr, counter);
+	if (h_attr == NULL)
+		die("nomem\n");
 
 	if (!file_new) {
 		if (memcmp(&h_attr->attr, attr, sizeof(*attr))) {
@@ -466,7 +333,10 @@ try_again:
 		exit(-1);
 	}
 
-	perf_header_attr__add_id(h_attr, read_data.id);
+	if (perf_header_attr__add_id(h_attr, read_data.id) < 0) {
+		pr_warning("Not enough memory to add id\n");
+		exit(-1);
+	}
 
 	assert(fd[nr_cpu][counter] >= 0);
 	fcntl(fd[nr_cpu][counter], F_SETFL, O_NONBLOCK);
@@ -480,7 +350,6 @@ try_again:
 		multiplex_fd = fd[nr_cpu][counter];
 
 	if (multiplex && fd[nr_cpu][counter] != multiplex_fd) {
-		int ret;
 
 		ret = ioctl(fd[nr_cpu][counter], PERF_EVENT_IOC_SET_OUTPUT, multiplex_fd);
 		assert(ret != -1);
@@ -496,6 +365,16 @@ try_again:
 				PROT_READ|PROT_WRITE, MAP_SHARED, fd[nr_cpu][counter], 0);
 		if (mmap_array[nr_cpu][counter].base == MAP_FAILED) {
 			error("failed to mmap with %d (%s)\n", errno, strerror(errno));
+			exit(-1);
+		}
+	}
+
+	if (filter != NULL) {
+		ret = ioctl(fd[nr_cpu][counter],
+			    PERF_EVENT_IOC_SET_FILTER, filter);
+		if (ret) {
+			error("failed to set filter with %d (%s)\n", errno,
+			      strerror(errno));
 			exit(-1);
 		}
 	}
@@ -518,7 +397,7 @@ static void atexit_header(void)
 {
 	header->data_size += bytes_written;
 
-	perf_header__write(header, output);
+	perf_header__write(header, output, true);
 }
 
 static int __cmd_record(int argc, const char **argv)
@@ -527,7 +406,7 @@ static int __cmd_record(int argc, const char **argv)
 	struct stat st;
 	pid_t pid = 0;
 	int flags;
-	int ret;
+	int err;
 	unsigned long waking = 0;
 
 	page_size = sysconf(_SC_PAGE_SIZE);
@@ -561,22 +440,29 @@ static int __cmd_record(int argc, const char **argv)
 		exit(-1);
 	}
 
-	if (!file_new)
-		header = perf_header__read(output);
-	else
-		header = perf_header__new();
+	header = perf_header__new();
+	if (header == NULL) {
+		pr_err("Not enough memory for reading perf file header\n");
+		return -1;
+	}
 
+	if (!file_new) {
+		err = perf_header__read(header, output);
+		if (err < 0)
+			return err;
+	}
 
 	if (raw_samples) {
-		read_tracing_data(attrs, nr_counters);
+		perf_header__set_feat(header, HEADER_TRACE_INFO);
 	} else {
 		for (i = 0; i < nr_counters; i++) {
 			if (attrs[i].sample_type & PERF_SAMPLE_RAW) {
-				read_tracing_data(attrs, nr_counters);
+				perf_header__set_feat(header, HEADER_TRACE_INFO);
 				break;
 			}
 		}
 	}
+
 	atexit(atexit_header);
 
 	if (!system_wide) {
@@ -594,25 +480,36 @@ static int __cmd_record(int argc, const char **argv)
 		}
 	}
 
-	if (file_new)
-		perf_header__write(header, output);
+	if (file_new) {
+		err = perf_header__write(header, output, false);
+		if (err < 0)
+			return err;
+	}
 
-	if (!system_wide) {
-		pid_t tgid = pid_synthesize_comm_event(pid, 0);
-		pid_synthesize_mmap_samples(pid, tgid);
-	} else
-		synthesize_all();
+	if (!system_wide)
+		event__synthesize_thread(pid, process_synthesized_event);
+	else
+		event__synthesize_threads(process_synthesized_event);
 
 	if (target_pid == -1 && argc) {
 		pid = fork();
 		if (pid < 0)
-			perror("failed to fork");
+			die("failed to fork");
 
 		if (!pid) {
 			if (execvp(argv[0], (char **)argv)) {
 				perror(argv[0]);
 				exit(-1);
 			}
+		} else {
+			/*
+			 * Wait a bit for the execv'ed child to appear
+			 * and be updated in /proc
+			 * FIXME: Do you know a less heuristical solution?
+			 */
+			usleep(1000);
+			event__synthesize_thread(pid,
+						 process_synthesized_event);
 		}
 
 		child_pid = pid;
@@ -623,7 +520,7 @@ static int __cmd_record(int argc, const char **argv)
 
 		param.sched_priority = realtime_prio;
 		if (sched_setscheduler(0, SCHED_FIFO, &param)) {
-			printf("Could not set realtime priority.\n");
+			pr_err("Could not set realtime priority.\n");
 			exit(-1);
 		}
 	}
@@ -641,7 +538,7 @@ static int __cmd_record(int argc, const char **argv)
 		if (hits == samples) {
 			if (done)
 				break;
-			ret = poll(event_array, nr_poll, -1);
+			err = poll(event_array, nr_poll, -1);
 			waking++;
 		}
 
@@ -677,6 +574,8 @@ static const struct option options[] = {
 	OPT_CALLBACK('e', "event", NULL, "event",
 		     "event selector. use 'perf list' to list available events",
 		     parse_events),
+	OPT_CALLBACK(0, "filter", NULL, "filter",
+		     "event filter", parse_filter),
 	OPT_INTEGER('p', "pid", &target_pid,
 		    "record events on existing pid"),
 	OPT_INTEGER('r', "realtime", &realtime_prio,
@@ -720,6 +619,8 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 {
 	int counter;
 
+	symbol__init(0);
+
 	argc = parse_options(argc, argv, options, record_usage,
 		PARSE_OPT_STOP_AT_NON_OPTION);
 	if (!argc && target_pid == -1 && !system_wide)
@@ -729,6 +630,18 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		nr_counters	= 1;
 		attrs[0].type	= PERF_TYPE_HARDWARE;
 		attrs[0].config = PERF_COUNT_HW_CPU_CYCLES;
+	}
+
+	/*
+	 * User specified count overrides default frequency.
+	 */
+	if (default_interval)
+		freq = 0;
+	else if (freq) {
+		default_interval = freq;
+	} else {
+		fprintf(stderr, "frequency and count are zero, aborting\n");
+		exit(EXIT_FAILURE);
 	}
 
 	for (counter = 0; counter < nr_counters; counter++) {

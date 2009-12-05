@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/ctype.h>
 #include <linux/mutex.h>
+#include <linux/perf_event.h>
 
 #include "trace.h"
 #include "trace_output.h"
@@ -29,6 +30,7 @@ enum filter_op_ids
 {
 	OP_OR,
 	OP_AND,
+	OP_GLOB,
 	OP_NE,
 	OP_EQ,
 	OP_LT,
@@ -46,16 +48,17 @@ struct filter_op {
 };
 
 static struct filter_op filter_ops[] = {
-	{ OP_OR, "||", 1 },
-	{ OP_AND, "&&", 2 },
-	{ OP_NE, "!=", 4 },
-	{ OP_EQ, "==", 4 },
-	{ OP_LT, "<", 5 },
-	{ OP_LE, "<=", 5 },
-	{ OP_GT, ">", 5 },
-	{ OP_GE, ">=", 5 },
-	{ OP_NONE, "OP_NONE", 0 },
-	{ OP_OPEN_PAREN, "(", 0 },
+	{ OP_OR,	"||",		1 },
+	{ OP_AND,	"&&",		2 },
+	{ OP_GLOB,	"~",		4 },
+	{ OP_NE,	"!=",		4 },
+	{ OP_EQ,	"==",		4 },
+	{ OP_LT,	"<",		5 },
+	{ OP_LE,	"<=",		5 },
+	{ OP_GT,	">",		5 },
+	{ OP_GE,	">=",		5 },
+	{ OP_NONE,	"OP_NONE",	0 },
+	{ OP_OPEN_PAREN, "(",		0 },
 };
 
 enum {
@@ -329,22 +332,18 @@ enum regex_type filter_parse_regex(char *buff, int len, char **search, int *not)
 	return type;
 }
 
-static int filter_build_regex(struct filter_pred *pred)
+static void filter_build_regex(struct filter_pred *pred)
 {
 	struct regex *r = &pred->regex;
-	char *search, *dup;
-	enum regex_type type;
-	int not;
+	char *search;
+	enum regex_type type = MATCH_FULL;
+	int not = 0;
 
-	type = filter_parse_regex(r->pattern, r->len, &search, &not);
-	dup = kstrdup(search, GFP_KERNEL);
-	if (!dup)
-		return -ENOMEM;
-
-	strcpy(r->pattern, dup);
-	kfree(dup);
-
-	r->len = strlen(r->pattern);
+	if (pred->op == OP_GLOB) {
+		type = filter_parse_regex(r->pattern, r->len, &search, &not);
+		r->len = strlen(search);
+		memmove(r->pattern, search, r->len+1);
+	}
 
 	switch (type) {
 	case MATCH_FULL:
@@ -362,14 +361,11 @@ static int filter_build_regex(struct filter_pred *pred)
 	}
 
 	pred->not ^= not;
-
-	return 0;
 }
 
 /* return 1 if event matches, 0 otherwise (discard) */
-int filter_match_preds(struct ftrace_event_call *call, void *rec)
+int filter_match_preds(struct event_filter *filter, void *rec)
 {
-	struct event_filter *filter = call->filter;
 	int match, top = 0, val1 = 0, val2 = 0;
 	int stack[MAX_FILTER_PRED];
 	struct filter_pred *pred;
@@ -542,9 +538,8 @@ static void filter_disable_preds(struct ftrace_event_call *call)
 		filter->preds[i]->fn = filter_pred_none;
 }
 
-void destroy_preds(struct ftrace_event_call *call)
+static void __free_preds(struct event_filter *filter)
 {
-	struct event_filter *filter = call->filter;
 	int i;
 
 	if (!filter)
@@ -557,21 +552,24 @@ void destroy_preds(struct ftrace_event_call *call)
 	kfree(filter->preds);
 	kfree(filter->filter_string);
 	kfree(filter);
-	call->filter = NULL;
 }
 
-static int init_preds(struct ftrace_event_call *call)
+void destroy_preds(struct ftrace_event_call *call)
+{
+	__free_preds(call->filter);
+	call->filter = NULL;
+	call->filter_active = 0;
+}
+
+static struct event_filter *__alloc_preds(void)
 {
 	struct event_filter *filter;
 	struct filter_pred *pred;
 	int i;
 
-	if (call->filter)
-		return 0;
-
-	filter = call->filter = kzalloc(sizeof(*filter), GFP_KERNEL);
-	if (!call->filter)
-		return -ENOMEM;
+	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
+	if (!filter)
+		return ERR_PTR(-ENOMEM);
 
 	filter->n_preds = 0;
 
@@ -587,12 +585,24 @@ static int init_preds(struct ftrace_event_call *call)
 		filter->preds[i] = pred;
 	}
 
-	return 0;
+	return filter;
 
 oom:
-	destroy_preds(call);
+	__free_preds(filter);
+	return ERR_PTR(-ENOMEM);
+}
 
-	return -ENOMEM;
+static int init_preds(struct ftrace_event_call *call)
+{
+	if (call->filter)
+		return 0;
+
+	call->filter_active = 0;
+	call->filter = __alloc_preds();
+	if (IS_ERR(call->filter))
+		return PTR_ERR(call->filter);
+
+	return 0;
 }
 
 static int init_subsystem_preds(struct event_subsystem *system)
@@ -615,14 +625,7 @@ static int init_subsystem_preds(struct event_subsystem *system)
 	return 0;
 }
 
-enum {
-	FILTER_DISABLE_ALL,
-	FILTER_INIT_NO_RESET,
-	FILTER_SKIP_NO_RESET,
-};
-
-static void filter_free_subsystem_preds(struct event_subsystem *system,
-					int flag)
+static void filter_free_subsystem_preds(struct event_subsystem *system)
 {
 	struct ftrace_event_call *call;
 
@@ -633,14 +636,6 @@ static void filter_free_subsystem_preds(struct event_subsystem *system,
 		if (strcmp(call->system, system->name) != 0)
 			continue;
 
-		if (flag == FILTER_INIT_NO_RESET) {
-			call->filter->no_reset = false;
-			continue;
-		}
-
-		if (flag == FILTER_SKIP_NO_RESET && call->filter->no_reset)
-			continue;
-
 		filter_disable_preds(call);
 		remove_filter_string(call->filter);
 	}
@@ -648,10 +643,10 @@ static void filter_free_subsystem_preds(struct event_subsystem *system,
 
 static int filter_add_pred_fn(struct filter_parse_state *ps,
 			      struct ftrace_event_call *call,
+			      struct event_filter *filter,
 			      struct filter_pred *pred,
 			      filter_pred_fn_t fn)
 {
-	struct event_filter *filter = call->filter;
 	int idx, err;
 
 	if (filter->n_preds == MAX_FILTER_PRED) {
@@ -666,7 +661,6 @@ static int filter_add_pred_fn(struct filter_parse_state *ps,
 		return err;
 
 	filter->n_preds++;
-	call->filter_active = 1;
 
 	return 0;
 }
@@ -691,7 +685,10 @@ static bool is_string_field(struct ftrace_event_field *field)
 
 static int is_legal_op(struct ftrace_event_field *field, int op)
 {
-	if (is_string_field(field) && (op != OP_EQ && op != OP_NE))
+	if (is_string_field(field) &&
+	    (op != OP_EQ && op != OP_NE && op != OP_GLOB))
+		return 0;
+	if (!is_string_field(field) && op == OP_GLOB)
 		return 0;
 
 	return 1;
@@ -742,6 +739,7 @@ static filter_pred_fn_t select_comparison_fn(int op, int field_size,
 
 static int filter_add_pred(struct filter_parse_state *ps,
 			   struct ftrace_event_call *call,
+			   struct event_filter *filter,
 			   struct filter_pred *pred,
 			   bool dry_run)
 {
@@ -776,15 +774,13 @@ static int filter_add_pred(struct filter_parse_state *ps,
 	}
 
 	if (is_string_field(field)) {
-		ret = filter_build_regex(pred);
-		if (ret)
-			return ret;
+		filter_build_regex(pred);
 
 		if (field->filter_type == FILTER_STATIC_STRING) {
 			fn = filter_pred_string;
 			pred->regex.field_len = field->size;
 		} else if (field->filter_type == FILTER_DYN_STRING)
-				fn = filter_pred_strloc;
+			fn = filter_pred_strloc;
 		else {
 			fn = filter_pred_pchar;
 			pred->regex.field_len = strlen(pred->regex.pattern);
@@ -813,45 +809,7 @@ static int filter_add_pred(struct filter_parse_state *ps,
 
 add_pred_fn:
 	if (!dry_run)
-		return filter_add_pred_fn(ps, call, pred, fn);
-	return 0;
-}
-
-static int filter_add_subsystem_pred(struct filter_parse_state *ps,
-				     struct event_subsystem *system,
-				     struct filter_pred *pred,
-				     char *filter_string,
-				     bool dry_run)
-{
-	struct ftrace_event_call *call;
-	int err = 0;
-	bool fail = true;
-
-	list_for_each_entry(call, &ftrace_events, list) {
-
-		if (!call->define_fields)
-			continue;
-
-		if (strcmp(call->system, system->name))
-			continue;
-
-		if (call->filter->no_reset)
-			continue;
-
-		err = filter_add_pred(ps, call, pred, dry_run);
-		if (err)
-			call->filter->no_reset = true;
-		else
-			fail = false;
-
-		if (!dry_run)
-			replace_filter_string(call->filter, filter_string);
-	}
-
-	if (fail) {
-		parse_error(ps, FILT_ERR_BAD_SUBSYS_FILTER, 0);
-		return err;
-	}
+		return filter_add_pred_fn(ps, call, filter, pred, fn);
 	return 0;
 }
 
@@ -1209,8 +1167,8 @@ static int check_preds(struct filter_parse_state *ps)
 	return 0;
 }
 
-static int replace_preds(struct event_subsystem *system,
-			 struct ftrace_event_call *call,
+static int replace_preds(struct ftrace_event_call *call,
+			 struct event_filter *filter,
 			 struct filter_parse_state *ps,
 			 char *filter_string,
 			 bool dry_run)
@@ -1257,11 +1215,7 @@ static int replace_preds(struct event_subsystem *system,
 add_pred:
 		if (!pred)
 			return -ENOMEM;
-		if (call)
-			err = filter_add_pred(ps, call, pred, false);
-		else
-			err = filter_add_subsystem_pred(ps, system, pred,
-						filter_string, dry_run);
+		err = filter_add_pred(ps, call, filter, pred, dry_run);
 		filter_free_pred(pred);
 		if (err)
 			return err;
@@ -1272,10 +1226,50 @@ add_pred:
 	return 0;
 }
 
+static int replace_system_preds(struct event_subsystem *system,
+				struct filter_parse_state *ps,
+				char *filter_string)
+{
+	struct ftrace_event_call *call;
+	bool fail = true;
+	int err;
+
+	list_for_each_entry(call, &ftrace_events, list) {
+		struct event_filter *filter = call->filter;
+
+		if (!call->define_fields)
+			continue;
+
+		if (strcmp(call->system, system->name) != 0)
+			continue;
+
+		/* try to see if the filter can be applied */
+		err = replace_preds(call, filter, ps, filter_string, true);
+		if (err)
+			continue;
+
+		/* really apply the filter */
+		filter_disable_preds(call);
+		err = replace_preds(call, filter, ps, filter_string, false);
+		if (err)
+			filter_disable_preds(call);
+		else {
+			call->filter_active = 1;
+			replace_filter_string(filter, filter_string);
+		}
+		fail = false;
+	}
+
+	if (fail) {
+		parse_error(ps, FILT_ERR_BAD_SUBSYS_FILTER, 0);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 int apply_event_filter(struct ftrace_event_call *call, char *filter_string)
 {
 	int err;
-
 	struct filter_parse_state *ps;
 
 	mutex_lock(&event_mutex);
@@ -1287,8 +1281,7 @@ int apply_event_filter(struct ftrace_event_call *call, char *filter_string)
 	if (!strcmp(strstrip(filter_string), "0")) {
 		filter_disable_preds(call);
 		remove_filter_string(call->filter);
-		mutex_unlock(&event_mutex);
-		return 0;
+		goto out_unlock;
 	}
 
 	err = -ENOMEM;
@@ -1306,10 +1299,11 @@ int apply_event_filter(struct ftrace_event_call *call, char *filter_string)
 		goto out;
 	}
 
-	err = replace_preds(NULL, call, ps, filter_string, false);
+	err = replace_preds(call, call->filter, ps, filter_string, false);
 	if (err)
 		append_filter_err(ps, call->filter);
-
+	else
+		call->filter_active = 1;
 out:
 	filter_opstack_clear(ps);
 	postfix_clear(ps);
@@ -1324,7 +1318,6 @@ int apply_subsystem_event_filter(struct event_subsystem *system,
 				 char *filter_string)
 {
 	int err;
-
 	struct filter_parse_state *ps;
 
 	mutex_lock(&event_mutex);
@@ -1334,10 +1327,9 @@ int apply_subsystem_event_filter(struct event_subsystem *system,
 		goto out_unlock;
 
 	if (!strcmp(strstrip(filter_string), "0")) {
-		filter_free_subsystem_preds(system, FILTER_DISABLE_ALL);
+		filter_free_subsystem_preds(system);
 		remove_filter_string(system->filter);
-		mutex_unlock(&event_mutex);
-		return 0;
+		goto out_unlock;
 	}
 
 	err = -ENOMEM;
@@ -1354,23 +1346,9 @@ int apply_subsystem_event_filter(struct event_subsystem *system,
 		goto out;
 	}
 
-	filter_free_subsystem_preds(system, FILTER_INIT_NO_RESET);
-
-	/* try to see the filter can be applied to which events */
-	err = replace_preds(system, NULL, ps, filter_string, true);
-	if (err) {
+	err = replace_system_preds(system, ps, filter_string);
+	if (err)
 		append_filter_err(ps, system->filter);
-		goto out;
-	}
-
-	filter_free_subsystem_preds(system, FILTER_SKIP_NO_RESET);
-
-	/* really apply the filter to the events */
-	err = replace_preds(system, NULL, ps, filter_string, false);
-	if (err) {
-		append_filter_err(ps, system->filter);
-		filter_free_subsystem_preds(system, 2);
-	}
 
 out:
 	filter_opstack_clear(ps);
@@ -1381,4 +1359,74 @@ out_unlock:
 
 	return err;
 }
+
+#ifdef CONFIG_EVENT_PROFILE
+
+void ftrace_profile_free_filter(struct perf_event *event)
+{
+	struct event_filter *filter = event->filter;
+
+	event->filter = NULL;
+	__free_preds(filter);
+}
+
+int ftrace_profile_set_filter(struct perf_event *event, int event_id,
+			      char *filter_str)
+{
+	int err;
+	struct event_filter *filter;
+	struct filter_parse_state *ps;
+	struct ftrace_event_call *call = NULL;
+
+	mutex_lock(&event_mutex);
+
+	list_for_each_entry(call, &ftrace_events, list) {
+		if (call->id == event_id)
+			break;
+	}
+
+	err = -EINVAL;
+	if (!call)
+		goto out_unlock;
+
+	err = -EEXIST;
+	if (event->filter)
+		goto out_unlock;
+
+	filter = __alloc_preds();
+	if (IS_ERR(filter)) {
+		err = PTR_ERR(filter);
+		goto out_unlock;
+	}
+
+	err = -ENOMEM;
+	ps = kzalloc(sizeof(*ps), GFP_KERNEL);
+	if (!ps)
+		goto free_preds;
+
+	parse_init(ps, filter_ops, filter_str);
+	err = filter_parse(ps);
+	if (err)
+		goto free_ps;
+
+	err = replace_preds(call, filter, ps, filter_str, false);
+	if (!err)
+		event->filter = filter;
+
+free_ps:
+	filter_opstack_clear(ps);
+	postfix_clear(ps);
+	kfree(ps);
+
+free_preds:
+	if (err)
+		__free_preds(filter);
+
+out_unlock:
+	mutex_unlock(&event_mutex);
+
+	return err;
+}
+
+#endif /* CONFIG_EVENT_PROFILE */
 

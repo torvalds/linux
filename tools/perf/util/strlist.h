@@ -1,5 +1,5 @@
-#ifndef STRLIST_H_
-#define STRLIST_H_
+#ifndef __PERF_STRLIST_H
+#define __PERF_STRLIST_H
 
 #include <linux/rbtree.h>
 #include <stdbool.h>
@@ -36,4 +36,4 @@ static inline unsigned int strlist__nr_entries(const struct strlist *self)
 }
 
 int strlist__parse_list(struct strlist *self, const char *s);
-#endif /* STRLIST_H_ */
+#endif /* __PERF_STRLIST_H */

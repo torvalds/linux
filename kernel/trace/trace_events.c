@@ -93,9 +93,7 @@ int trace_define_common_fields(struct ftrace_event_call *call)
 }
 EXPORT_SYMBOL_GPL(trace_define_common_fields);
 
-#ifdef CONFIG_MODULES
-
-static void trace_destroy_fields(struct ftrace_event_call *call)
+void trace_destroy_fields(struct ftrace_event_call *call)
 {
 	struct ftrace_event_field *field, *next;
 
@@ -107,8 +105,6 @@ static void trace_destroy_fields(struct ftrace_event_call *call)
 	}
 }
 
-#endif /* CONFIG_MODULES */
-
 static void ftrace_event_enable_disable(struct ftrace_event_call *call,
 					int enable)
 {
@@ -117,14 +113,14 @@ static void ftrace_event_enable_disable(struct ftrace_event_call *call,
 		if (call->enabled) {
 			call->enabled = 0;
 			tracing_stop_cmdline_record();
-			call->unregfunc(call->data);
+			call->unregfunc(call);
 		}
 		break;
 	case 1:
 		if (!call->enabled) {
 			call->enabled = 1;
 			tracing_start_cmdline_record();
-			call->regfunc(call->data);
+			call->regfunc(call);
 		}
 		break;
 	}
@@ -507,7 +503,7 @@ extern char *__bad_type_size(void);
 #define FIELD(type, name)						\
 	sizeof(type) != sizeof(field.name) ? __bad_type_size() :	\
 	#type, "common_" #name, offsetof(typeof(field), name),		\
-		sizeof(field.name)
+		sizeof(field.name), is_signed_type(type)
 
 static int trace_write_header(struct trace_seq *s)
 {
@@ -515,17 +511,17 @@ static int trace_write_header(struct trace_seq *s)
 
 	/* struct trace_entry */
 	return trace_seq_printf(s,
-				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
-				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
-				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
-				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
-				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
-				"\n",
-				FIELD(unsigned short, type),
-				FIELD(unsigned char, flags),
-				FIELD(unsigned char, preempt_count),
-				FIELD(int, pid),
-				FIELD(int, lock_depth));
+			"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\tsigned:%u;\n"
+			"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\tsigned:%u;\n"
+			"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\tsigned:%u;\n"
+			"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\tsigned:%u;\n"
+			"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\tsigned:%u;\n"
+			"\n",
+			FIELD(unsigned short, type),
+			FIELD(unsigned char, flags),
+			FIELD(unsigned char, preempt_count),
+			FIELD(int, pid),
+			FIELD(int, lock_depth));
 }
 
 static ssize_t
@@ -937,27 +933,46 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events,
 	return 0;
 }
 
-#define for_each_event(event, start, end)			\
-	for (event = start;					\
-	     (unsigned long)event < (unsigned long)end;		\
-	     event++)
+static int __trace_add_event_call(struct ftrace_event_call *call)
+{
+	struct dentry *d_events;
+	int ret;
 
-#ifdef CONFIG_MODULES
+	if (!call->name)
+		return -EINVAL;
 
-static LIST_HEAD(ftrace_module_file_list);
+	if (call->raw_init) {
+		ret = call->raw_init(call);
+		if (ret < 0) {
+			if (ret != -ENOSYS)
+				pr_warning("Could not initialize trace "
+				"events/%s\n", call->name);
+			return ret;
+		}
+	}
 
-/*
- * Modules must own their file_operations to keep up with
- * reference counting.
- */
-struct ftrace_module_file_ops {
-	struct list_head		list;
-	struct module			*mod;
-	struct file_operations		id;
-	struct file_operations		enable;
-	struct file_operations		format;
-	struct file_operations		filter;
-};
+	d_events = event_trace_events_dir();
+	if (!d_events)
+		return -ENOENT;
+
+	ret = event_create_dir(call, d_events, &ftrace_event_id_fops,
+				&ftrace_enable_fops, &ftrace_event_filter_fops,
+				&ftrace_event_format_fops);
+	if (!ret)
+		list_add(&call->list, &ftrace_events);
+
+	return ret;
+}
+
+/* Add an additional event_call dynamically */
+int trace_add_event_call(struct ftrace_event_call *call)
+{
+	int ret;
+	mutex_lock(&event_mutex);
+	ret = __trace_add_event_call(call);
+	mutex_unlock(&event_mutex);
+	return ret;
+}
 
 static void remove_subsystem_dir(const char *name)
 {
@@ -984,6 +999,53 @@ static void remove_subsystem_dir(const char *name)
 		}
 	}
 }
+
+/*
+ * Must be called under locking both of event_mutex and trace_event_mutex.
+ */
+static void __trace_remove_event_call(struct ftrace_event_call *call)
+{
+	ftrace_event_enable_disable(call, 0);
+	if (call->event)
+		__unregister_ftrace_event(call->event);
+	debugfs_remove_recursive(call->dir);
+	list_del(&call->list);
+	trace_destroy_fields(call);
+	destroy_preds(call);
+	remove_subsystem_dir(call->system);
+}
+
+/* Remove an event_call */
+void trace_remove_event_call(struct ftrace_event_call *call)
+{
+	mutex_lock(&event_mutex);
+	down_write(&trace_event_mutex);
+	__trace_remove_event_call(call);
+	up_write(&trace_event_mutex);
+	mutex_unlock(&event_mutex);
+}
+
+#define for_each_event(event, start, end)			\
+	for (event = start;					\
+	     (unsigned long)event < (unsigned long)end;		\
+	     event++)
+
+#ifdef CONFIG_MODULES
+
+static LIST_HEAD(ftrace_module_file_list);
+
+/*
+ * Modules must own their file_operations to keep up with
+ * reference counting.
+ */
+struct ftrace_module_file_ops {
+	struct list_head		list;
+	struct module			*mod;
+	struct file_operations		id;
+	struct file_operations		enable;
+	struct file_operations		format;
+	struct file_operations		filter;
+};
 
 static struct ftrace_module_file_ops *
 trace_create_file_ops(struct module *mod)
@@ -1042,7 +1104,7 @@ static void trace_module_add_events(struct module *mod)
 		if (!call->name)
 			continue;
 		if (call->raw_init) {
-			ret = call->raw_init();
+			ret = call->raw_init(call);
 			if (ret < 0) {
 				if (ret != -ENOSYS)
 					pr_warning("Could not initialize trace "
@@ -1060,10 +1122,11 @@ static void trace_module_add_events(struct module *mod)
 				return;
 		}
 		call->mod = mod;
-		list_add(&call->list, &ftrace_events);
-		event_create_dir(call, d_events,
-				 &file_ops->id, &file_ops->enable,
-				 &file_ops->filter, &file_ops->format);
+		ret = event_create_dir(call, d_events,
+				       &file_ops->id, &file_ops->enable,
+				       &file_ops->filter, &file_ops->format);
+		if (!ret)
+			list_add(&call->list, &ftrace_events);
 	}
 }
 
@@ -1077,14 +1140,7 @@ static void trace_module_remove_events(struct module *mod)
 	list_for_each_entry_safe(call, p, &ftrace_events, list) {
 		if (call->mod == mod) {
 			found = true;
-			ftrace_event_enable_disable(call, 0);
-			if (call->event)
-				__unregister_ftrace_event(call->event);
-			debugfs_remove_recursive(call->dir);
-			list_del(&call->list);
-			trace_destroy_fields(call);
-			destroy_preds(call);
-			remove_subsystem_dir(call->system);
+			__trace_remove_event_call(call);
 		}
 	}
 
@@ -1202,7 +1258,7 @@ static __init int event_trace_init(void)
 		if (!call->name)
 			continue;
 		if (call->raw_init) {
-			ret = call->raw_init();
+			ret = call->raw_init(call);
 			if (ret < 0) {
 				if (ret != -ENOSYS)
 					pr_warning("Could not initialize trace "
@@ -1210,10 +1266,12 @@ static __init int event_trace_init(void)
 				continue;
 			}
 		}
-		list_add(&call->list, &ftrace_events);
-		event_create_dir(call, d_events, &ftrace_event_id_fops,
-				 &ftrace_enable_fops, &ftrace_event_filter_fops,
-				 &ftrace_event_format_fops);
+		ret = event_create_dir(call, d_events, &ftrace_event_id_fops,
+				       &ftrace_enable_fops,
+				       &ftrace_event_filter_fops,
+				       &ftrace_event_format_fops);
+		if (!ret)
+			list_add(&call->list, &ftrace_events);
 	}
 
 	while (true) {

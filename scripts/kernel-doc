@@ -1852,10 +1852,17 @@ sub tracepoint_munge($) {
 	my $tracepointname = 0;
 	my $tracepointargs = 0;
 
-	if($prototype =~ m/TRACE_EVENT\((.*?),/) {
+	if ($prototype =~ m/TRACE_EVENT\((.*?),/) {
 		$tracepointname = $1;
 	}
-	if($prototype =~ m/TP_PROTO\((.*?)\)/) {
+	if ($prototype =~ m/DEFINE_SINGLE_EVENT\((.*?),/) {
+		$tracepointname = $1;
+	}
+	if ($prototype =~ m/DEFINE_EVENT\((.*?),(.*?),/) {
+		$tracepointname = $2;
+	}
+	$tracepointname =~ s/^\s+//; #strip leading whitespace
+	if ($prototype =~ m/TP_PROTO\((.*?)\)/) {
 		$tracepointargs = $1;
 	}
 	if (($tracepointname eq 0) || ($tracepointargs eq 0)) {
@@ -1920,7 +1927,9 @@ sub process_state3_function($$) {
 	if ($prototype =~ /SYSCALL_DEFINE/) {
 		syscall_munge();
 	}
-	if ($prototype =~ /TRACE_EVENT/) {
+	if ($prototype =~ /TRACE_EVENT/ || $prototype =~ /DEFINE_EVENT/ ||
+	    $prototype =~ /DEFINE_SINGLE_EVENT/)
+	{
 		tracepoint_munge($file);
 	}
 	dump_function($prototype, $file);

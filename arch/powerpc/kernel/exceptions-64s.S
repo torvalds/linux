@@ -185,12 +185,15 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	 * prolog code of the PerformanceMonitor one. A little
 	 * trickery is thus necessary
 	 */
+performance_monitor_pSeries_1:
 	. = 0xf00
 	b	performance_monitor_pSeries
 
+altivec_unavailable_pSeries_1:
 	. = 0xf20
 	b	altivec_unavailable_pSeries
 
+vsx_unavailable_pSeries_1:
 	. = 0xf40
 	b	vsx_unavailable_pSeries
 

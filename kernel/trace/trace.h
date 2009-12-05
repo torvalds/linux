@@ -11,6 +11,7 @@
 #include <linux/ftrace.h>
 #include <trace/boot.h>
 #include <linux/kmemtrace.h>
+#include <linux/hw_breakpoint.h>
 
 #include <linux/trace_seq.h>
 #include <linux/ftrace_event.h>
@@ -37,6 +38,7 @@ enum trace_type {
 	TRACE_KMEM_ALLOC,
 	TRACE_KMEM_FREE,
 	TRACE_BLK,
+	TRACE_KSYM,
 
 	__TRACE_LAST_TYPE,
 };
@@ -98,8 +100,31 @@ struct syscall_trace_enter {
 struct syscall_trace_exit {
 	struct trace_entry	ent;
 	int			nr;
-	unsigned long		ret;
+	long			ret;
 };
+
+struct kprobe_trace_entry {
+	struct trace_entry	ent;
+	unsigned long		ip;
+	int			nargs;
+	unsigned long		args[];
+};
+
+#define SIZEOF_KPROBE_TRACE_ENTRY(n)			\
+	(offsetof(struct kprobe_trace_entry, args) +	\
+	(sizeof(unsigned long) * (n)))
+
+struct kretprobe_trace_entry {
+	struct trace_entry	ent;
+	unsigned long		func;
+	unsigned long		ret_ip;
+	int			nargs;
+	unsigned long		args[];
+};
+
+#define SIZEOF_KRETPROBE_TRACE_ENTRY(n)			\
+	(offsetof(struct kretprobe_trace_entry, args) +	\
+	(sizeof(unsigned long) * (n)))
 
 /*
  * trace_flag_type is an enumeration that holds different
@@ -209,6 +234,7 @@ extern void __ftrace_bad_type(void);
 			  TRACE_KMEM_ALLOC);	\
 		IF_ASSIGN(var, ent, struct kmemtrace_free_entry,	\
 			  TRACE_KMEM_FREE);	\
+		IF_ASSIGN(var, ent, struct ksym_trace_entry, TRACE_KSYM);\
 		__ftrace_bad_type();					\
 	} while (0)
 
@@ -364,6 +390,8 @@ int register_tracer(struct tracer *type);
 void unregister_tracer(struct tracer *type);
 int is_tracing_stopped(void);
 
+extern int process_new_ksym_entry(char *ksymname, int op, unsigned long addr);
+
 extern unsigned long nsecs_to_usecs(unsigned long nsecs);
 
 #ifdef CONFIG_TRACER_MAX_TRACE
@@ -438,6 +466,8 @@ extern int trace_selftest_startup_branch(struct tracer *trace,
 					 struct trace_array *tr);
 extern int trace_selftest_startup_hw_branches(struct tracer *trace,
 					      struct trace_array *tr);
+extern int trace_selftest_startup_ksym(struct tracer *trace,
+					 struct trace_array *tr);
 #endif /* CONFIG_FTRACE_STARTUP_TEST */
 
 extern void *head_page(struct trace_array_cpu *data);
@@ -683,7 +713,6 @@ struct event_filter {
 	int			n_preds;
 	struct filter_pred	**preds;
 	char			*filter_string;
-	bool			no_reset;
 };
 
 struct event_subsystem {
@@ -703,7 +732,7 @@ typedef int (*filter_pred_fn_t) (struct filter_pred *pred, void *event,
 typedef int (*regex_match_func)(char *str, struct regex *r, int len);
 
 enum regex_type {
-	MATCH_FULL,
+	MATCH_FULL = 0,
 	MATCH_FRONT_ONLY,
 	MATCH_MIDDLE_ONLY,
 	MATCH_END_ONLY,
@@ -744,7 +773,8 @@ filter_check_discard(struct ftrace_event_call *call, void *rec,
 		     struct ring_buffer *buffer,
 		     struct ring_buffer_event *event)
 {
-	if (unlikely(call->filter_active) && !filter_match_preds(call, rec)) {
+	if (unlikely(call->filter_active) &&
+	    !filter_match_preds(call->filter, rec)) {
 		ring_buffer_discard_commit(buffer, event);
 		return 1;
 	}

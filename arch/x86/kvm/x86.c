@@ -42,6 +42,7 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
+#include <asm/debugreg.h>
 #include <asm/uaccess.h>
 #include <asm/msr.h>
 #include <asm/desc.h>
@@ -3643,14 +3644,15 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	trace_kvm_entry(vcpu->vcpu_id);
 	kvm_x86_ops->run(vcpu, kvm_run);
 
-	if (unlikely(vcpu->arch.switch_db_regs || test_thread_flag(TIF_DEBUG))) {
-		set_debugreg(current->thread.debugreg0, 0);
-		set_debugreg(current->thread.debugreg1, 1);
-		set_debugreg(current->thread.debugreg2, 2);
-		set_debugreg(current->thread.debugreg3, 3);
-		set_debugreg(current->thread.debugreg6, 6);
-		set_debugreg(current->thread.debugreg7, 7);
-	}
+	/*
+	 * If the guest has used debug registers, at least dr7
+	 * will be disabled while returning to the host.
+	 * If we don't have active breakpoints in the host, we don't
+	 * care about the messed up debug address registers. But if
+	 * we have some of them active, restore the old state.
+	 */
+	if (hw_breakpoint_active())
+		hw_breakpoint_restore();
 
 	set_bit(KVM_REQ_KICK, &vcpu->requests);
 	local_irq_enable();

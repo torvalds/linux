@@ -29,14 +29,14 @@
 #include "util/header.h"
 #include "util/parse-options.h"
 #include "util/parse-events.h"
+#include "util/event.h"
+#include "util/data_map.h"
 #include "util/svghelper.h"
 
 static char		const *input_name = "perf.data";
 static char		const *output_name = "output.svg";
 
 
-static unsigned long	page_size;
-static unsigned long	mmap_window = 32;
 static u64		sample_type;
 
 static unsigned int	numcpus;
@@ -48,8 +48,6 @@ static u64		first_time, last_time;
 
 static int		power_only;
 
-
-static struct perf_header	*header;
 
 struct per_pid;
 struct per_pidcomm;
@@ -152,6 +150,17 @@ static struct power_event    *power_events;
 static struct wake_event     *wake_events;
 
 struct sample_wrapper *all_samples;
+
+
+struct process_filter;
+struct process_filter {
+	char			*name;
+	int			pid;
+	struct process_filter	*next;
+};
+
+static struct process_filter *process_filter;
+
 
 static struct per_pid *find_create_pid(int pid)
 {
@@ -763,11 +772,11 @@ static void draw_wakeups(void)
 				c = p->all;
 				while (c) {
 					if (c->Y && c->start_time <= we->time && c->end_time >= we->time) {
-						if (p->pid == we->waker) {
+						if (p->pid == we->waker && !from) {
 							from = c->Y;
 							task_from = strdup(c->comm);
 						}
-						if (p->pid == we->wakee) {
+						if (p->pid == we->wakee && !to) {
 							to = c->Y;
 							task_to = strdup(c->comm);
 						}
@@ -882,11 +891,88 @@ static void draw_process_bars(void)
 	}
 }
 
+static void add_process_filter(const char *string)
+{
+	struct process_filter *filt;
+	int pid;
+
+	pid = strtoull(string, NULL, 10);
+	filt = malloc(sizeof(struct process_filter));
+	if (!filt)
+		return;
+
+	filt->name = strdup(string);
+	filt->pid  = pid;
+	filt->next = process_filter;
+
+	process_filter = filt;
+}
+
+static int passes_filter(struct per_pid *p, struct per_pidcomm *c)
+{
+	struct process_filter *filt;
+	if (!process_filter)
+		return 1;
+
+	filt = process_filter;
+	while (filt) {
+		if (filt->pid && p->pid == filt->pid)
+			return 1;
+		if (strcmp(filt->name, c->comm) == 0)
+			return 1;
+		filt = filt->next;
+	}
+	return 0;
+}
+
+static int determine_display_tasks_filtered(void)
+{
+	struct per_pid *p;
+	struct per_pidcomm *c;
+	int count = 0;
+
+	p = all_data;
+	while (p) {
+		p->display = 0;
+		if (p->start_time == 1)
+			p->start_time = first_time;
+
+		/* no exit marker, task kept running to the end */
+		if (p->end_time == 0)
+			p->end_time = last_time;
+
+		c = p->all;
+
+		while (c) {
+			c->display = 0;
+
+			if (c->start_time == 1)
+				c->start_time = first_time;
+
+			if (passes_filter(p, c)) {
+				c->display = 1;
+				p->display = 1;
+				count++;
+			}
+
+			if (c->end_time == 0)
+				c->end_time = last_time;
+
+			c = c->next;
+		}
+		p = p->next;
+	}
+	return count;
+}
+
 static int determine_display_tasks(u64 threshold)
 {
 	struct per_pid *p;
 	struct per_pidcomm *c;
 	int count = 0;
+
+	if (process_filter)
+		return determine_display_tasks_filtered();
 
 	p = all_data;
 	while (p) {
@@ -957,36 +1043,6 @@ static void write_svg_file(const char *filename)
 	svg_close();
 }
 
-static int
-process_event(event_t *event)
-{
-
-	switch (event->header.type) {
-
-	case PERF_RECORD_COMM:
-		return process_comm_event(event);
-	case PERF_RECORD_FORK:
-		return process_fork_event(event);
-	case PERF_RECORD_EXIT:
-		return process_exit_event(event);
-	case PERF_RECORD_SAMPLE:
-		return queue_sample_event(event);
-
-	/*
-	 * We dont process them right now but they are fine:
-	 */
-	case PERF_RECORD_MMAP:
-	case PERF_RECORD_THROTTLE:
-	case PERF_RECORD_UNTHROTTLE:
-		return 0;
-
-	default:
-		return -1;
-	}
-
-	return 0;
-}
-
 static void process_samples(void)
 {
 	struct sample_wrapper *cursor;
@@ -1002,107 +1058,38 @@ static void process_samples(void)
 	}
 }
 
+static int sample_type_check(u64 type)
+{
+	sample_type = type;
+
+	if (!(sample_type & PERF_SAMPLE_RAW)) {
+		fprintf(stderr, "No trace samples found in the file.\n"
+				"Have you used 'perf timechart record' to record it?\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static struct perf_file_handler file_handler = {
+	.process_comm_event	= process_comm_event,
+	.process_fork_event	= process_fork_event,
+	.process_exit_event	= process_exit_event,
+	.process_sample_event	= queue_sample_event,
+	.sample_type_check	= sample_type_check,
+};
 
 static int __cmd_timechart(void)
 {
-	int ret, rc = EXIT_FAILURE;
-	unsigned long offset = 0;
-	unsigned long head, shift;
-	struct stat statbuf;
-	event_t *event;
-	uint32_t size;
-	char *buf;
-	int input;
+	struct perf_header *header;
+	int ret;
 
-	input = open(input_name, O_RDONLY);
-	if (input < 0) {
-		fprintf(stderr, " failed to open file: %s", input_name);
-		if (!strcmp(input_name, "perf.data"))
-			fprintf(stderr, "  (try 'perf record' first)");
-		fprintf(stderr, "\n");
-		exit(-1);
-	}
+	register_perf_file_handler(&file_handler);
 
-	ret = fstat(input, &statbuf);
-	if (ret < 0) {
-		perror("failed to stat file");
-		exit(-1);
-	}
-
-	if (!statbuf.st_size) {
-		fprintf(stderr, "zero-sized file, nothing to do!\n");
-		exit(0);
-	}
-
-	header = perf_header__read(input);
-	head = header->data_offset;
-
-	sample_type = perf_header__sample_type(header);
-
-	shift = page_size * (head / page_size);
-	offset += shift;
-	head -= shift;
-
-remap:
-	buf = (char *)mmap(NULL, page_size * mmap_window, PROT_READ,
-			   MAP_SHARED, input, offset);
-	if (buf == MAP_FAILED) {
-		perror("failed to mmap file");
-		exit(-1);
-	}
-
-more:
-	event = (event_t *)(buf + head);
-
-	size = event->header.size;
-	if (!size)
-		size = 8;
-
-	if (head + event->header.size >= page_size * mmap_window) {
-		int ret2;
-
-		shift = page_size * (head / page_size);
-
-		ret2 = munmap(buf, page_size * mmap_window);
-		assert(ret2 == 0);
-
-		offset += shift;
-		head -= shift;
-		goto remap;
-	}
-
-	size = event->header.size;
-
-	if (!size || process_event(event) < 0) {
-
-		printf("%p [%p]: skipping unknown header type: %d\n",
-			(void *)(offset + head),
-			(void *)(long)(event->header.size),
-			event->header.type);
-
-		/*
-		 * assume we lost track of the stream, check alignment, and
-		 * increment a single u64 in the hope to catch on again 'soon'.
-		 */
-
-		if (unlikely(head & 7))
-			head &= ~7ULL;
-
-		size = 8;
-	}
-
-	head += size;
-
-	if (offset + head >= header->data_offset + header->data_size)
-		goto done;
-
-	if (offset + head < (unsigned long)statbuf.st_size)
-		goto more;
-
-done:
-	rc = EXIT_SUCCESS;
-	close(input);
-
+	ret = mmap_dispatch_perf_file(&header, input_name, 0, 0,
+				      &event__cwdlen, &event__cwd);
+	if (ret)
+		return EXIT_FAILURE;
 
 	process_samples();
 
@@ -1112,9 +1099,10 @@ done:
 
 	write_svg_file(output_name);
 
-	printf("Written %2.1f seconds of trace to %s.\n", (last_time - first_time) / 1000000000.0, output_name);
+	pr_info("Written %2.1f seconds of trace to %s.\n",
+		(last_time - first_time) / 1000000000.0, output_name);
 
-	return rc;
+	return EXIT_SUCCESS;
 }
 
 static const char * const timechart_usage[] = {
@@ -1153,6 +1141,14 @@ static int __cmd_record(int argc, const char **argv)
 	return cmd_record(i, rec_argv, NULL);
 }
 
+static int
+parse_process(const struct option *opt __used, const char *arg, int __used unset)
+{
+	if (arg)
+		add_process_filter(arg);
+	return 0;
+}
+
 static const struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
@@ -1160,17 +1156,18 @@ static const struct option options[] = {
 		    "output file name"),
 	OPT_INTEGER('w', "width", &svg_page_width,
 		    "page width"),
-	OPT_BOOLEAN('p', "power-only", &power_only,
+	OPT_BOOLEAN('P', "power-only", &power_only,
 		    "output power data only"),
+	OPT_CALLBACK('p', "process", NULL, "process",
+		      "process selector. Pass a pid or process name.",
+		       parse_process),
 	OPT_END()
 };
 
 
 int cmd_timechart(int argc, const char **argv, const char *prefix __used)
 {
-	symbol__init();
-
-	page_size = getpagesize();
+	symbol__init(0);
 
 	argc = parse_options(argc, argv, options, timechart_usage,
 			PARSE_OPT_STOP_AT_NON_OPTION);

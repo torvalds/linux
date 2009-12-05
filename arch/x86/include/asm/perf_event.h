@@ -28,9 +28,20 @@
  */
 #define ARCH_PERFMON_EVENT_MASK				    0xffff
 
+/*
+ * filter mask to validate fixed counter events.
+ * the following filters disqualify for fixed counters:
+ *  - inv
+ *  - edge
+ *  - cnt-mask
+ *  The other filters are supported by fixed counters.
+ *  The any-thread option is supported starting with v3.
+ */
+#define ARCH_PERFMON_EVENT_FILTER_MASK			0xff840000
+
 #define ARCH_PERFMON_UNHALTED_CORE_CYCLES_SEL		      0x3c
 #define ARCH_PERFMON_UNHALTED_CORE_CYCLES_UMASK		(0x00 << 8)
-#define ARCH_PERFMON_UNHALTED_CORE_CYCLES_INDEX 		 0
+#define ARCH_PERFMON_UNHALTED_CORE_CYCLES_INDEX			 0
 #define ARCH_PERFMON_UNHALTED_CORE_CYCLES_PRESENT \
 		(1 << (ARCH_PERFMON_UNHALTED_CORE_CYCLES_INDEX))
 

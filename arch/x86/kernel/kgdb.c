@@ -43,6 +43,7 @@
 #include <linux/smp.h>
 #include <linux/nmi.h>
 
+#include <asm/debugreg.h>
 #include <asm/apicdef.h>
 #include <asm/system.h>
 
@@ -434,6 +435,11 @@ single_step_cont(struct pt_regs *regs, struct die_args *args)
 			"resuming...\n");
 	kgdb_arch_handle_exception(args->trapnr, args->signr,
 				   args->err, "c", "", regs);
+	/*
+	 * Reset the BS bit in dr6 (pointed by args->err) to
+	 * denote completion of processing
+	 */
+	(*(unsigned long *)ERR_PTR(args->err)) &= ~DR_STEP;
 
 	return NOTIFY_STOP;
 }

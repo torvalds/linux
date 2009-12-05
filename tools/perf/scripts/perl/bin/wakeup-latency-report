@@ -1,0 +1,5 @@
+#!/bin/bash
+perf trace -s ~/libexec/perf-core/scripts/perl/wakeup-latency.pl
+
+
+

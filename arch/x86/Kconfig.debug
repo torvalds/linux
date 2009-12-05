@@ -186,6 +186,15 @@ config X86_DS_SELFTEST
 config HAVE_MMIOTRACE_SUPPORT
 	def_bool y
 
+config X86_DECODER_SELFTEST
+     bool "x86 instruction decoder selftest"
+     depends on DEBUG_KERNEL
+	---help---
+	 Perform x86 instruction decoder selftests at build time.
+	 This option is useful for checking the sanity of x86 instruction
+	 decoder code.
+	 If unsure, say "N".
+
 #
 # IO delay types:
 #

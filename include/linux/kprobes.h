@@ -296,6 +296,8 @@ void recycle_rp_inst(struct kretprobe_instance *ri, struct hlist_head *head);
 int disable_kprobe(struct kprobe *kp);
 int enable_kprobe(struct kprobe *kp);
 
+void dump_kprobe(struct kprobe *kp);
+
 #else /* !CONFIG_KPROBES: */
 
 static inline int kprobes_built_in(void)
