@@ -54,7 +54,7 @@ config DW_DMAC
 
 config AT_HDMAC
 	tristate "Atmel AHB DMA support"
-	depends on ARCH_AT91SAM9RL
+	depends on ARCH_AT91SAM9RL || ARCH_AT91SAM9G45
 	select DMA_ENGINE
 	help
 	  Support the Atmel AHB DMA controller.  This can be integrated in

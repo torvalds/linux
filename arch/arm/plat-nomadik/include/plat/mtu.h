@@ -1,5 +1,8 @@
-#ifndef __ASM_ARCH_MTU_H
-#define __ASM_ARCH_MTU_H
+#ifndef __PLAT_MTU_H
+#define __PLAT_MTU_H
+
+/* should be set by the platform code */
+extern void __iomem *mtu_base;
 
 /*
  * The MTU device hosts four different counters, with 4 set of
@@ -41,5 +44,5 @@
 #define MTU_PCELL2	0xff8
 #define MTU_PCELL3	0xffC
 
-#endif /* __ASM_ARCH_MTU_H */
+#endif /* __PLAT_MTU_H */
 
