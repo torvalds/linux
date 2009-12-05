@@ -290,6 +290,7 @@ struct nfs4_mount_data;
 
 /* callback_xdr.c */
 extern struct svc_version nfs4_callback_version1;
+extern struct svc_version nfs4_callback_version4;
 
 #else
 

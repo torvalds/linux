@@ -385,6 +385,7 @@ static int nfs_callback_authenticate(struct svc_rqst *rqstp)
  */
 static struct svc_version *nfs4_callback_version[] = {
 	[1] = &nfs4_callback_version1,
+	[4] = &nfs4_callback_version4,
 };
 
 static struct svc_stat nfs4_callback_stats;
