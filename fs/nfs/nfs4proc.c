@@ -4971,6 +4971,110 @@ static int nfs41_proc_async_sequence(struct nfs_client *clp,
 			      &nfs41_sequence_ops, (void *)clp);
 }
 
+struct nfs4_reclaim_complete_data {
+	struct nfs_client *clp;
+	struct nfs41_reclaim_complete_args arg;
+	struct nfs41_reclaim_complete_res res;
+};
+
+static void nfs4_reclaim_complete_prepare(struct rpc_task *task, void *data)
+{
+	struct nfs4_reclaim_complete_data *calldata = data;
+
+	if (nfs4_setup_sequence(calldata->clp, &calldata->arg.seq_args,
+				&calldata->res.seq_res, 0, task))
+		return;
+
+	rpc_call_start(task);
+}
+
+static void nfs4_reclaim_complete_done(struct rpc_task *task, void *data)
+{
+	struct nfs4_reclaim_complete_data *calldata = data;
+	struct nfs_client *clp = calldata->clp;
+	struct nfs4_sequence_res *res = &calldata->res.seq_res;
+
+	dprintk("--> %s\n", __func__);
+	nfs41_sequence_done(clp, res, task->tk_status);
+	switch (task->tk_status) {
+	case 0:
+	case -NFS4ERR_COMPLETE_ALREADY:
+		break;
+	case -NFS4ERR_BADSESSION:
+	case -NFS4ERR_DEADSESSION:
+		/*
+		 * Handle the session error, but do not retry the operation, as
+		 * we have no way of telling whether the clientid had to be
+		 * reset before we got our reply.  If reset, a new wave of
+		 * reclaim operations will follow, containing their own reclaim
+		 * complete.  We don't want our retry to get on the way of
+		 * recovery by incorrectly indicating to the server that we're
+		 * done reclaiming state since the process had to be restarted.
+		 */
+		_nfs4_async_handle_error(task, NULL, clp, NULL);
+		break;
+	default:
+		if (_nfs4_async_handle_error(
+				task, NULL, clp, NULL) == -EAGAIN) {
+			rpc_restart_call_prepare(task);
+			return;
+		}
+	}
+	nfs41_sequence_free_slot(clp, res);
+
+	dprintk("<-- %s\n", __func__);
+}
+
+static void nfs4_free_reclaim_complete_data(void *data)
+{
+	struct nfs4_reclaim_complete_data *calldata = data;
+
+	kfree(calldata);
+}
+
+static const struct rpc_call_ops nfs4_reclaim_complete_call_ops = {
+	.rpc_call_prepare = nfs4_reclaim_complete_prepare,
+	.rpc_call_done = nfs4_reclaim_complete_done,
+	.rpc_release = nfs4_free_reclaim_complete_data,
+};
+
+/*
+ * Issue a global reclaim complete.
+ */
+static int nfs41_proc_reclaim_complete(struct nfs_client *clp)
+{
+	struct nfs4_reclaim_complete_data *calldata;
+	struct rpc_task *task;
+	struct rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_RECLAIM_COMPLETE],
+	};
+	struct rpc_task_setup task_setup_data = {
+		.rpc_client = clp->cl_rpcclient,
+		.rpc_message = &msg,
+		.callback_ops = &nfs4_reclaim_complete_call_ops,
+		.flags = RPC_TASK_ASYNC,
+	};
+	int status = -ENOMEM;
+
+	dprintk("--> %s\n", __func__);
+	calldata = kzalloc(sizeof(*calldata), GFP_KERNEL);
+	if (calldata == NULL)
+		goto out;
+	calldata->clp = clp;
+	calldata->arg.one_fs = 0;
+	calldata->res.seq_res.sr_slotid = NFS4_MAX_SLOT_TABLE;
+
+	msg.rpc_argp = &calldata->arg;
+	msg.rpc_resp = &calldata->res;
+	task_setup_data.callback_data = calldata;
+	task = rpc_run_task(&task_setup_data);
+	if (IS_ERR(task))
+		status = PTR_ERR(task);
+	rpc_put_task(task);
+out:
+	dprintk("<-- %s status=%d\n", __func__, status);
+	return status;
+}
 #endif /* CONFIG_NFS_V4_1 */
 
 struct nfs4_state_recovery_ops nfs40_reboot_recovery_ops = {
@@ -4990,6 +5094,7 @@ struct nfs4_state_recovery_ops nfs41_reboot_recovery_ops = {
 	.recover_lock	= nfs4_lock_reclaim,
 	.establish_clid = nfs41_init_clientid,
 	.get_clid_cred	= nfs4_get_exchange_id_cred,
+	.reclaim_complete = nfs41_proc_reclaim_complete,
 };
 #endif /* CONFIG_NFS_V4_1 */
 

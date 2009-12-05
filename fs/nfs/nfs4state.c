@@ -1032,6 +1032,14 @@ static void nfs4_state_start_reclaim_reboot(struct nfs_client *clp)
 	nfs4_state_mark_reclaim_helper(clp, nfs4_state_mark_reclaim_reboot);
 }
 
+static void nfs4_reclaim_complete(struct nfs_client *clp,
+				 const struct nfs4_state_recovery_ops *ops)
+{
+	/* Notify the server we're done reclaiming our state */
+	if (ops->reclaim_complete)
+		(void)ops->reclaim_complete(clp);
+}
+
 static void nfs4_state_end_reclaim_reboot(struct nfs_client *clp)
 {
 	struct nfs4_state_owner *sp;
