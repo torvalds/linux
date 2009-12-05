@@ -10,26 +10,28 @@
 #include <linux/module.h>
 #include <linux/ptrace.h>
 #include <linux/kexec.h>
+#include <linux/sysfs.h>
 #include <linux/bug.h>
 #include <linux/nmi.h>
-#include <linux/sysfs.h>
 
 #include <asm/stacktrace.h>
 
 #include "dumpstack.h"
 
+#define N_EXCEPTION_STACKS_END \
+		(N_EXCEPTION_STACKS + DEBUG_STKSZ/EXCEPTION_STKSZ - 2)
 
 static char x86_stack_ids[][8] = {
-		[DEBUG_STACK - 1] = "#DB",
-		[NMI_STACK - 1] = "NMI",
-		[DOUBLEFAULT_STACK - 1] = "#DF",
-		[STACKFAULT_STACK - 1] = "#SS",
-		[MCE_STACK - 1] = "#MC",
+		[ DEBUG_STACK-1			]	= "#DB",
+		[ NMI_STACK-1			]	= "NMI",
+		[ DOUBLEFAULT_STACK-1		]	= "#DF",
+		[ STACKFAULT_STACK-1		]	= "#SS",
+		[ MCE_STACK-1			]	= "#MC",
 #if DEBUG_STKSZ > EXCEPTION_STKSZ
-		[N_EXCEPTION_STACKS ...
-			N_EXCEPTION_STACKS + DEBUG_STKSZ / EXCEPTION_STKSZ - 2] = "#DB[?]"
+		[ N_EXCEPTION_STACKS ...
+		  N_EXCEPTION_STACKS_END	]	= "#DB[?]"
 #endif
-	};
+};
 
 int x86_is_stack_id(int id, char *name)
 {
@@ -37,7 +39,7 @@ int x86_is_stack_id(int id, char *name)
 }
 
 static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
-					unsigned *usedp, char **idp)
+					 unsigned *usedp, char **idp)
 {
 	unsigned k;
 
@@ -202,21 +204,24 @@ EXPORT_SYMBOL(dump_trace);
 
 void
 show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
-		unsigned long *sp, unsigned long bp, char *log_lvl)
+		   unsigned long *sp, unsigned long bp, char *log_lvl)
 {
+	unsigned long *irq_stack_end;
+	unsigned long *irq_stack;
 	unsigned long *stack;
+	int cpu;
 	int i;
-	const int cpu = smp_processor_id();
-	unsigned long *irq_stack_end =
-		(unsigned long *)(per_cpu(irq_stack_ptr, cpu));
-	unsigned long *irq_stack =
-		(unsigned long *)(per_cpu(irq_stack_ptr, cpu) - IRQ_STACK_SIZE);
+
+	preempt_disable();
+	cpu = smp_processor_id();
+
+	irq_stack_end	= (unsigned long *)(per_cpu(irq_stack_ptr, cpu));
+	irq_stack	= (unsigned long *)(per_cpu(irq_stack_ptr, cpu) - IRQ_STACK_SIZE);
 
 	/*
-	 * debugging aid: "show_stack(NULL, NULL);" prints the
-	 * back trace for this cpu.
+	 * Debugging aid: "show_stack(NULL, NULL);" prints the
+	 * back trace for this cpu:
 	 */
-
 	if (sp == NULL) {
 		if (task)
 			sp = (unsigned long *)task->thread.sp;
@@ -240,6 +245,8 @@ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 		printk(" %016lx", *stack++);
 		touch_nmi_watchdog();
 	}
+	preempt_enable();
+
 	printk("\n");
 	show_trace_log_lvl(task, regs, sp, bp, log_lvl);
 }
@@ -303,4 +310,3 @@ int is_valid_bugaddr(unsigned long ip)
 
 	return ud2 == 0x0b0f;
 }
-
