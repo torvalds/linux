@@ -358,6 +358,7 @@ static const struct proto_ops name##_ops = {			\
 
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
+#include <linux/ratelimit.h>
 extern struct ratelimit_state net_ratelimit_state;
 #endif
 
