@@ -1260,10 +1260,20 @@ error:
 static void nfs4_session_set_rwsize(struct nfs_server *server)
 {
 #ifdef CONFIG_NFS_V4_1
+	struct nfs4_session *sess;
+	u32 server_resp_sz;
+	u32 server_rqst_sz;
+
 	if (!nfs4_has_session(server->nfs_client))
 		return;
-	server->rsize = server->nfs_client->cl_session->fc_attrs.max_resp_sz;
-	server->wsize = server->nfs_client->cl_session->fc_attrs.max_rqst_sz;
+	sess = server->nfs_client->cl_session;
+	server_resp_sz = sess->fc_attrs.max_resp_sz - nfs41_maxread_overhead;
+	server_rqst_sz = sess->fc_attrs.max_rqst_sz - nfs41_maxwrite_overhead;
+
+	if (server->rsize > server_resp_sz)
+		server->rsize = server_resp_sz;
+	if (server->wsize > server_rqst_sz)
+		server->wsize = server_rqst_sz;
 #endif /* CONFIG_NFS_V4_1 */
 }
 

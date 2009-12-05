@@ -46,6 +46,7 @@
 #include <linux/proc_fs.h>
 #include <linux/kdev_t.h>
 #include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/msg_prot.h>
 #include <linux/nfs.h>
 #include <linux/nfs4.h>
 #include <linux/nfs_fs.h>
@@ -677,6 +678,19 @@ static int nfs4_stat_to_errno(int);
 					 decode_sequence_maxsz + \
 					 decode_putrootfh_maxsz + \
 					 decode_fsinfo_maxsz)
+
+const u32 nfs41_maxwrite_overhead = ((RPC_MAX_HEADER_WITH_AUTH +
+				      compound_encode_hdr_maxsz +
+				      encode_sequence_maxsz +
+				      encode_putfh_maxsz +
+				      encode_getattr_maxsz) *
+				     XDR_UNIT);
+
+const u32 nfs41_maxread_overhead = ((RPC_MAX_HEADER_WITH_AUTH +
+				     compound_decode_hdr_maxsz +
+				     decode_sequence_maxsz +
+				     decode_putfh_maxsz) *
+				    XDR_UNIT);
 #endif /* CONFIG_NFS_V4_1 */
 
 static const umode_t nfs_type2fmt[] = {

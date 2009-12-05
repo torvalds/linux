@@ -191,6 +191,10 @@ extern __be32 *nfs3_decode_dirent(__be32 *, struct nfs_entry *, int);
 #ifdef CONFIG_NFS_V4
 extern __be32 *nfs4_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus);
 #endif
+#ifdef CONFIG_NFS_V4_1
+extern const u32 nfs41_maxread_overhead;
+extern const u32 nfs41_maxwrite_overhead;
+#endif
 
 /* nfs4proc.c */
 extern void nfs4_restart_rpc(struct rpc_task *, const struct nfs_client *,

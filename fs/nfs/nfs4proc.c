@@ -4862,13 +4862,16 @@ int nfs4_proc_destroy_session(struct nfs4_session *session)
 int nfs4_init_session(struct nfs_server *server)
 {
 	struct nfs_client *clp = server->nfs_client;
+	struct nfs4_session *session;
 	int ret;
 
 	if (!nfs4_has_session(clp))
 		return 0;
 
-	clp->cl_session->fc_attrs.max_rqst_sz = server->wsize;
-	clp->cl_session->fc_attrs.max_resp_sz = server->rsize;
+	session = clp->cl_session;
+	session->fc_attrs.max_rqst_sz = server->wsize + nfs41_maxwrite_overhead;
+	session->fc_attrs.max_resp_sz = server->rsize + nfs41_maxread_overhead;
+
 	ret = nfs4_recover_expired_lease(server);
 	if (!ret)
 		ret = nfs4_check_client_ready(clp);
