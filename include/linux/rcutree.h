@@ -34,15 +34,15 @@ struct notifier_block;
 
 extern void rcu_sched_qs(int cpu);
 extern void rcu_bh_qs(int cpu);
-extern int rcu_cpu_notify(struct notifier_block *self,
-			  unsigned long action, void *hcpu);
 extern int rcu_needs_cpu(int cpu);
+extern void rcu_scheduler_starting(void);
 extern int rcu_expedited_torture_stats(char *page);
 
 #ifdef CONFIG_TREE_PREEMPT_RCU
 
 extern void __rcu_read_lock(void);
 extern void __rcu_read_unlock(void);
+extern void synchronize_rcu(void);
 extern void exit_rcu(void);
 
 #else /* #ifdef CONFIG_TREE_PREEMPT_RCU */
@@ -57,7 +57,7 @@ static inline void __rcu_read_unlock(void)
 	preempt_enable();
 }
 
-#define __synchronize_sched() synchronize_rcu()
+#define synchronize_rcu synchronize_sched
 
 static inline void exit_rcu(void)
 {
@@ -83,7 +83,6 @@ static inline void synchronize_rcu_bh_expedited(void)
 	synchronize_sched_expedited();
 }
 
-extern void __rcu_init(void);
 extern void rcu_check_callbacks(int cpu, int user);
 
 extern long rcu_batches_completed(void);

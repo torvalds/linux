@@ -22,6 +22,7 @@
 #include <linux/ptrace.h>
 #include <linux/signal.h>
 #include <linux/signalfd.h>
+#include <linux/ratelimit.h>
 #include <linux/tracehook.h>
 #include <linux/capability.h>
 #include <linux/freezer.h>
@@ -40,6 +41,8 @@
  */
 
 static struct kmem_cache *sigqueue_cachep;
+
+int print_fatal_signals __read_mostly;
 
 static void __user *sig_handler(struct task_struct *t, int sig)
 {
@@ -159,7 +162,7 @@ int next_signal(struct sigpending *pending, sigset_t *mask)
 {
 	unsigned long i, *s, *m, x;
 	int sig = 0;
-	
+
 	s = pending->signal.sig;
 	m = mask->sig;
 	switch (_NSIG_WORDS) {
@@ -184,8 +187,22 @@ int next_signal(struct sigpending *pending, sigset_t *mask)
 			sig = ffz(~x) + 1;
 		break;
 	}
-	
+
 	return sig;
+}
+
+static inline void print_dropped_signal(int sig)
+{
+	static DEFINE_RATELIMIT_STATE(ratelimit_state, 5 * HZ, 10);
+
+	if (!print_fatal_signals)
+		return;
+
+	if (!__ratelimit(&ratelimit_state))
+		return;
+
+	printk(KERN_INFO "%s/%d: reached RLIMIT_SIGPENDING, dropped signal %d\n",
+				current->comm, current->pid, sig);
 }
 
 /*
@@ -193,8 +210,8 @@ int next_signal(struct sigpending *pending, sigset_t *mask)
  * - this may be called without locks if and only if t == current, otherwise an
  *   appopriate lock must be held to stop the target task from exiting
  */
-static struct sigqueue *__sigqueue_alloc(struct task_struct *t, gfp_t flags,
-					 int override_rlimit)
+static struct sigqueue *
+__sigqueue_alloc(int sig, struct task_struct *t, gfp_t flags, int override_rlimit)
 {
 	struct sigqueue *q = NULL;
 	struct user_struct *user;
@@ -207,10 +224,15 @@ static struct sigqueue *__sigqueue_alloc(struct task_struct *t, gfp_t flags,
 	 */
 	user = get_uid(__task_cred(t)->user);
 	atomic_inc(&user->sigpending);
+
 	if (override_rlimit ||
 	    atomic_read(&user->sigpending) <=
-			t->signal->rlim[RLIMIT_SIGPENDING].rlim_cur)
+			t->signal->rlim[RLIMIT_SIGPENDING].rlim_cur) {
 		q = kmem_cache_alloc(sigqueue_cachep, flags);
+	} else {
+		print_dropped_signal(sig);
+	}
+
 	if (unlikely(q == NULL)) {
 		atomic_dec(&user->sigpending);
 		free_uid(user);
@@ -869,7 +891,7 @@ static int __send_signal(int sig, struct siginfo *info, struct task_struct *t,
 	else
 		override_rlimit = 0;
 
-	q = __sigqueue_alloc(t, GFP_ATOMIC | __GFP_NOTRACK_FALSE_POSITIVE,
+	q = __sigqueue_alloc(sig, t, GFP_ATOMIC | __GFP_NOTRACK_FALSE_POSITIVE,
 		override_rlimit);
 	if (q) {
 		list_add_tail(&q->list, &pending->list);
@@ -924,8 +946,6 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 
 	return __send_signal(sig, info, t, group, from_ancestor_ns);
 }
-
-int print_fatal_signals;
 
 static void print_fatal_signal(struct pt_regs *regs, int signr)
 {
@@ -1293,19 +1313,19 @@ EXPORT_SYMBOL(kill_pid);
  * These functions support sending signals using preallocated sigqueue
  * structures.  This is needed "because realtime applications cannot
  * afford to lose notifications of asynchronous events, like timer
- * expirations or I/O completions".  In the case of Posix Timers 
+ * expirations or I/O completions".  In the case of Posix Timers
  * we allocate the sigqueue structure from the timer_create.  If this
  * allocation fails we are able to report the failure to the application
  * with an EAGAIN error.
  */
- 
 struct sigqueue *sigqueue_alloc(void)
 {
-	struct sigqueue *q;
+	struct sigqueue *q = __sigqueue_alloc(-1, current, GFP_KERNEL, 0);
 
-	if ((q = __sigqueue_alloc(current, GFP_KERNEL, 0)))
+	if (q)
 		q->flags |= SIGQUEUE_PREALLOC;
-	return(q);
+
+	return q;
 }
 
 void sigqueue_free(struct sigqueue *q)

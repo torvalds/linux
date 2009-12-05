@@ -1,13 +1,6 @@
 #ifndef _INCLUDE_GUARD_PD6729_H_
 #define _INCLUDE_GUARD_PD6729_H_
 
-/* Debuging defines */
-#ifdef NOTRACE
-#define dprintk(fmt, args...) printk(fmt , ## args)
-#else
-#define dprintk(fmt, args...) do {} while (0)
-#endif
-
 /* Flags for I365_GENCTL */
 #define I365_DF_VS1		0x40	/* DF-step Voltage Sense */
 #define I365_DF_VS2		0x80

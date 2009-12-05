@@ -23,7 +23,7 @@
 # include <linux/ctype.h>
 # include <linux/mc146818rtc.h>
 #else
-# include <asm/iommu.h>
+# include <asm/x86_init.h>
 #endif
 
 /*
@@ -622,7 +622,7 @@ void native_machine_shutdown(void)
 #endif
 
 #ifdef CONFIG_X86_64
-	pci_iommu_shutdown();
+	x86_platform.iommu_shutdown();
 #endif
 }
 

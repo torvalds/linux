@@ -66,7 +66,7 @@ static int sharpsl_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 		}
 	}
 
-	skt->irq = SCOOP_DEV[skt->nr].irq;
+	skt->socket.pci_irq = SCOOP_DEV[skt->nr].irq;
 
 	return 0;
 }

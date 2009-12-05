@@ -107,28 +107,6 @@ static inline void cs_socket_put(struct pcmcia_socket *skt)
 	}
 }
 
-#ifdef CONFIG_PCMCIA_DEBUG
-extern int cs_debug_level(int);
-
-#define cs_dbg(skt, lvl, fmt, arg...) do {		\
-	if (cs_debug_level(lvl))			\
-		dev_printk(KERN_DEBUG, &skt->dev,	\
-		 "cs: " fmt, ## arg);			\
-} while (0)
-#define __cs_dbg(lvl, fmt, arg...) do {			\
-	if (cs_debug_level(lvl))			\
-		printk(KERN_DEBUG 			\
-		 "cs: " fmt, ## arg);			\
-} while (0)
-
-#else
-#define cs_dbg(skt, lvl, fmt, arg...) do { } while (0)
-#define __cs_dbg(lvl, fmt, arg...) do { } while (0)
-#endif
-
-#define cs_err(skt, fmt, arg...) \
-	dev_printk(KERN_ERR, &skt->dev, "cs: " fmt, ## arg)
-
 
 /*
  * Stuff internal to module "pcmcia_core":
@@ -170,10 +148,6 @@ extern struct rw_semaphore pcmcia_socket_list_rwsem;
 extern struct list_head pcmcia_socket_list;
 extern struct class pcmcia_socket_class;
 
-int pcmcia_get_window(struct pcmcia_socket *s,
-		      window_handle_t *handle,
-		      int idx,
-		      win_req_t *req);
 int pccard_register_pcmcia(struct pcmcia_socket *s, struct pcmcia_callback *c);
 struct pcmcia_socket *pcmcia_get_socket_by_nr(unsigned int nr);
 
@@ -198,6 +172,22 @@ int pccard_read_tuple(struct pcmcia_socket *s, unsigned int function,
 int pcmcia_replace_cis(struct pcmcia_socket *s,
 		       const u8 *data, const size_t len);
 int pccard_validate_cis(struct pcmcia_socket *s, unsigned int *count);
+
+/* loop over CIS entries */
+int pccard_loop_tuple(struct pcmcia_socket *s, unsigned int function,
+		      cisdata_t code, cisparse_t *parse, void *priv_data,
+		      int (*loop_tuple) (tuple_t *tuple,
+					 cisparse_t *parse,
+					 void *priv_data));
+
+int pccard_get_first_tuple(struct pcmcia_socket *s, unsigned int function,
+			tuple_t *tuple);
+
+int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function,
+			tuple_t *tuple);
+
+int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple);
+
 
 /* rsrc_mgr.c */
 int pcmcia_validate_mem(struct pcmcia_socket *s);

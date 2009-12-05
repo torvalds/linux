@@ -38,17 +38,6 @@
 
 #include "m32r_cfc.h"
 
-#ifdef CONFIG_PCMCIA_DEBUG
-static int m32r_cfc_debug;
-module_param(m32r_cfc_debug, int, 0644);
-#define debug(lvl, fmt, arg...) do {				\
-	if (m32r_cfc_debug > (lvl))				\
-		printk(KERN_DEBUG "m32r_cfc: " fmt , ## arg);	\
-} while (0)
-#else
-#define debug(n, args...) do { } while (0)
-#endif
-
 /* Poll status interval -- 0 means default to interrupt */
 static int poll_interval = 0;
 
@@ -123,7 +112,7 @@ void pcc_ioread_byte(int sock, unsigned long port, void *buf, size_t size,
 	unsigned char *bp = (unsigned char *)buf;
 	unsigned long flags;
 
-	debug(3, "m32r_cfc: pcc_ioread_byte: sock=%d, port=%#lx, buf=%p, "
+	pr_debug("m32r_cfc: pcc_ioread_byte: sock=%d, port=%#lx, buf=%p, "
 		 "size=%u, nmemb=%d, flag=%d\n",
 		  sock, port, buf, size, nmemb, flag);
 
@@ -132,7 +121,7 @@ void pcc_ioread_byte(int sock, unsigned long port, void *buf, size_t size,
 		printk("m32r_cfc:ioread_byte null port :%#lx\n",port);
 		return;
 	}
-	debug(3, "m32r_cfc: pcc_ioread_byte: addr=%#lx\n", addr);
+	pr_debug("m32r_cfc: pcc_ioread_byte: addr=%#lx\n", addr);
 
 	spin_lock_irqsave(&pcc_lock, flags);
 	/* read Byte */
@@ -148,7 +137,7 @@ void pcc_ioread_word(int sock, unsigned long port, void *buf, size_t size,
 	unsigned short *bp = (unsigned short *)buf;
 	unsigned long flags;
 
-	debug(3, "m32r_cfc: pcc_ioread_word: sock=%d, port=%#lx, "
+	pr_debug("m32r_cfc: pcc_ioread_word: sock=%d, port=%#lx, "
 		 "buf=%p, size=%u, nmemb=%d, flag=%d\n",
 		 sock, port, buf, size, nmemb, flag);
 
@@ -163,7 +152,7 @@ void pcc_ioread_word(int sock, unsigned long port, void *buf, size_t size,
 		printk("m32r_cfc:ioread_word null port :%#lx\n",port);
 		return;
 	}
-	debug(3, "m32r_cfc: pcc_ioread_word: addr=%#lx\n", addr);
+	pr_debug("m32r_cfc: pcc_ioread_word: addr=%#lx\n", addr);
 
 	spin_lock_irqsave(&pcc_lock, flags);
 	/* read Word */
@@ -179,7 +168,7 @@ void pcc_iowrite_byte(int sock, unsigned long port, void *buf, size_t size,
 	unsigned char *bp = (unsigned char *)buf;
 	unsigned long flags;
 
-	debug(3, "m32r_cfc: pcc_iowrite_byte: sock=%d, port=%#lx, "
+	pr_debug("m32r_cfc: pcc_iowrite_byte: sock=%d, port=%#lx, "
 		 "buf=%p, size=%u, nmemb=%d, flag=%d\n",
 		 sock, port, buf, size, nmemb, flag);
 
@@ -189,7 +178,7 @@ void pcc_iowrite_byte(int sock, unsigned long port, void *buf, size_t size,
 		printk("m32r_cfc:iowrite_byte null port:%#lx\n",port);
 		return;
 	}
-	debug(3, "m32r_cfc: pcc_iowrite_byte: addr=%#lx\n", addr);
+	pr_debug("m32r_cfc: pcc_iowrite_byte: addr=%#lx\n", addr);
 
 	spin_lock_irqsave(&pcc_lock, flags);
 	while (nmemb--)
@@ -204,7 +193,7 @@ void pcc_iowrite_word(int sock, unsigned long port, void *buf, size_t size,
 	unsigned short *bp = (unsigned short *)buf;
 	unsigned long flags;
 
-	debug(3, "m32r_cfc: pcc_iowrite_word: sock=%d, port=%#lx, "
+	pr_debug("m32r_cfc: pcc_iowrite_word: sock=%d, port=%#lx, "
 		 "buf=%p, size=%u, nmemb=%d, flag=%d\n",
 		 sock, port, buf, size, nmemb, flag);
 
@@ -226,7 +215,7 @@ void pcc_iowrite_word(int sock, unsigned long port, void *buf, size_t size,
 		return;
 	}
 #endif
-	debug(3, "m32r_cfc: pcc_iowrite_word: addr=%#lx\n", addr);
+	pr_debug("m32r_cfc: pcc_iowrite_word: addr=%#lx\n", addr);
 
 	spin_lock_irqsave(&pcc_lock, flags);
 	while (nmemb--)
@@ -262,7 +251,7 @@ static struct timer_list poll_timer;
 static unsigned int pcc_get(u_short sock, unsigned int reg)
 {
 	unsigned int val = inw(reg);
-	debug(3, "m32r_cfc: pcc_get: reg(0x%08x)=0x%04x\n", reg, val);
+	pr_debug("m32r_cfc: pcc_get: reg(0x%08x)=0x%04x\n", reg, val);
 	return val;
 }
 
@@ -270,7 +259,7 @@ static unsigned int pcc_get(u_short sock, unsigned int reg)
 static void pcc_set(u_short sock, unsigned int reg, unsigned int data)
 {
 	outw(data, reg);
-	debug(3, "m32r_cfc: pcc_set: reg(0x%08x)=0x%04x\n", reg, data);
+	pr_debug("m32r_cfc: pcc_set: reg(0x%08x)=0x%04x\n", reg, data);
 }
 
 /*======================================================================
@@ -286,14 +275,14 @@ static int __init is_alive(u_short sock)
 {
 	unsigned int stat;
 
-	debug(3, "m32r_cfc: is_alive:\n");
+	pr_debug("m32r_cfc: is_alive:\n");
 
 	printk("CF: ");
 	stat = pcc_get(sock, (unsigned int)PLD_CFSTS);
 	if (!stat)
 		printk("No ");
 	printk("Card is detected at socket %d : stat = 0x%08x\n", sock, stat);
-	debug(3, "m32r_cfc: is_alive: sock stat is 0x%04x\n", stat);
+	pr_debug("m32r_cfc: is_alive: sock stat is 0x%04x\n", stat);
 
 	return 0;
 }
@@ -303,7 +292,7 @@ static void add_pcc_socket(ulong base, int irq, ulong mapaddr,
 {
 	pcc_socket_t *t = &socket[pcc_sockets];
 
-	debug(3, "m32r_cfc: add_pcc_socket: base=%#lx, irq=%d, "
+	pr_debug("m32r_cfc: add_pcc_socket: base=%#lx, irq=%d, "
 		 "mapaddr=%#lx, ioaddr=%08x\n",
 		 base, irq, mapaddr, ioaddr);
 
@@ -358,7 +347,7 @@ static void add_pcc_socket(ulong base, int irq, ulong mapaddr,
 	/* eject interrupt */
 	request_irq(irq+1, pcc_interrupt, 0, "m32r_cfc", pcc_interrupt);
 #endif
-	debug(3, "m32r_cfc: enable CFMSK, RDYSEL\n");
+	pr_debug("m32r_cfc: enable CFMSK, RDYSEL\n");
 	pcc_set(pcc_sockets, (unsigned int)PLD_CFIMASK, 0x01);
 #endif	/* CONFIG_PLAT_USRV */
 #if defined(CONFIG_PLAT_M32700UT) || defined(CONFIG_PLAT_USRV) || defined(CONFIG_PLAT_OPSPUT)
@@ -378,26 +367,26 @@ static irqreturn_t pcc_interrupt(int irq, void *dev)
 	u_int events = 0;
 	int handled = 0;
 
-	debug(3, "m32r_cfc: pcc_interrupt: irq=%d, dev=%p\n", irq, dev);
+	pr_debug("m32r_cfc: pcc_interrupt: irq=%d, dev=%p\n", irq, dev);
 	for (i = 0; i < pcc_sockets; i++) {
 		if (socket[i].cs_irq1 != irq && socket[i].cs_irq2 != irq)
 			continue;
 
 		handled = 1;
-		debug(3, "m32r_cfc: pcc_interrupt: socket %d irq 0x%02x ",
+		pr_debug("m32r_cfc: pcc_interrupt: socket %d irq 0x%02x ",
 			i, irq);
 		events |= SS_DETECT;	/* insert or eject */
 		if (events)
 			pcmcia_parse_events(&socket[i].socket, events);
 	}
-	debug(3, "m32r_cfc: pcc_interrupt: done\n");
+	pr_debug("m32r_cfc: pcc_interrupt: done\n");
 
 	return IRQ_RETVAL(handled);
 } /* pcc_interrupt */
 
 static void pcc_interrupt_wrapper(u_long data)
 {
-	debug(3, "m32r_cfc: pcc_interrupt_wrapper:\n");
+	pr_debug("m32r_cfc: pcc_interrupt_wrapper:\n");
 	pcc_interrupt(0, NULL);
 	init_timer(&poll_timer);
 	poll_timer.expires = jiffies + poll_interval;
@@ -410,17 +399,17 @@ static int _pcc_get_status(u_short sock, u_int *value)
 {
 	u_int status;
 
-	debug(3, "m32r_cfc: _pcc_get_status:\n");
+	pr_debug("m32r_cfc: _pcc_get_status:\n");
 	status = pcc_get(sock, (unsigned int)PLD_CFSTS);
 	*value = (status) ? SS_DETECT : 0;
- 	debug(3, "m32r_cfc: _pcc_get_status: status=0x%08x\n", status);
+	pr_debug("m32r_cfc: _pcc_get_status: status=0x%08x\n", status);
 
 #if defined(CONFIG_PLAT_M32700UT) || defined(CONFIG_PLAT_USRV) || defined(CONFIG_PLAT_OPSPUT)
 	if ( status ) {
 		/* enable CF power */
 		status = inw((unsigned int)PLD_CPCR);
 		if (!(status & PLD_CPCR_CF)) {
-			debug(3, "m32r_cfc: _pcc_get_status: "
+			pr_debug("m32r_cfc: _pcc_get_status: "
 				 "power on (CPCR=0x%08x)\n", status);
 			status |= PLD_CPCR_CF;
 			outw(status, (unsigned int)PLD_CPCR);
@@ -439,7 +428,7 @@ static int _pcc_get_status(u_short sock, u_int *value)
 		status &= ~PLD_CPCR_CF;
 		outw(status, (unsigned int)PLD_CPCR);
 		udelay(100);
-		debug(3, "m32r_cfc: _pcc_get_status: "
+		pr_debug("m32r_cfc: _pcc_get_status: "
 			 "power off (CPCR=0x%08x)\n", status);
 	}
 #elif defined(CONFIG_PLAT_MAPPI2) || defined(CONFIG_PLAT_MAPPI3)
@@ -465,13 +454,13 @@ static int _pcc_get_status(u_short sock, u_int *value)
 		/* disable CF power */
 	        pcc_set(sock, (unsigned int)PLD_CPCR, 0);
 		udelay(100);
-		debug(3, "m32r_cfc: _pcc_get_status: "
+		pr_debug("m32r_cfc: _pcc_get_status: "
 			 "power off (CPCR=0x%08x)\n", status);
 	}
 #else
 #error no platform configuration
 #endif
-	debug(3, "m32r_cfc: _pcc_get_status: GetStatus(%d) = %#4.4x\n",
+	pr_debug("m32r_cfc: _pcc_get_status: GetStatus(%d) = %#4.4x\n",
 		 sock, *value);
 	return 0;
 } /* _get_status */
@@ -480,7 +469,7 @@ static int _pcc_get_status(u_short sock, u_int *value)
 
 static int _pcc_set_socket(u_short sock, socket_state_t *state)
 {
-	debug(3, "m32r_cfc: SetSocket(%d, flags %#3.3x, Vcc %d, Vpp %d, "
+	pr_debug("m32r_cfc: SetSocket(%d, flags %#3.3x, Vcc %d, Vpp %d, "
 		  "io_irq %d, csc_mask %#2.2x)\n", sock, state->flags,
 		  state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
 
@@ -492,41 +481,39 @@ static int _pcc_set_socket(u_short sock, socket_state_t *state)
 	}
 #endif
 	if (state->flags & SS_RESET) {
-		debug(3, ":RESET\n");
+		pr_debug(":RESET\n");
 		pcc_set(sock,(unsigned int)PLD_CFRSTCR,0x101);
 	}else{
 		pcc_set(sock,(unsigned int)PLD_CFRSTCR,0x100);
 	}
 	if (state->flags & SS_OUTPUT_ENA){
-		debug(3, ":OUTPUT_ENA\n");
+		pr_debug(":OUTPUT_ENA\n");
 		/* bit clear */
 		pcc_set(sock,(unsigned int)PLD_CFBUFCR,0);
 	} else {
 		pcc_set(sock,(unsigned int)PLD_CFBUFCR,1);
 	}
 
-#ifdef CONFIG_PCMCIA_DEBUG
 	if(state->flags & SS_IOCARD){
-		debug(3, ":IOCARD");
+		pr_debug(":IOCARD");
 	}
 	if (state->flags & SS_PWR_AUTO) {
-		debug(3, ":PWR_AUTO");
+		pr_debug(":PWR_AUTO");
 	}
 	if (state->csc_mask & SS_DETECT)
-		debug(3, ":csc-SS_DETECT");
+		pr_debug(":csc-SS_DETECT");
 	if (state->flags & SS_IOCARD) {
 		if (state->csc_mask & SS_STSCHG)
-			debug(3, ":STSCHG");
+			pr_debug(":STSCHG");
 	} else {
 		if (state->csc_mask & SS_BATDEAD)
-			debug(3, ":BATDEAD");
+			pr_debug(":BATDEAD");
 		if (state->csc_mask & SS_BATWARN)
-			debug(3, ":BATWARN");
+			pr_debug(":BATWARN");
 		if (state->csc_mask & SS_READY)
-			debug(3, ":READY");
+			pr_debug(":READY");
 	}
-	debug(3, "\n");
-#endif
+	pr_debug("\n");
 	return 0;
 } /* _set_socket */
 
@@ -536,7 +523,7 @@ static int _pcc_set_io_map(u_short sock, struct pccard_io_map *io)
 {
 	u_char map;
 
-	debug(3, "m32r_cfc: SetIOMap(%d, %d, %#2.2x, %d ns, "
+	pr_debug("m32r_cfc: SetIOMap(%d, %d, %#2.2x, %d ns, "
 		  "%#llx-%#llx)\n", sock, io->map, io->flags,
 		  io->speed, (unsigned long long)io->start,
 		  (unsigned long long)io->stop);
@@ -554,7 +541,7 @@ static int _pcc_set_mem_map(u_short sock, struct pccard_mem_map *mem)
 	u_long addr;
 	pcc_socket_t *t = &socket[sock];
 
-	debug(3, "m32r_cfc: SetMemMap(%d, %d, %#2.2x, %d ns, "
+	pr_debug("m32r_cfc: SetMemMap(%d, %d, %#2.2x, %d ns, "
 		 "%#llx, %#x)\n", sock, map, mem->flags,
 		 mem->speed, (unsigned long long)mem->static_start,
 		 mem->card_start);
@@ -640,11 +627,11 @@ static int pcc_get_status(struct pcmcia_socket *s, u_int *value)
 	unsigned int sock = container_of(s, struct pcc_socket, socket)->number;
 
 	if (socket[sock].flags & IS_ALIVE) {
-		debug(3, "m32r_cfc: pcc_get_status: sock(%d) -EINVAL\n", sock);
+		dev_dbg(&s->dev, "pcc_get_status: sock(%d) -EINVAL\n", sock);
 		*value = 0;
 		return -EINVAL;
 	}
-	debug(3, "m32r_cfc: pcc_get_status: sock(%d)\n", sock);
+	dev_dbg(&s->dev, "pcc_get_status: sock(%d)\n", sock);
 	LOCKED(_pcc_get_status(sock, value));
 }
 
@@ -653,10 +640,10 @@ static int pcc_set_socket(struct pcmcia_socket *s, socket_state_t *state)
 	unsigned int sock = container_of(s, struct pcc_socket, socket)->number;
 
 	if (socket[sock].flags & IS_ALIVE) {
-		debug(3, "m32r_cfc: pcc_set_socket: sock(%d) -EINVAL\n", sock);
+		dev_dbg(&s->dev, "pcc_set_socket: sock(%d) -EINVAL\n", sock);
 		return -EINVAL;
 	}
-	debug(3, "m32r_cfc: pcc_set_socket: sock(%d)\n", sock);
+	dev_dbg(&s->dev, "pcc_set_socket: sock(%d)\n", sock);
 	LOCKED(_pcc_set_socket(sock, state));
 }
 
@@ -665,10 +652,10 @@ static int pcc_set_io_map(struct pcmcia_socket *s, struct pccard_io_map *io)
 	unsigned int sock = container_of(s, struct pcc_socket, socket)->number;
 
 	if (socket[sock].flags & IS_ALIVE) {
-		debug(3, "m32r_cfc: pcc_set_io_map: sock(%d) -EINVAL\n", sock);
+		dev_dbg(&s->dev, "pcc_set_io_map: sock(%d) -EINVAL\n", sock);
 		return -EINVAL;
 	}
-	debug(3, "m32r_cfc: pcc_set_io_map: sock(%d)\n", sock);
+	dev_dbg(&s->dev, "pcc_set_io_map: sock(%d)\n", sock);
 	LOCKED(_pcc_set_io_map(sock, io));
 }
 
@@ -677,16 +664,16 @@ static int pcc_set_mem_map(struct pcmcia_socket *s, struct pccard_mem_map *mem)
 	unsigned int sock = container_of(s, struct pcc_socket, socket)->number;
 
 	if (socket[sock].flags & IS_ALIVE) {
-		debug(3, "m32r_cfc: pcc_set_mem_map: sock(%d) -EINVAL\n", sock);
+		dev_dbg(&s->dev, "pcc_set_mem_map: sock(%d) -EINVAL\n", sock);
 		return -EINVAL;
 	}
-	debug(3, "m32r_cfc: pcc_set_mem_map: sock(%d)\n", sock);
+	dev_dbg(&s->dev, "pcc_set_mem_map: sock(%d)\n", sock);
 	LOCKED(_pcc_set_mem_map(sock, mem));
 }
 
 static int pcc_init(struct pcmcia_socket *s)
 {
-	debug(3, "m32r_cfc: pcc_init()\n");
+	dev_dbg(&s->dev, "pcc_init()\n");
 	return 0;
 }
 

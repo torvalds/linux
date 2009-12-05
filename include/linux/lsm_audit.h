@@ -26,14 +26,15 @@
 
 /* Auxiliary data to use in generating the audit record. */
 struct common_audit_data {
-	char    type;
-#define LSM_AUDIT_DATA_FS      1
-#define LSM_AUDIT_DATA_NET     2
-#define LSM_AUDIT_DATA_CAP     3
-#define LSM_AUDIT_DATA_IPC     4
-#define LSM_AUDIT_DATA_TASK    5
-#define LSM_AUDIT_DATA_KEY     6
-#define LSM_AUDIT_NO_AUDIT     7
+	char type;
+#define LSM_AUDIT_DATA_FS	1
+#define LSM_AUDIT_DATA_NET	2
+#define LSM_AUDIT_DATA_CAP	3
+#define LSM_AUDIT_DATA_IPC	4
+#define LSM_AUDIT_DATA_TASK	5
+#define LSM_AUDIT_DATA_KEY	6
+#define LSM_AUDIT_NO_AUDIT	7
+#define LSM_AUDIT_DATA_KMOD	8
 	struct task_struct *tsk;
 	union 	{
 		struct {
@@ -66,6 +67,7 @@ struct common_audit_data {
 			char *key_desc;
 		} key_struct;
 #endif
+		char *kmod_name;
 	} u;
 	/* this union contains LSM specific data */
 	union {

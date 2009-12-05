@@ -5481,7 +5481,7 @@ need_resched_nonpreemptible:
 }
 EXPORT_SYMBOL(schedule);
 
-#ifdef CONFIG_SMP
+#ifdef CONFIG_MUTEX_SPIN_ON_OWNER
 /*
  * Look out! "owner" is an entirely speculative pointer
  * access and not reliable.
@@ -10901,6 +10901,7 @@ void synchronize_sched_expedited(void)
 		spin_unlock_irqrestore(&rq->lock, flags);
 	}
 	rcu_expedited_state = RCU_EXPEDITED_STATE_IDLE;
+	synchronize_sched_expedited_count++;
 	mutex_unlock(&rcu_sched_expedited_mutex);
 	put_online_cpus();
 	if (need_full_sync)

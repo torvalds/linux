@@ -1421,17 +1421,17 @@ struct task_struct {
 #endif
 #ifdef CONFIG_TRACE_IRQFLAGS
 	unsigned int irq_events;
-	int hardirqs_enabled;
 	unsigned long hardirq_enable_ip;
-	unsigned int hardirq_enable_event;
 	unsigned long hardirq_disable_ip;
+	unsigned int hardirq_enable_event;
 	unsigned int hardirq_disable_event;
-	int softirqs_enabled;
-	unsigned long softirq_disable_ip;
-	unsigned int softirq_disable_event;
-	unsigned long softirq_enable_ip;
-	unsigned int softirq_enable_event;
+	int hardirqs_enabled;
 	int hardirq_context;
+	unsigned long softirq_disable_ip;
+	unsigned long softirq_enable_ip;
+	unsigned int softirq_disable_event;
+	unsigned int softirq_enable_event;
+	int softirqs_enabled;
 	int softirq_context;
 #endif
 #ifdef CONFIG_LOCKDEP
@@ -2086,11 +2086,18 @@ static inline int is_si_special(const struct siginfo *info)
 	return info <= SEND_SIG_FORCED;
 }
 
-/* True if we are on the alternate signal stack.  */
-
+/*
+ * True if we are on the alternate signal stack.
+ */
 static inline int on_sig_stack(unsigned long sp)
 {
-	return (sp - current->sas_ss_sp < current->sas_ss_size);
+#ifdef CONFIG_STACK_GROWSUP
+	return sp >= current->sas_ss_sp &&
+		sp - current->sas_ss_sp < current->sas_ss_size;
+#else
+	return sp > current->sas_ss_sp &&
+		sp - current->sas_ss_sp <= current->sas_ss_size;
+#endif
 }
 
 static inline int sas_ss_flags(unsigned long sp)

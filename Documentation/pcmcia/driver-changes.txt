@@ -1,5 +1,17 @@
 This file details changes in 2.6 which affect PCMCIA card driver authors:
 
+* no cs_error / CS_CHECK / CONFIG_PCMCIA_DEBUG (as of 2.6.33)
+   Instead of the cs_error() callback or the CS_CHECK() macro, please use
+   Linux-style checking of return values, and -- if necessary -- debug
+   messages using "dev_dbg()" or "pr_debug()".
+
+* New CIS tuple access (as of 2.6.33)
+   Instead of pcmcia_get_{first,next}_tuple(), pcmcia_get_tuple_data() and
+   pcmcia_parse_tuple(), a driver shall use "pcmcia_get_tuple()" if it is
+   only interested in one (raw) tuple, or "pcmcia_loop_tuple()" if it is
+   interested in all tuples of one type. To decode the MAC from CISTPL_FUNCE,
+   a new helper "pcmcia_get_mac_from_cis()" was added.
+
 * New configuration loop helper (as of 2.6.28)
    By calling pcmcia_loop_config(), a driver can iterate over all available
    configuration options. During a driver's probe() phase, one doesn't need

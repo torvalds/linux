@@ -251,7 +251,7 @@ early_param("loglevel", loglevel);
 
 /*
  * Unknown boot options get handed to init, unless they look like
- * failed parameters
+ * unused parameters (modprobe will find them in /proc/cmdline).
  */
 static int __init unknown_bootoption(char *param, char *val)
 {
@@ -272,14 +272,9 @@ static int __init unknown_bootoption(char *param, char *val)
 	if (obsolete_checksetup(param))
 		return 0;
 
-	/*
-	 * Preemptive maintenance for "why didn't my misspelled command
-	 * line work?"
-	 */
-	if (strchr(param, '.') && (!val || strchr(param, '.') < val)) {
-		printk(KERN_ERR "Unknown boot option `%s': ignoring\n", param);
+	/* Unused module parameter. */
+	if (strchr(param, '.') && (!val || strchr(param, '.') < val))
 		return 0;
-	}
 
 	if (panic_later)
 		return 0;

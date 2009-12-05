@@ -158,7 +158,7 @@ static ssize_t statfs_sync_store(struct gfs2_sbd *sdp, const char *buf,
 	if (simple_strtol(buf, NULL, 0) != 1)
 		return -EINVAL;
 
-	gfs2_statfs_sync(sdp);
+	gfs2_statfs_sync(sdp->sd_vfs, 0);
 	return len;
 }
 
@@ -171,13 +171,14 @@ static ssize_t quota_sync_store(struct gfs2_sbd *sdp, const char *buf,
 	if (simple_strtol(buf, NULL, 0) != 1)
 		return -EINVAL;
 
-	gfs2_quota_sync(sdp);
+	gfs2_quota_sync(sdp->sd_vfs, 0);
 	return len;
 }
 
 static ssize_t quota_refresh_user_store(struct gfs2_sbd *sdp, const char *buf,
 					size_t len)
 {
+	int error;
 	u32 id;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -185,13 +186,14 @@ static ssize_t quota_refresh_user_store(struct gfs2_sbd *sdp, const char *buf,
 
 	id = simple_strtoul(buf, NULL, 0);
 
-	gfs2_quota_refresh(sdp, 1, id);
-	return len;
+	error = gfs2_quota_refresh(sdp, 1, id);
+	return error ? error : len;
 }
 
 static ssize_t quota_refresh_group_store(struct gfs2_sbd *sdp, const char *buf,
 					 size_t len)
 {
+	int error;
 	u32 id;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -199,8 +201,8 @@ static ssize_t quota_refresh_group_store(struct gfs2_sbd *sdp, const char *buf,
 
 	id = simple_strtoul(buf, NULL, 0);
 
-	gfs2_quota_refresh(sdp, 0, id);
-	return len;
+	error = gfs2_quota_refresh(sdp, 0, id);
+	return error ? error : len;
 }
 
 static ssize_t demote_rq_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
