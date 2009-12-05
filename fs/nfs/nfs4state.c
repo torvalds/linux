@@ -1211,8 +1211,8 @@ static int nfs4_reset_session(struct nfs_client *clp)
 
 	INIT_COMPLETION(ses->complete);
 	spin_lock(&tbl->slot_tbl_lock);
+	set_bit(NFS4CLNT_SESSION_DRAINING, &clp->cl_state);
 	if (tbl->highest_used_slotid != -1) {
-		set_bit(NFS4CLNT_SESSION_DRAINING, &clp->cl_state);
 		spin_unlock(&tbl->slot_tbl_lock);
 		status = wait_for_completion_interruptible(&ses->complete);
 		if (status) /* -ERESTARTSYS */
