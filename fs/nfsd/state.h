@@ -38,6 +38,7 @@
 #define _NFSD4_STATE_H
 
 #include <linux/nfsd/nfsfh.h>
+#include "nfsfh.h"
 
 typedef struct {
 	u32             cl_boot;

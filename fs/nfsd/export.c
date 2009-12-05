@@ -22,6 +22,7 @@
 #include <net/ipv6.h>
 
 #include "nfsd.h"
+#include "nfsfh.h"
 
 #define NFSDDBG_FACILITY	NFSDDBG_EXPORT
 

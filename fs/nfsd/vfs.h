@@ -5,6 +5,8 @@
 #ifndef LINUX_NFSD_VFS_H
 #define LINUX_NFSD_VFS_H
 
+#include "nfsfh.h"
+
 /*
  * Flags for nfsd_permission
  */
