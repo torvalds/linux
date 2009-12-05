@@ -37,27 +37,7 @@ MODULE_LICENSE("GPL");
 /* MACROS                                                             */
 /*====================================================================*/
 
-#if defined(DEBUG) || defined(PCMCIA_DEBUG)
-
-static int pc_debug = 0;
-module_param(pc_debug, int, 0644);
-
-#define DBG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG "sl811_cs: " args)
-
-#else
-#define DBG(n, args...) do{}while(0)
-#endif	/* no debugging */
-
 #define INFO(args...) printk(KERN_INFO "sl811_cs: " args)
-
-#define INT_MODULE_PARM(n, v) static int n = v; module_param(n, int, 0444)
-
-#define CS_CHECK(fn, ret) \
-	do { \
-		last_fn = (fn); \
-		if ((last_ret = (ret)) != 0) \
-			goto cs_failed; \
-	} while (0)
 
 /*====================================================================*/
 /* VARIABLES                                                          */
@@ -76,7 +56,7 @@ static void sl811_cs_release(struct pcmcia_device * link);
 
 static void release_platform_dev(struct device * dev)
 {
-	DBG(0, "sl811_cs platform_dev release\n");
+	dev_dbg(dev, "sl811_cs platform_dev release\n");
 	dev->parent = NULL;
 }
 
@@ -140,7 +120,7 @@ static int sl811_hc_init(struct device *parent, resource_size_t base_addr,
 
 static void sl811_cs_detach(struct pcmcia_device *link)
 {
-	DBG(0, "sl811_cs_detach(0x%p)\n", link);
+	dev_dbg(&link->dev, "sl811_cs_detach\n");
 
 	sl811_cs_release(link);
 
@@ -150,7 +130,7 @@ static void sl811_cs_detach(struct pcmcia_device *link)
 
 static void sl811_cs_release(struct pcmcia_device * link)
 {
-	DBG(0, "sl811_cs_release(0x%p)\n", link);
+	dev_dbg(&link->dev, "sl811_cs_release\n");
 
 	pcmcia_disable_device(link);
 	platform_device_unregister(&platform_dev);
@@ -205,11 +185,11 @@ static int sl811_cs_config_check(struct pcmcia_device *p_dev,
 
 static int sl811_cs_config(struct pcmcia_device *link)
 {
-	struct device		*parent = &handle_to_dev(link);
+	struct device		*parent = &link->dev;
 	local_info_t		*dev = link->priv;
-	int			last_fn, last_ret;
+	int			ret;
 
-	DBG(0, "sl811_cs_config(0x%p)\n", link);
+	dev_dbg(&link->dev, "sl811_cs_config\n");
 
 	if (pcmcia_loop_config(link, sl811_cs_config_check, NULL))
 		goto failed;
@@ -217,14 +197,16 @@ static int sl811_cs_config(struct pcmcia_device *link)
 	/* require an IRQ and two registers */
 	if (!link->io.NumPorts1 || link->io.NumPorts1 < 2)
 		goto failed;
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		CS_CHECK(RequestIRQ,
-			pcmcia_request_irq(link, &link->irq));
-	else
+	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
+		ret = pcmcia_request_irq(link, &link->irq);
+		if (ret)
+			goto failed;
+	} else
 		goto failed;
 
-	CS_CHECK(RequestConfiguration,
-		pcmcia_request_configuration(link, &link->conf));
+	ret = pcmcia_request_configuration(link, &link->conf);
+	if (ret)
+		goto failed;
 
 	sprintf(dev->node.dev_name, driver_name);
 	dev->node.major = dev->node.minor = 0;
@@ -241,8 +223,6 @@ static int sl811_cs_config(struct pcmcia_device *link)
 
 	if (sl811_hc_init(parent, link->io.BasePort1, link->irq.AssignedIRQ)
 			< 0) {
-cs_failed:
-		cs_error(link, last_fn, last_ret);
 failed:
 		printk(KERN_WARNING "sl811_cs_config failed\n");
 		sl811_cs_release(link);
@@ -263,7 +243,6 @@ static int sl811_cs_probe(struct pcmcia_device *link)
 
 	/* Initialize */
 	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-	link->irq.IRQInfo1 = IRQ_INFO2_VALID|IRQ_LEVEL_ID;
 	link->irq.Handler = NULL;
 
 	link->conf.Attributes = 0;

@@ -55,22 +55,6 @@
 
 #include "atmel.h"
 
-/*
-   All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
-   you do not define PCMCIA_DEBUG at all, all the debug code will be
-   left out.  If you compile with PCMCIA_DEBUG=0, the debug code will
-   be present but disabled -- but it can then be enabled for specific
-   modules at load time with a 'pc_debug=#' option to insmod.
-*/
-
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-module_param(pc_debug, int, 0);
-static char *version = "$Revision: 1.2 $";
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args);
-#else
-#define DEBUG(n, args...)
-#endif
 
 /*====================================================================*/
 
@@ -155,11 +139,10 @@ static int atmel_probe(struct pcmcia_device *p_dev)
 {
 	local_info_t *local;
 
-	DEBUG(0, "atmel_attach()\n");
+	dev_dbg(&p_dev->dev, "atmel_attach()\n");
 
 	/* Interrupt setup */
 	p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	p_dev->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	p_dev->irq.Handler = NULL;
 
 	/*
@@ -194,7 +177,7 @@ static int atmel_probe(struct pcmcia_device *p_dev)
 
 static void atmel_detach(struct pcmcia_device *link)
 {
-	DEBUG(0, "atmel_detach(0x%p)\n", link);
+	dev_dbg(&link->dev, "atmel_detach\n");
 
 	atmel_release(link);
 
@@ -208,9 +191,6 @@ static void atmel_detach(struct pcmcia_device *link)
   device available to the system.
 
   ======================================================================*/
-
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
 /* Call-back function to interrogate PCMCIA-specific information
    about the current existance of the card */
@@ -275,13 +255,13 @@ static int atmel_config_check(struct pcmcia_device *p_dev,
 static int atmel_config(struct pcmcia_device *link)
 {
 	local_info_t *dev;
-	int last_fn, last_ret;
+	int ret;
 	struct pcmcia_device_id *did;
 
 	dev = link->priv;
-	did = dev_get_drvdata(&handle_to_dev(link));
+	did = dev_get_drvdata(&link->dev);
 
-	DEBUG(0, "atmel_config(0x%p)\n", link);
+	dev_dbg(&link->dev, "atmel_config\n");
 
 	/*
 	  In this loop, we scan the CIS for configuration table entries,
@@ -303,31 +283,36 @@ static int atmel_config(struct pcmcia_device *link)
 	  handler to the interrupt, unless the 'Handler' member of the
 	  irq structure is initialized.
 	*/
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
+	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
+		ret = pcmcia_request_irq(link, &link->irq);
+		if (ret)
+			goto failed;
+	}
 
 	/*
 	  This actually configures the PCMCIA socket -- setting up
 	  the I/O windows and the interrupt mapping, and putting the
 	  card and host interface into "Memory and IO" mode.
 	*/
-	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
+	ret = pcmcia_request_configuration(link, &link->conf);
+	if (ret)
+		goto failed;
 
 	if (link->irq.AssignedIRQ == 0) {
 		printk(KERN_ALERT
 		       "atmel: cannot assign IRQ: check that CONFIG_ISA is set in kernel config.");
-		goto cs_failed;
+		goto failed;
 	}
 
 	((local_info_t*)link->priv)->eth_dev =
 		init_atmel_card(link->irq.AssignedIRQ,
 				link->io.BasePort1,
 				did ? did->driver_info : ATMEL_FW_TYPE_NONE,
-				&handle_to_dev(link),
+				&link->dev,
 				card_present,
 				link);
 	if (!((local_info_t*)link->priv)->eth_dev)
-			goto cs_failed;
+			goto failed;
 
 
 	/*
@@ -340,8 +325,6 @@ static int atmel_config(struct pcmcia_device *link)
 
 	return 0;
 
- cs_failed:
-	cs_error(link, last_fn, last_ret);
  failed:
 	atmel_release(link);
 	return -ENODEV;
@@ -359,7 +342,7 @@ static void atmel_release(struct pcmcia_device *link)
 {
 	struct net_device *dev = ((local_info_t*)link->priv)->eth_dev;
 
-	DEBUG(0, "atmel_release(0x%p)\n", link);
+	dev_dbg(&link->dev, "atmel_release\n");
 
 	if (dev)
 		stop_atmel_card(dev);
