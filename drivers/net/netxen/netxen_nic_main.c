@@ -946,8 +946,9 @@ netxen_nic_init_coalesce_defaults(struct netxen_adapter *adapter)
 		NETXEN_DEFAULT_INTR_COALESCE_TX_PACKETS;
 }
 
+/* with rtnl_lock */
 static int
-netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
+__netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
 {
 	int err;
 
@@ -988,8 +989,24 @@ netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
 	return 0;
 }
 
+/* Usage: During resume and firmware recovery module.*/
+
+static inline int
+netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
+{
+	int err = 0;
+
+	rtnl_lock();
+	if (netif_running(netdev))
+		err = __netxen_nic_up(adapter, netdev);
+	rtnl_unlock();
+
+	return err;
+}
+
+/* with rtnl_lock */
 static void
-netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
+__netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
 {
 	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
 		return;
@@ -1014,6 +1031,17 @@ netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
 	spin_unlock(&adapter->tx_clean_lock);
 }
 
+/* Usage: During suspend and firmware recovery module */
+
+static inline void
+netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
+{
+	rtnl_lock();
+	if (netif_running(netdev))
+		__netxen_nic_down(adapter, netdev);
+	rtnl_unlock();
+
+}
 
 static int
 netxen_nic_attach(struct netxen_adapter *adapter)
@@ -1122,14 +1150,14 @@ netxen_nic_reset_context(struct netxen_adapter *adapter)
 		netif_device_detach(netdev);
 
 		if (netif_running(netdev))
-			netxen_nic_down(adapter, netdev);
+			__netxen_nic_down(adapter, netdev);
 
 		netxen_nic_detach(adapter);
 
 		if (netif_running(netdev)) {
 			err = netxen_nic_attach(adapter);
 			if (!err)
-				err = netxen_nic_up(adapter, netdev);
+				err = __netxen_nic_up(adapter, netdev);
 
 			if (err)
 				goto done;
@@ -1499,7 +1527,7 @@ static int netxen_nic_open(struct net_device *netdev)
 	if (err)
 		return err;
 
-	err = netxen_nic_up(adapter, netdev);
+	err = __netxen_nic_up(adapter, netdev);
 	if (err)
 		goto err_out;
 
@@ -1519,7 +1547,7 @@ static int netxen_nic_close(struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 
-	netxen_nic_down(adapter, netdev);
+	__netxen_nic_down(adapter, netdev);
 	return 0;
 }
 
@@ -2210,8 +2238,7 @@ netxen_detach_work(struct work_struct *work)
 
 	netif_device_detach(netdev);
 
-	if (netif_running(netdev))
-		netxen_nic_down(adapter, netdev);
+	netxen_nic_down(adapter, netdev);
 
 	netxen_nic_detach(adapter);
 
