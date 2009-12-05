@@ -567,7 +567,6 @@ struct perf_pending_entry {
 
 struct perf_sample_data;
 
-typedef void (*perf_callback_t)(struct perf_event *, void *);
 typedef void (*perf_overflow_handler_t)(struct perf_event *, int,
 					struct perf_sample_data *,
 					struct pt_regs *regs);
@@ -668,8 +667,6 @@ struct perf_event {
 #ifdef CONFIG_EVENT_PROFILE
 	struct event_filter		*filter;
 #endif
-
-	perf_callback_t			callback;
 
 #endif /* CONFIG_PERF_EVENTS */
 };
