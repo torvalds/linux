@@ -385,15 +385,24 @@ void nfs_super_return_all_delegations(struct super_block *sb)
 		nfs4_schedule_state_manager(clp);
 }
 
-static void nfs_client_mark_return_all_delegations(struct nfs_client *clp)
+static
+void nfs_client_mark_return_all_delegation_types(struct nfs_client *clp, fmode_t flags)
 {
 	struct nfs_delegation *delegation;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(delegation, &clp->cl_delegations, super_list) {
-		nfs_mark_return_delegation(clp, delegation);
+		if ((delegation->type == (FMODE_READ|FMODE_WRITE)) && !(flags & FMODE_WRITE))
+			continue;
+		if (delegation->type & flags)
+			nfs_mark_return_delegation(clp, delegation);
 	}
 	rcu_read_unlock();
+}
+
+static void nfs_client_mark_return_all_delegations(struct nfs_client *clp)
+{
+	nfs_client_mark_return_all_delegation_types(clp, FMODE_READ|FMODE_WRITE);
 }
 
 static void nfs_delegation_run_state_manager(struct nfs_client *clp)
@@ -402,10 +411,15 @@ static void nfs_delegation_run_state_manager(struct nfs_client *clp)
 		nfs4_schedule_state_manager(clp);
 }
 
+static void nfs_expire_all_delegation_types(struct nfs_client *clp, fmode_t flags)
+{
+	nfs_client_mark_return_all_delegation_types(clp, flags);
+	nfs_delegation_run_state_manager(clp);
+}
+
 void nfs_expire_all_delegations(struct nfs_client *clp)
 {
-	nfs_client_mark_return_all_delegations(clp);
-	nfs_delegation_run_state_manager(clp);
+	nfs_expire_all_delegation_types(clp, FMODE_READ|FMODE_WRITE);
 }
 
 /*
