@@ -4614,8 +4614,8 @@ static int decode_sequence(struct xdr_stream *xdr,
 	dummy = be32_to_cpup(p++);
 	/* target highest slot id - currently not processed */
 	dummy = be32_to_cpup(p++);
-	/* result flags - currently not processed */
-	dummy = be32_to_cpup(p);
+	/* result flags */
+	res->sr_status_flags = be32_to_cpup(p);
 	status = 0;
 out_err:
 	res->sr_status = status;

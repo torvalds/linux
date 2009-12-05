@@ -172,6 +172,7 @@ struct nfs4_sequence_res {
 	u8			sr_slotid;	/* slot used to send request */
 	int			sr_status;	/* sequence operation status */
 	unsigned long		sr_renewal_time;
+	u32			sr_status_flags;
 };
 
 struct nfs4_get_lease_time_args {

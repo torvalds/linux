@@ -405,6 +405,8 @@ static void nfs41_sequence_done(struct nfs_client *clp,
 		if (time_before(clp->cl_last_renewal, timestamp))
 			clp->cl_last_renewal = timestamp;
 		spin_unlock(&clp->cl_lock);
+		/* Check sequence flags */
+		nfs41_handle_sequence_flag_errors(clp, res->sr_status_flags);
 		return;
 	}
 out:
