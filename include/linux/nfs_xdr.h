@@ -939,6 +939,16 @@ struct nfs41_create_session_args {
 struct nfs41_create_session_res {
 	struct nfs_client	       *client;
 };
+
+struct nfs41_reclaim_complete_args {
+	/* In the future extend to include curr_fh for use with migration */
+	unsigned char			one_fs:1;
+	struct nfs4_sequence_args	seq_args;
+};
+
+struct nfs41_reclaim_complete_res {
+	struct nfs4_sequence_res	seq_res;
+};
 #endif /* CONFIG_NFS_V4_1 */
 
 struct nfs_page;

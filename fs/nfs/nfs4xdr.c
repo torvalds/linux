@@ -301,6 +301,8 @@ static int nfs4_stat_to_errno(int);
 				XDR_QUADLEN(NFS4_MAX_SESSIONID_LEN) + 4)
 #define decode_sequence_maxsz	(op_decode_hdr_maxsz + \
 				XDR_QUADLEN(NFS4_MAX_SESSIONID_LEN) + 5)
+#define encode_reclaim_complete_maxsz	(op_encode_hdr_maxsz + 4)
+#define decode_reclaim_complete_maxsz	(op_decode_hdr_maxsz + 4)
 #else /* CONFIG_NFS_V4_1 */
 #define encode_sequence_maxsz	0
 #define decode_sequence_maxsz	0
@@ -678,6 +680,12 @@ static int nfs4_stat_to_errno(int);
 					 decode_sequence_maxsz + \
 					 decode_putrootfh_maxsz + \
 					 decode_fsinfo_maxsz)
+#define NFS4_enc_reclaim_complete_sz	(compound_encode_hdr_maxsz + \
+					 encode_sequence_maxsz + \
+					 encode_reclaim_complete_maxsz)
+#define NFS4_dec_reclaim_complete_sz	(compound_decode_hdr_maxsz + \
+					 decode_sequence_maxsz + \
+					 decode_reclaim_complete_maxsz)
 
 const u32 nfs41_maxwrite_overhead = ((RPC_MAX_HEADER_WITH_AUTH +
 				      compound_encode_hdr_maxsz +
@@ -1623,6 +1631,19 @@ static void encode_destroy_session(struct xdr_stream *xdr,
 	hdr->nops++;
 	hdr->replen += decode_destroy_session_maxsz;
 }
+
+static void encode_reclaim_complete(struct xdr_stream *xdr,
+				    struct nfs41_reclaim_complete_args *args,
+				    struct compound_hdr *hdr)
+{
+	__be32 *p;
+
+	p = reserve_space(xdr, 8);
+	*p++ = cpu_to_be32(OP_RECLAIM_COMPLETE);
+	*p++ = cpu_to_be32(args->one_fs);
+	hdr->nops++;
+	hdr->replen += decode_reclaim_complete_maxsz;
+}
 #endif /* CONFIG_NFS_V4_1 */
 
 static void encode_sequence(struct xdr_stream *xdr,
@@ -2451,6 +2472,26 @@ static int nfs4_xdr_enc_get_lease_time(struct rpc_rqst *req, uint32_t *p,
 	encode_nops(&hdr);
 	return 0;
 }
+
+/*
+ * a RECLAIM_COMPLETE request
+ */
+static int nfs4_xdr_enc_reclaim_complete(struct rpc_rqst *req, uint32_t *p,
+				     struct nfs41_reclaim_complete_args *args)
+{
+	struct xdr_stream xdr;
+	struct compound_hdr hdr = {
+		.minorversion = nfs4_xdr_minorversion(&args->seq_args)
+	};
+
+	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
+	encode_compound_hdr(&xdr, req, &hdr);
+	encode_sequence(&xdr, &args->seq_args, &hdr);
+	encode_reclaim_complete(&xdr, args, &hdr);
+	encode_nops(&hdr);
+	return 0;
+}
+
 #endif /* CONFIG_NFS_V4_1 */
 
 static void print_overflow_msg(const char *func, const struct xdr_stream *xdr)
@@ -4559,6 +4600,11 @@ static int decode_destroy_session(struct xdr_stream *xdr, void *dummy)
 {
 	return decode_op_hdr(xdr, OP_DESTROY_SESSION);
 }
+
+static int decode_reclaim_complete(struct xdr_stream *xdr, void *dummy)
+{
+	return decode_op_hdr(xdr, OP_RECLAIM_COMPLETE);
+}
 #endif /* CONFIG_NFS_V4_1 */
 
 static int decode_sequence(struct xdr_stream *xdr,
@@ -5622,6 +5668,25 @@ static int nfs4_xdr_dec_get_lease_time(struct rpc_rqst *rqstp, uint32_t *p,
 		status = decode_fsinfo(&xdr, res->lr_fsinfo);
 	return status;
 }
+
+/*
+ * Decode RECLAIM_COMPLETE response
+ */
+static int nfs4_xdr_dec_reclaim_complete(struct rpc_rqst *rqstp, uint32_t *p,
+					 struct nfs41_reclaim_complete_res *res)
+{
+	struct xdr_stream xdr;
+	struct compound_hdr hdr;
+	int status;
+
+	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
+	status = decode_compound_hdr(&xdr, &hdr);
+	if (!status)
+		status = decode_sequence(&xdr, &res->seq_res, rqstp);
+	if (!status)
+		status = decode_reclaim_complete(&xdr, (void *)NULL);
+	return status;
+}
 #endif /* CONFIG_NFS_V4_1 */
 
 __be32 *nfs4_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus)
@@ -5798,6 +5863,7 @@ struct rpc_procinfo	nfs4_procedures[] = {
   PROC(DESTROY_SESSION,	enc_destroy_session,	dec_destroy_session),
   PROC(SEQUENCE,	enc_sequence,	dec_sequence),
   PROC(GET_LEASE_TIME,	enc_get_lease_time,	dec_get_lease_time),
+  PROC(RECLAIM_COMPLETE, enc_reclaim_complete,  dec_reclaim_complete),
 #endif /* CONFIG_NFS_V4_1 */
 };
 
