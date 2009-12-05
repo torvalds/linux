@@ -3,6 +3,7 @@
 config IMA
 	bool "Integrity Measurement Architecture(IMA)"
 	depends on ACPI
+	depends on SECURITY
 	select SECURITYFS
 	select CRYPTO
 	select CRYPTO_HMAC

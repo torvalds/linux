@@ -56,9 +56,6 @@ struct tomoyo_page_buffer {
  * (5) "is_patterned" is a bool which is true if "name" contains wildcard
  *     characters, false otherwise. This allows TOMOYO to use "hash" and
  *     strcmp() for string comparison if "is_patterned" is false.
- * (6) "depth" is calculated using the number of "/" characters in "name".
- *     This allows TOMOYO to avoid comparing two pathnames which never match
- *     (e.g. whether "/var/www/html/index.html" matches "/tmp/sh-thd-\$").
  */
 struct tomoyo_path_info {
 	const char *name;
@@ -66,7 +63,6 @@ struct tomoyo_path_info {
 	u16 const_len;     /* = tomoyo_const_part_length(name)     */
 	bool is_dir;       /* = tomoyo_strendswith(name, "/")      */
 	bool is_patterned; /* = tomoyo_path_contains_pattern(name) */
-	u16 depth;         /* = tomoyo_path_depth(name)            */
 };
 
 /*
