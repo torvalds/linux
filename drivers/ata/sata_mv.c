@@ -4161,6 +4161,9 @@ static struct platform_driver mv_platform_driver = {
 #ifdef CONFIG_PCI
 static int mv_pci_init_one(struct pci_dev *pdev,
 			   const struct pci_device_id *ent);
+#ifdef CONFIG_PM
+static int mv_pci_device_resume(struct pci_dev *pdev);
+#endif
 
 
 static struct pci_driver mv_pci_driver = {
@@ -4168,6 +4171,11 @@ static struct pci_driver mv_pci_driver = {
 	.id_table		= mv_pci_tbl,
 	.probe			= mv_pci_init_one,
 	.remove			= ata_pci_remove_one,
+#ifdef CONFIG_PM
+	.suspend		= ata_pci_device_suspend,
+	.resume			= mv_pci_device_resume,
+#endif
+
 };
 
 /* move to PCI layer or libata core? */
@@ -4324,6 +4332,27 @@ static int mv_pci_init_one(struct pci_dev *pdev,
 	return ata_host_activate(host, pdev->irq, mv_interrupt, IRQF_SHARED,
 				 IS_GEN_I(hpriv) ? &mv5_sht : &mv6_sht);
 }
+
+#ifdef CONFIG_PM
+static int mv_pci_device_resume(struct pci_dev *pdev)
+{
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	int rc;
+
+	rc = ata_pci_device_do_resume(pdev);
+	if (rc)
+		return rc;
+
+	/* initialize adapter */
+	rc = mv_init_host(host);
+	if (rc)
+		return rc;
+
+	ata_host_resume(host);
+
+	return 0;
+}
+#endif
 #endif
 
 static int mv_platform_probe(struct platform_device *pdev);
