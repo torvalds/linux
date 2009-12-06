@@ -116,7 +116,7 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 	/*
 	 * Don't allow mappings that wrap..
 	 */
-	if (!size || size > physaddr + size)
+	if (!size || physaddr > (unsigned long)(-size))
 		return NULL;
 
 #ifdef CONFIG_AMIGA
