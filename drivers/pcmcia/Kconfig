@@ -179,7 +179,7 @@ config PCMCIA_BCM63XX
 	depends on BCM63XX && PCMCIA
 
 config PCMCIA_SOC_COMMON
-	bool
+	tristate
 
 config PCMCIA_SA1100
 	tristate "SA1100 support"
