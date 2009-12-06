@@ -479,6 +479,9 @@ struct atl1c_buffer {
 #define ATL1C_PCIMAP_PAGE		0x0008
 #define ATL1C_PCIMAP_TYPE_MASK		0x000C
 
+#define ATL1C_PCIMAP_TODEVICE		0x0010
+#define ATL1C_PCIMAP_FROMDEVICE		0x0020
+#define ATL1C_PCIMAP_DIRECTION_MASK	0x0030
 	dma_addr_t dma;
 };
 
@@ -487,9 +490,11 @@ struct atl1c_buffer {
 	((buff)->flags) |= (state);			\
 	} while (0)
 
-#define ATL1C_SET_PCIMAP_TYPE(buff, type) do {		\
-	((buff)->flags) &= ~ATL1C_PCIMAP_TYPE_MASK;	\
-	((buff)->flags) |= (type);			\
+#define ATL1C_SET_PCIMAP_TYPE(buff, type, direction) do {	\
+	((buff)->flags) &= ~ATL1C_PCIMAP_TYPE_MASK;		\
+	((buff)->flags) |= (type);				\
+	((buff)->flags) &= ~ATL1C_PCIMAP_DIRECTION_MASK;	\
+	((buff)->flags) |= (direction);				\
 	} while (0)
 
 /* transimit packet descriptor (tpd) ring */

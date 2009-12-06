@@ -713,15 +713,21 @@ static int __devinit atl1c_sw_init(struct atl1c_adapter *adapter)
 static inline void atl1c_clean_buffer(struct pci_dev *pdev,
 				struct atl1c_buffer *buffer_info, int in_irq)
 {
+	u16 pci_driection;
 	if (buffer_info->flags & ATL1C_BUFFER_FREE)
 		return;
 	if (buffer_info->dma) {
+		if (buffer_info->flags & ATL1C_PCIMAP_FROMDEVICE)
+			pci_driection = PCI_DMA_FROMDEVICE;
+		else
+			pci_driection = PCI_DMA_TODEVICE;
+
 		if (buffer_info->flags & ATL1C_PCIMAP_SINGLE)
 			pci_unmap_single(pdev, buffer_info->dma,
-					buffer_info->length, PCI_DMA_TODEVICE);
+					buffer_info->length, pci_driection);
 		else if (buffer_info->flags & ATL1C_PCIMAP_PAGE)
 			pci_unmap_page(pdev, buffer_info->dma,
-					buffer_info->length, PCI_DMA_TODEVICE);
+					buffer_info->length, pci_driection);
 	}
 	if (buffer_info->skb) {
 		if (in_irq)
@@ -1606,7 +1612,8 @@ static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter, const int ringid
 		buffer_info->dma = pci_map_single(pdev, vir_addr,
 						buffer_info->length,
 						PCI_DMA_FROMDEVICE);
-		ATL1C_SET_PCIMAP_TYPE(buffer_info, ATL1C_PCIMAP_SINGLE);
+		ATL1C_SET_PCIMAP_TYPE(buffer_info, ATL1C_PCIMAP_SINGLE,
+			ATL1C_PCIMAP_FROMDEVICE);
 		rfd_desc->buffer_addr = cpu_to_le64(buffer_info->dma);
 		rfd_next_to_use = next_next;
 		if (++next_next == rfd_ring->count)
@@ -1967,7 +1974,8 @@ static void atl1c_tx_map(struct atl1c_adapter *adapter,
 		buffer_info->dma = pci_map_single(adapter->pdev,
 					skb->data, hdr_len, PCI_DMA_TODEVICE);
 		ATL1C_SET_BUFFER_STATE(buffer_info, ATL1C_BUFFER_BUSY);
-		ATL1C_SET_PCIMAP_TYPE(buffer_info, ATL1C_PCIMAP_SINGLE);
+		ATL1C_SET_PCIMAP_TYPE(buffer_info, ATL1C_PCIMAP_SINGLE,
+			ATL1C_PCIMAP_TODEVICE);
 		mapped_len += map_len;
 		use_tpd->buffer_addr = cpu_to_le64(buffer_info->dma);
 		use_tpd->buffer_len = cpu_to_le16(buffer_info->length);
@@ -1988,7 +1996,8 @@ static void atl1c_tx_map(struct atl1c_adapter *adapter,
 			pci_map_single(adapter->pdev, skb->data + mapped_len,
 					buffer_info->length, PCI_DMA_TODEVICE);
 		ATL1C_SET_BUFFER_STATE(buffer_info, ATL1C_BUFFER_BUSY);
-		ATL1C_SET_PCIMAP_TYPE(buffer_info, ATL1C_PCIMAP_SINGLE);
+		ATL1C_SET_PCIMAP_TYPE(buffer_info, ATL1C_PCIMAP_SINGLE,
+			ATL1C_PCIMAP_TODEVICE);
 		use_tpd->buffer_addr = cpu_to_le64(buffer_info->dma);
 		use_tpd->buffer_len  = cpu_to_le16(buffer_info->length);
 	}
@@ -2009,7 +2018,8 @@ static void atl1c_tx_map(struct atl1c_adapter *adapter,
 					buffer_info->length,
 					PCI_DMA_TODEVICE);
 		ATL1C_SET_BUFFER_STATE(buffer_info, ATL1C_BUFFER_BUSY);
-		ATL1C_SET_PCIMAP_TYPE(buffer_info, ATL1C_PCIMAP_PAGE);
+		ATL1C_SET_PCIMAP_TYPE(buffer_info, ATL1C_PCIMAP_PAGE,
+			ATL1C_PCIMAP_TODEVICE);
 		use_tpd->buffer_addr = cpu_to_le64(buffer_info->dma);
 		use_tpd->buffer_len  = cpu_to_le16(buffer_info->length);
 	}
