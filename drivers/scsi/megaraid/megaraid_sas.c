@@ -843,6 +843,7 @@ megasas_build_dcdb(struct megasas_instance *instance, struct scsi_cmnd *scp,
 	pthru->lun = scp->device->lun;
 	pthru->cdb_len = scp->cmd_len;
 	pthru->timeout = 0;
+	pthru->pad_0 = 0;
 	pthru->flags = flags;
 	pthru->data_xfer_len = scsi_bufflen(scp);
 
@@ -2250,6 +2251,7 @@ megasas_get_pd_list(struct megasas_instance *instance)
 	dcmd->sge_count = 1;
 	dcmd->flags = MFI_FRAME_DIR_READ;
 	dcmd->timeout = 0;
+	dcmd->pad_0 = 0;
 	dcmd->data_xfer_len = MEGASAS_MAX_PD * sizeof(struct MR_PD_LIST);
 	dcmd->opcode = MR_DCMD_PD_LIST_QUERY;
 	dcmd->sgl.sge32[0].phys_addr = ci_h;
@@ -2339,6 +2341,7 @@ megasas_get_ctrl_info(struct megasas_instance *instance,
 	dcmd->sge_count = 1;
 	dcmd->flags = MFI_FRAME_DIR_READ;
 	dcmd->timeout = 0;
+	dcmd->pad_0 = 0;
 	dcmd->data_xfer_len = sizeof(struct megasas_ctrl_info);
 	dcmd->opcode = MR_DCMD_CTRL_GET_INFO;
 	dcmd->sgl.sge32[0].phys_addr = ci_h;
@@ -2714,6 +2717,7 @@ megasas_get_seq_num(struct megasas_instance *instance,
 	dcmd->sge_count = 1;
 	dcmd->flags = MFI_FRAME_DIR_READ;
 	dcmd->timeout = 0;
+	dcmd->pad_0 = 0;
 	dcmd->data_xfer_len = sizeof(struct megasas_evt_log_info);
 	dcmd->opcode = MR_DCMD_CTRL_EVENT_GET_INFO;
 	dcmd->sgl.sge32[0].phys_addr = el_info_h;
@@ -2828,6 +2832,7 @@ megasas_register_aen(struct megasas_instance *instance, u32 seq_num,
 	dcmd->sge_count = 1;
 	dcmd->flags = MFI_FRAME_DIR_READ;
 	dcmd->timeout = 0;
+	dcmd->pad_0 = 0;
 	dcmd->data_xfer_len = sizeof(struct megasas_evt_detail);
 	dcmd->opcode = MR_DCMD_CTRL_EVENT_WAIT;
 	dcmd->mbox.w[0] = seq_num;
@@ -3166,6 +3171,7 @@ static void megasas_flush_cache(struct megasas_instance *instance)
 	dcmd->sge_count = 0;
 	dcmd->flags = MFI_FRAME_DIR_NONE;
 	dcmd->timeout = 0;
+	dcmd->pad_0 = 0;
 	dcmd->data_xfer_len = 0;
 	dcmd->opcode = MR_DCMD_CTRL_CACHE_FLUSH;
 	dcmd->mbox.b[0] = MR_FLUSH_CTRL_CACHE | MR_FLUSH_DISK_CACHE;
@@ -3205,6 +3211,7 @@ static void megasas_shutdown_controller(struct megasas_instance *instance,
 	dcmd->sge_count = 0;
 	dcmd->flags = MFI_FRAME_DIR_NONE;
 	dcmd->timeout = 0;
+	dcmd->pad_0 = 0;
 	dcmd->data_xfer_len = 0;
 	dcmd->opcode = opcode;
 
