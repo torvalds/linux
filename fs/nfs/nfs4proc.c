@@ -318,13 +318,14 @@ static void renew_lease(const struct nfs_server *server, unsigned long timestamp
  * so we need to scan down from highest_used_slotid to 0 looking for the now
  * highest slotid in use.
  * If none found, highest_used_slotid is set to -1.
+ *
+ * Must be called while holding tbl->slot_tbl_lock
  */
 static void
 nfs4_free_slot(struct nfs4_slot_table *tbl, u8 free_slotid)
 {
 	int slotid = free_slotid;
 
-	spin_lock(&tbl->slot_tbl_lock);
 	/* clear used bit in bitmap */
 	__clear_bit(slotid, tbl->used_slots);
 
@@ -336,7 +337,6 @@ nfs4_free_slot(struct nfs4_slot_table *tbl, u8 free_slotid)
 		else
 			tbl->highest_used_slotid = -1;
 	}
-	spin_unlock(&tbl->slot_tbl_lock);
 	dprintk("%s: free_slotid %u highest_used_slotid %d\n", __func__,
 		free_slotid, tbl->highest_used_slotid);
 }
@@ -351,22 +351,23 @@ static void nfs41_sequence_free_slot(const struct nfs_client *clp,
 		/* just wake up the next guy waiting since
 		 * we may have not consumed a slot after all */
 		dprintk("%s: No slot\n", __func__);
-	} else {
-		nfs4_free_slot(tbl, res->sr_slotid);
-		res->sr_slotid = NFS4_MAX_SLOT_TABLE;
+		return;
 	}
+
+	spin_lock(&tbl->slot_tbl_lock);
+	nfs4_free_slot(tbl, res->sr_slotid);
 
 	/* Signal state manager thread if session is drained */
 	if (test_bit(NFS4CLNT_SESSION_DRAINING, &clp->cl_state)) {
-		spin_lock(&tbl->slot_tbl_lock);
 		if (tbl->highest_used_slotid == -1) {
 			dprintk("%s COMPLETE: Session Drained\n", __func__);
 			complete(&clp->cl_session->complete);
 		}
-		spin_unlock(&tbl->slot_tbl_lock);
 	} else {
 		rpc_wake_up_next(&tbl->slot_tbl_waitq);
 	}
+	spin_unlock(&tbl->slot_tbl_lock);
+	res->sr_slotid = NFS4_MAX_SLOT_TABLE;
 }
 
 static void nfs41_sequence_done(struct nfs_client *clp,
@@ -470,7 +471,6 @@ static int nfs41_setup_sequence(struct nfs4_session *session,
 		 */
 		dprintk("%s Schedule Session Reset\n", __func__);
 		rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
-		nfs4_schedule_state_manager(session->clp);
 		spin_unlock(&tbl->slot_tbl_lock);
 		return -EAGAIN;
 	}
@@ -4489,7 +4489,6 @@ static int nfs4_reset_slot_tables(struct nfs4_session *session)
 			1);
 	if (status)
 		return status;
-	init_completion(&session->complete);
 
 	status = nfs4_reset_slot_table(&session->bc_slot_table,
 			session->bc_attrs.max_reqs,

@@ -1220,10 +1220,10 @@ static int nfs4_reset_session(struct nfs_client *clp)
 	struct nfs4_slot_table *tbl = &ses->fc_slot_table;
 	int status;
 
-	INIT_COMPLETION(ses->complete);
 	spin_lock(&tbl->slot_tbl_lock);
 	set_bit(NFS4CLNT_SESSION_DRAINING, &clp->cl_state);
 	if (tbl->highest_used_slotid != -1) {
+		INIT_COMPLETION(ses->complete);
 		spin_unlock(&tbl->slot_tbl_lock);
 		status = wait_for_completion_interruptible(&ses->complete);
 		if (status) /* -ERESTARTSYS */
@@ -1247,7 +1247,7 @@ static int nfs4_reset_session(struct nfs_client *clp)
 out:
 	/* Wake up the next rpc task even on error */
 	clear_bit(NFS4CLNT_SESSION_DRAINING, &clp->cl_state);
-	rpc_wake_up_next(&clp->cl_session->fc_slot_table.slot_tbl_waitq);
+	rpc_wake_up(&clp->cl_session->fc_slot_table.slot_tbl_waitq);
 	return status;
 }
 
