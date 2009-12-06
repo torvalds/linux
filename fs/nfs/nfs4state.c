@@ -116,16 +116,38 @@ struct rpc_cred *nfs4_get_renew_cred_locked(struct nfs_client *clp)
 
 #if defined(CONFIG_NFS_V4_1)
 
+static int nfs41_setup_state_renewal(struct nfs_client *clp)
+{
+	int status;
+	struct nfs_fsinfo fsinfo;
+
+	status = nfs4_proc_get_lease_time(clp, &fsinfo);
+	if (status == 0) {
+		/* Update lease time and schedule renewal */
+		spin_lock(&clp->cl_lock);
+		clp->cl_lease_time = fsinfo.lease_time * HZ;
+		clp->cl_last_renewal = jiffies;
+		spin_unlock(&clp->cl_lock);
+
+		nfs4_schedule_state_renewal(clp);
+	}
+
+	return status;
+}
+
 int nfs41_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)
 {
 	int status;
 
 	status = nfs4_proc_exchange_id(clp, cred);
-	if (status == 0)
-		/* create session schedules state renewal upon success */
-		status = nfs4_proc_create_session(clp);
-	if (status == 0)
-		nfs_mark_client_ready(clp, NFS_CS_READY);
+	if (status != 0)
+		goto out;
+	status = nfs4_proc_create_session(clp);
+	if (status != 0)
+		goto out;
+	nfs41_setup_state_renewal(clp);
+	nfs_mark_client_ready(clp, NFS_CS_READY);
+out:
 	return status;
 }
 
@@ -1248,6 +1270,8 @@ out:
 	/* Wake up the next rpc task even on error */
 	clear_bit(NFS4CLNT_SESSION_DRAINING, &clp->cl_state);
 	rpc_wake_up(&clp->cl_session->fc_slot_table.slot_tbl_waitq);
+	if (status == 0)
+		nfs41_setup_state_renewal(clp);
 	return status;
 }
 
