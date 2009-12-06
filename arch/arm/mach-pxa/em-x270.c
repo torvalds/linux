@@ -497,16 +497,15 @@ static int em_x270_usb_hub_init(void)
 		goto err_free_vbus_gpio;
 
 	/* USB Hub power-on and reset */
-	gpio_direction_output(usb_hub_reset, 0);
+	gpio_direction_output(usb_hub_reset, 1);
+	gpio_direction_output(GPIO9_USB_VBUS_EN, 0);
 	regulator_enable(em_x270_usb_ldo);
-	gpio_set_value(usb_hub_reset, 1);
 	gpio_set_value(usb_hub_reset, 0);
+	gpio_set_value(usb_hub_reset, 1);
 	regulator_disable(em_x270_usb_ldo);
 	regulator_enable(em_x270_usb_ldo);
-	gpio_set_value(usb_hub_reset, 1);
-
-	/* enable VBUS */
-	gpio_direction_output(GPIO9_USB_VBUS_EN, 1);
+	gpio_set_value(usb_hub_reset, 0);
+	gpio_set_value(GPIO9_USB_VBUS_EN, 1);
 
 	return 0;
 
