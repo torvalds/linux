@@ -151,9 +151,6 @@ static int uninorth_insert_memory(struct agp_memory *mem, off_t pg_start,
 	void *temp;
 	int mask_type;
 
-	temp = agp_bridge->current_size;
-	num_entries = A_SIZE_32(temp)->num_entries;
-
 	if (type != mem->type)
 		return -EINVAL;
 
@@ -162,6 +159,12 @@ static int uninorth_insert_memory(struct agp_memory *mem, off_t pg_start,
 		/* We know nothing of memory types */
 		return -EINVAL;
 	}
+
+	if (mem->page_count == 0)
+		return 0;
+
+	temp = agp_bridge->current_size;
+	num_entries = A_SIZE_32(temp)->num_entries;
 
 	if ((pg_start + mem->page_count) > num_entries)
 		return -EINVAL;
@@ -194,9 +197,6 @@ static int u3_insert_memory(struct agp_memory *mem, off_t pg_start, int type)
 	u32 *gp;
 	int mask_type;
 
-	temp = agp_bridge->current_size;
-	num_entries = A_SIZE_32(temp)->num_entries;
-
 	if (type != mem->type)
 		return -EINVAL;
 
@@ -205,6 +205,12 @@ static int u3_insert_memory(struct agp_memory *mem, off_t pg_start, int type)
 		/* We know nothing of memory types */
 		return -EINVAL;
 	}
+
+	if (mem->page_count == 0)
+		return 0;
+
+	temp = agp_bridge->current_size;
+	num_entries = A_SIZE_32(temp)->num_entries;
 
 	if ((pg_start + mem->page_count) > num_entries)
 		return -EINVAL;
@@ -234,10 +240,19 @@ int u3_remove_memory(struct agp_memory *mem, off_t pg_start, int type)
 {
 	size_t i;
 	u32 *gp;
+	int mask_type;
 
-	if (type != 0 || mem->type != 0)
+	if (type != mem->type)
+		return -EINVAL;
+
+	mask_type = agp_bridge->driver->agp_type_to_mask_type(agp_bridge, type);
+	if (mask_type != 0) {
 		/* We know nothing of memory types */
 		return -EINVAL;
+	}
+
+	if (mem->page_count == 0)
+		return 0;
 
 	gp = (u32 *) &agp_bridge->gatt_table[pg_start];
 	for (i = 0; i < mem->page_count; ++i)
