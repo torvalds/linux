@@ -2285,7 +2285,7 @@ void em28xx_register_i2c_ir(struct em28xx *dev)
 		dev->init_data.name = "i2c IR (EM28XX Pinnacle PCTV)";
 		break;
 	case EM2820_BOARD_HAUPPAUGE_WINTV_USB_2:
-		dev->init_data.ir_codes = &ir_codes_hauppauge_new_table;
+		dev->init_data.ir_codes = &ir_codes_rc5_hauppauge_new_table;
 		dev->init_data.get_key = em28xx_get_key_em_haup;
 		dev->init_data.name = "i2c IR (EM2840 Hauppauge)";
 		break;
