@@ -187,7 +187,9 @@ static int do_write(int fd, const void *buf, size_t size)
 
 static int __dsos__write_buildid_table(struct list_head *head, int fd)
 {
+#define NAME_ALIGN	64
 	struct dso *pos;
+	static const char zero_buf[NAME_ALIGN];
 
 	list_for_each_entry(pos, head, node) {
 		int err;
@@ -197,14 +199,17 @@ static int __dsos__write_buildid_table(struct list_head *head, int fd)
 		if (!pos->has_build_id)
 			continue;
 		len = pos->long_name_len + 1;
-		len = ALIGN(len, 64);
+		len = ALIGN(len, NAME_ALIGN);
 		memset(&b, 0, sizeof(b));
 		memcpy(&b.build_id, pos->build_id, sizeof(pos->build_id));
 		b.header.size = sizeof(b) + len;
 		err = do_write(fd, &b, sizeof(b));
 		if (err < 0)
 			return err;
-		err = do_write(fd, pos->long_name, len);
+		err = do_write(fd, pos->long_name, pos->long_name_len + 1);
+		if (err < 0)
+			return err;
+		err = do_write(fd, zero_buf, len - pos->long_name_len + 1);
 		if (err < 0)
 			return err;
 	}

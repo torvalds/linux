@@ -177,7 +177,7 @@ void parse_proc_kallsyms(char *file, unsigned int size __unused)
 		func_count++;
 	}
 
-	func_list = malloc_or_die(sizeof(*func_list) * func_count + 1);
+	func_list = malloc_or_die(sizeof(*func_list) * (func_count + 1));
 
 	i = 0;
 	while (list) {
