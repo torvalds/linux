@@ -486,13 +486,6 @@ S:	Maintained
 F:	drivers/net/appletalk/
 F:	net/appletalk/
 
-APPLETOUCH TOUCHPAD DRIVER
-M:	Johannes Berg <johannes@sipsolutions.net>
-L:	linux-input@vger.kernel.org
-S:	Maintained
-F:	Documentation/input/appletouch.txt
-F:	drivers/input/mouse/appletouch.c
-
 ARC FRAMEBUFFER DRIVER
 M:	Jaya Kumar <jayalk@intworks.biz>
 S:	Maintained
