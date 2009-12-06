@@ -332,7 +332,7 @@ nfs4_free_slot(struct nfs4_slot_table *tbl, u8 free_slotid)
 	/* update highest_used_slotid when it is freed */
 	if (slotid == tbl->highest_used_slotid) {
 		slotid = find_last_bit(tbl->used_slots, tbl->max_slots);
-		if (slotid >= 0 && slotid < tbl->max_slots)
+		if (slotid < tbl->max_slots)
 			tbl->highest_used_slotid = slotid;
 		else
 			tbl->highest_used_slotid = -1;
@@ -363,9 +363,8 @@ static void nfs41_sequence_free_slot(const struct nfs_client *clp,
 			dprintk("%s COMPLETE: Session Drained\n", __func__);
 			complete(&clp->cl_session->complete);
 		}
-	} else {
+	} else
 		rpc_wake_up_next(&tbl->slot_tbl_waitq);
-	}
 	spin_unlock(&tbl->slot_tbl_lock);
 	res->sr_slotid = NFS4_MAX_SLOT_TABLE;
 }
@@ -469,9 +468,9 @@ static int nfs41_setup_sequence(struct nfs4_session *session,
 		 * The state manager will wait until the slot table is empty.
 		 * Schedule the reset thread
 		 */
-		dprintk("%s Schedule Session Reset\n", __func__);
 		rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
 		spin_unlock(&tbl->slot_tbl_lock);
+		dprintk("%s Schedule Session Reset\n", __func__);
 		return -EAGAIN;
 	}
 
