@@ -56,9 +56,23 @@ struct read_event {
 	u64 id;
 };
 
-struct sample_event{
+struct sample_event {
 	struct perf_event_header        header;
 	u64 array[];
+};
+
+struct sample_data {
+	u64 ip;
+	u32 pid, tid;
+	u64 time;
+	u64 addr;
+	u64 id;
+	u64 stream_id;
+	u32 cpu;
+	u64 period;
+	struct ip_callchain *callchain;
+	u32 raw_size;
+	void *raw_data;
 };
 
 #define BUILD_ID_SIZE 20
@@ -155,5 +169,6 @@ int event__process_task(event_t *self);
 struct addr_location;
 int event__preprocess_sample(const event_t *self, struct addr_location *al,
 			     symbol_filter_t filter);
+int event__parse_sample(event_t *event, u64 type, struct sample_data *data);
 
 #endif /* __PERF_RECORD_H */

@@ -483,48 +483,22 @@ static void sched_switch(int cpu, u64 timestamp, struct trace_entry *te)
 static int
 process_sample_event(event_t *event)
 {
-	int cursor = 0;
-	u64 addr = 0;
-	u64 stamp = 0;
-	u32 cpu = 0;
-	u32 pid = 0;
-	u32 size, *size_ptr;
+	struct sample_data data;
 	struct trace_entry *te;
 
-	if (sample_type & PERF_SAMPLE_IP)
-		cursor++;
+	memset(&data, 0, sizeof(data));
 
-	if (sample_type & PERF_SAMPLE_TID) {
-		pid = event->sample.array[cursor]>>32;
-		cursor++;
-	}
+	event__parse_sample(event, sample_type, &data);
+
 	if (sample_type & PERF_SAMPLE_TIME) {
-		stamp = event->sample.array[cursor++];
-
-		if (!first_time || first_time > stamp)
-			first_time = stamp;
-		if (last_time < stamp)
-			last_time = stamp;
-
+		if (!first_time || first_time > data.time)
+			first_time = data.time;
+		if (last_time < data.time)
+			last_time = data.time;
 	}
-	if (sample_type & PERF_SAMPLE_ADDR)
-		addr = event->sample.array[cursor++];
-	if (sample_type & PERF_SAMPLE_ID)
-		cursor++;
-	if (sample_type & PERF_SAMPLE_STREAM_ID)
-		cursor++;
-	if (sample_type & PERF_SAMPLE_CPU)
-		cpu = event->sample.array[cursor++] & 0xFFFFFFFF;
-	if (sample_type & PERF_SAMPLE_PERIOD)
-		cursor++;
 
-	size_ptr = (void *)&event->sample.array[cursor];
-
-	size = *size_ptr;
-	size_ptr++;
-
-	te = (void *)size_ptr;
-	if (sample_type & PERF_SAMPLE_RAW && size > 0) {
+	te = (void *)data.raw_data;
+	if (sample_type & PERF_SAMPLE_RAW && data.raw_size > 0) {
 		char *event_str;
 		struct power_entry *pe;
 
@@ -536,19 +510,19 @@ process_sample_event(event_t *event)
 			return 0;
 
 		if (strcmp(event_str, "power:power_start") == 0)
-			c_state_start(cpu, stamp, pe->value);
+			c_state_start(data.cpu, data.time, pe->value);
 
 		if (strcmp(event_str, "power:power_end") == 0)
-			c_state_end(cpu, stamp);
+			c_state_end(data.cpu, data.time);
 
 		if (strcmp(event_str, "power:power_frequency") == 0)
-			p_state_change(cpu, stamp, pe->value);
+			p_state_change(data.cpu, data.time, pe->value);
 
 		if (strcmp(event_str, "sched:sched_wakeup") == 0)
-			sched_wakeup(cpu, stamp, pid, te);
+			sched_wakeup(data.cpu, data.time, data.pid, te);
 
 		if (strcmp(event_str, "sched:sched_switch") == 0)
-			sched_switch(cpu, stamp, te);
+			sched_switch(data.cpu, data.time, te);
 	}
 	return 0;
 }

@@ -605,44 +605,41 @@ static int validate_chain(struct ip_callchain *chain, event_t *event)
 
 static int process_sample_event(event_t *event)
 {
-	u64 ip = event->ip.ip;
-	u64 period = 1;
-	void *more_data = event->ip.__more_data;
-	struct ip_callchain *chain = NULL;
+	struct sample_data data;
 	int cpumode;
 	struct addr_location al;
-	struct thread *thread = threads__findnew(event->ip.pid);
+	struct thread *thread;
 
-	if (sample_type & PERF_SAMPLE_PERIOD) {
-		period = *(u64 *)more_data;
-		more_data += sizeof(u64);
-	}
+	memset(&data, 0, sizeof(data));
+	data.period = 1;
+
+	event__parse_sample(event, sample_type, &data);
 
 	dump_printf("(IP, %d): %d/%d: %p period: %Ld\n",
 		event->header.misc,
-		event->ip.pid, event->ip.tid,
-		(void *)(long)ip,
-		(long long)period);
+		data.pid, data.tid,
+		(void *)(long)data.ip,
+		(long long)data.period);
 
 	if (sample_type & PERF_SAMPLE_CALLCHAIN) {
 		unsigned int i;
 
-		chain = (void *)more_data;
+		dump_printf("... chain: nr:%Lu\n", data.callchain->nr);
 
-		dump_printf("... chain: nr:%Lu\n", chain->nr);
-
-		if (validate_chain(chain, event) < 0) {
+		if (validate_chain(data.callchain, event) < 0) {
 			pr_debug("call-chain problem with event, "
 				 "skipping it.\n");
 			return 0;
 		}
 
 		if (dump_trace) {
-			for (i = 0; i < chain->nr; i++)
-				dump_printf("..... %2d: %016Lx\n", i, chain->ips[i]);
+			for (i = 0; i < data.callchain->nr; i++)
+				dump_printf("..... %2d: %016Lx\n",
+					    i, data.callchain->ips[i]);
 		}
 	}
 
+	thread = threads__findnew(data.pid);
 	if (thread == NULL) {
 		pr_debug("problem processing %d event, skipping it.\n",
 			event->header.type);
@@ -657,7 +654,7 @@ static int process_sample_event(event_t *event)
 	cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
 	thread__find_addr_location(thread, cpumode,
-				   MAP__FUNCTION, ip, &al, NULL);
+				   MAP__FUNCTION, data.ip, &al, NULL);
 	/*
 	 * We have to do this here as we may have a dso with no symbol hit that
 	 * has a name longer than the ones with symbols sampled.
@@ -675,12 +672,12 @@ static int process_sample_event(event_t *event)
 	if (sym_list && al.sym && !strlist__has_entry(sym_list, al.sym->name))
 		return 0;
 
-	if (hist_entry__add(&al, chain, period)) {
+	if (hist_entry__add(&al, data.callchain, data.period)) {
 		pr_debug("problem incrementing symbol count, skipping event\n");
 		return -1;
 	}
 
-	event__stats.total += period;
+	event__stats.total += data.period;
 
 	return 0;
 }

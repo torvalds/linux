@@ -1598,40 +1598,26 @@ process_raw_event(event_t *raw_event __used, void *more_data,
 
 static int process_sample_event(event_t *event)
 {
+	struct sample_data data;
 	struct thread *thread;
-	u64 ip = event->ip.ip;
-	u64 timestamp = -1;
-	u32 cpu = -1;
-	u64 period = 1;
-	void *more_data = event->ip.__more_data;
 
 	if (!(sample_type & PERF_SAMPLE_RAW))
 		return 0;
 
-	thread = threads__findnew(event->ip.pid);
+	memset(&data, 0, sizeof(data));
+	data.time = -1;
+	data.cpu = -1;
+	data.period = -1;
 
-	if (sample_type & PERF_SAMPLE_TIME) {
-		timestamp = *(u64 *)more_data;
-		more_data += sizeof(u64);
-	}
-
-	if (sample_type & PERF_SAMPLE_CPU) {
-		cpu = *(u32 *)more_data;
-		more_data += sizeof(u32);
-		more_data += sizeof(u32); /* reserved */
-	}
-
-	if (sample_type & PERF_SAMPLE_PERIOD) {
-		period = *(u64 *)more_data;
-		more_data += sizeof(u64);
-	}
+	event__parse_sample(event, sample_type, &data);
 
 	dump_printf("(IP, %d): %d/%d: %p period: %Ld\n",
 		event->header.misc,
-		event->ip.pid, event->ip.tid,
-		(void *)(long)ip,
-		(long long)period);
+		data.pid, data.tid,
+		(void *)(long)data.ip,
+		(long long)data.period);
 
+	thread = threads__findnew(data.pid);
 	if (thread == NULL) {
 		pr_debug("problem processing %d event, skipping it.\n",
 			 event->header.type);
@@ -1640,10 +1626,10 @@ static int process_sample_event(event_t *event)
 
 	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
-	if (profile_cpu != -1 && profile_cpu != (int) cpu)
+	if (profile_cpu != -1 && profile_cpu != (int)data.cpu)
 		return 0;
 
-	process_raw_event(event, more_data, cpu, timestamp, thread);
+	process_raw_event(event, data.raw_data, data.cpu, data.time, thread);
 
 	return 0;
 }
