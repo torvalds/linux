@@ -2770,7 +2770,7 @@ static int wireless_get_scan(struct net_device *dev, struct iw_request_info *inf
 		iwe.u.qual.level    = dbm(probe_resp->signal);
 		iwe.u.qual.noise    = dbm(probe_resp->silence);
 		iwe.u.qual.qual     = iwe.u.qual.level - iwe.u.qual.noise;
-		iwe.u.qual.updated  = lp->probe_results.scan_complete;
+		iwe.u.qual.updated  = lp->probe_results.scan_complete | IW_QUAL_DBM;
 		iwe.len             = IW_EV_QUAL_LEN;
 
 		buf = IWE_STREAM_ADD_EVENT(info, buf, buf_end, &iwe, IW_EV_QUAL_LEN);
@@ -3317,7 +3317,6 @@ struct iw_statistics * wl_wireless_stats( struct net_device *dev )
 		/* Get the current link quality information */
 		lp->ltvRecord.len = 1 + ( sizeof( *pQual ) / sizeof( hcf_16 ));
 		lp->ltvRecord.typ = CFG_COMMS_QUALITY;
-
 		status = hcf_get_info( &( lp->hcfCtx ), (LTVP)&( lp->ltvRecord ));
 
 		if( status == HCF_SUCCESS ) {
@@ -3327,6 +3326,11 @@ struct iw_statistics * wl_wireless_stats( struct net_device *dev )
 			pStats->qual.qual  = (u_char) CNV_LITTLE_TO_INT( pQual->coms_qual );
 			pStats->qual.level = (u_char) dbm( CNV_LITTLE_TO_INT( pQual->signal_lvl ));
 			pStats->qual.noise = (u_char) dbm( CNV_LITTLE_TO_INT( pQual->noise_lvl ));
+
+			pStats->qual.updated |= (IW_QUAL_QUAL_UPDATED  |
+                                                 IW_QUAL_LEVEL_UPDATED |
+                                                 IW_QUAL_NOISE_UPDATED |
+                                                 IW_QUAL_DBM);
 #else
 			pStats->qual.qual = percent( CNV_LITTLE_TO_INT( pQual->coms_qual ),
 						     HCF_MIN_COMM_QUALITY,
@@ -3339,9 +3343,11 @@ struct iw_statistics * wl_wireless_stats( struct net_device *dev )
 			pStats->qual.noise = percent( CNV_LITTLE_TO_INT( pQual->noise_lvl ),
 						      HCF_MIN_NOISE_LEVEL,
 						      HCF_MAX_NOISE_LEVEL );
-#endif /* USE_DBM */
 
-			pStats->qual.updated |= 0x07;
+			pStats->qual.updated |= (IW_QUAL_QUAL_UPDATED  |
+                                                 IW_QUAL_LEVEL_UPDATED |
+                                                 IW_QUAL_NOISE_UPDATED);
+#endif /* USE_DBM */
 		} else {
 			memset( &( pStats->qual ), 0, sizeof( pStats->qual ));
 		}
@@ -3478,7 +3484,10 @@ inline void wl_spy_gather( struct net_device *dev, u_char *mac )
 		wstats.noise = (u_char) dbm(stats[0]);
 		wstats.qual  = wstats.level > wstats.noise ? wstats.level - wstats.noise : 0;
 
-		wstats.updated = 7;
+		wstats.updated = (IW_QUAL_QUAL_UPDATED  |
+				  IW_QUAL_LEVEL_UPDATED |
+				  IW_QUAL_NOISE_UPDATED |
+				  IW_QUAL_DBM);
 
 		wireless_spy_update( dev, mac, &wstats );
 	}
