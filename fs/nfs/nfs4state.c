@@ -123,7 +123,7 @@ int nfs41_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)
 	status = nfs4_proc_exchange_id(clp, cred);
 	if (status == 0)
 		/* create session schedules state renewal upon success */
-		status = nfs4_proc_create_session(clp, 0);
+		status = nfs4_proc_create_session(clp);
 	if (status == 0)
 		nfs_mark_client_ready(clp, NFS_CS_READY);
 	return status;
@@ -1240,7 +1240,7 @@ static int nfs4_reset_session(struct nfs_client *clp)
 	}
 
 	memset(clp->cl_session->sess_id.data, 0, NFS4_MAX_SESSIONID_LEN);
-	status = nfs4_proc_create_session(clp, 1);
+	status = nfs4_proc_create_session(clp);
 	if (status)
 		nfs4_session_recovery_handle_error(clp, status);
 		/* fall through*/
