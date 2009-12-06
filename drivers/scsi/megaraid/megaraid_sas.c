@@ -4072,6 +4072,7 @@ megasas_aen_polling(struct work_struct *work)
 	struct  Scsi_Host *host;
 	struct  scsi_device *sdev1;
 	u16     pd_index = 0;
+	u16	ld_index = 0;
 	int     i, j, doscan = 0;
 	u32 seq_num;
 	int error;
@@ -4087,8 +4088,124 @@ megasas_aen_polling(struct work_struct *work)
 
 		switch (instance->evt_detail->code) {
 		case MR_EVT_PD_INSERTED:
+			if (megasas_get_pd_list(instance) == 0) {
+			for (i = 0; i < MEGASAS_MAX_PD_CHANNELS; i++) {
+				for (j = 0;
+				j < MEGASAS_MAX_DEV_PER_CHANNEL;
+				j++) {
+
+				pd_index =
+				(i * MEGASAS_MAX_DEV_PER_CHANNEL) + j;
+
+				sdev1 =
+				scsi_device_lookup(host, i, j, 0);
+
+				if (instance->pd_list[pd_index].driveState
+						== MR_PD_STATE_SYSTEM) {
+						if (!sdev1) {
+						scsi_add_device(host, i, j, 0);
+						}
+
+					if (sdev1)
+						scsi_device_put(sdev1);
+					}
+				}
+			}
+			}
+			doscan = 0;
+			break;
+
 		case MR_EVT_PD_REMOVED:
+			if (megasas_get_pd_list(instance) == 0) {
+			megasas_get_pd_list(instance);
+			for (i = 0; i < MEGASAS_MAX_PD_CHANNELS; i++) {
+				for (j = 0;
+				j < MEGASAS_MAX_DEV_PER_CHANNEL;
+				j++) {
+
+				pd_index =
+				(i * MEGASAS_MAX_DEV_PER_CHANNEL) + j;
+
+				sdev1 =
+				scsi_device_lookup(host, i, j, 0);
+
+				if (instance->pd_list[pd_index].driveState
+					== MR_PD_STATE_SYSTEM) {
+					if (sdev1) {
+						scsi_device_put(sdev1);
+					}
+				} else {
+					if (sdev1) {
+						scsi_remove_device(sdev1);
+						scsi_device_put(sdev1);
+					}
+				}
+				}
+			}
+			}
+			doscan = 0;
+			break;
+
+		case MR_EVT_LD_OFFLINE:
+		case MR_EVT_LD_DELETED:
+			megasas_get_ld_list(instance);
+			for (i = 0; i < MEGASAS_MAX_LD_CHANNELS; i++) {
+				for (j = 0;
+				j < MEGASAS_MAX_DEV_PER_CHANNEL;
+				j++) {
+
+				ld_index =
+				(i * MEGASAS_MAX_DEV_PER_CHANNEL) + j;
+
+				sdev1 = scsi_device_lookup(host,
+					i + MEGASAS_MAX_LD_CHANNELS,
+					j,
+					0);
+
+				if (instance->ld_ids[ld_index] != 0xff) {
+					if (sdev1) {
+						scsi_device_put(sdev1);
+					}
+				} else {
+					if (sdev1) {
+						scsi_remove_device(sdev1);
+						scsi_device_put(sdev1);
+					}
+				}
+				}
+			}
+			doscan = 0;
+			break;
+		case MR_EVT_LD_CREATED:
+			megasas_get_ld_list(instance);
+			for (i = 0; i < MEGASAS_MAX_LD_CHANNELS; i++) {
+				for (j = 0;
+					j < MEGASAS_MAX_DEV_PER_CHANNEL;
+					j++) {
+					ld_index =
+					(i * MEGASAS_MAX_DEV_PER_CHANNEL) + j;
+
+					sdev1 = scsi_device_lookup(host,
+						i+MEGASAS_MAX_LD_CHANNELS,
+						j, 0);
+
+					if (instance->ld_ids[ld_index] !=
+								0xff) {
+						if (!sdev1) {
+							scsi_add_device(host,
+								i + 2,
+								j, 0);
+						}
+					}
+					if (sdev1) {
+						scsi_device_put(sdev1);
+					}
+				}
+			}
+			doscan = 0;
+			break;
 		case MR_EVT_CTRL_HOST_BUS_SCAN_REQUESTED:
+		case MR_EVT_FOREIGN_CFG_IMPORTED:
 			doscan = 1;
 			break;
 		default:
@@ -4115,6 +4232,31 @@ megasas_aen_polling(struct work_struct *work)
 					}
 					if (sdev1)
 						scsi_device_put(sdev1);
+				} else {
+					if (sdev1) {
+						scsi_remove_device(sdev1);
+						scsi_device_put(sdev1);
+					}
+				}
+			}
+		}
+
+		megasas_get_ld_list(instance);
+		for (i = 0; i < MEGASAS_MAX_LD_CHANNELS; i++) {
+			for (j = 0; j < MEGASAS_MAX_DEV_PER_CHANNEL; j++) {
+				ld_index =
+				(i * MEGASAS_MAX_DEV_PER_CHANNEL) + j;
+
+				sdev1 = scsi_device_lookup(host,
+					i+MEGASAS_MAX_LD_CHANNELS, j, 0);
+				if (instance->ld_ids[ld_index] != 0xff) {
+					if (!sdev1) {
+						scsi_add_device(host,
+								i+2,
+								j, 0);
+					} else {
+						scsi_device_put(sdev1);
+					}
 				} else {
 					if (sdev1) {
 						scsi_remove_device(sdev1);
