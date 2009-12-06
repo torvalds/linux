@@ -224,12 +224,12 @@ static int __devinit i2c_powermac_probe(struct platform_device *dev)
 	struct pmac_i2c_bus *bus = dev->dev.platform_data;
 	struct device_node *parent = NULL;
 	struct i2c_adapter *adapter;
-	char name[32];
 	const char *basename;
 	int rc;
 
 	if (bus == NULL)
 		return -EINVAL;
+	adapter = pmac_i2c_get_adapter(bus);
 
 	/* Ok, now we need to make up a name for the interface that will
 	 * match what we used to do in the past, that is basically the
@@ -255,23 +255,22 @@ static int __devinit i2c_powermac_probe(struct platform_device *dev)
 	default:
 		return -EINVAL;
 	}
-	snprintf(name, 32, "%s %d", basename, pmac_i2c_get_channel(bus));
+	snprintf(adapter->name, sizeof(adapter->name), "%s %d", basename,
+		 pmac_i2c_get_channel(bus));
 	of_node_put(parent);
 
-	adapter = pmac_i2c_get_adapter(bus);
 	platform_set_drvdata(dev, adapter);
-	strcpy(adapter->name, name);
 	adapter->algo = &i2c_powermac_algorithm;
 	i2c_set_adapdata(adapter, bus);
 	adapter->dev.parent = &dev->dev;
 	rc = i2c_add_adapter(adapter);
 	if (rc) {
 		printk(KERN_ERR "i2c-powermac: Adapter %s registration "
-		       "failed\n", name);
+		       "failed\n", adapter->name);
 		memset(adapter, 0, sizeof(*adapter));
 	}
 
-	printk(KERN_INFO "PowerMac i2c bus %s registered\n", name);
+	printk(KERN_INFO "PowerMac i2c bus %s registered\n", adapter->name);
 
 	if (!strncmp(basename, "uni-n", 5)) {
 		struct device_node *np;
