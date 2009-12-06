@@ -419,6 +419,9 @@ void ir_input_free(struct input_dev *dev)
 {
 	struct ir_scancode_table *rc_tab = input_get_drvdata(dev);
 
+	if (!rc_tab)
+		return;
+
 	IR_dprintk(1, "Freed keycode table\n");
 
 	rc_tab->size = 0;
