@@ -762,6 +762,7 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 {
 	int res = 0;
 	struct i2c_adapter *found;
+	struct i2c_client *client, *next;
 
 	/* First make sure that this adapter was ever added */
 	mutex_lock(&core_lock);
@@ -780,6 +781,16 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	mutex_unlock(&core_lock);
 	if (res)
 		return res;
+
+	/* Remove devices instantiated from sysfs */
+	list_for_each_entry_safe(client, next, &userspace_devices, detected) {
+		if (client->adapter == adap) {
+			dev_dbg(&adap->dev, "Removing %s at 0x%x\n",
+				client->name, client->addr);
+			list_del(&client->detected);
+			i2c_unregister_device(client);
+		}
+	}
 
 	/* Detach any active clients. This can't fail, thus we do not
 	   checking the returned value. */

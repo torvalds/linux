@@ -87,6 +87,7 @@ int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
 			brelse(bh);
 			BUG();
 		}
+		memset(bh->b_data, 0, 1 << inode->i_blkbits);
 		bh->b_bdev = NILFS_I_NILFS(inode)->ns_bdev;
 		bh->b_blocknr = blocknr;
 		set_buffer_mapped(bh);
@@ -276,8 +277,7 @@ void nilfs_btnode_commit_change_key(struct address_space *btnc,
 				       "invalid oldkey %lld (newkey=%lld)",
 				       (unsigned long long)oldkey,
 				       (unsigned long long)newkey);
-		if (!test_set_buffer_dirty(obh) && TestSetPageDirty(opage))
-			BUG();
+		nilfs_btnode_mark_dirty(obh);
 
 		spin_lock_irq(&btnc->tree_lock);
 		radix_tree_delete(&btnc->page_tree, oldkey);

@@ -315,7 +315,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			case BFIN_MEM_ACCESS_CORE:
 			case BFIN_MEM_ACCESS_CORE_ONLY:
 				copied = access_process_vm(child, addr, &data,
-				                           to_copy, 0);
+				                           to_copy, 1);
 				if (copied)
 					break;
 

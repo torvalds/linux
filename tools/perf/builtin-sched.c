@@ -11,6 +11,7 @@
 #include "util/trace-event.h"
 
 #include "util/debug.h"
+#include "util/data_map.h"
 
 #include <sys/types.h>
 #include <sys/prctl.h>
@@ -20,14 +21,6 @@
 #include <math.h>
 
 static char			const *input_name = "perf.data";
-static int			input;
-static unsigned long		page_size;
-static unsigned long		mmap_window = 32;
-
-static unsigned long		total_comm = 0;
-
-static struct rb_root		threads;
-static struct thread		*last_match;
 
 static struct perf_header	*header;
 static u64			sample_type;
@@ -35,10 +28,10 @@ static u64			sample_type;
 static char			default_sort_order[] = "avg, max, switch, runtime";
 static char			*sort_order = default_sort_order;
 
+static int			profile_cpu = -1;
+
 #define PR_SET_NAME		15               /* Set process name */
 #define MAX_CPUS		4096
-
-#define BUG_ON(x)		assert(!(x))
 
 static u64			run_measurement_overhead;
 static u64			sleep_measurement_overhead;
@@ -74,6 +67,7 @@ enum sched_event_type {
 	SCHED_EVENT_RUN,
 	SCHED_EVENT_SLEEP,
 	SCHED_EVENT_WAKEUP,
+	SCHED_EVENT_MIGRATION,
 };
 
 struct sched_atom {
@@ -226,7 +220,7 @@ static void calibrate_sleep_measurement_overhead(void)
 static struct sched_atom *
 get_new_event(struct task_desc *task, u64 timestamp)
 {
-	struct sched_atom *event = calloc(1, sizeof(*event));
+	struct sched_atom *event = zalloc(sizeof(*event));
 	unsigned long idx = task->nr_events;
 	size_t size;
 
@@ -294,7 +288,7 @@ add_sched_event_wakeup(struct task_desc *task, u64 timestamp,
 		return;
 	}
 
-	wakee_event->wait_sem = calloc(1, sizeof(*wakee_event->wait_sem));
+	wakee_event->wait_sem = zalloc(sizeof(*wakee_event->wait_sem));
 	sem_init(wakee_event->wait_sem, 0, 0);
 	wakee_event->specific_wait = 1;
 	event->wait_sem = wakee_event->wait_sem;
@@ -324,7 +318,7 @@ static struct task_desc *register_pid(unsigned long pid, const char *comm)
 	if (task)
 		return task;
 
-	task = calloc(1, sizeof(*task));
+	task = zalloc(sizeof(*task));
 	task->pid = pid;
 	task->nr = nr_tasks;
 	strcpy(task->comm, comm);
@@ -397,6 +391,8 @@ process_sched_event(struct task_desc *this_task __used, struct sched_atom *atom)
 			if (atom->wait_sem)
 				ret = sem_post(atom->wait_sem);
 			BUG_ON(ret);
+			break;
+		case SCHED_EVENT_MIGRATION:
 			break;
 		default:
 			BUG_ON(1);
@@ -632,29 +628,6 @@ static void test_calibrations(void)
 	printf("the sleep test took %Ld nsecs\n", T1-T0);
 }
 
-static int
-process_comm_event(event_t *event, unsigned long offset, unsigned long head)
-{
-	struct thread *thread;
-
-	thread = threads__findnew(event->comm.pid, &threads, &last_match);
-
-	dump_printf("%p [%p]: perf_event_comm: %s:%d\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
-		event->comm.comm, event->comm.pid);
-
-	if (thread == NULL ||
-	    thread__set_comm(thread, event->comm.comm)) {
-		dump_printf("problem processing perf_event_comm, skipping event.\n");
-		return -1;
-	}
-	total_comm++;
-
-	return 0;
-}
-
-
 struct raw_event_sample {
 	u32 size;
 	char data[0];
@@ -745,6 +718,22 @@ struct trace_fork_event {
 	u32 child_pid;
 };
 
+struct trace_migrate_task_event {
+	u32 size;
+
+	u16 common_type;
+	u8 common_flags;
+	u8 common_preempt_count;
+	u32 common_pid;
+	u32 common_tgid;
+
+	char comm[16];
+	u32 pid;
+
+	u32 prio;
+	u32 cpu;
+};
+
 struct trace_sched_handler {
 	void (*switch_event)(struct trace_switch_event *,
 			     struct event *,
@@ -765,6 +754,12 @@ struct trace_sched_handler {
 			     struct thread *thread);
 
 	void (*fork_event)(struct trace_fork_event *,
+			   struct event *,
+			   int cpu,
+			   u64 timestamp,
+			   struct thread *thread);
+
+	void (*migrate_task_event)(struct trace_migrate_task_event *,
 			   struct event *,
 			   int cpu,
 			   u64 timestamp,
@@ -941,9 +936,7 @@ __thread_latency_insert(struct rb_root *root, struct work_atoms *data,
 
 static void thread_atoms_insert(struct thread *thread)
 {
-	struct work_atoms *atoms;
-
-	atoms = calloc(sizeof(*atoms), 1);
+	struct work_atoms *atoms = zalloc(sizeof(*atoms));
 	if (!atoms)
 		die("No memory");
 
@@ -975,9 +968,7 @@ add_sched_out_event(struct work_atoms *atoms,
 		    char run_state,
 		    u64 timestamp)
 {
-	struct work_atom *atom;
-
-	atom = calloc(sizeof(*atom), 1);
+	struct work_atom *atom = zalloc(sizeof(*atom));
 	if (!atom)
 		die("Non memory");
 
@@ -1058,8 +1049,8 @@ latency_switch_event(struct trace_switch_event *switch_event,
 		die("hm, delta: %Ld < 0 ?\n", delta);
 
 
-	sched_out = threads__findnew(switch_event->prev_pid, &threads, &last_match);
-	sched_in = threads__findnew(switch_event->next_pid, &threads, &last_match);
+	sched_out = threads__findnew(switch_event->prev_pid);
+	sched_in = threads__findnew(switch_event->next_pid);
 
 	out_events = thread_atoms_search(&atom_root, sched_out, &cmp_pid);
 	if (!out_events) {
@@ -1092,13 +1083,10 @@ latency_runtime_event(struct trace_runtime_event *runtime_event,
 		     u64 timestamp,
 		     struct thread *this_thread __used)
 {
-	struct work_atoms *atoms;
-	struct thread *thread;
+	struct thread *thread = threads__findnew(runtime_event->pid);
+	struct work_atoms *atoms = thread_atoms_search(&atom_root, thread, &cmp_pid);
 
 	BUG_ON(cpu >= MAX_CPUS || cpu < 0);
-
-	thread = threads__findnew(runtime_event->pid, &threads, &last_match);
-	atoms = thread_atoms_search(&atom_root, thread, &cmp_pid);
 	if (!atoms) {
 		thread_atoms_insert(thread);
 		atoms = thread_atoms_search(&atom_root, thread, &cmp_pid);
@@ -1125,7 +1113,7 @@ latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
 	if (!wakeup_event->success)
 		return;
 
-	wakee = threads__findnew(wakeup_event->pid, &threads, &last_match);
+	wakee = threads__findnew(wakeup_event->pid);
 	atoms = thread_atoms_search(&atom_root, wakee, &cmp_pid);
 	if (!atoms) {
 		thread_atoms_insert(wakee);
@@ -1139,7 +1127,12 @@ latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
 
 	atom = list_entry(atoms->work_list.prev, struct work_atom, list);
 
-	if (atom->state != THREAD_SLEEPING)
+	/*
+	 * You WILL be missing events if you've recorded only
+	 * one CPU, or are only looking at only one, so don't
+	 * make useless noise.
+	 */
+	if (profile_cpu == -1 && atom->state != THREAD_SLEEPING)
 		nr_state_machine_bugs++;
 
 	nr_timestamps++;
@@ -1152,11 +1145,51 @@ latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
 	atom->wake_up_time = timestamp;
 }
 
+static void
+latency_migrate_task_event(struct trace_migrate_task_event *migrate_task_event,
+		     struct event *__event __used,
+		     int cpu __used,
+		     u64 timestamp,
+		     struct thread *thread __used)
+{
+	struct work_atoms *atoms;
+	struct work_atom *atom;
+	struct thread *migrant;
+
+	/*
+	 * Only need to worry about migration when profiling one CPU.
+	 */
+	if (profile_cpu == -1)
+		return;
+
+	migrant = threads__findnew(migrate_task_event->pid);
+	atoms = thread_atoms_search(&atom_root, migrant, &cmp_pid);
+	if (!atoms) {
+		thread_atoms_insert(migrant);
+		register_pid(migrant->pid, migrant->comm);
+		atoms = thread_atoms_search(&atom_root, migrant, &cmp_pid);
+		if (!atoms)
+			die("migration-event: Internal tree error");
+		add_sched_out_event(atoms, 'R', timestamp);
+	}
+
+	BUG_ON(list_empty(&atoms->work_list));
+
+	atom = list_entry(atoms->work_list.prev, struct work_atom, list);
+	atom->sched_in_time = atom->sched_out_time = atom->wake_up_time = timestamp;
+
+	nr_timestamps++;
+
+	if (atom->sched_out_time > timestamp)
+		nr_unordered_timestamps++;
+}
+
 static struct trace_sched_handler lat_ops  = {
 	.wakeup_event		= latency_wakeup_event,
 	.switch_event		= latency_switch_event,
 	.runtime_event		= latency_runtime_event,
 	.fork_event		= latency_fork_event,
+	.migrate_task_event	= latency_migrate_task_event,
 };
 
 static void output_lat_thread(struct work_atoms *work_list)
@@ -1385,8 +1418,8 @@ map_switch_event(struct trace_switch_event *switch_event,
 		die("hm, delta: %Ld < 0 ?\n", delta);
 
 
-	sched_out = threads__findnew(switch_event->prev_pid, &threads, &last_match);
-	sched_in = threads__findnew(switch_event->next_pid, &threads, &last_match);
+	sched_out = threads__findnew(switch_event->prev_pid);
+	sched_in = threads__findnew(switch_event->next_pid);
 
 	curr_thread[this_cpu] = sched_in;
 
@@ -1517,6 +1550,26 @@ process_sched_exit_event(struct event *event,
 }
 
 static void
+process_sched_migrate_task_event(struct raw_event_sample *raw,
+			   struct event *event,
+			   int cpu __used,
+			   u64 timestamp __used,
+			   struct thread *thread __used)
+{
+	struct trace_migrate_task_event migrate_task_event;
+
+	FILL_COMMON_FIELDS(migrate_task_event, event, raw->data);
+
+	FILL_ARRAY(migrate_task_event, comm, event, raw->data);
+	FILL_FIELD(migrate_task_event, pid, event, raw->data);
+	FILL_FIELD(migrate_task_event, prio, event, raw->data);
+	FILL_FIELD(migrate_task_event, cpu, event, raw->data);
+
+	if (trace_handler->migrate_task_event)
+		trace_handler->migrate_task_event(&migrate_task_event, event, cpu, timestamp, thread);
+}
+
+static void
 process_raw_event(event_t *raw_event __used, void *more_data,
 		  int cpu, u64 timestamp, struct thread *thread)
 {
@@ -1539,23 +1592,23 @@ process_raw_event(event_t *raw_event __used, void *more_data,
 		process_sched_fork_event(raw, event, cpu, timestamp, thread);
 	if (!strcmp(event->name, "sched_process_exit"))
 		process_sched_exit_event(event, cpu, timestamp, thread);
+	if (!strcmp(event->name, "sched_migrate_task"))
+		process_sched_migrate_task_event(raw, event, cpu, timestamp, thread);
 }
 
-static int
-process_sample_event(event_t *event, unsigned long offset, unsigned long head)
+static int process_sample_event(event_t *event)
 {
-	char level;
-	int show = 0;
-	struct dso *dso = NULL;
 	struct thread *thread;
 	u64 ip = event->ip.ip;
 	u64 timestamp = -1;
 	u32 cpu = -1;
 	u64 period = 1;
 	void *more_data = event->ip.__more_data;
-	int cpumode;
 
-	thread = threads__findnew(event->ip.pid, &threads, &last_match);
+	if (!(sample_type & PERF_SAMPLE_RAW))
+		return 0;
+
+	thread = threads__findnew(event->ip.pid);
 
 	if (sample_type & PERF_SAMPLE_TIME) {
 		timestamp = *(u64 *)more_data;
@@ -1573,177 +1626,64 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		more_data += sizeof(u64);
 	}
 
-	dump_printf("%p [%p]: PERF_RECORD_SAMPLE (IP, %d): %d/%d: %p period: %Ld\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
+	dump_printf("(IP, %d): %d/%d: %p period: %Ld\n",
 		event->header.misc,
 		event->ip.pid, event->ip.tid,
 		(void *)(long)ip,
 		(long long)period);
 
+	if (thread == NULL) {
+		pr_debug("problem processing %d event, skipping it.\n",
+			 event->header.type);
+		return -1;
+	}
+
 	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
-	if (thread == NULL) {
-		eprintf("problem processing %d event, skipping it.\n",
-			event->header.type);
-		return -1;
-	}
+	if (profile_cpu != -1 && profile_cpu != (int) cpu)
+		return 0;
 
-	cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
-
-	if (cpumode == PERF_RECORD_MISC_KERNEL) {
-		show = SHOW_KERNEL;
-		level = 'k';
-
-		dso = kernel_dso;
-
-		dump_printf(" ...... dso: %s\n", dso->name);
-
-	} else if (cpumode == PERF_RECORD_MISC_USER) {
-
-		show = SHOW_USER;
-		level = '.';
-
-	} else {
-		show = SHOW_HV;
-		level = 'H';
-
-		dso = hypervisor_dso;
-
-		dump_printf(" ...... dso: [hypervisor]\n");
-	}
-
-	if (sample_type & PERF_SAMPLE_RAW)
-		process_raw_event(event, more_data, cpu, timestamp, thread);
+	process_raw_event(event, more_data, cpu, timestamp, thread);
 
 	return 0;
 }
 
-static int
-process_event(event_t *event, unsigned long offset, unsigned long head)
+static int process_lost_event(event_t *event __used)
 {
-	trace_event(event);
+	nr_lost_chunks++;
+	nr_lost_events += event->lost.lost;
 
-	nr_events++;
-	switch (event->header.type) {
-	case PERF_RECORD_MMAP:
-		return 0;
-	case PERF_RECORD_LOST:
-		nr_lost_chunks++;
-		nr_lost_events += event->lost.lost;
-		return 0;
+	return 0;
+}
 
-	case PERF_RECORD_COMM:
-		return process_comm_event(event, offset, head);
+static int sample_type_check(u64 type)
+{
+	sample_type = type;
 
-	case PERF_RECORD_EXIT ... PERF_RECORD_READ:
-		return 0;
-
-	case PERF_RECORD_SAMPLE:
-		return process_sample_event(event, offset, head);
-
-	case PERF_RECORD_MAX:
-	default:
+	if (!(sample_type & PERF_SAMPLE_RAW)) {
+		fprintf(stderr,
+			"No trace sample to read. Did you call perf record "
+			"without -R?");
 		return -1;
 	}
 
 	return 0;
 }
+
+static struct perf_file_handler file_handler = {
+	.process_sample_event	= process_sample_event,
+	.process_comm_event	= event__process_comm,
+	.process_lost_event	= process_lost_event,
+	.sample_type_check	= sample_type_check,
+};
 
 static int read_events(void)
 {
-	int ret, rc = EXIT_FAILURE;
-	unsigned long offset = 0;
-	unsigned long head = 0;
-	struct stat perf_stat;
-	event_t *event;
-	uint32_t size;
-	char *buf;
+	register_idle_thread();
+	register_perf_file_handler(&file_handler);
 
-	trace_report();
-	register_idle_thread(&threads, &last_match);
-
-	input = open(input_name, O_RDONLY);
-	if (input < 0) {
-		perror("failed to open file");
-		exit(-1);
-	}
-
-	ret = fstat(input, &perf_stat);
-	if (ret < 0) {
-		perror("failed to stat file");
-		exit(-1);
-	}
-
-	if (!perf_stat.st_size) {
-		fprintf(stderr, "zero-sized file, nothing to do!\n");
-		exit(0);
-	}
-	header = perf_header__read(input);
-	head = header->data_offset;
-	sample_type = perf_header__sample_type(header);
-
-	if (!(sample_type & PERF_SAMPLE_RAW))
-		die("No trace sample to read. Did you call perf record "
-		    "without -R?");
-
-	if (load_kernel() < 0) {
-		perror("failed to load kernel symbols");
-		return EXIT_FAILURE;
-	}
-
-remap:
-	buf = (char *)mmap(NULL, page_size * mmap_window, PROT_READ,
-			   MAP_SHARED, input, offset);
-	if (buf == MAP_FAILED) {
-		perror("failed to mmap file");
-		exit(-1);
-	}
-
-more:
-	event = (event_t *)(buf + head);
-
-	size = event->header.size;
-	if (!size)
-		size = 8;
-
-	if (head + event->header.size >= page_size * mmap_window) {
-		unsigned long shift = page_size * (head / page_size);
-		int res;
-
-		res = munmap(buf, page_size * mmap_window);
-		assert(res == 0);
-
-		offset += shift;
-		head -= shift;
-		goto remap;
-	}
-
-	size = event->header.size;
-
-
-	if (!size || process_event(event, offset, head) < 0) {
-
-		/*
-		 * assume we lost track of the stream, check alignment, and
-		 * increment a single u64 in the hope to catch on again 'soon'.
-		 */
-
-		if (unlikely(head & 7))
-			head &= ~7ULL;
-
-		size = 8;
-	}
-
-	head += size;
-
-	if (offset + head < (unsigned long)perf_stat.st_size)
-		goto more;
-
-	rc = EXIT_SUCCESS;
-	close(input);
-
-	return rc;
+	return mmap_dispatch_perf_file(&header, input_name, 0, 0,
+				       &event__cwdlen, &event__cwd);
 }
 
 static void print_bad_events(void)
@@ -1883,6 +1823,8 @@ static const struct option latency_options[] = {
 		   "sort by key(s): runtime, switch, avg, max"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
+	OPT_INTEGER('C', "CPU", &profile_cpu,
+		    "CPU to profile on"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_END()
@@ -1960,8 +1902,7 @@ static int __cmd_record(int argc, const char **argv)
 
 int cmd_sched(int argc, const char **argv, const char *prefix __used)
 {
-	symbol__init();
-	page_size = getpagesize();
+	symbol__init(0);
 
 	argc = parse_options(argc, argv, sched_options, sched_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);

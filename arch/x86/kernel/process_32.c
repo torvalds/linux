@@ -58,6 +58,7 @@
 #include <asm/idle.h>
 #include <asm/syscalls.h>
 #include <asm/ds.h>
+#include <asm/debugreg.h>
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 
@@ -134,7 +135,7 @@ void __show_regs(struct pt_regs *regs, int all)
 		ss = regs->ss & 0xffff;
 		gs = get_user_gs(regs);
 	} else {
-		sp = (unsigned long) (&regs->sp);
+		sp = kernel_stack_pointer(regs);
 		savesegment(ss, ss);
 		savesegment(gs, gs);
 	}
@@ -187,7 +188,7 @@ void __show_regs(struct pt_regs *regs, int all)
 
 void show_regs(struct pt_regs *regs)
 {
-	__show_regs(regs, 1);
+	show_registers(regs);
 	show_trace(NULL, regs, &regs->sp, regs->bp);
 }
 
@@ -259,7 +260,12 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 
 	task_user_gs(p) = get_user_gs(regs);
 
+	p->thread.io_bitmap_ptr = NULL;
 	tsk = current;
+	err = -ENOMEM;
+
+	memset(p->thread.ptrace_bps, 0, sizeof(p->thread.ptrace_bps));
+
 	if (unlikely(test_tsk_thread_flag(tsk, TIF_IO_BITMAP))) {
 		p->thread.io_bitmap_ptr = kmemdup(tsk->thread.io_bitmap_ptr,
 						IO_BITMAP_BYTES, GFP_KERNEL);

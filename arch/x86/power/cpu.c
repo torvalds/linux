@@ -18,6 +18,7 @@
 #include <asm/mce.h>
 #include <asm/xcr.h>
 #include <asm/suspend.h>
+#include <asm/debugreg.h>
 
 #ifdef CONFIG_X86_32
 static struct saved_context saved_context;
@@ -142,31 +143,6 @@ static void fix_processor_context(void)
 #endif
 	load_TR_desc();				/* This does ltr */
 	load_LDT(&current->active_mm->context);	/* This does lldt */
-
-	/*
-	 * Now maybe reload the debug registers
-	 */
-	if (current->thread.debugreg7) {
-#ifdef CONFIG_X86_32
-		set_debugreg(current->thread.debugreg0, 0);
-		set_debugreg(current->thread.debugreg1, 1);
-		set_debugreg(current->thread.debugreg2, 2);
-		set_debugreg(current->thread.debugreg3, 3);
-		/* no 4 and 5 */
-		set_debugreg(current->thread.debugreg6, 6);
-		set_debugreg(current->thread.debugreg7, 7);
-#else
-		/* CONFIG_X86_64 */
-		loaddebug(&current->thread, 0);
-		loaddebug(&current->thread, 1);
-		loaddebug(&current->thread, 2);
-		loaddebug(&current->thread, 3);
-		/* no 4 and 5 */
-		loaddebug(&current->thread, 6);
-		loaddebug(&current->thread, 7);
-#endif
-	}
-
 }
 
 /**

@@ -1,6 +1,7 @@
 #ifndef B43_LEDS_H_
 #define B43_LEDS_H_
 
+struct b43_wl;
 struct b43_wldev;
 
 #ifdef CONFIG_B43_LEDS

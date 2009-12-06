@@ -4,8 +4,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/swiotlb.h>
 
-extern int swiotlb_force;
-
 #ifdef CONFIG_SWIOTLB
 extern int swiotlb;
 extern void pci_swiotlb_init(void);

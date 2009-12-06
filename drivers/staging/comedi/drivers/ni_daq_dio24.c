@@ -187,25 +187,7 @@ static int dio24_detach(struct comedi_device *dev)
 	return 0;
 };
 
-/* PCMCIA crap */
-
-/*
-   All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
-   you do not define PCMCIA_DEBUG at all, all the debug code will be
-   left out.  If you compile with PCMCIA_DEBUG=0, the debug code will
-   be present but disabled -- but it can then be enabled for specific
-   modules at load time with a 'pc_debug=#' option to insmod.
-*/
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-module_param(pc_debug, int, 0644);
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version = "ni_daq_dio24.c, based on dummy_cs.c";
-#else
-#define DEBUG(n, args...)
-#endif
-
-/*====================================================================*/
+/* PCMCIA crap -- watch your words! */
 
 static void dio24_config(struct pcmcia_device *link);
 static void dio24_release(struct pcmcia_device *link);
@@ -261,7 +243,7 @@ static int dio24_cs_attach(struct pcmcia_device *link)
 
 	printk(KERN_INFO "ni_daq_dio24: HOLA SOY YO - CS-attach!\n");
 
-	DEBUG(0, "dio24_cs_attach()\n");
+	dev_dbg(&link->dev, "dio24_cs_attach()\n");
 
 	/* Allocate space for private device-specific data */
 	local = kzalloc(sizeof(struct local_info_t), GFP_KERNEL);
@@ -272,7 +254,6 @@ static int dio24_cs_attach(struct pcmcia_device *link)
 
 	/* Interrupt setup */
 	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	link->irq.Handler = NULL;
 
 	/*
@@ -306,7 +287,7 @@ static void dio24_cs_detach(struct pcmcia_device *link)
 
 	printk(KERN_INFO "ni_daq_dio24: HOLA SOY YO - cs-detach!\n");
 
-	DEBUG(0, "dio24_cs_detach(0x%p)\n", link);
+	dev_dbg(&link->dev, "dio24_cs_detach\n");
 
 	if (link->dev_node) {
 		((struct local_info_t *)link->priv)->stop = 1;
@@ -327,142 +308,85 @@ static void dio24_cs_detach(struct pcmcia_device *link)
 
 ======================================================================*/
 
+static int dio24_pcmcia_config_loop(struct pcmcia_device *p_dev,
+				cistpl_cftable_entry_t *cfg,
+				cistpl_cftable_entry_t *dflt,
+				unsigned int vcc,
+				void *priv_data)
+{
+	win_req_t *req = priv_data;
+	memreq_t map;
+
+	if (cfg->index == 0)
+		return -ENODEV;
+
+	/* Does this card need audio output? */
+	if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
+		p_dev->conf.Attributes |= CONF_ENABLE_SPKR;
+		p_dev->conf.Status = CCSR_AUDIO_ENA;
+	}
+
+	/* Do we need to allocate an interrupt? */
+	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
+		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+
+	/* IO window settings */
+	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
+	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
+		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
+		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
+		if (!(io->flags & CISTPL_IO_8BIT))
+			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
+		if (!(io->flags & CISTPL_IO_16BIT))
+			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+		p_dev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
+		p_dev->io.BasePort1 = io->win[0].base;
+		p_dev->io.NumPorts1 = io->win[0].len;
+		if (io->nwin > 1) {
+			p_dev->io.Attributes2 = p_dev->io.Attributes1;
+			p_dev->io.BasePort2 = io->win[1].base;
+			p_dev->io.NumPorts2 = io->win[1].len;
+		}
+		/* This reserves IO space but doesn't actually enable it */
+		if (pcmcia_request_io(p_dev, &p_dev->io) != 0)
+			return -ENODEV;
+	}
+
+	if ((cfg->mem.nwin > 0) || (dflt->mem.nwin > 0)) {
+		cistpl_mem_t *mem =
+			(cfg->mem.nwin) ? &cfg->mem : &dflt->mem;
+		req->Attributes = WIN_DATA_WIDTH_16 | WIN_MEMORY_TYPE_CM;
+		req->Attributes |= WIN_ENABLE;
+		req->Base = mem->win[0].host_addr;
+		req->Size = mem->win[0].len;
+		if (req->Size < 0x1000)
+			req->Size = 0x1000;
+		req->AccessSpeed = 0;
+		if (pcmcia_request_window(p_dev, req, &p_dev->win))
+			return -ENODEV;
+		map.Page = 0;
+		map.CardOffset = mem->win[0].card_addr;
+		if (pcmcia_map_mem_page(p_dev, p_dev->win, &map))
+			return -ENODEV;
+	}
+	/* If we got this far, we're cool! */
+	return 0;
+}
+
 static void dio24_config(struct pcmcia_device *link)
 {
 	struct local_info_t *dev = link->priv;
-	tuple_t tuple;
-	cisparse_t parse;
-	int last_ret;
-	u_char buf[64];
+	int ret;
 	win_req_t req;
-	memreq_t map;
-	cistpl_cftable_entry_t dflt = { 0 };
 
 	printk(KERN_INFO "ni_daq_dio24: HOLA SOY YO! - config\n");
 
-	DEBUG(0, "dio24_config(0x%p)\n", link);
+	dev_dbg(&link->dev, "dio24_config\n");
 
-	/*
-	   This reads the card's CONFIG tuple to find its configuration
-	   registers.
-	 */
-	tuple.DesiredTuple = CISTPL_CONFIG;
-	tuple.Attributes = 0;
-	tuple.TupleData = buf;
-	tuple.TupleDataMax = sizeof(buf);
-	tuple.TupleOffset = 0;
-
-	last_ret = pcmcia_get_first_tuple(link, &tuple);
-	if (last_ret) {
-		cs_error(link, GetFirstTuple, last_ret);
-		goto cs_failed;
-	}
-
-	last_ret = pcmcia_get_tuple_data(link, &tuple);
-	if (last_ret) {
-		cs_error(link, GetTupleData, last_ret);
-		goto cs_failed;
-	}
-
-	last_ret = pcmcia_parse_tuple(&tuple, &parse);
-	if (last_ret) {
-		cs_error(link, ParseTuple, last_ret);
-		goto cs_failed;
-	}
-	link->conf.ConfigBase = parse.config.base;
-	link->conf.Present = parse.config.rmask[0];
-
-	/*
-	   In this loop, we scan the CIS for configuration table entries,
-	   each of which describes a valid card configuration, including
-	   voltage, IO window, memory window, and interrupt settings.
-
-	   We make no assumptions about the card to be configured: we use
-	   just the information available in the CIS.  In an ideal world,
-	   this would work for any PCMCIA card, but it requires a complete
-	   and accurate CIS.  In practice, a driver usually "knows" most of
-	   these things without consulting the CIS, and most client drivers
-	   will only use the CIS to fill in implementation-defined details.
-	 */
-	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-
-	last_ret = pcmcia_get_first_tuple(link, &tuple);
-	if (last_ret) {
-		cs_error(link, GetFirstTuple, last_ret);
-		goto cs_failed;
-	}
-	while (1) {
-		cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
-		if (pcmcia_get_tuple_data(link, &tuple) != 0)
-			goto next_entry;
-		if (pcmcia_parse_tuple(&tuple, &parse) != 0)
-			goto next_entry;
-
-		if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
-			dflt = *cfg;
-		if (cfg->index == 0)
-			goto next_entry;
-		link->conf.ConfigIndex = cfg->index;
-
-		/* Does this card need audio output? */
-		if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
-			link->conf.Attributes |= CONF_ENABLE_SPKR;
-			link->conf.Status = CCSR_AUDIO_ENA;
-		}
-
-		/* Do we need to allocate an interrupt? */
-		if (cfg->irq.IRQInfo1 || dflt.irq.IRQInfo1)
-			link->conf.Attributes |= CONF_ENABLE_IRQ;
-
-		/* IO window settings */
-		link->io.NumPorts1 = link->io.NumPorts2 = 0;
-		if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
-			cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
-			link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-			if (!(io->flags & CISTPL_IO_8BIT))
-				link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-			if (!(io->flags & CISTPL_IO_16BIT))
-				link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-			link->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-			link->io.BasePort1 = io->win[0].base;
-			link->io.NumPorts1 = io->win[0].len;
-			if (io->nwin > 1) {
-				link->io.Attributes2 = link->io.Attributes1;
-				link->io.BasePort2 = io->win[1].base;
-				link->io.NumPorts2 = io->win[1].len;
-			}
-			/* This reserves IO space but doesn't actually enable it */
-			if (pcmcia_request_io(link, &link->io) != 0)
-				goto next_entry;
-		}
-
-		if ((cfg->mem.nwin > 0) || (dflt.mem.nwin > 0)) {
-			cistpl_mem_t *mem =
-			    (cfg->mem.nwin) ? &cfg->mem : &dflt.mem;
-			req.Attributes = WIN_DATA_WIDTH_16 | WIN_MEMORY_TYPE_CM;
-			req.Attributes |= WIN_ENABLE;
-			req.Base = mem->win[0].host_addr;
-			req.Size = mem->win[0].len;
-			if (req.Size < 0x1000)
-				req.Size = 0x1000;
-			req.AccessSpeed = 0;
-			if (pcmcia_request_window(&link, &req, &link->win))
-				goto next_entry;
-			map.Page = 0;
-			map.CardOffset = mem->win[0].card_addr;
-			if (pcmcia_map_mem_page(link->win, &map))
-				goto next_entry;
-		}
-		/* If we got this far, we're cool! */
-		break;
-
-next_entry:
-
-		last_ret = pcmcia_get_next_tuple(link, &tuple);
-		if (last_ret) {
-			cs_error(link, GetNextTuple, last_ret);
-			goto cs_failed;
-		}
+	ret = pcmcia_loop_config(link, dio24_pcmcia_config_loop, &req);
+	if (ret) {
+		dev_warn(&link->dev, "no configuration found\n");
+		goto failed;
 	}
 
 	/*
@@ -471,11 +395,9 @@ next_entry:
 	   irq structure is initialized.
 	 */
 	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		last_ret = pcmcia_request_irq(link, &link->irq);
-		if (last_ret) {
-			cs_error(link, RequestIRQ, last_ret);
-			goto cs_failed;
-		}
+		ret = pcmcia_request_irq(link, &link->irq);
+		if (ret)
+			goto failed;
 	}
 
 	/*
@@ -483,11 +405,9 @@ next_entry:
 	   the I/O windows and the interrupt mapping, and putting the
 	   card and host interface into "Memory and IO" mode.
 	 */
-	last_ret = pcmcia_request_configuration(link, &link->conf);
-	if (last_ret) {
-		cs_error(link, RequestConfiguration, last_ret);
-		goto cs_failed;
-	}
+	ret = pcmcia_request_configuration(link, &link->conf);
+	if (ret)
+		goto failed;
 
 	/*
 	   At this point, the dev_node_t structure(s) need to be
@@ -515,7 +435,7 @@ next_entry:
 
 	return;
 
-cs_failed:
+failed:
 	printk(KERN_INFO "Fallo");
 	dio24_release(link);
 
@@ -523,7 +443,7 @@ cs_failed:
 
 static void dio24_release(struct pcmcia_device *link)
 {
-	DEBUG(0, "dio24_release(0x%p)\n", link);
+	dev_dbg(&link->dev, "dio24_release\n");
 
 	pcmcia_disable_device(link);
 }				/* dio24_release */
@@ -582,14 +502,12 @@ struct pcmcia_driver dio24_cs_driver = {
 static int __init init_dio24_cs(void)
 {
 	printk("ni_daq_dio24: HOLA SOY YO!\n");
-	DEBUG(0, "%s\n", version);
 	pcmcia_register_driver(&dio24_cs_driver);
 	return 0;
 }
 
 static void __exit exit_dio24_cs(void)
 {
-	DEBUG(0, "ni_dio24: unloading\n");
 	pcmcia_unregister_driver(&dio24_cs_driver);
 }
 

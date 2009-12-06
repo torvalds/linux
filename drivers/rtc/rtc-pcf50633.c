@@ -70,7 +70,7 @@ static void pcf2rtc_time(struct rtc_time *rtc, struct pcf50633_time *pcf)
 	rtc->tm_hour = bcd2bin(pcf->time[PCF50633_TI_HOUR]);
 	rtc->tm_wday = bcd2bin(pcf->time[PCF50633_TI_WKDAY]);
 	rtc->tm_mday = bcd2bin(pcf->time[PCF50633_TI_DAY]);
-	rtc->tm_mon = bcd2bin(pcf->time[PCF50633_TI_MONTH]);
+	rtc->tm_mon = bcd2bin(pcf->time[PCF50633_TI_MONTH]) - 1;
 	rtc->tm_year = bcd2bin(pcf->time[PCF50633_TI_YEAR]) + 100;
 }
 
@@ -81,7 +81,7 @@ static void rtc2pcf_time(struct pcf50633_time *pcf, struct rtc_time *rtc)
 	pcf->time[PCF50633_TI_HOUR] = bin2bcd(rtc->tm_hour);
 	pcf->time[PCF50633_TI_WKDAY] = bin2bcd(rtc->tm_wday);
 	pcf->time[PCF50633_TI_DAY] = bin2bcd(rtc->tm_mday);
-	pcf->time[PCF50633_TI_MONTH] = bin2bcd(rtc->tm_mon);
+	pcf->time[PCF50633_TI_MONTH] = bin2bcd(rtc->tm_mon + 1);
 	pcf->time[PCF50633_TI_YEAR] = bin2bcd(rtc->tm_year % 100);
 }
 
@@ -245,8 +245,9 @@ static int pcf50633_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	ret = pcf50633_write_block(rtc->pcf, PCF50633_REG_RTCSCA,
 				PCF50633_TI_EXTENT, &pcf_tm.time[0]);
 
-	if (!alarm_masked)
+	if (!alarm_masked || alrm->enabled)
 		pcf50633_irq_unmask(rtc->pcf, PCF50633_IRQ_ALARM);
+	rtc->alarm_enabled = alrm->enabled;
 
 	return ret;
 }
@@ -291,8 +292,9 @@ static int __devinit pcf50633_rtc_probe(struct platform_device *pdev)
 				&pcf50633_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(rtc->rtc_dev)) {
+		int ret =  PTR_ERR(rtc->rtc_dev);
 		kfree(rtc);
-		return PTR_ERR(rtc->rtc_dev);
+		return ret;
 	}
 
 	pcf50633_register_irq(rtc->pcf, PCF50633_IRQ_ALARM,

@@ -18,6 +18,7 @@
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cs.h>
+#include <pcmcia/cistpl.h>
 #include "cs_internal.h"
 
 

@@ -26,14 +26,10 @@
 #include <linux/async_tx.h>
 
 /**
- * scribble - space to hold throwaway P buffer for synchronous gen_syndrome
+ * pq_scribble_page - space to hold throwaway P or Q buffer for
+ * synchronous gen_syndrome
  */
-static struct page *scribble;
-
-static bool is_raid6_zero_block(struct page *p)
-{
-	return p == (void *) raid6_empty_zero_page;
-}
+static struct page *pq_scribble_page;
 
 /* the struct page *blocks[] parameter passed to async_gen_syndrome()
  * and async_syndrome_val() contains the 'P' destination address at
@@ -83,7 +79,7 @@ do_async_gen_syndrome(struct dma_chan *chan, struct page **blocks,
 	 * sources and update the coefficients accordingly
 	 */
 	for (i = 0, idx = 0; i < src_cnt; i++) {
-		if (is_raid6_zero_block(blocks[i]))
+		if (blocks[i] == NULL)
 			continue;
 		dma_src[idx] = dma_map_page(dma->dev, blocks[i], offset, len,
 					    DMA_TO_DEVICE);
@@ -160,9 +156,9 @@ do_sync_gen_syndrome(struct page **blocks, unsigned int offset, int disks,
 		srcs = (void **) blocks;
 
 	for (i = 0; i < disks; i++) {
-		if (is_raid6_zero_block(blocks[i])) {
+		if (blocks[i] == NULL) {
 			BUG_ON(i > disks - 3); /* P or Q can't be zero */
-			srcs[i] = blocks[i];
+			srcs[i] = (void*)raid6_empty_zero_page;
 		} else
 			srcs[i] = page_address(blocks[i]) + offset;
 	}
@@ -186,10 +182,14 @@ do_sync_gen_syndrome(struct page **blocks, unsigned int offset, int disks,
  * blocks[disks-1] to NULL.  When P or Q is omitted 'len' must be <=
  * PAGE_SIZE as a temporary buffer of this size is used in the
  * synchronous path.  'disks' always accounts for both destination
- * buffers.
+ * buffers.  If any source buffers (blocks[i] where i < disks - 2) are
+ * set to NULL those buffers will be replaced with the raid6_zero_page
+ * in the synchronous path and omitted in the hardware-asynchronous
+ * path.
  *
  * 'blocks' note: if submit->scribble is NULL then the contents of
- * 'blocks' may be overridden
+ * 'blocks' may be overwritten to perform address conversions
+ * (dma_map_page() or page_address()).
  */
 struct dma_async_tx_descriptor *
 async_gen_syndrome(struct page **blocks, unsigned int offset, int disks,
@@ -227,11 +227,11 @@ async_gen_syndrome(struct page **blocks, unsigned int offset, int disks,
 	async_tx_quiesce(&submit->depend_tx);
 
 	if (!P(blocks, disks)) {
-		P(blocks, disks) = scribble;
+		P(blocks, disks) = pq_scribble_page;
 		BUG_ON(len + offset > PAGE_SIZE);
 	}
 	if (!Q(blocks, disks)) {
-		Q(blocks, disks) = scribble;
+		Q(blocks, disks) = pq_scribble_page;
 		BUG_ON(len + offset > PAGE_SIZE);
 	}
 	do_sync_gen_syndrome(blocks, offset, disks, len, submit);
@@ -239,6 +239,16 @@ async_gen_syndrome(struct page **blocks, unsigned int offset, int disks,
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(async_gen_syndrome);
+
+static inline struct dma_chan *
+pq_val_chan(struct async_submit_ctl *submit, struct page **blocks, int disks, size_t len)
+{
+	#ifdef CONFIG_ASYNC_TX_DISABLE_PQ_VAL_DMA
+	return NULL;
+	#endif
+	return async_tx_find_channel(submit, DMA_PQ_VAL, NULL, 0,  blocks,
+				     disks, len);
+}
 
 /**
  * async_syndrome_val - asynchronously validate a raid6 syndrome
@@ -260,13 +270,13 @@ async_syndrome_val(struct page **blocks, unsigned int offset, int disks,
 		   size_t len, enum sum_check_flags *pqres, struct page *spare,
 		   struct async_submit_ctl *submit)
 {
-	struct dma_chan *chan = async_tx_find_channel(submit, DMA_PQ_VAL,
-						      NULL, 0,  blocks, disks,
-						      len);
+	struct dma_chan *chan = pq_val_chan(submit, blocks, disks, len);
 	struct dma_device *device = chan ? chan->device : NULL;
 	struct dma_async_tx_descriptor *tx;
+	unsigned char coefs[disks-2];
 	enum dma_ctrl_flags dma_flags = submit->cb_fn ? DMA_PREP_INTERRUPT : 0;
 	dma_addr_t *dma_src = NULL;
+	int src_cnt = 0;
 
 	BUG_ON(disks < 4);
 
@@ -285,22 +295,32 @@ async_syndrome_val(struct page **blocks, unsigned int offset, int disks,
 			 __func__, disks, len);
 		if (!P(blocks, disks))
 			dma_flags |= DMA_PREP_PQ_DISABLE_P;
+		else
+			pq[0] = dma_map_page(dev, P(blocks, disks),
+					     offset, len,
+					     DMA_TO_DEVICE);
 		if (!Q(blocks, disks))
 			dma_flags |= DMA_PREP_PQ_DISABLE_Q;
+		else
+			pq[1] = dma_map_page(dev, Q(blocks, disks),
+					     offset, len,
+					     DMA_TO_DEVICE);
+
 		if (submit->flags & ASYNC_TX_FENCE)
 			dma_flags |= DMA_PREP_FENCE;
-		for (i = 0; i < disks; i++)
+		for (i = 0; i < disks-2; i++)
 			if (likely(blocks[i])) {
-				BUG_ON(is_raid6_zero_block(blocks[i]));
-				dma_src[i] = dma_map_page(dev, blocks[i],
-							  offset, len,
-							  DMA_TO_DEVICE);
+				dma_src[src_cnt] = dma_map_page(dev, blocks[i],
+								offset, len,
+								DMA_TO_DEVICE);
+				coefs[src_cnt] = raid6_gfexp[i];
+				src_cnt++;
 			}
 
 		for (;;) {
 			tx = device->device_prep_dma_pq_val(chan, pq, dma_src,
-							    disks - 2,
-							    raid6_gfexp,
+							    src_cnt,
+							    coefs,
 							    len, pqres,
 							    dma_flags);
 			if (likely(tx))
@@ -373,9 +393,9 @@ EXPORT_SYMBOL_GPL(async_syndrome_val);
 
 static int __init async_pq_init(void)
 {
-	scribble = alloc_page(GFP_KERNEL);
+	pq_scribble_page = alloc_page(GFP_KERNEL);
 
-	if (scribble)
+	if (pq_scribble_page)
 		return 0;
 
 	pr_err("%s: failed to allocate required spare page\n", __func__);
@@ -385,7 +405,7 @@ static int __init async_pq_init(void)
 
 static void __exit async_pq_exit(void)
 {
-	put_page(scribble);
+	put_page(pq_scribble_page);
 }
 
 module_init(async_pq_init);

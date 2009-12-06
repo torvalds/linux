@@ -2205,7 +2205,7 @@ static int l2cap_build_conf_req(struct sock *sk, void *data)
 {
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
 	struct l2cap_conf_req *req = data;
-	struct l2cap_conf_rfc rfc = { .mode = L2CAP_MODE_ERTM };
+	struct l2cap_conf_rfc rfc = { .mode = L2CAP_MODE_BASIC };
 	void *ptr = req->data;
 
 	BT_DBG("sk %p", sk);
@@ -2394,6 +2394,10 @@ done:
 			rfc.monitor_timeout = L2CAP_DEFAULT_MONITOR_TO;
 
 			pi->conf_state |= L2CAP_CONF_MODE_DONE;
+
+			l2cap_add_conf_opt(&ptr, L2CAP_CONF_RFC,
+					sizeof(rfc), (unsigned long) &rfc);
+
 			break;
 
 		case L2CAP_MODE_STREAMING:
@@ -2401,6 +2405,10 @@ done:
 			pi->max_pdu_size = rfc.max_pdu_size;
 
 			pi->conf_state |= L2CAP_CONF_MODE_DONE;
+
+			l2cap_add_conf_opt(&ptr, L2CAP_CONF_RFC,
+					sizeof(rfc), (unsigned long) &rfc);
+
 			break;
 
 		default:
@@ -2409,9 +2417,6 @@ done:
 			memset(&rfc, 0, sizeof(rfc));
 			rfc.mode = pi->mode;
 		}
-
-		l2cap_add_conf_opt(&ptr, L2CAP_CONF_RFC,
-					sizeof(rfc), (unsigned long) &rfc);
 
 		if (result == L2CAP_CONF_SUCCESS)
 			pi->conf_state |= L2CAP_CONF_OUTPUT_DONE;

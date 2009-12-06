@@ -874,7 +874,7 @@ EXPORT_SYMBOL(copy_to_user);
  * data to the requested size using zero bytes.
  */
 unsigned long
-copy_from_user(void *to, const void __user *from, unsigned long n)
+_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	if (access_ok(VERIFY_READ, from, n))
 		n = __copy_from_user(to, from, n);
@@ -882,4 +882,10 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
 		memset(to, 0, n);
 	return n;
 }
-EXPORT_SYMBOL(copy_from_user);
+EXPORT_SYMBOL(_copy_from_user);
+
+void copy_from_user_overflow(void)
+{
+	WARN(1, "Buffer overflow detected!\n");
+}
+EXPORT_SYMBOL(copy_from_user_overflow);

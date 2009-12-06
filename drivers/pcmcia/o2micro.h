@@ -30,28 +30,6 @@
 #ifndef _LINUX_O2MICRO_H
 #define _LINUX_O2MICRO_H
 
-#ifndef PCI_VENDOR_ID_O2
-#define PCI_VENDOR_ID_O2		0x1217
-#endif
-#ifndef PCI_DEVICE_ID_O2_6729
-#define PCI_DEVICE_ID_O2_6729		0x6729
-#endif
-#ifndef PCI_DEVICE_ID_O2_6730
-#define PCI_DEVICE_ID_O2_6730		0x673a
-#endif
-#ifndef PCI_DEVICE_ID_O2_6832
-#define PCI_DEVICE_ID_O2_6832		0x6832
-#endif
-#ifndef PCI_DEVICE_ID_O2_6836
-#define PCI_DEVICE_ID_O2_6836		0x6836
-#endif
-#ifndef PCI_DEVICE_ID_O2_6812
-#define PCI_DEVICE_ID_O2_6812		0x6872
-#endif
-#ifndef PCI_DEVICE_ID_O2_6933
-#define PCI_DEVICE_ID_O2_6933           0x6933
-#endif
-
 /* Additional PCI configuration registers */
 
 #define O2_MUX_CONTROL		0x90	/* 32 bit */

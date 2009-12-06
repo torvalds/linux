@@ -1,5 +1,5 @@
-#ifndef QUOTE_H
-#define QUOTE_H
+#ifndef __PERF_QUOTE_H
+#define __PERF_QUOTE_H
 
 #include <stddef.h>
 #include <stdio.h>
@@ -65,4 +65,4 @@ extern void perl_quote_print(FILE *stream, const char *src);
 extern void python_quote_print(FILE *stream, const char *src);
 extern void tcl_quote_print(FILE *stream, const char *src);
 
-#endif
+#endif /* __PERF_QUOTE_H */

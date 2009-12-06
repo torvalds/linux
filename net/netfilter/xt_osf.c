@@ -118,7 +118,7 @@ static int xt_osf_remove_callback(struct sock *ctnl, struct sk_buff *skb,
 {
 	struct xt_osf_user_finger *f;
 	struct xt_osf_finger *sf;
-	int err = ENOENT;
+	int err = -ENOENT;
 
 	if (!osf_attrs[OSF_ATTR_FINGER])
 		return -EINVAL;

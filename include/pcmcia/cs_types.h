@@ -26,8 +26,7 @@ typedef u_int	event_t;
 typedef u_char	cisdata_t;
 typedef u_short	page_t;
 
-struct window_t;
-typedef struct window_t *window_handle_t;
+typedef unsigned long window_handle_t;
 
 struct region_t;
 typedef struct region_t *memory_handle_t;

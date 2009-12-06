@@ -144,4 +144,4 @@ module_exit(omap3evm_soc_exit);
 
 MODULE_AUTHOR("Anuj Aggarwal <anuj.aggarwal@ti.com>");
 MODULE_DESCRIPTION("ALSA SoC OMAP3 EVM");
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL v2");

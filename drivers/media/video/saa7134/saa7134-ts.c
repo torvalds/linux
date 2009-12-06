@@ -262,11 +262,13 @@ int saa7134_ts_start(struct saa7134_dev *dev)
 	switch (saa7134_boards[dev->board].ts_type) {
 	case SAA7134_MPEG_TS_PARALLEL:
 		saa_writeb(SAA7134_TS_SERIAL0, 0x40);
-		saa_writeb(SAA7134_TS_PARALLEL, 0xec);
+		saa_writeb(SAA7134_TS_PARALLEL, 0xec |
+			(saa7134_boards[dev->board].ts_force_val << 4));
 		break;
 	case SAA7134_MPEG_TS_SERIAL:
 		saa_writeb(SAA7134_TS_SERIAL0, 0xd8);
-		saa_writeb(SAA7134_TS_PARALLEL, 0x6c);
+		saa_writeb(SAA7134_TS_PARALLEL, 0x6c |
+			(saa7134_boards[dev->board].ts_force_val << 4));
 		saa_writeb(SAA7134_TS_PARALLEL_SERIAL, 0xbc);
 		saa_writeb(SAA7134_TS_SERIAL1, 0x02);
 		break;

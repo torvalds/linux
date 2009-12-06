@@ -3656,10 +3656,7 @@ wv_pcmcia_reset(struct net_device *	dev)
 
   i = pcmcia_access_configuration_register(link, &reg);
   if (i != 0)
-    {
-      cs_error(link, AccessConfigurationRegister, i);
       return FALSE;
-    }
       
 #ifdef DEBUG_CONFIG_INFO
   printk(KERN_DEBUG "%s: wavelan_pcmcia_reset(): Config reg is 0x%x\n",
@@ -3670,19 +3667,13 @@ wv_pcmcia_reset(struct net_device *	dev)
   reg.Value = reg.Value | COR_SW_RESET;
   i = pcmcia_access_configuration_register(link, &reg);
   if (i != 0)
-    {
-      cs_error(link, AccessConfigurationRegister, i);
       return FALSE;
-    }
       
   reg.Action = CS_WRITE;
   reg.Value = COR_LEVEL_IRQ | COR_CONFIG;
   i = pcmcia_access_configuration_register(link, &reg);
   if (i != 0)
-    {
-      cs_error(link, AccessConfigurationRegister, i);
       return FALSE;
-    }
 
 #ifdef DEBUG_CONFIG_TRACE
   printk(KERN_DEBUG "%s: <-wv_pcmcia_reset()\n", dev->name);
@@ -3857,10 +3848,7 @@ wv_pcmcia_config(struct pcmcia_device *	link)
     {
       i = pcmcia_request_io(link, &link->io);
       if (i != 0)
-	{
-	  cs_error(link, RequestIO, i);
 	  break;
-	}
 
       /*
        * Now allocate an interrupt line.  Note that this does not
@@ -3868,10 +3856,7 @@ wv_pcmcia_config(struct pcmcia_device *	link)
        */
       i = pcmcia_request_irq(link, &link->irq);
       if (i != 0)
-	{
-	  cs_error(link, RequestIRQ, i);
 	  break;
-	}
 
       /*
        * This actually configures the PCMCIA socket -- setting up
@@ -3880,10 +3865,7 @@ wv_pcmcia_config(struct pcmcia_device *	link)
       link->conf.ConfigIndex = 1;
       i = pcmcia_request_configuration(link, &link->conf);
       if (i != 0)
-	{
-	  cs_error(link, RequestConfiguration, i);
 	  break;
-	}
 
       /*
        * Allocate a small memory window.  Note that the struct pcmcia_device
@@ -3894,24 +3876,18 @@ wv_pcmcia_config(struct pcmcia_device *	link)
       req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
       req.Base = req.Size = 0;
       req.AccessSpeed = mem_speed;
-      i = pcmcia_request_window(&link, &req, &link->win);
+      i = pcmcia_request_window(link, &req, &link->win);
       if (i != 0)
-	{
-	  cs_error(link, RequestWindow, i);
 	  break;
-	}
 
       lp->mem = ioremap(req.Base, req.Size);
       dev->mem_start = (u_long)lp->mem;
       dev->mem_end = dev->mem_start + req.Size;
 
       mem.CardOffset = 0; mem.Page = 0;
-      i = pcmcia_map_mem_page(link->win, &mem);
+      i = pcmcia_map_mem_page(link, link->win, &mem);
       if (i != 0)
-	{
-	  cs_error(link, MapMemPage, i);
 	  break;
-	}
 
       /* Feed device with this info... */
       dev->irq = link->irq.AssignedIRQ;
@@ -3923,7 +3899,7 @@ wv_pcmcia_config(struct pcmcia_device *	link)
 	     lp->mem, dev->irq, (u_int) dev->base_addr);
 #endif
 
-      SET_NETDEV_DEV(dev, &handle_to_dev(link));
+      SET_NETDEV_DEV(dev, &link->dev);
       i = register_netdev(dev);
       if(i != 0)
 	{
@@ -4462,8 +4438,7 @@ wavelan_probe(struct pcmcia_device *p_dev)
   p_dev->io.IOAddrLines = 3;
 
   /* Interrupt setup */
-  p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
-  p_dev->irq.IRQInfo1 = IRQ_LEVEL_ID;
+  p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
   p_dev->irq.Handler = wavelan_interrupt;
 
   /* General socket configuration */
@@ -4475,7 +4450,7 @@ wavelan_probe(struct pcmcia_device *p_dev)
   if (!dev)
       return -ENOMEM;
 
-  p_dev->priv = p_dev->irq.Instance = dev;
+  p_dev->priv = dev;
 
   lp = netdev_priv(dev);
 

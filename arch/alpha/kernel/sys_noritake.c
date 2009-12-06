@@ -74,7 +74,7 @@ noritake_end_irq(unsigned int irq)
 }
 
 static struct irq_chip noritake_irq_type = {
-	.typename	= "NORITAKE",
+	.name		= "NORITAKE",
 	.startup	= noritake_startup_irq,
 	.shutdown	= noritake_disable_irq,
 	.enable		= noritake_enable_irq,

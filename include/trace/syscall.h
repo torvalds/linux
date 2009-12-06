@@ -12,51 +12,48 @@
  * A syscall entry in the ftrace syscalls array.
  *
  * @name: name of the syscall
+ * @syscall_nr: number of the syscall
  * @nb_args: number of parameters it takes
  * @types: list of types as strings
  * @args: list of args as strings (args[i] matches types[i])
- * @enter_id: associated ftrace enter event id
- * @exit_id: associated ftrace exit event id
  * @enter_event: associated syscall_enter trace event
  * @exit_event: associated syscall_exit trace event
  */
 struct syscall_metadata {
 	const char	*name;
+	int		syscall_nr;
 	int		nb_args;
 	const char	**types;
 	const char	**args;
-	int		enter_id;
-	int		exit_id;
 
 	struct ftrace_event_call *enter_event;
 	struct ftrace_event_call *exit_event;
 };
 
 #ifdef CONFIG_FTRACE_SYSCALLS
-extern struct syscall_metadata *syscall_nr_to_meta(int nr);
-extern int syscall_name_to_nr(char *name);
-void set_syscall_enter_id(int num, int id);
-void set_syscall_exit_id(int num, int id);
-extern struct trace_event event_syscall_enter;
-extern struct trace_event event_syscall_exit;
-extern int reg_event_syscall_enter(void *ptr);
-extern void unreg_event_syscall_enter(void *ptr);
-extern int reg_event_syscall_exit(void *ptr);
-extern void unreg_event_syscall_exit(void *ptr);
+extern unsigned long arch_syscall_addr(int nr);
+extern int init_syscall_trace(struct ftrace_event_call *call);
+
 extern int syscall_enter_format(struct ftrace_event_call *call,
 				struct trace_seq *s);
 extern int syscall_exit_format(struct ftrace_event_call *call,
 				struct trace_seq *s);
 extern int syscall_enter_define_fields(struct ftrace_event_call *call);
 extern int syscall_exit_define_fields(struct ftrace_event_call *call);
+extern int reg_event_syscall_enter(struct ftrace_event_call *call);
+extern void unreg_event_syscall_enter(struct ftrace_event_call *call);
+extern int reg_event_syscall_exit(struct ftrace_event_call *call);
+extern void unreg_event_syscall_exit(struct ftrace_event_call *call);
+extern int
+ftrace_format_syscall(struct ftrace_event_call *call, struct trace_seq *s);
 enum print_line_t print_syscall_enter(struct trace_iterator *iter, int flags);
 enum print_line_t print_syscall_exit(struct trace_iterator *iter, int flags);
 #endif
 #ifdef CONFIG_EVENT_PROFILE
-int reg_prof_syscall_enter(char *name);
-void unreg_prof_syscall_enter(char *name);
-int reg_prof_syscall_exit(char *name);
-void unreg_prof_syscall_exit(char *name);
+int prof_sysenter_enable(struct ftrace_event_call *call);
+void prof_sysenter_disable(struct ftrace_event_call *call);
+int prof_sysexit_enable(struct ftrace_event_call *call);
+void prof_sysexit_disable(struct ftrace_event_call *call);
 
 #endif
 

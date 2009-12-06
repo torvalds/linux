@@ -871,7 +871,7 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	if (error)
 		goto fail_gunlock2;
 
-	error = gfs2_acl_create(dip, GFS2_I(inode));
+	error = gfs2_acl_create(dip, inode);
 	if (error)
 		goto fail_gunlock2;
 
@@ -947,9 +947,7 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 
 	str->di_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
 	str->di_header.mh_type = cpu_to_be32(GFS2_METATYPE_DI);
-	str->di_header.__pad0 = 0;
 	str->di_header.mh_format = cpu_to_be32(GFS2_FORMAT_DI);
-	str->di_header.__pad1 = 0;
 	str->di_num.no_addr = cpu_to_be64(ip->i_no_addr);
 	str->di_num.no_formal_ino = cpu_to_be64(ip->i_no_formal_ino);
 	str->di_mode = cpu_to_be32(ip->i_inode.i_mode);

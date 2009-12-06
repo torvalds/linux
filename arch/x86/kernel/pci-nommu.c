@@ -33,7 +33,7 @@ static dma_addr_t nommu_map_page(struct device *dev, struct page *page,
 	dma_addr_t bus = page_to_phys(page) + offset;
 	WARN_ON(size == 0);
 	if (!check_addr("map_single", dev, bus, size))
-		return bad_dma_address;
+		return DMA_ERROR_CODE;
 	flush_write_buffers();
 	return bus;
 }
@@ -103,12 +103,3 @@ struct dma_map_ops nommu_dma_ops = {
 	.sync_sg_for_device	= nommu_sync_sg_for_device,
 	.is_phys		= 1,
 };
-
-void __init no_iommu_init(void)
-{
-	if (dma_ops)
-		return;
-
-	force_iommu = 0; /* no HW IOMMU */
-	dma_ops = &nommu_dma_ops;
-}

@@ -454,12 +454,29 @@ out_free:
 }
 EXPORT_SYMBOL(drm_fb_helper_init_crtc_count);
 
-static void setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
+static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 		     u16 blue, u16 regno, struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
 	struct drm_framebuffer *fb = fb_helper->fb;
 	int pindex;
+
+	if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
+		u32 *palette;
+		u32 value;
+		/* place color in psuedopalette */
+		if (regno > 16)
+			return -EINVAL;
+		palette = (u32 *)info->pseudo_palette;
+		red >>= (16 - info->var.red.length);
+		green >>= (16 - info->var.green.length);
+		blue >>= (16 - info->var.blue.length);
+		value = (red << info->var.red.offset) |
+			(green << info->var.green.offset) |
+			(blue << info->var.blue.offset);
+		palette[regno] = value;
+		return 0;
+	}
 
 	pindex = regno;
 
@@ -467,9 +484,9 @@ static void setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 		pindex = regno << 3;
 
 		if (fb->depth == 16 && regno > 63)
-			return;
+			return -EINVAL;
 		if (fb->depth == 15 && regno > 31)
-			return;
+			return -EINVAL;
 
 		if (fb->depth == 16) {
 			u16 r, g, b;
@@ -493,13 +510,7 @@ static void setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 
 	if (fb->depth != 16)
 		fb_helper->funcs->gamma_set(crtc, red, green, blue, pindex);
-
-	if (regno < 16 && info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
-		((u32 *) fb->pseudo_palette)[regno] =
-			(regno << info->var.red.offset) |
-			(regno << info->var.green.offset) |
-			(regno << info->var.blue.offset);
-	}
+	return 0;
 }
 
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
@@ -536,7 +547,9 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 			if (transp)
 				htransp = *transp++;
 
-			setcolreg(crtc, hred, hgreen, hblue, start++, info);
+			rc = setcolreg(crtc, hred, hgreen, hblue, start++, info);
+			if (rc)
+				return rc;
 		}
 		crtc_funcs->load_lut(crtc);
 	}
@@ -555,6 +568,7 @@ int drm_fb_helper_setcolreg(unsigned regno,
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_crtc *crtc;
 	int i;
+	int ret;
 
 	if (regno > 255)
 		return 1;
@@ -568,8 +582,10 @@ int drm_fb_helper_setcolreg(unsigned regno,
 		if (i == fb_helper->crtc_count)
 			continue;
 
+		ret = setcolreg(crtc, red, green, blue, regno, info);
+		if (ret)
+			return ret;
 
-		setcolreg(crtc, red, green, blue, regno, info);
 		crtc_funcs->load_lut(crtc);
 	}
 	return 0;
@@ -583,7 +599,7 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 	struct drm_framebuffer *fb = fb_helper->fb;
 	int depth;
 
-	if (var->pixclock == -1 || !var->pixclock)
+	if (var->pixclock != 0)
 		return -EINVAL;
 
 	/* Need to resize the fb object !!! */
@@ -675,7 +691,7 @@ int drm_fb_helper_set_par(struct fb_info *info)
 	int ret;
 	int i;
 
-	if (var->pixclock != -1) {
+	if (var->pixclock != 0) {
 		DRM_ERROR("PIXEL CLCOK SET\n");
 		return -EINVAL;
 	}
@@ -691,7 +707,7 @@ int drm_fb_helper_set_par(struct fb_info *info)
 
 		if (crtc->fb == fb_helper->crtc_info[i].mode_set.fb) {
 			mutex_lock(&dev->mode_config.mutex);
-			ret = crtc->funcs->set_config(&fb_helper->crtc_info->mode_set);
+			ret = crtc->funcs->set_config(&fb_helper->crtc_info[i].mode_set);
 			mutex_unlock(&dev->mode_config.mutex);
 			if (ret)
 				return ret;
@@ -888,7 +904,7 @@ int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 	fb_helper->fb = fb;
 
 	if (new_fb) {
-		info->var.pixclock = -1;
+		info->var.pixclock = 0;
 		if (register_framebuffer(info) < 0)
 			return -EINVAL;
 	} else {
@@ -928,7 +944,7 @@ void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 {
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.visual = depth == 8 ? FB_VISUAL_PSEUDOCOLOR :
-		FB_VISUAL_DIRECTCOLOR;
+		FB_VISUAL_TRUECOLOR;
 	info->fix.type_aux = 0;
 	info->fix.xpanstep = 1; /* doing it in hw */
 	info->fix.ypanstep = 1; /* doing it in hw */

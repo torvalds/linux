@@ -1,5 +1,5 @@
-#ifndef _PERF_VALUES_H
-#define _PERF_VALUES_H
+#ifndef __PERF_VALUES_H
+#define __PERF_VALUES_H
 
 #include "types.h"
 
@@ -24,4 +24,4 @@ void perf_read_values_add_value(struct perf_read_values *values,
 void perf_read_values_display(FILE *fp, struct perf_read_values *values,
 			      int raw);
 
-#endif /* _PERF_VALUES_H */
+#endif /* __PERF_VALUES_H */

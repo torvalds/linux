@@ -43,21 +43,6 @@
 
 #include "airo.h"
 
-/*
-   All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
-   you do not define PCMCIA_DEBUG at all, all the debug code will be
-   left out.  If you compile with PCMCIA_DEBUG=0, the debug code will
-   be present but disabled -- but it can then be enabled for specific
-   modules at load time with a 'pc_debug=#' option to insmod.
-*/
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-module_param(pc_debug, int, 0);
-static char *version = "$Revision: 1.2 $";
-#define DEBUG(n, args...) if (pc_debug > (n)) printk(KERN_DEBUG args);
-#else
-#define DEBUG(n, args...)
-#endif
 
 /*====================================================================*/
 
@@ -145,11 +130,10 @@ static int airo_probe(struct pcmcia_device *p_dev)
 {
 	local_info_t *local;
 
-	DEBUG(0, "airo_attach()\n");
+	dev_dbg(&p_dev->dev, "airo_attach()\n");
 
 	/* Interrupt setup */
 	p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	p_dev->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	p_dev->irq.Handler = NULL;
 
 	/*
@@ -184,7 +168,7 @@ static int airo_probe(struct pcmcia_device *p_dev)
 
 static void airo_detach(struct pcmcia_device *link)
 {
-	DEBUG(0, "airo_detach(0x%p)\n", link);
+	dev_dbg(&link->dev, "airo_detach\n");
 
 	airo_release(link);
 
@@ -203,9 +187,6 @@ static void airo_detach(struct pcmcia_device *link)
   device available to the system.
 
   ======================================================================*/
-
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
 static int airo_cs_config_check(struct pcmcia_device *p_dev,
 				cistpl_cftable_entry_t *cfg,
@@ -275,11 +256,11 @@ static int airo_cs_config_check(struct pcmcia_device *p_dev,
 		req->Base = mem->win[0].host_addr;
 		req->Size = mem->win[0].len;
 		req->AccessSpeed = 0;
-		if (pcmcia_request_window(&p_dev, req, &p_dev->win) != 0)
+		if (pcmcia_request_window(p_dev, req, &p_dev->win) != 0)
 			return -ENODEV;
 		map.Page = 0;
 		map.CardOffset = mem->win[0].card_addr;
-		if (pcmcia_map_mem_page(p_dev->win, &map) != 0)
+		if (pcmcia_map_mem_page(p_dev, p_dev->win, &map) != 0)
 			return -ENODEV;
 	}
 	/* If we got this far, we're cool! */
@@ -291,11 +272,11 @@ static int airo_config(struct pcmcia_device *link)
 {
 	local_info_t *dev;
 	win_req_t *req;
-	int last_fn, last_ret;
+	int ret;
 
 	dev = link->priv;
 
-	DEBUG(0, "airo_config(0x%p)\n", link);
+	dev_dbg(&link->dev, "airo_config\n");
 
 	req = kzalloc(sizeof(win_req_t), GFP_KERNEL);
 	if (!req)
@@ -315,8 +296,8 @@ static int airo_config(struct pcmcia_device *link)
 	 * and most client drivers will only use the CIS to fill in
 	 * implementation-defined details.
 	 */
-	last_ret = pcmcia_loop_config(link, airo_cs_config_check, req);
-	if (last_ret)
+	ret = pcmcia_loop_config(link, airo_cs_config_check, req);
+	if (ret)
 		goto failed;
 
 	/*
@@ -324,21 +305,25 @@ static int airo_config(struct pcmcia_device *link)
 	  handler to the interrupt, unless the 'Handler' member of the
 	  irq structure is initialized.
 	*/
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
+	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
+		ret = pcmcia_request_irq(link, &link->irq);
+		if (ret)
+			goto failed;
+	}
 
 	/*
 	  This actually configures the PCMCIA socket -- setting up
 	  the I/O windows and the interrupt mapping, and putting the
 	  card and host interface into "Memory and IO" mode.
 	*/
-	CS_CHECK(RequestConfiguration,
-		 pcmcia_request_configuration(link, &link->conf));
+	ret = pcmcia_request_configuration(link, &link->conf);
+	if (ret)
+		goto failed;
 	((local_info_t *)link->priv)->eth_dev =
 		init_airo_card(link->irq.AssignedIRQ,
-			       link->io.BasePort1, 1, &handle_to_dev(link));
+			       link->io.BasePort1, 1, &link->dev);
 	if (!((local_info_t *)link->priv)->eth_dev)
-		goto cs_failed;
+		goto failed;
 
 	/*
 	  At this point, the dev_node_t structure(s) need to be
@@ -368,8 +353,6 @@ static int airo_config(struct pcmcia_device *link)
 	kfree(req);
 	return 0;
 
- cs_failed:
-	cs_error(link, last_fn, last_ret);
  failed:
 	airo_release(link);
 	kfree(req);
@@ -386,7 +369,7 @@ static int airo_config(struct pcmcia_device *link)
 
 static void airo_release(struct pcmcia_device *link)
 {
-	DEBUG(0, "airo_release(0x%p)\n", link);
+	dev_dbg(&link->dev, "airo_release\n");
 	pcmcia_disable_device(link);
 }
 

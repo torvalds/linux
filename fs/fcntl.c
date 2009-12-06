@@ -284,7 +284,7 @@ static int f_setown_ex(struct file *filp, unsigned long arg)
 		type = PIDTYPE_PID;
 		break;
 
-	case F_OWNER_GID:
+	case F_OWNER_PGRP:
 		type = PIDTYPE_PGID;
 		break;
 
@@ -321,7 +321,7 @@ static int f_getown_ex(struct file *filp, unsigned long arg)
 		break;
 
 	case PIDTYPE_PGID:
-		owner.type = F_OWNER_GID;
+		owner.type = F_OWNER_PGRP;
 		break;
 
 	default:

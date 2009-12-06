@@ -59,6 +59,25 @@
 /* used by entry-macro.S and platsmp.c */
 void __iomem *gic_cpu_base_addr;
 
+#ifdef CONFIG_ZONE_DMA
+/*
+ * Adjust the zones if there are restrictions for DMA access.
+ */
+void __init realview_adjust_zones(int node, unsigned long *size,
+				  unsigned long *hole)
+{
+	unsigned long dma_size = SZ_256M >> PAGE_SHIFT;
+
+	if (!machine_is_realview_pbx() || node || (size[0] <= dma_size))
+		return;
+
+	size[ZONE_NORMAL] = size[0] - dma_size;
+	size[ZONE_DMA] = dma_size;
+	hole[ZONE_NORMAL] = hole[0];
+	hole[ZONE_DMA] = 0;
+}
+#endif
+
 /*
  * This is the RealView sched_clock implementation.  This has
  * a resolution of 41.7ns, and a maximum value of about 179s.
@@ -543,7 +562,7 @@ static int realview_clcd_setup(struct clcd_fb *fb)
 	fb->panel		= realview_clcd_panel();
 
 	fb->fb.screen_base = dma_alloc_writecombine(&fb->dev->dev, framesize,
-						    &dma, GFP_KERNEL);
+						    &dma, GFP_KERNEL | GFP_DMA);
 	if (!fb->fb.screen_base) {
 		printk(KERN_ERR "CLCD: unable to map framebuffer\n");
 		return -ENOMEM;
@@ -787,4 +806,25 @@ void __init realview_timer_init(unsigned int timer_irq)
 
 	realview_clocksource_init();
 	realview_clockevents_init(timer_irq);
+}
+
+/*
+ * Setup the memory banks.
+ */
+void realview_fixup(struct machine_desc *mdesc, struct tag *tags, char **from,
+		    struct meminfo *meminfo)
+{
+	/*
+	 * Most RealView platforms have 512MB contiguous RAM at 0x70000000.
+	 * Half of this is mirrored at 0.
+	 */
+#ifdef CONFIG_REALVIEW_HIGH_PHYS_OFFSET
+	meminfo->bank[0].start = 0x70000000;
+	meminfo->bank[0].size = SZ_512M;
+	meminfo->nr_banks = 1;
+#else
+	meminfo->bank[0].start = 0;
+	meminfo->bank[0].size = SZ_256M;
+	meminfo->nr_banks = 1;
+#endif
 }

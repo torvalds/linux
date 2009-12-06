@@ -41,6 +41,8 @@ u32 *bfi_image_cb;
 
 #define	BFAD_FW_FILE_CT	"ctfw.bin"
 #define	BFAD_FW_FILE_CB	"cbfw.bin"
+MODULE_FIRMWARE(BFAD_FW_FILE_CT);
+MODULE_FIRMWARE(BFAD_FW_FILE_CB);
 
 u32 *
 bfad_read_firmware(struct pci_dev *pdev, u32 **bfi_image,

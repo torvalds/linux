@@ -1071,7 +1071,7 @@ static struct pmcraid_cmd *pmcraid_init_hcam
 
 	ioarcb->data_transfer_length = cpu_to_le32(rcb_size);
 
-	ioadl[0].flags |= cpu_to_le32(IOADL_FLAGS_READ_LAST);
+	ioadl[0].flags |= IOADL_FLAGS_READ_LAST;
 	ioadl[0].data_len = cpu_to_le32(rcb_size);
 	ioadl[0].address = cpu_to_le32(dma);
 
@@ -2251,7 +2251,7 @@ static void pmcraid_request_sense(struct pmcraid_cmd *cmd)
 
 	ioadl->address = cpu_to_le64(cmd->sense_buffer_dma);
 	ioadl->data_len = cpu_to_le32(SCSI_SENSE_BUFFERSIZE);
-	ioadl->flags = cpu_to_le32(IOADL_FLAGS_LAST_DESC);
+	ioadl->flags = IOADL_FLAGS_LAST_DESC;
 
 	/* request sense might be called as part of error response processing
 	 * which runs in tasklets context. It is possible that mid-layer might
@@ -3017,7 +3017,7 @@ static int pmcraid_build_ioadl(
 		ioadl[i].flags = 0;
 	}
 	/* setup last descriptor */
-	ioadl[i - 1].flags = cpu_to_le32(IOADL_FLAGS_LAST_DESC);
+	ioadl[i - 1].flags = IOADL_FLAGS_LAST_DESC;
 
 	return 0;
 }
@@ -3387,7 +3387,7 @@ static int pmcraid_build_passthrough_ioadls(
 	}
 
 	/* setup the last descriptor */
-	ioadl[i - 1].flags = cpu_to_le32(IOADL_FLAGS_LAST_DESC);
+	ioadl[i - 1].flags = IOADL_FLAGS_LAST_DESC;
 
 	return 0;
 }
@@ -5314,7 +5314,7 @@ static void pmcraid_querycfg(struct pmcraid_cmd *cmd)
 		cpu_to_le32(sizeof(struct pmcraid_config_table));
 
 	ioadl = &(ioarcb->add_data.u.ioadl[0]);
-	ioadl->flags = cpu_to_le32(IOADL_FLAGS_LAST_DESC);
+	ioadl->flags = IOADL_FLAGS_LAST_DESC;
 	ioadl->address = cpu_to_le64(pinstance->cfg_table_bus_addr);
 	ioadl->data_len = cpu_to_le32(sizeof(struct pmcraid_config_table));
 

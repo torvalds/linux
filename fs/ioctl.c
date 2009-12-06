@@ -254,7 +254,7 @@ int __generic_block_fiemap(struct inode *inode,
 			   u64 len, get_block_t *get_block)
 {
 	struct buffer_head tmp;
-	unsigned int start_blk;
+	unsigned long long start_blk;
 	long long length = 0, map_len = 0;
 	u64 logical = 0, phys = 0, size = 0;
 	u32 flags = FIEMAP_EXTENT_MERGED;

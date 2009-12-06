@@ -31,6 +31,7 @@
 #include <linux/wait.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
+#include <linux/semaphore.h>
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/freezer.h>

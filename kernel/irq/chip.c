@@ -166,11 +166,11 @@ int set_irq_data(unsigned int irq, void *data)
 EXPORT_SYMBOL(set_irq_data);
 
 /**
- *	set_irq_data - set irq type data for an irq
+ *	set_irq_msi - set MSI descriptor data for an irq
  *	@irq:	Interrupt number
  *	@entry:	Pointer to MSI descriptor data
  *
- *	Set the hardware irq controller data for an irq
+ *	Set the MSI descriptor entry for an irq
  */
 int set_irq_msi(unsigned int irq, struct msi_desc *entry)
 {
@@ -590,7 +590,7 @@ out_unlock:
 }
 
 /**
- *	handle_percpu_IRQ - Per CPU local irq handler
+ *	handle_percpu_irq - Per CPU local irq handler
  *	@irq:	the interrupt number
  *	@desc:	the interrupt description structure for this irq
  *

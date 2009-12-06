@@ -73,7 +73,6 @@
 #include <linux/platform_device.h>
 #include <linux/miscdevice.h>
 #include <linux/capability.h>
-#include <linux/smp_lock.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -201,7 +200,6 @@ static int do_microcode_update(const void __user *buf, size_t size)
 
 static int microcode_open(struct inode *unused1, struct file *unused2)
 {
-	cycle_kernel_lock();
 	return capable(CAP_SYS_RAWIO) ? 0 : -EPERM;
 }
 
