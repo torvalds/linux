@@ -814,16 +814,17 @@ config USB_CDC_COMPOSITE
 
 config USB_G_MULTI
 	tristate "Multifunction Composite Gadget (EXPERIMENTAL)"
+	depends on BLOCK && NET
 	help
 	  The Multifunction Composite Gadget provides Ethernet (RNDIS
 	  and/or CDC Ethernet), mass storage and ACM serial link
 	  interfaces.
 
-	  You will be asked too choose which of the two configurations are
+	  You will be asked to choose which of the two configurations is
 	  to be available in the gadget.  At least one configuration must
-	  be choosen to make gadget usable.  Selecting more then one
+	  be chosen to make the gadget usable.  Selecting more than one
 	  configuration will prevent Windows from automatically detecting
-	  the gadget as a composite gadget an INF file will be needed to
+	  the gadget as a composite gadget, so an INF file will be needed to
 	  use the gadget.
 
 	  Say "y" to link the driver statically, or "m" to build a
@@ -836,8 +837,8 @@ config USB_G_MULTI_RNDIS
 	help
 	  This option enables a configuration with RNDIS, CDC Serial and
 	  Mass Storage functions available in the Multifunction Composite
-	  Gadget.  This is configuration dedicated for Windows since RNDIS
-	  is Microsfot's protocol.
+	  Gadget.  This is the configuration dedicated for Windows since RNDIS
+	  is Microsoft's protocol.
 
 	  If unsure, say "y".
 
@@ -848,8 +849,7 @@ config USB_G_MULTI_CDC
 	help
 	  This option enables a configuration with CDC Ethernet (ECM), CDC
 	  Serial and Mass Storage functions available in the Multifunction
-	  Composite Gadget.  This is configuration dedicated for Windows
-	  since RNDIS is Microsfot's protocol.
+	  Composite Gadget.
 
 	  If unsure, say "y".
 
