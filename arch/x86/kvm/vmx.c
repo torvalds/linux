@@ -61,6 +61,19 @@ module_param_named(unrestricted_guest,
 static int __read_mostly emulate_invalid_guest_state = 0;
 module_param(emulate_invalid_guest_state, bool, S_IRUGO);
 
+#define KVM_GUEST_CR0_MASK_UNRESTRICTED_GUEST				\
+	(X86_CR0_WP | X86_CR0_NE | X86_CR0_NW | X86_CR0_CD)
+#define KVM_GUEST_CR0_MASK						\
+	(KVM_GUEST_CR0_MASK_UNRESTRICTED_GUEST | X86_CR0_PG | X86_CR0_PE)
+#define KVM_VM_CR0_ALWAYS_ON_UNRESTRICTED_GUEST				\
+	(X86_CR0_WP | X86_CR0_NE | X86_CR0_TS | X86_CR0_MP)
+#define KVM_VM_CR0_ALWAYS_ON						\
+	(KVM_VM_CR0_ALWAYS_ON_UNRESTRICTED_GUEST | X86_CR0_PG | X86_CR0_PE)
+#define KVM_GUEST_CR4_MASK						\
+	(X86_CR4_VME | X86_CR4_PSE | X86_CR4_PAE | X86_CR4_PGE | X86_CR4_VMXE)
+#define KVM_PMODE_VM_CR4_ALWAYS_ON (X86_CR4_PAE | X86_CR4_VMXE)
+#define KVM_RMODE_VM_CR4_ALWAYS_ON (X86_CR4_VME | X86_CR4_PAE | X86_CR4_VMXE)
+
 /*
  * These 2 parameters are used to config the controls for Pause-Loop Exiting:
  * ple_gap:    upper bound on the amount of time between two successive
