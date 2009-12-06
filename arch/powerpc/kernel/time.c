@@ -54,6 +54,7 @@
 #include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/perf_event.h>
+#include <asm/trace.h>
 
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -571,6 +572,8 @@ void timer_interrupt(struct pt_regs * regs)
 	struct clock_event_device *evt = &decrementer->event;
 	u64 now;
 
+	trace_timer_interrupt_entry(regs);
+
 	/* Ensure a positive value is written to the decrementer, or else
 	 * some CPUs will continuue to take decrementer exceptions */
 	set_dec(DECREMENTER_MAX);
@@ -590,6 +593,7 @@ void timer_interrupt(struct pt_regs * regs)
 		now = decrementer->next_tb - now;
 		if (now <= DECREMENTER_MAX)
 			set_dec((int)now);
+		trace_timer_interrupt_exit(regs);
 		return;
 	}
 	old_regs = set_irq_regs(regs);
@@ -620,6 +624,8 @@ void timer_interrupt(struct pt_regs * regs)
 
 	irq_exit();
 	set_irq_regs(old_regs);
+
+	trace_timer_interrupt_exit(regs);
 }
 
 void wakeup_decrementer(void)

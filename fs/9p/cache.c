@@ -343,7 +343,7 @@ int __v9fs_fscache_release_page(struct page *page, gfp_t gfp)
 
 	BUG_ON(!vcookie->fscache);
 
-	return fscache_maybe_release_page(vnode->cache, page, gfp);
+	return fscache_maybe_release_page(vcookie->fscache, page, gfp);
 }
 
 void __v9fs_fscache_invalidate_page(struct page *page)

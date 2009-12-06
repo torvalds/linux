@@ -106,7 +106,8 @@ xpc_get_gru_mq_irq_uv(struct xpc_gru_mq_uv *mq, int cpu, char *irq_name)
 	int mmr_pnode = uv_blade_to_pnode(mq->mmr_blade);
 
 #if defined CONFIG_X86_64
-	mq->irq = uv_setup_irq(irq_name, cpu, mq->mmr_blade, mq->mmr_offset);
+	mq->irq = uv_setup_irq(irq_name, cpu, mq->mmr_blade, mq->mmr_offset,
+			UV_AFFINITY_CPU);
 	if (mq->irq < 0) {
 		dev_err(xpc_part, "uv_setup_irq() returned error=%d\n",
 			-mq->irq);
@@ -136,7 +137,7 @@ static void
 xpc_release_gru_mq_irq_uv(struct xpc_gru_mq_uv *mq)
 {
 #if defined CONFIG_X86_64
-	uv_teardown_irq(mq->irq, mq->mmr_blade, mq->mmr_offset);
+	uv_teardown_irq(mq->irq);
 
 #elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
 	int mmr_pnode;

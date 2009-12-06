@@ -71,7 +71,7 @@ pyxis_mask_and_ack_irq(unsigned int irq)
 }
 
 static struct irq_chip pyxis_irq_type = {
-	.typename	= "PYXIS",
+	.name		= "PYXIS",
 	.startup	= pyxis_startup_irq,
 	.shutdown	= pyxis_disable_irq,
 	.enable		= pyxis_enable_irq,

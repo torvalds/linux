@@ -26,20 +26,18 @@
 #include "util/parse-options.h"
 #include "util/parse-events.h"
 
+#include "util/data_map.h"
 #include "util/thread.h"
+#include "util/sort.h"
+#include "util/hist.h"
 
 static char		const *input_name = "perf.data";
 
-static char		default_sort_order[] = "comm,dso,symbol";
-static char		*sort_order = default_sort_order;
 static char		*dso_list_str, *comm_list_str, *sym_list_str,
 			*col_width_list_str;
 static struct strlist	*dso_list, *comm_list, *sym_list;
-static char		*field_sep;
 
 static int		force;
-static int		input;
-static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
 
 static int		full_paths;
 static int		show_nr_samples;
@@ -50,374 +48,38 @@ static struct perf_read_values	show_threads_values;
 static char		default_pretty_printing_style[] = "normal";
 static char		*pretty_printing_style = default_pretty_printing_style;
 
-static unsigned long	page_size;
-static unsigned long	mmap_window = 32;
-
-static char		default_parent_pattern[] = "^sys_|^do_page_fault";
-static char		*parent_pattern = default_parent_pattern;
-static regex_t		parent_regex;
-
 static int		exclude_other = 1;
 
 static char		callchain_default_opt[] = "fractal,0.5";
 
-static int		callchain;
-
-static char		__cwd[PATH_MAX];
-static char		*cwd = __cwd;
-static int		cwdlen;
-
-static struct rb_root	threads;
-static struct thread	*last_match;
-
 static struct perf_header *header;
-
-static
-struct callchain_param	callchain_param = {
-	.mode	= CHAIN_GRAPH_REL,
-	.min_percent = 0.5
-};
 
 static u64		sample_type;
 
-static int repsep_fprintf(FILE *fp, const char *fmt, ...)
-{
-	int n;
-	va_list ap;
+struct symbol_conf	symbol_conf;
 
-	va_start(ap, fmt);
-	if (!field_sep)
-		n = vfprintf(fp, fmt, ap);
-	else {
-		char *bf = NULL;
-		n = vasprintf(&bf, fmt, ap);
-		if (n > 0) {
-			char *sep = bf;
-
-			while (1) {
-				sep = strchr(sep, *field_sep);
-				if (sep == NULL)
-					break;
-				*sep = '.';
-			}
-		}
-		fputs(bf, fp);
-		free(bf);
-	}
-	va_end(ap);
-	return n;
-}
-
-static unsigned int dsos__col_width,
-		    comms__col_width,
-		    threads__col_width;
-
-/*
- * histogram, sorted on item, collects counts
- */
-
-static struct rb_root hist;
-
-struct hist_entry {
-	struct rb_node		rb_node;
-
-	struct thread		*thread;
-	struct map		*map;
-	struct dso		*dso;
-	struct symbol		*sym;
-	struct symbol		*parent;
-	u64			ip;
-	char			level;
-	struct callchain_node	callchain;
-	struct rb_root		sorted_chain;
-
-	u64			count;
-};
-
-/*
- * configurable sorting bits
- */
-
-struct sort_entry {
-	struct list_head list;
-
-	const char *header;
-
-	int64_t (*cmp)(struct hist_entry *, struct hist_entry *);
-	int64_t (*collapse)(struct hist_entry *, struct hist_entry *);
-	size_t	(*print)(FILE *fp, struct hist_entry *, unsigned int width);
-	unsigned int *width;
-	bool	elide;
-};
-
-static int64_t cmp_null(void *l, void *r)
-{
-	if (!l && !r)
-		return 0;
-	else if (!l)
-		return -1;
-	else
-		return 1;
-}
-
-/* --sort pid */
-
-static int64_t
-sort__thread_cmp(struct hist_entry *left, struct hist_entry *right)
-{
-	return right->thread->pid - left->thread->pid;
-}
 
 static size_t
-sort__thread_print(FILE *fp, struct hist_entry *self, unsigned int width)
+callchain__fprintf_left_margin(FILE *fp, int left_margin)
 {
-	return repsep_fprintf(fp, "%*s:%5d", width - 6,
-			      self->thread->comm ?: "", self->thread->pid);
-}
+	int i;
+	int ret;
 
-static struct sort_entry sort_thread = {
-	.header = "Command:  Pid",
-	.cmp	= sort__thread_cmp,
-	.print	= sort__thread_print,
-	.width	= &threads__col_width,
-};
+	ret = fprintf(fp, "            ");
 
-/* --sort comm */
-
-static int64_t
-sort__comm_cmp(struct hist_entry *left, struct hist_entry *right)
-{
-	return right->thread->pid - left->thread->pid;
-}
-
-static int64_t
-sort__comm_collapse(struct hist_entry *left, struct hist_entry *right)
-{
-	char *comm_l = left->thread->comm;
-	char *comm_r = right->thread->comm;
-
-	if (!comm_l || !comm_r)
-		return cmp_null(comm_l, comm_r);
-
-	return strcmp(comm_l, comm_r);
-}
-
-static size_t
-sort__comm_print(FILE *fp, struct hist_entry *self, unsigned int width)
-{
-	return repsep_fprintf(fp, "%*s", width, self->thread->comm);
-}
-
-static struct sort_entry sort_comm = {
-	.header		= "Command",
-	.cmp		= sort__comm_cmp,
-	.collapse	= sort__comm_collapse,
-	.print		= sort__comm_print,
-	.width		= &comms__col_width,
-};
-
-/* --sort dso */
-
-static int64_t
-sort__dso_cmp(struct hist_entry *left, struct hist_entry *right)
-{
-	struct dso *dso_l = left->dso;
-	struct dso *dso_r = right->dso;
-
-	if (!dso_l || !dso_r)
-		return cmp_null(dso_l, dso_r);
-
-	return strcmp(dso_l->name, dso_r->name);
-}
-
-static size_t
-sort__dso_print(FILE *fp, struct hist_entry *self, unsigned int width)
-{
-	if (self->dso)
-		return repsep_fprintf(fp, "%-*s", width, self->dso->name);
-
-	return repsep_fprintf(fp, "%*llx", width, (u64)self->ip);
-}
-
-static struct sort_entry sort_dso = {
-	.header = "Shared Object",
-	.cmp	= sort__dso_cmp,
-	.print	= sort__dso_print,
-	.width	= &dsos__col_width,
-};
-
-/* --sort symbol */
-
-static int64_t
-sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
-{
-	u64 ip_l, ip_r;
-
-	if (left->sym == right->sym)
-		return 0;
-
-	ip_l = left->sym ? left->sym->start : left->ip;
-	ip_r = right->sym ? right->sym->start : right->ip;
-
-	return (int64_t)(ip_r - ip_l);
-}
-
-static size_t
-sort__sym_print(FILE *fp, struct hist_entry *self, unsigned int width __used)
-{
-	size_t ret = 0;
-
-	if (verbose)
-		ret += repsep_fprintf(fp, "%#018llx %c ", (u64)self->ip,
-				      dso__symtab_origin(self->dso));
-
-	ret += repsep_fprintf(fp, "[%c] ", self->level);
-	if (self->sym) {
-		ret += repsep_fprintf(fp, "%s", self->sym->name);
-
-		if (self->sym->module)
-			ret += repsep_fprintf(fp, "\t[%s]",
-					     self->sym->module->name);
-	} else {
-		ret += repsep_fprintf(fp, "%#016llx", (u64)self->ip);
-	}
+	for (i = 0; i < left_margin; i++)
+		ret += fprintf(fp, " ");
 
 	return ret;
 }
 
-static struct sort_entry sort_sym = {
-	.header = "Symbol",
-	.cmp	= sort__sym_cmp,
-	.print	= sort__sym_print,
-};
-
-/* --sort parent */
-
-static int64_t
-sort__parent_cmp(struct hist_entry *left, struct hist_entry *right)
-{
-	struct symbol *sym_l = left->parent;
-	struct symbol *sym_r = right->parent;
-
-	if (!sym_l || !sym_r)
-		return cmp_null(sym_l, sym_r);
-
-	return strcmp(sym_l->name, sym_r->name);
-}
-
-static size_t
-sort__parent_print(FILE *fp, struct hist_entry *self, unsigned int width)
-{
-	return repsep_fprintf(fp, "%-*s", width,
-			      self->parent ? self->parent->name : "[other]");
-}
-
-static unsigned int parent_symbol__col_width;
-
-static struct sort_entry sort_parent = {
-	.header = "Parent symbol",
-	.cmp	= sort__parent_cmp,
-	.print	= sort__parent_print,
-	.width	= &parent_symbol__col_width,
-};
-
-static int sort__need_collapse = 0;
-static int sort__has_parent = 0;
-
-struct sort_dimension {
-	const char		*name;
-	struct sort_entry	*entry;
-	int			taken;
-};
-
-static struct sort_dimension sort_dimensions[] = {
-	{ .name = "pid",	.entry = &sort_thread,	},
-	{ .name = "comm",	.entry = &sort_comm,	},
-	{ .name = "dso",	.entry = &sort_dso,	},
-	{ .name = "symbol",	.entry = &sort_sym,	},
-	{ .name = "parent",	.entry = &sort_parent,	},
-};
-
-static LIST_HEAD(hist_entry__sort_list);
-
-static int sort_dimension__add(const char *tok)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(sort_dimensions); i++) {
-		struct sort_dimension *sd = &sort_dimensions[i];
-
-		if (sd->taken)
-			continue;
-
-		if (strncasecmp(tok, sd->name, strlen(tok)))
-			continue;
-
-		if (sd->entry->collapse)
-			sort__need_collapse = 1;
-
-		if (sd->entry == &sort_parent) {
-			int ret = regcomp(&parent_regex, parent_pattern, REG_EXTENDED);
-			if (ret) {
-				char err[BUFSIZ];
-
-				regerror(ret, &parent_regex, err, sizeof(err));
-				fprintf(stderr, "Invalid regex: %s\n%s",
-					parent_pattern, err);
-				exit(-1);
-			}
-			sort__has_parent = 1;
-		}
-
-		list_add_tail(&sd->entry->list, &hist_entry__sort_list);
-		sd->taken = 1;
-
-		return 0;
-	}
-
-	return -ESRCH;
-}
-
-static int64_t
-hist_entry__cmp(struct hist_entry *left, struct hist_entry *right)
-{
-	struct sort_entry *se;
-	int64_t cmp = 0;
-
-	list_for_each_entry(se, &hist_entry__sort_list, list) {
-		cmp = se->cmp(left, right);
-		if (cmp)
-			break;
-	}
-
-	return cmp;
-}
-
-static int64_t
-hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
-{
-	struct sort_entry *se;
-	int64_t cmp = 0;
-
-	list_for_each_entry(se, &hist_entry__sort_list, list) {
-		int64_t (*f)(struct hist_entry *, struct hist_entry *);
-
-		f = se->collapse ?: se->cmp;
-
-		cmp = f(left, right);
-		if (cmp)
-			break;
-	}
-
-	return cmp;
-}
-
-static size_t ipchain__fprintf_graph_line(FILE *fp, int depth, int depth_mask)
+static size_t ipchain__fprintf_graph_line(FILE *fp, int depth, int depth_mask,
+					  int left_margin)
 {
 	int i;
 	size_t ret = 0;
 
-	ret += fprintf(fp, "%s", "                ");
+	ret += callchain__fprintf_left_margin(fp, left_margin);
 
 	for (i = 0; i < depth; i++)
 		if (depth_mask & (1 << i))
@@ -432,12 +94,12 @@ static size_t ipchain__fprintf_graph_line(FILE *fp, int depth, int depth_mask)
 static size_t
 ipchain__fprintf_graph(FILE *fp, struct callchain_list *chain, int depth,
 		       int depth_mask, int count, u64 total_samples,
-		       int hits)
+		       int hits, int left_margin)
 {
 	int i;
 	size_t ret = 0;
 
-	ret += fprintf(fp, "%s", "                ");
+	ret += callchain__fprintf_left_margin(fp, left_margin);
 	for (i = 0; i < depth; i++) {
 		if (depth_mask & (1 << i))
 			ret += fprintf(fp, "|");
@@ -475,8 +137,9 @@ static void init_rem_hits(void)
 }
 
 static size_t
-callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
-			u64 total_samples, int depth, int depth_mask)
+__callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
+			   u64 total_samples, int depth, int depth_mask,
+			   int left_margin)
 {
 	struct rb_node *node, *next;
 	struct callchain_node *child;
@@ -517,7 +180,8 @@ callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 		 * But we keep the older depth mask for the line seperator
 		 * to keep the level link until we reach the last child
 		 */
-		ret += ipchain__fprintf_graph_line(fp, depth, depth_mask);
+		ret += ipchain__fprintf_graph_line(fp, depth, depth_mask,
+						   left_margin);
 		i = 0;
 		list_for_each_entry(chain, &child->val, list) {
 			if (chain->ip >= PERF_CONTEXT_MAX)
@@ -525,11 +189,13 @@ callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 			ret += ipchain__fprintf_graph(fp, chain, depth,
 						      new_depth_mask, i++,
 						      new_total,
-						      cumul);
+						      cumul,
+						      left_margin);
 		}
-		ret += callchain__fprintf_graph(fp, child, new_total,
-						depth + 1,
-						new_depth_mask | (1 << depth));
+		ret += __callchain__fprintf_graph(fp, child, new_total,
+						  depth + 1,
+						  new_depth_mask | (1 << depth),
+						  left_margin);
 		node = next;
 	}
 
@@ -543,8 +209,47 @@ callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 
 		ret += ipchain__fprintf_graph(fp, &rem_hits, depth,
 					      new_depth_mask, 0, new_total,
-					      remaining);
+					      remaining, left_margin);
 	}
+
+	return ret;
+}
+
+
+static size_t
+callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
+			 u64 total_samples, int left_margin)
+{
+	struct callchain_list *chain;
+	bool printed = false;
+	int i = 0;
+	int ret = 0;
+
+	list_for_each_entry(chain, &self->val, list) {
+		if (chain->ip >= PERF_CONTEXT_MAX)
+			continue;
+
+		if (!i++ && sort__first_dimension == SORT_SYM)
+			continue;
+
+		if (!printed) {
+			ret += callchain__fprintf_left_margin(fp, left_margin);
+			ret += fprintf(fp, "|\n");
+			ret += callchain__fprintf_left_margin(fp, left_margin);
+			ret += fprintf(fp, "---");
+
+			left_margin += 3;
+			printed = true;
+		} else
+			ret += callchain__fprintf_left_margin(fp, left_margin);
+
+		if (chain->sym)
+			ret += fprintf(fp, " %s\n", chain->sym->name);
+		else
+			ret += fprintf(fp, " %p\n", (void *)(long)chain->ip);
+	}
+
+	ret += __callchain__fprintf_graph(fp, self, total_samples, 1, 1, left_margin);
 
 	return ret;
 }
@@ -577,7 +282,7 @@ callchain__fprintf_flat(FILE *fp, struct callchain_node *self,
 
 static size_t
 hist_entry_callchain__fprintf(FILE *fp, struct hist_entry *self,
-			      u64 total_samples)
+			      u64 total_samples, int left_margin)
 {
 	struct rb_node *rb_node;
 	struct callchain_node *chain;
@@ -597,8 +302,8 @@ hist_entry_callchain__fprintf(FILE *fp, struct hist_entry *self,
 			break;
 		case CHAIN_GRAPH_ABS: /* Falldown */
 		case CHAIN_GRAPH_REL:
-			ret += callchain__fprintf_graph(fp, chain,
-							total_samples, 1, 1);
+			ret += callchain__fprintf_graph(fp, chain, total_samples,
+							left_margin);
 		case CHAIN_NONE:
 		default:
 			break;
@@ -609,7 +314,6 @@ hist_entry_callchain__fprintf(FILE *fp, struct hist_entry *self,
 
 	return ret;
 }
-
 
 static size_t
 hist_entry__fprintf(FILE *fp, struct hist_entry *self, u64 total_samples)
@@ -644,8 +348,19 @@ hist_entry__fprintf(FILE *fp, struct hist_entry *self, u64 total_samples)
 
 	ret += fprintf(fp, "\n");
 
-	if (callchain)
-		hist_entry_callchain__fprintf(fp, self, total_samples);
+	if (callchain) {
+		int left_margin = 0;
+
+		if (sort__first_dimension == SORT_COMM) {
+			se = list_first_entry(&hist_entry__sort_list, typeof(*se),
+						list);
+			left_margin = se->width ? *se->width : 0;
+			left_margin -= thread__comm_len(self->thread);
+		}
+
+		hist_entry_callchain__fprintf(fp, self, total_samples,
+					      left_margin);
+	}
 
 	return ret;
 }
@@ -693,63 +408,6 @@ static int thread__set_comm_adjust(struct thread *self, const char *comm)
 	return 0;
 }
 
-
-static struct symbol *
-resolve_symbol(struct thread *thread, struct map **mapp,
-	       struct dso **dsop, u64 *ipp)
-{
-	struct dso *dso = dsop ? *dsop : NULL;
-	struct map *map = mapp ? *mapp : NULL;
-	u64 ip = *ipp;
-
-	if (!thread)
-		return NULL;
-
-	if (dso)
-		goto got_dso;
-
-	if (map)
-		goto got_map;
-
-	map = thread__find_map(thread, ip);
-	if (map != NULL) {
-		/*
-		 * We have to do this here as we may have a dso
-		 * with no symbol hit that has a name longer than
-		 * the ones with symbols sampled.
-		 */
-		if (!sort_dso.elide && !map->dso->slen_calculated)
-			dso__calc_col_width(map->dso);
-
-		if (mapp)
-			*mapp = map;
-got_map:
-		ip = map->map_ip(map, ip);
-
-		dso = map->dso;
-	} else {
-		/*
-		 * If this is outside of all known maps,
-		 * and is a negative address, try to look it
-		 * up in the kernel dso, as it might be a
-		 * vsyscall (which executes in user-mode):
-		 */
-		if ((long long)ip < 0)
-		dso = kernel_dso;
-	}
-	dump_printf(" ...... dso: %s\n", dso ? dso->name : "<not found>");
-	dump_printf(" ...... map: %Lx -> %Lx\n", *ipp, ip);
-	*ipp  = ip;
-
-	if (dsop)
-		*dsop = dso;
-
-	if (!dso)
-		return NULL;
-got_dso:
-	return dso->find_symbol(dso, ip);
-}
-
 static int call__match(struct symbol *sym)
 {
 	if (sym->name && !regexec(&parent_regex, sym->name, 0, NULL, 0))
@@ -758,11 +416,11 @@ static int call__match(struct symbol *sym)
 	return 0;
 }
 
-static struct symbol **
-resolve_callchain(struct thread *thread, struct map *map __used,
-		    struct ip_callchain *chain, struct hist_entry *entry)
+static struct symbol **resolve_callchain(struct thread *thread,
+					 struct ip_callchain *chain,
+					 struct symbol **parent)
 {
-	u64 context = PERF_CONTEXT_MAX;
+	u8 cpumode = PERF_RECORD_MISC_USER;
 	struct symbol **syms = NULL;
 	unsigned int i;
 
@@ -776,34 +434,31 @@ resolve_callchain(struct thread *thread, struct map *map __used,
 
 	for (i = 0; i < chain->nr; i++) {
 		u64 ip = chain->ips[i];
-		struct dso *dso = NULL;
-		struct symbol *sym;
+		struct addr_location al;
 
 		if (ip >= PERF_CONTEXT_MAX) {
-			context = ip;
+			switch (ip) {
+			case PERF_CONTEXT_HV:
+				cpumode = PERF_RECORD_MISC_HYPERVISOR;	break;
+			case PERF_CONTEXT_KERNEL:
+				cpumode = PERF_RECORD_MISC_KERNEL;	break;
+			case PERF_CONTEXT_USER:
+				cpumode = PERF_RECORD_MISC_USER;	break;
+			default:
+				break;
+			}
 			continue;
 		}
 
-		switch (context) {
-		case PERF_CONTEXT_HV:
-			dso = hypervisor_dso;
-			break;
-		case PERF_CONTEXT_KERNEL:
-			dso = kernel_dso;
-			break;
-		default:
-			break;
-		}
-
-		sym = resolve_symbol(thread, NULL, &dso, &ip);
-
-		if (sym) {
-			if (sort__has_parent && call__match(sym) &&
-			    !entry->parent)
-				entry->parent = sym;
+		thread__find_addr_location(thread, cpumode, MAP__FUNCTION,
+					   ip, &al, NULL);
+		if (al.sym != NULL) {
+			if (sort__has_parent && !*parent &&
+			    call__match(al.sym))
+				*parent = al.sym;
 			if (!callchain)
 				break;
-			syms[i] = sym;
+			syms[i] = al.sym;
 		}
 	}
 
@@ -814,176 +469,31 @@ resolve_callchain(struct thread *thread, struct map *map __used,
  * collect histogram counts
  */
 
-static int
-hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
-		struct symbol *sym, u64 ip, struct ip_callchain *chain,
-		char level, u64 count)
+static int hist_entry__add(struct addr_location *al,
+			   struct ip_callchain *chain, u64 count)
 {
-	struct rb_node **p = &hist.rb_node;
-	struct rb_node *parent = NULL;
+	struct symbol **syms = NULL, *parent = NULL;
+	bool hit;
 	struct hist_entry *he;
-	struct symbol **syms = NULL;
-	struct hist_entry entry = {
-		.thread	= thread,
-		.map	= map,
-		.dso	= dso,
-		.sym	= sym,
-		.ip	= ip,
-		.level	= level,
-		.count	= count,
-		.parent = NULL,
-		.sorted_chain = RB_ROOT
-	};
-	int cmp;
 
 	if ((sort__has_parent || callchain) && chain)
-		syms = resolve_callchain(thread, map, chain, &entry);
+		syms = resolve_callchain(al->thread, chain, &parent);
 
-	while (*p != NULL) {
-		parent = *p;
-		he = rb_entry(parent, struct hist_entry, rb_node);
-
-		cmp = hist_entry__cmp(&entry, he);
-
-		if (!cmp) {
-			he->count += count;
-			if (callchain) {
-				append_chain(&he->callchain, chain, syms);
-				free(syms);
-			}
-			return 0;
-		}
-
-		if (cmp < 0)
-			p = &(*p)->rb_left;
-		else
-			p = &(*p)->rb_right;
-	}
-
-	he = malloc(sizeof(*he));
-	if (!he)
+	he = __hist_entry__add(al, parent, count, &hit);
+	if (he == NULL)
 		return -ENOMEM;
-	*he = entry;
+
+	if (hit)
+		he->count += count;
+
 	if (callchain) {
-		callchain_init(&he->callchain);
+		if (!hit)
+			callchain_init(&he->callchain);
 		append_chain(&he->callchain, chain, syms);
 		free(syms);
 	}
-	rb_link_node(&he->rb_node, parent, p);
-	rb_insert_color(&he->rb_node, &hist);
 
 	return 0;
-}
-
-static void hist_entry__free(struct hist_entry *he)
-{
-	free(he);
-}
-
-/*
- * collapse the histogram
- */
-
-static struct rb_root collapse_hists;
-
-static void collapse__insert_entry(struct hist_entry *he)
-{
-	struct rb_node **p = &collapse_hists.rb_node;
-	struct rb_node *parent = NULL;
-	struct hist_entry *iter;
-	int64_t cmp;
-
-	while (*p != NULL) {
-		parent = *p;
-		iter = rb_entry(parent, struct hist_entry, rb_node);
-
-		cmp = hist_entry__collapse(iter, he);
-
-		if (!cmp) {
-			iter->count += he->count;
-			hist_entry__free(he);
-			return;
-		}
-
-		if (cmp < 0)
-			p = &(*p)->rb_left;
-		else
-			p = &(*p)->rb_right;
-	}
-
-	rb_link_node(&he->rb_node, parent, p);
-	rb_insert_color(&he->rb_node, &collapse_hists);
-}
-
-static void collapse__resort(void)
-{
-	struct rb_node *next;
-	struct hist_entry *n;
-
-	if (!sort__need_collapse)
-		return;
-
-	next = rb_first(&hist);
-	while (next) {
-		n = rb_entry(next, struct hist_entry, rb_node);
-		next = rb_next(&n->rb_node);
-
-		rb_erase(&n->rb_node, &hist);
-		collapse__insert_entry(n);
-	}
-}
-
-/*
- * reverse the map, sort on count.
- */
-
-static struct rb_root output_hists;
-
-static void output__insert_entry(struct hist_entry *he, u64 min_callchain_hits)
-{
-	struct rb_node **p = &output_hists.rb_node;
-	struct rb_node *parent = NULL;
-	struct hist_entry *iter;
-
-	if (callchain)
-		callchain_param.sort(&he->sorted_chain, &he->callchain,
-				      min_callchain_hits, &callchain_param);
-
-	while (*p != NULL) {
-		parent = *p;
-		iter = rb_entry(parent, struct hist_entry, rb_node);
-
-		if (he->count > iter->count)
-			p = &(*p)->rb_left;
-		else
-			p = &(*p)->rb_right;
-	}
-
-	rb_link_node(&he->rb_node, parent, p);
-	rb_insert_color(&he->rb_node, &output_hists);
-}
-
-static void output__resort(u64 total_samples)
-{
-	struct rb_node *next;
-	struct hist_entry *n;
-	struct rb_root *tree = &hist;
-	u64 min_callchain_hits;
-
-	min_callchain_hits = total_samples * (callchain_param.min_percent / 100);
-
-	if (sort__need_collapse)
-		tree = &collapse_hists;
-
-	next = rb_first(tree);
-
-	while (next) {
-		n = rb_entry(next, struct hist_entry, rb_node);
-		next = rb_next(&n->rb_node);
-
-		rb_erase(&n->rb_node, tree);
-		output__insert_entry(n, min_callchain_hits);
-	}
 }
 
 static size_t output__fprintf(FILE *fp, u64 total_samples)
@@ -1080,13 +590,6 @@ print_entries:
 	return ret;
 }
 
-static unsigned long total = 0,
-		     total_mmap = 0,
-		     total_comm = 0,
-		     total_fork = 0,
-		     total_unknown = 0,
-		     total_lost = 0;
-
 static int validate_chain(struct ip_callchain *chain, event_t *event)
 {
 	unsigned int chain_size;
@@ -1100,30 +603,22 @@ static int validate_chain(struct ip_callchain *chain, event_t *event)
 	return 0;
 }
 
-static int
-process_sample_event(event_t *event, unsigned long offset, unsigned long head)
+static int process_sample_event(event_t *event)
 {
-	char level;
-	int show = 0;
-	struct dso *dso = NULL;
-	struct thread *thread;
 	u64 ip = event->ip.ip;
 	u64 period = 1;
-	struct map *map = NULL;
 	void *more_data = event->ip.__more_data;
 	struct ip_callchain *chain = NULL;
 	int cpumode;
-
-	thread = threads__findnew(event->ip.pid, &threads, &last_match);
+	struct addr_location al;
+	struct thread *thread = threads__findnew(event->ip.pid);
 
 	if (sample_type & PERF_SAMPLE_PERIOD) {
 		period = *(u64 *)more_data;
 		more_data += sizeof(u64);
 	}
 
-	dump_printf("%p [%p]: PERF_RECORD_SAMPLE (IP, %d): %d/%d: %p period: %Ld\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
+	dump_printf("(IP, %d): %d/%d: %p period: %Ld\n",
 		event->header.misc,
 		event->ip.pid, event->ip.tid,
 		(void *)(long)ip,
@@ -1137,7 +632,8 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		dump_printf("... chain: nr:%Lu\n", chain->nr);
 
 		if (validate_chain(chain, event) < 0) {
-			eprintf("call-chain problem with event, skipping it.\n");
+			pr_debug("call-chain problem with event, "
+				 "skipping it.\n");
 			return 0;
 		}
 
@@ -1147,163 +643,64 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		}
 	}
 
-	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
-
 	if (thread == NULL) {
-		eprintf("problem processing %d event, skipping it.\n",
+		pr_debug("problem processing %d event, skipping it.\n",
 			event->header.type);
 		return -1;
 	}
+
+	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
 	if (comm_list && !strlist__has_entry(comm_list, thread->comm))
 		return 0;
 
 	cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
-	if (cpumode == PERF_RECORD_MISC_KERNEL) {
-		show = SHOW_KERNEL;
-		level = 'k';
+	thread__find_addr_location(thread, cpumode,
+				   MAP__FUNCTION, ip, &al, NULL);
+	/*
+	 * We have to do this here as we may have a dso with no symbol hit that
+	 * has a name longer than the ones with symbols sampled.
+	 */
+	if (al.map && !sort_dso.elide && !al.map->dso->slen_calculated)
+		dso__calc_col_width(al.map->dso);
 
-		dso = kernel_dso;
-
-		dump_printf(" ...... dso: %s\n", dso->name);
-
-	} else if (cpumode == PERF_RECORD_MISC_USER) {
-
-		show = SHOW_USER;
-		level = '.';
-
-	} else {
-		show = SHOW_HV;
-		level = 'H';
-
-		dso = hypervisor_dso;
-
-		dump_printf(" ...... dso: [hypervisor]\n");
-	}
-
-	if (show & show_mask) {
-		struct symbol *sym = resolve_symbol(thread, &map, &dso, &ip);
-
-		if (dso_list && (!dso || !dso->name ||
-				 !strlist__has_entry(dso_list, dso->name)))
-			return 0;
-
-		if (sym_list && (!sym || !strlist__has_entry(sym_list, sym->name)))
-			return 0;
-
-		if (hist_entry__add(thread, map, dso, sym, ip, chain, level, period)) {
-			eprintf("problem incrementing symbol count, skipping event\n");
-			return -1;
-		}
-	}
-	total += period;
-
-	return 0;
-}
-
-static int
-process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
-{
-	struct thread *thread;
-	struct map *map = map__new(&event->mmap, cwd, cwdlen);
-
-	thread = threads__findnew(event->mmap.pid, &threads, &last_match);
-
-	dump_printf("%p [%p]: PERF_RECORD_MMAP %d/%d: [%p(%p) @ %p]: %s\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
-		event->mmap.pid,
-		event->mmap.tid,
-		(void *)(long)event->mmap.start,
-		(void *)(long)event->mmap.len,
-		(void *)(long)event->mmap.pgoff,
-		event->mmap.filename);
-
-	if (thread == NULL || map == NULL) {
-		dump_printf("problem processing PERF_RECORD_MMAP, skipping event.\n");
+	if (dso_list &&
+	    (!al.map || !al.map->dso ||
+	     !(strlist__has_entry(dso_list, al.map->dso->short_name) ||
+	       (al.map->dso->short_name != al.map->dso->long_name &&
+		strlist__has_entry(dso_list, al.map->dso->long_name)))))
 		return 0;
+
+	if (sym_list && al.sym && !strlist__has_entry(sym_list, al.sym->name))
+		return 0;
+
+	if (hist_entry__add(&al, chain, period)) {
+		pr_debug("problem incrementing symbol count, skipping event\n");
+		return -1;
 	}
 
-	thread__insert_map(thread, map);
-	total_mmap++;
+	event__stats.total += period;
 
 	return 0;
 }
 
-static int
-process_comm_event(event_t *event, unsigned long offset, unsigned long head)
+static int process_comm_event(event_t *event)
 {
-	struct thread *thread;
+	struct thread *thread = threads__findnew(event->comm.pid);
 
-	thread = threads__findnew(event->comm.pid, &threads, &last_match);
-
-	dump_printf("%p [%p]: PERF_RECORD_COMM: %s:%d\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
-		event->comm.comm, event->comm.pid);
+	dump_printf(": %s:%d\n", event->comm.comm, event->comm.pid);
 
 	if (thread == NULL ||
 	    thread__set_comm_adjust(thread, event->comm.comm)) {
 		dump_printf("problem processing PERF_RECORD_COMM, skipping event.\n");
 		return -1;
 	}
-	total_comm++;
 
 	return 0;
 }
 
-static int
-process_task_event(event_t *event, unsigned long offset, unsigned long head)
-{
-	struct thread *thread;
-	struct thread *parent;
-
-	thread = threads__findnew(event->fork.pid, &threads, &last_match);
-	parent = threads__findnew(event->fork.ppid, &threads, &last_match);
-
-	dump_printf("%p [%p]: PERF_RECORD_%s: (%d:%d):(%d:%d)\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
-		event->header.type == PERF_RECORD_FORK ? "FORK" : "EXIT",
-		event->fork.pid, event->fork.tid,
-		event->fork.ppid, event->fork.ptid);
-
-	/*
-	 * A thread clone will have the same PID for both
-	 * parent and child.
-	 */
-	if (thread == parent)
-		return 0;
-
-	if (event->header.type == PERF_RECORD_EXIT)
-		return 0;
-
-	if (!thread || !parent || thread__fork(thread, parent)) {
-		dump_printf("problem processing PERF_RECORD_FORK, skipping event.\n");
-		return -1;
-	}
-	total_fork++;
-
-	return 0;
-}
-
-static int
-process_lost_event(event_t *event, unsigned long offset, unsigned long head)
-{
-	dump_printf("%p [%p]: PERF_RECORD_LOST: id:%Ld: lost:%Ld\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
-		event->lost.id,
-		event->lost.lost);
-
-	total_lost += event->lost.lost;
-
-	return 0;
-}
-
-static int
-process_read_event(event_t *event, unsigned long offset, unsigned long head)
+static int process_read_event(event_t *event)
 {
 	struct perf_event_attr *attr;
 
@@ -1319,238 +716,91 @@ process_read_event(event_t *event, unsigned long offset, unsigned long head)
 					   event->read.value);
 	}
 
-	dump_printf("%p [%p]: PERF_RECORD_READ: %d %d %s %Lu\n",
-			(void *)(offset + head),
-			(void *)(long)(event->header.size),
-			event->read.pid,
-			event->read.tid,
-			attr ? __event_name(attr->type, attr->config)
-			     : "FAIL",
-			event->read.value);
+	dump_printf(": %d %d %s %Lu\n", event->read.pid, event->read.tid,
+		    attr ? __event_name(attr->type, attr->config) : "FAIL",
+		    event->read.value);
 
 	return 0;
 }
 
-static int
-process_event(event_t *event, unsigned long offset, unsigned long head)
+static int sample_type_check(u64 type)
 {
-	trace_event(event);
-
-	switch (event->header.type) {
-	case PERF_RECORD_SAMPLE:
-		return process_sample_event(event, offset, head);
-
-	case PERF_RECORD_MMAP:
-		return process_mmap_event(event, offset, head);
-
-	case PERF_RECORD_COMM:
-		return process_comm_event(event, offset, head);
-
-	case PERF_RECORD_FORK:
-	case PERF_RECORD_EXIT:
-		return process_task_event(event, offset, head);
-
-	case PERF_RECORD_LOST:
-		return process_lost_event(event, offset, head);
-
-	case PERF_RECORD_READ:
-		return process_read_event(event, offset, head);
-
-	/*
-	 * We dont process them right now but they are fine:
-	 */
-
-	case PERF_RECORD_THROTTLE:
-	case PERF_RECORD_UNTHROTTLE:
-		return 0;
-
-	default:
-		return -1;
-	}
-
-	return 0;
-}
-
-static int __cmd_report(void)
-{
-	int ret, rc = EXIT_FAILURE;
-	unsigned long offset = 0;
-	unsigned long head, shift;
-	struct stat input_stat;
-	struct thread *idle;
-	event_t *event;
-	uint32_t size;
-	char *buf;
-
-	idle = register_idle_thread(&threads, &last_match);
-	thread__comm_adjust(idle);
-
-	if (show_threads)
-		perf_read_values_init(&show_threads_values);
-
-	input = open(input_name, O_RDONLY);
-	if (input < 0) {
-		fprintf(stderr, " failed to open file: %s", input_name);
-		if (!strcmp(input_name, "perf.data"))
-			fprintf(stderr, "  (try 'perf record' first)");
-		fprintf(stderr, "\n");
-		exit(-1);
-	}
-
-	ret = fstat(input, &input_stat);
-	if (ret < 0) {
-		perror("failed to stat file");
-		exit(-1);
-	}
-
-	if (!force && input_stat.st_uid && (input_stat.st_uid != geteuid())) {
-		fprintf(stderr, "file: %s not owned by current user or root\n", input_name);
-		exit(-1);
-	}
-
-	if (!input_stat.st_size) {
-		fprintf(stderr, "zero-sized file, nothing to do!\n");
-		exit(0);
-	}
-
-	header = perf_header__read(input);
-	head = header->data_offset;
-
-	sample_type = perf_header__sample_type(header);
+	sample_type = type;
 
 	if (!(sample_type & PERF_SAMPLE_CALLCHAIN)) {
 		if (sort__has_parent) {
 			fprintf(stderr, "selected --sort parent, but no"
 					" callchain data. Did you call"
 					" perf record without -g?\n");
-			exit(-1);
+			return -1;
 		}
 		if (callchain) {
 			fprintf(stderr, "selected -g but no callchain data."
 					" Did you call perf record without"
 					" -g?\n");
-			exit(-1);
+			return -1;
 		}
 	} else if (callchain_param.mode != CHAIN_NONE && !callchain) {
 			callchain = 1;
 			if (register_callchain_param(&callchain_param) < 0) {
 				fprintf(stderr, "Can't register callchain"
 						" params\n");
-				exit(-1);
+				return -1;
 			}
 	}
 
-	if (load_kernel() < 0) {
-		perror("failed to load kernel symbols");
-		return EXIT_FAILURE;
-	}
+	return 0;
+}
 
-	if (!full_paths) {
-		if (getcwd(__cwd, sizeof(__cwd)) == NULL) {
-			perror("failed to get the current directory");
-			return EXIT_FAILURE;
-		}
-		cwdlen = strlen(cwd);
-	} else {
-		cwd = NULL;
-		cwdlen = 0;
-	}
+static struct perf_file_handler file_handler = {
+	.process_sample_event	= process_sample_event,
+	.process_mmap_event	= event__process_mmap,
+	.process_comm_event	= process_comm_event,
+	.process_exit_event	= event__process_task,
+	.process_fork_event	= event__process_task,
+	.process_lost_event	= event__process_lost,
+	.process_read_event	= process_read_event,
+	.sample_type_check	= sample_type_check,
+};
 
-	shift = page_size * (head / page_size);
-	offset += shift;
-	head -= shift;
 
-remap:
-	buf = (char *)mmap(NULL, page_size * mmap_window, PROT_READ,
-			   MAP_SHARED, input, offset);
-	if (buf == MAP_FAILED) {
-		perror("failed to mmap file");
-		exit(-1);
-	}
+static int __cmd_report(void)
+{
+	struct thread *idle;
+	int ret;
 
-more:
-	event = (event_t *)(buf + head);
+	idle = register_idle_thread();
+	thread__comm_adjust(idle);
 
-	size = event->header.size;
-	if (!size)
-		size = 8;
+	if (show_threads)
+		perf_read_values_init(&show_threads_values);
 
-	if (head + event->header.size >= page_size * mmap_window) {
-		int munmap_ret;
+	register_perf_file_handler(&file_handler);
 
-		shift = page_size * (head / page_size);
+	ret = mmap_dispatch_perf_file(&header, input_name, force,
+				      full_paths, &event__cwdlen, &event__cwd);
+	if (ret)
+		return ret;
 
-		munmap_ret = munmap(buf, page_size * mmap_window);
-		assert(munmap_ret == 0);
-
-		offset += shift;
-		head -= shift;
-		goto remap;
-	}
-
-	size = event->header.size;
-
-	dump_printf("\n%p [%p]: event: %d\n",
-			(void *)(offset + head),
-			(void *)(long)event->header.size,
-			event->header.type);
-
-	if (!size || process_event(event, offset, head) < 0) {
-
-		dump_printf("%p [%p]: skipping unknown header type: %d\n",
-			(void *)(offset + head),
-			(void *)(long)(event->header.size),
-			event->header.type);
-
-		total_unknown++;
-
-		/*
-		 * assume we lost track of the stream, check alignment, and
-		 * increment a single u64 in the hope to catch on again 'soon'.
-		 */
-
-		if (unlikely(head & 7))
-			head &= ~7ULL;
-
-		size = 8;
-	}
-
-	head += size;
-
-	if (offset + head >= header->data_offset + header->data_size)
-		goto done;
-
-	if (offset + head < (unsigned long)input_stat.st_size)
-		goto more;
-
-done:
-	rc = EXIT_SUCCESS;
-	close(input);
-
-	dump_printf("      IP events: %10ld\n", total);
-	dump_printf("    mmap events: %10ld\n", total_mmap);
-	dump_printf("    comm events: %10ld\n", total_comm);
-	dump_printf("    fork events: %10ld\n", total_fork);
-	dump_printf("    lost events: %10ld\n", total_lost);
-	dump_printf(" unknown events: %10ld\n", total_unknown);
-
-	if (dump_trace)
+	if (dump_trace) {
+		event__print_totals();
 		return 0;
+	}
 
-	if (verbose >= 3)
-		threads__fprintf(stdout, &threads);
+	if (verbose > 3)
+		threads__fprintf(stdout);
 
-	if (verbose >= 2)
+	if (verbose > 2)
 		dsos__fprintf(stdout);
 
 	collapse__resort();
-	output__resort(total);
-	output__fprintf(stdout, total);
+	output__resort(event__stats.total);
+	output__fprintf(stdout, event__stats.total);
 
 	if (show_threads)
 		perf_read_values_destroy(&show_threads_values);
 
-	return rc;
+	return ret;
 }
 
 static int
@@ -1606,7 +856,8 @@ setup:
 	return 0;
 }
 
-static const char * const report_usage[] = {
+//static const char * const report_usage[] = {
+const char * const report_usage[] = {
 	"perf report [<options>] <command>",
 	NULL
 };
@@ -1618,9 +869,10 @@ static const struct option options[] = {
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
-	OPT_STRING('k', "vmlinux", &vmlinux_name, "file", "vmlinux pathname"),
+	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
+		   "file", "vmlinux pathname"),
 	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
-	OPT_BOOLEAN('m', "modules", &modules,
+	OPT_BOOLEAN('m', "modules", &symbol_conf.use_modules,
 		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
 	OPT_BOOLEAN('n', "show-nr-samples", &show_nr_samples,
 		    "Show a column with the number of samples"),
@@ -1690,9 +942,8 @@ static void setup_list(struct strlist **list, const char *list_str,
 
 int cmd_report(int argc, const char **argv, const char *prefix __used)
 {
-	symbol__init();
-
-	page_size = getpagesize();
+	if (symbol__init(&symbol_conf) < 0)
+		return -1;
 
 	argc = parse_options(argc, argv, options, report_usage, 0);
 

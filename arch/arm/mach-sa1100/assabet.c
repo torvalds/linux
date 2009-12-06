@@ -249,10 +249,10 @@ static void __init assabet_init(void)
 #endif
 	}
 
-	sa11x0_set_flash_data(&assabet_flash_data, assabet_flash_resources,
-			      ARRAY_SIZE(assabet_flash_resources));
-	sa11x0_set_irda_data(&assabet_irda_data);
-	sa11x0_set_mcp_data(&assabet_mcp_data);
+	sa11x0_register_mtd(&assabet_flash_data, assabet_flash_resources,
+			    ARRAY_SIZE(assabet_flash_resources));
+	sa11x0_register_irda(&assabet_irda_data);
+	sa11x0_register_mcp(&assabet_mcp_data);
 }
 
 /*

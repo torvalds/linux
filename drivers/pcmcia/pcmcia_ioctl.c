@@ -58,17 +58,6 @@ typedef struct user_info_t {
 } user_info_t;
 
 
-#ifdef CONFIG_PCMCIA_DEBUG
-extern int ds_pc_debug;
-
-#define ds_dbg(lvl, fmt, arg...) do {		\
-	if (ds_pc_debug >= lvl)				\
-		printk(KERN_DEBUG "ds: " fmt , ## arg);		\
-} while (0)
-#else
-#define ds_dbg(lvl, fmt, arg...) do { } while (0)
-#endif
-
 static struct pcmcia_device *get_pcmcia_device(struct pcmcia_socket *s,
 						unsigned int function)
 {
@@ -228,6 +217,61 @@ static int pcmcia_adjust_resource_info(adjust_t *adj)
 
 	return (ret);
 }
+
+
+/** pcmcia_get_window
+ */
+static int pcmcia_get_window(struct pcmcia_socket *s, window_handle_t *wh_out,
+			window_handle_t wh, win_req_t *req)
+{
+	pccard_mem_map *win;
+	window_handle_t w;
+
+	wh--;
+	if (!s || !(s->state & SOCKET_PRESENT))
+		return -ENODEV;
+	if (wh >= MAX_WIN)
+		return -EINVAL;
+	for (w = wh; w < MAX_WIN; w++)
+		if (s->state & SOCKET_WIN_REQ(w))
+			break;
+	if (w == MAX_WIN)
+		return -EINVAL;
+	win = &s->win[w];
+	req->Base = win->res->start;
+	req->Size = win->res->end - win->res->start + 1;
+	req->AccessSpeed = win->speed;
+	req->Attributes = 0;
+	if (win->flags & MAP_ATTRIB)
+		req->Attributes |= WIN_MEMORY_TYPE_AM;
+	if (win->flags & MAP_ACTIVE)
+		req->Attributes |= WIN_ENABLE;
+	if (win->flags & MAP_16BIT)
+		req->Attributes |= WIN_DATA_WIDTH_16;
+	if (win->flags & MAP_USE_WAIT)
+		req->Attributes |= WIN_USE_WAIT;
+
+	*wh_out = w + 1;
+	return 0;
+} /* pcmcia_get_window */
+
+
+/** pcmcia_get_mem_page
+ *
+ * Change the card address of an already open memory window.
+ */
+static int pcmcia_get_mem_page(struct pcmcia_socket *skt, window_handle_t wh,
+			memreq_t *req)
+{
+	wh--;
+	if (wh >= MAX_WIN)
+		return -EINVAL;
+
+	req->Page = 0;
+	req->CardOffset = skt->win[wh].card_start;
+	return 0;
+} /* pcmcia_get_mem_page */
+
 
 /** pccard_get_status
  *
@@ -431,7 +475,7 @@ static int bind_request(struct pcmcia_socket *s, bind_info_t *bind_info)
 	if (!s)
 		return -EINVAL;
 
-	ds_dbg(2, "bind_request(%d, '%s')\n", s->sock,
+	pr_debug("bind_request(%d, '%s')\n", s->sock,
 	       (char *)bind_info->dev_info);
 
 	p_drv = get_pcmcia_driver(&bind_info->dev_info);
@@ -623,7 +667,7 @@ static int ds_open(struct inode *inode, struct file *file)
     static int warning_printed = 0;
     int ret = 0;
 
-    ds_dbg(0, "ds_open(socket %d)\n", i);
+    pr_debug("ds_open(socket %d)\n", i);
 
     lock_kernel();
     s = pcmcia_get_socket_by_nr(i);
@@ -685,7 +729,7 @@ static int ds_release(struct inode *inode, struct file *file)
     struct pcmcia_socket *s;
     user_info_t *user, **link;
 
-    ds_dbg(0, "ds_release(socket %d)\n", iminor(inode));
+    pr_debug("ds_release(socket %d)\n", iminor(inode));
 
     user = file->private_data;
     if (CHECK_USER(user))
@@ -719,7 +763,7 @@ static ssize_t ds_read(struct file *file, char __user *buf,
     user_info_t *user;
     int ret;
 
-    ds_dbg(2, "ds_read(socket %d)\n", iminor(file->f_path.dentry->d_inode));
+    pr_debug("ds_read(socket %d)\n", iminor(file->f_path.dentry->d_inode));
 
     if (count < 4)
 	return -EINVAL;
@@ -744,7 +788,7 @@ static ssize_t ds_read(struct file *file, char __user *buf,
 static ssize_t ds_write(struct file *file, const char __user *buf,
 			size_t count, loff_t *ppos)
 {
-    ds_dbg(2, "ds_write(socket %d)\n", iminor(file->f_path.dentry->d_inode));
+    pr_debug("ds_write(socket %d)\n", iminor(file->f_path.dentry->d_inode));
 
     if (count != 4)
 	return -EINVAL;
@@ -762,7 +806,7 @@ static u_int ds_poll(struct file *file, poll_table *wait)
     struct pcmcia_socket *s;
     user_info_t *user;
 
-    ds_dbg(2, "ds_poll(socket %d)\n", iminor(file->f_path.dentry->d_inode));
+    pr_debug("ds_poll(socket %d)\n", iminor(file->f_path.dentry->d_inode));
 
     user = file->private_data;
     if (CHECK_USER(user))
@@ -790,7 +834,7 @@ static int ds_ioctl(struct inode * inode, struct file * file,
     ds_ioctl_arg_t *buf;
     user_info_t *user;
 
-    ds_dbg(2, "ds_ioctl(socket %d, %#x, %#lx)\n", iminor(inode), cmd, arg);
+    pr_debug("ds_ioctl(socket %d, %#x, %#lx)\n", iminor(inode), cmd, arg);
 
     user = file->private_data;
     if (CHECK_USER(user))
@@ -809,13 +853,13 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 
     if (cmd & IOC_IN) {
 	if (!access_ok(VERIFY_READ, uarg, size)) {
-	    ds_dbg(3, "ds_ioctl(): verify_read = %d\n", -EFAULT);
+	    pr_debug("ds_ioctl(): verify_read = %d\n", -EFAULT);
 	    return -EFAULT;
 	}
     }
     if (cmd & IOC_OUT) {
 	if (!access_ok(VERIFY_WRITE, uarg, size)) {
-	    ds_dbg(3, "ds_ioctl(): verify_write = %d\n", -EFAULT);
+	    pr_debug("ds_ioctl(): verify_write = %d\n", -EFAULT);
 	    return -EFAULT;
 	}
     }
@@ -927,15 +971,15 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	goto free_out;
 	break;
     case DS_GET_FIRST_WINDOW:
-	ret = pcmcia_get_window(s, &buf->win_info.handle, 0,
+	ret = pcmcia_get_window(s, &buf->win_info.handle, 1,
 			&buf->win_info.window);
 	break;
     case DS_GET_NEXT_WINDOW:
 	ret = pcmcia_get_window(s, &buf->win_info.handle,
-			buf->win_info.handle->index + 1, &buf->win_info.window);
+			buf->win_info.handle + 1, &buf->win_info.window);
 	break;
     case DS_GET_MEM_PAGE:
-	ret = pcmcia_get_mem_page(buf->win_info.handle,
+	ret = pcmcia_get_mem_page(s, buf->win_info.handle,
 			   &buf->win_info.map);
 	break;
     case DS_REPLACE_CIS:
@@ -962,7 +1006,7 @@ static int ds_ioctl(struct inode * inode, struct file * file,
     }
 
     if ((err == 0) && (ret != 0)) {
-	ds_dbg(2, "ds_ioctl: ret = %d\n", ret);
+	pr_debug("ds_ioctl: ret = %d\n", ret);
 	switch (ret) {
 	case -ENODEV:
 	case -EINVAL:

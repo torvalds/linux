@@ -16,7 +16,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/wait.h>
-#include <linux/proc_fs.h>
+#include <linux/debugfs.h>
 #include "slow-work.h"
 
 static void slow_work_cull_timeout(unsigned long);
@@ -109,12 +109,36 @@ static struct module *slow_work_unreg_module;
 static struct slow_work *slow_work_unreg_work_item;
 static DECLARE_WAIT_QUEUE_HEAD(slow_work_unreg_wq);
 static DEFINE_MUTEX(slow_work_unreg_sync_lock);
+
+static void slow_work_set_thread_processing(int id, struct slow_work *work)
+{
+	if (work)
+		slow_work_thread_processing[id] = work->owner;
+}
+static void slow_work_done_thread_processing(int id, struct slow_work *work)
+{
+	struct module *module = slow_work_thread_processing[id];
+
+	slow_work_thread_processing[id] = NULL;
+	smp_mb();
+	if (slow_work_unreg_work_item == work ||
+	    slow_work_unreg_module == module)
+		wake_up_all(&slow_work_unreg_wq);
+}
+static void slow_work_clear_thread_processing(int id)
+{
+	slow_work_thread_processing[id] = NULL;
+}
+#else
+static void slow_work_set_thread_processing(int id, struct slow_work *work) {}
+static void slow_work_done_thread_processing(int id, struct slow_work *work) {}
+static void slow_work_clear_thread_processing(int id) {}
 #endif
 
 /*
  * Data for tracking currently executing items for indication through /proc
  */
-#ifdef CONFIG_SLOW_WORK_PROC
+#ifdef CONFIG_SLOW_WORK_DEBUG
 struct slow_work *slow_work_execs[SLOW_WORK_THREAD_LIMIT];
 pid_t slow_work_pids[SLOW_WORK_THREAD_LIMIT];
 DEFINE_RWLOCK(slow_work_execs_lock);
@@ -197,9 +221,6 @@ static unsigned slow_work_calc_vsmax(void)
  */
 static noinline bool slow_work_execute(int id)
 {
-#ifdef CONFIG_MODULES
-	struct module *module;
-#endif
 	struct slow_work *work = NULL;
 	unsigned vsmax;
 	bool very_slow;
@@ -236,10 +257,7 @@ static noinline bool slow_work_execute(int id)
 		very_slow = false; /* avoid the compiler warning */
 	}
 
-#ifdef CONFIG_MODULES
-	if (work)
-		slow_work_thread_processing[id] = work->owner;
-#endif
+	slow_work_set_thread_processing(id, work);
 	if (work) {
 		slow_work_mark_time(work);
 		slow_work_begin_exec(id, work);
@@ -287,15 +305,7 @@ static noinline bool slow_work_execute(int id)
 
 	/* sort out the race between module unloading and put_ref() */
 	slow_work_put_ref(work);
-
-#ifdef CONFIG_MODULES
-	module = slow_work_thread_processing[id];
-	slow_work_thread_processing[id] = NULL;
-	smp_mb();
-	if (slow_work_unreg_work_item == work ||
-	    slow_work_unreg_module == module)
-		wake_up_all(&slow_work_unreg_wq);
-#endif
+	slow_work_done_thread_processing(id, work);
 
 	return true;
 
@@ -310,7 +320,7 @@ auto_requeue:
 	else
 		list_add_tail(&work->link, &slow_work_queue);
 	spin_unlock_irq(&slow_work_queue_lock);
-	slow_work_thread_processing[id] = NULL;
+	slow_work_clear_thread_processing(id);
 	return true;
 }
 
@@ -813,7 +823,7 @@ static void slow_work_new_thread_execute(struct slow_work *work)
 static const struct slow_work_ops slow_work_new_thread_ops = {
 	.owner		= THIS_MODULE,
 	.execute	= slow_work_new_thread_execute,
-#ifdef CONFIG_SLOW_WORK_PROC
+#ifdef CONFIG_SLOW_WORK_DEBUG
 	.desc		= slow_work_new_thread_desc,
 #endif
 };
@@ -943,6 +953,7 @@ EXPORT_SYMBOL(slow_work_register_user);
  */
 static void slow_work_wait_for_items(struct module *module)
 {
+#ifdef CONFIG_MODULES
 	DECLARE_WAITQUEUE(myself, current);
 	struct slow_work *work;
 	int loop;
@@ -989,6 +1000,7 @@ static void slow_work_wait_for_items(struct module *module)
 
 	remove_wait_queue(&slow_work_unreg_wq, &myself);
 	mutex_unlock(&slow_work_unreg_sync_lock);
+#endif /* CONFIG_MODULES */
 }
 
 /**
@@ -1043,9 +1055,15 @@ static int __init init_slow_work(void)
 	if (slow_work_max_max_threads < nr_cpus * 2)
 		slow_work_max_max_threads = nr_cpus * 2;
 #endif
-#ifdef CONFIG_SLOW_WORK_PROC
-	proc_create("slow_work_rq", S_IFREG | 0400, NULL,
-		    &slow_work_runqueue_fops);
+#ifdef CONFIG_SLOW_WORK_DEBUG
+	{
+		struct dentry *dbdir;
+
+		dbdir = debugfs_create_dir("slow_work", NULL);
+		if (dbdir && !IS_ERR(dbdir))
+			debugfs_create_file("runqueue", S_IFREG | 0400, dbdir,
+					    NULL, &slow_work_runqueue_fops);
+	}
 #endif
 	return 0;
 }

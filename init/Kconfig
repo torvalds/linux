@@ -334,6 +334,15 @@ config TREE_PREEMPT_RCU
 	  is also required.  It also scales down nicely to
 	  smaller systems.
 
+config TINY_RCU
+	bool "UP-only small-memory-footprint RCU"
+	depends on !SMP
+	help
+	  This option selects the RCU implementation that is
+	  designed for UP systems from which real-time response
+	  is not required.  This option greatly reduces the
+	  memory footprint of RCU.
+
 endchoice
 
 config RCU_TRACE
@@ -606,7 +615,7 @@ config SYSFS_DEPRECATED
 	bool
 
 config SYSFS_DEPRECATED_V2
-	bool "remove sysfs features which may confuse old userspace tools"
+	bool "enable deprecated sysfs features which may confuse old userspace tools"
 	depends on SYSFS
 	default n
 	select SYSFS_DEPRECATED
@@ -1098,12 +1107,12 @@ config SLOW_WORK
 
 	  See Documentation/slow-work.txt.
 
-config SLOW_WORK_PROC
-	bool "Slow work debugging through /proc"
+config SLOW_WORK_DEBUG
+	bool "Slow work debugging through debugfs"
 	default n
-	depends on SLOW_WORK && PROC_FS
+	depends on SLOW_WORK && DEBUG_FS
 	help
-	  Display the contents of the slow work run queue through /proc,
+	  Display the contents of the slow work run queue through debugfs,
 	  including items currently executing.
 
 	  See Documentation/slow-work.txt.
@@ -1220,3 +1229,4 @@ source "block/Kconfig"
 config PREEMPT_NOTIFIERS
 	bool
 
+source "kernel/Kconfig.locks"
