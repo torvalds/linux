@@ -204,19 +204,16 @@ static const struct i2c_algorithm i2c_powermac_algorithm = {
 static int __devexit i2c_powermac_remove(struct platform_device *dev)
 {
 	struct i2c_adapter	*adapter = platform_get_drvdata(dev);
-	struct pmac_i2c_bus	*bus = i2c_get_adapdata(adapter);
 	int			rc;
 
 	rc = i2c_del_adapter(adapter);
-	pmac_i2c_detach_adapter(bus, adapter);
-	i2c_set_adapdata(adapter, NULL);
 	/* We aren't that prepared to deal with this... */
 	if (rc)
 		printk(KERN_WARNING
 		       "i2c-powermac.c: Failed to remove bus %s !\n",
 		       adapter->name);
 	platform_set_drvdata(dev, NULL);
-	kfree(adapter);
+	memset(adapter, 0, sizeof(*adapter));
 
 	return 0;
 }
@@ -261,23 +258,17 @@ static int __devinit i2c_powermac_probe(struct platform_device *dev)
 	snprintf(name, 32, "%s %d", basename, pmac_i2c_get_channel(bus));
 	of_node_put(parent);
 
-	adapter = kzalloc(sizeof(struct i2c_adapter), GFP_KERNEL);
-	if (adapter == NULL) {
-		printk(KERN_ERR "i2c-powermac: can't allocate inteface !\n");
-		return -ENOMEM;
-	}
+	adapter = pmac_i2c_get_adapter(bus);
 	platform_set_drvdata(dev, adapter);
 	strcpy(adapter->name, name);
 	adapter->algo = &i2c_powermac_algorithm;
 	i2c_set_adapdata(adapter, bus);
 	adapter->dev.parent = &dev->dev;
-	pmac_i2c_attach_adapter(bus, adapter);
 	rc = i2c_add_adapter(adapter);
 	if (rc) {
 		printk(KERN_ERR "i2c-powermac: Adapter %s registration "
 		       "failed\n", name);
-		i2c_set_adapdata(adapter, NULL);
-		pmac_i2c_detach_adapter(bus, adapter);
+		memset(adapter, 0, sizeof(*adapter));
 	}
 
 	printk(KERN_INFO "PowerMac i2c bus %s registered\n", name);
