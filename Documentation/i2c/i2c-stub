@@ -2,9 +2,9 @@ MODULE: i2c-stub
 
 DESCRIPTION:
 
-This module is a very simple fake I2C/SMBus driver.  It implements four
-types of SMBus commands: write quick, (r/w) byte, (r/w) byte data, and
-(r/w) word data.
+This module is a very simple fake I2C/SMBus driver.  It implements five
+types of SMBus commands: write quick, (r/w) byte, (r/w) byte data, (r/w)
+word data, and (r/w) I2C block data.
 
 You need to provide chip addresses as a module parameter when loading this
 driver, which will then only react to SMBus commands to these addresses.
