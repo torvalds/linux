@@ -283,7 +283,7 @@ struct cfq_data {
 	 */
 	struct cfq_queue oom_cfqq;
 
-	unsigned long last_end_sync_rq;
+	unsigned long last_delayed_sync;
 
 	/* List of cfq groups being managed on this device*/
 	struct hlist_head cfqg_list;
@@ -2264,7 +2264,7 @@ static bool cfq_may_dispatch(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	 * based on the last sync IO we serviced
 	 */
 	if (!cfq_cfqq_sync(cfqq) && cfqd->cfq_latency) {
-		unsigned long last_sync = jiffies - cfqd->last_end_sync_rq;
+		unsigned long last_sync = jiffies - cfqd->last_delayed_sync;
 		unsigned int depth;
 
 		depth = last_sync / cfqd->cfq_slice[1];
@@ -3273,7 +3273,8 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 
 	if (sync) {
 		RQ_CIC(rq)->last_end_request = now;
-		cfqd->last_end_sync_rq = now;
+		if (!time_after(rq->start_time + cfqd->cfq_fifo_expire[1], now))
+			cfqd->last_delayed_sync = now;
 	}
 
 	/*
@@ -3711,7 +3712,7 @@ static void *cfq_init_queue(struct request_queue *q)
 	cfqd->cfq_latency = 1;
 	cfqd->cfq_group_isolation = 0;
 	cfqd->hw_tag = -1;
-	cfqd->last_end_sync_rq = jiffies;
+	cfqd->last_delayed_sync = jiffies - HZ;
 	INIT_RCU_HEAD(&cfqd->rcu);
 	return cfqd;
 }
