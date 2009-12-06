@@ -302,12 +302,11 @@ process_exit_event(event_t *event)
 }
 
 struct trace_entry {
-	u32			size;
 	unsigned short		type;
 	unsigned char		flags;
 	unsigned char		preempt_count;
 	int			pid;
-	int			tgid;
+	int			lock_depth;
 };
 
 struct power_entry {
@@ -489,6 +488,7 @@ process_sample_event(event_t *event)
 	u64 stamp = 0;
 	u32 cpu = 0;
 	u32 pid = 0;
+	u32 size, *size_ptr;
 	struct trace_entry *te;
 
 	if (sample_type & PERF_SAMPLE_IP)
@@ -518,9 +518,13 @@ process_sample_event(event_t *event)
 	if (sample_type & PERF_SAMPLE_PERIOD)
 		cursor++;
 
-	te = (void *)&event->sample.array[cursor];
+	size_ptr = (void *)&event->sample.array[cursor];
 
-	if (sample_type & PERF_SAMPLE_RAW && te->size > 0) {
+	size = *size_ptr;
+	size_ptr++;
+
+	te = (void *)size_ptr;
+	if (sample_type & PERF_SAMPLE_RAW && size > 0) {
 		char *event_str;
 		struct power_entry *pe;
 
