@@ -875,6 +875,12 @@ megasas_build_dcdb(struct megasas_instance *instance, struct scsi_cmnd *scp,
 		pthru->sge_count = megasas_make_sgl32(instance, scp,
 						      &pthru->sgl);
 
+	if (pthru->sge_count > instance->max_num_sge) {
+		printk(KERN_ERR "megasas: DCDB two many SGE NUM=%x\n",
+			pthru->sge_count);
+		return 0;
+	}
+
 	/*
 	 * Sense info specific
 	 */
@@ -1000,6 +1006,12 @@ megasas_build_ldio(struct megasas_instance *instance, struct scsi_cmnd *scp,
 		ldio->sge_count = megasas_make_sgl64(instance, scp, &ldio->sgl);
 	} else
 		ldio->sge_count = megasas_make_sgl32(instance, scp, &ldio->sgl);
+
+	if (ldio->sge_count > instance->max_num_sge) {
+		printk(KERN_ERR "megasas: build_ld_io: sge_count = %x\n",
+			ldio->sge_count);
+		return 0;
+	}
 
 	/*
 	 * Sense info specific
@@ -2296,6 +2308,86 @@ megasas_get_pd_list(struct megasas_instance *instance)
 	return ret;
 }
 
+/*
+ * megasas_get_ld_list_info -	Returns FW's ld_list structure
+ * @instance:				Adapter soft state
+ * @ld_list:				ld_list structure
+ *
+ * Issues an internal command (DCMD) to get the FW's controller PD
+ * list structure.  This information is mainly used to find out SYSTEM
+ * supported by the FW.
+ */
+static int
+megasas_get_ld_list(struct megasas_instance *instance)
+{
+	int ret = 0, ld_index = 0, ids = 0;
+	struct megasas_cmd *cmd;
+	struct megasas_dcmd_frame *dcmd;
+	struct MR_LD_LIST *ci;
+	dma_addr_t ci_h = 0;
+
+	cmd = megasas_get_cmd(instance);
+
+	if (!cmd) {
+		printk(KERN_DEBUG "megasas_get_ld_list: Failed to get cmd\n");
+		return -ENOMEM;
+	}
+
+	dcmd = &cmd->frame->dcmd;
+
+	ci = pci_alloc_consistent(instance->pdev,
+				sizeof(struct MR_LD_LIST),
+				&ci_h);
+
+	if (!ci) {
+		printk(KERN_DEBUG "Failed to alloc mem in get_ld_list\n");
+		megasas_return_cmd(instance, cmd);
+		return -ENOMEM;
+	}
+
+	memset(ci, 0, sizeof(*ci));
+	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
+
+	dcmd->cmd = MFI_CMD_DCMD;
+	dcmd->cmd_status = 0xFF;
+	dcmd->sge_count = 1;
+	dcmd->flags = MFI_FRAME_DIR_READ;
+	dcmd->timeout = 0;
+	dcmd->data_xfer_len = sizeof(struct MR_LD_LIST);
+	dcmd->opcode = MR_DCMD_LD_GET_LIST;
+	dcmd->sgl.sge32[0].phys_addr = ci_h;
+	dcmd->sgl.sge32[0].length = sizeof(struct MR_LD_LIST);
+	dcmd->pad_0  = 0;
+
+	if (!megasas_issue_polled(instance, cmd)) {
+		ret = 0;
+	} else {
+		ret = -1;
+	}
+
+	/* the following function will get the instance PD LIST */
+
+	if ((ret == 0) && (ci->ldCount < MAX_LOGICAL_DRIVES)) {
+		memset(instance->ld_ids, 0xff, MEGASAS_MAX_LD_IDS);
+
+		for (ld_index = 0; ld_index < ci->ldCount; ld_index++) {
+			if (ci->ldList[ld_index].state != 0) {
+				ids = ci->ldList[ld_index].ref.targetId;
+				instance->ld_ids[ids] =
+					ci->ldList[ld_index].ref.targetId;
+			}
+		}
+	}
+
+	pci_free_consistent(instance->pdev,
+				sizeof(struct MR_LD_LIST),
+				ci,
+				ci_h);
+
+	megasas_return_cmd(instance, cmd);
+	return ret;
+}
+
 /**
  * megasas_get_controller_info -	Returns FW's controller structure
  * @instance:				Adapter soft state
@@ -2592,6 +2684,9 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 	memset(instance->pd_list, 0 ,
 		(MEGASAS_MAX_PD * sizeof(struct megasas_pd_list)));
 	megasas_get_pd_list(instance);
+
+	memset(instance->ld_ids, 0xff, MEGASAS_MAX_LD_IDS);
+	megasas_get_ld_list(instance);
 
 	ctrl_info = kmalloc(sizeof(struct megasas_ctrl_info), GFP_KERNEL);
 
