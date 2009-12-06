@@ -1180,7 +1180,7 @@ EXPORT_SYMBOL(i2c_master_recv);
  * ----------------------------------------------------
  */
 
-static int i2c_detect_address(struct i2c_client *temp_client, int kind,
+static int i2c_detect_address(struct i2c_client *temp_client,
 			      struct i2c_driver *driver)
 {
 	struct i2c_board_info info;
@@ -1199,22 +1199,18 @@ static int i2c_detect_address(struct i2c_client *temp_client, int kind,
 	if (i2c_check_addr(adapter, addr))
 		return 0;
 
-	/* Make sure there is something at this address, unless forced */
-	if (kind < 0) {
-		if (i2c_smbus_xfer(adapter, addr, 0, 0, 0,
-				   I2C_SMBUS_QUICK, NULL) < 0)
-			return 0;
+	/* Make sure there is something at this address */
+	if (i2c_smbus_xfer(adapter, addr, 0, 0, 0, I2C_SMBUS_QUICK, NULL) < 0)
+		return 0;
 
-		/* prevent 24RF08 corruption */
-		if ((addr & ~0x0f) == 0x50)
-			i2c_smbus_xfer(adapter, addr, 0, 0, 0,
-				       I2C_SMBUS_QUICK, NULL);
-	}
+	/* Prevent 24RF08 corruption */
+	if ((addr & ~0x0f) == 0x50)
+		i2c_smbus_xfer(adapter, addr, 0, 0, 0, I2C_SMBUS_QUICK, NULL);
 
 	/* Finally call the custom detection function */
 	memset(&info, 0, sizeof(struct i2c_board_info));
 	info.addr = addr;
-	err = driver->detect(temp_client, kind, &info);
+	err = driver->detect(temp_client, -1, &info);
 	if (err) {
 		/* -ENODEV is returned if the detection fails. We catch it
 		   here as this isn't an error. */
@@ -1279,7 +1275,7 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 			"addr 0x%02x\n", adap_id,
 			address_data->normal_i2c[i]);
 		temp_client->addr = address_data->normal_i2c[i];
-		err = i2c_detect_address(temp_client, -1, driver);
+		err = i2c_detect_address(temp_client, driver);
 		if (err)
 			goto exit_free;
 	}
