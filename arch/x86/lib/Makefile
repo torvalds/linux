@@ -20,7 +20,7 @@ lib-y := delay.o
 lib-y += thunk_$(BITS).o
 lib-y += usercopy_$(BITS).o getuser.o putuser.o
 lib-y += memcpy_$(BITS).o
-lib-y += insn.o inat.o
+lib-$(CONFIG_KPROBES) += insn.o inat.o
 
 obj-y += msr-reg.o msr-reg-export.o
 
