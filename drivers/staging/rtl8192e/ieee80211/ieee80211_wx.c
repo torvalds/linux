@@ -386,10 +386,10 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 		else
 			IEEE80211_DEBUG_SCAN(
 				"Not showing network '%s ("
-				MAC_FMT ")' due to age (%lums).\n",
+				"%pM)' due to age (%lums).\n",
 				escape_essid(network->ssid,
 					     network->ssid_len),
-				MAC_ARG(network->bssid),
+				network->bssid,
 				(jiffies - network->last_scanned) / (HZ / 100));
 	}
 

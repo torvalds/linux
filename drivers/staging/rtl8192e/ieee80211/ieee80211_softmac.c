@@ -1897,7 +1897,7 @@ ieee80211_rx_assoc_rq(struct ieee80211_device *ieee, struct sk_buff *skb)
 		ieee80211_resp_to_assoc_rq(ieee, dest);
 	}
 
-	printk(KERN_INFO"New client associated: "MAC_FMT"\n", MAC_ARG(dest));
+	printk(KERN_INFO"New client associated: %pM\n", dest);
 	//FIXME
 	#if 0
 	spin_lock_irqsave(&ieee->lock,flags);
