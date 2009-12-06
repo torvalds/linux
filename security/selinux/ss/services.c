@@ -2555,7 +2555,7 @@ int security_get_classes(char ***classes, int *nclasses)
 	read_lock(&policy_rwlock);
 
 	*nclasses = policydb.p_classes.nprim;
-	*classes = kcalloc(*nclasses, sizeof(*classes), GFP_ATOMIC);
+	*classes = kcalloc(*nclasses, sizeof(**classes), GFP_ATOMIC);
 	if (!*classes)
 		goto out;
 
@@ -2602,7 +2602,7 @@ int security_get_permissions(char *class, char ***perms, int *nperms)
 	}
 
 	*nperms = match->permissions.nprim;
-	*perms = kcalloc(*nperms, sizeof(*perms), GFP_ATOMIC);
+	*perms = kcalloc(*nperms, sizeof(**perms), GFP_ATOMIC);
 	if (!*perms)
 		goto out;
 
