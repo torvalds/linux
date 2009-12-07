@@ -804,6 +804,16 @@ int smd_write(smd_channel_t *ch, const void *data, int len)
 	return ch->write(ch, data, len);
 }
 
+int smd_write_atomic(smd_channel_t *ch, const void *data, int len)
+{
+	unsigned long flags;
+	int res;
+	spin_lock_irqsave(&smd_lock, flags);
+	res = ch->write(ch, data, len);
+	spin_unlock_irqrestore(&smd_lock, flags);
+	return res;
+}
+
 int smd_read_avail(smd_channel_t *ch)
 {
 	return ch->read_avail(ch);

@@ -38,6 +38,7 @@ int smd_read(smd_channel_t *ch, void *data, int len);
 ** it will return the requested length written or an error.
 */
 int smd_write(smd_channel_t *ch, const void *data, int len);
+int smd_write_atomic(smd_channel_t *ch, const void *data, int len);
 
 int smd_write_avail(smd_channel_t *ch);
 int smd_read_avail(smd_channel_t *ch);
