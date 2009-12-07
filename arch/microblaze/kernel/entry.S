@@ -31,6 +31,8 @@
 #include <linux/errno.h>
 #include <asm/signal.h>
 
+#undef DEBUG
+
 /* The size of a state save frame. */
 #define STATE_SAVE_SIZE		(PT_SIZE + STATE_SAVE_ARG_SPACE)
 
@@ -352,10 +354,12 @@ C_ENTRY(_user_exception):
 	add	r12, r12, r12;			/* convert num -> ptr */
 	add	r12, r12, r12;
 
+#ifdef DEBUG
 	/* Trac syscalls and stored them to r0_ram */
 	lwi	r3, r12, 0x400 + r0_ram
 	addi	r3, r3, 1
 	swi	r3, r12, 0x400 + r0_ram
+#endif
 
 	# Find and jump into the syscall handler.
 	lwi	r12, r12, sys_call_table
