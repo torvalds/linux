@@ -100,6 +100,7 @@ do {						\
 
 #define PM8001_USE_TASKLET
 #define PM8001_USE_MSIX
+#define PM8001_READ_VPD
 
 
 #define DEV_IS_EXPANDER(type)	((type == EDGE_DEV) || (type == FANOUT_DEV))
@@ -111,7 +112,22 @@ extern const struct pm8001_dispatch pm8001_8001_dispatch;
 struct pm8001_hba_info;
 struct pm8001_ccb_info;
 struct pm8001_device;
-struct pm8001_tmf_task;
+/* define task management IU */
+struct pm8001_tmf_task {
+	u8	tmf;
+	u32	tag_of_task_to_be_managed;
+};
+struct pm8001_ioctl_payload {
+	u32	signature;
+	u16	major_function;
+	u16	minor_function;
+	u16	length;
+	u16	status;
+	u16	offset;
+	u16	id;
+	u8	*func_specific;
+};
+
 struct pm8001_dispatch {
 	char *name;
 	int (*chip_init)(struct pm8001_hba_info *pm8001_ha);
@@ -390,11 +406,7 @@ struct pm8001_fw_image_header {
 	__be32 startup_entry;
 } __attribute__((packed, aligned(4)));
 
-/* define task management IU */
-struct pm8001_tmf_task {
-	u8	tmf;
-	u32	tag_of_task_to_be_managed;
-};
+
 /**
  * FW Flash Update status values
  */
