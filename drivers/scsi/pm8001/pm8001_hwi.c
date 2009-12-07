@@ -1901,7 +1901,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 {
 	struct sas_task *t;
 	struct pm8001_ccb_info *ccb;
-	unsigned long flags;
+	unsigned long flags = 0;
 	u32 param;
 	u32 status;
 	u32 tag;
@@ -2040,7 +2040,9 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			ts->stat = SAS_QUEUE_FULL;
 			pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 			mb();/*in order to force CPU ordering*/
+			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 			t->task_done(t);
+			spin_lock_irqsave(&pm8001_ha->lock, flags);
 			return;
 		}
 		break;
@@ -2058,7 +2060,9 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			ts->stat = SAS_QUEUE_FULL;
 			pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 			mb();/*ditto*/
+			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 			t->task_done(t);
+			spin_lock_irqsave(&pm8001_ha->lock, flags);
 			return;
 		}
 		break;
@@ -2084,7 +2088,9 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			ts->stat = SAS_QUEUE_FULL;
 			pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 			mb();/* ditto*/
+			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 			t->task_done(t);
+			spin_lock_irqsave(&pm8001_ha->lock, flags);
 			return;
 		}
 		break;
@@ -2149,7 +2155,9 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			ts->stat = SAS_QUEUE_FULL;
 			pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 			mb();/*ditto*/
+			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 			t->task_done(t);
+			spin_lock_irqsave(&pm8001_ha->lock, flags);
 			return;
 		}
 		break;
@@ -2171,7 +2179,9 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			ts->stat = SAS_QUEUE_FULL;
 			pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 			mb();/*ditto*/
+			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 			t->task_done(t);
+			spin_lock_irqsave(&pm8001_ha->lock, flags);
 			return;
 		}
 		break;
@@ -2200,11 +2210,20 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			" resp 0x%x stat 0x%x but aborted by upper layer!\n",
 			t, status, ts->resp, ts->stat));
 		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
-	} else {
+	} else if (t->uldd_task) {
 		spin_unlock_irqrestore(&t->task_state_lock, flags);
 		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 		mb();/* ditto */
+		spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 		t->task_done(t);
+		spin_lock_irqsave(&pm8001_ha->lock, flags);
+	} else if (!t->uldd_task) {
+		spin_unlock_irqrestore(&t->task_state_lock, flags);
+		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
+		mb();/*ditto*/
+		spin_unlock_irqrestore(&pm8001_ha->lock, flags);
+		t->task_done(t);
+		spin_lock_irqsave(&pm8001_ha->lock, flags);
 	}
 }
 
@@ -2212,7 +2231,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
 {
 	struct sas_task *t;
-	unsigned long flags;
+	unsigned long flags = 0;
 	struct task_status_struct *ts;
 	struct pm8001_ccb_info *ccb;
 	struct pm8001_device *pm8001_dev;
@@ -2292,7 +2311,9 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
 			ts->stat = SAS_QUEUE_FULL;
 			pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 			mb();/*ditto*/
+			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 			t->task_done(t);
+			spin_lock_irqsave(&pm8001_ha->lock, flags);
 			return;
 		}
 		break;
@@ -2401,11 +2422,20 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
 			" resp 0x%x stat 0x%x but aborted by upper layer!\n",
 			t, event, ts->resp, ts->stat));
 		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
-	} else {
+	} else if (t->uldd_task) {
 		spin_unlock_irqrestore(&t->task_state_lock, flags);
 		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
-		mb();/* in order to force CPU ordering */
+		mb();/* ditto */
+		spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 		t->task_done(t);
+		spin_lock_irqsave(&pm8001_ha->lock, flags);
+	} else if (!t->uldd_task) {
+		spin_unlock_irqrestore(&t->task_state_lock, flags);
+		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
+		mb();/*ditto*/
+		spin_unlock_irqrestore(&pm8001_ha->lock, flags);
+		t->task_done(t);
+		spin_lock_irqsave(&pm8001_ha->lock, flags);
 	}
 }
 
