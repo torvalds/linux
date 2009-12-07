@@ -112,7 +112,7 @@ static inline int user_space_fault(unsigned long trans_exc_code)
 	if (trans_exc_code == 2)
 		/* Access via secondary space, set_fs setting decides */
 		return current->thread.mm_segment.ar4;
-	if (!switch_amode)
+	if (user_mode == HOME_SPACE_MODE)
 		/* User space if the access has been done via home space. */
 		return trans_exc_code == 3;
 	/*
@@ -168,7 +168,7 @@ static void do_no_context(struct pt_regs *regs, unsigned long error_code,
 	 * terminate things with extreme prejudice.
 	 */
 	address = trans_exc_code & __FAIL_ADDR_MASK;
-	if (user_space_fault(trans_exc_code) == 0)
+	if (!user_space_fault(trans_exc_code))
 		printk(KERN_ALERT "Unable to handle kernel pointer dereference"
 		       " at virtual kernel address %p\n", (void *)address);
 	else
