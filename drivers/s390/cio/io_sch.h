@@ -149,8 +149,8 @@ struct ccw_device_private {
 	struct ccw_dev_id dev_id;	/* device id */
 	struct subchannel_id schid;	/* subchannel number */
 	struct ccw_request req;		/* internal I/O request */
-	u8 imask;		/* lpm mask for SNID/SID/SPGID */
-	int iretry;		/* retry counter SNID/SID/SPGID */
+	int iretry;
+	u8 pgid_valid_mask;		/* mask of valid PGIDs */
 	struct {
 		unsigned int fast:1;	/* post with "channel end" */
 		unsigned int repall:1;	/* report every interrupt status */
@@ -167,6 +167,7 @@ struct ccw_device_private {
 		unsigned int fake_irb:1;    /* deliver faked irb */
 		unsigned int intretry:1;    /* retry internal operation */
 		unsigned int resuming:1;    /* recognition while resume */
+		unsigned int pgid_rdy:1;    /* pgids are ready */
 	} __attribute__((packed)) flags;
 	unsigned long intparm;	/* user interruption parameter */
 	struct qdio_irq *qdio_data;

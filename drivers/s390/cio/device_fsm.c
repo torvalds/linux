@@ -394,58 +394,6 @@ ccw_device_done(struct ccw_device *cdev, int state)
 	wake_up(&cdev->private->wait_q);
 }
 
-static int cmp_pgid(struct pgid *p1, struct pgid *p2)
-{
-	char *c1;
-	char *c2;
-
-	c1 = (char *)p1;
-	c2 = (char *)p2;
-
-	return memcmp(c1 + 1, c2 + 1, sizeof(struct pgid) - 1);
-}
-
-static void __ccw_device_get_common_pgid(struct ccw_device *cdev)
-{
-	int i;
-	int last;
-
-	last = 0;
-	for (i = 0; i < 8; i++) {
-		if (cdev->private->pgid[i].inf.ps.state1 == SNID_STATE1_RESET)
-			/* No PGID yet */
-			continue;
-		if (cdev->private->pgid[last].inf.ps.state1 ==
-		    SNID_STATE1_RESET) {
-			/* First non-zero PGID */
-			last = i;
-			continue;
-		}
-		if (cmp_pgid(&cdev->private->pgid[i],
-			     &cdev->private->pgid[last]) == 0)
-			/* Non-conflicting PGIDs */
-			continue;
-
-		/* PGID mismatch, can't pathgroup. */
-		CIO_MSG_EVENT(0, "SNID - pgid mismatch for device "
-			      "0.%x.%04x, can't pathgroup\n",
-			      cdev->private->dev_id.ssid,
-			      cdev->private->dev_id.devno);
-		cdev->private->options.pgroup = 0;
-		return;
-	}
-	if (cdev->private->pgid[last].inf.ps.state1 ==
-	    SNID_STATE1_RESET)
-		/* No previous pgid found */
-		memcpy(&cdev->private->pgid[0],
-		       &channel_subsystems[0]->global_pgid,
-		       sizeof(struct pgid));
-	else
-		/* Use existing pgid */
-		memcpy(&cdev->private->pgid[0], &cdev->private->pgid[last],
-		       sizeof(struct pgid));
-}
-
 /*
  * Function called from device_pgid.c after sense path ground has completed.
  */
@@ -457,12 +405,8 @@ ccw_device_sense_pgid_done(struct ccw_device *cdev, int err)
 	sch = to_subchannel(cdev->dev.parent);
 	switch (err) {
 	case -EOPNOTSUPP: /* path grouping not supported, use nop instead. */
-		cdev->private->options.pgroup = 0;
-		break;
 	case 0: /* success */
 	case -EACCES: /* partial success, some paths not operational */
-		/* Check if all pgids are equal or 0. */
-		__ccw_device_get_common_pgid(cdev);
 		break;
 	case -ETIME:		/* Sense path group id stopped by timeout. */
 	case -EUSERS:		/* device is reserved for someone else. */
@@ -474,7 +418,6 @@ ccw_device_sense_pgid_done(struct ccw_device *cdev, int err)
 	}
 	/* Start Path Group verification. */
 	cdev->private->state = DEV_STATE_VERIFY;
-	cdev->private->flags.doverify = 0;
 	ccw_device_verify_start(cdev);
 }
 
@@ -537,7 +480,6 @@ ccw_device_verify_done(struct ccw_device *cdev, int err)
 	sch->lpm = sch->vpm;
 	/* Repeat path verification? */
 	if (cdev->private->flags.doverify) {
-		cdev->private->flags.doverify = 0;
 		ccw_device_verify_start(cdev);
 		return;
 	}
@@ -602,7 +544,6 @@ ccw_device_online(struct ccw_device *cdev)
 	if (!cdev->private->options.pgroup) {
 		/* Start initial path verification. */
 		cdev->private->state = DEV_STATE_VERIFY;
-		cdev->private->flags.doverify = 0;
 		ccw_device_verify_start(cdev);
 		return 0;
 	}
@@ -624,7 +565,6 @@ ccw_device_disband_done(struct ccw_device *cdev, int err)
 		break;
 	default:
 		cdev->private->flags.donotify = 0;
-		dev_fsm_event(cdev, DEV_EVENT_NOTOPER);
 		ccw_device_done(cdev, DEV_STATE_NOT_OPER);
 		break;
 	}
@@ -670,27 +610,6 @@ ccw_device_offline(struct ccw_device *cdev)
 	cdev->private->state = DEV_STATE_DISBAND_PGID;
 	ccw_device_disband_start(cdev);
 	return 0;
-}
-
-/*
- * Handle timeout in device online/offline process.
- */
-static void
-ccw_device_onoff_timeout(struct ccw_device *cdev, enum dev_event dev_event)
-{
-	int ret;
-
-	ret = ccw_device_cancel_halt_clear(cdev);
-	switch (ret) {
-	case 0:
-		ccw_device_done(cdev, DEV_STATE_BOXED);
-		break;
-	case -ENODEV:
-		ccw_device_done(cdev, DEV_STATE_NOT_OPER);
-		break;
-	default:
-		ccw_device_set_timeout(cdev, 3*HZ);
-	}
 }
 
 /*
@@ -751,7 +670,6 @@ ccw_device_online_verify(struct ccw_device *cdev, enum dev_event dev_event)
 	}
 	/* Device is idle, we can do the path verification. */
 	cdev->private->state = DEV_STATE_VERIFY;
-	cdev->private->flags.doverify = 0;
 	ccw_device_verify_start(cdev);
 }
 
@@ -1103,9 +1021,9 @@ fsm_func_t *dev_jumptable[NR_DEV_STATES][NR_DEV_EVENTS] = {
 		[DEV_EVENT_VERIFY]	= ccw_device_nop,
 	},
 	[DEV_STATE_SENSE_PGID] = {
-		[DEV_EVENT_NOTOPER]	= ccw_device_generic_notoper,
-		[DEV_EVENT_INTERRUPT]	= ccw_device_sense_pgid_irq,
-		[DEV_EVENT_TIMEOUT]	= ccw_device_onoff_timeout,
+		[DEV_EVENT_NOTOPER]	= ccw_device_request_event,
+		[DEV_EVENT_INTERRUPT]	= ccw_device_request_event,
+		[DEV_EVENT_TIMEOUT]	= ccw_device_request_event,
 		[DEV_EVENT_VERIFY]	= ccw_device_nop,
 	},
 	[DEV_STATE_SENSE_ID] = {
@@ -1121,9 +1039,9 @@ fsm_func_t *dev_jumptable[NR_DEV_STATES][NR_DEV_EVENTS] = {
 		[DEV_EVENT_VERIFY]	= ccw_device_offline_verify,
 	},
 	[DEV_STATE_VERIFY] = {
-		[DEV_EVENT_NOTOPER]	= ccw_device_generic_notoper,
-		[DEV_EVENT_INTERRUPT]	= ccw_device_verify_irq,
-		[DEV_EVENT_TIMEOUT]	= ccw_device_onoff_timeout,
+		[DEV_EVENT_NOTOPER]	= ccw_device_request_event,
+		[DEV_EVENT_INTERRUPT]	= ccw_device_request_event,
+		[DEV_EVENT_TIMEOUT]	= ccw_device_request_event,
 		[DEV_EVENT_VERIFY]	= ccw_device_delay_verify,
 	},
 	[DEV_STATE_ONLINE] = {
@@ -1139,9 +1057,9 @@ fsm_func_t *dev_jumptable[NR_DEV_STATES][NR_DEV_EVENTS] = {
 		[DEV_EVENT_VERIFY]	= ccw_device_online_verify,
 	},
 	[DEV_STATE_DISBAND_PGID] = {
-		[DEV_EVENT_NOTOPER]	= ccw_device_generic_notoper,
-		[DEV_EVENT_INTERRUPT]	= ccw_device_disband_irq,
-		[DEV_EVENT_TIMEOUT]	= ccw_device_onoff_timeout,
+		[DEV_EVENT_NOTOPER]	= ccw_device_request_event,
+		[DEV_EVENT_INTERRUPT]	= ccw_device_request_event,
+		[DEV_EVENT_TIMEOUT]	= ccw_device_request_event,
 		[DEV_EVENT_VERIFY]	= ccw_device_nop,
 	},
 	[DEV_STATE_BOXED] = {

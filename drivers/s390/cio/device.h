@@ -112,15 +112,12 @@ void ccw_device_sense_id_done(struct ccw_device *, int);
 
 /* Function prototypes for path grouping stuff. */
 void ccw_device_sense_pgid_start(struct ccw_device *);
-void ccw_device_sense_pgid_irq(struct ccw_device *, enum dev_event);
 void ccw_device_sense_pgid_done(struct ccw_device *, int);
 
 void ccw_device_verify_start(struct ccw_device *);
-void ccw_device_verify_irq(struct ccw_device *, enum dev_event);
 void ccw_device_verify_done(struct ccw_device *, int);
 
 void ccw_device_disband_start(struct ccw_device *);
-void ccw_device_disband_irq(struct ccw_device *, enum dev_event);
 void ccw_device_disband_done(struct ccw_device *, int);
 
 int ccw_device_call_handler(struct ccw_device *);
