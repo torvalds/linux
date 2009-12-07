@@ -1168,6 +1168,14 @@ int nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state 
 			case -ENOENT:
 			case -ESTALE:
 				goto out;
+			case -NFS4ERR_BADSESSION:
+			case -NFS4ERR_BADSLOT:
+			case -NFS4ERR_BAD_HIGH_SLOT:
+			case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
+			case -NFS4ERR_DEADSESSION:
+				nfs4_schedule_state_recovery(
+					server->nfs_client);
+				goto out;
 			case -NFS4ERR_STALE_CLIENTID:
 			case -NFS4ERR_STALE_STATEID:
 			case -NFS4ERR_EXPIRED:
