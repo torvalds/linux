@@ -22,6 +22,8 @@ enum {
 
 static inline void hw_breakpoint_init(struct perf_event_attr *attr)
 {
+	memset(attr, 0, sizeof(*attr));
+
 	attr->type = PERF_TYPE_BREAKPOINT;
 	attr->size = sizeof(*attr);
 	/*
