@@ -50,6 +50,8 @@ struct sh_mobile_lcdc_board_cfg {
 	void *board_data;
 	int (*setup_sys)(void *board_data, void *sys_ops_handle,
 			 struct sh_mobile_lcdc_sys_bus_ops *sys_ops);
+	void (*start_transfer)(void *board_data, void *sys_ops_handle,
+			       struct sh_mobile_lcdc_sys_bus_ops *sys_ops);
 	void (*display_on)(void *board_data);
 	void (*display_off)(void *board_data);
 };
