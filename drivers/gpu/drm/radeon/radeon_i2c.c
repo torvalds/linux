@@ -172,20 +172,19 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 		return NULL;
 
 	i2c->adapter.owner = THIS_MODULE;
-	i2c->adapter.algo_data = &i2c->algo;
 	i2c->dev = dev;
-	i2c->algo.setsda = set_data;
-	i2c->algo.setscl = set_clock;
-	i2c->algo.getsda = get_data;
-	i2c->algo.getscl = get_clock;
-	i2c->algo.udelay = 20;
+	i2c_set_adapdata(&i2c->adapter, i2c);
+	i2c->adapter.algo_data = &i2c->algo.bit;
+	i2c->algo.bit.setsda = set_data;
+	i2c->algo.bit.setscl = set_clock;
+	i2c->algo.bit.getsda = get_data;
+	i2c->algo.bit.getscl = get_clock;
+	i2c->algo.bit.udelay = 20;
 	/* vesa says 2.2 ms is enough, 1 jiffy doesn't seem to always
 	 * make this, 2 jiffies is a lot more reliable */
-	i2c->algo.timeout = 2;
-	i2c->algo.data = i2c;
+	i2c->algo.bit.timeout = 2;
+	i2c->algo.bit.data = i2c;
 	i2c->rec = *rec;
-	i2c_set_adapdata(&i2c->adapter, i2c);
-
 	ret = i2c_bit_add_bus(&i2c->adapter);
 	if (ret) {
 		DRM_INFO("Failed to register i2c %s\n", name);
@@ -198,6 +197,37 @@ out_free:
 	return NULL;
 
 }
+
+struct radeon_i2c_chan *radeon_i2c_create_dp(struct drm_device *dev,
+					     const char *name, bool dp, u8 i2c_id)
+{
+	struct radeon_i2c_chan *i2c;
+	int ret;
+
+	i2c = kzalloc(sizeof(struct radeon_i2c_chan), GFP_KERNEL);
+	if (i2c == NULL)
+		return NULL;
+
+	i2c->i2c_id = i2c_id;
+	i2c->adapter.owner = THIS_MODULE;
+	i2c->dev = dev;
+	i2c_set_adapdata(&i2c->adapter, i2c);
+	i2c->adapter.algo_data = &i2c->algo.dp;
+	i2c->algo.dp.aux_ch = radeon_dp_i2c_aux_ch;
+	i2c->algo.dp.address = 0;
+	ret = i2c_dp_aux_add_bus(&i2c->adapter);
+	if (ret) {
+		DRM_INFO("Failed to register i2c %s\n", name);
+		goto out_free;
+	}
+
+	return i2c;
+out_free:
+	kfree(i2c);
+	return NULL;
+
+}
+
 
 void radeon_i2c_destroy(struct radeon_i2c_chan *i2c)
 {

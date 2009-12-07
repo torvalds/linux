@@ -337,6 +337,13 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 {
 	int ret = 0;
 
+	if (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) {
+		struct radeon_connector_atom_dig *dig = radeon_connector->con_priv;
+		if (dig->dp_i2c_bus) {
+			radeon_connector->edid = drm_get_edid(&radeon_connector->base, &dig->dp_i2c_bus->adapter);	
+			DRM_INFO("got edid %p from DP\n", radeon_connector->edid);
+		}
+	}
 	if (!radeon_connector->ddc_bus)
 		return -1;
 	if (!radeon_connector->edid) {

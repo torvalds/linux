@@ -33,6 +33,7 @@
 #include <drm_crtc.h>
 #include <drm_mode.h>
 #include <drm_edid.h>
+#include <drm_dp_helper.h>
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
 #include <linux/i2c-algo-bit.h>
@@ -164,10 +165,14 @@ struct radeon_pll {
 };
 
 struct radeon_i2c_chan {
-	struct drm_device *dev;
 	struct i2c_adapter adapter;
-	struct i2c_algo_bit_data algo;
+	struct drm_device *dev;
+	union {
+		struct i2c_algo_dp_aux_data dp;
+		struct i2c_algo_bit_data bit;
+	} algo;
 	struct radeon_i2c_bus_rec rec;
+	uint8_t i2c_id;
 };
 
 /* mostly for macs, but really any system without connector tables */
@@ -328,6 +333,9 @@ struct radeon_encoder {
 struct radeon_connector_atom_dig {
 	uint32_t igp_lane_info;
 	bool linkb;
+	uint16_t uc_i2c_id;
+	struct radeon_i2c_chan *dp_i2c_bus;
+	u8 dpcp[8];
 };
 
 struct radeon_connector {
@@ -344,6 +352,8 @@ struct radeon_connector {
 	void *con_priv;
 	bool dac_load_detect;
 	uint16_t connector_object_id;
+	/* need to keep this for display port */
+//	
 };
 
 struct radeon_framebuffer {
@@ -351,6 +361,13 @@ struct radeon_framebuffer {
 	struct drm_gem_object *obj;
 };
 
+extern int radeon_dp_getsinktype(struct radeon_connector *radeon_connector);
+extern void radeon_dp_getdpcp(struct radeon_connector *connector);
+extern int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
+				uint8_t write_byte, uint8_t *read_byte);
+
+extern struct radeon_i2c_chan *radeon_i2c_create_dp(struct drm_device *dev,
+						    const char *name, bool dp, u8 i2c_id);
 extern struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 						 struct radeon_i2c_bus_rec *rec,
 						 const char *name);

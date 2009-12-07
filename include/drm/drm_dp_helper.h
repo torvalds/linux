@@ -43,6 +43,8 @@
 #define AUX_I2C_REPLY_MASK	(0x3 << 6)
 
 /* AUX CH addresses */
+#define DP_DPCP_REV 0x0
+
 #define	DP_LINK_BW_SET		0x100
 # define DP_LINK_BW_1_62		    0x06
 # define DP_LINK_BW_2_7			    0x0a

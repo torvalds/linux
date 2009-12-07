@@ -47,7 +47,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 			  int connector_type,
 			  struct radeon_i2c_bus_rec *i2c_bus,
 			  bool linkb, uint32_t igp_lane_info,
-			  uint16_t connector_object_id);
+			  uint16_t connector_object_id, uint8_t uc_i2c_id);
 
 /* from radeon_legacy_encoder.c */
 extern void
@@ -60,8 +60,8 @@ union atom_supported_devices {
 	struct _ATOM_SUPPORTED_DEVICES_INFO_2d1 info_2d1;
 };
 
-static inline struct radeon_i2c_bus_rec radeon_lookup_gpio(struct drm_device
-							   *dev, uint8_t id)
+static inline struct radeon_i2c_bus_rec radeon_lookup_gpio(struct drm_device *dev,
+							   uint8_t id)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct atom_context *ctx = rdev->mode_info.atom_context;
@@ -276,7 +276,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 	uint16_t igp_lane_info, conn_id, connector_object_id;
 	bool linkb;
 	struct radeon_i2c_bus_rec ddc_bus;
-
+	ATOM_I2C_ID_CONFIG_ACCESS i2c_id;
 	atom_parse_data_header(ctx, index, &size, &frev, &crev, &data_offset);
 
 	if (data_offset == 0)
@@ -302,7 +302,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 		path = (ATOM_DISPLAY_OBJECT_PATH *) addr;
 		path_size += le16_to_cpu(path->usSize);
 		linkb = false;
-
+		i2c_id.ucAccess = 0;
 		if (device_support & le16_to_cpu(path->usDeviceTag)) {
 			uint8_t con_obj_id, con_obj_num, con_obj_type;
 
@@ -420,7 +420,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 								 asObjects[j].
 								 usRecordOffset));
 						ATOM_I2C_RECORD *i2c_record;
-
+						
 						while (record->ucRecordType > 0
 						       && record->
 						       ucRecordType <=
@@ -431,6 +431,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 								i2c_record =
 								    (ATOM_I2C_RECORD
 								     *) record;
+								i2c_id.sbfAccess = i2c_record->sucI2cId;
 								line_mux =
 								    i2c_record->
 								    sucI2cId.
@@ -473,7 +474,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 							      usDeviceTag),
 						  connector_type, &ddc_bus,
 						  linkb, igp_lane_info,
-						  connector_object_id);
+						  connector_object_id, i2c_id.ucAccess);
 
 		}
 	}
@@ -692,7 +693,7 @@ bool radeon_get_atom_connector_info_from_supported_devices_table(struct
 						  connector_type,
 						  &bios_connectors[i].ddc_bus,
 						  false, 0,
-						  connector_object_id);
+						  connector_object_id, 0);
 		}
 	}
 

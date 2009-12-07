@@ -851,6 +851,99 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action)
 }
 
 static void
+atombios_dig_transmitter_setup_vsemph(struct drm_encoder *encoder, u8 lane_num,
+				      u8 lane_set)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	union dig_transmitter_control args;
+	int index = 0, num = 0;
+	uint8_t frev, crev;
+	struct radeon_encoder_atom_dig *dig;
+	struct drm_connector *connector;
+	struct radeon_connector *radeon_connector;
+	struct radeon_connector_atom_dig *dig_connector;
+
+	connector = radeon_get_connector_for_encoder(encoder);
+	if (!connector)
+		return;
+
+	radeon_connector = to_radeon_connector(connector);
+
+	if (!radeon_encoder->enc_priv)
+		return;
+
+	dig = radeon_encoder->enc_priv;
+
+	if (!radeon_connector->con_priv)
+		return;
+
+	dig_connector = radeon_connector->con_priv;
+
+	memset(&args, 0, sizeof(args));
+
+	if (ASIC_IS_DCE32(rdev))
+		index = GetIndexIntoMasterTable(COMMAND, UNIPHYTransmitterControl);
+	else {
+		switch (radeon_encoder->encoder_id) {
+		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+			index = GetIndexIntoMasterTable(COMMAND, DIG1TransmitterControl);
+			break;
+		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
+			index = GetIndexIntoMasterTable(COMMAND, DIG2TransmitterControl);
+			break;
+		}
+	}
+
+	atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev);
+
+	args.v1.ucAction = ATOM_TRANSMITTER_ACTION_SETUP_VSEMPH;
+	args.v1.asMode.ucLaneSel = lane_num;
+	args.v1.asMode.ucLaneSet = lane_set;
+
+	if (ASIC_IS_DCE32(rdev)) {
+		args.v2.acConfig.fDPConnector = 1;
+
+		if (dig->dig_block)
+			args.v2.acConfig.ucEncoderSel = 1;
+
+		switch (radeon_encoder->encoder_id) {
+		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+			args.v2.acConfig.ucTransmitterSel = 0;
+			num = 0;
+			break;
+		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
+			args.v2.acConfig.ucTransmitterSel = 1;
+			num = 1;
+			break;
+		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+			args.v2.acConfig.ucTransmitterSel = 2;
+			num = 2;
+			break;
+		}
+	} else {
+		args.v1.ucConfig = ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
+
+		switch (radeon_encoder->encoder_id) {
+		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+			args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER;
+			if (dig_connector->linkb)
+				args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKB | ATOM_TRANSMITTER_CONFIG_LANE_0_3;
+			else
+				args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKA | ATOM_TRANSMITTER_CONFIG_LANE_0_3;
+		}
+	}
+
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+	if (ASIC_IS_DCE32(rdev))
+		DRM_INFO("Output UNIPHY%d transmitter VSEMPH setup success\n", num);
+	else
+		DRM_INFO("Output DIG%d transmitter VSEMPH setup success\n", num);
+}
+
+static void
 atombios_yuv_setup(struct drm_encoder *encoder, bool enable)
 {
 	struct drm_device *dev = encoder->dev;
