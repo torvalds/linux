@@ -229,7 +229,8 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 
 	sch = to_subchannel(cdev->dev.parent);
 
-	cio_disable_subchannel(sch);
+	if (cio_disable_subchannel(sch))
+		state = DEV_STATE_NOT_OPER;
 	/*
 	 * Now that we tried recognition, we have performed device selection
 	 * through ssch() and the path information is up to date.
