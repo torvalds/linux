@@ -286,7 +286,7 @@ static noinline void do_fault_error(struct pt_regs *regs, long int_code,
  *   11       Page translation     ->  Not present       (nullification)
  *   3b       Region third trans.  ->  Not present       (nullification)
  */
-static inline int do_exception(struct pt_regs *regs, int write,
+static inline int do_exception(struct pt_regs *regs, int access,
 			       unsigned long trans_exc_code)
 {
 	struct task_struct *tsk;
@@ -337,19 +337,8 @@ static inline int do_exception(struct pt_regs *regs, int write,
 	 * we can handle it..
 	 */
 	fault = VM_FAULT_BADACCESS;
-#ifdef CONFIG_S390_EXEC_PROTECT
-	if (unlikely((regs->psw.mask & PSW_MASK_ASC) == PSW_ASC_SECONDARY &&
-		     (trans_exc_code & 3) == 0 && !(vma->vm_flags & VM_EXEC)))
+	if (unlikely(!(vma->vm_flags & access)))
 		goto out_up;
-#endif
-	if (!write) {
-		/* page not present, check vm flags */
-		if (!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)))
-			goto out_up;
-	} else {
-		if (!(vma->vm_flags & VM_WRITE))
-			goto out_up;
-	}
 
 	if (is_vm_hugetlb_page(vma))
 		address &= HPAGE_MASK;
@@ -358,7 +347,8 @@ static inline int do_exception(struct pt_regs *regs, int write,
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-	fault = handle_mm_fault(mm, vma, address, write ? FAULT_FLAG_WRITE : 0);
+	fault = handle_mm_fault(mm, vma, address,
+				(access == VM_WRITE) ? FAULT_FLAG_WRITE : 0);
 	if (unlikely(fault & VM_FAULT_ERROR))
 		goto out_up;
 
@@ -399,7 +389,7 @@ void __kprobes do_protection_exception(struct pt_regs *regs, long int_code)
 		do_low_address(regs, int_code, trans_exc_code);
 		return;
 	}
-	fault = do_exception(regs, 1, trans_exc_code);
+	fault = do_exception(regs, VM_WRITE, trans_exc_code);
 	if (unlikely(fault))
 		do_fault_error(regs, 4, trans_exc_code, fault);
 }
@@ -407,9 +397,15 @@ void __kprobes do_protection_exception(struct pt_regs *regs, long int_code)
 void __kprobes do_dat_exception(struct pt_regs *regs, long int_code)
 {
 	unsigned long trans_exc_code = S390_lowcore.trans_exc_code;
-	int fault;
+	int access, fault;
 
-	fault = do_exception(regs, 0, trans_exc_code);
+	access = VM_READ | VM_EXEC | VM_WRITE;
+#ifdef CONFIG_S390_EXEC_PROTECT
+	if ((regs->psw.mask & PSW_MASK_ASC) == PSW_ASC_SECONDARY &&
+	    (trans_exc_code & 3) == 0)
+		access = VM_EXEC;
+#endif
+	fault = do_exception(regs, access, trans_exc_code);
 	if (unlikely(fault))
 		do_fault_error(regs, int_code & 255, trans_exc_code, fault);
 }
