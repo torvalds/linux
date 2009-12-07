@@ -83,50 +83,16 @@ static unsigned int max_task_bp_pinned(int cpu)
 	return 0;
 }
 
-/*
- * Report the number of pinned/un-pinned breakpoints we have in
- * a given cpu (cpu > -1) or in all of them (cpu = -1).
- */
-static void fetch_bp_busy_slots(struct bp_busy_slots *slots, int cpu)
+static int task_bp_pinned(struct task_struct *tsk)
 {
-	if (cpu >= 0) {
-		slots->pinned = per_cpu(nr_cpu_bp_pinned, cpu);
-		slots->pinned += max_task_bp_pinned(cpu);
-		slots->flexible = per_cpu(nr_bp_flexible, cpu);
-
-		return;
-	}
-
-	for_each_online_cpu(cpu) {
-		unsigned int nr;
-
-		nr = per_cpu(nr_cpu_bp_pinned, cpu);
-		nr += max_task_bp_pinned(cpu);
-
-		if (nr > slots->pinned)
-			slots->pinned = nr;
-
-		nr = per_cpu(nr_bp_flexible, cpu);
-
-		if (nr > slots->flexible)
-			slots->flexible = nr;
-	}
-}
-
-/*
- * Add a pinned breakpoint for the given task in our constraint table
- */
-static void toggle_bp_task_slot(struct task_struct *tsk, int cpu, bool enable)
-{
-	int count = 0;
-	struct perf_event *bp;
 	struct perf_event_context *ctx = tsk->perf_event_ctxp;
-	unsigned int *tsk_pinned;
 	struct list_head *list;
+	struct perf_event *bp;
 	unsigned long flags;
+	int count = 0;
 
 	if (WARN_ONCE(!ctx, "No perf context for this task"))
-		return;
+		return 0;
 
 	list = &ctx->event_list;
 
@@ -143,8 +109,58 @@ static void toggle_bp_task_slot(struct task_struct *tsk, int cpu, bool enable)
 
 	spin_unlock_irqrestore(&ctx->lock, flags);
 
-	if (WARN_ONCE(count < 0, "No breakpoint counter found in the counter list"))
+	return count;
+}
+
+/*
+ * Report the number of pinned/un-pinned breakpoints we have in
+ * a given cpu (cpu > -1) or in all of them (cpu = -1).
+ */
+static void
+fetch_bp_busy_slots(struct bp_busy_slots *slots, struct perf_event *bp)
+{
+	int cpu = bp->cpu;
+	struct task_struct *tsk = bp->ctx->task;
+
+	if (cpu >= 0) {
+		slots->pinned = per_cpu(nr_cpu_bp_pinned, cpu);
+		if (!tsk)
+			slots->pinned += max_task_bp_pinned(cpu);
+		else
+			slots->pinned += task_bp_pinned(tsk);
+		slots->flexible = per_cpu(nr_bp_flexible, cpu);
+
 		return;
+	}
+
+	for_each_online_cpu(cpu) {
+		unsigned int nr;
+
+		nr = per_cpu(nr_cpu_bp_pinned, cpu);
+		if (!tsk)
+			nr += max_task_bp_pinned(cpu);
+		else
+			nr += task_bp_pinned(tsk);
+
+		if (nr > slots->pinned)
+			slots->pinned = nr;
+
+		nr = per_cpu(nr_bp_flexible, cpu);
+
+		if (nr > slots->flexible)
+			slots->flexible = nr;
+	}
+}
+
+/*
+ * Add a pinned breakpoint for the given task in our constraint table
+ */
+static void toggle_bp_task_slot(struct task_struct *tsk, int cpu, bool enable)
+{
+	unsigned int *tsk_pinned;
+	int count = 0;
+
+	count = task_bp_pinned(tsk);
 
 	tsk_pinned = per_cpu(task_bp_pinned, cpu);
 	if (enable) {
@@ -233,7 +249,7 @@ int reserve_bp_slot(struct perf_event *bp)
 
 	mutex_lock(&nr_bp_mutex);
 
-	fetch_bp_busy_slots(&slots, bp->cpu);
+	fetch_bp_busy_slots(&slots, bp);
 
 	/* Flexible counters need to keep at least one slot */
 	if (slots.pinned + (!!slots.flexible) == HBP_NUM) {
