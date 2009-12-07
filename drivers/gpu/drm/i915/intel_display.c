@@ -32,7 +32,7 @@
 #include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
-#include "intel_dp.h"
+#include "drm_dp_helper.h"
 
 #include "drm_crtc_helper.h"
 

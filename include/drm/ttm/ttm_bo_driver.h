@@ -545,6 +545,15 @@ extern int ttm_tt_set_user(struct ttm_tt *ttm,
 extern int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem);
 
 /**
+ * ttm_tt_populate:
+ *
+ * @ttm: The struct ttm_tt to contain the backing pages.
+ *
+ * Add backing pages to all of @ttm
+ */
+extern int ttm_tt_populate(struct ttm_tt *ttm);
+
+/**
  * ttm_ttm_destroy:
  *
  * @ttm: The struct ttm_tt.

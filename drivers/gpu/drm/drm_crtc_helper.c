@@ -109,7 +109,7 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 
 	count = (*connector_funcs->get_modes)(connector);
 	if (!count) {
-		count = drm_add_modes_noedid(connector, 800, 600);
+		count = drm_add_modes_noedid(connector, 1024, 768);
 		if (!count)
 			return 0;
 	}
