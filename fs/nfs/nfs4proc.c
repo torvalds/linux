@@ -3479,9 +3479,20 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 	nfs4_sequence_done(data->res.server, &data->res.seq_res,
 			task->tk_status);
 
-	data->rpc_status = task->tk_status;
-	if (data->rpc_status == 0)
+	switch (task->tk_status) {
+	case -NFS4ERR_STALE_STATEID:
+	case -NFS4ERR_EXPIRED:
+	case 0:
 		renew_lease(data->res.server, data->timestamp);
+		break;
+	default:
+		if (nfs4_async_handle_error(task, data->res.server, NULL) ==
+				-EAGAIN) {
+			nfs_restart_rpc(task, data->res.server->nfs_client);
+			return;
+		}
+	}
+	data->rpc_status = task->tk_status;
 }
 
 static void nfs4_delegreturn_release(void *calldata)
