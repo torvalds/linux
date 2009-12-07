@@ -28,7 +28,7 @@ void __init setup_memory(void)
 {
 	unsigned long free_pfn = PFN_UP(__pa(_end));
 	u64 base = min_low_pfn << PAGE_SHIFT;
-	u64 size = (max_low_pfn << PAGE_SHIFT) - min_low_pfn;
+	u64 size = (max_low_pfn << PAGE_SHIFT) - base;
 
 	lmb_add(base, size);
 
