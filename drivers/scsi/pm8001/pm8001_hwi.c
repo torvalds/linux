@@ -373,10 +373,7 @@ static int bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shiftValue)
 static void __devinit
 mpi_set_phys_g3_with_ssc(struct pm8001_hba_info *pm8001_ha, u32 SSCbit)
 {
-	u32 offset;
-	u32 value;
-	u32 i, j;
-	u32 bit_cnt;
+	u32 value, offset, i;
 
 #define SAS2_SETTINGS_LOCAL_PHY_0_3_SHIFT_ADDR 0x00030000
 #define SAS2_SETTINGS_LOCAL_PHY_4_7_SHIFT_ADDR 0x00040000
@@ -392,55 +389,35 @@ mpi_set_phys_g3_with_ssc(struct pm8001_hba_info *pm8001_ha, u32 SSCbit)
     */
 	if (-1 == bar4_shift(pm8001_ha, SAS2_SETTINGS_LOCAL_PHY_0_3_SHIFT_ADDR))
 		return;
-	/* set SSC bit of PHY 0 - 3 */
+
 	for (i = 0; i < 4; i++) {
 		offset = SAS2_SETTINGS_LOCAL_PHY_0_3_OFFSET + 0x4000 * i;
-		value = pm8001_cr32(pm8001_ha, 2, offset);
-		if (SSCbit) {
-			value |= 0x00000001 << PHY_G3_WITH_SSC_BIT_SHIFT;
-			value &= ~(0x00000001 << PHY_G3_WITHOUT_SSC_BIT_SHIFT);
-		} else {
-			value |= 0x00000001 << PHY_G3_WITHOUT_SSC_BIT_SHIFT;
-			value &= ~(0x00000001 << PHY_G3_WITH_SSC_BIT_SHIFT);
-		}
-		bit_cnt = 0;
-		for (j = 0; j < 31; j++)
-			if ((value >> j) & 0x00000001)
-				bit_cnt++;
-		if (bit_cnt % 2)
-			value &= ~(0x00000001 << SNW3_PHY_CAPABILITIES_PARITY);
-		else
-			value |= 0x00000001 << SNW3_PHY_CAPABILITIES_PARITY;
-
-		pm8001_cw32(pm8001_ha, 2, offset, value);
+		pm8001_cw32(pm8001_ha, 2, offset, 0x80001501);
 	}
-
 	/* shift membase 3 for SAS2_SETTINGS_LOCAL_PHY 4 - 7 */
 	if (-1 == bar4_shift(pm8001_ha, SAS2_SETTINGS_LOCAL_PHY_4_7_SHIFT_ADDR))
 		return;
-
-	/* set SSC bit of PHY 4 - 7 */
 	for (i = 4; i < 8; i++) {
 		offset = SAS2_SETTINGS_LOCAL_PHY_4_7_OFFSET + 0x4000 * (i-4);
-		value = pm8001_cr32(pm8001_ha, 2, offset);
-		if (SSCbit) {
-			value |= 0x00000001 << PHY_G3_WITH_SSC_BIT_SHIFT;
-			value &= ~(0x00000001 << PHY_G3_WITHOUT_SSC_BIT_SHIFT);
-		} else {
-			value |= 0x00000001 << PHY_G3_WITHOUT_SSC_BIT_SHIFT;
-			value &= ~(0x00000001 << PHY_G3_WITH_SSC_BIT_SHIFT);
-		}
-		bit_cnt = 0;
-		for (j = 0; j < 31; j++)
-			if ((value >> j) & 0x00000001)
-				bit_cnt++;
-		if (bit_cnt % 2)
-			value &= ~(0x00000001 << SNW3_PHY_CAPABILITIES_PARITY);
-		else
-			value |= 0x00000001 << SNW3_PHY_CAPABILITIES_PARITY;
-
-		pm8001_cw32(pm8001_ha, 2, offset, value);
+		pm8001_cw32(pm8001_ha, 2, offset, 0x80001501);
 	}
+	/*************************************************************
+	Change the SSC upspreading value to 0x0 so that upspreading is disabled.
+	Device MABC SMOD0 Controls
+	Address: (via MEMBASE-III):
+	Using shifted destination address 0x0_0000: with Offset 0xD8
+
+	31:28 R/W Reserved Do not change
+	27:24 R/W SAS_SMOD_SPRDUP 0000
+	23:20 R/W SAS_SMOD_SPRDDN 0000
+	19:0  R/W  Reserved Do not change
+	Upon power-up this register will read as 0x8990c016,
+	and I would like you to change the SAS_SMOD_SPRDUP bits to 0b0000
+	so that the written value will be 0x8090c016.
+	This will ensure only down-spreading SSC is enabled on the SPC.
+	*************************************************************/
+	value = pm8001_cr32(pm8001_ha, 2, 0xd8);
+	pm8001_cw32(pm8001_ha, 2, 0xd8, 0x8000C016);
 
 	/*set the shifted destination address to 0x0 to avoid error operation */
 	bar4_shift(pm8001_ha, 0x0);
