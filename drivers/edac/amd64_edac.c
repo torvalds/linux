@@ -2837,7 +2837,7 @@ static int amd64_init_2nd_stage(struct amd64_pvt *pvt)
 {
 	int node_id = pvt->mc_node_id;
 	struct mem_ctl_info *mci;
-	int ret;
+	int ret = -ENODEV;
 
 	amd64_read_mc_registers(pvt);
 
