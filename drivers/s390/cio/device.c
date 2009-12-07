@@ -888,9 +888,6 @@ static void sch_create_and_recog_new_device(struct subchannel *sch)
 		css_sch_device_unregister(sch);
 		return;
 	}
-	spin_lock_irq(sch->lock);
-	sch_set_cdev(sch, cdev);
-	spin_unlock_irq(sch->lock);
 	/* Start recognition for the new ccw device. */
 	if (io_subchannel_recog(cdev, sch)) {
 		spin_lock_irq(sch->lock);
@@ -1107,7 +1104,6 @@ io_subchannel_recog(struct ccw_device *cdev, struct subchannel *sch)
 	int rc;
 	struct ccw_device_private *priv;
 
-	sch_set_cdev(sch, cdev);
 	cdev->ccwlock = sch->lock;
 
 	/* Init private data. */
@@ -1125,6 +1121,7 @@ io_subchannel_recog(struct ccw_device *cdev, struct subchannel *sch)
 
 	/* Start async. device sensing. */
 	spin_lock_irq(sch->lock);
+	sch_set_cdev(sch, cdev);
 	rc = ccw_device_recognition(cdev);
 	spin_unlock_irq(sch->lock);
 	if (rc) {
