@@ -486,18 +486,9 @@ static int online_store_handle_offline(struct ccw_device *cdev)
 
 static int online_store_recog_and_online(struct ccw_device *cdev)
 {
-	int ret;
-
 	/* Do device recognition, if needed. */
 	if (cdev->private->state == DEV_STATE_BOXED) {
-		ret = ccw_device_recognition(cdev);
-		if (ret) {
-			CIO_MSG_EVENT(0, "Couldn't start recognition "
-				      "for device 0.%x.%04x (ret=%d)\n",
-				      cdev->private->dev_id.ssid,
-				      cdev->private->dev_id.devno, ret);
-			return ret;
-		}
+		ccw_device_recognition(cdev);
 		wait_event(cdev->private->wait_q,
 			   cdev->private->flags.recog_done);
 		if (cdev->private->state != DEV_STATE_OFFLINE)
@@ -746,7 +737,7 @@ static struct ccw_device * io_subchannel_create_ccwdev(struct subchannel *sch)
 	return cdev;
 }
 
-static int io_subchannel_recog(struct ccw_device *, struct subchannel *);
+static void io_subchannel_recog(struct ccw_device *, struct subchannel *);
 
 static void sch_create_and_recog_new_device(struct subchannel *sch)
 {
@@ -760,16 +751,7 @@ static void sch_create_and_recog_new_device(struct subchannel *sch)
 		return;
 	}
 	/* Start recognition for the new ccw device. */
-	if (io_subchannel_recog(cdev, sch)) {
-		spin_lock_irq(sch->lock);
-		sch_set_cdev(sch, NULL);
-		spin_unlock_irq(sch->lock);
-		css_sch_device_unregister(sch);
-		/* Put reference from io_subchannel_create_ccwdev(). */
-		put_device(&sch->dev);
-		/* Give up initial reference. */
-		put_device(&cdev->dev);
-	}
+	io_subchannel_recog(cdev, sch);
 }
 
 /*
@@ -879,10 +861,8 @@ io_subchannel_recog_done(struct ccw_device *cdev)
 	}
 }
 
-static int
-io_subchannel_recog(struct ccw_device *cdev, struct subchannel *sch)
+static void io_subchannel_recog(struct ccw_device *cdev, struct subchannel *sch)
 {
-	int rc;
 	struct ccw_device_private *priv;
 
 	cdev->ccwlock = sch->lock;
@@ -903,13 +883,8 @@ io_subchannel_recog(struct ccw_device *cdev, struct subchannel *sch)
 	/* Start async. device sensing. */
 	spin_lock_irq(sch->lock);
 	sch_set_cdev(sch, cdev);
-	rc = ccw_device_recognition(cdev);
+	ccw_device_recognition(cdev);
 	spin_unlock_irq(sch->lock);
-	if (rc) {
-		if (atomic_dec_and_test(&ccw_device_init_count))
-			wake_up(&ccw_device_init_wq);
-	}
-	return rc;
 }
 
 static int ccw_device_move_to_sch(struct ccw_device *cdev,
@@ -1528,10 +1503,7 @@ static int ccw_device_console_enable(struct ccw_device *cdev,
 	sch->driver = &io_subchannel_driver;
 	/* Initialize the ccw_device structure. */
 	cdev->dev.parent= &sch->dev;
-	rc = io_subchannel_recog(cdev, sch);
-	if (rc)
-		return rc;
-
+	io_subchannel_recog(cdev, sch);
 	/* Now wait for the async. recognition to come to an end. */
 	spin_lock_irq(cdev->ccwlock);
 	while (!dev_fsm_final_state(cdev))
@@ -1547,7 +1519,7 @@ static int ccw_device_console_enable(struct ccw_device *cdev,
 	rc = 0;
 out_unlock:
 	spin_unlock_irq(cdev->ccwlock);
-	return 0;
+	return rc;
 }
 
 struct ccw_device *
@@ -1789,7 +1761,6 @@ static int ccw_device_pm_thaw(struct device *dev)
 static void __ccw_device_pm_restore(struct ccw_device *cdev)
 {
 	struct subchannel *sch = to_subchannel(cdev->dev.parent);
-	int ret;
 
 	if (cio_is_console(sch->schid))
 		goto out;
@@ -1799,22 +1770,10 @@ static void __ccw_device_pm_restore(struct ccw_device *cdev)
 	 */
 	spin_lock_irq(sch->lock);
 	cdev->private->flags.resuming = 1;
-	ret = ccw_device_recognition(cdev);
+	ccw_device_recognition(cdev);
 	spin_unlock_irq(sch->lock);
-	if (ret) {
-		CIO_MSG_EVENT(0, "Couldn't start recognition for device "
-			      "0.%x.%04x (ret=%d)\n",
-			      cdev->private->dev_id.ssid,
-			      cdev->private->dev_id.devno, ret);
-		spin_lock_irq(sch->lock);
-		cdev->private->state = DEV_STATE_DISCONNECTED;
-		spin_unlock_irq(sch->lock);
-		/* notify driver after the resume cb */
-		goto out;
-	}
 	wait_event(cdev->private->wait_q, dev_fsm_final_state(cdev) ||
 		   cdev->private->state == DEV_STATE_DISCONNECTED);
-
 out:
 	cdev->private->flags.resuming = 0;
 }

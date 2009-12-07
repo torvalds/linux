@@ -83,7 +83,7 @@ int ccw_device_cancel_halt_clear(struct ccw_device *);
 
 int ccw_device_is_orphan(struct ccw_device *);
 
-int ccw_device_recognition(struct ccw_device *);
+void ccw_device_recognition(struct ccw_device *);
 int ccw_device_online(struct ccw_device *);
 int ccw_device_offline(struct ccw_device *);
 void ccw_device_update_sense_data(struct ccw_device *);
