@@ -145,7 +145,6 @@ struct ccw_device_private {
 	struct subchannel *sch;
 	int state;		/* device state */
 	atomic_t onoff;
-	unsigned long registered;
 	struct ccw_dev_id dev_id;	/* device id */
 	struct subchannel_id schid;	/* subchannel number */
 	struct ccw_request req;		/* internal I/O request */
