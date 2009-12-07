@@ -170,7 +170,6 @@ tapechar_read(struct file *filp, char __user *data, size_t count, loff_t *ppos)
 	if (rc == 0) {
 		rc = block_size - request->rescnt;
 		DBF_EVENT(6, "TCHAR:rbytes:  %x\n", rc);
-		filp->f_pos += rc;
 		/* Copy data from idal buffer to user space. */
 		if (idal_buffer_to_user(device->char_data.idal_buf,
 					data, rc) != 0)
@@ -238,7 +237,6 @@ tapechar_write(struct file *filp, const char __user *data, size_t count, loff_t 
 			break;
 		DBF_EVENT(6, "TCHAR:wbytes: %lx\n",
 			  block_size - request->rescnt);
-		filp->f_pos += block_size - request->rescnt;
 		written += block_size - request->rescnt;
 		if (request->rescnt != 0)
 			break;
