@@ -160,7 +160,12 @@ STA_OPS(agg_status);
 static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
 				size_t count, loff_t *ppos)
 {
-	char buf[200], *p = buf;
+#define PRINT_HT_CAP(_cond, _str) \
+	do { \
+	if (_cond) \
+			p += scnprintf(p, sizeof(buf)+buf-p, "\t" _str "\n"); \
+	} while (0)
+	char buf[1024], *p = buf;
 	int i;
 	struct sta_info *sta = file->private_data;
 	struct ieee80211_sta_ht_cap *htc = &sta->sta.ht_cap;
@@ -169,6 +174,47 @@ static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
 			htc->ht_supported ? "" : "not ");
 	if (htc->ht_supported) {
 		p += scnprintf(p, sizeof(buf)+buf-p, "cap: %#.4x\n", htc->cap);
+
+		PRINT_HT_CAP((htc->cap & BIT(0)), "RX LDCP");
+		PRINT_HT_CAP((htc->cap & BIT(1)), "HT20/HT40");
+		PRINT_HT_CAP(!(htc->cap & BIT(1)), "HT20");
+
+		PRINT_HT_CAP(((htc->cap >> 2) & 0x3) == 0, "Static SM Power Save");
+		PRINT_HT_CAP(((htc->cap >> 2) & 0x3) == 1, "Dynamic SM Power Save");
+		PRINT_HT_CAP(((htc->cap >> 2) & 0x3) == 3, "SM Power Save disabled");
+
+		PRINT_HT_CAP((htc->cap & BIT(4)), "RX Greenfield");
+		PRINT_HT_CAP((htc->cap & BIT(5)), "RX HT20 SGI");
+		PRINT_HT_CAP((htc->cap & BIT(6)), "RX HT40 SGI");
+		PRINT_HT_CAP((htc->cap & BIT(7)), "TX STBC");
+
+		PRINT_HT_CAP(((htc->cap >> 8) & 0x3) == 0, "No RX STBC");
+		PRINT_HT_CAP(((htc->cap >> 8) & 0x3) == 1, "RX STBC 1-stream");
+		PRINT_HT_CAP(((htc->cap >> 8) & 0x3) == 2, "RX STBC 2-streams");
+		PRINT_HT_CAP(((htc->cap >> 8) & 0x3) == 3, "RX STBC 3-streams");
+
+		PRINT_HT_CAP((htc->cap & BIT(10)), "HT Delayed Block Ack");
+
+		PRINT_HT_CAP((htc->cap & BIT(11)), "Max AMSDU length: "
+			     "3839 bytes");
+		PRINT_HT_CAP(!(htc->cap & BIT(11)), "Max AMSDU length: "
+			     "7935 bytes");
+
+		/*
+		 * For beacons and probe response this would mean the BSS
+		 * does or does not allow the usage of DSSS/CCK HT40.
+		 * Otherwise it means the STA does or does not use
+		 * DSSS/CCK HT40.
+		 */
+		PRINT_HT_CAP((htc->cap & BIT(12)), "DSSS/CCK HT40");
+		PRINT_HT_CAP(!(htc->cap & BIT(12)), "No DSSS/CCK HT40");
+
+		/* BIT(13) is reserved */
+
+		PRINT_HT_CAP((htc->cap & BIT(14)), "40 MHz Intolerant");
+
+		PRINT_HT_CAP((htc->cap & BIT(15)), "L-SIG TXOP protection");
+
 		p += scnprintf(p, sizeof(buf)+buf-p, "ampdu factor/density: %d/%d\n",
 				htc->ampdu_factor, htc->ampdu_density);
 		p += scnprintf(p, sizeof(buf)+buf-p, "MCS mask:");
