@@ -1059,6 +1059,8 @@ out_schedule:
 	return 0;
 }
 
+static void io_subchannel_quiesce(struct subchannel *);
+
 static int
 io_subchannel_remove (struct subchannel *sch)
 {
@@ -1068,6 +1070,7 @@ io_subchannel_remove (struct subchannel *sch)
 	cdev = sch_get_cdev(sch);
 	if (!cdev)
 		goto out_free;
+	io_subchannel_quiesce(sch);
 	/* Set ccw device to not operational and drop reference. */
 	spin_lock_irqsave(cdev->ccwlock, flags);
 	sch_set_cdev(sch, NULL);
@@ -1150,7 +1153,7 @@ static int io_subchannel_chp_event(struct subchannel *sch,
 	return 0;
 }
 
-static void io_subchannel_shutdown(struct subchannel *sch)
+static void io_subchannel_quiesce(struct subchannel *sch)
 {
 	struct ccw_device *cdev;
 	int ret;
@@ -1180,6 +1183,11 @@ static void io_subchannel_shutdown(struct subchannel *sch)
 	}
 out_unlock:
 	spin_unlock_irq(sch->lock);
+}
+
+static void io_subchannel_shutdown(struct subchannel *sch)
+{
+	io_subchannel_quiesce(sch);
 }
 
 static int device_is_disconnected(struct ccw_device *cdev)
