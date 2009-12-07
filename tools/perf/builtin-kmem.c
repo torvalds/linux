@@ -57,11 +57,6 @@ static struct rb_root root_caller_sorted;
 static unsigned long total_requested, total_allocated;
 static unsigned long nr_allocs, nr_cross_allocs;
 
-struct raw_event_sample {
-	u32 size;
-	char data[0];
-};
-
 #define PATH_SYS_NODE	"/sys/devices/system/node"
 
 static void init_cpunode_map(void)
@@ -201,7 +196,7 @@ static void insert_caller_stat(unsigned long call_site,
 	}
 }
 
-static void process_alloc_event(struct raw_event_sample *raw,
+static void process_alloc_event(void *data,
 				struct event *event,
 				int cpu,
 				u64 timestamp __used,
@@ -214,10 +209,10 @@ static void process_alloc_event(struct raw_event_sample *raw,
 	int bytes_alloc;
 	int node1, node2;
 
-	ptr = raw_field_value(event, "ptr", raw->data);
-	call_site = raw_field_value(event, "call_site", raw->data);
-	bytes_req = raw_field_value(event, "bytes_req", raw->data);
-	bytes_alloc = raw_field_value(event, "bytes_alloc", raw->data);
+	ptr = raw_field_value(event, "ptr", data);
+	call_site = raw_field_value(event, "call_site", data);
+	bytes_req = raw_field_value(event, "bytes_req", data);
+	bytes_alloc = raw_field_value(event, "bytes_alloc", data);
 
 	insert_alloc_stat(call_site, ptr, bytes_req, bytes_alloc, cpu);
 	insert_caller_stat(call_site, bytes_req, bytes_alloc);
@@ -227,7 +222,7 @@ static void process_alloc_event(struct raw_event_sample *raw,
 
 	if (node) {
 		node1 = cpunode_map[cpu];
-		node2 = raw_field_value(event, "node", raw->data);
+		node2 = raw_field_value(event, "node", data);
 		if (node1 != node2)
 			nr_cross_allocs++;
 	}
@@ -262,7 +257,7 @@ static struct alloc_stat *search_alloc_stat(unsigned long ptr,
 	return NULL;
 }
 
-static void process_free_event(struct raw_event_sample *raw,
+static void process_free_event(void *data,
 			       struct event *event,
 			       int cpu,
 			       u64 timestamp __used,
@@ -271,7 +266,7 @@ static void process_free_event(struct raw_event_sample *raw,
 	unsigned long ptr;
 	struct alloc_stat *s_alloc, *s_caller;
 
-	ptr = raw_field_value(event, "ptr", raw->data);
+	ptr = raw_field_value(event, "ptr", data);
 
 	s_alloc = search_alloc_stat(ptr, 0, &root_alloc_stat, ptr_cmp);
 	if (!s_alloc)
@@ -289,35 +284,30 @@ static void process_free_event(struct raw_event_sample *raw,
 }
 
 static void
-process_raw_event(event_t *raw_event __used, u32 size, void *data,
+process_raw_event(event_t *raw_event __used, void *data,
 		  int cpu, u64 timestamp, struct thread *thread)
 {
-	struct raw_event_sample *raw;
 	struct event *event;
 	int type;
 
-	raw = malloc_or_die(sizeof(*raw)+size);
-	raw->size = size;
-	memcpy(raw->data, data, size);
-
-	type = trace_parse_common_type(raw->data);
+	type = trace_parse_common_type(data);
 	event = trace_find_event(type);
 
 	if (!strcmp(event->name, "kmalloc") ||
 	    !strcmp(event->name, "kmem_cache_alloc")) {
-		process_alloc_event(raw, event, cpu, timestamp, thread, 0);
+		process_alloc_event(data, event, cpu, timestamp, thread, 0);
 		return;
 	}
 
 	if (!strcmp(event->name, "kmalloc_node") ||
 	    !strcmp(event->name, "kmem_cache_alloc_node")) {
-		process_alloc_event(raw, event, cpu, timestamp, thread, 1);
+		process_alloc_event(data, event, cpu, timestamp, thread, 1);
 		return;
 	}
 
 	if (!strcmp(event->name, "kfree") ||
 	    !strcmp(event->name, "kmem_cache_free")) {
-		process_free_event(raw, event, cpu, timestamp, thread);
+		process_free_event(data, event, cpu, timestamp, thread);
 		return;
 	}
 }
@@ -349,7 +339,7 @@ static int process_sample_event(event_t *event)
 
 	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
-	process_raw_event(event, data.raw_size, data.raw_data, data.cpu,
+	process_raw_event(event, data.raw_data, data.cpu,
 			  data.time, thread);
 
 	return 0;
