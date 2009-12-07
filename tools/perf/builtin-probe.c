@@ -194,8 +194,8 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 		if (session.need_dwarf)
 			die("Could not open vmlinux/module file.");
 
-		pr_warning("Could not open vmlinux/module file."
-			   " Try to use symbols.\n");
+		pr_debug("Could not open vmlinux/module file."
+			 " Try to use symbols.\n");
 		goto end_dwarf;
 	}
 
