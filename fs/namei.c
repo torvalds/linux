@@ -414,6 +414,46 @@ do_revalidate(struct dentry *dentry, struct nameidata *nd)
 }
 
 /*
+ * force_reval_path - force revalidation of a dentry
+ *
+ * In some situations the path walking code will trust dentries without
+ * revalidating them. This causes problems for filesystems that depend on
+ * d_revalidate to handle file opens (e.g. NFSv4). When FS_REVAL_DOT is set
+ * (which indicates that it's possible for the dentry to go stale), force
+ * a d_revalidate call before proceeding.
+ *
+ * Returns 0 if the revalidation was successful. If the revalidation fails,
+ * either return the error returned by d_revalidate or -ESTALE if the
+ * revalidation it just returned 0. If d_revalidate returns 0, we attempt to
+ * invalidate the dentry. It's up to the caller to handle putting references
+ * to the path if necessary.
+ */
+static int
+force_reval_path(struct path *path, struct nameidata *nd)
+{
+	int status;
+	struct dentry *dentry = path->dentry;
+
+	/*
+	 * only check on filesystems where it's possible for the dentry to
+	 * become stale. It's assumed that if this flag is set then the
+	 * d_revalidate op will also be defined.
+	 */
+	if (!(dentry->d_sb->s_type->fs_flags & FS_REVAL_DOT))
+		return 0;
+
+	status = dentry->d_op->d_revalidate(dentry, nd);
+	if (status > 0)
+		return 0;
+
+	if (!status) {
+		d_invalidate(dentry);
+		status = -ESTALE;
+	}
+	return status;
+}
+
+/*
  * Short-cut version of permission(), for calling on directories
  * during pathname resolution.  Combines parts of permission()
  * and generic_permission(), and tests ONLY for MAY_EXEC permission.
@@ -529,6 +569,11 @@ static __always_inline int __do_follow_link(struct path *path, struct nameidata 
 		error = 0;
 		if (s)
 			error = __vfs_follow_link(nd, s);
+		else if (nd->last_type == LAST_BIND) {
+			error = force_reval_path(&nd->path, nd);
+			if (error)
+				path_put(&nd->path);
+		}
 		if (dentry->d_inode->i_op->put_link)
 			dentry->d_inode->i_op->put_link(dentry, nd, cookie);
 	}
