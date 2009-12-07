@@ -80,3 +80,6 @@ user_xattr	(*)	Enables Extended User Attributes.
 nouser_xattr		Disables Extended User Attributes.
 acl			Enables POSIX Access Control Lists support.
 noacl		(*)	Disables POSIX Access Control Lists support.
+resv_level=4	(*)	Set how agressive allocation reservations will be.
+			Valid values are between 0 (reservations off) to 8
+			(maximum space for reservations).

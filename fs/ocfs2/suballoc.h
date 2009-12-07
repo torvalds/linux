@@ -54,6 +54,8 @@ struct ocfs2_alloc_context {
 	u64    ac_last_group;
 	u64    ac_max_block;  /* Highest block number to allocate. 0 is
 				 is the same as ~0 - unlimited */
+
+	struct ocfs2_alloc_reservation	*ac_resv;
 };
 
 void ocfs2_init_steal_slots(struct ocfs2_super *osb);

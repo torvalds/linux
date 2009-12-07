@@ -47,6 +47,7 @@
 /* For struct ocfs2_blockcheck_stats */
 #include "blockcheck.h"
 
+#include "reservations.h"
 
 /* Caching of metadata buffers */
 
@@ -348,6 +349,10 @@ struct ocfs2_super
 	struct buffer_head *local_alloc_bh;
 
 	u64 la_last_gd;
+
+	struct ocfs2_reservation_map	osb_la_resmap;
+
+	unsigned int	osb_resv_level;
 
 	/* Next three fields are for local node slot recovery during
 	 * mount. */
