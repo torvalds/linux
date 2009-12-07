@@ -529,11 +529,10 @@ static ssize_t online_store (struct device *dev, struct device_attribute *attr,
 	int force, ret;
 	unsigned long i;
 
-	if ((cdev->private->state != DEV_STATE_OFFLINE &&
-	     cdev->private->state != DEV_STATE_ONLINE &&
-	     cdev->private->state != DEV_STATE_BOXED &&
-	     cdev->private->state != DEV_STATE_DISCONNECTED) ||
-	    atomic_cmpxchg(&cdev->private->onoff, 0, 1) != 0)
+	if (!dev_fsm_final_state(cdev) &&
+	    cdev->private->state != DEV_STATE_DISCONNECTED)
+		return -EAGAIN;
+	if (atomic_cmpxchg(&cdev->private->onoff, 0, 1) != 0)
 		return -EAGAIN;
 
 	if (cdev->drv && !try_module_get(cdev->drv->owner)) {
