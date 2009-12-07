@@ -1283,8 +1283,8 @@ static int asus_hotk_add(struct acpi_device *device)
 	hotk->ledd_status = 0xFFF;
 
 	/* Set initial values of light sensor and level */
-	hotk->light_switch = 1;	/* Default to light sensor disabled */
-	hotk->light_level = 0;	/* level 5 for sensor sensitivity */
+	hotk->light_switch = 0;	/* Default to light sensor disabled */
+	hotk->light_level = 5;	/* level 5 for sensor sensitivity */
 
 	if (ls_switch_handle)
 		set_light_sens_switch(hotk->light_switch);
