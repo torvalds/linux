@@ -892,12 +892,27 @@ static int ccw_device_move_to_sch(struct ccw_device *cdev,
 				  struct subchannel *sch)
 {
 	struct subchannel *old_sch;
-	int rc;
+	int rc, old_enabled = 0;
 
 	old_sch = to_subchannel(cdev->dev.parent);
 	/* Obtain child reference for new parent. */
 	if (!get_device(&sch->dev))
 		return -ENODEV;
+
+	if (!sch_is_pseudo_sch(old_sch)) {
+		spin_lock_irq(old_sch->lock);
+		old_enabled = old_sch->schib.pmcw.ena;
+		rc = 0;
+		if (old_enabled)
+			rc = cio_disable_subchannel(old_sch);
+		spin_unlock_irq(old_sch->lock);
+		if (rc == -EBUSY) {
+			/* Release child reference for new parent. */
+			put_device(&sch->dev);
+			return rc;
+		}
+	}
+
 	mutex_lock(&sch->reg_mutex);
 	rc = device_move(&cdev->dev, &sch->dev, DPM_ORDER_PARENT_BEFORE_DEV);
 	mutex_unlock(&sch->reg_mutex);
@@ -906,6 +921,12 @@ static int ccw_device_move_to_sch(struct ccw_device *cdev,
 			      cdev->private->dev_id.ssid,
 			      cdev->private->dev_id.devno, sch->schid.ssid,
 			      sch->schib.pmcw.dev, rc);
+		if (old_enabled) {
+			/* Try to reenable the old subchannel. */
+			spin_lock_irq(old_sch->lock);
+			cio_enable_subchannel(old_sch, (u32)(addr_t)old_sch);
+			spin_unlock_irq(old_sch->lock);
+		}
 		/* Release child reference for new parent. */
 		put_device(&sch->dev);
 		return rc;
@@ -914,7 +935,6 @@ static int ccw_device_move_to_sch(struct ccw_device *cdev,
 	if (!sch_is_pseudo_sch(old_sch)) {
 		spin_lock_irq(old_sch->lock);
 		sch_set_cdev(old_sch, NULL);
-		cio_disable_subchannel(old_sch);
 		spin_unlock_irq(old_sch->lock);
 		css_schedule_eval(old_sch->schid);
 	}
