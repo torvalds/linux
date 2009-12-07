@@ -948,8 +948,6 @@ static int usb_resume_device(struct usb_device *udev, pm_message_t msg)
 
  done:
 	dev_vdbg(&udev->dev, "%s: status %d\n", __func__, status);
-	if (status == 0)
-		udev->autoresume_disabled = 0;
 	return status;
 }
 
@@ -1280,11 +1278,6 @@ static int usb_resume_both(struct usb_device *udev, pm_message_t msg)
 
 	/* Propagate the resume up the tree, if necessary */
 	if (udev->state == USB_STATE_SUSPENDED) {
-		if ((msg.event & PM_EVENT_AUTO) &&
-				udev->autoresume_disabled) {
-			status = -EPERM;
-			goto done;
-		}
 		if (parent) {
 			status = usb_autoresume_device(parent);
 			if (status == 0) {
@@ -1638,8 +1631,6 @@ int usb_autopm_get_interface_async(struct usb_interface *intf)
 
 	if (intf->condition == USB_INTERFACE_UNBOUND)
 		status = -ENODEV;
-	else if (udev->autoresume_disabled)
-		status = -EPERM;
 	else {
 		atomic_inc(&intf->pm_usage_cnt);
 		if (atomic_read(&intf->pm_usage_cnt) > 0 &&
@@ -1651,28 +1642,6 @@ int usb_autopm_get_interface_async(struct usb_interface *intf)
 	return status;
 }
 EXPORT_SYMBOL_GPL(usb_autopm_get_interface_async);
-
-/**
- * usb_autopm_set_interface - set a USB interface's autosuspend state
- * @intf: the usb_interface whose state should be set
- *
- * This routine sets the autosuspend state of @intf's device according
- * to @intf's usage counter, which the caller must have set previously.
- * If the counter is <= 0, the device is autosuspended (if it isn't
- * already suspended and if nothing else prevents the autosuspend).  If
- * the counter is > 0, the device is autoresumed (if it isn't already
- * awake).
- */
-int usb_autopm_set_interface(struct usb_interface *intf)
-{
-	int	status;
-
-	status = usb_autopm_do_interface(intf, 0);
-	dev_vdbg(&intf->dev, "%s: status %d cnt %d\n",
-			__func__, status, atomic_read(&intf->pm_usage_cnt));
-	return status;
-}
-EXPORT_SYMBOL_GPL(usb_autopm_set_interface);
 
 #else
 
