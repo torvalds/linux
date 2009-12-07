@@ -3823,7 +3823,8 @@ static int pm8001_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 	u32 opc = OPC_INB_SSPINIIOSTART;
 	memset(&ssp_cmd, 0, sizeof(ssp_cmd));
 	memcpy(ssp_cmd.ssp_iu.lun, task->ssp_task.LUN, 8);
-	ssp_cmd.dir_m_tlr = data_dir_flags[task->data_dir] << 8 | 0x0;/*0 for
+	ssp_cmd.dir_m_tlr =
+		cpu_to_le32(data_dir_flags[task->data_dir] << 8 | 0x0);/*0 for
 	SAS 1.1 compatible TLR*/
 	ssp_cmd.data_len = cpu_to_le32(task->total_xfer_len);
 	ssp_cmd.device_id = cpu_to_le32(pm8001_dev->device_id);
@@ -3894,7 +3895,7 @@ static int pm8001_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 		}
 	}
 	if (task->ata_task.use_ncq && pm8001_get_ncq_tag(task, &hdr_tag))
-		ncg_tag = cpu_to_le32(hdr_tag);
+		ncg_tag = hdr_tag;
 	dir = data_dir_flags[task->data_dir] << 8;
 	sata_cmd.tag = cpu_to_le32(tag);
 	sata_cmd.device_id = cpu_to_le32(pm8001_ha_dev->device_id);
@@ -4039,7 +4040,7 @@ static int pm8001_chip_reg_dev_req(struct pm8001_hba_info *pm8001_ha,
 		((stp_sspsmp_sata & 0x03) * 0x10000000));
 	payload.firstburstsize_ITNexustimeout =
 		cpu_to_le32(ITNT | (firstBurstSize * 0x10000));
-	memcpy(&payload.sas_addr_hi, pm8001_dev->sas_device->sas_addr,
+	memcpy(payload.sas_addr, pm8001_dev->sas_device->sas_addr,
 		SAS_ADDR_SIZE);
 	rc = mpi_build_cmd(pm8001_ha, circularQ, opc, &payload);
 	return rc;
