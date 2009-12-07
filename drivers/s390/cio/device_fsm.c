@@ -1072,11 +1072,9 @@ void ccw_device_trigger_reprobe(struct ccw_device *cdev)
 
 	/* We should also udate ssd info, but this has to wait. */
 	/* Check if this is another device which appeared on the same sch. */
-	if (sch->schib.pmcw.dev != cdev->private->dev_id.devno) {
-		PREPARE_WORK(&cdev->private->kick_work,
-			     ccw_device_move_to_orphanage);
-		queue_work(slow_path_wq, &cdev->private->kick_work);
-	} else
+	if (sch->schib.pmcw.dev != cdev->private->dev_id.devno)
+		css_schedule_eval(sch->schid);
+	else
 		ccw_device_start_id(cdev, 0);
 }
 

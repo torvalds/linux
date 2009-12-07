@@ -376,8 +376,8 @@ static int css_evaluate_new_subchannel(struct subchannel_id schid, int slow)
 		/* Unusable - ignore. */
 		return 0;
 	}
-	CIO_MSG_EVENT(4, "Evaluating schid 0.%x.%04x, event %d, unknown, "
-			 "slow path.\n", schid.ssid, schid.sch_no, CIO_OPER);
+	CIO_MSG_EVENT(4, "event: sch 0.%x.%04x, new\n", schid.ssid,
+		      schid.sch_no);
 
 	return css_probe_device(schid);
 }
@@ -393,6 +393,10 @@ static int css_evaluate_known_subchannel(struct subchannel *sch, int slow)
 			dev_dbg(&sch->dev,
 				"Got subchannel machine check but "
 				"no sch_event handler provided.\n");
+	}
+	if (ret != 0 && ret != -EAGAIN) {
+		CIO_MSG_EVENT(2, "eval: sch 0.%x.%04x, rc=%d\n",
+			      sch->schid.ssid, sch->schid.sch_no, ret);
 	}
 	return ret;
 }
@@ -684,6 +688,7 @@ static int __init setup_css(int nr)
 	css->pseudo_subchannel->dev.parent = &css->device;
 	css->pseudo_subchannel->dev.release = css_subchannel_release;
 	dev_set_name(&css->pseudo_subchannel->dev, "defunct");
+	mutex_init(&css->pseudo_subchannel->reg_mutex);
 	ret = cio_create_sch_lock(css->pseudo_subchannel);
 	if (ret) {
 		kfree(css->pseudo_subchannel);
