@@ -77,25 +77,24 @@ static void calc_layout(struct ceph_osd_client *osdc,
 /*
  * requests
  */
-void ceph_osdc_put_request(struct ceph_osd_request *req)
+void ceph_osdc_release_request(struct kref *kref)
 {
-	dout("osdc put_request %p %d -> %d\n", req, atomic_read(&req->r_ref),
-	     atomic_read(&req->r_ref)-1);
-	BUG_ON(atomic_read(&req->r_ref) <= 0);
-	if (atomic_dec_and_test(&req->r_ref)) {
-		if (req->r_request)
-			ceph_msg_put(req->r_request);
-		if (req->r_reply)
-			ceph_msg_put(req->r_reply);
-		if (req->r_own_pages)
-			ceph_release_page_vector(req->r_pages,
-						 req->r_num_pages);
-		ceph_put_snap_context(req->r_snapc);
-		if (req->r_mempool)
-			mempool_free(req, req->r_osdc->req_mempool);
-		else
-			kfree(req);
-	}
+	struct ceph_osd_request *req = container_of(kref,
+						    struct ceph_osd_request,
+						    r_kref);
+
+	if (req->r_request)
+		ceph_msg_put(req->r_request);
+	if (req->r_reply)
+		ceph_msg_put(req->r_reply);
+	if (req->r_own_pages)
+		ceph_release_page_vector(req->r_pages,
+					 req->r_num_pages);
+	ceph_put_snap_context(req->r_snapc);
+	if (req->r_mempool)
+		mempool_free(req, req->r_osdc->req_mempool);
+	else
+		kfree(req);
 }
 
 /*
@@ -149,7 +148,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 
 	req->r_osdc = osdc;
 	req->r_mempool = use_mempool;
-	atomic_set(&req->r_ref, 1);
+	kref_init(&req->r_kref);
 	init_completion(&req->r_completion);
 	init_completion(&req->r_safe_completion);
 	INIT_LIST_HEAD(&req->r_unsafe_item);

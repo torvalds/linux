@@ -2,6 +2,7 @@
 #define _FS_CEPH_OSD_CLIENT_H
 
 #include <linux/completion.h>
+#include <linux/kref.h>
 #include <linux/mempool.h>
 #include <linux/rbtree.h>
 
@@ -49,7 +50,7 @@ struct ceph_osd_request {
 	int r_prepared_pages, r_got_reply;
 
 	struct ceph_osd_client *r_osdc;
-	atomic_t          r_ref;
+	struct kref       r_kref;
 	bool              r_mempool;
 	struct completion r_completion, r_safe_completion;
 	ceph_osdc_callback_t r_callback, r_safe_callback;
@@ -118,9 +119,13 @@ extern struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *,
 
 static inline void ceph_osdc_get_request(struct ceph_osd_request *req)
 {
-	atomic_inc(&req->r_ref);
+	kref_get(&req->r_kref);
 }
-extern void ceph_osdc_put_request(struct ceph_osd_request *req);
+extern void ceph_osdc_release_request(struct kref *kref);
+static inline void ceph_osdc_put_request(struct ceph_osd_request *req)
+{
+	kref_put(&req->r_kref, ceph_osdc_release_request);
+}
 
 extern int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 				   struct ceph_osd_request *req,
