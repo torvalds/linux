@@ -819,7 +819,7 @@ pm8001_exec_internal_task_abort(struct pm8001_hba_info *pm8001_ha,
 		task->task_done = pm8001_task_done;
 		task->timer.data = (unsigned long)task;
 		task->timer.function = pm8001_tmf_timedout;
-		task->timer.expires = jiffies + PM8001_TASK_TIMEOUT*HZ;
+		task->timer.expires = jiffies + PM8001_TASK_TIMEOUT * HZ;
 		add_timer(&task->timer);
 
 		res = pm8001_tag_alloc(pm8001_ha, &ccb_tag);

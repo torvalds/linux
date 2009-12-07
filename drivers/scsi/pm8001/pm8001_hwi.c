@@ -2895,7 +2895,8 @@ hw_event_sas_phy_up(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	u8 deviceType = pPayload->sas_identify.dev_type;
 	port->port_state =  portstate;
 	PM8001_MSG_DBG(pm8001_ha,
-		pm8001_printk("HW_EVENT_SAS_PHY_UP \n"));
+		pm8001_printk("HW_EVENT_SAS_PHY_UP port id = %d, phy id = %d\n",
+		port_id, phy_id));
 
 	switch (deviceType) {
 	case SAS_PHY_UNUSED:
@@ -2969,6 +2970,9 @@ hw_event_sata_phy_up(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	struct sas_ha_struct *sas_ha = pm8001_ha->sas;
 	struct pm8001_phy *phy = &pm8001_ha->phy[phy_id];
 	unsigned long flags;
+	PM8001_MSG_DBG(pm8001_ha,
+		pm8001_printk("HW_EVENT_SATA_PHY_UP port id = %d,"
+		" phy id = %d\n", port_id, phy_id));
 	port->port_state =  portstate;
 	port->port_attached = 1;
 	get_lrate_mode(phy, link_rate);
@@ -4058,7 +4062,7 @@ static int pm8001_chip_phy_ctl_req(struct pm8001_hba_info *pm8001_ha,
 	struct inbound_queue_table *circularQ;
 	int ret;
 	u32 opc = OPC_INB_LOCAL_PHY_CONTROL;
-	memset((u8 *)&payload, 0, sizeof(payload));
+	memset(&payload, 0, sizeof(payload));
 	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 	payload.tag = 1;
 	payload.phyop_phyid =

@@ -59,11 +59,11 @@
 
 #define DRV_NAME		"pm8001"
 #define DRV_VERSION		"0.1.36"
-#define PM8001_FAIL_LOGGING	0x01 /* libsas EH function logging */
+#define PM8001_FAIL_LOGGING	0x01 /* Error message logging */
 #define PM8001_INIT_LOGGING	0x02 /* driver init logging */
 #define PM8001_DISC_LOGGING	0x04 /* discovery layer logging */
 #define PM8001_IO_LOGGING	0x08 /* I/O path logging */
-#define PM8001_EH_LOGGING	0x10 /* Error message logging */
+#define PM8001_EH_LOGGING	0x10 /* libsas EH function logging*/
 #define PM8001_IOCTL_LOGGING	0x20 /* IOCTL message logging */
 #define PM8001_MSG_LOGGING	0x40 /* misc message logging */
 #define pm8001_printk(format, arg...)	printk(KERN_INFO "%s %d:" format,\
