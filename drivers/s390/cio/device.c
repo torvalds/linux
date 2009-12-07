@@ -1051,23 +1051,6 @@ static void io_subchannel_init_fields(struct subchannel *sch)
 	io_subchannel_init_config(sch);
 }
 
-static void io_subchannel_do_unreg(struct work_struct *work)
-{
-	struct subchannel *sch;
-
-	sch = container_of(work, struct subchannel, work);
-	css_sch_device_unregister(sch);
-	put_device(&sch->dev);
-}
-
-/* Schedule unregister if we have no cdev. */
-static void io_subchannel_schedule_removal(struct subchannel *sch)
-{
-	get_device(&sch->dev);
-	INIT_WORK(&sch->work, io_subchannel_do_unreg);
-	queue_work(slow_path_wq, &sch->work);
-}
-
 /*
  * Note: We always return 0 so that we bind to the device even on error.
  * This is needed so that our remove function is called on unregister.
@@ -1124,7 +1107,9 @@ static int io_subchannel_probe(struct subchannel *sch)
 	return 0;
 
 out_schedule:
-	io_subchannel_schedule_removal(sch);
+	spin_lock_irq(sch->lock);
+	css_sched_sch_todo(sch, SCH_TODO_UNREG);
+	spin_unlock_irq(sch->lock);
 	return 0;
 }
 
@@ -1468,6 +1453,8 @@ static int io_subchannel_sch_event(struct subchannel *sch, int process)
 
 	spin_lock_irqsave(sch->lock, flags);
 	if (!device_is_registered(&sch->dev))
+		goto out_unlock;
+	if (work_pending(&sch->todo_work))
 		goto out_unlock;
 	action = sch_get_action(sch);
 	CIO_MSG_EVENT(2, "event: sch 0.%x.%04x, process=%d, action=%d\n",
