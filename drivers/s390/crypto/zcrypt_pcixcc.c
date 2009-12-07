@@ -688,6 +688,7 @@ static long zcrypt_pcixcc_modexpo(struct zcrypt_device *zdev,
 	};
 	int rc;
 
+	ap_init_message(&ap_msg);
 	ap_msg.message = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
@@ -727,6 +728,7 @@ static long zcrypt_pcixcc_modexpo_crt(struct zcrypt_device *zdev,
 	};
 	int rc;
 
+	ap_init_message(&ap_msg);
 	ap_msg.message = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
@@ -766,6 +768,7 @@ static long zcrypt_pcixcc_send_cprb(struct zcrypt_device *zdev,
 	};
 	int rc;
 
+	ap_init_message(&ap_msg);
 	ap_msg.message = kmalloc(PCIXCC_MAX_XCRB_MESSAGE_SIZE, GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
@@ -805,6 +808,7 @@ static long zcrypt_pcixcc_rng(struct zcrypt_device *zdev,
 	};
 	int rc;
 
+	ap_init_message(&ap_msg);
 	ap_msg.message = kmalloc(PCIXCC_MAX_XCRB_MESSAGE_SIZE, GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
@@ -972,6 +976,7 @@ static int zcrypt_pcixcc_rng_supported(struct ap_device *ap_dev)
 	} __attribute__((packed)) *reply;
 	int rc, i;
 
+	ap_init_message(&ap_msg);
 	ap_msg.message = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
