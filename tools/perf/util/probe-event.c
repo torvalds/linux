@@ -413,12 +413,13 @@ static struct strlist *get_perf_event_names(int fd)
 
 	rawlist = get_trace_kprobe_event_rawlist(fd);
 
-	sl = strlist__new(false, NULL);
+	sl = strlist__new(true, NULL);
 	for (i = 0; i < strlist__nr_entries(rawlist); i++) {
 		ent = strlist__entry(rawlist, i);
 		parse_trace_kprobe_event(ent->s, &group, &event, NULL);
 		strlist__add(sl, event);
 		free(group);
+		free(event);
 	}
 
 	strlist__delete(rawlist);
@@ -480,5 +481,6 @@ void add_trace_kprobe_events(struct probe_point *probes, int nr_probes)
 			strlist__add(namelist, event);
 		}
 	}
+	strlist__delete(namelist);
 	close(fd);
 }
