@@ -336,10 +336,14 @@
 #define __NR_pwritev		330
 #define __NR_rt_tgsigqueueinfo	331
 #define __NR_perf_event_open	332
+#define __NR_get_thread_area	333
+#define __NR_set_thread_area	334
+#define __NR_atomic_cmpxchg_32	335
+#define __NR_atomic_barrier	336
 
 #ifdef __KERNEL__
 
-#define NR_syscalls		333
+#define NR_syscalls		337
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
