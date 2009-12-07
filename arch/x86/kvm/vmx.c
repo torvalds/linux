@@ -69,8 +69,10 @@ module_param(emulate_invalid_guest_state, bool, S_IRUGO);
 	(X86_CR0_WP | X86_CR0_NE | X86_CR0_TS | X86_CR0_MP)
 #define KVM_VM_CR0_ALWAYS_ON						\
 	(KVM_VM_CR0_ALWAYS_ON_UNRESTRICTED_GUEST | X86_CR0_PG | X86_CR0_PE)
-#define KVM_GUEST_CR4_MASK						\
-	(X86_CR4_VME | X86_CR4_PSE | X86_CR4_PAE | X86_CR4_PGE | X86_CR4_VMXE)
+#define KVM_CR4_GUEST_OWNED_BITS				      \
+	(X86_CR4_PVI | X86_CR4_DE | X86_CR4_PCE | X86_CR4_OSFXSR      \
+	 | X86_CR4_OSXMMEXCPT)
+
 #define KVM_PMODE_VM_CR4_ALWAYS_ON (X86_CR4_PAE | X86_CR4_VMXE)
 #define KVM_RMODE_VM_CR4_ALWAYS_ON (X86_CR4_VME | X86_CR4_PAE | X86_CR4_VMXE)
 
@@ -2421,8 +2423,8 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	vmcs_write32(VM_ENTRY_CONTROLS, vmcs_config.vmentry_ctrl);
 
 	vmcs_writel(CR0_GUEST_HOST_MASK, ~0UL);
-	vmcs_writel(CR4_GUEST_HOST_MASK, KVM_GUEST_CR4_MASK);
-	vmx->vcpu.arch.cr4_guest_owned_bits = ~KVM_GUEST_CR4_MASK;
+	vmx->vcpu.arch.cr4_guest_owned_bits = KVM_CR4_GUEST_OWNED_BITS;
+	vmcs_writel(CR4_GUEST_HOST_MASK, ~vmx->vcpu.arch.cr4_guest_owned_bits);
 
 	tsc_base = vmx->vcpu.kvm->arch.vm_init_tsc;
 	rdtscll(tsc_this);
