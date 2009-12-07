@@ -109,7 +109,7 @@ struct ccw_request {
 	void (*callback)(struct ccw_device *, void *, int);
 	void *data;
 	/* These fields are used internally. */
-	u8 mask;
+	u16 mask;
 	u16 retries;
 	int drc;
 	int cancel:1;

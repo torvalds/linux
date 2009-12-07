@@ -82,7 +82,7 @@ static void ccwreq_do(struct ccw_device *cdev)
 		/* Perform start function. */
 		sch->lpm = 0xff;
 		memset(&cdev->private->irb, 0, sizeof(struct irb));
-		rc = cio_start(sch, cp, req->mask);
+		rc = cio_start(sch, cp, (u8) req->mask);
 		if (rc == 0) {
 			/* I/O started successfully. */
 			ccw_device_set_timeout(cdev, req->timeout);
@@ -116,7 +116,8 @@ void ccw_request_start(struct ccw_device *cdev)
 {
 	struct ccw_request *req = &cdev->private->req;
 
-	req->mask	= 0x80;
+	/* Try all paths twice to counter link flapping. */
+	req->mask	= 0x8080;
 	req->retries	= req->maxretries;
 	req->mask	= lpm_adjust(req->mask, req->lpm);
 	req->drc	= 0;
@@ -212,7 +213,7 @@ static void ccwreq_log_status(struct ccw_device *cdev, enum io_status status)
 	}  __attribute__ ((packed)) data;
 	data.dev_id	= cdev->private->dev_id;
 	data.retries	= req->retries;
-	data.lpm	= req->mask;
+	data.lpm	= (u8) req->mask;
 	data.status	= (u8) status;
 	CIO_TRACE_EVENT(2, "reqstat");
 	CIO_HEX_EVENT(2, &data, sizeof(data));

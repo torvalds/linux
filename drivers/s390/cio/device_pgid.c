@@ -20,7 +20,7 @@
 #include "device.h"
 #include "io_sch.h"
 
-#define PGID_RETRIES	5
+#define PGID_RETRIES	256
 #define PGID_TIMEOUT	(10 * HZ)
 
 /*

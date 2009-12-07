@@ -21,7 +21,7 @@
 #include "device.h"
 #include "io_sch.h"
 
-#define SENSE_ID_RETRIES	5
+#define SENSE_ID_RETRIES	256
 #define SENSE_ID_TIMEOUT	(10 * HZ)
 #define SENSE_ID_MIN_LEN	4
 #define SENSE_ID_BASIC_LEN	7
