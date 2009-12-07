@@ -52,11 +52,11 @@
 extern int sysctl_userprocess_debug;
 #endif
 
-#ifdef CONFIG_KPROBES
-static inline int notify_page_fault(struct pt_regs *regs, long err)
+static inline int notify_page_fault(struct pt_regs *regs)
 {
 	int ret = 0;
 
+#ifdef CONFIG_KPROBES
 	/* kprobe_running() needs smp_processor_id() */
 	if (!user_mode(regs)) {
 		preempt_disable();
@@ -64,15 +64,9 @@ static inline int notify_page_fault(struct pt_regs *regs, long err)
 			ret = 1;
 		preempt_enable();
 	}
-
+#endif
 	return ret;
 }
-#else
-static inline int notify_page_fault(struct pt_regs *regs, long err)
-{
-	return 0;
-}
-#endif
 
 
 /*
@@ -274,7 +268,7 @@ do_exception(struct pt_regs *regs, unsigned long error_code, int write,
 	int si_code;
 	int fault;
 
-	if (notify_page_fault(regs, error_code))
+	if (notify_page_fault(regs))
 		return;
 
 	tsk = current;
