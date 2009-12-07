@@ -121,16 +121,15 @@ int radeon_bo_create(struct radeon_device *rdev, struct drm_gem_object *gobj,
 	INIT_LIST_HEAD(&bo->list);
 
 	flags = radeon_ttm_flags_from_domain(domain);
-retry:
+	/* Kernel allocation are uninterruptible */
 	r = ttm_buffer_object_init(&rdev->mman.bdev, &bo->tbo, size, type,
-					flags, 0, 0, true, NULL, size,
+					flags, 0, 0, !kernel, NULL, size,
 					&radeon_ttm_bo_destroy);
 	if (unlikely(r != 0)) {
-		if (r == -ERESTART)
-			goto retry;
-		/* ttm call radeon_ttm_object_object_destroy if error happen */
-		dev_err(rdev->dev, "object_init failed for (%ld, 0x%08X)\n",
-			size, flags);
+		if (r != -ERESTARTSYS)
+			dev_err(rdev->dev,
+				"object_init failed for (%ld, 0x%08X)\n",
+				size, flags);
 		return r;
 	}
 	*bo_ptr = bo;
@@ -200,18 +199,14 @@ int radeon_bo_pin(struct radeon_bo *bo, u32 domain, u64 *gpu_addr)
 	radeon_ttm_placement_from_domain(bo, domain);
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i] |= TTM_PL_FLAG_NO_EVICT;
-retry:
-	r = ttm_buffer_object_validate(&bo->tbo, &bo->placement, true, false);
+	r = ttm_buffer_object_validate(&bo->tbo, &bo->placement, false, false);
 	if (likely(r == 0)) {
 		bo->pin_count = 1;
 		if (gpu_addr != NULL)
 			*gpu_addr = radeon_bo_gpu_offset(bo);
 	}
-	if (unlikely(r != 0)) {
-		if (r == -ERESTART)
-			goto retry;
+	if (unlikely(r != 0))
 		dev_err(bo->rdev->dev, "%p pin failed\n", bo);
-	}
 	return r;
 }
 
@@ -228,15 +223,10 @@ int radeon_bo_unpin(struct radeon_bo *bo)
 		return 0;
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i] &= ~TTM_PL_FLAG_NO_EVICT;
-retry:
-	r = ttm_buffer_object_validate(&bo->tbo, &bo->placement, true, false);
-	if (unlikely(r != 0)) {
-		if (r == -ERESTART)
-			goto retry;
+	r = ttm_buffer_object_validate(&bo->tbo, &bo->placement, false, false);
+	if (unlikely(r != 0))
 		dev_err(bo->rdev->dev, "%p validate failed for unpin\n", bo);
-		return r;
-	}
-	return 0;
+	return r;
 }
 
 int radeon_bo_evict_vram(struct radeon_device *rdev)
@@ -346,15 +336,11 @@ int radeon_bo_list_validate(struct list_head *head, void *fence)
 				radeon_ttm_placement_from_domain(bo,
 								lobj->rdomain);
 			}
-retry:
 			r = ttm_buffer_object_validate(&bo->tbo,
 						&bo->placement,
 						true, false);
-			if (unlikely(r)) {
-				if (r == -ERESTART)
-					goto retry;
+			if (unlikely(r))
 				return r;
-			}
 		}
 		lobj->gpu_offset = radeon_bo_gpu_offset(bo);
 		lobj->tiling_flags = bo->tiling_flags;
