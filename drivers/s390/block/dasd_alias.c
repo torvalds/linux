@@ -755,11 +755,11 @@ static void __stop_device_on_lcu(struct dasd_device *device,
 {
 	/* If pos == device then device is already locked! */
 	if (pos == device) {
-		pos->stopped |= DASD_STOPPED_SU;
+		dasd_device_set_stop_bits(pos, DASD_STOPPED_SU);
 		return;
 	}
 	spin_lock(get_ccwdev_lock(pos->cdev));
-	pos->stopped |= DASD_STOPPED_SU;
+	dasd_device_set_stop_bits(pos, DASD_STOPPED_SU);
 	spin_unlock(get_ccwdev_lock(pos->cdev));
 }
 
@@ -793,26 +793,26 @@ static void _unstop_all_devices_on_lcu(struct alias_lcu *lcu)
 
 	list_for_each_entry(device, &lcu->active_devices, alias_list) {
 		spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
-		device->stopped &= ~DASD_STOPPED_SU;
+		dasd_device_remove_stop_bits(device, DASD_STOPPED_SU);
 		spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
 	}
 
 	list_for_each_entry(device, &lcu->inactive_devices, alias_list) {
 		spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
-		device->stopped &= ~DASD_STOPPED_SU;
+		dasd_device_remove_stop_bits(device, DASD_STOPPED_SU);
 		spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
 	}
 
 	list_for_each_entry(pavgroup, &lcu->grouplist, group) {
 		list_for_each_entry(device, &pavgroup->baselist, alias_list) {
 			spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
-			device->stopped &= ~DASD_STOPPED_SU;
+			dasd_device_remove_stop_bits(device, DASD_STOPPED_SU);
 			spin_unlock_irqrestore(get_ccwdev_lock(device->cdev),
 					       flags);
 		}
 		list_for_each_entry(device, &pavgroup->aliaslist, alias_list) {
 			spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
-			device->stopped &= ~DASD_STOPPED_SU;
+			dasd_device_remove_stop_bits(device, DASD_STOPPED_SU);
 			spin_unlock_irqrestore(get_ccwdev_lock(device->cdev),
 					       flags);
 		}
@@ -836,7 +836,8 @@ static void summary_unit_check_handling_work(struct work_struct *work)
 
 	/* 2. reset summary unit check */
 	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
-	device->stopped &= ~(DASD_STOPPED_SU | DASD_STOPPED_PENDING);
+	dasd_device_remove_stop_bits(device,
+				     (DASD_STOPPED_SU | DASD_STOPPED_PENDING));
 	spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
 	reset_summary_unit_check(lcu, device, suc_data->reason);
 

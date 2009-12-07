@@ -595,6 +595,9 @@ int dasd_generic_restore_device(struct ccw_device *);
 int dasd_generic_read_dev_chars(struct dasd_device *, int, void *, int);
 char *dasd_get_sense(struct irb *);
 
+void dasd_device_set_stop_bits(struct dasd_device *, int);
+void dasd_device_remove_stop_bits(struct dasd_device *, int);
+
 /* externals in dasd_devmap.c */
 extern int dasd_max_devindex;
 extern int dasd_probeonly;

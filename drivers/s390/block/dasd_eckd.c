@@ -77,6 +77,11 @@ MODULE_DEVICE_TABLE(ccw, dasd_eckd_ids);
 
 static struct ccw_driver dasd_eckd_driver; /* see below */
 
+#define INIT_CQR_OK 0
+#define INIT_CQR_UNFORMATTED 1
+#define INIT_CQR_ERROR 2
+
+
 /* initial attempt at a probe function. this can be simplified once
  * the other detection code is gone */
 static int
@@ -749,8 +754,7 @@ static struct dasd_ccw_req *dasd_eckd_build_rcd_lpm(struct dasd_device *device,
 	cqr->block = NULL;
 	cqr->expires = 10*HZ;
 	cqr->lpm = lpm;
-	clear_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
-	cqr->retries = 2;
+	cqr->retries = 256;
 	cqr->buildclk = get_clock();
 	cqr->status = DASD_CQR_FILLED;
 	return cqr;
@@ -949,8 +953,7 @@ static int dasd_eckd_read_features(struct dasd_device *device)
 	cqr->startdev = device;
 	cqr->memdev = device;
 	cqr->block = NULL;
-	clear_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
-	cqr->retries = 5;
+	cqr->retries = 256;
 	cqr->expires = 10 * HZ;
 
 	/* Prepare for Read Subsystem Data */
@@ -1025,6 +1028,7 @@ static struct dasd_ccw_req *dasd_eckd_build_psf_ssc(struct dasd_device *device,
 	cqr->startdev = device;
 	cqr->memdev = device;
 	cqr->block = NULL;
+	cqr->retries = 256;
 	cqr->expires = 10*HZ;
 	cqr->buildclk = get_clock();
 	cqr->status = DASD_CQR_FILLED;
@@ -1068,6 +1072,7 @@ static int dasd_eckd_validate_server(struct dasd_device *device)
 	else
 		enable_pav = 1;
 	rc = dasd_eckd_psf_ssc(device, enable_pav);
+
 	/* may be requested feature is not available on server,
 	 * therefore just report error and go ahead */
 	private = (struct dasd_eckd_private *) device->private;
@@ -1265,10 +1270,27 @@ dasd_eckd_analysis_ccw(struct dasd_device *device)
 	cqr->block = NULL;
 	cqr->startdev = device;
 	cqr->memdev = device;
-	cqr->retries = 0;
+	cqr->retries = 255;
 	cqr->buildclk = get_clock();
 	cqr->status = DASD_CQR_FILLED;
 	return cqr;
+}
+
+/* differentiate between 'no record found' and any other error */
+static int dasd_eckd_analysis_evaluation(struct dasd_ccw_req *init_cqr)
+{
+	char *sense;
+	if (init_cqr->status == DASD_CQR_DONE)
+		return INIT_CQR_OK;
+	else if (init_cqr->status == DASD_CQR_NEED_ERP ||
+		 init_cqr->status == DASD_CQR_FAILED) {
+		sense = dasd_get_sense(&init_cqr->irb);
+		if (sense && (sense[1] & SNS1_NO_REC_FOUND))
+			return INIT_CQR_UNFORMATTED;
+		else
+			return INIT_CQR_ERROR;
+	} else
+		return INIT_CQR_ERROR;
 }
 
 /*
@@ -1278,21 +1300,20 @@ dasd_eckd_analysis_ccw(struct dasd_device *device)
  * dasd_eckd_do_analysis again (if the devices has not been marked
  * for deletion in the meantime).
  */
-static void
-dasd_eckd_analysis_callback(struct dasd_ccw_req *init_cqr, void *data)
+static void dasd_eckd_analysis_callback(struct dasd_ccw_req *init_cqr,
+					void *data)
 {
 	struct dasd_eckd_private *private;
 	struct dasd_device *device;
 
 	device = init_cqr->startdev;
 	private = (struct dasd_eckd_private *) device->private;
-	private->init_cqr_status = init_cqr->status;
+	private->init_cqr_status = dasd_eckd_analysis_evaluation(init_cqr);
 	dasd_sfree_request(init_cqr, device);
 	dasd_kick_device(device);
 }
 
-static int
-dasd_eckd_start_analysis(struct dasd_block *block)
+static int dasd_eckd_start_analysis(struct dasd_block *block)
 {
 	struct dasd_eckd_private *private;
 	struct dasd_ccw_req *init_cqr;
@@ -1304,27 +1325,44 @@ dasd_eckd_start_analysis(struct dasd_block *block)
 	init_cqr->callback = dasd_eckd_analysis_callback;
 	init_cqr->callback_data = NULL;
 	init_cqr->expires = 5*HZ;
+	/* first try without ERP, so we can later handle unformatted
+	 * devices as special case
+	 */
+	clear_bit(DASD_CQR_FLAGS_USE_ERP, &init_cqr->flags);
+	init_cqr->retries = 0;
 	dasd_add_request_head(init_cqr);
 	return -EAGAIN;
 }
 
-static int
-dasd_eckd_end_analysis(struct dasd_block *block)
+static int dasd_eckd_end_analysis(struct dasd_block *block)
 {
 	struct dasd_device *device;
 	struct dasd_eckd_private *private;
 	struct eckd_count *count_area;
 	unsigned int sb, blk_per_trk;
 	int status, i;
+	struct dasd_ccw_req *init_cqr;
 
 	device = block->base;
 	private = (struct dasd_eckd_private *) device->private;
 	status = private->init_cqr_status;
 	private->init_cqr_status = -1;
-	if (status != DASD_CQR_DONE) {
-		dev_warn(&device->cdev->dev,
-			    "The DASD is not formatted\n");
+	if (status == INIT_CQR_ERROR) {
+		/* try again, this time with full ERP */
+		init_cqr = dasd_eckd_analysis_ccw(device);
+		dasd_sleep_on(init_cqr);
+		status = dasd_eckd_analysis_evaluation(init_cqr);
+		dasd_sfree_request(init_cqr, device);
+	}
+
+	if (status == INIT_CQR_UNFORMATTED) {
+		dev_warn(&device->cdev->dev, "The DASD is not formatted\n");
 		return -EMEDIUMTYPE;
+	} else if (status == INIT_CQR_ERROR) {
+		dev_err(&device->cdev->dev,
+			"Detecting the DASD disk layout failed because "
+			"of an I/O error\n");
+		return -EIO;
 	}
 
 	private->uses_cdl = 1;
@@ -1616,8 +1654,7 @@ dasd_eckd_format_device(struct dasd_device * device,
 	}
 	fcp->startdev = device;
 	fcp->memdev = device;
-	clear_bit(DASD_CQR_FLAGS_USE_ERP, &fcp->flags);
-	fcp->retries = 5;	/* set retry counter to enable default ERP */
+	fcp->retries = 256;
 	fcp->buildclk = get_clock();
 	fcp->status = DASD_CQR_FILLED;
 	return fcp;
@@ -2699,6 +2736,7 @@ dasd_eckd_performance(struct dasd_device *device, void __user *argp)
 	cqr->startdev = device;
 	cqr->memdev = device;
 	cqr->retries = 0;
+	clear_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
 	cqr->expires = 10 * HZ;
 
 	/* Prepare for Read Subsystem Data */
