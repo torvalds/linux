@@ -226,7 +226,7 @@ static int aac_comm_init(struct aac_dev * dev)
 	spin_lock_init(&dev->fib_lock);
 
 	/*
-	 *	Allocate the physically contigous space for the commuication
+	 *	Allocate the physically contiguous space for the commuication
 	 *	queue headers. 
 	 */
 

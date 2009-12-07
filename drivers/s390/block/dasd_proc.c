@@ -215,7 +215,7 @@ dasd_statistics_read(char *page, char **start, off_t off,
 	}
 
 	prof = &dasd_global_profile;
-	/* prevent couter 'overflow' on output */
+	/* prevent counter 'overflow' on output */
 	for (factor = 1; (prof->dasd_io_reqs / factor) > 9999999;
 	     factor *= 10);
 

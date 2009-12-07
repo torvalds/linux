@@ -220,7 +220,7 @@ void note_interrupt(unsigned int irq, struct irq_desc *desc,
 		/*
 		 * If we are seeing only the odd spurious IRQ caused by
 		 * bus asynchronicity then don't eventually trigger an error,
-		 * otherwise the couter becomes a doomsday timer for otherwise
+		 * otherwise the counter becomes a doomsday timer for otherwise
 		 * working systems
 		 */
 		if (time_after(jiffies, desc->last_unhandled + HZ/10))

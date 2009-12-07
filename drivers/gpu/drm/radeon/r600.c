@@ -394,11 +394,11 @@ int r600_mc_init(struct radeon_device *rdev)
 		 * AGP so that GPU can catch out of VRAM/AGP access
 		 */
 		if (rdev->mc.gtt_location > rdev->mc.mc_vram_size) {
-			/* Enought place before */
+			/* Enough place before */
 			rdev->mc.vram_location = rdev->mc.gtt_location -
 							rdev->mc.mc_vram_size;
 		} else if (tmp > rdev->mc.mc_vram_size) {
-			/* Enought place after */
+			/* Enough place after */
 			rdev->mc.vram_location = rdev->mc.gtt_location +
 							rdev->mc.gtt_size;
 		} else {

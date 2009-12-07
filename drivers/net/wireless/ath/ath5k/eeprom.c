@@ -1492,7 +1492,7 @@ ath5k_eeprom_read_target_rate_pwr_info(struct ath5k_hw *ah, unsigned int mode)
  * This info is used to calibrate the baseband power table. Imagine
  * that for each channel there is a power curve that's hw specific
  * (depends on amplifier etc) and we try to "correct" this curve using
- * offests we pass on to phy chip (baseband -> before amplifier) so that
+ * offsets we pass on to phy chip (baseband -> before amplifier) so that
  * it can use accurate power values when setting tx power (takes amplifier's
  * performance on each channel into account).
  *

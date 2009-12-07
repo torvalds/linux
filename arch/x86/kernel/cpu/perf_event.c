@@ -1286,7 +1286,7 @@ x86_perf_event_set_period(struct perf_event *event,
 		return 0;
 
 	/*
-	 * If we are way outside a reasoable range then just skip forward:
+	 * If we are way outside a reasonable range then just skip forward:
 	 */
 	if (unlikely(left <= -period)) {
 		left = period;

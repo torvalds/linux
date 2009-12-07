@@ -139,9 +139,9 @@ core_pattern is used to specify a core dumpfile pattern name.
 core_pipe_limit:
 
 This sysctl is only applicable when core_pattern is configured to pipe core
-files to user space helper a (when the first character of core_pattern is a '|',
+files to a user space helper (when the first character of core_pattern is a '|',
 see above).  When collecting cores via a pipe to an application, it is
-occasionally usefull for the collecting application to gather data about the
+occasionally useful for the collecting application to gather data about the
 crashing process from its /proc/pid directory.  In order to do this safely, the
 kernel must wait for the collecting process to exit, so as not to remove the
 crashing processes proc files prematurely.  This in turn creates the possibility
@@ -152,7 +152,7 @@ applications in parallel.  If this value is exceeded, then those crashing
 processes above that value are noted via the kernel log and their cores are
 skipped.  0 is a special value, indicating that unlimited processes may be
 captured in parallel, but that no waiting will take place (i.e. the collecting
-process is not guaranteed access to /proc/<crahing pid>/).  This value defaults
+process is not guaranteed access to /proc/<crashing pid>/).  This value defaults
 to 0.
 
 ==============================================================

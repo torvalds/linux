@@ -3342,7 +3342,7 @@ static int pmcraid_chr_fasync(int fd, struct file *filep, int mode)
  * @direction : data transfer direction
  *
  * Return value
- *  0 on sucess, non-zero error code on failure
+ *  0 on success, non-zero error code on failure
  */
 static int pmcraid_build_passthrough_ioadls(
 	struct pmcraid_cmd *cmd,
@@ -3401,7 +3401,7 @@ static int pmcraid_build_passthrough_ioadls(
  * @direction: data transfer direction
  *
  * Return value
- *  0 on sucess, non-zero error code on failure
+ *  0 on success, non-zero error code on failure
  */
 static void pmcraid_release_passthrough_ioadls(
 	struct pmcraid_cmd *cmd,
@@ -3429,7 +3429,7 @@ static void pmcraid_release_passthrough_ioadls(
  * @arg: pointer to pmcraid_passthrough_buffer user buffer
  *
  * Return value
- *  0 on sucess, non-zero error code on failure
+ *  0 on success, non-zero error code on failure
  */
 static long pmcraid_ioctl_passthrough(
 	struct pmcraid_instance *pinstance,

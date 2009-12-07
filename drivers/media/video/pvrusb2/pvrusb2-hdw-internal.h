@@ -332,7 +332,7 @@ struct pvr2_hdw {
 
 	/* Bit mask of PVR2_CVAL_INPUT choices which are valid for the hardware */
 	unsigned int input_avail_mask;
-	/* Bit mask of PVR2_CVAL_INPUT choices which are currenly allowed */
+	/* Bit mask of PVR2_CVAL_INPUT choices which are currently allowed */
 	unsigned int input_allowed_mask;
 
 	/* Location of eeprom or a negative number if none */

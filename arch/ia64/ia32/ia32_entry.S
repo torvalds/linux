@@ -79,7 +79,7 @@ GLOBAL_ENTRY(ia32_ret_from_clone)
 (p6)	br.cond.spnt .ia32_strace_check_retval
 	;;					// prevent RAW on r8
 END(ia32_ret_from_clone)
-	// fall thrugh
+	// fall through
 GLOBAL_ENTRY(ia32_ret_from_syscall)
 	PT_REGS_UNWIND_INFO(0)
 

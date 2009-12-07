@@ -1883,7 +1883,7 @@ static void bnx2i_ep_disconnect(struct iscsi_endpoint *ep)
 
 	bnx2i_ep = ep->dd_data;
 
-	/* driver should not attempt connection cleanup untill TCP_CONNECT
+	/* driver should not attempt connection cleanup until TCP_CONNECT
 	 * completes either successfully or fails. Timeout is 9-secs, so
 	 * wait for it to complete
 	 */
