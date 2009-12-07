@@ -326,6 +326,11 @@ static int XCRB_msg_to_type6CPRB_msgX(struct zcrypt_device *zdev,
 	function_code = ((unsigned char *)&msg->cprbx) + msg->cprbx.cprb_len;
 	memcpy(msg->hdr.function_code, function_code, sizeof(msg->hdr.function_code));
 
+	if (memcmp(function_code, "US", 2) == 0)
+		ap_msg->special = 1;
+	else
+		ap_msg->special = 0;
+
 	/* copy data block */
 	if (xcRB->request_data_length &&
 	    copy_from_user(req_data, xcRB->request_data_address,

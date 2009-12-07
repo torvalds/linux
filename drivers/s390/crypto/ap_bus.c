@@ -282,6 +282,7 @@ static int ap_queue_enable_interruption(ap_qid_t qid, void *ind)
  * @psmid: The program supplied message identifier
  * @msg: The message text
  * @length: The message length
+ * @special: Special Bit
  *
  * Returns AP queue status structure.
  * Condition code 1 on NQAP can't happen because the L bit is 1.
@@ -289,7 +290,8 @@ static int ap_queue_enable_interruption(ap_qid_t qid, void *ind)
  * because a segment boundary was reached. The NQAP is repeated.
  */
 static inline struct ap_queue_status
-__ap_send(ap_qid_t qid, unsigned long long psmid, void *msg, size_t length)
+__ap_send(ap_qid_t qid, unsigned long long psmid, void *msg, size_t length,
+	  unsigned int special)
 {
 	typedef struct { char _[length]; } msgblock;
 	register unsigned long reg0 asm ("0") = qid | 0x40000000UL;
@@ -298,6 +300,9 @@ __ap_send(ap_qid_t qid, unsigned long long psmid, void *msg, size_t length)
 	register unsigned long reg3 asm ("3") = (unsigned long) length;
 	register unsigned long reg4 asm ("4") = (unsigned int) (psmid >> 32);
 	register unsigned long reg5 asm ("5") = (unsigned int) psmid;
+
+	if (special == 1)
+		reg0 |= 0x400000UL;
 
 	asm volatile (
 		"0: .long 0xb2ad0042\n"		/* DQAP */
@@ -312,13 +317,15 @@ int ap_send(ap_qid_t qid, unsigned long long psmid, void *msg, size_t length)
 {
 	struct ap_queue_status status;
 
-	status = __ap_send(qid, psmid, msg, length);
+	status = __ap_send(qid, psmid, msg, length, 0);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		return 0;
 	case AP_RESPONSE_Q_FULL:
 	case AP_RESPONSE_RESET_IN_PROGRESS:
 		return -EBUSY;
+	case AP_RESPONSE_REQ_FAC_NOT_INST:
+		return -EINVAL;
 	default:	/* Device is gone. */
 		return -ENODEV;
 	}
@@ -1008,7 +1015,7 @@ static int ap_probe_device_type(struct ap_device *ap_dev)
 	}
 
 	status = __ap_send(ap_dev->qid, 0x0102030405060708ULL,
-			   msg, sizeof(msg));
+			   msg, sizeof(msg), 0);
 	if (status.response_code != AP_RESPONSE_NORMAL) {
 		rc = -ENODEV;
 		goto out_free;
@@ -1243,7 +1250,7 @@ static int ap_poll_write(struct ap_device *ap_dev, unsigned long *flags)
 	/* Start the next request on the queue. */
 	ap_msg = list_entry(ap_dev->requestq.next, struct ap_message, list);
 	status = __ap_send(ap_dev->qid, ap_msg->psmid,
-			   ap_msg->message, ap_msg->length);
+			   ap_msg->message, ap_msg->length, ap_msg->special);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		atomic_inc(&ap_poll_requests);
@@ -1261,6 +1268,7 @@ static int ap_poll_write(struct ap_device *ap_dev, unsigned long *flags)
 		*flags |= 2;
 		break;
 	case AP_RESPONSE_MESSAGE_TOO_BIG:
+	case AP_RESPONSE_REQ_FAC_NOT_INST:
 		return -EINVAL;
 	default:
 		return -ENODEV;
@@ -1302,7 +1310,8 @@ static int __ap_queue_message(struct ap_device *ap_dev, struct ap_message *ap_ms
 	if (list_empty(&ap_dev->requestq) &&
 	    ap_dev->queue_count < ap_dev->queue_depth) {
 		status = __ap_send(ap_dev->qid, ap_msg->psmid,
-				   ap_msg->message, ap_msg->length);
+				   ap_msg->message, ap_msg->length,
+				   ap_msg->special);
 		switch (status.response_code) {
 		case AP_RESPONSE_NORMAL:
 			list_add_tail(&ap_msg->list, &ap_dev->pendingq);
@@ -1317,6 +1326,7 @@ static int __ap_queue_message(struct ap_device *ap_dev, struct ap_message *ap_ms
 			ap_dev->requestq_count++;
 			ap_dev->total_request_count++;
 			return -EBUSY;
+		case AP_RESPONSE_REQ_FAC_NOT_INST:
 		case AP_RESPONSE_MESSAGE_TOO_BIG:
 			ap_dev->drv->receive(ap_dev, ap_msg, ERR_PTR(-EINVAL));
 			return -EINVAL;

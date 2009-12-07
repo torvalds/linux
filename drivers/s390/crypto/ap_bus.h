@@ -87,6 +87,7 @@ struct ap_queue_status {
 #define AP_RESPONSE_INDEX_TOO_BIG	0x11
 #define AP_RESPONSE_NO_FIRST_PART	0x13
 #define AP_RESPONSE_MESSAGE_TOO_BIG	0x15
+#define AP_RESPONSE_REQ_FAC_NOT_INST	0x16
 
 /*
  * Known device types
@@ -161,6 +162,7 @@ struct ap_message {
 	size_t length;			/* Message length. */
 
 	void *private;			/* ap driver private pointer. */
+	unsigned int special:1;		/* Used for special commands. */
 };
 
 #define AP_DEVICE(dt)					\
@@ -176,6 +178,7 @@ static inline void ap_init_message(struct ap_message *ap_msg)
 {
 	ap_msg->psmid = 0;
 	ap_msg->length = 0;
+	ap_msg->special = 0;
 }
 
 /*
