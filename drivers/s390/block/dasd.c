@@ -24,7 +24,6 @@
 #include <asm/ccwdev.h>
 #include <asm/ebcdic.h>
 #include <asm/idals.h>
-#include <asm/todclk.h>
 #include <asm/itcw.h>
 
 /* This is ugly... */

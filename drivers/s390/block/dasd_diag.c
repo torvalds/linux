@@ -24,7 +24,6 @@
 #include <asm/ebcdic.h>
 #include <asm/io.h>
 #include <asm/s390_ext.h>
-#include <asm/todclk.h>
 #include <asm/vtoc.h>
 #include <asm/diag.h>
 

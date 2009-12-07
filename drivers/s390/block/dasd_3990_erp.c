@@ -12,7 +12,6 @@
 #include <linux/timer.h>
 #include <linux/slab.h>
 #include <asm/idals.h>
-#include <asm/todclk.h>
 
 #define PRINTK_HEADER "dasd_erp(3990): "
 

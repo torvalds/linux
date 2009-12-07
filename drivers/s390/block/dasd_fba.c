@@ -20,7 +20,6 @@
 #include <asm/idals.h>
 #include <asm/ebcdic.h>
 #include <asm/io.h>
-#include <asm/todclk.h>
 #include <asm/ccwdev.h>
 
 #include "dasd_int.h"
