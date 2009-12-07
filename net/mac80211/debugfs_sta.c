@@ -218,11 +218,19 @@ static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
 		p += scnprintf(p, sizeof(buf)+buf-p, "ampdu factor/density: %d/%d\n",
 				htc->ampdu_factor, htc->ampdu_density);
 		p += scnprintf(p, sizeof(buf)+buf-p, "MCS mask:");
+
 		for (i = 0; i < IEEE80211_HT_MCS_MASK_LEN; i++)
 			p += scnprintf(p, sizeof(buf)+buf-p, " %.2x",
 					htc->mcs.rx_mask[i]);
-		p += scnprintf(p, sizeof(buf)+buf-p, "\nMCS rx highest: %d\n",
-				le16_to_cpu(htc->mcs.rx_highest));
+		p += scnprintf(p, sizeof(buf)+buf-p, "\n");
+
+		/* If not set this is meaningless */
+		if (le16_to_cpu(htc->mcs.rx_highest)) {
+			p += scnprintf(p, sizeof(buf)+buf-p,
+				       "MCS rx highest: %d Mbps\n",
+				       le16_to_cpu(htc->mcs.rx_highest));
+		}
+
 		p += scnprintf(p, sizeof(buf)+buf-p, "MCS tx params: %x\n",
 				htc->mcs.tx_params);
 	}
