@@ -246,7 +246,7 @@ static int modern_apic(void)
  */
 static void native_apic_write_dummy(u32 reg, u32 v)
 {
-	WARN_ON_ONCE((cpu_has_apic || !disable_apic));
+	WARN_ON_ONCE(cpu_has_apic && !disable_apic);
 }
 
 static u32 native_apic_read_dummy(u32 reg)
