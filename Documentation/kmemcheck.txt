@@ -43,26 +43,7 @@ feature.
 1. Downloading
 ==============
 
-kmemcheck can only be downloaded using git. If you want to write patches
-against the current code, you should use the kmemcheck development branch of
-the tip tree. It is also possible to use the linux-next tree, which also
-includes the latest version of kmemcheck.
-
-Assuming that you've already cloned the linux-2.6.git repository, all you
-have to do is add the -tip tree as a remote, like this:
-
-	$ git remote add tip git://git.kernel.org/pub/scm/linux/kernel/git/tip/linux-2.6-tip.git
-
-To actually download the tree, fetch the remote:
-
-	$ git fetch tip
-
-And to check out a new local branch with the kmemcheck code:
-
-	$ git checkout -b kmemcheck tip/kmemcheck
-
-General instructions for the -tip tree can be found here:
-http://people.redhat.com/mingo/tip.git/readme.txt
+As of version 2.6.31-rc1, kmemcheck is included in the mainline kernel.
 
 
 2. Configuring and compiling

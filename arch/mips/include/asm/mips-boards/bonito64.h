@@ -26,7 +26,7 @@
 /* offsets from base register */
 #define BONITO(x)	(x)
 
-#elif defined(CONFIG_LEMOTE_FULONG)
+#elif defined(CONFIG_LEMOTE_FULOONG2E)
 
 #define BONITO(x) (*(volatile u32 *)((char *)CKSEG1ADDR(BONITO_REG_BASE) + (x)))
 #define BONITO_IRQ_BASE   32

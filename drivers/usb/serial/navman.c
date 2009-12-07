@@ -80,8 +80,7 @@ exit:
 			__func__, result);
 }
 
-static int navman_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int navman_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	int result = 0;
 

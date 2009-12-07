@@ -27,7 +27,6 @@
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
 
-#define NILFS_DAT_GFP	NILFS_MDT_GFP
 
 struct nilfs_palloc_req;
 
@@ -39,10 +38,15 @@ void nilfs_dat_abort_alloc(struct inode *, struct nilfs_palloc_req *);
 int nilfs_dat_prepare_start(struct inode *, struct nilfs_palloc_req *);
 void nilfs_dat_commit_start(struct inode *, struct nilfs_palloc_req *,
 			    sector_t);
-void nilfs_dat_abort_start(struct inode *, struct nilfs_palloc_req *);
 int nilfs_dat_prepare_end(struct inode *, struct nilfs_palloc_req *);
 void nilfs_dat_commit_end(struct inode *, struct nilfs_palloc_req *, int);
 void nilfs_dat_abort_end(struct inode *, struct nilfs_palloc_req *);
+int nilfs_dat_prepare_update(struct inode *, struct nilfs_palloc_req *,
+			     struct nilfs_palloc_req *);
+void nilfs_dat_commit_update(struct inode *, struct nilfs_palloc_req *,
+			     struct nilfs_palloc_req *, int);
+void nilfs_dat_abort_update(struct inode *, struct nilfs_palloc_req *,
+			    struct nilfs_palloc_req *);
 
 int nilfs_dat_mark_dirty(struct inode *, __u64);
 int nilfs_dat_freev(struct inode *, __u64 *, size_t);

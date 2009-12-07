@@ -125,28 +125,29 @@ struct skel_private {
 	unsigned long int ulConvertionRate;	/*  set by mpc624_attach() from driver's parameters */
 };
 
-
 #define devpriv ((struct skel_private *)dev->private)
 /* ---------------------------------------------------------------------------- */
 static const struct comedi_lrange range_mpc624_bipolar1 = {
 	1,
 	{
 /* BIP_RANGE(1.01)  this is correct, */
-			/*  but my MPC-624 actually seems to have a range of 2.02 */
-			BIP_RANGE(2.02)
-		}
+	 /*  but my MPC-624 actually seems to have a range of 2.02 */
+	 BIP_RANGE(2.02)
+	 }
 };
+
 static const struct comedi_lrange range_mpc624_bipolar10 = {
 	1,
 	{
 /* BIP_RANGE(10.1)   this is correct, */
-			/*  but my MPC-624 actually seems to have a range of 20.2 */
-			BIP_RANGE(20.2)
-		}
+	 /*  but my MPC-624 actually seems to have a range of 20.2 */
+	 BIP_RANGE(20.2)
+	 }
 };
 
 /* ---------------------------------------------------------------------------- */
-static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int mpc624_attach(struct comedi_device *dev,
+			 struct comedi_devconfig *it);
 static int mpc624_detach(struct comedi_device *dev);
 /* ---------------------------------------------------------------------------- */
 static struct comedi_driver driver_mpc624 = {
@@ -157,8 +158,9 @@ static struct comedi_driver driver_mpc624 = {
 };
 
 /* ---------------------------------------------------------------------------- */
-static int mpc624_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+static int mpc624_ai_rinsn(struct comedi_device *dev,
+			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   unsigned int *data);
 /* ---------------------------------------------------------------------------- */
 static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
@@ -222,7 +224,7 @@ static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		break;
 	default:
 		printk
-			("illegal convertion rate setting! Valid numbers are 0..9. Using 9 => 6.875 Hz, ");
+		    ("illegal convertion rate setting! Valid numbers are 0..9. Using 9 => 6.875 Hz, ");
 		devpriv->ulConvertionRate = MPC624_SPEED_3_52_kHz;
 	}
 
@@ -270,8 +272,9 @@ static int mpc624_detach(struct comedi_device *dev)
 /* Timeout 200ms */
 #define TIMEOUT 200
 
-static int mpc624_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int mpc624_ai_rinsn(struct comedi_device *dev,
+			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   unsigned int *data)
 {
 	int n, i;
 	unsigned long int data_in, data_out;
@@ -316,16 +319,15 @@ static int mpc624_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s
 			outb(0, dev->iobase + MPC624_ADC);
 			udelay(1);
 
-			if (data_out & (1 << 31))	/*  the next bit is a 1 */
-			{
+			if (data_out & (1 << 31)) {	/*  the next bit is a 1 */
 				/*  Set the ADSDI line (send to MPC624) */
 				outb(MPC624_ADSDI, dev->iobase + MPC624_ADC);
 				udelay(1);
 				/*  Set the clock high */
 				outb(MPC624_ADSCK | MPC624_ADSDI,
-					dev->iobase + MPC624_ADC);
-			} else	/*  the next bit is a 0 */
-			{
+				     dev->iobase + MPC624_ADC);
+			} else {	/*  the next bit is a 0 */
+
 				/*  Set the ADSDI line (send to MPC624) */
 				outb(0, dev->iobase + MPC624_ADC);
 				udelay(1);
@@ -336,8 +338,7 @@ static int mpc624_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s
 			udelay(1);
 			data_in <<= 1;
 			data_in |=
-				(inb(dev->iobase +
-					MPC624_ADC) & MPC624_ADSDO) >> 4;
+			    (inb(dev->iobase + MPC624_ADC) & MPC624_ADSDO) >> 4;
 			udelay(1);
 
 			data_out <<= 1;
@@ -358,12 +359,11 @@ static int mpc624_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s
 
 		if (data_in & MPC624_EOC_BIT)
 			printk("MPC624: EOC bit is set (data_in=%lu)!",
-				data_in);
+			       data_in);
 		if (data_in & MPC624_DMY_BIT)
 			printk("MPC624: DMY bit is set (data_in=%lu)!",
-				data_in);
-		if (data_in & MPC624_SGN_BIT)	/*  check the sign bit */
-		{		/*  The voltage is positive */
+			       data_in);
+		if (data_in & MPC624_SGN_BIT) {	/*  check the sign bit *//*  The voltage is positive */
 			data_in &= 0x3FFFFFFF;	/*  EOC and DMY should be 0, but we will mask them out just to be sure */
 			data[n] = data_in;	/*  comedi operates on unsigned numbers, so we don't clear the SGN bit */
 			/*  SGN bit is still set! It's correct, since we're converting to unsigned. */

@@ -57,14 +57,34 @@ config E200
 
 endchoice
 
-config PPC_BOOK3S_64
-	def_bool y
+choice
+	prompt "Processor Type"
 	depends on PPC64
+	help
+	  There are two families of 64 bit PowerPC chips supported.
+	  The most common ones are the desktop and server CPUs
+	  (POWER3, RS64, POWER4, POWER5, POWER5+, POWER6, ...)
+
+	  The other are the "embedded" processors compliant with the
+	  "Book 3E" variant of the architecture
+
+config PPC_BOOK3S_64
+	bool "Server processors"
 	select PPC_FPU
+
+config PPC_BOOK3E_64
+	bool "Embedded processors"
+	select PPC_FPU # Make it a choice ?
+
+endchoice
 
 config PPC_BOOK3S
 	def_bool y
 	depends on PPC_BOOK3S_32 || PPC_BOOK3S_64
+
+config PPC_BOOK3E
+	def_bool y
+	depends on PPC_BOOK3E_64
 
 config POWER4_ONLY
 	bool "Optimize for POWER4"
@@ -125,7 +145,7 @@ config 4xx
 
 config BOOKE
 	bool
-	depends on E200 || E500 || 44x
+	depends on E200 || E500 || 44x || PPC_BOOK3E
 	default y
 
 config FSL_BOOKE
@@ -223,9 +243,17 @@ config PPC_MMU_NOHASH
 	def_bool y
 	depends on !PPC_STD_MMU
 
+config PPC_MMU_NOHASH_32
+	def_bool y
+	depends on PPC_MMU_NOHASH && PPC32
+
+config PPC_MMU_NOHASH_64
+	def_bool y
+	depends on PPC_MMU_NOHASH && PPC64
+
 config PPC_BOOK3E_MMU
 	def_bool y
-	depends on FSL_BOOKE
+	depends on FSL_BOOKE || PPC_BOOK3E
 
 config PPC_MM_SLICES
 	bool
@@ -252,12 +280,12 @@ config PPC_HAVE_PMU_SUPPORT
 
 config PPC_PERF_CTRS
        def_bool y
-       depends on PERF_COUNTERS && PPC_HAVE_PMU_SUPPORT
+       depends on PERF_EVENTS && PPC_HAVE_PMU_SUPPORT
        help
-         This enables the powerpc-specific perf_counter back-end.
+         This enables the powerpc-specific perf_event back-end.
 
 config SMP
-	depends on PPC_STD_MMU || FSL_BOOKE
+	depends on PPC_BOOK3S || PPC_BOOK3E || FSL_BOOKE
 	bool "Symmetric multi-processing support"
 	---help---
 	  This enables support for systems with more than one CPU. If you have

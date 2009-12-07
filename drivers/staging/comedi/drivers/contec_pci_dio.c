@@ -57,9 +57,10 @@ static const struct contec_board contec_boards[] = {
 
 #define PCI_DEVICE_ID_PIO1616L 0x8172
 static DEFINE_PCI_DEVICE_TABLE(contec_pci_table) = {
-	{PCI_VENDOR_ID_CONTEC, PCI_DEVICE_ID_PIO1616L, PCI_ANY_ID, PCI_ANY_ID,
-		0, 0, PIO1616L},
-	{0}
+	{
+	PCI_VENDOR_ID_CONTEC, PCI_DEVICE_ID_PIO1616L, PCI_ANY_ID,
+		    PCI_ANY_ID, 0, 0, PIO1616L}, {
+	0}
 };
 
 MODULE_DEVICE_TABLE(pci, contec_pci_table);
@@ -75,7 +76,8 @@ struct contec_private {
 
 #define devpriv ((struct contec_private *)dev->private)
 
-static int contec_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int contec_attach(struct comedi_device *dev,
+			 struct comedi_devconfig *it);
 static int contec_detach(struct comedi_device *dev);
 static struct comedi_driver driver_contec = {
 	.driver_name = "contec_pci_dio",
@@ -85,14 +87,16 @@ static struct comedi_driver driver_contec = {
 };
 
 /* Classic digital IO */
-static int contec_di_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int contec_do_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+static int contec_di_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data);
+static int contec_do_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data);
 
 #if 0
 static int contec_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_cmd *cmd);
+			  struct comedi_cmd *cmd);
 
 static int contec_ns_to_timer(unsigned int *ns, int round);
 #endif
@@ -113,22 +117,22 @@ static int contec_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 
 	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		pcidev != NULL;
-		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	     pcidev != NULL;
+	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 
 		if (pcidev->vendor == PCI_VENDOR_ID_CONTEC &&
-			pcidev->device == PCI_DEVICE_ID_PIO1616L) {
+		    pcidev->device == PCI_DEVICE_ID_PIO1616L) {
 			if (it->options[0] || it->options[1]) {
 				/* Check bus and slot. */
 				if (it->options[0] != pcidev->bus->number ||
-					it->options[1] !=
-					PCI_SLOT(pcidev->devfn)) {
+				    it->options[1] != PCI_SLOT(pcidev->devfn)) {
 					continue;
 				}
 			}
 			devpriv->pci_dev = pcidev;
 			if (comedi_pci_enable(pcidev, "contec_pci_dio")) {
-				printk("error enabling PCI device and request regions!\n");
+				printk
+				    ("error enabling PCI device and request regions!\n");
 				return -EIO;
 			}
 			dev->iobase = pci_resource_start(pcidev, 0);
@@ -180,7 +184,7 @@ static int contec_detach(struct comedi_device *dev)
 
 #if 0
 static int contec_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_cmd *cmd)
+			  struct comedi_cmd *cmd)
 {
 	printk("contec_cmdtest called\n");
 	return 0;
@@ -192,8 +196,9 @@ static int contec_ns_to_timer(unsigned int *ns, int round)
 }
 #endif
 
-static int contec_do_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int contec_do_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 
 	printk("contec_do_insn_bits called\n");
@@ -206,14 +211,15 @@ static int contec_do_insn_bits(struct comedi_device *dev, struct comedi_subdevic
 		s->state &= ~data[0];
 		s->state |= data[0] & data[1];
 		printk("  out: %d on %lx\n", s->state,
-			dev->iobase + thisboard->out_offs);
+		       dev->iobase + thisboard->out_offs);
 		outw(s->state, dev->iobase + thisboard->out_offs);
 	}
 	return 2;
 }
 
-static int contec_di_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int contec_di_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 
 	printk("contec_di_insn_bits called\n");

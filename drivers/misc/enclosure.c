@@ -33,24 +33,44 @@ static DEFINE_MUTEX(container_list_lock);
 static struct class enclosure_class;
 
 /**
- * enclosure_find - find an enclosure given a device
- * @dev:	the device to find for
+ * enclosure_find - find an enclosure given a parent device
+ * @dev:	the parent to match against
+ * @start:	Optional enclosure device to start from (NULL if none)
  *
- * Looks through the list of registered enclosures to see
- * if it can find a match for a device.  Returns NULL if no
- * enclosure is found. Obtains a reference to the enclosure class
- * device which must be released with device_put().
+ * Looks through the list of registered enclosures to find all those
+ * with @dev as a parent.  Returns NULL if no enclosure is
+ * found. @start can be used as a starting point to obtain multiple
+ * enclosures per parent (should begin with NULL and then be set to
+ * each returned enclosure device). Obtains a reference to the
+ * enclosure class device which must be released with device_put().
+ * If @start is not NULL, a reference must be taken on it which is
+ * released before returning (this allows a loop through all
+ * enclosures to exit with only the reference on the enclosure of
+ * interest held).  Note that the @dev may correspond to the actual
+ * device housing the enclosure, in which case no iteration via @start
+ * is required.
  */
-struct enclosure_device *enclosure_find(struct device *dev)
+struct enclosure_device *enclosure_find(struct device *dev,
+					struct enclosure_device *start)
 {
 	struct enclosure_device *edev;
 
 	mutex_lock(&container_list_lock);
-	list_for_each_entry(edev, &container_list, node) {
-		if (edev->edev.parent == dev) {
-			get_device(&edev->edev);
-			mutex_unlock(&container_list_lock);
-			return edev;
+	edev = list_prepare_entry(start, &container_list, node);
+	if (start)
+		put_device(&start->edev);
+
+	list_for_each_entry_continue(edev, &container_list, node) {
+		struct device *parent = edev->edev.parent;
+		/* parent might not be immediate, so iterate up to
+		 * the root of the tree if necessary */
+		while (parent) {
+			if (parent == dev) {
+				get_device(&edev->edev);
+				mutex_unlock(&container_list_lock);
+				return edev;
+			}
+			parent = parent->parent;
 		}
 	}
 	mutex_unlock(&container_list_lock);
@@ -218,7 +238,7 @@ static void enclosure_component_release(struct device *dev)
 	put_device(dev->parent);
 }
 
-static struct attribute_group *enclosure_groups[];
+static const struct attribute_group *enclosure_groups[];
 
 /**
  * enclosure_component_register - add a particular component to an enclosure
@@ -295,6 +315,9 @@ int enclosure_add_device(struct enclosure_device *edev, int component,
 
 	cdev = &edev->component[component];
 
+	if (cdev->dev == dev)
+		return -EEXIST;
+
 	if (cdev->dev)
 		enclosure_remove_links(cdev);
 
@@ -312,19 +335,25 @@ EXPORT_SYMBOL_GPL(enclosure_add_device);
  * Returns zero on success or an error.
  *
  */
-int enclosure_remove_device(struct enclosure_device *edev, int component)
+int enclosure_remove_device(struct enclosure_device *edev, struct device *dev)
 {
 	struct enclosure_component *cdev;
+	int i;
 
-	if (!edev || component >= edev->components)
+	if (!edev || !dev)
 		return -EINVAL;
 
-	cdev = &edev->component[component];
-
-	device_del(&cdev->cdev);
-	put_device(cdev->dev);
-	cdev->dev = NULL;
-	return device_add(&cdev->cdev);
+	for (i = 0; i < edev->components; i++) {
+		cdev = &edev->component[i];
+		if (cdev->dev == dev) {
+			enclosure_remove_links(cdev);
+			device_del(&cdev->cdev);
+			put_device(dev);
+			cdev->dev = NULL;
+			return device_add(&cdev->cdev);
+		}
+	}
+	return -ENODEV;
 }
 EXPORT_SYMBOL_GPL(enclosure_remove_device);
 
@@ -507,7 +536,7 @@ static struct attribute_group enclosure_group = {
 	.attrs = enclosure_component_attrs,
 };
 
-static struct attribute_group *enclosure_groups[] = {
+static const struct attribute_group *enclosure_groups[] = {
 	&enclosure_group,
 	NULL
 };

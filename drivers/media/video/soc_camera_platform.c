@@ -16,54 +16,32 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/videodev2.h>
-#include <media/v4l2-common.h>
+#include <media/v4l2-subdev.h>
 #include <media/soc_camera.h>
 #include <media/soc_camera_platform.h>
 
 struct soc_camera_platform_priv {
-	struct soc_camera_platform_info *info;
-	struct soc_camera_device icd;
+	struct v4l2_subdev subdev;
 	struct soc_camera_data_format format;
 };
 
-static struct soc_camera_platform_info *
-soc_camera_platform_get_info(struct soc_camera_device *icd)
+static struct soc_camera_platform_priv *get_priv(struct platform_device *pdev)
 {
-	struct soc_camera_platform_priv *priv;
-	priv = container_of(icd, struct soc_camera_platform_priv, icd);
-	return priv->info;
+	struct v4l2_subdev *subdev = platform_get_drvdata(pdev);
+	return container_of(subdev, struct soc_camera_platform_priv, subdev);
 }
 
-static int soc_camera_platform_init(struct soc_camera_device *icd)
+static struct soc_camera_platform_info *get_info(struct soc_camera_device *icd)
 {
-	struct soc_camera_platform_info *p = soc_camera_platform_get_info(icd);
-
-	if (p->power)
-		p->power(1);
-
-	return 0;
+	struct platform_device *pdev =
+		to_platform_device(to_soc_camera_control(icd));
+	return pdev->dev.platform_data;
 }
 
-static int soc_camera_platform_release(struct soc_camera_device *icd)
+static int soc_camera_platform_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	struct soc_camera_platform_info *p = soc_camera_platform_get_info(icd);
-
-	if (p->power)
-		p->power(0);
-
-	return 0;
-}
-
-static int soc_camera_platform_start_capture(struct soc_camera_device *icd)
-{
-	struct soc_camera_platform_info *p = soc_camera_platform_get_info(icd);
-	return p->set_capture(p, 1);
-}
-
-static int soc_camera_platform_stop_capture(struct soc_camera_device *icd)
-{
-	struct soc_camera_platform_info *p = soc_camera_platform_get_info(icd);
-	return p->set_capture(p, 0);
+	struct soc_camera_platform_info *p = v4l2_get_subdevdata(sd);
+	return p->set_capture(p, enable);
 }
 
 static int soc_camera_platform_set_bus_param(struct soc_camera_device *icd,
@@ -75,26 +53,14 @@ static int soc_camera_platform_set_bus_param(struct soc_camera_device *icd,
 static unsigned long
 soc_camera_platform_query_bus_param(struct soc_camera_device *icd)
 {
-	struct soc_camera_platform_info *p = soc_camera_platform_get_info(icd);
+	struct soc_camera_platform_info *p = get_info(icd);
 	return p->bus_param;
 }
 
-static int soc_camera_platform_set_crop(struct soc_camera_device *icd,
-					struct v4l2_rect *rect)
-{
-	return 0;
-}
-
-static int soc_camera_platform_set_fmt(struct soc_camera_device *icd,
+static int soc_camera_platform_try_fmt(struct v4l2_subdev *sd,
 				       struct v4l2_format *f)
 {
-	return 0;
-}
-
-static int soc_camera_platform_try_fmt(struct soc_camera_device *icd,
-				       struct v4l2_format *f)
-{
-	struct soc_camera_platform_info *p = soc_camera_platform_get_info(icd);
+	struct soc_camera_platform_info *p = v4l2_get_subdevdata(sd);
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 
 	pix->width = p->format.width;
@@ -102,82 +68,99 @@ static int soc_camera_platform_try_fmt(struct soc_camera_device *icd,
 	return 0;
 }
 
-static int soc_camera_platform_video_probe(struct soc_camera_device *icd)
+static void soc_camera_platform_video_probe(struct soc_camera_device *icd,
+					    struct platform_device *pdev)
 {
-	struct soc_camera_platform_priv *priv;
-	priv = container_of(icd, struct soc_camera_platform_priv, icd);
+	struct soc_camera_platform_priv *priv = get_priv(pdev);
+	struct soc_camera_platform_info *p = pdev->dev.platform_data;
 
-	priv->format.name = priv->info->format_name;
-	priv->format.depth = priv->info->format_depth;
-	priv->format.fourcc = priv->info->format.pixelformat;
-	priv->format.colorspace = priv->info->format.colorspace;
+	priv->format.name = p->format_name;
+	priv->format.depth = p->format_depth;
+	priv->format.fourcc = p->format.pixelformat;
+	priv->format.colorspace = p->format.colorspace;
 
 	icd->formats = &priv->format;
 	icd->num_formats = 1;
-
-	return soc_camera_video_start(icd);
 }
 
-static void soc_camera_platform_video_remove(struct soc_camera_device *icd)
-{
-	soc_camera_video_stop(icd);
-}
+static struct v4l2_subdev_core_ops platform_subdev_core_ops;
+
+static struct v4l2_subdev_video_ops platform_subdev_video_ops = {
+	.s_stream	= soc_camera_platform_s_stream,
+	.try_fmt	= soc_camera_platform_try_fmt,
+};
+
+static struct v4l2_subdev_ops platform_subdev_ops = {
+	.core	= &platform_subdev_core_ops,
+	.video	= &platform_subdev_video_ops,
+};
 
 static struct soc_camera_ops soc_camera_platform_ops = {
-	.owner			= THIS_MODULE,
-	.probe			= soc_camera_platform_video_probe,
-	.remove			= soc_camera_platform_video_remove,
-	.init			= soc_camera_platform_init,
-	.release		= soc_camera_platform_release,
-	.start_capture		= soc_camera_platform_start_capture,
-	.stop_capture		= soc_camera_platform_stop_capture,
-	.set_crop		= soc_camera_platform_set_crop,
-	.set_fmt		= soc_camera_platform_set_fmt,
-	.try_fmt		= soc_camera_platform_try_fmt,
 	.set_bus_param		= soc_camera_platform_set_bus_param,
 	.query_bus_param	= soc_camera_platform_query_bus_param,
 };
 
 static int soc_camera_platform_probe(struct platform_device *pdev)
 {
+	struct soc_camera_host *ici;
 	struct soc_camera_platform_priv *priv;
-	struct soc_camera_platform_info *p;
+	struct soc_camera_platform_info *p = pdev->dev.platform_data;
 	struct soc_camera_device *icd;
 	int ret;
 
-	p = pdev->dev.platform_data;
 	if (!p)
 		return -EINVAL;
+
+	if (!p->dev) {
+		dev_err(&pdev->dev,
+			"Platform has not set soc_camera_device pointer!\n");
+		return -EINVAL;
+	}
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	priv->info = p;
-	platform_set_drvdata(pdev, priv);
+	icd = to_soc_camera_dev(p->dev);
 
-	icd = &priv->icd;
-	icd->ops	= &soc_camera_platform_ops;
-	icd->control	= &pdev->dev;
-	icd->width_min	= 0;
-	icd->width_max	= priv->info->format.width;
-	icd->height_min	= 0;
-	icd->height_max	= priv->info->format.height;
-	icd->y_skip_top	= 0;
-	icd->iface	= priv->info->iface;
+	/* soc-camera convention: control's drvdata points to the subdev */
+	platform_set_drvdata(pdev, &priv->subdev);
+	/* Set the control device reference */
+	dev_set_drvdata(&icd->dev, &pdev->dev);
 
-	ret = soc_camera_device_register(icd);
+	icd->y_skip_top		= 0;
+	icd->ops		= &soc_camera_platform_ops;
+
+	ici = to_soc_camera_host(icd->dev.parent);
+
+	soc_camera_platform_video_probe(icd, pdev);
+
+	v4l2_subdev_init(&priv->subdev, &platform_subdev_ops);
+	v4l2_set_subdevdata(&priv->subdev, p);
+	strncpy(priv->subdev.name, dev_name(&pdev->dev), V4L2_SUBDEV_NAME_SIZE);
+
+	ret = v4l2_device_register_subdev(&ici->v4l2_dev, &priv->subdev);
 	if (ret)
-		kfree(priv);
+		goto evdrs;
 
+	return ret;
+
+evdrs:
+	icd->ops = NULL;
+	platform_set_drvdata(pdev, NULL);
+	kfree(priv);
 	return ret;
 }
 
 static int soc_camera_platform_remove(struct platform_device *pdev)
 {
-	struct soc_camera_platform_priv *priv = platform_get_drvdata(pdev);
+	struct soc_camera_platform_priv *priv = get_priv(pdev);
+	struct soc_camera_platform_info *p = pdev->dev.platform_data;
+	struct soc_camera_device *icd = to_soc_camera_dev(p->dev);
 
-	soc_camera_device_unregister(&priv->icd);
+	v4l2_device_unregister_subdev(&priv->subdev);
+	icd->ops = NULL;
+	platform_set_drvdata(pdev, NULL);
 	kfree(priv);
 	return 0;
 }
@@ -185,6 +168,7 @@ static int soc_camera_platform_remove(struct platform_device *pdev)
 static struct platform_driver soc_camera_platform_driver = {
 	.driver 	= {
 		.name	= "soc_camera_platform",
+		.owner	= THIS_MODULE,
 	},
 	.probe		= soc_camera_platform_probe,
 	.remove		= soc_camera_platform_remove,
@@ -206,3 +190,4 @@ module_exit(soc_camera_platform_module_exit);
 MODULE_DESCRIPTION("SoC Camera Platform driver");
 MODULE_AUTHOR("Magnus Damm");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:soc_camera_platform");

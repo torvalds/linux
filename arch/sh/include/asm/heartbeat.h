@@ -11,6 +11,7 @@ struct heartbeat_data {
 	unsigned int nr_bits;
 	struct timer_list timer;
 	unsigned int regsize;
+	unsigned int mask;
 	unsigned long flags;
 };
 

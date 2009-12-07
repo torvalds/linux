@@ -163,7 +163,7 @@ static void nst_seq_stop(struct seq_file *seq, void *v)
 {
 }
 
-static struct seq_operations nst_seq_ops = {
+static const struct seq_operations nst_seq_ops = {
 	.start = nst_seq_start,
 	.next = nst_seq_next,
 	.stop = nst_seq_stop,
@@ -207,7 +207,7 @@ static int nst_fop_release(struct inode *inode, struct file *file)
 	return seq_release_private(inode, file);
 }
 
-static struct file_operations nst_seq_fops = {
+static const struct file_operations nst_seq_fops = {
 	.open = nst_fop_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -344,7 +344,7 @@ static void sc_seq_stop(struct seq_file *seq, void *v)
 {
 }
 
-static struct seq_operations sc_seq_ops = {
+static const struct seq_operations sc_seq_ops = {
 	.start = sc_seq_start,
 	.next = sc_seq_next,
 	.stop = sc_seq_stop,
@@ -388,7 +388,7 @@ static int sc_fop_release(struct inode *inode, struct file *file)
 	return seq_release_private(inode, file);
 }
 
-static struct file_operations sc_seq_fops = {
+static const struct file_operations sc_seq_fops = {
 	.open = sc_fop_open,
 	.read = seq_read,
 	.llseek = seq_lseek,

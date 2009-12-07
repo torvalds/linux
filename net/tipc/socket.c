@@ -1658,7 +1658,7 @@ restart:
  */
 
 static int setsockopt(struct socket *sock,
-		      int lvl, int opt, char __user *ov, int ol)
+		      int lvl, int opt, char __user *ov, unsigned int ol)
 {
 	struct sock *sk = sock->sk;
 	struct tipc_port *tport = tipc_sk_port(sk);
@@ -1747,6 +1747,12 @@ static int getsockopt(struct socket *sock,
 	case TIPC_CONN_TIMEOUT:
 		value = jiffies_to_msecs(sk->sk_rcvtimeo);
 		/* no need to set "res", since already 0 at this point */
+		break;
+	 case TIPC_NODE_RECVQ_DEPTH:
+		value = (u32)atomic_read(&tipc_queue_size);
+		break;
+	 case TIPC_SOCK_RECVQ_DEPTH:
+		value = skb_queue_len(&sk->sk_receive_queue);
 		break;
 	default:
 		res = -EINVAL;

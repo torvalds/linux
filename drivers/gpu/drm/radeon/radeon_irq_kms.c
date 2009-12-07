@@ -28,7 +28,6 @@
 #include "drmP.h"
 #include "radeon_drm.h"
 #include "radeon_reg.h"
-#include "radeon_microcode.h"
 #include "radeon.h"
 #include "atom.h"
 
@@ -84,10 +83,21 @@ void radeon_driver_irq_uninstall_kms(struct drm_device *dev)
 int radeon_irq_kms_init(struct radeon_device *rdev)
 {
 	int r = 0;
+	int num_crtc = 2;
 
-	r = drm_vblank_init(rdev->ddev, 2);
+	if (rdev->flags & RADEON_SINGLE_CRTC)
+		num_crtc = 1;
+
+	r = drm_vblank_init(rdev->ddev, num_crtc);
 	if (r) {
 		return r;
+	}
+	/* enable msi */
+	rdev->msi_enabled = 0;
+	if (rdev->family >= CHIP_RV380) {
+		int ret = pci_enable_msi(rdev->pdev);
+		if (!ret)
+			rdev->msi_enabled = 1;
 	}
 	drm_irq_install(rdev->ddev);
 	rdev->irq.installed = true;
@@ -100,5 +110,7 @@ void radeon_irq_kms_fini(struct radeon_device *rdev)
 	if (rdev->irq.installed) {
 		rdev->irq.installed = false;
 		drm_irq_uninstall(rdev->ddev);
+		if (rdev->msi_enabled)
+			pci_disable_msi(rdev->pdev);
 	}
 }

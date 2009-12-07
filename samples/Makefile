@@ -1,3 +1,3 @@
 # Makefile for Linux samples code
 
-obj-$(CONFIG_SAMPLES)	+= markers/ kobject/ kprobes/ tracepoints/ trace_events/
+obj-$(CONFIG_SAMPLES)	+= kobject/ kprobes/ tracepoints/ trace_events/

@@ -115,4 +115,10 @@ extern rwlock_t vmlist_lock;
 extern struct vm_struct *vmlist;
 extern __init void vm_area_register_early(struct vm_struct *vm, size_t align);
 
+struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
+				     const size_t *sizes, int nr_vms,
+				     size_t align, gfp_t gfp_mask);
+
+void pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms);
+
 #endif /* _LINUX_VMALLOC_H */

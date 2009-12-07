@@ -638,7 +638,7 @@ static void nfs4_fl_release_lock(struct file_lock *fl)
 	nfs4_put_lock_state(fl->fl_u.nfs4_fl.owner);
 }
 
-static struct file_lock_operations nfs4_fl_lock_ops = {
+static const struct file_lock_operations nfs4_fl_lock_ops = {
 	.fl_copy_lock = nfs4_fl_copy_lock,
 	.fl_release_private = nfs4_fl_release_lock,
 };

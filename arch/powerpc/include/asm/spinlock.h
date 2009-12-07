@@ -54,7 +54,7 @@
  * This returns the old value in the lock, so we succeeded
  * in getting the lock if the return value is 0.
  */
-static inline unsigned long __spin_trylock(raw_spinlock_t *lock)
+static inline unsigned long arch_spin_trylock(raw_spinlock_t *lock)
 {
 	unsigned long tmp, token;
 
@@ -76,7 +76,7 @@ static inline unsigned long __spin_trylock(raw_spinlock_t *lock)
 static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
 	CLEAR_IO_SYNC;
-	return __spin_trylock(lock) == 0;
+	return arch_spin_trylock(lock) == 0;
 }
 
 /*
@@ -108,7 +108,7 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
 	CLEAR_IO_SYNC;
 	while (1) {
-		if (likely(__spin_trylock(lock) == 0))
+		if (likely(arch_spin_trylock(lock) == 0))
 			break;
 		do {
 			HMT_low();
@@ -126,7 +126,7 @@ void __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long flags)
 
 	CLEAR_IO_SYNC;
 	while (1) {
-		if (likely(__spin_trylock(lock) == 0))
+		if (likely(arch_spin_trylock(lock) == 0))
 			break;
 		local_save_flags(flags_dis);
 		local_irq_restore(flags);
@@ -181,7 +181,7 @@ extern void __raw_spin_unlock_wait(raw_spinlock_t *lock);
  * This returns the old value in the lock + 1,
  * so we got a read lock if the return value is > 0.
  */
-static inline long __read_trylock(raw_rwlock_t *rw)
+static inline long arch_read_trylock(raw_rwlock_t *rw)
 {
 	long tmp;
 
@@ -205,7 +205,7 @@ static inline long __read_trylock(raw_rwlock_t *rw)
  * This returns the old value in the lock,
  * so we got the write lock if the return value is 0.
  */
-static inline long __write_trylock(raw_rwlock_t *rw)
+static inline long arch_write_trylock(raw_rwlock_t *rw)
 {
 	long tmp, token;
 
@@ -228,7 +228,7 @@ static inline long __write_trylock(raw_rwlock_t *rw)
 static inline void __raw_read_lock(raw_rwlock_t *rw)
 {
 	while (1) {
-		if (likely(__read_trylock(rw) > 0))
+		if (likely(arch_read_trylock(rw) > 0))
 			break;
 		do {
 			HMT_low();
@@ -242,7 +242,7 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 static inline void __raw_write_lock(raw_rwlock_t *rw)
 {
 	while (1) {
-		if (likely(__write_trylock(rw) == 0))
+		if (likely(arch_write_trylock(rw) == 0))
 			break;
 		do {
 			HMT_low();
@@ -255,12 +255,12 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 
 static inline int __raw_read_trylock(raw_rwlock_t *rw)
 {
-	return __read_trylock(rw) > 0;
+	return arch_read_trylock(rw) > 0;
 }
 
 static inline int __raw_write_trylock(raw_rwlock_t *rw)
 {
-	return __write_trylock(rw) == 0;
+	return arch_write_trylock(rw) == 0;
 }
 
 static inline void __raw_read_unlock(raw_rwlock_t *rw)

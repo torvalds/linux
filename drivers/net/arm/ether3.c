@@ -511,7 +511,7 @@ ether3_sendpacket(struct sk_buff *skb, struct net_device *dev)
 		dev_kfree_skb(skb);
 		priv(dev)->stats.tx_dropped ++;
 		netif_start_queue(dev);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	length = (length + 1) & ~1;
@@ -562,7 +562,7 @@ ether3_sendpacket(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 
  out:
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static irqreturn_t

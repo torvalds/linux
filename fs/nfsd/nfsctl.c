@@ -37,6 +37,7 @@
 #include <linux/nfsd/xdr.h>
 #include <linux/nfsd/syscall.h>
 #include <linux/lockd/lockd.h>
+#include <linux/sunrpc/clnt.h>
 
 #include <asm/uaccess.h>
 #include <net/ipv6.h>
@@ -173,12 +174,13 @@ static const struct file_operations exports_operations = {
 };
 
 extern int nfsd_pool_stats_open(struct inode *inode, struct file *file);
+extern int nfsd_pool_stats_release(struct inode *inode, struct file *file);
 
-static struct file_operations pool_stats_operations = {
+static const struct file_operations pool_stats_operations = {
 	.open		= nfsd_pool_stats_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= nfsd_pool_stats_release,
 	.owner		= THIS_MODULE,
 };
 
@@ -490,22 +492,18 @@ static ssize_t write_getfd(struct file *file, char *buf, size_t size)
  *
  * Input:
  *			buf:	'\n'-terminated C string containing a
- *				presentation format IPv4 address
+ *				presentation format IP address
  *			size:	length of C string in @buf
  * Output:
  *	On success:	returns zero if all specified locks were released;
  *			returns one if one or more locks were not released
  *	On error:	return code is negative errno value
- *
- * Note: Only AF_INET client addresses are passed in
  */
 static ssize_t write_unlock_ip(struct file *file, char *buf, size_t size)
 {
-	struct sockaddr_in sin = {
-		.sin_family	= AF_INET,
-	};
-	int b1, b2, b3, b4;
-	char c;
+	struct sockaddr_storage address;
+	struct sockaddr *sap = (struct sockaddr *)&address;
+	size_t salen = sizeof(address);
 	char *fo_path;
 
 	/* sanity check */
@@ -519,14 +517,10 @@ static ssize_t write_unlock_ip(struct file *file, char *buf, size_t size)
 	if (qword_get(&buf, fo_path, size) < 0)
 		return -EINVAL;
 
-	/* get ipv4 address */
-	if (sscanf(fo_path, "%u.%u.%u.%u%c", &b1, &b2, &b3, &b4, &c) != 4)
+	if (rpc_pton(fo_path, size, sap, salen) == 0)
 		return -EINVAL;
-	if (b1 > 255 || b2 > 255 || b3 > 255 || b4 > 255)
-		return -EINVAL;
-	sin.sin_addr.s_addr = htonl((b1 << 24) | (b2 << 16) | (b3 << 8) | b4);
 
-	return nlmsvc_unlock_all_by_ip((struct sockaddr *)&sin);
+	return nlmsvc_unlock_all_by_ip(sap);
 }
 
 /**
@@ -783,10 +777,7 @@ static ssize_t write_pool_threads(struct file *file, char *buf, size_t size)
 		size -= len;
 		mesg += len;
 	}
-
-	mutex_unlock(&nfsd_mutex);
-	return (mesg-buf);
-
+	rv = mesg - buf;
 out_free:
 	kfree(nthreads);
 	mutex_unlock(&nfsd_mutex);

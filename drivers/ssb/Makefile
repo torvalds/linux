@@ -6,6 +6,7 @@ ssb-$(CONFIG_SSB_SPROM)			+= sprom.o
 # host support
 ssb-$(CONFIG_SSB_PCIHOST)		+= pci.o pcihost_wrapper.o
 ssb-$(CONFIG_SSB_PCMCIAHOST)		+= pcmcia.o
+ssb-$(CONFIG_SSB_SDIOHOST)		+= sdio.o
 
 # built-in drivers
 ssb-y					+= driver_chipcommon.o

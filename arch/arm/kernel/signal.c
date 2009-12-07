@@ -1,7 +1,7 @@
 /*
  *  linux/arch/arm/kernel/signal.c
  *
- *  Copyright (C) 1995-2002 Russell King
+ *  Copyright (C) 1995-2009 Russell King
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,6 +12,7 @@
 #include <linux/personality.h>
 #include <linux/freezer.h>
 #include <linux/uaccess.h>
+#include <linux/tracehook.h>
 
 #include <asm/elf.h>
 #include <asm/cacheflush.h>
@@ -28,6 +29,7 @@
  */
 #define SWI_SYS_SIGRETURN	(0xef000000|(__NR_sigreturn)|(__NR_OABI_SYSCALL_BASE))
 #define SWI_SYS_RT_SIGRETURN	(0xef000000|(__NR_rt_sigreturn)|(__NR_OABI_SYSCALL_BASE))
+#define SWI_SYS_RESTART		(0xef000000|__NR_restart_syscall|__NR_OABI_SYSCALL_BASE)
 
 /*
  * With EABI, the syscall number has to be loaded into r7.
@@ -47,57 +49,34 @@ const unsigned long sigreturn_codes[7] = {
 	MOV_R7_NR_RT_SIGRETURN, SWI_SYS_RT_SIGRETURN, SWI_THUMB_RT_SIGRETURN,
 };
 
-static int do_signal(sigset_t *oldset, struct pt_regs * regs, int syscall);
+/*
+ * Either we support OABI only, or we have EABI with the OABI
+ * compat layer enabled.  In the later case we don't know if
+ * user space is EABI or not, and if not we must not clobber r7.
+ * Always using the OABI syscall solves that issue and works for
+ * all those cases.
+ */
+const unsigned long syscall_restart_code[2] = {
+	SWI_SYS_RESTART,	/* swi	__NR_restart_syscall */
+	0xe49df004,		/* ldr	pc, [sp], #4 */
+};
 
 /*
  * atomically swap in the new signal mask, and wait for a signal.
  */
-asmlinkage int sys_sigsuspend(int restart, unsigned long oldmask, old_sigset_t mask, struct pt_regs *regs)
+asmlinkage int sys_sigsuspend(int restart, unsigned long oldmask, old_sigset_t mask)
 {
-	sigset_t saveset;
-
 	mask &= _BLOCKABLE;
 	spin_lock_irq(&current->sighand->siglock);
-	saveset = current->blocked;
+	current->saved_sigmask = current->blocked;
 	siginitset(&current->blocked, mask);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
-	regs->ARM_r0 = -EINTR;
 
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (do_signal(&saveset, regs, 0))
-			return regs->ARM_r0;
-	}
-}
-
-asmlinkage int
-sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize, struct pt_regs *regs)
-{
-	sigset_t saveset, newset;
-
-	/* XXX: Don't preclude handling different sized sigset_t's. */
-	if (sigsetsize != sizeof(sigset_t))
-		return -EINVAL;
-
-	if (copy_from_user(&newset, unewset, sizeof(newset)))
-		return -EFAULT;
-	sigdelsetmask(&newset, ~_BLOCKABLE);
-
-	spin_lock_irq(&current->sighand->siglock);
-	saveset = current->blocked;
-	current->blocked = newset;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-	regs->ARM_r0 = -EINTR;
-
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (do_signal(&saveset, regs, 0))
-			return regs->ARM_r0;
-	}
+	current->state = TASK_INTERRUPTIBLE;
+	schedule();
+	set_restore_sigmask();
+	return -ERESTARTNOHAND;
 }
 
 asmlinkage int 
@@ -545,7 +524,7 @@ static inline void setup_syscall_restart(struct pt_regs *regs)
 /*
  * OK, we're invoking a handler
  */	
-static void
+static int
 handle_signal(unsigned long sig, struct k_sigaction *ka,
 	      siginfo_t *info, sigset_t *oldset,
 	      struct pt_regs * regs, int syscall)
@@ -596,7 +575,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
 
 	if (ret != 0) {
 		force_sigsegv(sig, tsk);
-		return;
+		return ret;
 	}
 
 	/*
@@ -610,6 +589,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
 	recalc_sigpending();
 	spin_unlock_irq(&tsk->sighand->siglock);
 
+	return 0;
 }
 
 /*
@@ -621,7 +601,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
  * the kernel can handle, and then we build all the user-level signal handling
  * stack-frames in one go after that.
  */
-static int do_signal(sigset_t *oldset, struct pt_regs *regs, int syscall)
+static void do_signal(struct pt_regs *regs, int syscall)
 {
 	struct k_sigaction ka;
 	siginfo_t info;
@@ -634,7 +614,7 @@ static int do_signal(sigset_t *oldset, struct pt_regs *regs, int syscall)
 	 * if so.
 	 */
 	if (!user_mode(regs))
-		return 0;
+		return;
 
 	if (try_to_freeze())
 		goto no_signal;
@@ -643,9 +623,24 @@ static int do_signal(sigset_t *oldset, struct pt_regs *regs, int syscall)
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
-		handle_signal(signr, &ka, &info, oldset, regs, syscall);
+		sigset_t *oldset;
+
+		if (test_thread_flag(TIF_RESTORE_SIGMASK))
+			oldset = &current->saved_sigmask;
+		else
+			oldset = &current->blocked;
+		if (handle_signal(signr, &ka, &info, oldset, regs, syscall) == 0) {
+			/*
+			 * A signal was successfully delivered; the saved
+			 * sigmask will have been stored in the signal frame,
+			 * and will be restored by sigreturn, so we can simply
+			 * clear the TIF_RESTORE_SIGMASK flag.
+			 */
+			if (test_thread_flag(TIF_RESTORE_SIGMASK))
+				clear_thread_flag(TIF_RESTORE_SIGMASK);
+		}
 		single_step_set(current);
-		return 1;
+		return;
 	}
 
  no_signal:
@@ -663,32 +658,16 @@ static int do_signal(sigset_t *oldset, struct pt_regs *regs, int syscall)
 				regs->ARM_pc -= 4;
 #else
 				u32 __user *usp;
-				u32 swival = __NR_restart_syscall;
 
-				regs->ARM_sp -= 12;
+				regs->ARM_sp -= 4;
 				usp = (u32 __user *)regs->ARM_sp;
 
-				/*
-				 * Either we supports OABI only, or we have
-				 * EABI with the OABI compat layer enabled.
-				 * In the later case we don't know if user
-				 * space is EABI or not, and if not we must
-				 * not clobber r7.  Always using the OABI
-				 * syscall solves that issue and works for
-				 * all those cases.
-				 */
-				swival = swival - __NR_SYSCALL_BASE + __NR_OABI_SYSCALL_BASE;
-
-				put_user(regs->ARM_pc, &usp[0]);
-				/* swi __NR_restart_syscall */
-				put_user(0xef000000 | swival, &usp[1]);
-				/* ldr	pc, [sp], #12 */
-				put_user(0xe49df00c, &usp[2]);
-
-				flush_icache_range((unsigned long)usp,
-						   (unsigned long)(usp + 3));
-
-				regs->ARM_pc = regs->ARM_sp + 4;
+				if (put_user(regs->ARM_pc, usp) == 0) {
+					regs->ARM_pc = KERN_RESTART_CODE;
+				} else {
+					regs->ARM_sp += 4;
+					force_sigsegv(0, current);
+				}
 #endif
 			}
 		}
@@ -697,14 +676,28 @@ static int do_signal(sigset_t *oldset, struct pt_regs *regs, int syscall)
 		    regs->ARM_r0 == -ERESTARTNOINTR) {
 			setup_syscall_restart(regs);
 		}
+
+		/* If there's no signal to deliver, we just put the saved sigmask
+		 * back.
+		 */
+		if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
+			clear_thread_flag(TIF_RESTORE_SIGMASK);
+			sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
+		}
 	}
 	single_step_set(current);
-	return 0;
 }
 
 asmlinkage void
 do_notify_resume(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 {
 	if (thread_flags & _TIF_SIGPENDING)
-		do_signal(&current->blocked, regs, syscall);
+		do_signal(regs, syscall);
+
+	if (thread_flags & _TIF_NOTIFY_RESUME) {
+		clear_thread_flag(TIF_NOTIFY_RESUME);
+		tracehook_notify_resume(regs);
+		if (current->replacement_session_keyring)
+			key_replace_session_keyring();
+	}
 }

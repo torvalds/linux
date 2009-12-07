@@ -39,7 +39,13 @@
 #define SPEED_15000		15000
 #define SPEED_16000		16000
 
-
+#define SFP_EEPROM_VENDOR_NAME_ADDR		0x14
+#define SFP_EEPROM_VENDOR_NAME_SIZE		16
+#define SFP_EEPROM_VENDOR_OUI_ADDR		0x25
+#define SFP_EEPROM_VENDOR_OUI_SIZE		3
+#define SFP_EEPROM_PART_NO_ADDR 		0x28
+#define SFP_EEPROM_PART_NO_SIZE		16
+#define PWR_FLT_ERR_MSG_LEN			250
 /***********************************************************/
 /*                         Structs                         */
 /***********************************************************/
@@ -75,47 +81,59 @@ struct link_params {
 #define SWITCH_CFG_AUTO_DETECT	PORT_FEATURE_CON_SWITCH_AUTO_DETECT
 
 	u16 hw_led_mode; /* part of the hw_config read from the shmem */
+
+	/* phy_addr populated by the phy_init function */
+	u8 phy_addr;
+	/*u8 reserved1;*/
+
 	u32 lane_config;
 	u32 ext_phy_config;
-#define XGXS_EXT_PHY_TYPE(ext_phy_config)	(ext_phy_config & \
-					PORT_HW_CFG_XGXS_EXT_PHY_TYPE_MASK)
-#define SERDES_EXT_PHY_TYPE(ext_phy_config)	(ext_phy_config & \
-					PORT_HW_CFG_SERDES_EXT_PHY_TYPE_MASK)
+#define XGXS_EXT_PHY_TYPE(ext_phy_config) \
+		((ext_phy_config) & PORT_HW_CFG_XGXS_EXT_PHY_TYPE_MASK)
+#define XGXS_EXT_PHY_ADDR(ext_phy_config) \
+		(((ext_phy_config) & PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >> \
+		 PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT)
+#define SERDES_EXT_PHY_TYPE(ext_phy_config) \
+		((ext_phy_config) & PORT_HW_CFG_SERDES_EXT_PHY_TYPE_MASK)
+
 	/* Phy register parameter */
 	u32 chip_id;
 
-	/* phy_addr populated by the CLC */
-	u8 phy_addr;
 	u16 xgxs_config_rx[4]; /* preemphasis values for the rx side */
-
 	u16 xgxs_config_tx[4]; /* preemphasis values for the tx side */
+
 	u32 feature_config_flags;
 #define FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED (1<<0)
-#define FEATURE_CONFIG_MODULE_ENFORCMENT_ENABLED	(2<<0)
+#define FEATURE_CONFIG_BC_SUPPORTS_OPT_MDL_VRFY	(1<<2)
+#define FEATURE_CONFIG_BCM8727_NOC			(1<<3)
+
 	/* Device pointer passed to all callback functions */
 	struct bnx2x *bp;
 };
 
 /* Output parameters */
 struct link_vars {
+	u8 phy_flags;
+
+	u8 mac_type;
+#define MAC_TYPE_NONE		0
+#define MAC_TYPE_EMAC		1
+#define MAC_TYPE_BMAC		2
+
 	u8 phy_link_up; /* internal phy link indication */
 	u8 link_up;
-	u16 duplex;
-	u16 flow_ctrl;
-	u32 ieee_fc;
-	u8 mac_type;
 
-#define MAC_TYPE_NONE	0
-#define MAC_TYPE_EMAC	1
-#define MAC_TYPE_BMAC	2
 	u16 line_speed;
+	u16 duplex;
+
+	u16 flow_ctrl;
+	u16 ieee_fc;
+
 	u32 autoneg;
 #define AUTO_NEG_DISABLED			0x0
 #define AUTO_NEG_ENABLED			0x1
 #define AUTO_NEG_COMPLETE			0x2
-#define AUTO_NEG_PARALLEL_DETECTION_USED 	0x3
-
-	u8 phy_flags;
+#define AUTO_NEG_PARALLEL_DETECTION_USED	0x3
 
 	/* The same definitions as the shmem parameter */
 	u32 link_status;
@@ -167,8 +185,6 @@ u8 bnx2x_set_led(struct bnx2x *bp, u8 port, u8 mode, u32 speed,
 
 u8 bnx2x_override_led_value(struct bnx2x *bp, u8 port, u32 led_idx, u32 value);
 
-u8 bnx2x_flash_download(struct bnx2x *bp, u8 port, u32 ext_phy_config,
-		      u8 driver_loaded, char data[], u32 size);
 /* bnx2x_handle_module_detect_int should be called upon module detection
    interrupt */
 void bnx2x_handle_module_detect_int(struct link_params *params);
@@ -180,5 +196,12 @@ u8 bnx2x_test_link(struct link_params *input, struct link_vars *vars);
 /* One-time initialization for external phy after power up */
 u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base);
 
+/* Reset the external PHY using GPIO */
+void bnx2x_ext_phy_hw_reset(struct bnx2x *bp, u8 port);
+
+void bnx2x_sfx7101_sp_sw_reset(struct bnx2x *bp, u8 port, u8 phy_addr);
+
+u8 bnx2x_read_sfp_module_eeprom(struct link_params *params, u16 addr,
+			      u8 byte_cnt, u8 *o_buf);
 
 #endif /* BNX2X_LINK_H */

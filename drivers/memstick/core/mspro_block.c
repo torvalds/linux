@@ -235,7 +235,7 @@ static int mspro_block_bd_getgeo(struct block_device *bdev,
 	return 0;
 }
 
-static struct block_device_operations ms_block_bdops = {
+static const struct block_device_operations ms_block_bdops = {
 	.open    = mspro_block_bd_open,
 	.release = mspro_block_bd_release,
 	.getgeo  = mspro_block_bd_getgeo,

@@ -591,7 +591,8 @@ static int arcnet_rebuild_header(struct sk_buff *skb)
 
 
 /* Called by the kernel in order to transmit a packet. */
-int arcnet_send_packet(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
+				     struct net_device *dev)
 {
 	struct arcnet_local *lp = netdev_priv(dev);
 	struct archdr *pkt;

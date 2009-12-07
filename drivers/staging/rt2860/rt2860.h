@@ -292,6 +292,8 @@ rt2860_interrupt(int irq, void *dev_instance);
 #define VEN_AWT_PCIe_DEVICE_ID	0x1059
 #define VEN_AWT_PCI_VENDOR_ID	0x1A3B
 
+#define EDIMAX_PCI_VENDOR_ID	0x1432
+
 // For RTMPPCIePowerLinkCtrlRestore () function
 #define RESTORE_HALT		    1
 #define RESTORE_WAKEUP		    2

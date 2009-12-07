@@ -406,7 +406,7 @@ static int wm9705_soc_probe(struct platform_device *pdev)
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		printk(KERN_ERR "wm9705: failed to register card\n");
-		goto pcm_err;
+		goto reset_err;
 	}
 
 	return 0;

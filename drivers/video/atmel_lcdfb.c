@@ -182,7 +182,8 @@ static unsigned long compute_hozval(unsigned long xres, unsigned long lcdcon2)
 {
 	unsigned long value;
 
-	if (!(cpu_is_at91sam9261() || cpu_is_at32ap7000()))
+	if (!(cpu_is_at91sam9261() || cpu_is_at91sam9g10()
+		|| cpu_is_at32ap7000()))
 		return xres;
 
 	value = xres;
@@ -483,6 +484,7 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 	unsigned long value;
 	unsigned long clk_value_khz;
 	unsigned long bits_per_line;
+	unsigned long pix_factor = 2;
 
 	might_sleep();
 
@@ -515,20 +517,24 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 	/* Now, the LCDC core... */
 
 	/* Set pixel clock */
+	if (cpu_is_at91sam9g45() && !cpu_is_at91sam9g45es())
+		pix_factor = 1;
+
 	clk_value_khz = clk_get_rate(sinfo->lcdc_clk) / 1000;
 
 	value = DIV_ROUND_UP(clk_value_khz, PICOS2KHZ(info->var.pixclock));
 
-	if (value < 2) {
+	if (value < pix_factor) {
 		dev_notice(info->device, "Bypassing pixel clock divider\n");
 		lcdc_writel(sinfo, ATMEL_LCDC_LCDCON1, ATMEL_LCDC_BYPASS);
 	} else {
-		value = (value / 2) - 1;
+		value = (value / pix_factor) - 1;
 		dev_dbg(info->device, "  * programming CLKVAL = 0x%08lx\n",
 				value);
 		lcdc_writel(sinfo, ATMEL_LCDC_LCDCON1,
 				value << ATMEL_LCDC_CLKVAL_OFFSET);
-		info->var.pixclock = KHZ2PICOS(clk_value_khz / (2 * (value + 1)));
+		info->var.pixclock =
+			KHZ2PICOS(clk_value_khz / (pix_factor * (value + 1)));
 		dev_dbg(info->device, "  updated pixclk:     %lu KHz\n",
 					PICOS2KHZ(info->var.pixclock));
 	}
@@ -824,7 +830,8 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 	info->fix = atmel_lcdfb_fix;
 
 	/* Enable LCDC Clocks */
-	if (cpu_is_at91sam9261() || cpu_is_at32ap7000()) {
+	if (cpu_is_at91sam9261() || cpu_is_at91sam9g10()
+	 || cpu_is_at32ap7000()) {
 		sinfo->bus_clk = clk_get(dev, "hck1");
 		if (IS_ERR(sinfo->bus_clk)) {
 			ret = PTR_ERR(sinfo->bus_clk);

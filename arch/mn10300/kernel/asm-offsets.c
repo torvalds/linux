@@ -85,7 +85,7 @@ void foo(void)
 	OFFSET(__rx_buffer,		mn10300_serial_port, rx_buffer);
 	OFFSET(__rx_inp,		mn10300_serial_port, rx_inp);
 	OFFSET(__rx_outp,		mn10300_serial_port, rx_outp);
-	OFFSET(__tx_info_buffer,	mn10300_serial_port, uart.info);
+	OFFSET(__uart_state,		mn10300_serial_port, uart.state);
 	OFFSET(__tx_xchar,		mn10300_serial_port, tx_xchar);
 	OFFSET(__tx_break,		mn10300_serial_port, tx_break);
 	OFFSET(__intr_flags,		mn10300_serial_port, intr_flags);
@@ -95,7 +95,7 @@ void foo(void)
 	OFFSET(__iobase,		mn10300_serial_port, _iobase);
 
 	DEFINE(__UART_XMIT_SIZE,	UART_XMIT_SIZE);
-	OFFSET(__xmit_buffer,		uart_info, xmit.buf);
-	OFFSET(__xmit_head,		uart_info, xmit.head);
-	OFFSET(__xmit_tail,		uart_info, xmit.tail);
+	OFFSET(__xmit_buffer,		uart_state, xmit.buf);
+	OFFSET(__xmit_head,		uart_state, xmit.head);
+	OFFSET(__xmit_tail,		uart_state, xmit.tail);
 }

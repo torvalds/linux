@@ -17,6 +17,7 @@
 #include <linux/irq.h>
 #include <linux/mfd/ezx-pcap.h>
 #include <linux/spi/spi.h>
+#include <linux/gpio.h>
 
 #define PCAP_ADC_MAXQ		8
 struct pcap_adc_request {
@@ -106,11 +107,35 @@ int ezx_pcap_read(struct pcap_chip *pcap, u8 reg_num, u32 *value)
 }
 EXPORT_SYMBOL_GPL(ezx_pcap_read);
 
-/* IRQ */
-static inline unsigned int irq2pcap(struct pcap_chip *pcap, int irq)
+int ezx_pcap_set_bits(struct pcap_chip *pcap, u8 reg_num, u32 mask, u32 val)
 {
-	return 1 << (irq - pcap->irq_base);
+	int ret;
+	u32 tmp = PCAP_REGISTER_READ_OP_BIT |
+		(reg_num << PCAP_REGISTER_ADDRESS_SHIFT);
+
+	mutex_lock(&pcap->io_mutex);
+	ret = ezx_pcap_putget(pcap, &tmp);
+	if (ret)
+		goto out_unlock;
+
+	tmp &= (PCAP_REGISTER_VALUE_MASK & ~mask);
+	tmp |= (val & mask) | PCAP_REGISTER_WRITE_OP_BIT |
+		(reg_num << PCAP_REGISTER_ADDRESS_SHIFT);
+
+	ret = ezx_pcap_putget(pcap, &tmp);
+out_unlock:
+	mutex_unlock(&pcap->io_mutex);
+
+	return ret;
 }
+EXPORT_SYMBOL_GPL(ezx_pcap_set_bits);
+
+/* IRQ */
+int irq_to_pcap(struct pcap_chip *pcap, int irq)
+{
+	return irq - pcap->irq_base;
+}
+EXPORT_SYMBOL_GPL(irq_to_pcap);
 
 int pcap_to_irq(struct pcap_chip *pcap, int irq)
 {
@@ -122,7 +147,7 @@ static void pcap_mask_irq(unsigned int irq)
 {
 	struct pcap_chip *pcap = get_irq_chip_data(irq);
 
-	pcap->msr |= irq2pcap(pcap, irq);
+	pcap->msr |= 1 << irq_to_pcap(pcap, irq);
 	queue_work(pcap->workqueue, &pcap->msr_work);
 }
 
@@ -130,7 +155,7 @@ static void pcap_unmask_irq(unsigned int irq)
 {
 	struct pcap_chip *pcap = get_irq_chip_data(irq);
 
-	pcap->msr &= ~irq2pcap(pcap, irq);
+	pcap->msr &= ~(1 << irq_to_pcap(pcap, irq));
 	queue_work(pcap->workqueue, &pcap->msr_work);
 }
 
@@ -154,34 +179,38 @@ static void pcap_isr_work(struct work_struct *work)
 	u32 msr, isr, int_sel, service;
 	int irq;
 
-	ezx_pcap_read(pcap, PCAP_REG_MSR, &msr);
-	ezx_pcap_read(pcap, PCAP_REG_ISR, &isr);
+	do {
+		ezx_pcap_read(pcap, PCAP_REG_MSR, &msr);
+		ezx_pcap_read(pcap, PCAP_REG_ISR, &isr);
 
-	/* We cant service/ack irqs that are assigned to port 2 */
-	if (!(pdata->config & PCAP_SECOND_PORT)) {
-		ezx_pcap_read(pcap, PCAP_REG_INT_SEL, &int_sel);
-		isr &= ~int_sel;
-	}
-	ezx_pcap_write(pcap, PCAP_REG_ISR, isr);
-
-	local_irq_disable();
-	service = isr & ~msr;
-
-	for (irq = pcap->irq_base; service; service >>= 1, irq++) {
-		if (service & 1) {
-			struct irq_desc *desc = irq_to_desc(irq);
-
-			if (WARN(!desc, KERN_WARNING
-					"Invalid PCAP IRQ %d\n", irq))
-				break;
-
-			if (desc->status & IRQ_DISABLED)
-				note_interrupt(irq, desc, IRQ_NONE);
-			else
-				desc->handle_irq(irq, desc);
+		/* We cant service/ack irqs that are assigned to port 2 */
+		if (!(pdata->config & PCAP_SECOND_PORT)) {
+			ezx_pcap_read(pcap, PCAP_REG_INT_SEL, &int_sel);
+			isr &= ~int_sel;
 		}
-	}
-	local_irq_enable();
+
+		ezx_pcap_write(pcap, PCAP_REG_MSR, isr | msr);
+		ezx_pcap_write(pcap, PCAP_REG_ISR, isr);
+
+		local_irq_disable();
+		service = isr & ~msr;
+		for (irq = pcap->irq_base; service; service >>= 1, irq++) {
+			if (service & 1) {
+				struct irq_desc *desc = irq_to_desc(irq);
+
+				if (WARN(!desc, KERN_WARNING
+						"Invalid PCAP IRQ %d\n", irq))
+					break;
+
+				if (desc->status & IRQ_DISABLED)
+					note_interrupt(irq, desc, IRQ_NONE);
+				else
+					desc->handle_irq(irq, desc);
+			}
+		}
+		local_irq_enable();
+		ezx_pcap_write(pcap, PCAP_REG_MSR, pcap->msr);
+	} while (gpio_get_value(irq_to_gpio(pcap->spi->irq)));
 }
 
 static void pcap_irq_handler(unsigned int irq, struct irq_desc *desc)
@@ -194,6 +223,19 @@ static void pcap_irq_handler(unsigned int irq, struct irq_desc *desc)
 }
 
 /* ADC */
+void pcap_set_ts_bits(struct pcap_chip *pcap, u32 bits)
+{
+	u32 tmp;
+
+	mutex_lock(&pcap->adc_mutex);
+	ezx_pcap_read(pcap, PCAP_REG_ADC, &tmp);
+	tmp &= ~(PCAP_ADC_TS_M_MASK | PCAP_ADC_TS_REF_LOWPWR);
+	tmp |= bits & (PCAP_ADC_TS_M_MASK | PCAP_ADC_TS_REF_LOWPWR);
+	ezx_pcap_write(pcap, PCAP_REG_ADC, tmp);
+	mutex_unlock(&pcap->adc_mutex);
+}
+EXPORT_SYMBOL_GPL(pcap_set_ts_bits);
+
 static void pcap_disable_adc(struct pcap_chip *pcap)
 {
 	u32 tmp;
@@ -216,15 +258,16 @@ static void pcap_adc_trigger(struct pcap_chip *pcap)
 		mutex_unlock(&pcap->adc_mutex);
 		return;
 	}
-	mutex_unlock(&pcap->adc_mutex);
-
-	/* start conversion on requested bank */
-	tmp = pcap->adc_queue[head]->flags | PCAP_ADC_ADEN;
+	/* start conversion on requested bank, save TS_M bits */
+	ezx_pcap_read(pcap, PCAP_REG_ADC, &tmp);
+	tmp &= (PCAP_ADC_TS_M_MASK | PCAP_ADC_TS_REF_LOWPWR);
+	tmp |= pcap->adc_queue[head]->flags | PCAP_ADC_ADEN;
 
 	if (pcap->adc_queue[head]->bank == PCAP_ADC_BANK_1)
 		tmp |= PCAP_ADC_AD_SEL1;
 
 	ezx_pcap_write(pcap, PCAP_REG_ADC, tmp);
+	mutex_unlock(&pcap->adc_mutex);
 	ezx_pcap_write(pcap, PCAP_REG_ADR, PCAP_ADR_ASC);
 }
 
@@ -499,9 +542,10 @@ static void __exit ezx_pcap_exit(void)
 	spi_unregister_driver(&ezxpcap_driver);
 }
 
-module_init(ezx_pcap_init);
+subsys_initcall(ezx_pcap_init);
 module_exit(ezx_pcap_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Daniel Ribeiro / Harald Welte");
 MODULE_DESCRIPTION("Motorola PCAP2 ASIC Driver");
+MODULE_ALIAS("spi:ezx-pcap");

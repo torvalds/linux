@@ -31,12 +31,16 @@
 #define cpu_has_cache_cdex_s	0
 #define cpu_has_prefetch	1
 
-/*
- * We should disable LL/SC on non SMP systems as it is faster to
- * disable interrupts for atomic access than a LL/SC.  Unfortunatly we
- * cannot as this breaks asm/futex.h
- */
 #define cpu_has_llsc		1
+/*
+ * We Disable LL/SC on non SMP systems as it is faster to disable
+ * interrupts for atomic access than a LL/SC.
+ */
+#ifdef CONFIG_SMP
+# define kernel_uses_llsc	1
+#else
+# define kernel_uses_llsc	0
+#endif
 #define cpu_has_vtag_icache	1
 #define cpu_has_dc_aliases	0
 #define cpu_has_ic_fills_f_dc	0

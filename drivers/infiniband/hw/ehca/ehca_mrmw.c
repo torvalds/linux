@@ -2463,7 +2463,7 @@ int ehca_create_busmap(void)
 	int ret;
 
 	ehca_mr_len = 0;
-	ret = walk_memory_resource(0, 1ULL << MAX_PHYSMEM_BITS, NULL,
+	ret = walk_system_ram_range(0, 1ULL << MAX_PHYSMEM_BITS, NULL,
 				   ehca_create_busmap_callback);
 	return ret;
 }

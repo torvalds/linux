@@ -187,13 +187,8 @@ static int pcie_port_enable_msix(struct pci_dev *dev, int *vectors, int mask)
  */
 static int assign_interrupt_mode(struct pci_dev *dev, int *vectors, int mask)
 {
-	struct pcie_port_data *port_data = pci_get_drvdata(dev);
 	int irq, interrupt_mode = PCIE_PORT_NO_IRQ;
 	int i;
-
-	/* Check MSI quirk */
-	if (port_data->port_type == PCIE_RC_PORT && pcie_mch_quirk)
-		goto Fallback;
 
 	/* Try to use MSI-X if supported */
 	if (!pcie_port_enable_msix(dev, vectors, mask))
@@ -203,7 +198,6 @@ static int assign_interrupt_mode(struct pci_dev *dev, int *vectors, int mask)
 	if (!pci_enable_msi(dev))
 		interrupt_mode = PCIE_PORT_MSI_MODE;
 
- Fallback:
 	if (interrupt_mode == PCIE_PORT_NO_IRQ && dev->pin)
 		interrupt_mode = PCIE_PORT_INTx_MODE;
 

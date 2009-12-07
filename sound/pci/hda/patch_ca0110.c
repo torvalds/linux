@@ -459,8 +459,7 @@ static void parse_input(struct hda_codec *codec)
 	nid = codec->start_nid;
 	for (i = 0; i < codec->num_nodes; i++, nid++) {
 		unsigned int wcaps = get_wcaps(codec, nid);
-		unsigned int type = (wcaps & AC_WCAP_TYPE) >>
-			AC_WCAP_TYPE_SHIFT;
+		unsigned int type = get_wcaps_type(wcaps);
 		if (type != AC_WID_AUD_IN)
 			continue;
 		if (snd_hda_get_connections(codec, nid, &pin, 1) != 1)

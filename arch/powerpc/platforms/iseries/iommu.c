@@ -193,7 +193,7 @@ static void pci_dma_dev_setup_iseries(struct pci_dev *pdev)
 		pdn->iommu_table = iommu_init_table(tbl, -1);
 	else
 		kfree(tbl);
-	pdev->dev.archdata.dma_data = pdn->iommu_table;
+	set_iommu_table_base(&pdev->dev, pdn->iommu_table);
 }
 #else
 #define pci_dma_dev_setup_iseries	NULL

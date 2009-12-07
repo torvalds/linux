@@ -19,10 +19,6 @@
 #include <asm/string.h>
 #include <asm/errno.h>
 
-#if (LINUX_VERSION_CODE<KERNEL_VERSION(2,6,18))
-#include<linux/config.h>
-#endif
-
 #include "ieee80211.h"
 
 MODULE_AUTHOR("Jouni Malinen");
@@ -57,10 +53,8 @@ void ieee80211_crypt_deinit_entries(struct ieee80211_device *ieee,
 
 		list_del(ptr);
 
-		if (entry->ops) {
+		if (entry->ops)
 			entry->ops->deinit(entry->priv);
-			module_put(entry->ops->owner);
-		}
 		kfree(entry);
 	}
 }
@@ -251,16 +245,3 @@ void ieee80211_crypto_deinit(void)
 	}
 	kfree(hcrypt);
 }
-
-#if 0
-EXPORT_SYMBOL(ieee80211_crypt_deinit_entries);
-EXPORT_SYMBOL(ieee80211_crypt_deinit_handler);
-EXPORT_SYMBOL(ieee80211_crypt_delayed_deinit);
-
-EXPORT_SYMBOL(ieee80211_register_crypto_ops);
-EXPORT_SYMBOL(ieee80211_unregister_crypto_ops);
-EXPORT_SYMBOL(ieee80211_get_crypto_ops);
-#endif
-
-//module_init(ieee80211_crypto_init);
-//module_exit(ieee80211_crypto_deinit);

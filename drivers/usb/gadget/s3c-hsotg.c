@@ -2392,7 +2392,7 @@ static int s3c_hsotg_corereset(struct s3c_hsotg *hsotg)
 		grstctl = readl(hsotg->regs + S3C_GRSTCTL);
 	} while (!(grstctl & S3C_GRSTCTL_CSftRst) && timeout-- > 0);
 
-	if (!grstctl & S3C_GRSTCTL_CSftRst) {
+	if (!(grstctl & S3C_GRSTCTL_CSftRst)) {
 		dev_err(hsotg->dev, "Failed to get CSftRst asserted\n");
 		return -EINVAL;
 	}
@@ -2514,8 +2514,8 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	 * DMA mode we may need this. */
 	writel(S3C_DOEPMSK_SetupMsk | S3C_DOEPMSK_AHBErrMsk |
 	       S3C_DOEPMSK_EPDisbldMsk |
-	       using_dma(hsotg) ? (S3C_DIEPMSK_XferComplMsk |
-				   S3C_DIEPMSK_TimeOUTMsk) : 0,
+	       (using_dma(hsotg) ? (S3C_DIEPMSK_XferComplMsk |
+				   S3C_DIEPMSK_TimeOUTMsk) : 0),
 	       hsotg->regs + S3C_DOEPMSK);
 
 	writel(0, hsotg->regs + S3C_DAINTMSK);

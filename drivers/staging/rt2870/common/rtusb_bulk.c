@@ -976,7 +976,7 @@ VOID	RTUSBKickBulkOut(
 				RTUSBBulkOutDataPacket(pAd, 3, pAd->NextBulkOutIndex[3]);
 			}
 		}
-#ifdef RT30xx
+
 		//PS packets use HCCA queue when dequeue from PS unicast queue (WiFi WPA2 MA9_DT1 for Marvell B STA)
 		if (RTUSB_TEST_BULK_FLAG(pAd, fRTUSB_BULK_OUT_DATA_NORMAL_5))
 		{
@@ -986,7 +986,6 @@ VOID	RTUSBKickBulkOut(
 			{
 			}
 		}
-#endif
 
 		// 7. Null frame is the last
 		else if (RTUSB_TEST_BULK_FLAG(pAd, fRTUSB_BULK_OUT_DATA_NULL))

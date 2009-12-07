@@ -64,7 +64,7 @@ static void __init omap_serial_reset(struct plat_serial8250_port *p)
 
 static struct plat_serial8250_port serial_platform_data[] = {
 	{
-		.membase	= IO_ADDRESS(OMAP_UART1_BASE),
+		.membase	= OMAP1_IO_ADDRESS(OMAP_UART1_BASE),
 		.mapbase	= OMAP_UART1_BASE,
 		.irq		= INT_UART1,
 		.flags		= UPF_BOOT_AUTOCONF,
@@ -73,7 +73,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.uartclk	= OMAP16XX_BASE_BAUD * 16,
 	},
 	{
-		.membase	= IO_ADDRESS(OMAP_UART2_BASE),
+		.membase	= OMAP1_IO_ADDRESS(OMAP_UART2_BASE),
 		.mapbase	= OMAP_UART2_BASE,
 		.irq		= INT_UART2,
 		.flags		= UPF_BOOT_AUTOCONF,
@@ -82,7 +82,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.uartclk	= OMAP16XX_BASE_BAUD * 16,
 	},
 	{
-		.membase	= IO_ADDRESS(OMAP_UART3_BASE),
+		.membase	= OMAP1_IO_ADDRESS(OMAP_UART3_BASE),
 		.mapbase	= OMAP_UART3_BASE,
 		.irq		= INT_UART3,
 		.flags		= UPF_BOOT_AUTOCONF,
@@ -109,7 +109,6 @@ static struct platform_device serial_device = {
 void __init omap_serial_init(void)
 {
 	int i;
-	const struct omap_uart_config *info;
 
 	if (cpu_is_omap730()) {
 		serial_platform_data[0].regshift = 0;
@@ -131,19 +130,7 @@ void __init omap_serial_init(void)
 		serial_platform_data[2].uartclk = OMAP1510_BASE_BAUD * 16;
 	}
 
-	info = omap_get_config(OMAP_TAG_UART, struct omap_uart_config);
-	if (info == NULL)
-		return;
-
 	for (i = 0; i < OMAP_MAX_NR_PORTS; i++) {
-		unsigned char reg;
-
-		if (!((1 << i) & info->enabled_uarts)) {
-			serial_platform_data[i].membase = NULL;
-			serial_platform_data[i].mapbase = 0;
-			continue;
-		}
-
 		switch (i) {
 		case 0:
 			uart1_ck = clk_get(NULL, "uart1_ck");
@@ -153,16 +140,6 @@ void __init omap_serial_init(void)
 				clk_enable(uart1_ck);
 				if (cpu_is_omap15xx())
 					clk_set_rate(uart1_ck, 12000000);
-			}
-			if (cpu_is_omap15xx()) {
-				omap_cfg_reg(UART1_TX);
-				omap_cfg_reg(UART1_RTS);
-				if (machine_is_omap_innovator()) {
-					reg = fpga_read(OMAP1510_FPGA_POWER);
-					reg |= OMAP1510_FPGA_PCR_COM1_EN;
-					fpga_write(reg, OMAP1510_FPGA_POWER);
-					udelay(10);
-				}
 			}
 			break;
 		case 1:
@@ -176,16 +153,6 @@ void __init omap_serial_init(void)
 				else
 					clk_set_rate(uart2_ck, 48000000);
 			}
-			if (cpu_is_omap15xx()) {
-				omap_cfg_reg(UART2_TX);
-				omap_cfg_reg(UART2_RTS);
-				if (machine_is_omap_innovator()) {
-					reg = fpga_read(OMAP1510_FPGA_POWER);
-					reg |= OMAP1510_FPGA_PCR_COM2_EN;
-					fpga_write(reg, OMAP1510_FPGA_POWER);
-					udelay(10);
-				}
-			}
 			break;
 		case 2:
 			uart3_ck = clk_get(NULL, "uart3_ck");
@@ -195,10 +162,6 @@ void __init omap_serial_init(void)
 				clk_enable(uart3_ck);
 				if (cpu_is_omap15xx())
 					clk_set_rate(uart3_ck, 12000000);
-			}
-			if (cpu_is_omap15xx()) {
-				omap_cfg_reg(UART3_TX);
-				omap_cfg_reg(UART3_RX);
 			}
 			break;
 		}

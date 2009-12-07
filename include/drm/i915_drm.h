@@ -185,6 +185,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_GEM_GET_APERTURE 0x23
 #define DRM_I915_GEM_MMAP_GTT	0x24
 #define DRM_I915_GET_PIPE_FROM_CRTC_ID	0x25
+#define DRM_I915_GEM_MADVISE	0x26
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
@@ -221,6 +222,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_GEM_GET_TILING	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_GET_TILING, struct drm_i915_gem_get_tiling)
 #define DRM_IOCTL_I915_GEM_GET_APERTURE	DRM_IOR  (DRM_COMMAND_BASE + DRM_I915_GEM_GET_APERTURE, struct drm_i915_gem_get_aperture)
 #define DRM_IOCTL_I915_GET_PIPE_FROM_CRTC_ID DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GET_PIPE_FROM_CRTC_ID, struct drm_intel_get_pipe_from_crtc_id)
+#define DRM_IOCTL_I915_GEM_MADVISE	DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_MADVISE, struct drm_i915_gem_madvise)
 
 /* Allow drivers to submit batchbuffers directly to hardware, relying
  * on the security mechanisms provided by hardware.
@@ -665,6 +667,23 @@ struct drm_i915_get_pipe_from_crtc_id {
 
 	/** pipe of requested CRTC **/
 	__u32 pipe;
+};
+
+#define I915_MADV_WILLNEED 0
+#define I915_MADV_DONTNEED 1
+#define __I915_MADV_PURGED 2 /* internal state */
+
+struct drm_i915_gem_madvise {
+	/** Handle of the buffer to change the backing store advice */
+	__u32 handle;
+
+	/* Advice: either the buffer will be needed again in the near future,
+	 *         or wont be and could be discarded under memory pressure.
+	 */
+	__u32 madv;
+
+	/** Whether the backing store still exists. */
+	__u32 retained;
 };
 
 #endif				/* _I915_DRM_H_ */

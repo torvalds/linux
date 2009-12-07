@@ -402,28 +402,26 @@ static void flush_to_ldisc(struct work_struct *work)
 		container_of(work, struct tty_struct, buf.work.work);
 	unsigned long 	flags;
 	struct tty_ldisc *disc;
-	struct tty_buffer *tbuf, *head;
-	char *char_buf;
-	unsigned char *flag_buf;
 
 	disc = tty_ldisc_ref(tty);
 	if (disc == NULL)	/*  !TTY_LDISC */
 		return;
 
 	spin_lock_irqsave(&tty->buf.lock, flags);
-	/* So we know a flush is running */
-	set_bit(TTY_FLUSHING, &tty->flags);
-	head = tty->buf.head;
-	if (head != NULL) {
-		tty->buf.head = NULL;
-		for (;;) {
-			int count = head->commit - head->read;
+
+	if (!test_and_set_bit(TTY_FLUSHING, &tty->flags)) {
+		struct tty_buffer *head;
+		while ((head = tty->buf.head) != NULL) {
+			int count;
+			char *char_buf;
+			unsigned char *flag_buf;
+
+			count = head->commit - head->read;
 			if (!count) {
 				if (head->next == NULL)
 					break;
-				tbuf = head;
-				head = head->next;
-				tty_buffer_free(tty, tbuf);
+				tty->buf.head = head->next;
+				tty_buffer_free(tty, head);
 				continue;
 			}
 			/* Ldisc or user is trying to flush the buffers
@@ -445,9 +443,9 @@ static void flush_to_ldisc(struct work_struct *work)
 							flag_buf, count);
 			spin_lock_irqsave(&tty->buf.lock, flags);
 		}
-		/* Restore the queue head */
-		tty->buf.head = head;
+		clear_bit(TTY_FLUSHING, &tty->flags);
 	}
+
 	/* We may have a deferred request to flush the input buffer,
 	   if so pull the chain under the lock and empty the queue */
 	if (test_bit(TTY_FLUSHPENDING, &tty->flags)) {
@@ -455,7 +453,6 @@ static void flush_to_ldisc(struct work_struct *work)
 		clear_bit(TTY_FLUSHPENDING, &tty->flags);
 		wake_up(&tty->read_wait);
 	}
-	clear_bit(TTY_FLUSHING, &tty->flags);
 	spin_unlock_irqrestore(&tty->buf.lock, flags);
 
 	tty_ldisc_deref(disc);
@@ -471,7 +468,7 @@ static void flush_to_ldisc(struct work_struct *work)
  */
 void tty_flush_to_ldisc(struct tty_struct *tty)
 {
-	flush_to_ldisc(&tty->buf.work.work);
+	flush_delayed_work(&tty->buf.work);
 }
 
 /**

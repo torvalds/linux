@@ -25,23 +25,13 @@
 #include <crypto/sha.h>
 #include <asm/byteorder.h>
 
-struct sha1_ctx {
-        u64 count;
-        u32 state[5];
-        u8 buffer[64];
-};
-
 static int sha1_init(struct shash_desc *desc)
 {
-	struct sha1_ctx *sctx = shash_desc_ctx(desc);
+	struct sha1_state *sctx = shash_desc_ctx(desc);
 
-	static const struct sha1_ctx initstate = {
-	  0,
-	  { SHA1_H0, SHA1_H1, SHA1_H2, SHA1_H3, SHA1_H4 },
-	  { 0, }
+	*sctx = (struct sha1_state){
+		.state = { SHA1_H0, SHA1_H1, SHA1_H2, SHA1_H3, SHA1_H4 },
 	};
-
-	*sctx = initstate;
 
 	return 0;
 }
@@ -49,7 +39,7 @@ static int sha1_init(struct shash_desc *desc)
 static int sha1_update(struct shash_desc *desc, const u8 *data,
 			unsigned int len)
 {
-	struct sha1_ctx *sctx = shash_desc_ctx(desc);
+	struct sha1_state *sctx = shash_desc_ctx(desc);
 	unsigned int partial, done;
 	const u8 *src;
 
@@ -85,7 +75,7 @@ static int sha1_update(struct shash_desc *desc, const u8 *data,
 /* Add padding and return the message digest. */
 static int sha1_final(struct shash_desc *desc, u8 *out)
 {
-	struct sha1_ctx *sctx = shash_desc_ctx(desc);
+	struct sha1_state *sctx = shash_desc_ctx(desc);
 	__be32 *dst = (__be32 *)out;
 	u32 i, index, padlen;
 	__be64 bits;
@@ -111,12 +101,31 @@ static int sha1_final(struct shash_desc *desc, u8 *out)
 	return 0;
 }
 
+static int sha1_export(struct shash_desc *desc, void *out)
+{
+	struct sha1_state *sctx = shash_desc_ctx(desc);
+
+	memcpy(out, sctx, sizeof(*sctx));
+	return 0;
+}
+
+static int sha1_import(struct shash_desc *desc, const void *in)
+{
+	struct sha1_state *sctx = shash_desc_ctx(desc);
+
+	memcpy(sctx, in, sizeof(*sctx));
+	return 0;
+}
+
 static struct shash_alg alg = {
 	.digestsize	=	SHA1_DIGEST_SIZE,
 	.init		=	sha1_init,
 	.update		=	sha1_update,
 	.final		=	sha1_final,
-	.descsize	=	sizeof(struct sha1_ctx),
+	.export		=	sha1_export,
+	.import		=	sha1_import,
+	.descsize	=	sizeof(struct sha1_state),
+	.statesize	=	sizeof(struct sha1_state),
 	.base		=	{
 		.cra_name	=	"sha1",
 		.cra_driver_name=	"sha1-generic",

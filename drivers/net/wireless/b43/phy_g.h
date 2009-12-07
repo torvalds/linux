@@ -141,8 +141,7 @@ struct b43_phy_g {
 	int tgt_idle_tssi;
 	/* Current idle TSSI */
 	int cur_idle_tssi;
-	/* The current average TSSI.
-	 * Needs irq_lock, as it's updated in the IRQ path. */
+	/* The current average TSSI. */
 	u8 average_tssi;
 	/* Current TX power level attenuation control values */
 	struct b43_bbatt bbatt;

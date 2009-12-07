@@ -108,6 +108,7 @@ struct tda18271_priv {
 	enum tda18271_role role;
 	enum tda18271_i2c_gate gate;
 	enum tda18271_ver id;
+	enum tda18271_output_options output_opt;
 
 	unsigned int config; /* interface to saa713x / tda829x */
 	unsigned int tm_rfcal;
@@ -137,17 +138,17 @@ extern int tda18271_debug;
 #define tda_printk(kern, fmt, arg...) \
 	printk(kern "%s: " fmt, __func__, ##arg)
 
-#define dprintk(kern, lvl, fmt, arg...) do {\
+#define tda_dprintk(lvl, fmt, arg...) do {\
 	if (tda18271_debug & lvl) \
-		tda_printk(kern, fmt, ##arg); } while (0)
+		tda_printk(KERN_DEBUG, fmt, ##arg); } while (0)
 
-#define tda_info(fmt, arg...) printk(KERN_INFO              fmt, ##arg)
-#define tda_warn(fmt, arg...) tda_printk(KERN_WARNING,      fmt, ##arg)
-#define tda_err(fmt, arg...)  tda_printk(KERN_ERR,          fmt, ##arg)
-#define tda_dbg(fmt, arg...)  dprintk(KERN_DEBUG, DBG_INFO, fmt, ##arg)
-#define tda_map(fmt, arg...)  dprintk(KERN_DEBUG, DBG_MAP,  fmt, ##arg)
-#define tda_reg(fmt, arg...)  dprintk(KERN_DEBUG, DBG_REG,  fmt, ##arg)
-#define tda_cal(fmt, arg...)  dprintk(KERN_DEBUG, DBG_CAL,  fmt, ##arg)
+#define tda_info(fmt, arg...)     printk(KERN_INFO     fmt, ##arg)
+#define tda_warn(fmt, arg...) tda_printk(KERN_WARNING, fmt, ##arg)
+#define tda_err(fmt, arg...)  tda_printk(KERN_ERR,     fmt, ##arg)
+#define tda_dbg(fmt, arg...)  tda_dprintk(DBG_INFO,    fmt, ##arg)
+#define tda_map(fmt, arg...)  tda_dprintk(DBG_MAP,     fmt, ##arg)
+#define tda_reg(fmt, arg...)  tda_dprintk(DBG_REG,     fmt, ##arg)
+#define tda_cal(fmt, arg...)  tda_dprintk(DBG_CAL,     fmt, ##arg)
 
 #define tda_fail(ret)							     \
 ({									     \

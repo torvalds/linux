@@ -855,11 +855,17 @@ identify_cpu (struct cpuinfo_ia64 *c)
 	c->unimpl_pa_mask = ~((1L<<63) | ((1L << phys_addr_size) - 1));
 }
 
+/*
+ * In UP configuration, setup_per_cpu_areas() is defined in
+ * include/linux/percpu.h
+ */
+#ifdef CONFIG_SMP
 void __init
 setup_per_cpu_areas (void)
 {
 	/* start_kernel() requires this... */
 }
+#endif
 
 /*
  * Do the following calculations:

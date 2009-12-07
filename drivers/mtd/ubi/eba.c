@@ -1065,7 +1065,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	}
 
 	/*
-	 * Now we have got to calculate how much data we have to to copy. In
+	 * Now we have got to calculate how much data we have to copy. In
 	 * case of a static volume it is fairly easy - the VID header contains
 	 * the data size. In case of a dynamic volume it is more difficult - we
 	 * have to read the contents, cut 0xFF bytes from the end and copy only

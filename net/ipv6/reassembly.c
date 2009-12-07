@@ -627,7 +627,7 @@ fail_hdr:
 	return -1;
 }
 
-static struct inet6_protocol frag_protocol =
+static const struct inet6_protocol frag_protocol =
 {
 	.handler	=	ipv6_frag_rcv,
 	.flags		=	INET6_PROTO_NOPOLICY,

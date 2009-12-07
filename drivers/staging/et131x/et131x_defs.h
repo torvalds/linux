@@ -2,7 +2,7 @@
  * Agere Systems Inc.
  * 10/100/1000 Base-T Ethernet Driver for the ET1301 and ET131x series MACs
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *   http://www.agere.com
  *
@@ -20,7 +20,7 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without
@@ -41,7 +41,7 @@
  *
  * Disclaimer
  *
- * THIS SOFTWARE IS PROVIDED “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
@@ -61,7 +61,6 @@
 
 /* Packet and header sizes */
 #define NIC_MIN_PACKET_SIZE	60
-#define NIC_HEADER_SIZE		ETH_HLEN	/* 14 */
 
 /* Multicast list size */
 #define NIC_MAX_MCAST_LIST	128
@@ -102,27 +101,28 @@
 #define fMP_ADAPTER_NOT_READY_MASK	0x3ff00000
 
 /* Some offsets in PCI config space that are actually used. */
-#define ET1310_PCI_PM_CAPABILITY	0x40
-#define ET1310_PCI_PM_CSR		0x44
 #define ET1310_PCI_MAX_PYLD		0x4C
-#define ET1310_PCI_DEV_CTRL		0x50
-#define ET1310_PCI_DEV_STAT		0x52
 #define ET1310_NMI_DISABLE		0x61
 #define ET1310_PCI_MAC_ADDRESS		0xA4
 #define ET1310_PCI_EEPROM_STATUS	0xB2
-#define ET1310_PCI_PHY_INDEX_REG	0xB4
 #define ET1310_PCI_ACK_NACK		0xC0
 #define ET1310_PCI_REPLAY		0xC2
 #define ET1310_PCI_L0L1LATENCY		0xCF
-#define ET1310_PCI_SEL_PHY_CTRL		0xE4
-#define ET1310_PCI_ADVANCED_ERR		0x100
 
 /* PCI Vendor/Product IDs */
-#define ET131X_PCI_VENDOR_ID		0x11C1	// Agere Systems
-#define ET131X_PCI_DEVICE_ID_GIG	0xED00	// ET1310 1000 Base-T
-#define ET131X_PCI_DEVICE_ID_FAST	0xED01	// ET1310 100  Base-T
+#define ET131X_PCI_VENDOR_ID		0x11C1	/* Agere Systems */
+#define ET131X_PCI_DEVICE_ID_GIG	0xED00	/* ET1310 1000 Base-T 8 */
+#define ET131X_PCI_DEVICE_ID_FAST	0xED01	/* ET1310 100  Base-T */
 
 /* Define order of magnitude converter */
 #define NANO_IN_A_MICRO	1000
+
+#define PARM_RX_NUM_BUFS_DEF    4
+#define PARM_RX_TIME_INT_DEF    10
+#define PARM_RX_MEM_END_DEF     0x2bc
+#define PARM_TX_TIME_INT_DEF    40
+#define PARM_TX_NUM_BUFS_DEF    4
+#define PARM_DMA_CACHE_DEF      0
+
 
 #endif /* __ET131X_DEFS_H__ */

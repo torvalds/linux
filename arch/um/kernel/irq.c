@@ -10,6 +10,7 @@
 #include "linux/interrupt.h"
 #include "linux/kernel_stat.h"
 #include "linux/module.h"
+#include "linux/sched.h"
 #include "linux/seq_file.h"
 #include "as-layout.h"
 #include "kern_util.h"

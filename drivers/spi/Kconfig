@@ -117,10 +117,11 @@ config SPI_GPIO
 	  speed with a custom version of this driver; see the source code.
 
 config SPI_IMX
-	tristate "Freescale iMX SPI controller"
-	depends on ARCH_MX1 && EXPERIMENTAL
+	tristate "Freescale i.MX SPI controllers"
+	depends on ARCH_MXC
+	select SPI_BITBANG
 	help
-	  This enables using the Freescale iMX SPI controller in master
+	  This enables using the Freescale i.MX SPI controllers in master
 	  mode.
 
 config SPI_LM70_LLP
@@ -173,10 +174,20 @@ config SPI_PL022
 	tristate "ARM AMBA PL022 SSP controller (EXPERIMENTAL)"
 	depends on ARM_AMBA && EXPERIMENTAL
 	default y if MACH_U300
+	default y if ARCH_REALVIEW
+	default y if INTEGRATOR_IMPD1
+	default y if ARCH_VERSATILE
 	help
 	  This selects the ARM(R) AMBA(R) PrimeCell PL022 SSP
 	  controller. If you have an embedded system with an AMBA(R)
 	  bus and a PL022 controller, say Y or M here.
+
+config SPI_PPC4xx
+	tristate "PPC4xx SPI Controller"
+	depends on PPC32 && 4xx && SPI_MASTER
+	select SPI_BITBANG
+	help
+	  This selects a driver for the PPC4xx SPI Controller.
 
 config SPI_PXA2XX
 	tristate "PXA2xx SSP SPI master"
@@ -210,6 +221,12 @@ config SPI_SH_SCI
 	select SPI_BITBANG
 	help
 	  SPI driver for SuperH SCI blocks.
+
+config SPI_STMP3XXX
+	tristate "Freescale STMP37xx/378x SPI/SSP controller"
+	depends on ARCH_STMP3XXX && SPI_MASTER
+	help
+	  SPI driver for Freescale STMP37xx/378x SoC SSP interface
 
 config SPI_TXX9
 	tristate "Toshiba TXx9 SPI controller"

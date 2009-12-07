@@ -134,7 +134,7 @@ static inline void io_insl(unsigned int addr, void *buf, int len)
 #define insw(a,b,l) io_insw(a,b,l)
 #define insl(a,b,l) io_insl(a,b,l)
 
-#define IO_SPACE_LIMIT 0xffff
+#define IO_SPACE_LIMIT 0xffffffff
 
 
 /* Values for nocacheflag and cmode */

@@ -209,7 +209,8 @@ static void scc_net_setup(struct net_device *dev);
 static int scc_net_open(struct net_device *dev);
 static int scc_net_close(struct net_device *dev);
 static void scc_net_rx(struct scc_channel *scc, struct sk_buff *skb);
-static int scc_net_tx(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t scc_net_tx(struct sk_buff *skb,
+			      struct net_device *dev);
 static int scc_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 static int scc_net_set_mac_address(struct net_device *dev, void *addr);
 static struct net_device_stats * scc_net_get_stats(struct net_device *dev);
@@ -1634,7 +1635,7 @@ static void scc_net_rx(struct scc_channel *scc, struct sk_buff *skb)
 
 /* ----> transmit frame <---- */
 
-static int scc_net_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t scc_net_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct scc_channel *scc = (struct scc_channel *) dev->ml_priv;
 	unsigned long flags;
@@ -1643,7 +1644,7 @@ static int scc_net_tx(struct sk_buff *skb, struct net_device *dev)
 	if (skb->len > scc->stat.bufsize || skb->len < 2) {
 		scc->dev_stat.tx_dropped++;	/* bogus frame */
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 	
 	scc->dev_stat.tx_packets++;
@@ -1656,7 +1657,7 @@ static int scc_net_tx(struct sk_buff *skb, struct net_device *dev)
 	if (kisscmd) {
 		scc_set_param(scc, kisscmd, *skb->data);
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	spin_lock_irqsave(&scc->lock, flags);
@@ -1684,7 +1685,7 @@ static int scc_net_tx(struct sk_buff *skb, struct net_device *dev)
 			__scc_start_tx_timer(scc, t_dwait, 0);
 	}
 	spin_unlock_irqrestore(&scc->lock, flags);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* ----> ioctl functions <---- */

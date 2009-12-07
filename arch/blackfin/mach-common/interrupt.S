@@ -1,31 +1,11 @@
 /*
- * File:         arch/blackfin/mach-common/interrupt.S
- * Based on:
- * Author:       D. Jeff Dionne <jeff@ryeham.ee.ryerson.ca>
+ * Interrupt Entries
+ *
+ * Copyright 2005-2009 Analog Devices Inc.
+ *               D. Jeff Dionne <jeff@ryeham.ee.ryerson.ca>
  *               Kenneth Albanowski <kjahds@kjahds.com>
  *
- * Created:      ?
- * Description:  Interrupt Entries
- *
- * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
 
 #include <asm/blackfin.h>
@@ -119,14 +99,8 @@ __common_int_entry:
 	fp = 0;
 #endif
 
-#if ANOMALY_05000283 || ANOMALY_05000315
-	cc = r7 == r7;
-	p5.h = HI(CHIPID);
-	p5.l = LO(CHIPID);
-	if cc jump 1f;
-	r7.l = W[p5];
-1:
-#endif
+	ANOMALY_283_315_WORKAROUND(p5, r7)
+
 	r1 =  sp;
 	SP += -12;
 #ifdef CONFIG_IPIPE
@@ -158,14 +132,7 @@ ENTRY(_evt_ivhw)
 	fp = 0;
 #endif
 
-#if ANOMALY_05000283 || ANOMALY_05000315
-	cc = r7 == r7;
-	p5.h = HI(CHIPID);
-	p5.l = LO(CHIPID);
-	if cc jump 1f;
-	r7.l = W[p5];
-1:
-#endif
+	ANOMALY_283_315_WORKAROUND(p5, r7)
 
 	/* Handle all stacked hardware errors
 	 * To make sure we don't hang forever, only do it 10 times
@@ -261,6 +228,31 @@ ENTRY(_evt_system_call)
 ENDPROC(_evt_system_call)
 
 #ifdef CONFIG_IPIPE
+/*
+ * __ipipe_call_irqtail: lowers the current priority level to EVT15
+ * before running a user-defined routine, then raises the priority
+ * level to EVT14 to prepare the caller for a normal interrupt
+ * return through RTI.
+ *
+ * We currently use this facility in two occasions:
+ *
+ * - to branch to __ipipe_irq_tail_hook as requested by a high
+ *   priority domain after the pipeline delivered an interrupt,
+ *   e.g. such as Xenomai, in order to start its rescheduling
+ *   procedure, since we may not switch tasks when IRQ levels are
+ *   nested on the Blackfin, so we have to fake an interrupt return
+ *   so that we may reschedule immediately.
+ *
+ * - to branch to sync_root_irqs, in order to play any interrupt
+ *   pending for the root domain (i.e. the Linux kernel). This lowers
+ *   the core priority level enough so that Linux IRQ handlers may
+ *   never delay interrupts handled by high priority domains; we defer
+ *   those handlers until this point instead. This is a substitute
+ *   to using a threaded interrupt model for the Linux kernel.
+ *
+ * r0: address of user-defined routine
+ * context: caller must have preempted EVT15, hw interrupts must be off.
+ */
 ENTRY(___ipipe_call_irqtail)
 	p0 = r0;
 	r0.l = 1f;
@@ -276,33 +268,19 @@ ENTRY(___ipipe_call_irqtail)
 	( r7:4, p5:3 ) = [sp++];
 	rets = [sp++];
 
-	[--sp] = reti;
-	reti = [sp++];          /* IRQs are off. */
-	r0.h = 3f;
-	r0.l = 3f;
-	p0.l = lo(EVT14);
-	p0.h = hi(EVT14);
-	[p0] = r0;
-	csync;
-	r0 = 0x401f (z);
+#ifdef CONFIG_DEBUG_HWERR
+	/* enable irq14 & hwerr interrupt, until we transition to _evt_evt14 */
+	r0 = (EVT_IVG14 | EVT_IVHW | \
+		EVT_IRPTEN | EVT_EVX | EVT_NMI | EVT_RST | EVT_EMU);
+#else
+	/* Only enable irq14 interrupt, until we transition to _evt_evt14 */
+	r0 = (EVT_IVG14 | \
+		EVT_IRPTEN | EVT_EVX | EVT_NMI | EVT_RST | EVT_EMU);
+#endif
 	sti r0;
-	raise 14;
-	[--sp] = reti;          /* IRQs on. */
+	raise 14;		/* Branches to _evt_evt14 */
 2:
 	jump 2b;                /* Likely paranoid. */
-3:
-	sp += 4;                /* Discard saved RETI */
-	r0.h = _evt14_softirq;
-	r0.l = _evt14_softirq;
-	p0.l = lo(EVT14);
-	p0.h = hi(EVT14);
-	[p0] = r0;
-	csync;
-	p0.l = _bfin_irq_flags;
-	p0.h = _bfin_irq_flags;
-	r0 = [p0];
-	sti r0;
-	rts;
 ENDPROC(___ipipe_call_irqtail)
 
 #endif /* CONFIG_IPIPE */

@@ -43,8 +43,7 @@
 #define CHECK_BINSEARCH__
 
 /*
- * If EXT_DEBUG is defined you can use the 'extdebug' mount option
- * to get lots of info about what's going on.
+ * Turn on EXT_DEBUG to get lots of info about extents operations.
  */
 #define EXT_DEBUG__
 #ifdef EXT_DEBUG
@@ -138,6 +137,7 @@ typedef int (*ext_prepare_callback)(struct inode *, struct ext4_ext_path *,
 #define EXT_BREAK      1
 #define EXT_REPEAT     2
 
+/* Maximum logical block in a file; ext4_extent's ee_block is __le32 */
 #define EXT_MAX_BLOCK	0xffffffff
 
 /*
@@ -220,6 +220,11 @@ static inline int ext4_ext_get_actual_len(struct ext4_extent *ext)
 		(le16_to_cpu(ext->ee_len) - EXT_INIT_MAX_LEN));
 }
 
+static inline void ext4_ext_mark_initialized(struct ext4_extent *ext)
+{
+	ext->ee_len = cpu_to_le16(ext4_ext_get_actual_len(ext));
+}
+
 extern int ext4_ext_calc_metadata_amount(struct inode *inode, int blocks);
 extern ext4_fsblk_t ext_pblock(struct ext4_extent *ex);
 extern ext4_fsblk_t idx_pblock(struct ext4_extent_idx *);
@@ -235,7 +240,7 @@ extern int ext4_ext_try_to_merge(struct inode *inode,
 				 struct ext4_ext_path *path,
 				 struct ext4_extent *);
 extern unsigned int ext4_ext_check_overlap(struct inode *, struct ext4_extent *, struct ext4_ext_path *);
-extern int ext4_ext_insert_extent(handle_t *, struct inode *, struct ext4_ext_path *, struct ext4_extent *);
+extern int ext4_ext_insert_extent(handle_t *, struct inode *, struct ext4_ext_path *, struct ext4_extent *, int);
 extern int ext4_ext_walk_space(struct inode *, ext4_lblk_t, ext4_lblk_t,
 							ext_prepare_callback, void *);
 extern struct ext4_ext_path *ext4_ext_find_extent(struct inode *, ext4_lblk_t,

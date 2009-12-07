@@ -17,7 +17,7 @@
 #include <linux/mm.h>
 
 /*
- * virtually-indexed cache managment (our cache is physically indexed)
+ * virtually-indexed cache management (our cache is physically indexed)
  */
 #define flush_cache_all()			do {} while (0)
 #define flush_cache_mm(mm)			do {} while (0)
@@ -31,7 +31,7 @@
 #define flush_dcache_mmap_unlock(mapping)	do {} while (0)
 
 /*
- * physically-indexed cache managment
+ * physically-indexed cache management
  */
 #ifndef CONFIG_MN10300_CACHE_DISABLED
 

@@ -225,8 +225,6 @@ static inline void exit_aio(struct mm_struct *mm) { }
 
 #define io_wait_to_kiocb(wait) container_of(wait, struct kiocb, ki_wait)
 
-#include <linux/aio_abi.h>
-
 static inline struct kiocb *list_kiocb(struct list_head *h)
 {
 	return list_entry(h, struct kiocb, ki_list);

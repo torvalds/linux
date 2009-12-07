@@ -81,53 +81,6 @@ extern	void		PHY_RF6052SetOFDMTxPower(struct net_device  * dev, u8 powerlevel);
 extern	RT_STATUS	PHY_RF6052_Config(struct net_device  * dev);
 extern void PHY_RFShadowRefresh( struct net_device  		* dev);
 extern void PHY_RFShadowWrite( struct net_device* dev, u32 eRFPath, u32 Offset, u32 Data);
-#if 0
-//
-// RF Shadow operation relative API
-//
-extern	u32
-PHY_RFShadowRead(
-	struct net_device  		* dev,
-	RF90_RADIO_PATH_E	eRFPath,
-	u32					Offset);
-extern void
-PHY_RFShadowCompare(
-	struct net_device  		* dev,
-	RF90_RADIO_PATH_E	eRFPath,
-	u32					Offset);
-extern void
-PHY_RFShadowRecorver(
-	struct net_device  		* dev,
-	RF90_RADIO_PATH_E	eRFPath,
-	u32					Offset);
-extern void
-PHY_RFShadowCompareAll(
-	struct net_device  		* dev);
-extern void
-PHY_RFShadowRecorverAll(
-	struct net_device  		* dev);
-extern void
-PHY_RFShadowCompareFlagSet(
-	struct net_device  		* dev,
-	RF90_RADIO_PATH_E	eRFPath,
-	u32					Offset,
-	u8					Type);
-extern void
-PHY_RFShadowRecorverFlagSet(
-	struct net_device  		* dev,
-	RF90_RADIO_PATH_E	eRFPath,
-	u32					Offset,
-	u8					Type);
-extern void
-PHY_RFShadowCompareFlagSetAll(
-	struct net_device  		* dev);
-extern void
-PHY_RFShadowRecorverFlagSetAll(
-	struct net_device  		* dev);
-extern void
-PHY_RFShadowRefresh(
-	struct net_device  		* dev);
-#endif
 /*--------------------------Exported Function prototype---------------------*/
 
 

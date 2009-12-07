@@ -233,6 +233,11 @@ void usbnet_skb_return (struct usbnet *dev, struct sk_buff *skb)
 {
 	int	status;
 
+	if (test_bit(EVENT_RX_PAUSED, &dev->flags)) {
+		skb_queue_tail(&dev->rxq_pause, skb);
+		return;
+	}
+
 	skb->protocol = eth_type_trans (skb, dev->net);
 	dev->net->stats.rx_packets++;
 	dev->net->stats.rx_bytes += skb->len;
@@ -526,6 +531,41 @@ static void intr_complete (struct urb *urb)
 }
 
 /*-------------------------------------------------------------------------*/
+void usbnet_pause_rx(struct usbnet *dev)
+{
+	set_bit(EVENT_RX_PAUSED, &dev->flags);
+
+	if (netif_msg_rx_status(dev))
+		devdbg(dev, "paused rx queue enabled");
+}
+EXPORT_SYMBOL_GPL(usbnet_pause_rx);
+
+void usbnet_resume_rx(struct usbnet *dev)
+{
+	struct sk_buff *skb;
+	int num = 0;
+
+	clear_bit(EVENT_RX_PAUSED, &dev->flags);
+
+	while ((skb = skb_dequeue(&dev->rxq_pause)) != NULL) {
+		usbnet_skb_return(dev, skb);
+		num++;
+	}
+
+	tasklet_schedule(&dev->bh);
+
+	if (netif_msg_rx_status(dev))
+		devdbg(dev, "paused rx queue disabled, %d skbs requeued", num);
+}
+EXPORT_SYMBOL_GPL(usbnet_resume_rx);
+
+void usbnet_purge_paused_rxq(struct usbnet *dev)
+{
+	skb_queue_purge(&dev->rxq_pause);
+}
+EXPORT_SYMBOL_GPL(usbnet_purge_paused_rxq);
+
+/*-------------------------------------------------------------------------*/
 
 // unlink pending rx/tx; completion handlers do all other cleanup
 
@@ -575,7 +615,9 @@ EXPORT_SYMBOL_GPL(usbnet_unlink_rx_urbs);
 int usbnet_stop (struct net_device *net)
 {
 	struct usbnet		*dev = netdev_priv(net);
+	struct driver_info	*info = dev->driver_info;
 	int			temp;
+	int			retval;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK (unlink_wakeup);
 	DECLARE_WAITQUEUE (wait, current);
 
@@ -587,23 +629,41 @@ int usbnet_stop (struct net_device *net)
 			net->stats.rx_errors, net->stats.tx_errors
 			);
 
-	// ensure there are no more active urbs
-	add_wait_queue (&unlink_wakeup, &wait);
-	dev->wait = &unlink_wakeup;
-	temp = unlink_urbs (dev, &dev->txq) + unlink_urbs (dev, &dev->rxq);
-
-	// maybe wait for deletions to finish.
-	while (!skb_queue_empty(&dev->rxq)
-			&& !skb_queue_empty(&dev->txq)
-			&& !skb_queue_empty(&dev->done)) {
-		msleep(UNLINK_TIMEOUT_MS);
-		if (netif_msg_ifdown (dev))
-			devdbg (dev, "waited for %d urb completions", temp);
+	/* allow minidriver to stop correctly (wireless devices to turn off
+	 * radio etc) */
+	if (info->stop) {
+		retval = info->stop(dev);
+		if (retval < 0 && netif_msg_ifdown(dev))
+			devinfo(dev,
+				"stop fail (%d) usbnet usb-%s-%s, %s",
+				retval,
+				dev->udev->bus->bus_name, dev->udev->devpath,
+				info->description);
 	}
-	dev->wait = NULL;
-	remove_wait_queue (&unlink_wakeup, &wait);
+
+	if (!(info->flags & FLAG_AVOID_UNLINK_URBS)) {
+		/* ensure there are no more active urbs */
+		add_wait_queue(&unlink_wakeup, &wait);
+		dev->wait = &unlink_wakeup;
+		temp = unlink_urbs(dev, &dev->txq) +
+			unlink_urbs(dev, &dev->rxq);
+
+		/* maybe wait for deletions to finish. */
+		while (!skb_queue_empty(&dev->rxq)
+				&& !skb_queue_empty(&dev->txq)
+				&& !skb_queue_empty(&dev->done)) {
+			msleep(UNLINK_TIMEOUT_MS);
+			if (netif_msg_ifdown(dev))
+				devdbg(dev, "waited for %d urb completions",
+					temp);
+		}
+		dev->wait = NULL;
+		remove_wait_queue(&unlink_wakeup, &wait);
+	}
 
 	usb_kill_urb(dev->interrupt);
+
+	usbnet_purge_paused_rxq(dev);
 
 	/* deferred work (task, timer, softirq) must also stop.
 	 * can't flush_scheduled_work() until we drop rtnl (later),
@@ -794,7 +854,7 @@ void usbnet_set_msglevel (struct net_device *net, u32 level)
 EXPORT_SYMBOL_GPL(usbnet_set_msglevel);
 
 /* drivers may override default ethtool_ops in their bind() routine */
-static struct ethtool_ops usbnet_ethtool_ops = {
+static const struct ethtool_ops usbnet_ethtool_ops = {
 	.get_settings		= usbnet_get_settings,
 	.set_settings		= usbnet_set_settings,
 	.get_link		= usbnet_get_link,
@@ -947,15 +1007,16 @@ EXPORT_SYMBOL_GPL(usbnet_tx_timeout);
 
 /*-------------------------------------------------------------------------*/
 
-int usbnet_start_xmit (struct sk_buff *skb, struct net_device *net)
+netdev_tx_t usbnet_start_xmit (struct sk_buff *skb,
+				     struct net_device *net)
 {
 	struct usbnet		*dev = netdev_priv(net);
 	int			length;
-	int			retval = NET_XMIT_SUCCESS;
 	struct urb		*urb = NULL;
 	struct skb_data		*entry;
 	struct driver_info	*info = dev->driver_info;
 	unsigned long		flags;
+	int retval;
 
 	// some devices want funky USB-level framing, for
 	// win32 driver (usually) and/or hardware quirks
@@ -988,7 +1049,7 @@ int usbnet_start_xmit (struct sk_buff *skb, struct net_device *net)
 	 * NOTE:  strictly conforming cdc-ether devices should expect
 	 * the ZLP here, but ignore the one-byte packet.
 	 */
-	if ((length % dev->maxpacket) == 0) {
+	if (!(info->flags & FLAG_SEND_ZLP) && (length % dev->maxpacket) == 0) {
 		urb->transfer_buffer_length++;
 		if (skb_tailroom(skb)) {
 			skb->data[skb->len] = 0;
@@ -1019,7 +1080,6 @@ int usbnet_start_xmit (struct sk_buff *skb, struct net_device *net)
 		if (netif_msg_tx_err (dev))
 			devdbg (dev, "drop, code %d", retval);
 drop:
-		retval = NET_XMIT_SUCCESS;
 		dev->net->stats.tx_dropped++;
 		if (skb)
 			dev_kfree_skb_any (skb);
@@ -1028,7 +1088,7 @@ drop:
 		devdbg (dev, "> tx, len %d, type 0x%x",
 			length, skb->protocol);
 	}
-	return retval;
+	return NETDEV_TX_OK;
 }
 EXPORT_SYMBOL_GPL(usbnet_start_xmit);
 
@@ -1095,7 +1155,6 @@ static void usbnet_bh (unsigned long param)
 }
 
 
-
 /*-------------------------------------------------------------------------
  *
  * USB Device Driver support
@@ -1192,6 +1251,7 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	skb_queue_head_init (&dev->rxq);
 	skb_queue_head_init (&dev->txq);
 	skb_queue_head_init (&dev->done);
+	skb_queue_head_init(&dev->rxq_pause);
 	dev->bh.func = usbnet_bh;
 	dev->bh.data = (unsigned long) dev;
 	INIT_WORK (&dev->kevent, kevent);

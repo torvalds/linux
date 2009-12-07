@@ -15,7 +15,7 @@ struct Sun_Machine_Models {
 /* Current number of machines we know about that has an IDPROM
  * machtype entry including one entry for the 0x80 OBP machines.
  */
-#define NUM_SUN_MACHINES   15
+#define NUM_SUN_MACHINES   16
 
 /* The machine type in the idprom area looks like this:
  *
@@ -30,6 +30,7 @@ struct Sun_Machine_Models {
 
 #define SM_ARCH_MASK  0xf0
 #define SM_SUN4       0x20
+#define  M_LEON       0x30
 #define SM_SUN4C      0x50
 #define SM_SUN4M      0x70
 #define SM_SUN4M_OBP  0x80
@@ -40,6 +41,9 @@ struct Sun_Machine_Models {
 #define SM_4_110      0x02    /* Sun 4/100 series */
 #define SM_4_330      0x03    /* Sun 4/300 series */
 #define SM_4_470      0x04    /* Sun 4/400 series */
+
+/* Leon machines */
+#define M_LEON3_SOC   0x02    /* Leon3 SoC */
 
 /* Sun4c machines                Full Name              - PROM NAME */
 #define SM_4C_SS1     0x01    /* Sun4c SparcStation 1   - Sun 4/60  */

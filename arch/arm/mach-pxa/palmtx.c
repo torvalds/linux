@@ -28,6 +28,10 @@
 #include <linux/wm97xx_batt.h>
 #include <linux/power_supply.h>
 #include <linux/usb/gpio_vbus.h>
+#include <linux/mtd/nand.h>
+#include <linux/mtd/partitions.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/physmap.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -131,6 +135,10 @@ static unsigned long palmtx_pin_config[] __initdata = {
 	GPIO34_FFUART_RXD,
 	GPIO39_FFUART_TXD,
 
+	/* NAND */
+	GPIO15_nCS_1,
+	GPIO18_RDY,
+
 	/* MISC. */
 	GPIO10_GPIO,	/* hotsync button */
 	GPIO12_GPIO,	/* power detect */
@@ -138,85 +146,50 @@ static unsigned long palmtx_pin_config[] __initdata = {
 };
 
 /******************************************************************************
+ * NOR Flash
+ ******************************************************************************/
+static struct mtd_partition palmtx_partitions[] = {
+	{
+		.name		= "Flash",
+		.offset		= 0x00000000,
+		.size		= MTDPART_SIZ_FULL,
+		.mask_flags	= 0
+	}
+};
+
+static struct physmap_flash_data palmtx_flash_data[] = {
+	{
+		.width		= 2,			/* bankwidth in bytes */
+		.parts		= palmtx_partitions,
+		.nr_parts	= ARRAY_SIZE(palmtx_partitions)
+	}
+};
+
+static struct resource palmtx_flash_resource = {
+	.start	= PXA_CS0_PHYS,
+	.end	= PXA_CS0_PHYS + SZ_8M - 1,
+	.flags	= IORESOURCE_MEM,
+};
+
+static struct platform_device palmtx_flash = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.resource	= &palmtx_flash_resource,
+	.num_resources	= 1,
+	.dev 		= {
+		.platform_data = palmtx_flash_data,
+	},
+};
+
+/******************************************************************************
  * SD/MMC card controller
  ******************************************************************************/
-static int palmtx_mci_init(struct device *dev, irq_handler_t palmtx_detect_int,
-				void *data)
-{
-	int err = 0;
-
-	/* Setup an interrupt for detecting card insert/remove events */
-	err = gpio_request(GPIO_NR_PALMTX_SD_DETECT_N, "SD IRQ");
-	if (err)
-		goto err;
-	err = gpio_direction_input(GPIO_NR_PALMTX_SD_DETECT_N);
-	if (err)
-		goto err2;
-	err = request_irq(gpio_to_irq(GPIO_NR_PALMTX_SD_DETECT_N),
-			palmtx_detect_int, IRQF_DISABLED | IRQF_SAMPLE_RANDOM |
-			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
-			"SD/MMC card detect", data);
-	if (err) {
-		printk(KERN_ERR "%s: cannot request SD/MMC card detect IRQ\n",
-				__func__);
-		goto err2;
-	}
-
-	err = gpio_request(GPIO_NR_PALMTX_SD_POWER, "SD_POWER");
-	if (err)
-		goto err3;
-	err = gpio_direction_output(GPIO_NR_PALMTX_SD_POWER, 0);
-	if (err)
-		goto err4;
-
-	err = gpio_request(GPIO_NR_PALMTX_SD_READONLY, "SD_READONLY");
-	if (err)
-		goto err4;
-	err = gpio_direction_input(GPIO_NR_PALMTX_SD_READONLY);
-	if (err)
-		goto err5;
-
-	printk(KERN_DEBUG "%s: irq registered\n", __func__);
-
-	return 0;
-
-err5:
-	gpio_free(GPIO_NR_PALMTX_SD_READONLY);
-err4:
-	gpio_free(GPIO_NR_PALMTX_SD_POWER);
-err3:
-	free_irq(gpio_to_irq(GPIO_NR_PALMTX_SD_DETECT_N), data);
-err2:
-	gpio_free(GPIO_NR_PALMTX_SD_DETECT_N);
-err:
-	return err;
-}
-
-static void palmtx_mci_exit(struct device *dev, void *data)
-{
-	gpio_free(GPIO_NR_PALMTX_SD_READONLY);
-	gpio_free(GPIO_NR_PALMTX_SD_POWER);
-	free_irq(gpio_to_irq(GPIO_NR_PALMTX_SD_DETECT_N), data);
-	gpio_free(GPIO_NR_PALMTX_SD_DETECT_N);
-}
-
-static void palmtx_mci_power(struct device *dev, unsigned int vdd)
-{
-	struct pxamci_platform_data *p_d = dev->platform_data;
-	gpio_set_value(GPIO_NR_PALMTX_SD_POWER, p_d->ocr_mask & (1 << vdd));
-}
-
-static int palmtx_mci_get_ro(struct device *dev)
-{
-	return gpio_get_value(GPIO_NR_PALMTX_SD_READONLY);
-}
-
 static struct pxamci_platform_data palmtx_mci_platform_data = {
-	.ocr_mask	= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.setpower	= palmtx_mci_power,
-	.get_ro		= palmtx_mci_get_ro,
-	.init 		= palmtx_mci_init,
-	.exit		= palmtx_mci_exit,
+	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
+	.gpio_card_detect	= GPIO_NR_PALMTX_SD_DETECT_N,
+	.gpio_card_ro		= GPIO_NR_PALMTX_SD_READONLY,
+	.gpio_power		= GPIO_NR_PALMTX_SD_POWER,
+	.detect_delay		= 20,
 };
 
 /******************************************************************************
@@ -330,35 +303,9 @@ static struct platform_device palmtx_backlight = {
 /******************************************************************************
  * IrDA
  ******************************************************************************/
-static int palmtx_irda_startup(struct device *dev)
-{
-	int err;
-	err = gpio_request(GPIO_NR_PALMTX_IR_DISABLE, "IR DISABLE");
-	if (err)
-		goto err;
-	err = gpio_direction_output(GPIO_NR_PALMTX_IR_DISABLE, 1);
-	if (err)
-		gpio_free(GPIO_NR_PALMTX_IR_DISABLE);
-err:
-	return err;
-}
-
-static void palmtx_irda_shutdown(struct device *dev)
-{
-	gpio_free(GPIO_NR_PALMTX_IR_DISABLE);
-}
-
-static void palmtx_irda_transceiver_mode(struct device *dev, int mode)
-{
-	gpio_set_value(GPIO_NR_PALMTX_IR_DISABLE, mode & IR_OFF);
-	pxa2xx_transceiver_mode(dev, mode);
-}
-
 static struct pxaficp_platform_data palmtx_ficp_platform_data = {
-	.startup		= palmtx_irda_startup,
-	.shutdown		= palmtx_irda_shutdown,
-	.transceiver_cap	= IR_SIRMODE | IR_FIRMODE | IR_OFF,
-	.transceiver_mode	= palmtx_irda_transceiver_mode,
+	.gpio_pwdown		= GPIO_NR_PALMTX_IR_DISABLE,
+	.transceiver_cap	= IR_SIRMODE | IR_OFF,
 };
 
 /******************************************************************************
@@ -493,6 +440,68 @@ static struct pxafb_mach_info palmtx_lcd_screen = {
 };
 
 /******************************************************************************
+ * NAND Flash
+ ******************************************************************************/
+static void palmtx_nand_cmd_ctl(struct mtd_info *mtd, int cmd,
+				 unsigned int ctrl)
+{
+	struct nand_chip *this = mtd->priv;
+	unsigned long nandaddr = (unsigned long)this->IO_ADDR_W;
+
+	if (cmd == NAND_CMD_NONE)
+		return;
+
+	if (ctrl & NAND_CLE)
+		writeb(cmd, PALMTX_NAND_CLE_VIRT);
+	else if (ctrl & NAND_ALE)
+		writeb(cmd, PALMTX_NAND_ALE_VIRT);
+	else
+		writeb(cmd, nandaddr);
+}
+
+static struct mtd_partition palmtx_partition_info[] = {
+	[0] = {
+		.name	= "palmtx-0",
+		.offset	= 0,
+		.size	= MTDPART_SIZ_FULL
+	},
+};
+
+static const char *palmtx_part_probes[] = { "cmdlinepart", NULL };
+
+struct platform_nand_data palmtx_nand_platdata = {
+	.chip	= {
+		.nr_chips		= 1,
+		.chip_offset		= 0,
+		.nr_partitions		= ARRAY_SIZE(palmtx_partition_info),
+		.partitions		= palmtx_partition_info,
+		.chip_delay		= 20,
+		.part_probe_types 	= palmtx_part_probes,
+	},
+	.ctrl	= {
+		.cmd_ctrl	= palmtx_nand_cmd_ctl,
+	},
+};
+
+static struct resource palmtx_nand_resource[] = {
+	[0]	= {
+		.start	= PXA_CS1_PHYS,
+		.end	= PXA_CS1_PHYS + SZ_1M - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device palmtx_nand = {
+	.name		= "gen_nand",
+	.num_resources	= ARRAY_SIZE(palmtx_nand_resource),
+	.resource	= palmtx_nand_resource,
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &palmtx_nand_platdata,
+	}
+};
+
+/******************************************************************************
  * Power management - standby
  ******************************************************************************/
 static void __init palmtx_pm_init(void)
@@ -518,6 +527,8 @@ static struct platform_device *devices[] __initdata = {
 	&power_supply,
 	&palmtx_asoc,
 	&palmtx_gpio_vbus,
+	&palmtx_flash,
+	&palmtx_nand,
 };
 
 static struct map_desc palmtx_io_desc[] __initdata = {
@@ -525,8 +536,18 @@ static struct map_desc palmtx_io_desc[] __initdata = {
 	.virtual	= PALMTX_PCMCIA_VIRT,
 	.pfn		= __phys_to_pfn(PALMTX_PCMCIA_PHYS),
 	.length		= PALMTX_PCMCIA_SIZE,
-	.type		= MT_DEVICE
-},
+	.type		= MT_DEVICE,
+}, {
+	.virtual	= PALMTX_NAND_ALE_VIRT,
+	.pfn		= __phys_to_pfn(PALMTX_NAND_ALE_PHYS),
+	.length		= SZ_1M,
+	.type		= MT_DEVICE,
+}, {
+	.virtual	= PALMTX_NAND_CLE_VIRT,
+	.pfn		= __phys_to_pfn(PALMTX_NAND_CLE_PHYS),
+	.length		= SZ_1M,
+	.type		= MT_DEVICE,
+}
 };
 
 static void __init palmtx_map_io(void)

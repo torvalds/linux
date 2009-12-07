@@ -38,6 +38,7 @@
 #include <linux/pci.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
+#include <linux/dmi.h>
 
 #include "internal.h"
 
@@ -93,36 +94,33 @@ int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device)
 
 EXPORT_SYMBOL(acpi_bus_get_device);
 
+acpi_status acpi_bus_get_status_handle(acpi_handle handle,
+				       unsigned long long *sta)
+{
+	acpi_status status;
+
+	status = acpi_evaluate_integer(handle, "_STA", NULL, sta);
+	if (ACPI_SUCCESS(status))
+		return AE_OK;
+
+	if (status == AE_NOT_FOUND) {
+		*sta = ACPI_STA_DEVICE_PRESENT | ACPI_STA_DEVICE_ENABLED |
+		       ACPI_STA_DEVICE_UI      | ACPI_STA_DEVICE_FUNCTIONING;
+		return AE_OK;
+	}
+	return status;
+}
+
 int acpi_bus_get_status(struct acpi_device *device)
 {
-	acpi_status status = AE_OK;
-	unsigned long long sta = 0;
+	acpi_status status;
+	unsigned long long sta;
 
+	status = acpi_bus_get_status_handle(device->handle, &sta);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
 
-	if (!device)
-		return -EINVAL;
-
-	/*
-	 * Evaluate _STA if present.
-	 */
-	if (device->flags.dynamic_status) {
-		status =
-		    acpi_evaluate_integer(device->handle, "_STA", NULL, &sta);
-		if (ACPI_FAILURE(status))
-			return -ENODEV;
-		STRUCT_TO_INT(device->status) = (int)sta;
-	}
-
-	/*
-	 * According to ACPI spec some device can be present and functional
-	 * even if the parent is not present but functional.
-	 * In such conditions the child device should not inherit the status
-	 * from the parent.
-	 */
-	else
-		STRUCT_TO_INT(device->status) =
-		    ACPI_STA_DEVICE_PRESENT | ACPI_STA_DEVICE_ENABLED |
-		    ACPI_STA_DEVICE_UI      | ACPI_STA_DEVICE_FUNCTIONING;
+	STRUCT_TO_INT(device->status) = (int) sta;
 
 	if (device->status.functional && !device->status.present) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device [%s] status [%08x]: "
@@ -134,14 +132,12 @@ int acpi_bus_get_status(struct acpi_device *device)
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device [%s] status [%08x]\n",
 			  device->pnp.bus_id,
 			  (u32) STRUCT_TO_INT(device->status)));
-
 	return 0;
 }
-
 EXPORT_SYMBOL(acpi_bus_get_status);
 
 void acpi_bus_private_data_handler(acpi_handle handle,
-				   u32 function, void *context)
+				   void *context)
 {
 	return;
 }

@@ -71,7 +71,7 @@ static int hc_show(struct seq_file *m, void *p)
 	return 0;
 }
 
-static struct seq_operations hcall_inst_seq_ops = {
+static const struct seq_operations hcall_inst_seq_ops = {
         .start = hc_start,
         .next  = hc_next,
         .stop  = hc_stop,

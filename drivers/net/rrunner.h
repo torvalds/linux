@@ -831,7 +831,8 @@ static int rr_init1(struct net_device *dev);
 static irqreturn_t rr_interrupt(int irq, void *dev_id);
 
 static int rr_open(struct net_device *dev);
-static int rr_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t rr_start_xmit(struct sk_buff *skb,
+				 struct net_device *dev);
 static int rr_close(struct net_device *dev);
 static int rr_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static unsigned int rr_read_eeprom(struct rr_private *rrpriv,

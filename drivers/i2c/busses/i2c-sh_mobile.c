@@ -28,6 +28,7 @@
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/err.h>
+#include <linux/pm_runtime.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 
@@ -165,7 +166,8 @@ static void activate_ch(struct sh_mobile_i2c_data *pd)
 	u_int32_t denom;
 	u_int32_t tmp;
 
-	/* Make sure the clock is enabled */
+	/* Wake up device and enable clock */
+	pm_runtime_get_sync(pd->dev);
 	clk_enable(pd->clk);
 
 	/* Get clock rate after clock is enabled */
@@ -213,8 +215,9 @@ static void deactivate_ch(struct sh_mobile_i2c_data *pd)
 	/* Disable channel */
 	iowrite8(ioread8(ICCR(pd)) & ~ICCR_ICE, ICCR(pd));
 
-	/* Disable clock */
+	/* Disable clock and mark device as idle */
 	clk_disable(pd->clk);
+	pm_runtime_put_sync(pd->dev);
 }
 
 static unsigned char i2c_op(struct sh_mobile_i2c_data *pd,
@@ -572,6 +575,19 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 		goto err_irq;
 	}
 
+	/* Enable Runtime PM for this device.
+	 *
+	 * Also tell the Runtime PM core to ignore children
+	 * for this device since it is valid for us to suspend
+	 * this I2C master driver even though the slave devices
+	 * on the I2C bus may not be suspended.
+	 *
+	 * The state of the I2C hardware bus is unaffected by
+	 * the Runtime PM state.
+	 */
+	pm_suspend_ignore_children(&dev->dev, true);
+	pm_runtime_enable(&dev->dev);
+
 	/* setup the private data */
 	adap = &pd->adap;
 	i2c_set_adapdata(adap, pd);
@@ -614,14 +630,33 @@ static int sh_mobile_i2c_remove(struct platform_device *dev)
 	iounmap(pd->reg);
 	sh_mobile_i2c_hook_irqs(dev, 0);
 	clk_put(pd->clk);
+	pm_runtime_disable(&dev->dev);
 	kfree(pd);
 	return 0;
 }
+
+static int sh_mobile_i2c_runtime_nop(struct device *dev)
+{
+	/* Runtime PM callback shared between ->runtime_suspend()
+	 * and ->runtime_resume(). Simply returns success.
+	 *
+	 * This driver re-initializes all registers after
+	 * pm_runtime_get_sync() anyway so there is no need
+	 * to save and restore registers here.
+	 */
+	return 0;
+}
+
+static struct dev_pm_ops sh_mobile_i2c_dev_pm_ops = {
+	.runtime_suspend = sh_mobile_i2c_runtime_nop,
+	.runtime_resume = sh_mobile_i2c_runtime_nop,
+};
 
 static struct platform_driver sh_mobile_i2c_driver = {
 	.driver		= {
 		.name		= "i2c-sh_mobile",
 		.owner		= THIS_MODULE,
+		.pm		= &sh_mobile_i2c_dev_pm_ops,
 	},
 	.probe		= sh_mobile_i2c_probe,
 	.remove		= sh_mobile_i2c_remove,

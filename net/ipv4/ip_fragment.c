@@ -563,7 +563,7 @@ out_oversize:
 		printk(KERN_INFO "Oversized IP packet from %pI4.\n",
 			&qp->saddr);
 out_fail:
-	IP_INC_STATS_BH(dev_net(dev), IPSTATS_MIB_REASMFAILS);
+	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMFAILS);
 	return err;
 }
 

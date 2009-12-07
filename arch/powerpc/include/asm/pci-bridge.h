@@ -77,9 +77,7 @@ struct pci_controller {
 
 	int first_busno;
 	int last_busno;
-#ifndef CONFIG_PPC64
 	int self_busno;
-#endif
 
 	void __iomem *io_base_virt;
 #ifdef CONFIG_PPC64
@@ -104,7 +102,6 @@ struct pci_controller {
 	unsigned int __iomem *cfg_addr;
 	void __iomem *cfg_data;
 
-#ifndef CONFIG_PPC64
 	/*
 	 * Used for variants of PCI indirect handling and possible quirks:
 	 *  SET_CFG_TYPE - used on 4xx or any PHB that does explicit type0/1
@@ -128,7 +125,6 @@ struct pci_controller {
 #define PPC_INDIRECT_TYPE_BIG_ENDIAN		0x00000010
 #define PPC_INDIRECT_TYPE_BROKEN_MRM		0x00000020
 	u32 indirect_type;
-#endif	/* !CONFIG_PPC64 */
 	/* Currently, we limit ourselves to 1 IO range and 3 mem
 	 * ranges since the common pci_bus structure can't handle more
 	 */
@@ -145,21 +141,6 @@ struct pci_controller {
 	void *private_data;
 #endif	/* CONFIG_PPC64 */
 };
-
-#ifndef CONFIG_PPC64
-
-static inline struct pci_controller *pci_bus_to_host(const struct pci_bus *bus)
-{
-	return bus->sysdata;
-}
-
-static inline int isa_vaddr_is_ioport(void __iomem *address)
-{
-	/* No specific ISA handling on ppc32 at this stage, it
-	 * all goes through PCI
-	 */
-	return 0;
-}
 
 /* These are used for config access before all the PCI probing
    has been done. */
@@ -182,6 +163,22 @@ extern int early_find_capability(struct pci_controller *hose, int bus,
 extern void setup_indirect_pci(struct pci_controller* hose,
 			       resource_size_t cfg_addr,
 			       resource_size_t cfg_data, u32 flags);
+
+#ifndef CONFIG_PPC64
+
+static inline struct pci_controller *pci_bus_to_host(const struct pci_bus *bus)
+{
+	return bus->sysdata;
+}
+
+static inline int isa_vaddr_is_ioport(void __iomem *address)
+{
+	/* No specific ISA handling on ppc32 at this stage, it
+	 * all goes through PCI
+	 */
+	return 0;
+}
+
 #else	/* CONFIG_PPC64 */
 
 /*
@@ -283,11 +280,6 @@ static inline int isa_vaddr_is_ioport(void __iomem *address)
 
 extern int pcibios_unmap_io_space(struct pci_bus *bus);
 extern int pcibios_map_io_space(struct pci_bus *bus);
-
-/* Return values for ppc_md.pci_probe_mode function */
-#define PCI_PROBE_NONE		-1	/* Don't look at this bus at all */
-#define PCI_PROBE_NORMAL	0	/* Do normal PCI probing */
-#define PCI_PROBE_DEVTREE	1	/* Instantiate from device tree */
 
 #ifdef CONFIG_NUMA
 #define PHB_SET_NODE(PHB, NODE)		((PHB)->node = (NODE))

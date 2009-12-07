@@ -62,6 +62,16 @@ const struct ieee80211_regdomain *cfg80211_regdomain;
  */
 static const struct ieee80211_regdomain *country_ie_regdomain;
 
+/*
+ * Protects static reg.c components:
+ *     - cfg80211_world_regdom
+ *     - cfg80211_regdom
+ *     - country_ie_regdomain
+ *     - last_request
+ */
+DEFINE_MUTEX(reg_mutex);
+#define assert_reg_lock() WARN_ON(!mutex_is_locked(&reg_mutex))
+
 /* Used to queue up regulatory hints */
 static LIST_HEAD(reg_requests_list);
 static spinlock_t reg_requests_lock;
@@ -113,11 +123,7 @@ static const struct ieee80211_regdomain world_regdom = {
 static const struct ieee80211_regdomain *cfg80211_world_regdom =
 	&world_regdom;
 
-#ifdef CONFIG_WIRELESS_OLD_REGULATORY
-static char *ieee80211_regdom = "US";
-#else
 static char *ieee80211_regdom = "00";
-#endif
 
 module_param(ieee80211_regdom, charp, 0444);
 MODULE_PARM_DESC(ieee80211_regdom, "IEEE 802.11 regulatory domain code");
@@ -1012,7 +1018,6 @@ static void handle_channel(struct wiphy *wiphy, enum ieee80211_band band,
 			map_regdom_flags(reg_rule->flags) | bw_flags;
 		chan->max_antenna_gain = chan->orig_mag =
 			(int) MBI_TO_DBI(power_rule->max_antenna_gain);
-		chan->max_bandwidth = KHZ_TO_MHZ(desired_bw_khz);
 		chan->max_power = chan->orig_mpwr =
 			(int) MBM_TO_DBM(power_rule->max_eirp);
 		return;
@@ -1021,7 +1026,6 @@ static void handle_channel(struct wiphy *wiphy, enum ieee80211_band band,
 	chan->flags = flags | bw_flags | map_regdom_flags(reg_rule->flags);
 	chan->max_antenna_gain = min(chan->orig_mag,
 		(int) MBI_TO_DBI(power_rule->max_antenna_gain));
-	chan->max_bandwidth = KHZ_TO_MHZ(desired_bw_khz);
 	if (chan->orig_mpwr)
 		chan->max_power = min(chan->orig_mpwr,
 			(int) MBM_TO_DBM(power_rule->max_eirp));
@@ -1061,10 +1065,10 @@ static bool ignore_reg_update(struct wiphy *wiphy,
 
 static void update_all_wiphy_regulatory(enum nl80211_reg_initiator initiator)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 
-	list_for_each_entry(drv, &cfg80211_drv_list, list)
-		wiphy_update_regulatory(&drv->wiphy, initiator);
+	list_for_each_entry(rdev, &cfg80211_rdev_list, list)
+		wiphy_update_regulatory(&rdev->wiphy, initiator);
 }
 
 static void handle_reg_beacon(struct wiphy *wiphy,
@@ -1298,7 +1302,7 @@ static void handle_channel_custom(struct wiphy *wiphy,
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *chan;
 
-	assert_cfg80211_lock();
+	assert_reg_lock();
 
 	sband = wiphy->bands[band];
 	BUG_ON(chan_idx >= sband->n_channels);
@@ -1323,7 +1327,6 @@ static void handle_channel_custom(struct wiphy *wiphy,
 
 	chan->flags |= map_regdom_flags(reg_rule->flags) | bw_flags;
 	chan->max_antenna_gain = (int) MBI_TO_DBI(power_rule->max_antenna_gain);
-	chan->max_bandwidth = KHZ_TO_MHZ(desired_bw_khz);
 	chan->max_power = (int) MBM_TO_DBM(power_rule->max_eirp);
 }
 
@@ -1347,14 +1350,14 @@ void wiphy_apply_custom_regulatory(struct wiphy *wiphy,
 	enum ieee80211_band band;
 	unsigned int bands_set = 0;
 
-	mutex_lock(&cfg80211_mutex);
+	mutex_lock(&reg_mutex);
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		if (!wiphy->bands[band])
 			continue;
 		handle_band_custom(wiphy, band, regd);
 		bands_set++;
 	}
-	mutex_unlock(&cfg80211_mutex);
+	mutex_unlock(&reg_mutex);
 
 	/*
 	 * no point in calling this if it won't have any effect
@@ -1421,7 +1424,7 @@ static int ignore_request(struct wiphy *wiphy,
 			if (last_wiphy != wiphy) {
 				/*
 				 * Two cards with two APs claiming different
-				 * different Country IE alpha2s. We could
+				 * Country IE alpha2s. We could
 				 * intersect them, but that seems unlikely
 				 * to be correct. Reject second one for now.
 				 */
@@ -1500,7 +1503,7 @@ static int ignore_request(struct wiphy *wiphy,
  * Returns zero if all went fine, %-EALREADY if a regulatory domain had
  * already been set or other standard error codes.
  *
- * Caller must hold &cfg80211_mutex
+ * Caller must hold &cfg80211_mutex and &reg_mutex
  */
 static int __regulatory_hint(struct wiphy *wiphy,
 			     struct regulatory_request *pending_request)
@@ -1575,6 +1578,7 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 	BUG_ON(!reg_request->alpha2);
 
 	mutex_lock(&cfg80211_mutex);
+	mutex_lock(&reg_mutex);
 
 	if (wiphy_idx_valid(reg_request->wiphy_idx))
 		wiphy = wiphy_idx_to_wiphy(reg_request->wiphy_idx);
@@ -1590,6 +1594,7 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 	if (r == -EALREADY && wiphy && wiphy->strict_regulatory)
 		wiphy_update_regulatory(wiphy, reg_request->initiator);
 out:
+	mutex_unlock(&reg_mutex);
 	mutex_unlock(&cfg80211_mutex);
 }
 
@@ -1615,9 +1620,13 @@ static void reg_process_pending_hints(void)
 /* Processes beacon hints -- this has nothing to do with country IEs */
 static void reg_process_pending_beacon_hints(void)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	struct reg_beacon *pending_beacon, *tmp;
 
+	/*
+	 * No need to hold the reg_mutex here as we just touch wiphys
+	 * and do not read or access regulatory variables.
+	 */
 	mutex_lock(&cfg80211_mutex);
 
 	/* This goes through the _pending_ beacon list */
@@ -1634,8 +1643,8 @@ static void reg_process_pending_beacon_hints(void)
 		list_del_init(&pending_beacon->list);
 
 		/* Applies the beacon hint to current wiphys */
-		list_for_each_entry(drv, &cfg80211_drv_list, list)
-			wiphy_update_new_beacon(&drv->wiphy, pending_beacon);
+		list_for_each_entry(rdev, &cfg80211_rdev_list, list)
+			wiphy_update_new_beacon(&rdev->wiphy, pending_beacon);
 
 		/* Remembers the beacon hint for new wiphys or reg changes */
 		list_add_tail(&pending_beacon->list, &reg_beacon_list);
@@ -1739,12 +1748,13 @@ int regulatory_hint(struct wiphy *wiphy, const char *alpha2)
 }
 EXPORT_SYMBOL(regulatory_hint);
 
+/* Caller must hold reg_mutex */
 static bool reg_same_country_ie_hint(struct wiphy *wiphy,
 			u32 country_ie_checksum)
 {
 	struct wiphy *request_wiphy;
 
-	assert_cfg80211_lock();
+	assert_reg_lock();
 
 	if (unlikely(last_request->initiator !=
 	    NL80211_REGDOM_SET_BY_COUNTRY_IE))
@@ -1767,6 +1777,10 @@ static bool reg_same_country_ie_hint(struct wiphy *wiphy,
 	return false;
 }
 
+/*
+ * We hold wdev_lock() here so we cannot hold cfg80211_mutex() and
+ * therefore cannot iterate over the rdev list here.
+ */
 void regulatory_hint_11d(struct wiphy *wiphy,
 			u8 *country_ie,
 			u8 country_ie_len)
@@ -1777,12 +1791,10 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 	enum environment_cap env = ENVIRON_ANY;
 	struct regulatory_request *request;
 
-	mutex_lock(&cfg80211_mutex);
+	mutex_lock(&reg_mutex);
 
-	if (unlikely(!last_request)) {
-		mutex_unlock(&cfg80211_mutex);
-		return;
-	}
+	if (unlikely(!last_request))
+		goto out;
 
 	/* IE len must be evenly divisible by 2 */
 	if (country_ie_len & 0x01)
@@ -1808,54 +1820,14 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 		env = ENVIRON_OUTDOOR;
 
 	/*
-	 * We will run this for *every* beacon processed for the BSSID, so
-	 * we optimize an early check to exit out early if we don't have to
-	 * do anything
+	 * We will run this only upon a successful connection on cfg80211.
+	 * We leave conflict resolution to the workqueue, where can hold
+	 * cfg80211_mutex.
 	 */
 	if (likely(last_request->initiator ==
 	    NL80211_REGDOM_SET_BY_COUNTRY_IE &&
-	    wiphy_idx_valid(last_request->wiphy_idx))) {
-		struct cfg80211_registered_device *drv_last_ie;
-
-		drv_last_ie =
-			cfg80211_drv_by_wiphy_idx(last_request->wiphy_idx);
-
-		/*
-		 * Lets keep this simple -- we trust the first AP
-		 * after we intersect with CRDA
-		 */
-		if (likely(&drv_last_ie->wiphy == wiphy)) {
-			/*
-			 * Ignore IEs coming in on this wiphy with
-			 * the same alpha2 and environment cap
-			 */
-			if (likely(alpha2_equal(drv_last_ie->country_ie_alpha2,
-				  alpha2) &&
-				  env == drv_last_ie->env)) {
-				goto out;
-			}
-			/*
-			 * the wiphy moved on to another BSSID or the AP
-			 * was reconfigured. XXX: We need to deal with the
-			 * case where the user suspends and goes to goes
-			 * to another country, and then gets IEs from an
-			 * AP with different settings
-			 */
-			goto out;
-		} else {
-			/*
-			 * Ignore IEs coming in on two separate wiphys with
-			 * the same alpha2 and environment cap
-			 */
-			if (likely(alpha2_equal(drv_last_ie->country_ie_alpha2,
-				  alpha2) &&
-				  env == drv_last_ie->env)) {
-				goto out;
-			}
-			/* We could potentially intersect though */
-			goto out;
-		}
-	}
+	    wiphy_idx_valid(last_request->wiphy_idx)))
+		goto out;
 
 	rd = country_ie_2_rd(country_ie, country_ie_len, &checksum);
 	if (!rd)
@@ -1890,7 +1862,7 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 	request->country_ie_checksum = checksum;
 	request->country_ie_env = env;
 
-	mutex_unlock(&cfg80211_mutex);
+	mutex_unlock(&reg_mutex);
 
 	queue_regulatory_request(request);
 
@@ -1899,9 +1871,8 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 free_rd_out:
 	kfree(rd);
 out:
-	mutex_unlock(&cfg80211_mutex);
+	mutex_unlock(&reg_mutex);
 }
-EXPORT_SYMBOL(regulatory_hint_11d);
 
 static bool freq_is_chan_12_13_14(u16 freq)
 {
@@ -1996,14 +1967,14 @@ static void print_regdomain(const struct ieee80211_regdomain *rd)
 
 		if (last_request->initiator ==
 		    NL80211_REGDOM_SET_BY_COUNTRY_IE) {
-			struct cfg80211_registered_device *drv;
-			drv = cfg80211_drv_by_wiphy_idx(
+			struct cfg80211_registered_device *rdev;
+			rdev = cfg80211_rdev_by_wiphy_idx(
 				last_request->wiphy_idx);
-			if (drv) {
+			if (rdev) {
 				printk(KERN_INFO "cfg80211: Current regulatory "
 					"domain updated by AP to: %c%c\n",
-					drv->country_ie_alpha2[0],
-					drv->country_ie_alpha2[1]);
+					rdev->country_ie_alpha2[0],
+					rdev->country_ie_alpha2[1]);
 			} else
 				printk(KERN_INFO "cfg80211: Current regulatory "
 					"domain intersected: \n");
@@ -2064,7 +2035,7 @@ static inline void reg_country_ie_process_debug(
 static int __set_regdom(const struct ieee80211_regdomain *rd)
 {
 	const struct ieee80211_regdomain *intersected_rd = NULL;
-	struct cfg80211_registered_device *drv = NULL;
+	struct cfg80211_registered_device *rdev = NULL;
 	struct wiphy *request_wiphy;
 	/* Some basic sanity checks first */
 
@@ -2203,11 +2174,11 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 	if (!intersected_rd)
 		return -EINVAL;
 
-	drv = wiphy_to_dev(request_wiphy);
+	rdev = wiphy_to_dev(request_wiphy);
 
-	drv->country_ie_alpha2[0] = rd->alpha2[0];
-	drv->country_ie_alpha2[1] = rd->alpha2[1];
-	drv->env = last_request->country_ie_env;
+	rdev->country_ie_alpha2[0] = rd->alpha2[0];
+	rdev->country_ie_alpha2[1] = rd->alpha2[1];
+	rdev->env = last_request->country_ie_env;
 
 	BUG_ON(intersected_rd == rd);
 
@@ -2232,10 +2203,13 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 
 	assert_cfg80211_lock();
 
+	mutex_lock(&reg_mutex);
+
 	/* Note that this doesn't update the wiphys, this is done below */
 	r = __set_regdom(rd);
 	if (r) {
 		kfree(rd);
+		mutex_unlock(&reg_mutex);
 		return r;
 	}
 
@@ -2250,6 +2224,8 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 
 	nl80211_send_reg_change_event(last_request);
 
+	mutex_unlock(&reg_mutex);
+
 	return r;
 }
 
@@ -2260,16 +2236,20 @@ void reg_device_remove(struct wiphy *wiphy)
 
 	assert_cfg80211_lock();
 
+	mutex_lock(&reg_mutex);
+
 	kfree(wiphy->regd);
 
 	if (last_request)
 		request_wiphy = wiphy_idx_to_wiphy(last_request->wiphy_idx);
 
 	if (!request_wiphy || request_wiphy != wiphy)
-		return;
+		goto out;
 
 	last_request->wiphy_idx = WIPHY_IDX_STALE;
 	last_request->country_ie_env = ENVIRON_ANY;
+out:
+	mutex_unlock(&reg_mutex);
 }
 
 int regulatory_init(void)
@@ -2288,22 +2268,12 @@ int regulatory_init(void)
 
 	printk(KERN_INFO "cfg80211: Using static regulatory domain info\n");
 	print_regdomain_info(cfg80211_regdomain);
-	/*
-	 * The old code still requests for a new regdomain and if
-	 * you have CRDA you get it updated, otherwise you get
-	 * stuck with the static values. Since "EU" is not a valid
-	 * ISO / IEC 3166 alpha2 code we can't expect userpace to
-	 * give us a regulatory domain for it. We need last_request
-	 * iniitalized though so lets just send a request which we
-	 * know will be ignored... this crap will be removed once
-	 * OLD_REG dies.
-	 */
-	err = regulatory_hint_core(ieee80211_regdom);
 #else
 	cfg80211_regdomain = cfg80211_world_regdom;
 
-	err = regulatory_hint_core(ieee80211_regdom);
 #endif
+	/* We always try to get an update for the static regdomain */
+	err = regulatory_hint_core(cfg80211_regdomain->alpha2);
 	if (err) {
 		if (err == -ENOMEM)
 			return err;
@@ -2322,6 +2292,13 @@ int regulatory_init(void)
 #endif
 	}
 
+	/*
+	 * Finally, if the user set the module parameter treat it
+	 * as a user hint.
+	 */
+	if (!is_world_regdom(ieee80211_regdom))
+		regulatory_hint_user(ieee80211_regdom);
+
 	return 0;
 }
 
@@ -2333,6 +2310,7 @@ void regulatory_exit(void)
 	cancel_work_sync(&reg_work);
 
 	mutex_lock(&cfg80211_mutex);
+	mutex_lock(&reg_mutex);
 
 	reset_regdomains();
 
@@ -2371,5 +2349,6 @@ void regulatory_exit(void)
 	}
 	spin_unlock(&reg_requests_lock);
 
+	mutex_unlock(&reg_mutex);
 	mutex_unlock(&cfg80211_mutex);
 }

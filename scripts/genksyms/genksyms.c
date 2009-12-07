@@ -176,7 +176,7 @@ static int is_unknown_symbol(struct symbol *sym)
 			strcmp(defn->string, "{") == 0);
 }
 
-struct symbol *__add_symbol(const char *name, enum symbol_type type,
+static struct symbol *__add_symbol(const char *name, enum symbol_type type,
 			    struct string_list *defn, int is_extern,
 			    int is_reference)
 {
@@ -265,7 +265,7 @@ struct symbol *add_symbol(const char *name, enum symbol_type type,
 	return __add_symbol(name, type, defn, is_extern, 0);
 }
 
-struct symbol *add_reference_symbol(const char *name, enum symbol_type type,
+static struct symbol *add_reference_symbol(const char *name, enum symbol_type type,
 				    struct string_list *defn, int is_extern)
 {
 	return __add_symbol(name, type, defn, is_extern, 1);
@@ -313,7 +313,7 @@ static int equal_list(struct string_list *a, struct string_list *b)
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-struct string_list *read_node(FILE *f)
+static struct string_list *read_node(FILE *f)
 {
 	char buffer[256];
 	struct string_list node = {

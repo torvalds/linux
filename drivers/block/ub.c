@@ -1789,7 +1789,7 @@ static int ub_bd_media_changed(struct gendisk *disk)
 	return lun->changed;
 }
 
-static struct block_device_operations ub_bd_fops = {
+static const struct block_device_operations ub_bd_fops = {
 	.owner		= THIS_MODULE,
 	.open		= ub_bd_open,
 	.release	= ub_bd_release,

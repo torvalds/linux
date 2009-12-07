@@ -16,10 +16,9 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- *
  * File: 80211mgr.c
  *
- * Purpose: Handles the 802.11 managment support functions
+ * Purpose: Handles the 802.11 management support functions
  *
  * Author: Lyndon Chen
  *
@@ -53,28 +52,12 @@
  *
  */
 
-
-
-#if !defined(__TMACRO_H__)
 #include "tmacro.h"
-#endif
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-#if !defined(__80211MGR_H__)
 #include "80211mgr.h"
-#endif
-#if !defined(__80211HDR_H__)
 #include "80211hdr.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-#if !defined(__WPA_H__)
 #include "wpa.h"
-#endif
-
-
 
 /*---------------------  Static Definitions -------------------------*/
 
@@ -236,7 +219,7 @@ vMgrDecodeBeacon(
                 break;
 
             default:
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Unrecognized EID=%dd in beacon decode.\n", pItem->byElementID);
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Unrecognized EID=%dd in beacon decode.\n", pItem->byElementID);
                 break;
 
         }
@@ -431,7 +414,7 @@ vMgrDecodeAssocRequest(
                 break;
 
             default:
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Unrecognized EID=%dd in assocreq decode.\n",
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Unrecognized EID=%dd in assocreq decode.\n",
                         pItem->byElementID);
                 break;
         }
@@ -509,7 +492,7 @@ vMgrDecodeAssocResponse(
 
     if ((((PBYTE)pItem) < (pFrame->pBuf + pFrame->len)) && (pItem->byElementID == WLAN_EID_EXTSUPP_RATES)) {
         pFrame->pExtSuppRates = (PWLAN_IE_SUPP_RATES)pItem;
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pFrame->pExtSuppRates=[%p].\n", pItem);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pFrame->pExtSuppRates=[%p].\n", pItem);
     }
     else {
         pFrame->pExtSuppRates = NULL;
@@ -610,7 +593,7 @@ vMgrDecodeReassocRequest(
                     pFrame->pExtSuppRates = (PWLAN_IE_SUPP_RATES)pItem;
                 break;
             default:
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Unrecognized EID=%dd in reassocreq decode.\n",
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Unrecognized EID=%dd in reassocreq decode.\n",
                             pItem->byElementID);
                 break;
         }
@@ -685,7 +668,7 @@ vMgrDecodeProbeRequest(
                 break;
 
             default:
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Bad EID=%dd in probereq\n", pItem->byElementID);
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Bad EID=%dd in probereq\n", pItem->byElementID);
                 break;
         }
 
@@ -747,7 +730,6 @@ vMgrDecodeProbeResponse(
     )
 {
     PWLAN_IE    pItem;
-//    BYTE        byCheckEID = 0;
 
 
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
@@ -765,12 +747,6 @@ vMgrDecodeProbeResponse(
                        + WLAN_PROBERESP_OFF_SSID);
 
     while( ((PBYTE)pItem) < (pFrame->pBuf + pFrame->len) ) {
-		/*
-        if (pItem->byElementID < byCheckEID)
-            break;
-        else
-            byCheckEID = pItem->byElementID;
-*/
         switch (pItem->byElementID) {
             case WLAN_EID_SSID:
                 if (pFrame->pSSID == NULL)
@@ -841,7 +817,7 @@ vMgrDecodeProbeResponse(
                 break;
 
             default:
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Bad EID=%dd in proberesp\n", pItem->byElementID);
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Bad EID=%dd in proberesp\n", pItem->byElementID);
                 break;
         }
 

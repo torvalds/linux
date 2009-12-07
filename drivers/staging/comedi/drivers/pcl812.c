@@ -161,139 +161,159 @@ Options for ACL-8113, ISO-813:
 #define MAX_CHANLIST_LEN	256	/* length of scan list */
 
 static const struct comedi_lrange range_pcl812pg_ai = { 5, {
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			BIP_RANGE(0.625),
-			BIP_RANGE(0.3125),
-	}
-};
-static const struct comedi_lrange range_pcl812pg2_ai = { 5, {
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			BIP_RANGE(0.625),
-	}
-};
-static const struct comedi_lrange range812_bipolar1_25 = { 1, {
-			BIP_RANGE(1.25),
-	}
-};
-static const struct comedi_lrange range812_bipolar0_625 = { 1, {
-			BIP_RANGE(0.625),
-	}
-};
-static const struct comedi_lrange range812_bipolar0_3125 = { 1, {
-			BIP_RANGE(0.3125),
-	}
-};
-static const struct comedi_lrange range_pcl813b_ai = { 4, {
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			BIP_RANGE(0.625),
-	}
-};
-static const struct comedi_lrange range_pcl813b2_ai = { 4, {
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-			UNI_RANGE(1.25),
-	}
-};
-static const struct comedi_lrange range_iso813_1_ai = { 5, {
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			BIP_RANGE(0.625),
-			BIP_RANGE(0.3125),
-	}
-};
-static const struct comedi_lrange range_iso813_1_2_ai = { 5, {
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-			UNI_RANGE(1.25),
-			UNI_RANGE(0.625),
-	}
-};
-static const struct comedi_lrange range_iso813_2_ai = { 4, {
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			BIP_RANGE(0.625),
-	}
-};
-static const struct comedi_lrange range_iso813_2_2_ai = { 4, {
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-			UNI_RANGE(1.25),
-	}
-};
-static const struct comedi_lrange range_acl8113_1_ai = { 4, {
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			BIP_RANGE(0.625),
-	}
-};
-static const struct comedi_lrange range_acl8113_1_2_ai = { 4, {
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-			UNI_RANGE(1.25),
-	}
-};
-static const struct comedi_lrange range_acl8113_2_ai = { 3, {
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-	}
-};
-static const struct comedi_lrange range_acl8113_2_2_ai = { 3, {
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-	}
-};
-static const struct comedi_lrange range_acl8112dg_ai = { 9, {
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			BIP_RANGE(0.625),
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-			UNI_RANGE(1.25),
-			BIP_RANGE(10),
-	}
-};
-static const struct comedi_lrange range_acl8112hg_ai = { 12, {
-			BIP_RANGE(5),
-			BIP_RANGE(0.5),
-			BIP_RANGE(0.05),
-			BIP_RANGE(0.005),
-			UNI_RANGE(10),
-			UNI_RANGE(1),
-			UNI_RANGE(0.1),
-			UNI_RANGE(0.01),
-			BIP_RANGE(10),
-			BIP_RANGE(1),
-			BIP_RANGE(0.1),
-			BIP_RANGE(0.01),
-	}
-};
-static const struct comedi_lrange range_a821pgh_ai = { 4, {
-			BIP_RANGE(5),
-			BIP_RANGE(0.5),
-			BIP_RANGE(0.05),
-			BIP_RANGE(0.005),
-	}
+							    BIP_RANGE(5),
+							    BIP_RANGE(2.5),
+							    BIP_RANGE(1.25),
+							    BIP_RANGE(0.625),
+							    BIP_RANGE(0.3125),
+							    }
 };
 
-static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static const struct comedi_lrange range_pcl812pg2_ai = { 5, {
+							     BIP_RANGE(10),
+							     BIP_RANGE(5),
+							     BIP_RANGE(2.5),
+							     BIP_RANGE(1.25),
+							     BIP_RANGE(0.625),
+							     }
+};
+
+static const struct comedi_lrange range812_bipolar1_25 = { 1, {
+							       BIP_RANGE(1.25),
+							       }
+};
+
+static const struct comedi_lrange range812_bipolar0_625 = { 1, {
+								BIP_RANGE
+								(0.625),
+								}
+};
+
+static const struct comedi_lrange range812_bipolar0_3125 = { 1, {
+								 BIP_RANGE
+								 (0.3125),
+								 }
+};
+
+static const struct comedi_lrange range_pcl813b_ai = { 4, {
+							   BIP_RANGE(5),
+							   BIP_RANGE(2.5),
+							   BIP_RANGE(1.25),
+							   BIP_RANGE(0.625),
+							   }
+};
+
+static const struct comedi_lrange range_pcl813b2_ai = { 4, {
+							    UNI_RANGE(10),
+							    UNI_RANGE(5),
+							    UNI_RANGE(2.5),
+							    UNI_RANGE(1.25),
+							    }
+};
+
+static const struct comedi_lrange range_iso813_1_ai = { 5, {
+							    BIP_RANGE(5),
+							    BIP_RANGE(2.5),
+							    BIP_RANGE(1.25),
+							    BIP_RANGE(0.625),
+							    BIP_RANGE(0.3125),
+							    }
+};
+
+static const struct comedi_lrange range_iso813_1_2_ai = { 5, {
+							      UNI_RANGE(10),
+							      UNI_RANGE(5),
+							      UNI_RANGE(2.5),
+							      UNI_RANGE(1.25),
+							      UNI_RANGE(0.625),
+							      }
+};
+
+static const struct comedi_lrange range_iso813_2_ai = { 4, {
+							    BIP_RANGE(5),
+							    BIP_RANGE(2.5),
+							    BIP_RANGE(1.25),
+							    BIP_RANGE(0.625),
+							    }
+};
+
+static const struct comedi_lrange range_iso813_2_2_ai = { 4, {
+							      UNI_RANGE(10),
+							      UNI_RANGE(5),
+							      UNI_RANGE(2.5),
+							      UNI_RANGE(1.25),
+							      }
+};
+
+static const struct comedi_lrange range_acl8113_1_ai = { 4, {
+							     BIP_RANGE(5),
+							     BIP_RANGE(2.5),
+							     BIP_RANGE(1.25),
+							     BIP_RANGE(0.625),
+							     }
+};
+
+static const struct comedi_lrange range_acl8113_1_2_ai = { 4, {
+							       UNI_RANGE(10),
+							       UNI_RANGE(5),
+							       UNI_RANGE(2.5),
+							       UNI_RANGE(1.25),
+							       }
+};
+
+static const struct comedi_lrange range_acl8113_2_ai = { 3, {
+							     BIP_RANGE(5),
+							     BIP_RANGE(2.5),
+							     BIP_RANGE(1.25),
+							     }
+};
+
+static const struct comedi_lrange range_acl8113_2_2_ai = { 3, {
+							       UNI_RANGE(10),
+							       UNI_RANGE(5),
+							       UNI_RANGE(2.5),
+							       }
+};
+
+static const struct comedi_lrange range_acl8112dg_ai = { 9, {
+							     BIP_RANGE(5),
+							     BIP_RANGE(2.5),
+							     BIP_RANGE(1.25),
+							     BIP_RANGE(0.625),
+							     UNI_RANGE(10),
+							     UNI_RANGE(5),
+							     UNI_RANGE(2.5),
+							     UNI_RANGE(1.25),
+							     BIP_RANGE(10),
+							     }
+};
+
+static const struct comedi_lrange range_acl8112hg_ai = { 12, {
+							      BIP_RANGE(5),
+							      BIP_RANGE(0.5),
+							      BIP_RANGE(0.05),
+							      BIP_RANGE(0.005),
+							      UNI_RANGE(10),
+							      UNI_RANGE(1),
+							      UNI_RANGE(0.1),
+							      UNI_RANGE(0.01),
+							      BIP_RANGE(10),
+							      BIP_RANGE(1),
+							      BIP_RANGE(0.1),
+							      BIP_RANGE(0.01),
+							      }
+};
+
+static const struct comedi_lrange range_a821pgh_ai = { 4, {
+							   BIP_RANGE(5),
+							   BIP_RANGE(0.5),
+							   BIP_RANGE(0.05),
+							   BIP_RANGE(0.005),
+							   }
+};
+
+static int pcl812_attach(struct comedi_device *dev,
+			 struct comedi_devconfig *it);
 static int pcl812_detach(struct comedi_device *dev);
 
 struct pcl812_board {
@@ -316,62 +336,61 @@ struct pcl812_board {
 	unsigned char haveMPC508;	/*  1=board use MPC508A multiplexor */
 };
 
-
 static const struct pcl812_board boardtypes[] = {
 	{"pcl812", boardPCL812, 16, 0, 2, 16, 16, 0x0fff,
-			33000, 500, &range_bipolar10, &range_unipolar5,
-		0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
+	 33000, 500, &range_bipolar10, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
 	{"pcl812pg", boardPCL812PG, 16, 0, 2, 16, 16, 0x0fff,
-			33000, 500, &range_pcl812pg_ai, &range_unipolar5,
-		0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
+	 33000, 500, &range_pcl812pg_ai, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
 	{"acl8112pg", boardPCL812PG, 16, 0, 2, 16, 16, 0x0fff,
-			10000, 500, &range_pcl812pg_ai, &range_unipolar5,
-		0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
+	 10000, 500, &range_pcl812pg_ai, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
 	{"acl8112dg", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
-			10000, 500, &range_acl8112dg_ai, &range_unipolar5,
-		0xdcfc, 0x0a, PCLx1x_IORANGE, 1},
+	 10000, 500, &range_acl8112dg_ai, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 1},
 	{"acl8112hg", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
-			10000, 500, &range_acl8112hg_ai, &range_unipolar5,
-		0xdcfc, 0x0a, PCLx1x_IORANGE, 1},
+	 10000, 500, &range_acl8112hg_ai, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 1},
 	{"a821pgl", boardA821, 16, 8, 1, 16, 16, 0x0fff,
-			10000, 500, &range_pcl813b_ai, &range_unipolar5,
-		0x000c, 0x00, PCLx1x_IORANGE, 0},
+	 10000, 500, &range_pcl813b_ai, &range_unipolar5,
+	 0x000c, 0x00, PCLx1x_IORANGE, 0},
 	{"a821pglnda", boardA821, 16, 8, 0, 0, 0, 0x0fff,
-			10000, 500, &range_pcl813b_ai, NULL,
-		0x000c, 0x00, PCLx1x_IORANGE, 0},
+	 10000, 500, &range_pcl813b_ai, NULL,
+	 0x000c, 0x00, PCLx1x_IORANGE, 0},
 	{"a821pgh", boardA821, 16, 8, 1, 16, 16, 0x0fff,
-			10000, 500, &range_a821pgh_ai, &range_unipolar5,
-		0x000c, 0x00, PCLx1x_IORANGE, 0},
+	 10000, 500, &range_a821pgh_ai, &range_unipolar5,
+	 0x000c, 0x00, PCLx1x_IORANGE, 0},
 	{"a822pgl", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
-			10000, 500, &range_acl8112dg_ai, &range_unipolar5,
-		0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
+	 10000, 500, &range_acl8112dg_ai, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
 	{"a822pgh", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
-			10000, 500, &range_acl8112hg_ai, &range_unipolar5,
-		0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
+	 10000, 500, &range_acl8112hg_ai, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
 	{"a823pgl", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
-			8000, 500, &range_acl8112dg_ai, &range_unipolar5,
-		0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
+	 8000, 500, &range_acl8112dg_ai, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
 	{"a823pgh", boardACL8112, 16, 8, 2, 16, 16, 0x0fff,
-			8000, 500, &range_acl8112hg_ai, &range_unipolar5,
-		0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
+	 8000, 500, &range_acl8112hg_ai, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
 	{"pcl813", boardPCL813, 32, 0, 0, 0, 0, 0x0fff,
-			0, 0, &range_pcl813b_ai, NULL,
-		0x0000, 0x00, PCLx1x_IORANGE, 0},
+	 0, 0, &range_pcl813b_ai, NULL,
+	 0x0000, 0x00, PCLx1x_IORANGE, 0},
 	{"pcl813b", boardPCL813B, 32, 0, 0, 0, 0, 0x0fff,
-			0, 0, &range_pcl813b_ai, NULL,
-		0x0000, 0x00, PCLx1x_IORANGE, 0},
+	 0, 0, &range_pcl813b_ai, NULL,
+	 0x0000, 0x00, PCLx1x_IORANGE, 0},
 	{"acl8113", boardACL8113, 32, 0, 0, 0, 0, 0x0fff,
-			0, 0, &range_acl8113_1_ai, NULL,
-		0x0000, 0x00, PCLx1x_IORANGE, 0},
+	 0, 0, &range_acl8113_1_ai, NULL,
+	 0x0000, 0x00, PCLx1x_IORANGE, 0},
 	{"iso813", boardISO813, 32, 0, 0, 0, 0, 0x0fff,
-			0, 0, &range_iso813_1_ai, NULL,
-		0x0000, 0x00, PCLx1x_IORANGE, 0},
+	 0, 0, &range_iso813_1_ai, NULL,
+	 0x0000, 0x00, PCLx1x_IORANGE, 0},
 	{"acl8216", boardACL8216, 16, 8, 2, 16, 16, 0xffff,
-			10000, 500, &range_pcl813b2_ai, &range_unipolar5,
-		0xdcfc, 0x0a, PCLx1x_IORANGE, 1},
+	 10000, 500, &range_pcl813b2_ai, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 1},
 	{"a826pg", boardACL8216, 16, 8, 2, 16, 16, 0xffff,
-			10000, 500, &range_pcl813b2_ai, &range_unipolar5,
-		0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
+	 10000, 500, &range_pcl813b2_ai, &range_unipolar5,
+	 0xdcfc, 0x0a, PCLx1x_IORANGE, 0},
 };
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcl812_board))
@@ -410,7 +429,7 @@ struct pcl812_private {
 	unsigned int ai_n_chan;	/*  how many channels is measured */
 	unsigned int ai_flags;	/*  flaglist */
 	unsigned int ai_data_len;	/*  len of data buffer */
-	short *ai_data;	/*  data buffer */
+	short *ai_data;		/*  data buffer */
 	unsigned int ai_is16b;	/*  =1 we have 16 bit card */
 	unsigned long dmabuf[2];	/*  PTR to DMA buf */
 	unsigned int dmapages[2];	/*  how many pages we have allocated */
@@ -424,22 +443,24 @@ struct pcl812_private {
 	unsigned int ao_readback[2];	/*  data for AO readback */
 };
 
-
 #define devpriv ((struct pcl812_private *)dev->private)
 
 /*
 ==============================================================================
 */
-static void start_pacer(struct comedi_device *dev, int mode, unsigned int divisor1,
-	unsigned int divisor2);
-static void setup_range_channel(struct comedi_device *dev, struct comedi_subdevice *s,
-	unsigned int rangechan, char wait);
-static int pcl812_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
+static void start_pacer(struct comedi_device *dev, int mode,
+			unsigned int divisor1, unsigned int divisor2);
+static void setup_range_channel(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				unsigned int rangechan, char wait);
+static int pcl812_ai_cancel(struct comedi_device *dev,
+			    struct comedi_subdevice *s);
 /*
 ==============================================================================
 */
-static int pcl812_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int pcl812_ai_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int timeout, hi;
@@ -457,12 +478,12 @@ static int pcl812_ai_insn_read(struct comedi_device *dev, struct comedi_subdevic
 			udelay(1);
 		}
 		printk
-			("comedi%d: pcl812: (%s at 0x%lx) A/D insn read timeout\n",
-			dev->minor, dev->board_name, dev->iobase);
+		    ("comedi%d: pcl812: (%s at 0x%lx) A/D insn read timeout\n",
+		     dev->minor, dev->board_name, dev->iobase);
 		outb(devpriv->mode_reg_int | 0, dev->iobase + PCL812_MODE);
 		return -ETIME;
 
-	      conv_finish:
+conv_finish:
 		data[n] = ((hi & 0xf) << 8) | inb(dev->iobase + PCL812_AD_LO);
 	}
 	outb(devpriv->mode_reg_int | 0, dev->iobase + PCL812_MODE);
@@ -472,8 +493,9 @@ static int pcl812_ai_insn_read(struct comedi_device *dev, struct comedi_subdevic
 /*
 ==============================================================================
 */
-static int acl8216_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int acl8216_ai_insn_read(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int timeout;
@@ -490,16 +512,15 @@ static int acl8216_ai_insn_read(struct comedi_device *dev, struct comedi_subdevi
 			udelay(1);
 		}
 		printk
-			("comedi%d: pcl812: (%s at 0x%lx) A/D insn read timeout\n",
-			dev->minor, dev->board_name, dev->iobase);
+		    ("comedi%d: pcl812: (%s at 0x%lx) A/D insn read timeout\n",
+		     dev->minor, dev->board_name, dev->iobase);
 		outb(0, dev->iobase + PCL812_MODE);
 		return -ETIME;
 
-	      conv_finish:
+conv_finish:
 		data[n] =
-			(inb(dev->iobase +
-				PCL812_AD_HI) << 8) | inb(dev->iobase +
-			PCL812_AD_LO);
+		    (inb(dev->iobase +
+			 PCL812_AD_HI) << 8) | inb(dev->iobase + PCL812_AD_LO);
 	}
 	outb(0, dev->iobase + PCL812_MODE);
 	return n;
@@ -508,17 +529,18 @@ static int acl8216_ai_insn_read(struct comedi_device *dev, struct comedi_subdevi
 /*
 ==============================================================================
 */
-static int pcl812_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int pcl812_ao_insn_write(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
 		outb((data[i] & 0xff),
-			dev->iobase + (chan ? PCL812_DA2_LO : PCL812_DA1_LO));
+		     dev->iobase + (chan ? PCL812_DA2_LO : PCL812_DA1_LO));
 		outb((data[i] >> 8) & 0x0f,
-			dev->iobase + (chan ? PCL812_DA2_HI : PCL812_DA1_HI));
+		     dev->iobase + (chan ? PCL812_DA2_HI : PCL812_DA1_HI));
 		devpriv->ao_readback[chan] = data[i];
 	}
 
@@ -528,8 +550,9 @@ static int pcl812_ao_insn_write(struct comedi_device *dev, struct comedi_subdevi
 /*
 ==============================================================================
 */
-static int pcl812_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int pcl812_ao_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	int i;
@@ -544,8 +567,9 @@ static int pcl812_ao_insn_read(struct comedi_device *dev, struct comedi_subdevic
 /*
 ==============================================================================
 */
-static int pcl812_di_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int pcl812_di_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -559,8 +583,9 @@ static int pcl812_di_insn_bits(struct comedi_device *dev, struct comedi_subdevic
 /*
 ==============================================================================
 */
-static int pcl812_do_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int pcl812_do_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -583,21 +608,21 @@ static int pcl812_do_insn_bits(struct comedi_device *dev, struct comedi_subdevic
 static void pcl812_cmdtest_out(int e, struct comedi_cmd *cmd)
 {
 	printk("pcl812 e=%d startsrc=%x scansrc=%x convsrc=%x\n", e,
-		cmd->start_src, cmd->scan_begin_src, cmd->convert_src);
+	       cmd->start_src, cmd->scan_begin_src, cmd->convert_src);
 	printk("pcl812 e=%d startarg=%d scanarg=%d convarg=%d\n", e,
-		cmd->start_arg, cmd->scan_begin_arg, cmd->convert_arg);
+	       cmd->start_arg, cmd->scan_begin_arg, cmd->convert_arg);
 	printk("pcl812 e=%d stopsrc=%x scanend=%x\n", e, cmd->stop_src,
-		cmd->scan_end_src);
+	       cmd->scan_end_src);
 	printk("pcl812 e=%d stoparg=%d scanendarg=%d chanlistlen=%d\n", e,
-		cmd->stop_arg, cmd->scan_end_arg, cmd->chanlist_len);
+	       cmd->stop_arg, cmd->scan_end_arg, cmd->chanlist_len);
 }
 #endif
 
 /*
 ==============================================================================
 */
-static int pcl812_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_cmd *cmd)
+static int pcl812_ai_cmdtest(struct comedi_device *dev,
+			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp, divisor1, divisor2;
@@ -641,8 +666,8 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice 
 #ifdef PCL812_EXTDEBUG
 		pcl812_cmdtest_out(1, cmd);
 		printk
-			("pcl812 EDBG: BGN: pcl812_ai_cmdtest(...) err=%d ret=1\n",
-			err);
+		    ("pcl812 EDBG: BGN: pcl812_ai_cmdtest(...) err=%d ret=1\n",
+		     err);
 #endif
 		return 1;
 	}
@@ -683,8 +708,8 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice 
 #ifdef PCL812_EXTDEBUG
 		pcl812_cmdtest_out(2, cmd);
 		printk
-			("pcl812 EDBG: BGN: pcl812_ai_cmdtest(...) err=%d ret=2\n",
-			err);
+		    ("pcl812 EDBG: BGN: pcl812_ai_cmdtest(...) err=%d ret=2\n",
+		     err);
 #endif
 		return 2;
 	}
@@ -741,8 +766,8 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice 
 #ifdef PCL812_EXTDEBUG
 		pcl812_cmdtest_out(3, cmd);
 		printk
-			("pcl812 EDBG: BGN: pcl812_ai_cmdtest(...) err=%d ret=3\n",
-			err);
+		    ("pcl812 EDBG: BGN: pcl812_ai_cmdtest(...) err=%d ret=3\n",
+		     err);
 #endif
 		return 3;
 	}
@@ -752,8 +777,8 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice 
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(this_board->i8254_osc_base, &divisor1,
-			&divisor2, &cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+					  &divisor2, &cmd->convert_arg,
+					  cmd->flags & TRIG_ROUND_MASK);
 		if (cmd->convert_arg < this_board->ai_ns_min)
 			cmd->convert_arg = this_board->ai_ns_min;
 		if (tmp != cmd->convert_arg)
@@ -763,8 +788,8 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice 
 	if (err) {
 #ifdef PCL812_EXTDEBUG
 		printk
-			("pcl812 EDBG: BGN: pcl812_ai_cmdtest(...) err=%d ret=4\n",
-			err);
+		    ("pcl812 EDBG: BGN: pcl812_ai_cmdtest(...) err=%d ret=4\n",
+		     err);
 #endif
 		return 4;
 	}
@@ -806,15 +831,16 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		if (cmd->convert_arg < this_board->ai_ns_min)
 			cmd->convert_arg = this_board->ai_ns_min;
 		i8253_cascade_ns_to_timer(this_board->i8254_osc_base,
-			&divisor1, &divisor2, &cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+					  &divisor1, &divisor2,
+					  &cmd->convert_arg,
+					  cmd->flags & TRIG_ROUND_MASK);
 	}
 
 	start_pacer(dev, -1, 0, 0);	/*  stop pacer */
 
 	devpriv->ai_n_chan = cmd->chanlist_len;
 	memcpy(devpriv->ai_chanlist, cmd->chanlist,
-		sizeof(unsigned int) * cmd->scan_end_arg);
+	       sizeof(unsigned int) * cmd->scan_end_arg);
 	setup_range_channel(dev, s, devpriv->ai_chanlist[0], 1);	/*  select first channel and range */
 
 	if (devpriv->dma) {	/*  check if we can use DMA transfer */
@@ -851,19 +877,19 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (devpriv->ai_dma) {
 		if (devpriv->ai_eos) {	/*  we use EOS, so adapt DMA buffer to one scan */
 			devpriv->dmabytestomove[0] =
-				devpriv->ai_n_chan * sizeof(short);
+			    devpriv->ai_n_chan * sizeof(short);
 			devpriv->dmabytestomove[1] =
-				devpriv->ai_n_chan * sizeof(short);
+			    devpriv->ai_n_chan * sizeof(short);
 			devpriv->dma_runs_to_end = 1;
 		} else {
 			devpriv->dmabytestomove[0] = devpriv->hwdmasize[0];
 			devpriv->dmabytestomove[1] = devpriv->hwdmasize[1];
 			if (devpriv->ai_data_len < devpriv->hwdmasize[0])
 				devpriv->dmabytestomove[0] =
-					devpriv->ai_data_len;
+				    devpriv->ai_data_len;
 			if (devpriv->ai_data_len < devpriv->hwdmasize[1])
 				devpriv->dmabytestomove[1] =
-					devpriv->ai_data_len;
+				    devpriv->ai_data_len;
 			if (devpriv->ai_neverending) {
 				devpriv->dma_runs_to_end = 1;
 			} else {
@@ -872,7 +898,7 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 				devpriv->last_dma_run = bytes % devpriv->dmabytestomove[0];	/* on last dma transfer must be moved */
 				if (devpriv->dma_runs_to_end == 0)
 					devpriv->dmabytestomove[0] =
-						devpriv->last_dma_run;
+					    devpriv->last_dma_run;
 				devpriv->dma_runs_to_end--;
 			}
 		}
@@ -894,10 +920,10 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		enable_dma(devpriv->dma);
 #ifdef PCL812_EXTDEBUG
 		printk
-			("pcl812 EDBG:   DMA %d PTR 0x%0x/0x%0x LEN %u/%u EOS %d\n",
-			devpriv->dma, devpriv->hwdmaptr[0],
-			devpriv->hwdmaptr[1], devpriv->dmabytestomove[0],
-			devpriv->dmabytestomove[1], devpriv->ai_eos);
+		    ("pcl812 EDBG:   DMA %d PTR 0x%0x/0x%0x LEN %u/%u EOS %d\n",
+		     devpriv->dma, devpriv->hwdmaptr[0],
+		     devpriv->hwdmaptr[1], devpriv->dmabytestomove[0],
+		     devpriv->dmabytestomove[1], devpriv->ai_eos);
 #endif
 	}
 
@@ -955,8 +981,8 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 
 	if (err) {
 		printk
-			("comedi%d: pcl812: (%s at 0x%lx) A/D cmd IRQ without DRDY!\n",
-			dev->minor, dev->board_name, dev->iobase);
+		    ("comedi%d: pcl812: (%s at 0x%lx) A/D cmd IRQ without DRDY!\n",
+		     dev->minor, dev->board_name, dev->iobase);
 		pcl812_ai_cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev, s);
@@ -964,8 +990,8 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 	}
 
 	comedi_buf_put(s->async,
-		((inb(dev->iobase + PCL812_AD_HI) << 8) | inb(dev->iobase +
-				PCL812_AD_LO)) & mask);
+		       ((inb(dev->iobase + PCL812_AD_HI) << 8) |
+			inb(dev->iobase + PCL812_AD_LO)) & mask);
 
 	outb(0, dev->iobase + PCL812_CLRINT);	/* clear INT request */
 
@@ -985,8 +1011,9 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 /*
 ==============================================================================
 */
-static void transfer_from_dma_buf(struct comedi_device *dev, struct comedi_subdevice *s,
-	short *ptr, unsigned int bufptr, unsigned int len)
+static void transfer_from_dma_buf(struct comedi_device *dev,
+				  struct comedi_subdevice *s, short *ptr,
+				  unsigned int bufptr, unsigned int len)
 {
 	unsigned int i;
 
@@ -1022,9 +1049,9 @@ static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d)
 #ifdef PCL812_EXTDEBUG
 	printk("pcl812 EDBG: BGN: interrupt_pcl812_ai_dma(...)\n");
 #endif
-	ptr = (short *) devpriv->dmabuf[devpriv->next_dma_buf];
+	ptr = (short *)devpriv->dmabuf[devpriv->next_dma_buf];
 	len = (devpriv->dmabytestomove[devpriv->next_dma_buf] >> 1) -
-		devpriv->ai_poll_ptr;
+	    devpriv->ai_poll_ptr;
 
 	devpriv->next_dma_buf = 1 - devpriv->next_dma_buf;
 	disable_dma(devpriv->dma);
@@ -1033,11 +1060,12 @@ static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d)
 	set_dma_addr(devpriv->dma, devpriv->hwdmaptr[devpriv->next_dma_buf]);
 	if (devpriv->ai_eos) {
 		set_dma_count(devpriv->dma,
-			devpriv->dmabytestomove[devpriv->next_dma_buf]);
+			      devpriv->dmabytestomove[devpriv->next_dma_buf]);
 	} else {
 		if (devpriv->dma_runs_to_end) {
 			set_dma_count(devpriv->dma,
-				devpriv->dmabytestomove[devpriv->next_dma_buf]);
+				      devpriv->dmabytestomove[devpriv->
+							      next_dma_buf]);
 		} else {
 			set_dma_count(devpriv->dma, devpriv->last_dma_run);
 		}
@@ -1111,8 +1139,9 @@ static int pcl812_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	transfer_from_dma_buf(dev, s,
-		(void *)devpriv->dmabuf[1 - devpriv->next_dma_buf],
-		devpriv->ai_poll_ptr, top2);
+			      (void *)devpriv->dmabuf[1 -
+						      devpriv->next_dma_buf],
+			      devpriv->ai_poll_ptr, top2);
 
 	devpriv->ai_poll_ptr = top1;	/*  new buffer position */
 
@@ -1124,14 +1153,15 @@ static int pcl812_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 /*
 ==============================================================================
 */
-static void setup_range_channel(struct comedi_device *dev, struct comedi_subdevice *s,
-	unsigned int rangechan, char wait)
+static void setup_range_channel(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				unsigned int rangechan, char wait)
 {
 	unsigned char chan_reg = CR_CHAN(rangechan);	/*  normal board */
 	unsigned char gain_reg = CR_RANGE(rangechan) + devpriv->range_correction;	/*  gain index */
 
 	if ((chan_reg == devpriv->old_chan_reg)
-		&& (gain_reg == devpriv->old_gain_reg))
+	    && (gain_reg == devpriv->old_gain_reg))
 		return;		/*  we can return, no change */
 
 	devpriv->old_chan_reg = chan_reg;
@@ -1160,12 +1190,12 @@ static void setup_range_channel(struct comedi_device *dev, struct comedi_subdevi
 /*
 ==============================================================================
 */
-static void start_pacer(struct comedi_device *dev, int mode, unsigned int divisor1,
-	unsigned int divisor2)
+static void start_pacer(struct comedi_device *dev, int mode,
+			unsigned int divisor1, unsigned int divisor2)
 {
 #ifdef PCL812_EXTDEBUG
 	printk("pcl812 EDBG: BGN: start_pacer(%d,%u,%u)\n", mode, divisor1,
-		divisor2);
+	       divisor2);
 #endif
 	outb(0xb4, dev->iobase + PCL812_CTRCTL);
 	outb(0x74, dev->iobase + PCL812_CTRCTL);
@@ -1205,7 +1235,8 @@ static void free_resources(struct comedi_device *dev)
 /*
 ==============================================================================
 */
-static int pcl812_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
+static int pcl812_ai_cancel(struct comedi_device *dev,
+			    struct comedi_subdevice *s)
 {
 #ifdef PCL812_EXTDEBUG
 	printk("pcl812 EDBG: BGN: pcl812_ai_cancel(...)\n");
@@ -1279,7 +1310,7 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	iobase = it->options[0];
 	printk("comedi%d: pcl812:  board=%s, ioport=0x%03lx", dev->minor,
-		this_board->name, iobase);
+	       this_board->name, iobase);
 
 	if (!request_region(iobase, this_board->io_range, "pcl812")) {
 		printk("I/O port conflict\n");
@@ -1300,11 +1331,16 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		irq = it->options[1];
 		if (irq) {	/* we want to use IRQ */
 			if (((1 << irq) & this_board->IRQbits) == 0) {
-				printk(", IRQ %u is out of allowed range, DISABLING IT", irq);
+				printk
+				    (", IRQ %u is out of allowed range, DISABLING IT",
+				     irq);
 				irq = 0;	/* Bad IRQ */
 			} else {
-				if (request_irq(irq, interrupt_pcl812, 0, "pcl812", dev)) {
-					printk(", unable to allocate IRQ %u, DISABLING IT", irq);
+				if (request_irq
+				    (irq, interrupt_pcl812, 0, "pcl812", dev)) {
+					printk
+					    (", unable to allocate IRQ %u, DISABLING IT",
+					     irq);
 					irq = 0;	/* Can't use IRQ */
 				} else {
 					printk(", irq=%u", irq);
@@ -1353,7 +1389,7 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->hwdmaptr[1] = virt_to_bus((void *)devpriv->dmabuf[1]);
 		devpriv->hwdmasize[1] = PAGE_SIZE * (1 << pages);
 	}
-      no_dma:
+no_dma:
 
 	n_subdevices = 0;
 	if (this_board->n_aichan > 0)
@@ -1450,7 +1486,9 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			default:
 				s->range_table = &range_bipolar10;
 				break;
-				printk(", incorrect range number %d, changing to 0 (+/-10V)", it->options[4]);
+				printk
+				    (", incorrect range number %d, changing to 0 (+/-10V)",
+				     it->options[4]);
 				break;
 			}
 			break;
@@ -1478,7 +1516,9 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			default:
 				s->range_table = &range_iso813_1_ai;
 				break;
-				printk(", incorrect range number %d, changing to 0 ", it->options[1]);
+				printk
+				    (", incorrect range number %d, changing to 0 ",
+				     it->options[1]);
 				break;
 			}
 			break;
@@ -1501,7 +1541,9 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			default:
 				s->range_table = &range_acl8113_1_ai;
 				break;
-				printk(", incorrect range number %d, changing to 0 ", it->options[1]);
+				printk
+				    (", incorrect range number %d, changing to 0 ",
+				     it->options[1]);
 				break;
 			}
 			break;

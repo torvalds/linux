@@ -8,6 +8,31 @@ config UEVENT_HELPER_PATH
 	  Path to uevent helper program forked by the kernel for
 	  every uevent.
 
+config DEVTMPFS
+	bool "Create a kernel maintained /dev tmpfs (EXPERIMENTAL)"
+	depends on HOTPLUG && SHMEM && TMPFS
+	help
+	  This creates a tmpfs filesystem, and mounts it at bootup
+	  and mounts it at /dev. The kernel driver core creates device
+	  nodes for all registered devices in that filesystem. All device
+	  nodes are owned by root and have the default mode of 0600.
+	  Userspace can add and delete the nodes as needed. This is
+	  intended to simplify bootup, and make it possible to delay
+	  the initial coldplug at bootup done by udev in userspace.
+	  It should also provide a simpler way for rescue systems
+	  to bring up a kernel with dynamic major/minor numbers.
+	  Meaningful symlinks, permissions and device ownership must
+	  still be handled by userspace.
+	  If unsure, say N here.
+
+config DEVTMPFS_MOUNT
+	bool "Automount devtmpfs at /dev"
+	depends on DEVTMPFS
+	help
+	  This will mount devtmpfs at /dev if the kernel mounts the root
+	  filesystem. It will not affect initramfs based mounting.
+	  If unsure, say N here.
+
 config STANDALONE
 	bool "Select only drivers that don't need compile-time external firmware" if EXPERIMENTAL
 	default y

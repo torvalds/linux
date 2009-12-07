@@ -18,6 +18,7 @@ This document describes the Linux kernel Makefiles.
 	   --- 3.9 Dependency tracking
 	   --- 3.10 Special Rules
 	   --- 3.11 $(CC) support functions
+	   --- 3.12 $(LD) support functions
 
 	=== 4 Host Program support
 	   --- 4.1 Simple Host Program
@@ -435,14 +436,14 @@ more details, with real examples.
 	The second argument is optional, and if supplied will be used
 	if first argument is not supported.
 
-    ld-option
-	ld-option is used to check if $(CC) when used to link object files
+    cc-ldoption
+	cc-ldoption is used to check if $(CC) when used to link object files
 	supports the given option.  An optional second option may be
 	specified if first option are not supported.
 
 	Example:
 		#arch/i386/kernel/Makefile
-		vsyscall-flags += $(call ld-option, -Wl$(comma)--hash-style=sysv)
+		vsyscall-flags += $(call cc-ldoption, -Wl$(comma)--hash-style=sysv)
 
 	In the above example, vsyscall-flags will be assigned the option
 	-Wl$(comma)--hash-style=sysv if it is supported by $(CC).
@@ -569,6 +570,19 @@ more details, with real examples.
 		               CROSS_COMPILE := $(call cc-cross-prefix, m68k-linux-gnu-)
 			endif
 		endif
+
+--- 3.12 $(LD) support functions
+
+    ld-option
+	ld-option is used to check if $(LD) supports the supplied option.
+	ld-option takes two options as arguments.
+	The second argument is an optional option that can be used if the
+	first option is not supported by $(LD).
+
+	Example:
+		#Makefile
+		LDFLAGS_vmlinux += $(call really-ld-option, -X)
+
 
 === 4 Host Program support
 

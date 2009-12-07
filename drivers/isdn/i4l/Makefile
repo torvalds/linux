@@ -4,6 +4,7 @@
 
 obj-$(CONFIG_ISDN_I4L)		+= isdn.o
 obj-$(CONFIG_ISDN_PPP_BSDCOMP)	+= isdn_bsdcomp.o
+obj-$(CONFIG_ISDN_HDLC)		+= isdnhdlc.o
 
 # Multipart objects.
 

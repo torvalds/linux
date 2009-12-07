@@ -39,7 +39,6 @@
 #include <linux/pid_namespace.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <linux/marker.h>
 
 #include <asm/io.h>
 #include <asm/mmu_context.h>
@@ -47,6 +46,8 @@
 #include <asm/spu_csa.h>
 #include <asm/spu_priv1.h>
 #include "spufs.h"
+#define CREATE_TRACE_POINTS
+#include "sputrace.h"
 
 struct spu_prio_array {
 	DECLARE_BITMAP(bitmap, MAX_PRIO);

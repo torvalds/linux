@@ -1,9 +1,21 @@
+Version 1.61
+------------
+Fix append problem to Samba servers (files opened with O_APPEND could
+have duplicated data). Fix oops in cifs_lookup. Workaround problem
+mounting to OS/400 Netserve. Fix oops in cifs_get_tcp_session.
+Disable use of server inode numbers when server only
+partially supports them (e.g. for one server querying inode numbers on
+FindFirst fails but QPathInfo queries works).
+
 Version 1.60
 -------------
 Fix memory leak in reconnect.  Fix oops in DFS mount error path.
 Set s_maxbytes to smaller (the max that vfs can handle) so that
 sendfile will now work over cifs mounts again.  Add noforcegid
-and noforceuid mount parameters.
+and noforceuid mount parameters. Fix small mem leak when using
+ntlmv2. Fix 2nd mount to same server but with different port to
+be allowed (rather than reusing the 1st port) - only when the
+user explicitly overrides the port on the 2nd mount.
 
 Version 1.59
 ------------

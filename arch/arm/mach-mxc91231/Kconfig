@@ -1,0 +1,11 @@
+if ARCH_MXC91231
+
+comment "MXC91231 platforms:"
+
+config MACH_MAGX_ZN5
+	bool "Support Motorola Zn5 GSM phone"
+	default n
+	help
+	  Include support for Motorola Zn5 GSM phone.
+
+endif

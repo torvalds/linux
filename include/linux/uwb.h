@@ -597,7 +597,7 @@ void uwb_rc_neh_grok(struct uwb_rc *, void *, size_t);
 void uwb_rc_neh_error(struct uwb_rc *, int);
 void uwb_rc_reset_all(struct uwb_rc *rc);
 void uwb_rc_pre_reset(struct uwb_rc *rc);
-void uwb_rc_post_reset(struct uwb_rc *rc);
+int uwb_rc_post_reset(struct uwb_rc *rc);
 
 /**
  * uwb_rsv_is_owner - is the owner of this reservation the RC?

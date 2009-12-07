@@ -3,6 +3,7 @@
 <param name="chunk.quietly">1</param>
 <param name="funcsynopsis.style">ansi</param>
 <param name="funcsynopsis.tabular.threshold">80</param>
+<param name="callout.graphics">0</param>
 <!-- <param name="paper.type">A4</param> -->
 <param name="generate.section.toc.level">2</param>
 </stylesheet>

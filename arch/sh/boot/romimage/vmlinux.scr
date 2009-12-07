@@ -1,0 +1,6 @@
+SECTIONS
+{
+  .text : {
+	*(.data)
+	}
+}

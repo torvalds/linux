@@ -19,6 +19,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/kmi.h>
 #include <linux/amba/clcd.h>
+#include <linux/amba/mmci.h>
 #include <linux/io.h>
 
 #include <asm/clkdev.h>
@@ -35,7 +36,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/irq.h>
-#include <asm/mach/mmc.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
@@ -49,14 +49,14 @@
 
 #define INTCP_PA_CLCD_BASE		0xc0000000
 
-#define INTCP_VA_CIC_BASE		0xf1000040
-#define INTCP_VA_PIC_BASE		0xf1400000
-#define INTCP_VA_SIC_BASE		0xfca00000
+#define INTCP_VA_CIC_BASE		IO_ADDRESS(INTEGRATOR_HDR_BASE) + 0x40
+#define INTCP_VA_PIC_BASE		IO_ADDRESS(INTEGRATOR_IC_BASE)
+#define INTCP_VA_SIC_BASE		IO_ADDRESS(0xca000000)
 
 #define INTCP_PA_ETH_BASE		0xc8000000
 #define INTCP_ETH_SIZE			0x10
 
-#define INTCP_VA_CTRL_BASE		0xfcb00000
+#define INTCP_VA_CTRL_BASE		IO_ADDRESS(0xcb000000)
 #define INTCP_FLASHPROG			0x04
 #define CINTEGRATOR_FLASHPROG_FLVPPEN	(1 << 0)
 #define CINTEGRATOR_FLASHPROG_FLWREN	(1 << 1)
@@ -121,12 +121,12 @@ static struct map_desc intcp_io_desc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= 0xfca00000,
+		.virtual	= IO_ADDRESS(0xca000000),
 		.pfn		= __phys_to_pfn(0xca000000),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= 0xfcb00000,
+		.virtual	= IO_ADDRESS(0xcb000000),
 		.pfn		= __phys_to_pfn(0xcb000000),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
@@ -394,15 +394,17 @@ static struct platform_device *intcp_devs[] __initdata = {
  */
 static unsigned int mmc_status(struct device *dev)
 {
-	unsigned int status = readl(0xfca00004);
-	writel(8, 0xfcb00008);
+	unsigned int status = readl(IO_ADDRESS(0xca000000) + 4);
+	writel(8, IO_ADDRESS(0xcb000000) + 8);
 
 	return status & 8;
 }
 
-static struct mmc_platform_data mmc_data = {
+static struct mmci_platform_data mmc_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.status		= mmc_status,
+	.gpio_wp	= -1,
+	.gpio_cd	= -1,
 };
 
 static struct amba_device mmc_device = {

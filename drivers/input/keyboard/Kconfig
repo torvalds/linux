@@ -24,6 +24,16 @@ config KEYBOARD_AAED2000
 	  To compile this driver as a module, choose M here: the
 	  module will be called aaed2000_kbd.
 
+config KEYBOARD_ADP5588
+	tristate "ADP5588 I2C QWERTY Keypad and IO Expander"
+	depends on I2C
+	help
+	  Say Y here if you want to use a ADP5588 attached to your
+	  system I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adp5588-keys.
+
 config KEYBOARD_AMIGA
 	tristate "Amiga keyboard"
 	depends on AMIGA
@@ -103,6 +113,16 @@ config KEYBOARD_ATKBD_RDI_KEYCODES
 	  If you say Y here, and use an external keyboard, then each key in the
 	  right-hand column will be interpreted as the key shown in the
 	  left-hand column.
+
+config QT2160
+	tristate "Atmel AT42QT2160 Touch Sensor Chip"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for Atmel AT42QT2160 Touch
+	  Sensor chip as a keyboard input.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called qt2160.
 
 config KEYBOARD_BFIN
 	tristate "Blackfin BF54x keypad support"
@@ -187,7 +207,7 @@ config KEYBOARD_HIL_OLD
 	  submenu.
 
 config KEYBOARD_HIL
-	tristate "HP HIL keyboard support"
+	tristate "HP HIL keyboard/pointer support"
 	depends on GSC || HP300
 	default y
 	select HP_SDC
@@ -196,7 +216,8 @@ config KEYBOARD_HIL
 	help
 	  The "Human Interface Loop" is a older, 8-channel USB-like
 	  controller used in several Hewlett Packard models.
-	  This driver implements support for HIL-keyboards attached
+	  This driver implements support for HIL-keyboards and pointing
+	  devices (mice, tablets, touchscreens) attached
 	  to your machine, so normally you should say Y here.
 
 config KEYBOARD_HP6XX
@@ -250,6 +271,17 @@ config KEYBOARD_MAPLE
 	  To compile this driver as a module, choose M here: the
 	  module will be called maple_keyb.
 
+config KEYBOARD_MAX7359
+	tristate "Maxim MAX7359 Key Switch Controller"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Maxim MAX7359 Key
+	  Switch Controller chip. This providers microprocessors with
+	  management of up to 64 key switches
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called max7359_keypad.
+
 config KEYBOARD_NEWTON
 	tristate "Newton keyboard"
 	select SERIO
@@ -258,6 +290,15 @@ config KEYBOARD_NEWTON
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called newtonkbd.
+
+config KEYBOARD_OPENCORES
+	tristate "OpenCores Keyboard Controller"
+	help
+	  Say Y here if you want to use the OpenCores Keyboard Controller
+	  http://www.opencores.org/project,keyboardcontroller
+
+	  To compile this driver as a module, choose M here; the
+	  module will be called opencores-kbd.
 
 config KEYBOARD_PXA27x
 	tristate "PXA27x/PXA3xx keypad support"
@@ -329,6 +370,17 @@ config KEYBOARD_OMAP
 	  To compile this driver as a module, choose M here: the
 	  module will be called omap-keypad.
 
+config KEYBOARD_TWL4030
+	tristate "TI TWL4030/TWL5030/TPS659x0 keypad support"
+	depends on TWL4030_CORE
+	help
+	  Say Y here if your board use the keypad controller on
+	  TWL4030 family chips.  It's safe to say enable this
+	  even on boards that don't use the keypad controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called twl4030_keypad.
+
 config KEYBOARD_TOSA
 	tristate "Tosa keyboard"
 	depends on MACH_TOSA
@@ -360,5 +412,15 @@ config KEYBOARD_XTKBD
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called xtkbd.
+
+config KEYBOARD_W90P910
+	tristate "W90P910 Matrix Keypad support"
+	depends on ARCH_W90X900
+	help
+	  Say Y here to enable the matrix keypad on evaluation board
+	  based on W90P910.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called w90p910_keypad.
 
 endif

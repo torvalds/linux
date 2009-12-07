@@ -30,7 +30,8 @@
 enum labpc_bustype { isa_bustype, pci_bustype, pcmcia_bustype };
 enum labpc_register_layout { labpc_plus_layout, labpc_1200_layout };
 enum transfer_type { fifo_not_empty_transfer, fifo_half_full_transfer,
-		isa_dma_transfer };
+	isa_dma_transfer
+};
 
 struct labpc_board_struct {
 	const char *name;
@@ -75,7 +76,7 @@ struct labpc_private {
 };
 
 int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
-	unsigned int irq, unsigned int dma);
+			unsigned int irq, unsigned int dma);
 int labpc_common_detach(struct comedi_device *dev);
 
 extern const int labpc_1200_is_unipolar[];

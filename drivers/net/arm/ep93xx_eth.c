@@ -628,15 +628,6 @@ static int ep93xx_open(struct net_device *dev)
 	if (ep93xx_alloc_buffers(ep))
 		return -ENOMEM;
 
-	if (is_zero_ether_addr(dev->dev_addr)) {
-		random_ether_addr(dev->dev_addr);
-		printk(KERN_INFO "%s: generated random MAC address "
-			"%.2x:%.2x:%.2x:%.2x:%.2x:%.2x.\n", dev->name,
-			dev->dev_addr[0], dev->dev_addr[1],
-			dev->dev_addr[2], dev->dev_addr[3],
-			dev->dev_addr[4], dev->dev_addr[5]);
-	}
-
 	napi_enable(&ep->napi);
 
 	if (ep93xx_start_hw(dev)) {
@@ -762,7 +753,7 @@ static u32 ep93xx_get_link(struct net_device *dev)
 	return mii_link_ok(&ep->mii);
 }
 
-static struct ethtool_ops ep93xx_ethtool_ops = {
+static const struct ethtool_ops ep93xx_ethtool_ops = {
 	.get_drvinfo		= ep93xx_get_drvinfo,
 	.get_settings		= ep93xx_get_settings,
 	.set_settings		= ep93xx_set_settings,
@@ -876,6 +867,9 @@ static int ep93xx_eth_probe(struct platform_device *pdev)
 	ep->mii.mdio_read = ep93xx_mdio_read;
 	ep->mii.mdio_write = ep93xx_mdio_write;
 	ep->mdc_divisor = 40;	/* Max HCLK 100 MHz, min MDIO clk 2.5 MHz.  */
+
+	if (is_zero_ether_addr(dev->dev_addr))
+		random_ether_addr(dev->dev_addr);
 
 	err = register_netdev(dev);
 	if (err) {

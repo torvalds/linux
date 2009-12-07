@@ -36,7 +36,7 @@ struct test_node {
 };
 
 static LIST_HEAD(test_list);
-static DEFINE_PER_CPU(void *, test_pointer);
+static DEFINE_PER_CPU(void *, kmemleak_test_pointer);
 
 /*
  * Some very simple testing. This function needs to be extended for
@@ -86,9 +86,9 @@ static int __init kmemleak_test_init(void)
 	}
 
 	for_each_possible_cpu(i) {
-		per_cpu(test_pointer, i) = kmalloc(129, GFP_KERNEL);
+		per_cpu(kmemleak_test_pointer, i) = kmalloc(129, GFP_KERNEL);
 		pr_info("kmemleak: kmalloc(129) = %p\n",
-			per_cpu(test_pointer, i));
+			per_cpu(kmemleak_test_pointer, i));
 	}
 
 	return 0;

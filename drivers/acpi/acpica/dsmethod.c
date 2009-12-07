@@ -578,10 +578,15 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 		}
 
 		/*
-		 * Delete any namespace objects created anywhere within
-		 * the namespace by the execution of this method
+		 * Delete any namespace objects created anywhere within the
+		 * namespace by the execution of this method. Unless this method
+		 * is a module-level executable code method, in which case we
+		 * want make the objects permanent.
 		 */
-		acpi_ns_delete_namespace_by_owner(method_desc->method.owner_id);
+		if (!(method_desc->method.flags & AOPOBJ_MODULE_LEVEL)) {
+			acpi_ns_delete_namespace_by_owner(method_desc->method.
+							  owner_id);
+		}
 	}
 
 	/* Decrement the thread count on the method */
@@ -622,7 +627,9 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 
 		/* No more threads, we can free the owner_id */
 
-		acpi_ut_release_owner_id(&method_desc->method.owner_id);
+		if (!(method_desc->method.flags & AOPOBJ_MODULE_LEVEL)) {
+			acpi_ut_release_owner_id(&method_desc->method.owner_id);
+		}
 	}
 
 	return_VOID;

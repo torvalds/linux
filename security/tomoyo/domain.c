@@ -717,38 +717,6 @@ int tomoyo_write_alias_policy(char *data, const bool is_delete)
 	return tomoyo_update_alias_entry(data, cp, is_delete);
 }
 
-/* Domain create/delete handler. */
-
-/**
- * tomoyo_delete_domain - Delete a domain.
- *
- * @domainname: The name of domain.
- *
- * Returns 0.
- */
-int tomoyo_delete_domain(char *domainname)
-{
-	struct tomoyo_domain_info *domain;
-	struct tomoyo_path_info name;
-
-	name.name = domainname;
-	tomoyo_fill_path_info(&name);
-	down_write(&tomoyo_domain_list_lock);
-	/* Is there an active domain? */
-	list_for_each_entry(domain, &tomoyo_domain_list, list) {
-		/* Never delete tomoyo_kernel_domain */
-		if (domain == &tomoyo_kernel_domain)
-			continue;
-		if (domain->is_deleted ||
-		    tomoyo_pathcmp(domain->domainname, &name))
-			continue;
-		domain->is_deleted = true;
-		break;
-	}
-	up_write(&tomoyo_domain_list_lock);
-	return 0;
-}
-
 /**
  * tomoyo_find_or_assign_new_domain - Create a domain.
  *
@@ -818,13 +786,11 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 /**
  * tomoyo_find_next_domain - Find a domain.
  *
- * @bprm:           Pointer to "struct linux_binprm".
- * @next_domain:    Pointer to pointer to "struct tomoyo_domain_info".
+ * @bprm: Pointer to "struct linux_binprm".
  *
  * Returns 0 on success, negative value otherwise.
  */
-int tomoyo_find_next_domain(struct linux_binprm *bprm,
-			    struct tomoyo_domain_info **next_domain)
+int tomoyo_find_next_domain(struct linux_binprm *bprm)
 {
 	/*
 	 * This function assumes that the size of buffer returned by
@@ -946,9 +912,11 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm,
 		tomoyo_set_domain_flag(old_domain, false,
 				       TOMOYO_DOMAIN_FLAGS_TRANSITION_FAILED);
  out:
+	if (!domain)
+		domain = old_domain;
+	bprm->cred->security = domain;
 	tomoyo_free(real_program_name);
 	tomoyo_free(symlink_program_name);
-	*next_domain = domain ? domain : old_domain;
 	tomoyo_free(tmp);
 	return retval;
 }

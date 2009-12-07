@@ -33,8 +33,6 @@
  * SOFTWARE.
  */
 
-#include <linux/init.h>
-
 #include <linux/mlx4/cmd.h>
 #include <linux/mlx4/qp.h>
 

@@ -1039,7 +1039,7 @@ static void ali_sound_dma_hack(struct pci_dev *pdev, int set_bit)
 	pci_dev_put(ali_isa_bridge);
 }
 
-int pci_dma_supported(struct pci_dev *pdev, u64 device_mask)
+int pci64_dma_supported(struct pci_dev *pdev, u64 device_mask)
 {
 	u64 dma_addr_mask;
 

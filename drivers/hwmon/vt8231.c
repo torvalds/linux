@@ -36,7 +36,7 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 static int force_addr;
 module_param(force_addr, int, 0);

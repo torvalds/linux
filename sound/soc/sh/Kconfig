@@ -20,7 +20,12 @@ config SND_SOC_SH4_HAC
 config SND_SOC_SH4_SSI
 	tristate
 
-
+config SND_SOC_SH4_FSI
+	tristate "SH4 FSI support"
+	depends on CPU_SUBTYPE_SH7724
+        select SH_DMA
+	help
+	  This option enables FSI sound support
 
 ##
 ## Boards
@@ -34,5 +39,13 @@ config SND_SH7760_AC97
 	help
 	  This option enables generic sound support for the first
 	  AC97 unit of the SH7760.
+
+config SND_FSI_AK4642
+	bool "FSI-AK4642 sound support"
+	depends on SND_SOC_SH4_FSI
+	select SND_SOC_AK4642
+	help
+	  This option enables generic sound support for the
+	  FSI - AK4642 unit
 
 endmenu

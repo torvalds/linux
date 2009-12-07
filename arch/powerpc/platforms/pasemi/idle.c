@@ -90,7 +90,7 @@ machine_late_initcall(pasemi, pasemi_idle_init);
 static int __init idle_param(char *p)
 {
 	int i;
-	for (i = 0; i < sizeof(modes)/sizeof(struct sleep_mode); i++) {
+	for (i = 0; i < ARRAY_SIZE(modes); i++) {
 		if (!strcmp(modes[i].name, p)) {
 			current_mode = i;
 			break;

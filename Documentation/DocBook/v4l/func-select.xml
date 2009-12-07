@@ -1,0 +1,138 @@
+<refentry id="func-select">
+  <refmeta>
+    <refentrytitle>V4L2 select()</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>v4l2-select</refname>
+    <refpurpose>Synchronous I/O multiplexing</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcsynopsisinfo>
+#include &lt;sys/time.h&gt;
+#include &lt;sys/types.h&gt;
+#include &lt;unistd.h&gt;</funcsynopsisinfo>
+      <funcprototype>
+	<funcdef>int <function>select</function></funcdef>
+	<paramdef>int <parameter>nfds</parameter></paramdef>
+	<paramdef>fd_set *<parameter>readfds</parameter></paramdef>
+	<paramdef>fd_set *<parameter>writefds</parameter></paramdef>
+	<paramdef>fd_set *<parameter>exceptfds</parameter></paramdef>
+	<paramdef>struct timeval *<parameter>timeout</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>With the <function>select()</function> function applications
+can suspend execution until the driver has captured data or is ready
+to accept data for output.</para>
+
+    <para>When streaming I/O has been negotiated this function waits
+until a buffer has been filled or displayed and can be dequeued with
+the &VIDIOC-DQBUF; ioctl. When buffers are already in the outgoing
+queue of the driver the function returns immediately.</para>
+
+    <para>On success <function>select()</function> returns the total
+number of bits set in the <structname>fd_set</structname>s. When the
+function timed out it returns a value of zero. On failure it returns
+<returnvalue>-1</returnvalue> and the <varname>errno</varname>
+variable is set appropriately. When the application did not call
+&VIDIOC-QBUF; or &VIDIOC-STREAMON; yet the
+<function>select()</function> function succeeds, setting the bit of
+the file descriptor in <parameter>readfds</parameter> or
+<parameter>writefds</parameter>, but subsequent &VIDIOC-DQBUF; calls
+will fail.<footnote><para>The Linux kernel implements
+<function>select()</function> like the &func-poll; function, but
+<function>select()</function> cannot return a
+<constant>POLLERR</constant>.</para>
+      </footnote></para>
+
+    <para>When use of the <function>read()</function> function has
+been negotiated and the driver does not capture yet, the
+<function>select()</function> function starts capturing. When that
+fails, <function>select()</function> returns successful and a
+subsequent <function>read()</function> call, which also attempts to
+start capturing, will return an appropriate error code. When the
+driver captures continuously (as opposed to, for example, still
+images) and data is already available the
+<function>select()</function> function returns immediately.</para>
+
+    <para>When use of the <function>write()</function> function has
+been negotiated the <function>select()</function> function just waits
+until the driver is ready for a non-blocking
+<function>write()</function> call.</para>
+
+    <para>All drivers implementing the <function>read()</function> or
+<function>write()</function> function or streaming I/O must also
+support the <function>select()</function> function.</para>
+
+    <para>For more details see the <function>select()</function>
+manual page.</para>
+
+  </refsect1>
+
+  <refsect1>
+    <title>Return Value</title>
+
+    <para>On success, <function>select()</function> returns the number
+of descriptors contained in the three returned descriptor sets, which
+will be zero if the timeout expired. On error
+<returnvalue>-1</returnvalue> is returned, and the
+<varname>errno</varname> variable is set appropriately; the sets and
+<parameter>timeout</parameter> are undefined. Possible error codes
+are:</para>
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EBADF</errorcode></term>
+	<listitem>
+	  <para>One or more of the file descriptor sets specified a
+file descriptor that is not open.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EBUSY</errorcode></term>
+	<listitem>
+	  <para>The driver does not support multiple read or write
+streams and the device is already in use.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EFAULT</errorcode></term>
+	<listitem>
+	  <para>The <parameter>readfds</parameter>,
+<parameter>writefds</parameter>, <parameter>exceptfds</parameter> or
+<parameter>timeout</parameter> pointer references an inaccessible memory
+area.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EINTR</errorcode></term>
+	<listitem>
+	  <para>The call was interrupted by a signal.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The <parameter>nfds</parameter> argument is less than
+zero or greater than <constant>FD_SETSIZE</constant>.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>
+
+<!--
+Local Variables:
+mode: sgml
+sgml-parent-document: "v4l2.sgml"
+indent-tabs-mode: nil
+End:
+-->

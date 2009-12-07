@@ -456,6 +456,7 @@ int cmd_help(int argc, const char **argv, const char *prefix __used)
 		break;
 	case HELP_FORMAT_WEB:
 		show_html_page(argv[0]);
+	default:
 		break;
 	}
 

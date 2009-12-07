@@ -61,6 +61,9 @@ static int probe_mask[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = -1};
 static int probe_only[SNDRV_CARDS];
 static int single_cmd;
 static int enable_msi;
+#ifdef CONFIG_SND_HDA_PATCH_LOADER
+static char *patch[SNDRV_CARDS];
+#endif
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for Intel HD audio interface.");
@@ -84,6 +87,10 @@ MODULE_PARM_DESC(single_cmd, "Use single command to communicate with codecs "
 		 "(for debugging only).");
 module_param(enable_msi, int, 0444);
 MODULE_PARM_DESC(enable_msi, "Enable Message Signaled Interrupt (MSI)");
+#ifdef CONFIG_SND_HDA_PATCH_LOADER
+module_param_array(patch, charp, NULL, 0444);
+MODULE_PARM_DESC(patch, "Patch file for Intel HD audio interface.");
+#endif
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 static int power_save = CONFIG_SND_HDA_POWER_SAVE_DEFAULT;
@@ -715,9 +722,10 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus,
 		   chip->last_cmd[addr]);
 	chip->single_cmd = 1;
 	bus->response_reset = 0;
-	/* re-initialize CORB/RIRB */
+	/* release CORB/RIRB */
 	azx_free_cmd_io(chip);
-	azx_init_cmd_io(chip);
+	/* disable unsolicited responses */
+	azx_writel(chip, GCTL, azx_readl(chip, GCTL) & ~ICH6_GCTL_UNSOL);
 	return -1;
 }
 
@@ -858,7 +866,9 @@ static int azx_reset(struct azx *chip)
 	}
 
 	/* Accept unsolicited responses */
-	azx_writel(chip, GCTL, azx_readl(chip, GCTL) | ICH6_GCTL_UNSOL);
+	if (!chip->single_cmd)
+		azx_writel(chip, GCTL, azx_readl(chip, GCTL) |
+			   ICH6_GCTL_UNSOL);
 
 	/* detect codecs */
 	if (!chip->codec_mask) {
@@ -973,7 +983,8 @@ static void azx_init_chip(struct azx *chip)
 	azx_int_enable(chip);
 
 	/* initialize the codec command I/O */
-	azx_init_cmd_io(chip);
+	if (!chip->single_cmd)
+		azx_init_cmd_io(chip);
 
 	/* program the position buffer */
 	azx_writel(chip, DPLBASE, (u32)chip->posbuf.addr);
@@ -1331,8 +1342,7 @@ static unsigned int azx_max_codecs[AZX_NUM_DRIVERS] __devinitdata = {
 	[AZX_DRIVER_TERA] = 1,
 };
 
-static int __devinit azx_codec_create(struct azx *chip, const char *model,
-				      int no_init)
+static int __devinit azx_codec_create(struct azx *chip, const char *model)
 {
 	struct hda_bus_template bus_temp;
 	int c, codecs, err;
@@ -1391,7 +1401,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model,
 	for (c = 0; c < max_slots; c++) {
 		if ((chip->codec_mask & (1 << c)) & chip->codec_probe_mask) {
 			struct hda_codec *codec;
-			err = snd_hda_codec_new(chip->bus, c, !no_init, &codec);
+			err = snd_hda_codec_new(chip->bus, c, &codec);
 			if (err < 0)
 				continue;
 			codecs++;
@@ -1401,7 +1411,16 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model,
 		snd_printk(KERN_ERR SFX "no codecs initialized\n");
 		return -ENXIO;
 	}
+	return 0;
+}
 
+/* configure each codec instance */
+static int __devinit azx_codec_configure(struct azx *chip)
+{
+	struct hda_codec *codec;
+	list_for_each_entry(codec, &chip->bus->codec_list, list) {
+		snd_hda_codec_configure(codec);
+	}
 	return 0;
 }
 
@@ -2284,6 +2303,31 @@ static void __devinit check_probe_mask(struct azx *chip, int dev)
 	}
 }
 
+/*
+ * white-list for enable_msi
+ */
+static struct snd_pci_quirk msi_white_list[] __devinitdata = {
+	SND_PCI_QUIRK(0x103c, 0x30f7, "HP Pavilion dv4t-1300", 1),
+	SND_PCI_QUIRK(0x103c, 0x3607, "HP Compa CQ40", 1),
+	{}
+};
+
+static void __devinit check_msi(struct azx *chip)
+{
+	const struct snd_pci_quirk *q;
+
+	chip->msi = enable_msi;
+	if (chip->msi)
+		return;
+	q = snd_pci_quirk_lookup(chip->pci, msi_white_list);
+	if (q) {
+		printk(KERN_INFO
+		       "hda_intel: msi for device %04x:%04x set to %d\n",
+		       q->subvendor, q->subdevice, q->value);
+		chip->msi = q->value;
+	}
+}
+
 
 /*
  * constructor
@@ -2318,7 +2362,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	chip->pci = pci;
 	chip->irq = -1;
 	chip->driver_type = driver_type;
-	chip->msi = enable_msi;
+	check_msi(chip);
 	chip->dev_index = dev;
 	INIT_WORK(&chip->irq_pending_work, azx_irq_pending_work);
 
@@ -2526,15 +2570,32 @@ static int __devinit azx_probe(struct pci_dev *pci,
 		return err;
 	}
 
+	/* set this here since it's referred in snd_hda_load_patch() */
+	snd_card_set_dev(card, &pci->dev);
+
 	err = azx_create(card, pci, dev, pci_id->driver_data, &chip);
 	if (err < 0)
 		goto out_free;
 	card->private_data = chip;
 
 	/* create codec instances */
-	err = azx_codec_create(chip, model[dev], probe_only[dev]);
+	err = azx_codec_create(chip, model[dev]);
 	if (err < 0)
 		goto out_free;
+#ifdef CONFIG_SND_HDA_PATCH_LOADER
+	if (patch[dev]) {
+		snd_printk(KERN_ERR SFX "Applying patch firmware '%s'\n",
+			   patch[dev]);
+		err = snd_hda_load_patch(chip->bus, patch[dev]);
+		if (err < 0)
+			goto out_free;
+	}
+#endif
+	if (!probe_only[dev]) {
+		err = azx_codec_configure(chip);
+		if (err < 0)
+			goto out_free;
+	}
 
 	/* create PCM streams */
 	err = snd_hda_build_pcms(chip->bus);
@@ -2545,8 +2606,6 @@ static int __devinit azx_probe(struct pci_dev *pci,
 	err = azx_mixer_create(chip);
 	if (err < 0)
 		goto out_free;
-
-	snd_card_set_dev(card, &pci->dev);
 
 	err = snd_card_register(card);
 	if (err < 0)
@@ -2619,6 +2678,7 @@ static struct pci_device_id azx_ids[] = {
 	{ PCI_DEVICE(0x10de, 0x044b), .driver_data = AZX_DRIVER_NVIDIA },
 	{ PCI_DEVICE(0x10de, 0x055c), .driver_data = AZX_DRIVER_NVIDIA },
 	{ PCI_DEVICE(0x10de, 0x055d), .driver_data = AZX_DRIVER_NVIDIA },
+	{ PCI_DEVICE(0x10de, 0x0590), .driver_data = AZX_DRIVER_NVIDIA },
 	{ PCI_DEVICE(0x10de, 0x0774), .driver_data = AZX_DRIVER_NVIDIA },
 	{ PCI_DEVICE(0x10de, 0x0775), .driver_data = AZX_DRIVER_NVIDIA },
 	{ PCI_DEVICE(0x10de, 0x0776), .driver_data = AZX_DRIVER_NVIDIA },
@@ -2649,8 +2709,12 @@ static struct pci_device_id azx_ids[] = {
 	/* this entry seems still valid -- i.e. without emu20kx chip */
 	{ PCI_DEVICE(0x1102, 0x0009), .driver_data = AZX_DRIVER_GENERIC },
 #endif
-	/* AMD Generic, PCI class code and Vendor ID for HD Audio */
+	/* AMD/ATI Generic, PCI class code and Vendor ID for HD Audio */
 	{ PCI_DEVICE(PCI_VENDOR_ID_ATI, PCI_ANY_ID),
+	  .class = PCI_CLASS_MULTIMEDIA_HD_AUDIO << 8,
+	  .class_mask = 0xffffff,
+	  .driver_data = AZX_DRIVER_GENERIC },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_ANY_ID),
 	  .class = PCI_CLASS_MULTIMEDIA_HD_AUDIO << 8,
 	  .class_mask = 0xffffff,
 	  .driver_data = AZX_DRIVER_GENERIC },

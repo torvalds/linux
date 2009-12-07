@@ -105,7 +105,7 @@ static int usb_parse_ss_endpoint_companion(struct device *ddev, int cfgno,
 	ep->ss_ep_comp->extralen = i;
 	buffer += i;
 	size -= i;
-	retval = buffer - buffer_start + i;
+	retval = buffer - buffer_start;
 	if (num_skipped > 0)
 		dev_dbg(ddev, "skipped %d descriptor%s after %s\n",
 				num_skipped, plural(num_skipped),

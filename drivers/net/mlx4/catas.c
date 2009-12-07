@@ -96,12 +96,17 @@ static void catas_reset(struct work_struct *work)
 	spin_unlock_irq(&catas_lock);
 
 	list_for_each_entry_safe(priv, tmppriv, &tlist, catas_err.list) {
+		struct pci_dev *pdev = priv->dev.pdev;
+
 		ret = mlx4_restart_one(priv->dev.pdev);
-		dev = &priv->dev;
+		/* 'priv' now is not valid */
 		if (ret)
-			mlx4_err(dev, "Reset failed (%d)\n", ret);
-		else
+			printk(KERN_ERR "mlx4 %s: Reset failed (%d)\n",
+				pci_name(pdev), ret);
+		else {
+			dev  = pci_get_drvdata(pdev);
 			mlx4_dbg(dev, "Reset succeeded\n");
+		}
 	}
 }
 

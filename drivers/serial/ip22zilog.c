@@ -256,9 +256,9 @@ static struct tty_struct *ip22zilog_receive_chars(struct uart_ip22zilog_port *up
 	unsigned int r1;
 
 	tty = NULL;
-	if (up->port.info != NULL &&
-	    up->port.info->port.tty != NULL)
-		tty = up->port.info->port.tty;
+	if (up->port.state != NULL &&
+	    up->port.state->port.tty != NULL)
+		tty = up->port.state->port.tty;
 
 	for (;;) {
 		ch = readb(&channel->control);
@@ -354,7 +354,7 @@ static void ip22zilog_status_handle(struct uart_ip22zilog_port *up,
 			uart_handle_cts_change(&up->port,
 					       (status & CTS));
 
-		wake_up_interruptible(&up->port.info->delta_msr_wait);
+		wake_up_interruptible(&up->port.state->port.delta_msr_wait);
 	}
 
 	up->prev_status = status;
@@ -404,9 +404,9 @@ static void ip22zilog_transmit_chars(struct uart_ip22zilog_port *up,
 		return;
 	}
 
-	if (up->port.info == NULL)
+	if (up->port.state == NULL)
 		goto ack_tx_int;
-	xmit = &up->port.info->xmit;
+	xmit = &up->port.state->xmit;
 	if (uart_circ_empty(xmit))
 		goto ack_tx_int;
 	if (uart_tx_stopped(&up->port))
@@ -607,7 +607,7 @@ static void ip22zilog_start_tx(struct uart_port *port)
 		port->icount.tx++;
 		port->x_char = 0;
 	} else {
-		struct circ_buf *xmit = &port->info->xmit;
+		struct circ_buf *xmit = &port->state->xmit;
 
 		writeb(xmit->buf[xmit->tail], &channel->data);
 		ZSDELAY();

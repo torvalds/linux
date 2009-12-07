@@ -1,18 +1,19 @@
-CFI or JEDEC memory-mapped NOR flash
+CFI or JEDEC memory-mapped NOR flash, MTD-RAM (NVRAM...)
 
 Flash chips (Memory Technology Devices) are often used for solid state
 file systems on embedded devices.
 
- - compatible : should contain the specific model of flash chip(s)
-   used, if known, followed by either "cfi-flash" or "jedec-flash"
- - reg : Address range(s) of the flash chip(s)
+ - compatible : should contain the specific model of mtd chip(s)
+   used, if known, followed by either "cfi-flash", "jedec-flash"
+   or "mtd-ram".
+ - reg : Address range(s) of the mtd chip(s)
    It's possible to (optionally) define multiple "reg" tuples so that
-   non-identical NOR chips can be described in one flash node.
- - bank-width : Width (in bytes) of the flash bank.  Equal to the
+   non-identical chips can be described in one node.
+ - bank-width : Width (in bytes) of the bank.  Equal to the
    device width times the number of interleaved chips.
- - device-width : (optional) Width of a single flash chip.  If
+ - device-width : (optional) Width of a single mtd chip.  If
    omitted, assumed to be equal to 'bank-width'.
- - #address-cells, #size-cells : Must be present if the flash has
+ - #address-cells, #size-cells : Must be present if the device has
    sub-nodes representing partitions (see below).  In this case
    both #address-cells and #size-cells must be equal to 1.
 
@@ -22,24 +23,24 @@ are defined:
  - vendor-id : Contains the flash chip's vendor id (1 byte).
  - device-id : Contains the flash chip's device id (1 byte).
 
-In addition to the information on the flash bank itself, the
+In addition to the information on the mtd bank itself, the
 device tree may optionally contain additional information
-describing partitions of the flash address space.  This can be
+describing partitions of the address space.  This can be
 used on platforms which have strong conventions about which
-portions of the flash are used for what purposes, but which don't
+portions of a flash are used for what purposes, but which don't
 use an on-flash partition table such as RedBoot.
 
-Each partition is represented as a sub-node of the flash device.
+Each partition is represented as a sub-node of the mtd device.
 Each node's name represents the name of the corresponding
-partition of the flash device.
+partition of the mtd device.
 
 Flash partitions
- - reg : The partition's offset and size within the flash bank.
- - label : (optional) The label / name for this flash partition.
+ - reg : The partition's offset and size within the mtd bank.
+ - label : (optional) The label / name for this partition.
    If omitted, the label is taken from the node name (excluding
    the unit address).
  - read-only : (optional) This parameter, if present, is a hint to
-   Linux that this flash partition should only be mounted
+   Linux that this partition should only be mounted
    read-only.  This is usually used for flash partitions
    containing early-boot firmware images or data which should not
    be clobbered.
@@ -78,3 +79,12 @@ Here an example with multiple "reg" tuples:
 			reg = <0 0x04000000>;
 		};
 	};
+
+An example using SRAM:
+
+	sram@2,0 {
+		compatible = "samsung,k6f1616u6a", "mtd-ram";
+		reg = <2 0 0x00200000>;
+		bank-width = <2>;
+	};
+

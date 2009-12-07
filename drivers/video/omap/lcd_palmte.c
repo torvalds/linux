@@ -108,12 +108,12 @@ struct platform_driver palmte_panel_driver = {
 	},
 };
 
-static int palmte_panel_drv_init(void)
+static int __init palmte_panel_drv_init(void)
 {
 	return platform_driver_register(&palmte_panel_driver);
 }
 
-static void palmte_panel_drv_cleanup(void)
+static void __exit palmte_panel_drv_cleanup(void)
 {
 	platform_driver_unregister(&palmte_panel_driver);
 }

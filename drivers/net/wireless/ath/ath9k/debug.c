@@ -93,6 +93,8 @@ static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 	int i, qcuOffset = 0, dcuOffset = 0;
 	u32 *qcuBase = &val[0], *dcuBase = &val[4];
 
+	ath9k_ps_wakeup(sc);
+
 	REG_WRITE(ah, AR_MACMISC,
 		  ((AR_MACMISC_DMA_OBS_LINE_8 << AR_MACMISC_DMA_OBS_S) |
 		   (AR_MACMISC_MISC_OBS_BUS_1 <<
@@ -158,6 +160,8 @@ static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 			REG_READ(ah, AR_OBS_BUS_1));
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"AR_CR: 0x%x \n", REG_READ(ah, AR_CR));
+
+	ath9k_ps_restore(sc);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
@@ -486,6 +490,83 @@ static const struct file_operations fops_wiphy = {
 	.owner = THIS_MODULE
 };
 
+#define PR(str, elem)							\
+	do {								\
+		len += snprintf(buf + len, size - len,			\
+				"%s%13u%11u%10u%10u\n", str,		\
+		sc->debug.stats.txstats[sc->tx.hwq_map[ATH9K_WME_AC_BE]].elem, \
+		sc->debug.stats.txstats[sc->tx.hwq_map[ATH9K_WME_AC_BK]].elem, \
+		sc->debug.stats.txstats[sc->tx.hwq_map[ATH9K_WME_AC_VI]].elem, \
+		sc->debug.stats.txstats[sc->tx.hwq_map[ATH9K_WME_AC_VO]].elem); \
+} while(0)
+
+static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
+			      size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	char *buf;
+	unsigned int len = 0, size = 2048;
+	ssize_t retval = 0;
+
+	buf = kzalloc(size, GFP_KERNEL);
+	if (buf == NULL)
+		return 0;
+
+	len += sprintf(buf, "%30s %10s%10s%10s\n\n", "BE", "BK", "VI", "VO");
+
+	PR("MPDUs Queued:    ", queued);
+	PR("MPDUs Completed: ", completed);
+	PR("Aggregates:      ", a_aggr);
+	PR("AMPDUs Queued:   ", a_queued);
+	PR("AMPDUs Completed:", a_completed);
+	PR("AMPDUs Retried:  ", a_retries);
+	PR("AMPDUs XRetried: ", a_xretries);
+	PR("FIFO Underrun:   ", fifo_underrun);
+	PR("TXOP Exceeded:   ", xtxop);
+	PR("TXTIMER Expiry:  ", timer_exp);
+	PR("DESC CFG Error:  ", desc_cfg_err);
+	PR("DATA Underrun:   ", data_underrun);
+	PR("DELIM Underrun:  ", delim_underrun);
+
+	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+
+	return retval;
+}
+
+void ath_debug_stat_tx(struct ath_softc *sc, struct ath_txq *txq,
+		       struct ath_buf *bf)
+{
+	struct ath_desc *ds = bf->bf_desc;
+
+	if (bf_isampdu(bf)) {
+		if (bf_isxretried(bf))
+			TX_STAT_INC(txq->axq_qnum, a_xretries);
+		else
+			TX_STAT_INC(txq->axq_qnum, a_completed);
+	} else {
+		TX_STAT_INC(txq->axq_qnum, completed);
+	}
+
+	if (ds->ds_txstat.ts_status & ATH9K_TXERR_FIFO)
+		TX_STAT_INC(txq->axq_qnum, fifo_underrun);
+	if (ds->ds_txstat.ts_status & ATH9K_TXERR_XTXOP)
+		TX_STAT_INC(txq->axq_qnum, xtxop);
+	if (ds->ds_txstat.ts_status & ATH9K_TXERR_TIMER_EXPIRED)
+		TX_STAT_INC(txq->axq_qnum, timer_exp);
+	if (ds->ds_txstat.ts_flags & ATH9K_TX_DESC_CFG_ERR)
+		TX_STAT_INC(txq->axq_qnum, desc_cfg_err);
+	if (ds->ds_txstat.ts_flags & ATH9K_TX_DATA_UNDERRUN)
+		TX_STAT_INC(txq->axq_qnum, data_underrun);
+	if (ds->ds_txstat.ts_flags & ATH9K_TX_DELIM_UNDERRUN)
+		TX_STAT_INC(txq->axq_qnum, delim_underrun);
+}
+
+static const struct file_operations fops_xmit = {
+	.read = read_file_xmit,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE
+};
 
 int ath9k_init_debug(struct ath_softc *sc)
 {
@@ -500,33 +581,40 @@ int ath9k_init_debug(struct ath_softc *sc)
 		goto err;
 
 	sc->debug.debugfs_debug = debugfs_create_file("debug",
-		S_IRUGO | S_IWUSR, sc->debug.debugfs_phy, sc, &fops_debug);
+		S_IRUSR | S_IWUSR, sc->debug.debugfs_phy, sc, &fops_debug);
 	if (!sc->debug.debugfs_debug)
 		goto err;
 
-	sc->debug.debugfs_dma = debugfs_create_file("dma", S_IRUGO,
+	sc->debug.debugfs_dma = debugfs_create_file("dma", S_IRUSR,
 				       sc->debug.debugfs_phy, sc, &fops_dma);
 	if (!sc->debug.debugfs_dma)
 		goto err;
 
 	sc->debug.debugfs_interrupt = debugfs_create_file("interrupt",
-						     S_IRUGO,
+						     S_IRUSR,
 						     sc->debug.debugfs_phy,
 						     sc, &fops_interrupt);
 	if (!sc->debug.debugfs_interrupt)
 		goto err;
 
 	sc->debug.debugfs_rcstat = debugfs_create_file("rcstat",
-						  S_IRUGO,
+						  S_IRUSR,
 						  sc->debug.debugfs_phy,
 						  sc, &fops_rcstat);
 	if (!sc->debug.debugfs_rcstat)
 		goto err;
 
 	sc->debug.debugfs_wiphy = debugfs_create_file(
-		"wiphy", S_IRUGO | S_IWUSR, sc->debug.debugfs_phy, sc,
+		"wiphy", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy, sc,
 		&fops_wiphy);
 	if (!sc->debug.debugfs_wiphy)
+		goto err;
+
+	sc->debug.debugfs_xmit = debugfs_create_file("xmit",
+						     S_IRUSR,
+						     sc->debug.debugfs_phy,
+						     sc, &fops_xmit);
+	if (!sc->debug.debugfs_xmit)
 		goto err;
 
 	return 0;
@@ -537,6 +625,7 @@ err:
 
 void ath9k_exit_debug(struct ath_softc *sc)
 {
+	debugfs_remove(sc->debug.debugfs_xmit);
 	debugfs_remove(sc->debug.debugfs_wiphy);
 	debugfs_remove(sc->debug.debugfs_rcstat);
 	debugfs_remove(sc->debug.debugfs_interrupt);

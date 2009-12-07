@@ -26,7 +26,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	/* make quiescing visible to timers everywhere */
 	mb();
 
-	flush_workqueue(local->hw.workqueue);
+	flush_workqueue(local->workqueue);
 
 	/* Don't try to run timers while suspended. */
 	del_timer_sync(&local->sta_cleanup);
@@ -96,6 +96,10 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 		if (!netif_running(sdata->dev))
 			continue;
 
+		/* disable beaconing */
+		ieee80211_bss_info_change_notify(sdata,
+			BSS_CHANGED_BEACON_ENABLED);
+
 		conf.vif = &sdata->vif;
 		conf.type = sdata->vif.type;
 		conf.mac_addr = sdata->dev->dev_addr;
@@ -103,17 +107,8 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	}
 
 	/* stop hardware - this must stop RX */
-	if (local->open_count) {
-		ieee80211_led_radio(local, false);
-		drv_stop(local);
-	}
-
-	/*
-	 * flush again, in case driver queued work -- it
-	 * shouldn't be doing (or cancel everything in the
-	 * stop callback) that but better safe than sorry.
-	 */
-	flush_workqueue(local->hw.workqueue);
+	if (local->open_count)
+		ieee80211_stop_device(local);
 
 	local->suspended = true;
 	/* need suspended to be visible before quiescing is false */

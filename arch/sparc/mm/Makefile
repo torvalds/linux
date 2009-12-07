@@ -11,6 +11,7 @@ obj-$(CONFIG_SPARC32)   += loadmmu.o
 obj-y                   += generic_$(BITS).o
 obj-$(CONFIG_SPARC32)   += extable.o btfixup.o srmmu.o iommu.o io-unit.o
 obj-$(CONFIG_SPARC32)   += hypersparc.o viking.o tsunami.o swift.o
+obj-$(CONFIG_SPARC_LEON)+= leon_mm.o
 
 # Only used by sparc64
 obj-$(CONFIG_HUGETLB_PAGE) += hugetlbpage.o

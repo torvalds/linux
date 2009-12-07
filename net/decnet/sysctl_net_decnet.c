@@ -165,7 +165,6 @@ static int dn_node_address_strategy(ctl_table *table,
 }
 
 static int dn_node_address_handler(ctl_table *table, int write,
-				struct file *filp,
 				void __user *buffer,
 				size_t *lenp, loff_t *ppos)
 {
@@ -264,11 +263,10 @@ static int dn_def_dev_strategy(ctl_table *table,
 			return -ENODEV;
 
 		rv = -ENODEV;
-		if (dev->dn_ptr != NULL) {
+		if (dev->dn_ptr != NULL)
 			rv = dn_dev_set_default(dev, 1);
-			if (rv)
-				dev_put(dev);
-		}
+		if (rv)
+			dev_put(dev);
 	}
 
 	return rv;
@@ -276,7 +274,6 @@ static int dn_def_dev_strategy(ctl_table *table,
 
 
 static int dn_def_dev_handler(ctl_table *table, int write,
-				struct file * filp,
 				void __user *buffer,
 				size_t *lenp, loff_t *ppos)
 {

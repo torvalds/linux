@@ -447,8 +447,6 @@ static struct FsmNode TeiFnList[] __initdata =
 	{ST_TEI_IDVERIFY, EV_CHKREQ, tei_id_chk_req},
 };
 
-#define TEI_FN_COUNT (sizeof(TeiFnList)/sizeof(struct FsmNode))
-
 int __init
 TeiNew(void)
 {
@@ -456,7 +454,7 @@ TeiNew(void)
 	teifsm.event_count = TEI_EVENT_COUNT;
 	teifsm.strEvent = strTeiEvent;
 	teifsm.strState = strTeiState;
-	return FsmNew(&teifsm, TeiFnList, TEI_FN_COUNT);
+	return FsmNew(&teifsm, TeiFnList, ARRAY_SIZE(TeiFnList));
 }
 
 void

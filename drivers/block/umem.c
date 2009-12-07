@@ -140,7 +140,6 @@ struct cardinfo {
 };
 
 static struct cardinfo cards[MM_MAXCARDS];
-static struct block_device_operations mm_fops;
 static struct timer_list battery_timer;
 
 static int num_cards;
@@ -789,7 +788,7 @@ static int mm_check_change(struct gendisk *disk)
 	return 0;
 }
 
-static struct block_device_operations mm_fops = {
+static const struct block_device_operations mm_fops = {
 	.owner		= THIS_MODULE,
 	.getgeo		= mm_getgeo,
 	.revalidate_disk = mm_revalidate,

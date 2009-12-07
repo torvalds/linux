@@ -1135,6 +1135,7 @@ static const struct address_space_operations gfs2_writeback_aops = {
 	.direct_IO = gfs2_direct_IO,
 	.migratepage = buffer_migrate_page,
 	.is_partially_uptodate = block_is_partially_uptodate,
+	.error_remove_page = generic_error_remove_page,
 };
 
 static const struct address_space_operations gfs2_ordered_aops = {
@@ -1151,6 +1152,7 @@ static const struct address_space_operations gfs2_ordered_aops = {
 	.direct_IO = gfs2_direct_IO,
 	.migratepage = buffer_migrate_page,
 	.is_partially_uptodate = block_is_partially_uptodate,
+	.error_remove_page = generic_error_remove_page,
 };
 
 static const struct address_space_operations gfs2_jdata_aops = {
@@ -1166,6 +1168,7 @@ static const struct address_space_operations gfs2_jdata_aops = {
 	.invalidatepage = gfs2_invalidatepage,
 	.releasepage = gfs2_releasepage,
 	.is_partially_uptodate = block_is_partially_uptodate,
+	.error_remove_page = generic_error_remove_page,
 };
 
 void gfs2_set_aops(struct inode *inode)

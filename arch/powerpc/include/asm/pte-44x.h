@@ -78,7 +78,7 @@
 #define _PAGE_PRESENT	0x00000001		/* S: PTE valid */
 #define _PAGE_RW	0x00000002		/* S: Write permission */
 #define _PAGE_FILE	0x00000004		/* S: nonlinear file mapping */
-#define _PAGE_HWEXEC	0x00000004		/* H: Execute permission */
+#define _PAGE_EXEC	0x00000004		/* H: Execute permission */
 #define _PAGE_ACCESSED	0x00000008		/* S: Page referenced */
 #define _PAGE_DIRTY	0x00000010		/* S: Page dirty */
 #define _PAGE_SPECIAL	0x00000020		/* S: Special page */

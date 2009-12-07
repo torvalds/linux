@@ -1507,7 +1507,7 @@ qla24xx_login_fabric(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, vha->host_no));
 
-	if (ql2xmultique_tag)
+	if (ha->flags.cpu_affinity_enabled)
 		req = ha->req_q_map[0];
 	else
 		req = vha->req;
@@ -2324,7 +2324,7 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 	vha = fcport->vha;
 	ha = vha->hw;
 	req = vha->req;
-	if (ql2xmultique_tag)
+	if (ha->flags.cpu_affinity_enabled)
 		rsp = ha->rsp_q_map[tag + 1];
 	else
 		rsp = req->rsp;
@@ -2746,7 +2746,8 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 	if (rptid_entry->format == 0) {
 		DEBUG15(printk("%s:format 0 : scsi(%ld) number of VPs setup %d,"
 			" number of VPs acquired %d\n", __func__, vha->host_no,
-			MSB(rptid_entry->vp_count), LSB(rptid_entry->vp_count)));
+			MSB(le16_to_cpu(rptid_entry->vp_count)),
+			LSB(le16_to_cpu(rptid_entry->vp_count))));
 		DEBUG15(printk("%s primary port id %02x%02x%02x\n", __func__,
 			rptid_entry->port_id[2], rptid_entry->port_id[1],
 			rptid_entry->port_id[0]));

@@ -1839,7 +1839,7 @@ EXPORT_SYMBOL(dquot_commit_info);
 /*
  * Definitions of diskquota operations.
  */
-struct dquot_operations dquot_operations = {
+const struct dquot_operations dquot_operations = {
 	.initialize	= dquot_initialize,
 	.drop		= dquot_drop,
 	.alloc_space	= dquot_alloc_space,
@@ -2461,7 +2461,7 @@ out:
 }
 EXPORT_SYMBOL(vfs_set_dqinfo);
 
-struct quotactl_ops vfs_quotactl_ops = {
+const struct quotactl_ops vfs_quotactl_ops = {
 	.quota_on	= vfs_quota_on,
 	.quota_off	= vfs_quota_off,
 	.quota_sync	= vfs_quota_sync,

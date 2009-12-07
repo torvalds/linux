@@ -66,8 +66,8 @@ struct ircomm_tty_info {
         __u8      dlsap_sel;
 };
 
-extern char *ircomm_state[];
-extern char *ircomm_tty_state[];
+extern const char *const ircomm_state[];
+extern const char *const ircomm_tty_state[];
 
 int ircomm_tty_do_event(struct ircomm_tty_cb *self, IRCOMM_TTY_EVENT event,
 			struct sk_buff *skb, struct ircomm_tty_info *info);

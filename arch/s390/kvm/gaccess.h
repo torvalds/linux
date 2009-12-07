@@ -1,7 +1,7 @@
 /*
  * gaccess.h -  access guest memory
  *
- * Copyright IBM Corp. 2008
+ * Copyright IBM Corp. 2008,2009
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License (version 2 only)
@@ -16,13 +16,14 @@
 #include <linux/compiler.h>
 #include <linux/kvm_host.h>
 #include <asm/uaccess.h>
+#include "kvm-s390.h"
 
 static inline void __user *__guestaddr_to_user(struct kvm_vcpu *vcpu,
 					       unsigned long guestaddr)
 {
 	unsigned long prefix  = vcpu->arch.sie_block->prefix;
-	unsigned long origin  = vcpu->kvm->arch.guest_origin;
-	unsigned long memsize = vcpu->kvm->arch.guest_memsize;
+	unsigned long origin  = vcpu->arch.sie_block->gmsor;
+	unsigned long memsize = kvm_s390_vcpu_get_memsize(vcpu);
 
 	if (guestaddr < 2 * PAGE_SIZE)
 		guestaddr += prefix;
@@ -158,8 +159,8 @@ static inline int copy_to_guest(struct kvm_vcpu *vcpu, unsigned long guestdest,
 				const void *from, unsigned long n)
 {
 	unsigned long prefix  = vcpu->arch.sie_block->prefix;
-	unsigned long origin  = vcpu->kvm->arch.guest_origin;
-	unsigned long memsize = vcpu->kvm->arch.guest_memsize;
+	unsigned long origin  = vcpu->arch.sie_block->gmsor;
+	unsigned long memsize = kvm_s390_vcpu_get_memsize(vcpu);
 
 	if ((guestdest < 2 * PAGE_SIZE) && (guestdest + n > 2 * PAGE_SIZE))
 		goto slowpath;
@@ -209,8 +210,8 @@ static inline int copy_from_guest(struct kvm_vcpu *vcpu, void *to,
 				  unsigned long guestsrc, unsigned long n)
 {
 	unsigned long prefix  = vcpu->arch.sie_block->prefix;
-	unsigned long origin  = vcpu->kvm->arch.guest_origin;
-	unsigned long memsize = vcpu->kvm->arch.guest_memsize;
+	unsigned long origin  = vcpu->arch.sie_block->gmsor;
+	unsigned long memsize = kvm_s390_vcpu_get_memsize(vcpu);
 
 	if ((guestsrc < 2 * PAGE_SIZE) && (guestsrc + n > 2 * PAGE_SIZE))
 		goto slowpath;
@@ -244,8 +245,8 @@ static inline int copy_to_guest_absolute(struct kvm_vcpu *vcpu,
 					 unsigned long guestdest,
 					 const void *from, unsigned long n)
 {
-	unsigned long origin  = vcpu->kvm->arch.guest_origin;
-	unsigned long memsize = vcpu->kvm->arch.guest_memsize;
+	unsigned long origin  = vcpu->arch.sie_block->gmsor;
+	unsigned long memsize = kvm_s390_vcpu_get_memsize(vcpu);
 
 	if (guestdest + n > memsize)
 		return -EFAULT;
@@ -262,8 +263,8 @@ static inline int copy_from_guest_absolute(struct kvm_vcpu *vcpu, void *to,
 					   unsigned long guestsrc,
 					   unsigned long n)
 {
-	unsigned long origin  = vcpu->kvm->arch.guest_origin;
-	unsigned long memsize = vcpu->kvm->arch.guest_memsize;
+	unsigned long origin  = vcpu->arch.sie_block->gmsor;
+	unsigned long memsize = kvm_s390_vcpu_get_memsize(vcpu);
 
 	if (guestsrc + n > memsize)
 		return -EFAULT;

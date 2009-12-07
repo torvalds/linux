@@ -189,20 +189,6 @@ asmlinkage long sys32_mprotect(unsigned long start, size_t len,
 	return sys_mprotect(start, len, prot);
 }
 
-asmlinkage long sys32_pipe(int __user *fd)
-{
-	int retval;
-	int fds[2];
-
-	retval = do_pipe_flags(fds, 0);
-	if (retval)
-		goto out;
-	if (copy_to_user(fd, fds, sizeof(fds)))
-		retval = -EFAULT;
-out:
-	return retval;
-}
-
 asmlinkage long sys32_rt_sigaction(int sig, struct sigaction32 __user *act,
 				   struct sigaction32 __user *oact,
 				   unsigned int sigsetsize)

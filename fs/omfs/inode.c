@@ -278,7 +278,7 @@ static int omfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static struct super_operations omfs_sops = {
+static const struct super_operations omfs_sops = {
 	.write_inode	= omfs_write_inode,
 	.delete_inode	= omfs_delete_inode,
 	.put_super	= omfs_put_super,

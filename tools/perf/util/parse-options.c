@@ -53,6 +53,12 @@ static int get_value(struct parse_opt_ctx_t *p,
 		case OPTION_SET_INT:
 		case OPTION_SET_PTR:
 			return opterror(opt, "takes no value", flags);
+		case OPTION_END:
+		case OPTION_ARGUMENT:
+		case OPTION_GROUP:
+		case OPTION_STRING:
+		case OPTION_INTEGER:
+		case OPTION_LONG:
 		default:
 			break;
 		}
@@ -130,6 +136,9 @@ static int get_value(struct parse_opt_ctx_t *p,
 			return opterror(opt, "expects a numerical value", flags);
 		return 0;
 
+	case OPTION_END:
+	case OPTION_ARGUMENT:
+	case OPTION_GROUP:
 	default:
 		die("should not happen, someone must be hit on the forehead");
 	}
@@ -296,6 +305,8 @@ int parse_options_step(struct parse_opt_ctx_t *ctx,
 				return parse_options_usage(usagestr, options);
 			case -2:
 				goto unknown;
+			default:
+				break;
 			}
 			if (ctx->opt)
 				check_typos(arg + 1, options);
@@ -314,6 +325,8 @@ int parse_options_step(struct parse_opt_ctx_t *ctx,
 					ctx->argv[0] = strdup(ctx->opt - 1);
 					*(char *)ctx->argv[0] = '-';
 					goto unknown;
+				default:
+					break;
 				}
 			}
 			continue;
@@ -336,6 +349,8 @@ int parse_options_step(struct parse_opt_ctx_t *ctx,
 			return parse_options_usage(usagestr, options);
 		case -2:
 			goto unknown;
+		default:
+			break;
 		}
 		continue;
 unknown:
@@ -456,6 +471,13 @@ int usage_with_options_internal(const char * const *usagestr,
 			}
 			break;
 		default: /* OPTION_{BIT,BOOLEAN,SET_INT,SET_PTR} */
+		case OPTION_END:
+		case OPTION_GROUP:
+		case OPTION_BIT:
+		case OPTION_BOOLEAN:
+		case OPTION_SET_INT:
+		case OPTION_SET_PTR:
+		case OPTION_LONG:
 			break;
 		}
 

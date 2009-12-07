@@ -20,27 +20,16 @@
  *      - Removed unused variable 'inet6_protocol_base'
  *      - Modified inet6_del_protocol() to correctly maintain copy bit.
  */
-
-#include <linux/errno.h>
-#include <linux/types.h>
-#include <linux/socket.h>
-#include <linux/sockios.h>
-#include <linux/net.h>
-#include <linux/in6.h>
+#include <linux/module.h>
 #include <linux/netdevice.h>
-#include <linux/if_arp.h>
-
-#include <net/sock.h>
-#include <net/snmp.h>
-
-#include <net/ipv6.h>
+#include <linux/spinlock.h>
 #include <net/protocol.h>
 
-struct inet6_protocol *inet6_protos[MAX_INET_PROTOS];
+const struct inet6_protocol *inet6_protos[MAX_INET_PROTOS];
 static DEFINE_SPINLOCK(inet6_proto_lock);
 
 
-int inet6_add_protocol(struct inet6_protocol *prot, unsigned char protocol)
+int inet6_add_protocol(const struct inet6_protocol *prot, unsigned char protocol)
 {
 	int ret, hash = protocol & (MAX_INET_PROTOS - 1);
 
@@ -64,7 +53,7 @@ EXPORT_SYMBOL(inet6_add_protocol);
  *	Remove a protocol from the hash tables.
  */
 
-int inet6_del_protocol(struct inet6_protocol *prot, unsigned char protocol)
+int inet6_del_protocol(const struct inet6_protocol *prot, unsigned char protocol)
 {
 	int ret, hash = protocol & (MAX_INET_PROTOS - 1);
 

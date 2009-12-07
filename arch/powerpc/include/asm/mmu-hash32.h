@@ -55,21 +55,25 @@ struct ppc_bat {
 
 #ifndef __ASSEMBLY__
 
-/* Hardware Page Table Entry */
+/*
+ * Hardware Page Table Entry
+ * Note that the xpn and x bitfields are used only by processors that
+ * support extended addressing; otherwise, those bits are reserved.
+ */
 struct hash_pte {
 	unsigned long v:1;	/* Entry is valid */
 	unsigned long vsid:24;	/* Virtual segment identifier */
 	unsigned long h:1;	/* Hash algorithm indicator */
 	unsigned long api:6;	/* Abbreviated page index */
 	unsigned long rpn:20;	/* Real (physical) page number */
-	unsigned long    :3;	/* Unused */
+	unsigned long xpn:3;	/* Real page number bits 0-2, optional */
 	unsigned long r:1;	/* Referenced */
 	unsigned long c:1;	/* Changed */
 	unsigned long w:1;	/* Write-thru cache mode */
 	unsigned long i:1;	/* Cache inhibited */
 	unsigned long m:1;	/* Memory coherence */
 	unsigned long g:1;	/* Guarded */
-	unsigned long  :1;	/* Unused */
+	unsigned long x:1;	/* Real page number bit 3, optional */
 	unsigned long pp:2;	/* Page protection */
 };
 
@@ -79,5 +83,11 @@ typedef struct {
 } mm_context_t;
 
 #endif /* !__ASSEMBLY__ */
+
+/* We happily ignore the smaller BATs on 601, we don't actually use
+ * those definitions on hash32 at the moment anyway
+ */
+#define mmu_virtual_psize	MMU_PAGE_4K
+#define mmu_linear_psize	MMU_PAGE_256M
 
 #endif /* _ASM_POWERPC_MMU_HASH32_H_ */

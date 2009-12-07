@@ -162,11 +162,13 @@ static int ide_cmd_ioctl(ide_drive_t *drive, unsigned long arg)
 	if (tf->command == ATA_CMD_SET_FEATURES &&
 	    tf->feature == SETFEATURES_XFER &&
 	    tf->nsect >= XFER_SW_DMA_0) {
-		xfer_rate = ide_find_dma_mode(drive, XFER_UDMA_6);
+		xfer_rate = ide_find_dma_mode(drive, tf->nsect);
 		if (xfer_rate != tf->nsect) {
 			err = -EINVAL;
 			goto abort;
 		}
+
+		cmd.tf_flags |= IDE_TFLAG_SET_XFER;
 	}
 
 	err = ide_raw_taskfile(drive, &cmd, buf, args[3]);
@@ -174,12 +176,6 @@ static int ide_cmd_ioctl(ide_drive_t *drive, unsigned long arg)
 	args[0] = tf->status;
 	args[1] = tf->error;
 	args[2] = tf->nsect;
-
-	if (!err && xfer_rate) {
-		/* active-retuning-calls future */
-		ide_set_xfer_rate(drive, xfer_rate);
-		ide_driveid_update(drive);
-	}
 abort:
 	if (copy_to_user((void __user *)arg, &args, 4))
 		err = -EFAULT;

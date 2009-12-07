@@ -67,7 +67,7 @@ void *comedi_open(const char *filename)
 	if (!try_module_get(dev->driver->module))
 		return NULL;
 
-	return (void *) dev;
+	return (void *)dev;
 }
 
 void *comedi_open_old(unsigned int minor)
@@ -86,12 +86,12 @@ void *comedi_open_old(unsigned int minor)
 	if (dev == NULL || !dev->attached)
 		return NULL;
 
-	return (void *) dev;
+	return (void *)dev;
 }
 
 int comedi_close(void *d)
 {
-	struct comedi_device *dev = (struct comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *)d;
 
 	module_put(dev->driver->module);
 
@@ -115,7 +115,7 @@ char *comedi_strerror(int err)
 
 int comedi_fileno(void *d)
 {
-	struct comedi_device *dev = (struct comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *)d;
 
 	/* return something random */
 	return dev->minor;
@@ -123,7 +123,7 @@ int comedi_fileno(void *d)
 
 int comedi_command(void *d, struct comedi_cmd *cmd)
 {
-	struct comedi_device *dev = (struct comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *)d;
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
 	unsigned runflags;
@@ -159,7 +159,7 @@ int comedi_command(void *d, struct comedi_cmd *cmd)
 
 int comedi_command_test(void *d, struct comedi_cmd *cmd)
 {
-	struct comedi_device *dev = (struct comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *)d;
 	struct comedi_subdevice *s;
 
 	if (cmd->subdev >= dev->n_subdevices)
@@ -181,7 +181,7 @@ int comedi_command_test(void *d, struct comedi_cmd *cmd)
  */
 int comedi_do_insn(void *d, struct comedi_insn *insn)
 {
-	struct comedi_device *dev = (struct comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *)d;
 	struct comedi_subdevice *s;
 	int ret = 0;
 
@@ -214,7 +214,7 @@ int comedi_do_insn(void *d, struct comedi_insn *insn)
 			}
 			if (insn->subdev >= dev->n_subdevices) {
 				printk("%d not usable subdevice\n",
-					insn->subdev);
+				       insn->subdev);
 				ret = -EINVAL;
 				break;
 			}
@@ -296,7 +296,7 @@ int comedi_do_insn(void *d, struct comedi_insn *insn)
 		goto error;
 	}
 #endif
-      error:
+error:
 
 	return ret;
 }
@@ -322,7 +322,7 @@ int comedi_do_insn(void *d, struct comedi_insn *insn)
 */
 int comedi_lock(void *d, unsigned int subdevice)
 {
-	struct comedi_device *dev = (struct comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *)d;
 	struct comedi_subdevice *s;
 	unsigned long flags;
 	int ret = 0;
@@ -365,7 +365,7 @@ int comedi_lock(void *d, unsigned int subdevice)
 */
 int comedi_unlock(void *d, unsigned int subdevice)
 {
-	struct comedi_device *dev = (struct comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *)d;
 	struct comedi_subdevice *s;
 	unsigned long flags;
 	struct comedi_async *async;
@@ -417,7 +417,7 @@ int comedi_unlock(void *d, unsigned int subdevice)
 */
 int comedi_cancel(void *d, unsigned int subdevice)
 {
-	struct comedi_device *dev = (struct comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *)d;
 	struct comedi_subdevice *s;
 	int ret = 0;
 
@@ -456,9 +456,10 @@ int comedi_cancel(void *d, unsigned int subdevice)
    registration of callback functions
  */
 int comedi_register_callback(void *d, unsigned int subdevice,
-	unsigned int mask, int (*cb) (unsigned int, void *), void *arg)
+			     unsigned int mask, int (*cb) (unsigned int,
+							   void *), void *arg)
 {
-	struct comedi_device *dev = (struct comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *)d;
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
 
@@ -494,7 +495,7 @@ int comedi_register_callback(void *d, unsigned int subdevice,
 
 int comedi_poll(void *d, unsigned int subdevice)
 {
-	struct comedi_device *dev = (struct comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *)d;
 	struct comedi_subdevice *s = dev->subdevices;
 	struct comedi_async *async;
 
@@ -521,7 +522,7 @@ int comedi_poll(void *d, unsigned int subdevice)
 /* WARNING: not portable */
 int comedi_map(void *d, unsigned int subdevice, void *ptr)
 {
-	struct comedi_device *dev = (struct comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *)d;
 	struct comedi_subdevice *s;
 
 	if (subdevice >= dev->n_subdevices)
@@ -543,7 +544,7 @@ int comedi_map(void *d, unsigned int subdevice, void *ptr)
 /* WARNING: not portable */
 int comedi_unmap(void *d, unsigned int subdevice)
 {
-	struct comedi_device *dev = (struct comedi_device *) d;
+	struct comedi_device *dev = (struct comedi_device *)d;
 	struct comedi_subdevice *s;
 
 	if (subdevice >= dev->n_subdevices)

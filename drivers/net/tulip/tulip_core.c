@@ -256,7 +256,8 @@ const char tulip_media_cap[32] =
 static void tulip_tx_timeout(struct net_device *dev);
 static void tulip_init_ring(struct net_device *dev);
 static void tulip_free_ring(struct net_device *dev);
-static int tulip_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t tulip_start_xmit(struct sk_buff *skb,
+					  struct net_device *dev);
 static int tulip_open(struct net_device *dev);
 static int tulip_close(struct net_device *dev);
 static void tulip_up(struct net_device *dev);
@@ -645,7 +646,7 @@ static void tulip_init_ring(struct net_device *dev)
 	tp->tx_ring[i-1].buffer2 = cpu_to_le32(tp->tx_ring_dma);
 }
 
-static int
+static netdev_tx_t
 tulip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct tulip_private *tp = netdev_priv(dev);
@@ -693,7 +694,7 @@ tulip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev->trans_start = jiffies;
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void tulip_clean_tx_ring(struct tulip_private *tp)
@@ -922,8 +923,6 @@ static int private_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 		return 0;
 
 	case SIOCSMIIREG:		/* Write MII PHY register. */
-		if (!capable (CAP_NET_ADMIN))
-			return -EPERM;
 		if (regnum & ~0x1f)
 			return -EINVAL;
 		if (data->phy_id == phy) {

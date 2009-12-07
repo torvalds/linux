@@ -132,9 +132,6 @@ static inline void *alloc_remap(int nid, unsigned long size)
 }
 #endif /* CONFIG_HAVE_ARCH_ALLOC_REMAP */
 
-extern unsigned long __meminitdata nr_kernel_pages;
-extern unsigned long __meminitdata nr_all_pages;
-
 extern void *alloc_large_system_hash(const char *tablename,
 				     unsigned long bucketsize,
 				     unsigned long numentries,
@@ -145,6 +142,8 @@ extern void *alloc_large_system_hash(const char *tablename,
 				     unsigned long limit);
 
 #define HASH_EARLY	0x00000001	/* Allocating during early boot? */
+#define HASH_SMALL	0x00000002	/* sub-page allocation allowed, min
+					 * shift passed via *_hash_shift */
 
 /* Only NUMA needs hash distribution. 64bit NUMA architectures have
  * sufficient vmalloc space.

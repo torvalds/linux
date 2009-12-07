@@ -109,7 +109,7 @@ static void *nommu_region_list_next(struct seq_file *m, void *v, loff_t *pos)
 	return rb_next((struct rb_node *) v);
 }
 
-static struct seq_operations proc_nommu_region_list_seqop = {
+static const struct seq_operations proc_nommu_region_list_seqop = {
 	.start	= nommu_region_list_start,
 	.next	= nommu_region_list_next,
 	.stop	= nommu_region_list_stop,

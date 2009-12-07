@@ -413,7 +413,8 @@ void xhci_dbg_slot_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx)
 	int i;
 
 	struct xhci_slot_ctx *slot_ctx = xhci_get_slot_ctx(xhci, ctx);
-	dma_addr_t dma = ctx->dma + ((unsigned long)slot_ctx - (unsigned long)ctx);
+	dma_addr_t dma = ctx->dma +
+		((unsigned long)slot_ctx - (unsigned long)ctx->bytes);
 	int csz = HCC_64BYTE_CONTEXT(xhci->hcc_params);
 
 	xhci_dbg(xhci, "Slot Context:\n");
@@ -459,7 +460,7 @@ void xhci_dbg_ep_ctx(struct xhci_hcd *xhci,
 	for (i = 0; i < last_ep_ctx; ++i) {
 		struct xhci_ep_ctx *ep_ctx = xhci_get_ep_ctx(xhci, ctx, i);
 		dma_addr_t dma = ctx->dma +
-			((unsigned long)ep_ctx - (unsigned long)ctx);
+			((unsigned long)ep_ctx - (unsigned long)ctx->bytes);
 
 		xhci_dbg(xhci, "Endpoint %02d Context:\n", i);
 		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - ep_info\n",

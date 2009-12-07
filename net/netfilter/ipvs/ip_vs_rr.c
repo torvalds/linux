@@ -19,6 +19,9 @@
  *
  */
 
+#define KMSG_COMPONENT "IPVS"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 
@@ -48,7 +51,7 @@ ip_vs_rr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	struct list_head *p, *q;
 	struct ip_vs_dest *dest;
 
-	IP_VS_DBG(6, "ip_vs_rr_schedule(): Scheduling...\n");
+	IP_VS_DBG(6, "%s(): Scheduling...\n", __func__);
 
 	write_lock(&svc->sched_lock);
 	p = (struct list_head *)svc->sched_data;

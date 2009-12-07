@@ -874,7 +874,7 @@ static void qt_release(struct usb_serial *serial)
 }
 
 static int qt_open(struct tty_struct *tty,
-	    struct usb_serial_port *port, struct file *filp)
+		   struct usb_serial_port *port)
 {
 	struct usb_serial *serial;
 	struct quatech_port *quatech_port;

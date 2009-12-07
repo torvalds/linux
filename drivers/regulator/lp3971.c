@@ -541,7 +541,7 @@ static struct i2c_driver lp3971_i2c_driver = {
 
 static int __init lp3971_module_init(void)
 {
-	int ret = -ENODEV;
+	int ret;
 
 	ret = i2c_add_driver(&lp3971_i2c_driver);
 	if (ret != 0)

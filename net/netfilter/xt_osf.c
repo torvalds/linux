@@ -70,7 +70,8 @@ static void xt_osf_finger_free_rcu(struct rcu_head *rcu_head)
 }
 
 static int xt_osf_add_callback(struct sock *ctnl, struct sk_buff *skb,
-			struct nlmsghdr *nlh, struct nlattr *osf_attrs[])
+			       const struct nlmsghdr *nlh,
+			       const struct nlattr * const osf_attrs[])
 {
 	struct xt_osf_user_finger *f;
 	struct xt_osf_finger *kf = NULL, *sf;
@@ -112,11 +113,12 @@ static int xt_osf_add_callback(struct sock *ctnl, struct sk_buff *skb,
 }
 
 static int xt_osf_remove_callback(struct sock *ctnl, struct sk_buff *skb,
-			struct nlmsghdr *nlh, struct nlattr *osf_attrs[])
+				  const struct nlmsghdr *nlh,
+				  const struct nlattr * const osf_attrs[])
 {
 	struct xt_osf_user_finger *f;
 	struct xt_osf_finger *sf;
-	int err = ENOENT;
+	int err = -ENOENT;
 
 	if (!osf_attrs[OSF_ATTR_FINGER])
 		return -EINVAL;

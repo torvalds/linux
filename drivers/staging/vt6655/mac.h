@@ -24,27 +24,19 @@
  * Author: Tevin Chen
  *
  * Date: May 21, 1996
+ *
  * Revision History:
  *      07-01-2003 Bryan YC Fan:  Re-write codes to support VT3253 spec.
  *      08-25-2003 Kyle Hsu:      Porting MAC functions from sim53.
  *      09-03-2003 Bryan YC Fan:  Add MACvDisableProtectMD & MACvEnableProtectMD
- *
  */
 
 #ifndef __MAC_H__
 #define __MAC_H__
 
-
-
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__TMACRO_H__)
 #include "tmacro.h"
-#endif
-#if !defined(__UPC_H__)
 #include "upc.h"
-#endif
 
 /*---------------------  Export Definitions -------------------------*/
 //
@@ -130,7 +122,7 @@
 #define MAC_REG_IFREGCTL    0x70        //
 #define MAC_REG_IFDATA      0x71        //
 #define MAC_REG_ITRTMSET    0x74        //
-#define MAC_REG_PAPEDELAY   0x77        //
+#define MAC_REG_PAPEDELAY   0x77
 #define MAC_REG_SOFTPWRCTL  0x78        //
 #define MAC_REG_GPIOCTL0    0x7A        //
 #define MAC_REG_GPIOCTL1    0x7B        //
@@ -1081,9 +1073,6 @@
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
 
 extern WORD TxRate_iwconfig;//2008-5-8 <add> by chester
 VOID MACvReadAllRegs(DWORD_PTR dwIoBase, PBYTE pbyMacRegs);
@@ -1157,10 +1146,6 @@ void MACvSetDefaultKeyEntry(DWORD_PTR dwIoBase, UINT uKeyLen, UINT uKeyIdx, PDWO
 void MACvDisableDefaultKey(DWORD_PTR dwIoBase);
 void MACvSetDefaultTKIPKeyEntry(DWORD_PTR dwIoBase, UINT uKeyLen, UINT uKeyIdx, PDWORD pdwKey, BYTE byLocalID);
 void MACvSetDefaultKeyCtl(DWORD_PTR dwIoBase, WORD wKeyCtl, UINT uEntryIdx, BYTE byLocalID);
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
 
 #endif // __MAC_H__
 

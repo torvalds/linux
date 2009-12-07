@@ -346,8 +346,10 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 		break;
 
 	case PNS_PEP_CTRL_REQ:
-		if (skb_queue_len(&pn->ctrlreq_queue) >= PNPIPE_CTRLREQ_MAX)
+		if (skb_queue_len(&pn->ctrlreq_queue) >= PNPIPE_CTRLREQ_MAX) {
+			atomic_inc(&sk->sk_drops);
 			break;
+		}
 		__skb_pull(skb, 4);
 		queue = &pn->ctrlreq_queue;
 		goto queue;
@@ -358,10 +360,13 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 			err = sock_queue_rcv_skb(sk, skb);
 			if (!err)
 				return 0;
+			if (err == -ENOMEM)
+				atomic_inc(&sk->sk_drops);
 			break;
 		}
 
 		if (pn->rx_credits == 0) {
+			atomic_inc(&sk->sk_drops);
 			err = -ENOBUFS;
 			break;
 		}
@@ -737,7 +742,7 @@ static int pep_init(struct sock *sk)
 }
 
 static int pep_setsockopt(struct sock *sk, int level, int optname,
-				char __user *optval, int optlen)
+				char __user *optval, unsigned int optlen)
 {
 	struct pep_sock *pn = pep_sk(sk);
 	int val = 0, err = 0;

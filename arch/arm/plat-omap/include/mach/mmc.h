@@ -25,11 +25,18 @@
 
 #define OMAP24XX_NR_MMC		2
 #define OMAP34XX_NR_MMC		3
+#define OMAP44XX_NR_MMC		5
 #define OMAP2420_MMC_SIZE	OMAP1_MMC_SIZE
-#define HSMMC_SIZE		0x200
+#define OMAP3_HSMMC_SIZE	0x200
+#define OMAP4_HSMMC_SIZE	0x1000
 #define OMAP2_MMC1_BASE		0x4809c000
 #define OMAP2_MMC2_BASE		0x480b4000
 #define OMAP3_MMC3_BASE		0x480ad000
+#define OMAP4_MMC4_BASE		0x480d1000
+#define OMAP4_MMC5_BASE		0x480d5000
+#define OMAP4_MMC_REG_OFFSET	0x100
+#define HSMMC5			(1 << 4)
+#define HSMMC4			(1 << 3)
 #define HSMMC3			(1 << 2)
 #define HSMMC2			(1 << 1)
 #define HSMMC1			(1 << 0)
@@ -59,6 +66,9 @@ struct omap_mmc_platform_data {
 	int (*suspend)(struct device *dev, int slot);
 	int (*resume)(struct device *dev, int slot);
 
+	/* Return context loss count due to PM states changing */
+	int (*get_context_loss_count)(struct device *dev);
+
 	u64 dma_mask;
 
 	struct omap_mmc_slot_data {
@@ -80,12 +90,20 @@ struct omap_mmc_platform_data {
 		/* use the internal clock */
 		unsigned internal_clock:1;
 
+		/* nonremovable e.g. eMMC */
+		unsigned nonremovable:1;
+
+		/* Try to sleep or power off when possible */
+		unsigned power_saving:1;
+
 		int switch_pin;			/* gpio (card detect) */
 		int gpio_wp;			/* gpio (write protect) */
 
 		int (* set_bus_mode)(struct device *dev, int slot, int bus_mode);
 		int (* set_power)(struct device *dev, int slot, int power_on, int vdd);
 		int (* get_ro)(struct device *dev, int slot);
+		int (*set_sleep)(struct device *dev, int slot, int sleep,
+				 int vdd, int cardsleep);
 
 		/* return MMC cover switch state, can be NULL if not supported.
 		 *

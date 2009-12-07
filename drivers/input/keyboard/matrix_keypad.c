@@ -319,7 +319,6 @@ static int __devinit matrix_keypad_probe(struct platform_device *pdev)
 	struct input_dev *input_dev;
 	unsigned short *keycodes;
 	unsigned int row_shift;
-	int i;
 	int err;
 
 	pdata = pdev->dev.platform_data;
@@ -363,18 +362,10 @@ static int __devinit matrix_keypad_probe(struct platform_device *pdev)
 
 	input_dev->keycode	= keycodes;
 	input_dev->keycodesize	= sizeof(*keycodes);
-	input_dev->keycodemax	= pdata->num_row_gpios << keypad->row_shift;
+	input_dev->keycodemax	= pdata->num_row_gpios << row_shift;
 
-	for (i = 0; i < keymap_data->keymap_size; i++) {
-		unsigned int key = keymap_data->keymap[i];
-		unsigned int row = KEY_ROW(key);
-		unsigned int col = KEY_COL(key);
-		unsigned short code = KEY_VAL(key);
-
-		keycodes[MATRIX_SCAN_CODE(row, col, row_shift)] = code;
-		__set_bit(code, input_dev->keybit);
-	}
-	__clear_bit(KEY_RESERVED, input_dev->keybit);
+	matrix_keypad_build_keymap(keymap_data, row_shift,
+				   input_dev->keycode, input_dev->keybit);
 
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 	input_set_drvdata(input_dev, keypad);

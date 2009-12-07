@@ -32,6 +32,9 @@
 #include <scsi/libfc.h>
 #include <scsi/fc_encode.h>
 
+u16	fc_cpu_mask;		/* cpu mask for possible cpus */
+EXPORT_SYMBOL(fc_cpu_mask);
+static u16	fc_cpu_order;	/* 2's power to represent total possible cpus */
 static struct kmem_cache *fc_em_cachep;        /* cache for exchanges */
 
 /*
@@ -48,6 +51,20 @@ static struct kmem_cache *fc_em_cachep;        /* cache for exchanges */
  */
 
 /*
+ * Per cpu exchange pool
+ *
+ * This structure manages per cpu exchanges in array of exchange pointers.
+ * This array is allocated followed by struct fc_exch_pool memory for
+ * assigned range of exchanges to per cpu pool.
+ */
+struct fc_exch_pool {
+	u16		next_index;	/* next possible free exchange index */
+	u16		total_exches;	/* total allocated exchanges */
+	spinlock_t	lock;		/* exch pool lock */
+	struct list_head	ex_list;	/* allocated exchanges list */
+};
+
+/*
  * Exchange manager.
  *
  * This structure is the center for creating exchanges and sequences.
@@ -55,17 +72,13 @@ static struct kmem_cache *fc_em_cachep;        /* cache for exchanges */
  */
 struct fc_exch_mgr {
 	enum fc_class	class;		/* default class for sequences */
-	spinlock_t	em_lock;	/* exchange manager lock,
-					   must be taken before ex_lock */
-	u16		last_xid;	/* last allocated exchange ID */
+	struct kref	kref;		/* exchange mgr reference count */
 	u16		min_xid;	/* min exchange ID */
 	u16		max_xid;	/* max exchange ID */
-	u16		max_read;	/* max exchange ID for read */
-	u16		last_read;	/* last xid allocated for read */
-	u32	total_exches;		/* total allocated exchanges */
 	struct list_head	ex_list;	/* allocated exchanges list */
-	struct fc_lport	*lp;		/* fc device instance */
 	mempool_t	*ep_pool;	/* reserve ep's */
+	u16		pool_max_index;	/* max exch array index in exch pool */
+	struct fc_exch_pool *pool;	/* per cpu exch pool */
 
 	/*
 	 * currently exchange mgr stats are updated but not used.
@@ -80,9 +93,14 @@ struct fc_exch_mgr {
 		atomic_t seq_not_found;
 		atomic_t non_bls_resp;
 	} stats;
-	struct fc_exch **exches;	/* for exch pointers indexed by xid */
 };
 #define	fc_seq_exch(sp) container_of(sp, struct fc_exch, seq)
+
+struct fc_exch_mgr_anchor {
+	struct list_head ema_list;
+	struct fc_exch_mgr *mp;
+	bool (*match)(struct fc_frame *);
+};
 
 static void fc_exch_rrq(struct fc_exch *);
 static void fc_seq_ls_acc(struct fc_seq *);
@@ -167,8 +185,8 @@ static struct fc_seq *fc_seq_start_next_locked(struct fc_seq *sp);
  * sequence allocation and deallocation must be locked.
  *  - exchange refcnt can be done atomicly without locks.
  *  - sequence allocation must be locked by exch lock.
- *  - If the em_lock and ex_lock must be taken at the same time, then the
- *    em_lock must be taken before the ex_lock.
+ *  - If the EM pool lock and ex_lock must be taken at the same time, then the
+ *    EM pool lock must be taken before the ex_lock.
  */
 
 /*
@@ -268,8 +286,6 @@ static void fc_exch_release(struct fc_exch *ep)
 		mp = ep->em;
 		if (ep->destructor)
 			ep->destructor(&ep->seq, ep->arg);
-		if (ep->lp->tt.exch_put)
-			ep->lp->tt.exch_put(ep->lp, mp, ep->xid);
 		WARN_ON(!(ep->esb_stat & ESB_ST_COMPLETE));
 		mempool_free(ep, mp->ep_pool);
 	}
@@ -299,17 +315,31 @@ static int fc_exch_done_locked(struct fc_exch *ep)
 	return rc;
 }
 
-static void fc_exch_mgr_delete_ep(struct fc_exch *ep)
+static inline struct fc_exch *fc_exch_ptr_get(struct fc_exch_pool *pool,
+					      u16 index)
 {
-	struct fc_exch_mgr *mp;
+	struct fc_exch **exches = (struct fc_exch **)(pool + 1);
+	return exches[index];
+}
 
-	mp = ep->em;
-	spin_lock_bh(&mp->em_lock);
-	WARN_ON(mp->total_exches <= 0);
-	mp->total_exches--;
-	mp->exches[ep->xid - mp->min_xid] = NULL;
+static inline void fc_exch_ptr_set(struct fc_exch_pool *pool, u16 index,
+				   struct fc_exch *ep)
+{
+	((struct fc_exch **)(pool + 1))[index] = ep;
+}
+
+static void fc_exch_delete(struct fc_exch *ep)
+{
+	struct fc_exch_pool *pool;
+
+	pool = ep->pool;
+	spin_lock_bh(&pool->lock);
+	WARN_ON(pool->total_exches <= 0);
+	pool->total_exches--;
+	fc_exch_ptr_set(pool, (ep->xid - ep->em->min_xid) >> fc_cpu_order,
+			NULL);
 	list_del(&ep->ex_list);
-	spin_unlock_bh(&mp->em_lock);
+	spin_unlock_bh(&pool->lock);
 	fc_exch_release(ep);	/* drop hold for exch in mp */
 }
 
@@ -322,7 +352,7 @@ static inline void fc_exch_timer_set_locked(struct fc_exch *ep,
 	if (ep->state & (FC_EX_RST_CLEANUP | FC_EX_DONE))
 		return;
 
-	FC_EXCH_DBG(ep, "Exchange timed out, notifying the upper layer\n");
+	FC_EXCH_DBG(ep, "Exchange timer armed\n");
 
 	if (schedule_delayed_work(&ep->timeout_work,
 				  msecs_to_jiffies(timer_msec)))
@@ -408,6 +438,8 @@ static void fc_exch_timeout(struct work_struct *work)
 	u32 e_stat;
 	int rc = 1;
 
+	FC_EXCH_DBG(ep, "Exchange timed out\n");
+
 	spin_lock_bh(&ep->ex_lock);
 	if (ep->state & (FC_EX_RST_CLEANUP | FC_EX_DONE))
 		goto unlock;
@@ -427,7 +459,7 @@ static void fc_exch_timeout(struct work_struct *work)
 			rc = fc_exch_done_locked(ep);
 		spin_unlock_bh(&ep->ex_lock);
 		if (!rc)
-			fc_exch_mgr_delete_ep(ep);
+			fc_exch_delete(ep);
 		if (resp)
 			resp(sp, ERR_PTR(-FC_EX_TIMEOUT), arg);
 		fc_seq_exch_abort(sp, 2 * ep->r_a_tov);
@@ -460,65 +492,20 @@ static struct fc_seq *fc_seq_alloc(struct fc_exch *ep, u8 seq_id)
 	return sp;
 }
 
-/*
- * fc_em_alloc_xid - returns an xid based on request type
- * @lp : ptr to associated lport
- * @fp : ptr to the assocated frame
+/**
+ * fc_exch_em_alloc() - allocate an exchange from a specified EM.
+ * @lport:	ptr to the local port
+ * @mp:		ptr to the exchange manager
  *
- * check the associated fc_fsp_pkt to get scsi command type and
- * command direction to decide from which range this exch id
- * will be allocated from.
- *
- * Returns : 0 or an valid xid
+ * Returns pointer to allocated fc_exch with exch lock held.
  */
-static u16 fc_em_alloc_xid(struct fc_exch_mgr *mp, const struct fc_frame *fp)
-{
-	u16 xid, min, max;
-	u16 *plast;
-	struct fc_exch *ep = NULL;
-
-	if (mp->max_read) {
-		if (fc_fcp_is_read(fr_fsp(fp))) {
-			min = mp->min_xid;
-			max = mp->max_read;
-			plast = &mp->last_read;
-		} else {
-			min = mp->max_read + 1;
-			max = mp->max_xid;
-			plast = &mp->last_xid;
-		}
-	} else {
-		min = mp->min_xid;
-		max = mp->max_xid;
-		plast = &mp->last_xid;
-	}
-	xid = *plast;
-	do {
-		xid = (xid == max) ? min : xid + 1;
-		ep = mp->exches[xid - mp->min_xid];
-	} while ((ep != NULL) && (xid != *plast));
-
-	if (unlikely(ep))
-		xid = 0;
-	else
-		*plast = xid;
-
-	return xid;
-}
-
-/*
- * fc_exch_alloc - allocate an exchange.
- * @mp : ptr to the exchange manager
- * @xid: input xid
- *
- * if xid is supplied zero then assign next free exchange ID
- * from exchange manager, otherwise use supplied xid.
- * Returns with exch lock held.
- */
-struct fc_exch *fc_exch_alloc(struct fc_exch_mgr *mp,
-			      struct fc_frame *fp, u16 xid)
+static struct fc_exch *fc_exch_em_alloc(struct fc_lport *lport,
+					struct fc_exch_mgr *mp)
 {
 	struct fc_exch *ep;
+	unsigned int cpu;
+	u16 index;
+	struct fc_exch_pool *pool;
 
 	/* allocate memory for exchange */
 	ep = mempool_alloc(mp->ep_pool, GFP_ATOMIC);
@@ -528,16 +515,17 @@ struct fc_exch *fc_exch_alloc(struct fc_exch_mgr *mp,
 	}
 	memset(ep, 0, sizeof(*ep));
 
-	spin_lock_bh(&mp->em_lock);
-	/* alloc xid if input xid 0 */
-	if (!xid) {
-		/* alloc a new xid */
-		xid = fc_em_alloc_xid(mp, fp);
-		if (!xid) {
-			printk(KERN_WARNING "libfc: Failed to allocate an exhange\n");
+	cpu = smp_processor_id();
+	pool = per_cpu_ptr(mp->pool, cpu);
+	spin_lock_bh(&pool->lock);
+	index = pool->next_index;
+	/* allocate new exch from pool */
+	while (fc_exch_ptr_get(pool, index)) {
+		index = index == mp->pool_max_index ? 0 : index + 1;
+		if (index == pool->next_index)
 			goto err;
-		}
 	}
+	pool->next_index = index == mp->pool_max_index ? 0 : index + 1;
 
 	fc_exch_hold(ep);	/* hold for exch in mp */
 	spin_lock_init(&ep->ex_lock);
@@ -548,18 +536,19 @@ struct fc_exch *fc_exch_alloc(struct fc_exch_mgr *mp,
 	 */
 	spin_lock_bh(&ep->ex_lock);
 
-	mp->exches[xid - mp->min_xid] = ep;
-	list_add_tail(&ep->ex_list, &mp->ex_list);
+	fc_exch_ptr_set(pool, index, ep);
+	list_add_tail(&ep->ex_list, &pool->ex_list);
 	fc_seq_alloc(ep, ep->seq_id++);
-	mp->total_exches++;
-	spin_unlock_bh(&mp->em_lock);
+	pool->total_exches++;
+	spin_unlock_bh(&pool->lock);
 
 	/*
 	 *  update exchange
 	 */
-	ep->oxid = ep->xid = xid;
+	ep->oxid = ep->xid = (index << fc_cpu_order | cpu) + mp->min_xid;
 	ep->em = mp;
-	ep->lp = mp->lp;
+	ep->pool = pool;
+	ep->lp = lport;
 	ep->f_ctl = FC_FC_FIRST_SEQ;	/* next seq is first seq */
 	ep->rxid = FC_XID_UNKNOWN;
 	ep->class = mp->class;
@@ -567,9 +556,34 @@ struct fc_exch *fc_exch_alloc(struct fc_exch_mgr *mp,
 out:
 	return ep;
 err:
-	spin_unlock_bh(&mp->em_lock);
+	spin_unlock_bh(&pool->lock);
 	atomic_inc(&mp->stats.no_free_exch_xid);
 	mempool_free(ep, mp->ep_pool);
+	return NULL;
+}
+
+/**
+ * fc_exch_alloc() - allocate an exchange.
+ * @lport:	ptr to the local port
+ * @fp:		ptr to the FC frame
+ *
+ * This function walks the list of the exchange manager(EM)
+ * anchors to select a EM for new exchange allocation. The
+ * EM is selected having either a NULL match function pointer
+ * or call to match function returning true.
+ */
+struct fc_exch *fc_exch_alloc(struct fc_lport *lport, struct fc_frame *fp)
+{
+	struct fc_exch_mgr_anchor *ema;
+	struct fc_exch *ep;
+
+	list_for_each_entry(ema, &lport->ema_list, ema_list) {
+		if (!ema->match || ema->match(fp)) {
+			ep = fc_exch_em_alloc(lport, ema->mp);
+			if (ep)
+				return ep;
+		}
+	}
 	return NULL;
 }
 EXPORT_SYMBOL(fc_exch_alloc);
@@ -579,16 +593,18 @@ EXPORT_SYMBOL(fc_exch_alloc);
  */
 static struct fc_exch *fc_exch_find(struct fc_exch_mgr *mp, u16 xid)
 {
+	struct fc_exch_pool *pool;
 	struct fc_exch *ep = NULL;
 
 	if ((xid >= mp->min_xid) && (xid <= mp->max_xid)) {
-		spin_lock_bh(&mp->em_lock);
-		ep = mp->exches[xid - mp->min_xid];
+		pool = per_cpu_ptr(mp->pool, xid & fc_cpu_mask);
+		spin_lock_bh(&pool->lock);
+		ep = fc_exch_ptr_get(pool, (xid - mp->min_xid) >> fc_cpu_order);
 		if (ep) {
 			fc_exch_hold(ep);
 			WARN_ON(ep->xid != xid);
 		}
-		spin_unlock_bh(&mp->em_lock);
+		spin_unlock_bh(&pool->lock);
 	}
 	return ep;
 }
@@ -602,7 +618,7 @@ void fc_exch_done(struct fc_seq *sp)
 	rc = fc_exch_done_locked(ep);
 	spin_unlock_bh(&ep->ex_lock);
 	if (!rc)
-		fc_exch_mgr_delete_ep(ep);
+		fc_exch_delete(ep);
 }
 EXPORT_SYMBOL(fc_exch_done);
 
@@ -610,12 +626,14 @@ EXPORT_SYMBOL(fc_exch_done);
  * Allocate a new exchange as responder.
  * Sets the responder ID in the frame header.
  */
-static struct fc_exch *fc_exch_resp(struct fc_exch_mgr *mp, struct fc_frame *fp)
+static struct fc_exch *fc_exch_resp(struct fc_lport *lport,
+				    struct fc_exch_mgr *mp,
+				    struct fc_frame *fp)
 {
 	struct fc_exch *ep;
 	struct fc_frame_header *fh;
 
-	ep = mp->lp->tt.exch_get(mp->lp, fp);
+	ep = fc_exch_alloc(lport, fp);
 	if (ep) {
 		ep->class = fc_frame_class(fp);
 
@@ -641,7 +659,7 @@ static struct fc_exch *fc_exch_resp(struct fc_exch_mgr *mp, struct fc_frame *fp)
 			ep->esb_stat &= ~ESB_ST_SEQ_INIT;
 
 		fc_exch_hold(ep);	/* hold for caller */
-		spin_unlock_bh(&ep->ex_lock);	/* lock from exch_get */
+		spin_unlock_bh(&ep->ex_lock);	/* lock from fc_exch_alloc */
 	}
 	return ep;
 }
@@ -651,7 +669,8 @@ static struct fc_exch *fc_exch_resp(struct fc_exch_mgr *mp, struct fc_frame *fp)
  * If fc_pf_rjt_reason is FC_RJT_NONE then this function will have a hold
  * on the ep that should be released by the caller.
  */
-static enum fc_pf_rjt_reason fc_seq_lookup_recip(struct fc_exch_mgr *mp,
+static enum fc_pf_rjt_reason fc_seq_lookup_recip(struct fc_lport *lport,
+						 struct fc_exch_mgr *mp,
 						 struct fc_frame *fp)
 {
 	struct fc_frame_header *fh = fc_frame_header_get(fp);
@@ -705,7 +724,7 @@ static enum fc_pf_rjt_reason fc_seq_lookup_recip(struct fc_exch_mgr *mp,
 				reject = FC_RJT_RX_ID;
 				goto rel;
 			}
-			ep = fc_exch_resp(mp, fp);
+			ep = fc_exch_resp(lport, mp, fp);
 			if (!ep) {
 				reject = FC_RJT_EXCH_EST;	/* XXX */
 				goto out;
@@ -822,7 +841,6 @@ struct fc_seq *fc_seq_start_next(struct fc_seq *sp)
 	struct fc_exch *ep = fc_seq_exch(sp);
 
 	spin_lock_bh(&ep->ex_lock);
-	WARN_ON((ep->esb_stat & ESB_ST_COMPLETE) != 0);
 	sp = fc_seq_start_next_locked(sp);
 	spin_unlock_bh(&ep->ex_lock);
 
@@ -999,8 +1017,8 @@ static void fc_exch_send_ba_rjt(struct fc_frame *rx_fp,
 	 */
 	memcpy(fh->fh_s_id, rx_fh->fh_d_id, 3);
 	memcpy(fh->fh_d_id, rx_fh->fh_s_id, 3);
-	fh->fh_ox_id = rx_fh->fh_rx_id;
-	fh->fh_rx_id = rx_fh->fh_ox_id;
+	fh->fh_ox_id = rx_fh->fh_ox_id;
+	fh->fh_rx_id = rx_fh->fh_rx_id;
 	fh->fh_seq_cnt = rx_fh->fh_seq_cnt;
 	fh->fh_r_ctl = FC_RCTL_BA_RJT;
 	fh->fh_type = FC_TYPE_BLS;
@@ -1097,7 +1115,7 @@ static void fc_exch_recv_req(struct fc_lport *lp, struct fc_exch_mgr *mp,
 	enum fc_pf_rjt_reason reject;
 
 	fr_seq(fp) = NULL;
-	reject = fc_seq_lookup_recip(mp, fp);
+	reject = fc_seq_lookup_recip(lp, mp, fp);
 	if (reject == FC_RJT_NONE) {
 		sp = fr_seq(fp);	/* sequence will be held */
 		ep = fc_seq_exch(sp);
@@ -1123,7 +1141,7 @@ static void fc_exch_recv_req(struct fc_lport *lp, struct fc_exch_mgr *mp,
 			lp->tt.lport_recv(lp, sp, fp);
 		fc_exch_release(ep);	/* release from lookup */
 	} else {
-		FC_EM_DBG(mp, "exch/seq lookup failed: reject %x\n", reject);
+		FC_LPORT_DBG(lp, "exch/seq lookup failed: reject %x\n", reject);
 		fc_frame_free(fp);
 	}
 }
@@ -1193,7 +1211,7 @@ static void fc_exch_recv_seq_resp(struct fc_exch_mgr *mp, struct fc_frame *fp)
 		WARN_ON(fc_seq_exch(sp) != ep);
 		spin_unlock_bh(&ep->ex_lock);
 		if (!rc)
-			fc_exch_mgr_delete_ep(ep);
+			fc_exch_delete(ep);
 	}
 
 	/*
@@ -1229,13 +1247,12 @@ static void fc_exch_recv_resp(struct fc_exch_mgr *mp, struct fc_frame *fp)
 	struct fc_seq *sp;
 
 	sp = fc_seq_lookup_orig(mp, fp);	/* doesn't hold sequence */
-	if (!sp) {
+
+	if (!sp)
 		atomic_inc(&mp->stats.xid_not_found);
-		FC_EM_DBG(mp, "seq lookup failed\n");
-	} else {
+	else
 		atomic_inc(&mp->stats.non_bls_resp);
-		FC_EM_DBG(mp, "non-BLS response to sequence");
-	}
+
 	fc_frame_free(fp);
 }
 
@@ -1304,7 +1321,7 @@ static void fc_exch_abts_resp(struct fc_exch *ep, struct fc_frame *fp)
 		rc = fc_exch_done_locked(ep);
 	spin_unlock_bh(&ep->ex_lock);
 	if (!rc)
-		fc_exch_mgr_delete_ep(ep);
+		fc_exch_delete(ep);
 
 	if (resp)
 		resp(sp, fp, ex_resp_arg);
@@ -1447,44 +1464,77 @@ static void fc_exch_reset(struct fc_exch *ep)
 	rc = fc_exch_done_locked(ep);
 	spin_unlock_bh(&ep->ex_lock);
 	if (!rc)
-		fc_exch_mgr_delete_ep(ep);
+		fc_exch_delete(ep);
 
 	if (resp)
 		resp(sp, ERR_PTR(-FC_EX_CLOSED), arg);
 }
 
-/*
- * Reset an exchange manager, releasing all sequences and exchanges.
- * If sid is non-zero, reset only exchanges we source from that FID.
- * If did is non-zero, reset only exchanges destined to that FID.
+/**
+ * fc_exch_pool_reset() - Resets an per cpu exches pool.
+ * @lport:	ptr to the local port
+ * @pool:	ptr to the per cpu exches pool
+ * @sid:	source FC ID
+ * @did:	destination FC ID
+ *
+ * Resets an per cpu exches pool, releasing its all sequences
+ * and exchanges. If sid is non-zero, then reset only exchanges
+ * we sourced from that FID. If did is non-zero, reset only
+ * exchanges destined to that FID.
  */
-void fc_exch_mgr_reset(struct fc_lport *lp, u32 sid, u32 did)
+static void fc_exch_pool_reset(struct fc_lport *lport,
+			       struct fc_exch_pool *pool,
+			       u32 sid, u32 did)
 {
 	struct fc_exch *ep;
 	struct fc_exch *next;
-	struct fc_exch_mgr *mp = lp->emp;
 
-	spin_lock_bh(&mp->em_lock);
+	spin_lock_bh(&pool->lock);
 restart:
-	list_for_each_entry_safe(ep, next, &mp->ex_list, ex_list) {
-		if ((sid == 0 || sid == ep->sid) &&
+	list_for_each_entry_safe(ep, next, &pool->ex_list, ex_list) {
+		if ((lport == ep->lp) &&
+		    (sid == 0 || sid == ep->sid) &&
 		    (did == 0 || did == ep->did)) {
 			fc_exch_hold(ep);
-			spin_unlock_bh(&mp->em_lock);
+			spin_unlock_bh(&pool->lock);
 
 			fc_exch_reset(ep);
 
 			fc_exch_release(ep);
-			spin_lock_bh(&mp->em_lock);
+			spin_lock_bh(&pool->lock);
 
 			/*
-			 * must restart loop incase while lock was down
-			 * multiple eps were released.
+			 * must restart loop incase while lock
+			 * was down multiple eps were released.
 			 */
 			goto restart;
 		}
 	}
-	spin_unlock_bh(&mp->em_lock);
+	spin_unlock_bh(&pool->lock);
+}
+
+/**
+ * fc_exch_mgr_reset() - Resets all EMs of a lport
+ * @lport:	ptr to the local port
+ * @sid:	source FC ID
+ * @did:	destination FC ID
+ *
+ * Reset all EMs of a lport, releasing its all sequences and
+ * exchanges. If sid is non-zero, then reset only exchanges
+ * we sourced from that FID. If did is non-zero, reset only
+ * exchanges destined to that FID.
+ */
+void fc_exch_mgr_reset(struct fc_lport *lport, u32 sid, u32 did)
+{
+	struct fc_exch_mgr_anchor *ema;
+	unsigned int cpu;
+
+	list_for_each_entry(ema, &lport->ema_list, ema_list) {
+		for_each_possible_cpu(cpu)
+			fc_exch_pool_reset(lport,
+					   per_cpu_ptr(ema->mp->pool, cpu),
+					   sid, did);
+	}
 }
 EXPORT_SYMBOL(fc_exch_mgr_reset);
 
@@ -1730,85 +1780,129 @@ reject:
 	fc_frame_free(fp);
 }
 
+struct fc_exch_mgr_anchor *fc_exch_mgr_add(struct fc_lport *lport,
+					   struct fc_exch_mgr *mp,
+					   bool (*match)(struct fc_frame *))
+{
+	struct fc_exch_mgr_anchor *ema;
+
+	ema = kmalloc(sizeof(*ema), GFP_ATOMIC);
+	if (!ema)
+		return ema;
+
+	ema->mp = mp;
+	ema->match = match;
+	/* add EM anchor to EM anchors list */
+	list_add_tail(&ema->ema_list, &lport->ema_list);
+	kref_get(&mp->kref);
+	return ema;
+}
+EXPORT_SYMBOL(fc_exch_mgr_add);
+
+static void fc_exch_mgr_destroy(struct kref *kref)
+{
+	struct fc_exch_mgr *mp = container_of(kref, struct fc_exch_mgr, kref);
+
+	mempool_destroy(mp->ep_pool);
+	free_percpu(mp->pool);
+	kfree(mp);
+}
+
+void fc_exch_mgr_del(struct fc_exch_mgr_anchor *ema)
+{
+	/* remove EM anchor from EM anchors list */
+	list_del(&ema->ema_list);
+	kref_put(&ema->mp->kref, fc_exch_mgr_destroy);
+	kfree(ema);
+}
+EXPORT_SYMBOL(fc_exch_mgr_del);
+
 struct fc_exch_mgr *fc_exch_mgr_alloc(struct fc_lport *lp,
 				      enum fc_class class,
-				      u16 min_xid, u16 max_xid)
+				      u16 min_xid, u16 max_xid,
+				      bool (*match)(struct fc_frame *))
 {
 	struct fc_exch_mgr *mp;
-	size_t len;
+	u16 pool_exch_range;
+	size_t pool_size;
+	unsigned int cpu;
+	struct fc_exch_pool *pool;
 
-	if (max_xid <= min_xid || min_xid == 0 || max_xid == FC_XID_UNKNOWN) {
+	if (max_xid <= min_xid || max_xid == FC_XID_UNKNOWN ||
+	    (min_xid & fc_cpu_mask) != 0) {
 		FC_LPORT_DBG(lp, "Invalid min_xid 0x:%x and max_xid 0x:%x\n",
 			     min_xid, max_xid);
 		return NULL;
 	}
 
 	/*
-	 * Memory need for EM
+	 * allocate memory for EM
 	 */
-#define xid_ok(i, m1, m2) (((i) >= (m1)) && ((i) <= (m2)))
-	len = (max_xid - min_xid + 1) * (sizeof(struct fc_exch *));
-	len += sizeof(struct fc_exch_mgr);
-
-	mp = kzalloc(len, GFP_ATOMIC);
+	mp = kzalloc(sizeof(struct fc_exch_mgr), GFP_ATOMIC);
 	if (!mp)
 		return NULL;
 
 	mp->class = class;
-	mp->total_exches = 0;
-	mp->exches = (struct fc_exch **)(mp + 1);
-	mp->lp = lp;
 	/* adjust em exch xid range for offload */
 	mp->min_xid = min_xid;
 	mp->max_xid = max_xid;
-	mp->last_xid = min_xid - 1;
-	mp->max_read = 0;
-	mp->last_read = 0;
-	if (lp->lro_enabled && xid_ok(lp->lro_xid, min_xid, max_xid)) {
-		mp->max_read = lp->lro_xid;
-		mp->last_read = min_xid - 1;
-		mp->last_xid = mp->max_read;
-	} else {
-		/* disable lro if no xid control over read */
-		lp->lro_enabled = 0;
-	}
-
-	INIT_LIST_HEAD(&mp->ex_list);
-	spin_lock_init(&mp->em_lock);
 
 	mp->ep_pool = mempool_create_slab_pool(2, fc_em_cachep);
 	if (!mp->ep_pool)
 		goto free_mp;
 
+	/*
+	 * Setup per cpu exch pool with entire exchange id range equally
+	 * divided across all cpus. The exch pointers array memory is
+	 * allocated for exch range per pool.
+	 */
+	pool_exch_range = (mp->max_xid - mp->min_xid + 1) / (fc_cpu_mask + 1);
+	mp->pool_max_index = pool_exch_range - 1;
+
+	/*
+	 * Allocate and initialize per cpu exch pool
+	 */
+	pool_size = sizeof(*pool) + pool_exch_range * sizeof(struct fc_exch *);
+	mp->pool = __alloc_percpu(pool_size, __alignof__(struct fc_exch_pool));
+	if (!mp->pool)
+		goto free_mempool;
+	for_each_possible_cpu(cpu) {
+		pool = per_cpu_ptr(mp->pool, cpu);
+		spin_lock_init(&pool->lock);
+		INIT_LIST_HEAD(&pool->ex_list);
+	}
+
+	kref_init(&mp->kref);
+	if (!fc_exch_mgr_add(lp, mp, match)) {
+		free_percpu(mp->pool);
+		goto free_mempool;
+	}
+
+	/*
+	 * Above kref_init() sets mp->kref to 1 and then
+	 * call to fc_exch_mgr_add incremented mp->kref again,
+	 * so adjust that extra increment.
+	 */
+	kref_put(&mp->kref, fc_exch_mgr_destroy);
 	return mp;
 
+free_mempool:
+	mempool_destroy(mp->ep_pool);
 free_mp:
 	kfree(mp);
 	return NULL;
 }
 EXPORT_SYMBOL(fc_exch_mgr_alloc);
 
-void fc_exch_mgr_free(struct fc_exch_mgr *mp)
+void fc_exch_mgr_free(struct fc_lport *lport)
 {
-	WARN_ON(!mp);
-	/*
-	 * The total exch count must be zero
-	 * before freeing exchange manager.
-	 */
-	WARN_ON(mp->total_exches != 0);
-	mempool_destroy(mp->ep_pool);
-	kfree(mp);
+	struct fc_exch_mgr_anchor *ema, *next;
+
+	list_for_each_entry_safe(ema, next, &lport->ema_list, ema_list)
+		fc_exch_mgr_del(ema);
 }
 EXPORT_SYMBOL(fc_exch_mgr_free);
 
-struct fc_exch *fc_exch_get(struct fc_lport *lp, struct fc_frame *fp)
-{
-	if (!lp || !lp->emp)
-		return NULL;
-
-	return fc_exch_alloc(lp->emp, fp, 0);
-}
-EXPORT_SYMBOL(fc_exch_get);
 
 struct fc_seq *fc_exch_seq_send(struct fc_lport *lp,
 				struct fc_frame *fp,
@@ -1823,7 +1917,7 @@ struct fc_seq *fc_exch_seq_send(struct fc_lport *lp,
 	struct fc_frame_header *fh;
 	int rc = 1;
 
-	ep = lp->tt.exch_get(lp, fp);
+	ep = fc_exch_alloc(lp, fp);
 	if (!ep) {
 		fc_frame_free(fp);
 		return NULL;
@@ -1843,7 +1937,8 @@ struct fc_seq *fc_exch_seq_send(struct fc_lport *lp,
 	fc_exch_setup_hdr(ep, fp, ep->f_ctl);
 	sp->cnt++;
 
-	fc_fcp_ddp_setup(fr_fsp(fp), ep->xid);
+	if (ep->xid <= lp->lro_xid)
+		fc_fcp_ddp_setup(fr_fsp(fp), ep->xid);
 
 	if (unlikely(lp->tt.frame_send(lp, fp)))
 		goto err;
@@ -1860,7 +1955,7 @@ err:
 	rc = fc_exch_done_locked(ep);
 	spin_unlock_bh(&ep->ex_lock);
 	if (!rc)
-		fc_exch_mgr_delete_ep(ep);
+		fc_exch_delete(ep);
 	return NULL;
 }
 EXPORT_SYMBOL(fc_exch_seq_send);
@@ -1868,24 +1963,44 @@ EXPORT_SYMBOL(fc_exch_seq_send);
 /*
  * Receive a frame
  */
-void fc_exch_recv(struct fc_lport *lp, struct fc_exch_mgr *mp,
-		  struct fc_frame *fp)
+void fc_exch_recv(struct fc_lport *lp, struct fc_frame *fp)
 {
 	struct fc_frame_header *fh = fc_frame_header_get(fp);
-	u32 f_ctl;
+	struct fc_exch_mgr_anchor *ema;
+	u32 f_ctl, found = 0;
+	u16 oxid;
 
 	/* lport lock ? */
-	if (!lp || !mp || (lp->state == LPORT_ST_NONE)) {
+	if (!lp || lp->state == LPORT_ST_DISABLED) {
 		FC_LPORT_DBG(lp, "Receiving frames for an lport that "
 			     "has not been initialized correctly\n");
 		fc_frame_free(fp);
 		return;
 	}
 
+	f_ctl = ntoh24(fh->fh_f_ctl);
+	oxid = ntohs(fh->fh_ox_id);
+	if (f_ctl & FC_FC_EX_CTX) {
+		list_for_each_entry(ema, &lp->ema_list, ema_list) {
+			if ((oxid >= ema->mp->min_xid) &&
+			    (oxid <= ema->mp->max_xid)) {
+				found = 1;
+				break;
+			}
+		}
+
+		if (!found) {
+			FC_LPORT_DBG(lp, "Received response for out "
+				     "of range oxid:%hx\n", oxid);
+			fc_frame_free(fp);
+			return;
+		}
+	} else
+		ema = list_entry(lp->ema_list.prev, typeof(*ema), ema_list);
+
 	/*
 	 * If frame is marked invalid, just drop it.
 	 */
-	f_ctl = ntoh24(fh->fh_f_ctl);
 	switch (fr_eof(fp)) {
 	case FC_EOF_T:
 		if (f_ctl & FC_FC_END_SEQ)
@@ -1893,34 +2008,24 @@ void fc_exch_recv(struct fc_lport *lp, struct fc_exch_mgr *mp,
 		/* fall through */
 	case FC_EOF_N:
 		if (fh->fh_type == FC_TYPE_BLS)
-			fc_exch_recv_bls(mp, fp);
+			fc_exch_recv_bls(ema->mp, fp);
 		else if ((f_ctl & (FC_FC_EX_CTX | FC_FC_SEQ_CTX)) ==
 			 FC_FC_EX_CTX)
-			fc_exch_recv_seq_resp(mp, fp);
+			fc_exch_recv_seq_resp(ema->mp, fp);
 		else if (f_ctl & FC_FC_SEQ_CTX)
-			fc_exch_recv_resp(mp, fp);
+			fc_exch_recv_resp(ema->mp, fp);
 		else
-			fc_exch_recv_req(lp, mp, fp);
+			fc_exch_recv_req(lp, ema->mp, fp);
 		break;
 	default:
-		FC_EM_DBG(mp, "dropping invalid frame (eof %x)", fr_eof(fp));
+		FC_LPORT_DBG(lp, "dropping invalid frame (eof %x)", fr_eof(fp));
 		fc_frame_free(fp);
-		break;
 	}
 }
 EXPORT_SYMBOL(fc_exch_recv);
 
 int fc_exch_init(struct fc_lport *lp)
 {
-	if (!lp->tt.exch_get) {
-		/*
-		 *  exch_put() should be NULL if
-		 *  exch_get() is NULL
-		 */
-		WARN_ON(lp->tt.exch_put);
-		lp->tt.exch_get = fc_exch_get;
-	}
-
 	if (!lp->tt.seq_start_next)
 		lp->tt.seq_start_next = fc_seq_start_next;
 
@@ -1941,6 +2046,28 @@ int fc_exch_init(struct fc_lport *lp)
 
 	if (!lp->tt.seq_exch_abort)
 		lp->tt.seq_exch_abort = fc_seq_exch_abort;
+
+	/*
+	 * Initialize fc_cpu_mask and fc_cpu_order. The
+	 * fc_cpu_mask is set for nr_cpu_ids rounded up
+	 * to order of 2's * power and order is stored
+	 * in fc_cpu_order as this is later required in
+	 * mapping between an exch id and exch array index
+	 * in per cpu exch pool.
+	 *
+	 * This round up is required to align fc_cpu_mask
+	 * to exchange id's lower bits such that all incoming
+	 * frames of an exchange gets delivered to the same
+	 * cpu on which exchange originated by simple bitwise
+	 * AND operation between fc_cpu_mask and exchange id.
+	 */
+	fc_cpu_mask = 1;
+	fc_cpu_order = 0;
+	while (fc_cpu_mask < nr_cpu_ids) {
+		fc_cpu_mask <<= 1;
+		fc_cpu_order++;
+	}
+	fc_cpu_mask--;
 
 	return 0;
 }

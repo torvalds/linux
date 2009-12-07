@@ -30,16 +30,10 @@
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>
 #include <linux/audit.h>
+#include <linux/magic.h>
 #include "smack.h"
 
 #define task_security(task)	(task_cred_xxx((task), security))
-
-/*
- * I hope these are the hokeyist lines of code in the module. Casey.
- */
-#define DEVPTS_SUPER_MAGIC	0x1cd1
-#define SOCKFS_MAGIC		0x534F434B
-#define TMPFS_MAGIC		0x01021994
 
 /**
  * smk_fetch - Fetch the smack label from a file.
@@ -91,7 +85,7 @@ struct inode_smack *new_inode_smack(char *smack)
  */
 
 /**
- * smack_ptrace_may_access - Smack approval on PTRACE_ATTACH
+ * smack_ptrace_access_check - Smack approval on PTRACE_ATTACH
  * @ctp: child task pointer
  * @mode: ptrace attachment mode
  *
@@ -99,13 +93,13 @@ struct inode_smack *new_inode_smack(char *smack)
  *
  * Do the capability checks, and require read and write.
  */
-static int smack_ptrace_may_access(struct task_struct *ctp, unsigned int mode)
+static int smack_ptrace_access_check(struct task_struct *ctp, unsigned int mode)
 {
 	int rc;
 	struct smk_audit_info ad;
 	char *sp, *tsp;
 
-	rc = cap_ptrace_may_access(ctp, mode);
+	rc = cap_ptrace_access_check(ctp, mode);
 	if (rc != 0)
 		return rc;
 
@@ -1080,6 +1074,22 @@ static int smack_file_receive(struct file *file)
  */
 
 /**
+ * smack_cred_alloc_blank - "allocate" blank task-level security credentials
+ * @new: the new credentials
+ * @gfp: the atomicity of any memory allocations
+ *
+ * Prepare a blank set of credentials for modification.  This must allocate all
+ * the memory the LSM module might require such that cred_transfer() can
+ * complete without error.
+ */
+static int smack_cred_alloc_blank(struct cred *cred, gfp_t gfp)
+{
+	cred->security = NULL;
+	return 0;
+}
+
+
+/**
  * smack_cred_free - "free" task-level security credentials
  * @cred: the credentials in question
  *
@@ -1114,6 +1124,18 @@ static int smack_cred_prepare(struct cred *new, const struct cred *old,
  */
 static void smack_cred_commit(struct cred *new, const struct cred *old)
 {
+}
+
+/**
+ * smack_cred_transfer - Transfer the old credentials to the new credentials
+ * @new: the new credentials
+ * @old: the original credentials
+ *
+ * Fill in a set of blank credentials from another set of credentials.
+ */
+static void smack_cred_transfer(struct cred *new, const struct cred *old)
+{
+	new->security = old->security;
 }
 
 /**
@@ -1638,6 +1660,7 @@ static int smack_inode_setsecurity(struct inode *inode, const char *name,
 
 	if (strcmp(name, XATTR_SMACK_SUFFIX) == 0) {
 		nsp->smk_inode = sp;
+		nsp->smk_flags |= SMK_INODE_INSTANT;
 		return 0;
 	}
 	/*
@@ -2464,7 +2487,7 @@ static int smack_socket_sendmsg(struct socket *sock, struct msghdr *msg,
 	/*
 	 * Perfectly reasonable for this to be NULL
 	 */
-	if (sip == NULL || sip->sin_family != PF_INET)
+	if (sip == NULL || sip->sin_family != AF_INET)
 		return 0;
 
 	return smack_netlabel_send(sock->sk, sip);
@@ -3029,10 +3052,31 @@ static void smack_release_secctx(char *secdata, u32 seclen)
 {
 }
 
+static int smack_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen)
+{
+	return smack_inode_setsecurity(inode, XATTR_SMACK_SUFFIX, ctx, ctxlen, 0);
+}
+
+static int smack_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
+{
+	return __vfs_setxattr_noperm(dentry, XATTR_NAME_SMACK, ctx, ctxlen, 0);
+}
+
+static int smack_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
+{
+	int len = 0;
+	len = smack_inode_getsecurity(inode, XATTR_SMACK_SUFFIX, ctx, true);
+
+	if (len < 0)
+		return len;
+	*ctxlen = len;
+	return 0;
+}
+
 struct security_operations smack_ops = {
 	.name =				"smack",
 
-	.ptrace_may_access =		smack_ptrace_may_access,
+	.ptrace_access_check =		smack_ptrace_access_check,
 	.ptrace_traceme =		smack_ptrace_traceme,
 	.syslog = 			smack_syslog,
 
@@ -3073,9 +3117,11 @@ struct security_operations smack_ops = {
 	.file_send_sigiotask = 		smack_file_send_sigiotask,
 	.file_receive = 		smack_file_receive,
 
+	.cred_alloc_blank =		smack_cred_alloc_blank,
 	.cred_free =			smack_cred_free,
 	.cred_prepare =			smack_cred_prepare,
 	.cred_commit =			smack_cred_commit,
+	.cred_transfer =		smack_cred_transfer,
 	.kernel_act_as =		smack_kernel_act_as,
 	.kernel_create_files_as =	smack_kernel_create_files_as,
 	.task_setpgid = 		smack_task_setpgid,
@@ -3155,6 +3201,9 @@ struct security_operations smack_ops = {
 	.secid_to_secctx = 		smack_secid_to_secctx,
 	.secctx_to_secid = 		smack_secctx_to_secid,
 	.release_secctx = 		smack_release_secctx,
+	.inode_notifysecctx =		smack_inode_notifysecctx,
+	.inode_setsecctx =		smack_inode_setsecctx,
+	.inode_getsecctx =		smack_inode_getsecctx,
 };
 
 

@@ -9,6 +9,7 @@
 
 #include <linux/pci.h>
 #include <linux/netdevice.h>
+#include <linux/rtnetlink.h>
 
 /*
  * General definitions...
@@ -94,6 +95,7 @@ enum {
 
 	/* Misc. stuff */
 	MAILBOX_COUNT = 16,
+	MAILBOX_TIMEOUT = 5,
 
 	PROC_ADDR_RDY = (1 << 31),
 	PROC_ADDR_R = (1 << 30),
@@ -135,9 +137,9 @@ enum {
 	RST_FO_TFO = (1 << 0),
 	RST_FO_RR_MASK = 0x00060000,
 	RST_FO_RR_CQ_CAM = 0x00000000,
-	RST_FO_RR_DROP = 0x00000001,
-	RST_FO_RR_DQ = 0x00000002,
-	RST_FO_RR_RCV_FUNC_CQ = 0x00000003,
+	RST_FO_RR_DROP = 0x00000002,
+	RST_FO_RR_DQ = 0x00000004,
+	RST_FO_RR_RCV_FUNC_CQ = 0x00000006,
 	RST_FO_FRB = (1 << 12),
 	RST_FO_MOP = (1 << 13),
 	RST_FO_REG = (1 << 14),
@@ -802,6 +804,12 @@ enum {
 	MB_CMD_SET_PORT_CFG = 0x00000122,
 	MB_CMD_GET_PORT_CFG = 0x00000123,
 	MB_CMD_GET_LINK_STS = 0x00000124,
+	MB_CMD_SET_MGMNT_TFK_CTL = 0x00000160, /* Set Mgmnt Traffic Control */
+	MB_SET_MPI_TFK_STOP = (1 << 0),
+	MB_SET_MPI_TFK_RESUME = (1 << 1),
+	MB_CMD_GET_MGMNT_TFK_CTL = 0x00000161, /* Get Mgmnt Traffic Control */
+	MB_GET_MPI_TFK_STOPPED = (1 << 0),
+	MB_GET_MPI_TFK_FIFO_EMPTY = (1 << 1),
 
 	/* Mailbox Command Status. */
 	MB_CMD_STS_GOOD = 0x00004000,	/* Success. */
@@ -1167,7 +1175,7 @@ struct ricb {
 #define RSS_RI6 0x40
 #define RSS_RT6 0x80
 	__le16 mask;
-	__le32 hash_cq_id[256];
+	u8 hash_cq_id[1024];
 	__le32 ipv6_hash_key[10];
 	__le32 ipv4_hash_key[4];
 } __attribute((packed));
@@ -1287,12 +1295,11 @@ struct rx_ring {
 	u32 sbq_free_cnt;	/* free buffer desc cnt */
 
 	/* Misc. handler elements. */
-	u32 type;		/* Type of queue, tx, rx, or default. */
+	u32 type;		/* Type of queue, tx, rx. */
 	u32 irq;		/* Which vector this ring is assigned. */
 	u32 cpu;		/* Which CPU this should run on. */
 	char name[IFNAMSIZ + 5];
 	struct napi_struct napi;
-	struct delayed_work rx_work;
 	u8 reserved;
 	struct ql_adapter *qdev;
 };
@@ -1366,6 +1373,7 @@ struct nic_stats {
 struct intr_context {
 	struct ql_adapter *qdev;
 	u32 intr;
+	u32 irq_mask;		/* Mask of which rings the vector services. */
 	u32 hooked;
 	u32 intr_en_mask;	/* value/mask used to enable this intr */
 	u32 intr_dis_mask;	/* value/mask used to disable this intr */
@@ -1381,15 +1389,15 @@ struct intr_context {
 
 /* adapter flags definitions. */
 enum {
-	QL_ADAPTER_UP = (1 << 0),	/* Adapter has been brought up. */
-	QL_LEGACY_ENABLED = (1 << 3),
-	QL_MSI_ENABLED = (1 << 3),
-	QL_MSIX_ENABLED = (1 << 4),
-	QL_DMA64 = (1 << 5),
-	QL_PROMISCUOUS = (1 << 6),
-	QL_ALLMULTI = (1 << 7),
-	QL_PORT_CFG = (1 << 8),
-	QL_CAM_RT_SET = (1 << 9),
+	QL_ADAPTER_UP = 0,	/* Adapter has been brought up. */
+	QL_LEGACY_ENABLED = 1,
+	QL_MSI_ENABLED = 2,
+	QL_MSIX_ENABLED = 3,
+	QL_DMA64 = 4,
+	QL_PROMISCUOUS = 5,
+	QL_ALLMULTI = 6,
+	QL_PORT_CFG = 7,
+	QL_CAM_RT_SET = 8,
 };
 
 /* link_status bit definitions */
@@ -1477,7 +1485,6 @@ struct ql_adapter {
 	u32 mailbox_in;
 	u32 mailbox_out;
 	struct mbox_params idc_mbc;
-	struct mutex	mpi_mutex;
 
 	int tx_ring_size;
 	int rx_ring_size;
@@ -1486,13 +1493,11 @@ struct ql_adapter {
 	struct intr_context intr_context[MAX_RX_RINGS];
 
 	int tx_ring_count;	/* One per online CPU. */
-	u32 rss_ring_first_cq_id;/* index of first inbound (rss) rx_ring */
-	u32 rss_ring_count;	/* One per online CPU.  */
+	u32 rss_ring_count;	/* One per irq vector.  */
 	/*
 	 * rx_ring_count =
-	 *  one default queue +
 	 *  (CPU count * outbound completion rx_ring) +
-	 *  (CPU count * inbound (RSS) completion rx_ring)
+	 *  (irq_vector_cnt * inbound (RSS) completion rx_ring)
 	 */
 	int rx_ring_count;
 	int ring_mem_size;
@@ -1519,7 +1524,6 @@ struct ql_adapter {
 	union flash_params flash;
 
 	struct net_device_stats stats;
-	struct workqueue_struct *q_workqueue;
 	struct workqueue_struct *workqueue;
 	struct delayed_work asic_reset_work;
 	struct delayed_work mpi_reset_work;
@@ -1609,6 +1613,8 @@ int ql_read_mpi_reg(struct ql_adapter *qdev, u32 reg, u32 *data);
 int ql_mb_about_fw(struct ql_adapter *qdev);
 void ql_link_on(struct ql_adapter *qdev);
 void ql_link_off(struct ql_adapter *qdev);
+int ql_mb_set_mgmnt_traffic_ctl(struct ql_adapter *qdev, u32 control);
+int ql_wait_fifo_empty(struct ql_adapter *qdev);
 
 #if 1
 #define QL_ALL_DUMP

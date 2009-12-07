@@ -218,7 +218,6 @@ bool handle_irq(unsigned irq, struct pt_regs *regs)
 void fixup_irqs(void)
 {
 	unsigned int irq;
-	static int warned;
 	struct irq_desc *desc;
 
 	for_each_irq_desc(irq, desc) {
@@ -236,8 +235,8 @@ void fixup_irqs(void)
 		}
 		if (desc->chip->set_affinity)
 			desc->chip->set_affinity(irq, affinity);
-		else if (desc->action && !(warned++))
-			printk("Cannot set affinity for irq %i\n", irq);
+		else if (desc->action)
+			printk_once("Cannot set affinity for irq %i\n", irq);
 	}
 
 #if 0

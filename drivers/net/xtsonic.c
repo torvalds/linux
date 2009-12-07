@@ -239,7 +239,7 @@ out:
  * Actually probing is superfluous but we're paranoid.
  */
 
-int __init xtsonic_probe(struct platform_device *pdev)
+int __devinit xtsonic_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct sonic_local *lp;

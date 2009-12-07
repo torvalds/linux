@@ -43,6 +43,7 @@
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/mutex.h>
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/mount.h>
 #include <linux/pagemap.h>

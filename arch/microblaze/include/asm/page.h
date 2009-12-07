@@ -17,6 +17,7 @@
 
 #include <linux/pfn.h>
 #include <asm/setup.h>
+#include <asm/asm-compat.h>
 #include <linux/const.h>
 
 #ifdef __KERNEL__
@@ -25,6 +26,8 @@
 #define PAGE_SHIFT	(12)
 #define PAGE_SIZE	(_AC(1, UL) << PAGE_SHIFT)
 #define PAGE_MASK	(~(PAGE_SIZE-1))
+
+#define LOAD_OFFSET	ASM_CONST((CONFIG_KERNEL_START-CONFIG_KERNEL_BASE_ADDR))
 
 #ifndef __ASSEMBLY__
 

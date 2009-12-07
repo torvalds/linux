@@ -15,6 +15,7 @@
 #include <linux/mman.h>
 #include <linux/nodemask.h>
 #include <linux/initrd.h>
+#include <linux/sort.h>
 #include <linux/highmem.h>
 
 #include <asm/mach-types.h>
@@ -272,7 +273,6 @@ static void __init bootmem_init_node(int node, struct meminfo *mi,
 		struct membank *bank = &mi->bank[i];
 		if (!bank->highmem)
 			free_bootmem_node(pgdat, bank_phys_start(bank), bank_phys_size(bank));
-		memory_present(node, bank_pfn_start(bank), bank_pfn_end(bank));
 	}
 
 	/*
@@ -349,11 +349,55 @@ static void __init bootmem_free_node(int node, struct meminfo *mi)
 	free_area_init_node(node, zone_size, min, zhole_size);
 }
 
+#ifndef CONFIG_SPARSEMEM
+int pfn_valid(unsigned long pfn)
+{
+	struct meminfo *mi = &meminfo;
+	unsigned int left = 0, right = mi->nr_banks;
+
+	do {
+		unsigned int mid = (right + left) / 2;
+		struct membank *bank = &mi->bank[mid];
+
+		if (pfn < bank_pfn_start(bank))
+			right = mid;
+		else if (pfn >= bank_pfn_end(bank))
+			left = mid + 1;
+		else
+			return 1;
+	} while (left < right);
+	return 0;
+}
+EXPORT_SYMBOL(pfn_valid);
+
+static void arm_memory_present(struct meminfo *mi, int node)
+{
+}
+#else
+static void arm_memory_present(struct meminfo *mi, int node)
+{
+	int i;
+	for_each_nodebank(i, mi, node) {
+		struct membank *bank = &mi->bank[i];
+		memory_present(node, bank_pfn_start(bank), bank_pfn_end(bank));
+	}
+}
+#endif
+
+static int __init meminfo_cmp(const void *_a, const void *_b)
+{
+	const struct membank *a = _a, *b = _b;
+	long cmp = bank_pfn_start(a) - bank_pfn_start(b);
+	return cmp < 0 ? -1 : cmp > 0 ? 1 : 0;
+}
+
 void __init bootmem_init(void)
 {
 	struct meminfo *mi = &meminfo;
 	unsigned long min, max_low, max_high;
 	int node, initrd_node;
+
+	sort(&mi->bank, mi->nr_banks, sizeof(mi->bank[0]), meminfo_cmp, NULL);
 
 	/*
 	 * Locate which node contains the ramdisk image, if any.
@@ -395,6 +439,12 @@ void __init bootmem_init(void)
 		 */
 		if (node == initrd_node)
 			bootmem_reserve_initrd(node);
+
+		/*
+		 * Sparsemem tries to allocate bootmem in memory_present(),
+		 * so must be done after the fixed reservations
+		 */
+		arm_memory_present(mi, node);
 	}
 
 	/*
@@ -451,7 +501,7 @@ free_memmap(int node, unsigned long start_pfn, unsigned long end_pfn)
 	/*
 	 * Convert start_pfn/end_pfn to a struct page pointer.
 	 */
-	start_pg = pfn_to_page(start_pfn);
+	start_pg = pfn_to_page(start_pfn - 1) + 1;
 	end_pg = pfn_to_page(end_pfn);
 
 	/*
@@ -564,8 +614,8 @@ void __init mem_init(void)
 
 	printk(KERN_NOTICE "Memory: %luKB available (%dK code, "
 		"%dK data, %dK init, %luK highmem)\n",
-		(unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
-		codesize >> 10, datasize >> 10, initsize >> 10,
+		nr_free_pages() << (PAGE_SHIFT-10), codesize >> 10,
+		datasize >> 10, initsize >> 10,
 		(unsigned long) (totalhigh_pages << (PAGE_SHIFT-10)));
 
 	if (PAGE_SIZE >= 16384 && num_physpages <= 128) {
@@ -581,6 +631,14 @@ void __init mem_init(void)
 
 void free_initmem(void)
 {
+#ifdef CONFIG_HAVE_TCM
+	extern char *__tcm_start, *__tcm_end;
+
+	totalram_pages += free_area(__phys_to_pfn(__pa(__tcm_start)),
+				    __phys_to_pfn(__pa(__tcm_end)),
+				    "TCM link");
+#endif
+
 	if (!machine_is_integrator() && !machine_is_cintegrator())
 		totalram_pages += free_area(__phys_to_pfn(__pa(__init_begin)),
 					    __phys_to_pfn(__pa(__init_end)),

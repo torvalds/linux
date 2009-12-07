@@ -116,7 +116,7 @@ static void dwc_sync_desc_for_cpu(struct dw_dma_chan *dwc, struct dw_desc *desc)
 {
 	struct dw_desc	*child;
 
-	list_for_each_entry(child, &desc->txd.tx_list, desc_node)
+	list_for_each_entry(child, &desc->tx_list, desc_node)
 		dma_sync_single_for_cpu(chan2parent(&dwc->chan),
 				child->txd.phys, sizeof(child->lli),
 				DMA_TO_DEVICE);
@@ -137,11 +137,11 @@ static void dwc_desc_put(struct dw_dma_chan *dwc, struct dw_desc *desc)
 		dwc_sync_desc_for_cpu(dwc, desc);
 
 		spin_lock_bh(&dwc->lock);
-		list_for_each_entry(child, &desc->txd.tx_list, desc_node)
+		list_for_each_entry(child, &desc->tx_list, desc_node)
 			dev_vdbg(chan2dev(&dwc->chan),
 					"moving child desc %p to freelist\n",
 					child);
-		list_splice_init(&desc->txd.tx_list, &dwc->free_list);
+		list_splice_init(&desc->tx_list, &dwc->free_list);
 		dev_vdbg(chan2dev(&dwc->chan), "moving desc %p to freelist\n", desc);
 		list_add(&desc->desc_node, &dwc->free_list);
 		spin_unlock_bh(&dwc->lock);
@@ -209,19 +209,28 @@ dwc_descriptor_complete(struct dw_dma_chan *dwc, struct dw_desc *desc)
 	param = txd->callback_param;
 
 	dwc_sync_desc_for_cpu(dwc, desc);
-	list_splice_init(&txd->tx_list, &dwc->free_list);
+	list_splice_init(&desc->tx_list, &dwc->free_list);
 	list_move(&desc->desc_node, &dwc->free_list);
 
-	/*
-	 * We use dma_unmap_page() regardless of how the buffers were
-	 * mapped before they were submitted...
-	 */
-	if (!(txd->flags & DMA_COMPL_SKIP_DEST_UNMAP))
-		dma_unmap_page(chan2parent(&dwc->chan), desc->lli.dar,
-			       desc->len, DMA_FROM_DEVICE);
-	if (!(txd->flags & DMA_COMPL_SKIP_SRC_UNMAP))
-		dma_unmap_page(chan2parent(&dwc->chan), desc->lli.sar,
-			       desc->len, DMA_TO_DEVICE);
+	if (!dwc->chan.private) {
+		struct device *parent = chan2parent(&dwc->chan);
+		if (!(txd->flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
+			if (txd->flags & DMA_COMPL_DEST_UNMAP_SINGLE)
+				dma_unmap_single(parent, desc->lli.dar,
+						desc->len, DMA_FROM_DEVICE);
+			else
+				dma_unmap_page(parent, desc->lli.dar,
+						desc->len, DMA_FROM_DEVICE);
+		}
+		if (!(txd->flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
+			if (txd->flags & DMA_COMPL_SRC_UNMAP_SINGLE)
+				dma_unmap_single(parent, desc->lli.sar,
+						desc->len, DMA_TO_DEVICE);
+			else
+				dma_unmap_page(parent, desc->lli.sar,
+						desc->len, DMA_TO_DEVICE);
+		}
+	}
 
 	/*
 	 * The API requires that no submissions are done from a
@@ -289,7 +298,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 			/* This one is currently in progress */
 			return;
 
-		list_for_each_entry(child, &desc->txd.tx_list, desc_node)
+		list_for_each_entry(child, &desc->tx_list, desc_node)
 			if (child->lli.llp == llp)
 				/* Currently in progress */
 				return;
@@ -356,7 +365,7 @@ static void dwc_handle_error(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	dev_printk(KERN_CRIT, chan2dev(&dwc->chan),
 			"  cookie: %d\n", bad_desc->txd.cookie);
 	dwc_dump_lli(dwc, &bad_desc->lli);
-	list_for_each_entry(child, &bad_desc->txd.tx_list, desc_node)
+	list_for_each_entry(child, &bad_desc->tx_list, desc_node)
 		dwc_dump_lli(dwc, &child->lli);
 
 	/* Pretend the descriptor completed successfully */
@@ -608,7 +617,7 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 					prev->txd.phys, sizeof(prev->lli),
 					DMA_TO_DEVICE);
 			list_add_tail(&desc->desc_node,
-					&first->txd.tx_list);
+					&first->tx_list);
 		}
 		prev = desc;
 	}
@@ -658,8 +667,6 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	reg_width = dws->reg_width;
 	prev = first = NULL;
 
-	sg_len = dma_map_sg(chan2parent(chan), sgl, sg_len, direction);
-
 	switch (direction) {
 	case DMA_TO_DEVICE:
 		ctllo = (DWC_DEFAULT_CTLLO
@@ -700,7 +707,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 						sizeof(prev->lli),
 						DMA_TO_DEVICE);
 				list_add_tail(&desc->desc_node,
-						&first->txd.tx_list);
+						&first->tx_list);
 			}
 			prev = desc;
 			total_len += len;
@@ -746,7 +753,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 						sizeof(prev->lli),
 						DMA_TO_DEVICE);
 				list_add_tail(&desc->desc_node,
-						&first->txd.tx_list);
+						&first->tx_list);
 			}
 			prev = desc;
 			total_len += len;
@@ -902,6 +909,7 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 			break;
 		}
 
+		INIT_LIST_HEAD(&desc->tx_list);
 		dma_async_tx_descriptor_init(&desc->txd, chan);
 		desc->txd.tx_submit = dwc_tx_submit;
 		desc->txd.flags = DMA_CTRL_ACK;
@@ -1399,8 +1407,9 @@ static void dw_shutdown(struct platform_device *pdev)
 	clk_disable(dw->clk);
 }
 
-static int dw_suspend_late(struct platform_device *pdev, pm_message_t mesg)
+static int dw_suspend_noirq(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct dw_dma	*dw = platform_get_drvdata(pdev);
 
 	dw_dma_off(platform_get_drvdata(pdev));
@@ -1408,23 +1417,27 @@ static int dw_suspend_late(struct platform_device *pdev, pm_message_t mesg)
 	return 0;
 }
 
-static int dw_resume_early(struct platform_device *pdev)
+static int dw_resume_noirq(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct dw_dma	*dw = platform_get_drvdata(pdev);
 
 	clk_enable(dw->clk);
 	dma_writel(dw, CFG, DW_CFG_DMA_EN);
 	return 0;
-
 }
+
+static struct dev_pm_ops dw_dev_pm_ops = {
+	.suspend_noirq = dw_suspend_noirq,
+	.resume_noirq = dw_resume_noirq,
+};
 
 static struct platform_driver dw_driver = {
 	.remove		= __exit_p(dw_remove),
 	.shutdown	= dw_shutdown,
-	.suspend_late	= dw_suspend_late,
-	.resume_early	= dw_resume_early,
 	.driver = {
 		.name	= "dw_dmac",
+		.pm	= &dw_dev_pm_ops,
 	},
 };
 

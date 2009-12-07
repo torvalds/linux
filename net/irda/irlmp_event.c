@@ -33,13 +33,13 @@
 #include <net/irda/irlmp_frame.h>
 #include <net/irda/irlmp_event.h>
 
-const char *irlmp_state[] = {
+const char *const irlmp_state[] = {
 	"LAP_STANDBY",
 	"LAP_U_CONNECT",
 	"LAP_ACTIVE",
 };
 
-const char *irlsap_state[] = {
+const char *const irlsap_state[] = {
 	"LSAP_DISCONNECTED",
 	"LSAP_CONNECT",
 	"LSAP_CONNECT_PEND",
@@ -49,7 +49,7 @@ const char *irlsap_state[] = {
 };
 
 #ifdef CONFIG_IRDA_DEBUG
-static const char *irlmp_event[] = {
+static const char *const irlmp_event[] = {
 	"LM_CONNECT_REQUEST",
 	"LM_CONNECT_CONFIRM",
 	"LM_CONNECT_RESPONSE",

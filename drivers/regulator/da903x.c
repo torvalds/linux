@@ -64,6 +64,14 @@
 #define DA9034_MDTV2		(0x33)
 #define DA9034_MVRC		(0x34)
 
+/* DA9035 Registers. DA9034 Registers are comptabile to DA9035. */
+#define DA9035_OVER3		(0x12)
+#define DA9035_VCC2		(0x1f)
+#define DA9035_3DTV1		(0x2c)
+#define DA9035_3DTV2		(0x2d)
+#define DA9035_3VRC		(0x2e)
+#define DA9035_AUTOSKIP		(0x2f)
+
 struct da903x_regulator_info {
 	struct regulator_desc desc;
 
@@ -78,6 +86,10 @@ struct da903x_regulator_info {
 	int	enable_reg;
 	int	enable_bit;
 };
+
+static int da9034_ldo12_data[] = { 1700, 1750, 1800, 1850, 1900, 1950,
+				   2000, 2050, 2700, 2750, 2800, 2850,
+				   2900, 2950, 3000, 3050 };
 
 static inline struct device *to_da903x_dev(struct regulator_dev *rdev)
 {
@@ -160,6 +172,17 @@ static int da903x_is_enabled(struct regulator_dev *rdev)
 		return ret;
 
 	return !!(reg_val & (1 << info->enable_bit));
+}
+
+static int da903x_list_voltage(struct regulator_dev *rdev, unsigned selector)
+{
+	struct da903x_regulator_info *info = rdev_get_drvdata(rdev);
+	int ret;
+
+	ret = info->min_uV + info->step_uV * selector;
+	if (ret > info->max_uV)
+		return -EINVAL;
+	return ret;
 }
 
 /* DA9030 specific operations */
@@ -278,7 +301,7 @@ static int da9034_set_ldo12_voltage(struct regulator_dev *rdev,
 	}
 
 	val = (min_uV - info->min_uV + info->step_uV - 1) / info->step_uV;
-	val = (val > 7 || val < 20) ? 8 : val - 12;
+	val = (val >= 20) ? val - 12 : ((val > 7) ? 8 : val);
 	val <<= info->vol_shift;
 	mask = ((1 << info->vol_nbits) - 1)  << info->vol_shift;
 
@@ -305,9 +328,18 @@ static int da9034_get_ldo12_voltage(struct regulator_dev *rdev)
 	return info->min_uV + info->step_uV * val;
 }
 
+static int da9034_list_ldo12_voltage(struct regulator_dev *rdev,
+				     unsigned selector)
+{
+	if (selector > ARRAY_SIZE(da9034_ldo12_data))
+		return -EINVAL;
+	return da9034_ldo12_data[selector] * 1000;
+}
+
 static struct regulator_ops da903x_regulator_ldo_ops = {
 	.set_voltage	= da903x_set_ldo_voltage,
 	.get_voltage	= da903x_get_voltage,
+	.list_voltage	= da903x_list_voltage,
 	.enable		= da903x_enable,
 	.disable	= da903x_disable,
 	.is_enabled	= da903x_is_enabled,
@@ -317,6 +349,7 @@ static struct regulator_ops da903x_regulator_ldo_ops = {
 static struct regulator_ops da9030_regulator_ldo14_ops = {
 	.set_voltage	= da9030_set_ldo14_voltage,
 	.get_voltage	= da9030_get_ldo14_voltage,
+	.list_voltage	= da903x_list_voltage,
 	.enable		= da903x_enable,
 	.disable	= da903x_disable,
 	.is_enabled	= da903x_is_enabled,
@@ -326,6 +359,7 @@ static struct regulator_ops da9030_regulator_ldo14_ops = {
 static struct regulator_ops da9030_regulator_ldo1_15_ops = {
 	.set_voltage	= da9030_set_ldo1_15_voltage,
 	.get_voltage	= da903x_get_voltage,
+	.list_voltage	= da903x_list_voltage,
 	.enable		= da903x_enable,
 	.disable	= da903x_disable,
 	.is_enabled	= da903x_is_enabled,
@@ -334,6 +368,7 @@ static struct regulator_ops da9030_regulator_ldo1_15_ops = {
 static struct regulator_ops da9034_regulator_dvc_ops = {
 	.set_voltage	= da9034_set_dvc_voltage,
 	.get_voltage	= da903x_get_voltage,
+	.list_voltage	= da903x_list_voltage,
 	.enable		= da903x_enable,
 	.disable	= da903x_disable,
 	.is_enabled	= da903x_is_enabled,
@@ -343,6 +378,7 @@ static struct regulator_ops da9034_regulator_dvc_ops = {
 static struct regulator_ops da9034_regulator_ldo12_ops = {
 	.set_voltage	= da9034_set_ldo12_voltage,
 	.get_voltage	= da9034_get_ldo12_voltage,
+	.list_voltage	= da9034_list_ldo12_voltage,
 	.enable		= da903x_enable,
 	.disable	= da903x_disable,
 	.is_enabled	= da903x_is_enabled,
@@ -355,6 +391,7 @@ static struct regulator_ops da9034_regulator_ldo12_ops = {
 		.ops	= &da903x_regulator_ldo_ops,			\
 		.type	= REGULATOR_VOLTAGE,				\
 		.id	= _pmic##_ID_LDO##_id,				\
+		.n_voltages = (step) ? ((max - min) / step + 1) : 1,	\
 		.owner	= THIS_MODULE,					\
 	},								\
 	.min_uV		= (min) * 1000,					\
@@ -367,24 +404,25 @@ static struct regulator_ops da9034_regulator_ldo12_ops = {
 	.enable_bit	= (ebit),					\
 }
 
-#define DA9034_DVC(_id, min, max, step, vreg, nbits, ureg, ubit, ereg, ebit) \
+#define DA903x_DVC(_pmic, _id, min, max, step, vreg, nbits, ureg, ubit, ereg, ebit) \
 {									\
 	.desc	= {							\
 		.name	= #_id,						\
 		.ops	= &da9034_regulator_dvc_ops,			\
 		.type	= REGULATOR_VOLTAGE,				\
-		.id	= DA9034_ID_##_id,				\
+		.id	= _pmic##_ID_##_id,				\
+		.n_voltages = (step) ? ((max - min) / step + 1) : 1,	\
 		.owner	= THIS_MODULE,					\
 	},								\
 	.min_uV		= (min) * 1000,					\
 	.max_uV		= (max) * 1000,					\
 	.step_uV	= (step) * 1000,				\
-	.vol_reg	= DA9034_##vreg,				\
+	.vol_reg	= _pmic##_##vreg,				\
 	.vol_shift	= (0),						\
 	.vol_nbits	= (nbits),					\
-	.update_reg	= DA9034_##ureg,				\
+	.update_reg	= _pmic##_##ureg,				\
 	.update_bit	= (ubit),					\
-	.enable_reg	= DA9034_##ereg,				\
+	.enable_reg	= _pmic##_##ereg,				\
 	.enable_bit	= (ebit),					\
 }
 
@@ -394,8 +432,22 @@ static struct regulator_ops da9034_regulator_ldo12_ops = {
 #define DA9030_LDO(_id, min, max, step, vreg, shift, nbits, ereg, ebit)	\
 	DA903x_LDO(DA9030, _id, min, max, step, vreg, shift, nbits, ereg, ebit)
 
+#define DA9030_DVC(_id, min, max, step, vreg, nbits, ureg, ubit, ereg, ebit) \
+	DA903x_DVC(DA9030, _id, min, max, step, vreg, nbits, ureg, ubit, \
+		   ereg, ebit)
+
+#define DA9034_DVC(_id, min, max, step, vreg, nbits, ureg, ubit, ereg, ebit) \
+	DA903x_DVC(DA9034, _id, min, max, step, vreg, nbits, ureg, ubit, \
+		   ereg, ebit)
+
+#define DA9035_DVC(_id, min, max, step, vreg, nbits, ureg, ubit, ereg, ebit) \
+	DA903x_DVC(DA9035, _id, min, max, step, vreg, nbits, ureg, ubit, \
+		   ereg, ebit)
+
 static struct da903x_regulator_info da903x_regulator_info[] = {
 	/* DA9030 */
+	DA9030_DVC(BUCK2, 850, 1625, 25, BUCK2DVM1, 5, BUCK2DVM1, 7, RCTL11, 0),
+
 	DA9030_LDO( 1, 1200, 3200, 100,    LDO1, 0, 5, RCTL12, 1),
 	DA9030_LDO( 2, 1800, 3200, 100,   LDO23, 0, 4, RCTL12, 2),
 	DA9030_LDO( 3, 1800, 3200, 100,   LDO23, 4, 4, RCTL12, 3),
@@ -417,9 +469,9 @@ static struct da903x_regulator_info da903x_regulator_info[] = {
 	DA9030_LDO(13, 2100, 2100, 0, INVAL, 0, 0, RCTL11, 3), /* fixed @2.1V */
 
 	/* DA9034 */
-	DA9034_DVC(BUCK1, 725, 1500, 25, ADTV1, 5, VCC1, 0, OVER1, 0),
-	DA9034_DVC(BUCK2, 725, 1500, 25, CDTV1, 5, VCC1, 2, OVER1, 1),
-	DA9034_DVC(LDO2,  725, 1500, 25, SDTV1, 5, VCC1, 4, OVER1, 2),
+	DA9034_DVC(BUCK1, 725, 1500, 25, ADTV2, 5, VCC1, 0, OVER1, 0),
+	DA9034_DVC(BUCK2, 725, 1500, 25, CDTV2, 5, VCC1, 2, OVER1, 1),
+	DA9034_DVC(LDO2,  725, 1500, 25, SDTV2, 5, VCC1, 4, OVER1, 2),
 	DA9034_DVC(LDO1, 1700, 2075, 25, MDTV1, 4, VCC1, 6, OVER3, 4),
 
 	DA9034_LDO( 3, 1800, 3300, 100,  LDO643, 0, 4, OVER3, 5),
@@ -435,6 +487,9 @@ static struct da903x_regulator_info da903x_regulator_info[] = {
 	DA9034_LDO(14, 1800, 3300, 100, LDO1514, 0, 4, OVER3, 0),
 	DA9034_LDO(15, 1800, 3300, 100, LDO1514, 4, 4, OVER3, 1),
 	DA9034_LDO(5, 3100, 3100, 0, INVAL, 0, 0, OVER3, 7), /* fixed @3.1V */
+
+	/* DA9035 */
+	DA9035_DVC(BUCK3, 1800, 2200, 100, 3DTV1, 3, VCC2, 0, OVER3, 3),
 };
 
 static inline struct da903x_regulator_info *find_regulator_info(int id)
@@ -462,8 +517,10 @@ static int __devinit da903x_regulator_probe(struct platform_device *pdev)
 	}
 
 	/* Workaround for the weird LDO12 voltage setting */
-	if (ri->desc.id == DA9034_ID_LDO12)
+	if (ri->desc.id == DA9034_ID_LDO12) {
 		ri->desc.ops = &da9034_regulator_ldo12_ops;
+		ri->desc.n_voltages = ARRAY_SIZE(da9034_ldo12_data);
+	}
 
 	if (ri->desc.id == DA9030_ID_LDO14)
 		ri->desc.ops = &da9030_regulator_ldo14_ops;

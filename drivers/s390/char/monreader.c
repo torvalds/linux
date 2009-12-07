@@ -357,6 +357,7 @@ static int mon_close(struct inode *inode, struct file *filp)
 	atomic_set(&monpriv->msglim_count, 0);
 	monpriv->write_index  = 0;
 	monpriv->read_index   = 0;
+	dev_set_drvdata(monreader_device, NULL);
 
 	for (i = 0; i < MON_MSGLIM; i++)
 		kfree(monpriv->msg_array[i]);
@@ -581,7 +582,7 @@ static int __init mon_init(void)
 	monreader_device->release = (void (*)(struct device *))kfree;
 	rc = device_register(monreader_device);
 	if (rc) {
-		kfree(monreader_device);
+		put_device(monreader_device);
 		goto out_driver;
 	}
 

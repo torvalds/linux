@@ -25,12 +25,6 @@
 /** Max number of pages that can be used in a single read request */
 #define FUSE_MAX_PAGES_PER_REQ 32
 
-/** Maximum number of outstanding background requests */
-#define FUSE_MAX_BACKGROUND 12
-
-/** Congestion starts at 75% of maximum */
-#define FUSE_CONGESTION_THRESHOLD (FUSE_MAX_BACKGROUND * 75 / 100)
-
 /** Bias for fi->writectr, meaning new writepages must not be sent */
 #define FUSE_NOWRITE INT_MIN
 
@@ -38,7 +32,7 @@
 #define FUSE_NAME_MAX 1024
 
 /** Number of dentries for each connection in the control filesystem */
-#define FUSE_CTL_NUM_DENTRIES 3
+#define FUSE_CTL_NUM_DENTRIES 5
 
 /** If the FUSE_DEFAULT_PERMISSIONS flag is given, the filesystem
     module will check permissions based on the file mode.  Otherwise no
@@ -54,6 +48,10 @@ extern struct list_head fuse_conn_list;
 
 /** Global mutex protecting fuse_conn_list and the control filesystem */
 extern struct mutex fuse_mutex;
+
+/** Module parameters */
+extern unsigned max_user_bgreq;
+extern unsigned max_user_congthresh;
 
 /** FUSE inode */
 struct fuse_inode {
@@ -349,6 +347,12 @@ struct fuse_conn {
 	/** rbtree of fuse_files waiting for poll events indexed by ph */
 	struct rb_root polled_files;
 
+	/** Maximum number of outstanding background requests */
+	unsigned max_background;
+
+	/** Number of background requests at which congestion starts */
+	unsigned congestion_threshold;
+
 	/** Number of requests currently in the background */
 	unsigned num_background;
 
@@ -601,8 +605,6 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 
 void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
 				   u64 attr_valid);
-
-void fuse_truncate(struct address_space *mapping, loff_t offset);
 
 /**
  * Initialize the client device

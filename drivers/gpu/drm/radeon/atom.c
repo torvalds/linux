@@ -107,6 +107,7 @@ static uint32_t atom_iio_execute(struct atom_context *ctx, int base,
 			base += 3;
 			break;
 		case ATOM_IIO_WRITE:
+			(void)ctx->card->reg_read(ctx->card, CU16(base + 1));
 			ctx->card->reg_write(ctx->card, CU16(base + 1), temp);
 			base += 3;
 			break;

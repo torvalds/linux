@@ -188,3 +188,4 @@ module_exit(ds3234_exit);
 MODULE_DESCRIPTION("DS3234 SPI RTC driver");
 MODULE_AUTHOR("Dennis Aberilla <denzzzhome@yahoo.com>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("spi:ds3234");

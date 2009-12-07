@@ -29,4 +29,13 @@ static inline void kvm_rip_write(struct kvm_vcpu *vcpu, unsigned long val)
 	kvm_register_write(vcpu, VCPU_REGS_RIP, val);
 }
 
+static inline u64 kvm_pdptr_read(struct kvm_vcpu *vcpu, int index)
+{
+	if (!test_bit(VCPU_EXREG_PDPTR,
+		      (unsigned long *)&vcpu->arch.regs_avail))
+		kvm_x86_ops->cache_reg(vcpu, VCPU_EXREG_PDPTR);
+
+	return vcpu->arch.pdptrs[index];
+}
+
 #endif

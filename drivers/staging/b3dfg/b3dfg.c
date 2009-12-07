@@ -36,6 +36,7 @@
 #include <linux/wait.h>
 #include <linux/mm.h>
 #include <linux/uaccess.h>
+#include <linux/sched.h>
 
 static unsigned int b3dfg_nbuf = 2;
 
@@ -632,18 +633,15 @@ static void transfer_complete(struct b3dfg_dev *fgdev)
 	fgdev->cur_dma_frame_addr = 0;
 
 	buf = list_entry(fgdev->buffer_queue.next, struct b3dfg_buffer, list);
-	if (buf) {
-		dev_dbg(dev, "handle frame completion\n");
-		if (fgdev->cur_dma_frame_idx == B3DFG_FRAMES_PER_BUFFER - 1) {
 
-			/* last frame of that triplet completed */
-			dev_dbg(dev, "triplet completed\n");
-			buf->state = B3DFG_BUFFER_POPULATED;
-			list_del_init(&buf->list);
-			wake_up_interruptible(&fgdev->buffer_waitqueue);
-		}
-	} else {
-		dev_err(dev, "got frame but no buffer!\n");
+	dev_dbg(dev, "handle frame completion\n");
+	if (fgdev->cur_dma_frame_idx == B3DFG_FRAMES_PER_BUFFER - 1) {
+
+		/* last frame of that triplet completed */
+		dev_dbg(dev, "triplet completed\n");
+		buf->state = B3DFG_BUFFER_POPULATED;
+		list_del_init(&buf->list);
+		wake_up_interruptible(&fgdev->buffer_waitqueue);
 	}
 }
 
@@ -663,19 +661,15 @@ static bool setup_next_frame_transfer(struct b3dfg_dev *fgdev, int idx)
 	dev_dbg(dev, "program DMA transfer for next frame: %d\n", idx);
 
 	buf = list_entry(fgdev->buffer_queue.next, struct b3dfg_buffer, list);
-	if (buf) {
-		if (idx == fgdev->cur_dma_frame_idx + 2) {
-			if (setup_frame_transfer(fgdev, buf, idx - 1))
-				dev_err(dev, "unable to map DMA buffer\n");
-			need_ack = 0;
-		} else {
-			dev_err(dev, "frame mismatch, got %d, expected %d\n",
-				idx, fgdev->cur_dma_frame_idx + 2);
-
-			/* FIXME: handle dropped triplets here */
-		}
+	if (idx == fgdev->cur_dma_frame_idx + 2) {
+		if (setup_frame_transfer(fgdev, buf, idx - 1))
+			dev_err(dev, "unable to map DMA buffer\n");
+		need_ack = 0;
 	} else {
-		dev_err(dev, "cannot setup DMA, no buffer\n");
+		dev_err(dev, "frame mismatch, got %d, expected %d\n",
+			idx, fgdev->cur_dma_frame_idx + 2);
+
+		/* FIXME: handle dropped triplets here */
 	}
 
 	return need_ack;

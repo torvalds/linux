@@ -31,6 +31,11 @@
 #ifndef __RADEON_DRV_H__
 #define __RADEON_DRV_H__
 
+#include <linux/firmware.h>
+#include <linux/platform_device.h>
+
+#include "radeon_family.h"
+
 /* General customization:
  */
 
@@ -106,73 +111,10 @@
 #define DRIVER_MINOR		31
 #define DRIVER_PATCHLEVEL	0
 
-/*
- * Radeon chip families
- */
-enum radeon_family {
-	CHIP_R100,
-	CHIP_RV100,
-	CHIP_RS100,
-	CHIP_RV200,
-	CHIP_RS200,
-	CHIP_R200,
-	CHIP_RV250,
-	CHIP_RS300,
-	CHIP_RV280,
-	CHIP_R300,
-	CHIP_R350,
-	CHIP_RV350,
-	CHIP_RV380,
-	CHIP_R420,
-	CHIP_R423,
-	CHIP_RV410,
-	CHIP_RS400,
-	CHIP_RS480,
-	CHIP_RS600,
-	CHIP_RS690,
-	CHIP_RS740,
-	CHIP_RV515,
-	CHIP_R520,
-	CHIP_RV530,
-	CHIP_RV560,
-	CHIP_RV570,
-	CHIP_R580,
-	CHIP_R600,
-	CHIP_RV610,
-	CHIP_RV630,
-	CHIP_RV620,
-	CHIP_RV635,
-	CHIP_RV670,
-	CHIP_RS780,
-	CHIP_RS880,
-	CHIP_RV770,
-	CHIP_RV730,
-	CHIP_RV710,
-	CHIP_RV740,
-	CHIP_LAST,
-};
-
 enum radeon_cp_microcode_version {
 	UCODE_R100,
 	UCODE_R200,
 	UCODE_R300,
-};
-
-/*
- * Chip flags
- */
-enum radeon_chip_flags {
-	RADEON_FAMILY_MASK = 0x0000ffffUL,
-	RADEON_FLAGS_MASK = 0xffff0000UL,
-	RADEON_IS_MOBILITY = 0x00010000UL,
-	RADEON_IS_IGP = 0x00020000UL,
-	RADEON_SINGLE_CRTC = 0x00040000UL,
-	RADEON_IS_AGP = 0x00080000UL,
-	RADEON_HAS_HIERZ = 0x00100000UL,
-	RADEON_IS_PCIE = 0x00200000UL,
-	RADEON_NEW_MEMMAP = 0x00400000UL,
-	RADEON_IS_PCI = 0x00800000UL,
-	RADEON_IS_IGPGART = 0x01000000UL,
 };
 
 typedef struct drm_radeon_freelist {
@@ -353,6 +295,14 @@ typedef struct drm_radeon_private {
 	int r700_sc_hiz_tile_fifo_size;
 	int r700_sc_earlyz_tile_fifo_fize;
 
+	struct mutex cs_mutex;
+	u32 cs_id_scnt;
+	u32 cs_id_wcnt;
+	/* r6xx/r7xx drm blit vertex buffer */
+	struct drm_buf *blit_vb;
+
+	/* firmware */
+	const struct firmware *me_fw, *pfp_fw;
 } drm_radeon_private_t;
 
 typedef struct drm_radeon_buf_priv {
@@ -390,6 +340,9 @@ static __inline__ int radeon_check_offset(drm_radeon_private_t *dev_priv,
 	return ((off >= fb_start && off <= fb_end) ||
 		(off >= gart_start && off <= gart_end));
 }
+
+/* radeon_state.c */
+extern void radeon_cp_discard_buffer(struct drm_device *dev, struct drm_master *master, struct drm_buf *buf);
 
 				/* radeon_cp.c */
 extern int radeon_cp_init(struct drm_device *dev, void *data, struct drm_file *file_priv);
@@ -457,6 +410,8 @@ extern int radeon_driver_open(struct drm_device *dev,
 			      struct drm_file *file_priv);
 extern long radeon_compat_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg);
+extern long radeon_kms_compat_ioctl(struct file *filp, unsigned int cmd,
+				    unsigned long arg);
 
 extern int radeon_master_create(struct drm_device *dev, struct drm_master *master);
 extern void radeon_master_destroy(struct drm_device *dev, struct drm_master *master);
@@ -482,6 +437,22 @@ extern int r600_cp_dispatch_indirect(struct drm_device *dev,
 				     struct drm_buf *buf, int start, int end);
 extern int r600_page_table_init(struct drm_device *dev);
 extern void r600_page_table_cleanup(struct drm_device *dev, struct drm_ati_pcigart_info *gart_info);
+extern int r600_cs_legacy_ioctl(struct drm_device *dev, void *data, struct drm_file *fpriv);
+extern void r600_cp_dispatch_swap(struct drm_device *dev, struct drm_file *file_priv);
+extern int r600_cp_dispatch_texture(struct drm_device *dev,
+				    struct drm_file *file_priv,
+				    drm_radeon_texture_t *tex,
+				    drm_radeon_tex_image_t *image);
+/* r600_blit.c */
+extern int r600_prepare_blit_copy(struct drm_device *dev, struct drm_file *file_priv);
+extern void r600_done_blit_copy(struct drm_device *dev);
+extern void r600_blit_copy(struct drm_device *dev,
+			   uint64_t src_gpu_addr, uint64_t dst_gpu_addr,
+			   int size_bytes);
+extern void r600_blit_swap(struct drm_device *dev,
+			   uint64_t src_gpu_addr, uint64_t dst_gpu_addr,
+			   int sx, int sy, int dx, int dy,
+			   int w, int h, int src_pitch, int dst_pitch, int cpp);
 
 /* Flags for stats.boxes
  */
@@ -1067,6 +1038,9 @@ extern u32 radeon_get_scratch(drm_radeon_private_t *dev_priv, int index);
 #	define RADEON_CSQ_PRIBM_INDBM		(4 << 28)
 #	define RADEON_CSQ_PRIPIO_INDPIO		(15 << 28)
 
+#define R300_CP_RESYNC_ADDR		0x0778
+#define R300_CP_RESYNC_DATA		0x077c
+
 #define RADEON_AIC_CNTL			0x01d0
 #	define RADEON_PCIGART_TRANSLATE_EN	(1 << 0)
 #	define RS400_MSI_REARM	                (1 << 3)
@@ -1109,13 +1083,71 @@ extern u32 radeon_get_scratch(drm_radeon_private_t *dev_priv, int index);
 #	define RADEON_CNTL_BITBLT_MULTI		0x00009B00
 #	define RADEON_CNTL_SET_SCISSORS		0xC0001E00
 
-#	define R600_IT_INDIRECT_BUFFER		0x00003200
-#	define R600_IT_ME_INITIALIZE		0x00004400
+#       define R600_IT_INDIRECT_BUFFER_END      0x00001700
+#       define R600_IT_SET_PREDICATION          0x00002000
+#       define R600_IT_REG_RMW                  0x00002100
+#       define R600_IT_COND_EXEC                0x00002200
+#       define R600_IT_PRED_EXEC                0x00002300
+#       define R600_IT_START_3D_CMDBUF          0x00002400
+#       define R600_IT_DRAW_INDEX_2             0x00002700
+#       define R600_IT_CONTEXT_CONTROL          0x00002800
+#       define R600_IT_DRAW_INDEX_IMMD_BE       0x00002900
+#       define R600_IT_INDEX_TYPE               0x00002A00
+#       define R600_IT_DRAW_INDEX               0x00002B00
+#       define R600_IT_DRAW_INDEX_AUTO          0x00002D00
+#       define R600_IT_DRAW_INDEX_IMMD          0x00002E00
+#       define R600_IT_NUM_INSTANCES            0x00002F00
+#       define R600_IT_STRMOUT_BUFFER_UPDATE    0x00003400
+#       define R600_IT_INDIRECT_BUFFER_MP       0x00003800
+#       define R600_IT_MEM_SEMAPHORE            0x00003900
+#       define R600_IT_MPEG_INDEX               0x00003A00
+#       define R600_IT_WAIT_REG_MEM             0x00003C00
+#       define R600_IT_MEM_WRITE                0x00003D00
+#       define R600_IT_INDIRECT_BUFFER          0x00003200
+#       define R600_IT_CP_INTERRUPT             0x00004000
+#       define R600_IT_SURFACE_SYNC             0x00004300
+#              define R600_CB0_DEST_BASE_ENA    (1 << 6)
+#              define R600_TC_ACTION_ENA        (1 << 23)
+#              define R600_VC_ACTION_ENA        (1 << 24)
+#              define R600_CB_ACTION_ENA        (1 << 25)
+#              define R600_DB_ACTION_ENA        (1 << 26)
+#              define R600_SH_ACTION_ENA        (1 << 27)
+#              define R600_SMX_ACTION_ENA       (1 << 28)
+#       define R600_IT_ME_INITIALIZE            0x00004400
 #	       define R600_ME_INITIALIZE_DEVICE_ID(x) ((x) << 16)
-#	define R600_IT_EVENT_WRITE		0x00004600
-#	define R600_IT_SET_CONFIG_REG		0x00006800
-#	define R600_SET_CONFIG_REG_OFFSET       0x00008000
-#	define R600_SET_CONFIG_REG_END          0x0000ac00
+#       define R600_IT_COND_WRITE               0x00004500
+#       define R600_IT_EVENT_WRITE              0x00004600
+#       define R600_IT_EVENT_WRITE_EOP          0x00004700
+#       define R600_IT_ONE_REG_WRITE            0x00005700
+#       define R600_IT_SET_CONFIG_REG           0x00006800
+#              define R600_SET_CONFIG_REG_OFFSET 0x00008000
+#              define R600_SET_CONFIG_REG_END   0x0000ac00
+#       define R600_IT_SET_CONTEXT_REG          0x00006900
+#              define R600_SET_CONTEXT_REG_OFFSET 0x00028000
+#              define R600_SET_CONTEXT_REG_END  0x00029000
+#       define R600_IT_SET_ALU_CONST            0x00006A00
+#              define R600_SET_ALU_CONST_OFFSET 0x00030000
+#              define R600_SET_ALU_CONST_END    0x00032000
+#       define R600_IT_SET_BOOL_CONST           0x00006B00
+#              define R600_SET_BOOL_CONST_OFFSET 0x0003e380
+#              define R600_SET_BOOL_CONST_END   0x00040000
+#       define R600_IT_SET_LOOP_CONST           0x00006C00
+#              define R600_SET_LOOP_CONST_OFFSET 0x0003e200
+#              define R600_SET_LOOP_CONST_END   0x0003e380
+#       define R600_IT_SET_RESOURCE             0x00006D00
+#              define R600_SET_RESOURCE_OFFSET  0x00038000
+#              define R600_SET_RESOURCE_END     0x0003c000
+#              define R600_SQ_TEX_VTX_INVALID_TEXTURE  0x0
+#              define R600_SQ_TEX_VTX_INVALID_BUFFER   0x1
+#              define R600_SQ_TEX_VTX_VALID_TEXTURE    0x2
+#              define R600_SQ_TEX_VTX_VALID_BUFFER     0x3
+#       define R600_IT_SET_SAMPLER              0x00006E00
+#              define R600_SET_SAMPLER_OFFSET   0x0003c000
+#              define R600_SET_SAMPLER_END      0x0003cff0
+#       define R600_IT_SET_CTL_CONST            0x00006F00
+#              define R600_SET_CTL_CONST_OFFSET 0x0003cff0
+#              define R600_SET_CTL_CONST_END    0x0003e200
+#       define R600_IT_SURFACE_BASE_UPDATE      0x00007300
 
 #define RADEON_CP_PACKET_MASK		0xC0000000
 #define RADEON_CP_PACKET_COUNT_MASK	0x3fff0000
@@ -1592,6 +1624,52 @@ extern u32 radeon_get_scratch(drm_radeon_private_t *dev_priv, int index);
 #define R600_CB_COLOR6_BASE                                    0x28058
 #define R600_CB_COLOR7_BASE                                    0x2805c
 #define R600_CB_COLOR7_FRAG                                    0x280fc
+
+#define R600_CB_COLOR0_SIZE                                    0x28060
+#define R600_CB_COLOR0_VIEW                                    0x28080
+#define R600_CB_COLOR0_INFO                                    0x280a0
+#define R600_CB_COLOR0_TILE                                    0x280c0
+#define R600_CB_COLOR0_FRAG                                    0x280e0
+#define R600_CB_COLOR0_MASK                                    0x28100
+
+#define AVIVO_D1MODE_VLINE_START_END                           0x6538
+#define AVIVO_D2MODE_VLINE_START_END                           0x6d38
+#define R600_CP_COHER_BASE                                     0x85f8
+#define R600_DB_DEPTH_BASE                                     0x2800c
+#define R600_SQ_PGM_START_FS                                   0x28894
+#define R600_SQ_PGM_START_ES                                   0x28880
+#define R600_SQ_PGM_START_VS                                   0x28858
+#define R600_SQ_PGM_RESOURCES_VS                               0x28868
+#define R600_SQ_PGM_CF_OFFSET_VS                               0x288d0
+#define R600_SQ_PGM_START_GS                                   0x2886c
+#define R600_SQ_PGM_START_PS                                   0x28840
+#define R600_SQ_PGM_RESOURCES_PS                               0x28850
+#define R600_SQ_PGM_EXPORTS_PS                                 0x28854
+#define R600_SQ_PGM_CF_OFFSET_PS                               0x288cc
+#define R600_VGT_DMA_BASE                                      0x287e8
+#define R600_VGT_DMA_BASE_HI                                   0x287e4
+#define R600_VGT_STRMOUT_BASE_OFFSET_0                         0x28b10
+#define R600_VGT_STRMOUT_BASE_OFFSET_1                         0x28b14
+#define R600_VGT_STRMOUT_BASE_OFFSET_2                         0x28b18
+#define R600_VGT_STRMOUT_BASE_OFFSET_3                         0x28b1c
+#define R600_VGT_STRMOUT_BASE_OFFSET_HI_0                      0x28b44
+#define R600_VGT_STRMOUT_BASE_OFFSET_HI_1                      0x28b48
+#define R600_VGT_STRMOUT_BASE_OFFSET_HI_2                      0x28b4c
+#define R600_VGT_STRMOUT_BASE_OFFSET_HI_3                      0x28b50
+#define R600_VGT_STRMOUT_BUFFER_BASE_0                         0x28ad8
+#define R600_VGT_STRMOUT_BUFFER_BASE_1                         0x28ae8
+#define R600_VGT_STRMOUT_BUFFER_BASE_2                         0x28af8
+#define R600_VGT_STRMOUT_BUFFER_BASE_3                         0x28b08
+#define R600_VGT_STRMOUT_BUFFER_OFFSET_0                       0x28adc
+#define R600_VGT_STRMOUT_BUFFER_OFFSET_1                       0x28aec
+#define R600_VGT_STRMOUT_BUFFER_OFFSET_2                       0x28afc
+#define R600_VGT_STRMOUT_BUFFER_OFFSET_3                       0x28b0c
+
+#define R600_VGT_PRIMITIVE_TYPE                                0x8958
+
+#define R600_PA_SC_SCREEN_SCISSOR_TL                           0x28030
+#define R600_PA_SC_GENERIC_SCISSOR_TL                          0x28240
+#define R600_PA_SC_WINDOW_SCISSOR_TL                           0x28204
 
 #define R600_TC_CNTL                                           0x9608
 #       define R600_TC_L2_SIZE(x)                              ((x) << 5)

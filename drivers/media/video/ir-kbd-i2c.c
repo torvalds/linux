@@ -122,12 +122,12 @@ static int get_key_haup_common(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw,
 	return 1;
 }
 
-static inline int get_key_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
 	return get_key_haup_common (ir, ir_key, ir_raw, 3, 0);
 }
 
-static inline int get_key_haup_xvr(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_haup_xvr(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
 	return get_key_haup_common (ir, ir_key, ir_raw, 6, 3);
 }
@@ -297,7 +297,7 @@ static void ir_work(struct work_struct *work)
 
 static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
-	IR_KEYTAB_TYPE *ir_codes = NULL;
+	struct ir_scancode_table *ir_codes = NULL;
 	const char *name = NULL;
 	int ir_type;
 	struct IR_i2c *ir;
@@ -322,13 +322,13 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		name        = "Pixelview";
 		ir->get_key = get_key_pixelview;
 		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = ir_codes_empty;
+		ir_codes    = &ir_codes_empty_table;
 		break;
 	case 0x4b:
 		name        = "PV951";
 		ir->get_key = get_key_pv951;
 		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = ir_codes_pv951;
+		ir_codes    = &ir_codes_pv951_table;
 		break;
 	case 0x18:
 	case 0x1a:
@@ -336,36 +336,38 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir->get_key = get_key_haup;
 		ir_type     = IR_TYPE_RC5;
 		if (hauppauge == 1) {
-			ir_codes    = ir_codes_hauppauge_new;
+			ir_codes    = &ir_codes_hauppauge_new_table;
 		} else {
-			ir_codes    = ir_codes_rc5_tv;
+			ir_codes    = &ir_codes_rc5_tv_table;
 		}
 		break;
 	case 0x30:
 		name        = "KNC One";
 		ir->get_key = get_key_knc1;
 		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = ir_codes_empty;
+		ir_codes    = &ir_codes_empty_table;
 		break;
 	case 0x6b:
 		name        = "FusionHDTV";
 		ir->get_key = get_key_fusionhdtv;
 		ir_type     = IR_TYPE_RC5;
-		ir_codes    = ir_codes_fusionhdtv_mce;
+		ir_codes    = &ir_codes_fusionhdtv_mce_table;
 		break;
 	case 0x7a:
 	case 0x47:
 	case 0x71:
 	case 0x2d:
-		if (adap->id == I2C_HW_B_CX2388x) {
+		if (adap->id == I2C_HW_B_CX2388x ||
+		    adap->id == I2C_HW_B_CX2341X) {
 			/* Handled by cx88-input */
-			name        = "CX2388x remote";
+			name = adap->id == I2C_HW_B_CX2341X ? "CX2341x remote"
+							    : "CX2388x remote";
 			ir_type     = IR_TYPE_RC5;
 			ir->get_key = get_key_haup_xvr;
 			if (hauppauge == 1) {
-				ir_codes    = ir_codes_hauppauge_new;
+				ir_codes    = &ir_codes_hauppauge_new_table;
 			} else {
-				ir_codes    = ir_codes_rc5_tv;
+				ir_codes    = &ir_codes_rc5_tv_table;
 			}
 		} else {
 			/* Handled by saa7134-input */
@@ -377,7 +379,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		name        = "AVerMedia Cardbus remote";
 		ir->get_key = get_key_avermedia_cardbus;
 		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = ir_codes_avermedia_cardbus;
+		ir_codes    = &ir_codes_avermedia_cardbus_table;
 		break;
 	default:
 		dprintk(1, DEVNAME ": Unsupported i2c address 0x%02x\n", addr);
@@ -392,7 +394,36 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 		ir_codes = init_data->ir_codes;
 		name = init_data->name;
-		ir->get_key = init_data->get_key;
+		if (init_data->type)
+			ir_type = init_data->type;
+
+		switch (init_data->internal_get_key_func) {
+		case IR_KBD_GET_KEY_CUSTOM:
+			/* The bridge driver provided us its own function */
+			ir->get_key = init_data->get_key;
+			break;
+		case IR_KBD_GET_KEY_PIXELVIEW:
+			ir->get_key = get_key_pixelview;
+			break;
+		case IR_KBD_GET_KEY_PV951:
+			ir->get_key = get_key_pv951;
+			break;
+		case IR_KBD_GET_KEY_HAUP:
+			ir->get_key = get_key_haup;
+			break;
+		case IR_KBD_GET_KEY_KNC1:
+			ir->get_key = get_key_knc1;
+			break;
+		case IR_KBD_GET_KEY_FUSIONHDTV:
+			ir->get_key = get_key_fusionhdtv;
+			break;
+		case IR_KBD_GET_KEY_HAUP_XVR:
+			ir->get_key = get_key_haup_xvr;
+			break;
+		case IR_KBD_GET_KEY_AVERMEDIA_CARDBUS:
+			ir->get_key = get_key_avermedia_cardbus;
+			break;
+		}
 	}
 
 	/* Make sure we are all setup before going on */
@@ -454,7 +485,8 @@ static int ir_remove(struct i2c_client *client)
 static const struct i2c_device_id ir_kbd_id[] = {
 	/* Generic entry for any IR receiver */
 	{ "ir_video", 0 },
-	/* IR device specific entries could be added here */
+	/* IR device specific entries should be added here */
+	{ "ir_rx_z8f0811_haup", 0 },
 	{ }
 };
 

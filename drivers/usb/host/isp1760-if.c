@@ -3,6 +3,7 @@
  * Currently there is support for
  * - OpenFirmware
  * - PCI
+ * - PDEV (generic platform device centralized driver model)
  *
  * (c) 2007 Sebastian Siewior <bigeasy@linutronix.de>
  *
@@ -11,6 +12,7 @@
 #include <linux/usb.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/usb/isp1760.h>
 
 #include "../core/hcd.h"
 #include "isp1760-hcd.h"
@@ -308,6 +310,8 @@ static int __devinit isp1760_plat_probe(struct platform_device *pdev)
 	struct resource *mem_res;
 	struct resource *irq_res;
 	resource_size_t mem_size;
+	struct isp1760_platform_data *priv = pdev->dev.platform_data;
+	unsigned int devflags = 0;
 	unsigned long irqflags = IRQF_SHARED | IRQF_DISABLED;
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -330,8 +334,23 @@ static int __devinit isp1760_plat_probe(struct platform_device *pdev)
 	}
 	irqflags |= irq_res->flags & IRQF_TRIGGER_MASK;
 
+	if (priv) {
+		if (priv->is_isp1761)
+			devflags |= ISP1760_FLAG_ISP1761;
+		if (priv->bus_width_16)
+			devflags |= ISP1760_FLAG_BUS_WIDTH_16;
+		if (priv->port1_otg)
+			devflags |= ISP1760_FLAG_OTG_EN;
+		if (priv->analog_oc)
+			devflags |= ISP1760_FLAG_ANALOG_OC;
+		if (priv->dack_polarity_high)
+			devflags |= ISP1760_FLAG_DACK_POL_HIGH;
+		if (priv->dreq_polarity_high)
+			devflags |= ISP1760_FLAG_DREQ_POL_HIGH;
+	}
+
 	hcd = isp1760_register(mem_res->start, mem_size, irq_res->start,
-			       irqflags, &pdev->dev, dev_name(&pdev->dev), 0);
+			       irqflags, &pdev->dev, dev_name(&pdev->dev), devflags);
 	if (IS_ERR(hcd)) {
 		pr_warning("isp1760: Failed to register the HCD device\n");
 		ret = -ENODEV;

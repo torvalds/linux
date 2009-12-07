@@ -378,7 +378,7 @@ static void dbg_dump(int line_count, const char *func_name, unsigned char *buf,
 }
 
 #define DUMP(buf_, len_)	\
-	dbg_dump(__LINE__, __func__, buf_, len_)
+	dbg_dump(__LINE__, __func__, (unsigned char *)buf_, len_)
 
 #define DUMP1(buf_, len_)			\
 	do {					\
@@ -771,7 +771,8 @@ static void write_bulk_callback(struct urb *urb)
 }
 
 /* called by kernel when we need to transmit a packet */
-static int hso_net_start_xmit(struct sk_buff *skb, struct net_device *net)
+static netdev_tx_t hso_net_start_xmit(struct sk_buff *skb,
+					    struct net_device *net)
 {
 	struct hso_net *odev = netdev_priv(net);
 	int result;
@@ -780,7 +781,7 @@ static int hso_net_start_xmit(struct sk_buff *skb, struct net_device *net)
 	netif_stop_queue(net);
 	if (hso_get_activity(odev->parent) == -EAGAIN) {
 		odev->skb_tx_buf = skb;
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	/* log if asked */
@@ -828,7 +829,7 @@ static void hso_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *info
 	usb_make_path(odev->parent->usb, info->bus_info, sizeof info->bus_info);
 }
 
-static struct ethtool_ops ops = {
+static const struct ethtool_ops ops = {
 	.get_drvinfo = hso_get_drvinfo,
 	.get_link = ethtool_op_get_link
 };
@@ -1362,7 +1363,7 @@ static void hso_serial_close(struct tty_struct *tty, struct file *filp)
 	/* reset the rts and dtr */
 	/* do the actual close */
 	serial->open_count--;
-	kref_put(&serial->parent->ref, hso_serial_ref_free);
+
 	if (serial->open_count <= 0) {
 		serial->open_count = 0;
 		spin_lock_irq(&serial->serial_lock);
@@ -1382,6 +1383,8 @@ static void hso_serial_close(struct tty_struct *tty, struct file *filp)
 		usb_autopm_put_interface(serial->parent->interface);
 
 	mutex_unlock(&serial->parent->mutex);
+
+	kref_put(&serial->parent->ref, hso_serial_ref_free);
 }
 
 /* close the requested serial port */
@@ -1526,7 +1529,7 @@ static void tiocmget_intr_callback(struct urb *urb)
 		dev_warn(&usb->dev,
 			 "hso received invalid serial state notification\n");
 		DUMP(serial_state_notification,
-		     sizeof(hso_serial_state_notifation))
+		     sizeof(struct hso_serial_state_notification));
 	} else {
 
 		UART_state_bitmap = le16_to_cpu(serial_state_notification->
@@ -2534,6 +2537,10 @@ static void hso_create_rfkill(struct hso_device *hso_dev,
 	}
 }
 
+static struct device_type hso_type = {
+	.name	= "wwan",
+};
+
 /* Creates our network device */
 static struct hso_device *hso_create_net_device(struct usb_interface *interface,
 						int port_spec)
@@ -2574,6 +2581,7 @@ static struct hso_device *hso_create_net_device(struct usb_interface *interface,
 		goto exit;
 	}
 	SET_NETDEV_DEV(net, &interface->dev);
+	SET_NETDEV_DEVTYPE(net, &hso_type);
 
 	/* registering our net device */
 	result = register_netdev(net);

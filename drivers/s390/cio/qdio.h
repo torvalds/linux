@@ -1,7 +1,7 @@
 /*
  * linux/drivers/s390/cio/qdio.h
  *
- * Copyright 2000,2008 IBM Corp.
+ * Copyright 2000,2009 IBM Corp.
  * Author(s): Utz Bacher <utz.bacher@de.ibm.com>
  *	      Jan Glauber <jang@linux.vnet.ibm.com>
  */
@@ -246,6 +246,7 @@ struct qdio_q {
 	atomic_t nr_buf_used;
 
 	struct qdio_irq *irq_ptr;
+	struct dentry *debugfs_q;
 	struct tasklet_struct tasklet;
 
 	/* error condition during a data transfer */
@@ -267,6 +268,7 @@ struct qdio_irq {
 	struct qib qib;
 	u32 *dsci;		/* address of device state change indicator */
 	struct ccw_device *cdev;
+	struct dentry *debugfs_dev;
 
 	unsigned long int_parm;
 	struct subchannel_id schid;

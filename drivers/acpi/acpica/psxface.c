@@ -280,6 +280,10 @@ acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
 		goto cleanup;
 	}
 
+	if (info->obj_desc->method.flags & AOPOBJ_MODULE_LEVEL) {
+		walk_state->parse_flags |= ACPI_PARSE_MODULE_LEVEL;
+	}
+
 	/* Invoke an internal method if necessary */
 
 	if (info->obj_desc->method.method_flags & AML_METHOD_INTERNAL_ONLY) {

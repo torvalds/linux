@@ -507,33 +507,6 @@ static int fc_fcp_send_data(struct fc_fcp_pkt *fsp, struct fc_seq *seq,
 	f_ctl = FC_FC_REL_OFF;
 	WARN_ON(!seq);
 
-	/*
-	 * If a get_page()/put_page() will fail, don't use sg lists
-	 * in the fc_frame structure.
-	 *
-	 * The put_page() may be long after the I/O has completed
-	 * in the case of FCoE, since the network driver does it
-	 * via free_skb().  See the test in free_pages_check().
-	 *
-	 * Test this case with 'dd </dev/zero >/dev/st0 bs=64k'.
-	 */
-	if (using_sg) {
-		for (sg = scsi_sglist(sc); sg; sg = sg_next(sg)) {
-			if (page_count(sg_page(sg)) == 0 ||
-			    (sg_page(sg)->flags & (1 << PG_lru |
-						   1 << PG_private |
-						   1 << PG_locked |
-						   1 << PG_active |
-						   1 << PG_slab |
-						   1 << PG_swapcache |
-						   1 << PG_writeback |
-						   1 << PG_reserved |
-						   1 << PG_buddy))) {
-				using_sg = 0;
-				break;
-			}
-		}
-	}
 	sg = scsi_sglist(sc);
 
 	while (remaining > 0 && sg) {
@@ -569,8 +542,6 @@ static int fc_fcp_send_data(struct fc_fcp_pkt *fsp, struct fc_seq *seq,
 		}
 		sg_bytes = min(tlen, sg->length - offset);
 		if (using_sg) {
-			WARN_ON(skb_shinfo(fp_skb(fp))->nr_frags >
-				FC_FRAME_SG_LEN);
 			get_page(sg_page(sg));
 			skb_fill_page_desc(fp_skb(fp),
 					   skb_shinfo(fp_skb(fp))->nr_frags,
@@ -1337,7 +1308,7 @@ static void fc_fcp_rec(struct fc_fcp_pkt *fsp)
 	fc_fill_fc_hdr(fp, FC_RCTL_ELS_REQ, rport->port_id,
 		       fc_host_port_id(rp->local_port->host), FC_TYPE_ELS,
 		       FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT, 0);
-	if (lp->tt.elsct_send(lp, rport, fp, ELS_REC, fc_fcp_rec_resp,
+	if (lp->tt.elsct_send(lp, rport->port_id, fp, ELS_REC, fc_fcp_rec_resp,
 			      fsp, jiffies_to_msecs(FC_SCSI_REC_TOV))) {
 		fc_fcp_pkt_hold(fsp);		/* hold while REC outstanding */
 		return;

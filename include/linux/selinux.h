@@ -61,6 +61,11 @@ void selinux_secmark_refcount_inc(void);
  *     existing SECMARK targets has been removed/flushed.
  */
 void selinux_secmark_refcount_dec(void);
+
+/**
+ * selinux_is_enabled - is SELinux enabled?
+ */
+bool selinux_is_enabled(void);
 #else
 
 static inline int selinux_string_to_sid(const char *str, u32 *sid)
@@ -84,6 +89,10 @@ static inline void selinux_secmark_refcount_dec(void)
 	return;
 }
 
+static inline bool selinux_is_enabled(void)
+{
+	return false;
+}
 #endif	/* CONFIG_SECURITY_SELINUX */
 
 #endif /* _LINUX_SELINUX_H */

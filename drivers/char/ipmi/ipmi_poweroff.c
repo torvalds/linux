@@ -691,7 +691,7 @@ static struct ctl_table_header *ipmi_table_header;
 /*
  * Startup and shutdown functions.
  */
-static int ipmi_poweroff_init(void)
+static int __init ipmi_poweroff_init(void)
 {
 	int rv;
 
@@ -725,7 +725,7 @@ static int ipmi_poweroff_init(void)
 }
 
 #ifdef MODULE
-static __exit void ipmi_poweroff_cleanup(void)
+static void __exit ipmi_poweroff_cleanup(void)
 {
 	int rv;
 

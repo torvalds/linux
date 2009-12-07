@@ -58,7 +58,7 @@ static void *cfg_space;
 #define LDT_BUS_ENABLED	2
 #define PCI_DEVICE_MODE	4
 
-static int sb1250_bus_status = 0;
+static int sb1250_bus_status;
 
 #define PCI_BRIDGE_DEVICE  0
 #define LDT_BRIDGE_DEVICE  1

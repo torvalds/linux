@@ -82,6 +82,9 @@ asmlinkage long compat_sys_keyctl(u32 option,
 	case KEYCTL_GET_SECURITY:
 		return keyctl_get_security(arg2, compat_ptr(arg3), arg4);
 
+	case KEYCTL_SESSION_TO_PARENT:
+		return keyctl_session_to_parent();
+
 	default:
 		return -EOPNOTSUPP;
 	}

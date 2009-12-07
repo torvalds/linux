@@ -618,7 +618,7 @@ static int dtl1_config(struct pcmcia_device *link)
 
 	/* Look for a generic full-sized window */
 	link->io.NumPorts1 = 8;
-	if (!pcmcia_loop_config(link, dtl1_confcheck, NULL))
+	if (pcmcia_loop_config(link, dtl1_confcheck, NULL) < 0)
 		goto failed;
 
 	i = pcmcia_request_irq(link, &link->irq);

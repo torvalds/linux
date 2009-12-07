@@ -31,16 +31,11 @@ export BITS    := 32
 #KBUILD_CFLAGS += -g -pipe -fcall-used-g5 -fcall-used-g7
 KBUILD_CFLAGS += -m32 -pipe -mno-fpu -fcall-used-g5 -fcall-used-g7
 KBUILD_AFLAGS += -m32
-CPPFLAGS_vmlinux.lds += -m32
 
 #LDFLAGS_vmlinux = -N -Ttext 0xf0004000
 #  Since 2.5.40, the first stage is left not btfix-ed.
 #  Actual linking is done with "make image".
 LDFLAGS_vmlinux = -r
-
-# Default target
-all: zImage
-
 
 else
 #####
@@ -49,9 +44,6 @@ else
 
 CHECKFLAGS      += -D__sparc__ -D__sparc_v9__ -D__arch64__ -m64
 
-# Undefine sparc when processing vmlinux.lds - it is used
-# And teach CPP we are doing 64 bit builds (for this case)
-CPPFLAGS_vmlinux.lds += -m64 -Usparc
 LDFLAGS              := -m elf64_sparc
 export BITS          := 64
 
@@ -91,6 +83,9 @@ endif
 
 boot := arch/sparc/boot
 
+# Default target
+all: zImage
+
 image zImage tftpboot.img vmlinux.aout: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
@@ -109,8 +104,9 @@ define archhelp
 endef
 else
 define archhelp
-  echo  '* vmlinux       - Standard sparc64 kernel'
-  echo  '  vmlinux.aout  - a.out kernel for sparc64'
+  echo  '* vmlinux      - standard sparc64 kernel'
+  echo  '* zImage       - stripped and compressed sparc64 kernel ($(boot)/zImage)'
+  echo  '  vmlinux.aout - a.out kernel for sparc64'
   echo  '  tftpboot.img - image prepared for tftp'
 endef
 endif

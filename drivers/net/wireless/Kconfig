@@ -2,10 +2,20 @@
 # Wireless LAN device configuration
 #
 
-menu "Wireless LAN"
+menuconfig WLAN
+	bool "Wireless LAN"
 	depends on !S390
+	default y
+	---help---
+	  This section contains all the pre 802.11 and 802.11 wireless
+	  device drivers. For a complete list of drivers and documentation
+	  on them refer to the wireless wiki:
 
-config WLAN_PRE80211
+	  http://wireless.kernel.org/en/users/Drivers
+
+if WLAN
+
+menuconfig WLAN_PRE80211
 	bool "Wireless LAN (pre-802.11)"
 	depends on NETDEVICES
 	---help---
@@ -21,13 +31,12 @@ config STRIP
 	---help---
 	  Say Y if you have a Metricom radio and intend to use Starmode Radio
 	  IP. STRIP is a radio protocol developed for the MosquitoNet project
-	  (on the WWW at <http://mosquitonet.stanford.edu/>) to send Internet
-	  traffic using Metricom radios.  Metricom radios are small, battery
-	  powered, 100kbit/sec packet radio transceivers, about the size and
-	  weight of a cellular telephone. (You may also have heard them called
-	  "Metricom modems" but we avoid the term "modem" because it misleads
-	  many people into thinking that you can plug a Metricom modem into a
-	  phone line and use it as a modem.)
+	  to send Internet traffic using Metricom radios.  Metricom radios are
+	  small, battery powered, 100kbit/sec packet radio transceivers, about
+	  the size and weight of a cellular telephone. (You may also have heard
+	  them called "Metricom modems" but we avoid the term "modem" because
+	  it misleads many people into thinking that you can plug a Metricom
+	  modem into a phone line and use it as a modem.)
 
 	  You can use STRIP on any Linux machine with a serial port, although
 	  it is obviously most useful for people with laptop computers. If you
@@ -101,7 +110,7 @@ config PCMCIA_NETWAVE
 	  called netwave_cs.  If unsure, say N.
 
 
-config WLAN_80211
+menuconfig WLAN_80211
 	bool "Wireless LAN (IEEE 802.11)"
 	depends on NETDEVICES
 	---help---
@@ -266,51 +275,26 @@ config PCMCIA_WL3501
 	 micro support for ethtool.
 
 config PRISM54
-	tristate 'Intersil Prism GT/Duette/Indigo PCI/Cardbus' 
+	tristate 'Intersil Prism GT/Duette/Indigo PCI/Cardbus (DEPRECATED)'
 	depends on PCI && EXPERIMENTAL && WLAN_80211
 	select WIRELESS_EXT
 	select FW_LOADER
 	---help---
-	  Enable PCI and Cardbus support for the following chipset based cards:
+	  This enables support for FullMAC PCI/Cardbus prism54 devices. This
+	  driver is now deprecated in favor for the SoftMAC driver, p54pci.
+	  p54pci supports FullMAC PCI/Cardbus devices as well. For details on
+	  the scheduled removal of this driver on the kernel see the feature
+	  removal schedule:
 
-	  ISL3880 - Prism GT            802.11 b/g
-	  ISL3877 - Prism Indigo        802.11 a
-	  ISL3890 - Prism Duette        802.11 a/b/g
-	  
-	  For a complete list of supported cards visit <http://prism54.org>.
-	  Here is the latest confirmed list of supported cards:
+	  Documentation/feature-removal-schedule.txt
 
-	  3com OfficeConnect 11g Cardbus Card aka 3CRWE154G72 (version 1)
-	  Allnet ALL0271 PCI Card
-	  Compex WL54G Cardbus Card
-	  Corega CG-WLCB54GT Cardbus Card
-	  D-Link Air Plus Xtreme G A1 Cardbus Card aka DWL-g650
-	  I-O Data WN-G54/CB Cardbus Card
-	  Kobishi XG-300 aka Z-Com Cardbus Card
-	  Netgear WG511 Cardbus Card
-	  Ovislink WL-5400PCI PCI Card
-	  Peabird WLG-PCI PCI Card
-	  Sitecom WL-100i Cardbus Card
-	  Sitecom WL-110i PCI Card
-	  SMC2802W -    EZ Connect g 2.4GHz 54 Mbps Wireless PCI Card
-	  SMC2835W -    EZ Connect g 2.4GHz 54 Mbps Wireless Cardbus Card
-	  SMC2835W-V2 - EZ Connect g 2.4GHz 54 Mbps Wireless Cardbus Card
-	  Z-Com XG-900 PCI Card
-	  Zyxel G-100 Cardbus Card
+	  For more information refer to the p54 wiki:
 
-	  If you enable this you will need a firmware file as well.
-	  You will need to copy this to /usr/lib/hotplug/firmware/isl3890.
-	  You can get this non-GPL'd firmware file from the Prism54 project page:
-	  <http://prism54.org>
-	  You will also need the /etc/hotplug/firmware.agent script from
-	  a current hotplug package.
+	  http://wireless.kernel.org/en/users/Drivers/p54
 
-	  Note: You need a motherboard with DMA support to use any of these cards 
-	  
-	  If you want to compile the driver as a module ( = code which can be
-	  inserted in and removed from the running kernel whenever you want),
-	  say M here and read <file:Documentation/kbuild/modules.txt>.
-	  The module will be called prism54.
+	  Note: You need a motherboard with DMA support to use any of these cards
+
+	  When built as module you get the module prism54
 
 config USB_ZD1201
 	tristate "USB ZD1201 based Wireless device support"
@@ -337,7 +321,6 @@ config USB_NET_RNDIS_WLAN
 	select USB_USBNET
 	select USB_NET_CDCETHER
 	select USB_NET_RNDIS_HOST
-	select WIRELESS_EXT
 	---help---
 	  This is a driver for wireless RNDIS devices.
 	  These are USB based adapters found in devices such as:
@@ -428,10 +411,12 @@ config RTL8187
 	  Micronet SP907GK V5
 	  Encore ENUWI-G2
 	  Trendnet TEW-424UB
-	  ASUS P5B Deluxe
+	  ASUS P5B Deluxe/P5K Premium motherboards
 	  Toshiba Satellite Pro series of laptops
 	  Asus Wireless Link
-	  Linksys WUSB54GC-EU
+	  Linksys WUSB54GC-EU v2
+	    (v1 = rt73usb; v3 is rt2070-based,
+	     use staging/rt3070 or try rt2800usb)
 
 	  Thanks to Realtek for their support!
 
@@ -504,4 +489,4 @@ source "drivers/net/wireless/orinoco/Kconfig"
 source "drivers/net/wireless/wl12xx/Kconfig"
 source "drivers/net/wireless/iwmc3200wifi/Kconfig"
 
-endmenu
+endif # WLAN

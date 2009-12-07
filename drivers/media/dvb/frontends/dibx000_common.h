@@ -2,7 +2,7 @@
 #define DIBX000_COMMON_H
 
 enum dibx000_i2c_interface {
-	DIBX000_I2C_INTERFACE_TUNER    = 0,
+	DIBX000_I2C_INTERFACE_TUNER = 0,
 	DIBX000_I2C_INTERFACE_GPIO_1_2 = 1,
 	DIBX000_I2C_INTERFACE_GPIO_3_4 = 2
 };
@@ -12,22 +12,29 @@ struct dibx000_i2c_master {
 #define DIB7000   2
 #define DIB7000P  11
 #define DIB7000MC 12
+#define DIB8000   13
 	u16 device_rev;
 
 	enum dibx000_i2c_interface selected_interface;
 
-//	struct i2c_adapter  tuner_i2c_adap;
-	struct i2c_adapter  gated_tuner_i2c_adap;
+//      struct i2c_adapter  tuner_i2c_adap;
+	struct i2c_adapter gated_tuner_i2c_adap;
 
 	struct i2c_adapter *i2c_adap;
-	u8                  i2c_addr;
+	u8 i2c_addr;
 
 	u16 base_reg;
 };
 
-extern int dibx000_init_i2c_master(struct dibx000_i2c_master *mst, u16 device_rev, struct i2c_adapter *i2c_adap, u8 i2c_addr);
-extern struct i2c_adapter * dibx000_get_i2c_adapter(struct dibx000_i2c_master *mst, enum dibx000_i2c_interface intf, int gating);
+extern int dibx000_init_i2c_master(struct dibx000_i2c_master *mst,
+				   u16 device_rev, struct i2c_adapter *i2c_adap,
+				   u8 i2c_addr);
+extern struct i2c_adapter *dibx000_get_i2c_adapter(struct dibx000_i2c_master
+						   *mst,
+						   enum dibx000_i2c_interface
+						   intf, int gating);
 extern void dibx000_exit_i2c_master(struct dibx000_i2c_master *mst);
+extern void dibx000_reset_i2c_master(struct dibx000_i2c_master *mst);
 
 #define BAND_LBAND 0x01
 #define BAND_UHF   0x02
@@ -41,18 +48,18 @@ extern void dibx000_exit_i2c_master(struct dibx000_i2c_master *mst);
 									(freq_kHz) <= 2000000 ? BAND_LBAND : BAND_SBAND )
 
 struct dibx000_agc_config {
-	/* defines the capabilities of this AGC-setting - using the BAND_-defines*/
-	u8  band_caps;
+	/* defines the capabilities of this AGC-setting - using the BAND_-defines */
+	u8 band_caps;
 
 	u16 setup;
 
 	u16 inv_gain;
 	u16 time_stabiliz;
 
-	u8  alpha_level;
+	u8 alpha_level;
 	u16 thlock;
 
-	u8  wbd_inv;
+	u8 wbd_inv;
 	u16 wbd_ref;
 	u8 wbd_sel;
 	u8 wbd_alpha;
@@ -92,8 +99,8 @@ struct dibx000_agc_config {
 };
 
 struct dibx000_bandwidth_config {
-	u32   internal;
-	u32   sampling;
+	u32 internal;
+	u32 sampling;
 
 	u8 pll_prediv;
 	u8 pll_ratio;

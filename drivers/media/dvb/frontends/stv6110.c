@@ -36,6 +36,7 @@ struct stv6110_priv {
 	struct i2c_adapter *i2c;
 
 	u32 mclk;
+	u8 clk_div;
 	u8 regs[8];
 };
 
@@ -100,35 +101,25 @@ static int stv6110_read_regs(struct dvb_frontend *fe, u8 regs[],
 	struct stv6110_priv *priv = fe->tuner_priv;
 	int rc;
 	u8 reg[] = { start };
-	struct i2c_msg msg_wr = {
-		.addr	= priv->i2c_address,
-		.flags	= 0,
-		.buf	= reg,
-		.len	= 1,
+	struct i2c_msg msg[] = {
+		{
+			.addr	= priv->i2c_address,
+			.flags	= 0,
+			.buf	= reg,
+			.len	= 1,
+		}, {
+			.addr	= priv->i2c_address,
+			.flags	= I2C_M_RD,
+			.buf	= regs,
+			.len	= len,
+		},
 	};
 
-	struct i2c_msg msg_rd = {
-		.addr	= priv->i2c_address,
-		.flags	= I2C_M_RD,
-		.buf	= regs,
-		.len	= len,
-	};
-	/* write subaddr */
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 
-	rc = i2c_transfer(priv->i2c, &msg_wr, 1);
-	if (rc != 1)
-		dprintk("%s: i2c error\n", __func__);
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0);
-	/* read registers */
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-
-	rc = i2c_transfer(priv->i2c, &msg_rd, 1);
-	if (rc != 1)
+	rc = i2c_transfer(priv->i2c, msg, 2);
+	if (rc != 2)
 		dprintk("%s: i2c error\n", __func__);
 
 	if (fe->ops.i2c_gate_ctrl)
@@ -220,6 +211,10 @@ static int stv6110_init(struct dvb_frontend *fe)
 	priv->regs[RSTV6110_CTRL1] &= ~(0x1f << 3);
 	priv->regs[RSTV6110_CTRL1] |=
 				((((priv->mclk / 1000000) - 16) & 0x1f) << 3);
+
+	/* divisor value for the output clock */
+	priv->regs[RSTV6110_CTRL2] &= ~0xc0;
+	priv->regs[RSTV6110_CTRL2] |= (priv->clk_div << 6);
 
 	stv6110_write_regs(fe, &priv->regs[RSTV6110_CTRL1], RSTV6110_CTRL1, 8);
 	msleep(1);
@@ -418,6 +413,10 @@ struct dvb_frontend *stv6110_attach(struct dvb_frontend *fe,
 	};
 	int ret;
 
+	/* divisor value for the output clock */
+	reg0[2] &= ~0xc0;
+	reg0[2] |= (config->clk_div << 6);
+
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 
@@ -436,6 +435,7 @@ struct dvb_frontend *stv6110_attach(struct dvb_frontend *fe,
 	priv->i2c_address = config->i2c_address;
 	priv->i2c = i2c;
 	priv->mclk = config->mclk;
+	priv->clk_div = config->clk_div;
 
 	memcpy(&priv->regs, &reg0[1], 8);
 

@@ -407,6 +407,7 @@ static struct of_device_id fsl_pq_mdio_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, fsl_pq_mdio_match);
 
 static struct of_platform_driver fsl_pq_mdio_driver = {
 	.name = "fsl-pq_mdio",
@@ -426,3 +427,4 @@ void fsl_pq_mdio_exit(void)
 	of_unregister_platform_driver(&fsl_pq_mdio_driver);
 }
 module_exit(fsl_pq_mdio_exit);
+MODULE_LICENSE("GPL");

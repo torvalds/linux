@@ -139,49 +139,36 @@ static void munlock_vma_page(struct page *page)
 }
 
 /**
- * __mlock_vma_pages_range() -  mlock/munlock a range of pages in the vma.
+ * __mlock_vma_pages_range() -  mlock a range of pages in the vma.
  * @vma:   target vma
  * @start: start address
  * @end:   end address
- * @mlock: 0 indicate munlock, otherwise mlock.
  *
- * If @mlock == 0, unlock an mlocked range;
- * else mlock the range of pages.  This takes care of making the pages present ,
- * too.
+ * This takes care of making the pages present too.
  *
  * return 0 on success, negative error code on error.
  *
  * vma->vm_mm->mmap_sem must be held for at least read.
  */
 static long __mlock_vma_pages_range(struct vm_area_struct *vma,
-				   unsigned long start, unsigned long end,
-				   int mlock)
+				    unsigned long start, unsigned long end)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long addr = start;
 	struct page *pages[16]; /* 16 gives a reasonable batch */
 	int nr_pages = (end - start) / PAGE_SIZE;
 	int ret = 0;
-	int gup_flags = 0;
+	int gup_flags;
 
 	VM_BUG_ON(start & ~PAGE_MASK);
 	VM_BUG_ON(end   & ~PAGE_MASK);
 	VM_BUG_ON(start < vma->vm_start);
 	VM_BUG_ON(end   > vma->vm_end);
-	VM_BUG_ON((!rwsem_is_locked(&mm->mmap_sem)) &&
-		  (atomic_read(&mm->mm_users) != 0));
+	VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
 
-	/*
-	 * mlock:   don't page populate if vma has PROT_NONE permission.
-	 * munlock: always do munlock although the vma has PROT_NONE
-	 *          permission, or SIGKILL is pending.
-	 */
-	if (!mlock)
-		gup_flags |= GUP_FLAGS_IGNORE_VMA_PERMISSIONS |
-			     GUP_FLAGS_IGNORE_SIGKILL;
-
+	gup_flags = FOLL_TOUCH | FOLL_GET;
 	if (vma->vm_flags & VM_WRITE)
-		gup_flags |= GUP_FLAGS_WRITE;
+		gup_flags |= FOLL_WRITE;
 
 	while (nr_pages > 0) {
 		int i;
@@ -201,51 +188,45 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
 		 * This can happen for, e.g., VM_NONLINEAR regions before
 		 * a page has been allocated and mapped at a given offset,
 		 * or for addresses that map beyond end of a file.
-		 * We'll mlock the the pages if/when they get faulted in.
+		 * We'll mlock the pages if/when they get faulted in.
 		 */
 		if (ret < 0)
 			break;
-		if (ret == 0) {
-			/*
-			 * We know the vma is there, so the only time
-			 * we cannot get a single page should be an
-			 * error (ret < 0) case.
-			 */
-			WARN_ON(1);
-			break;
-		}
 
 		lru_add_drain();	/* push cached pages to LRU */
 
 		for (i = 0; i < ret; i++) {
 			struct page *page = pages[i];
 
-			lock_page(page);
-			/*
-			 * Because we lock page here and migration is blocked
-			 * by the elevated reference, we need only check for
-			 * page truncation (file-cache only).
-			 */
 			if (page->mapping) {
-				if (mlock)
+				/*
+				 * That preliminary check is mainly to avoid
+				 * the pointless overhead of lock_page on the
+				 * ZERO_PAGE: which might bounce very badly if
+				 * there is contention.  However, we're still
+				 * dirtying its cacheline with get/put_page:
+				 * we'll add another __get_user_pages flag to
+				 * avoid it if that case turns out to matter.
+				 */
+				lock_page(page);
+				/*
+				 * Because we lock page here and migration is
+				 * blocked by the elevated reference, we need
+				 * only check for file-cache page truncation.
+				 */
+				if (page->mapping)
 					mlock_vma_page(page);
-				else
-					munlock_vma_page(page);
+				unlock_page(page);
 			}
-			unlock_page(page);
-			put_page(page);		/* ref from get_user_pages() */
-
-			/*
-			 * here we assume that get_user_pages() has given us
-			 * a list of virtually contiguous pages.
-			 */
-			addr += PAGE_SIZE;	/* for next get_user_pages() */
-			nr_pages--;
+			put_page(page);	/* ref from get_user_pages() */
 		}
+
+		addr += ret * PAGE_SIZE;
+		nr_pages -= ret;
 		ret = 0;
 	}
 
-	return ret;	/* count entire vma as locked_vm */
+	return ret;	/* 0 or negative error code */
 }
 
 /*
@@ -289,7 +270,7 @@ long mlock_vma_pages_range(struct vm_area_struct *vma,
 			is_vm_hugetlb_page(vma) ||
 			vma == get_gate_vma(current))) {
 
-		__mlock_vma_pages_range(vma, start, end, 1);
+		__mlock_vma_pages_range(vma, start, end);
 
 		/* Hide errors from mmap() and other callers */
 		return 0;
@@ -310,7 +291,6 @@ no_mlock:
 	return nr_pages;		/* error or pages NOT mlocked */
 }
 
-
 /*
  * munlock_vma_pages_range() - munlock all pages in the vma range.'
  * @vma - vma containing range to be munlock()ed.
@@ -330,10 +310,38 @@ no_mlock:
  * free them.  This will result in freeing mlocked pages.
  */
 void munlock_vma_pages_range(struct vm_area_struct *vma,
-			   unsigned long start, unsigned long end)
+			     unsigned long start, unsigned long end)
 {
+	unsigned long addr;
+
+	lru_add_drain();
 	vma->vm_flags &= ~VM_LOCKED;
-	__mlock_vma_pages_range(vma, start, end, 0);
+
+	for (addr = start; addr < end; addr += PAGE_SIZE) {
+		struct page *page;
+		/*
+		 * Although FOLL_DUMP is intended for get_dump_page(),
+		 * it just so happens that its special treatment of the
+		 * ZERO_PAGE (returning an error instead of doing get_page)
+		 * suits munlock very well (and if somehow an abnormal page
+		 * has sneaked into the range, we won't oops here: great).
+		 */
+		page = follow_page(vma, addr, FOLL_GET | FOLL_DUMP);
+		if (page && !IS_ERR(page)) {
+			lock_page(page);
+			/*
+			 * Like in __mlock_vma_pages_range(),
+			 * because we lock page here and migration is
+			 * blocked by the elevated reference, we need
+			 * only check for file-cache page truncation.
+			 */
+			if (page->mapping)
+				munlock_vma_page(page);
+			unlock_page(page);
+			put_page(page);
+		}
+		cond_resched();
+	}
 }
 
 /*
@@ -400,18 +408,14 @@ success:
 	 * It's okay if try_to_unmap_one unmaps a page just after we
 	 * set VM_LOCKED, __mlock_vma_pages_range will bring it back.
 	 */
-	vma->vm_flags = newflags;
 
 	if (lock) {
-		ret = __mlock_vma_pages_range(vma, start, end, 1);
-
-		if (ret > 0) {
-			mm->locked_vm -= ret;
-			ret = 0;
-		} else
-			ret = __mlock_posix_error_return(ret); /* translate if needed */
+		vma->vm_flags = newflags;
+		ret = __mlock_vma_pages_range(vma, start, end);
+		if (ret < 0)
+			ret = __mlock_posix_error_return(ret);
 	} else {
-		__mlock_vma_pages_range(vma, start, end, 0);
+		munlock_vma_pages_range(vma, start, end);
 	}
 
 out:

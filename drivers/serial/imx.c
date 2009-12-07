@@ -67,21 +67,8 @@
 #define UBIR  0xa4 /* BRM Incremental Register */
 #define UBMR  0xa8 /* BRM Modulator Register */
 #define UBRC  0xac /* Baud Rate Count Register */
-#if defined CONFIG_ARCH_MX3 || defined CONFIG_ARCH_MX2
-#define ONEMS 0xb0 /* One Millisecond register */
-#define UTS   0xb4 /* UART Test Register */
-#endif
-#ifdef CONFIG_ARCH_MX1
-#define BIPR1 0xb0 /* Incremental Preset Register 1 */
-#define BIPR2 0xb4 /* Incremental Preset Register 2 */
-#define BIPR3 0xb8 /* Incremental Preset Register 3 */
-#define BIPR4 0xbc /* Incremental Preset Register 4 */
-#define BMPR1 0xc0 /* BRM Modulator Register 1 */
-#define BMPR2 0xc4 /* BRM Modulator Register 2 */
-#define BMPR3 0xc8 /* BRM Modulator Register 3 */
-#define BMPR4 0xcc /* BRM Modulator Register 4 */
-#define UTS   0xd0 /* UART Test Register */
-#endif
+#define MX2_ONEMS 0xb0 /* One Millisecond register */
+#define UTS (cpu_is_mx1() ? 0xd0 : 0xb4) /* UART Test Register */
 
 /* UART Control Register Bit Fields.*/
 #define  URXD_CHARRDY    (1<<15)
@@ -101,12 +88,7 @@
 #define  UCR1_RTSDEN     (1<<5)	 /* RTS delta interrupt enable */
 #define  UCR1_SNDBRK     (1<<4)	 /* Send break */
 #define  UCR1_TDMAEN     (1<<3)	 /* Transmitter ready DMA enable */
-#ifdef CONFIG_ARCH_MX1
-#define  UCR1_UARTCLKEN  (1<<2)	 /* UART clock enabled */
-#endif
-#if defined CONFIG_ARCH_MX3 || defined CONFIG_ARCH_MX2
-#define  UCR1_UARTCLKEN  (0)	 /* not present on mx2/mx3 */
-#endif
+#define  MX1_UCR1_UARTCLKEN  (1<<2)	 /* UART clock enabled, mx1 only */
 #define  UCR1_DOZE       (1<<1)	 /* Doze */
 #define  UCR1_UARTEN     (1<<0)	 /* UART enabled */
 #define  UCR2_ESCI     	 (1<<15) /* Escape seq interrupt enable */
@@ -132,13 +114,9 @@
 #define  UCR3_RXDSEN	 (1<<6)  /* Receive status interrupt enable */
 #define  UCR3_AIRINTEN   (1<<5)  /* Async IR wake interrupt enable */
 #define  UCR3_AWAKEN	 (1<<4)  /* Async wake interrupt enable */
-#ifdef CONFIG_ARCH_MX1
-#define  UCR3_REF25 	 (1<<3)  /* Ref freq 25 MHz, only on mx1 */
-#define  UCR3_REF30 	 (1<<2)  /* Ref Freq 30 MHz, only on mx1 */
-#endif
-#if defined CONFIG_ARCH_MX2 || defined CONFIG_ARCH_MX3
-#define  UCR3_RXDMUXSEL	 (1<<2)  /* RXD Muxed Input Select, on mx2/mx3 */
-#endif
+#define  MX1_UCR3_REF25 	 (1<<3)  /* Ref freq 25 MHz, only on mx1 */
+#define  MX1_UCR3_REF30 	 (1<<2)  /* Ref Freq 30 MHz, only on mx1 */
+#define  MX2_UCR3_RXDMUXSEL	 (1<<2)  /* RXD Muxed Input Select, on mx2/mx3 */
 #define  UCR3_INVT  	 (1<<1)  /* Inverted Infrared transmission */
 #define  UCR3_BPEN  	 (1<<0)  /* Preset registers enable */
 #define  UCR4_CTSTL_32   (32<<10) /* CTS trigger level (32 chars) */
@@ -186,12 +164,10 @@
 #define  UTS_SOFTRST	 (1<<0)	 /* Software reset */
 
 /* We've been assigned a range on the "Low-density serial ports" major */
-#ifdef CONFIG_ARCH_MXC
 #define SERIAL_IMX_MAJOR        207
 #define MINOR_START	        16
 #define DEV_NAME		"ttymxc"
 #define MAX_INTERNAL_IRQ	MXC_INTERNAL_IRQS
-#endif
 
 /*
  * This determines how often we check the modem status signals
@@ -248,7 +224,7 @@ static void imx_mctrl_check(struct imx_port *sport)
 	if (changed & TIOCM_CTS)
 		uart_handle_cts_change(&sport->port, status & TIOCM_CTS);
 
-	wake_up_interruptible(&sport->port.info->delta_msr_wait);
+	wake_up_interruptible(&sport->port.state->port.delta_msr_wait);
 }
 
 /*
@@ -260,7 +236,7 @@ static void imx_timeout(unsigned long data)
 	struct imx_port *sport = (struct imx_port *)data;
 	unsigned long flags;
 
-	if (sport->port.info) {
+	if (sport->port.state) {
 		spin_lock_irqsave(&sport->port.lock, flags);
 		imx_mctrl_check(sport);
 		spin_unlock_irqrestore(&sport->port.lock, flags);
@@ -347,7 +323,7 @@ static void imx_enable_ms(struct uart_port *port)
 
 static inline void imx_transmit_buffer(struct imx_port *sport)
 {
-	struct circ_buf *xmit = &sport->port.info->xmit;
+	struct circ_buf *xmit = &sport->port.state->xmit;
 
 	while (!(readl(sport->port.membase + UTS) & UTS_TXFULL)) {
 		/* send xmit->buf[xmit->tail]
@@ -412,7 +388,7 @@ static irqreturn_t imx_rtsint(int irq, void *dev_id)
 
 	writel(USR1_RTSD, sport->port.membase + USR1);
 	uart_handle_cts_change(&sport->port, !!val);
-	wake_up_interruptible(&sport->port.info->delta_msr_wait);
+	wake_up_interruptible(&sport->port.state->port.delta_msr_wait);
 
 	spin_unlock_irqrestore(&sport->port.lock, flags);
 	return IRQ_HANDLED;
@@ -421,7 +397,7 @@ static irqreturn_t imx_rtsint(int irq, void *dev_id)
 static irqreturn_t imx_txint(int irq, void *dev_id)
 {
 	struct imx_port *sport = dev_id;
-	struct circ_buf *xmit = &sport->port.info->xmit;
+	struct circ_buf *xmit = &sport->port.state->xmit;
 	unsigned long flags;
 
 	spin_lock_irqsave(&sport->port.lock,flags);
@@ -451,7 +427,7 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 {
 	struct imx_port *sport = dev_id;
 	unsigned int rx,flg,ignored = 0;
-	struct tty_struct *tty = sport->port.info->port.tty;
+	struct tty_struct *tty = sport->port.state->port.tty;
 	unsigned long flags, temp;
 
 	spin_lock_irqsave(&sport->port.lock,flags);
@@ -706,11 +682,11 @@ static int imx_startup(struct uart_port *port)
 		}
 	}
 
-#if defined CONFIG_ARCH_MX2 || defined CONFIG_ARCH_MX3
-	temp = readl(sport->port.membase + UCR3);
-	temp |= UCR3_RXDMUXSEL;
-	writel(temp, sport->port.membase + UCR3);
-#endif
+	if (!cpu_is_mx1()) {
+		temp = readl(sport->port.membase + UCR3);
+		temp |= MX2_UCR3_RXDMUXSEL;
+		writel(temp, sport->port.membase + UCR3);
+	}
 
 	if (USE_IRDA(sport)) {
 		temp = readl(sport->port.membase + UCR4);
@@ -924,11 +900,11 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	rational_best_approximation(16 * div * baud, sport->port.uartclk,
 		1 << 16, 1 << 16, &num, &denom);
 
-	if (port->info && port->info->port.tty) {
+	if (port->state && port->state->port.tty) {
 		tdiv64 = sport->port.uartclk;
 		tdiv64 *= num;
 		do_div(tdiv64, denom * 16 * div);
-		tty_encode_baud_rate(sport->port.info->port.tty,
+		tty_encode_baud_rate(sport->port.state->port.tty,
 				(speed_t)tdiv64, (speed_t)tdiv64);
 	}
 
@@ -942,9 +918,9 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	writel(num, sport->port.membase + UBIR);
 	writel(denom, sport->port.membase + UBMR);
 
-#ifdef ONEMS
-	writel(sport->port.uartclk / div / 1000, sport->port.membase + ONEMS);
-#endif
+	if (!cpu_is_mx1())
+		writel(sport->port.uartclk / div / 1000,
+				sport->port.membase + MX2_ONEMS);
 
 	writel(old_ucr1, sport->port.membase + UCR1);
 
@@ -1074,17 +1050,20 @@ static void
 imx_console_write(struct console *co, const char *s, unsigned int count)
 {
 	struct imx_port *sport = imx_ports[co->index];
-	unsigned int old_ucr1, old_ucr2;
+	unsigned int old_ucr1, old_ucr2, ucr1;
 
 	/*
 	 *	First, save UCR1/2 and then disable interrupts
 	 */
-	old_ucr1 = readl(sport->port.membase + UCR1);
+	ucr1 = old_ucr1 = readl(sport->port.membase + UCR1);
 	old_ucr2 = readl(sport->port.membase + UCR2);
 
-	writel((old_ucr1 | UCR1_UARTCLKEN | UCR1_UARTEN) &
-		~(UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_RTSDEN),
-		sport->port.membase + UCR1);
+	if (cpu_is_mx1())
+		ucr1 |= MX1_UCR1_UARTCLKEN;
+	ucr1 |= UCR1_UARTEN;
+	ucr1 &= ~(UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_RTSDEN);
+
+	writel(ucr1, sport->port.membase + UCR1);
 
 	writel(old_ucr2 | UCR2_TXEN, sport->port.membase + UCR2);
 

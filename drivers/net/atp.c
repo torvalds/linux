@@ -199,7 +199,8 @@ static int net_open(struct net_device *dev);
 static void hardware_init(struct net_device *dev);
 static void write_packet(long ioaddr, int length, unsigned char *packet, int pad, int mode);
 static void trigger_send(long ioaddr, int length);
-static int	atp_send_packet(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t atp_send_packet(struct sk_buff *skb,
+				   struct net_device *dev);
 static irqreturn_t atp_interrupt(int irq, void *dev_id);
 static void net_rx(struct net_device *dev);
 static void read_block(long ioaddr, int length, unsigned char *buffer, int data_mode);
@@ -552,7 +553,8 @@ static void tx_timeout(struct net_device *dev)
 	dev->stats.tx_errors++;
 }
 
-static int atp_send_packet(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t atp_send_packet(struct sk_buff *skb,
+				   struct net_device *dev)
 {
 	struct net_local *lp = netdev_priv(dev);
 	long ioaddr = dev->base_addr;
@@ -587,7 +589,7 @@ static int atp_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 	dev->trans_start = jiffies;
 	dev_kfree_skb (skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 

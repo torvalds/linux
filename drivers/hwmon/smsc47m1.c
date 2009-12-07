@@ -38,7 +38,7 @@
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 static unsigned short force_id;
 module_param(force_id, ushort, 0);

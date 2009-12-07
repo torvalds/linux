@@ -7,8 +7,8 @@
 
 #ifdef __KERNEL__
 #include <linux/compiler.h>
-#include <linux/sched.h>
 #include <linux/string.h>
+#include <linux/thread_info.h>
 #include <asm/asi.h>
 #include <asm/system.h>
 #include <asm/spitfire.h>

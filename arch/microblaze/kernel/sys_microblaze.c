@@ -23,7 +23,6 @@
 #include <linux/mman.h>
 #include <linux/sys.h>
 #include <linux/ipc.h>
-#include <linux/utsname.h>
 #include <linux/file.h>
 #include <linux/module.h>
 #include <linux/err.h>

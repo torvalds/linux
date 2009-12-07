@@ -3,11 +3,9 @@
 /* This header is BSD licensed so anyone can use the definitions to implement
  * compatible drivers/servers. */
 #include <linux/types.h>
+#include <linux/virtio_ids.h>
 #include <linux/virtio_config.h>
 #include <linux/if_ether.h>
-
-/* The ID for virtio_net */
-#define VIRTIO_ID_NET	1
 
 /* The feature bitmap for virtio net */
 #define VIRTIO_NET_F_CSUM	0	/* Host handles pkts w/ partial csum */

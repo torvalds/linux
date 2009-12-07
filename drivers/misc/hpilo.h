@@ -46,11 +46,14 @@ struct ilo_hwinfo {
 
 	spinlock_t alloc_lock;
 	spinlock_t fifo_lock;
+	spinlock_t open_lock;
 
 	struct cdev cdev;
 };
 
-/* offset from mmio_vaddr */
+/* offset from mmio_vaddr for enabling doorbell interrupts */
+#define DB_IRQ		0xB2
+/* offset from mmio_vaddr for outbound communications */
 #define DB_OUT		0xD4
 /* DB_OUT reset bit */
 #define DB_RESET	26
@@ -130,6 +133,9 @@ struct ccb_data {
 
 	/* pointer to hardware device info */
 	struct ilo_hwinfo *ilo_hw;
+
+	/* queue for this ccb to wait for recv data */
+	wait_queue_head_t ccb_waitq;
 
 	/* usage count, to allow for shared ccb's */
 	int	    ccb_cnt;

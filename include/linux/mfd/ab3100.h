@@ -6,6 +6,8 @@
  */
 
 #include <linux/device.h>
+#include <linux/workqueue.h>
+#include <linux/regulator/machine.h>
 
 #ifndef MFD_AB3100_H
 #define MFD_AB3100_H
@@ -56,6 +58,14 @@
 #define AB3100_STR_BATT_REMOVAL				(0x40)
 #define AB3100_STR_VBUS					(0x80)
 
+/*
+ * AB3100 contains 8 regulators, one external regulator controller
+ * and a buck converter, further the LDO E and buck converter can
+ * have separate settings if they are in sleep mode, this is
+ * modeled as a separate regulator.
+ */
+#define AB3100_NUM_REGULATORS				10
+
 /**
  * struct ab3100
  * @access_mutex: lock out concurrent accesses to the AB3100 registers
@@ -86,11 +96,30 @@ struct ab3100 {
 	bool startup_events_read;
 };
 
-int ab3100_set_register(struct ab3100 *ab3100, u8 reg, u8 regval);
-int ab3100_get_register(struct ab3100 *ab3100, u8 reg, u8 *regval);
-int ab3100_get_register_page(struct ab3100 *ab3100,
+/**
+ * struct ab3100_platform_data
+ * Data supplied to initialize board connections to the AB3100
+ * @reg_constraints: regulator constraints for target board
+ *     the order of these constraints are: LDO A, C, D, E,
+ *     F, G, H, K, EXT and BUCK.
+ * @reg_initvals: initial values for the regulator registers
+ *     plus two sleep settings for LDO E and the BUCK converter.
+ *     exactly AB3100_NUM_REGULATORS+2 values must be sent in.
+ *     Order: LDO A, C, E, E sleep, F, G, H, K, EXT, BUCK,
+ *     BUCK sleep, LDO D. (LDO D need to be initialized last.)
+ * @external_voltage: voltage level of the external regulator.
+ */
+struct ab3100_platform_data {
+	struct regulator_init_data reg_constraints[AB3100_NUM_REGULATORS];
+	u8 reg_initvals[AB3100_NUM_REGULATORS+2];
+	int external_voltage;
+};
+
+int ab3100_set_register_interruptible(struct ab3100 *ab3100, u8 reg, u8 regval);
+int ab3100_get_register_interruptible(struct ab3100 *ab3100, u8 reg, u8 *regval);
+int ab3100_get_register_page_interruptible(struct ab3100 *ab3100,
 			     u8 first_reg, u8 *regvals, u8 numregs);
-int ab3100_mask_and_set_register(struct ab3100 *ab3100,
+int ab3100_mask_and_set_register_interruptible(struct ab3100 *ab3100,
 				 u8 reg, u8 andmask, u8 ormask);
 u8 ab3100_get_chip_type(struct ab3100 *ab3100);
 int ab3100_event_register(struct ab3100 *ab3100,

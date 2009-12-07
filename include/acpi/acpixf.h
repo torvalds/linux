@@ -47,7 +47,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20090521
+#define ACPI_CA_VERSION                 0x20090903
 
 #include "actypes.h"
 #include "actbl.h"
@@ -64,6 +64,7 @@ extern u8 acpi_gbl_enable_interpreter_slack;
 extern u8 acpi_gbl_all_methods_serialized;
 extern u8 acpi_gbl_create_osi_method;
 extern u8 acpi_gbl_leave_wake_gpes_disabled;
+extern u8 acpi_gbl_use_default_register_widths;
 extern acpi_name acpi_gbl_trace_method_name;
 extern u32 acpi_gbl_trace_flags;
 
@@ -199,7 +200,8 @@ acpi_evaluate_object_typed(acpi_handle object,
 			   acpi_object_type return_type);
 
 acpi_status
-acpi_get_object_info(acpi_handle handle, struct acpi_buffer *return_buffer);
+acpi_get_object_info(acpi_handle handle,
+		     struct acpi_device_info **return_buffer);
 
 acpi_status acpi_install_method(u8 *buffer);
 
@@ -359,9 +361,9 @@ acpi_status acpi_set_firmware_waking_vector(u32 physical_address);
 acpi_status acpi_set_firmware_waking_vector64(u64 physical_address);
 #endif
 
-acpi_status acpi_read(u32 *value, struct acpi_generic_address *reg);
+acpi_status acpi_read(u64 *value, struct acpi_generic_address *reg);
 
-acpi_status acpi_write(u32 value, struct acpi_generic_address *reg);
+acpi_status acpi_write(u64 value, struct acpi_generic_address *reg);
 
 acpi_status
 acpi_get_sleep_type_data(u8 sleep_state, u8 * slp_typ_a, u8 * slp_typ_b);

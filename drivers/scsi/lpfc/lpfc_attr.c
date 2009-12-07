@@ -394,7 +394,12 @@ lpfc_link_state_show(struct device *dev, struct device_attribute *attr,
 	case LPFC_INIT_MBX_CMDS:
 	case LPFC_LINK_DOWN:
 	case LPFC_HBA_ERROR:
-		len += snprintf(buf + len, PAGE_SIZE-len, "Link Down\n");
+		if (phba->hba_flag & LINK_DISABLED)
+			len += snprintf(buf + len, PAGE_SIZE-len,
+				"Link Down - User disabled\n");
+		else
+			len += snprintf(buf + len, PAGE_SIZE-len,
+				"Link Down\n");
 		break;
 	case LPFC_LINK_UP:
 	case LPFC_CLEAR_LA:
@@ -4127,6 +4132,9 @@ struct fc_function_template lpfc_transport_functions = {
 	.vport_disable = lpfc_vport_disable,
 
 	.set_vport_symbolic_name = lpfc_set_vport_symbolic_name,
+
+	.bsg_request = lpfc_bsg_request,
+	.bsg_timeout = lpfc_bsg_timeout,
 };
 
 struct fc_function_template lpfc_vport_transport_functions = {

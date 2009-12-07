@@ -26,7 +26,7 @@ This document has the following sections:
 	- Notes on accessing payload contents
 	- Defining a key type
 	- Request-key callback service
-	- Key access filesystem
+	- Garbage collection
 
 
 ============
@@ -112,6 +112,9 @@ Each key has a number of attributes:
 	 found or operated upon (apart from by unlinking it).
 
      (*) Dead. The key's type was unregistered, and so the key is now useless.
+
+Keys in the last three states are subject to garbage collection.  See the
+section on "Garbage collection".
 
 
 ====================
@@ -754,6 +757,26 @@ The keyctl syscall functions are:
      successful.
 
 
+ (*) Install the calling process's session keyring on its parent.
+
+	long keyctl(KEYCTL_SESSION_TO_PARENT);
+
+     This functions attempts to install the calling process's session keyring
+     on to the calling process's parent, replacing the parent's current session
+     keyring.
+
+     The calling process must have the same ownership as its parent, the
+     keyring must have the same ownership as the calling process, the calling
+     process must have LINK permission on the keyring and the active LSM module
+     mustn't deny permission, otherwise error EPERM will be returned.
+
+     Error ENOMEM will be returned if there was insufficient memory to complete
+     the operation, otherwise 0 will be returned to indicate success.
+
+     The keyring will be replaced next time the parent process leaves the
+     kernel and resumes executing userspace.
+
+
 ===============
 KERNEL SERVICES
 ===============
@@ -1231,3 +1254,17 @@ by executing:
 
 In this case, the program isn't required to actually attach the key to a ring;
 the rings are provided for reference.
+
+
+==================
+GARBAGE COLLECTION
+==================
+
+Dead keys (for which the type has been removed) will be automatically unlinked
+from those keyrings that point to them and deleted as soon as possible by a
+background garbage collector.
+
+Similarly, revoked and expired keys will be garbage collected, but only after a
+certain amount of time has passed.  This time is set as a number of seconds in:
+
+	/proc/sys/kernel/keys/gc_delay

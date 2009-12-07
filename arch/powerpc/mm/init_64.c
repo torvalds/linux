@@ -109,35 +109,6 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
-#ifdef CONFIG_PROC_KCORE
-static struct kcore_list kcore_vmem;
-
-static int __init setup_kcore(void)
-{
-	int i;
-
-	for (i=0; i < lmb.memory.cnt; i++) {
-		unsigned long base, size;
-		struct kcore_list *kcore_mem;
-
-		base = lmb.memory.region[i].base;
-		size = lmb.memory.region[i].size;
-
-		/* GFP_ATOMIC to avoid might_sleep warnings during boot */
-		kcore_mem = kmalloc(sizeof(struct kcore_list), GFP_ATOMIC);
-		if (!kcore_mem)
-			panic("%s: kmalloc failed\n", __func__);
-
-		kclist_add(kcore_mem, __va(base), size);
-	}
-
-	kclist_add(&kcore_vmem, (void *)VMALLOC_START, VMALLOC_END-VMALLOC_START);
-
-	return 0;
-}
-module_init(setup_kcore);
-#endif
-
 static void pgd_ctor(void *addr)
 {
 	memset(addr, 0, PGD_TABLE_SIZE);
@@ -205,6 +176,47 @@ static int __meminit vmemmap_populated(unsigned long start, int page_size)
 	return 0;
 }
 
+/* On hash-based CPUs, the vmemmap is bolted in the hash table.
+ *
+ * On Book3E CPUs, the vmemmap is currently mapped in the top half of
+ * the vmalloc space using normal page tables, though the size of
+ * pages encoded in the PTEs can be different
+ */
+
+#ifdef CONFIG_PPC_BOOK3E
+static void __meminit vmemmap_create_mapping(unsigned long start,
+					     unsigned long page_size,
+					     unsigned long phys)
+{
+	/* Create a PTE encoding without page size */
+	unsigned long i, flags = _PAGE_PRESENT | _PAGE_ACCESSED |
+		_PAGE_KERNEL_RW;
+
+	/* PTEs only contain page size encodings up to 32M */
+	BUG_ON(mmu_psize_defs[mmu_vmemmap_psize].enc > 0xf);
+
+	/* Encode the size in the PTE */
+	flags |= mmu_psize_defs[mmu_vmemmap_psize].enc << 8;
+
+	/* For each PTE for that area, map things. Note that we don't
+	 * increment phys because all PTEs are of the large size and
+	 * thus must have the low bits clear
+	 */
+	for (i = 0; i < page_size; i += PAGE_SIZE)
+		BUG_ON(map_kernel_page(start + i, phys, flags));
+}
+#else /* CONFIG_PPC_BOOK3E */
+static void __meminit vmemmap_create_mapping(unsigned long start,
+					     unsigned long page_size,
+					     unsigned long phys)
+{
+	int  mapped = htab_bolt_mapping(start, start + page_size, phys,
+					PAGE_KERNEL, mmu_vmemmap_psize,
+					mmu_kernel_ssize);
+	BUG_ON(mapped < 0);
+}
+#endif /* CONFIG_PPC_BOOK3E */
+
 int __meminit vmemmap_populate(struct page *start_page,
 			       unsigned long nr_pages, int node)
 {
@@ -215,8 +227,11 @@ int __meminit vmemmap_populate(struct page *start_page,
 	/* Align to the page size of the linear mapping. */
 	start = _ALIGN_DOWN(start, page_size);
 
+	pr_debug("vmemmap_populate page %p, %ld pages, node %d\n",
+		 start_page, nr_pages, node);
+	pr_debug(" -> map %lx..%lx\n", start, end);
+
 	for (; start < end; start += page_size) {
-		int mapped;
 		void *p;
 
 		if (vmemmap_populated(start, page_size))
@@ -226,13 +241,10 @@ int __meminit vmemmap_populate(struct page *start_page,
 		if (!p)
 			return -ENOMEM;
 
-		pr_debug("vmemmap %08lx allocated at %p, physical %08lx.\n",
-			start, p, __pa(p));
+		pr_debug("      * %016lx..%016lx allocated at %p\n",
+			 start, start + page_size, p);
 
-		mapped = htab_bolt_mapping(start, start + page_size, __pa(p),
-					   pgprot_val(PAGE_KERNEL),
-					   mmu_vmemmap_psize, mmu_kernel_ssize);
-		BUG_ON(mapped < 0);
+		vmemmap_create_mapping(start, page_size, __pa(p));
 	}
 
 	return 0;

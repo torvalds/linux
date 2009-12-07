@@ -45,14 +45,14 @@ static int ql_update_ring_coalescing(struct ql_adapter *qdev)
 	if (!netif_running(qdev->ndev))
 		return status;
 
-	spin_lock(&qdev->hw_lock);
 	/* Skip the default queue, and update the outbound handler
 	 * queues if they changed.
 	 */
-	cqicb = (struct cqicb *)&qdev->rx_ring[1];
+	cqicb = (struct cqicb *)&qdev->rx_ring[qdev->rss_ring_count];
 	if (le16_to_cpu(cqicb->irq_delay) != qdev->tx_coalesce_usecs ||
-	    le16_to_cpu(cqicb->pkt_delay) != qdev->tx_max_coalesced_frames) {
-		for (i = 1; i < qdev->rss_ring_first_cq_id; i++, rx_ring++) {
+		le16_to_cpu(cqicb->pkt_delay) !=
+				qdev->tx_max_coalesced_frames) {
+		for (i = qdev->rss_ring_count; i < qdev->rx_ring_count; i++) {
 			rx_ring = &qdev->rx_ring[i];
 			cqicb = (struct cqicb *)rx_ring;
 			cqicb->irq_delay = cpu_to_le16(qdev->tx_coalesce_usecs);
@@ -70,12 +70,11 @@ static int ql_update_ring_coalescing(struct ql_adapter *qdev)
 	}
 
 	/* Update the inbound (RSS) handler queues if they changed. */
-	cqicb = (struct cqicb *)&qdev->rx_ring[qdev->rss_ring_first_cq_id];
+	cqicb = (struct cqicb *)&qdev->rx_ring[0];
 	if (le16_to_cpu(cqicb->irq_delay) != qdev->rx_coalesce_usecs ||
-	    le16_to_cpu(cqicb->pkt_delay) != qdev->rx_max_coalesced_frames) {
-		for (i = qdev->rss_ring_first_cq_id;
-		     i <= qdev->rss_ring_first_cq_id + qdev->rss_ring_count;
-		     i++) {
+		le16_to_cpu(cqicb->pkt_delay) !=
+					qdev->rx_max_coalesced_frames) {
+		for (i = 0; i < qdev->rss_ring_count; i++, rx_ring++) {
 			rx_ring = &qdev->rx_ring[i];
 			cqicb = (struct cqicb *)rx_ring;
 			cqicb->irq_delay = cpu_to_le16(qdev->rx_coalesce_usecs);
@@ -92,7 +91,6 @@ static int ql_update_ring_coalescing(struct ql_adapter *qdev)
 		}
 	}
 exit:
-	spin_unlock(&qdev->hw_lock);
 	return status;
 }
 

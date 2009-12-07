@@ -31,7 +31,7 @@
 #include <asm/rtlx.h>
 #include <asm/kspd.h>
 
-static struct workqueue_struct *workqueue = NULL;
+static struct workqueue_struct *workqueue;
 static struct work_struct work;
 
 extern unsigned long cpu_khz;
@@ -58,7 +58,7 @@ struct mtsp_syscall_generic {
 };
 
 static struct list_head kspd_notifylist;
-static int sp_stopping = 0;
+static int sp_stopping;
 
 /* these should match with those in the SDE kit */
 #define MTSP_SYSCALL_BASE	0
@@ -172,13 +172,20 @@ static unsigned int translate_open_flags(int flags)
 }
 
 
-static void sp_setfsuidgid( uid_t uid, gid_t gid)
+static int sp_setfsuidgid(uid_t uid, gid_t gid)
 {
-	current->cred->fsuid = uid;
-	current->cred->fsgid = gid;
+	struct cred *new;
 
-	key_fsuid_changed(current);
-	key_fsgid_changed(current);
+	new = prepare_creds();
+	if (!new)
+		return -ENOMEM;
+
+	new->fsuid = uid;
+	new->fsgid = gid;
+
+	commit_creds(new);
+
+	return 0;
 }
 
 /*
@@ -196,7 +203,7 @@ void sp_work_handle_request(void)
 	mm_segment_t old_fs;
 	struct timeval tv;
 	struct timezone tz;
-	int cmd;
+	int err, cmd;
 
 	char *vcwd;
 	int size;
@@ -225,8 +232,11 @@ void sp_work_handle_request(void)
 	/* Run the syscall at the privilege of the user who loaded the
 	   SP program */
 
-	if (vpe_getuid(tclimit))
-		sp_setfsuidgid(vpe_getuid(tclimit), vpe_getgid(tclimit));
+	if (vpe_getuid(tclimit)) {
+		err = sp_setfsuidgid(vpe_getuid(tclimit), vpe_getgid(tclimit));
+		if (!err)
+			pr_err("Change of creds failed\n");
+	}
 
 	switch (sc.cmd) {
 	/* needs the flags argument translating from SDE kit to
@@ -283,8 +293,11 @@ void sp_work_handle_request(void)
 		break;
  	} /* switch */
 
-	if (vpe_getuid(tclimit))
-		sp_setfsuidgid( 0, 0);
+	if (vpe_getuid(tclimit)) {
+		err = sp_setfsuidgid(0, 0);
+		if (!err)
+			pr_err("restoring old creds failed\n");
+	}
 
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
@@ -328,7 +341,7 @@ static void sp_cleanup(void)
 	sys_chdir("/");
 }
 
-static int channel_open = 0;
+static int channel_open;
 
 /* the work handler */
 static void sp_work(struct work_struct *unused)

@@ -112,14 +112,15 @@ void __iomem *match_trapped_io_handler(struct list_head *list,
 	struct trapped_io *tiop;
 	struct resource *res;
 	int k, len;
+	unsigned long flags;
 
-	spin_lock_irq(&trapped_lock);
+	spin_lock_irqsave(&trapped_lock, flags);
 	list_for_each_entry(tiop, list, list) {
 		voffs = 0;
 		for (k = 0; k < tiop->num_resources; k++) {
 			res = tiop->resource + k;
 			if (res->start == offset) {
-				spin_unlock_irq(&trapped_lock);
+				spin_unlock_irqrestore(&trapped_lock, flags);
 				return tiop->virt_base + voffs;
 			}
 
@@ -127,7 +128,7 @@ void __iomem *match_trapped_io_handler(struct list_head *list,
 			voffs += roundup(len, PAGE_SIZE);
 		}
 	}
-	spin_unlock_irq(&trapped_lock);
+	spin_unlock_irqrestore(&trapped_lock, flags);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(match_trapped_io_handler);
@@ -283,7 +284,8 @@ int handle_trapped_io(struct pt_regs *regs, unsigned long address)
 		return 0;
 	}
 
-	tmp = handle_unaligned_access(instruction, regs, &trapped_io_access);
+	tmp = handle_unaligned_access(instruction, regs,
+				      &trapped_io_access, 1);
 	set_fs(oldfs);
 	return tmp == 0;
 }

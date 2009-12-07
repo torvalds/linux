@@ -101,7 +101,7 @@ static struct snmp_mib snmp6_icmp6_list[] = {
 };
 
 /* RFC 4293 v6 ICMPMsgStatsTable; named items for RFC 2466 compatibility */
-static char *icmp6type2name[256] = {
+static const char *const icmp6type2name[256] = {
 	[ICMPV6_DEST_UNREACH] = "DestUnreachs",
 	[ICMPV6_PKT_TOOBIG] = "PktTooBigs",
 	[ICMPV6_TIME_EXCEED] = "TimeExcds",
@@ -144,7 +144,7 @@ static void snmp6_seq_show_icmpv6msg(struct seq_file *seq, void **mib)
 	/* print by name -- deprecated items */
 	for (i = 0; i < ICMP6MSG_MIB_MAX; i++) {
 		int icmptype;
-		char *p;
+		const char *p;
 
 		icmptype = i & 0xff;
 		p = icmp6type2name[icmptype];

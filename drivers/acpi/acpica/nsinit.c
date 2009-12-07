@@ -170,6 +170,21 @@ acpi_status acpi_ns_initialize_devices(void)
 		goto error_exit;
 	}
 
+	/*
+	 * Execute the "global" _INI method that may appear at the root. This
+	 * support is provided for Windows compatibility (Vista+) and is not
+	 * part of the ACPI specification.
+	 */
+	info.evaluate_info->prefix_node = acpi_gbl_root_node;
+	info.evaluate_info->pathname = METHOD_NAME__INI;
+	info.evaluate_info->parameters = NULL;
+	info.evaluate_info->flags = ACPI_IGNORE_RETURN_VALUE;
+
+	status = acpi_ns_evaluate(info.evaluate_info);
+	if (ACPI_SUCCESS(status)) {
+		info.num_INI++;
+	}
+
 	/* Walk namespace to execute all _INIs on present devices */
 
 	status = acpi_ns_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,

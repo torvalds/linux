@@ -191,4 +191,33 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 #define _raw_read_relax(lock)	cpu_relax()
 #define _raw_write_relax(lock)	cpu_relax()
 
+#define __always_inline__spin_lock
+#define __always_inline__read_lock
+#define __always_inline__write_lock
+#define __always_inline__spin_lock_bh
+#define __always_inline__read_lock_bh
+#define __always_inline__write_lock_bh
+#define __always_inline__spin_lock_irq
+#define __always_inline__read_lock_irq
+#define __always_inline__write_lock_irq
+#define __always_inline__spin_lock_irqsave
+#define __always_inline__read_lock_irqsave
+#define __always_inline__write_lock_irqsave
+#define __always_inline__spin_trylock
+#define __always_inline__read_trylock
+#define __always_inline__write_trylock
+#define __always_inline__spin_trylock_bh
+#define __always_inline__spin_unlock
+#define __always_inline__read_unlock
+#define __always_inline__write_unlock
+#define __always_inline__spin_unlock_bh
+#define __always_inline__read_unlock_bh
+#define __always_inline__write_unlock_bh
+#define __always_inline__spin_unlock_irq
+#define __always_inline__read_unlock_irq
+#define __always_inline__write_unlock_irq
+#define __always_inline__spin_unlock_irqrestore
+#define __always_inline__read_unlock_irqrestore
+#define __always_inline__write_unlock_irqrestore
+
 #endif /* __ASM_SPINLOCK_H */

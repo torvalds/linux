@@ -380,13 +380,15 @@ ath5k_debug_init_device(struct ath5k_softc *sc)
 	sc->debug.debugfs_phydir = debugfs_create_dir(wiphy_name(sc->hw->wiphy),
 				ath5k_global_debugfs);
 
-	sc->debug.debugfs_debug = debugfs_create_file("debug", S_IWUSR | S_IRUGO,
+	sc->debug.debugfs_debug = debugfs_create_file("debug",
+				S_IWUSR | S_IRUSR,
 				sc->debug.debugfs_phydir, sc, &fops_debug);
 
-	sc->debug.debugfs_registers = debugfs_create_file("registers", S_IRUGO,
+	sc->debug.debugfs_registers = debugfs_create_file("registers", S_IRUSR,
 				sc->debug.debugfs_phydir, sc, &fops_registers);
 
-	sc->debug.debugfs_beacon = debugfs_create_file("beacon", S_IWUSR | S_IRUGO,
+	sc->debug.debugfs_beacon = debugfs_create_file("beacon",
+				S_IWUSR | S_IRUSR,
 				sc->debug.debugfs_phydir, sc, &fops_beacon);
 
 	sc->debug.debugfs_reset = debugfs_create_file("reset", S_IWUSR,

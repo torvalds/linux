@@ -24,7 +24,6 @@
 #include <linux/module.h>
 #include <linux/videodev2.h>
 #include <linux/uaccess.h>
-#include <linux/version.h>
 
 #include <media/adv7343.h>
 #include <media/v4l2-device.h>

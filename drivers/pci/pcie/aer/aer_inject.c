@@ -22,11 +22,10 @@
 #include <linux/miscdevice.h>
 #include <linux/pci.h>
 #include <linux/fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "aerdrv.h"
 
-struct aer_error_inj
-{
+struct aer_error_inj {
 	u8 bus;
 	u8 dev;
 	u8 fn;
@@ -38,8 +37,7 @@ struct aer_error_inj
 	u32 header_log3;
 };
 
-struct aer_error
-{
+struct aer_error {
 	struct list_head list;
 	unsigned int bus;
 	unsigned int devfn;
@@ -55,8 +53,7 @@ struct aer_error
 	u32 source_id;
 };
 
-struct pci_bus_ops
-{
+struct pci_bus_ops {
 	struct list_head list;
 	struct pci_bus *bus;
 	struct pci_ops *ops;
@@ -150,7 +147,7 @@ static u32 *find_pci_config_dword(struct aer_error *err, int where,
 		target = &err->header_log1;
 		break;
 	case PCI_ERR_HEADER_LOG+8:
-	        target = &err->header_log2;
+		target = &err->header_log2;
 		break;
 	case PCI_ERR_HEADER_LOG+12:
 		target = &err->header_log3;
@@ -258,8 +255,7 @@ static int pci_bus_set_aer_ops(struct pci_bus *bus)
 	bus_ops = NULL;
 out:
 	spin_unlock_irqrestore(&inject_lock, flags);
-	if (bus_ops)
-		kfree(bus_ops);
+	kfree(bus_ops);
 	return 0;
 }
 
@@ -401,10 +397,8 @@ static int aer_inject(struct aer_error_inj *einj)
 	else
 		ret = -EINVAL;
 out_put:
-	if (err_alloc)
-		kfree(err_alloc);
-	if (rperr_alloc)
-		kfree(rperr_alloc);
+	kfree(err_alloc);
+	kfree(rperr_alloc);
 	pci_dev_put(dev);
 	return ret;
 }
@@ -458,8 +452,7 @@ static void __exit aer_inject_exit(void)
 	}
 
 	spin_lock_irqsave(&inject_lock, flags);
-	list_for_each_entry_safe(err, err_next,
-				 &pci_bus_ops_list, list) {
+	list_for_each_entry_safe(err, err_next, &pci_bus_ops_list, list) {
 		list_del(&err->list);
 		kfree(err);
 	}

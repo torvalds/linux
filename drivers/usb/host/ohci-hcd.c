@@ -34,7 +34,6 @@
 #include <linux/usb/otg.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
-#include <linux/reboot.h>
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
 
@@ -88,12 +87,17 @@ static int ohci_restart (struct ohci_hcd *ohci);
 #ifdef CONFIG_PCI
 static void quirk_amd_pll(int state);
 static void amd_iso_dev_put(void);
+static void sb800_prefetch(struct ohci_hcd *ohci, int on);
 #else
 static inline void quirk_amd_pll(int state)
 {
 	return;
 }
 static inline void amd_iso_dev_put(void)
+{
+	return;
+}
+static inline void sb800_prefetch(struct ohci_hcd *ohci, int on)
 {
 	return;
 }

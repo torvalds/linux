@@ -70,147 +70,6 @@ typedef	enum _ACK_POLICY{
 }ACK_POLICY,*PACK_POLICY;
 
 #define WMM_PARAM_ELEMENT_SIZE	(8+(4*AC_PARAM_SIZE))
-#if 0
-#define GET_QOS_CTRL(_pStart)	ReadEF2Byte((u8 *)(_pStart) + 24)
-#define SET_QOS_CTRL(_pStart, _value)	WriteEF2Byte((u8 *)(_pStart) + 24, _value)
-
-// WMM control field.
-#define GET_QOS_CTRL_WMM_UP(_pStart)	((u8)LE_BITS_TO_2BYTE((u8 *)(_pStart)+24, 0, 3))
-#define SET_QOS_CTRL_WMM_UP(_pStart, _value)	SET_BITS_TO_LE_2BYTE((u8 *)(_pStart)+24, 0, 3, (u8)(_value))
-
-#define GET_QOS_CTRL_WMM_EOSP(_pStart)	((u8)LE_BITS_TO_2BYTE((u8 *)(_pStart)+24, 4, 1))
-#define SET_QOS_CTRL_WMM_EOSP(_pStart, _value)	SET_BITS_TO_LE_2BYTE((u8 *)(_pStart)+24, 4, 1, (u8)(_value))
-
-#define GET_QOS_CTRL_WMM_ACK_POLICY(_pStart)	((u8)LE_BITS_TO_2BYTE((u8 *)(_pStart)+24, 5, 2))
-#define SET_QOS_CTRL_WMM_ACK_POLICY(_pStart, _value)	SET_BITS_TO_LE_2BYTE((u8 *)(_pStart)+24, 5, 2, (u8)(_value))
-
-// 802.11e control field (by STA, data)
-#define GET_QOS_CTRL_STA_DATA_TID(_pStart)	((u8)LE_BITS_TO_2BYTE((u8 *)(_pStart)+24, 0, 4))
-#define SET_QOS_CTRL_STA_DATA_TID(_pStart, _value)	SET_BITS_TO_LE_2BYTE((u8 *)(_pStart)+24, 0, 4, (u8)(_value))
-
-#define GET_QOS_CTRL_STA_DATA_QSIZE_FLAG(_pStart)	((u8)LE_BITS_TO_2BYTE((u8 *)(_pStart)+24, 4, 1))
-#define SET_QOS_CTRL_STA_DATA_QSIZE_FLAG(_pStart, _value)	SET_BITS_TO_LE_2BYTE((u8 *)(_pStart)+24, 4, 1, (u8)(_value))
-
-#define GET_QOS_CTRL_STA_DATA_ACK_POLICY(_pStart)	((u8)LE_BITS_TO_2BYTE((u8 *)(_pStart)+24, 5, 2))
-#define SET_QOS_CTRL_STA_DATA_ACK_POLICY(_pStart, _value)	SET_BITS_TO_LE_2BYTE((u8 *)(_pStart)+24, 5, 2, (u8)(_value))
-
-#define GET_QOS_CTRL_STA_DATA_TXOP(_pStart)	((u8)LE_BITS_TO_2BYTE((u8 *)(_pStart)+24, 8, 8))
-#define SET_QOS_CTRL_STA_DATA_TXOP(_pStart, _value)	SET_BITS_TO_LE_2BYTE((u8 *)(_pStart)+24, 8, 8, (u8)(_value))
-
-#define GET_QOS_CTRL_STA_DATA_QSIZE(_pStart)	GET_QOS_CTRL_STA_DATA_TXOP(_pStart)
-#define SET_QOS_CTRL_STA_DATA_QSIZE(_pStart, _value)	SET_QOS_CTRL_STA_DATA_TXOP(_pStart)
-
-// 802.11e control field (by HC, data)
-#define GET_QOS_CTRL_HC_DATA_TID(_pStart)	((u8)LE_BITS_TO_2BYTE((u8 *)(_pStart)+24, 0, 4))
-#define SET_QOS_CTRL_HC_DATA_TID(_pStart, _value)	SET_BITS_TO_LE_2BYTE((u8 *)(_pStart)+24, 0, 4, (u8)(_value))
-
-#define GET_QOS_CTRL_HC_DATA_EOSP(_pStart)	((u8)LE_BITS_TO_2BYTE((u8 *)(_pStart)+24, 4, 1))
-#define SET_QOS_CTRL_HC_DATA_EOSP(_pStart, _value)	SET_BITS_TO_LE_2BYTE((u8 *)(_pStart)+24, 4, 1, (u8)(_value))
-
-#define GET_QOS_CTRL_HC_DATA_ACK_POLICY(_pStart)	((u8)LE_BITS_TO_2BYTE((u8 *)(_pStart)+24, 5, 2))
-#define SET_QOS_CTRL_HC_DATA_ACK_POLICY(_pStart, _value)	SET_BITS_TO_LE_2BYTE((u8 *)(_pStart)+24, 5, 2, (u8)(_value))
-
-#define GET_QOS_CTRL_HC_DATA_PS_BUFSTATE(_pStart)	((u8)LE_BITS_TO_2BYTE((u8 *)(_pStart)+24, 8, 8))
-#define SET_QOS_CTRL_HC_DATA_PS_BUFSTATE(_pStart, _value)	SET_BITS_TO_LE_2BYTE((u8 *)(_pStart)+24, 8, 8, (u8)(_value))
-
-// 802.11e control field (by HC, CFP)
-#define GET_QOS_CTRL_HC_CFP_TID(_pStart)	((u8)LE_BITS_TO_2BYTE((u8 *)(_pStart)+24, 0, 4))
-#define SET_QOS_CTRL_HC_CFP_TID(_pStart, _value)	SET_BITS_TO_LE_2BYTE((u8 *)(_pStart)+24, 0, 4, (u8)(_value))
-
-#define GET_QOS_CTRL_HC_CFP_EOSP(_pStart)	((u8)LE_BITS_TO_2BYTE((u8 *)(_pStart)+24, 4, 1))
-#define SET_QOS_CTRL_HC_CFP_EOSP(_pStart, _value)	SET_BITS_TO_LE_2BYTE((u8 *)(_pStart)+24, 4, 1, (u8)(_value))
-
-#define GET_QOS_CTRL_HC_CFP_ACK_POLICY(_pStart)	((u8)LE_BITS_TO_2BYTE((u8 *)(_pStart)+24, 5, 2))
-#define SET_QOS_CTRL_HC_CFP_ACK_POLICY(_pStart, _value)	SET_BITS_TO_LE_2BYTE((u8 *)(_pStart)+24, 5, 2, (u8)(_value))
-
-#define GET_QOS_CTRL_HC_CFP_TXOP_LIMIT(_pStart)	((u8)LE_BITS_TO_2BYTE((u8 *)(_pStart)+24, 8, 8))
-#define SET_QOS_CTRL_HC_CFP_TXOP_LIMIT(_pStart, _value)	SET_BITS_TO_LE_2BYTE((u8 *)(_pStart)+24, 8, 8, (u8)(_value))
-
-#define SET_WMM_QOS_INFO_FIELD(_pStart, _val)	WriteEF1Byte(_pStart, _val)
-
-#define GET_WMM_QOS_INFO_FIELD_PARAMETERSET_COUNT(_pStart)	LE_BITS_TO_1BYTE(_pStart, 0, 4)
-#define SET_WMM_QOS_INFO_FIELD_PARAMETERSET_COUNT(_pStart, _val)	SET_BITS_TO_LE_1BYTE(_pStart, 0, 4, _val)
-
-#define GET_WMM_QOS_INFO_FIELD_AP_UAPSD(_pStart)	LE_BITS_TO_1BYTE(_pStart, 7, 1)
-#define SET_WMM_QOS_INFO_FIELD_AP_UAPSD(_pStart, _val)	SET_BITS_TO_LE_1BYTE(_pStart, 7, 1, _val)
-
-#define GET_WMM_QOS_INFO_FIELD_STA_AC_VO_UAPSD(_pStart)	LE_BITS_TO_1BYTE(_pStart, 0, 1)
-#define SET_WMM_QOS_INFO_FIELD_STA_AC_VO_UAPSD(_pStart, _val)	SET_BITS_TO_LE_1BYTE(_pStart, 0, 1, _val)
-
-#define GET_WMM_QOS_INFO_FIELD_STA_AC_VI_UAPSD(_pStart)	LE_BITS_TO_1BYTE(_pStart, 1, 1)
-#define SET_WMM_QOS_INFO_FIELD_STA_AC_VI_UAPSD(_pStart, _val)	SET_BITS_TO_LE_1BYTE(_pStart, 1, 1, _val)
-
-#define GET_WMM_QOS_INFO_FIELD_STA_AC_BE_UAPSD(_pStart)	LE_BITS_TO_1BYTE(_pStart, 2, 1)
-#define SET_WMM_QOS_INFO_FIELD_STA_AC_BE_UAPSD(_pStart, _val)	SET_BITS_TO_LE_1BYTE(_pStart, 2, 1, _val)
-
-#define GET_WMM_QOS_INFO_FIELD_STA_AC_BK_UAPSD(_pStart)	LE_BITS_TO_1BYTE(_pStart, 3, 1)
-#define SET_WMM_QOS_INFO_FIELD_STA_AC_BK_UAPSD(_pStart, _val)	SET_BITS_TO_LE_1BYTE(_pStart, 3, 1, _val)
-
-#define GET_WMM_QOS_INFO_FIELD_STA_MAX_SP_LEN(_pStart)	LE_BITS_TO_1BYTE(_pStart, 5, 2)
-#define SET_WMM_QOS_INFO_FIELD_STA_MAX_SP_LEN(_pStart, _val)	SET_BITS_TO_LE_1BYTE(_pStart, 5, 2, _val)
-
-
-#define WMM_INFO_ELEMENT_SIZE	7
-
-#define GET_WMM_INFO_ELE_OUI(_pStart)	((u8 *)(_pStart))
-#define SET_WMM_INFO_ELE_OUI(_pStart, _pVal)	PlatformMoveMemory(_pStart, _pVal, 3);
-
-#define GET_WMM_INFO_ELE_OUI_TYPE(_pStart)	( EF1Byte( *((u8 *)(_pStart)+3) ) )
-#define SET_WMM_INFO_ELE_OUI_TYPE(_pStart, _val)	( *((u8 *)(_pStart)+3) = EF1Byte(_val) )
-
-#define GET_WMM_INFO_ELE_OUI_SUBTYPE(_pStart)	( EF1Byte( *((u8 *)(_pStart)+4) ) )
-#define SET_WMM_INFO_ELE_OUI_SUBTYPE(_pStart, _val)	( *((u8 *)(_pStart)+4) = EF1Byte(_val) )
-
-#define GET_WMM_INFO_ELE_VERSION(_pStart)	( EF1Byte( *((u8 *)(_pStart)+5) ) )
-#define SET_WMM_INFO_ELE_VERSION(_pStart, _val)	( *((u8 *)(_pStart)+5) = EF1Byte(_val) )
-
-#define GET_WMM_INFO_ELE_QOS_INFO_FIELD(_pStart)	( EF1Byte( *((u8 *)(_pStart)+6) ) )
-#define SET_WMM_INFO_ELE_QOS_INFO_FIELD(_pStart, _val)	( *((u8 *)(_pStart)+6) = EF1Byte(_val) )
-
-
-
-#define GET_WMM_AC_PARAM_AIFSN(_pStart)	( (u8)LE_BITS_TO_4BYTE(_pStart, 0, 4) )
-#define SET_WMM_AC_PARAM_AIFSN(_pStart, _val)	SET_BITS_TO_LE_4BYTE(_pStart, 0, 4, _val)
-
-#define GET_WMM_AC_PARAM_ACM(_pStart)	( (u8)LE_BITS_TO_4BYTE(_pStart, 4, 1) )
-#define SET_WMM_AC_PARAM_ACM(_pStart, _val)	SET_BITS_TO_LE_4BYTE(_pStart, 4, 1, _val)
-
-#define GET_WMM_AC_PARAM_ACI(_pStart)		( (u8)LE_BITS_TO_4BYTE(_pStart, 5, 2) )
-#define SET_WMM_AC_PARAM_ACI(_pStart, _val)	SET_BITS_TO_LE_4BYTE(_pStart, 5, 2, _val)
-
-#define GET_WMM_AC_PARAM_ACI_AIFSN(_pStart)	( (u8)LE_BITS_TO_4BYTE(_pStart, 0, 8) )
-#define SET_WMM_AC_PARAM_ACI_AIFSN(_pStart, _val)	SET_BTIS_TO_LE_4BYTE(_pStart, 0, 8, _val)
-
-#define GET_WMM_AC_PARAM_ECWMIN(_pStart)	( (u8)LE_BITS_TO_4BYTE(_pStart, 8, 4) )
-#define SET_WMM_AC_PARAM_ECWMIN(_pStart, _val)	SET_BITS_TO_LE_4BYTE(_pStart, 8, 4, _val)
-
-#define GET_WMM_AC_PARAM_ECWMAX(_pStart)	( (u8)LE_BITS_TO_4BYTE(_pStart, 12, 4) )
-#define SET_WMM_AC_PARAM_ECWMAX(_pStart, _val)	SET_BITS_TO_LE_4BYTE(_pStart, 12, 4, _val)
-
-#define GET_WMM_AC_PARAM_TXOP_LIMIT(_pStart)		( (u16)LE_BITS_TO_4BYTE(_pStart, 16, 16) )
-#define SET_WMM_AC_PARAM_TXOP_LIMIT(_pStart, _val)	SET_BITS_TO_LE_4BYTE(_pStart, 16, 16, _val)
-
-
-
-
-#define GET_WMM_PARAM_ELE_OUI(_pStart)	((u8 *)(_pStart))
-#define SET_WMM_PARAM_ELE_OUI(_pStart, _pVal)	PlatformMoveMemory(_pStart, _pVal, 3)
-
-#define GET_WMM_PARAM_ELE_OUI_TYPE(_pStart)	( EF1Byte( *((u8 *)(_pStart)+3) ) )
-#define SET_WMM_PARAM_ELE_OUI_TYPE(_pStart, _val)	( *((u8 *)(_pStart)+3) = EF1Byte(_val) )
-
-#define GET_WMM_PARAM_ELE_OUI_SUBTYPE(_pStart)	( EF1Byte( *((u8 *)(_pStart)+4) ) )
-#define SET_WMM_PARAM_ELE_OUI_SUBTYPE(_pStart, _val)	( *((u8 *)(_pStart)+4) = EF1Byte(_val) )
-
-#define GET_WMM_PARAM_ELE_VERSION(_pStart)	( EF1Byte( *((u8 *)(_pStart)+5) ) )
-#define SET_WMM_PARAM_ELE_VERSION(_pStart, _val)	( *((u8 *)(_pStart)+5) = EF1Byte(_val) )
-
-#define GET_WMM_PARAM_ELE_QOS_INFO_FIELD(_pStart)	( EF1Byte( *((u8 *)(_pStart)+6) ) )
-#define SET_WMM_PARAM_ELE_QOS_INFO_FIELD(_pStart, _val)	( *((u8 *)(_pStart)+6) = EF1Byte(_val) )
-
-#define GET_WMM_PARAM_ELE_AC_PARAM(_pStart)	( (u8 *)(_pStart)+8 )
-#define SET_WMM_PARAM_ELE_AC_PARAM(_pStart, _pVal) PlatformMoveMemory((_pStart)+8, _pVal, 16)
-#endif
 
 //
 // QoS Control Field
@@ -360,22 +219,6 @@ typedef	union _QOS_INFO_FIELD{
 	} ByAllAp;
 
 }QOS_INFO_FIELD, *PQOS_INFO_FIELD;
-
-#if 0
-//
-// WMM Information Element
-// Ref: WMM spec 2.2.1: WME Information Element, p.10.
-//
-typedef struct _WMM_INFO_ELEMENT{
-//	u8			ElementID;
-//	u8			Length;
-	u8			OUI[3];
-	u8			OUI_Type;
-	u8			OUI_SubType;
-	u8			Version;
-	QOS_INFO_FIELD	QosInfo;
-}WMM_INFO_ELEMENT, *PWMM_INFO_ELEMENT;
-#endif
 
 //
 // ACI to AC coding.
@@ -650,16 +493,7 @@ typedef struct _OCTET_STRING{
         u8        	*Octet;
         u16             Length;
 }OCTET_STRING, *POCTET_STRING;
-#if 0
-#define FillOctetString(_os,_octet,_len)             \
-        (_os).Octet=(u8 *)(_octet);                  \
-        (_os).Length=(_len);
 
-#define WMM_ELEM_HDR_LEN        		     6
-#define WMMElemSkipHdr(_osWMMElem)                   \
-        (_osWMMElem).Octet += WMM_ELEM_HDR_LEN;      \
-        (_osWMMElem).Length -= WMM_ELEM_HDR_LEN;
-#endif
 //
 // STA QoS data.
 // Ref: DOT11_QOS in 8185 code. [def. in QoS_mp.h]

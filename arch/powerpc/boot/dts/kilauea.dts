@@ -1,7 +1,7 @@
 /*
  * Device Tree Source for AMCC Kilauea (405EX)
  *
- * Copyright 2007 DENX Software Engineering, Stefan Roese <sr@denx.de>
+ * Copyright 2007-2009 DENX Software Engineering, Stefan Roese <sr@denx.de>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without
@@ -150,7 +150,11 @@
 					#size-cells = <1>;
 					partition@0 {
 						label = "kernel";
-						reg = <0x00000000 0x00200000>;
+						reg = <0x00000000 0x001e0000>;
+					};
+					partition@1e0000 {
+						label = "dtb";
+						reg = <0x001e0000 0x00020000>;
 					};
 					partition@200000 {
 						label = "root";
@@ -167,6 +171,29 @@
 					partition@3fa0000 {
 						label = "u-boot";
 						reg = <0x03fa0000 0x00060000>;
+					};
+				};
+
+				ndfc@1,0 {
+					compatible = "ibm,ndfc";
+					reg = <0x00000001 0x00000000 0x00002000>;
+					ccr = <0x00001000>;
+					bank-settings = <0x80002222>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+
+					nand {
+						#address-cells = <1>;
+						#size-cells = <1>;
+
+						partition@0 {
+							label = "u-boot";
+							reg = <0x00000000 0x00100000>;
+						};
+						partition@100000 {
+							label = "user";
+							reg = <0x00000000 0x03f00000>;
+						};
 					};
 				};
 			};
@@ -198,6 +225,18 @@
 				reg = <0xef600400 0x00000014>;
 				interrupt-parent = <&UIC0>;
 				interrupts = <0x2 0x4>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				rtc@68 {
+					compatible = "dallas,ds1338";
+					reg = <0x68>;
+				};
+
+				dtt@48 {
+					compatible = "dallas,ds1775";
+					reg = <0x48>;
+				};
 			};
 
 			IIC1: i2c@ef600500 {
@@ -206,7 +245,6 @@
 				interrupt-parent = <&UIC0>;
 				interrupts = <0x7 0x4>;
 			};
-
 
 			RGMII0: emac-rgmii@ef600b00 {
 				compatible = "ibm,rgmii-405ex", "ibm,rgmii";

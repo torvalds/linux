@@ -236,7 +236,6 @@ pcmcia_store_new_id(struct device_driver *driver, const char *buf, size_t count)
 	if (!dynid)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&dynid->node);
 	dynid->id.match_flags = match_flags;
 	dynid->id.manf_id = manf_id;
 	dynid->id.card_id = card_id;
@@ -246,7 +245,7 @@ pcmcia_store_new_id(struct device_driver *driver, const char *buf, size_t count)
 	memcpy(dynid->id.prod_id_hash, prod_id_hash, sizeof(__u32) * 4);
 
 	spin_lock(&pdrv->dynids.lock);
-	list_add_tail(&pdrv->dynids.list, &dynid->node);
+	list_add_tail(&dynid->node, &pdrv->dynids.list);
 	spin_unlock(&pdrv->dynids.lock);
 
 	if (get_driver(&pdrv->drv)) {
@@ -548,7 +547,7 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 	if (!vers1)
 		return -ENOMEM;
 
-	if (!pccard_read_tuple(p_dev->socket, p_dev->func,
+	if (!pccard_read_tuple(p_dev->socket, BIND_FN_ALL,
 			       CISTPL_MANFID, &manf_id)) {
 		p_dev->manf_id = manf_id.manf;
 		p_dev->card_id = manf_id.card;
@@ -582,9 +581,9 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 		kfree(devgeo);
 	}
 
-	if (!pccard_read_tuple(p_dev->socket, p_dev->func, CISTPL_VERS_1,
+	if (!pccard_read_tuple(p_dev->socket, BIND_FN_ALL, CISTPL_VERS_1,
 			       vers1)) {
-		for (i=0; i < vers1->ns; i++) {
+		for (i = 0; i < min_t(unsigned int, 4, vers1->ns); i++) {
 			char *tmp;
 			unsigned int length;
 
@@ -734,7 +733,7 @@ static int pcmcia_card_add(struct pcmcia_socket *s)
 		return -EAGAIN; /* try again, but later... */
 	}
 
-	ret = pccard_validate_cis(s, BIND_FN_ALL, &no_chains);
+	ret = pccard_validate_cis(s, &no_chains);
 	if (ret || !no_chains) {
 		ds_dev_dbg(0, &s->dev, "invalid CIS or invalid resources\n");
 		return -ENODEV;

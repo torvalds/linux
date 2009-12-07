@@ -1,6 +1,6 @@
 /*
  * If TRACE_SYSTEM is defined, that will be the directory created
- * in the ftrace directory under /debugfs/tracing/events/<system>
+ * in the ftrace directory under /sys/kernel/debug/tracing/events/<system>
  *
  * The define_trace.h below will also look for a file name of
  * TRACE_SYSTEM.h where TRACE_SYSTEM is what is defined here.

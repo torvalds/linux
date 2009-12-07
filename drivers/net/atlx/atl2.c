@@ -821,7 +821,8 @@ static inline int TxdFreeBytes(struct atl2_adapter *adapter)
 		(int) (txd_read_ptr - adapter->txd_write_ptr - 1);
 }
 
-static int atl2_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t atl2_xmit_frame(struct sk_buff *skb,
+					 struct net_device *netdev)
 {
 	struct atl2_adapter *adapter = netdev_priv(netdev);
 	struct tx_pkt_header *txph;
@@ -965,8 +966,6 @@ static int atl2_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 		data->phy_id = 0;
 		break;
 	case SIOCGMIIREG:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		spin_lock_irqsave(&adapter->stats_lock, flags);
 		if (atl2_read_phy_reg(&adapter->hw,
 			data->reg_num & 0x1F, &data->val_out)) {
@@ -976,8 +975,6 @@ static int atl2_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 		spin_unlock_irqrestore(&adapter->stats_lock, flags);
 		break;
 	case SIOCSMIIREG:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		if (data->reg_num & ~(0x1F))
 			return -EFAULT;
 		spin_lock_irqsave(&adapter->stats_lock, flags);
@@ -2093,7 +2090,7 @@ static int atl2_nway_reset(struct net_device *netdev)
 	return 0;
 }
 
-static struct ethtool_ops atl2_ethtool_ops = {
+static const struct ethtool_ops atl2_ethtool_ops = {
 	.get_settings		= atl2_get_settings,
 	.set_settings		= atl2_set_settings,
 	.get_drvinfo		= atl2_get_drvinfo,

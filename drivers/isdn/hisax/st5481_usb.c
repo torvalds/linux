@@ -637,10 +637,13 @@ void st5481_in_mode(struct st5481_in *in, int mode)
 	usb_unlink_urb(in->urb[1]);
 
 	if (in->mode != L1_MODE_NULL) {
-		if (in->mode != L1_MODE_TRANS)
-			isdnhdlc_rcv_init(&in->hdlc_state,
-				in->mode == L1_MODE_HDLC_56K);
-		
+		if (in->mode != L1_MODE_TRANS) {
+			u32 features = HDLC_BITREVERSE;
+
+			if (in->mode == L1_MODE_HDLC_56K)
+				features |= HDLC_56KBIT;
+			isdnhdlc_rcv_init(&in->hdlc_state, features);
+		}
 		st5481_usb_pipe_reset(in->adapter, in->ep, NULL, NULL);
 		st5481_usb_device_ctrl_msg(in->adapter, in->counter,
 					   in->packet_size,

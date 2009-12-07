@@ -40,7 +40,7 @@
 #include <linux/sysfs.h>
 #include <linux/ioport.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 static unsigned short force_id;
 module_param(force_id, ushort, 0);

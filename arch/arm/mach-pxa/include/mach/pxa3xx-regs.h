@@ -208,7 +208,7 @@
 #define CKEN_MVED	43	/* < MVED clock enable */
 
 /* Note: GCU clock enable bit differs on PXA300/PXA310 and PXA320 */
-#define PXA300_CKEN_GRAPHICS	42	/* Graphics controller clock enable */
-#define PXA320_CKEN_GRAPHICS	7	/* Graphics controller clock enable */
+#define CKEN_PXA300_GCU		42	/* Graphics controller clock enable */
+#define CKEN_PXA320_GCU		7	/* Graphics controller clock enable */
 
 #endif /* __ASM_ARCH_PXA3XX_REGS_H */

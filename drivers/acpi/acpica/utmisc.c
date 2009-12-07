@@ -50,6 +50,11 @@
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utmisc")
 
+/*
+ * Common suffix for messages
+ */
+#define ACPI_COMMON_MSG_SUFFIX \
+	acpi_os_printf(" (%8.8X/%s-%u)\n", ACPI_CA_VERSION, module_name, line_number)
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_validate_exception
@@ -116,6 +121,34 @@ const char *acpi_ut_validate_exception(acpi_status status)
 	}
 
 	return (ACPI_CAST_PTR(const char, exception));
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_is_pci_root_bridge
+ *
+ * PARAMETERS:  Id              - The HID/CID in string format
+ *
+ * RETURN:      TRUE if the Id is a match for a PCI/PCI-Express Root Bridge
+ *
+ * DESCRIPTION: Determine if the input ID is a PCI Root Bridge ID.
+ *
+ ******************************************************************************/
+
+u8 acpi_ut_is_pci_root_bridge(char *id)
+{
+
+	/*
+	 * Check if this is a PCI root bridge.
+	 * ACPI 3.0+: check for a PCI Express root also.
+	 */
+	if (!(ACPI_STRCMP(id,
+			  PCI_ROOT_HID_STRING)) ||
+	    !(ACPI_STRCMP(id, PCI_EXPRESS_ROOT_HID_STRING))) {
+		return (TRUE);
+	}
+
+	return (FALSE);
 }
 
 /*******************************************************************************
@@ -1037,8 +1070,7 @@ acpi_error(const char *module_name, u32 line_number, const char *format, ...)
 
 	va_start(args, format);
 	acpi_os_vprintf(format, args);
-	acpi_os_printf(" %8.8X %s-%u\n", ACPI_CA_VERSION, module_name,
-		       line_number);
+	ACPI_COMMON_MSG_SUFFIX;
 	va_end(args);
 }
 
@@ -1052,8 +1084,7 @@ acpi_exception(const char *module_name,
 
 	va_start(args, format);
 	acpi_os_vprintf(format, args);
-	acpi_os_printf(" %8.8X %s-%u\n", ACPI_CA_VERSION, module_name,
-		       line_number);
+	ACPI_COMMON_MSG_SUFFIX;
 	va_end(args);
 }
 
@@ -1066,8 +1097,7 @@ acpi_warning(const char *module_name, u32 line_number, const char *format, ...)
 
 	va_start(args, format);
 	acpi_os_vprintf(format, args);
-	acpi_os_printf(" %8.8X %s-%u\n", ACPI_CA_VERSION, module_name,
-		       line_number);
+	ACPI_COMMON_MSG_SUFFIX;
 	va_end(args);
 }
 
@@ -1088,3 +1118,46 @@ ACPI_EXPORT_SYMBOL(acpi_error)
 ACPI_EXPORT_SYMBOL(acpi_exception)
 ACPI_EXPORT_SYMBOL(acpi_warning)
 ACPI_EXPORT_SYMBOL(acpi_info)
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_predefined_warning
+ *
+ * PARAMETERS:  module_name     - Caller's module name (for error output)
+ *              line_number     - Caller's line number (for error output)
+ *              Pathname        - Full pathname to the node
+ *              node_flags      - From Namespace node for the method/object
+ *              Format          - Printf format string + additional args
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Warnings for the predefined validation module. Messages are
+ *              only emitted the first time a problem with a particular
+ *              method/object is detected. This prevents a flood of error
+ *              messages for methods that are repeatedly evaluated.
+ *
+******************************************************************************/
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_predefined_warning(const char *module_name,
+			   u32 line_number,
+			   char *pathname,
+			   u8 node_flags, const char *format, ...)
+{
+	va_list args;
+
+	/*
+	 * Warning messages for this method/object will be disabled after the
+	 * first time a validation fails or an object is successfully repaired.
+	 */
+	if (node_flags & ANOBJ_EVALUATED) {
+		return;
+	}
+
+	acpi_os_printf("ACPI Warning for %s: ", pathname);
+
+	va_start(args, format);
+	acpi_os_vprintf(format, args);
+	ACPI_COMMON_MSG_SUFFIX;
+	va_end(args);
+}

@@ -314,98 +314,6 @@ static inline void lx_message_dump(struct lx_rmh *rmh)
 #define XILINX_POLL_NO_SLEEP    100
 #define XILINX_POLL_ITERATIONS  150
 
-#if 0 /* not used now */
-static int lx_message_send(struct lx6464es *chip, struct lx_rmh *rmh)
-{
-	u32 reg = ED_DSP_TIMED_OUT;
-	int dwloop;
-	int answer_received;
-
-	if (lx_dsp_reg_read(chip, eReg_CSM) & (Reg_CSM_MC | Reg_CSM_MR)) {
-		snd_printk(KERN_ERR LXP "PIOSendMessage eReg_CSM %x\n", reg);
-		return -EBUSY;
-	}
-
-	/* write command */
-	lx_dsp_reg_writebuf(chip, eReg_CRM1, rmh->cmd, rmh->cmd_len);
-
-	snd_BUG_ON(atomic_read(&chip->send_message_locked) != 0);
-	atomic_set(&chip->send_message_locked, 1);
-
-	/* MicoBlaze gogogo */
-	lx_dsp_reg_write(chip, eReg_CSM, Reg_CSM_MC);
-
-	/* wait for interrupt to answer */
-	for (dwloop = 0; dwloop != XILINX_TIMEOUT_MS; ++dwloop) {
-		answer_received = atomic_read(&chip->send_message_locked);
-		if (answer_received == 0)
-			break;
-		msleep(1);
-	}
-
-	if (answer_received == 0) {
-		/* in Debug mode verify Reg_CSM_MR */
-		snd_BUG_ON(!(lx_dsp_reg_read(chip, eReg_CSM) & Reg_CSM_MR));
-
-		/* command finished, read status */
-		if (rmh->dsp_stat == 0)
-			reg = lx_dsp_reg_read(chip, eReg_CRM1);
-		else
-			reg = 0;
-	} else {
-		int i;
-		snd_printk(KERN_WARNING LXP "TIMEOUT lx_message_send! "
-			   "Interrupts disabled?\n");
-
-		/* attente bit Reg_CSM_MR */
-		for (i = 0; i != XILINX_POLL_ITERATIONS; i++) {
-			if ((lx_dsp_reg_read(chip, eReg_CSM) & Reg_CSM_MR)) {
-				if (rmh->dsp_stat == 0)
-					reg = lx_dsp_reg_read(chip, eReg_CRM1);
-				else
-					reg = 0;
-				goto polling_successful;
-			}
-
-			if (i > XILINX_POLL_NO_SLEEP)
-				msleep(1);
-		}
-		snd_printk(KERN_WARNING LXP "TIMEOUT lx_message_send! "
-			   "polling failed\n");
-
-polling_successful:
-		atomic_set(&chip->send_message_locked, 0);
-	}
-
-	if ((reg & ERROR_VALUE) == 0) {
-		/* read response */
-		if (rmh->stat_len) {
-			snd_BUG_ON(rmh->stat_len >= (REG_CRM_NUMBER-1));
-
-			lx_dsp_reg_readbuf(chip, eReg_CRM2, rmh->stat,
-					   rmh->stat_len);
-		}
-	} else
-		snd_printk(KERN_WARNING LXP "lx_message_send: error_value %x\n",
-			   reg);
-
-	/* clear Reg_CSM_MR */
-	lx_dsp_reg_write(chip, eReg_CSM, 0);
-
-	switch (reg) {
-	case ED_DSP_TIMED_OUT:
-		snd_printk(KERN_WARNING LXP "lx_message_send: dsp timeout\n");
-		return -ETIMEDOUT;
-
-	case ED_DSP_CRASHED:
-		snd_printk(KERN_WARNING LXP "lx_message_send: dsp crashed\n");
-		return -EAGAIN;
-	}
-
-	lx_message_dump(rmh);
-	return 0;
-}
-#endif /* not used now */
 
 static int lx_message_send_atomic(struct lx6464es *chip, struct lx_rmh *rmh)
 {
@@ -423,7 +331,7 @@ static int lx_message_send_atomic(struct lx6464es *chip, struct lx_rmh *rmh)
 	/* MicoBlaze gogogo */
 	lx_dsp_reg_write(chip, eReg_CSM, Reg_CSM_MC);
 
-	/* wait for interrupt to answer */
+	/* wait for device to answer */
 	for (dwloop = 0; dwloop != XILINX_TIMEOUT_MS * 1000; ++dwloop) {
 		if (lx_dsp_reg_read(chip, eReg_CSM) & Reg_CSM_MR) {
 			if (rmh->dsp_stat == 0)
@@ -1174,10 +1082,6 @@ static int lx_interrupt_ack(struct lx6464es *chip, u32 *r_irqsrc,
 		irq_async &= ~MASK_SYS_STATUS_ESA;
 		*r_async_escmd = 1;
 	}
-
-	if (irqsrc & MASK_SYS_STATUS_CMD_DONE)
-		/* xilinx command notification */
-		atomic_set(&chip->send_message_locked, 0);
 
 	if (irq_async) {
 		/* snd_printd("interrupt: async event pending\n"); */

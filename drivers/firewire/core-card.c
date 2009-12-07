@@ -444,16 +444,13 @@ int fw_card_add(struct fw_card *card,
 	card->guid = guid;
 
 	mutex_lock(&card_mutex);
-	config_rom = generate_config_rom(card, &length);
-	list_add_tail(&card->link, &card_list);
-	mutex_unlock(&card_mutex);
 
+	config_rom = generate_config_rom(card, &length);
 	ret = card->driver->enable(card, config_rom, length);
-	if (ret < 0) {
-		mutex_lock(&card_mutex);
-		list_del(&card->link);
-		mutex_unlock(&card_mutex);
-	}
+	if (ret == 0)
+		list_add_tail(&card->link, &card_list);
+
+	mutex_unlock(&card_mutex);
 
 	return ret;
 }

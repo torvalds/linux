@@ -41,14 +41,12 @@ void disable_boot_trace(void)
 
 static int boot_trace_init(struct trace_array *tr)
 {
-	int cpu;
 	boot_trace = tr;
 
 	if (!tr)
 		return 0;
 
-	for_each_cpu(cpu, cpu_possible_mask)
-		tracing_reset(tr, cpu);
+	tracing_reset_online_cpus(tr);
 
 	tracing_sched_switch_assign_trace(tr);
 	return 0;
@@ -131,7 +129,9 @@ struct tracer boot_tracer __read_mostly =
 
 void trace_boot_call(struct boot_trace_call *bt, initcall_t fn)
 {
+	struct ftrace_event_call *call = &event_boot_call;
 	struct ring_buffer_event *event;
+	struct ring_buffer *buffer;
 	struct trace_boot_call *entry;
 	struct trace_array *tr = boot_trace;
 
@@ -144,20 +144,24 @@ void trace_boot_call(struct boot_trace_call *bt, initcall_t fn)
 	sprint_symbol(bt->func, (unsigned long)fn);
 	preempt_disable();
 
-	event = trace_buffer_lock_reserve(tr, TRACE_BOOT_CALL,
+	buffer = tr->buffer;
+	event = trace_buffer_lock_reserve(buffer, TRACE_BOOT_CALL,
 					  sizeof(*entry), 0, 0);
 	if (!event)
 		goto out;
 	entry	= ring_buffer_event_data(event);
 	entry->boot_call = *bt;
-	trace_buffer_unlock_commit(tr, event, 0, 0);
+	if (!filter_check_discard(call, entry, buffer, event))
+		trace_buffer_unlock_commit(buffer, event, 0, 0);
  out:
 	preempt_enable();
 }
 
 void trace_boot_ret(struct boot_trace_ret *bt, initcall_t fn)
 {
+	struct ftrace_event_call *call = &event_boot_ret;
 	struct ring_buffer_event *event;
+	struct ring_buffer *buffer;
 	struct trace_boot_ret *entry;
 	struct trace_array *tr = boot_trace;
 
@@ -167,13 +171,15 @@ void trace_boot_ret(struct boot_trace_ret *bt, initcall_t fn)
 	sprint_symbol(bt->func, (unsigned long)fn);
 	preempt_disable();
 
-	event = trace_buffer_lock_reserve(tr, TRACE_BOOT_RET,
+	buffer = tr->buffer;
+	event = trace_buffer_lock_reserve(buffer, TRACE_BOOT_RET,
 					  sizeof(*entry), 0, 0);
 	if (!event)
 		goto out;
 	entry	= ring_buffer_event_data(event);
 	entry->boot_ret = *bt;
-	trace_buffer_unlock_commit(tr, event, 0, 0);
+	if (!filter_check_discard(call, entry, buffer, event))
+		trace_buffer_unlock_commit(buffer, event, 0, 0);
  out:
 	preempt_enable();
 }

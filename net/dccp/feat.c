@@ -213,7 +213,7 @@ static int dccp_feat_default_value(u8 feat_num)
  */
 static const char *dccp_feat_fname(const u8 feat)
 {
-	static const char *feature_names[] = {
+	static const char *const feature_names[] = {
 		[DCCPF_RESERVED]	= "Reserved",
 		[DCCPF_CCID]		= "CCID",
 		[DCCPF_SHORT_SEQNOS]	= "Allow Short Seqnos",
@@ -236,8 +236,9 @@ static const char *dccp_feat_fname(const u8 feat)
 	return feature_names[feat];
 }
 
-static const char *dccp_feat_sname[] = { "DEFAULT", "INITIALISING", "CHANGING",
-					 "UNSTABLE", "STABLE" };
+static const char *const dccp_feat_sname[] = {
+	"DEFAULT", "INITIALISING", "CHANGING", "UNSTABLE", "STABLE",
+};
 
 #ifdef CONFIG_IP_DCCP_DEBUG
 static const char *dccp_feat_oname(const u8 opt)

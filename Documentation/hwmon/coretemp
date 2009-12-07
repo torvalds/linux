@@ -4,7 +4,9 @@ Kernel driver coretemp
 Supported chips:
   * All Intel Core family
     Prefix: 'coretemp'
-    CPUID: family 0x6, models 0xe, 0xf, 0x16, 0x17
+    CPUID: family 0x6, models 0xe (Pentium M DC), 0xf (Core 2 DC 65nm),
+                              0x16 (Core 2 SC 65nm), 0x17 (Penryn 45nm),
+                              0x1a (Nehalem), 0x1c (Atom), 0x1e (Lynnfield)
     Datasheet: Intel 64 and IA-32 Architectures Software Developer's Manual
                Volume 3A: System Programming Guide
                http://softwarecommunity.intel.com/Wiki/Mobility/720.htm

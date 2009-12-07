@@ -312,6 +312,7 @@ struct lpfc_vport {
 #define FC_BYPASSED_MODE        0x20000	 /* NPort is in bypassed mode */
 #define FC_VPORT_NEEDS_REG_VPI	0x80000  /* Needs to have its vpi registered */
 #define FC_RSCN_DEFERRED	0x100000 /* A deferred RSCN being processed */
+#define FC_VPORT_NEEDS_INIT_VPI 0x200000 /* Need to INIT_VPI before FDISC */
 
 	uint32_t ct_flags;
 #define FC_CT_RFF_ID		0x1	 /* RFF_ID accepted by switch */
@@ -440,6 +441,12 @@ enum intr_type_t {
 	MSIX,
 };
 
+struct unsol_rcv_ct_ctx {
+	uint32_t ctxt_id;
+	uint32_t SID;
+	uint32_t oxid;
+};
+
 struct lpfc_hba {
 	/* SCSI interface function jump table entries */
 	int (*lpfc_new_scsi_buf)
@@ -525,6 +532,8 @@ struct lpfc_hba {
 #define FCP_XRI_ABORT_EVENT	0x20
 #define ELS_XRI_ABORT_EVENT	0x40
 #define ASYNC_EVENT		0x80
+#define LINK_DISABLED		0x100 /* Link disabled by user */
+#define FCF_DISC_INPROGRESS	0x200 /* FCF discovery in progress */
 	struct lpfc_dmabuf slim2p;
 
 	MAILBOX_t *mbox;
@@ -616,6 +625,8 @@ struct lpfc_hba {
 	uint32_t hbq_count;	        /* Count of configured HBQs */
 	struct hbq_s hbqs[LPFC_MAX_HBQS]; /* local copy of hbq indicies  */
 
+	uint32_t fcp_qidx;		/* next work queue to post work to */
+
 	unsigned long pci_bar0_map;     /* Physical address for PCI BAR0 */
 	unsigned long pci_bar1_map;     /* Physical address for PCI BAR1 */
 	unsigned long pci_bar2_map;     /* Physical address for PCI BAR2 */
@@ -682,6 +693,7 @@ struct lpfc_hba {
 	struct pci_pool *lpfc_mbuf_pool;
 	struct pci_pool *lpfc_hrb_pool;	/* header receive buffer pool */
 	struct pci_pool *lpfc_drb_pool; /* data receive buffer pool */
+	struct pci_pool *lpfc_hbq_pool;	/* SLI3 hbq buffer pool */
 	struct lpfc_dma_pool lpfc_mbuf_safety_pool;
 
 	mempool_t *mbox_mem_pool;
@@ -763,11 +775,18 @@ struct lpfc_hba {
 /* Maximum number of events that can be outstanding at any time*/
 #define LPFC_MAX_EVT_COUNT 512
 	atomic_t fast_event_count;
+	uint32_t fcoe_eventtag;
+	uint32_t fcoe_eventtag_at_fcf_scan;
 	struct lpfc_fcf fcf;
 	uint8_t fc_map[3];
 	uint8_t valid_vlan;
 	uint16_t vlan_id;
 	struct list_head fcf_conn_rec_list;
+
+	struct mutex ct_event_mutex; /* synchronize access to ct_ev_waiters */
+	struct list_head ct_ev_waiters;
+	struct unsol_rcv_ct_ctx ct_ctx[64];
+	uint32_t ctx_idx;
 };
 
 static inline struct Scsi_Host *

@@ -353,9 +353,19 @@ power[1-*]_average		Average power use
 				Unit: microWatt
 				RO
 
-power[1-*]_average_interval	Power use averaging interval
+power[1-*]_average_interval	Power use averaging interval.  A poll
+				notification is sent to this file if the
+				hardware changes the averaging interval.
 				Unit: milliseconds
 				RW
+
+power[1-*]_average_interval_max	Maximum power use averaging interval
+				Unit: milliseconds
+				RO
+
+power[1-*]_average_interval_min	Minimum power use averaging interval
+				Unit: milliseconds
+				RO
 
 power[1-*]_average_highest	Historical average maximum power use
 				Unit: microWatt
@@ -364,6 +374,18 @@ power[1-*]_average_highest	Historical average maximum power use
 power[1-*]_average_lowest	Historical average minimum power use
 				Unit: microWatt
 				RO
+
+power[1-*]_average_max		A poll notification is sent to
+				power[1-*]_average when power use
+				rises above this value.
+				Unit: microWatt
+				RW
+
+power[1-*]_average_min		A poll notification is sent to
+				power[1-*]_average when power use
+				sinks below this value.
+				Unit: microWatt
+				RW
 
 power[1-*]_input		Instantaneous power use
 				Unit: microWatt
@@ -380,6 +402,39 @@ power[1-*]_input_lowest		Historical minimum power use
 power[1-*]_reset_history	Reset input_highest, input_lowest,
 				average_highest and average_lowest.
 				WO
+
+power[1-*]_accuracy		Accuracy of the power meter.
+				Unit: Percent
+				RO
+
+power[1-*]_alarm		1 if the system is drawing more power than the
+				cap allows; 0 otherwise.  A poll notification is
+				sent to this file when the power use exceeds the
+				cap.  This file only appears if the cap is known
+				to be enforced by hardware.
+				RO
+
+power[1-*]_cap			If power use rises above this limit, the
+				system should take action to reduce power use.
+				A poll notification is sent to this file if the
+				cap is changed by the hardware.  The *_cap
+				files only appear if the cap is known to be
+				enforced by hardware.
+				Unit: microWatt
+				RW
+
+power[1-*]_cap_hyst		Margin of hysteresis built around capping and
+				notification.
+				Unit: microWatt
+				RW
+
+power[1-*]_cap_max		Maximum cap that can be set.
+				Unit: microWatt
+				RO
+
+power[1-*]_cap_min		Minimum cap that can be set.
+				Unit: microWatt
+				RO
 
 **********
 * Energy *

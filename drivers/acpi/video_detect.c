@@ -38,6 +38,8 @@
 #include <linux/dmi.h>
 #include <linux/pci.h>
 
+#define PREFIX "ACPI: "
+
 ACPI_MODULE_NAME("video");
 #define _COMPONENT		ACPI_VIDEO_COMPONENT
 
@@ -82,7 +84,7 @@ long acpi_is_video_device(struct acpi_device *device)
 		return 0;
 
 	/* Does this device able to support video switching ? */
-	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "_DOD", &h_dummy)) &&
+	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "_DOD", &h_dummy)) ||
 	    ACPI_SUCCESS(acpi_get_handle(device->handle, "_DOS", &h_dummy)))
 		video_caps |= ACPI_VIDEO_OUTPUT_SWITCHING;
 

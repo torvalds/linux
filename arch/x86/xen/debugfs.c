@@ -100,7 +100,7 @@ static int xen_array_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations u32_array_fops = {
+static const struct file_operations u32_array_fops = {
 	.owner	= THIS_MODULE,
 	.open	= u32_array_open,
 	.release= xen_array_release,

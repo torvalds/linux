@@ -75,6 +75,8 @@ I2C_CLIENT_INSMOD_7(lm85b, lm85c, adm1027, adt7463, adt7468, emc6d100,
 #define	LM85_VERSTEP_GENERIC2		0x70
 #define	LM85_VERSTEP_LM85C		0x60
 #define	LM85_VERSTEP_LM85B		0x62
+#define	LM85_VERSTEP_LM96000_1		0x68
+#define	LM85_VERSTEP_LM96000_2		0x69
 #define	LM85_VERSTEP_ADM1027		0x60
 #define	LM85_VERSTEP_ADT7463		0x62
 #define	LM85_VERSTEP_ADT7463C		0x6A
@@ -1133,6 +1135,26 @@ static void lm85_init_client(struct i2c_client *client)
 		dev_warn(&client->dev, "Device is not ready\n");
 }
 
+static int lm85_is_fake(struct i2c_client *client)
+{
+	/*
+	 * Differenciate between real LM96000 and Winbond WPCD377I. The latter
+	 * emulate the former except that it has no hardware monitoring function
+	 * so the readings are always 0.
+	 */
+	int i;
+	u8 in_temp, fan;
+
+	for (i = 0; i < 8; i++) {
+		in_temp = i2c_smbus_read_byte_data(client, 0x20 + i);
+		fan = i2c_smbus_read_byte_data(client, 0x28 + i);
+		if (in_temp != 0x00 || fan != 0xff)
+			return 0;
+	}
+
+	return 1;
+}
+
 /* Return 0 if detection is successful, -ENODEV otherwise */
 static int lm85_detect(struct i2c_client *client, int kind,
 		       struct i2c_board_info *info)
@@ -1172,6 +1194,16 @@ static int lm85_detect(struct i2c_client *client, int kind,
 				break;
 			case LM85_VERSTEP_LM85B:
 				kind = lm85b;
+				break;
+			case LM85_VERSTEP_LM96000_1:
+			case LM85_VERSTEP_LM96000_2:
+				/* Check for Winbond WPCD377I */
+				if (lm85_is_fake(client)) {
+					dev_dbg(&adapter->dev,
+						"Found Winbond WPCD377I, "
+						"ignoring\n");
+					return -ENODEV;
+				}
 				break;
 			}
 		} else if (company == LM85_COMPANY_ANALOG_DEV) {

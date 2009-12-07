@@ -154,7 +154,7 @@ static struct attribute *ep_dev_attrs[] = {
 static struct attribute_group ep_dev_attr_grp = {
 	.attrs = ep_dev_attrs,
 };
-static struct attribute_group *ep_dev_groups[] = {
+static const struct attribute_group *ep_dev_groups[] = {
 	&ep_dev_attr_grp,
 	NULL
 };

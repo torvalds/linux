@@ -38,7 +38,7 @@ extern void early_console_reg_tlb_alloc(unsigned int addr);
 void time_init(void);
 void init_IRQ(void);
 void machine_early_init(const char *cmdline, unsigned int ram,
-						unsigned int fdt);
+			unsigned int fdt, unsigned int msr);
 
 void machine_restart(char *cmd);
 void machine_shutdown(void);

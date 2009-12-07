@@ -1,0 +1,27 @@
+#
+# Accelerometer drivers
+#
+comment "Accelerometers"
+
+config KXSD9
+	tristate "Kionix KXSD9 Accelerometer Driver"
+	depends on SPI
+	help
+	  Say yes here to build support for the Kionix KXSD9 accelerometer.
+	  Currently this only supports the device via an SPI interface.
+
+config LIS3L02DQ
+	tristate "ST Microelectronics LIS3L02DQ Accelerometer Driver"
+	depends on SPI
+	help
+	  Say yes here to build SPI support for the ST microelectronics
+	  accelerometer. The driver supplies direct access via sysfs files
+	  and an event interface via a character device.
+
+config SCA3000
+       depends on IIO_RING_BUFFER
+       depends on SPI
+       tristate "VTI SCA3000 series accelerometers"
+       help
+         Say yes here to build support for the VTI SCA3000 series of SPI
+	 accelerometers. These devices use a hardware ring buffer.

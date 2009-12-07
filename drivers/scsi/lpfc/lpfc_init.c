@@ -211,7 +211,7 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 		goto out_free_mbox;
 
 	do {
-		lpfc_dump_mem(phba, pmb, offset);
+		lpfc_dump_mem(phba, pmb, offset, DMP_REGION_VPD);
 		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_POLL);
 
 		if (rc != MBX_SUCCESS) {
@@ -425,6 +425,9 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 		return -EIO;
 	}
 
+	/* Check if the port is disabled */
+	lpfc_sli_read_link_ste(phba);
+
 	/* Reset the DFT_HBA_Q_DEPTH to the max xri  */
 	if (phba->cfg_hba_queue_depth > (mb->un.varRdConfig.max_xri+1))
 		phba->cfg_hba_queue_depth =
@@ -524,27 +527,46 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	/* Set up error attention (ERATT) polling timer */
 	mod_timer(&phba->eratt_poll, jiffies + HZ * LPFC_ERATT_POLL_INTERVAL);
 
-	lpfc_init_link(phba, pmb, phba->cfg_topology, phba->cfg_link_speed);
-	pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-	lpfc_set_loopback_flag(phba);
-	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
-	if (rc != MBX_SUCCESS) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+	if (phba->hba_flag & LINK_DISABLED) {
+		lpfc_printf_log(phba,
+			KERN_ERR, LOG_INIT,
+			"2598 Adapter Link is disabled.\n");
+		lpfc_down_link(phba, pmb);
+		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
+		if ((rc != MBX_SUCCESS) && (rc != MBX_BUSY)) {
+			lpfc_printf_log(phba,
+			KERN_ERR, LOG_INIT,
+			"2599 Adapter failed to issue DOWN_LINK"
+			" mbox command rc 0x%x\n", rc);
+
+			mempool_free(pmb, phba->mbox_mem_pool);
+			return -EIO;
+		}
+	} else {
+		lpfc_init_link(phba, pmb, phba->cfg_topology,
+			phba->cfg_link_speed);
+		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		lpfc_set_loopback_flag(phba);
+		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
+		if (rc != MBX_SUCCESS) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0454 Adapter failed to init, mbxCmd x%x "
 				"INIT_LINK, mbxStatus x%x\n",
 				mb->mbxCommand, mb->mbxStatus);
 
-		/* Clear all interrupt enable conditions */
-		writel(0, phba->HCregaddr);
-		readl(phba->HCregaddr); /* flush */
-		/* Clear all pending interrupts */
-		writel(0xffffffff, phba->HAregaddr);
-		readl(phba->HAregaddr); /* flush */
+			/* Clear all interrupt enable conditions */
+			writel(0, phba->HCregaddr);
+			readl(phba->HCregaddr); /* flush */
+			/* Clear all pending interrupts */
+			writel(0xffffffff, phba->HAregaddr);
+			readl(phba->HAregaddr); /* flush */
 
-		phba->link_state = LPFC_HBA_ERROR;
-		if (rc != MBX_BUSY)
-			mempool_free(pmb, phba->mbox_mem_pool);
-		return -EIO;
+			phba->link_state = LPFC_HBA_ERROR;
+			if (rc != MBX_BUSY)
+				mempool_free(pmb, phba->mbox_mem_pool);
+			return -EIO;
+		}
 	}
 	/* MBOX buffer will be freed in mbox compl */
 	pmb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -558,7 +580,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 				KERN_ERR,
 				LOG_INIT,
 				"0456 Adapter failed to issue "
-				"ASYNCEVT_ENABLE mbox status x%x \n.",
+				"ASYNCEVT_ENABLE mbox status x%x\n",
 				rc);
 		mempool_free(pmb, phba->mbox_mem_pool);
 	}
@@ -572,7 +594,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 
 	if ((rc != MBX_BUSY) && (rc != MBX_SUCCESS)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT, "0435 Adapter failed "
-				"to get Option ROM version status x%x\n.", rc);
+				"to get Option ROM version status x%x\n", rc);
 		mempool_free(pmb, phba->mbox_mem_pool);
 	}
 
@@ -2133,6 +2155,8 @@ lpfc_online(struct lpfc_hba *phba)
 			vports[i]->fc_flag &= ~FC_OFFLINE_MODE;
 			if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED)
 				vports[i]->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
+			if (phba->sli_rev == LPFC_SLI_REV4)
+				vports[i]->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
 			spin_unlock_irq(shost->host_lock);
 		}
 		lpfc_destroy_vport_work_array(phba, vports);
@@ -2807,6 +2831,7 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 	att_type = lpfc_sli4_parse_latt_type(phba, acqe_link);
 	if (att_type != AT_LINK_DOWN && att_type != AT_LINK_UP)
 		return;
+	phba->fcoe_eventtag = acqe_link->event_tag;
 	pmb = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmb) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
@@ -2894,18 +2919,20 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 	uint8_t event_type = bf_get(lpfc_acqe_fcoe_event_type, acqe_fcoe);
 	int rc;
 
+	phba->fcoe_eventtag = acqe_fcoe->event_tag;
 	switch (event_type) {
 	case LPFC_FCOE_EVENT_TYPE_NEW_FCF:
 		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
-			"2546 New FCF found index 0x%x tag 0x%x \n",
+			"2546 New FCF found index 0x%x tag 0x%x\n",
 			acqe_fcoe->fcf_index,
 			acqe_fcoe->event_tag);
 		/*
-		 * If the current FCF is in discovered state,
-		 * do nothing.
+		 * If the current FCF is in discovered state, or
+		 * FCF discovery is in progress do nothing.
 		 */
 		spin_lock_irq(&phba->hbalock);
-		if (phba->fcf.fcf_flag & FCF_DISCOVERED) {
+		if ((phba->fcf.fcf_flag & FCF_DISCOVERED) ||
+		   (phba->hba_flag & FCF_DISC_INPROGRESS)) {
 			spin_unlock_irq(&phba->hbalock);
 			break;
 		}
@@ -2922,7 +2949,7 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 
 	case LPFC_FCOE_EVENT_TYPE_FCF_TABLE_FULL:
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-			"2548 FCF Table full count 0x%x tag 0x%x \n",
+			"2548 FCF Table full count 0x%x tag 0x%x\n",
 			bf_get(lpfc_acqe_fcoe_fcf_count, acqe_fcoe),
 			acqe_fcoe->event_tag);
 		break;
@@ -2930,7 +2957,7 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 	case LPFC_FCOE_EVENT_TYPE_FCF_DEAD:
 		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
 			"2549 FCF disconnected fron network index 0x%x"
-			" tag 0x%x \n", acqe_fcoe->fcf_index,
+			" tag 0x%x\n", acqe_fcoe->fcf_index,
 			acqe_fcoe->event_tag);
 		/* If the event is not for currently used fcf do nothing */
 		if (phba->fcf.fcf_indx != acqe_fcoe->fcf_index)
@@ -4130,8 +4157,7 @@ lpfc_hba_alloc(struct pci_dev *pdev)
 	/* Allocate memory for HBA structure */
 	phba = kzalloc(sizeof(struct lpfc_hba), GFP_KERNEL);
 	if (!phba) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"1417 Failed to allocate hba struct.\n");
+		dev_err(&pdev->dev, "failed to allocate hba struct\n");
 		return NULL;
 	}
 
@@ -4144,6 +4170,9 @@ lpfc_hba_alloc(struct pci_dev *pdev)
 		kfree(phba);
 		return NULL;
 	}
+
+	mutex_init(&phba->ct_event_mutex);
+	INIT_LIST_HEAD(&phba->ct_ev_waiters);
 
 	return phba;
 }
@@ -4489,23 +4518,6 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 	if (!phba->sli4_hba.STAregaddr)
 		return -ENODEV;
 
-	/* With uncoverable error, log the error message and return error */
-	onlnreg0 = readl(phba->sli4_hba.ONLINE0regaddr);
-	onlnreg1 = readl(phba->sli4_hba.ONLINE1regaddr);
-	if ((onlnreg0 != LPFC_ONLINE_NERR) || (onlnreg1 != LPFC_ONLINE_NERR)) {
-		uerrlo_reg.word0 = readl(phba->sli4_hba.UERRLOregaddr);
-		uerrhi_reg.word0 = readl(phba->sli4_hba.UERRHIregaddr);
-		if (uerrlo_reg.word0 || uerrhi_reg.word0) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"1422 HBA Unrecoverable error: "
-					"uerr_lo_reg=0x%x, uerr_hi_reg=0x%x, "
-					"online0_reg=0x%x, online1_reg=0x%x\n",
-					uerrlo_reg.word0, uerrhi_reg.word0,
-					onlnreg0, onlnreg1);
-		}
-		return -ENODEV;
-	}
-
 	/* Wait up to 30 seconds for the SLI Port POST done and ready */
 	for (i = 0; i < 3000; i++) {
 		sta_reg.word0 = readl(phba->sli4_hba.STAregaddr);
@@ -4544,6 +4556,23 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 			bf_get(lpfc_scratchpad_slirev, &scratchpad),
 			bf_get(lpfc_scratchpad_featurelevel1, &scratchpad),
 			bf_get(lpfc_scratchpad_featurelevel2, &scratchpad));
+
+	/* With uncoverable error, log the error message and return error */
+	onlnreg0 = readl(phba->sli4_hba.ONLINE0regaddr);
+	onlnreg1 = readl(phba->sli4_hba.ONLINE1regaddr);
+	if ((onlnreg0 != LPFC_ONLINE_NERR) || (onlnreg1 != LPFC_ONLINE_NERR)) {
+		uerrlo_reg.word0 = readl(phba->sli4_hba.UERRLOregaddr);
+		uerrhi_reg.word0 = readl(phba->sli4_hba.UERRHIregaddr);
+		if (uerrlo_reg.word0 || uerrhi_reg.word0) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"1422 HBA Unrecoverable error: "
+					"uerr_lo_reg=0x%x, uerr_hi_reg=0x%x, "
+					"online0_reg=0x%x, online1_reg=0x%x\n",
+					uerrlo_reg.word0, uerrhi_reg.word0,
+					onlnreg0, onlnreg1);
+		}
+		return -ENODEV;
+	}
 
 	return port_error;
 }
@@ -7347,6 +7376,9 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	/* Perform post initialization setup */
 	lpfc_post_init_setup(phba);
 
+	/* Check if there are static vports to be created. */
+	lpfc_create_static_vport(phba);
+
 	return 0;
 
 out_disable_intr:
@@ -7636,19 +7668,17 @@ static int __devinit
 lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 {
 	int rc;
-	uint16_t dev_id;
+	struct lpfc_sli_intf intf;
 
-	if (pci_read_config_word(pdev, PCI_DEVICE_ID, &dev_id))
+	if (pci_read_config_dword(pdev, LPFC_SLIREV_CONF_WORD, &intf.word0))
 		return -ENODEV;
 
-	switch (dev_id) {
-	case PCI_DEVICE_ID_TIGERSHARK:
+	if ((bf_get(lpfc_sli_intf_valid, &intf) == LPFC_SLI_INTF_VALID) &&
+		(bf_get(lpfc_sli_intf_rev, &intf) == LPFC_SLIREV_CONF_SLI4))
 		rc = lpfc_pci_probe_one_s4(pdev, pid);
-		break;
-	default:
+	else
 		rc = lpfc_pci_probe_one_s3(pdev, pid);
-		break;
-	}
+
 	return rc;
 }
 

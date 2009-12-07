@@ -523,7 +523,7 @@ int nes_cm_disconn(struct nes_qp *);
 void nes_cm_disconn_worker(void *);
 
 /* nes_verbs.c */
-int nes_hw_modify_qp(struct nes_device *, struct nes_qp *, u32, u32);
+int nes_hw_modify_qp(struct nes_device *, struct nes_qp *, u32, u32, u32);
 int nes_modify_qp(struct ib_qp *, struct ib_qp_attr *, int, struct ib_udata *);
 struct nes_ib_device *nes_init_ofa_device(struct net_device *);
 void nes_destroy_ofa_device(struct nes_ib_device *);

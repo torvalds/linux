@@ -92,7 +92,7 @@ static int debug;
 static int  belkin_sa_startup(struct usb_serial *serial);
 static void belkin_sa_release(struct usb_serial *serial);
 static int  belkin_sa_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp);
+			struct usb_serial_port *port);
 static void belkin_sa_close(struct usb_serial_port *port);
 static void belkin_sa_read_int_callback(struct urb *urb);
 static void belkin_sa_set_termios(struct tty_struct *tty,
@@ -213,7 +213,7 @@ static void belkin_sa_release(struct usb_serial *serial)
 
 
 static int  belkin_sa_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+					struct usb_serial_port *port)
 {
 	int retval = 0;
 

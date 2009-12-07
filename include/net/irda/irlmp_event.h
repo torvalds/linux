@@ -79,8 +79,8 @@ typedef enum {
 	LM_LAP_IDLE_TIMEOUT,
 } IRLMP_EVENT;
 
-extern const char *irlmp_state[];
-extern const char *irlsap_state[];
+extern const char *const irlmp_state[];
+extern const char *const irlsap_state[];
 
 void irlmp_watchdog_timer_expired(void *data);
 void irlmp_discovery_timer_expired(void *data);

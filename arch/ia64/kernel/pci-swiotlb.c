@@ -46,7 +46,7 @@ void __init swiotlb_dma_init(void)
 
 void __init pci_swiotlb_init(void)
 {
-	if (!iommu_detected || iommu_pass_through) {
+	if (!iommu_detected) {
 #ifdef CONFIG_IA64_GENERIC
 		swiotlb = 1;
 		printk(KERN_INFO "PCI-DMA: Re-initialize machine vector.\n");

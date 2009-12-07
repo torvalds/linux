@@ -327,7 +327,7 @@ static int qe_uart_tx_pump(struct uart_qe_port *qe_port)
 	unsigned char *p;
 	unsigned int count;
 	struct uart_port *port = &qe_port->port;
-	struct circ_buf *xmit = &port->info->xmit;
+	struct circ_buf *xmit = &port->state->xmit;
 
 	bdp = qe_port->rx_cur;
 
@@ -466,7 +466,7 @@ static void qe_uart_int_rx(struct uart_qe_port *qe_port)
 	int i;
 	unsigned char ch, *cp;
 	struct uart_port *port = &qe_port->port;
-	struct tty_struct *tty = port->info->port.tty;
+	struct tty_struct *tty = port->state->port.tty;
 	struct qe_bd *bdp;
 	u16 status;
 	unsigned int flg;

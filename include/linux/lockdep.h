@@ -149,6 +149,12 @@ struct lock_list {
 	struct lock_class		*class;
 	struct stack_trace		trace;
 	int				distance;
+
+	/*
+	 * The parent field is used to implement breadth-first search, and the
+	 * bit 0 is reused to indicate if the lock has been accessed in BFS.
+	 */
+	struct lock_list		*parent;
 };
 
 /*
@@ -208,10 +214,12 @@ struct held_lock {
 	 * interrupt context:
 	 */
 	unsigned int irq_context:2; /* bit 0 - soft, bit 1 - hard */
-	unsigned int trylock:1;
+	unsigned int trylock:1;						/* 16 bits */
+
 	unsigned int read:2;        /* see lock_acquire() comment */
 	unsigned int check:2;       /* see lock_acquire() comment */
 	unsigned int hardirqs_off:1;
+	unsigned int references:11;					/* 32 bits */
 };
 
 /*
@@ -291,6 +299,10 @@ extern void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 extern void lock_release(struct lockdep_map *lock, int nested,
 			 unsigned long ip);
 
+#define lockdep_is_held(lock)	lock_is_held(&(lock)->dep_map)
+
+extern int lock_is_held(struct lockdep_map *lock);
+
 extern void lock_set_class(struct lockdep_map *lock, const char *name,
 			   struct lock_class_key *key, unsigned int subclass,
 			   unsigned long ip);
@@ -308,6 +320,8 @@ extern void lockdep_trace_alloc(gfp_t mask);
 # define INIT_LOCKDEP				.lockdep_recursion = 0, .lockdep_reclaim_gfp = 0,
 
 #define lockdep_depth(tsk)	(debug_locks ? (tsk)->lockdep_depth : 0)
+
+#define lockdep_assert_held(l)	WARN_ON(debug_locks && !lockdep_is_held(l))
 
 #else /* !LOCKDEP */
 
@@ -352,6 +366,8 @@ static inline void lockdep_on(void)
 struct lock_class_key { };
 
 #define lockdep_depth(tsk)	(0)
+
+#define lockdep_assert_held(l)			do { } while (0)
 
 #endif /* !LOCKDEP */
 

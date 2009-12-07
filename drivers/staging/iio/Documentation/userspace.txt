@@ -1,0 +1,60 @@
+Userspace access to IIO
+
+Example, ST Microelectronics LIS3L02DQ accelerometer.
+
+Typical sysfs entries (pruned for clarity)
+
+/sys/class/iio
+  device0 - iio_dev related elements
+    name - driver specific identifier (here lis3l02dq)
+    accel_x - polled (or from ring) raw readout of acceleration
+    accel_x_gain - hardware gain (calibration)
+    accel_x_offset - hardware offset (calibration)
+    available_sampling_frequency
+
+    available_sampling_frequency - what options are there
+    sampling_frequency - control of internal sampling frequency
+    scan_elements - controls which channels will be stored in the ring buffer
+      scan_en_accel_x
+      scan_en_accel_y
+      scan_en_timestamp
+    device - link to underlying hardware device
+    uevent - udev related element
+
+    thresh - unified threshold used for detection on all axis
+    event_line0_sources - which events are enabled
+      accel_x_high - enable x axis high threshold event
+      accel_x_low - enable x axis low threshold event
+
+    event_line0 - event interface
+      dev - major:minor for the chrdev (note major allocation dynamic)
+    trigger - consumer attachement
+      current_trigger - name based association with a trigger
+    ring_buffer0 - ring buffer interface
+      bps - byptes per sample (read only), dependant on scan element selection
+      length - (rw) specificy length fo software ring buffer (typically ro in hw case)
+      ring_enable - turn the ring on. If its the first to be enabled attached to this
+                    trigger will also enable the trigger.
+      ring_access0
+        dev - major:minor for ring buffer access chrdev
+      ring_event_line0
+        dev - major:minor for ring buffer event chrdev
+
+  trigger0 - data ready trigger elements
+    name - unqiue name of trigger
+
+Udev will create the following entries under /dev by default:
+
+ring_access0 - ring access chrdev
+ring_event0 - ring event chrdev
+event_line0 - general event chrdev.
+
+For the example code we assume the following rules have been used to ensure
+unique and consistent naming of these for the lis3l02dq in question:
+
+KERNEL="ring_event_line*", ID="spi1.0", DRIVER="lis3l02dq", NAME="iio/lis3l02dq_ring_event"
+KERNEL="event_line*", ID="spi1.0", DRIVER="lis3l02dq", NAME="iio/lis3l02dq_event"
+KERNEL="ring_access*", ID="spi1.0", DRIVER="lis3l02dq", NAME="iio/lis3l02dq_ring_access"
+
+The files, lis3l02dqbuffersimple.c and iio_util.h in this directory provide an example
+of how to use the ring buffer and event interfaces.

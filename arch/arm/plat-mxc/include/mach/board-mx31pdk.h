@@ -11,11 +11,6 @@
 #ifndef __ASM_ARCH_MXC_BOARD_MX31PDK_H__
 #define __ASM_ARCH_MXC_BOARD_MX31PDK_H__
 
-/* mandatory for CONFIG_DEBUG_LL */
-
-#define MXC_LL_UART_PADDR	UART1_BASE_ADDR
-#define MXC_LL_UART_VADDR	AIPS1_IO_ADDRESS(UART1_BASE_ADDR)
-
 /* Definitions for components on the Debug board */
 
 /* Base address of CPLD controller on the Debug board */

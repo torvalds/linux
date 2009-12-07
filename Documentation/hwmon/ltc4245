@@ -23,12 +23,13 @@ Usage Notes
 -----------
 
 This driver does not probe for LTC4245 devices, due to the fact that some
-of the possible addresses are unfriendly to probing. You will need to use
-the "force" parameter to tell the driver where to find the device.
+of the possible addresses are unfriendly to probing. You will have to
+instantiate the devices explicitly.
 
 Example: the following will load the driver for an LTC4245 at address 0x23
 on I2C bus #1:
-$ modprobe ltc4245 force=1,0x23
+$ modprobe ltc4245
+$ echo ltc4245 0x23 > /sys/bus/i2c/devices/i2c-1/new_device
 
 
 Sysfs entries

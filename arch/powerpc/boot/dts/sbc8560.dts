@@ -303,7 +303,6 @@
 		global-utilities@e0000 {
 			compatible = "fsl,mpc8560-guts";
 			reg = <0xe0000 0x1000>;
-			fsl,has-rstcr;
 		};
 	};
 

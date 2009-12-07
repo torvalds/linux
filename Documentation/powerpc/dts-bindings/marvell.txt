@@ -32,7 +32,7 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
       devices.  This field represents the number of cells needed to
       represent the address of the memory-mapped registers of devices
       within the system controller chip.
-    - #size-cells : Size representation for for the memory-mapped
+    - #size-cells : Size representation for the memory-mapped
       registers within the system controller chip.
     - #interrupt-cells : Defines the width of cells used to represent
       interrupts.

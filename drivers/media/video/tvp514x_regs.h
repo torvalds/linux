@@ -284,14 +284,4 @@ struct tvp514x_reg {
 	u32 val;
 };
 
-/**
- * struct tvp514x_init_seq - Structure for TVP5146/47/46M2/47M1 power up
- *		Sequence.
- * @ no_regs - Number of registers to write for power up sequence.
- * @ init_reg_seq - Array of registers and respective value to write.
- */
-struct tvp514x_init_seq {
-	unsigned int no_regs;
-	const struct tvp514x_reg *init_reg_seq;
-};
 #endif				/* ifndef _TVP514X_REGS_H */

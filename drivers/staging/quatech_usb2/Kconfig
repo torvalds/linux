@@ -1,0 +1,15 @@
+config USB_SERIAL_QUATECH_USB2
+	tristate "USB Quatech xSU2-[14]00 USB Serial Driver"
+	depends on USB_SERIAL
+	help
+	  Say Y here if you want to use a Quatech USB2.0 to serial adaptor. This
+	  driver supports the SSU2-100, DSU2-100, DSU2-400, QSU2-100, QSU2-400,
+	  ESU2-400 and ESU2-100 USB2.0 to RS232 / 485 / 422 serial adaptors.
+
+	  Some hardware has an incorrect product string and announces itself as
+	  ESU-100 (which uses the serqt driver) even though it is an ESU2-100.
+	  Check the label on the bottom of your device.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called quatech_usb2 .
+

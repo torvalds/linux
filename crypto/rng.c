@@ -123,4 +123,4 @@ void crypto_put_default_rng(void)
 EXPORT_SYMBOL_GPL(crypto_put_default_rng);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Random Number Genertor");
+MODULE_DESCRIPTION("Random Number Generator");

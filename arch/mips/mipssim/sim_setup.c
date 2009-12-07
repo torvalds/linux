@@ -37,7 +37,7 @@
 
 
 static void __init serial_init(void);
-unsigned int _isbonito = 0;
+unsigned int _isbonito;
 
 const char *get_system_type(void)
 {

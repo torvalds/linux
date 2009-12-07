@@ -492,6 +492,21 @@ static void tcp_sack(const struct sk_buff *skb, unsigned int dataoff,
 	}
 }
 
+#ifdef CONFIG_NF_NAT_NEEDED
+static inline s16 nat_offset(const struct nf_conn *ct,
+			     enum ip_conntrack_dir dir,
+			     u32 seq)
+{
+	typeof(nf_ct_nat_offset) get_offset = rcu_dereference(nf_ct_nat_offset);
+
+	return get_offset != NULL ? get_offset(ct, dir, seq) : 0;
+}
+#define NAT_OFFSET(pf, ct, dir, seq) \
+	(pf == NFPROTO_IPV4 ? nat_offset(ct, dir, seq) : 0)
+#else
+#define NAT_OFFSET(pf, ct, dir, seq)	0
+#endif
+
 static bool tcp_in_window(const struct nf_conn *ct,
 			  struct ip_ct_tcp *state,
 			  enum ip_conntrack_dir dir,
@@ -506,6 +521,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 	struct ip_ct_tcp_state *receiver = &state->seen[!dir];
 	const struct nf_conntrack_tuple *tuple = &ct->tuplehash[dir].tuple;
 	__u32 seq, ack, sack, end, win, swin;
+	s16 receiver_offset;
 	bool res;
 
 	/*
@@ -519,11 +535,16 @@ static bool tcp_in_window(const struct nf_conn *ct,
 	if (receiver->flags & IP_CT_TCP_FLAG_SACK_PERM)
 		tcp_sack(skb, dataoff, tcph, &sack);
 
+	/* Take into account NAT sequence number mangling */
+	receiver_offset = NAT_OFFSET(pf, ct, !dir, ack - 1);
+	ack -= receiver_offset;
+	sack -= receiver_offset;
+
 	pr_debug("tcp_in_window: START\n");
 	pr_debug("tcp_in_window: ");
 	nf_ct_dump_tuple(tuple);
-	pr_debug("seq=%u ack=%u sack=%u win=%u end=%u\n",
-		 seq, ack, sack, win, end);
+	pr_debug("seq=%u ack=%u+(%d) sack=%u+(%d) win=%u end=%u\n",
+		 seq, ack, receiver_offset, sack, receiver_offset, win, end);
 	pr_debug("tcp_in_window: sender end=%u maxend=%u maxwin=%u scale=%i "
 		 "receiver end=%u maxend=%u maxwin=%u scale=%i\n",
 		 sender->td_end, sender->td_maxend, sender->td_maxwin,
@@ -613,8 +634,8 @@ static bool tcp_in_window(const struct nf_conn *ct,
 
 	pr_debug("tcp_in_window: ");
 	nf_ct_dump_tuple(tuple);
-	pr_debug("seq=%u ack=%u sack =%u win=%u end=%u\n",
-		 seq, ack, sack, win, end);
+	pr_debug("seq=%u ack=%u+(%d) sack=%u+(%d) win=%u end=%u\n",
+		 seq, ack, receiver_offset, sack, receiver_offset, win, end);
 	pr_debug("tcp_in_window: sender end=%u maxend=%u maxwin=%u scale=%i "
 		 "receiver end=%u maxend=%u maxwin=%u scale=%i\n",
 		 sender->td_end, sender->td_maxend, sender->td_maxwin,
@@ -700,7 +721,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 			before(seq, sender->td_maxend + 1) ?
 			after(end, sender->td_end - receiver->td_maxwin - 1) ?
 			before(sack, receiver->td_end + 1) ?
-			after(ack, receiver->td_end - MAXACKWINDOW(sender)) ? "BUG"
+			after(sack, receiver->td_end - MAXACKWINDOW(sender) - 1) ? "BUG"
 			: "ACK is under the lower bound (possible overly delayed ACK)"
 			: "ACK is over the upper bound (ACKed data not seen yet)"
 			: "SEQ is under the lower bound (already ACKed data retransmitted)"
@@ -714,39 +735,6 @@ static bool tcp_in_window(const struct nf_conn *ct,
 
 	return res;
 }
-
-#ifdef CONFIG_NF_NAT_NEEDED
-/* Update sender->td_end after NAT successfully mangled the packet */
-/* Caller must linearize skb at tcp header. */
-void nf_conntrack_tcp_update(const struct sk_buff *skb,
-			     unsigned int dataoff,
-			     struct nf_conn *ct, int dir,
-			     s16 offset)
-{
-	const struct tcphdr *tcph = (const void *)skb->data + dataoff;
-	const struct ip_ct_tcp_state *sender = &ct->proto.tcp.seen[dir];
-	const struct ip_ct_tcp_state *receiver = &ct->proto.tcp.seen[!dir];
-	__u32 end;
-
-	end = segment_seq_plus_len(ntohl(tcph->seq), skb->len, dataoff, tcph);
-
-	spin_lock_bh(&ct->lock);
-	/*
-	 * We have to worry for the ack in the reply packet only...
-	 */
-	if (ct->proto.tcp.seen[dir].td_end + offset == end)
-		ct->proto.tcp.seen[dir].td_end = end;
-	ct->proto.tcp.last_end = end;
-	spin_unlock_bh(&ct->lock);
-	pr_debug("tcp_update: sender end=%u maxend=%u maxwin=%u scale=%i "
-		 "receiver end=%u maxend=%u maxwin=%u scale=%i\n",
-		 sender->td_end, sender->td_maxend, sender->td_maxwin,
-		 sender->td_scale,
-		 receiver->td_end, receiver->td_maxend, receiver->td_maxwin,
-		 receiver->td_scale);
-}
-EXPORT_SYMBOL_GPL(nf_conntrack_tcp_update);
-#endif
 
 #define	TH_FIN	0x01
 #define	TH_SYN	0x02

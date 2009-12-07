@@ -125,10 +125,10 @@ void mips_mt_regdump(unsigned long mvpctl)
 	local_irq_restore(flags);
 }
 
-static int mt_opt_norps = 0;
+static int mt_opt_norps;
 static int mt_opt_rpsctl = -1;
 static int mt_opt_nblsu = -1;
-static int mt_opt_forceconfig7 = 0;
+static int mt_opt_forceconfig7;
 static int mt_opt_config7 = -1;
 
 static int __init rps_disable(char *s)
@@ -161,8 +161,8 @@ static int __init config7_set(char *str)
 __setup("config7=", config7_set);
 
 /* Experimental cache flush control parameters that should go away some day */
-int mt_protiflush = 0;
-int mt_protdflush = 0;
+int mt_protiflush;
+int mt_protdflush;
 int mt_n_iflushes = 1;
 int mt_n_dflushes = 1;
 
@@ -194,7 +194,7 @@ static int __init ndflush(char *s)
 }
 __setup("ndflush=", ndflush);
 
-static unsigned int itc_base = 0;
+static unsigned int itc_base;
 
 static int __init set_itc_base(char *str)
 {

@@ -32,6 +32,7 @@ enum sparc_cpu {
   sun4u       = 0x05, /* V8 ploos ploos */
   sun_unknown = 0x06,
   ap1000      = 0x07, /* almost a sun4m */
+  sparc_leon  = 0x08, /* Leon SoC */
 };
 
 /* Really, userland should not be looking at any of this... */

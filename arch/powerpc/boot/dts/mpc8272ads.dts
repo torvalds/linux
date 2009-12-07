@@ -173,6 +173,14 @@
 				fsl,cpm-command = <0xce00000>;
 			};
 
+			usb@11b60 {
+				compatible = "fsl,mpc8272-cpm-usb";
+				reg = <0x11b60 0x40 0x8b00 0x100>;
+				interrupts = <11 8>;
+				interrupt-parent = <&PIC>;
+				mode = "peripheral";
+			};
+
 			mdio@10d40 {
 				device_type = "mdio";
 				compatible = "fsl,mpc8272ads-mdio-bitbang",

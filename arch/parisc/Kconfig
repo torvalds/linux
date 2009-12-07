@@ -16,8 +16,9 @@ config PARISC
 	select RTC_DRV_GENERIC
 	select INIT_ALL_POSSIBLE
 	select BUG
-	select HAVE_PERF_COUNTERS
+	select HAVE_PERF_EVENTS
 	select GENERIC_ATOMIC64 if !64BIT
+	select HAVE_ARCH_TRACEHOOK
 	help
 	  The PA-RISC microprocessor is designed by Hewlett-Packard and used
 	  in many of their workstations & servers (HP9000 700 and 800 series,

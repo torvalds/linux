@@ -61,7 +61,7 @@ static int cyberjack_startup(struct usb_serial *serial);
 static void cyberjack_disconnect(struct usb_serial *serial);
 static void cyberjack_release(struct usb_serial *serial);
 static int  cyberjack_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp);
+	struct usb_serial_port *port);
 static void cyberjack_close(struct usb_serial_port *port);
 static int cyberjack_write(struct tty_struct *tty,
 	struct usb_serial_port *port, const unsigned char *buf, int count);
@@ -173,7 +173,7 @@ static void cyberjack_release(struct usb_serial *serial)
 }
 
 static int  cyberjack_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+					struct usb_serial_port *port)
 {
 	struct cyberjack_private *priv;
 	unsigned long flags;

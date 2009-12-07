@@ -176,7 +176,9 @@ scaling_governor,		and by "echoing" the name of another
 				work on some specific architectures or
 				processors.
 
-cpuinfo_cur_freq :		Current speed of the CPU, in KHz.
+cpuinfo_cur_freq :		Current frequency of the CPU as obtained from
+				the hardware, in KHz. This is the frequency
+				the CPU actually runs at.
 
 scaling_available_frequencies : List of available frequencies, in KHz.
 
@@ -196,7 +198,10 @@ related_cpus :			List of CPUs that need some sort of frequency
 
 scaling_driver :		Hardware driver for cpufreq.
 
-scaling_cur_freq :		Current frequency of the CPU, in KHz.
+scaling_cur_freq :		Current frequency of the CPU as determined by
+				the governor and cpufreq core, in KHz. This is
+				the frequency the kernel thinks the CPU runs
+				at.
 
 If you have selected the "userspace" governor which allows you to
 set the CPU operating frequency to a specific value, you can read out

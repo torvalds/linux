@@ -103,9 +103,9 @@
 
 #define ACPI_MAX_REFERENCE_COUNT        0x1000
 
-/* Size of cached memory mapping for system memory operation region */
+/* Default page size for use in mapping memory for operation regions */
 
-#define ACPI_SYSMEM_REGION_WINDOW_SIZE  4096
+#define ACPI_DEFAULT_PAGE_SIZE          4096	/* Must be power of 2 */
 
 /* owner_id tracking. 8 entries allows for 255 owner_ids */
 
@@ -183,7 +183,7 @@
 
 /* Operation regions */
 
-#define ACPI_NUM_PREDEFINED_REGIONS     8
+#define ACPI_NUM_PREDEFINED_REGIONS     9
 #define ACPI_USER_REGION_BEGIN          0x80
 
 /* Maximum space_ids for Operation Regions */
@@ -199,9 +199,15 @@
 #define ACPI_RSDP_CHECKSUM_LENGTH       20
 #define ACPI_RSDP_XCHECKSUM_LENGTH      36
 
-/* SMBus bidirectional buffer size */
+/* SMBus and IPMI bidirectional buffer size */
 
 #define ACPI_SMBUS_BUFFER_SIZE          34
+#define ACPI_IPMI_BUFFER_SIZE           66
+
+/* _sx_d and _sx_w control methods */
+
+#define ACPI_NUM_sx_d_METHODS           4
+#define ACPI_NUM_sx_w_METHODS           5
 
 /******************************************************************************
  *

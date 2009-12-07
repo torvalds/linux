@@ -182,7 +182,8 @@ MODULE_DEVICE_TABLE(pci,olympic_pci_tbl) ;
 static int olympic_probe(struct pci_dev *pdev, const struct pci_device_id *ent); 
 static int olympic_init(struct net_device *dev);
 static int olympic_open(struct net_device *dev);
-static int olympic_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t olympic_xmit(struct sk_buff *skb,
+				      struct net_device *dev);
 static int olympic_close(struct net_device *dev);
 static void olympic_set_rx_mode(struct net_device *dev);
 static void olympic_freemem(struct net_device *dev) ;  
@@ -1030,7 +1031,8 @@ static irqreturn_t olympic_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }	
 
-static int olympic_xmit(struct sk_buff *skb, struct net_device *dev) 
+static netdev_tx_t olympic_xmit(struct sk_buff *skb,
+				      struct net_device *dev)
 {
 	struct olympic_private *olympic_priv=netdev_priv(dev);
 	u8 __iomem *olympic_mmio=olympic_priv->olympic_mmio;
@@ -1052,7 +1054,7 @@ static int olympic_xmit(struct sk_buff *skb, struct net_device *dev)
 		writew((((readw(olympic_mmio+TXENQ_1)) & 0x8000) ^ 0x8000) | 1,olympic_mmio+TXENQ_1);
 		netif_wake_queue(dev);
 		spin_unlock_irqrestore(&olympic_priv->olympic_lock,flags);
-		return 0;
+		return NETDEV_TX_OK;
 	} else {
 		spin_unlock_irqrestore(&olympic_priv->olympic_lock,flags);
 		return NETDEV_TX_BUSY;

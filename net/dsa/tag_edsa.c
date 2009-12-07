@@ -16,7 +16,7 @@
 #define DSA_HLEN	4
 #define EDSA_HLEN	8
 
-int edsa_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t edsa_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	u8 *edsa_header;

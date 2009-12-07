@@ -104,8 +104,8 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 	else
 		pte_update(ptep, ~_PAGE_HASHPTE, pte_val(pte));
 
-#elif defined(CONFIG_PPC32) && defined(CONFIG_PTE_64BIT) && defined(CONFIG_SMP)
-	/* Second case is 32-bit with 64-bit PTE in SMP mode. In this case, we
+#elif defined(CONFIG_PPC32) && defined(CONFIG_PTE_64BIT)
+	/* Second case is 32-bit with 64-bit PTE.  In this case, we
 	 * can just store as long as we do the two halves in the right order
 	 * with a barrier in between. This is possible because we take care,
 	 * in the hash code, to pre-invalidate if the PTE was already hashed,
@@ -140,7 +140,7 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 
 #else
 	/* Anything else just stores the PTE normally. That covers all 64-bit
-	 * cases, and 32-bit non-hash with 64-bit PTEs in UP mode
+	 * cases, and 32-bit non-hash with 32-bit PTEs.
 	 */
 	*ptep = pte;
 #endif

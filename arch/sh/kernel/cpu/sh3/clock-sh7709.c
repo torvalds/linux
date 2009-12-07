@@ -22,13 +22,6 @@ static int stc_multipliers[] = { 1, 2, 4, 8, 3, 6, 1, 1 };
 static int ifc_divisors[]    = { 1, 2, 4, 1, 3, 1, 1, 1 };
 static int pfc_divisors[]    = { 1, 2, 4, 1, 3, 6, 1, 1 };
 
-static void set_bus_parent(struct clk *clk)
-{
-	struct clk *bus_clk = clk_get(NULL, "bus_clk");
-	clk->parent = bus_clk;
-	clk_put(bus_clk);
-}
-
 static void master_clk_init(struct clk *clk)
 {
 	int frqcr = ctrl_inw(FRQCR);
@@ -50,9 +43,6 @@ static unsigned long module_clk_recalc(struct clk *clk)
 }
 
 static struct clk_ops sh7709_module_clk_ops = {
-#ifdef CLOCK_MODE_0_1_2_7
-	.init		= set_bus_parent,
-#endif
 	.recalc		= module_clk_recalc,
 };
 
@@ -78,7 +68,6 @@ static unsigned long cpu_clk_recalc(struct clk *clk)
 }
 
 static struct clk_ops sh7709_cpu_clk_ops = {
-	.init		= set_bus_parent,
 	.recalc		= cpu_clk_recalc,
 };
 

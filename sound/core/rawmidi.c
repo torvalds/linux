@@ -248,7 +248,8 @@ static int assign_substream(struct snd_rawmidi *rmidi, int subdevice,
 	list_for_each_entry(substream, &s->substreams, list) {
 		if (substream->opened) {
 			if (stream == SNDRV_RAWMIDI_STREAM_INPUT ||
-			    !(mode & SNDRV_RAWMIDI_LFLG_APPEND))
+			    !(mode & SNDRV_RAWMIDI_LFLG_APPEND) ||
+			    !substream->append)
 				continue;
 		}
 		if (subdevice < 0 || subdevice == substream->number) {
@@ -266,17 +267,21 @@ static int open_substream(struct snd_rawmidi *rmidi,
 {
 	int err;
 
-	err = snd_rawmidi_runtime_create(substream);
-	if (err < 0)
-		return err;
-	err = substream->ops->open(substream);
-	if (err < 0)
-		return err;
-	substream->opened = 1;
-	if (substream->use_count++ == 0)
-		substream->active_sensing = 1;
-	if (mode & SNDRV_RAWMIDI_LFLG_APPEND)
-		substream->append = 1;
+	if (substream->use_count == 0) {
+		err = snd_rawmidi_runtime_create(substream);
+		if (err < 0)
+			return err;
+		err = substream->ops->open(substream);
+		if (err < 0) {
+			snd_rawmidi_runtime_free(substream);
+			return err;
+		}
+		substream->opened = 1;
+		substream->active_sensing = 0;
+		if (mode & SNDRV_RAWMIDI_LFLG_APPEND)
+			substream->append = 1;
+	}
+	substream->use_count++;
 	rmidi->streams[substream->stream].substream_opened++;
 	return 0;
 }
@@ -297,27 +302,27 @@ static int rawmidi_open_priv(struct snd_rawmidi *rmidi, int subdevice, int mode,
 				       SNDRV_RAWMIDI_STREAM_INPUT,
 				       mode, &sinput);
 		if (err < 0)
-			goto __error;
+			return err;
 	}
 	if (mode & SNDRV_RAWMIDI_LFLG_OUTPUT) {
 		err = assign_substream(rmidi, subdevice,
 				       SNDRV_RAWMIDI_STREAM_OUTPUT,
 				       mode, &soutput);
 		if (err < 0)
-			goto __error;
+			return err;
 	}
 
 	if (sinput) {
 		err = open_substream(rmidi, sinput, mode);
 		if (err < 0)
-			goto __error;
+			return err;
 	}
 	if (soutput) {
 		err = open_substream(rmidi, soutput, mode);
 		if (err < 0) {
 			if (sinput)
 				close_substream(rmidi, sinput, 0);
-			goto __error;
+			return err;
 		}
 	}
 
@@ -325,13 +330,6 @@ static int rawmidi_open_priv(struct snd_rawmidi *rmidi, int subdevice, int mode,
 	rfile->input = sinput;
 	rfile->output = soutput;
 	return 0;
-
-      __error:
-	if (sinput && sinput->runtime)
-		snd_rawmidi_runtime_free(sinput);
-	if (soutput && soutput->runtime)
-		snd_rawmidi_runtime_free(soutput);
-	return err;
 }
 
 /* called from sound/core/seq/seq_midi.c */

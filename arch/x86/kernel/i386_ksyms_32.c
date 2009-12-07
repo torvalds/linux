@@ -10,6 +10,16 @@
 EXPORT_SYMBOL(mcount);
 #endif
 
+/*
+ * Note, this is a prototype to get at the symbol for
+ * the export, but dont use it from C code, it is used
+ * by assembly code and is not using C calling convention!
+ */
+#ifndef CONFIG_X86_CMPXCHG64
+extern void cmpxchg8b_emu(void);
+EXPORT_SYMBOL(cmpxchg8b_emu);
+#endif
+
 /* Networking helper routines. */
 EXPORT_SYMBOL(csum_partial_copy_generic);
 

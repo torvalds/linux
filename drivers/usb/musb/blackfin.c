@@ -14,7 +14,6 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/list.h>
-#include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
 

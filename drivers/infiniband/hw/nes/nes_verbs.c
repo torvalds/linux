@@ -667,15 +667,32 @@ static int nes_query_device(struct ib_device *ibdev, struct ib_device_attr *prop
  */
 static int nes_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr *props)
 {
+	struct nes_vnic *nesvnic = to_nesvnic(ibdev);
+	struct net_device *netdev = nesvnic->netdev;
+
 	memset(props, 0, sizeof(*props));
 
-	props->max_mtu = IB_MTU_2048;
-	props->active_mtu = IB_MTU_2048;
+	props->max_mtu = IB_MTU_4096;
+
+	if (netdev->mtu  >= 4096)
+		props->active_mtu = IB_MTU_4096;
+	else if (netdev->mtu  >= 2048)
+		props->active_mtu = IB_MTU_2048;
+	else if (netdev->mtu  >= 1024)
+		props->active_mtu = IB_MTU_1024;
+	else if (netdev->mtu  >= 512)
+		props->active_mtu = IB_MTU_512;
+	else
+		props->active_mtu = IB_MTU_256;
+
 	props->lid = 1;
 	props->lmc = 0;
 	props->sm_lid = 0;
 	props->sm_sl = 0;
-	props->state = IB_PORT_ACTIVE;
+	if (nesvnic->linkup)
+		props->state = IB_PORT_ACTIVE;
+	else
+		props->state = IB_PORT_DOWN;
 	props->phys_state = 0;
 	props->port_cap_flags = IB_PORT_CM_SUP | IB_PORT_REINIT_SUP |
 			IB_PORT_VENDOR_CLASS_SUP | IB_PORT_BOOT_MGMT_SUP;
@@ -1506,12 +1523,45 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 
 
 /**
+ * nes_clean_cq
+ */
+static void nes_clean_cq(struct nes_qp *nesqp, struct nes_cq *nescq)
+{
+	u32 cq_head;
+	u32 lo;
+	u32 hi;
+	u64 u64temp;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&nescq->lock, flags);
+
+	cq_head = nescq->hw_cq.cq_head;
+	while (le32_to_cpu(nescq->hw_cq.cq_vbase[cq_head].cqe_words[NES_CQE_OPCODE_IDX]) & NES_CQE_VALID) {
+		rmb();
+		lo = le32_to_cpu(nescq->hw_cq.cq_vbase[cq_head].cqe_words[NES_CQE_COMP_COMP_CTX_LOW_IDX]);
+		hi = le32_to_cpu(nescq->hw_cq.cq_vbase[cq_head].cqe_words[NES_CQE_COMP_COMP_CTX_HIGH_IDX]);
+		u64temp = (((u64)hi) << 32) | ((u64)lo);
+		u64temp &= ~(NES_SW_CONTEXT_ALIGN-1);
+		if (u64temp == (u64)(unsigned long)nesqp) {
+			/* Zero the context value so cqe will be ignored */
+			nescq->hw_cq.cq_vbase[cq_head].cqe_words[NES_CQE_COMP_COMP_CTX_LOW_IDX] = 0;
+			nescq->hw_cq.cq_vbase[cq_head].cqe_words[NES_CQE_COMP_COMP_CTX_HIGH_IDX] = 0;
+		}
+
+		if (++cq_head >= nescq->hw_cq.cq_size)
+			cq_head = 0;
+	}
+
+	spin_unlock_irqrestore(&nescq->lock, flags);
+}
+
+
+/**
  * nes_destroy_qp
  */
 static int nes_destroy_qp(struct ib_qp *ibqp)
 {
 	struct nes_qp *nesqp = to_nesqp(ibqp);
-	/* struct nes_vnic *nesvnic = to_nesvnic(ibqp->device); */
 	struct nes_ucontext *nes_ucontext;
 	struct ib_qp_attr attr;
 	struct iw_cm_id *cm_id;
@@ -1548,7 +1598,6 @@ static int nes_destroy_qp(struct ib_qp *ibqp)
 			nes_debug(NES_DBG_QP, "OFA CM event_handler returned, ret=%d\n", ret);
 	}
 
-
 	if (nesqp->user_mode) {
 		if ((ibqp->uobject)&&(ibqp->uobject->context)) {
 			nes_ucontext = to_nesucontext(ibqp->uobject->context);
@@ -1560,6 +1609,13 @@ static int nes_destroy_qp(struct ib_qp *ibqp)
 		}
 		if (nesqp->pbl_pbase)
 			kunmap(nesqp->page);
+	} else {
+		/* Clean any pending completions from the cq(s) */
+		if (nesqp->nesscq)
+			nes_clean_cq(nesqp, nesqp->nesscq);
+
+		if ((nesqp->nesrcq) && (nesqp->nesrcq != nesqp->nesscq))
+			nes_clean_cq(nesqp, nesqp->nesrcq);
 	}
 
 	nes_rem_ref(&nesqp->ibqp);
@@ -2884,7 +2940,7 @@ static int nes_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
  * nes_hw_modify_qp
  */
 int nes_hw_modify_qp(struct nes_device *nesdev, struct nes_qp *nesqp,
-		u32 next_iwarp_state, u32 wait_completion)
+		u32 next_iwarp_state, u32 termlen, u32 wait_completion)
 {
 	struct nes_hw_cqp_wqe *cqp_wqe;
 	/* struct iw_cm_id *cm_id = nesqp->cm_id; */
@@ -2915,6 +2971,13 @@ int nes_hw_modify_qp(struct nes_device *nesdev, struct nes_qp *nesqp,
 	nes_fill_init_cqp_wqe(cqp_wqe, nesdev);
 	set_wqe_32bit_value(cqp_wqe->wqe_words, NES_CQP_WQE_ID_IDX, nesqp->hwqp.qp_id);
 	set_wqe_64bit_value(cqp_wqe->wqe_words, NES_CQP_QP_WQE_CONTEXT_LOW_IDX, (u64)nesqp->nesqp_context_pbase);
+
+	/* If sending a terminate message, fill in the length (in words) */
+	if (((next_iwarp_state & NES_CQP_QP_IWARP_STATE_MASK) == NES_CQP_QP_IWARP_STATE_TERMINATE) &&
+	    !(next_iwarp_state & NES_CQP_QP_TERM_DONT_SEND_TERM_MSG)) {
+		termlen = ((termlen + 3) >> 2) << NES_CQP_OP_TERMLEN_SHIFT;
+		set_wqe_32bit_value(cqp_wqe->wqe_words, NES_CQP_QP_WQE_NEW_MSS_IDX, termlen);
+	}
 
 	atomic_set(&cqp_request->refcount, 2);
 	nes_post_cqp_request(nesdev, cqp_request);
@@ -3086,6 +3149,9 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				}
 				nes_debug(NES_DBG_MOD_QP, "QP%u: new state = error\n",
 						nesqp->hwqp.qp_id);
+				if (nesqp->term_flags)
+					del_timer(&nesqp->terminate_timer);
+
 				next_iwarp_state = NES_CQP_QP_IWARP_STATE_ERROR;
 				/* next_iwarp_state = (NES_CQP_QP_IWARP_STATE_TERMINATE | 0x02000000); */
 					if (nesqp->hte_added) {
@@ -3163,7 +3229,7 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if (issue_modify_qp) {
 		nes_debug(NES_DBG_MOD_QP, "call nes_hw_modify_qp\n");
-		ret = nes_hw_modify_qp(nesdev, nesqp, next_iwarp_state, 1);
+		ret = nes_hw_modify_qp(nesdev, nesqp, next_iwarp_state, 0, 1);
 		if (ret)
 			nes_debug(NES_DBG_MOD_QP, "nes_hw_modify_qp (next_iwarp_state = 0x%08X)"
 					" failed for QP%u.\n",
@@ -3328,6 +3394,12 @@ static int nes_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 	head = nesqp->hwqp.sq_head;
 
 	while (ib_wr) {
+		/* Check for QP error */
+		if (nesqp->term_flags) {
+			err = -EINVAL;
+			break;
+		}
+
 		/* Check for SQ overflow */
 		if (((head + (2 * qsize) - nesqp->hwqp.sq_tail) % qsize) == (qsize - 1)) {
 			err = -EINVAL;
@@ -3484,6 +3556,12 @@ static int nes_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *ib_wr,
 	head = nesqp->hwqp.rq_head;
 
 	while (ib_wr) {
+		/* Check for QP error */
+		if (nesqp->term_flags) {
+			err = -EINVAL;
+			break;
+		}
+
 		if (ib_wr->num_sge > nesdev->nesadapter->max_sge) {
 			err = -EINVAL;
 			break;
@@ -3547,7 +3625,6 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 {
 	u64 u64temp;
 	u64 wrid;
-	/* u64 u64temp; */
 	unsigned long flags = 0;
 	struct nes_vnic *nesvnic = to_nesvnic(ibcq->device);
 	struct nes_device *nesdev = nesvnic->nesdev;
@@ -3555,12 +3632,13 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 	struct nes_qp *nesqp;
 	struct nes_hw_cqe cqe;
 	u32 head;
-	u32 wq_tail;
+	u32 wq_tail = 0;
 	u32 cq_size;
 	u32 cqe_count = 0;
 	u32 wqe_index;
 	u32 u32temp;
-	/* u32 counter; */
+	u32 move_cq_head = 1;
+	u32 err_code;
 
 	nes_debug(NES_DBG_CQ, "\n");
 
@@ -3570,29 +3648,40 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 	cq_size = nescq->hw_cq.cq_size;
 
 	while (cqe_count < num_entries) {
-		if (le32_to_cpu(nescq->hw_cq.cq_vbase[head].cqe_words[NES_CQE_OPCODE_IDX]) &
-				NES_CQE_VALID) {
-			/*
-			 * Make sure we read CQ entry contents *after*
-			 * we've checked the valid bit.
-			 */
-			rmb();
+		if ((le32_to_cpu(nescq->hw_cq.cq_vbase[head].cqe_words[NES_CQE_OPCODE_IDX]) &
+				NES_CQE_VALID) == 0)
+			break;
 
-			cqe = nescq->hw_cq.cq_vbase[head];
-			nescq->hw_cq.cq_vbase[head].cqe_words[NES_CQE_OPCODE_IDX] = 0;
-			u32temp = le32_to_cpu(cqe.cqe_words[NES_CQE_COMP_COMP_CTX_LOW_IDX]);
-			wqe_index = u32temp &
-					(nesdev->nesadapter->max_qp_wr - 1);
-			u32temp &= ~(NES_SW_CONTEXT_ALIGN-1);
-			/* parse CQE, get completion context from WQE (either rq or sq */
-			u64temp = (((u64)(le32_to_cpu(cqe.cqe_words[NES_CQE_COMP_COMP_CTX_HIGH_IDX])))<<32) |
-					((u64)u32temp);
-			nesqp = *((struct nes_qp **)&u64temp);
+		/*
+		 * Make sure we read CQ entry contents *after*
+		 * we've checked the valid bit.
+		 */
+		rmb();
+
+		cqe = nescq->hw_cq.cq_vbase[head];
+		u32temp = le32_to_cpu(cqe.cqe_words[NES_CQE_COMP_COMP_CTX_LOW_IDX]);
+		wqe_index = u32temp & (nesdev->nesadapter->max_qp_wr - 1);
+		u32temp &= ~(NES_SW_CONTEXT_ALIGN-1);
+		/* parse CQE, get completion context from WQE (either rq or sq) */
+		u64temp = (((u64)(le32_to_cpu(cqe.cqe_words[NES_CQE_COMP_COMP_CTX_HIGH_IDX])))<<32) |
+				((u64)u32temp);
+
+		if (u64temp) {
+			nesqp = (struct nes_qp *)(unsigned long)u64temp;
 			memset(entry, 0, sizeof *entry);
 			if (cqe.cqe_words[NES_CQE_ERROR_CODE_IDX] == 0) {
 				entry->status = IB_WC_SUCCESS;
 			} else {
-				entry->status = IB_WC_WR_FLUSH_ERR;
+				err_code = le32_to_cpu(cqe.cqe_words[NES_CQE_ERROR_CODE_IDX]);
+				if (NES_IWARP_CQE_MAJOR_DRV == (err_code >> 16)) {
+					entry->status = err_code & 0x0000ffff;
+
+					/* The rest of the cqe's will be marked as flushed */
+					nescq->hw_cq.cq_vbase[head].cqe_words[NES_CQE_ERROR_CODE_IDX] =
+						cpu_to_le32((NES_IWARP_CQE_MAJOR_FLUSH << 16) |
+							    NES_IWARP_CQE_MINOR_FLUSH);
+				} else
+					entry->status = IB_WC_WR_FLUSH_ERR;
 			}
 
 			entry->qp = &nesqp->ibqp;
@@ -3601,20 +3690,18 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 			if (le32_to_cpu(cqe.cqe_words[NES_CQE_OPCODE_IDX]) & NES_CQE_SQ) {
 				if (nesqp->skip_lsmm) {
 					nesqp->skip_lsmm = 0;
-					wq_tail = nesqp->hwqp.sq_tail++;
+					nesqp->hwqp.sq_tail++;
 				}
 
 				/* Working on a SQ Completion*/
-				wq_tail = wqe_index;
-				nesqp->hwqp.sq_tail = (wqe_index+1)&(nesqp->hwqp.sq_size - 1);
-				wrid = (((u64)(cpu_to_le32((u32)nesqp->hwqp.sq_vbase[wq_tail].
+				wrid = (((u64)(cpu_to_le32((u32)nesqp->hwqp.sq_vbase[wqe_index].
 						wqe_words[NES_IWARP_SQ_WQE_COMP_SCRATCH_HIGH_IDX]))) << 32) |
-						((u64)(cpu_to_le32((u32)nesqp->hwqp.sq_vbase[wq_tail].
+						((u64)(cpu_to_le32((u32)nesqp->hwqp.sq_vbase[wqe_index].
 						wqe_words[NES_IWARP_SQ_WQE_COMP_SCRATCH_LOW_IDX])));
-				entry->byte_len = le32_to_cpu(nesqp->hwqp.sq_vbase[wq_tail].
+				entry->byte_len = le32_to_cpu(nesqp->hwqp.sq_vbase[wqe_index].
 						wqe_words[NES_IWARP_SQ_WQE_TOTAL_PAYLOAD_IDX]);
 
-				switch (le32_to_cpu(nesqp->hwqp.sq_vbase[wq_tail].
+				switch (le32_to_cpu(nesqp->hwqp.sq_vbase[wqe_index].
 						wqe_words[NES_IWARP_SQ_WQE_MISC_IDX]) & 0x3f) {
 					case NES_IWARP_SQ_OP_RDMAW:
 						nes_debug(NES_DBG_CQ, "Operation = RDMA WRITE.\n");
@@ -3623,7 +3710,7 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 					case NES_IWARP_SQ_OP_RDMAR:
 						nes_debug(NES_DBG_CQ, "Operation = RDMA READ.\n");
 						entry->opcode = IB_WC_RDMA_READ;
-						entry->byte_len = le32_to_cpu(nesqp->hwqp.sq_vbase[wq_tail].
+						entry->byte_len = le32_to_cpu(nesqp->hwqp.sq_vbase[wqe_index].
 								wqe_words[NES_IWARP_SQ_WQE_RDMA_LENGTH_IDX]);
 						break;
 					case NES_IWARP_SQ_OP_SENDINV:
@@ -3634,33 +3721,54 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 						entry->opcode = IB_WC_SEND;
 						break;
 				}
+
+				nesqp->hwqp.sq_tail = (wqe_index+1)&(nesqp->hwqp.sq_size - 1);
+				if ((entry->status != IB_WC_SUCCESS) && (nesqp->hwqp.sq_tail != nesqp->hwqp.sq_head)) {
+					move_cq_head = 0;
+					wq_tail = nesqp->hwqp.sq_tail;
+				}
 			} else {
 				/* Working on a RQ Completion*/
-				wq_tail = wqe_index;
-					nesqp->hwqp.rq_tail = (wqe_index+1)&(nesqp->hwqp.rq_size - 1);
 				entry->byte_len = le32_to_cpu(cqe.cqe_words[NES_CQE_PAYLOAD_LENGTH_IDX]);
-				wrid = ((u64)(le32_to_cpu(nesqp->hwqp.rq_vbase[wq_tail].wqe_words[NES_IWARP_RQ_WQE_COMP_SCRATCH_LOW_IDX]))) |
-					((u64)(le32_to_cpu(nesqp->hwqp.rq_vbase[wq_tail].wqe_words[NES_IWARP_RQ_WQE_COMP_SCRATCH_HIGH_IDX]))<<32);
+				wrid = ((u64)(le32_to_cpu(nesqp->hwqp.rq_vbase[wqe_index].wqe_words[NES_IWARP_RQ_WQE_COMP_SCRATCH_LOW_IDX]))) |
+					((u64)(le32_to_cpu(nesqp->hwqp.rq_vbase[wqe_index].wqe_words[NES_IWARP_RQ_WQE_COMP_SCRATCH_HIGH_IDX]))<<32);
 					entry->opcode = IB_WC_RECV;
-			}
-			entry->wr_id = wrid;
 
+				nesqp->hwqp.rq_tail = (wqe_index+1)&(nesqp->hwqp.rq_size - 1);
+				if ((entry->status != IB_WC_SUCCESS) && (nesqp->hwqp.rq_tail != nesqp->hwqp.rq_head)) {
+					move_cq_head = 0;
+					wq_tail = nesqp->hwqp.rq_tail;
+				}
+			}
+
+			entry->wr_id = wrid;
+			entry++;
+			cqe_count++;
+		}
+
+		if (move_cq_head) {
+			nescq->hw_cq.cq_vbase[head].cqe_words[NES_CQE_OPCODE_IDX] = 0;
 			if (++head >= cq_size)
 				head = 0;
-			cqe_count++;
 			nescq->polled_completions++;
+
 			if ((nescq->polled_completions > (cq_size / 2)) ||
 					(nescq->polled_completions == 255)) {
 				nes_debug(NES_DBG_CQ, "CQ%u Issuing CQE Allocate since more than half of cqes"
-						" are pending %u of %u.\n",
-						nescq->hw_cq.cq_number, nescq->polled_completions, cq_size);
+					" are pending %u of %u.\n",
+					nescq->hw_cq.cq_number, nescq->polled_completions, cq_size);
 				nes_write32(nesdev->regs+NES_CQE_ALLOC,
-						nescq->hw_cq.cq_number | (nescq->polled_completions << 16));
+					nescq->hw_cq.cq_number | (nescq->polled_completions << 16));
 				nescq->polled_completions = 0;
 			}
-			entry++;
-		} else
-			break;
+		} else {
+			/* Update the wqe index and set status to flush */
+			wqe_index = le32_to_cpu(cqe.cqe_words[NES_CQE_COMP_COMP_CTX_LOW_IDX]);
+			wqe_index = (wqe_index & (~(nesdev->nesadapter->max_qp_wr - 1))) | wq_tail;
+			nescq->hw_cq.cq_vbase[head].cqe_words[NES_CQE_COMP_COMP_CTX_LOW_IDX] =
+				cpu_to_le32(wqe_index);
+			move_cq_head = 1; /* ready for next pass */
+		}
 	}
 
 	if (nescq->polled_completions) {

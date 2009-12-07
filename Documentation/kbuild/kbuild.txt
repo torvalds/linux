@@ -65,6 +65,22 @@ INSTALL_PATH
 INSTALL_PATH specifies where to place the updated kernel and system map
 images. Default is /boot, but you can set it to other values.
 
+INSTALLKERNEL
+--------------------------------------------------
+Install script called when using "make install".
+The default name is "installkernel".
+
+The script will be called with the following arguments:
+    $1 - kernel version
+    $2 - kernel image file
+    $3 - kernel map file
+    $4 - default install path (use root directory if blank)
+
+The implmentation of "make install" is architecture specific
+and it may differ from the above.
+
+INSTALLKERNEL is provided to enable the possibility to
+specify a custom installer when cross compiling a kernel.
 
 MODLIB
 --------------------------------------------------

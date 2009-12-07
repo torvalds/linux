@@ -115,7 +115,7 @@ void fnic_handle_frame(struct work_struct *work)
 		}
 		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 
-		fc_exch_recv(lp, lp->emp, fp);
+		fc_exch_recv(lp, fp);
 	}
 
 }

@@ -8,6 +8,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/percpu.h>
+#include <linux/sched.h>
 #include <asm/apic.h>
 #include <asm/processor.h>
 #include <asm/msr.h>
@@ -90,7 +91,7 @@ static void cmci_discover(int banks, int boot)
 		if (test_bit(i, owned))
 			continue;
 
-		rdmsrl(MSR_IA32_MC0_CTL2 + i, val);
+		rdmsrl(MSR_IA32_MCx_CTL2(i), val);
 
 		/* Already owned by someone else? */
 		if (val & CMCI_EN) {
@@ -101,8 +102,8 @@ static void cmci_discover(int banks, int boot)
 		}
 
 		val |= CMCI_EN | CMCI_THRESHOLD;
-		wrmsrl(MSR_IA32_MC0_CTL2 + i, val);
-		rdmsrl(MSR_IA32_MC0_CTL2 + i, val);
+		wrmsrl(MSR_IA32_MCx_CTL2(i), val);
+		rdmsrl(MSR_IA32_MCx_CTL2(i), val);
 
 		/* Did the enable bit stick? -- the bank supports CMCI */
 		if (val & CMCI_EN) {
@@ -152,9 +153,9 @@ void cmci_clear(void)
 		if (!test_bit(i, __get_cpu_var(mce_banks_owned)))
 			continue;
 		/* Disable CMCI */
-		rdmsrl(MSR_IA32_MC0_CTL2 + i, val);
+		rdmsrl(MSR_IA32_MCx_CTL2(i), val);
 		val &= ~(CMCI_EN|CMCI_THRESHOLD_MASK);
-		wrmsrl(MSR_IA32_MC0_CTL2 + i, val);
+		wrmsrl(MSR_IA32_MCx_CTL2(i), val);
 		__clear_bit(i, __get_cpu_var(mce_banks_owned));
 	}
 	spin_unlock_irqrestore(&cmci_discover_lock, flags);

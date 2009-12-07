@@ -54,14 +54,4 @@ struct kvm_vqconfig {
  * This is pagesize for historical reasons. */
 #define KVM_S390_VIRTIO_RING_ALIGN	4096
 
-#ifdef __KERNEL__
-/* early virtio console setup */
-#ifdef CONFIG_S390_GUEST
-extern void s390_virtio_console_init(void);
-#else
-static inline void s390_virtio_console_init(void)
-{
-}
-#endif /* CONFIG_VIRTIO_CONSOLE */
-#endif /* __KERNEL__ */
 #endif

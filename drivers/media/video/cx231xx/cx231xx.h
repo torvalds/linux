@@ -282,7 +282,7 @@ struct cx231xx_board {
 
 	struct cx231xx_input input[MAX_CX231XX_INPUT];
 	struct cx231xx_input radio;
-	IR_KEYTAB_TYPE *ir_codes;
+	struct ir_scancode_table *ir_codes;
 };
 
 /* device states */

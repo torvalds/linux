@@ -2,6 +2,7 @@
 #define _CODA_INT_
 
 struct dentry;
+struct file;
 
 extern struct file_system_type coda_fs_type;
 extern unsigned long coda_timeout;

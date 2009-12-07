@@ -66,7 +66,9 @@ Example kernel-doc function comment:
  * The longer description can have multiple paragraphs.
  */
 
-The first line, with the short description, must be on a single line.
+The short description following the subject can span multiple lines
+and ends with an @argument description, an empty line or the end of
+the comment block.
 
 The @argument descriptions must begin on the very next line following
 this opening short function description line, with no intervening

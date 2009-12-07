@@ -29,6 +29,10 @@ enum sparc_cpu {
 /* This cannot ever be a sun4c :) That's just history. */
 #define ARCH_SUN4C 0
 
+extern const char *sparc_cpu_type;
+extern const char *sparc_fpu_type;
+extern const char *sparc_pmu_type;
+
 extern char reboot_command[];
 
 /* These are here in an effort to more fully work around Spitfire Errata
@@ -59,6 +63,10 @@ do {	__asm__ __volatile__("ba,pt	%%xcc, 1f\n\t" \
 			     : : : "memory"); \
 } while (0)
 
+/* The kernel always executes in TSO memory model these days,
+ * and furthermore most sparc64 chips implement more stringent
+ * memory ordering than required by the specifications.
+ */
 #define mb()	membar_safe("#StoreLoad")
 #define rmb()	__asm__ __volatile__("":::"memory")
 #define wmb()	__asm__ __volatile__("":::"memory")

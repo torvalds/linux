@@ -126,7 +126,7 @@ static void nwpserial_config_port(struct uart_port *port, int flags)
 static irqreturn_t nwpserial_interrupt(int irq, void *dev_id)
 {
 	struct nwpserial_port *up = dev_id;
-	struct tty_struct *tty = up->port.info->port.tty;
+	struct tty_struct *tty = up->port.state->port.tty;
 	irqreturn_t ret;
 	unsigned int iir;
 	unsigned char ch;
@@ -261,7 +261,7 @@ static void nwpserial_start_tx(struct uart_port *port)
 	struct nwpserial_port *up;
 	struct circ_buf *xmit;
 	up = container_of(port, struct nwpserial_port, port);
-	xmit  = &up->port.info->xmit;
+	xmit  = &up->port.state->xmit;
 
 	if (port->x_char) {
 		nwpserial_putchar(up, up->port.x_char);

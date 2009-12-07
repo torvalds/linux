@@ -14,12 +14,12 @@ do {									\
 			(u32 *)&tsk->thread.dsp_status;			\
 	__asm__ __volatile__ (						\
 		".balign 4\n\t"						\
+		"movs.l	@r2+, a0\n\t"					\
 		"movs.l	@r2+, a1\n\t"					\
 		"movs.l	@r2+, a0g\n\t"					\
 		"movs.l	@r2+, a1g\n\t"					\
 		"movs.l	@r2+, m0\n\t"					\
 		"movs.l	@r2+, m1\n\t"					\
-		"movs.l	@r2+, a0\n\t"					\
 		"movs.l	@r2+, x0\n\t"					\
 		"movs.l	@r2+, x1\n\t"					\
 		"movs.l	@r2+, y0\n\t"					\
@@ -39,20 +39,20 @@ do {									\
 									\
 	__asm__ __volatile__ (						\
 		".balign 4\n\t"						\
-		"stc.l	mod, @-r2\n\t"				\
+		"stc.l	mod, @-r2\n\t"					\
 		"stc.l	re, @-r2\n\t"					\
 		"stc.l	rs, @-r2\n\t"					\
-		"sts.l	dsr, @-r2\n\t"				\
-		"sts.l	y1, @-r2\n\t"					\
-		"sts.l	y0, @-r2\n\t"					\
-		"sts.l	x1, @-r2\n\t"					\
-		"sts.l	x0, @-r2\n\t"					\
-		"sts.l	a0, @-r2\n\t"					\
-		".word	0xf653		! movs.l	a1, @-r2\n\t"	\
-		".word	0xf6f3		! movs.l	a0g, @-r2\n\t"	\
-		".word	0xf6d3		! movs.l	a1g, @-r2\n\t"	\
-		".word	0xf6c3		! movs.l        m0, @-r2\n\t"	\
-		".word	0xf6e3		! movs.l        m1, @-r2\n\t"	\
+		"sts.l	dsr, @-r2\n\t"					\
+		"movs.l	y1, @-r2\n\t"					\
+		"movs.l	y0, @-r2\n\t"					\
+		"movs.l	x1, @-r2\n\t"					\
+		"movs.l	x0, @-r2\n\t"					\
+		"movs.l	m1, @-r2\n\t"					\
+		"movs.l	m0, @-r2\n\t"					\
+		"movs.l	a1g, @-r2\n\t"					\
+		"movs.l	a0g, @-r2\n\t"					\
+		"movs.l	a1, @-r2\n\t"					\
+		"movs.l	a0, @-r2\n\t"					\
 		: : "r" (__ts2));					\
 } while (0)
 
@@ -62,6 +62,16 @@ do {									\
 #define __save_dsp(tsk)		do { } while (0)
 #define __restore_dsp(tsk)	do { } while (0)
 #endif
+
+#if defined(CONFIG_CPU_SH4A)
+#define __icbi(addr)	__asm__ __volatile__ ( "icbi @%0\n\t" : : "r" (addr))
+#else
+#define __icbi(addr)	mb()
+#endif
+
+#define __ocbp(addr)	__asm__ __volatile__ ( "ocbp @%0\n\t" : : "r" (addr))
+#define __ocbi(addr)	__asm__ __volatile__ ( "ocbi @%0\n\t" : : "r" (addr))
+#define __ocbwb(addr)	__asm__ __volatile__ ( "ocbwb @%0\n\t" : : "r" (addr))
 
 struct task_struct *__switch_to(struct task_struct *prev,
 				struct task_struct *next);
@@ -198,8 +208,13 @@ do {							\
 })
 #endif
 
+static inline reg_size_t register_align(void *val)
+{
+	return (unsigned long)(signed long)val;
+}
+
 int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
-			    struct mem_access *ma);
+			    struct mem_access *ma, int);
 
 asmlinkage void do_address_error(struct pt_regs *regs,
 				 unsigned long writeaccess,

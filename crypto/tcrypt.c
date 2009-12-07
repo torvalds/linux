@@ -45,6 +45,9 @@
  */
 static unsigned int sec;
 
+static char *alg = NULL;
+static u32 type;
+static u32 mask;
 static int mode;
 static char *tvmem[TVMEMSIZE];
 
@@ -716,6 +719,10 @@ static int do_test(int m)
 		ret += tcrypt_test("hmac(rmd160)");
 		break;
 
+	case 109:
+		ret += tcrypt_test("vmac(aes)");
+		break;
+
 	case 150:
 		ret += tcrypt_test("ansi_cprng");
 		break;
@@ -885,6 +892,12 @@ static int do_test(int m)
 	return ret;
 }
 
+static int do_alg_test(const char *alg, u32 type, u32 mask)
+{
+	return crypto_has_alg(alg, type, mask ?: CRYPTO_ALG_TYPE_MASK) ?
+	       0 : -ENOENT;
+}
+
 static int __init tcrypt_mod_init(void)
 {
 	int err = -ENOMEM;
@@ -896,7 +909,11 @@ static int __init tcrypt_mod_init(void)
 			goto err_free_tv;
 	}
 
-	err = do_test(mode);
+	if (alg)
+		err = do_alg_test(alg, type, mask);
+	else
+		err = do_test(mode);
+
 	if (err) {
 		printk(KERN_ERR "tcrypt: one or more tests failed!\n");
 		goto err_free_tv;
@@ -928,6 +945,9 @@ static void __exit tcrypt_mod_fini(void) { }
 module_init(tcrypt_mod_init);
 module_exit(tcrypt_mod_fini);
 
+module_param(alg, charp, 0);
+module_param(type, uint, 0);
+module_param(mask, uint, 0);
 module_param(mode, int, 0);
 module_param(sec, uint, 0);
 MODULE_PARM_DESC(sec, "Length in seconds of speed tests "

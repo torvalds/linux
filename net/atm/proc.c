@@ -151,8 +151,9 @@ static void *vcc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 static void pvc_info(struct seq_file *seq, struct atm_vcc *vcc)
 {
-	static const char *class_name[] = { "off","UBR","CBR","VBR","ABR" };
-	static const char *aal_name[] = {
+	static const char *const class_name[] =
+		{"off","UBR","CBR","VBR","ABR"};
+	static const char *const aal_name[] = {
 		"---",	"1",	"2",	"3/4",	/*  0- 3 */
 		"???",	"5",	"???",	"???",	/*  4- 7 */
 		"???",	"???",	"???",	"???",	/*  8-11 */
@@ -178,7 +179,7 @@ static void pvc_info(struct seq_file *seq, struct atm_vcc *vcc)
 
 static const char *vcc_state(struct atm_vcc *vcc)
 {
-	static const char *map[] = { ATM_VS2TXT_MAP };
+	static const char *const map[] = { ATM_VS2TXT_MAP };
 
 	return map[ATM_VF2VS(vcc->flags)];
 }
@@ -335,7 +336,7 @@ static const struct file_operations vcc_seq_fops = {
 
 static int svc_seq_show(struct seq_file *seq, void *v)
 {
-	static char atm_svc_banner[] =
+	static const char atm_svc_banner[] =
 		"Itf VPI VCI           State      Remote\n";
 
 	if (v == SEQ_START_TOKEN)

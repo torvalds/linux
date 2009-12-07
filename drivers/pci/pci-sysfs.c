@@ -916,6 +916,24 @@ int __attribute__ ((weak)) pcibios_add_platform_entries(struct pci_dev *dev)
 	return 0;
 }
 
+static ssize_t reset_store(struct device *dev,
+			   struct device_attribute *attr, const char *buf,
+			   size_t count)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	unsigned long val;
+	ssize_t result = strict_strtoul(buf, 0, &val);
+
+	if (result < 0)
+		return result;
+
+	if (val != 1)
+		return -EINVAL;
+	return pci_reset_function(pdev);
+}
+
+static struct device_attribute reset_attr = __ATTR(reset, 0200, NULL, reset_store);
+
 static int pci_create_capabilities_sysfs(struct pci_dev *dev)
 {
 	int retval;
@@ -943,7 +961,22 @@ static int pci_create_capabilities_sysfs(struct pci_dev *dev)
 	/* Active State Power Management */
 	pcie_aspm_create_sysfs_dev_files(dev);
 
+	if (!pci_probe_reset_function(dev)) {
+		retval = device_create_file(&dev->dev, &reset_attr);
+		if (retval)
+			goto error;
+		dev->reset_fn = 1;
+	}
 	return 0;
+
+error:
+	pcie_aspm_remove_sysfs_dev_files(dev);
+	if (dev->vpd && dev->vpd->attr) {
+		sysfs_remove_bin_file(&dev->dev.kobj, dev->vpd->attr);
+		kfree(dev->vpd->attr);
+	}
+
+	return retval;
 }
 
 int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
@@ -1037,6 +1070,10 @@ static void pci_remove_capabilities_sysfs(struct pci_dev *dev)
 	}
 
 	pcie_aspm_remove_sysfs_dev_files(dev);
+	if (dev->reset_fn) {
+		device_remove_file(&dev->dev, &reset_attr);
+		dev->reset_fn = 0;
+	}
 }
 
 /**

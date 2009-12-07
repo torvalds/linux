@@ -109,13 +109,13 @@ int iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms)
 }
 EXPORT_SYMBOL(iwl_scan_cancel_timeout);
 
-int iwl_send_scan_abort(struct iwl_priv *priv)
+static int iwl_send_scan_abort(struct iwl_priv *priv)
 {
 	int ret = 0;
 	struct iwl_rx_packet *res;
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_SCAN_ABORT_CMD,
-		.meta.flags = CMD_WANT_SKB,
+		.flags = CMD_WANT_SKB,
 	};
 
 	/* If there isn't a scan actively going on in the hardware
@@ -132,7 +132,7 @@ int iwl_send_scan_abort(struct iwl_priv *priv)
 		return ret;
 	}
 
-	res = (struct iwl_rx_packet *)cmd.meta.u.skb->data;
+	res = (struct iwl_rx_packet *)cmd.reply_skb->data;
 	if (res->u.status != CAN_ABORT_STATUS) {
 		/* The scan abort will return 1 for success or
 		 * 2 for "failure".  A failure condition can be
@@ -146,11 +146,10 @@ int iwl_send_scan_abort(struct iwl_priv *priv)
 	}
 
 	priv->alloc_rxb_skb--;
-	dev_kfree_skb_any(cmd.meta.u.skb);
+	dev_kfree_skb_any(cmd.reply_skb);
 
 	return ret;
 }
-EXPORT_SYMBOL(iwl_send_scan_abort);
 
 /* Service response to REPLY_SCAN_CMD (0x80) */
 static void iwl_rx_reply_scan(struct iwl_priv *priv,
@@ -322,7 +321,7 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 				     u8 is_active, u8 n_probes,
 				     struct iwl_scan_channel *scan_ch)
 {
-	const struct ieee80211_channel *channels = NULL;
+	struct ieee80211_channel *chan;
 	const struct ieee80211_supported_band *sband;
 	const struct iwl_channel_info *ch_info;
 	u16 passive_dwell = 0;
@@ -334,20 +333,19 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 	if (!sband)
 		return 0;
 
-	channels = sband->channels;
-
 	active_dwell = iwl_get_active_dwell_time(priv, band, n_probes);
 	passive_dwell = iwl_get_passive_dwell_time(priv, band);
 
 	if (passive_dwell <= active_dwell)
 		passive_dwell = active_dwell + 1;
 
-	for (i = 0, added = 0; i < sband->n_channels; i++) {
-		if (channels[i].flags & IEEE80211_CHAN_DISABLED)
+	for (i = 0, added = 0; i < priv->scan_request->n_channels; i++) {
+		chan = priv->scan_request->channels[i];
+
+		if (chan->band != band)
 			continue;
 
-		channel =
-			ieee80211_frequency_to_channel(channels[i].center_freq);
+		channel = ieee80211_frequency_to_channel(chan->center_freq);
 		scan_ch->channel = cpu_to_le16(channel);
 
 		ch_info = iwl_get_channel_info(priv, band, channel);
@@ -358,7 +356,7 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 		}
 
 		if (!is_active || is_channel_passive(ch_info) ||
-		    (channels[i].flags & IEEE80211_CHAN_PASSIVE_SCAN))
+		    (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN))
 			scan_ch->type = SCAN_CHANNEL_TYPE_PASSIVE;
 		else
 			scan_ch->type = SCAN_CHANNEL_TYPE_ACTIVE;
@@ -405,7 +403,7 @@ void iwl_init_scan_params(struct iwl_priv *priv)
 		priv->scan_tx_ant[IEEE80211_BAND_2GHZ] = ant_idx;
 }
 
-int iwl_scan_initiate(struct iwl_priv *priv)
+static int iwl_scan_initiate(struct iwl_priv *priv)
 {
 	if (!iwl_is_ready_rf(priv)) {
 		IWL_DEBUG_SCAN(priv, "Aborting scan due to not ready.\n");
@@ -423,10 +421,6 @@ int iwl_scan_initiate(struct iwl_priv *priv)
 	}
 
 	IWL_DEBUG_INFO(priv, "Starting scan...\n");
-	if (priv->cfg->sku & IWL_SKU_G)
-		priv->scan_bands |= BIT(IEEE80211_BAND_2GHZ);
-	if (priv->cfg->sku & IWL_SKU_A)
-		priv->scan_bands |= BIT(IEEE80211_BAND_5GHZ);
 	set_bit(STATUS_SCANNING, &priv->status);
 	priv->scan_start = jiffies;
 	priv->scan_pass_start = priv->scan_start;
@@ -435,7 +429,6 @@ int iwl_scan_initiate(struct iwl_priv *priv)
 
 	return 0;
 }
-EXPORT_SYMBOL(iwl_scan_initiate);
 
 #define IWL_DELAY_NEXT_SCAN (HZ*2)
 
@@ -444,7 +437,7 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 {
 	unsigned long flags;
 	struct iwl_priv *priv = hw->priv;
-	int ret;
+	int ret, i;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
@@ -477,6 +470,10 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 		ret = 0;
 		goto out_unlock;
 	}
+
+	priv->scan_bands = 0;
+	for (i = 0; i < req->n_channels; i++)
+		priv->scan_bands |= BIT(req->channels[i]->band);
 
 	priv->scan_request = req;
 
@@ -570,7 +567,7 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_SCAN_CMD,
 		.len = sizeof(struct iwl_scan_cmd),
-		.meta.flags = CMD_SIZE_HUGE,
+		.flags = CMD_SIZE_HUGE,
 	};
 	struct iwl_scan_cmd *scan;
 	struct ieee80211_conf *conf = NULL;
@@ -799,7 +796,8 @@ void iwl_bg_abort_scan(struct work_struct *work)
 {
 	struct iwl_priv *priv = container_of(work, struct iwl_priv, abort_scan);
 
-	if (!iwl_is_ready(priv))
+	if (!test_bit(STATUS_READY, &priv->status) ||
+	    !test_bit(STATUS_GEO_CONFIGURED, &priv->status))
 		return;
 
 	mutex_lock(&priv->mutex);

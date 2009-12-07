@@ -1776,7 +1776,7 @@ static inline int eth_hdr_len(const void *data)
 /*
  * Adds the CPL header to the sk_buff and passes it to t1_sge_tx.
  */
-int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct adapter *adapter = dev->ml_priv;
 	struct sge *sge = adapter->sge;

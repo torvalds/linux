@@ -22,7 +22,7 @@ obj-$(CONFIG_HOTPLUG_PCI_SGI)		+= sgi_hotplug.o
 # Link this last so it doesn't claim devices that have a real hotplug driver
 obj-$(CONFIG_HOTPLUG_PCI_FAKE)		+= fakephp.o
 
-pci_hotplug-objs	:=	pci_hotplug_core.o
+pci_hotplug-objs	:=	pci_hotplug_core.o pcihp_slot.o
 
 ifdef CONFIG_HOTPLUG_PCI_CPCI
 pci_hotplug-objs	+=	cpci_hotplug_core.o	\

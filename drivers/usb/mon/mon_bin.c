@@ -220,9 +220,8 @@ static void mon_free_buff(struct mon_pgmap *map, int npages);
 
 /*
  * This is a "chunked memcpy". It does not manipulate any counters.
- * But it returns the new offset for repeated application.
  */
-unsigned int mon_copy_to_buff(const struct mon_reader_bin *this,
+static void mon_copy_to_buff(const struct mon_reader_bin *this,
     unsigned int off, const unsigned char *from, unsigned int length)
 {
 	unsigned int step_len;
@@ -247,7 +246,6 @@ unsigned int mon_copy_to_buff(const struct mon_reader_bin *this,
 		from += step_len;
 		length -= step_len;
 	}
-	return off;
 }
 
 /*
@@ -350,12 +348,12 @@ static unsigned int mon_buff_area_alloc_contiguous(struct mon_reader_bin *rp,
 
 /*
  * Return a few (kilo-)bytes to the head of the buffer.
- * This is used if a DMA fetch fails.
+ * This is used if a data fetch fails.
  */
 static void mon_buff_area_shrink(struct mon_reader_bin *rp, unsigned int size)
 {
 
-	size = (size + PKT_ALIGN-1) & ~(PKT_ALIGN-1);
+	/* size &= ~(PKT_ALIGN-1);  -- we're called with aligned size */
 	rp->b_cnt -= size;
 	if (rp->b_in < size)
 		rp->b_in += rp->b_size;
@@ -400,15 +398,8 @@ static char mon_bin_get_data(const struct mon_reader_bin *rp,
     unsigned int offset, struct urb *urb, unsigned int length)
 {
 
-	if (urb->dev->bus->uses_dma &&
-	    (urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)) {
-		mon_dmapeek_vec(rp, offset, urb->transfer_dma, length);
-		return 0;
-	}
-
 	if (urb->transfer_buffer == NULL)
 		return 'Z';
-
 	mon_copy_to_buff(rp, offset, urb->transfer_buffer, length);
 	return 0;
 }
@@ -442,6 +433,7 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 	unsigned int urb_length;
 	unsigned int offset;
 	unsigned int length;
+	unsigned int delta;
 	unsigned int ndesc, lendesc;
 	unsigned char dir;
 	struct mon_bin_hdr *ep;
@@ -546,8 +538,10 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 	if (length != 0) {
 		ep->flag_data = mon_bin_get_data(rp, offset, urb, length);
 		if (ep->flag_data != 0) {	/* Yes, it's 0x00, not '0' */
-			ep->len_cap = 0;
-			mon_buff_area_shrink(rp, length);
+			delta = (ep->len_cap + PKT_ALIGN-1) & ~(PKT_ALIGN-1);
+			ep->len_cap -= length;
+			delta -= (ep->len_cap + PKT_ALIGN-1) & ~(PKT_ALIGN-1);
+			mon_buff_area_shrink(rp, delta);
 		}
 	} else {
 		ep->flag_data = data_tag;
@@ -635,7 +629,6 @@ static int mon_bin_open(struct inode *inode, struct file *file)
 	spin_lock_init(&rp->b_lock);
 	init_waitqueue_head(&rp->b_wait);
 	mutex_init(&rp->fetch_lock);
-
 	rp->b_size = BUFF_DFL;
 
 	size = sizeof(struct mon_pgmap) * (rp->b_size/CHUNK_SIZE);
@@ -1184,7 +1177,7 @@ static int mon_bin_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return 0;
 }
 
-static struct vm_operations_struct mon_bin_vm_ops = {
+static const struct vm_operations_struct mon_bin_vm_ops = {
 	.open =     mon_bin_vma_open,
 	.close =    mon_bin_vma_close,
 	.fault =    mon_bin_vma_fault,

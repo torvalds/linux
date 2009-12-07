@@ -23,29 +23,14 @@
 
 #include "ieee80211.h"
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-#include "rtl_crypto.h"
-#else
 #include <linux/crypto.h>
-#endif
-//#include <asm/scatterlist.h>
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20))
-    #include <asm/scatterlist.h>
-#else
-    #include <linux/scatterlist.h>
-#endif
-
+#include <linux/scatterlist.h>
 #include <linux/crc32.h>
 
 MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("Host AP crypt: TKIP");
 MODULE_LICENSE("GPL");
 
-#ifdef OPENSUSE_SLED
-#ifndef IN_OPENSUSE_SLED
-#define IN_OPENSUSE_SLED 1
-#endif
-#endif
 
 struct ieee80211_tkip_data {
 #define TKIP_KEY_LEN 32
@@ -70,13 +55,10 @@ struct ieee80211_tkip_data {
 
 	int key_idx;
 
-       #if((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21))||(IN_OPENSUSE_SLED))
-	   	struct crypto_blkcipher *rx_tfm_arc4;
-	       struct crypto_hash *rx_tfm_michael;
-	       struct crypto_blkcipher *tx_tfm_arc4;
-	       struct crypto_hash *tx_tfm_michael;
-       #endif
-
+	struct crypto_blkcipher *rx_tfm_arc4;
+	struct crypto_hash *rx_tfm_michael;
+	struct crypto_blkcipher *tx_tfm_arc4;
+	struct crypto_hash *tx_tfm_michael;
 	struct crypto_tfm *tfm_arc4;
 	struct crypto_tfm *tfm_michael;
 
@@ -94,22 +76,6 @@ static void * ieee80211_tkip_init(int key_idx)
 	memset(priv, 0, sizeof(*priv));
 	priv->key_idx = key_idx;
 
-      #if((LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21))&&(!IN_OPENSUSE_SLED))
-	priv->tfm_arc4 = crypto_alloc_tfm("arc4", 0);
-	if (priv->tfm_arc4 == NULL) {
-		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
-		       "crypto API arc4\n");
-		goto fail;
-	}
-
-	priv->tfm_michael = crypto_alloc_tfm("michael_mic", 0);
-	if (priv->tfm_michael == NULL) {
-		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
-		       "crypto API michael_mic\n");
-		goto fail;
-	}
-
-	#else
 	priv->tx_tfm_arc4 = crypto_alloc_blkcipher("ecb(arc4)", 0,
 						CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->tx_tfm_arc4)) {
@@ -145,17 +111,11 @@ static void * ieee80211_tkip_init(int key_idx)
 		priv->rx_tfm_michael = NULL;
 		goto fail;
 	}
-       #endif
+
 	return priv;
 
 fail:
 	if (priv) {
-		#if((LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21))&&(!IN_OPENSUSE_SLED))
-		if (priv->tfm_michael)
-			crypto_free_tfm(priv->tfm_michael);
-		if (priv->tfm_arc4)
-			crypto_free_tfm(priv->tfm_arc4);
-             #else
 		if (priv->tx_tfm_michael)
 			crypto_free_hash(priv->tx_tfm_michael);
 		if (priv->tx_tfm_arc4)
@@ -164,7 +124,6 @@ fail:
 			crypto_free_hash(priv->rx_tfm_michael);
 		if (priv->rx_tfm_arc4)
 			crypto_free_blkcipher(priv->rx_tfm_arc4);
-		#endif
 		kfree(priv);
 	}
 
@@ -175,12 +134,7 @@ fail:
 static void ieee80211_tkip_deinit(void *priv)
 {
 	struct ieee80211_tkip_data *_priv = priv;
-	#if((LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21))&&(!IN_OPENSUSE_SLED))
-	if (_priv && _priv->tfm_michael)
-		crypto_free_tfm(_priv->tfm_michael);
-	if (_priv && _priv->tfm_arc4)
-		crypto_free_tfm(_priv->tfm_arc4);
-	#else
+
 	if (_priv) {
 		if (_priv->tx_tfm_michael)
 			crypto_free_hash(_priv->tx_tfm_michael);
@@ -191,7 +145,6 @@ static void ieee80211_tkip_deinit(void *priv)
 		if (_priv->rx_tfm_arc4)
 			crypto_free_blkcipher(_priv->rx_tfm_arc4);
 	}
-	#endif
 	kfree(priv);
 }
 
@@ -281,7 +234,6 @@ static inline u16 _S_(u16 v)
 	return Sbox[Lo8(v)] ^ ((t << 8) | (t >> 8));
 }
 
-#ifndef JOHN_TKIP
 #define PHASE1_LOOP_COUNT 8
 
 static void tkip_mixing_phase1(u16 *TTAK, const u8 *TK, const u8 *TA, u32 IV32)
@@ -351,21 +303,17 @@ static void tkip_mixing_phase2(u8 *WEPSeed, const u8 *TK, const u16 *TTAK,
 	}
 #endif
 }
-#endif
+
 static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
         struct ieee80211_tkip_data *tkey = priv;
-        #if((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21))||(IN_OPENSUSE_SLED))
         struct blkcipher_desc desc = {.tfm = tkey->tx_tfm_arc4};
-        #endif
 	int len;
 	u8  *pos;
-	struct ieee80211_hdr *hdr;
-#ifndef JOHN_TKIP
+	struct ieee80211_hdr_4addr *hdr;
 	u8 rc4key[16],*icv;
 	u32 crc;
 	struct scatterlist sg;
-#endif
 	int ret;
 
 	ret = 0;
@@ -373,20 +321,8 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	    skb->len < hdr_len)
 		return -1;
 
-	hdr = (struct ieee80211_hdr *) skb->data;
-#if 0
-printk("@@ tkey\n");
-printk("%x|", ((u32*)tkey->key)[0]);
-printk("%x|", ((u32*)tkey->key)[1]);
-printk("%x|", ((u32*)tkey->key)[2]);
-printk("%x|", ((u32*)tkey->key)[3]);
-printk("%x|", ((u32*)tkey->key)[4]);
-printk("%x|", ((u32*)tkey->key)[5]);
-printk("%x|", ((u32*)tkey->key)[6]);
-printk("%x\n", ((u32*)tkey->key)[7]);
-#endif
+	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 
-#ifndef JOHN_TKIP
 	if (!tkey->tx_phase1_done) {
 		tkip_mixing_phase1(tkey->tx_ttak, tkey->key, hdr->addr2,
 				   tkey->tx_iv32);
@@ -394,95 +330,56 @@ printk("%x\n", ((u32*)tkey->key)[7]);
 	}
 	tkip_mixing_phase2(rc4key, tkey->key, tkey->tx_ttak, tkey->tx_iv16);
 
-#else
-	tkey->tx_phase1_done = 1;
-#endif  /*JOHN_TKIP*/
-
 	len = skb->len - hdr_len;
 	pos = skb_push(skb, 8);
 	memmove(pos, pos + 8, hdr_len);
 	pos += hdr_len;
 
-#ifdef JOHN_TKIP
-	*pos++ = Hi8(tkey->tx_iv16);
-	*pos++ = (Hi8(tkey->tx_iv16) | 0x20) & 0x7F;
-	*pos++ = Lo8(tkey->tx_iv16);
-#else
 	*pos++ = rc4key[0];
 	*pos++ = rc4key[1];
 	*pos++ = rc4key[2];
-#endif
 	*pos++ = (tkey->key_idx << 6) | (1 << 5) /* Ext IV included */;
 	*pos++ = tkey->tx_iv32 & 0xff;
 	*pos++ = (tkey->tx_iv32 >> 8) & 0xff;
 	*pos++ = (tkey->tx_iv32 >> 16) & 0xff;
 	*pos++ = (tkey->tx_iv32 >> 24) & 0xff;
-#ifndef JOHN_TKIP
+
 	icv = skb_put(skb, 4);
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
 	crc = ~crc32_le(~0, pos, len);
-#else
-	crc = ~ether_crc_le(len, pos);
-#endif
 	icv[0] = crc;
 	icv[1] = crc >> 8;
 	icv[2] = crc >> 16;
 	icv[3] = crc >> 24;
-      #if((LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21))&&(!IN_OPENSUSE_SLED))
-	crypto_cipher_setkey(tkey->tfm_arc4, rc4key, 16);
-	sg.page = virt_to_page(pos);
-	sg.offset = offset_in_page(pos);
-	sg.length = len + 4;
-	crypto_cipher_encrypt(tkey->tfm_arc4, &sg, &sg, len + 4);
-      #else
 	crypto_blkcipher_setkey(tkey->tx_tfm_arc4, rc4key, 16);
-        #if(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
-          sg.page = virt_to_page(pos);
-          sg.offset = offset_in_page(pos);
-          sg.length = len + 4;
-        #else
-          sg_init_one(&sg, pos, len+4);
-        #endif
+	sg_init_one(&sg, pos, len + 4);
 	ret= crypto_blkcipher_encrypt(&desc, &sg, &sg, len + 4);
-      #endif
-#endif
+
 	tkey->tx_iv16++;
 	if (tkey->tx_iv16 == 0) {
 		tkey->tx_phase1_done = 0;
 		tkey->tx_iv32++;
 	}
-#ifndef JOHN_TKIP
-      #if((LINUX_VERSION_CODE <KERNEL_VERSION(2,6,21))&&(!IN_OPENSUSE_SLED))
-	   return 0;
-      #else
 	   return ret;
-      #endif
-#else
-	return 0;
-#endif
 }
 
 static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
-        struct ieee80211_tkip_data *tkey = priv;
-        #if((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21)) ||(IN_OPENSUSE_SLED))
-        struct blkcipher_desc desc = {.tfm = tkey->rx_tfm_arc4};
-        #endif
+	struct ieee80211_tkip_data *tkey = priv;
+	struct blkcipher_desc desc = { .tfm = tkey->rx_tfm_arc4 };
 	u8 keyidx, *pos;
 	u32 iv32;
 	u16 iv16;
-	struct ieee80211_hdr *hdr;
-#ifndef JOHN_TKIP
+	struct ieee80211_hdr_4addr *hdr;
 	u8 icv[4];
 	u32 crc;
 	struct scatterlist sg;
 	u8 rc4key[16];
 	int plen;
-#endif
+
 	if (skb->len < hdr_len + 8 + 4)
 		return -1;
 
-	hdr = (struct ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 	pos = skb->data + hdr_len;
 	keyidx = pos[3];
 	if (!(keyidx & (1 << 5))) {
@@ -509,7 +406,6 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	iv16 = (pos[0] << 8) | pos[2];
 	iv32 = pos[4] | (pos[5] << 8) | (pos[6] << 16) | (pos[7] << 24);
 	pos += 8;
-#ifndef JOHN_TKIP
 
 	if (iv32 < tkey->rx_iv32 ||
 	    (iv32 == tkey->rx_iv32 && iv16 <= tkey->rx_iv16)) {
@@ -530,21 +426,8 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	tkip_mixing_phase2(rc4key, tkey->key, tkey->rx_ttak, iv16);
 
 	plen = skb->len - hdr_len - 12;
-       #if((LINUX_VERSION_CODE <KERNEL_VERSION(2,6,21))&&(!IN_OPENSUSE_SLED))
-	crypto_cipher_setkey(tkey->tfm_arc4, rc4key, 16);
-	sg.page = virt_to_page(pos);
-	sg.offset = offset_in_page(pos);
-	sg.length = plen + 4;
-	crypto_cipher_decrypt(tkey->tfm_arc4, &sg, &sg, plen + 4);
-	#else
 	crypto_blkcipher_setkey(tkey->rx_tfm_arc4, rc4key, 16);
-        #if(LINUX_VERSION_CODE <KERNEL_VERSION(2,6,24))
-          sg.page = virt_to_page(pos);
-          sg.offset = offset_in_page(pos);
-          sg.length = plen + 4;
-        #else
-          sg_init_one(&sg, pos, plen+4);
-        #endif
+	sg_init_one(&sg, pos, plen + 4);
 	if (crypto_blkcipher_decrypt(&desc, &sg, &sg, plen + 4)) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG ": TKIP: failed to decrypt "
@@ -553,13 +436,8 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		}
 		return -7;
 	}
-	#endif
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
 	crc = ~crc32_le(~0, pos, plen);
-#else
-	crc = ~ether_crc_le(plen, pos);
-#endif
 	icv[0] = crc;
 	icv[1] = crc >> 8;
 	icv[2] = crc >> 16;
@@ -578,8 +456,6 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -5;
 	}
 
-#endif 	/* JOHN_TKIP */
-
 	/* Update real counters only after Michael MIC verification has
 	 * completed */
 	tkey->rx_iv32_new = iv32;
@@ -590,67 +466,9 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	skb_pull(skb, 8);
 	skb_trim(skb, skb->len - 4);
 
-//john's test
-#ifdef JOHN_DUMP
-if( ((u16*)skb->data)[0] & 0x4000){
-        printk("@@ rx decrypted skb->data");
-        int i;
-        for(i=0;i<skb->len;i++){
-                if( (i%24)==0 ) printk("\n");
-                printk("%2x ", ((u8*)skb->data)[i]);
-        }
-        printk("\n");
-}
-#endif /*JOHN_DUMP*/
 	return keyidx;
 }
 
-#if((LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21)) && (!IN_OPENSUSE_SLED))
-static int michael_mic(struct ieee80211_tkip_data *tkey, u8 *key, u8 *hdr,
-		       u8 *data, size_t data_len, u8 *mic)
-{
-	struct scatterlist sg[2];
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
-	struct hash_desc desc;
-	int ret=0;
-#endif
-	if (tkey->tfm_michael == NULL) {
-		printk(KERN_WARNING "michael_mic: tfm_michael == NULL\n");
-		return -1;
-	}
-	sg[0].page = virt_to_page(hdr);
-	sg[0].offset = offset_in_page(hdr);
-	sg[0].length = 16;
-
-	sg[1].page = virt_to_page(data);
-	sg[1].offset = offset_in_page(data);
-	sg[1].length = data_len;
-
-	//crypto_digest_init(tkey->tfm_michael);
-	//crypto_digest_setkey(tkey->tfm_michael, key, 8);
-	//crypto_digest_update(tkey->tfm_michael, sg, 2);
-	//crypto_digest_final(tkey->tfm_michael, mic);
-
-	//return 0;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-	crypto_digest_init(tkey->tfm_michael);
-	crypto_digest_setkey(tkey->tfm_michael, key, 8);
-	crypto_digest_update(tkey->tfm_michael, sg, 2);
-	crypto_digest_final(tkey->tfm_michael, mic);
-
-	return 0;
-#else
-if (crypto_hash_setkey(tkey->tfm_michael, key, 8))
-		return -1;
-
-//	return 0;
-	desc.tfm = tkey->tfm_michael;
-	desc.flags = 0;
-	ret = crypto_hash_digest(&desc, sg, data_len + 16, mic);
-	return ret;
-#endif
-}
-#else
 static int michael_mic(struct crypto_hash *tfm_michael, u8 * key, u8 * hdr,
                        u8 * data, size_t data_len, u8 * mic)
 {
@@ -661,18 +479,10 @@ static int michael_mic(struct crypto_hash *tfm_michael, u8 * key, u8 * hdr,
                 printk(KERN_WARNING "michael_mic: tfm_michael == NULL\n");
                 return -1;
         }
-        #if(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
-          sg[0].page = virt_to_page(hdr);
-          sg[0].offset = offset_in_page(hdr);
-          sg[0].length = 16;
-          sg[1].page = virt_to_page(data);
-          sg[1].offset = offset_in_page(data);
-          sg[1].length = data_len;
-        #else
-          sg_init_table(sg, 2);
-          sg_set_buf(&sg[0], hdr, 16);
-          sg_set_buf(&sg[1], data, data_len);
-        #endif
+
+	sg_init_table(sg, 2);
+	sg_set_buf(&sg[0], hdr, 16);
+	sg_set_buf(&sg[1], data, data_len);
 
         if (crypto_hash_setkey(tfm_michael, key, 8))
                 return -1;
@@ -681,15 +491,12 @@ static int michael_mic(struct crypto_hash *tfm_michael, u8 * key, u8 * hdr,
         desc.flags = 0;
         return crypto_hash_digest(&desc, sg, data_len + 16, mic);
 }
-#endif
-
-
 
 static void michael_mic_hdr(struct sk_buff *skb, u8 *hdr)
 {
-	struct ieee80211_hdr *hdr11;
+	struct ieee80211_hdr_4addr *hdr11;
 
-	hdr11 = (struct ieee80211_hdr *) skb->data;
+	hdr11 = (struct ieee80211_hdr_4addr *)skb->data;
 	switch (le16_to_cpu(hdr11->frame_ctl) &
 		(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS)) {
 	case IEEE80211_FCTL_TODS:
@@ -720,9 +527,9 @@ static int ieee80211_michael_mic_add(struct sk_buff *skb, int hdr_len, void *pri
 {
 	struct ieee80211_tkip_data *tkey = priv;
 	u8 *pos;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 
-	hdr = (struct ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 
 	if (skb_tailroom(skb) < 8 || skb->len < hdr_len) {
 		printk(KERN_DEBUG "Invalid packet for Michael MIC add "
@@ -740,22 +547,16 @@ static int ieee80211_michael_mic_add(struct sk_buff *skb, int hdr_len, void *pri
 	}
 	// }
 	pos = skb_put(skb, 8);
-        #if((LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21))&&(!IN_OPENSUSE_SLED))
-	if (michael_mic(tkey, &tkey->key[16], tkey->tx_hdr,
+
+	if (michael_mic(tkey->tx_tfm_michael, &tkey->key[16], tkey->tx_hdr,
 			skb->data + hdr_len, skb->len - 8 - hdr_len, pos))
-        #else
-        if (michael_mic(tkey->tx_tfm_michael, &tkey->key[16], tkey->tx_hdr,
-                        skb->data + hdr_len, skb->len - 8 - hdr_len, pos))
-        #endif
 		return -1;
 
 	return 0;
 }
 
-
-#if WIRELESS_EXT >= 18
 static void ieee80211_michael_mic_failure(struct net_device *dev,
-				       struct ieee80211_hdr *hdr,
+				       struct ieee80211_hdr_4addr *hdr,
 				       int keyidx)
 {
 	union iwreq_data wrqu;
@@ -774,39 +575,15 @@ static void ieee80211_michael_mic_failure(struct net_device *dev,
 	wrqu.data.length = sizeof(ev);
 	wireless_send_event(dev, IWEVMICHAELMICFAILURE, &wrqu, (char *) &ev);
 }
-#elif WIRELESS_EXT >= 15
-static void ieee80211_michael_mic_failure(struct net_device *dev,
-				       struct ieee80211_hdr *hdr,
-				       int keyidx)
-{
-	union iwreq_data wrqu;
-	char buf[128];
-
-	/* TODO: needed parameters: count, keyid, key type, TSC */
-	sprintf(buf, "MLME-MICHAELMICFAILURE.indication(keyid=%d %scast addr="
-		MAC_FMT ")", keyidx, hdr->addr1[0] & 0x01 ? "broad" : "uni",
-		MAC_ARG(hdr->addr2));
-	memset(&wrqu, 0, sizeof(wrqu));
-	wrqu.data.length = strlen(buf);
-	wireless_send_event(dev, IWEVCUSTOM, &wrqu, buf);
-}
-#else /* WIRELESS_EXT >= 15 */
-static inline void ieee80211_michael_mic_failure(struct net_device *dev,
-					      struct ieee80211_hdr *hdr,
-					      int keyidx)
-{
-}
-#endif /* WIRELESS_EXT >= 15 */
-
 
 static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 				     int hdr_len, void *priv)
 {
 	struct ieee80211_tkip_data *tkey = priv;
 	u8 mic[8];
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 
-	hdr = (struct ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 
 	if (!tkey->key_set)
 		return -1;
@@ -818,17 +595,14 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 		tkey->rx_hdr[12] = *(skb->data + hdr_len - 2) & 0x07;
 	}
 	// }
-        #if((LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21))&&(!IN_OPENSUSE_SLED))
-	if (michael_mic(tkey, &tkey->key[24], tkey->rx_hdr,
-			skb->data + hdr_len, skb->len - 8 - hdr_len, mic))
-        #else
+
 	if (michael_mic(tkey->rx_tfm_michael, &tkey->key[24], tkey->rx_hdr,
-                        skb->data + hdr_len, skb->len - 8 - hdr_len, mic))
-        #endif
-            	return -1;
+			skb->data + hdr_len, skb->len - 8 - hdr_len, mic))
+		return -1;
+
 	if (memcmp(mic, skb->data + skb->len - 8, 8) != 0) {
-		struct ieee80211_hdr *hdr;
-		hdr = (struct ieee80211_hdr *) skb->data;
+		struct ieee80211_hdr_4addr *hdr;
+		hdr = (struct ieee80211_hdr_4addr *)skb->data;
 		printk(KERN_DEBUG "%s: Michael MIC verification failed for "
 		       "MSDU from " MAC_FMT " keyidx=%d\n",
 		       skb->dev ? skb->dev->name : "N/A", MAC_ARG(hdr->addr2),
@@ -854,29 +628,19 @@ static int ieee80211_tkip_set_key(void *key, int len, u8 *seq, void *priv)
 {
 	struct ieee80211_tkip_data *tkey = priv;
 	int keyidx;
-	#if ((LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21))&&(!IN_OPENSUSE_SLED))
-	struct crypto_tfm *tfm = tkey->tfm_michael;
-	struct crypto_tfm *tfm2 = tkey->tfm_arc4;
-	#else
 	struct crypto_hash *tfm = tkey->tx_tfm_michael;
 	struct crypto_blkcipher *tfm2 = tkey->tx_tfm_arc4;
 	struct crypto_hash *tfm3 = tkey->rx_tfm_michael;
 	struct crypto_blkcipher *tfm4 = tkey->rx_tfm_arc4;
-	#endif
 
 	keyidx = tkey->key_idx;
 	memset(tkey, 0, sizeof(*tkey));
 	tkey->key_idx = keyidx;
 
-	#if((LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21))&&(!IN_OPENSUSE_SLED))
-	tkey->tfm_michael = tfm;
-	tkey->tfm_arc4 = tfm2;
-       #else
 	tkey->tx_tfm_michael = tfm;
 	tkey->tx_tfm_arc4 = tfm2;
 	tkey->rx_tfm_michael = tfm3;
 	tkey->rx_tfm_arc4 = tfm4;
-	#endif
 
 	if (len == TKIP_KEY_LEN) {
 		memcpy(tkey->key, key, TKIP_KEY_LEN);
@@ -987,15 +751,3 @@ void ieee80211_tkip_null(void)
 //    printk("============>%s()\n", __func__);
         return;
 }
-
-#if 0
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
-EXPORT_SYMBOL(ieee80211_tkip_null);
-#else
-EXPORT_SYMBOL_NOVERS(ieee80211_tkip_null);
-#endif
-#endif
-
-
-//module_init(ieee80211_crypto_tkip_init);
-//module_exit(ieee80211_crypto_tkip_exit);

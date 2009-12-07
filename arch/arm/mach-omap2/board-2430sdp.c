@@ -139,22 +139,18 @@ static inline void board_smc91x_init(void)
 
 #endif
 
+static struct omap_board_config_kernel sdp2430_config[] = {
+	{OMAP_TAG_LCD, &sdp2430_lcd_config},
+};
+
 static void __init omap_2430sdp_init_irq(void)
 {
+	omap_board_config = sdp2430_config;
+	omap_board_config_size = ARRAY_SIZE(sdp2430_config);
 	omap2_init_common_hw(NULL, NULL);
 	omap_init_irq();
 	omap_gpio_init();
 }
-
-static struct omap_uart_config sdp2430_uart_config __initdata = {
-	.enabled_uarts = ((1 << 0) | (1 << 1) | (1 << 2)),
-};
-
-static struct omap_board_config_kernel sdp2430_config[] = {
-	{OMAP_TAG_UART, &sdp2430_uart_config},
-	{OMAP_TAG_LCD, &sdp2430_lcd_config},
-};
-
 
 static struct twl4030_gpio_platform_data sdp2430_gpio_data = {
 	.gpio_base	= OMAP_MAX_GPIO_LINES,
@@ -205,8 +201,6 @@ static void __init omap_2430sdp_init(void)
 	omap2430_i2c_init();
 
 	platform_add_devices(sdp2430_devices, ARRAY_SIZE(sdp2430_devices));
-	omap_board_config = sdp2430_config;
-	omap_board_config_size = ARRAY_SIZE(sdp2430_config);
 	omap_serial_init();
 	twl4030_mmc_init(mmc);
 	usb_musb_init();

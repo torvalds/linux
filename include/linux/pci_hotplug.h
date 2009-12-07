@@ -62,7 +62,8 @@ enum pcie_link_width {
 };
 
 enum pcie_link_speed {
-	PCIE_2PT5GB		= 0x14,
+	PCIE_2_5GB		= 0x14,
+	PCIE_5_0GB		= 0x15,
 	PCIE_LNK_SPEED_UNKNOWN	= 0xFF,
 };
 
@@ -226,11 +227,18 @@ struct hotplug_params {
 #ifdef CONFIG_ACPI
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
-extern acpi_status acpi_get_hp_params_from_firmware(struct pci_bus *bus,
-				struct hotplug_params *hpp);
+int pci_get_hp_params(struct pci_dev *dev, struct hotplug_params *hpp);
 int acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev, u32 flags);
 int acpi_pci_check_ejectable(struct pci_bus *pbus, acpi_handle handle);
-int acpi_pci_detect_ejectable(struct pci_bus *pbus);
+int acpi_pci_detect_ejectable(acpi_handle handle);
+#else
+static inline int pci_get_hp_params(struct pci_dev *dev,
+				    struct hotplug_params *hpp)
+{
+	return -ENODEV;
+}
 #endif
+
+void pci_configure_slot(struct pci_dev *dev);
 #endif
 

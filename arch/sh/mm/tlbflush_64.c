@@ -20,7 +20,7 @@
 #include <linux/mman.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 #include <linux/interrupt.h>
 #include <asm/system.h>
 #include <asm/io.h>
@@ -116,7 +116,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
 	/* Not an IO address, so reenable interrupts */
 	local_irq_enable();
 
-	perf_swcounter_event(PERF_COUNT_SW_PAGE_FAULTS, 1, 0, regs, address);
+	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, 0, regs, address);
 
 	/*
 	 * If we're in an interrupt or have no user
@@ -201,11 +201,11 @@ survive:
 
 	if (fault & VM_FAULT_MAJOR) {
 		tsk->maj_flt++;
-		perf_swcounter_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
 				     regs, address);
 	} else {
 		tsk->min_flt++;
-		perf_swcounter_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
 				     regs, address);
 	}
 
@@ -329,22 +329,6 @@ do_sigbus:
 		goto no_context;
 }
 
-void update_mmu_cache(struct vm_area_struct * vma,
-			unsigned long address, pte_t pte)
-{
-	/*
-	 * This appears to get called once for every pte entry that gets
-	 * established => I don't think it's efficient to try refilling the
-	 * TLBs with the pages - some may not get accessed even.  Also, for
-	 * executable pages, it is impossible to determine reliably here which
-	 * TLB they should be mapped into (or both even).
-	 *
-	 * So, just do nothing here and handle faults on demand.  In the
-	 * TLBMISS handling case, the refill is now done anyway after the pte
-	 * has been fixed up, so that deals with most useful cases.
-	 */
-}
-
 void local_flush_tlb_one(unsigned long asid, unsigned long page)
 {
 	unsigned long long match, pteh=0, lpage;
@@ -353,7 +337,7 @@ void local_flush_tlb_one(unsigned long asid, unsigned long page)
 	/*
 	 * Sign-extend based on neff.
 	 */
-	lpage = (page & NEFF_SIGN) ? (page | NEFF_MASK) : page;
+	lpage = neff_sign_extend(page);
 	match = (asid << PTEH_ASID_SHIFT) | PTEH_VALID;
 	match |= lpage;
 
@@ -481,4 +465,8 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
         /* FIXME: Optimize this later.. */
         flush_tlb_all();
+}
+
+void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
+{
 }

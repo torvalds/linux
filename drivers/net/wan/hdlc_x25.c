@@ -87,7 +87,7 @@ static void x25_data_transmit(struct net_device *dev, struct sk_buff *skb)
 
 
 
-static int x25_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t x25_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	int result;
 
@@ -98,7 +98,7 @@ static int x25_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb_pull(skb, 1);
 		if ((result = lapb_data_request(dev, skb)) != LAPB_OK)
 			dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 
 	case 1:
 		if ((result = lapb_connect_request(dev))!= LAPB_OK) {
@@ -129,7 +129,7 @@ static int x25_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	dev_kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 

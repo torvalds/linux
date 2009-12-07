@@ -131,25 +131,25 @@ struct a2150_board {
 static const struct comedi_lrange range_a2150 = {
 	1,
 	{
-			RANGE(-2.828, 2.828),
-		}
+	 RANGE(-2.828, 2.828),
+	 }
 };
 
 /* enum must match board indices */
 enum { a2150_c, a2150_s };
 static const struct a2150_board a2150_boards[] = {
 	{
-	.name = "at-a2150c",
-	.clock = {31250, 22676, 20833, 19531},
-	.num_clocks = 4,
-	.ai_speed = 19531,
-		},
+	 .name = "at-a2150c",
+	 .clock = {31250, 22676, 20833, 19531},
+	 .num_clocks = 4,
+	 .ai_speed = 19531,
+	 },
 	{
-	.name = "at-a2150s",
-	.clock = {62500, 50000, 41667, 0},
-	.num_clocks = 3,
-	.ai_speed = 41667,
-		},
+	 .name = "at-a2150s",
+	 .clock = {62500, 50000, 41667, 0},
+	 .num_clocks = 3,
+	 .ai_speed = 41667,
+	 },
 };
 
 /*
@@ -167,7 +167,6 @@ struct a2150_private {
 	int config_bits;	/*  config register bits */
 };
 
-
 #define devpriv ((struct a2150_private *)dev->private)
 
 static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it);
@@ -182,16 +181,17 @@ static struct comedi_driver driver_a2150 = {
 };
 
 static irqreturn_t a2150_interrupt(int irq, void *d);
-static int a2150_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_cmd *cmd);
+static int a2150_ai_cmdtest(struct comedi_device *dev,
+			    struct comedi_subdevice *s, struct comedi_cmd *cmd);
 static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+			  struct comedi_insn *insn, unsigned int *data);
 static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
-	int flags);
+			    int flags);
 static int a2150_probe(struct comedi_device *dev);
-static int a2150_set_chanlist(struct comedi_device *dev, unsigned int start_channel,
-	unsigned int num_channels);
+static int a2150_set_chanlist(struct comedi_device *dev,
+			      unsigned int start_channel,
+			      unsigned int num_channels);
 /*
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
@@ -335,7 +335,7 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int i;
 
 	printk("comedi%d: %s: io 0x%lx", dev->minor, driver_a2150.driver_name,
-		iobase);
+	       iobase);
 	if (irq) {
 		printk(", irq %u", irq);
 	} else {
@@ -391,7 +391,7 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 		devpriv->dma = dma;
 		devpriv->dma_buffer =
-			kmalloc(A2150_DMA_BUFFER_SIZE, GFP_KERNEL | GFP_DMA);
+		    kmalloc(A2150_DMA_BUFFER_SIZE, GFP_KERNEL | GFP_DMA);
 		if (devpriv->dma_buffer == NULL)
 			return -ENOMEM;
 
@@ -441,7 +441,8 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		udelay(1000);
 	}
 	if (i == timeout) {
-		printk(" timed out waiting for offset calibration to complete\n");
+		printk
+		    (" timed out waiting for offset calibration to complete\n");
 		return -ETIME;
 	}
 	devpriv->config_bits |= ENABLE0_BIT | ENABLE1_BIT;
@@ -488,8 +489,8 @@ static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-static int a2150_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_cmd *cmd)
+static int a2150_ai_cmdtest(struct comedi_device *dev,
+			    struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -589,25 +590,24 @@ static int a2150_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *
 		for (i = 1; i < cmd->chanlist_len; i++) {
 			if (CR_CHAN(cmd->chanlist[i]) != (startChan + i)) {
 				comedi_error(dev,
-					"entries in chanlist must be consecutive channels, counting upwards\n");
+					     "entries in chanlist must be consecutive channels, counting upwards\n");
 				err++;
 			}
 		}
 		if (cmd->chanlist_len == 2 && CR_CHAN(cmd->chanlist[0]) == 1) {
 			comedi_error(dev,
-				"length 2 chanlist must be channels 0,1 or channels 2,3");
+				     "length 2 chanlist must be channels 0,1 or channels 2,3");
 			err++;
 		}
 		if (cmd->chanlist_len == 3) {
 			comedi_error(dev,
-				"chanlist must have 1,2 or 4 channels");
+				     "chanlist must have 1,2 or 4 channels");
 			err++;
 		}
 		if (CR_AREF(cmd->chanlist[0]) != CR_AREF(cmd->chanlist[1]) ||
-			CR_AREF(cmd->chanlist[2]) != CR_AREF(cmd->chanlist[3]))
-		{
+		    CR_AREF(cmd->chanlist[2]) != CR_AREF(cmd->chanlist[3])) {
 			comedi_error(dev,
-				"channels 0/1 and 2/3 must have the same analog reference");
+				     "channels 0/1 and 2/3 must have the same analog reference");
 			err++;
 		}
 	}
@@ -628,12 +628,12 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (!dev->irq || !devpriv->dma) {
 		comedi_error(dev,
-			" irq and dma required, cannot do hardware conversions");
+			     " irq and dma required, cannot do hardware conversions");
 		return -1;
 	}
 	if (cmd->flags & TRIG_RT) {
 		comedi_error(dev,
-			" dma incompatible with hard real-time interrupt (TRIG_RT), aborting");
+			     " dma incompatible with hard real-time interrupt (TRIG_RT), aborting");
 		return -1;
 	}
 	/*  clear fifo and reset triggering circuitry */
@@ -641,7 +641,7 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* setup chanlist */
 	if (a2150_set_chanlist(dev, CR_CHAN(cmd->chanlist[0]),
-			cmd->chanlist_len) < 0)
+			       cmd->chanlist_len) < 0)
 		return -1;
 
 	/*  setup ac/dc coupling */
@@ -673,14 +673,14 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/*  set size of transfer to fill in 1/3 second */
 #define ONE_THIRD_SECOND 333333333
 	devpriv->dma_transfer_size =
-		sizeof(devpriv->dma_buffer[0]) * cmd->chanlist_len *
-		ONE_THIRD_SECOND / cmd->scan_begin_arg;
+	    sizeof(devpriv->dma_buffer[0]) * cmd->chanlist_len *
+	    ONE_THIRD_SECOND / cmd->scan_begin_arg;
 	if (devpriv->dma_transfer_size > A2150_DMA_BUFFER_SIZE)
 		devpriv->dma_transfer_size = A2150_DMA_BUFFER_SIZE;
 	if (devpriv->dma_transfer_size < sizeof(devpriv->dma_buffer[0]))
 		devpriv->dma_transfer_size = sizeof(devpriv->dma_buffer[0]);
 	devpriv->dma_transfer_size -=
-		devpriv->dma_transfer_size % sizeof(devpriv->dma_buffer[0]);
+	    devpriv->dma_transfer_size % sizeof(devpriv->dma_buffer[0]);
 	set_dma_count(devpriv->dma, devpriv->dma_transfer_size);
 	enable_dma(devpriv->dma);
 	release_dma_lock(lock_flags);
@@ -700,8 +700,8 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	trigger_bits = 0;
 	/*  decide if we need to wait 72 periods for valid data */
 	if (cmd->start_src == TRIG_NOW &&
-		(old_config_bits & CLOCK_MASK) !=
-		(devpriv->config_bits & CLOCK_MASK)) {
+	    (old_config_bits & CLOCK_MASK) !=
+	    (devpriv->config_bits & CLOCK_MASK)) {
 		/*  set trigger source to delay trigger */
 		trigger_bits |= DELAY_TRIGGER_BITS;
 	} else {
@@ -730,7 +730,7 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 }
 
 static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+			  struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int i, n;
 	static const int timeout = 100000;
@@ -804,7 +804,7 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 /* sets bits in devpriv->clock_bits to nearest approximation of requested period,
  * adjusts requested period to actual timing. */
 static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
-	int flags)
+			    int flags)
 {
 	int lub, glb, temp;
 	int lub_divisor_shift, lub_index, glb_divisor_shift, glb_index;
@@ -866,19 +866,20 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 	devpriv->config_bits &= ~CLOCK_MASK;
 	if (*period == lub) {
 		devpriv->config_bits |=
-			CLOCK_SELECT_BITS(lub_index) |
-			CLOCK_DIVISOR_BITS(lub_divisor_shift);
+		    CLOCK_SELECT_BITS(lub_index) |
+		    CLOCK_DIVISOR_BITS(lub_divisor_shift);
 	} else {
 		devpriv->config_bits |=
-			CLOCK_SELECT_BITS(glb_index) |
-			CLOCK_DIVISOR_BITS(glb_divisor_shift);
+		    CLOCK_SELECT_BITS(glb_index) |
+		    CLOCK_DIVISOR_BITS(glb_divisor_shift);
 	}
 
 	return 0;
 }
 
-static int a2150_set_chanlist(struct comedi_device *dev, unsigned int start_channel,
-	unsigned int num_channels)
+static int a2150_set_chanlist(struct comedi_device *dev,
+			      unsigned int start_channel,
+			      unsigned int num_channels)
 {
 	if (start_channel + num_channels > 4)
 		return -1;

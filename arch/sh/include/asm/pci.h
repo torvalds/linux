@@ -10,7 +10,6 @@
    or architectures with incomplete PCI setup by the loader */
 
 #define pcibios_assign_all_busses()	1
-#define pcibios_scan_all_fns(a, b)	0
 
 /*
  * A board can define one or more PCI channels that represent built-in (or

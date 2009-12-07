@@ -132,11 +132,11 @@ config MMC_OMAP
 
 config MMC_OMAP_HS
 	tristate "TI OMAP High Speed Multimedia Card Interface support"
-	depends on ARCH_OMAP2430 || ARCH_OMAP3
+	depends on ARCH_OMAP2430 || ARCH_OMAP3 || ARCH_OMAP4
 	help
 	  This selects the TI OMAP High Speed Multimedia card Interface.
-	  If you have an OMAP2430 or OMAP3 board with a Multimedia Card slot,
-	  say Y or M here.
+	  If you have an OMAP2430 or OMAP3 board or OMAP4 board with a
+	  Multimedia Card slot, say Y or M here.
 
 	  If unsure, say N.
 
@@ -160,6 +160,12 @@ config MMC_AU1X
 
 	  If unsure, say N.
 
+choice
+	prompt "Atmel SD/MMC Driver"
+	default MMC_ATMELMCI if AVR32
+	help
+	  Choose which driver to use for the Atmel MCI Silicon
+
 config MMC_AT91
 	tristate "AT91 SD/MMC Card Interface support"
 	depends on ARCH_AT91
@@ -170,17 +176,19 @@ config MMC_AT91
 
 config MMC_ATMELMCI
 	tristate "Atmel Multimedia Card Interface support"
-	depends on AVR32
+	depends on AVR32 || ARCH_AT91
 	help
 	  This selects the Atmel Multimedia Card Interface driver. If
-	  you have an AT32 (AVR32) platform with a Multimedia Card
-	  slot, say Y or M here.
+	  you have an AT32 (AVR32) or AT91 platform with a Multimedia
+	  Card slot, say Y or M here.
 
 	  If unsure, say N.
 
+endchoice
+
 config MMC_ATMELMCI_DMA
 	bool "Atmel MCI DMA support (EXPERIMENTAL)"
-	depends on MMC_ATMELMCI && DMA_ENGINE && EXPERIMENTAL
+	depends on MMC_ATMELMCI && AVR32 && DMA_ENGINE && EXPERIMENTAL
 	help
 	  Say Y here to have the Atmel MCI driver use a DMA engine to
 	  do data transfers and thus increase the throughput and
@@ -198,6 +206,13 @@ config MMC_IMX
 	  say Y or M here.
 
 	  If unsure, say N.
+
+config MMC_MSM7X00A
+	tristate "Qualcomm MSM 7X00A SDCC Controller Support"
+	depends on MMC && ARCH_MSM
+	help
+	  This provides support for the SD/MMC cell found in the
+          MSM 7X00A controllers from Qualcomm.
 
 config MMC_MXC
 	tristate "Freescale i.MX2/3 Multimedia Card Interface support"
@@ -260,6 +275,47 @@ config MMC_S3C
 	  slot, say Y or M here.
 
 	  If unsure, say N.
+
+config MMC_S3C_HW_SDIO_IRQ
+       bool "Hardware support for SDIO IRQ"
+       depends on MMC_S3C
+       help
+         Enable the hardware support for SDIO interrupts instead of using
+	 the generic polling code.
+
+choice
+	prompt "Samsung S3C SD/MMC transfer code"
+	depends on MMC_S3C
+
+config MMC_S3C_PIO
+	bool "Use PIO transfers only"
+	help
+	  Use PIO to transfer data between memory and the hardware.
+
+	  PIO is slower than DMA as it requires CPU instructions to
+	  move the data. This has been the traditional default for
+	  the S3C MCI driver.
+
+config MMC_S3C_DMA
+	bool "Use DMA transfers only (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  Use DMA to transfer data between memory and the hardare.
+
+	  Currently, the DMA support in this driver seems to not be
+	  working properly and needs to be debugged before this
+	  option is useful.
+
+config MMC_S3C_PIODMA
+	bool "Support for both PIO and DMA (EXPERIMENTAL)"
+	help
+	  Compile both the PIO and DMA transfer routines into the
+	  driver and let the platform select at run-time which one
+	  is best.
+
+	  See notes for the DMA option.
+
+endchoice
 
 config MMC_SDRICOH_CS
 	tristate "MMC/SD driver for Ricoh Bay1Controllers (EXPERIMENTAL)"

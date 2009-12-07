@@ -230,8 +230,8 @@ enum fe_stv0900_error stv0900_initialize(struct stv0900_internal *i_params)
 			stv0900_write_reg(i_params, R0900_P2_DMDISTATE, 0x5c);
 			stv0900_write_reg(i_params, R0900_P1_TNRCFG, 0x6c);
 			stv0900_write_reg(i_params, R0900_P2_TNRCFG, 0x6f);
-			stv0900_write_reg(i_params, R0900_P1_I2CRPT, 0x24);
-			stv0900_write_reg(i_params, R0900_P2_I2CRPT, 0x24);
+			stv0900_write_reg(i_params, R0900_P1_I2CRPT, 0x20);
+			stv0900_write_reg(i_params, R0900_P2_I2CRPT, 0x20);
 			stv0900_write_reg(i_params, R0900_NCOARSE, 0x13);
 			msleep(3);
 			stv0900_write_reg(i_params, R0900_I2CCFG, 0x08);
@@ -370,8 +370,8 @@ static int stv0900_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 	u32 fi2c;
 
 	dmd_reg(fi2c, F0900_P1_I2CT_ON, F0900_P2_I2CT_ON);
-	if (enable)
-		stv0900_write_bits(i_params, fi2c, 1);
+
+	stv0900_write_bits(i_params, fi2c, enable);
 
 	return 0;
 }

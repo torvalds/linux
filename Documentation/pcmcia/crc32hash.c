@@ -8,7 +8,7 @@ $ ./crc32hash "Dual Speed"
 #include <ctype.h>
 #include <stdlib.h>
 
-unsigned int crc32(unsigned char const *p, unsigned int len)
+static unsigned int crc32(unsigned char const *p, unsigned int len)
 {
 	int i;
 	unsigned int crc = 0;

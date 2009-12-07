@@ -33,23 +33,23 @@
  */
 
 /**
- * udbg - print debug messages if CONFIG_USB_DEBUG is defined
+ * usbip_udbg - print debug messages if CONFIG_USB_DEBUG is defined
  * @fmt:
  * @args:
  */
 
 #ifdef CONFIG_USB_DEBUG
 
-#define udbg(fmt, args...)						\
+#define usbip_udbg(fmt, args...)					\
 	do {								\
 		printk(KERN_DEBUG "%-10s:(%s,%d) %s: " fmt,		\
 			(in_interrupt() ? "interrupt" : (current)->comm),\
-			__FILE__, __LINE__, __func__, ##args);	\
+			__FILE__, __LINE__, __func__, ##args);		\
 	} while (0)
 
 #else  /* CONFIG_USB_DEBUG */
 
-#define udbg(fmt, args...)		do { } while (0)
+#define usbip_udbg(fmt, args...)		do { } while (0)
 
 #endif /* CONFIG_USB_DEBUG */
 
@@ -72,58 +72,58 @@ enum {
 	usbip_debug_vhci_sysfs  = (1 << 12)
 };
 
-#define dbg_flag_xmit		(usbip_debug_flag & usbip_debug_xmit)
-#define dbg_flag_vhci_rh	(usbip_debug_flag & usbip_debug_vhci_rh)
-#define dbg_flag_vhci_hc	(usbip_debug_flag & usbip_debug_vhci_hc)
-#define dbg_flag_vhci_rx	(usbip_debug_flag & usbip_debug_vhci_rx)
-#define dbg_flag_vhci_tx	(usbip_debug_flag & usbip_debug_vhci_tx)
-#define dbg_flag_vhci_sysfs	(usbip_debug_flag & usbip_debug_vhci_sysfs)
-#define dbg_flag_stub_rx	(usbip_debug_flag & usbip_debug_stub_rx)
-#define dbg_flag_stub_tx	(usbip_debug_flag & usbip_debug_stub_tx)
+#define usbip_dbg_flag_xmit	(usbip_debug_flag & usbip_debug_xmit)
+#define usbip_dbg_flag_vhci_rh	(usbip_debug_flag & usbip_debug_vhci_rh)
+#define usbip_dbg_flag_vhci_hc	(usbip_debug_flag & usbip_debug_vhci_hc)
+#define usbip_dbg_flag_vhci_rx	(usbip_debug_flag & usbip_debug_vhci_rx)
+#define usbip_dbg_flag_vhci_tx	(usbip_debug_flag & usbip_debug_vhci_tx)
+#define usbip_dbg_flag_stub_rx	(usbip_debug_flag & usbip_debug_stub_rx)
+#define usbip_dbg_flag_stub_tx	(usbip_debug_flag & usbip_debug_stub_tx)
+#define usbip_dbg_flag_vhci_sysfs   (usbip_debug_flag & usbip_debug_vhci_sysfs)
 
 extern unsigned long usbip_debug_flag;
 extern struct device_attribute dev_attr_usbip_debug;
 
-#define dbg_with_flag(flag, fmt, args...)		\
+#define usbip_dbg_with_flag(flag, fmt, args...)		\
 	do {						\
 		if (flag & usbip_debug_flag)		\
-			udbg(fmt , ##args);		\
+			usbip_udbg(fmt , ##args);		\
 	} while (0)
 
-#define dbg_sysfs(fmt, args...)		\
-	dbg_with_flag(usbip_debug_sysfs, fmt , ##args)
-#define dbg_xmit(fmt, args...)		\
-	dbg_with_flag(usbip_debug_xmit, fmt , ##args)
-#define dbg_urb(fmt, args...)		\
-	dbg_with_flag(usbip_debug_urb, fmt , ##args)
-#define dbg_eh(fmt, args...)		\
-	dbg_with_flag(usbip_debug_eh, fmt , ##args)
+#define usbip_dbg_sysfs(fmt, args...)		\
+	usbip_dbg_with_flag(usbip_debug_sysfs, fmt , ##args)
+#define usbip_dbg_xmit(fmt, args...)		\
+	usbip_dbg_with_flag(usbip_debug_xmit, fmt , ##args)
+#define usbip_dbg_urb(fmt, args...)		\
+	usbip_dbg_with_flag(usbip_debug_urb, fmt , ##args)
+#define usbip_dbg_eh(fmt, args...)		\
+	usbip_dbg_with_flag(usbip_debug_eh, fmt , ##args)
 
-#define dbg_vhci_rh(fmt, args...)	\
-	dbg_with_flag(usbip_debug_vhci_rh, fmt , ##args)
-#define dbg_vhci_hc(fmt, args...)	\
-	dbg_with_flag(usbip_debug_vhci_hc, fmt , ##args)
-#define dbg_vhci_rx(fmt, args...)	\
-	dbg_with_flag(usbip_debug_vhci_rx, fmt , ##args)
-#define dbg_vhci_tx(fmt, args...)	\
-	dbg_with_flag(usbip_debug_vhci_tx, fmt , ##args)
-#define dbg_vhci_sysfs(fmt, args...)	\
-	dbg_with_flag(usbip_debug_vhci_sysfs, fmt , ##args)
+#define usbip_dbg_vhci_rh(fmt, args...)	\
+	usbip_dbg_with_flag(usbip_debug_vhci_rh, fmt , ##args)
+#define usbip_dbg_vhci_hc(fmt, args...)	\
+	usbip_dbg_with_flag(usbip_debug_vhci_hc, fmt , ##args)
+#define usbip_dbg_vhci_rx(fmt, args...)	\
+	usbip_dbg_with_flag(usbip_debug_vhci_rx, fmt , ##args)
+#define usbip_dbg_vhci_tx(fmt, args...)	\
+	usbip_dbg_with_flag(usbip_debug_vhci_tx, fmt , ##args)
+#define usbip_dbg_vhci_sysfs(fmt, args...)	\
+	usbip_dbg_with_flag(usbip_debug_vhci_sysfs, fmt , ##args)
 
-#define dbg_stub_cmp(fmt, args...)	\
-	dbg_with_flag(usbip_debug_stub_cmp, fmt , ##args)
-#define dbg_stub_rx(fmt, args...)	\
-	dbg_with_flag(usbip_debug_stub_rx, fmt , ##args)
-#define dbg_stub_tx(fmt, args...)	\
-	dbg_with_flag(usbip_debug_stub_tx, fmt , ##args)
+#define usbip_dbg_stub_cmp(fmt, args...)	\
+	usbip_dbg_with_flag(usbip_debug_stub_cmp, fmt , ##args)
+#define usbip_dbg_stub_rx(fmt, args...)	\
+	usbip_dbg_with_flag(usbip_debug_stub_rx, fmt , ##args)
+#define usbip_dbg_stub_tx(fmt, args...)	\
+	usbip_dbg_with_flag(usbip_debug_stub_tx, fmt , ##args)
 
 
 /**
- * uerr - print error messages
+ * usbip_uerr - print error messages
  * @fmt:
  * @args:
  */
-#define uerr(fmt, args...)						\
+#define usbip_uerr(fmt, args...)					\
 	do {								\
 		printk(KERN_ERR "%-10s: ***ERROR*** (%s,%d) %s: " fmt,	\
 			(in_interrupt() ? "interrupt" : (current)->comm),\
@@ -131,11 +131,11 @@ extern struct device_attribute dev_attr_usbip_debug;
 	} while (0)
 
 /**
- * uinfo - print information messages
+ * usbip_uinfo - print information messages
  * @fmt:
  * @args:
  */
-#define uinfo(fmt, args...)					\
+#define usbip_uinfo(fmt, args...)				\
 	do {							\
 		printk(KERN_INFO "usbip: " fmt , ## args);	\
 	} while (0)
@@ -355,7 +355,7 @@ struct usbip_device {
 #define USBIP_EH_RESET		(1 << 2)
 #define USBIP_EH_UNUSABLE	(1 << 3)
 
-#define SDEV_EVENT_REMOVED	(USBIP_EH_SHUTDOWN | USBIP_EH_RESET | USBIP_EH_BYE)
+#define SDEV_EVENT_REMOVED   (USBIP_EH_SHUTDOWN | USBIP_EH_RESET | USBIP_EH_BYE)
 #define	SDEV_EVENT_DOWN		(USBIP_EH_SHUTDOWN | USBIP_EH_RESET)
 #define	SDEV_EVENT_ERROR_TCP	(USBIP_EH_SHUTDOWN | USBIP_EH_RESET)
 #define	SDEV_EVENT_ERROR_SUBMIT	(USBIP_EH_SHUTDOWN | USBIP_EH_RESET)
@@ -381,7 +381,7 @@ struct usbip_device {
 void usbip_task_init(struct usbip_task *ut, char *,
 				void (*loop_ops)(struct usbip_task *));
 
-void usbip_start_threads(struct usbip_device *ud);
+int usbip_start_threads(struct usbip_device *ud);
 void usbip_stop_threads(struct usbip_device *ud);
 int usbip_thread(void *param);
 
@@ -397,10 +397,10 @@ void *usbip_alloc_iso_desc_pdu(struct urb *urb, ssize_t *bufflen);
 
 
 /* usbip_event.c */
-void usbip_start_eh(struct usbip_device *ud);
+int usbip_start_eh(struct usbip_device *ud);
 void usbip_stop_eh(struct usbip_device *ud);
 void usbip_event_add(struct usbip_device *ud, unsigned long event);
-int usbip_event_happend(struct usbip_device *ud);
+int usbip_event_happened(struct usbip_device *ud);
 
 
 #endif

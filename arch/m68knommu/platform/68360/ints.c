@@ -37,11 +37,33 @@ extern void *_ramvec[];
 /* The number of spurious interrupts */
 volatile unsigned int num_spurious;
 
+static void intc_irq_unmask(unsigned int irq)
+{
+	pquicc->intr_cimr |= (1 << irq);
+}
+
+static void intc_irq_mask(unsigned int irq)
+{
+	pquicc->intr_cimr &= ~(1 << irq);
+}
+
+static void intc_irq_ack(unsigned int irq)
+{
+	pquicc->intr_cisr = (1 << irq);
+}
+
+static struct irq_chip intc_irq_chip = {
+	.name		= "M68K-INTC",
+	.mask		= intc_irq_mask,
+	.unmask		= intc_irq_unmask,
+	.ack		= intc_irq_ack,
+};
+
 /*
  * This function should be called during kernel startup to initialize
  * the vector table.
  */
-void init_vectors(void)
+void init_IRQ(void)
 {
 	int i;
 	int vba = (CPM_VECTOR_BASE<<4);
@@ -109,20 +131,12 @@ void init_vectors(void)
 
 	/* turn off all CPM interrupts */
 	pquicc->intr_cimr = 0x00000000;
-}
 
-void enable_vector(unsigned int irq)
-{
-	pquicc->intr_cimr |= (1 << irq);
-}
-
-void disable_vector(unsigned int irq)
-{
-	pquicc->intr_cimr &= ~(1 << irq);
-}
-
-void ack_vector(unsigned int irq)
-{
-	pquicc->intr_cisr = (1 << irq);
+	for (i = 0; (i < NR_IRQS); i++) {
+		irq_desc[i].status = IRQ_DISABLED;
+		irq_desc[i].action = NULL;
+		irq_desc[i].depth = 1;
+		irq_desc[i].chip = &intc_irq_chip;
+	}
 }
 

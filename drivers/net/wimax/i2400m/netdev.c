@@ -334,12 +334,12 @@ int i2400m_net_tx(struct i2400m *i2400m, struct net_device *net_dev,
  * that will sleep. See i2400m_net_wake_tx() for details.
  */
 static
-int i2400m_hard_start_xmit(struct sk_buff *skb,
-			   struct net_device *net_dev)
+netdev_tx_t i2400m_hard_start_xmit(struct sk_buff *skb,
+					 struct net_device *net_dev)
 {
-	int result;
 	struct i2400m *i2400m = net_dev_to_i2400m(net_dev);
 	struct device *dev = i2400m_dev(i2400m);
+	int result;
 
 	d_fnstart(3, dev, "(skb %p net_dev %p)\n", skb, net_dev);
 	if (i2400m->state == I2400M_SS_IDLE)
@@ -353,9 +353,9 @@ int i2400m_hard_start_xmit(struct sk_buff *skb,
 		net_dev->stats.tx_bytes += skb->len;
 	}
 	kfree_skb(skb);
-	result = NETDEV_TX_OK;
-	d_fnend(3, dev, "(skb %p net_dev %p) = %d\n", skb, net_dev, result);
-	return result;
+
+	d_fnend(3, dev, "(skb %p net_dev %p)\n", skb, net_dev);
+	return NETDEV_TX_OK;
 }
 
 

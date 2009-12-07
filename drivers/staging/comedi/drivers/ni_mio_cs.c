@@ -82,7 +82,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .num_p0_dio_channels = 8,
 	 .has_8255 = 0,
 	 .caldac = {dac8800, dac8043},
-	},
+	 },
 	{.device_id = 0x010c,
 	 .name = "DAQCard-ai-16e-4",
 	 .n_adchan = 16,
@@ -98,7 +98,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .num_p0_dio_channels = 8,
 	 .has_8255 = 0,
 	 .caldac = {mb88341},	/* verified */
-	},
+	 },
 	{.device_id = 0x02c4,
 	 .name = "DAQCard-6062E",
 	 .n_adchan = 16,
@@ -116,7 +116,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .num_p0_dio_channels = 8,
 	 .has_8255 = 0,
 	 .caldac = {ad8804_debug},	/* verified */
-	},
+	 },
 	{.device_id = 0x075e,
 	 .name = "DAQCard-6024E",	/* specs incorrect! */
 	 .n_adchan = 16,
@@ -134,7 +134,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .num_p0_dio_channels = 8,
 	 .has_8255 = 0,
 	 .caldac = {ad8804_debug},
-	},
+	 },
 	{.device_id = 0x0245,
 	 .name = "DAQCard-6036E",	/* specs incorrect! */
 	 .n_adchan = 16,
@@ -152,7 +152,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .num_p0_dio_channels = 8,
 	 .has_8255 = 0,
 	 .caldac = {ad8804_debug},
-	},
+	 },
 #if 0
 	{.device_id = 0x0000,	/* unknown */
 	 .name = "DAQCard-6715",
@@ -162,7 +162,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .ao_671x = 8192,
 	 .num_p0_dio_channels = 8,
 	 .caldac = {mb88341, mb88341},
-	},
+	 },
 #endif
 	/* N.B. Update ni_mio_cs_ids[] when entries added above. */
 };
@@ -227,7 +227,8 @@ static uint16_t mio_cs_win_in(struct comedi_device *dev, int addr)
 	return ret;
 }
 
-static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int mio_cs_attach(struct comedi_device *dev,
+			 struct comedi_devconfig *it);
 static int mio_cs_detach(struct comedi_device *dev);
 static struct comedi_driver driver_ni_mio_cs = {
 	.driver_name = "ni_mio_cs",
@@ -238,7 +239,8 @@ static struct comedi_driver driver_ni_mio_cs = {
 
 #include "ni_mio_common.c"
 
-static int ni_getboardtype(struct comedi_device *dev, struct pcmcia_device *link);
+static int ni_getboardtype(struct comedi_device *dev,
+			   struct pcmcia_device *link);
 
 /* clean up allocated resources */
 /* called when driver is removed */
@@ -266,11 +268,12 @@ static dev_node_t dev_node = {
 	COMEDI_MAJOR, 0,
 	NULL
 };
+
 static int cs_attach(struct pcmcia_device *link)
 {
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
 	link->io.NumPorts1 = 16;
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
+	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
@@ -340,7 +343,7 @@ static void mio_cs_config(struct pcmcia_device *link)
 	tuple.DesiredTuple = CISTPL_MANFID;
 	tuple.Attributes = TUPLE_RETURN_COMMON;
 	if ((pcmcia_get_first_tuple(link, &tuple) == 0) &&
-		(pcmcia_get_tuple_data(link, &tuple) == 0)) {
+	    (pcmcia_get_tuple_data(link, &tuple) == 0)) {
 		manfid = le16_to_cpu(buf[0]);
 		prodid = le16_to_cpu(buf[1]);
 	}
@@ -373,7 +376,7 @@ static void mio_cs_config(struct pcmcia_device *link)
 #endif
 	link->io.NumPorts1 = parse.cftable_entry.io.win[0].len;
 	link->io.IOAddrLines =
-		parse.cftable_entry.io.flags & CISTPL_IO_LINES_MASK;
+	    parse.cftable_entry.io.flags & CISTPL_IO_LINES_MASK;
 	link->io.NumPorts2 = 0;
 
 	{
@@ -421,7 +424,7 @@ static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	irq = link->irq.AssignedIRQ;
 
 	printk("comedi%d: %s: DAQCard: io 0x%04lx, irq %u, ",
-		dev->minor, dev->driver->driver_name, dev->iobase, irq);
+	       dev->minor, dev->driver->driver_name, dev->iobase, irq);
 
 #if 0
 	{
@@ -430,7 +433,7 @@ static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		printk(" board fingerprint:");
 		for (i = 0; i < 32; i += 2) {
 			printk(" %04x %02x", inw(dev->iobase + i),
-				inb(dev->iobase + i + 1));
+			       inb(dev->iobase + i + 1));
 		}
 		printk("\n");
 		printk(" board fingerprint (windowed):");
@@ -447,7 +450,7 @@ static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->board_name = boardtype.name;
 
 	ret = request_irq(irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
-				 "ni_mio_cs", dev);
+			  "ni_mio_cs", dev);
 	if (ret < 0) {
 		printk(" irq not available\n");
 		return -EINVAL;
@@ -484,14 +487,15 @@ static int get_prodid(struct comedi_device *dev, struct pcmcia_device *link)
 	tuple.DesiredTuple = CISTPL_MANFID;
 	tuple.Attributes = TUPLE_RETURN_COMMON;
 	if ((pcmcia_get_first_tuple(link, &tuple) == 0) &&
-		(pcmcia_get_tuple_data(link, &tuple) == 0)) {
+	    (pcmcia_get_tuple_data(link, &tuple) == 0)) {
 		prodid = le16_to_cpu(buf[1]);
 	}
 
 	return prodid;
 }
 
-static int ni_getboardtype(struct comedi_device *dev, struct pcmcia_device *link)
+static int ni_getboardtype(struct comedi_device *dev,
+			   struct pcmcia_device *link)
 {
 	int id;
 	int i;
@@ -532,7 +536,7 @@ struct pcmcia_driver ni_mio_cs_driver = {
 	.id_table = ni_mio_cs_ids,
 	.owner = THIS_MODULE,
 	.drv = {
-			.name = dev_info,
+		.name = dev_info,
 		},
 };
 

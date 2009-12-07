@@ -342,7 +342,7 @@ struct SiS_Private
 	unsigned short			SiS_RY4COE;
 	unsigned short			SiS_LCDHDES;
 	unsigned short			SiS_LCDVDES;
-	unsigned short			SiS_DDC_Port;
+	SISIOADDRESS			SiS_DDC_Port;
 	unsigned short			SiS_DDC_Index;
 	unsigned short			SiS_DDC_Data;
 	unsigned short			SiS_DDC_NData;

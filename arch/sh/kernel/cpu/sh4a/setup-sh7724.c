@@ -22,6 +22,7 @@
 #include <linux/io.h>
 #include <asm/clock.h>
 #include <asm/mmzone.h>
+#include <cpu/sh7724.h>
 
 /* Serial */
 static struct plat_sci_port sci_platform_data[] = {
@@ -103,6 +104,9 @@ static struct platform_device rtc_device = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(rtc_resources),
 	.resource	= rtc_resources,
+	.archdata = {
+		.hwblk_id = HWBLK_RTC,
+	},
 };
 
 /* I2C0 */
@@ -125,6 +129,9 @@ static struct platform_device iic0_device = {
 	.id             = 0, /* "i2c0" clock */
 	.num_resources  = ARRAY_SIZE(iic0_resources),
 	.resource       = iic0_resources,
+	.archdata = {
+		.hwblk_id = HWBLK_IIC0,
+	},
 };
 
 /* I2C1 */
@@ -147,6 +154,9 @@ static struct platform_device iic1_device = {
 	.id             = 1, /* "i2c1" clock */
 	.num_resources  = ARRAY_SIZE(iic1_resources),
 	.resource       = iic1_resources,
+	.archdata = {
+		.hwblk_id = HWBLK_IIC1,
+	},
 };
 
 /* VPU */
@@ -176,6 +186,9 @@ static struct platform_device vpu_device = {
 	},
 	.resource	= vpu_resources,
 	.num_resources	= ARRAY_SIZE(vpu_resources),
+	.archdata = {
+		.hwblk_id = HWBLK_VPU,
+	},
 };
 
 /* VEU0 */
@@ -205,6 +218,9 @@ static struct platform_device veu0_device = {
 	},
 	.resource	= veu0_resources,
 	.num_resources	= ARRAY_SIZE(veu0_resources),
+	.archdata = {
+		.hwblk_id = HWBLK_VEU0,
+	},
 };
 
 /* VEU1 */
@@ -234,6 +250,9 @@ static struct platform_device veu1_device = {
 	},
 	.resource	= veu1_resources,
 	.num_resources	= ARRAY_SIZE(veu1_resources),
+	.archdata = {
+		.hwblk_id = HWBLK_VEU1,
+	},
 };
 
 static struct sh_timer_config cmt_platform_data = {
@@ -266,6 +285,9 @@ static struct platform_device cmt_device = {
 	},
 	.resource	= cmt_resources,
 	.num_resources	= ARRAY_SIZE(cmt_resources),
+	.archdata = {
+		.hwblk_id = HWBLK_CMT,
+	},
 };
 
 static struct sh_timer_config tmu0_platform_data = {
@@ -297,6 +319,9 @@ static struct platform_device tmu0_device = {
 	},
 	.resource	= tmu0_resources,
 	.num_resources	= ARRAY_SIZE(tmu0_resources),
+	.archdata = {
+		.hwblk_id = HWBLK_TMU0,
+	},
 };
 
 static struct sh_timer_config tmu1_platform_data = {
@@ -328,6 +353,9 @@ static struct platform_device tmu1_device = {
 	},
 	.resource	= tmu1_resources,
 	.num_resources	= ARRAY_SIZE(tmu1_resources),
+	.archdata = {
+		.hwblk_id = HWBLK_TMU0,
+	},
 };
 
 static struct sh_timer_config tmu2_platform_data = {
@@ -358,6 +386,9 @@ static struct platform_device tmu2_device = {
 	},
 	.resource	= tmu2_resources,
 	.num_resources	= ARRAY_SIZE(tmu2_resources),
+	.archdata = {
+		.hwblk_id = HWBLK_TMU0,
+	},
 };
 
 
@@ -389,6 +420,9 @@ static struct platform_device tmu3_device = {
 	},
 	.resource	= tmu3_resources,
 	.num_resources	= ARRAY_SIZE(tmu3_resources),
+	.archdata = {
+		.hwblk_id = HWBLK_TMU1,
+	},
 };
 
 static struct sh_timer_config tmu4_platform_data = {
@@ -419,6 +453,9 @@ static struct platform_device tmu4_device = {
 	},
 	.resource	= tmu4_resources,
 	.num_resources	= ARRAY_SIZE(tmu4_resources),
+	.archdata = {
+		.hwblk_id = HWBLK_TMU1,
+	},
 };
 
 static struct sh_timer_config tmu5_platform_data = {
@@ -449,6 +486,9 @@ static struct platform_device tmu5_device = {
 	},
 	.resource	= tmu5_resources,
 	.num_resources	= ARRAY_SIZE(tmu5_resources),
+	.archdata = {
+		.hwblk_id = HWBLK_TMU1,
+	},
 };
 
 /* JPU */
@@ -478,6 +518,9 @@ static struct platform_device jpu_device = {
 	},
 	.resource	= jpu_resources,
 	.num_resources	= ARRAY_SIZE(jpu_resources),
+	.archdata = {
+		.hwblk_id = HWBLK_JPU,
+	},
 };
 
 static struct platform_device *sh7724_devices[] __initdata = {

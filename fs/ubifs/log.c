@@ -169,8 +169,8 @@ void ubifs_add_bud(struct ubifs_info *c, struct ubifs_bud *bud)
 	 */
 	c->bud_bytes += c->leb_size - bud->start;
 
-	dbg_log("LEB %d:%d, jhead %d, bud_bytes %lld", bud->lnum,
-		bud->start, bud->jhead, c->bud_bytes);
+	dbg_log("LEB %d:%d, jhead %s, bud_bytes %lld", bud->lnum,
+		bud->start, dbg_jhead(bud->jhead), c->bud_bytes);
 	spin_unlock(&c->buds_lock);
 }
 
@@ -355,16 +355,16 @@ static void remove_buds(struct ubifs_info *c)
 			 * heads (non-closed buds).
 			 */
 			c->cmt_bud_bytes += wbuf->offs - bud->start;
-			dbg_log("preserve %d:%d, jhead %d, bud bytes %d, "
+			dbg_log("preserve %d:%d, jhead %s, bud bytes %d, "
 				"cmt_bud_bytes %lld", bud->lnum, bud->start,
-				bud->jhead, wbuf->offs - bud->start,
+				dbg_jhead(bud->jhead), wbuf->offs - bud->start,
 				c->cmt_bud_bytes);
 			bud->start = wbuf->offs;
 		} else {
 			c->cmt_bud_bytes += c->leb_size - bud->start;
-			dbg_log("remove %d:%d, jhead %d, bud bytes %d, "
+			dbg_log("remove %d:%d, jhead %s, bud bytes %d, "
 				"cmt_bud_bytes %lld", bud->lnum, bud->start,
-				bud->jhead, c->leb_size - bud->start,
+				dbg_jhead(bud->jhead), c->leb_size - bud->start,
 				c->cmt_bud_bytes);
 			rb_erase(p1, &c->buds);
 			/*
@@ -429,7 +429,8 @@ int ubifs_log_start_commit(struct ubifs_info *c, int *ltail_lnum)
 		if (lnum == -1 || offs == c->leb_size)
 			continue;
 
-		dbg_log("add ref to LEB %d:%d for jhead %d", lnum, offs, i);
+		dbg_log("add ref to LEB %d:%d for jhead %s",
+			lnum, offs, dbg_jhead(i));
 		ref = buf + len;
 		ref->ch.node_type = UBIFS_REF_NODE;
 		ref->lnum = cpu_to_le32(lnum);
@@ -695,7 +696,7 @@ int ubifs_consolidate_log(struct ubifs_info *c)
 	lnum = c->ltail_lnum;
 	write_lnum = lnum;
 	while (1) {
-		sleb = ubifs_scan(c, lnum, 0, c->sbuf);
+		sleb = ubifs_scan(c, lnum, 0, c->sbuf, 0);
 		if (IS_ERR(sleb)) {
 			err = PTR_ERR(sleb);
 			goto out_free;

@@ -409,7 +409,7 @@ sys32_munmap_wrapper:
 	.globl	sys32_truncate_wrapper
 sys32_truncate_wrapper:
 	llgtr	%r2,%r2			# const char *
-	llgfr	%r3,%r3			# unsigned long
+	lgfr	%r3,%r3			# long
 	jg	sys_truncate		# branch to system call
 
 	.globl	sys32_ftruncate_wrapper
@@ -568,18 +568,18 @@ compat_sys_sigprocmask_wrapper:
 	llgtr	%r4,%r4			# compat_old_sigset_t *
 	jg	compat_sys_sigprocmask		# branch to system call
 
-	.globl	sys32_init_module_wrapper
-sys32_init_module_wrapper:
+	.globl	sys_init_module_wrapper
+sys_init_module_wrapper:
 	llgtr	%r2,%r2			# void *
 	llgfr	%r3,%r3			# unsigned long
 	llgtr	%r4,%r4			# char *
-	jg	sys32_init_module	# branch to system call
+	jg	sys_init_module		# branch to system call
 
-	.globl	sys32_delete_module_wrapper
-sys32_delete_module_wrapper:
+	.globl	sys_delete_module_wrapper
+sys_delete_module_wrapper:
 	llgtr	%r2,%r2			# const char *
 	llgfr	%r3,%r3			# unsigned int
-	jg	sys32_delete_module	# branch to system call
+	jg	sys_delete_module	# branch to system call
 
 	.globl	sys32_quotactl_wrapper
 sys32_quotactl_wrapper:
@@ -1832,11 +1832,26 @@ compat_sys_rt_tgsigqueueinfo_wrapper:
 	llgtr	%r5,%r5			# struct compat_siginfo *
 	jg	compat_sys_rt_tgsigqueueinfo_wrapper # branch to system call
 
-	.globl	sys_perf_counter_open_wrapper
-sys_perf_counter_open_wrapper:
-	llgtr	%r2,%r2			# const struct perf_counter_attr *
+	.globl	sys_perf_event_open_wrapper
+sys_perf_event_open_wrapper:
+	llgtr	%r2,%r2			# const struct perf_event_attr *
 	lgfr	%r3,%r3			# pid_t
 	lgfr	%r4,%r4			# int
 	lgfr	%r5,%r5			# int
 	llgfr	%r6,%r6			# unsigned long
-	jg	sys_perf_counter_open	# branch to system call
+	jg	sys_perf_event_open	# branch to system call
+
+	.globl	sys_clone_wrapper
+sys_clone_wrapper:
+	llgfr	%r2,%r2			# unsigned long
+	llgfr	%r3,%r3			# unsigned long
+	llgtr	%r4,%r4			# int *
+	llgtr	%r5,%r5			# int *
+	jg	sys_clone		# branch to system call
+
+	.globl	sys32_execve_wrapper
+sys32_execve_wrapper:
+	llgtr	%r2,%r2			# char *
+	llgtr	%r3,%r3			# compat_uptr_t *
+	llgtr	%r4,%r4			# compat_uptr_t *
+	jg	sys32_execve		# branch to system call

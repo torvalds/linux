@@ -324,11 +324,11 @@ int fsnotify_add_mark(struct fsnotify_mark_entry *entry,
 	spin_lock(&group->mark_lock);
 	spin_lock(&inode->i_lock);
 
-	entry->group = group;
-	entry->inode = inode;
-
 	lentry = fsnotify_find_mark_entry(group, inode);
 	if (!lentry) {
+		entry->group = group;
+		entry->inode = inode;
+
 		hlist_add_head(&entry->i_list, &inode->i_fsnotify_mark_entries);
 		list_add(&entry->g_list, &group->mark_entries);
 

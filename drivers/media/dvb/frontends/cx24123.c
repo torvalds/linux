@@ -458,7 +458,7 @@ static int cx24123_set_symbolrate(struct cx24123_state *state, u32 srate)
 	/*  check if symbol rate is within limits */
 	if ((srate > state->frontend.ops.info.symbol_rate_max) ||
 	    (srate < state->frontend.ops.info.symbol_rate_min))
-		return -EOPNOTSUPP;;
+		return -EOPNOTSUPP;
 
 	/* choose the sampling rate high enough for the required operation,
 	   while optimizing the power consumed by the demodulator */

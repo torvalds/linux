@@ -846,37 +846,53 @@ static int isicom_carrier_raised(struct tty_port *port)
 	return (ip->status & ISI_DCD)?1 : 0;
 }
 
-static int isicom_open(struct tty_struct *tty, struct file *filp)
+static struct tty_port *isicom_find_port(struct tty_struct *tty)
 {
 	struct isi_port *port;
 	struct isi_board *card;
 	unsigned int board;
-	int error, line;
+	int line = tty->index;
 
-	line = tty->index;
 	if (line < 0 || line > PORT_COUNT-1)
-		return -ENODEV;
+		return NULL;
 	board = BOARD(line);
 	card = &isi_card[board];
 
 	if (!(card->status & FIRMWARE_LOADED))
-		return -ENODEV;
+		return NULL;
 
 	/*  open on a port greater than the port count for the card !!! */
 	if (line > ((board * 16) + card->port_count - 1))
-		return -ENODEV;
+		return NULL;
 
 	port = &isi_ports[line];
 	if (isicom_paranoia_check(port, tty->name, "isicom_open"))
-		return -ENODEV;
+		return NULL;
 
+	return &port->port;
+}
+	
+static int isicom_open(struct tty_struct *tty, struct file *filp)
+{
+	struct isi_port *port;
+	struct isi_board *card;
+	struct tty_port *tport;
+	int error = 0;
+
+	tport = isicom_find_port(tty);
+	if (tport == NULL)
+		return -ENODEV;
+	port = container_of(tport, struct isi_port, port);
+	card = &isi_card[BOARD(tty->index)];
 	isicom_setup_board(card);
 
 	/* FIXME: locking on port.count etc */
 	port->port.count++;
 	tty->driver_data = port;
 	tty_port_tty_set(&port->port, tty);
-	error = isicom_setup_port(tty);
+	/* FIXME: Locking on Initialized flag */
+	if (!test_bit(ASYNCB_INITIALIZED, &tport->flags))
+		error = isicom_setup_port(tty);
 	if (error == 0)
 		error = tty_port_block_til_ready(&port->port, tty, filp);
 	return error;
@@ -952,18 +968,11 @@ static void isicom_flush_buffer(struct tty_struct *tty)
 	tty_wakeup(tty);
 }
 
-static void isicom_close(struct tty_struct *tty, struct file *filp)
+static void isicom_close_port(struct tty_port *port)
 {
-	struct isi_port *ip = tty->driver_data;
-	struct tty_port *port = &ip->port;
-	struct isi_board *card;
+	struct isi_port *ip = container_of(port, struct isi_port, port);
+	struct isi_board *card = ip->card;
 	unsigned long flags;
-
-	BUG_ON(!ip);
-
-	card = ip->card;
-	if (isicom_paranoia_check(ip, tty->name, "isicom_close"))
-		return;
 
 	/* indicate to the card that no more data can be received
 	   on this port */
@@ -974,9 +983,19 @@ static void isicom_close(struct tty_struct *tty, struct file *filp)
 	}
 	isicom_shutdown_port(ip);
 	spin_unlock_irqrestore(&card->card_lock, flags);
+}
 
+static void isicom_close(struct tty_struct *tty, struct file *filp)
+{
+	struct isi_port *ip = tty->driver_data;
+	struct tty_port *port = &ip->port;
+	if (isicom_paranoia_check(ip, tty->name, "isicom_close"))
+		return;
+
+	if (tty_port_close_start(port, tty, filp) == 0)
+		return;
+	isicom_close_port(port);
 	isicom_flush_buffer(tty);
-	
 	tty_port_close_end(port, tty);
 }
 

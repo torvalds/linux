@@ -611,7 +611,7 @@ xfs_fsync(
 	xfs_inode_t	*ip)
 {
 	xfs_trans_t	*tp;
-	int		error;
+	int		error = 0;
 	int		log_flushed = 0, changed = 1;
 
 	xfs_itrace_entry(ip);
@@ -619,14 +619,9 @@ xfs_fsync(
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		return XFS_ERROR(EIO);
 
-	/* capture size updates in I/O completion before writing the inode. */
-	error = xfs_wait_on_pages(ip, 0, -1);
-	if (error)
-		return XFS_ERROR(error);
-
 	/*
 	 * We always need to make sure that the required inode state is safe on
-	 * disk.  The vnode might be clean but we still might need to force the
+	 * disk.  The inode might be clean but we still might need to force the
 	 * log because of committed transactions that haven't hit the disk yet.
 	 * Likewise, there could be unflushed non-transactional changes to the
 	 * inode core that have to go to disk and this requires us to issue
@@ -638,7 +633,7 @@ xfs_fsync(
 	 */
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 
-	if (!(ip->i_update_size || ip->i_update_core)) {
+	if (!ip->i_update_core) {
 		/*
 		 * Timestamps/size haven't changed since last inode flush or
 		 * inode transaction commit.  That means either nothing got
@@ -718,7 +713,7 @@ xfs_fsync(
  * when the link count isn't zero and by xfs_dm_punch_hole() when
  * punching a hole to EOF.
  */
-int
+STATIC int
 xfs_free_eofblocks(
 	xfs_mount_t	*mp,
 	xfs_inode_t	*ip,
@@ -1476,8 +1471,8 @@ xfs_create(
 	if (error == ENOSPC) {
 		/* flush outstanding delalloc blocks and retry */
 		xfs_flush_inodes(dp);
-		error = xfs_trans_reserve(tp, resblks, XFS_CREATE_LOG_RES(mp), 0,
-			XFS_TRANS_PERM_LOG_RES, XFS_CREATE_LOG_COUNT);
+		error = xfs_trans_reserve(tp, resblks, log_res, 0,
+				XFS_TRANS_PERM_LOG_RES, log_count);
 	}
 	if (error == ENOSPC) {
 		/* No space at all so try a "no-allocation" reservation */
@@ -2479,12 +2474,6 @@ xfs_reclaim(
 	xfs_ioend_wait(ip);
 
 	ASSERT(XFS_FORCED_SHUTDOWN(ip->i_mount) || ip->i_delayed_blks == 0);
-
-	/*
-	 * Make sure the atime in the XFS inode is correct before freeing the
-	 * Linux inode.
-	 */
-	xfs_synchronize_atime(ip);
 
 	/*
 	 * If we have nothing to flush with this inode then complete the

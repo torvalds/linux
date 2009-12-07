@@ -585,7 +585,7 @@ static int prefix_underscores_count(const char *str)
 {
 	const char *tail = str;
 
-	while (*tail != '_')
+	while (*tail == '_')
 		tail++;
 
 	return tail - str;

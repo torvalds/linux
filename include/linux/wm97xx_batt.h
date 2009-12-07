@@ -3,22 +3,12 @@
 
 #include <linux/wm97xx.h>
 
-struct wm97xx_batt_info {
-	int	batt_aux;
-	int	temp_aux;
-	int	charge_gpio;
-	int	min_voltage;
-	int	max_voltage;
-	int	batt_div;
-	int	batt_mult;
-	int	temp_div;
-	int	temp_mult;
-	int	batt_tech;
-	char	*batt_name;
-};
+#warning This file will be removed soon, use wm97xx.h instead!
+
+#define wm97xx_batt_info wm97xx_batt_pdata
 
 #ifdef CONFIG_BATTERY_WM97XX
-void __init wm97xx_bat_set_pdata(struct wm97xx_batt_info *data);
+void wm97xx_bat_set_pdata(struct wm97xx_batt_info *data);
 #else
 static inline void wm97xx_bat_set_pdata(struct wm97xx_batt_info *data) {}
 #endif

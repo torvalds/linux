@@ -74,8 +74,7 @@ int nilfs_mdt_forget_block(struct inode *, unsigned long);
 int nilfs_mdt_mark_block_dirty(struct inode *, unsigned long);
 int nilfs_mdt_fetch_dirty(struct inode *);
 
-struct inode *nilfs_mdt_new(struct the_nilfs *, struct super_block *, ino_t,
-			    gfp_t);
+struct inode *nilfs_mdt_new(struct the_nilfs *, struct super_block *, ino_t);
 struct inode *nilfs_mdt_new_common(struct the_nilfs *, struct super_block *,
 				   ino_t, gfp_t);
 void nilfs_mdt_destroy(struct inode *);

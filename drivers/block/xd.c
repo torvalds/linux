@@ -130,7 +130,7 @@ static struct gendisk *xd_gendisk[2];
 
 static int xd_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
-static struct block_device_operations xd_fops = {
+static const struct block_device_operations xd_fops = {
 	.owner	= THIS_MODULE,
 	.locked_ioctl	= xd_ioctl,
 	.getgeo = xd_getgeo,

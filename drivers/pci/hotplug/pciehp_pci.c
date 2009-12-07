@@ -34,136 +34,6 @@
 #include "../pci.h"
 #include "pciehp.h"
 
-static void program_hpp_type0(struct pci_dev *dev, struct hpp_type0 *hpp)
-{
-	u16 pci_cmd, pci_bctl;
-
-	if (hpp->revision > 1) {
-		warn("Rev.%d type0 record not supported\n", hpp->revision);
-		return;
-	}
-
-	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, hpp->cache_line_size);
-	pci_write_config_byte(dev, PCI_LATENCY_TIMER, hpp->latency_timer);
-	pci_read_config_word(dev, PCI_COMMAND, &pci_cmd);
-	if (hpp->enable_serr)
-		pci_cmd |= PCI_COMMAND_SERR;
-	else
-		pci_cmd &= ~PCI_COMMAND_SERR;
-	if (hpp->enable_perr)
-		pci_cmd |= PCI_COMMAND_PARITY;
-	else
-		pci_cmd &= ~PCI_COMMAND_PARITY;
-	pci_write_config_word(dev, PCI_COMMAND, pci_cmd);
-
-	/* Program bridge control value */
-	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
-		pci_write_config_byte(dev, PCI_SEC_LATENCY_TIMER,
-				      hpp->latency_timer);
-		pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &pci_bctl);
-		if (hpp->enable_serr)
-			pci_bctl |= PCI_BRIDGE_CTL_SERR;
-		else
-			pci_bctl &= ~PCI_BRIDGE_CTL_SERR;
-		if (hpp->enable_perr)
-			pci_bctl |= PCI_BRIDGE_CTL_PARITY;
-		else
-			pci_bctl &= ~PCI_BRIDGE_CTL_PARITY;
-		pci_write_config_word(dev, PCI_BRIDGE_CONTROL, pci_bctl);
-	}
-}
-
-static void program_hpp_type2(struct pci_dev *dev, struct hpp_type2 *hpp)
-{
-	int pos;
-	u16 reg16;
-	u32 reg32;
-
-	if (hpp->revision > 1) {
-		warn("Rev.%d type2 record not supported\n", hpp->revision);
-		return;
-	}
-
-	/* Find PCI Express capability */
-	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
-	if (!pos)
-		return;
-
-	/* Initialize Device Control Register */
-	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL, &reg16);
-	reg16 = (reg16 & hpp->pci_exp_devctl_and) | hpp->pci_exp_devctl_or;
-	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL, reg16);
-
-	/* Initialize Link Control Register */
-	if (dev->subordinate) {
-		pci_read_config_word(dev, pos + PCI_EXP_LNKCTL, &reg16);
-		reg16 = (reg16 & hpp->pci_exp_lnkctl_and)
-			| hpp->pci_exp_lnkctl_or;
-		pci_write_config_word(dev, pos + PCI_EXP_LNKCTL, reg16);
-	}
-
-	/* Find Advanced Error Reporting Enhanced Capability */
-	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
-	if (!pos)
-		return;
-
-	/* Initialize Uncorrectable Error Mask Register */
-	pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_MASK, &reg32);
-	reg32 = (reg32 & hpp->unc_err_mask_and) | hpp->unc_err_mask_or;
-	pci_write_config_dword(dev, pos + PCI_ERR_UNCOR_MASK, reg32);
-
-	/* Initialize Uncorrectable Error Severity Register */
-	pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_SEVER, &reg32);
-	reg32 = (reg32 & hpp->unc_err_sever_and) | hpp->unc_err_sever_or;
-	pci_write_config_dword(dev, pos + PCI_ERR_UNCOR_SEVER, reg32);
-
-	/* Initialize Correctable Error Mask Register */
-	pci_read_config_dword(dev, pos + PCI_ERR_COR_MASK, &reg32);
-	reg32 = (reg32 & hpp->cor_err_mask_and) | hpp->cor_err_mask_or;
-	pci_write_config_dword(dev, pos + PCI_ERR_COR_MASK, reg32);
-
-	/* Initialize Advanced Error Capabilities and Control Register */
-	pci_read_config_dword(dev, pos + PCI_ERR_CAP, &reg32);
-	reg32 = (reg32 & hpp->adv_err_cap_and) | hpp->adv_err_cap_or;
-	pci_write_config_dword(dev, pos + PCI_ERR_CAP, reg32);
-
-	/*
-	 * FIXME: The following two registers are not supported yet.
-	 *
-	 *   o Secondary Uncorrectable Error Severity Register
-	 *   o Secondary Uncorrectable Error Mask Register
-	 */
-}
-
-static void program_fw_provided_values(struct pci_dev *dev)
-{
-	struct pci_dev *cdev;
-	struct hotplug_params hpp;
-
-	/* Program hpp values for this device */
-	if (!(dev->hdr_type == PCI_HEADER_TYPE_NORMAL ||
-			(dev->hdr_type == PCI_HEADER_TYPE_BRIDGE &&
-			(dev->class >> 8) == PCI_CLASS_BRIDGE_PCI)))
-		return;
-
-	if (pciehp_get_hp_params_from_firmware(dev, &hpp)) {
-		warn("Could not get hotplug parameters\n");
-		return;
-	}
-
-	if (hpp.t2)
-		program_hpp_type2(dev, hpp.t2);
-	if (hpp.t0)
-		program_hpp_type0(dev, hpp.t0);
-
-	/* Program child devices */
-	if (dev->subordinate) {
-		list_for_each_entry(cdev, &dev->subordinate->devices,
-				    bus_list)
-			program_fw_provided_values(cdev);
-	}
-}
-
 static int __ref pciehp_add_bridge(struct pci_dev *dev)
 {
 	struct pci_bus *parent = dev->bus;
@@ -193,27 +63,27 @@ static int __ref pciehp_add_bridge(struct pci_dev *dev)
 int pciehp_configure_device(struct slot *p_slot)
 {
 	struct pci_dev *dev;
-	struct pci_bus *parent = p_slot->ctrl->pci_dev->subordinate;
+	struct pci_bus *parent = p_slot->ctrl->pcie->port->subordinate;
 	int num, fn;
 	struct controller *ctrl = p_slot->ctrl;
 
-	dev = pci_get_slot(parent, PCI_DEVFN(p_slot->device, 0));
+	dev = pci_get_slot(parent, PCI_DEVFN(0, 0));
 	if (dev) {
 		ctrl_err(ctrl, "Device %s already exists "
-			 "at %04x:%02x:%02x, cannot hot-add\n", pci_name(dev),
-			 pci_domain_nr(parent), p_slot->bus, p_slot->device);
+			 "at %04x:%02x:00, cannot hot-add\n", pci_name(dev),
+			 pci_domain_nr(parent), parent->number);
 		pci_dev_put(dev);
 		return -EINVAL;
 	}
 
-	num = pci_scan_slot(parent, PCI_DEVFN(p_slot->device, 0));
+	num = pci_scan_slot(parent, PCI_DEVFN(0, 0));
 	if (num == 0) {
 		ctrl_err(ctrl, "No new device found\n");
 		return -ENODEV;
 	}
 
 	for (fn = 0; fn < 8; fn++) {
-		dev = pci_get_slot(parent, PCI_DEVFN(p_slot->device, fn));
+		dev = pci_get_slot(parent, PCI_DEVFN(0, fn));
 		if (!dev)
 			continue;
 		if ((dev->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
@@ -226,7 +96,7 @@ int pciehp_configure_device(struct slot *p_slot)
 				(dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)) {
 			pciehp_add_bridge(dev);
 		}
-		program_fw_provided_values(dev);
+		pci_configure_slot(dev);
 		pci_dev_put(dev);
 	}
 
@@ -241,19 +111,18 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 	int j;
 	u8 bctl = 0;
 	u8 presence = 0;
-	struct pci_bus *parent = p_slot->ctrl->pci_dev->subordinate;
+	struct pci_bus *parent = p_slot->ctrl->pcie->port->subordinate;
 	u16 command;
 	struct controller *ctrl = p_slot->ctrl;
 
-	ctrl_dbg(ctrl, "%s: domain:bus:dev = %04x:%02x:%02x\n",
-		 __func__, pci_domain_nr(parent), p_slot->bus, p_slot->device);
-	ret = p_slot->hpc_ops->get_adapter_status(p_slot, &presence);
+	ctrl_dbg(ctrl, "%s: domain:bus:dev = %04x:%02x:00\n",
+		 __func__, pci_domain_nr(parent), parent->number);
+	ret = pciehp_get_adapter_status(p_slot, &presence);
 	if (ret)
 		presence = 0;
 
 	for (j = 0; j < 8; j++) {
-		struct pci_dev* temp = pci_get_slot(parent,
-				(p_slot->device << 3) | j);
+		struct pci_dev* temp = pci_get_slot(parent, PCI_DEVFN(0, j));
 		if (!temp)
 			continue;
 		if ((temp->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
@@ -285,11 +154,6 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 		}
 		pci_dev_put(temp);
 	}
-	/*
-	 * Some PCI Express root ports require fixup after hot-plug operation.
-	 */
-	if (pcie_mch_quirk)
-		pci_fixup_device(pci_fixup_final, p_slot->ctrl->pci_dev);
 
 	return rc;
 }

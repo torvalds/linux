@@ -50,8 +50,6 @@
 ACPI_MODULE_NAME("evrgnini")
 
 /* Local prototypes */
-static u8 acpi_ev_match_pci_root_bridge(char *id);
-
 static u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node);
 
 /*******************************************************************************
@@ -332,37 +330,6 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ev_match_pci_root_bridge
- *
- * PARAMETERS:  Id              - The HID/CID in string format
- *
- * RETURN:      TRUE if the Id is a match for a PCI/PCI-Express Root Bridge
- *
- * DESCRIPTION: Determine if the input ID is a PCI Root Bridge ID.
- *
- ******************************************************************************/
-
-static u8 acpi_ev_match_pci_root_bridge(char *id)
-{
-
-	/*
-	 * Check if this is a PCI root.
-	 * ACPI 3.0+: check for a PCI Express root also.
-	 */
-	if (!(ACPI_STRNCMP(id,
-			   PCI_ROOT_HID_STRING,
-			   sizeof(PCI_ROOT_HID_STRING))) ||
-	    !(ACPI_STRNCMP(id,
-			   PCI_EXPRESS_ROOT_HID_STRING,
-			   sizeof(PCI_EXPRESS_ROOT_HID_STRING)))) {
-		return (TRUE);
-	}
-
-	return (FALSE);
-}
-
-/*******************************************************************************
- *
  * FUNCTION:    acpi_ev_is_pci_root_bridge
  *
  * PARAMETERS:  Node            - Device node being examined
@@ -377,9 +344,10 @@ static u8 acpi_ev_match_pci_root_bridge(char *id)
 static u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node)
 {
 	acpi_status status;
-	struct acpica_device_id hid;
-	struct acpi_compatible_id_list *cid;
+	struct acpica_device_id *hid;
+	struct acpica_device_id_list *cid;
 	u32 i;
+	u8 match;
 
 	/* Get the _HID and check for a PCI Root Bridge */
 
@@ -388,7 +356,10 @@ static u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node)
 		return (FALSE);
 	}
 
-	if (acpi_ev_match_pci_root_bridge(hid.value)) {
+	match = acpi_ut_is_pci_root_bridge(hid->string);
+	ACPI_FREE(hid);
+
+	if (match) {
 		return (TRUE);
 	}
 
@@ -402,7 +373,7 @@ static u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node)
 	/* Check all _CIDs in the returned list */
 
 	for (i = 0; i < cid->count; i++) {
-		if (acpi_ev_match_pci_root_bridge(cid->id[i].value)) {
+		if (acpi_ut_is_pci_root_bridge(cid->ids[i].string)) {
 			ACPI_FREE(cid);
 			return (TRUE);
 		}

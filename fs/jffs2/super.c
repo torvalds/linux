@@ -123,7 +123,7 @@ static struct dentry *jffs2_get_parent(struct dentry *child)
 	return d_obtain_alias(jffs2_iget(child->d_inode->i_sb, pino));
 }
 
-static struct export_operations jffs2_export_ops = {
+static const struct export_operations jffs2_export_ops = {
 	.get_parent = jffs2_get_parent,
 	.fh_to_dentry = jffs2_fh_to_dentry,
 	.fh_to_parent = jffs2_fh_to_parent,

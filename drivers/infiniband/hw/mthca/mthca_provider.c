@@ -334,6 +334,9 @@ static struct ib_ucontext *mthca_alloc_ucontext(struct ib_device *ibdev,
 	struct mthca_ucontext           *context;
 	int                              err;
 
+	if (!(to_mdev(ibdev)->active))
+		return ERR_PTR(-EAGAIN);
+
 	memset(&uresp, 0, sizeof uresp);
 
 	uresp.qp_tab_size = to_mdev(ibdev)->limits.num_qps;

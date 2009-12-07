@@ -809,7 +809,7 @@ struct hw_pairwise_ta_entry {
 
 /*
  * EEPROM antenna.
- * ANTENNA_NUM: Number of antenna's.
+ * ANTENNA_NUM: Number of antennas.
  * TX_DEFAULT: Default antenna 0: diversity, 1: A, 2: B.
  * RX_DEFAULT: Default antenna 0: diversity, 1: A, 2: B.
  * FRAME_TYPE: 0: DPDT , 1: SPDT , noted this bit is valid for g only.
@@ -1058,7 +1058,7 @@ struct hw_pairwise_ta_entry {
 #define RXD_W5_RESERVED			FIELD32(0xffffffff)
 
 /*
- * Macro's for converting txpower from EEPROM to mac80211 value
+ * Macros for converting txpower from EEPROM to mac80211 value
  * and from mac80211 value to register value.
  */
 #define MIN_TXPOWER	0

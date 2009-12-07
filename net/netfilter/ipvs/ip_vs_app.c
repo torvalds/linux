@@ -18,6 +18,9 @@
  *
  */
 
+#define KMSG_COMPONENT "IPVS"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
@@ -262,12 +265,12 @@ static inline void vs_fix_seq(const struct ip_vs_seq *vseq, struct tcphdr *th)
 	if (vseq->delta || vseq->previous_delta) {
 		if(after(seq, vseq->init_seq)) {
 			th->seq = htonl(seq + vseq->delta);
-			IP_VS_DBG(9, "vs_fix_seq(): added delta (%d) to seq\n",
-				  vseq->delta);
+			IP_VS_DBG(9, "%s(): added delta (%d) to seq\n",
+				  __func__, vseq->delta);
 		} else {
 			th->seq = htonl(seq + vseq->previous_delta);
-			IP_VS_DBG(9, "vs_fix_seq(): added previous_delta "
-				  "(%d) to seq\n", vseq->previous_delta);
+			IP_VS_DBG(9, "%s(): added previous_delta (%d) to seq\n",
+				  __func__, vseq->previous_delta);
 		}
 	}
 }
@@ -291,14 +294,14 @@ vs_fix_ack_seq(const struct ip_vs_seq *vseq, struct tcphdr *th)
 		   to receive next, so compare it with init_seq+delta */
 		if(after(ack_seq, vseq->init_seq+vseq->delta)) {
 			th->ack_seq = htonl(ack_seq - vseq->delta);
-			IP_VS_DBG(9, "vs_fix_ack_seq(): subtracted delta "
-				  "(%d) from ack_seq\n", vseq->delta);
+			IP_VS_DBG(9, "%s(): subtracted delta "
+				  "(%d) from ack_seq\n", __func__, vseq->delta);
 
 		} else {
 			th->ack_seq = htonl(ack_seq - vseq->previous_delta);
-			IP_VS_DBG(9, "vs_fix_ack_seq(): subtracted "
+			IP_VS_DBG(9, "%s(): subtracted "
 				  "previous_delta (%d) from ack_seq\n",
-				  vseq->previous_delta);
+				  __func__, vseq->previous_delta);
 		}
 	}
 }

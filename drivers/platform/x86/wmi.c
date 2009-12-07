@@ -42,7 +42,6 @@ MODULE_LICENSE("GPL");
 
 #define ACPI_WMI_CLASS "wmi"
 
-#undef PREFIX
 #define PREFIX "ACPI: WMI: "
 
 static DEFINE_MUTEX(wmi_data_lock);

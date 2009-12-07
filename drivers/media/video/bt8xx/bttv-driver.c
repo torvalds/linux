@@ -1299,7 +1299,7 @@ set_tvnorm(struct bttv *btv, unsigned int norm)
 
 	tvnorm = &bttv_tvnorms[norm];
 
-	if (!memcmp(&bttv_tvnorms[btv->tvnorm].cropcap, &tvnorm->cropcap,
+	if (memcmp(&bttv_tvnorms[btv->tvnorm].cropcap, &tvnorm->cropcap,
 		    sizeof (tvnorm->cropcap))) {
 		bttv_crop_reset(&btv->crop[0], norm);
 		btv->crop[1] = btv->crop[0]; /* current = default */
@@ -2652,6 +2652,8 @@ static int bttv_querycap(struct file *file, void  *priv,
 		V4L2_CAP_VBI_CAPTURE |
 		V4L2_CAP_READWRITE |
 		V4L2_CAP_STREAMING;
+	if (btv->has_saa6588)
+		cap->capabilities |= V4L2_CAP_RDS_CAPTURE;
 	if (no_overlay <= 0)
 		cap->capabilities |= V4L2_CAP_VIDEO_OVERLAY;
 
@@ -3798,11 +3800,34 @@ bttv_irq_next_video(struct bttv *btv, struct bttv_buffer_set *set)
 		if (!V4L2_FIELD_HAS_BOTH(item->vb.field) &&
 		    (item->vb.queue.next != &btv->capture)) {
 			item = list_entry(item->vb.queue.next, struct bttv_buffer, vb.queue);
+			/* Mike Isely <isely@pobox.com> - Only check
+			 * and set up the bottom field in the logic
+			 * below.  Don't ever do the top field.  This
+			 * of course means that if we set up the
+			 * bottom field in the above code that we'll
+			 * actually skip a field.  But that's OK.
+			 * Having processed only a single buffer this
+			 * time, then the next time around the first
+			 * available buffer should be for a top field.
+			 * That will then cause us here to set up a
+			 * top then a bottom field in the normal way.
+			 * The alternative to this understanding is
+			 * that we set up the second available buffer
+			 * as a top field, but that's out of order
+			 * since this driver always processes the top
+			 * field first - the effect will be the two
+			 * buffers being returned in the wrong order,
+			 * with the second buffer also being delayed
+			 * by one field time (owing to the fifo nature
+			 * of videobuf).  Worse still, we'll be stuck
+			 * doing fields out of order now every time
+			 * until something else causes a field to be
+			 * dropped.  By effectively forcing a field to
+			 * drop this way then we always get back into
+			 * sync within a single frame time.  (Out of
+			 * order fields can screw up deinterlacing
+			 * algorithms.) */
 			if (!V4L2_FIELD_HAS_BOTH(item->vb.field)) {
-				if (NULL == set->top &&
-				    V4L2_FIELD_TOP == item->vb.field) {
-					set->top = item;
-				}
 				if (NULL == set->bottom &&
 				    V4L2_FIELD_BOTTOM == item->vb.field) {
 					set->bottom = item;
@@ -4593,14 +4618,10 @@ static int bttv_resume(struct pci_dev *pci_dev)
 #endif
 
 static struct pci_device_id bttv_pci_tbl[] = {
-	{PCI_VENDOR_ID_BROOKTREE, PCI_DEVICE_ID_BT848,
-	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_BROOKTREE, PCI_DEVICE_ID_BT849,
-	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_BROOKTREE, PCI_DEVICE_ID_BT878,
-	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_BROOKTREE, PCI_DEVICE_ID_BT879,
-	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VDEVICE(BROOKTREE, PCI_DEVICE_ID_BT848), 0},
+	{PCI_VDEVICE(BROOKTREE, PCI_DEVICE_ID_BT849), 0},
+	{PCI_VDEVICE(BROOKTREE, PCI_DEVICE_ID_BT878), 0},
+	{PCI_VDEVICE(BROOKTREE, PCI_DEVICE_ID_BT879), 0},
 	{0,}
 };
 

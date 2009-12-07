@@ -1,0 +1,26 @@
+Kernel driver wm8350-hwmon
+==========================
+
+Supported chips:
+  * Wolfson Microelectronics WM835x PMICs
+    Prefix: 'wm8350'
+    Datasheet:
+	http://www.wolfsonmicro.com/products/WM8350
+	http://www.wolfsonmicro.com/products/WM8351
+	http://www.wolfsonmicro.com/products/WM8352
+
+Authors: Mark Brown <broonie@opensource.wolfsonmicro.com>
+
+Description
+-----------
+
+The WM835x series of PMICs include an AUXADC which can be used to
+monitor a range of system operating parameters, including the voltages
+of the major supplies within the system.  Currently the driver provides
+simple access to these major supplies.
+
+Voltage Monitoring
+------------------
+
+Voltages are sampled by a 12 bit ADC.  For the internal supplies the ADC
+is referenced to the system VRTC.

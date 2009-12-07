@@ -85,9 +85,4 @@ const struct file_operations qnx4_dir_operations =
 const struct inode_operations qnx4_dir_inode_operations =
 {
 	.lookup		= qnx4_lookup,
-#ifdef CONFIG_QNX4FS_RW
-	.create		= qnx4_create,
-	.unlink		= qnx4_unlink,
-	.rmdir		= qnx4_rmdir,
-#endif
 };

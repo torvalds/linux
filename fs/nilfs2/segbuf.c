@@ -316,10 +316,10 @@ static struct bio *nilfs_alloc_seg_bio(struct super_block *sb, sector_t start,
 {
 	struct bio *bio;
 
-	bio = bio_alloc(GFP_NOWAIT, nr_vecs);
+	bio = bio_alloc(GFP_NOIO, nr_vecs);
 	if (bio == NULL) {
 		while (!bio && (nr_vecs >>= 1))
-			bio = bio_alloc(GFP_NOWAIT, nr_vecs);
+			bio = bio_alloc(GFP_NOIO, nr_vecs);
 	}
 	if (likely(bio)) {
 		bio->bi_bdev = sb->s_bdev;

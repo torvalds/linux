@@ -60,7 +60,7 @@ get_vm_block(struct ct_vm *vm, unsigned int size)
 	}
 
 	block = kzalloc(sizeof(*block), GFP_KERNEL);
-	if (NULL == block)
+	if (!block)
 		goto out;
 
 	block->addr = entry->addr;
@@ -181,7 +181,7 @@ int ct_vm_create(struct ct_vm **rvm)
 	*rvm = NULL;
 
 	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
-	if (NULL == vm)
+	if (!vm)
 		return -ENOMEM;
 
 	mutex_init(&vm->lock);
@@ -189,7 +189,7 @@ int ct_vm_create(struct ct_vm **rvm)
 	/* Allocate page table pages */
 	for (i = 0; i < CT_PTP_NUM; i++) {
 		vm->ptp[i] = kmalloc(PAGE_SIZE, GFP_KERNEL);
-		if (NULL == vm->ptp[i])
+		if (!vm->ptp[i])
 			break;
 	}
 	if (!i) {

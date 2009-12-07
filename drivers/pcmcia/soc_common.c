@@ -336,8 +336,9 @@ soc_common_pcmcia_set_io_map(struct pcmcia_socket *sock, struct pccard_io_map *m
 	struct soc_pcmcia_socket *skt = to_soc_pcmcia_socket(sock);
 	unsigned short speed = map->speed;
 
-	debug(skt, 2, "map %u  speed %u start 0x%08x stop 0x%08x\n",
-		map->map, map->speed, map->start, map->stop);
+	debug(skt, 2, "map %u  speed %u start 0x%08llx stop 0x%08llx\n",
+		map->map, map->speed, (unsigned long long)map->start,
+		(unsigned long long)map->stop);
 	debug(skt, 2, "flags: %s%s%s%s%s%s%s%s\n",
 		(map->flags==0)?"<NONE>":"",
 		(map->flags&MAP_ACTIVE)?"ACTIVE ":"",

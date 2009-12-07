@@ -46,6 +46,7 @@ CROSS=
 # directory for object and other files used by this script
 object=arch/powerpc/boot
 objbin=$object
+dtc=scripts/dtc/dtc
 
 # directory for working files
 tmpdir=.
@@ -124,7 +125,7 @@ if [ -n "$dts" ]; then
     if [ -z "$dtb" ]; then
 	dtb="$platform.dtb"
     fi
-    $object/dtc -O dtb -o "$dtb" -b 0 "$dts"
+    $dtc -O dtb -o "$dtb" -b 0 "$dts"
 fi
 
 if [ -z "$kernel" ]; then

@@ -8,7 +8,7 @@
 unsigned char
 Mds_initial(struct wbsoft_priv * adapter)
 {
-	PMDS pMds = &adapter->Mds;
+	struct wb35_mds *pMds = &adapter->Mds;
 
 	pMds->TxPause = false;
 	pMds->TxRTSThreshold = DEFAULT_RTSThreshold;
@@ -22,7 +22,7 @@ Mds_Destroy(struct wbsoft_priv * adapter)
 {
 }
 
-static void Mds_DurationSet(struct wbsoft_priv *adapter,  PDESCRIPTOR pDes,  u8 *buffer)
+static void Mds_DurationSet(struct wbsoft_priv *adapter,  struct wb35_descriptor *pDes,  u8 *buffer)
 {
 	PT00_DESCRIPTOR	pT00;
 	PT01_DESCRIPTOR	pT01;
@@ -217,10 +217,10 @@ static void Mds_DurationSet(struct wbsoft_priv *adapter,  PDESCRIPTOR pDes,  u8 
 }
 
 // The function return the 4n size of usb pk
-static u16 Mds_BodyCopy(struct wbsoft_priv *adapter, PDESCRIPTOR pDes, u8 *TargetBuffer)
+static u16 Mds_BodyCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *pDes, u8 *TargetBuffer)
 {
 	PT00_DESCRIPTOR	pT00;
-	PMDS	pMds = &adapter->Mds;
+	struct wb35_mds *pMds = &adapter->Mds;
 	u8	*buffer;
 	u8	*src_buffer;
 	u8	*pctmp;
@@ -318,9 +318,9 @@ static u16 Mds_BodyCopy(struct wbsoft_priv *adapter, PDESCRIPTOR pDes, u8 *Targe
 	return Size;
 }
 
-static void Mds_HeaderCopy(struct wbsoft_priv * adapter, PDESCRIPTOR pDes, u8 *TargetBuffer)
+static void Mds_HeaderCopy(struct wbsoft_priv * adapter, struct wb35_descriptor *pDes, u8 *TargetBuffer)
 {
-	PMDS	pMds = &adapter->Mds;
+	struct wb35_mds *pMds = &adapter->Mds;
 	u8	*src_buffer = pDes->buffer_address[0];//931130.5.g
 	PT00_DESCRIPTOR	pT00;
 	PT01_DESCRIPTOR	pT01;
@@ -417,9 +417,9 @@ void
 Mds_Tx(struct wbsoft_priv * adapter)
 {
 	struct hw_data *	pHwData = &adapter->sHwData;
-	PMDS		pMds = &adapter->Mds;
-	DESCRIPTOR	TxDes;
-	PDESCRIPTOR	pTxDes = &TxDes;
+	struct wb35_mds *pMds = &adapter->Mds;
+	struct wb35_descriptor	TxDes;
+	struct wb35_descriptor *pTxDes = &TxDes;
 	u8		*XmitBufAddress;
 	u16		XmitBufSize, PacketSize, stmp, CurrentSize, FragmentThreshold;
 	u8		FillIndex, TxDesIndex, FragmentCount, FillCount;
@@ -470,7 +470,7 @@ Mds_Tx(struct wbsoft_priv * adapter)
 			BufferFilled = true;
 
 			/* Leaves first u8 intact */
-			memset((u8 *)pTxDes + 1, 0, sizeof(DESCRIPTOR) - 1);
+			memset((u8 *)pTxDes + 1, 0, sizeof(struct wb35_descriptor) - 1);
 
 			TxDesIndex = pMds->TxDesIndex;//Get the current ID
 			pTxDes->Descriptor_ID = TxDesIndex;
@@ -552,7 +552,7 @@ Mds_Tx(struct wbsoft_priv * adapter)
 void
 Mds_SendComplete(struct wbsoft_priv * adapter, PT02_DESCRIPTOR pT02)
 {
-	PMDS	pMds = &adapter->Mds;
+	struct wb35_mds *pMds = &adapter->Mds;
 	struct hw_data *	pHwData = &adapter->sHwData;
 	u8	PacketId = (u8)pT02->T02_Tx_PktID;
 	unsigned char	SendOK = true;

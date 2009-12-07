@@ -113,6 +113,12 @@ config USB_EHCI_HCD_PPC_OF
 	  Enables support for the USB controller present on the PowerPC
 	  OpenFirmware platform bus.
 
+config USB_W90X900_EHCI
+	bool "W90X900(W90P910) EHCI support"
+	depends on USB_EHCI_HCD && ARCH_W90X900
+	---help---
+		Enables support for the W90X900 USB controller
+
 config USB_OXU210HP_HCD
 	tristate "OXU210HP HCD support"
 	depends on USB
@@ -152,6 +158,18 @@ config USB_ISP1760_HCD
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called isp1760.
+
+config USB_ISP1362_HCD
+	tristate "ISP1362 HCD support"
+	depends on USB
+	default N
+	---help---
+	  Supports the Philips ISP1362 chip as a host controller
+
+	  This driver does not support isochronous transfers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called isp1362-hcd.
 
 config USB_OHCI_HCD
 	tristate "OHCI HCD support"
@@ -335,13 +353,6 @@ config USB_R8A66597_HCD
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called r8a66597-hcd.
-
-config SUPERH_ON_CHIP_R8A66597
-	boolean "Enable SuperH on-chip R8A66597 USB"
-	depends on USB_R8A66597_HCD && (CPU_SUBTYPE_SH7366 || CPU_SUBTYPE_SH7723 || CPU_SUBTYPE_SH7724)
-	help
-	   This driver enables support for the on-chip R8A66597 in the
-	   SH7366, SH7723 and SH7724 processors.
 
 config USB_WHCI_HCD
 	tristate "Wireless USB Host Controller Interface (WHCI) driver (EXPERIMENTAL)"

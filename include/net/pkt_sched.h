@@ -87,6 +87,9 @@ extern struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r,
 extern void qdisc_put_rtab(struct qdisc_rate_table *tab);
 extern void qdisc_put_stab(struct qdisc_size_table *tab);
 extern void qdisc_warn_nonwc(char *txt, struct Qdisc *qdisc);
+extern int sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
+			   struct net_device *dev, struct netdev_queue *txq,
+			   spinlock_t *root_lock);
 
 extern void __qdisc_run(struct Qdisc *q);
 

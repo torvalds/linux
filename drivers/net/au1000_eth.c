@@ -34,6 +34,7 @@
  *
  *
  */
+#include <linux/capability.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -721,7 +722,7 @@ static inline void update_rx_stats(struct net_device *dev, u32 status)
 		ps->rx_errors++;
 		if (status & RX_MISSED_FRAME)
 			ps->rx_missed_errors++;
-		if (status & (RX_OVERLEN | RX_OVERLEN | RX_LEN_ERROR))
+		if (status & (RX_OVERLEN | RX_RUNT | RX_LEN_ERROR))
 			ps->rx_length_errors++;
 		if (status & RX_CRC_ERROR)
 			ps->rx_crc_errors++;
@@ -794,8 +795,6 @@ static int au1000_rx(struct net_device *dev)
 					printk("rx len error\n");
 				if (status & RX_U_CNTRL_FRAME)
 					printk("rx u control frame\n");
-				if (status & RX_MISSED_FRAME)
-					printk("rx miss\n");
 			}
 		}
 		prxd->buff_stat = (u32)(pDB->dma_addr | RX_DMA_ENABLE);
@@ -937,7 +936,7 @@ static int au1000_close(struct net_device *dev)
 /*
  * Au1000 transmit routine.
  */
-static int au1000_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t au1000_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct au1000_private *aup = netdev_priv(dev);
 	struct net_device_stats *ps = &dev->stats;
@@ -988,7 +987,7 @@ static int au1000_tx(struct sk_buff *skb, struct net_device *dev)
 	dev_kfree_skb(skb);
 	aup->tx_head = (aup->tx_head + 1) & (NUM_TX_DMA - 1);
 	dev->trans_start = jiffies;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -1089,7 +1088,14 @@ static struct net_device * au1000_probe(int port_num)
 		return NULL;
 	}
 
-	if ((err = register_netdev(dev)) != 0) {
+	dev->base_addr = base;
+	dev->irq = irq;
+	dev->netdev_ops = &au1000_netdev_ops;
+	SET_ETHTOOL_OPS(dev, &au1000_ethtool_ops);
+	dev->watchdog_timeo = ETH_TX_TIMEOUT;
+
+	err = register_netdev(dev);
+	if (err != 0) {
 		printk(KERN_ERR "%s: Cannot register net device, error %d\n",
 				DRV_NAME, err);
 		free_netdev(dev);
@@ -1157,6 +1163,9 @@ static struct net_device * au1000_probe(int port_num)
 	aup->mii_bus->name = "au1000_eth_mii";
 	snprintf(aup->mii_bus->id, MII_BUS_ID_SIZE, "%x", aup->mac_id);
 	aup->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
+	if (aup->mii_bus->irq == NULL)
+		goto err_out;
+
 	for(i = 0; i < PHY_MAX_ADDR; ++i)
 		aup->mii_bus->irq[i] = PHY_POLL;
 
@@ -1206,12 +1215,6 @@ static struct net_device * au1000_probe(int port_num)
 		aup->tx_dma_ring[i]->len = 0;
 		aup->tx_db_inuse[i] = pDB;
 	}
-
-	dev->base_addr = base;
-	dev->irq = irq;
-	dev->netdev_ops = &au1000_netdev_ops;
-	SET_ETHTOOL_OPS(dev, &au1000_ethtool_ops);
-	dev->watchdog_timeo = ETH_TX_TIMEOUT;
 
 	/*
 	 * The boot code uses the ethernet controller, so reset it to start

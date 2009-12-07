@@ -39,9 +39,6 @@
 #ifndef __IWM_SDIO_H__
 #define __IWM_SDIO_H__
 
-#define SDIO_VENDOR_ID_INTEL 0x89
-#define SDIO_DEVICE_ID_IWM   0x1403
-
 #define IWM_SDIO_DATA_ADDR           0x0
 #define IWM_SDIO_INTR_ENABLE_ADDR    0x14
 #define IWM_SDIO_INTR_STATUS_ADDR    0x13

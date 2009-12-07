@@ -26,6 +26,11 @@
 #define TRACE_EVENT(name, proto, args, tstruct, assign, print)	\
 	DEFINE_TRACE(name)
 
+#undef TRACE_EVENT_FN
+#define TRACE_EVENT_FN(name, proto, args, tstruct,		\
+		assign, print, reg, unreg)			\
+	DEFINE_TRACE_FN(name, reg, unreg)
+
 #undef DECLARE_TRACE
 #define DECLARE_TRACE(name, proto, args)	\
 	DEFINE_TRACE(name)
@@ -56,6 +61,8 @@
 #include <trace/ftrace.h>
 #endif
 
+#undef TRACE_EVENT
+#undef TRACE_EVENT_FN
 #undef TRACE_HEADER_MULTI_READ
 
 /* Only undef what we defined in this file */

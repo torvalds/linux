@@ -66,6 +66,20 @@ config SSB_PCMCIAHOST
 
 	  If unsure, say N
 
+config SSB_SDIOHOST_POSSIBLE
+	bool
+	depends on SSB && (MMC = y || MMC = SSB)
+	default y
+
+config SSB_SDIOHOST
+	bool "Support for SSB on SDIO-bus host"
+	depends on SSB_SDIOHOST_POSSIBLE
+	help
+	  Support for a Sonics Silicon Backplane on top
+	  of a SDIO device.
+
+	  If unsure, say N
+
 config SSB_SILENT
 	bool "No SSB kernel messages"
 	depends on SSB && EMBEDDED

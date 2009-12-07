@@ -70,7 +70,6 @@ struct tfrc_rx_hist_entry {
 
 /**
  * tfrc_rx_hist  -  RX history structure for TFRC-based protocols
- *
  * @ring:		Packet history for RTT sampling and loss detection
  * @loss_count:		Number of entries in circular history
  * @loss_start:		Movable index (for loss detection)

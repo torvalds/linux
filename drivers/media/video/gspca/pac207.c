@@ -35,25 +35,17 @@ MODULE_LICENSE("GPL");
 
 #define PAC207_BRIGHTNESS_MIN		0
 #define PAC207_BRIGHTNESS_MAX		255
-#define PAC207_BRIGHTNESS_DEFAULT	4 /* power on default: 4 */
+#define PAC207_BRIGHTNESS_DEFAULT	46
 
-/* An exposure value of 4 also works (3 does not) but then we need to lower
-   the compression balance setting when in 352x288 mode, otherwise the usb
-   bandwidth is not enough and packets get dropped resulting in corrupt
-   frames. The problem with this is that when the compression balance gets
-   lowered below 0x80, the pac207 starts using a different compression
-   algorithm for some lines, these lines get prefixed with a 0x2dd2 prefix
-   and currently we do not know how to decompress these lines, so for now
-   we use a minimum exposure value of 5 */
-#define PAC207_EXPOSURE_MIN		5
+#define PAC207_EXPOSURE_MIN		3
 #define PAC207_EXPOSURE_MAX		26
-#define PAC207_EXPOSURE_DEFAULT		5 /* power on default: 3 ?? */
-#define PAC207_EXPOSURE_KNEE		11 /* 4 = 30 fps, 11 = 8, 15 = 6 */
+#define PAC207_EXPOSURE_DEFAULT		5 /* power on default: 3 */
+#define PAC207_EXPOSURE_KNEE		8 /* 4 = 30 fps, 11 = 8, 15 = 6 */
 
 #define PAC207_GAIN_MIN			0
 #define PAC207_GAIN_MAX			31
 #define PAC207_GAIN_DEFAULT         	9 /* power on default: 9 */
-#define PAC207_GAIN_KNEE		20
+#define PAC207_GAIN_KNEE		31
 
 #define PAC207_AUTOGAIN_DEADZONE	30
 
@@ -166,15 +158,11 @@ static const struct v4l2_pix_format sif_mode[] = {
 };
 
 static const __u8 pac207_sensor_init[][8] = {
-	{0x10, 0x12, 0x0d, 0x12, 0x0c, 0x01, 0x29, 0xf0},
-	{0x00, 0x64, 0x64, 0x64, 0x04, 0x10, 0xf0, 0x30},
+	{0x10, 0x12, 0x0d, 0x12, 0x0c, 0x01, 0x29, 0x84},
+	{0x49, 0x64, 0x64, 0x64, 0x04, 0x10, 0xf0, 0x30},
 	{0x00, 0x00, 0x00, 0x70, 0xa0, 0xf8, 0x00, 0x00},
-	{0x00, 0x00, 0x32, 0x00, 0x96, 0x00, 0xa2, 0x02},
 	{0x32, 0x00, 0x96, 0x00, 0xA2, 0x02, 0xaf, 0x00},
 };
-
-			/* 48 reg_72 Rate Control end BalSize_4a =0x36 */
-static const __u8 PacReg72[] = { 0x00, 0x00, 0x36, 0x00 };
 
 static int pac207_write_regs(struct gspca_dev *gspca_dev, u16 index,
 	const u8 *buffer, u16 length)
@@ -274,7 +262,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 				 * Bit_1=LED,
 				 * Bit_2=Compression test mode enable */
 	pac207_write_reg(gspca_dev, 0x0f, 0x00); /* Power Control */
-	pac207_write_reg(gspca_dev, 0x11, 0x30); /* Analog Bias */
 
 	return 0;
 }
@@ -289,15 +276,13 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	pac207_write_regs(gspca_dev, 0x0002, pac207_sensor_init[0], 8);
 	pac207_write_regs(gspca_dev, 0x000a, pac207_sensor_init[1], 8);
 	pac207_write_regs(gspca_dev, 0x0012, pac207_sensor_init[2], 8);
-	pac207_write_regs(gspca_dev, 0x0040, pac207_sensor_init[3], 8);
-	pac207_write_regs(gspca_dev, 0x0042, pac207_sensor_init[4], 8);
-	pac207_write_regs(gspca_dev, 0x0048, PacReg72, 4);
+	pac207_write_regs(gspca_dev, 0x0042, pac207_sensor_init[3], 8);
 
 	/* Compression Balance */
 	if (gspca_dev->width == 176)
 		pac207_write_reg(gspca_dev, 0x4a, 0xff);
 	else
-		pac207_write_reg(gspca_dev, 0x4a, 0x88);
+		pac207_write_reg(gspca_dev, 0x4a, 0x30);
 	pac207_write_reg(gspca_dev, 0x4b, 0x00); /* Sram test value */
 	pac207_write_reg(gspca_dev, 0x08, sd->brightness);
 
@@ -346,7 +331,7 @@ static void pac207_do_auto_gain(struct gspca_dev *gspca_dev)
 	if (sd->autogain_ignore_frames > 0)
 		sd->autogain_ignore_frames--;
 	else if (gspca_auto_gain_n_exposure(gspca_dev, avg_lum,
-			100 + sd->brightness / 2, PAC207_AUTOGAIN_DEADZONE,
+			100, PAC207_AUTOGAIN_DEADZONE,
 			PAC207_GAIN_KNEE, PAC207_EXPOSURE_KNEE))
 		sd->autogain_ignore_frames = PAC_AUTOGAIN_IGNORE_FRAMES;
 }

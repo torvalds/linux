@@ -89,7 +89,7 @@ static int capifs_remount(struct super_block *s, int *flags, char *data)
 	return 0;
 }
 
-static struct super_operations capifs_sops =
+static const struct super_operations capifs_sops =
 {
 	.statfs		= simple_statfs,
 	.remount_fs	= capifs_remount,

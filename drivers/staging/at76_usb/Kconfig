@@ -1,8 +1,0 @@
-config USB_ATMEL
-	tristate "Atmel at76c503/at76c505/at76c505a USB cards"
-	depends on WLAN_80211 && USB
-	default N
-	select FW_LOADER
-	---help---
-	  Enable support for USB Wireless devices using Atmel at76c503,
-	  at76c505 or at76c505a chips.

@@ -120,6 +120,10 @@ config OMAP_MBOX_FWK
 config OMAP_IOMMU
 	tristate
 
+config OMAP_IOMMU_DEBUG
+	depends on OMAP_IOMMU
+	tristate
+
 choice
         prompt "System timer"
 	default OMAP_MPU_TIMER
@@ -182,6 +186,19 @@ config OMAP_SERIAL_WAKE
 	  Select this option if you want to have your system wake up
 	  to data on the serial RX line. This allows you to wake the
 	  system from serial console.
+
+choice
+	prompt "OMAP PM layer selection"
+	depends on ARCH_OMAP
+	default OMAP_PM_NOOP
+
+config OMAP_PM_NONE
+	bool "No PM layer"
+
+config OMAP_PM_NOOP
+	bool "No-op/debug PM layer"
+
+endchoice
 
 endmenu
 

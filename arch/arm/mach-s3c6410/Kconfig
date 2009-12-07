@@ -77,6 +77,7 @@ config SMDK6410_WM1190_EV1
 	depends on MACH_SMDK6410
 	select REGULATOR
 	select REGULATOR_WM8350
+	select S3C24XX_GPIO_EXTRA64
 	select MFD_WM8350_I2C
 	select MFD_WM8350_CONFIG_MODE_0
 	select MFD_WM8350_CONFIG_MODE_3
@@ -97,3 +98,14 @@ config MACH_NCP
 	select S3C64XX_SETUP_I2C1
 	help
           Machine support for the Samsung NCP
+
+config MACH_HMT
+	bool "Airgoo HMT"
+	select CPU_S3C6410
+	select S3C_DEV_FB
+	select S3C_DEV_NAND
+	select S3C_DEV_USB_HOST
+	select S3C64XX_SETUP_FB_24BPP
+	select HAVE_PWM
+	help
+	  Machine support for the Airgoo HMT

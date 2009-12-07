@@ -92,8 +92,7 @@ struct fc_esb {
 	__u8	_esb_resvd[4];
 	__u8	esb_service_params[112]; /* TBD */
 	__u8	esb_seq_status[8];	/* sequence statuses, 8 bytes each */
-} __attribute__((packed));;
-
+} __attribute__((packed));
 
 /*
  * Define expected size for ASSERTs.

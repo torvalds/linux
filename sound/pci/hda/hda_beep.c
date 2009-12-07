@@ -24,6 +24,7 @@
 #include <linux/workqueue.h>
 #include <sound/core.h>
 #include "hda_beep.h"
+#include "hda_local.h"
 
 enum {
 	DIGBEEP_HZ_STEP = 46875,	/* 46.875 Hz */
@@ -117,6 +118,9 @@ int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 	struct input_dev *input_dev;
 	struct hda_beep *beep;
 	int err;
+
+	if (!snd_hda_get_bool_hint(codec, "beep"))
+		return 0; /* disabled explicitly */
 
 	beep = kzalloc(sizeof(*beep), GFP_KERNEL);
 	if (beep == NULL)

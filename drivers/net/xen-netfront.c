@@ -51,7 +51,7 @@
 #include <xen/interface/memory.h>
 #include <xen/interface/grant_table.h>
 
-static struct ethtool_ops xennet_ethtool_ops;
+static const struct ethtool_ops xennet_ethtool_ops;
 
 struct netfront_cb {
 	struct page *page;
@@ -558,12 +558,12 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock_irq(&np->tx_lock);
 
-	return 0;
+	return NETDEV_TX_OK;
 
  drop:
 	dev->stats.tx_dropped++;
 	dev_kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int xennet_close(struct net_device *dev)
@@ -1627,7 +1627,7 @@ static void backend_changed(struct xenbus_device *dev,
 	}
 }
 
-static struct ethtool_ops xennet_ethtool_ops =
+static const struct ethtool_ops xennet_ethtool_ops =
 {
 	.set_tx_csum = ethtool_op_set_tx_csum,
 	.set_sg = xennet_set_sg,

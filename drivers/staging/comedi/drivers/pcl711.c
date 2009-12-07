@@ -89,39 +89,41 @@ supported.
 #define PCL711_DO_HI 14
 
 static const struct comedi_lrange range_pcl711b_ai = { 5, {
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			BIP_RANGE(0.625),
-			BIP_RANGE(0.3125)
-	}
+							   BIP_RANGE(5),
+							   BIP_RANGE(2.5),
+							   BIP_RANGE(1.25),
+							   BIP_RANGE(0.625),
+							   BIP_RANGE(0.3125)
+							   }
 };
+
 static const struct comedi_lrange range_acl8112hg_ai = { 12, {
-			BIP_RANGE(5),
-			BIP_RANGE(0.5),
-			BIP_RANGE(0.05),
-			BIP_RANGE(0.005),
-			UNI_RANGE(10),
-			UNI_RANGE(1),
-			UNI_RANGE(0.1),
-			UNI_RANGE(0.01),
-			BIP_RANGE(10),
-			BIP_RANGE(1),
-			BIP_RANGE(0.1),
-			BIP_RANGE(0.01)
-	}
+							      BIP_RANGE(5),
+							      BIP_RANGE(0.5),
+							      BIP_RANGE(0.05),
+							      BIP_RANGE(0.005),
+							      UNI_RANGE(10),
+							      UNI_RANGE(1),
+							      UNI_RANGE(0.1),
+							      UNI_RANGE(0.01),
+							      BIP_RANGE(10),
+							      BIP_RANGE(1),
+							      BIP_RANGE(0.1),
+							      BIP_RANGE(0.01)
+							      }
 };
+
 static const struct comedi_lrange range_acl8112dg_ai = { 9, {
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			BIP_RANGE(0.625),
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-			UNI_RANGE(1.25),
-			BIP_RANGE(10)
-	}
+							     BIP_RANGE(5),
+							     BIP_RANGE(2.5),
+							     BIP_RANGE(1.25),
+							     BIP_RANGE(0.625),
+							     UNI_RANGE(10),
+							     UNI_RANGE(5),
+							     UNI_RANGE(2.5),
+							     UNI_RANGE(1.25),
+							     BIP_RANGE(10)
+							     }
 };
 
 /*
@@ -146,7 +148,6 @@ struct pcl711_board {
 	const struct comedi_lrange *ai_range_type;
 };
 
-
 static const struct pcl711_board boardtypes[] = {
 	{"pcl711", 0, 0, 0, 5, 8, 1, 0, &range_bipolar5},
 	{"pcl711b", 1, 0, 0, 5, 8, 1, 7, &range_pcl711b_ai},
@@ -157,7 +158,8 @@ static const struct pcl711_board boardtypes[] = {
 #define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcl711_board))
 #define this_board ((const struct pcl711_board *)dev->board_ptr)
 
-static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pcl711_attach(struct comedi_device *dev,
+			 struct comedi_devconfig *it);
 static int pcl711_detach(struct comedi_device *dev);
 static struct comedi_driver driver_pcl711 = {
 	.driver_name = "pcl711",
@@ -182,7 +184,6 @@ struct pcl711_private {
 	unsigned int divisor1;
 	unsigned int divisor2;
 };
-
 
 #define devpriv ((struct pcl711_private *)dev->private)
 
@@ -246,7 +247,7 @@ static void pcl711_set_changain(struct comedi_device *dev, int chan)
 }
 
 static int pcl711_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+			  struct comedi_insn *insn, unsigned int *data)
 {
 	int i, n;
 	int hi, lo;
@@ -275,7 +276,7 @@ static int pcl711_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 		printk("comedi%d: pcl711: A/D timeout\n", dev->minor);
 		return -ETIME;
 
-	      ok:
+ok:
 		lo = inb(dev->iobase + PCL711_AD_LO);
 
 		data[n] = ((hi & 0xf) << 8) | lo;
@@ -284,8 +285,8 @@ static int pcl711_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return n;
 }
 
-static int pcl711_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_cmd *cmd)
+static int pcl711_ai_cmdtest(struct comedi_device *dev,
+			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int tmp;
 	int err = 0;
@@ -322,7 +323,7 @@ static int pcl711_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice 
 	/* step 2 */
 
 	if (cmd->scan_begin_src != TRIG_TIMER &&
-		cmd->scan_begin_src != TRIG_EXT)
+	    cmd->scan_begin_src != TRIG_EXT)
 		err++;
 	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
 		err++;
@@ -374,8 +375,10 @@ static int pcl711_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
 		i8253_cascade_ns_to_timer_2div(TIMER_BASE,
-			&devpriv->divisor1, &devpriv->divisor2,
-			&cmd->scan_begin_arg, cmd->flags & TRIG_ROUND_MASK);
+					       &devpriv->divisor1,
+					       &devpriv->divisor2,
+					       &cmd->scan_begin_arg,
+					       cmd->flags & TRIG_ROUND_MASK);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
@@ -405,7 +408,8 @@ static int pcl711_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		 */
 
 		i8253_cascade_ns_to_timer(i8253_osc_base, &timer1, &timer2,
-			&cmd->scan_begin_arg, TRIG_ROUND_NEAREST);
+					  &cmd->scan_begin_arg,
+					  TRIG_ROUND_NEAREST);
 
 		outb(0x74, dev->iobase + PCL711_CTRCTL);
 		outb(timer1 & 0xff, dev->iobase + PCL711_CTR1);
@@ -433,16 +437,16 @@ static int pcl711_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
    analog output
 */
 static int pcl711_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+			  struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
 
 	for (n = 0; n < insn->n; n++) {
 		outb((data[n] & 0xff),
-			dev->iobase + (chan ? PCL711_DA1_LO : PCL711_DA0_LO));
+		     dev->iobase + (chan ? PCL711_DA1_LO : PCL711_DA0_LO));
 		outb((data[n] >> 8),
-			dev->iobase + (chan ? PCL711_DA1_HI : PCL711_DA0_HI));
+		     dev->iobase + (chan ? PCL711_DA1_HI : PCL711_DA0_HI));
 
 		devpriv->ao_readback[chan] = data[n];
 	}
@@ -450,8 +454,9 @@ static int pcl711_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return n;
 }
 
-static int pcl711_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int pcl711_ao_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
@@ -465,21 +470,23 @@ static int pcl711_ao_insn_read(struct comedi_device *dev, struct comedi_subdevic
 }
 
 /* Digital port read - Untested on 8112 */
-static int pcl711_di_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int pcl711_di_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
 
 	data[1] = inb(dev->iobase + PCL711_DI_LO) |
-		(inb(dev->iobase + PCL711_DI_HI) << 8);
+	    (inb(dev->iobase + PCL711_DI_HI) << 8);
 
 	return 2;
 }
 
 /* Digital port write - Untested on 8112 */
-static int pcl711_do_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int pcl711_do_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

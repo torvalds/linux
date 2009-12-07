@@ -208,7 +208,8 @@ static int crypto4xx_hash_alg_init(struct crypto_tfm *tfm,
 		}
 	}
 
-	tfm->crt_ahash.reqsize = sizeof(struct crypto4xx_ctx);
+	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
+				 sizeof(struct crypto4xx_ctx));
 	sa = (struct dynamic_sa_ctl *) ctx->sa_in;
 	set_dynamic_sa_command_0(sa, SA_SAVE_HASH, SA_NOT_SAVE_IV,
 				 SA_NOT_LOAD_HASH, SA_LOAD_IV_FROM_SA,

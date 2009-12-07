@@ -76,7 +76,7 @@ static inline void __raw_spin_unlock(raw_spinlock_t *lock)
  *
  * Unfortunately this scheme limits us to ~16,000,000 cpus.
  */
-static inline void __read_lock(raw_rwlock_t *rw)
+static inline void arch_read_lock(raw_rwlock_t *rw)
 {
 	register raw_rwlock_t *lp asm("g1");
 	lp = rw;
@@ -92,11 +92,11 @@ static inline void __read_lock(raw_rwlock_t *rw)
 #define __raw_read_lock(lock) \
 do {	unsigned long flags; \
 	local_irq_save(flags); \
-	__read_lock(lock); \
+	arch_read_lock(lock); \
 	local_irq_restore(flags); \
 } while(0)
 
-static inline void __read_unlock(raw_rwlock_t *rw)
+static inline void arch_read_unlock(raw_rwlock_t *rw)
 {
 	register raw_rwlock_t *lp asm("g1");
 	lp = rw;
@@ -112,7 +112,7 @@ static inline void __read_unlock(raw_rwlock_t *rw)
 #define __raw_read_unlock(lock) \
 do {	unsigned long flags; \
 	local_irq_save(flags); \
-	__read_unlock(lock); \
+	arch_read_unlock(lock); \
 	local_irq_restore(flags); \
 } while(0)
 
@@ -150,7 +150,7 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 	return (val == 0);
 }
 
-static inline int __read_trylock(raw_rwlock_t *rw)
+static inline int arch_read_trylock(raw_rwlock_t *rw)
 {
 	register raw_rwlock_t *lp asm("g1");
 	register int res asm("o0");
@@ -169,7 +169,7 @@ static inline int __read_trylock(raw_rwlock_t *rw)
 ({	unsigned long flags; \
 	int res; \
 	local_irq_save(flags); \
-	res = __read_trylock(lock); \
+	res = arch_read_trylock(lock); \
 	local_irq_restore(flags); \
 	res; \
 })

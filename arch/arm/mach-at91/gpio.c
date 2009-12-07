@@ -44,13 +44,11 @@ static int at91_gpiolib_direction_output(struct gpio_chip *chip,
 					 unsigned offset, int val);
 static int at91_gpiolib_direction_input(struct gpio_chip *chip,
 					unsigned offset);
-static int at91_gpiolib_request(struct gpio_chip *chip, unsigned offset);
 
 #define AT91_GPIO_CHIP(name, base_gpio, nr_gpio)			\
 	{								\
 		.chip = {						\
 			.label		  = name,			\
-			.request	  = at91_gpiolib_request,	\
 			.direction_input  = at91_gpiolib_direction_input, \
 			.direction_output = at91_gpiolib_direction_output, \
 			.get		  = at91_gpiolib_get,		\
@@ -586,19 +584,6 @@ static void at91_gpiolib_set(struct gpio_chip *chip, unsigned offset, int val)
 	unsigned mask = 1 << offset;
 
 	__raw_writel(mask, pio + (val ? PIO_SODR : PIO_CODR));
-}
-
-static int at91_gpiolib_request(struct gpio_chip *chip, unsigned offset)
-{
-	unsigned pin = chip->base + offset;
-	void __iomem *pio = pin_to_controller(pin);
-	unsigned mask = pin_to_mask(pin);
-
-	/* Cannot request GPIOs that are in alternate function mode */
-	if (!(__raw_readl(pio + PIO_PSR) & mask))
-		return -EPERM;
-
-	return 0;
 }
 
 static void at91_gpiolib_dbg_show(struct seq_file *s, struct gpio_chip *chip)

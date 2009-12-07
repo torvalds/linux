@@ -30,6 +30,7 @@
 #include <linux/io.h>
 #include <linux/smsc911x.h>
 #include <linux/ata_platform.h>
+#include <linux/amba/mmci.h>
 
 #include <asm/clkdev.h>
 #include <asm/system.h>
@@ -44,7 +45,6 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
-#include <asm/mach/mmc.h>
 
 #include <asm/hardware/gic.h>
 
@@ -58,6 +58,25 @@
 
 /* used by entry-macro.S and platsmp.c */
 void __iomem *gic_cpu_base_addr;
+
+#ifdef CONFIG_ZONE_DMA
+/*
+ * Adjust the zones if there are restrictions for DMA access.
+ */
+void __init realview_adjust_zones(int node, unsigned long *size,
+				  unsigned long *hole)
+{
+	unsigned long dma_size = SZ_256M >> PAGE_SHIFT;
+
+	if (!machine_is_realview_pbx() || node || (size[0] <= dma_size))
+		return;
+
+	size[ZONE_NORMAL] = size[0] - dma_size;
+	size[ZONE_DMA] = dma_size;
+	hole[ZONE_NORMAL] = hole[0];
+	hole[ZONE_DMA] = 0;
+}
+#endif
 
 /*
  * This is the RealView sched_clock implementation.  This has
@@ -221,6 +240,9 @@ arch_initcall(realview_i2c_init);
 
 #define REALVIEW_SYSMCI	(__io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_MCI_OFFSET)
 
+/*
+ * This is only used if GPIOLIB support is disabled
+ */
 static unsigned int realview_mmc_status(struct device *dev)
 {
 	struct amba_device *adev = container_of(dev, struct amba_device, dev);
@@ -234,14 +256,18 @@ static unsigned int realview_mmc_status(struct device *dev)
 	return readl(REALVIEW_SYSMCI) & mask;
 }
 
-struct mmc_platform_data realview_mmc0_plat_data = {
+struct mmci_platform_data realview_mmc0_plat_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.status		= realview_mmc_status,
+	.gpio_wp	= 17,
+	.gpio_cd	= 16,
 };
 
-struct mmc_platform_data realview_mmc1_plat_data = {
+struct mmci_platform_data realview_mmc1_plat_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.status		= realview_mmc_status,
+	.gpio_wp	= 19,
+	.gpio_cd	= 18,
 };
 
 /*
@@ -289,31 +315,31 @@ static struct clk ref24_clk = {
 
 static struct clk_lookup lookups[] = {
 	{	/* UART0 */
-		.dev_id		= "dev:f1",
+		.dev_id		= "dev:uart0",
 		.clk		= &ref24_clk,
 	}, {	/* UART1 */
-		.dev_id		= "dev:f2",
+		.dev_id		= "dev:uart1",
 		.clk		= &ref24_clk,
 	}, {	/* UART2 */
-		.dev_id		= "dev:f3",
+		.dev_id		= "dev:uart2",
 		.clk		= &ref24_clk,
 	}, {	/* UART3 */
-		.dev_id		= "fpga:09",
+		.dev_id		= "fpga:uart3",
 		.clk		= &ref24_clk,
 	}, {	/* KMI0 */
-		.dev_id		= "fpga:06",
+		.dev_id		= "fpga:kmi0",
 		.clk		= &ref24_clk,
 	}, {	/* KMI1 */
-		.dev_id		= "fpga:07",
+		.dev_id		= "fpga:kmi1",
 		.clk		= &ref24_clk,
 	}, {	/* MMC0 */
-		.dev_id		= "fpga:05",
+		.dev_id		= "fpga:mmc0",
 		.clk		= &ref24_clk,
 	}, {	/* EB:CLCD */
-		.dev_id		= "dev:20",
+		.dev_id		= "dev:clcd",
 		.clk		= &oscvco_clk,
 	}, {	/* PB:CLCD */
-		.dev_id		= "issp:20",
+		.dev_id		= "issp:clcd",
 		.clk		= &oscvco_clk,
 	}
 };
@@ -536,7 +562,7 @@ static int realview_clcd_setup(struct clcd_fb *fb)
 	fb->panel		= realview_clcd_panel();
 
 	fb->fb.screen_base = dma_alloc_writecombine(&fb->dev->dev, framesize,
-						    &dma, GFP_KERNEL);
+						    &dma, GFP_KERNEL | GFP_DMA);
 	if (!fb->fb.screen_base) {
 		printk(KERN_ERR "CLCD: unable to map framebuffer\n");
 		return -ENOMEM;
@@ -780,4 +806,25 @@ void __init realview_timer_init(unsigned int timer_irq)
 
 	realview_clocksource_init();
 	realview_clockevents_init(timer_irq);
+}
+
+/*
+ * Setup the memory banks.
+ */
+void realview_fixup(struct machine_desc *mdesc, struct tag *tags, char **from,
+		    struct meminfo *meminfo)
+{
+	/*
+	 * Most RealView platforms have 512MB contiguous RAM at 0x70000000.
+	 * Half of this is mirrored at 0.
+	 */
+#ifdef CONFIG_REALVIEW_HIGH_PHYS_OFFSET
+	meminfo->bank[0].start = 0x70000000;
+	meminfo->bank[0].size = SZ_512M;
+	meminfo->nr_banks = 1;
+#else
+	meminfo->bank[0].start = 0;
+	meminfo->bank[0].size = SZ_256M;
+	meminfo->nr_banks = 1;
+#endif
 }

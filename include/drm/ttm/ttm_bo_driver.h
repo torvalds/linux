@@ -32,6 +32,7 @@
 
 #include "ttm/ttm_bo_api.h"
 #include "ttm/ttm_memory.h"
+#include "ttm/ttm_module.h"
 #include "drm_mm.h"
 #include "linux/workqueue.h"
 #include "linux/fs.h"
@@ -161,7 +162,7 @@ struct ttm_tt {
 	long last_lomem_page;
 	uint32_t page_flags;
 	unsigned long num_pages;
-	struct ttm_bo_device *bdev;
+	struct ttm_bo_global *glob;
 	struct ttm_backend *be;
 	struct task_struct *tsk;
 	unsigned long start;
@@ -364,6 +365,64 @@ struct ttm_bo_driver {
 	void (*fault_reserve_notify)(struct ttm_buffer_object *bo);
 };
 
+/**
+ * struct ttm_bo_global_ref - Argument to initialize a struct ttm_bo_global.
+ */
+
+struct ttm_bo_global_ref {
+	struct ttm_global_reference ref;
+	struct ttm_mem_global *mem_glob;
+};
+
+/**
+ * struct ttm_bo_global - Buffer object driver global data.
+ *
+ * @mem_glob: Pointer to a struct ttm_mem_global object for accounting.
+ * @dummy_read_page: Pointer to a dummy page used for mapping requests
+ * of unpopulated pages.
+ * @shrink: A shrink callback object used for buffer object swap.
+ * @ttm_bo_extra_size: Extra size (sizeof(struct ttm_buffer_object) excluded)
+ * used by a buffer object. This is excluding page arrays and backing pages.
+ * @ttm_bo_size: This is @ttm_bo_extra_size + sizeof(struct ttm_buffer_object).
+ * @device_list_mutex: Mutex protecting the device list.
+ * This mutex is held while traversing the device list for pm options.
+ * @lru_lock: Spinlock protecting the bo subsystem lru lists.
+ * @device_list: List of buffer object devices.
+ * @swap_lru: Lru list of buffer objects used for swapping.
+ */
+
+struct ttm_bo_global {
+
+	/**
+	 * Constant after init.
+	 */
+
+	struct kobject kobj;
+	struct ttm_mem_global *mem_glob;
+	struct page *dummy_read_page;
+	struct ttm_mem_shrink shrink;
+	size_t ttm_bo_extra_size;
+	size_t ttm_bo_size;
+	struct mutex device_list_mutex;
+	spinlock_t lru_lock;
+
+	/**
+	 * Protected by device_list_mutex.
+	 */
+	struct list_head device_list;
+
+	/**
+	 * Protected by the lru_lock.
+	 */
+	struct list_head swap_lru;
+
+	/**
+	 * Internal protection.
+	 */
+	atomic_t bo_count;
+};
+
+
 #define TTM_NUM_MEM_TYPES 8
 
 #define TTM_BO_PRIV_FLAG_MOVING  0	/* Buffer object is moving and needs
@@ -372,16 +431,7 @@ struct ttm_bo_driver {
 /**
  * struct ttm_bo_device - Buffer object driver device-specific data.
  *
- * @mem_glob: Pointer to a struct ttm_mem_global object for accounting.
  * @driver: Pointer to a struct ttm_bo_driver struct setup by the driver.
- * @count: Current number of buffer object.
- * @pages: Current number of pinned pages.
- * @dummy_read_page: Pointer to a dummy page used for mapping requests
- * of unpopulated pages.
- * @shrink: A shrink callback object used for buffre object swap.
- * @ttm_bo_extra_size: Extra size (sizeof(struct ttm_buffer_object) excluded)
- * used by a buffer object. This is excluding page arrays and backing pages.
- * @ttm_bo_size: This is @ttm_bo_extra_size + sizeof(struct ttm_buffer_object).
  * @man: An array of mem_type_managers.
  * @addr_space_mm: Range manager for the device address space.
  * lru_lock: Spinlock that protects the buffer+device lru lists and
@@ -399,32 +449,21 @@ struct ttm_bo_device {
 	/*
 	 * Constant after bo device init / atomic.
 	 */
-
-	struct ttm_mem_global *mem_glob;
+	struct list_head device_list;
+	struct ttm_bo_global *glob;
 	struct ttm_bo_driver *driver;
-	struct page *dummy_read_page;
-	struct ttm_mem_shrink shrink;
-
-	size_t ttm_bo_extra_size;
-	size_t ttm_bo_size;
-
 	rwlock_t vm_lock;
+	struct ttm_mem_type_manager man[TTM_NUM_MEM_TYPES];
 	/*
 	 * Protected by the vm lock.
 	 */
-	struct ttm_mem_type_manager man[TTM_NUM_MEM_TYPES];
 	struct rb_root addr_space_rb;
 	struct drm_mm addr_space_mm;
 
 	/*
-	 * Might want to change this to one lock per manager.
-	 */
-	spinlock_t lru_lock;
-	/*
-	 * Protected by the lru lock.
+	 * Protected by the global:lru lock.
 	 */
 	struct list_head ddestroy;
-	struct list_head swap_lru;
 
 	/*
 	 * Protected by load / firstopen / lastclose /unload sync.
@@ -640,6 +679,9 @@ extern int ttm_bo_pci_offset(struct ttm_bo_device *bdev,
 			     unsigned long *bus_offset,
 			     unsigned long *bus_size);
 
+extern void ttm_bo_global_release(struct ttm_global_reference *ref);
+extern int ttm_bo_global_init(struct ttm_global_reference *ref);
+
 extern int ttm_bo_device_release(struct ttm_bo_device *bdev);
 
 /**
@@ -657,7 +699,7 @@ extern int ttm_bo_device_release(struct ttm_bo_device *bdev);
  * !0: Failure.
  */
 extern int ttm_bo_device_init(struct ttm_bo_device *bdev,
-			      struct ttm_mem_global *mem_glob,
+			      struct ttm_bo_global *glob,
 			      struct ttm_bo_driver *driver,
 			      uint64_t file_page_offset, bool need_dma32);
 

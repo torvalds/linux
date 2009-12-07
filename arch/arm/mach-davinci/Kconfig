@@ -6,6 +6,9 @@ config AINTC
 config CP_INTC
 	bool
 
+config ARCH_DAVINCI_DMx
+	bool
+
 menu "TI DaVinci Implementations"
 
 comment "DaVinci Core Type"
@@ -13,20 +16,41 @@ comment "DaVinci Core Type"
 config ARCH_DAVINCI_DM644x
 	bool "DaVinci 644x based system"
 	select AINTC
+	select ARCH_DAVINCI_DMx
 
 config ARCH_DAVINCI_DM355
         bool "DaVinci 355 based system"
 	select AINTC
+	select ARCH_DAVINCI_DMx
 
 config ARCH_DAVINCI_DM646x
         bool "DaVinci 646x based system"
 	select AINTC
+	select ARCH_DAVINCI_DMx
+
+config ARCH_DAVINCI_DA830
+        bool "DA830/OMAP-L137 based system"
+	select CP_INTC
+	select ARCH_DAVINCI_DA8XX
+
+config ARCH_DAVINCI_DA850
+	bool "DA850/OMAP-L138 based system"
+	select CP_INTC
+	select ARCH_DAVINCI_DA8XX
+
+config ARCH_DAVINCI_DA8XX
+	bool
+
+config ARCH_DAVINCI_DM365
+	bool "DaVinci 365 based system"
+	select AINTC
+	select ARCH_DAVINCI_DMx
 
 comment "DaVinci Board Type"
 
 config MACH_DAVINCI_EVM
 	bool "TI DM644x EVM"
-	default y
+	default ARCH_DAVINCI_DM644x
 	depends on ARCH_DAVINCI_DM644x
 	help
 	  Configure this option to specify the whether the board used
@@ -41,6 +65,7 @@ config MACH_SFFSDR
 
 config MACH_DAVINCI_DM355_EVM
 	bool "TI DM355 EVM"
+	default ARCH_DAVINCI_DM355
 	depends on ARCH_DAVINCI_DM355
 	help
 	  Configure this option to specify the whether the board used
@@ -55,11 +80,33 @@ config MACH_DM355_LEOPARD
 
 config MACH_DAVINCI_DM6467_EVM
 	bool "TI DM6467 EVM"
+	default ARCH_DAVINCI_DM646x
 	depends on ARCH_DAVINCI_DM646x
 	help
 	  Configure this option to specify the whether the board used
 	  for development is a DM6467 EVM
 
+config MACH_DAVINCI_DM365_EVM
+	bool "TI DM365 EVM"
+	default ARCH_DAVINCI_DM365
+	depends on ARCH_DAVINCI_DM365
+	help
+	  Configure this option to specify whether the board used
+	  for development is a DM365 EVM
+
+config MACH_DAVINCI_DA830_EVM
+	bool "TI DA830/OMAP-L137 Reference Platform"
+	default ARCH_DAVINCI_DA830
+	depends on ARCH_DAVINCI_DA830
+	help
+	  Say Y here to select the TI DA830/OMAP-L137 Evaluation Module.
+
+config MACH_DAVINCI_DA850_EVM
+	bool "TI DA850/OMAP-L138 Reference Platform"
+	default ARCH_DAVINCI_DA850
+	depends on ARCH_DAVINCI_DA850
+	help
+	  Say Y here to select the TI DA850/OMAP-L138 Evaluation Module.
 
 config DAVINCI_MUX
 	bool "DAVINCI multiplexing support"

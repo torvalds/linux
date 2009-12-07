@@ -1674,6 +1674,10 @@ int
 qla2x00_fdmi_register(scsi_qla_host_t *vha)
 {
 	int rval;
+       struct qla_hw_data *ha = vha->hw;
+
+	if (IS_QLA2100(ha) || IS_QLA2200(ha))
+		return QLA_FUNCTION_FAILED;
 
 	rval = qla2x00_mgmt_svr_login(vha);
 	if (rval)

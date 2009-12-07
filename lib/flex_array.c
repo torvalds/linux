@@ -28,23 +28,6 @@ struct flex_array_part {
 	char elements[FLEX_ARRAY_PART_SIZE];
 };
 
-static inline int __elements_per_part(int element_size)
-{
-	return FLEX_ARRAY_PART_SIZE / element_size;
-}
-
-static inline int bytes_left_in_base(void)
-{
-	int element_offset = offsetof(struct flex_array, parts);
-	int bytes_left = FLEX_ARRAY_BASE_SIZE - element_offset;
-	return bytes_left;
-}
-
-static inline int nr_base_part_ptrs(void)
-{
-	return bytes_left_in_base() / sizeof(struct flex_array_part *);
-}
-
 /*
  * If a user requests an allocation which is small
  * enough, we may simply use the space in the
@@ -54,7 +37,7 @@ static inline int nr_base_part_ptrs(void)
 static inline int elements_fit_in_base(struct flex_array *fa)
 {
 	int data_size = fa->element_size * fa->total_nr_elements;
-	if (data_size <= bytes_left_in_base())
+	if (data_size <= FLEX_ARRAY_BASE_BYTES_LEFT)
 		return 1;
 	return 0;
 }
@@ -63,6 +46,7 @@ static inline int elements_fit_in_base(struct flex_array *fa)
  * flex_array_alloc - allocate a new flexible array
  * @element_size:	the size of individual elements in the array
  * @total:		total number of elements that this should hold
+ * @flags:		page allocation flags to use for base array
  *
  * Note: all locking must be provided by the caller.
  *
@@ -103,7 +87,8 @@ struct flex_array *flex_array_alloc(int element_size, unsigned int total,
 					gfp_t flags)
 {
 	struct flex_array *ret;
-	int max_size = nr_base_part_ptrs() * __elements_per_part(element_size);
+	int max_size = FLEX_ARRAY_NR_BASE_PTRS *
+				FLEX_ARRAY_ELEMENTS_PER_PART(element_size);
 
 	/* max_size will end up 0 if element_size > PAGE_SIZE */
 	if (total > max_size)
@@ -113,17 +98,21 @@ struct flex_array *flex_array_alloc(int element_size, unsigned int total,
 		return NULL;
 	ret->element_size = element_size;
 	ret->total_nr_elements = total;
+	if (elements_fit_in_base(ret) && !(flags & __GFP_ZERO))
+		memset(ret->parts[0], FLEX_ARRAY_FREE,
+						FLEX_ARRAY_BASE_BYTES_LEFT);
 	return ret;
 }
 
 static int fa_element_to_part_nr(struct flex_array *fa,
 					unsigned int element_nr)
 {
-	return element_nr / __elements_per_part(fa->element_size);
+	return element_nr / FLEX_ARRAY_ELEMENTS_PER_PART(fa->element_size);
 }
 
 /**
  * flex_array_free_parts - just free the second-level pages
+ * @fa:		the flex array from which to free parts
  *
  * This is to be used in cases where the base 'struct flex_array'
  * has been statically allocated and should not be free.
@@ -131,11 +120,10 @@ static int fa_element_to_part_nr(struct flex_array *fa,
 void flex_array_free_parts(struct flex_array *fa)
 {
 	int part_nr;
-	int max_part = nr_base_part_ptrs();
 
 	if (elements_fit_in_base(fa))
 		return;
-	for (part_nr = 0; part_nr < max_part; part_nr++)
+	for (part_nr = 0; part_nr < FLEX_ARRAY_NR_BASE_PTRS; part_nr++)
 		kfree(fa->parts[part_nr]);
 }
 
@@ -150,7 +138,8 @@ static unsigned int index_inside_part(struct flex_array *fa,
 {
 	unsigned int part_offset;
 
-	part_offset = element_nr % __elements_per_part(fa->element_size);
+	part_offset = element_nr %
+				FLEX_ARRAY_ELEMENTS_PER_PART(fa->element_size);
 	return part_offset * fa->element_size;
 }
 
@@ -159,15 +148,12 @@ __fa_get_part(struct flex_array *fa, int part_nr, gfp_t flags)
 {
 	struct flex_array_part *part = fa->parts[part_nr];
 	if (!part) {
-		/*
-		 * This leaves the part pages uninitialized
-		 * and with potentially random data, just
-		 * as if the user had kmalloc()'d the whole.
-		 * __GFP_ZERO can be used to zero it.
-		 */
-		part = kmalloc(FLEX_ARRAY_PART_SIZE, flags);
+		part = kmalloc(sizeof(struct flex_array_part), flags);
 		if (!part)
 			return NULL;
+		if (!(flags & __GFP_ZERO))
+			memset(part, FLEX_ARRAY_FREE,
+				sizeof(struct flex_array_part));
 		fa->parts[part_nr] = part;
 	}
 	return part;
@@ -175,9 +161,12 @@ __fa_get_part(struct flex_array *fa, int part_nr, gfp_t flags)
 
 /**
  * flex_array_put - copy data into the array at @element_nr
- * @src:	address of data to copy into the array
+ * @fa:		the flex array to copy data into
  * @element_nr:	index of the position in which to insert
  * 		the new element.
+ * @src:	address of data to copy into the array
+ * @flags:	page allocation flags to use for array expansion
+ *
  *
  * Note that this *copies* the contents of @src into
  * the array.  If you are trying to store an array of
@@ -207,9 +196,38 @@ int flex_array_put(struct flex_array *fa, unsigned int element_nr, void *src,
 }
 
 /**
+ * flex_array_clear - clear element in array at @element_nr
+ * @fa:		the flex array of the element.
+ * @element_nr:	index of the position to clear.
+ *
+ * Locking must be provided by the caller.
+ */
+int flex_array_clear(struct flex_array *fa, unsigned int element_nr)
+{
+	int part_nr = fa_element_to_part_nr(fa, element_nr);
+	struct flex_array_part *part;
+	void *dst;
+
+	if (element_nr >= fa->total_nr_elements)
+		return -ENOSPC;
+	if (elements_fit_in_base(fa))
+		part = (struct flex_array_part *)&fa->parts[0];
+	else {
+		part = fa->parts[part_nr];
+		if (!part)
+			return -EINVAL;
+	}
+	dst = &part->elements[index_inside_part(fa, element_nr)];
+	memset(dst, FLEX_ARRAY_FREE, fa->element_size);
+	return 0;
+}
+
+/**
  * flex_array_prealloc - guarantee that array space exists
+ * @fa:		the flex array for which to preallocate parts
  * @start:	index of first array element for which space is allocated
  * @end:	index of last (inclusive) element for which space is allocated
+ * @flags:	page allocation flags
  *
  * This will guarantee that no future calls to flex_array_put()
  * will allocate memory.  It can be used if you are expecting to
@@ -242,6 +260,7 @@ int flex_array_prealloc(struct flex_array *fa, unsigned int start,
 
 /**
  * flex_array_get - pull data back out of the array
+ * @fa:		the flex array from which to extract data
  * @element_nr:	index of the element to fetch from the array
  *
  * Returns a pointer to the data at index @element_nr.  Note
@@ -265,4 +284,44 @@ void *flex_array_get(struct flex_array *fa, unsigned int element_nr)
 			return NULL;
 	}
 	return &part->elements[index_inside_part(fa, element_nr)];
+}
+
+static int part_is_free(struct flex_array_part *part)
+{
+	int i;
+
+	for (i = 0; i < sizeof(struct flex_array_part); i++)
+		if (part->elements[i] != FLEX_ARRAY_FREE)
+			return 0;
+	return 1;
+}
+
+/**
+ * flex_array_shrink - free unused second-level pages
+ * @fa:		the flex array to shrink
+ *
+ * Frees all second-level pages that consist solely of unused
+ * elements.  Returns the number of pages freed.
+ *
+ * Locking must be provided by the caller.
+ */
+int flex_array_shrink(struct flex_array *fa)
+{
+	struct flex_array_part *part;
+	int part_nr;
+	int ret = 0;
+
+	if (elements_fit_in_base(fa))
+		return ret;
+	for (part_nr = 0; part_nr < FLEX_ARRAY_NR_BASE_PTRS; part_nr++) {
+		part = fa->parts[part_nr];
+		if (!part)
+			continue;
+		if (part_is_free(part)) {
+			fa->parts[part_nr] = NULL;
+			kfree(part);
+			ret++;
+		}
+	}
+	return ret;
 }

@@ -85,10 +85,6 @@ void ieee80211_sta_stop_rx_ba_session(struct ieee80211_sub_if_data *sdata, u8 *r
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 
-	/* stop HW Rx aggregation. ampdu_action existence
-	 * already verified in session init so we add the BUG_ON */
-	BUG_ON(!local->ops->ampdu_action);
-
 	rcu_read_lock();
 
 	sta = sta_info_get(local, ra);

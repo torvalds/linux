@@ -19,11 +19,6 @@
 #ifndef __ASM_ARCH_MXC_BOARD_MX31MOBOARD_H__
 #define __ASM_ARCH_MXC_BOARD_MX31MOBOARD_H__
 
-/* mandatory for CONFIG_DEBUG_LL */
-
-#define MXC_LL_UART_PADDR	UART1_BASE_ADDR
-#define MXC_LL_UART_VADDR	(AIPI_BASE_ADDR_VIRT + 0x0A000)
-
 #ifndef __ASSEMBLY__
 
 enum mx31moboard_boards {

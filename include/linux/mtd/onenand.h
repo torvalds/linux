@@ -214,4 +214,12 @@ unsigned onenand_block(struct onenand_chip *this, loff_t addr);
 loff_t onenand_addr(struct onenand_chip *this, int block);
 int flexonenand_region(struct mtd_info *mtd, loff_t addr);
 
+struct mtd_partition;
+
+struct onenand_platform_data {
+	void		(*mmcontrol)(struct mtd_info *mtd, int sync_read);
+	struct mtd_partition *parts;
+	unsigned int	nr_parts;
+};
+
 #endif	/* __LINUX_MTD_ONENAND_H */

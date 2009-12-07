@@ -109,12 +109,12 @@ struct platform_driver palmz71_panel_driver = {
 	},
 };
 
-static int palmz71_panel_drv_init(void)
+static int __init palmz71_panel_drv_init(void)
 {
 	return platform_driver_register(&palmz71_panel_driver);
 }
 
-static void palmz71_panel_drv_cleanup(void)
+static void __exit palmz71_panel_drv_cleanup(void)
 {
 	platform_driver_unregister(&palmz71_panel_driver);
 }

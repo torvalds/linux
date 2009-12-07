@@ -417,7 +417,7 @@ static void dout_start_xmit(struct FsmInst *fsm, int event, void *arg)
 
 	DBG(2,"len=%d",skb->len);
 
-	isdnhdlc_out_init(&d_out->hdlc_state, 1, 0);
+	isdnhdlc_out_init(&d_out->hdlc_state, HDLC_DCHANNEL | HDLC_BITREVERSE);
 
 	if (test_and_set_bit(buf_nr, &d_out->busy)) {
 		WARNING("ep %d urb %d busy %#lx", EP_D_OUT, buf_nr, d_out->busy);

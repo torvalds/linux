@@ -620,8 +620,8 @@ __SYSCALL(__NR_move_pages, sys_move_pages)
 
 #define __NR_rt_tgsigqueueinfo 240
 __SYSCALL(__NR_rt_tgsigqueueinfo, sys_rt_tgsigqueueinfo)
-#define __NR_perf_counter_open 241
-__SYSCALL(__NR_perf_counter_open, sys_perf_counter_open)
+#define __NR_perf_event_open 241
+__SYSCALL(__NR_perf_event_open, sys_perf_event_open)
 
 #undef __NR_syscalls
 #define __NR_syscalls 242

@@ -32,7 +32,7 @@
 #include <linux/init.h>
 
 #include <asm/abs_addr.h>
-#include <asm/iommu.h>
+#include <asm/cell-regs.h>
 #include <asm/lv1call.h>
 #include <asm/ps3av.h>
 #include <asm/ps3fb.h>

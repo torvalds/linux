@@ -46,6 +46,8 @@
 
 #include "sbshc.h"
 
+#define PREFIX "ACPI: "
+
 #define ACPI_SBS_CLASS			"sbs"
 #define ACPI_AC_CLASS			"ac_adapter"
 #define ACPI_BATTERY_CLASS		"battery"

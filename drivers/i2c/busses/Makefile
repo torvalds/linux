@@ -2,6 +2,9 @@
 # Makefile for the i2c bus drivers.
 #
 
+# ACPI drivers
+obj-$(CONFIG_I2C_SCMI)		+= i2c-scmi.o
+
 # PC SMBus host controller drivers
 obj-$(CONFIG_I2C_ALI1535)	+= i2c-ali1535.o
 obj-$(CONFIG_I2C_ALI1563)	+= i2c-ali1563.o

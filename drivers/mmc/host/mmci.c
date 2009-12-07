@@ -21,12 +21,14 @@
 #include <linux/amba/bus.h>
 #include <linux/clk.h>
 #include <linux/scatterlist.h>
+#include <linux/gpio.h>
+#include <linux/amba/mmci.h>
+#include <linux/regulator/consumer.h>
 
 #include <asm/cacheflush.h>
 #include <asm/div64.h>
 #include <asm/io.h>
 #include <asm/sizes.h>
-#include <asm/mach/mmc.h>
 
 #include "mmci.h"
 
@@ -36,6 +38,36 @@
 	pr_debug("%s: %s: " fmt, mmc_hostname(host->mmc), __func__ , args)
 
 static unsigned int fmax = 515633;
+
+/*
+ * This must be called with host->lock held
+ */
+static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
+{
+	u32 clk = 0;
+
+	if (desired) {
+		if (desired >= host->mclk) {
+			clk = MCI_CLK_BYPASS;
+			host->cclk = host->mclk;
+		} else {
+			clk = host->mclk / (2 * desired) - 1;
+			if (clk >= 256)
+				clk = 255;
+			host->cclk = host->mclk / (2 * (clk + 1));
+		}
+		if (host->hw_designer == 0x80)
+			clk |= MCI_FCEN; /* Bug fix in ST IP block */
+		clk |= MCI_CLK_ENABLE;
+		/* This hasn't proven to be worthwhile */
+		/* clk |= MCI_CLK_PWRSAVE; */
+	}
+
+	if (host->mmc->ios.bus_width == MMC_BUS_WIDTH_4)
+		clk |= MCI_WIDE_BUS;
+
+	writel(clk, host->base + MMCICLOCK);
+}
 
 static void
 mmci_request_end(struct mmci_host *host, struct mmc_request *mrq)
@@ -418,32 +450,33 @@ static void mmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct mmci_host *host = mmc_priv(mmc);
-	u32 clk = 0, pwr = 0;
-
-	if (ios->clock) {
-		if (ios->clock >= host->mclk) {
-			clk = MCI_CLK_BYPASS;
-			host->cclk = host->mclk;
-		} else {
-			clk = host->mclk / (2 * ios->clock) - 1;
-			if (clk >= 256)
-				clk = 255;
-			host->cclk = host->mclk / (2 * (clk + 1));
-		}
-		if (host->hw_designer == 0x80)
-			clk |= MCI_FCEN; /* Bug fix in ST IP block */
-		clk |= MCI_CLK_ENABLE;
-	}
-
-	if (host->plat->translate_vdd)
-		pwr |= host->plat->translate_vdd(mmc_dev(mmc), ios->vdd);
+	u32 pwr = 0;
+	unsigned long flags;
 
 	switch (ios->power_mode) {
 	case MMC_POWER_OFF:
+		if(host->vcc &&
+		   regulator_is_enabled(host->vcc))
+			regulator_disable(host->vcc);
 		break;
 	case MMC_POWER_UP:
+#ifdef CONFIG_REGULATOR
+		if (host->vcc)
+			/* This implicitly enables the regulator */
+			mmc_regulator_set_ocr(host->vcc, ios->vdd);
+#endif
+		/*
+		 * The translate_vdd function is not used if you have
+		 * an external regulator, or your design is really weird.
+		 * Using it would mean sending in power control BOTH using
+		 * a regulator AND the 4 MMCIPWR bits. If we don't have
+		 * a regulator, we might have some other platform specific
+		 * power control behind this translate function.
+		 */
+		if (!host->vcc && host->plat->translate_vdd)
+			pwr |= host->plat->translate_vdd(mmc_dev(mmc), ios->vdd);
 		/* The ST version does not have this, fall through to POWER_ON */
-		if (host->hw_designer != 0x80) {
+		if (host->hw_designer != AMBA_VENDOR_ST) {
 			pwr |= MCI_PWR_UP;
 			break;
 		}
@@ -453,7 +486,7 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 
 	if (ios->bus_mode == MMC_BUSMODE_OPENDRAIN) {
-		if (host->hw_designer != 0x80)
+		if (host->hw_designer != AMBA_VENDOR_ST)
 			pwr |= MCI_ROD;
 		else {
 			/*
@@ -464,25 +497,53 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		}
 	}
 
-	writel(clk, host->base + MMCICLOCK);
+	spin_lock_irqsave(&host->lock, flags);
+
+	mmci_set_clkreg(host, ios->clock);
 
 	if (host->pwr != pwr) {
 		host->pwr = pwr;
 		writel(pwr, host->base + MMCIPOWER);
 	}
+
+	spin_unlock_irqrestore(&host->lock, flags);
+}
+
+static int mmci_get_ro(struct mmc_host *mmc)
+{
+	struct mmci_host *host = mmc_priv(mmc);
+
+	if (host->gpio_wp == -ENOSYS)
+		return -ENOSYS;
+
+	return gpio_get_value(host->gpio_wp);
+}
+
+static int mmci_get_cd(struct mmc_host *mmc)
+{
+	struct mmci_host *host = mmc_priv(mmc);
+	unsigned int status;
+
+	if (host->gpio_cd == -ENOSYS)
+		status = host->plat->status(mmc_dev(host->mmc));
+	else
+		status = gpio_get_value(host->gpio_cd);
+
+	return !status;
 }
 
 static const struct mmc_host_ops mmci_ops = {
 	.request	= mmci_request,
 	.set_ios	= mmci_set_ios,
+	.get_ro		= mmci_get_ro,
+	.get_cd		= mmci_get_cd,
 };
 
 static void mmci_check_status(unsigned long data)
 {
 	struct mmci_host *host = (struct mmci_host *)data;
-	unsigned int status;
+	unsigned int status = mmci_get_cd(host->mmc);
 
-	status = host->plat->status(mmc_dev(host->mmc));
 	if (status ^ host->oldstat)
 		mmc_detect_change(host->mmc, 0);
 
@@ -492,7 +553,7 @@ static void mmci_check_status(unsigned long data)
 
 static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 {
-	struct mmc_platform_data *plat = dev->dev.platform_data;
+	struct mmci_platform_data *plat = dev->dev.platform_data;
 	struct mmci_host *host;
 	struct mmc_host *mmc;
 	int ret;
@@ -515,12 +576,15 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
-	/* Bits 12 thru 19 is the designer */
-	host->hw_designer = (dev->periphid >> 12) & 0xff;
-	/* Bits 20 thru 23 is the revison */
-	host->hw_revision = (dev->periphid >> 20) & 0xf;
+
+	host->gpio_wp = -ENOSYS;
+	host->gpio_cd = -ENOSYS;
+
+	host->hw_designer = amba_manf(dev);
+	host->hw_revision = amba_rev(dev);
 	DBG(host, "designer ID = 0x%02x\n", host->hw_designer);
 	DBG(host, "revision = 0x%01x\n", host->hw_revision);
+
 	host->clk = clk_get(&dev->dev, NULL);
 	if (IS_ERR(host->clk)) {
 		ret = PTR_ERR(host->clk);
@@ -555,7 +619,30 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 	mmc->ops = &mmci_ops;
 	mmc->f_min = (host->mclk + 511) / 512;
 	mmc->f_max = min(host->mclk, fmax);
-	mmc->ocr_avail = plat->ocr_mask;
+#ifdef CONFIG_REGULATOR
+	/* If we're using the regulator framework, try to fetch a regulator */
+	host->vcc = regulator_get(&dev->dev, "vmmc");
+	if (IS_ERR(host->vcc))
+		host->vcc = NULL;
+	else {
+		int mask = mmc_regulator_get_ocrmask(host->vcc);
+
+		if (mask < 0)
+			dev_err(&dev->dev, "error getting OCR mask (%d)\n",
+				mask);
+		else {
+			host->mmc->ocr_avail = (u32) mask;
+			if (plat->ocr_mask)
+				dev_warn(&dev->dev,
+				 "Provided ocr_mask/setpower will not be used "
+				 "(using regulator instead)\n");
+		}
+	}
+#endif
+	/* Fall back to platform data if no regulator is found */
+	if (host->vcc == NULL)
+		mmc->ocr_avail = plat->ocr_mask;
+	mmc->caps = plat->capabilities;
 
 	/*
 	 * We can do SGIO
@@ -591,6 +678,25 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 	writel(0, host->base + MMCIMASK1);
 	writel(0xfff, host->base + MMCICLEAR);
 
+	if (gpio_is_valid(plat->gpio_cd)) {
+		ret = gpio_request(plat->gpio_cd, DRIVER_NAME " (cd)");
+		if (ret == 0)
+			ret = gpio_direction_input(plat->gpio_cd);
+		if (ret == 0)
+			host->gpio_cd = plat->gpio_cd;
+		else if (ret != -ENOSYS)
+			goto err_gpio_cd;
+	}
+	if (gpio_is_valid(plat->gpio_wp)) {
+		ret = gpio_request(plat->gpio_wp, DRIVER_NAME " (wp)");
+		if (ret == 0)
+			ret = gpio_direction_input(plat->gpio_wp);
+		if (ret == 0)
+			host->gpio_wp = plat->gpio_wp;
+		else if (ret != -ENOSYS)
+			goto err_gpio_wp;
+	}
+
 	ret = request_irq(dev->irq[0], mmci_irq, IRQF_SHARED, DRIVER_NAME " (cmd)", host);
 	if (ret)
 		goto unmap;
@@ -602,6 +708,7 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 	writel(MCI_IRQENABLE, host->base + MMCIMASK0);
 
 	amba_set_drvdata(dev, mmc);
+	host->oldstat = mmci_get_cd(host->mmc);
 
 	mmc_add_host(mmc);
 
@@ -620,6 +727,12 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
  irq0_free:
 	free_irq(dev->irq[0], host);
  unmap:
+	if (host->gpio_wp != -ENOSYS)
+		gpio_free(host->gpio_wp);
+ err_gpio_wp:
+	if (host->gpio_cd != -ENOSYS)
+		gpio_free(host->gpio_cd);
+ err_gpio_cd:
 	iounmap(host->base);
  clk_disable:
 	clk_disable(host->clk);
@@ -655,9 +768,18 @@ static int __devexit mmci_remove(struct amba_device *dev)
 		free_irq(dev->irq[0], host);
 		free_irq(dev->irq[1], host);
 
+		if (host->gpio_wp != -ENOSYS)
+			gpio_free(host->gpio_wp);
+		if (host->gpio_cd != -ENOSYS)
+			gpio_free(host->gpio_cd);
+
 		iounmap(host->base);
 		clk_disable(host->clk);
 		clk_put(host->clk);
+
+		if (regulator_is_enabled(host->vcc))
+			regulator_disable(host->vcc);
+		regulator_put(host->vcc);
 
 		mmc_free_host(mmc);
 

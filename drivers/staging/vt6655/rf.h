@@ -27,16 +27,12 @@
  *
  */
 
-
 #ifndef __RF_H__
 #define __RF_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
+
 /*---------------------  Export Definitions -------------------------*/
 //
 // Baseband RF pair definition in eeprom (Bits 6..0)
@@ -79,9 +75,6 @@
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
 
 BOOL IFRFbWriteEmbeded(DWORD_PTR dwIoBase, DWORD dwData);
 BOOL RFbSelectChannel(DWORD_PTR dwIoBase, BYTE byRFType, BYTE byChannel);
@@ -100,17 +93,12 @@ VOID
 RFvRSSITodBm(
     IN  PSDevice pDevice,
     IN  BYTE     byCurrRSSI,
-    OUT PLONG    pldBm
+    long    *pldBm
     );
 
 //{{ RobertYu: 20050104
 BOOL RFbAL7230SelectChannelPostProcess(DWORD_PTR dwIoBase, BYTE byOldChannel, BYTE byNewChannel);
 //}} RobertYu
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
 
 #endif // __RF_H__
 

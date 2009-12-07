@@ -447,7 +447,7 @@ static int dvb_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-static char *dvb_nodename(struct device *dev)
+static char *dvb_devnode(struct device *dev, mode_t *mode)
 {
 	struct dvb_device *dvbdev = dev_get_drvdata(dev);
 
@@ -478,7 +478,7 @@ static int __init init_dvbdev(void)
 		goto error;
 	}
 	dvb_class->dev_uevent = dvb_uevent;
-	dvb_class->nodename = dvb_nodename;
+	dvb_class->devnode = dvb_devnode;
 	return 0;
 
 error:

@@ -1,0 +1,6 @@
+config VT6656
+	tristate "VIA Technologies VT6656 support"
+	depends on WIRELESS_EXT && USB
+	---help---
+	This is a vendor-written driver for VIA VT6656.
+

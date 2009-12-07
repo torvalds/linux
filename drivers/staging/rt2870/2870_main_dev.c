@@ -45,11 +45,12 @@
 // *** If you have a solution for the bug in current version of driver, please mail to me.
 // Otherwise post to forum in ralinktech's web site(www.ralinktech.com) and let all users help you. ***
 MODULE_AUTHOR("Paul Lin <paul_lin@ralinktech.com>");
-MODULE_DESCRIPTION("RT2870 Wireless Lan Linux Driver");
+MODULE_DESCRIPTION(RT28xx_CHIP_NAME " Wireless LAN Linux Driver");
 MODULE_LICENSE("GPL");
 #ifdef MODULE_VERSION
 MODULE_VERSION(STA_DRIVER_VERSION);
 #endif
+MODULE_ALIAS("rt3070sta");
 
 /* Kernel thread and vars, which handles packets that are completed. Only
  * packets that have a "complete" function are sent here. This way, the
@@ -59,9 +60,91 @@ MODULE_VERSION(STA_DRIVER_VERSION);
 extern INT __devinit rt28xx_probe(IN void *_dev_p, IN void *_dev_id_p,
 									IN UINT argc, OUT PRTMP_ADAPTER *ppAd);
 
+struct usb_device_id rtusb_usb_id[] = {
+	{ USB_DEVICE(0x148F, 0x2770) }, /* Ralink */
+	{ USB_DEVICE(0x1737, 0x0071) }, /* Linksys WUSB600N */
+	{ USB_DEVICE(0x1737, 0x0070) }, /* Linksys */
+	{ USB_DEVICE(0x148F, 0x2870) }, /* Ralink */
+	{ USB_DEVICE(0x148F, 0x3070) }, /* Ralink 3070 */
+	{ USB_DEVICE(0x148F, 0x3071) }, /* Ralink 3071 */
+	{ USB_DEVICE(0x148F, 0x3072) }, /* Ralink 3072 */
+	{ USB_DEVICE(0x0B05, 0x1731) }, /* Asus */
+	{ USB_DEVICE(0x0B05, 0x1732) }, /* Asus */
+	{ USB_DEVICE(0x0B05, 0x1742) }, /* Asus */
+	{ USB_DEVICE(0x0DF6, 0x0017) }, /* Sitecom */
+	{ USB_DEVICE(0x0DF6, 0x002B) }, /* Sitecom */
+	{ USB_DEVICE(0x0DF6, 0x002C) }, /* Sitecom */
+	{ USB_DEVICE(0x0DF6, 0x003E) }, /* Sitecom 3070 */
+	{ USB_DEVICE(0x0DF6, 0x002D) }, /* Sitecom */
+	{ USB_DEVICE(0x0DF6, 0x0039) }, /* Sitecom 2770 */
+	{ USB_DEVICE(0x0DF6, 0x003F) }, /* Sitecom WL-608 */
+	{ USB_DEVICE(0x14B2, 0x3C06) }, /* Conceptronic */
+	{ USB_DEVICE(0x14B2, 0x3C28) }, /* Conceptronic */
+	{ USB_DEVICE(0x2019, 0xED06) }, /* Planex Communications, Inc. */
+	{ USB_DEVICE(0x2019, 0xED14) }, /* Planex Communications, Inc. */
+	{ USB_DEVICE(0x2019, 0xAB25) }, /* Planex Communications, Inc. RT3070 */
+	{ USB_DEVICE(0x07D1, 0x3C09) }, /* D-Link */
+	{ USB_DEVICE(0x07D1, 0x3C11) }, /* D-Link */
+	{ USB_DEVICE(0x2001, 0x3C09) }, /* D-Link */
+	{ USB_DEVICE(0x2001, 0x3C0A) }, /* D-Link 3072*/
+	{ USB_DEVICE(0x14B2, 0x3C07) }, /* AL */
+	{ USB_DEVICE(0x14B2, 0x3C12) }, /* AL 3070 */
+	{ USB_DEVICE(0x050D, 0x8053) }, /* Belkin */
+	{ USB_DEVICE(0x050D, 0x815C) }, /* Belkin */
+	{ USB_DEVICE(0x050D, 0x825a) }, /* Belkin */
+	{ USB_DEVICE(0x14B2, 0x3C23) }, /* Airlink */
+	{ USB_DEVICE(0x14B2, 0x3C27) }, /* Airlink */
+	{ USB_DEVICE(0x07AA, 0x002F) }, /* Corega */
+	{ USB_DEVICE(0x07AA, 0x003C) }, /* Corega */
+	{ USB_DEVICE(0x07AA, 0x003F) }, /* Corega */
+	{ USB_DEVICE(0x18C5, 0x0012) }, /* Corega 3070 */
+	{ USB_DEVICE(0x1044, 0x800B) }, /* Gigabyte */
+	{ USB_DEVICE(0x1044, 0x800D) }, /* Gigabyte GN-WB32L 3070 */
+	{ USB_DEVICE(0x15A9, 0x0006) }, /* Sparklan */
+	{ USB_DEVICE(0x083A, 0xB522) }, /* SMC */
+	{ USB_DEVICE(0x083A, 0xA618) }, /* SMC */
+	{ USB_DEVICE(0x083A, 0x8522) }, /* Arcadyan */
+	{ USB_DEVICE(0x083A, 0x7512) }, /* Arcadyan 2770 */
+	{ USB_DEVICE(0x083A, 0x7522) }, /* Arcadyan */
+	{ USB_DEVICE(0x083A, 0x7511) }, /* Arcadyan 3070 */
+	{ USB_DEVICE(0x0CDE, 0x0022) }, /* ZCOM */
+	{ USB_DEVICE(0x0586, 0x3416) }, /* Zyxel */
+	{ USB_DEVICE(0x0CDE, 0x0025) }, /* Zyxel */
+	{ USB_DEVICE(0x1740, 0x9701) }, /* EnGenius */
+	{ USB_DEVICE(0x1740, 0x9702) }, /* EnGenius */
+	{ USB_DEVICE(0x1740, 0x9703) }, /* EnGenius 3070 */
+	{ USB_DEVICE(0x0471, 0x200f) }, /* Philips */
+	{ USB_DEVICE(0x14B2, 0x3C25) }, /* Draytek */
+	{ USB_DEVICE(0x13D3, 0x3247) }, /* AzureWave */
+	{ USB_DEVICE(0x13D3, 0x3273) }, /* AzureWave 3070*/
+	{ USB_DEVICE(0x083A, 0x6618) }, /* Accton */
+	{ USB_DEVICE(0x15c5, 0x0008) }, /* Amit */
+	{ USB_DEVICE(0x0E66, 0x0001) }, /* Hawking */
+	{ USB_DEVICE(0x0E66, 0x0003) }, /* Hawking */
+	{ USB_DEVICE(0x129B, 0x1828) }, /* Siemens */
+	{ USB_DEVICE(0x157E, 0x300E) }, /* U-Media */
+	{ USB_DEVICE(0x050d, 0x805c) },
+	{ USB_DEVICE(0x1482, 0x3C09) }, /* Abocom*/
+	{ USB_DEVICE(0x14B2, 0x3C09) }, /* Alpha */
+	{ USB_DEVICE(0x04E8, 0x2018) }, /* samsung */
+	{ USB_DEVICE(0x07B8, 0x3070) }, /* AboCom 3070 */
+	{ USB_DEVICE(0x07B8, 0x3071) }, /* AboCom 3071 */
+	{ USB_DEVICE(0x07B8, 0x2870) }, /* AboCom */
+	{ USB_DEVICE(0x07B8, 0x2770) }, /* AboCom */
+	{ USB_DEVICE(0x07B8, 0x3072) }, /* Abocom 3072 */
+	{ USB_DEVICE(0x7392, 0x7711) }, /* Edimax 3070 */
+	{ USB_DEVICE(0x5A57, 0x0280) }, /* Zinwell */
+	{ USB_DEVICE(0x5A57, 0x0282) }, /* Zinwell */
+	{ USB_DEVICE(0x1A32, 0x0304) }, /* Quanta 3070 */
+	{ USB_DEVICE(0x0789, 0x0162) }, /* Logitec 2870 */
+	{ USB_DEVICE(0x0789, 0x0163) }, /* Logitec 2870 */
+	{ USB_DEVICE(0x0789, 0x0164) }, /* Logitec 2870 */
+	{ USB_DEVICE(0x7392, 0x7717) }, /* Edimax */
+	{ USB_DEVICE(0x1EDA, 0x2310) }, /* AirTies 3070 */
+	{ USB_DEVICE(0x1737, 0x0077) }, /* Linksys WUSB54GC-EU v3 */
+	{ } /* Terminating entry */
+};
 
-/* module table */
-struct usb_device_id    rtusb_usb_id[] = RT2870_USB_DEVICES;
 INT const               rtusb_usb_id_len = sizeof(rtusb_usb_id) / sizeof(struct usb_device_id);
 MODULE_DEVICE_TABLE(usb, rtusb_usb_id);
 
@@ -234,12 +317,7 @@ INT MlmeThread(
 	 */
 	DBGPRINT(RT_DEBUG_TRACE,( "<---%s\n",__func__));
 
-#ifndef RT30xx
-	pObj->MLMEThr_pid = THREAD_PID_INIT_VALUE;
-#endif
-#ifdef RT30xx
 	pObj->MLMEThr_pid = NULL;
-#endif
 
 	complete_and_exit (&pAd->mlmeComplete, 0);
 	return 0;
@@ -347,12 +425,7 @@ INT RTUSBCmdThread(
 	 */
 	DBGPRINT(RT_DEBUG_TRACE,( "<---RTUSBCmdThread\n"));
 
-#ifndef RT30xx
-	pObj->RTUSBCmdThr_pid = THREAD_PID_INIT_VALUE;
-#endif
-#ifdef RT30xx
 	pObj->RTUSBCmdThr_pid = NULL;
-#endif
 
 	complete_and_exit (&pAd->CmdQComplete, 0);
 	return 0;
@@ -446,12 +519,8 @@ INT TimerQThread(
 	 */
 	DBGPRINT(RT_DEBUG_TRACE,( "<---%s\n",__func__));
 
-#ifndef RT30xx
-	pObj->TimerQThr_pid = THREAD_PID_INIT_VALUE;
-#endif
-#ifdef RT30xx
 	pObj->TimerQThr_pid = NULL;
-#endif
+
 	complete_and_exit(&pAd->TimerQComplete, 0);
 	return 0;
 
@@ -882,74 +951,29 @@ VOID RT28xxThreadTerminate(
 	RTUSBCancelPendingIRPs(pAd);
 
 	// Terminate Threads
-#ifndef RT30xx
-	CHECK_PID_LEGALITY(pObj->TimerQThr_pid)
+
+	if (pid_nr(pObj->TimerQThr_pid) > 0)
 	{
 		POS_COOKIE pObj = (POS_COOKIE)pAd->OS_Cookie;
 
-		printk("Terminate the TimerQThr_pid=%d!\n", GET_PID_NUMBER(pObj->TimerQThr_pid));
+		printk("Terminate the TimerQThr_pid=%d!\n", pid_nr(pObj->TimerQThr_pid));
 		mb();
 		pAd->TimerFunc_kill = 1;
 		mb();
-		ret = KILL_THREAD_PID(pObj->TimerQThr_pid, SIGTERM, 1);
+		ret = kill_pid(pObj->TimerQThr_pid, SIGTERM, 1);
 		if (ret)
 		{
 			printk(KERN_WARNING "%s: unable to stop TimerQThread, pid=%d, ret=%d!\n",
-					pAd->net_dev->name, GET_PID_NUMBER(pObj->TimerQThr_pid), ret);
+					pAd->net_dev->name, pid_nr(pObj->TimerQThr_pid), ret);
 		}
 		else
 		{
 			wait_for_completion(&pAd->TimerQComplete);
-			pObj->TimerQThr_pid = THREAD_PID_INIT_VALUE;
+			pObj->TimerQThr_pid = NULL;
 		}
 	}
 
-	CHECK_PID_LEGALITY(pObj->MLMEThr_pid)
-	{
-		printk("Terminate the MLMEThr_pid=%d!\n", GET_PID_NUMBER(pObj->MLMEThr_pid));
-		mb();
-		pAd->mlme_kill = 1;
-		//RT28XX_MLME_HANDLER(pAd);
-		mb();
-		ret = KILL_THREAD_PID(pObj->MLMEThr_pid, SIGTERM, 1);
-		if (ret)
-		{
-			printk (KERN_WARNING "%s: unable to Mlme thread, pid=%d, ret=%d!\n",
-					pAd->net_dev->name, GET_PID_NUMBER(pObj->MLMEThr_pid), ret);
-		}
-		else
-		{
-			//wait_for_completion (&pAd->notify);
-			wait_for_completion (&pAd->mlmeComplete);
-			pObj->MLMEThr_pid = THREAD_PID_INIT_VALUE;
-		}
-	}
-
-	CHECK_PID_LEGALITY(pObj->RTUSBCmdThr_pid)
-	{
-		printk("Terminate the RTUSBCmdThr_pid=%d!\n", GET_PID_NUMBER(pObj->RTUSBCmdThr_pid));
-		mb();
-		NdisAcquireSpinLock(&pAd->CmdQLock);
-		pAd->CmdQ.CmdQState = RT2870_THREAD_STOPED;
-		NdisReleaseSpinLock(&pAd->CmdQLock);
-		mb();
-		//RTUSBCMDUp(pAd);
-		ret = KILL_THREAD_PID(pObj->RTUSBCmdThr_pid, SIGTERM, 1);
-		if (ret)
-		{
-			printk(KERN_WARNING "%s: unable to RTUSBCmd thread, pid=%d, ret=%d!\n",
-					pAd->net_dev->name, GET_PID_NUMBER(pObj->RTUSBCmdThr_pid), ret);
-		}
-		else
-		{
-			//wait_for_completion (&pAd->notify);
-			wait_for_completion (&pAd->CmdQComplete);
-			pObj->RTUSBCmdThr_pid = THREAD_PID_INIT_VALUE;
-		}
-	}
-#endif
-#ifdef RT30xx
-	if (pObj->MLMEThr_pid)
+	if (pid_nr(pObj->MLMEThr_pid) > 0)
 	{
 		printk("Terminate the MLMEThr_pid=%d!\n", pid_nr(pObj->MLMEThr_pid));
 		mb();
@@ -970,7 +994,7 @@ VOID RT28xxThreadTerminate(
 		}
 	}
 
-	if (pObj->RTUSBCmdThr_pid >= 0)
+	if (pid_nr(pObj->RTUSBCmdThr_pid) > 0)
 	{
 		printk("Terminate the RTUSBCmdThr_pid=%d!\n", pid_nr(pObj->RTUSBCmdThr_pid));
 		mb();
@@ -984,7 +1008,7 @@ VOID RT28xxThreadTerminate(
 		{
 			printk(KERN_WARNING "%s: unable to RTUSBCmd thread, pid=%d, ret=%d!\n",
 					pAd->net_dev->name, pid_nr(pObj->RTUSBCmdThr_pid), ret);
-	}
+		}
 		else
 		{
 			//wait_for_completion (&pAd->notify);
@@ -992,27 +1016,6 @@ VOID RT28xxThreadTerminate(
 			pObj->RTUSBCmdThr_pid = NULL;
 		}
 	}
-	if (pObj->TimerQThr_pid >= 0)
-	{
-		POS_COOKIE pObj = (POS_COOKIE)pAd->OS_Cookie;
-		printk("Terminate the TimerQThr_pid=%d!\n", pid_nr(pObj->TimerQThr_pid));
-		mb();
-		pAd->TimerFunc_kill = 1;
-		mb();
-		ret = kill_pid(pObj->TimerQThr_pid, SIGTERM, 1);
-		if (ret)
-		{
-			printk(KERN_WARNING "%s: unable to stop TimerQThread, pid=%d, ret=%d!\n",
-					pAd->net_dev->name, pid_nr(pObj->TimerQThr_pid), ret);
-		}
-		else
-		{
-			printk("wait_for_completion TimerQThr\n");
-			wait_for_completion(&pAd->TimerQComplete);
-			pObj->TimerQThr_pid = NULL;
-		}
-	}
-#endif
 
 	// Kill tasklets
 	pAd->mlme_kill = 0;
@@ -1067,12 +1070,7 @@ BOOLEAN RT28XXChipsetCheck(
 		if (dev_p->descriptor.idVendor == rtusb_usb_id[i].idVendor &&
 			dev_p->descriptor.idProduct == rtusb_usb_id[i].idProduct)
 		{
-#ifndef RT30xx
 			printk("rt2870: idVendor = 0x%x, idProduct = 0x%x\n",
-#endif
-#ifdef RT30xx
-			printk("rt2870: idVendor = 0x%x, idProduct = 0x%x\n",
-#endif
 					dev_p->descriptor.idVendor, dev_p->descriptor.idProduct);
 			break;
 		}
@@ -1441,7 +1439,7 @@ VOID RT2870_BssBeaconStart(
 		pAd->CommonCfg.BeaconAdjust = 0;
 		pAd->CommonCfg.BeaconFactor = 0xffffffff / (pAd->CommonCfg.BeaconPeriod << 10);
 		pAd->CommonCfg.BeaconRemain = (0xffffffff % (pAd->CommonCfg.BeaconPeriod << 10)) + 1;
-		printk("RT2870_BssBeaconStart:BeaconFactor=%d, BeaconRemain=%d!\n", pAd->CommonCfg.BeaconFactor, pAd->CommonCfg.BeaconRemain);
+		printk(RT28xx_CHIP_NAME "_BssBeaconStart:BeaconFactor=%d, BeaconRemain=%d!\n", pAd->CommonCfg.BeaconFactor, pAd->CommonCfg.BeaconRemain);
 		RTMPSetTimer(&pAd->CommonCfg.BeaconUpdateTimer, pAd->CommonCfg.BeaconPeriod);
 
 	}

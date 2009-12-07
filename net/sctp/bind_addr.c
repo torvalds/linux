@@ -510,9 +510,28 @@ int sctp_in_scope(const union sctp_addr *addr, sctp_scope_t scope)
 	 * of requested destination address, sender and receiver
 	 * SHOULD include all of its addresses with level greater
 	 * than or equal to L.
+	 *
+	 * Address scoping can be selectively controlled via sysctl
+	 * option
 	 */
-	if (addr_scope <= scope)
+	switch (sctp_scope_policy) {
+	case SCTP_SCOPE_POLICY_DISABLE:
 		return 1;
+	case SCTP_SCOPE_POLICY_ENABLE:
+		if (addr_scope <= scope)
+			return 1;
+		break;
+	case SCTP_SCOPE_POLICY_PRIVATE:
+		if (addr_scope <= scope || SCTP_SCOPE_PRIVATE == addr_scope)
+			return 1;
+		break;
+	case SCTP_SCOPE_POLICY_LINK:
+		if (addr_scope <= scope || SCTP_SCOPE_LINK == addr_scope)
+			return 1;
+		break;
+	default:
+		break;
+	}
 
 	return 0;
 }

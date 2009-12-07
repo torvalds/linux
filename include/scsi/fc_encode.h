@@ -32,6 +32,7 @@ struct fc_ct_req {
 		struct fc_ns_gid_ft gid;
 		struct fc_ns_rn_id  rn;
 		struct fc_ns_rft rft;
+		struct fc_ns_fid fid;
 	} payload;
 };
 
@@ -57,6 +58,23 @@ static inline void fc_fill_fc_hdr(struct fc_frame *fp, enum fc_rctl r_ctl,
 }
 
 /**
+ * fc_adisc_fill() - Fill in adisc request frame
+ * @lport: local port.
+ * @fp: fc frame where payload will be placed.
+ */
+static inline void fc_adisc_fill(struct fc_lport *lport, struct fc_frame *fp)
+{
+	struct fc_els_adisc *adisc;
+
+	adisc = fc_frame_payload_get(fp, sizeof(*adisc));
+	memset(adisc, 0, sizeof(*adisc));
+	adisc->adisc_cmd = ELS_ADISC;
+	put_unaligned_be64(lport->wwpn, &adisc->adisc_wwpn);
+	put_unaligned_be64(lport->wwnn, &adisc->adisc_wwnn);
+	hton24(adisc->adisc_port_id, fc_host_port_id(lport->host));
+}
+
+/**
  * fc_ct_hdr_fill- fills ct header and reset ct payload
  * returns pointer to ct request.
  */
@@ -77,10 +95,17 @@ static inline struct fc_ct_req *fc_ct_hdr_fill(const struct fc_frame *fp,
 }
 
 /**
- * fc_ct_fill - Fill in a name service request frame
+ * fc_ct_fill() - Fill in a name service request frame
+ * @lport: local port.
+ * @fc_id: FC_ID of non-destination rport for GPN_ID and similar inquiries.
+ * @fp: frame to contain payload.
+ * @op: CT opcode.
+ * @r_ctl: pointer to FC header R_CTL.
+ * @fh_type: pointer to FC-4 type.
  */
-static inline int fc_ct_fill(struct fc_lport *lport, struct fc_frame *fp,
-		      unsigned int op, enum fc_rctl *r_ctl, u32 *did,
+static inline int fc_ct_fill(struct fc_lport *lport,
+		      u32 fc_id, struct fc_frame *fp,
+		      unsigned int op, enum fc_rctl *r_ctl,
 		      enum fc_fh_type *fh_type)
 {
 	struct fc_ct_req *ct;
@@ -89,6 +114,11 @@ static inline int fc_ct_fill(struct fc_lport *lport, struct fc_frame *fp,
 	case FC_NS_GPN_FT:
 		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_gid_ft));
 		ct->payload.gid.fn_fc4_type = FC_TYPE_FCP;
+		break;
+
+	case FC_NS_GPN_ID:
+		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_fid));
+		hton24(ct->payload.fid.fp_fid, fc_id);
 		break;
 
 	case FC_NS_RFT_ID:
@@ -110,7 +140,6 @@ static inline int fc_ct_fill(struct fc_lport *lport, struct fc_frame *fp,
 		return -EINVAL;
 	}
 	*r_ctl = FC_RCTL_DD_UNSOL_CTL;
-	*did = FC_FID_DIR_SERV;
 	*fh_type = FC_TYPE_CT;
 	return 0;
 }
@@ -249,51 +278,42 @@ static inline void fc_scr_fill(struct fc_lport *lport, struct fc_frame *fp)
 /**
  * fc_els_fill - Fill in an ELS  request frame
  */
-static inline int fc_els_fill(struct fc_lport *lport, struct fc_rport *rport,
+static inline int fc_els_fill(struct fc_lport *lport,
+		       u32 did,
 		       struct fc_frame *fp, unsigned int op,
-		       enum fc_rctl *r_ctl, u32 *did, enum fc_fh_type *fh_type)
+		       enum fc_rctl *r_ctl, enum fc_fh_type *fh_type)
 {
 	switch (op) {
+	case ELS_ADISC:
+		fc_adisc_fill(lport, fp);
+		break;
+
 	case ELS_PLOGI:
 		fc_plogi_fill(lport, fp, ELS_PLOGI);
-		*did = rport->port_id;
 		break;
 
 	case ELS_FLOGI:
 		fc_flogi_fill(lport, fp);
-		*did = FC_FID_FLOGI;
 		break;
 
 	case ELS_LOGO:
 		fc_logo_fill(lport, fp);
-		*did = FC_FID_FLOGI;
-		/*
-		 * if rport is valid then it
-		 * is port logo, therefore
-		 * set did to rport id.
-		 */
-		if (rport)
-			*did = rport->port_id;
 		break;
 
 	case ELS_RTV:
 		fc_rtv_fill(lport, fp);
-		*did = rport->port_id;
 		break;
 
 	case ELS_REC:
 		fc_rec_fill(lport, fp);
-		*did = rport->port_id;
 		break;
 
 	case ELS_PRLI:
 		fc_prli_fill(lport, fp);
-		*did = rport->port_id;
 		break;
 
 	case ELS_SCR:
 		fc_scr_fill(lport, fp);
-		*did = FC_FID_FCTRL;
 		break;
 
 	default:

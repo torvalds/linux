@@ -206,10 +206,10 @@ xfs_swap_extents(
 	 * process that the file was not changed out from
 	 * under it.
 	 */
-	if ((sbp->bs_ctime.tv_sec != ip->i_d.di_ctime.t_sec) ||
-	    (sbp->bs_ctime.tv_nsec != ip->i_d.di_ctime.t_nsec) ||
-	    (sbp->bs_mtime.tv_sec != ip->i_d.di_mtime.t_sec) ||
-	    (sbp->bs_mtime.tv_nsec != ip->i_d.di_mtime.t_nsec)) {
+	if ((sbp->bs_ctime.tv_sec != VFS_I(ip)->i_ctime.tv_sec) ||
+	    (sbp->bs_ctime.tv_nsec != VFS_I(ip)->i_ctime.tv_nsec) ||
+	    (sbp->bs_mtime.tv_sec != VFS_I(ip)->i_mtime.tv_sec) ||
+	    (sbp->bs_mtime.tv_nsec != VFS_I(ip)->i_mtime.tv_nsec)) {
 		error = XFS_ERROR(EBUSY);
 		goto out_unlock;
 	}

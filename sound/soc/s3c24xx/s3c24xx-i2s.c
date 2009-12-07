@@ -279,6 +279,9 @@ static int s3c24xx_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 			       struct snd_soc_dai *dai)
 {
 	int ret = 0;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	int channel = ((struct s3c24xx_pcm_dma_params *)
+		  rtd->dai->cpu_dai->dma_data)->channel;
 
 	pr_debug("Entered %s\n", __func__);
 
@@ -296,6 +299,8 @@ static int s3c24xx_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 			s3c24xx_snd_rxctrl(1);
 		else
 			s3c24xx_snd_txctrl(1);
+
+		s3c2410_dma_ctrl(channel, S3C2410_DMAOP_STARTED);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:

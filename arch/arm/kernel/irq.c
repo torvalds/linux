@@ -86,7 +86,7 @@ int show_interrupts(struct seq_file *p, void *v)
 unlock:
 		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
 	} else if (i == NR_IRQS) {
-#ifdef CONFIG_ARCH_ACORN
+#ifdef CONFIG_FIQ
 		show_fiq_list(p, v);
 #endif
 #ifdef CONFIG_SMP

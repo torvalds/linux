@@ -57,7 +57,7 @@
 #define	UART_RI		0x10	/* ring indicator - modem - device to host */
 #define UART_CD		0x40	/* carrier detect - modem - device to host */
 #define CYP_ERROR 	0x08	/* received from input report - device to host */
-/* Note - the below has nothing to to with the "feature report" reset */
+/* Note - the below has nothing to do with the "feature report" reset */
 #define CONTROL_RESET	0x08  	/* sent with output report - host to device */
 
 /* End of RS-232 protocol definitions */

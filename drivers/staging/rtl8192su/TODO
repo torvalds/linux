@@ -1,0 +1,17 @@
+TODO:
+- prepare private ieee80211 stack for merge with rtl8187se's version:
+  - remove rtl8192su's specific dead code
+  - cleanup ieee80211.h
+  - move rtl8192su's specific code out from ieee80211.h
+  - abstract rtl819su's specific code
+  - use list_for_each_safe() in ieee80211_crypto_deinit
+- switch to use shared "librtl" instead of private ieee80211 stack
+- switch to use LIB80211
+- switch to use MAC80211
+- switch to use EEPROM_93CX6
+- use kernel coding style
+- checkpatch.pl fixes
+- sparse fixes
+- integrate with drivers/net/wireless/rtl818x
+
+Please send any patches to Greg Kroah-Hartman <greg@kroah.com>.

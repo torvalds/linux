@@ -61,6 +61,7 @@ static uint8_t lpfcAlpaArray[] = {
 
 static void lpfc_disc_timeout_handler(struct lpfc_vport *);
 static void lpfc_disc_flush_list(struct lpfc_vport *vport);
+static void lpfc_unregister_fcfi_cmpl(struct lpfc_hba *, LPFC_MBOXQ_t *);
 
 void
 lpfc_terminate_rport_io(struct fc_rport *rport)
@@ -1009,9 +1010,15 @@ lpfc_mbx_cmpl_reg_fcfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	spin_lock_irqsave(&phba->hbalock, flags);
 	phba->fcf.fcf_flag |= FCF_REGISTERED;
 	spin_unlock_irqrestore(&phba->hbalock, flags);
+	/* If there is a pending FCoE event, restart FCF table scan. */
+	if (lpfc_check_pending_fcoe_event(phba, 1)) {
+		mempool_free(mboxq, phba->mbox_mem_pool);
+		return;
+	}
 	if (vport->port_state != LPFC_FLOGI) {
 		spin_lock_irqsave(&phba->hbalock, flags);
 		phba->fcf.fcf_flag |= (FCF_DISCOVERED | FCF_IN_USE);
+		phba->hba_flag &= ~FCF_DISC_INPROGRESS;
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 		lpfc_initial_flogi(vport);
 	}
@@ -1048,6 +1055,39 @@ lpfc_fab_name_match(uint8_t *fab_name, struct fcf_record *new_fcf_record)
 		bf_get(lpfc_fcf_record_fab_name_6, new_fcf_record)) &&
 	    (fab_name[7] ==
 		bf_get(lpfc_fcf_record_fab_name_7, new_fcf_record)))
+		return 1;
+	else
+		return 0;
+}
+
+/**
+ * lpfc_sw_name_match - Check if the fcf switch name match.
+ * @fab_name: pointer to fabric name.
+ * @new_fcf_record: pointer to fcf record.
+ *
+ * This routine compare the fcf record's switch name with provided
+ * switch name. If the switch name are identical this function
+ * returns 1 else return 0.
+ **/
+static uint32_t
+lpfc_sw_name_match(uint8_t *sw_name, struct fcf_record *new_fcf_record)
+{
+	if ((sw_name[0] ==
+		bf_get(lpfc_fcf_record_switch_name_0, new_fcf_record)) &&
+	    (sw_name[1] ==
+		bf_get(lpfc_fcf_record_switch_name_1, new_fcf_record)) &&
+	    (sw_name[2] ==
+		bf_get(lpfc_fcf_record_switch_name_2, new_fcf_record)) &&
+	    (sw_name[3] ==
+		bf_get(lpfc_fcf_record_switch_name_3, new_fcf_record)) &&
+	    (sw_name[4] ==
+		bf_get(lpfc_fcf_record_switch_name_4, new_fcf_record)) &&
+	    (sw_name[5] ==
+		bf_get(lpfc_fcf_record_switch_name_5, new_fcf_record)) &&
+	    (sw_name[6] ==
+		bf_get(lpfc_fcf_record_switch_name_6, new_fcf_record)) &&
+	    (sw_name[7] ==
+		bf_get(lpfc_fcf_record_switch_name_7, new_fcf_record)))
 		return 1;
 	else
 		return 0;
@@ -1123,6 +1163,22 @@ lpfc_copy_fcf_record(struct lpfc_hba *phba, struct fcf_record *new_fcf_record)
 		bf_get(lpfc_fcf_record_mac_5, new_fcf_record);
 	phba->fcf.fcf_indx = bf_get(lpfc_fcf_record_fcf_index, new_fcf_record);
 	phba->fcf.priority = new_fcf_record->fip_priority;
+	phba->fcf.switch_name[0] =
+		bf_get(lpfc_fcf_record_switch_name_0, new_fcf_record);
+	phba->fcf.switch_name[1] =
+		bf_get(lpfc_fcf_record_switch_name_1, new_fcf_record);
+	phba->fcf.switch_name[2] =
+		bf_get(lpfc_fcf_record_switch_name_2, new_fcf_record);
+	phba->fcf.switch_name[3] =
+		bf_get(lpfc_fcf_record_switch_name_3, new_fcf_record);
+	phba->fcf.switch_name[4] =
+		bf_get(lpfc_fcf_record_switch_name_4, new_fcf_record);
+	phba->fcf.switch_name[5] =
+		bf_get(lpfc_fcf_record_switch_name_5, new_fcf_record);
+	phba->fcf.switch_name[6] =
+		bf_get(lpfc_fcf_record_switch_name_6, new_fcf_record);
+	phba->fcf.switch_name[7] =
+		bf_get(lpfc_fcf_record_switch_name_7, new_fcf_record);
 }
 
 /**
@@ -1150,6 +1206,7 @@ lpfc_register_fcf(struct lpfc_hba *phba)
 	/* The FCF is already registered, start discovery */
 	if (phba->fcf.fcf_flag & FCF_REGISTERED) {
 		phba->fcf.fcf_flag |= (FCF_DISCOVERED | FCF_IN_USE);
+		phba->hba_flag &= ~FCF_DISC_INPROGRESS;
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 		if (phba->pport->port_state != LPFC_FLOGI)
 			lpfc_initial_flogi(phba->pport);
@@ -1239,9 +1296,12 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 
 		if ((conn_entry->conn_rec.flags & FCFCNCT_FBNM_VALID) &&
 			!lpfc_fab_name_match(conn_entry->conn_rec.fabric_name,
-				new_fcf_record))
+					     new_fcf_record))
 			continue;
-
+		if ((conn_entry->conn_rec.flags & FCFCNCT_SWNM_VALID) &&
+			!lpfc_sw_name_match(conn_entry->conn_rec.switch_name,
+					    new_fcf_record))
+			continue;
 		if (conn_entry->conn_rec.flags & FCFCNCT_VLAN_VALID) {
 			/*
 			 * If the vlan bit map does not have the bit set for the
@@ -1336,6 +1396,60 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 }
 
 /**
+ * lpfc_check_pending_fcoe_event - Check if there is pending fcoe event.
+ * @phba: pointer to lpfc hba data structure.
+ * @unreg_fcf: Unregister FCF if FCF table need to be re-scaned.
+ *
+ * This function check if there is any fcoe event pending while driver
+ * scan FCF entries. If there is any pending event, it will restart the
+ * FCF saning and return 1 else return 0.
+ */
+int
+lpfc_check_pending_fcoe_event(struct lpfc_hba *phba, uint8_t unreg_fcf)
+{
+	LPFC_MBOXQ_t *mbox;
+	int rc;
+	/*
+	 * If the Link is up and no FCoE events while in the
+	 * FCF discovery, no need to restart FCF discovery.
+	 */
+	if ((phba->link_state  >= LPFC_LINK_UP) &&
+		(phba->fcoe_eventtag == phba->fcoe_eventtag_at_fcf_scan))
+		return 0;
+
+	spin_lock_irq(&phba->hbalock);
+	phba->fcf.fcf_flag &= ~FCF_AVAILABLE;
+	spin_unlock_irq(&phba->hbalock);
+
+	if (phba->link_state >= LPFC_LINK_UP)
+		lpfc_sli4_read_fcf_record(phba, LPFC_FCOE_FCF_GET_FIRST);
+
+	if (unreg_fcf) {
+		spin_lock_irq(&phba->hbalock);
+		phba->fcf.fcf_flag &= ~FCF_REGISTERED;
+		spin_unlock_irq(&phba->hbalock);
+		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+		if (!mbox) {
+			lpfc_printf_log(phba, KERN_ERR,
+				LOG_DISCOVERY|LOG_MBOX,
+				"2610 UNREG_FCFI mbox allocation failed\n");
+			return 1;
+		}
+		lpfc_unreg_fcfi(mbox, phba->fcf.fcfi);
+		mbox->vport = phba->pport;
+		mbox->mbox_cmpl = lpfc_unregister_fcfi_cmpl;
+		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
+		if (rc == MBX_NOT_FINISHED) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY|LOG_MBOX,
+				"2611 UNREG_FCFI issue mbox failed\n");
+			mempool_free(mbox, phba->mbox_mem_pool);
+		}
+	}
+
+	return 1;
+}
+
+/**
  * lpfc_mbx_cmpl_read_fcf_record - Completion handler for read_fcf mbox.
  * @phba: pointer to lpfc hba data structure.
  * @mboxq: pointer to mailbox object.
@@ -1366,6 +1480,12 @@ lpfc_mbx_cmpl_read_fcf_record(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	uint32_t next_fcf_index;
 	unsigned long flags;
 	uint16_t vlan_id;
+
+	/* If there is pending FCoE event restart FCF table scan */
+	if (lpfc_check_pending_fcoe_event(phba, 0)) {
+		lpfc_sli4_mbox_cmd_free(phba, mboxq);
+		return;
+	}
 
 	/* Get the first SGE entry from the non-embedded DMA memory. This
 	 * routine only uses a single SGE.
@@ -1424,7 +1544,9 @@ lpfc_mbx_cmpl_read_fcf_record(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	spin_lock_irqsave(&phba->hbalock, flags);
 	if (phba->fcf.fcf_flag & FCF_IN_USE) {
 		if (lpfc_fab_name_match(phba->fcf.fabric_name,
-			new_fcf_record) &&
+					new_fcf_record) &&
+		    lpfc_sw_name_match(phba->fcf.switch_name,
+					new_fcf_record) &&
 		    lpfc_mac_addr_match(phba, new_fcf_record)) {
 			phba->fcf.fcf_flag |= FCF_AVAILABLE;
 			spin_unlock_irqrestore(&phba->hbalock, flags);
@@ -1464,9 +1586,9 @@ lpfc_mbx_cmpl_read_fcf_record(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		 * If there is a record with lower priority value for
 		 * the current FCF, use that record.
 		 */
-		if (lpfc_fab_name_match(phba->fcf.fabric_name, new_fcf_record)
-			&& (new_fcf_record->fip_priority <
-				phba->fcf.priority)) {
+		if (lpfc_fab_name_match(phba->fcf.fabric_name,
+					new_fcf_record) &&
+		    (new_fcf_record->fip_priority < phba->fcf.priority)) {
 			/* Use this FCF record */
 			lpfc_copy_fcf_record(phba, new_fcf_record);
 			phba->fcf.addr_mode = addr_mode;
@@ -1512,6 +1634,39 @@ out:
 }
 
 /**
+ * lpfc_init_vpi_cmpl - Completion handler for init_vpi mbox command.
+ * @phba: pointer to lpfc hba data structure.
+ * @mboxq: pointer to mailbox data structure.
+ *
+ * This function handles completion of init vpi mailbox command.
+ */
+static void
+lpfc_init_vpi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
+{
+	struct lpfc_vport *vport = mboxq->vport;
+	if (mboxq->u.mb.mbxStatus) {
+		lpfc_printf_vlog(vport, KERN_ERR,
+				LOG_MBOX,
+				"2609 Init VPI mailbox failed 0x%x\n",
+				mboxq->u.mb.mbxStatus);
+		mempool_free(mboxq, phba->mbox_mem_pool);
+		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
+		return;
+	}
+	vport->fc_flag &= ~FC_VPORT_NEEDS_INIT_VPI;
+
+	if (phba->link_flag & LS_NPIV_FAB_SUPPORTED)
+		lpfc_initial_fdisc(vport);
+	else {
+		lpfc_vport_set_state(vport, FC_VPORT_NO_FABRIC_SUPP);
+		lpfc_printf_vlog(vport, KERN_ERR,
+			LOG_ELS,
+			"2606 No NPIV Fabric support\n");
+	}
+	return;
+}
+
+/**
  * lpfc_start_fdiscs - send fdiscs for each vports on this port.
  * @phba: pointer to lpfc hba data structure.
  *
@@ -1523,6 +1678,8 @@ lpfc_start_fdiscs(struct lpfc_hba *phba)
 {
 	struct lpfc_vport **vports;
 	int i;
+	LPFC_MBOXQ_t *mboxq;
+	int rc;
 
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL) {
@@ -1538,6 +1695,29 @@ lpfc_start_fdiscs(struct lpfc_hba *phba)
 			if (phba->fc_topology == TOPOLOGY_LOOP) {
 				lpfc_vport_set_state(vports[i],
 						     FC_VPORT_LINKDOWN);
+				continue;
+			}
+			if (vports[i]->fc_flag & FC_VPORT_NEEDS_INIT_VPI) {
+				mboxq = mempool_alloc(phba->mbox_mem_pool,
+					GFP_KERNEL);
+				if (!mboxq) {
+					lpfc_printf_vlog(vports[i], KERN_ERR,
+					LOG_MBOX, "2607 Failed to allocate "
+					"init_vpi mailbox\n");
+					continue;
+				}
+				lpfc_init_vpi(phba, mboxq, vports[i]->vpi);
+				mboxq->vport = vports[i];
+				mboxq->mbox_cmpl = lpfc_init_vpi_cmpl;
+				rc = lpfc_sli_issue_mbox(phba, mboxq,
+					MBX_NOWAIT);
+				if (rc == MBX_NOT_FINISHED) {
+					lpfc_printf_vlog(vports[i], KERN_ERR,
+					LOG_MBOX, "2608 Failed to issue "
+					"init_vpi mailbox\n");
+					mempool_free(mboxq,
+						phba->mbox_mem_pool);
+				}
 				continue;
 			}
 			if (phba->link_flag & LS_NPIV_FAB_SUPPORTED)
@@ -1769,6 +1949,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 			goto out;
 		}
 	} else {
+		vport->port_state = LPFC_VPORT_UNKNOWN;
 		/*
 		 * Add the driver's default FCF record at FCF index 0 now. This
 		 * is phase 1 implementation that support FCF index 0 and driver
@@ -1804,6 +1985,12 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 		 * The driver is expected to do FIP/FCF. Call the port
 		 * and get the FCF Table.
 		 */
+		spin_lock_irq(&phba->hbalock);
+		if (phba->hba_flag & FCF_DISC_INPROGRESS) {
+			spin_unlock_irq(&phba->hbalock);
+			return;
+		}
+		spin_unlock_irq(&phba->hbalock);
 		rc = lpfc_sli4_read_fcf_record(phba,
 					LPFC_FCOE_FCF_GET_FIRST);
 		if (rc)
@@ -2113,13 +2300,15 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 	LPFC_MBOXQ_t *pmb = NULL;
 	MAILBOX_t *mb;
 	struct static_vport_info *vport_info;
-	int rc, i;
+	int rc = 0, i;
 	struct fc_vport_identifiers vport_id;
 	struct fc_vport *new_fc_vport;
 	struct Scsi_Host *shost;
 	struct lpfc_vport *vport;
 	uint16_t offset = 0;
 	uint8_t *vport_buff;
+	struct lpfc_dmabuf *mp;
+	uint32_t byte_count = 0;
 
 	pmb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmb) {
@@ -2142,7 +2331,9 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 
 	vport_buff = (uint8_t *) vport_info;
 	do {
-		lpfc_dump_static_vport(phba, pmb, offset);
+		if (lpfc_dump_static_vport(phba, pmb, offset))
+			goto out;
+
 		pmb->vport = phba->pport;
 		rc = lpfc_sli_issue_mbox_wait(phba, pmb, LPFC_MBOX_TMO);
 
@@ -2155,17 +2346,30 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 			goto out;
 		}
 
-		if (mb->un.varDmp.word_cnt >
-			sizeof(struct static_vport_info) - offset)
-			mb->un.varDmp.word_cnt =
-			sizeof(struct static_vport_info) - offset;
+		if (phba->sli_rev == LPFC_SLI_REV4) {
+			byte_count = pmb->u.mqe.un.mb_words[5];
+			mp = (struct lpfc_dmabuf *) pmb->context2;
+			if (byte_count > sizeof(struct static_vport_info) -
+					offset)
+				byte_count = sizeof(struct static_vport_info)
+					- offset;
+			memcpy(vport_buff + offset, mp->virt, byte_count);
+			offset += byte_count;
+		} else {
+			if (mb->un.varDmp.word_cnt >
+				sizeof(struct static_vport_info) - offset)
+				mb->un.varDmp.word_cnt =
+					sizeof(struct static_vport_info)
+						- offset;
+			byte_count = mb->un.varDmp.word_cnt;
+			lpfc_sli_pcimem_bcopy(((uint8_t *)mb) + DMP_RSP_OFFSET,
+				vport_buff + offset,
+				byte_count);
 
-		lpfc_sli_pcimem_bcopy(((uint8_t *)mb) + DMP_RSP_OFFSET,
-			vport_buff + offset,
-			mb->un.varDmp.word_cnt);
-		offset += mb->un.varDmp.word_cnt;
+			offset += byte_count;
+		}
 
-	} while (mb->un.varDmp.word_cnt &&
+	} while (byte_count &&
 		offset < sizeof(struct static_vport_info));
 
 
@@ -2198,7 +2402,7 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 		if (!new_fc_vport) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
 				"0546 lpfc_create_static_vport failed to"
-				" create vport \n");
+				" create vport\n");
 			continue;
 		}
 
@@ -2207,16 +2411,15 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 	}
 
 out:
-	/*
-	 * If this is timed out command, setting NULL to context2 tell SLI
-	 * layer not to use this buffer.
-	 */
-	spin_lock_irq(&phba->hbalock);
-	pmb->context2 = NULL;
-	spin_unlock_irq(&phba->hbalock);
 	kfree(vport_info);
-	if (rc != MBX_TIMEOUT)
+	if (rc != MBX_TIMEOUT) {
+		if (pmb->context2) {
+			mp = (struct lpfc_dmabuf *) pmb->context2;
+			lpfc_mbuf_free(phba, mp->virt, mp->phys);
+			kfree(mp);
+		}
 		mempool_free(pmb, phba->mbox_mem_pool);
+	}
 
 	return;
 }
@@ -4360,7 +4563,7 @@ lpfc_read_fcoe_param(struct lpfc_hba *phba,
 	fcoe_param_hdr = (struct lpfc_fip_param_hdr *)
 		buff;
 	fcoe_param = (struct lpfc_fcoe_params *)
-		buff + sizeof(struct lpfc_fip_param_hdr);
+		(buff + sizeof(struct lpfc_fip_param_hdr));
 
 	if ((fcoe_param_hdr->parm_version != FIPP_VERSION) ||
 		(fcoe_param_hdr->length != FCOE_PARAM_LENGTH))

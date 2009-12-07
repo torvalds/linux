@@ -23,7 +23,6 @@ static bool
 eui64_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 {
 	unsigned char eui64[8];
-	int i = 0;
 
 	if (!(skb_mac_header(skb) >= skb->head &&
 	      skb_mac_header(skb) + ETH_HLEN <= skb->data) &&
@@ -42,12 +41,8 @@ eui64_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 			eui64[4] = 0xfe;
 			eui64[0] ^= 0x02;
 
-			i = 0;
-			while (ipv6_hdr(skb)->saddr.s6_addr[8 + i] == eui64[i]
-			       && i < 8)
-				i++;
-
-			if (i == 8)
+			if (!memcmp(ipv6_hdr(skb)->saddr.s6_addr + 8, eui64,
+				    sizeof(eui64)))
 				return true;
 		}
 	}

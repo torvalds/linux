@@ -59,6 +59,7 @@ struct if_cs_card {
 	struct pcmcia_device *p_dev;
 	struct lbs_private *priv;
 	void __iomem *iobase;
+	bool align_regs;
 };
 
 
@@ -274,15 +275,24 @@ static int if_cs_poll_while_fw_download(struct if_cs_card *card, uint addr, u8 r
 #define IF_CS_PRODUCT_ID		0x0000001C
 #define IF_CS_CF8385_B1_REV		0x12
 #define IF_CS_CF8381_B3_REV		0x04
+#define IF_CS_CF8305_B1_REV		0x03
 
 /*
  * Used to detect other cards than CF8385 since their revisions of silicon
  * doesn't match those from CF8385, eg. CF8381 B3 works with this driver.
  */
+#define CF8305_MANFID		0x02db
+#define CF8305_CARDID		0x8103
 #define CF8381_MANFID		0x02db
 #define CF8381_CARDID		0x6064
 #define CF8385_MANFID		0x02df
 #define CF8385_CARDID		0x8103
+
+static inline int if_cs_hw_is_cf8305(struct pcmcia_device *p_dev)
+{
+	return (p_dev->manf_id == CF8305_MANFID &&
+		p_dev->card_id == CF8305_CARDID);
+}
 
 static inline int if_cs_hw_is_cf8381(struct pcmcia_device *p_dev)
 {
@@ -556,7 +566,15 @@ static int if_cs_prog_helper(struct if_cs_card *card)
 
 	lbs_deb_enter(LBS_DEB_CS);
 
-	scratch = if_cs_read8(card, IF_CS_SCRATCH);
+	/*
+	 * This is the only place where an unaligned register access happens on
+	 * the CF8305 card, therefore for the sake of speed of the driver, we do
+	 * the alignment correction here.
+	 */
+	if (card->align_regs)
+		scratch = if_cs_read16(card, IF_CS_SCRATCH) >> 8;
+	else
+		scratch = if_cs_read8(card, IF_CS_SCRATCH);
 
 	/* "If the value is 0x5a, the firmware is already
 	 * downloaded successfully"
@@ -880,8 +898,24 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	       p_dev->irq.AssignedIRQ, p_dev->io.BasePort1,
 	       p_dev->io.BasePort1 + p_dev->io.NumPorts1 - 1);
 
+	/*
+	 * Most of the libertas cards can do unaligned register access, but some
+	 * weird ones can not. That's especially true for the CF8305 card.
+	 */
+	card->align_regs = 0;
+
 	/* Check if we have a current silicon */
 	prod_id = if_cs_read8(card, IF_CS_PRODUCT_ID);
+	if (if_cs_hw_is_cf8305(p_dev)) {
+		card->align_regs = 1;
+		if (prod_id < IF_CS_CF8305_B1_REV) {
+			lbs_pr_err("old chips like 8305 rev B3 "
+				"aren't supported\n");
+			ret = -ENODEV;
+			goto out2;
+		}
+	}
+
 	if (if_cs_hw_is_cf8381(p_dev) && prod_id < IF_CS_CF8381_B3_REV) {
 		lbs_pr_err("old chips like 8381 rev B3 aren't supported\n");
 		ret = -ENODEV;
@@ -896,7 +930,7 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 
 	/* Load the firmware early, before calling into libertas.ko */
 	ret = if_cs_prog_helper(card);
-	if (ret == 0)
+	if (ret == 0 && !if_cs_hw_is_cf8305(p_dev))
 		ret = if_cs_prog_real(card);
 	if (ret)
 		goto out2;
@@ -932,9 +966,6 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 		lbs_pr_err("could not activate card\n");
 		goto out3;
 	}
-
-	/* The firmware for the CF card supports powersave */
-	priv->ps_supported = 1;
 
 	ret = 0;
 	goto out;
@@ -979,6 +1010,7 @@ static void if_cs_detach(struct pcmcia_device *p_dev)
 /********************************************************************/
 
 static struct pcmcia_device_id if_cs_ids[] = {
+	PCMCIA_DEVICE_MANF_CARD(CF8305_MANFID, CF8305_CARDID),
 	PCMCIA_DEVICE_MANF_CARD(CF8381_MANFID, CF8381_CARDID),
 	PCMCIA_DEVICE_MANF_CARD(CF8385_MANFID, CF8385_CARDID),
 	PCMCIA_DEVICE_NULL,

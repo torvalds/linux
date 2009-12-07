@@ -34,11 +34,9 @@
 #include <linux/ramfs.h>
 #include <linux/sched.h>
 #include <linux/parser.h>
+#include <linux/magic.h>
 #include <asm/uaccess.h>
 #include "internal.h"
-
-/* some random number */
-#define RAMFS_MAGIC	0x858458f6
 
 #define RAMFS_DEFAULT_MODE	0755
 
@@ -46,6 +44,7 @@ static const struct super_operations ramfs_ops;
 static const struct inode_operations ramfs_dir_inode_operations;
 
 static struct backing_dev_info ramfs_backing_dev_info = {
+	.name		= "ramfs",
 	.ra_pages	= 0,	/* No readahead */
 	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK |
 			  BDI_CAP_MAP_DIRECT | BDI_CAP_MAP_COPY |

@@ -951,7 +951,7 @@ out:
 /*
  * Network interface unit routines.
  */
-static int
+static netdev_tx_t
 ppp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ppp *ppp = netdev_priv(dev);
@@ -988,12 +988,12 @@ ppp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	netif_stop_queue(dev);
 	skb_queue_tail(&ppp->file.xq, skb);
 	ppp_xmit_process(ppp);
-	return 0;
+	return NETDEV_TX_OK;
 
  outf:
 	kfree_skb(skb);
 	++dev->stats.tx_dropped;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int
@@ -1431,6 +1431,7 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 		*otherwise divide it according to the speed
 		*of the channel we are going to transmit on
 		*/
+		flen = len;
 		if (nfree > 0) {
 			if (pch->speed == 0) {
 				flen = totlen/nfree	;
@@ -1943,8 +1944,15 @@ ppp_receive_mp_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 	}
 
 	/* Pull completed packets off the queue and receive them. */
-	while ((skb = ppp_mp_reconstruct(ppp)))
-		ppp_receive_nonmp_frame(ppp, skb);
+	while ((skb = ppp_mp_reconstruct(ppp))) {
+		if (pskb_may_pull(skb, 2))
+			ppp_receive_nonmp_frame(ppp, skb);
+		else {
+			++ppp->dev->stats.rx_length_errors;
+			kfree_skb(skb);
+			ppp_receive_error(ppp);
+		}
+	}
 
 	return;
 

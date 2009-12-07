@@ -39,7 +39,6 @@
 
 #include "rds.h"
 #include "rdma.h"
-#include "rdma_transport.h"
 
 /* this is just used for stats gathering :/ */
 static DEFINE_SPINLOCK(rds_sock_lock);
@@ -249,7 +248,7 @@ static int rds_cong_monitor(struct rds_sock *rs, char __user *optval,
 }
 
 static int rds_setsockopt(struct socket *sock, int level, int optname,
-			  char __user *optval, int optlen)
+			  char __user *optval, unsigned int optlen)
 {
 	struct rds_sock *rs = rds_sk_to_rs(sock->sk);
 	int ret;
@@ -360,7 +359,7 @@ static struct proto rds_proto = {
 	.obj_size = sizeof(struct rds_sock),
 };
 
-static struct proto_ops rds_proto_ops = {
+static const struct proto_ops rds_proto_ops = {
 	.family =	AF_RDS,
 	.owner =	THIS_MODULE,
 	.release =	rds_release,
@@ -509,7 +508,6 @@ out:
 
 static void __exit rds_exit(void)
 {
-	rds_rdma_exit();
 	sock_unregister(rds_family_ops.family);
 	proto_unregister(&rds_proto);
 	rds_conn_exit();
@@ -549,14 +547,8 @@ static int __init rds_init(void)
 	rds_info_register_func(RDS_INFO_SOCKETS, rds_sock_info);
 	rds_info_register_func(RDS_INFO_RECV_MESSAGES, rds_sock_inc_info);
 
-	/* ib/iwarp transports currently compiled-in */
-	ret = rds_rdma_init();
-	if (ret)
-		goto out_sock;
 	goto out;
 
-out_sock:
-	sock_unregister(rds_family_ops.family);
 out_proto:
 	proto_unregister(&rds_proto);
 out_stats:

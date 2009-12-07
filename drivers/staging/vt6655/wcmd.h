@@ -29,15 +29,9 @@
 #ifndef __WCMD_H__
 #define __WCMD_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__80211HDR_H__)
 #include "80211hdr.h"
-#endif
-#if !defined(__80211MGR_H__)
 #include "80211mgr.h"
-#endif
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -45,6 +39,7 @@
 
 #define AUTHENTICATE_TIMEOUT   1000 //ms
 #define ASSOCIATE_TIMEOUT      1000 //ms
+
 
 // Command code
 typedef enum tagCMD_CODE {
@@ -63,21 +58,19 @@ typedef enum tagCMD_CODE {
     WLAN_CMD_MAC_DISPOWERSAVING,
     WLAN_CMD_11H_CHSW,
     WLAN_CMD_RUN_AP
-} CMD_CODE, DEF* PCMD_CODE;
+} CMD_CODE, *PCMD_CODE;
 
 #define CMD_Q_SIZE              32
 
-
-// Command code
 typedef enum tagCMD_STATUS {
 
-    CMD_STATUS_SUCCESS,
+    CMD_STATUS_SUCCESS = 0,
     CMD_STATUS_FAILURE,
     CMD_STATUS_RESOURCES,
     CMD_STATUS_TIMEOUT,
     CMD_STATUS_PENDING
 
-} CMD_STATUS, DEF* PCMD_STATUS;
+} CMD_STATUS, *PCMD_STATUS;
 
 
 typedef struct tagCMD_ITEM {
@@ -87,7 +80,7 @@ typedef struct tagCMD_ITEM {
     WORD     wDeAuthenReason;
     BOOL     bRadioCmd;
     BOOL     bForceSCAN;
-} CMD_ITEM, DEF* PCMD_ITEM;
+} CMD_ITEM, *PCMD_ITEM;
 
 // Command state
 typedef enum tagCMD_STATE {
@@ -103,7 +96,8 @@ typedef enum tagCMD_STATE {
     WLAN_CMD_RADIO_START,
     WLAN_CMD_CHECK_BBSENSITIVITY_CHANGE,
     WLAN_CMD_IDLE
-} CMD_STATE, DEF* PCMD_STATE;
+} CMD_STATE, *PCMD_STATE;
+
 
 
 /*---------------------  Export Classes  ----------------------------*/
@@ -115,7 +109,6 @@ typedef enum tagCMD_STATE {
 
 
 /*---------------------  Export Functions  --------------------------*/
-
 VOID
 vResetCommandTimer(
     IN HANDLE      hDeviceContext
@@ -148,4 +141,5 @@ BSSvSecondTxData(
     IN  HANDLE      hDeviceContext
     );
 #endif
+
 #endif //__WCMD_H__

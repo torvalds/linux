@@ -78,7 +78,7 @@ static inline int idset_get_first(struct idset *set, int *ssid, int *id)
 
 struct idset *idset_sch_new(void)
 {
-	return idset_new(__MAX_SSID + 1, __MAX_SUBCHANNEL + 1);
+	return idset_new(max_ssid + 1, __MAX_SUBCHANNEL + 1);
 }
 
 void idset_sch_add(struct idset *set, struct subchannel_id schid)
@@ -109,4 +109,24 @@ int idset_sch_get_first(struct idset *set, struct subchannel_id *schid)
 		schid->sch_no = id;
 	}
 	return rc;
+}
+
+int idset_is_empty(struct idset *set)
+{
+	int bitnum;
+
+	bitnum = find_first_bit(set->bitmap, set->num_ssid * set->num_id);
+	if (bitnum >= set->num_ssid * set->num_id)
+		return 1;
+	return 0;
+}
+
+void idset_add_set(struct idset *to, struct idset *from)
+{
+	unsigned long i, len;
+
+	len = min(__BITOPS_WORDS(to->num_ssid * to->num_id),
+		  __BITOPS_WORDS(from->num_ssid * from->num_id));
+	for (i = 0; i < len ; i++)
+		to->bitmap[i] |= from->bitmap[i];
 }

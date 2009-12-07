@@ -93,16 +93,21 @@ static ssize_t reg_set_state(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(name, 0444, reg_show_name, NULL);
 static DEVICE_ATTR(state, 0644, reg_show_state, reg_set_state);
 
-static struct device_attribute *attributes[] = {
-	&dev_attr_name,
-	&dev_attr_state,
+static struct attribute *attributes[] = {
+	&dev_attr_name.attr,
+	&dev_attr_state.attr,
+	NULL,
+};
+
+static const struct attribute_group attr_group = {
+	.attrs	= attributes,
 };
 
 static int regulator_userspace_consumer_probe(struct platform_device *pdev)
 {
 	struct regulator_userspace_consumer_data *pdata;
 	struct userspace_consumer_data *drvdata;
-	int ret, i;
+	int ret;
 
 	pdata = pdev->dev.platform_data;
 	if (!pdata)
@@ -125,31 +130,29 @@ static int regulator_userspace_consumer_probe(struct platform_device *pdev)
 		goto err_alloc_supplies;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(attributes); i++) {
-		ret = device_create_file(&pdev->dev, attributes[i]);
-		if (ret != 0)
-			goto err_create_attrs;
-	}
+	ret = sysfs_create_group(&pdev->dev.kobj, &attr_group);
+	if (ret != 0)
+		goto err_create_attrs;
 
-	if (pdata->init_on)
+	if (pdata->init_on) {
 		ret = regulator_bulk_enable(drvdata->num_supplies,
 					    drvdata->supplies);
-
-	drvdata->enabled = pdata->init_on;
-
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to set initial state: %d\n", ret);
-		goto err_create_attrs;
+		if (ret) {
+			dev_err(&pdev->dev,
+				"Failed to set initial state: %d\n", ret);
+			goto err_enable;
+		}
 	}
 
+	drvdata->enabled = pdata->init_on;
 	platform_set_drvdata(pdev, drvdata);
 
 	return 0;
 
-err_create_attrs:
-	for (i = 0; i < ARRAY_SIZE(attributes); i++)
-		device_remove_file(&pdev->dev, attributes[i]);
+err_enable:
+	sysfs_remove_group(&pdev->dev.kobj, &attr_group);
 
+err_create_attrs:
 	regulator_bulk_free(drvdata->num_supplies, drvdata->supplies);
 
 err_alloc_supplies:
@@ -160,10 +163,8 @@ err_alloc_supplies:
 static int regulator_userspace_consumer_remove(struct platform_device *pdev)
 {
 	struct userspace_consumer_data *data = platform_get_drvdata(pdev);
-	int i;
 
-	for (i = 0; i < ARRAY_SIZE(attributes); i++)
-		device_remove_file(&pdev->dev, attributes[i]);
+	sysfs_remove_group(&pdev->dev.kobj, &attr_group);
 
 	if (data->enabled)
 		regulator_bulk_disable(data->num_supplies, data->supplies);

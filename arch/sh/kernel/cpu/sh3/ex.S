@@ -48,9 +48,7 @@ ENTRY(exception_handling_table)
 	.long	system_call	! Unconditional Trap	 /* 160 */
 	.long	exception_error	! reserved_instruction (filled by trap_init) /* 180 */
 	.long	exception_error	! illegal_slot_instruction (filled by trap_init) /*1A0*/
-ENTRY(nmi_slot)
-	.long	kgdb_handle_exception	/* 1C0 */	! Allow trap to debugger
-ENTRY(user_break_point_trap)
+	.long	nmi_trap_handler	/* 1C0 */	! Allow trap to debugger
 	.long	break_point_trap	/* 1E0 */
 
 	/*

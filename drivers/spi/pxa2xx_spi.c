@@ -1668,10 +1668,9 @@ static void pxa2xx_spi_shutdown(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-
-static int pxa2xx_spi_suspend(struct platform_device *pdev, pm_message_t state)
+static int pxa2xx_spi_suspend(struct device *dev)
 {
-	struct driver_data *drv_data = platform_get_drvdata(pdev);
+	struct driver_data *drv_data = dev_get_drvdata(dev);
 	struct ssp_device *ssp = drv_data->ssp;
 	int status = 0;
 
@@ -1684,9 +1683,9 @@ static int pxa2xx_spi_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int pxa2xx_spi_resume(struct platform_device *pdev)
+static int pxa2xx_spi_resume(struct device *dev)
 {
-	struct driver_data *drv_data = platform_get_drvdata(pdev);
+	struct driver_data *drv_data = dev_get_drvdata(dev);
 	struct ssp_device *ssp = drv_data->ssp;
 	int status = 0;
 
@@ -1703,33 +1702,36 @@ static int pxa2xx_spi_resume(struct platform_device *pdev)
 	/* Start the queue running */
 	status = start_queue(drv_data);
 	if (status != 0) {
-		dev_err(&pdev->dev, "problem starting queue (%d)\n", status);
+		dev_err(dev, "problem starting queue (%d)\n", status);
 		return status;
 	}
 
 	return 0;
 }
-#else
-#define pxa2xx_spi_suspend NULL
-#define pxa2xx_spi_resume NULL
-#endif /* CONFIG_PM */
+
+static struct dev_pm_ops pxa2xx_spi_pm_ops = {
+	.suspend	= pxa2xx_spi_suspend,
+	.resume		= pxa2xx_spi_resume,
+};
+#endif
 
 static struct platform_driver driver = {
 	.driver = {
-		.name = "pxa2xx-spi",
-		.owner = THIS_MODULE,
+		.name	= "pxa2xx-spi",
+		.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm	= &pxa2xx_spi_pm_ops,
+#endif
 	},
 	.remove = pxa2xx_spi_remove,
 	.shutdown = pxa2xx_spi_shutdown,
-	.suspend = pxa2xx_spi_suspend,
-	.resume = pxa2xx_spi_resume,
 };
 
 static int __init pxa2xx_spi_init(void)
 {
 	return platform_driver_probe(&driver, pxa2xx_spi_probe);
 }
-module_init(pxa2xx_spi_init);
+subsys_initcall(pxa2xx_spi_init);
 
 static void __exit pxa2xx_spi_exit(void)
 {

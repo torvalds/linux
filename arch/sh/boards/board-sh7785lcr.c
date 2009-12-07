@@ -223,6 +223,19 @@ static struct platform_device sm501_device = {
 	.resource	= sm501_resources,
 };
 
+static struct resource i2c_proto_resources[] = {
+	[0] = {
+		.start	= PCA9564_PROTO_32BIT_ADDR,
+		.end	= PCA9564_PROTO_32BIT_ADDR + PCA9564_SIZE - 1,
+		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_8BIT,
+	},
+	[1] = {
+		.start	= 12,
+		.end	= 12,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
 static struct resource i2c_resources[] = {
 	[0] = {
 		.start	= PCA9564_ADDR,
@@ -270,6 +283,11 @@ static int __init sh7785lcr_devices_setup(void)
 {
 	i2c_register_board_info(0, sh7785lcr_i2c_devices,
 				ARRAY_SIZE(sh7785lcr_i2c_devices));
+
+	if (mach_is_sh7785lcr_pt()) {
+		i2c_device.resource = i2c_proto_resources;
+		i2c_device.num_resources = ARRAY_SIZE(i2c_proto_resources);
+	}
 
 	return platform_add_devices(sh7785lcr_devices,
 				    ARRAY_SIZE(sh7785lcr_devices));

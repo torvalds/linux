@@ -138,8 +138,11 @@ struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock);
 struct bt_skb_cb {
 	__u8 pkt_type;
 	__u8 incoming;
+	__u8 tx_seq;
+	__u8 retries;
+	__u8 sar;
 };
-#define bt_cb(skb) ((struct bt_skb_cb *)(skb->cb)) 
+#define bt_cb(skb) ((struct bt_skb_cb *)((skb)->cb))
 
 static inline struct sk_buff *bt_skb_alloc(unsigned int len, gfp_t how)
 {

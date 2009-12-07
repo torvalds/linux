@@ -102,12 +102,12 @@ static struct platform_driver h4_panel_driver = {
 	},
 };
 
-static int h4_panel_drv_init(void)
+static int __init h4_panel_drv_init(void)
 {
 	return platform_driver_register(&h4_panel_driver);
 }
 
-static void h4_panel_drv_cleanup(void)
+static void __exit h4_panel_drv_cleanup(void)
 {
 	platform_driver_unregister(&h4_panel_driver);
 }

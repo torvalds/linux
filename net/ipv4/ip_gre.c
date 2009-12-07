@@ -66,10 +66,7 @@
    solution, but it supposes maintaing new variable in ALL
    skb, even if no tunneling is used.
 
-   Current solution: t->recursion lock breaks dead loops. It looks
-   like dev->tbusy flag, but I preferred new variable, because
-   the semantics is different. One day, when hard_start_xmit
-   will be multithreaded we will have to use skb->encapsulation.
+   Current solution: HARD_TX_LOCK lock breaks dead loops.
 
 
 
@@ -662,7 +659,7 @@ drop_nolock:
 	return(0);
 }
 
-static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct net_device_stats *stats = &tunnel->dev->stats;
@@ -677,11 +674,6 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	int    gre_hlen;
 	__be32 dst;
 	int    mtu;
-
-	if (tunnel->recursion++) {
-		stats->collisions++;
-		goto tx_error;
-	}
 
 	if (dev->type == ARPHRD_ETHER)
 		IPCB(skb)->flags = 0;
@@ -820,8 +812,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 			ip_rt_put(rt);
 			stats->tx_dropped++;
 			dev_kfree_skb(skb);
-			tunnel->recursion--;
-			return 0;
+			return NETDEV_TX_OK;
 		}
 		if (skb->sk)
 			skb_set_owner_w(new_skb, skb->sk);
@@ -888,8 +879,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	nf_reset(skb);
 
 	IPTUNNEL_XMIT();
-	tunnel->recursion--;
-	return 0;
+	return NETDEV_TX_OK;
 
 tx_error_icmp:
 	dst_link_failure(skb);
@@ -897,8 +887,7 @@ tx_error_icmp:
 tx_error:
 	stats->tx_errors++;
 	dev_kfree_skb(skb);
-	tunnel->recursion--;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int ipgre_tunnel_bind_dev(struct net_device *dev)
@@ -1288,7 +1277,7 @@ static void ipgre_fb_tunnel_init(struct net_device *dev)
 }
 
 
-static struct net_protocol ipgre_protocol = {
+static const struct net_protocol ipgre_protocol = {
 	.handler	=	ipgre_rcv,
 	.err_handler	=	ipgre_err,
 	.netns_ok	=	1,
@@ -1475,7 +1464,7 @@ static void ipgre_tap_setup(struct net_device *dev)
 
 	ether_setup(dev);
 
-	dev->netdev_ops		= &ipgre_netdev_ops;
+	dev->netdev_ops		= &ipgre_tap_netdev_ops;
 	dev->destructor 	= free_netdev;
 
 	dev->iflink		= 0;
@@ -1536,25 +1525,29 @@ static int ipgre_changelink(struct net_device *dev, struct nlattr *tb[],
 		if (t->dev != dev)
 			return -EEXIST;
 	} else {
-		unsigned nflags = 0;
-
 		t = nt;
 
-		if (ipv4_is_multicast(p.iph.daddr))
-			nflags = IFF_BROADCAST;
-		else if (p.iph.daddr)
-			nflags = IFF_POINTOPOINT;
+		if (dev->type != ARPHRD_ETHER) {
+			unsigned nflags = 0;
 
-		if ((dev->flags ^ nflags) &
-		    (IFF_POINTOPOINT | IFF_BROADCAST))
-			return -EINVAL;
+			if (ipv4_is_multicast(p.iph.daddr))
+				nflags = IFF_BROADCAST;
+			else if (p.iph.daddr)
+				nflags = IFF_POINTOPOINT;
+
+			if ((dev->flags ^ nflags) &
+			    (IFF_POINTOPOINT | IFF_BROADCAST))
+				return -EINVAL;
+		}
 
 		ipgre_tunnel_unlink(ign, t);
 		t->parms.iph.saddr = p.iph.saddr;
 		t->parms.iph.daddr = p.iph.daddr;
 		t->parms.i_key = p.i_key;
-		memcpy(dev->dev_addr, &p.iph.saddr, 4);
-		memcpy(dev->broadcast, &p.iph.daddr, 4);
+		if (dev->type != ARPHRD_ETHER) {
+			memcpy(dev->dev_addr, &p.iph.saddr, 4);
+			memcpy(dev->broadcast, &p.iph.daddr, 4);
+		}
 		ipgre_tunnel_link(ign, t);
 		netdev_state_change(dev);
 	}

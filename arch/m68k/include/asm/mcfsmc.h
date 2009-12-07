@@ -167,15 +167,15 @@ void smc_remap(unsigned int ioaddr)
 	static int		once = 0;
 	extern unsigned short	ppdata;
 	if (once++ == 0) {
-		*((volatile unsigned short *)(MCF_MBAR+MCFSIM_PADDR)) = 0x00ec;
+		*((volatile unsigned short *)MCFSIM_PADDR) = 0x00ec;
 		ppdata |= 0x0080;
-		*((volatile unsigned short *)(MCF_MBAR+MCFSIM_PADAT)) = ppdata;
+		*((volatile unsigned short *)MCFSIM_PADAT) = ppdata;
 		outw(0x0001, ioaddr + BANK_SELECT);
 		outw(0x0001, ioaddr + BANK_SELECT);
 		outw(0x0067, ioaddr + BASE);
 
 		ppdata &= ~0x0080;
-		*((volatile unsigned short *)(MCF_MBAR+MCFSIM_PADAT)) = ppdata;
+		*((volatile unsigned short *)MCFSIM_PADAT) = ppdata;
 	}
 	
 	*((volatile unsigned short *)(MCF_MBAR+MCFSIM_CSCR3)) = 0x1180;

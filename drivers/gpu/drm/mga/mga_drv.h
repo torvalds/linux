@@ -177,7 +177,6 @@ extern void mga_do_dma_wrap_end(drm_mga_private_t * dev_priv);
 extern int mga_freelist_put(struct drm_device * dev, struct drm_buf * buf);
 
 				/* mga_warp.c */
-extern unsigned int mga_warp_microcode_size(const drm_mga_private_t * dev_priv);
 extern int mga_warp_install_microcode(drm_mga_private_t * dev_priv);
 extern int mga_warp_init(drm_mga_private_t * dev_priv);
 

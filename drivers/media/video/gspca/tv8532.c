@@ -426,7 +426,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	gspca_frame_add(gspca_dev, packet_type0,
 			frame, data + 2, gspca_dev->width);
 	gspca_frame_add(gspca_dev, packet_type1,
-			frame, data + gspca_dev->width + 6, gspca_dev->width);
+			frame, data + gspca_dev->width + 5, gspca_dev->width);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)

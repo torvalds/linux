@@ -21,6 +21,11 @@ config CPU_PXA930
 
 config CPU_PXA935
 	bool "PXA935 (codename Tavor-P65)"
+	select CPU_PXA930
+
+config CPU_PXA950
+	bool "PXA950 (codename Tavor-PV2)"
+	select CPU_PXA930
 
 endmenu
 
@@ -78,6 +83,12 @@ config MACH_MAINSTONE
 config MACH_MP900C
 	bool "Nec Mobilepro 900/c"
 	select PXA25x
+
+config MACH_BALLOON3
+	bool "Balloon 3 board"
+	select PXA27x
+	select IWMMXT
+	select PXA_HAVE_BOARD_IRQS
 
 config ARCH_PXA_IDP
 	bool "Accelent Xscale IDP"
@@ -371,6 +382,15 @@ config MACH_PALMTE2
 	  Say Y here if you intend to run this kernel on a Palm Tungsten|E2
 	  handheld computer.
 
+config MACH_PALMTC
+	bool "Palm Tungsten|C"
+	default y
+	depends on ARCH_PXA_PALM
+	select PXA25x
+	help
+	  Say Y here if you intend to run this kernel on a Palm Tungsten|C
+	  handheld computer.
+
 config MACH_PALMT5
 	bool "Palm Tungsten|T5"
 	default y
@@ -458,6 +478,7 @@ config PXA_EZX
 	select PXA27x
 	select IWMMXT
 	select HAVE_PWM
+	select PXA_HAVE_BOARD_IRQS
 
 config MACH_EZX_A780
 	bool "Motorola EZX A780"
@@ -488,6 +509,21 @@ config MACH_EZX_E2
 	bool "Motorola EZX E2"
 	default y
 	depends on PXA_EZX
+
+config MACH_XCEP
+	bool "Iskratel Electronics XCEP"
+	select PXA25x
+	select MTD
+	select MTD_PARTITIONS
+	select MTD_PHYSMAP
+	select MTD_CFI_INTELEXT
+	select MTD_CFI
+	select MTD_CHAR
+	select SMC91X
+	select PXA_SSP
+	help
+	  PXA255 based Single Board Computer with SMC 91C111 ethernet chip and 64 MB of flash.
+	  Tuned for usage in Libera instruments for particle accelerators.
 
 endmenu
 

@@ -2496,8 +2496,8 @@ typedef struct {
 #define  DMP_VPORT_REGION_SIZE	 0x200
 #define  DMP_MBOX_OFFSET_WORD	 0x5
 
-#define  DMP_REGION_FCOEPARAM	 0x17   /* fcoe param region */
-#define  DMP_FCOEPARAM_RGN_SIZE	 0x400
+#define  DMP_REGION_23	 	 0x17   /* fcoe param  and port state region */
+#define  DMP_RGN23_SIZE	 	 0x400
 
 #define  WAKE_UP_PARMS_REGION_ID    4
 #define  WAKE_UP_PARMS_WORD_SIZE   15

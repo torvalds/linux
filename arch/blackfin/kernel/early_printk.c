@@ -1,25 +1,10 @@
 /*
- * File:         arch/blackfin/kernel/early_printk.c
- * Based on:     arch/x86_64/kernel/early_printk.c
- * Author:       Robin Getz <rgetz@blackfin.uclinux.org
+ * allow a console to be used for early printk
+ * derived from arch/x86/kernel/early_printk.c
  *
- * Created:      14Aug2007
- * Description:  allow a console to be used for early printk
+ * Copyright 2007-2009 Analog Devices Inc.
  *
- * Modified:
- *               Copyright 2004-2007 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Licensed under the GPL-2
  */
 
 #include <linux/kernel.h>
@@ -27,6 +12,7 @@
 #include <linux/serial_core.h>
 #include <linux/console.h>
 #include <linux/string.h>
+#include <linux/reboot.h>
 #include <asm/blackfin.h>
 #include <asm/irq_handler.h>
 #include <asm/early_printk.h>
@@ -181,6 +167,22 @@ asmlinkage void __init init_early_exception_vectors(void)
 	u32 evt;
 	SSYNC();
 
+	/*
+	 * This starts up the shadow buffer, incase anything crashes before
+	 * setup arch
+	 */
+	mark_shadow_error();
+	early_shadow_puts(linux_banner);
+	early_shadow_stamp();
+
+	if (CPUID != bfin_cpuid()) {
+		early_shadow_puts("Running on wrong machine type, expected");
+		early_shadow_reg(CPUID, 16);
+		early_shadow_puts(", but running on");
+		early_shadow_reg(bfin_cpuid(), 16);
+		early_shadow_puts("\n");
+	}
+
 	/* cannot program in software:
 	 * evt0 - emulation (jtag)
 	 * evt1 - reset
@@ -199,6 +201,7 @@ asmlinkage void __init init_early_exception_vectors(void)
 
 }
 
+__attribute__((__noreturn__))
 asmlinkage void __init early_trap_c(struct pt_regs *fp, void *retaddr)
 {
 	/* This can happen before the uart is initialized, so initialize
@@ -210,10 +213,58 @@ asmlinkage void __init early_trap_c(struct pt_regs *fp, void *retaddr)
 	if (likely(early_console == NULL) && CPUID == bfin_cpuid())
 		setup_early_printk(DEFAULT_EARLY_PORT);
 
-	printk(KERN_EMERG "Early panic\n");
-	dump_bfin_mem(fp);
-	show_regs(fp);
-	dump_bfin_trace_buffer();
+	if (!shadow_console_enabled()) {
+		/* crap - we crashed before setup_arch() */
+		early_shadow_puts("panic before setup_arch\n");
+		early_shadow_puts("IPEND:");
+		early_shadow_reg(fp->ipend, 16);
+		if (fp->seqstat & SEQSTAT_EXCAUSE) {
+			early_shadow_puts("\nEXCAUSE:");
+			early_shadow_reg(fp->seqstat & SEQSTAT_EXCAUSE, 8);
+		}
+		if (fp->seqstat & SEQSTAT_HWERRCAUSE) {
+			early_shadow_puts("\nHWERRCAUSE:");
+			early_shadow_reg(
+				(fp->seqstat & SEQSTAT_HWERRCAUSE) >> 14, 8);
+		}
+		early_shadow_puts("\nErr @");
+		if (fp->ipend & EVT_EVX)
+			early_shadow_reg(fp->retx, 32);
+		else
+			early_shadow_reg(fp->pc, 32);
+#ifdef CONFIG_DEBUG_BFIN_HWTRACE_ON
+		early_shadow_puts("\nTrace:");
+		if (likely(bfin_read_TBUFSTAT() & TBUFCNT)) {
+			while (bfin_read_TBUFSTAT() & TBUFCNT) {
+				early_shadow_puts("\nT  :");
+				early_shadow_reg(bfin_read_TBUF(), 32);
+				early_shadow_puts("\n S :");
+				early_shadow_reg(bfin_read_TBUF(), 32);
+			}
+		}
+#endif
+		early_shadow_puts("\nUse bfin-elf-addr2line to determine "
+			"function names\n");
+		/*
+		 * We should panic(), but we can't - since panic calls printk,
+		 * and printk uses memcpy.
+		 * we want to reboot, but if the machine type is different,
+		 * can't due to machine specific reboot sequences
+		 */
+		if (CPUID == bfin_cpuid()) {
+			early_shadow_puts("Trying to restart\n");
+			machine_restart("");
+		}
+
+		early_shadow_puts("Halting, since it is not safe to restart\n");
+		while (1)
+			asm volatile ("EMUEXCPT; IDLE;\n");
+
+	} else {
+		printk(KERN_EMERG "Early panic\n");
+		show_regs(fp);
+		dump_bfin_trace_buffer();
+	}
 
 	panic("Died early");
 }

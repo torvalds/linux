@@ -27,6 +27,7 @@
 #include <linux/i2c/twl4030.h>
 #include <linux/leds.h>
 #include <linux/input.h>
+#include <linux/input/matrix_keypad.h>
 #include <linux/gpio_keys.h>
 
 #include <asm/mach-types.h>
@@ -39,7 +40,6 @@
 #include <mach/hardware.h>
 #include <mach/mcspi.h>
 #include <mach/usb.h>
-#include <mach/keypad.h>
 #include <mach/mux.h>
 
 #include "sdram-micron-mt46h32m32lf-6.h"
@@ -133,58 +133,62 @@ static void __init pandora_keys_gpio_init(void)
 	omap_set_gpio_debounce_time(32 * 5, GPIO_DEBOUNCE_TIME);
 }
 
-static int pandora_keypad_map[] = {
-	/* col, row, code */
+static int board_keymap[] = {
+	/* row, col, code */
 	KEY(0, 0, KEY_9),
-	KEY(0, 1, KEY_0),
-	KEY(0, 2, KEY_BACKSPACE),
-	KEY(0, 3, KEY_O),
-	KEY(0, 4, KEY_P),
-	KEY(0, 5, KEY_K),
-	KEY(0, 6, KEY_L),
-	KEY(0, 7, KEY_ENTER),
-	KEY(1, 0, KEY_8),
+	KEY(0, 1, KEY_8),
+	KEY(0, 2, KEY_I),
+	KEY(0, 3, KEY_J),
+	KEY(0, 4, KEY_N),
+	KEY(0, 5, KEY_M),
+	KEY(1, 0, KEY_0),
 	KEY(1, 1, KEY_7),
-	KEY(1, 2, KEY_6),
-	KEY(1, 3, KEY_5),
-	KEY(1, 4, KEY_4),
-	KEY(1, 5, KEY_3),
-	KEY(1, 6, KEY_2),
-	KEY(1, 7, KEY_1),
-	KEY(2, 0, KEY_I),
-	KEY(2, 1, KEY_U),
+	KEY(1, 2, KEY_U),
+	KEY(1, 3, KEY_H),
+	KEY(1, 4, KEY_B),
+	KEY(1, 5, KEY_SPACE),
+	KEY(2, 0, KEY_BACKSPACE),
+	KEY(2, 1, KEY_6),
 	KEY(2, 2, KEY_Y),
-	KEY(2, 3, KEY_T),
-	KEY(2, 4, KEY_R),
-	KEY(2, 5, KEY_E),
-	KEY(2, 6, KEY_W),
-	KEY(2, 7, KEY_Q),
-	KEY(3, 0, KEY_J),
-	KEY(3, 1, KEY_H),
-	KEY(3, 2, KEY_G),
+	KEY(2, 3, KEY_G),
+	KEY(2, 4, KEY_V),
+	KEY(2, 5, KEY_FN),
+	KEY(3, 0, KEY_O),
+	KEY(3, 1, KEY_5),
+	KEY(3, 2, KEY_T),
 	KEY(3, 3, KEY_F),
-	KEY(3, 4, KEY_D),
-	KEY(3, 5, KEY_S),
-	KEY(3, 6, KEY_A),
-	KEY(3, 7, KEY_LEFTSHIFT),
-	KEY(4, 0, KEY_N),
-	KEY(4, 1, KEY_B),
-	KEY(4, 2, KEY_V),
-	KEY(4, 3, KEY_C),
+	KEY(3, 4, KEY_C),
+	KEY(4, 0, KEY_P),
+	KEY(4, 1, KEY_4),
+	KEY(4, 2, KEY_R),
+	KEY(4, 3, KEY_D),
 	KEY(4, 4, KEY_X),
-	KEY(4, 5, KEY_Z),
-	KEY(4, 6, KEY_DOT),
-	KEY(4, 7, KEY_COMMA),
-	KEY(5, 0, KEY_M),
-	KEY(5, 1, KEY_SPACE),
-	KEY(5, 2, KEY_FN),
+	KEY(5, 0, KEY_K),
+	KEY(5, 1, KEY_3),
+	KEY(5, 2, KEY_E),
+	KEY(5, 3, KEY_S),
+	KEY(5, 4, KEY_Z),
+	KEY(6, 0, KEY_L),
+	KEY(6, 1, KEY_2),
+	KEY(6, 2, KEY_W),
+	KEY(6, 3, KEY_A),
+	KEY(6, 4, KEY_DOT),
+	KEY(7, 0, KEY_ENTER),
+	KEY(7, 1, KEY_1),
+	KEY(7, 2, KEY_Q),
+	KEY(7, 3, KEY_LEFTSHIFT),
+	KEY(7, 4, KEY_COMMA),
+};
+
+static struct matrix_keymap_data board_map_data = {
+	.keymap			= board_keymap,
+	.keymap_size		= ARRAY_SIZE(board_keymap),
 };
 
 static struct twl4030_keypad_data pandora_kp_data = {
+	.keymap_data	= &board_map_data,
 	.rows		= 8,
 	.cols		= 6,
-	.keymap		= pandora_keypad_map,
-	.keymapsize	= ARRAY_SIZE(pandora_keypad_map),
 	.rep		= 1,
 };
 
@@ -211,10 +215,6 @@ static struct twl4030_hsmmc_info omap3pandora_mmc[] = {
 		.gpio_wp	= -EINVAL,
 	},
 	{}	/* Terminator */
-};
-
-static struct omap_uart_config omap3pandora_uart_config __initdata = {
-	.enabled_uarts	= (1 << 2), /* UART3 */
 };
 
 static struct regulator_consumer_supply pandora_vmmc1_supply = {
@@ -309,14 +309,6 @@ static int __init omap3pandora_i2c_init(void)
 	return 0;
 }
 
-static void __init omap3pandora_init_irq(void)
-{
-	omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
-			     mt46h32m32lf6_sdrc_params);
-	omap_init_irq();
-	omap_gpio_init();
-}
-
 static void __init omap3pandora_ads7846_init(void)
 {
 	int gpio = OMAP3_PANDORA_TS_GPIO;
@@ -376,9 +368,18 @@ static struct omap_lcd_config omap3pandora_lcd_config __initdata = {
 };
 
 static struct omap_board_config_kernel omap3pandora_config[] __initdata = {
-	{ OMAP_TAG_UART,	&omap3pandora_uart_config },
 	{ OMAP_TAG_LCD,		&omap3pandora_lcd_config },
 };
+
+static void __init omap3pandora_init_irq(void)
+{
+	omap_board_config = omap3pandora_config;
+	omap_board_config_size = ARRAY_SIZE(omap3pandora_config);
+	omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
+			     mt46h32m32lf6_sdrc_params);
+	omap_init_irq();
+	omap_gpio_init();
+}
 
 static struct platform_device *omap3pandora_devices[] __initdata = {
 	&omap3pandora_lcd_device,
@@ -391,8 +392,6 @@ static void __init omap3pandora_init(void)
 	omap3pandora_i2c_init();
 	platform_add_devices(omap3pandora_devices,
 			ARRAY_SIZE(omap3pandora_devices));
-	omap_board_config = omap3pandora_config;
-	omap_board_config_size = ARRAY_SIZE(omap3pandora_config);
 	omap_serial_init();
 	spi_register_board_info(omap3pandora_spi_board_info,
 			ARRAY_SIZE(omap3pandora_spi_board_info));

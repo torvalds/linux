@@ -1,6 +1,8 @@
 config HAVE_ARCH_KMEMCHECK
 	bool
 
+if HAVE_ARCH_KMEMCHECK
+
 menuconfig KMEMCHECK
 	bool "kmemcheck: trap use of uninitialized memory"
 	depends on DEBUG_KERNEL
@@ -89,3 +91,4 @@ config KMEMCHECK_BITOPS_OK
 	  accesses where not all the bits are initialized at the same time.
 	  This may also hide some real bugs.
 
+endif

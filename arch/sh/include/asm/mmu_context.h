@@ -69,7 +69,7 @@ static inline void get_mmu_context(struct mm_struct *mm, unsigned int cpu)
 		 * We exhaust ASID of this version.
 		 * Flush all TLB and start new cycle.
 		 */
-		flush_tlb_all();
+		local_flush_tlb_all();
 
 #ifdef CONFIG_SUPERH64
 		/*

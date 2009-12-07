@@ -53,6 +53,7 @@
 #include "super.h"
 #include "uptodate.h"
 #include "quota.h"
+#include "refcounttree.h"
 
 #include "buffer_head_io.h"
 
@@ -109,6 +110,11 @@ static void ocfs2_dentry_post_unlock(struct ocfs2_super *osb,
 				     struct ocfs2_lock_res *lockres);
 
 static void ocfs2_set_qinfo_lvb(struct ocfs2_lock_res *lockres);
+
+static int ocfs2_check_refcount_downconvert(struct ocfs2_lock_res *lockres,
+					    int new_level);
+static int ocfs2_refcount_convert_worker(struct ocfs2_lock_res *lockres,
+					 int blocking);
 
 #define mlog_meta_lvb(__level, __lockres) ocfs2_dump_meta_lvb_info(__level, __PRETTY_FUNCTION__, __LINE__, __lockres)
 
@@ -278,6 +284,12 @@ static struct ocfs2_lock_res_ops ocfs2_qinfo_lops = {
 	.flags		= LOCK_TYPE_REQUIRES_REFRESH | LOCK_TYPE_USES_LVB,
 };
 
+static struct ocfs2_lock_res_ops ocfs2_refcount_block_lops = {
+	.check_downconvert = ocfs2_check_refcount_downconvert,
+	.downconvert_worker = ocfs2_refcount_convert_worker,
+	.flags		= 0,
+};
+
 static inline int ocfs2_is_inode_lock(struct ocfs2_lock_res *lockres)
 {
 	return lockres->l_type == OCFS2_LOCK_TYPE_META ||
@@ -304,6 +316,12 @@ static inline struct ocfs2_mem_dqinfo *ocfs2_lock_res_qinfo(struct ocfs2_lock_re
 	BUG_ON(lockres->l_type != OCFS2_LOCK_TYPE_QINFO);
 
 	return (struct ocfs2_mem_dqinfo *)lockres->l_priv;
+}
+
+static inline struct ocfs2_refcount_tree *
+ocfs2_lock_res_refcount_tree(struct ocfs2_lock_res *res)
+{
+	return container_of(res, struct ocfs2_refcount_tree, rf_lockres);
 }
 
 static inline struct ocfs2_super *ocfs2_get_lockres_osb(struct ocfs2_lock_res *lockres)
@@ -691,6 +709,17 @@ void ocfs2_qinfo_lock_res_init(struct ocfs2_lock_res *lockres,
 	ocfs2_lock_res_init_common(OCFS2_SB(info->dqi_gi.dqi_sb), lockres,
 				   OCFS2_LOCK_TYPE_QINFO, &ocfs2_qinfo_lops,
 				   info);
+}
+
+void ocfs2_refcount_lock_res_init(struct ocfs2_lock_res *lockres,
+				  struct ocfs2_super *osb, u64 ref_blkno,
+				  unsigned int generation)
+{
+	ocfs2_lock_res_init_once(lockres);
+	ocfs2_build_lock_name(OCFS2_LOCK_TYPE_REFCOUNT, ref_blkno,
+			      generation, lockres->l_name);
+	ocfs2_lock_res_init_common(osb, lockres, OCFS2_LOCK_TYPE_REFCOUNT,
+				   &ocfs2_refcount_block_lops, osb);
 }
 
 void ocfs2_lock_res_free(struct ocfs2_lock_res *res)
@@ -1548,8 +1577,10 @@ int ocfs2_rw_lock(struct inode *inode, int write)
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     write ? "EXMODE" : "PRMODE");
 
-	if (ocfs2_mount_local(osb))
+	if (ocfs2_mount_local(osb)) {
+		mlog_exit(0);
 		return 0;
+	}
 
 	lockres = &OCFS2_I(inode)->ip_rw_lockres;
 
@@ -2127,7 +2158,7 @@ static int ocfs2_inode_lock_update(struct inode *inode,
 
 	/* This will discard any caching information we might have had
 	 * for the inode metadata. */
-	ocfs2_metadata_cache_purge(inode);
+	ocfs2_metadata_cache_purge(INODE_CACHE(inode));
 
 	ocfs2_extent_map_trunc(inode, 0);
 
@@ -3009,6 +3040,7 @@ static void ocfs2_unlock_ast(void *opaque, int error)
 		     "unlock_action %d\n", error, lockres->l_name,
 		     lockres->l_unlock_action);
 		spin_unlock_irqrestore(&lockres->l_lock, flags);
+		mlog_exit_void();
 		return;
 	}
 
@@ -3495,11 +3527,11 @@ out:
 	return UNBLOCK_CONTINUE;
 }
 
-static int ocfs2_check_meta_downconvert(struct ocfs2_lock_res *lockres,
-					int new_level)
+static int ocfs2_ci_checkpointed(struct ocfs2_caching_info *ci,
+				 struct ocfs2_lock_res *lockres,
+				 int new_level)
 {
-	struct inode *inode = ocfs2_lock_res_inode(lockres);
-	int checkpointed = ocfs2_inode_fully_checkpointed(inode);
+	int checkpointed = ocfs2_ci_fully_checkpointed(ci);
 
 	BUG_ON(new_level != DLM_LOCK_NL && new_level != DLM_LOCK_PR);
 	BUG_ON(lockres->l_level != DLM_LOCK_EX && !checkpointed);
@@ -3507,8 +3539,16 @@ static int ocfs2_check_meta_downconvert(struct ocfs2_lock_res *lockres,
 	if (checkpointed)
 		return 1;
 
-	ocfs2_start_checkpoint(OCFS2_SB(inode->i_sb));
+	ocfs2_start_checkpoint(OCFS2_SB(ocfs2_metadata_cache_get_super(ci)));
 	return 0;
+}
+
+static int ocfs2_check_meta_downconvert(struct ocfs2_lock_res *lockres,
+					int new_level)
+{
+	struct inode *inode = ocfs2_lock_res_inode(lockres);
+
+	return ocfs2_ci_checkpointed(INODE_CACHE(inode), lockres, new_level);
 }
 
 static void ocfs2_set_meta_lvb(struct ocfs2_lock_res *lockres)
@@ -3640,6 +3680,26 @@ static int ocfs2_dentry_convert_worker(struct ocfs2_lock_res *lockres,
 	return UNBLOCK_CONTINUE_POST;
 }
 
+static int ocfs2_check_refcount_downconvert(struct ocfs2_lock_res *lockres,
+					    int new_level)
+{
+	struct ocfs2_refcount_tree *tree =
+				ocfs2_lock_res_refcount_tree(lockres);
+
+	return ocfs2_ci_checkpointed(&tree->rf_ci, lockres, new_level);
+}
+
+static int ocfs2_refcount_convert_worker(struct ocfs2_lock_res *lockres,
+					 int blocking)
+{
+	struct ocfs2_refcount_tree *tree =
+				ocfs2_lock_res_refcount_tree(lockres);
+
+	ocfs2_metadata_cache_purge(&tree->rf_ci);
+
+	return UNBLOCK_CONTINUE;
+}
+
 static void ocfs2_set_qinfo_lvb(struct ocfs2_lock_res *lockres)
 {
 	struct ocfs2_qinfo_lvb *lvb;
@@ -3750,6 +3810,37 @@ int ocfs2_qinfo_lock(struct ocfs2_mem_dqinfo *oinfo, int ex)
 bail:
 	mlog_exit(status);
 	return status;
+}
+
+int ocfs2_refcount_lock(struct ocfs2_refcount_tree *ref_tree, int ex)
+{
+	int status;
+	int level = ex ? DLM_LOCK_EX : DLM_LOCK_PR;
+	struct ocfs2_lock_res *lockres = &ref_tree->rf_lockres;
+	struct ocfs2_super *osb = lockres->l_priv;
+
+
+	if (ocfs2_is_hard_readonly(osb))
+		return -EROFS;
+
+	if (ocfs2_mount_local(osb))
+		return 0;
+
+	status = ocfs2_cluster_lock(osb, lockres, level, 0, 0);
+	if (status < 0)
+		mlog_errno(status);
+
+	return status;
+}
+
+void ocfs2_refcount_unlock(struct ocfs2_refcount_tree *ref_tree, int ex)
+{
+	int level = ex ? DLM_LOCK_EX : DLM_LOCK_PR;
+	struct ocfs2_lock_res *lockres = &ref_tree->rf_lockres;
+	struct ocfs2_super *osb = lockres->l_priv;
+
+	if (!ocfs2_mount_local(osb))
+		ocfs2_cluster_unlock(osb, lockres, level);
 }
 
 /*

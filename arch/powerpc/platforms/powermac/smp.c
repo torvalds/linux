@@ -320,7 +320,7 @@ static int __init smp_psurge_probe(void)
 	if (ncpus > NR_CPUS)
 		ncpus = NR_CPUS;
 	for (i = 1; i < ncpus ; ++i)
-		cpu_set(i, cpu_present_map);
+		set_cpu_present(i, true);
 
 	if (ppc_md.progress) ppc_md.progress("smp_psurge_probe - done", 0x352);
 
@@ -408,7 +408,7 @@ static void __init smp_psurge_setup_cpu(int cpu_nr)
 	/* reset the entry point so if we get another intr we won't
 	 * try to startup again */
 	out_be32(psurge_start, 0x100);
-	if (setup_irq(30, &psurge_irqaction))
+	if (setup_irq(irq_create_mapping(NULL, 30), &psurge_irqaction))
 		printk(KERN_ERR "Couldn't get primary IPI interrupt");
 }
 
@@ -867,7 +867,7 @@ static void __devinit smp_core99_setup_cpu(int cpu_nr)
 
 int smp_core99_cpu_disable(void)
 {
-	cpu_clear(smp_processor_id(), cpu_online_map);
+	set_cpu_online(smp_processor_id(), false);
 
 	/* XXX reset cpu affinity here */
 	mpic_cpu_set_priority(0xf);
@@ -952,7 +952,7 @@ void __init pmac_setup_smp(void)
 		int cpu;
 
 		for (cpu = 1; cpu < 4 && cpu < NR_CPUS; ++cpu)
-			cpu_set(cpu, cpu_possible_map);
+			set_cpu_possible(cpu, true);
 		smp_ops = &psurge_smp_ops;
 	}
 #endif /* CONFIG_PPC32 */

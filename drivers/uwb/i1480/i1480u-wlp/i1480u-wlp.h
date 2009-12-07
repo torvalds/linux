@@ -267,7 +267,8 @@ extern void i1480u_sysfs_release(struct i1480u *);
 /* netdev interface */
 extern int i1480u_open(struct net_device *);
 extern int i1480u_stop(struct net_device *);
-extern int i1480u_hard_start_xmit(struct sk_buff *, struct net_device *);
+extern netdev_tx_t i1480u_hard_start_xmit(struct sk_buff *,
+						struct net_device *);
 extern void i1480u_tx_timeout(struct net_device *);
 extern int i1480u_set_config(struct net_device *, struct ifmap *);
 extern int i1480u_change_mtu(struct net_device *, int);

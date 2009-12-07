@@ -1987,7 +1987,6 @@ static void qeth_l3_process_inbound_buffer(struct qeth_card *card,
 			continue;
 		}
 
-		card->dev->last_rx = jiffies;
 		card->stats.rx_packets++;
 		card->stats.rx_bytes += len;
 	}
@@ -2525,6 +2524,51 @@ static int qeth_l3_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	return rc;
 }
 
+int inline qeth_l3_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
+{
+	int cast_type = RTN_UNSPEC;
+
+	if (skb_dst(skb) && skb_dst(skb)->neighbour) {
+		cast_type = skb_dst(skb)->neighbour->type;
+		if ((cast_type == RTN_BROADCAST) ||
+		    (cast_type == RTN_MULTICAST) ||
+		    (cast_type == RTN_ANYCAST))
+			return cast_type;
+		else
+			return RTN_UNSPEC;
+	}
+	/* try something else */
+	if (skb->protocol == ETH_P_IPV6)
+		return (skb_network_header(skb)[24] == 0xff) ?
+				RTN_MULTICAST : 0;
+	else if (skb->protocol == ETH_P_IP)
+		return ((skb_network_header(skb)[16] & 0xf0) == 0xe0) ?
+				RTN_MULTICAST : 0;
+	/* ... */
+	if (!memcmp(skb->data, skb->dev->broadcast, 6))
+		return RTN_BROADCAST;
+	else {
+		u16 hdr_mac;
+
+		hdr_mac = *((u16 *)skb->data);
+		/* tr multicast? */
+		switch (card->info.link_type) {
+		case QETH_LINK_TYPE_HSTR:
+		case QETH_LINK_TYPE_LANE_TR:
+			if ((hdr_mac == QETH_TR_MAC_NC) ||
+			    (hdr_mac == QETH_TR_MAC_C))
+				return RTN_MULTICAST;
+			break;
+		/* eth or so multicast? */
+		default:
+		if ((hdr_mac == QETH_ETH_MAC_V4) ||
+			    (hdr_mac == QETH_ETH_MAC_V6))
+				return RTN_MULTICAST;
+		}
+	}
+	return cast_type;
+}
+
 static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 		struct sk_buff *skb, int ipv, int cast_type)
 {
@@ -2650,7 +2694,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct qeth_card *card = dev->ml_priv;
 	struct sk_buff *new_skb = NULL;
 	int ipv = qeth_get_ip_version(skb);
-	int cast_type = qeth_get_cast_type(card, skb);
+	int cast_type = qeth_l3_get_cast_type(card, skb);
 	struct qeth_qdio_out_q *queue = card->qdio.out_qs
 		[qeth_get_priority_queue(card, skb, ipv, cast_type)];
 	int tx_bytes = skb->len;
@@ -2793,6 +2837,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				card->perf_stats.sg_frags_sent += nr_frags + 1;
 			}
 		}
+		rc = NETDEV_TX_OK;
 	} else {
 		if (data_offset >= 0)
 			kmem_cache_free(qeth_core_header_cache, hdr);
@@ -2900,7 +2945,7 @@ static int qeth_l3_ethtool_set_tso(struct net_device *dev, u32 data)
 	return 0;
 }
 
-static struct ethtool_ops qeth_l3_ethtool_ops = {
+static const struct ethtool_ops qeth_l3_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_tx_csum = ethtool_op_get_tx_csum,
 	.set_tx_csum = ethtool_op_set_tx_hw_csum,
@@ -3179,6 +3224,7 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 	netif_carrier_on(card->dev);
 
 	qeth_set_allowed_threads(card, 0xffffffff, 0);
+	qeth_l3_set_ip_addr_list(card);
 	if (recover_flag == CARD_STATE_RECOVER) {
 		if (recovery_mode)
 			qeth_l3_open(card->dev);

@@ -495,6 +495,8 @@ struct iwm_fw_alive_hdr {
 #define WIFI_DBG_IF_NTFY_COEX_HANDLE_ENVELOP		0xE8
 #define WIFI_DBG_IF_NTFY_COEX_HANDLE_RELEASE_ENVELOP	0xE9
 
+#define WIFI_IF_NTFY_MAX 0xff
+
 /* Notification structures */
 struct iwm_umac_notif_wifi_if {
 	struct iwm_umac_wifi_in_hdr hdr;
@@ -613,6 +615,7 @@ struct iwm_umac_notif_alive {
 } __attribute__ ((packed));
 
 struct iwm_umac_notif_init_complete {
+	struct iwm_umac_wifi_in_hdr hdr;
 	__le16 status;
 	__le16 reserved;
 } __attribute__ ((packed));
@@ -641,6 +644,11 @@ struct iwm_fw_error_hdr {
 	__le32 umac_status;
 	__le32 lmac_status;
 	__le32 sdio_status;
+	__le32 dbm_sample_ctrl;
+	__le32 dbm_buf_base;
+	__le32 dbm_buf_end;
+	__le32 dbm_buf_write_ptr;
+	__le32 dbm_buf_cycle_cnt;
 } __attribute__ ((packed));
 
 struct iwm_umac_notif_error {

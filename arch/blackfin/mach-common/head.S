@@ -3,8 +3,6 @@
  *
  * Copyright 2004-2008 Analog Devices Inc.
  *
- * Enter bugs at http://blackfin.uclinux.org/
- *
  * Licensed under the GPL-2 or later.
  */
 
@@ -124,22 +122,22 @@ ENTRY(__start)
 	 * below
 	 */
 	GET_PDA(p0, r0);
-	r6 = [p0 + PDA_RETX];
+	r6 = [p0 + PDA_DF_RETX];
 	p1.l = _init_saved_retx;
 	p1.h = _init_saved_retx;
 	[p1] = r6;
 
-	r6 = [p0 + PDA_DCPLB];
+	r6 = [p0 + PDA_DF_DCPLB];
 	p1.l = _init_saved_dcplb_fault_addr;
 	p1.h = _init_saved_dcplb_fault_addr;
 	[p1] = r6;
 
-	r6 = [p0 + PDA_ICPLB];
+	r6 = [p0 + PDA_DF_ICPLB];
 	p1.l = _init_saved_icplb_fault_addr;
 	p1.h = _init_saved_icplb_fault_addr;
 	[p1] = r6;
 
-	r6 = [p0 + PDA_SEQSTAT];
+	r6 = [p0 + PDA_DF_SEQSTAT];
 	p1.l = _init_saved_seqstat;
 	p1.h = _init_saved_seqstat;
 	[p1] = r6;
@@ -153,6 +151,8 @@ ENTRY(__start)
 
 #ifdef CONFIG_EARLY_PRINTK
 	call _init_early_exception_vectors;
+	r0 = (EVT_IVHW | EVT_IRPTEN | EVT_EVX | EVT_NMI | EVT_RST | EVT_EMU);
+	sti r0;
 #endif
 
 	r0 = 0 (x);
@@ -212,12 +212,21 @@ ENTRY(__start)
 	[p0] = p1;
 	csync;
 
+#ifdef CONFIG_EARLY_PRINTK
+	r0 = (EVT_IVG15 | EVT_IVHW | EVT_IRPTEN | EVT_EVX | EVT_NMI | EVT_RST | EVT_EMU) (z);
+#else
 	r0 = EVT_IVG15 (z);
+#endif
 	sti r0;
 
 	raise 15;
+#ifdef CONFIG_EARLY_PRINTK
+	p0.l = _early_trap;
+	p0.h = _early_trap;
+#else
 	p0.l = .LWAIT_HERE;
 	p0.h = .LWAIT_HERE;
+#endif
 	reti = p0;
 #if ANOMALY_05000281
 	nop; nop; nop;

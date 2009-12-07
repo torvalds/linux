@@ -1,0 +1,41 @@
+perf-timechart(1)
+=================
+
+NAME
+----
+perf-timechart - Tool to visualize total system behavior during a workload
+
+SYNOPSIS
+--------
+[verse]
+'perf timechart' {record}
+
+DESCRIPTION
+-----------
+There are two variants of perf timechart:
+
+  'perf timechart record <command>' to record the system level events
+  of an arbitrary workload.
+
+  'perf timechart' to turn a trace into a Scalable Vector Graphics file,
+  that can be viewed with popular SVG viewers such as 'Inkscape'.
+
+OPTIONS
+-------
+-o::
+--output=::
+        Select the output file (default: output.svg)
+-i::
+--input=::
+        Select the input file (default: perf.data)
+-w::
+--width=::
+        Select the width of the SVG file (default: 1000)
+-p::
+--power-only::
+        Only output the CPU power section of the diagram
+
+
+SEE ALSO
+--------
+linkperf:perf-record[1]

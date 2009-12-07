@@ -450,10 +450,13 @@ static void mainstone_mci_exit(struct device *dev, void *data)
 }
 
 static struct pxamci_platform_data mainstone_mci_platform_data = {
-	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.init 		= mainstone_mci_init,
-	.setpower 	= mainstone_mci_setpower,
-	.exit		= mainstone_mci_exit,
+	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
+	.init 			= mainstone_mci_init,
+	.setpower 		= mainstone_mci_setpower,
+	.exit			= mainstone_mci_exit,
+	.gpio_card_detect	= -1,
+	.gpio_card_ro		= -1,
+	.gpio_power		= -1,
 };
 
 static void mainstone_irda_transceiver_mode(struct device *dev, int mode)
@@ -476,8 +479,9 @@ static void mainstone_irda_transceiver_mode(struct device *dev, int mode)
 }
 
 static struct pxaficp_platform_data mainstone_ficp_platform_data = {
-	.transceiver_cap  = IR_SIRMODE | IR_FIRMODE | IR_OFF,
-	.transceiver_mode = mainstone_irda_transceiver_mode,
+	.gpio_pwdown		= -1,
+	.transceiver_cap	= IR_SIRMODE | IR_FIRMODE | IR_OFF,
+	.transceiver_mode	= mainstone_irda_transceiver_mode,
 };
 
 static struct gpio_keys_button gpio_keys_button[] = {

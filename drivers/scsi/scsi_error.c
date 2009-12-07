@@ -382,9 +382,13 @@ static int scsi_eh_completed_normally(struct scsi_cmnd *scmd)
 		 * who knows?  FIXME(eric)
 		 */
 		return SUCCESS;
+	case RESERVATION_CONFLICT:
+		/*
+		 * let issuer deal with this, it could be just fine
+		 */
+		return SUCCESS;
 	case BUSY:
 	case QUEUE_FULL:
-	case RESERVATION_CONFLICT:
 	default:
 		return FAILED;
 	}
@@ -720,6 +724,9 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, unsigned char *cmnd,
 		case SUCCESS:
 		case NEEDS_RETRY:
 		case FAILED:
+			break;
+		case ADD_TO_MLQUEUE:
+			rtn = NEEDS_RETRY;
 			break;
 		default:
 			rtn = FAILED;

@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/i2c.h>
 
+#include "dvb_math.h"
 #include "dvb_frontend.h"
 
 #include "dib7000p.h"
@@ -883,7 +884,7 @@ static void dib7000p_spur_protect(struct dib7000p_state *state, u32 rf_khz, u32 
 	255, 255, 255, 255, 255, 255};
 
 	u32 xtal = state->cfg.bw->xtal_hz / 1000;
-	int f_rel = ( (rf_khz + xtal/2) / xtal) * xtal - rf_khz;
+	int f_rel = DIV_ROUND_CLOSEST(rf_khz, xtal) * xtal - rf_khz;
 	int k;
 	int coef_re[8],coef_im[8];
 	int bw_khz = bw;
@@ -1217,7 +1218,37 @@ static int dib7000p_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 
 static int dib7000p_read_snr(struct dvb_frontend* fe, u16 *snr)
 {
-	*snr = 0x0000;
+	struct dib7000p_state *state = fe->demodulator_priv;
+	u16 val;
+	s32 signal_mant, signal_exp, noise_mant, noise_exp;
+	u32 result = 0;
+
+	val = dib7000p_read_word(state, 479);
+	noise_mant = (val >> 4) & 0xff;
+	noise_exp = ((val & 0xf) << 2);
+	val = dib7000p_read_word(state, 480);
+	noise_exp += ((val >> 14) & 0x3);
+	if ((noise_exp & 0x20) != 0)
+		noise_exp -= 0x40;
+
+	signal_mant = (val >> 6) & 0xFF;
+	signal_exp  = (val & 0x3F);
+	if ((signal_exp & 0x20) != 0)
+		signal_exp -= 0x40;
+
+	if (signal_mant != 0)
+		result = intlog10(2) * 10 * signal_exp + 10 *
+			intlog10(signal_mant);
+	else
+		result = intlog10(2) * 10 * signal_exp - 100;
+
+	if (noise_mant != 0)
+		result -= intlog10(2) * 10 * noise_exp + 10 *
+			intlog10(noise_mant);
+	else
+		result -= intlog10(2) * 10 * noise_exp - 100;
+
+	*snr = result / ((1 << 24) / 10);
 	return 0;
 }
 
@@ -1343,6 +1374,11 @@ struct dvb_frontend * dib7000p_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr,
 
 	if (dib7000p_identify(st) != 0)
 		goto error;
+
+	/* FIXME: make sure the dev.parent field is initialized, or else
+	request_firmware() will hit an OOPS (this should be moved somewhere
+	more common) */
+	st->i2c_master.gated_tuner_i2c_adap.dev.parent = i2c_adap->dev.parent;
 
 	dibx000_init_i2c_master(&st->i2c_master, DIB7000P, st->i2c_adap, st->i2c_addr);
 

@@ -8,6 +8,7 @@
  *         Wu Zhangjin <wuzj@lemote.com>
  */
 #include <asm/asm-offsets.h>
+#include <asm/page.h>
 #include <asm/regdef.h>
 #include <asm/asm.h>
 
@@ -34,7 +35,7 @@ LEAF(swsusp_arch_resume)
 0:
 	PTR_L t1, PBE_ADDRESS(t0)   /* source */
 	PTR_L t2, PBE_ORIG_ADDRESS(t0) /* destination */
-	PTR_ADDIU t3, t1, _PAGE_SIZE
+	PTR_ADDIU t3, t1, PAGE_SIZE
 1:
 	REG_L t8, (t1)
 	REG_S t8, (t2)

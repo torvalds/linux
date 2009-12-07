@@ -71,6 +71,9 @@ void tlb_flush(struct mmu_gather *tlb)
 		 */
 		_tlbia();
 	}
+
+	/* Push out batch of freed page tables */
+	pte_free_finish();
 }
 
 /*

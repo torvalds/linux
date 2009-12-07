@@ -22,8 +22,11 @@
 #include <linux/of.h>
 #include <asm/prom.h>
 #include <asm/oplib.h>
+#include <asm/leon.h>
 
 #include "prom.h"
+
+void (*prom_build_more)(struct device_node *dp, struct device_node ***nextp);
 
 struct device_node *of_console_device;
 EXPORT_SYMBOL(of_console_device);
@@ -76,6 +79,7 @@ int of_set_property(struct device_node *dp, const char *name, void *val, int len
 
 	err = -ENODEV;
 
+	mutex_lock(&of_set_property_mutex);
 	write_lock(&devtree_lock);
 	prevp = &dp->properties;
 	while (*prevp) {
@@ -85,9 +89,7 @@ int of_set_property(struct device_node *dp, const char *name, void *val, int len
 			void *old_val = prop->value;
 			int ret;
 
-			mutex_lock(&of_set_property_mutex);
 			ret = prom_setprop(dp->node, name, val, len);
-			mutex_unlock(&of_set_property_mutex);
 
 			err = -EINVAL;
 			if (ret >= 0) {
@@ -106,6 +108,7 @@ int of_set_property(struct device_node *dp, const char *name, void *val, int len
 		prevp = &(*prevp)->next;
 	}
 	write_unlock(&devtree_lock);
+	mutex_unlock(&of_set_property_mutex);
 
 	/* XXX Upate procfs if necessary... */
 
@@ -161,7 +164,7 @@ static struct property * __init build_one_prop(phandle node, char *prev,
 			name = prom_nextprop(node, prev, p->name);
 		}
 
-		if (strlen(name) == 0) {
+		if (!name || strlen(name) == 0) {
 			tmp = p;
 			return NULL;
 		}
@@ -242,7 +245,7 @@ static struct device_node * __init prom_create_node(phandle node,
 	return dp;
 }
 
-static char * __init build_full_name(struct device_node *dp)
+char * __init build_full_name(struct device_node *dp)
 {
 	int len, ourlen, plen;
 	char *n;
@@ -288,6 +291,9 @@ static struct device_node * __init prom_build_tree(struct device_node *parent,
 		dp->full_name = build_full_name(dp);
 
 		dp->child = prom_build_tree(dp, prom_getchild(node), nextp);
+
+		if (prom_build_more)
+			prom_build_more(dp, nextp);
 
 		node = prom_getsibling(node);
 	}

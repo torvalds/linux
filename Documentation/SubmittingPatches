@@ -183,7 +183,7 @@ the MAN-PAGES maintainer (as listed in the MAINTAINERS file)
 a man-pages patch, or at least a notification of the change,
 so that some information makes its way into the manual pages.
 
-Even if the maintainer did not respond in step #4, make sure to ALWAYS
+Even if the maintainer did not respond in step #5, make sure to ALWAYS
 copy the maintainer when you change their code.
 
 For small patches you may want to CC the Trivial Patch Monkey
@@ -232,7 +232,7 @@ your e-mail client so that it sends your patches untouched.
 When sending patches to Linus, always follow step #7.
 
 Large changes are not appropriate for mailing lists, and some
-maintainers.  If your patch, uncompressed, exceeds 40 kB in size,
+maintainers.  If your patch, uncompressed, exceeds 300 kB in size,
 it is preferred that you store your patch on an Internet-accessible
 server, and provide instead a URL (link) pointing to your patch.
 

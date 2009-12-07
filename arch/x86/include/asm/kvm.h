@@ -17,6 +17,8 @@
 #define __KVM_HAVE_USER_NMI
 #define __KVM_HAVE_GUEST_DEBUG
 #define __KVM_HAVE_MSIX
+#define __KVM_HAVE_MCE
+#define __KVM_HAVE_PIT_STATE2
 
 /* Architectural interrupt line count. */
 #define KVM_NR_INTERRUPTS 256
@@ -234,6 +236,14 @@ struct kvm_guest_debug_arch {
 
 struct kvm_pit_state {
 	struct kvm_pit_channel_state channels[3];
+};
+
+#define KVM_PIT_FLAGS_HPET_LEGACY  0x00000001
+
+struct kvm_pit_state2 {
+	struct kvm_pit_channel_state channels[3];
+	__u32 flags;
+	__u32 reserved[9];
 };
 
 struct kvm_reinject_control {

@@ -162,7 +162,7 @@
 
 /* SPROM shadow area. If not otherwise noted, fields are
  * two bytes wide. Note that the SPROM can _only_ be read
- * in two-byte quantinies.
+ * in two-byte quantities.
  */
 #define SSB_SPROMSIZE_WORDS		64
 #define SSB_SPROMSIZE_BYTES		(SSB_SPROMSIZE_WORDS * sizeof(u16))
@@ -327,8 +327,11 @@
 #define  SSB_SPROM5_GPIOB_P3_SHIFT	8
 
 /* SPROM Revision 8 */
-#define SSB_SPROM8_BFLLO		0x1084	/* Boardflags (low 16 bits) */
-#define SSB_SPROM8_BFLHI		0x1086	/* Boardflags Hi */
+#define SSB_SPROM8_BOARDREV		0x1082	/* Board revision */
+#define SSB_SPROM8_BFLLO		0x1084	/* Board flags (bits 0-15) */
+#define SSB_SPROM8_BFLHI		0x1086	/* Board flags (bits 16-31) */
+#define SSB_SPROM8_BFL2LO		0x1088	/* Board flags (bits 32-47) */
+#define SSB_SPROM8_BFL2HI		0x108A	/* Board flags (bits 48-63) */
 #define SSB_SPROM8_IL0MAC		0x108C	/* 6 byte MAC address */
 #define SSB_SPROM8_CCODE		0x1092	/* 2 byte country code */
 #define SSB_SPROM8_ANTAVAIL		0x109C  /* Antenna available bitfields*/
@@ -354,14 +357,63 @@
 #define  SSB_SPROM8_GPIOB_P2		0x00FF	/* Pin 2 */
 #define  SSB_SPROM8_GPIOB_P3		0xFF00	/* Pin 3 */
 #define  SSB_SPROM8_GPIOB_P3_SHIFT	8
-#define SSB_SPROM8_MAXP_BG		0x10C0  /* Max Power BG in path 1 */
-#define  SSB_SPROM8_MAXP_BG_MASK	0x00FF  /* Mask for Max Power BG */
+#define SSB_SPROM8_RSSIPARM2G		0x10A4	/* RSSI params for 2GHz */
+#define  SSB_SPROM8_RSSISMF2G		0x000F
+#define  SSB_SPROM8_RSSISMC2G		0x00F0
+#define  SSB_SPROM8_RSSISMC2G_SHIFT	4
+#define  SSB_SPROM8_RSSISAV2G		0x0700
+#define  SSB_SPROM8_RSSISAV2G_SHIFT	8
+#define  SSB_SPROM8_BXA2G		0x1800
+#define  SSB_SPROM8_BXA2G_SHIFT		11
+#define SSB_SPROM8_RSSIPARM5G		0x10A6	/* RSSI params for 5GHz */
+#define  SSB_SPROM8_RSSISMF5G		0x000F
+#define  SSB_SPROM8_RSSISMC5G		0x00F0
+#define  SSB_SPROM8_RSSISMC5G_SHIFT	4
+#define  SSB_SPROM8_RSSISAV5G		0x0700
+#define  SSB_SPROM8_RSSISAV5G_SHIFT	8
+#define  SSB_SPROM8_BXA5G		0x1800
+#define  SSB_SPROM8_BXA5G_SHIFT		11
+#define SSB_SPROM8_TRI25G		0x10A8	/* TX isolation 2.4&5.3GHz */
+#define  SSB_SPROM8_TRI2G		0x00FF	/* TX isolation 2.4GHz */
+#define  SSB_SPROM8_TRI5G		0xFF00	/* TX isolation 5.3GHz */
+#define  SSB_SPROM8_TRI5G_SHIFT		8
+#define SSB_SPROM8_TRI5GHL		0x10AA	/* TX isolation 5.2/5.8GHz */
+#define  SSB_SPROM8_TRI5GL		0x00FF	/* TX isolation 5.2GHz */
+#define  SSB_SPROM8_TRI5GH		0xFF00	/* TX isolation 5.8GHz */
+#define  SSB_SPROM8_TRI5GH_SHIFT	8
+#define SSB_SPROM8_RXPO			0x10AC  /* RX power offsets */
+#define  SSB_SPROM8_RXPO2G		0x00FF	/* 2GHz RX power offset */
+#define  SSB_SPROM8_RXPO5G		0xFF00	/* 5GHz RX power offset */
+#define  SSB_SPROM8_RXPO5G_SHIFT	8
+#define SSB_SPROM8_MAXP_BG		0x10C0  /* Max Power 2GHz in path 1 */
+#define  SSB_SPROM8_MAXP_BG_MASK	0x00FF  /* Mask for Max Power 2GHz */
 #define  SSB_SPROM8_ITSSI_BG		0xFF00	/* Mask for path 1 itssi_bg */
 #define  SSB_SPROM8_ITSSI_BG_SHIFT	8
-#define SSB_SPROM8_MAXP_A		0x10C8  /* Max Power A in path 1 */
-#define  SSB_SPROM8_MAXP_A_MASK		0x00FF  /* Mask for Max Power A */
+#define SSB_SPROM8_PA0B0		0x10C2	/* 2GHz power amp settings */
+#define SSB_SPROM8_PA0B1		0x10C4
+#define SSB_SPROM8_PA0B2		0x10C6
+#define SSB_SPROM8_MAXP_A		0x10C8  /* Max Power 5.3GHz */
+#define  SSB_SPROM8_MAXP_A_MASK		0x00FF  /* Mask for Max Power 5.3GHz */
 #define  SSB_SPROM8_ITSSI_A		0xFF00	/* Mask for path 1 itssi_a */
 #define  SSB_SPROM8_ITSSI_A_SHIFT	8
+#define SSB_SPROM8_MAXP_AHL		0x10CA  /* Max Power 5.2/5.8GHz */
+#define  SSB_SPROM8_MAXP_AH_MASK	0x00FF  /* Mask for Max Power 5.8GHz */
+#define  SSB_SPROM8_MAXP_AL_MASK	0xFF00  /* Mask for Max Power 5.2GHz */
+#define  SSB_SPROM8_MAXP_AL_SHIFT	8
+#define SSB_SPROM8_PA1B0		0x10CC	/* 5.3GHz power amp settings */
+#define SSB_SPROM8_PA1B1		0x10CE
+#define SSB_SPROM8_PA1B2		0x10D0
+#define SSB_SPROM8_PA1LOB0		0x10D2	/* 5.2GHz power amp settings */
+#define SSB_SPROM8_PA1LOB1		0x10D4
+#define SSB_SPROM8_PA1LOB2		0x10D6
+#define SSB_SPROM8_PA1HIB0		0x10D8	/* 5.8GHz power amp settings */
+#define SSB_SPROM8_PA1HIB1		0x10DA
+#define SSB_SPROM8_PA1HIB2		0x10DC
+#define SSB_SPROM8_CCK2GPO		0x1140	/* CCK power offset */
+#define SSB_SPROM8_OFDM2GPO		0x1142	/* 2.4GHz OFDM power offset */
+#define SSB_SPROM8_OFDM5GPO		0x1146	/* 5.3GHz OFDM power offset */
+#define SSB_SPROM8_OFDM5GLPO		0x114A	/* 5.2GHz OFDM power offset */
+#define SSB_SPROM8_OFDM5GHPO		0x114E	/* 5.8GHz OFDM power offset */
 
 /* Values for SSB_SPROM1_BINF_CCODE */
 enum {

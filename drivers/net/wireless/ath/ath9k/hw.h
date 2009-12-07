@@ -42,6 +42,13 @@
 #define AR_SUBVENDOR_ID_NEW_A	0x7065
 #define AR5416_MAGIC		0x19641014
 
+#define AR5416_DEVID_AR9287_PCI  0x002D
+#define AR5416_DEVID_AR9287_PCIE 0x002E
+
+#define AR9280_COEX2WIRE_SUBSYSID	0x309b
+#define AT9285_COEX3WIRE_SA_SUBSYSID	0x30aa
+#define AT9285_COEX3WIRE_DA_SUBSYSID	0x30ab
+
 /* Register read/write primitives */
 #define REG_WRITE(_ah, _reg, _val) ath9k_iowrite32((_ah), (_reg), (_val))
 #define REG_READ(_ah, _reg) ath9k_ioread32((_ah), (_reg))
@@ -76,6 +83,7 @@
 #define AR_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED 1
 #define AR_GPIO_OUTPUT_MUX_AS_PCIE_POWER_LED     2
 #define AR_GPIO_OUTPUT_MUX_AS_TX_FRAME           3
+#define AR_GPIO_OUTPUT_MUX_AS_RX_CLEAR_EXTERNAL  4
 #define AR_GPIO_OUTPUT_MUX_AS_MAC_NETWORK_LED    5
 #define AR_GPIO_OUTPUT_MUX_AS_MAC_POWER_LED      6
 
@@ -95,9 +103,10 @@
 
 #define MAX_RATE_POWER              63
 #define AH_WAIT_TIMEOUT             100000 /* (us) */
+#define AH_TSF_WRITE_TIMEOUT        100    /* (us) */
 #define AH_TIME_QUANTUM             10
 #define AR_KEYTABLE_SIZE            128
-#define POWER_UP_TIME               200000
+#define POWER_UP_TIME               10000
 #define SPUR_RSSI_THRESH            40
 
 #define CAB_TIMEOUT_VAL             10
@@ -113,15 +122,20 @@
 
 enum wireless_mode {
 	ATH9K_MODE_11A = 0,
-	ATH9K_MODE_11B = 2,
-	ATH9K_MODE_11G = 3,
-	ATH9K_MODE_11NA_HT20 = 6,
-	ATH9K_MODE_11NG_HT20 = 7,
-	ATH9K_MODE_11NA_HT40PLUS = 8,
-	ATH9K_MODE_11NA_HT40MINUS = 9,
-	ATH9K_MODE_11NG_HT40PLUS = 10,
-	ATH9K_MODE_11NG_HT40MINUS = 11,
-	ATH9K_MODE_MAX
+	ATH9K_MODE_11G,
+	ATH9K_MODE_11NA_HT20,
+	ATH9K_MODE_11NG_HT20,
+	ATH9K_MODE_11NA_HT40PLUS,
+	ATH9K_MODE_11NA_HT40MINUS,
+	ATH9K_MODE_11NG_HT40PLUS,
+	ATH9K_MODE_11NG_HT40MINUS,
+	ATH9K_MODE_MAX,
+};
+
+enum ath9k_ant_setting {
+	ATH9K_ANT_VARIABLE = 0,
+	ATH9K_ANT_FIXED_A,
+	ATH9K_ANT_FIXED_B
 };
 
 enum ath9k_hw_caps {
@@ -142,7 +156,6 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_ENHANCEDPM                 = BIT(14),
 	ATH9K_HW_CAP_AUTOSLEEP                  = BIT(15),
 	ATH9K_HW_CAP_4KB_SPLITTRANS             = BIT(16),
-	ATH9K_HW_CAP_BT_COEX			= BIT(17)
 };
 
 enum ath9k_capability_type {
@@ -188,7 +201,7 @@ struct ath9k_ops_config {
 	u32 cck_trig_high;
 	u32 cck_trig_low;
 	u32 enable_ani;
-	u16 diversity_control;
+	enum ath9k_ant_setting diversity_control;
 	u16 antenna_switch_swap;
 	int serialize_regmode;
 	bool intr_mitigation;
@@ -229,6 +242,7 @@ enum ath9k_int {
 	ATH9K_INT_GPIO = 0x01000000,
 	ATH9K_INT_CABEND = 0x02000000,
 	ATH9K_INT_TSFOOR = 0x04000000,
+	ATH9K_INT_GENTIMER = 0x08000000,
 	ATH9K_INT_CST = 0x10000000,
 	ATH9K_INT_GTT = 0x20000000,
 	ATH9K_INT_FATAL = 0x40000000,
@@ -327,12 +341,6 @@ enum ath9k_power_mode {
 	ATH9K_PM_UNDEFINED
 };
 
-enum ath9k_ant_setting {
-	ATH9K_ANT_VARIABLE = 0,
-	ATH9K_ANT_FIXED_A,
-	ATH9K_ANT_FIXED_B
-};
-
 enum ath9k_tp_scale {
 	ATH9K_TP_SCALE_MAX = 0,
 	ATH9K_TP_SCALE_50,
@@ -386,6 +394,42 @@ struct ath9k_hw_version {
 	u16 phyRev;
 	u16 analog5GhzRev;
 	u16 analog2GhzRev;
+	u16 subsysid;
+};
+
+/* Generic TSF timer definitions */
+
+#define ATH_MAX_GEN_TIMER	16
+
+#define AR_GENTMR_BIT(_index)	(1 << (_index))
+
+/*
+ * Using de Bruijin sequence to to look up 1's index in a 32 bit number
+ * debruijn32 = 0000 0111 0111 1100 1011 0101 0011 0001
+ */
+#define debruijn32 0x077CB531UL
+
+struct ath_gen_timer_configuration {
+	u32 next_addr;
+	u32 period_addr;
+	u32 mode_addr;
+	u32 mode_mask;
+};
+
+struct ath_gen_timer {
+	void (*trigger)(void *arg);
+	void (*overflow)(void *arg);
+	void *arg;
+	u8 index;
+};
+
+struct ath_gen_timer_table {
+	u32 gen_timer_index[32];
+	struct ath_gen_timer *timers[ATH_MAX_GEN_TIMER];
+	union {
+		unsigned long timer_bits;
+		u16 val;
+	} timer_mask;
 };
 
 struct ath_hw {
@@ -393,13 +437,13 @@ struct ath_hw {
 	struct ath9k_hw_version hw_version;
 	struct ath9k_ops_config config;
 	struct ath9k_hw_capabilities caps;
-	struct ath_regulatory regulatory;
 	struct ath9k_channel channels[38];
 	struct ath9k_channel *curchan;
 
 	union {
 		struct ar5416_eeprom_def def;
 		struct ar5416_eeprom_4k map4k;
+		struct ar9287_eeprom map9287;
 	} eeprom;
 	const struct eeprom_ops *eep_ops;
 	enum ath9k_eep_map eep_map;
@@ -411,15 +455,15 @@ struct ath_hw {
 	u16 rfsilent;
 	u32 rfkill_gpio;
 	u32 rfkill_polarity;
-	u32 btactive_gpio;
-	u32 wlanactive_gpio;
 	u32 ah_flags;
+
+	bool htc_reset_init;
 
 	enum nl80211_iftype opmode;
 	enum ath9k_power_mode power_mode;
-	enum ath9k_power_mode restore_mode;
 
 	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
+	struct ath9k_pacal_info pacal_info;
 	struct ar5416Stats stats;
 	struct ath9k_tx_queue_info txq[ATH9K_NUM_TX_QUEUES];
 
@@ -432,8 +476,6 @@ struct ath_hw {
 	u32 txurn_interrupt_mask;
 	bool chip_fullsleep;
 	u32 atim_window;
-	u16 antenna_switch_swap;
-	enum ath9k_ant_setting diversity_control;
 
 	/* Calibration */
 	enum ath9k_cal_types supp_cals;
@@ -502,7 +544,6 @@ struct ath_hw {
 
 	/* ANI */
 	u32 proc_phyerr;
-	bool has_hw_phycounters;
 	u32 aniperiod;
 	struct ar5416AniState *curani;
 	struct ar5416AniState ani[255];
@@ -520,6 +561,7 @@ struct ath_hw {
 	u32 originalGain[22];
 	int initPDADC;
 	int PDADCdelta;
+	u8 led_pin;
 
 	struct ar5416IniArray iniModes;
 	struct ar5416IniArray iniCommon;
@@ -536,13 +578,17 @@ struct ath_hw {
 	struct ar5416IniArray iniModesAdditional;
 	struct ar5416IniArray iniModesRxGain;
 	struct ar5416IniArray iniModesTxGain;
+
+	u32 intr_gen_timer_trigger;
+	u32 intr_gen_timer_thresh;
+	struct ath_gen_timer_table hw_gen_timers;
 };
 
-/* Attach, Detach, Reset */
+/* Initialization, Detach, Reset */
 const char *ath9k_hw_probe(u16 vendorid, u16 devid);
 void ath9k_hw_detach(struct ath_hw *ah);
-struct ath_hw *ath9k_hw_attach(u16 devid, struct ath_softc *sc, int *error);
-void ath9k_hw_rfdetach(struct ath_hw *ah);
+int ath9k_hw_init(struct ath_hw *ah);
+void ath9k_hw_rf_free(struct ath_hw *ah);
 int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		   bool bChannelChange);
 void ath9k_hw_fill_cap_info(struct ath_hw *ah);
@@ -596,7 +642,7 @@ void ath9k_hw_write_associd(struct ath_softc *sc);
 u64 ath9k_hw_gettsf64(struct ath_hw *ah);
 void ath9k_hw_settsf64(struct ath_hw *ah, u64 tsf64);
 void ath9k_hw_reset_tsf(struct ath_hw *ah);
-bool ath9k_hw_set_tsfadjust(struct ath_hw *ah, u32 setting);
+void ath9k_hw_set_tsfadjust(struct ath_hw *ah, u32 setting);
 bool ath9k_hw_setslottime(struct ath_hw *ah, u32 us);
 void ath9k_hw_set11nmac2040(struct ath_hw *ah, enum ath9k_ht_macmode mode);
 void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period);
@@ -604,14 +650,29 @@ void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,
 				    const struct ath9k_beacon_state *bs);
 bool ath9k_hw_setpower(struct ath_hw *ah,
 		       enum ath9k_power_mode mode);
-void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore);
+void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore, int power_off);
 
 /* Interrupt Handling */
 bool ath9k_hw_intrpend(struct ath_hw *ah);
 bool ath9k_hw_getisr(struct ath_hw *ah, enum ath9k_int *masked);
-enum ath9k_int ath9k_hw_intrget(struct ath_hw *ah);
 enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints);
 
-void ath9k_hw_btcoex_enable(struct ath_hw *ah);
+/* Generic hw timer primitives */
+struct ath_gen_timer *ath_gen_timer_alloc(struct ath_hw *ah,
+					  void (*trigger)(void *),
+					  void (*overflow)(void *),
+					  void *arg,
+					  u8 timer_index);
+void ath_gen_timer_start(struct ath_hw *ah, struct ath_gen_timer *timer,
+			 u32 timer_next, u32 timer_period);
+void ath_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer);
+void ath_gen_timer_free(struct ath_hw *ah, struct ath_gen_timer *timer);
+void ath_gen_timer_isr(struct ath_hw *hw);
+u32 ath9k_hw_gettsf32(struct ath_hw *ah);
 
+#define ATH_PCIE_CAP_LINK_CTRL	0x70
+#define ATH_PCIE_CAP_LINK_L0S	1
+#define ATH_PCIE_CAP_LINK_L1	2
+
+void ath_pcie_aspm_disable(struct ath_softc *sc);
 #endif

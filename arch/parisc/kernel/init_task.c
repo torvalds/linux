@@ -43,8 +43,8 @@ static struct sighand_struct init_sighand = INIT_SIGHAND(init_sighand);
  * way process stacks are handled. This is done by having a special
  * "init_task" linker map entry..
  */
-union thread_union init_thread_union
-	__attribute__((aligned(128))) __attribute__((__section__(".data.init_task"))) =
+union thread_union init_thread_union __init_task_data
+	__attribute__((aligned(128))) =
 		{ INIT_THREAD_INFO(init_task) };
 
 #if PT_NLEVELS == 3

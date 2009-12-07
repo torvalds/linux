@@ -107,36 +107,37 @@ struct pc236_board {
 };
 static const struct pc236_board pc236_boards[] = {
 	{
-	.name = "pc36at",
-	.fancy_name = "PC36AT",
-	.bustype = isa_bustype,
-	.model = pc36at_model,
-		},
+	 .name = "pc36at",
+	 .fancy_name = "PC36AT",
+	 .bustype = isa_bustype,
+	 .model = pc36at_model,
+	 },
 #ifdef CONFIG_COMEDI_PCI
 	{
-	.name = "pci236",
-	.fancy_name = "PCI236",
-	.devid = PCI_DEVICE_ID_AMPLICON_PCI236,
-	.bustype = pci_bustype,
-	.model = pci236_model,
-		},
+	 .name = "pci236",
+	 .fancy_name = "PCI236",
+	 .devid = PCI_DEVICE_ID_AMPLICON_PCI236,
+	 .bustype = pci_bustype,
+	 .model = pci236_model,
+	 },
 #endif
 #ifdef CONFIG_COMEDI_PCI
 	{
-	.name = PC236_DRIVER_NAME,
-	.fancy_name = PC236_DRIVER_NAME,
-	.devid = PCI_DEVICE_ID_INVALID,
-	.bustype = pci_bustype,
-	.model = anypci_model,	/* wildcard */
-		},
+	 .name = PC236_DRIVER_NAME,
+	 .fancy_name = PC236_DRIVER_NAME,
+	 .devid = PCI_DEVICE_ID_INVALID,
+	 .bustype = pci_bustype,
+	 .model = anypci_model,	/* wildcard */
+	 },
 #endif
 };
 
 #ifdef CONFIG_COMEDI_PCI
 static DEFINE_PCI_DEVICE_TABLE(pc236_pci_table) = {
-	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI236, PCI_ANY_ID,
-		PCI_ANY_ID, 0, 0, 0},
-	{0}
+	{
+	PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI236,
+		    PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
+	0}
 };
 
 MODULE_DEVICE_TABLE(pci, pc236_pci_table);
@@ -186,16 +187,20 @@ COMEDI_INITCLEANUP(driver_amplc_pc236);
 #endif
 
 static int pc236_request_region(unsigned minor, unsigned long from,
-	unsigned long extent);
+				unsigned long extent);
 static void pc236_intr_disable(struct comedi_device *dev);
 static void pc236_intr_enable(struct comedi_device *dev);
 static int pc236_intr_check(struct comedi_device *dev);
-static int pc236_intr_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int pc236_intr_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_cmd *cmd);
-static int pc236_intr_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
-static int pc236_intr_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
+static int pc236_intr_insn(struct comedi_device *dev,
+			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   unsigned int *data);
+static int pc236_intr_cmdtest(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_cmd *cmd);
+static int pc236_intr_cmd(struct comedi_device *dev,
+			  struct comedi_subdevice *s);
+static int pc236_intr_cancel(struct comedi_device *dev,
+			     struct comedi_subdevice *s);
 static irqreturn_t pc236_interrupt(int irq, void *d);
 
 /*
@@ -205,7 +210,7 @@ static irqreturn_t pc236_interrupt(int irq, void *d);
 #ifdef CONFIG_COMEDI_PCI
 static int
 pc236_find_pci(struct comedi_device *dev, int bus, int slot,
-	struct pci_dev **pci_dev_p)
+	       struct pci_dev **pci_dev_p)
 {
 	struct pci_dev *pci_dev = NULL;
 
@@ -213,13 +218,13 @@ pc236_find_pci(struct comedi_device *dev, int bus, int slot,
 
 	/* Look for matching PCI device. */
 	for (pci_dev = pci_get_device(PCI_VENDOR_ID_AMPLICON, PCI_ANY_ID, NULL);
-		pci_dev != NULL;
-		pci_dev = pci_get_device(PCI_VENDOR_ID_AMPLICON,
-			PCI_ANY_ID, pci_dev)) {
+	     pci_dev != NULL;
+	     pci_dev = pci_get_device(PCI_VENDOR_ID_AMPLICON,
+				      PCI_ANY_ID, pci_dev)) {
 		/* If bus/slot specified, check them. */
 		if (bus || slot) {
 			if (bus != pci_dev->bus->number
-				|| slot != PCI_SLOT(pci_dev->devfn))
+			    || slot != PCI_SLOT(pci_dev->devfn))
 				continue;
 		}
 		if (thisboard->model == anypci_model) {
@@ -250,11 +255,11 @@ pc236_find_pci(struct comedi_device *dev, int bus, int slot,
 	/* No match found. */
 	if (bus || slot) {
 		printk(KERN_ERR
-			"comedi%d: error! no %s found at pci %02x:%02x!\n",
-			dev->minor, thisboard->name, bus, slot);
+		       "comedi%d: error! no %s found at pci %02x:%02x!\n",
+		       dev->minor, thisboard->name, bus, slot);
 	} else {
 		printk(KERN_ERR "comedi%d: error! no %s found!\n",
-			dev->minor, thisboard->name);
+		       dev->minor, thisboard->name);
 	}
 	return -EIO;
 }
@@ -279,7 +284,7 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int ret;
 
 	printk(KERN_DEBUG "comedi%d: %s: attach\n", dev->minor,
-		PC236_DRIVER_NAME);
+	       PC236_DRIVER_NAME);
 /*
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
@@ -287,7 +292,7 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	ret = alloc_private(dev, sizeof(struct pc236_private));
 	if (ret < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
-			dev->minor);
+		       dev->minor);
 		return ret;
 	}
 	/* Process options. */
@@ -311,8 +316,8 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 #endif /* CONFIG_COMEDI_PCI */
 	default:
 		printk(KERN_ERR
-			"comedi%d: %s: BUG! cannot determine board type!\n",
-			dev->minor, PC236_DRIVER_NAME);
+		       "comedi%d: %s: BUG! cannot determine board type!\n",
+		       dev->minor, PC236_DRIVER_NAME);
 		return -EINVAL;
 		break;
 	}
@@ -329,8 +334,8 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		ret = comedi_pci_enable(pci_dev, PC236_DRIVER_NAME);
 		if (ret < 0) {
 			printk(KERN_ERR
-				"comedi%d: error! cannot enable PCI device and request regions!\n",
-				dev->minor);
+			       "comedi%d: error! cannot enable PCI device and request regions!\n",
+			       dev->minor);
 			return ret;
 		}
 		devpriv->lcr_iobase = pci_resource_start(pci_dev, 1);
@@ -353,7 +358,7 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	ret = alloc_subdevices(dev, 2);
 	if (ret < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
-			dev->minor);
+		       dev->minor);
 		return ret;
 	}
 
@@ -362,7 +367,7 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	ret = subdev_8255_init(dev, s, NULL, iobase);
 	if (ret < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
-			dev->minor);
+		       dev->minor);
 		return ret;
 	}
 	s = dev->subdevices + 1;
@@ -416,7 +421,7 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static int pc236_detach(struct comedi_device *dev)
 {
 	printk(KERN_DEBUG "comedi%d: %s: detach\n", dev->minor,
-		PC236_DRIVER_NAME);
+	       PC236_DRIVER_NAME);
 	if (devpriv) {
 		pc236_intr_disable(dev);
 	}
@@ -442,7 +447,7 @@ static int pc236_detach(struct comedi_device *dev)
 	}
 	if (dev->board_name) {
 		printk(KERN_INFO "comedi%d: %s removed\n",
-			dev->minor, dev->board_name);
+		       dev->minor, dev->board_name);
 	}
 	return 0;
 }
@@ -452,11 +457,11 @@ static int pc236_detach(struct comedi_device *dev)
  * if there is a conflict.
  */
 static int pc236_request_region(unsigned minor, unsigned long from,
-	unsigned long extent)
+				unsigned long extent)
 {
 	if (!from || !request_region(from, extent, PC236_DRIVER_NAME)) {
 		printk(KERN_ERR "comedi%d: I/O port conflict (%#lx,%lu)!\n",
-			minor, from, extent);
+		       minor, from, extent);
 		return -EIO;
 	}
 	return 0;
@@ -516,13 +521,13 @@ static int pc236_intr_check(struct comedi_device *dev)
 #ifdef CONFIG_COMEDI_PCI
 		if (devpriv->lcr_iobase) {
 			if ((inl(devpriv->lcr_iobase + PLX9052_INTCSR)
-					& PLX9052_INTCSR_LI1STAT_MASK)
-				== PLX9052_INTCSR_LI1STAT_INACTIVE) {
+			     & PLX9052_INTCSR_LI1STAT_MASK)
+			    == PLX9052_INTCSR_LI1STAT_INACTIVE) {
 				retval = 0;
 			} else {
 				/* Clear interrupt and keep it enabled. */
 				outl(PCI236_INTR_ENABLE,
-					devpriv->lcr_iobase + PLX9052_INTCSR);
+				     devpriv->lcr_iobase + PLX9052_INTCSR);
 			}
 		}
 #endif
@@ -536,8 +541,9 @@ static int pc236_intr_check(struct comedi_device *dev)
  * Input from subdevice 1.
  * Copied from the comedi_parport driver.
  */
-static int pc236_intr_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int pc236_intr_insn(struct comedi_device *dev,
+			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   unsigned int *data)
 {
 	data[1] = 0;
 	return 2;
@@ -547,8 +553,9 @@ static int pc236_intr_insn(struct comedi_device *dev, struct comedi_subdevice *s
  * Subdevice 1 command test.
  * Copied from the comedi_parport driver.
  */
-static int pc236_intr_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_cmd *cmd)
+static int pc236_intr_cmdtest(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -635,7 +642,8 @@ static int pc236_intr_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 /*
  * Subdevice 1 cancel command.
  */
-static int pc236_intr_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
+static int pc236_intr_cancel(struct comedi_device *dev,
+			     struct comedi_subdevice *s)
 {
 	pc236_intr_disable(dev);
 

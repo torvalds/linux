@@ -28,10 +28,7 @@
 #include "usbdrv.h"
 
 #include <linux/netlink.h>
-
-#if WIRELESS_EXT > 12
 #include <net/iw_handler.h>
-#endif
 
 //extern struct zsWdsStruct wds[ZM_WDS_PORT_NUMBER];
 extern struct zsVapStruct vap[ZM_VAP_PORT_NUMBER];

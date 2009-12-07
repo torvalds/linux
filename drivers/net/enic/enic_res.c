@@ -156,6 +156,22 @@ int enic_set_nic_cfg(struct enic *enic, u8 rss_default_cpu, u8 rss_hash_type,
 	return vnic_dev_cmd(enic->vdev, CMD_NIC_CFG, &a0, &a1, wait);
 }
 
+int enic_set_rss_key(struct enic *enic, dma_addr_t key_pa, u64 len)
+{
+	u64 a0 = (u64)key_pa, a1 = len;
+	int wait = 1000;
+
+	return vnic_dev_cmd(enic->vdev, CMD_RSS_KEY, &a0, &a1, wait);
+}
+
+int enic_set_rss_cpu(struct enic *enic, dma_addr_t cpu_pa, u64 len)
+{
+	u64 a0 = (u64)cpu_pa, a1 = len;
+	int wait = 1000;
+
+	return vnic_dev_cmd(enic->vdev, CMD_RSS_CPU, &a0, &a1, wait);
+}
+
 void enic_free_vnic_resources(struct enic *enic)
 {
 	unsigned int i;
@@ -172,11 +188,18 @@ void enic_free_vnic_resources(struct enic *enic)
 
 void enic_get_res_counts(struct enic *enic)
 {
-	enic->wq_count = vnic_dev_get_res_count(enic->vdev, RES_TYPE_WQ);
-	enic->rq_count = vnic_dev_get_res_count(enic->vdev, RES_TYPE_RQ);
-	enic->cq_count = vnic_dev_get_res_count(enic->vdev, RES_TYPE_CQ);
-	enic->intr_count = vnic_dev_get_res_count(enic->vdev,
-		RES_TYPE_INTR_CTRL);
+	enic->wq_count = min_t(int,
+		vnic_dev_get_res_count(enic->vdev, RES_TYPE_WQ),
+		ENIC_WQ_MAX);
+	enic->rq_count = min_t(int,
+		vnic_dev_get_res_count(enic->vdev, RES_TYPE_RQ),
+		ENIC_RQ_MAX);
+	enic->cq_count = min_t(int,
+		vnic_dev_get_res_count(enic->vdev, RES_TYPE_CQ),
+		ENIC_CQ_MAX);
+	enic->intr_count = min_t(int,
+		vnic_dev_get_res_count(enic->vdev, RES_TYPE_INTR_CTRL),
+		ENIC_INTR_MAX);
 
 	printk(KERN_INFO PFX "vNIC resources avail: "
 		"wq %d rq %d cq %d intr %d\n",

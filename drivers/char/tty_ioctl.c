@@ -393,9 +393,7 @@ void tty_termios_encode_baud_rate(struct ktermios *termios,
 		termios->c_cflag |= (BOTHER << IBSHIFT);
 #else
 	if (ifound == -1 || ofound == -1) {
-		static int warned;
-		if (!warned++)
-			printk(KERN_WARNING "tty: Unable to return correct "
+		printk_once(KERN_WARNING "tty: Unable to return correct "
 			  "speed data as your architecture needs updating.\n");
 	}
 #endif

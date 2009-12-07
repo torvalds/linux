@@ -225,7 +225,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	case 0x1012:
 		/* The hauppauge keymap is a superset of these remotes */
 		ir_input_init(input_dev, &budget_ci->ir.state,
-			      IR_TYPE_RC5, ir_codes_hauppauge_new);
+			      IR_TYPE_RC5, &ir_codes_hauppauge_new_table);
 
 		if (rc5_device < 0)
 			budget_ci->ir.rc5_device = 0x1f;
@@ -237,7 +237,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	case 0x101a:
 		/* for the Technotrend 1500 bundled remote */
 		ir_input_init(input_dev, &budget_ci->ir.state,
-			      IR_TYPE_RC5, ir_codes_tt_1500);
+			      IR_TYPE_RC5, &ir_codes_tt_1500_table);
 
 		if (rc5_device < 0)
 			budget_ci->ir.rc5_device = IR_DEVICE_ANY;
@@ -247,7 +247,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	default:
 		/* unknown remote */
 		ir_input_init(input_dev, &budget_ci->ir.state,
-			      IR_TYPE_RC5, ir_codes_budget_ci_old);
+			      IR_TYPE_RC5, &ir_codes_budget_ci_old_table);
 
 		if (rc5_device < 0)
 			budget_ci->ir.rc5_device = IR_DEVICE_ANY;

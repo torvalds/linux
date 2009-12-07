@@ -31,7 +31,7 @@
 #define KB_DISCHARGE_DELAY	10
 #define KB_ACTIVATE_DELAY	10
 
-static unsigned int tosakbd_keycode[NR_SCANCODES] = {
+static unsigned short tosakbd_keycode[NR_SCANCODES] = {
 0,
 0, KEY_W, 0, 0, 0, KEY_K, KEY_BACKSPACE, KEY_P,
 0, 0, 0, 0, 0, 0, 0, 0,
@@ -50,9 +50,9 @@ KEY_X, KEY_F, KEY_SPACE, KEY_APOSTROPHE, TOSA_KEY_MAIL, KEY_LEFT, KEY_DOWN, KEY_
 };
 
 struct tosakbd {
-	unsigned int keycode[ARRAY_SIZE(tosakbd_keycode)];
+	unsigned short keycode[ARRAY_SIZE(tosakbd_keycode)];
 	struct input_dev *input;
-	int suspended;
+	bool suspended;
 	spinlock_t lock; /* protect kbd scanning */
 	struct timer_list timer;
 };
@@ -215,7 +215,7 @@ static int tosakbd_suspend(struct platform_device *dev, pm_message_t state)
 	unsigned long flags;
 
 	spin_lock_irqsave(&tosakbd->lock, flags);
-	tosakbd->suspended = 1;
+	tosakbd->suspended = true;
 	spin_unlock_irqrestore(&tosakbd->lock, flags);
 
 	del_timer_sync(&tosakbd->timer);
@@ -227,7 +227,7 @@ static int tosakbd_resume(struct platform_device *dev)
 {
 	struct tosakbd *tosakbd = platform_get_drvdata(dev);
 
-	tosakbd->suspended = 0;
+	tosakbd->suspended = false;
 	tosakbd_scankeyboard(dev);
 
 	return 0;
@@ -277,14 +277,14 @@ static int __devinit tosakbd_probe(struct platform_device *pdev) {
 
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
 	input_dev->keycode = tosakbd->keycode;
-	input_dev->keycodesize = sizeof(unsigned int);
+	input_dev->keycodesize = sizeof(tosakbd->keycode[0]);
 	input_dev->keycodemax = ARRAY_SIZE(tosakbd_keycode);
 
 	memcpy(tosakbd->keycode, tosakbd_keycode, sizeof(tosakbd_keycode));
 
 	for (i = 0; i < ARRAY_SIZE(tosakbd_keycode); i++)
 		__set_bit(tosakbd->keycode[i], input_dev->keybit);
-	clear_bit(0, input_dev->keybit);
+	__clear_bit(KEY_RESERVED, input_dev->keybit);
 
 	/* Setup sense interrupts - RisingEdge Detect, sense lines as inputs */
 	for (i = 0; i < TOSA_KEY_SENSE_NUM; i++) {
@@ -344,7 +344,7 @@ static int __devinit tosakbd_probe(struct platform_device *pdev) {
 				" direction for GPIO %d, error %d\n",
 				gpio, error);
 			gpio_free(gpio);
-			goto fail;
+			goto fail2;
 		}
 
 	}
@@ -353,7 +353,7 @@ static int __devinit tosakbd_probe(struct platform_device *pdev) {
 	if (error) {
 		printk(KERN_ERR "tosakbd: Unable to register input device, "
 			"error: %d\n", error);
-		goto fail;
+		goto fail2;
 	}
 
 	printk(KERN_INFO "input: Tosa Keyboard Registered\n");

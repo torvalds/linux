@@ -575,21 +575,16 @@ VOID STAHandleRxMgmtFrame(
 	{
 
 		// We should collect RSSI not only U2M data but also my beacon
-#ifdef RT30xx
-		if ((pHeader->FC.SubType == SUBTYPE_BEACON) && (MAC_ADDR_EQUAL(&pAd->CommonCfg.Bssid, &pHeader->Addr2))
-			&& (pAd->RxAnt.EvaluatePeriod == 0))
-#endif
-#ifndef RT30xx
-		if ((pHeader->FC.SubType == SUBTYPE_BEACON) && (MAC_ADDR_EQUAL(&pAd->CommonCfg.Bssid, &pHeader->Addr2)))
-#endif
-		{
+		if (pAd->RxAnt.EvaluatePeriod == 0 &&
+		    pHeader->FC.SubType == SUBTYPE_BEACON &&
+		    MAC_ADDR_EQUAL(&pAd->CommonCfg.Bssid, &pHeader->Addr2)) {
 			Update_Rssi_Sample(pAd, &pAd->StaCfg.RssiSample, pRxWI);
 
 			pAd->StaCfg.LastSNR0 = (UCHAR)(pRxWI->SNR0);
 			pAd->StaCfg.LastSNR1 = (UCHAR)(pRxWI->SNR1);
 		}
 
-#ifdef RT30xx
+#ifdef RT2870
 		// collect rssi information for antenna diversity
 		if (pAd->NicConfig2.field.AntDiversity)
 		{
@@ -599,7 +594,7 @@ VOID STAHandleRxMgmtFrame(
 					pAd->StaCfg.NumOfAvgRssiSample ++;
 			}
 		}
-#endif // RT30xx //
+#endif
 
 		// First check the size, it MUST not exceed the mlme queue size
 		if (pRxWI->MPDUtotalByteCount > MGMT_DMA_BUFFER_SIZE)

@@ -252,6 +252,9 @@ static int smsc9420_ethtool_get_settings(struct net_device *dev,
 {
 	struct smsc9420_pdata *pd = netdev_priv(dev);
 
+	if (!pd->phy_dev)
+		return -ENODEV;
+
 	cmd->maxtxpkt = 1;
 	cmd->maxrxpkt = 1;
 	return phy_ethtool_gset(pd->phy_dev, cmd);
@@ -261,6 +264,9 @@ static int smsc9420_ethtool_set_settings(struct net_device *dev,
 					 struct ethtool_cmd *cmd)
 {
 	struct smsc9420_pdata *pd = netdev_priv(dev);
+
+	if (!pd->phy_dev)
+		return -ENODEV;
 
 	return phy_ethtool_sset(pd->phy_dev, cmd);
 }
@@ -290,6 +296,10 @@ static void smsc9420_ethtool_set_msglevel(struct net_device *netdev, u32 data)
 static int smsc9420_ethtool_nway_reset(struct net_device *netdev)
 {
 	struct smsc9420_pdata *pd = netdev_priv(netdev);
+
+	if (!pd->phy_dev)
+		return -ENODEV;
+
 	return phy_start_aneg(pd->phy_dev);
 }
 
@@ -311,6 +321,10 @@ smsc9420_ethtool_getregs(struct net_device *dev, struct ethtool_regs *regs,
 	regs->version = smsc9420_reg_read(pd, ID_REV);
 	for (i = 0; i < 0x100; i += (sizeof(u32)))
 		data[j++] = smsc9420_reg_read(pd, i);
+
+	// cannot read phy registers if the net device is down
+	if (!phy_dev)
+		return;
 
 	for (i = 0; i <= 31; i++)
 		data[j++] = smsc9420_mii_read(phy_dev->bus, phy_dev->addr, i);
@@ -817,7 +831,6 @@ static void smsc9420_rx_handoff(struct smsc9420_pdata *pd, const int index,
 	skb->protocol = eth_type_trans(skb, dev);
 
 	netif_receive_skb(skb);
-	dev->last_rx = jiffies;
 }
 
 static int smsc9420_alloc_rx_buffer(struct smsc9420_pdata *pd, int index)
@@ -968,7 +981,8 @@ static void smsc9420_complete_tx(struct net_device *dev)
 	}
 }
 
-static int smsc9420_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t smsc9420_hard_start_xmit(struct sk_buff *skb,
+					    struct net_device *dev)
 {
 	struct smsc9420_pdata *pd = netdev_priv(dev);
 	dma_addr_t mapping;

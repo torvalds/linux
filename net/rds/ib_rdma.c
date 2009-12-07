@@ -211,7 +211,7 @@ struct rds_ib_mr_pool *rds_ib_create_mr_pool(struct rds_ib_device *rds_ibdev)
 
 	pool->fmr_attr.max_pages = fmr_message_size;
 	pool->fmr_attr.max_maps = rds_ibdev->fmr_max_remaps;
-	pool->fmr_attr.page_shift = rds_ibdev->fmr_page_shift;
+	pool->fmr_attr.page_shift = PAGE_SHIFT;
 	pool->max_free_pinned = rds_ibdev->max_fmrs * fmr_message_size / 4;
 
 	/* We never allow more than max_items MRs to be allocated.
@@ -349,13 +349,13 @@ static int rds_ib_map_fmr(struct rds_ib_device *rds_ibdev, struct rds_ib_mr *ibm
 		unsigned int dma_len = ib_sg_dma_len(dev, &scat[i]);
 		u64 dma_addr = ib_sg_dma_address(dev, &scat[i]);
 
-		if (dma_addr & ~rds_ibdev->fmr_page_mask) {
+		if (dma_addr & ~PAGE_MASK) {
 			if (i > 0)
 				return -EINVAL;
 			else
 				++page_cnt;
 		}
-		if ((dma_addr + dma_len) & ~rds_ibdev->fmr_page_mask) {
+		if ((dma_addr + dma_len) & ~PAGE_MASK) {
 			if (i < sg_dma_len - 1)
 				return -EINVAL;
 			else
@@ -365,7 +365,7 @@ static int rds_ib_map_fmr(struct rds_ib_device *rds_ibdev, struct rds_ib_mr *ibm
 		len += dma_len;
 	}
 
-	page_cnt += len >> rds_ibdev->fmr_page_shift;
+	page_cnt += len >> PAGE_SHIFT;
 	if (page_cnt > fmr_message_size)
 		return -EINVAL;
 
@@ -378,9 +378,9 @@ static int rds_ib_map_fmr(struct rds_ib_device *rds_ibdev, struct rds_ib_mr *ibm
 		unsigned int dma_len = ib_sg_dma_len(dev, &scat[i]);
 		u64 dma_addr = ib_sg_dma_address(dev, &scat[i]);
 
-		for (j = 0; j < dma_len; j += rds_ibdev->fmr_page_size)
+		for (j = 0; j < dma_len; j += PAGE_SIZE)
 			dma_pages[page_cnt++] =
-				(dma_addr & rds_ibdev->fmr_page_mask) + j;
+				(dma_addr & PAGE_MASK) + j;
 	}
 
 	ret = ib_map_phys_fmr(ibmr->fmr,

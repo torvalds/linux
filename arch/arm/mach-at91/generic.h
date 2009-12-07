@@ -14,6 +14,7 @@ extern void __init at91sam9260_initialize(unsigned long main_clock);
 extern void __init at91sam9261_initialize(unsigned long main_clock);
 extern void __init at91sam9263_initialize(unsigned long main_clock);
 extern void __init at91sam9rl_initialize(unsigned long main_clock);
+extern void __init at91sam9g45_initialize(unsigned long main_clock);
 extern void __init at91x40_initialize(unsigned long main_clock);
 extern void __init at91cap9_initialize(unsigned long main_clock);
 
@@ -23,6 +24,7 @@ extern void __init at91sam9260_init_interrupts(unsigned int priority[]);
 extern void __init at91sam9261_init_interrupts(unsigned int priority[]);
 extern void __init at91sam9263_init_interrupts(unsigned int priority[]);
 extern void __init at91sam9rl_init_interrupts(unsigned int priority[]);
+extern void __init at91sam9g45_init_interrupts(unsigned int priority[]);
 extern void __init at91x40_init_interrupts(unsigned int priority[]);
 extern void __init at91cap9_init_interrupts(unsigned int priority[]);
 extern void __init at91_aic_init(unsigned int priority[]);

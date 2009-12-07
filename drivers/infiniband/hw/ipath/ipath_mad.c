@@ -60,7 +60,7 @@ static int recv_subn_get_nodedescription(struct ib_smp *smp,
 	if (smp->attr_mod)
 		smp->status |= IB_SMP_INVALID_FIELD;
 
-	strncpy(smp->data, ibdev->node_desc, sizeof(smp->data));
+	memcpy(smp->data, ibdev->node_desc, sizeof(smp->data));
 
 	return reply(smp);
 }

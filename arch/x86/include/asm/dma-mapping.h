@@ -14,6 +14,12 @@
 #include <asm/swiotlb.h>
 #include <asm-generic/dma-coherent.h>
 
+#ifdef CONFIG_ISA
+# define ISA_DMA_BIT_MASK DMA_BIT_MASK(24)
+#else
+# define ISA_DMA_BIT_MASK DMA_BIT_MASK(32)
+#endif
+
 extern dma_addr_t bad_dma_address;
 extern int iommu_merge;
 extern struct device x86_dma_fallback_dev;
@@ -54,6 +60,24 @@ extern int dma_set_mask(struct device *dev, u64 mask);
 
 extern void *dma_generic_alloc_coherent(struct device *dev, size_t size,
 					dma_addr_t *dma_addr, gfp_t flag);
+
+static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
+{
+	if (!dev->dma_mask)
+		return 0;
+
+	return addr + size <= *dev->dma_mask;
+}
+
+static inline dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
+{
+	return paddr;
+}
+
+static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
+{
+	return daddr;
+}
 
 static inline void
 dma_cache_sync(struct device *dev, void *vaddr, size_t size,
@@ -106,10 +130,8 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	if (dma_alloc_from_coherent(dev, size, dma_handle, &memory))
 		return memory;
 
-	if (!dev) {
+	if (!dev)
 		dev = &x86_dma_fallback_dev;
-		gfp |= GFP_DMA;
-	}
 
 	if (!is_device_dma_capable(dev))
 		return NULL;

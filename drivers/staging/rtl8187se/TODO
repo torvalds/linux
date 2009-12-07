@@ -1,0 +1,14 @@
+TODO:
+- prepare private ieee80211 stack for merge with rtl8192su's version:
+  - add hwsec_active flag to struct ieee80211_device
+  - add bHwSec flag to cb_desc structure
+- switch to use shared "librtl" instead of private ieee80211 stack
+- switch to use LIB80211
+- switch to use MAC80211
+- switch to use EEPROM_93CX6
+- use kernel coding style
+- checkpatch.pl fixes
+- sparse fixes
+- integrate with drivers/net/wireless/rtl818x
+
+Please send any patches to Greg Kroah-Hartman <greg@kroah.com>.

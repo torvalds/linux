@@ -559,9 +559,6 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 #endif
 #endif
 	new->vlan_tci		= old->vlan_tci;
-#if defined(CONFIG_MAC80211) || defined(CONFIG_MAC80211_MODULE)
-	new->do_not_encrypt	= old->do_not_encrypt;
-#endif
 
 	skb_copy_secmark(new, old);
 }
@@ -2704,7 +2701,8 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 
 		NAPI_GRO_CB(skb)->free = 1;
 		goto done;
-	}
+	} else if (skb_gro_len(p) != pinfo->gso_size)
+		return -E2BIG;
 
 	headroom = skb_headroom(p);
 	nskb = netdev_alloc_skb(p->dev, headroom + skb_gro_offset(p));

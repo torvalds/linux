@@ -44,6 +44,7 @@
 #include "drmP.h"
 #include "drm_mm.h"
 #include <linux/slab.h>
+#include <linux/seq_file.h>
 
 #define MM_UNUSED_TARGET 4
 
@@ -102,6 +103,11 @@ static struct drm_mm_node *drm_mm_kmalloc(struct drm_mm *mm, int atomic)
 	return child;
 }
 
+/* drm_mm_pre_get() - pre allocate drm_mm_node structure
+ * drm_mm:	memory manager struct we are pre-allocating for
+ *
+ * Returns 0 on success or -ENOMEM if allocation fails.
+ */
 int drm_mm_pre_get(struct drm_mm *mm)
 {
 	struct drm_mm_node *node;
@@ -252,12 +258,14 @@ void drm_mm_put_block(struct drm_mm_node *cur)
 				prev_node->size += next_node->size;
 				list_del(&next_node->ml_entry);
 				list_del(&next_node->fl_entry);
+				spin_lock(&mm->unused_lock);
 				if (mm->num_unused < MM_UNUSED_TARGET) {
 					list_add(&next_node->fl_entry,
 						 &mm->unused_nodes);
 					++mm->num_unused;
 				} else
 					kfree(next_node);
+				spin_unlock(&mm->unused_lock);
 			} else {
 				next_node->size += cur->size;
 				next_node->start = cur->start;
@@ -270,11 +278,13 @@ void drm_mm_put_block(struct drm_mm_node *cur)
 		list_add(&cur->fl_entry, &mm->fl_entry);
 	} else {
 		list_del(&cur->ml_entry);
+		spin_lock(&mm->unused_lock);
 		if (mm->num_unused < MM_UNUSED_TARGET) {
 			list_add(&cur->fl_entry, &mm->unused_nodes);
 			++mm->num_unused;
 		} else
 			kfree(cur);
+		spin_unlock(&mm->unused_lock);
 	}
 }
 
@@ -370,3 +380,23 @@ void drm_mm_takedown(struct drm_mm * mm)
 	BUG_ON(mm->num_unused != 0);
 }
 EXPORT_SYMBOL(drm_mm_takedown);
+
+#if defined(CONFIG_DEBUG_FS)
+int drm_mm_dump_table(struct seq_file *m, struct drm_mm *mm)
+{
+	struct drm_mm_node *entry;
+	int total_used = 0, total_free = 0, total = 0;
+
+	list_for_each_entry(entry, &mm->ml_entry, ml_entry) {
+		seq_printf(m, "0x%08lx-0x%08lx: 0x%08lx: %s\n", entry->start, entry->start + entry->size, entry->size, entry->free ? "free" : "used");
+		total += entry->size;
+		if (entry->free)
+			total_free += entry->size;
+		else
+			total_used += entry->size;
+	}
+	seq_printf(m, "total: %d, used %d free %d\n", total, total_free, total_used);
+	return 0;
+}
+EXPORT_SYMBOL(drm_mm_dump_table);
+#endif

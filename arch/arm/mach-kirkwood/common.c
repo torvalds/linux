@@ -838,13 +838,14 @@ int __init kirkwood_find_tclk(void)
 	u32 dev, rev;
 
 	kirkwood_pcie_id(&dev, &rev);
-	if (dev == MV88F6281_DEV_ID && rev == MV88F6281_REV_A0)
+	if (dev == MV88F6281_DEV_ID && (rev == MV88F6281_REV_A0 ||
+					rev == MV88F6281_REV_A1))
 		return 200000000;
 
 	return 166666667;
 }
 
-static void kirkwood_timer_init(void)
+static void __init kirkwood_timer_init(void)
 {
 	kirkwood_tclk = kirkwood_find_tclk();
 	orion_time_init(IRQ_KIRKWOOD_BRIDGE, kirkwood_tclk);
@@ -872,6 +873,8 @@ static char * __init kirkwood_id(void)
 			return "MV88F6281-Z0";
 		else if (rev == MV88F6281_REV_A0)
 			return "MV88F6281-A0";
+		else if (rev == MV88F6281_REV_A1)
+			return "MV88F6281-A1";
 		else
 			return "MV88F6281-Rev-Unsupported";
 	} else if (dev == MV88F6192_DEV_ID) {
@@ -911,6 +914,14 @@ void __init kirkwood_init(void)
 	kirkwood_spi_plat_data.tclk = kirkwood_tclk;
 	kirkwood_uart0_data[0].uartclk = kirkwood_tclk;
 	kirkwood_uart1_data[0].uartclk = kirkwood_tclk;
+
+	/*
+	 * Disable propagation of mbus errors to the CPU local bus,
+	 * as this causes mbus errors (which can occur for example
+	 * for PCI aborts) to throw CPU aborts, which we're not set
+	 * up to deal with.
+	 */
+	writel(readl(CPU_CONFIG) & ~CPU_CONFIG_ERROR_PROP, CPU_CONFIG);
 
 	kirkwood_setup_cpu_mbus();
 

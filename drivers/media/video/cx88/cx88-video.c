@@ -1881,14 +1881,14 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 
 	if (core->board.audio_chip == V4L2_IDENT_WM8775)
 		v4l2_i2c_new_subdev(&core->v4l2_dev, &core->i2c_adap,
-				"wm8775", "wm8775", 0x36 >> 1);
+				"wm8775", "wm8775", 0x36 >> 1, NULL);
 
 	if (core->board.audio_chip == V4L2_IDENT_TVAUDIO) {
 		/* This probes for a tda9874 as is used on some
 		   Pixelview Ultra boards. */
-		v4l2_i2c_new_probed_subdev_addr(&core->v4l2_dev,
+		v4l2_i2c_new_subdev(&core->v4l2_dev,
 				&core->i2c_adap,
-				"tvaudio", "tvaudio", 0xb0 >> 1);
+				"tvaudio", "tvaudio", 0, I2C_ADDRS(0xb0 >> 1));
 	}
 
 	switch (core->boardnr) {
@@ -2113,7 +2113,7 @@ static struct pci_driver cx8800_pci_driver = {
 #endif
 };
 
-static int cx8800_init(void)
+static int __init cx8800_init(void)
 {
 	printk(KERN_INFO "cx88/0: cx2388x v4l2 driver version %d.%d.%d loaded\n",
 	       (CX88_VERSION_CODE >> 16) & 0xff,
@@ -2126,7 +2126,7 @@ static int cx8800_init(void)
 	return pci_register_driver(&cx8800_pci_driver);
 }
 
-static void cx8800_fini(void)
+static void __exit cx8800_fini(void)
 {
 	pci_unregister_driver(&cx8800_pci_driver);
 }

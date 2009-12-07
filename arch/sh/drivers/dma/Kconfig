@@ -1,12 +1,9 @@
 menu "DMA support"
 
-config SH_DMA_API
-	bool
 
 config SH_DMA
 	bool "SuperH on-chip DMA controller (DMAC) support"
 	depends on CPU_SH3 || CPU_SH4
-	select SH_DMA_API
 	default n
 
 config SH_DMA_IRQ_MULTI
@@ -19,6 +16,15 @@ config SH_DMA_IRQ_MULTI
 		     CPU_SUBTYPE_SH7780  || CPU_SUBTYPE_SH7785  || \
 		     CPU_SUBTYPE_SH7760
 
+config SH_DMA_API
+	depends on SH_DMA
+	bool "SuperH DMA API support"
+	default n
+	help
+	  SH_DMA_API always enabled DMA API of used SuperH.
+	  If you want to use DMA ENGINE, you must not enable this.
+	  Please enable DMA_ENGINE and SH_DMAE.
+
 config NR_ONCHIP_DMA_CHANNELS
 	int
 	depends on SH_DMA
@@ -27,12 +33,12 @@ config NR_ONCHIP_DMA_CHANNELS
 	default "8" if CPU_SUBTYPE_SH7750R || CPU_SUBTYPE_SH7751R || \
 		       CPU_SUBTYPE_SH7760
 	default "12" if CPU_SUBTYPE_SH7723 || CPU_SUBTYPE_SH7780  || \
-			CPU_SUBTYPE_SH7785
+			CPU_SUBTYPE_SH7785 || CPU_SUBTYPE_SH7724
 	default "6"
 	help
 	  This allows you to specify the number of channels that the on-chip
-	  DMAC supports. This will be 4 for SH7091/SH7750/SH7751 and 8 for the
-	  SH7750R/SH7751R.
+	  DMAC supports. This will be 4 for SH7750/SH7751/Sh7750S/SH7091 and 8 for the
+	  SH7750R/SH7751R/SH7760, 12 for the SH7723/SH7780/SH7785/SH7724, default is 6.
 
 config NR_DMA_CHANNELS_BOOL
 	depends on SH_DMA

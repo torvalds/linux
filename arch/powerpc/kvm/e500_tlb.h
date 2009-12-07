@@ -16,7 +16,7 @@
 #define __KVM_E500_TLB_H__
 
 #include <linux/kvm_host.h>
-#include <asm/mmu-fsl-booke.h>
+#include <asm/mmu-book3e.h>
 #include <asm/tlb.h>
 #include <asm/kvm_e500.h>
 
@@ -59,7 +59,7 @@ extern void kvmppc_e500_tlb_setup(struct kvmppc_vcpu_e500 *);
 /* TLB helper functions */
 static inline unsigned int get_tlb_size(const struct tlbe *tlbe)
 {
-	return (tlbe->mas1 >> 8) & 0xf;
+	return (tlbe->mas1 >> 7) & 0x1f;
 }
 
 static inline gva_t get_tlb_eaddr(const struct tlbe *tlbe)
@@ -70,7 +70,7 @@ static inline gva_t get_tlb_eaddr(const struct tlbe *tlbe)
 static inline u64 get_tlb_bytes(const struct tlbe *tlbe)
 {
 	unsigned int pgsize = get_tlb_size(tlbe);
-	return 1ULL << 10 << (pgsize << 1);
+	return 1ULL << 10 << pgsize;
 }
 
 static inline gva_t get_tlb_end(const struct tlbe *tlbe)

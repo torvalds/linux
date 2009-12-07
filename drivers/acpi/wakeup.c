@@ -68,7 +68,7 @@ void acpi_enable_wakeup_device(u8 sleep_state)
 		/* If users want to disable run-wake GPE,
 		 * we only disable it for wake and leave it for runtime
 		 */
-		if ((!dev->wakeup.state.enabled && !dev->wakeup.flags.prepared)
+		if ((!dev->wakeup.state.enabled && !dev->wakeup.prepare_count)
 		    || sleep_state > (u32) dev->wakeup.sleep_state) {
 			if (dev->wakeup.flags.run_wake) {
 				/* set_gpe_type will disable GPE, leave it like that */
@@ -100,7 +100,7 @@ void acpi_disable_wakeup_device(u8 sleep_state)
 		if (!dev->wakeup.flags.valid)
 			continue;
 
-		if ((!dev->wakeup.state.enabled && !dev->wakeup.flags.prepared)
+		if ((!dev->wakeup.state.enabled && !dev->wakeup.prepare_count)
 		    || sleep_state > (u32) dev->wakeup.sleep_state) {
 			if (dev->wakeup.flags.run_wake) {
 				acpi_set_gpe_type(dev->wakeup.gpe_device,
