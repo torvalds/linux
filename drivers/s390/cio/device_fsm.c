@@ -395,33 +395,6 @@ ccw_device_done(struct ccw_device *cdev, int state)
 }
 
 /*
- * Function called from device_pgid.c after sense path ground has completed.
- */
-void
-ccw_device_sense_pgid_done(struct ccw_device *cdev, int err)
-{
-	struct subchannel *sch;
-
-	sch = to_subchannel(cdev->dev.parent);
-	switch (err) {
-	case -EOPNOTSUPP: /* path grouping not supported, use nop instead. */
-	case 0: /* success */
-	case -EACCES: /* partial success, some paths not operational */
-		break;
-	case -ETIME:		/* Sense path group id stopped by timeout. */
-	case -EUSERS:		/* device is reserved for someone else. */
-		ccw_device_done(cdev, DEV_STATE_BOXED);
-		return;
-	default:
-		ccw_device_done(cdev, DEV_STATE_NOT_OPER);
-		return;
-	}
-	/* Start Path Group verification. */
-	cdev->private->state = DEV_STATE_VERIFY;
-	ccw_device_verify_start(cdev);
-}
-
-/*
  * Start device recognition.
  */
 void ccw_device_recognition(struct ccw_device *cdev)
@@ -503,6 +476,7 @@ callback:
 		}
 		break;
 	case -ETIME:
+	case -EUSERS:
 		/* Reset oper notify indication after verify error. */
 		cdev->private->flags.donotify = 0;
 		ccw_device_done(cdev, DEV_STATE_BOXED);
@@ -540,16 +514,9 @@ ccw_device_online(struct ccw_device *cdev)
 			dev_fsm_event(cdev, DEV_EVENT_NOTOPER);
 		return ret;
 	}
-	/* Do we want to do path grouping? */
-	if (!cdev->private->options.pgroup) {
-		/* Start initial path verification. */
-		cdev->private->state = DEV_STATE_VERIFY;
-		ccw_device_verify_start(cdev);
-		return 0;
-	}
-	/* Do a SensePGID first. */
-	cdev->private->state = DEV_STATE_SENSE_PGID;
-	ccw_device_sense_pgid_start(cdev);
+	/* Start initial path verification. */
+	cdev->private->state = DEV_STATE_VERIFY;
+	ccw_device_verify_start(cdev);
 	return 0;
 }
 

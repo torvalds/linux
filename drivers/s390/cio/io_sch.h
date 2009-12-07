@@ -166,7 +166,6 @@ struct ccw_device_private {
 		unsigned int recog_done:1;  /* dev. recog. complete */
 		unsigned int fake_irb:1;    /* deliver faked irb */
 		unsigned int resuming:1;    /* recognition while resume */
-		unsigned int pgid_rdy:1;    /* pgids are ready */
 		unsigned int pgroup:1;	    /* pathgroup is set up */
 		unsigned int mpath:1;	    /* multipathing is set up */
 	} __attribute__((packed)) flags;

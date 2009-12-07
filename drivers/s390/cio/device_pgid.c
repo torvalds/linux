@@ -141,8 +141,8 @@ static void spid_do(struct ccw_device *cdev)
 	struct ccw_request *req = &cdev->private->req;
 	u8 fn;
 
-	/* Adjust lpm if paths are not set in pam. */
-	req->lpm = lpm_adjust(req->lpm, sch->schib.pmcw.pam);
+	/* Use next available path that is not already in correct state. */
+	req->lpm = lpm_adjust(req->lpm, sch->schib.pmcw.pam & ~sch->vpm);
 	if (!req->lpm)
 		goto out_nopath;
 	/* Channel program setup. */
@@ -199,6 +199,19 @@ err:
 	verify_done(cdev, rc);
 }
 
+static void spid_start(struct ccw_device *cdev)
+{
+	struct ccw_request *req = &cdev->private->req;
+
+	/* Initialize request data. */
+	memset(req, 0, sizeof(*req));
+	req->timeout	= PGID_TIMEOUT;
+	req->maxretries	= PGID_RETRIES;
+	req->lpm	= 0x80;
+	req->callback	= spid_callback;
+	spid_do(cdev);
+}
+
 static int pgid_cmp(struct pgid *p1, struct pgid *p2)
 {
 	return memcmp((char *) p1 + 1, (char *) p2 + 1,
@@ -241,6 +254,40 @@ static void pgid_analyze(struct ccw_device *cdev, struct pgid **p,
 	*p = first;
 }
 
+static u8 pgid_to_vpm(struct ccw_device *cdev)
+{
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+	struct pgid *pgid;
+	int i;
+	int lpm;
+	u8 vpm = 0;
+
+	/* Set VPM bits for paths which are already in the target state. */
+	for (i = 0; i < 8; i++) {
+		lpm = 0x80 >> i;
+		if ((cdev->private->pgid_valid_mask & lpm) == 0)
+			continue;
+		pgid = &cdev->private->pgid[i];
+		if (sch->opm & lpm) {
+			if (pgid->inf.ps.state1 != SNID_STATE1_GROUPED)
+				continue;
+		} else {
+			if (pgid->inf.ps.state1 != SNID_STATE1_UNGROUPED)
+				continue;
+		}
+		if (cdev->private->flags.mpath) {
+			if (pgid->inf.ps.state3 != SNID_STATE3_MULTI_PATH)
+				continue;
+		} else {
+			if (pgid->inf.ps.state3 != SNID_STATE3_SINGLE_PATH)
+				continue;
+		}
+		vpm |= lpm;
+	}
+
+	return vpm;
+}
+
 static void pgid_fill(struct ccw_device *cdev, struct pgid *pgid)
 {
 	int i;
@@ -255,6 +302,7 @@ static void pgid_fill(struct ccw_device *cdev, struct pgid *pgid)
 static void snid_done(struct ccw_device *cdev, int rc)
 {
 	struct ccw_dev_id *id = &cdev->private->dev_id;
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 	struct pgid *pgid;
 	int mismatch = 0;
 	int reserved = 0;
@@ -263,18 +311,38 @@ static void snid_done(struct ccw_device *cdev, int rc)
 	if (rc)
 		goto out;
 	pgid_analyze(cdev, &pgid, &mismatch, &reserved, &reset);
-	if (!mismatch) {
-		pgid_fill(cdev, pgid);
-		cdev->private->flags.pgid_rdy = 1;
-	}
 	if (reserved)
 		rc = -EUSERS;
+	else if (mismatch)
+		rc = -EOPNOTSUPP;
+	else {
+		sch->vpm = pgid_to_vpm(cdev);
+		pgid_fill(cdev, pgid);
+	}
 out:
-	CIO_MSG_EVENT(2, "snid: device 0.%x.%04x: rc=%d pvm=%02x mism=%d "
-		      "rsvd=%d reset=%d\n", id->ssid, id->devno, rc,
-		      cdev->private->pgid_valid_mask, mismatch, reserved,
-		      reset);
-	ccw_device_sense_pgid_done(cdev, rc);
+	CIO_MSG_EVENT(2, "snid: device 0.%x.%04x: rc=%d pvm=%02x vpm=%02x "
+		      "mism=%d rsvd=%d reset=%d\n", id->ssid, id->devno, rc,
+		      cdev->private->pgid_valid_mask, sch->vpm, mismatch,
+		      reserved, reset);
+	switch (rc) {
+	case 0:
+		/* Anything left to do? */
+		if (sch->vpm == sch->schib.pmcw.pam) {
+			verify_done(cdev, sch->vpm == 0 ? -EACCES : 0);
+			return;
+		}
+		/* Perform path-grouping. */
+		spid_start(cdev);
+		break;
+	case -EOPNOTSUPP:
+		/* Path-grouping not supported. */
+		cdev->private->flags.pgroup = 0;
+		cdev->private->flags.mpath = 0;
+		verify_start(cdev);
+		break;
+	default:
+		verify_done(cdev, rc);
+	}
 }
 
 /*
@@ -333,33 +401,6 @@ err:
 	snid_done(cdev, rc);
 }
 
-/**
- * ccw_device_sense_pgid_start - perform SENSE PGID
- * @cdev: ccw device
- *
- * Execute a SENSE PGID channel program on each path to @cdev to update its
- * PGID information. When finished, call ccw_device_sense_id_done with a
- * return code specifying the result.
- */
-void ccw_device_sense_pgid_start(struct ccw_device *cdev)
-{
-	struct ccw_request *req = &cdev->private->req;
-
-	CIO_TRACE_EVENT(4, "snid");
-	CIO_HEX_EVENT(4, &cdev->private->dev_id, sizeof(cdev->private->dev_id));
-	/* Initialize PGID data. */
-	memset(cdev->private->pgid, 0, sizeof(cdev->private->pgid));
-	cdev->private->flags.pgid_rdy = 0;
-	cdev->private->pgid_valid_mask = 0;
-	/* Initialize request data. */
-	memset(req, 0, sizeof(*req));
-	req->timeout	= PGID_TIMEOUT;
-	req->maxretries	= PGID_RETRIES;
-	req->callback	= snid_callback;
-	req->lpm	= 0x80;
-	snid_do(cdev);
-}
-
 /*
  * Perform path verification.
  */
@@ -367,6 +408,7 @@ static void verify_start(struct ccw_device *cdev)
 {
 	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 	struct ccw_request *req = &cdev->private->req;
+	struct ccw_dev_id *devid = &cdev->private->dev_id;
 
 	sch->vpm = 0;
 	/* Initialize request data. */
@@ -375,9 +417,13 @@ static void verify_start(struct ccw_device *cdev)
 	req->maxretries	= PGID_RETRIES;
 	req->lpm	= 0x80;
 	if (cdev->private->flags.pgroup) {
-		req->callback	= spid_callback;
-		spid_do(cdev);
+		CIO_TRACE_EVENT(4, "snid");
+		CIO_HEX_EVENT(4, devid, sizeof(*devid));
+		req->callback	= snid_callback;
+		snid_do(cdev);
 	} else {
+		CIO_TRACE_EVENT(4, "nop");
+		CIO_HEX_EVENT(4, devid, sizeof(*devid));
 		req->filter	= nop_filter;
 		req->callback	= nop_callback;
 		nop_do(cdev);
@@ -398,19 +444,15 @@ void ccw_device_verify_start(struct ccw_device *cdev)
 {
 	CIO_TRACE_EVENT(4, "vrfy");
 	CIO_HEX_EVENT(4, &cdev->private->dev_id, sizeof(cdev->private->dev_id));
-	if (!cdev->private->flags.pgid_rdy) {
-		/* No pathgrouping possible. */
-		cdev->private->flags.pgroup = 0;
-		cdev->private->flags.mpath = 0;
-	} else {
-		/*
-		 * Initialize pathgroup and multipath state with target values.
-		 * They may change in the course of path verification.
-		 */
-		cdev->private->flags.pgroup = cdev->private->options.pgroup;
-		cdev->private->flags.mpath = cdev->private->options.mpath;
-
-	}
+	/* Initialize PGID data. */
+	memset(cdev->private->pgid, 0, sizeof(cdev->private->pgid));
+	cdev->private->pgid_valid_mask = 0;
+	/*
+	 * Initialize pathgroup and multipath state with target values.
+	 * They may change in the course of path verification.
+	 */
+	cdev->private->flags.pgroup = cdev->private->options.pgroup;
+	cdev->private->flags.mpath = cdev->private->options.mpath;
 	cdev->private->flags.doverify = 0;
 	verify_start(cdev);
 }

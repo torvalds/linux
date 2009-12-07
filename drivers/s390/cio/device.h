@@ -110,9 +110,6 @@ void ccw_device_sense_id_start(struct ccw_device *);
 void ccw_device_sense_id_done(struct ccw_device *, int);
 
 /* Function prototypes for path grouping stuff. */
-void ccw_device_sense_pgid_start(struct ccw_device *);
-void ccw_device_sense_pgid_done(struct ccw_device *, int);
-
 void ccw_device_verify_start(struct ccw_device *);
 void ccw_device_verify_done(struct ccw_device *, int);
 
