@@ -1632,7 +1632,7 @@ static int stk807xpvr_frontend_attach0(struct dvb_usb_adapter *adap)
 	dib0700_set_gpio(adap->dev, GPIO0, GPIO_OUT, 1);
 
 	/* initialize IC 0 */
-	dib8000_i2c_enumeration(&adap->dev->i2c_adap, 1, 0x12, 0x80);
+	dib8000_i2c_enumeration(&adap->dev->i2c_adap, 1, 0x22, 0x80);
 
 	adap->fe = dvb_attach(dib8000_attach, &adap->dev->i2c_adap, 0x80,
 			      &dib807x_dib8000_config[0]);
@@ -1643,7 +1643,7 @@ static int stk807xpvr_frontend_attach0(struct dvb_usb_adapter *adap)
 static int stk807xpvr_frontend_attach1(struct dvb_usb_adapter *adap)
 {
 	/* initialize IC 1 */
-	dib8000_i2c_enumeration(&adap->dev->i2c_adap, 1, 0x22, 0x82);
+	dib8000_i2c_enumeration(&adap->dev->i2c_adap, 1, 0x12, 0x82);
 
 	adap->fe = dvb_attach(dib8000_attach, &adap->dev->i2c_adap, 0x82,
 			      &dib807x_dib8000_config[1]);
