@@ -482,7 +482,8 @@ void __ceph_build_xattrs_blob(struct ceph_inode_info *ci)
 		ci->i_xattrs.prealloc_blob->vec.iov_len =
 			dest - ci->i_xattrs.prealloc_blob->vec.iov_base;
 
-		ceph_buffer_put(ci->i_xattrs.blob);
+		if (ci->i_xattrs.blob)
+			ceph_buffer_put(ci->i_xattrs.blob);
 		ci->i_xattrs.blob = ci->i_xattrs.prealloc_blob;
 		ci->i_xattrs.prealloc_blob = NULL;
 		ci->i_xattrs.dirty = false;
@@ -745,11 +746,12 @@ retry:
 
 		spin_unlock(&inode->i_lock);
 		dout(" preaallocating new blob size=%d\n", required_blob_size);
-		blob = ceph_buffer_new_alloc(required_blob_size, GFP_NOFS);
+		blob = ceph_buffer_new(required_blob_size, GFP_NOFS);
 		if (!blob)
 			goto out;
 		spin_lock(&inode->i_lock);
-		ceph_buffer_put(ci->i_xattrs.prealloc_blob);
+		if (ci->i_xattrs.prealloc_blob)
+			ceph_buffer_put(ci->i_xattrs.prealloc_blob);
 		ci->i_xattrs.prealloc_blob = blob;
 		goto retry;
 	}

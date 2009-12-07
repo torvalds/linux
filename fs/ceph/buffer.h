@@ -20,8 +20,8 @@ struct ceph_buffer {
 	bool is_vmalloc;
 };
 
-struct ceph_buffer *ceph_buffer_new(gfp_t gfp);
-int ceph_buffer_alloc(struct ceph_buffer *b, int len, gfp_t gfp);
+extern struct ceph_buffer *ceph_buffer_new(size_t len, gfp_t gfp);
+extern void ceph_buffer_release(struct kref *kref);
 
 static inline struct ceph_buffer *ceph_buffer_get(struct ceph_buffer *b)
 {
@@ -29,23 +29,9 @@ static inline struct ceph_buffer *ceph_buffer_get(struct ceph_buffer *b)
 	return b;
 }
 
-void ceph_buffer_release(struct kref *kref);
-
 static inline void ceph_buffer_put(struct ceph_buffer *b)
 {
-	if (b)
-		kref_put(&b->kref, ceph_buffer_release);
-}
-
-static inline struct ceph_buffer *ceph_buffer_new_alloc(int len, gfp_t gfp)
-{
-	struct ceph_buffer *b = ceph_buffer_new(gfp);
-
-	if (b && ceph_buffer_alloc(b, len, gfp) < 0) {
-		ceph_buffer_put(b);
-		b = NULL;
-	}
-	return b;
+	kref_put(&b->kref, ceph_buffer_release);
 }
 
 #endif

@@ -383,8 +383,10 @@ void ceph_destroy_inode(struct inode *inode)
 	}
 
 	__ceph_destroy_xattrs(ci);
-	ceph_buffer_put(ci->i_xattrs.blob);
-	ceph_buffer_put(ci->i_xattrs.prealloc_blob);
+	if (ci->i_xattrs.blob)
+		ceph_buffer_put(ci->i_xattrs.blob);
+	if (ci->i_xattrs.prealloc_blob)
+		ceph_buffer_put(ci->i_xattrs.prealloc_blob);
 
 	kmem_cache_free(ceph_inode_cachep, ci);
 }
@@ -526,7 +528,7 @@ static int fill_inode(struct inode *inode,
 	 * bytes are the xattr count).
 	 */
 	if (iinfo->xattr_len > 4) {
-		xattr_blob = ceph_buffer_new_alloc(iinfo->xattr_len, GFP_NOFS);
+		xattr_blob = ceph_buffer_new(iinfo->xattr_len, GFP_NOFS);
 		if (!xattr_blob)
 			pr_err("fill_inode ENOMEM xattr blob %d bytes\n",
 			       iinfo->xattr_len);
@@ -715,7 +717,8 @@ no_change:
 	err = 0;
 
 out:
-	ceph_buffer_put(xattr_blob);
+	if (xattr_blob)
+		ceph_buffer_put(xattr_blob);
 	return err;
 }
 

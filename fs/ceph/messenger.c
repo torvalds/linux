@@ -2047,7 +2047,7 @@ int ceph_alloc_middle(struct ceph_connection *con, struct ceph_msg *msg)
 	BUG_ON(!middle_len);
 	BUG_ON(msg->middle);
 
-	msg->middle = ceph_buffer_new_alloc(middle_len, GFP_NOFS);
+	msg->middle = ceph_buffer_new(middle_len, GFP_NOFS);
 	if (!msg->middle)
 		return -ENOMEM;
 	return 0;
