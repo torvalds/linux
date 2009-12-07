@@ -229,7 +229,6 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 
 	sch = to_subchannel(cdev->dev.parent);
 
-	ccw_device_set_timeout(cdev, 0);
 	cio_disable_subchannel(sch);
 	/*
 	 * Now that we tried recognition, we have performed device selection
@@ -263,22 +262,10 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 	}
 	switch (state) {
 	case DEV_STATE_NOT_OPER:
-		CIO_MSG_EVENT(2, "SenseID : unknown device %04x on "
-			      "subchannel 0.%x.%04x\n",
-			      cdev->private->dev_id.devno,
-			      sch->schid.ssid, sch->schid.sch_no);
 		break;
 	case DEV_STATE_OFFLINE:
 		if (!cdev->online) {
 			ccw_device_update_sense_data(cdev);
-			/* Issue device info message. */
-			CIO_MSG_EVENT(4, "SenseID : device 0.%x.%04x reports: "
-				      "CU  Type/Mod = %04X/%02X, Dev Type/Mod "
-				      "= %04X/%02X\n",
-				      cdev->private->dev_id.ssid,
-				      cdev->private->dev_id.devno,
-				      cdev->id.cu_type, cdev->id.cu_model,
-				      cdev->id.dev_type, cdev->id.dev_model);
 			break;
 		}
 		cdev->private->state = DEV_STATE_OFFLINE;
@@ -293,10 +280,6 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 		}
 		return;
 	case DEV_STATE_BOXED:
-		CIO_MSG_EVENT(0, "SenseID : boxed device %04x on "
-			      " subchannel 0.%x.%04x\n",
-			      cdev->private->dev_id.devno,
-			      sch->schid.ssid, sch->schid.sch_no);
 		if (cdev->id.cu_type != 0) { /* device was recognized before */
 			cdev->private->flags.recog_done = 1;
 			cdev->private->state = DEV_STATE_BOXED;
@@ -520,26 +503,24 @@ void ccw_device_recognition(struct ccw_device *cdev)
 }
 
 /*
- * Handle timeout in device recognition.
+ * Handle events for states that use the ccw request infrastructure.
  */
-static void
-ccw_device_recog_timeout(struct ccw_device *cdev, enum dev_event dev_event)
+static void ccw_device_request_event(struct ccw_device *cdev, enum dev_event e)
 {
-	int ret;
-
-	ret = ccw_device_cancel_halt_clear(cdev);
-	switch (ret) {
-	case 0:
-		ccw_device_recog_done(cdev, DEV_STATE_BOXED);
+	switch (e) {
+	case DEV_EVENT_NOTOPER:
+		ccw_request_notoper(cdev);
 		break;
-	case -ENODEV:
-		ccw_device_recog_done(cdev, DEV_STATE_NOT_OPER);
+	case DEV_EVENT_INTERRUPT:
+		ccw_request_handler(cdev);
+		break;
+	case DEV_EVENT_TIMEOUT:
+		ccw_request_timeout(cdev);
 		break;
 	default:
-		ccw_device_set_timeout(cdev, 3*HZ);
+		break;
 	}
 }
-
 
 void
 ccw_device_verify_done(struct ccw_device *cdev, int err)
@@ -710,15 +691,6 @@ ccw_device_onoff_timeout(struct ccw_device *cdev, enum dev_event dev_event)
 	default:
 		ccw_device_set_timeout(cdev, 3*HZ);
 	}
-}
-
-/*
- * Handle not oper event in device recognition.
- */
-static void
-ccw_device_recog_notoper(struct ccw_device *cdev, enum dev_event dev_event)
-{
-	ccw_device_recog_done(cdev, DEV_STATE_NOT_OPER);
 }
 
 /*
@@ -1015,10 +987,6 @@ ccw_device_start_id(struct ccw_device *cdev, enum dev_event dev_event)
 	if (cio_enable_subchannel(sch, (u32)(addr_t)sch) != 0)
 		/* Couldn't enable the subchannel for i/o. Sick device. */
 		return;
-
-	/* After 60s the device recognition is considered to have failed. */
-	ccw_device_set_timeout(cdev, 60*HZ);
-
 	cdev->private->state = DEV_STATE_DISCONNECTED_SENSE_ID;
 	ccw_device_sense_id_start(cdev);
 }
@@ -1141,9 +1109,9 @@ fsm_func_t *dev_jumptable[NR_DEV_STATES][NR_DEV_EVENTS] = {
 		[DEV_EVENT_VERIFY]	= ccw_device_nop,
 	},
 	[DEV_STATE_SENSE_ID] = {
-		[DEV_EVENT_NOTOPER]	= ccw_device_recog_notoper,
-		[DEV_EVENT_INTERRUPT]	= ccw_device_sense_id_irq,
-		[DEV_EVENT_TIMEOUT]	= ccw_device_recog_timeout,
+		[DEV_EVENT_NOTOPER]	= ccw_device_request_event,
+		[DEV_EVENT_INTERRUPT]	= ccw_device_request_event,
+		[DEV_EVENT_TIMEOUT]	= ccw_device_request_event,
 		[DEV_EVENT_VERIFY]	= ccw_device_nop,
 	},
 	[DEV_STATE_OFFLINE] = {
@@ -1209,9 +1177,9 @@ fsm_func_t *dev_jumptable[NR_DEV_STATES][NR_DEV_EVENTS] = {
 		[DEV_EVENT_VERIFY]	= ccw_device_start_id,
 	},
 	[DEV_STATE_DISCONNECTED_SENSE_ID] = {
-		[DEV_EVENT_NOTOPER]	= ccw_device_recog_notoper,
-		[DEV_EVENT_INTERRUPT]	= ccw_device_sense_id_irq,
-		[DEV_EVENT_TIMEOUT]	= ccw_device_recog_timeout,
+		[DEV_EVENT_NOTOPER]	= ccw_device_request_event,
+		[DEV_EVENT_INTERRUPT]	= ccw_device_request_event,
+		[DEV_EVENT_TIMEOUT]	= ccw_device_request_event,
 		[DEV_EVENT_VERIFY]	= ccw_device_nop,
 	},
 	[DEV_STATE_CMFCHANGE] = {

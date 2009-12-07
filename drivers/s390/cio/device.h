@@ -108,7 +108,6 @@ void ccw_request_notoper(struct ccw_device *cdev);
 
 /* Function prototypes for sense id stuff. */
 void ccw_device_sense_id_start(struct ccw_device *);
-void ccw_device_sense_id_irq(struct ccw_device *, enum dev_event);
 void ccw_device_sense_id_done(struct ccw_device *, int);
 
 /* Function prototypes for path grouping stuff. */
