@@ -33,7 +33,7 @@ extern int trace_seq_vprintf(struct trace_seq *s, const char *fmt, va_list args)
 	__attribute__ ((format (printf, 2, 0)));
 extern int
 trace_seq_bprintf(struct trace_seq *s, const char *fmt, const u32 *binary);
-extern void trace_print_seq(struct seq_file *m, struct trace_seq *s);
+extern int trace_print_seq(struct seq_file *m, struct trace_seq *s);
 extern ssize_t trace_seq_to_user(struct trace_seq *s, char __user *ubuf,
 				 size_t cnt);
 extern int trace_seq_puts(struct trace_seq *s, const char *str);
@@ -55,8 +55,9 @@ trace_seq_bprintf(struct trace_seq *s, const char *fmt, const u32 *binary)
 	return 0;
 }
 
-static inline void trace_print_seq(struct seq_file *m, struct trace_seq *s)
+static inline int trace_print_seq(struct seq_file *m, struct trace_seq *s)
 {
+	return 0;
 }
 static inline ssize_t trace_seq_to_user(struct trace_seq *s, char __user *ubuf,
 				 size_t cnt)
