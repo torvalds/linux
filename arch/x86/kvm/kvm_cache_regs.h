@@ -38,4 +38,16 @@ static inline u64 kvm_pdptr_read(struct kvm_vcpu *vcpu, int index)
 	return vcpu->arch.pdptrs[index];
 }
 
+static inline ulong kvm_read_cr4_bits(struct kvm_vcpu *vcpu, ulong mask)
+{
+	if (mask & vcpu->arch.cr4_guest_owned_bits)
+		kvm_x86_ops->decache_cr4_guest_bits(vcpu);
+	return vcpu->arch.cr4 & mask;
+}
+
+static inline ulong kvm_read_cr4(struct kvm_vcpu *vcpu)
+{
+	return kvm_read_cr4_bits(vcpu, ~0UL);
+}
+
 #endif

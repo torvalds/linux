@@ -272,6 +272,7 @@ struct kvm_vcpu_arch {
 	unsigned long cr2;
 	unsigned long cr3;
 	unsigned long cr4;
+	unsigned long cr4_guest_owned_bits;
 	unsigned long cr8;
 	u32 hflags;
 	u64 pdptrs[4]; /* pae */
