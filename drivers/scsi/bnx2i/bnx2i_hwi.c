@@ -133,20 +133,38 @@ void bnx2i_arm_cq_event_coalescing(struct bnx2i_endpoint *ep, u8 action)
 {
 	struct bnx2i_5771x_cq_db *cq_db;
 	u16 cq_index;
+	u16 next_index;
+	u32 num_active_cmds;
 
+
+	/* Coalesce CQ entries only on 10G devices */
 	if (!test_bit(BNX2I_NX2_DEV_57710, &ep->hba->cnic_dev_type))
 		return;
 
+	/* Do not update CQ DB multiple times before firmware writes
+	 * '0xFFFF' to CQDB->SQN field. Deviation may cause spurious
+	 * interrupts and other unwanted results
+	 */
+	cq_db = (struct bnx2i_5771x_cq_db *) ep->qp.cq_pgtbl_virt;
+	if (cq_db->sqn[0] && cq_db->sqn[0] != 0xFFFF)
+		return;
+
 	if (action == CNIC_ARM_CQE) {
-		cq_index = ep->qp.cqe_exp_seq_sn +
-			   ep->num_active_cmds / event_coal_div;
-		cq_index %= (ep->qp.cqe_size * 2 + 1);
-		if (!cq_index) {
+		num_active_cmds = ep->num_active_cmds;
+		if (num_active_cmds <= event_coal_min)
+			next_index = 1;
+		else
+			next_index = event_coal_min +
+				(num_active_cmds - event_coal_min) / event_coal_div;
+		if (!next_index)
+			next_index = 1;
+		cq_index = ep->qp.cqe_exp_seq_sn + next_index - 1;
+		if (cq_index > ep->qp.cqe_size * 2)
+			cq_index -= ep->qp.cqe_size * 2;
+		if (!cq_index)
 			cq_index = 1;
-			cq_db = (struct bnx2i_5771x_cq_db *)
-					ep->qp.cq_pgtbl_virt;
-			cq_db->sqn[0] = cq_index;
-		}
+
+		cq_db->sqn[0] = cq_index;
 	}
 }
 

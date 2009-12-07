@@ -32,6 +32,10 @@ MODULE_VERSION(DRV_MODULE_VERSION);
 
 static DEFINE_MUTEX(bnx2i_dev_lock);
 
+unsigned int event_coal_min = 24;
+module_param(event_coal_min, int, 0664);
+MODULE_PARM_DESC(event_coal_min, "Event Coalescing Minimum Commands");
+
 unsigned int event_coal_div = 1;
 module_param(event_coal_div, int, 0664);
 MODULE_PARM_DESC(event_coal_div, "Event Coalescing Divide Factor");
