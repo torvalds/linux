@@ -1080,14 +1080,14 @@ void ccw_device_trigger_reprobe(struct ccw_device *cdev)
 		ccw_device_start_id(cdev, 0);
 }
 
-static void
-ccw_device_offline_irq(struct ccw_device *cdev, enum dev_event dev_event)
+static void ccw_device_disabled_irq(struct ccw_device *cdev,
+				    enum dev_event dev_event)
 {
 	struct subchannel *sch;
 
 	sch = to_subchannel(cdev->dev.parent);
 	/*
-	 * An interrupt in state offline means a previous disable was not
+	 * An interrupt in a disabled state means a previous disable was not
 	 * successful - should not happen, but we try to disable again.
 	 */
 	cio_disable_subchannel(sch);
@@ -1150,25 +1150,12 @@ ccw_device_nop(struct ccw_device *cdev, enum dev_event dev_event)
 }
 
 /*
- * Bug operation action. 
- */
-static void
-ccw_device_bug(struct ccw_device *cdev, enum dev_event dev_event)
-{
-	CIO_MSG_EVENT(0, "Internal state [%i][%i] not handled for device "
-		      "0.%x.%04x\n", cdev->private->state, dev_event,
-		      cdev->private->dev_id.ssid,
-		      cdev->private->dev_id.devno);
-	BUG();
-}
-
-/*
  * device statemachine
  */
 fsm_func_t *dev_jumptable[NR_DEV_STATES][NR_DEV_EVENTS] = {
 	[DEV_STATE_NOT_OPER] = {
 		[DEV_EVENT_NOTOPER]	= ccw_device_nop,
-		[DEV_EVENT_INTERRUPT]	= ccw_device_bug,
+		[DEV_EVENT_INTERRUPT]	= ccw_device_disabled_irq,
 		[DEV_EVENT_TIMEOUT]	= ccw_device_nop,
 		[DEV_EVENT_VERIFY]	= ccw_device_nop,
 	},
@@ -1186,7 +1173,7 @@ fsm_func_t *dev_jumptable[NR_DEV_STATES][NR_DEV_EVENTS] = {
 	},
 	[DEV_STATE_OFFLINE] = {
 		[DEV_EVENT_NOTOPER]	= ccw_device_generic_notoper,
-		[DEV_EVENT_INTERRUPT]	= ccw_device_offline_irq,
+		[DEV_EVENT_INTERRUPT]	= ccw_device_disabled_irq,
 		[DEV_EVENT_TIMEOUT]	= ccw_device_nop,
 		[DEV_EVENT_VERIFY]	= ccw_device_offline_verify,
 	},
@@ -1243,7 +1230,7 @@ fsm_func_t *dev_jumptable[NR_DEV_STATES][NR_DEV_EVENTS] = {
 	[DEV_STATE_DISCONNECTED] = {
 		[DEV_EVENT_NOTOPER]	= ccw_device_nop,
 		[DEV_EVENT_INTERRUPT]	= ccw_device_start_id,
-		[DEV_EVENT_TIMEOUT]	= ccw_device_bug,
+		[DEV_EVENT_TIMEOUT]	= ccw_device_nop,
 		[DEV_EVENT_VERIFY]	= ccw_device_start_id,
 	},
 	[DEV_STATE_DISCONNECTED_SENSE_ID] = {
