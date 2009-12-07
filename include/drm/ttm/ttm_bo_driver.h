@@ -638,7 +638,7 @@ extern bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev,
  * -EBUSY: No space available (only if no_wait == 1).
  * -ENOMEM: Could not allocate memory for the buffer object, either due to
  * fragmentation or concurrent allocators.
- * -ERESTART: An interruptible sleep was interrupted by a signal.
+ * -ERESTARTSYS: An interruptible sleep was interrupted by a signal.
  */
 extern int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 				struct ttm_placement *placement,
@@ -653,7 +653,7 @@ extern int ttm_bo_mem_space(struct ttm_buffer_object *bo,
  * Wait until a buffer object is no longer sync'ed for CPU access.
  * Returns:
  * -EBUSY: Buffer object was sync'ed for CPU access. (only if no_wait == 1).
- * -ERESTART: An interruptible sleep was interrupted by a signal.
+ * -ERESTARTSYS: An interruptible sleep was interrupted by a signal.
  */
 
 extern int ttm_bo_wait_cpu(struct ttm_buffer_object *bo, bool no_wait);
@@ -757,7 +757,7 @@ extern void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo);
  * -EAGAIN: The reservation may cause a deadlock.
  * Release all buffer reservations, wait for @bo to become unreserved and
  * try again. (only if use_sequence == 1).
- * -ERESTART: A wait for the buffer to become unreserved was interrupted by
+ * -ERESTARTSYS: A wait for the buffer to become unreserved was interrupted by
  * a signal. Release all buffer reservations and return to user-space.
  */
 extern int ttm_bo_reserve(struct ttm_buffer_object *bo,
@@ -798,7 +798,7 @@ extern int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo,
  *
  * Returns:
  * -EBUSY: If no_wait == 1 and the buffer is already reserved.
- * -ERESTART: If interruptible == 1 and the process received a signal
+ * -ERESTARTSYS: If interruptible == 1 and the process received a signal
  * while sleeping.
  */
 extern int ttm_bo_block_reservation(struct ttm_buffer_object *bo,

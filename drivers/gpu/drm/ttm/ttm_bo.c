@@ -125,7 +125,7 @@ int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo, bool interruptible)
 		ret = wait_event_interruptible(bo->event_queue,
 					       atomic_read(&bo->reserved) == 0);
 		if (unlikely(ret != 0))
-			return -ERESTART;
+			return ret;
 	} else {
 		wait_event(bo->event_queue, atomic_read(&bo->reserved) == 0);
 	}
@@ -571,7 +571,7 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo, bool interruptible,
 	spin_unlock(&bo->lock);
 
 	if (unlikely(ret != 0)) {
-		if (ret != -ERESTART) {
+		if (ret != -ERESTARTSYS) {
 			printk(KERN_ERR TTM_PFX
 			       "Failed to expire sync object before "
 			       "buffer eviction.\n");
@@ -588,7 +588,7 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo, bool interruptible,
 	ret = ttm_bo_mem_space(bo, &placement, &evict_mem, interruptible,
 				no_wait);
 	if (ret) {
-		if (ret != -ERESTART)
+		if (ret != -ERESTARTSYS)
 			printk(KERN_ERR TTM_PFX
 			       "Failed to find memory space for "
 			       "buffer 0x%p eviction.\n", bo);
@@ -598,7 +598,7 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo, bool interruptible,
 	ret = ttm_bo_handle_move_mem(bo, &evict_mem, true, interruptible,
 				     no_wait);
 	if (ret) {
-		if (ret != -ERESTART)
+		if (ret != -ERESTARTSYS)
 			printk(KERN_ERR TTM_PFX "Buffer eviction failed\n");
 		spin_lock(&glob->lru_lock);
 		if (evict_mem.mm_node) {
@@ -795,7 +795,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 	uint32_t cur_flags = 0;
 	bool type_found = false;
 	bool type_ok = false;
-	bool has_eagain = false;
+	bool has_erestartsys = false;
 	struct drm_mm_node *node = NULL;
 	int i, ret;
 
@@ -882,28 +882,21 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 			mem->mm_node->private = bo;
 			return 0;
 		}
-		if (ret == -ERESTART)
-			has_eagain = true;
+		if (ret == -ERESTARTSYS)
+			has_erestartsys = true;
 	}
-	ret = (has_eagain) ? -ERESTART : -ENOMEM;
+	ret = (has_erestartsys) ? -ERESTARTSYS : -ENOMEM;
 	return ret;
 }
 EXPORT_SYMBOL(ttm_bo_mem_space);
 
 int ttm_bo_wait_cpu(struct ttm_buffer_object *bo, bool no_wait)
 {
-	int ret = 0;
-
 	if ((atomic_read(&bo->cpu_writers) > 0) && no_wait)
 		return -EBUSY;
 
-	ret = wait_event_interruptible(bo->event_queue,
-				       atomic_read(&bo->cpu_writers) == 0);
-
-	if (ret == -ERESTARTSYS)
-		ret = -ERESTART;
-
-	return ret;
+	return wait_event_interruptible(bo->event_queue,
+					atomic_read(&bo->cpu_writers) == 0);
 }
 
 int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
@@ -1673,7 +1666,7 @@ int ttm_bo_block_reservation(struct ttm_buffer_object *bo, bool interruptible,
 			ret = wait_event_interruptible
 			    (bo->event_queue, atomic_read(&bo->reserved) == 0);
 			if (unlikely(ret != 0))
-				return -ERESTART;
+				return ret;
 		} else {
 			wait_event(bo->event_queue,
 				   atomic_read(&bo->reserved) == 0);

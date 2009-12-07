@@ -303,7 +303,7 @@ ttm_bo_reference(struct ttm_buffer_object *bo)
  * Note: It might be necessary to block validations before the
  * wait by reserving the buffer.
  * Returns -EBUSY if no_wait is true and the buffer is busy.
- * Returns -ERESTART if interrupted by a signal.
+ * Returns -ERESTARTSYS if interrupted by a signal.
  */
 extern int ttm_bo_wait(struct ttm_buffer_object *bo, bool lazy,
 		       bool interruptible, bool no_wait);
@@ -321,7 +321,7 @@ extern int ttm_bo_wait(struct ttm_buffer_object *bo, bool lazy,
  * -EINVAL on invalid proposed placement.
  * -ENOMEM on out-of-memory condition.
  * -EBUSY if no_wait is true and buffer busy.
- * -ERESTART if interrupted by a signal.
+ * -ERESTARTSYS if interrupted by a signal.
  */
 extern int ttm_buffer_object_validate(struct ttm_buffer_object *bo,
 					struct ttm_placement *placement,
@@ -347,7 +347,7 @@ extern void ttm_bo_unref(struct ttm_buffer_object **bo);
  * waiting for buffer idle. This lock is recursive.
  * Returns
  * -EBUSY if the buffer is busy and no_wait is true.
- * -ERESTART if interrupted by a signal.
+ * -ERESTARTSYS if interrupted by a signal.
  */
 
 extern int
@@ -390,7 +390,7 @@ extern void ttm_bo_synccpu_write_release(struct ttm_buffer_object *bo);
  * Returns
  * -ENOMEM: Out of memory.
  * -EINVAL: Invalid placement flags.
- * -ERESTART: Interrupted by signal while sleeping waiting for resources.
+ * -ERESTARTSYS: Interrupted by signal while sleeping waiting for resources.
  */
 
 extern int ttm_buffer_object_init(struct ttm_bo_device *bdev,
@@ -430,7 +430,7 @@ extern int ttm_buffer_object_init(struct ttm_bo_device *bdev,
  * Returns
  * -ENOMEM: Out of memory.
  * -EINVAL: Invalid placement flags.
- * -ERESTART: Interrupted by signal while waiting for resources.
+ * -ERESTARTSYS: Interrupted by signal while waiting for resources.
  */
 
 extern int ttm_buffer_object_create(struct ttm_bo_device *bdev,
@@ -521,7 +521,7 @@ extern int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type);
  *
  * Returns:
  * -EINVAL: Invalid or uninitialized memory type.
- * -ERESTART: The call was interrupted by a signal while waiting to
+ * -ERESTARTSYS: The call was interrupted by a signal while waiting to
  * evict a buffer.
  */
 
@@ -624,7 +624,7 @@ extern int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
  * be called from the fops::read and fops::write method.
  * Returns:
  * See man (2) write, man(2) read. In particular,
- * the function may return -EINTR if
+ * the function may return -ERESTARTSYS if
  * interrupted by a signal.
  */
 
