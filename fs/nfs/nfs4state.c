@@ -1255,14 +1255,6 @@ void nfs41_handle_sequence_flag_errors(struct nfs_client *clp, u32 flags)
 		nfs_expire_all_delegations(clp);
 }
 
-static void nfs4_session_recovery_handle_error(struct nfs_client *clp, int err)
-{
-	switch (err) {
-	case -NFS4ERR_STALE_CLIENTID:
-		set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
-	}
-}
-
 static int nfs4_reset_session(struct nfs_client *clp)
 {
 	struct nfs4_session *ses = clp->cl_session;
@@ -1275,14 +1267,14 @@ static int nfs4_reset_session(struct nfs_client *clp)
 	status = nfs4_proc_destroy_session(clp->cl_session);
 	if (status && status != -NFS4ERR_BADSESSION &&
 	    status != -NFS4ERR_DEADSESSION) {
-		nfs4_session_recovery_handle_error(clp, status);
+		status = nfs4_recovery_handle_error(clp, status);
 		goto out;
 	}
 
 	memset(clp->cl_session->sess_id.data, 0, NFS4_MAX_SESSIONID_LEN);
 	status = nfs4_proc_create_session(clp);
 	if (status)
-		nfs4_session_recovery_handle_error(clp, status);
+		status = nfs4_recovery_handle_error(clp, status);
 
 out:
 	/*
