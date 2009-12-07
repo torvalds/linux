@@ -197,7 +197,6 @@ extern const u32 nfs41_maxwrite_overhead;
 #endif
 
 /* nfs4proc.c */
-extern void nfs4_restart_rpc(struct rpc_task *, const struct nfs_client *);
 #ifdef CONFIG_NFS_V4
 extern struct rpc_procinfo nfs4_procedures[];
 #endif
@@ -366,4 +365,16 @@ unsigned int nfs_page_array_len(unsigned int base, size_t len)
 {
 	return ((unsigned long)len + (unsigned long)base +
 		PAGE_SIZE - 1) >> PAGE_SHIFT;
+}
+
+/*
+ * Helper for restarting RPC calls in the possible presence of NFSv4.1
+ * sessions.
+ */
+static inline void nfs_restart_rpc(struct rpc_task *task, const struct nfs_client *clp)
+{
+	if (nfs4_has_session(clp))
+		rpc_restart_call_prepare(task);
+	else
+		rpc_restart_call(task);
 }

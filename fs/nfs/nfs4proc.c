@@ -625,17 +625,6 @@ static void nfs4_sequence_done(const struct nfs_server *server,
 #endif /* CONFIG_NFS_V4_1 */
 }
 
-void nfs4_restart_rpc(struct rpc_task *task, const struct nfs_client *clp)
-{
-#ifdef CONFIG_NFS_V4_1
-	if (nfs4_has_session(clp)) {
-		rpc_restart_call_prepare(task);
-		return;
-	}
-#endif /* CONFIG_NFS_V4_1 */
-	rpc_restart_call(task);
-}
-
 static void update_changeattr(struct inode *dir, struct nfs4_change_info *cinfo)
 {
 	struct nfs_inode *nfsi = NFS_I(dir);
@@ -1739,7 +1728,7 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 				break;
 		default:
 			if (nfs4_async_handle_error(task, server, state) == -EAGAIN) {
-				nfs4_restart_rpc(task, server->nfs_client);
+				nfs_restart_rpc(task, server->nfs_client);
 				return;
 			}
 	}
@@ -2974,7 +2963,7 @@ static int nfs4_read_done(struct rpc_task *task, struct nfs_read_data *data)
 	nfs4_sequence_done(server, &data->res.seq_res, task->tk_status);
 
 	if (nfs4_async_handle_error(task, server, data->args.context->state) == -EAGAIN) {
-		nfs4_restart_rpc(task, server->nfs_client);
+		nfs_restart_rpc(task, server->nfs_client);
 		return -EAGAIN;
 	}
 
@@ -2998,7 +2987,7 @@ static int nfs4_write_done(struct rpc_task *task, struct nfs_write_data *data)
 			   task->tk_status);
 
 	if (nfs4_async_handle_error(task, NFS_SERVER(inode), data->args.context->state) == -EAGAIN) {
-		nfs4_restart_rpc(task, NFS_SERVER(inode)->nfs_client);
+		nfs_restart_rpc(task, NFS_SERVER(inode)->nfs_client);
 		return -EAGAIN;
 	}
 	if (task->tk_status >= 0) {
@@ -3026,7 +3015,7 @@ static int nfs4_commit_done(struct rpc_task *task, struct nfs_write_data *data)
 	nfs4_sequence_done(NFS_SERVER(inode), &data->res.seq_res,
 			   task->tk_status);
 	if (nfs4_async_handle_error(task, NFS_SERVER(inode), NULL) == -EAGAIN) {
-		nfs4_restart_rpc(task, NFS_SERVER(inode)->nfs_client);
+		nfs_restart_rpc(task, NFS_SERVER(inode)->nfs_client);
 		return -EAGAIN;
 	}
 	nfs_refresh_inode(inode, data->res.fattr);
@@ -3737,7 +3726,7 @@ static void nfs4_locku_done(struct rpc_task *task, void *data)
 			break;
 		default:
 			if (nfs4_async_handle_error(task, calldata->server, NULL) == -EAGAIN)
-				nfs4_restart_rpc(task,
+				nfs_restart_rpc(task,
 						 calldata->server->nfs_client);
 	}
 }
@@ -4392,7 +4381,7 @@ static void nfs4_get_lease_time_done(struct rpc_task *task, void *calldata)
 		dprintk("%s Retry: tk_status %d\n", __func__, task->tk_status);
 		rpc_delay(task, NFS4_POLL_RETRY_MIN);
 		task->tk_status = 0;
-		nfs4_restart_rpc(task, data->clp);
+		nfs_restart_rpc(task, data->clp);
 		return;
 	}
 	dprintk("<-- %s\n", __func__);
@@ -4854,7 +4843,7 @@ void nfs41_sequence_call_done(struct rpc_task *task, void *data)
 
 		if (_nfs4_async_handle_error(task, NULL, clp, NULL)
 								== -EAGAIN) {
-			nfs4_restart_rpc(task, clp);
+			nfs_restart_rpc(task, clp);
 			return;
 		}
 	}
