@@ -488,7 +488,9 @@ static int online_store_recog_and_online(struct ccw_device *cdev)
 {
 	/* Do device recognition, if needed. */
 	if (cdev->private->state == DEV_STATE_BOXED) {
+		spin_lock_irq(cdev->ccwlock);
 		ccw_device_recognition(cdev);
+		spin_unlock_irq(cdev->ccwlock);
 		wait_event(cdev->private->wait_q,
 			   cdev->private->flags.recog_done);
 		if (cdev->private->state != DEV_STATE_OFFLINE)
