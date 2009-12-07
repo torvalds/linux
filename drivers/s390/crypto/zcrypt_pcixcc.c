@@ -72,7 +72,7 @@ struct response_type {
 static struct ap_device_id zcrypt_pcixcc_ids[] = {
 	{ AP_DEVICE(AP_DEVICE_TYPE_PCIXCC) },
 	{ AP_DEVICE(AP_DEVICE_TYPE_CEX2C) },
-	{ AP_DEVICE(AP_DEVICE_TYPE_CEX2C2) },
+	{ AP_DEVICE(AP_DEVICE_TYPE_CEX3C) },
 	{ /* end of list */ },
 };
 
