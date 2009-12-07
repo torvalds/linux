@@ -168,7 +168,7 @@ static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
 	p += scnprintf(p, sizeof(buf) + buf - p, "ht %ssupported\n",
 			htc->ht_supported ? "" : "not ");
 	if (htc->ht_supported) {
-		p += scnprintf(p, sizeof(buf)+buf-p, "cap: %#.2x\n", htc->cap);
+		p += scnprintf(p, sizeof(buf)+buf-p, "cap: %#.4x\n", htc->cap);
 		p += scnprintf(p, sizeof(buf)+buf-p, "ampdu factor/density: %d/%d\n",
 				htc->ampdu_factor, htc->ampdu_density);
 		p += scnprintf(p, sizeof(buf)+buf-p, "MCS mask:");
