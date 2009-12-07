@@ -367,7 +367,7 @@ static int __init bnx2i_mod_init(void)
 
 	printk(KERN_INFO "%s", version);
 
-	if (!is_power_of_2(sq_size))
+	if (sq_size && !is_power_of_2(sq_size))
 		sq_size = roundup_pow_of_two(sq_size);
 
 	mutex_init(&bnx2i_dev_lock);
