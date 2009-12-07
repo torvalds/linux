@@ -465,16 +465,16 @@ static int qset_add_urb_sg(struct whc *whc, struct whc_qset *qset, struct urb *u
 			 * - the previous one isn't full.
 			 *
 			 * If a new std is needed but the previous one
-			 * did not end on a wMaxPacketSize boundary
-			 * then this sg list cannot be mapped onto
-			 * multiple qTDs.  Return an error and let the
-			 * caller sort it out.
+			 * was not a whole number of packets then this
+			 * sg list cannot be mapped onto multiple
+			 * qTDs.  Return an error and let the caller
+			 * sort it out.
 			 */
 			if (!std
 			    || (prev_end & (WHCI_PAGE_SIZE-1))
 			    || (dma_addr & (WHCI_PAGE_SIZE-1))
 			    || std->len + WHCI_PAGE_SIZE > QTD_MAX_XFER_SIZE) {
-				if (prev_end % qset->max_packet != 0)
+				if (std->len % qset->max_packet != 0)
 					return -EINVAL;
 				std = qset_new_std(whc, qset, urb, mem_flags);
 				if (std == NULL) {
@@ -487,14 +487,14 @@ static int qset_add_urb_sg(struct whc *whc, struct whc_qset *qset, struct urb *u
 			dma_len = dma_remaining;
 
 			/*
-			 * If the remainder in this element doesn't
-			 * fit in a single qTD, end the qTD on a
-			 * wMaxPacketSize boundary.
+			 * If the remainder of this element doesn't
+			 * fit in a single qTD, limit the qTD to a
+			 * whole number of packets.  This allows the
+			 * remainder to go into the next qTD.
 			 */
 			if (std->len + dma_len > QTD_MAX_XFER_SIZE) {
-				dma_len = QTD_MAX_XFER_SIZE - std->len;
-				ep = ((dma_addr + dma_len) / qset->max_packet) * qset->max_packet;
-				dma_len = ep - dma_addr;
+				dma_len = (QTD_MAX_XFER_SIZE / qset->max_packet)
+					* qset->max_packet - std->len;
 			}
 
 			std->len += dma_len;
