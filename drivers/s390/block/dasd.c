@@ -994,10 +994,9 @@ static void dasd_handle_killed_request(struct ccw_device *cdev,
 		return;
 	cqr = (struct dasd_ccw_req *) intparm;
 	if (cqr->status != DASD_CQR_IN_IO) {
-		DBF_EVENT(DBF_DEBUG,
-			"invalid status in handle_killed_request: "
-			"bus_id %s, status %02x",
-			dev_name(&cdev->dev), cqr->status);
+		DBF_EVENT_DEVID(DBF_DEBUG, cdev,
+				"invalid status in handle_killed_request: "
+				"%02x", cqr->status);
 		return;
 	}
 
@@ -1045,12 +1044,13 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		case -EIO:
 			break;
 		case -ETIMEDOUT:
-			DBF_EVENT(DBF_WARNING, "%s(%s): request timed out\n",
-			       __func__, dev_name(&cdev->dev));
+			DBF_EVENT_DEVID(DBF_WARNING, cdev, "%s: "
+					"request timed out\n", __func__);
 			break;
 		default:
-			DBF_EVENT(DBF_WARNING, "%s(%s): unknown error %ld\n",
-			       __func__, dev_name(&cdev->dev), PTR_ERR(irb));
+			DBF_EVENT_DEVID(DBF_WARNING, cdev, "%s: "
+					"unknown error %ld\n", __func__,
+					PTR_ERR(irb));
 		}
 		dasd_handle_killed_request(cdev, intparm);
 		return;
@@ -2217,9 +2217,9 @@ int dasd_generic_probe(struct ccw_device *cdev,
 	}
 	ret = dasd_add_sysfs_files(cdev);
 	if (ret) {
-		DBF_EVENT(DBF_WARNING,
-		       "dasd_generic_probe: could not add sysfs entries "
-		       "for %s\n", dev_name(&cdev->dev));
+		DBF_EVENT_DEVID(DBF_WARNING, cdev, "%s",
+				"dasd_generic_probe: could not add "
+				"sysfs entries");
 		return ret;
 	}
 	cdev->handler = &dasd_int_handler;
