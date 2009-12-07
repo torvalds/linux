@@ -665,7 +665,7 @@ tape_generic_remove(struct ccw_device *cdev)
 			tape_cleanup_device(device);
 	}
 
-	if (!dev_get_drvdata(&cdev->dev)) {
+	if (dev_get_drvdata(&cdev->dev)) {
 		sysfs_remove_group(&cdev->dev.kobj, &tape_attr_group);
 		dev_set_drvdata(&cdev->dev, tape_put_device(dev_get_drvdata(&cdev->dev)));
 	}
