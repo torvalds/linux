@@ -83,8 +83,12 @@ void bnx2i_identify_device(struct bnx2i_hba *hba)
 		set_bit(BNX2I_NX2_DEV_5709, &hba->cnic_dev_type);
 		hba->mail_queue_access = BNX2I_MQ_BIN_MODE;
 	} else if (hba->pci_did == PCI_DEVICE_ID_NX2_57710 ||
-		   hba->pci_did == PCI_DEVICE_ID_NX2_57711)
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57711 ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57711E)
 		set_bit(BNX2I_NX2_DEV_57710, &hba->cnic_dev_type);
+	else
+		printk(KERN_ALERT "bnx2i: unknown device, 0x%x\n",
+				  hba->pci_did);
 }
 
 
