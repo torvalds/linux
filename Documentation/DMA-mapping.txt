@@ -214,7 +214,7 @@ most specific mask.
 Here is pseudo-code showing how this might be done:
 
 	#define PLAYBACK_ADDRESS_BITS	DMA_BIT_MASK(32)
-	#define RECORD_ADDRESS_BITS	0x00ffffff
+	#define RECORD_ADDRESS_BITS	DMA_BIT_MASK(24)
 
 	struct my_sound_card *card;
 	struct pci_dev *pdev;
