@@ -1958,7 +1958,7 @@ struct ceph_msg *ceph_msg_new(int type, int front_len,
 	m = kmalloc(sizeof(*m), GFP_NOFS);
 	if (m == NULL)
 		goto out;
-	atomic_set(&m->nref, 1);
+	kref_init(&m->kref);
 	INIT_LIST_HEAD(&m->list_head);
 
 	m->hdr.type = cpu_to_le16(type);
@@ -2070,34 +2070,23 @@ void ceph_msg_kfree(struct ceph_msg *m)
 /*
  * Drop a msg ref.  Destroy as needed.
  */
-void ceph_msg_put(struct ceph_msg *m)
+void ceph_msg_last_put(struct kref *kref)
 {
-	dout("ceph_msg_put %p %d -> %d\n", m, atomic_read(&m->nref),
-	     atomic_read(&m->nref)-1);
-	if (atomic_read(&m->nref) <= 0) {
-		pr_err("bad ceph_msg_put on %p %llu %d=%s %d+%d\n",
-		       m, le64_to_cpu(m->hdr.seq),
-		       le16_to_cpu(m->hdr.type),
-		       ceph_msg_type_name(le16_to_cpu(m->hdr.type)),
-		       le32_to_cpu(m->hdr.front_len),
-		       le32_to_cpu(m->hdr.data_len));
-		WARN_ON(1);
-	}
-	if (atomic_dec_and_test(&m->nref)) {
-		dout("ceph_msg_put last one on %p\n", m);
-		WARN_ON(!list_empty(&m->list_head));
+	struct ceph_msg *m = container_of(kref, struct ceph_msg, kref);
 
-		/* drop middle, data, if any */
-		if (m->middle) {
-			ceph_buffer_put(m->middle);
-			m->middle = NULL;
-		}
-		m->nr_pages = 0;
-		m->pages = NULL;
+	dout("ceph_msg_put last one on %p\n", m);
+	WARN_ON(!list_empty(&m->list_head));
 
-		if (m->pool)
-			ceph_msgpool_put(m->pool, m);
-		else
-			ceph_msg_kfree(m);
+	/* drop middle, data, if any */
+	if (m->middle) {
+		ceph_buffer_put(m->middle);
+		m->middle = NULL;
 	}
+	m->nr_pages = 0;
+	m->pages = NULL;
+
+	if (m->pool)
+		ceph_msgpool_put(m->pool, m);
+	else
+		ceph_msg_kfree(m);
 }

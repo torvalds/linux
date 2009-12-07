@@ -165,7 +165,7 @@ void ceph_msgpool_put(struct ceph_msgpool *pool, struct ceph_msg *msg)
 {
 	spin_lock(&pool->lock);
 	if (pool->num < pool->min) {
-		ceph_msg_get(msg);   /* retake a single ref */
+		kref_set(&msg->kref, 1);  /* retake a single ref */
 		list_add(&msg->list_head, &pool->msgs);
 		pool->num++;
 		dout("msgpool_put %p reclaim %p, now %d/%d\n", pool, msg,

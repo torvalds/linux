@@ -1,6 +1,7 @@
 #ifndef __FS_CEPH_MESSENGER_H
 #define __FS_CEPH_MESSENGER_H
 
+#include <linux/kref.h>
 #include <linux/mutex.h>
 #include <linux/net.h>
 #include <linux/radix-tree.h>
@@ -85,7 +86,7 @@ struct ceph_msg {
 	struct page **pages;            /* data payload.  NOT OWNER. */
 	unsigned nr_pages;              /* size of page array */
 	struct list_head list_head;
-	atomic_t nref;
+	struct kref kref;
 	bool front_is_vmalloc;
 	bool more_to_follow;
 	int front_max;
@@ -243,11 +244,13 @@ extern int ceph_alloc_middle(struct ceph_connection *con, struct ceph_msg *msg);
 
 static inline struct ceph_msg *ceph_msg_get(struct ceph_msg *msg)
 {
-	dout("ceph_msg_get %p %d -> %d\n", msg, atomic_read(&msg->nref),
-	     atomic_read(&msg->nref)+1);
-	atomic_inc(&msg->nref);
+	kref_get(&msg->kref);
 	return msg;
 }
-extern void ceph_msg_put(struct ceph_msg *msg);
+extern void ceph_msg_last_put(struct kref *kref);
+static inline void ceph_msg_put(struct ceph_msg *msg)
+{
+	kref_put(&msg->kref, ceph_msg_last_put);
+}
 
 #endif
