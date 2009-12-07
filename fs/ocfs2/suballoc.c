@@ -130,6 +130,7 @@ void ocfs2_free_ac_resource(struct ocfs2_alloc_context *ac)
 	}
 	brelse(ac->ac_bh);
 	ac->ac_bh = NULL;
+	ac->ac_resv = NULL;
 }
 
 void ocfs2_free_alloc_context(struct ocfs2_alloc_context *ac)

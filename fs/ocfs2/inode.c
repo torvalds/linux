@@ -377,6 +377,10 @@ void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 
 	OCFS2_I(inode)->ip_last_used_slot = 0;
 	OCFS2_I(inode)->ip_last_used_group = 0;
+
+	if (S_ISDIR(inode->i_mode))
+		ocfs2_resv_set_type(&OCFS2_I(inode)->ip_la_data_resv,
+				    OCFS2_RESV_FLAG_DIR);
 	mlog_exit_void();
 }
 

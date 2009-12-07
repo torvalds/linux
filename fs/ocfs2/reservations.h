@@ -42,6 +42,8 @@ struct ocfs2_alloc_reservation {
 #define	OCFS2_RESV_FLAG_INUSE	0x01	/* Set when r_node is part of a btree */
 #define	OCFS2_RESV_FLAG_TMP	0x02	/* Temporary reservation, will be
 					 * destroyed immedately after use */
+#define	OCFS2_RESV_FLAG_DIR	0x04	/* Reservation is for an unindexed
+					 * directory btree */
 
 struct ocfs2_reservation_map {
 	struct rb_root		m_reservations;
@@ -61,7 +63,7 @@ struct ocfs2_reservation_map {
 
 void ocfs2_resv_init_once(struct ocfs2_alloc_reservation *resv);
 
-#define OCFS2_RESV_TYPES	(OCFS2_RESV_FLAG_TMP)
+#define OCFS2_RESV_TYPES	(OCFS2_RESV_FLAG_TMP|OCFS2_RESV_FLAG_DIR)
 void ocfs2_resv_set_type(struct ocfs2_alloc_reservation *resv,
 			 unsigned int flags);
 
