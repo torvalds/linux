@@ -424,6 +424,7 @@ struct yaffs_ObjectStruct {
 				 * until the inode is released.
 				 */
 	__u8 beingCreated:1;	/* This object is still being created so skip some checks. */
+	__u8 isShadowed:1;      /* This object is shadowed on the way to being renamed. */
 
 	__u8 serial;		/* serial number of chunk in NAND. Cached here */
 	__u16 sum;		/* sum of the name to speed searching */
