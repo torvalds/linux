@@ -286,9 +286,9 @@ tapechar_open (struct inode *inode, struct file *filp)
 
 	lock_kernel();
 	minor = iminor(filp->f_path.dentry->d_inode);
-	device = tape_get_device(minor / TAPE_MINORS_PER_DEV);
+	device = tape_find_device(minor / TAPE_MINORS_PER_DEV);
 	if (IS_ERR(device)) {
-		DBF_EVENT(3, "TCHAR:open: tape_get_device() failed\n");
+		DBF_EVENT(3, "TCHAR:open: tape_find_device() failed\n");
 		rc = PTR_ERR(device);
 		goto out;
 	}
@@ -340,7 +340,8 @@ tapechar_release(struct inode *inode, struct file *filp)
 		device->char_data.idal_buf = NULL;
 	}
 	tape_release(device);
-	filp->private_data = tape_put_device(device);
+	filp->private_data = NULL;
+	tape_put_device(device);
 
 	return 0;
 }
