@@ -400,41 +400,40 @@ static void put_request_session(struct ceph_mds_request *req)
 	}
 }
 
-void ceph_mdsc_put_request(struct ceph_mds_request *req)
+void ceph_mdsc_release_request(struct kref *kref)
 {
-	dout("mdsc put_request %p %d -> %d\n", req,
-	     atomic_read(&req->r_ref), atomic_read(&req->r_ref)-1);
-	if (atomic_dec_and_test(&req->r_ref)) {
-		if (req->r_request)
-			ceph_msg_put(req->r_request);
-		if (req->r_reply) {
-			ceph_msg_put(req->r_reply);
-			destroy_reply_info(&req->r_reply_info);
-		}
-		if (req->r_inode) {
-			ceph_put_cap_refs(ceph_inode(req->r_inode),
-					  CEPH_CAP_PIN);
-			iput(req->r_inode);
-		}
-		if (req->r_locked_dir)
-			ceph_put_cap_refs(ceph_inode(req->r_locked_dir),
-					  CEPH_CAP_PIN);
-		if (req->r_target_inode)
-			iput(req->r_target_inode);
-		if (req->r_dentry)
-			dput(req->r_dentry);
-		if (req->r_old_dentry) {
-			ceph_put_cap_refs(
-			     ceph_inode(req->r_old_dentry->d_parent->d_inode),
-			     CEPH_CAP_PIN);
-			dput(req->r_old_dentry);
-		}
-		kfree(req->r_path1);
-		kfree(req->r_path2);
-		put_request_session(req);
-		ceph_unreserve_caps(&req->r_caps_reservation);
-		kfree(req);
+	struct ceph_mds_request *req = container_of(kref,
+						    struct ceph_mds_request,
+						    r_kref);
+	if (req->r_request)
+		ceph_msg_put(req->r_request);
+	if (req->r_reply) {
+		ceph_msg_put(req->r_reply);
+		destroy_reply_info(&req->r_reply_info);
 	}
+	if (req->r_inode) {
+		ceph_put_cap_refs(ceph_inode(req->r_inode),
+				  CEPH_CAP_PIN);
+		iput(req->r_inode);
+	}
+	if (req->r_locked_dir)
+		ceph_put_cap_refs(ceph_inode(req->r_locked_dir),
+				  CEPH_CAP_PIN);
+	if (req->r_target_inode)
+		iput(req->r_target_inode);
+	if (req->r_dentry)
+		dput(req->r_dentry);
+	if (req->r_old_dentry) {
+		ceph_put_cap_refs(
+			ceph_inode(req->r_old_dentry->d_parent->d_inode),
+			CEPH_CAP_PIN);
+		dput(req->r_old_dentry);
+	}
+	kfree(req->r_path1);
+	kfree(req->r_path2);
+	put_request_session(req);
+	ceph_unreserve_caps(&req->r_caps_reservation);
+	kfree(req);
 }
 
 /*
@@ -1097,7 +1096,7 @@ ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode)
 	req->r_resend_mds = -1;
 	INIT_LIST_HEAD(&req->r_unsafe_dir_item);
 	req->r_fmode = -1;
-	atomic_set(&req->r_ref, 1);  /* one for request_tree, one for caller */
+	kref_init(&req->r_kref);
 	INIT_LIST_HEAD(&req->r_wait);
 	init_completion(&req->r_completion);
 	init_completion(&req->r_safe_completion);

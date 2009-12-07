@@ -2,6 +2,7 @@
 #define _FS_CEPH_MDS_CLIENT_H
 
 #include <linux/completion.h>
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/radix-tree.h>
@@ -203,7 +204,7 @@ struct ceph_mds_request {
 	int               r_num_stale;
 	int               r_resend_mds; /* mds to resend to next, if any*/
 
-	atomic_t          r_ref;
+	struct kref       r_kref;
 	struct list_head  r_wait;
 	struct completion r_completion;
 	struct completion r_safe_completion;
@@ -306,9 +307,13 @@ extern int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 				struct ceph_mds_request *req);
 static inline void ceph_mdsc_get_request(struct ceph_mds_request *req)
 {
-	atomic_inc(&req->r_ref);
+	kref_get(&req->r_kref);
 }
-extern void ceph_mdsc_put_request(struct ceph_mds_request *req);
+extern void ceph_mdsc_release_request(struct kref *kref);
+static inline void ceph_mdsc_put_request(struct ceph_mds_request *req)
+{
+	kref_put(&req->r_kref, ceph_mdsc_release_request);
+}
 
 extern void ceph_mdsc_pre_umount(struct ceph_mds_client *mdsc);
 
