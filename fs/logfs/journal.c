@@ -263,7 +263,7 @@ static int logfs_read_segment(struct super_block *sb, u32 segno)
 	struct logfs_journal_header *jh = super->s_compressed_je;
 	u64 ofs, seg_ofs = dev_ofs(sb, segno, 0);
 	u32 h_ofs, last_ofs = 0;
-	u16 len, datalen, last_len;
+	u16 len, datalen, last_len = 0;
 	int i, err;
 
 	/* search for most recent commit */
