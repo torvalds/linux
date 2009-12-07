@@ -911,10 +911,7 @@ static void
 ccw_device_quiesce_done(struct ccw_device *cdev, enum dev_event dev_event)
 {
 	ccw_device_set_timeout(cdev, 0);
-	if (dev_event == DEV_EVENT_NOTOPER)
-		cdev->private->state = DEV_STATE_NOT_OPER;
-	else
-		cdev->private->state = DEV_STATE_OFFLINE;
+	cdev->private->state = DEV_STATE_NOT_OPER;
 	wake_up(&cdev->private->wait_q);
 }
 
@@ -924,17 +921,11 @@ ccw_device_quiesce_timeout(struct ccw_device *cdev, enum dev_event dev_event)
 	int ret;
 
 	ret = ccw_device_cancel_halt_clear(cdev);
-	switch (ret) {
-	case 0:
-		cdev->private->state = DEV_STATE_OFFLINE;
-		wake_up(&cdev->private->wait_q);
-		break;
-	case -ENODEV:
+	if (ret == -EBUSY) {
+		ccw_device_set_timeout(cdev, HZ/10);
+	} else {
 		cdev->private->state = DEV_STATE_NOT_OPER;
 		wake_up(&cdev->private->wait_q);
-		break;
-	default:
-		ccw_device_set_timeout(cdev, HZ/10);
 	}
 }
 

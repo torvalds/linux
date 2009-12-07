@@ -1130,33 +1130,36 @@ static int io_subchannel_chp_event(struct subchannel *sch,
 	return 0;
 }
 
-static void
-io_subchannel_shutdown(struct subchannel *sch)
+static void io_subchannel_shutdown(struct subchannel *sch)
 {
 	struct ccw_device *cdev;
 	int ret;
 
+	spin_lock_irq(sch->lock);
 	cdev = sch_get_cdev(sch);
-
 	if (cio_is_console(sch->schid))
-		return;
+		goto out_unlock;
 	if (!sch->schib.pmcw.ena)
-		/* Nothing to do. */
-		return;
+		goto out_unlock;
 	ret = cio_disable_subchannel(sch);
 	if (ret != -EBUSY)
-		/* Subchannel is disabled, we're done. */
-		return;
-	cdev->private->state = DEV_STATE_QUIESCE;
+		goto out_unlock;
 	if (cdev->handler)
-		cdev->handler(cdev, cdev->private->intparm,
-			      ERR_PTR(-EIO));
-	ret = ccw_device_cancel_halt_clear(cdev);
-	if (ret == -EBUSY) {
-		ccw_device_set_timeout(cdev, HZ/10);
-		wait_event(cdev->private->wait_q, dev_fsm_final_state(cdev));
+		cdev->handler(cdev, cdev->private->intparm, ERR_PTR(-EIO));
+	while (ret == -EBUSY) {
+		cdev->private->state = DEV_STATE_QUIESCE;
+		ret = ccw_device_cancel_halt_clear(cdev);
+		if (ret == -EBUSY) {
+			ccw_device_set_timeout(cdev, HZ/10);
+			spin_unlock_irq(sch->lock);
+			wait_event(cdev->private->wait_q,
+				   cdev->private->state != DEV_STATE_QUIESCE);
+			spin_lock_irq(sch->lock);
+		}
+		ret = cio_disable_subchannel(sch);
 	}
-	cio_disable_subchannel(sch);
+out_unlock:
+	spin_unlock_irq(sch->lock);
 }
 
 static int device_is_disconnected(struct ccw_device *cdev)
