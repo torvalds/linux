@@ -49,7 +49,7 @@
 #define PCIXCC_MCL2_SPEED_RATING	7870
 #define PCIXCC_MCL3_SPEED_RATING	7870
 #define CEX2C_SPEED_RATING		7000
-#define CEX3C_SPEED_RATING		10000	/* FIXME: needs finetuning */
+#define CEX3C_SPEED_RATING		6500	/* FIXME: needs finetuning */
 
 #define PCIXCC_MAX_ICA_MESSAGE_SIZE 0x77c  /* max size type6 v2 crt message */
 #define PCIXCC_MAX_ICA_RESPONSE_SIZE 0x77c /* max size type86 v2 reply	    */
