@@ -2906,13 +2906,17 @@ hw_event_sas_phy_up(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		le32_to_cpu(pPayload->lr_evt_status_phyid_portid);
 	u8 link_rate =
 		(u8)((lr_evt_status_phyid_portid & 0xF0000000) >> 28);
+	u8 port_id = (u8)(lr_evt_status_phyid_portid & 0x0000000F);
 	u8 phy_id =
 		(u8)((lr_evt_status_phyid_portid & 0x000000F0) >> 4);
+	u32 npip_portstate = le32_to_cpu(pPayload->npip_portstate);
+	u8 portstate = (u8)(npip_portstate & 0x0000000F);
+	struct pm8001_port *port = &pm8001_ha->port[port_id];
 	struct sas_ha_struct *sas_ha = pm8001_ha->sas;
 	struct pm8001_phy *phy = &pm8001_ha->phy[phy_id];
 	unsigned long flags;
 	u8 deviceType = pPayload->sas_identify.dev_type;
-
+	port->port_state =  portstate;
 	PM8001_MSG_DBG(pm8001_ha,
 		pm8001_printk("HW_EVENT_SAS_PHY_UP \n"));
 
@@ -2925,16 +2929,19 @@ hw_event_sas_phy_up(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		PM8001_MSG_DBG(pm8001_ha, pm8001_printk("end device.\n"));
 		pm8001_chip_phy_ctl_req(pm8001_ha, phy_id,
 			PHY_NOTIFY_ENABLE_SPINUP);
+		port->port_attached = 1;
 		get_lrate_mode(phy, link_rate);
 		break;
 	case SAS_EDGE_EXPANDER_DEVICE:
 		PM8001_MSG_DBG(pm8001_ha,
 			pm8001_printk("expander device.\n"));
+		port->port_attached = 1;
 		get_lrate_mode(phy, link_rate);
 		break;
 	case SAS_FANOUT_EXPANDER_DEVICE:
 		PM8001_MSG_DBG(pm8001_ha,
 			pm8001_printk("fanout expander device.\n"));
+		port->port_attached = 1;
 		get_lrate_mode(phy, link_rate);
 		break;
 	default:
@@ -2976,11 +2983,17 @@ hw_event_sata_phy_up(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		le32_to_cpu(pPayload->lr_evt_status_phyid_portid);
 	u8 link_rate =
 		(u8)((lr_evt_status_phyid_portid & 0xF0000000) >> 28);
+	u8 port_id = (u8)(lr_evt_status_phyid_portid & 0x0000000F);
 	u8 phy_id =
 		(u8)((lr_evt_status_phyid_portid & 0x000000F0) >> 4);
+	u32 npip_portstate = le32_to_cpu(pPayload->npip_portstate);
+	u8 portstate = (u8)(npip_portstate & 0x0000000F);
+	struct pm8001_port *port = &pm8001_ha->port[port_id];
 	struct sas_ha_struct *sas_ha = pm8001_ha->sas;
 	struct pm8001_phy *phy = &pm8001_ha->phy[phy_id];
 	unsigned long flags;
+	port->port_state =  portstate;
+	port->port_attached = 1;
 	get_lrate_mode(phy, link_rate);
 	phy->phy_type |= PORT_TYPE_SATA;
 	phy->phy_attached = 1;
@@ -3014,7 +3027,13 @@ hw_event_phy_down(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		(u8)((lr_evt_status_phyid_portid & 0x000000F0) >> 4);
 	u32 npip_portstate = le32_to_cpu(pPayload->npip_portstate);
 	u8 portstate = (u8)(npip_portstate & 0x0000000F);
-
+	struct pm8001_port *port = &pm8001_ha->port[port_id];
+	struct pm8001_phy *phy = &pm8001_ha->phy[phy_id];
+	port->port_state =  portstate;
+	phy->phy_type = 0;
+	phy->identify.device_type = 0;
+	phy->phy_attached = 0;
+	memset(&phy->dev_sas_addr, 0, SAS_ADDR_SIZE);
 	switch (portstate) {
 	case PORT_VALID:
 		break;
@@ -3023,26 +3042,30 @@ hw_event_phy_down(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			pm8001_printk(" PortInvalid portID %d \n", port_id));
 		PM8001_MSG_DBG(pm8001_ha,
 			pm8001_printk(" Last phy Down and port invalid\n"));
+		port->port_attached = 0;
 		pm8001_hw_event_ack_req(pm8001_ha, 0, HW_EVENT_PHY_DOWN,
 			port_id, phy_id, 0, 0);
 		break;
 	case PORT_IN_RESET:
 		PM8001_MSG_DBG(pm8001_ha,
-			pm8001_printk(" PortInReset portID %d \n", port_id));
+			pm8001_printk(" Port In Reset portID %d \n", port_id));
 		break;
 	case PORT_NOT_ESTABLISHED:
 		PM8001_MSG_DBG(pm8001_ha,
 			pm8001_printk(" phy Down and PORT_NOT_ESTABLISHED\n"));
+		port->port_attached = 0;
 		break;
 	case PORT_LOSTCOMM:
 		PM8001_MSG_DBG(pm8001_ha,
 			pm8001_printk(" phy Down and PORT_LOSTCOMM\n"));
 		PM8001_MSG_DBG(pm8001_ha,
 			pm8001_printk(" Last phy Down and port invalid\n"));
+		port->port_attached = 0;
 		pm8001_hw_event_ack_req(pm8001_ha, 0, HW_EVENT_PHY_DOWN,
 			port_id, phy_id, 0, 0);
 		break;
 	default:
+		port->port_attached = 0;
 		PM8001_MSG_DBG(pm8001_ha,
 			pm8001_printk(" phy Down and(default) = %x\n",
 			portstate));

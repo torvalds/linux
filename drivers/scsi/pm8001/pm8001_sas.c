@@ -329,6 +329,23 @@ int pm8001_slave_configure(struct scsi_device *sdev)
 	}
 	return 0;
 }
+ /* Find the local port id that's attached to this device */
+static int sas_find_local_port_id(struct domain_device *dev)
+{
+	struct domain_device *pdev = dev->parent;
+
+	/* Directly attached device */
+	if (!pdev)
+		return dev->port->id;
+	while (pdev) {
+		struct domain_device *pdev_p = pdev->parent;
+		if (!pdev_p)
+			return pdev->port->id;
+		pdev = pdev->parent;
+	}
+	return 0;
+}
+
 /**
   * pm8001_task_exec - queue the task(ssp, smp && ata) to the hardware.
   * @task: the task to be execute.
@@ -346,11 +363,12 @@ static int pm8001_task_exec(struct sas_task *task, const int num,
 	struct domain_device *dev = task->dev;
 	struct pm8001_hba_info *pm8001_ha;
 	struct pm8001_device *pm8001_dev;
+	struct pm8001_port *port = NULL;
 	struct sas_task *t = task;
 	struct pm8001_ccb_info *ccb;
 	u32 tag = 0xdeadbeef, rc, n_elem = 0;
 	u32 n = num;
-	unsigned long flags = 0;
+	unsigned long flags = 0, flags_libsas = 0;
 
 	if (!dev->port) {
 		struct task_status_struct *tsm = &t->task_status;
@@ -378,6 +396,35 @@ static int pm8001_task_exec(struct sas_task *task, const int num,
 			}
 			rc = SAS_PHY_DOWN;
 			goto out_done;
+		}
+		port = &pm8001_ha->port[sas_find_local_port_id(dev)];
+		if (!port->port_attached) {
+			if (sas_protocol_ata(t->task_proto)) {
+				struct task_status_struct *ts = &t->task_status;
+				ts->resp = SAS_TASK_UNDELIVERED;
+				ts->stat = SAS_PHY_DOWN;
+
+				spin_unlock_irqrestore(&pm8001_ha->lock, flags);
+				spin_unlock_irqrestore(dev->sata_dev.ap->lock,
+						flags_libsas);
+				t->task_done(t);
+				spin_lock_irqsave(dev->sata_dev.ap->lock,
+					flags_libsas);
+				spin_lock_irqsave(&pm8001_ha->lock, flags);
+				if (n > 1)
+					t = list_entry(t->list.next,
+							struct sas_task, list);
+				continue;
+			} else {
+				struct task_status_struct *ts = &t->task_status;
+				ts->resp = SAS_TASK_UNDELIVERED;
+				ts->stat = SAS_PHY_DOWN;
+				t->task_done(t);
+				if (n > 1)
+					t = list_entry(t->list.next,
+							struct sas_task, list);
+				continue;
+			}
 		}
 		rc = pm8001_tag_alloc(pm8001_ha, &tag);
 		if (rc)

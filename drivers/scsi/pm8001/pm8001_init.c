@@ -200,8 +200,13 @@ static int __devinit pm8001_alloc(struct pm8001_hba_info *pm8001_ha)
 {
 	int i;
 	spin_lock_init(&pm8001_ha->lock);
-	for (i = 0; i < pm8001_ha->chip->n_phy; i++)
+	for (i = 0; i < pm8001_ha->chip->n_phy; i++) {
 		pm8001_phy_init(pm8001_ha, i);
+		pm8001_ha->port[i].wide_port_phymap = 0;
+		pm8001_ha->port[i].port_attached = 0;
+		pm8001_ha->port[i].port_state = 0;
+		INIT_LIST_HEAD(&pm8001_ha->port[i].list);
+	}
 
 	pm8001_ha->tags = kzalloc(PM8001_MAX_CCB, GFP_KERNEL);
 	if (!pm8001_ha->tags)

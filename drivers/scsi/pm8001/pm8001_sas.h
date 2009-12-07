@@ -164,6 +164,10 @@ struct pm8001_chip_info {
 
 struct pm8001_port {
 	struct asd_sas_port	sas_port;
+	u8			port_attached;
+	u8			wide_port_phymap;
+	u8			port_state;
+	struct list_head	list;
 };
 
 struct pm8001_phy {
