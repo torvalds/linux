@@ -2368,7 +2368,7 @@ static int cfq_dispatch_requests(struct request_queue *q, int force)
 static void cfq_put_queue(struct cfq_queue *cfqq)
 {
 	struct cfq_data *cfqd = cfqq->cfqd;
-	struct cfq_group *cfqg;
+	struct cfq_group *cfqg, *orig_cfqg;
 
 	BUG_ON(atomic_read(&cfqq->ref) <= 0);
 
@@ -2379,6 +2379,7 @@ static void cfq_put_queue(struct cfq_queue *cfqq)
 	BUG_ON(rb_first(&cfqq->sort_list));
 	BUG_ON(cfqq->allocated[READ] + cfqq->allocated[WRITE]);
 	cfqg = cfqq->cfqg;
+	orig_cfqg = cfqq->orig_cfqg;
 
 	if (unlikely(cfqd->active_queue == cfqq)) {
 		__cfq_slice_expired(cfqd, cfqq, 0);
@@ -2388,8 +2389,8 @@ static void cfq_put_queue(struct cfq_queue *cfqq)
 	BUG_ON(cfq_cfqq_on_rr(cfqq));
 	kmem_cache_free(cfq_pool, cfqq);
 	cfq_put_cfqg(cfqg);
-	if (cfqq->orig_cfqg)
-		cfq_put_cfqg(cfqq->orig_cfqg);
+	if (orig_cfqg)
+		cfq_put_cfqg(orig_cfqg);
 }
 
 /*
