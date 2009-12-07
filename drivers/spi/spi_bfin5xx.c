@@ -448,7 +448,7 @@ static irqreturn_t bfin_spi_pio_irq_handler(int irq, void *dev_id)
 		/* Move to next transfer */
 		msg->state = bfin_spi_next_transfer(drv_data);
 
-		disable_irq(drv_data->spi_irq);
+		disable_irq_nosync(drv_data->spi_irq);
 
 		/* Schedule transfer tasklet */
 		tasklet_schedule(&drv_data->pump_transfers);
