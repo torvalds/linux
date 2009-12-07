@@ -212,6 +212,9 @@ struct tape_device {
 	struct tape_class_device *	nt;
 	struct tape_class_device *	rt;
 
+	/* Device mutex to serialize tape commands. */
+	struct mutex			mutex;
+
 	/* Device discipline information. */
 	struct tape_discipline *	discipline;
 	void *				discdata;
