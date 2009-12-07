@@ -209,7 +209,7 @@ static int __dsos__write_buildid_table(struct list_head *head, int fd)
 		err = do_write(fd, pos->long_name, pos->long_name_len + 1);
 		if (err < 0)
 			return err;
-		err = do_write(fd, zero_buf, len - pos->long_name_len + 1);
+		err = do_write(fd, zero_buf, len - pos->long_name_len - 1);
 		if (err < 0)
 			return err;
 	}
