@@ -483,6 +483,9 @@ static int ocfs2_truncate_file(struct inode *inode,
 
 	down_write(&OCFS2_I(inode)->ip_alloc_sem);
 
+	ocfs2_resv_discard(&osb->osb_la_resmap,
+			   &OCFS2_I(inode)->ip_la_data_resv);
+
 	/*
 	 * The inode lock forced other nodes to sync and drop their
 	 * pages, which (correctly) happens even if we have a truncate

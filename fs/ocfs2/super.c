@@ -1707,6 +1707,8 @@ static void ocfs2_inode_init_once(void *data)
 	oi->ip_blkno = 0ULL;
 	oi->ip_clusters = 0;
 
+	ocfs2_resv_init_once(&oi->ip_la_data_resv);
+
 	ocfs2_lock_res_init_once(&oi->ip_rw_lockres);
 	ocfs2_lock_res_init_once(&oi->ip_inode_lockres);
 	ocfs2_lock_res_init_once(&oi->ip_open_lockres);
