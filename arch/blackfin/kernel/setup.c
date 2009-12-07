@@ -597,7 +597,12 @@ static __init void memory_setup(void)
 	}
 
 #ifdef CONFIG_MPU
+#if defined(CONFIG_ROMFS_ON_MTD) && defined(CONFIG_MTD_ROM)
+	page_mask_nelts = (((_ramend + ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE -
+					ASYNC_BANK0_BASE) >> PAGE_SHIFT) + 31) / 32;
+#else
 	page_mask_nelts = ((_ramend >> PAGE_SHIFT) + 31) / 32;
+#endif
 	page_mask_order = get_order(3 * page_mask_nelts * sizeof(long));
 #endif
 

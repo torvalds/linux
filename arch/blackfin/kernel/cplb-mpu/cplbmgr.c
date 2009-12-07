@@ -114,10 +114,15 @@ static noinline int dcplb_miss(unsigned int cpu)
 		d_data = L2_DMEMORY;
 	} else if (addr >= physical_mem_end) {
 		if (addr >= ASYNC_BANK0_BASE && addr < ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE) {
-			addr &= ~(4 * 1024 * 1024 - 1);
-			d_data &= ~PAGE_SIZE_4KB;
-			d_data |= PAGE_SIZE_4MB;
-			d_data |= CPLB_USER_RD | CPLB_USER_WR;
+			mask = current_rwx_mask[cpu];
+			if (mask) {
+				int page = (addr - (ASYNC_BANK0_BASE - _ramend)) >> PAGE_SHIFT;
+				int idx = page >> 5;
+				int bit = 1 << (page & 31);
+
+				if (mask[idx] & bit)
+					d_data |= CPLB_USER_RD;
+			}
 		} else if (addr >= BOOT_ROM_START && addr < BOOT_ROM_START + BOOT_ROM_LENGTH
 		    && (status & (FAULT_RW | FAULT_USERSUPV)) == FAULT_USERSUPV) {
 			addr &= ~(1 * 1024 * 1024 - 1);
@@ -204,10 +209,19 @@ static noinline int icplb_miss(unsigned int cpu)
 		i_data = L2_IMEMORY;
 	} else if (addr >= physical_mem_end) {
 		if (addr >= ASYNC_BANK0_BASE && addr < ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE) {
-			addr &= ~(4 * 1024 * 1024 - 1);
-			i_data &= ~PAGE_SIZE_4KB;
-			i_data |= PAGE_SIZE_4MB;
-			i_data |= CPLB_USER_RD;
+			if (!(status & FAULT_USERSUPV)) {
+				unsigned long *mask = current_rwx_mask[cpu];
+
+				if (mask) {
+					int page = (addr - (ASYNC_BANK0_BASE - _ramend)) >> PAGE_SHIFT;
+					int idx = page >> 5;
+					int bit = 1 << (page & 31);
+
+					mask += 2 * page_mask_nelts;
+					if (mask[idx] & bit)
+						i_data |= CPLB_USER_RD;
+				}
+			}
 		} else if (addr >= BOOT_ROM_START && addr < BOOT_ROM_START + BOOT_ROM_LENGTH
 		    && (status & FAULT_USERSUPV)) {
 			addr &= ~(1 * 1024 * 1024 - 1);
