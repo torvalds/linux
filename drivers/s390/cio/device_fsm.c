@@ -289,9 +289,7 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 			wake_up(&cdev->private->wait_q);
 		} else {
 			ccw_device_update_sense_data(cdev);
-			PREPARE_WORK(&cdev->private->kick_work,
-				     ccw_device_do_unbind_bind);
-			queue_work(ccw_device_work, &cdev->private->kick_work);
+			ccw_device_sched_todo(cdev, CDEV_TODO_REBIND);
 		}
 		return;
 	case DEV_STATE_BOXED:
@@ -343,28 +341,16 @@ int ccw_device_notify(struct ccw_device *cdev, int event)
 	return cdev->drv->notify ? cdev->drv->notify(cdev, event) : 0;
 }
 
-static void cmf_reenable_delayed(struct work_struct *work)
-{
-	struct ccw_device_private *priv;
-	struct ccw_device *cdev;
-
-	priv = container_of(work, struct ccw_device_private, kick_work);
-	cdev = priv->cdev;
-	cmf_reenable(cdev);
-}
-
 static void ccw_device_oper_notify(struct ccw_device *cdev)
 {
 	if (ccw_device_notify(cdev, CIO_OPER)) {
 		/* Reenable channel measurements, if needed. */
-		PREPARE_WORK(&cdev->private->kick_work, cmf_reenable_delayed);
-		queue_work(ccw_device_work, &cdev->private->kick_work);
+		ccw_device_sched_todo(cdev, CDEV_TODO_ENABLE_CMF);
 		return;
 	}
 	/* Driver doesn't want device back. */
 	ccw_device_set_notoper(cdev);
-	PREPARE_WORK(&cdev->private->kick_work, ccw_device_do_unbind_bind);
-	queue_work(ccw_device_work, &cdev->private->kick_work);
+	ccw_device_sched_todo(cdev, CDEV_TODO_REBIND);
 }
 
 /*
@@ -392,14 +378,14 @@ ccw_device_done(struct ccw_device *cdev, int state)
 		CIO_MSG_EVENT(0, "Boxed device %04x on subchannel %04x\n",
 			      cdev->private->dev_id.devno, sch->schid.sch_no);
 		if (cdev->online && !ccw_device_notify(cdev, CIO_BOXED))
-			ccw_device_schedule_sch_unregister(cdev);
+			ccw_device_sched_todo(cdev, CDEV_TODO_UNREG);
 		cdev->private->flags.donotify = 0;
 		break;
 	case DEV_STATE_NOT_OPER:
 		CIO_MSG_EVENT(0, "Device %04x gone on subchannel %04x\n",
 			      cdev->private->dev_id.devno, sch->schid.sch_no);
 		if (!ccw_device_notify(cdev, CIO_GONE))
-			ccw_device_schedule_sch_unregister(cdev);
+			ccw_device_sched_todo(cdev, CDEV_TODO_UNREG);
 		else
 			ccw_device_set_disconnected(cdev);
 		cdev->private->flags.donotify = 0;
@@ -409,7 +395,7 @@ ccw_device_done(struct ccw_device *cdev, int state)
 			      "%04x\n", cdev->private->dev_id.devno,
 			      sch->schid.sch_no);
 		if (!ccw_device_notify(cdev, CIO_NO_PATH))
-			ccw_device_schedule_sch_unregister(cdev);
+			ccw_device_sched_todo(cdev, CDEV_TODO_UNREG);
 		else
 			ccw_device_set_disconnected(cdev);
 		cdev->private->flags.donotify = 0;
@@ -751,7 +737,7 @@ static void ccw_device_generic_notoper(struct ccw_device *cdev,
 				       enum dev_event dev_event)
 {
 	if (!ccw_device_notify(cdev, CIO_GONE))
-		ccw_device_schedule_sch_unregister(cdev);
+		ccw_device_sched_todo(cdev, CDEV_TODO_UNREG);
 	else
 		ccw_device_set_disconnected(cdev);
 }

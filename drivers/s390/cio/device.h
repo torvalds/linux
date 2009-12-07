@@ -81,8 +81,6 @@ void io_subchannel_init_config(struct subchannel *sch);
 
 int ccw_device_cancel_halt_clear(struct ccw_device *);
 
-void ccw_device_do_unbind_bind(struct work_struct *);
-void ccw_device_move_to_orphanage(struct work_struct *);
 int ccw_device_is_orphan(struct ccw_device *);
 
 int ccw_device_recognition(struct ccw_device *);
@@ -92,6 +90,7 @@ void ccw_device_update_sense_data(struct ccw_device *);
 int ccw_device_test_sense_data(struct ccw_device *);
 void ccw_device_schedule_sch_unregister(struct ccw_device *);
 int ccw_purge_blacklisted(void);
+void ccw_device_sched_todo(struct ccw_device *cdev, enum cdev_todo todo);
 
 /* Function prototypes for device status and basic sense stuff. */
 void ccw_device_accumulate_irb(struct ccw_device *, struct irb *);

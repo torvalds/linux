@@ -82,6 +82,15 @@ struct senseid {
 	struct ciw ciw[MAX_CIWS];	/* variable # of CIWs */
 }  __attribute__ ((packed, aligned(4)));
 
+enum cdev_todo {
+	CDEV_TODO_NOTHING,
+	CDEV_TODO_ENABLE_CMF,
+	CDEV_TODO_REBIND,
+	CDEV_TODO_REGISTER,
+	CDEV_TODO_UNREG,
+	CDEV_TODO_UNREG_EVAL,
+};
+
 struct ccw_device_private {
 	struct ccw_device *cdev;
 	struct subchannel *sch;
@@ -115,7 +124,8 @@ struct ccw_device_private {
 	struct senseid senseid;	/* SenseID info */
 	struct pgid pgid[8];	/* path group IDs per chpid*/
 	struct ccw1 iccws[2];	/* ccws for SNID/SID/SPGID commands */
-	struct work_struct kick_work;
+	struct work_struct todo_work;
+	enum cdev_todo todo;
 	wait_queue_head_t wait_q;
 	struct timer_list timer;
 	void *cmb;			/* measurement information */
