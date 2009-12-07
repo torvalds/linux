@@ -2645,6 +2645,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			to a common usb-storage quirk flag as follows:
 				a = SANE_SENSE (collect more than 18 bytes
 					of sense data);
+				b = BAD_SENSE (don't collect more than 18
+					bytes of sense data);
 				c = FIX_CAPACITY (decrease the reported
 					device capacity by one sector);
 				h = CAPACITY_HEURISTICS (decrease the
