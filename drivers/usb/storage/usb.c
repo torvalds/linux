@@ -463,6 +463,9 @@ static void adjust_quirks(struct us_data *us)
 		case 'a':
 			f |= US_FL_SANE_SENSE;
 			break;
+		case 'b':
+			f |= US_FL_BAD_SENSE;
+			break;
 		case 'c':
 			f |= US_FL_FIX_CAPACITY;
 			break;
