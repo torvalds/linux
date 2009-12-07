@@ -1888,13 +1888,18 @@ static int __cmd_record(int argc, const char **argv)
 
 int cmd_sched(int argc, const char **argv, const char *prefix __used)
 {
-	symbol__init(0);
-
 	argc = parse_options(argc, argv, sched_options, sched_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 	if (!argc)
 		usage_with_options(sched_usage, sched_options);
 
+	/*
+	 * Aliased to 'perf trace' for now:
+	 */
+	if (!strcmp(argv[0], "trace"))
+		return cmd_trace(argc, argv, prefix);
+
+	symbol__init(0);
 	if (!strncmp(argv[0], "rec", 3)) {
 		return __cmd_record(argc, argv);
 	} else if (!strncmp(argv[0], "lat", 3)) {
@@ -1918,11 +1923,6 @@ int cmd_sched(int argc, const char **argv, const char *prefix __used)
 				usage_with_options(replay_usage, replay_options);
 		}
 		__cmd_replay();
-	} else if (!strcmp(argv[0], "trace")) {
-		/*
-		 * Aliased to 'perf trace' for now:
-		 */
-		return cmd_trace(argc, argv, prefix);
 	} else {
 		usage_with_options(sched_usage, sched_options);
 	}
