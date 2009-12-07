@@ -289,23 +289,49 @@ static ssize_t read_file_rcstat(struct file *file, char __user *user_buf,
 	if (sc->cur_rate_table == NULL)
 		return 0;
 
-	max = 80 + sc->cur_rate_table->rate_cnt * 64;
+	max = 80 + sc->cur_rate_table->rate_cnt * 1024;
 	buf = kmalloc(max + 1, GFP_KERNEL);
 	if (buf == NULL)
 		return 0;
 	buf[max] = 0;
 
-	len += sprintf(buf, "%5s %15s %8s %9s %3s\n\n", "Rate", "Success",
-		       "Retries", "XRetries", "PER");
+	len += sprintf(buf, "%6s %6s %6s "
+		       "%10s %10s %10s %10s\n",
+		       "HT", "MCS", "Rate",
+		       "Success", "Retries", "XRetries", "PER");
 
 	for (i = 0; i < sc->cur_rate_table->rate_cnt; i++) {
 		u32 ratekbps = sc->cur_rate_table->info[i].ratekbps;
 		struct ath_rc_stats *stats = &sc->debug.stats.rcstats[i];
+		char mcs[5];
+		char htmode[5];
+		int used_mcs = 0, used_htmode = 0;
+
+		if (WLAN_RC_PHY_HT(sc->cur_rate_table->info[i].phy)) {
+			used_mcs = snprintf(mcs, 5, "%d",
+				sc->cur_rate_table->info[i].ratecode);
+
+			if (WLAN_RC_PHY_40(sc->cur_rate_table->info[i].phy))
+				used_htmode = snprintf(htmode, 5, "HT40");
+			else if (WLAN_RC_PHY_20(sc->cur_rate_table->info[i].phy))
+				used_htmode = snprintf(htmode, 5, "HT20");
+			else
+				used_htmode = snprintf(htmode, 5, "????");
+		}
+
+		mcs[used_mcs] = '\0';
+		htmode[used_htmode] = '\0';
 
 		len += snprintf(buf + len, max - len,
-			"%3u.%d: %8u %8u %8u %8u\n", ratekbps / 1000,
-			(ratekbps % 1000) / 100, stats->success,
-			stats->retries, stats->xretries,
+			"%6s %6s %3u.%d: "
+			"%10u %10u %10u %10u\n",
+			htmode,
+			mcs,
+			ratekbps / 1000,
+			(ratekbps % 1000) / 100,
+			stats->success,
+			stats->retries,
+			stats->xretries,
 			stats->per);
 	}
 
