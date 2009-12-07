@@ -102,6 +102,7 @@ static atomic_t ap_poll_requests = ATOMIC_INIT(0);
 static DECLARE_WAIT_QUEUE_HEAD(ap_poll_wait);
 static struct task_struct *ap_poll_kthread = NULL;
 static DEFINE_MUTEX(ap_poll_thread_mutex);
+static DEFINE_SPINLOCK(ap_poll_timer_lock);
 static void *ap_interrupt_indicator;
 static struct hrtimer ap_poll_timer;
 /* In LPAR poll with 4kHz frequency. Poll every 250000 nanoseconds.
@@ -1170,16 +1171,19 @@ ap_config_timeout(unsigned long ptr)
 static inline void ap_schedule_poll_timer(void)
 {
 	ktime_t hr_time;
+
+	spin_lock_bh(&ap_poll_timer_lock);
 	if (ap_using_interrupts() || ap_suspend_flag)
-		return;
+		goto out;
 	if (hrtimer_is_queued(&ap_poll_timer))
-		return;
+		goto out;
 	if (ktime_to_ns(hrtimer_expires_remaining(&ap_poll_timer)) <= 0) {
 		hr_time = ktime_set(0, poll_timeout);
 		hrtimer_forward_now(&ap_poll_timer, hr_time);
 		hrtimer_restart(&ap_poll_timer);
 	}
-	return;
+out:
+	spin_unlock_bh(&ap_poll_timer_lock);
 }
 
 /**
@@ -1668,6 +1672,7 @@ int __init ap_module_init(void)
 	 */
 	if (MACHINE_IS_VM)
 		poll_timeout = 1500000;
+	spin_lock_init(&ap_poll_timer_lock);
 	hrtimer_init(&ap_poll_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	ap_poll_timer.function = ap_poll_timeout;
 
