@@ -314,6 +314,8 @@ static void ccw_device_unregister(struct ccw_device *cdev)
 	}
 }
 
+static void io_subchannel_quiesce(struct subchannel *);
+
 /**
  * ccw_device_set_offline() - disable a ccw device for I/O
  * @cdev: target ccw device
@@ -327,7 +329,8 @@ static void ccw_device_unregister(struct ccw_device *cdev)
  */
 int ccw_device_set_offline(struct ccw_device *cdev)
 {
-	int ret;
+	struct subchannel *sch;
+	int ret, state;
 
 	if (!cdev)
 		return -ENODEV;
@@ -341,6 +344,7 @@ int ccw_device_set_offline(struct ccw_device *cdev)
 	}
 	cdev->online = 0;
 	spin_lock_irq(cdev->ccwlock);
+	sch = to_subchannel(cdev->dev.parent);
 	/* Wait until a final state or DISCONNECTED is reached */
 	while (!dev_fsm_final_state(cdev) &&
 	       cdev->private->state != DEV_STATE_DISCONNECTED) {
@@ -349,9 +353,21 @@ int ccw_device_set_offline(struct ccw_device *cdev)
 			   cdev->private->state == DEV_STATE_DISCONNECTED));
 		spin_lock_irq(cdev->ccwlock);
 	}
-	ret = ccw_device_offline(cdev);
-	if (ret)
-		goto error;
+	do {
+		ret = ccw_device_offline(cdev);
+		if (!ret)
+			break;
+		CIO_MSG_EVENT(0, "ccw_device_offline returned %d, device "
+			      "0.%x.%04x\n", ret, cdev->private->dev_id.ssid,
+			      cdev->private->dev_id.devno);
+		if (ret != -EBUSY)
+			goto error;
+		state = cdev->private->state;
+		spin_unlock_irq(cdev->ccwlock);
+		io_subchannel_quiesce(sch);
+		spin_lock_irq(cdev->ccwlock);
+		cdev->private->state = state;
+	} while (ret == -EBUSY);
 	spin_unlock_irq(cdev->ccwlock);
 	wait_event(cdev->private->wait_q, (dev_fsm_final_state(cdev) ||
 		   cdev->private->state == DEV_STATE_DISCONNECTED));
@@ -368,9 +384,6 @@ int ccw_device_set_offline(struct ccw_device *cdev)
 	return 0;
 
 error:
-	CIO_MSG_EVENT(0, "ccw_device_offline returned %d, device 0.%x.%04x\n",
-		      ret, cdev->private->dev_id.ssid,
-		      cdev->private->dev_id.devno);
 	cdev->private->state = DEV_STATE_OFFLINE;
 	dev_fsm_event(cdev, DEV_EVENT_NOTOPER);
 	spin_unlock_irq(cdev->ccwlock);
@@ -1058,8 +1071,6 @@ out_schedule:
 	spin_unlock_irq(sch->lock);
 	return 0;
 }
-
-static void io_subchannel_quiesce(struct subchannel *);
 
 static int
 io_subchannel_remove (struct subchannel *sch)
