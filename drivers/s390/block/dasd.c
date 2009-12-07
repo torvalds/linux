@@ -2208,13 +2208,6 @@ int dasd_generic_probe(struct ccw_device *cdev,
 {
 	int ret;
 
-	ret = ccw_device_set_options(cdev, CCWDEV_DO_PATHGROUP);
-	if (ret) {
-		DBF_EVENT(DBF_WARNING,
-		       "dasd_generic_probe: could not set ccw-device options "
-		       "for %s\n", dev_name(&cdev->dev));
-		return ret;
-	}
 	ret = dasd_add_sysfs_files(cdev);
 	if (ret) {
 		DBF_EVENT(DBF_WARNING,

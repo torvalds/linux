@@ -601,7 +601,7 @@ ccw_device_offline(struct ccw_device *cdev)
 	if (cdev->private->state != DEV_STATE_ONLINE)
 		return -EINVAL;
 	/* Are we doing path grouping? */
-	if (!cdev->private->options.pgroup) {
+	if (!cdev->private->flags.pgroup) {
 		/* No, set state offline immediately. */
 		ccw_device_done(cdev, DEV_STATE_OFFLINE);
 		return 0;

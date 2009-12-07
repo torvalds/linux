@@ -156,9 +156,9 @@ struct ccw_device_private {
 		unsigned int repall:1;	/* report every interrupt status */
 		unsigned int pgroup:1;	/* do path grouping */
 		unsigned int force:1;	/* allow forced online */
+		unsigned int mpath:1;	/* do multipathing */
 	} __attribute__ ((packed)) options;
 	struct {
-		unsigned int pgid_single:1; /* use single path for Set PGID */
 		unsigned int esid:1;	    /* Ext. SenseID supported by HW */
 		unsigned int dosense:1;	    /* delayed SENSE required */
 		unsigned int doverify:1;    /* delayed path verification */
@@ -167,6 +167,8 @@ struct ccw_device_private {
 		unsigned int fake_irb:1;    /* deliver faked irb */
 		unsigned int resuming:1;    /* recognition while resume */
 		unsigned int pgid_rdy:1;    /* pgids are ready */
+		unsigned int pgroup:1;	    /* pathgroup is set up */
+		unsigned int mpath:1;	    /* multipathing is set up */
 	} __attribute__((packed)) flags;
 	unsigned long intparm;	/* user interruption parameter */
 	struct qdio_irq *qdio_data;

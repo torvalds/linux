@@ -30,8 +30,8 @@ static void verify_done(struct ccw_device *cdev, int rc)
 {
 	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 	struct ccw_dev_id *id = &cdev->private->dev_id;
-	int mpath = !cdev->private->flags.pgid_single;
-	int pgroup = cdev->private->options.pgroup;
+	int mpath = cdev->private->flags.mpath;
+	int pgroup = cdev->private->flags.pgroup;
 
 	if (rc)
 		goto out;
@@ -150,7 +150,7 @@ static void spid_do(struct ccw_device *cdev)
 		fn = SPID_FUNC_ESTABLISH;
 	else
 		fn = SPID_FUNC_RESIGN;
-	if (!cdev->private->flags.pgid_single)
+	if (cdev->private->flags.mpath)
 		fn |= SPID_FUNC_MULTI_PATH;
 	spid_build_cp(cdev, fn);
 	ccw_request_start(cdev);
@@ -177,13 +177,13 @@ static void spid_callback(struct ccw_device *cdev, void *data, int rc)
 	case -EACCES:
 		break;
 	case -EOPNOTSUPP:
-		if (!cdev->private->flags.pgid_single) {
+		if (cdev->private->flags.mpath) {
 			/* Try without multipathing. */
-			cdev->private->flags.pgid_single = 1;
+			cdev->private->flags.mpath = 0;
 			goto out_restart;
 		}
 		/* Try without pathgrouping. */
-		cdev->private->options.pgroup = 0;
+		cdev->private->flags.pgroup = 0;
 		goto out_restart;
 	default:
 		goto err;
@@ -374,7 +374,7 @@ static void verify_start(struct ccw_device *cdev)
 	req->timeout	= PGID_TIMEOUT;
 	req->maxretries	= PGID_RETRIES;
 	req->lpm	= 0x80;
-	if (cdev->private->options.pgroup) {
+	if (cdev->private->flags.pgroup) {
 		req->callback	= spid_callback;
 		spid_do(cdev);
 	} else {
@@ -400,10 +400,17 @@ void ccw_device_verify_start(struct ccw_device *cdev)
 	CIO_HEX_EVENT(4, &cdev->private->dev_id, sizeof(cdev->private->dev_id));
 	if (!cdev->private->flags.pgid_rdy) {
 		/* No pathgrouping possible. */
-		cdev->private->options.pgroup = 0;
-		cdev->private->flags.pgid_single = 1;
-	} else
-		cdev->private->flags.pgid_single = 0;
+		cdev->private->flags.pgroup = 0;
+		cdev->private->flags.mpath = 0;
+	} else {
+		/*
+		 * Initialize pathgroup and multipath state with target values.
+		 * They may change in the course of path verification.
+		 */
+		cdev->private->flags.pgroup = cdev->private->options.pgroup;
+		cdev->private->flags.mpath = cdev->private->options.mpath;
+
+	}
 	cdev->private->flags.doverify = 0;
 	verify_start(cdev);
 }
@@ -419,7 +426,7 @@ static void disband_callback(struct ccw_device *cdev, void *data, int rc)
 	if (rc)
 		goto out;
 	/* Ensure consistent multipathing state at device and channel. */
-	cdev->private->flags.pgid_single = 1;
+	cdev->private->flags.mpath = 0;
 	if (sch->config.mp) {
 		sch->config.mp = 0;
 		rc = cio_commit_config(sch);
@@ -453,7 +460,7 @@ void ccw_device_disband_start(struct ccw_device *cdev)
 	req->lpm	= sch->schib.pmcw.pam & sch->opm;
 	req->callback	= disband_callback;
 	fn = SPID_FUNC_DISBAND;
-	if (!cdev->private->flags.pgid_single)
+	if (cdev->private->flags.mpath)
 		fn |= SPID_FUNC_MULTI_PATH;
 	spid_build_cp(cdev, fn);
 	ccw_request_start(cdev);

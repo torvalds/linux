@@ -46,6 +46,7 @@ int ccw_device_set_options_mask(struct ccw_device *cdev, unsigned long flags)
 	cdev->private->options.repall = (flags & CCWDEV_REPORT_ALL) != 0;
 	cdev->private->options.pgroup = (flags & CCWDEV_DO_PATHGROUP) != 0;
 	cdev->private->options.force = (flags & CCWDEV_ALLOW_FORCE) != 0;
+	cdev->private->options.mpath = (flags & CCWDEV_DO_MULTIPATH) != 0;
 	return 0;
 }
 
@@ -74,6 +75,7 @@ int ccw_device_set_options(struct ccw_device *cdev, unsigned long flags)
 	cdev->private->options.repall |= (flags & CCWDEV_REPORT_ALL) != 0;
 	cdev->private->options.pgroup |= (flags & CCWDEV_DO_PATHGROUP) != 0;
 	cdev->private->options.force |= (flags & CCWDEV_ALLOW_FORCE) != 0;
+	cdev->private->options.mpath |= (flags & CCWDEV_DO_MULTIPATH) != 0;
 	return 0;
 }
 
@@ -90,7 +92,32 @@ void ccw_device_clear_options(struct ccw_device *cdev, unsigned long flags)
 	cdev->private->options.repall &= (flags & CCWDEV_REPORT_ALL) == 0;
 	cdev->private->options.pgroup &= (flags & CCWDEV_DO_PATHGROUP) == 0;
 	cdev->private->options.force &= (flags & CCWDEV_ALLOW_FORCE) == 0;
+	cdev->private->options.mpath &= (flags & CCWDEV_DO_MULTIPATH) == 0;
 }
+
+/**
+ * ccw_device_is_pathgroup - determine if paths to this device are grouped
+ * @cdev: ccw device
+ *
+ * Return non-zero if there is a path group, zero otherwise.
+ */
+int ccw_device_is_pathgroup(struct ccw_device *cdev)
+{
+	return cdev->private->flags.pgroup;
+}
+EXPORT_SYMBOL(ccw_device_is_pathgroup);
+
+/**
+ * ccw_device_is_multipath - determine if device is operating in multipath mode
+ * @cdev: ccw device
+ *
+ * Return non-zero if device is operating in multipath mode, zero otherwise.
+ */
+int ccw_device_is_multipath(struct ccw_device *cdev)
+{
+	return cdev->private->flags.mpath;
+}
+EXPORT_SYMBOL(ccw_device_is_multipath);
 
 /**
  * ccw_device_clear() - terminate I/O request processing

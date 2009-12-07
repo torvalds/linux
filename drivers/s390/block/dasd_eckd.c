@@ -86,7 +86,8 @@ dasd_eckd_probe (struct ccw_device *cdev)
 	int ret;
 
 	/* set ECKD specific ccw-device options */
-	ret = ccw_device_set_options(cdev, CCWDEV_ALLOW_FORCE);
+	ret = ccw_device_set_options(cdev, CCWDEV_ALLOW_FORCE |
+				     CCWDEV_DO_PATHGROUP | CCWDEV_DO_MULTIPATH);
 	if (ret) {
 		DBF_EVENT(DBF_WARNING,
 		       "dasd_eckd_probe: could not set ccw-device options "
@@ -1090,6 +1091,15 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	struct dasd_block *block;
 	int is_known, rc;
 
+	if (!ccw_device_is_pathgroup(device->cdev)) {
+		dev_warn(&device->cdev->dev,
+			 "A channel path group could not be established\n");
+		return -EIO;
+	}
+	if (!ccw_device_is_multipath(device->cdev)) {
+		dev_info(&device->cdev->dev,
+			 "The DASD is not operating in multipath mode\n");
+	}
 	private = (struct dasd_eckd_private *) device->private;
 	if (!private) {
 		private = kzalloc(sizeof(*private), GFP_KERNEL | GFP_DMA);

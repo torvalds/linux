@@ -579,7 +579,8 @@ tape_generic_probe(struct ccw_device *cdev)
 	device = tape_alloc_device();
 	if (IS_ERR(device))
 		return -ENODEV;
-	ccw_device_set_options(cdev, CCWDEV_DO_PATHGROUP);
+	ccw_device_set_options(cdev, CCWDEV_DO_PATHGROUP |
+				     CCWDEV_DO_MULTIPATH);
 	ret = sysfs_create_group(&cdev->dev.kobj, &tape_attr_group);
 	if (ret) {
 		tape_put_device(device);
