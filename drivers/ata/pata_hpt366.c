@@ -11,9 +11,7 @@
  *
  *
  * TODO
- *	Maybe PLL mode
- *	Look into engine reset on timeout errors. Should not be
- *		required.
+ *	Look into engine reset on timeout errors. Should not be required.
  */
 
 
