@@ -304,7 +304,11 @@ int ccw_device_is_orphan(struct ccw_device *cdev)
 static void ccw_device_unregister(struct ccw_device *cdev)
 {
 	if (device_is_registered(&cdev->dev)) {
+		/* Undo device_add(). */
 		device_del(&cdev->dev);
+	}
+	if (cdev->private->flags.initialized) {
+		cdev->private->flags.initialized = 0;
 		/* Release reference from device_initialize(). */
 		put_device(&cdev->dev);
 	}
@@ -716,6 +720,7 @@ static int io_subchannel_initialize_dev(struct subchannel *sch,
 		put_device(&cdev->dev);
 		return -ENODEV;
 	}
+	cdev->private->flags.initialized = 1;
 	return 0;
 }
 
@@ -998,6 +1003,7 @@ static int io_subchannel_probe(struct subchannel *sch)
 		cdev = sch_get_cdev(sch);
 		cdev->dev.groups = ccwdev_attr_groups;
 		device_initialize(&cdev->dev);
+		cdev->private->flags.initialized = 1;
 		ccw_device_register(cdev);
 		/*
 		 * Check if the device is already online. If it is
