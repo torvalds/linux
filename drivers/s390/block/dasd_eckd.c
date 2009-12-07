@@ -1059,7 +1059,7 @@ dasd_eckd_psf_ssc(struct dasd_device *device, int enable_pav)
 /*
  * Valide storage server of current device.
  */
-static int dasd_eckd_validate_server(struct dasd_device *device)
+static void dasd_eckd_validate_server(struct dasd_device *device)
 {
 	int rc;
 	struct dasd_eckd_private *private;
@@ -1076,8 +1076,6 @@ static int dasd_eckd_validate_server(struct dasd_device *device)
 	private = (struct dasd_eckd_private *) device->private;
 	DBF_EVENT_DEVID(DBF_WARNING, device->cdev, "PSF-SSC for SSID %04x "
 			"returned rc=%d", private->uid.ssid, rc);
-	/* RE-Read Configuration Data */
-	return dasd_eckd_read_conf(device);
 }
 
 /*
@@ -1149,12 +1147,21 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 		rc = is_known;
 		goto out_err2;
 	}
+	/*
+	 * dasd_eckd_vaildate_server is done on the first device that
+	 * is found for an LCU. All later other devices have to wait
+	 * for it, so they will read the correct feature codes.
+	 */
 	if (!is_known) {
-		/* new lcu found */
-		rc = dasd_eckd_validate_server(device); /* will switch pav on */
-		if (rc)
-			goto out_err3;
-	}
+		dasd_eckd_validate_server(device);
+		dasd_alias_lcu_setup_complete(device);
+	} else
+		dasd_alias_wait_for_lcu_setup(device);
+
+	/* device may report different configuration data after LCU setup */
+	rc = dasd_eckd_read_conf(device);
+	if (rc)
+		goto out_err3;
 
 	/* Read Feature Codes */
 	dasd_eckd_read_features(device);
@@ -3282,11 +3289,15 @@ int dasd_eckd_restore_device(struct dasd_device *device)
 	if (is_known < 0)
 		return is_known;
 	if (!is_known) {
-		/* new lcu found */
-		rc = dasd_eckd_validate_server(device); /* will switch pav on */
-		if (rc)
-			goto out_err;
-	}
+		dasd_eckd_validate_server(device);
+		dasd_alias_lcu_setup_complete(device);
+	} else
+		dasd_alias_wait_for_lcu_setup(device);
+
+	/* RE-Read Configuration Data */
+	rc = dasd_eckd_read_conf(device);
+	if (rc)
+		goto out_err;
 
 	/* Read Feature Codes */
 	dasd_eckd_read_features(device);

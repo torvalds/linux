@@ -152,6 +152,7 @@ static struct alias_lcu *_allocate_lcu(struct dasd_uid *uid)
 	INIT_WORK(&lcu->suc_data.worker, summary_unit_check_handling_work);
 	INIT_DELAYED_WORK(&lcu->ruac_data.dwork, lcu_update_work);
 	spin_lock_init(&lcu->lock);
+	init_completion(&lcu->lcu_setup);
 	return lcu;
 
 out_err4:
@@ -237,6 +238,67 @@ int dasd_alias_make_device_known_to_lcu(struct dasd_device *device)
 	spin_unlock_irqrestore(&aliastree.lock, flags);
 
 	return is_lcu_known;
+}
+
+/*
+ * The first device to be registered on an LCU will have to do
+ * some additional setup steps to configure that LCU on the
+ * storage server. All further devices should wait with their
+ * initialization until the first device is done.
+ * To synchronize this work, the first device will call
+ * dasd_alias_lcu_setup_complete when it is done, and all
+ * other devices will wait for it with dasd_alias_wait_for_lcu_setup.
+ */
+void dasd_alias_lcu_setup_complete(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private;
+	unsigned long flags;
+	struct alias_server *server;
+	struct alias_lcu *lcu;
+	struct dasd_uid *uid;
+
+	private = (struct dasd_eckd_private *) device->private;
+	uid = &private->uid;
+	lcu = NULL;
+	spin_lock_irqsave(&aliastree.lock, flags);
+	server = _find_server(uid);
+	if (server)
+		lcu = _find_lcu(server, uid);
+	spin_unlock_irqrestore(&aliastree.lock, flags);
+	if (!lcu) {
+		DBF_EVENT_DEVID(DBF_ERR, device->cdev,
+				"could not find lcu for %04x %02x",
+				uid->ssid, uid->real_unit_addr);
+		WARN_ON(1);
+		return;
+	}
+	complete_all(&lcu->lcu_setup);
+}
+
+void dasd_alias_wait_for_lcu_setup(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private;
+	unsigned long flags;
+	struct alias_server *server;
+	struct alias_lcu *lcu;
+	struct dasd_uid *uid;
+
+	private = (struct dasd_eckd_private *) device->private;
+	uid = &private->uid;
+	lcu = NULL;
+	spin_lock_irqsave(&aliastree.lock, flags);
+	server = _find_server(uid);
+	if (server)
+		lcu = _find_lcu(server, uid);
+	spin_unlock_irqrestore(&aliastree.lock, flags);
+	if (!lcu) {
+		DBF_EVENT_DEVID(DBF_ERR, device->cdev,
+				"could not find lcu for %04x %02x",
+				uid->ssid, uid->real_unit_addr);
+		WARN_ON(1);
+		return;
+	}
+	wait_for_completion(&lcu->lcu_setup);
 }
 
 /*
