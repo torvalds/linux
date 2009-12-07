@@ -45,6 +45,20 @@
 void rs600_gpu_init(struct radeon_device *rdev);
 int rs600_mc_wait_for_idle(struct radeon_device *rdev);
 
+int rs600_mc_init(struct radeon_device *rdev)
+{
+	/* read back the MC value from the hw */
+	uint32_t mc_fb_loc;
+	int r;
+
+	mc_fb_loc = RREG32_MC(R_000004_MC_FB_LOCATION);
+	rdev->mc.vram_location = G_000004_MC_FB_START(mc_fb_loc) << 16;
+	rdev->mc.gtt_location = 0xffffffffUL;
+	r = radeon_mc_setup(rdev);
+	if (r)
+		return r;
+	return 0;
+}
 /*
  * GART.
  */
@@ -505,7 +519,7 @@ int rs600_init(struct radeon_device *rdev)
 	/* Get vram informations */
 	rs600_vram_info(rdev);
 	/* Initialize memory controller (also test AGP) */
-	r = r420_mc_init(rdev);
+	r = rs600_mc_init(rdev);
 	if (r)
 		return r;
 	rs600_debugfs(rdev);
