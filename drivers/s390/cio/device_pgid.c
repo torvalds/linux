@@ -423,7 +423,7 @@ __ccw_device_verify_start(struct ccw_device *cdev)
 		/* Permanent path failure, try next. */
 	}
 	/* Done with all paths. */
-	ccw_device_verify_done(cdev, (sch->vpm != 0) ? 0 : -ENODEV);
+	ccw_device_verify_done(cdev, (sch->vpm != 0) ? 0 : -EACCES);
 }
 		
 /*
