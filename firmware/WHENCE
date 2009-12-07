@@ -600,6 +600,7 @@ File: cis/LA-PCM.cis
       cis/DP83903.cis
       cis/NE2K.cis
       cis/tamarack.cis
+      cis/PE-200.cis
 
 Licence: GPL
 
@@ -633,6 +634,9 @@ File: cis/MT5634ZLX.cis
       cis/RS-COM-2P.cis
       cis/COMpad2.cis
       cis/COMpad4.cis
+      cis/SW_555_SER.cis
+      cis/SW_7xx_SER.cis
+      cis/SW_8xx_SER.cis
 
 Licence: GPL
 

@@ -531,6 +531,8 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 			continue;
 
 		if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
+			if (off == (NETXEN_CRB_I2C0 + 0x1c))
+				continue;
 			/* do not reset PCI */
 			if (off == (ROMUSB_GLB + 0xbc))
 				continue;
@@ -542,6 +544,8 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 				continue;
 			if (off == (ROMUSB_GLB + 0x1c)) /* MS clock */
 				continue;
+			if ((off & 0x0ff00000) == NETXEN_CRB_DDR_NET)
+				continue;
 			if (off == (NETXEN_CRB_PEG_NET_1 + 0x18))
 				buf[i].data = 0x1020;
 			/* skip the function enable register */
@@ -551,12 +555,6 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 				continue;
 			if ((off & 0x0ff00000) == NETXEN_CRB_SMB)
 				continue;
-		}
-
-		if (off == NETXEN_ADDR_ERROR) {
-			printk(KERN_ERR "%s: Err: Unknown addr: 0x%08x\n",
-					netxen_nic_driver_name, buf[i].addr);
-			continue;
 		}
 
 		init_delay = 1;

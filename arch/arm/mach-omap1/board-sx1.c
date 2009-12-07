@@ -377,6 +377,14 @@ static struct omap_board_config_kernel sx1_config[] __initdata = {
 
 static void __init omap_sx1_init(void)
 {
+	/* mux pins for uarts */
+	omap_cfg_reg(UART1_TX);
+	omap_cfg_reg(UART1_RTS);
+	omap_cfg_reg(UART2_TX);
+	omap_cfg_reg(UART2_RTS);
+	omap_cfg_reg(UART3_TX);
+	omap_cfg_reg(UART3_RX);
+
 	platform_add_devices(sx1_devices, ARRAY_SIZE(sx1_devices));
 
 	omap_board_config = sx1_config;

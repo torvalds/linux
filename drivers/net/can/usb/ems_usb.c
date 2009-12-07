@@ -319,7 +319,7 @@ static void ems_usb_rx_can_msg(struct ems_usb *dev, struct ems_cpc_msg *msg)
 
 	cf = (struct can_frame *)skb_put(skb, sizeof(struct can_frame));
 
-	cf->can_id = msg->msg.can_msg.id;
+	cf->can_id = le32_to_cpu(msg->msg.can_msg.id);
 	cf->can_dlc = min_t(u8, msg->msg.can_msg.length, 8);
 
 	if (msg->type == CPC_MSG_TYPE_EXT_CAN_FRAME
@@ -812,6 +812,9 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 
 		msg->length = CPC_CAN_MSG_MIN_SIZE + cf->can_dlc;
 	}
+
+	/* Respect byte order */
+	msg->msg.can_msg.id = cpu_to_le32(msg->msg.can_msg.id);
 
 	for (i = 0; i < MAX_TX_URBS; i++) {
 		if (dev->tx_contexts[i].echo_index == MAX_TX_URBS) {

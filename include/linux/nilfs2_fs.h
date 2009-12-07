@@ -425,15 +425,6 @@ struct nilfs_dat_entry {
 };
 
 /**
- * struct nilfs_dat_group_desc - block group descriptor
- * @dg_nfrees: number of free virtual block numbers in block group
- */
-struct nilfs_dat_group_desc {
-	__le32 dg_nfrees;
-};
-
-
-/**
  * struct nilfs_snapshot_list - snapshot list
  * @ssl_next: next checkpoint number on snapshot list
  * @ssl_prev: previous checkpoint number on snapshot list

@@ -5,6 +5,50 @@
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/header.h"
+#include "util/exec_cmd.h"
+#include "util/trace-event.h"
+
+static char const		*script_name;
+static char const		*generate_script_lang;
+
+static int default_start_script(const char *script __attribute((unused)))
+{
+	return 0;
+}
+
+static int default_stop_script(void)
+{
+	return 0;
+}
+
+static int default_generate_script(const char *outfile __attribute ((unused)))
+{
+	return 0;
+}
+
+static struct scripting_ops default_scripting_ops = {
+	.start_script		= default_start_script,
+	.stop_script		= default_stop_script,
+	.process_event		= print_event,
+	.generate_script	= default_generate_script,
+};
+
+static struct scripting_ops	*scripting_ops;
+
+static void setup_scripting(void)
+{
+	/* make sure PERF_EXEC_PATH is set for scripts */
+	perf_set_argv_exec_path(perf_exec_path());
+
+	setup_perl_scripting();
+
+	scripting_ops = &default_scripting_ops;
+}
+
+static int cleanup_scripting(void)
+{
+	return scripting_ops->stop_script();
+}
 
 #include "util/parse-options.h"
 
@@ -12,59 +56,22 @@
 #include "util/debug.h"
 
 #include "util/trace-event.h"
+#include "util/data_map.h"
+#include "util/exec_cmd.h"
 
-static char		const *input_name = "perf.data";
-static int		input;
-static unsigned long	page_size;
-static unsigned long	mmap_window = 32;
+static char const		*input_name = "perf.data";
 
-static unsigned long	total = 0;
-static unsigned long	total_comm = 0;
+static struct perf_header	*header;
+static u64			sample_type;
 
-static struct rb_root	threads;
-static struct thread	*last_match;
-
-static struct perf_header *header;
-static u64		sample_type;
-
-
-static int
-process_comm_event(event_t *event, unsigned long offset, unsigned long head)
+static int process_sample_event(event_t *event)
 {
-	struct thread *thread;
-
-	thread = threads__findnew(event->comm.pid, &threads, &last_match);
-
-	dump_printf("%p [%p]: PERF_RECORD_COMM: %s:%d\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
-		event->comm.comm, event->comm.pid);
-
-	if (thread == NULL ||
-	    thread__set_comm(thread, event->comm.comm)) {
-		dump_printf("problem processing PERF_RECORD_COMM, skipping event.\n");
-		return -1;
-	}
-	total_comm++;
-
-	return 0;
-}
-
-static int
-process_sample_event(event_t *event, unsigned long offset, unsigned long head)
-{
-	char level;
-	int show = 0;
-	struct dso *dso = NULL;
-	struct thread *thread;
 	u64 ip = event->ip.ip;
 	u64 timestamp = -1;
 	u32 cpu = -1;
 	u64 period = 1;
 	void *more_data = event->ip.__more_data;
-	int cpumode;
-
-	thread = threads__findnew(event->ip.pid, &threads, &last_match);
+	struct thread *thread = threads__findnew(event->ip.pid);
 
 	if (sample_type & PERF_SAMPLE_TIME) {
 		timestamp = *(u64 *)more_data;
@@ -82,45 +89,19 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		more_data += sizeof(u64);
 	}
 
-	dump_printf("%p [%p]: PERF_RECORD_SAMPLE (IP, %d): %d/%d: %p period: %Ld\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
+	dump_printf("(IP, %d): %d/%d: %p period: %Ld\n",
 		event->header.misc,
 		event->ip.pid, event->ip.tid,
 		(void *)(long)ip,
 		(long long)period);
 
-	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
-
 	if (thread == NULL) {
-		eprintf("problem processing %d event, skipping it.\n",
-			event->header.type);
+		pr_debug("problem processing %d event, skipping it.\n",
+			 event->header.type);
 		return -1;
 	}
 
-	cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
-
-	if (cpumode == PERF_RECORD_MISC_KERNEL) {
-		show = SHOW_KERNEL;
-		level = 'k';
-
-		dso = kernel_dso;
-
-		dump_printf(" ...... dso: %s\n", dso->name);
-
-	} else if (cpumode == PERF_RECORD_MISC_USER) {
-
-		show = SHOW_USER;
-		level = '.';
-
-	} else {
-		show = SHOW_HV;
-		level = 'H';
-
-		dso = hypervisor_dso;
-
-		dump_printf(" ...... dso: [hypervisor]\n");
-	}
+	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
 	if (sample_type & PERF_SAMPLE_RAW) {
 		struct {
@@ -133,128 +114,189 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		 * field, although it should be the same than this perf
 		 * event pid
 		 */
-		print_event(cpu, raw->data, raw->size, timestamp, thread->comm);
+		scripting_ops->process_event(cpu, raw->data, raw->size,
+					     timestamp, thread->comm);
 	}
-	total += period;
+	event__stats.total += period;
 
 	return 0;
 }
 
-static int
-process_event(event_t *event, unsigned long offset, unsigned long head)
+static int sample_type_check(u64 type)
 {
-	trace_event(event);
+	sample_type = type;
 
-	switch (event->header.type) {
-	case PERF_RECORD_MMAP ... PERF_RECORD_LOST:
-		return 0;
-
-	case PERF_RECORD_COMM:
-		return process_comm_event(event, offset, head);
-
-	case PERF_RECORD_EXIT ... PERF_RECORD_READ:
-		return 0;
-
-	case PERF_RECORD_SAMPLE:
-		return process_sample_event(event, offset, head);
-
-	case PERF_RECORD_MAX:
-	default:
+	if (!(sample_type & PERF_SAMPLE_RAW)) {
+		fprintf(stderr,
+			"No trace sample to read. Did you call perf record "
+			"without -R?");
 		return -1;
 	}
 
 	return 0;
 }
 
+static struct perf_file_handler file_handler = {
+	.process_sample_event	= process_sample_event,
+	.process_comm_event	= event__process_comm,
+	.sample_type_check	= sample_type_check,
+};
+
 static int __cmd_trace(void)
 {
-	int ret, rc = EXIT_FAILURE;
-	unsigned long offset = 0;
-	unsigned long head = 0;
-	struct stat perf_stat;
-	event_t *event;
-	uint32_t size;
-	char *buf;
+	register_idle_thread();
+	register_perf_file_handler(&file_handler);
 
-	trace_report();
-	register_idle_thread(&threads, &last_match);
+	return mmap_dispatch_perf_file(&header, input_name,
+				       0, 0, &event__cwdlen, &event__cwd);
+}
 
-	input = open(input_name, O_RDONLY);
-	if (input < 0) {
-		perror("failed to open file");
-		exit(-1);
+struct script_spec {
+	struct list_head	node;
+	struct scripting_ops	*ops;
+	char			spec[0];
+};
+
+LIST_HEAD(script_specs);
+
+static struct script_spec *script_spec__new(const char *spec,
+					    struct scripting_ops *ops)
+{
+	struct script_spec *s = malloc(sizeof(*s) + strlen(spec) + 1);
+
+	if (s != NULL) {
+		strcpy(s->spec, spec);
+		s->ops = ops;
 	}
 
-	ret = fstat(input, &perf_stat);
-	if (ret < 0) {
-		perror("failed to stat file");
-		exit(-1);
+	return s;
+}
+
+static void script_spec__delete(struct script_spec *s)
+{
+	free(s->spec);
+	free(s);
+}
+
+static void script_spec__add(struct script_spec *s)
+{
+	list_add_tail(&s->node, &script_specs);
+}
+
+static struct script_spec *script_spec__find(const char *spec)
+{
+	struct script_spec *s;
+
+	list_for_each_entry(s, &script_specs, node)
+		if (strcasecmp(s->spec, spec) == 0)
+			return s;
+	return NULL;
+}
+
+static struct script_spec *script_spec__findnew(const char *spec,
+						struct scripting_ops *ops)
+{
+	struct script_spec *s = script_spec__find(spec);
+
+	if (s)
+		return s;
+
+	s = script_spec__new(spec, ops);
+	if (!s)
+		goto out_delete_spec;
+
+	script_spec__add(s);
+
+	return s;
+
+out_delete_spec:
+	script_spec__delete(s);
+
+	return NULL;
+}
+
+int script_spec_register(const char *spec, struct scripting_ops *ops)
+{
+	struct script_spec *s;
+
+	s = script_spec__find(spec);
+	if (s)
+		return -1;
+
+	s = script_spec__findnew(spec, ops);
+	if (!s)
+		return -1;
+
+	return 0;
+}
+
+static struct scripting_ops *script_spec__lookup(const char *spec)
+{
+	struct script_spec *s = script_spec__find(spec);
+	if (!s)
+		return NULL;
+
+	return s->ops;
+}
+
+static void list_available_languages(void)
+{
+	struct script_spec *s;
+
+	fprintf(stderr, "\n");
+	fprintf(stderr, "Scripting language extensions (used in "
+		"perf trace -s [spec:]script.[spec]):\n\n");
+
+	list_for_each_entry(s, &script_specs, node)
+		fprintf(stderr, "  %-42s [%s]\n", s->spec, s->ops->name);
+
+	fprintf(stderr, "\n");
+}
+
+static int parse_scriptname(const struct option *opt __used,
+			    const char *str, int unset __used)
+{
+	char spec[PATH_MAX];
+	const char *script, *ext;
+	int len;
+
+	if (strcmp(str, "list") == 0) {
+		list_available_languages();
+		return 0;
 	}
 
-	if (!perf_stat.st_size) {
-		fprintf(stderr, "zero-sized file, nothing to do!\n");
-		exit(0);
-	}
-	header = perf_header__read(input);
-	head = header->data_offset;
-	sample_type = perf_header__sample_type(header);
-
-	if (!(sample_type & PERF_SAMPLE_RAW))
-		die("No trace sample to read. Did you call perf record "
-		    "without -R?");
-
-	if (load_kernel() < 0) {
-		perror("failed to load kernel symbols");
-		return EXIT_FAILURE;
-	}
-
-remap:
-	buf = (char *)mmap(NULL, page_size * mmap_window, PROT_READ,
-			   MAP_SHARED, input, offset);
-	if (buf == MAP_FAILED) {
-		perror("failed to mmap file");
-		exit(-1);
-	}
-
-more:
-	event = (event_t *)(buf + head);
-
-	if (head + event->header.size >= page_size * mmap_window) {
-		unsigned long shift = page_size * (head / page_size);
-		int res;
-
-		res = munmap(buf, page_size * mmap_window);
-		assert(res == 0);
-
-		offset += shift;
-		head -= shift;
-		goto remap;
+	script = strchr(str, ':');
+	if (script) {
+		len = script - str;
+		if (len >= PATH_MAX) {
+			fprintf(stderr, "invalid language specifier");
+			return -1;
+		}
+		strncpy(spec, str, len);
+		spec[len] = '\0';
+		scripting_ops = script_spec__lookup(spec);
+		if (!scripting_ops) {
+			fprintf(stderr, "invalid language specifier");
+			return -1;
+		}
+		script++;
+	} else {
+		script = str;
+		ext = strchr(script, '.');
+		if (!ext) {
+			fprintf(stderr, "invalid script extension");
+			return -1;
+		}
+		scripting_ops = script_spec__lookup(++ext);
+		if (!scripting_ops) {
+			fprintf(stderr, "invalid script extension");
+			return -1;
+		}
 	}
 
-	size = event->header.size;
+	script_name = strdup(script);
 
-	if (!size || process_event(event, offset, head) < 0) {
-
-		/*
-		 * assume we lost track of the stream, check alignment, and
-		 * increment a single u64 in the hope to catch on again 'soon'.
-		 */
-
-		if (unlikely(head & 7))
-			head &= ~7ULL;
-
-		size = 8;
-	}
-
-	head += size;
-
-	if (offset + head < (unsigned long)perf_stat.st_size)
-		goto more;
-
-	rc = EXIT_SUCCESS;
-	close(input);
-
-	return rc;
+	return 0;
 }
 
 static const char * const annotate_usage[] = {
@@ -267,13 +309,24 @@ static const struct option options[] = {
 		    "dump raw trace in ASCII"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
+	OPT_BOOLEAN('l', "latency", &latency_format,
+		    "show latency attributes (irqs/preemption disabled, etc)"),
+	OPT_CALLBACK('s', "script", NULL, "name",
+		     "script file name (lang:script name, script name, or *)",
+		     parse_scriptname),
+	OPT_STRING('g', "gen-script", &generate_script_lang, "lang",
+		   "generate perf-trace.xx script in specified language"),
+
 	OPT_END()
 };
 
 int cmd_trace(int argc, const char **argv, const char *prefix __used)
 {
-	symbol__init();
-	page_size = getpagesize();
+	int err;
+
+	symbol__init(0);
+
+	setup_scripting();
 
 	argc = parse_options(argc, argv, options, annotate_usage, 0);
 	if (argc) {
@@ -287,5 +340,50 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 
 	setup_pager();
 
-	return __cmd_trace();
+	if (generate_script_lang) {
+		struct stat perf_stat;
+
+		int input = open(input_name, O_RDONLY);
+		if (input < 0) {
+			perror("failed to open file");
+			exit(-1);
+		}
+
+		err = fstat(input, &perf_stat);
+		if (err < 0) {
+			perror("failed to stat file");
+			exit(-1);
+		}
+
+		if (!perf_stat.st_size) {
+			fprintf(stderr, "zero-sized file, nothing to do!\n");
+			exit(0);
+		}
+
+		scripting_ops = script_spec__lookup(generate_script_lang);
+		if (!scripting_ops) {
+			fprintf(stderr, "invalid language specifier");
+			return -1;
+		}
+
+		header = perf_header__new();
+		if (header == NULL)
+			return -1;
+
+		perf_header__read(header, input);
+		err = scripting_ops->generate_script("perf-trace");
+		goto out;
+	}
+
+	if (script_name) {
+		err = scripting_ops->start_script(script_name);
+		if (err)
+			goto out;
+	}
+
+	err = __cmd_trace();
+
+	cleanup_scripting();
+out:
+	return err;
 }

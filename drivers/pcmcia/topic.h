@@ -114,22 +114,17 @@ static void topic97_zoom_video(struct pcmcia_socket *sock, int onoff)
 		reg_zv |= TOPIC97_ZV_CONTROL_ENABLE;
 		config_writeb(socket, TOPIC97_ZOOM_VIDEO_CONTROL, reg_zv);
 
-		reg = config_readb(socket, TOPIC97_MISC2);
-		reg |= TOPIC97_MISC2_ZV_ENABLE;
-		config_writeb(socket, TOPIC97_MISC2, reg);
-
-		/* not sure this is needed, doc is unclear */
-#if 0
 		reg = config_readb(socket, TOPIC97_AUDIO_VIDEO_SWITCH);
 		reg |= TOPIC97_AVS_AUDIO_CONTROL | TOPIC97_AVS_VIDEO_CONTROL;
 		config_writeb(socket, TOPIC97_AUDIO_VIDEO_SWITCH, reg);
-#endif
-	}
-	else {
+	} else {
 		reg_zv &= ~TOPIC97_ZV_CONTROL_ENABLE;
 		config_writeb(socket, TOPIC97_ZOOM_VIDEO_CONTROL, reg_zv);
-	}
 
+		reg = config_readb(socket, TOPIC97_AUDIO_VIDEO_SWITCH);
+		reg &= ~(TOPIC97_AVS_AUDIO_CONTROL | TOPIC97_AVS_VIDEO_CONTROL);
+		config_writeb(socket, TOPIC97_AUDIO_VIDEO_SWITCH, reg);
+	}
 }
 
 static int topic97_override(struct yenta_socket *socket)

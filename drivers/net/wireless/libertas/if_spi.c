@@ -134,7 +134,7 @@ static void spu_transaction_finish(struct if_spi_card *card)
 static int spu_write(struct if_spi_card *card, u16 reg, const u8 *buf, int len)
 {
 	int err = 0;
-	u16 reg_out = cpu_to_le16(reg | IF_SPI_WRITE_OPERATION_MASK);
+	__le16 reg_out = cpu_to_le16(reg | IF_SPI_WRITE_OPERATION_MASK);
 	struct spi_message m;
 	struct spi_transfer reg_trans;
 	struct spi_transfer data_trans;
@@ -166,7 +166,7 @@ static int spu_write(struct if_spi_card *card, u16 reg, const u8 *buf, int len)
 
 static inline int spu_write_u16(struct if_spi_card *card, u16 reg, u16 val)
 {
-	u16 buff;
+	__le16 buff;
 
 	buff = cpu_to_le16(val);
 	return spu_write(card, reg, (u8 *)&buff, sizeof(u16));
@@ -188,7 +188,7 @@ static int spu_read(struct if_spi_card *card, u16 reg, u8 *buf, int len)
 {
 	unsigned int delay;
 	int err = 0;
-	u16 reg_out = cpu_to_le16(reg | IF_SPI_READ_OPERATION_MASK);
+	__le16 reg_out = cpu_to_le16(reg | IF_SPI_READ_OPERATION_MASK);
 	struct spi_message m;
 	struct spi_transfer reg_trans;
 	struct spi_transfer dummy_trans;
@@ -235,7 +235,7 @@ static int spu_read(struct if_spi_card *card, u16 reg, u8 *buf, int len)
 /* Read 16 bits from an SPI register */
 static inline int spu_read_u16(struct if_spi_card *card, u16 reg, u16 *val)
 {
-	u16 buf;
+	__le16 buf;
 	int ret;
 
 	ret = spu_read(card, reg, (u8 *)&buf, sizeof(buf));
@@ -248,7 +248,7 @@ static inline int spu_read_u16(struct if_spi_card *card, u16 reg, u16 *val)
  * The low 16 bits are read first. */
 static int spu_read_u32(struct if_spi_card *card, u16 reg, u32 *val)
 {
-	u32 buf;
+	__le32 buf;
 	int err;
 
 	err = spu_read(card, reg, (u8 *)&buf, sizeof(buf));

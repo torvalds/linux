@@ -26,7 +26,6 @@ static struct sclp_async_sccb *sccb;
 static int sclp_async_send_wait(char *message);
 static struct ctl_table_header *callhome_sysctl_header;
 static DEFINE_SPINLOCK(sclp_async_lock);
-static char nodename[64];
 #define SCLP_NORMAL_WRITE	0x00
 
 struct async_evbuf {
@@ -52,9 +51,10 @@ static struct sclp_register sclp_async_register = {
 static int call_home_on_panic(struct notifier_block *self,
 			      unsigned long event, void *data)
 {
-		strncat(data, nodename, strlen(nodename));
-		sclp_async_send_wait(data);
-		return NOTIFY_DONE;
+	strncat(data, init_utsname()->nodename,
+		sizeof(init_utsname()->nodename));
+	sclp_async_send_wait(data);
+	return NOTIFY_DONE;
 }
 
 static struct notifier_block call_home_panic_nb = {
@@ -68,15 +68,14 @@ static int proc_handler_callhome(struct ctl_table *ctl, int write,
 {
 	unsigned long val;
 	int len, rc;
-	char buf[2];
+	char buf[3];
 
-	if (!*count | (*ppos && !write)) {
+	if (!*count || (*ppos && !write)) {
 		*count = 0;
 		return 0;
 	}
 	if (!write) {
-		len =  sprintf(buf, "%d\n", callhome_enabled);
-		buf[len] = '\0';
+		len = snprintf(buf, sizeof(buf), "%d\n", callhome_enabled);
 		rc = copy_to_user(buffer, buf, sizeof(buf));
 		if (rc != 0)
 			return -EFAULT;
@@ -171,39 +170,29 @@ static int __init sclp_async_init(void)
 	rc = sclp_register(&sclp_async_register);
 	if (rc)
 		return rc;
-	callhome_sysctl_header = register_sysctl_table(kern_dir_table);
-	if (!callhome_sysctl_header) {
-		rc = -ENOMEM;
+	rc = -EOPNOTSUPP;
+	if (!(sclp_async_register.sclp_receive_mask & EVTYP_ASYNC_MASK))
 		goto out_sclp;
-	}
-	if (!(sclp_async_register.sclp_receive_mask & EVTYP_ASYNC_MASK)) {
-		rc = -EOPNOTSUPP;
-		goto out_sclp;
-	}
 	rc = -ENOMEM;
+	callhome_sysctl_header = register_sysctl_table(kern_dir_table);
+	if (!callhome_sysctl_header)
+		goto out_sclp;
 	request = kzalloc(sizeof(struct sclp_req), GFP_KERNEL);
-	if (!request)
-		goto out_sys;
 	sccb = (struct sclp_async_sccb *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
-	if (!sccb)
+	if (!request || !sccb)
 		goto out_mem;
-	rc =  atomic_notifier_chain_register(&panic_notifier_list,
-					     &call_home_panic_nb);
-	if (rc)
-		goto out_mem;
-
-	strncpy(nodename, init_utsname()->nodename, 64);
-	return 0;
-
+	rc = atomic_notifier_chain_register(&panic_notifier_list,
+					    &call_home_panic_nb);
+	if (!rc)
+		goto out;
 out_mem:
 	kfree(request);
 	free_page((unsigned long) sccb);
-out_sys:
 	unregister_sysctl_table(callhome_sysctl_header);
 out_sclp:
 	sclp_unregister(&sclp_async_register);
+out:
 	return rc;
-
 }
 module_init(sclp_async_init);
 

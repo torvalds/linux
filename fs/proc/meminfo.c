@@ -99,7 +99,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 		"VmallocUsed:    %8lu kB\n"
 		"VmallocChunk:   %8lu kB\n"
 #ifdef CONFIG_MEMORY_FAILURE
-		"HardwareCorrupted: %8lu kB\n"
+		"HardwareCorrupted: %5lu kB\n"
 #endif
 		,
 		K(i.totalram),

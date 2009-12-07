@@ -40,7 +40,7 @@ static int viper_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
 	unsigned long flags;
 
-	skt->irq = gpio_to_irq(VIPER_CF_RDY_GPIO);
+	skt->socket.pci_irq = gpio_to_irq(VIPER_CF_RDY_GPIO);
 
 	if (gpio_request(VIPER_CF_CD_GPIO, "CF detect"))
 		goto err_request_cd;

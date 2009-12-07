@@ -110,6 +110,8 @@ enum s3c2410_dma_loadst {
 					    * waiting for reloads */
 #define S3C2410_DMAF_AUTOSTART    (1<<1)   /* auto-start if buffer queued */
 
+#define S3C2410_DMAF_CIRCULAR	(1 << 2)	/* no circular dma support */
+
 /* dma buffer */
 
 struct s3c2410_dma_buf;
@@ -193,5 +195,10 @@ struct s3c2410_dma_chan {
 };
 
 typedef unsigned long dma_device_t;
+
+static inline bool s3c_dma_has_circular(void)
+{
+	return false;
+}
 
 #endif /* __ASM_ARCH_DMA_H */

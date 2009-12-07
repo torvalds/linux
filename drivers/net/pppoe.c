@@ -111,9 +111,6 @@ struct pppoe_net {
 	rwlock_t hash_lock;
 };
 
-/* to eliminate a race btw pppoe_flush_dev and pppoe_release */
-static DEFINE_SPINLOCK(flush_lock);
-
 /*
  * PPPoE could be in the following stages:
  * 1) Discovery stage (to obtain remote MAC and Session ID)
@@ -303,45 +300,48 @@ static void pppoe_flush_dev(struct net_device *dev)
 	write_lock_bh(&pn->hash_lock);
 	for (i = 0; i < PPPOE_HASH_SIZE; i++) {
 		struct pppox_sock *po = pn->hash_table[i];
+		struct sock *sk;
 
-		while (po != NULL) {
-			struct sock *sk;
-			if (po->pppoe_dev != dev) {
+		while (po) {
+			while (po && po->pppoe_dev != dev) {
 				po = po->next;
-				continue;
 			}
+
+			if (!po)
+				break;
+
 			sk = sk_pppox(po);
-			spin_lock(&flush_lock);
-			po->pppoe_dev = NULL;
-			spin_unlock(&flush_lock);
-			dev_put(dev);
 
 			/* We always grab the socket lock, followed by the
-			 * hash_lock, in that order.  Since we should
-			 * hold the sock lock while doing any unbinding,
-			 * we need to release the lock we're holding.
-			 * Hold a reference to the sock so it doesn't disappear
-			 * as we're jumping between locks.
+			 * hash_lock, in that order.  Since we should hold the
+			 * sock lock while doing any unbinding, we need to
+			 * release the lock we're holding.  Hold a reference to
+			 * the sock so it doesn't disappear as we're jumping
+			 * between locks.
 			 */
 
 			sock_hold(sk);
-
 			write_unlock_bh(&pn->hash_lock);
 			lock_sock(sk);
 
-			if (sk->sk_state & (PPPOX_CONNECTED | PPPOX_BOUND)) {
+			if (po->pppoe_dev == dev
+			    && sk->sk_state & (PPPOX_CONNECTED | PPPOX_BOUND)) {
 				pppox_unbind_sock(sk);
 				sk->sk_state = PPPOX_ZOMBIE;
 				sk->sk_state_change(sk);
+				po->pppoe_dev = NULL;
+				dev_put(dev);
 			}
 
 			release_sock(sk);
 			sock_put(sk);
 
-			/* Restart scan at the beginning of this hash chain.
-			 * While the lock was dropped the chain contents may
-			 * have changed.
+			/* Restart the process from the start of the current
+			 * hash chain. We dropped locks so the world may have
+			 * change from underneath us.
 			 */
+
+			BUG_ON(pppoe_pernet(dev_net(dev)) == NULL);
 			write_lock_bh(&pn->hash_lock);
 			po = pn->hash_table[i];
 		}
@@ -388,11 +388,16 @@ static int pppoe_rcv_core(struct sock *sk, struct sk_buff *skb)
 	struct pppox_sock *po = pppox_sk(sk);
 	struct pppox_sock *relay_po;
 
+	/* Backlog receive. Semantics of backlog rcv preclude any code from
+	 * executing in lock_sock()/release_sock() bounds; meaning sk->sk_state
+	 * can't change.
+	 */
+
 	if (sk->sk_state & PPPOX_BOUND) {
 		ppp_input(&po->chan, skb);
 	} else if (sk->sk_state & PPPOX_RELAY) {
-		relay_po = get_item_by_addr(dev_net(po->pppoe_dev),
-						&po->pppoe_relay);
+		relay_po = get_item_by_addr(sock_net(sk),
+					    &po->pppoe_relay);
 		if (relay_po == NULL)
 			goto abort_kfree;
 
@@ -447,6 +452,10 @@ static int pppoe_rcv(struct sk_buff *skb, struct net_device *dev,
 		goto drop;
 
 	pn = pppoe_pernet(dev_net(dev));
+
+	/* Note that get_item does a sock_hold(), so sk_pppox(po)
+	 * is known to be safe.
+	 */
 	po = get_item(pn, ph->sid, eth_hdr(skb)->h_source, dev->ifindex);
 	if (!po)
 		goto drop;
@@ -561,6 +570,7 @@ static int pppoe_release(struct socket *sock)
 	struct sock *sk = sock->sk;
 	struct pppox_sock *po;
 	struct pppoe_net *pn;
+	struct net *net = NULL;
 
 	if (!sk)
 		return 0;
@@ -571,44 +581,28 @@ static int pppoe_release(struct socket *sock)
 		return -EBADF;
 	}
 
+	po = pppox_sk(sk);
+
+	if (sk->sk_state & (PPPOX_CONNECTED | PPPOX_BOUND)) {
+		dev_put(po->pppoe_dev);
+		po->pppoe_dev = NULL;
+	}
+
 	pppox_unbind_sock(sk);
 
 	/* Signal the death of the socket. */
 	sk->sk_state = PPPOX_DEAD;
 
-	/*
-	 * pppoe_flush_dev could lead to a race with
-	 * this routine so we use flush_lock to eliminate
-	 * such a case (we only need per-net specific data)
-	 */
-	spin_lock(&flush_lock);
-	po = pppox_sk(sk);
-	if (!po->pppoe_dev) {
-		spin_unlock(&flush_lock);
-		goto out;
-	}
-	pn = pppoe_pernet(dev_net(po->pppoe_dev));
-	spin_unlock(&flush_lock);
+	net = sock_net(sk);
+	pn = pppoe_pernet(net);
 
 	/*
 	 * protect "po" from concurrent updates
 	 * on pppoe_flush_dev
 	 */
-	write_lock_bh(&pn->hash_lock);
+	delete_item(pn, po->pppoe_pa.sid, po->pppoe_pa.remote,
+		    po->pppoe_ifindex);
 
-	po = pppox_sk(sk);
-	if (stage_session(po->pppoe_pa.sid))
-		__delete_item(pn, po->pppoe_pa.sid, po->pppoe_pa.remote,
-				po->pppoe_ifindex);
-
-	if (po->pppoe_dev) {
-		dev_put(po->pppoe_dev);
-		po->pppoe_dev = NULL;
-	}
-
-	write_unlock_bh(&pn->hash_lock);
-
-out:
 	sock_orphan(sk);
 	sock->sk = NULL;
 
@@ -625,8 +619,9 @@ static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
 	struct sock *sk = sock->sk;
 	struct sockaddr_pppox *sp = (struct sockaddr_pppox *)uservaddr;
 	struct pppox_sock *po = pppox_sk(sk);
-	struct net_device *dev;
+	struct net_device *dev = NULL;
 	struct pppoe_net *pn;
+	struct net *net = NULL;
 	int error;
 
 	lock_sock(sk);
@@ -652,12 +647,14 @@ static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
 	/* Delete the old binding */
 	if (stage_session(po->pppoe_pa.sid)) {
 		pppox_unbind_sock(sk);
+		pn = pppoe_pernet(sock_net(sk));
+		delete_item(pn, po->pppoe_pa.sid,
+			    po->pppoe_pa.remote, po->pppoe_ifindex);
 		if (po->pppoe_dev) {
-			pn = pppoe_pernet(dev_net(po->pppoe_dev));
-			delete_item(pn, po->pppoe_pa.sid,
-				po->pppoe_pa.remote, po->pppoe_ifindex);
 			dev_put(po->pppoe_dev);
+			po->pppoe_dev = NULL;
 		}
+
 		memset(sk_pppox(po) + 1, 0,
 		       sizeof(struct pppox_sock) - sizeof(struct sock));
 		sk->sk_state = PPPOX_NONE;
@@ -666,16 +663,15 @@ static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
 	/* Re-bind in session stage only */
 	if (stage_session(sp->sa_addr.pppoe.sid)) {
 		error = -ENODEV;
-		dev = dev_get_by_name(sock_net(sk), sp->sa_addr.pppoe.dev);
+		net = sock_net(sk);
+		dev = dev_get_by_name(net, sp->sa_addr.pppoe.dev);
 		if (!dev)
-			goto end;
+			goto err_put;
 
 		po->pppoe_dev = dev;
 		po->pppoe_ifindex = dev->ifindex;
-		pn = pppoe_pernet(dev_net(dev));
-		write_lock_bh(&pn->hash_lock);
+		pn = pppoe_pernet(net);
 		if (!(dev->flags & IFF_UP)) {
-			write_unlock_bh(&pn->hash_lock);
 			goto err_put;
 		}
 
@@ -683,6 +679,7 @@ static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
 		       &sp->sa_addr.pppoe,
 		       sizeof(struct pppoe_addr));
 
+		write_lock_bh(&pn->hash_lock);
 		error = __set_item(pn, po);
 		write_unlock_bh(&pn->hash_lock);
 		if (error < 0)
@@ -696,8 +693,11 @@ static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
 		po->chan.ops = &pppoe_chan_ops;
 
 		error = ppp_register_net_channel(dev_net(dev), &po->chan);
-		if (error)
+		if (error) {
+			delete_item(pn, po->pppoe_pa.sid,
+				    po->pppoe_pa.remote, po->pppoe_ifindex);
 			goto err_put;
+		}
 
 		sk->sk_state = PPPOX_CONNECTED;
 	}
@@ -915,6 +915,14 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 	struct pppoe_hdr *ph;
 	int data_len = skb->len;
 
+	/* The higher-level PPP code (ppp_unregister_channel()) ensures the PPP
+	 * xmit operations conclude prior to an unregistration call.  Thus
+	 * sk->sk_state cannot change, so we don't need to do lock_sock().
+	 * But, we also can't do a lock_sock since that introduces a potential
+	 * deadlock as we'd reverse the lock ordering used when calling
+	 * ppp_unregister_channel().
+	 */
+
 	if (sock_flag(sk, SOCK_DEAD) || !(sk->sk_state & PPPOX_CONNECTED))
 		goto abort;
 
@@ -944,7 +952,6 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 			po->pppoe_pa.remote, NULL, data_len);
 
 	dev_queue_xmit(skb);
-
 	return 1;
 
 abort:

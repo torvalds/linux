@@ -161,14 +161,15 @@ static int options_show(struct seq_file *s, void *p)
 static ssize_t options_write(struct file *file, const char __user *userbuf,
 			     size_t count, loff_t *data)
 {
-	unsigned long val;
-	char buf[80];
+	char buf[20];
 
-	if (strncpy_from_user(buf, userbuf, sizeof(buf) - 1) < 0)
+	if (count >= sizeof(buf))
+		return -EINVAL;
+	if (copy_from_user(buf, userbuf, count))
 		return -EFAULT;
-	buf[count - 1] = '\0';
-	if (!strict_strtoul(buf, 10, &val))
-		gru_options = val;
+	buf[count] = '\0';
+	if (strict_strtoul(buf, 0, &gru_options))
+		return -EINVAL;
 
 	return count;
 }

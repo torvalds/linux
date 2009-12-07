@@ -10,7 +10,6 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <bcm63xx_cpu.h>
-#include <bcm63xx_dev_uart.h>
 
 static struct resource uart_resources[] = {
 	{
@@ -39,3 +38,4 @@ int __init bcm63xx_uart_register(void)
 	uart_resources[1].start = bcm63xx_get_irq_number(IRQ_UART0);
 	return platform_device_register(&bcm63xx_uart_device);
 }
+arch_initcall(bcm63xx_uart_register);

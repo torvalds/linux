@@ -1227,8 +1227,7 @@ static int i915_load_modeset_init(struct drm_device *dev,
 		goto out;
 
 	/* Try to set up FBC with a reasonable compressed buffer size */
-	if (IS_MOBILE(dev) && (IS_I9XX(dev) || IS_I965G(dev) || IS_GM45(dev)) &&
-	    i915_powersave) {
+	if (I915_HAS_FBC(dev) && i915_powersave) {
 		int cfb_size;
 
 		/* Try to get an 8M buffer... */

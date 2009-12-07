@@ -79,14 +79,32 @@ static inline void set_io_apic_irq_attr(struct io_apic_irq_attr *irq_attr,
 					int ioapic, int ioapic_pin,
 					int trigger, int polarity)
 {
-	irq_attr->ioapic     = ioapic;
-	irq_attr->ioapic_pin = ioapic_pin;
-	irq_attr->trigger    = trigger;
-	irq_attr->polarity   = polarity;
+	irq_attr->ioapic	= ioapic;
+	irq_attr->ioapic_pin	= ioapic_pin;
+	irq_attr->trigger	= trigger;
+	irq_attr->polarity	= polarity;
 }
 
-extern int IO_APIC_get_PCI_irq_vector(int bus, int devfn, int pin,
-					struct io_apic_irq_attr *irq_attr);
+/*
+ * This is performance-critical, we want to do it O(1)
+ *
+ * Most irqs are mapped 1:1 with pins.
+ */
+struct irq_cfg {
+	struct irq_pin_list	*irq_2_pin;
+	cpumask_var_t		domain;
+	cpumask_var_t		old_domain;
+	u8			vector;
+	u8			move_in_progress : 1;
+};
+
+extern struct irq_cfg *irq_cfg(unsigned int);
+extern int assign_irq_vector(int, struct irq_cfg *, const struct cpumask *);
+extern void send_cleanup_vector(struct irq_cfg *);
+
+struct irq_desc;
+extern unsigned int set_desc_affinity(struct irq_desc *, const struct cpumask *);
+extern int IO_APIC_get_PCI_irq_vector(int bus, int devfn, int pin, struct io_apic_irq_attr *irq_attr);
 extern void setup_ioapic_dest(void);
 
 extern void enable_IO_APIC(void);

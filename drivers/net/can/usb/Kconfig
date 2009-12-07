@@ -1,0 +1,10 @@
+menu "CAN USB interfaces"
+	depends on USB && CAN_DEV
+
+config CAN_EMS_USB
+	tristate "EMS CPC-USB/ARM7 CAN/USB interface"
+	---help---
+	  This driver is for the one channel CPC-USB/ARM7 CAN/USB interface
+	  from from EMS Dr. Thomas Wuensche (http://www.ems-wuensche.de).
+
+endmenu

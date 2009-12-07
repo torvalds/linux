@@ -222,7 +222,9 @@ extern struct clk *s3c_cpufreq_clk_get(struct device *, const char *);
 /* S3C2410 and compatible exported functions */
 
 extern void s3c2410_cpufreq_setrefresh(struct s3c_cpufreq_config *cfg);
+extern void s3c2410_set_fvco(struct s3c_cpufreq_config *cfg);
 
+#ifdef CONFIG_S3C2410_IOTIMING
 extern int s3c2410_iotiming_calc(struct s3c_cpufreq_config *cfg,
 				 struct s3c_iotimings *iot);
 
@@ -231,8 +233,11 @@ extern int s3c2410_iotiming_get(struct s3c_cpufreq_config *cfg,
 
 extern void s3c2410_iotiming_set(struct s3c_cpufreq_config *cfg,
 				 struct s3c_iotimings *iot);
-
-extern void s3c2410_set_fvco(struct s3c_cpufreq_config *cfg);
+#else
+#define s3c2410_iotiming_calc NULL
+#define s3c2410_iotiming_get NULL
+#define s3c2410_iotiming_set NULL
+#endif /* CONFIG_S3C2410_IOTIMING */
 
 /* S3C2412 compatible routines */
 

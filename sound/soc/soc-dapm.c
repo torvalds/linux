@@ -973,9 +973,19 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 			if (!w->power_check)
 				continue;
 
-			power = w->power_check(w);
-			if (power)
-				sys_power = 1;
+			/* If we're suspending then pull down all the 
+			 * power. */
+			switch (event) {
+			case SND_SOC_DAPM_STREAM_SUSPEND:
+				power = 0;
+				break;
+
+			default:
+				power = w->power_check(w);
+				if (power)
+					sys_power = 1;
+				break;
+			}
 
 			if (w->power == power)
 				continue;
@@ -999,8 +1009,12 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 		case SND_SOC_DAPM_STREAM_RESUME:
 			sys_power = 1;
 			break;
+		case SND_SOC_DAPM_STREAM_SUSPEND:
+			sys_power = 0;
+			break;
 		case SND_SOC_DAPM_STREAM_NOP:
 			sys_power = codec->bias_level != SND_SOC_BIAS_STANDBY;
+			break;
 		default:
 			break;
 		}
@@ -2072,9 +2086,9 @@ int snd_soc_dapm_stream_event(struct snd_soc_codec *codec,
 			}
 		}
 	}
-	mutex_unlock(&codec->mutex);
 
 	dapm_power_widgets(codec, event);
+	mutex_unlock(&codec->mutex);
 	dump_dapm(codec, __func__);
 	return 0;
 }

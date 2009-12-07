@@ -845,7 +845,7 @@ int __init kirkwood_find_tclk(void)
 	return 166666667;
 }
 
-static void kirkwood_timer_init(void)
+static void __init kirkwood_timer_init(void)
 {
 	kirkwood_tclk = kirkwood_find_tclk();
 	orion_time_init(IRQ_KIRKWOOD_BRIDGE, kirkwood_tclk);
@@ -914,6 +914,14 @@ void __init kirkwood_init(void)
 	kirkwood_spi_plat_data.tclk = kirkwood_tclk;
 	kirkwood_uart0_data[0].uartclk = kirkwood_tclk;
 	kirkwood_uart1_data[0].uartclk = kirkwood_tclk;
+
+	/*
+	 * Disable propagation of mbus errors to the CPU local bus,
+	 * as this causes mbus errors (which can occur for example
+	 * for PCI aborts) to throw CPU aborts, which we're not set
+	 * up to deal with.
+	 */
+	writel(readl(CPU_CONFIG) & ~CPU_CONFIG_ERROR_PROP, CPU_CONFIG);
 
 	kirkwood_setup_cpu_mbus();
 

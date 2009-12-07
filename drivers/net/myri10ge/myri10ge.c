@@ -75,7 +75,7 @@
 #include "myri10ge_mcp.h"
 #include "myri10ge_mcp_gen_header.h"
 
-#define MYRI10GE_VERSION_STR "1.5.0-1.432"
+#define MYRI10GE_VERSION_STR "1.5.1-1.451"
 
 MODULE_DESCRIPTION("Myricom 10G driver (10GbE)");
 MODULE_AUTHOR("Maintainer: help@myri.com");
@@ -1624,10 +1624,21 @@ myri10ge_get_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
 			return 0;
 		}
 	}
-	if (*ptr == 'R' || *ptr == 'Q') {
-		/* We've found either an XFP or quad ribbon fiber */
+	if (*ptr == '2')
+		ptr++;
+	if (*ptr == 'R' || *ptr == 'Q' || *ptr == 'S') {
+		/* We've found either an XFP, quad ribbon fiber, or SFP+ */
 		cmd->port = PORT_FIBRE;
+		cmd->supported |= SUPPORTED_FIBRE;
+		cmd->advertising |= ADVERTISED_FIBRE;
+	} else {
+		cmd->port = PORT_OTHER;
 	}
+	if (*ptr == 'R' || *ptr == 'S')
+		cmd->transceiver = XCVR_EXTERNAL;
+	else
+		cmd->transceiver = XCVR_INTERNAL;
+
 	return 0;
 }
 

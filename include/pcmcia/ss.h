@@ -107,15 +107,6 @@ typedef struct io_window_t {
 	struct resource		*res;
 } io_window_t;
 
-#define WINDOW_MAGIC	0xB35C
-typedef struct window_t {
-	u_short			magic;
-	u_short			index;
-	struct pcmcia_device	*handle;
-	struct pcmcia_socket 	*sock;
-	pccard_mem_map		ctl;
-} window_t;
-
 /* Maximum number of IO windows per socket */
 #define MAX_IO_WIN 2
 
@@ -155,7 +146,7 @@ struct pcmcia_socket {
 		u_int			Config;
 	} irq;
 	io_window_t			io[MAX_IO_WIN];
-	window_t			win[MAX_WIN];
+	pccard_mem_map			win[MAX_WIN];
 	struct list_head		cis_cache;
 	size_t				fake_cis_len;
 	u8				*fake_cis;
@@ -172,7 +163,7 @@ struct pcmcia_socket {
 	u_int				irq_mask;
 	u_int				map_size;
 	u_int				io_offset;
-	u_char				pci_irq;
+	u_int				pci_irq;
 	struct pci_dev *		cb_dev;
 
 
@@ -262,6 +253,8 @@ struct pcmcia_socket {
 	struct device			dev;
 	/* data internal to the socket driver */
 	void				*driver_data;
+	/* status of the card during resume from a system sleep state */
+	int				resume_status;
 };
 
 
@@ -280,6 +273,8 @@ extern struct pccard_resource_ops pccard_nonstatic_ops;
 
 /* socket drivers are expected to use these callbacks in their .drv struct */
 extern int pcmcia_socket_dev_suspend(struct device *dev);
+extern void pcmcia_socket_dev_early_resume(struct device *dev);
+extern void pcmcia_socket_dev_late_resume(struct device *dev);
 extern int pcmcia_socket_dev_resume(struct device *dev);
 
 /* socket drivers use this callback in their IRQ handler */

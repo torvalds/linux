@@ -21,6 +21,7 @@
 #include <mach/entry-macro.S>
 #include <asm/thread_notify.h>
 #include <asm/unwind.h>
+#include <asm/unistd.h>
 
 #include "entry-header.S"
 
@@ -608,33 +609,33 @@ call_fpe:
  THUMB(	add	pc, r8			)
 	nop
 
-	W(mov)	pc, lr				@ CP#0
+	movw_pc	lr				@ CP#0
 	W(b)	do_fpe				@ CP#1 (FPE)
 	W(b)	do_fpe				@ CP#2 (FPE)
-	W(mov)	pc, lr				@ CP#3
+	movw_pc	lr				@ CP#3
 #ifdef CONFIG_CRUNCH
 	b	crunch_task_enable		@ CP#4 (MaverickCrunch)
 	b	crunch_task_enable		@ CP#5 (MaverickCrunch)
 	b	crunch_task_enable		@ CP#6 (MaverickCrunch)
 #else
-	W(mov)	pc, lr				@ CP#4
-	W(mov)	pc, lr				@ CP#5
-	W(mov)	pc, lr				@ CP#6
+	movw_pc	lr				@ CP#4
+	movw_pc	lr				@ CP#5
+	movw_pc	lr				@ CP#6
 #endif
-	W(mov)	pc, lr				@ CP#7
-	W(mov)	pc, lr				@ CP#8
-	W(mov)	pc, lr				@ CP#9
+	movw_pc	lr				@ CP#7
+	movw_pc	lr				@ CP#8
+	movw_pc	lr				@ CP#9
 #ifdef CONFIG_VFP
 	W(b)	do_vfp				@ CP#10 (VFP)
 	W(b)	do_vfp				@ CP#11 (VFP)
 #else
-	W(mov)	pc, lr				@ CP#10 (VFP)
-	W(mov)	pc, lr				@ CP#11 (VFP)
+	movw_pc	lr				@ CP#10 (VFP)
+	movw_pc	lr				@ CP#11 (VFP)
 #endif
-	W(mov)	pc, lr				@ CP#12
-	W(mov)	pc, lr				@ CP#13
-	W(mov)	pc, lr				@ CP#14 (Debug)
-	W(mov)	pc, lr				@ CP#15 (Control)
+	movw_pc	lr				@ CP#12
+	movw_pc	lr				@ CP#13
+	movw_pc	lr				@ CP#14 (Debug)
+	movw_pc	lr				@ CP#15 (Control)
 
 #ifdef CONFIG_NEON
 	.align	6
@@ -908,10 +909,10 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 	 * A special ghost syscall is used for that (see traps.c).
 	 */
 	stmfd	sp!, {r7, lr}
-	mov	r7, #0xff00		@ 0xfff0 into r7 for EABI
-	orr	r7, r7, #0xf0
-	swi	#0x9ffff0
+	ldr	r7, =1f			@ it's 20 bits
+	swi	__ARM_NR_cmpxchg
 	ldmfd	sp!, {r7, pc}
+1:	.word	__ARM_NR_cmpxchg
 
 #elif __LINUX_ARM_ARCH__ < 6
 

@@ -664,7 +664,6 @@ int nilfs_load_inode_block(struct nilfs_sb_info *sbi, struct inode *inode,
 	int err;
 
 	spin_lock(&sbi->s_inode_lock);
-	/* Caller of this function MUST lock s_inode_lock */
 	if (ii->i_bh == NULL) {
 		spin_unlock(&sbi->s_inode_lock);
 		err = nilfs_ifile_get_inode_block(sbi->s_ifile, inode->i_ino,

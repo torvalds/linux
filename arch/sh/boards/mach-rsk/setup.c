@@ -15,13 +15,11 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
+#ifdef CONFIG_MTD
 #include <linux/mtd/map.h>
+#endif
 #include <asm/machvec.h>
 #include <asm/io.h>
-
-static const char *probes[] = { "cmdlinepart", NULL };
-
-static struct mtd_partition *parsed_partitions;
 
 static struct mtd_partition rsk_partitions[] = {
 	{
@@ -41,6 +39,8 @@ static struct mtd_partition rsk_partitions[] = {
 };
 
 static struct physmap_flash_data flash_data = {
+	.parts		= rsk_partitions,
+	.nr_parts	= ARRAY_SIZE(rsk_partitions),
 	.width		= 2,
 };
 
@@ -60,13 +60,18 @@ static struct platform_device flash_device = {
 	},
 };
 
-static struct mtd_info *flash_mtd;
+#ifdef CONFIG_MTD
+static const char *probes[] = { "cmdlinepart", NULL };
 
 static struct map_info rsk_flash_map = {
 	.name		= "RSK+ Flash",
 	.size		= 0x400000,
 	.bankwidth	= 2,
 };
+
+static struct mtd_info *flash_mtd;
+
+static struct mtd_partition *parsed_partitions;
 
 static void __init set_mtd_partitions(void)
 {
@@ -77,14 +82,14 @@ static void __init set_mtd_partitions(void)
 	nr_parts = parse_mtd_partitions(flash_mtd, probes,
 					&parsed_partitions, 0);
 	/* If there is no partition table, used the hard coded table */
-	if (nr_parts <= 0) {
-		flash_data.parts = rsk_partitions;
-		flash_data.nr_parts = ARRAY_SIZE(rsk_partitions);
-	} else {
+	if (nr_parts > 0) {
 		flash_data.nr_parts = nr_parts;
 		flash_data.parts = parsed_partitions;
 	}
 }
+#else
+static inline void set_mtd_partitions(void) {}
+#endif
 
 static struct platform_device *rsk_devices[] __initdata = {
 	&flash_device,

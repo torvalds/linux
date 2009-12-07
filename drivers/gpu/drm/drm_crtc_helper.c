@@ -331,6 +331,7 @@ create_mode:
 			    cmdline_mode->refresh_specified ? cmdline_mode->refresh : 60,
 			    cmdline_mode->rb, cmdline_mode->interlace,
 			    cmdline_mode->margins);
+	drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
 	list_add(&mode->head, &connector->modes);
 	return mode;
 }

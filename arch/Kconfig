@@ -126,4 +126,11 @@ config HAVE_DMA_API_DEBUG
 config HAVE_DEFAULT_NO_SPIN_MUTEXES
 	bool
 
+config HAVE_HW_BREAKPOINT
+	bool
+	depends on HAVE_PERF_EVENTS
+	select ANON_INODES
+	select PERF_EVENTS
+
+
 source "kernel/gcov/Kconfig"
