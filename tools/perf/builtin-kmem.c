@@ -289,12 +289,16 @@ static void process_free_event(struct raw_event_sample *raw,
 }
 
 static void
-process_raw_event(event_t *raw_event __used, void *more_data,
+process_raw_event(event_t *raw_event __used, u32 size, void *data,
 		  int cpu, u64 timestamp, struct thread *thread)
 {
-	struct raw_event_sample *raw = more_data;
+	struct raw_event_sample *raw;
 	struct event *event;
 	int type;
+
+	raw = malloc_or_die(sizeof(*raw)+size);
+	raw->size = size;
+	memcpy(raw->data, data, size);
 
 	type = trace_parse_common_type(raw->data);
 	event = trace_find_event(type);
@@ -345,7 +349,8 @@ static int process_sample_event(event_t *event)
 
 	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
-	process_raw_event(event, data.raw_data, data.cpu, data.time, thread);
+	process_raw_event(event, data.raw_size, data.raw_data, data.cpu,
+			  data.time, thread);
 
 	return 0;
 }
