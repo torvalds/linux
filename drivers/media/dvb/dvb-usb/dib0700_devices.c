@@ -131,93 +131,95 @@ static int bristol_tuner_attach(struct dvb_usb_adapter *adap)
 /* MT226x */
 static struct dibx000_agc_config stk7700d_7000p_mt2266_agc_config[2] = {
 	{
-		BAND_UHF, // band_caps
+		BAND_UHF,
 
 		/* P_agc_use_sd_mod1=0, P_agc_use_sd_mod2=0, P_agc_freq_pwm_div=1, P_agc_inv_pwm1=1, P_agc_inv_pwm2=1,
 		* P_agc_inh_dc_rv_est=0, P_agc_time_est=3, P_agc_freeze=0, P_agc_nb_est=2, P_agc_write=0 */
-		(0 << 15) | (0 << 14) | (1 << 11) | (1 << 10) | (1 << 9) | (0 << 8) | (3 << 5) | (0 << 4) | (5 << 1) | (0 << 0), // setup
+		(0 << 15) | (0 << 14) | (1 << 11) | (1 << 10) | (1 << 9) | (0 << 8)
+	    | (3 << 5) | (0 << 4) | (5 << 1) | (0 << 0),
 
-		1130,  // inv_gain
-		21,  // time_stabiliz
+		1130,
+		21,
 
-		0,  // alpha_level
-		118,  // thlock
+		0,
+		118,
 
-		0,     // wbd_inv
-		3530,  // wbd_ref
-		1,     // wbd_sel
-		0,     // wbd_alpha
+		0,
+		3530,
+		1,
+		0,
 
-		65535,  // agc1_max
-		33770,  // agc1_min
-		65535,  // agc2_max
-		23592,  // agc2_min
+		65535,
+		33770,
+		65535,
+		23592,
 
-		0,    // agc1_pt1
-		62,   // agc1_pt2
-		255,  // agc1_pt3
-		64,   // agc1_slope1
-		64,   // agc1_slope2
-		132,  // agc2_pt1
-		192,  // agc2_pt2
-		80,   // agc2_slope1
-		80,   // agc2_slope2
+		0,
+		62,
+		255,
+		64,
+		64,
+		132,
+		192,
+		80,
+		80,
 
-		17,  // alpha_mant
-		27,  // alpha_exp
-		23,  // beta_mant
-		51,  // beta_exp
+		17,
+		27,
+		23,
+		51,
 
-		1,  // perform_agc_softsplit
+		1,
 	}, {
-		BAND_VHF | BAND_LBAND, // band_caps
+		BAND_VHF | BAND_LBAND,
 
 		/* P_agc_use_sd_mod1=0, P_agc_use_sd_mod2=0, P_agc_freq_pwm_div=1, P_agc_inv_pwm1=1, P_agc_inv_pwm2=1,
 		* P_agc_inh_dc_rv_est=0, P_agc_time_est=3, P_agc_freeze=0, P_agc_nb_est=2, P_agc_write=0 */
-		(0 << 15) | (0 << 14) | (1 << 11) | (1 << 10) | (1 << 9) | (0 << 8) | (3 << 5) | (0 << 4) | (2 << 1) | (0 << 0), // setup
+		(0 << 15) | (0 << 14) | (1 << 11) | (1 << 10) | (1 << 9) | (0 << 8)
+	    | (3 << 5) | (0 << 4) | (2 << 1) | (0 << 0),
 
-		2372, // inv_gain
-		21,   // time_stabiliz
+		2372,
+		21,
 
-		0,    // alpha_level
-		118,  // thlock
+		0,
+		118,
 
-		0,    // wbd_inv
-		3530, // wbd_ref
-		1,     // wbd_sel
-		0,    // wbd_alpha
+		0,
+		3530,
+		1,
+		0,
 
-		65535, // agc1_max
-		0,     // agc1_min
-		65535, // agc2_max
-		23592, // agc2_min
+		65535,
+		0,
+		65535,
+		23592,
 
-		0,    // agc1_pt1
-		128,  // agc1_pt2
-		128,  // agc1_pt3
-		128,  // agc1_slope1
-		0,    // agc1_slope2
-		128,  // agc2_pt1
-		253,  // agc2_pt2
-		81,   // agc2_slope1
-		0,    // agc2_slope2
+		0,
+		128,
+		128,
+		128,
+		0,
+		128,
+		253,
+		81,
+		0,
 
-		17,  // alpha_mant
-		27,  // alpha_exp
-		23,  // beta_mant
-		51,  // beta_exp
+		17,
+		27,
+		23,
+		51,
 
-		1,  // perform_agc_softsplit
+		1,
 	}
 };
 
 static struct dibx000_bandwidth_config stk7700d_mt2266_pll_config = {
-	60000, 30000, // internal, sampling
-	1, 8, 3, 1, 0, // pll_cfg: prediv, ratio, range, reset, bypass
-	0, 0, 1, 1, 2, // misc: refdiv, bypclk_div, IO_CLK_en_core, ADClkSrc, modulo
-	(3 << 14) | (1 << 12) | (524 << 0), // sad_cfg: refsel, sel, freq_15k
-	0, // ifreq
-	20452225, // timf
+	60000, 30000,
+	1, 8, 3, 1, 0,
+	0, 0, 1, 1, 2,
+	(3 << 14) | (1 << 12) | (524 << 0),
+	0,
+	20452225,
 };
 
 static struct dib7000p_config stk7700d_dib7000p_mt2266_config[] = {
@@ -934,47 +936,48 @@ static struct dvb_usb_rc_key dib0700_rc_keys[] = {
 
 /* STK7700P: Hauppauge Nova-T Stick, AVerMedia Volar */
 static struct dibx000_agc_config stk7700p_7000m_mt2060_agc_config = {
-	BAND_UHF | BAND_VHF,       // band_caps
+	BAND_UHF | BAND_VHF,
 
 	/* P_agc_use_sd_mod1=0, P_agc_use_sd_mod2=0, P_agc_freq_pwm_div=5, P_agc_inv_pwm1=0, P_agc_inv_pwm2=0,
 	 * P_agc_inh_dc_rv_est=0, P_agc_time_est=3, P_agc_freeze=0, P_agc_nb_est=2, P_agc_write=0 */
-	(0 << 15) | (0 << 14) | (5 << 11) | (0 << 10) | (0 << 9) | (0 << 8) | (3 << 5) | (0 << 4) | (2 << 1) | (0 << 0), // setup
+	(0 << 15) | (0 << 14) | (5 << 11) | (0 << 10) | (0 << 9) | (0 << 8)
+	| (3 << 5) | (0 << 4) | (2 << 1) | (0 << 0),
 
-	712,  // inv_gain
-	41,  // time_stabiliz
+	712,
+	41,
 
-	0,  // alpha_level
-	118,  // thlock
+	0,
+	118,
 
-	0,     // wbd_inv
-	4095,  // wbd_ref
-	0,     // wbd_sel
-	0,     // wbd_alpha
+	0,
+	4095,
+	0,
+	0,
 
-	42598,  // agc1_max
-	17694,  // agc1_min
-	45875,  // agc2_max
-	2621,  // agc2_min
-	0,  // agc1_pt1
-	76,  // agc1_pt2
-	139,  // agc1_pt3
-	52,  // agc1_slope1
-	59,  // agc1_slope2
-	107,  // agc2_pt1
-	172,  // agc2_pt2
-	57,  // agc2_slope1
-	70,  // agc2_slope2
+	42598,
+	17694,
+	45875,
+	2621,
+	0,
+	76,
+	139,
+	52,
+	59,
+	107,
+	172,
+	57,
+	70,
 
-	21,  // alpha_mant
-	25,  // alpha_exp
-	28,  // beta_mant
-	48,  // beta_exp
+	21,
+	25,
+	28,
+	48,
 
-	1,  // perform_agc_softsplit
-	{  0,     // split_min
-	   107,   // split_max
-	   51800, // global_split_min
-	   24700  // global_split_max
+	1,
+	{  0,
+	   107,
+	   51800,
+	   24700
 	},
 };
 
@@ -983,54 +986,55 @@ static struct dibx000_agc_config stk7700p_7000p_mt2060_agc_config = {
 
 	/* P_agc_use_sd_mod1=0, P_agc_use_sd_mod2=0, P_agc_freq_pwm_div=5, P_agc_inv_pwm1=0, P_agc_inv_pwm2=0,
 	 * P_agc_inh_dc_rv_est=0, P_agc_time_est=3, P_agc_freeze=0, P_agc_nb_est=2, P_agc_write=0 */
-	(0 << 15) | (0 << 14) | (5 << 11) | (0 << 10) | (0 << 9) | (0 << 8) | (3 << 5) | (0 << 4) | (2 << 1) | (0 << 0), // setup
+	(0 << 15) | (0 << 14) | (5 << 11) | (0 << 10) | (0 << 9) | (0 << 8)
+	| (3 << 5) | (0 << 4) | (2 << 1) | (0 << 0),
 
-	712, // inv_gain
-	41,  // time_stabiliz
+	712,
+	41,
 
-	0,   // alpha_level
-	118, // thlock
+	0,
+	118,
 
-	0,    // wbd_inv
-	4095, // wbd_ref
-	0,    // wbd_sel
-	0,    // wbd_alpha
+	0,
+	4095,
+	0,
+	0,
 
-	42598, // agc1_max
-	16384, // agc1_min
-	42598, // agc2_max
-	    0, // agc2_min
+	42598,
+	16384,
+	42598,
+	    0,
 
-	  0,   // agc1_pt1
-	137,   // agc1_pt2
-	255,   // agc1_pt3
+	  0,
+	137,
+	255,
 
-	  0,   // agc1_slope1
-	255,   // agc1_slope2
+	  0,
+	255,
 
-	0,     // agc2_pt1
-	0,     // agc2_pt2
+	0,
+	0,
 
-	 0,    // agc2_slope1
-	41,    // agc2_slope2
+	 0,
+	41,
 
-	15, // alpha_mant
-	25, // alpha_exp
+	15,
+	25,
 
-	28, // beta_mant
-	48, // beta_exp
+	28,
+	48,
 
-	0, // perform_agc_softsplit
+	0,
 };
 
 static struct dibx000_bandwidth_config stk7700p_pll_config = {
-	60000, 30000, // internal, sampling
-	1, 8, 3, 1, 0, // pll_cfg: prediv, ratio, range, reset, bypass
-	0, 0, 1, 1, 0, // misc: refdiv, bypclk_div, IO_CLK_en_core, ADClkSrc, modulo
-	(3 << 14) | (1 << 12) | (524 << 0), // sad_cfg: refsel, sel, freq_15k
-	60258167, // ifreq
-	20452225, // timf
-	30000000, // xtal
+	60000, 30000,
+	1, 8, 3, 1, 0,
+	0, 0, 1, 1, 0,
+	(3 << 14) | (1 << 12) | (524 << 0),
+	60258167,
+	20452225,
+	30000000,
 };
 
 static struct dib7000m_config stk7700p_dib7000m_config = {
@@ -1116,41 +1120,42 @@ static struct dibx000_agc_config dib7070_agc_config = {
 	BAND_UHF | BAND_VHF | BAND_LBAND | BAND_SBAND,
 	/* P_agc_use_sd_mod1=0, P_agc_use_sd_mod2=0, P_agc_freq_pwm_div=5, P_agc_inv_pwm1=0, P_agc_inv_pwm2=0,
 	 * P_agc_inh_dc_rv_est=0, P_agc_time_est=3, P_agc_freeze=0, P_agc_nb_est=5, P_agc_write=0 */
-	(0 << 15) | (0 << 14) | (5 << 11) | (0 << 10) | (0 << 9) | (0 << 8) | (3 << 5) | (0 << 4) | (5 << 1) | (0 << 0), // setup
+	(0 << 15) | (0 << 14) | (5 << 11) | (0 << 10) | (0 << 9) | (0 << 8)
+	| (3 << 5) | (0 << 4) | (5 << 1) | (0 << 0),
 
-	600, // inv_gain
-	10,  // time_stabiliz
+	600,
+	10,
 
-	0,  // alpha_level
-	118,  // thlock
+	0,
+	118,
 
-	0,     // wbd_inv
-	3530,  // wbd_ref
-	1,     // wbd_sel
-	5,     // wbd_alpha
+	0,
+	3530,
+	1,
+	5,
 
-	65535,  // agc1_max
-		0,  // agc1_min
+	65535,
+		0,
 
-	65535,  // agc2_max
-	0,      // agc2_min
+	65535,
+	0,
 
-	0,      // agc1_pt1
-	40,     // agc1_pt2
-	183,    // agc1_pt3
-	206,    // agc1_slope1
-	255,    // agc1_slope2
-	72,     // agc2_pt1
-	152,    // agc2_pt2
-	88,     // agc2_slope1
-	90,     // agc2_slope2
+	0,
+	40,
+	183,
+	206,
+	255,
+	72,
+	152,
+	88,
+	90,
 
-	17,  // alpha_mant
-	27,  // alpha_exp
-	23,  // beta_mant
-	51,  // beta_exp
+	17,
+	27,
+	23,
+	51,
 
-	0,  // perform_agc_softsplit
+	0,
 };
 
 static int dib7070_tuner_reset(struct dvb_frontend *fe, int onoff)
@@ -1277,13 +1282,13 @@ static int stk70x0p_pid_filter_ctrl(struct dvb_usb_adapter *adapter, int onoff)
 }
 
 static struct dibx000_bandwidth_config dib7070_bw_config_12_mhz = {
-	60000, 15000, // internal, sampling
-	1, 20, 3, 1, 0, // pll_cfg: prediv, ratio, range, reset, bypass
-	0, 0, 1, 1, 2, // misc: refdiv, bypclk_div, IO_CLK_en_core, ADClkSrc, modulo
-	(3 << 14) | (1 << 12) | (524 << 0), // sad_cfg: refsel, sel, freq_15k
-	(0 << 25) | 0, // ifreq = 0.000000 MHz
-	20452225, // timf
-	12000000, // xtal_hz
+	60000, 15000,
+	1, 20, 3, 1, 0,
+	0, 0, 1, 1, 2,
+	(3 << 14) | (1 << 12) | (524 << 0),
+	(0 << 25) | 0,
+	20452225,
+	12000000,
 };
 
 static struct dib7000p_config dib7070p_dib7000p_config = {
@@ -1567,12 +1572,14 @@ static int dib807x_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static int stk80xx_pid_filter(struct dvb_usb_adapter *adapter, int index, u16 pid, int onoff)
+static int stk80xx_pid_filter(struct dvb_usb_adapter *adapter, int index,
+	u16 pid, int onoff)
 {
     return dib8000_pid_filter(adapter->fe, index, pid, onoff);
 }
 
-static int stk80xx_pid_filter_ctrl(struct dvb_usb_adapter *adapter, int onoff)
+static int stk80xx_pid_filter_ctrl(struct dvb_usb_adapter *adapter,
+	int onoff)
 {
     return dib8000_pid_filter_ctrl(adapter->fe, onoff);
 }
@@ -1648,94 +1655,98 @@ static int stk807xpvr_frontend_attach1(struct dvb_usb_adapter *adap)
 struct dibx000_agc_config dib8090_agc_config[2] = {
     {
 	BAND_UHF | BAND_VHF | BAND_LBAND | BAND_SBAND,
-	/* P_agc_use_sd_mod1=0, P_agc_use_sd_mod2=0, P_agc_freq_pwm_div=1, P_agc_inv_pwm1=0, P_agc_inv_pwm2=0,
-	 * P_agc_inh_dc_rv_est=0, P_agc_time_est=3, P_agc_freeze=0, P_agc_nb_est=5, P_agc_write=0 */
-	(0 << 15) | (0 << 14) | (5 << 11) | (0 << 10) | (0 << 9) | (0 << 8) | (3 << 5) | (0 << 4) | (5 << 1) | (0 << 0), // setup
+	/* P_agc_use_sd_mod1=0, P_agc_use_sd_mod2=0, P_agc_freq_pwm_div=1,
+     * P_agc_inv_pwm1=0, P_agc_inv_pwm2=0, P_agc_inh_dc_rv_est=0,
+     * P_agc_time_est=3, P_agc_freeze=0, P_agc_nb_est=5, P_agc_write=0 */
+	(0 << 15) | (0 << 14) | (5 << 11) | (0 << 10) | (0 << 9) | (0 << 8)
+	| (3 << 5) | (0 << 4) | (5 << 1) | (0 << 0),
 
-	787,// inv_gain = 1/ 90.4dB // no boost, lower gain due to ramp quantification
-	10,  // time_stabiliz
+	787,
+	10,
 
-	0,  // alpha_level
-	118,  // thlock
+	0,
+	118,
 
-	0,     // wbd_inv
-	3530,  // wbd_ref
-	1,     // wbd_sel
-	5,     // wbd_alpha
+	0,
+	3530,
+	1,
+	5,
 
-	65535,  // agc1_max
-	0,  // agc1_min
+	65535,
+	0,
 
-	65535,  // agc2_max
-	0,      // agc2_min
+	65535,
+	0,
 
-	0,      // agc1_pt1
-	32,     // agc1_pt2
-	114,    // agc1_pt3  // 40.4dB
-	143,    // agc1_slope1
-	144,    // agc1_slope2
-	114,    // agc2_pt1
-	227,    // agc2_pt2
-	116,    // agc2_slope1
-	117,    // agc2_slope2
+	0,
+	32,
+	114,
+	143,
+	144,
+	114,
+	227,
+	116,
+	117,
 
-	28,  // alpha_mant // 5Hz with 90.2dB
-	26,  // alpha_exp
-	31,  // beta_mant
-	51,  // beta_exp
+	28,
+	26,
+	31,
+	51,
 
-	0,  // perform_agc_softsplit
+	0,
     },
     {
 	BAND_CBAND,
-	/* P_agc_use_sd_mod1=0, P_agc_use_sd_mod2=0, P_agc_freq_pwm_div=1, P_agc_inv_pwm1=0, P_agc_inv_pwm2=0,
-	 * P_agc_inh_dc_rv_est=0, P_agc_time_est=3, P_agc_freeze=0, P_agc_nb_est=5, P_agc_write=0 */
-	(0 << 15) | (0 << 14) | (5 << 11) | (0 << 10) | (0 << 9) | (0 << 8) | (3 << 5) | (0 << 4) | (5 << 1) | (0 << 0), // setup
+	/* P_agc_use_sd_mod1=0, P_agc_use_sd_mod2=0, P_agc_freq_pwm_div=1,
+     * P_agc_inv_pwm1=0, P_agc_inv_pwm2=0, P_agc_inh_dc_rv_est=0,
+     * P_agc_time_est=3, P_agc_freeze=0, P_agc_nb_est=5, P_agc_write=0 */
+	(0 << 15) | (0 << 14) | (5 << 11) | (0 << 10) | (0 << 9) | (0 << 8)
+	| (3 << 5) | (0 << 4) | (5 << 1) | (0 << 0),
 
-	787,// inv_gain = 1/ 90.4dB // no boost, lower gain due to ramp quantification
-	10,  // time_stabiliz
+	787,
+	10,
 
-	0,  // alpha_level
-	118,  // thlock
+	0,
+	118,
 
-	0,     // wbd_inv
-	3530,  // wbd_ref
-	1,     // wbd_sel
-	5,     // wbd_alpha
+	0,
+	3530,
+	1,
+	5,
 
-	0,  // agc1_max
-	0,  // agc1_min
+	0,
+	0,
 
-	65535,  // agc2_max
-	0,      // agc2_min
+	65535,
+	0,
 
-	0,      // agc1_pt1
-	32,     // agc1_pt2
-	114,    // agc1_pt3  // 40.4dB
-	143,    // agc1_slope1
-	144,    // agc1_slope2
-	114,    // agc2_pt1
-	227,    // agc2_pt2
-	116,    // agc2_slope1
-	117,    // agc2_slope2
+	0,
+	32,
+	114,
+	143,
+	144,
+	114,
+	227,
+	116,
+	117,
 
-	28,  // alpha_mant // 5Hz with 90.2dB
-	26,  // alpha_exp
-	31,  // beta_mant
-	51,  // beta_exp
+	28,
+	26,
+	31,
+	51,
 
-	0,  // perform_agc_softsplit
+	0,
     }
 };
 
 static struct dibx000_bandwidth_config dib8090_pll_config_12mhz = {
-    54000, 13500, // internal, sampling
-    1, 18, 3, 1, 0, // pll_cfg: prediv, ratio, range, reset, bypass
-    0, 0, 1, 1, 2, // misc: refdiv, bypclk_div, IO_CLK_en_core, ADClkSrc, modulo
-    (3 << 14) | (1 << 12) | (599 << 0), // sad_cfg: refsel, sel, freq_15k
-    (0 << 25) | 0, // ifreq = 0 MHz
-    20199727, // timf
-    12000000, // xtal_hz
+    54000, 13500,
+    1, 18, 3, 1, 0,
+    0, 0, 1, 1, 2,
+    (3 << 14) | (1 << 12) | (599 << 0),
+    (0 << 25) | 0,
+    20199727,
+    12000000,
 };
 
 static int dib8090_get_adc_power(struct dvb_frontend *fe)
@@ -1802,13 +1813,13 @@ static int dib8096_set_param_override(struct dvb_frontend *fe,
 	return ret;
 
     switch (band) {
-	case BAND_VHF:
+    case BAND_VHF:
 	    offset = 100;
 	    break;
-	case BAND_UHF:
+    case BAND_UHF:
 	    offset = 550;
 	    break;
-	default:
+    default:
 	    offset = 0;
 	    break;
     }
@@ -1816,31 +1827,26 @@ static int dib8096_set_param_override(struct dvb_frontend *fe,
     dib8000_set_wbd_ref(fe, offset);
 
 
-    if (band == BAND_CBAND)
-    {
+    if (band == BAND_CBAND) {
 	deb_info("tuning in CBAND - soft-AGC startup\n");
 	/* TODO specific wbd target for dib0090 - needed for startup ? */
 	dib0090_set_tune_state(fe, CT_AGC_START);
-	do
-	{
-	    ret = dib0090_gain_control(fe);
-	    msleep(ret);
-	    tune_state = dib0090_get_tune_state(fe);
-	    if (tune_state == CT_AGC_STEP_0)
-		dib8000_set_gpio(fe, 6, 0, 1);
-	    else if (tune_state == CT_AGC_STEP_1)
-	    {
-		dib0090_get_current_gain(fe, NULL, NULL, &rf_gain_limit, &ltgain);
-		if (rf_gain_limit == 0)
-		    dib8000_set_gpio(fe, 6, 0, 0);
-	    }
-	}
-	while(tune_state<CT_AGC_STOP);
+	do {
+		ret = dib0090_gain_control(fe);
+		msleep(ret);
+		tune_state = dib0090_get_tune_state(fe);
+		if (tune_state == CT_AGC_STEP_0)
+			dib8000_set_gpio(fe, 6, 0, 1);
+		else if (tune_state == CT_AGC_STEP_1) {
+			dib0090_get_current_gain(fe, NULL, NULL, &rf_gain_limit, &ltgain);
+			if (rf_gain_limit == 0)
+				dib8000_set_gpio(fe, 6, 0, 0);
+		}
+	} while (tune_state < CT_AGC_STOP);
 	dib0090_pwm_gain_reset(fe);
 	dib8000_pwm_agc_reset(fe);
 	dib8000_set_tune_state(fe, CT_DEMOD_START);
-    }
-    else {
+    } else {
 	deb_info("not tuning in CBAND - standard AGC startup\n");
 	dib0090_pwm_gain_reset(fe);
     }

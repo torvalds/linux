@@ -937,21 +937,21 @@ static int dib8000_agc_startup(struct dvb_frontend *fe)
 
 static const int32_t lut_1000ln_mant[] =
 {
-	908,7003,7090,7170,7244,7313,7377,7438,7495,7549,7600
+	908, 7003, 7090, 7170, 7244, 7313, 7377, 7438, 7495, 7549, 7600
 };
 
 int32_t dib8000_get_adc_power(struct dvb_frontend *fe, uint8_t mode)
 {
     struct dib8000_state *state = fe->demodulator_priv;
-    uint32_t ix =0, tmp_val =0, exp = 0, mant = 0;
+    uint32_t ix = 0, tmp_val = 0, exp = 0, mant = 0;
     int32_t val;
 
     val = dib8000_read32(state, 384);
     /* mode = 1 : ln_agcpower calc using mant-exp conversion and mantis look up table */
-    if(mode) {
+    if (mode) {
 	tmp_val = val;
-	while(tmp_val>>=1)
-	    exp++;
+	while (tmp_val >>= 1)
+		exp++;
 	mant = (val * 1000 / (1<<exp));
 	ix = (uint8_t)((mant-1000)/100); /* index of the LUT */
 	val = (lut_1000ln_mant[ix] + 693*(exp-20) - 6908); /* 1000 * ln(adcpower_real) ; 693 = 1000ln(2) ; 6908 = 1000*ln(1000) ; 20 comes from adc_real = adc_pow_int / 2**20 */
@@ -1876,14 +1876,14 @@ static int dib8000_sleep(struct dvb_frontend *fe)
 	}
 }
 
-enum frontend_tune_state dib8000_get_tune_state(struct dvb_frontend* fe)
+enum frontend_tune_state dib8000_get_tune_state(struct dvb_frontend *fe)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 	return state->tune_state;
 }
 EXPORT_SYMBOL(dib8000_get_tune_state);
 
-int dib8000_set_tune_state(struct dvb_frontend* fe, enum frontend_tune_state tune_state)
+int dib8000_set_tune_state(struct dvb_frontend *fe, enum frontend_tune_state tune_state)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 	state->tune_state = tune_state;

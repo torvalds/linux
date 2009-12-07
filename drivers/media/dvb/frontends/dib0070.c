@@ -163,7 +163,7 @@ static int dib0070_captrim(struct dib0070_state *state, enum frontend_tune_state
 
 		adc = dib0070_read_reg(state, 0x19);
 
-		dprintk( "CAPTRIM=%hd; ADC = %hd (ADC) & %dmV", state->captrim, adc, (u32) adc*(u32)1800/(u32)1024);
+		dprintk("CAPTRIM=%hd; ADC = %hd (ADC) & %dmV", state->captrim, adc, (u32) adc*(u32)1800/(u32)1024);
 
 		if (adc >= 400) {
 			adc -= 400;
@@ -174,7 +174,7 @@ static int dib0070_captrim(struct dib0070_state *state, enum frontend_tune_state
 		}
 
 		if (adc < state->adc_diff) {
-			dprintk( "CAPTRIM=%hd is closer to target (%hd/%hd)", state->captrim, adc, state->adc_diff);
+			dprintk("CAPTRIM=%hd is closer to target (%hd/%hd)", state->captrim, adc, state->adc_diff);
 			state->adc_diff = adc;
 			state->fcaptrim = state->captrim;
 
@@ -201,7 +201,7 @@ static int dib0070_set_ctrl_lo5(struct dvb_frontend *fe, u8 vco_bias_trim, u8 hf
 {
 	struct dib0070_state *state = fe->tuner_priv;
     u16 lo5 = (third_order_filt << 14) | (0 << 13) | (1 << 12) | (3 << 9) | (cp_current << 6) | (hf_div_trim << 3) | (vco_bias_trim << 0);
-	dprintk( "CTRL_LO5: 0x%x", lo5);
+	dprintk("CTRL_LO5: 0x%x", lo5);
 	return dib0070_write_reg(state, 0x15, lo5);
 }
 
@@ -215,10 +215,10 @@ void dib0070_ctrl_agc_filter(struct dvb_frontend *fe, u8 open)
 	} else {
 		dib0070_write_reg(state, 0x1b, 0x4112);
 	if (state->cfg->vga_filter != 0) {
-	    dib0070_write_reg(state, 0x1a, state->cfg->vga_filter);
-	    dprintk( "vga filter register is set to %x", state->cfg->vga_filter);
+		dib0070_write_reg(state, 0x1a, state->cfg->vga_filter);
+		dprintk("vga filter register is set to %x", state->cfg->vga_filter);
 	} else
-	    dib0070_write_reg(state, 0x1a, 0x0009);
+		dib0070_write_reg(state, 0x1a, 0x0009);
 	}
 }
 
@@ -255,7 +255,7 @@ static const struct dib0070_tuning dib0070_tuning_table[] = {
     {     189999, 1, 1, 3, 16, 2, 1, 0x8000 | 0x1000 },
     {     250000, 1, 0, 6, 12, 2, 1, 0x8000 | 0x1000 },
     {     569999, 2, 1, 5,  6, 2, 2, 0x4000 | 0x0800 }, /* UHF */
-    {     699999, 2, 0 ,1,  4, 2, 2, 0x4000 | 0x0800 },
+    {     699999, 2, 0, 1,  4, 2, 2, 0x4000 | 0x0800 },
     {     863999, 2, 1, 1,  4, 2, 2, 0x4000 | 0x0800 },
     { 0xffffffff, 0, 1, 0,  2, 2, 4, 0x2000 | 0x0400 }, /* LBAND or everything higher than UHF */
 };
@@ -291,7 +291,7 @@ static const struct dib0070_lna_match dib0070_lna[] = {
     { 0xffffffff, 7 },
 };
 
-#define LPF	100                       // define for the loop filter 100kHz by default 16-07-06
+#define LPF	100
 static int dib0070_tune_digital(struct dvb_frontend *fe, struct dvb_frontend_parameters *ch)
 {
     struct dib0070_state *state = fe->tuner_priv;
@@ -313,7 +313,7 @@ static int dib0070_tune_digital(struct dvb_frontend *fe, struct dvb_frontend_par
 			&& (state->fe->dtv_property_cache.isdbt_sb_segment_idx == (state->fe->dtv_property_cache.isdbt_sb_segment_count / 2)))
 		    || (((state->fe->dtv_property_cache.isdbt_sb_segment_count % 2) == 0)
 			&& (state->fe->dtv_property_cache.isdbt_sb_segment_idx == ((state->fe->dtv_property_cache.isdbt_sb_segment_count / 2) + 1))))
-	    freq += 850;
+			freq += 850;
 #endif
     if (state->current_rf != freq) {
 
@@ -340,95 +340,95 @@ static int dib0070_tune_digital(struct dvb_frontend *fe, struct dvb_frontend_par
     }
 
     if (*tune_state == CT_TUNER_START) {
-	dprintk( "Tuning for Band: %hd (%d kHz)", band, freq);
+	dprintk("Tuning for Band: %hd (%d kHz)", band, freq);
 	if (state->current_rf != freq) {
-	    u8 REFDIV;
-	    u32 FBDiv, Rest, FREF, VCOF_kHz;
-	    u8 Den;
+		u8 REFDIV;
+		u32 FBDiv, Rest, FREF, VCOF_kHz;
+		u8 Den;
 
-	    state->current_rf = freq;
-	    state->lo4 = (state->current_tune_table_index->vco_band << 11) | (state->current_tune_table_index->hfdiv << 7);
-
-
-	    dib0070_write_reg(state, 0x17, 0x30);
+		state->current_rf = freq;
+		state->lo4 = (state->current_tune_table_index->vco_band << 11) | (state->current_tune_table_index->hfdiv << 7);
 
 
-	    VCOF_kHz = state->current_tune_table_index->vco_multi * freq * 2;
-
-	    switch (band) {
-	    case BAND_VHF:
-		REFDIV = (u8) ((state->cfg->clock_khz + 9999) / 10000);
-		break;
-	    case BAND_FM:
-		REFDIV = (u8) ((state->cfg->clock_khz) / 1000);
-		break;
-	    default:
-		REFDIV = (u8) ( state->cfg->clock_khz  / 10000);
-		break;
-	    }
-	    FREF = state->cfg->clock_khz / REFDIV;
+		dib0070_write_reg(state, 0x17, 0x30);
 
 
+		VCOF_kHz = state->current_tune_table_index->vco_multi * freq * 2;
 
-	    switch (state->revision) {
-	    case DIB0070S_P1A:
-		FBDiv = (VCOF_kHz / state->current_tune_table_index->presc / FREF);
-		Rest  = (VCOF_kHz / state->current_tune_table_index->presc) - FBDiv * FREF;
-		break;
-
-	    case DIB0070_P1G:
-	    case DIB0070_P1F:
-	    default:
-		FBDiv = (freq / (FREF / 2));
-		Rest  = 2 * freq - FBDiv * FREF;
-		break;
-	    }
-
-			if (Rest < LPF)
-				Rest = 0;
-			else if (Rest < 2 * LPF)
-				Rest = 2 * LPF;
-			else if (Rest > (FREF - LPF)) {
-				Rest = 0;
-				FBDiv += 1;
-			} else if (Rest > (FREF - 2 * LPF))
-				Rest = FREF - 2 * LPF;
-	    Rest = (Rest * 6528) / (FREF / 10);
-
-	    Den = 1;
-	    if (Rest > 0) {
-		state->lo4 |= (1 << 14) | (1 << 12);
-		Den = 255;
-	    }
+		switch (band) {
+		case BAND_VHF:
+			REFDIV = (u8) ((state->cfg->clock_khz + 9999) / 10000);
+			break;
+		case BAND_FM:
+			REFDIV = (u8) ((state->cfg->clock_khz) / 1000);
+			break;
+		default:
+			REFDIV = (u8) (state->cfg->clock_khz  / 10000);
+			break;
+		}
+		FREF = state->cfg->clock_khz / REFDIV;
 
 
-	    dib0070_write_reg(state, 0x11, (u16)FBDiv);
-	    dib0070_write_reg(state, 0x12, (Den << 8) | REFDIV);
-	    dib0070_write_reg(state, 0x13, (u16) Rest);
 
-	    if (state->revision == DIB0070S_P1A) {
+		switch (state->revision) {
+		case DIB0070S_P1A:
+			FBDiv = (VCOF_kHz / state->current_tune_table_index->presc / FREF);
+			Rest  = (VCOF_kHz / state->current_tune_table_index->presc) - FBDiv * FREF;
+			break;
 
-		if (band == BAND_SBAND) {
-		    dib0070_set_ctrl_lo5(fe, 2, 4, 3, 0);
-		    dib0070_write_reg(state, 0x1d,0xFFFF);
-		} else
-		    dib0070_set_ctrl_lo5(fe, 5, 4, 3, 1);
-	    }
+		case DIB0070_P1G:
+		case DIB0070_P1F:
+		default:
+			FBDiv = (freq / (FREF / 2));
+			Rest  = 2 * freq - FBDiv * FREF;
+			break;
+		}
 
-			dib0070_write_reg(state, 0x20,
-					  0x0040 | 0x0020 | 0x0010 | 0x0008 | 0x0002 | 0x0001 | state->current_tune_table_index->tuner_enable);
+		if (Rest < LPF)
+			Rest = 0;
+		else if (Rest < 2 * LPF)
+			Rest = 2 * LPF;
+		else if (Rest > (FREF - LPF)) {
+			Rest = 0;
+			FBDiv += 1;
+		} else if (Rest > (FREF - 2 * LPF))
+			Rest = FREF - 2 * LPF;
+		Rest = (Rest * 6528) / (FREF / 10);
 
-	    dprintk( "REFDIV: %hd, FREF: %d", REFDIV, FREF);
-	    dprintk( "FBDIV: %d, Rest: %d", FBDiv, Rest);
-	    dprintk( "Num: %hd, Den: %hd, SD: %hd",(u16) Rest, Den, (state->lo4 >> 12) & 0x1);
-	    dprintk( "HFDIV code: %hd", state->current_tune_table_index->hfdiv);
-	    dprintk( "VCO = %hd", state->current_tune_table_index->vco_band);
-	    dprintk( "VCOF: ((%hd*%d) << 1))", state->current_tune_table_index->vco_multi, freq);
+		Den = 1;
+		if (Rest > 0) {
+			state->lo4 |= (1 << 14) | (1 << 12);
+			Den = 255;
+		}
 
-	    *tune_state = CT_TUNER_STEP_0;
+
+		dib0070_write_reg(state, 0x11, (u16)FBDiv);
+		dib0070_write_reg(state, 0x12, (Den << 8) | REFDIV);
+		dib0070_write_reg(state, 0x13, (u16) Rest);
+
+		if (state->revision == DIB0070S_P1A) {
+
+			if (band == BAND_SBAND) {
+				dib0070_set_ctrl_lo5(fe, 2, 4, 3, 0);
+				dib0070_write_reg(state, 0x1d, 0xFFFF);
+			} else
+				dib0070_set_ctrl_lo5(fe, 5, 4, 3, 1);
+		}
+
+		dib0070_write_reg(state, 0x20,
+			0x0040 | 0x0020 | 0x0010 | 0x0008 | 0x0002 | 0x0001 | state->current_tune_table_index->tuner_enable);
+
+		dprintk("REFDIV: %hd, FREF: %d", REFDIV, FREF);
+		dprintk("FBDIV: %d, Rest: %d", FBDiv, Rest);
+		dprintk("Num: %hd, Den: %hd, SD: %hd", (u16) Rest, Den, (state->lo4 >> 12) & 0x1);
+		dprintk("HFDIV code: %hd", state->current_tune_table_index->hfdiv);
+		dprintk("VCO = %hd", state->current_tune_table_index->vco_band);
+		dprintk("VCOF: ((%hd*%d) << 1))", state->current_tune_table_index->vco_multi, freq);
+
+		*tune_state = CT_TUNER_STEP_0;
 	} else { /* we are already tuned to this frequency - the configuration is correct  */
-	    ret = 50; /* wakeup time */
-	    *tune_state = CT_TUNER_STEP_5;
+		ret = 50; /* wakeup time */
+		*tune_state = CT_TUNER_STEP_5;
 	}
     } else if ((*tune_state > CT_TUNER_START) && (*tune_state < CT_TUNER_STEP_4)) {
 
@@ -437,13 +437,13 @@ static int dib0070_tune_digital(struct dvb_frontend *fe, struct dvb_frontend_par
     } else if (*tune_state == CT_TUNER_STEP_4) {
 	const struct dib0070_wbd_gain_cfg *tmp = state->cfg->wbd_gain;
 	if (tmp != NULL) {
-	    while (freq/1000 > tmp->freq) /* find the right one */
-		tmp++;
-			dib0070_write_reg(state, 0x0f,
-					  (0 << 15) | (1 << 14) | (3 << 12) | (tmp->wbd_gain_val << 9) | (0 << 8) | (1 << 7) | (state->
-																current_tune_table_index->
-																wbdmux << 0));
-	    state->wbd_gain_current = tmp->wbd_gain_val;
+		while (freq/1000 > tmp->freq) /* find the right one */
+			tmp++;
+		dib0070_write_reg(state, 0x0f,
+			(0 << 15) | (1 << 14) | (3 << 12)
+			| (tmp->wbd_gain_val << 9) | (0 << 8) | (1 << 7)
+			| (state->current_tune_table_index->wbdmux << 0));
+		state->wbd_gain_current = tmp->wbd_gain_val;
 	} else {
 			dib0070_write_reg(state, 0x0f,
 					  (0 << 15) | (1 << 14) | (3 << 12) | (6 << 9) | (0 << 8) | (1 << 7) | (state->current_tune_table_index->
@@ -483,7 +483,7 @@ static int dib0070_tune(struct dvb_frontend *fe, struct dvb_frontend_parameters 
     do {
 	ret = dib0070_tune_digital(fe, p);
 	if (ret != FE_CALLBACK_TIME_NEVER)
-	    msleep(ret/10);
+		msleep(ret/10);
 	else
 	    break;
     } while (state->tune_state != CT_TUNER_STOP);
@@ -512,18 +512,20 @@ u8 dib0070_get_rf_output(struct dvb_frontend *fe)
 	struct dib0070_state *state = fe->tuner_priv;
 	return (dib0070_read_reg(state, 0x07) >> 11) & 0x3;
 }
-
 EXPORT_SYMBOL(dib0070_get_rf_output);
+
 int dib0070_set_rf_output(struct dvb_frontend *fe, u8 no)
 {
 	struct dib0070_state *state = fe->tuner_priv;
 	u16 rxrf2 = dib0070_read_reg(state, 0x07) & 0xfe7ff;
-	if (no > 3) no = 3;
-	if (no < 1) no = 1;
+	if (no > 3)
+		no = 3;
+	if (no < 1)
+		no = 1;
 	return dib0070_write_reg(state, 0x07, rxrf2 | (no << 11));
 }
-
 EXPORT_SYMBOL(dib0070_set_rf_output);
+
 static const u16 dib0070_p1f_defaults[] =
 
 {
@@ -582,7 +584,7 @@ static void dib0070_wbd_offset_calibration(struct dib0070_state *state)
     u8 gain;
     for (gain = 6; gain < 8; gain++) {
 	state->wbd_offset_3_3[gain - 6] = ((dib0070_read_wbd_offset(state, gain) * 8 * 18 / 33 + 1) / 2);
-	dprintk( "Gain: %d, WBDOffset (3.3V) = %hd", gain, state->wbd_offset_3_3[gain-6]);
+	dprintk("Gain: %d, WBDOffset (3.3V) = %hd", gain, state->wbd_offset_3_3[gain-6]);
     }
 }
 
@@ -622,10 +624,10 @@ static int dib0070_reset(struct dvb_frontend *fe)
 		state->revision = DIB0070S_P1A;
 
 	/* P1F or not */
-	dprintk( "Revision: %x", state->revision);
+	dprintk("Revision: %x", state->revision);
 
 	if (state->revision == DIB0070_P1D) {
-		dprintk( "Error: this driver is not to be used meant for P1D or earlier");
+		dprintk("Error: this driver is not to be used meant for P1D or earlier");
 		return -EINVAL;
 	}
 
@@ -702,7 +704,7 @@ static const struct dvb_tuner_ops dib0070_ops = {
 //      .get_bandwidth = dib0070_get_bandwidth
 };
 
-struct dvb_frontend * dib0070_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct dib0070_config *cfg)
+struct dvb_frontend *dib0070_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct dib0070_config *cfg)
 {
 	struct dib0070_state *state = kzalloc(sizeof(struct dib0070_state), GFP_KERNEL);
 	if (state == NULL)

@@ -46,8 +46,8 @@ extern int dib8000_set_gpio(struct dvb_frontend *, u8 num, u8 dir, u8 val);
 extern int dib8000_set_wbd_ref(struct dvb_frontend *, u16 value);
 extern int dib8000_pid_filter_ctrl(struct dvb_frontend *, u8 onoff);
 extern int dib8000_pid_filter(struct dvb_frontend *, u8 id, u16 pid, u8 onoff);
-extern int dib8000_set_tune_state(struct dvb_frontend* fe, enum frontend_tune_state tune_state);
-extern enum frontend_tune_state dib8000_get_tune_state(struct dvb_frontend* fe);
+extern int dib8000_set_tune_state(struct dvb_frontend *fe, enum frontend_tune_state tune_state);
+extern enum frontend_tune_state dib8000_get_tune_state(struct dvb_frontend *fe);
 extern void dib8000_pwm_agc_reset(struct dvb_frontend *fe);
 extern s32 dib8000_get_adc_power(struct dvb_frontend *fe, u8 mode);
 #else
@@ -92,12 +92,12 @@ static inline int dib8000_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return -ENODEV;
 }
-static inline int dib8000_set_tune_state(struct dvb_frontend* fe, enum frontend_tune_state tune_state)
+static inline int dib8000_set_tune_state(struct dvb_frontend *fe, enum frontend_tune_state tune_state)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return -ENODEV;
 }
-static inline enum frontend_tune_state dib8000_get_tune_state(struct dvb_frontend* fe)
+static inline enum frontend_tune_state dib8000_get_tune_state(struct dvb_frontend *fe)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
     return CT_SHUTDOWN,

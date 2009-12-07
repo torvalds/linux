@@ -24,7 +24,7 @@ struct dib0090_io_config {
 	u8 pll_loopdiv:6;
 
 	u8 adc_clock_ratio;	/* valid is 8, 7 ,6 */
-	u16 pll_int_loop_filt;	// internal loop filt value. If not fill in , default is 8165
+	u16 pll_int_loop_filt;
 };
 
 struct dib0090_config {

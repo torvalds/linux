@@ -149,8 +149,8 @@ static u16 dib0090_read_reg(struct dib0090_state *state, u8 reg)
 {
 	u8 b[2];
 	struct i2c_msg msg[2] = {
-		{.addr = state->config->i2c_address,.flags = 0,.buf = &reg,.len = 1},
-		{.addr = state->config->i2c_address,.flags = I2C_M_RD,.buf = b,.len = 2},
+		{.addr = state->config->i2c_address, .flags = 0, .buf = &reg, .len = 1},
+		{.addr = state->config->i2c_address, .flags = I2C_M_RD, .buf = b, .len = 2},
 	};
 	if (i2c_transfer(state->i2c, msg, 2) != 2) {
 		printk(KERN_WARNING "DiB0090 I2C read failed\n");
@@ -162,7 +162,7 @@ static u16 dib0090_read_reg(struct dib0090_state *state, u8 reg)
 static int dib0090_write_reg(struct dib0090_state *state, u32 reg, u16 val)
 {
 	u8 b[3] = { reg & 0xff, val >> 8, val & 0xff };
-	struct i2c_msg msg = {.addr = state->config->i2c_address,.flags = 0,.buf = b,.len = 3 };
+	struct i2c_msg msg = {.addr = state->config->i2c_address, .flags = 0, .buf = b, .len = 3 };
 	if (i2c_transfer(state->i2c, &msg, 1) != 1) {
 		printk(KERN_WARNING "DiB0090 I2C write failed\n");
 		return -EREMOTEIO;
@@ -287,12 +287,12 @@ extern void dib0090_dcc_freq(struct dvb_frontend *fe, u8 fast)
 {
 	struct dib0090_state *state = fe->tuner_priv;
 	if (fast)
-		dib0090_write_reg(state, 0x04, 0);	//1kHz
+		dib0090_write_reg(state, 0x04, 0);
 	else
-		dib0090_write_reg(state, 0x04, 1);	//almost frozen
+		dib0090_write_reg(state, 0x04, 1);
 }
-
 EXPORT_SYMBOL(dib0090_dcc_freq);
+
 static const u16 rf_ramp_pwm_cband[] = {
 	0,			/* max RF gain in 10th of dB */
 	0,			/* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> 0x2b */
@@ -616,11 +616,11 @@ void dib0090_pwm_gain_reset(struct dvb_frontend *fe)
 		else
 			dib0090_write_reg(state, 0x32, (0 << 11));
 
-		dib0090_write_reg(state, 0x39, (1 << 10));	// 0 gain by default
+		dib0090_write_reg(state, 0x39, (1 << 10));
 	}
 }
-
 EXPORT_SYMBOL(dib0090_pwm_gain_reset);
+
 int dib0090_gain_control(struct dvb_frontend *fe)
 {
 	struct dib0090_state *state = fe->tuner_priv;
@@ -760,7 +760,7 @@ int dib0090_gain_control(struct dvb_frontend *fe)
 #ifdef DEBUG_AGC
 		dprintk
 		    ("FE: %d, tune state %d, ADC = %3ddB (ADC err %3d) WBD %3ddB (WBD err %3d, WBD val SADC: %4d), RFGainLimit (TOP): %3d, signal: %3ddBm",
-		     (u32) fe->id, (u32) * tune_state, (u32) adc, (u32) adc_error, (u32) wbd, (u32) wbd_error, (u32) wbd_val,
+		     (u32) fe->id, (u32) *tune_state, (u32) adc, (u32) adc_error, (u32) wbd, (u32) wbd_error, (u32) wbd_val,
 		     (u32) state->rf_gain_limit >> WBD_ALPHA, (s32) 200 + adc - (state->current_gain >> GAIN_ALPHA));
 #endif
 	}
@@ -770,8 +770,8 @@ int dib0090_gain_control(struct dvb_frontend *fe)
 		dib0090_gain_apply(state, adc_error, wbd_error, apply_gain_immediatly);
 	return ret;
 }
-
 EXPORT_SYMBOL(dib0090_gain_control);
+
 void dib0090_get_current_gain(struct dvb_frontend *fe, u16 * rf, u16 * bb, u16 * rf_gain_limit, u16 * rflt)
 {
 	struct dib0090_state *state = fe->tuner_priv;
@@ -784,15 +784,15 @@ void dib0090_get_current_gain(struct dvb_frontend *fe, u16 * rf, u16 * bb, u16 *
 	if (rflt)
 		*rflt = (state->rf_lt_def >> 10) & 0x7;
 }
-
 EXPORT_SYMBOL(dib0090_get_current_gain);
+
 u16 dib0090_get_wbd_offset(struct dvb_frontend *tuner)
 {
 	struct dib0090_state *st = tuner->tuner_priv;
 	return st->wbd_offset;
 }
-
 EXPORT_SYMBOL(dib0090_get_wbd_offset);
+
 static const u16 dib0090_defaults[] = {
 
 	25, 0x01,
@@ -891,7 +891,7 @@ static int dib0090_reset(struct dvb_frontend *fe)
 	return 0;
 }
 
-#define steps(u) (((u)>15)?((u)-16):(u))
+#define steps(u) (((u) > 15) ? ((u)-16) : (u))
 #define INTERN_WAIT 10
 static int dib0090_get_offset(struct dib0090_state *state, enum frontend_tune_state *tune_state)
 {
@@ -1439,7 +1439,6 @@ enum frontend_tune_state dib0090_get_tune_state(struct dvb_frontend *fe)
 
 	return state->tune_state;
 }
-
 EXPORT_SYMBOL(dib0090_get_tune_state);
 
 int dib0090_set_tune_state(struct dvb_frontend *fe, enum frontend_tune_state tune_state)
@@ -1449,7 +1448,6 @@ int dib0090_set_tune_state(struct dvb_frontend *fe, enum frontend_tune_state tun
 	state->tune_state = tune_state;
 	return 0;
 }
-
 EXPORT_SYMBOL(dib0090_set_tune_state);
 
 static int dib0090_get_frequency(struct dvb_frontend *fe, u32 * frequency)
@@ -1516,7 +1514,6 @@ struct dvb_frontend *dib0090_register(struct dvb_frontend *fe, struct i2c_adapte
 	fe->tuner_priv = NULL;
 	return NULL;
 }
-
 EXPORT_SYMBOL(dib0090_register);
 
 MODULE_AUTHOR("Patrick Boettcher <pboettcher@dibcom.fr>");

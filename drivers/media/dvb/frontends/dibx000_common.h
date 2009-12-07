@@ -45,7 +45,7 @@ extern u32 systime(void);
 #define BAND_FM    0x10
 #define BAND_CBAND 0x20
 
-#define BAND_OF_FREQUENCY(freq_kHz) ( (freq_kHz) <= 170000 ? BAND_CBAND : \
+#define BAND_OF_FREQUENCY(freq_kHz) ((freq_kHz) <= 170000 ? BAND_CBAND : \
 									(freq_kHz) <= 115000 ? BAND_FM : \
 									(freq_kHz) <= 250000 ? BAND_VHF : \
 									(freq_kHz) <= 863000 ? BAND_UHF : \
@@ -214,6 +214,6 @@ struct dvb_frontend_parametersContext {
 
 #define FE_CALLBACK_TIME_NEVER 0xffffffff
 
-#define ABS(x) ((x<0)?(-x):(x))
+#define ABS(x) ((x < 0) ? (-x) : (x))
 
 #endif
