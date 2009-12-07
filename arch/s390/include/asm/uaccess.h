@@ -93,6 +93,8 @@ extern struct uaccess_ops uaccess_mvcos;
 extern struct uaccess_ops uaccess_mvcos_switch;
 extern struct uaccess_ops uaccess_pt;
 
+extern int __handle_fault(unsigned long, unsigned long, int);
+
 static inline int __put_user_fn(size_t size, void __user *ptr, void *x)
 {
 	size = uaccess.copy_to_user_small(size, ptr, x);

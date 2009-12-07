@@ -442,6 +442,29 @@ no_context:
 }
 #endif
 
+int __handle_fault(unsigned long uaddr, unsigned long int_code, int write_user)
+{
+	struct pt_regs regs;
+	int access, fault;
+
+	regs.psw.mask = psw_kernel_bits;
+	if (!irqs_disabled())
+		regs.psw.mask |= PSW_MASK_IO | PSW_MASK_EXT;
+	regs.psw.addr = (unsigned long) __builtin_return_address(0);
+	regs.psw.addr |= PSW_ADDR_AMODE;
+	uaddr &= PAGE_MASK;
+	access = write_user ? VM_WRITE : VM_READ;
+	fault = do_exception(&regs, access, uaddr | 2);
+	if (unlikely(fault)) {
+		if (fault & VM_FAULT_OOM) {
+			pagefault_out_of_memory();
+			fault = 0;
+		} else if (fault & VM_FAULT_SIGBUS)
+			do_sigbus(&regs, int_code, uaddr);
+	}
+	return fault ? -EFAULT : 0;
+}
+
 #ifdef CONFIG_PFAULT 
 /*
  * 'pfault' pseudo page faults routines.
