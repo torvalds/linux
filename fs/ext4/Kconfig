@@ -26,6 +26,16 @@ config EXT4_FS
 
 	  If unsure, say N.
 
+config EXT4_USE_FOR_EXT23
+	bool "Use ext4 for ext2/ext3 file systems"
+	depends on !EXT3_FS || !EXT2_FS
+	default y
+	help
+	  Allow the ext4 file system driver code to be used for ext2 or
+	  ext3 file system mounts.  This allows users to reduce their
+	  compiled kernel size by using one file system driver for
+	  ext2, ext3, and ext4 file systems.
+
 config EXT4_FS_XATTR
 	bool "Ext4 extended attributes"
 	depends on EXT4_FS
