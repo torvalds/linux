@@ -1068,36 +1068,6 @@ static void io_subchannel_verify(struct subchannel *sch)
 		dev_fsm_event(cdev, DEV_EVENT_VERIFY);
 }
 
-static int check_for_io_on_path(struct subchannel *sch, int mask)
-{
-	if (cio_update_schib(sch))
-		return 0;
-	if (scsw_actl(&sch->schib.scsw) && sch->schib.pmcw.lpum == mask)
-		return 1;
-	return 0;
-}
-
-static void terminate_internal_io(struct subchannel *sch,
-				  struct ccw_device *cdev)
-{
-	if (cio_clear(sch)) {
-		/* Recheck device in case clear failed. */
-		sch->lpm = 0;
-		if (cdev->online)
-			dev_fsm_event(cdev, DEV_EVENT_VERIFY);
-		else
-			css_schedule_eval(sch->schid);
-		return;
-	}
-	cdev->private->state = DEV_STATE_CLEAR_VERIFY;
-	/* Request retry of internal operation. */
-	cdev->private->flags.intretry = 1;
-	/* Call handler. */
-	if (cdev->handler)
-		cdev->handler(cdev, cdev->private->intparm,
-			      ERR_PTR(-EIO));
-}
-
 static void io_subchannel_terminate_path(struct subchannel *sch, u8 mask)
 {
 	struct ccw_device *cdev;
@@ -1105,18 +1075,24 @@ static void io_subchannel_terminate_path(struct subchannel *sch, u8 mask)
 	cdev = sch_get_cdev(sch);
 	if (!cdev)
 		return;
-	if (check_for_io_on_path(sch, mask)) {
-		if (cdev->private->state == DEV_STATE_ONLINE)
-			ccw_device_kill_io(cdev);
-		else {
-			terminate_internal_io(sch, cdev);
-			/* Re-start path verification. */
-			dev_fsm_event(cdev, DEV_EVENT_VERIFY);
-		}
-	} else
-		/* trigger path verification. */
-		dev_fsm_event(cdev, DEV_EVENT_VERIFY);
+	if (cio_update_schib(sch))
+		goto err;
+	/* Check for I/O on path. */
+	if (scsw_actl(&sch->schib.scsw) == 0 || sch->schib.pmcw.lpum != mask)
+		goto out;
+	if (cdev->private->state == DEV_STATE_ONLINE) {
+		ccw_device_kill_io(cdev);
+		goto out;
+	}
+	if (cio_clear(sch))
+		goto err;
+out:
+	/* Trigger path verification. */
+	dev_fsm_event(cdev, DEV_EVENT_VERIFY);
+	return;
 
+err:
+	dev_fsm_event(cdev, DEV_EVENT_NOTOPER);
 }
 
 static int io_subchannel_chp_event(struct subchannel *sch,

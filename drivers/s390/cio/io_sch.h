@@ -165,7 +165,6 @@ struct ccw_device_private {
 		unsigned int donotify:1;    /* call notify function */
 		unsigned int recog_done:1;  /* dev. recog. complete */
 		unsigned int fake_irb:1;    /* deliver faked irb */
-		unsigned int intretry:1;    /* retry internal operation */
 		unsigned int resuming:1;    /* recognition while resume */
 		unsigned int pgid_rdy:1;    /* pgids are ready */
 	} __attribute__((packed)) flags;

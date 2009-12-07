@@ -21,7 +21,6 @@ enum dev_state {
 	DEV_STATE_DISBAND_PGID,
 	DEV_STATE_BOXED,
 	/* states to wait for i/o completion before doing something */
-	DEV_STATE_CLEAR_VERIFY,
 	DEV_STATE_TIMEOUT_KILL,
 	DEV_STATE_QUIESCE,
 	/* special states for devices gone not operational */

@@ -771,12 +771,6 @@ ccw_device_w4sense(struct ccw_device *cdev, enum dev_event dev_event)
 	 */
 	if (scsw_fctl(&irb->scsw) &
 	    (SCSW_FCTL_CLEAR_FUNC | SCSW_FCTL_HALT_FUNC)) {
-		/* Retry Basic Sense if requested. */
-		if (cdev->private->flags.intretry) {
-			cdev->private->flags.intretry = 0;
-			ccw_device_do_sense(cdev, irb);
-			return;
-		}
 		cdev->private->flags.dosense = 0;
 		memset(&cdev->private->irb, 0, sizeof(struct irb));
 		ccw_device_accumulate_irb(cdev, irb);
@@ -797,21 +791,6 @@ call_handler:
 	if (ccw_device_call_handler(cdev) && cdev->private->flags.doverify)
 		/* Start delayed path verification. */
 		ccw_device_online_verify(cdev, 0);
-}
-
-static void
-ccw_device_clear_verify(struct ccw_device *cdev, enum dev_event dev_event)
-{
-	struct irb *irb;
-
-	irb = (struct irb *) __LC_IRB;
-	/* Accumulate status. We don't do basic sense. */
-	ccw_device_accumulate_irb(cdev, irb);
-	/* Remember to clear irb to avoid residuals. */
-	memset(&cdev->private->irb, 0, sizeof(struct irb));
-	/* Try to start delayed device verification. */
-	ccw_device_online_verify(cdev, 0);
-	/* Note: Don't call handler for cio initiated clear! */
 }
 
 static void
@@ -1069,12 +1048,6 @@ fsm_func_t *dev_jumptable[NR_DEV_STATES][NR_DEV_EVENTS] = {
 		[DEV_EVENT_VERIFY]	= ccw_device_nop,
 	},
 	/* states to wait for i/o completion before doing something */
-	[DEV_STATE_CLEAR_VERIFY] = {
-		[DEV_EVENT_NOTOPER]	= ccw_device_generic_notoper,
-		[DEV_EVENT_INTERRUPT]   = ccw_device_clear_verify,
-		[DEV_EVENT_TIMEOUT]	= ccw_device_nop,
-		[DEV_EVENT_VERIFY]	= ccw_device_nop,
-	},
 	[DEV_STATE_TIMEOUT_KILL] = {
 		[DEV_EVENT_NOTOPER]	= ccw_device_generic_notoper,
 		[DEV_EVENT_INTERRUPT]	= ccw_device_killing_irq,
