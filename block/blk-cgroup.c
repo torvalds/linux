@@ -14,6 +14,7 @@
 #include <linux/seq_file.h>
 #include <linux/kdev_t.h>
 #include <linux/module.h>
+#include <linux/err.h>
 #include "blk-cgroup.h"
 
 static DEFINE_SPINLOCK(blkio_list_lock);
