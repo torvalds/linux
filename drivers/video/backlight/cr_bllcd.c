@@ -201,7 +201,7 @@ static int cr_backlight_probe(struct platform_device *pdev)
 	if (IS_ERR(ldp)) {
 		backlight_device_unregister(bdp);
 		pci_dev_put(lpc_dev);
-		return PTR_ERR(bdp);
+		return PTR_ERR(ldp);
 	}
 
 	pci_read_config_dword(lpc_dev, CRVML_REG_GPIOBAR,
