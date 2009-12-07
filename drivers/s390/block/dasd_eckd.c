@@ -1012,9 +1012,9 @@ static struct dasd_ccw_req *dasd_eckd_build_psf_ssc(struct dasd_device *device,
 	}
 	psf_ssc_data = (struct dasd_psf_ssc_data *)cqr->data;
 	psf_ssc_data->order = PSF_ORDER_SSC;
-	psf_ssc_data->suborder = 0x40;
+	psf_ssc_data->suborder = 0xc0;
 	if (enable_pav) {
-		psf_ssc_data->suborder |= 0x88;
+		psf_ssc_data->suborder |= 0x08;
 		psf_ssc_data->reserved[0] = 0x88;
 	}
 	ccw = cqr->cpaddr;
