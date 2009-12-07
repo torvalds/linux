@@ -616,11 +616,11 @@ static int pm8001_dev_found_notify(struct domain_device *dev)
 	spin_lock_irqsave(&pm8001_ha->lock, flags);
 
 	pm8001_device = pm8001_alloc_dev(pm8001_ha);
-	pm8001_device->sas_device = dev;
 	if (!pm8001_device) {
 		res = -1;
 		goto found_out;
 	}
+	pm8001_device->sas_device = dev;
 	dev->lldd_dev = pm8001_device;
 	pm8001_device->dev_type = dev->dev_type;
 	pm8001_device->dcompletion = &completion;
