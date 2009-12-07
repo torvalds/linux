@@ -28,6 +28,7 @@ enum dev_state {
 	DEV_STATE_DISCONNECTED_SENSE_ID,
 	DEV_STATE_CMFCHANGE,
 	DEV_STATE_CMFUPDATE,
+	DEV_STATE_STEAL_LOCK,
 	/* last element! */
 	NR_DEV_STATES
 };
@@ -115,6 +116,9 @@ void ccw_device_verify_done(struct ccw_device *, int);
 
 void ccw_device_disband_start(struct ccw_device *);
 void ccw_device_disband_done(struct ccw_device *, int);
+
+void ccw_device_stlck_start(struct ccw_device *, void *, void *, void *);
+void ccw_device_stlck_done(struct ccw_device *, void *, int);
 
 int ccw_device_call_handler(struct ccw_device *);
 

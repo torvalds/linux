@@ -507,3 +507,55 @@ void ccw_device_disband_start(struct ccw_device *cdev)
 	spid_build_cp(cdev, fn);
 	ccw_request_start(cdev);
 }
+
+static void stlck_build_cp(struct ccw_device *cdev, void *buf1, void *buf2)
+{
+	struct ccw_request *req = &cdev->private->req;
+	struct ccw1 *cp = cdev->private->iccws;
+
+	cp[0].cmd_code = CCW_CMD_STLCK;
+	cp[0].cda = (u32) (addr_t) buf1;
+	cp[0].count = 32;
+	cp[0].flags = CCW_FLAG_CC;
+	cp[1].cmd_code = CCW_CMD_RELEASE;
+	cp[1].cda = (u32) (addr_t) buf2;
+	cp[1].count = 32;
+	cp[1].flags = 0;
+	req->cp = cp;
+}
+
+static void stlck_callback(struct ccw_device *cdev, void *data, int rc)
+{
+	ccw_device_stlck_done(cdev, data, rc);
+}
+
+/**
+ * ccw_device_stlck_start - perform unconditional release
+ * @cdev: ccw device
+ * @data: data pointer to be passed to ccw_device_stlck_done
+ * @buf1: data pointer used in channel program
+ * @buf2: data pointer used in channel program
+ *
+ * Execute a channel program on @cdev to release an existing PGID reservation.
+ * When finished, call ccw_device_stlck_done with a return code specifying the
+ * result.
+ */
+void ccw_device_stlck_start(struct ccw_device *cdev, void *data, void *buf1,
+			    void *buf2)
+{
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+	struct ccw_request *req = &cdev->private->req;
+
+	CIO_TRACE_EVENT(4, "stlck");
+	CIO_HEX_EVENT(4, &cdev->private->dev_id, sizeof(cdev->private->dev_id));
+	/* Request setup. */
+	memset(req, 0, sizeof(*req));
+	req->timeout	= PGID_TIMEOUT;
+	req->maxretries	= PGID_RETRIES;
+	req->lpm	= sch->schib.pmcw.pam & sch->opm;
+	req->data	= data;
+	req->callback	= stlck_callback;
+	stlck_build_cp(cdev, buf1, buf2);
+	ccw_request_start(cdev);
+}
+

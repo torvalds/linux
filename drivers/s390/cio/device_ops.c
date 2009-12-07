@@ -11,6 +11,7 @@
 #include <linux/list.h>
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/completion.h>
 
 #include <asm/ccwdev.h>
 #include <asm/idals.h>
@@ -504,74 +505,65 @@ __u8 ccw_device_get_path_mask(struct ccw_device *cdev)
 	return sch->lpm;
 }
 
-/*
- * Try to break the lock on a boxed device.
- */
-int
-ccw_device_stlck(struct ccw_device *cdev)
+struct stlck_data {
+	struct completion done;
+	int rc;
+};
+
+void ccw_device_stlck_done(struct ccw_device *cdev, void *data, int rc)
 {
-	void *buf, *buf2;
-	unsigned long flags;
-	struct subchannel *sch;
-	int ret;
+	struct stlck_data *sdata = data;
 
-	if (!cdev)
-		return -ENODEV;
+	sdata->rc = rc;
+	complete(&sdata->done);
+}
 
-	if (cdev->drv && !cdev->private->options.force)
-		return -EINVAL;
+/*
+ * Perform unconditional reserve + release.
+ */
+int ccw_device_stlck(struct ccw_device *cdev)
+{
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+	struct stlck_data data;
+	u8 *buffer;
+	int rc;
 
-	sch = to_subchannel(cdev->dev.parent);
-	
-	CIO_TRACE_EVENT(2, "stl lock");
-	CIO_TRACE_EVENT(2, dev_name(&cdev->dev));
-
-	buf = kmalloc(32*sizeof(char), GFP_DMA|GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-	buf2 = kmalloc(32*sizeof(char), GFP_DMA|GFP_KERNEL);
-	if (!buf2) {
-		kfree(buf);
-		return -ENOMEM;
+	/* Check if steal lock operation is valid for this device. */
+	if (cdev->drv) {
+		if (!cdev->private->options.force)
+			return -EINVAL;
 	}
-	spin_lock_irqsave(sch->lock, flags);
-	ret = cio_enable_subchannel(sch, (u32)(addr_t)sch);
-	if (ret)
+	buffer = kzalloc(64, GFP_DMA | GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
+	init_completion(&data.done);
+	data.rc = -EIO;
+	spin_lock_irq(sch->lock);
+	rc = cio_enable_subchannel(sch, (u32) (addr_t) sch);
+	if (rc)
 		goto out_unlock;
-	/*
-	 * Setup ccw. We chain an unconditional reserve and a release so we
-	 * only break the lock.
-	 */
-	cdev->private->iccws[0].cmd_code = CCW_CMD_STLCK;
-	cdev->private->iccws[0].cda = (__u32) __pa(buf);
-	cdev->private->iccws[0].count = 32;
-	cdev->private->iccws[0].flags = CCW_FLAG_CC;
-	cdev->private->iccws[1].cmd_code = CCW_CMD_RELEASE;
-	cdev->private->iccws[1].cda = (__u32) __pa(buf2);
-	cdev->private->iccws[1].count = 32;
-	cdev->private->iccws[1].flags = 0;
-	ret = cio_start(sch, cdev->private->iccws, 0);
-	if (ret) {
-		cio_disable_subchannel(sch); //FIXME: return code?
-		goto out_unlock;
+	/* Perform operation. */
+	cdev->private->state = DEV_STATE_STEAL_LOCK,
+	ccw_device_stlck_start(cdev, &data, &buffer[0], &buffer[32]);
+	spin_unlock_irq(sch->lock);
+	/* Wait for operation to finish. */
+	if (wait_for_completion_interruptible(&data.done)) {
+		/* Got a signal. */
+		spin_lock_irq(sch->lock);
+		ccw_request_cancel(cdev);
+		spin_unlock_irq(sch->lock);
+		wait_for_completion(&data.done);
 	}
-	cdev->private->irb.scsw.cmd.actl |= SCSW_ACTL_START_PEND;
-	spin_unlock_irqrestore(sch->lock, flags);
-	wait_event(cdev->private->wait_q,
-		   cdev->private->irb.scsw.cmd.actl == 0);
-	spin_lock_irqsave(sch->lock, flags);
-	cio_disable_subchannel(sch); //FIXME: return code?
-	if ((cdev->private->irb.scsw.cmd.dstat !=
-	     (DEV_STAT_CHN_END|DEV_STAT_DEV_END)) ||
-	    (cdev->private->irb.scsw.cmd.cstat != 0))
-		ret = -EIO;
-	/* Clear irb. */
-	memset(&cdev->private->irb, 0, sizeof(struct irb));
+	rc = data.rc;
+	/* Check results. */
+	spin_lock_irq(sch->lock);
+	cio_disable_subchannel(sch);
+	cdev->private->state = DEV_STATE_BOXED;
 out_unlock:
-	kfree(buf);
-	kfree(buf2);
-	spin_unlock_irqrestore(sch->lock, flags);
-	return ret;
+	spin_unlock_irq(sch->lock);
+	kfree(buffer);
+
+	return rc;
 }
 
 void *ccw_device_get_chp_desc(struct ccw_device *cdev, int chp_no)

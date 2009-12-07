@@ -641,6 +641,23 @@ ccw_device_online_verify(struct ccw_device *cdev, enum dev_event dev_event)
 }
 
 /*
+ * Handle path verification event in boxed state.
+ */
+static void ccw_device_boxed_verify(struct ccw_device *cdev,
+				    enum dev_event dev_event)
+{
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+
+	if (cdev->online) {
+		if (cio_enable_subchannel(sch, (u32) (addr_t) sch))
+			ccw_device_done(cdev, DEV_STATE_NOT_OPER);
+		else
+			ccw_device_online_verify(cdev, dev_event);
+	} else
+		css_schedule_eval(sch->schid);
+}
+
+/*
  * Got an interrupt for a normal io (state online).
  */
 static void
@@ -817,32 +834,6 @@ ccw_device_delay_verify(struct ccw_device *cdev, enum dev_event dev_event)
 }
 
 static void
-ccw_device_stlck_done(struct ccw_device *cdev, enum dev_event dev_event)
-{
-	struct irb *irb;
-
-	switch (dev_event) {
-	case DEV_EVENT_INTERRUPT:
-		irb = (struct irb *) __LC_IRB;
-		/* Check for unsolicited interrupt. */
-		if ((scsw_stctl(&irb->scsw) ==
-		     (SCSW_STCTL_STATUS_PEND | SCSW_STCTL_ALERT_STATUS)) &&
-		    (!scsw_cc(&irb->scsw)))
-			/* FIXME: we should restart stlck here, but this
-			 * is extremely unlikely ... */
-			goto out_wakeup;
-
-		ccw_device_accumulate_irb(cdev, irb);
-		/* We don't care about basic sense etc. */
-		break;
-	default: /* timeout */
-		break;
-	}
-out_wakeup:
-	wake_up(&cdev->private->wait_q);
-}
-
-static void
 ccw_device_start_id(struct ccw_device *cdev, enum dev_event dev_event)
 {
 	struct subchannel *sch;
@@ -1010,9 +1001,9 @@ fsm_func_t *dev_jumptable[NR_DEV_STATES][NR_DEV_EVENTS] = {
 	},
 	[DEV_STATE_BOXED] = {
 		[DEV_EVENT_NOTOPER]	= ccw_device_generic_notoper,
-		[DEV_EVENT_INTERRUPT]	= ccw_device_stlck_done,
-		[DEV_EVENT_TIMEOUT]	= ccw_device_stlck_done,
-		[DEV_EVENT_VERIFY]	= ccw_device_nop,
+		[DEV_EVENT_INTERRUPT]	= ccw_device_nop,
+		[DEV_EVENT_TIMEOUT]	= ccw_device_nop,
+		[DEV_EVENT_VERIFY]	= ccw_device_boxed_verify,
 	},
 	/* states to wait for i/o completion before doing something */
 	[DEV_STATE_TIMEOUT_KILL] = {
@@ -1051,6 +1042,12 @@ fsm_func_t *dev_jumptable[NR_DEV_STATES][NR_DEV_EVENTS] = {
 		[DEV_EVENT_INTERRUPT]	= ccw_device_update_cmfblock,
 		[DEV_EVENT_TIMEOUT]	= ccw_device_update_cmfblock,
 		[DEV_EVENT_VERIFY]	= ccw_device_update_cmfblock,
+	},
+	[DEV_STATE_STEAL_LOCK] = {
+		[DEV_EVENT_NOTOPER]	= ccw_device_request_event,
+		[DEV_EVENT_INTERRUPT]	= ccw_device_request_event,
+		[DEV_EVENT_TIMEOUT]	= ccw_device_request_event,
+		[DEV_EVENT_VERIFY]	= ccw_device_nop,
 	},
 };
 
