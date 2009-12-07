@@ -275,9 +275,10 @@ static int ttm_bo_add_ttm(struct ttm_buffer_object *bo, bool zero_alloc)
 		bo->ttm = ttm_tt_create(bdev, bo->num_pages << PAGE_SHIFT,
 					page_flags | TTM_PAGE_FLAG_USER,
 					glob->dummy_read_page);
-		if (unlikely(bo->ttm == NULL))
+		if (unlikely(bo->ttm == NULL)) {
 			ret = -ENOMEM;
-		break;
+			break;
+		}
 
 		ret = ttm_tt_set_user(bo->ttm, current,
 				      bo->buffer_start, bo->num_pages);
