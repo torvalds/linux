@@ -98,6 +98,14 @@ void ccw_device_accumulate_basic_sense(struct ccw_device *, struct irb *);
 int ccw_device_accumulate_and_sense(struct ccw_device *, struct irb *);
 int ccw_device_do_sense(struct ccw_device *, struct irb *);
 
+/* Function prototype for internal request handling. */
+int lpm_adjust(int lpm, int mask);
+void ccw_request_start(struct ccw_device *);
+int ccw_request_cancel(struct ccw_device *cdev);
+void ccw_request_handler(struct ccw_device *cdev);
+void ccw_request_timeout(struct ccw_device *cdev);
+void ccw_request_notoper(struct ccw_device *cdev);
+
 /* Function prototypes for sense id stuff. */
 void ccw_device_sense_id_start(struct ccw_device *);
 void ccw_device_sense_id_irq(struct ccw_device *, enum dev_event);

@@ -1,7 +1,10 @@
 #ifndef S390_IO_SCH_H
 #define S390_IO_SCH_H
 
+#include <linux/types.h>
 #include <asm/schid.h>
+#include <asm/ccwdev.h>
+#include "css.h"
 
 /*
  * command-mode operation request block
@@ -68,6 +71,52 @@ struct io_subchannel_private {
 #define MAX_CIWS 8
 
 /*
+ * Possible status values for a CCW request's I/O.
+ */
+enum io_status {
+	IO_DONE,
+	IO_RUNNING,
+	IO_STATUS_ERROR,
+	IO_PATH_ERROR,
+	IO_REJECTED,
+	IO_KILLED
+};
+
+/**
+ * ccw_request - Internal CCW request.
+ * @cp: channel program to start
+ * @timeout: maximum allowable time in jiffies between start I/O and interrupt
+ * @maxretries: number of retries per I/O operation and path
+ * @lpm: mask of paths to use
+ * @check: optional callback that determines if results are final
+ * @filter: optional callback to adjust request status based on IRB data
+ * @callback: final callback
+ * @data: user-defined pointer passed to all callbacks
+ * @mask: current path mask
+ * @retries: current number of retries
+ * @drc: delayed return code
+ * @cancel: non-zero if request was cancelled
+ * @done: non-zero if request was finished
+ */
+struct ccw_request {
+	struct ccw1 *cp;
+	unsigned long timeout;
+	u16 maxretries;
+	u8 lpm;
+	int (*check)(struct ccw_device *, void *);
+	enum io_status (*filter)(struct ccw_device *, void *, struct irb *,
+				 enum io_status);
+	void (*callback)(struct ccw_device *, void *, int);
+	void *data;
+	/* These fields are used internally. */
+	u8 mask;
+	u16 retries;
+	int drc;
+	int cancel:1;
+	int done:1;
+} __attribute__((packed));
+
+/*
  * sense-id response buffer layout
  */
 struct senseid {
@@ -99,6 +148,7 @@ struct ccw_device_private {
 	unsigned long registered;
 	struct ccw_dev_id dev_id;	/* device id */
 	struct subchannel_id schid;	/* subchannel number */
+	struct ccw_request req;		/* internal I/O request */
 	u8 imask;		/* lpm mask for SNID/SID/SPGID */
 	int iretry;		/* retry counter SNID/SID/SPGID */
 	struct {
