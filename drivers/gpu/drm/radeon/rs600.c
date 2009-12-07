@@ -48,11 +48,12 @@ int rs600_mc_wait_for_idle(struct radeon_device *rdev);
 int rs600_mc_init(struct radeon_device *rdev)
 {
 	/* read back the MC value from the hw */
-	uint32_t mc_fb_loc;
 	int r;
+	u32 tmp;
 
-	mc_fb_loc = RREG32_MC(R_000004_MC_FB_LOCATION);
-	rdev->mc.vram_location = G_000004_MC_FB_START(mc_fb_loc) << 16;
+	/* Setup GPU memory space */
+	tmp = RREG32_MC(R_000004_MC_FB_LOCATION);
+	rdev->mc.vram_location = G_000004_MC_FB_START(tmp) << 16;
 	rdev->mc.gtt_location = 0xffffffffUL;
 	r = radeon_mc_setup(rdev);
 	if (r)

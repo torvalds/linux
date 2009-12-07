@@ -162,6 +162,21 @@ void rs690_vram_info(struct radeon_device *rdev)
 	rdev->pm.core_bandwidth.full = rfixed_div(rdev->pm.sclk, a);
 }
 
+static int rs690_mc_init(struct radeon_device *rdev)
+{
+	int r;
+	u32 tmp;
+
+	/* Setup GPU memory space */
+	tmp = RREG32_MC(R_000100_MCCFG_FB_LOCATION);
+	rdev->mc.vram_location = G_000100_MC_FB_START(tmp) << 16;
+	rdev->mc.gtt_location = 0xFFFFFFFFUL;
+	r = radeon_mc_setup(rdev);
+	if (r)
+		return r;
+	return 0;
+}
+
 void rs690_line_buffer_adjust(struct radeon_device *rdev,
 			      struct drm_display_mode *mode1,
 			      struct drm_display_mode *mode2)
@@ -710,7 +725,7 @@ int rs690_init(struct radeon_device *rdev)
 	/* Get vram informations */
 	rs690_vram_info(rdev);
 	/* Initialize memory controller (also test AGP) */
-	r = r420_mc_init(rdev);
+	r = rs690_mc_init(rdev);
 	if (r)
 		return r;
 	rv515_debugfs(rdev);

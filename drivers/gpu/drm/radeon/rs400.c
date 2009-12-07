@@ -352,7 +352,7 @@ static int rs400_mc_init(struct radeon_device *rdev)
 	u32 tmp;
 
 	/* Setup GPU memory space */
-	tmp = G_00015C_MC_FB_START(RREG32(R_00015C_NB_TOM));
+	tmp = RREG32(R_00015C_NB_TOM);
 	rdev->mc.vram_location = G_00015C_MC_FB_START(tmp) << 16;
 	rdev->mc.gtt_location = 0xFFFFFFFFUL;
 	r = radeon_mc_setup(rdev);
