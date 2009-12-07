@@ -224,14 +224,14 @@ Here is pseudo-code showing how this might be done:
 		card->playback_enabled = 1;
 	} else {
 		card->playback_enabled = 0;
-		printk(KERN_WARN "%s: Playback disabled due to DMA limitations.\n",
+		printk(KERN_WARNING "%s: Playback disabled due to DMA limitations.\n",
 		       card->name);
 	}
 	if (!pci_set_dma_mask(pdev, RECORD_ADDRESS_BITS)) {
 		card->record_enabled = 1;
 	} else {
 		card->record_enabled = 0;
-		printk(KERN_WARN "%s: Record disabled due to DMA limitations.\n",
+		printk(KERN_WARNING "%s: Record disabled due to DMA limitations.\n",
 		       card->name);
 	}
 
