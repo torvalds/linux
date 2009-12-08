@@ -761,13 +761,16 @@ static int can_open_cached(struct nfs4_state *state, fmode_t mode, int open_mode
 		goto out;
 	switch (mode & (FMODE_READ|FMODE_WRITE)) {
 		case FMODE_READ:
-			ret |= test_bit(NFS_O_RDONLY_STATE, &state->flags) != 0;
+			ret |= test_bit(NFS_O_RDONLY_STATE, &state->flags) != 0
+				&& state->n_rdonly != 0;
 			break;
 		case FMODE_WRITE:
-			ret |= test_bit(NFS_O_WRONLY_STATE, &state->flags) != 0;
+			ret |= test_bit(NFS_O_WRONLY_STATE, &state->flags) != 0
+				&& state->n_wronly != 0;
 			break;
 		case FMODE_READ|FMODE_WRITE:
-			ret |= test_bit(NFS_O_RDWR_STATE, &state->flags) != 0;
+			ret |= test_bit(NFS_O_RDWR_STATE, &state->flags) != 0
+				&& state->n_rdwr != 0;
 	}
 out:
 	return ret;
@@ -1711,6 +1714,18 @@ static void nfs4_free_closedata(void *data)
 	kfree(calldata);
 }
 
+static void nfs4_close_clear_stateid_flags(struct nfs4_state *state,
+		fmode_t fmode)
+{
+	spin_lock(&state->owner->so_lock);
+	if (!(fmode & FMODE_READ))
+		clear_bit(NFS_O_RDONLY_STATE, &state->flags);
+	if (!(fmode & FMODE_WRITE))
+		clear_bit(NFS_O_WRONLY_STATE, &state->flags);
+	clear_bit(NFS_O_RDWR_STATE, &state->flags);
+	spin_unlock(&state->owner->so_lock);
+}
+
 static void nfs4_close_done(struct rpc_task *task, void *data)
 {
 	struct nfs4_closedata *calldata = data;
@@ -1727,6 +1742,8 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 		case 0:
 			nfs_set_open_stateid(state, &calldata->res.stateid, 0);
 			renew_lease(server, calldata->timestamp);
+			nfs4_close_clear_stateid_flags(state,
+					calldata->arg.fmode);
 			break;
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_OLD_STATEID:
@@ -1747,38 +1764,39 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs4_closedata *calldata = data;
 	struct nfs4_state *state = calldata->state;
-	int clear_rd, clear_wr, clear_rdwr;
+	int call_close = 0;
 
 	if (nfs_wait_on_sequence(calldata->arg.seqid, task) != 0)
 		return;
 
-	clear_rd = clear_wr = clear_rdwr = 0;
+	task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_DOWNGRADE];
+	calldata->arg.fmode = FMODE_READ|FMODE_WRITE;
 	spin_lock(&state->owner->so_lock);
 	/* Calculate the change in open mode */
 	if (state->n_rdwr == 0) {
 		if (state->n_rdonly == 0) {
-			clear_rd |= test_and_clear_bit(NFS_O_RDONLY_STATE, &state->flags);
-			clear_rdwr |= test_and_clear_bit(NFS_O_RDWR_STATE, &state->flags);
+			call_close |= test_bit(NFS_O_RDONLY_STATE, &state->flags);
+			call_close |= test_bit(NFS_O_RDWR_STATE, &state->flags);
+			calldata->arg.fmode &= ~FMODE_READ;
 		}
 		if (state->n_wronly == 0) {
-			clear_wr |= test_and_clear_bit(NFS_O_WRONLY_STATE, &state->flags);
-			clear_rdwr |= test_and_clear_bit(NFS_O_RDWR_STATE, &state->flags);
+			call_close |= test_bit(NFS_O_WRONLY_STATE, &state->flags);
+			call_close |= test_bit(NFS_O_RDWR_STATE, &state->flags);
+			calldata->arg.fmode &= ~FMODE_WRITE;
 		}
 	}
 	spin_unlock(&state->owner->so_lock);
-	if (!clear_rd && !clear_wr && !clear_rdwr) {
+
+	if (!call_close) {
 		/* Note: exit _without_ calling nfs4_close_done */
 		task->tk_action = NULL;
 		return;
 	}
+
+	if (calldata->arg.fmode == 0)
+		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_CLOSE];
+
 	nfs_fattr_init(calldata->res.fattr);
-	if (test_bit(NFS_O_RDONLY_STATE, &state->flags) != 0) {
-		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_DOWNGRADE];
-		calldata->arg.fmode = FMODE_READ;
-	} else if (test_bit(NFS_O_WRONLY_STATE, &state->flags) != 0) {
-		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_DOWNGRADE];
-		calldata->arg.fmode = FMODE_WRITE;
-	}
 	calldata->timestamp = jiffies;
 	if (nfs4_setup_sequence((NFS_SERVER(calldata->inode))->nfs_client,
 				&calldata->arg.seq_args, &calldata->res.seq_res,
