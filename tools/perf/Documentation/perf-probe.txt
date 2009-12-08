@@ -8,10 +8,13 @@ perf-probe - Define new dynamic tracepoints
 SYNOPSIS
 --------
 [verse]
-'perf probe' [options] --add 'PROBE' [--add 'PROBE' ...]
+'perf probe' [options] --add='PROBE' [...]
 or
-'perf probe' [options] 'PROBE' ['PROBE' ...]
-
+'perf probe' [options] PROBE
+or
+'perf probe' [options] --del='[GROUP:]EVENT' [...]
+or
+'perf probe' --list
 
 DESCRIPTION
 -----------
@@ -31,8 +34,16 @@ OPTIONS
         Be more verbose (show parsed arguments, etc).
 
 -a::
---add::
-	Define a probe point (see PROBE SYNTAX for detail)
+--add=::
+	Define a probe event (see PROBE SYNTAX for detail).
+
+-d::
+--del=::
+	Delete a probe event.
+
+-l::
+--list::
+	List up current probe events.
 
 PROBE SYNTAX
 ------------
