@@ -1293,58 +1293,6 @@ static int devinet_conf_proc(ctl_table *ctl, int write,
 	return ret;
 }
 
-static int devinet_conf_sysctl(ctl_table *table,
-			       void __user *oldval, size_t __user *oldlenp,
-			       void __user *newval, size_t newlen)
-{
-	struct ipv4_devconf *cnf;
-	struct net *net;
-	int *valp = table->data;
-	int new;
-	int i;
-
-	if (!newval || !newlen)
-		return 0;
-
-	if (newlen != sizeof(int))
-		return -EINVAL;
-
-	if (get_user(new, (int __user *)newval))
-		return -EFAULT;
-
-	if (new == *valp)
-		return 0;
-
-	if (oldval && oldlenp) {
-		size_t len;
-
-		if (get_user(len, oldlenp))
-			return -EFAULT;
-
-		if (len) {
-			if (len > table->maxlen)
-				len = table->maxlen;
-			if (copy_to_user(oldval, valp, len))
-				return -EFAULT;
-			if (put_user(len, oldlenp))
-				return -EFAULT;
-		}
-	}
-
-	*valp = new;
-
-	cnf = table->extra1;
-	net = table->extra2;
-	i = (int *)table->data - cnf->data;
-
-	set_bit(i, cnf->state);
-
-	if (cnf == net->ipv4.devconf_dflt)
-		devinet_copy_dflt_conf(net, i);
-
-	return 1;
-}
-
 static int devinet_sysctl_forward(ctl_table *ctl, int write,
 				  void __user *buffer,
 				  size_t *lenp, loff_t *ppos)
@@ -1390,47 +1338,28 @@ int ipv4_doint_and_flush(ctl_table *ctl, int write,
 	return ret;
 }
 
-int ipv4_doint_and_flush_strategy(ctl_table *table,
-				  void __user *oldval, size_t __user *oldlenp,
-				  void __user *newval, size_t newlen)
-{
-	int ret = devinet_conf_sysctl(table, oldval, oldlenp, newval, newlen);
-	struct net *net = table->extra2;
-
-	if (ret == 1)
-		rt_cache_flush(net, 0);
-
-	return ret;
-}
-
-
-#define DEVINET_SYSCTL_ENTRY(attr, name, mval, proc, sysctl) \
+#define DEVINET_SYSCTL_ENTRY(attr, name, mval, proc) \
 	{ \
-		.ctl_name	= NET_IPV4_CONF_ ## attr, \
 		.procname	= name, \
 		.data		= ipv4_devconf.data + \
 				  NET_IPV4_CONF_ ## attr - 1, \
 		.maxlen		= sizeof(int), \
 		.mode		= mval, \
 		.proc_handler	= proc, \
-		.strategy	= sysctl, \
 		.extra1		= &ipv4_devconf, \
 	}
 
 #define DEVINET_SYSCTL_RW_ENTRY(attr, name) \
-	DEVINET_SYSCTL_ENTRY(attr, name, 0644, devinet_conf_proc, \
-			     devinet_conf_sysctl)
+	DEVINET_SYSCTL_ENTRY(attr, name, 0644, devinet_conf_proc)
 
 #define DEVINET_SYSCTL_RO_ENTRY(attr, name) \
-	DEVINET_SYSCTL_ENTRY(attr, name, 0444, devinet_conf_proc, \
-			     devinet_conf_sysctl)
+	DEVINET_SYSCTL_ENTRY(attr, name, 0444, devinet_conf_proc)
 
-#define DEVINET_SYSCTL_COMPLEX_ENTRY(attr, name, proc, sysctl) \
-	DEVINET_SYSCTL_ENTRY(attr, name, 0644, proc, sysctl)
+#define DEVINET_SYSCTL_COMPLEX_ENTRY(attr, name, proc) \
+	DEVINET_SYSCTL_ENTRY(attr, name, 0644, proc)
 
 #define DEVINET_SYSCTL_FLUSHING_ENTRY(attr, name) \
-	DEVINET_SYSCTL_COMPLEX_ENTRY(attr, name, ipv4_doint_and_flush, \
-				     ipv4_doint_and_flush_strategy)
+	DEVINET_SYSCTL_COMPLEX_ENTRY(attr, name, ipv4_doint_and_flush)
 
 static struct devinet_sysctl_table {
 	struct ctl_table_header *sysctl_header;
@@ -1439,8 +1368,7 @@ static struct devinet_sysctl_table {
 } devinet_sysctl = {
 	.devinet_vars = {
 		DEVINET_SYSCTL_COMPLEX_ENTRY(FORWARDING, "forwarding",
-					     devinet_sysctl_forward,
-					     devinet_conf_sysctl),
+					     devinet_sysctl_forward),
 		DEVINET_SYSCTL_RO_ENTRY(MC_FORWARDING, "mc_forwarding"),
 
 		DEVINET_SYSCTL_RW_ENTRY(ACCEPT_REDIRECTS, "accept_redirects"),
@@ -1471,7 +1399,7 @@ static struct devinet_sysctl_table {
 };
 
 static int __devinet_sysctl_register(struct net *net, char *dev_name,
-		int ctl_name, struct ipv4_devconf *p)
+					struct ipv4_devconf *p)
 {
 	int i;
 	struct devinet_sysctl_table *t;
@@ -1479,9 +1407,9 @@ static int __devinet_sysctl_register(struct net *net, char *dev_name,
 #define DEVINET_CTL_PATH_DEV	3
 
 	struct ctl_path devinet_ctl_path[] = {
-		{ .procname = "net", .ctl_name = CTL_NET, },
-		{ .procname = "ipv4", .ctl_name = NET_IPV4, },
-		{ .procname = "conf", .ctl_name = NET_IPV4_CONF, },
+		{ .procname = "net",  },
+		{ .procname = "ipv4", },
+		{ .procname = "conf", },
 		{ /* to be set */ },
 		{ },
 	};
@@ -1506,7 +1434,6 @@ static int __devinet_sysctl_register(struct net *net, char *dev_name,
 		goto free;
 
 	devinet_ctl_path[DEVINET_CTL_PATH_DEV].procname = t->dev_name;
-	devinet_ctl_path[DEVINET_CTL_PATH_DEV].ctl_name = ctl_name;
 
 	t->sysctl_header = register_net_sysctl_table(net, devinet_ctl_path,
 			t->devinet_vars);
@@ -1540,9 +1467,9 @@ static void __devinet_sysctl_unregister(struct ipv4_devconf *cnf)
 static void devinet_sysctl_register(struct in_device *idev)
 {
 	neigh_sysctl_register(idev->dev, idev->arp_parms, NET_IPV4,
-			NET_IPV4_NEIGH, "ipv4", NULL, NULL);
+			NET_IPV4_NEIGH, "ipv4", NULL);
 	__devinet_sysctl_register(dev_net(idev->dev), idev->dev->name,
-			idev->dev->ifindex, &idev->cnf);
+					&idev->cnf);
 }
 
 static void devinet_sysctl_unregister(struct in_device *idev)
@@ -1553,14 +1480,12 @@ static void devinet_sysctl_unregister(struct in_device *idev)
 
 static struct ctl_table ctl_forward_entry[] = {
 	{
-		.ctl_name	= NET_IPV4_FORWARD,
 		.procname	= "ip_forward",
 		.data		= &ipv4_devconf.data[
 					NET_IPV4_CONF_FORWARDING - 1],
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= devinet_sysctl_forward,
-		.strategy	= devinet_conf_sysctl,
 		.extra1		= &ipv4_devconf,
 		.extra2		= &init_net,
 	},
@@ -1568,8 +1493,8 @@ static struct ctl_table ctl_forward_entry[] = {
 };
 
 static __net_initdata struct ctl_path net_ipv4_path[] = {
-	{ .procname = "net", .ctl_name = CTL_NET, },
-	{ .procname = "ipv4", .ctl_name = NET_IPV4, },
+	{ .procname = "net", },
+	{ .procname = "ipv4", },
 	{ },
 };
 #endif
@@ -1608,13 +1533,11 @@ static __net_init int devinet_init_net(struct net *net)
 	}
 
 #ifdef CONFIG_SYSCTL
-	err = __devinet_sysctl_register(net, "all",
-			NET_PROTO_CONF_ALL, all);
+	err = __devinet_sysctl_register(net, "all", all);
 	if (err < 0)
 		goto err_reg_all;
 
-	err = __devinet_sysctl_register(net, "default",
-			NET_PROTO_CONF_DEFAULT, dflt);
+	err = __devinet_sysctl_register(net, "default", dflt);
 	if (err < 0)
 		goto err_reg_dflt;
 

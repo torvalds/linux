@@ -75,7 +75,6 @@ struct dn_dev_parms {
 	unsigned long t3;         /* Default value of t3                */
 	int priority;             /* Priority to be a router            */
 	char *name;               /* Name for sysctl                    */
-	int ctl_name;             /* Index for sysctl                   */
 	int  (*up)(struct net_device *);
 	void (*down)(struct net_device *);
 	void (*timer3)(struct net_device *, struct dn_ifaddr *ifa);
