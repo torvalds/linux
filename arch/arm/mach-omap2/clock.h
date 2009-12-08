@@ -1,8 +1,8 @@
 /*
  *  linux/arch/arm/mach-omap2/clock.h
  *
- *  Copyright (C) 2005-2008 Texas Instruments, Inc.
- *  Copyright (C) 2004-2008 Nokia Corporation
+ *  Copyright (C) 2005-2009 Texas Instruments, Inc.
+ *  Copyright (C) 2004-2009 Nokia Corporation
  *
  *  Contacts:
  *  Richard Woodruff <r-woodruff2@ti.com>
@@ -72,31 +72,17 @@ void omap2_clk_dflt_find_companion(struct clk *clk, void __iomem **other_reg,
 void omap2_clk_dflt_find_idlest(struct clk *clk, void __iomem **idlest_reg,
 				u8 *idlest_bit);
 
+extern u8 cpu_mask;
+
 extern const struct clkops clkops_omap2_dflt_wait;
 extern const struct clkops clkops_omap2_dflt;
 
-extern u8 cpu_mask;
-
 extern struct clk_functions omap2_clk_functions;
+extern struct clk *vclk, *sclk;
 
-/* clksel_rate data common to 24xx/343x */
-static const struct clksel_rate gpt_32k_rates[] = {
-	 { .div = 1, .val = 0, .flags = RATE_IN_24XX | RATE_IN_343X | DEFAULT_RATE },
-	 { .div = 0 }
-};
-
-static const struct clksel_rate gpt_sys_rates[] = {
-	 { .div = 1, .val = 1, .flags = RATE_IN_24XX | RATE_IN_343X | DEFAULT_RATE },
-	 { .div = 0 }
-};
-
-static const struct clksel_rate gfx_l3_rates[] = {
-	{ .div = 1, .val = 1, .flags = RATE_IN_24XX | RATE_IN_343X },
-	{ .div = 2, .val = 2, .flags = RATE_IN_24XX | RATE_IN_343X | DEFAULT_RATE },
-	{ .div = 3, .val = 3, .flags = RATE_IN_243X | RATE_IN_343X },
-	{ .div = 4, .val = 4, .flags = RATE_IN_243X | RATE_IN_343X },
-	{ .div = 0 }
-};
+extern const struct clksel_rate gpt_32k_rates[];
+extern const struct clksel_rate gpt_sys_rates[];
+extern const struct clksel_rate gfx_l3_rates[];
 
 
 #endif
