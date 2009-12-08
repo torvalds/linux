@@ -30,11 +30,6 @@ const struct cpu_ver_key cpu_ver_lookup[] = {
 	{"7.20.b", 0x0d},
 	{"7.20.c", 0x0e},
 	{"7.20.d", 0x0f},
-	/* FIXME There is no keycode defined in MBV for these versions */
-	{"2.10.a", 0x10},
-	{"3.00.a", 0x20},
-	{"4.00.a", 0x30},
-	{"4.00.b", 0x40},
 	{NULL, 0},
 };
 
