@@ -66,16 +66,5 @@
  */
 #define NR_UBC_CHANNELS		2
 
-#ifndef __ASSEMBLY__
-/* arch/sh/kernel/cpu/ubc.S */
-extern void ubc_sleep(void);
-
-#ifdef CONFIG_UBC_WAKEUP
-extern void ubc_wakeup(void);
-#else
-#define ubc_wakeup()	do { } while (0)
-#endif
-#endif
-
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_UBC_H */

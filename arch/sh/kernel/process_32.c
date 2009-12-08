@@ -133,7 +133,10 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	regs.regs[5] = (unsigned long)fn;
 
 	regs.pc = (unsigned long)kernel_thread_helper;
-	regs.sr = (1 << 30);
+	regs.sr = SR_MD;
+#if defined(CONFIG_SH_FPU)
+	regs.sr |= SR_FD;
+#endif
 
 	/* Ok, create the new process.. */
 	pid = do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0,
@@ -141,6 +144,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 
 	return pid;
 }
+EXPORT_SYMBOL(kernel_thread);
 
 /*
  * Free current thread data structures etc..
@@ -184,6 +188,16 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 
 	return fpvalid;
 }
+EXPORT_SYMBOL(dump_fpu);
+
+/*
+ * This gets called before we allocate a new thread and copy
+ * the current task into it.
+ */
+void prepare_to_copy(struct task_struct *tsk)
+{
+	unlazy_fpu(tsk, task_pt_regs(tsk));
+}
 
 asmlinkage void ret_from_fork(void);
 
@@ -193,15 +207,10 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 {
 	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *childregs;
-	struct task_struct *tsk = current;
-
-#if defined(CONFIG_SH_FPU)
-	unlazy_fpu(tsk, regs);
-	p->thread.fpu = tsk->thread.fpu;
-	copy_to_stopped_child_used_math(p);
-#endif
 
 #if defined(CONFIG_SH_DSP)
+	struct task_struct *tsk = current;
+
 	if (is_dsp_enabled(tsk)) {
 		/* We can use the __save_dsp or just copy the struct:
 		 * __save_dsp(p);
@@ -220,6 +229,8 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	} else {
 		childregs->regs[15] = (unsigned long)childregs;
 		ti->addr_limit = KERNEL_DS;
+		ti->status &= ~TS_USEDFPU;
+		p->fpu_counter = 0;
 	}
 
 	if (clone_flags & CLONE_SETTLS)
@@ -242,9 +253,13 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 __notrace_funcgraph struct task_struct *
 __switch_to(struct task_struct *prev, struct task_struct *next)
 {
-#if defined(CONFIG_SH_FPU)
+	struct thread_struct *next_t = &next->thread;
+
 	unlazy_fpu(prev, task_pt_regs(prev));
-#endif
+
+	/* we're going to use this soon, after a few expensive things */
+	if (next->fpu_counter > 5)
+		prefetch(&next_t->fpu.hard);
 
 #ifdef CONFIG_MMU
 	/*
@@ -255,6 +270,14 @@ __switch_to(struct task_struct *prev, struct task_struct *next)
 		     : /* no output */
 		     : "r" (task_thread_info(next)));
 #endif
+
+	/*
+	 * If the task has used fpu the last 5 timeslices, just do a full
+	 * restore of the math state immediately to avoid the trap; the
+	 * chances of needing FPU soon are obviously high now
+	 */
+	if (next->fpu_counter > 5)
+		fpu_state_restore(task_pt_regs(next));
 
 	return prev;
 }
