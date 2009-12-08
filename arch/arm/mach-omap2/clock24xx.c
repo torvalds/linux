@@ -31,6 +31,7 @@
 #include <plat/clock.h>
 #include <plat/sram.h>
 #include <plat/prcm.h>
+#include <plat/clkdev_omap.h>
 #include <asm/div64.h>
 #include <asm/clkdev.h>
 
@@ -58,24 +59,6 @@ static const struct clkops clkops_omap2430_i2chs_wait = {
 };
 
 #include "clock24xx.h"
-
-struct omap_clk {
-	u32		cpu;
-	struct clk_lookup lk;
-};
-
-#define CLK(dev, con, ck, cp) 		\
-	{				\
-		 .cpu = cp,		\
-		.lk = {			\
-			.dev_id = dev,	\
-			.con_id = con,	\
-			.clk = ck,	\
-		},			\
-	}
-
-#define CK_243X			RATE_IN_243X
-#define CK_242X			RATE_IN_242X
 
 static struct omap_clk omap24xx_clks[] = {
 	/* external root sources */
@@ -658,7 +641,7 @@ void omap2_clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
 }
 #endif
 
-static struct clk_functions omap2_clk_functions = {
+struct clk_functions omap2_clk_functions = {
 	.clk_enable		= omap2_clk_enable,
 	.clk_disable		= omap2_clk_disable,
 	.clk_round_rate		= omap2_clk_round_rate,

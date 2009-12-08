@@ -77,6 +77,8 @@ extern const struct clkops clkops_omap2_dflt;
 
 extern u8 cpu_mask;
 
+extern struct clk_functions omap2_clk_functions;
+
 /* clksel_rate data common to 24xx/343x */
 static const struct clksel_rate gpt_32k_rates[] = {
 	 { .div = 1, .val = 0, .flags = RATE_IN_24XX | RATE_IN_343X | DEFAULT_RATE },
