@@ -453,17 +453,13 @@ static struct strlist *get_perf_event_names(int fd)
 	return sl;
 }
 
-static int write_trace_kprobe_event(int fd, const char *buf)
+static void write_trace_kprobe_event(int fd, const char *buf)
 {
 	int ret;
 
 	ret = write(fd, buf, strlen(buf));
 	if (ret <= 0)
 		die("Failed to create event.");
-	else
-		printf("Added new event: %s\n", buf);
-
-	return ret;
 }
 
 static void get_new_event_name(char *buf, size_t len, const char *base,
@@ -503,10 +499,19 @@ void add_trace_kprobe_events(struct probe_point *probes, int nr_probes)
 				 PERFPROBE_GROUP, event,
 				 pp->probes[i]);
 			write_trace_kprobe_event(fd, buf);
+			printf("Added new event:\n");
+			/* Get the first parameter (probe-point) */
+			sscanf(pp->probes[i], "%s", buf);
+			show_perf_probe_event(PERFPROBE_GROUP, event,
+					      buf, pp);
 			/* Add added event name to namelist */
 			strlist__add(namelist, event);
 		}
 	}
+	/* Show how to use the event. */
+	printf("\nYou can now use it on all perf tools, such as:\n\n");
+	printf("\tperf record -e %s:%s -a sleep 1\n\n", PERFPROBE_GROUP, event);
+
 	strlist__delete(namelist);
 	close(fd);
 }
