@@ -52,7 +52,7 @@
 static DEFINE_PER_CPU(unsigned int, nr_cpu_bp_pinned);
 
 /* Number of pinned task breakpoints in a cpu */
-static DEFINE_PER_CPU(unsigned int, task_bp_pinned[HBP_NUM]);
+static DEFINE_PER_CPU(unsigned int, nr_task_bp_pinned[HBP_NUM]);
 
 /* Number of non-pinned cpu/task breakpoints in a cpu */
 static DEFINE_PER_CPU(unsigned int, nr_bp_flexible);
@@ -73,7 +73,7 @@ static DEFINE_MUTEX(nr_bp_mutex);
 static unsigned int max_task_bp_pinned(int cpu)
 {
 	int i;
-	unsigned int *tsk_pinned = per_cpu(task_bp_pinned, cpu);
+	unsigned int *tsk_pinned = per_cpu(nr_task_bp_pinned, cpu);
 
 	for (i = HBP_NUM -1; i >= 0; i--) {
 		if (tsk_pinned[i] > 0)
@@ -162,7 +162,7 @@ static void toggle_bp_task_slot(struct task_struct *tsk, int cpu, bool enable)
 
 	count = task_bp_pinned(tsk);
 
-	tsk_pinned = per_cpu(task_bp_pinned, cpu);
+	tsk_pinned = per_cpu(nr_task_bp_pinned, cpu);
 	if (enable) {
 		tsk_pinned[count]++;
 		if (count > 0)
@@ -209,7 +209,7 @@ static void toggle_bp_slot(struct perf_event *bp, bool enable)
  *   - If attached to a single cpu, check:
  *
  *       (per_cpu(nr_bp_flexible, cpu) || (per_cpu(nr_cpu_bp_pinned, cpu)
- *           + max(per_cpu(task_bp_pinned, cpu)))) < HBP_NUM
+ *           + max(per_cpu(nr_task_bp_pinned, cpu)))) < HBP_NUM
  *
  *       -> If there are already non-pinned counters in this cpu, it means
  *          there is already a free slot for them.
@@ -220,7 +220,7 @@ static void toggle_bp_slot(struct perf_event *bp, bool enable)
  *   - If attached to every cpus, check:
  *
  *       (per_cpu(nr_bp_flexible, *) || (max(per_cpu(nr_cpu_bp_pinned, *))
- *           + max(per_cpu(task_bp_pinned, *)))) < HBP_NUM
+ *           + max(per_cpu(nr_task_bp_pinned, *)))) < HBP_NUM
  *
  *       -> This is roughly the same, except we check the number of per cpu
  *          bp for every cpu and we keep the max one. Same for the per tasks
@@ -232,7 +232,7 @@ static void toggle_bp_slot(struct perf_event *bp, bool enable)
  *   - If attached to a single cpu, check:
  *
  *       ((per_cpu(nr_bp_flexible, cpu) > 1) + per_cpu(nr_cpu_bp_pinned, cpu)
- *            + max(per_cpu(task_bp_pinned, cpu))) < HBP_NUM
+ *            + max(per_cpu(nr_task_bp_pinned, cpu))) < HBP_NUM
  *
  *       -> Same checks as before. But now the nr_bp_flexible, if any, must keep
  *          one register at least (or they will never be fed).
@@ -240,7 +240,7 @@ static void toggle_bp_slot(struct perf_event *bp, bool enable)
  *   - If attached to every cpus, check:
  *
  *       ((per_cpu(nr_bp_flexible, *) > 1) + max(per_cpu(nr_cpu_bp_pinned, *))
- *            + max(per_cpu(task_bp_pinned, *))) < HBP_NUM
+ *            + max(per_cpu(nr_task_bp_pinned, *))) < HBP_NUM
  */
 int reserve_bp_slot(struct perf_event *bp)
 {
