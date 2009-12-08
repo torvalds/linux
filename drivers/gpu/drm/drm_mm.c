@@ -395,7 +395,7 @@ int drm_mm_dump_table(struct seq_file *m, struct drm_mm *mm)
 		else
 			total_used += entry->size;
 	}
-	seq_printf(m, "total: %d, used %d free %d\n", total, total_free, total_used);
+	seq_printf(m, "total: %d, used %d free %d\n", total, total_used, total_free);
 	return 0;
 }
 EXPORT_SYMBOL(drm_mm_dump_table);
