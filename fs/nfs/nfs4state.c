@@ -1095,11 +1095,11 @@ static void nfs4_state_end_reclaim_reboot(struct nfs_client *clp)
 	struct rb_node *pos;
 	struct nfs4_state *state;
 
-	nfs4_reclaim_complete(clp,
-		nfs4_reboot_recovery_ops[clp->cl_minorversion]);
-
 	if (!test_and_clear_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state))
 		return;
+
+	nfs4_reclaim_complete(clp,
+		nfs4_reboot_recovery_ops[clp->cl_minorversion]);
 
 	for (pos = rb_first(&clp->cl_state_owners); pos != NULL; pos = rb_next(pos)) {
 		sp = rb_entry(pos, struct nfs4_state_owner, so_client_node);
@@ -1335,6 +1335,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 				goto out_error;
 			}
 			clear_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state);
+			set_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state);
 		}
 
 		if (test_and_clear_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state)) {
