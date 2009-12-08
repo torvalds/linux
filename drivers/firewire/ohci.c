@@ -205,7 +205,7 @@ struct fw_ohci {
 	dma_addr_t config_rom_bus;
 	__be32 *next_config_rom;
 	dma_addr_t next_config_rom_bus;
-	u32 next_header;
+	__be32 next_header;
 
 	struct ar_context ar_request_ctx;
 	struct ar_context ar_response_ctx;
@@ -997,7 +997,8 @@ static int at_context_queue_packet(struct context *ctx,
 			packet->ack = RCODE_SEND_ERROR;
 			return -1;
 		}
-		packet->payload_bus = payload_bus;
+		packet->payload_bus	= payload_bus;
+		packet->payload_mapped	= true;
 
 		d[2].req_count    = cpu_to_le16(packet->payload_length);
 		d[2].data_address = cpu_to_le32(payload_bus);
@@ -1025,7 +1026,7 @@ static int at_context_queue_packet(struct context *ctx,
 	 */
 	if (ohci->generation != packet->generation ||
 	    reg_read(ohci, OHCI1394_IntEventSet) & OHCI1394_busReset) {
-		if (packet->payload_length > 0)
+		if (packet->payload_mapped)
 			dma_unmap_single(ohci->card.device, payload_bus,
 					 packet->payload_length, DMA_TO_DEVICE);
 		packet->ack = RCODE_GENERATION;
@@ -1061,7 +1062,7 @@ static int handle_at_packet(struct context *context,
 		/* This packet was cancelled, just continue. */
 		return 1;
 
-	if (packet->payload_bus)
+	if (packet->payload_mapped)
 		dma_unmap_single(ohci->card.device, packet->payload_bus,
 				 packet->payload_length, DMA_TO_DEVICE);
 
@@ -1357,8 +1358,9 @@ static void bus_reset_tasklet(unsigned long data)
 		 */
 		reg_write(ohci, OHCI1394_BusOptions,
 			  be32_to_cpu(ohci->config_rom[2]));
-		ohci->config_rom[0] = cpu_to_be32(ohci->next_header);
-		reg_write(ohci, OHCI1394_ConfigROMhdr, ohci->next_header);
+		ohci->config_rom[0] = ohci->next_header;
+		reg_write(ohci, OHCI1394_ConfigROMhdr,
+			  be32_to_cpu(ohci->next_header));
 	}
 
 #ifdef CONFIG_FIREWIRE_OHCI_REMOTE_DMA
@@ -1477,7 +1479,17 @@ static int software_reset(struct fw_ohci *ohci)
 	return -EBUSY;
 }
 
-static int ohci_enable(struct fw_card *card, u32 *config_rom, size_t length)
+static void copy_config_rom(__be32 *dest, const __be32 *src, size_t length)
+{
+	size_t size = length * 4;
+
+	memcpy(dest, src, size);
+	if (size < CONFIG_ROM_SIZE)
+		memset(&dest[length], 0, CONFIG_ROM_SIZE - size);
+}
+
+static int ohci_enable(struct fw_card *card,
+		       const __be32 *config_rom, size_t length)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	struct pci_dev *dev = to_pci_dev(card->device);
@@ -1579,8 +1591,7 @@ static int ohci_enable(struct fw_card *card, u32 *config_rom, size_t length)
 		if (ohci->next_config_rom == NULL)
 			return -ENOMEM;
 
-		memset(ohci->next_config_rom, 0, CONFIG_ROM_SIZE);
-		fw_memcpy_to_be32(ohci->next_config_rom, config_rom, length * 4);
+		copy_config_rom(ohci->next_config_rom, config_rom, length);
 	} else {
 		/*
 		 * In the suspend case, config_rom is NULL, which
@@ -1590,7 +1601,7 @@ static int ohci_enable(struct fw_card *card, u32 *config_rom, size_t length)
 		ohci->next_config_rom_bus = ohci->config_rom_bus;
 	}
 
-	ohci->next_header = be32_to_cpu(ohci->next_config_rom[0]);
+	ohci->next_header = ohci->next_config_rom[0];
 	ohci->next_config_rom[0] = 0;
 	reg_write(ohci, OHCI1394_ConfigROMhdr, 0);
 	reg_write(ohci, OHCI1394_BusOptions,
@@ -1624,7 +1635,7 @@ static int ohci_enable(struct fw_card *card, u32 *config_rom, size_t length)
 }
 
 static int ohci_set_config_rom(struct fw_card *card,
-			       u32 *config_rom, size_t length)
+			       const __be32 *config_rom, size_t length)
 {
 	struct fw_ohci *ohci;
 	unsigned long flags;
@@ -1673,9 +1684,7 @@ static int ohci_set_config_rom(struct fw_card *card,
 		ohci->next_config_rom = next_config_rom;
 		ohci->next_config_rom_bus = next_config_rom_bus;
 
-		memset(ohci->next_config_rom, 0, CONFIG_ROM_SIZE);
-		fw_memcpy_to_be32(ohci->next_config_rom, config_rom,
-				  length * 4);
+		copy_config_rom(ohci->next_config_rom, config_rom, length);
 
 		ohci->next_header = config_rom[0];
 		ohci->next_config_rom[0] = 0;
@@ -1729,7 +1738,7 @@ static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 	if (packet->ack != 0)
 		goto out;
 
-	if (packet->payload_bus)
+	if (packet->payload_mapped)
 		dma_unmap_single(ohci->card.device, packet->payload_bus,
 				 packet->payload_length, DMA_TO_DEVICE);
 
