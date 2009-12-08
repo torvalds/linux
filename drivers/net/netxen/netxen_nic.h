@@ -420,7 +420,7 @@ struct status_desc {
 } __attribute__ ((aligned(16)));
 
 /* UNIFIED ROMIMAGE *************************/
-#define NX_UNI_FW_MIN_SIZE		0x3eb000
+#define NX_UNI_FW_MIN_SIZE		0xc8000
 #define NX_UNI_DIR_SECT_PRODUCT_TBL	0x0
 #define NX_UNI_DIR_SECT_BOOTLD		0x6
 #define NX_UNI_DIR_SECT_FW		0x7
