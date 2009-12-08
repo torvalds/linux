@@ -10021,10 +10021,12 @@ static int patch_alc882(struct hda_codec *codec)
 		spec->init_amp = ALC_INIT_DEFAULT; /* always initialize */
 
 	if (!spec->adc_nids && spec->input_mux) {
-		int i;
+		int i, j;
 		spec->num_adc_nids = 0;
 		for (i = 0; i < ARRAY_SIZE(alc882_adc_nids); i++) {
+			const struct hda_input_mux *imux = spec->input_mux;
 			hda_nid_t cap;
+			hda_nid_t items[16];
 			hda_nid_t nid = alc882_adc_nids[i];
 			unsigned int wcap = get_wcaps(codec, nid);
 			/* get type */
@@ -10034,6 +10036,15 @@ static int patch_alc882(struct hda_codec *codec)
 			spec->private_adc_nids[spec->num_adc_nids] = nid;
 			err = snd_hda_get_connections(codec, nid, &cap, 1);
 			if (err < 0)
+				continue;
+			err = snd_hda_get_connections(codec, cap, items,
+						      ARRAY_SIZE(items));
+			if (err < 0)
+				continue;
+			for (j = 0; j < imux->num_items; j++)
+				if (imux->items[j].index >= err)
+					break;
+			if (j < imux->num_items)
 				continue;
 			spec->private_capsrc_nids[spec->num_adc_nids] = cap;
 			spec->num_adc_nids++;
