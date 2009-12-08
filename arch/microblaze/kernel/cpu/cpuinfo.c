@@ -30,6 +30,7 @@ const struct cpu_ver_key cpu_ver_lookup[] = {
 	{"7.20.b", 0x0d},
 	{"7.20.c", 0x0e},
 	{"7.20.d", 0x0f},
+	{"7.30.a", 0x10},
 	{NULL, 0},
 };
 
