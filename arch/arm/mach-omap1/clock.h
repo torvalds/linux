@@ -157,12 +157,17 @@ static struct clk ck_dpll1 = {
 	.parent		= &ck_ref,
 };
 
+/*
+ * FIXME: This clock seems to be necessary but no-one has asked for its
+ * activation.  [ FIX: SoSSI, SSR ]
+ */
 static struct arm_idlect1_clk ck_dpll1out = {
 	.clk = {
 		.name		= "ck_dpll1out",
 		.ops		= &clkops_generic,
 		.parent		= &ck_dpll1,
-		.flags		= CLOCK_IDLE_CONTROL | ENABLE_REG_32BIT,
+		.flags		= CLOCK_IDLE_CONTROL | ENABLE_REG_32BIT |
+				  ENABLE_ON_INIT,
 		.enable_reg	= OMAP1_IO_ADDRESS(ARM_IDLECT2),
 		.enable_bit	= EN_CKOUT_ARM,
 		.recalc		= &followparent_recalc,
@@ -207,10 +212,15 @@ static struct arm_idlect1_clk armper_ck = {
 	.idlect_shift	= 2,
 };
 
+/*
+ * FIXME: This clock seems to be necessary but no-one has asked for its
+ * activation.  [ GPIO code for 1510 ]
+ */
 static struct clk arm_gpio_ck = {
 	.name		= "arm_gpio_ck",
 	.ops		= &clkops_generic,
 	.parent		= &ck_dpll1,
+	.flags		= ENABLE_ON_INIT,
 	.enable_reg	= OMAP1_IO_ADDRESS(ARM_IDLECT2),
 	.enable_bit	= EN_GPIOCK,
 	.recalc		= &followparent_recalc,
@@ -372,10 +382,15 @@ static struct clk tc1_ck = {
 	.recalc		= &followparent_recalc,
 };
 
+/*
+ * FIXME: This clock seems to be necessary but no-one has asked for its
+ * activation.  [ pm.c (SRAM), CCP, Camera ]
+ */
 static struct clk tc2_ck = {
 	.name		= "tc2_ck",
 	.ops		= &clkops_generic,
 	.parent		= &tc_ck.clk,
+	.flags		= ENABLE_ON_INIT,
 	.enable_reg	= OMAP1_IO_ADDRESS(ARM_IDLECT3),
 	.enable_bit	= EN_TC2_CK,
 	.recalc		= &followparent_recalc,

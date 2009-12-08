@@ -718,17 +718,6 @@ static void __init omap1_clk_disable_unused(struct clk *clk)
 	if ((regval32 & (1 << clk->enable_bit)) == 0)
 		return;
 
-	/* FIXME: This clock seems to be necessary but no-one
-	 * has asked for its activation. */
-	if (clk == &tc2_ck		/* FIX: pm.c (SRAM), CCP, Camera */
-	    || clk == &ck_dpll1out.clk	/* FIX: SoSSI, SSR */
-	    || clk == &arm_gpio_ck	/* FIX: GPIO code for 1510 */
-		) {
-		printk(KERN_INFO "FIXME: Clock \"%s\" seems unused\n",
-		       clk->name);
-		return;
-	}
-
 	printk(KERN_INFO "Disabling unused clock \"%s\"... ", clk->name);
 	clk->ops->disable(clk);
 	printk(" done\n");
