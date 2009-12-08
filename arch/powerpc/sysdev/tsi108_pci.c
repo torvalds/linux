@@ -384,7 +384,7 @@ static struct irq_chip tsi108_pci_irq = {
 };
 
 static int pci_irq_host_xlate(struct irq_host *h, struct device_node *ct,
-			    u32 *intspec, unsigned int intsize,
+			    const u32 *intspec, unsigned int intsize,
 			    irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 {
 	*out_hwirq = intspec[0];

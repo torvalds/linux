@@ -100,7 +100,7 @@ struct irq_host_ops {
 	 * interrupt controller has for that line)
 	 */
 	int (*xlate)(struct irq_host *h, struct device_node *ctrler,
-		     u32 *intspec, unsigned int intsize,
+		     const u32 *intspec, unsigned int intsize,
 		     irq_hw_number_t *out_hwirq, unsigned int *out_type);
 };
 
@@ -314,7 +314,7 @@ extern void irq_free_virt(unsigned int virq, unsigned int count);
  * of the of_irq_map_*() functions.
  */
 extern unsigned int irq_create_of_mapping(struct device_node *controller,
-					  u32 *intspec, unsigned int intsize);
+					  const u32 *intspec, unsigned int intsize);
 
 /**
  * irq_of_parse_and_map - Parse and Map an interrupt into linux virq space

@@ -166,11 +166,11 @@ static void beatic_pic_host_remap(struct irq_host *h, unsigned int virq,
  * Note: We have only 1 entry to translate.
  */
 static int beatic_pic_host_xlate(struct irq_host *h, struct device_node *ct,
-				 u32 *intspec, unsigned int intsize,
+				 const u32 *intspec, unsigned int intsize,
 				 irq_hw_number_t *out_hwirq,
 				 unsigned int *out_flags)
 {
-	u64 *intspec2 = (u64 *)intspec;
+	const u64 *intspec2 = (const u64 *)intspec;
 
 	*out_hwirq = *intspec2;
 	*out_flags |= IRQ_TYPE_LEVEL_LOW;

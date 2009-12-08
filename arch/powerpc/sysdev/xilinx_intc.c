@@ -148,7 +148,7 @@ static struct irq_chip xilinx_intc_edge_irqchip = {
  * xilinx_intc_xlate - translate virq# from device tree interrupts property
  */
 static int xilinx_intc_xlate(struct irq_host *h, struct device_node *ct,
-				u32 *intspec, unsigned int intsize,
+				const u32 *intspec, unsigned int intsize,
 				irq_hw_number_t *out_hwirq,
 				unsigned int *out_flags)
 {

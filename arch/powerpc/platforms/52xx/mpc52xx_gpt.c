@@ -214,7 +214,7 @@ static int mpc52xx_gpt_irq_map(struct irq_host *h, unsigned int virq,
 }
 
 static int mpc52xx_gpt_irq_xlate(struct irq_host *h, struct device_node *ct,
-				 u32 *intspec, unsigned int intsize,
+				 const u32 *intspec, unsigned int intsize,
 				 irq_hw_number_t *out_hwirq,
 				 unsigned int *out_flags)
 {

@@ -355,7 +355,7 @@ static int mpc52xx_is_extirq(int l1, int l2)
  * mpc52xx_irqhost_xlate - translate virq# from device tree interrupts property
  */
 static int mpc52xx_irqhost_xlate(struct irq_host *h, struct device_node *ct,
-				 u32 *intspec, unsigned int intsize,
+				 const u32 *intspec, unsigned int intsize,
 				 irq_hw_number_t *out_hwirq,
 				 unsigned int *out_flags)
 {

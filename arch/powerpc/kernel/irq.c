@@ -725,7 +725,7 @@ unsigned int irq_create_mapping(struct irq_host *host,
 EXPORT_SYMBOL_GPL(irq_create_mapping);
 
 unsigned int irq_create_of_mapping(struct device_node *controller,
-				   u32 *intspec, unsigned int intsize)
+				   const u32 *intspec, unsigned int intsize)
 {
 	struct irq_host *host;
 	irq_hw_number_t hwirq;
