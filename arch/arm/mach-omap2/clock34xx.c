@@ -322,21 +322,7 @@ static struct omap_clk omap34xx_clks[] = {
 
 #define MAX_DPLL_WAIT_TRIES		1000000
 
-#define MIN_SDRC_DLL_LOCK_FREQ		83000000
-
 #define CYCLES_PER_MHZ			1000000
-
-/* Scale factor for fixed-point arith in omap3_core_dpll_m2_set_rate() */
-#define SDRC_MPURATE_SCALE		8
-
-/* 2^SDRC_MPURATE_BASE_SHIFT: MPU MHz that SDRC_MPURATE_LOOPS is defined for */
-#define SDRC_MPURATE_BASE_SHIFT		9
-
-/*
- * SDRC_MPURATE_LOOPS: Number of MPU loops to execute at
- * 2^MPURATE_BASE_SHIFT MHz for SDRC to stabilize
- */
-#define SDRC_MPURATE_LOOPS		96
 
 /*
  * DPLL5_FREQ_FOR_USBHOST: USBHOST and USBTLL are the only clocks
