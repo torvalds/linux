@@ -158,6 +158,7 @@ enum {
 	FILTER_PTR_STRING,
 };
 
+extern int trace_event_raw_init(struct ftrace_event_call *call);
 extern int trace_define_common_fields(struct ftrace_event_call *call);
 extern int trace_define_field(struct ftrace_event_call *call, const char *type,
 			      const char *name, int offset, int size,

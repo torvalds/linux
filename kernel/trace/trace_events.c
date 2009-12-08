@@ -105,6 +105,20 @@ void trace_destroy_fields(struct ftrace_event_call *call)
 	}
 }
 
+int trace_event_raw_init(struct ftrace_event_call *call)
+{
+	int id;
+
+	id = register_ftrace_event(call->event);
+	if (!id)
+		return -ENODEV;
+	call->id = id;
+	INIT_LIST_HEAD(&call->fields);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(trace_event_raw_init);
+
 static void ftrace_event_enable_disable(struct ftrace_event_call *call,
 					int enable)
 {
