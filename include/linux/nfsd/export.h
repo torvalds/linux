@@ -44,7 +44,8 @@
 
 /* The flags that may vary depending on security flavor: */
 #define NFSEXP_SECINFO_FLAGS	(NFSEXP_READONLY | NFSEXP_ROOTSQUASH \
-					| NFSEXP_ALLSQUASH)
+					| NFSEXP_ALLSQUASH \
+					| NFSEXP_INSECURE_PORT)
 
 #ifdef __KERNEL__
 
@@ -109,7 +110,6 @@ struct svc_expkey {
 	struct path		ek_path;
 };
 
-#define EX_SECURE(exp)		(!((exp)->ex_flags & NFSEXP_INSECURE_PORT))
 #define EX_ISSYNC(exp)		(!((exp)->ex_flags & NFSEXP_ASYNC))
 #define EX_NOHIDE(exp)		((exp)->ex_flags & NFSEXP_NOHIDE)
 #define EX_WGATHER(exp)		((exp)->ex_flags & NFSEXP_GATHERED_WRITES)
