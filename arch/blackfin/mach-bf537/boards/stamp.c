@@ -734,11 +734,11 @@ static const struct ad7877_platform_data bfin_ad7877_ts_info = {
 	.y_plate_ohms		= 486,
 	.pressure_max		= 1000,
 	.pressure_min		= 0,
-	.stopacq_polarity 	= 1,
-	.first_conversion_delay = 3,
-	.acquisition_time 	= 1,
-	.averaging 		= 1,
-	.pen_down_acc_interval 	= 1,
+	.stopacq_polarity	= 1,
+	.first_conversion_delay	= 3,
+	.acquisition_time	= 1,
+	.averaging		= 1,
+	.pen_down_acc_interval	= 1,
 };
 #endif
 
@@ -749,11 +749,11 @@ static const struct ad7879_platform_data bfin_ad7879_ts_info = {
 	.x_plate_ohms		= 620,	/* 620 Ohm from the touch datasheet */
 	.pressure_max		= 10000,
 	.pressure_min		= 0,
-	.first_conversion_delay = 3,	/* wait 512us before do a first conversion */
-	.acquisition_time 	= 1,	/* 4us acquisition time per sample */
+	.first_conversion_delay	= 3,	/* wait 512us before do a first conversion */
+	.acquisition_time	= 1,	/* 4us acquisition time per sample */
 	.median			= 2,	/* do 8 measurements */
-	.averaging 		= 1,	/* take the average of 4 middle samples */
-	.pen_down_acc_interval 	= 255,	/* 9.4 ms */
+	.averaging		= 1,	/* take the average of 4 middle samples */
+	.pen_down_acc_interval	= 255,	/* 9.4 ms */
 	.gpio_export		= 1,	/* Export GPIO to gpiolib */
 	.gpio_base		= -1,	/* Dynamic allocation */
 };
@@ -790,6 +790,11 @@ static const struct adxl34x_platform_data adxl34x_info = {
 /*	.ev_code_act_inactivity = KEY_A,*/	/* EV_KEY */
 	.power_mode = ADXL_AUTO_SLEEP | ADXL_LINK,
 	.fifo_mode = ADXL_FIFO_STREAM,
+	.orientation_enable = ADXL_EN_ORIENTATION_3D,
+	.deadzone_angle = ADXL_DEADZONE_ANGLE_10p8,
+	.divisor_length =  ADXL_LP_FILTER_DIVISOR_16,
+	/* EV_KEY {+Z, +Y, +X, -X, -Y, -Z} */
+	.ev_codes_orient_3d = {BTN_Z, BTN_Y, BTN_X, BTN_A, BTN_B, BTN_C},
 };
 #endif
 
