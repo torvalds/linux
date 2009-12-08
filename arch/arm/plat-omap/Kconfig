@@ -27,6 +27,7 @@ config ARCH_OMAP4
 	bool "TI OMAP4"
 	select CPU_V7
 	select ARM_GIC
+	select COMMON_CLKDEV
 
 endchoice
 

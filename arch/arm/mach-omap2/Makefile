@@ -11,7 +11,7 @@ clock-common				= clock.o clock_common_data.o clockdomain.o
 
 obj-$(CONFIG_ARCH_OMAP2) += $(omap-2-3-common) $(prcm-common) $(clock-common)
 obj-$(CONFIG_ARCH_OMAP3) += $(omap-2-3-common) $(prcm-common) $(clock-common)
-obj-$(CONFIG_ARCH_OMAP4) += prcm.o
+obj-$(CONFIG_ARCH_OMAP4) += prcm.o clock.o
 
 obj-$(CONFIG_OMAP_MCBSP) += mcbsp.o
 
@@ -46,6 +46,7 @@ obj-$(CONFIG_ARCH_OMAP2)		+= clock2xxx.o clock2xxx_data.o
 obj-$(CONFIG_ARCH_OMAP2420)		+= opp2420_data.o
 obj-$(CONFIG_ARCH_OMAP3)		+= clock34xx.o clock34xx_data.o
 obj-$(CONFIG_ARCH_OMAP2430)		+= opp2430_data.o
+obj-$(CONFIG_ARCH_OMAP4)		+= clock44xx.o clock44xx_data.o
 
 # EMU peripherals
 obj-$(CONFIG_OMAP3_EMU)		+= emu.o

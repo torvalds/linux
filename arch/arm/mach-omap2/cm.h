@@ -97,6 +97,10 @@
 
 /* CM2.CEFUSE_CM2 register offsets */
 
+/* OMAP4 modulemode control */
+#define OMAP4430_MODULEMODE_HWCTRL			0
+#define OMAP4430_MODULEMODE_SWCTRL			1
+
 /* Clock management domain register get/set */
 
 #ifndef __ASSEMBLER__
