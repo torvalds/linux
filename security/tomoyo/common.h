@@ -269,6 +269,8 @@ struct tomoyo_io_buffer {
 	int (*write) (struct tomoyo_io_buffer *);
 	/* Exclusive lock for this structure.   */
 	struct mutex io_sem;
+	/* Index returned by tomoyo_read_lock(). */
+	int reader_idx;
 	/* The position currently reading from. */
 	struct list_head *read_var1;
 	/* Extra variables for reading.         */
@@ -446,16 +448,28 @@ extern struct tomoyo_domain_info tomoyo_kernel_domain;
  * @cookie:     the &struct list_head to use as a cookie.
  * @head:       the head for your list.
  *
- * Same with list_for_each() except that this primitive uses @cookie
+ * Same with list_for_each_rcu() except that this primitive uses @cookie
  * so that we can continue iteration.
  * @cookie must be NULL when iteration starts, and @cookie will become
  * NULL when iteration finishes.
  */
-#define list_for_each_cookie(pos, cookie, head)                       \
-	for (({ if (!cookie)                                          \
-				     cookie = head; }),               \
-	     pos = (cookie)->next;                                    \
-	     prefetch(pos->next), pos != (head) || ((cookie) = NULL); \
-	     (cookie) = pos, pos = pos->next)
+#define list_for_each_cookie(pos, cookie, head)				\
+	for (({ if (!cookie)						\
+				     cookie = head; }),			\
+		     pos = rcu_dereference((cookie)->next);		\
+	     prefetch(pos->next), pos != (head) || ((cookie) = NULL);	\
+	     (cookie) = pos, pos = rcu_dereference(pos->next))
+
+extern struct srcu_struct tomoyo_ss;
+
+static inline int tomoyo_read_lock(void)
+{
+	return srcu_read_lock(&tomoyo_ss);
+}
+
+static inline void tomoyo_read_unlock(int idx)
+{
+	srcu_read_unlock(&tomoyo_ss, idx);
+}
 
 #endif /* !defined(_SECURITY_TOMOYO_COMMON_H) */

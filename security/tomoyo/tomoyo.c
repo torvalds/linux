@@ -76,8 +76,18 @@ static int tomoyo_bprm_check_security(struct linux_binprm *bprm)
 	 * Execute permission is checked against pathname passed to do_execve()
 	 * using current domain.
 	 */
-	if (!domain)
-		return tomoyo_find_next_domain(bprm);
+	if (!domain) {
+		/*
+		 * We will need to protect whole execve() operation when GC
+		 * starts kfree()ing "struct tomoyo_domain_info" because
+		 * bprm->cred->security points to "struct tomoyo_domain_info"
+		 * but "struct tomoyo_domain_info" does not have a refcounter.
+		 */
+		const int idx = tomoyo_read_lock();
+		const int err = tomoyo_find_next_domain(bprm);
+		tomoyo_read_unlock(idx);
+		return err;
+	}
 	/*
 	 * Read permission is checked against interpreters using next domain.
 	 * '1' is the result of open_to_namei_flags(O_RDONLY).
@@ -278,6 +288,9 @@ static struct security_operations tomoyo_security_ops = {
 	.sb_pivotroot        = tomoyo_sb_pivotroot,
 };
 
+/* Lock for GC. */
+struct srcu_struct tomoyo_ss;
+
 static int __init tomoyo_init(void)
 {
 	struct cred *cred = (struct cred *) current_cred();
@@ -285,7 +298,8 @@ static int __init tomoyo_init(void)
 	if (!security_module_enable(&tomoyo_security_ops))
 		return 0;
 	/* register ourselves with the security framework */
-	if (register_security(&tomoyo_security_ops))
+	if (register_security(&tomoyo_security_ops) ||
+	    init_srcu_struct(&tomoyo_ss))
 		panic("Failure registering TOMOYO Linux");
 	printk(KERN_INFO "TOMOYO Linux initialized\n");
 	cred->security = &tomoyo_kernel_domain;
