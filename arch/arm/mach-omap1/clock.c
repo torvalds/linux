@@ -376,9 +376,6 @@ static int omap1_select_table_rate(struct clk * clk, unsigned long rate)
 	/* Find the highest supported frequency <= rate and switch to it */
 	struct mpu_rate * ptr;
 
-	if (clk != &virtual_ck_mpu)
-		return -EINVAL;
-
 	for (ptr = rate_table; ptr->rate; ptr++) {
 		if (ptr->xtal != ck_ref.rate)
 			continue;
@@ -464,9 +461,6 @@ static long omap1_round_to_table_rate(struct clk * clk, unsigned long rate)
 	/* Find the highest supported frequency <= rate */
 	struct mpu_rate * ptr;
 	long  highest_rate;
-
-	if (clk != &virtual_ck_mpu)
-		return -EINVAL;
 
 	highest_rate = -EINVAL;
 

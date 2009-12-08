@@ -512,9 +512,6 @@ static long omap2_round_to_table_rate(struct clk *clk, unsigned long rate)
 	struct prcm_config *ptr;
 	long highest_rate;
 
-	if (clk != &virt_prcm_set)
-		return -EINVAL;
-
 	highest_rate = -EINVAL;
 
 	for (ptr = rate_table; ptr->mpu_speed; ptr++) {
@@ -539,9 +536,6 @@ static int omap2_select_table_rate(struct clk *clk, unsigned long rate)
 	struct prcm_config *prcm;
 	unsigned long found_speed = 0;
 	unsigned long flags;
-
-	if (clk != &virt_prcm_set)
-		return -EINVAL;
 
 	for (prcm = rate_table; prcm->mpu_speed; prcm++) {
 		if (!(prcm->flags & cpu_mask))
