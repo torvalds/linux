@@ -248,7 +248,6 @@ static ctl_table sctp_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
 		.extra1		= &one,
 		.extra2		= &rwnd_scale_max,
 	},
