@@ -69,13 +69,15 @@ void radeon_i2c_do_lock(struct radeon_i2c_chan *i2c, int lock_state)
 	 * holds the i2c port in a bad state - switch hw i2c away before
 	 * doing DDC - do this for all r200s/r300s/r400s for safety sake
 	 */
-	if ((rdev->family >= CHIP_R200) && !ASIC_IS_AVIVO(rdev)) {
-		if (rec->a_clk_reg == RADEON_GPIO_MONID) {
-			WREG32(RADEON_DVI_I2C_CNTL_0, (RADEON_I2C_SOFT_RST |
-						R200_DVI_I2C_PIN_SEL(R200_SEL_DDC1)));
-		} else {
-			WREG32(RADEON_DVI_I2C_CNTL_0, (RADEON_I2C_SOFT_RST |
-						R200_DVI_I2C_PIN_SEL(R200_SEL_DDC3)));
+	if (rec->hw_capable) {
+		if ((rdev->family >= CHIP_R200) && !ASIC_IS_AVIVO(rdev)) {
+			if (rec->a_clk_reg == RADEON_GPIO_MONID) {
+				WREG32(RADEON_DVI_I2C_CNTL_0, (RADEON_I2C_SOFT_RST |
+							       R200_DVI_I2C_PIN_SEL(R200_SEL_DDC1)));
+			} else {
+				WREG32(RADEON_DVI_I2C_CNTL_0, (RADEON_I2C_SOFT_RST |
+							       R200_DVI_I2C_PIN_SEL(R200_SEL_DDC3)));
+			}
 		}
 	}
 
@@ -86,6 +88,12 @@ void radeon_i2c_do_lock(struct radeon_i2c_chan *i2c, int lock_state)
 	temp = RREG32(rec->a_data_reg) & ~rec->a_data_mask;
 	WREG32(rec->a_data_reg, temp);
 
+	/* set the pins to input */
+	temp = RREG32(rec->en_clk_reg) & ~rec->en_clk_mask;
+	WREG32(rec->en_clk_reg, temp);
+
+	temp = RREG32(rec->en_data_reg) & ~rec->en_data_mask;
+	WREG32(rec->en_data_reg, temp);
 
 	/* mask the gpio pins for software use */
 	temp = RREG32(rec->mask_clk_reg);
@@ -172,20 +180,19 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 		return NULL;
 
 	i2c->adapter.owner = THIS_MODULE;
-	i2c->adapter.algo_data = &i2c->algo;
 	i2c->dev = dev;
-	i2c->algo.setsda = set_data;
-	i2c->algo.setscl = set_clock;
-	i2c->algo.getsda = get_data;
-	i2c->algo.getscl = get_clock;
-	i2c->algo.udelay = 20;
+	i2c_set_adapdata(&i2c->adapter, i2c);
+	i2c->adapter.algo_data = &i2c->algo.bit;
+	i2c->algo.bit.setsda = set_data;
+	i2c->algo.bit.setscl = set_clock;
+	i2c->algo.bit.getsda = get_data;
+	i2c->algo.bit.getscl = get_clock;
+	i2c->algo.bit.udelay = 20;
 	/* vesa says 2.2 ms is enough, 1 jiffy doesn't seem to always
 	 * make this, 2 jiffies is a lot more reliable */
-	i2c->algo.timeout = 2;
-	i2c->algo.data = i2c;
+	i2c->algo.bit.timeout = 2;
+	i2c->algo.bit.data = i2c;
 	i2c->rec = *rec;
-	i2c_set_adapdata(&i2c->adapter, i2c);
-
 	ret = i2c_bit_add_bus(&i2c->adapter);
 	if (ret) {
 		DRM_INFO("Failed to register i2c %s\n", name);
@@ -198,6 +205,38 @@ out_free:
 	return NULL;
 
 }
+
+struct radeon_i2c_chan *radeon_i2c_create_dp(struct drm_device *dev,
+					     struct radeon_i2c_bus_rec *rec,
+					     const char *name)
+{
+	struct radeon_i2c_chan *i2c;
+	int ret;
+
+	i2c = kzalloc(sizeof(struct radeon_i2c_chan), GFP_KERNEL);
+	if (i2c == NULL)
+		return NULL;
+
+	i2c->rec = *rec;
+	i2c->adapter.owner = THIS_MODULE;
+	i2c->dev = dev;
+	i2c_set_adapdata(&i2c->adapter, i2c);
+	i2c->adapter.algo_data = &i2c->algo.dp;
+	i2c->algo.dp.aux_ch = radeon_dp_i2c_aux_ch;
+	i2c->algo.dp.address = 0;
+	ret = i2c_dp_aux_add_bus(&i2c->adapter);
+	if (ret) {
+		DRM_INFO("Failed to register i2c %s\n", name);
+		goto out_free;
+	}
+
+	return i2c;
+out_free:
+	kfree(i2c);
+	return NULL;
+
+}
+
 
 void radeon_i2c_destroy(struct radeon_i2c_chan *i2c)
 {

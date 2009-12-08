@@ -39,10 +39,31 @@ irqreturn_t radeon_driver_irq_handler_kms(DRM_IRQ_ARGS)
 	return radeon_irq_process(rdev);
 }
 
+/*
+ * Handle hotplug events outside the interrupt handler proper.
+ */
+static void radeon_hotplug_work_func(struct work_struct *work)
+{
+	struct radeon_device *rdev = container_of(work, struct radeon_device,
+						  hotplug_work);
+	struct drm_device *dev = rdev->ddev;
+	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct drm_connector *connector;
+
+	if (mode_config->num_connector) {
+		list_for_each_entry(connector, &mode_config->connector_list, head)
+			radeon_connector_hotplug(connector);
+	}
+	/* Just fire off a uevent and let userspace tell us what to do */
+	drm_sysfs_hotplug_event(dev);
+}
+
 void radeon_driver_irq_preinstall_kms(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	unsigned i;
+
+	INIT_WORK(&rdev->hotplug_work, radeon_hotplug_work_func);
 
 	/* Disable *all* interrupts */
 	rdev->irq.sw_int = false;

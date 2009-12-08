@@ -250,6 +250,16 @@ static const char *connector_names[13] = {
 	"HDMI-B",
 };
 
+static const char *hpd_names[7] = {
+	"NONE",
+	"HPD1",
+	"HPD2",
+	"HPD3",
+	"HPD4",
+	"HPD5",
+	"HPD6",
+};
+
 static void radeon_print_display_setup(struct drm_device *dev)
 {
 	struct drm_connector *connector;
@@ -264,6 +274,8 @@ static void radeon_print_display_setup(struct drm_device *dev)
 		radeon_connector = to_radeon_connector(connector);
 		DRM_INFO("Connector %d:\n", i);
 		DRM_INFO("  %s\n", connector_names[connector->connector_type]);
+		if (radeon_connector->hpd.hpd != RADEON_HPD_NONE)
+			DRM_INFO("  %s\n", hpd_names[radeon_connector->hpd.hpd]);
 		if (radeon_connector->ddc_bus)
 			DRM_INFO("  DDC: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
 				 radeon_connector->ddc_bus->rec.mask_clk_reg,
@@ -337,6 +349,11 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 {
 	int ret = 0;
 
+	if (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) {
+		struct radeon_connector_atom_dig *dig = radeon_connector->con_priv;
+		if (dig->dp_i2c_bus)
+			radeon_connector->edid = drm_get_edid(&radeon_connector->base, &dig->dp_i2c_bus->adapter);
+	}
 	if (!radeon_connector->ddc_bus)
 		return -1;
 	if (!radeon_connector->edid) {
@@ -724,6 +741,8 @@ int radeon_modeset_init(struct radeon_device *rdev)
 	if (!ret) {
 		return ret;
 	}
+	/* initialize hpd */
+	radeon_hpd_init(rdev);
 	drm_helper_initial_config(rdev->ddev);
 	return 0;
 }
@@ -731,6 +750,7 @@ int radeon_modeset_init(struct radeon_device *rdev)
 void radeon_modeset_fini(struct radeon_device *rdev)
 {
 	if (rdev->mode_info.mode_config_initialized) {
+		radeon_hpd_fini(rdev);
 		drm_mode_config_cleanup(rdev->ddev);
 		rdev->mode_info.mode_config_initialized = false;
 	}

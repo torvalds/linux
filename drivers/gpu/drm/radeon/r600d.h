@@ -558,6 +558,7 @@
 #       define DC_HOT_PLUG_DETECT2_INTERRUPT              (1 << 19)
 #       define DC_I2C_SW_DONE_INTERRUPT                   (1 << 20)
 #       define DC_I2C_HW_DONE_INTERRUPT                   (1 << 21)
+#define DISP_INTERRUPT_STATUS_CONTINUE                    0x7ee8
 #define DCE3_DISP_INTERRUPT_STATUS_CONTINUE               0x7de8
 #       define DC_HPD4_INTERRUPT                          (1 << 14)
 #       define DC_HPD4_RX_INTERRUPT                       (1 << 15)
@@ -590,6 +591,18 @@
 #       define DC_HPD6_INTERRUPT                          (1 << 21)
 #       define DC_HPD6_RX_INTERRUPT                       (1 << 22)
 
+#define DACA_AUTO_DETECT_CONTROL                          0x7828
+#define DACB_AUTO_DETECT_CONTROL                          0x7a28
+#define DCE3_DACA_AUTO_DETECT_CONTROL                     0x7028
+#define DCE3_DACB_AUTO_DETECT_CONTROL                     0x7128
+#       define DACx_AUTODETECT_MODE(x)                    ((x) << 0)
+#       define DACx_AUTODETECT_MODE_NONE                  0
+#       define DACx_AUTODETECT_MODE_CONNECT               1
+#       define DACx_AUTODETECT_MODE_DISCONNECT            2
+#       define DACx_AUTODETECT_FRAME_TIME_COUNTER(x)      ((x) << 8)
+/* bit 18 = R/C, 17 = G/Y, 16 = B/Comp */
+#       define DACx_AUTODETECT_CHECK_MASK(x)              ((x) << 16)
+
 #define DCE3_DACA_AUTODETECT_INT_CONTROL                  0x7038
 #define DCE3_DACB_AUTODETECT_INT_CONTROL                  0x7138
 #define DACA_AUTODETECT_INT_CONTROL                       0x7838
@@ -597,22 +610,61 @@
 #       define DACx_AUTODETECT_ACK                        (1 << 0)
 #       define DACx_AUTODETECT_INT_ENABLE                 (1 << 16)
 
+#define DC_HOT_PLUG_DETECT1_CONTROL                       0x7d00
+#define DC_HOT_PLUG_DETECT2_CONTROL                       0x7d10
+#define DC_HOT_PLUG_DETECT3_CONTROL                       0x7d24
+#       define DC_HOT_PLUG_DETECTx_EN                     (1 << 0)
+
+#define DC_HOT_PLUG_DETECT1_INT_STATUS                    0x7d04
+#define DC_HOT_PLUG_DETECT2_INT_STATUS                    0x7d14
+#define DC_HOT_PLUG_DETECT3_INT_STATUS                    0x7d28
+#       define DC_HOT_PLUG_DETECTx_INT_STATUS             (1 << 0)
+#       define DC_HOT_PLUG_DETECTx_SENSE                  (1 << 1)
+
+/* DCE 3.0 */
+#define DC_HPD1_INT_STATUS                                0x7d00
+#define DC_HPD2_INT_STATUS                                0x7d0c
+#define DC_HPD3_INT_STATUS                                0x7d18
+#define DC_HPD4_INT_STATUS                                0x7d24
+/* DCE 3.2 */
+#define DC_HPD5_INT_STATUS                                0x7dc0
+#define DC_HPD6_INT_STATUS                                0x7df4
+#       define DC_HPDx_INT_STATUS                         (1 << 0)
+#       define DC_HPDx_SENSE                              (1 << 1)
+#       define DC_HPDx_RX_INT_STATUS                      (1 << 8)
+
 #define DC_HOT_PLUG_DETECT1_INT_CONTROL                   0x7d08
 #define DC_HOT_PLUG_DETECT2_INT_CONTROL                   0x7d18
 #define DC_HOT_PLUG_DETECT3_INT_CONTROL                   0x7d2c
 #       define DC_HOT_PLUG_DETECTx_INT_ACK                (1 << 0)
 #       define DC_HOT_PLUG_DETECTx_INT_POLARITY           (1 << 8)
 #       define DC_HOT_PLUG_DETECTx_INT_EN                 (1 << 16)
-/* DCE 3.2 */
+/* DCE 3.0 */
 #define DC_HPD1_INT_CONTROL                               0x7d04
 #define DC_HPD2_INT_CONTROL                               0x7d10
 #define DC_HPD3_INT_CONTROL                               0x7d1c
 #define DC_HPD4_INT_CONTROL                               0x7d28
+/* DCE 3.2 */
+#define DC_HPD5_INT_CONTROL                               0x7dc4
+#define DC_HPD6_INT_CONTROL                               0x7df8
 #       define DC_HPDx_INT_ACK                            (1 << 0)
 #       define DC_HPDx_INT_POLARITY                       (1 << 8)
 #       define DC_HPDx_INT_EN                             (1 << 16)
 #       define DC_HPDx_RX_INT_ACK                         (1 << 20)
 #       define DC_HPDx_RX_INT_EN                          (1 << 24)
+
+/* DCE 3.0 */
+#define DC_HPD1_CONTROL                                   0x7d08
+#define DC_HPD2_CONTROL                                   0x7d14
+#define DC_HPD3_CONTROL                                   0x7d20
+#define DC_HPD4_CONTROL                                   0x7d2c
+/* DCE 3.2 */
+#define DC_HPD5_CONTROL                                   0x7dc8
+#define DC_HPD6_CONTROL                                   0x7dfc
+#       define DC_HPDx_CONNECTION_TIMER(x)                ((x) << 0)
+#       define DC_HPDx_RX_INT_TIMER(x)                    ((x) << 16)
+/* DCE 3.2 */
+#       define DC_HPDx_EN                                 (1 << 28)
 
 /*
  * PM4

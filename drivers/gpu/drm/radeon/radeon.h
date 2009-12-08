@@ -339,6 +339,8 @@ struct radeon_irq {
 	bool		sw_int;
 	/* FIXME: use a define max crtc rather than hardcode it */
 	bool		crtc_vblank_int[2];
+	/* FIXME: use defines for max hpd/dacs */
+	bool            hpd[6];
 	spinlock_t sw_lock;
 	int sw_refcount;
 };
@@ -647,6 +649,10 @@ struct radeon_asic {
 	int (*clear_surface_reg)(struct radeon_device *rdev, int reg);
 	void (*bandwidth_update)(struct radeon_device *rdev);
 	void (*hdp_flush)(struct radeon_device *rdev);
+	void (*hpd_init)(struct radeon_device *rdev);
+	void (*hpd_fini)(struct radeon_device *rdev);
+	bool (*hpd_sense)(struct radeon_device *rdev, enum radeon_hpd_id hpd);
+	void (*hpd_set_polarity)(struct radeon_device *rdev, enum radeon_hpd_id hpd);
 };
 
 /*
@@ -803,6 +809,8 @@ struct radeon_device {
 	struct r600_blit r600_blit;
 	int msi_enabled; /* msi enabled */
 	struct r600_ih ih; /* r6/700 interrupt ring */
+	struct workqueue_struct *wq;
+	struct work_struct hotplug_work;
 };
 
 int radeon_device_init(struct radeon_device *rdev,
@@ -986,6 +994,10 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_clear_surface_reg(rdev, r) ((rdev)->asic->clear_surface_reg((rdev), (r)))
 #define radeon_bandwidth_update(rdev) (rdev)->asic->bandwidth_update((rdev))
 #define radeon_hdp_flush(rdev) (rdev)->asic->hdp_flush((rdev))
+#define radeon_hpd_init(rdev) (rdev)->asic->hpd_init((rdev))
+#define radeon_hpd_fini(rdev) (rdev)->asic->hpd_fini((rdev))
+#define radeon_hpd_sense(rdev, hpd) (rdev)->asic->hpd_sense((rdev), (hpd))
+#define radeon_hpd_set_polarity(rdev, hpd) (rdev)->asic->hpd_set_polarity((rdev), (hpd))
 
 /* Common functions */
 extern int radeon_gart_table_vram_pin(struct radeon_device *rdev);
