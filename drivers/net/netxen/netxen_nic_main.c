@@ -2284,8 +2284,10 @@ netxen_check_health(struct netxen_adapter *adapter)
 	}
 
 	state = NXRD32(adapter, NX_CRB_DEV_STATE);
-	if (state == NX_DEV_NEED_RESET)
+	if (state == NX_DEV_NEED_RESET) {
+		adapter->need_fw_reset = 1;
 		goto detach;
+	}
 
 	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
 		return 0;
