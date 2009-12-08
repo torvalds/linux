@@ -58,8 +58,6 @@ void __init setup_arch(char **cmdline_p)
 	__invalidate_dcache_all();
 	__enable_dcache();
 
-	panic_timeout = 120;
-
 	setup_memory();
 
 #if defined(CONFIG_SELFMOD_INTC) || defined(CONFIG_SELFMOD_TIMER)
