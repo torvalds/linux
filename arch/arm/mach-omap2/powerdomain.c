@@ -571,10 +571,10 @@ int pwrdm_add_sleepdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2)
 {
 	struct powerdomain *p;
 
-	if (!pwrdm1)
+	if (!cpu_is_omap34xx())
 		return -EINVAL;
 
-	if (!cpu_is_omap34xx())
+	if (!pwrdm1)
 		return -EINVAL;
 
 	p = _pwrdm_deps_lookup(pwrdm2, pwrdm1->sleepdep_srcs);
@@ -610,10 +610,10 @@ int pwrdm_del_sleepdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2)
 {
 	struct powerdomain *p;
 
-	if (!pwrdm1)
+	if (!cpu_is_omap34xx())
 		return -EINVAL;
 
-	if (!cpu_is_omap34xx())
+	if (!pwrdm1)
 		return -EINVAL;
 
 	p = _pwrdm_deps_lookup(pwrdm2, pwrdm1->sleepdep_srcs);
@@ -653,10 +653,10 @@ int pwrdm_read_sleepdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2)
 {
 	struct powerdomain *p;
 
-	if (!pwrdm1)
+	if (!cpu_is_omap34xx())
 		return -EINVAL;
 
-	if (!cpu_is_omap34xx())
+	if (!pwrdm1)
 		return -EINVAL;
 
 	p = _pwrdm_deps_lookup(pwrdm2, pwrdm1->sleepdep_srcs);
