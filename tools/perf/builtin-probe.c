@@ -79,6 +79,25 @@ static void parse_probe_event(const char *str)
 	pr_debug("%d arguments\n", pp->nr_args);
 }
 
+static void parse_probe_event_argv(int argc, const char **argv)
+{
+	int i, len;
+	char *buf;
+
+	/* Bind up rest arguments */
+	len = 0;
+	for (i = 0; i < argc; i++)
+		len += strlen(argv[i]) + 1;
+	buf = zalloc(len + 1);
+	if (!buf)
+		die("Failed to allocate memory for binding arguments.");
+	len = 0;
+	for (i = 0; i < argc; i++)
+		len += sprintf(&buf[len], "%s ", argv[i]);
+	parse_probe_event(buf);
+	free(buf);
+}
+
 static int opt_add_probe_event(const struct option *opt __used,
 			      const char *str, int unset __used)
 {
@@ -160,7 +179,7 @@ static const struct option options[] = {
 
 int cmd_probe(int argc, const char **argv, const char *prefix __used)
 {
-	int i, j, ret;
+	int i, ret;
 #ifndef NO_LIBDWARF
 	int fd;
 #endif
@@ -168,8 +187,8 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 
 	argc = parse_options(argc, argv, options, probe_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
-	for (i = 0; i < argc; i++)
-		parse_probe_event(argv[i]);
+	if (argc > 0)
+		parse_probe_event_argv(argc, argv);
 
 	if ((session.nr_probe == 0 && !listing) ||
 	    (session.nr_probe != 0 && listing))
@@ -200,8 +219,8 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 	}
 
 	/* Searching probe points */
-	for (j = 0; j < session.nr_probe; j++) {
-		pp = &session.probes[j];
+	for (i = 0; i < session.nr_probe; i++) {
+		pp = &session.probes[i];
 		if (pp->found)
 			continue;
 
@@ -223,8 +242,8 @@ end_dwarf:
 #endif /* !NO_LIBDWARF */
 
 	/* Synthesize probes without dwarf */
-	for (j = 0; j < session.nr_probe; j++) {
-		pp = &session.probes[j];
+	for (i = 0; i < session.nr_probe; i++) {
+		pp = &session.probes[i];
 		if (pp->found)	/* This probe is already found. */
 			continue;
 
