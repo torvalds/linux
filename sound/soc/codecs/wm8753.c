@@ -673,7 +673,6 @@ static int wm8753_add_widgets(struct snd_soc_codec *codec)
 
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_new_widgets(codec);
 	return 0;
 }
 
@@ -724,8 +723,8 @@ static void pll_factors(struct _pll_div *pll_div, unsigned int target,
 	pll_div->k = K;
 }
 
-static int wm8753_set_dai_pll(struct snd_soc_dai *codec_dai,
-		int pll_id, unsigned int freq_in, unsigned int freq_out)
+static int wm8753_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
+		int source, unsigned int freq_in, unsigned int freq_out)
 {
 	u16 reg, enable;
 	int offset;
@@ -1583,17 +1582,8 @@ static int wm8753_probe(struct platform_device *pdev)
 	snd_soc_add_controls(codec, wm8753_snd_controls,
 			     ARRAY_SIZE(wm8753_snd_controls));
 	wm8753_add_widgets(codec);
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		printk(KERN_ERR "wm8753: failed to register card\n");
-		goto card_err;
-	}
 
 	return 0;
-
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 
 pcm_err:
 	return ret;
@@ -1767,21 +1757,6 @@ static int wm8753_i2c_remove(struct i2c_client *client)
         return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8753_i2c_suspend(struct i2c_client *client, pm_message_t msg)
-{
-	return snd_soc_suspend_device(&client->dev);
-}
-
-static int wm8753_i2c_resume(struct i2c_client *client)
-{
-	return snd_soc_resume_device(&client->dev);
-}
-#else
-#define wm8753_i2c_suspend NULL
-#define wm8753_i2c_resume NULL
-#endif
-
 static const struct i2c_device_id wm8753_i2c_id[] = {
 	{ "wm8753", 0 },
 	{ }
@@ -1795,8 +1770,6 @@ static struct i2c_driver wm8753_i2c_driver = {
 	},
 	.probe =    wm8753_i2c_probe,
 	.remove =   wm8753_i2c_remove,
-	.suspend =  wm8753_i2c_suspend,
-	.resume =   wm8753_i2c_resume,
 	.id_table = wm8753_i2c_id,
 };
 #endif
@@ -1852,22 +1825,6 @@ static int __devexit wm8753_spi_remove(struct spi_device *spi)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8753_spi_suspend(struct spi_device *spi, pm_message_t msg)
-{
-	return snd_soc_suspend_device(&spi->dev);
-}
-
-static int wm8753_spi_resume(struct spi_device *spi)
-{
-	return snd_soc_resume_device(&spi->dev);
-}
-
-#else
-#define wm8753_spi_suspend NULL
-#define wm8753_spi_resume NULL
-#endif
-
 static struct spi_driver wm8753_spi_driver = {
 	.driver = {
 		.name	= "wm8753",
@@ -1876,8 +1833,6 @@ static struct spi_driver wm8753_spi_driver = {
 	},
 	.probe		= wm8753_spi_probe,
 	.remove		= __devexit_p(wm8753_spi_remove),
-	.suspend	= wm8753_spi_suspend,
-	.resume		= wm8753_spi_resume,
 };
 #endif
 

@@ -479,7 +479,7 @@ static int snd_pmac_awacs_put_master_amp(struct snd_kcontrol *kcontrol,
 
 static struct snd_kcontrol_new snd_pmac_awacs_amp_vol[] __devinitdata = {
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	  .name = "PC Speaker Playback Volume",
+	  .name = "Speaker Playback Volume",
 	  .info = snd_pmac_awacs_info_volume_amp,
 	  .get = snd_pmac_awacs_get_volume_amp,
 	  .put = snd_pmac_awacs_put_volume_amp,
@@ -525,7 +525,7 @@ static struct snd_kcontrol_new snd_pmac_awacs_amp_hp_sw __devinitdata = {
 
 static struct snd_kcontrol_new snd_pmac_awacs_amp_spk_sw __devinitdata = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "PC Speaker Playback Switch",
+	.name = "Speaker Playback Switch",
 	.info = snd_pmac_boolean_stereo_info,
 	.get = snd_pmac_awacs_get_switch_amp,
 	.put = snd_pmac_awacs_put_switch_amp,
@@ -696,17 +696,17 @@ static struct snd_kcontrol_new snd_pmac_screamer_mic_boost_imac[] __devinitdata 
 };
 
 static struct snd_kcontrol_new snd_pmac_awacs_speaker_vol[] __devinitdata = {
-	AWACS_VOLUME("PC Speaker Playback Volume", 4, 6, 1),
+	AWACS_VOLUME("Speaker Playback Volume", 4, 6, 1),
 };
 
 static struct snd_kcontrol_new snd_pmac_awacs_speaker_sw __devinitdata =
-AWACS_SWITCH("PC Speaker Playback Switch", 1, SHIFT_SPKMUTE, 1);
+AWACS_SWITCH("Speaker Playback Switch", 1, SHIFT_SPKMUTE, 1);
 
 static struct snd_kcontrol_new snd_pmac_awacs_speaker_sw_imac1 __devinitdata =
-AWACS_SWITCH("PC Speaker Playback Switch", 1, SHIFT_PAROUT1, 1);
+AWACS_SWITCH("Speaker Playback Switch", 1, SHIFT_PAROUT1, 1);
 
 static struct snd_kcontrol_new snd_pmac_awacs_speaker_sw_imac2 __devinitdata =
-AWACS_SWITCH("PC Speaker Playback Switch", 1, SHIFT_PAROUT1, 0);
+AWACS_SWITCH("Speaker Playback Switch", 1, SHIFT_PAROUT1, 0);
 
 
 /*

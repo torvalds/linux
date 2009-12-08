@@ -18,10 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/err.h>
 #include <linux/amba/bus.h>
-
-#include <asm/io.h>
-#include <asm/irq.h>
-#include <asm/sizes.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/initval.h>
@@ -30,7 +27,6 @@
 #include <sound/pcm_params.h>
 
 #include "aaci.h"
-#include "devdma.h"
 
 #define DRIVER_NAME	"aaci-pl041"
 
@@ -492,7 +488,7 @@ static int aaci_pcm_hw_free(struct snd_pcm_substream *substream)
 	/*
 	 * Clear out the DMA and any allocated buffers.
 	 */
-	devdma_hw_free(NULL, substream);
+	snd_pcm_lib_free_pages(substream);
 
 	return 0;
 }
@@ -509,20 +505,14 @@ static int aaci_pcm_hw_params(struct snd_pcm_substream *substream,
 		aacirun->pcm_open = 0;
 	}
 
-	err = devdma_hw_alloc(NULL, substream,
-			      params_buffer_bytes(params));
+	err = snd_pcm_lib_malloc_pages(substream,
+				       params_buffer_bytes(params));
 	if (err < 0)
 		goto out;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		err = snd_ac97_pcm_open(aacirun->pcm, params_rate(params),
-					params_channels(params),
-					aacirun->pcm->r[0].slots);
-	else
-		err = snd_ac97_pcm_open(aacirun->pcm, params_rate(params),
-					params_channels(params),
-					aacirun->pcm->r[0].slots);
-
+	err = snd_ac97_pcm_open(aacirun->pcm, params_rate(params),
+				params_channels(params),
+				aacirun->pcm->r[0].slots);
 	if (err)
 		goto out;
 
@@ -538,7 +528,7 @@ static int aaci_pcm_prepare(struct snd_pcm_substream *substream)
 	struct aaci_runtime *aacirun = runtime->private_data;
 
 	aacirun->start	= (void *)runtime->dma_area;
-	aacirun->end	= aacirun->start + runtime->dma_bytes;
+	aacirun->end	= aacirun->start + snd_pcm_lib_buffer_bytes(substream);
 	aacirun->ptr	= aacirun->start;
 	aacirun->period	=
 	aacirun->bytes	= frames_to_bytes(runtime, runtime->period_size);
@@ -553,11 +543,6 @@ static snd_pcm_uframes_t aaci_pcm_pointer(struct snd_pcm_substream *substream)
 	ssize_t bytes = aacirun->ptr - aacirun->start;
 
 	return bytes_to_frames(runtime, bytes);
-}
-
-static int aaci_pcm_mmap(struct snd_pcm_substream *substream, struct vm_area_struct *vma)
-{
-	return devdma_mmap(NULL, substream, vma);
 }
 
 
@@ -726,7 +711,6 @@ static struct snd_pcm_ops aaci_playback_ops = {
 	.prepare	= aaci_pcm_prepare,
 	.trigger	= aaci_pcm_playback_trigger,
 	.pointer	= aaci_pcm_pointer,
-	.mmap		= aaci_pcm_mmap,
 };
 
 static int aaci_pcm_capture_hw_params(struct snd_pcm_substream *substream,
@@ -854,7 +838,6 @@ static struct snd_pcm_ops aaci_capture_ops = {
 	.prepare	= aaci_pcm_capture_prepare,
 	.trigger	= aaci_pcm_capture_trigger,
 	.pointer	= aaci_pcm_pointer,
-	.mmap		= aaci_pcm_mmap,
 };
 
 /*
@@ -1044,6 +1027,8 @@ static int __devinit aaci_init_pcm(struct aaci *aaci)
 
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &aaci_playback_ops);
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &aaci_capture_ops);
+		snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+						      NULL, 0, 64 * 104);
 	}
 
 	return ret;

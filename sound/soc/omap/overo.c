@@ -107,8 +107,8 @@ static int __init overo_soc_init(void)
 {
 	int ret;
 
-	if (!machine_is_overo()) {
-		pr_debug("Not Overo!\n");
+	if (!(machine_is_overo() || machine_is_cm_t35())) {
+		pr_debug("Incomatible machine!\n");
 		return -ENODEV;
 	}
 	printk(KERN_INFO "overo SoC init\n");

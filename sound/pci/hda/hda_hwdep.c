@@ -154,6 +154,44 @@ int /*__devinit*/ snd_hda_create_hwdep(struct hda_codec *codec)
 	return 0;
 }
 
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+static ssize_t power_on_acct_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
+	struct hda_codec *codec = hwdep->private_data;
+	snd_hda_update_power_acct(codec);
+	return sprintf(buf, "%u\n", jiffies_to_msecs(codec->power_on_acct));
+}
+
+static ssize_t power_off_acct_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
+	struct hda_codec *codec = hwdep->private_data;
+	snd_hda_update_power_acct(codec);
+	return sprintf(buf, "%u\n", jiffies_to_msecs(codec->power_off_acct));
+}
+
+static struct device_attribute power_attrs[] = {
+	__ATTR_RO(power_on_acct),
+	__ATTR_RO(power_off_acct),
+};
+
+int snd_hda_hwdep_add_power_sysfs(struct hda_codec *codec)
+{
+	struct snd_hwdep *hwdep = codec->hwdep;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(power_attrs); i++)
+		snd_add_device_sysfs_file(SNDRV_DEVICE_TYPE_HWDEP, hwdep->card,
+					  hwdep->device, &power_attrs[i]);
+	return 0;
+}
+#endif /* CONFIG_SND_HDA_POWER_SAVE */
+
 #ifdef CONFIG_SND_HDA_RECONFIG
 
 /*
