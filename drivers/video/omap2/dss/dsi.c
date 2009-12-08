@@ -2932,11 +2932,15 @@ static int dsi_set_update_mode(struct omap_dss_device *dssdev,
 
 static int dsi_set_te(struct omap_dss_device *dssdev, bool enable)
 {
-	int r;
-	r = dssdev->driver->enable_te(dssdev, enable);
-	/* XXX for some reason, DSI TE breaks if we don't wait here.
-	 * Panel bug? Needs more studying */
-	msleep(100);
+	int r = 0;
+
+	if (dssdev->driver->enable_te) {
+		r = dssdev->driver->enable_te(dssdev, enable);
+		/* XXX for some reason, DSI TE breaks if we don't wait here.
+		 * Panel bug? Needs more studying */
+		msleep(100);
+	}
+
 	return r;
 }
 
