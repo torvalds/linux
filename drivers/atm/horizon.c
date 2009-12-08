@@ -2590,7 +2590,7 @@ static int hrz_getsockopt (struct atm_vcc * atm_vcc, int level, int optname,
 }
 
 static int hrz_setsockopt (struct atm_vcc * atm_vcc, int level, int optname,
-			   void *optval, int optlen) {
+			   void *optval, unsigned int optlen) {
   hrz_dev * dev = HRZ_DEV(atm_vcc->dev);
   PRINTD (DBG_FLOW|DBG_VCC, "hrz_setsockopt");
   switch (level) {

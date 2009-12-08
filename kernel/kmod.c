@@ -80,15 +80,15 @@ int __request_module(bool wait, const char *fmt, ...)
 #define MAX_KMOD_CONCURRENT 50	/* Completely arbitrary value - KAO */
 	static int kmod_loop_msg;
 
-	ret = security_kernel_module_request();
-	if (ret)
-		return ret;
-
 	va_start(args, fmt);
 	ret = vsnprintf(module_name, MODULE_NAME_LEN, fmt, args);
 	va_end(args);
 	if (ret >= MODULE_NAME_LEN)
 		return -ENAMETOOLONG;
+
+	ret = security_kernel_module_request(module_name);
+	if (ret)
+		return ret;
 
 	/* If modprobe needs a service that is in a module, we get a recursive
 	 * loop.  Limit the number of running kmod threads to max_threads/2 or
@@ -143,7 +143,6 @@ struct subprocess_info {
 static int ____call_usermodehelper(void *data)
 {
 	struct subprocess_info *sub_info = data;
-	enum umh_wait wait = sub_info->wait;
 	int retval;
 
 	BUG_ON(atomic_read(&sub_info->cred->usage) != 1);
@@ -185,14 +184,10 @@ static int ____call_usermodehelper(void *data)
 	 */
 	set_user_nice(current, 0);
 
-	if (wait == UMH_WAIT_EXEC)
-		complete(sub_info->complete);
-
 	retval = kernel_execve(sub_info->path, sub_info->argv, sub_info->envp);
 
 	/* Exec failed? */
-	if (wait != UMH_WAIT_EXEC)
-		sub_info->retval = retval;
+	sub_info->retval = retval;
 	do_exit(0);
 }
 
@@ -271,14 +266,16 @@ static void __call_usermodehelper(struct work_struct *work)
 
 	switch (wait) {
 	case UMH_NO_WAIT:
-	case UMH_WAIT_EXEC:
 		break;
 
 	case UMH_WAIT_PROC:
 		if (pid > 0)
 			break;
 		sub_info->retval = pid;
-		break;
+		/* FALLTHROUGH */
+
+	case UMH_WAIT_EXEC:
+		complete(sub_info->complete);
 	}
 }
 

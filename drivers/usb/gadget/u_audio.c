@@ -10,7 +10,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/utsname.h>
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/ctype.h>

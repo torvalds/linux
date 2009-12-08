@@ -199,6 +199,63 @@ SECTIONS
 	}
 	_edata_loc = __data_loc + SIZEOF(.data);
 
+#ifdef CONFIG_HAVE_TCM
+        /*
+	 * We align everything to a page boundary so we can
+	 * free it after init has commenced and TCM contents have
+	 * been copied to its destination.
+	 */
+	.tcm_start : {
+		. = ALIGN(PAGE_SIZE);
+		__tcm_start = .;
+		__itcm_start = .;
+	}
+
+	/*
+	 * Link these to the ITCM RAM
+	 * Put VMA to the TCM address and LMA to the common RAM
+	 * and we'll upload the contents from RAM to TCM and free
+	 * the used RAM after that.
+	 */
+	.text_itcm ITCM_OFFSET : AT(__itcm_start)
+	{
+		__sitcm_text = .;
+		*(.tcm.text)
+		*(.tcm.rodata)
+		. = ALIGN(4);
+		__eitcm_text = .;
+	}
+
+	/*
+	 * Reset the dot pointer, this is needed to create the
+	 * relative __dtcm_start below (to be used as extern in code).
+	 */
+	. = ADDR(.tcm_start) + SIZEOF(.tcm_start) + SIZEOF(.text_itcm);
+
+	.dtcm_start : {
+		__dtcm_start = .;
+	}
+
+	/* TODO: add remainder of ITCM as well, that can be used for data! */
+	.data_dtcm DTCM_OFFSET : AT(__dtcm_start)
+	{
+		. = ALIGN(4);
+		__sdtcm_data = .;
+		*(.tcm.data)
+		. = ALIGN(4);
+		__edtcm_data = .;
+	}
+
+	/* Reset the dot pointer or the linker gets confused */
+	. = ADDR(.dtcm_start) + SIZEOF(.data_dtcm);
+
+	/* End marker for freeing TCM copy in linked object */
+	.tcm_end : AT(ADDR(.dtcm_start) + SIZEOF(.data_dtcm)){
+		. = ALIGN(PAGE_SIZE);
+		__tcm_end = .;
+	}
+#endif
+
 	.bss : {
 		__bss_start = .;	/* BSS				*/
 		*(.bss)

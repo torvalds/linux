@@ -560,7 +560,7 @@ int conf_write(const char *name)
 	return 0;
 }
 
-int conf_split_config(void)
+static int conf_split_config(void)
 {
 	const char *name;
 	char path[128];

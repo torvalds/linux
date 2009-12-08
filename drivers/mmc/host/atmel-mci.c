@@ -599,6 +599,7 @@ atmci_submit_data_dma(struct atmel_mci *host, struct mmc_data *data)
 	struct scatterlist		*sg;
 	unsigned int			i;
 	enum dma_data_direction		direction;
+	unsigned int			sglen;
 
 	/*
 	 * We don't do DMA on "complex" transfers, i.e. with
@@ -628,11 +629,14 @@ atmci_submit_data_dma(struct atmel_mci *host, struct mmc_data *data)
 	else
 		direction = DMA_TO_DEVICE;
 
+	sglen = dma_map_sg(&host->pdev->dev, data->sg, data->sg_len, direction);
+	if (sglen != data->sg_len)
+		goto unmap_exit;
 	desc = chan->device->device_prep_slave_sg(chan,
 			data->sg, data->sg_len, direction,
 			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc)
-		return -ENOMEM;
+		goto unmap_exit;
 
 	host->dma.data_desc = desc;
 	desc->callback = atmci_dma_complete;
@@ -643,6 +647,9 @@ atmci_submit_data_dma(struct atmel_mci *host, struct mmc_data *data)
 	chan->device->device_issue_pending(chan);
 
 	return 0;
+unmap_exit:
+	dma_unmap_sg(&host->pdev->dev, data->sg, sglen, direction);
+	return -ENOMEM;
 }
 
 #else /* CONFIG_MMC_ATMELMCI_DMA */

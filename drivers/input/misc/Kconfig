@@ -225,7 +225,9 @@ config INPUT_SGI_BTNS
 config INPUT_WINBOND_CIR
 	tristate "Winbond IR remote control"
 	depends on X86 && PNP
+	select NEW_LEDS
 	select LEDS_CLASS
+	select LEDS_TRIGGERS
 	select BITREVERSE
 	help
 	  Say Y here if you want to use the IR remote functionality found

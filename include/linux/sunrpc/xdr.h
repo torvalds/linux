@@ -11,6 +11,7 @@
 
 #include <linux/uio.h>
 #include <asm/byteorder.h>
+#include <asm/unaligned.h>
 #include <linux/scatterlist.h>
 
 /*
@@ -117,14 +118,14 @@ static inline __be32 *xdr_encode_array(__be32 *p, const void *s, unsigned int le
 static inline __be32 *
 xdr_encode_hyper(__be32 *p, __u64 val)
 {
-	*(__be64 *)p = cpu_to_be64(val);
+	put_unaligned_be64(val, p);
 	return p + 2;
 }
 
 static inline __be32 *
 xdr_decode_hyper(__be32 *p, __u64 *valp)
 {
-	*valp = be64_to_cpup((__be64 *)p);
+	*valp = get_unaligned_be64(p);
 	return p + 2;
 }
 

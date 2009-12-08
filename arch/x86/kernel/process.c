@@ -555,10 +555,8 @@ void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
 void __init init_c1e_mask(void)
 {
 	/* If we're using c1e_idle, we need to allocate c1e_mask. */
-	if (pm_idle == c1e_idle) {
-		alloc_cpumask_var(&c1e_mask, GFP_KERNEL);
-		cpumask_clear(c1e_mask);
-	}
+	if (pm_idle == c1e_idle)
+		zalloc_cpumask_var(&c1e_mask, GFP_KERNEL);
 }
 
 static int __init idle_setup(char *str)

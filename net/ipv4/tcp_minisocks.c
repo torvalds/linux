@@ -641,8 +641,8 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	if (!(flg & TCP_FLAG_ACK))
 		return NULL;
 
-	/* If TCP_DEFER_ACCEPT is set, drop bare ACK. */
-	if (inet_csk(sk)->icsk_accept_queue.rskq_defer_accept &&
+	/* While TCP_DEFER_ACCEPT is active, drop bare ACK. */
+	if (req->retrans < inet_csk(sk)->icsk_accept_queue.rskq_defer_accept &&
 	    TCP_SKB_CB(skb)->end_seq == tcp_rsk(req)->rcv_isn + 1) {
 		inet_rsk(req)->acked = 1;
 		return NULL;

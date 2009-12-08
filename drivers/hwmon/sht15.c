@@ -30,6 +30,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
+#include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
 #include <linux/err.h>
@@ -622,7 +623,12 @@ static int __devexit sht15_remove(struct platform_device *pdev)
 }
 
 
-static struct platform_driver sht_drivers[] = {
+/*
+ * sht_drivers simultaneously refers to __devinit and __devexit function
+ * which causes spurious section mismatch warning. So use __refdata to
+ * get rid from this.
+ */
+static struct platform_driver __refdata sht_drivers[] = {
 	{
 		.driver = {
 			.name = "sht10",

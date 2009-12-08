@@ -58,7 +58,7 @@ int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 int kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code);
 int kvm_s390_inject_sigp_stop(struct kvm_vcpu *vcpu, int action);
 
-static inline int kvm_s390_vcpu_get_memsize(struct kvm_vcpu *vcpu)
+static inline long kvm_s390_vcpu_get_memsize(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.sie_block->gmslm
 		- vcpu->arch.sie_block->gmsor

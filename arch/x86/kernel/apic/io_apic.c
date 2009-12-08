@@ -227,17 +227,14 @@ static struct irq_cfg *get_one_free_irq_cfg(int node)
 
 	cfg = kzalloc_node(sizeof(*cfg), GFP_ATOMIC, node);
 	if (cfg) {
-		if (!alloc_cpumask_var_node(&cfg->domain, GFP_ATOMIC, node)) {
+		if (!zalloc_cpumask_var_node(&cfg->domain, GFP_ATOMIC, node)) {
 			kfree(cfg);
 			cfg = NULL;
-		} else if (!alloc_cpumask_var_node(&cfg->old_domain,
+		} else if (!zalloc_cpumask_var_node(&cfg->old_domain,
 							  GFP_ATOMIC, node)) {
 			free_cpumask_var(cfg->domain);
 			kfree(cfg);
 			cfg = NULL;
-		} else {
-			cpumask_clear(cfg->domain);
-			cpumask_clear(cfg->old_domain);
 		}
 	}
 

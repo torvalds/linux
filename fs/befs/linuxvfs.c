@@ -737,12 +737,7 @@ befs_put_super(struct super_block *sb)
 {
 	kfree(BEFS_SB(sb)->mount_opts.iocharset);
 	BEFS_SB(sb)->mount_opts.iocharset = NULL;
-
-	if (BEFS_SB(sb)->nls) {
-		unload_nls(BEFS_SB(sb)->nls);
-		BEFS_SB(sb)->nls = NULL;
-	}
-
+	unload_nls(BEFS_SB(sb)->nls);
 	kfree(sb->s_fs_info);
 	sb->s_fs_info = NULL;
 }

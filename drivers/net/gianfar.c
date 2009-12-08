@@ -2325,9 +2325,6 @@ static irqreturn_t gfar_error(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/* work with hotplug and coldplug */
-MODULE_ALIAS("platform:fsl-gianfar");
-
 static struct of_device_id gfar_match[] =
 {
 	{
@@ -2336,6 +2333,7 @@ static struct of_device_id gfar_match[] =
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, gfar_match);
 
 /* Structure for a device driver */
 static struct of_platform_driver gfar_driver = {

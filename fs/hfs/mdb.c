@@ -344,10 +344,8 @@ void hfs_mdb_put(struct super_block *sb)
 	brelse(HFS_SB(sb)->mdb_bh);
 	brelse(HFS_SB(sb)->alt_mdb_bh);
 
-	if (HFS_SB(sb)->nls_io)
-		unload_nls(HFS_SB(sb)->nls_io);
-	if (HFS_SB(sb)->nls_disk)
-		unload_nls(HFS_SB(sb)->nls_disk);
+	unload_nls(HFS_SB(sb)->nls_io);
+	unload_nls(HFS_SB(sb)->nls_disk);
 
 	free_pages((unsigned long)HFS_SB(sb)->bitmap, PAGE_SIZE < 8192 ? 1 : 0);
 	kfree(HFS_SB(sb));

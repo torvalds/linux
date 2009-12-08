@@ -31,7 +31,7 @@ static int ftrace_profile_enable_event(struct ftrace_event_call *event)
 	if (atomic_inc_return(&event->profile_count))
 		return 0;
 
-	if (!total_profile_count++) {
+	if (!total_profile_count) {
 		buf = (char *)alloc_percpu(profile_buf_t);
 		if (!buf)
 			goto fail_buf;
@@ -46,14 +46,19 @@ static int ftrace_profile_enable_event(struct ftrace_event_call *event)
 	}
 
 	ret = event->profile_enable();
-	if (!ret)
+	if (!ret) {
+		total_profile_count++;
 		return 0;
+	}
 
-	kfree(trace_profile_buf_nmi);
 fail_buf_nmi:
-	kfree(trace_profile_buf);
+	if (!total_profile_count) {
+		free_percpu(trace_profile_buf_nmi);
+		free_percpu(trace_profile_buf);
+		trace_profile_buf_nmi = NULL;
+		trace_profile_buf = NULL;
+	}
 fail_buf:
-	total_profile_count--;
 	atomic_dec(&event->profile_count);
 
 	return ret;

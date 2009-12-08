@@ -27,7 +27,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
-#include <linux/utsname.h>
 #include <linux/tick.h>
 #include <linux/elfcore.h>
 #include <linux/kernel_stat.h>

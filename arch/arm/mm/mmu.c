@@ -21,6 +21,7 @@
 #include <asm/cachetype.h>
 #include <asm/setup.h>
 #include <asm/sizes.h>
+#include <asm/smp_plat.h>
 #include <asm/tlb.h>
 #include <asm/highmem.h>
 
@@ -116,6 +117,13 @@ static void __init early_cachepolicy(char **p)
 	}
 	if (i == ARRAY_SIZE(cache_policies))
 		printk(KERN_ERR "ERROR: unknown or unsupported cache policy\n");
+	/*
+	 * This restriction is partly to do with the way we boot; it is
+	 * unpredictable to have memory mapped using two different sets of
+	 * memory attributes (shared, type, and cache attribs).  We can not
+	 * change these attributes once the initial assembly has setup the
+	 * page tables.
+	 */
 	if (cpu_architecture() >= CPU_ARCH_ARMv6) {
 		printk(KERN_WARNING "Only cachepolicy=writeback supported on ARMv6 and later\n");
 		cachepolicy = CPOLICY_WRITEBACK;
@@ -709,10 +717,6 @@ static void __init sanity_check_meminfo(void)
 			if (meminfo.nr_banks >= NR_BANKS) {
 				printk(KERN_CRIT "NR_BANKS too low, "
 						 "ignoring high memory\n");
-			} else if (cache_is_vipt_aliasing()) {
-				printk(KERN_CRIT "HIGHMEM is not yet supported "
-						 "with VIPT aliasing cache, "
-						 "ignoring high memory\n");
 			} else {
 				memmove(bank + 1, bank,
 					(meminfo.nr_banks - i) * sizeof(*bank));
@@ -726,6 +730,8 @@ static void __init sanity_check_meminfo(void)
 			bank->size = VMALLOC_MIN - __va(bank->start);
 		}
 #else
+		bank->highmem = highmem;
+
 		/*
 		 * Check whether this memory bank would entirely overlap
 		 * the vmalloc area.
@@ -754,6 +760,38 @@ static void __init sanity_check_meminfo(void)
 #endif
 		j++;
 	}
+#ifdef CONFIG_HIGHMEM
+	if (highmem) {
+		const char *reason = NULL;
+
+		if (cache_is_vipt_aliasing()) {
+			/*
+			 * Interactions between kmap and other mappings
+			 * make highmem support with aliasing VIPT caches
+			 * rather difficult.
+			 */
+			reason = "with VIPT aliasing cache";
+#ifdef CONFIG_SMP
+		} else if (tlb_ops_need_broadcast()) {
+			/*
+			 * kmap_high needs to occasionally flush TLB entries,
+			 * however, if the TLB entries need to be broadcast
+			 * we may deadlock:
+			 *  kmap_high(irqs off)->flush_all_zero_pkmaps->
+			 *  flush_tlb_kernel_range->smp_call_function_many
+			 *   (must not be called with irqs off)
+			 */
+			reason = "without hardware TLB ops broadcasting";
+#endif
+		}
+		if (reason) {
+			printk(KERN_CRIT "HIGHMEM is not supported %s, ignoring high memory\n",
+				reason);
+			while (j > 0 && meminfo.bank[j - 1].highmem)
+				j--;
+		}
+	}
+#endif
 	meminfo.nr_banks = j;
 }
 

@@ -544,6 +544,16 @@ redo:
 		 */
 		lru = LRU_UNEVICTABLE;
 		add_page_to_unevictable_list(page);
+		/*
+		 * When racing with an mlock clearing (page is
+		 * unlocked), make sure that if the other thread does
+		 * not observe our setting of PG_lru and fails
+		 * isolation, we see PG_mlocked cleared below and move
+		 * the page back to the evictable list.
+		 *
+		 * The other side is TestClearPageMlocked().
+		 */
+		smp_mb();
 	}
 
 	/*
@@ -663,7 +673,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		 * processes. Try to unmap it here.
 		 */
 		if (page_mapped(page) && mapping) {
-			switch (try_to_unmap(page, 0)) {
+			switch (try_to_unmap(page, TTU_UNMAP)) {
 			case SWAP_FAIL:
 				goto activate_locked;
 			case SWAP_AGAIN:
@@ -1088,7 +1098,7 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 	int lumpy_reclaim = 0;
 
 	while (unlikely(too_many_isolated(zone, file, sc))) {
-		congestion_wait(WRITE, HZ/10);
+		congestion_wait(BLK_RW_ASYNC, HZ/10);
 
 		/* We are about to die and free our memory. Return now. */
 		if (fatal_signal_pending(current))
@@ -1356,7 +1366,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 			 * IO, plus JVM can create lots of anon VM_EXEC pages,
 			 * so we ignore them here.
 			 */
-			if ((vm_flags & VM_EXEC) && !PageAnon(page)) {
+			if ((vm_flags & VM_EXEC) && page_is_file_cache(page)) {
 				list_add(&page->lru, &l_active);
 				continue;
 			}
@@ -1709,10 +1719,10 @@ static void shrink_zones(int priority, struct zonelist *zonelist,
  *
  * If the caller is !__GFP_FS then the probability of a failure is reasonably
  * high - the zone may be full of dirty or under-writeback pages, which this
- * caller can't do much about.  We kick pdflush and take explicit naps in the
- * hope that some of these pages can be written.  But if the allocating task
- * holds filesystem locks which prevent writeout this might not work, and the
- * allocation attempt will fail.
+ * caller can't do much about.  We kick the writeback threads and take explicit
+ * naps in the hope that some of these pages can be written.  But if the
+ * allocating task holds filesystem locks which prevent writeout this might not
+ * work, and the allocation attempt will fail.
  *
  * returns:	0, if no pages reclaimed
  * 		else, the number of pages reclaimed
@@ -1836,11 +1846,45 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR
 
+unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+						gfp_t gfp_mask, bool noswap,
+						unsigned int swappiness,
+						struct zone *zone, int nid)
+{
+	struct scan_control sc = {
+		.may_writepage = !laptop_mode,
+		.may_unmap = 1,
+		.may_swap = !noswap,
+		.swap_cluster_max = SWAP_CLUSTER_MAX,
+		.swappiness = swappiness,
+		.order = 0,
+		.mem_cgroup = mem,
+		.isolate_pages = mem_cgroup_isolate_pages,
+	};
+	nodemask_t nm  = nodemask_of_node(nid);
+
+	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
+			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
+	sc.nodemask = &nm;
+	sc.nr_reclaimed = 0;
+	sc.nr_scanned = 0;
+	/*
+	 * NOTE: Although we can get the priority field, using it
+	 * here is not a good idea, since it limits the pages we can scan.
+	 * if we don't reclaim here, the shrink_zone from balance_pgdat
+	 * will pick up pages from other mem cgroup's as well. We hack
+	 * the priority and make it zero.
+	 */
+	shrink_zone(0, zone, &sc);
+	return sc.nr_reclaimed;
+}
+
 unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
 					   gfp_t gfp_mask,
 					   bool noswap,
 					   unsigned int swappiness)
 {
+	struct zonelist *zonelist;
 	struct scan_control sc = {
 		.may_writepage = !laptop_mode,
 		.may_unmap = 1,
@@ -1852,7 +1896,6 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
 		.isolate_pages = mem_cgroup_isolate_pages,
 		.nodemask = NULL, /* we don't care the placement */
 	};
-	struct zonelist *zonelist;
 
 	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
 			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
@@ -1974,6 +2017,7 @@ loop_again:
 		for (i = 0; i <= end_zone; i++) {
 			struct zone *zone = pgdat->node_zones + i;
 			int nr_slab;
+			int nid, zid;
 
 			if (!populated_zone(zone))
 				continue;
@@ -1988,6 +2032,15 @@ loop_again:
 			temp_priority[i] = priority;
 			sc.nr_scanned = 0;
 			note_zone_scanning_priority(zone, priority);
+
+			nid = pgdat->node_id;
+			zid = zone_idx(zone);
+			/*
+			 * Call soft limit reclaim before calling shrink_zone.
+			 * For now we ignore the return value
+			 */
+			mem_cgroup_soft_limit_reclaim(zone, order, sc.gfp_mask,
+							nid, zid);
 			/*
 			 * We put equal pressure on every zone, unless one
 			 * zone has way too many pages free already.
@@ -2801,10 +2854,10 @@ static void scan_all_zones_unevictable_pages(void)
 unsigned long scan_unevictable_pages;
 
 int scan_unevictable_handler(struct ctl_table *table, int write,
-			   struct file *file, void __user *buffer,
+			   void __user *buffer,
 			   size_t *length, loff_t *ppos)
 {
-	proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
+	proc_doulongvec_minmax(table, write, buffer, length, ppos);
 
 	if (write && *(unsigned long *)table->data)
 		scan_all_zones_unevictable_pages();

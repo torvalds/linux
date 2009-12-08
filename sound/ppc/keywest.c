@@ -59,6 +59,18 @@ static int keywest_attach_adapter(struct i2c_adapter *adapter)
 	strlcpy(info.type, "keywest", I2C_NAME_SIZE);
 	info.addr = keywest_ctx->addr;
 	keywest_ctx->client = i2c_new_device(adapter, &info);
+	if (!keywest_ctx->client)
+		return -ENODEV;
+	/*
+	 * We know the driver is already loaded, so the device should be
+	 * already bound. If not it means binding failed, and then there
+	 * is no point in keeping the device instantiated.
+	 */
+	if (!keywest_ctx->client->driver) {
+		i2c_unregister_device(keywest_ctx->client);
+		keywest_ctx->client = NULL;
+		return -ENODEV;
+	}
 	
 	/*
 	 * Let i2c-core delete that device on driver removal.
@@ -86,7 +98,7 @@ static const struct i2c_device_id keywest_i2c_id[] = {
 	{ }
 };
 
-struct i2c_driver keywest_driver = {
+static struct i2c_driver keywest_driver = {
 	.driver = {
 		.name = "PMac Keywest Audio",
 	},

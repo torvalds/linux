@@ -28,7 +28,7 @@
 #define dbg(x...)
 #endif
 
-#define KERNEL_START (KERNEL_BINARY_TEXT_START - 0x1000)
+#define KERNEL_START (KERNEL_BINARY_TEXT_START)
 
 extern struct unwind_table_entry __start___unwind[];
 extern struct unwind_table_entry __stop___unwind[];

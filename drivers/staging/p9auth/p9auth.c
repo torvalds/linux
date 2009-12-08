@@ -183,7 +183,7 @@ static ssize_t cap_write(struct file *filp, const char __user *buf,
 	user_buf_running = NULL;
 	hash_str = NULL;
 	node_ptr = kmalloc(sizeof(struct cap_node), GFP_KERNEL);
-	user_buf = kzalloc(count, GFP_KERNEL);
+	user_buf = kzalloc(count+1, GFP_KERNEL);
 	if (!node_ptr || !user_buf)
 		goto out;
 
@@ -207,6 +207,7 @@ static ssize_t cap_write(struct file *filp, const char __user *buf,
 		list_add(&(node_ptr->list), &(dev->head->list));
 		node_ptr = NULL;
 	} else {
+		char *tmpu;
 		if (!cap_devices[0].head ||
 				list_empty(&(cap_devices[0].head->list))) {
 			retval = -EINVAL;
@@ -218,10 +219,10 @@ static ssize_t cap_write(struct file *filp, const char __user *buf,
 		 * need to split it and hash 'user1@user2' using 'randomstring'
 		 * as the key.
 		 */
-		user_buf_running = kstrdup(user_buf, GFP_KERNEL);
-		source_user = strsep(&user_buf_running, "@");
-		target_user = strsep(&user_buf_running, "@");
-		rand_str = strsep(&user_buf_running, "@");
+		tmpu = user_buf_running = kstrdup(user_buf, GFP_KERNEL);
+		source_user = strsep(&tmpu, "@");
+		target_user = strsep(&tmpu, "@");
+		rand_str = tmpu;
 		if (!source_user || !target_user || !rand_str) {
 			retval = -EINVAL;
 			goto out;
@@ -229,7 +230,8 @@ static ssize_t cap_write(struct file *filp, const char __user *buf,
 
 		/* hash the string user1@user2 with rand_str as the key */
 		len = strlen(source_user) + strlen(target_user) + 1;
-		hash_str = kzalloc(len, GFP_KERNEL);
+		/* src, @, len, \0 */
+		hash_str = kzalloc(len+1, GFP_KERNEL);
 		strcat(hash_str, source_user);
 		strcat(hash_str, "@");
 		strcat(hash_str, target_user);

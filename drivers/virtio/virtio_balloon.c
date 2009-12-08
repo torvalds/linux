@@ -19,7 +19,6 @@
  */
 //#define DEBUG
 #include <linux/virtio.h>
-#include <linux/virtio_ids.h>
 #include <linux/virtio_balloon.h>
 #include <linux/swap.h>
 #include <linux/kthread.h>
@@ -248,7 +247,7 @@ out:
 	return err;
 }
 
-static void virtballoon_remove(struct virtio_device *vdev)
+static void __devexit virtballoon_remove(struct virtio_device *vdev)
 {
 	struct virtio_balloon *vb = vdev->priv;
 

@@ -30,6 +30,7 @@
  ********************************************************************/
 
 #include <linux/init.h>
+#include <linux/sched.h>
 
 #include <net/irda/irda.h>
 #include <net/irda/irlmp.h>

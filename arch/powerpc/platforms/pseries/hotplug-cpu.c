@@ -94,7 +94,7 @@ static int pseries_cpu_disable(void)
 {
 	int cpu = smp_processor_id();
 
-	cpu_clear(cpu, cpu_online_map);
+	set_cpu_online(cpu, false);
 	vdso_data->processorCount--;
 
 	/*fix boot_cpuid here*/
@@ -185,7 +185,7 @@ static int pseries_add_processor(struct device_node *np)
 
 	for_each_cpu_mask(cpu, tmp) {
 		BUG_ON(cpu_isset(cpu, cpu_present_map));
-		cpu_set(cpu, cpu_present_map);
+		set_cpu_present(cpu, true);
 		set_hard_smp_processor_id(cpu, *intserv++);
 	}
 	err = 0;
@@ -217,7 +217,7 @@ static void pseries_remove_processor(struct device_node *np)
 			if (get_hard_smp_processor_id(cpu) != intserv[i])
 				continue;
 			BUG_ON(cpu_online(cpu));
-			cpu_clear(cpu, cpu_present_map);
+			set_cpu_present(cpu, false);
 			set_hard_smp_processor_id(cpu, -1);
 			break;
 		}

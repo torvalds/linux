@@ -13,6 +13,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/sched.h>
 #include <linux/time.h>
 #include <linux/clocksource.h>
 #include <linux/interrupt.h>

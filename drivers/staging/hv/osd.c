@@ -30,6 +30,7 @@
 #include <linux/ioport.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
+#include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>

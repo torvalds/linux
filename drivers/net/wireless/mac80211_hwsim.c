@@ -631,6 +631,9 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 		data->beacon_int = 1024 * info->beacon_int / 1000 * HZ / 1000;
 		if (WARN_ON(!data->beacon_int))
 			data->beacon_int = 1;
+		if (data->started)
+			mod_timer(&data->beacon_timer,
+				  jiffies + data->beacon_int);
 	}
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {

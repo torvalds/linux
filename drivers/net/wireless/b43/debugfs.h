@@ -13,6 +13,7 @@ enum b43_dyndbg {		/* Dynamic debugging features */
 	B43_DBG_LO,
 	B43_DBG_FIRMWARE,
 	B43_DBG_KEYS,
+	B43_DBG_VERBOSESTATS,
 	__B43_NR_DYNDBG,
 };
 

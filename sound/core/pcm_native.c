@@ -2985,7 +2985,7 @@ static int snd_pcm_mmap_status_fault(struct vm_area_struct *area,
 	return 0;
 }
 
-static struct vm_operations_struct snd_pcm_vm_ops_status =
+static const struct vm_operations_struct snd_pcm_vm_ops_status =
 {
 	.fault =	snd_pcm_mmap_status_fault,
 };
@@ -3024,7 +3024,7 @@ static int snd_pcm_mmap_control_fault(struct vm_area_struct *area,
 	return 0;
 }
 
-static struct vm_operations_struct snd_pcm_vm_ops_control =
+static const struct vm_operations_struct snd_pcm_vm_ops_control =
 {
 	.fault =	snd_pcm_mmap_control_fault,
 };
@@ -3094,7 +3094,7 @@ static int snd_pcm_mmap_data_fault(struct vm_area_struct *area,
 	return 0;
 }
 
-static struct vm_operations_struct snd_pcm_vm_ops_data =
+static const struct vm_operations_struct snd_pcm_vm_ops_data =
 {
 	.open =		snd_pcm_mmap_data_open,
 	.close =	snd_pcm_mmap_data_close,
@@ -3118,7 +3118,7 @@ static int snd_pcm_default_mmap(struct snd_pcm_substream *substream,
  * mmap the DMA buffer on I/O memory area
  */
 #if SNDRV_PCM_INFO_MMAP_IOMEM
-static struct vm_operations_struct snd_pcm_vm_ops_data_mmio =
+static const struct vm_operations_struct snd_pcm_vm_ops_data_mmio =
 {
 	.open =		snd_pcm_mmap_data_open,
 	.close =	snd_pcm_mmap_data_close,

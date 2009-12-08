@@ -96,11 +96,13 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	{
 		struct drm_gem_object *obj = obj_priv->obj;
 
-		seq_printf(m, "    %p: %s %08x %08x %d",
+		seq_printf(m, "    %p: %s %8zd %08x %08x %d %s",
 			   obj,
 			   get_pin_flag(obj_priv),
+			   obj->size,
 			   obj->read_domains, obj->write_domain,
-			   obj_priv->last_rendering_seqno);
+			   obj_priv->last_rendering_seqno,
+			   obj_priv->dirty ? "dirty" : "");
 
 		if (obj->name)
 			seq_printf(m, " (name: %d)", obj->name);
@@ -265,10 +267,10 @@ static void i915_dump_pages(struct seq_file *m, struct page **pages, int page_co
 	uint32_t *mem;
 
 	for (page = 0; page < page_count; page++) {
-		mem = kmap(pages[page]);
+		mem = kmap_atomic(pages[page], KM_USER0);
 		for (i = 0; i < PAGE_SIZE; i += 4)
 			seq_printf(m, "%08x :  %08x\n", i, mem[i / 4]);
-		kunmap(pages[page]);
+		kunmap_atomic(pages[page], KM_USER0);
 	}
 }
 

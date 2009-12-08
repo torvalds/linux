@@ -11,7 +11,7 @@ GCOV_PROFILE := n
 
 EXTRA_CFLAGS := -shared -fno-common -fno-builtin
 EXTRA_CFLAGS += -nostdlib -Wl,-soname=linux-vdso64.so.1 \
-		$(call ld-option, -Wl$(comma)--hash-style=sysv)
+		$(call cc-ldoption, -Wl$(comma)--hash-style=sysv)
 EXTRA_AFLAGS := -D__VDSO64__ -s
 
 obj-y += vdso64_wrapper.o

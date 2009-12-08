@@ -1591,6 +1591,8 @@ static int kvm_dev_ioctl_get_supported_cpuid(struct kvm_cpuid2 *cpuid,
 
 	if (cpuid->nent < 1)
 		goto out;
+	if (cpuid->nent > KVM_MAX_CPUID_ENTRIES)
+		cpuid->nent = KVM_MAX_CPUID_ENTRIES;
 	r = -ENOMEM;
 	cpuid_entries = vmalloc(sizeof(struct kvm_cpuid_entry2) * cpuid->nent);
 	if (!cpuid_entries)
@@ -1690,7 +1692,7 @@ static int kvm_vcpu_ioctl_x86_setup_mce(struct kvm_vcpu *vcpu,
 	unsigned bank_num = mcg_cap & 0xff, bank;
 
 	r = -EINVAL;
-	if (!bank_num)
+	if (!bank_num || bank_num >= KVM_MAX_MCE_BANKS)
 		goto out;
 	if (mcg_cap & ~(KVM_MCE_CAP_SUPPORTED | 0xff | 0xff0000))
 		goto out;
@@ -4049,7 +4051,7 @@ static int save_guest_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector,
 	return kvm_write_guest_virt(dtable.base + index*8, seg_desc, sizeof(*seg_desc), vcpu);
 }
 
-static u32 get_tss_base_addr(struct kvm_vcpu *vcpu,
+static gpa_t get_tss_base_addr(struct kvm_vcpu *vcpu,
 			     struct desc_struct *seg_desc)
 {
 	u32 base_addr = get_desc_base(seg_desc);

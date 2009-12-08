@@ -1,4 +1,10 @@
 /*
+ * Copyright 2004-2009 Analog Devices Inc.
+ *           2008-2009 Cambridge Signal Processing
+ *                2005 National ICT Australia (NICTA)
+ *                      Aidan Williams <aidan@nicta.com.au>
+ *
+ * Licensed under the GPL-2 or later.
  */
 
 #include <linux/device.h>

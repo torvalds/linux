@@ -815,6 +815,8 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 
 	mutex_init(&rt2x00dev->csr_mutex);
 
+	set_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
+
 	/*
 	 * Make room for rt2x00_intf inside the per-interface
 	 * structure ieee80211_vif.
@@ -870,8 +872,6 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	rt2x00link_register(rt2x00dev);
 	rt2x00leds_register(rt2x00dev);
 	rt2x00debug_register(rt2x00dev);
-
-	set_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
 
 	return 0;
 

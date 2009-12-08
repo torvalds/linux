@@ -56,6 +56,7 @@ struct ds2760_device_info {
 	struct device *w1_dev;
 	struct workqueue_struct *monitor_wqueue;
 	struct delayed_work monitor_work;
+	struct delayed_work set_charged_work;
 };
 
 static unsigned int cache_time = 1000;
@@ -65,6 +66,14 @@ MODULE_PARM_DESC(cache_time, "cache time in milliseconds");
 static unsigned int pmod_enabled;
 module_param(pmod_enabled, bool, 0644);
 MODULE_PARM_DESC(pmod_enabled, "PMOD enable bit");
+
+static unsigned int rated_capacity;
+module_param(rated_capacity, uint, 0644);
+MODULE_PARM_DESC(rated_capacity, "rated battery capacity, 10*mAh or index");
+
+static unsigned int current_accum;
+module_param(current_accum, uint, 0644);
+MODULE_PARM_DESC(current_accum, "current accumulator value");
 
 /* Some batteries have their rated capacity stored a N * 10 mAh, while
  * others use an index into this table. */
@@ -168,8 +177,13 @@ static int ds2760_battery_read_status(struct ds2760_device_info *di)
 	di->full_active_uAh = di->raw[DS2760_ACTIVE_FULL] << 8 |
 			      di->raw[DS2760_ACTIVE_FULL + 1];
 
-	scale[0] = di->raw[DS2760_ACTIVE_FULL] << 8 |
-		   di->raw[DS2760_ACTIVE_FULL + 1];
+	/* If the full_active_uAh value is not given, fall back to the rated
+	 * capacity. This is likely to happen when chips are not part of the
+	 * battery pack and is therefore not bootstrapped. */
+	if (di->full_active_uAh == 0)
+		di->full_active_uAh = di->rated_capacity / 1000L;
+
+	scale[0] = di->full_active_uAh;
 	for (i = 1; i < 5; i++)
 		scale[i] = scale[i - 1] + di->raw[DS2760_ACTIVE_FULL + 2 + i];
 
@@ -197,13 +211,29 @@ static int ds2760_battery_read_status(struct ds2760_device_info *di)
 	if (di->rem_capacity > 100)
 		di->rem_capacity = 100;
 
-	if (di->current_uA)
-		di->life_sec = -((di->accum_current_uAh - di->empty_uAh) *
-				 3600L) / di->current_uA;
+	if (di->current_uA >= 100L)
+		di->life_sec = -((di->accum_current_uAh - di->empty_uAh) * 36L)
+					/ (di->current_uA / 100L);
 	else
 		di->life_sec = 0;
 
 	return 0;
+}
+
+static void ds2760_battery_set_current_accum(struct ds2760_device_info *di,
+					     unsigned int acr_val)
+{
+	unsigned char acr[2];
+
+	/* acr is in units of 0.25 mAh */
+	acr_val *= 4L;
+	acr_val /= 1000;
+
+	acr[0] = acr_val >> 8;
+	acr[1] = acr_val & 0xff;
+
+	if (w1_ds2760_write(di->w1_dev, acr, DS2760_CURRENT_ACCUM_MSB, 2) < 2)
+		dev_warn(di->dev, "ACR write failed\n");
 }
 
 static void ds2760_battery_update_status(struct ds2760_device_info *di)
@@ -237,21 +267,9 @@ static void ds2760_battery_update_status(struct ds2760_device_info *di)
 			if (di->full_counter < 2) {
 				di->charge_status = POWER_SUPPLY_STATUS_CHARGING;
 			} else {
-				unsigned char acr[2];
-				int acr_val;
-
-				/* acr is in units of 0.25 mAh */
-				acr_val = di->full_active_uAh * 4L / 1000;
-
-				acr[0] = acr_val >> 8;
-				acr[1] = acr_val & 0xff;
-
-				if (w1_ds2760_write(di->w1_dev, acr,
-				    DS2760_CURRENT_ACCUM_MSB, 2) < 2)
-					dev_warn(di->dev,
-						 "ACR reset failed\n");
-
 				di->charge_status = POWER_SUPPLY_STATUS_FULL;
+				ds2760_battery_set_current_accum(di,
+						di->full_active_uAh);
 			}
 		}
 	} else {
@@ -270,6 +288,17 @@ static void ds2760_battery_write_status(struct ds2760_device_info *di,
 		return;
 
 	w1_ds2760_write(di->w1_dev, &status, DS2760_STATUS_WRITE_REG, 1);
+	w1_ds2760_store_eeprom(di->w1_dev, DS2760_EEPROM_BLOCK1);
+	w1_ds2760_recall_eeprom(di->w1_dev, DS2760_EEPROM_BLOCK1);
+}
+
+static void ds2760_battery_write_rated_capacity(struct ds2760_device_info *di,
+						unsigned char rated_capacity)
+{
+	if (rated_capacity == di->raw[DS2760_RATED_CAPACITY])
+		return;
+
+	w1_ds2760_write(di->w1_dev, &rated_capacity, DS2760_RATED_CAPACITY, 1);
 	w1_ds2760_store_eeprom(di->w1_dev, DS2760_EEPROM_BLOCK1);
 	w1_ds2760_recall_eeprom(di->w1_dev, DS2760_EEPROM_BLOCK1);
 }
@@ -297,6 +326,52 @@ static void ds2760_battery_external_power_changed(struct power_supply *psy)
 
 	cancel_delayed_work(&di->monitor_work);
 	queue_delayed_work(di->monitor_wqueue, &di->monitor_work, HZ/10);
+}
+
+
+static void ds2760_battery_set_charged_work(struct work_struct *work)
+{
+	char bias;
+	struct ds2760_device_info *di = container_of(work,
+		struct ds2760_device_info, set_charged_work.work);
+
+	dev_dbg(di->dev, "%s\n", __func__);
+
+	ds2760_battery_read_status(di);
+
+	/* When we get notified by external circuitry that the battery is
+	 * considered fully charged now, we know that there is no current
+	 * flow any more. However, the ds2760's internal current meter is
+	 * too inaccurate to rely on - spec say something ~15% failure.
+	 * Hence, we use the current offset bias register to compensate
+	 * that error.
+	 */
+
+	if (!power_supply_am_i_supplied(&di->bat))
+		return;
+
+	bias = (signed char) di->current_raw +
+		(signed char) di->raw[DS2760_CURRENT_OFFSET_BIAS];
+
+	dev_dbg(di->dev, "%s: bias = %d\n", __func__, bias);
+
+	w1_ds2760_write(di->w1_dev, &bias, DS2760_CURRENT_OFFSET_BIAS, 1);
+	w1_ds2760_store_eeprom(di->w1_dev, DS2760_EEPROM_BLOCK1);
+	w1_ds2760_recall_eeprom(di->w1_dev, DS2760_EEPROM_BLOCK1);
+
+	/* Write to the di->raw[] buffer directly - the CURRENT_OFFSET_BIAS
+	 * value won't be read back by ds2760_battery_read_status() */
+	di->raw[DS2760_CURRENT_OFFSET_BIAS] = bias;
+}
+
+static void ds2760_battery_set_charged(struct power_supply *psy)
+{
+	struct ds2760_device_info *di = to_ds2760_device_info(psy);
+
+	/* postpone the actual work by 20 secs. This is for debouncing GPIO
+	 * signals and to let the current value settle. See AN4188. */
+	cancel_delayed_work(&di->set_charged_work);
+	queue_delayed_work(di->monitor_wqueue, &di->set_charged_work, HZ * 20);
 }
 
 static int ds2760_battery_get_property(struct power_supply *psy,
@@ -337,6 +412,12 @@ static int ds2760_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_TEMP:
 		val->intval = di->temp_C;
 		break;
+	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
+		val->intval = di->life_sec;
+		break;
+	case POWER_SUPPLY_PROP_CAPACITY:
+		val->intval = di->rem_capacity;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -353,6 +434,8 @@ static enum power_supply_property ds2760_battery_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_EMPTY,
 	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_TEMP,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
+	POWER_SUPPLY_PROP_CAPACITY,
 };
 
 static int ds2760_battery_probe(struct platform_device *pdev)
@@ -376,16 +459,11 @@ static int ds2760_battery_probe(struct platform_device *pdev)
 	di->bat.properties	= ds2760_battery_props;
 	di->bat.num_properties	= ARRAY_SIZE(ds2760_battery_props);
 	di->bat.get_property	= ds2760_battery_get_property;
+	di->bat.set_charged	= ds2760_battery_set_charged;
 	di->bat.external_power_changed =
 				  ds2760_battery_external_power_changed;
 
 	di->charge_status = POWER_SUPPLY_STATUS_UNKNOWN;
-
-	retval = power_supply_register(&pdev->dev, &di->bat);
-	if (retval) {
-		dev_err(di->dev, "failed to register battery\n");
-		goto batt_failed;
-	}
 
 	/* enable sleep mode feature */
 	ds2760_battery_read_status(di);
@@ -397,7 +475,24 @@ static int ds2760_battery_probe(struct platform_device *pdev)
 
 	ds2760_battery_write_status(di, status);
 
+	/* set rated capacity from module param */
+	if (rated_capacity)
+		ds2760_battery_write_rated_capacity(di, rated_capacity);
+
+	/* set current accumulator if given as parameter.
+	 * this should only be done for bootstrapping the value */
+	if (current_accum)
+		ds2760_battery_set_current_accum(di, current_accum);
+
+	retval = power_supply_register(&pdev->dev, &di->bat);
+	if (retval) {
+		dev_err(di->dev, "failed to register battery\n");
+		goto batt_failed;
+	}
+
 	INIT_DELAYED_WORK(&di->monitor_work, ds2760_battery_work);
+	INIT_DELAYED_WORK(&di->set_charged_work,
+			  ds2760_battery_set_charged_work);
 	di->monitor_wqueue = create_singlethread_workqueue(dev_name(&pdev->dev));
 	if (!di->monitor_wqueue) {
 		retval = -ESRCH;
@@ -422,6 +517,8 @@ static int ds2760_battery_remove(struct platform_device *pdev)
 
 	cancel_rearming_delayed_workqueue(di->monitor_wqueue,
 					  &di->monitor_work);
+	cancel_rearming_delayed_workqueue(di->monitor_wqueue,
+					  &di->set_charged_work);
 	destroy_workqueue(di->monitor_wqueue);
 	power_supply_unregister(&di->bat);
 

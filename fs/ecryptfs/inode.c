@@ -476,6 +476,7 @@ static int ecryptfs_unlink(struct inode *dir, struct dentry *dentry)
 	struct inode *lower_dir_inode = ecryptfs_inode_to_lower(dir);
 	struct dentry *lower_dir_dentry;
 
+	dget(lower_dentry);
 	lower_dir_dentry = lock_parent(lower_dentry);
 	rc = vfs_unlink(lower_dir_inode, lower_dentry);
 	if (rc) {
@@ -489,6 +490,7 @@ static int ecryptfs_unlink(struct inode *dir, struct dentry *dentry)
 	d_drop(dentry);
 out_unlock:
 	unlock_dir(lower_dir_dentry);
+	dput(lower_dentry);
 	return rc;
 }
 

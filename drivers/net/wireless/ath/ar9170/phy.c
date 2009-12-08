@@ -1141,7 +1141,8 @@ static int ar9170_set_freq_cal_data(struct ar9170 *ar,
 	u8 vpds[2][AR5416_PD_GAIN_ICEPTS];
 	u8 pwrs[2][AR5416_PD_GAIN_ICEPTS];
 	int chain, idx, i;
-	u8 f;
+	u32 phy_data = 0;
+	u8 f, tmp;
 
 	switch (channel->band) {
 	case IEEE80211_BAND_2GHZ:
@@ -1208,9 +1209,6 @@ static int ar9170_set_freq_cal_data(struct ar9170 *ar,
 		}
 
 		for (i = 0; i < 76; i++) {
-			u32 phy_data;
-			u8 tmp;
-
 			if (i < 25) {
 				tmp = ar9170_interpolate_val(i, &pwrs[0][0],
 							     &vpds[0][0]);

@@ -27,6 +27,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/rfkill.h>
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/miscdevice.h>
 #include <linux/wait.h>
@@ -1188,6 +1189,7 @@ static long rfkill_fop_ioctl(struct file *file, unsigned int cmd,
 #endif
 
 static const struct file_operations rfkill_fops = {
+	.owner		= THIS_MODULE,
 	.open		= rfkill_fop_open,
 	.read		= rfkill_fop_read,
 	.write		= rfkill_fop_write,

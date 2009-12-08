@@ -475,6 +475,8 @@ static int enable_periodic (struct ehci_hcd *ehci)
 	/* make sure ehci_work scans these */
 	ehci->next_uframe = ehci_readl(ehci, &ehci->regs->frame_index)
 		% (ehci->periodic_size << 3);
+	if (unlikely(ehci->broken_periodic))
+		ehci->last_periodic_enable = ktime_get_real();
 	return 0;
 }
 
@@ -485,6 +487,16 @@ static int disable_periodic (struct ehci_hcd *ehci)
 
 	if (--ehci->periodic_sched)
 		return 0;
+
+	if (unlikely(ehci->broken_periodic)) {
+		/* delay experimentally determined */
+		ktime_t safe = ktime_add_us(ehci->last_periodic_enable, 1000);
+		ktime_t now = ktime_get_real();
+		s64 delay = ktime_us_delta(safe, now);
+
+		if (unlikely(delay > 0))
+			udelay(delay);
+	}
 
 	/* did setting PSE not take effect yet?
 	 * takes effect only at frame boundaries...
@@ -1400,6 +1412,10 @@ iso_stream_schedule (
 		goto fail;
 	}
 
+	period = urb->interval;
+	if (!stream->highspeed)
+		period <<= 3;
+
 	now = ehci_readl(ehci, &ehci->regs->frame_index) % mod;
 
 	/* when's the last uframe this urb could start? */
@@ -1417,14 +1433,15 @@ iso_stream_schedule (
 
 		/* Fell behind (by up to twice the slop amount)? */
 		if (start >= max - 2 * 8 * SCHEDULE_SLOP)
-			start += stream->interval * DIV_ROUND_UP(
-					max - start, stream->interval) - mod;
+			start += period * DIV_ROUND_UP(
+					max - start, period) - mod;
 
 		/* Tried to schedule too far into the future? */
 		if (unlikely((start + sched->span) >= max)) {
 			status = -EFBIG;
 			goto fail;
 		}
+		stream->next_uframe = start;
 		goto ready;
 	}
 
@@ -1439,10 +1456,6 @@ iso_stream_schedule (
 	stream->next_uframe = start;
 
 	/* NOTE:  assumes URB_ISO_ASAP, to limit complexity/bugs */
-
-	period = urb->interval;
-	if (!stream->highspeed)
-		period <<= 3;
 
 	/* find a uframe slot with enough bandwidth */
 	for (; start < (stream->next_uframe + period); start++) {

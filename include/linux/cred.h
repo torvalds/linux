@@ -176,23 +176,7 @@ extern void __invalid_creds(const struct cred *, const char *, unsigned);
 extern void __validate_process_creds(struct task_struct *,
 				     const char *, unsigned);
 
-static inline bool creds_are_invalid(const struct cred *cred)
-{
-	if (cred->magic != CRED_MAGIC)
-		return true;
-	if (atomic_read(&cred->usage) < atomic_read(&cred->subscribers))
-		return true;
-#ifdef CONFIG_SECURITY_SELINUX
-	if (selinux_is_enabled()) {
-		if ((unsigned long) cred->security < PAGE_SIZE)
-			return true;
-		if ((*(u32 *)cred->security & 0xffffff00) ==
-		    (POISON_FREE << 24 | POISON_FREE << 16 | POISON_FREE << 8))
-			return true;
-	}
-#endif
-	return false;
-}
+extern bool creds_are_invalid(const struct cred *cred);
 
 static inline void __validate_creds(const struct cred *cred,
 				    const char *file, unsigned line)

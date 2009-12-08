@@ -26,7 +26,6 @@ extern void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 extern void dma_direct_free_coherent(struct device *dev, size_t size,
 				     void *vaddr, dma_addr_t dma_handle);
 
-extern unsigned long get_dma_direct_offset(struct device *dev);
 
 #ifdef CONFIG_NOT_COHERENT_CACHE
 /*
@@ -88,6 +87,28 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 static inline void set_dma_ops(struct device *dev, struct dma_map_ops *ops)
 {
 	dev->archdata.dma_ops = ops;
+}
+
+/*
+ * get_dma_offset()
+ *
+ * Get the dma offset on configurations where the dma address can be determined
+ * from the physical address by looking at a simple offset.  Direct dma and
+ * swiotlb use this function, but it is typically not used by implementations
+ * with an iommu.
+ */
+static inline dma_addr_t get_dma_offset(struct device *dev)
+{
+	if (dev)
+		return dev->archdata.dma_data.dma_offset;
+
+	return PCI_DRAM_OFFSET;
+}
+
+static inline void set_dma_offset(struct device *dev, dma_addr_t off)
+{
+	if (dev)
+		dev->archdata.dma_data.dma_offset = off;
 }
 
 /* this will be removed soon */
@@ -181,12 +202,12 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 
 static inline dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
 {
-	return paddr + get_dma_direct_offset(dev);
+	return paddr + get_dma_offset(dev);
 }
 
 static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
 {
-	return daddr - get_dma_direct_offset(dev);
+	return daddr - get_dma_offset(dev);
 }
 
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)

@@ -81,6 +81,7 @@ enum {
 void pat_init(void)
 {
 	u64 pat;
+	bool boot_cpu = !boot_pat_state;
 
 	if (!pat_enabled)
 		return;
@@ -122,8 +123,10 @@ void pat_init(void)
 		rdmsrl(MSR_IA32_CR_PAT, boot_pat_state);
 
 	wrmsrl(MSR_IA32_CR_PAT, pat);
-	printk(KERN_INFO "x86 PAT enabled: cpu %d, old 0x%Lx, new 0x%Lx\n",
-	       smp_processor_id(), boot_pat_state, pat);
+
+	if (boot_cpu)
+		printk(KERN_INFO "x86 PAT enabled: cpu %d, old 0x%Lx, new 0x%Lx\n",
+		       smp_processor_id(), boot_pat_state, pat);
 }
 
 #undef PAT

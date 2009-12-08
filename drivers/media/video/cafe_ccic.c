@@ -1325,7 +1325,7 @@ static void cafe_v4l_vm_close(struct vm_area_struct *vma)
 	mutex_unlock(&sbuf->cam->s_mutex);
 }
 
-static struct vm_operations_struct cafe_v4l_vm_ops = {
+static const struct vm_operations_struct cafe_v4l_vm_ops = {
 	.open = cafe_v4l_vm_open,
 	.close = cafe_v4l_vm_close
 };

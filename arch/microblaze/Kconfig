@@ -6,6 +6,7 @@ mainmenu "Linux/Microblaze Kernel Configuration"
 config MICROBLAZE
 	def_bool y
 	select HAVE_LMB
+	select USB_ARCH_HAS_EHCI
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 config SWAP

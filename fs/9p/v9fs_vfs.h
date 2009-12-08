@@ -44,7 +44,13 @@ extern const struct file_operations v9fs_dir_operations;
 extern const struct dentry_operations v9fs_dentry_operations;
 extern const struct dentry_operations v9fs_cached_dentry_operations;
 
+#ifdef CONFIG_9P_FSCACHE
+struct inode *v9fs_alloc_inode(struct super_block *sb);
+void v9fs_destroy_inode(struct inode *inode);
+#endif
+
 struct inode *v9fs_get_inode(struct super_block *sb, int mode);
+void v9fs_clear_inode(struct inode *inode);
 ino_t v9fs_qid2ino(struct p9_qid *qid);
 void v9fs_stat2inode(struct p9_wstat *, struct inode *, struct super_block *);
 int v9fs_dir_release(struct inode *inode, struct file *filp);

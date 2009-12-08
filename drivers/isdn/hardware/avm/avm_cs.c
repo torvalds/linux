@@ -111,8 +111,6 @@ static int avmcs_probe(struct pcmcia_device *p_dev)
     p_dev->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
     p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
 
-    p_dev->irq.IRQInfo1 = IRQ_LEVEL_ID;
-
     /* General socket configuration */
     p_dev->conf.Attributes = CONF_ENABLE_IRQ;
     p_dev->conf.IntType = INT_MEMORY_AND_IO;
@@ -198,7 +196,6 @@ static int avmcs_config(struct pcmcia_device *link)
 	 */
 	i = pcmcia_request_irq(link, &link->irq);
 	if (i != 0) {
-	    cs_error(link, RequestIRQ, i);
 	    /* undo */
 	    pcmcia_disable_device(link);
 	    break;
@@ -209,7 +206,6 @@ static int avmcs_config(struct pcmcia_device *link)
 	  */
 	i = pcmcia_request_configuration(link, &link->conf);
 	if (i != 0) {
-	    cs_error(link, RequestConfiguration, i);
 	    pcmcia_disable_device(link);
 	    break;
 	}

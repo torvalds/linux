@@ -369,28 +369,28 @@ static int drm_vm_sg_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 }
 
 /** AGP virtual memory operations */
-static struct vm_operations_struct drm_vm_ops = {
+static const struct vm_operations_struct drm_vm_ops = {
 	.fault = drm_vm_fault,
 	.open = drm_vm_open,
 	.close = drm_vm_close,
 };
 
 /** Shared virtual memory operations */
-static struct vm_operations_struct drm_vm_shm_ops = {
+static const struct vm_operations_struct drm_vm_shm_ops = {
 	.fault = drm_vm_shm_fault,
 	.open = drm_vm_open,
 	.close = drm_vm_shm_close,
 };
 
 /** DMA virtual memory operations */
-static struct vm_operations_struct drm_vm_dma_ops = {
+static const struct vm_operations_struct drm_vm_dma_ops = {
 	.fault = drm_vm_dma_fault,
 	.open = drm_vm_open,
 	.close = drm_vm_close,
 };
 
 /** Scatter-gather virtual memory operations */
-static struct vm_operations_struct drm_vm_sg_ops = {
+static const struct vm_operations_struct drm_vm_sg_ops = {
 	.fault = drm_vm_sg_fault,
 	.open = drm_vm_open,
 	.close = drm_vm_close,

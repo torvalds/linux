@@ -78,8 +78,6 @@ struct ipc_kludge {
 #define IPCCALL(version,op)	((version)<<16 | (op))
 
 #ifdef __KERNEL__
-
-#include <linux/kref.h>
 #include <linux/spinlock.h>
 
 #define IPCMNI 32768  /* <= MAX_INT limit for ipc arrays (including sysctl changes) */

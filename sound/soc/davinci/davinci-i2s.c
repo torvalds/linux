@@ -97,22 +97,19 @@ enum {
 	DAVINCI_MCBSP_WORD_32,
 };
 
-static struct davinci_pcm_dma_params davinci_i2s_pcm_out = {
-	.name = "I2S PCM Stereo out",
-};
-
-static struct davinci_pcm_dma_params davinci_i2s_pcm_in = {
-	.name = "I2S PCM Stereo in",
-};
-
 struct davinci_mcbsp_dev {
+	/*
+	 * dma_params must be first because rtd->dai->cpu_dai->private_data
+	 * is cast to a pointer of an array of struct davinci_pcm_dma_params in
+	 * davinci_pcm_open.
+	 */
+	struct davinci_pcm_dma_params	dma_params[2];
 	void __iomem			*base;
 #define MOD_DSP_A	0
 #define MOD_DSP_B	1
 	int				mode;
 	u32				pcr;
 	struct clk			*clk;
-	struct davinci_pcm_dma_params	*dma_params[2];
 };
 
 static inline void davinci_mcbsp_write_reg(struct davinci_mcbsp_dev *dev,
@@ -213,14 +210,6 @@ static void davinci_mcbsp_stop(struct davinci_mcbsp_dev *dev, int playback)
 	spcr &= playback ? ~DAVINCI_MCBSP_SPCR_XRST : ~DAVINCI_MCBSP_SPCR_RRST;
 	davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_SPCR_REG, spcr);
 	toggle_clock(dev, playback);
-}
-
-static int davinci_i2s_startup(struct snd_pcm_substream *substream,
-			       struct snd_soc_dai *cpu_dai)
-{
-	struct davinci_mcbsp_dev *dev = cpu_dai->private_data;
-	cpu_dai->dma_data = dev->dma_params[substream->stream];
-	return 0;
 }
 
 #define DEFAULT_BITPERSAMPLE	16
@@ -353,8 +342,9 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *dai)
 {
-	struct davinci_pcm_dma_params *dma_params = dai->dma_data;
 	struct davinci_mcbsp_dev *dev = dai->private_data;
+	struct davinci_pcm_dma_params *dma_params =
+					&dev->dma_params[substream->stream];
 	struct snd_interval *i = NULL;
 	int mcbsp_word_length;
 	unsigned int rcr, xcr, srgr;
@@ -472,7 +462,6 @@ static void davinci_i2s_shutdown(struct snd_pcm_substream *substream,
 #define DAVINCI_I2S_RATES	SNDRV_PCM_RATE_8000_96000
 
 static struct snd_soc_dai_ops davinci_i2s_dai_ops = {
-	.startup 	= davinci_i2s_startup,
 	.shutdown	= davinci_i2s_shutdown,
 	.prepare	= davinci_i2s_prepare,
 	.trigger	= davinci_i2s_trigger,
@@ -534,12 +523,10 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 
 	dev->base = (void __iomem *)IO_ADDRESS(mem->start);
 
-	dev->dma_params[SNDRV_PCM_STREAM_PLAYBACK] = &davinci_i2s_pcm_out;
-	dev->dma_params[SNDRV_PCM_STREAM_PLAYBACK]->dma_addr =
+	dev->dma_params[SNDRV_PCM_STREAM_PLAYBACK].dma_addr =
 	    (dma_addr_t)(io_v2p(dev->base) + DAVINCI_MCBSP_DXR_REG);
 
-	dev->dma_params[SNDRV_PCM_STREAM_CAPTURE] = &davinci_i2s_pcm_in;
-	dev->dma_params[SNDRV_PCM_STREAM_CAPTURE]->dma_addr =
+	dev->dma_params[SNDRV_PCM_STREAM_CAPTURE].dma_addr =
 	    (dma_addr_t)(io_v2p(dev->base) + DAVINCI_MCBSP_DRR_REG);
 
 	/* first TX, then RX */
@@ -549,7 +536,7 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 		ret = -ENXIO;
 		goto err_free_mem;
 	}
-	dev->dma_params[SNDRV_PCM_STREAM_PLAYBACK]->channel = res->start;
+	dev->dma_params[SNDRV_PCM_STREAM_PLAYBACK].channel = res->start;
 
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 	if (!res) {
@@ -557,7 +544,7 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 		ret = -ENXIO;
 		goto err_free_mem;
 	}
-	dev->dma_params[SNDRV_PCM_STREAM_CAPTURE]->channel = res->start;
+	dev->dma_params[SNDRV_PCM_STREAM_CAPTURE].channel = res->start;
 
 	davinci_i2s_dai.private_data = dev;
 	ret = snd_soc_register_dai(&davinci_i2s_dai);

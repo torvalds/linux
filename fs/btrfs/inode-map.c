@@ -43,9 +43,10 @@ int btrfs_find_highest_inode(struct btrfs_root *root, u64 *objectid)
 		slot = path->slots[0] - 1;
 		l = path->nodes[0];
 		btrfs_item_key_to_cpu(l, &found_key, slot);
-		*objectid = found_key.objectid;
+		*objectid = max_t(u64, found_key.objectid,
+				  BTRFS_FIRST_FREE_OBJECTID - 1);
 	} else {
-		*objectid = BTRFS_FIRST_FREE_OBJECTID;
+		*objectid = BTRFS_FIRST_FREE_OBJECTID - 1;
 	}
 	ret = 0;
 error:
@@ -53,91 +54,27 @@ error:
 	return ret;
 }
 
-/*
- * walks the btree of allocated inodes and find a hole.
- */
 int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     u64 dirid, u64 *objectid)
 {
-	struct btrfs_path *path;
-	struct btrfs_key key;
 	int ret;
-	int slot = 0;
-	u64 last_ino = 0;
-	int start_found;
-	struct extent_buffer *l;
-	struct btrfs_key search_key;
-	u64 search_start = dirid;
-
 	mutex_lock(&root->objectid_mutex);
-	if (root->last_inode_alloc >= BTRFS_FIRST_FREE_OBJECTID &&
-	    root->last_inode_alloc < BTRFS_LAST_FREE_OBJECTID) {
-		*objectid = ++root->last_inode_alloc;
-		mutex_unlock(&root->objectid_mutex);
-		return 0;
+
+	if (unlikely(root->highest_objectid < BTRFS_FIRST_FREE_OBJECTID)) {
+		ret = btrfs_find_highest_inode(root, &root->highest_objectid);
+		if (ret)
+			goto out;
 	}
-	path = btrfs_alloc_path();
-	BUG_ON(!path);
-	search_start = max(search_start, (u64)BTRFS_FIRST_FREE_OBJECTID);
-	search_key.objectid = search_start;
-	search_key.type = 0;
-	search_key.offset = 0;
 
-	start_found = 0;
-	ret = btrfs_search_slot(trans, root, &search_key, path, 0, 0);
-	if (ret < 0)
-		goto error;
-
-	while (1) {
-		l = path->nodes[0];
-		slot = path->slots[0];
-		if (slot >= btrfs_header_nritems(l)) {
-			ret = btrfs_next_leaf(root, path);
-			if (ret == 0)
-				continue;
-			if (ret < 0)
-				goto error;
-			if (!start_found) {
-				*objectid = search_start;
-				start_found = 1;
-				goto found;
-			}
-			*objectid = last_ino > search_start ?
-				last_ino : search_start;
-			goto found;
-		}
-		btrfs_item_key_to_cpu(l, &key, slot);
-		if (key.objectid >= search_start) {
-			if (start_found) {
-				if (last_ino < search_start)
-					last_ino = search_start;
-				if (key.objectid > last_ino) {
-					*objectid = last_ino;
-					goto found;
-				}
-			} else if (key.objectid > search_start) {
-				*objectid = search_start;
-				goto found;
-			}
-		}
-		if (key.objectid >= BTRFS_LAST_FREE_OBJECTID)
-			break;
-
-		start_found = 1;
-		last_ino = key.objectid + 1;
-		path->slots[0]++;
+	if (unlikely(root->highest_objectid >= BTRFS_LAST_FREE_OBJECTID)) {
+		ret = -ENOSPC;
+		goto out;
 	}
-	BUG_ON(1);
-found:
-	btrfs_release_path(root, path);
-	btrfs_free_path(path);
-	BUG_ON(*objectid < search_start);
-	mutex_unlock(&root->objectid_mutex);
-	return 0;
-error:
-	btrfs_release_path(root, path);
-	btrfs_free_path(path);
+
+	*objectid = ++root->highest_objectid;
+	ret = 0;
+out:
 	mutex_unlock(&root->objectid_mutex);
 	return ret;
 }

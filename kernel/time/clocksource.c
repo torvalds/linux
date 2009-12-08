@@ -394,15 +394,11 @@ void clocksource_resume(void)
 {
 	struct clocksource *cs;
 
-	mutex_lock(&clocksource_mutex);
-
 	list_for_each_entry(cs, &clocksource_list, list)
 		if (cs->resume)
 			cs->resume();
 
 	clocksource_resume_watchdog();
-
-	mutex_unlock(&clocksource_mutex);
 }
 
 /**

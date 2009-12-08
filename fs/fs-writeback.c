@@ -41,8 +41,9 @@ struct wb_writeback_args {
 	long nr_pages;
 	struct super_block *sb;
 	enum writeback_sync_modes sync_mode;
-	int for_kupdate;
-	int range_cyclic;
+	int for_kupdate:1;
+	int range_cyclic:1;
+	int for_background:1;
 };
 
 /*
@@ -249,13 +250,24 @@ static void bdi_sync_writeback(struct backing_dev_info *bdi,
  *   completion. Caller need not hold sb s_umount semaphore.
  *
  */
-void bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages)
+void bdi_start_writeback(struct backing_dev_info *bdi, struct super_block *sb,
+			 long nr_pages)
 {
 	struct wb_writeback_args args = {
+		.sb		= sb,
 		.sync_mode	= WB_SYNC_NONE,
 		.nr_pages	= nr_pages,
 		.range_cyclic	= 1,
 	};
+
+	/*
+	 * We treat @nr_pages=0 as the special case to do background writeback,
+	 * ie. to sync pages until the background dirty threshold is reached.
+	 */
+	if (!nr_pages) {
+		args.nr_pages = LONG_MAX;
+		args.for_background = 1;
+	}
 
 	bdi_alloc_queue_work(bdi, &args);
 }
@@ -310,7 +322,7 @@ static bool inode_dirtied_after(struct inode *inode, unsigned long t)
 	 * For inodes being constantly redirtied, dirtied_when can get stuck.
 	 * It _appears_ to be in the future, but is actually in distant past.
 	 * This test is necessary to prevent such wrapped-around relative times
-	 * from permanently stopping the whole pdflush writeback.
+	 * from permanently stopping the whole bdi writeback.
 	 */
 	ret = ret && time_before_eq(inode->dirtied_when, jiffies);
 #endif
@@ -324,13 +336,38 @@ static void move_expired_inodes(struct list_head *delaying_queue,
 			       struct list_head *dispatch_queue,
 				unsigned long *older_than_this)
 {
+	LIST_HEAD(tmp);
+	struct list_head *pos, *node;
+	struct super_block *sb = NULL;
+	struct inode *inode;
+	int do_sb_sort = 0;
+
 	while (!list_empty(delaying_queue)) {
-		struct inode *inode = list_entry(delaying_queue->prev,
-						struct inode, i_list);
+		inode = list_entry(delaying_queue->prev, struct inode, i_list);
 		if (older_than_this &&
 		    inode_dirtied_after(inode, *older_than_this))
 			break;
-		list_move(&inode->i_list, dispatch_queue);
+		if (sb && sb != inode->i_sb)
+			do_sb_sort = 1;
+		sb = inode->i_sb;
+		list_move(&inode->i_list, &tmp);
+	}
+
+	/* just one sb in list, splice to dispatch_queue and we're done */
+	if (!do_sb_sort) {
+		list_splice(&tmp, dispatch_queue);
+		return;
+	}
+
+	/* Move inodes from one superblock together */
+	while (!list_empty(&tmp)) {
+		inode = list_entry(tmp.prev, struct inode, i_list);
+		sb = inode->i_sb;
+		list_for_each_prev_safe(pos, node, &tmp) {
+			inode = list_entry(pos, struct inode, i_list);
+			if (inode->i_sb == sb)
+				list_move(&inode->i_list, dispatch_queue);
+		}
 	}
 }
 
@@ -439,8 +476,18 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 	spin_lock(&inode_lock);
 	inode->i_state &= ~I_SYNC;
 	if (!(inode->i_state & (I_FREEING | I_CLEAR))) {
-		if (!(inode->i_state & I_DIRTY) &&
-		    mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
+		if ((inode->i_state & I_DIRTY_PAGES) && wbc->for_kupdate) {
+			/*
+			 * More pages get dirtied by a fast dirtier.
+			 */
+			goto select_queue;
+		} else if (inode->i_state & I_DIRTY) {
+			/*
+			 * At least XFS will redirty the inode during the
+			 * writeback (delalloc) and on io completion (isize).
+			 */
+			redirty_tail(inode);
+		} else if (mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
 			/*
 			 * We didn't write back all the pages.  nfs_writepages()
 			 * sometimes bales out without doing anything. Redirty
@@ -462,6 +509,7 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 				 * soon as the queue becomes uncongested.
 				 */
 				inode->i_state |= I_DIRTY_PAGES;
+select_queue:
 				if (wbc->nr_to_write <= 0) {
 					/*
 					 * slice used up: queue for next turn
@@ -484,12 +532,6 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 				inode->i_state |= I_DIRTY_PAGES;
 				redirty_tail(inode);
 			}
-		} else if (inode->i_state & I_DIRTY) {
-			/*
-			 * Someone redirtied the inode while were writing back
-			 * the pages.
-			 */
-			redirty_tail(inode);
 		} else if (atomic_read(&inode->i_count)) {
 			/*
 			 * The inode is clean, inuse
@@ -506,6 +548,17 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 	return ret;
 }
 
+static void unpin_sb_for_writeback(struct super_block **psb)
+{
+	struct super_block *sb = *psb;
+
+	if (sb) {
+		up_read(&sb->s_umount);
+		put_super(sb);
+		*psb = NULL;
+	}
+}
+
 /*
  * For WB_SYNC_NONE writeback, the caller does not have the sb pinned
  * before calling writeback. So make sure that we do pin it, so it doesn't
@@ -515,9 +568,18 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
  * 1 if we failed.
  */
 static int pin_sb_for_writeback(struct writeback_control *wbc,
-				   struct inode *inode)
+				struct inode *inode, struct super_block **psb)
 {
 	struct super_block *sb = inode->i_sb;
+
+	/*
+	 * If this sb is already pinned, nothing more to do. If not and
+	 * *psb is non-NULL, unpin the old one first
+	 */
+	if (sb == *psb)
+		return 0;
+	else if (*psb)
+		unpin_sb_for_writeback(psb);
 
 	/*
 	 * Caller must already hold the ref for this
@@ -532,7 +594,7 @@ static int pin_sb_for_writeback(struct writeback_control *wbc,
 	if (down_read_trylock(&sb->s_umount)) {
 		if (sb->s_root) {
 			spin_unlock(&sb_lock);
-			return 0;
+			goto pinned;
 		}
 		/*
 		 * umounted, drop rwsem again and fall through to failure
@@ -543,24 +605,15 @@ static int pin_sb_for_writeback(struct writeback_control *wbc,
 	sb->s_count--;
 	spin_unlock(&sb_lock);
 	return 1;
-}
-
-static void unpin_sb_for_writeback(struct writeback_control *wbc,
-				   struct inode *inode)
-{
-	struct super_block *sb = inode->i_sb;
-
-	if (wbc->sync_mode == WB_SYNC_ALL)
-		return;
-
-	up_read(&sb->s_umount);
-	put_super(sb);
+pinned:
+	*psb = sb;
+	return 0;
 }
 
 static void writeback_inodes_wb(struct bdi_writeback *wb,
 				struct writeback_control *wbc)
 {
-	struct super_block *sb = wbc->sb;
+	struct super_block *sb = wbc->sb, *pin_sb = NULL;
 	const int is_blkdev_sb = sb_is_blkdev_sb(sb);
 	const unsigned long start = jiffies;	/* livelock avoidance */
 
@@ -619,7 +672,7 @@ static void writeback_inodes_wb(struct bdi_writeback *wb,
 		if (inode_dirtied_after(inode, start))
 			break;
 
-		if (pin_sb_for_writeback(wbc, inode)) {
+		if (pin_sb_for_writeback(wbc, inode, &pin_sb)) {
 			requeue_io(inode);
 			continue;
 		}
@@ -628,7 +681,6 @@ static void writeback_inodes_wb(struct bdi_writeback *wb,
 		__iget(inode);
 		pages_skipped = wbc->pages_skipped;
 		writeback_single_inode(inode, wbc);
-		unpin_sb_for_writeback(wbc, inode);
 		if (wbc->pages_skipped != pages_skipped) {
 			/*
 			 * writeback is not making progress due to locked
@@ -647,6 +699,8 @@ static void writeback_inodes_wb(struct bdi_writeback *wb,
 		if (!list_empty(&wb->b_more_io))
 			wbc->more_io = 1;
 	}
+
+	unpin_sb_for_writeback(&pin_sb);
 
 	spin_unlock(&inode_lock);
 	/* Leave any unwritten inodes on b_io */
@@ -706,6 +760,7 @@ static long wb_writeback(struct bdi_writeback *wb,
 	};
 	unsigned long oldest_jif;
 	long wrote = 0;
+	struct inode *inode;
 
 	if (wbc.for_kupdate) {
 		wbc.older_than_this = &oldest_jif;
@@ -719,20 +774,16 @@ static long wb_writeback(struct bdi_writeback *wb,
 
 	for (;;) {
 		/*
-		 * Don't flush anything for non-integrity writeback where
-		 * no nr_pages was given
+		 * Stop writeback when nr_pages has been consumed
 		 */
-		if (!args->for_kupdate && args->nr_pages <= 0 &&
-		     args->sync_mode == WB_SYNC_NONE)
+		if (args->nr_pages <= 0)
 			break;
 
 		/*
-		 * If no specific pages were given and this is just a
-		 * periodic background writeout and we are below the
-		 * background dirty threshold, don't do anything
+		 * For background writeout, stop when we are below the
+		 * background dirty threshold
 		 */
-		if (args->for_kupdate && args->nr_pages <= 0 &&
-		    !over_bground_thresh())
+		if (args->for_background && !over_bground_thresh())
 			break;
 
 		wbc.more_io = 0;
@@ -744,13 +795,32 @@ static long wb_writeback(struct bdi_writeback *wb,
 		wrote += MAX_WRITEBACK_PAGES - wbc.nr_to_write;
 
 		/*
-		 * If we ran out of stuff to write, bail unless more_io got set
+		 * If we consumed everything, see if we have more
 		 */
-		if (wbc.nr_to_write > 0 || wbc.pages_skipped > 0) {
-			if (wbc.more_io && !wbc.for_kupdate)
-				continue;
+		if (wbc.nr_to_write <= 0)
+			continue;
+		/*
+		 * Didn't write everything and we don't have more IO, bail
+		 */
+		if (!wbc.more_io)
 			break;
+		/*
+		 * Did we write something? Try for more
+		 */
+		if (wbc.nr_to_write < MAX_WRITEBACK_PAGES)
+			continue;
+		/*
+		 * Nothing written. Wait for some inode to
+		 * become available for writeback. Otherwise
+		 * we'll just busyloop.
+		 */
+		spin_lock(&inode_lock);
+		if (!list_empty(&wb->b_more_io))  {
+			inode = list_entry(wb->b_more_io.prev,
+						struct inode, i_list);
+			inode_wait_for_writeback(inode);
 		}
+		spin_unlock(&inode_lock);
 	}
 
 	return wrote;
@@ -1060,9 +1130,6 @@ EXPORT_SYMBOL(__mark_inode_dirty);
  * If older_than_this is non-NULL, then only write out inodes which
  * had their first dirtying at a time earlier than *older_than_this.
  *
- * If we're a pdlfush thread, then implement pdflush collision avoidance
- * against the entire list.
- *
  * If `bdi' is non-zero then we're being asked to writeback a specific queue.
  * This function assumes that the blockdev superblock's inodes are backed by
  * a variety of queues, so all inodes are searched.  For other superblocks,
@@ -1141,7 +1208,7 @@ void writeback_inodes_sb(struct super_block *sb)
 	nr_to_write = nr_dirty + nr_unstable +
 			(inodes_stat.nr_inodes - inodes_stat.nr_unused);
 
-	bdi_writeback_all(sb, nr_to_write);
+	bdi_start_writeback(sb->s_bdi, sb, nr_to_write);
 }
 EXPORT_SYMBOL(writeback_inodes_sb);
 

@@ -288,7 +288,7 @@ static inline int is_vmalloc_addr(const void *x)
 #ifdef CONFIG_MMU
 extern int is_vmalloc_or_module_addr(const void *x);
 #else
-static int is_vmalloc_or_module_addr(const void *x)
+static inline int is_vmalloc_or_module_addr(const void *x)
 {
 	return 0;
 }
@@ -695,11 +695,12 @@ static inline int page_mapped(struct page *page)
 #define VM_FAULT_SIGBUS	0x0002
 #define VM_FAULT_MAJOR	0x0004
 #define VM_FAULT_WRITE	0x0008	/* Special case for get_user_pages */
+#define VM_FAULT_HWPOISON 0x0010	/* Hit poisoned page */
 
 #define VM_FAULT_NOPAGE	0x0100	/* ->fault installed the pte, not return page */
 #define VM_FAULT_LOCKED	0x0200	/* ->fault locked the returned page */
 
-#define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS)
+#define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_HWPOISON)
 
 /*
  * Can be called by the pagefault handler when it gets a VM_FAULT_OOM.
@@ -791,8 +792,14 @@ static inline void unmap_shared_mapping_range(struct address_space *mapping,
 	unmap_mapping_range(mapping, holebegin, holelen, 0);
 }
 
-extern int vmtruncate(struct inode * inode, loff_t offset);
-extern int vmtruncate_range(struct inode * inode, loff_t offset, loff_t end);
+extern void truncate_pagecache(struct inode *inode, loff_t old, loff_t new);
+extern int vmtruncate(struct inode *inode, loff_t offset);
+extern int vmtruncate_range(struct inode *inode, loff_t offset, loff_t end);
+
+int truncate_inode_page(struct address_space *mapping, struct page *page);
+int generic_error_remove_page(struct address_space *mapping, struct page *page);
+
+int invalidate_inode_page(struct page *page);
 
 #ifdef CONFIG_MMU
 extern int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
@@ -1279,7 +1286,7 @@ int in_gate_area_no_task(unsigned long addr);
 #define in_gate_area(task, addr) ({(void)task; in_gate_area_no_task(addr);})
 #endif	/* __HAVE_ARCH_GATE_AREA */
 
-int drop_caches_sysctl_handler(struct ctl_table *, int, struct file *,
+int drop_caches_sysctl_handler(struct ctl_table *, int,
 					void __user *, size_t *, loff_t *);
 unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
 			unsigned long lru_pages);
@@ -1308,5 +1315,12 @@ void vmemmap_populate_print_last(void);
 extern int account_locked_memory(struct mm_struct *mm, struct rlimit *rlim,
 				 size_t size);
 extern void refund_locked_memory(struct mm_struct *mm, size_t size);
+
+extern void memory_failure(unsigned long pfn, int trapno);
+extern int __memory_failure(unsigned long pfn, int trapno, int ref);
+extern int sysctl_memory_failure_early_kill;
+extern int sysctl_memory_failure_recovery;
+extern atomic_long_t mce_bad_pages;
+
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */

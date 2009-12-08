@@ -102,6 +102,7 @@ enum {
 	ERR_SENDCMD	= -2,
 	ERR_DBERR	= -3,
 	ERR_BBERR	= -4,
+	ERR_SBERR	= -5,
 };
 
 enum {
@@ -564,11 +565,13 @@ static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 
 	status = nand_readl(info, NDSR);
 
-	if (status & (NDSR_RDDREQ | NDSR_DBERR)) {
+	if (status & (NDSR_RDDREQ | NDSR_DBERR | NDSR_SBERR)) {
 		if (status & NDSR_DBERR)
 			info->retcode = ERR_DBERR;
+		else if (status & NDSR_SBERR)
+			info->retcode = ERR_SBERR;
 
-		disable_int(info, NDSR_RDDREQ | NDSR_DBERR);
+		disable_int(info, NDSR_RDDREQ | NDSR_DBERR | NDSR_SBERR);
 
 		if (info->use_dma) {
 			info->state = STATE_DMA_READING;
@@ -670,7 +673,7 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		if (prepare_read_prog_cmd(info, cmdset->read1, column, page_addr))
 			break;
 
-		pxa3xx_nand_do_cmd(info, NDSR_RDDREQ | NDSR_DBERR);
+		pxa3xx_nand_do_cmd(info, NDSR_RDDREQ | NDSR_DBERR | NDSR_SBERR);
 
 		/* We only are OOB, so if the data has error, does not matter */
 		if (info->retcode == ERR_DBERR)
@@ -687,7 +690,7 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		if (prepare_read_prog_cmd(info, cmdset->read1, column, page_addr))
 			break;
 
-		pxa3xx_nand_do_cmd(info, NDSR_RDDREQ | NDSR_DBERR);
+		pxa3xx_nand_do_cmd(info, NDSR_RDDREQ | NDSR_DBERR | NDSR_SBERR);
 
 		if (info->retcode == ERR_DBERR) {
 			/* for blank page (all 0xff), HW will calculate its ECC as
@@ -861,8 +864,12 @@ static int pxa3xx_nand_ecc_correct(struct mtd_info *mtd,
 	 * consider it as a ecc error which will tell the caller the
 	 * read fail We have distinguish all the errors, but the
 	 * nand_read_ecc only check this function return value
+	 *
+	 * Corrected (single-bit) errors must also be noted.
 	 */
-	if (info->retcode != ERR_NONE)
+	if (info->retcode == ERR_SBERR)
+		return 1;
+	else if (info->retcode != ERR_NONE)
 		return -1;
 
 	return 0;

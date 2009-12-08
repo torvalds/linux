@@ -116,7 +116,7 @@ static s64 __kpit_elapsed(struct kvm *kvm)
 	 * itself with the initial count and continues counting
 	 * from there.
 	 */
-	remaining = hrtimer_expires_remaining(&ps->pit_timer.timer);
+	remaining = hrtimer_get_remaining(&ps->pit_timer.timer);
 	elapsed = ps->pit_timer.period - ktime_to_ns(remaining);
 	elapsed = mod_64(elapsed, ps->pit_timer.period);
 

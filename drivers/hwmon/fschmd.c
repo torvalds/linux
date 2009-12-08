@@ -819,7 +819,7 @@ static int watchdog_release(struct inode *inode, struct file *filp)
 static ssize_t watchdog_write(struct file *filp, const char __user *buf,
 	size_t count, loff_t *offset)
 {
-	size_t ret;
+	int ret;
 	struct fschmd_data *data = filp->private_data;
 
 	if (count) {
@@ -915,7 +915,7 @@ static int watchdog_ioctl(struct inode *inode, struct file *filp,
 	return ret;
 }
 
-static struct file_operations watchdog_fops = {
+static const struct file_operations watchdog_fops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 	.open = watchdog_open,

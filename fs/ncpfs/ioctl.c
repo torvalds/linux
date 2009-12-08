@@ -223,10 +223,8 @@ ncp_set_charsets(struct ncp_server* server, struct ncp_nls_ioctl __user *arg)
 	oldset_io = server->nls_io;
 	server->nls_io = iocharset;
 
-	if (oldset_cp)
-		unload_nls(oldset_cp);
-	if (oldset_io)
-		unload_nls(oldset_io);
+	unload_nls(oldset_cp);
+	unload_nls(oldset_io);
 
 	return 0;
 }

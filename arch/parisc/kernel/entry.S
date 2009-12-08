@@ -2047,12 +2047,13 @@ syscall_do_signal:
 	b,n     syscall_check_sig
 
 syscall_restore:
-	/* Are we being ptraced? */
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
 
-	ldw	TASK_PTRACE(%r1), %r19
-	bb,<	%r19,31,syscall_restore_rfi
-	nop
+	/* Are we being ptraced? */
+	ldw	TASK_FLAGS(%r1),%r19
+	ldi	(_TIF_SINGLESTEP|_TIF_BLOCKSTEP),%r2
+	and,COND(=)	%r19,%r2,%r0
+	b,n	syscall_restore_rfi
 
 	ldo	TASK_PT_FR31(%r1),%r19		   /* reload fpregs */
 	rest_fp	%r19
@@ -2113,16 +2114,16 @@ syscall_restore_rfi:
 	ldi	0x0b,%r20			   /* Create new PSW */
 	depi	-1,13,1,%r20			   /* C, Q, D, and I bits */
 
-	/* The values of PA_SINGLESTEP_BIT and PA_BLOCKSTEP_BIT are
-	 * set in include/linux/ptrace.h and converted to PA bitmap
+	/* The values of SINGLESTEP_BIT and BLOCKSTEP_BIT are
+	 * set in thread_info.h and converted to PA bitmap
 	 * numbers in asm-offsets.c */
 
-	/* if ((%r19.PA_SINGLESTEP_BIT)) { %r20.27=1} */
-	extru,=	%r19,PA_SINGLESTEP_BIT,1,%r0
+	/* if ((%r19.SINGLESTEP_BIT)) { %r20.27=1} */
+	extru,=	%r19,TIF_SINGLESTEP_PA_BIT,1,%r0
 	depi	-1,27,1,%r20			   /* R bit */
 
-	/* if ((%r19.PA_BLOCKSTEP_BIT)) { %r20.7=1} */
-	extru,= %r19,PA_BLOCKSTEP_BIT,1,%r0
+	/* if ((%r19.BLOCKSTEP_BIT)) { %r20.7=1} */
+	extru,= %r19,TIF_BLOCKSTEP_PA_BIT,1,%r0
 	depi	-1,7,1,%r20			   /* T bit */
 
 	STREG	%r20,TASK_PT_PSW(%r1)

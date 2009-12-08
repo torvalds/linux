@@ -1658,7 +1658,7 @@ restart:
  */
 
 static int setsockopt(struct socket *sock,
-		      int lvl, int opt, char __user *ov, int ol)
+		      int lvl, int opt, char __user *ov, unsigned int ol)
 {
 	struct sock *sk = sock->sk;
 	struct tipc_port *tport = tipc_sk_port(sk);

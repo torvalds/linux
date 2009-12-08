@@ -915,7 +915,7 @@ static int __devinit hal2_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit hal2_remove(struct platform_device *pdev)
+static int __devexit hal2_remove(struct platform_device *pdev)
 {
 	struct snd_card *card = platform_get_drvdata(pdev);
 

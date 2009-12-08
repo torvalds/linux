@@ -1640,7 +1640,7 @@ static int do_new_mount(struct path *path, char *type, int flags,
 {
 	struct vfsmount *mnt;
 
-	if (!type || !memchr(type, 0, PAGE_SIZE))
+	if (!type)
 		return -EINVAL;
 
 	/* we need capabilities... */
@@ -1871,6 +1871,23 @@ int copy_mount_options(const void __user * data, unsigned long *where)
 	return 0;
 }
 
+int copy_mount_string(const void __user *data, char **where)
+{
+	char *tmp;
+
+	if (!data) {
+		*where = NULL;
+		return 0;
+	}
+
+	tmp = strndup_user(data, PAGE_SIZE);
+	if (IS_ERR(tmp))
+		return PTR_ERR(tmp);
+
+	*where = tmp;
+	return 0;
+}
+
 /*
  * Flags is a 32-bit value that allows up to 31 non-fs dependent flags to
  * be given to the mount() call (ie: read-only, no-dev, no-suid etc).
@@ -1900,11 +1917,19 @@ long do_mount(char *dev_name, char *dir_name, char *type_page,
 
 	if (!dir_name || !*dir_name || !memchr(dir_name, 0, PAGE_SIZE))
 		return -EINVAL;
-	if (dev_name && !memchr(dev_name, 0, PAGE_SIZE))
-		return -EINVAL;
 
 	if (data_page)
 		((char *)data_page)[PAGE_SIZE - 1] = 0;
+
+	/* ... and get the mountpoint */
+	retval = kern_path(dir_name, LOOKUP_FOLLOW, &path);
+	if (retval)
+		return retval;
+
+	retval = security_sb_mount(dev_name, &path,
+				   type_page, flags, data_page);
+	if (retval)
+		goto dput_out;
 
 	/* Default to relatime unless overriden */
 	if (!(flags & MS_NOATIME))
@@ -1929,16 +1954,6 @@ long do_mount(char *dev_name, char *dir_name, char *type_page,
 	flags &= ~(MS_NOSUID | MS_NOEXEC | MS_NODEV | MS_ACTIVE |
 		   MS_NOATIME | MS_NODIRATIME | MS_RELATIME| MS_KERNMOUNT |
 		   MS_STRICTATIME);
-
-	/* ... and get the mountpoint */
-	retval = kern_path(dir_name, LOOKUP_FOLLOW, &path);
-	if (retval)
-		return retval;
-
-	retval = security_sb_mount(dev_name, &path,
-				   type_page, flags, data_page);
-	if (retval)
-		goto dput_out;
 
 	if (flags & MS_REMOUNT)
 		retval = do_remount(&path, flags & ~MS_REMOUNT, mnt_flags,
@@ -2070,40 +2085,42 @@ EXPORT_SYMBOL(create_mnt_ns);
 SYSCALL_DEFINE5(mount, char __user *, dev_name, char __user *, dir_name,
 		char __user *, type, unsigned long, flags, void __user *, data)
 {
-	int retval;
+	int ret;
+	char *kernel_type;
+	char *kernel_dir;
+	char *kernel_dev;
 	unsigned long data_page;
-	unsigned long type_page;
-	unsigned long dev_page;
-	char *dir_page;
 
-	retval = copy_mount_options(type, &type_page);
-	if (retval < 0)
-		return retval;
+	ret = copy_mount_string(type, &kernel_type);
+	if (ret < 0)
+		goto out_type;
 
-	dir_page = getname(dir_name);
-	retval = PTR_ERR(dir_page);
-	if (IS_ERR(dir_page))
-		goto out1;
+	kernel_dir = getname(dir_name);
+	if (IS_ERR(kernel_dir)) {
+		ret = PTR_ERR(kernel_dir);
+		goto out_dir;
+	}
 
-	retval = copy_mount_options(dev_name, &dev_page);
-	if (retval < 0)
-		goto out2;
+	ret = copy_mount_string(dev_name, &kernel_dev);
+	if (ret < 0)
+		goto out_dev;
 
-	retval = copy_mount_options(data, &data_page);
-	if (retval < 0)
-		goto out3;
+	ret = copy_mount_options(data, &data_page);
+	if (ret < 0)
+		goto out_data;
 
-	retval = do_mount((char *)dev_page, dir_page, (char *)type_page,
-			  flags, (void *)data_page);
+	ret = do_mount(kernel_dev, kernel_dir, kernel_type, flags,
+		(void *) data_page);
+
 	free_page(data_page);
-
-out3:
-	free_page(dev_page);
-out2:
-	putname(dir_page);
-out1:
-	free_page(type_page);
-	return retval;
+out_data:
+	kfree(kernel_dev);
+out_dev:
+	putname(kernel_dir);
+out_dir:
+	kfree(kernel_type);
+out_type:
+	return ret;
 }
 
 /*

@@ -544,7 +544,7 @@ struct sctp_af {
 					 int level,
 					 int optname,
 					 char __user *optval,
-					 int optlen);
+					 unsigned int optlen);
 	int		(*getsockopt)	(struct sock *sk,
 					 int level,
 					 int optname,
@@ -554,7 +554,7 @@ struct sctp_af {
 					 int level,
 					 int optname,
 					 char __user *optval,
-					 int optlen);
+					 unsigned int optlen);
 	int		(*compat_getsockopt)	(struct sock *sk,
 					 int level,
 					 int optname,
@@ -893,7 +893,6 @@ struct sctp_transport {
 	 */
 	/* RTO	       : The current retransmission timeout value.  */
 	unsigned long rto;
-	unsigned long last_rto;
 
 	__u32 rtt;		/* This is the most recent RTT.	 */
 
@@ -1980,7 +1979,7 @@ void sctp_assoc_set_primary(struct sctp_association *,
 void sctp_assoc_del_nonprimary_peers(struct sctp_association *,
 				    struct sctp_transport *);
 int sctp_assoc_set_bind_addr_from_ep(struct sctp_association *,
-				     gfp_t);
+				     sctp_scope_t, gfp_t);
 int sctp_assoc_set_bind_addr_from_cookie(struct sctp_association *,
 					 struct sctp_cookie*,
 					 gfp_t gfp);

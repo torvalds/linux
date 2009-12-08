@@ -71,11 +71,6 @@ config SA1100_H3600
 	  <http://www.handhelds.org/Compaq/index.html#iPAQ_H3600>
 	  <http://www.compaq.com/products/handhelds/pocketpc/>
 
-config SA1100_H3XXX
-	bool
-	depends on SA1100_H3100 || SA1100_H3600
-	default y
-
 config SA1100_BADGE4
 	bool "HP Labs BadgePAD 4"
 	select SA1111

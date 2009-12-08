@@ -82,8 +82,8 @@ int ttm_global_item_ref(struct ttm_global_reference *ref)
 		if (unlikely(ret != 0))
 			goto out_err;
 
-		++item->refcount;
 	}
+	++item->refcount;
 	ref->object = item->object;
 	object = item->object;
 	mutex_unlock(&item->mutex);

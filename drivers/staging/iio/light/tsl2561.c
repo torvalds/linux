@@ -239,10 +239,6 @@ static int __devexit tsl2561_remove(struct i2c_client *client)
 	return tsl2561_powerdown(client);
 }
 
-static unsigned short normal_i2c[] = { 0x29, 0x39, 0x49, I2C_CLIENT_END };
-
-I2C_CLIENT_INSMOD;
-
 static const struct i2c_device_id tsl2561_id[] = {
 	{ "tsl2561", 0 },
 	{ }

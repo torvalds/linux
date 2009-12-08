@@ -152,6 +152,14 @@ static void __init voiceblue_init_irq(void)
 
 static void __init voiceblue_init(void)
 {
+	/* mux pins for uarts */
+	omap_cfg_reg(UART1_TX);
+	omap_cfg_reg(UART1_RTS);
+	omap_cfg_reg(UART2_TX);
+	omap_cfg_reg(UART2_RTS);
+	omap_cfg_reg(UART3_TX);
+	omap_cfg_reg(UART3_RX);
+
 	/* Watchdog */
 	gpio_request(0, "Watchdog");
 	/* smc91x reset */

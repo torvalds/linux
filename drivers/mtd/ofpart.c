@@ -46,21 +46,12 @@ int __devinit of_mtd_parse_partitions(struct device *dev,
 		const u32 *reg;
 		int len;
 
-		/* check if this is a partition node */
-		partname = of_get_property(pp, "name", &len);
-		if (strcmp(partname, "partition") != 0) {
+		reg = of_get_property(pp, "reg", &len);
+		if (!reg) {
 			nr_parts--;
 			continue;
 		}
 
-		reg = of_get_property(pp, "reg", &len);
-		if (!reg || (len != 2 * sizeof(u32))) {
-			of_node_put(pp);
-			dev_err(dev, "Invalid 'reg' on %s\n", node->full_name);
-			kfree(*pparts);
-			*pparts = NULL;
-			return -EINVAL;
-		}
 		(*pparts)[i].offset = reg[0];
 		(*pparts)[i].size = reg[1];
 
@@ -73,6 +64,14 @@ int __devinit of_mtd_parse_partitions(struct device *dev,
 			(*pparts)[i].mask_flags = MTD_WRITEABLE;
 
 		i++;
+	}
+
+	if (!i) {
+		of_node_put(pp);
+		dev_err(dev, "No valid partition found on %s\n", node->full_name);
+		kfree(*pparts);
+		*pparts = NULL;
+		return -EINVAL;
 	}
 
 	return nr_parts;

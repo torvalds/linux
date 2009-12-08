@@ -91,7 +91,6 @@
 
 #define NUM_SEL_MNT_OPTS 5
 
-extern unsigned int policydb_loaded_version;
 extern int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm);
 extern struct security_operations *security_ops;
 
@@ -2411,7 +2410,7 @@ static void selinux_bprm_committed_creds(struct linux_binprm *bprm)
 	/* Wake up the parent if it is waiting so that it can recheck
 	 * wait permission to the new task SID. */
 	read_lock(&tasklist_lock);
-	wake_up_interruptible(&current->real_parent->signal->wait_chldexit);
+	__wake_up_parent(current, current->real_parent);
 	read_unlock(&tasklist_lock);
 }
 
@@ -3338,9 +3337,18 @@ static int selinux_kernel_create_files_as(struct cred *new, struct inode *inode)
 	return 0;
 }
 
-static int selinux_kernel_module_request(void)
+static int selinux_kernel_module_request(char *kmod_name)
 {
-	return task_has_system(current, SYSTEM__MODULE_REQUEST);
+	u32 sid;
+	struct common_audit_data ad;
+
+	sid = task_sid(current);
+
+	COMMON_AUDIT_DATA_INIT(&ad, KMOD);
+	ad.u.kmod_name = kmod_name;
+
+	return avc_has_perm(sid, SECINITSID_KERNEL, SECCLASS_SYSTEM,
+			    SYSTEM__MODULE_REQUEST, &ad);
 }
 
 static int selinux_task_setpgid(struct task_struct *p, pid_t pgid)
@@ -4714,10 +4722,7 @@ static int selinux_netlink_send(struct sock *sk, struct sk_buff *skb)
 	if (err)
 		return err;
 
-	if (policydb_loaded_version >= POLICYDB_VERSION_NLCLASS)
-		err = selinux_nlmsg_perm(sk, skb);
-
-	return err;
+	return selinux_nlmsg_perm(sk, skb);
 }
 
 static int selinux_netlink_recv(struct sk_buff *skb, int capability)
@@ -5830,11 +5835,11 @@ int selinux_disable(void)
 	selinux_disabled = 1;
 	selinux_enabled = 0;
 
-	/* Try to destroy the avc node cache */
-	avc_disable();
-
 	/* Reset security_ops to the secondary module, dummy or capability. */
 	security_ops = secondary_ops;
+
+	/* Try to destroy the avc node cache */
+	avc_disable();
 
 	/* Unregister netfilter hooks. */
 	selinux_nf_ip_exit();

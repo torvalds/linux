@@ -296,14 +296,14 @@ static const struct file_operations stack_trace_fops = {
 
 int
 stack_trace_sysctl(struct ctl_table *table, int write,
-		   struct file *file, void __user *buffer, size_t *lenp,
+		   void __user *buffer, size_t *lenp,
 		   loff_t *ppos)
 {
 	int ret;
 
 	mutex_lock(&stack_sysctl_mutex);
 
-	ret = proc_dointvec(table, write, file, buffer, lenp, ppos);
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
 
 	if (ret || !write ||
 	    (last_stack_tracer_enabled == !!stack_tracer_enabled))

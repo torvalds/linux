@@ -480,7 +480,6 @@ static int
 add_children(struct twl4030_platform_data *pdata, unsigned long features)
 {
 	struct device	*child;
-	struct device	*usb_transceiver = NULL;
 
 	if (twl_has_bci() && pdata->bci && !(features & TPS_SUBSET)) {
 		child = add_child(3, "twl4030_bci",
@@ -532,16 +531,61 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 	}
 
 	if (twl_has_usb() && pdata->usb) {
+
+		static struct regulator_consumer_supply usb1v5 = {
+			.supply =	"usb1v5",
+		};
+		static struct regulator_consumer_supply usb1v8 = {
+			.supply =	"usb1v8",
+		};
+		static struct regulator_consumer_supply usb3v1 = {
+			.supply =	"usb3v1",
+		};
+
+	/* First add the regulators so that they can be used by transceiver */
+		if (twl_has_regulator()) {
+			/* this is a template that gets copied */
+			struct regulator_init_data usb_fixed = {
+				.constraints.valid_modes_mask =
+					REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+				.constraints.valid_ops_mask =
+					REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+			};
+
+			child = add_regulator_linked(TWL4030_REG_VUSB1V5,
+						      &usb_fixed, &usb1v5, 1);
+			if (IS_ERR(child))
+				return PTR_ERR(child);
+
+			child = add_regulator_linked(TWL4030_REG_VUSB1V8,
+						      &usb_fixed, &usb1v8, 1);
+			if (IS_ERR(child))
+				return PTR_ERR(child);
+
+			child = add_regulator_linked(TWL4030_REG_VUSB3V1,
+						      &usb_fixed, &usb3v1, 1);
+			if (IS_ERR(child))
+				return PTR_ERR(child);
+
+		}
+
 		child = add_child(0, "twl4030_usb",
 				pdata->usb, sizeof(*pdata->usb),
 				true,
 				/* irq0 = USB_PRES, irq1 = USB */
 				pdata->irq_base + 8 + 2, pdata->irq_base + 4);
+
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 
 		/* we need to connect regulators to this transceiver */
-		usb_transceiver = child;
+		if (twl_has_regulator() && child) {
+			usb1v5.dev = child;
+			usb1v8.dev = child;
+			usb3v1.dev = child;
+		}
 	}
 
 	if (twl_has_watchdog()) {
@@ -576,47 +620,6 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 					? TWL4030_REG_VAUX2_4030
 					: TWL4030_REG_VAUX2,
 				pdata->vaux2);
-		if (IS_ERR(child))
-			return PTR_ERR(child);
-	}
-
-	if (twl_has_regulator() && usb_transceiver) {
-		static struct regulator_consumer_supply usb1v5 = {
-			.supply =	"usb1v5",
-		};
-		static struct regulator_consumer_supply usb1v8 = {
-			.supply =	"usb1v8",
-		};
-		static struct regulator_consumer_supply usb3v1 = {
-			.supply =	"usb3v1",
-		};
-
-		/* this is a template that gets copied */
-		struct regulator_init_data usb_fixed = {
-			.constraints.valid_modes_mask =
-				  REGULATOR_MODE_NORMAL
-				| REGULATOR_MODE_STANDBY,
-			.constraints.valid_ops_mask =
-				  REGULATOR_CHANGE_MODE
-				| REGULATOR_CHANGE_STATUS,
-		};
-
-		usb1v5.dev = usb_transceiver;
-		usb1v8.dev = usb_transceiver;
-		usb3v1.dev = usb_transceiver;
-
-		child = add_regulator_linked(TWL4030_REG_VUSB1V5, &usb_fixed,
-				&usb1v5, 1);
-		if (IS_ERR(child))
-			return PTR_ERR(child);
-
-		child = add_regulator_linked(TWL4030_REG_VUSB1V8, &usb_fixed,
-				&usb1v8, 1);
-		if (IS_ERR(child))
-			return PTR_ERR(child);
-
-		child = add_regulator_linked(TWL4030_REG_VUSB3V1, &usb_fixed,
-				&usb3v1, 1);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 	}
@@ -792,7 +795,7 @@ twl4030_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			twl->client = i2c_new_dummy(client->adapter,
 					twl->address);
 			if (!twl->client) {
-				dev_err(&twl->client->dev,
+				dev_err(&client->dev,
 					"can't attach client %d\n", i);
 				status = -ENOMEM;
 				goto fail;

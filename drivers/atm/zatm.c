@@ -1517,7 +1517,7 @@ static int zatm_getsockopt(struct atm_vcc *vcc,int level,int optname,
 
 
 static int zatm_setsockopt(struct atm_vcc *vcc,int level,int optname,
-    void __user *optval,int optlen)
+    void __user *optval,unsigned int optlen)
 {
 	return -EINVAL;
 }

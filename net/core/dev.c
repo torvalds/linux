@@ -942,14 +942,15 @@ rollback:
 	ret = notifier_to_errno(ret);
 
 	if (ret) {
-		if (err) {
-			printk(KERN_ERR
-			       "%s: name change rollback failed: %d.\n",
-			       dev->name, ret);
-		} else {
+		/* err >= 0 after dev_alloc_name() or stores the first errno */
+		if (err >= 0) {
 			err = ret;
 			memcpy(dev->name, oldname, IFNAMSIZ);
 			goto rollback;
+		} else {
+			printk(KERN_ERR
+			       "%s: name change rollback failed: %d.\n",
+			       dev->name, ret);
 		}
 	}
 
@@ -2288,15 +2289,15 @@ int netif_receive_skb(struct sk_buff *skb)
 	int ret = NET_RX_DROP;
 	__be16 type;
 
+	if (!skb->tstamp.tv64)
+		net_timestamp(skb);
+
 	if (skb->vlan_tci && vlan_hwaccel_do_receive(skb))
 		return NET_RX_SUCCESS;
 
 	/* if we've gotten here through NAPI, check netpoll */
 	if (netpoll_receive_skb(skb))
 		return NET_RX_DROP;
-
-	if (!skb->tstamp.tv64)
-		net_timestamp(skb);
 
 	if (!skb->iif)
 		skb->iif = skb->dev->ifindex;

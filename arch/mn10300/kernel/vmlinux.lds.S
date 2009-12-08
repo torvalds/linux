@@ -44,24 +44,8 @@ SECTIONS
   RO_DATA(PAGE_SIZE)
 
   /* writeable */
-  .data : {			/* Data */
-	DATA_DATA
-	CONSTRUCTORS
-	}
-
-  .data_nosave : { NOSAVE_DATA; }
-
-  .data.page_aligned : { PAGE_ALIGNED_DATA(PAGE_SIZE); }
-  .data.cacheline_aligned : { CACHELINE_ALIGNED_DATA(32); }
-
-  /* rarely changed data like cpu maps */
-  . = ALIGN(32);
-  .data.read_mostly : AT(ADDR(.data.read_mostly)) {
-	READ_MOSTLY_DATA(32);
-	_edata = .;		/* End of data section */
-  }
-
-  .data.init_task : { INIT_TASK_DATA(THREAD_SIZE); }
+  RW_DATA_SECTION(32, PAGE_SIZE, THREAD_SIZE)
+  _edata = .;
 
   /* might get freed after init */
   . = ALIGN(PAGE_SIZE);
@@ -74,22 +58,8 @@ SECTIONS
   /* will be freed after init */
   . = ALIGN(PAGE_SIZE);		/* Init code and data */
   __init_begin = .;
-  .init.text : {
-	_sinittext = .;
-	INIT_TEXT;
-	_einittext = .;
-  }
-  .init.data : { INIT_DATA; }
-  .setup.init : { INIT_SETUP(16); }
-
-  __initcall_start = .;
-  .initcall.init : {
-	INITCALLS
-  }
-  __initcall_end = .;
-  .con_initcall.init : { CON_INITCALL; }
-
-  SECURITY_INIT
+  INIT_TEXT_SECTION(PAGE_SIZE)
+  INIT_DATA_SECTION(16)
   . = ALIGN(4);
   __alt_instructions = .;
   .altinstructions : { *(.altinstructions) }
@@ -99,8 +69,6 @@ SECTIONS
      from .altinstructions and .eh_frame */
 	.exit.text : { EXIT_TEXT; }
 	.exit.data : { EXIT_DATA; }
-
-  .init.ramfs : { INIT_RAM_FS; }
 
   PERCPU(32)
   . = ALIGN(PAGE_SIZE);

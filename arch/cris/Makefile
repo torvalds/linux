@@ -42,8 +42,6 @@ LD = $(CROSS_COMPILE)ld -mcrislinux
 
 OBJCOPYFLAGS := -O binary -R .note -R .comment -S
 
-CPPFLAGS_vmlinux.lds = -DDRAM_VIRTUAL_BASE=0x$(CONFIG_ETRAX_DRAM_VIRTUAL_BASE)
-
 KBUILD_AFLAGS += -mlinux -march=$(arch-y) $(inc)
 KBUILD_CFLAGS += -mlinux -march=$(arch-y) -pipe $(inc)
 KBUILD_CPPFLAGS += $(inc)

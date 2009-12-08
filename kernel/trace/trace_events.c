@@ -232,10 +232,9 @@ ftrace_event_write(struct file *file, const char __user *ubuf,
 		   size_t cnt, loff_t *ppos)
 {
 	struct trace_parser parser;
-	size_t read = 0;
-	ssize_t ret;
+	ssize_t read, ret;
 
-	if (!cnt || cnt < 0)
+	if (!cnt)
 		return 0;
 
 	ret = tracing_update_buffers();
@@ -247,7 +246,7 @@ ftrace_event_write(struct file *file, const char __user *ubuf,
 
 	read = trace_get_user(&parser, ubuf, cnt, ppos);
 
-	if (trace_parser_loaded((&parser))) {
+	if (read >= 0 && trace_parser_loaded((&parser))) {
 		int set = 1;
 
 		if (*parser.buffer == '!')

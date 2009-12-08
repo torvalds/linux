@@ -349,11 +349,11 @@ struct twl4030_madc_platform_data {
 	int		irq_line;
 };
 
-/* Boards have uniqe mappings of {col, row} --> keycode.
- * Column and row are 4 bits, but range only from 0..7.
+/* Boards have uniqe mappings of {row, col} --> keycode.
+ * Column and row are 8 bits each, but range only from 0..7.
  * a PERSISTENT_KEY is "always on" and never reported.
  */
-#define PERSISTENT_KEY(c, r)	KEY((c), (r), KEY_RESERVED)
+#define PERSISTENT_KEY(r, c)	KEY((r), (c), KEY_RESERVED)
 
 struct twl4030_keypad_data {
 	const struct matrix_keymap_data *keymap_data;

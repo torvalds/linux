@@ -3857,7 +3857,7 @@ static void vino_vm_close(struct vm_area_struct *vma)
 	dprintk("vino_vm_close(): count = %d\n", fb->map_count);
 }
 
-static struct vm_operations_struct vino_vm_ops = {
+static const struct vm_operations_struct vino_vm_ops = {
 	.open	= vino_vm_open,
 	.close	= vino_vm_close,
 };

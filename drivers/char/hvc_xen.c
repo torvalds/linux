@@ -55,7 +55,7 @@ static inline void notify_daemon(void)
 	notify_remote_via_evtchn(xen_start_info->console.domU.evtchn);
 }
 
-static int write_console(uint32_t vtermno, const char *data, int len)
+static int __write_console(const char *data, int len)
 {
 	struct xencons_interface *intf = xencons_interface();
 	XENCONS_RING_IDX cons, prod;
@@ -74,6 +74,29 @@ static int write_console(uint32_t vtermno, const char *data, int len)
 
 	notify_daemon();
 	return sent;
+}
+
+static int write_console(uint32_t vtermno, const char *data, int len)
+{
+	int ret = len;
+
+	/*
+	 * Make sure the whole buffer is emitted, polling if
+	 * necessary.  We don't ever want to rely on the hvc daemon
+	 * because the most interesting console output is when the
+	 * kernel is crippled.
+	 */
+	while (len) {
+		int sent = __write_console(data, len);
+		
+		data += sent;
+		len -= sent;
+
+		if (unlikely(len))
+			HYPERVISOR_sched_op(SCHEDOP_yield, NULL);
+	}
+
+	return ret;
 }
 
 static int read_console(uint32_t vtermno, char *buf, int len)

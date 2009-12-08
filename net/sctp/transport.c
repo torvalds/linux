@@ -74,7 +74,7 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 	 * given destination transport address, set RTO to the protocol
 	 * parameter 'RTO.Initial'.
 	 */
-	peer->last_rto = peer->rto = msecs_to_jiffies(sctp_rto_initial);
+	peer->rto = msecs_to_jiffies(sctp_rto_initial);
 	peer->rtt = 0;
 	peer->rttvar = 0;
 	peer->srtt = 0;
@@ -308,7 +308,8 @@ void sctp_transport_route(struct sctp_transport *transport,
 		/* Initialize sk->sk_rcv_saddr, if the transport is the
 		 * association's active path for getsockname().
 		 */
-		if (asoc && (transport == asoc->peer.active_path))
+		if (asoc && (!asoc->peer.primary_path ||
+				(transport == asoc->peer.active_path)))
 			opt->pf->af->to_sk_saddr(&transport->saddr,
 						 asoc->base.sk);
 	} else
@@ -385,7 +386,6 @@ void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 		tp->rto = tp->asoc->rto_max;
 
 	tp->rtt = rtt;
-	tp->last_rto = tp->rto;
 
 	/* Reset rto_pending so that a new RTT measurement is started when a
 	 * new data chunk is sent.
@@ -601,7 +601,7 @@ void sctp_transport_reset(struct sctp_transport *t)
 	 */
 	t->cwnd = min(4*asoc->pathmtu, max_t(__u32, 2*asoc->pathmtu, 4380));
 	t->ssthresh = asoc->peer.i.a_rwnd;
-	t->last_rto = t->rto = asoc->rto_initial;
+	t->rto = asoc->rto_initial;
 	t->rtt = 0;
 	t->srtt = 0;
 	t->rttvar = 0;

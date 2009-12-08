@@ -2476,12 +2476,6 @@ xfs_reclaim(
 	ASSERT(XFS_FORCED_SHUTDOWN(ip->i_mount) || ip->i_delayed_blks == 0);
 
 	/*
-	 * Make sure the atime in the XFS inode is correct before freeing the
-	 * Linux inode.
-	 */
-	xfs_synchronize_atime(ip);
-
-	/*
 	 * If we have nothing to flush with this inode then complete the
 	 * teardown now, otherwise break the link between the xfs inode and the
 	 * linux inode and clean up the xfs inode later. This avoids flushing

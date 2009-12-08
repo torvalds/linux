@@ -689,6 +689,7 @@ static void b43_add_dynamic_debug(struct b43_wldev *dev)
 	add_dyn_dbg("debug_lo", B43_DBG_LO, 0);
 	add_dyn_dbg("debug_firmware", B43_DBG_FIRMWARE, 0);
 	add_dyn_dbg("debug_keys", B43_DBG_KEYS, 0);
+	add_dyn_dbg("debug_verbose_stats", B43_DBG_VERBOSESTATS, 0);
 
 #undef add_dyn_dbg
 }

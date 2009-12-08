@@ -28,6 +28,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
 #include <linux/i2c-algo-bit.h>
+#include "i915_drv.h"
 #include "drm_crtc.h"
 
 #include "drm_crtc_helper.h"
@@ -111,8 +112,8 @@ struct intel_output {
 
 struct intel_crtc {
 	struct drm_crtc base;
-	int pipe;
-	int plane;
+	enum pipe pipe;
+	enum plane plane;
 	struct drm_gem_object *cursor_bo;
 	uint32_t cursor_addr;
 	u8 lut_r[256], lut_g[256], lut_b[256];
@@ -174,6 +175,8 @@ extern int intelfb_resize(struct drm_device *dev, struct drm_crtc *crtc);
 extern void intelfb_restore(void);
 extern void intel_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 				    u16 blue, int regno);
+extern void intel_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
+				    u16 *blue, int regno);
 
 extern int intel_framebuffer_create(struct drm_device *dev,
 				    struct drm_mode_fb_cmd *mode_cmd,

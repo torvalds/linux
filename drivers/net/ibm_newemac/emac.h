@@ -153,6 +153,7 @@ struct emac_regs {
 #define EMAC4_MR1_RFS_16K		0x00280000
 #define EMAC4_MR1_TFS_2K       		0x00020000
 #define EMAC4_MR1_TFS_4K		0x00030000
+#define EMAC4_MR1_TFS_16K		0x00050000
 #define EMAC4_MR1_TR			0x00008000
 #define EMAC4_MR1_MWSW_001		0x00001000
 #define EMAC4_MR1_JPSM			0x00000800
@@ -262,8 +263,8 @@ struct emac_regs {
 
 
 /* EMACx_TRTR */
-#define EMAC_TRTR_SHIFT_EMAC4		27
-#define EMAC_TRTR_SHIFT			24
+#define EMAC_TRTR_SHIFT_EMAC4		24
+#define EMAC_TRTR_SHIFT		27
 
 /* EMAC specific TX descriptor control fields (write access) */
 #define EMAC_TX_CTRL_GFCS		0x0200

@@ -35,6 +35,7 @@
 #include <linux/key.h>
 #include <linux/parser.h>
 #include <linux/fs_stack.h>
+#include <linux/ima.h>
 #include "ecryptfs_kernel.h"
 
 /**
@@ -118,6 +119,7 @@ int ecryptfs_init_persistent_file(struct dentry *ecryptfs_dentry)
 	const struct cred *cred = current_cred();
 	struct ecryptfs_inode_info *inode_info =
 		ecryptfs_inode_to_private(ecryptfs_dentry->d_inode);
+	int opened_lower_file = 0;
 	int rc = 0;
 
 	mutex_lock(&inode_info->lower_file_mutex);
@@ -129,15 +131,17 @@ int ecryptfs_init_persistent_file(struct dentry *ecryptfs_dentry)
 		lower_dentry = ecryptfs_dentry_to_lower(ecryptfs_dentry);
 		rc = ecryptfs_privileged_open(&inode_info->lower_file,
 					      lower_dentry, lower_mnt, cred);
-		if (rc || IS_ERR(inode_info->lower_file)) {
+		if (rc) {
 			printk(KERN_ERR "Error opening lower persistent file "
 			       "for lower_dentry [0x%p] and lower_mnt [0x%p]; "
 			       "rc = [%d]\n", lower_dentry, lower_mnt, rc);
-			rc = PTR_ERR(inode_info->lower_file);
 			inode_info->lower_file = NULL;
-		}
+		} else
+			opened_lower_file = 1;
 	}
 	mutex_unlock(&inode_info->lower_file_mutex);
+	if (opened_lower_file)
+		ima_counts_get(inode_info->lower_file);
 	return rc;
 }
 

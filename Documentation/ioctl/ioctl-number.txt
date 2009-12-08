@@ -135,6 +135,7 @@ Code	Seq#	Include File		Comments
 					<http://mikonos.dia.unisa.it/tcfs>
 'l'	40-7F	linux/udf_fs_i.h	in development:
 					<http://sourceforge.net/projects/linux-udf/>
+'m'	00-09	linux/mmtimer.h
 'm'	all	linux/mtio.h		conflict!
 'm'	all	linux/soundcard.h	conflict!
 'm'	all	linux/synclink.h	conflict!

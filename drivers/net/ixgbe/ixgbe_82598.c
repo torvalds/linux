@@ -425,7 +425,7 @@ static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw, s32 packetbuf_num)
 #endif /* CONFIG_DCB */
 	default:
 		hw_dbg(hw, "Flow control param set incorrectly\n");
-		ret_val = -IXGBE_ERR_CONFIG;
+		ret_val = IXGBE_ERR_CONFIG;
 		goto out;
 		break;
 	}

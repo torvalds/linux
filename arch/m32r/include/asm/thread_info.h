@@ -55,6 +55,8 @@ struct thread_info {
 
 #define PREEMPT_ACTIVE		0x10000000
 
+#define THREAD_SIZE (PAGE_SIZE << 1)
+
 /*
  * macros/functions for gaining access to the thread information structure
  */
@@ -75,8 +77,6 @@ struct thread_info {
 
 #define init_thread_info	(init_thread_union.thread_info)
 #define init_stack		(init_thread_union.stack)
-
-#define THREAD_SIZE (2*PAGE_SIZE)
 
 /* how to get the thread information struct from C */
 static inline struct thread_info *current_thread_info(void)
@@ -124,17 +124,6 @@ static inline unsigned int get_thread_fault_code(void)
 	struct thread_info *ti = current_thread_info();
 	return ti->flags >> TI_FLAG_FAULT_CODE_SHIFT;
 }
-
-#else /* !__ASSEMBLY__ */
-
-#define THREAD_SIZE	8192
-
-/* how to get the thread information struct from ASM */
-#define GET_THREAD_INFO(reg)	GET_THREAD_INFO reg
-	.macro GET_THREAD_INFO reg
-	ldi	\reg, #-THREAD_SIZE
-	and	\reg, sp
-	.endm
 
 #endif
 

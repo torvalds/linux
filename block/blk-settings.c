@@ -34,23 +34,6 @@ void blk_queue_prep_rq(struct request_queue *q, prep_rq_fn *pfn)
 EXPORT_SYMBOL(blk_queue_prep_rq);
 
 /**
- * blk_queue_set_discard - set a discard_sectors function for queue
- * @q:		queue
- * @dfn:	prepare_discard function
- *
- * It's possible for a queue to register a discard callback which is used
- * to transform a discard request into the appropriate type for the
- * hardware. If none is registered, then discard requests are failed
- * with %EOPNOTSUPP.
- *
- */
-void blk_queue_set_discard(struct request_queue *q, prepare_discard_fn *dfn)
-{
-	q->prepare_discard_fn = dfn;
-}
-EXPORT_SYMBOL(blk_queue_set_discard);
-
-/**
  * blk_queue_merge_bvec - set a merge_bvec function for queue
  * @q:		queue
  * @mbfn:	merge_bvec_fn
@@ -111,7 +94,9 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->max_hw_segments = MAX_HW_SEGMENTS;
 	lim->seg_boundary_mask = BLK_SEG_BOUNDARY_MASK;
 	lim->max_segment_size = MAX_SEGMENT_SIZE;
-	lim->max_sectors = lim->max_hw_sectors = SAFE_MAX_SECTORS;
+	lim->max_sectors = BLK_DEF_MAX_SECTORS;
+	lim->max_hw_sectors = INT_MAX;
+	lim->max_discard_sectors = SAFE_MAX_SECTORS;
 	lim->logical_block_size = lim->physical_block_size = lim->io_min = 512;
 	lim->bounce_pfn = (unsigned long)(BLK_BOUNCE_ANY >> PAGE_SHIFT);
 	lim->alignment_offset = 0;
@@ -164,6 +149,7 @@ void blk_queue_make_request(struct request_queue *q, make_request_fn *mfn)
 	q->unplug_timer.data = (unsigned long)q;
 
 	blk_set_default_limits(&q->limits);
+	blk_queue_max_sectors(q, SAFE_MAX_SECTORS);
 
 	/*
 	 * If the caller didn't supply a lock, fall back to our embedded
@@ -252,6 +238,18 @@ void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_sectors)
 		q->limits.max_hw_sectors = max_sectors;
 }
 EXPORT_SYMBOL(blk_queue_max_hw_sectors);
+
+/**
+ * blk_queue_max_discard_sectors - set max sectors for a single discard
+ * @q:  the request queue for the device
+ * @max_discard_sectors: maximum number of sectors to discard
+ **/
+void blk_queue_max_discard_sectors(struct request_queue *q,
+		unsigned int max_discard_sectors)
+{
+	q->limits.max_discard_sectors = max_discard_sectors;
+}
+EXPORT_SYMBOL(blk_queue_max_discard_sectors);
 
 /**
  * blk_queue_max_phys_segments - set max phys segments for a request for this queue

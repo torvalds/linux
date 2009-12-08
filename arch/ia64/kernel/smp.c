@@ -302,7 +302,7 @@ smp_flush_tlb_mm (struct mm_struct *mm)
 		return;
 	}
 
-	smp_call_function_mask(mm->cpu_vm_mask,
+	smp_call_function_many(mm_cpumask(mm),
 		(void (*)(void *))local_finish_flush_tlb_mm, mm, 1);
 	local_irq_disable();
 	local_finish_flush_tlb_mm(mm);

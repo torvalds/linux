@@ -764,11 +764,13 @@ struct e1000_phy_operations {
 	s32  (*get_cable_length)(struct e1000_hw *);
 	s32  (*get_phy_info)(struct e1000_hw *);
 	s32  (*read_phy_reg)(struct e1000_hw *, u32, u16 *);
+	s32  (*read_phy_reg_locked)(struct e1000_hw *, u32, u16 *);
 	void (*release_phy)(struct e1000_hw *);
 	s32  (*reset_phy)(struct e1000_hw *);
 	s32  (*set_d0_lplu_state)(struct e1000_hw *, bool);
 	s32  (*set_d3_lplu_state)(struct e1000_hw *, bool);
 	s32  (*write_phy_reg)(struct e1000_hw *, u32, u16);
+	s32  (*write_phy_reg_locked)(struct e1000_hw *, u32, u16);
 	s32  (*cfg_on_link_up)(struct e1000_hw *);
 };
 
@@ -901,6 +903,7 @@ struct e1000_shadow_ram {
 struct e1000_dev_spec_ich8lan {
 	bool kmrn_lock_loss_workaround_enabled;
 	struct e1000_shadow_ram shadow_ram[E1000_ICH8_SHADOW_RAM_WORDS];
+	bool nvm_k1_enabled;
 };
 
 struct e1000_hw {

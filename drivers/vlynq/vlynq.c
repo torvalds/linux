@@ -702,7 +702,7 @@ static int vlynq_probe(struct platform_device *pdev)
 	dev->mem_start = mem_res->start;
 	dev->mem_end = mem_res->end;
 
-	len = regs_res->end - regs_res->start;
+	len = resource_size(regs_res);
 	if (!request_mem_region(regs_res->start, len, dev_name(&dev->dev))) {
 		printk(KERN_ERR "%s: Can't request vlynq registers\n",
 		       dev_name(&dev->dev));

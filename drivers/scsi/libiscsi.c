@@ -2436,7 +2436,7 @@ static void iscsi_host_dec_session_cnt(struct Scsi_Host *shost)
  */
 struct iscsi_cls_session *
 iscsi_session_setup(struct iscsi_transport *iscsit, struct Scsi_Host *shost,
-		    uint16_t cmds_max, int cmd_task_size,
+		    uint16_t cmds_max, int dd_size, int cmd_task_size,
 		    uint32_t initial_cmdsn, unsigned int id)
 {
 	struct iscsi_host *ihost = shost_priv(shost);
@@ -2486,7 +2486,8 @@ iscsi_session_setup(struct iscsi_transport *iscsit, struct Scsi_Host *shost,
 	scsi_cmds = total_cmds - ISCSI_MGMT_CMDS_MAX;
 
 	cls_session = iscsi_alloc_session(shost, iscsit,
-					  sizeof(struct iscsi_session));
+					  sizeof(struct iscsi_session) +
+					  dd_size);
 	if (!cls_session)
 		goto dec_session_count;
 	session = cls_session->dd_data;
@@ -2503,6 +2504,7 @@ iscsi_session_setup(struct iscsi_transport *iscsit, struct Scsi_Host *shost,
 	session->max_cmdsn = initial_cmdsn + 1;
 	session->max_r2t = 1;
 	session->tt = iscsit;
+	session->dd_data = cls_session->dd_data + sizeof(*session);
 	mutex_init(&session->eh_mutex);
 	spin_lock_init(&session->lock);
 

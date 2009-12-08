@@ -134,18 +134,15 @@ static void xemaclite_enable_interrupts(struct net_local *drvdata)
 	}
 
 	/* Enable the Rx interrupts for the first buffer */
-	reg_data = in_be32(drvdata->base_addr + XEL_RSR_OFFSET);
 	out_be32(drvdata->base_addr + XEL_RSR_OFFSET,
-		 reg_data | XEL_RSR_RECV_IE_MASK);
+		 XEL_RSR_RECV_IE_MASK);
 
 	/* Enable the Rx interrupts for the second Buffer if
 	 * configured in HW */
 	if (drvdata->rx_ping_pong != 0) {
-		reg_data = in_be32(drvdata->base_addr + XEL_BUFFER_OFFSET +
-				   XEL_RSR_OFFSET);
 		out_be32(drvdata->base_addr + XEL_BUFFER_OFFSET +
 			 XEL_RSR_OFFSET,
-			 reg_data | XEL_RSR_RECV_IE_MASK);
+			 XEL_RSR_RECV_IE_MASK);
 	}
 
 	/* Enable the Global Interrupt Enable */

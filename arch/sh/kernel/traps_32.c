@@ -25,6 +25,7 @@
 #include <linux/kexec.h>
 #include <linux/limits.h>
 #include <linux/proc_fs.h>
+#include <linux/sysfs.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/fpu.h>
@@ -54,8 +55,8 @@ static unsigned long se_multi;
 /* bitfield: 1: warn 2: fixup 4: signal -> combinations 2|4 && 1|2|4 are not
    valid! */
 static int se_usermode = 3;
-/* 0: no warning 1: print a warning message */
-static int se_kernmode_warn = 1;
+/* 0: no warning 1: print a warning message, disabled by default */
+static int se_kernmode_warn;
 
 #ifdef CONFIG_PROC_FS
 static const char *se_usermode_action[] = {
@@ -159,12 +160,12 @@ void die(const char * str, struct pt_regs * regs, long err)
 
 	oops_enter();
 
-	console_verbose();
 	spin_lock_irq(&die_lock);
+	console_verbose();
 	bust_spinlocks(1);
 
 	printk("%s: %04lx [#%d]\n", str, err & 0xffff, ++die_counter);
-
+	sysfs_printk_last_file();
 	print_modules();
 	show_regs(regs);
 
@@ -180,6 +181,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 	bust_spinlocks(0);
 	add_taint(TAINT_DIE);
 	spin_unlock_irq(&die_lock);
+	oops_exit();
 
 	if (kexec_should_crash(current))
 		crash_kexec(regs);
@@ -190,7 +192,6 @@ void die(const char * str, struct pt_regs * regs, long err)
 	if (panic_on_oops)
 		panic("Fatal exception");
 
-	oops_exit();
 	do_exit(SIGSEGV);
 }
 
@@ -452,6 +453,12 @@ int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
 	u_int rm;
 	int ret, index;
 
+	/*
+	 * XXX: We can't handle mixed 16/32-bit instructions yet
+	 */
+	if (instruction_size(instruction) != 2)
+		return -EINVAL;
+
 	index = (instruction>>8)&15;	/* 0x0F00 */
 	rm = regs->regs[index];
 
@@ -619,9 +626,9 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 
 		se_user += 1;
 
-#ifndef CONFIG_CPU_SH2A
 		set_fs(USER_DS);
-		if (copy_from_user(&instruction, (u16 *)(regs->pc & ~1), 2)) {
+		if (copy_from_user(&instruction, (insn_size_t *)(regs->pc & ~1),
+				   sizeof(instruction))) {
 			set_fs(oldfs);
 			goto uspace_segv;
 		}
@@ -633,7 +640,6 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 			       "in \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
 			       current->comm, current->pid, (void *)regs->pc,
 			       instruction);
-#endif
 
 		if (se_usermode & 2)
 			goto fixup;
@@ -673,12 +679,6 @@ uspace_segv:
 	} else {
 		se_sys += 1;
 
-		if (se_kernmode_warn)
-			printk(KERN_NOTICE "Unaligned kernel access "
-			       "on behalf of \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
-			       current->comm, current->pid, (void *)regs->pc,
-			       instruction);
-
 		if (regs->pc & 1)
 			die("unaligned program counter", regs, error_code);
 
@@ -691,6 +691,12 @@ uspace_segv:
 			set_fs(oldfs);
 			die("insn faulting in do_address_error", regs, 0);
 		}
+
+		if (se_kernmode_warn)
+			printk(KERN_NOTICE "Unaligned kernel access "
+			       "on behalf of \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
+			       current->comm, current->pid, (void *)regs->pc,
+			       instruction);
 
 		handle_unaligned_access(instruction, regs,
 					&user_mem_access, 0);

@@ -189,7 +189,7 @@ static void pci_dma_dev_setup_pasemi(struct pci_dev *dev)
 	}
 #endif
 
-	dev->dev.archdata.dma_data = &iommu_table_iobmap;
+	set_iommu_table_base(&dev->dev, &iommu_table_iobmap);
 }
 
 static void pci_dma_bus_setup_null(struct pci_bus *b) { }

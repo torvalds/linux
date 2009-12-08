@@ -277,6 +277,7 @@ static inline pteval_t pte_flags(pte_t pte)
 typedef struct page *pgtable_t;
 
 extern pteval_t __supported_pte_mask;
+extern void set_nx(void);
 extern int nx_enabled;
 
 #define pgprot_writecombine	pgprot_writecombine

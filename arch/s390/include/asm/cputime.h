@@ -78,7 +78,7 @@ cputime64_to_jiffies64(cputime64_t cputime)
 static inline unsigned int
 cputime_to_msecs(const cputime_t cputime)
 {
-	return __div(cputime, 4096000);
+	return cputime_div(cputime, 4096000);
 }
 
 static inline cputime_t
@@ -160,7 +160,7 @@ cputime_to_timeval(const cputime_t cputime, struct timeval *value)
 static inline clock_t
 cputime_to_clock_t(cputime_t cputime)
 {
-	return __div(cputime, 4096000000ULL / USER_HZ);
+	return cputime_div(cputime, 4096000000ULL / USER_HZ);
 }
 
 static inline cputime_t
@@ -175,7 +175,7 @@ clock_t_to_cputime(unsigned long x)
 static inline clock_t
 cputime64_to_clock_t(cputime64_t cputime)
 {
-       return __div(cputime, 4096000000ULL / USER_HZ);
+       return cputime_div(cputime, 4096000000ULL / USER_HZ);
 }
 
 struct s390_idle_data {

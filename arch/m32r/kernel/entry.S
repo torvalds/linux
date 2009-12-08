@@ -118,6 +118,13 @@
 #define resume_kernel		restore_all
 #endif
 
+/* how to get the thread information struct from ASM */
+#define GET_THREAD_INFO(reg)	GET_THREAD_INFO reg
+	.macro GET_THREAD_INFO reg
+	ldi	\reg, #-THREAD_SIZE
+	and	\reg, sp
+	.endm
+
 ENTRY(ret_from_fork)
 	pop	r0
 	bl	schedule_tail

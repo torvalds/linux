@@ -511,7 +511,7 @@ int acpi_processor_preregister_performance(
 	struct acpi_processor *match_pr;
 	struct acpi_psd_package *match_pdomain;
 
-	if (!alloc_cpumask_var(&covered_cpus, GFP_KERNEL))
+	if (!zalloc_cpumask_var(&covered_cpus, GFP_KERNEL))
 		return -ENOMEM;
 
 	mutex_lock(&performance_mutex);
@@ -558,7 +558,6 @@ int acpi_processor_preregister_performance(
 	 * Now that we have _PSD data from all CPUs, lets setup P-state 
 	 * domain info.
 	 */
-	cpumask_clear(covered_cpus);
 	for_each_possible_cpu(i) {
 		pr = per_cpu(processors, i);
 		if (!pr)

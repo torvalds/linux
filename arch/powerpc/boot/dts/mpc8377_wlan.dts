@@ -67,7 +67,7 @@
 			device-width = <1>;
 
 			partition@0 {
-				reg = <0 0x8000>;
+				reg = <0 0x80000>;
 				label = "u-boot";
 				read-only;
 			};

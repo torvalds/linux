@@ -79,7 +79,7 @@ static int omap2_iommu_enable(struct iommu *obj)
 		l = iommu_read_reg(obj, MMU_SYSSTATUS);
 		if (l & MMU_SYS_RESETDONE)
 			break;
-	} while (time_after(jiffies, timeout));
+	} while (!time_after(jiffies, timeout));
 
 	if (!(l & MMU_SYS_RESETDONE)) {
 		dev_err(obj->dev, "can't take mmu out of reset\n");

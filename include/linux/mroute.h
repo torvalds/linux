@@ -145,14 +145,14 @@ static inline int ip_mroute_opt(int opt)
 #endif
 
 #ifdef CONFIG_IP_MROUTE
-extern int ip_mroute_setsockopt(struct sock *, int, char __user *, int);
+extern int ip_mroute_setsockopt(struct sock *, int, char __user *, unsigned int);
 extern int ip_mroute_getsockopt(struct sock *, int, char __user *, int __user *);
 extern int ipmr_ioctl(struct sock *sk, int cmd, void __user *arg);
 extern int ip_mr_init(void);
 #else
 static inline
 int ip_mroute_setsockopt(struct sock *sock,
-			 int optname, char __user *optval, int optlen)
+			 int optname, char __user *optval, unsigned int optlen)
 {
 	return -ENOPROTOOPT;
 }

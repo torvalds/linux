@@ -214,7 +214,6 @@ int exofs_sync_fs(struct super_block *sb, int wait)
 	}
 
 	lock_super(sb);
-	lock_kernel();
 	sbi = sb->s_fs_info;
 	fscb->s_nextid = cpu_to_le64(sbi->s_nextid);
 	fscb->s_numfiles = cpu_to_le32(sbi->s_numfiles);
@@ -245,7 +244,6 @@ int exofs_sync_fs(struct super_block *sb, int wait)
 out:
 	if (or)
 		osd_end_request(or);
-	unlock_kernel();
 	unlock_super(sb);
 	kfree(fscb);
 	return ret;
@@ -268,8 +266,6 @@ static void exofs_put_super(struct super_block *sb)
 	int num_pend;
 	struct exofs_sb_info *sbi = sb->s_fs_info;
 
-	lock_kernel();
-
 	if (sb->s_dirt)
 		exofs_write_super(sb);
 
@@ -286,8 +282,6 @@ static void exofs_put_super(struct super_block *sb)
 	osduld_put_device(sbi->s_dev);
 	kfree(sb->s_fs_info);
 	sb->s_fs_info = NULL;
-
-	unlock_kernel();
 }
 
 /*

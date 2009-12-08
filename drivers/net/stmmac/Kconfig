@@ -1,0 +1,53 @@
+config STMMAC_ETH
+	tristate "STMicroelectronics 10/100/1000 Ethernet driver"
+	select MII
+	select PHYLIB
+	depends on NETDEVICES && CPU_SUBTYPE_ST40
+	help
+	  This is the driver for the ST MAC 10/100/1000 on-chip Ethernet
+	  controllers. ST Ethernet IPs are built around a Synopsys IP Core.
+
+if STMMAC_ETH
+
+config STMMAC_DA
+	bool "STMMAC DMA arbitration scheme"
+	default n
+	help
+	  Selecting this option, rx has priority over Tx (only for Giga
+	  Ethernet device).
+	  By default, the DMA arbitration scheme is based on Round-robin
+	  (rx:tx priority is 1:1).
+
+config STMMAC_DUAL_MAC
+	bool "STMMAC: dual mac support (EXPERIMENTAL)"
+	default n
+        depends on EXPERIMENTAL && STMMAC_ETH && !STMMAC_TIMER
+	help
+	  Some ST SoCs (for example the stx7141 and stx7200c2) have two
+	  Ethernet Controllers. This option turns on the second Ethernet
+	  device on this kind of platforms.
+
+config STMMAC_TIMER
+	bool "STMMAC Timer optimisation"
+	default n
+	help
+	  Use an external timer for mitigating the number of network
+	  interrupts.
+
+choice
+        prompt "Select Timer device"
+        depends on STMMAC_TIMER
+
+config STMMAC_TMU_TIMER
+        bool "TMU channel 2"
+        depends on CPU_SH4
+	help
+
+config STMMAC_RTC_TIMER
+        bool "Real time clock"
+        depends on RTC_CLASS
+	help
+
+endchoice
+
+endif

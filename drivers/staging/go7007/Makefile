@@ -32,8 +32,3 @@ endif
 
 EXTRA_CFLAGS += -Idrivers/media/dvb/frontends
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core
-
-# Ubuntu 8.04 has CONFIG_SND undefined, so include lum sound/config.h too
-ifeq ($(CONFIG_SND),)
-EXTRA_CFLAGS += -include sound/config.h
-endif

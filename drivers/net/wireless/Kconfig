@@ -31,13 +31,12 @@ config STRIP
 	---help---
 	  Say Y if you have a Metricom radio and intend to use Starmode Radio
 	  IP. STRIP is a radio protocol developed for the MosquitoNet project
-	  (on the WWW at <http://mosquitonet.stanford.edu/>) to send Internet
-	  traffic using Metricom radios.  Metricom radios are small, battery
-	  powered, 100kbit/sec packet radio transceivers, about the size and
-	  weight of a cellular telephone. (You may also have heard them called
-	  "Metricom modems" but we avoid the term "modem" because it misleads
-	  many people into thinking that you can plug a Metricom modem into a
-	  phone line and use it as a modem.)
+	  to send Internet traffic using Metricom radios.  Metricom radios are
+	  small, battery powered, 100kbit/sec packet radio transceivers, about
+	  the size and weight of a cellular telephone. (You may also have heard
+	  them called "Metricom modems" but we avoid the term "modem" because
+	  it misleads many people into thinking that you can plug a Metricom
+	  modem into a phone line and use it as a modem.)
 
 	  You can use STRIP on any Linux machine with a serial port, although
 	  it is obviously most useful for people with laptop computers. If you

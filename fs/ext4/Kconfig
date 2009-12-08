@@ -26,20 +26,6 @@ config EXT4_FS
 
 	  If unsure, say N.
 
-config EXT4DEV_COMPAT
-	bool "Enable ext4dev compatibility"
-	depends on EXT4_FS
-	help
-	  Starting with 2.6.28, the name of the ext4 filesystem was
-	  renamed from ext4dev to ext4.  Unfortunately there are some
-	  legacy userspace programs (such as klibc's fstype) have
-	  "ext4dev" hardcoded.
-
-	  To enable backwards compatibility so that systems that are
-	  still expecting to mount ext4 filesystems using ext4dev,
-	  choose Y here.   This feature will go away by 2.6.31, so
-	  please arrange to get your userspace programs fixed!
-
 config EXT4_FS_XATTR
 	bool "Ext4 extended attributes"
 	depends on EXT4_FS

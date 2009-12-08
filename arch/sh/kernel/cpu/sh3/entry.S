@@ -152,8 +152,6 @@ call_do_page_fault:
 	mov.l	1f, r0
 	mov.l	@r0, r6
 
-	sti
-
 	mov.l	3f, r0
 	mov.l	4f, r1
 	mov	r15, r4

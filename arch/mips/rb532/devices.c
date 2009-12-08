@@ -110,7 +110,6 @@ static struct korina_device korina_dev0_data = {
 static struct platform_device korina_dev0 = {
 	.id = -1,
 	.name = "korina",
-	.dev.driver_data = &korina_dev0_data,
 	.resource = korina_dev0_res,
 	.num_resources = ARRAY_SIZE(korina_dev0_res),
 };
@@ -331,6 +330,8 @@ static int __init plat_setup_devices(void)
 
 	/* set the uart clock to the current cpu frequency */
 	rb532_uart_res[0].uartclk = idt_cpu_freq;
+
+	dev_set_drvdata(&korina_dev0.dev, &korina_dev0_data);
 
 	return platform_add_devices(rb532_devs, ARRAY_SIZE(rb532_devs));
 }

@@ -178,6 +178,11 @@ asmlinkage void early_printk(const char *fmt, ...)
 
 static inline void early_console_register(struct console *con, int keep_early)
 {
+	if (early_console->index != -1) {
+		printk(KERN_CRIT "ERROR: earlyprintk= %s already used\n",
+		       con->name);
+		return;
+	}
 	early_console = con;
 	if (keep_early)
 		early_console->flags &= ~CON_BOOT;
@@ -201,8 +206,11 @@ static int __init setup_early_printk(char *buf)
 
 	while (*buf != '\0') {
 		if (!strncmp(buf, "serial", 6)) {
-			early_serial_init(buf + 6);
+			buf += 6;
+			early_serial_init(buf);
 			early_console_register(&early_serial_console, keep);
+			if (!strncmp(buf, ",ttyS", 5))
+				buf += 5;
 		}
 		if (!strncmp(buf, "ttyS", 4)) {
 			early_serial_init(buf + 4);

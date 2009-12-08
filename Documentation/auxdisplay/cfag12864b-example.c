@@ -194,7 +194,6 @@ static void cfag12864b_blit(void)
  */
 
 #include <stdio.h>
-#include <string.h>
 
 #define EXAMPLES	6
 

@@ -44,22 +44,22 @@ static void gpio_trig_work(struct work_struct *work)
 			struct gpio_trig_data, work);
 	int tmp;
 
-       if (!gpio_data->gpio)
-	       return;
+	if (!gpio_data->gpio)
+		return;
 
-       tmp = gpio_get_value(gpio_data->gpio);
-       if (gpio_data->inverted)
-	       tmp = !tmp;
+	tmp = gpio_get_value(gpio_data->gpio);
+	if (gpio_data->inverted)
+		tmp = !tmp;
 
-       if (tmp) {
-               if (gpio_data->desired_brightness)
-                       led_set_brightness(gpio_data->led,
-                                       gpio_data->desired_brightness);
-               else
-                       led_set_brightness(gpio_data->led, LED_FULL);
-       } else {
-               led_set_brightness(gpio_data->led, LED_OFF);
-       }
+	if (tmp) {
+		if (gpio_data->desired_brightness)
+			led_set_brightness(gpio_data->led,
+					   gpio_data->desired_brightness);
+		else
+			led_set_brightness(gpio_data->led, LED_FULL);
+	} else {
+		led_set_brightness(gpio_data->led, LED_OFF);
+	}
 }
 
 static ssize_t gpio_trig_brightness_show(struct device *dev,

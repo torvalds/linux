@@ -3,17 +3,14 @@
 
 #include <linux/swiotlb.h>
 
-/* SWIOTLB interface */
-
-extern int swiotlb_force;
-
 #ifdef CONFIG_SWIOTLB
 extern int swiotlb;
-extern void pci_swiotlb_init(void);
+extern int pci_swiotlb_init(void);
 #else
 #define swiotlb 0
-static inline void pci_swiotlb_init(void)
+static inline int pci_swiotlb_init(void)
 {
+	return 0;
 }
 #endif
 

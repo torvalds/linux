@@ -1163,6 +1163,8 @@ struct netxen_adapter {
 	u32 int_vec_bit;
 	u32 heartbit;
 
+	u8 mac_addr[ETH_ALEN];
+
 	struct netxen_adapter_stats stats;
 
 	struct netxen_recv_context recv_ctx;

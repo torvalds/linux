@@ -26,7 +26,7 @@ struct s3c64xx_dma_buff {
 	struct s3c64xx_dma_buff *next;
 
 	void			*pw;
-	struct pl080_lli	*lli;
+	struct pl080s_lli	*lli;
 	dma_addr_t		 lli_dma;
 };
 

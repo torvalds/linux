@@ -90,6 +90,9 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 {
 	void *ret;
 
+	if (dma_alloc_from_coherent(dev, size, dma_handle, &ret))
+		return ret;
+
 	gfp = massage_gfp_flags(dev, gfp);
 
 	ret = (void *) __get_free_pages(gfp, get_order(size));
@@ -122,6 +125,10 @@ void dma_free_coherent(struct device *dev, size_t size, void *vaddr,
 	dma_addr_t dma_handle)
 {
 	unsigned long addr = (unsigned long) vaddr;
+	int order = get_order(size);
+
+	if (dma_release_from_coherent(dev, order, vaddr))
+		return;
 
 	plat_unmap_dma_mem(dev, dma_handle, size, DMA_BIDIRECTIONAL);
 

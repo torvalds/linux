@@ -21,6 +21,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/sched.h>
 #include <linux/ucb1400.h>
 
 unsigned int ucb1400_adc_read(struct snd_ac97 *ac97, u16 adc_channel,

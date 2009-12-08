@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/input.h>
+#include <linux/input/matrix_keypad.h>
 #include <linux/gpio_keys.h>
 #include <linux/workqueue.h>
 #include <linux/err.h>
@@ -41,7 +42,6 @@
 #include <asm/delay.h>
 #include <mach/control.h>
 #include <mach/usb.h>
-#include <mach/keypad.h>
 
 #include "mmc-twl4030.h"
 
@@ -80,7 +80,7 @@ static struct platform_device ldp_smsc911x_device = {
 	},
 };
 
-static int ldp_twl4030_keymap[] = {
+static int board_keymap[] = {
 	KEY(0, 0, KEY_1),
 	KEY(1, 0, KEY_2),
 	KEY(2, 0, KEY_3),
@@ -101,11 +101,15 @@ static int ldp_twl4030_keymap[] = {
 	0
 };
 
+static struct matrix_keymap_data board_map_data = {
+	.keymap			= board_keymap,
+	.keymap_size		= ARRAY_SIZE(board_keymap),
+};
+
 static struct twl4030_keypad_data ldp_kp_twl4030_data = {
+	.keymap_data	= &board_map_data,
 	.rows		= 6,
 	.cols		= 6,
-	.keymap		= ldp_twl4030_keymap,
-	.keymapsize	= ARRAY_SIZE(ldp_twl4030_keymap),
 	.rep		= 1,
 };
 

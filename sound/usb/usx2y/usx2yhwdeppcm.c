@@ -697,7 +697,7 @@ static int snd_usX2Y_hwdep_pcm_vm_fault(struct vm_area_struct *area,
 }
 
 
-static struct vm_operations_struct snd_usX2Y_hwdep_pcm_vm_ops = {
+static const struct vm_operations_struct snd_usX2Y_hwdep_pcm_vm_ops = {
 	.open = snd_usX2Y_hwdep_pcm_vm_open,
 	.close = snd_usX2Y_hwdep_pcm_vm_close,
 	.fault = snd_usX2Y_hwdep_pcm_vm_fault,

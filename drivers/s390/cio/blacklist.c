@@ -265,13 +265,11 @@ struct ccwdev_iter {
 static void *
 cio_ignore_proc_seq_start(struct seq_file *s, loff_t *offset)
 {
-	struct ccwdev_iter *iter;
+	struct ccwdev_iter *iter = s->private;
 
 	if (*offset >= (__MAX_SUBCHANNEL + 1) * (__MAX_SSID + 1))
 		return NULL;
-	iter = kzalloc(sizeof(struct ccwdev_iter), GFP_KERNEL);
-	if (!iter)
-		return ERR_PTR(-ENOMEM);
+	memset(iter, 0, sizeof(*iter));
 	iter->ssid = *offset / (__MAX_SUBCHANNEL + 1);
 	iter->devno = *offset % (__MAX_SUBCHANNEL + 1);
 	return iter;
@@ -280,8 +278,6 @@ cio_ignore_proc_seq_start(struct seq_file *s, loff_t *offset)
 static void
 cio_ignore_proc_seq_stop(struct seq_file *s, void *it)
 {
-	if (!IS_ERR(it))
-		kfree(it);
 }
 
 static void *
@@ -378,14 +374,15 @@ static const struct seq_operations cio_ignore_proc_seq_ops = {
 static int
 cio_ignore_proc_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &cio_ignore_proc_seq_ops);
+	return seq_open_private(file, &cio_ignore_proc_seq_ops,
+				sizeof(struct ccwdev_iter));
 }
 
 static const struct file_operations cio_ignore_proc_fops = {
 	.open    = cio_ignore_proc_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = seq_release,
+	.release = seq_release_private,
 	.write   = cio_ignore_write,
 };
 

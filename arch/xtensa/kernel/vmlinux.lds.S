@@ -15,6 +15,8 @@
  */
 
 #include <asm-generic/vmlinux.lds.h>
+#include <asm/page.h>
+#include <asm/thread_info.h>
 
 #include <variant/core.h>
 #include <platform/hardware.h>
@@ -107,41 +109,18 @@ SECTIONS
 
   .fixup   : { *(.fixup) }
 
-  . = ALIGN(16);
-
-  __ex_table : {
-    __start___ex_table = .;
-    *(__ex_table)
-    __stop___ex_table = .;
-  }
-
+  EXCEPTION_TABLE(16)
   /* Data section */
 
-  . = ALIGN(XCHAL_ICACHE_LINESIZE);
   _fdata = .;
-  .data :
-  {
-    DATA_DATA
-    CONSTRUCTORS
-    . = ALIGN(XCHAL_ICACHE_LINESIZE);
-    *(.data.cacheline_aligned)
-  }
-
+  RW_DATA_SECTION(XCHAL_ICACHE_LINESIZE, PAGE_SIZE, THREAD_SIZE)
   _edata = .;
-
-  /* The initial task */
-  . = ALIGN(8192);
-  .data.init_task : { *(.data.init_task) }
 
   /* Initialization code and data: */
 
-  . = ALIGN(1 << 12);
+  . = ALIGN(PAGE_SIZE);
   __init_begin = .;
-  .init.text : {
-  	_sinittext = .;
-	INIT_TEXT
-	_einittext = .;
-  }
+  INIT_TEXT_SECTION(PAGE_SIZE)
 
   .init.data :
   {
@@ -168,36 +147,15 @@ SECTIONS
 		   .DebugInterruptVector.text);
   
     __boot_reloc_table_end = ABSOLUTE(.) ;
+
+    INIT_SETUP(XCHAL_ICACHE_LINESIZE)
+    INIT_CALLS
+    CON_INITCALL
+    SECURITY_INITCALL
+    INIT_RAM_FS
   }
 
-  . = ALIGN(XCHAL_ICACHE_LINESIZE);
-
-  __setup_start = .;
-  .init.setup : { *(.init.setup) }
-  __setup_end = .;
-
-  __initcall_start = .;
-  .initcall.init : {
-	INITCALLS
-  }
-  __initcall_end = .;
-
-  __con_initcall_start = .;
-  .con_initcall.init : { *(.con_initcall.init) }
-  __con_initcall_end = .;
-
-  SECURITY_INIT
-
-
-#ifdef CONFIG_BLK_DEV_INITRD
-  . = ALIGN(4096);
-  __initramfs_start =.;
-  .init.ramfs : { *(.init.ramfs) }
-  __initramfs_end = .;
-#endif
-
-  PERCPU(4096)
-
+  PERCPU(PAGE_SIZE)
 
   /* We need this dummy segment here */
 
@@ -252,16 +210,11 @@ SECTIONS
 		  .DoubleExceptionVector.literal)
 
   . = (LOADADDR( .DoubleExceptionVector.text ) + SIZEOF( .DoubleExceptionVector.text ) + 3) & ~ 3;
-  . = ALIGN(1 << 12);
+  . = ALIGN(PAGE_SIZE);
 
   __init_end = .;
 
-  . = ALIGN(8192);
-
-  /* BSS section */
-  _bss_start = .;
-  .bss : { *(.bss.page_aligned) *(.bss) }
-  _bss_end = .;
+  BSS_SECTION(0, 8192, 0)
 
   _end = .;
 

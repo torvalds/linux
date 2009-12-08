@@ -28,7 +28,7 @@ static int shannon_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 	GAFR &= ~(SHANNON_GPIO_EJECT_0 | SHANNON_GPIO_EJECT_1 | 
 		  SHANNON_GPIO_RDY_0 | SHANNON_GPIO_RDY_1);
 
-	skt->irq = skt->nr ? SHANNON_IRQ_GPIO_RDY_1 : SHANNON_IRQ_GPIO_RDY_0;
+	skt->socket.pci_irq = skt->nr ? SHANNON_IRQ_GPIO_RDY_1 : SHANNON_IRQ_GPIO_RDY_0;
 
 	return soc_pcmcia_request_irqs(skt, irqs, ARRAY_SIZE(irqs));
 }

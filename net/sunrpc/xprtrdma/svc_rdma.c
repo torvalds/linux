@@ -80,7 +80,7 @@ struct kmem_cache *svc_rdma_ctxt_cachep;
  * current value.
  */
 static int read_reset_stat(ctl_table *table, int write,
-			   struct file *filp, void __user *buffer, size_t *lenp,
+			   void __user *buffer, size_t *lenp,
 			   loff_t *ppos)
 {
 	atomic_t *stat = (atomic_t *)table->data;

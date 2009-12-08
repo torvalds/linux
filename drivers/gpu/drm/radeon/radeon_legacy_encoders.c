@@ -107,8 +107,6 @@ static void radeon_legacy_lvds_prepare(struct drm_encoder *encoder)
 	else
 		radeon_combios_output_lock(encoder, true);
 	radeon_legacy_lvds_dpms(encoder, DRM_MODE_DPMS_OFF);
-
-	radeon_encoder_set_active_device(encoder);
 }
 
 static void radeon_legacy_lvds_commit(struct drm_encoder *encoder)
@@ -192,6 +190,8 @@ static bool radeon_legacy_lvds_mode_fixup(struct drm_encoder *encoder,
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 
+	/* set the active encoder to connector routing */
+	radeon_encoder_set_active_device(encoder);
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
 	if (radeon_encoder->rmx_type != RMX_OFF)
@@ -218,7 +218,8 @@ static bool radeon_legacy_primary_dac_mode_fixup(struct drm_encoder *encoder,
 						 struct drm_display_mode *mode,
 						 struct drm_display_mode *adjusted_mode)
 {
-
+	/* set the active encoder to connector routing */
+	radeon_encoder_set_active_device(encoder);
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
 	return true;
@@ -272,7 +273,6 @@ static void radeon_legacy_primary_dac_prepare(struct drm_encoder *encoder)
 	else
 		radeon_combios_output_lock(encoder, true);
 	radeon_legacy_primary_dac_dpms(encoder, DRM_MODE_DPMS_OFF);
-	radeon_encoder_set_active_device(encoder);
 }
 
 static void radeon_legacy_primary_dac_commit(struct drm_encoder *encoder)
@@ -468,7 +468,6 @@ static void radeon_legacy_tmds_int_prepare(struct drm_encoder *encoder)
 	else
 		radeon_combios_output_lock(encoder, true);
 	radeon_legacy_tmds_int_dpms(encoder, DRM_MODE_DPMS_OFF);
-	radeon_encoder_set_active_device(encoder);
 }
 
 static void radeon_legacy_tmds_int_commit(struct drm_encoder *encoder)
@@ -543,6 +542,14 @@ static void radeon_legacy_tmds_int_mode_set(struct drm_encoder *encoder,
 
     fp_gen_cntl &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
 
+    fp_gen_cntl &= ~(RADEON_FP_RMX_HVSYNC_CONTROL_EN |
+		     RADEON_FP_DFP_SYNC_SEL |
+		     RADEON_FP_CRT_SYNC_SEL |
+		     RADEON_FP_CRTC_LOCK_8DOT |
+		     RADEON_FP_USE_SHADOW_EN |
+		     RADEON_FP_CRTC_USE_SHADOW_VEND |
+		     RADEON_FP_CRT_SYNC_ALT);
+
     if (1) /*  FIXME rgbBits == 8 */
 	    fp_gen_cntl |= RADEON_FP_PANEL_FORMAT;  /* 24 bit format */
     else
@@ -556,7 +563,7 @@ static void radeon_legacy_tmds_int_mode_set(struct drm_encoder *encoder,
 		    else
 			    fp_gen_cntl |= R200_FP_SOURCE_SEL_CRTC1;
 	    } else
-		    fp_gen_cntl |= RADEON_FP_SEL_CRTC1;
+		    fp_gen_cntl &= ~RADEON_FP_SEL_CRTC2;
     } else {
 	    if (ASIC_IS_R300(rdev) || rdev->family == CHIP_R200) {
 		    fp_gen_cntl &= ~R200_FP_SOURCE_SEL_MASK;
@@ -593,7 +600,8 @@ static bool radeon_legacy_tmds_ext_mode_fixup(struct drm_encoder *encoder,
 					      struct drm_display_mode *mode,
 					      struct drm_display_mode *adjusted_mode)
 {
-
+	/* set the active encoder to connector routing */
+	radeon_encoder_set_active_device(encoder);
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
 	return true;
@@ -636,7 +644,6 @@ static void radeon_legacy_tmds_ext_prepare(struct drm_encoder *encoder)
 	else
 		radeon_combios_output_lock(encoder, true);
 	radeon_legacy_tmds_ext_dpms(encoder, DRM_MODE_DPMS_OFF);
-	radeon_encoder_set_active_device(encoder);
 }
 
 static void radeon_legacy_tmds_ext_commit(struct drm_encoder *encoder)
@@ -735,7 +742,8 @@ static bool radeon_legacy_tv_dac_mode_fixup(struct drm_encoder *encoder,
 					    struct drm_display_mode *mode,
 					    struct drm_display_mode *adjusted_mode)
 {
-
+	/* set the active encoder to connector routing */
+	radeon_encoder_set_active_device(encoder);
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
 	return true;
@@ -839,7 +847,6 @@ static void radeon_legacy_tv_dac_prepare(struct drm_encoder *encoder)
 	else
 		radeon_combios_output_lock(encoder, true);
 	radeon_legacy_tv_dac_dpms(encoder, DRM_MODE_DPMS_OFF);
-	radeon_encoder_set_active_device(encoder);
 }
 
 static void radeon_legacy_tv_dac_commit(struct drm_encoder *encoder)
@@ -881,7 +888,7 @@ static void radeon_legacy_tv_dac_mode_set(struct drm_encoder *encoder,
 					R420_TV_DAC_DACADJ_MASK |
 					R420_TV_DAC_RDACPD |
 					R420_TV_DAC_GDACPD |
-					R420_TV_DAC_GDACPD |
+					R420_TV_DAC_BDACPD |
 					R420_TV_DAC_TVENABLE);
 		} else {
 			tv_dac_cntl &= ~(RADEON_TV_DAC_STD_MASK |
@@ -889,7 +896,7 @@ static void radeon_legacy_tv_dac_mode_set(struct drm_encoder *encoder,
 					RADEON_TV_DAC_DACADJ_MASK |
 					RADEON_TV_DAC_RDACPD |
 					RADEON_TV_DAC_GDACPD |
-					RADEON_TV_DAC_GDACPD);
+					RADEON_TV_DAC_BDACPD);
 		}
 
 		/*  FIXME TV */
@@ -1318,7 +1325,10 @@ radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t 
 		return;
 
 	encoder = &radeon_encoder->base;
-	encoder->possible_crtcs = 0x3;
+	if (rdev->flags & RADEON_SINGLE_CRTC)
+		encoder->possible_crtcs = 0x1;
+	else
+		encoder->possible_crtcs = 0x3;
 	encoder->possible_clones = 0;
 
 	radeon_encoder->enc_priv = NULL;

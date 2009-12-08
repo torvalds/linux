@@ -154,34 +154,38 @@ static int da903x_backlight_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int da903x_backlight_suspend(struct platform_device *pdev,
-				 pm_message_t state)
+static int da903x_backlight_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct backlight_device *bl = platform_get_drvdata(pdev);
 	return da903x_backlight_set(bl, 0);
 }
 
-static int da903x_backlight_resume(struct platform_device *pdev)
+static int da903x_backlight_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct backlight_device *bl = platform_get_drvdata(pdev);
 
 	backlight_update_status(bl);
 	return 0;
 }
-#else
-#define da903x_backlight_suspend	NULL
-#define da903x_backlight_resume		NULL
+
+static struct dev_pm_ops da903x_backlight_pm_ops = {
+	.suspend	= da903x_backlight_suspend,
+	.resume		= da903x_backlight_resume,
+};
 #endif
 
 static struct platform_driver da903x_backlight_driver = {
 	.driver		= {
 		.name	= "da903x-backlight",
 		.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm	= &da903x_backlight_pm_ops,
+#endif
 	},
 	.probe		= da903x_backlight_probe,
 	.remove		= da903x_backlight_remove,
-	.suspend	= da903x_backlight_suspend,
-	.resume		= da903x_backlight_resume,
 };
 
 static int __init da903x_backlight_init(void)

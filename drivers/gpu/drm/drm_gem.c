@@ -142,6 +142,19 @@ drm_gem_object_alloc(struct drm_device *dev, size_t size)
 	if (IS_ERR(obj->filp))
 		goto free;
 
+	/* Basically we want to disable the OOM killer and handle ENOMEM
+	 * ourselves by sacrificing pages from cached buffers.
+	 * XXX shmem_file_[gs]et_gfp_mask()
+	 */
+	mapping_set_gfp_mask(obj->filp->f_path.dentry->d_inode->i_mapping,
+			     GFP_HIGHUSER |
+			     __GFP_COLD |
+			     __GFP_FS |
+			     __GFP_RECLAIMABLE |
+			     __GFP_NORETRY |
+			     __GFP_NOWARN |
+			     __GFP_NOMEMALLOC);
+
 	kref_init(&obj->refcount);
 	kref_init(&obj->handlecount);
 	obj->size = size;
@@ -539,7 +552,7 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_RESERVED | VM_IO | VM_PFNMAP | VM_DONTEXPAND;
 	vma->vm_ops = obj->dev->driver->gem_vm_ops;
 	vma->vm_private_data = map->handle;
-	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+	vma->vm_page_prot =  pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
 
 	/* Take a ref for this mapping of the object, so that the fault
 	 * handler can dereference the mmap offset's pointer to the object.

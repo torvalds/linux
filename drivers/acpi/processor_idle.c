@@ -1166,7 +1166,6 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 #ifdef CONFIG_ACPI_PROCFS
 	struct proc_dir_entry *entry = NULL;
 #endif
-	unsigned int i;
 
 	if (boot_option_idle_override)
 		return 0;
@@ -1214,13 +1213,6 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 		acpi_processor_setup_cpuidle(pr);
 		if (cpuidle_register_device(&pr->power.dev))
 			return -EIO;
-
-		printk(KERN_INFO PREFIX "CPU%d (power states:", pr->id);
-		for (i = 1; i <= pr->power.count; i++)
-			if (pr->power.states[i].valid)
-				printk(" C%d[C%d]", i,
-				       pr->power.states[i].type);
-		printk(")\n");
 	}
 #ifdef CONFIG_ACPI_PROCFS
 	/* 'power' [R] */

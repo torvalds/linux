@@ -528,7 +528,7 @@ static int romfs_fill_super(struct super_block *sb, void *data, int silent)
 	pos = (ROMFH_SIZE + len + 1 + ROMFH_PAD) & ROMFH_MASK;
 
 	root = romfs_iget(sb, pos);
-	if (!root)
+	if (IS_ERR(root))
 		goto error;
 
 	sb->s_root = d_alloc_root(root);

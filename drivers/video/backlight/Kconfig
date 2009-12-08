@@ -31,6 +31,13 @@ config LCD_CORGI
 	  Say y here to support the LCD panels usually found on SHARP
 	  corgi (C7x0) and spitz (Cxx00) models.
 
+config LCD_LMS283GF05
+	tristate "Samsung LMS283GF05 LCD"
+	depends on LCD_CLASS_DEVICE && SPI_MASTER && GENERIC_GPIO
+	help
+	  SPI driver for Samsung LMS283GF05. This provides basic support
+	  for powering the LCD up/down through a sysfs interface.
+
 config LCD_LTV350QV
 	tristate "Samsung LTV350QV LCD Panel"
 	depends on LCD_CLASS_DEVICE && SPI_MASTER
@@ -229,3 +236,29 @@ config BACKLIGHT_SAHARA
 	help
 	  If you have a Tabletkiosk Sahara Touch-iT, say y to enable the
 	  backlight driver.
+
+config BACKLIGHT_WM831X
+	tristate "WM831x PMIC Backlight Driver"
+	depends on BACKLIGHT_CLASS_DEVICE && MFD_WM831X
+	help
+	  If you have a backlight driven by the ISINK and DCDC of a
+	  WM831x PMIC say y to enable the backlight driver for it.
+
+config BACKLIGHT_ADX
+	tristate "Avionic Design Xanthos Backlight Driver"
+	depends on BACKLIGHT_CLASS_DEVICE && ARCH_PXA_ADX
+	default y
+	help
+	  Say Y to enable the backlight driver on Avionic Design Xanthos-based
+	  boards.
+
+config BACKLIGHT_ADP5520
+	tristate "Backlight Driver for ADP5520/ADP5501 using WLED"
+	depends on BACKLIGHT_CLASS_DEVICE && PMIC_ADP5520
+	help
+	  If you have a LCD backlight connected to the BST/BL_SNK output of
+	  ADP5520 or ADP5501, say Y here to enable this driver.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called adp5520_bl.
+

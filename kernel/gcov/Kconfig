@@ -34,7 +34,7 @@ config GCOV_KERNEL
 config GCOV_PROFILE_ALL
 	bool "Profile entire Kernel"
 	depends on GCOV_KERNEL
-	depends on S390 || X86 || (PPC && EXPERIMENTAL)
+	depends on S390 || X86 || (PPC && EXPERIMENTAL) || MICROBLAZE
 	default n
 	---help---
 	This options activates profiling for the entire kernel.

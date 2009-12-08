@@ -52,18 +52,8 @@ extern u8 mb_enable_debug;
 #define mb_debug(n, fmt, a...)
 #endif
 
-/*
- * with EXT4_MB_HISTORY mballoc stores last N allocations in memory
- * and you can monitor it in /proc/fs/ext4/<dev>/mb_history
- */
-#define EXT4_MB_HISTORY
 #define EXT4_MB_HISTORY_ALLOC		1	/* allocation */
 #define EXT4_MB_HISTORY_PREALLOC	2	/* preallocated blocks used */
-#define EXT4_MB_HISTORY_DISCARD		4	/* preallocation discarded */
-#define EXT4_MB_HISTORY_FREE		8	/* free */
-
-#define EXT4_MB_HISTORY_DEFAULT		(EXT4_MB_HISTORY_ALLOC | \
-					 EXT4_MB_HISTORY_PREALLOC)
 
 /*
  * How long mballoc can look for a best extent (in found extents)
@@ -84,7 +74,7 @@ extern u8 mb_enable_debug;
  * with 'ext4_mb_stats' allocator will collect stats that will be
  * shown at umount. The collecting costs though!
  */
-#define MB_DEFAULT_STATS		1
+#define MB_DEFAULT_STATS		0
 
 /*
  * files smaller than MB_DEFAULT_STREAM_THRESHOLD are served
@@ -217,22 +207,6 @@ struct ext4_allocation_context {
 #define AC_STATUS_FOUND		2
 #define AC_STATUS_BREAK		3
 
-struct ext4_mb_history {
-	struct ext4_free_extent orig;	/* orig allocation */
-	struct ext4_free_extent goal;	/* goal allocation */
-	struct ext4_free_extent result;	/* result allocation */
-	unsigned pid;
-	unsigned ino;
-	__u16 found;	/* how many extents have been found */
-	__u16 groups;	/* how many groups have been scanned */
-	__u16 tail;	/* what tail broke some buddy */
-	__u16 buddy;	/* buddy the tail ^^^ broke */
-	__u16 flags;
-	__u8 cr:3;	/* which phase the result extent was found at */
-	__u8 op:4;
-	__u8 merged:1;
-};
-
 struct ext4_buddy {
 	struct page *bd_buddy_page;
 	void *bd_buddy;
@@ -246,13 +220,6 @@ struct ext4_buddy {
 };
 #define EXT4_MB_BITMAP(e4b)	((e4b)->bd_bitmap)
 #define EXT4_MB_BUDDY(e4b)	((e4b)->bd_buddy)
-
-#ifndef EXT4_MB_HISTORY
-static inline void ext4_mb_store_history(struct ext4_allocation_context *ac)
-{
-	return;
-}
-#endif
 
 #define in_range(b, first, len)	((b) >= (first) && (b) <= (first) + (len) - 1)
 

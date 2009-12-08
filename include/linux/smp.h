@@ -73,15 +73,6 @@ int smp_call_function(void(*func)(void *info), void *info, int wait);
 void smp_call_function_many(const struct cpumask *mask,
 			    void (*func)(void *info), void *info, bool wait);
 
-/* Deprecated: Use smp_call_function_many which takes a pointer to the mask. */
-static inline int
-smp_call_function_mask(cpumask_t mask, void(*func)(void *info), void *info,
-		       int wait)
-{
-	smp_call_function_many(&mask, func, info, wait);
-	return 0;
-}
-
 void __smp_call_function_single(int cpuid, struct call_single_data *data,
 				int wait);
 
@@ -144,8 +135,6 @@ static inline int up_smp_call_function(void (*func)(void *), void *info)
 static inline void smp_send_reschedule(int cpu) { }
 #define num_booting_cpus()			1
 #define smp_prepare_boot_cpu()			do {} while (0)
-#define smp_call_function_mask(mask, func, info, wait) \
-			(up_smp_call_function(func, info))
 #define smp_call_function_many(mask, func, info, wait) \
 			(up_smp_call_function(func, info))
 static inline void init_call_single_data(void)

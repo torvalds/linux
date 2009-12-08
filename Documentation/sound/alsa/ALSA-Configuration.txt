@@ -522,7 +522,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     pcm_devs       - Number of PCM devices assigned to each card
                      (default = 1, up to 4)
     pcm_substreams - Number of PCM substreams assigned to each PCM
-                     (default = 8, up to 16)
+                     (default = 8, up to 128)
     hrtimer        - Use hrtimer (=1, default) or system timer (=0)
     fake_buffer    - Fake buffer allocations (default = 1)
 

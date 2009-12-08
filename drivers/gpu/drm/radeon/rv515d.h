@@ -216,5 +216,388 @@
 #define CP_PACKET0_GET_ONE_REG_WR(h) (((h) >> 15) & 1)
 #define CP_PACKET3_GET_OPCODE(h) (((h) >> 8) & 0xFF)
 
-#endif
+/* Registers */
+#define R_0000F8_CONFIG_MEMSIZE                      0x0000F8
+#define   S_0000F8_CONFIG_MEMSIZE(x)                   (((x) & 0xFFFFFFFF) << 0)
+#define   G_0000F8_CONFIG_MEMSIZE(x)                   (((x) >> 0) & 0xFFFFFFFF)
+#define   C_0000F8_CONFIG_MEMSIZE                      0x00000000
+#define R_000134_HDP_FB_LOCATION                     0x000134
+#define   S_000134_HDP_FB_START(x)                     (((x) & 0xFFFF) << 0)
+#define   G_000134_HDP_FB_START(x)                     (((x) >> 0) & 0xFFFF)
+#define   C_000134_HDP_FB_START                        0xFFFF0000
+#define R_000300_VGA_RENDER_CONTROL                  0x000300
+#define   S_000300_VGA_BLINK_RATE(x)                   (((x) & 0x1F) << 0)
+#define   G_000300_VGA_BLINK_RATE(x)                   (((x) >> 0) & 0x1F)
+#define   C_000300_VGA_BLINK_RATE                      0xFFFFFFE0
+#define   S_000300_VGA_BLINK_MODE(x)                   (((x) & 0x3) << 5)
+#define   G_000300_VGA_BLINK_MODE(x)                   (((x) >> 5) & 0x3)
+#define   C_000300_VGA_BLINK_MODE                      0xFFFFFF9F
+#define   S_000300_VGA_CURSOR_BLINK_INVERT(x)          (((x) & 0x1) << 7)
+#define   G_000300_VGA_CURSOR_BLINK_INVERT(x)          (((x) >> 7) & 0x1)
+#define   C_000300_VGA_CURSOR_BLINK_INVERT             0xFFFFFF7F
+#define   S_000300_VGA_EXTD_ADDR_COUNT_ENABLE(x)       (((x) & 0x1) << 8)
+#define   G_000300_VGA_EXTD_ADDR_COUNT_ENABLE(x)       (((x) >> 8) & 0x1)
+#define   C_000300_VGA_EXTD_ADDR_COUNT_ENABLE          0xFFFFFEFF
+#define   S_000300_VGA_VSTATUS_CNTL(x)                 (((x) & 0x3) << 16)
+#define   G_000300_VGA_VSTATUS_CNTL(x)                 (((x) >> 16) & 0x3)
+#define   C_000300_VGA_VSTATUS_CNTL                    0xFFFCFFFF
+#define   S_000300_VGA_LOCK_8DOT(x)                    (((x) & 0x1) << 24)
+#define   G_000300_VGA_LOCK_8DOT(x)                    (((x) >> 24) & 0x1)
+#define   C_000300_VGA_LOCK_8DOT                       0xFEFFFFFF
+#define   S_000300_VGAREG_LINECMP_COMPATIBILITY_SEL(x) (((x) & 0x1) << 25)
+#define   G_000300_VGAREG_LINECMP_COMPATIBILITY_SEL(x) (((x) >> 25) & 0x1)
+#define   C_000300_VGAREG_LINECMP_COMPATIBILITY_SEL    0xFDFFFFFF
+#define R_000310_VGA_MEMORY_BASE_ADDRESS             0x000310
+#define   S_000310_VGA_MEMORY_BASE_ADDRESS(x)          (((x) & 0xFFFFFFFF) << 0)
+#define   G_000310_VGA_MEMORY_BASE_ADDRESS(x)          (((x) >> 0) & 0xFFFFFFFF)
+#define   C_000310_VGA_MEMORY_BASE_ADDRESS             0x00000000
+#define R_000328_VGA_HDP_CONTROL                     0x000328
+#define   S_000328_VGA_MEM_PAGE_SELECT_EN(x)           (((x) & 0x1) << 0)
+#define   G_000328_VGA_MEM_PAGE_SELECT_EN(x)           (((x) >> 0) & 0x1)
+#define   C_000328_VGA_MEM_PAGE_SELECT_EN              0xFFFFFFFE
+#define   S_000328_VGA_RBBM_LOCK_DISABLE(x)            (((x) & 0x1) << 8)
+#define   G_000328_VGA_RBBM_LOCK_DISABLE(x)            (((x) >> 8) & 0x1)
+#define   C_000328_VGA_RBBM_LOCK_DISABLE               0xFFFFFEFF
+#define   S_000328_VGA_SOFT_RESET(x)                   (((x) & 0x1) << 16)
+#define   G_000328_VGA_SOFT_RESET(x)                   (((x) >> 16) & 0x1)
+#define   C_000328_VGA_SOFT_RESET                      0xFFFEFFFF
+#define   S_000328_VGA_TEST_RESET_CONTROL(x)           (((x) & 0x1) << 24)
+#define   G_000328_VGA_TEST_RESET_CONTROL(x)           (((x) >> 24) & 0x1)
+#define   C_000328_VGA_TEST_RESET_CONTROL              0xFEFFFFFF
+#define R_000330_D1VGA_CONTROL                       0x000330
+#define   S_000330_D1VGA_MODE_ENABLE(x)                (((x) & 0x1) << 0)
+#define   G_000330_D1VGA_MODE_ENABLE(x)                (((x) >> 0) & 0x1)
+#define   C_000330_D1VGA_MODE_ENABLE                   0xFFFFFFFE
+#define   S_000330_D1VGA_TIMING_SELECT(x)              (((x) & 0x1) << 8)
+#define   G_000330_D1VGA_TIMING_SELECT(x)              (((x) >> 8) & 0x1)
+#define   C_000330_D1VGA_TIMING_SELECT                 0xFFFFFEFF
+#define   S_000330_D1VGA_SYNC_POLARITY_SELECT(x)       (((x) & 0x1) << 9)
+#define   G_000330_D1VGA_SYNC_POLARITY_SELECT(x)       (((x) >> 9) & 0x1)
+#define   C_000330_D1VGA_SYNC_POLARITY_SELECT          0xFFFFFDFF
+#define   S_000330_D1VGA_OVERSCAN_TIMING_SELECT(x)     (((x) & 0x1) << 10)
+#define   G_000330_D1VGA_OVERSCAN_TIMING_SELECT(x)     (((x) >> 10) & 0x1)
+#define   C_000330_D1VGA_OVERSCAN_TIMING_SELECT        0xFFFFFBFF
+#define   S_000330_D1VGA_OVERSCAN_COLOR_EN(x)          (((x) & 0x1) << 16)
+#define   G_000330_D1VGA_OVERSCAN_COLOR_EN(x)          (((x) >> 16) & 0x1)
+#define   C_000330_D1VGA_OVERSCAN_COLOR_EN             0xFFFEFFFF
+#define   S_000330_D1VGA_ROTATE(x)                     (((x) & 0x3) << 24)
+#define   G_000330_D1VGA_ROTATE(x)                     (((x) >> 24) & 0x3)
+#define   C_000330_D1VGA_ROTATE                        0xFCFFFFFF
+#define R_000338_D2VGA_CONTROL                       0x000338
+#define   S_000338_D2VGA_MODE_ENABLE(x)                (((x) & 0x1) << 0)
+#define   G_000338_D2VGA_MODE_ENABLE(x)                (((x) >> 0) & 0x1)
+#define   C_000338_D2VGA_MODE_ENABLE                   0xFFFFFFFE
+#define   S_000338_D2VGA_TIMING_SELECT(x)              (((x) & 0x1) << 8)
+#define   G_000338_D2VGA_TIMING_SELECT(x)              (((x) >> 8) & 0x1)
+#define   C_000338_D2VGA_TIMING_SELECT                 0xFFFFFEFF
+#define   S_000338_D2VGA_SYNC_POLARITY_SELECT(x)       (((x) & 0x1) << 9)
+#define   G_000338_D2VGA_SYNC_POLARITY_SELECT(x)       (((x) >> 9) & 0x1)
+#define   C_000338_D2VGA_SYNC_POLARITY_SELECT          0xFFFFFDFF
+#define   S_000338_D2VGA_OVERSCAN_TIMING_SELECT(x)     (((x) & 0x1) << 10)
+#define   G_000338_D2VGA_OVERSCAN_TIMING_SELECT(x)     (((x) >> 10) & 0x1)
+#define   C_000338_D2VGA_OVERSCAN_TIMING_SELECT        0xFFFFFBFF
+#define   S_000338_D2VGA_OVERSCAN_COLOR_EN(x)          (((x) & 0x1) << 16)
+#define   G_000338_D2VGA_OVERSCAN_COLOR_EN(x)          (((x) >> 16) & 0x1)
+#define   C_000338_D2VGA_OVERSCAN_COLOR_EN             0xFFFEFFFF
+#define   S_000338_D2VGA_ROTATE(x)                     (((x) & 0x3) << 24)
+#define   G_000338_D2VGA_ROTATE(x)                     (((x) >> 24) & 0x3)
+#define   C_000338_D2VGA_ROTATE                        0xFCFFFFFF
+#define R_0007C0_CP_STAT                             0x0007C0
+#define   S_0007C0_MRU_BUSY(x)                         (((x) & 0x1) << 0)
+#define   G_0007C0_MRU_BUSY(x)                         (((x) >> 0) & 0x1)
+#define   C_0007C0_MRU_BUSY                            0xFFFFFFFE
+#define   S_0007C0_MWU_BUSY(x)                         (((x) & 0x1) << 1)
+#define   G_0007C0_MWU_BUSY(x)                         (((x) >> 1) & 0x1)
+#define   C_0007C0_MWU_BUSY                            0xFFFFFFFD
+#define   S_0007C0_RSIU_BUSY(x)                        (((x) & 0x1) << 2)
+#define   G_0007C0_RSIU_BUSY(x)                        (((x) >> 2) & 0x1)
+#define   C_0007C0_RSIU_BUSY                           0xFFFFFFFB
+#define   S_0007C0_RCIU_BUSY(x)                        (((x) & 0x1) << 3)
+#define   G_0007C0_RCIU_BUSY(x)                        (((x) >> 3) & 0x1)
+#define   C_0007C0_RCIU_BUSY                           0xFFFFFFF7
+#define   S_0007C0_CSF_PRIMARY_BUSY(x)                 (((x) & 0x1) << 9)
+#define   G_0007C0_CSF_PRIMARY_BUSY(x)                 (((x) >> 9) & 0x1)
+#define   C_0007C0_CSF_PRIMARY_BUSY                    0xFFFFFDFF
+#define   S_0007C0_CSF_INDIRECT_BUSY(x)                (((x) & 0x1) << 10)
+#define   G_0007C0_CSF_INDIRECT_BUSY(x)                (((x) >> 10) & 0x1)
+#define   C_0007C0_CSF_INDIRECT_BUSY                   0xFFFFFBFF
+#define   S_0007C0_CSQ_PRIMARY_BUSY(x)                 (((x) & 0x1) << 11)
+#define   G_0007C0_CSQ_PRIMARY_BUSY(x)                 (((x) >> 11) & 0x1)
+#define   C_0007C0_CSQ_PRIMARY_BUSY                    0xFFFFF7FF
+#define   S_0007C0_CSQ_INDIRECT_BUSY(x)                (((x) & 0x1) << 12)
+#define   G_0007C0_CSQ_INDIRECT_BUSY(x)                (((x) >> 12) & 0x1)
+#define   C_0007C0_CSQ_INDIRECT_BUSY                   0xFFFFEFFF
+#define   S_0007C0_CSI_BUSY(x)                         (((x) & 0x1) << 13)
+#define   G_0007C0_CSI_BUSY(x)                         (((x) >> 13) & 0x1)
+#define   C_0007C0_CSI_BUSY                            0xFFFFDFFF
+#define   S_0007C0_CSF_INDIRECT2_BUSY(x)               (((x) & 0x1) << 14)
+#define   G_0007C0_CSF_INDIRECT2_BUSY(x)               (((x) >> 14) & 0x1)
+#define   C_0007C0_CSF_INDIRECT2_BUSY                  0xFFFFBFFF
+#define   S_0007C0_CSQ_INDIRECT2_BUSY(x)               (((x) & 0x1) << 15)
+#define   G_0007C0_CSQ_INDIRECT2_BUSY(x)               (((x) >> 15) & 0x1)
+#define   C_0007C0_CSQ_INDIRECT2_BUSY                  0xFFFF7FFF
+#define   S_0007C0_GUIDMA_BUSY(x)                      (((x) & 0x1) << 28)
+#define   G_0007C0_GUIDMA_BUSY(x)                      (((x) >> 28) & 0x1)
+#define   C_0007C0_GUIDMA_BUSY                         0xEFFFFFFF
+#define   S_0007C0_VIDDMA_BUSY(x)                      (((x) & 0x1) << 29)
+#define   G_0007C0_VIDDMA_BUSY(x)                      (((x) >> 29) & 0x1)
+#define   C_0007C0_VIDDMA_BUSY                         0xDFFFFFFF
+#define   S_0007C0_CMDSTRM_BUSY(x)                     (((x) & 0x1) << 30)
+#define   G_0007C0_CMDSTRM_BUSY(x)                     (((x) >> 30) & 0x1)
+#define   C_0007C0_CMDSTRM_BUSY                        0xBFFFFFFF
+#define   S_0007C0_CP_BUSY(x)                          (((x) & 0x1) << 31)
+#define   G_0007C0_CP_BUSY(x)                          (((x) >> 31) & 0x1)
+#define   C_0007C0_CP_BUSY                             0x7FFFFFFF
+#define R_000E40_RBBM_STATUS                         0x000E40
+#define   S_000E40_CMDFIFO_AVAIL(x)                    (((x) & 0x7F) << 0)
+#define   G_000E40_CMDFIFO_AVAIL(x)                    (((x) >> 0) & 0x7F)
+#define   C_000E40_CMDFIFO_AVAIL                       0xFFFFFF80
+#define   S_000E40_HIRQ_ON_RBB(x)                      (((x) & 0x1) << 8)
+#define   G_000E40_HIRQ_ON_RBB(x)                      (((x) >> 8) & 0x1)
+#define   C_000E40_HIRQ_ON_RBB                         0xFFFFFEFF
+#define   S_000E40_CPRQ_ON_RBB(x)                      (((x) & 0x1) << 9)
+#define   G_000E40_CPRQ_ON_RBB(x)                      (((x) >> 9) & 0x1)
+#define   C_000E40_CPRQ_ON_RBB                         0xFFFFFDFF
+#define   S_000E40_CFRQ_ON_RBB(x)                      (((x) & 0x1) << 10)
+#define   G_000E40_CFRQ_ON_RBB(x)                      (((x) >> 10) & 0x1)
+#define   C_000E40_CFRQ_ON_RBB                         0xFFFFFBFF
+#define   S_000E40_HIRQ_IN_RTBUF(x)                    (((x) & 0x1) << 11)
+#define   G_000E40_HIRQ_IN_RTBUF(x)                    (((x) >> 11) & 0x1)
+#define   C_000E40_HIRQ_IN_RTBUF                       0xFFFFF7FF
+#define   S_000E40_CPRQ_IN_RTBUF(x)                    (((x) & 0x1) << 12)
+#define   G_000E40_CPRQ_IN_RTBUF(x)                    (((x) >> 12) & 0x1)
+#define   C_000E40_CPRQ_IN_RTBUF                       0xFFFFEFFF
+#define   S_000E40_CFRQ_IN_RTBUF(x)                    (((x) & 0x1) << 13)
+#define   G_000E40_CFRQ_IN_RTBUF(x)                    (((x) >> 13) & 0x1)
+#define   C_000E40_CFRQ_IN_RTBUF                       0xFFFFDFFF
+#define   S_000E40_CF_PIPE_BUSY(x)                     (((x) & 0x1) << 14)
+#define   G_000E40_CF_PIPE_BUSY(x)                     (((x) >> 14) & 0x1)
+#define   C_000E40_CF_PIPE_BUSY                        0xFFFFBFFF
+#define   S_000E40_ENG_EV_BUSY(x)                      (((x) & 0x1) << 15)
+#define   G_000E40_ENG_EV_BUSY(x)                      (((x) >> 15) & 0x1)
+#define   C_000E40_ENG_EV_BUSY                         0xFFFF7FFF
+#define   S_000E40_CP_CMDSTRM_BUSY(x)                  (((x) & 0x1) << 16)
+#define   G_000E40_CP_CMDSTRM_BUSY(x)                  (((x) >> 16) & 0x1)
+#define   C_000E40_CP_CMDSTRM_BUSY                     0xFFFEFFFF
+#define   S_000E40_E2_BUSY(x)                          (((x) & 0x1) << 17)
+#define   G_000E40_E2_BUSY(x)                          (((x) >> 17) & 0x1)
+#define   C_000E40_E2_BUSY                             0xFFFDFFFF
+#define   S_000E40_RB2D_BUSY(x)                        (((x) & 0x1) << 18)
+#define   G_000E40_RB2D_BUSY(x)                        (((x) >> 18) & 0x1)
+#define   C_000E40_RB2D_BUSY                           0xFFFBFFFF
+#define   S_000E40_RB3D_BUSY(x)                        (((x) & 0x1) << 19)
+#define   G_000E40_RB3D_BUSY(x)                        (((x) >> 19) & 0x1)
+#define   C_000E40_RB3D_BUSY                           0xFFF7FFFF
+#define   S_000E40_VAP_BUSY(x)                         (((x) & 0x1) << 20)
+#define   G_000E40_VAP_BUSY(x)                         (((x) >> 20) & 0x1)
+#define   C_000E40_VAP_BUSY                            0xFFEFFFFF
+#define   S_000E40_RE_BUSY(x)                          (((x) & 0x1) << 21)
+#define   G_000E40_RE_BUSY(x)                          (((x) >> 21) & 0x1)
+#define   C_000E40_RE_BUSY                             0xFFDFFFFF
+#define   S_000E40_TAM_BUSY(x)                         (((x) & 0x1) << 22)
+#define   G_000E40_TAM_BUSY(x)                         (((x) >> 22) & 0x1)
+#define   C_000E40_TAM_BUSY                            0xFFBFFFFF
+#define   S_000E40_TDM_BUSY(x)                         (((x) & 0x1) << 23)
+#define   G_000E40_TDM_BUSY(x)                         (((x) >> 23) & 0x1)
+#define   C_000E40_TDM_BUSY                            0xFF7FFFFF
+#define   S_000E40_PB_BUSY(x)                          (((x) & 0x1) << 24)
+#define   G_000E40_PB_BUSY(x)                          (((x) >> 24) & 0x1)
+#define   C_000E40_PB_BUSY                             0xFEFFFFFF
+#define   S_000E40_TIM_BUSY(x)                         (((x) & 0x1) << 25)
+#define   G_000E40_TIM_BUSY(x)                         (((x) >> 25) & 0x1)
+#define   C_000E40_TIM_BUSY                            0xFDFFFFFF
+#define   S_000E40_GA_BUSY(x)                          (((x) & 0x1) << 26)
+#define   G_000E40_GA_BUSY(x)                          (((x) >> 26) & 0x1)
+#define   C_000E40_GA_BUSY                             0xFBFFFFFF
+#define   S_000E40_CBA2D_BUSY(x)                       (((x) & 0x1) << 27)
+#define   G_000E40_CBA2D_BUSY(x)                       (((x) >> 27) & 0x1)
+#define   C_000E40_CBA2D_BUSY                          0xF7FFFFFF
+#define   S_000E40_RBBM_HIBUSY(x)                      (((x) & 0x1) << 28)
+#define   G_000E40_RBBM_HIBUSY(x)                      (((x) >> 28) & 0x1)
+#define   C_000E40_RBBM_HIBUSY                         0xEFFFFFFF
+#define   S_000E40_SKID_CFBUSY(x)                      (((x) & 0x1) << 29)
+#define   G_000E40_SKID_CFBUSY(x)                      (((x) >> 29) & 0x1)
+#define   C_000E40_SKID_CFBUSY                         0xDFFFFFFF
+#define   S_000E40_VAP_VF_BUSY(x)                      (((x) & 0x1) << 30)
+#define   G_000E40_VAP_VF_BUSY(x)                      (((x) >> 30) & 0x1)
+#define   C_000E40_VAP_VF_BUSY                         0xBFFFFFFF
+#define   S_000E40_GUI_ACTIVE(x)                       (((x) & 0x1) << 31)
+#define   G_000E40_GUI_ACTIVE(x)                       (((x) >> 31) & 0x1)
+#define   C_000E40_GUI_ACTIVE                          0x7FFFFFFF
+#define R_006080_D1CRTC_CONTROL                      0x006080
+#define   S_006080_D1CRTC_MASTER_EN(x)                 (((x) & 0x1) << 0)
+#define   G_006080_D1CRTC_MASTER_EN(x)                 (((x) >> 0) & 0x1)
+#define   C_006080_D1CRTC_MASTER_EN                    0xFFFFFFFE
+#define   S_006080_D1CRTC_SYNC_RESET_SEL(x)            (((x) & 0x1) << 4)
+#define   G_006080_D1CRTC_SYNC_RESET_SEL(x)            (((x) >> 4) & 0x1)
+#define   C_006080_D1CRTC_SYNC_RESET_SEL               0xFFFFFFEF
+#define   S_006080_D1CRTC_DISABLE_POINT_CNTL(x)        (((x) & 0x3) << 8)
+#define   G_006080_D1CRTC_DISABLE_POINT_CNTL(x)        (((x) >> 8) & 0x3)
+#define   C_006080_D1CRTC_DISABLE_POINT_CNTL           0xFFFFFCFF
+#define   S_006080_D1CRTC_CURRENT_MASTER_EN_STATE(x)   (((x) & 0x1) << 16)
+#define   G_006080_D1CRTC_CURRENT_MASTER_EN_STATE(x)   (((x) >> 16) & 0x1)
+#define   C_006080_D1CRTC_CURRENT_MASTER_EN_STATE      0xFFFEFFFF
+#define   S_006080_D1CRTC_DISP_READ_REQUEST_DISABLE(x) (((x) & 0x1) << 24)
+#define   G_006080_D1CRTC_DISP_READ_REQUEST_DISABLE(x) (((x) >> 24) & 0x1)
+#define   C_006080_D1CRTC_DISP_READ_REQUEST_DISABLE    0xFEFFFFFF
+#define R_0060E8_D1CRTC_UPDATE_LOCK                  0x0060E8
+#define   S_0060E8_D1CRTC_UPDATE_LOCK(x)               (((x) & 0x1) << 0)
+#define   G_0060E8_D1CRTC_UPDATE_LOCK(x)               (((x) >> 0) & 0x1)
+#define   C_0060E8_D1CRTC_UPDATE_LOCK                  0xFFFFFFFE
+#define R_006110_D1GRPH_PRIMARY_SURFACE_ADDRESS      0x006110
+#define   S_006110_D1GRPH_PRIMARY_SURFACE_ADDRESS(x)   (((x) & 0xFFFFFFFF) << 0)
+#define   G_006110_D1GRPH_PRIMARY_SURFACE_ADDRESS(x)   (((x) >> 0) & 0xFFFFFFFF)
+#define   C_006110_D1GRPH_PRIMARY_SURFACE_ADDRESS      0x00000000
+#define R_006118_D1GRPH_SECONDARY_SURFACE_ADDRESS    0x006118
+#define   S_006118_D1GRPH_SECONDARY_SURFACE_ADDRESS(x) (((x) & 0xFFFFFFFF) << 0)
+#define   G_006118_D1GRPH_SECONDARY_SURFACE_ADDRESS(x) (((x) >> 0) & 0xFFFFFFFF)
+#define   C_006118_D1GRPH_SECONDARY_SURFACE_ADDRESS    0x00000000
+#define R_006880_D2CRTC_CONTROL                      0x006880
+#define   S_006880_D2CRTC_MASTER_EN(x)                 (((x) & 0x1) << 0)
+#define   G_006880_D2CRTC_MASTER_EN(x)                 (((x) >> 0) & 0x1)
+#define   C_006880_D2CRTC_MASTER_EN                    0xFFFFFFFE
+#define   S_006880_D2CRTC_SYNC_RESET_SEL(x)            (((x) & 0x1) << 4)
+#define   G_006880_D2CRTC_SYNC_RESET_SEL(x)            (((x) >> 4) & 0x1)
+#define   C_006880_D2CRTC_SYNC_RESET_SEL               0xFFFFFFEF
+#define   S_006880_D2CRTC_DISABLE_POINT_CNTL(x)        (((x) & 0x3) << 8)
+#define   G_006880_D2CRTC_DISABLE_POINT_CNTL(x)        (((x) >> 8) & 0x3)
+#define   C_006880_D2CRTC_DISABLE_POINT_CNTL           0xFFFFFCFF
+#define   S_006880_D2CRTC_CURRENT_MASTER_EN_STATE(x)   (((x) & 0x1) << 16)
+#define   G_006880_D2CRTC_CURRENT_MASTER_EN_STATE(x)   (((x) >> 16) & 0x1)
+#define   C_006880_D2CRTC_CURRENT_MASTER_EN_STATE      0xFFFEFFFF
+#define   S_006880_D2CRTC_DISP_READ_REQUEST_DISABLE(x) (((x) & 0x1) << 24)
+#define   G_006880_D2CRTC_DISP_READ_REQUEST_DISABLE(x) (((x) >> 24) & 0x1)
+#define   C_006880_D2CRTC_DISP_READ_REQUEST_DISABLE    0xFEFFFFFF
+#define R_0068E8_D2CRTC_UPDATE_LOCK                  0x0068E8
+#define   S_0068E8_D2CRTC_UPDATE_LOCK(x)               (((x) & 0x1) << 0)
+#define   G_0068E8_D2CRTC_UPDATE_LOCK(x)               (((x) >> 0) & 0x1)
+#define   C_0068E8_D2CRTC_UPDATE_LOCK                  0xFFFFFFFE
+#define R_006910_D2GRPH_PRIMARY_SURFACE_ADDRESS      0x006910
+#define   S_006910_D2GRPH_PRIMARY_SURFACE_ADDRESS(x)   (((x) & 0xFFFFFFFF) << 0)
+#define   G_006910_D2GRPH_PRIMARY_SURFACE_ADDRESS(x)   (((x) >> 0) & 0xFFFFFFFF)
+#define   C_006910_D2GRPH_PRIMARY_SURFACE_ADDRESS      0x00000000
+#define R_006918_D2GRPH_SECONDARY_SURFACE_ADDRESS    0x006918
+#define   S_006918_D2GRPH_SECONDARY_SURFACE_ADDRESS(x) (((x) & 0xFFFFFFFF) << 0)
+#define   G_006918_D2GRPH_SECONDARY_SURFACE_ADDRESS(x) (((x) >> 0) & 0xFFFFFFFF)
+#define   C_006918_D2GRPH_SECONDARY_SURFACE_ADDRESS    0x00000000
 
+
+#define R_000001_MC_FB_LOCATION                      0x000001
+#define   S_000001_MC_FB_START(x)                      (((x) & 0xFFFF) << 0)
+#define   G_000001_MC_FB_START(x)                      (((x) >> 0) & 0xFFFF)
+#define   C_000001_MC_FB_START                         0xFFFF0000
+#define   S_000001_MC_FB_TOP(x)                        (((x) & 0xFFFF) << 16)
+#define   G_000001_MC_FB_TOP(x)                        (((x) >> 16) & 0xFFFF)
+#define   C_000001_MC_FB_TOP                           0x0000FFFF
+#define R_000002_MC_AGP_LOCATION                     0x000002
+#define   S_000002_MC_AGP_START(x)                     (((x) & 0xFFFF) << 0)
+#define   G_000002_MC_AGP_START(x)                     (((x) >> 0) & 0xFFFF)
+#define   C_000002_MC_AGP_START                        0xFFFF0000
+#define   S_000002_MC_AGP_TOP(x)                       (((x) & 0xFFFF) << 16)
+#define   G_000002_MC_AGP_TOP(x)                       (((x) >> 16) & 0xFFFF)
+#define   C_000002_MC_AGP_TOP                          0x0000FFFF
+#define R_000003_MC_AGP_BASE                         0x000003
+#define   S_000003_AGP_BASE_ADDR(x)                    (((x) & 0xFFFFFFFF) << 0)
+#define   G_000003_AGP_BASE_ADDR(x)                    (((x) >> 0) & 0xFFFFFFFF)
+#define   C_000003_AGP_BASE_ADDR                       0x00000000
+#define R_000004_MC_AGP_BASE_2                       0x000004
+#define   S_000004_AGP_BASE_ADDR_2(x)                  (((x) & 0xF) << 0)
+#define   G_000004_AGP_BASE_ADDR_2(x)                  (((x) >> 0) & 0xF)
+#define   C_000004_AGP_BASE_ADDR_2                     0xFFFFFFF0
+
+
+#define R_00000F_CP_DYN_CNTL                         0x00000F
+#define   S_00000F_CP_FORCEON(x)                       (((x) & 0x1) << 0)
+#define   G_00000F_CP_FORCEON(x)                       (((x) >> 0) & 0x1)
+#define   C_00000F_CP_FORCEON                          0xFFFFFFFE
+#define   S_00000F_CP_MAX_DYN_STOP_LAT(x)              (((x) & 0x1) << 1)
+#define   G_00000F_CP_MAX_DYN_STOP_LAT(x)              (((x) >> 1) & 0x1)
+#define   C_00000F_CP_MAX_DYN_STOP_LAT                 0xFFFFFFFD
+#define   S_00000F_CP_CLOCK_STATUS(x)                  (((x) & 0x1) << 2)
+#define   G_00000F_CP_CLOCK_STATUS(x)                  (((x) >> 2) & 0x1)
+#define   C_00000F_CP_CLOCK_STATUS                     0xFFFFFFFB
+#define   S_00000F_CP_PROG_SHUTOFF(x)                  (((x) & 0x1) << 3)
+#define   G_00000F_CP_PROG_SHUTOFF(x)                  (((x) >> 3) & 0x1)
+#define   C_00000F_CP_PROG_SHUTOFF                     0xFFFFFFF7
+#define   S_00000F_CP_PROG_DELAY_VALUE(x)              (((x) & 0xFF) << 4)
+#define   G_00000F_CP_PROG_DELAY_VALUE(x)              (((x) >> 4) & 0xFF)
+#define   C_00000F_CP_PROG_DELAY_VALUE                 0xFFFFF00F
+#define   S_00000F_CP_LOWER_POWER_IDLE(x)              (((x) & 0xFF) << 12)
+#define   G_00000F_CP_LOWER_POWER_IDLE(x)              (((x) >> 12) & 0xFF)
+#define   C_00000F_CP_LOWER_POWER_IDLE                 0xFFF00FFF
+#define   S_00000F_CP_LOWER_POWER_IGNORE(x)            (((x) & 0x1) << 20)
+#define   G_00000F_CP_LOWER_POWER_IGNORE(x)            (((x) >> 20) & 0x1)
+#define   C_00000F_CP_LOWER_POWER_IGNORE               0xFFEFFFFF
+#define   S_00000F_CP_NORMAL_POWER_IGNORE(x)           (((x) & 0x1) << 21)
+#define   G_00000F_CP_NORMAL_POWER_IGNORE(x)           (((x) >> 21) & 0x1)
+#define   C_00000F_CP_NORMAL_POWER_IGNORE              0xFFDFFFFF
+#define   S_00000F_SPARE(x)                            (((x) & 0x3) << 22)
+#define   G_00000F_SPARE(x)                            (((x) >> 22) & 0x3)
+#define   C_00000F_SPARE                               0xFF3FFFFF
+#define   S_00000F_CP_NORMAL_POWER_BUSY(x)             (((x) & 0xFF) << 24)
+#define   G_00000F_CP_NORMAL_POWER_BUSY(x)             (((x) >> 24) & 0xFF)
+#define   C_00000F_CP_NORMAL_POWER_BUSY                0x00FFFFFF
+#define R_000011_E2_DYN_CNTL                         0x000011
+#define   S_000011_E2_FORCEON(x)                       (((x) & 0x1) << 0)
+#define   G_000011_E2_FORCEON(x)                       (((x) >> 0) & 0x1)
+#define   C_000011_E2_FORCEON                          0xFFFFFFFE
+#define   S_000011_E2_MAX_DYN_STOP_LAT(x)              (((x) & 0x1) << 1)
+#define   G_000011_E2_MAX_DYN_STOP_LAT(x)              (((x) >> 1) & 0x1)
+#define   C_000011_E2_MAX_DYN_STOP_LAT                 0xFFFFFFFD
+#define   S_000011_E2_CLOCK_STATUS(x)                  (((x) & 0x1) << 2)
+#define   G_000011_E2_CLOCK_STATUS(x)                  (((x) >> 2) & 0x1)
+#define   C_000011_E2_CLOCK_STATUS                     0xFFFFFFFB
+#define   S_000011_E2_PROG_SHUTOFF(x)                  (((x) & 0x1) << 3)
+#define   G_000011_E2_PROG_SHUTOFF(x)                  (((x) >> 3) & 0x1)
+#define   C_000011_E2_PROG_SHUTOFF                     0xFFFFFFF7
+#define   S_000011_E2_PROG_DELAY_VALUE(x)              (((x) & 0xFF) << 4)
+#define   G_000011_E2_PROG_DELAY_VALUE(x)              (((x) >> 4) & 0xFF)
+#define   C_000011_E2_PROG_DELAY_VALUE                 0xFFFFF00F
+#define   S_000011_E2_LOWER_POWER_IDLE(x)              (((x) & 0xFF) << 12)
+#define   G_000011_E2_LOWER_POWER_IDLE(x)              (((x) >> 12) & 0xFF)
+#define   C_000011_E2_LOWER_POWER_IDLE                 0xFFF00FFF
+#define   S_000011_E2_LOWER_POWER_IGNORE(x)            (((x) & 0x1) << 20)
+#define   G_000011_E2_LOWER_POWER_IGNORE(x)            (((x) >> 20) & 0x1)
+#define   C_000011_E2_LOWER_POWER_IGNORE               0xFFEFFFFF
+#define   S_000011_E2_NORMAL_POWER_IGNORE(x)           (((x) & 0x1) << 21)
+#define   G_000011_E2_NORMAL_POWER_IGNORE(x)           (((x) >> 21) & 0x1)
+#define   C_000011_E2_NORMAL_POWER_IGNORE              0xFFDFFFFF
+#define   S_000011_SPARE(x)                            (((x) & 0x3) << 22)
+#define   G_000011_SPARE(x)                            (((x) >> 22) & 0x3)
+#define   C_000011_SPARE                               0xFF3FFFFF
+#define   S_000011_E2_NORMAL_POWER_BUSY(x)             (((x) & 0xFF) << 24)
+#define   G_000011_E2_NORMAL_POWER_BUSY(x)             (((x) >> 24) & 0xFF)
+#define   C_000011_E2_NORMAL_POWER_BUSY                0x00FFFFFF
+#define R_000013_IDCT_DYN_CNTL                       0x000013
+#define   S_000013_IDCT_FORCEON(x)                     (((x) & 0x1) << 0)
+#define   G_000013_IDCT_FORCEON(x)                     (((x) >> 0) & 0x1)
+#define   C_000013_IDCT_FORCEON                        0xFFFFFFFE
+#define   S_000013_IDCT_MAX_DYN_STOP_LAT(x)            (((x) & 0x1) << 1)
+#define   G_000013_IDCT_MAX_DYN_STOP_LAT(x)            (((x) >> 1) & 0x1)
+#define   C_000013_IDCT_MAX_DYN_STOP_LAT               0xFFFFFFFD
+#define   S_000013_IDCT_CLOCK_STATUS(x)                (((x) & 0x1) << 2)
+#define   G_000013_IDCT_CLOCK_STATUS(x)                (((x) >> 2) & 0x1)
+#define   C_000013_IDCT_CLOCK_STATUS                   0xFFFFFFFB
+#define   S_000013_IDCT_PROG_SHUTOFF(x)                (((x) & 0x1) << 3)
+#define   G_000013_IDCT_PROG_SHUTOFF(x)                (((x) >> 3) & 0x1)
+#define   C_000013_IDCT_PROG_SHUTOFF                   0xFFFFFFF7
+#define   S_000013_IDCT_PROG_DELAY_VALUE(x)            (((x) & 0xFF) << 4)
+#define   G_000013_IDCT_PROG_DELAY_VALUE(x)            (((x) >> 4) & 0xFF)
+#define   C_000013_IDCT_PROG_DELAY_VALUE               0xFFFFF00F
+#define   S_000013_IDCT_LOWER_POWER_IDLE(x)            (((x) & 0xFF) << 12)
+#define   G_000013_IDCT_LOWER_POWER_IDLE(x)            (((x) >> 12) & 0xFF)
+#define   C_000013_IDCT_LOWER_POWER_IDLE               0xFFF00FFF
+#define   S_000013_IDCT_LOWER_POWER_IGNORE(x)          (((x) & 0x1) << 20)
+#define   G_000013_IDCT_LOWER_POWER_IGNORE(x)          (((x) >> 20) & 0x1)
+#define   C_000013_IDCT_LOWER_POWER_IGNORE             0xFFEFFFFF
+#define   S_000013_IDCT_NORMAL_POWER_IGNORE(x)         (((x) & 0x1) << 21)
+#define   G_000013_IDCT_NORMAL_POWER_IGNORE(x)         (((x) >> 21) & 0x1)
+#define   C_000013_IDCT_NORMAL_POWER_IGNORE            0xFFDFFFFF
+#define   S_000013_SPARE(x)                            (((x) & 0x3) << 22)
+#define   G_000013_SPARE(x)                            (((x) >> 22) & 0x3)
+#define   C_000013_SPARE                               0xFF3FFFFF
+#define   S_000013_IDCT_NORMAL_POWER_BUSY(x)           (((x) & 0xFF) << 24)
+#define   G_000013_IDCT_NORMAL_POWER_BUSY(x)           (((x) >> 24) & 0xFF)
+#define   C_000013_IDCT_NORMAL_POWER_BUSY              0x00FFFFFF
+
+#endif

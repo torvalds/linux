@@ -322,6 +322,8 @@ static inline void task_context_switch_counts(struct seq_file *m,
 			p->nivcsw);
 }
 
+#ifdef CONFIG_MMU
+
 struct stack_stats {
 	struct vm_area_struct *vma;
 	unsigned long	startpage;
@@ -402,6 +404,11 @@ static inline void task_show_stack_usage(struct seq_file *m,
 		mmput(mm);
 	}
 }
+#else
+static void task_show_stack_usage(struct seq_file *m, struct task_struct *task)
+{
+}
+#endif		/* CONFIG_MMU */
 
 int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
 			struct pid *pid, struct task_struct *task)
@@ -564,7 +571,7 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 		rsslim,
 		mm ? mm->start_code : 0,
 		mm ? mm->end_code : 0,
-		(permitted) ? task->stack_start : 0,
+		(permitted && mm) ? task->stack_start : 0,
 		esp,
 		eip,
 		/* The signal information here is obsolete.

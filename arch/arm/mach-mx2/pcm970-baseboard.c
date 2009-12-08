@@ -39,7 +39,6 @@ static int pcm970_pins[] = {
 	PB7_PF_SD2_D3,
 	PB8_PF_SD2_CMD,
 	PB9_PF_SD2_CLK,
-	GPIO_PORTC | 28 | GPIO_GPIO | GPIO_IN, /* card detect */
 	/* display */
 	PA5_PF_LSCLK,
 	PA6_PF_LD0,
@@ -228,6 +227,7 @@ void __init pcm970_baseboard_init(void)
 			"PCM970");
 
 	mxc_register_device(&mxc_fb_device, &pcm038_fb_data);
+	mxc_gpio_mode(GPIO_PORTC | 28 | GPIO_GPIO | GPIO_IN);
 	mxc_register_device(&mxc_sdhc_device1, &sdhc_pdata);
 	platform_device_register(&pcm970_sja1000);
 }

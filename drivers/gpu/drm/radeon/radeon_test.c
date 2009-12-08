@@ -42,7 +42,7 @@ void radeon_test_moves(struct radeon_device *rdev)
 	/* Number of tests =
 	 * (Total GTT - IB pool - writeback page - ring buffer) / test size
 	 */
-	n = (rdev->mc.gtt_size - RADEON_IB_POOL_SIZE*64*1024 - 4096 -
+	n = (rdev->mc.gtt_size - RADEON_IB_POOL_SIZE*64*1024 - RADEON_GPU_PAGE_SIZE -
 	     rdev->cp.ring_size) / size;
 
 	gtt_obj = kzalloc(n * sizeof(*gtt_obj), GFP_KERNEL);
@@ -102,7 +102,7 @@ void radeon_test_moves(struct radeon_device *rdev)
 			goto out_cleanup;
 		}
 
-		r = radeon_copy(rdev, gtt_addr, vram_addr, size / 4096, fence);
+		r = radeon_copy(rdev, gtt_addr, vram_addr, size / RADEON_GPU_PAGE_SIZE, fence);
 		if (r) {
 			DRM_ERROR("Failed GTT->VRAM copy %d\n", i);
 			goto out_cleanup;
@@ -145,7 +145,7 @@ void radeon_test_moves(struct radeon_device *rdev)
 			goto out_cleanup;
 		}
 
-		r = radeon_copy(rdev, vram_addr, gtt_addr, size / 4096, fence);
+		r = radeon_copy(rdev, vram_addr, gtt_addr, size / RADEON_GPU_PAGE_SIZE, fence);
 		if (r) {
 			DRM_ERROR("Failed VRAM->GTT copy %d\n", i);
 			goto out_cleanup;

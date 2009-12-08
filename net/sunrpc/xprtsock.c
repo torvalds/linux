@@ -773,6 +773,7 @@ static void xs_close(struct rpc_xprt *xprt)
 	dprintk("RPC:       xs_close xprt %p\n", xprt);
 
 	xs_reset_transport(transport);
+	xprt->reestablish_timeout = 0;
 
 	smp_mb__before_clear_bit();
 	clear_bit(XPRT_CONNECTION_ABORT, &xprt->state);
@@ -1263,6 +1264,12 @@ static void xs_tcp_data_ready(struct sock *sk, int bytes)
 		goto out;
 	if (xprt->shutdown)
 		goto out;
+
+	/* Any data means we had a useful conversation, so
+	 * the we don't need to delay the next reconnect
+	 */
+	if (xprt->reestablish_timeout)
+		xprt->reestablish_timeout = 0;
 
 	/* We use rd_desc to pass struct xprt to xs_tcp_data_recv */
 	rd_desc.arg.data = xprt;
@@ -2034,6 +2041,8 @@ static void xs_connect(struct rpc_task *task)
 				   &transport->connect_worker,
 				   xprt->reestablish_timeout);
 		xprt->reestablish_timeout <<= 1;
+		if (xprt->reestablish_timeout < XS_TCP_INIT_REEST_TO)
+			xprt->reestablish_timeout = XS_TCP_INIT_REEST_TO;
 		if (xprt->reestablish_timeout > XS_TCP_MAX_REEST_TO)
 			xprt->reestablish_timeout = XS_TCP_MAX_REEST_TO;
 	} else {

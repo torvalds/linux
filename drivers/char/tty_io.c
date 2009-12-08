@@ -1389,7 +1389,7 @@ EXPORT_SYMBOL(tty_shutdown);
  *	of ttys that the driver keeps.
  *
  *	This method gets called from a work queue so that the driver private
- *	shutdown ops can sleep (needed for USB at least)
+ *	cleanup ops can sleep (needed for USB at least)
  */
 static void release_one_tty(struct work_struct *work)
 {
@@ -1397,10 +1397,9 @@ static void release_one_tty(struct work_struct *work)
 		container_of(work, struct tty_struct, hangup_work);
 	struct tty_driver *driver = tty->driver;
 
-	if (tty->ops->shutdown)
-		tty->ops->shutdown(tty);
-	else
-		tty_shutdown(tty);
+	if (tty->ops->cleanup)
+		tty->ops->cleanup(tty);
+
 	tty->magic = 0;
 	tty_driver_kref_put(driver);
 	module_put(driver->owner);
@@ -1415,6 +1414,12 @@ static void release_one_tty(struct work_struct *work)
 static void queue_release_one_tty(struct kref *kref)
 {
 	struct tty_struct *tty = container_of(kref, struct tty_struct, kref);
+
+	if (tty->ops->shutdown)
+		tty->ops->shutdown(tty);
+	else
+		tty_shutdown(tty);
+
 	/* The hangup queue is now free so we can reuse it rather than
 	   waste a chunk of memory for each port */
 	INIT_WORK(&tty->hangup_work, release_one_tty);

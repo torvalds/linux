@@ -864,9 +864,11 @@ static struct xhci_segment *trb_in_td(
 	cur_seg = start_seg;
 
 	do {
+		if (start_dma == 0)
+			return 0;
 		/* We may get an event for a Link TRB in the middle of a TD */
 		end_seg_dma = xhci_trb_virt_to_dma(cur_seg,
-				&start_seg->trbs[TRBS_PER_SEGMENT - 1]);
+				&cur_seg->trbs[TRBS_PER_SEGMENT - 1]);
 		/* If the end TRB isn't in this segment, this is set to 0 */
 		end_trb_dma = xhci_trb_virt_to_dma(cur_seg, end_trb);
 
@@ -893,8 +895,9 @@ static struct xhci_segment *trb_in_td(
 		}
 		cur_seg = cur_seg->next;
 		start_dma = xhci_trb_virt_to_dma(cur_seg, &cur_seg->trbs[0]);
-	} while (1);
+	} while (cur_seg != start_seg);
 
+	return 0;
 }
 
 /*

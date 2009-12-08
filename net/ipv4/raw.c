@@ -352,13 +352,24 @@ static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
 	skb->ip_summed = CHECKSUM_NONE;
 
 	skb->transport_header = skb->network_header;
-	err = memcpy_fromiovecend((void *)iph, from, 0, length);
-	if (err)
-		goto error_fault;
+	err = -EFAULT;
+	if (memcpy_fromiovecend((void *)iph, from, 0, length))
+		goto error_free;
 
-	/* We don't modify invalid header */
 	iphlen = iph->ihl * 4;
-	if (iphlen >= sizeof(*iph) && iphlen <= length) {
+
+	/*
+	 * We don't want to modify the ip header, but we do need to
+	 * be sure that it won't cause problems later along the network
+	 * stack.  Specifically we want to make sure that iph->ihl is a
+	 * sane value.  If ihl points beyond the length of the buffer passed
+	 * in, reject the frame as invalid
+	 */
+	err = -EINVAL;
+	if (iphlen > length)
+		goto error_free;
+
+	if (iphlen >= sizeof(*iph)) {
 		if (!iph->saddr)
 			iph->saddr = rt->rt_src;
 		iph->check   = 0;
@@ -381,8 +392,7 @@ static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
 out:
 	return 0;
 
-error_fault:
-	err = -EFAULT;
+error_free:
 	kfree_skb(skb);
 error:
 	IP_INC_STATS(net, IPSTATS_MIB_OUTDISCARDS);
@@ -741,7 +751,7 @@ out:	return ret;
 }
 
 static int do_raw_setsockopt(struct sock *sk, int level, int optname,
-			  char __user *optval, int optlen)
+			  char __user *optval, unsigned int optlen)
 {
 	if (optname == ICMP_FILTER) {
 		if (inet_sk(sk)->num != IPPROTO_ICMP)
@@ -753,7 +763,7 @@ static int do_raw_setsockopt(struct sock *sk, int level, int optname,
 }
 
 static int raw_setsockopt(struct sock *sk, int level, int optname,
-			  char __user *optval, int optlen)
+			  char __user *optval, unsigned int optlen)
 {
 	if (level != SOL_RAW)
 		return ip_setsockopt(sk, level, optname, optval, optlen);
@@ -762,7 +772,7 @@ static int raw_setsockopt(struct sock *sk, int level, int optname,
 
 #ifdef CONFIG_COMPAT
 static int compat_raw_setsockopt(struct sock *sk, int level, int optname,
-				 char __user *optval, int optlen)
+				 char __user *optval, unsigned int optlen)
 {
 	if (level != SOL_RAW)
 		return compat_ip_setsockopt(sk, level, optname, optval, optlen);

@@ -45,8 +45,8 @@ MODULE_LICENSE("GPL");
  32 bus
  */
 
-unsigned int debug;
-module_param(debug, int, 0644);
+unsigned int saa_debug;
+module_param_named(debug, saa_debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
 
 unsigned int waitsecs = 10;
@@ -653,7 +653,7 @@ static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 		printk(KERN_ERR "%s() Unsupported board detected, "
 			"registering without firmware\n", __func__);
 
-	dprintk(1, "%s() parameter debug = %d\n", __func__, debug);
+	dprintk(1, "%s() parameter debug = %d\n", __func__, saa_debug);
 	dprintk(1, "%s() parameter waitsecs = %d\n", __func__, waitsecs);
 
 fail_fw:
