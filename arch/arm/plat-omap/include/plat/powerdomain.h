@@ -87,14 +87,14 @@ struct powerdomain {
 	/* Used to represent the OMAP chip types containing this pwrdm */
 	const struct omap_chip_id omap_chip;
 
-	/* Bit shift of this powerdomain's PM_WKDEP/CM_SLEEPDEP bit */
-	const u8 dep_bit;
-
 	/* Powerdomains that can be told to wake this powerdomain up */
 	struct pwrdm_dep *wkdep_srcs;
 
 	/* Powerdomains that can be told to keep this pwrdm from inactivity */
 	struct pwrdm_dep *sleepdep_srcs;
+
+	/* Bit shift of this powerdomain's PM_WKDEP/CM_SLEEPDEP bit */
+	const u8 dep_bit;
 
 	/* Possible powerdomain power states */
 	const u8 pwrsts;
