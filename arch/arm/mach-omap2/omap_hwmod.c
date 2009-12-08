@@ -211,6 +211,32 @@ static int _set_softreset(struct omap_hwmod *oh, u32 *v)
 }
 
 /**
+ * _set_module_autoidle: set the OCP_SYSCONFIG AUTOIDLE field in @v
+ * @oh: struct omap_hwmod *
+ * @autoidle: desired AUTOIDLE bitfield value (0 or 1)
+ * @v: pointer to register contents to modify
+ *
+ * Update the module autoidle bit in @v to be @autoidle for the @oh
+ * hwmod.  The autoidle bit controls whether the module can gate
+ * internal clocks automatically when it isn't doing anything; the
+ * exact function of this bit varies on a per-module basis.  This
+ * function does not write to the hardware.  Returns -EINVAL upon
+ * error or 0 upon success.
+ */
+static int _set_module_autoidle(struct omap_hwmod *oh, u8 autoidle,
+				u32 *v)
+{
+	if (!oh->sysconfig ||
+	    !(oh->sysconfig->sysc_flags & SYSC_HAS_AUTOIDLE))
+		return -EINVAL;
+
+	*v &= ~SYSC_AUTOIDLE_MASK;
+	*v |= autoidle << SYSC_AUTOIDLE_SHIFT;
+
+	return 0;
+}
+
+/**
  * _enable_wakeup: set OCP_SYSCONFIG.ENAWAKEUP bit in the hardware
  * @oh: struct omap_hwmod *
  *
@@ -558,7 +584,13 @@ static void _sysc_enable(struct omap_hwmod *oh)
 		_set_master_standbymode(oh, idlemode, &v);
 	}
 
-	/* XXX OCP AUTOIDLE bit? */
+	if (oh->sysconfig->sysc_flags & SYSC_HAS_AUTOIDLE) {
+		idlemode = (oh->flags & HWMOD_NO_OCP_AUTOIDLE) ?
+			0 : 1;
+		_set_module_autoidle(oh, idlemode, &v);
+	}
+
+	/* XXX OCP ENAWAKEUP bit? */
 
 	if (oh->flags & HWMOD_SET_DEFAULT_CLOCKACT &&
 	    oh->sysconfig->sysc_flags & SYSC_HAS_CLOCKACTIVITY)
@@ -623,7 +655,8 @@ static void _sysc_shutdown(struct omap_hwmod *oh)
 	if (oh->sysconfig->sysc_flags & SYSC_HAS_MIDLEMODE)
 		_set_master_standbymode(oh, HWMOD_IDLEMODE_FORCE, &v);
 
-	/* XXX clear OCP AUTOIDLE bit? */
+	if (oh->sysconfig->sysc_flags & SYSC_HAS_AUTOIDLE)
+		_set_module_autoidle(oh, 1, &v);
 
 	_write_sysconfig(v, oh);
 }
