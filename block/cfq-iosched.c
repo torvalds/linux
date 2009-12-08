@@ -1750,6 +1750,12 @@ static struct cfq_queue *cfq_close_cooperator(struct cfq_data *cfqd,
 		return NULL;
 
 	/*
+	 * Don't search priority tree if it's the only queue in the group.
+	 */
+	if (cur_cfqq->cfqg->nr_cfqq == 1)
+		return NULL;
+
+	/*
 	 * We should notice if some of the queues are cooperating, eg
 	 * working closely on the same area of the disk. In that case,
 	 * we can group them together and don't waste time idling.
