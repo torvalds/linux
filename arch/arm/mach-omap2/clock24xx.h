@@ -708,7 +708,7 @@ static struct clk dpll_ck = {
 
 static struct clk apll96_ck = {
 	.name		= "apll96_ck",
-	.ops		= &clkops_fixed,
+	.ops		= &clkops_apll96,
 	.parent		= &sys_ck,
 	.rate		= 96000000,
 	.flags		= RATE_FIXED | ENABLE_ON_INIT,
@@ -719,7 +719,7 @@ static struct clk apll96_ck = {
 
 static struct clk apll54_ck = {
 	.name		= "apll54_ck",
-	.ops		= &clkops_fixed,
+	.ops		= &clkops_apll54,
 	.parent		= &sys_ck,
 	.rate		= 54000000,
 	.flags		= RATE_FIXED | ENABLE_ON_INIT,

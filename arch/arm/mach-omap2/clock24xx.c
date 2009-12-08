@@ -42,7 +42,8 @@
 #include "cm-regbits-24xx.h"
 
 static const struct clkops clkops_oscck;
-static const struct clkops clkops_fixed;
+static const struct clkops clkops_apll96;
+static const struct clkops clkops_apll54;
 
 static void omap2430_clk_i2chs_find_idlest(struct clk *clk,
 					   void __iomem **idlest_reg,
@@ -338,7 +339,7 @@ static void omap2_sys_clk_recalc(struct clk * clk)
 #endif	/* OLD_CK */
 
 /* Enable an APLL if off */
-static int omap2_clk_fixed_enable(struct clk *clk)
+static int omap2_clk_apll_enable(struct clk *clk, u32 status_mask)
 {
 	u32 cval, apll_mask;
 
@@ -353,12 +354,7 @@ static int omap2_clk_fixed_enable(struct clk *clk)
 	cval |= apll_mask;
 	cm_write_mod_reg(cval, PLL_MOD, CM_CLKEN);
 
-	if (clk == &apll96_ck)
-		cval = OMAP24XX_ST_96M_APLL;
-	else if (clk == &apll54_ck)
-		cval = OMAP24XX_ST_54M_APLL;
-
-	omap2_cm_wait_idlest(OMAP_CM_REGADDR(PLL_MOD, CM_IDLEST), cval,
+	omap2_cm_wait_idlest(OMAP_CM_REGADDR(PLL_MOD, CM_IDLEST), status_mask,
 			     clk->name);
 
 	/*
@@ -368,8 +364,18 @@ static int omap2_clk_fixed_enable(struct clk *clk)
 	return 0;
 }
 
+static int omap2_clk_apll96_enable(struct clk *clk)
+{
+	return omap2_clk_apll_enable(clk, OMAP24XX_ST_96M_APLL);
+}
+
+static int omap2_clk_apll54_enable(struct clk *clk)
+{
+	return omap2_clk_apll_enable(clk, OMAP24XX_ST_54M_APLL);
+}
+
 /* Stop APLL */
-static void omap2_clk_fixed_disable(struct clk *clk)
+static void omap2_clk_apll_disable(struct clk *clk)
 {
 	u32 cval;
 
@@ -378,9 +384,14 @@ static void omap2_clk_fixed_disable(struct clk *clk)
 	cm_write_mod_reg(cval, PLL_MOD, CM_CLKEN);
 }
 
-static const struct clkops clkops_fixed = {
-	.enable		= &omap2_clk_fixed_enable,
-	.disable	= &omap2_clk_fixed_disable,
+static const struct clkops clkops_apll96 = {
+	.enable		= &omap2_clk_apll96_enable,
+	.disable	= &omap2_clk_apll_disable,
+};
+
+static const struct clkops clkops_apll54 = {
+	.enable		= &omap2_clk_apll54_enable,
+	.disable	= &omap2_clk_apll_disable,
 };
 
 /*
