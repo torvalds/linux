@@ -235,7 +235,8 @@ static ssize_t ksym_trace_filter_read(struct file *filp, char __user *ubuf,
 	mutex_lock(&ksym_tracer_mutex);
 
 	hlist_for_each_entry(entry, node, &ksym_filter_head, ksym_hlist) {
-		ret = trace_seq_printf(s, "%pS:", (void *)entry->attr.bp_addr);
+		ret = trace_seq_printf(s, "%pS:",
+				(void *)(unsigned long)entry->attr.bp_addr);
 		if (entry->attr.bp_type == HW_BREAKPOINT_R)
 			ret = trace_seq_puts(s, "r--\n");
 		else if (entry->attr.bp_type == HW_BREAKPOINT_W)
@@ -298,8 +299,8 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 	 * 2: echo 0 > ksym_trace_filter
 	 * 3: echo "*:---" > ksym_trace_filter
 	 */
-	if (!input_string[0] || !strcmp(input_string, "0") ||
-	    !strcmp(input_string, "*:---")) {
+	if (!buf[0] || !strcmp(buf, "0") ||
+	    !strcmp(buf, "*:---")) {
 		__ksym_trace_reset();
 		ret = 0;
 		goto out;
