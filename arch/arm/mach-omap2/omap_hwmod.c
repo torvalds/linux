@@ -1386,8 +1386,9 @@ int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res)
 	/* For each IRQ, DMA, memory area, fill in array.*/
 
 	for (i = 0; i < oh->mpu_irqs_cnt; i++) {
-		(res + r)->start = *(oh->mpu_irqs + i);
-		(res + r)->end = *(oh->mpu_irqs + i);
+		(res + r)->name = (oh->mpu_irqs + i)->name;
+		(res + r)->start = (oh->mpu_irqs + i)->irq;
+		(res + r)->end = (oh->mpu_irqs + i)->irq;
 		(res + r)->flags = IORESOURCE_IRQ;
 		r++;
 	}

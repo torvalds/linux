@@ -64,7 +64,21 @@ struct omap_device;
 
 
 /**
- * struct omap_hwmod_dma_info - MPU address space handled by the hwmod
+ * struct omap_hwmod_irq_info - MPU IRQs used by the hwmod
+ * @name: name of the IRQ channel (module local name)
+ * @irq_ch: IRQ channel ID
+ *
+ * @name should be something short, e.g., "tx" or "rx".  It is for use
+ * by platform_get_resource_byname().  It is defined locally to the
+ * hwmod.
+ */
+struct omap_hwmod_irq_info {
+	const char	*name;
+	u16		irq;
+};
+
+/**
+ * struct omap_hwmod_dma_info - DMA channels used by the hwmod
  * @name: name of the DMA channel (module local name)
  * @dma_ch: DMA channel ID
  *
@@ -379,7 +393,7 @@ struct omap_hwmod_omap4_prcm {
 struct omap_hwmod {
 	const char			*name;
 	struct omap_device		*od;
-	u8				*mpu_irqs;
+	struct omap_hwmod_irq_info	*mpu_irqs;
 	struct omap_hwmod_dma_info	*sdma_chs;
 	union {
 		struct omap_hwmod_omap2_prcm omap2;
