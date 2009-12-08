@@ -466,7 +466,16 @@ static void get_new_event_name(char *buf, size_t len, const char *base,
 			       struct strlist *namelist)
 {
 	int i, ret;
-	for (i = 0; i < MAX_EVENT_INDEX; i++) {
+
+	/* Try no suffix */
+	ret = e_snprintf(buf, len, "%s", base);
+	if (ret < 0)
+		die("snprintf() failed: %s", strerror(-ret));
+	if (!strlist__has_entry(namelist, buf))
+		return;
+
+	/* Try to add suffix */
+	for (i = 1; i < MAX_EVENT_INDEX; i++) {
 		ret = e_snprintf(buf, len, "%s_%d", base, i);
 		if (ret < 0)
 			die("snprintf() failed: %s", strerror(-ret));
