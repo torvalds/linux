@@ -511,6 +511,7 @@ sys_call_table:
 	.quad sys_preadv				/* 490 */
 	.quad sys_pwritev
 	.quad sys_rt_tgsigqueueinfo
+	.quad sys_perf_event_open
 
 	.size sys_call_table, . - sys_call_table
 	.type sys_call_table, @object
