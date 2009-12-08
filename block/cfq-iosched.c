@@ -2141,8 +2141,22 @@ static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd)
 	/*
 	 * The active queue has run out of time, expire it and select new.
 	 */
-	if (cfq_slice_used(cfqq) && !cfq_cfqq_must_dispatch(cfqq))
-		goto expire;
+	if (cfq_slice_used(cfqq) && !cfq_cfqq_must_dispatch(cfqq)) {
+		/*
+		 * If slice had not expired at the completion of last request
+		 * we might not have turned on wait_busy flag. Don't expire
+		 * the queue yet. Allow the group to get backlogged.
+		 *
+		 * The very fact that we have used the slice, that means we
+		 * have been idling all along on this queue and it should be
+		 * ok to wait for this request to complete.
+		 */
+		if (cfqq->cfqg->nr_cfqq == 1 && cfqq->dispatched
+		    && cfq_should_idle(cfqd, cfqq))
+			goto keep_queue;
+		else
+			goto expire;
+	}
 
 	/*
 	 * The active queue has requests and isn't expired, allow it to
@@ -3256,6 +3270,35 @@ static void cfq_update_hw_tag(struct cfq_data *cfqd)
 		cfqd->hw_tag = 0;
 }
 
+static bool cfq_should_wait_busy(struct cfq_data *cfqd, struct cfq_queue *cfqq)
+{
+	struct cfq_io_context *cic = cfqd->active_cic;
+
+	/* If there are other queues in the group, don't wait */
+	if (cfqq->cfqg->nr_cfqq > 1)
+		return false;
+
+	if (cfq_slice_used(cfqq))
+		return true;
+
+	/* if slice left is less than think time, wait busy */
+	if (cic && sample_valid(cic->ttime_samples)
+	    && (cfqq->slice_end - jiffies < cic->ttime_mean))
+		return true;
+
+	/*
+	 * If think times is less than a jiffy than ttime_mean=0 and above
+	 * will not be true. It might happen that slice has not expired yet
+	 * but will expire soon (4-5 ns) during select_queue(). To cover the
+	 * case where think time is less than a jiffy, mark the queue wait
+	 * busy if only 1 jiffy is left in the slice.
+	 */
+	if (cfqq->slice_end - jiffies == 1)
+		return true;
+
+	return false;
+}
+
 static void cfq_completed_request(struct request_queue *q, struct request *rq)
 {
 	struct cfq_queue *cfqq = RQ_CFQQ(rq);
@@ -3295,11 +3338,10 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 		}
 
 		/*
-		 * If this queue consumed its slice and this is last queue
-		 * in the group, wait for next request before we expire
-		 * the queue
+		 * Should we wait for next request to come in before we expire
+		 * the queue.
 		 */
-		if (cfq_slice_used(cfqq) && cfqq->cfqg->nr_cfqq == 1) {
+		if (cfq_should_wait_busy(cfqd, cfqq)) {
 			cfqq->slice_end = jiffies + cfqd->cfq_slice_idle;
 			cfq_mark_cfqq_wait_busy(cfqq);
 		}
