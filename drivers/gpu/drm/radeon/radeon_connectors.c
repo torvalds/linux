@@ -1103,10 +1103,12 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.coherent_mode_property,
 					      1);
-		radeon_connector->dac_load_detect = true;
-		drm_connector_attach_property(&radeon_connector->base,
-					      rdev->mode_info.load_detect_property,
-					      1);
+		if (connector_type == DRM_MODE_CONNECTOR_DVII) {
+			radeon_connector->dac_load_detect = true;
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.load_detect_property,
+						      1);
+		}
 		break;
 	case DRM_MODE_CONNECTOR_HDMIA:
 	case DRM_MODE_CONNECTOR_HDMIB:
@@ -1141,14 +1143,19 @@ radeon_add_atom_connector(struct drm_device *dev,
 		ret = drm_connector_helper_add(&radeon_connector->base, &radeon_dp_connector_helper_funcs);
 		if (ret)
 			goto failed;
-		/* add DP i2c bus */
-		radeon_dig_connector->dp_i2c_bus = radeon_i2c_create_dp(dev, i2c_bus, "DP-auxch");
 		if (i2c_bus->valid) {
+			/* add DP i2c bus */
+			radeon_dig_connector->dp_i2c_bus = radeon_i2c_create_dp(dev, i2c_bus, "DP-auxch");
+			if (!radeon_dig_connector->dp_i2c_bus)
+				goto failed;
 			radeon_connector->ddc_bus = radeon_i2c_create(dev, i2c_bus, "DP");
 			if (!radeon_connector->ddc_bus)
 				goto failed;
 		}
 		subpixel_order = SubPixelHorizontalRGB;
+		drm_connector_attach_property(&radeon_connector->base,
+					      rdev->mode_info.coherent_mode_property,
+					      1);
 		break;
 	case DRM_MODE_CONNECTOR_SVIDEO:
 	case DRM_MODE_CONNECTOR_Composite:
@@ -1183,7 +1190,6 @@ radeon_add_atom_connector(struct drm_device *dev,
 			if (!radeon_connector->ddc_bus)
 				goto failed;
 		}
-		drm_mode_create_scaling_mode_property(dev);
 		drm_connector_attach_property(&radeon_connector->base,
 					      dev->mode_config.scaling_mode_property,
 					      DRM_MODE_SCALE_FULLSCREEN);
