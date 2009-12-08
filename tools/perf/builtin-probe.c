@@ -35,6 +35,7 @@
 #include "perf.h"
 #include "builtin.h"
 #include "util/util.h"
+#include "util/strlist.h"
 #include "util/event.h"
 #include "util/debug.h"
 #include "util/parse-options.h"
@@ -61,6 +62,7 @@ static struct {
 	int need_dwarf;
 	int nr_probe;
 	struct probe_point probes[MAX_PROBES];
+	struct strlist *dellist;
 } session;
 
 static bool listing;
@@ -107,6 +109,17 @@ static int opt_add_probe_event(const struct option *opt __used,
 	return 0;
 }
 
+static int opt_del_probe_event(const struct option *opt __used,
+			       const char *str, int unset __used)
+{
+	if (str) {
+		if (!session.dellist)
+			session.dellist = strlist__new(true, NULL);
+		strlist__add(session.dellist, str);
+	}
+	return 0;
+}
+
 #ifndef NO_LIBDWARF
 static int open_default_vmlinux(void)
 {
@@ -141,6 +154,7 @@ static int open_default_vmlinux(void)
 static const char * const probe_usage[] = {
 	"perf probe [<options>] 'PROBEDEF' ['PROBEDEF' ...]",
 	"perf probe [<options>] --add 'PROBEDEF' [--add 'PROBEDEF' ...]",
+	"perf probe [<options>] --del '[GROUP:]EVENT' ...",
 	"perf probe --list",
 	NULL
 };
@@ -152,7 +166,9 @@ static const struct option options[] = {
 	OPT_STRING('k', "vmlinux", &session.vmlinux, "file",
 		"vmlinux/module pathname"),
 #endif
-	OPT_BOOLEAN('l', "list", &listing, "list up current probes"),
+	OPT_BOOLEAN('l', "list", &listing, "list up current probe events"),
+	OPT_CALLBACK('d', "del", NULL, "[GROUP:]EVENT", "delete a probe event.",
+		opt_del_probe_event),
 	OPT_CALLBACK('a', "add", NULL,
 #ifdef NO_LIBDWARF
 		"FUNC[+OFFS|%return] [ARG ...]",
@@ -191,13 +207,24 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 	if (argc > 0)
 		parse_probe_event_argv(argc, argv);
 
-	if ((session.nr_probe == 0 && !listing) ||
-	    (session.nr_probe != 0 && listing))
+	if ((session.nr_probe == 0 && !session.dellist && !listing))
 		usage_with_options(probe_usage, options);
 
 	if (listing) {
+		if (session.nr_probe != 0 || session.dellist) {
+			pr_warning("  Error: Don't use --list with"
+				   " --add/--del.\n");
+			usage_with_options(probe_usage, options);
+		}
 		show_perf_probe_events();
 		return 0;
+	}
+
+	if (session.dellist) {
+		del_trace_kprobe_events(session.dellist);
+		strlist__delete(session.dellist);
+		if (session.nr_probe == 0)
+			return 0;
 	}
 
 	if (session.need_dwarf)

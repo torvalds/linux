@@ -430,10 +430,11 @@ void show_perf_probe_events(void)
 }
 
 /* Get current perf-probe event names */
-static struct strlist *get_perf_event_names(int fd)
+static struct strlist *get_perf_event_names(int fd, bool include_group)
 {
 	unsigned int i;
 	char *group, *event;
+	char buf[128];
 	struct strlist *sl, *rawlist;
 	struct str_node *ent;
 
@@ -443,7 +444,12 @@ static struct strlist *get_perf_event_names(int fd)
 	for (i = 0; i < strlist__nr_entries(rawlist); i++) {
 		ent = strlist__entry(rawlist, i);
 		parse_trace_kprobe_event(ent->s, &group, &event, NULL);
-		strlist__add(sl, event);
+		if (include_group) {
+			if (e_snprintf(buf, 128, "%s:%s", group, event) < 0)
+				die("Failed to copy group:event name.");
+			strlist__add(sl, buf);
+		} else
+			strlist__add(sl, event);
 		free(group);
 		free(event);
 	}
@@ -457,9 +463,10 @@ static void write_trace_kprobe_event(int fd, const char *buf)
 {
 	int ret;
 
+	pr_debug("Writing event: %s\n", buf);
 	ret = write(fd, buf, strlen(buf));
 	if (ret <= 0)
-		die("Failed to create event.");
+		die("Failed to write event: %s", strerror(errno));
 }
 
 static void get_new_event_name(char *buf, size_t len, const char *base,
@@ -496,7 +503,7 @@ void add_trace_kprobe_events(struct probe_point *probes, int nr_probes)
 
 	fd = open_kprobe_events(O_RDWR, O_APPEND);
 	/* Get current event names */
-	namelist = get_perf_event_names(fd);
+	namelist = get_perf_event_names(fd, false);
 
 	for (j = 0; j < nr_probes; j++) {
 		pp = probes + j;
@@ -524,3 +531,57 @@ void add_trace_kprobe_events(struct probe_point *probes, int nr_probes)
 	strlist__delete(namelist);
 	close(fd);
 }
+
+static void del_trace_kprobe_event(int fd, const char *group,
+				   const char *event, struct strlist *namelist)
+{
+	char buf[128];
+
+	if (e_snprintf(buf, 128, "%s:%s", group, event) < 0)
+		die("Failed to copy event.");
+	if (!strlist__has_entry(namelist, buf)) {
+		pr_warning("Warning: event \"%s\" is not found.\n", buf);
+		return;
+	}
+	/* Convert from perf-probe event to trace-kprobe event */
+	if (e_snprintf(buf, 128, "-:%s/%s", group, event) < 0)
+		die("Failed to copy event.");
+
+	write_trace_kprobe_event(fd, buf);
+	printf("Remove event: %s:%s\n", group, event);
+}
+
+void del_trace_kprobe_events(struct strlist *dellist)
+{
+	int fd;
+	unsigned int i;
+	const char *group, *event;
+	char *p, *str;
+	struct str_node *ent;
+	struct strlist *namelist;
+
+	fd = open_kprobe_events(O_RDWR, O_APPEND);
+	/* Get current event names */
+	namelist = get_perf_event_names(fd, true);
+
+	for (i = 0; i < strlist__nr_entries(dellist); i++) {
+		ent = strlist__entry(dellist, i);
+		str = strdup(ent->s);
+		if (!str)
+			die("Failed to copy event.");
+		p = strchr(str, ':');
+		if (p) {
+			group = str;
+			*p = '\0';
+			event = p + 1;
+		} else {
+			group = PERFPROBE_GROUP;
+			event = str;
+		}
+		del_trace_kprobe_event(fd, group, event, namelist);
+		free(str);
+	}
+	strlist__delete(namelist);
+	close(fd);
+}
+

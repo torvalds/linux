@@ -10,6 +10,7 @@ extern void parse_trace_kprobe_event(const char *str, char **group,
 				     char **event, struct probe_point *pp);
 extern int synthesize_trace_kprobe_event(struct probe_point *pp);
 extern void add_trace_kprobe_events(struct probe_point *probes, int nr_probes);
+extern void del_trace_kprobe_events(struct strlist *dellist);
 extern void show_perf_probe_events(void);
 
 /* Maximum index number of event-name postfix */
