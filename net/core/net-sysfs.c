@@ -130,6 +130,48 @@ static ssize_t show_carrier(struct device *dev,
 	return -EINVAL;
 }
 
+static ssize_t show_speed(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	struct net_device *netdev = to_net_dev(dev);
+	int ret = -EINVAL;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	if (netif_running(netdev) &&
+	    netdev->ethtool_ops &&
+	    netdev->ethtool_ops->get_settings) {
+		struct ethtool_cmd cmd = { ETHTOOL_GSET };
+
+		if (!netdev->ethtool_ops->get_settings(netdev, &cmd))
+			ret = sprintf(buf, fmt_dec, ethtool_cmd_speed(&cmd));
+	}
+	rtnl_unlock();
+	return ret;
+}
+
+static ssize_t show_duplex(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	struct net_device *netdev = to_net_dev(dev);
+	int ret = -EINVAL;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	if (netif_running(netdev) &&
+	    netdev->ethtool_ops &&
+	    netdev->ethtool_ops->get_settings) {
+		struct ethtool_cmd cmd = { ETHTOOL_GSET };
+
+		if (!netdev->ethtool_ops->get_settings(netdev, &cmd))
+			ret = sprintf(buf, "%s\n", cmd.duplex ? "full" : "half");
+	}
+	rtnl_unlock();
+	return ret;
+}
+
 static ssize_t show_dormant(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
@@ -259,6 +301,8 @@ static struct device_attribute net_class_attributes[] = {
 	__ATTR(address, S_IRUGO, show_address, NULL),
 	__ATTR(broadcast, S_IRUGO, show_broadcast, NULL),
 	__ATTR(carrier, S_IRUGO, show_carrier, NULL),
+	__ATTR(speed, S_IRUGO, show_speed, NULL),
+	__ATTR(duplex, S_IRUGO, show_duplex, NULL),
 	__ATTR(dormant, S_IRUGO, show_dormant, NULL),
 	__ATTR(operstate, S_IRUGO, show_operstate, NULL),
 	__ATTR(mtu, S_IRUGO | S_IWUSR, show_mtu, store_mtu),
@@ -481,7 +525,7 @@ void netdev_unregister_kobject(struct net_device * net)
 
 	kobject_get(&dev->kobj);
 
-	if (dev_net(net) != &init_net)
+	if (!net_eq(dev_net(net), &init_net))
 		return;
 
 	device_del(dev);
@@ -500,15 +544,22 @@ int netdev_register_kobject(struct net_device *net)
 	dev_set_name(dev, "%s", net->name);
 
 #ifdef CONFIG_SYSFS
-	*groups++ = &netstat_group;
+	/* Allow for a device specific group */
+	if (*groups)
+		groups++;
 
+	*groups++ = &netstat_group;
 #ifdef CONFIG_WIRELESS_EXT_SYSFS
-	if (net->wireless_handlers || net->ieee80211_ptr)
+	if (net->ieee80211_ptr)
 		*groups++ = &wireless_group;
+#ifdef CONFIG_WIRELESS_EXT
+	else if (net->wireless_handlers)
+		*groups++ = &wireless_group;
+#endif
 #endif
 #endif /* CONFIG_SYSFS */
 
-	if (dev_net(net) != &init_net)
+	if (!net_eq(dev_net(net), &init_net))
 		return 0;
 
 	return device_add(dev);

@@ -232,7 +232,7 @@ static struct ppp_channel_ops pppol2tp_chan_ops = { pppol2tp_xmit , NULL };
 static const struct proto_ops pppol2tp_ops;
 
 /* per-net private data for this module */
-static int pppol2tp_net_id;
+static int pppol2tp_net_id __read_mostly;
 struct pppol2tp_net {
 	struct list_head pppol2tp_tunnel_list;
 	rwlock_t pppol2tp_tunnel_list_lock;
@@ -516,7 +516,7 @@ static inline int pppol2tp_verify_udp_checksum(struct sock *sk,
 		return 0;
 
 	inet = inet_sk(sk);
-	psum = csum_tcpudp_nofold(inet->saddr, inet->daddr, ulen,
+	psum = csum_tcpudp_nofold(inet->inet_saddr, inet->inet_daddr, ulen,
 				  IPPROTO_UDP, 0);
 
 	if ((skb->ip_summed == CHECKSUM_COMPLETE) &&
@@ -949,8 +949,8 @@ static int pppol2tp_sendmsg(struct kiocb *iocb, struct socket *sock, struct msgh
 	inet = inet_sk(sk_tun);
 	udp_len = hdr_len + sizeof(ppph) + total_len;
 	uh = (struct udphdr *) skb->data;
-	uh->source = inet->sport;
-	uh->dest = inet->dport;
+	uh->source = inet->inet_sport;
+	uh->dest = inet->inet_dport;
 	uh->len = htons(udp_len);
 	uh->check = 0;
 	skb_put(skb, sizeof(struct udphdr));
@@ -978,7 +978,8 @@ static int pppol2tp_sendmsg(struct kiocb *iocb, struct socket *sock, struct msgh
 	else if (!(skb_dst(skb)->dev->features & NETIF_F_V4_CSUM)) {
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		csum = skb_checksum(skb, 0, udp_len, 0);
-		uh->check = csum_tcpudp_magic(inet->saddr, inet->daddr,
+		uh->check = csum_tcpudp_magic(inet->inet_saddr,
+					      inet->inet_daddr,
 					      udp_len, IPPROTO_UDP, csum);
 		if (uh->check == 0)
 			uh->check = CSUM_MANGLED_0;
@@ -986,7 +987,8 @@ static int pppol2tp_sendmsg(struct kiocb *iocb, struct socket *sock, struct msgh
 		skb->ip_summed = CHECKSUM_PARTIAL;
 		skb->csum_start = skb_transport_header(skb) - skb->head;
 		skb->csum_offset = offsetof(struct udphdr, check);
-		uh->check = ~csum_tcpudp_magic(inet->saddr, inet->daddr,
+		uh->check = ~csum_tcpudp_magic(inet->inet_saddr,
+					       inet->inet_daddr,
 					       udp_len, IPPROTO_UDP, 0);
 	}
 
@@ -1136,8 +1138,8 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	__skb_push(skb, sizeof(*uh));
 	skb_reset_transport_header(skb);
 	uh = udp_hdr(skb);
-	uh->source = inet->sport;
-	uh->dest = inet->dport;
+	uh->source = inet->inet_sport;
+	uh->dest = inet->inet_dport;
 	uh->len = htons(udp_len);
 	uh->check = 0;
 
@@ -1181,7 +1183,8 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	else if (!(skb_dst(skb)->dev->features & NETIF_F_V4_CSUM)) {
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		csum = skb_checksum(skb, 0, udp_len, 0);
-		uh->check = csum_tcpudp_magic(inet->saddr, inet->daddr,
+		uh->check = csum_tcpudp_magic(inet->inet_saddr,
+					      inet->inet_daddr,
 					      udp_len, IPPROTO_UDP, csum);
 		if (uh->check == 0)
 			uh->check = CSUM_MANGLED_0;
@@ -1189,7 +1192,8 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 		skb->ip_summed = CHECKSUM_PARTIAL;
 		skb->csum_start = skb_transport_header(skb) - skb->head;
 		skb->csum_offset = offsetof(struct udphdr, check);
-		uh->check = ~csum_tcpudp_magic(inet->saddr, inet->daddr,
+		uh->check = ~csum_tcpudp_magic(inet->inet_saddr,
+					       inet->inet_daddr,
 					       udp_len, IPPROTO_UDP, 0);
 	}
 
@@ -1533,7 +1537,7 @@ static struct sock *pppol2tp_prepare_tunnel_socket(struct net *net,
 	 * if the tunnel socket goes away.
 	 */
 	tunnel->old_sk_destruct = sk->sk_destruct;
-	sk->sk_destruct = &pppol2tp_tunnel_destruct;
+	sk->sk_destruct = pppol2tp_tunnel_destruct;
 
 	tunnel->sock = sk;
 	sk->sk_allocation = GFP_ATOMIC;
@@ -2601,53 +2605,31 @@ static struct pppox_proto pppol2tp_proto = {
 
 static __net_init int pppol2tp_init_net(struct net *net)
 {
-	struct pppol2tp_net *pn;
+	struct pppol2tp_net *pn = pppol2tp_pernet(net);
 	struct proc_dir_entry *pde;
-	int err;
-
-	pn = kzalloc(sizeof(*pn), GFP_KERNEL);
-	if (!pn)
-		return -ENOMEM;
 
 	INIT_LIST_HEAD(&pn->pppol2tp_tunnel_list);
 	rwlock_init(&pn->pppol2tp_tunnel_list_lock);
 
-	err = net_assign_generic(net, pppol2tp_net_id, pn);
-	if (err)
-		goto out;
-
 	pde = proc_net_fops_create(net, "pppol2tp", S_IRUGO, &pppol2tp_proc_fops);
 #ifdef CONFIG_PROC_FS
-	if (!pde) {
-		err = -ENOMEM;
-		goto out;
-	}
+	if (!pde)
+		return -ENOMEM;
 #endif
 
 	return 0;
-
-out:
-	kfree(pn);
-	return err;
 }
 
 static __net_exit void pppol2tp_exit_net(struct net *net)
 {
-	struct pppoe_net *pn;
-
 	proc_net_remove(net, "pppol2tp");
-	pn = net_generic(net, pppol2tp_net_id);
-	/*
-	 * if someone has cached our net then
-	 * further net_generic call will return NULL
-	 */
-	net_assign_generic(net, pppol2tp_net_id, NULL);
-	kfree(pn);
 }
 
 static struct pernet_operations pppol2tp_net_ops = {
 	.init = pppol2tp_init_net,
 	.exit = pppol2tp_exit_net,
+	.id   = &pppol2tp_net_id,
+	.size = sizeof(struct pppol2tp_net),
 };
 
 static int __init pppol2tp_init(void)
@@ -2661,7 +2643,7 @@ static int __init pppol2tp_init(void)
 	if (err)
 		goto out_unregister_pppol2tp_proto;
 
-	err = register_pernet_gen_device(&pppol2tp_net_id, &pppol2tp_net_ops);
+	err = register_pernet_device(&pppol2tp_net_ops);
 	if (err)
 		goto out_unregister_pppox_proto;
 
@@ -2680,7 +2662,7 @@ out_unregister_pppol2tp_proto:
 static void __exit pppol2tp_exit(void)
 {
 	unregister_pppox_proto(PX_PROTO_OL2TP);
-	unregister_pernet_gen_device(pppol2tp_net_id, &pppol2tp_net_ops);
+	unregister_pernet_device(&pppol2tp_net_ops);
 	proto_unregister(&pppol2tp_sk_proto);
 }
 

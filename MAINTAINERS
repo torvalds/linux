@@ -1120,7 +1120,6 @@ F:	include/net/ax25.h
 F:	net/ax25/
 
 B43 WIRELESS DRIVER
-M:	Michael Buesch <mb@bu3sch.de>
 M:	Stefano Brivio <stefano.brivio@polimi.it>
 L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/en/users/Drivers/b43
@@ -2817,6 +2816,15 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/iwlwifi/iwlwifi-2.6.git
 S:	Supported
 F:	drivers/net/wireless/iwlwifi/
 
+INTEL WIRELESS MULTICOMM 3200 WIFI (iwmc3200wifi)
+M:	Samuel Ortiz <samuel.ortiz@intel.com>
+M:	Zhu Yi <yi.zhu@intel.com>
+M:	Intel Linux Wireless <ilw@linux.intel.com>
+L:	linux-wireless@vger.kernel.org
+S:	Supported
+W:	http://wireless.kernel.org/en/users/Drivers/iwmc3200wifi
+F:	drivers/net/wireless/iwmc3200wifi/
+
 IOC3 ETHERNET DRIVER
 M:	Ralf Baechle <ralf@linux-mips.org>
 L:	linux-mips@linux-mips.org
@@ -3741,9 +3749,9 @@ F:	include/linux/if_*
 F:	include/linux/*device.h
 
 NETXEN (1/10) GbE SUPPORT
-M:	Dhananjay Phadke <dhananjay@netxen.com>
+M:	Amit Kumar Salecha <amit.salecha@qlogic.com>
 L:	netdev@vger.kernel.org
-W:	http://www.netxen.com
+W:	http://www.qlogic.com
 S:	Supported
 F:	drivers/net/netxen/
 

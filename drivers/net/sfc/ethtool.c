@@ -1,7 +1,7 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2006-2008 Solarflare Communications Inc.
+ * Copyright 2006-2009 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -10,29 +10,14 @@
 
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
-#include <linux/mdio.h>
 #include <linux/rtnetlink.h>
 #include "net_driver.h"
 #include "workarounds.h"
 #include "selftest.h"
 #include "efx.h"
-#include "ethtool.h"
-#include "falcon.h"
+#include "nic.h"
 #include "spi.h"
 #include "mdio_10g.h"
-
-const char *efx_loopback_mode_names[] = {
-	[LOOPBACK_NONE]		= "NONE",
-	[LOOPBACK_GMAC]		= "GMAC",
-	[LOOPBACK_XGMII]	= "XGMII",
-	[LOOPBACK_XGXS]		= "XGXS",
-	[LOOPBACK_XAUI] 	= "XAUI",
-	[LOOPBACK_GPHY]		= "GPHY",
-	[LOOPBACK_PHYXS]	= "PHYXS",
-	[LOOPBACK_PCS]	 	= "PCS",
-	[LOOPBACK_PMAPMD]	= "PMA/PMD",
-	[LOOPBACK_NETWORK]	= "NETWORK",
-};
 
 struct ethtool_string {
 	char name[ETH_GSTRING_LEN];
@@ -167,6 +152,7 @@ static struct efx_ethtool_stat efx_ethtool_stats[] = {
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_tobe_disc),
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_ip_hdr_chksum_err),
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_tcp_udp_chksum_err),
+	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_mcast_mismatch),
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_frm_trunc),
 };
 
@@ -187,13 +173,15 @@ static int efx_ethtool_phys_id(struct net_device *net_dev, u32 count)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
-	efx->board_info.blink(efx, 1);
-	set_current_state(TASK_INTERRUPTIBLE);
-	if (count)
-		schedule_timeout(count * HZ);
-	else
-		schedule();
-	efx->board_info.blink(efx, 0);
+	do {
+		efx->type->set_id_led(efx, EFX_LED_ON);
+		schedule_timeout_interruptible(HZ / 2);
+
+		efx->type->set_id_led(efx, EFX_LED_OFF);
+		schedule_timeout_interruptible(HZ / 2);
+	} while (!signal_pending(current) && --count != 0);
+
+	efx->type->set_id_led(efx, EFX_LED_DEFAULT);
 	return 0;
 }
 
@@ -202,6 +190,7 @@ int efx_ethtool_get_settings(struct net_device *net_dev,
 			     struct ethtool_cmd *ecmd)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_link_state *link_state = &efx->link_state;
 
 	mutex_lock(&efx->mac_lock);
 	efx->phy_op->get_settings(efx, ecmd);
@@ -209,6 +198,13 @@ int efx_ethtool_get_settings(struct net_device *net_dev,
 
 	/* Falcon GMAC does not support 1000Mbps HD */
 	ecmd->supported &= ~SUPPORTED_1000baseT_Half;
+	/* Both MACs support pause frames (bidirectional and respond-only) */
+	ecmd->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+
+	if (LOOPBACK_INTERNAL(efx)) {
+		ecmd->speed = link_state->speed;
+		ecmd->duplex = link_state->fd ? DUPLEX_FULL : DUPLEX_HALF;
+	}
 
 	return 0;
 }
@@ -230,9 +226,6 @@ int efx_ethtool_set_settings(struct net_device *net_dev,
 	mutex_lock(&efx->mac_lock);
 	rc = efx->phy_op->set_settings(efx, ecmd);
 	mutex_unlock(&efx->mac_lock);
-	if (!rc)
-		efx_reconfigure_port(efx);
-
 	return rc;
 }
 
@@ -243,6 +236,9 @@ static void efx_ethtool_get_drvinfo(struct net_device *net_dev,
 
 	strlcpy(info->driver, EFX_DRIVER_NAME, sizeof(info->driver));
 	strlcpy(info->version, EFX_DRIVER_VERSION, sizeof(info->version));
+	if (efx_nic_rev(efx) >= EFX_REV_SIENA_A0)
+		siena_print_fwver(efx, info->fw_version,
+				  sizeof(info->fw_version));
 	strlcpy(info->bus_info, pci_name(efx->pci_dev), sizeof(info->bus_info));
 }
 
@@ -289,7 +285,7 @@ static void efx_fill_test(unsigned int test_index,
 #define EFX_TX_QUEUE_NAME(_tx_queue) "txq%d", _tx_queue->queue
 #define EFX_RX_QUEUE_NAME(_rx_queue) "rxq%d", _rx_queue->queue
 #define EFX_LOOPBACK_NAME(_mode, _counter)			\
-	"loopback.%s." _counter, LOOPBACK_MODE_NAME(mode)
+	"loopback.%s." _counter, STRING_TABLE_LOOKUP(_mode, efx_loopback_mode)
 
 /**
  * efx_fill_loopback_test - fill in a block of loopback self-test entries
@@ -372,9 +368,21 @@ static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 	efx_fill_test(n++, strings, data, &tests->registers,
 		      "core", 0, "registers", NULL);
 
-	for (i = 0; i < efx->phy_op->num_tests; i++)
-		efx_fill_test(n++, strings, data, &tests->phy[i],
-			      "phy", 0, efx->phy_op->test_names[i], NULL);
+	if (efx->phy_op->run_tests != NULL) {
+		EFX_BUG_ON_PARANOID(efx->phy_op->test_name == NULL);
+
+		for (i = 0; true; ++i) {
+			const char *name;
+
+			EFX_BUG_ON_PARANOID(i >= EFX_MAX_PHY_TESTS);
+			name = efx->phy_op->test_name(efx, i);
+			if (name == NULL)
+				break;
+
+			efx_fill_test(n++, strings, data, &tests->phy[i],
+				      "phy", 0, name, NULL);
+		}
+	}
 
 	/* Loopback tests */
 	for (mode = LOOPBACK_NONE; mode <= LOOPBACK_TEST_MAX; mode++) {
@@ -463,6 +471,36 @@ static void efx_ethtool_get_stats(struct net_device *net_dev,
 	}
 }
 
+static int efx_ethtool_set_tso(struct net_device *net_dev, u32 enable)
+{
+	struct efx_nic *efx __attribute__ ((unused)) = netdev_priv(net_dev);
+	unsigned long features;
+
+	features = NETIF_F_TSO;
+	if (efx->type->offload_features & NETIF_F_V6_CSUM)
+		features |= NETIF_F_TSO6;
+
+	if (enable)
+		net_dev->features |= features;
+	else
+		net_dev->features &= ~features;
+
+	return 0;
+}
+
+static int efx_ethtool_set_tx_csum(struct net_device *net_dev, u32 enable)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	unsigned long features = efx->type->offload_features & NETIF_F_ALL_CSUM;
+
+	if (enable)
+		net_dev->features |= features;
+	else
+		net_dev->features &= ~features;
+
+	return 0;
+}
+
 static int efx_ethtool_set_rx_csum(struct net_device *net_dev, u32 enable)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
@@ -537,7 +575,7 @@ static u32 efx_ethtool_get_link(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
-	return efx->link_up;
+	return efx->link_state.up;
 }
 
 static int efx_ethtool_get_eeprom_len(struct net_device *net_dev)
@@ -562,7 +600,8 @@ static int efx_ethtool_get_eeprom(struct net_device *net_dev,
 	rc = mutex_lock_interruptible(&efx->spi_lock);
 	if (rc)
 		return rc;
-	rc = falcon_spi_read(spi, eeprom->offset + EFX_EEPROM_BOOTCONFIG_START,
+	rc = falcon_spi_read(efx, spi,
+			     eeprom->offset + EFX_EEPROM_BOOTCONFIG_START,
 			     eeprom->len, &len, buf);
 	mutex_unlock(&efx->spi_lock);
 
@@ -585,7 +624,8 @@ static int efx_ethtool_set_eeprom(struct net_device *net_dev,
 	rc = mutex_lock_interruptible(&efx->spi_lock);
 	if (rc)
 		return rc;
-	rc = falcon_spi_write(spi, eeprom->offset + EFX_EEPROM_BOOTCONFIG_START,
+	rc = falcon_spi_write(efx, spi,
+			      eeprom->offset + EFX_EEPROM_BOOTCONFIG_START,
 			      eeprom->len, &len, buf);
 	mutex_unlock(&efx->spi_lock);
 
@@ -617,6 +657,9 @@ static int efx_ethtool_get_coalesce(struct net_device *net_dev,
 
 	coalesce->use_adaptive_rx_coalesce = efx->irq_rx_adaptive;
 	coalesce->rx_coalesce_usecs_irq = efx->irq_rx_moderation;
+
+	coalesce->tx_coalesce_usecs_irq *= EFX_IRQ_MOD_RESOLUTION;
+	coalesce->rx_coalesce_usecs_irq *= EFX_IRQ_MOD_RESOLUTION;
 
 	return 0;
 }
@@ -656,13 +699,8 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 	}
 
 	efx_init_irq_moderation(efx, tx_usecs, rx_usecs, adaptive);
-
-	/* Reset channel to pick up new moderation value.  Note that
-	 * this may change the value of the irq_moderation field
-	 * (e.g. to allow for hardware timer granularity).
-	 */
 	efx_for_each_channel(channel, efx)
-		falcon_set_int_moderation(channel);
+		efx->type->push_irq_moderation(channel);
 
 	return 0;
 }
@@ -671,8 +709,12 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 				      struct ethtool_pauseparam *pause)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	enum efx_fc_type wanted_fc;
+	enum efx_fc_type wanted_fc, old_fc;
+	u32 old_adv;
 	bool reset;
+	int rc = 0;
+
+	mutex_lock(&efx->mac_lock);
 
 	wanted_fc = ((pause->rx_pause ? EFX_FC_RX : 0) |
 		     (pause->tx_pause ? EFX_FC_TX : 0) |
@@ -680,14 +722,14 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 
 	if ((wanted_fc & EFX_FC_TX) && !(wanted_fc & EFX_FC_RX)) {
 		EFX_LOG(efx, "Flow control unsupported: tx ON rx OFF\n");
-		return -EINVAL;
+		rc = -EINVAL;
+		goto out;
 	}
 
-	if (!(efx->phy_op->mmds & MDIO_DEVS_AN) &&
-	    (wanted_fc & EFX_FC_AUTO)) {
-		EFX_LOG(efx, "PHY does not support flow control "
-			"autonegotiation\n");
-		return -EINVAL;
+	if ((wanted_fc & EFX_FC_AUTO) && !efx->link_advertising) {
+		EFX_LOG(efx, "Autonegotiation is disabled\n");
+		rc = -EINVAL;
+		goto out;
 	}
 
 	/* TX flow control may automatically turn itself off if the
@@ -697,27 +739,40 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 	 * and fix it be cycling transmit flow control on this end. */
 	reset = (wanted_fc & EFX_FC_TX) && !(efx->wanted_fc & EFX_FC_TX);
 	if (EFX_WORKAROUND_11482(efx) && reset) {
-		if (falcon_rev(efx) >= FALCON_REV_B0) {
+		if (efx_nic_rev(efx) == EFX_REV_FALCON_B0) {
 			/* Recover by resetting the EM block */
-			if (efx->link_up)
-				falcon_drain_tx_fifo(efx);
+			falcon_stop_nic_stats(efx);
+			falcon_drain_tx_fifo(efx);
+			efx->mac_op->reconfigure(efx);
+			falcon_start_nic_stats(efx);
 		} else {
 			/* Schedule a reset to recover */
 			efx_schedule_reset(efx, RESET_TYPE_INVISIBLE);
 		}
 	}
 
-	/* Try to push the pause parameters */
-	mutex_lock(&efx->mac_lock);
+	old_adv = efx->link_advertising;
+	old_fc = efx->wanted_fc;
+	efx_link_set_wanted_fc(efx, wanted_fc);
+	if (efx->link_advertising != old_adv ||
+	    (efx->wanted_fc ^ old_fc) & EFX_FC_AUTO) {
+		rc = efx->phy_op->reconfigure(efx);
+		if (rc) {
+			EFX_ERR(efx, "Unable to advertise requested flow "
+				"control setting\n");
+			goto out;
+		}
+	}
 
-	efx->wanted_fc = wanted_fc;
-	if (efx->phy_op->mmds & MDIO_DEVS_AN)
-		mdio45_ethtool_spauseparam_an(&efx->mdio, pause);
-	__efx_reconfigure_port(efx);
+	/* Reconfigure the MAC. The PHY *may* generate a link state change event
+	 * if the user just changed the advertised capabilities, but there's no
+	 * harm doing this twice */
+	efx->mac_op->reconfigure(efx);
 
+out:
 	mutex_unlock(&efx->mac_lock);
 
-	return 0;
+	return rc;
 }
 
 static void efx_ethtool_get_pauseparam(struct net_device *net_dev,
@@ -730,6 +785,50 @@ static void efx_ethtool_get_pauseparam(struct net_device *net_dev,
 	pause->autoneg = !!(efx->wanted_fc & EFX_FC_AUTO);
 }
 
+
+static void efx_ethtool_get_wol(struct net_device *net_dev,
+				struct ethtool_wolinfo *wol)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	return efx->type->get_wol(efx, wol);
+}
+
+
+static int efx_ethtool_set_wol(struct net_device *net_dev,
+			       struct ethtool_wolinfo *wol)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	return efx->type->set_wol(efx, wol->wolopts);
+}
+
+extern int efx_ethtool_reset(struct net_device *net_dev, u32 *flags)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	enum reset_type method;
+	enum {
+		ETH_RESET_EFX_INVISIBLE = (ETH_RESET_DMA | ETH_RESET_FILTER |
+					   ETH_RESET_OFFLOAD | ETH_RESET_MAC)
+	};
+
+	/* Check for minimal reset flags */
+	if ((*flags & ETH_RESET_EFX_INVISIBLE) != ETH_RESET_EFX_INVISIBLE)
+		return -EINVAL;
+	*flags ^= ETH_RESET_EFX_INVISIBLE;
+	method = RESET_TYPE_INVISIBLE;
+
+	if (*flags & ETH_RESET_PHY) {
+		*flags ^= ETH_RESET_PHY;
+		method = RESET_TYPE_ALL;
+	}
+
+	if ((*flags & efx->type->reset_world_flags) ==
+	    efx->type->reset_world_flags) {
+		*flags ^= efx->type->reset_world_flags;
+		method = RESET_TYPE_WORLD;
+	}
+
+	return efx_reset(efx, method);
+}
 
 const struct ethtool_ops efx_ethtool_ops = {
 	.get_settings		= efx_ethtool_get_settings,
@@ -747,11 +846,13 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.get_rx_csum		= efx_ethtool_get_rx_csum,
 	.set_rx_csum		= efx_ethtool_set_rx_csum,
 	.get_tx_csum		= ethtool_op_get_tx_csum,
-	.set_tx_csum		= ethtool_op_set_tx_csum,
+	/* Need to enable/disable IPv6 too */
+	.set_tx_csum		= efx_ethtool_set_tx_csum,
 	.get_sg			= ethtool_op_get_sg,
 	.set_sg			= ethtool_op_set_sg,
 	.get_tso		= ethtool_op_get_tso,
-	.set_tso		= ethtool_op_set_tso,
+	/* Need to enable/disable TSO-IPv6 too */
+	.set_tso		= efx_ethtool_set_tso,
 	.get_flags		= ethtool_op_get_flags,
 	.set_flags		= ethtool_op_set_flags,
 	.get_sset_count		= efx_ethtool_get_sset_count,
@@ -759,4 +860,7 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.get_strings		= efx_ethtool_get_strings,
 	.phys_id		= efx_ethtool_phys_id,
 	.get_ethtool_stats	= efx_ethtool_get_stats,
+	.get_wol                = efx_ethtool_get_wol,
+	.set_wol                = efx_ethtool_set_wol,
+	.reset			= efx_ethtool_reset,
 };

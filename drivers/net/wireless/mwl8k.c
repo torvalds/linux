@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/pci.h>
@@ -26,18 +27,6 @@
 #define MWL8K_DESC	"Marvell TOPDOG(R) 802.11 Wireless Network Driver"
 #define MWL8K_NAME	KBUILD_MODNAME
 #define MWL8K_VERSION	"0.10"
-
-MODULE_DESCRIPTION(MWL8K_DESC);
-MODULE_VERSION(MWL8K_VERSION);
-MODULE_AUTHOR("Lennert Buytenhek <buytenh@marvell.com>");
-MODULE_LICENSE("GPL");
-
-static DEFINE_PCI_DEVICE_TABLE(mwl8k_table) = {
-	{ PCI_VDEVICE(MARVELL, 0x2a2b), .driver_data = 8687, },
-	{ PCI_VDEVICE(MARVELL, 0x2a30), .driver_data = 8687, },
-	{ }
-};
-MODULE_DEVICE_TABLE(pci, mwl8k_table);
 
 /* Register definitions */
 #define MWL8K_HIU_GEN_PTR			0x00000c10
@@ -88,71 +77,88 @@ MODULE_DEVICE_TABLE(pci, mwl8k_table);
 				 MWL8K_A2H_INT_RX_READY | \
 				 MWL8K_A2H_INT_TX_DONE)
 
-/* WME stream classes */
-#define WME_AC_BE	0		/* best effort */
-#define WME_AC_BK	1		/* background */
-#define WME_AC_VI	2		/* video */
-#define WME_AC_VO	3		/* voice */
-
 #define MWL8K_RX_QUEUES		1
 #define MWL8K_TX_QUEUES		4
 
+struct rxd_ops {
+	int rxd_size;
+	void (*rxd_init)(void *rxd, dma_addr_t next_dma_addr);
+	void (*rxd_refill)(void *rxd, dma_addr_t addr, int len);
+	int (*rxd_process)(void *rxd, struct ieee80211_rx_status *status);
+};
+
+struct mwl8k_device_info {
+	char *part_name;
+	char *helper_image;
+	char *fw_image;
+	struct rxd_ops *rxd_ops;
+	u16 modes;
+};
+
 struct mwl8k_rx_queue {
-	int rx_desc_count;
+	int rxd_count;
 
 	/* hw receives here */
-	int rx_head;
+	int head;
 
 	/* refill descs here */
-	int rx_tail;
+	int tail;
 
-	struct mwl8k_rx_desc *rx_desc_area;
-	dma_addr_t rx_desc_dma;
-	struct sk_buff **rx_skb;
+	void *rxd;
+	dma_addr_t rxd_dma;
+	struct {
+		struct sk_buff *skb;
+		DECLARE_PCI_UNMAP_ADDR(dma)
+	} *buf;
 };
 
 struct mwl8k_tx_queue {
 	/* hw transmits here */
-	int tx_head;
+	int head;
 
 	/* sw appends here */
-	int tx_tail;
+	int tail;
 
-	struct ieee80211_tx_queue_stats tx_stats;
-	struct mwl8k_tx_desc *tx_desc_area;
-	dma_addr_t tx_desc_dma;
-	struct sk_buff **tx_skb;
+	struct ieee80211_tx_queue_stats stats;
+	struct mwl8k_tx_desc *txd;
+	dma_addr_t txd_dma;
+	struct sk_buff **skb;
 };
 
 /* Pointers to the firmware data and meta information about it.  */
 struct mwl8k_firmware {
-	/* Microcode */
-	struct firmware *ucode;
-
 	/* Boot helper code */
 	struct firmware *helper;
+
+	/* Microcode */
+	struct firmware *ucode;
 };
 
 struct mwl8k_priv {
+	void __iomem *sram;
 	void __iomem *regs;
 	struct ieee80211_hw *hw;
 
 	struct pci_dev *pdev;
-	u8 name[16];
+
+	struct mwl8k_device_info *device_info;
+	bool ap_fw;
+	struct rxd_ops *rxd_ops;
 
 	/* firmware files and meta data */
 	struct mwl8k_firmware fw;
-	u32 part_num;
 
 	/* firmware access */
 	struct mutex fw_mutex;
 	struct task_struct *fw_mutex_owner;
 	int fw_mutex_depth;
-	struct completion *tx_wait;
 	struct completion *hostcmd_wait;
 
 	/* lock held over TX and TX reap */
 	spinlock_t tx_lock;
+
+	/* TX quiesce completion, protected by fw_mutex and tx_lock */
+	struct completion *tx_wait;
 
 	struct ieee80211_vif *vif;
 
@@ -178,10 +184,11 @@ struct mwl8k_priv {
 	/* PHY parameters */
 	struct ieee80211_supported_band band;
 	struct ieee80211_channel channels[14];
-	struct ieee80211_rate rates[12];
+	struct ieee80211_rate rates[13];
 
 	bool radio_on;
 	bool radio_short_preamble;
+	bool sniffer_enabled;
 	bool wmm_enabled;
 
 	/* XXX need to convert this to handle multiple interfaces */
@@ -199,9 +206,6 @@ struct mwl8k_priv {
 
 	/* Tasklet to reclaim TX descriptors and buffers after tx */
 	struct tasklet_struct tx_reclaim_task;
-
-	/* Work thread to serialize configuration requests */
-	struct workqueue_struct *config_wq;
 };
 
 /* Per interface specific private data */
@@ -220,7 +224,7 @@ struct mwl8k_vif {
 	 * Subset of supported legacy rates.
 	 * Intersection of AP and STA supported rates.
 	 */
-	struct ieee80211_rate legacy_rates[12];
+	struct ieee80211_rate legacy_rates[13];
 
 	/* number of supported legacy rates */
 	u8	legacy_nrates;
@@ -252,9 +256,10 @@ static const struct ieee80211_rate mwl8k_rates[] = {
 	{ .bitrate = 10, .hw_value = 2, },
 	{ .bitrate = 20, .hw_value = 4, },
 	{ .bitrate = 55, .hw_value = 11, },
+	{ .bitrate = 110, .hw_value = 22, },
+	{ .bitrate = 220, .hw_value = 44, },
 	{ .bitrate = 60, .hw_value = 12, },
 	{ .bitrate = 90, .hw_value = 18, },
-	{ .bitrate = 110, .hw_value = 22, },
 	{ .bitrate = 120, .hw_value = 24, },
 	{ .bitrate = 180, .hw_value = 36, },
 	{ .bitrate = 240, .hw_value = 48, },
@@ -270,10 +275,12 @@ static const struct ieee80211_rate mwl8k_rates[] = {
 /* Firmware command codes */
 #define MWL8K_CMD_CODE_DNLD		0x0001
 #define MWL8K_CMD_GET_HW_SPEC		0x0003
+#define MWL8K_CMD_SET_HW_SPEC		0x0004
 #define MWL8K_CMD_MAC_MULTICAST_ADR	0x0010
 #define MWL8K_CMD_GET_STAT		0x0014
 #define MWL8K_CMD_RADIO_CONTROL		0x001c
 #define MWL8K_CMD_RF_TX_POWER		0x001e
+#define MWL8K_CMD_RF_ANTENNA		0x0020
 #define MWL8K_CMD_SET_PRE_SCAN		0x0107
 #define MWL8K_CMD_SET_POST_SCAN		0x0108
 #define MWL8K_CMD_SET_RF_CHANNEL	0x010a
@@ -287,6 +294,7 @@ static const struct ieee80211_rate mwl8k_rates[] = {
 #define MWL8K_CMD_MIMO_CONFIG		0x0125
 #define MWL8K_CMD_USE_FIXED_RATE	0x0126
 #define MWL8K_CMD_ENABLE_SNIFFER	0x0150
+#define MWL8K_CMD_SET_MAC_ADDR		0x0202
 #define MWL8K_CMD_SET_RATEADAPT_MODE	0x0203
 #define MWL8K_CMD_UPDATE_STADB		0x1123
 
@@ -299,10 +307,12 @@ static const char *mwl8k_cmd_name(u16 cmd, char *buf, int bufsize)
 	switch (cmd & ~0x8000) {
 		MWL8K_CMDNAME(CODE_DNLD);
 		MWL8K_CMDNAME(GET_HW_SPEC);
+		MWL8K_CMDNAME(SET_HW_SPEC);
 		MWL8K_CMDNAME(MAC_MULTICAST_ADR);
 		MWL8K_CMDNAME(GET_STAT);
 		MWL8K_CMDNAME(RADIO_CONTROL);
 		MWL8K_CMDNAME(RF_TX_POWER);
+		MWL8K_CMDNAME(RF_ANTENNA);
 		MWL8K_CMDNAME(SET_PRE_SCAN);
 		MWL8K_CMDNAME(SET_POST_SCAN);
 		MWL8K_CMDNAME(SET_RF_CHANNEL);
@@ -316,6 +326,7 @@ static const char *mwl8k_cmd_name(u16 cmd, char *buf, int bufsize)
 		MWL8K_CMDNAME(MIMO_CONFIG);
 		MWL8K_CMDNAME(USE_FIXED_RATE);
 		MWL8K_CMDNAME(ENABLE_SNIFFER);
+		MWL8K_CMDNAME(SET_MAC_ADDR);
 		MWL8K_CMDNAME(SET_RATEADAPT_MODE);
 		MWL8K_CMDNAME(UPDATE_STADB);
 	default:
@@ -353,47 +364,44 @@ static void mwl8k_release_firmware(struct mwl8k_priv *priv)
 
 /* Request fw image */
 static int mwl8k_request_fw(struct mwl8k_priv *priv,
-				const char *fname, struct firmware **fw)
+			    const char *fname, struct firmware **fw)
 {
 	/* release current image */
 	if (*fw != NULL)
 		mwl8k_release_fw(fw);
 
 	return request_firmware((const struct firmware **)fw,
-						fname, &priv->pdev->dev);
+				fname, &priv->pdev->dev);
 }
 
-static int mwl8k_request_firmware(struct mwl8k_priv *priv, u32 part_num)
+static int mwl8k_request_firmware(struct mwl8k_priv *priv)
 {
-	u8 filename[64];
+	struct mwl8k_device_info *di = priv->device_info;
 	int rc;
 
-	priv->part_num = part_num;
-
-	snprintf(filename, sizeof(filename),
-		 "mwl8k/helper_%u.fw", priv->part_num);
-
-	rc = mwl8k_request_fw(priv, filename, &priv->fw.helper);
-	if (rc) {
-		printk(KERN_ERR
-			"%s Error requesting helper firmware file %s\n",
-			pci_name(priv->pdev), filename);
-		return rc;
+	if (di->helper_image != NULL) {
+		rc = mwl8k_request_fw(priv, di->helper_image, &priv->fw.helper);
+		if (rc) {
+			printk(KERN_ERR "%s: Error requesting helper "
+			       "firmware file %s\n", pci_name(priv->pdev),
+			       di->helper_image);
+			return rc;
+		}
 	}
 
-	snprintf(filename, sizeof(filename),
-		 "mwl8k/fmimage_%u.fw", priv->part_num);
-
-	rc = mwl8k_request_fw(priv, filename, &priv->fw.ucode);
+	rc = mwl8k_request_fw(priv, di->fw_image, &priv->fw.ucode);
 	if (rc) {
-		printk(KERN_ERR "%s Error requesting firmware file %s\n",
-					pci_name(priv->pdev), filename);
+		printk(KERN_ERR "%s: Error requesting firmware file %s\n",
+		       pci_name(priv->pdev), di->fw_image);
 		mwl8k_release_fw(&priv->fw.helper);
 		return rc;
 	}
 
 	return 0;
 }
+
+MODULE_FIRMWARE("mwl8k/helper_8687.fw");
+MODULE_FIRMWARE("mwl8k/fmimage_8687.fw");
 
 struct mwl8k_cmd_pkt {
 	__le16	code;
@@ -434,6 +442,7 @@ mwl8k_send_fw_load_cmd(struct mwl8k_priv *priv, void *data, int length)
 			break;
 		}
 
+		cond_resched();
 		udelay(1);
 	} while (--loops);
 
@@ -542,43 +551,62 @@ static int mwl8k_feed_fw_image(struct mwl8k_priv *priv,
 	return rc;
 }
 
-static int mwl8k_load_firmware(struct mwl8k_priv *priv)
+static int mwl8k_load_firmware(struct ieee80211_hw *hw)
 {
-	int loops, rc;
+	struct mwl8k_priv *priv = hw->priv;
+	struct firmware *fw = priv->fw.ucode;
+	struct mwl8k_device_info *di = priv->device_info;
+	int rc;
+	int loops;
 
-	const u8 *ucode = priv->fw.ucode->data;
-	size_t ucode_len = priv->fw.ucode->size;
-	const u8 *helper = priv->fw.helper->data;
-	size_t helper_len = priv->fw.helper->size;
+	if (!memcmp(fw->data, "\x01\x00\x00\x00", 4)) {
+		struct firmware *helper = priv->fw.helper;
 
-	if (!memcmp(ucode, "\x01\x00\x00\x00", 4)) {
-		rc = mwl8k_load_fw_image(priv, helper, helper_len);
+		if (helper == NULL) {
+			printk(KERN_ERR "%s: helper image needed but none "
+			       "given\n", pci_name(priv->pdev));
+			return -EINVAL;
+		}
+
+		rc = mwl8k_load_fw_image(priv, helper->data, helper->size);
 		if (rc) {
 			printk(KERN_ERR "%s: unable to load firmware "
-				"helper image\n", pci_name(priv->pdev));
+			       "helper image\n", pci_name(priv->pdev));
 			return rc;
 		}
 		msleep(1);
 
-		rc = mwl8k_feed_fw_image(priv, ucode, ucode_len);
+		rc = mwl8k_feed_fw_image(priv, fw->data, fw->size);
 	} else {
-		rc = mwl8k_load_fw_image(priv, ucode, ucode_len);
+		rc = mwl8k_load_fw_image(priv, fw->data, fw->size);
 	}
 
 	if (rc) {
-		printk(KERN_ERR "%s: unable to load firmware data\n",
-			pci_name(priv->pdev));
+		printk(KERN_ERR "%s: unable to load firmware image\n",
+		       pci_name(priv->pdev));
 		return rc;
 	}
 
-	iowrite32(MWL8K_MODE_STA, priv->regs + MWL8K_HIU_GEN_PTR);
+	if (di->modes & BIT(NL80211_IFTYPE_AP))
+		iowrite32(MWL8K_MODE_AP, priv->regs + MWL8K_HIU_GEN_PTR);
+	else
+		iowrite32(MWL8K_MODE_STA, priv->regs + MWL8K_HIU_GEN_PTR);
 	msleep(1);
 
 	loops = 200000;
 	do {
-		if (ioread32(priv->regs + MWL8K_HIU_INT_CODE)
-						== MWL8K_FWSTA_READY)
+		u32 ready_code;
+
+		ready_code = ioread32(priv->regs + MWL8K_HIU_INT_CODE);
+		if (ready_code == MWL8K_FWAP_READY) {
+			priv->ap_fw = 1;
 			break;
+		} else if (ready_code == MWL8K_FWSTA_READY) {
+			priv->ap_fw = 0;
+			break;
+		}
+
+		cond_resched();
 		udelay(1);
 	} while (--loops);
 
@@ -605,7 +633,7 @@ struct ewc_ht_info {
 /* Peer Entry flags - used to define the type of the peer node */
 #define MWL8K_PEER_TYPE_ACCESSPOINT	2
 
-#define MWL8K_IEEE_LEGACY_DATA_RATES	12
+#define MWL8K_IEEE_LEGACY_DATA_RATES	13
 #define MWL8K_MCS_BITMAP_SIZE		16
 
 struct peer_capability_info {
@@ -731,16 +759,96 @@ static inline void mwl8k_add_dma_header(struct sk_buff *skb)
 
 
 /*
- * Packet reception.
+ * Packet reception for 88w8366.
  */
-#define MWL8K_RX_CTRL_OWNED_BY_HOST	0x02
+struct mwl8k_rxd_8366 {
+	__le16 pkt_len;
+	__u8 sq2;
+	__u8 rate;
+	__le32 pkt_phys_addr;
+	__le32 next_rxd_phys_addr;
+	__le16 qos_control;
+	__le16 htsig2;
+	__le32 hw_rssi_info;
+	__le32 hw_noise_floor_info;
+	__u8 noise_floor;
+	__u8 pad0[3];
+	__u8 rssi;
+	__u8 rx_status;
+	__u8 channel;
+	__u8 rx_ctrl;
+} __attribute__((packed));
 
-struct mwl8k_rx_desc {
+#define MWL8K_8366_RX_CTRL_OWNED_BY_HOST	0x80
+
+static void mwl8k_rxd_8366_init(void *_rxd, dma_addr_t next_dma_addr)
+{
+	struct mwl8k_rxd_8366 *rxd = _rxd;
+
+	rxd->next_rxd_phys_addr = cpu_to_le32(next_dma_addr);
+	rxd->rx_ctrl = MWL8K_8366_RX_CTRL_OWNED_BY_HOST;
+}
+
+static void mwl8k_rxd_8366_refill(void *_rxd, dma_addr_t addr, int len)
+{
+	struct mwl8k_rxd_8366 *rxd = _rxd;
+
+	rxd->pkt_len = cpu_to_le16(len);
+	rxd->pkt_phys_addr = cpu_to_le32(addr);
+	wmb();
+	rxd->rx_ctrl = 0;
+}
+
+static int
+mwl8k_rxd_8366_process(void *_rxd, struct ieee80211_rx_status *status)
+{
+	struct mwl8k_rxd_8366 *rxd = _rxd;
+
+	if (!(rxd->rx_ctrl & MWL8K_8366_RX_CTRL_OWNED_BY_HOST))
+		return -1;
+	rmb();
+
+	memset(status, 0, sizeof(*status));
+
+	status->signal = -rxd->rssi;
+	status->noise = -rxd->noise_floor;
+
+	if (rxd->rate & 0x80) {
+		status->flag |= RX_FLAG_HT;
+		status->rate_idx = rxd->rate & 0x7f;
+	} else {
+		int i;
+
+		for (i = 0; i < ARRAY_SIZE(mwl8k_rates); i++) {
+			if (mwl8k_rates[i].hw_value == rxd->rate) {
+				status->rate_idx = i;
+				break;
+			}
+		}
+	}
+
+	status->band = IEEE80211_BAND_2GHZ;
+	status->freq = ieee80211_channel_to_frequency(rxd->channel);
+
+	return le16_to_cpu(rxd->pkt_len);
+}
+
+static struct rxd_ops rxd_8366_ops = {
+	.rxd_size	= sizeof(struct mwl8k_rxd_8366),
+	.rxd_init	= mwl8k_rxd_8366_init,
+	.rxd_refill	= mwl8k_rxd_8366_refill,
+	.rxd_process	= mwl8k_rxd_8366_process,
+};
+
+/*
+ * Packet reception for 88w8687.
+ */
+struct mwl8k_rxd_8687 {
 	__le16 pkt_len;
 	__u8 link_quality;
 	__u8 noise_level;
 	__le32 pkt_phys_addr;
-	__le32 next_rx_desc_phys_addr;
+	__le32 next_rxd_phys_addr;
 	__le16 qos_control;
 	__le16 rate_info;
 	__le32 pad0[4];
@@ -752,6 +860,76 @@ struct mwl8k_rx_desc {
 	__u8 pad2[2];
 } __attribute__((packed));
 
+#define MWL8K_8687_RATE_INFO_SHORTPRE		0x8000
+#define MWL8K_8687_RATE_INFO_ANTSELECT(x)	(((x) >> 11) & 0x3)
+#define MWL8K_8687_RATE_INFO_RATEID(x)		(((x) >> 3) & 0x3f)
+#define MWL8K_8687_RATE_INFO_40MHZ		0x0004
+#define MWL8K_8687_RATE_INFO_SHORTGI		0x0002
+#define MWL8K_8687_RATE_INFO_MCS_FORMAT		0x0001
+
+#define MWL8K_8687_RX_CTRL_OWNED_BY_HOST	0x02
+
+static void mwl8k_rxd_8687_init(void *_rxd, dma_addr_t next_dma_addr)
+{
+	struct mwl8k_rxd_8687 *rxd = _rxd;
+
+	rxd->next_rxd_phys_addr = cpu_to_le32(next_dma_addr);
+	rxd->rx_ctrl = MWL8K_8687_RX_CTRL_OWNED_BY_HOST;
+}
+
+static void mwl8k_rxd_8687_refill(void *_rxd, dma_addr_t addr, int len)
+{
+	struct mwl8k_rxd_8687 *rxd = _rxd;
+
+	rxd->pkt_len = cpu_to_le16(len);
+	rxd->pkt_phys_addr = cpu_to_le32(addr);
+	wmb();
+	rxd->rx_ctrl = 0;
+}
+
+static int
+mwl8k_rxd_8687_process(void *_rxd, struct ieee80211_rx_status *status)
+{
+	struct mwl8k_rxd_8687 *rxd = _rxd;
+	u16 rate_info;
+
+	if (!(rxd->rx_ctrl & MWL8K_8687_RX_CTRL_OWNED_BY_HOST))
+		return -1;
+	rmb();
+
+	rate_info = le16_to_cpu(rxd->rate_info);
+
+	memset(status, 0, sizeof(*status));
+
+	status->signal = -rxd->rssi;
+	status->noise = -rxd->noise_level;
+	status->qual = rxd->link_quality;
+	status->antenna = MWL8K_8687_RATE_INFO_ANTSELECT(rate_info);
+	status->rate_idx = MWL8K_8687_RATE_INFO_RATEID(rate_info);
+
+	if (rate_info & MWL8K_8687_RATE_INFO_SHORTPRE)
+		status->flag |= RX_FLAG_SHORTPRE;
+	if (rate_info & MWL8K_8687_RATE_INFO_40MHZ)
+		status->flag |= RX_FLAG_40MHZ;
+	if (rate_info & MWL8K_8687_RATE_INFO_SHORTGI)
+		status->flag |= RX_FLAG_SHORT_GI;
+	if (rate_info & MWL8K_8687_RATE_INFO_MCS_FORMAT)
+		status->flag |= RX_FLAG_HT;
+
+	status->band = IEEE80211_BAND_2GHZ;
+	status->freq = ieee80211_channel_to_frequency(rxd->channel);
+
+	return le16_to_cpu(rxd->pkt_len);
+}
+
+static struct rxd_ops rxd_8687_ops = {
+	.rxd_size	= sizeof(struct mwl8k_rxd_8687),
+	.rxd_init	= mwl8k_rxd_8687_init,
+	.rxd_refill	= mwl8k_rxd_8687_refill,
+	.rxd_process	= mwl8k_rxd_8687_process,
+};
+
+
 #define MWL8K_RX_DESCS		256
 #define MWL8K_RX_MAXSZ		3800
 
@@ -762,43 +940,44 @@ static int mwl8k_rxq_init(struct ieee80211_hw *hw, int index)
 	int size;
 	int i;
 
-	rxq->rx_desc_count = 0;
-	rxq->rx_head = 0;
-	rxq->rx_tail = 0;
+	rxq->rxd_count = 0;
+	rxq->head = 0;
+	rxq->tail = 0;
 
-	size = MWL8K_RX_DESCS * sizeof(struct mwl8k_rx_desc);
+	size = MWL8K_RX_DESCS * priv->rxd_ops->rxd_size;
 
-	rxq->rx_desc_area =
-		pci_alloc_consistent(priv->pdev, size, &rxq->rx_desc_dma);
-	if (rxq->rx_desc_area == NULL) {
+	rxq->rxd = pci_alloc_consistent(priv->pdev, size, &rxq->rxd_dma);
+	if (rxq->rxd == NULL) {
 		printk(KERN_ERR "%s: failed to alloc RX descriptors\n",
-		       priv->name);
+		       wiphy_name(hw->wiphy));
 		return -ENOMEM;
 	}
-	memset(rxq->rx_desc_area, 0, size);
+	memset(rxq->rxd, 0, size);
 
-	rxq->rx_skb = kmalloc(MWL8K_RX_DESCS *
-				sizeof(*rxq->rx_skb), GFP_KERNEL);
-	if (rxq->rx_skb == NULL) {
+	rxq->buf = kmalloc(MWL8K_RX_DESCS * sizeof(*rxq->buf), GFP_KERNEL);
+	if (rxq->buf == NULL) {
 		printk(KERN_ERR "%s: failed to alloc RX skbuff list\n",
-			priv->name);
-		pci_free_consistent(priv->pdev, size,
-				    rxq->rx_desc_area, rxq->rx_desc_dma);
+		       wiphy_name(hw->wiphy));
+		pci_free_consistent(priv->pdev, size, rxq->rxd, rxq->rxd_dma);
 		return -ENOMEM;
 	}
-	memset(rxq->rx_skb, 0, MWL8K_RX_DESCS * sizeof(*rxq->rx_skb));
+	memset(rxq->buf, 0, MWL8K_RX_DESCS * sizeof(*rxq->buf));
 
 	for (i = 0; i < MWL8K_RX_DESCS; i++) {
-		struct mwl8k_rx_desc *rx_desc;
+		int desc_size;
+		void *rxd;
 		int nexti;
+		dma_addr_t next_dma_addr;
 
-		rx_desc = rxq->rx_desc_area + i;
-		nexti = (i + 1) % MWL8K_RX_DESCS;
+		desc_size = priv->rxd_ops->rxd_size;
+		rxd = rxq->rxd + (i * priv->rxd_ops->rxd_size);
 
-		rx_desc->next_rx_desc_phys_addr =
-			cpu_to_le32(rxq->rx_desc_dma
-						+ nexti * sizeof(*rx_desc));
-		rx_desc->rx_ctrl = MWL8K_RX_CTRL_OWNED_BY_HOST;
+		nexti = i + 1;
+		if (nexti == MWL8K_RX_DESCS)
+			nexti = 0;
+		next_dma_addr = rxq->rxd_dma + (nexti * desc_size);
+
+		priv->rxd_ops->rxd_init(rxd, next_dma_addr);
 	}
 
 	return 0;
@@ -811,27 +990,28 @@ static int rxq_refill(struct ieee80211_hw *hw, int index, int limit)
 	int refilled;
 
 	refilled = 0;
-	while (rxq->rx_desc_count < MWL8K_RX_DESCS && limit--) {
+	while (rxq->rxd_count < MWL8K_RX_DESCS && limit--) {
 		struct sk_buff *skb;
+		dma_addr_t addr;
 		int rx;
+		void *rxd;
 
 		skb = dev_alloc_skb(MWL8K_RX_MAXSZ);
 		if (skb == NULL)
 			break;
 
-		rxq->rx_desc_count++;
+		addr = pci_map_single(priv->pdev, skb->data,
+				      MWL8K_RX_MAXSZ, DMA_FROM_DEVICE);
 
-		rx = rxq->rx_tail;
-		rxq->rx_tail = (rx + 1) % MWL8K_RX_DESCS;
+		rxq->rxd_count++;
+		rx = rxq->tail++;
+		if (rxq->tail == MWL8K_RX_DESCS)
+			rxq->tail = 0;
+		rxq->buf[rx].skb = skb;
+		pci_unmap_addr_set(&rxq->buf[rx], dma, addr);
 
-		rxq->rx_desc_area[rx].pkt_phys_addr =
-			cpu_to_le32(pci_map_single(priv->pdev, skb->data,
-					MWL8K_RX_MAXSZ, DMA_FROM_DEVICE));
-
-		rxq->rx_desc_area[rx].pkt_len = cpu_to_le16(MWL8K_RX_MAXSZ);
-		rxq->rx_skb[rx] = skb;
-		wmb();
-		rxq->rx_desc_area[rx].rx_ctrl = 0;
+		rxd = rxq->rxd + (rx * priv->rxd_ops->rxd_size);
+		priv->rxd_ops->rxd_refill(rxd, addr, MWL8K_RX_MAXSZ);
 
 		refilled++;
 	}
@@ -847,24 +1027,24 @@ static void mwl8k_rxq_deinit(struct ieee80211_hw *hw, int index)
 	int i;
 
 	for (i = 0; i < MWL8K_RX_DESCS; i++) {
-		if (rxq->rx_skb[i] != NULL) {
-			unsigned long addr;
+		if (rxq->buf[i].skb != NULL) {
+			pci_unmap_single(priv->pdev,
+					 pci_unmap_addr(&rxq->buf[i], dma),
+					 MWL8K_RX_MAXSZ, PCI_DMA_FROMDEVICE);
+			pci_unmap_addr_set(&rxq->buf[i], dma, 0);
 
-			addr = le32_to_cpu(rxq->rx_desc_area[i].pkt_phys_addr);
-			pci_unmap_single(priv->pdev, addr, MWL8K_RX_MAXSZ,
-					 PCI_DMA_FROMDEVICE);
-			kfree_skb(rxq->rx_skb[i]);
-			rxq->rx_skb[i] = NULL;
+			kfree_skb(rxq->buf[i].skb);
+			rxq->buf[i].skb = NULL;
 		}
 	}
 
-	kfree(rxq->rx_skb);
-	rxq->rx_skb = NULL;
+	kfree(rxq->buf);
+	rxq->buf = NULL;
 
 	pci_free_consistent(priv->pdev,
-			    MWL8K_RX_DESCS * sizeof(struct mwl8k_rx_desc),
-			    rxq->rx_desc_area, rxq->rx_desc_dma);
-	rxq->rx_desc_area = NULL;
+			    MWL8K_RX_DESCS * priv->rxd_ops->rxd_size,
+			    rxq->rxd, rxq->rxd_dma);
+	rxq->rxd = NULL;
 }
 
 
@@ -880,9 +1060,11 @@ mwl8k_capture_bssid(struct mwl8k_priv *priv, struct ieee80211_hdr *wh)
 		!compare_ether_addr(wh->addr3, priv->capture_bssid);
 }
 
-static inline void mwl8k_save_beacon(struct mwl8k_priv *priv,
-							struct sk_buff *skb)
+static inline void mwl8k_save_beacon(struct ieee80211_hw *hw,
+				     struct sk_buff *skb)
 {
+	struct mwl8k_priv *priv = hw->priv;
+
 	priv->capture_beacon = false;
 	memset(priv->capture_bssid, 0, ETH_ALEN);
 
@@ -893,8 +1075,7 @@ static inline void mwl8k_save_beacon(struct mwl8k_priv *priv,
 	 */
 	priv->beacon_skb = skb_copy(skb, GFP_ATOMIC);
 	if (priv->beacon_skb != NULL)
-		queue_work(priv->config_wq,
-				&priv->finalize_join_worker);
+		ieee80211_queue_work(hw, &priv->finalize_join_worker);
 }
 
 static int rxq_process(struct ieee80211_hw *hw, int index, int limit)
@@ -904,53 +1085,46 @@ static int rxq_process(struct ieee80211_hw *hw, int index, int limit)
 	int processed;
 
 	processed = 0;
-	while (rxq->rx_desc_count && limit--) {
-		struct mwl8k_rx_desc *rx_desc;
+	while (rxq->rxd_count && limit--) {
 		struct sk_buff *skb;
+		void *rxd;
+		int pkt_len;
 		struct ieee80211_rx_status status;
-		unsigned long addr;
-		struct ieee80211_hdr *wh;
 
-		rx_desc = rxq->rx_desc_area + rxq->rx_head;
-		if (!(rx_desc->rx_ctrl & MWL8K_RX_CTRL_OWNED_BY_HOST))
-			break;
-		rmb();
-
-		skb = rxq->rx_skb[rxq->rx_head];
+		skb = rxq->buf[rxq->head].skb;
 		if (skb == NULL)
 			break;
-		rxq->rx_skb[rxq->rx_head] = NULL;
 
-		rxq->rx_head = (rxq->rx_head + 1) % MWL8K_RX_DESCS;
-		rxq->rx_desc_count--;
+		rxd = rxq->rxd + (rxq->head * priv->rxd_ops->rxd_size);
 
-		addr = le32_to_cpu(rx_desc->pkt_phys_addr);
-		pci_unmap_single(priv->pdev, addr,
-					MWL8K_RX_MAXSZ, PCI_DMA_FROMDEVICE);
+		pkt_len = priv->rxd_ops->rxd_process(rxd, &status);
+		if (pkt_len < 0)
+			break;
 
-		skb_put(skb, le16_to_cpu(rx_desc->pkt_len));
+		rxq->buf[rxq->head].skb = NULL;
+
+		pci_unmap_single(priv->pdev,
+				 pci_unmap_addr(&rxq->buf[rxq->head], dma),
+				 MWL8K_RX_MAXSZ, PCI_DMA_FROMDEVICE);
+		pci_unmap_addr_set(&rxq->buf[rxq->head], dma, 0);
+
+		rxq->head++;
+		if (rxq->head == MWL8K_RX_DESCS)
+			rxq->head = 0;
+
+		rxq->rxd_count--;
+
+		skb_put(skb, pkt_len);
 		mwl8k_remove_dma_header(skb);
 
-		wh = (struct ieee80211_hdr *)skb->data;
-
 		/*
-		 * Check for pending join operation. save a copy of
-		 * the beacon and schedule a tasklet to send finalize
-		 * join command to the firmware.
+		 * Check for a pending join operation.  Save a
+		 * copy of the beacon and schedule a tasklet to
+		 * send a FINALIZE_JOIN command to the firmware.
 		 */
-		if (mwl8k_capture_bssid(priv, wh))
-			mwl8k_save_beacon(priv, skb);
+		if (mwl8k_capture_bssid(priv, (void *)skb->data))
+			mwl8k_save_beacon(hw, skb);
 
-		memset(&status, 0, sizeof(status));
-		status.mactime = 0;
-		status.signal = -rx_desc->rssi;
-		status.noise = -rx_desc->noise_level;
-		status.qual = rx_desc->link_quality;
-		status.antenna = 1;
-		status.rate_idx = 1;
-		status.flag = 0;
-		status.band = IEEE80211_BAND_2GHZ;
-		status.freq = ieee80211_channel_to_frequency(rx_desc->channel);
 		memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));
 		ieee80211_rx_irqsafe(hw, skb);
 
@@ -965,23 +1139,9 @@ static int rxq_process(struct ieee80211_hw *hw, int index, int limit)
  * Packet transmission.
  */
 
-/* Transmit queue assignment.  */
-enum {
-	MWL8K_WME_AC_BK	= 0,		/* background access */
-	MWL8K_WME_AC_BE	= 1,		/* best effort access */
-	MWL8K_WME_AC_VI	= 2,		/* video access */
-	MWL8K_WME_AC_VO	= 3,		/* voice access */
-};
-
 /* Transmit packet ACK policy */
 #define MWL8K_TXD_ACK_POLICY_NORMAL		0
 #define MWL8K_TXD_ACK_POLICY_BLOCKACK		3
-
-#define GET_TXQ(_ac) (\
-		((_ac) == WME_AC_VO) ? MWL8K_WME_AC_VO : \
-		((_ac) == WME_AC_VI) ? MWL8K_WME_AC_VI : \
-		((_ac) == WME_AC_BK) ? MWL8K_WME_AC_BK : \
-		MWL8K_WME_AC_BE)
 
 #define MWL8K_TXD_STATUS_OK			0x00000001
 #define MWL8K_TXD_STATUS_OK_RETRY		0x00000002
@@ -997,7 +1157,7 @@ struct mwl8k_tx_desc {
 	__le32 pkt_phys_addr;
 	__le16 pkt_len;
 	__u8 dest_MAC_addr[ETH_ALEN];
-	__le32 next_tx_desc_phys_addr;
+	__le32 next_txd_phys_addr;
 	__le32 reserved;
 	__le16 rate_info;
 	__u8 peer_id;
@@ -1013,44 +1173,40 @@ static int mwl8k_txq_init(struct ieee80211_hw *hw, int index)
 	int size;
 	int i;
 
-	memset(&txq->tx_stats, 0, sizeof(struct ieee80211_tx_queue_stats));
-	txq->tx_stats.limit = MWL8K_TX_DESCS;
-	txq->tx_head = 0;
-	txq->tx_tail = 0;
+	memset(&txq->stats, 0, sizeof(struct ieee80211_tx_queue_stats));
+	txq->stats.limit = MWL8K_TX_DESCS;
+	txq->head = 0;
+	txq->tail = 0;
 
 	size = MWL8K_TX_DESCS * sizeof(struct mwl8k_tx_desc);
 
-	txq->tx_desc_area =
-		pci_alloc_consistent(priv->pdev, size, &txq->tx_desc_dma);
-	if (txq->tx_desc_area == NULL) {
+	txq->txd = pci_alloc_consistent(priv->pdev, size, &txq->txd_dma);
+	if (txq->txd == NULL) {
 		printk(KERN_ERR "%s: failed to alloc TX descriptors\n",
-		       priv->name);
+		       wiphy_name(hw->wiphy));
 		return -ENOMEM;
 	}
-	memset(txq->tx_desc_area, 0, size);
+	memset(txq->txd, 0, size);
 
-	txq->tx_skb = kmalloc(MWL8K_TX_DESCS * sizeof(*txq->tx_skb),
-								GFP_KERNEL);
-	if (txq->tx_skb == NULL) {
+	txq->skb = kmalloc(MWL8K_TX_DESCS * sizeof(*txq->skb), GFP_KERNEL);
+	if (txq->skb == NULL) {
 		printk(KERN_ERR "%s: failed to alloc TX skbuff list\n",
-		       priv->name);
-		pci_free_consistent(priv->pdev, size,
-				    txq->tx_desc_area, txq->tx_desc_dma);
+		       wiphy_name(hw->wiphy));
+		pci_free_consistent(priv->pdev, size, txq->txd, txq->txd_dma);
 		return -ENOMEM;
 	}
-	memset(txq->tx_skb, 0, MWL8K_TX_DESCS * sizeof(*txq->tx_skb));
+	memset(txq->skb, 0, MWL8K_TX_DESCS * sizeof(*txq->skb));
 
 	for (i = 0; i < MWL8K_TX_DESCS; i++) {
 		struct mwl8k_tx_desc *tx_desc;
 		int nexti;
 
-		tx_desc = txq->tx_desc_area + i;
+		tx_desc = txq->txd + i;
 		nexti = (i + 1) % MWL8K_TX_DESCS;
 
 		tx_desc->status = 0;
-		tx_desc->next_tx_desc_phys_addr =
-			cpu_to_le32(txq->tx_desc_dma +
-						nexti * sizeof(*tx_desc));
+		tx_desc->next_txd_phys_addr =
+			cpu_to_le32(txq->txd_dma + nexti * sizeof(*tx_desc));
 	}
 
 	return 0;
@@ -1063,11 +1219,6 @@ static inline void mwl8k_tx_start(struct mwl8k_priv *priv)
 	iowrite32(MWL8K_H2A_INT_DUMMY,
 		priv->regs + MWL8K_HIU_H2A_INTERRUPT_EVENTS);
 	ioread32(priv->regs + MWL8K_HIU_INT_CODE);
-}
-
-static inline int mwl8k_txq_busy(struct mwl8k_priv *priv)
-{
-	return priv->pending_tx_pkts;
 }
 
 struct mwl8k_txq_info {
@@ -1089,14 +1240,13 @@ static int mwl8k_scan_tx_ring(struct mwl8k_priv *priv,
 
 	memset(txinfo, 0, MWL8K_TX_QUEUES * sizeof(struct mwl8k_txq_info));
 
-	spin_lock_bh(&priv->tx_lock);
 	for (count = 0; count < MWL8K_TX_QUEUES; count++) {
 		txq = priv->txq + count;
-		txinfo[count].len = txq->tx_stats.len;
-		txinfo[count].head = txq->tx_head;
-		txinfo[count].tail = txq->tx_tail;
+		txinfo[count].len = txq->stats.len;
+		txinfo[count].head = txq->head;
+		txinfo[count].tail = txq->tail;
 		for (desc = 0; desc < MWL8K_TX_DESCS; desc++) {
-			tx_desc = txq->tx_desc_area + desc;
+			tx_desc = txq->txd + desc;
 			status = le32_to_cpu(tx_desc->status);
 
 			if (status & MWL8K_TXD_STATUS_FW_OWNED)
@@ -1108,30 +1258,26 @@ static int mwl8k_scan_tx_ring(struct mwl8k_priv *priv,
 				txinfo[count].unused++;
 		}
 	}
-	spin_unlock_bh(&priv->tx_lock);
 
 	return ndescs;
 }
 
 /*
- * Must be called with hw->fw_mutex held and tx queues stopped.
+ * Must be called with priv->fw_mutex held and tx queues stopped.
  */
 static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 {
 	struct mwl8k_priv *priv = hw->priv;
-	DECLARE_COMPLETION_ONSTACK(cmd_wait);
+	DECLARE_COMPLETION_ONSTACK(tx_wait);
 	u32 count;
 	unsigned long timeout;
 
 	might_sleep();
 
 	spin_lock_bh(&priv->tx_lock);
-	count = mwl8k_txq_busy(priv);
-	if (count) {
-		priv->tx_wait = &cmd_wait;
-		if (priv->radio_on)
-			mwl8k_tx_start(priv);
-	}
+	count = priv->pending_tx_pkts;
+	if (count)
+		priv->tx_wait = &tx_wait;
 	spin_unlock_bh(&priv->tx_lock);
 
 	if (count) {
@@ -1139,23 +1285,23 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 		int index;
 		int newcount;
 
-		timeout = wait_for_completion_timeout(&cmd_wait,
+		timeout = wait_for_completion_timeout(&tx_wait,
 					msecs_to_jiffies(5000));
 		if (timeout)
 			return 0;
 
 		spin_lock_bh(&priv->tx_lock);
 		priv->tx_wait = NULL;
-		newcount = mwl8k_txq_busy(priv);
+		newcount = priv->pending_tx_pkts;
+		mwl8k_scan_tx_ring(priv, txinfo);
 		spin_unlock_bh(&priv->tx_lock);
 
 		printk(KERN_ERR "%s(%u) TIMEDOUT:5000ms Pend:%u-->%u\n",
 		       __func__, __LINE__, count, newcount);
 
-		mwl8k_scan_tx_ring(priv, txinfo);
 		for (index = 0; index < MWL8K_TX_QUEUES; index++)
-			printk(KERN_ERR
-				"TXQ:%u L:%u H:%u T:%u FW:%u DRV:%u U:%u\n",
+			printk(KERN_ERR "TXQ:%u L:%u H:%u T:%u FW:%u "
+			       "DRV:%u U:%u\n",
 					index,
 					txinfo[index].len,
 					txinfo[index].head,
@@ -1181,7 +1327,7 @@ static void mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int force)
 	struct mwl8k_tx_queue *txq = priv->txq + index;
 	int wake = 0;
 
-	while (txq->tx_stats.len > 0) {
+	while (txq->stats.len > 0) {
 		int tx;
 		struct mwl8k_tx_desc *tx_desc;
 		unsigned long addr;
@@ -1190,8 +1336,8 @@ static void mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int force)
 		struct ieee80211_tx_info *info;
 		u32 status;
 
-		tx = txq->tx_head;
-		tx_desc = txq->tx_desc_area + tx;
+		tx = txq->head;
+		tx_desc = txq->txd + tx;
 
 		status = le32_to_cpu(tx_desc->status);
 
@@ -1202,15 +1348,15 @@ static void mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int force)
 				~cpu_to_le32(MWL8K_TXD_STATUS_FW_OWNED);
 		}
 
-		txq->tx_head = (tx + 1) % MWL8K_TX_DESCS;
-		BUG_ON(txq->tx_stats.len == 0);
-		txq->tx_stats.len--;
+		txq->head = (tx + 1) % MWL8K_TX_DESCS;
+		BUG_ON(txq->stats.len == 0);
+		txq->stats.len--;
 		priv->pending_tx_pkts--;
 
 		addr = le32_to_cpu(tx_desc->pkt_phys_addr);
 		size = le16_to_cpu(tx_desc->pkt_len);
-		skb = txq->tx_skb[tx];
-		txq->tx_skb[tx] = NULL;
+		skb = txq->skb[tx];
+		txq->skb[tx] = NULL;
 
 		BUG_ON(skb == NULL);
 		pci_unmap_single(priv->pdev, addr, size, PCI_DMA_TODEVICE);
@@ -1243,13 +1389,13 @@ static void mwl8k_txq_deinit(struct ieee80211_hw *hw, int index)
 
 	mwl8k_txq_reclaim(hw, index, 1);
 
-	kfree(txq->tx_skb);
-	txq->tx_skb = NULL;
+	kfree(txq->skb);
+	txq->skb = NULL;
 
 	pci_free_consistent(priv->pdev,
 			    MWL8K_TX_DESCS * sizeof(struct mwl8k_tx_desc),
-			    txq->tx_desc_area, txq->tx_desc_dma);
-	txq->tx_desc_area = NULL;
+			    txq->txd, txq->txd_dma);
+	txq->txd = NULL;
 }
 
 static int
@@ -1317,7 +1463,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 
 	if (pci_dma_mapping_error(priv->pdev, dma)) {
 		printk(KERN_DEBUG "%s: failed to dma map skb, "
-			"dropping TX frame.\n", priv->name);
+		       "dropping TX frame.\n", wiphy_name(hw->wiphy));
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
@@ -1326,10 +1472,10 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 
 	txq = priv->txq + index;
 
-	BUG_ON(txq->tx_skb[txq->tx_tail] != NULL);
-	txq->tx_skb[txq->tx_tail] = skb;
+	BUG_ON(txq->skb[txq->tail] != NULL);
+	txq->skb[txq->tail] = skb;
 
-	tx = txq->tx_desc_area + txq->tx_tail;
+	tx = txq->txd + txq->tail;
 	tx->data_rate = txdatarate;
 	tx->tx_priority = index;
 	tx->qos_control = cpu_to_le16(qos);
@@ -1340,15 +1486,15 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	wmb();
 	tx->status = cpu_to_le32(MWL8K_TXD_STATUS_FW_OWNED | txstatus);
 
-	txq->tx_stats.count++;
-	txq->tx_stats.len++;
+	txq->stats.count++;
+	txq->stats.len++;
 	priv->pending_tx_pkts++;
 
-	txq->tx_tail++;
-	if (txq->tx_tail == MWL8K_TX_DESCS)
-		txq->tx_tail = 0;
+	txq->tail++;
+	if (txq->tail == MWL8K_TX_DESCS)
+		txq->tail = 0;
 
-	if (txq->tx_head == txq->tx_tail)
+	if (txq->head == txq->tail)
 		ieee80211_stop_queue(hw, index);
 
 	mwl8k_tx_start(priv);
@@ -1431,7 +1577,7 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 	unsigned long timeout = 0;
 	u8 buf[32];
 
-	cmd->result = 0xFFFF;
+	cmd->result = 0xffff;
 	dma_size = le16_to_cpu(cmd->length);
 	dma_addr = pci_map_single(priv->pdev, cmd, dma_size,
 				  PCI_DMA_BIDIRECTIONAL);
@@ -1464,7 +1610,7 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 
 	if (!timeout) {
 		printk(KERN_ERR "%s: Command %s timeout after %u ms\n",
-		       priv->name,
+		       wiphy_name(hw->wiphy),
 		       mwl8k_cmd_name(cmd->code, buf, sizeof(buf)),
 		       MWL8K_CMD_TIMEOUT_MS);
 		rc = -ETIMEDOUT;
@@ -1472,7 +1618,7 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 		rc = cmd->result ? -EINVAL : 0;
 		if (rc)
 			printk(KERN_ERR "%s: Command %s error 0x%x\n",
-			       priv->name,
+			       wiphy_name(hw->wiphy),
 			       mwl8k_cmd_name(cmd->code, buf, sizeof(buf)),
 			       le16_to_cpu(cmd->result));
 	}
@@ -1481,9 +1627,9 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 }
 
 /*
- * GET_HW_SPEC.
+ * CMD_GET_HW_SPEC (STA version).
  */
-struct mwl8k_cmd_get_hw_spec {
+struct mwl8k_cmd_get_hw_spec_sta {
 	struct mwl8k_cmd_pkt header;
 	__u8 hw_rev;
 	__u8 host_interface;
@@ -1499,13 +1645,13 @@ struct mwl8k_cmd_get_hw_spec {
 	__le32 tx_queue_ptrs[MWL8K_TX_QUEUES];
 	__le32 caps2;
 	__le32 num_tx_desc_per_queue;
-	__le32 total_rx_desc;
+	__le32 total_rxd;
 } __attribute__((packed));
 
-static int mwl8k_cmd_get_hw_spec(struct ieee80211_hw *hw)
+static int mwl8k_cmd_get_hw_spec_sta(struct ieee80211_hw *hw)
 {
 	struct mwl8k_priv *priv = hw->priv;
-	struct mwl8k_cmd_get_hw_spec *cmd;
+	struct mwl8k_cmd_get_hw_spec_sta *cmd;
 	int rc;
 	int i;
 
@@ -1518,12 +1664,12 @@ static int mwl8k_cmd_get_hw_spec(struct ieee80211_hw *hw)
 
 	memset(cmd->perm_addr, 0xff, sizeof(cmd->perm_addr));
 	cmd->ps_cookie = cpu_to_le32(priv->cookie_dma);
-	cmd->rx_queue_ptr = cpu_to_le32(priv->rxq[0].rx_desc_dma);
+	cmd->rx_queue_ptr = cpu_to_le32(priv->rxq[0].rxd_dma);
 	cmd->num_tx_queues = cpu_to_le32(MWL8K_TX_QUEUES);
 	for (i = 0; i < MWL8K_TX_QUEUES; i++)
-		cmd->tx_queue_ptrs[i] = cpu_to_le32(priv->txq[i].tx_desc_dma);
+		cmd->tx_queue_ptrs[i] = cpu_to_le32(priv->txq[i].txd_dma);
 	cmd->num_tx_desc_per_queue = cpu_to_le32(MWL8K_TX_DESCS);
-	cmd->total_rx_desc = cpu_to_le32(MWL8K_RX_DESCS);
+	cmd->total_rxd = cpu_to_le32(MWL8K_RX_DESCS);
 
 	rc = mwl8k_post_cmd(hw, &cmd->header);
 
@@ -1539,6 +1685,129 @@ static int mwl8k_cmd_get_hw_spec(struct ieee80211_hw *hw)
 }
 
 /*
+ * CMD_GET_HW_SPEC (AP version).
+ */
+struct mwl8k_cmd_get_hw_spec_ap {
+	struct mwl8k_cmd_pkt header;
+	__u8 hw_rev;
+	__u8 host_interface;
+	__le16 num_wcb;
+	__le16 num_mcaddrs;
+	__u8 perm_addr[ETH_ALEN];
+	__le16 region_code;
+	__le16 num_antenna;
+	__le32 fw_rev;
+	__le32 wcbbase0;
+	__le32 rxwrptr;
+	__le32 rxrdptr;
+	__le32 ps_cookie;
+	__le32 wcbbase1;
+	__le32 wcbbase2;
+	__le32 wcbbase3;
+} __attribute__((packed));
+
+static int mwl8k_cmd_get_hw_spec_ap(struct ieee80211_hw *hw)
+{
+	struct mwl8k_priv *priv = hw->priv;
+	struct mwl8k_cmd_get_hw_spec_ap *cmd;
+	int rc;
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (cmd == NULL)
+		return -ENOMEM;
+
+	cmd->header.code = cpu_to_le16(MWL8K_CMD_GET_HW_SPEC);
+	cmd->header.length = cpu_to_le16(sizeof(*cmd));
+
+	memset(cmd->perm_addr, 0xff, sizeof(cmd->perm_addr));
+	cmd->ps_cookie = cpu_to_le32(priv->cookie_dma);
+
+	rc = mwl8k_post_cmd(hw, &cmd->header);
+
+	if (!rc) {
+		int off;
+
+		SET_IEEE80211_PERM_ADDR(hw, cmd->perm_addr);
+		priv->num_mcaddrs = le16_to_cpu(cmd->num_mcaddrs);
+		priv->fw_rev = le32_to_cpu(cmd->fw_rev);
+		priv->hw_rev = cmd->hw_rev;
+
+		off = le32_to_cpu(cmd->wcbbase0) & 0xffff;
+		iowrite32(cpu_to_le32(priv->txq[0].txd_dma), priv->sram + off);
+
+		off = le32_to_cpu(cmd->rxwrptr) & 0xffff;
+		iowrite32(cpu_to_le32(priv->rxq[0].rxd_dma), priv->sram + off);
+
+		off = le32_to_cpu(cmd->rxrdptr) & 0xffff;
+		iowrite32(cpu_to_le32(priv->rxq[0].rxd_dma), priv->sram + off);
+
+		off = le32_to_cpu(cmd->wcbbase1) & 0xffff;
+		iowrite32(cpu_to_le32(priv->txq[1].txd_dma), priv->sram + off);
+
+		off = le32_to_cpu(cmd->wcbbase2) & 0xffff;
+		iowrite32(cpu_to_le32(priv->txq[2].txd_dma), priv->sram + off);
+
+		off = le32_to_cpu(cmd->wcbbase3) & 0xffff;
+		iowrite32(cpu_to_le32(priv->txq[3].txd_dma), priv->sram + off);
+	}
+
+	kfree(cmd);
+	return rc;
+}
+
+/*
+ * CMD_SET_HW_SPEC.
+ */
+struct mwl8k_cmd_set_hw_spec {
+	struct mwl8k_cmd_pkt header;
+	__u8 hw_rev;
+	__u8 host_interface;
+	__le16 num_mcaddrs;
+	__u8 perm_addr[ETH_ALEN];
+	__le16 region_code;
+	__le32 fw_rev;
+	__le32 ps_cookie;
+	__le32 caps;
+	__le32 rx_queue_ptr;
+	__le32 num_tx_queues;
+	__le32 tx_queue_ptrs[MWL8K_TX_QUEUES];
+	__le32 flags;
+	__le32 num_tx_desc_per_queue;
+	__le32 total_rxd;
+} __attribute__((packed));
+
+#define MWL8K_SET_HW_SPEC_FLAG_HOST_DECR_MGMT	0x00000080
+
+static int mwl8k_cmd_set_hw_spec(struct ieee80211_hw *hw)
+{
+	struct mwl8k_priv *priv = hw->priv;
+	struct mwl8k_cmd_set_hw_spec *cmd;
+	int rc;
+	int i;
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (cmd == NULL)
+		return -ENOMEM;
+
+	cmd->header.code = cpu_to_le16(MWL8K_CMD_SET_HW_SPEC);
+	cmd->header.length = cpu_to_le16(sizeof(*cmd));
+
+	cmd->ps_cookie = cpu_to_le32(priv->cookie_dma);
+	cmd->rx_queue_ptr = cpu_to_le32(priv->rxq[0].rxd_dma);
+	cmd->num_tx_queues = cpu_to_le32(MWL8K_TX_QUEUES);
+	for (i = 0; i < MWL8K_TX_QUEUES; i++)
+		cmd->tx_queue_ptrs[i] = cpu_to_le32(priv->txq[i].txd_dma);
+	cmd->flags = cpu_to_le32(MWL8K_SET_HW_SPEC_FLAG_HOST_DECR_MGMT);
+	cmd->num_tx_desc_per_queue = cpu_to_le32(MWL8K_TX_DESCS);
+	cmd->total_rxd = cpu_to_le32(MWL8K_RX_DESCS);
+
+	rc = mwl8k_post_cmd(hw, &cmd->header);
+	kfree(cmd);
+
+	return rc;
+}
+
+/*
  * CMD_MAC_MULTICAST_ADR.
  */
 struct mwl8k_cmd_mac_multicast_adr {
@@ -1548,19 +1817,23 @@ struct mwl8k_cmd_mac_multicast_adr {
 	__u8 addr[0][ETH_ALEN];
 };
 
-#define MWL8K_ENABLE_RX_MULTICAST 0x000F
+#define MWL8K_ENABLE_RX_DIRECTED	0x0001
+#define MWL8K_ENABLE_RX_MULTICAST	0x0002
+#define MWL8K_ENABLE_RX_ALL_MULTICAST	0x0004
+#define MWL8K_ENABLE_RX_BROADCAST	0x0008
 
 static struct mwl8k_cmd_pkt *
-__mwl8k_cmd_mac_multicast_adr(struct ieee80211_hw *hw,
+__mwl8k_cmd_mac_multicast_adr(struct ieee80211_hw *hw, int allmulti,
 			      int mc_count, struct dev_addr_list *mclist)
 {
 	struct mwl8k_priv *priv = hw->priv;
 	struct mwl8k_cmd_mac_multicast_adr *cmd;
 	int size;
-	int i;
 
-	if (mc_count > priv->num_mcaddrs)
-		mc_count = priv->num_mcaddrs;
+	if (allmulti || mc_count > priv->num_mcaddrs) {
+		allmulti = 1;
+		mc_count = 0;
+	}
 
 	size = sizeof(*cmd) + mc_count * ETH_ALEN;
 
@@ -1570,16 +1843,24 @@ __mwl8k_cmd_mac_multicast_adr(struct ieee80211_hw *hw,
 
 	cmd->header.code = cpu_to_le16(MWL8K_CMD_MAC_MULTICAST_ADR);
 	cmd->header.length = cpu_to_le16(size);
-	cmd->action = cpu_to_le16(MWL8K_ENABLE_RX_MULTICAST);
-	cmd->numaddr = cpu_to_le16(mc_count);
+	cmd->action = cpu_to_le16(MWL8K_ENABLE_RX_DIRECTED |
+				  MWL8K_ENABLE_RX_BROADCAST);
 
-	for (i = 0; i < mc_count && mclist; i++) {
-		if (mclist->da_addrlen != ETH_ALEN) {
-			kfree(cmd);
-			return NULL;
+	if (allmulti) {
+		cmd->action |= cpu_to_le16(MWL8K_ENABLE_RX_ALL_MULTICAST);
+	} else if (mc_count) {
+		int i;
+
+		cmd->action |= cpu_to_le16(MWL8K_ENABLE_RX_MULTICAST);
+		cmd->numaddr = cpu_to_le16(mc_count);
+		for (i = 0; i < mc_count && mclist; i++) {
+			if (mclist->da_addrlen != ETH_ALEN) {
+				kfree(cmd);
+				return NULL;
+			}
+			memcpy(cmd->addr[i], mclist->da_addr, ETH_ALEN);
+			mclist = mclist->next;
 		}
-		memcpy(cmd->addr[i], mclist->da_addr, ETH_ALEN);
-		mclist = mclist->next;
 	}
 
 	return &cmd->header;
@@ -1590,7 +1871,6 @@ __mwl8k_cmd_mac_multicast_adr(struct ieee80211_hw *hw,
  */
 struct mwl8k_cmd_802_11_get_stat {
 	struct mwl8k_cmd_pkt header;
-	__le16 action;
 	__le32 stats[64];
 } __attribute__((packed));
 
@@ -1611,7 +1891,6 @@ static int mwl8k_cmd_802_11_get_stat(struct ieee80211_hw *hw,
 
 	cmd->header.code = cpu_to_le16(MWL8K_CMD_GET_STAT);
 	cmd->header.length = cpu_to_le16(sizeof(*cmd));
-	cmd->action = cpu_to_le16(MWL8K_CMD_GET);
 
 	rc = mwl8k_post_cmd(hw, &cmd->header);
 	if (!rc) {
@@ -1719,6 +1998,39 @@ static int mwl8k_cmd_802_11_rf_tx_power(struct ieee80211_hw *hw, int dBm)
 	cmd->header.length = cpu_to_le16(sizeof(*cmd));
 	cmd->action = cpu_to_le16(MWL8K_CMD_SET);
 	cmd->support_level = cpu_to_le16(dBm);
+
+	rc = mwl8k_post_cmd(hw, &cmd->header);
+	kfree(cmd);
+
+	return rc;
+}
+
+/*
+ * CMD_RF_ANTENNA.
+ */
+struct mwl8k_cmd_rf_antenna {
+	struct mwl8k_cmd_pkt header;
+	__le16 antenna;
+	__le16 mode;
+} __attribute__((packed));
+
+#define MWL8K_RF_ANTENNA_RX		1
+#define MWL8K_RF_ANTENNA_TX		2
+
+static int
+mwl8k_cmd_rf_antenna(struct ieee80211_hw *hw, int antenna, int mask)
+{
+	struct mwl8k_cmd_rf_antenna *cmd;
+	int rc;
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (cmd == NULL)
+		return -ENOMEM;
+
+	cmd->header.code = cpu_to_le16(MWL8K_CMD_RF_ANTENNA);
+	cmd->header.length = cpu_to_le16(sizeof(*cmd));
+	cmd->antenna = cpu_to_le16(antenna);
+	cmd->mode = cpu_to_le16(mask);
 
 	rc = mwl8k_post_cmd(hw, &cmd->header);
 	kfree(cmd);
@@ -1904,6 +2216,46 @@ static int mwl8k_enable_sniffer(struct ieee80211_hw *hw, bool enable)
 }
 
 /*
+ * CMD_SET_MAC_ADDR.
+ */
+struct mwl8k_cmd_set_mac_addr {
+	struct mwl8k_cmd_pkt header;
+	union {
+		struct {
+			__le16 mac_type;
+			__u8 mac_addr[ETH_ALEN];
+		} mbss;
+		__u8 mac_addr[ETH_ALEN];
+	};
+} __attribute__((packed));
+
+static int mwl8k_set_mac_addr(struct ieee80211_hw *hw, u8 *mac)
+{
+	struct mwl8k_priv *priv = hw->priv;
+	struct mwl8k_cmd_set_mac_addr *cmd;
+	int rc;
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (cmd == NULL)
+		return -ENOMEM;
+
+	cmd->header.code = cpu_to_le16(MWL8K_CMD_SET_MAC_ADDR);
+	cmd->header.length = cpu_to_le16(sizeof(*cmd));
+	if (priv->ap_fw) {
+		cmd->mbss.mac_type = 0;
+		memcpy(cmd->mbss.mac_addr, mac, ETH_ALEN);
+	} else {
+		memcpy(cmd->mac_addr, mac, ETH_ALEN);
+	}
+
+	rc = mwl8k_post_cmd(hw, &cmd->header);
+	kfree(cmd);
+
+	return rc;
+}
+
+
+/*
  * CMD_SET_RATEADAPT_MODE.
  */
 struct mwl8k_cmd_set_rate_adapt_mode {
@@ -2005,17 +2357,34 @@ struct mwl8k_cmd_set_edca_params {
 	/* TX opportunity in units of 32 us */
 	__le16 txop;
 
-	/* Log exponent of max contention period: 0...15*/
-	__u8 log_cw_max;
+	union {
+		struct {
+			/* Log exponent of max contention period: 0...15 */
+			__le32 log_cw_max;
 
-	/* Log exponent of min contention period: 0...15 */
-	__u8 log_cw_min;
+			/* Log exponent of min contention period: 0...15 */
+			__le32 log_cw_min;
 
-	/* Adaptive interframe spacing in units of 32us */
-	__u8 aifs;
+			/* Adaptive interframe spacing in units of 32us */
+			__u8 aifs;
 
-	/* TX queue to configure */
-	__u8 txq;
+			/* TX queue to configure */
+			__u8 txq;
+		} ap;
+		struct {
+			/* Log exponent of max contention period: 0...15 */
+			__u8 log_cw_max;
+
+			/* Log exponent of min contention period: 0...15 */
+			__u8 log_cw_min;
+
+			/* Adaptive interframe spacing in units of 32us */
+			__u8 aifs;
+
+			/* TX queue to configure */
+			__u8 txq;
+		} sta;
+	};
 } __attribute__((packed));
 
 #define MWL8K_SET_EDCA_CW	0x01
@@ -2031,6 +2400,7 @@ mwl8k_set_edca_params(struct ieee80211_hw *hw, __u8 qnum,
 		__u16 cw_min, __u16 cw_max,
 		__u8 aifs, __u16 txop)
 {
+	struct mwl8k_priv *priv = hw->priv;
 	struct mwl8k_cmd_set_edca_params *cmd;
 	int rc;
 
@@ -2038,14 +2408,27 @@ mwl8k_set_edca_params(struct ieee80211_hw *hw, __u8 qnum,
 	if (cmd == NULL)
 		return -ENOMEM;
 
+	/*
+	 * Queues 0 (BE) and 1 (BK) are swapped in hardware for
+	 * this call.
+	 */
+	qnum ^= !(qnum >> 1);
+
 	cmd->header.code = cpu_to_le16(MWL8K_CMD_SET_EDCA_PARAMS);
 	cmd->header.length = cpu_to_le16(sizeof(*cmd));
 	cmd->action = cpu_to_le16(MWL8K_SET_EDCA_ALL);
 	cmd->txop = cpu_to_le16(txop);
-	cmd->log_cw_max = (u8)ilog2(cw_max + 1);
-	cmd->log_cw_min = (u8)ilog2(cw_min + 1);
-	cmd->aifs = aifs;
-	cmd->txq = qnum;
+	if (priv->ap_fw) {
+		cmd->ap.log_cw_max = cpu_to_le32(ilog2(cw_max + 1));
+		cmd->ap.log_cw_min = cpu_to_le32(ilog2(cw_min + 1));
+		cmd->ap.aifs = aifs;
+		cmd->ap.txq = qnum;
+	} else {
+		cmd->sta.log_cw_max = (u8)ilog2(cw_max + 1);
+		cmd->sta.log_cw_min = (u8)ilog2(cw_min + 1);
+		cmd->sta.aifs = aifs;
+		cmd->sta.txq = qnum;
+	}
 
 	rc = mwl8k_post_cmd(hw, &cmd->header);
 	kfree(cmd);
@@ -2093,8 +2476,8 @@ static int mwl8k_finalize_join(struct ieee80211_hw *hw, void *frame,
 	/* XXX TBD Might just have to abort and return an error */
 	if (payload_len > MWL8K_FJ_BEACON_MAXLEN)
 		printk(KERN_ERR "%s(): WARNING: Incomplete beacon "
-			"sent to firmware. Sz=%u MAX=%u\n", __func__,
-			payload_len, MWL8K_FJ_BEACON_MAXLEN);
+		       "sent to firmware. Sz=%u MAX=%u\n", __func__,
+		       payload_len, MWL8K_FJ_BEACON_MAXLEN);
 
 	if (payload_len > MWL8K_FJ_BEACON_MAXLEN)
 		payload_len = MWL8K_FJ_BEACON_MAXLEN;
@@ -2341,9 +2724,10 @@ static int mwl8k_cmd_use_fixed_rate(struct ieee80211_hw *hw,
 	cmd->rate_type = cpu_to_le32(rate_type);
 
 	if (rate_table != NULL) {
-		/* Copy over each field manually so
-		* that bitflipping can be done
-		*/
+		/*
+		 * Copy over each field manually so that endian
+		 * conversion can be done.
+		 */
 		cmd->rate_table.allow_rate_drop =
 				cpu_to_le32(rate_table->allow_rate_drop);
 		cmd->rate_table.num_rates =
@@ -2399,7 +2783,7 @@ static irqreturn_t mwl8k_interrupt(int irq, void *dev_id)
 
 	if (status & MWL8K_A2H_INT_QUEUE_EMPTY) {
 		if (!mutex_is_locked(&priv->fw_mutex) &&
-		    priv->radio_on && mwl8k_txq_busy(priv))
+		    priv->radio_on && priv->pending_tx_pkts)
 			mwl8k_tx_start(priv);
 	}
 
@@ -2418,7 +2802,7 @@ static int mwl8k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	if (priv->current_channel == NULL) {
 		printk(KERN_DEBUG "%s: dropped TX frame since radio "
-		       "disabled\n", priv->name);
+		       "disabled\n", wiphy_name(hw->wiphy));
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
@@ -2433,11 +2817,11 @@ static int mwl8k_start(struct ieee80211_hw *hw)
 	struct mwl8k_priv *priv = hw->priv;
 	int rc;
 
-	rc = request_irq(priv->pdev->irq, &mwl8k_interrupt,
+	rc = request_irq(priv->pdev->irq, mwl8k_interrupt,
 			 IRQF_SHARED, MWL8K_NAME, hw);
 	if (rc) {
 		printk(KERN_ERR "%s: failed to register IRQ handler\n",
-		       priv->name);
+		       wiphy_name(hw->wiphy));
 		return -EIO;
 	}
 
@@ -2451,21 +2835,23 @@ static int mwl8k_start(struct ieee80211_hw *hw)
 	if (!rc) {
 		rc = mwl8k_cmd_802_11_radio_enable(hw);
 
-		if (!rc)
-			rc = mwl8k_cmd_set_pre_scan(hw);
+		if (!priv->ap_fw) {
+			if (!rc)
+				rc = mwl8k_enable_sniffer(hw, 0);
 
-		if (!rc)
-			rc = mwl8k_cmd_set_post_scan(hw,
-					"\x00\x00\x00\x00\x00\x00");
+			if (!rc)
+				rc = mwl8k_cmd_set_pre_scan(hw);
+
+			if (!rc)
+				rc = mwl8k_cmd_set_post_scan(hw,
+						"\x00\x00\x00\x00\x00\x00");
+		}
 
 		if (!rc)
 			rc = mwl8k_cmd_setrateadaptmode(hw, 0);
 
 		if (!rc)
 			rc = mwl8k_set_wmm(hw, 0);
-
-		if (!rc)
-			rc = mwl8k_enable_sniffer(hw, 0);
 
 		mwl8k_fw_unlock(hw);
 	}
@@ -2500,9 +2886,6 @@ static void mwl8k_stop(struct ieee80211_hw *hw)
 	/* Stop tx reclaim tasklet */
 	tasklet_disable(&priv->tx_reclaim_task);
 
-	/* Stop config thread */
-	flush_workqueue(priv->config_wq);
-
 	/* Return all skbs to mac80211 */
 	for (i = 0; i < MWL8K_TX_QUEUES; i++)
 		mwl8k_txq_reclaim(hw, i, 1);
@@ -2526,11 +2909,24 @@ static int mwl8k_add_interface(struct ieee80211_hw *hw,
 	if (conf->type != NL80211_IFTYPE_STATION)
 		return -EINVAL;
 
+	/*
+	 * Reject interface creation if sniffer mode is active, as
+	 * STA operation is mutually exclusive with hardware sniffer
+	 * mode.
+	 */
+	if (priv->sniffer_enabled) {
+		printk(KERN_INFO "%s: unable to create STA "
+		       "interface due to sniffer mode being enabled\n",
+		       wiphy_name(hw->wiphy));
+		return -EINVAL;
+	}
+
 	/* Clean out driver private area */
 	mwl8k_vif = MWL8K_VIF(conf->vif);
 	memset(mwl8k_vif, 0, sizeof(*mwl8k_vif));
 
-	/* Save the mac address */
+	/* Set and save the mac address */
+	mwl8k_set_mac_addr(hw, conf->mac_addr);
 	memcpy(mwl8k_vif->mac_addr, conf->mac_addr, ETH_ALEN);
 
 	/* Back pointer to parent config block */
@@ -2557,6 +2953,8 @@ static void mwl8k_remove_interface(struct ieee80211_hw *hw,
 
 	if (priv->vif == NULL)
 		return;
+
+	mwl8k_set_mac_addr(hw, "\x00\x00\x00\x00\x00\x00");
 
 	priv->vif = NULL;
 }
@@ -2593,8 +2991,13 @@ static int mwl8k_config(struct ieee80211_hw *hw, u32 changed)
 	if (rc)
 		goto out;
 
-	if (mwl8k_cmd_mimo_config(hw, 0x7, 0x7))
-		rc = -EINVAL;
+	if (priv->ap_fw) {
+		rc = mwl8k_cmd_rf_antenna(hw, MWL8K_RF_ANTENNA_RX, 0x7);
+		if (!rc)
+			rc = mwl8k_cmd_rf_antenna(hw, MWL8K_RF_ANTENNA_TX, 0x7);
+	} else {
+		rc = mwl8k_cmd_mimo_config(hw, 0x7, 0x7);
+	}
 
 out:
 	mwl8k_fw_unlock(hw);
@@ -2681,9 +3084,49 @@ static u64 mwl8k_prepare_multicast(struct ieee80211_hw *hw,
 {
 	struct mwl8k_cmd_pkt *cmd;
 
-	cmd = __mwl8k_cmd_mac_multicast_adr(hw, mc_count, mclist);
+	/*
+	 * Synthesize and return a command packet that programs the
+	 * hardware multicast address filter.  At this point we don't
+	 * know whether FIF_ALLMULTI is being requested, but if it is,
+	 * we'll end up throwing this packet away and creating a new
+	 * one in mwl8k_configure_filter().
+	 */
+	cmd = __mwl8k_cmd_mac_multicast_adr(hw, 0, mc_count, mclist);
 
 	return (unsigned long)cmd;
+}
+
+static int
+mwl8k_configure_filter_sniffer(struct ieee80211_hw *hw,
+			       unsigned int changed_flags,
+			       unsigned int *total_flags)
+{
+	struct mwl8k_priv *priv = hw->priv;
+
+	/*
+	 * Hardware sniffer mode is mutually exclusive with STA
+	 * operation, so refuse to enable sniffer mode if a STA
+	 * interface is active.
+	 */
+	if (priv->vif != NULL) {
+		if (net_ratelimit())
+			printk(KERN_INFO "%s: not enabling sniffer "
+			       "mode because STA interface is active\n",
+			       wiphy_name(hw->wiphy));
+		return 0;
+	}
+
+	if (!priv->sniffer_enabled) {
+		if (mwl8k_enable_sniffer(hw, 1))
+			return 0;
+		priv->sniffer_enabled = true;
+	}
+
+	*total_flags &=	FIF_PROMISC_IN_BSS | FIF_ALLMULTI |
+			FIF_BCN_PRBRESP_PROMISC | FIF_CONTROL |
+			FIF_OTHER_BSS;
+
+	return 1;
 }
 
 static void mwl8k_configure_filter(struct ieee80211_hw *hw,
@@ -2692,21 +3135,57 @@ static void mwl8k_configure_filter(struct ieee80211_hw *hw,
 				   u64 multicast)
 {
 	struct mwl8k_priv *priv = hw->priv;
-	struct mwl8k_cmd_pkt *multicast_adr_cmd;
+	struct mwl8k_cmd_pkt *cmd = (void *)(unsigned long)multicast;
+
+	/*
+	 * AP firmware doesn't allow fine-grained control over
+	 * the receive filter.
+	 */
+	if (priv->ap_fw) {
+		*total_flags &= FIF_ALLMULTI | FIF_BCN_PRBRESP_PROMISC;
+		kfree(cmd);
+		return;
+	}
+
+	/*
+	 * Enable hardware sniffer mode if FIF_CONTROL or
+	 * FIF_OTHER_BSS is requested.
+	 */
+	if (*total_flags & (FIF_CONTROL | FIF_OTHER_BSS) &&
+	    mwl8k_configure_filter_sniffer(hw, changed_flags, total_flags)) {
+		kfree(cmd);
+		return;
+	}
 
 	/* Clear unsupported feature flags */
-	*total_flags &= FIF_BCN_PRBRESP_PROMISC;
+	*total_flags &= FIF_ALLMULTI | FIF_BCN_PRBRESP_PROMISC;
 
 	if (mwl8k_fw_lock(hw))
 		return;
 
+	if (priv->sniffer_enabled) {
+		mwl8k_enable_sniffer(hw, 0);
+		priv->sniffer_enabled = false;
+	}
+
 	if (changed_flags & FIF_BCN_PRBRESP_PROMISC) {
-		if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
+		if (*total_flags & FIF_BCN_PRBRESP_PROMISC) {
+			/*
+			 * Disable the BSS filter.
+			 */
 			mwl8k_cmd_set_pre_scan(hw);
-		else {
+		} else {
 			u8 *bssid;
 
-			bssid = "\x00\x00\x00\x00\x00\x00";
+			/*
+			 * Enable the BSS filter.
+			 *
+			 * If there is an active STA interface, use that
+			 * interface's BSSID, otherwise use a dummy one
+			 * (where the OUI part needs to be nonzero for
+			 * the BSSID to be accepted by POST_SCAN).
+			 */
+			bssid = "\x01\x00\x00\x00\x00\x00";
 			if (priv->vif != NULL)
 				bssid = MWL8K_VIF(priv->vif)->bssid;
 
@@ -2714,10 +3193,20 @@ static void mwl8k_configure_filter(struct ieee80211_hw *hw,
 		}
 	}
 
-	multicast_adr_cmd = (void *)(unsigned long)multicast;
-	if (multicast_adr_cmd != NULL) {
-		mwl8k_post_cmd(hw, multicast_adr_cmd);
-		kfree(multicast_adr_cmd);
+	/*
+	 * If FIF_ALLMULTI is being requested, throw away the command
+	 * packet that ->prepare_multicast() built and replace it with
+	 * a command packet that enables reception of all multicast
+	 * packets.
+	 */
+	if (*total_flags & FIF_ALLMULTI) {
+		kfree(cmd);
+		cmd = __mwl8k_cmd_mac_multicast_adr(hw, 1, 0, NULL);
+	}
+
+	if (cmd != NULL) {
+		mwl8k_post_cmd(hw, cmd);
+		kfree(cmd);
 	}
 
 	mwl8k_fw_unlock(hw);
@@ -2762,7 +3251,7 @@ static int mwl8k_get_tx_stats(struct ieee80211_hw *hw,
 	spin_lock_bh(&priv->tx_lock);
 	for (index = 0; index < MWL8K_TX_QUEUES; index++) {
 		txq = priv->txq + index;
-		memcpy(&stats[index], &txq->tx_stats,
+		memcpy(&stats[index], &txq->stats,
 			sizeof(struct ieee80211_tx_queue_stats));
 	}
 	spin_unlock_bh(&priv->tx_lock);
@@ -2802,7 +3291,7 @@ static void mwl8k_tx_reclaim_handler(unsigned long data)
 	for (i = 0; i < MWL8K_TX_QUEUES; i++)
 		mwl8k_txq_reclaim(hw, i, 0);
 
-	if (priv->tx_wait != NULL && mwl8k_txq_busy(priv) == 0) {
+	if (priv->tx_wait != NULL && !priv->pending_tx_pkts) {
 		complete(priv->tx_wait);
 		priv->tx_wait = NULL;
 	}
@@ -2821,6 +3310,36 @@ static void mwl8k_finalize_join_worker(struct work_struct *work)
 
 	priv->beacon_skb = NULL;
 }
+
+enum {
+	MWL8687 = 0,
+	MWL8366,
+};
+
+static struct mwl8k_device_info mwl8k_info_tbl[] __devinitdata = {
+	{
+		.part_name	= "88w8687",
+		.helper_image	= "mwl8k/helper_8687.fw",
+		.fw_image	= "mwl8k/fmimage_8687.fw",
+		.rxd_ops	= &rxd_8687_ops,
+		.modes		= BIT(NL80211_IFTYPE_STATION),
+	},
+	{
+		.part_name	= "88w8366",
+		.helper_image	= "mwl8k/helper_8366.fw",
+		.fw_image	= "mwl8k/fmimage_8366.fw",
+		.rxd_ops	= &rxd_8366_ops,
+		.modes		= 0,
+	},
+};
+
+static DEFINE_PCI_DEVICE_TABLE(mwl8k_pci_id_table) = {
+	{ PCI_VDEVICE(MARVELL, 0x2a2b), .driver_data = MWL8687, },
+	{ PCI_VDEVICE(MARVELL, 0x2a30), .driver_data = MWL8687, },
+	{ PCI_VDEVICE(MARVELL, 0x2a40), .driver_data = MWL8366, },
+	{ },
+};
+MODULE_DEVICE_TABLE(pci, mwl8k_pci_id_table);
 
 static int __devinit mwl8k_probe(struct pci_dev *pdev,
 				 const struct pci_device_id *id)
@@ -2862,17 +3381,34 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	priv = hw->priv;
 	priv->hw = hw;
 	priv->pdev = pdev;
+	priv->device_info = &mwl8k_info_tbl[id->driver_data];
+	priv->rxd_ops = priv->device_info->rxd_ops;
+	priv->sniffer_enabled = false;
 	priv->wmm_enabled = false;
 	priv->pending_tx_pkts = 0;
-	strncpy(priv->name, MWL8K_NAME, sizeof(priv->name));
 
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 	pci_set_drvdata(pdev, hw);
 
+	priv->sram = pci_iomap(pdev, 0, 0x10000);
+	if (priv->sram == NULL) {
+		printk(KERN_ERR "%s: Cannot map device SRAM\n",
+		       wiphy_name(hw->wiphy));
+		goto err_iounmap;
+	}
+
+	/*
+	 * If BAR0 is a 32 bit BAR, the register BAR will be BAR1.
+	 * If BAR0 is a 64 bit BAR, the register BAR will be BAR2.
+	 */
 	priv->regs = pci_iomap(pdev, 1, 0x10000);
 	if (priv->regs == NULL) {
-		printk(KERN_ERR "%s: Cannot map device memory\n", priv->name);
-		goto err_iounmap;
+		priv->regs = pci_iomap(pdev, 2, 0x10000);
+		if (priv->regs == NULL) {
+			printk(KERN_ERR "%s: Cannot map device registers\n",
+			       wiphy_name(hw->wiphy));
+			goto err_iounmap;
+		}
 	}
 
 	memcpy(priv->channels, mwl8k_channels, sizeof(mwl8k_channels));
@@ -2897,7 +3433,7 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 
 	hw->queues = MWL8K_TX_QUEUES;
 
-	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
+	hw->wiphy->interface_modes = priv->device_info->modes;
 
 	/* Set rssi and noise values to dBm */
 	hw->flags |= IEEE80211_HW_SIGNAL_DBM | IEEE80211_HW_NOISE_DBM;
@@ -2916,11 +3452,6 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 			mwl8k_tx_reclaim_handler, (unsigned long)hw);
 	tasklet_disable(&priv->tx_reclaim_task);
 
-	/* Config workthread */
-	priv->config_wq = create_singlethread_workqueue("mwl8k_config");
-	if (priv->config_wq == NULL)
-		goto err_iounmap;
-
 	/* Power management cookie */
 	priv->cookie = pci_alloc_consistent(priv->pdev, 4, &priv->cookie_dma);
 	if (priv->cookie == NULL)
@@ -2934,10 +3465,11 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	mutex_init(&priv->fw_mutex);
 	priv->fw_mutex_owner = NULL;
 	priv->fw_mutex_depth = 0;
-	priv->tx_wait = NULL;
 	priv->hostcmd_wait = NULL;
 
 	spin_lock_init(&priv->tx_lock);
+
+	priv->tx_wait = NULL;
 
 	for (i = 0; i < MWL8K_TX_QUEUES; i++) {
 		rc = mwl8k_txq_init(hw, i);
@@ -2950,11 +3482,11 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_CLEAR_SEL);
 	iowrite32(0xffffffff, priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS_MASK);
 
-	rc = request_irq(priv->pdev->irq, &mwl8k_interrupt,
+	rc = request_irq(priv->pdev->irq, mwl8k_interrupt,
 			 IRQF_SHARED, MWL8K_NAME, hw);
 	if (rc) {
 		printk(KERN_ERR "%s: failed to register IRQ handler\n",
-		       priv->name);
+		       wiphy_name(hw->wiphy));
 		goto err_free_queues;
 	}
 
@@ -2962,16 +3494,18 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	mwl8k_hw_reset(priv);
 
 	/* Ask userland hotplug daemon for the device firmware */
-	rc = mwl8k_request_firmware(priv, (u32)id->driver_data);
+	rc = mwl8k_request_firmware(priv);
 	if (rc) {
-		printk(KERN_ERR "%s: Firmware files not found\n", priv->name);
+		printk(KERN_ERR "%s: Firmware files not found\n",
+		       wiphy_name(hw->wiphy));
 		goto err_free_irq;
 	}
 
 	/* Load firmware into hardware */
-	rc = mwl8k_load_firmware(priv);
+	rc = mwl8k_load_firmware(hw);
 	if (rc) {
-		printk(KERN_ERR "%s: Cannot start firmware\n", priv->name);
+		printk(KERN_ERR "%s: Cannot start firmware\n",
+		       wiphy_name(hw->wiphy));
 		goto err_stop_firmware;
 	}
 
@@ -2986,16 +3520,31 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	iowrite32(MWL8K_A2H_EVENTS, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
 
 	/* Get config data, mac addrs etc */
-	rc = mwl8k_cmd_get_hw_spec(hw);
+	if (priv->ap_fw) {
+		rc = mwl8k_cmd_get_hw_spec_ap(hw);
+		if (!rc)
+			rc = mwl8k_cmd_set_hw_spec(hw);
+	} else {
+		rc = mwl8k_cmd_get_hw_spec_sta(hw);
+	}
 	if (rc) {
-		printk(KERN_ERR "%s: Cannot initialise firmware\n", priv->name);
+		printk(KERN_ERR "%s: Cannot initialise firmware\n",
+		       wiphy_name(hw->wiphy));
 		goto err_stop_firmware;
 	}
 
 	/* Turn radio off */
 	rc = mwl8k_cmd_802_11_radio_disable(hw);
 	if (rc) {
-		printk(KERN_ERR "%s: Cannot disable\n", priv->name);
+		printk(KERN_ERR "%s: Cannot disable\n", wiphy_name(hw->wiphy));
+		goto err_stop_firmware;
+	}
+
+	/* Clear MAC address */
+	rc = mwl8k_set_mac_addr(hw, "\x00\x00\x00\x00\x00\x00");
+	if (rc) {
+		printk(KERN_ERR "%s: Cannot clear MAC address\n",
+		       wiphy_name(hw->wiphy));
 		goto err_stop_firmware;
 	}
 
@@ -3005,13 +3554,15 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 
 	rc = ieee80211_register_hw(hw);
 	if (rc) {
-		printk(KERN_ERR "%s: Cannot register device\n", priv->name);
+		printk(KERN_ERR "%s: Cannot register device\n",
+		       wiphy_name(hw->wiphy));
 		goto err_stop_firmware;
 	}
 
-	printk(KERN_INFO "%s: 88w%u v%d, %pM, firmware version %u.%u.%u.%u\n",
-	       wiphy_name(hw->wiphy), priv->part_num, priv->hw_rev,
-	       hw->wiphy->perm_addr,
+	printk(KERN_INFO "%s: %s v%d, %pM, %s firmware %u.%u.%u.%u\n",
+	       wiphy_name(hw->wiphy), priv->device_info->part_name,
+	       priv->hw_rev, hw->wiphy->perm_addr,
+	       priv->ap_fw ? "AP" : "STA",
 	       (priv->fw_rev >> 24) & 0xff, (priv->fw_rev >> 16) & 0xff,
 	       (priv->fw_rev >> 8) & 0xff, priv->fw_rev & 0xff);
 
@@ -3038,8 +3589,8 @@ err_iounmap:
 	if (priv->regs != NULL)
 		pci_iounmap(pdev, priv->regs);
 
-	if (priv->config_wq != NULL)
-		destroy_workqueue(priv->config_wq);
+	if (priv->sram != NULL)
+		pci_iounmap(pdev, priv->sram);
 
 	pci_set_drvdata(pdev, NULL);
 	ieee80211_free_hw(hw);
@@ -3073,9 +3624,6 @@ static void __devexit mwl8k_remove(struct pci_dev *pdev)
 	/* Remove tx reclaim tasklet */
 	tasklet_kill(&priv->tx_reclaim_task);
 
-	/* Stop config thread */
-	destroy_workqueue(priv->config_wq);
-
 	/* Stop hardware */
 	mwl8k_hw_reset(priv);
 
@@ -3088,10 +3636,10 @@ static void __devexit mwl8k_remove(struct pci_dev *pdev)
 
 	mwl8k_rxq_deinit(hw, 0);
 
-	pci_free_consistent(priv->pdev, 4,
-				priv->cookie, priv->cookie_dma);
+	pci_free_consistent(priv->pdev, 4, priv->cookie, priv->cookie_dma);
 
 	pci_iounmap(pdev, priv->regs);
+	pci_iounmap(pdev, priv->sram);
 	pci_set_drvdata(pdev, NULL);
 	ieee80211_free_hw(hw);
 	pci_release_regions(pdev);
@@ -3100,7 +3648,7 @@ static void __devexit mwl8k_remove(struct pci_dev *pdev)
 
 static struct pci_driver mwl8k_driver = {
 	.name		= MWL8K_NAME,
-	.id_table	= mwl8k_table,
+	.id_table	= mwl8k_pci_id_table,
 	.probe		= mwl8k_probe,
 	.remove		= __devexit_p(mwl8k_remove),
 	.shutdown	= __devexit_p(mwl8k_shutdown),
@@ -3118,3 +3666,8 @@ static void __exit mwl8k_exit(void)
 
 module_init(mwl8k_init);
 module_exit(mwl8k_exit);
+
+MODULE_DESCRIPTION(MWL8K_DESC);
+MODULE_VERSION(MWL8K_VERSION);
+MODULE_AUTHOR("Lennert Buytenhek <buytenh@marvell.com>");
+MODULE_LICENSE("GPL");

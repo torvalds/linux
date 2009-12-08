@@ -878,8 +878,8 @@ if (strnicmp(ia->ri_id->device->dma_device->bus->name, "pci", 3) == 0) {
 	 * others indicate a transport condition which has already
 	 * undergone a best-effort.
 	 */
-	if (ep->rep_connected == -ECONNREFUSED
-	    && ++retry_count <= RDMA_CONNECT_RETRY_MAX) {
+	if (ep->rep_connected == -ECONNREFUSED &&
+	    ++retry_count <= RDMA_CONNECT_RETRY_MAX) {
 		dprintk("RPC:       %s: non-peer_reject, retry\n", __func__);
 		goto retry;
 	}

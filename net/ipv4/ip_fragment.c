@@ -206,10 +206,11 @@ static void ip_expire(unsigned long arg)
 		struct sk_buff *head = qp->q.fragments;
 
 		/* Send an ICMP "Fragment Reassembly Timeout" message. */
-		if ((head->dev = dev_get_by_index(net, qp->iif)) != NULL) {
+		rcu_read_lock();
+		head->dev = dev_get_by_index_rcu(net, qp->iif);
+		if (head->dev)
 			icmp_send(head, ICMP_TIME_EXCEEDED, ICMP_EXC_FRAGTIME, 0);
-			dev_put(head->dev);
-		}
+		rcu_read_unlock();
 	}
 out:
 	spin_unlock(&qp->q.lock);
@@ -651,7 +652,7 @@ static int ip4_frags_ns_ctl_register(struct net *net)
 	struct ctl_table_header *hdr;
 
 	table = ip4_frags_ns_ctl_table;
-	if (net != &init_net) {
+	if (!net_eq(net, &init_net)) {
 		table = kmemdup(table, sizeof(ip4_frags_ns_ctl_table), GFP_KERNEL);
 		if (table == NULL)
 			goto err_alloc;
@@ -669,7 +670,7 @@ static int ip4_frags_ns_ctl_register(struct net *net)
 	return 0;
 
 err_reg:
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		kfree(table);
 err_alloc:
 	return -ENOMEM;

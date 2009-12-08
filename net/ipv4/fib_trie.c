@@ -1174,7 +1174,7 @@ done:
 /*
  * Caller must hold RTNL.
  */
-static int fn_trie_insert(struct fib_table *tb, struct fib_config *cfg)
+int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 {
 	struct trie *t = (struct trie *) tb->tb_data;
 	struct fib_alias *fa, *new_fa;
@@ -1373,8 +1373,8 @@ static int check_leaf(struct trie *t, struct leaf *l,
 	return 1;
 }
 
-static int fn_trie_lookup(struct fib_table *tb, const struct flowi *flp,
-			  struct fib_result *res)
+int fib_table_lookup(struct fib_table *tb, const struct flowi *flp,
+		     struct fib_result *res)
 {
 	struct trie *t = (struct trie *) tb->tb_data;
 	int ret;
@@ -1595,7 +1595,7 @@ static void trie_leaf_remove(struct trie *t, struct leaf *l)
 /*
  * Caller must hold RTNL.
  */
-static int fn_trie_delete(struct fib_table *tb, struct fib_config *cfg)
+int fib_table_delete(struct fib_table *tb, struct fib_config *cfg)
 {
 	struct trie *t = (struct trie *) tb->tb_data;
 	u32 key, mask;
@@ -1786,7 +1786,7 @@ static struct leaf *trie_leafindex(struct trie *t, int index)
 /*
  * Caller must hold RTNL.
  */
-static int fn_trie_flush(struct fib_table *tb)
+int fib_table_flush(struct fib_table *tb)
 {
 	struct trie *t = (struct trie *) tb->tb_data;
 	struct leaf *l, *ll = NULL;
@@ -1807,9 +1807,9 @@ static int fn_trie_flush(struct fib_table *tb)
 	return found;
 }
 
-static void fn_trie_select_default(struct fib_table *tb,
-				   const struct flowi *flp,
-				   struct fib_result *res)
+void fib_table_select_default(struct fib_table *tb,
+			      const struct flowi *flp,
+			      struct fib_result *res)
 {
 	struct trie *t = (struct trie *) tb->tb_data;
 	int order, last_idx;
@@ -1952,8 +1952,8 @@ static int fn_trie_dump_leaf(struct leaf *l, struct fib_table *tb,
 	return skb->len;
 }
 
-static int fn_trie_dump(struct fib_table *tb, struct sk_buff *skb,
-			struct netlink_callback *cb)
+int fib_table_dump(struct fib_table *tb, struct sk_buff *skb,
+		   struct netlink_callback *cb)
 {
 	struct leaf *l;
 	struct trie *t = (struct trie *) tb->tb_data;
@@ -2020,12 +2020,6 @@ struct fib_table *fib_hash_table(u32 id)
 
 	tb->tb_id = id;
 	tb->tb_default = -1;
-	tb->tb_lookup = fn_trie_lookup;
-	tb->tb_insert = fn_trie_insert;
-	tb->tb_delete = fn_trie_delete;
-	tb->tb_flush = fn_trie_flush;
-	tb->tb_select_default = fn_trie_select_default;
-	tb->tb_dump = fn_trie_dump;
 
 	t = (struct trie *) tb->tb_data;
 	memset(t, 0, sizeof(*t));

@@ -1457,7 +1457,7 @@ got_type:
 	}
 
 	err = -EAGAIN;
-	if (request_irq(dev->irq, &sdla_isr, 0, dev->name, dev)) 
+	if (request_irq(dev->irq, sdla_isr, 0, dev->name, dev)) 
 		goto fail;
 
 	if (flp->type == SDLA_S507) {
