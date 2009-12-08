@@ -42,7 +42,10 @@
 
 /* Powerdomain flags */
 #define PWRDM_HAS_HDWR_SAR	(1 << 0) /* hardware save-and-restore support */
-
+#define PWRDM_HAS_MPU_QUIRK	(1 << 1) /* MPU pwr domain has MEM bank 0 bits
+					  * in MEM bank 1 position. This is
+					  * true for OMAP3430
+					  */
 
 /*
  * Number of memory banks that are power-controllable.	On OMAP3430, the

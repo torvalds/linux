@@ -983,6 +983,9 @@ int pwrdm_read_mem_pwrst(struct powerdomain *pwrdm, u8 bank)
 	if (pwrdm->banks < (bank + 1))
 		return -EEXIST;
 
+	if (pwrdm->flags & PWRDM_HAS_MPU_QUIRK)
+		bank = 1;
+
 	/*
 	 * The register bit names below may not correspond to the
 	 * actual names of the bits in each powerdomain's register,
@@ -1029,6 +1032,9 @@ int pwrdm_read_prev_mem_pwrst(struct powerdomain *pwrdm, u8 bank)
 
 	if (pwrdm->banks < (bank + 1))
 		return -EEXIST;
+
+	if (pwrdm->flags & PWRDM_HAS_MPU_QUIRK)
+		bank = 1;
 
 	/*
 	 * The register bit names below may not correspond to the
