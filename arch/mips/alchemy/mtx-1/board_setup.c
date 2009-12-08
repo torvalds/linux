@@ -31,7 +31,9 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/pm.h>
 
+#include <asm/reboot.h>
 #include <asm/mach-au1x00/au1000.h>
 
 #include <prom.h>
@@ -50,10 +52,17 @@ char irq_tab_alchemy[][5] __initdata = {
 extern int (*board_pci_idsel)(unsigned int devsel, int assert);
 int mtx1_pci_idsel(unsigned int devsel, int assert);
 
-void board_reset(void)
+static void mtx1_reset(char *c)
 {
 	/* Hit BCSR.SYSTEM_CONTROL[SW_RST] */
 	au_writel(0x00000000, 0xAE00001C);
+}
+
+static void mtx1_power_off(void)
+{
+	printk(KERN_ALERT "It's now safe to remove power\n");
+	while (1)
+		asm volatile (".set mips3 ; wait ; .set mips1");
 }
 
 void __init board_setup(void)
@@ -97,6 +106,10 @@ void __init board_setup(void)
 	/* Enable LED and set it to green */
 	alchemy_gpio_direction_output(211, 1);	/* green on */
 	alchemy_gpio_direction_output(212, 0);	/* red off */
+
+	pm_power_off = mtx1_power_off;
+	_machine_halt = mtx1_power_off;
+	_machine_restart = mtx1_reset;
 
 	printk(KERN_INFO "4G Systems MTX-1 Board\n");
 }

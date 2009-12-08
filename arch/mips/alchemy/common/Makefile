@@ -5,8 +5,7 @@
 # Makefile for the Alchemy Au1xx0 CPUs, generic files.
 #
 
-obj-y += prom.o time.o reset.o \
-	clocks.o platform.o power.o setup.o \
+obj-y += prom.o time.o clocks.o platform.o power.o setup.o \
 	sleeper.o dma.o dbdma.o
 
 obj-$(CONFIG_ALCHEMY_GPIOINT_AU1000) += irq.o

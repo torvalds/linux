@@ -8,6 +8,35 @@
 #include <linux/mtd/physmap.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
+
+#include <asm/reboot.h>
+#include <asm/mach-db1x00/bcsr.h>
+
+static void db1x_power_off(void)
+{
+	bcsr_write(BCSR_RESETS, 0);
+	bcsr_write(BCSR_SYSTEM, BCSR_SYSTEM_PWROFF | BCSR_SYSTEM_RESET);
+}
+
+static void db1x_reset(char *c)
+{
+	bcsr_write(BCSR_RESETS, 0);
+	bcsr_write(BCSR_SYSTEM, 0);
+}
+
+static int __init db1x_poweroff_setup(void)
+{
+	if (!pm_power_off)
+		pm_power_off = db1x_power_off;
+	if (!_machine_halt)
+		_machine_halt = db1x_power_off;
+	if (!_machine_restart)
+		_machine_restart = db1x_reset;
+
+	return 0;
+}
+late_initcall(db1x_poweroff_setup);
 
 /* register a pcmcia socket */
 int __init db1x_register_pcmcia_socket(unsigned long pseudo_attr_start,

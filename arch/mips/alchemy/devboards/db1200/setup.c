@@ -9,28 +9,13 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/pm.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-db1x00/bcsr.h>
 #include <asm/mach-db1x00/db1200.h>
-#include <asm/processor.h>
-#include <asm/reboot.h>
 
 const char *get_system_type(void)
 {
 	return "Alchemy Db1200";
-}
-
-static void board_power_off(void)
-{
-	bcsr_write(BCSR_RESETS, 0);
-	bcsr_write(BCSR_SYSTEM, BCSR_SYSTEM_PWROFF | BCSR_SYSTEM_RESET);
-}
-
-void board_reset(void)
-{
-	bcsr_write(BCSR_RESETS, 0);
-	bcsr_write(BCSR_SYSTEM, 0);
 }
 
 void __init board_setup(void)
@@ -73,10 +58,6 @@ void __init board_setup(void)
 	clksrc = SYS_CS_MUX_FQ0 << SYS_CS_ME0_BIT;
 	__raw_writel(clksrc, (void __iomem *)SYS_CLKSRC);
 	wmb();
-
-	pm_power_off = board_power_off;
-	_machine_halt = board_power_off;
-	_machine_restart = (void(*)(char *))board_reset;
 }
 
 /* use the hexleds to count the number of times the cpu has entered

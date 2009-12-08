@@ -27,15 +27,24 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/pm.h>
 
+#include <asm/reboot.h>
 #include <asm/mach-au1x00/au1000.h>
 
 #include <prom.h>
 
-void board_reset(void)
+static void xxs1500_reset(char *c)
 {
 	/* Hit BCSR.SYSTEM_CONTROL[SW_RST] */
 	au_writel(0x00000000, 0xAE00001C);
+}
+
+static void xxs1500_power_off(void)
+{
+	printk(KERN_ALERT "It's now safe to remove power\n");
+	while (1)
+		asm volatile (".set mips3 ; wait ; .set mips1");
 }
 
 void __init board_setup(void)
@@ -51,6 +60,10 @@ void __init board_setup(void)
 		strcat(argptr, " console=ttyS0,115200");
 	}
 #endif
+
+	pm_power_off = xxs1500_power_off;
+	_machine_halt = xxs1500_power_off;
+	_machine_restart = xxs1500_reset;
 
 	alchemy_gpio1_input_enable();
 	alchemy_gpio2_enable();

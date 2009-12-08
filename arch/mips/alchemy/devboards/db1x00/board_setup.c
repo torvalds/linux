@@ -30,11 +30,13 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/pm.h>
 
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1xxx_eth.h>
 #include <asm/mach-db1x00/db1x00.h>
 #include <asm/mach-db1x00/bcsr.h>
+#include <asm/reboot.h>
 
 #include <prom.h>
 
@@ -43,6 +45,18 @@ char irq_tab_alchemy[][5] __initdata = {
 	[12] = { -1, AU1500_PCI_INTA, 0xff, 0xff, 0xff }, /* IDSEL 12 - HPT371   */
 	[13] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTB, AU1500_PCI_INTC, AU1500_PCI_INTD }, /* IDSEL 13 - PCI slot */
 };
+
+static void bosporus_power_off(void)
+{
+	printk(KERN_INFO "It's now safe to turn off power\n");
+	while (1)
+		asm volatile (".set mips3 ; wait ; .set mips0");
+}
+
+const char *get_system_type(void)
+{
+	return "Alchemy Bosporus Gateway Reference";
+}
 #endif
 
 /*
@@ -73,6 +87,16 @@ char irq_tab_alchemy[][5] __initdata = {
 	[12] = { -1, 0xff, 0xff, AU1500_PCI_INTC, 0xff }, /* IDSEL 12 - PNX1300 */
 	[13] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTB, 0xff, 0xff }, /* IDSEL 13 - miniPCI */
 };
+
+static void mirage_power_off(void)
+{
+	alchemy_gpio_direction_output(210, 1);
+}
+
+const char *get_system_type(void)
+{
+	return "Alchemy Mirage";
+}
 #endif
 
 #ifdef CONFIG_MIPS_DB1550
@@ -83,19 +107,19 @@ char irq_tab_alchemy[][5] __initdata = {
 };
 #endif
 
-const char *get_system_type(void)
+#if defined(CONFIG_MIPS_BOSPORUS) || defined(CONFIG_MIPS_MIRAGE)
+static void mips_softreset(void)
 {
-#ifdef CONFIG_MIPS_BOSPORUS
-	return "Alchemy Bosporus Gateway Reference";
-#else
-	return "Alchemy Db1x00";
-#endif
+	asm volatile ("jr\t%0" : : "r"(0xbfc00000));
 }
 
-void board_reset(void)
+#else
+
+const char *get_system_type(void)
 {
-	bcsr_write(BCSR_SYSTEM, 0);
+	return "Alchemy Db1x00";
 }
+#endif
 
 void __init board_setup(void)
 {
@@ -196,8 +220,17 @@ void __init board_setup(void)
 	 * be part of the audio driver.
 	 */
 	alchemy_gpio_direction_output(209, 1);
+
+	pm_power_off = mirage_power_off;
+	_machine_halt = mirage_power_off;
+	_machine_restart = (void(*)(char *))mips_softreset;
 #endif
 
+#ifdef CONFIG_MIPS_BOSPORUS
+	pm_power_off = bosporus_power_off;
+	_machine_halt = bosporus_power_off;
+	_machine_restart = (void(*)(char *))mips_softreset;
+#endif
 	au_sync();
 }
 
