@@ -1680,16 +1680,6 @@ static void ept_update_paging_mode_cr0(unsigned long *hw_cr0,
 		*hw_cr0 &= ~X86_CR0_WP;
 }
 
-static void ept_update_paging_mode_cr4(unsigned long *hw_cr4,
-					struct kvm_vcpu *vcpu)
-{
-	if (!is_paging(vcpu)) {
-		*hw_cr4 &= ~X86_CR4_PAE;
-		*hw_cr4 |= X86_CR4_PSE;
-	} else if (!(vcpu->arch.cr4 & X86_CR4_PAE))
-		*hw_cr4 &= ~X86_CR4_PAE;
-}
-
 static void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -1767,8 +1757,14 @@ static void vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 		    KVM_RMODE_VM_CR4_ALWAYS_ON : KVM_PMODE_VM_CR4_ALWAYS_ON);
 
 	vcpu->arch.cr4 = cr4;
-	if (enable_ept)
-		ept_update_paging_mode_cr4(&hw_cr4, vcpu);
+	if (enable_ept) {
+		if (!is_paging(vcpu)) {
+			hw_cr4 &= ~X86_CR4_PAE;
+			hw_cr4 |= X86_CR4_PSE;
+		} else if (!(cr4 & X86_CR4_PAE)) {
+			hw_cr4 &= ~X86_CR4_PAE;
+		}
+	}
 
 	vmcs_writel(CR4_READ_SHADOW, cr4);
 	vmcs_writel(GUEST_CR4, hw_cr4);
