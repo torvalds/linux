@@ -592,6 +592,11 @@ static void _sysc_enable(struct omap_hwmod *oh)
 
 	/* XXX OCP ENAWAKEUP bit? */
 
+	/*
+	 * XXX The clock framework should handle this, by
+	 * calling into this code.  But this must wait until the
+	 * clock structures are tagged with omap_hwmod entries
+	 */
 	if (oh->flags & HWMOD_SET_DEFAULT_CLOCKACT &&
 	    oh->sysconfig->sysc_flags & SYSC_HAS_CLOCKACTIVITY)
 		_set_clockactivity(oh, oh->sysconfig->clockact, &v);
@@ -912,33 +917,6 @@ static int _shutdown(struct omap_hwmod *oh)
 
 	return 0;
 }
-
-/**
- * _write_clockact_lock - set the module's clockactivity bits
- * @oh: struct omap_hwmod *
- * @clockact: CLOCKACTIVITY field bits
- *
- * Writes the CLOCKACTIVITY bits @clockact to the hwmod @oh
- * OCP_SYSCONFIG register.  Returns -EINVAL if the hwmod is in the
- * wrong state or returns 0.
- */
-static int _write_clockact_lock(struct omap_hwmod *oh, u8 clockact)
-{
-	u32 v;
-
-	if (!oh->sysconfig ||
-	    !(oh->sysconfig->sysc_flags & SYSC_HAS_CLOCKACTIVITY))
-		return -EINVAL;
-
-	mutex_lock(&omap_hwmod_mutex);
-	v = oh->_sysc_cache;
-	_set_clockactivity(oh, clockact, &v);
-	_write_sysconfig(v, oh);
-	mutex_unlock(&omap_hwmod_mutex);
-
-	return 0;
-}
-
 
 /**
  * _setup - do initial configuration of omap_hwmod
@@ -1490,62 +1468,6 @@ int omap_hwmod_del_initiator_dep(struct omap_hwmod *oh,
 				 struct omap_hwmod *init_oh)
 {
 	return _del_initiator_dep(oh, init_oh);
-}
-
-/**
- * omap_hwmod_set_clockact_none - set clockactivity test to BOTH
- * @oh: struct omap_hwmod *
- *
- * On some modules, this function can affect the wakeup latency vs.
- * power consumption balance.  Intended to be called by the
- * omap_device layer.  Passes along the return value from
- * _write_clockact_lock().
- */
-int omap_hwmod_set_clockact_both(struct omap_hwmod *oh)
-{
-	return _write_clockact_lock(oh, CLOCKACT_TEST_BOTH);
-}
-
-/**
- * omap_hwmod_set_clockact_none - set clockactivity test to MAIN
- * @oh: struct omap_hwmod *
- *
- * On some modules, this function can affect the wakeup latency vs.
- * power consumption balance.  Intended to be called by the
- * omap_device layer.  Passes along the return value from
- * _write_clockact_lock().
- */
-int omap_hwmod_set_clockact_main(struct omap_hwmod *oh)
-{
-	return _write_clockact_lock(oh, CLOCKACT_TEST_MAIN);
-}
-
-/**
- * omap_hwmod_set_clockact_none - set clockactivity test to ICLK
- * @oh: struct omap_hwmod *
- *
- * On some modules, this function can affect the wakeup latency vs.
- * power consumption balance.  Intended to be called by the
- * omap_device layer.  Passes along the return value from
- * _write_clockact_lock().
- */
-int omap_hwmod_set_clockact_iclk(struct omap_hwmod *oh)
-{
-	return _write_clockact_lock(oh, CLOCKACT_TEST_ICLK);
-}
-
-/**
- * omap_hwmod_set_clockact_none - set clockactivity test to NONE
- * @oh: struct omap_hwmod *
- *
- * On some modules, this function can affect the wakeup latency vs.
- * power consumption balance.  Intended to be called by the
- * omap_device layer.  Passes along the return value from
- * _write_clockact_lock().
- */
-int omap_hwmod_set_clockact_none(struct omap_hwmod *oh)
-{
-	return _write_clockact_lock(oh, CLOCKACT_TEST_NONE);
 }
 
 /**
