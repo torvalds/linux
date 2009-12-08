@@ -1460,6 +1460,23 @@ err_out:
 	return rv;
 }
 
+static int acm_reset_resume(struct usb_interface *intf)
+{
+	struct acm *acm = usb_get_intfdata(intf);
+	struct tty_struct *tty;
+
+	mutex_lock(&acm->mutex);
+	if (acm->port.count) {
+		tty = tty_port_tty_get(&acm->port);
+		if (tty) {
+			tty_hangup(tty);
+			tty_kref_put(tty);
+		}
+	}
+	mutex_unlock(&acm->mutex);
+	return acm_resume(intf);
+}
+
 #endif /* CONFIG_PM */
 
 #define NOKIA_PCSUITE_ACM_INFO(x) \
@@ -1602,6 +1619,7 @@ static struct usb_driver acm_driver = {
 #ifdef CONFIG_PM
 	.suspend =	acm_suspend,
 	.resume =	acm_resume,
+	.reset_resume =	acm_reset_resume,
 #endif
 	.id_table =	acm_ids,
 #ifdef CONFIG_PM
