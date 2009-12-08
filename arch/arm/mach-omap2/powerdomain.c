@@ -10,9 +10,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#ifdef CONFIG_OMAP_DEBUG_POWERDOMAIN
-# define DEBUG
-#endif
+#undef DEBUG
 
 #include <linux/kernel.h>
 #include <linux/module.h>
