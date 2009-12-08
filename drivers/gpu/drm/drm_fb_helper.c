@@ -908,7 +908,7 @@ int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 
 	if (new_fb) {
 		info->var.pixclock = 0;
-		ret = fb_alloc_cmap(&info->cmap, crtc->gamma_size, 0);
+		ret = fb_alloc_cmap(&info->cmap, modeset->crtc->gamma_size, 0);
 		if (ret)
 			return ret;
 		if (register_framebuffer(info) < 0) {
