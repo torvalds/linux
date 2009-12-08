@@ -6631,6 +6631,8 @@ SYSCALL_DEFINE3(sched_setaffinity, pid_t, pid, unsigned int, len,
 long sched_getaffinity(pid_t pid, struct cpumask *mask)
 {
 	struct task_struct *p;
+	unsigned long flags;
+	struct rq *rq;
 	int retval;
 
 	get_online_cpus();
@@ -6645,7 +6647,9 @@ long sched_getaffinity(pid_t pid, struct cpumask *mask)
 	if (retval)
 		goto out_unlock;
 
+	rq = task_rq_lock(p, &flags);
 	cpumask_and(mask, &p->cpus_allowed, cpu_online_mask);
+	task_rq_unlock(rq, &flags);
 
 out_unlock:
 	read_unlock(&tasklist_lock);
