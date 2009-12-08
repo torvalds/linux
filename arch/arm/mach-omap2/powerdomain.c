@@ -158,7 +158,7 @@ static __init void _pwrdm_setup(struct powerdomain *pwrdm)
 {
 	int i;
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < PWRDM_MAX_PWRSTS; i++)
 		pwrdm->state_counter[i] = 0;
 
 	pwrdm_wait_transition(pwrdm);

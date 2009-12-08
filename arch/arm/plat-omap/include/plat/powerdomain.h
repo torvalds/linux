@@ -28,6 +28,8 @@
 #define PWRDM_POWER_INACTIVE	0x2
 #define PWRDM_POWER_ON		0x3
 
+#define PWRDM_MAX_PWRSTS	4
+
 /* Powerdomain allowable state bitfields */
 #define PWRSTS_OFF_ON		((1 << PWRDM_POWER_OFF) | \
 				 (1 << PWRDM_POWER_ON))
@@ -118,11 +120,11 @@ struct powerdomain {
 	struct list_head node;
 
 	int state;
-	unsigned state_counter[4];
+	unsigned state_counter[PWRDM_MAX_PWRSTS];
 
 #ifdef CONFIG_PM_DEBUG
 	s64 timer;
-	s64 state_timer[4];
+	s64 state_timer[PWRDM_MAX_PWRSTS];
 #endif
 };
 
