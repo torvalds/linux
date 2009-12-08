@@ -407,15 +407,6 @@ Who:	Alex Chiang <achiang@hp.com>
 
 ---------------------------
 
-What:	i2c-voodoo3 driver
-When:	October 2009
-Why:	Superseded by tdfxfb. I2C/DDC support used to live in a separate
-	driver but this caused driver conflicts.
-Who:	Jean Delvare <khali@linux-fr.org>
-	Krzysztof Helt <krzysztof.h1@wp.pl>
-
----------------------------
-
 What:	CONFIG_RFKILL_INPUT
 When:	2.6.33
 Why:	Should be implemented in userspace, policy daemon.
