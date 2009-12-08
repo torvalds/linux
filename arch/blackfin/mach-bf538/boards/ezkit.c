@@ -534,9 +534,10 @@ static struct bfin5xx_spi_chip spi_ad7879_chip_info = {
 #include <asm/bfin-lq035q1.h>
 
 static struct bfin_lq035q1fb_disp_info bfin_lq035q1_data = {
-	.mode = 	LQ035_NORM | LQ035_RGB | LQ035_RL | LQ035_TB,
-	.use_bl = 	0,	/* let something else control the LCD Blacklight */
-	.gpio_bl =	GPIO_PF7,
+	.mode = LQ035_NORM | LQ035_RGB | LQ035_RL | LQ035_TB,
+	.ppi_mode = USE_RGB565_16_BIT_PPI,
+	.use_bl = 0,	/* let something else control the LCD Blacklight */
+	.gpio_bl = GPIO_PF7,
 };
 
 static struct resource bfin_lq035q1_resources[] = {

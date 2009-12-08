@@ -1131,9 +1131,10 @@ static struct platform_device bfin_fb_device = {
 #include <asm/bfin-lq035q1.h>
 
 static struct bfin_lq035q1fb_disp_info bfin_lq035q1_data = {
-	.mode = 	LQ035_NORM | LQ035_RGB | LQ035_RL | LQ035_TB,
-	.use_bl = 	0,	/* let something else control the LCD Blacklight */
-	.gpio_bl =	GPIO_PF7,
+	.mode = LQ035_NORM | LQ035_RGB | LQ035_RL | LQ035_TB,
+	.ppi_mode = USE_RGB565_16_BIT_PPI,
+	.use_bl = 0,	/* let something else control the LCD Blacklight */
+	.gpio_bl = GPIO_PF7,
 };
 
 static struct resource bfin_lq035q1_resources[] = {
@@ -1147,8 +1148,8 @@ static struct resource bfin_lq035q1_resources[] = {
 static struct platform_device bfin_lq035q1_device = {
 	.name		= "bfin-lq035q1",
 	.id		= -1,
-	.num_resources 	= ARRAY_SIZE(bfin_lq035q1_resources),
-	.resource 	= bfin_lq035q1_resources,
+	.num_resources	= ARRAY_SIZE(bfin_lq035q1_resources),
+	.resource	= bfin_lq035q1_resources,
 	.dev		= {
 		.platform_data = &bfin_lq035q1_data,
 	},

@@ -749,9 +749,10 @@ static struct platform_device bfin_dpmc = {
 #include <asm/bfin-lq035q1.h>
 
 static struct bfin_lq035q1fb_disp_info bfin_lq035q1_data = {
-	.mode = 	LQ035_NORM | LQ035_RGB | LQ035_RL | LQ035_TB,
-	.use_bl = 	1,
-	.gpio_bl =	GPIO_PG12,
+	.mode = LQ035_NORM | LQ035_RGB | LQ035_RL | LQ035_TB,
+	.ppi_mode = USE_RGB565_16_BIT_PPI,
+	.use_bl = 1,
+	.gpio_bl = GPIO_PG12,
 };
 
 static struct resource bfin_lq035q1_resources[] = {
