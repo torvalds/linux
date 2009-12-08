@@ -379,11 +379,29 @@ static void clear_probe_point(struct probe_point *pp)
 	memset(pp, 0, sizeof(pp));
 }
 
+/* Show an event */
+static void show_perf_probe_event(const char *group, const char *event,
+				  const char *place, struct probe_point *pp)
+{
+	int i;
+	char buf[128];
+
+	e_snprintf(buf, 128, "%s:%s", group, event);
+	printf("  %-40s (on %s", buf, place);
+
+	if (pp->nr_args > 0) {
+		printf(" with");
+		for (i = 0; i < pp->nr_args; i++)
+			printf(" %s", pp->args[i]);
+	}
+	printf(")\n");
+}
+
 /* List up current perf-probe events */
 void show_perf_probe_events(void)
 {
 	unsigned int i;
-	int fd;
+	int fd, nr;
 	char *group, *event;
 	struct probe_point pp;
 	struct strlist *rawlist;
@@ -396,8 +414,13 @@ void show_perf_probe_events(void)
 	for (i = 0; i < strlist__nr_entries(rawlist); i++) {
 		ent = strlist__entry(rawlist, i);
 		parse_trace_kprobe_event(ent->s, &group, &event, &pp);
+		/* Synthesize only event probe point */
+		nr = pp.nr_args;
+		pp.nr_args = 0;
 		synthesize_perf_probe_event(&pp);
-		printf("[%s:%s]\t%s\n", group, event, pp.probes[0]);
+		pp.nr_args = nr;
+		/* Show an event */
+		show_perf_probe_event(group, event, pp.probes[0], &pp);
 		free(group);
 		free(event);
 		clear_probe_point(&pp);
