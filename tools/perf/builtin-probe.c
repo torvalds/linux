@@ -43,11 +43,12 @@
 #include "util/probe-event.h"
 
 /* Default vmlinux search paths */
-#define NR_SEARCH_PATH 3
+#define NR_SEARCH_PATH 4
 const char *default_search_path[NR_SEARCH_PATH] = {
 "/lib/modules/%s/build/vmlinux",		/* Custom build kernel */
 "/usr/lib/debug/lib/modules/%s/vmlinux",	/* Red Hat debuginfo */
 "/boot/vmlinux-debug-%s",			/* Ubuntu */
+"./vmlinux",					/* CWD */
 };
 
 #define MAX_PATH_LEN 256
@@ -205,13 +206,14 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 #else	/* !NO_LIBDWARF */
 		pr_debug("Some probes require debuginfo.\n");
 
-	if (session.vmlinux)
+	if (session.vmlinux) {
+		pr_debug("Try to open %s.", session.vmlinux);
 		fd = open(session.vmlinux, O_RDONLY);
-	else
+	} else
 		fd = open_default_vmlinux();
 	if (fd < 0) {
 		if (session.need_dwarf)
-			die("Could not open vmlinux/module file.");
+			die("Could not open debuginfo file.");
 
 		pr_debug("Could not open vmlinux/module file."
 			 " Try to use symbols.\n");
