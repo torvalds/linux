@@ -900,6 +900,10 @@ struct e1000_dev_spec_82571 {
 	u32 smb_counter;
 };
 
+struct e1000_dev_spec_80003es2lan {
+	bool  mdic_wa_enable;
+};
+
 struct e1000_shadow_ram {
 	u16  value;
 	bool modified;
@@ -928,6 +932,7 @@ struct e1000_hw {
 
 	union {
 		struct e1000_dev_spec_82571	e82571;
+		struct e1000_dev_spec_80003es2lan e80003es2lan;
 		struct e1000_dev_spec_ich8lan	ich8lan;
 	} dev_spec;
 };
