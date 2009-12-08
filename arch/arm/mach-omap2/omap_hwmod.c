@@ -945,11 +945,19 @@ static int _setup(struct omap_hwmod *oh)
 
 	_enable(oh);
 
-	if (!(oh->flags & HWMOD_INIT_NO_RESET))
-		_reset(oh);
-
-	/* XXX OCP AUTOIDLE bit? */
-	/* XXX OCP ENAWAKEUP bit? */
+	if (!(oh->flags & HWMOD_INIT_NO_RESET)) {
+		/*
+		 * XXX Do the OCP_SYSCONFIG bits need to be
+		 * reprogrammed after a reset?  If not, then this can
+		 * be removed.  If they do, then probably the
+		 * _enable() function should be split to avoid the
+		 * rewrite of the OCP_SYSCONFIG register.
+		 */
+		if (oh->sysconfig) {
+			_update_sysc_cache(oh);
+			_sysc_enable(oh);
+		}
+	}
 
 	if (!(oh->flags & HWMOD_INIT_NO_IDLE))
 		_idle(oh);
