@@ -1006,6 +1006,7 @@ static struct radeon_atom_ss *radeon_atombios_get_ss_info(struct
 	struct _ATOM_SPREAD_SPECTRUM_INFO *ss_info;
 	uint8_t frev, crev;
 	struct radeon_atom_ss *ss = NULL;
+	int i;
 
 	if (id > ATOM_MAX_SS_ENTRY)
 		return NULL;
@@ -1023,12 +1024,17 @@ static struct radeon_atom_ss *radeon_atombios_get_ss_info(struct
 		if (!ss)
 			return NULL;
 
-		ss->percentage = le16_to_cpu(ss_info->asSS_Info[id].usSpreadSpectrumPercentage);
-		ss->type = ss_info->asSS_Info[id].ucSpreadSpectrumType;
-		ss->step = ss_info->asSS_Info[id].ucSS_Step;
-		ss->delay = ss_info->asSS_Info[id].ucSS_Delay;
-		ss->range = ss_info->asSS_Info[id].ucSS_Range;
-		ss->refdiv = ss_info->asSS_Info[id].ucRecommendedRef_Div;
+		for (i = 0; i < ATOM_MAX_SS_ENTRY; i++) {
+			if (ss_info->asSS_Info[i].ucSS_Id == id) {
+				ss->percentage =
+					le16_to_cpu(ss_info->asSS_Info[i].usSpreadSpectrumPercentage);
+				ss->type = ss_info->asSS_Info[i].ucSpreadSpectrumType;
+				ss->step = ss_info->asSS_Info[i].ucSS_Step;
+				ss->delay = ss_info->asSS_Info[i].ucSS_Delay;
+				ss->range = ss_info->asSS_Info[i].ucSS_Range;
+				ss->refdiv = ss_info->asSS_Info[i].ucRecommendedRef_Div;
+			}
+		}
 	}
 	return ss;
 }
