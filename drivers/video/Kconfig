@@ -2127,7 +2127,7 @@ config FB_PRE_INIT_FB
 	  the bootloader.
 
 config FB_MSM
-	tristate
+	tristate "MSM Framebuffer support"
 	depends on FB && ARCH_MSM
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
