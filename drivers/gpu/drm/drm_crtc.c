@@ -256,7 +256,8 @@ static void drm_mode_object_put(struct drm_device *dev,
 	mutex_unlock(&dev->mode_config.idr_mutex);
 }
 
-void *drm_mode_object_find(struct drm_device *dev, uint32_t id, uint32_t type)
+struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
+		uint32_t id, uint32_t type)
 {
 	struct drm_mode_object *obj = NULL;
 
@@ -2630,7 +2631,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 			goto out;
 		}
 
-		e->event.base.type = DRM_EVENT_VBLANK;
+		e->event.base.type = DRM_EVENT_FLIP_COMPLETE;
 		e->event.base.length = sizeof e->event;
 		e->event.user_data = page_flip->user_data;
 		e->base.event = &e->event.base;
