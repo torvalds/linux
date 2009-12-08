@@ -50,8 +50,8 @@
  * @pm_lats: ptr to an omap_device_pm_latency table
  * @pm_lats_cnt: ARRAY_SIZE() of what is passed to @pm_lats
  * @pm_lat_level: array index of the last odpl entry executed - -1 if never
- * @dev_wakeup_lat: dev wakeup latency in microseconds
- * @_dev_wakeup_lat_limit: dev wakeup latency limit in usec - set by OMAP PM
+ * @dev_wakeup_lat: dev wakeup latency in nanoseconds
+ * @_dev_wakeup_lat_limit: dev wakeup latency limit in nsec - set by OMAP PM
  * @_state: one of OMAP_DEVICE_STATE_* (see above)
  * @flags: device flags
  *
