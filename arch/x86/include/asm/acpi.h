@@ -118,7 +118,7 @@ extern void acpi_restore_state_mem(void);
 extern unsigned long acpi_wakeup_address;
 
 /* early initialization routine */
-extern void acpi_reserve_bootmem(void);
+extern void acpi_reserve_wakeup_memory(void);
 
 /*
  * Check if the CPU can handle C2 and deeper
@@ -158,6 +158,7 @@ struct bootnode;
 
 #ifdef CONFIG_ACPI_NUMA
 extern int acpi_numa;
+extern int acpi_get_nodes(struct bootnode *physnodes);
 extern int acpi_scan_nodes(unsigned long start, unsigned long end);
 #define NR_NODE_MEMBLKS (MAX_NUMNODES*2)
 extern void acpi_fake_nodes(const struct bootnode *fake_nodes,
