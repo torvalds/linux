@@ -208,6 +208,24 @@ bool radeon_card_posted(struct radeon_device *rdev)
 
 }
 
+bool radeon_boot_test_post_card(struct radeon_device *rdev)
+{
+	if (radeon_card_posted(rdev))
+		return true;
+
+	if (rdev->bios) {
+		DRM_INFO("GPU not posted. posting now...\n");
+		if (rdev->is_atom_bios)
+			atom_asic_init(rdev->mode_info.atom_context);
+		else
+			radeon_combios_asic_init(rdev->ddev);
+		return true;
+	} else {
+		dev_err(rdev->dev, "Card not posted and no BIOS - ignoring\n");
+		return false;
+	}
+}
+
 int radeon_dummy_page_init(struct radeon_device *rdev)
 {
 	rdev->dummy_page.page = alloc_page(GFP_DMA32 | GFP_KERNEL | __GFP_ZERO);
@@ -544,6 +562,9 @@ int radeon_device_init(struct radeon_device *rdev,
 	mutex_init(&rdev->cs_mutex);
 	mutex_init(&rdev->ib_pool.mutex);
 	mutex_init(&rdev->cp.mutex);
+	if (rdev->family >= CHIP_R600)
+		spin_lock_init(&rdev->ih.lock);
+	mutex_init(&rdev->gem.mutex);
 	rwlock_init(&rdev->fence_drv.lock);
 	INIT_LIST_HEAD(&rdev->gem.objects);
 
@@ -553,7 +574,7 @@ int radeon_device_init(struct radeon_device *rdev,
 		return r;
 	}
 
-	if (radeon_agpmode == -1) {
+	if (rdev->flags & RADEON_IS_AGP && radeon_agpmode == -1) {
 		radeon_agp_disable(rdev);
 	}
 
@@ -633,6 +654,7 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_crtc *crtc;
+	int r;
 
 	if (dev == NULL || rdev == NULL) {
 		return -ENODEV;
@@ -643,18 +665,22 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	/* unpin the front buffers */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct radeon_framebuffer *rfb = to_radeon_framebuffer(crtc->fb);
-		struct radeon_object *robj;
+		struct radeon_bo *robj;
 
 		if (rfb == NULL || rfb->obj == NULL) {
 			continue;
 		}
 		robj = rfb->obj->driver_private;
-		if (robj != rdev->fbdev_robj) {
-			radeon_object_unpin(robj);
+		if (robj != rdev->fbdev_rbo) {
+			r = radeon_bo_reserve(robj, false);
+			if (unlikely(r == 0)) {
+				radeon_bo_unpin(robj);
+				radeon_bo_unreserve(robj);
+			}
 		}
 	}
 	/* evict vram memory */
-	radeon_object_evict_vram(rdev);
+	radeon_bo_evict_vram(rdev);
 	/* wait for gpu to finish processing current batch */
 	radeon_fence_wait_last(rdev);
 
@@ -662,7 +688,7 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 
 	radeon_suspend(rdev);
 	/* evict remaining vram memory */
-	radeon_object_evict_vram(rdev);
+	radeon_bo_evict_vram(rdev);
 
 	pci_save_state(dev->pdev);
 	if (state.event == PM_EVENT_SUSPEND) {

@@ -445,10 +445,10 @@ static enum drm_connector_status radeon_lvds_detect(struct drm_connector *connec
 		ret = connector_status_connected;
 	else {
 		if (radeon_connector->ddc_bus) {
-			radeon_i2c_do_lock(radeon_connector, 1);
+			radeon_i2c_do_lock(radeon_connector->ddc_bus, 1);
 			radeon_connector->edid = drm_get_edid(&radeon_connector->base,
 							      &radeon_connector->ddc_bus->adapter);
-			radeon_i2c_do_lock(radeon_connector, 0);
+			radeon_i2c_do_lock(radeon_connector->ddc_bus, 0);
 			if (radeon_connector->edid)
 				ret = connector_status_connected;
 		}
@@ -553,17 +553,17 @@ static enum drm_connector_status radeon_vga_detect(struct drm_connector *connect
 	if (!encoder)
 		ret = connector_status_disconnected;
 
-	radeon_i2c_do_lock(radeon_connector, 1);
+	radeon_i2c_do_lock(radeon_connector->ddc_bus, 1);
 	dret = radeon_ddc_probe(radeon_connector);
-	radeon_i2c_do_lock(radeon_connector, 0);
+	radeon_i2c_do_lock(radeon_connector->ddc_bus, 0);
 	if (dret) {
 		if (radeon_connector->edid) {
 			kfree(radeon_connector->edid);
 			radeon_connector->edid = NULL;
 		}
-		radeon_i2c_do_lock(radeon_connector, 1);
+		radeon_i2c_do_lock(radeon_connector->ddc_bus, 1);
 		radeon_connector->edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
-		radeon_i2c_do_lock(radeon_connector, 0);
+		radeon_i2c_do_lock(radeon_connector->ddc_bus, 0);
 
 		if (!radeon_connector->edid) {
 			DRM_ERROR("%s: probed a monitor but no|invalid EDID\n",
@@ -708,17 +708,17 @@ static enum drm_connector_status radeon_dvi_detect(struct drm_connector *connect
 	enum drm_connector_status ret = connector_status_disconnected;
 	bool dret;
 
-	radeon_i2c_do_lock(radeon_connector, 1);
+	radeon_i2c_do_lock(radeon_connector->ddc_bus, 1);
 	dret = radeon_ddc_probe(radeon_connector);
-	radeon_i2c_do_lock(radeon_connector, 0);
+	radeon_i2c_do_lock(radeon_connector->ddc_bus, 0);
 	if (dret) {
 		if (radeon_connector->edid) {
 			kfree(radeon_connector->edid);
 			radeon_connector->edid = NULL;
 		}
-		radeon_i2c_do_lock(radeon_connector, 1);
+		radeon_i2c_do_lock(radeon_connector->ddc_bus, 1);
 		radeon_connector->edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
-		radeon_i2c_do_lock(radeon_connector, 0);
+		radeon_i2c_do_lock(radeon_connector->ddc_bus, 0);
 
 		if (!radeon_connector->edid) {
 			DRM_ERROR("%s: probed a monitor but no|invalid EDID\n",
@@ -735,6 +735,39 @@ static enum drm_connector_status radeon_dvi_detect(struct drm_connector *connect
 				ret = connector_status_disconnected;
 			} else
 				ret = connector_status_connected;
+
+			/* multiple connectors on the same encoder with the same ddc line
+			 * This tends to be HDMI and DVI on the same encoder with the
+			 * same ddc line.  If the edid says HDMI, consider the HDMI port
+			 * connected and the DVI port disconnected.  If the edid doesn't
+			 * say HDMI, vice versa.
+			 */
+			if (radeon_connector->shared_ddc && connector_status_connected) {
+				struct drm_device *dev = connector->dev;
+				struct drm_connector *list_connector;
+				struct radeon_connector *list_radeon_connector;
+				list_for_each_entry(list_connector, &dev->mode_config.connector_list, head) {
+					if (connector == list_connector)
+						continue;
+					list_radeon_connector = to_radeon_connector(list_connector);
+					if (radeon_connector->devices == list_radeon_connector->devices) {
+						if (drm_detect_hdmi_monitor(radeon_connector->edid)) {
+							if (connector->connector_type == DRM_MODE_CONNECTOR_DVID) {
+								kfree(radeon_connector->edid);
+								radeon_connector->edid = NULL;
+								ret = connector_status_disconnected;
+							}
+						} else {
+							if ((connector->connector_type == DRM_MODE_CONNECTOR_HDMIA) ||
+							    (connector->connector_type == DRM_MODE_CONNECTOR_HDMIB)) {
+								kfree(radeon_connector->edid);
+								radeon_connector->edid = NULL;
+								ret = connector_status_disconnected;
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -1020,6 +1053,9 @@ radeon_add_atom_connector(struct drm_device *dev,
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.load_detect_property,
 						      1);
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.tv_std_property,
+						      1);
 		}
 		break;
 	case DRM_MODE_CONNECTOR_LVDS:
@@ -1159,6 +1195,9 @@ radeon_add_legacy_connector(struct drm_device *dev,
 				radeon_connector->dac_load_detect = false;
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.load_detect_property,
+						      1);
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.tv_std_property,
 						      1);
 		}
 		break;

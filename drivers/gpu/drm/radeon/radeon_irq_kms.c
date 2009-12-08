@@ -87,17 +87,25 @@ int radeon_irq_kms_init(struct radeon_device *rdev)
 
 	if (rdev->flags & RADEON_SINGLE_CRTC)
 		num_crtc = 1;
-
+	spin_lock_init(&rdev->irq.sw_lock);
 	r = drm_vblank_init(rdev->ddev, num_crtc);
 	if (r) {
 		return r;
 	}
 	/* enable msi */
 	rdev->msi_enabled = 0;
-	if (rdev->family >= CHIP_RV380) {
+	/* MSIs don't seem to work on my rs780;
+	 * not sure about rs880 or other rs780s.
+	 * Needs more investigation.
+	 */
+	if ((rdev->family >= CHIP_RV380) &&
+	    (rdev->family != CHIP_RS780) &&
+	    (rdev->family != CHIP_RS880)) {
 		int ret = pci_enable_msi(rdev->pdev);
-		if (!ret)
+		if (!ret) {
 			rdev->msi_enabled = 1;
+			DRM_INFO("radeon: using MSI.\n");
+		}
 	}
 	drm_irq_install(rdev->ddev);
 	rdev->irq.installed = true;
@@ -114,3 +122,29 @@ void radeon_irq_kms_fini(struct radeon_device *rdev)
 			pci_disable_msi(rdev->pdev);
 	}
 }
+
+void radeon_irq_kms_sw_irq_get(struct radeon_device *rdev)
+{
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&rdev->irq.sw_lock, irqflags);
+	if (rdev->ddev->irq_enabled && (++rdev->irq.sw_refcount == 1)) {
+		rdev->irq.sw_int = true;
+		radeon_irq_set(rdev);
+	}
+	spin_unlock_irqrestore(&rdev->irq.sw_lock, irqflags);
+}
+
+void radeon_irq_kms_sw_irq_put(struct radeon_device *rdev)
+{
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&rdev->irq.sw_lock, irqflags);
+	BUG_ON(rdev->ddev->irq_enabled && rdev->irq.sw_refcount <= 0);
+	if (rdev->ddev->irq_enabled && (--rdev->irq.sw_refcount == 0)) {
+		rdev->irq.sw_int = false;
+		radeon_irq_set(rdev);
+	}
+	spin_unlock_irqrestore(&rdev->irq.sw_lock, irqflags);
+}
+

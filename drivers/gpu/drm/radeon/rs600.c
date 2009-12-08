@@ -45,6 +45,21 @@
 void rs600_gpu_init(struct radeon_device *rdev);
 int rs600_mc_wait_for_idle(struct radeon_device *rdev);
 
+int rs600_mc_init(struct radeon_device *rdev)
+{
+	/* read back the MC value from the hw */
+	int r;
+	u32 tmp;
+
+	/* Setup GPU memory space */
+	tmp = RREG32_MC(R_000004_MC_FB_LOCATION);
+	rdev->mc.vram_location = G_000004_MC_FB_START(tmp) << 16;
+	rdev->mc.gtt_location = 0xffffffffUL;
+	r = radeon_mc_setup(rdev);
+	if (r)
+		return r;
+	return 0;
+}
 /*
  * GART.
  */
@@ -100,39 +115,39 @@ int rs600_gart_enable(struct radeon_device *rdev)
 	WREG32(R_00004C_BUS_CNTL, tmp);
 	/* FIXME: setup default page */
 	WREG32_MC(R_000100_MC_PT0_CNTL,
-		 (S_000100_EFFECTIVE_L2_CACHE_SIZE(6) |
-		  S_000100_EFFECTIVE_L2_QUEUE_SIZE(6)));
+		  (S_000100_EFFECTIVE_L2_CACHE_SIZE(6) |
+		   S_000100_EFFECTIVE_L2_QUEUE_SIZE(6)));
+
 	for (i = 0; i < 19; i++) {
 		WREG32_MC(R_00016C_MC_PT0_CLIENT0_CNTL + i,
-			S_00016C_ENABLE_TRANSLATION_MODE_OVERRIDE(1) |
-			S_00016C_SYSTEM_ACCESS_MODE_MASK(
-				V_00016C_SYSTEM_ACCESS_MODE_IN_SYS) |
-			S_00016C_SYSTEM_APERTURE_UNMAPPED_ACCESS(
-				V_00016C_SYSTEM_APERTURE_UNMAPPED_DEFAULT_PAGE) |
-			S_00016C_EFFECTIVE_L1_CACHE_SIZE(1) |
-			S_00016C_ENABLE_FRAGMENT_PROCESSING(1) |
-			S_00016C_EFFECTIVE_L1_QUEUE_SIZE(1));
+			  S_00016C_ENABLE_TRANSLATION_MODE_OVERRIDE(1) |
+			  S_00016C_SYSTEM_ACCESS_MODE_MASK(
+				  V_00016C_SYSTEM_ACCESS_MODE_NOT_IN_SYS) |
+			  S_00016C_SYSTEM_APERTURE_UNMAPPED_ACCESS(
+				  V_00016C_SYSTEM_APERTURE_UNMAPPED_PASSTHROUGH) |
+			  S_00016C_EFFECTIVE_L1_CACHE_SIZE(3) |
+			  S_00016C_ENABLE_FRAGMENT_PROCESSING(1) |
+			  S_00016C_EFFECTIVE_L1_QUEUE_SIZE(3));
 	}
-
-	/* System context map to GART space */
-	WREG32_MC(R_000112_MC_PT0_SYSTEM_APERTURE_LOW_ADDR, rdev->mc.gtt_start);
-	WREG32_MC(R_000114_MC_PT0_SYSTEM_APERTURE_HIGH_ADDR, rdev->mc.gtt_end);
-
 	/* enable first context */
-	WREG32_MC(R_00013C_MC_PT0_CONTEXT0_FLAT_START_ADDR, rdev->mc.gtt_start);
-	WREG32_MC(R_00014C_MC_PT0_CONTEXT0_FLAT_END_ADDR, rdev->mc.gtt_end);
 	WREG32_MC(R_000102_MC_PT0_CONTEXT0_CNTL,
-			S_000102_ENABLE_PAGE_TABLE(1) |
-			S_000102_PAGE_TABLE_DEPTH(V_000102_PAGE_TABLE_FLAT));
+		  S_000102_ENABLE_PAGE_TABLE(1) |
+		  S_000102_PAGE_TABLE_DEPTH(V_000102_PAGE_TABLE_FLAT));
+
 	/* disable all other contexts */
-	for (i = 1; i < 8; i++) {
+	for (i = 1; i < 8; i++)
 		WREG32_MC(R_000102_MC_PT0_CONTEXT0_CNTL + i, 0);
-	}
 
 	/* setup the page table */
 	WREG32_MC(R_00012C_MC_PT0_CONTEXT0_FLAT_BASE_ADDR,
-			rdev->gart.table_addr);
+		  rdev->gart.table_addr);
+	WREG32_MC(R_00013C_MC_PT0_CONTEXT0_FLAT_START_ADDR, rdev->mc.gtt_start);
+	WREG32_MC(R_00014C_MC_PT0_CONTEXT0_FLAT_END_ADDR, rdev->mc.gtt_end);
 	WREG32_MC(R_00011C_MC_PT0_CONTEXT0_DEFAULT_READ_ADDR, 0);
+
+	/* System context maps to VRAM space */
+	WREG32_MC(R_000112_MC_PT0_SYSTEM_APERTURE_LOW_ADDR, rdev->mc.vram_start);
+	WREG32_MC(R_000114_MC_PT0_SYSTEM_APERTURE_HIGH_ADDR, rdev->mc.vram_end);
 
 	/* enable page tables */
 	tmp = RREG32_MC(R_000100_MC_PT0_CNTL);
@@ -146,15 +161,20 @@ int rs600_gart_enable(struct radeon_device *rdev)
 
 void rs600_gart_disable(struct radeon_device *rdev)
 {
-	uint32_t tmp;
+	u32 tmp;
+	int r;
 
 	/* FIXME: disable out of gart access */
 	WREG32_MC(R_000100_MC_PT0_CNTL, 0);
 	tmp = RREG32_MC(R_000009_MC_CNTL1);
 	WREG32_MC(R_000009_MC_CNTL1, tmp & C_000009_ENABLE_PAGE_TABLES);
 	if (rdev->gart.table.vram.robj) {
-		radeon_object_kunmap(rdev->gart.table.vram.robj);
-		radeon_object_unpin(rdev->gart.table.vram.robj);
+		r = radeon_bo_reserve(rdev->gart.table.vram.robj, false);
+		if (r == 0) {
+			radeon_bo_kunmap(rdev->gart.table.vram.robj);
+			radeon_bo_unpin(rdev->gart.table.vram.robj);
+			radeon_bo_unreserve(rdev->gart.table.vram.robj);
+		}
 	}
 }
 
@@ -301,9 +321,7 @@ int rs600_mc_wait_for_idle(struct radeon_device *rdev)
 
 void rs600_gpu_init(struct radeon_device *rdev)
 {
-	/* FIXME: HDP same place on rs600 ? */
 	r100_hdp_reset(rdev);
-	/* FIXME: is this correct ? */
 	r420_pipes_init(rdev);
 	/* Wait for mc idle */
 	if (rs600_mc_wait_for_idle(rdev))
@@ -312,9 +330,20 @@ void rs600_gpu_init(struct radeon_device *rdev)
 
 void rs600_vram_info(struct radeon_device *rdev)
 {
-	/* FIXME: to do or is these values sane ? */
 	rdev->mc.vram_is_ddr = true;
 	rdev->mc.vram_width = 128;
+
+	rdev->mc.real_vram_size = RREG32(RADEON_CONFIG_MEMSIZE);
+	rdev->mc.mc_vram_size = rdev->mc.real_vram_size;
+
+	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
+	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
+
+	if (rdev->mc.mc_vram_size > rdev->mc.aper_size)
+		rdev->mc.mc_vram_size = rdev->mc.aper_size;
+
+	if (rdev->mc.real_vram_size > rdev->mc.aper_size)
+		rdev->mc.real_vram_size = rdev->mc.aper_size;
 }
 
 void rs600_bandwidth_update(struct radeon_device *rdev)
@@ -388,7 +417,6 @@ static int rs600_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 	/* Enable IRQ */
-	rdev->irq.sw_int = true;
 	rs600_irq_set(rdev);
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
@@ -445,7 +473,7 @@ void rs600_fini(struct radeon_device *rdev)
 	rs600_gart_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	radeon_fence_driver_fini(rdev);
-	radeon_object_fini(rdev);
+	radeon_bo_fini(rdev);
 	radeon_atombios_fini(rdev);
 	kfree(rdev->bios);
 	rdev->bios = NULL;
@@ -482,10 +510,9 @@ int rs600_init(struct radeon_device *rdev)
 			RREG32(R_0007C0_CP_STAT));
 	}
 	/* check if cards are posted or not */
-	if (!radeon_card_posted(rdev) && rdev->bios) {
-		DRM_INFO("GPU not posted. posting now...\n");
-		atom_asic_init(rdev->mode_info.atom_context);
-	}
+	if (radeon_boot_test_post_card(rdev) == false)
+		return -EINVAL;
+
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
 	/* Initialize power management */
@@ -493,7 +520,7 @@ int rs600_init(struct radeon_device *rdev)
 	/* Get vram informations */
 	rs600_vram_info(rdev);
 	/* Initialize memory controller (also test AGP) */
-	r = r420_mc_init(rdev);
+	r = rs600_mc_init(rdev);
 	if (r)
 		return r;
 	rs600_debugfs(rdev);
@@ -505,7 +532,7 @@ int rs600_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	/* Memory manager */
-	r = radeon_object_init(rdev);
+	r = radeon_bo_init(rdev);
 	if (r)
 		return r;
 	r = rs600_gart_init(rdev);

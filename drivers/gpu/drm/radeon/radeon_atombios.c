@@ -82,18 +82,18 @@ static inline struct radeon_i2c_bus_rec radeon_lookup_gpio(struct drm_device
 
 	i2c.mask_clk_reg = le16_to_cpu(gpio.usClkMaskRegisterIndex) * 4;
 	i2c.mask_data_reg = le16_to_cpu(gpio.usDataMaskRegisterIndex) * 4;
-	i2c.put_clk_reg = le16_to_cpu(gpio.usClkEnRegisterIndex) * 4;
-	i2c.put_data_reg = le16_to_cpu(gpio.usDataEnRegisterIndex) * 4;
-	i2c.get_clk_reg = le16_to_cpu(gpio.usClkY_RegisterIndex) * 4;
-	i2c.get_data_reg = le16_to_cpu(gpio.usDataY_RegisterIndex) * 4;
+	i2c.en_clk_reg = le16_to_cpu(gpio.usClkEnRegisterIndex) * 4;
+	i2c.en_data_reg = le16_to_cpu(gpio.usDataEnRegisterIndex) * 4;
+	i2c.y_clk_reg = le16_to_cpu(gpio.usClkY_RegisterIndex) * 4;
+	i2c.y_data_reg = le16_to_cpu(gpio.usDataY_RegisterIndex) * 4;
 	i2c.a_clk_reg = le16_to_cpu(gpio.usClkA_RegisterIndex) * 4;
 	i2c.a_data_reg = le16_to_cpu(gpio.usDataA_RegisterIndex) * 4;
 	i2c.mask_clk_mask = (1 << gpio.ucClkMaskShift);
 	i2c.mask_data_mask = (1 << gpio.ucDataMaskShift);
-	i2c.put_clk_mask = (1 << gpio.ucClkEnShift);
-	i2c.put_data_mask = (1 << gpio.ucDataEnShift);
-	i2c.get_clk_mask = (1 << gpio.ucClkY_Shift);
-	i2c.get_data_mask = (1 << gpio.ucDataY_Shift);
+	i2c.en_clk_mask = (1 << gpio.ucClkEnShift);
+	i2c.en_data_mask = (1 << gpio.ucDataEnShift);
+	i2c.y_clk_mask = (1 << gpio.ucClkY_Shift);
+	i2c.y_data_mask = (1 << gpio.ucDataY_Shift);
 	i2c.a_clk_mask = (1 << gpio.ucClkA_Shift);
 	i2c.a_data_mask = (1 << gpio.ucDataA_Shift);
 	i2c.valid = true;
@@ -135,6 +135,23 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 		}
 	}
 
+	/* HIS X1300 is DVI+VGA, not DVI+DVI */
+	if ((dev->pdev->device == 0x7146) &&
+	    (dev->pdev->subsystem_vendor == 0x17af) &&
+	    (dev->pdev->subsystem_device == 0x2058)) {
+		if (supported_device == ATOM_DEVICE_DFP1_SUPPORT)
+			return false;
+	}
+
+	/* Gigabyte X1300 is DVI+VGA, not DVI+DVI */
+	if ((dev->pdev->device == 0x7142) &&
+	    (dev->pdev->subsystem_vendor == 0x1458) &&
+	    (dev->pdev->subsystem_device == 0x2134)) {
+		if (supported_device == ATOM_DEVICE_DFP1_SUPPORT)
+			return false;
+	}
+
+
 	/* Funky macbooks */
 	if ((dev->pdev->device == 0x71C5) &&
 	    (dev->pdev->subsystem_vendor == 0x106b) &&
@@ -170,6 +187,15 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 			*connector_type = DRM_MODE_CONNECTOR_VGA;
 			*line_mux = 0;
 		}
+	}
+
+	/* Acer laptop reports DVI-D as DVI-I */
+	if ((dev->pdev->device == 0x95c4) &&
+	    (dev->pdev->subsystem_vendor == 0x1025) &&
+	    (dev->pdev->subsystem_device == 0x013c)) {
+		if ((*connector_type == DRM_MODE_CONNECTOR_DVII) &&
+		    (supported_device == ATOM_DEVICE_DFP1_SUPPORT))
+			*connector_type = DRM_MODE_CONNECTOR_DVID;
 	}
 
 	return true;
@@ -901,7 +927,7 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_mode_info *mode_info = &rdev->mode_info;
 	int index = GetIndexIntoMasterTable(DATA, LVDS_Info);
-	uint16_t data_offset;
+	uint16_t data_offset, misc;
 	union lvds_info *lvds_info;
 	uint8_t frev, crev;
 	struct radeon_encoder_atom_dig *lvds = NULL;
@@ -940,6 +966,19 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 		lvds->panel_pwr_delay =
 		    le16_to_cpu(lvds_info->info.usOffDelayInMs);
 		lvds->lvds_misc = lvds_info->info.ucLVDS_Misc;
+
+		misc = le16_to_cpu(lvds_info->info.sLCDTiming.susModeMiscInfo.usAccess);
+		if (misc & ATOM_VSYNC_POLARITY)
+			lvds->native_mode.flags |= DRM_MODE_FLAG_NVSYNC;
+		if (misc & ATOM_HSYNC_POLARITY)
+			lvds->native_mode.flags |= DRM_MODE_FLAG_NHSYNC;
+		if (misc & ATOM_COMPOSITESYNC)
+			lvds->native_mode.flags |= DRM_MODE_FLAG_CSYNC;
+		if (misc & ATOM_INTERLACE)
+			lvds->native_mode.flags |= DRM_MODE_FLAG_INTERLACE;
+		if (misc & ATOM_DOUBLE_CLOCK_MODE)
+			lvds->native_mode.flags |= DRM_MODE_FLAG_DBLSCAN;
+
 		/* set crtc values */
 		drm_mode_set_crtcinfo(&lvds->native_mode, CRTC_INTERLACE_HALVE_V);
 

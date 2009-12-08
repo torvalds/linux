@@ -270,10 +270,10 @@ static void radeon_print_display_setup(struct drm_device *dev)
 				 radeon_connector->ddc_bus->rec.mask_data_reg,
 				 radeon_connector->ddc_bus->rec.a_clk_reg,
 				 radeon_connector->ddc_bus->rec.a_data_reg,
-				 radeon_connector->ddc_bus->rec.put_clk_reg,
-				 radeon_connector->ddc_bus->rec.put_data_reg,
-				 radeon_connector->ddc_bus->rec.get_clk_reg,
-				 radeon_connector->ddc_bus->rec.get_data_reg);
+				 radeon_connector->ddc_bus->rec.en_clk_reg,
+				 radeon_connector->ddc_bus->rec.en_data_reg,
+				 radeon_connector->ddc_bus->rec.y_clk_reg,
+				 radeon_connector->ddc_bus->rec.y_data_reg);
 		DRM_INFO("  Encoders:\n");
 		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 			radeon_encoder = to_radeon_encoder(encoder);
@@ -324,6 +324,7 @@ static bool radeon_setup_enc_conn(struct drm_device *dev)
 			ret = radeon_get_legacy_connector_info_from_table(dev);
 	}
 	if (ret) {
+		radeon_setup_encoder_clones(dev);
 		radeon_print_display_setup(dev);
 		list_for_each_entry(drm_connector, &dev->mode_config.connector_list, head)
 			radeon_ddc_dump(drm_connector);
@@ -339,9 +340,9 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 	if (!radeon_connector->ddc_bus)
 		return -1;
 	if (!radeon_connector->edid) {
-		radeon_i2c_do_lock(radeon_connector, 1);
+		radeon_i2c_do_lock(radeon_connector->ddc_bus, 1);
 		radeon_connector->edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
-		radeon_i2c_do_lock(radeon_connector, 0);
+		radeon_i2c_do_lock(radeon_connector->ddc_bus, 0);
 	}
 
 	if (radeon_connector->edid) {
@@ -361,9 +362,9 @@ static int radeon_ddc_dump(struct drm_connector *connector)
 
 	if (!radeon_connector->ddc_bus)
 		return -1;
-	radeon_i2c_do_lock(radeon_connector, 1);
+	radeon_i2c_do_lock(radeon_connector->ddc_bus, 1);
 	edid = drm_get_edid(connector, &radeon_connector->ddc_bus->adapter);
-	radeon_i2c_do_lock(radeon_connector, 0);
+	radeon_i2c_do_lock(radeon_connector->ddc_bus, 0);
 	if (edid) {
 		kfree(edid);
 	}
@@ -750,9 +751,17 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 		if (encoder->crtc != crtc)
 			continue;
 		if (first) {
-			radeon_crtc->rmx_type = radeon_encoder->rmx_type;
+			/* set scaling */
+			if (radeon_encoder->rmx_type == RMX_OFF)
+				radeon_crtc->rmx_type = RMX_OFF;
+			else if (mode->hdisplay < radeon_encoder->native_mode.hdisplay ||
+				 mode->vdisplay < radeon_encoder->native_mode.vdisplay)
+				radeon_crtc->rmx_type = radeon_encoder->rmx_type;
+			else
+				radeon_crtc->rmx_type = RMX_OFF;
+			/* copy native mode */
 			memcpy(&radeon_crtc->native_mode,
-				&radeon_encoder->native_mode,
+			       &radeon_encoder->native_mode,
 				sizeof(struct drm_display_mode));
 			first = false;
 		} else {
