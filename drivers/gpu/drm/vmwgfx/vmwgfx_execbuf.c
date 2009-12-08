@@ -386,7 +386,7 @@ static int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 		return 0;
 
 	ret = vmw_gmr_bind(dev_priv, bo);
-	if (likely(ret == 0 || ret == -ERESTART))
+	if (likely(ret == 0 || ret == -ERESTARTSYS))
 		return ret;
 
 
@@ -429,7 +429,7 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 
 	ret = mutex_lock_interruptible(&dev_priv->cmdbuf_mutex);
 	if (unlikely(ret != 0)) {
-		ret = -ERESTART;
+		ret = -ERESTARTSYS;
 		goto out_no_cmd_mutex;
 	}
 
