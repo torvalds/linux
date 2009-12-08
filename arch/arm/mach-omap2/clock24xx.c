@@ -751,13 +751,16 @@ int __init omap2_clk_init(void)
 	struct prcm_config *prcm;
 	struct omap_clk *c;
 	u32 clkrate;
+	u16 cpu_clkflg;
 
 	if (cpu_is_omap242x()) {
 		prcm_clksrc_ctrl = OMAP2420_PRCM_CLKSRC_CTRL;
 		cpu_mask = RATE_IN_242X;
+		cpu_clkflg = CK_242X;
 	} else if (cpu_is_omap2430()) {
 		prcm_clksrc_ctrl = OMAP2430_PRCM_CLKSRC_CTRL;
 		cpu_mask = RATE_IN_243X;
+		cpu_clkflg = CK_243X;
 	}
 
 	clk_init(&omap2_clk_functions);
@@ -771,7 +774,7 @@ int __init omap2_clk_init(void)
 	propagate_rate(&sys_ck);
 
 	for (c = omap24xx_clks; c < omap24xx_clks + ARRAY_SIZE(omap24xx_clks); c++)
-		if (c->cpu & cpu_mask) {
+		if (c->cpu & cpu_clkflg) {
 			clkdev_add(&c->lk);
 			clk_register(c->lk.clk);
 			omap2_init_clk_clkdm(c->lk.clk);
