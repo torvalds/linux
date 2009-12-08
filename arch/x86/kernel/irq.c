@@ -18,7 +18,7 @@
 atomic_t irq_err_count;
 
 /* Function pointer for generic interrupt vector handling */
-void (*generic_interrupt_extension)(void) = NULL;
+void (*x86_platform_ipi_callback)(void) = NULL;
 
 /*
  * 'what should we do if we get a hw irq event on an illegal vector'.
@@ -72,10 +72,10 @@ static int show_other_interrupts(struct seq_file *p, int prec)
 		seq_printf(p, "%10u ", irq_stats(j)->apic_pending_irqs);
 	seq_printf(p, "  Performance pending work\n");
 #endif
-	if (generic_interrupt_extension) {
+	if (x86_platform_ipi_callback) {
 		seq_printf(p, "%*s: ", prec, "PLT");
 		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", irq_stats(j)->generic_irqs);
+			seq_printf(p, "%10u ", irq_stats(j)->x86_platform_ipis);
 		seq_printf(p, "  Platform interrupts\n");
 	}
 #ifdef CONFIG_SMP
@@ -187,8 +187,8 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 	sum += irq_stats(cpu)->apic_perf_irqs;
 	sum += irq_stats(cpu)->apic_pending_irqs;
 #endif
-	if (generic_interrupt_extension)
-		sum += irq_stats(cpu)->generic_irqs;
+	if (x86_platform_ipi_callback)
+		sum += irq_stats(cpu)->x86_platform_ipis;
 #ifdef CONFIG_SMP
 	sum += irq_stats(cpu)->irq_resched_count;
 	sum += irq_stats(cpu)->irq_call_count;
@@ -251,9 +251,9 @@ unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 }
 
 /*
- * Handler for GENERIC_INTERRUPT_VECTOR.
+ * Handler for X86_PLATFORM_IPI_VECTOR.
  */
-void smp_generic_interrupt(struct pt_regs *regs)
+void smp_x86_platform_ipi(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
@@ -263,10 +263,10 @@ void smp_generic_interrupt(struct pt_regs *regs)
 
 	irq_enter();
 
-	inc_irq_stat(generic_irqs);
+	inc_irq_stat(x86_platform_ipis);
 
-	if (generic_interrupt_extension)
-		generic_interrupt_extension();
+	if (x86_platform_ipi_callback)
+		x86_platform_ipi_callback();
 
 	irq_exit();
 
