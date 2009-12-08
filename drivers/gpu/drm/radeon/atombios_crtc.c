@@ -599,8 +599,6 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	}
 	radeon_bo_get_tiling_flags(rbo, &tiling_flags, NULL);
 	radeon_bo_unreserve(rbo);
-	if (tiling_flags & RADEON_TILING_MACRO)
-		fb_format |= AVIVO_D1GRPH_MACRO_ADDRESS_MODE;
 
 	switch (crtc->fb->bits_per_pixel) {
 	case 8:
@@ -629,6 +627,9 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 			  crtc->fb->bits_per_pixel);
 		return -EINVAL;
 	}
+
+	if (tiling_flags & RADEON_TILING_MACRO)
+		fb_format |= AVIVO_D1GRPH_MACRO_ADDRESS_MODE;
 
 	if (tiling_flags & RADEON_TILING_MICRO)
 		fb_format |= AVIVO_D1GRPH_TILED;
