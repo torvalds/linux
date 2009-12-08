@@ -137,5 +137,7 @@ struct omap_device_pm_latency {
 };
 
 
-#endif
+/* Get omap_device pointer from platform_device pointer */
+#define to_omap_device(x) container_of((x), struct omap_device, pdev)
 
+#endif
