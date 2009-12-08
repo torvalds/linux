@@ -353,6 +353,9 @@ static int _init_main_clk(struct omap_hwmod *oh)
 		ret = -EINVAL;
 	oh->_clk = c;
 
+	WARN(!c->clkdm, "omap_hwmod: %s: missing clockdomain for %s.\n",
+	     oh->clkdev_con_id, c->name);
+
 	return ret;
 }
 
