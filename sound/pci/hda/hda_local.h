@@ -342,6 +342,8 @@ int snd_hda_check_board_codec_sid_config(struct hda_codec *codec,
                                const struct snd_pci_quirk *tbl);
 int snd_hda_add_new_ctls(struct hda_codec *codec,
 			 struct snd_kcontrol_new *knew);
+int snd_hda_add_nids(struct hda_codec *codec, struct snd_kcontrol *kctl,
+		     unsigned int index, hda_nid_t *nids, unsigned int size);
 
 /*
  * unsolicited event handler
@@ -466,11 +468,14 @@ int snd_hda_jack_detect(struct hda_codec *codec, hda_nid_t nid);
 
 struct hda_nid_item {
 	struct snd_kcontrol *kctl;
+	unsigned int index;
 	hda_nid_t nid;
 };
 
 int snd_hda_ctl_add(struct hda_codec *codec, hda_nid_t nid,
 		    struct snd_kcontrol *kctl);
+int snd_hda_add_nid(struct hda_codec *codec, struct snd_kcontrol *kctl,
+		    unsigned int index, hda_nid_t nid);
 void snd_hda_ctls_clear(struct hda_codec *codec);
 
 /*

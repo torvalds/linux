@@ -759,6 +759,10 @@ static int build_input(struct hda_codec *codec)
 		err = snd_hda_ctl_add(codec, 0, kctl);
 		if (err < 0)
 			return err;
+		err = snd_hda_add_nids(codec, kctl, 0, spec->adc_nid,
+				       spec->num_inputs);
+		if (err < 0)
+			return err;
 	}
 	
 	if (spec->num_inputs > 1 && !spec->mic_detect) {
