@@ -418,6 +418,7 @@ extern void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
  * about to change to user space.  This is the same method as used on SPARC64.
  * See update_mmu_cache for the user space part.
  */
+#define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 extern void flush_dcache_page(struct page *);
 
 static inline void __flush_icache_all(void)
