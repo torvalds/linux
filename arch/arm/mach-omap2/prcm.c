@@ -241,9 +241,8 @@ int omap2_cm_wait_idlest(void __iomem *reg, u32 mask, const char *name)
 		BUG();
 
 	/* Wait for lock */
-	while (((__raw_readl(reg) & mask) != ena) &&
-	       (i++ < MAX_MODULE_ENABLE_WAIT))
-		udelay(1);
+	omap_test_timeout(((__raw_readl(reg) & mask) == ena),
+			  MAX_MODULE_ENABLE_WAIT, i);
 
 	if (i < MAX_MODULE_ENABLE_WAIT)
 		pr_debug("cm: Module associated with clock %s ready after %d "
