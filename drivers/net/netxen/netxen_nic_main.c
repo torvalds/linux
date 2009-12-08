@@ -1448,14 +1448,14 @@ static int __netxen_nic_shutdown(struct pci_dev *pdev)
 		pci_enable_wake(pdev, PCI_D3hot, 1);
 	}
 
-	pci_disable_device(pdev);
-
 	return 0;
 }
 static void netxen_nic_shutdown(struct pci_dev *pdev)
 {
 	if (__netxen_nic_shutdown(pdev))
 		return;
+
+	pci_disable_device(pdev);
 }
 #ifdef CONFIG_PM
 static int
@@ -1468,6 +1468,8 @@ netxen_nic_suspend(struct pci_dev *pdev, pm_message_t state)
 		return retval;
 
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+
+	pci_disable_device(pdev);
 	return 0;
 }
 
@@ -1478,12 +1480,13 @@ netxen_nic_resume(struct pci_dev *pdev)
 	struct net_device *netdev = adapter->netdev;
 	int err;
 
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-
 	err = pci_enable_device(pdev);
 	if (err)
 		return err;
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_set_master(pdev);
+	pci_restore_state(pdev);
 
 	adapter->ahw.crb_win = -1;
 	adapter->ahw.ocm_win = -1;
@@ -1503,11 +1506,10 @@ netxen_nic_resume(struct pci_dev *pdev)
 		if (err)
 			goto err_out_detach;
 
-		netif_device_attach(netdev);
-
 		netxen_config_indev_addr(netdev, NETDEV_UP);
 	}
 
+	netif_device_attach(netdev);
 	netxen_schedule_work(adapter, netxen_fw_poll_work, FW_POLL_DELAY);
 	return 0;
 
