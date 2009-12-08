@@ -1133,7 +1133,7 @@ static int kprobe_event_define_fields(struct ftrace_event_call *event_call)
 	struct trace_probe *tp = (struct trace_probe *)event_call->data;
 
 	ret = trace_define_common_fields(event_call);
-	if (!ret)
+	if (ret)
 		return ret;
 
 	DEFINE_FIELD(unsigned long, ip, FIELD_STRING_IP, 0);
@@ -1151,7 +1151,7 @@ static int kretprobe_event_define_fields(struct ftrace_event_call *event_call)
 	struct trace_probe *tp = (struct trace_probe *)event_call->data;
 
 	ret = trace_define_common_fields(event_call);
-	if (!ret)
+	if (ret)
 		return ret;
 
 	DEFINE_FIELD(unsigned long, func, FIELD_STRING_FUNC, 0);
