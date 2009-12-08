@@ -11,6 +11,7 @@
 #include <linux/zorro.h>
 
 #include <asm/amigahw.h>
+#include <asm/amigayle.h>
 
 
 #ifdef CONFIG_ZORRO
@@ -55,7 +56,24 @@ static int __init amiga_init_bus(void)
 
 subsys_initcall(amiga_init_bus);
 
-#endif /* CONFIG_ZORRO */
+
+static int z_dev_present(zorro_id id)
+{
+	unsigned int i;
+
+	for (i = 0; i < zorro_num_autocon; i++)
+		if (zorro_autocon[i].rom.er_Manufacturer == ZORRO_MANUF(id) &&
+		    zorro_autocon[i].rom.er_Product == ZORRO_PROD(id))
+			return 1;
+
+	return 0;
+}
+
+#else /* !CONFIG_ZORRO */
+
+static inline int z_dev_present(zorro_id id) { return 0; }
+
+#endif /* !CONFIG_ZORRO */
 
 
 static const struct resource a3000_scsi_resource __initconst = {
@@ -72,8 +90,36 @@ static const struct resource a4000t_scsi_resource __initconst = {
 };
 
 
+static const struct resource a1200_ide_resource __initconst = {
+	.start	= 0xda0000,
+	.end	= 0xda1fff,
+	.flags	= IORESOURCE_MEM,
+};
+
+static const struct gayle_ide_platform_data a1200_ide_pdata __initconst = {
+	.base		= 0xda0000,
+	.irqport	= 0xda9000,
+	.explicit_ack	= 1,
+};
+
+
+static const struct resource a4000_ide_resource __initconst = {
+	.start	= 0xdd2000,
+	.end	= 0xdd3fff,
+	.flags	= IORESOURCE_MEM,
+};
+
+static const struct gayle_ide_platform_data a4000_ide_pdata __initconst = {
+	.base		= 0xdd2020,
+	.irqport	= 0xdd3020,
+	.explicit_ack	= 0,
+};
+
+
 static int __init amiga_init_devices(void)
 {
+	struct platform_device *pdev;
+
 	if (!MACH_IS_AMIGA)
 		return -ENODEV;
 
@@ -98,6 +144,21 @@ static int __init amiga_init_devices(void)
 	if (AMIGAHW_PRESENT(A4000_SCSI))
 		platform_device_register_simple("amiga-a4000t-scsi", -1,
 						&a4000t_scsi_resource, 1);
+
+	if (AMIGAHW_PRESENT(A1200_IDE) ||
+	    z_dev_present(ZORRO_PROD_MTEC_VIPER_MK_V_E_MATRIX_530_SCSI_IDE)) {
+		pdev = platform_device_register_simple("amiga-gayle-ide", -1,
+						       &a1200_ide_resource, 1);
+		platform_device_add_data(pdev, &a1200_ide_pdata,
+					 sizeof(a1200_ide_pdata));
+	}
+
+	if (AMIGAHW_PRESENT(A4000_IDE)) {
+		pdev = platform_device_register_simple("amiga-gayle-ide", -1,
+						       &a4000_ide_resource, 1);
+		platform_device_add_data(pdev, &a4000_ide_pdata,
+					 sizeof(a4000_ide_pdata));
+	}
 
 	return 0;
 }
