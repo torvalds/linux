@@ -242,12 +242,6 @@ struct ttm_mem_type_manager {
 /**
  * struct ttm_bo_driver
  *
- * @mem_type_prio: Priority array of memory types to place a buffer object in
- * if it fits without evicting buffers from any of these memory types.
- * @mem_busy_prio: Priority array of memory types to place a buffer object in
- * if it needs to evict buffers to make room.
- * @num_mem_type_prio: Number of elements in the @mem_type_prio array.
- * @num_mem_busy_prio: Number of elements in the @num_mem_busy_prio array.
  * @create_ttm_backend_entry: Callback to create a struct ttm_backend.
  * @invalidate_caches: Callback to invalidate read caches when a buffer object
  * has been evicted.
@@ -265,11 +259,6 @@ struct ttm_mem_type_manager {
  */
 
 struct ttm_bo_driver {
-	const uint32_t *mem_type_prio;
-	const uint32_t *mem_busy_prio;
-	uint32_t num_mem_type_prio;
-	uint32_t num_mem_busy_prio;
-
 	/**
 	 * struct ttm_bo_driver member create_ttm_backend_entry
 	 *
@@ -306,7 +295,8 @@ struct ttm_bo_driver {
 	 * finished, they'll end up in bo->mem.flags
 	 */
 
-	 uint32_t(*evict_flags) (struct ttm_buffer_object *bo);
+	 void(*evict_flags) (struct ttm_buffer_object *bo,
+				struct ttm_placement *placement);
 	/**
 	 * struct ttm_bo_driver member move:
 	 *
@@ -651,9 +641,9 @@ extern bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev,
  * -ERESTART: An interruptible sleep was interrupted by a signal.
  */
 extern int ttm_bo_mem_space(struct ttm_buffer_object *bo,
-			    uint32_t proposed_placement,
-			    struct ttm_mem_reg *mem,
-			    bool interruptible, bool no_wait);
+				struct ttm_placement *placement,
+				struct ttm_mem_reg *mem,
+				bool interruptible, bool no_wait);
 /**
  * ttm_bo_wait_for_cpu
  *
