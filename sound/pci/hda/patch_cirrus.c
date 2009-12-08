@@ -500,6 +500,7 @@ static int add_mute(struct hda_codec *codec, const char *name, int index,
 	knew.private_value = pval;
 	snprintf(tmp, sizeof(tmp), "%s %s Switch", name, dir_sfx[dir]);
 	*kctlp = snd_ctl_new1(&knew, codec);
+	(*kctlp)->id.subdevice = HDA_SUBDEV_AMP_FLAG;
 	return snd_hda_ctl_add(codec, get_amp_nid_(pval), *kctlp);
 }
 
@@ -513,6 +514,7 @@ static int add_volume(struct hda_codec *codec, const char *name,
 	knew.private_value = pval;
 	snprintf(tmp, sizeof(tmp), "%s %s Volume", name, dir_sfx[dir]);
 	*kctlp = snd_ctl_new1(&knew, codec);
+	(*kctlp)->id.subdevice = HDA_SUBDEV_AMP_FLAG;
 	return snd_hda_ctl_add(codec, get_amp_nid_(pval), *kctlp);
 }
 

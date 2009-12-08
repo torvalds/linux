@@ -1723,19 +1723,22 @@ EXPORT_SYMBOL_HDA(snd_hda_find_mixer_ctl);
  *
  * snd_hda_ctl_add() checks the control subdev id field whether
  * #HDA_SUBDEV_NID_FLAG bit is set.  If set (and @nid is zero), the lower
- * bits value is taken as the NID to assign.
+ * bits value is taken as the NID to assign. The #HDA_NID_ITEM_AMP bit
+ * specifies if kctl->private_value is a HDA amplifier value.
  */
 int snd_hda_ctl_add(struct hda_codec *codec, hda_nid_t nid,
 		    struct snd_kcontrol *kctl)
 {
 	int err;
+	unsigned short flags = 0;
 	struct hda_nid_item *item;
 
-	if (kctl->id.subdevice & HDA_SUBDEV_NID_FLAG) {
-		if (nid == 0)
-			nid = kctl->id.subdevice & 0xffff;
+	if (kctl->id.subdevice & HDA_SUBDEV_AMP_FLAG)
+		flags |= HDA_NID_ITEM_AMP;
+	if ((kctl->id.subdevice & HDA_SUBDEV_NID_FLAG) != 0 && nid == 0)
+		nid = kctl->id.subdevice & 0xffff;
+	if (kctl->id.subdevice & 0xf0000000)
 		kctl->id.subdevice = 0;
-	}
 	err = snd_ctl_add(codec->bus->card, kctl);
 	if (err < 0)
 		return err;
@@ -1744,6 +1747,7 @@ int snd_hda_ctl_add(struct hda_codec *codec, hda_nid_t nid,
 		return -ENOMEM;
 	item->kctl = kctl;
 	item->nid = nid;
+	item->flags = flags;
 	return 0;
 }
 EXPORT_SYMBOL_HDA(snd_hda_ctl_add);

@@ -76,6 +76,14 @@ static void print_nid_array(struct snd_info_buffer *buffer,
 			  "  Control: name=\"%s\", index=%i, device=%i\n",
 			  kctl->id.name, kctl->id.index + item->index,
 			  kctl->id.device);
+			if (item->flags & HDA_NID_ITEM_AMP)
+				snd_iprintf(buffer,
+				  "    ControlAmp: chs=%lu, dir=%s, "
+				  "idx=%lu, ofs=%lu\n",
+				  get_amp_channels(kctl),
+				  get_amp_direction(kctl) ? "Out" : "In",
+				  get_amp_index(kctl),
+				  get_amp_offset(kctl));
 		}
 	}
 }

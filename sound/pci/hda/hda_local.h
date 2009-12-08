@@ -31,6 +31,7 @@
  * in snd_hda_ctl_add(), so that this value won't appear in the outside.
  */
 #define HDA_SUBDEV_NID_FLAG	(1U << 31)
+#define HDA_SUBDEV_AMP_FLAG	(1U << 30)
 
 /*
  * for mixer controls
@@ -42,7 +43,7 @@
 /* mono volume with index (index=0,1,...) (channel=1,2) */
 #define HDA_CODEC_VOLUME_MONO_IDX(xname, xcidx, nid, channel, xindex, direction) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx,  \
-	  .subdevice = HDA_SUBDEV_NID_FLAG | (nid), \
+	  .subdevice = HDA_SUBDEV_NID_FLAG | HDA_SUBDEV_AMP_FLAG | (nid), \
 	  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | \
 	  	    SNDRV_CTL_ELEM_ACCESS_TLV_READ | \
 	  	    SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK, \
@@ -63,7 +64,7 @@
 /* mono mute switch with index (index=0,1,...) (channel=1,2) */
 #define HDA_CODEC_MUTE_MONO_IDX(xname, xcidx, nid, channel, xindex, direction) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx, \
-	  .subdevice = HDA_SUBDEV_NID_FLAG | (nid), \
+	  .subdevice = HDA_SUBDEV_NID_FLAG | HDA_SUBDEV_AMP_FLAG | (nid), \
 	  .info = snd_hda_mixer_amp_switch_info, \
 	  .get = snd_hda_mixer_amp_switch_get, \
 	  .put = snd_hda_mixer_amp_switch_put, \
@@ -81,7 +82,7 @@
 /* special beep mono mute switch with index (index=0,1,...) (channel=1,2) */
 #define HDA_CODEC_MUTE_BEEP_MONO_IDX(xname, xcidx, nid, channel, xindex, direction) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx, \
-	  .subdevice = HDA_SUBDEV_NID_FLAG | (nid), \
+	  .subdevice = HDA_SUBDEV_NID_FLAG | HDA_SUBDEV_AMP_FLAG | (nid), \
 	  .info = snd_hda_mixer_amp_switch_info, \
 	  .get = snd_hda_mixer_amp_switch_get, \
 	  .put = snd_hda_mixer_amp_switch_put_beep, \
@@ -466,10 +467,14 @@ u32 snd_hda_query_pin_caps(struct hda_codec *codec, hda_nid_t nid);
 u32 snd_hda_pin_sense(struct hda_codec *codec, hda_nid_t nid);
 int snd_hda_jack_detect(struct hda_codec *codec, hda_nid_t nid);
 
+/* flags for hda_nid_item */
+#define HDA_NID_ITEM_AMP	(1<<0)
+
 struct hda_nid_item {
 	struct snd_kcontrol *kctl;
 	unsigned int index;
 	hda_nid_t nid;
+	unsigned short flags;
 };
 
 int snd_hda_ctl_add(struct hda_codec *codec, hda_nid_t nid,

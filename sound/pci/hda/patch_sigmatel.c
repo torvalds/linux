@@ -2702,7 +2702,8 @@ stac_control_new(struct sigmatel_spec *spec,
 		return NULL;
 	}
 	if (nid)
-		knew->subdevice = HDA_SUBDEV_NID_FLAG | nid;
+		knew->subdevice = HDA_SUBDEV_NID_FLAG |
+				  HDA_SUBDEV_AMP_FLAG | nid;
 	return knew;
 }
 
