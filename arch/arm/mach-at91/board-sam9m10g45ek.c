@@ -366,6 +366,7 @@ static void __init ek_board_init(void)
 	at91_add_device_serial();
 	/* USB HS Host */
 	at91_add_device_usbh_ohci(&ek_usbh_hs_data);
+	at91_add_device_usbh_ehci(&ek_usbh_hs_data);
 	/* USB HS Device */
 	at91_add_device_usba(&ek_usba_udc_data);
 	/* SPI */

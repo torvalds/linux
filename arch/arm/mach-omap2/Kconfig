@@ -100,3 +100,11 @@ config MACH_OMAP_ZOOM2
 config MACH_OMAP_4430SDP
 	bool "OMAP 4430 SDP board"
 	depends on ARCH_OMAP4
+
+config OMAP3_EMU
+	bool "OMAP3 debugging peripherals"
+	depends on ARCH_OMAP3
+	select OC_ETM
+	help
+	  Say Y here to enable debugging hardware of omap3
+

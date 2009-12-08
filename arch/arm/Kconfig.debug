@@ -83,6 +83,14 @@ config DEBUG_ICEDCC
 	  It does include a timeout to ensure that the system does not
 	  totally freeze when there is nothing connected to read.
 
+config OC_ETM
+	bool "On-chip ETM and ETB"
+	select ARM_AMBA
+	help
+	  Enables the on-chip embedded trace macrocell and embedded trace
+	  buffer driver that will allow you to collect traces of the
+	  kernel code.
+
 config DEBUG_DC21285_PORT
 	bool "Kernel low-level debugging messages via footbridge serial port"
 	depends on DEBUG_LL && FOOTBRIDGE

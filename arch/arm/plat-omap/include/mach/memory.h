@@ -68,6 +68,13 @@
 		__dma = __dma - PHYS_OFFSET + OMAP1510_LB_OFFSET; \
 	   __dma; })
 
+#define __arch_dma_to_page(dev, addr)	\
+	({ dma_addr_t __dma = addr;				\
+	   if (is_lbus_device(dev))				\
+		__dma += PHYS_OFFSET - OMAP1510_LB_OFFSET;	\
+	   phys_to_page(__dma);					\
+	})
+
 #define __arch_dma_to_virt(dev, addr)	({ (void *) (is_lbus_device(dev) ? \
 						lbus_to_virt(addr) : \
 						__phys_to_virt(addr)); })

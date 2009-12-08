@@ -15,19 +15,14 @@
 #include <linux/clockchips.h>
 #include <linux/jiffies.h>
 #include <asm/mach/time.h>
-#include <mach/mtu.h>
 
-#define TIMER_CTRL	0x80	/* No divisor */
-#define TIMER_PERIODIC	0x40
-#define TIMER_SZ32BIT	0x02
-
-/* Initial value for SRC control register: all timers use MXTAL/8 source */
-#define SRC_CR_INIT_MASK	0x00007fff
-#define SRC_CR_INIT_VAL		0x2aaa8000
+#include <plat/mtu.h>
 
 static u32	nmdk_count;		/* accumulated count */
 static u32	nmdk_cycle;		/* write-once */
-static __iomem void *mtu_base;
+
+/* setup by the platform code */
+void __iomem *mtu_base;
 
 /*
  * clocksource: the MTU device is a decrementing counters, so we negate
@@ -93,7 +88,7 @@ static struct clock_event_device nmdk_clkevt = {
 static irqreturn_t nmdk_timer_interrupt(int irq, void *dev_id)
 {
 	/* ack: "interrupt clear register" */
-	writel( 1 << 0, mtu_base + MTU_ICR);
+	writel(1 << 0, mtu_base + MTU_ICR);
 
 	/* we can't count lost ticks, unfortunately */
 	nmdk_count += nmdk_cycle;
@@ -125,23 +120,13 @@ static void nmdk_timer_reset(void)
 	writel(cr | MTU_CRn_ENA, mtu_base + MTU_CR(0));
 }
 
-static void __init nmdk_timer_init(void)
+void __init nmdk_timer_init(void)
 {
-	u32 src_cr;
 	unsigned long rate;
 	int bits;
 
 	rate = CLOCK_TICK_RATE; /* 2.4MHz */
 	nmdk_cycle = (rate + HZ/2) / HZ;
-
-	/* Configure timer sources in "system reset controller" ctrl reg */
-	src_cr = readl(io_p2v(NOMADIK_SRC_BASE));
-	src_cr &= SRC_CR_INIT_MASK;
-	src_cr |= SRC_CR_INIT_VAL;
-	writel(src_cr, io_p2v(NOMADIK_SRC_BASE));
-
-	/* Save global pointer to mtu, used by functions above */
-	mtu_base = io_p2v(NOMADIK_MTU0_BASE);
 
 	/* Init the timer and register clocksource */
 	nmdk_timer_reset();
@@ -150,7 +135,9 @@ static void __init nmdk_timer_init(void)
 	bits =  8*sizeof(nmdk_count);
 	nmdk_clksrc.mask = CLOCKSOURCE_MASK(bits);
 
-	clocksource_register(&nmdk_clksrc);
+	if (clocksource_register(&nmdk_clksrc))
+		printk(KERN_ERR "timer: failed to initialize clock "
+			"source %s\n", nmdk_clksrc.name);
 
 	/* Register irq and clockevents */
 	setup_irq(IRQ_MTU0, &nmdk_timer_irq);
@@ -158,7 +145,3 @@ static void __init nmdk_timer_init(void)
 	nmdk_clkevt.cpumask = cpumask_of(0);
 	clockevents_register_device(&nmdk_clkevt);
 }
-
-struct sys_timer nomadik_timer = {
-	.init		= nmdk_timer_init,
-};
