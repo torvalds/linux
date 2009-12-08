@@ -33,13 +33,13 @@
 #include <asm/mach/flash.h>
 
 #include <mach/gpio.h>
-#include <mach/led.h>
-#include <mach/mux.h>
-#include <mach/usb.h>
-#include <mach/board.h>
-#include <mach/common.h>
-#include <mach/gpmc.h>
-#include <mach/control.h>
+#include <plat/led.h>
+#include <plat/mux.h>
+#include <plat/usb.h>
+#include <plat/board.h>
+#include <plat/common.h>
+#include <plat/gpmc.h>
+#include <plat/control.h>
 
 /* LED & Switch macros */
 #define LED0_GPIO13		13
@@ -333,7 +333,7 @@ static void __init omap_apollon_map_io(void)
 MACHINE_START(OMAP_APOLLON, "OMAP24xx Apollon")
 	/* Maintainer: Kyungmin Park <kyungmin.park@samsung.com> */
 	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
+	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap_apollon_map_io,
 	.init_irq	= omap_apollon_init_irq,

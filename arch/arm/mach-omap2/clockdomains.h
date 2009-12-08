@@ -10,7 +10,7 @@
 #ifndef __ARCH_ARM_MACH_OMAP2_CLOCKDOMAINS_H
 #define __ARCH_ARM_MACH_OMAP2_CLOCKDOMAINS_H
 
-#include <mach/clockdomain.h>
+#include <plat/clockdomain.h>
 
 /*
  * OMAP2/3-common clockdomains
