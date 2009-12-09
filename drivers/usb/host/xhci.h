@@ -1270,6 +1270,7 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status);
 int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev, struct usb_host_endpoint *ep);
 int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev, struct usb_host_endpoint *ep);
 void xhci_endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep);
+int xhci_reset_device(struct usb_hcd *hcd, struct usb_device *udev);
 int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev);
 void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev);
 

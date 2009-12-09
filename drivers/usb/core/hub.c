@@ -2008,7 +2008,9 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 				struct usb_device *udev, unsigned int delay)
 {
 	int i, status;
+	struct usb_hcd *hcd;
 
+	hcd = bus_to_hcd(udev->bus);
 	/* Block EHCI CF initialization during the port reset.
 	 * Some companion controllers don't like it when they mix.
 	 */
@@ -2036,6 +2038,14 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 			/* TRSTRCY = 10 ms; plus some extra */
 			msleep(10 + 40);
 			update_address(udev, 0);
+			if (hcd->driver->reset_device) {
+				status = hcd->driver->reset_device(hcd, udev);
+				if (status < 0) {
+					dev_err(&udev->dev, "Cannot reset "
+							"HCD device state\n");
+					break;
+				}
+			}
 			/* FALL THROUGH */
 		case -ENOTCONN:
 		case -ENODEV:
@@ -2645,14 +2655,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 
 	mutex_lock(&usb_address0_mutex);
 
-	if ((hcd->driver->flags & HCD_USB3) && udev->config) {
-		/* FIXME this will need special handling by the xHCI driver. */
-		dev_dbg(&udev->dev,
-				"xHCI reset of configured device "
-				"not supported yet.\n");
-		retval = -EINVAL;
-		goto fail;
-	} else if (!udev->config && oldspeed == USB_SPEED_SUPER) {
+	if (!udev->config && oldspeed == USB_SPEED_SUPER) {
 		/* Don't reset USB 3.0 devices during an initial setup */
 		usb_set_device_state(udev, USB_STATE_DEFAULT);
 	} else {

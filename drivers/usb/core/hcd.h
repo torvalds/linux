@@ -286,6 +286,7 @@ struct hc_driver {
 		 */
 	int	(*update_hub_device)(struct usb_hcd *, struct usb_device *hdev,
 			struct usb_tt *tt, gfp_t mem_flags);
+	int	(*reset_device)(struct usb_hcd *, struct usb_device *);
 };
 
 extern int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb);
