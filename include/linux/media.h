@@ -126,5 +126,6 @@ struct media_links_enum {
 #define MEDIA_IOC_DEVICE_INFO		_IOWR('M', 1, struct media_device_info)
 #define MEDIA_IOC_ENUM_ENTITIES		_IOWR('M', 2, struct media_entity_desc)
 #define MEDIA_IOC_ENUM_LINKS		_IOWR('M', 3, struct media_links_enum)
+#define MEDIA_IOC_SETUP_LINK		_IOWR('M', 4, struct media_link_desc)
 
 #endif /* __LINUX_MEDIA_H */

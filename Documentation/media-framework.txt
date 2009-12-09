@@ -259,6 +259,16 @@ When the graph traversal is complete the function will return NULL.
 Graph traversal can be interrupted at any moment. No cleanup function call is
 required and the graph structure can be freed normally.
 
+Helper functions can be used to find a link between two given pads, or a pad
+connected to another pad through an enabled link
+
+	media_entity_find_link(struct media_pad *source,
+			       struct media_pad *sink);
+
+	media_entity_remote_source(struct media_pad *pad);
+
+Refer to the kerneldoc documentation for more information.
+
 
 Use count and power handling
 ----------------------------
@@ -271,3 +281,35 @@ track the number of users of every entity for power management needs.
 The use_count field is owned by media drivers and must not be touched by entity
 drivers. Access to the field must be protected by the media device graph_mutex
 lock.
+
+
+Links setup
+-----------
+
+Link properties can be modified at runtime by calling
+
+	media_entity_setup_link(struct media_link *link, u32 flags);
+
+The flags argument contains the requested new link flags.
+
+The only configurable property is the ENABLED link flag to enable/disable a
+link. Links marked with the IMMUTABLE link flag can not be enabled or disabled.
+
+When a link is enabled or disabled, the media framework calls the
+link_setup operation for the two entities at the source and sink of the link,
+in that order. If the second link_setup call fails, another link_setup call is
+made on the first entity to restore the original link flags.
+
+Media device drivers can be notified of link setup operations by setting the
+media_device::link_notify pointer to a callback function. If provided, the
+notification callback will be called before enabling and after disabling
+links.
+
+Entity drivers must implement the link_setup operation if any of their links
+is non-immutable. The operation must either configure the hardware or store
+the configuration information to be applied later.
+
+Link configuration must not have any side effect on other links. If an enabled
+link at a sink pad prevents another link at the same pad from being disabled,
+the link_setup operation must return -EBUSY and can't implicitly disable the
+first enabled link.

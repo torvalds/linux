@@ -73,6 +73,9 @@ struct media_device {
 	spinlock_t lock;
 	/* Serializes graph operations. */
 	struct mutex graph_mutex;
+
+	int (*link_notify)(struct media_pad *source,
+			   struct media_pad *sink, u32 flags);
 };
 
 /* media_devnode to media_device */

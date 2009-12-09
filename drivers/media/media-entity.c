@@ -306,3 +306,158 @@ media_entity_create_link(struct media_entity *source, u16 source_pad,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(media_entity_create_link);
+
+static int __media_entity_setup_link_notify(struct media_link *link, u32 flags)
+{
+	const u32 mask = MEDIA_LNK_FL_ENABLED;
+	int ret;
+
+	/* Notify both entities. */
+	ret = media_entity_call(link->source->entity, link_setup,
+				link->source, link->sink, flags);
+	if (ret < 0 && ret != -ENOIOCTLCMD)
+		return ret;
+
+	ret = media_entity_call(link->sink->entity, link_setup,
+				link->sink, link->source, flags);
+	if (ret < 0 && ret != -ENOIOCTLCMD) {
+		media_entity_call(link->source->entity, link_setup,
+				  link->source, link->sink, link->flags);
+		return ret;
+	}
+
+	link->flags = (link->flags & ~mask) | (flags & mask);
+	link->reverse->flags = link->flags;
+
+	return 0;
+}
+
+/**
+ * __media_entity_setup_link - Configure a media link
+ * @link: The link being configured
+ * @flags: Link configuration flags
+ *
+ * The bulk of link setup is handled by the two entities connected through the
+ * link. This function notifies both entities of the link configuration change.
+ *
+ * If the link is immutable or if the current and new configuration are
+ * identical, return immediately.
+ *
+ * The user is expected to hold link->source->parent->mutex. If not,
+ * media_entity_setup_link() should be used instead.
+ */
+int __media_entity_setup_link(struct media_link *link, u32 flags)
+{
+	struct media_device *mdev;
+	struct media_entity *source, *sink;
+	int ret = -EBUSY;
+
+	if (link == NULL)
+		return -EINVAL;
+
+	if (link->flags & MEDIA_LNK_FL_IMMUTABLE)
+		return link->flags == flags ? 0 : -EINVAL;
+
+	if (link->flags == flags)
+		return 0;
+
+	source = link->source->entity;
+	sink = link->sink->entity;
+
+	mdev = source->parent;
+
+	if ((flags & MEDIA_LNK_FL_ENABLED) && mdev->link_notify) {
+		ret = mdev->link_notify(link->source, link->sink,
+					MEDIA_LNK_FL_ENABLED);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = __media_entity_setup_link_notify(link, flags);
+	if (ret < 0)
+		goto err;
+
+	if (!(flags & MEDIA_LNK_FL_ENABLED) && mdev->link_notify)
+		mdev->link_notify(link->source, link->sink, 0);
+
+	return 0;
+
+err:
+	if ((flags & MEDIA_LNK_FL_ENABLED) && mdev->link_notify)
+		mdev->link_notify(link->source, link->sink, 0);
+
+	return ret;
+}
+
+int media_entity_setup_link(struct media_link *link, u32 flags)
+{
+	int ret;
+
+	mutex_lock(&link->source->entity->parent->graph_mutex);
+	ret = __media_entity_setup_link(link, flags);
+	mutex_unlock(&link->source->entity->parent->graph_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(media_entity_setup_link);
+
+/**
+ * media_entity_find_link - Find a link between two pads
+ * @source: Source pad
+ * @sink: Sink pad
+ *
+ * Return a pointer to the link between the two entities. If no such link
+ * exists, return NULL.
+ */
+struct media_link *
+media_entity_find_link(struct media_pad *source, struct media_pad *sink)
+{
+	struct media_link *link;
+	unsigned int i;
+
+	for (i = 0; i < source->entity->num_links; ++i) {
+		link = &source->entity->links[i];
+
+		if (link->source->entity == source->entity &&
+		    link->source->index == source->index &&
+		    link->sink->entity == sink->entity &&
+		    link->sink->index == sink->index)
+			return link;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(media_entity_find_link);
+
+/**
+ * media_entity_remote_source - Find the source pad at the remote end of a link
+ * @pad: Sink pad at the local end of the link
+ *
+ * Search for a remote source pad connected to the given sink pad by iterating
+ * over all links originating or terminating at that pad until an enabled link
+ * is found.
+ *
+ * Return a pointer to the pad at the remote end of the first found enabled
+ * link, or NULL if no enabled link has been found.
+ */
+struct media_pad *media_entity_remote_source(struct media_pad *pad)
+{
+	unsigned int i;
+
+	for (i = 0; i < pad->entity->num_links; i++) {
+		struct media_link *link = &pad->entity->links[i];
+
+		if (!(link->flags & MEDIA_LNK_FL_ENABLED))
+			continue;
+
+		if (link->source == pad)
+			return link->sink;
+
+		if (link->sink == pad)
+			return link->source;
+	}
+
+	return NULL;
+
+}
+EXPORT_SYMBOL_GPL(media_entity_remote_source);
