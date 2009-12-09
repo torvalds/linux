@@ -534,16 +534,16 @@ static int nes_query_device(struct ib_device *ibdev, struct ib_device_attr *prop
 	props->max_sge_rd = 1;
 	switch (nesdev->nesadapter->max_irrq_wr) {
 		case 0:
-			props->max_qp_rd_atom = 1;
+			props->max_qp_rd_atom = 2;
 			break;
 		case 1:
-			props->max_qp_rd_atom = 4;
+			props->max_qp_rd_atom = 8;
 			break;
 		case 2:
-			props->max_qp_rd_atom = 16;
+			props->max_qp_rd_atom = 32;
 			break;
 		case 3:
-			props->max_qp_rd_atom = 32;
+			props->max_qp_rd_atom = 64;
 			break;
 		default:
 			props->max_qp_rd_atom = 0;
