@@ -35,7 +35,10 @@ static int subdev_open(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
-	struct v4l2_fh *vfh;
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	struct media_entity *entity;
+#endif
+	struct v4l2_fh *vfh = NULL;
 	int ret;
 
 	if (sd->flags & V4L2_SUBDEV_FL_HAS_EVENTS) {
@@ -58,11 +61,20 @@ static int subdev_open(struct file *file)
 		v4l2_fh_add(vfh);
 		file->private_data = vfh;
 	}
-
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	if (sd->v4l2_dev->mdev) {
+		entity = media_entity_get(&sd->entity);
+		if (!entity) {
+			ret = -EBUSY;
+			goto err;
+		}
+	}
+#endif
 	return 0;
 
 err:
 	if (vfh != NULL) {
+		v4l2_fh_del(vfh);
 		v4l2_fh_exit(vfh);
 		kfree(vfh);
 	}
@@ -72,8 +84,16 @@ err:
 
 static int subdev_close(struct file *file)
 {
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	struct video_device *vdev = video_devdata(file);
+	struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
+#endif
 	struct v4l2_fh *vfh = file->private_data;
 
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	if (sd->v4l2_dev->mdev)
+		media_entity_put(&sd->entity);
+#endif
 	if (vfh != NULL) {
 		v4l2_fh_del(vfh);
 		v4l2_fh_exit(vfh);
@@ -172,5 +192,9 @@ void v4l2_subdev_init(struct v4l2_subdev *sd, const struct v4l2_subdev_ops *ops)
 	sd->grp_id = 0;
 	sd->dev_priv = NULL;
 	sd->host_priv = NULL;
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	sd->entity.name = sd->name;
+	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
+#endif
 }
 EXPORT_SYMBOL(v4l2_subdev_init);

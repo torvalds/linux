@@ -268,6 +268,26 @@ A sub-device driver initializes the v4l2_subdev struct using:
 Afterwards you need to initialize subdev->name with a unique name and set the
 module owner. This is done for you if you use the i2c helper functions.
 
+If integration with the media framework is needed, you must initialize the
+media_entity struct embedded in the v4l2_subdev struct (entity field) by
+calling media_entity_init():
+
+	struct media_pad *pads = &my_sd->pads;
+	int err;
+
+	err = media_entity_init(&sd->entity, npads, pads, 0);
+
+The pads array must have been previously initialized. There is no need to
+manually set the struct media_entity type and name fields, but the revision
+field must be initialized if needed.
+
+A reference to the entity will be automatically acquired/released when the
+subdev device node (if any) is opened/closed.
+
+Don't forget to cleanup the media entity before the sub-device is destroyed:
+
+	media_entity_cleanup(&sd->entity);
+
 A device (bridge) driver needs to register the v4l2_subdev with the
 v4l2_device:
 
@@ -276,6 +296,9 @@ v4l2_device:
 This can fail if the subdev module disappeared before it could be registered.
 After this function was called successfully the subdev->dev field points to
 the v4l2_device.
+
+If the v4l2_device parent device has a non-NULL mdev field, the sub-device
+entity will be automatically registered with the media device.
 
 You can unregister a sub-device using:
 
