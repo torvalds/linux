@@ -70,8 +70,40 @@
 u8 cpu_mask;
 
 /*-------------------------------------------------------------------------
- * OMAP2/3 specific clock functions
+ * OMAP2/3/4 specific clock functions
  *-------------------------------------------------------------------------*/
+
+void omap2_init_dpll_parent(struct clk *clk)
+{
+	u32 v;
+	struct dpll_data *dd;
+
+	dd = clk->dpll_data;
+	if (!dd)
+		return;
+
+	/* Return bypass rate if DPLL is bypassed */
+	v = __raw_readl(dd->control_reg);
+	v &= dd->enable_mask;
+	v >>= __ffs(dd->enable_mask);
+
+	/* Reparent in case the dpll is in bypass */
+	if (cpu_is_omap24xx()) {
+		if (v == OMAP2XXX_EN_DPLL_LPBYPASS ||
+		    v == OMAP2XXX_EN_DPLL_FRBYPASS)
+			clk_reparent(clk, dd->clk_bypass);
+	} else if (cpu_is_omap34xx()) {
+		if (v == OMAP3XXX_EN_DPLL_LPBYPASS ||
+		    v == OMAP3XXX_EN_DPLL_FRBYPASS)
+			clk_reparent(clk, dd->clk_bypass);
+	} else if (cpu_is_omap44xx()) {
+		if (v == OMAP4XXX_EN_DPLL_LPBYPASS ||
+		    v == OMAP4XXX_EN_DPLL_FRBYPASS ||
+		    v == OMAP4XXX_EN_DPLL_MNBYPASS)
+			clk_reparent(clk, dd->clk_bypass);
+	}
+	return;
+}
 
 /**
  * _omap2xxx_clk_commit - commit clock parent/rate changes in hardware
