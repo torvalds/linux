@@ -548,9 +548,12 @@ __skip_mpu:
 
 static irqreturn_t snd_opti93x_interrupt(int irq, void *dev_id)
 {
-	struct snd_wss *codec = dev_id;
-	struct snd_opti9xx *chip = codec->card->private_data;
+	struct snd_opti9xx *chip = dev_id;
+	struct snd_wss *codec = chip->codec;
 	unsigned char status;
+
+	if (!codec)
+		return IRQ_HANDLED;
 
 	status = snd_opti9xx_read(chip, OPTi9XX_MC_REG(11));
 	if ((status & OPTi93X_IRQ_PLAYBACK) && codec->playback_substream)
@@ -691,10 +694,9 @@ static void snd_card_opti9xx_free(struct snd_card *card)
 
 	if (chip) {
 #ifdef OPTi93X
-		struct snd_wss *codec = chip->codec;
-		if (codec && codec->irq > 0) {
-			disable_irq(codec->irq);
-			free_irq(codec->irq, codec);
+		if (chip->irq > 0) {
+			disable_irq(chip->irq);
+			free_irq(chip->irq, chip);
 		}
 		release_and_free_resource(chip->res_mc_indir);
 #endif
@@ -759,9 +761,9 @@ static int __devinit snd_opti9xx_probe(struct snd_card *card)
 #endif
 #ifdef OPTi93X
 	error = request_irq(irq, snd_opti93x_interrupt,
-			    IRQF_DISABLED, DEV_NAME" - WSS", codec);
+			    IRQF_DISABLED, DEV_NAME" - WSS", chip);
 	if (error < 0) {
-		snd_printk(KERN_ERR "opti9xx: can't grab IRQ %d\n", chip->irq);
+		snd_printk(KERN_ERR "opti9xx: can't grab IRQ %d\n", irq);
 		return error;
 	}
 #endif
