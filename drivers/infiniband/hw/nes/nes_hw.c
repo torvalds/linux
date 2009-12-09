@@ -437,11 +437,12 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 	nesadapter->qp_table = (struct nes_qp **)(&nesadapter->allocated_arps[BITS_TO_LONGS(arp_table_size)]);
 
 
-	/* mark the usual suspect QPs and CQs as in use */
+	/* mark the usual suspect QPs, MR and CQs as in use */
 	for (u32temp = 0; u32temp < NES_FIRST_QPN; u32temp++) {
 		set_bit(u32temp, nesadapter->allocated_qps);
 		set_bit(u32temp, nesadapter->allocated_cqs);
 	}
+	set_bit(0, nesadapter->allocated_mrs);
 
 	for (u32temp = 0; u32temp < 20; u32temp++)
 		set_bit(u32temp, nesadapter->allocated_pds);
