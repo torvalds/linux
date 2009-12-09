@@ -437,6 +437,15 @@ extern void radeon_compute_pll(struct radeon_pll *pll,
 			       uint32_t *post_div_p,
 			       int flags);
 
+extern void radeon_compute_pll_avivo(struct radeon_pll *pll,
+				     uint64_t freq,
+				     uint32_t *dot_clock_p,
+				     uint32_t *fb_div_p,
+				     uint32_t *frac_fb_div_p,
+				     uint32_t *ref_div_p,
+				     uint32_t *post_div_p,
+				     int flags);
+
 extern void radeon_setup_encoder_clones(struct drm_device *dev);
 
 struct drm_encoder *radeon_encoder_legacy_lvds_add(struct drm_device *dev, int bios_index);

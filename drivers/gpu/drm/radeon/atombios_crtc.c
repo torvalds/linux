@@ -499,8 +499,18 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	else
 		pll = &rdev->clock.p2pll;
 
-	radeon_compute_pll(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
-			   &ref_div, &post_div, pll_flags);
+	if (ASIC_IS_AVIVO(rdev)) {
+		if (radeon_new_pll)
+			radeon_compute_pll_avivo(pll, adjusted_clock, &pll_clock,
+						 &fb_div, &frac_fb_div,
+						 &ref_div, &post_div, pll_flags);
+		else
+			radeon_compute_pll(pll, adjusted_clock, &pll_clock,
+					   &fb_div, &frac_fb_div,
+					   &ref_div, &post_div, pll_flags);
+	} else
+		radeon_compute_pll(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
+				   &ref_div, &post_div, pll_flags);
 
 	index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
 	atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev,

@@ -871,7 +871,8 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 			 * pre-DCE 3.0 r6xx hardware.  This might need to be adjusted per
 			 * family.
 			 */
-			p1pll->pll_out_min = 64800;
+			if (!radeon_new_pll)
+				p1pll->pll_out_min = 64800;
 		}
 
 		p1pll->pll_in_min =
