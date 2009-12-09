@@ -341,6 +341,23 @@ nfs4_free_slot(struct nfs4_slot_table *tbl, u8 free_slotid)
 		free_slotid, tbl->highest_used_slotid);
 }
 
+/*
+ * Signal state manager thread if session is drained
+ */
+static void nfs41_check_drain_session_complete(struct nfs4_session *ses)
+{
+	if (!test_bit(NFS4CLNT_SESSION_DRAINING, &ses->clp->cl_state)) {
+		rpc_wake_up_next(&ses->fc_slot_table.slot_tbl_waitq);
+		return;
+	}
+
+	if (ses->fc_slot_table.highest_used_slotid != -1)
+		return;
+
+	dprintk("%s COMPLETE: Session Drained\n", __func__);
+	complete(&ses->complete);
+}
+
 static void nfs41_sequence_free_slot(const struct nfs_client *clp,
 			      struct nfs4_sequence_res *res)
 {
@@ -356,15 +373,7 @@ static void nfs41_sequence_free_slot(const struct nfs_client *clp,
 
 	spin_lock(&tbl->slot_tbl_lock);
 	nfs4_free_slot(tbl, res->sr_slotid);
-
-	/* Signal state manager thread if session is drained */
-	if (test_bit(NFS4CLNT_SESSION_DRAINING, &clp->cl_state)) {
-		if (tbl->highest_used_slotid == -1) {
-			dprintk("%s COMPLETE: Session Drained\n", __func__);
-			complete(&clp->cl_session->complete);
-		}
-	} else
-		rpc_wake_up_next(&tbl->slot_tbl_waitq);
+	nfs41_check_drain_session_complete(clp->cl_session);
 	spin_unlock(&tbl->slot_tbl_lock);
 	res->sr_slotid = NFS4_MAX_SLOT_TABLE;
 }
