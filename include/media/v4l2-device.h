@@ -96,6 +96,12 @@ int __must_check v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
    wasn't registered. In that case it will do nothing. */
 void v4l2_device_unregister_subdev(struct v4l2_subdev *sd);
 
+/* Register device nodes for all subdev of the v4l2 device that are marked with
+ * the V4L2_SUBDEV_FL_HAS_DEVNODE flag.
+ */
+int __must_check
+v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev);
+
 /* Iterate over all subdevs. */
 #define v4l2_device_for_each_subdev(sd, v4l2_dev)			\
 	list_for_each_entry(sd, &(v4l2_dev)->subdevs, list)

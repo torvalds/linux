@@ -22,6 +22,7 @@
 #define _V4L2_SUBDEV_H
 
 #include <media/v4l2-common.h>
+#include <media/v4l2-dev.h>
 #include <media/v4l2-mediabus.h>
 
 /* generic v4l2_device notify callback notification values */
@@ -431,9 +432,11 @@ struct v4l2_subdev_internal_ops {
 #define V4L2_SUBDEV_NAME_SIZE 32
 
 /* Set this flag if this subdev is a i2c device. */
-#define V4L2_SUBDEV_FL_IS_I2C (1U << 0)
+#define V4L2_SUBDEV_FL_IS_I2C			(1U << 0)
 /* Set this flag if this subdev is a spi device. */
-#define V4L2_SUBDEV_FL_IS_SPI (1U << 1)
+#define V4L2_SUBDEV_FL_IS_SPI			(1U << 1)
+/* Set this flag if this subdev needs a device node. */
+#define V4L2_SUBDEV_FL_HAS_DEVNODE		(1U << 2)
 
 /* Each instance of a subdev driver should create this struct, either
    stand-alone or embedded in a larger struct.
@@ -455,7 +458,14 @@ struct v4l2_subdev {
 	/* pointer to private data */
 	void *dev_priv;
 	void *host_priv;
+	/* subdev device node */
+	struct video_device devnode;
 };
+
+#define vdev_to_v4l2_subdev(vdev) \
+	container_of(vdev, struct v4l2_subdev, devnode)
+
+extern const struct v4l2_file_operations v4l2_subdev_fops;
 
 static inline void v4l2_set_subdevdata(struct v4l2_subdev *sd, void *p)
 {

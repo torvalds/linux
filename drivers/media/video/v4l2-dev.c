@@ -408,13 +408,14 @@ static int get_index(struct video_device *vdev)
 }
 
 /**
- *	video_register_device - register video4linux devices
+ *	__video_register_device - register video4linux devices
  *	@vdev: video device structure we want to register
  *	@type: type of device to register
  *	@nr:   which device node number (0 == /dev/video0, 1 == /dev/video1, ...
  *             -1 == first free)
  *	@warn_if_nr_in_use: warn if the desired device node number
  *	       was already in use and another number was chosen instead.
+ *	@owner: module that owns the video device node
  *
  *	The registration code assigns minor numbers and device node numbers
  *	based on the requested type and registers the new device node with
@@ -435,9 +436,11 @@ static int get_index(struct video_device *vdev)
  *	%VFL_TYPE_VBI - Vertical blank data (undecoded)
  *
  *	%VFL_TYPE_RADIO - A radio card
+ *
+ *	%VFL_TYPE_SUBDEV - A subdevice
  */
-static int __video_register_device(struct video_device *vdev, int type, int nr,
-		int warn_if_nr_in_use)
+int __video_register_device(struct video_device *vdev, int type, int nr,
+		int warn_if_nr_in_use, struct module *owner)
 {
 	int i = 0;
 	int ret;
@@ -468,6 +471,9 @@ static int __video_register_device(struct video_device *vdev, int type, int nr,
 		break;
 	case VFL_TYPE_RADIO:
 		name_base = "radio";
+		break;
+	case VFL_TYPE_SUBDEV:
+		name_base = "v4l-subdev";
 		break;
 	default:
 		printk(KERN_ERR "%s called with unknown type: %d\n",
@@ -552,7 +558,7 @@ static int __video_register_device(struct video_device *vdev, int type, int nr,
 		goto cleanup;
 	}
 	vdev->cdev->ops = &v4l2_fops;
-	vdev->cdev->owner = vdev->fops->owner;
+	vdev->cdev->owner = owner;
 	ret = cdev_add(vdev->cdev, MKDEV(VIDEO_MAJOR, vdev->minor), 1);
 	if (ret < 0) {
 		printk(KERN_ERR "%s: cdev_add failed\n", __func__);
@@ -597,18 +603,7 @@ cleanup:
 	vdev->minor = -1;
 	return ret;
 }
-
-int video_register_device(struct video_device *vdev, int type, int nr)
-{
-	return __video_register_device(vdev, type, nr, 1);
-}
-EXPORT_SYMBOL(video_register_device);
-
-int video_register_device_no_warn(struct video_device *vdev, int type, int nr)
-{
-	return __video_register_device(vdev, type, nr, 0);
-}
-EXPORT_SYMBOL(video_register_device_no_warn);
+EXPORT_SYMBOL(__video_register_device);
 
 /**
  *	video_unregister_device - unregister a video4linux device

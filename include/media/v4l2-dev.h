@@ -21,7 +21,8 @@
 #define VFL_TYPE_GRABBER	0
 #define VFL_TYPE_VBI		1
 #define VFL_TYPE_RADIO		2
-#define VFL_TYPE_MAX		3
+#define VFL_TYPE_SUBDEV		3
+#define VFL_TYPE_MAX		4
 
 struct v4l2_ioctl_callbacks;
 struct video_device;
@@ -102,15 +103,26 @@ struct video_device
 /* dev to video-device */
 #define to_video_device(cd) container_of(cd, struct video_device, dev)
 
+int __must_check __video_register_device(struct video_device *vdev, int type,
+		int nr, int warn_if_nr_in_use, struct module *owner);
+
 /* Register video devices. Note that if video_register_device fails,
    the release() callback of the video_device structure is *not* called, so
    the caller is responsible for freeing any data. Usually that means that
    you call video_device_release() on failure. */
-int __must_check video_register_device(struct video_device *vdev, int type, int nr);
+static inline int __must_check video_register_device(struct video_device *vdev,
+		int type, int nr)
+{
+	return __video_register_device(vdev, type, nr, 1, vdev->fops->owner);
+}
 
 /* Same as video_register_device, but no warning is issued if the desired
    device node number was already in use. */
-int __must_check video_register_device_no_warn(struct video_device *vdev, int type, int nr);
+static inline int __must_check video_register_device_no_warn(
+		struct video_device *vdev, int type, int nr)
+{
+	return __video_register_device(vdev, type, nr, 0, vdev->fops->owner);
+}
 
 /* Unregister video devices. Will do nothing if vdev == NULL or
    video_is_registered() returns false. */
