@@ -10,6 +10,10 @@ Supported chips:
     Prefix: 'adt7475'
     Addresses scanned: I2C 0x2E
     Datasheet: Publicly available at the On Semiconductors website
+  * Analog Devices ADT7476
+    Prefix: 'adt7476'
+    Addresses scanned: I2C 0x2C, 0x2D, 0x2E
+    Datasheet: Publicly available at the On Semiconductors website
   * Analog Devices ADT7490
     Prefix: 'adt7490'
     Addresses scanned: I2C 0x2C, 0x2D, 0x2E
@@ -25,11 +29,13 @@ Authors:
 Description
 -----------
 
-This driver implements support for the Analog Devices ADT7473, ADT7475 and
-ADT7490 chip family. The ADT7473 and ADT7475 differ only in minor details.
-The ADT7490 has additional features, including extra voltage measurement
-inputs and PECI support. All the supported chips will be collectively
-designed by the name "ADT747x" in the rest of this document.
+This driver implements support for the Analog Devices ADT7473, ADT7475,
+ADT7476 and ADT7490 chip family. The ADT7473 and ADT7475 differ only in
+minor details. The ADT7476 has additional features, including extra voltage
+measurement inputs and VID support. The ADT7490 also has additional
+features, including extra voltage measurement inputs and PECI support. All
+the supported chips will be collectively designed by the name "ADT747x" in
+the rest of this document.
 
 The ADT747x uses the 2-wire interface compatible with the SMBus 2.0
 specification. Using an analog to digital converter it measures three (3)
@@ -61,6 +67,10 @@ ADT7473:
 
 ADT7475:
   * 2 voltage inputs
+
+ADT7476:
+  * 5 voltage inputs
+  * VID support (not implemented)
 
 ADT7490:
   * 6 voltage inputs

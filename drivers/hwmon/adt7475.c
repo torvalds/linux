@@ -58,6 +58,8 @@
 #define REG_STATUS1		0x41
 #define REG_STATUS2		0x42
 
+#define REG_VID			0x43	/* ADT7476 only */
+
 #define REG_VOLTAGE_MIN_BASE	0x44
 #define REG_VOLTAGE_MAX_BASE	0x45
 
@@ -93,6 +95,8 @@
 
 #define REG_VTT_MIN		0x84	/* ADT7490 only */
 #define REG_VTT_MAX		0x86	/* ADT7490 only */
+
+#define VID_VIDSEL		0x80	/* ADT7476 only */
 
 #define CONFIG2_ATTN		0x20
 
@@ -142,11 +146,12 @@
 
 static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
-I2C_CLIENT_INSMOD_3(adt7473, adt7475, adt7490);
+I2C_CLIENT_INSMOD_4(adt7473, adt7475, adt7476, adt7490);
 
 static const struct i2c_device_id adt7475_id[] = {
 	{ "adt7473", adt7473 },
 	{ "adt7475", adt7475 },
+	{ "adt7476", adt7476 },
 	{ "adt7490", adt7490 },
 	{ }
 };
@@ -1082,7 +1087,6 @@ static struct attribute *pwm2_attrs[] = {
 	NULL
 };
 
-/* Attributes specific to the ADT7490 */
 static struct attribute *in0_attrs[] = {
 	&sensor_dev_attr_in0_input.dev_attr.attr,
 	&sensor_dev_attr_in0_max.dev_attr.attr,
@@ -1091,15 +1095,23 @@ static struct attribute *in0_attrs[] = {
 	NULL
 };
 
-static struct attribute *adt7490_attrs[] = {
+static struct attribute *in3_attrs[] = {
 	&sensor_dev_attr_in3_input.dev_attr.attr,
 	&sensor_dev_attr_in3_max.dev_attr.attr,
 	&sensor_dev_attr_in3_min.dev_attr.attr,
 	&sensor_dev_attr_in3_alarm.dev_attr.attr,
+	NULL
+};
+
+static struct attribute *in4_attrs[] = {
 	&sensor_dev_attr_in4_input.dev_attr.attr,
 	&sensor_dev_attr_in4_max.dev_attr.attr,
 	&sensor_dev_attr_in4_min.dev_attr.attr,
 	&sensor_dev_attr_in4_alarm.dev_attr.attr,
+	NULL
+};
+
+static struct attribute *in5_attrs[] = {
 	&sensor_dev_attr_in5_input.dev_attr.attr,
 	&sensor_dev_attr_in5_max.dev_attr.attr,
 	&sensor_dev_attr_in5_min.dev_attr.attr,
@@ -1111,7 +1123,9 @@ static struct attribute_group adt7475_attr_group = { .attrs = adt7475_attrs };
 static struct attribute_group fan4_attr_group = { .attrs = fan4_attrs };
 static struct attribute_group pwm2_attr_group = { .attrs = pwm2_attrs };
 static struct attribute_group in0_attr_group = { .attrs = in0_attrs };
-static struct attribute_group adt7490_attr_group = { .attrs = adt7490_attrs };
+static struct attribute_group in3_attr_group = { .attrs = in3_attrs };
+static struct attribute_group in4_attr_group = { .attrs = in4_attrs };
+static struct attribute_group in5_attr_group = { .attrs = in5_attrs };
 
 static int adt7475_detect(struct i2c_client *client, int kind,
 			  struct i2c_board_info *info)
@@ -1134,11 +1148,13 @@ static int adt7475_detect(struct i2c_client *client, int kind,
 		name = "adt7473";
 	else if (devid == 0x75 && client->addr == 0x2e)
 		name = "adt7475";
+	else if (devid == 0x76)
+		name = "adt7476";
 	else if ((devid2 & 0xfc) == 0x6c)
 		name = "adt7490";
 	else {
 		dev_dbg(&adapter->dev,
-			"Couldn't detect an ADT7473/75/90 part at "
+			"Couldn't detect an ADT7473/75/76/90 part at "
 			"0x%02x\n", (unsigned int)client->addr);
 		return -ENODEV;
 	}
@@ -1152,14 +1168,18 @@ static void adt7475_remove_files(struct i2c_client *client,
 				 struct adt7475_data *data)
 {
 	sysfs_remove_group(&client->dev.kobj, &adt7475_attr_group);
-	if (data->has_voltage & 0x39)
-		sysfs_remove_group(&client->dev.kobj, &adt7490_attr_group);
 	if (data->has_fan4)
 		sysfs_remove_group(&client->dev.kobj, &fan4_attr_group);
 	if (data->has_pwm2)
 		sysfs_remove_group(&client->dev.kobj, &pwm2_attr_group);
 	if (data->has_voltage & (1 << 0))
 		sysfs_remove_group(&client->dev.kobj, &in0_attr_group);
+	if (data->has_voltage & (1 << 3))
+		sysfs_remove_group(&client->dev.kobj, &in3_attr_group);
+	if (data->has_voltage & (1 << 4))
+		sysfs_remove_group(&client->dev.kobj, &in4_attr_group);
+	if (data->has_voltage & (1 << 5))
+		sysfs_remove_group(&client->dev.kobj, &in5_attr_group);
 }
 
 static int adt7475_probe(struct i2c_client *client,
@@ -1168,6 +1188,7 @@ static int adt7475_probe(struct i2c_client *client,
 	static const char *names[] = {
 		[adt7473] = "ADT7473",
 		[adt7475] = "ADT7475",
+		[adt7476] = "ADT7476",
 		[adt7490] = "ADT7490",
 	};
 
@@ -1184,6 +1205,10 @@ static int adt7475_probe(struct i2c_client *client,
 
 	/* Initialize device-specific values */
 	switch (id->driver_data) {
+	case adt7476:
+		data->has_voltage = 0x0e;	/* in1 to in3 */
+		revision = adt7475_read(REG_DEVID2) & 0x07;
+		break;
 	case adt7490:
 		data->has_voltage = 0x3e;	/* in1 to in5 */
 		revision = adt7475_read(REG_DEVID2) & 0x03;
@@ -1208,15 +1233,25 @@ static int adt7475_probe(struct i2c_client *client,
 	if ((data->config4 & CONFIG4_PINFUNC) == 0x0)
 		data->has_fan4 = 1;
 
-	/* THERM configuration is more complex on the ADT7490, because 2
-	   different pins (TACH4 and +2.5 Vin) can be used for this function */
+	/* THERM configuration is more complex on the ADT7476 and ADT7490,
+	   because 2 different pins (TACH4 and +2.5 Vin) can be used for
+	   this function */
 	if (id->driver_data == adt7490) {
 		if ((data->config4 & CONFIG4_PINFUNC) == 0x1 &&
 		    !(config3 & CONFIG3_THERM))
 			data->has_fan4 = 1;
+	}
+	if (id->driver_data == adt7476 || id->driver_data == adt7490) {
 		if (!(config3 & CONFIG3_THERM) ||
 		    (data->config4 & CONFIG4_PINFUNC) == 0x1)
 			data->has_voltage |= (1 << 0);		/* in0 */
+	}
+
+	/* On the ADT7476, the +12V input pin may instead be used as VID5 */
+	if (id->driver_data == adt7476) {
+		u8 vid = adt7475_read(REG_VID);
+		if (!(vid & VID_VIDSEL))
+			data->has_voltage |= (1 << 4);		/* in4 */
 	}
 
 	/* Voltage attenuators can be bypassed, globally or individually */
@@ -1238,13 +1273,6 @@ static int adt7475_probe(struct i2c_client *client,
 	if (ret)
 		goto efree;
 
-	if (id->driver_data == adt7490) {
-		ret = sysfs_create_group(&client->dev.kobj,
-					 &adt7490_attr_group);
-		if (ret)
-			goto eremove;
-	}
-
 	/* Features that can be disabled individually */
 	if (data->has_fan4) {
 		ret = sysfs_create_group(&client->dev.kobj, &fan4_attr_group);
@@ -1261,6 +1289,21 @@ static int adt7475_probe(struct i2c_client *client,
 		if (ret)
 			goto eremove;
 	}
+	if (data->has_voltage & (1 << 3)) {
+		ret = sysfs_create_group(&client->dev.kobj, &in3_attr_group);
+		if (ret)
+			goto eremove;
+	}
+	if (data->has_voltage & (1 << 4)) {
+		ret = sysfs_create_group(&client->dev.kobj, &in4_attr_group);
+		if (ret)
+			goto eremove;
+	}
+	if (data->has_voltage & (1 << 5)) {
+		ret = sysfs_create_group(&client->dev.kobj, &in5_attr_group);
+		if (ret)
+			goto eremove;
+	}
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -1270,9 +1313,10 @@ static int adt7475_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "%s device, revision %d\n",
 		 names[id->driver_data], revision);
-	if ((data->has_voltage & (1 << 0)) || data->has_fan4 || data->has_pwm2)
-		dev_info(&client->dev, "Optional features:%s%s%s\n",
+	if ((data->has_voltage & 0x11) || data->has_fan4 || data->has_pwm2)
+		dev_info(&client->dev, "Optional features:%s%s%s%s\n",
 			 (data->has_voltage & (1 << 0)) ? " in0" : "",
+			 (data->has_voltage & (1 << 4)) ? " in4" : "",
 			 data->has_fan4 ? " fan4" : "",
 			 data->has_pwm2 ? " pwm2" : "");
 	if (data->bypass_attn)
