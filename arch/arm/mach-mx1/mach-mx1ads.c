@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-imx/mx1ads.c
+ * arch/arm/mach-imx/mach-mx1ads.c
  *
  * Initially based on:
  *	linux-2.6.7-imx/arch/arm/mach-imx/scb9328.c

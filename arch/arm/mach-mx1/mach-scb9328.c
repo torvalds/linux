@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-mx1/scb9328.c
+ * linux/arch/arm/mach-mx1/mach-scb9328.c
  *
  * Copyright (c) 2004 Sascha Hauer <saschahauer@web.de>
  * Copyright (c) 2006-2008 Juergen Beisert <jbeisert@netscape.net>
