@@ -22,7 +22,7 @@
  */
 
 #define TPACPI_VERSION "0.23"
-#define TPACPI_SYSFS_VERSION 0x020500
+#define TPACPI_SYSFS_VERSION 0x020600
 
 /*
  *  Changelog:
@@ -6073,6 +6073,12 @@ static int brightness_get(struct backlight_device *bd)
 	return status & TP_EC_BACKLIGHT_LVLMSK;
 }
 
+static void tpacpi_brightness_notify_change(void)
+{
+	backlight_force_update(ibm_backlight_device,
+			       BACKLIGHT_UPDATE_HOTKEY);
+}
+
 static struct backlight_ops ibm_backlight_data = {
 	.get_brightness = brightness_get,
 	.update_status  = brightness_update_status,
@@ -6227,6 +6233,12 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	ibm_backlight_device->props.brightness = b & TP_EC_BACKLIGHT_LVLMSK;
 	backlight_update_status(ibm_backlight_device);
 
+	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_BRGHT,
+			"brightness: registering brightness hotkeys "
+			"as change notification\n");
+	tpacpi_hotkey_driver_mask_set(hotkey_driver_mask
+				| TP_ACPI_HKEY_BRGHTUP_MASK
+				| TP_ACPI_HKEY_BRGHTDWN_MASK);;
 	return 0;
 }
 
@@ -6303,6 +6315,9 @@ static int brightness_write(char *buf)
 	 * Doing it this way makes the syscall restartable in case of EINTR
 	 */
 	rc = brightness_set(level);
+	if (!rc && ibm_backlight_device)
+		backlight_force_update(ibm_backlight_device,
+					BACKLIGHT_UPDATE_SYSFS);
 	return (rc == -EINTR)? -ERESTARTSYS : rc;
 }
 
@@ -7702,6 +7717,13 @@ static struct ibm_struct fan_driver_data = {
  */
 static void tpacpi_driver_event(const unsigned int hkey_event)
 {
+	if (ibm_backlight_device) {
+		switch (hkey_event) {
+		case TP_HKEY_EV_BRGHT_UP:
+		case TP_HKEY_EV_BRGHT_DOWN:
+			tpacpi_brightness_notify_change();
+		}
+	}
 }
 
 
