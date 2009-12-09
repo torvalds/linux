@@ -10,24 +10,31 @@ Supported chips:
     Prefix: 'adt7475'
     Addresses scanned: I2C 0x2E
     Datasheet: Publicly available at the On Semiconductors website
+  * Analog Devices ADT7490
+    Prefix: 'adt7490'
+    Addresses scanned: I2C 0x2C, 0x2D, 0x2E
+    Datasheet: Publicly available at the On Semiconductors website
 
 Authors:
 	Jordan Crouse
 	Hans de Goede
 	Darrick J. Wong (documentation)
+	Jean Delvare
 
 
 Description
 -----------
 
-This driver implements support for the Analog Devices ADT7473 and ADT7475
-chip family. Both chips differ only in minor details. They will be
-collectively designed by the name "ADT747x" in the rest of this document.
+This driver implements support for the Analog Devices ADT7473, ADT7475 and
+ADT7490 chip family. The ADT7473 and ADT7475 differ only in minor details.
+The ADT7490 has additional features, including extra voltage measurement
+inputs and PECI support. All the supported chips will be collectively
+designed by the name "ADT747x" in the rest of this document.
 
 The ADT747x uses the 2-wire interface compatible with the SMBus 2.0
 specification. Using an analog to digital converter it measures three (3)
-temperatures and two (2) voltages. It has four (4) 16-bit counters for
-measuring fan speed. There are three (3) PWM outputs that can be used
+temperatures and two (2) or more voltages. It has four (4) 16-bit counters
+for measuring fan speed. There are three (3) PWM outputs that can be used
 to control fan speed.
 
 A sophisticated control system for the PWM outputs is designed into the
@@ -44,6 +51,23 @@ any measured value exceeds either limit.
 The ADT747x samples all inputs continuously. The driver will not read
 the registers more often than once every other second. Further,
 configuration data is only read once per minute.
+
+Chip Differences Summary
+------------------------
+
+ADT7473:
+  * 2 voltage inputs
+  * system acoustics optimizations (not implemented)
+
+ADT7475:
+  * 2 voltage inputs
+
+ADT7490:
+  * 6 voltage inputs
+  * 1 Imon input (not implemented)
+  * PECI support (not implemented)
+  * 2 GPIO pins (not implemented)
+  * system acoustics optimizations (not implemented)
 
 Special Features
 ----------------
