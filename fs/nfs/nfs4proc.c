@@ -1436,9 +1436,6 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 	if (status != 0 || !data->rpc_done)
 		return status;
 
-	if (o_res->fh.size == 0)
-		_nfs4_proc_lookup(dir, o_arg->name, &o_res->fh, o_res->f_attr);
-
 	if (o_arg->open_flags & O_CREAT) {
 		update_changeattr(dir, &o_res->cinfo);
 		nfs_post_op_update_inode(dir, o_res->dir_attr);
