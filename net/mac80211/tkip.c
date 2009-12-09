@@ -100,7 +100,7 @@ static void tkip_mixing_phase1(const u8 *tk, struct tkip_ctx *ctx,
 		p1k[3] += tkipS(p1k[2] ^ get_unaligned_le16(tk + 12 + j));
 		p1k[4] += tkipS(p1k[3] ^ get_unaligned_le16(tk + 0 + j)) + i;
 	}
-	ctx->initialized = 1;
+	ctx->state = TKIP_STATE_PHASE1_DONE;
 }
 
 static void tkip_mixing_phase2(const u8 *tk, struct tkip_ctx *ctx,
@@ -183,7 +183,7 @@ void ieee80211_get_tkip_key(struct ieee80211_key_conf *keyconf,
 	/* Update the p1k only when the iv16 in the packet wraps around, this
 	 * might occur after the wrap around of iv16 in the key in case of
 	 * fragmented packets. */
-	if (iv16 == 0 || !ctx->initialized)
+	if (iv16 == 0 || ctx->state == TKIP_STATE_NOT_INIT)
 		tkip_mixing_phase1(tk, ctx, hdr->addr2, iv32);
 
 	if (type == IEEE80211_TKIP_P1_KEY) {
@@ -209,7 +209,7 @@ void ieee80211_tkip_encrypt_data(struct crypto_blkcipher *tfm,
 	const u8 *tk = &key->conf.key[NL80211_TKIP_DATA_OFFSET_ENCR_KEY];
 
 	/* Calculate per-packet key */
-	if (ctx->iv16 == 0 || !ctx->initialized)
+	if (ctx->iv16 == 0 || ctx->state == TKIP_STATE_NOT_INIT)
 		tkip_mixing_phase1(tk, ctx, ta, ctx->iv32);
 
 	tkip_mixing_phase2(tk, ctx, ctx->iv16, rc4key);
@@ -259,7 +259,7 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 	if ((keyid >> 6) != key->conf.keyidx)
 		return TKIP_DECRYPT_INVALID_KEYIDX;
 
-	if (key->u.tkip.rx[queue].initialized &&
+	if (key->u.tkip.rx[queue].state != TKIP_STATE_NOT_INIT &&
 	    (iv32 < key->u.tkip.rx[queue].iv32 ||
 	     (iv32 == key->u.tkip.rx[queue].iv32 &&
 	      iv16 <= key->u.tkip.rx[queue].iv16))) {
@@ -275,11 +275,11 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 
 	if (only_iv) {
 		res = TKIP_DECRYPT_OK;
-		key->u.tkip.rx[queue].initialized = 1;
+		key->u.tkip.rx[queue].state = TKIP_STATE_PHASE1_HW_UPLOADED;
 		goto done;
 	}
 
-	if (!key->u.tkip.rx[queue].initialized ||
+	if (key->u.tkip.rx[queue].state == TKIP_STATE_NOT_INIT ||
 	    key->u.tkip.rx[queue].iv32 != iv32) {
 		/* IV16 wrapped around - perform TKIP phase 1 */
 		tkip_mixing_phase1(tk, &key->u.tkip.rx[queue], ta, iv32);
@@ -299,18 +299,20 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 			printk("\n");
 		}
 #endif
-		if (key->local->ops->update_tkip_key &&
-			key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) {
-			static const u8 bcast[ETH_ALEN] =
-				{0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-			const u8 *sta_addr = key->sta->sta.addr;
+	}
+	if (key->local->ops->update_tkip_key &&
+	    key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE &&
+	    key->u.tkip.rx[queue].state != TKIP_STATE_PHASE1_HW_UPLOADED) {
+		static const u8 bcast[ETH_ALEN] =
+		{0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+		const u8 *sta_addr = key->sta->sta.addr;
 
-			if (is_multicast_ether_addr(ra))
-				sta_addr = bcast;
+		if (is_multicast_ether_addr(ra))
+			sta_addr = bcast;
 
-			drv_update_tkip_key(key->local, &key->conf, sta_addr,
-					    iv32, key->u.tkip.rx[queue].p1k);
-		}
+		drv_update_tkip_key(key->local, &key->conf, sta_addr,
+				iv32, key->u.tkip.rx[queue].p1k);
+		key->u.tkip.rx[queue].state = TKIP_STATE_PHASE1_HW_UPLOADED;
 	}
 
 	tkip_mixing_phase2(tk, &key->u.tkip.rx[queue], iv16, rc4key);
