@@ -1266,30 +1266,13 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	xhci_zero_in_ctx(xhci, virt_dev);
 	/* Install new rings and free or cache any old rings */
 	for (i = 1; i < 31; ++i) {
-		int rings_cached;
-
 		if (!virt_dev->eps[i].new_ring)
 			continue;
 		/* Only cache or free the old ring if it exists.
 		 * It may not if this is the first add of an endpoint.
 		 */
 		if (virt_dev->eps[i].ring) {
-			rings_cached = virt_dev->num_rings_cached;
-			if (rings_cached < XHCI_MAX_RINGS_CACHED) {
-				virt_dev->num_rings_cached++;
-				rings_cached = virt_dev->num_rings_cached;
-				virt_dev->ring_cache[rings_cached] =
-					virt_dev->eps[i].ring;
-				xhci_dbg(xhci, "Cached old ring, "
-						"%d ring%s cached\n",
-						rings_cached,
-						(rings_cached > 1) ? "s" : "");
-			} else {
-				xhci_ring_free(xhci, virt_dev->eps[i].ring);
-				xhci_dbg(xhci, "Ring cache full (%d rings), "
-						"freeing ring\n",
-						virt_dev->num_rings_cached);
-			}
+			xhci_free_or_cache_endpoint_ring(xhci, virt_dev, i);
 		}
 		virt_dev->eps[i].ring = virt_dev->eps[i].new_ring;
 		virt_dev->eps[i].new_ring = NULL;

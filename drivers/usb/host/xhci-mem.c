@@ -198,6 +198,31 @@ fail:
 	return 0;
 }
 
+void xhci_free_or_cache_endpoint_ring(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev,
+		unsigned int ep_index)
+{
+	int rings_cached;
+
+	rings_cached = virt_dev->num_rings_cached;
+	if (rings_cached < XHCI_MAX_RINGS_CACHED) {
+		virt_dev->num_rings_cached++;
+		rings_cached = virt_dev->num_rings_cached;
+		virt_dev->ring_cache[rings_cached] =
+			virt_dev->eps[ep_index].ring;
+		xhci_dbg(xhci, "Cached old ring, "
+				"%d ring%s cached\n",
+				rings_cached,
+				(rings_cached > 1) ? "s" : "");
+	} else {
+		xhci_ring_free(xhci, virt_dev->eps[ep_index].ring);
+		xhci_dbg(xhci, "Ring cache full (%d rings), "
+				"freeing ring\n",
+				virt_dev->num_rings_cached);
+	}
+	virt_dev->eps[ep_index].ring = NULL;
+}
+
 /* Zero an endpoint ring (except for link TRBs) and move the enqueue and dequeue
  * pointers to the beginning of the ring.
  */
