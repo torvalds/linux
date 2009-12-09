@@ -24,6 +24,7 @@
 #include <linux/ioctl.h>
 #include <linux/videodev2.h>
 
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 
@@ -39,7 +40,31 @@ static int subdev_close(struct file *file)
 
 static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
+	struct video_device *vdev = video_devdata(file);
+	struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
+
 	switch (cmd) {
+	case VIDIOC_QUERYCTRL:
+		return v4l2_subdev_queryctrl(sd, arg);
+
+	case VIDIOC_QUERYMENU:
+		return v4l2_subdev_querymenu(sd, arg);
+
+	case VIDIOC_G_CTRL:
+		return v4l2_subdev_g_ctrl(sd, arg);
+
+	case VIDIOC_S_CTRL:
+		return v4l2_subdev_s_ctrl(sd, arg);
+
+	case VIDIOC_G_EXT_CTRLS:
+		return v4l2_subdev_g_ext_ctrls(sd, arg);
+
+	case VIDIOC_S_EXT_CTRLS:
+		return v4l2_subdev_s_ext_ctrls(sd, arg);
+
+	case VIDIOC_TRY_EXT_CTRLS:
+		return v4l2_subdev_try_ext_ctrls(sd, arg);
+
 	default:
 		return -ENOIOCTLCMD;
 	}

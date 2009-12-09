@@ -334,6 +334,22 @@ for all registered sub-devices marked with V4L2_SUBDEV_FL_HAS_DEVNODE by calling
 v4l2_device_register_subdev_nodes(). Those device nodes will be automatically
 removed when sub-devices are unregistered.
 
+The device node handles a subset of the V4L2 API.
+
+VIDIOC_QUERYCTRL
+VIDIOC_QUERYMENU
+VIDIOC_G_CTRL
+VIDIOC_S_CTRL
+VIDIOC_G_EXT_CTRLS
+VIDIOC_S_EXT_CTRLS
+VIDIOC_TRY_EXT_CTRLS
+
+	The controls ioctls are identical to the ones defined in V4L2. They
+	behave identically, with the only exception that they deal only with
+	controls implemented in the sub-device. Depending on the driver, those
+	controls can be also be accessed through one (or several) V4L2 device
+	nodes.
+
 
 I2C sub-device drivers
 ----------------------
