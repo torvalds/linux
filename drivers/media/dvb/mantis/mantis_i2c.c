@@ -33,8 +33,6 @@
 #include "mantis_reg.h"
 #include "mantis_i2c.h"
 
-#define I2C_HW_B_MANTIS		0x1c
-
 #define TRIALS			10000
 
 static int mantis_i2c_read(struct mantis_pci *mantis, const struct i2c_msg *msg)
@@ -234,7 +232,6 @@ int __devinit mantis_i2c_init(struct mantis_pci *mantis)
 	i2c_adapter->class	= I2C_CLASS_TV_DIGITAL;
 	i2c_adapter->algo	= &mantis_algo;
 	i2c_adapter->algo_data	= NULL;
-	i2c_adapter->id		= I2C_HW_B_MANTIS;
 	i2c_adapter->timeout	= 500;
 	i2c_adapter->retries	= 3;
 	i2c_adapter->dev.parent	= &pdev->dev;
