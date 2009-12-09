@@ -104,9 +104,19 @@ static int of_bus_pci_map(u32 *addr, const u32 *range,
 	int i;
 
 	/* Check address type match */
-	if ((addr[0] ^ range[0]) & 0x03000000)
-		return -EINVAL;
+	if (!((addr[0] ^ range[0]) & 0x03000000))
+		goto type_match;
 
+	/* Special exception, we can map a 64-bit address into
+	 * a 32-bit range.
+	 */
+	if ((addr[0] & 0x03000000) == 0x03000000 &&
+	    (range[0] & 0x03000000) == 0x02000000)
+		goto type_match;
+
+	return -EINVAL;
+
+type_match:
 	if (of_out_of_range(addr + 1, range + 1, range + na + pna,
 			    na - 1, ns))
 		return -EINVAL;
