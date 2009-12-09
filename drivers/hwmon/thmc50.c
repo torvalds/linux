@@ -36,7 +36,11 @@ static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 /* Insmod parameters */
 I2C_CLIENT_INSMOD_2(thmc50, adm1022);
-I2C_CLIENT_MODULE_PARM(adm1022_temp3, "List of adapter,address pairs "
+
+static unsigned short adm1022_temp3[16];
+static unsigned int adm1022_temp3_num;
+module_param_array(adm1022_temp3, ushort, &adm1022_temp3_num, 0);
+MODULE_PARM_DESC(adm1022_temp3, "List of adapter,address pairs "
 			"to enable 3rd temperature (ADM1022 only)");
 
 /* Many THMC50 constants specified below */
