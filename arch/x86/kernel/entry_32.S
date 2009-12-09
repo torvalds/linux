@@ -1047,12 +1047,8 @@ END(spurious_interrupt_bug)
 ENTRY(kernel_thread_helper)
 	pushl $0		# fake return address for unwinder
 	CFI_STARTPROC
-	movl %edx,%eax
-	push %edx
-	CFI_ADJUST_CFA_OFFSET 4
-	call *%ebx
-	push %eax
-	CFI_ADJUST_CFA_OFFSET 4
+	movl %edi,%eax
+	call *%esi
 	call do_exit
 	ud2			# padding for call trace
 	CFI_ENDPROC

@@ -193,8 +193,8 @@ void show_regs(struct pt_regs *regs)
 }
 
 /*
- * This gets run with %bx containing the
- * function to call, and %dx containing
+ * This gets run with %si containing the
+ * function to call, and %di containing
  * the "args".
  */
 extern void kernel_thread_helper(void);
@@ -208,8 +208,8 @@ int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 
 	memset(&regs, 0, sizeof(regs));
 
-	regs.bx = (unsigned long) fn;
-	regs.dx = (unsigned long) arg;
+	regs.si = (unsigned long) fn;
+	regs.di = (unsigned long) arg;
 
 	regs.ds = __USER_DS;
 	regs.es = __USER_DS;
