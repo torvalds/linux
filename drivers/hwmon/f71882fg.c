@@ -48,6 +48,7 @@
 #define SIO_F71858_ID		0x0507  /* Chipset ID */
 #define SIO_F71862_ID		0x0601	/* Chipset ID */
 #define SIO_F71882_ID		0x0541	/* Chipset ID */
+#define SIO_F71889_ID		0x0723	/* Chipset ID */
 #define SIO_F8000_ID		0x0581	/* Chipset ID */
 
 #define REGION_LENGTH		8
@@ -95,12 +96,13 @@ static unsigned short force_id;
 module_param(force_id, ushort, 0);
 MODULE_PARM_DESC(force_id, "Override the detected device ID");
 
-enum chips { f71858fg, f71862fg, f71882fg, f8000 };
+enum chips { f71858fg, f71862fg, f71882fg, f71889fg, f8000 };
 
 static const char *f71882fg_names[] = {
 	"f71858fg",
 	"f71862fg",
 	"f71882fg",
+	"f71889fg",
 	"f8000",
 };
 
@@ -155,7 +157,7 @@ struct f71882fg_data {
 	u8	pwm_auto_point_hyst[2];
 	u8	pwm_auto_point_mapping[4];
 	u8	pwm_auto_point_pwm[4][5];
-	u8	pwm_auto_point_temp[4][4];
+	s8	pwm_auto_point_temp[4][4];
 };
 
 /* Sysfs in */
@@ -945,7 +947,7 @@ static struct f71882fg_data *f71882fg_update_device(struct device *dev)
 	/* Update once every 60 seconds */
 	if ( time_after(jiffies, data->last_limits + 60 * HZ ) ||
 			!data->valid) {
-		if (data->type == f71882fg) {
+		if (data->type == f71882fg || data->type == f71889fg) {
 			data->in1_max =
 				f71882fg_read8(data, F71882FG_REG_IN1_HIGH);
 			data->in_beep =
@@ -967,7 +969,8 @@ static struct f71882fg_data *f71882fg_update_device(struct device *dev)
 						F71882FG_REG_TEMP_HYST(1));
 		}
 
-		if (data->type == f71862fg || data->type == f71882fg) {
+		if (data->type == f71862fg || data->type == f71882fg ||
+		    data->type == f71889fg) {
 			data->fan_beep = f71882fg_read8(data,
 						F71882FG_REG_FAN_BEEP);
 			data->temp_beep = f71882fg_read8(data,
@@ -977,15 +980,33 @@ static struct f71882fg_data *f71882fg_update_device(struct device *dev)
 			data->temp_type[2] = (reg & 0x04) ? 2 : 4;
 			data->temp_type[3] = (reg & 0x08) ? 2 : 4;
 		}
-		reg2 = f71882fg_read8(data, F71882FG_REG_PECI);
-		if ((reg2 & 0x03) == 0x01)
-			data->temp_type[1] = 6 /* PECI */;
-		else if ((reg2 & 0x03) == 0x02)
-			data->temp_type[1] = 5 /* AMDSI */;
-		else if (data->type == f71862fg || data->type == f71882fg)
-			data->temp_type[1] = (reg & 0x02) ? 2 : 4;
-		else
-			data->temp_type[1] = 2; /* Only supports BJT */
+		/* Determine temp index 1 sensor type */
+		if (data->type == f71889fg) {
+			reg2 = f71882fg_read8(data, F71882FG_REG_START);
+			switch ((reg2 & 0x60) >> 5) {
+			case 0x00: /* BJT / Thermistor */
+				data->temp_type[1] = (reg & 0x02) ? 2 : 4;
+				break;
+			case 0x01: /* AMDSI */
+				data->temp_type[1] = 5;
+				break;
+			case 0x02: /* PECI */
+			case 0x03: /* Ibex Peak ?? Report as PECI for now */
+				data->temp_type[1] = 6;
+				break;
+			}
+		} else {
+			reg2 = f71882fg_read8(data, F71882FG_REG_PECI);
+			if ((reg2 & 0x03) == 0x01)
+				data->temp_type[1] = 6; /* PECI */
+			else if ((reg2 & 0x03) == 0x02)
+				data->temp_type[1] = 5; /* AMDSI */
+			else if (data->type == f71862fg ||
+				 data->type == f71882fg)
+				data->temp_type[1] = (reg & 0x02) ? 2 : 4;
+			else /* f71858fg and f8000 only support BJT */
+				data->temp_type[1] = 2;
+		}
 
 		data->pwm_enable = f71882fg_read8(data,
 						  F71882FG_REG_PWM_ENABLE);
@@ -1062,7 +1083,7 @@ static struct f71882fg_data *f71882fg_update_device(struct device *dev)
 		if (data->type == f8000)
 			data->fan[3] = f71882fg_read16(data,
 						F71882FG_REG_FAN(3));
-		if (data->type == f71882fg)
+		if (data->type == f71882fg || data->type == f71889fg)
 			data->in_status = f71882fg_read8(data,
 						F71882FG_REG_IN_STATUS);
 		for (nr = 0; nr < nr_ins; nr++)
@@ -1780,7 +1801,11 @@ static ssize_t store_pwm_auto_point_temp(struct device *dev,
 	int pwm = to_sensor_dev_attr_2(devattr)->index;
 	int point = to_sensor_dev_attr_2(devattr)->nr;
 	long val = simple_strtol(buf, NULL, 10) / 1000;
-	val = SENSORS_LIMIT(val, 0, 255);
+
+	if (data->type == f71889fg)
+		val = SENSORS_LIMIT(val, -128, 127);
+	else
+		val = SENSORS_LIMIT(val, 0, 127);
 
 	mutex_lock(&data->update_lock);
 	f71882fg_write8(data, F71882FG_REG_POINT_TEMP(pwm, point), val);
@@ -1871,6 +1896,7 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 					ARRAY_SIZE(f71858fg_in_temp_attr));
 			break;
 		case f71882fg:
+		case f71889fg:
 			err = f71882fg_create_sysfs_files(pdev,
 					fxxxx_in1_alarm_attr,
 					ARRAY_SIZE(fxxxx_in1_alarm_attr));
@@ -1908,6 +1934,7 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 			err = (data->pwm_enable & 0x15) != 0x15;
 			break;
 		case f71882fg:
+		case f71889fg:
 			err = 0;
 			break;
 		case f8000:
@@ -1927,7 +1954,8 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 		if (err)
 			goto exit_unregister_sysfs;
 
-		if (data->type == f71862fg || data->type == f71882fg) {
+		if (data->type == f71862fg || data->type == f71882fg ||
+		    data->type == f71889fg) {
 			err = f71882fg_create_sysfs_files(pdev,
 					fxxxx_fan_beep_attr, nr_fans);
 			if (err)
@@ -1950,6 +1978,22 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 					f8000_auto_pwm_attr,
 					ARRAY_SIZE(f8000_auto_pwm_attr));
 			break;
+		case f71889fg:
+			for (i = 0; i < nr_fans; i++) {
+				data->pwm_auto_point_mapping[i] =
+					f71882fg_read8(data,
+						F71882FG_REG_POINT_MAPPING(i));
+				if (data->pwm_auto_point_mapping[i] & 0x80)
+					break;
+			}
+			if (i != nr_fans) {
+				dev_warn(&pdev->dev,
+					 "Auto pwm controlled by raw digital "
+					 "data, disabling pwm auto_point "
+					 "sysfs attributes\n");
+				break;
+			}
+			/* fall through */
 		default: /* f71858fg / f71882fg */
 			err = f71882fg_create_sysfs_files(pdev,
 				&fxxxx_auto_pwm_attr[0][0],
@@ -2006,6 +2050,7 @@ static int f71882fg_remove(struct platform_device *pdev)
 					ARRAY_SIZE(f71858fg_in_temp_attr));
 			break;
 		case f71882fg:
+		case f71889fg:
 			f71882fg_remove_sysfs_files(pdev,
 					fxxxx_in1_alarm_attr,
 					ARRAY_SIZE(fxxxx_in1_alarm_attr));
@@ -2027,7 +2072,8 @@ static int f71882fg_remove(struct platform_device *pdev)
 		f71882fg_remove_sysfs_files(pdev, &fxxxx_fan_attr[0][0],
 				ARRAY_SIZE(fxxxx_fan_attr[0]) * nr_fans);
 
-		if (data->type == f71862fg || data->type == f71882fg)
+		if (data->type == f71862fg || data->type == f71882fg ||
+		    data->type == f71889fg)
 			f71882fg_remove_sysfs_files(pdev,
 					fxxxx_fan_beep_attr, nr_fans);
 
@@ -2082,11 +2128,15 @@ static int __init f71882fg_find(int sioaddr, unsigned short *address,
 	case SIO_F71882_ID:
 		sio_data->type = f71882fg;
 		break;
+	case SIO_F71889_ID:
+		sio_data->type = f71889fg;
+		break;
 	case SIO_F8000_ID:
 		sio_data->type = f8000;
 		break;
 	default:
-		printk(KERN_INFO DRVNAME ": Unsupported Fintek device\n");
+		printk(KERN_INFO DRVNAME ": Unsupported Fintek device: %04x\n",
+		       (unsigned int)devid);
 		goto exit;
 	}
 
