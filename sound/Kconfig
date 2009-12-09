@@ -58,7 +58,7 @@ config SOUND_OSS_CORE_PRECLAIM
 	  Please read Documentation/feature-removal-schedule.txt for
 	  details.
 
-	  If unusre, say Y.
+	  If unsure, say Y.
 
 source "sound/oss/dmasound/Kconfig"
 

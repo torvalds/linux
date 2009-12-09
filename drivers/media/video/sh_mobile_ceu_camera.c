@@ -31,6 +31,7 @@
 #include <linux/platform_device.h>
 #include <linux/videodev2.h>
 #include <linux/pm_runtime.h>
+#include <linux/sched.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
@@ -1723,11 +1724,12 @@ static int __devinit sh_mobile_ceu_probe(struct platform_device *pdev)
 
 	err = soc_camera_host_register(&pcdev->ici);
 	if (err)
-		goto exit_free_irq;
+		goto exit_free_clk;
 
 	return 0;
 
-exit_free_irq:
+exit_free_clk:
+	pm_runtime_disable(&pdev->dev);
 	free_irq(pcdev->irq, pcdev);
 exit_release_mem:
 	if (platform_get_resource(pdev, IORESOURCE_MEM, 1))
@@ -1747,6 +1749,7 @@ static int __devexit sh_mobile_ceu_remove(struct platform_device *pdev)
 					struct sh_mobile_ceu_dev, ici);
 
 	soc_camera_host_unregister(soc_host);
+	pm_runtime_disable(&pdev->dev);
 	free_irq(pcdev->irq, pcdev);
 	if (platform_get_resource(pdev, IORESOURCE_MEM, 1))
 		dma_release_declared_memory(&pdev->dev);

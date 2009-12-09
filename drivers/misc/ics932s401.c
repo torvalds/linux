@@ -417,32 +417,25 @@ static int ics932s401_detect(struct i2c_client *client, int kind,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
+	int vendor, device, revision;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	if (kind <= 0) {
-		int vendor, device, revision;
+	vendor = i2c_smbus_read_word_data(client, ICS932S401_REG_VENDOR_REV);
+	vendor >>= 8;
+	revision = vendor >> ICS932S401_REV_SHIFT;
+	vendor &= ICS932S401_VENDOR_MASK;
+	if (vendor != ICS932S401_VENDOR)
+		return -ENODEV;
 
-		vendor = i2c_smbus_read_word_data(client,
-						  ICS932S401_REG_VENDOR_REV);
-		vendor >>= 8;
-		revision = vendor >> ICS932S401_REV_SHIFT;
-		vendor &= ICS932S401_VENDOR_MASK;
-		if (vendor != ICS932S401_VENDOR)
-			return -ENODEV;
+	device = i2c_smbus_read_word_data(client, ICS932S401_REG_DEVICE);
+	device >>= 8;
+	if (device != ICS932S401_DEVICE)
+		return -ENODEV;
 
-		device = i2c_smbus_read_word_data(client,
-						  ICS932S401_REG_DEVICE);
-		device >>= 8;
-		if (device != ICS932S401_DEVICE)
-			return -ENODEV;
-
-		if (revision != ICS932S401_REV)
-			dev_info(&adapter->dev, "Unknown revision %d\n",
-				 revision);
-	} else
-		dev_dbg(&adapter->dev, "detection forced\n");
+	if (revision != ICS932S401_REV)
+		dev_info(&adapter->dev, "Unknown revision %d\n", revision);
 
 	strlcpy(info->type, "ics932s401", I2C_NAME_SIZE);
 

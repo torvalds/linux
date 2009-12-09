@@ -1084,7 +1084,7 @@ static int __devinit myri_sbus_probe(struct of_device *op, const struct of_devic
 
 	/* Register interrupt handler now. */
 	DET(("Requesting MYRIcom IRQ line.\n"));
-	if (request_irq(dev->irq, &myri_interrupt,
+	if (request_irq(dev->irq, myri_interrupt,
 			IRQF_SHARED, "MyriCOM Ethernet", (void *) dev)) {
 		printk("MyriCOM: Cannot register interrupt handler.\n");
 		goto err;

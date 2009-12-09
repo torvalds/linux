@@ -106,6 +106,15 @@ static inline int hard_smp4d_processor_id(void)
 	return cpuid;
 }
 
+extern inline int hard_smpleon_processor_id(void)
+{
+	int cpuid;
+	__asm__ __volatile__("rd     %%asr17,%0\n\t"
+			     "srl    %0,28,%0" :
+			     "=&r" (cpuid) : );
+	return cpuid;
+}
+
 #ifndef MODULE
 static inline int hard_smp_processor_id(void)
 {

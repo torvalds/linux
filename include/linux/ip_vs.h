@@ -127,8 +127,7 @@ struct ip_vs_dest_user {
 /*
  *	IPVS statistics object (for user space)
  */
-struct ip_vs_stats_user
-{
+struct ip_vs_stats_user {
 	__u32                   conns;          /* connections scheduled */
 	__u32                   inpkts;         /* incoming packets */
 	__u32                   outpkts;        /* outgoing packets */

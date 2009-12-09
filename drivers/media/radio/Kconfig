@@ -195,6 +195,24 @@ config RADIO_MAESTRO
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-maestro.
 
+config RADIO_MIROPCM20
+	tristate "miroSOUND PCM20 radio"
+	depends on ISA && VIDEO_V4L2
+	select SND_MIRO
+	---help---
+	  Choose Y here if you have this FM radio card. You also need to enable
+	  the ALSA sound system. This choice automatically selects the ALSA
+	  sound card driver "Miro miroSOUND PCM1pro/PCM12/PCM20radio" as this
+	  is required for the radio-miropcm20.
+
+	  In order to control your radio card, you will need to use programs
+	  that are compatible with the Video For Linux API.  Information on
+	  this API and pointers to "v4l" programs may be found at
+	  <file:Documentation/video4linux/API.html>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called radio-miropcm20.
+
 config RADIO_SF16FMI
 	tristate "SF16FMI Radio"
 	depends on ISA && VIDEO_V4L2

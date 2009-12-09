@@ -217,6 +217,13 @@ static int iwm_load_img(struct iwm_priv *iwm, const char *img_name)
 		 IWM_BUILD_YEAR(build_date), IWM_BUILD_MONTH(build_date),
 		 IWM_BUILD_DAY(build_date));
 
+	if (!strcmp(img_name, iwm->bus_ops->umac_name))
+		sprintf(iwm->umac_version, "%02X.%02X",
+			ver->major, ver->minor);
+
+	if (!strcmp(img_name, iwm->bus_ops->lmac_name))
+		sprintf(iwm->lmac_version, "%02X.%02X",
+			ver->major, ver->minor);
 
  err_release_fw:
 	release_firmware(fw);
@@ -398,6 +405,8 @@ int iwm_load_fw(struct iwm_priv *iwm)
 	iwm_send_prio_table(iwm);
 	iwm_send_calib_results(iwm);
 	iwm_send_periodic_calib_cfg(iwm, periodic_calib_map);
+	iwm_send_ct_kill_cfg(iwm, iwm->conf.ct_kill_entry,
+			     iwm->conf.ct_kill_exit);
 
 	return 0;
 

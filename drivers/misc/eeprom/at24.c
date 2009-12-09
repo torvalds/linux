@@ -158,6 +158,7 @@ static ssize_t at24_eeprom_read(struct at24_data *at24, char *buf,
 	struct i2c_msg msg[2];
 	u8 msgbuf[2];
 	struct i2c_client *client;
+	unsigned long timeout, read_time;
 	int status, i;
 
 	memset(msg, 0, sizeof(msg));
@@ -183,47 +184,60 @@ static ssize_t at24_eeprom_read(struct at24_data *at24, char *buf,
 	if (count > io_limit)
 		count = io_limit;
 
-	/* Smaller eeproms can work given some SMBus extension calls */
 	if (at24->use_smbus) {
+		/* Smaller eeproms can work given some SMBus extension calls */
 		if (count > I2C_SMBUS_BLOCK_MAX)
 			count = I2C_SMBUS_BLOCK_MAX;
-		status = i2c_smbus_read_i2c_block_data(client, offset,
-				count, buf);
-		dev_dbg(&client->dev, "smbus read %zu@%d --> %d\n",
-				count, offset, status);
-		return (status < 0) ? -EIO : status;
+	} else {
+		/*
+		 * When we have a better choice than SMBus calls, use a
+		 * combined I2C message. Write address; then read up to
+		 * io_limit data bytes. Note that read page rollover helps us
+		 * here (unlike writes). msgbuf is u8 and will cast to our
+		 * needs.
+		 */
+		i = 0;
+		if (at24->chip.flags & AT24_FLAG_ADDR16)
+			msgbuf[i++] = offset >> 8;
+		msgbuf[i++] = offset;
+
+		msg[0].addr = client->addr;
+		msg[0].buf = msgbuf;
+		msg[0].len = i;
+
+		msg[1].addr = client->addr;
+		msg[1].flags = I2C_M_RD;
+		msg[1].buf = buf;
+		msg[1].len = count;
 	}
 
 	/*
-	 * When we have a better choice than SMBus calls, use a combined
-	 * I2C message. Write address; then read up to io_limit data bytes.
-	 * Note that read page rollover helps us here (unlike writes).
-	 * msgbuf is u8 and will cast to our needs.
+	 * Reads fail if the previous write didn't complete yet. We may
+	 * loop a few times until this one succeeds, waiting at least
+	 * long enough for one entire page write to work.
 	 */
-	i = 0;
-	if (at24->chip.flags & AT24_FLAG_ADDR16)
-		msgbuf[i++] = offset >> 8;
-	msgbuf[i++] = offset;
+	timeout = jiffies + msecs_to_jiffies(write_timeout);
+	do {
+		read_time = jiffies;
+		if (at24->use_smbus) {
+			status = i2c_smbus_read_i2c_block_data(client, offset,
+					count, buf);
+		} else {
+			status = i2c_transfer(client->adapter, msg, 2);
+			if (status == 2)
+				status = count;
+		}
+		dev_dbg(&client->dev, "read %zu@%d --> %d (%ld)\n",
+				count, offset, status, jiffies);
 
-	msg[0].addr = client->addr;
-	msg[0].buf = msgbuf;
-	msg[0].len = i;
+		if (status == count)
+			return count;
 
-	msg[1].addr = client->addr;
-	msg[1].flags = I2C_M_RD;
-	msg[1].buf = buf;
-	msg[1].len = count;
+		/* REVISIT: at HZ=100, this is sloooow */
+		msleep(1);
+	} while (time_before(read_time, timeout));
 
-	status = i2c_transfer(client->adapter, msg, 2);
-	dev_dbg(&client->dev, "i2c read %zu@%d --> %d\n",
-			count, offset, status);
-
-	if (status == 2)
-		return count;
-	else if (status >= 0)
-		return -EIO;
-	else
-		return status;
+	return -ETIMEDOUT;
 }
 
 static ssize_t at24_read(struct at24_data *at24,

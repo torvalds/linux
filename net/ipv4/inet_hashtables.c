@@ -64,7 +64,7 @@ void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
 
 	atomic_inc(&hashinfo->bsockets);
 
-	inet_sk(sk)->num = snum;
+	inet_sk(sk)->inet_num = snum;
 	sk_add_bind_node(sk, &tb->owners);
 	tb->num_owners++;
 	inet_csk(sk)->icsk_bind_hash = tb;
@@ -76,7 +76,7 @@ void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
 static void __inet_put_port(struct sock *sk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
-	const int bhash = inet_bhashfn(sock_net(sk), inet_sk(sk)->num,
+	const int bhash = inet_bhashfn(sock_net(sk), inet_sk(sk)->inet_num,
 			hashinfo->bhash_size);
 	struct inet_bind_hashbucket *head = &hashinfo->bhash[bhash];
 	struct inet_bind_bucket *tb;
@@ -88,7 +88,7 @@ static void __inet_put_port(struct sock *sk)
 	__sk_del_bind_node(sk);
 	tb->num_owners--;
 	inet_csk(sk)->icsk_bind_hash = NULL;
-	inet_sk(sk)->num = 0;
+	inet_sk(sk)->inet_num = 0;
 	inet_bind_bucket_destroy(hashinfo->bind_bucket_cachep, tb);
 	spin_unlock(&head->lock);
 }
@@ -105,7 +105,7 @@ EXPORT_SYMBOL(inet_put_port);
 void __inet_inherit_port(struct sock *sk, struct sock *child)
 {
 	struct inet_hashinfo *table = sk->sk_prot->h.hashinfo;
-	const int bhash = inet_bhashfn(sock_net(sk), inet_sk(child)->num,
+	const int bhash = inet_bhashfn(sock_net(sk), inet_sk(child)->inet_num,
 			table->bhash_size);
 	struct inet_bind_hashbucket *head = &table->bhash[bhash];
 	struct inet_bind_bucket *tb;
@@ -126,9 +126,9 @@ static inline int compute_score(struct sock *sk, struct net *net,
 	int score = -1;
 	struct inet_sock *inet = inet_sk(sk);
 
-	if (net_eq(sock_net(sk), net) && inet->num == hnum &&
+	if (net_eq(sock_net(sk), net) && inet->inet_num == hnum &&
 			!ipv6_only_sock(sk)) {
-		__be32 rcv_saddr = inet->rcv_saddr;
+		__be32 rcv_saddr = inet->inet_rcv_saddr;
 		score = sk->sk_family == PF_INET ? 1 : 0;
 		if (rcv_saddr) {
 			if (rcv_saddr != daddr)
@@ -209,7 +209,7 @@ struct sock * __inet_lookup_established(struct net *net,
 	 * have wildcards anyways.
 	 */
 	unsigned int hash = inet_ehashfn(net, daddr, hnum, saddr, sport);
-	unsigned int slot = hash & (hashinfo->ehash_size - 1);
+	unsigned int slot = hash & hashinfo->ehash_mask;
 	struct inet_ehash_bucket *head = &hashinfo->ehash[slot];
 
 	rcu_read_lock();
@@ -273,18 +273,20 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 {
 	struct inet_hashinfo *hinfo = death_row->hashinfo;
 	struct inet_sock *inet = inet_sk(sk);
-	__be32 daddr = inet->rcv_saddr;
-	__be32 saddr = inet->daddr;
+	__be32 daddr = inet->inet_rcv_saddr;
+	__be32 saddr = inet->inet_daddr;
 	int dif = sk->sk_bound_dev_if;
 	INET_ADDR_COOKIE(acookie, saddr, daddr)
-	const __portpair ports = INET_COMBINED_PORTS(inet->dport, lport);
+	const __portpair ports = INET_COMBINED_PORTS(inet->inet_dport, lport);
 	struct net *net = sock_net(sk);
-	unsigned int hash = inet_ehashfn(net, daddr, lport, saddr, inet->dport);
+	unsigned int hash = inet_ehashfn(net, daddr, lport,
+					 saddr, inet->inet_dport);
 	struct inet_ehash_bucket *head = inet_ehash_bucket(hinfo, hash);
 	spinlock_t *lock = inet_ehash_lockp(hinfo, hash);
 	struct sock *sk2;
 	const struct hlist_nulls_node *node;
 	struct inet_timewait_sock *tw;
+	int twrefcnt = 0;
 
 	spin_lock(lock);
 
@@ -312,25 +314,28 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 unique:
 	/* Must record num and sport now. Otherwise we will see
 	 * in hash table socket with a funny identity. */
-	inet->num = lport;
-	inet->sport = htons(lport);
+	inet->inet_num = lport;
+	inet->inet_sport = htons(lport);
 	sk->sk_hash = hash;
 	WARN_ON(!sk_unhashed(sk));
 	__sk_nulls_add_node_rcu(sk, &head->chain);
+	if (tw) {
+		twrefcnt = inet_twsk_unhash(tw);
+		NET_INC_STATS_BH(net, LINUX_MIB_TIMEWAITRECYCLED);
+	}
 	spin_unlock(lock);
+	if (twrefcnt)
+		inet_twsk_put(tw);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 
 	if (twp) {
 		*twp = tw;
-		NET_INC_STATS_BH(net, LINUX_MIB_TIMEWAITRECYCLED);
 	} else if (tw) {
 		/* Silly. Should hash-dance instead... */
 		inet_twsk_deschedule(tw, death_row);
-		NET_INC_STATS_BH(net, LINUX_MIB_TIMEWAITRECYCLED);
 
 		inet_twsk_put(tw);
 	}
-
 	return 0;
 
 not_unique:
@@ -341,8 +346,9 @@ not_unique:
 static inline u32 inet_sk_port_offset(const struct sock *sk)
 {
 	const struct inet_sock *inet = inet_sk(sk);
-	return secure_ipv4_port_ephemeral(inet->rcv_saddr, inet->daddr,
-					  inet->dport);
+	return secure_ipv4_port_ephemeral(inet->inet_rcv_saddr,
+					  inet->inet_daddr,
+					  inet->inet_dport);
 }
 
 void __inet_hash_nolisten(struct sock *sk)
@@ -424,7 +430,7 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 		void (*hash)(struct sock *sk))
 {
 	struct inet_hashinfo *hinfo = death_row->hashinfo;
-	const unsigned short snum = inet_sk(sk)->num;
+	const unsigned short snum = inet_sk(sk)->inet_num;
 	struct inet_bind_hashbucket *head;
 	struct inet_bind_bucket *tb;
 	int ret;
@@ -452,7 +458,8 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 			 * unique enough.
 			 */
 			inet_bind_bucket_for_each(tb, node, &head->chain) {
-				if (ib_net(tb) == net && tb->port == port) {
+				if (net_eq(ib_net(tb), net) &&
+				    tb->port == port) {
 					if (tb->fastreuse >= 0)
 						goto next_port;
 					WARN_ON(hlist_empty(&tb->owners));
@@ -485,7 +492,7 @@ ok:
 		/* Head lock still held and bh's disabled */
 		inet_bind_hash(sk, tb, port);
 		if (sk_unhashed(sk)) {
-			inet_sk(sk)->sport = htons(port);
+			inet_sk(sk)->inet_sport = htons(port);
 			hash(sk);
 		}
 		spin_unlock(&head->lock);

@@ -50,11 +50,13 @@ vmxnet3_set_rx_csum(struct net_device *netdev, u32 val)
 		adapter->rxcsum = val;
 		if (netif_running(netdev)) {
 			if (val)
-				adapter->shared->devRead.misc.uptFeatures |=
-								UPT1_F_RXCSUM;
+				set_flag_le64(
+				&adapter->shared->devRead.misc.uptFeatures,
+				UPT1_F_RXCSUM);
 			else
-				adapter->shared->devRead.misc.uptFeatures &=
-								~UPT1_F_RXCSUM;
+				reset_flag_le64(
+				&adapter->shared->devRead.misc.uptFeatures,
+				UPT1_F_RXCSUM);
 
 			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 					       VMXNET3_CMD_UPDATE_FEATURE);

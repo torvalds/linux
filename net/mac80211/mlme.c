@@ -426,7 +426,8 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 		memcpy(pos, &sband->ht_cap.mcs, sizeof(sband->ht_cap.mcs));
 	}
 
-	ieee80211_tx_skb(sdata, skb, 0);
+	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	ieee80211_tx_skb(sdata, skb);
 }
 
 
@@ -458,10 +459,18 @@ static void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 	mgmt->u.deauth.reason_code = cpu_to_le16(reason);
 
 	if (stype == IEEE80211_STYPE_DEAUTH)
-		cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len, cookie);
+		if (cookie)
+			__cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len);
+		else
+			cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len);
 	else
-		cfg80211_send_disassoc(sdata->dev, (u8 *)mgmt, skb->len, cookie);
-	ieee80211_tx_skb(sdata, skb, ifmgd->flags & IEEE80211_STA_MFP_ENABLED);
+		if (cookie)
+			__cfg80211_send_disassoc(sdata->dev, (u8 *)mgmt, skb->len);
+		else
+			cfg80211_send_disassoc(sdata->dev, (u8 *)mgmt, skb->len);
+	if (!(ifmgd->flags & IEEE80211_STA_MFP_ENABLED))
+		IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	ieee80211_tx_skb(sdata, skb);
 }
 
 void ieee80211_send_pspoll(struct ieee80211_local *local,
@@ -492,7 +501,8 @@ void ieee80211_send_pspoll(struct ieee80211_local *local,
 	memcpy(pspoll->bssid, ifmgd->bssid, ETH_ALEN);
 	memcpy(pspoll->ta, sdata->dev->dev_addr, ETH_ALEN);
 
-	ieee80211_tx_skb(sdata, skb, 0);
+	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	ieee80211_tx_skb(sdata, skb);
 }
 
 void ieee80211_send_nullfunc(struct ieee80211_local *local,
@@ -525,7 +535,8 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
 	memcpy(nullfunc->addr2, sdata->dev->dev_addr, ETH_ALEN);
 	memcpy(nullfunc->addr3, sdata->u.mgd.bssid, ETH_ALEN);
 
-	ieee80211_tx_skb(sdata, skb, 0);
+	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	ieee80211_tx_skb(sdata, skb);
 }
 
 /* spectrum management related things */
@@ -923,7 +934,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	ieee80211_recalc_ps(local, -1);
 	mutex_unlock(&local->iflist_mtx);
 
-	netif_tx_start_all_queues(sdata->dev);
+	netif_start_queue(sdata->dev);
 	netif_carrier_on(sdata->dev);
 }
 
@@ -1055,7 +1066,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	 * time -- we don't want the scan code to enable queues.
 	 */
 
-	netif_tx_stop_all_queues(sdata->dev);
+	netif_stop_queue(sdata->dev);
 	netif_carrier_off(sdata->dev);
 
 	rcu_read_lock();
@@ -1892,7 +1903,6 @@ ieee80211_rx_result ieee80211_sta_rx_mgmt(struct ieee80211_sub_if_data *sdata,
 	fc = le16_to_cpu(mgmt->frame_control);
 
 	switch (fc & IEEE80211_FCTL_STYPE) {
-	case IEEE80211_STYPE_PROBE_REQ:
 	case IEEE80211_STYPE_PROBE_RESP:
 	case IEEE80211_STYPE_BEACON:
 	case IEEE80211_STYPE_AUTH:
@@ -1958,12 +1968,10 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 			/* no action */
 			break;
 		case RX_MGMT_CFG80211_DEAUTH:
-			cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len,
-					     NULL);
+			cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len);
 			break;
 		case RX_MGMT_CFG80211_DISASSOC:
-			cfg80211_send_disassoc(sdata->dev, (u8 *)mgmt, skb->len,
-					       NULL);
+			cfg80211_send_disassoc(sdata->dev, (u8 *)mgmt, skb->len);
 			break;
 		default:
 			WARN(1, "unexpected: %d", rma);
@@ -2018,7 +2026,7 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		cfg80211_send_rx_assoc(sdata->dev, (u8 *) mgmt, skb->len);
 		break;
 	case RX_MGMT_CFG80211_DEAUTH:
-		cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len, NULL);
+		cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len);
 		break;
 	default:
 		WARN(1, "unexpected: %d", rma);
@@ -2500,6 +2508,7 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_mgd_work *wk;
 	const u8 *bssid = NULL;
+	bool not_auth_yet = false;
 
 	mutex_lock(&ifmgd->mtx);
 
@@ -2509,10 +2518,26 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 	} else list_for_each_entry(wk, &ifmgd->work_list, list) {
 		if (&wk->bss->cbss == req->bss) {
 			bssid = req->bss->bssid;
+			if (wk->state == IEEE80211_MGD_STATE_PROBE)
+				not_auth_yet = true;
 			list_del(&wk->list);
 			kfree(wk);
 			break;
 		}
+	}
+
+	/*
+	 * If somebody requests authentication and we haven't
+	 * sent out an auth frame yet there's no need to send
+	 * out a deauth frame either. If the state was PROBE,
+	 * then this is the case. If it's AUTH we have sent a
+	 * frame, and if it's IDLE we have completed the auth
+	 * process already.
+	 */
+	if (not_auth_yet) {
+		mutex_unlock(&ifmgd->mtx);
+		__cfg80211_auth_canceled(sdata->dev, bssid);
+		return 0;
 	}
 
 	/*

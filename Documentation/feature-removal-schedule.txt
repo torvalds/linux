@@ -6,6 +6,21 @@ be removed from this file.
 
 ---------------------------
 
+What:	USER_SCHED
+When:	2.6.34
+
+Why:	USER_SCHED was implemented as a proof of concept for group scheduling.
+	The effect of USER_SCHED can already be achieved from userspace with
+	the help of libcgroup. The removal of USER_SCHED will also simplify
+	the scheduler code with the removal of one major ifdef. There are also
+	issues USER_SCHED has with USER_NS. A decision was taken not to fix
+	those and instead remove USER_SCHED. Also new group scheduling
+	features will not be implemented for USER_SCHED.
+
+Who:	Dhaval Giani <dhaval@linux.vnet.ibm.com>
+
+---------------------------
+
 What:	PRISM54
 When:	2.6.34
 
@@ -302,18 +317,6 @@ Who:	ocfs2-devel@oss.oracle.com
 
 ---------------------------
 
-What:	SCTP_GET_PEER_ADDRS_NUM_OLD, SCTP_GET_PEER_ADDRS_OLD,
-	SCTP_GET_LOCAL_ADDRS_NUM_OLD, SCTP_GET_LOCAL_ADDRS_OLD
-When: 	June 2009
-Why:    A newer version of the options have been introduced in 2005 that
-	removes the limitions of the old API.  The sctp library has been
-        converted to use these new options at the same time.  Any user
-	space app that directly uses the old options should convert to using
-	the new options.
-Who:	Vlad Yasevich <vladislav.yasevich@hp.com>
-
----------------------------
-
 What:	Ability for non root users to shm_get hugetlb pages based on mlock
 	resource limits
 When:	2.6.31
@@ -401,15 +404,6 @@ Why:	In 2.6.27, the semantics of /sys/bus/pci/slots was redefined to
 	After a reasonable transition period, we will remove the legacy
 	fakephp interface.
 Who:	Alex Chiang <achiang@hp.com>
-
----------------------------
-
-What:	i2c-voodoo3 driver
-When:	October 2009
-Why:	Superseded by tdfxfb. I2C/DDC support used to live in a separate
-	driver but this caused driver conflicts.
-Who:	Jean Delvare <khali@linux-fr.org>
-	Krzysztof Helt <krzysztof.h1@wp.pl>
 
 ---------------------------
 

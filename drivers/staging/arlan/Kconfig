@@ -1,0 +1,15 @@
+config ARLAN
+	tristate "Aironet Arlan 655 & IC2200 DS support"
+	depends on ISA && !64BIT && WLAN
+	select WIRELESS_EXT
+	---help---
+	  Aironet makes Arlan, a class of wireless LAN adapters. These use the
+	  www.Telxon.com chip, which is also used on several similar cards.
+	  This driver is tested on the 655 and IC2200 series cards. Look at
+	  <http://www.ylenurme.ee/~elmer/655/> for the latest information.
+
+	  The driver is built as two modules, arlan and arlan-proc. The latter
+	  is the /proc interface and is not needed most of time.
+
+	  On some computers the card ends up in non-valid state after some
+	  time. Use a ping-reset script to clear it.

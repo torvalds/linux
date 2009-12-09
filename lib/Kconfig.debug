@@ -750,7 +750,7 @@ config RCU_TORTURE_TEST_RUNNABLE
 config RCU_CPU_STALL_DETECTOR
 	bool "Check for stalled CPUs delaying RCU grace periods"
 	depends on TREE_RCU || TREE_PREEMPT_RCU
-	default n
+	default y
 	help
 	  This option causes RCU to printk information on which
 	  CPUs are delaying the current grace period, but only when
@@ -912,7 +912,7 @@ config LATENCYTOP
 
 config SYSCTL_SYSCALL_CHECK
 	bool "Sysctl checks"
-	depends on SYSCTL_SYSCALL
+	depends on SYSCTL
 	---help---
 	  sys_sysctl uses binary paths that have been found challenging
 	  to properly maintain and use. This enables checks that help

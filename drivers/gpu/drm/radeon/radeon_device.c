@@ -688,6 +688,8 @@ int radeon_resume_kms(struct drm_device *dev)
 		return -1;
 	}
 	pci_set_master(dev->pdev);
+	/* resume AGP if in use */
+	radeon_agp_resume(rdev);
 	radeon_resume(rdev);
 	radeon_restore_bios_scratch_regs(rdev);
 	fb_set_suspend(rdev->fbdev_info, 0);

@@ -23,3 +23,8 @@ config ASYNC_RAID6_RECOV
 	select ASYNC_CORE
 	select ASYNC_PQ
 
+config ASYNC_TX_DISABLE_PQ_VAL_DMA
+	bool
+
+config ASYNC_TX_DISABLE_XOR_VAL_DMA
+	bool

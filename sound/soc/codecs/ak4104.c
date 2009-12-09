@@ -313,14 +313,6 @@ static int ak4104_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Register the socdev */
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to register card\n");
-		snd_soc_free_pcms(socdev);
-		return ret;
-	}
-
 	return 0;
 }
 

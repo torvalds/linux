@@ -63,21 +63,6 @@
 #include "vg468.h"
 #include "ricoh.h"
 
-#ifdef CONFIG_PCMCIA_DEBUG
-static const char version[] =
-"i82365.c 1.265 1999/11/10 18:36:21 (David Hinds)";
-
-static int pc_debug;
-
-module_param(pc_debug, int, 0644);
-
-#define debug(lvl, fmt, arg...) do {				\
-	if (pc_debug > (lvl))					\
-		printk(KERN_DEBUG "i82365: " fmt , ## arg);	\
-} while (0)
-#else
-#define debug(lvl, fmt, arg...) do { } while (0)
-#endif
 
 static irqreturn_t i365_count_irq(int, void *);
 static inline int _check_irq(int irq, int flags)
@@ -501,13 +486,13 @@ static irqreturn_t i365_count_irq(int irq, void *dev)
 {
     i365_get(irq_sock, I365_CSC);
     irq_hits++;
-    debug(2, "-> hit on irq %d\n", irq);
+    pr_debug("i82365: -> hit on irq %d\n", irq);
     return IRQ_HANDLED;
 }
 
 static u_int __init test_irq(u_short sock, int irq)
 {
-    debug(2, "  testing ISA irq %d\n", irq);
+    pr_debug("i82365:  testing ISA irq %d\n", irq);
     if (request_irq(irq, i365_count_irq, IRQF_PROBE_SHARED, "scan",
 			i365_count_irq) != 0)
 	return 1;
@@ -515,7 +500,7 @@ static u_int __init test_irq(u_short sock, int irq)
     msleep(10);
     if (irq_hits) {
 	free_irq(irq, i365_count_irq);
-	debug(2, "    spurious hit!\n");
+	pr_debug("i82365:    spurious hit!\n");
 	return 1;
     }
 
@@ -528,7 +513,7 @@ static u_int __init test_irq(u_short sock, int irq)
 
     /* mask all interrupts */
     i365_set(sock, I365_CSCINT, 0);
-    debug(2, "    hits = %d\n", irq_hits);
+    pr_debug("i82365:    hits = %d\n", irq_hits);
     
     return (irq_hits != 1);
 }
@@ -854,7 +839,7 @@ static irqreturn_t pcic_interrupt(int irq, void *dev)
     u_long flags = 0;
     int handled = 0;
 
-    debug(4, "pcic_interrupt(%d)\n", irq);
+    pr_debug("pcic_interrupt(%d)\n", irq);
 
     for (j = 0; j < 20; j++) {
 	active = 0;
@@ -878,7 +863,7 @@ static irqreturn_t pcic_interrupt(int irq, void *dev)
 		events |= (csc & I365_CSC_READY) ? SS_READY : 0;
 	    }
 	    ISA_UNLOCK(i, flags);
-	    debug(2, "socket %d event 0x%02x\n", i, events);
+	    pr_debug("socket %d event 0x%02x\n", i, events);
 
 	    if (events)
 		pcmcia_parse_events(&socket[i].socket, events);
@@ -890,7 +875,7 @@ static irqreturn_t pcic_interrupt(int irq, void *dev)
     if (j == 20)
 	printk(KERN_NOTICE "i82365: infinite loop in interrupt handler\n");
 
-    debug(4, "interrupt done\n");
+    pr_debug("pcic_interrupt done\n");
     return IRQ_RETVAL(handled);
 } /* pcic_interrupt */
 
@@ -932,7 +917,7 @@ static int i365_get_status(u_short sock, u_int *value)
 	}
     }
     
-    debug(1, "GetStatus(%d) = %#4.4x\n", sock, *value);
+    pr_debug("GetStatus(%d) = %#4.4x\n", sock, *value);
     return 0;
 } /* i365_get_status */
 
@@ -943,7 +928,7 @@ static int i365_set_socket(u_short sock, socket_state_t *state)
     struct i82365_socket *t = &socket[sock];
     u_char reg;
     
-    debug(1, "SetSocket(%d, flags %#3.3x, Vcc %d, Vpp %d, "
+    pr_debug("SetSocket(%d, flags %#3.3x, Vcc %d, Vpp %d, "
 	  "io_irq %d, csc_mask %#2.2x)\n", sock, state->flags,
 	  state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
     
@@ -1052,7 +1037,7 @@ static int i365_set_io_map(u_short sock, struct pccard_io_map *io)
 {
     u_char map, ioctl;
     
-    debug(1, "SetIOMap(%d, %d, %#2.2x, %d ns, "
+    pr_debug("SetIOMap(%d, %d, %#2.2x, %d ns, "
 	  "%#llx-%#llx)\n", sock, io->map, io->flags, io->speed,
 	  (unsigned long long)io->start, (unsigned long long)io->stop);
     map = io->map;
@@ -1082,7 +1067,7 @@ static int i365_set_mem_map(u_short sock, struct pccard_mem_map *mem)
     u_short base, i;
     u_char map;
     
-    debug(1, "SetMemMap(%d, %d, %#2.2x, %d ns, %#llx-%#llx, "
+    pr_debug("SetMemMap(%d, %d, %#2.2x, %d ns, %#llx-%#llx, "
 	  "%#x)\n", sock, mem->map, mem->flags, mem->speed,
 	  (unsigned long long)mem->res->start,
 	  (unsigned long long)mem->res->end, mem->card_start);

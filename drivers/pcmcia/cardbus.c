@@ -91,7 +91,7 @@ static u_int xlate_rom_addr(void __iomem *b, u_int addr)
 static void cb_release_cis_mem(struct pcmcia_socket * s)
 {
 	if (s->cb_cis_virt) {
-		cs_dbg(s, 1, "cb_release_cis_mem()\n");
+		dev_dbg(&s->dev, "cb_release_cis_mem()\n");
 		iounmap(s->cb_cis_virt);
 		s->cb_cis_virt = NULL;
 		s->cb_cis_res = NULL;
@@ -132,7 +132,7 @@ int read_cb_mem(struct pcmcia_socket * s, int space, u_int addr, u_int len, void
 	struct pci_dev *dev;
 	struct resource *res;
 
-	cs_dbg(s, 3, "read_cb_mem(%d, %#x, %u)\n", space, addr, len);
+	dev_dbg(&s->dev, "read_cb_mem(%d, %#x, %u)\n", space, addr, len);
 
 	dev = pci_get_slot(s->cb_dev->subordinate, 0);
 	if (!dev)

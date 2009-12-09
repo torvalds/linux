@@ -48,7 +48,7 @@ static int __init fscache_init(void)
 {
 	int ret;
 
-	ret = slow_work_register_user();
+	ret = slow_work_register_user(THIS_MODULE);
 	if (ret < 0)
 		goto error_slow_work;
 
@@ -80,7 +80,7 @@ error_kobj:
 error_cookie_jar:
 	fscache_proc_cleanup();
 error_proc:
-	slow_work_unregister_user();
+	slow_work_unregister_user(THIS_MODULE);
 error_slow_work:
 	return ret;
 }
@@ -97,7 +97,7 @@ static void __exit fscache_exit(void)
 	kobject_put(fscache_root);
 	kmem_cache_destroy(fscache_cookie_jar);
 	fscache_proc_cleanup();
-	slow_work_unregister_user();
+	slow_work_unregister_user(THIS_MODULE);
 	printk(KERN_NOTICE "FS-Cache: Unloaded\n");
 }
 

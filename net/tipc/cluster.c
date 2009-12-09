@@ -437,11 +437,11 @@ void tipc_cltr_recv_routing_table(struct sk_buff *buf)
 		break;
 	case ROUTE_ADDITION:
 		if (!is_slave(tipc_own_addr)) {
-			assert(!in_own_cluster(c_ptr->addr)
-			       || is_slave(rem_node));
+			assert(!in_own_cluster(c_ptr->addr) ||
+			       is_slave(rem_node));
 		} else {
-			assert(in_own_cluster(c_ptr->addr)
-			       && !is_slave(rem_node));
+			assert(in_own_cluster(c_ptr->addr) &&
+			       !is_slave(rem_node));
 		}
 		n_ptr = c_ptr->nodes[tipc_node(rem_node)];
 		if (!n_ptr)
@@ -451,11 +451,11 @@ void tipc_cltr_recv_routing_table(struct sk_buff *buf)
 		break;
 	case ROUTE_REMOVAL:
 		if (!is_slave(tipc_own_addr)) {
-			assert(!in_own_cluster(c_ptr->addr)
-			       || is_slave(rem_node));
+			assert(!in_own_cluster(c_ptr->addr) ||
+			       is_slave(rem_node));
 		} else {
-			assert(in_own_cluster(c_ptr->addr)
-			       && !is_slave(rem_node));
+			assert(in_own_cluster(c_ptr->addr) &&
+			       !is_slave(rem_node));
 		}
 		n_ptr = c_ptr->nodes[tipc_node(rem_node)];
 		if (n_ptr)

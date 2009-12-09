@@ -239,6 +239,11 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
 
+	if (IS_IGDNG(dev)) {
+		dev_priv->savePCH_DREF_CONTROL = I915_READ(PCH_DREF_CONTROL);
+		dev_priv->saveDISP_ARB_CTL = I915_READ(DISP_ARB_CTL);
+	}
+
 	/* Pipe & plane A info */
 	dev_priv->savePIPEACONF = I915_READ(PIPEACONF);
 	dev_priv->savePIPEASRC = I915_READ(PIPEASRC);
@@ -263,6 +268,11 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 		dev_priv->saveBCLRPAT_A = I915_READ(BCLRPAT_A);
 
 	if (IS_IGDNG(dev)) {
+		dev_priv->savePIPEA_DATA_M1 = I915_READ(PIPEA_DATA_M1);
+		dev_priv->savePIPEA_DATA_N1 = I915_READ(PIPEA_DATA_N1);
+		dev_priv->savePIPEA_LINK_M1 = I915_READ(PIPEA_LINK_M1);
+		dev_priv->savePIPEA_LINK_N1 = I915_READ(PIPEA_LINK_N1);
+
 		dev_priv->saveFDI_TXA_CTL = I915_READ(FDI_TXA_CTL);
 		dev_priv->saveFDI_RXA_CTL = I915_READ(FDI_RXA_CTL);
 
@@ -270,6 +280,7 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 		dev_priv->savePFA_WIN_SZ = I915_READ(PFA_WIN_SZ);
 		dev_priv->savePFA_WIN_POS = I915_READ(PFA_WIN_POS);
 
+		dev_priv->saveTRANSACONF = I915_READ(TRANSACONF);
 		dev_priv->saveTRANS_HTOTAL_A = I915_READ(TRANS_HTOTAL_A);
 		dev_priv->saveTRANS_HBLANK_A = I915_READ(TRANS_HBLANK_A);
 		dev_priv->saveTRANS_HSYNC_A = I915_READ(TRANS_HSYNC_A);
@@ -314,6 +325,11 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 		dev_priv->saveBCLRPAT_B = I915_READ(BCLRPAT_B);
 
 	if (IS_IGDNG(dev)) {
+		dev_priv->savePIPEB_DATA_M1 = I915_READ(PIPEB_DATA_M1);
+		dev_priv->savePIPEB_DATA_N1 = I915_READ(PIPEB_DATA_N1);
+		dev_priv->savePIPEB_LINK_M1 = I915_READ(PIPEB_LINK_M1);
+		dev_priv->savePIPEB_LINK_N1 = I915_READ(PIPEB_LINK_N1);
+
 		dev_priv->saveFDI_TXB_CTL = I915_READ(FDI_TXB_CTL);
 		dev_priv->saveFDI_RXB_CTL = I915_READ(FDI_RXB_CTL);
 
@@ -321,6 +337,7 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 		dev_priv->savePFB_WIN_SZ = I915_READ(PFB_WIN_SZ);
 		dev_priv->savePFB_WIN_POS = I915_READ(PFB_WIN_POS);
 
+		dev_priv->saveTRANSBCONF = I915_READ(TRANSBCONF);
 		dev_priv->saveTRANS_HTOTAL_B = I915_READ(TRANS_HTOTAL_B);
 		dev_priv->saveTRANS_HBLANK_B = I915_READ(TRANS_HBLANK_B);
 		dev_priv->saveTRANS_HSYNC_B = I915_READ(TRANS_HSYNC_B);
@@ -368,6 +385,11 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 		fpb1_reg = FPB1;
 	}
 
+	if (IS_IGDNG(dev)) {
+		I915_WRITE(PCH_DREF_CONTROL, dev_priv->savePCH_DREF_CONTROL);
+		I915_WRITE(DISP_ARB_CTL, dev_priv->saveDISP_ARB_CTL);
+	}
+
 	/* Pipe & plane A info */
 	/* Prime the clock */
 	if (dev_priv->saveDPLL_A & DPLL_VCO_ENABLE) {
@@ -395,6 +417,11 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 		I915_WRITE(BCLRPAT_A, dev_priv->saveBCLRPAT_A);
 
 	if (IS_IGDNG(dev)) {
+		I915_WRITE(PIPEA_DATA_M1, dev_priv->savePIPEA_DATA_M1);
+		I915_WRITE(PIPEA_DATA_N1, dev_priv->savePIPEA_DATA_N1);
+		I915_WRITE(PIPEA_LINK_M1, dev_priv->savePIPEA_LINK_M1);
+		I915_WRITE(PIPEA_LINK_N1, dev_priv->savePIPEA_LINK_N1);
+
 		I915_WRITE(FDI_RXA_CTL, dev_priv->saveFDI_RXA_CTL);
 		I915_WRITE(FDI_TXA_CTL, dev_priv->saveFDI_TXA_CTL);
 
@@ -402,6 +429,7 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 		I915_WRITE(PFA_WIN_SZ, dev_priv->savePFA_WIN_SZ);
 		I915_WRITE(PFA_WIN_POS, dev_priv->savePFA_WIN_POS);
 
+		I915_WRITE(TRANSACONF, dev_priv->saveTRANSACONF);
 		I915_WRITE(TRANS_HTOTAL_A, dev_priv->saveTRANS_HTOTAL_A);
 		I915_WRITE(TRANS_HBLANK_A, dev_priv->saveTRANS_HBLANK_A);
 		I915_WRITE(TRANS_HSYNC_A, dev_priv->saveTRANS_HSYNC_A);
@@ -439,7 +467,7 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 	/* Actually enable it */
 	I915_WRITE(dpll_b_reg, dev_priv->saveDPLL_B);
 	DRM_UDELAY(150);
-	if (IS_I965G(dev))
+	if (IS_I965G(dev) && !IS_IGDNG(dev))
 		I915_WRITE(DPLL_B_MD, dev_priv->saveDPLL_B_MD);
 	DRM_UDELAY(150);
 
@@ -454,6 +482,11 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 		I915_WRITE(BCLRPAT_B, dev_priv->saveBCLRPAT_B);
 
 	if (IS_IGDNG(dev)) {
+		I915_WRITE(PIPEB_DATA_M1, dev_priv->savePIPEB_DATA_M1);
+		I915_WRITE(PIPEB_DATA_N1, dev_priv->savePIPEB_DATA_N1);
+		I915_WRITE(PIPEB_LINK_M1, dev_priv->savePIPEB_LINK_M1);
+		I915_WRITE(PIPEB_LINK_N1, dev_priv->savePIPEB_LINK_N1);
+
 		I915_WRITE(FDI_RXB_CTL, dev_priv->saveFDI_RXB_CTL);
 		I915_WRITE(FDI_TXB_CTL, dev_priv->saveFDI_TXB_CTL);
 
@@ -461,6 +494,7 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 		I915_WRITE(PFB_WIN_SZ, dev_priv->savePFB_WIN_SZ);
 		I915_WRITE(PFB_WIN_POS, dev_priv->savePFB_WIN_POS);
 
+		I915_WRITE(TRANSBCONF, dev_priv->saveTRANSBCONF);
 		I915_WRITE(TRANS_HTOTAL_B, dev_priv->saveTRANS_HTOTAL_B);
 		I915_WRITE(TRANS_HBLANK_B, dev_priv->saveTRANS_HBLANK_B);
 		I915_WRITE(TRANS_HSYNC_B, dev_priv->saveTRANS_HSYNC_B);
