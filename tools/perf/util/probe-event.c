@@ -376,7 +376,7 @@ static void clear_probe_point(struct probe_point *pp)
 		free(pp->args);
 	for (i = 0; i < pp->found; i++)
 		free(pp->probes[i]);
-	memset(pp, 0, sizeof(pp));
+	memset(pp, 0, sizeof(*pp));
 }
 
 /* Show an event */
