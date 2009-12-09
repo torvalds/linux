@@ -131,7 +131,9 @@ static noinline int dcplb_miss(unsigned int cpu)
 		} else
 			return CPLB_PROT_VIOL;
 	} else if (addr >= _ramend) {
-	    d_data |= CPLB_USER_RD | CPLB_USER_WR;
+		d_data |= CPLB_USER_RD | CPLB_USER_WR;
+		if (reserved_mem_dcache_on)
+			d_data |= CPLB_L1_CHBL;
 	} else {
 		mask = current_rwx_mask[cpu];
 		if (mask) {
@@ -231,6 +233,8 @@ static noinline int icplb_miss(unsigned int cpu)
 		    return CPLB_PROT_VIOL;
 	} else if (addr >= _ramend) {
 		i_data |= CPLB_USER_RD;
+		if (reserved_mem_icache_on)
+			i_data |= CPLB_L1_CHBL;
 	} else {
 		/*
 		 * Two cases to distinguish - a supervisor access must
