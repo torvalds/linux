@@ -3554,8 +3554,10 @@ static int nes_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *ib_wr,
 	u32 counter;
 	u32 total_payload_length;
 
-	if (nesqp->ibqp_state > IB_QPS_RTS)
-		return -EINVAL;
+	if (nesqp->ibqp_state > IB_QPS_RTS) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	spin_lock_irqsave(&nesqp->lock, flags);
 
@@ -3618,6 +3620,7 @@ static int nes_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *ib_wr,
 
 	spin_unlock_irqrestore(&nesqp->lock, flags);
 
+out:
 	if (err)
 		*bad_wr = ib_wr;
 	return err;
