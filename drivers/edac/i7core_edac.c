@@ -1170,7 +1170,7 @@ static void i7core_put_all_devices(void)
 		i7core_put_devices(i7core_dev);
 }
 
-static void i7core_xeon_pci_fixup(int dev_id)
+static void __init i7core_xeon_pci_fixup(int dev_id)
 {
 	struct pci_dev *pdev = NULL;
 	int i;
