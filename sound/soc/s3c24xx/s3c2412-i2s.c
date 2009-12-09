@@ -34,11 +34,10 @@
 
 #include <plat/regs-s3c2412-iis.h>
 
-#include <plat/audio.h>
 #include <mach/regs-gpio.h>
 #include <mach/dma.h>
 
-#include "s3c24xx-pcm.h"
+#include "s3c-dma.h"
 #include "s3c2412-i2s.h"
 
 #define S3C2412_I2S_DEBUG 0
@@ -51,14 +50,14 @@ static struct s3c2410_dma_client s3c2412_dma_client_in = {
 	.name		= "I2S PCM Stereo in"
 };
 
-static struct s3c24xx_pcm_dma_params s3c2412_i2s_pcm_stereo_out = {
+static struct s3c_dma_params s3c2412_i2s_pcm_stereo_out = {
 	.client		= &s3c2412_dma_client_out,
 	.channel	= DMACH_I2S_OUT,
 	.dma_addr	= S3C2410_PA_IIS + S3C2412_IISTXD,
 	.dma_size	= 4,
 };
 
-static struct s3c24xx_pcm_dma_params s3c2412_i2s_pcm_stereo_in = {
+static struct s3c_dma_params s3c2412_i2s_pcm_stereo_in = {
 	.client		= &s3c2412_dma_client_in,
 	.channel	= DMACH_I2S_IN,
 	.dma_addr	= S3C2410_PA_IIS + S3C2412_IISRXD,

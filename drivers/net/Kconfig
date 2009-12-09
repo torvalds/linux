@@ -1001,7 +1001,7 @@ config SMC911X
 
 config SMSC911X
 	tristate "SMSC LAN911x/LAN921x families embedded ethernet support"
-	depends on ARM || SUPERH || BLACKFIN
+	depends on ARM || SUPERH || BLACKFIN || MIPS
 	select CRC32
 	select MII
 	select PHYLIB
@@ -3235,7 +3235,7 @@ config VIRTIO_NET
 
 config VMXNET3
        tristate "VMware VMXNET3 ethernet driver"
-       depends on PCI && X86 && INET
+       depends on PCI && INET
        help
          This driver supports VMware's vmxnet3 virtual ethernet NIC.
          To compile this driver as a module, choose M here: the

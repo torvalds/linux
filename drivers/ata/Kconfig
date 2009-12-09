@@ -3,7 +3,7 @@
 #
 
 menuconfig ATA
-	tristate "Serial ATA (prod) and Parallel ATA (experimental) drivers"
+	tristate "Serial ATA and Parallel ATA drivers"
 	depends on HAS_IOMEM
 	depends on BLOCK
 	depends on !(M32R || M68K) || BROKEN
@@ -374,8 +374,8 @@ config PATA_HPT366
 	  If unsure, say N.
 
 config PATA_HPT37X
-	tristate "HPT 370/370A/371/372/374/302 PATA support (Experimental)"
-	depends on PCI && EXPERIMENTAL
+	tristate "HPT 370/370A/371/372/374/302 PATA support"
+	depends on PCI
 	help
 	  This option enables support for the majority of the later HPT
 	  PATA controllers via the new ATA layer.
@@ -383,8 +383,8 @@ config PATA_HPT37X
 	  If unsure, say N.
 
 config PATA_HPT3X2N
-	tristate "HPT 372N/302N PATA support (Experimental)"
-	depends on PCI && EXPERIMENTAL
+	tristate "HPT 372N/302N PATA support"
+	depends on PCI
 	help
 	  This option enables support for the N variant HPT PATA
 	  controllers via the new ATA layer
@@ -401,7 +401,7 @@ config PATA_HPT3X3
 	  If unsure, say N.
 
 config PATA_HPT3X3_DMA
-	bool "HPT 343/363 DMA support (Experimental)"
+	bool "HPT 343/363 DMA support"
 	depends on PATA_HPT3X3
 	help
 	  This option enables DMA support for the HPT343/363
@@ -510,8 +510,8 @@ config PATA_NETCELL
 	  If unsure, say N.
 
 config PATA_NINJA32
-	tristate "Ninja32/Delkin Cardbus ATA support (Experimental)"
-	depends on PCI && EXPERIMENTAL
+	tristate "Ninja32/Delkin Cardbus ATA support"
+	depends on PCI
 	help
 	  This option enables support for the Ninja32, Delkin and
 	  possibly other brands of Cardbus ATA adapter
@@ -570,6 +570,14 @@ config PATA_PCMCIA
 	help
 	  This option enables support for PCMCIA ATA interfaces, including
 	  compact flash card adapters via the new ATA layer.
+
+	  If unsure, say N.
+
+config PATA_PDC2027X
+	tristate "Promise PATA 2027x support"
+	depends on PCI
+	help
+	  This option enables support for Promise PATA pdc20268 to pdc20277 host adapters.
 
 	  If unsure, say N.
 
@@ -643,14 +651,6 @@ config PATA_SERVERWORKS
 
 	  If unsure, say N.
 
-config PATA_PDC2027X
-	tristate "Promise PATA 2027x support"
-	depends on PCI
-	help
-	  This option enables support for Promise PATA pdc20268 to pdc20277 host adapters.
-
-	  If unsure, say N.
-
 config PATA_SIL680
 	tristate "CMD / Silicon Image 680 PATA support"
 	depends on PCI
@@ -664,6 +664,15 @@ config PATA_SIS
 	depends on PCI
 	help
 	  This option enables support for SiS PATA controllers
+
+	  If unsure, say N.
+
+config PATA_TOSHIBA
+	tristate "Toshiba Piccolo support (Experimental)"
+	depends on PCI && EXPERIMENTAL
+	help
+	  Support for the Toshiba Piccolo controllers. Currently only the
+	  primary channel is supported by this driver.
 
 	  If unsure, say N.
 

@@ -39,7 +39,7 @@
 #include <linux/i2c/twl4030.h>
 
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
-#include <mach/cpu.h>
+#include <plat/cpu.h>
 #endif
 
 /*
@@ -112,6 +112,12 @@
 #define twl_has_watchdog()        true
 #else
 #define twl_has_watchdog()        false
+#endif
+
+#if defined(CONFIG_TWL4030_CODEC) || defined(CONFIG_TWL4030_CODEC_MODULE)
+#define twl_has_codec()	true
+#else
+#define twl_has_codec()	false
 #endif
 
 /* Triton Core internal information (BEGIN) */
@@ -601,6 +607,14 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 			return PTR_ERR(child);
 	}
 
+	if (twl_has_codec() && pdata->codec) {
+		child = add_child(1, "twl4030_codec",
+				pdata->codec, sizeof(*pdata->codec),
+				false, 0, 0);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+	}
+
 	if (twl_has_regulator()) {
 		/*
 		child = add_regulator(TWL4030_REG_VPLL1, pdata->vpll1);
@@ -763,7 +777,7 @@ static int twl4030_remove(struct i2c_client *client)
 }
 
 /* NOTE:  this driver only handles a single twl4030/tps659x0 chip */
-static int
+static int __init
 twl4030_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int				status;

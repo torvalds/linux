@@ -27,54 +27,49 @@ static int mouse_last_keycode;
 /* file(s) in /proc/sys/dev/mac_hid */
 static ctl_table mac_hid_files[] = {
 	{
-		.ctl_name	= DEV_MAC_HID_MOUSE_BUTTON_EMULATION,
 		.procname	= "mouse_button_emulation",
 		.data		= &mouse_emulate_buttons,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= DEV_MAC_HID_MOUSE_BUTTON2_KEYCODE,
 		.procname	= "mouse_button2_keycode",
 		.data		= &mouse_button2_keycode,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= DEV_MAC_HID_MOUSE_BUTTON3_KEYCODE,
 		.procname	= "mouse_button3_keycode",
 		.data		= &mouse_button3_keycode,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 /* dir in /proc/sys/dev */
 static ctl_table mac_hid_dir[] = {
 	{
-		.ctl_name	= DEV_MAC_HID,
 		.procname	= "mac_hid",
 		.maxlen		= 0,
 		.mode		= 0555,
 		.child		= mac_hid_files,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 /* /proc/sys/dev itself, in case that is not there yet */
 static ctl_table mac_hid_root_dir[] = {
 	{
-		.ctl_name	= CTL_DEV,
 		.procname	= "dev",
 		.maxlen		= 0,
 		.mode		= 0555,
 		.child		= mac_hid_dir,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static struct ctl_table_header *mac_hid_sysctl_header;

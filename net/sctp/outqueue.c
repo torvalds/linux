@@ -191,8 +191,8 @@ static inline int sctp_cacc_skip(struct sctp_transport *primary,
 				 __u32 tsn)
 {
 	if (primary->cacc.changeover_active &&
-	    (sctp_cacc_skip_3_1(primary, transport, count_of_newacks)
-	     || sctp_cacc_skip_3_2(primary, tsn)))
+	    (sctp_cacc_skip_3_1(primary, transport, count_of_newacks) ||
+	     sctp_cacc_skip_3_2(primary, tsn)))
 		return 1;
 	return 0;
 }
@@ -921,6 +921,14 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 				goto sctp_flush_out;
 		}
 
+		/* Apply Max.Burst limitation to the current transport in
+		 * case it will be used for new data.  We are going to
+		 * rest it before we return, but we want to apply the limit
+		 * to the currently queued data.
+		 */
+		if (transport)
+			sctp_transport_burst_limited(transport);
+
 		/* Finally, transmit new packets.  */
 		while ((chunk = sctp_outq_dequeue_data(q)) != NULL) {
 			/* RFC 2960 6.5 Every DATA chunk MUST carry a valid
@@ -966,6 +974,10 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 				packet = &transport->packet;
 				sctp_packet_config(packet, vtag,
 						   asoc->peer.ecn_capable);
+				/* We've switched transports, so apply the
+				 * Burst limit to the new transport.
+				 */
+				sctp_transport_burst_limited(transport);
 			}
 
 			SCTP_DEBUG_PRINTK("sctp_outq_flush(%p, %p[%s]), ",
@@ -1001,6 +1013,13 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 				break;
 
 			case SCTP_XMIT_OK:
+				/* The sender is in the SHUTDOWN-PENDING state,
+				 * The sender MAY set the I-bit in the DATA
+				 * chunk header.
+				 */
+				if (asoc->state == SCTP_STATE_SHUTDOWN_PENDING)
+					chunk->chunk_hdr->flags |= SCTP_DATA_SACK_IMM;
+
 				break;
 
 			default:
@@ -1053,6 +1072,9 @@ sctp_flush_out:
 		packet = &t->packet;
 		if (!sctp_packet_empty(packet))
 			error = sctp_packet_transmit(packet);
+
+		/* Clear the burst limited state, if any */
+		sctp_transport_burst_reset(t);
 	}
 
 	return error;

@@ -2384,7 +2384,7 @@ void ata_sff_post_internal_cmd(struct ata_queued_cmd *qc)
 	ap->hsm_task_state = HSM_ST_IDLE;
 
 	if (ap->ioaddr.bmdma_addr)
-		ata_bmdma_stop(qc);
+		ap->ops->bmdma_stop(qc);
 
 	spin_unlock_irqrestore(ap->lock, flags);
 }

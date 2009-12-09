@@ -391,7 +391,7 @@ static enum ucode_state microcode_update_cpu(int cpu)
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 	enum ucode_state ustate;
 
-	if (uci->valid)
+	if (uci->valid && uci->mc)
 		ustate = microcode_resume_cpu(cpu);
 	else
 		ustate = microcode_init_cpu(cpu);
@@ -518,6 +518,9 @@ static int __init microcode_init(void)
 		return PTR_ERR(microcode_pdev);
 	}
 
+	if (microcode_ops->init)
+		microcode_ops->init(&microcode_pdev->dev);
+
 	get_online_cpus();
 	mutex_lock(&microcode_mutex);
 
@@ -560,6 +563,9 @@ static void __exit microcode_exit(void)
 	put_online_cpus();
 
 	platform_device_unregister(microcode_pdev);
+
+	if (microcode_ops->fini)
+		microcode_ops->fini();
 
 	microcode_ops = NULL;
 

@@ -272,14 +272,14 @@ static int svc_one_sock_name(struct svc_sock *svsk, char *buf, int remaining)
 	case PF_INET:
 		len = snprintf(buf, remaining, "ipv4 %s %pI4 %d\n",
 				proto_name,
-				&inet_sk(sk)->rcv_saddr,
-				inet_sk(sk)->num);
+				&inet_sk(sk)->inet_rcv_saddr,
+				inet_sk(sk)->inet_num);
 		break;
 	case PF_INET6:
 		len = snprintf(buf, remaining, "ipv6 %s %pI6 %d\n",
 				proto_name,
 				&inet6_sk(sk)->rcv_saddr,
-				inet_sk(sk)->num);
+				inet_sk(sk)->inet_num);
 		break;
 	default:
 		len = snprintf(buf, remaining, "*unknown-%d*\n",
@@ -1311,7 +1311,7 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 	/* Register socket with portmapper */
 	if (*errp >= 0 && pmap_register)
 		*errp = svc_register(serv, inet->sk_family, inet->sk_protocol,
-				     ntohs(inet_sk(inet)->sport));
+				     ntohs(inet_sk(inet)->inet_sport));
 
 	if (*errp < 0) {
 		kfree(svsk);

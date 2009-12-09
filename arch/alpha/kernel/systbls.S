@@ -497,6 +497,7 @@ sys_call_table:
 	.quad sys_signalfd
 	.quad sys_ni_syscall
 	.quad sys_eventfd
+	.quad sys_recvmmsg
 
 	.size sys_call_table, . - sys_call_table
 	.type sys_call_table, @object

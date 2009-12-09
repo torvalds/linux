@@ -178,4 +178,11 @@ config MACH_SMDK
 	help
 	  Common machine code for SMDK2410 and SMDK2440
 
+config S3C24XX_SIMTEC_AUDIO
+	bool
+	depends on (ARCH_BAST || MACH_VR1000 || MACH_OSIRIS || MACH_ANUBIS)
+	default y
+	help
+	  Add audio devices for common Simtec S3C24XX boards
+
 endif

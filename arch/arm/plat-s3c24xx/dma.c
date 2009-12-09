@@ -1,6 +1,6 @@
 /* linux/arch/arm/plat-s3c24xx/dma.c
  *
- * Copyright (c) 2003-2005,2006 Simtec Electronics
+ * Copyright 2003-2006 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C2410 DMA core
@@ -1310,7 +1310,7 @@ int __init s3c24xx_dma_init(unsigned int channels, unsigned int irq,
 	int channel;
 	int ret;
 
-	printk("S3C24XX DMA Driver, (c) 2003-2004,2006 Simtec Electronics\n");
+	printk("S3C24XX DMA Driver, Copyright 2003-2006 Simtec Electronics\n");
 
 	dma_channels = channels;
 

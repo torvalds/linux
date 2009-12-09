@@ -1238,7 +1238,8 @@ hrtimer_interrupt_hanging(struct clock_event_device *dev,
 	force_clock_reprogram = 1;
 	dev->min_delta_ns = (unsigned long)try_time.tv64 * 3;
 	printk(KERN_WARNING "hrtimer: interrupt too slow, "
-		"forcing clock min delta to %lu ns\n", dev->min_delta_ns);
+	       "forcing clock min delta to %llu ns\n",
+	       (unsigned long long) dev->min_delta_ns);
 }
 /*
  * High resolution timer interrupt

@@ -67,7 +67,7 @@ static inline struct ip6_flowlabel *__fl_lookup(struct net *net, __be32 label)
 	struct ip6_flowlabel *fl;
 
 	for (fl=fl_ht[FL_HASH(label)]; fl; fl = fl->next) {
-		if (fl->label == label && fl->fl_net == net)
+		if (fl->label == label && net_eq(fl->fl_net, net))
 			return fl;
 	}
 	return NULL;
@@ -163,7 +163,8 @@ static void ip6_fl_purge(struct net *net)
 		struct ip6_flowlabel *fl, **flp;
 		flp = &fl_ht[i];
 		while ((fl = *flp) != NULL) {
-			if (fl->fl_net == net && atomic_read(&fl->users) == 0) {
+			if (net_eq(fl->fl_net, net) &&
+			    atomic_read(&fl->users) == 0) {
 				*flp = fl->next;
 				fl_free(fl);
 				atomic_dec(&fl_size);
@@ -377,8 +378,8 @@ fl_create(struct net *net, struct in6_flowlabel_req *freq, char __user *optval,
 		goto done;
 	fl->share = freq->flr_share;
 	addr_type = ipv6_addr_type(&freq->flr_dst);
-	if ((addr_type&IPV6_ADDR_MAPPED)
-	    || addr_type == IPV6_ADDR_ANY) {
+	if ((addr_type & IPV6_ADDR_MAPPED) ||
+	    addr_type == IPV6_ADDR_ANY) {
 		err = -EINVAL;
 		goto done;
 	}
@@ -421,8 +422,8 @@ static int mem_check(struct sock *sk)
 
 	if (room <= 0 ||
 	    ((count >= FL_MAX_PER_SOCK ||
-	     (count > 0 && room < FL_MAX_SIZE/2) || room < FL_MAX_SIZE/4)
-	     && !capable(CAP_NET_ADMIN)))
+	      (count > 0 && room < FL_MAX_SIZE/2) || room < FL_MAX_SIZE/4) &&
+	     !capable(CAP_NET_ADMIN)))
 		return -ENOBUFS;
 
 	return 0;
@@ -630,7 +631,7 @@ static struct ip6_flowlabel *ip6fl_get_first(struct seq_file *seq)
 	for (state->bucket = 0; state->bucket <= FL_HASH_MASK; ++state->bucket) {
 		fl = fl_ht[state->bucket];
 
-		while (fl && fl->fl_net != net)
+		while (fl && !net_eq(fl->fl_net, net))
 			fl = fl->next;
 		if (fl)
 			break;
@@ -645,7 +646,7 @@ static struct ip6_flowlabel *ip6fl_get_next(struct seq_file *seq, struct ip6_flo
 
 	fl = fl->next;
 try_again:
-	while (fl && fl->fl_net != net)
+	while (fl && !net_eq(fl->fl_net, net))
 		fl = fl->next;
 
 	while (!fl) {

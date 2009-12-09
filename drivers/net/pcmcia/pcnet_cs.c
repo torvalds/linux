@@ -586,8 +586,8 @@ static int pcnet_config(struct pcmcia_device *link)
 	dev->if_port = 0;
     }
 
-    if ((link->conf.ConfigBase == 0x03c0)
-	&& (link->manf_id == 0x149) && (link->card_id == 0xc1ab)) {
+    if ((link->conf.ConfigBase == 0x03c0) &&
+	(link->manf_id == 0x149) && (link->card_id == 0xc1ab)) {
 	printk(KERN_INFO "pcnet_cs: this is an AX88190 card!\n");
 	printk(KERN_INFO "pcnet_cs: use axnet_cs instead.\n");
 	goto failed;
@@ -1751,6 +1751,13 @@ static struct pcmcia_device_id pcnet_ids[] = {
 	PCMCIA_DEVICE_NULL
 };
 MODULE_DEVICE_TABLE(pcmcia, pcnet_ids);
+MODULE_FIRMWARE("cis/PCMLM28.cis");
+MODULE_FIRMWARE("cis/DP83903.cis");
+MODULE_FIRMWARE("cis/LA-PCM.cis");
+MODULE_FIRMWARE("PE520.cis");
+MODULE_FIRMWARE("cis/NE2K.cis");
+MODULE_FIRMWARE("cis/PE-200.cis");
+MODULE_FIRMWARE("cis/tamarack.cis");
 
 static struct pcmcia_driver pcnet_driver = {
 	.drv		= {

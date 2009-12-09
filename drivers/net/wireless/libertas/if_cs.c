@@ -48,6 +48,7 @@
 MODULE_AUTHOR("Holger Schurig <hs4233@mail.mn-solutions.de>");
 MODULE_DESCRIPTION("Driver for Marvell 83xx compact flash WLAN cards");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE("libertas_cs_helper.fw");
 
 
 
@@ -932,6 +933,9 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	card->priv = priv;
 	priv->card = card;
 	priv->hw_host_to_card = if_cs_host_to_card;
+	priv->enter_deep_sleep = NULL;
+	priv->exit_deep_sleep = NULL;
+	priv->reset_deep_sleep_wakeup = NULL;
 	priv->fw_ready = 1;
 
 	/* Now actually get the IRQ */

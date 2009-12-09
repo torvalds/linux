@@ -131,11 +131,6 @@ static int atl1e_set_settings(struct net_device *netdev,
 	return 0;
 }
 
-static u32 atl1e_get_tx_csum(struct net_device *netdev)
-{
-	return (netdev->features & NETIF_F_HW_CSUM) != 0;
-}
-
 static u32 atl1e_get_msglevel(struct net_device *netdev)
 {
 #ifdef DBG
@@ -143,10 +138,6 @@ static u32 atl1e_get_msglevel(struct net_device *netdev)
 #else
 	return 0;
 #endif
-}
-
-static void atl1e_set_msglevel(struct net_device *netdev, u32 data)
-{
 }
 
 static int atl1e_get_regs_len(struct net_device *netdev)
@@ -387,18 +378,14 @@ static const struct ethtool_ops atl1e_ethtool_ops = {
 	.get_wol                = atl1e_get_wol,
 	.set_wol                = atl1e_set_wol,
 	.get_msglevel           = atl1e_get_msglevel,
-	.set_msglevel           = atl1e_set_msglevel,
 	.nway_reset             = atl1e_nway_reset,
 	.get_link               = ethtool_op_get_link,
 	.get_eeprom_len         = atl1e_get_eeprom_len,
 	.get_eeprom             = atl1e_get_eeprom,
 	.set_eeprom             = atl1e_set_eeprom,
-	.get_tx_csum            = atl1e_get_tx_csum,
-	.get_sg                 = ethtool_op_get_sg,
+	.set_tx_csum            = ethtool_op_set_tx_hw_csum,
 	.set_sg                 = ethtool_op_set_sg,
-#ifdef NETIF_F_TSO
-	.get_tso                = ethtool_op_get_tso,
-#endif
+	.set_tso                = ethtool_op_set_tso,
 };
 
 void atl1e_set_ethtool_ops(struct net_device *netdev)

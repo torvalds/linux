@@ -987,7 +987,10 @@ static void *sctp_addto_param(struct sctp_chunk *chunk, int len,
 
 	target = skb_put(chunk->skb, len);
 
-	memcpy(target, data, len);
+	if (data)
+		memcpy(target, data, len);
+	else
+		memset(target, 0, len);
 
 	/* Adjust the chunk length field.  */
 	chunk->chunk_hdr->length = htons(chunklen + len);
@@ -1129,16 +1132,18 @@ nodata:
 struct sctp_chunk *sctp_make_op_error(const struct sctp_association *asoc,
 				 const struct sctp_chunk *chunk,
 				 __be16 cause_code, const void *payload,
-				 size_t paylen)
+				 size_t paylen, size_t reserve_tail)
 {
 	struct sctp_chunk *retval;
 
-	retval = sctp_make_op_error_space(asoc, chunk, paylen);
+	retval = sctp_make_op_error_space(asoc, chunk, paylen + reserve_tail);
 	if (!retval)
 		goto nodata;
 
-	sctp_init_cause(retval, cause_code, paylen);
+	sctp_init_cause(retval, cause_code, paylen + reserve_tail);
 	sctp_addto_chunk(retval, paylen, payload);
+	if (reserve_tail)
+		sctp_addto_param(retval, reserve_tail, NULL);
 
 nodata:
 	return retval;

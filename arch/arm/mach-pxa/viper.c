@@ -301,15 +301,6 @@ static void __init viper_init_irq(void)
 	set_irq_chained_handler(gpio_to_irq(VIPER_CPLD_GPIO),
 				viper_irq_handler);
 	set_irq_type(gpio_to_irq(VIPER_CPLD_GPIO), IRQ_TYPE_EDGE_BOTH);
-
-#ifndef CONFIG_SERIAL_PXA
-	/*
-	 * 8250 doesn't support IRQ_TYPE being passed as part
-	 * of the plat_serial8250_port structure...
-	 */
-	set_irq_type(gpio_to_irq(VIPER_UARTA_GPIO), IRQ_TYPE_EDGE_RISING);
-	set_irq_type(gpio_to_irq(VIPER_UARTB_GPIO), IRQ_TYPE_EDGE_RISING);
-#endif
 }
 
 /* Flat Panel */
@@ -539,6 +530,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 	{
 		.mapbase	= VIPER_UARTA_PHYS,
 		.irq		= gpio_to_irq(VIPER_UARTA_GPIO),
+		.irqflags	= IRQF_TRIGGER_RISING,
 		.uartclk	= 1843200,
 		.regshift	= 1,
 		.iotype		= UPIO_MEM,
@@ -548,6 +540,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 	{
 		.mapbase	= VIPER_UARTB_PHYS,
 		.irq		= gpio_to_irq(VIPER_UARTB_GPIO),
+		.irqflags	= IRQF_TRIGGER_RISING,
 		.uartclk	= 1843200,
 		.regshift	= 1,
 		.iotype		= UPIO_MEM,
@@ -907,6 +900,10 @@ static void __init viper_init(void)
 	pm_power_off = viper_power_off;
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(viper_pin_config));
+
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
 
 	/* Wake-up serial console */
 	viper_init_serial_gpio();

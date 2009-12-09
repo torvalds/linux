@@ -422,7 +422,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	return 0;
 }
 
-static int wm8993_set_fll(struct snd_soc_dai *dai, int fll_id,
+static int wm8993_set_fll(struct snd_soc_dai *dai, int fll_id, int source,
 			  unsigned int Fref, unsigned int Fout)
 {
 	struct snd_soc_codec *codec = dai->codec;
@@ -1464,19 +1464,8 @@ static int wm8993_probe(struct platform_device *pdev)
 	wm_hubs_add_analogue_routes(codec, wm8993->pdata.lineout1_diff,
 				    wm8993->pdata.lineout2_diff);
 
-	snd_soc_dapm_new_widgets(codec);
-
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to register card\n");
-		goto card_err;
-	}
-
 	return ret;
 
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 err:
 	return ret;
 }
@@ -1572,33 +1561,15 @@ static int wm8993_i2c_probe(struct i2c_client *i2c,
 	/* Use automatic clock configuration */
 	snd_soc_update_bits(codec, WM8993_CLOCKING_4, WM8993_SR_MODE, 0);
 
-	if (!wm8993->pdata.lineout1_diff)
-		snd_soc_update_bits(codec, WM8993_LINE_MIXER1,
-				    WM8993_LINEOUT1_MODE,
-				    WM8993_LINEOUT1_MODE);
-	if (!wm8993->pdata.lineout2_diff)
-		snd_soc_update_bits(codec, WM8993_LINE_MIXER2,
-				    WM8993_LINEOUT2_MODE,
-				    WM8993_LINEOUT2_MODE);
-
-	if (wm8993->pdata.lineout1fb)
-		snd_soc_update_bits(codec, WM8993_ADDITIONAL_CONTROL,
-				    WM8993_LINEOUT1_FB, WM8993_LINEOUT1_FB);
-
-	if (wm8993->pdata.lineout2fb)
-		snd_soc_update_bits(codec, WM8993_ADDITIONAL_CONTROL,
-				    WM8993_LINEOUT2_FB, WM8993_LINEOUT2_FB);
-
-	/* Apply the microphone bias/detection configuration - the
-	 * platform data is directly applicable to the register. */
-	snd_soc_update_bits(codec, WM8993_MICBIAS,
-			    WM8993_JD_SCTHR_MASK | WM8993_JD_THR_MASK |
-			    WM8993_MICB1_LVL | WM8993_MICB2_LVL,
-			    wm8993->pdata.jd_scthr << WM8993_JD_SCTHR_SHIFT |
-			    wm8993->pdata.jd_thr << WM8993_JD_THR_SHIFT |
-			    wm8993->pdata.micbias1_lvl |
-			    wm8993->pdata.micbias1_lvl << 1);
-
+	wm_hubs_handle_analogue_pdata(codec, wm8993->pdata.lineout1_diff,
+				      wm8993->pdata.lineout2_diff,
+				      wm8993->pdata.lineout1fb,
+				      wm8993->pdata.lineout2fb,
+				      wm8993->pdata.jd_scthr,
+				      wm8993->pdata.jd_thr,
+				      wm8993->pdata.micbias1_lvl,
+				      wm8993->pdata.micbias2_lvl);
+			     
 	ret = wm8993_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	if (ret != 0)
 		goto err;

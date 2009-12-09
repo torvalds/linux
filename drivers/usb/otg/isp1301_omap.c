@@ -36,8 +36,8 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <mach/usb.h>
-#include <mach/mux.h>
+#include <plat/usb.h>
+#include <plat/mux.h>
 
 
 #ifndef	DEBUG

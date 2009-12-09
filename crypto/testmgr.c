@@ -1201,7 +1201,7 @@ static int test_cprng(struct crypto_rng *tfm, struct cprng_testvec *template,
 		      unsigned int tcount)
 {
 	const char *algo = crypto_tfm_alg_driver_name(crypto_rng_tfm(tfm));
-	int err, i, j, seedsize;
+	int err = 0, i, j, seedsize;
 	u8 *seed;
 	char result[32];
 
@@ -1940,6 +1940,15 @@ static const struct alg_test_desc alg_test_descs[] = {
 					.vecs = aes_gcm_dec_tv_template,
 					.count = AES_GCM_DEC_TEST_VECTORS
 				}
+			}
+		}
+	}, {
+		.alg = "ghash",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = {
+				.vecs = ghash_tv_template,
+				.count = GHASH_TEST_VECTORS
 			}
 		}
 	}, {

@@ -659,6 +659,9 @@ ARM/FREESCALE IMX / MXC ARM ARCHITECTURE
 M:	Sascha Hauer <kernel@pengutronix.de>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
+T:	git://git.pengutronix.de/git/imx/linux-2.6.git
+F:	arch/arm/mach-mx*/
+F:	arch/arm/plat-mxc/
 
 ARM/GLOMATION GESBC9312SX MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
@@ -729,6 +732,19 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-ixp4xx/
 
+ARM/INTEL RESEARCH IMOTE 2 MACHINE SUPPORT
+M:	Jonathan Cameron <jic23@cam.ac.uk>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-pxa/imote2.c
+
+ARM/INTEL RESEARCH STARGATE 2 MACHINE SUPPORT
+M:	Jonathan Cameron <jic23@cam.ac.uk>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-pxa/stargate2.c
+F:	drivers/pcmcia/pxa2xx_stargate2.c
+
 ARM/INTEL XSC3 (MANZANO) ARM CORE
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 M:	Dan Williams <dan.j.williams@intel.com>
@@ -770,6 +786,14 @@ S:	Maintained
 ARM/NEC MOBILEPRO 900/c MACHINE SUPPORT
 M:	Michael Petchkovsky <mkpetch@internode.on.net>
 S:	Maintained
+
+ARM/NOMADIK ARCHITECTURE
+M:     Alessandro Rubini <rubini@unipv.it>
+M:     STEricsson <STEricsson_nomadik_linux@list.st.com>
+L:     linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:     Maintained
+F:     arch/arm/mach-nomadik/
+F:     arch/arm/plat-nomadik/
 
 ARM/OPENMOKO NEO FREERUNNER (GTA02) MACHINE SUPPORT
 M:	Nelson Castillo <arhuaco@freaks-unidos.net>
@@ -914,6 +938,12 @@ M:	Wan ZongShun <mcuos.com@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.mcuos.com
 S:	Maintained
+
+ARM/U8500 ARM ARCHITECTURE
+M:	Srinidhi Kasagar <srinidhi.kasagar@stericsson.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-ux500/
 
 ARM/VFP SUPPORT
 M:	Russell King <linux@arm.linux.org.uk>
@@ -1120,7 +1150,6 @@ F:	include/net/ax25.h
 F:	net/ax25/
 
 B43 WIRELESS DRIVER
-M:	Michael Buesch <mb@bu3sch.de>
 M:	Stefano Brivio <stefano.brivio@polimi.it>
 L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/en/users/Drivers/b43
@@ -1818,6 +1847,19 @@ W:	http://www.adaptec.com/
 S:	Maintained
 F:	drivers/scsi/dpt*
 F:	drivers/scsi/dpt/
+
+DRBD DRIVER
+P:     Philipp Reisner
+P:     Lars Ellenberg
+M:     drbd-dev@lists.linbit.com
+L:     drbd-user@lists.linbit.com
+W:     http://www.drbd.org
+T:     git git://git.drbd.org/linux-2.6-drbd.git drbd
+T:     git git://git.drbd.org/drbd-8.3.git
+S:     Supported
+F:     drivers/block/drbd/
+F:     lib/lru_cache.c
+F:     Documentation/blockdev/drbd/
 
 DRIVER CORE, KOBJECTS, AND SYSFS
 M:	Greg Kroah-Hartman <gregkh@suse.de>
@@ -2817,6 +2859,15 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/iwlwifi/iwlwifi-2.6.git
 S:	Supported
 F:	drivers/net/wireless/iwlwifi/
 
+INTEL WIRELESS MULTICOMM 3200 WIFI (iwmc3200wifi)
+M:	Samuel Ortiz <samuel.ortiz@intel.com>
+M:	Zhu Yi <yi.zhu@intel.com>
+M:	Intel Linux Wireless <ilw@linux.intel.com>
+L:	linux-wireless@vger.kernel.org
+S:	Supported
+W:	http://wireless.kernel.org/en/users/Drivers/iwmc3200wifi
+F:	drivers/net/wireless/iwmc3200wifi/
+
 IOC3 ETHERNET DRIVER
 M:	Ralf Baechle <ralf@linux-mips.org>
 L:	linux-mips@linux-mips.org
@@ -3741,9 +3792,9 @@ F:	include/linux/if_*
 F:	include/linux/*device.h
 
 NETXEN (1/10) GbE SUPPORT
-M:	Dhananjay Phadke <dhananjay@netxen.com>
+M:	Amit Kumar Salecha <amit.salecha@qlogic.com>
 L:	netdev@vger.kernel.org
-W:	http://www.netxen.com
+W:	http://www.qlogic.com
 S:	Supported
 F:	drivers/net/netxen/
 

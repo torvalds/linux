@@ -870,19 +870,6 @@ static void enic_free_rq_buf(struct vnic_rq *rq, struct vnic_rq_buf *buf)
 	dev_kfree_skb_any(buf->os_buf);
 }
 
-static inline struct sk_buff *enic_rq_alloc_skb(struct net_device *netdev,
-	unsigned int size)
-{
-	struct sk_buff *skb;
-
-	skb = netdev_alloc_skb(netdev, size + NET_IP_ALIGN);
-
-	if (skb)
-		skb_reserve(skb, NET_IP_ALIGN);
-
-	return skb;
-}
-
 static int enic_rq_alloc_buf(struct vnic_rq *rq)
 {
 	struct enic *enic = vnic_dev_priv(rq->vdev);
@@ -892,7 +879,7 @@ static int enic_rq_alloc_buf(struct vnic_rq *rq)
 	unsigned int os_buf_index = 0;
 	dma_addr_t dma_addr;
 
-	skb = enic_rq_alloc_skb(netdev, len);
+	skb = netdev_alloc_skb_ip_align(netdev, len);
 	if (!skb)
 		return -ENOMEM;
 
