@@ -70,7 +70,7 @@ ADT7475:
 
 ADT7476:
   * 5 voltage inputs
-  * VID support (not implemented)
+  * VID support
 
 ADT7490:
   * 6 voltage inputs
