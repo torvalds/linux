@@ -3350,16 +3350,14 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 			TPACPI_HOTKEY_MAP_SIZE);
 	}
 
-	set_bit(EV_KEY, tpacpi_inputdev->evbit);
-	set_bit(EV_MSC, tpacpi_inputdev->evbit);
-	set_bit(MSC_SCAN, tpacpi_inputdev->mscbit);
+	input_set_capability(tpacpi_inputdev, EV_MSC, MSC_SCAN);
 	tpacpi_inputdev->keycodesize = TPACPI_HOTKEY_MAP_TYPESIZE;
 	tpacpi_inputdev->keycodemax = TPACPI_HOTKEY_MAP_LEN;
 	tpacpi_inputdev->keycode = hotkey_keycode_map;
 	for (i = 0; i < TPACPI_HOTKEY_MAP_LEN; i++) {
 		if (hotkey_keycode_map[i] != KEY_RESERVED) {
-			set_bit(hotkey_keycode_map[i],
-				tpacpi_inputdev->keybit);
+			input_set_capability(tpacpi_inputdev, EV_KEY,
+						hotkey_keycode_map[i]);
 		} else {
 			if (i < sizeof(hotkey_reserved_mask)*8)
 				hotkey_reserved_mask |= 1 << i;
@@ -3367,12 +3365,10 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	}
 
 	if (tp_features.hotkey_wlsw) {
-		set_bit(EV_SW, tpacpi_inputdev->evbit);
-		set_bit(SW_RFKILL_ALL, tpacpi_inputdev->swbit);
+		input_set_capability(tpacpi_inputdev, EV_SW, SW_RFKILL_ALL);
 	}
 	if (tp_features.hotkey_tablet) {
-		set_bit(EV_SW, tpacpi_inputdev->evbit);
-		set_bit(SW_TABLET_MODE, tpacpi_inputdev->swbit);
+		input_set_capability(tpacpi_inputdev, EV_SW, SW_TABLET_MODE);
 	}
 
 	/* Do not issue duplicate brightness change events to
