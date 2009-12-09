@@ -584,6 +584,10 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo, bool interruptible,
 	evict_mem = bo->mem;
 	evict_mem.mm_node = NULL;
 
+	placement.fpfn = 0;
+	placement.lpfn = 0;
+	placement.num_placement = 0;
+	placement.num_busy_placement = 0;
 	bdev->driver->evict_flags(bo, &placement);
 	ret = ttm_bo_mem_space(bo, &placement, &evict_mem, interruptible,
 				no_wait);
