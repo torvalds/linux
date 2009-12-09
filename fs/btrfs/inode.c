@@ -3995,7 +3995,11 @@ skip:
 
 	/* Reached end of directory/root. Bump pos past the last item. */
 	if (key_type == BTRFS_DIR_INDEX_KEY)
-		filp->f_pos = INT_LIMIT(off_t);
+		/*
+		 * 32-bit glibc will use getdents64, but then strtol -
+		 * so the last number we can serve is this.
+		 */
+		filp->f_pos = 0x7fffffff;
 	else
 		filp->f_pos++;
 nopos:
