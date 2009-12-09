@@ -47,6 +47,7 @@
 
 #define REG_DEVID		0x3D
 #define REG_VENDID		0x3E
+#define REG_DEVID2		0x3F
 
 #define REG_STATUS1		0x41
 #define REG_STATUS2		0x42
@@ -1014,18 +1015,22 @@ static int adt7475_detect(struct i2c_client *client, int kind,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
-	int vendid, devid;
+	int vendid, devid, devid2;
 	const char *name;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
 	vendid = adt7475_read(REG_VENDID);
-	devid = adt7475_read(REG_DEVID);
+	devid2 = adt7475_read(REG_DEVID2);
+	if (vendid != 0x41 ||		/* Analog Devices */
+	    (devid2 & 0xf8) != 0x68)
+		return -ENODEV;
 
-	if (vendid == 0x41 && devid == 0x73)
+	devid = adt7475_read(REG_DEVID);
+	if (devid == 0x73)
 		name = "adt7473";
-	else if (vendid == 0x41 && devid == 0x75 && client->addr == 0x2e)
+	else if (devid == 0x75 && client->addr == 0x2e)
 		name = "adt7475";
 	else {
 		dev_dbg(&adapter->dev,
