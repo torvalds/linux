@@ -113,11 +113,12 @@
 #define TEMP_OFFSET_REG(idx) (REG_TEMP_OFFSET_BASE + (idx))
 #define TEMP_TRANGE_REG(idx) (REG_TEMP_TRANGE_BASE + (idx))
 
-static unsigned short normal_i2c[] = { 0x2e, I2C_CLIENT_END };
+static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
-I2C_CLIENT_INSMOD_1(adt7475);
+I2C_CLIENT_INSMOD_2(adt7473, adt7475);
 
 static const struct i2c_device_id adt7475_id[] = {
+	{ "adt7473", adt7473 },
 	{ "adt7475", adt7475 },
 	{ }
 };
@@ -970,19 +971,27 @@ static int adt7475_detect(struct i2c_client *client, int kind,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
+	int vendid, devid;
+	const char *name;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	if (adt7475_read(REG_VENDID) != 0x41 ||
-	    adt7475_read(REG_DEVID) != 0x75) {
-		dev_err(&adapter->dev,
-			"Couldn't detect a adt7475 part at 0x%02x\n",
-			(unsigned int)client->addr);
+	vendid = adt7475_read(REG_VENDID);
+	devid = adt7475_read(REG_DEVID);
+
+	if (vendid == 0x41 && devid == 0x73)
+		name = "adt7473";
+	else if (vendid == 0x41 && devid == 0x75 && client->addr == 0x2e)
+		name = "adt7475";
+	else {
+		dev_dbg(&adapter->dev,
+			"Couldn't detect an ADT7473 or ADT7475 part at "
+			"0x%02x\n", (unsigned int)client->addr);
 		return -ENODEV;
 	}
 
-	strlcpy(info->type, adt7475_id[0].name, I2C_NAME_SIZE);
+	strlcpy(info->type, name, I2C_NAME_SIZE);
 
 	return 0;
 }

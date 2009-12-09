@@ -174,7 +174,6 @@ static const struct i2c_device_id adt7473_id[] = {
 	{ "adt7473", adt7473 },
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, adt7473_id);
 
 static struct i2c_driver adt7473_driver = {
 	.class		= I2C_CLASS_HWMON,
@@ -1166,6 +1165,8 @@ static int adt7473_remove(struct i2c_client *client)
 
 static int __init adt7473_init(void)
 {
+	pr_notice("The adt7473 driver is deprecated, please use the adt7475 "
+		  "driver instead\n");
 	return i2c_add_driver(&adt7473_driver);
 }
 
