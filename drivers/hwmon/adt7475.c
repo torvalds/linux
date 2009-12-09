@@ -1109,6 +1109,14 @@ static int adt7475_detect(struct i2c_client *client, int kind,
 	return 0;
 }
 
+static void adt7475_remove_files(struct i2c_client *client,
+				 struct adt7475_data *data)
+{
+	sysfs_remove_group(&client->dev.kobj, &adt7475_attr_group);
+	if (data->has_voltage & 0x39)
+		sysfs_remove_group(&client->dev.kobj, &adt7490_attr_group);
+}
+
 static int adt7475_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -1156,9 +1164,7 @@ static int adt7475_probe(struct i2c_client *client,
 	return 0;
 
 eremove:
-	sysfs_remove_group(&client->dev.kobj, &adt7475_attr_group);
-	if (data->has_voltage & 0x39)
-		sysfs_remove_group(&client->dev.kobj, &adt7490_attr_group);
+	adt7475_remove_files(client, data);
 efree:
 	kfree(data);
 	return ret;
@@ -1169,9 +1175,7 @@ static int adt7475_remove(struct i2c_client *client)
 	struct adt7475_data *data = i2c_get_clientdata(client);
 
 	hwmon_device_unregister(data->hwmon_dev);
-	sysfs_remove_group(&client->dev.kobj, &adt7475_attr_group);
-	if (data->has_voltage & 0x39)
-		sysfs_remove_group(&client->dev.kobj, &adt7490_attr_group);
+	adt7475_remove_files(client, data);
 	kfree(data);
 
 	return 0;
