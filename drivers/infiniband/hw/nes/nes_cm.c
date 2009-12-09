@@ -1014,18 +1014,6 @@ static int mini_cm_dec_refcnt_listen(struct nes_cm_core *cm_core,
 					cm_node->state = NES_CM_STATE_LISTENER_DESTROYED;
 					loopback->state = NES_CM_STATE_CLOSED;
 
-					event.cm_node = cm_node;
-					event.cm_info.rem_addr =
-							 cm_node->rem_addr;
-					event.cm_info.loc_addr =
-							 cm_node->loc_addr;
-					event.cm_info.rem_port =
-							 cm_node->rem_port;
-					event.cm_info.loc_port =
-							 cm_node->loc_port;
-					event.cm_info.cm_id = cm_node->cm_id;
-					cm_event_reset(&event);
-
 					rem_ref_cm_node(cm_node->cm_core,
 							 cm_node);
 
@@ -3440,6 +3428,8 @@ static void cm_event_reset(struct nes_cm_event *event)
 
 	nes_debug(NES_DBG_CM, "%p - cm_id = %p\n", event->cm_node, cm_id);
 	nesqp = cm_id->provider_data;
+	if (!nesqp)
+		return;
 
 	nesqp->cm_id = NULL;
 	/* cm_id->provider_data = NULL; */
@@ -3451,8 +3441,8 @@ static void cm_event_reset(struct nes_cm_event *event)
 	cm_event.private_data = NULL;
 	cm_event.private_data_len = 0;
 
-	ret = cm_id->event_handler(cm_id, &cm_event);
 	cm_id->add_ref(cm_id);
+	ret = cm_id->event_handler(cm_id, &cm_event);
 	atomic_inc(&cm_closes);
 	cm_event.event = IW_CM_EVENT_CLOSE;
 	cm_event.status = IW_CM_EVENT_STATUS_OK;
