@@ -52,6 +52,7 @@
 #include <linux/random.h>
 #include <linux/list.h>
 #include <linux/threads.h>
+#include <linux/highmem.h>
 #include <net/arp.h>
 #include <net/neighbour.h>
 #include <net/route.h>
@@ -2836,6 +2837,10 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 			cpu_to_le32(conn_param->private_data_len +
 			sizeof(struct ietf_mpa_frame));
 		wqe->wqe_words[NES_IWARP_SQ_WQE_STAG0_IDX] = ibmr->lkey;
+		if (nesqp->sq_kmapped) {
+			nesqp->sq_kmapped = 0;
+			kunmap(nesqp->page);
+		}
 
 		nesqp->nesqp_context->ird_ord_sizes |=
 			cpu_to_le32(NES_QPCONTEXT_ORDIRD_LSMM_PRESENT |
@@ -3303,6 +3308,11 @@ static void cm_event_connected(struct nes_cm_event *event)
 		wqe->wqe_words[NES_IWARP_SQ_WQE_FRAG0_HIGH_IDX] = 0;
 		wqe->wqe_words[NES_IWARP_SQ_WQE_LENGTH0_IDX] = 0;
 		wqe->wqe_words[NES_IWARP_SQ_WQE_STAG0_IDX] = 0;
+
+		if (nesqp->sq_kmapped) {
+			nesqp->sq_kmapped = 0;
+			kunmap(nesqp->page);
+		}
 
 		/* use the reserved spot on the WQ for the extra first WQE */
 		nesqp->nesqp_context->ird_ord_sizes &=

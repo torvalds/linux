@@ -175,5 +175,6 @@ struct nes_qp {
 	u8                    hw_iwarp_state;
 	u8                    hw_tcp_state;
 	u8                    term_flags;
+	u8                    sq_kmapped;
 };
 #endif			/* NES_VERBS_H */

@@ -1015,6 +1015,7 @@ static int nes_setup_virt_qp(struct nes_qp *nesqp, struct nes_pbl *nespbl,
 		kunmap(nesqp->page);
 		return -ENOMEM;
 	}
+	nesqp->sq_kmapped = 1;
 	nesqp->hwqp.q2_vbase = mem;
 	mem += 256;
 	memset(nesqp->hwqp.q2_vbase, 0, 256);
@@ -1092,7 +1093,10 @@ static inline void nes_free_qp_mem(struct nes_device *nesdev,
 		pci_free_consistent(nesdev->pcidev, nesqp->qp_mem_size, nesqp->hwqp.q2_vbase, nesqp->hwqp.q2_pbase);
 		pci_free_consistent(nesdev->pcidev, 256, nesqp->pbl_vbase, nesqp->pbl_pbase );
 		nesqp->pbl_vbase = NULL;
-		kunmap(nesqp->page);
+		if (nesqp->sq_kmapped) {
+			nesqp->sq_kmapped = 0;
+			kunmap(nesqp->page);
+		}
 	}
 }
 
@@ -1501,8 +1505,10 @@ static int nes_destroy_qp(struct ib_qp *ibqp)
 				nes_ucontext->first_free_wq = nesqp->mmap_sq_db_index;
 			}
 		}
-		if (nesqp->pbl_pbase)
+		if (nesqp->pbl_pbase && nesqp->sq_kmapped) {
+			nesqp->sq_kmapped = 0;
 			kunmap(nesqp->page);
+		}
 	} else {
 		/* Clean any pending completions from the cq(s) */
 		if (nesqp->nesscq)
