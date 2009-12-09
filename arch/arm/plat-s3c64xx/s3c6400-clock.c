@@ -486,10 +486,10 @@ void __init_or_cpufreq s3c6400_setup_clocks(void)
 	clk_f.rate = fclk;
 
 	for (ptr = 0; ptr < ARRAY_SIZE(init_parents); ptr++)
-		s3c_set_clksrc(init_parents[ptr]);
+		s3c_set_clksrc(init_parents[ptr], true);
 
 	for (ptr = 0; ptr < ARRAY_SIZE(clksrcs); ptr++)
-		s3c_set_clksrc(&clksrcs[ptr]);
+		s3c_set_clksrc(&clksrcs[ptr], true);
 }
 
 static struct clk *clks[] __initdata = {

@@ -125,7 +125,7 @@ static unsigned long s3c_roundrate_clksrc(struct clk *clk,
 
 /* Clock initialisation code */
 
-void __init_or_cpufreq s3c_set_clksrc(struct clksrc_clk *clk)
+void __init_or_cpufreq s3c_set_clksrc(struct clksrc_clk *clk, bool announce)
 {
 	struct clksrc_sources *srcs = clk->sources;
 	u32 mask = bit_mask(clk->reg_src.shift, clk->reg_src.size);
@@ -145,9 +145,10 @@ void __init_or_cpufreq s3c_set_clksrc(struct clksrc_clk *clk)
 
 	clk->clk.parent = srcs->sources[clksrc];
 
-	printk(KERN_INFO "%s: source is %s (%d), rate is %ld\n",
-	       clk->clk.name, clk->clk.parent->name, clksrc,
-	       clk_get_rate(&clk->clk));
+	if (announce)
+		printk(KERN_INFO "%s: source is %s (%d), rate is %ld\n",
+		       clk->clk.name, clk->clk.parent->name, clksrc,
+		       clk_get_rate(&clk->clk));
 }
 
 static struct clk_ops clksrc_ops = {
@@ -166,7 +167,12 @@ void __init s3c_register_clksrc(struct clksrc_clk *clksrc, int size)
 		if (!clksrc->clk.ops)
 			clksrc->clk.ops = &clksrc_ops;
 
-		s3c_set_clksrc(clksrc);
+		/* setup the clocksource, but do not announce it
+		 * as it may be re-set by the setup routines
+		 * called after the rest of the clocks have been
+		 * registered
+		 */
+		s3c_set_clksrc(clksrc, false);
 
 		ret = s3c24xx_register_clock(&clksrc->clk);
 

@@ -63,7 +63,15 @@ struct clksrc_clk {
 	struct clksrc_reg	reg_div;
 };
 
-extern void s3c_set_clksrc(struct clksrc_clk *clk);
+/**
+ * s3c_set_clksrc() - setup the clock from the register settings
+ * @clk: The clock to setup.
+ * @announce: true to announce the setting to printk().
+ *
+ * Setup the clock from the current register settings, for when the
+ * kernel boots or if it is resuming from a possibly unknown state.
+ */
+extern void s3c_set_clksrc(struct clksrc_clk *clk, bool announce);
 
 /**
  * s3c_register_clksrc() register clocks from an array of clksrc clocks
