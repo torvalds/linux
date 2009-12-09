@@ -3548,49 +3548,57 @@ static bool hotkey_notify_usrevent(const u32 hkey,
 	}
 }
 
+static void thermal_dump_all_sensors(void);
+
 static bool hotkey_notify_thermal(const u32 hkey,
 				 bool *send_acpi_ev,
 				 bool *ignore_acpi_ev)
 {
+	bool known = true;
+
 	/* 0x6000-0x6FFF: thermal alarms */
 	*send_acpi_ev = true;
 	*ignore_acpi_ev = false;
 
 	switch (hkey) {
-	case TP_HKEY_EV_ALARM_BAT_HOT:
-		printk(TPACPI_CRIT
-			"THERMAL ALARM: battery is too hot!\n");
-		/* recommended action: warn user through gui */
-		return true;
-	case TP_HKEY_EV_ALARM_BAT_XHOT:
-		printk(TPACPI_ALERT
-			"THERMAL EMERGENCY: battery is extremely hot!\n");
-		/* recommended action: immediate sleep/hibernate */
-		return true;
-	case TP_HKEY_EV_ALARM_SENSOR_HOT:
-		printk(TPACPI_CRIT
-			"THERMAL ALARM: "
-			"a sensor reports something is too hot!\n");
-		/* recommended action: warn user through gui, that */
-		/* some internal component is too hot */
-		return true;
-	case TP_HKEY_EV_ALARM_SENSOR_XHOT:
-		printk(TPACPI_ALERT
-			"THERMAL EMERGENCY: "
-			"a sensor reports something is extremely hot!\n");
-		/* recommended action: immediate sleep/hibernate */
-		return true;
 	case TP_HKEY_EV_THM_TABLE_CHANGED:
 		printk(TPACPI_INFO
 			"EC reports that Thermal Table has changed\n");
 		/* recommended action: do nothing, we don't have
 		 * Lenovo ATM information */
 		return true;
+	case TP_HKEY_EV_ALARM_BAT_HOT:
+		printk(TPACPI_CRIT
+			"THERMAL ALARM: battery is too hot!\n");
+		/* recommended action: warn user through gui */
+		break;
+	case TP_HKEY_EV_ALARM_BAT_XHOT:
+		printk(TPACPI_ALERT
+			"THERMAL EMERGENCY: battery is extremely hot!\n");
+		/* recommended action: immediate sleep/hibernate */
+		break;
+	case TP_HKEY_EV_ALARM_SENSOR_HOT:
+		printk(TPACPI_CRIT
+			"THERMAL ALARM: "
+			"a sensor reports something is too hot!\n");
+		/* recommended action: warn user through gui, that */
+		/* some internal component is too hot */
+		break;
+	case TP_HKEY_EV_ALARM_SENSOR_XHOT:
+		printk(TPACPI_ALERT
+			"THERMAL EMERGENCY: "
+			"a sensor reports something is extremely hot!\n");
+		/* recommended action: immediate sleep/hibernate */
+		break;
 	default:
 		printk(TPACPI_ALERT
 			 "THERMAL ALERT: unknown thermal alarm received\n");
-		return false;
+		known = false;
 	}
+
+	thermal_dump_all_sensors();
+
+	return known;
 }
 
 static void hotkey_notify(struct ibm_struct *ibm, u32 event)
@@ -5472,7 +5480,10 @@ enum { /* TPACPI_THERMAL_TPEC_* */
 	TP_EC_THERMAL_TMP0 = 0x78,	/* ACPI EC regs TMP 0..7 */
 	TP_EC_THERMAL_TMP8 = 0xC0,	/* ACPI EC regs TMP 8..15 */
 	TP_EC_THERMAL_TMP_NA = -128,	/* ACPI EC sensor not available */
+
+	TPACPI_THERMAL_SENSOR_NA = -128000, /* Sensor not available */
 };
+
 
 #define TPACPI_MAX_THERMAL_SENSORS 16	/* Max thermal sensors supported */
 struct ibm_thermal_sensors_struct {
@@ -5563,6 +5574,28 @@ static int thermal_get_sensors(struct ibm_thermal_sensors_struct *s)
 	return n;
 }
 
+static void thermal_dump_all_sensors(void)
+{
+	int n, i;
+	struct ibm_thermal_sensors_struct t;
+
+	n = thermal_get_sensors(&t);
+	if (n <= 0)
+		return;
+
+	printk(TPACPI_NOTICE
+		"temperatures (Celsius):");
+
+	for (i = 0; i < n; i++) {
+		if (t.temp[i] != TPACPI_THERMAL_SENSOR_NA)
+			printk(KERN_CONT " %d", (int)(t.temp[i] / 1000));
+		else
+			printk(KERN_CONT " N/A");
+	}
+
+	printk(KERN_CONT "\n");
+}
+
 /* sysfs temp##_input -------------------------------------------------- */
 
 static ssize_t thermal_temp_input_show(struct device *dev,
@@ -5578,7 +5611,7 @@ static ssize_t thermal_temp_input_show(struct device *dev,
 	res = thermal_get_sensor(idx, &value);
 	if (res)
 		return res;
-	if (value == TP_EC_THERMAL_TMP_NA * 1000)
+	if (value == TPACPI_THERMAL_SENSOR_NA)
 		return -ENXIO;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", value);
