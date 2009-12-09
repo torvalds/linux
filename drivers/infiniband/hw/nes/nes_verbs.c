@@ -3373,18 +3373,12 @@ static int nes_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_qp *nesqp = to_nesqp(ibqp);
 	struct nes_hw_qp_wqe *wqe;
-	int err;
+	int err = 0;
 	u32 qsize = nesqp->hwqp.sq_size;
 	u32 head;
-	u32 wqe_misc;
-	u32 wqe_count;
+	u32 wqe_misc = 0;
+	u32 wqe_count = 0;
 	u32 counter;
-	u32 total_payload_length;
-
-	err = 0;
-	wqe_misc = 0;
-	wqe_count = 0;
-	total_payload_length = 0;
 
 	if (nesqp->ibqp_state > IB_QPS_RTS) {
 		err = -EINVAL;
@@ -3415,90 +3409,116 @@ static int nes_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 		u64temp = (u64)(ib_wr->wr_id);
 		set_wqe_64bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_COMP_SCRATCH_LOW_IDX,
 					u64temp);
-			switch (ib_wr->opcode) {
-				case IB_WR_SEND:
-					if (ib_wr->send_flags & IB_SEND_SOLICITED) {
-						wqe_misc = NES_IWARP_SQ_OP_SENDSE;
-					} else {
-						wqe_misc = NES_IWARP_SQ_OP_SEND;
-					}
-					if (ib_wr->num_sge > nesdev->nesadapter->max_sge) {
-						err = -EINVAL;
-						break;
-					}
-					if (ib_wr->send_flags & IB_SEND_FENCE) {
-						wqe_misc |= NES_IWARP_SQ_WQE_LOCAL_FENCE;
-					}
-					if ((ib_wr->send_flags & IB_SEND_INLINE) &&
-							((nes_drv_opt & NES_DRV_OPT_NO_INLINE_DATA) == 0) &&
-							(ib_wr->sg_list[0].length <= 64)) {
-						memcpy(&wqe->wqe_words[NES_IWARP_SQ_WQE_IMM_DATA_START_IDX],
-							       (void *)(unsigned long)ib_wr->sg_list[0].addr, ib_wr->sg_list[0].length);
-						set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_TOTAL_PAYLOAD_IDX,
-								ib_wr->sg_list[0].length);
-						wqe_misc |= NES_IWARP_SQ_WQE_IMM_DATA;
-					} else {
-						fill_wqe_sg_send(wqe, ib_wr, 1);
-					}
+		switch (ib_wr->opcode) {
+		case IB_WR_SEND:
+		case IB_WR_SEND_WITH_INV:
+			if (IB_WR_SEND == ib_wr->opcode) {
+				if (ib_wr->send_flags & IB_SEND_SOLICITED)
+					wqe_misc = NES_IWARP_SQ_OP_SENDSE;
+				else
+					wqe_misc = NES_IWARP_SQ_OP_SEND;
+			} else {
+				if (ib_wr->send_flags & IB_SEND_SOLICITED)
+					wqe_misc = NES_IWARP_SQ_OP_SENDSEINV;
+				else
+					wqe_misc = NES_IWARP_SQ_OP_SENDINV;
 
-					break;
-				case IB_WR_RDMA_WRITE:
-					wqe_misc = NES_IWARP_SQ_OP_RDMAW;
-					if (ib_wr->num_sge > nesdev->nesadapter->max_sge) {
-						nes_debug(NES_DBG_IW_TX, "Exceeded max sge, ib_wr=%u, max=%u\n",
-								ib_wr->num_sge,
-								nesdev->nesadapter->max_sge);
-						err = -EINVAL;
-						break;
-					}
-					if (ib_wr->send_flags & IB_SEND_FENCE) {
-						wqe_misc |= NES_IWARP_SQ_WQE_LOCAL_FENCE;
-					}
-
-					set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_RDMA_STAG_IDX,
-							ib_wr->wr.rdma.rkey);
-					set_wqe_64bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_RDMA_TO_LOW_IDX,
-							ib_wr->wr.rdma.remote_addr);
-
-					if ((ib_wr->send_flags & IB_SEND_INLINE) &&
-							((nes_drv_opt & NES_DRV_OPT_NO_INLINE_DATA) == 0) &&
-							(ib_wr->sg_list[0].length <= 64)) {
-						memcpy(&wqe->wqe_words[NES_IWARP_SQ_WQE_IMM_DATA_START_IDX],
-							       (void *)(unsigned long)ib_wr->sg_list[0].addr, ib_wr->sg_list[0].length);
-						set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_TOTAL_PAYLOAD_IDX,
-								ib_wr->sg_list[0].length);
-						wqe_misc |= NES_IWARP_SQ_WQE_IMM_DATA;
-					} else {
-						fill_wqe_sg_send(wqe, ib_wr, 1);
-					}
-					wqe->wqe_words[NES_IWARP_SQ_WQE_RDMA_LENGTH_IDX] =
-							wqe->wqe_words[NES_IWARP_SQ_WQE_TOTAL_PAYLOAD_IDX];
-					break;
-				case IB_WR_RDMA_READ:
-					/* iWARP only supports 1 sge for RDMA reads */
-					if (ib_wr->num_sge > 1) {
-						nes_debug(NES_DBG_IW_TX, "Exceeded max sge, ib_wr=%u, max=1\n",
-								ib_wr->num_sge);
-						err = -EINVAL;
-						break;
-					}
-					wqe_misc = NES_IWARP_SQ_OP_RDMAR;
-					set_wqe_64bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_RDMA_TO_LOW_IDX,
-							ib_wr->wr.rdma.remote_addr);
-					set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_RDMA_STAG_IDX,
-							ib_wr->wr.rdma.rkey);
-					set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_RDMA_LENGTH_IDX,
-							ib_wr->sg_list->length);
-					set_wqe_64bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_FRAG0_LOW_IDX,
-							ib_wr->sg_list->addr);
-					set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_STAG0_IDX,
-							ib_wr->sg_list->lkey);
-					break;
-				default:
-					/* error */
-					err = -EINVAL;
-					break;
+				set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_INV_STAG_LOW_IDX,
+						    ib_wr->ex.invalidate_rkey);
 			}
+
+			if (ib_wr->num_sge > nesdev->nesadapter->max_sge) {
+				err = -EINVAL;
+				break;
+			}
+
+			if (ib_wr->send_flags & IB_SEND_FENCE)
+				wqe_misc |= NES_IWARP_SQ_WQE_LOCAL_FENCE;
+
+			if ((ib_wr->send_flags & IB_SEND_INLINE) &&
+			    ((nes_drv_opt & NES_DRV_OPT_NO_INLINE_DATA) == 0) &&
+			     (ib_wr->sg_list[0].length <= 64)) {
+				memcpy(&wqe->wqe_words[NES_IWARP_SQ_WQE_IMM_DATA_START_IDX],
+				       (void *)(unsigned long)ib_wr->sg_list[0].addr, ib_wr->sg_list[0].length);
+				set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_TOTAL_PAYLOAD_IDX,
+						    ib_wr->sg_list[0].length);
+				wqe_misc |= NES_IWARP_SQ_WQE_IMM_DATA;
+			} else {
+				fill_wqe_sg_send(wqe, ib_wr, 1);
+			}
+
+			break;
+		case IB_WR_RDMA_WRITE:
+			wqe_misc = NES_IWARP_SQ_OP_RDMAW;
+			if (ib_wr->num_sge > nesdev->nesadapter->max_sge) {
+				nes_debug(NES_DBG_IW_TX, "Exceeded max sge, ib_wr=%u, max=%u\n",
+					  ib_wr->num_sge, nesdev->nesadapter->max_sge);
+				err = -EINVAL;
+				break;
+			}
+
+			if (ib_wr->send_flags & IB_SEND_FENCE)
+				wqe_misc |= NES_IWARP_SQ_WQE_LOCAL_FENCE;
+
+			set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_RDMA_STAG_IDX,
+					    ib_wr->wr.rdma.rkey);
+			set_wqe_64bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_RDMA_TO_LOW_IDX,
+					    ib_wr->wr.rdma.remote_addr);
+
+			if ((ib_wr->send_flags & IB_SEND_INLINE) &&
+			    ((nes_drv_opt & NES_DRV_OPT_NO_INLINE_DATA) == 0) &&
+			     (ib_wr->sg_list[0].length <= 64)) {
+				memcpy(&wqe->wqe_words[NES_IWARP_SQ_WQE_IMM_DATA_START_IDX],
+				       (void *)(unsigned long)ib_wr->sg_list[0].addr, ib_wr->sg_list[0].length);
+				set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_TOTAL_PAYLOAD_IDX,
+						    ib_wr->sg_list[0].length);
+				wqe_misc |= NES_IWARP_SQ_WQE_IMM_DATA;
+			} else {
+				fill_wqe_sg_send(wqe, ib_wr, 1);
+			}
+
+			wqe->wqe_words[NES_IWARP_SQ_WQE_RDMA_LENGTH_IDX] =
+				wqe->wqe_words[NES_IWARP_SQ_WQE_TOTAL_PAYLOAD_IDX];
+			break;
+		case IB_WR_RDMA_READ:
+		case IB_WR_RDMA_READ_WITH_INV:
+			/* iWARP only supports 1 sge for RDMA reads */
+			if (ib_wr->num_sge > 1) {
+				nes_debug(NES_DBG_IW_TX, "Exceeded max sge, ib_wr=%u, max=1\n",
+					  ib_wr->num_sge);
+				err = -EINVAL;
+				break;
+			}
+			if (ib_wr->opcode == IB_WR_RDMA_READ) {
+				wqe_misc = NES_IWARP_SQ_OP_RDMAR;
+			} else {
+				wqe_misc = NES_IWARP_SQ_OP_RDMAR_LOCINV;
+				set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_INV_STAG_LOW_IDX,
+						    ib_wr->ex.invalidate_rkey);
+			}
+
+			set_wqe_64bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_RDMA_TO_LOW_IDX,
+					    ib_wr->wr.rdma.remote_addr);
+			set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_RDMA_STAG_IDX,
+					    ib_wr->wr.rdma.rkey);
+			set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_RDMA_LENGTH_IDX,
+					    ib_wr->sg_list->length);
+			set_wqe_64bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_FRAG0_LOW_IDX,
+					    ib_wr->sg_list->addr);
+			set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_STAG0_IDX,
+					    ib_wr->sg_list->lkey);
+			break;
+		case IB_WR_LOCAL_INV:
+			wqe_misc = NES_IWARP_SQ_OP_LOCINV;
+			set_wqe_32bit_value(wqe->wqe_words,
+					    NES_IWARP_SQ_LOCINV_WQE_INV_STAG_IDX,
+					    ib_wr->ex.invalidate_rkey);
+			break;
+		default:
+			/* error */
+			err = -EINVAL;
+			break;
+		}
 
 		if (err)
 			break;
@@ -3728,6 +3748,9 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 					case NES_IWARP_SQ_OP_SENDSE:
 						nes_debug(NES_DBG_CQ, "Operation = Send.\n");
 						entry->opcode = IB_WC_SEND;
+						break;
+					case NES_IWARP_SQ_OP_LOCINV:
+						entry->opcode = IB_WR_LOCAL_INV;
 						break;
 				}
 
