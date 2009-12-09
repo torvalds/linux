@@ -3058,6 +3058,8 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 	if (flags == EXT4_GET_BLOCKS_DIO_CONVERT_EXT) {
 		ret = ext4_convert_unwritten_extents_dio(handle, inode,
 							path);
+		if (ret >= 0)
+			ext4_update_inode_fsync_trans(handle, inode, 1);
 		goto out2;
 	}
 	/* buffered IO case */
@@ -3085,6 +3087,8 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 	ret = ext4_ext_convert_to_initialized(handle, inode,
 						path, iblock,
 						max_blocks);
+	if (ret >= 0)
+		ext4_update_inode_fsync_trans(handle, inode, 1);
 out:
 	if (ret <= 0) {
 		err = ret;
@@ -3323,10 +3327,16 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	allocated = ext4_ext_get_actual_len(&newex);
 	set_buffer_new(bh_result);
 
-	/* Cache only when it is _not_ an uninitialized extent */
-	if ((flags & EXT4_GET_BLOCKS_UNINIT_EXT) == 0)
+	/*
+	 * Cache the extent and update transaction to commit on fdatasync only
+	 * when it is _not_ an uninitialized extent.
+	 */
+	if ((flags & EXT4_GET_BLOCKS_UNINIT_EXT) == 0) {
 		ext4_ext_put_in_cache(inode, iblock, allocated, newblock,
 						EXT4_EXT_CACHE_EXTENT);
+		ext4_update_inode_fsync_trans(handle, inode, 1);
+	} else
+		ext4_update_inode_fsync_trans(handle, inode, 0);
 out:
 	if (allocated > max_blocks)
 		allocated = max_blocks;
