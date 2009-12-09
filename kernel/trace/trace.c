@@ -2899,7 +2899,7 @@ static int tracing_release_pipe(struct inode *inode, struct file *file)
 		cpumask_clear_cpu(iter->cpu_file, tracing_reader_cpumask);
 
 
-	if (iter->trace->pipe_open)
+	if (iter->trace->pipe_close)
 		iter->trace->pipe_close(iter);
 
 	mutex_unlock(&trace_types_lock);
