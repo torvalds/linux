@@ -15,9 +15,13 @@
 #include <net/ip.h>
 
 
-/*
- * unhash a timewait socket from established hash
- * lock must be hold by caller
+/**
+ *	inet_twsk_unhash - unhash a timewait socket from established hash
+ *	@tw: timewait socket
+ *
+ *	unhash a timewait socket from established hash, if hashed.
+ *	ehash lock must be held by caller.
+ *	Returns 1 if caller should call inet_twsk_put() after lock release.
  */
 int inet_twsk_unhash(struct inet_timewait_sock *tw)
 {
@@ -26,12 +30,21 @@ int inet_twsk_unhash(struct inet_timewait_sock *tw)
 
 	hlist_nulls_del_rcu(&tw->tw_node);
 	sk_nulls_node_init(&tw->tw_node);
+	/*
+	 * We cannot call inet_twsk_put() ourself under lock,
+	 * caller must call it for us.
+	 */
 	return 1;
 }
 
-/*
- * unhash a timewait socket from bind hash
- * lock must be hold by caller
+/**
+ *	inet_twsk_bind_unhash - unhash a timewait socket from bind hash
+ *	@tw: timewait socket
+ *	@hashinfo: hashinfo pointer
+ *
+ *	unhash a timewait socket from bind hash, if hashed.
+ *	bind hash lock must be held by caller.
+ *	Returns 1 if caller should call inet_twsk_put() after lock release.
  */
 int inet_twsk_bind_unhash(struct inet_timewait_sock *tw,
 			  struct inet_hashinfo *hashinfo)
@@ -44,6 +57,10 @@ int inet_twsk_bind_unhash(struct inet_timewait_sock *tw,
 	__hlist_del(&tw->tw_bind_node);
 	tw->tw_tb = NULL;
 	inet_bind_bucket_destroy(hashinfo->bind_bucket_cachep, tb);
+	/*
+	 * We cannot call inet_twsk_put() ourself under lock,
+	 * caller must call it for us.
+	 */
 	return 1;
 }
 
@@ -139,7 +156,7 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 
 	/*
 	 * Notes :
- 	 * - We initially set tw_refcnt to 0 in inet_twsk_alloc()
+	 * - We initially set tw_refcnt to 0 in inet_twsk_alloc()
 	 * - We add one reference for the bhash link
 	 * - We add one reference for the ehash link
 	 * - We want this refcnt update done before allowing other
@@ -149,7 +166,6 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 
 	spin_unlock(lock);
 }
-
 EXPORT_SYMBOL_GPL(__inet_twsk_hashdance);
 
 struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk, const int state)
@@ -190,7 +206,6 @@ struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk, const int stat
 
 	return tw;
 }
-
 EXPORT_SYMBOL_GPL(inet_twsk_alloc);
 
 /* Returns non-zero if quota exceeded.  */
@@ -269,7 +284,6 @@ void inet_twdr_hangman(unsigned long data)
 out:
 	spin_unlock(&twdr->death_lock);
 }
-
 EXPORT_SYMBOL_GPL(inet_twdr_hangman);
 
 void inet_twdr_twkill_work(struct work_struct *work)
@@ -300,7 +314,6 @@ void inet_twdr_twkill_work(struct work_struct *work)
 		spin_unlock_bh(&twdr->death_lock);
 	}
 }
-
 EXPORT_SYMBOL_GPL(inet_twdr_twkill_work);
 
 /* These are always called from BH context.  See callers in
@@ -320,7 +333,6 @@ void inet_twsk_deschedule(struct inet_timewait_sock *tw,
 	spin_unlock(&twdr->death_lock);
 	__inet_twsk_kill(tw, twdr->hashinfo);
 }
-
 EXPORT_SYMBOL(inet_twsk_deschedule);
 
 void inet_twsk_schedule(struct inet_timewait_sock *tw,
@@ -401,7 +413,6 @@ void inet_twsk_schedule(struct inet_timewait_sock *tw,
 		mod_timer(&twdr->tw_timer, jiffies + twdr->period);
 	spin_unlock(&twdr->death_lock);
 }
-
 EXPORT_SYMBOL_GPL(inet_twsk_schedule);
 
 void inet_twdr_twcal_tick(unsigned long data)
@@ -462,7 +473,6 @@ out:
 #endif
 	spin_unlock(&twdr->death_lock);
 }
-
 EXPORT_SYMBOL_GPL(inet_twdr_twcal_tick);
 
 void inet_twsk_purge(struct inet_hashinfo *hashinfo,
