@@ -142,28 +142,28 @@ static struct i2c_board_info eukrea_cpuimx27_i2c_devices[] = {
 #if defined(CONFIG_SERIAL_8250) || defined(CONFIG_SERIAL_8250_MODULE)
 static struct plat_serial8250_port serial_platform_data[] = {
 	{
-		.mapbase = (unsigned long)(CS3_BASE_ADDR + 0x200000),
+		.mapbase = (unsigned long)(MX27_CS3_BASE_ADDR + 0x200000),
 		.irq = IRQ_GPIOB(23),
 		.uartclk = 14745600,
 		.regshift = 1,
 		.iotype = UPIO_MEM,
 		.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_IOREMAP,
 	}, {
-		.mapbase = (unsigned long)(CS3_BASE_ADDR + 0x400000),
+		.mapbase = (unsigned long)(MX27_CS3_BASE_ADDR + 0x400000),
 		.irq = IRQ_GPIOB(22),
 		.uartclk = 14745600,
 		.regshift = 1,
 		.iotype = UPIO_MEM,
 		.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_IOREMAP,
 	}, {
-		.mapbase = (unsigned long)(CS3_BASE_ADDR + 0x800000),
+		.mapbase = (unsigned long)(MX27_CS3_BASE_ADDR + 0x800000),
 		.irq = IRQ_GPIOB(27),
 		.uartclk = 14745600,
 		.regshift = 1,
 		.iotype = UPIO_MEM,
 		.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_IOREMAP,
 	}, {
-		.mapbase = (unsigned long)(CS3_BASE_ADDR + 0x1000000),
+		.mapbase = (unsigned long)(MX27_CS3_BASE_ADDR + 0x1000000),
 		.irq = IRQ_GPIOB(30),
 		.uartclk = 14745600,
 		.regshift = 1,
@@ -224,8 +224,8 @@ static struct sys_timer eukrea_cpuimx27_timer = {
 };
 
 MACHINE_START(CPUIMX27, "EUKREA CPUIMX27")
-	.phys_io        = AIPI_BASE_ADDR,
-	.io_pg_offst    = ((AIPI_BASE_ADDR_VIRT) >> 18) & 0xfffc,
+	.phys_io        = MX27_AIPI_BASE_ADDR,
+	.io_pg_offst    = ((MX27_AIPI_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
 	.map_io         = mx27_map_io,
 	.init_irq       = mx27_init_irq,

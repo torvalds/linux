@@ -190,8 +190,8 @@ static struct imx_fb_platform_data pcm038_fb_data = {
 
 static struct resource pcm970_sja1000_resources[] = {
 	{
-		.start   = CS4_BASE_ADDR,
-		.end     = CS4_BASE_ADDR + 0x100 - 1,
+		.start   = MX27_CS4_BASE_ADDR,
+		.end     = MX27_CS4_BASE_ADDR + 0x100 - 1,
 		.flags   = IORESOURCE_MEM,
 	}, {
 		.start   = IRQ_GPIOE(19),

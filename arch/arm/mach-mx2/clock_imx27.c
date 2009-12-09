@@ -29,7 +29,7 @@
 #include <mach/common.h>
 #include <mach/hardware.h>
 
-#define IO_ADDR_CCM(off)	(IO_ADDRESS(CCM_BASE_ADDR) + (off))
+#define IO_ADDR_CCM(off)	(IO_ADDRESS(MX27_CCM_BASE_ADDR) + (off))
 
 /* Register offsets */
 #define CCM_CSCR		IO_ADDR_CCM(0x0)
@@ -757,7 +757,8 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk_enable(&uart1_clk);
 #endif
 
-	mxc_timer_init(&gpt1_clk, IO_ADDRESS(GPT1_BASE_ADDR), MXC_INT_GPT1);
+	mxc_timer_init(&gpt1_clk, IO_ADDRESS(MX27_GPT1_BASE_ADDR),
+			MX27_INT_GPT1);
 
 	return 0;
 }
