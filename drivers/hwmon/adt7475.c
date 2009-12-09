@@ -1008,7 +1008,7 @@ static struct attribute *adt7475_attrs[] = {
 	NULL,
 };
 
-struct attribute_group adt7475_attr_group = { .attrs = adt7475_attrs };
+static struct attribute_group adt7475_attr_group = { .attrs = adt7475_attrs };
 
 static int adt7475_detect(struct i2c_client *client, int kind,
 			  struct i2c_board_info *info)
