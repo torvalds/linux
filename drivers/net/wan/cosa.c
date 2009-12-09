@@ -811,7 +811,7 @@ static ssize_t cosa_read(struct file *file,
 	cosa_enable_rx(chan);
 	spin_lock_irqsave(&cosa->lock, flags);
 	add_wait_queue(&chan->rxwaitq, &wait);
-	while(!chan->rx_status) {
+	while (!chan->rx_status) {
 		current->state = TASK_INTERRUPTIBLE;
 		spin_unlock_irqrestore(&cosa->lock, flags);
 		schedule();
@@ -896,7 +896,7 @@ static ssize_t cosa_write(struct file *file,
 
 	spin_lock_irqsave(&cosa->lock, flags);
 	add_wait_queue(&chan->txwaitq, &wait);
-	while(!chan->tx_status) {
+	while (!chan->tx_status) {
 		current->state = TASK_INTERRUPTIBLE;
 		spin_unlock_irqrestore(&cosa->lock, flags);
 		schedule();
@@ -1153,7 +1153,7 @@ static int cosa_ioctl_common(struct cosa_data *cosa,
 	struct channel_data *channel, unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
-	switch(cmd) {
+	switch (cmd) {
 	case COSAIORSET:	/* Reset the device */
 		if (!capable(CAP_NET_ADMIN))
 			return -EACCES;
@@ -1704,7 +1704,7 @@ static inline void tx_interrupt(struct cosa_data *cosa, int status)
 			spin_unlock_irqrestore(&cosa->lock, flags);
 			return;
 		}
-		while(1) {
+		while (1) {
 			cosa->txchan++;
 			i++;
 			if (cosa->txchan >= cosa->nchannels)
@@ -2010,7 +2010,7 @@ again:
 static void debug_status_in(struct cosa_data *cosa, int status)
 {
 	char *s;
-	switch(status & SR_CMD_FROM_SRP_MASK) {
+	switch (status & SR_CMD_FROM_SRP_MASK) {
 	case SR_UP_REQUEST:
 		s = "RX_REQ";
 		break;
