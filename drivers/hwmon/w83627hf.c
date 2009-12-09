@@ -59,10 +59,6 @@ static struct platform_device *pdev;
 #define DRVNAME "w83627hf"
 enum chips { w83627hf, w83627thf, w83697hf, w83637hf, w83687thf };
 
-static u16 force_addr;
-module_param(force_addr, ushort, 0);
-MODULE_PARM_DESC(force_addr,
-		 "Initialize the base address of the sensors");
 static u8 force_i2c = 0x1f;
 module_param(force_i2c, byte, 0);
 MODULE_PARM_DESC(force_i2c,
@@ -1169,13 +1165,6 @@ static int __init w83627hf_find(int sioaddr, unsigned short *addr,
 	}
 
 	superio_select(W83627HF_LD_HWM);
-	force_addr &= WINB_ALIGNMENT;
-	if (force_addr) {
-		printk(KERN_WARNING DRVNAME ": Forcing address 0x%x\n",
-		       force_addr);
-		superio_outb(WINB_BASE_REG, force_addr >> 8);
-		superio_outb(WINB_BASE_REG + 1, force_addr & 0xff);
-	}
 	val = (superio_inb(WINB_BASE_REG) << 8) |
 	       superio_inb(WINB_BASE_REG + 1);
 	*addr = val & WINB_ALIGNMENT;
