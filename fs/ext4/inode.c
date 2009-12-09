@@ -1010,7 +1010,7 @@ qsize_t ext4_get_reserved_space(struct inode *inode)
 		EXT4_I(inode)->i_reserved_meta_blocks;
 	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
 
-	return total;
+	return (total << inode->i_blkbits);
 }
 /*
  * Calculate the number of metadata blocks need to reserve
