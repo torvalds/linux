@@ -1017,6 +1017,12 @@ config SENSORS_APPLESMC
 	  Say Y here if you have an applicable laptop and want to experience
 	  the awesome power of applesmc.
 
+config SENSORS_MC13783_ADC
+        tristate "Freescale MC13783 ADC"
+        depends on MFD_MC13783
+        help
+          Support for the A/D converter on MC13783 PMIC.
+
 if ACPI
 
 comment "ACPI drivers"
