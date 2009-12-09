@@ -90,6 +90,8 @@ static void pcistub_device_release(struct kref *kref)
 
 	dev_dbg(&psdev->dev->dev, "pcistub_device_release\n");
 
+	xen_unregister_device_domain_owner(psdev->dev);
+
 	/* Clean-up the device */
 	pciback_reset_device(psdev->dev);
 	pciback_config_free_dyn_fields(psdev->dev);

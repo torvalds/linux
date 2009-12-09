@@ -10,6 +10,7 @@
 #include <linux/workqueue.h>
 #include <xen/xenbus.h>
 #include <xen/events.h>
+#include <asm/xen/pci.h>
 #include <linux/workqueue.h>
 #include "pciback.h"
 
@@ -221,6 +222,15 @@ static int pciback_export_device(struct pciback_device *pdev,
 	if (err)
 		goto out;
 
+	dev_dbg(&dev->dev, "registering for %d\n", pdev->xdev->otherend_id);
+	if (xen_register_device_domain_owner(dev,
+					     pdev->xdev->otherend_id) != 0) {
+		dev_err(&dev->dev, "device has been assigned to another " \
+			"domain! Over-writting the ownership, but beware.\n");
+		xen_unregister_device_domain_owner(dev);
+		xen_register_device_domain_owner(dev, pdev->xdev->otherend_id);
+	}
+
 	/* TODO: It'd be nice to export a bridge and have all of its children
 	 * get exported with it. This may be best done in xend (which will
 	 * have to calculate resource usage anyway) but we probably want to
@@ -250,6 +260,9 @@ static int pciback_remove_device(struct pciback_device *pdev,
 			domain, bus, slot, func);
 		goto out;
 	}
+
+	dev_dbg(&dev->dev, "unregistering for %d\n", pdev->xdev->otherend_id);
+	xen_unregister_device_domain_owner(dev);
 
 	pciback_release_pci_dev(pdev, dev);
 
