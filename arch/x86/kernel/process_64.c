@@ -254,7 +254,7 @@ int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 	regs.flags = X86_EFLAGS_IF;
 
 	/* Ok, create the new process.. */
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, ~0UL, &regs, 0, NULL, NULL);
+	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
 }
 EXPORT_SYMBOL(kernel_thread);
 
@@ -312,8 +312,9 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	*childregs = *regs;
 
 	childregs->ax = 0;
-	childregs->sp = sp;
-	if (sp == ~0UL)
+	if (user_mode(regs))
+		childregs->sp = sp;
+	else
 		childregs->sp = (unsigned long)childregs;
 
 	p->thread.sp = (unsigned long) childregs;
