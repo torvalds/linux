@@ -3759,6 +3759,10 @@ static void *cfq_init_queue(struct request_queue *q)
 	cfqd->cfq_latency = 1;
 	cfqd->cfq_group_isolation = 0;
 	cfqd->hw_tag = -1;
+	/*
+	 * we optimistically start assuming sync ops weren't delayed in last
+	 * second, in order to have larger depth for async operations.
+	 */
 	cfqd->last_delayed_sync = jiffies - HZ;
 	INIT_RCU_HEAD(&cfqd->rcu);
 	return cfqd;
