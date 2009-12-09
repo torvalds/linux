@@ -807,7 +807,7 @@ static int intc_suspend(struct sys_device *dev, pm_message_t state)
 			break;
 		for_each_irq_desc(irq, desc) {
 			if (desc->handle_irq == intc_redirect_irq)
-				continue
+				continue;
 			if (desc->chip != &d->chip)
 				continue;
 			if (desc->status & IRQ_DISABLED)
