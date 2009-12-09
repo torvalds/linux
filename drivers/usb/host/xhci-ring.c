@@ -953,6 +953,17 @@ bandwidth_change:
 	case TRB_TYPE(TRB_RESET_EP):
 		handle_reset_ep_completion(xhci, event, xhci->cmd_ring->dequeue);
 		break;
+	case TRB_TYPE(TRB_RESET_DEV):
+		xhci_dbg(xhci, "Completed reset device command.\n");
+		slot_id = TRB_TO_SLOT_ID(
+				xhci->cmd_ring->dequeue->generic.field[3]);
+		virt_dev = xhci->devs[slot_id];
+		if (virt_dev)
+			handle_cmd_in_cmd_wait_list(xhci, virt_dev, event);
+		else
+			xhci_warn(xhci, "Reset device command completion "
+					"for disabled slot %u\n", slot_id);
+		break;
 	default:
 		/* Skip over unknown commands on the event ring */
 		xhci->error_bitmask |= 1 << 6;
@@ -2186,6 +2197,14 @@ int xhci_queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 	return queue_command(xhci, lower_32_bits(in_ctx_ptr),
 			upper_32_bits(in_ctx_ptr), 0,
 			TRB_TYPE(TRB_ADDR_DEV) | SLOT_ID_FOR_TRB(slot_id),
+			false);
+}
+
+/* Queue a reset device command TRB */
+int xhci_queue_reset_device(struct xhci_hcd *xhci, u32 slot_id)
+{
+	return queue_command(xhci, 0, 0, 0,
+			TRB_TYPE(TRB_RESET_DEV) | SLOT_ID_FOR_TRB(slot_id),
 			false);
 }
 

@@ -1443,6 +1443,131 @@ void xhci_endpoint_reset(struct usb_hcd *hcd,
 }
 
 /*
+ * This submits a Reset Device Command, which will set the device state to 0,
+ * set the device address to 0, and disable all the endpoints except the default
+ * control endpoint.  The USB core should come back and call
+ * xhci_address_device(), and then re-set up the configuration.  If this is
+ * called because of a usb_reset_and_verify_device(), then the old alternate
+ * settings will be re-installed through the normal bandwidth allocation
+ * functions.
+ *
+ * Wait for the Reset Device command to finish.  Remove all structures
+ * associated with the endpoints that were disabled.  Clear the input device
+ * structure?  Cache the rings?  Reset the control endpoint 0 max packet size?
+ */
+int xhci_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	int ret, i;
+	unsigned long flags;
+	struct xhci_hcd *xhci;
+	unsigned int slot_id;
+	struct xhci_virt_device *virt_dev;
+	struct xhci_command *reset_device_cmd;
+	int timeleft;
+	int last_freed_endpoint;
+
+	ret = xhci_check_args(hcd, udev, NULL, 0, __func__);
+	if (ret <= 0)
+		return ret;
+	xhci = hcd_to_xhci(hcd);
+	slot_id = udev->slot_id;
+	virt_dev = xhci->devs[slot_id];
+	if (!virt_dev) {
+		xhci_dbg(xhci, "%s called with invalid slot ID %u\n",
+				__func__, slot_id);
+		return -EINVAL;
+	}
+
+	xhci_dbg(xhci, "Resetting device with slot ID %u\n", slot_id);
+	/* Allocate the command structure that holds the struct completion.
+	 * Assume we're in process context, since the normal device reset
+	 * process has to wait for the device anyway.  Storage devices are
+	 * reset as part of error handling, so use GFP_NOIO instead of
+	 * GFP_KERNEL.
+	 */
+	reset_device_cmd = xhci_alloc_command(xhci, false, true, GFP_NOIO);
+	if (!reset_device_cmd) {
+		xhci_dbg(xhci, "Couldn't allocate command structure.\n");
+		return -ENOMEM;
+	}
+
+	/* Attempt to submit the Reset Device command to the command ring */
+	spin_lock_irqsave(&xhci->lock, flags);
+	reset_device_cmd->command_trb = xhci->cmd_ring->enqueue;
+	list_add_tail(&reset_device_cmd->cmd_list, &virt_dev->cmd_list);
+	ret = xhci_queue_reset_device(xhci, slot_id);
+	if (ret) {
+		xhci_dbg(xhci, "FIXME: allocate a command ring segment\n");
+		list_del(&reset_device_cmd->cmd_list);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		goto command_cleanup;
+	}
+	xhci_ring_cmd_db(xhci);
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	/* Wait for the Reset Device command to finish */
+	timeleft = wait_for_completion_interruptible_timeout(
+			reset_device_cmd->completion,
+			USB_CTRL_SET_TIMEOUT);
+	if (timeleft <= 0) {
+		xhci_warn(xhci, "%s while waiting for reset device command\n",
+				timeleft == 0 ? "Timeout" : "Signal");
+		spin_lock_irqsave(&xhci->lock, flags);
+		/* The timeout might have raced with the event ring handler, so
+		 * only delete from the list if the item isn't poisoned.
+		 */
+		if (reset_device_cmd->cmd_list.next != LIST_POISON1)
+			list_del(&reset_device_cmd->cmd_list);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		ret = -ETIME;
+		goto command_cleanup;
+	}
+
+	/* The Reset Device command can't fail, according to the 0.95/0.96 spec,
+	 * unless we tried to reset a slot ID that wasn't enabled,
+	 * or the device wasn't in the addressed or configured state.
+	 */
+	ret = reset_device_cmd->status;
+	switch (ret) {
+	case COMP_EBADSLT: /* 0.95 completion code for bad slot ID */
+	case COMP_CTX_STATE: /* 0.96 completion code for same thing */
+		xhci_info(xhci, "Can't reset device (slot ID %u) in %s state\n",
+				slot_id,
+				xhci_get_slot_state(xhci, virt_dev->out_ctx));
+		xhci_info(xhci, "Not freeing device rings.\n");
+		/* Don't treat this as an error.  May change my mind later. */
+		ret = 0;
+		goto command_cleanup;
+	case COMP_SUCCESS:
+		xhci_dbg(xhci, "Successful reset device command.\n");
+		break;
+	default:
+		if (xhci_is_vendor_info_code(xhci, ret))
+			break;
+		xhci_warn(xhci, "Unknown completion code %u for "
+				"reset device command.\n", ret);
+		ret = -EINVAL;
+		goto command_cleanup;
+	}
+
+	/* Everything but endpoint 0 is disabled, so free or cache the rings. */
+	last_freed_endpoint = 1;
+	for (i = 1; i < 31; ++i) {
+		if (!virt_dev->eps[i].ring)
+			continue;
+		xhci_free_or_cache_endpoint_ring(xhci, virt_dev, i);
+		last_freed_endpoint = i;
+	}
+	xhci_dbg(xhci, "Output context after successful reset device cmd:\n");
+	xhci_dbg_ctx(xhci, virt_dev->out_ctx, last_freed_endpoint);
+	ret = 0;
+
+command_cleanup:
+	xhci_free_command(xhci, reset_device_cmd);
+	return ret;
+}
+
+/*
  * At this point, the struct usb_device is about to go away, the device has
  * disconnected, and all traffic has been stopped and the endpoints have been
  * disabled.  Free any HC data structures associated with that device.
