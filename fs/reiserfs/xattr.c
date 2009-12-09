@@ -975,7 +975,7 @@ int reiserfs_lookup_privroot(struct super_block *s)
 	int err = 0;
 
 	/* If we don't have the privroot located yet - go find it */
-	mutex_lock(&s->s_root->d_inode->i_mutex);
+	reiserfs_mutex_lock_safe(&s->s_root->d_inode->i_mutex, s);
 	dentry = lookup_one_len(PRIVROOT_NAME, s->s_root,
 				strlen(PRIVROOT_NAME));
 	if (!IS_ERR(dentry)) {
@@ -1004,14 +1004,14 @@ int reiserfs_xattr_init(struct super_block *s, int mount_flags)
 		goto error;
 
 	if (!privroot->d_inode && !(mount_flags & MS_RDONLY)) {
-		mutex_lock(&s->s_root->d_inode->i_mutex);
+		reiserfs_mutex_lock_safe(&s->s_root->d_inode->i_mutex, s);
 		err = create_privroot(REISERFS_SB(s)->priv_root);
 		mutex_unlock(&s->s_root->d_inode->i_mutex);
 	}
 
 	if (privroot->d_inode) {
 		s->s_xattr = reiserfs_xattr_handlers;
-		mutex_lock(&privroot->d_inode->i_mutex);
+		reiserfs_mutex_lock_safe(&privroot->d_inode->i_mutex, s);
 		if (!REISERFS_SB(s)->xattr_root) {
 			struct dentry *dentry;
 			dentry = lookup_one_len(XAROOT_NAME, privroot,
