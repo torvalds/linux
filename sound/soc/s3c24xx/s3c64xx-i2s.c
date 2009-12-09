@@ -15,16 +15,10 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
-#include <linux/delay.h>
 #include <linux/clk.h>
-#include <linux/kernel.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
 
-#include <sound/core.h>
-#include <sound/pcm.h>
-#include <sound/pcm_params.h>
-#include <sound/initval.h>
 #include <sound/soc.h>
 
 #include <plat/regs-s3c2412-iis.h>
