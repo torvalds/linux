@@ -26,9 +26,9 @@
 #include <linux/limits.h>
 #include <linux/bitops.h>
 
-#include <mach/cpu.h>
-#include <mach/clock.h>
-#include <mach/sram.h>
+#include <plat/cpu.h>
+#include <plat/clock.h>
+#include <plat/sram.h>
 #include <asm/div64.h>
 #include <asm/clkdev.h>
 
@@ -311,10 +311,12 @@ int omap3_noncore_dpll_program(struct clk *clk, u16 m, u8 n, u16 freqsel)
 	_omap3_noncore_dpll_bypass(clk);
 
 	/* Set jitter correction */
-	v = __raw_readl(dd->control_reg);
-	v &= ~dd->freqsel_mask;
-	v |= freqsel << __ffs(dd->freqsel_mask);
-	__raw_writel(v, dd->control_reg);
+	if (!cpu_is_omap44xx()) {
+		v = __raw_readl(dd->control_reg);
+		v &= ~dd->freqsel_mask;
+		v |= freqsel << __ffs(dd->freqsel_mask);
+		__raw_writel(v, dd->control_reg);
+	}
 
 	/* Set DPLL multiplier, divider */
 	v = __raw_readl(dd->mult_div1_reg);
@@ -346,7 +348,7 @@ int omap3_noncore_dpll_program(struct clk *clk, u16 m, u8 n, u16 freqsel)
 int omap3_noncore_dpll_set_rate(struct clk *clk, unsigned long rate)
 {
 	struct clk *new_parent = NULL;
-	u16 freqsel;
+	u16 freqsel = 0;
 	struct dpll_data *dd;
 	int ret;
 
@@ -382,9 +384,13 @@ int omap3_noncore_dpll_set_rate(struct clk *clk, unsigned long rate)
 		if (dd->last_rounded_rate == 0)
 			return -EINVAL;
 
-		freqsel = _omap3_dpll_compute_freqsel(clk, dd->last_rounded_n);
-		if (!freqsel)
-			WARN_ON(1);
+		/* No freqsel on OMAP4 */
+		if (!cpu_is_omap44xx()) {
+			freqsel = _omap3_dpll_compute_freqsel(clk,
+						dd->last_rounded_n);
+			if (!freqsel)
+				WARN_ON(1);
+		}
 
 		pr_debug("clock: %s: set rate: locking rate to %lu.\n",
 			 clk->name, rate);

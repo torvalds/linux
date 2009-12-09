@@ -36,6 +36,12 @@
 #define OMAP3XXX_EN_DPLL_FRBYPASS		0x6
 #define OMAP3XXX_EN_DPLL_LOCKED			0x7
 
+/* OMAP4xxx CM_CLKMODE_DPLL*.EN_*_DPLL bits - for omap2_get_dpll_rate() */
+#define OMAP4XXX_EN_DPLL_MNBYPASS		0x4
+#define OMAP4XXX_EN_DPLL_LPBYPASS		0x5
+#define OMAP4XXX_EN_DPLL_FRBYPASS		0x6
+#define OMAP4XXX_EN_DPLL_LOCKED			0x7
+
 /* CM_CLKEN_PLL*.EN* bit values - not all are available for every DPLL */
 #define DPLL_LOW_POWER_STOP	0x1
 #define DPLL_LOW_POWER_BYPASS	0x5

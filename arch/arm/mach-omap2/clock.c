@@ -249,6 +249,11 @@ u32 omap2_get_dpll_rate(struct clk *clk)
 		if (v == OMAP3XXX_EN_DPLL_LPBYPASS ||
 		    v == OMAP3XXX_EN_DPLL_FRBYPASS)
 			return dd->clk_bypass->rate;
+	} else if (cpu_is_omap44xx()) {
+		if (v == OMAP4XXX_EN_DPLL_LPBYPASS ||
+		    v == OMAP4XXX_EN_DPLL_FRBYPASS ||
+		    v == OMAP4XXX_EN_DPLL_MNBYPASS)
+			return dd->clk_bypass->rate;
 	}
 
 	v = __raw_readl(dd->mult_div1_reg);

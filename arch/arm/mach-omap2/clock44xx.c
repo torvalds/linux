@@ -22,31 +22,6 @@ struct clk_functions omap2_clk_functions = {
 	.clk_disable_unused	= omap2_clk_disable_unused,
 };
 
-/*
- * Dummy functions for DPLL control. Plan is to re-use
- * existing OMAP3 dpll control functions.
- */
-
-unsigned long omap3_dpll_recalc(struct clk *clk)
-{
-	return 0;
-}
-
-int omap3_noncore_dpll_set_rate(struct clk *clk, unsigned long rate)
-{
-	return 0;
-}
-
-int omap3_noncore_dpll_enable(struct clk *clk)
-{
-	return 0;
-}
-
-void omap3_noncore_dpll_disable(struct clk *clk)
-{
-	return;
-}
-
 const struct clkops clkops_noncore_dpll_ops = {
 	.enable		= &omap3_noncore_dpll_enable,
 	.disable	= &omap3_noncore_dpll_disable,
