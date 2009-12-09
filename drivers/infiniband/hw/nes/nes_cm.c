@@ -1354,12 +1354,19 @@ static void handle_fin_pkt(struct nes_cm_node *cm_node)
 	case NES_CM_STATE_SYN_RCVD:
 	case NES_CM_STATE_SYN_SENT:
 	case NES_CM_STATE_ESTABLISHED:
-	case NES_CM_STATE_MPAREQ_SENT:
 	case NES_CM_STATE_MPAREJ_RCVD:
 		cm_node->tcp_cntxt.rcv_nxt++;
 		cleanup_retrans_entry(cm_node);
 		cm_node->state = NES_CM_STATE_LAST_ACK;
 		send_fin(cm_node, NULL);
+		break;
+	case NES_CM_STATE_MPAREQ_SENT:
+		create_event(cm_node, NES_CM_EVENT_ABORTED);
+		cm_node->tcp_cntxt.rcv_nxt++;
+		cleanup_retrans_entry(cm_node);
+		cm_node->state = NES_CM_STATE_CLOSED;
+		add_ref_cm_node(cm_node);
+		send_reset(cm_node, NULL);
 		break;
 	case NES_CM_STATE_FIN_WAIT1:
 		cm_node->tcp_cntxt.rcv_nxt++;
