@@ -209,6 +209,7 @@ static void radeon_evict_flags(struct ttm_buffer_object *bo,
 	default:
 		radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_CPU);
 	}
+	*placement = rbo->placement;
 }
 
 static int radeon_verify_access(struct ttm_buffer_object *bo, struct file *filp)
