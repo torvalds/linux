@@ -2505,34 +2505,24 @@ static int lm93_detect(struct i2c_client *client, int kind,
 		       struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
+	int mfr, ver;
 
 	if (!i2c_check_functionality(adapter, LM93_SMBUS_FUNC_MIN))
 		return -ENODEV;
 
 	/* detection */
-	if (kind < 0) {
-		int mfr = lm93_read_byte(client, LM93_REG_MFR_ID);
-
-		if (mfr != 0x01) {
-			dev_dbg(&adapter->dev,"detect failed, "
-				"bad manufacturer id 0x%02x!\n", mfr);
-			return -ENODEV;
-		}
+	mfr = lm93_read_byte(client, LM93_REG_MFR_ID);
+	if (mfr != 0x01) {
+		dev_dbg(&adapter->dev,
+			"detect failed, bad manufacturer id 0x%02x!\n", mfr);
+		return -ENODEV;
 	}
 
-	if (kind <= 0) {
-		int ver = lm93_read_byte(client, LM93_REG_VER);
-
-		if ((ver == LM93_MFR_ID) || (ver == LM93_MFR_ID_PROTOTYPE)) {
-			kind = lm93;
-		} else {
-			dev_dbg(&adapter->dev,"detect failed, "
-				"bad version id 0x%02x!\n", ver);
-			if (kind == 0)
-				dev_dbg(&adapter->dev,
-					"(ignored 'force' parameter)\n");
-			return -ENODEV;
-		}
+	ver = lm93_read_byte(client, LM93_REG_VER);
+	if (ver != LM93_MFR_ID && ver != LM93_MFR_ID_PROTOTYPE) {
+		dev_dbg(&adapter->dev,
+			"detect failed, bad version id 0x%02x!\n", ver);
+		return -ENODEV;
 	}
 
 	strlcpy(info->type, "lm93", I2C_NAME_SIZE);

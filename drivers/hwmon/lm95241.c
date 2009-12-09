@@ -315,51 +315,23 @@ static int lm95241_detect(struct i2c_client *new_client, int kind,
 {
 	struct i2c_adapter *adapter = new_client->adapter;
 	int address = new_client->addr;
-	const char *name = "";
+	const char *name;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	/*
-	 * Now we do the remaining detection. A negative kind means that
-	 * the driver was loaded with no force parameter (default), so we
-	 * must both detect and identify the chip. A zero kind means that
-	 * the driver was loaded with the force parameter, the detection
-	 * step shall be skipped. A positive kind means that the driver
-	 * was loaded with the force parameter and a given kind of chip is
-	 * requested, so both the detection and the identification steps
-	 * are skipped.
-	 */
-	if (kind < 0) {	/* detection */
-		if ((i2c_smbus_read_byte_data(new_client, LM95241_REG_R_MAN_ID)
-		     != MANUFACTURER_ID)
-		|| (i2c_smbus_read_byte_data(new_client, LM95241_REG_R_CHIP_ID)
-		    < DEFAULT_REVISION)) {
-			dev_dbg(&adapter->dev,
-				"LM95241 detection failed at 0x%02x.\n",
-				address);
-			return -ENODEV;
-		}
-	}
-
-	if (kind <= 0) { /* identification */
-		if ((i2c_smbus_read_byte_data(new_client, LM95241_REG_R_MAN_ID)
-		     == MANUFACTURER_ID)
-		&& (i2c_smbus_read_byte_data(new_client, LM95241_REG_R_CHIP_ID)
-		    >= DEFAULT_REVISION)) {
-
-			kind = lm95241;
-
-			if (kind <= 0) { /* identification failed */
-				dev_info(&adapter->dev, "Unsupported chip\n");
-				return -ENODEV;
-			}
-		}
+	if ((i2c_smbus_read_byte_data(new_client, LM95241_REG_R_MAN_ID)
+	     == MANUFACTURER_ID)
+	 && (i2c_smbus_read_byte_data(new_client, LM95241_REG_R_CHIP_ID)
+	     >= DEFAULT_REVISION)) {
+		name = "lm95241";
+	} else {
+		dev_dbg(&adapter->dev, "LM95241 detection failed at 0x%02x\n",
+			address);
+		return -ENODEV;
 	}
 
 	/* Fill the i2c board info */
-	if (kind == lm95241)
-		name = "lm95241";
 	strlcpy(info->type, name, I2C_NAME_SIZE);
 	return 0;
 }
