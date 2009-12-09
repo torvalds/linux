@@ -71,6 +71,10 @@ sub-device instances, the video_device struct stores V4L2 device node data
 and in the future a v4l2_fh struct will keep track of filehandle instances
 (this is not yet implemented).
 
+The V4L2 framework also optionally integrates with the media framework. If a
+driver sets the struct v4l2_device mdev field, sub-devices and video nodes
+will automatically appear in the media framework as entities.
+
 
 struct v4l2_device
 ------------------
@@ -84,11 +88,14 @@ You must register the device instance:
 	v4l2_device_register(struct device *dev, struct v4l2_device *v4l2_dev);
 
 Registration will initialize the v4l2_device struct. If the dev->driver_data
-field is NULL, it will be linked to v4l2_dev. Drivers that use the media
-device framework in addition to the V4L2 framework need to set
+field is NULL, it will be linked to v4l2_dev.
+
+Drivers that want integration with the media device framework need to set
 dev->driver_data manually to point to the driver-specific device structure
 that embed the struct v4l2_device instance. This is achieved by a
-dev_set_drvdata() call before registering the V4L2 device instance.
+dev_set_drvdata() call before registering the V4L2 device instance. They must
+also set the struct v4l2_device mdev field to point to a properly initialized
+and registered media_device instance.
 
 If v4l2_dev->name is empty then it will be set to a value derived from dev
 (driver name followed by the bus_id, to be precise). If you set it up before
@@ -530,6 +537,21 @@ If you use v4l2_ioctl_ops, then you should set either .unlocked_ioctl or
 The v4l2_file_operations struct is a subset of file_operations. The main
 difference is that the inode argument is omitted since it is never used.
 
+If integration with the media framework is needed, you must initialize the
+media_entity struct embedded in the video_device struct (entity field) by
+calling media_entity_init():
+
+	struct media_pad *pad = &my_vdev->pad;
+	int err;
+
+	err = media_entity_init(&vdev->entity, 1, pad, 0);
+
+The pads array must have been previously initialized. There is no need to
+manually set the struct media_entity type and name fields.
+
+A reference to the entity will be automatically acquired/released when the
+video device is opened/closed.
+
 v4l2_file_operations and locking
 --------------------------------
 
@@ -558,6 +580,9 @@ for you.
 		video_device_release(vdev); /* or kfree(my_vdev); */
 		return err;
 	}
+
+If the v4l2_device parent device has a non-NULL mdev field, the video device
+entity will be automatically registered with the media device.
 
 Which device is registered depends on the type argument. The following
 types exist:
@@ -633,6 +658,13 @@ release, of course) will return an error as well.
 
 When the last user of the video device node exits, then the vdev->release()
 callback is called and you can do the final cleanup there.
+
+Don't forget to cleanup the media entity associated with the video device if
+it has been initialized:
+
+	media_entity_cleanup(&vdev->entity);
+
+This can be done from the release callback.
 
 
 video_device helper functions

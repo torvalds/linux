@@ -16,6 +16,8 @@
 #include <linux/mutex.h>
 #include <linux/videodev2.h>
 
+#include <media/media-entity.h>
+
 #define VIDEO_MAJOR	81
 
 #define VFL_TYPE_GRABBER	0
@@ -55,6 +57,9 @@ struct v4l2_file_operations {
 
 struct video_device
 {
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	struct media_entity entity;
+#endif
 	/* device ops */
 	const struct v4l2_file_operations *fops;
 
@@ -100,6 +105,8 @@ struct video_device
 	struct mutex *lock;
 };
 
+#define media_entity_to_video_device(entity) \
+	container_of(entity, struct video_device, entity)
 /* dev to video-device */
 #define to_video_device(cd) container_of(cd, struct video_device, dev)
 
