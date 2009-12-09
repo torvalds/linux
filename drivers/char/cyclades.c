@@ -158,13 +158,11 @@ static unsigned int cy_isa_addresses[] = {
 
 #define NR_ISA_ADDRS ARRAY_SIZE(cy_isa_addresses)
 
-#ifdef MODULE
 static long maddr[NR_CARDS];
 static int irq[NR_CARDS];
 
 module_param_array(maddr, long, NULL, 0);
 module_param_array(irq, int, NULL, 0);
-#endif
 
 #endif				/* CONFIG_ISA */
 
@@ -3310,13 +3308,10 @@ static int __init cy_detect_isa(void)
 	unsigned short cy_isa_irq, nboard;
 	void __iomem *cy_isa_address;
 	unsigned short i, j, cy_isa_nchan;
-#ifdef MODULE
 	int isparam = 0;
-#endif
 
 	nboard = 0;
 
-#ifdef MODULE
 	/* Check for module parameters */
 	for (i = 0; i < NR_CARDS; i++) {
 		if (maddr[i] || i) {
@@ -3326,7 +3321,6 @@ static int __init cy_detect_isa(void)
 		if (!maddr[i])
 			break;
 	}
-#endif
 
 	/* scan the address table probing for Cyclom-Y/ISA boards */
 	for (i = 0; i < NR_ISA_ADDRS; i++) {
@@ -3347,11 +3341,10 @@ static int __init cy_detect_isa(void)
 			iounmap(cy_isa_address);
 			continue;
 		}
-#ifdef MODULE
+
 		if (isparam && i < NR_CARDS && irq[i])
 			cy_isa_irq = irq[i];
 		else
-#endif
 			/* find out the board's irq by probing */
 			cy_isa_irq = detect_isa_irq(cy_isa_address);
 		if (cy_isa_irq == 0) {
