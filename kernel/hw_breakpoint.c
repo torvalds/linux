@@ -320,18 +320,40 @@ EXPORT_SYMBOL_GPL(register_user_hw_breakpoint);
  * @triggered: callback to trigger when we hit the breakpoint
  * @tsk: pointer to 'task_struct' of the process to which the address belongs
  */
-struct perf_event *
-modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *attr)
+int modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *attr)
 {
-	/*
-	 * FIXME: do it without unregistering
-	 * - We don't want to lose our slot
-	 * - If the new bp is incorrect, don't lose the older one
-	 */
-	unregister_hw_breakpoint(bp);
+	u64 old_addr = bp->attr.bp_addr;
+	int old_type = bp->attr.bp_type;
+	int old_len = bp->attr.bp_len;
+	int err = 0;
 
-	return perf_event_create_kernel_counter(attr, -1, bp->ctx->task->pid,
-						bp->overflow_handler);
+	perf_event_disable(bp);
+
+	bp->attr.bp_addr = attr->bp_addr;
+	bp->attr.bp_type = attr->bp_type;
+	bp->attr.bp_len = attr->bp_len;
+
+	if (attr->disabled)
+		goto end;
+
+	err = arch_validate_hwbkpt_settings(bp, bp->ctx->task);
+	if (!err)
+		perf_event_enable(bp);
+
+	if (err) {
+		bp->attr.bp_addr = old_addr;
+		bp->attr.bp_type = old_type;
+		bp->attr.bp_len = old_len;
+		if (!bp->attr.disabled)
+			perf_event_enable(bp);
+
+		return err;
+	}
+
+end:
+	bp->attr.disabled = attr->disabled;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(modify_user_hw_breakpoint);
 

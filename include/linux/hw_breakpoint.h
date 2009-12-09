@@ -55,7 +55,7 @@ register_user_hw_breakpoint(struct perf_event_attr *attr,
 			    struct task_struct *tsk);
 
 /* FIXME: only change from the attr, and don't unregister */
-extern struct perf_event *
+extern int
 modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *attr);
 
 /*
@@ -91,7 +91,7 @@ static inline struct perf_event *
 register_user_hw_breakpoint(struct perf_event_attr *attr,
 			    perf_overflow_handler_t triggered,
 			    struct task_struct *tsk)	{ return NULL; }
-static inline struct perf_event *
+static inline int
 modify_user_hw_breakpoint(struct perf_event *bp,
 			  struct perf_event_attr *attr)	{ return NULL; }
 static inline struct perf_event *
