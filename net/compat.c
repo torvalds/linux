@@ -754,26 +754,24 @@ asmlinkage long compat_sys_recvfrom(int fd, void __user *buf, size_t len,
 
 asmlinkage long compat_sys_recvmmsg(int fd, struct compat_mmsghdr __user *mmsg,
 				    unsigned vlen, unsigned int flags,
-				    struct timespec __user *timeout)
+				    struct compat_timespec __user *timeout)
 {
 	int datagrams;
 	struct timespec ktspec;
-	struct compat_timespec __user *utspec;
 
 	if (timeout == NULL)
 		return __sys_recvmmsg(fd, (struct mmsghdr __user *)mmsg, vlen,
 				      flags | MSG_CMSG_COMPAT, NULL);
 
-	utspec = (struct compat_timespec __user *)timeout;
-	if (get_user(ktspec.tv_sec, &utspec->tv_sec) ||
-	    get_user(ktspec.tv_nsec, &utspec->tv_nsec))
+	if (get_user(ktspec.tv_sec, &timeout->tv_sec) ||
+	    get_user(ktspec.tv_nsec, &timeout->tv_nsec))
 		return -EFAULT;
 
 	datagrams = __sys_recvmmsg(fd, (struct mmsghdr __user *)mmsg, vlen,
 				   flags | MSG_CMSG_COMPAT, &ktspec);
 	if (datagrams > 0 &&
-	    (put_user(ktspec.tv_sec, &utspec->tv_sec) ||
-	     put_user(ktspec.tv_nsec, &utspec->tv_nsec)))
+	    (put_user(ktspec.tv_sec, &timeout->tv_sec) ||
+	     put_user(ktspec.tv_nsec, &timeout->tv_nsec)))
 		datagrams = -EFAULT;
 
 	return datagrams;
