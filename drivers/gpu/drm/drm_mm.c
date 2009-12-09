@@ -469,6 +469,26 @@ void drm_mm_takedown(struct drm_mm * mm)
 }
 EXPORT_SYMBOL(drm_mm_takedown);
 
+void drm_mm_debug_table(struct drm_mm *mm, const char *prefix)
+{
+	struct drm_mm_node *entry;
+	int total_used = 0, total_free = 0, total = 0;
+
+	list_for_each_entry(entry, &mm->ml_entry, ml_entry) {
+		printk(KERN_DEBUG "%s 0x%08lx-0x%08lx: %8ld: %s\n",
+			prefix, entry->start, entry->start + entry->size,
+			entry->size, entry->free ? "free" : "used");
+		total += entry->size;
+		if (entry->free)
+			total_free += entry->size;
+		else
+			total_used += entry->size;
+	}
+	printk(KERN_DEBUG "%s total: %d, used %d free %d\n", prefix, total,
+		total_used, total_free);
+}
+EXPORT_SYMBOL(drm_mm_debug_table);
+
 #if defined(CONFIG_DEBUG_FS)
 int drm_mm_dump_table(struct seq_file *m, struct drm_mm *mm)
 {
