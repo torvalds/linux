@@ -467,23 +467,16 @@ static int audit_prepare_user_tty(pid_t pid, uid_t loginuid, u32 sessionid)
 	struct task_struct *tsk;
 	int err;
 
-	read_lock(&tasklist_lock);
+	rcu_read_lock();
 	tsk = find_task_by_vpid(pid);
-	err = -ESRCH;
-	if (!tsk)
-		goto out;
-	err = 0;
-
-	spin_lock_irq(&tsk->sighand->siglock);
-	if (!tsk->signal->audit_tty)
-		err = -EPERM;
-	spin_unlock_irq(&tsk->sighand->siglock);
-	if (err)
-		goto out;
-
-	tty_audit_push_task(tsk, loginuid, sessionid);
-out:
-	read_unlock(&tasklist_lock);
+	if (!tsk) {
+		rcu_read_unlock();
+		return -ESRCH;
+	}
+	get_task_struct(tsk);
+	rcu_read_unlock();
+	err = tty_audit_push_task(tsk, loginuid, sessionid);
+	put_task_struct(tsk);
 	return err;
 }
 
