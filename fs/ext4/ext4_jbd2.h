@@ -258,6 +258,19 @@ static inline int ext4_jbd2_file_inode(handle_t *handle, struct inode *inode)
 	return 0;
 }
 
+static inline void ext4_update_inode_fsync_trans(handle_t *handle,
+						 struct inode *inode,
+						 int datasync)
+{
+	struct ext4_inode_info *ei = EXT4_I(inode);
+
+	if (ext4_handle_valid(handle)) {
+		ei->i_sync_tid = handle->h_transaction->t_tid;
+		if (datasync)
+			ei->i_datasync_tid = handle->h_transaction->t_tid;
+	}
+}
+
 /* super.c */
 int ext4_force_commit(struct super_block *sb);
 
