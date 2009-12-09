@@ -1098,12 +1098,13 @@ static inline int mini_cm_accelerated(struct nes_cm_core *cm_core,
 /**
  * nes_addr_resolve_neigh
  */
-static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip)
+static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpindex)
 {
 	struct rtable *rt;
 	struct flowi fl;
 	struct neighbour *neigh;
-	int rc = -1;
+	int rc = arpindex;
+	struct nes_adapter *nesadapter = nesvnic->nesdev->nesadapter;
 
 	memset(&fl, 0, sizeof fl);
 	fl.nl_u.ip4_u.daddr = htonl(dst_ip);
@@ -1119,6 +1120,21 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip)
 			nes_debug(NES_DBG_CM, "Neighbor MAC address for 0x%08X"
 				  " is %pM, Gateway is 0x%08X \n", dst_ip,
 				  neigh->ha, ntohl(rt->rt_gateway));
+
+			if (arpindex >= 0) {
+				if (!memcmp(nesadapter->arp_table[arpindex].mac_addr,
+							neigh->ha, ETH_ALEN)){
+					/* Mac address same as in nes_arp_table */
+					neigh_release(neigh);
+					ip_rt_put(rt);
+					return rc;
+				}
+
+				nes_manage_arp_cache(nesvnic->netdev,
+						nesadapter->arp_table[arpindex].mac_addr,
+						dst_ip, NES_ARP_DELETE);
+			}
+
 			nes_manage_arp_cache(nesvnic->netdev, neigh->ha,
 					     dst_ip, NES_ARP_ADD);
 			rc = nes_arp_table(nesvnic->nesdev, dst_ip, NULL,
@@ -1134,7 +1150,6 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip)
 	return rc;
 }
 
-
 /**
  * make_cm_node - create a new instance of a cm node
  */
@@ -1144,6 +1159,7 @@ static struct nes_cm_node *make_cm_node(struct nes_cm_core *cm_core,
 {
 	struct nes_cm_node *cm_node;
 	struct timespec ts;
+	int oldarpindex = 0;
 	int arpindex = 0;
 	struct nes_device *nesdev;
 	struct nes_adapter *nesadapter;
@@ -1197,17 +1213,18 @@ static struct nes_cm_node *make_cm_node(struct nes_cm_core *cm_core,
 	nesadapter = nesdev->nesadapter;
 
 	cm_node->loopbackpartner = NULL;
+
 	/* get the mac addr for the remote node */
 	if (ipv4_is_loopback(htonl(cm_node->rem_addr)))
 		arpindex = nes_arp_table(nesdev, ntohl(nesvnic->local_ipaddr), NULL, NES_ARP_RESOLVE);
-	else
-		arpindex = nes_arp_table(nesdev, cm_node->rem_addr, NULL, NES_ARP_RESOLVE);
+	else {
+		oldarpindex = nes_arp_table(nesdev, cm_node->rem_addr, NULL, NES_ARP_RESOLVE);
+		arpindex = nes_addr_resolve_neigh(nesvnic, cm_info->rem_addr, oldarpindex);
+
+	}
 	if (arpindex < 0) {
-		arpindex = nes_addr_resolve_neigh(nesvnic, cm_info->rem_addr);
-		if (arpindex < 0) {
-			kfree(cm_node);
-			return NULL;
-		}
+		kfree(cm_node);
+		return NULL;
 	}
 
 	/* copy the mac addr to node context */
