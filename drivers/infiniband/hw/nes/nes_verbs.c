@@ -3386,8 +3386,10 @@ static int nes_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 	wqe_count = 0;
 	total_payload_length = 0;
 
-	if (nesqp->ibqp_state > IB_QPS_RTS)
-		return -EINVAL;
+	if (nesqp->ibqp_state > IB_QPS_RTS) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	spin_lock_irqsave(&nesqp->lock, flags);
 
@@ -3498,6 +3500,9 @@ static int nes_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 					break;
 			}
 
+		if (err)
+			break;
+
 		if (ib_wr->send_flags & IB_SEND_SIGNALED) {
 			wqe_misc |= NES_IWARP_SQ_WQE_SIGNALED_COMPL;
 		}
@@ -3522,6 +3527,7 @@ static int nes_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 
 	spin_unlock_irqrestore(&nesqp->lock, flags);
 
+out:
 	if (err)
 		*bad_wr = ib_wr;
 	return err;
