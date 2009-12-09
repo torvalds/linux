@@ -47,9 +47,8 @@ int v4l2_device_register(struct device *dev, struct v4l2_device *v4l2_dev)
 	if (!v4l2_dev->name[0])
 		snprintf(v4l2_dev->name, sizeof(v4l2_dev->name), "%s %s",
 			dev->driver->name, dev_name(dev));
-	if (dev_get_drvdata(dev))
-		v4l2_warn(v4l2_dev, "Non-NULL drvdata on register\n");
-	dev_set_drvdata(dev, v4l2_dev);
+	if (!dev_get_drvdata(dev))
+		dev_set_drvdata(dev, v4l2_dev);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(v4l2_device_register);
@@ -72,10 +71,12 @@ EXPORT_SYMBOL_GPL(v4l2_device_set_name);
 
 void v4l2_device_disconnect(struct v4l2_device *v4l2_dev)
 {
-	if (v4l2_dev->dev) {
+	if (v4l2_dev->dev == NULL)
+		return;
+
+	if (dev_get_drvdata(v4l2_dev->dev) == v4l2_dev)
 		dev_set_drvdata(v4l2_dev->dev, NULL);
-		v4l2_dev->dev = NULL;
-	}
+	v4l2_dev->dev = NULL;
 }
 EXPORT_SYMBOL_GPL(v4l2_device_disconnect);
 

@@ -83,11 +83,17 @@ You must register the device instance:
 
 	v4l2_device_register(struct device *dev, struct v4l2_device *v4l2_dev);
 
-Registration will initialize the v4l2_device struct and link dev->driver_data
-to v4l2_dev. If v4l2_dev->name is empty then it will be set to a value derived
-from dev (driver name followed by the bus_id, to be precise). If you set it
-up before calling v4l2_device_register then it will be untouched. If dev is
-NULL, then you *must* setup v4l2_dev->name before calling v4l2_device_register.
+Registration will initialize the v4l2_device struct. If the dev->driver_data
+field is NULL, it will be linked to v4l2_dev. Drivers that use the media
+device framework in addition to the V4L2 framework need to set
+dev->driver_data manually to point to the driver-specific device structure
+that embed the struct v4l2_device instance. This is achieved by a
+dev_set_drvdata() call before registering the V4L2 device instance.
+
+If v4l2_dev->name is empty then it will be set to a value derived from dev
+(driver name followed by the bus_id, to be precise). If you set it up before
+calling v4l2_device_register then it will be untouched. If dev is NULL, then
+you *must* setup v4l2_dev->name before calling v4l2_device_register.
 
 You can use v4l2_device_set_name() to set the name based on a driver name and
 a driver-global atomic_t instance. This will generate names like ivtv0, ivtv1,
@@ -108,6 +114,7 @@ You unregister with:
 
 	v4l2_device_unregister(struct v4l2_device *v4l2_dev);
 
+If the dev->driver_data field points to v4l2_dev, it will be reset to NULL.
 Unregistering will also automatically unregister all subdevs from the device.
 
 If you have a hotpluggable device (e.g. a USB device), then when a disconnect
