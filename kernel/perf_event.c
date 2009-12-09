@@ -5083,7 +5083,7 @@ again:
  */
 int perf_event_init_task(struct task_struct *child)
 {
-	struct perf_event_context *child_ctx, *parent_ctx;
+	struct perf_event_context *child_ctx = NULL, *parent_ctx;
 	struct perf_event_context *cloned_ctx;
 	struct perf_event *event;
 	struct task_struct *parent = current;
@@ -5097,20 +5097,6 @@ int perf_event_init_task(struct task_struct *child)
 
 	if (likely(!parent->perf_event_ctxp))
 		return 0;
-
-	/*
-	 * This is executed from the parent task context, so inherit
-	 * events that have been marked for cloning.
-	 * First allocate and initialize a context for the child.
-	 */
-
-	child_ctx = kzalloc(sizeof(struct perf_event_context), GFP_KERNEL);
-	if (!child_ctx)
-		return -ENOMEM;
-
-	__perf_event_init_context(child_ctx, child);
-	child->perf_event_ctxp = child_ctx;
-	get_task_struct(child);
 
 	/*
 	 * If the parent's context is a clone, pin it so it won't get
@@ -5142,6 +5128,26 @@ int perf_event_init_task(struct task_struct *child)
 			continue;
 		}
 
+		if (!child->perf_event_ctxp) {
+			/*
+			 * This is executed from the parent task context, so
+			 * inherit events that have been marked for cloning.
+			 * First allocate and initialize a context for the
+			 * child.
+			 */
+
+			child_ctx = kzalloc(sizeof(struct perf_event_context),
+					    GFP_KERNEL);
+			if (!child_ctx) {
+				ret = -ENOMEM;
+				goto exit;
+			}
+
+			__perf_event_init_context(child_ctx, child);
+			child->perf_event_ctxp = child_ctx;
+			get_task_struct(child);
+		}
+
 		ret = inherit_group(event, parent, parent_ctx,
 					     child, child_ctx);
 		if (ret) {
@@ -5170,6 +5176,7 @@ int perf_event_init_task(struct task_struct *child)
 		get_ctx(child_ctx->parent_ctx);
 	}
 
+exit:
 	mutex_unlock(&parent_ctx->mutex);
 
 	perf_unpin_context(parent_ctx);
