@@ -44,10 +44,11 @@ void radeon_surface_init(struct radeon_device *rdev)
 	if (rdev->family < CHIP_R600) {
 		int i;
 
-		for (i = 0; i < 8; i++) {
-			WREG32(RADEON_SURFACE0_INFO +
-			       i * (RADEON_SURFACE1_INFO - RADEON_SURFACE0_INFO),
-			       0);
+		for (i = 0; i < RADEON_GEM_MAX_SURFACES; i++) {
+			if (rdev->surface_regs[i].bo)
+				radeon_bo_get_surface_reg(rdev->surface_regs[i].bo);
+			else
+				radeon_clear_surface_reg(rdev, i);
 		}
 		/* enable surfaces */
 		WREG32(RADEON_SURFACE_CNTL, 0);

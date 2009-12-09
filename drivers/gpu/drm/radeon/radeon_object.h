@@ -175,5 +175,5 @@ extern int radeon_bo_check_tiling(struct radeon_bo *bo, bool has_moved,
 extern void radeon_bo_move_notify(struct ttm_buffer_object *bo,
 					struct ttm_mem_reg *mem);
 extern void radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
-
+extern int radeon_bo_get_surface_reg(struct radeon_bo *bo);
 #endif

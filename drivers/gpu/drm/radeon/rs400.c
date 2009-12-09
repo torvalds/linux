@@ -430,6 +430,8 @@ int rs400_resume(struct radeon_device *rdev)
 	radeon_combios_asic_init(rdev->ddev);
 	/* Resume clock after posting */
 	r300_clock_startup(rdev);
+	/* Initialize surface registers */
+	radeon_surface_init(rdev);
 	return rs400_startup(rdev);
 }
 

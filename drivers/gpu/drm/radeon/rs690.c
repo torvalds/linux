@@ -658,6 +658,8 @@ int rs690_resume(struct radeon_device *rdev)
 	atom_asic_init(rdev->mode_info.atom_context);
 	/* Resume clock after posting */
 	rv515_clock_startup(rdev);
+	/* Initialize surface registers */
+	radeon_surface_init(rdev);
 	return rs690_startup(rdev);
 }
 

@@ -378,7 +378,7 @@ int radeon_bo_fbdev_mmap(struct radeon_bo *bo,
 	return ttm_fbdev_mmap(vma, &bo->tbo);
 }
 
-static int radeon_bo_get_surface_reg(struct radeon_bo *bo)
+int radeon_bo_get_surface_reg(struct radeon_bo *bo)
 {
 	struct radeon_device *rdev = bo->rdev;
 	struct radeon_surface_reg *reg;
