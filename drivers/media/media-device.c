@@ -61,6 +61,117 @@ static int media_device_get_info(struct media_device *dev,
 	return copy_to_user(__info, &info, sizeof(*__info));
 }
 
+static struct media_entity *find_entity(struct media_device *mdev, u32 id)
+{
+	struct media_entity *entity;
+	int next = id & MEDIA_ENT_ID_FLAG_NEXT;
+
+	id &= ~MEDIA_ENT_ID_FLAG_NEXT;
+
+	spin_lock(&mdev->lock);
+
+	media_device_for_each_entity(entity, mdev) {
+		if ((entity->id == id && !next) ||
+		    (entity->id > id && next)) {
+			spin_unlock(&mdev->lock);
+			return entity;
+		}
+	}
+
+	spin_unlock(&mdev->lock);
+
+	return NULL;
+}
+
+static long media_device_enum_entities(struct media_device *mdev,
+				       struct media_entity_desc __user *uent)
+{
+	struct media_entity *ent;
+	struct media_entity_desc u_ent;
+
+	if (copy_from_user(&u_ent.id, &uent->id, sizeof(u_ent.id)))
+		return -EFAULT;
+
+	ent = find_entity(mdev, u_ent.id);
+
+	if (ent == NULL)
+		return -EINVAL;
+
+	u_ent.id = ent->id;
+	u_ent.name[0] = '\0';
+	if (ent->name)
+		strlcpy(u_ent.name, ent->name, sizeof(u_ent.name));
+	u_ent.type = ent->type;
+	u_ent.revision = ent->revision;
+	u_ent.flags = ent->flags;
+	u_ent.group_id = ent->group_id;
+	u_ent.pads = ent->num_pads;
+	u_ent.links = ent->num_links - ent->num_backlinks;
+	u_ent.v4l.major = ent->v4l.major;
+	u_ent.v4l.minor = ent->v4l.minor;
+	if (copy_to_user(uent, &u_ent, sizeof(u_ent)))
+		return -EFAULT;
+	return 0;
+}
+
+static void media_device_kpad_to_upad(const struct media_pad *kpad,
+				      struct media_pad_desc *upad)
+{
+	upad->entity = kpad->entity->id;
+	upad->index = kpad->index;
+	upad->flags = kpad->flags;
+}
+
+static long media_device_enum_links(struct media_device *mdev,
+				    struct media_links_enum __user *ulinks)
+{
+	struct media_entity *entity;
+	struct media_links_enum links;
+
+	if (copy_from_user(&links, ulinks, sizeof(links)))
+		return -EFAULT;
+
+	entity = find_entity(mdev, links.entity);
+	if (entity == NULL)
+		return -EINVAL;
+
+	if (links.pads) {
+		unsigned int p;
+
+		for (p = 0; p < entity->num_pads; p++) {
+			struct media_pad_desc pad;
+			media_device_kpad_to_upad(&entity->pads[p], &pad);
+			if (copy_to_user(&links.pads[p], &pad, sizeof(pad)))
+				return -EFAULT;
+		}
+	}
+
+	if (links.links) {
+		struct media_link_desc __user *ulink;
+		unsigned int l;
+
+		for (l = 0, ulink = links.links; l < entity->num_links; l++) {
+			struct media_link_desc link;
+
+			/* Ignore backlinks. */
+			if (entity->links[l].source->entity != entity)
+				continue;
+
+			media_device_kpad_to_upad(entity->links[l].source,
+						  &link.source);
+			media_device_kpad_to_upad(entity->links[l].sink,
+						  &link.sink);
+			link.flags = entity->links[l].flags;
+			if (copy_to_user(ulink, &link, sizeof(*ulink)))
+				return -EFAULT;
+			ulink++;
+		}
+	}
+	if (copy_to_user(ulinks, &links, sizeof(*ulinks)))
+		return -EFAULT;
+	return 0;
+}
+
 static long media_device_ioctl(struct file *filp, unsigned int cmd,
 			       unsigned long arg)
 {
@@ -72,6 +183,18 @@ static long media_device_ioctl(struct file *filp, unsigned int cmd,
 	case MEDIA_IOC_DEVICE_INFO:
 		ret = media_device_get_info(dev,
 				(struct media_device_info __user *)arg);
+		break;
+
+	case MEDIA_IOC_ENUM_ENTITIES:
+		ret = media_device_enum_entities(dev,
+				(struct media_entity_desc __user *)arg);
+		break;
+
+	case MEDIA_IOC_ENUM_LINKS:
+		mutex_lock(&dev->graph_mutex);
+		ret = media_device_enum_links(dev,
+				(struct media_links_enum __user *)arg);
+		mutex_unlock(&dev->graph_mutex);
 		break;
 
 	default:

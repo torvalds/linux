@@ -24,29 +24,7 @@
 #define _MEDIA_ENTITY_H
 
 #include <linux/list.h>
-
-#define MEDIA_ENT_TYPE_SHIFT		16
-#define MEDIA_ENT_TYPE_MASK		0x00ff0000
-#define MEDIA_ENT_SUBTYPE_MASK		0x0000ffff
-
-#define MEDIA_ENT_T_DEVNODE		(1 << MEDIA_ENT_TYPE_SHIFT)
-#define MEDIA_ENT_T_DEVNODE_V4L		(MEDIA_ENT_T_DEVNODE + 1)
-#define MEDIA_ENT_T_DEVNODE_FB		(MEDIA_ENT_T_DEVNODE + 2)
-#define MEDIA_ENT_T_DEVNODE_ALSA	(MEDIA_ENT_T_DEVNODE + 3)
-#define MEDIA_ENT_T_DEVNODE_DVB		(MEDIA_ENT_T_DEVNODE + 4)
-
-#define MEDIA_ENT_T_V4L2_SUBDEV		(2 << MEDIA_ENT_TYPE_SHIFT)
-#define MEDIA_ENT_T_V4L2_SUBDEV_SENSOR	(MEDIA_ENT_T_V4L2_SUBDEV + 1)
-#define MEDIA_ENT_T_V4L2_SUBDEV_FLASH	(MEDIA_ENT_T_V4L2_SUBDEV + 2)
-#define MEDIA_ENT_T_V4L2_SUBDEV_LENS	(MEDIA_ENT_T_V4L2_SUBDEV + 3)
-
-#define MEDIA_ENT_FL_DEFAULT		(1 << 0)
-
-#define MEDIA_LNK_FL_ENABLED		(1 << 0)
-#define MEDIA_LNK_FL_IMMUTABLE		(1 << 1)
-
-#define MEDIA_PAD_FL_SINK		(1 << 0)
-#define MEDIA_PAD_FL_SOURCE		(1 << 1)
+#include <linux/media.h>
 
 struct media_link {
 	struct media_pad *source;	/* Source pad */

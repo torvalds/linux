@@ -83,4 +83,6 @@
   &sub-media-ioctl;
   <!-- All ioctls go here. -->
   &sub-media-ioc-device-info;
+  &sub-media-ioc-enum-entities;
+  &sub-media-ioc-enum-links;
 </appendix>

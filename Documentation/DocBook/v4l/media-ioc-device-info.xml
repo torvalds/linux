@@ -27,7 +27,8 @@
       <varlistentry>
 	<term><parameter>fd</parameter></term>
 	<listitem>
-	  <para>&fd;</para>
+	  <para>File descriptor returned by
+	  <link linkend='media-func-open'><function>open()</function></link>.</para>
 	</listitem>
       </varlistentry>
       <varlistentry>
