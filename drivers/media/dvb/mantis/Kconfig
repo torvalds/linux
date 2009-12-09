@@ -11,7 +11,6 @@ config DVB_MANTIS
 	tristate "MANTIS based cards"
 	depends on MANTIS_CORE && DVB_CORE && PCI && I2C
 	select DVB_MB86A16
-	select DVB_CU1216
 	select DVB_ZL10353
 	select DVB_STV0299
 	select DVB_PLL
