@@ -129,6 +129,16 @@ static u32 xhci_port_state_to_neutral(u32 state)
 	return (state & XHCI_PORT_RO) | (state & XHCI_PORT_RWS);
 }
 
+static void xhci_disable_port(struct xhci_hcd *xhci, u16 wIndex,
+		u32 __iomem *addr, u32 port_status)
+{
+	/* Write 1 to disable the port */
+	xhci_writel(xhci, port_status | PORT_PE, addr);
+	port_status = xhci_readl(xhci, addr);
+	xhci_dbg(xhci, "disable port, actual port %d status  = 0x%x\n",
+			wIndex, port_status);
+}
+
 static void xhci_clear_port_change_bit(struct xhci_hcd *xhci, u16 wValue,
 		u16 wIndex, u32 __iomem *addr, u32 port_status)
 {
@@ -147,6 +157,10 @@ static void xhci_clear_port_change_bit(struct xhci_hcd *xhci, u16 wValue,
 	case USB_PORT_FEAT_C_OVER_CURRENT:
 		status = PORT_OCC;
 		port_change_bit = "over-current";
+		break;
+	case USB_PORT_FEAT_C_ENABLE:
+		status = PORT_PEC;
+		port_change_bit = "enable/disable";
 		break;
 	default:
 		/* Should never happen */
@@ -260,8 +274,12 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		case USB_PORT_FEAT_C_RESET:
 		case USB_PORT_FEAT_C_CONNECTION:
 		case USB_PORT_FEAT_C_OVER_CURRENT:
+		case USB_PORT_FEAT_C_ENABLE:
 			xhci_clear_port_change_bit(xhci, wValue, wIndex,
 					addr, temp);
+			break;
+		case USB_PORT_FEAT_ENABLE:
+			xhci_disable_port(xhci, wIndex, addr, temp);
 			break;
 		default:
 			goto error;
