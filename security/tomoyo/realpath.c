@@ -14,6 +14,7 @@
 #include <linux/mnt_namespace.h>
 #include <linux/fs_struct.h>
 #include <linux/hash.h>
+#include <linux/magic.h>
 
 #include "common.h"
 #include "realpath.h"
@@ -112,7 +113,7 @@ int tomoyo_realpath_from_path2(struct path *path, char *newname,
 		path_put(&ns_root);
 		/* Prepend "/proc" prefix if using internal proc vfs mount. */
 		if (!IS_ERR(sp) && (path->mnt->mnt_parent == path->mnt) &&
-		    (strcmp(path->mnt->mnt_sb->s_type->name, "proc") == 0)) {
+		    (path->mnt->mnt_sb->s_magic == PROC_SUPER_MAGIC)) {
 			sp -= 5;
 			if (sp >= newname)
 				memcpy(sp, "/proc", 5);
