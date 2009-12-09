@@ -1181,6 +1181,8 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 		ret = xhci_queue_evaluate_context(xhci, in_ctx->dma,
 				udev->slot_id);
 	if (ret < 0) {
+		if (command)
+			list_del(&command->cmd_list);
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		xhci_dbg(xhci, "FIXME allocate a new ring segment\n");
 		return -ENOMEM;
