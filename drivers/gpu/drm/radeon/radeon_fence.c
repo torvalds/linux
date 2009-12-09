@@ -197,7 +197,7 @@ retry:
 		r = wait_event_interruptible_timeout(rdev->fence_drv.queue,
 				radeon_fence_signaled(fence), timeout);
 		radeon_irq_kms_sw_irq_put(rdev);
-		if (unlikely(r != 0))
+		if (unlikely(r < 0))
 			return r;
 	} else {
 		radeon_irq_kms_sw_irq_get(rdev);
