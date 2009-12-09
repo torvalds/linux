@@ -868,6 +868,11 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 	ps = le16_to_cpu(pgid.ps);
 	preferred = (s16)le16_to_cpu(pgid.preferred);
 
+	/* don't forcefeed bad device ids to crush */
+	if (preferred >= osdmap->max_osd ||
+	    preferred >= osdmap->crush->max_devices)
+		preferred = -1;
+
 	if (poolid >= osdmap->num_pools)
 		return NULL;
 	pool = &osdmap->pg_pool[poolid];
