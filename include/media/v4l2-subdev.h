@@ -487,19 +487,8 @@ static inline void *v4l2_get_subdev_hostdata(const struct v4l2_subdev *sd)
 	return sd->host_priv;
 }
 
-static inline void v4l2_subdev_init(struct v4l2_subdev *sd,
-					const struct v4l2_subdev_ops *ops)
-{
-	INIT_LIST_HEAD(&sd->list);
-	BUG_ON(!ops);
-	sd->ops = ops;
-	sd->v4l2_dev = NULL;
-	sd->flags = 0;
-	sd->name[0] = '\0';
-	sd->grp_id = 0;
-	sd->dev_priv = NULL;
-	sd->host_priv = NULL;
-}
+void v4l2_subdev_init(struct v4l2_subdev *sd,
+		      const struct v4l2_subdev_ops *ops);
 
 /* Call an ops of a v4l2_subdev, doing the right checks against
    NULL pointers.

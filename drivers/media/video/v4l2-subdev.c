@@ -1,22 +1,23 @@
 /*
- *  V4L2 subdevice support.
+ * V4L2 sub-device
  *
- *  Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Nokia Corporation
  *
- *  Contact: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+ * Contact: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+ *	    Sakari Ailus <sakari.ailus@iki.fi>
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/types.h>
@@ -58,3 +59,17 @@ const struct v4l2_file_operations v4l2_subdev_fops = {
 	.unlocked_ioctl = subdev_ioctl,
 	.release = subdev_close,
 };
+
+void v4l2_subdev_init(struct v4l2_subdev *sd, const struct v4l2_subdev_ops *ops)
+{
+	INIT_LIST_HEAD(&sd->list);
+	BUG_ON(!ops);
+	sd->ops = ops;
+	sd->v4l2_dev = NULL;
+	sd->flags = 0;
+	sd->name[0] = '\0';
+	sd->grp_id = 0;
+	sd->dev_priv = NULL;
+	sd->host_priv = NULL;
+}
+EXPORT_SYMBOL(v4l2_subdev_init);
