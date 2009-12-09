@@ -603,10 +603,6 @@ static void ext4_put_super(struct super_block *sb)
 	if (sb->s_dirt)
 		ext4_commit_super(sb, 1);
 
-	ext4_release_system_zone(sb);
-	ext4_mb_release(sb);
-	ext4_ext_release(sb);
-	ext4_xattr_put_super(sb);
 	if (sbi->s_journal) {
 		err = jbd2_journal_destroy(sbi->s_journal);
 		sbi->s_journal = NULL;
@@ -614,6 +610,12 @@ static void ext4_put_super(struct super_block *sb)
 			ext4_abort(sb, __func__,
 				   "Couldn't clean up the journal");
 	}
+
+	ext4_release_system_zone(sb);
+	ext4_mb_release(sb);
+	ext4_ext_release(sb);
+	ext4_xattr_put_super(sb);
+
 	if (!(sb->s_flags & MS_RDONLY)) {
 		EXT4_CLEAR_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
 		es->s_state = cpu_to_le16(sbi->s_mount_state);
