@@ -22,6 +22,7 @@
 #include <linux/rfkill.h>
 #include <linux/power_supply.h>
 #include <linux/acpi.h>
+#include <linux/i8042.h>
 #include "../../firmware/dcdbas.h"
 
 #define BRIGHTNESS_TOKEN 0x7d
@@ -214,6 +215,18 @@ static const struct rfkill_ops dell_rfkill_ops = {
 	.query = dell_rfkill_query,
 };
 
+static void dell_update_rfkill(struct work_struct *ignored)
+{
+	if (wifi_rfkill)
+		dell_rfkill_query(wifi_rfkill, (void *)1);
+	if (bluetooth_rfkill)
+		dell_rfkill_query(bluetooth_rfkill, (void *)2);
+	if (wwan_rfkill)
+		dell_rfkill_query(wwan_rfkill, (void *)3);
+}
+static DECLARE_DELAYED_WORK(dell_rfkill_work, dell_update_rfkill);
+
+
 static int __init dell_setup_rfkill(void)
 {
 	struct calling_interface_buffer buffer;
@@ -338,6 +351,30 @@ static struct backlight_ops dell_ops = {
 	.update_status  = dell_send_intensity,
 };
 
+bool dell_laptop_i8042_filter(unsigned char data, unsigned char str,
+			      struct serio *port)
+{
+	static bool extended;
+
+	if (str & 0x20)
+		return false;
+
+	if (unlikely(data == 0xe0)) {
+		extended = true;
+		return false;
+	} else if (unlikely(extended)) {
+		switch (data) {
+		case 0x8:
+			schedule_delayed_work(&dell_rfkill_work,
+					      round_jiffies_relative(HZ));
+			break;
+		}
+		extended = false;
+	}
+
+	return false;
+}
+
 static int __init dell_init(void)
 {
 	struct calling_interface_buffer buffer;
@@ -371,6 +408,13 @@ static int __init dell_init(void)
 	if (ret) {
 		printk(KERN_WARNING "dell-laptop: Unable to setup rfkill\n");
 		goto fail_rfkill;
+	}
+
+	ret = i8042_install_filter(dell_laptop_i8042_filter);
+	if (ret) {
+		printk(KERN_WARNING
+		       "dell-laptop: Unable to install key filter\n");
+		goto fail_filter;
 	}
 
 #ifdef CONFIG_ACPI
@@ -410,6 +454,8 @@ static int __init dell_init(void)
 	return 0;
 
 fail_backlight:
+	i8042_remove_filter(dell_laptop_i8042_filter);
+fail_filter:
 	dell_cleanup_rfkill();
 fail_rfkill:
 	platform_device_del(platform_device);
@@ -424,6 +470,8 @@ fail_platform_driver:
 
 static void __exit dell_exit(void)
 {
+	cancel_delayed_work_sync(&dell_rfkill_work);
+	i8042_remove_filter(dell_laptop_i8042_filter);
 	backlight_device_unregister(dell_backlight_device);
 	dell_cleanup_rfkill();
 }
