@@ -11,6 +11,7 @@ clock-common				= clock.o clock_common_data.o clockdomain.o
 
 obj-$(CONFIG_ARCH_OMAP2) += $(omap-2-3-common) $(prcm-common) $(clock-common)
 obj-$(CONFIG_ARCH_OMAP3) += $(omap-2-3-common) $(prcm-common) $(clock-common)
+obj-$(CONFIG_ARCH_OMAP4) += prcm.o
 
 obj-$(CONFIG_OMAP_MCBSP) += mcbsp.o
 

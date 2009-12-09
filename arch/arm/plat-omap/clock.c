@@ -57,11 +57,6 @@ void omap2_clk_prepare_for_reboot(void)
 {
 }
 EXPORT_SYMBOL(omap2_clk_prepare_for_reboot);
-
-void omap_prcm_arch_reset(char mode)
-{
-}
-EXPORT_SYMBOL(omap_prcm_arch_reset);
 #endif
 int clk_enable(struct clk *clk)
 {
