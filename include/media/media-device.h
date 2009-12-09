@@ -25,8 +25,10 @@
 
 #include <linux/device.h>
 #include <linux/list.h>
+#include <linux/spinlock.h>
 
 #include <media/media-devnode.h>
+#include <media/media-entity.h>
 
 /**
  * struct media_device - Media device
@@ -37,6 +39,9 @@
  * @bus_info:	Unique and stable device location identifier
  * @hw_revision: Hardware device revision
  * @driver_version: Device driver version
+ * @entity_id:	ID of the next entity to be registered
+ * @entities:	List of registered entities
+ * @lock:	Entities list lock
  *
  * This structure represents an abstract high-level media device. It allows easy
  * access to entities and provides basic media device-level support. The
@@ -58,6 +63,12 @@ struct media_device {
 	char bus_info[32];
 	u32 hw_revision;
 	u32 driver_version;
+
+	u32 entity_id;
+	struct list_head entities;
+
+	/* Protects the entities list */
+	spinlock_t lock;
 };
 
 /* media_devnode to media_device */
@@ -65,5 +76,13 @@ struct media_device {
 
 int __must_check media_device_register(struct media_device *mdev);
 void media_device_unregister(struct media_device *mdev);
+
+int __must_check media_device_register_entity(struct media_device *mdev,
+					      struct media_entity *entity);
+void media_device_unregister_entity(struct media_entity *entity);
+
+/* Iterate over all entities. */
+#define media_device_for_each_entity(entity, mdev)			\
+	list_for_each_entry(entity, &(mdev)->entities, list)
 
 #endif
