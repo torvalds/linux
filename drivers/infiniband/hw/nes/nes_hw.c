@@ -424,8 +424,9 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 
 	nesadapter->base_pd = 1;
 
-	nesadapter->device_cap_flags =
-		IB_DEVICE_LOCAL_DMA_LKEY | IB_DEVICE_MEM_WINDOW;
+	nesadapter->device_cap_flags = IB_DEVICE_LOCAL_DMA_LKEY |
+				       IB_DEVICE_MEM_WINDOW |
+				       IB_DEVICE_MEM_MGT_EXTENSIONS;
 
 	nesadapter->allocated_qps = (unsigned long *)&(((unsigned char *)nesadapter)
 			[(sizeof(struct nes_adapter)+(sizeof(unsigned long)-1))&(~(sizeof(unsigned long)-1))]);

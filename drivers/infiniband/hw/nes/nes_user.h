@@ -86,6 +86,7 @@ enum iwnes_memreg_type {
 	IWNES_MEMREG_TYPE_CQ = 0x0002,
 	IWNES_MEMREG_TYPE_MW = 0x0003,
 	IWNES_MEMREG_TYPE_FMR = 0x0004,
+	IWNES_MEMREG_TYPE_FMEM = 0x0005,
 };
 
 struct nes_mem_reg_req {
