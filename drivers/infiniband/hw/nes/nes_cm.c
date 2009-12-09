@@ -513,6 +513,8 @@ static void nes_retrans_expired(struct nes_cm_node *cm_node)
 		send_reset(cm_node, NULL);
 		break;
 	default:
+		add_ref_cm_node(cm_node);
+		send_reset(cm_node, NULL);
 		create_event(cm_node, NES_CM_EVENT_ABORTED);
 	}
 }
