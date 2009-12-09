@@ -1080,6 +1080,20 @@ static int xhci_requires_manual_halt_cleanup(struct xhci_hcd *xhci,
 	return 0;
 }
 
+int xhci_is_vendor_info_code(struct xhci_hcd *xhci, unsigned int trb_comp_code)
+{
+	if (trb_comp_code >= 224 && trb_comp_code <= 255) {
+		/* Vendor defined "informational" completion code,
+		 * treat as not-an-error.
+		 */
+		xhci_dbg(xhci, "Vendor defined info completion code %u\n",
+				trb_comp_code);
+		xhci_dbg(xhci, "Treating code as success.\n");
+		return 1;
+	}
+	return 0;
+}
+
 /*
  * If this function returns an error condition, it means it got a Transfer
  * event with a corrupted Slot ID, Endpoint ID, or TRB DMA address.
@@ -1196,13 +1210,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		status = -ENOSR;
 		break;
 	default:
-		if (trb_comp_code >= 224 && trb_comp_code <= 255) {
-			/* Vendor defined "informational" completion code,
-			 * treat as not-an-error.
-			 */
-			xhci_dbg(xhci, "Vendor defined info completion code %u\n",
-					trb_comp_code);
-			xhci_dbg(xhci, "Treating code as success.\n");
+		if (xhci_is_vendor_info_code(xhci, trb_comp_code)) {
 			status = 0;
 			break;
 		}

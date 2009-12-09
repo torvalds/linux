@@ -1276,6 +1276,7 @@ dma_addr_t xhci_trb_virt_to_dma(struct xhci_segment *seg, union xhci_trb *trb);
 struct xhci_segment *trb_in_td(struct xhci_segment *start_seg,
 		union xhci_trb *start_trb, union xhci_trb *end_trb,
 		dma_addr_t suspect_dma);
+int xhci_is_vendor_info_code(struct xhci_hcd *xhci, unsigned int trb_comp_code);
 void xhci_ring_cmd_db(struct xhci_hcd *xhci);
 void *xhci_setup_one_noop(struct xhci_hcd *xhci);
 void xhci_handle_event(struct xhci_hcd *xhci);
