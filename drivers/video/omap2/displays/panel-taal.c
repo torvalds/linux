@@ -510,7 +510,7 @@ static int taal_probe(struct omap_dss_device *dssdev)
 	if (td->esd_wq == NULL) {
 		dev_err(&dssdev->dev, "can't create ESD workqueue\n");
 		r = -ENOMEM;
-		goto err2;
+		goto err1;
 	}
 	INIT_DELAYED_WORK_DEFERRABLE(&td->esd_work, taal_esd_work);
 
@@ -528,7 +528,7 @@ static int taal_probe(struct omap_dss_device *dssdev)
 			&taal_bl_ops);
 	if (IS_ERR(bldev)) {
 		r = PTR_ERR(bldev);
-		goto err1;
+		goto err2;
 	}
 
 	td->bldev = bldev;
