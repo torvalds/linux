@@ -2003,21 +2003,17 @@ static void moved_group_fair(struct task_struct *p)
 }
 #endif
 
-unsigned int get_rr_interval_fair(struct task_struct *task)
+unsigned int get_rr_interval_fair(struct rq *rq, struct task_struct *task)
 {
 	struct sched_entity *se = &task->se;
-	unsigned long flags;
-	struct rq *rq;
 	unsigned int rr_interval = 0;
 
 	/*
 	 * Time slice is 0 for SCHED_OTHER tasks that are on an otherwise
 	 * idle runqueue:
 	 */
-	rq = task_rq_lock(task, &flags);
 	if (rq->cfs.load.weight)
 		rr_interval = NS_TO_JIFFIES(sched_slice(&rq->cfs, se));
-	task_rq_unlock(rq, &flags);
 
 	return rr_interval;
 }
