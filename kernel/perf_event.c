@@ -36,7 +36,7 @@
 /*
  * Each CPU has a list of per CPU events:
  */
-DEFINE_PER_CPU(struct perf_cpu_context, perf_cpu_context);
+static DEFINE_PER_CPU(struct perf_cpu_context, perf_cpu_context);
 
 int perf_max_events __read_mostly = 1;
 static int perf_reserved_percpu __read_mostly;
@@ -1579,7 +1579,6 @@ static void
 __perf_event_init_context(struct perf_event_context *ctx,
 			    struct task_struct *task)
 {
-	memset(ctx, 0, sizeof(*ctx));
 	spin_lock_init(&ctx->lock);
 	mutex_init(&ctx->mutex);
 	INIT_LIST_HEAD(&ctx->group_list);
@@ -1654,7 +1653,7 @@ static struct perf_event_context *find_get_context(pid_t pid, int cpu)
 	}
 
 	if (!ctx) {
-		ctx = kmalloc(sizeof(struct perf_event_context), GFP_KERNEL);
+		ctx = kzalloc(sizeof(struct perf_event_context), GFP_KERNEL);
 		err = -ENOMEM;
 		if (!ctx)
 			goto errout;
@@ -5105,7 +5104,7 @@ int perf_event_init_task(struct task_struct *child)
 	 * First allocate and initialize a context for the child.
 	 */
 
-	child_ctx = kmalloc(sizeof(struct perf_event_context), GFP_KERNEL);
+	child_ctx = kzalloc(sizeof(struct perf_event_context), GFP_KERNEL);
 	if (!child_ctx)
 		return -ENOMEM;
 
