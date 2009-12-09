@@ -527,7 +527,7 @@ static int nes_query_device(struct ib_device *ibdev, struct ib_device_attr *prop
 	props->max_qp_wr = nesdev->nesadapter->max_qp_wr - 2;
 	props->max_sge = nesdev->nesadapter->max_sge;
 	props->max_cq = nesibdev->max_cq;
-	props->max_cqe = nesdev->nesadapter->max_cqe - 1;
+	props->max_cqe = nesdev->nesadapter->max_cqe;
 	props->max_mr = nesibdev->max_mr;
 	props->max_mw = nesibdev->max_mr;
 	props->max_pd = nesibdev->max_pd;
@@ -1542,6 +1542,9 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 	int err;
 	unsigned long flags;
 	int ret;
+
+	if (entries > nesadapter->max_cqe)
+		return ERR_PTR(-EINVAL);
 
 	err = nes_alloc_resource(nesadapter, nesadapter->allocated_cqs,
 			nesadapter->max_cq, &cq_num, &nesadapter->next_cq);

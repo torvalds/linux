@@ -482,7 +482,7 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 	nesadapter->max_irrq_wr = (u32temp >> 16) & 3;
 
 	nesadapter->max_sge = 4;
-	nesadapter->max_cqe = 32767;
+	nesadapter->max_cqe = 32766;
 
 	if (nes_read_eeprom_values(nesdev, nesadapter)) {
 		printk(KERN_ERR PFX "Unable to read EEPROM data.\n");
