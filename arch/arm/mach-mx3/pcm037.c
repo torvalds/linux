@@ -248,8 +248,8 @@ static struct imxuart_platform_data uart_pdata = {
 
 static struct resource smsc911x_resources[] = {
 	{
-		.start		= CS1_BASE_ADDR + 0x300,
-		.end		= CS1_BASE_ADDR + 0x300 + SZ_64K - 1,
+		.start		= MX31_CS1_BASE_ADDR + 0x300,
+		.end		= MX31_CS1_BASE_ADDR + 0x300 + SZ_64K - 1,
 		.flags		= IORESOURCE_MEM,
 	}, {
 		.start		= IOMUX_TO_IRQ(MX31_PIN_GPIO3_1),
@@ -281,8 +281,8 @@ static struct platdata_mtd_ram pcm038_sram_data = {
 };
 
 static struct resource pcm038_sram_resource = {
-	.start = CS4_BASE_ADDR,
-	.end   = CS4_BASE_ADDR + 512 * 1024 - 1,
+	.start = MX31_CS4_BASE_ADDR,
+	.end   = MX31_CS4_BASE_ADDR + 512 * 1024 - 1,
 	.flags = IORESOURCE_MEM,
 };
 
@@ -536,8 +536,8 @@ static struct mx3fb_platform_data mx3fb_pdata = {
 
 static struct resource pcm970_sja1000_resources[] = {
 	{
-		.start   = CS5_BASE_ADDR,
-		.end     = CS5_BASE_ADDR + 0x100 - 1,
+		.start   = MX31_CS5_BASE_ADDR,
+		.end     = MX31_CS5_BASE_ADDR + 0x100 - 1,
 		.flags   = IORESOURCE_MEM,
 	}, {
 		.start   = IOMUX_TO_IRQ(IOMUX_PIN(48, 105)),
@@ -636,8 +636,8 @@ struct sys_timer pcm037_timer = {
 
 MACHINE_START(PCM037, "Phytec Phycore pcm037")
 	/* Maintainer: Pengutronix */
-	.phys_io	= AIPS1_BASE_ADDR,
-	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
+	.phys_io	= MX31_AIPS1_BASE_ADDR,
+	.io_pg_offst	= ((MX31_AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
 	.map_io         = mx31_map_io,
 	.init_irq       = mx31_init_irq,

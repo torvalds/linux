@@ -82,8 +82,8 @@ static struct smsc911x_platform_config smsc911x_config = {
 
 static struct resource smsc911x_resources[] = {
 	{
-		.start		= CS4_BASE_ADDR,
-		.end		= CS4_BASE_ADDR + 0x100,
+		.start		= MX31_CS4_BASE_ADDR,
+		.end		= MX31_CS4_BASE_ADDR + 0x100,
 		.flags		= IORESOURCE_MEM,
 	}, {
 		.start		= IOMUX_TO_IRQ(MX31_PIN_SFS6),
@@ -214,9 +214,9 @@ static struct platform_device physmap_flash_device = {
  */
 static struct map_desc mx31lite_io_desc[] __initdata = {
 	{
-		.virtual = CS4_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(CS4_BASE_ADDR),
-		.length = CS4_SIZE,
+		.virtual = MX31_CS4_BASE_ADDR_VIRT,
+		.pfn = __phys_to_pfn(MX31_CS4_BASE_ADDR),
+		.length = MX31_CS4_SIZE,
 		.type = MT_DEVICE
 	}
 };
@@ -287,8 +287,8 @@ struct sys_timer mx31lite_timer = {
 
 MACHINE_START(MX31LITE, "LogicPD i.MX31 SOM")
 	/* Maintainer: Freescale Semiconductor, Inc. */
-	.phys_io        = AIPS1_BASE_ADDR,
-	.io_pg_offst    = ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
+	.phys_io        = MX31_AIPS1_BASE_ADDR,
+	.io_pg_offst    = ((MX31_AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
 	.map_io         = mx31lite_map_io,
 	.init_irq       = mx31_init_irq,
