@@ -248,10 +248,17 @@ int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 	regs.si = (unsigned long) fn;
 	regs.di = (unsigned long) arg;
 
+#ifdef CONFIG_X86_32
+	regs.ds = __USER_DS;
+	regs.es = __USER_DS;
+	regs.fs = __KERNEL_PERCPU;
+	regs.gs = __KERNEL_STACK_CANARY;
+#endif
+
 	regs.orig_ax = -1;
 	regs.ip = (unsigned long) kernel_thread_helper;
-	regs.cs = __KERNEL_CS;
-	regs.flags = X86_EFLAGS_IF;
+	regs.cs = __KERNEL_CS | get_kernel_rpl();
+	regs.flags = X86_EFLAGS_IF | 0x2;
 
 	/* Ok, create the new process.. */
 	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
