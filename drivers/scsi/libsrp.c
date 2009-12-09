@@ -328,7 +328,7 @@ int srp_transfer_data(struct scsi_cmnd *sc, struct srp_cmd *cmd,
 	int offset, err = 0;
 	u8 format;
 
-	offset = cmd->add_cdb_len * 4;
+	offset = cmd->add_cdb_len & ~3;
 
 	dir = srp_cmd_direction(cmd);
 	if (dir == DMA_FROM_DEVICE)
@@ -366,7 +366,7 @@ static int vscsis_data_length(struct srp_cmd *cmd, enum dma_data_direction dir)
 {
 	struct srp_direct_buf *md;
 	struct srp_indirect_buf *id;
-	int len = 0, offset = cmd->add_cdb_len * 4;
+	int len = 0, offset = cmd->add_cdb_len & ~3;
 	u8 fmt;
 
 	if (dir == DMA_TO_DEVICE)
