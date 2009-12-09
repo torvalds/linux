@@ -14,6 +14,19 @@ if MEDIA_SUPPORT
 comment "Multimedia core support"
 
 #
+# Media controller
+#
+
+config MEDIA_CONTROLLER
+	bool "Media Controller API (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	---help---
+	  Enable the media controller API used to query media devices internal
+	  topology and configure it dynamically.
+
+	  This API is mostly used by camera interfaces in embedded platforms.
+
+#
 # V4L core and enabled API's
 #
 
