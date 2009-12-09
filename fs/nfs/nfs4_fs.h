@@ -108,6 +108,10 @@ enum {
 	NFS_OWNER_RECLAIM_NOGRACE
 };
 
+#define NFS_LOCK_NEW		0
+#define NFS_LOCK_RECLAIM	1
+#define NFS_LOCK_EXPIRED	2
+
 /*
  * struct nfs4_state maintains the client-side state for a given
  * (state_owner,inode) tuple (OPEN) or state_owner (LOCK).
