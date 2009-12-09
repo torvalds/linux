@@ -20,6 +20,8 @@
 #include <linux/sysdev.h>
 #include <linux/tick.h>
 
+#include "tick-internal.h"
+
 /* The registered clock event devices */
 static LIST_HEAD(clockevent_devices);
 static LIST_HEAD(clockevents_released);
@@ -37,10 +39,9 @@ static DEFINE_SPINLOCK(clockevents_lock);
  *
  * Math helper, returns latch value converted to nanoseconds (bound checked)
  */
-unsigned long clockevent_delta2ns(unsigned long latch,
-				  struct clock_event_device *evt)
+u64 clockevent_delta2ns(unsigned long latch, struct clock_event_device *evt)
 {
-	u64 clc = ((u64) latch << evt->shift);
+	u64 clc = (u64) latch << evt->shift;
 
 	if (unlikely(!evt->mult)) {
 		evt->mult = 1;
@@ -50,10 +51,10 @@ unsigned long clockevent_delta2ns(unsigned long latch,
 	do_div(clc, evt->mult);
 	if (clc < 1000)
 		clc = 1000;
-	if (clc > LONG_MAX)
-		clc = LONG_MAX;
+	if (clc > KTIME_MAX)
+		clc = KTIME_MAX;
 
-	return (unsigned long) clc;
+	return clc;
 }
 EXPORT_SYMBOL_GPL(clockevent_delta2ns);
 

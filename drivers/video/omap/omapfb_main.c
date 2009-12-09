@@ -28,8 +28,8 @@
 #include <linux/mm.h>
 #include <linux/uaccess.h>
 
-#include <mach/dma.h>
-#include <mach/omapfb.h>
+#include <plat/dma.h>
+#include <plat/omapfb.h>
 
 #include "lcdc.h"
 #include "dispc.h"

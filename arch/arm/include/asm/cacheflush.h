@@ -331,15 +331,15 @@ static inline void outer_flush_range(unsigned long start, unsigned long end)
  * Convert calls to our calling convention.
  */
 #define flush_cache_all()		__cpuc_flush_kern_all()
-#ifndef CONFIG_CPU_CACHE_VIPT
-static inline void flush_cache_mm(struct mm_struct *mm)
+
+static inline void vivt_flush_cache_mm(struct mm_struct *mm)
 {
 	if (cpumask_test_cpu(smp_processor_id(), mm_cpumask(mm)))
 		__cpuc_flush_user_all();
 }
 
 static inline void
-flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned long end)
+vivt_flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned long end)
 {
 	if (cpumask_test_cpu(smp_processor_id(), mm_cpumask(vma->vm_mm)))
 		__cpuc_flush_user_range(start & PAGE_MASK, PAGE_ALIGN(end),
@@ -347,7 +347,7 @@ flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned long
 }
 
 static inline void
-flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsigned long pfn)
+vivt_flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsigned long pfn)
 {
 	if (cpumask_test_cpu(smp_processor_id(), mm_cpumask(vma->vm_mm))) {
 		unsigned long addr = user_addr & PAGE_MASK;
@@ -356,7 +356,7 @@ flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsigned l
 }
 
 static inline void
-flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
+vivt_flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 			 unsigned long uaddr, void *kaddr,
 			 unsigned long len, int write)
 {
@@ -365,6 +365,16 @@ flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 		__cpuc_coherent_kern_range(addr, addr + len);
 	}
 }
+
+#ifndef CONFIG_CPU_CACHE_VIPT
+#define flush_cache_mm(mm) \
+		vivt_flush_cache_mm(mm)
+#define flush_cache_range(vma,start,end) \
+		vivt_flush_cache_range(vma,start,end)
+#define flush_cache_page(vma,addr,pfn) \
+		vivt_flush_cache_page(vma,addr,pfn)
+#define flush_ptrace_access(vma,page,ua,ka,len,write) \
+		vivt_flush_ptrace_access(vma,page,ua,ka,len,write)
 #else
 extern void flush_cache_mm(struct mm_struct *mm);
 extern void flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned long end);
@@ -408,9 +418,8 @@ extern void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
  * about to change to user space.  This is the same method as used on SPARC64.
  * See update_mmu_cache for the user space part.
  */
+#define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 extern void flush_dcache_page(struct page *);
-
-extern void __flush_dcache_page(struct address_space *mapping, struct page *page);
 
 static inline void __flush_icache_all(void)
 {

@@ -419,6 +419,10 @@ static void __init palmt5_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(palmt5_pin_config));
 
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	palmt5_pm_init();
 	set_pxa_fb_info(&palmt5_lcd_screen);
 	pxa_set_mci_info(&palmt5_mci_platform_data);

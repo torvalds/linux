@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2410/bast-irq.c
  *
- * Copyright (c) 2003,2005 Simtec Electronics
+ * Copyright 2003-2005 Simtec Electronics
  *   Ben Dooks <ben@simtec.co.uk>
  *
  * http://www.simtec.co.uk/products/EB2410ITX/
@@ -141,7 +141,7 @@ static __init int bast_irq_init(void)
 	unsigned int i;
 
 	if (machine_is_bast()) {
-		printk(KERN_INFO "BAST PC104 IRQ routing, (c) 2005 Simtec Electronics\n");
+		printk(KERN_INFO "BAST PC104 IRQ routing, Copyright 2005 Simtec Electronics\n");
 
 		/* zap all the IRQs */
 

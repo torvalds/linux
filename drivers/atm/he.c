@@ -2739,7 +2739,7 @@ he_ioctl(struct atm_dev *atm_dev, unsigned int cmd, void __user *arg)
 			spin_lock_irqsave(&he_dev->global_lock, flags);
 			switch (reg.type) {
 				case HE_REGTYPE_PCI:
-					if (reg.addr < 0 || reg.addr >= HE_REGMAP_SIZE) {
+					if (reg.addr >= HE_REGMAP_SIZE) {
 						err = -EINVAL;
 						break;
 					}

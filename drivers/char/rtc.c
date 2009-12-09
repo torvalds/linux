@@ -282,34 +282,31 @@ static irqreturn_t rtc_interrupt(int irq, void *dev_id)
  */
 static ctl_table rtc_table[] = {
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "max-user-freq",
 		.data		= &rtc_max_user_freq,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static ctl_table rtc_root[] = {
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "rtc",
 		.mode		= 0555,
 		.child		= rtc_table,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static ctl_table dev_root[] = {
 	{
-		.ctl_name	= CTL_DEV,
 		.procname	= "dev",
 		.mode		= 0555,
 		.child		= rtc_root,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static struct ctl_table_header *sysctl_header;

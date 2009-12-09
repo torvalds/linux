@@ -385,9 +385,9 @@ PrintRegisters(struct net_device *dev)
 	    printk("\n");
 	}
 	for (page=0x40 ; page <= 0x5f; page++) {
-	    if (page == 0x43 || (page >= 0x46 && page <= 0x4f)
-		|| (page >= 0x51 && page <=0x5e))
-		continue;
+		if (page == 0x43 || (page >= 0x46 && page <= 0x4f) ||
+		    (page >= 0x51 && page <=0x5e))
+			continue;
 	    printk(KDBG_XIRC "Register page %2x: ", page);
 	    SelectPage(page);
 	    for (i = 8; i < 16; i++)

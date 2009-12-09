@@ -278,7 +278,7 @@ int dccp_disconnect(struct sock *sk, int flags)
 		sk->sk_send_head = NULL;
 	}
 
-	inet->dport = 0;
+	inet->inet_dport = 0;
 
 	if (!(sk->sk_userlocks & SOCK_BINDADDR_LOCK))
 		inet_reset_saddr(sk);
@@ -290,7 +290,7 @@ int dccp_disconnect(struct sock *sk, int flags)
 	inet_csk_delack_init(sk);
 	__sk_dst_reset(sk);
 
-	WARN_ON(inet->num && !icsk->icsk_bind_hash);
+	WARN_ON(inet->inet_num && !icsk->icsk_bind_hash);
 
 	sk->sk_error_report(sk);
 	return err;
@@ -1060,11 +1060,12 @@ static int __init dccp_init(void)
 	for (ehash_order = 0; (1UL << ehash_order) < goal; ehash_order++)
 		;
 	do {
-		dccp_hashinfo.ehash_size = (1UL << ehash_order) * PAGE_SIZE /
+		unsigned long hash_size = (1UL << ehash_order) * PAGE_SIZE /
 					sizeof(struct inet_ehash_bucket);
-		while (dccp_hashinfo.ehash_size &
-		       (dccp_hashinfo.ehash_size - 1))
-			dccp_hashinfo.ehash_size--;
+
+		while (hash_size & (hash_size - 1))
+			hash_size--;
+		dccp_hashinfo.ehash_mask = hash_size - 1;
 		dccp_hashinfo.ehash = (struct inet_ehash_bucket *)
 			__get_free_pages(GFP_ATOMIC|__GFP_NOWARN, ehash_order);
 	} while (!dccp_hashinfo.ehash && --ehash_order > 0);
@@ -1074,7 +1075,7 @@ static int __init dccp_init(void)
 		goto out_free_bind_bucket_cachep;
 	}
 
-	for (i = 0; i < dccp_hashinfo.ehash_size; i++) {
+	for (i = 0; i <= dccp_hashinfo.ehash_mask; i++) {
 		INIT_HLIST_NULLS_HEAD(&dccp_hashinfo.ehash[i].chain, i);
 		INIT_HLIST_NULLS_HEAD(&dccp_hashinfo.ehash[i].twchain, i);
 	}
@@ -1153,7 +1154,7 @@ static void __exit dccp_fini(void)
 		   get_order(dccp_hashinfo.bhash_size *
 			     sizeof(struct inet_bind_hashbucket)));
 	free_pages((unsigned long)dccp_hashinfo.ehash,
-		   get_order(dccp_hashinfo.ehash_size *
+		   get_order((dccp_hashinfo.ehash_mask + 1) *
 			     sizeof(struct inet_ehash_bucket)));
 	inet_ehash_locks_free(&dccp_hashinfo);
 	kmem_cache_destroy(dccp_hashinfo.bind_bucket_cachep);

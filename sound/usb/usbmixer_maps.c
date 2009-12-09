@@ -277,6 +277,22 @@ static struct usbmix_name_map scratch_live_map[] = {
 	{ 0 } /* terminator */
 };
 
+/* "Gamesurround Muse Pocket LT" looks same like "Sound Blaster MP3+"
+ *  most importand difference is SU[8], it should be set to "Capture Source"
+ *  to make alsamixer and PA working properly.
+ *  FIXME: or mp3plus_map should use "Capture Source" too,
+ *  so this maps can be merget
+ */
+static struct usbmix_name_map hercules_usb51_map[] = {
+	{ 8, "Capture Source" },	/* SU, default "PCM Capture Source" */
+	{ 9, "Master Playback" },	/* FU, default "Speaker Playback" */
+	{ 10, "Mic Boost", 7 },		/* FU, default "Auto Gain Input" */
+	{ 11, "Line Capture" },		/* FU, default "PCM Capture" */
+	{ 13, "Mic Bypass Playback" },	/* FU, default "Mic Playback" */
+	{ 14, "Line Bypass Playback" },	/* FU, default "Line Playback" */
+	{ 0 }				/* terminator */
+};
+
 /*
  * Control map entries
  */
@@ -314,6 +330,13 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		/* Hercules DJ Console (Macintosh Edition) */
 		.id = USB_ID(0x06f8, 0xd002),
 		.ignore_ctl_error = 1,
+	},
+	{
+		/* Hercules Gamesurround Muse Pocket LT
+		 * (USB 5.1 Channel Audio Adapter)
+		 */
+		.id = USB_ID(0x06f8, 0xc000),
+		.map = hercules_usb51_map,
 	},
 	{
 		.id = USB_ID(0x08bb, 0x2702),

@@ -178,3 +178,13 @@ External interrupts:
 	external irq3:	interrupts = <1 3 n>;
 'n' is sense (0: level high, 1: edge rising, 2: edge falling 3: level low)
 
+fsl,mpc5200-mscan nodes
+-----------------------
+In addition to the required compatible-, reg- and interrupt-properites, you can
+also specify which clock source shall be used for the controller:
+
+- fsl,mscan-clock-source- a string describing the clock source. Valid values
+			  are:	"ip" for ip bus clock
+				"ref" for reference clock (XTAL)
+			  "ref" is default in case this property is not
+			  present.

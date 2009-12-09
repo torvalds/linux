@@ -1008,7 +1008,7 @@ static void handle_channel(struct wiphy *wiphy, enum ieee80211_band band,
 
 	if (last_request->initiator == NL80211_REGDOM_SET_BY_DRIVER &&
 	    request_wiphy && request_wiphy == wiphy &&
-	    request_wiphy->strict_regulatory) {
+	    request_wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY) {
 		/*
 		 * This gaurantees the driver's requested regulatory domain
 		 * will always be used as a base for further regulatory
@@ -1051,13 +1051,13 @@ static bool ignore_reg_update(struct wiphy *wiphy,
 	if (!last_request)
 		return true;
 	if (initiator == NL80211_REGDOM_SET_BY_CORE &&
-		  wiphy->custom_regulatory)
+	    wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY)
 		return true;
 	/*
 	 * wiphy->regd will be set once the device has its own
 	 * desired regulatory domain set
 	 */
-	if (wiphy->strict_regulatory && !wiphy->regd &&
+	if (wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY && !wiphy->regd &&
 	    !is_world_regdom(last_request->alpha2))
 		return true;
 	return false;
@@ -1093,7 +1093,7 @@ static void handle_reg_beacon(struct wiphy *wiphy,
 
 	chan->beacon_found = true;
 
-	if (wiphy->disable_beacon_hints)
+	if (wiphy->flags & WIPHY_FLAG_DISABLE_BEACON_HINTS)
 		return;
 
 	chan_before.center_freq = chan->center_freq;
@@ -1164,7 +1164,7 @@ static bool reg_is_world_roaming(struct wiphy *wiphy)
 		return true;
 	if (last_request &&
 	    last_request->initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
-	    wiphy->custom_regulatory)
+	    wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY)
 		return true;
 	return false;
 }
@@ -1591,7 +1591,8 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 
 	r = __regulatory_hint(wiphy, reg_request);
 	/* This is required so that the orig_* parameters are saved */
-	if (r == -EALREADY && wiphy && wiphy->strict_regulatory)
+	if (r == -EALREADY && wiphy &&
+	    wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY)
 		wiphy_update_regulatory(wiphy, reg_request->initiator);
 out:
 	mutex_unlock(&reg_mutex);
@@ -1930,7 +1931,7 @@ static void print_rd_rules(const struct ieee80211_regdomain *rd)
 	const struct ieee80211_freq_range *freq_range = NULL;
 	const struct ieee80211_power_rule *power_rule = NULL;
 
-	printk(KERN_INFO "\t(start_freq - end_freq @ bandwidth), "
+	printk(KERN_INFO "    (start_freq - end_freq @ bandwidth), "
 		"(max_antenna_gain, max_eirp)\n");
 
 	for (i = 0; i < rd->n_reg_rules; i++) {
@@ -1943,7 +1944,7 @@ static void print_rd_rules(const struct ieee80211_regdomain *rd)
 		 * in certain regions
 		 */
 		if (power_rule->max_antenna_gain)
-			printk(KERN_INFO "\t(%d KHz - %d KHz @ %d KHz), "
+			printk(KERN_INFO "    (%d KHz - %d KHz @ %d KHz), "
 				"(%d mBi, %d mBm)\n",
 				freq_range->start_freq_khz,
 				freq_range->end_freq_khz,
@@ -1951,7 +1952,7 @@ static void print_rd_rules(const struct ieee80211_regdomain *rd)
 				power_rule->max_antenna_gain,
 				power_rule->max_eirp);
 		else
-			printk(KERN_INFO "\t(%d KHz - %d KHz @ %d KHz), "
+			printk(KERN_INFO "    (%d KHz - %d KHz @ %d KHz), "
 				"(N/A, %d mBm)\n",
 				freq_range->start_freq_khz,
 				freq_range->end_freq_khz,

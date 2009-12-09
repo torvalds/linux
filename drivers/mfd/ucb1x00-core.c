@@ -25,11 +25,11 @@
 #include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
+#include <linux/mfd/ucb1x00.h>
+#include <linux/gpio.h>
 
 #include <mach/dma.h>
 #include <mach/hardware.h>
-
-#include "ucb1x00.h"
 
 static DEFINE_MUTEX(ucb1x00_mutex);
 static LIST_HEAD(ucb1x00_drivers);
@@ -106,6 +106,60 @@ void ucb1x00_io_write(struct ucb1x00 *ucb, unsigned int set, unsigned int clear)
 unsigned int ucb1x00_io_read(struct ucb1x00 *ucb)
 {
 	return ucb1x00_reg_read(ucb, UCB_IO_DATA);
+}
+
+static void ucb1x00_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+{
+	struct ucb1x00 *ucb = container_of(chip, struct ucb1x00, gpio);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ucb->io_lock, flags);
+	if (value)
+		ucb->io_out |= 1 << offset;
+	else
+		ucb->io_out &= ~(1 << offset);
+
+	ucb1x00_reg_write(ucb, UCB_IO_DATA, ucb->io_out);
+	spin_unlock_irqrestore(&ucb->io_lock, flags);
+}
+
+static int ucb1x00_gpio_get(struct gpio_chip *chip, unsigned offset)
+{
+	struct ucb1x00 *ucb = container_of(chip, struct ucb1x00, gpio);
+	return ucb1x00_reg_read(ucb, UCB_IO_DATA) & (1 << offset);
+}
+
+static int ucb1x00_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
+{
+	struct ucb1x00 *ucb = container_of(chip, struct ucb1x00, gpio);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ucb->io_lock, flags);
+	ucb->io_dir &= ~(1 << offset);
+	ucb1x00_reg_write(ucb, UCB_IO_DIR, ucb->io_dir);
+	spin_unlock_irqrestore(&ucb->io_lock, flags);
+
+	return 0;
+}
+
+static int ucb1x00_gpio_direction_output(struct gpio_chip *chip, unsigned offset
+		, int value)
+{
+	struct ucb1x00 *ucb = container_of(chip, struct ucb1x00, gpio);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ucb->io_lock, flags);
+	ucb->io_dir |= (1 << offset);
+	ucb1x00_reg_write(ucb, UCB_IO_DIR, ucb->io_dir);
+
+	if (value)
+		ucb->io_out |= 1 << offset;
+	else
+		ucb->io_out &= ~(1 << offset);
+	ucb1x00_reg_write(ucb, UCB_IO_DATA, ucb->io_out);
+	spin_unlock_irqrestore(&ucb->io_lock, flags);
+
+	return 0;
 }
 
 /*
@@ -476,6 +530,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 	struct ucb1x00_driver *drv;
 	unsigned int id;
 	int ret = -ENODEV;
+	int temp;
 
 	mcp_enable(mcp);
 	id = mcp_reg_read(mcp, UCB_ID);
@@ -508,12 +563,27 @@ static int ucb1x00_probe(struct mcp *mcp)
 		goto err_free;
 	}
 
+	ucb->gpio.base = -1;
+	if (mcp->gpio_base != 0) {
+		ucb->gpio.label = dev_name(&ucb->dev);
+		ucb->gpio.base = mcp->gpio_base;
+		ucb->gpio.ngpio = 10;
+		ucb->gpio.set = ucb1x00_gpio_set;
+		ucb->gpio.get = ucb1x00_gpio_get;
+		ucb->gpio.direction_input = ucb1x00_gpio_direction_input;
+		ucb->gpio.direction_output = ucb1x00_gpio_direction_output;
+		ret = gpiochip_add(&ucb->gpio);
+		if (ret)
+			goto err_free;
+	} else
+		dev_info(&ucb->dev, "gpio_base not set so no gpiolib support");
+
 	ret = request_irq(ucb->irq, ucb1x00_irq, IRQF_TRIGGER_RISING,
 			  "UCB1x00", ucb);
 	if (ret) {
 		printk(KERN_ERR "ucb1x00: unable to grab irq%d: %d\n",
 			ucb->irq, ret);
-		goto err_free;
+		goto err_gpio;
 	}
 
 	mcp_set_drvdata(mcp, ucb);
@@ -522,6 +592,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 	if (ret)
 		goto err_irq;
 
+
 	INIT_LIST_HEAD(&ucb->devs);
 	mutex_lock(&ucb1x00_mutex);
 	list_add(&ucb->node, &ucb1x00_devices);
@@ -529,10 +600,14 @@ static int ucb1x00_probe(struct mcp *mcp)
 		ucb1x00_add_dev(ucb, drv);
 	}
 	mutex_unlock(&ucb1x00_mutex);
+
 	goto out;
 
  err_irq:
 	free_irq(ucb->irq, ucb);
+ err_gpio:
+	if (ucb->gpio.base != -1)
+		temp = gpiochip_remove(&ucb->gpio);
  err_free:
 	kfree(ucb);
  err_disable:
@@ -545,6 +620,7 @@ static void ucb1x00_remove(struct mcp *mcp)
 {
 	struct ucb1x00 *ucb = mcp_get_drvdata(mcp);
 	struct list_head *l, *n;
+	int ret;
 
 	mutex_lock(&ucb1x00_mutex);
 	list_del(&ucb->node);
@@ -553,6 +629,12 @@ static void ucb1x00_remove(struct mcp *mcp)
 		ucb1x00_remove_dev(dev);
 	}
 	mutex_unlock(&ucb1x00_mutex);
+
+	if (ucb->gpio.base != -1) {
+		ret = gpiochip_remove(&ucb->gpio);
+		if (ret)
+			dev_err(&ucb->dev, "Can't remove gpio chip: %d\n", ret);
+	}
 
 	free_irq(ucb->irq, ucb);
 	device_unregister(&ucb->dev);
@@ -604,6 +686,7 @@ static int ucb1x00_resume(struct mcp *mcp)
 	struct ucb1x00 *ucb = mcp_get_drvdata(mcp);
 	struct ucb1x00_dev *dev;
 
+	ucb1x00_reg_write(ucb, UCB_IO_DIR, ucb->io_dir);
 	mutex_lock(&ucb1x00_mutex);
 	list_for_each_entry(dev, &ucb->devs, dev_node) {
 		if (dev->drv->resume)

@@ -348,6 +348,8 @@ struct snd_pcm_group {		/* keep linked substreams */
 	int count;
 };
 
+struct pid;
+
 struct snd_pcm_substream {
 	struct snd_pcm *pcm;
 	struct snd_pcm_str *pstr;
@@ -379,6 +381,7 @@ struct snd_pcm_substream {
 	atomic_t mmap_count;
 	unsigned int f_flags;
 	void (*pcm_release)(struct snd_pcm_substream *);
+	struct pid *pid;
 #if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
 	/* -- OSS things -- */
 	struct snd_pcm_oss_substream oss;

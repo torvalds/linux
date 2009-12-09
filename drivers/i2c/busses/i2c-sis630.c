@@ -389,7 +389,7 @@ static u32 sis630_func(struct i2c_adapter *adapter)
 		I2C_FUNC_SMBUS_BLOCK_DATA;
 }
 
-static int sis630_setup(struct pci_dev *sis630_dev)
+static int __devinit sis630_setup(struct pci_dev *sis630_dev)
 {
 	unsigned char b;
 	struct pci_dev *dummy = NULL;

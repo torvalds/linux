@@ -15,8 +15,8 @@
 #include <linux/usb.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <mach/dma.h>
-#include <mach/mux.h>
+#include <plat/dma.h>
+#include <plat/mux.h>
 
 #include "musb_core.h"
 

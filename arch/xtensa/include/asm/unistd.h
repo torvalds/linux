@@ -681,8 +681,10 @@ __SYSCALL(304, sys_signalfd, 3)
 __SYSCALL(305, sys_ni_syscall, 0)
 #define __NR_eventfd				306
 __SYSCALL(306, sys_eventfd, 1)
+#define __NR_recvmmsg				307
+__SYSCALL(307, sys_recvmmsg, 5)
 
-#define __NR_syscall_count			307
+#define __NR_syscall_count			308
 
 /*
  * sysxtensa syscall handler

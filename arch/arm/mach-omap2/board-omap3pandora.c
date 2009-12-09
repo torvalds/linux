@@ -34,13 +34,13 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/board.h>
-#include <mach/common.h>
+#include <plat/board.h>
+#include <plat/common.h>
 #include <mach/gpio.h>
 #include <mach/hardware.h>
-#include <mach/mcspi.h>
-#include <mach/usb.h>
-#include <mach/mux.h>
+#include <plat/mcspi.h>
+#include <plat/usb.h>
+#include <plat/mux.h>
 
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "mmc-twl4030.h"
@@ -281,11 +281,21 @@ static struct twl4030_usb_data omap3pandora_usb_data = {
 	.usb_mode	= T2_USB_MODE_ULPI,
 };
 
+static struct twl4030_codec_audio_data omap3pandora_audio_data = {
+	.audio_mclk = 26000000,
+};
+
+static struct twl4030_codec_data omap3pandora_codec_data = {
+	.audio_mclk = 26000000,
+	.audio = &omap3pandora_audio_data,
+};
+
 static struct twl4030_platform_data omap3pandora_twldata = {
 	.irq_base	= TWL4030_IRQ_BASE,
 	.irq_end	= TWL4030_IRQ_END,
 	.gpio		= &omap3pandora_gpio_data,
 	.usb		= &omap3pandora_usb_data,
+	.codec		= &omap3pandora_codec_data,
 	.vmmc1		= &pandora_vmmc1,
 	.vmmc2		= &pandora_vmmc2,
 	.keypad		= &pandora_kp_data,
@@ -387,6 +397,18 @@ static struct platform_device *omap3pandora_devices[] __initdata = {
 	&pandora_keys_gpio,
 };
 
+static struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
+
+	.port_mode[0] = EHCI_HCD_OMAP_MODE_PHY,
+	.port_mode[1] = EHCI_HCD_OMAP_MODE_UNKNOWN,
+	.port_mode[2] = EHCI_HCD_OMAP_MODE_UNKNOWN,
+
+	.phy_reset  = true,
+	.reset_gpio_port[0]  = 16,
+	.reset_gpio_port[1]  = -EINVAL,
+	.reset_gpio_port[2]  = -EINVAL
+};
+
 static void __init omap3pandora_init(void)
 {
 	omap3pandora_i2c_init();
@@ -396,6 +418,7 @@ static void __init omap3pandora_init(void)
 	spi_register_board_info(omap3pandora_spi_board_info,
 			ARRAY_SIZE(omap3pandora_spi_board_info));
 	omap3pandora_ads7846_init();
+	usb_ehci_init(&ehci_pdata);
 	pandora_keys_gpio_init();
 	usb_musb_init();
 
@@ -412,7 +435,7 @@ static void __init omap3pandora_map_io(void)
 
 MACHINE_START(OMAP3_PANDORA, "Pandora Handheld Console")
 	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
+	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap3pandora_map_io,
 	.init_irq	= omap3pandora_init_irq,

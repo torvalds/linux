@@ -217,8 +217,7 @@ static int sctp_gen_sack(struct sctp_association *asoc, int force,
 		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_RESTART,
 				SCTP_TO(SCTP_EVENT_TIMEOUT_SACK));
 	} else {
-		if (asoc->a_rwnd > asoc->rwnd)
-			asoc->a_rwnd = asoc->rwnd;
+		asoc->a_rwnd = asoc->rwnd;
 		sack = sctp_make_sack(asoc);
 		if (!sack)
 			goto nomem;
@@ -1417,6 +1416,8 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			asoc->init_last_sent_to = t;
 			chunk->transport = t;
 			t->init_sent_count++;
+			/* Set the new transport as primary */
+			sctp_assoc_set_primary(asoc, t);
 			break;
 
 		case SCTP_CMD_INIT_RESTART:

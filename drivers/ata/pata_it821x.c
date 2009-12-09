@@ -955,7 +955,7 @@ static int it821x_reinit_one(struct pci_dev *pdev)
 static const struct pci_device_id it821x[] = {
 	{ PCI_VDEVICE(ITE, PCI_DEVICE_ID_ITE_8211), },
 	{ PCI_VDEVICE(ITE, PCI_DEVICE_ID_ITE_8212), },
-	{ PCI_VDEVICE(RDC, 0x1010), },
+	{ PCI_VDEVICE(RDC, PCI_DEVICE_ID_RDC_D1010), },
 
 	{ },
 };

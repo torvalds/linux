@@ -51,7 +51,7 @@ static int (*sa11x0_pcmcia_hw_init[])(struct device *dev) = {
 #ifdef CONFIG_SA1100_CERF
 	pcmcia_cerf_init,
 #endif
-#ifdef CONFIG_SA1100_H3600
+#if defined(CONFIG_SA1100_H3100) || defined(CONFIG_SA1100_H3600)
 	pcmcia_h3600_init,
 #endif
 #ifdef CONFIG_SA1100_SHANNON

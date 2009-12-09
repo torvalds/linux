@@ -1,5 +1,5 @@
 /*
- *	intel TCO Watchdog Driver (Used in i82801 and i63xxESB chipsets)
+ *	intel TCO Watchdog Driver
  *
  *	(c) Copyright 2006-2009 Wim Van Sebroeck <wim@iguana.be>.
  *
@@ -14,47 +14,22 @@
  *
  *	The TCO watchdog is implemented in the following I/O controller hubs:
  *	(See the intel documentation on http://developer.intel.com.)
- *	82801AA  (ICH)       : document number 290655-003, 290677-014,
- *	82801AB  (ICHO)      : document number 290655-003, 290677-014,
- *	82801BA  (ICH2)      : document number 290687-002, 298242-027,
- *	82801BAM (ICH2-M)    : document number 290687-002, 298242-027,
- *	82801CA  (ICH3-S)    : document number 290733-003, 290739-013,
- *	82801CAM (ICH3-M)    : document number 290716-001, 290718-007,
- *	82801DB  (ICH4)      : document number 290744-001, 290745-025,
- *	82801DBM (ICH4-M)    : document number 252337-001, 252663-008,
- *	82801E   (C-ICH)     : document number 273599-001, 273645-002,
- *	82801EB  (ICH5)      : document number 252516-001, 252517-028,
- *	82801ER  (ICH5R)     : document number 252516-001, 252517-028,
- *	6300ESB  (6300ESB)   : document number 300641-004, 300884-013,
- *	82801FB  (ICH6)      : document number 301473-002, 301474-026,
- *	82801FR  (ICH6R)     : document number 301473-002, 301474-026,
- *	82801FBM (ICH6-M)    : document number 301473-002, 301474-026,
- *	82801FW  (ICH6W)     : document number 301473-001, 301474-026,
- *	82801FRW (ICH6RW)    : document number 301473-001, 301474-026,
- *	631xESB  (631xESB)   : document number 313082-001, 313075-006,
- *	632xESB  (632xESB)   : document number 313082-001, 313075-006,
- *	82801GB  (ICH7)      : document number 307013-003, 307014-024,
- *	82801GR  (ICH7R)     : document number 307013-003, 307014-024,
- *	82801GDH (ICH7DH)    : document number 307013-003, 307014-024,
- *	82801GBM (ICH7-M)    : document number 307013-003, 307014-024,
- *	82801GHM (ICH7-M DH) : document number 307013-003, 307014-024,
- *	82801GU  (ICH7-U)    : document number 307013-003, 307014-024,
- *	82801HB  (ICH8)      : document number 313056-003, 313057-017,
- *	82801HR  (ICH8R)     : document number 313056-003, 313057-017,
- *	82801HBM (ICH8M)     : document number 313056-003, 313057-017,
- *	82801HH  (ICH8DH)    : document number 313056-003, 313057-017,
- *	82801HO  (ICH8DO)    : document number 313056-003, 313057-017,
- *	82801HEM (ICH8M-E)   : document number 313056-003, 313057-017,
- *	82801IB  (ICH9)      : document number 316972-004, 316973-012,
- *	82801IR  (ICH9R)     : document number 316972-004, 316973-012,
- *	82801IH  (ICH9DH)    : document number 316972-004, 316973-012,
- *	82801IO  (ICH9DO)    : document number 316972-004, 316973-012,
- *	82801IBM (ICH9M)     : document number 316972-004, 316973-012,
- *	82801IEM (ICH9M-E)   : document number 316972-004, 316973-012,
- *	82801JIB (ICH10)     : document number 319973-002, 319974-002,
- *	82801JIR (ICH10R)    : document number 319973-002, 319974-002,
- *	82801JD  (ICH10D)    : document number 319973-002, 319974-002,
- *	82801JDO (ICH10DO)   : document number 319973-002, 319974-002
+ *	document number 290655-003, 290677-014: 82801AA (ICH), 82801AB (ICHO)
+ *	document number 290687-002, 298242-027: 82801BA (ICH2)
+ *	document number 290733-003, 290739-013: 82801CA (ICH3-S)
+ *	document number 290716-001, 290718-007: 82801CAM (ICH3-M)
+ *	document number 290744-001, 290745-025: 82801DB (ICH4)
+ *	document number 252337-001, 252663-008: 82801DBM (ICH4-M)
+ *	document number 273599-001, 273645-002: 82801E (C-ICH)
+ *	document number 252516-001, 252517-028: 82801EB (ICH5), 82801ER (ICH5R)
+ *	document number 300641-004, 300884-013: 6300ESB
+ *	document number 301473-002, 301474-026: 82801F (ICH6)
+ *	document number 313082-001, 313075-006: 631xESB, 632xESB
+ *	document number 307013-003, 307014-024: 82801G (ICH7)
+ *	document number 313056-003, 313057-017: 82801H (ICH8)
+ *	document number 316972-004, 316973-012: 82801I (ICH9)
+ *	document number 319973-002, 319974-002: 82801J (ICH10)
+ *	document number 322169-001, 322170-001: 5 Series, 3400 Series (PCH)
  */
 
 /*
@@ -122,6 +97,9 @@ enum iTCO_chipsets {
 	TCO_ICH10R,	/* ICH10R */
 	TCO_ICH10D,	/* ICH10D */
 	TCO_ICH10DO,	/* ICH10DO */
+	TCO_PCH,	/* PCH Desktop Full Featured */
+	TCO_PCHM,	/* PCH Mobile Full Featured */
+	TCO_PCHMSFF,	/* PCH Mobile SFF Full Featured */
 };
 
 static struct {
@@ -162,6 +140,9 @@ static struct {
 	{"ICH10R", 2},
 	{"ICH10D", 2},
 	{"ICH10DO", 2},
+	{"PCH Desktop Full Featured", 2},
+	{"PCH Mobile Full Featured", 2},
+	{"PCH Mobile SFF Full Featured", 2},
 	{NULL, 0}
 };
 
@@ -230,6 +211,9 @@ static struct pci_device_id iTCO_wdt_pci_tbl[] = {
 	{ ITCO_PCI_DEVICE(0x3a16,				TCO_ICH10R)},
 	{ ITCO_PCI_DEVICE(0x3a1a,				TCO_ICH10D)},
 	{ ITCO_PCI_DEVICE(0x3a14,				TCO_ICH10DO)},
+	{ ITCO_PCI_DEVICE(0x3b00,				TCO_PCH)},
+	{ ITCO_PCI_DEVICE(0x3b01,				TCO_PCHM)},
+	{ ITCO_PCI_DEVICE(0x3b0d,				TCO_PCHMSFF)},
 	{ 0, },			/* End of list */
 };
 MODULE_DEVICE_TABLE(pci, iTCO_wdt_pci_tbl);

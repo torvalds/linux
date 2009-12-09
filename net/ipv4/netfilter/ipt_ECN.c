@@ -85,8 +85,8 @@ ecn_tg(struct sk_buff *skb, const struct xt_target_param *par)
 		if (!set_ect_ip(skb, einfo))
 			return NF_DROP;
 
-	if (einfo->operation & (IPT_ECN_OP_SET_ECE | IPT_ECN_OP_SET_CWR)
-	    && ip_hdr(skb)->protocol == IPPROTO_TCP)
+	if (einfo->operation & (IPT_ECN_OP_SET_ECE | IPT_ECN_OP_SET_CWR) &&
+	    ip_hdr(skb)->protocol == IPPROTO_TCP)
 		if (!set_ect_tcp(skb, einfo))
 			return NF_DROP;
 
@@ -108,8 +108,8 @@ static bool ecn_tg_check(const struct xt_tgchk_param *par)
 			einfo->ip_ect);
 		return false;
 	}
-	if ((einfo->operation & (IPT_ECN_OP_SET_ECE|IPT_ECN_OP_SET_CWR))
-	    && (e->ip.proto != IPPROTO_TCP || (e->ip.invflags & XT_INV_PROTO))) {
+	if ((einfo->operation & (IPT_ECN_OP_SET_ECE|IPT_ECN_OP_SET_CWR)) &&
+	    (e->ip.proto != IPPROTO_TCP || (e->ip.invflags & XT_INV_PROTO))) {
 		printk(KERN_WARNING "ECN: cannot use TCP operations on a "
 		       "non-tcp rule\n");
 		return false;

@@ -391,8 +391,8 @@ static void mcs7830_set_multicast(struct net_device *net)
 
 	if (net->flags & IFF_PROMISC) {
 		data->config |= HIF_REG_CONFIG_PROMISCIOUS;
-	} else if (net->flags & IFF_ALLMULTI
-		   || net->mc_count > MCS7830_MAX_MCAST) {
+	} else if (net->flags & IFF_ALLMULTI ||
+		   net->mc_count > MCS7830_MAX_MCAST) {
 		data->config |= HIF_REG_CONFIG_ALLMULTICAST;
 	} else if (net->mc_count == 0) {
 		/* just broadcast and directed */

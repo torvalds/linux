@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -66,7 +66,6 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 	rts_info = IEEE80211_SKB_CB(skb);
 	rts_info->control.rates[0].flags &= ~IEEE80211_TX_RC_USE_RTS_CTS;
 	rts_info->control.rates[0].flags &= ~IEEE80211_TX_RC_USE_CTS_PROTECT;
-	rts_info->flags &= ~IEEE80211_TX_CTL_REQ_TX_STATUS;
 
 	if (tx_info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT)
 		rts_info->flags |= IEEE80211_TX_CTL_NO_ACK;
@@ -91,7 +90,7 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 				  frag_skb->data, data_length, tx_info,
 				  (struct ieee80211_rts *)(skb->data));
 
-	retval = rt2x00queue_write_tx_frame(queue, skb);
+	retval = rt2x00queue_write_tx_frame(queue, skb, true);
 	if (retval) {
 		dev_kfree_skb_any(skb);
 		WARNING(rt2x00dev, "Failed to send RTS/CTS frame.\n");
@@ -104,10 +103,8 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_hdr *ieee80211hdr = (struct ieee80211_hdr *)skb->data;
 	enum data_queue_qid qid = skb_get_queue_mapping(skb);
 	struct data_queue *queue;
-	u16 frame_control;
 
 	/*
 	 * Mac80211 might be calling this function while we are trying
@@ -142,7 +139,6 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * either RTS or CTS-to-self frame and handles everything
 	 * inside the hardware.
 	 */
-	frame_control = le16_to_cpu(ieee80211hdr->frame_control);
 	if ((tx_info->control.rates[0].flags & (IEEE80211_TX_RC_USE_RTS_CTS |
 						IEEE80211_TX_RC_USE_CTS_PROTECT)) &&
 	    !rt2x00dev->ops->hw->set_rts_threshold) {
@@ -153,7 +149,7 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 			goto exit_fail;
 	}
 
-	if (rt2x00queue_write_tx_frame(queue, skb))
+	if (rt2x00queue_write_tx_frame(queue, skb, false))
 		goto exit_fail;
 
 	if (rt2x00queue_threshold(queue))

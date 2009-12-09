@@ -125,5 +125,13 @@ source "drivers/staging/sep/Kconfig"
 
 source "drivers/staging/iio/Kconfig"
 
+source "drivers/staging/strip/Kconfig"
+
+source "drivers/staging/arlan/Kconfig"
+
+source "drivers/staging/wavelan/Kconfig"
+
+source "drivers/staging/netwave/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

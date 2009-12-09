@@ -551,13 +551,13 @@ int ssb_pcicore_dev_irqvecs_enable(struct ssb_pcicore *pc,
 	might_sleep_if(pdev->id.coreid != SSB_DEV_PCI);
 
 	/* Enable interrupts for this device. */
-	if (bus->host_pci &&
-	    ((pdev->id.revision >= 6) || (pdev->id.coreid == SSB_DEV_PCIE))) {
+	if ((pdev->id.revision >= 6) || (pdev->id.coreid == SSB_DEV_PCIE)) {
 		u32 coremask;
 
 		/* Calculate the "coremask" for the device. */
 		coremask = (1 << dev->core_index);
 
+		SSB_WARN_ON(bus->bustype != SSB_BUSTYPE_PCI);
 		err = pci_read_config_dword(bus->host_pci, SSB_PCI_IRQMASK, &tmp);
 		if (err)
 			goto out;
