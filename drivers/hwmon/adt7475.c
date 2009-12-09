@@ -40,6 +40,8 @@
 
 /* 7475 Common Registers */
 
+#define REG_DEVREV2		0x12	/* ADT7490 only */
+
 #define REG_VTT			0x1E	/* ADT7490 only */
 #define REG_EXTEND3		0x1F	/* ADT7490 only */
 
@@ -1149,6 +1151,12 @@ static void adt7475_remove_files(struct i2c_client *client,
 static int adt7475_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
+	static const char *names[] = {
+		[adt7473] = "ADT7473",
+		[adt7475] = "ADT7475",
+		[adt7490] = "ADT7490",
+	};
+
 	struct adt7475_data *data;
 	int i, ret = 0, revision;
 	u8 config3;
@@ -1165,6 +1173,8 @@ static int adt7475_probe(struct i2c_client *client,
 	case adt7490:
 		data->has_voltage = 0x3e;	/* in1 to in5 */
 		revision = adt7475_read(REG_DEVID2) & 0x03;
+		if (revision == 0x03)
+			revision += adt7475_read(REG_DEVREV2);
 		break;
 	default:
 		data->has_voltage = 0x06;	/* in1, in2 */
@@ -1233,6 +1243,14 @@ static int adt7475_probe(struct i2c_client *client,
 		ret = PTR_ERR(data->hwmon_dev);
 		goto eremove;
 	}
+
+	dev_info(&client->dev, "%s device, revision %d\n",
+		 names[id->driver_data], revision);
+	if ((data->has_voltage & (1 << 0)) || data->has_fan4 || data->has_pwm2)
+		dev_info(&client->dev, "Optional features:%s%s%s\n",
+			 (data->has_voltage & (1 << 0)) ? " in0" : "",
+			 data->has_fan4 ? " fan4" : "",
+			 data->has_pwm2 ? " pwm2" : "");
 
 	return 0;
 
