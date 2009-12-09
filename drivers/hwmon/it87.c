@@ -124,6 +124,7 @@ superio_exit(void)
 #define IT87_BASE_REG 0x60
 
 /* Logical device 7 registers (IT8712F and later) */
+#define IT87_SIO_GPIO3_REG	0x27
 #define IT87_SIO_PINX2_REG	0x2c	/* Pin selection */
 #define IT87_SIO_VID_REG	0xfc	/* VID value */
 
@@ -244,6 +245,7 @@ struct it87_sio_data {
 	/* Values read from Super-I/O config space */
 	u8 revision;
 	u8 vid_value;
+	u8 skip_vid;
 	/* Values set based on DMI strings */
 	u8 skip_pwm;
 };
@@ -1028,11 +1030,22 @@ static int __init it87_find(unsigned short *address,
 		chip_type, *address, sio_data->revision);
 
 	/* Read GPIO config and VID value from LDN 7 (GPIO) */
-	if (sio_data->type != it87) {
+	if (sio_data->type == it87) {
+		/* The IT8705F doesn't have VID pins at all */
+		sio_data->skip_vid = 1;
+	} else {
 		int reg;
 
 		superio_select(GPIO);
-		if (sio_data->type == it8718 || sio_data->type == it8720)
+		/* We need at least 4 VID pins */
+		reg = superio_inb(IT87_SIO_GPIO3_REG);
+		if (reg & 0x0f) {
+			pr_info("it87: VID is disabled (pins used for GPIO)\n");
+			sio_data->skip_vid = 1;
+		}
+
+		if ((sio_data->type == it8718 || sio_data->type == it8720)
+		 && !(sio_data->skip_vid))
 			sio_data->vid_value = superio_inb(IT87_SIO_VID_REG);
 
 		reg = superio_inb(IT87_SIO_PINX2_REG);
@@ -1236,8 +1249,7 @@ static int __devinit it87_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (data->type == it8712 || data->type == it8716
-	 || data->type == it8718 || data->type == it8720) {
+	if (!sio_data->skip_vid) {
 		data->vrm = vid_which_vrm();
 		/* VID reading from Super-I/O config space if available */
 		data->vid = sio_data->vid_value;
