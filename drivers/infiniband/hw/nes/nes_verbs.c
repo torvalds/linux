@@ -1407,6 +1407,8 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 			return ERR_PTR(-EINVAL);
 	}
 
+	nesqp->sig_all = (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR);
+
 	/* update the QP table */
 	nesdev->nesadapter->qp_table[nesqp->hwqp.qp_id-NES_FIRST_QPN] = nesqp;
 	nes_debug(NES_DBG_QP, "netdev refcnt=%u\n",
@@ -3502,9 +3504,9 @@ static int nes_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 		if (err)
 			break;
 
-		if (ib_wr->send_flags & IB_SEND_SIGNALED) {
+		if ((ib_wr->send_flags & IB_SEND_SIGNALED) || nesqp->sig_all)
 			wqe_misc |= NES_IWARP_SQ_WQE_SIGNALED_COMPL;
-		}
+
 		wqe->wqe_words[NES_IWARP_SQ_WQE_MISC_IDX] = cpu_to_le32(wqe_misc);
 
 		ib_wr = ib_wr->next;

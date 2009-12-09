@@ -167,17 +167,20 @@ struct nes_qp {
 	enum ib_event_type    terminate_eventtype;
 	wait_queue_head_t     kick_waitq;
 	u16                   in_disconnect;
+	u16                   active_conn:1;
+	u16                   skip_lsmm:1;
+	u16                   user_mode:1;
+	u16                   hte_added:1;
+	u16                   flush_issued:1;
+	u16                   destroyed:1;
+	u16                   sq_kmapped:1;
+	u16                   sig_all:1;
+	u16                   rsvd:8;
 	u16                   private_data_len;
 	u16                   term_sq_flush_code;
 	u16                   term_rq_flush_code;
-	u8                    active_conn;
-	u8                    skip_lsmm;
-	u8                    user_mode;
-	u8                    hte_added;
 	u8                    hw_iwarp_state;
-	u8                    flush_issued;
 	u8                    hw_tcp_state;
 	u8                    term_flags;
-	u8                    destroyed;
 };
 #endif			/* NES_VERBS_H */
