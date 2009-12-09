@@ -59,6 +59,60 @@ static struct attribute ttm_bo_count = {
 	.mode = S_IRUGO
 };
 
+static inline int ttm_mem_type_from_flags(uint32_t flags, uint32_t *mem_type)
+{
+	int i;
+
+	for (i = 0; i <= TTM_PL_PRIV5; i++)
+		if (flags & (1 << i)) {
+			*mem_type = i;
+			return 0;
+		}
+	return -EINVAL;
+}
+
+static void ttm_mem_type_manager_debug(struct ttm_bo_global *glob,
+					struct ttm_mem_type_manager *man)
+{
+	printk(KERN_ERR TTM_PFX "    has_type: %d\n", man->has_type);
+	printk(KERN_ERR TTM_PFX "    use_type: %d\n", man->use_type);
+	printk(KERN_ERR TTM_PFX "    flags: 0x%08X\n", man->flags);
+	printk(KERN_ERR TTM_PFX "    gpu_offset: 0x%08lX\n", man->gpu_offset);
+	printk(KERN_ERR TTM_PFX "    io_offset: 0x%08lX\n", man->io_offset);
+	printk(KERN_ERR TTM_PFX "    io_size: %ld\n", man->io_size);
+	printk(KERN_ERR TTM_PFX "    size: %ld\n", (unsigned long)man->size);
+	printk(KERN_ERR TTM_PFX "    available_caching: 0x%08X\n",
+		man->available_caching);
+	printk(KERN_ERR TTM_PFX "    default_caching: 0x%08X\n",
+		man->default_caching);
+	spin_lock(&glob->lru_lock);
+	drm_mm_debug_table(&man->manager, TTM_PFX);
+	spin_unlock(&glob->lru_lock);
+}
+
+static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
+					struct ttm_placement *placement)
+{
+	struct ttm_bo_device *bdev = bo->bdev;
+	struct ttm_bo_global *glob = bo->glob;
+	struct ttm_mem_type_manager *man;
+	int i, ret, mem_type;
+
+	printk(KERN_ERR TTM_PFX "No space for %p (%ld pages, %ldK, %ldM)\n",
+		bo, bo->mem.num_pages, bo->mem.size >> 10,
+		bo->mem.size >> 20);
+	for (i = 0; i < placement->num_placement; i++) {
+		ret = ttm_mem_type_from_flags(placement->placement[i],
+						&mem_type);
+		if (ret)
+			return;
+		man = &bdev->man[mem_type];
+		printk(KERN_ERR TTM_PFX "  placement[%d]=0x%08X (%d)\n",
+			i, placement->placement[i], mem_type);
+		ttm_mem_type_manager_debug(glob, man);
+	}
+}
+
 static ssize_t ttm_bo_global_show(struct kobject *kobj,
 				  struct attribute *attr,
 				  char *buffer)
@@ -592,10 +646,12 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo, bool interruptible,
 	ret = ttm_bo_mem_space(bo, &placement, &evict_mem, interruptible,
 				no_wait);
 	if (ret) {
-		if (ret != -ERESTARTSYS)
+		if (ret != -ERESTARTSYS) {
 			printk(KERN_ERR TTM_PFX
 			       "Failed to find memory space for "
 			       "buffer 0x%p eviction.\n", bo);
+			ttm_bo_mem_space_debug(bo, &placement);
+		}
 		goto out;
 	}
 
@@ -766,18 +822,6 @@ static bool ttm_bo_mt_compatible(struct ttm_mem_type_manager *man,
 
 	*masked_placement = cur_flags;
 	return true;
-}
-
-static inline int ttm_mem_type_from_flags(uint32_t flags, uint32_t *mem_type)
-{
-	int i;
-
-	for (i = 0; i <= TTM_PL_PRIV5; i++)
-		if (flags & (1 << i)) {
-			*mem_type = i;
-			return 0;
-		}
-	return -EINVAL;
 }
 
 /**
