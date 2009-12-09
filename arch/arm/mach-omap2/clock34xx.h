@@ -8,20 +8,9 @@
 #ifndef __ARCH_ARM_MACH_OMAP2_CLOCK_34XX_H
 #define __ARCH_ARM_MACH_OMAP2_CLOCK_34XX_H
 
-unsigned long omap3_dpll_recalc(struct clk *clk);
-unsigned long omap3_clkoutx2_recalc(struct clk *clk);
-void omap3_dpll_allow_idle(struct clk *clk);
-void omap3_dpll_deny_idle(struct clk *clk);
-u32 omap3_dpll_autoidle_read(struct clk *clk);
-int omap3_noncore_dpll_set_rate(struct clk *clk, unsigned long rate);
 int omap3_dpll4_set_rate(struct clk *clk, unsigned long rate);
 int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate);
 void omap3_clk_lock_dpll5(void);
-
-/* CM_CLKEN_PLL*.EN* bit values - not all are available for every DPLL */
-#define DPLL_LOW_POWER_STOP		0x1
-#define DPLL_LOW_POWER_BYPASS		0x5
-#define DPLL_LOCKED			0x7
 
 extern struct clk *sdrc_ick_p;
 extern struct clk *arm_fck_p;
