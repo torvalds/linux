@@ -164,24 +164,22 @@ static unsigned int moxaFuncTout = HZ / 2;
 static unsigned int moxaLowWaterChk;
 static DEFINE_MUTEX(moxa_openlock);
 static DEFINE_SPINLOCK(moxa_lock);
-/* Variables for insmod */
-#ifdef MODULE
+
 static unsigned long baseaddr[MAX_BOARDS];
 static unsigned int type[MAX_BOARDS];
 static unsigned int numports[MAX_BOARDS];
-#endif
 
 MODULE_AUTHOR("William Chen");
 MODULE_DESCRIPTION("MOXA Intellio Family Multiport Board Device Driver");
 MODULE_LICENSE("GPL");
-#ifdef MODULE
+
 module_param_array(type, uint, NULL, 0);
 MODULE_PARM_DESC(type, "card type: C218=2, C320=4");
 module_param_array(baseaddr, ulong, NULL, 0);
 MODULE_PARM_DESC(baseaddr, "base address");
 module_param_array(numports, uint, NULL, 0);
 MODULE_PARM_DESC(numports, "numports (ignored for C218)");
-#endif
+
 module_param(ttymajor, int, 0);
 
 /*
@@ -1024,6 +1022,8 @@ static int __init moxa_init(void)
 {
 	unsigned int isabrds = 0;
 	int retval = 0;
+	struct moxa_board_conf *brd = moxa_boards;
+	unsigned int i;
 
 	printk(KERN_INFO "MOXA Intellio family driver version %s\n",
 			MOXA_VERSION);
@@ -1051,10 +1051,7 @@ static int __init moxa_init(void)
 	}
 
 	/* Find the boards defined from module args. */
-#ifdef MODULE
-	{
-	struct moxa_board_conf *brd = moxa_boards;
-	unsigned int i;
+
 	for (i = 0; i < MAX_BOARDS; i++) {
 		if (!baseaddr[i])
 			break;
@@ -1087,8 +1084,6 @@ static int __init moxa_init(void)
 			isabrds++;
 		}
 	}
-	}
-#endif
 
 #ifdef CONFIG_PCI
 	retval = pci_register_driver(&moxa_pci_driver);
