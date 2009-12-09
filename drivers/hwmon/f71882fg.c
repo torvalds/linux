@@ -416,41 +416,51 @@ static struct sensor_device_attribute_2 f8000_in_temp_attr[] = {
 };
 
 /* Fan / PWM attr common to all models */
-static struct sensor_device_attribute_2 fxxxx_fan_attr[] = {
+static struct sensor_device_attribute_2 fxxxx_fan_attr[4][6] = { {
 	SENSOR_ATTR_2(fan1_input, S_IRUGO, show_fan, NULL, 0, 0),
 	SENSOR_ATTR_2(fan1_full_speed, S_IRUGO|S_IWUSR,
 		      show_fan_full_speed,
 		      store_fan_full_speed, 0, 0),
 	SENSOR_ATTR_2(fan1_alarm, S_IRUGO, show_fan_alarm, NULL, 0, 0),
-	SENSOR_ATTR_2(fan2_input, S_IRUGO, show_fan, NULL, 0, 1),
-	SENSOR_ATTR_2(fan2_full_speed, S_IRUGO|S_IWUSR,
-		      show_fan_full_speed,
-		      store_fan_full_speed, 0, 1),
-	SENSOR_ATTR_2(fan2_alarm, S_IRUGO, show_fan_alarm, NULL, 0, 1),
-	SENSOR_ATTR_2(fan3_input, S_IRUGO, show_fan, NULL, 0, 2),
-	SENSOR_ATTR_2(fan3_full_speed, S_IRUGO|S_IWUSR,
-		      show_fan_full_speed,
-		      store_fan_full_speed, 0, 2),
-	SENSOR_ATTR_2(fan3_alarm, S_IRUGO, show_fan_alarm, NULL, 0, 2),
-
 	SENSOR_ATTR_2(pwm1, S_IRUGO|S_IWUSR, show_pwm, store_pwm, 0, 0),
 	SENSOR_ATTR_2(pwm1_enable, S_IRUGO|S_IWUSR, show_pwm_enable,
 		      store_pwm_enable, 0, 0),
 	SENSOR_ATTR_2(pwm1_interpolate, S_IRUGO|S_IWUSR,
 		      show_pwm_interpolate, store_pwm_interpolate, 0, 0),
-
+}, {
+	SENSOR_ATTR_2(fan2_input, S_IRUGO, show_fan, NULL, 0, 1),
+	SENSOR_ATTR_2(fan2_full_speed, S_IRUGO|S_IWUSR,
+		      show_fan_full_speed,
+		      store_fan_full_speed, 0, 1),
+	SENSOR_ATTR_2(fan2_alarm, S_IRUGO, show_fan_alarm, NULL, 0, 1),
 	SENSOR_ATTR_2(pwm2, S_IRUGO|S_IWUSR, show_pwm, store_pwm, 0, 1),
 	SENSOR_ATTR_2(pwm2_enable, S_IRUGO|S_IWUSR, show_pwm_enable,
 		      store_pwm_enable, 0, 1),
 	SENSOR_ATTR_2(pwm2_interpolate, S_IRUGO|S_IWUSR,
 		      show_pwm_interpolate, store_pwm_interpolate, 0, 1),
-
+}, {
+	SENSOR_ATTR_2(fan3_input, S_IRUGO, show_fan, NULL, 0, 2),
+	SENSOR_ATTR_2(fan3_full_speed, S_IRUGO|S_IWUSR,
+		      show_fan_full_speed,
+		      store_fan_full_speed, 0, 2),
+	SENSOR_ATTR_2(fan3_alarm, S_IRUGO, show_fan_alarm, NULL, 0, 2),
 	SENSOR_ATTR_2(pwm3, S_IRUGO|S_IWUSR, show_pwm, store_pwm, 0, 2),
 	SENSOR_ATTR_2(pwm3_enable, S_IRUGO|S_IWUSR, show_pwm_enable,
 		      store_pwm_enable, 0, 2),
 	SENSOR_ATTR_2(pwm3_interpolate, S_IRUGO|S_IWUSR,
 		      show_pwm_interpolate, store_pwm_interpolate, 0, 2),
-};
+}, {
+	SENSOR_ATTR_2(fan4_input, S_IRUGO, show_fan, NULL, 0, 3),
+	SENSOR_ATTR_2(fan4_full_speed, S_IRUGO|S_IWUSR,
+		      show_fan_full_speed,
+		      store_fan_full_speed, 0, 3),
+	SENSOR_ATTR_2(fan4_alarm, S_IRUGO, show_fan_alarm, NULL, 0, 3),
+	SENSOR_ATTR_2(pwm4, S_IRUGO|S_IWUSR, show_pwm, store_pwm, 0, 3),
+	SENSOR_ATTR_2(pwm4_enable, S_IRUGO|S_IWUSR, show_pwm_enable,
+		      store_pwm_enable, 0, 3),
+	SENSOR_ATTR_2(pwm4_interpolate, S_IRUGO|S_IWUSR,
+		      show_pwm_interpolate, store_pwm_interpolate, 0, 3),
+} };
 
 /* Attr for models which can beep on Fan alarm */
 static struct sensor_device_attribute_2 fxxxx_fan_beep_attr[] = {
@@ -460,6 +470,8 @@ static struct sensor_device_attribute_2 fxxxx_fan_beep_attr[] = {
 		store_fan_beep, 0, 1),
 	SENSOR_ATTR_2(fan3_beep, S_IRUGO|S_IWUSR, show_fan_beep,
 		store_fan_beep, 0, 2),
+	SENSOR_ATTR_2(fan4_beep, S_IRUGO|S_IWUSR, show_fan_beep,
+		store_fan_beep, 0, 3),
 };
 
 /* PWM attr for the f71862fg, fewer pwms and fewer zones per pwm than the
@@ -533,7 +545,7 @@ static struct sensor_device_attribute_2 f71862fg_auto_pwm_attr[] = {
 };
 
 /* PWM attr common to the f71858fg, f71882fg and f71889fg */
-static struct sensor_device_attribute_2 fxxxx_auto_pwm_attr[] = {
+static struct sensor_device_attribute_2 fxxxx_auto_pwm_attr[4][14] = { {
 	SENSOR_ATTR_2(pwm1_auto_channels_temp, S_IRUGO|S_IWUSR,
 		      show_pwm_auto_point_channel,
 		      store_pwm_auto_point_channel, 0, 0),
@@ -574,7 +586,7 @@ static struct sensor_device_attribute_2 fxxxx_auto_pwm_attr[] = {
 		      show_pwm_auto_point_temp_hyst, NULL, 2, 0),
 	SENSOR_ATTR_2(pwm1_auto_point4_temp_hyst, S_IRUGO,
 		      show_pwm_auto_point_temp_hyst, NULL, 3, 0),
-
+}, {
 	SENSOR_ATTR_2(pwm2_auto_channels_temp, S_IRUGO|S_IWUSR,
 		      show_pwm_auto_point_channel,
 		      store_pwm_auto_point_channel, 0, 1),
@@ -615,7 +627,7 @@ static struct sensor_device_attribute_2 fxxxx_auto_pwm_attr[] = {
 		      show_pwm_auto_point_temp_hyst, NULL, 2, 1),
 	SENSOR_ATTR_2(pwm2_auto_point4_temp_hyst, S_IRUGO,
 		      show_pwm_auto_point_temp_hyst, NULL, 3, 1),
-
+}, {
 	SENSOR_ATTR_2(pwm3_auto_channels_temp, S_IRUGO|S_IWUSR,
 		      show_pwm_auto_point_channel,
 		      store_pwm_auto_point_channel, 0, 2),
@@ -656,23 +668,7 @@ static struct sensor_device_attribute_2 fxxxx_auto_pwm_attr[] = {
 		      show_pwm_auto_point_temp_hyst, NULL, 2, 2),
 	SENSOR_ATTR_2(pwm3_auto_point4_temp_hyst, S_IRUGO,
 		      show_pwm_auto_point_temp_hyst, NULL, 3, 2),
-};
-
-/* Fan / PWM attr found on the f71882fg but not on the f71858fg */
-static struct sensor_device_attribute_2 f71882fg_auto_pwm_attr[] = {
-	SENSOR_ATTR_2(fan4_input, S_IRUGO, show_fan, NULL, 0, 3),
-	SENSOR_ATTR_2(fan4_full_speed, S_IRUGO|S_IWUSR,
-		      show_fan_full_speed,
-		      store_fan_full_speed, 0, 3),
-	SENSOR_ATTR_2(fan4_beep, S_IRUGO|S_IWUSR, show_fan_beep,
-		store_fan_beep, 0, 3),
-	SENSOR_ATTR_2(fan4_alarm, S_IRUGO, show_fan_alarm, NULL, 0, 3),
-
-	SENSOR_ATTR_2(pwm4, S_IRUGO|S_IWUSR, show_pwm, store_pwm, 0, 3),
-	SENSOR_ATTR_2(pwm4_enable, S_IRUGO|S_IWUSR, show_pwm_enable,
-		      store_pwm_enable, 0, 3),
-	SENSOR_ATTR_2(pwm4_interpolate, S_IRUGO|S_IWUSR,
-		      show_pwm_interpolate, store_pwm_interpolate, 0, 3),
+}, {
 	SENSOR_ATTR_2(pwm4_auto_channels_temp, S_IRUGO|S_IWUSR,
 		      show_pwm_auto_point_channel,
 		      store_pwm_auto_point_channel, 0, 3),
@@ -713,7 +709,7 @@ static struct sensor_device_attribute_2 f71882fg_auto_pwm_attr[] = {
 		      show_pwm_auto_point_temp_hyst, NULL, 2, 3),
 	SENSOR_ATTR_2(pwm4_auto_point4_temp_hyst, S_IRUGO,
 		      show_pwm_auto_point_temp_hyst, NULL, 3, 3),
-};
+} };
 
 /* Fan attr specific to the f8000 (4th fan input can only measure speed) */
 static struct sensor_device_attribute_2 f8000_fan_attr[] = {
@@ -1917,38 +1913,23 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 			goto exit_unregister_sysfs;
 		}
 
-		err = f71882fg_create_sysfs_files(pdev, fxxxx_fan_attr,
-					ARRAY_SIZE(fxxxx_fan_attr));
+		err = f71882fg_create_sysfs_files(pdev, &fxxxx_fan_attr[0][0],
+				ARRAY_SIZE(fxxxx_fan_attr[0]) * nr_fans);
 		if (err)
 			goto exit_unregister_sysfs;
+
+		if (data->type == f71862fg || data->type == f71882fg) {
+			err = f71882fg_create_sysfs_files(pdev,
+					fxxxx_fan_beep_attr, nr_fans);
+			if (err)
+				goto exit_unregister_sysfs;
+		}
 
 		switch (data->type) {
 		case f71862fg:
 			err = f71882fg_create_sysfs_files(pdev,
-					fxxxx_fan_beep_attr,
-					ARRAY_SIZE(fxxxx_fan_beep_attr));
-			if (err)
-				goto exit_unregister_sysfs;
-			err = f71882fg_create_sysfs_files(pdev,
 					f71862fg_auto_pwm_attr,
 					ARRAY_SIZE(f71862fg_auto_pwm_attr));
-			break;
-		case f71882fg:
-			err = f71882fg_create_sysfs_files(pdev,
-					fxxxx_fan_beep_attr,
-					ARRAY_SIZE(fxxxx_fan_beep_attr));
-			if (err)
-				goto exit_unregister_sysfs;
-			err = f71882fg_create_sysfs_files(pdev,
-					f71882fg_auto_pwm_attr,
-					ARRAY_SIZE(f71882fg_auto_pwm_attr));
-			if (err)
-				goto exit_unregister_sysfs;
-			/* fall through! */
-		case f71858fg:
-			err = f71882fg_create_sysfs_files(pdev,
-					fxxxx_auto_pwm_attr,
-					ARRAY_SIZE(fxxxx_auto_pwm_attr));
 			break;
 		case f8000:
 			err = f71882fg_create_sysfs_files(pdev,
@@ -1960,6 +1941,10 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 					f8000_auto_pwm_attr,
 					ARRAY_SIZE(f8000_auto_pwm_attr));
 			break;
+		default: /* f71858fg / f71882fg */
+			err = f71882fg_create_sysfs_files(pdev,
+				&fxxxx_auto_pwm_attr[0][0],
+				ARRAY_SIZE(fxxxx_auto_pwm_attr[0]) * nr_fans);
 		}
 		if (err)
 			goto exit_unregister_sysfs;
@@ -1989,7 +1974,7 @@ exit_free:
 
 static int f71882fg_remove(struct platform_device *pdev)
 {
-	int i;
+	int i, j;
 	struct f71882fg_data *data = platform_get_drvdata(pdev);
 
 	platform_set_drvdata(pdev, NULL);
@@ -2009,15 +1994,18 @@ static int f71882fg_remove(struct platform_device *pdev)
 					&fxxxx_in1_alarm_attr[i].dev_attr);
 
 	for (i = 0; i < ARRAY_SIZE(fxxxx_fan_attr); i++)
-		device_remove_file(&pdev->dev, &fxxxx_fan_attr[i].dev_attr);
+		for (j = 0; j < ARRAY_SIZE(fxxxx_fan_attr[0]); j++)
+			device_remove_file(&pdev->dev,
+					   &fxxxx_fan_attr[i][j].dev_attr);
 
 	for (i = 0; i < ARRAY_SIZE(fxxxx_fan_beep_attr); i++)
 		device_remove_file(&pdev->dev,
 				   &fxxxx_fan_beep_attr[i].dev_attr);
 
-	for (i = 0; i < ARRAY_SIZE(f71882fg_auto_pwm_attr); i++)
-		device_remove_file(&pdev->dev,
-				   &f71882fg_auto_pwm_attr[i].dev_attr);
+	for (i = 0; i < ARRAY_SIZE(fxxxx_auto_pwm_attr); i++)
+		for (j = 0; j < ARRAY_SIZE(fxxxx_auto_pwm_attr[0]); j++)
+			device_remove_file(&pdev->dev,
+					  &fxxxx_auto_pwm_attr[i][j].dev_attr);
 
 	for (i = 0; i < ARRAY_SIZE(f8000_auto_pwm_attr); i++)
 		device_remove_file(&pdev->dev,
