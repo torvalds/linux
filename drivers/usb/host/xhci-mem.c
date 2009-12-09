@@ -267,6 +267,8 @@ struct xhci_container_ctx *xhci_alloc_container_ctx(struct xhci_hcd *xhci,
 void xhci_free_container_ctx(struct xhci_hcd *xhci,
 			     struct xhci_container_ctx *ctx)
 {
+	if (!ctx)
+		return;
 	dma_pool_free(xhci->device_pool, ctx->bytes, ctx->dma);
 	kfree(ctx);
 }
@@ -844,7 +846,8 @@ static void scratchpad_free(struct xhci_hcd *xhci)
 }
 
 struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
-		bool allocate_completion, gfp_t mem_flags)
+		bool allocate_in_ctx, bool allocate_completion,
+		gfp_t mem_flags)
 {
 	struct xhci_command *command;
 
@@ -852,11 +855,14 @@ struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
 	if (!command)
 		return NULL;
 
-	command->in_ctx =
-		xhci_alloc_container_ctx(xhci, XHCI_CTX_TYPE_INPUT, mem_flags);
-	if (!command->in_ctx) {
-		kfree(command);
-		return NULL;
+	if (allocate_in_ctx) {
+		command->in_ctx =
+			xhci_alloc_container_ctx(xhci, XHCI_CTX_TYPE_INPUT,
+					mem_flags);
+		if (!command->in_ctx) {
+			kfree(command);
+			return NULL;
+		}
 	}
 
 	if (allocate_completion) {

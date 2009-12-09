@@ -1237,7 +1237,8 @@ void xhci_free_or_cache_endpoint_ring(struct xhci_hcd *xhci,
 		struct xhci_virt_device *virt_dev,
 		unsigned int ep_index);
 struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
-		bool allocate_completion, gfp_t mem_flags);
+		bool allocate_in_ctx, bool allocate_completion,
+		gfp_t mem_flags);
 void xhci_free_command(struct xhci_hcd *xhci,
 		struct xhci_command *command);
 
