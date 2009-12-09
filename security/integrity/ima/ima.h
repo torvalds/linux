@@ -65,7 +65,6 @@ void integrity_audit_msg(int audit_msgno, struct inode *inode,
 			 const char *cause, int result, int info);
 
 /* Internal IMA function definitions */
-void ima_iintcache_init(void);
 int ima_init(void);
 void ima_cleanup(void);
 int ima_fs_init(void);

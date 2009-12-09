@@ -321,7 +321,6 @@ static int __init init_ima(void)
 {
 	int error;
 
-	ima_iintcache_init();
 	error = ima_init();
 	ima_initialized = 1;
 	return error;
