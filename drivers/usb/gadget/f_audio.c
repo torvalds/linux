@@ -792,7 +792,7 @@ int __init audio_bind_config(struct usb_configuration *c)
 	return status;
 
 add_fail:
-	gaudio_cleanup(&audio->card);
+	gaudio_cleanup();
 setup_fail:
 	kfree(audio);
 	return status;
