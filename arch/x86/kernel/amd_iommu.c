@@ -1624,6 +1624,11 @@ static struct notifier_block device_nb = {
 	.notifier_call = device_change_notifier,
 };
 
+void amd_iommu_init_notifier(void)
+{
+	bus_register_notifier(&pci_bus_type, &device_nb);
+}
+
 /*****************************************************************************
  *
  * The next functions belong to the dma_ops mapping/unmapping code.
@@ -2249,8 +2254,6 @@ int __init amd_iommu_init_dma_ops(void)
 	dma_ops = &amd_iommu_dma_ops;
 
 	register_iommu(&amd_iommu_ops);
-
-	bus_register_notifier(&pci_bus_type, &device_nb);
 
 	amd_iommu_stats_init();
 
