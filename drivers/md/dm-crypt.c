@@ -158,6 +158,9 @@ static void kcryptd_queue_crypt(struct dm_crypt_io *io);
  * plain: the initial vector is the 32-bit little-endian version of the sector
  *        number, padded with zeros if necessary.
  *
+ * plain64: the initial vector is the 64-bit little-endian version of the sector
+ *        number, padded with zeros if necessary.
+ *
  * essiv: "encrypted sector|salt initial vector", the sector number is
  *        encrypted with the bulk cipher using a salt as key. The salt
  *        should be derived from the bulk cipher's key via hashing.
@@ -176,6 +179,15 @@ static int crypt_iv_plain_gen(struct crypt_config *cc, u8 *iv, sector_t sector)
 {
 	memset(iv, 0, cc->iv_size);
 	*(u32 *)iv = cpu_to_le32(sector & 0xffffffff);
+
+	return 0;
+}
+
+static int crypt_iv_plain64_gen(struct crypt_config *cc, u8 *iv,
+				sector_t sector)
+{
+	memset(iv, 0, cc->iv_size);
+	*(u64 *)iv = cpu_to_le64(sector);
 
 	return 0;
 }
@@ -340,6 +352,10 @@ static int crypt_iv_null_gen(struct crypt_config *cc, u8 *iv, sector_t sector)
 
 static struct crypt_iv_operations crypt_iv_plain_ops = {
 	.generator = crypt_iv_plain_gen
+};
+
+static struct crypt_iv_operations crypt_iv_plain64_ops = {
+	.generator = crypt_iv_plain64_gen
 };
 
 static struct crypt_iv_operations crypt_iv_essiv_ops = {
@@ -1063,6 +1079,8 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		cc->iv_gen_ops = NULL;
 	else if (strcmp(ivmode, "plain") == 0)
 		cc->iv_gen_ops = &crypt_iv_plain_ops;
+	else if (strcmp(ivmode, "plain64") == 0)
+		cc->iv_gen_ops = &crypt_iv_plain64_ops;
 	else if (strcmp(ivmode, "essiv") == 0)
 		cc->iv_gen_ops = &crypt_iv_essiv_ops;
 	else if (strcmp(ivmode, "benbi") == 0)
