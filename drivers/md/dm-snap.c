@@ -523,6 +523,25 @@ static int dm_add_exception(void *context, chunk_t old, chunk_t new)
 	return 0;
 }
 
+#define min_not_zero(l, r) (((l) == 0) ? (r) : (((r) == 0) ? (l) : min(l, r)))
+
+/*
+ * Return a minimum chunk size of all snapshots that have the specified origin.
+ * Return zero if the origin has no snapshots.
+ */
+static sector_t __minimum_chunk_size(struct origin *o)
+{
+	struct dm_snapshot *snap;
+	unsigned chunk_size = 0;
+
+	if (o)
+		list_for_each_entry(snap, &o->snapshots, list)
+			chunk_size = min_not_zero(chunk_size,
+						  snap->store->chunk_size);
+
+	return chunk_size;
+}
+
 /*
  * Hard coded magic.
  */
@@ -1395,8 +1414,6 @@ static int origin_map(struct dm_target *ti, struct bio *bio,
 	return (bio_rw(bio) == WRITE) ? do_origin(dev, bio) : DM_MAPIO_REMAPPED;
 }
 
-#define min_not_zero(l, r) (l == 0) ? r : ((r == 0) ? l : min(l, r))
-
 /*
  * Set the target "split_io" field to the minimum of all the snapshots'
  * chunk sizes.
@@ -1404,19 +1421,12 @@ static int origin_map(struct dm_target *ti, struct bio *bio,
 static void origin_resume(struct dm_target *ti)
 {
 	struct dm_dev *dev = ti->private;
-	struct dm_snapshot *snap;
-	struct origin *o;
-	unsigned chunk_size = 0;
 
 	down_read(&_origins_lock);
-	o = __lookup_origin(dev->bdev);
-	if (o)
-		list_for_each_entry (snap, &o->snapshots, list)
-			chunk_size = min_not_zero(chunk_size,
-						  snap->store->chunk_size);
-	up_read(&_origins_lock);
 
-	ti->split_io = chunk_size;
+	ti->split_io = __minimum_chunk_size(__lookup_origin(dev->bdev));
+
+	up_read(&_origins_lock);
 }
 
 static int origin_status(struct dm_target *ti, status_type_t type, char *result,
