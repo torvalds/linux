@@ -116,10 +116,8 @@ long sys_iopl(unsigned int level, struct pt_regs *regs)
 			return -EPERM;
 	}
 	regs->flags = (regs->flags & ~X86_EFLAGS_IOPL) | (level << 12);
-#ifdef CONFIG_X86_32
 	t->iopl = level << 12;
 	set_iopl_mask(t->iopl);
-#endif
 
 	return 0;
 }
