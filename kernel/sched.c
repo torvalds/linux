@@ -7033,7 +7033,7 @@ cpumask_var_t nohz_cpu_mask;
  */
 static int get_update_sysctl_factor(void)
 {
-	unsigned int cpus = min(num_online_cpus(), 8);
+	unsigned int cpus = min_t(int, num_online_cpus(), 8);
 	unsigned int factor;
 
 	switch (sysctl_sched_tunable_scaling) {
