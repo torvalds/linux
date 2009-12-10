@@ -400,7 +400,7 @@ int __devinit init_bttv_i2c(struct bttv *btv)
 		   That's why we probe 0x1a (~0x34) first. CB
 		*/
 		const unsigned short addr_list[] = {
-			0x1a, 0x18, 0x4b, 0x64, 0x30,
+			0x1a, 0x18, 0x4b, 0x64, 0x30, 0x71,
 			I2C_CLIENT_END
 		};
 
