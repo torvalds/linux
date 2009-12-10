@@ -295,6 +295,9 @@ if ($arch eq "x86_64") {
     $ld .= " -m elf64_sparc";
     $cc .= " -m64";
     $objcopy .= " -O elf64-sparc";
+} elsif ($arch eq "microblaze") {
+    # Microblaze calls '_mcount' instead of plain 'mcount'.
+    $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\s_mcount\$";
 } else {
     die "Arch $arch is not supported with CONFIG_FTRACE_MCOUNT_RECORD";
 }

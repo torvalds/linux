@@ -83,6 +83,12 @@ ENTRY(ftrace_stub)
 	nop;
 
 ENTRY(_mcount)
+#ifdef CONFIG_DYNAMIC_FTRACE
+ENTRY(ftrace_caller)
+	/* MS: It is just barrier which is removed from C code */
+	rtsd	r15, 8
+	nop
+#endif /* CONFIG_DYNAMIC_FTRACE */
 	SAVE_REGS
 	swi	r15, r1, 0;
 	/* MS: HAVE_FUNCTION_TRACE_MCOUNT_TEST begin of checking */
@@ -90,12 +96,19 @@ ENTRY(_mcount)
 	bneid	r5, end;
 	nop;
 	/* MS: HAVE_FUNCTION_TRACE_MCOUNT_TEST end of checking */
+#ifndef CONFIG_DYNAMIC_FTRACE
 	/* MS: test function trace if is taken or not */
 	lwi	r20, r0, ftrace_trace_function;
 	addik	r6, r0, ftrace_stub;
 	cmpu	r5, r20, r6; /* ftrace_trace_function != ftrace_stub */
 	beqid	r5, end; /* MS: not taken -> jump over */
 	nop;
+#else /* CONFIG_DYNAMIC_FTRACE */
+NOALIGN_ENTRY(ftrace_call)
+/* instruction for setup imm FUNC_part1, addik r20, r0, FUNC_part2 */
+	nop
+	nop
+#endif /* CONFIG_DYNAMIC_FTRACE */
 /* static normal trace */
 	lwi	r6, r1, 120; /* MS: load parent addr */
 	addik	r5, r15, 0; /* MS: load current function addr */
