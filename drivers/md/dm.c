@@ -727,23 +727,16 @@ static void end_clone_bio(struct bio *clone, int error)
  * the md may be freed in dm_put() at the end of this function.
  * Or do dm_get() before calling this function and dm_put() later.
  */
-static void rq_completed(struct mapped_device *md, int run_queue)
+static void rq_completed(struct mapped_device *md, int rw, int run_queue)
 {
-	int wakeup_waiters = 0;
-	struct request_queue *q = md->queue;
-	unsigned long flags;
-
-	spin_lock_irqsave(q->queue_lock, flags);
-	if (!queue_in_flight(q))
-		wakeup_waiters = 1;
-	spin_unlock_irqrestore(q->queue_lock, flags);
+	atomic_dec(&md->pending[rw]);
 
 	/* nudge anyone waiting on suspend queue */
-	if (wakeup_waiters)
+	if (!md_in_flight(md))
 		wake_up(&md->wait);
 
 	if (run_queue)
-		blk_run_queue(q);
+		blk_run_queue(md->queue);
 
 	/*
 	 * dm_put() must be at the end of this function. See the comment above
@@ -774,6 +767,7 @@ static void dm_unprep_request(struct request *rq)
  */
 void dm_requeue_unmapped_request(struct request *clone)
 {
+	int rw = rq_data_dir(clone);
 	struct dm_rq_target_io *tio = clone->end_io_data;
 	struct mapped_device *md = tio->md;
 	struct request *rq = tio->orig;
@@ -788,7 +782,7 @@ void dm_requeue_unmapped_request(struct request *clone)
 	blk_requeue_request(q, rq);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
-	rq_completed(md, 0);
+	rq_completed(md, rw, 0);
 }
 EXPORT_SYMBOL_GPL(dm_requeue_unmapped_request);
 
@@ -827,6 +821,7 @@ static void start_queue(struct request_queue *q)
  */
 static void dm_end_request(struct request *clone, int error)
 {
+	int rw = rq_data_dir(clone);
 	struct dm_rq_target_io *tio = clone->end_io_data;
 	struct mapped_device *md = tio->md;
 	struct request *rq = tio->orig;
@@ -848,7 +843,7 @@ static void dm_end_request(struct request *clone, int error)
 
 	blk_end_request_all(rq, error);
 
-	rq_completed(md, 1);
+	rq_completed(md, rw, 1);
 }
 
 /*
@@ -1541,12 +1536,13 @@ static void dm_request_fn(struct request_queue *q)
 	struct mapped_device *md = q->queuedata;
 	struct dm_table *map = dm_get_table(md);
 	struct dm_target *ti;
-	struct request *rq;
+	struct request *rq, *clone;
 
 	/*
-	 * For suspend, check blk_queue_stopped() and don't increment
-	 * the number of in-flight I/Os after the queue is stopped
-	 * in dm_suspend().
+	 * For suspend, check blk_queue_stopped() and increment
+	 * ->pending within a single queue_lock not to increment the
+	 * number of in-flight I/Os after the queue is stopped in
+	 * dm_suspend().
 	 */
 	while (!blk_queue_plugged(q) && !blk_queue_stopped(q)) {
 		rq = blk_peek_request(q);
@@ -1558,8 +1554,11 @@ static void dm_request_fn(struct request_queue *q)
 			goto plug_and_out;
 
 		blk_start_request(rq);
+		clone = rq->special;
+		atomic_inc(&md->pending[rq_data_dir(clone)]);
+
 		spin_unlock(q->queue_lock);
-		map_request(ti, rq->special, md);
+		map_request(ti, clone, md);
 		spin_lock_irq(q->queue_lock);
 	}
 
@@ -2071,8 +2070,6 @@ static int dm_wait_for_completion(struct mapped_device *md, int interruptible)
 {
 	int r = 0;
 	DECLARE_WAITQUEUE(wait, current);
-	struct request_queue *q = md->queue;
-	unsigned long flags;
 
 	dm_unplug_all(md->queue);
 
@@ -2082,14 +2079,7 @@ static int dm_wait_for_completion(struct mapped_device *md, int interruptible)
 		set_current_state(interruptible);
 
 		smp_mb();
-		if (dm_request_based(md)) {
-			spin_lock_irqsave(q->queue_lock, flags);
-			if (!queue_in_flight(q)) {
-				spin_unlock_irqrestore(q->queue_lock, flags);
-				break;
-			}
-			spin_unlock_irqrestore(q->queue_lock, flags);
-		} else if (!md_in_flight(md))
+		if (!md_in_flight(md))
 			break;
 
 		if (interruptible == TASK_INTERRUPTIBLE &&
