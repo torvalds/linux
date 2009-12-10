@@ -60,6 +60,9 @@ config GENERIC_CSUM
 config STACKTRACE_SUPPORT
 	def_bool y
 
+config LOCKDEP_SUPPORT
+	def_bool y
+
 config PCI
 	def_bool n
 

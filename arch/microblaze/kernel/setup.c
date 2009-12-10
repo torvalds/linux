@@ -131,6 +131,8 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 		strlcpy(cmd_line, cmdline, COMMAND_LINE_SIZE);
 #endif
 
+	lockdep_init();
+
 /* initialize device tree for usage in early_printk */
 	early_init_devtree((void *)_fdt_start);
 
