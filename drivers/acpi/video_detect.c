@@ -101,7 +101,7 @@ long acpi_is_video_device(struct acpi_device *device)
 	/* Only check for backlight functionality if one of the above hit. */
 	if (video_caps)
 		acpi_walk_namespace(ACPI_TYPE_DEVICE, device->handle,
-				    ACPI_UINT32_MAX, acpi_backlight_cap_match,
+				    ACPI_UINT32_MAX, acpi_backlight_cap_match, NULL,
 				    &video_caps, NULL);
 
 	return video_caps;
@@ -151,7 +151,7 @@ long acpi_video_get_capabilities(acpi_handle graphics_handle)
 	if (!graphics_handle) {
 		/* Only do the global walk through all graphics devices once */
 		acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-				    ACPI_UINT32_MAX, find_video,
+				    ACPI_UINT32_MAX, find_video, NULL,
 				    &caps, NULL);
 		/* There might be boot param flags set already... */
 		acpi_video_support |= caps;
@@ -173,7 +173,7 @@ long acpi_video_get_capabilities(acpi_handle graphics_handle)
 			return 0;
 		}
 		acpi_walk_namespace(ACPI_TYPE_DEVICE, graphics_handle,
-				    ACPI_UINT32_MAX, find_video,
+				    ACPI_UINT32_MAX, find_video, NULL,
 				    &caps, NULL);
 	}
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "We have 0x%lX video support %s %s\n",

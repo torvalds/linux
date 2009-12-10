@@ -1203,7 +1203,7 @@ static int sony_nc_add(struct acpi_device *device)
 
 	if (debug) {
 		status = acpi_walk_namespace(ACPI_TYPE_METHOD, sony_nc_acpi_handle,
-					     1, sony_walk_callback, NULL, NULL);
+					     1, sony_walk_callback, NULL, NULL, NULL);
 		if (ACPI_FAILURE(status)) {
 			printk(KERN_WARNING DRV_PFX "unable to walk acpi resources\n");
 			result = -ENODEV;

@@ -486,7 +486,7 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 		 *
 		 * Note: technically, this is an error, from ACPI spec: "It is an error
 		 * for NumElements to be less than the number of elements in the
-		 * PackageList". However, we just print an error message and
+		 * PackageList". However, we just print a message and
 		 * no exception is returned. This provides Windows compatibility. Some
 		 * BIOSs will alter the num_elements on the fly, creating this type
 		 * of ill-formed package object.
@@ -510,9 +510,9 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 			arg = arg->common.next;
 		}
 
-		ACPI_WARNING((AE_INFO,
-			    "Package List length (0x%X) larger than NumElements count (0x%X), truncated\n",
-			    i, element_count));
+		ACPI_INFO((AE_INFO,
+			   "Actual Package length (0x%X) is larger than NumElements field (0x%X), truncated\n",
+			   i, element_count));
 	} else if (i < element_count) {
 		/*
 		 * Arg list (elements) was exhausted, but we did not reach num_elements count.

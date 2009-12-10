@@ -100,12 +100,12 @@ acpi_status acpi_ex_opcode_0A_0T_1R(struct acpi_walk_state *walk_state)
 
 		/* Create a return object of type Integer */
 
-		return_desc = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
+		return_desc =
+		    acpi_ut_create_integer_object(acpi_os_get_timer());
 		if (!return_desc) {
 			status = AE_NO_MEMORY;
 			goto cleanup;
 		}
-		return_desc->integer.value = acpi_os_get_timer();
 		break;
 
 	default:		/*  Unknown opcode  */
@@ -599,7 +599,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 	switch (walk_state->opcode) {
 	case AML_LNOT_OP:	/* LNot (Operand) */
 
-		return_desc = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
+		return_desc = acpi_ut_create_integer_object((u64) 0);
 		if (!return_desc) {
 			status = AE_NO_MEMORY;
 			goto cleanup;
@@ -702,13 +702,11 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 		/* Allocate a descriptor to hold the type. */
 
-		return_desc = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
+		return_desc = acpi_ut_create_integer_object((u64) type);
 		if (!return_desc) {
 			status = AE_NO_MEMORY;
 			goto cleanup;
 		}
-
-		return_desc->integer.value = type;
 		break;
 
 	case AML_SIZE_OF_OP:	/* size_of (source_object) */
@@ -777,13 +775,11 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 		 * Now that we have the size of the object, create a result
 		 * object to hold the value
 		 */
-		return_desc = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
+		return_desc = acpi_ut_create_integer_object(value);
 		if (!return_desc) {
 			status = AE_NO_MEMORY;
 			goto cleanup;
 		}
-
-		return_desc->integer.value = value;
 		break;
 
 	case AML_REF_OF_OP:	/* ref_of (source_object) */
@@ -946,24 +942,24 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 					 * NOTE: index into a buffer is NOT a pointer to a
 					 * sub-buffer of the main buffer, it is only a pointer to a
 					 * single element (byte) of the buffer!
-					 */
-					return_desc =
-					    acpi_ut_create_internal_object
-					    (ACPI_TYPE_INTEGER);
-					if (!return_desc) {
-						status = AE_NO_MEMORY;
-						goto cleanup;
-					}
-
-					/*
+					 *
 					 * Since we are returning the value of the buffer at the
 					 * indexed location, we don't need to add an additional
 					 * reference to the buffer itself.
 					 */
-					return_desc->integer.value =
-					    temp_desc->buffer.
-					    pointer[operand[0]->reference.
-						    value];
+					return_desc =
+					    acpi_ut_create_integer_object((u64)
+									  temp_desc->
+									  buffer.
+									  pointer
+									  [operand
+									   [0]->
+									   reference.
+									   value]);
+					if (!return_desc) {
+						status = AE_NO_MEMORY;
+						goto cleanup;
+					}
 					break;
 
 				case ACPI_TYPE_PACKAGE:
