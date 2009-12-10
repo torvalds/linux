@@ -309,7 +309,11 @@ static void do_region(int rw, unsigned region, struct dm_io_region *where,
 	unsigned num_bvecs;
 	sector_t remaining = where->count;
 
-	while (remaining) {
+	/*
+	 * where->count may be zero if rw holds a write barrier and we
+	 * need to send a zero-sized barrier.
+	 */
+	do {
 		/*
 		 * Allocate a suitably sized-bio.
 		 */
@@ -339,7 +343,7 @@ static void do_region(int rw, unsigned region, struct dm_io_region *where,
 
 		atomic_inc(&io->count);
 		submit_bio(rw, bio);
-	}
+	} while (remaining);
 }
 
 static void dispatch_io(int rw, unsigned int num_regions,
@@ -360,7 +364,7 @@ static void dispatch_io(int rw, unsigned int num_regions,
 	 */
 	for (i = 0; i < num_regions; i++) {
 		*dp = old_pages;
-		if (where[i].count)
+		if (where[i].count || (rw & (1 << BIO_RW_BARRIER)))
 			do_region(rw, i, where + i, dp, io);
 	}
 
