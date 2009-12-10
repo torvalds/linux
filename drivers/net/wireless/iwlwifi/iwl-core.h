@@ -171,6 +171,7 @@ struct iwl_lib_ops {
 	int (*load_ucode)(struct iwl_priv *priv);
 	void (*dump_nic_event_log)(struct iwl_priv *priv, bool full_log);
 	void (*dump_nic_error_log)(struct iwl_priv *priv);
+	void (*dump_csr)(struct iwl_priv *priv);
 	int (*set_channel_switch)(struct iwl_priv *priv, u16 channel);
 	/* power management */
 	struct iwl_apm_ops apm_ops;
@@ -582,6 +583,7 @@ int iwl_pci_resume(struct pci_dev *pdev);
 ******************************************************/
 void iwl_dump_nic_error_log(struct iwl_priv *priv);
 void iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log);
+void iwl_dump_csr(struct iwl_priv *priv);
 #ifdef CONFIG_IWLWIFI_DEBUG
 void iwl_print_rx_config_cmd(struct iwl_priv *priv);
 #else
