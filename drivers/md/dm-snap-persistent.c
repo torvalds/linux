@@ -580,7 +580,7 @@ static int persistent_read_metadata(struct dm_exception_store *store,
 }
 
 static int persistent_prepare_exception(struct dm_exception_store *store,
-					struct dm_snap_exception *e)
+					struct dm_exception *e)
 {
 	struct pstore *ps = get_info(store);
 	uint32_t stride;
@@ -607,7 +607,7 @@ static int persistent_prepare_exception(struct dm_exception_store *store,
 }
 
 static void persistent_commit_exception(struct dm_exception_store *store,
-					struct dm_snap_exception *e,
+					struct dm_exception *e,
 					void (*callback) (void *, int success),
 					void *callback_context)
 {

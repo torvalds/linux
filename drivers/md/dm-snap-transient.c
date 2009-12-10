@@ -36,7 +36,7 @@ static int transient_read_metadata(struct dm_exception_store *store,
 }
 
 static int transient_prepare_exception(struct dm_exception_store *store,
-				       struct dm_snap_exception *e)
+				       struct dm_exception *e)
 {
 	struct transient_c *tc = store->context;
 	sector_t size = get_dev_size(store->cow->bdev);
@@ -51,7 +51,7 @@ static int transient_prepare_exception(struct dm_exception_store *store,
 }
 
 static void transient_commit_exception(struct dm_exception_store *store,
-				       struct dm_snap_exception *e,
+				       struct dm_exception *e,
 				       void (*callback) (void *, int success),
 				       void *callback_context)
 {
