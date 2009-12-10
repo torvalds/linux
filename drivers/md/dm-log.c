@@ -145,8 +145,9 @@ int dm_dirty_log_type_unregister(struct dm_dirty_log_type *type)
 EXPORT_SYMBOL(dm_dirty_log_type_unregister);
 
 struct dm_dirty_log *dm_dirty_log_create(const char *type_name,
-					 struct dm_target *ti,
-					 unsigned int argc, char **argv)
+			struct dm_target *ti,
+			int (*flush_callback_fn)(struct dm_target *ti),
+			unsigned int argc, char **argv)
 {
 	struct dm_dirty_log_type *type;
 	struct dm_dirty_log *log;
@@ -161,6 +162,7 @@ struct dm_dirty_log *dm_dirty_log_create(const char *type_name,
 		return NULL;
 	}
 
+	log->flush_callback_fn = flush_callback_fn;
 	log->type = type;
 	if (type->ctr(log, ti, argc, argv)) {
 		kfree(log);

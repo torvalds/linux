@@ -896,7 +896,7 @@ static struct dm_dirty_log *create_dirty_log(struct dm_target *ti,
 		return NULL;
 	}
 
-	dl = dm_dirty_log_create(argv[0], ti, param_count, argv + 2);
+	dl = dm_dirty_log_create(argv[0], ti, NULL, param_count, argv + 2);
 	if (!dl) {
 		ti->error = "Error creating mirror dirty log";
 		return NULL;
