@@ -518,10 +518,7 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 	}
 	e = (u16 *)priv->eeprom;
 
-	if (priv->nvm_device_type == NVM_DEVICE_TYPE_OTP) {
-		/* OTP reads require powered-up chip */
-		priv->cfg->ops->lib->apm_ops.init(priv);
-	}
+	priv->cfg->ops->lib->apm_ops.init(priv);
 
 	ret = priv->cfg->ops->lib->eeprom_ops.verify_signature(priv);
 	if (ret < 0) {
@@ -570,13 +567,6 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 			e[cache_addr / 2] = eeprom_data;
 			cache_addr += sizeof(u16);
 		}
-
-		/*
-		 * Now that OTP reads are complete, reset chip to save
-		 *   power until we load uCode during "up".
-		 */
-		priv->cfg->ops->lib->apm_ops.stop(priv);
-
 	} else {
 		/* eeprom is an array of 16bit values */
 		for (addr = 0; addr < sz; addr += sizeof(u16)) {
@@ -603,6 +593,8 @@ done:
 err:
 	if (ret)
 		iwl_eeprom_free(priv);
+	/* Reset chip to save power until we load uCode during "up". */
+	priv->cfg->ops->lib->apm_ops.stop(priv);
 alloc_err:
 	return ret;
 }
