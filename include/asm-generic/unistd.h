@@ -624,9 +624,11 @@ __SYSCALL(__NR_rt_tgsigqueueinfo, sys_rt_tgsigqueueinfo)
 __SYSCALL(__NR_perf_event_open, sys_perf_event_open)
 #define __NR_accept4 242
 __SYSCALL(__NR_accept4, sys_accept4)
+#define __NR_recvmmsg 243
+__SYSCALL(__NR_recvmmsg, sys_recvmmsg)
 
 #undef __NR_syscalls
-#define __NR_syscalls 243
+#define __NR_syscalls 244
 
 /*
  * All syscalls below here should go away really,
