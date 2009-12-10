@@ -534,15 +534,6 @@ void set_personality_64bit(void)
 	current->personality &= ~READ_IMPLIES_EXEC;
 }
 
-asmlinkage long
-sys_clone(unsigned long clone_flags, unsigned long newsp,
-	  void __user *parent_tid, void __user *child_tid, struct pt_regs *regs)
-{
-	if (!newsp)
-		newsp = regs->sp;
-	return do_fork(clone_flags, newsp, regs, 0, parent_tid, child_tid);
-}
-
 unsigned long get_wchan(struct task_struct *p)
 {
 	unsigned long stack;

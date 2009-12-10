@@ -760,7 +760,6 @@ ptregs_##name: \
 
 PTREGSCALL1(iopl)
 PTREGSCALL0(fork)
-PTREGSCALL0(clone)
 PTREGSCALL0(vfork)
 PTREGSCALL3(execve)
 PTREGSCALL2(sigaltstack)
@@ -768,6 +767,19 @@ PTREGSCALL0(sigreturn)
 PTREGSCALL0(rt_sigreturn)
 PTREGSCALL2(vm86)
 PTREGSCALL1(vm86old)
+
+/* Clone is an oddball.  The 4th arg is in %edi */
+	ALIGN;
+ptregs_clone:
+	leal 4(%esp),%eax
+	pushl %eax
+	pushl PT_EDI(%eax)
+	movl PT_EDX(%eax),%ecx
+	movl PT_ECX(%eax),%edx
+	movl PT_EBX(%eax),%eax
+	call sys_clone
+	addl $8,%esp
+	ret
 
 .macro FIXUP_ESPFIX_STACK
 /*
