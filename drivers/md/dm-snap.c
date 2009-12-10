@@ -25,6 +25,11 @@
 
 #define DM_MSG_PREFIX "snapshots"
 
+static const char dm_snapshot_merge_target_name[] = "snapshot-merge";
+
+#define dm_target_is_snapshot_merge(ti) \
+	((ti)->type->name == dm_snapshot_merge_target_name)
+
 /*
  * The percentage increment we will wake up users at
  */
@@ -1743,6 +1748,21 @@ static struct target_type snapshot_target = {
 	.iterate_devices = snapshot_iterate_devices,
 };
 
+static struct target_type merge_target = {
+	.name    = dm_snapshot_merge_target_name,
+	.version = {1, 0, 0},
+	.module  = THIS_MODULE,
+	.ctr     = snapshot_ctr,
+	.dtr     = snapshot_dtr,
+	.map     = snapshot_map,
+	.end_io  = snapshot_end_io,
+	.postsuspend = snapshot_postsuspend,
+	.preresume  = snapshot_preresume,
+	.resume  = snapshot_resume,
+	.status  = snapshot_status,
+	.iterate_devices = snapshot_iterate_devices,
+};
+
 static int __init dm_snapshot_init(void)
 {
 	int r;
@@ -1754,7 +1774,7 @@ static int __init dm_snapshot_init(void)
 	}
 
 	r = dm_register_target(&snapshot_target);
-	if (r) {
+	if (r < 0) {
 		DMERR("snapshot target register failed %d", r);
 		goto bad_register_snapshot_target;
 	}
@@ -1762,34 +1782,40 @@ static int __init dm_snapshot_init(void)
 	r = dm_register_target(&origin_target);
 	if (r < 0) {
 		DMERR("Origin target register failed %d", r);
-		goto bad1;
+		goto bad_register_origin_target;
+	}
+
+	r = dm_register_target(&merge_target);
+	if (r < 0) {
+		DMERR("Merge target register failed %d", r);
+		goto bad_register_merge_target;
 	}
 
 	r = init_origin_hash();
 	if (r) {
 		DMERR("init_origin_hash failed.");
-		goto bad2;
+		goto bad_origin_hash;
 	}
 
 	exception_cache = KMEM_CACHE(dm_exception, 0);
 	if (!exception_cache) {
 		DMERR("Couldn't create exception cache.");
 		r = -ENOMEM;
-		goto bad3;
+		goto bad_exception_cache;
 	}
 
 	pending_cache = KMEM_CACHE(dm_snap_pending_exception, 0);
 	if (!pending_cache) {
 		DMERR("Couldn't create pending cache.");
 		r = -ENOMEM;
-		goto bad4;
+		goto bad_pending_cache;
 	}
 
 	tracked_chunk_cache = KMEM_CACHE(dm_snap_tracked_chunk, 0);
 	if (!tracked_chunk_cache) {
 		DMERR("Couldn't create cache to track chunks in use.");
 		r = -ENOMEM;
-		goto bad5;
+		goto bad_tracked_chunk_cache;
 	}
 
 	ksnapd = create_singlethread_workqueue("ksnapd");
@@ -1803,19 +1829,21 @@ static int __init dm_snapshot_init(void)
 
 bad_pending_pool:
 	kmem_cache_destroy(tracked_chunk_cache);
-bad5:
+bad_tracked_chunk_cache:
 	kmem_cache_destroy(pending_cache);
-bad4:
+bad_pending_cache:
 	kmem_cache_destroy(exception_cache);
-bad3:
+bad_exception_cache:
 	exit_origin_hash();
-bad2:
+bad_origin_hash:
+	dm_unregister_target(&merge_target);
+bad_register_merge_target:
 	dm_unregister_target(&origin_target);
-bad1:
+bad_register_origin_target:
 	dm_unregister_target(&snapshot_target);
-
 bad_register_snapshot_target:
 	dm_exception_store_exit();
+
 	return r;
 }
 
@@ -1825,6 +1853,7 @@ static void __exit dm_snapshot_exit(void)
 
 	dm_unregister_target(&snapshot_target);
 	dm_unregister_target(&origin_target);
+	dm_unregister_target(&merge_target);
 
 	exit_origin_hash();
 	kmem_cache_destroy(pending_cache);
