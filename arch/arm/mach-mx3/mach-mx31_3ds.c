@@ -257,7 +257,7 @@ static struct sys_timer mx31pdk_timer = {
 MACHINE_START(MX31_3DS, "Freescale MX31PDK (3DS)")
 	/* Maintainer: Freescale Semiconductor, Inc. */
 	.phys_io	= MX31_AIPS1_BASE_ADDR,
-	.io_pg_offst	= ((MX31_AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
+	.io_pg_offst	= (MX31_AIPS1_BASE_ADDR_VIRT >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
 	.map_io         = mx31pdk_map_io,
 	.init_irq       = mx31_init_irq,
