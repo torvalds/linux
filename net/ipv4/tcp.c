@@ -536,8 +536,7 @@ static inline void skb_entail(struct sock *sk, struct sk_buff *skb)
 		tp->nonagle &= ~TCP_NAGLE_PUSH;
 }
 
-static inline void tcp_mark_urg(struct tcp_sock *tp, int flags,
-				struct sk_buff *skb)
+static inline void tcp_mark_urg(struct tcp_sock *tp, int flags)
 {
 	if (flags & MSG_OOB)
 		tp->snd_up = tp->write_seq;
@@ -546,13 +545,13 @@ static inline void tcp_mark_urg(struct tcp_sock *tp, int flags,
 static inline void tcp_push(struct sock *sk, int flags, int mss_now,
 			    int nonagle)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
-
 	if (tcp_send_head(sk)) {
-		struct sk_buff *skb = tcp_write_queue_tail(sk);
+		struct tcp_sock *tp = tcp_sk(sk);
+
 		if (!(flags & MSG_MORE) || forced_push(tp))
-			tcp_mark_push(tp, skb);
-		tcp_mark_urg(tp, flags, skb);
+			tcp_mark_push(tp, tcp_write_queue_tail(sk));
+
+		tcp_mark_urg(tp, flags);
 		__tcp_push_pending_frames(sk, mss_now,
 					  (flags & MSG_MORE) ? TCP_NAGLE_CORK : nonagle);
 	}
