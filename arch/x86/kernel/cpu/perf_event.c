@@ -2066,12 +2066,6 @@ static __init int p6_pmu_init(void)
 
 	x86_pmu = p6_pmu;
 
-	if (!cpu_has_apic) {
-		pr_info("no APIC, boot with the \"lapic\" boot parameter to force-enable it.\n");
-		pr_info("no hardware sampling interrupt available.\n");
-		x86_pmu.apic = 0;
-	}
-
 	return 0;
 }
 
@@ -2163,6 +2157,16 @@ static __init int amd_pmu_init(void)
 	return 0;
 }
 
+static void __init pmu_check_apic(void)
+{
+	if (cpu_has_apic)
+		return;
+
+	x86_pmu.apic = 0;
+	pr_info("no APIC, boot with the \"lapic\" boot parameter to force-enable it.\n");
+	pr_info("no hardware sampling interrupt available.\n");
+}
+
 void __init init_hw_perf_events(void)
 {
 	int err;
@@ -2183,6 +2187,8 @@ void __init init_hw_perf_events(void)
 		pr_cont("no PMU driver, software events only.\n");
 		return;
 	}
+
+	pmu_check_apic();
 
 	pr_cont("%s PMU driver.\n", x86_pmu.name);
 
