@@ -59,7 +59,7 @@ static ssize_t dm_attr_uuid_show(struct mapped_device *md, char *buf)
 
 static ssize_t dm_attr_suspended_show(struct mapped_device *md, char *buf)
 {
-	sprintf(buf, "%d\n", dm_suspended(md));
+	sprintf(buf, "%d\n", dm_suspended_md(md));
 
 	return strlen(buf);
 }

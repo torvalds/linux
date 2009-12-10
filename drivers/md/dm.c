@@ -415,7 +415,7 @@ static int dm_blk_ioctl(struct block_device *bdev, fmode_t mode,
 
 	tgt = dm_table_get_target(map, 0);
 
-	if (dm_suspended(md)) {
+	if (dm_suspended_md(md)) {
 		r = -EAGAIN;
 		goto out;
 	}
@@ -2182,7 +2182,7 @@ void dm_put(struct mapped_device *md)
 			    MINOR(disk_devt(dm_disk(md))));
 		set_bit(DMF_FREEING, &md->flags);
 		spin_unlock(&_minor_lock);
-		if (!dm_suspended(md)) {
+		if (!dm_suspended_md(md)) {
 			dm_table_presuspend_targets(map);
 			dm_table_postsuspend_targets(map);
 		}
@@ -2381,7 +2381,7 @@ struct dm_table *dm_swap_table(struct mapped_device *md, struct dm_table *table)
 	mutex_lock(&md->suspend_lock);
 
 	/* device must be suspended */
-	if (!dm_suspended(md))
+	if (!dm_suspended_md(md))
 		goto out;
 
 	r = dm_calculate_queue_limits(table, &limits);
@@ -2461,7 +2461,7 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 
 	mutex_lock(&md->suspend_lock);
 
-	if (dm_suspended(md)) {
+	if (dm_suspended_md(md)) {
 		r = -EINVAL;
 		goto out_unlock;
 	}
@@ -2568,7 +2568,7 @@ int dm_resume(struct mapped_device *md)
 	struct dm_table *map = NULL;
 
 	mutex_lock(&md->suspend_lock);
-	if (!dm_suspended(md))
+	if (!dm_suspended_md(md))
 		goto out;
 
 	map = dm_get_live_table(md);
@@ -2679,7 +2679,7 @@ struct mapped_device *dm_get_from_kobject(struct kobject *kobj)
 	return md;
 }
 
-int dm_suspended(struct mapped_device *md)
+int dm_suspended_md(struct mapped_device *md)
 {
 	return test_bit(DMF_SUSPENDED, &md->flags);
 }

@@ -579,7 +579,7 @@ static int __dev_status(struct mapped_device *md, struct dm_ioctl *param)
 	param->flags &= ~(DM_SUSPEND_FLAG | DM_READONLY_FLAG |
 			  DM_ACTIVE_PRESENT_FLAG);
 
-	if (dm_suspended(md))
+	if (dm_suspended_md(md))
 		param->flags |= DM_SUSPEND_FLAG;
 
 	param->dev = huge_encode_dev(disk_devt(disk));
@@ -839,7 +839,7 @@ static int do_suspend(struct dm_ioctl *param)
 	if (param->flags & DM_NOFLUSH_FLAG)
 		suspend_flags |= DM_SUSPEND_NOFLUSH_FLAG;
 
-	if (!dm_suspended(md))
+	if (!dm_suspended_md(md))
 		r = dm_suspend(md, suspend_flags);
 
 	if (!r)
@@ -881,7 +881,7 @@ static int do_resume(struct dm_ioctl *param)
 			suspend_flags &= ~DM_SUSPEND_LOCKFS_FLAG;
 		if (param->flags & DM_NOFLUSH_FLAG)
 			suspend_flags |= DM_SUSPEND_NOFLUSH_FLAG;
-		if (!dm_suspended(md))
+		if (!dm_suspended_md(md))
 			dm_suspend(md, suspend_flags);
 
 		old_map = dm_swap_table(md, new_map);
@@ -897,7 +897,7 @@ static int do_resume(struct dm_ioctl *param)
 			set_disk_ro(dm_disk(md), 1);
 	}
 
-	if (dm_suspended(md))
+	if (dm_suspended_md(md))
 		r = dm_resume(md);
 
 	if (old_map)
