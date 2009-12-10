@@ -173,7 +173,7 @@ int si470x_disconnect_check(struct si470x_device *radio)
 /*
  * si470x_fops_open - file open
  */
-static int si470x_fops_open(struct file *file)
+int si470x_fops_open(struct file *file)
 {
 	struct si470x_device *radio = video_drvdata(file);
 	int retval = 0;
@@ -194,7 +194,7 @@ static int si470x_fops_open(struct file *file)
 /*
  * si470x_fops_release - file release
  */
-static int si470x_fops_release(struct file *file)
+int si470x_fops_release(struct file *file)
 {
 	struct si470x_device *radio = video_drvdata(file);
 	int retval = 0;
@@ -213,17 +213,6 @@ static int si470x_fops_release(struct file *file)
 
 	return retval;
 }
-
-
-/*
- * si470x_fops - file operations interface
- */
-const struct v4l2_file_operations si470x_fops = {
-	.owner		= THIS_MODULE,
-	.ioctl		= video_ioctl2,
-	.open		= si470x_fops_open,
-	.release	= si470x_fops_release,
-};
 
 
 
