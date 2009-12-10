@@ -4010,6 +4010,7 @@ static enum hrtimer_restart perf_swevent_hrtimer(struct hrtimer *hrtimer)
 	event->pmu->read(event);
 
 	data.addr = 0;
+	data.raw = NULL;
 	data.period = event->hw.last_period;
 	regs = get_irq_regs();
 	/*
