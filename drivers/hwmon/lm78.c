@@ -576,52 +576,34 @@ static int lm78_i2c_detect(struct i2c_client *client, int kind,
 	if (isa)
 		mutex_lock(&isa->update_lock);
 
-	if (kind < 0) {
-		if ((i2c_smbus_read_byte_data(client, LM78_REG_CONFIG) & 0x80)
-		 || i2c_smbus_read_byte_data(client, LM78_REG_I2C_ADDR)
-		    != address)
-			goto err_nodev;
+	if ((i2c_smbus_read_byte_data(client, LM78_REG_CONFIG) & 0x80)
+	 || i2c_smbus_read_byte_data(client, LM78_REG_I2C_ADDR) != address)
+		goto err_nodev;
 
-		/* Explicitly prevent the misdetection of Winbond chips */
-		i = i2c_smbus_read_byte_data(client, 0x4f);
-		if (i == 0xa3 || i == 0x5c)
-			goto err_nodev;
-	}
+	/* Explicitly prevent the misdetection of Winbond chips */
+	i = i2c_smbus_read_byte_data(client, 0x4f);
+	if (i == 0xa3 || i == 0x5c)
+		goto err_nodev;
 
 	/* Determine the chip type. */
-	if (kind <= 0) {
-		i = i2c_smbus_read_byte_data(client, LM78_REG_CHIPID);
-		if (i == 0x00 || i == 0x20	/* LM78 */
-		 || i == 0x40)			/* LM78-J */
-			kind = lm78;
-		else if ((i & 0xfe) == 0xc0)
-			kind = lm79;
-		else {
-			if (kind == 0)
-				dev_warn(&adapter->dev, "Ignoring 'force' "
-					"parameter for unknown chip at "
-					"adapter %d, address 0x%02x\n",
-					i2c_adapter_id(adapter), address);
-			goto err_nodev;
-		}
+	i = i2c_smbus_read_byte_data(client, LM78_REG_CHIPID);
+	if (i == 0x00 || i == 0x20	/* LM78 */
+	 || i == 0x40)			/* LM78-J */
+		client_name = "lm78";
+	else if ((i & 0xfe) == 0xc0)
+		client_name = "lm79";
+	else
+		goto err_nodev;
 
-		if (lm78_alias_detect(client, i)) {
-			dev_dbg(&adapter->dev, "Device at 0x%02x appears to "
-				"be the same as ISA device\n", address);
-			goto err_nodev;
-		}
+	if (lm78_alias_detect(client, i)) {
+		dev_dbg(&adapter->dev, "Device at 0x%02x appears to "
+			"be the same as ISA device\n", address);
+		goto err_nodev;
 	}
 
 	if (isa)
 		mutex_unlock(&isa->update_lock);
 
-	switch (kind) {
-	case lm79:
-		client_name = "lm79";
-		break;
-	default:
-		client_name = "lm78";
-	}
 	strlcpy(info->type, client_name, I2C_NAME_SIZE);
 
 	return 0;

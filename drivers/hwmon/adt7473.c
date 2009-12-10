@@ -174,7 +174,6 @@ static const struct i2c_device_id adt7473_id[] = {
 	{ "adt7473", adt7473 },
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, adt7473_id);
 
 static struct i2c_driver adt7473_driver = {
 	.class		= I2C_CLASS_HWMON,
@@ -1090,27 +1089,22 @@ static int adt7473_detect(struct i2c_client *client, int kind,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
+	int vendor, device, revision;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	if (kind <= 0) {
-		int vendor, device, revision;
+	vendor = i2c_smbus_read_byte_data(client, ADT7473_REG_VENDOR);
+	if (vendor != ADT7473_VENDOR)
+		return -ENODEV;
 
-		vendor = i2c_smbus_read_byte_data(client, ADT7473_REG_VENDOR);
-		if (vendor != ADT7473_VENDOR)
-			return -ENODEV;
+	device = i2c_smbus_read_byte_data(client, ADT7473_REG_DEVICE);
+	if (device != ADT7473_DEVICE)
+		return -ENODEV;
 
-		device = i2c_smbus_read_byte_data(client, ADT7473_REG_DEVICE);
-		if (device != ADT7473_DEVICE)
-			return -ENODEV;
-
-		revision = i2c_smbus_read_byte_data(client,
-						    ADT7473_REG_REVISION);
-		if (revision != ADT7473_REV_68 && revision != ADT7473_REV_69)
-			return -ENODEV;
-	} else
-		dev_dbg(&adapter->dev, "detection forced\n");
+	revision = i2c_smbus_read_byte_data(client, ADT7473_REG_REVISION);
+	if (revision != ADT7473_REV_68 && revision != ADT7473_REV_69)
+		return -ENODEV;
 
 	strlcpy(info->type, "adt7473", I2C_NAME_SIZE);
 
@@ -1171,6 +1165,8 @@ static int adt7473_remove(struct i2c_client *client)
 
 static int __init adt7473_init(void)
 {
+	pr_notice("The adt7473 driver is deprecated, please use the adt7475 "
+		  "driver instead\n");
 	return i2c_add_driver(&adt7473_driver);
 }
 

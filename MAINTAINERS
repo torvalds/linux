@@ -327,6 +327,13 @@ M:	Colin Leroy <colin@colino.net>
 S:	Maintained
 F:	drivers/macintosh/therm_adt746x.c
 
+ADT7475 HARDWARE MONITOR DRIVER
+M:	Jean Delvare <khali@linux-fr.org>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/adt7475
+F:	drivers/hwmon/adt7475.c
+
 ADVANSYS SCSI DRIVER
 M:	Matthew Wilcox <matthew@wil.cx>
 L:	linux-scsi@vger.kernel.org
@@ -2416,7 +2423,9 @@ HARDWARE MONITORING
 L:	lm-sensors@lm-sensors.org
 W:	http://www.lm-sensors.org/
 S:	Orphan
+F:	Documentation/hwmon/
 F:	drivers/hwmon/
+F:	include/linux/hwmon*.h
 
 HARDWARE RANDOM NUMBER GENERATOR CORE
 M:	Matt Mackall <mpm@selenic.com>
@@ -3311,6 +3320,12 @@ M:	Eric Piel <eric.piel@tremplin-utc.net>
 S:	Maintained
 F:	Documentation/hwmon/lis3lv02d
 F:	drivers/hwmon/lis3lv02d.*
+
+LM73 HARDWARE MONITOR DRIVER
+M:	Guillaume Ligneul <guillaume.ligneul@gmail.com>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	drivers/hwmon/lm73.c
 
 LM83 HARDWARE MONITOR DRIVER
 M:	Jean Delvare <khali@linux-fr.org>

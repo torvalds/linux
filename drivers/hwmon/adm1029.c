@@ -301,23 +301,10 @@ static int adm1029_detect(struct i2c_client *client, int kind,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
+	u8 man_id, chip_id, temp_devices_installed, nb_fan_support;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
-
-	/* Now we do the detection and identification. A negative kind
-	 * means that the driver was loaded with no force parameter
-	 * (default), so we must both detect and identify the chip
-	 * (actually there is only one possible kind of chip for now, adm1029).
-	 * A zero kind means that the driver was loaded with the force
-	 * parameter, the detection step shall be skipped. A positive kind
-	 * means that the driver was loaded with the force parameter and a
-	 * given kind of chip is requested, so both the detection and the
-	 * identification steps are skipped. */
-
-	/* Default to an adm1029 if forced */
-	if (kind == 0)
-		kind = adm1029;
 
 	/* ADM1029 doesn't have CHIP ID, check just MAN ID
 	 * For better detection we check also ADM1029_TEMP_DEVICES_INSTALLED,
@@ -325,35 +312,25 @@ static int adm1029_detect(struct i2c_client *client, int kind,
 	 * documented
 	 */
 
-	if (kind <= 0) {	/* identification */
-		u8 man_id, chip_id, temp_devices_installed, nb_fan_support;
-
-		man_id = i2c_smbus_read_byte_data(client, ADM1029_REG_MAN_ID);
-		chip_id = i2c_smbus_read_byte_data(client, ADM1029_REG_CHIP_ID);
-		temp_devices_installed = i2c_smbus_read_byte_data(client,
+	man_id = i2c_smbus_read_byte_data(client, ADM1029_REG_MAN_ID);
+	chip_id = i2c_smbus_read_byte_data(client, ADM1029_REG_CHIP_ID);
+	temp_devices_installed = i2c_smbus_read_byte_data(client,
 					ADM1029_REG_TEMP_DEVICES_INSTALLED);
-		nb_fan_support = i2c_smbus_read_byte_data(client,
+	nb_fan_support = i2c_smbus_read_byte_data(client,
 						ADM1029_REG_NB_FAN_SUPPORT);
-		/* 0x41 is Analog Devices */
-		if (man_id == 0x41 && (temp_devices_installed & 0xf9) == 0x01
-		    && nb_fan_support == 0x03) {
-			if ((chip_id & 0xF0) == 0x00) {
-				kind = adm1029;
-			} else {
-				/* There are no "official" CHIP ID, so actually
-				 * we use Major/Minor revision for that */
-				printk(KERN_INFO
-				       "adm1029: Unknown major revision %x, "
-				       "please let us know\n", chip_id);
-			}
-		}
+	/* 0x41 is Analog Devices */
+	if (man_id != 0x41 || (temp_devices_installed & 0xf9) != 0x01
+	    || nb_fan_support != 0x03)
+		return -ENODEV;
 
-		if (kind <= 0) {	/* identification failed */
-			pr_debug("adm1029: Unsupported chip (man_id=0x%02X, "
-				 "chip_id=0x%02X)\n", man_id, chip_id);
-			return -ENODEV;
-		}
+	if ((chip_id & 0xF0) != 0x00) {
+		/* There are no "official" CHIP ID, so actually
+		 * we use Major/Minor revision for that */
+		pr_info("adm1029: Unknown major revision %x, "
+			"please let us know\n", chip_id);
+		return -ENODEV;
 	}
+
 	strlcpy(info->type, "adm1029", I2C_NAME_SIZE);
 
 	return 0;
