@@ -452,6 +452,12 @@ static void free_bio_info(struct dm_rq_clone_bio_info *info)
 	mempool_free(info, info->tio->md->io_pool);
 }
 
+static int md_in_flight(struct mapped_device *md)
+{
+	return atomic_read(&md->pending[READ]) +
+	       atomic_read(&md->pending[WRITE]);
+}
+
 static void start_io_acct(struct dm_io *io)
 {
 	struct mapped_device *md = io->md;
@@ -2100,8 +2106,7 @@ static int dm_wait_for_completion(struct mapped_device *md, int interruptible)
 				break;
 			}
 			spin_unlock_irqrestore(q->queue_lock, flags);
-		} else if (!atomic_read(&md->pending[0]) &&
-					!atomic_read(&md->pending[1]))
+		} else if (!md_in_flight(md))
 			break;
 
 		if (interruptible == TASK_INTERRUPTIBLE &&
