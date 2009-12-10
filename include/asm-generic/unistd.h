@@ -622,9 +622,11 @@ __SYSCALL(__NR_move_pages, sys_move_pages)
 __SYSCALL(__NR_rt_tgsigqueueinfo, sys_rt_tgsigqueueinfo)
 #define __NR_perf_event_open 241
 __SYSCALL(__NR_perf_event_open, sys_perf_event_open)
+#define __NR_accept4 242
+__SYSCALL(__NR_accept4, sys_accept4)
 
 #undef __NR_syscalls
-#define __NR_syscalls 242
+#define __NR_syscalls 243
 
 /*
  * All syscalls below here should go away really,
