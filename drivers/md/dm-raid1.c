@@ -745,20 +745,12 @@ static void do_failures(struct mirror_set *ms, struct bio_list *failures)
 {
 	struct bio *bio;
 
-	if (!failures->head)
+	if (likely(!failures->head))
 		return;
-
-	if (!ms->log_failure) {
-		while ((bio = bio_list_pop(failures))) {
-			ms->in_sync = 0;
-			dm_rh_mark_nosync(ms->rh, bio, bio->bi_size, 0);
-		}
-		return;
-	}
 
 	/*
 	 * If the log has failed, unattempted writes are being
-	 * put on the failures list.  We can't issue those writes
+	 * put on the holds list.  We can't issue those writes
 	 * until a log has been marked, so we must store them.
 	 *
 	 * If a 'noflush' suspend is in progress, we can requeue
@@ -773,23 +765,15 @@ static void do_failures(struct mirror_set *ms, struct bio_list *failures)
 	 * for us to treat them the same and requeue them
 	 * as well.
 	 */
-	if (dm_noflush_suspending(ms->ti)) {
-		while ((bio = bio_list_pop(failures)))
-			bio_endio(bio, DM_ENDIO_REQUEUE);
-		return;
+
+	while ((bio = bio_list_pop(failures))) {
+		if (ms->log_failure)
+			hold_bio(ms, bio);
+		else {
+			ms->in_sync = 0;
+			dm_rh_mark_nosync(ms->rh, bio, bio->bi_size, 0);
+		}
 	}
-
-	if (atomic_read(&ms->suspend)) {
-		while ((bio = bio_list_pop(failures)))
-			bio_endio(bio, -EIO);
-		return;
-	}
-
-	spin_lock_irq(&ms->lock);
-	bio_list_merge(&ms->failures, failures);
-	spin_unlock_irq(&ms->lock);
-
-	delayed_wake(ms);
 }
 
 static void trigger_event(struct work_struct *work)
