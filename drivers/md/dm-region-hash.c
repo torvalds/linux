@@ -383,8 +383,6 @@ static void complete_resync_work(struct dm_region *reg, int success)
 /* dm_rh_mark_nosync
  * @ms
  * @bio
- * @done
- * @error
  *
  * The bio was written on some mirror(s) but failed on other mirror(s).
  * We can successfully endio the bio but should avoid the region being
@@ -392,8 +390,7 @@ static void complete_resync_work(struct dm_region *reg, int success)
  *
  * This function is _not_ safe in interrupt context!
  */
-void dm_rh_mark_nosync(struct dm_region_hash *rh,
-		       struct bio *bio, unsigned done, int error)
+void dm_rh_mark_nosync(struct dm_region_hash *rh, struct bio *bio)
 {
 	unsigned long flags;
 	struct dm_dirty_log *log = rh->log;
@@ -430,7 +427,6 @@ void dm_rh_mark_nosync(struct dm_region_hash *rh,
 	BUG_ON(!list_empty(&reg->list));
 	spin_unlock_irqrestore(&rh->region_lock, flags);
 
-	bio_endio(bio, error);
 	if (recovering)
 		complete_resync_work(reg, 0);
 }

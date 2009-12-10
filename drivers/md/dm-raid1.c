@@ -779,7 +779,8 @@ static void do_failures(struct mirror_set *ms, struct bio_list *failures)
 			hold_bio(ms, bio);
 		else {
 			ms->in_sync = 0;
-			dm_rh_mark_nosync(ms->rh, bio, bio->bi_size, 0);
+			dm_rh_mark_nosync(ms->rh, bio);
+			bio_endio(bio, 0);
 		}
 	}
 }
