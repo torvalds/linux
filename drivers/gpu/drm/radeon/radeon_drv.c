@@ -121,7 +121,7 @@ module_param_named(connector_table, radeon_connector_table, int, 0444);
 MODULE_PARM_DESC(tv, "TV enable (0 = disable)");
 module_param_named(tv, radeon_tv, int, 0444);
 
-MODULE_PARM_DESC(r4xx_atom, "Select new PLL code for AVIVO chips");
+MODULE_PARM_DESC(new_pll, "Select new PLL code for AVIVO chips");
 module_param_named(new_pll, radeon_new_pll, int, 0444);
 
 static int radeon_suspend(struct drm_device *dev, pm_message_t state)
