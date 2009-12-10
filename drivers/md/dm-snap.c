@@ -300,8 +300,10 @@ static void __insert_origin(struct origin *o)
  * Returns number of snapshots registered using the supplied cow device, plus:
  * snap_src - a snapshot suitable for use as a source of exception handover
  * snap_dest - a snapshot capable of receiving exception handover.
+ * snap_merge - an existing snapshot-merge target linked to the same origin.
+ *   There can be at most one snapshot-merge target. The parameter is optional.
  *
- * Possible return values and states:
+ * Possible return values and states of snap_src and snap_dest.
  *   0: NULL, NULL  - first new snapshot
  *   1: snap_src, NULL - normal snapshot
  *   2: snap_src, snap_dest  - waiting for handover
@@ -310,7 +312,8 @@ static void __insert_origin(struct origin *o)
  */
 static int __find_snapshots_sharing_cow(struct dm_snapshot *snap,
 					struct dm_snapshot **snap_src,
-					struct dm_snapshot **snap_dest)
+					struct dm_snapshot **snap_dest,
+					struct dm_snapshot **snap_merge)
 {
 	struct dm_snapshot *s;
 	struct origin *o;
@@ -322,6 +325,8 @@ static int __find_snapshots_sharing_cow(struct dm_snapshot *snap,
 		goto out;
 
 	list_for_each_entry(s, &o->snapshots, list) {
+		if (dm_target_is_snapshot_merge(s->ti) && snap_merge)
+			*snap_merge = s;
 		if (!bdev_equal(s->cow->bdev, snap->cow->bdev))
 			continue;
 
@@ -349,9 +354,11 @@ out:
 static int __validate_exception_handover(struct dm_snapshot *snap)
 {
 	struct dm_snapshot *snap_src = NULL, *snap_dest = NULL;
+	struct dm_snapshot *snap_merge = NULL;
 
 	/* Does snapshot need exceptions handed over to it? */
-	if ((__find_snapshots_sharing_cow(snap, &snap_src, &snap_dest) == 2) ||
+	if ((__find_snapshots_sharing_cow(snap, &snap_src, &snap_dest,
+					  &snap_merge) == 2) ||
 	    snap_dest) {
 		snap->ti->error = "Snapshot cow pairing for exception "
 				  "table handover failed";
@@ -364,6 +371,20 @@ static int __validate_exception_handover(struct dm_snapshot *snap)
 	 */
 	if (!snap_src)
 		return 0;
+
+	/*
+	 * Non-snapshot-merge handover?
+	 */
+	if (!dm_target_is_snapshot_merge(snap->ti))
+		return 1;
+
+	/*
+	 * Do not allow more than one merging snapshot.
+	 */
+	if (snap_merge) {
+		snap->ti->error = "A snapshot is already merging.";
+		return -EINVAL;
+	}
 
 	return 1;
 }
@@ -933,7 +954,7 @@ static void snapshot_dtr(struct dm_target *ti)
 
 	down_read(&_origins_lock);
 	/* Check whether exception handover must be cancelled */
-	(void) __find_snapshots_sharing_cow(s, &snap_src, &snap_dest);
+	(void) __find_snapshots_sharing_cow(s, &snap_src, &snap_dest, NULL);
 	if (snap_src && snap_dest && (s == snap_src)) {
 		down_write(&snap_dest->lock);
 		snap_dest->valid = 0;
@@ -1399,7 +1420,7 @@ static int snapshot_preresume(struct dm_target *ti)
 	struct dm_snapshot *snap_src = NULL, *snap_dest = NULL;
 
 	down_read(&_origins_lock);
-	(void) __find_snapshots_sharing_cow(s, &snap_src, &snap_dest);
+	(void) __find_snapshots_sharing_cow(s, &snap_src, &snap_dest, NULL);
 	if (snap_src && snap_dest) {
 		down_read(&snap_src->lock);
 		if (s == snap_src) {
@@ -1424,7 +1445,7 @@ static void snapshot_resume(struct dm_target *ti)
 	struct dm_snapshot *snap_src = NULL, *snap_dest = NULL;
 
 	down_read(&_origins_lock);
-	(void) __find_snapshots_sharing_cow(s, &snap_src, &snap_dest);
+	(void) __find_snapshots_sharing_cow(s, &snap_src, &snap_dest, NULL);
 	if (snap_src && snap_dest) {
 		down_write(&snap_src->lock);
 		down_write_nested(&snap_dest->lock, SINGLE_DEPTH_NESTING);
