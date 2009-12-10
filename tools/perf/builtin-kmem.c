@@ -687,14 +687,14 @@ static int parse_sort_opt(const struct option *opt __used,
 }
 
 static int parse_caller_opt(const struct option *opt __used,
-			  const char *arg, int unset __used)
+			  const char *arg __used, int unset __used)
 {
 	caller_flag = (alloc_flag + 1);
 	return 0;
 }
 
 static int parse_alloc_opt(const struct option *opt __used,
-			  const char *arg, int unset __used)
+			  const char *arg __used, int unset __used)
 {
 	alloc_flag = (caller_flag + 1);
 	return 0;
