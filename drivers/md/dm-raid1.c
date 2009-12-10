@@ -69,6 +69,7 @@ struct mirror_set {
 	region_t nr_regions;
 	int in_sync;
 	int log_failure;
+	int leg_failure;
 	atomic_t suspend;
 
 	atomic_t default_mirror;	/* Default mirror */
@@ -210,6 +211,8 @@ static void fail_mirror(struct mirror *m, enum dm_raid1_error error_type)
 {
 	struct mirror_set *ms = m->ms;
 	struct mirror *new;
+
+	ms->leg_failure = 1;
 
 	/*
 	 * error_count is used for nothing more than a
@@ -734,8 +737,12 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 		dm_rh_delay(ms->rh, bio);
 
 	while ((bio = bio_list_pop(&nosync))) {
-		map_bio(get_default_mirror(ms), bio);
-		generic_make_request(bio);
+		if (unlikely(ms->leg_failure) && errors_handled(ms))
+			hold_bio(ms, bio);
+		else {
+			map_bio(get_default_mirror(ms), bio);
+			generic_make_request(bio);
+		}
 	}
 }
 
@@ -848,6 +855,7 @@ static struct mirror_set *alloc_context(unsigned int nr_mirrors,
 	ms->nr_regions = dm_sector_div_up(ti->len, region_size);
 	ms->in_sync = 0;
 	ms->log_failure = 0;
+	ms->leg_failure = 0;
 	atomic_set(&ms->suspend, 0);
 	atomic_set(&ms->default_mirror, DEFAULT_MIRROR);
 
