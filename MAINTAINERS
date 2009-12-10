@@ -4196,6 +4196,13 @@ W:	http://www.pmc-sierra.com/
 S:	Supported
 F:	drivers/scsi/pmcraid.*
 
+PMC SIERRA PM8001 DRIVER
+M:	jack_wang@usish.com
+M:	lindar_liu@usish.com
+L:	linux-scsi@vger.kernel.org
+S:	Supported
+F:	drivers/scsi/pm8001/
+
 POSIX CLOCKS and TIMERS
 M:	Thomas Gleixner <tglx@linutronix.de>
 S:	Supported
@@ -5771,6 +5778,14 @@ M:	"VMware, Inc." <pv-drivers@vmware.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/vmxnet3/
+
+VMware PVSCSI driver
+M:	Alok Kataria <akataria@vmware.com>
+M:	VMware PV-Drivers <pv-drivers@vmware.com>
+L:	linux-scsi@vger.kernel.org
+S:	Maintained
+F:	drivers/scsi/vmw_pvscsi.c
+F:	drivers/scsi/vmw_pvscsi.h
 
 VOLTAGE AND CURRENT REGULATOR FRAMEWORK
 M:	Liam Girdwood <lrg@slimlogic.co.uk>
