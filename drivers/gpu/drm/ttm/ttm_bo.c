@@ -80,7 +80,7 @@ static void ttm_mem_type_manager_debug(struct ttm_bo_global *glob,
 	printk(KERN_ERR TTM_PFX "    gpu_offset: 0x%08lX\n", man->gpu_offset);
 	printk(KERN_ERR TTM_PFX "    io_offset: 0x%08lX\n", man->io_offset);
 	printk(KERN_ERR TTM_PFX "    io_size: %ld\n", man->io_size);
-	printk(KERN_ERR TTM_PFX "    size: %ld\n", (unsigned long)man->size);
+	printk(KERN_ERR TTM_PFX "    size: %llu\n", man->size);
 	printk(KERN_ERR TTM_PFX "    available_caching: 0x%08X\n",
 		man->available_caching);
 	printk(KERN_ERR TTM_PFX "    default_caching: 0x%08X\n",
@@ -98,7 +98,7 @@ static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
 	struct ttm_mem_type_manager *man;
 	int i, ret, mem_type;
 
-	printk(KERN_ERR TTM_PFX "No space for %p (%ld pages, %ldK, %ldM)\n",
+	printk(KERN_ERR TTM_PFX "No space for %p (%lu pages, %luK, %luM)\n",
 		bo, bo->mem.num_pages, bo->mem.size >> 10,
 		bo->mem.size >> 20);
 	for (i = 0; i < placement->num_placement; i++) {
@@ -1142,6 +1142,7 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	bo->glob = bdev->glob;
 	bo->type = type;
 	bo->num_pages = num_pages;
+	bo->mem.size = num_pages << PAGE_SHIFT;
 	bo->mem.mem_type = TTM_PL_SYSTEM;
 	bo->mem.num_pages = bo->num_pages;
 	bo->mem.mm_node = NULL;
