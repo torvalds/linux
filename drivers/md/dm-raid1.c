@@ -58,6 +58,7 @@ struct mirror_set {
 	struct bio_list reads;
 	struct bio_list writes;
 	struct bio_list failures;
+	struct bio_list holds;	/* bios are waiting until suspend */
 
 	struct dm_region_hash *rh;
 	struct dm_kcopyd_client *kcopyd_client;
@@ -448,6 +449,27 @@ static void map_region(struct dm_io_region *io, struct mirror *m,
 	io->bdev = m->dev->bdev;
 	io->sector = map_sector(m, bio);
 	io->count = bio->bi_size >> 9;
+}
+
+static void hold_bio(struct mirror_set *ms, struct bio *bio)
+{
+	/*
+	 * If device is suspended, complete the bio.
+	 */
+	if (atomic_read(&ms->suspend)) {
+		if (dm_noflush_suspending(ms->ti))
+			bio_endio(bio, DM_ENDIO_REQUEUE);
+		else
+			bio_endio(bio, -EIO);
+		return;
+	}
+
+	/*
+	 * Hold bio until the suspend is complete.
+	 */
+	spin_lock_irq(&ms->lock);
+	bio_list_add(&ms->holds, bio);
+	spin_unlock_irq(&ms->lock);
 }
 
 /*-----------------------------------------------------------------
@@ -1225,6 +1247,9 @@ static void mirror_presuspend(struct dm_target *ti)
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
 	struct dm_dirty_log *log = dm_rh_dirty_log(ms->rh);
 
+	struct bio_list holds;
+	struct bio *bio;
+
 	atomic_set(&ms->suspend, 1);
 
 	/*
@@ -1247,6 +1272,22 @@ static void mirror_presuspend(struct dm_target *ti)
 	 * we know that all of our I/O has been pushed.
 	 */
 	flush_workqueue(ms->kmirrord_wq);
+
+	/*
+	 * Now set ms->suspend is set and the workqueue flushed, no more
+	 * entries can be added to ms->hold list, so process it.
+	 *
+	 * Bios can still arrive concurrently with or after this
+	 * presuspend function, but they cannot join the hold list
+	 * because ms->suspend is set.
+	 */
+	spin_lock_irq(&ms->lock);
+	holds = ms->holds;
+	bio_list_init(&ms->holds);
+	spin_unlock_irq(&ms->lock);
+
+	while ((bio = bio_list_pop(&holds)))
+		hold_bio(ms, bio);
 }
 
 static void mirror_postsuspend(struct dm_target *ti)
