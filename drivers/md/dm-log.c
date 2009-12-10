@@ -210,6 +210,7 @@ struct log_c {
 	struct dm_target *ti;
 	int touched_dirtied;
 	int touched_cleaned;
+	int flush_failed;
 	uint32_t region_size;
 	unsigned int region_count;
 	region_t sync_count;
@@ -394,6 +395,7 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 	lc->ti = ti;
 	lc->touched_dirtied = 0;
 	lc->touched_cleaned = 0;
+	lc->flush_failed = 0;
 	lc->region_size = region_size;
 	lc->region_count = region_count;
 	lc->sync = sync;
@@ -706,7 +708,8 @@ static void core_mark_region(struct dm_dirty_log *log, region_t region)
 static void core_clear_region(struct dm_dirty_log *log, region_t region)
 {
 	struct log_c *lc = (struct log_c *) log->context;
-	log_set_bit(lc, lc->clean_bits, region);
+	if (likely(!lc->flush_failed))
+		log_set_bit(lc, lc->clean_bits, region);
 }
 
 static int core_get_resync_work(struct dm_dirty_log *log, region_t *region)
