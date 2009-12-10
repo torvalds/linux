@@ -66,8 +66,8 @@ asmlinkage int sys_uname(struct old_utsname __user *);
 asmlinkage int sys_olduname(struct oldold_utsname __user *);
 
 /* kernel/vm86_32.c */
-int sys_vm86old(struct pt_regs *);
-int sys_vm86(struct pt_regs *);
+int sys_vm86old(struct vm86_struct __user *, struct pt_regs *);
+int sys_vm86(unsigned long, unsigned long, struct pt_regs *);
 
 #else /* CONFIG_X86_32 */
 
