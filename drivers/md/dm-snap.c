@@ -49,7 +49,7 @@
 #define DM_TRACKED_CHUNK_HASH(x)	((unsigned long)(x) & \
 					 (DM_TRACKED_CHUNK_HASH_SIZE - 1))
 
-struct exception_table {
+struct dm_exception_table {
 	uint32_t hash_mask;
 	unsigned hash_shift;
 	struct list_head *table;
@@ -73,8 +73,8 @@ struct dm_snapshot {
 
 	atomic_t pending_exceptions_count;
 
-	struct exception_table pending;
-	struct exception_table complete;
+	struct dm_exception_table pending;
+	struct dm_exception_table complete;
 
 	/*
 	 * pe_lock protects all pending_exception operations and access
@@ -351,7 +351,7 @@ static void unregister_snapshot(struct dm_snapshot *s)
  * The lowest hash_shift bits of the chunk number are ignored, allowing
  * some consecutive chunks to be grouped together.
  */
-static int init_exception_table(struct exception_table *et, uint32_t size,
+static int init_exception_table(struct dm_exception_table *et, uint32_t size,
 				unsigned hash_shift)
 {
 	unsigned int i;
@@ -368,7 +368,8 @@ static int init_exception_table(struct exception_table *et, uint32_t size,
 	return 0;
 }
 
-static void exit_exception_table(struct exception_table *et, struct kmem_cache *mem)
+static void exit_exception_table(struct dm_exception_table *et,
+				 struct kmem_cache *mem)
 {
 	struct list_head *slot;
 	struct dm_exception *ex, *next;
@@ -385,7 +386,7 @@ static void exit_exception_table(struct exception_table *et, struct kmem_cache *
 	vfree(et->table);
 }
 
-static uint32_t exception_hash(struct exception_table *et, chunk_t chunk)
+static uint32_t exception_hash(struct dm_exception_table *et, chunk_t chunk)
 {
 	return (chunk >> et->hash_shift) & et->hash_mask;
 }
@@ -399,7 +400,7 @@ static void remove_exception(struct dm_exception *e)
  * Return the exception data for a sector, or NULL if not
  * remapped.
  */
-static struct dm_exception *lookup_exception(struct exception_table *et,
+static struct dm_exception *lookup_exception(struct dm_exception_table *et,
 						  chunk_t chunk)
 {
 	struct list_head *slot;
@@ -450,7 +451,7 @@ static void free_pending_exception(struct dm_snap_pending_exception *pe)
 	atomic_dec(&s->pending_exceptions_count);
 }
 
-static void insert_exception(struct exception_table *eh,
+static void insert_exception(struct dm_exception_table *eh,
 			     struct dm_exception *new_e)
 {
 	struct list_head *l;
