@@ -938,7 +938,6 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
 			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
@@ -956,9 +955,9 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		/* extra bytes....., could be processed too but would be
 		 * a waste of time, right now leave the application and
 		 * libjpeg do it for ourserlves.. */
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
+		gspca_frame_add(gspca_dev, LAST_PACKET,
 					ffd9, 2);
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, data, len);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, data, len);
 		return;
 	}
 
@@ -967,7 +966,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		 * other's do not include it... */
 		len -= 2;
 	}
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)

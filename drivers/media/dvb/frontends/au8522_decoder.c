@@ -23,7 +23,6 @@
 /* Developer notes:
  *
  * VBI support is not yet working
- * Saturation and hue setting are not yet working
  * Enough is implemented here for CVBS and S-Video inputs, but the actual
  *  analog demodulator code isn't implemented (not needed for xc5000 since it
  *  has its own demodulator and outputs CVBS)
@@ -236,8 +235,10 @@ static void setup_decoder_defaults(struct au8522_state *state, u8 input_mode)
 	state->contrast = 0x79;
 	au8522_writereg(state, AU8522_TVDEC_SATURATION_CB_REG00CH, 0x80);
 	au8522_writereg(state, AU8522_TVDEC_SATURATION_CR_REG00DH, 0x80);
+	state->saturation = 0x80;
 	au8522_writereg(state, AU8522_TVDEC_HUE_H_REG00EH, 0x00);
 	au8522_writereg(state, AU8522_TVDEC_HUE_L_REG00FH, 0x00);
+	state->hue = 0x00;
 
 	/* Other decoder registers */
 	au8522_writereg(state, AU8522_TVDEC_INT_MASK_REG010H, 0x00);
@@ -504,7 +505,19 @@ static int au8522_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 				ctrl->value);
 		break;
 	case V4L2_CID_SATURATION:
+		state->saturation = ctrl->value;
+		au8522_writereg(state, AU8522_TVDEC_SATURATION_CB_REG00CH,
+				ctrl->value);
+		au8522_writereg(state, AU8522_TVDEC_SATURATION_CR_REG00DH,
+				ctrl->value);
+		break;
 	case V4L2_CID_HUE:
+		state->hue = ctrl->value;
+		au8522_writereg(state, AU8522_TVDEC_HUE_H_REG00EH,
+				ctrl->value >> 8);
+		au8522_writereg(state, AU8522_TVDEC_HUE_L_REG00FH,
+				ctrl->value & 0xFF);
+		break;
 	case V4L2_CID_AUDIO_VOLUME:
 	case V4L2_CID_AUDIO_BASS:
 	case V4L2_CID_AUDIO_TREBLE:
@@ -534,7 +547,11 @@ static int au8522_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		ctrl->value = state->contrast;
 		break;
 	case V4L2_CID_SATURATION:
+		ctrl->value = state->saturation;
+		break;
 	case V4L2_CID_HUE:
+		ctrl->value = state->hue;
+		break;
 	case V4L2_CID_AUDIO_VOLUME:
 	case V4L2_CID_AUDIO_BASS:
 	case V4L2_CID_AUDIO_TREBLE:
@@ -632,8 +649,9 @@ static int au8522_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 	case V4L2_CID_BRIGHTNESS:
 		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 128);
 	case V4L2_CID_SATURATION:
+		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 128);
 	case V4L2_CID_HUE:
-		/* Not yet implemented */
+		return v4l2_ctrl_query_fill(qc, -32768, 32768, 1, 0);
 	default:
 		break;
 	}

@@ -2032,20 +2032,15 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *data,			/* isoc packet */
+			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	switch (data[0]) {
 	case 0:				/* start of frame */
-		frame = gspca_frame_add(gspca_dev,
-					LAST_PACKET,
-					frame,
-					data, 0);
+		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
 		data += SPCA501_OFFSET_DATA;
 		len -= SPCA501_OFFSET_DATA;
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
-				data, len);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, data, len);
 		return;
 	case 0xff:			/* drop */
 /*		gspca_dev->last_packet_type = DISCARD_PACKET; */
@@ -2053,8 +2048,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	}
 	data++;
 	len--;
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame,
-			data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)

@@ -131,13 +131,39 @@ static void dump_mb(struct cx18 *cx, struct cx18_mailbox *mb, char *name)
  * Functions that run in a work_queue work handling context
  */
 
+static void cx18_mdl_send_to_dvb(struct cx18_stream *s, struct cx18_mdl *mdl)
+{
+	struct cx18_buffer *buf;
+
+	if (!s->dvb.enabled || mdl->bytesused == 0)
+		return;
+
+	/* We ignore mdl and buf readpos accounting here - it doesn't matter */
+
+	/* The likely case */
+	if (list_is_singular(&mdl->buf_list)) {
+		buf = list_first_entry(&mdl->buf_list, struct cx18_buffer,
+				       list);
+		if (buf->bytesused)
+			dvb_dmx_swfilter(&s->dvb.demux,
+					 buf->buf, buf->bytesused);
+		return;
+	}
+
+	list_for_each_entry(buf, &mdl->buf_list, list) {
+		if (buf->bytesused == 0)
+			break;
+		dvb_dmx_swfilter(&s->dvb.demux, buf->buf, buf->bytesused);
+	}
+}
+
 static void epu_dma_done(struct cx18 *cx, struct cx18_in_work_order *order)
 {
 	u32 handle, mdl_ack_count, id;
 	struct cx18_mailbox *mb;
 	struct cx18_mdl_ack *mdl_ack;
 	struct cx18_stream *s;
-	struct cx18_buffer *buf;
+	struct cx18_mdl *mdl;
 	int i;
 
 	mb = &order->mb;
@@ -158,7 +184,7 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_in_work_order *order)
 		id = mdl_ack->id;
 		/*
 		 * Simple integrity check for processing a stale (and possibly
-		 * inconsistent mailbox): make sure the buffer id is in the
+		 * inconsistent mailbox): make sure the MDL id is in the
 		 * valid range for the stream.
 		 *
 		 * We go through the trouble of dealing with stale mailboxes
@@ -169,44 +195,42 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_in_work_order *order)
 		 * There are occasions when we get a half changed mailbox,
 		 * which this check catches for a handle & id mismatch.  If the
 		 * handle and id do correspond, the worst case is that we
-		 * completely lost the old buffer, but pick up the new buffer
+		 * completely lost the old MDL, but pick up the new MDL
 		 * early (but the new mdl_ack is guaranteed to be good in this
 		 * case as the firmware wouldn't point us to a new mdl_ack until
 		 * it's filled in).
 		 *
-		 * cx18_queue_get buf() will detect the lost buffers
+		 * cx18_queue_get_mdl() will detect the lost MDLs
 		 * and send them back to q_free for fw rotation eventually.
 		 */
 		if ((order->flags & CX18_F_EWO_MB_STALE_UPON_RECEIPT) &&
-		    !(id >= s->mdl_offset &&
-		      id < (s->mdl_offset + s->buffers))) {
+		    !(id >= s->mdl_base_idx &&
+		      id < (s->mdl_base_idx + s->buffers))) {
 			CX18_WARN("Fell behind! Ignoring stale mailbox with "
-				  " inconsistent data. Lost buffer for mailbox "
+				  " inconsistent data. Lost MDL for mailbox "
 				  "seq no %d\n", mb->request);
 			break;
 		}
-		buf = cx18_queue_get_buf(s, id, mdl_ack->data_used);
+		mdl = cx18_queue_get_mdl(s, id, mdl_ack->data_used);
 
-		CX18_DEBUG_HI_DMA("DMA DONE for %s (buffer %d)\n", s->name, id);
-		if (buf == NULL) {
-			CX18_WARN("Could not find buf %d for stream %s\n",
+		CX18_DEBUG_HI_DMA("DMA DONE for %s (MDL %d)\n", s->name, id);
+		if (mdl == NULL) {
+			CX18_WARN("Could not find MDL %d for stream %s\n",
 				  id, s->name);
 			continue;
 		}
 
 		CX18_DEBUG_HI_DMA("%s recv bytesused = %d\n",
-				  s->name, buf->bytesused);
+				  s->name, mdl->bytesused);
 
 		if (s->type != CX18_ENC_STREAM_TYPE_TS)
-			cx18_enqueue(s, buf, &s->q_full);
+			cx18_enqueue(s, mdl, &s->q_full);
 		else {
-			if (s->dvb.enabled)
-				dvb_dmx_swfilter(&s->dvb.demux, buf->buf,
-						 buf->bytesused);
-			cx18_enqueue(s, buf, &s->q_free);
+			cx18_mdl_send_to_dvb(s, mdl);
+			cx18_enqueue(s, mdl, &s->q_free);
 		}
 	}
-	/* Put as many buffers as possible back into fw use */
+	/* Put as many MDLs as possible back into fw use */
 	cx18_stream_load_fw_queue(s);
 
 	wake_up(&cx->dma_waitq);
@@ -616,7 +640,7 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 
 	/*
 	 * Wait for XPU to perform extra actions for the caller in some cases.
-	 * e.g. CX18_CPU_DE_RELEASE_MDL will cause the CPU to send all buffers
+	 * e.g. CX18_CPU_DE_RELEASE_MDL will cause the CPU to send all MDLs
 	 * back in a burst shortly thereafter
 	 */
 	if (info->flags & API_SLOW)

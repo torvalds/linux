@@ -730,7 +730,7 @@ static int af9015_read_config(struct usb_device *udev)
 		goto error;
 	deb_info("%s: IR mode:%d\n", __func__, val);
 	for (i = 0; i < af9015_properties_count; i++) {
-		if (val == AF9015_IR_MODE_DISABLED || val == 0x04) {
+		if (val == AF9015_IR_MODE_DISABLED) {
 			af9015_properties[i].rc_key_map = NULL;
 			af9015_properties[i].rc_key_map_size  = 0;
 		} else if (dvb_usb_af9015_remote) {
@@ -867,6 +867,16 @@ static int af9015_read_config(struct usb_device *udev)
 				  af9015_ir_table_avermedia;
 				af9015_config.ir_table_size =
 				  ARRAY_SIZE(af9015_ir_table_avermedia);
+				break;
+			case USB_VID_MSI_2:
+				af9015_properties[i].rc_key_map =
+				  af9015_rc_keys_msi_digivox_iii;
+				af9015_properties[i].rc_key_map_size =
+				  ARRAY_SIZE(af9015_rc_keys_msi_digivox_iii);
+				af9015_config.ir_table =
+				  af9015_ir_table_msi_digivox_iii;
+				af9015_config.ir_table_size =
+				  ARRAY_SIZE(af9015_ir_table_msi_digivox_iii);
 				break;
 			}
 		}
@@ -1283,6 +1293,8 @@ static struct usb_device_id af9015_usb_table[] = {
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_MC810)},
 	{USB_DEVICE(USB_VID_KYE,       USB_PID_GENIUS_TVGO_DVB_T03)},
 /* 25 */{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_399U_2)},
+	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_PC160_T)},
+	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_SVEON_STV20)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1296,7 +1308,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.firmware = "dvb-usb-af9015.fw",
 		.no_reconnect = 1,
 
-		.size_of_priv = sizeof(struct af9015_state), \
+		.size_of_priv = sizeof(struct af9015_state),
 
 		.num_adapters = 2,
 		.adapter = {
@@ -1402,7 +1414,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.firmware = "dvb-usb-af9015.fw",
 		.no_reconnect = 1,
 
-		.size_of_priv = sizeof(struct af9015_state), \
+		.size_of_priv = sizeof(struct af9015_state),
 
 		.num_adapters = 2,
 		.adapter = {
@@ -1508,7 +1520,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.firmware = "dvb-usb-af9015.fw",
 		.no_reconnect = 1,
 
-		.size_of_priv = sizeof(struct af9015_state), \
+		.size_of_priv = sizeof(struct af9015_state),
 
 		.num_adapters = 2,
 		.adapter = {
@@ -1554,7 +1566,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.i2c_algo = &af9015_i2c_algo,
 
-		.num_device_descs = 4, /* max 9 */
+		.num_device_descs = 6, /* max 9 */
 		.devices = {
 			{
 				.name = "AverMedia AVerTV Volar GPS 805 (A805)",
@@ -1575,6 +1587,17 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 			{
 				.name = "Genius TVGo DVB-T03",
 				.cold_ids = {&af9015_usb_table[24], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "KWorld PlusTV DVB-T PCI Pro Card " \
+					"(DVB-T PC160-T)",
+				.cold_ids = {&af9015_usb_table[26], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "Sveon STV20 Tuner USB DVB-T HDTV",
+				.cold_ids = {&af9015_usb_table[27], NULL},
 				.warm_ids = {NULL},
 			},
 		}

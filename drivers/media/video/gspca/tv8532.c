@@ -398,8 +398,7 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *data,			/* isoc packet */
+			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -424,9 +423,9 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	 * - 4 bytes
 	 */
 	gspca_frame_add(gspca_dev, packet_type0,
-			frame, data + 2, gspca_dev->width);
+			data + 2, gspca_dev->width);
 	gspca_frame_add(gspca_dev, packet_type1,
-			frame, data + gspca_dev->width + 5, gspca_dev->width);
+			data + gspca_dev->width + 5, gspca_dev->width);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)

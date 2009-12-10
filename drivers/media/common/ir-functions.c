@@ -34,22 +34,19 @@ static int repeat = 1;
 module_param(repeat, int, 0444);
 MODULE_PARM_DESC(repeat,"auto-repeat for IR keys (default: on)");
 
-static int debug;    /* debug level (0,1,2) */
-module_param(debug, int, 0644);
-
-#define dprintk(level, fmt, arg...)	if (debug >= level) \
-	printk(KERN_DEBUG fmt , ## arg)
+int media_ir_debug;    /* media_ir_debug level (0,1,2) */
+module_param_named(debug, media_ir_debug, int, 0644);
 
 /* -------------------------------------------------------------------------- */
 
 static void ir_input_key_event(struct input_dev *dev, struct ir_input_state *ir)
 {
 	if (KEY_RESERVED == ir->keycode) {
-		printk(KERN_INFO "%s: unknown key: key=0x%02x raw=0x%02x down=%d\n",
-		       dev->name,ir->ir_key,ir->ir_raw,ir->keypressed);
+		printk(KERN_INFO "%s: unknown key: key=0x%02x down=%d\n",
+		       dev->name, ir->ir_key, ir->keypressed);
 		return;
 	}
-	dprintk(1,"%s: key event code=%d down=%d\n",
+	IR_dprintk(1,"%s: key event code=%d down=%d\n",
 		dev->name,ir->keycode,ir->keypressed);
 	input_report_key(dev,ir->keycode,ir->keypressed);
 	input_sync(dev);
@@ -57,38 +54,33 @@ static void ir_input_key_event(struct input_dev *dev, struct ir_input_state *ir)
 
 /* -------------------------------------------------------------------------- */
 
-void ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
+int ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
 		   int ir_type, struct ir_scancode_table *ir_codes)
 {
-	int i;
-
 	ir->ir_type = ir_type;
 
-	memset(ir->ir_codes, 0, sizeof(ir->ir_codes));
+	ir->keytable.size = ir_roundup_tablesize(ir_codes->size);
+	ir->keytable.scan = kzalloc(ir->keytable.size *
+				    sizeof(struct ir_scancode), GFP_KERNEL);
+	if (!ir->keytable.scan)
+		return -ENOMEM;
 
-	/*
-	 * FIXME: This is a temporary workaround to use the new IR tables
-	 * with the old approach. Later patches will replace this to a
-	 * proper method
-	 */
+	IR_dprintk(1, "Allocated space for %d keycode entries (%zd bytes)\n",
+		ir->keytable.size,
+		ir->keytable.size * sizeof(ir->keytable.scan));
 
-	if (ir_codes)
-		for (i = 0; i < ir_codes->size; i++)
-			if (ir_codes->scan[i].scancode < IR_KEYTAB_SIZE)
-				ir->ir_codes[ir_codes->scan[i].scancode] = ir_codes->scan[i].keycode;
+	ir_copy_table(&ir->keytable, ir_codes);
+	ir_set_keycode_table(dev, &ir->keytable);
 
-	dev->keycode     = ir->ir_codes;
-	dev->keycodesize = sizeof(IR_KEYTAB_TYPE);
-	dev->keycodemax  = IR_KEYTAB_SIZE;
-	for (i = 0; i < IR_KEYTAB_SIZE; i++)
-		set_bit(ir->ir_codes[i], dev->keybit);
 	clear_bit(0, dev->keybit);
-
 	set_bit(EV_KEY, dev->evbit);
 	if (repeat)
 		set_bit(EV_REP, dev->evbit);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(ir_input_init);
+
 
 void ir_input_nokey(struct input_dev *dev, struct ir_input_state *ir)
 {
@@ -100,9 +92,9 @@ void ir_input_nokey(struct input_dev *dev, struct ir_input_state *ir)
 EXPORT_SYMBOL_GPL(ir_input_nokey);
 
 void ir_input_keydown(struct input_dev *dev, struct ir_input_state *ir,
-		      u32 ir_key, u32 ir_raw)
+		      u32 ir_key)
 {
-	u32 keycode = IR_KEYCODE(ir->ir_codes, ir_key);
+	u32 keycode = ir_g_keycode_from_table(dev, ir_key);
 
 	if (ir->keypressed && ir->keycode != keycode) {
 		ir->keypressed = 0;
@@ -110,7 +102,6 @@ void ir_input_keydown(struct input_dev *dev, struct ir_input_state *ir,
 	}
 	if (!ir->keypressed) {
 		ir->ir_key  = ir_key;
-		ir->ir_raw  = ir_raw;
 		ir->keycode = keycode;
 		ir->keypressed = 1;
 		ir_input_key_event(dev,ir);
@@ -275,7 +266,7 @@ EXPORT_SYMBOL_GPL(ir_decode_biphase);
  * saa7134 */
 
 /* decode raw bit pattern to RC5 code */
-static u32 ir_rc5_decode(unsigned int code)
+u32 ir_rc5_decode(unsigned int code)
 {
 	unsigned int org_code = code;
 	unsigned int pair;
@@ -295,15 +286,16 @@ static u32 ir_rc5_decode(unsigned int code)
 			rc5 |= 1;
 			break;
 		case 3:
-			dprintk(1, "ir-common: ir_rc5_decode(%x) bad code\n", org_code);
+			IR_dprintk(1, "ir-common: ir_rc5_decode(%x) bad code\n", org_code);
 			return 0;
 		}
 	}
-	dprintk(1, "ir-common: code=%x, rc5=%x, start=%x, toggle=%x, address=%x, "
+	IR_dprintk(1, "ir-common: code=%x, rc5=%x, start=%x, toggle=%x, address=%x, "
 		"instr=%x\n", rc5, org_code, RC5_START(rc5),
 		RC5_TOGGLE(rc5), RC5_ADDR(rc5), RC5_INSTR(rc5));
 	return rc5;
 }
+EXPORT_SYMBOL_GPL(ir_rc5_decode);
 
 void ir_rc5_timer_end(unsigned long data)
 {
@@ -330,20 +322,20 @@ void ir_rc5_timer_end(unsigned long data)
 
 	/* Allow some timer jitter (RC5 is ~24ms anyway so this is ok) */
 	if (gap < 28000) {
-		dprintk(1, "ir-common: spurious timer_end\n");
+		IR_dprintk(1, "ir-common: spurious timer_end\n");
 		return;
 	}
 
 	if (ir->last_bit < 20) {
 		/* ignore spurious codes (caused by light/other remotes) */
-		dprintk(1, "ir-common: short code: %x\n", ir->code);
+		IR_dprintk(1, "ir-common: short code: %x\n", ir->code);
 	} else {
 		ir->code = (ir->code << ir->shift_by) | 1;
 		rc5 = ir_rc5_decode(ir->code);
 
 		/* two start bits? */
 		if (RC5_START(rc5) != ir->start) {
-			dprintk(1, "ir-common: rc5 start bits invalid: %u\n", RC5_START(rc5));
+			IR_dprintk(1, "ir-common: rc5 start bits invalid: %u\n", RC5_START(rc5));
 
 			/* right address? */
 		} else if (RC5_ADDR(rc5) == ir->addr) {
@@ -353,11 +345,10 @@ void ir_rc5_timer_end(unsigned long data)
 			/* Good code, decide if repeat/repress */
 			if (toggle != RC5_TOGGLE(ir->last_rc5) ||
 			    instr != RC5_INSTR(ir->last_rc5)) {
-				dprintk(1, "ir-common: instruction %x, toggle %x\n", instr,
+				IR_dprintk(1, "ir-common: instruction %x, toggle %x\n", instr,
 					toggle);
 				ir_input_nokey(ir->dev, &ir->ir);
-				ir_input_keydown(ir->dev, &ir->ir, instr,
-						 instr);
+				ir_input_keydown(ir->dev, &ir->ir, instr);
 			}
 
 			/* Set/reset key-up timer */
@@ -376,7 +367,7 @@ void ir_rc5_timer_keyup(unsigned long data)
 {
 	struct card_ir *ir = (struct card_ir *)data;
 
-	dprintk(1, "ir-common: key released\n");
+	IR_dprintk(1, "ir-common: key released\n");
 	ir_input_nokey(ir->dev, &ir->ir);
 }
 EXPORT_SYMBOL_GPL(ir_rc5_timer_keyup);
