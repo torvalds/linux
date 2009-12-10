@@ -5,6 +5,8 @@
  * This file is released under the GPL.
  */
 
+#include "dm.h"
+
 #include <linux/device-mapper.h>
 
 #include <linux/bio.h>
@@ -30,6 +32,8 @@ struct io {
 	void *context;
 };
 
+static struct kmem_cache *_dm_io_cache;
+
 /*
  * io contexts are only dynamically allocated for asynchronous
  * io.  Since async io is likely to be the majority of io we'll
@@ -53,7 +57,7 @@ struct dm_io_client *dm_io_client_create(unsigned num_pages)
 	if (!client)
 		return ERR_PTR(-ENOMEM);
 
-	client->pool = mempool_create_kmalloc_pool(ios, sizeof(struct io));
+	client->pool = mempool_create_slab_pool(ios, _dm_io_cache);
 	if (!client->pool)
 		goto bad;
 
@@ -472,3 +476,18 @@ int dm_io(struct dm_io_request *io_req, unsigned num_regions,
 			&dp, io_req->notify.fn, io_req->notify.context);
 }
 EXPORT_SYMBOL(dm_io);
+
+int __init dm_io_init(void)
+{
+	_dm_io_cache = KMEM_CACHE(io, 0);
+	if (!_dm_io_cache)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void dm_io_exit(void)
+{
+	kmem_cache_destroy(_dm_io_cache);
+	_dm_io_cache = NULL;
+}
