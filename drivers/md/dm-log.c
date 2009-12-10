@@ -208,7 +208,8 @@ struct log_header {
 
 struct log_c {
 	struct dm_target *ti;
-	int touched;
+	int touched_dirtied;
+	int touched_cleaned;
 	uint32_t region_size;
 	unsigned int region_count;
 	region_t sync_count;
@@ -253,14 +254,14 @@ static inline void log_set_bit(struct log_c *l,
 			       uint32_t *bs, unsigned bit)
 {
 	ext2_set_bit(bit, (unsigned long *) bs);
-	l->touched = 1;
+	l->touched_cleaned = 1;
 }
 
 static inline void log_clear_bit(struct log_c *l,
 				 uint32_t *bs, unsigned bit)
 {
 	ext2_clear_bit(bit, (unsigned long *) bs);
-	l->touched = 1;
+	l->touched_dirtied = 1;
 }
 
 /*----------------------------------------------------------------
@@ -378,7 +379,8 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 	}
 
 	lc->ti = ti;
-	lc->touched = 0;
+	lc->touched_dirtied = 0;
+	lc->touched_cleaned = 0;
 	lc->region_size = region_size;
 	lc->region_count = region_count;
 	lc->sync = sync;
@@ -660,14 +662,16 @@ static int disk_flush(struct dm_dirty_log *log)
 	struct log_c *lc = (struct log_c *) log->context;
 
 	/* only write if the log has changed */
-	if (!lc->touched)
+	if (!lc->touched_cleaned && !lc->touched_dirtied)
 		return 0;
 
 	r = rw_header(lc, WRITE);
 	if (r)
 		fail_log_device(lc);
-	else
-		lc->touched = 0;
+	else {
+		lc->touched_dirtied = 0;
+		lc->touched_cleaned = 0;
+	}
 
 	return r;
 }
