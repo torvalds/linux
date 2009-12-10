@@ -71,9 +71,10 @@ static inline int ttm_mem_type_from_flags(uint32_t flags, uint32_t *mem_type)
 	return -EINVAL;
 }
 
-static void ttm_mem_type_manager_debug(struct ttm_bo_global *glob,
-					struct ttm_mem_type_manager *man)
+static void ttm_mem_type_debug(struct ttm_bo_device *bdev, int mem_type)
 {
+	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
+
 	printk(KERN_ERR TTM_PFX "    has_type: %d\n", man->has_type);
 	printk(KERN_ERR TTM_PFX "    use_type: %d\n", man->use_type);
 	printk(KERN_ERR TTM_PFX "    flags: 0x%08X\n", man->flags);
@@ -85,17 +86,16 @@ static void ttm_mem_type_manager_debug(struct ttm_bo_global *glob,
 		man->available_caching);
 	printk(KERN_ERR TTM_PFX "    default_caching: 0x%08X\n",
 		man->default_caching);
-	spin_lock(&glob->lru_lock);
-	drm_mm_debug_table(&man->manager, TTM_PFX);
-	spin_unlock(&glob->lru_lock);
+	if (mem_type != TTM_PL_SYSTEM) {
+		spin_lock(&bdev->glob->lru_lock);
+		drm_mm_debug_table(&man->manager, TTM_PFX);
+		spin_unlock(&bdev->glob->lru_lock);
+	}
 }
 
 static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
 					struct ttm_placement *placement)
 {
-	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_bo_global *glob = bo->glob;
-	struct ttm_mem_type_manager *man;
 	int i, ret, mem_type;
 
 	printk(KERN_ERR TTM_PFX "No space for %p (%lu pages, %luK, %luM)\n",
@@ -106,10 +106,9 @@ static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
 						&mem_type);
 		if (ret)
 			return;
-		man = &bdev->man[mem_type];
 		printk(KERN_ERR TTM_PFX "  placement[%d]=0x%08X (%d)\n",
 			i, placement->placement[i], mem_type);
-		ttm_mem_type_manager_debug(glob, man);
+		ttm_mem_type_debug(bo->bdev, mem_type);
 	}
 }
 
