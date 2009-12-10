@@ -1002,9 +1002,9 @@ static int ttm_bo_mem_compat(struct ttm_placement *placement,
 	return -1;
 }
 
-int ttm_buffer_object_validate(struct ttm_buffer_object *bo,
-				struct ttm_placement *placement,
-				bool interruptible, bool no_wait)
+int ttm_bo_validate(struct ttm_buffer_object *bo,
+			struct ttm_placement *placement,
+			bool interruptible, bool no_wait)
 {
 	int ret;
 
@@ -1040,55 +1040,57 @@ int ttm_buffer_object_validate(struct ttm_buffer_object *bo,
 	}
 	return 0;
 }
-EXPORT_SYMBOL(ttm_buffer_object_validate);
+EXPORT_SYMBOL(ttm_bo_validate);
 
-int
-ttm_bo_check_placement(struct ttm_buffer_object *bo,
-		       uint32_t set_flags, uint32_t clr_flags)
+int ttm_bo_check_placement(struct ttm_buffer_object *bo,
+				struct ttm_placement *placement)
 {
-	uint32_t new_mask = set_flags | clr_flags;
+	int i;
 
-	if ((bo->type == ttm_bo_type_user) &&
-	    (clr_flags & TTM_PL_FLAG_CACHED)) {
-		printk(KERN_ERR TTM_PFX
-		       "User buffers require cache-coherent memory.\n");
-		return -EINVAL;
-	}
-
-	if (!capable(CAP_SYS_ADMIN)) {
-		if (new_mask & TTM_PL_FLAG_NO_EVICT) {
-			printk(KERN_ERR TTM_PFX "Need to be root to modify"
-			       " NO_EVICT status.\n");
+	if (placement->fpfn || placement->lpfn) {
+		if (bo->mem.num_pages > (placement->lpfn - placement->fpfn)) {
+			printk(KERN_ERR TTM_PFX "Page number range to small "
+				"Need %lu pages, range is [%u, %u]\n",
+				bo->mem.num_pages, placement->fpfn,
+				placement->lpfn);
 			return -EINVAL;
 		}
-
-		if ((clr_flags & bo->mem.placement & TTM_PL_MASK_MEMTYPE) &&
-		    (bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
-			printk(KERN_ERR TTM_PFX
-			       "Incompatible memory specification"
-			       " for NO_EVICT buffer.\n");
-			return -EINVAL;
+	}
+	for (i = 0; i < placement->num_placement; i++) {
+		if (!capable(CAP_SYS_ADMIN)) {
+			if (placement->placement[i] & TTM_PL_FLAG_NO_EVICT) {
+				printk(KERN_ERR TTM_PFX "Need to be root to "
+					"modify NO_EVICT status.\n");
+				return -EINVAL;
+			}
+		}
+	}
+	for (i = 0; i < placement->num_busy_placement; i++) {
+		if (!capable(CAP_SYS_ADMIN)) {
+			if (placement->busy_placement[i] & TTM_PL_FLAG_NO_EVICT) {
+				printk(KERN_ERR TTM_PFX "Need to be root to "
+					"modify NO_EVICT status.\n");
+				return -EINVAL;
+			}
 		}
 	}
 	return 0;
 }
 
-int ttm_buffer_object_init(struct ttm_bo_device *bdev,
-			   struct ttm_buffer_object *bo,
-			   unsigned long size,
-			   enum ttm_bo_type type,
-			   uint32_t flags,
-			   uint32_t page_alignment,
-			   unsigned long buffer_start,
-			   bool interruptible,
-			   struct file *persistant_swap_storage,
-			   size_t acc_size,
-			   void (*destroy) (struct ttm_buffer_object *))
+int ttm_bo_init(struct ttm_bo_device *bdev,
+		struct ttm_buffer_object *bo,
+		unsigned long size,
+		enum ttm_bo_type type,
+		struct ttm_placement *placement,
+		uint32_t page_alignment,
+		unsigned long buffer_start,
+		bool interruptible,
+		struct file *persistant_swap_storage,
+		size_t acc_size,
+		void (*destroy) (struct ttm_buffer_object *))
 {
-	int i, c, ret = 0;
+	int ret = 0;
 	unsigned long num_pages;
-	uint32_t placements[8];
-	struct ttm_placement placement;
 
 	size += buffer_start & ~PAGE_MASK;
 	num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -1123,38 +1125,21 @@ int ttm_buffer_object_init(struct ttm_bo_device *bdev,
 	bo->acc_size = acc_size;
 	atomic_inc(&bo->glob->bo_count);
 
-	ret = ttm_bo_check_placement(bo, flags, 0ULL);
+	ret = ttm_bo_check_placement(bo, placement);
 	if (unlikely(ret != 0))
 		goto out_err;
-
-	/*
-	 * If no caching attributes are set, accept any form of caching.
-	 */
-
-	if ((flags & TTM_PL_MASK_CACHING) == 0)
-		flags |= TTM_PL_MASK_CACHING;
 
 	/*
 	 * For ttm_bo_type_device buffers, allocate
 	 * address space from the device.
 	 */
-
 	if (bo->type == ttm_bo_type_device) {
 		ret = ttm_bo_setup_vm(bo);
 		if (ret)
 			goto out_err;
 	}
 
-	placement.fpfn = 0;
-	placement.lpfn = 0;
-	for (i = 0, c = 0; i <= TTM_PL_PRIV5; i++)
-		if (flags & (1 << i))
-			placements[c++] = (flags & ~TTM_PL_MASK_MEM) | (1 << i);
-	placement.placement = placements;
-	placement.num_placement = c;
-	placement.busy_placement = placements;
-	placement.num_busy_placement = c;
-	ret = ttm_buffer_object_validate(bo, &placement, interruptible, false);
+	ret = ttm_bo_validate(bo, placement, interruptible, false);
 	if (ret)
 		goto out_err;
 
@@ -1167,7 +1152,7 @@ out_err:
 
 	return ret;
 }
-EXPORT_SYMBOL(ttm_buffer_object_init);
+EXPORT_SYMBOL(ttm_bo_init);
 
 static inline size_t ttm_bo_size(struct ttm_bo_global *glob,
 				 unsigned long num_pages)
@@ -1178,15 +1163,15 @@ static inline size_t ttm_bo_size(struct ttm_bo_global *glob,
 	return glob->ttm_bo_size + 2 * page_array_size;
 }
 
-int ttm_buffer_object_create(struct ttm_bo_device *bdev,
-			     unsigned long size,
-			     enum ttm_bo_type type,
-			     uint32_t flags,
-			     uint32_t page_alignment,
-			     unsigned long buffer_start,
-			     bool interruptible,
-			     struct file *persistant_swap_storage,
-			     struct ttm_buffer_object **p_bo)
+int ttm_bo_create(struct ttm_bo_device *bdev,
+			unsigned long size,
+			enum ttm_bo_type type,
+			struct ttm_placement *placement,
+			uint32_t page_alignment,
+			unsigned long buffer_start,
+			bool interruptible,
+			struct file *persistant_swap_storage,
+			struct ttm_buffer_object **p_bo)
 {
 	struct ttm_buffer_object *bo;
 	struct ttm_mem_global *mem_glob = bdev->glob->mem_glob;
@@ -1205,10 +1190,9 @@ int ttm_buffer_object_create(struct ttm_bo_device *bdev,
 		return -ENOMEM;
 	}
 
-	ret = ttm_buffer_object_init(bdev, bo, size, type, flags,
-				     page_alignment, buffer_start,
-				     interruptible,
-				     persistant_swap_storage, acc_size, NULL);
+	ret = ttm_bo_init(bdev, bo, size, type, placement, page_alignment,
+				buffer_start, interruptible,
+				persistant_swap_storage, acc_size, NULL);
 	if (likely(ret == 0))
 		*p_bo = bo;
 
