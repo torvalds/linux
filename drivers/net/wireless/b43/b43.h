@@ -821,11 +821,9 @@ struct b43_wl {
 	/* The device LEDs. */
 	struct b43_leds leds;
 
-#ifdef CONFIG_B43_PIO
 	/* Kmalloc'ed scratch space for PIO TX/RX. Protected by wl->mutex. */
 	u8 pio_scratchspace[110] __attribute__((__aligned__(8)));
 	u8 pio_tailspace[4] __attribute__((__aligned__(8)));
-#endif /* CONFIG_B43_PIO */
 };
 
 static inline struct b43_wl *hw_to_b43_wl(struct ieee80211_hw *hw)
@@ -876,19 +874,8 @@ static inline void b43_write32(struct b43_wldev *dev, u16 offset, u32 value)
 
 static inline bool b43_using_pio_transfers(struct b43_wldev *dev)
 {
-#ifdef CONFIG_B43_PIO
 	return dev->__using_pio_transfers;
-#else
-	return 0;
-#endif
 }
-
-#ifdef CONFIG_B43_FORCE_PIO
-# define B43_FORCE_PIO	1
-#else
-# define B43_FORCE_PIO	0
-#endif
-
 
 /* Message printing */
 void b43info(struct b43_wl *wl, const char *fmt, ...)
