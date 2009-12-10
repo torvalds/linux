@@ -1835,8 +1835,7 @@ static int iwl3945_send_rxon_assoc(struct iwl_priv *priv)
 		rc = -EIO;
 	}
 
-	priv->alloc_rxb_page--;
-	free_pages(cmd.reply_page, priv->hw_params.rx_page_order);
+	iwl_free_pages(priv, cmd.reply_page);
 
 	return rc;
 }
