@@ -18,9 +18,9 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
+#include <linux/input/sh_keysc.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <asm/sh_keysc.h>
 
 #define KYCR1_OFFS   0x00
 #define KYCR2_OFFS   0x04

@@ -1,5 +1,5 @@
-#ifndef __ASM_KEYSC_H__
-#define __ASM_KEYSC_H__
+#ifndef __SH_KEYSC_H__
+#define __SH_KEYSC_H__
 
 #define SH_KEYSC_MAXKEYS 30
 
@@ -11,4 +11,4 @@ struct sh_keysc_info {
 	int keycodes[SH_KEYSC_MAXKEYS];
 };
 
-#endif /* __ASM_KEYSC_H__ */
+#endif /* __SH_KEYSC_H__ */

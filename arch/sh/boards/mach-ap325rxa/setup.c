@@ -20,8 +20,6 @@
 #include <linux/i2c.h>
 #include <linux/smsc911x.h>
 #include <linux/gpio.h>
-#include <linux/spi/spi.h>
-#include <linux/spi/spi_gpio.h>
 #include <media/ov772x.h>
 #include <media/soc_camera.h>
 #include <media/soc_camera_platform.h>
@@ -29,6 +27,7 @@
 #include <video/sh_mobile_lcdc.h>
 #include <asm/io.h>
 #include <asm/clock.h>
+#include <asm/suspend.h>
 #include <cpu/sh7723.h>
 
 static struct smsc911x_platform_config smsc911x_config = {
@@ -409,17 +408,49 @@ static struct platform_device ceu_device = {
 	},
 };
 
-struct spi_gpio_platform_data sdcard_cn3_platform_data = {
-	.sck = GPIO_PTD0,
-	.mosi = GPIO_PTD1,
-	.miso = GPIO_PTD2,
-	.num_chipselect = 1,
+static struct resource sdhi0_cn3_resources[] = {
+	[0] = {
+		.name	= "SDHI0",
+		.start	= 0x04ce0000,
+		.end	= 0x04ce01ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 101,
+		.flags  = IORESOURCE_IRQ,
+	},
 };
 
-static struct platform_device sdcard_cn3_device = {
-	.name		= "spi_gpio",
-	.dev	= {
-		.platform_data	= &sdcard_cn3_platform_data,
+static struct platform_device sdhi0_cn3_device = {
+	.name		= "sh_mobile_sdhi",
+	.id             = 0, /* "sdhi0" clock */
+	.num_resources	= ARRAY_SIZE(sdhi0_cn3_resources),
+	.resource	= sdhi0_cn3_resources,
+	.archdata = {
+		.hwblk_id = HWBLK_SDHI0,
+	},
+};
+
+static struct resource sdhi1_cn7_resources[] = {
+	[0] = {
+		.name	= "SDHI1",
+		.start	= 0x04cf0000,
+		.end	= 0x04cf01ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 24,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sdhi1_cn7_device = {
+	.name		= "sh_mobile_sdhi",
+	.id             = 1, /* "sdhi1" clock */
+	.num_resources	= ARRAY_SIZE(sdhi1_cn7_resources),
+	.resource	= sdhi1_cn7_resources,
+	.archdata = {
+		.hwblk_id = HWBLK_SDHI1,
 	},
 };
 
@@ -470,22 +501,26 @@ static struct platform_device *ap325rxa_devices[] __initdata = {
 	&lcdc_device,
 	&ceu_device,
 	&nand_flash_device,
-	&sdcard_cn3_device,
+	&sdhi0_cn3_device,
+	&sdhi1_cn7_device,
 	&ap325rxa_camera[0],
 	&ap325rxa_camera[1],
 };
 
-static struct spi_board_info ap325rxa_spi_devices[] = {
-	{
-		.modalias = "mmc_spi",
-		.max_speed_hz = 5000000,
-		.chip_select = 0,
-		.controller_data = (void *) GPIO_PTD5,
-	},
-};
+extern char ap325rxa_sdram_enter_start;
+extern char ap325rxa_sdram_enter_end;
+extern char ap325rxa_sdram_leave_start;
+extern char ap325rxa_sdram_leave_end;
 
 static int __init ap325rxa_devices_setup(void)
 {
+	/* register board specific self-refresh code */
+	sh_mobile_register_self_refresh(SUSP_SH_STANDBY | SUSP_SH_SF,
+					&ap325rxa_sdram_enter_start,
+					&ap325rxa_sdram_enter_end,
+					&ap325rxa_sdram_leave_start,
+					&ap325rxa_sdram_leave_end);
+
 	/* LD3 and LD4 LEDs */
 	gpio_request(GPIO_PTX5, NULL); /* RUN */
 	gpio_direction_output(GPIO_PTX5, 1);
@@ -578,11 +613,27 @@ static int __init ap325rxa_devices_setup(void)
 
 	platform_resource_setup_memory(&ceu_device, "ceu", 4 << 20);
 
+	/* SDHI0 - CN3 - SD CARD */
+	gpio_request(GPIO_FN_SDHI0CD_PTD, NULL);
+	gpio_request(GPIO_FN_SDHI0WP_PTD, NULL);
+	gpio_request(GPIO_FN_SDHI0D3_PTD, NULL);
+	gpio_request(GPIO_FN_SDHI0D2_PTD, NULL);
+	gpio_request(GPIO_FN_SDHI0D1_PTD, NULL);
+	gpio_request(GPIO_FN_SDHI0D0_PTD, NULL);
+	gpio_request(GPIO_FN_SDHI0CMD_PTD, NULL);
+	gpio_request(GPIO_FN_SDHI0CLK_PTD, NULL);
+
+	/* SDHI1 - CN7 - MICRO SD CARD */
+	gpio_request(GPIO_FN_SDHI1CD, NULL);
+	gpio_request(GPIO_FN_SDHI1D3, NULL);
+	gpio_request(GPIO_FN_SDHI1D2, NULL);
+	gpio_request(GPIO_FN_SDHI1D1, NULL);
+	gpio_request(GPIO_FN_SDHI1D0, NULL);
+	gpio_request(GPIO_FN_SDHI1CMD, NULL);
+	gpio_request(GPIO_FN_SDHI1CLK, NULL);
+
 	i2c_register_board_info(0, ap325rxa_i2c_devices,
 				ARRAY_SIZE(ap325rxa_i2c_devices));
-
-	spi_register_board_info(ap325rxa_spi_devices,
-				ARRAY_SIZE(ap325rxa_spi_devices));
 
 	return platform_add_devices(ap325rxa_devices,
 				ARRAY_SIZE(ap325rxa_devices));

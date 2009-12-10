@@ -7,7 +7,6 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
-
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -35,11 +34,11 @@ static unsigned long gpio_read_raw_reg(unsigned long reg,
 {
 	switch (reg_width) {
 	case 8:
-		return ctrl_inb(reg);
+		return __raw_readb(reg);
 	case 16:
-		return ctrl_inw(reg);
+		return __raw_readw(reg);
 	case 32:
-		return ctrl_inl(reg);
+		return __raw_readl(reg);
 	}
 
 	BUG();
@@ -52,13 +51,13 @@ static void gpio_write_raw_reg(unsigned long reg,
 {
 	switch (reg_width) {
 	case 8:
-		ctrl_outb(data, reg);
+		__raw_writeb(data, reg);
 		return;
 	case 16:
-		ctrl_outw(data, reg);
+		__raw_writew(data, reg);
 		return;
 	case 32:
-		ctrl_outl(data, reg);
+		__raw_writel(data, reg);
 		return;
 	}
 
@@ -72,11 +71,9 @@ static void gpio_write_bit(struct pinmux_data_reg *dr,
 
 	pos = dr->reg_width - (in_pos + 1);
 
-#ifdef DEBUG
-	pr_info("write_bit addr = %lx, value = %ld, pos = %ld, "
-		"r_width = %ld\n",
-		dr->reg, !!value, pos, dr->reg_width);
-#endif
+	pr_debug("write_bit addr = %lx, value = %ld, pos = %ld, "
+		 "r_width = %ld\n",
+		 dr->reg, !!value, pos, dr->reg_width);
 
 	if (value)
 		set_bit(pos, &dr->reg_shadow);
@@ -95,11 +92,9 @@ static int gpio_read_reg(unsigned long reg, unsigned long reg_width,
 	mask = (1 << field_width) - 1;
 	pos = reg_width - ((in_pos + 1) * field_width);
 
-#ifdef DEBUG
-	pr_info("read_reg: addr = %lx, pos = %ld, "
-		"r_width = %ld, f_width = %ld\n",
-		reg, pos, reg_width, field_width);
-#endif
+	pr_debug("read_reg: addr = %lx, pos = %ld, "
+		 "r_width = %ld, f_width = %ld\n",
+		 reg, pos, reg_width, field_width);
 
 	data = gpio_read_raw_reg(reg, reg_width);
 	return (data >> pos) & mask;
@@ -114,24 +109,22 @@ static void gpio_write_reg(unsigned long reg, unsigned long reg_width,
 	mask = (1 << field_width) - 1;
 	pos = reg_width - ((in_pos + 1) * field_width);
 
-#ifdef DEBUG
-	pr_info("write_reg addr = %lx, value = %ld, pos = %ld, "
-		"r_width = %ld, f_width = %ld\n",
-		reg, value, pos, reg_width, field_width);
-#endif
+	pr_debug("write_reg addr = %lx, value = %ld, pos = %ld, "
+		 "r_width = %ld, f_width = %ld\n",
+		 reg, value, pos, reg_width, field_width);
 
 	mask = ~(mask << pos);
 	value = value << pos;
 
 	switch (reg_width) {
 	case 8:
-		ctrl_outb((ctrl_inb(reg) & mask) | value, reg);
+		__raw_writeb((__raw_readb(reg) & mask) | value, reg);
 		break;
 	case 16:
-		ctrl_outw((ctrl_inw(reg) & mask) | value, reg);
+		__raw_writew((__raw_readw(reg) & mask) | value, reg);
 		break;
 	case 32:
-		ctrl_outl((ctrl_inl(reg) & mask) | value, reg);
+		__raw_writel((__raw_readl(reg) & mask) | value, reg);
 		break;
 	}
 }
