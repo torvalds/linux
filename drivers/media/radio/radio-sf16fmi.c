@@ -54,6 +54,7 @@ struct fmi
 
 static struct fmi fmi_card;
 static struct pnp_dev *dev;
+bool pnp_attached;
 
 /* freq is in 1/16 kHz to internal number, hw precision is 50 kHz */
 /* It is only useful to give freq in interval of 800 (=0.05Mhz),
@@ -320,26 +321,54 @@ static int __init fmi_init(void)
 {
 	struct fmi *fmi = &fmi_card;
 	struct v4l2_device *v4l2_dev = &fmi->v4l2_dev;
-	int res;
+	int res, i;
+	int probe_ports[] = { 0, 0x284, 0x384 };
 
-	if (io < 0)
-		io = isapnp_fmi_probe();
+	if (io < 0) {
+		for (i = 0; i < ARRAY_SIZE(probe_ports); i++) {
+			io = probe_ports[i];
+			if (io == 0) {
+				io = isapnp_fmi_probe();
+				if (io < 0)
+					continue;
+				pnp_attached = 1;
+			}
+			if (!request_region(io, 2, "radio-sf16fmi")) {
+				if (pnp_attached)
+					pnp_device_detach(dev);
+				io = -1;
+				continue;
+			}
+			if (pnp_attached ||
+			    ((inb(io) & 0xf9) == 0xf9 && (inb(io) & 0x4) == 0))
+				break;
+			release_region(io, 2);
+			io = -1;
+		}
+	} else {
+		if (!request_region(io, 2, "radio-sf16fmi")) {
+			printk(KERN_ERR "radio-sf16fmi: port %#x already in use\n", io);
+			return -EBUSY;
+		}
+		if (inb(io) == 0xff) {
+			printk(KERN_ERR "radio-sf16fmi: card not present at %#x\n", io);
+			release_region(io, 2);
+			return -ENODEV;
+		}
+	}
+	if (io < 0) {
+		printk(KERN_ERR "radio-sf16fmi: no cards found\n");
+		return -ENODEV;
+	}
+
 	strlcpy(v4l2_dev->name, "sf16fmi", sizeof(v4l2_dev->name));
 	fmi->io = io;
-	if (fmi->io < 0) {
-		v4l2_err(v4l2_dev, "No PnP card found.\n");
-		return fmi->io;
-	}
-	if (!request_region(io, 2, "radio-sf16fmi")) {
-		v4l2_err(v4l2_dev, "port 0x%x already in use\n", fmi->io);
-		pnp_device_detach(dev);
-		return -EBUSY;
-	}
 
 	res = v4l2_device_register(NULL, v4l2_dev);
 	if (res < 0) {
 		release_region(fmi->io, 2);
-		pnp_device_detach(dev);
+		if (pnp_attached)
+			pnp_device_detach(dev);
 		v4l2_err(v4l2_dev, "Could not register v4l2_device\n");
 		return res;
 	}
@@ -356,7 +385,8 @@ static int __init fmi_init(void)
 	if (video_register_device(&fmi->vdev, VFL_TYPE_RADIO, radio_nr) < 0) {
 		v4l2_device_unregister(v4l2_dev);
 		release_region(fmi->io, 2);
-		pnp_device_detach(dev);
+		if (pnp_attached)
+			pnp_device_detach(dev);
 		return -EINVAL;
 	}
 
@@ -373,7 +403,7 @@ static void __exit fmi_exit(void)
 	video_unregister_device(&fmi->vdev);
 	v4l2_device_unregister(&fmi->v4l2_dev);
 	release_region(fmi->io, 2);
-	if (dev)
+	if (dev && pnp_attached)
 		pnp_device_detach(dev);
 }
 
