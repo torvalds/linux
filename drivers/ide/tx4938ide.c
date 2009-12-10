@@ -146,7 +146,7 @@ static int __init tx4938ide_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	if (!devm_request_mem_region(&pdev->dev, res->start,
-				     res->end - res->start + 1, "tx4938ide"))
+				     resource_size(res), "tx4938ide"))
 		return -EBUSY;
 	mapbase = (unsigned long)devm_ioremap(&pdev->dev, res->start,
 					      8 << pdata->ioport_shift);
