@@ -23,6 +23,8 @@ long sys_iopl(unsigned int, struct pt_regs *);
 /* kernel/process.c */
 int sys_fork(struct pt_regs *);
 int sys_vfork(struct pt_regs *);
+long sys_execve(char __user *, char __user * __user *,
+		char __user * __user *, struct pt_regs *);
 
 /* kernel/ldt.c */
 asmlinkage int sys_modify_ldt(int, void __user *, unsigned long);
@@ -39,7 +41,6 @@ asmlinkage int sys_get_thread_area(struct user_desc __user *);
 
 /* kernel/process_32.c */
 int sys_clone(struct pt_regs *);
-int sys_execve(struct pt_regs *);
 
 /* kernel/signal.c */
 asmlinkage int sys_sigsuspend(int, int, old_sigset_t);
@@ -73,9 +74,6 @@ int sys_vm86(struct pt_regs *);
 asmlinkage long sys_clone(unsigned long, unsigned long,
 			  void __user *, void __user *,
 			  struct pt_regs *);
-asmlinkage long sys_execve(char __user *, char __user * __user *,
-			   char __user * __user *,
-			   struct pt_regs *);
 long sys_arch_prctl(int, unsigned long);
 
 /* kernel/signal.c */
