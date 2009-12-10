@@ -284,6 +284,8 @@ static int __init msi_wmi_input_setup(void)
 	int err;
 
 	msi_wmi_input_dev = input_allocate_device();
+	if (!msi_wmi_input_dev)
+		return -ENOMEM;
 
 	msi_wmi_input_dev->name = "MSI WMI hotkeys";
 	msi_wmi_input_dev->phys = "wmi/input0";
@@ -314,40 +316,44 @@ static int __init msi_wmi_init(void)
 {
 	int err;
 
-	if (wmi_has_guid(MSIWMI_EVENT_GUID)) {
-		err = wmi_install_notify_handler(MSIWMI_EVENT_GUID,
-						 msi_wmi_notify, NULL);
-		if (err)
-			return -EINVAL;
+	if (!wmi_has_guid(MSIWMI_EVENT_GUID)) {
+		printk(KERN_ERR
+		       "This machine doesn't have MSI-hotkeys through WMI\n");
+		return -ENODEV;
+	}
+	err = wmi_install_notify_handler(MSIWMI_EVENT_GUID,
+			msi_wmi_notify, NULL);
+	if (err)
+		return -EINVAL;
 
-		err = msi_wmi_input_setup();
-		if (err) {
-			wmi_remove_notify_handler(MSIWMI_EVENT_GUID);
-			return -EINVAL;
-		}
+	err = msi_wmi_input_setup();
+	if (err)
+		goto err_uninstall_notifier;
 
-		if (!acpi_video_backlight_support()) {
-			backlight = backlight_device_register(DRV_NAME,
-					      NULL, NULL, &msi_backlight_ops);
-			if (IS_ERR(backlight)) {
-				wmi_remove_notify_handler(MSIWMI_EVENT_GUID);
-				input_unregister_device(msi_wmi_input_dev);
-				return -EINVAL;
-			}
+	if (!acpi_video_backlight_support()) {
+		backlight = backlight_device_register(DRV_NAME,
+				NULL, NULL, &msi_backlight_ops);
+		if (IS_ERR(backlight))
+			goto err_free_input;
 
-			backlight->props.max_brightness = ARRAY_SIZE(backlight_map) - 1;
-			err = bl_get(NULL);
-			if (err < 0) {
-				wmi_remove_notify_handler(MSIWMI_EVENT_GUID);
-				input_unregister_device(msi_wmi_input_dev);
-				backlight_device_unregister(backlight);
-				return -EINVAL;
-			}
-			backlight->props.brightness = err;
-		}
+		backlight->props.max_brightness = ARRAY_SIZE(backlight_map) - 1;
+		err = bl_get(NULL);
+		if (err < 0)
+			goto err_free_backlight;
+
+		backlight->props.brightness = err;
 	}
 	printk(KERN_INFO DRV_PFX "Event handler installed\n");
+
 	return 0;
+
+err_free_backlight:
+	backlight_device_unregister(backlight);
+err_free_input:
+	input_unregister_device(msi_wmi_input_dev);
+err_uninstall_notifier:
+	wmi_remove_notify_handler(MSIWMI_EVENT_GUID);
+	return err;
 }
 
 static void __exit msi_wmi_exit(void)
