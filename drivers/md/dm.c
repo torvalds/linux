@@ -1445,6 +1445,32 @@ static int setup_clone(struct request *clone, struct request *rq,
 	return 0;
 }
 
+static struct request *clone_rq(struct request *rq, struct mapped_device *md,
+				gfp_t gfp_mask)
+{
+	struct request *clone;
+	struct dm_rq_target_io *tio;
+
+	tio = alloc_rq_tio(md, gfp_mask);
+	if (!tio)
+		return NULL;
+
+	tio->md = md;
+	tio->ti = NULL;
+	tio->orig = rq;
+	tio->error = 0;
+	memset(&tio->info, 0, sizeof(tio->info));
+
+	clone = &tio->clone;
+	if (setup_clone(clone, rq, tio)) {
+		/* -ENOMEM */
+		free_rq_tio(tio);
+		return NULL;
+	}
+
+	return clone;
+}
+
 static int dm_rq_flush_suspending(struct mapped_device *md)
 {
 	return !md->suspend_rq.special;
@@ -1456,7 +1482,6 @@ static int dm_rq_flush_suspending(struct mapped_device *md)
 static int dm_prep_fn(struct request_queue *q, struct request *rq)
 {
 	struct mapped_device *md = q->queuedata;
-	struct dm_rq_target_io *tio;
 	struct request *clone;
 
 	if (unlikely(rq == &md->suspend_rq)) {
@@ -1472,23 +1497,9 @@ static int dm_prep_fn(struct request_queue *q, struct request *rq)
 		return BLKPREP_KILL;
 	}
 
-	tio = alloc_rq_tio(md, GFP_ATOMIC);
-	if (!tio)
-		/* -ENOMEM */
+	clone = clone_rq(rq, md, GFP_ATOMIC);
+	if (!clone)
 		return BLKPREP_DEFER;
-
-	tio->md = md;
-	tio->ti = NULL;
-	tio->orig = rq;
-	tio->error = 0;
-	memset(&tio->info, 0, sizeof(tio->info));
-
-	clone = &tio->clone;
-	if (setup_clone(clone, rq, tio)) {
-		/* -ENOMEM */
-		free_rq_tio(tio);
-		return BLKPREP_DEFER;
-	}
 
 	rq->special = clone;
 	rq->cmd_flags |= REQ_DONTPREP;
