@@ -846,32 +846,43 @@ static void dm_end_request(struct request *clone, int error)
 	rq_completed(md, rw, 1);
 }
 
+static void dm_done(struct request *clone, int error, bool mapped)
+{
+	int r = error;
+	struct dm_rq_target_io *tio = clone->end_io_data;
+	dm_request_endio_fn rq_end_io = tio->ti->type->rq_end_io;
+
+	if (mapped && rq_end_io)
+		r = rq_end_io(tio->ti, clone, error, &tio->info);
+
+	if (r <= 0)
+		/* The target wants to complete the I/O */
+		dm_end_request(clone, r);
+	else if (r == DM_ENDIO_INCOMPLETE)
+		/* The target will handle the I/O */
+		return;
+	else if (r == DM_ENDIO_REQUEUE)
+		/* The target wants to requeue the I/O */
+		dm_requeue_unmapped_request(clone);
+	else {
+		DMWARN("unimplemented target endio return value: %d", r);
+		BUG();
+	}
+}
+
 /*
  * Request completion handler for request-based dm
  */
 static void dm_softirq_done(struct request *rq)
 {
+	bool mapped = true;
 	struct request *clone = rq->completion_data;
 	struct dm_rq_target_io *tio = clone->end_io_data;
-	dm_request_endio_fn rq_end_io = tio->ti->type->rq_end_io;
-	int error = tio->error;
 
-	if (!(rq->cmd_flags & REQ_FAILED) && rq_end_io)
-		error = rq_end_io(tio->ti, clone, error, &tio->info);
+	if (rq->cmd_flags & REQ_FAILED)
+		mapped = false;
 
-	if (error <= 0)
-		/* The target wants to complete the I/O */
-		dm_end_request(clone, error);
-	else if (error == DM_ENDIO_INCOMPLETE)
-		/* The target will handle the I/O */
-		return;
-	else if (error == DM_ENDIO_REQUEUE)
-		/* The target wants to requeue the I/O */
-		dm_requeue_unmapped_request(clone);
-	else {
-		DMWARN("unimplemented target endio return value: %d", error);
-		BUG();
-	}
+	dm_done(clone, tio->error, mapped);
 }
 
 /*
