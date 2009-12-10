@@ -689,12 +689,14 @@ static void iwl_rx_card_state_notif(struct iwl_priv *priv,
 	u32 flags = le32_to_cpu(pkt->u.card_state_notif.flags);
 	unsigned long status = priv->status;
 
-	IWL_DEBUG_RF_KILL(priv, "Card state received: HW:%s SW:%s\n",
+	IWL_DEBUG_RF_KILL(priv, "Card state received: HW:%s SW:%s CT:%s\n",
 			  (flags & HW_CARD_DISABLED) ? "Kill" : "On",
-			  (flags & SW_CARD_DISABLED) ? "Kill" : "On");
+			  (flags & SW_CARD_DISABLED) ? "Kill" : "On",
+			  (flags & CT_CARD_DISABLED) ?
+			  "Reached" : "Not reached");
 
 	if (flags & (SW_CARD_DISABLED | HW_CARD_DISABLED |
-		     RF_CARD_DISABLED)) {
+		     CT_CARD_DISABLED)) {
 
 		iwl_write32(priv, CSR_UCODE_DRV_GP1_SET,
 			    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
@@ -708,10 +710,10 @@ static void iwl_rx_card_state_notif(struct iwl_priv *priv,
 			iwl_write_direct32(priv, HBUS_TARG_MBX_C,
 					HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
 		}
-		if (flags & RF_CARD_DISABLED)
+		if (flags & CT_CARD_DISABLED)
 			iwl_tt_enter_ct_kill(priv);
 	}
-	if (!(flags & RF_CARD_DISABLED))
+	if (!(flags & CT_CARD_DISABLED))
 		iwl_tt_exit_ct_kill(priv);
 
 	if (flags & HW_CARD_DISABLED)
