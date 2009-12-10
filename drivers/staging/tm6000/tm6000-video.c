@@ -1506,7 +1506,6 @@ static struct video_device tm6000_template = {
 	.name		= "tm6000",
 	.fops           = &tm6000_fops,
 	.ioctl_ops      = &video_ioctl_ops,
-	.minor		= -1,
 	.release	= video_device_release,
 	.tvnorms        = TM6000_STD,
 	.current_norm   = V4L2_STD_NTSC_M,
