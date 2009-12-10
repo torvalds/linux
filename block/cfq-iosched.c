@@ -2151,10 +2151,11 @@ static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd)
 		 * have been idling all along on this queue and it should be
 		 * ok to wait for this request to complete.
 		 */
-		if (cfqq->cfqg->nr_cfqq == 1 && cfqq->dispatched
-		    && cfq_should_idle(cfqd, cfqq))
+		if (cfqq->cfqg->nr_cfqq == 1 && RB_EMPTY_ROOT(&cfqq->sort_list)
+		    && cfqq->dispatched && cfq_should_idle(cfqd, cfqq)) {
+			cfqq = NULL;
 			goto keep_queue;
-		else
+		} else
 			goto expire;
 	}
 
