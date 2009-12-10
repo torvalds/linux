@@ -31,10 +31,6 @@ MODULE_AUTHOR("Thomas Renninger <trenn@suse.de>");
 MODULE_DESCRIPTION("MSI laptop WMI hotkeys driver");
 MODULE_LICENSE("GPL");
 
-static int debug;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Set this to 1 to let the driver be more verbose");
-
 MODULE_ALIAS("wmi:551A1F84-FBDD-4125-91DB-3EA8F44F1D45");
 MODULE_ALIAS("wmi:B6F3EEF2-3D2F-49DC-9DE3-85BCE18C62F2");
 
@@ -54,10 +50,7 @@ MODULE_ALIAS("dmi:*:svnMICRO-STARINTERNATIONAL*:pnMS-6638:*");
 #define MSIWMI_BIOS_GUID "551A1F84-FBDD-4125-91DB-3EA8F44F1D45"
 #define MSIWMI_EVENT_GUID "B6F3EEF2-3D2F-49DC-9DE3-85BCE18C62F2"
 
-#define dprintk(msg...)	do {			\
-	if (debug)				\
-		printk(KERN_INFO DRV_PFX  msg); \
-	} while (0)
+#define dprintk(msg...) pr_debug(DRV_PFX msg)
 
 struct key_entry {
 	char type;		/* See KE_* below */
@@ -343,7 +336,7 @@ static int __init msi_wmi_init(void)
 
 		backlight->props.brightness = err;
 	}
-	printk(KERN_INFO DRV_PFX "Event handler installed\n");
+	dprintk("Event handler installed\n");
 
 	return 0;
 
