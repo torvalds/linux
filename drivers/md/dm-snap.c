@@ -234,6 +234,16 @@ static int __chunk_is_tracked(struct dm_snapshot *s, chunk_t chunk)
 }
 
 /*
+ * This conflicting I/O is extremely improbable in the caller,
+ * so msleep(1) is sufficient and there is no need for a wait queue.
+ */
+static void __check_for_conflicting_io(struct dm_snapshot *s, chunk_t chunk)
+{
+	while (__chunk_is_tracked(s, chunk))
+		msleep(1);
+}
+
+/*
  * One of these per registered origin, held in the snapshot_origins hash
  */
 struct origin {
@@ -1102,12 +1112,8 @@ static void pending_complete(struct dm_snap_pending_exception *pe, int success)
 		goto out;
 	}
 
-	/*
-	 * Check for conflicting reads. This is extremely improbable,
-	 * so msleep(1) is sufficient and there is no need for a wait queue.
-	 */
-	while (__chunk_is_tracked(s, pe->e.old_chunk))
-		msleep(1);
+	/* Check for conflicting reads */
+	__check_for_conflicting_io(s, pe->e.old_chunk);
 
 	/*
 	 * Add a proper exception, and remove the
