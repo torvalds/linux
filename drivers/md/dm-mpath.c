@@ -885,13 +885,18 @@ static int multipath_ctr(struct dm_target *ti, unsigned int argc,
 	return r;
 }
 
-static void multipath_dtr(struct dm_target *ti)
+static void flush_multipath_work(void)
 {
-	struct multipath *m = (struct multipath *) ti->private;
-
 	flush_workqueue(kmpath_handlerd);
 	flush_workqueue(kmultipathd);
 	flush_scheduled_work();
+}
+
+static void multipath_dtr(struct dm_target *ti)
+{
+	struct multipath *m = ti->private;
+
+	flush_multipath_work();
 	free_multipath(m);
 }
 
@@ -1261,6 +1266,11 @@ static void multipath_presuspend(struct dm_target *ti)
 	queue_if_no_path(m, 0, 1);
 }
 
+static void multipath_postsuspend(struct dm_target *ti)
+{
+	flush_multipath_work();
+}
+
 /*
  * Restore the queue_if_no_path setting.
  */
@@ -1567,13 +1577,14 @@ out:
  *---------------------------------------------------------------*/
 static struct target_type multipath_target = {
 	.name = "multipath",
-	.version = {1, 1, 0},
+	.version = {1, 1, 1},
 	.module = THIS_MODULE,
 	.ctr = multipath_ctr,
 	.dtr = multipath_dtr,
 	.map_rq = multipath_map,
 	.rq_end_io = multipath_end_io,
 	.presuspend = multipath_presuspend,
+	.postsuspend = multipath_postsuspend,
 	.resume = multipath_resume,
 	.status = multipath_status,
 	.message = multipath_message,
