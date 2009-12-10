@@ -194,7 +194,7 @@ out:
 	return ret;
 }
 
-static void mpc83xx_suspend_finish(void)
+static void mpc83xx_suspend_end(void)
 {
 	deep_sleeping = 0;
 }
@@ -278,7 +278,7 @@ static struct platform_suspend_ops mpc83xx_suspend_ops = {
 	.valid = mpc83xx_suspend_valid,
 	.begin = mpc83xx_suspend_begin,
 	.enter = mpc83xx_suspend_enter,
-	.finish = mpc83xx_suspend_finish,
+	.end = mpc83xx_suspend_end,
 };
 
 static int pmc_probe(struct of_device *ofdev,
