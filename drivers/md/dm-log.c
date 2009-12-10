@@ -677,12 +677,25 @@ static int core_flush(struct dm_dirty_log *log)
 
 static int disk_flush(struct dm_dirty_log *log)
 {
-	int r;
-	struct log_c *lc = (struct log_c *) log->context;
+	int r, i;
+	struct log_c *lc = log->context;
 
 	/* only write if the log has changed */
 	if (!lc->touched_cleaned && !lc->touched_dirtied)
 		return 0;
+
+	if (lc->touched_cleaned && log->flush_callback_fn &&
+	    log->flush_callback_fn(lc->ti)) {
+		/*
+		 * At this point it is impossible to determine which
+		 * regions are clean and which are dirty (without
+		 * re-reading the log off disk). So mark all of them
+		 * dirty.
+		 */
+		lc->flush_failed = 1;
+		for (i = 0; i < lc->region_count; i++)
+			log_clear_bit(lc, lc->clean_bits, i);
+	}
 
 	r = rw_header(lc, WRITE);
 	if (r)
