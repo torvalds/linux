@@ -95,36 +95,19 @@ static struct videobuf_queue_ops cx25821_video_qops = {
 static int video_open(struct file *file)
 {
 	int minor = video_devdata(file)->minor;
-	struct cx25821_dev *h, *dev = NULL;
+	struct cx25821_dev *dev = video_drvdata(file);
 	struct cx25821_fh *fh;
-	struct list_head *list;
-	enum v4l2_buf_type type = 0;
+	enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	u32 pix_format;
-
-	lock_kernel();
-	list_for_each(list, &cx25821_devlist) {
-		h = list_entry(list, struct cx25821_dev, devlist);
-
-		if (h->video_dev[SRAM_CH00]
-		    && h->video_dev[SRAM_CH00]->minor == minor) {
-			dev = h;
-			type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		}
-	}
-
-	if (NULL == dev) {
-		unlock_kernel();
-		return -ENODEV;
-	}
 
 	printk("open minor=%d type=%s\n", minor, v4l2_type_names[type]);
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
-	if (NULL == fh) {
-		unlock_kernel();
+	if (NULL == fh)
 		return -ENOMEM;
-	}
+
+	lock_kernel();
 
 	file->private_data = fh;
 	fh->dev = dev;

@@ -1049,20 +1049,14 @@ static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *id)
 static int mpeg_open(struct file *file)
 {
 	int minor = video_devdata(file)->minor;
-	struct cx8802_dev *dev = NULL;
+	struct cx8802_dev *dev = video_drvdata(file);
 	struct cx8802_fh *fh;
 	struct cx8802_driver *drv = NULL;
 	int err;
 
-	lock_kernel();
-	dev = cx8802_get_device(minor);
-
 	dprintk( 1, "%s\n", __func__);
 
-	if (dev == NULL) {
-		unlock_kernel();
-		return -ENODEV;
-	}
+	lock_kernel();
 
 	/* Make sure we can acquire the hardware */
 	drv = cx8802_get_driver(dev, CX88_MPEG_BLACKBIRD);
@@ -1129,10 +1123,6 @@ static int mpeg_release(struct file *file)
 	kfree(fh);
 
 	/* Make sure we release the hardware */
-	dev = cx8802_get_device(video_devdata(file)->minor);
-	if (dev == NULL)
-		return -ENODEV;
-
 	drv = cx8802_get_driver(dev, CX88_MPEG_BLACKBIRD);
 	if (drv)
 		drv->request_release(drv);
@@ -1290,6 +1280,7 @@ static int blackbird_register_video(struct cx8802_dev *dev)
 
 	dev->mpeg_dev = cx88_vdev_init(dev->core,dev->pci,
 				       &cx8802_mpeg_template,"mpeg");
+	video_set_drvdata(dev->mpeg_dev, dev);
 	err = video_register_device(dev->mpeg_dev,VFL_TYPE_GRABBER, -1);
 	if (err < 0) {
 		printk(KERN_INFO "%s/2: can't register mpeg device\n",

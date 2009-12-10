@@ -87,16 +87,8 @@ static int ts_init_encoder(struct saa7134_dev* dev)
 static int ts_open(struct file *file)
 {
 	int minor = video_devdata(file)->minor;
-	struct saa7134_dev *dev;
+	struct saa7134_dev *dev = video_drvdata(file);
 	int err;
-
-	lock_kernel();
-	list_for_each_entry(dev, &saa7134_devlist, devlist)
-		if (dev->empress_dev && dev->empress_dev->minor == minor)
-			goto found;
-	unlock_kernel();
-	return -ENODEV;
- found:
 
 	dprintk("open minor=%d\n",minor);
 	err = -EBUSY;
@@ -531,6 +523,7 @@ static int empress_init(struct saa7134_dev *dev)
 
 	INIT_WORK(&dev->empress_workqueue, empress_signal_update);
 
+	video_set_drvdata(dev->empress_dev, dev);
 	err = video_register_device(dev->empress_dev,VFL_TYPE_GRABBER,
 				    empress_nr[dev->nr]);
 	if (err < 0) {

@@ -195,41 +195,23 @@ void saa7146_buffer_timeout(unsigned long data)
 static int fops_open(struct file *file)
 {
 	unsigned int minor = video_devdata(file)->minor;
-	struct saa7146_dev *h = NULL, *dev = NULL;
-	struct list_head *list;
+	struct video_device *vdev = video_devdata(file);
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_fh *fh = NULL;
 	int result = 0;
 
-	enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	enum v4l2_buf_type type;
 
 	DEB_EE(("file:%p, minor:%d\n", file, minor));
 
 	if (mutex_lock_interruptible(&saa7146_devices_lock))
 		return -ERESTARTSYS;
 
-	list_for_each(list,&saa7146_devices) {
-		h = list_entry(list, struct saa7146_dev, item);
-		if( NULL == h->vv_data ) {
-			DEB_D(("device %p has not registered video devices.\n",h));
-			continue;
-		}
-		DEB_D(("trying: %p @ major %d,%d\n",h,h->vv_data->video_minor,h->vv_data->vbi_minor));
-
-		if (h->vv_data->video_minor == minor) {
-			dev = h;
-		}
-		if (h->vv_data->vbi_minor == minor) {
-			type = V4L2_BUF_TYPE_VBI_CAPTURE;
-			dev = h;
-		}
-	}
-	if (NULL == dev) {
-		DEB_S(("no such video device.\n"));
-		result = -ENODEV;
-		goto out;
-	}
-
 	DEB_D(("using: %p\n",dev));
+
+	type = vdev->vfl_type == VFL_TYPE_GRABBER
+	     ? V4L2_BUF_TYPE_VIDEO_CAPTURE
+	     : V4L2_BUF_TYPE_VBI_CAPTURE;
 
 	/* check if an extension is registered */
 	if( NULL == dev->ext ) {

@@ -189,6 +189,7 @@ struct video_device *cx25821_vdev_init(struct cx25821_dev *dev,
 	vfd->release = video_device_release;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)", dev->name, type,
 		 cx25821_boards[dev->board].name);
+	video_set_drvdata(vfd, dev);
 	return vfd;
 }
 

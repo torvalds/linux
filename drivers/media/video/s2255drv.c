@@ -233,7 +233,6 @@ struct s2255_dev {
 
 	struct s2255_dmaqueue	vidq[MAX_CHANNELS];
 	struct video_device	*vdev[MAX_CHANNELS];
-	struct list_head	s2255_devlist;
 	struct timer_list	timer;
 	struct s2255_fw	*fw_data;
 	struct s2255_pipeinfo	pipes[MAX_PIPE_BUFFERS];
@@ -312,8 +311,6 @@ struct s2255_fh {
 
 /* Channels on box are in reverse order */
 static unsigned long G_chnmap[MAX_CHANNELS] = {3, 2, 1, 0};
-
-static LIST_HEAD(s2255_devlist);
 
 static int debug;
 static int *s2255_debug = &debug;
@@ -1534,31 +1531,22 @@ static int vidioc_s_parm(struct file *file, void *priv,
 static int s2255_open(struct file *file)
 {
 	int minor = video_devdata(file)->minor;
-	struct s2255_dev *h, *dev = NULL;
+	struct video_device *vdev = video_devdata(file);
+	struct s2255_dev *dev = video_drvdata(file);
 	struct s2255_fh *fh;
-	struct list_head *list;
-	enum v4l2_buf_type type = 0;
+	enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	int i = 0;
 	int cur_channel = -1;
 	int state;
 	dprintk(1, "s2255: open called (minor=%d)\n", minor);
 
 	lock_kernel();
-	list_for_each(list, &s2255_devlist) {
-		h = list_entry(list, struct s2255_dev, s2255_devlist);
-		for (i = 0; i < MAX_CHANNELS; i++) {
-			if (h->vdev[i]->minor == minor) {
-				cur_channel = i;
-				dev = h;
-				type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-			}
-		}
-	}
 
-	if ((NULL == dev) || (cur_channel == -1)) {
-		unlock_kernel();
-		printk(KERN_INFO "s2255: openv4l no dev\n");
-		return -ENODEV;
+	for (i = 0; i < MAX_CHANNELS; i++) {
+		if (dev->vdev[i] == vdev) {
+			cur_channel = i;
+			break;
+		}
 	}
 
 	if (atomic_read(&dev->fw_data->fw_state) == S2255_FW_DISCONNECTING) {
@@ -1699,7 +1687,6 @@ static unsigned int s2255_poll(struct file *file,
 static void s2255_destroy(struct kref *kref)
 {
 	struct s2255_dev *dev = to_s2255_dev(kref);
-	struct list_head *list;
 	int i;
 	if (!dev) {
 		printk(KERN_ERR "s2255drv: kref problem\n");
@@ -1733,10 +1720,6 @@ static void s2255_destroy(struct kref *kref)
 	usb_put_dev(dev->udev);
 	dprintk(1, "%s", __func__);
 
-	while (!list_empty(&s2255_devlist)) {
-		list = s2255_devlist.next;
-		list_del(list);
-	}
 	mutex_unlock(&dev->open_lock);
 	kfree(dev);
 }
@@ -1843,7 +1826,6 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 	int cur_nr = video_nr;
 
 	/* initialize all video 4 linux */
-	list_add_tail(&dev->s2255_devlist, &s2255_devlist);
 	/* register 4 video devices */
 	for (i = 0; i < MAX_CHANNELS; i++) {
 		INIT_LIST_HEAD(&dev->vidq[i].active);
@@ -1853,6 +1835,7 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 		dev->vdev[i] = video_device_alloc();
 		memcpy(dev->vdev[i], &template, sizeof(struct video_device));
 		dev->vdev[i]->parent = &dev->interface->dev;
+		video_set_drvdata(dev->vdev[i], dev);
 		if (video_nr == -1)
 			ret = video_register_device(dev->vdev[i],
 						    VFL_TYPE_GRABBER,

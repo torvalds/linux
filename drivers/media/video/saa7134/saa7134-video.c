@@ -1327,29 +1327,23 @@ static int saa7134_resource(struct saa7134_fh *fh)
 static int video_open(struct file *file)
 {
 	int minor = video_devdata(file)->minor;
-	struct saa7134_dev *dev;
+	struct video_device *vdev = video_devdata(file);
+	struct saa7134_dev *dev = video_drvdata(file);
 	struct saa7134_fh *fh;
-	enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	enum v4l2_buf_type type = 0;
 	int radio = 0;
 
-	mutex_lock(&saa7134_devlist_lock);
-	list_for_each_entry(dev, &saa7134_devlist, devlist) {
-		if (dev->video_dev && (dev->video_dev->minor == minor))
-			goto found;
-		if (dev->radio_dev && (dev->radio_dev->minor == minor)) {
-			radio = 1;
-			goto found;
-		}
-		if (dev->vbi_dev && (dev->vbi_dev->minor == minor)) {
-			type = V4L2_BUF_TYPE_VBI_CAPTURE;
-			goto found;
-		}
+	switch (vdev->vfl_type) {
+	case VFL_TYPE_GRABBER:
+		type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		break;
+	case VFL_TYPE_VBI:
+		type = V4L2_BUF_TYPE_VBI_CAPTURE;
+		break;
+	case VFL_TYPE_RADIO:
+		radio = 1;
+		break;
 	}
-	mutex_unlock(&saa7134_devlist_lock);
-	return -ENODEV;
-
-found:
-	mutex_unlock(&saa7134_devlist_lock);
 
 	dprintk("open minor=%d radio=%d type=%s\n",minor,radio,
 		v4l2_type_names[type]);

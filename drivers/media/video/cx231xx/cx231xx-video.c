@@ -1918,13 +1918,22 @@ static int cx231xx_v4l2_open(struct file *filp)
 {
 	int minor = video_devdata(filp)->minor;
 	int errCode = 0, radio = 0;
-	struct cx231xx *dev = NULL;
+	struct video_device *vdev = video_devdata(filp);
+	struct cx231xx *dev = video_drvdata(filp);
 	struct cx231xx_fh *fh;
 	enum v4l2_buf_type fh_type = 0;
 
-	dev = cx231xx_get_device(minor, &fh_type, &radio);
-	if (NULL == dev)
-		return -ENODEV;
+	switch (vdev->vfl_type) {
+	case VFL_TYPE_GRABBER:
+		fh_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		break;
+	case VFL_TYPE_VBI:
+		fh_type = V4L2_BUF_TYPE_VBI_CAPTURE;
+		break;
+	case VFL_TYPE_RADIO:
+		radio = 1;
+		break;
+	}
 
 	mutex_lock(&dev->lock);
 
@@ -2326,6 +2335,7 @@ static struct video_device *cx231xx_vdev_init(struct cx231xx *dev,
 
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s", dev->name, type_name);
 
+	video_set_drvdata(vfd, dev);
 	return vfd;
 }
 

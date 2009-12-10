@@ -1568,27 +1568,10 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 
 static int mpeg_open(struct file *file)
 {
-	int minor = video_devdata(file)->minor;
-	struct cx23885_dev *h, *dev = NULL;
-	struct list_head *list;
+	struct cx23885_dev *dev = video_drvdata(file);
 	struct cx23885_fh *fh;
 
 	dprintk(2, "%s()\n", __func__);
-
-	lock_kernel();
-	list_for_each(list, &cx23885_devlist) {
-		h = list_entry(list, struct cx23885_dev, devlist);
-		if (h->v4l_device &&
-		    h->v4l_device->minor == minor) {
-			dev = h;
-			break;
-		}
-	}
-
-	if (dev == NULL) {
-		unlock_kernel();
-		return -ENODEV;
-	}
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
@@ -1596,6 +1579,8 @@ static int mpeg_open(struct file *file)
 		unlock_kernel();
 		return -ENOMEM;
 	}
+
+	lock_kernel();
 
 	file->private_data = fh;
 	fh->dev      = dev;
@@ -1803,6 +1788,7 @@ int cx23885_417_register(struct cx23885_dev *dev)
 	/* Allocate and initialize V4L video device */
 	dev->v4l_device = cx23885_video_dev_alloc(tsport,
 		dev->pci, &cx23885_mpeg_template, "mpeg");
+	video_set_drvdata(dev->v4l_device, dev);
 	err = video_register_device(dev->v4l_device,
 		VFL_TYPE_GRABBER, -1);
 	if (err < 0) {

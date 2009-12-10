@@ -75,10 +75,6 @@ MODULE_PARM_DESC(vid_limit,"capture memory limit in megabytes");
 #define dprintk(level,fmt, arg...)	if (video_debug >= level) \
 	printk(KERN_DEBUG "%s/0: " fmt, core->name , ## arg)
 
-/* ------------------------------------------------------------------ */
-
-static LIST_HEAD(cx8800_devlist);
-
 /* ------------------------------------------------------------------- */
 /* static data                                                         */
 
@@ -754,32 +750,26 @@ static int get_ressource(struct cx8800_fh *fh)
 static int video_open(struct file *file)
 {
 	int minor = video_devdata(file)->minor;
-	struct cx8800_dev *h,*dev = NULL;
+	struct video_device *vdev = video_devdata(file);
+	struct cx8800_dev *dev = video_drvdata(file);
 	struct cx88_core *core;
 	struct cx8800_fh *fh;
 	enum v4l2_buf_type type = 0;
 	int radio = 0;
 
+	switch (vdev->vfl_type) {
+	case VFL_TYPE_GRABBER:
+		type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		break;
+	case VFL_TYPE_VBI:
+		type = V4L2_BUF_TYPE_VBI_CAPTURE;
+		break;
+	case VFL_TYPE_RADIO:
+		radio = 1;
+		break;
+	}
+
 	lock_kernel();
-	list_for_each_entry(h, &cx8800_devlist, devlist) {
-		if (h->video_dev->minor == minor) {
-			dev  = h;
-			type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		}
-		if (h->vbi_dev->minor == minor) {
-			dev  = h;
-			type = V4L2_BUF_TYPE_VBI_CAPTURE;
-		}
-		if (h->radio_dev &&
-		    h->radio_dev->minor == minor) {
-			radio = 1;
-			dev   = h;
-		}
-	}
-	if (NULL == dev) {
-		unlock_kernel();
-		return -ENODEV;
-	}
 
 	core = dev->core;
 
@@ -1909,6 +1899,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	/* register v4l devices */
 	dev->video_dev = cx88_vdev_init(core,dev->pci,
 					&cx8800_video_template,"video");
+	video_set_drvdata(dev->video_dev, dev);
 	err = video_register_device(dev->video_dev,VFL_TYPE_GRABBER,
 				    video_nr[core->nr]);
 	if (err < 0) {
@@ -1920,6 +1911,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	       core->name, video_device_node_name(dev->video_dev));
 
 	dev->vbi_dev = cx88_vdev_init(core,dev->pci,&cx8800_vbi_template,"vbi");
+	video_set_drvdata(dev->vbi_dev, dev);
 	err = video_register_device(dev->vbi_dev,VFL_TYPE_VBI,
 				    vbi_nr[core->nr]);
 	if (err < 0) {
@@ -1933,6 +1925,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	if (core->board.radio.type == CX88_RADIO) {
 		dev->radio_dev = cx88_vdev_init(core,dev->pci,
 						&cx8800_radio_template,"radio");
+		video_set_drvdata(dev->radio_dev, dev);
 		err = video_register_device(dev->radio_dev,VFL_TYPE_RADIO,
 					    radio_nr[core->nr]);
 		if (err < 0) {
@@ -1945,7 +1938,6 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	}
 
 	/* everything worked */
-	list_add_tail(&dev->devlist,&cx8800_devlist);
 	pci_set_drvdata(pci_dev,dev);
 
 	/* initial device configuration */
@@ -2001,7 +1993,6 @@ static void __devexit cx8800_finidev(struct pci_dev *pci_dev)
 
 	/* free memory */
 	btcx_riscmem_free(dev->pci,&dev->vidq.stopper);
-	list_del(&dev->devlist);
 	cx88_core_put(core,dev->pci);
 	kfree(dev);
 }
