@@ -1620,7 +1620,6 @@ void b43_dma_tx_resume(struct b43_wldev *dev)
 	b43_power_saving_ctl_bits(dev, 0);
 }
 
-#ifdef CONFIG_B43_PIO
 static void direct_fifo_rx(struct b43_wldev *dev, enum b43_dmatype type,
 			   u16 mmio_base, bool enable)
 {
@@ -1654,4 +1653,3 @@ void b43_dma_direct_fifo_rx(struct b43_wldev *dev,
 	mmio_base = b43_dmacontroller_base(type, engine_index);
 	direct_fifo_rx(dev, type, mmio_base, enable);
 }
-#endif /* CONFIG_B43_PIO */
