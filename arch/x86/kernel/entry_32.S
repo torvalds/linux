@@ -725,22 +725,49 @@ END(syscall_badsys)
 /*
  * System calls that need a pt_regs pointer.
  */
-#define PTREGSCALL(name) \
+#define PTREGSCALL0(name) \
 	ALIGN; \
 ptregs_##name: \
 	leal 4(%esp),%eax; \
 	jmp sys_##name;
 
-PTREGSCALL(iopl)
-PTREGSCALL(fork)
-PTREGSCALL(clone)
-PTREGSCALL(vfork)
-PTREGSCALL(execve)
-PTREGSCALL(sigaltstack)
-PTREGSCALL(sigreturn)
-PTREGSCALL(rt_sigreturn)
-PTREGSCALL(vm86)
-PTREGSCALL(vm86old)
+#define PTREGSCALL1(name) \
+	ALIGN; \
+ptregs_##name: \
+	leal 4(%esp),%edx; \
+	movl PT_EBX(%edx),%eax; \
+	jmp sys_##name;
+
+#define PTREGSCALL2(name) \
+	ALIGN; \
+ptregs_##name: \
+	leal 4(%esp),%ecx; \
+	movl PT_ECX(%ecx),%edx; \
+	movl PT_EBX(%ecx),%eax; \
+	jmp sys_##name;
+
+#define PTREGSCALL3(name) \
+	ALIGN; \
+ptregs_##name: \
+	leal 4(%esp),%eax; \
+	pushl %eax; \
+	movl PT_EDX(%eax),%ecx; \
+	movl PT_ECX(%eax),%edx; \
+	movl PT_EBX(%eax),%eax; \
+	call sys_##name; \
+	addl $4,%esp; \
+	ret
+
+PTREGSCALL0(iopl)
+PTREGSCALL0(fork)
+PTREGSCALL0(clone)
+PTREGSCALL0(vfork)
+PTREGSCALL0(execve)
+PTREGSCALL0(sigaltstack)
+PTREGSCALL0(sigreturn)
+PTREGSCALL0(rt_sigreturn)
+PTREGSCALL0(vm86)
+PTREGSCALL0(vm86old)
 
 .macro FIXUP_ESPFIX_STACK
 /*
