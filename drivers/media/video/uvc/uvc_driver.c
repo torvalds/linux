@@ -43,6 +43,7 @@
 #define DRIVER_VERSION		"v0.1.0"
 #endif
 
+unsigned int uvc_clock_param = CLOCK_MONOTONIC;
 unsigned int uvc_no_drop_param;
 static unsigned int uvc_quirks_param;
 unsigned int uvc_trace_param;
@@ -1892,6 +1893,45 @@ static int uvc_reset_resume(struct usb_interface *intf)
 }
 
 /* ------------------------------------------------------------------------
+ * Module parameters
+ */
+
+static int uvc_clock_param_get(char *buffer, struct kernel_param *kp)
+{
+	if (uvc_clock_param == CLOCK_MONOTONIC)
+		return sprintf(buffer, "CLOCK_MONOTONIC");
+	else
+		return sprintf(buffer, "CLOCK_REALTIME");
+}
+
+static int uvc_clock_param_set(const char *val, struct kernel_param *kp)
+{
+	if (strncasecmp(val, "clock_", strlen("clock_")) == 0)
+		val += strlen("clock_");
+
+	if (strcasecmp(val, "monotonic") == 0)
+		uvc_clock_param = CLOCK_MONOTONIC;
+	else if (strcasecmp(val, "realtime") == 0)
+		uvc_clock_param = CLOCK_REALTIME;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+module_param_call(clock, uvc_clock_param_set, uvc_clock_param_get,
+		  &uvc_clock_param, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(clock, "Video buffers timestamp clock");
+module_param_named(nodrop, uvc_no_drop_param, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(nodrop, "Don't drop incomplete frames");
+module_param_named(quirks, uvc_quirks_param, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(quirks, "Forced device quirks");
+module_param_named(trace, uvc_trace_param, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(trace, "Trace level bitmask");
+module_param_named(timeout, uvc_timeout_param, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(timeout, "Streaming control requests timeout");
+
+/* ------------------------------------------------------------------------
  * Driver initialization and cleanup
  */
 
@@ -2196,15 +2236,6 @@ static void __exit uvc_cleanup(void)
 
 module_init(uvc_init);
 module_exit(uvc_cleanup);
-
-module_param_named(nodrop, uvc_no_drop_param, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(nodrop, "Don't drop incomplete frames");
-module_param_named(quirks, uvc_quirks_param, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(quirks, "Forced device quirks");
-module_param_named(trace, uvc_trace_param, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(trace, "Trace level bitmask");
-module_param_named(timeout, uvc_timeout_param, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(timeout, "Streaming control requests timeout");
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
