@@ -45,7 +45,7 @@
 
 unsigned int uvc_clock_param = CLOCK_MONOTONIC;
 unsigned int uvc_no_drop_param;
-static unsigned int uvc_quirks_param;
+static unsigned int uvc_quirks_param = -1;
 unsigned int uvc_trace_param;
 unsigned int uvc_timeout_param = UVC_CTRL_STREAMING_TIMEOUT;
 
@@ -1751,7 +1751,8 @@ static int uvc_probe(struct usb_interface *intf,
 	dev->udev = usb_get_dev(udev);
 	dev->intf = usb_get_intf(intf);
 	dev->intfnum = intf->cur_altsetting->desc.bInterfaceNumber;
-	dev->quirks = id->driver_info | uvc_quirks_param;
+	dev->quirks = (uvc_quirks_param == -1)
+		    ? id->driver_info : uvc_quirks_param;
 
 	if (udev->product != NULL)
 		strlcpy(dev->name, udev->product, sizeof dev->name);
@@ -1774,9 +1775,9 @@ static int uvc_probe(struct usb_interface *intf,
 		le16_to_cpu(udev->descriptor.idVendor),
 		le16_to_cpu(udev->descriptor.idProduct));
 
-	if (uvc_quirks_param != 0) {
-		uvc_printk(KERN_INFO, "Forcing device quirks 0x%x by module "
-			"parameter for testing purpose.\n", uvc_quirks_param);
+	if (dev->quirks != id->driver_info) {
+		uvc_printk(KERN_INFO, "Forcing device quirks to 0x%x by module "
+			"parameter for testing purpose.\n", dev->quirks);
 		uvc_printk(KERN_INFO, "Please report required quirks to the "
 			"linux-uvc-devel mailing list.\n");
 	}
