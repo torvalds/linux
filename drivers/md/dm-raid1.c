@@ -396,6 +396,8 @@ static int mirror_available(struct mirror_set *ms, struct bio *bio)
  */
 static sector_t map_sector(struct mirror *m, struct bio *bio)
 {
+	if (unlikely(!bio->bi_size))
+		return 0;
 	return m->offset + (bio->bi_sector - m->ms->ti->begin);
 }
 
@@ -562,7 +564,7 @@ static void do_write(struct mirror_set *ms, struct bio *bio)
 	struct dm_io_region io[ms->nr_mirrors], *dest = io;
 	struct mirror *m;
 	struct dm_io_request io_req = {
-		.bi_rw = WRITE,
+		.bi_rw = WRITE | (bio->bi_rw & WRITE_BARRIER),
 		.mem.type = DM_IO_BVEC,
 		.mem.ptr.bvec = bio->bi_io_vec + bio->bi_idx,
 		.notify.fn = write_callback,
@@ -603,6 +605,11 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 	bio_list_init(&requeue);
 
 	while ((bio = bio_list_pop(writes))) {
+		if (unlikely(bio_empty_barrier(bio))) {
+			bio_list_add(&sync, bio);
+			continue;
+		}
+
 		region = dm_rh_bio_to_region(ms->rh, bio);
 
 		if (log->type->is_remote_recovering &&
@@ -995,6 +1002,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	ti->private = ms;
 	ti->split_io = dm_rh_get_region_size(ms->rh);
+	ti->num_flush_requests = 1;
 
 	ms->kmirrord_wq = create_singlethread_workqueue("kmirrord");
 	if (!ms->kmirrord_wq) {
@@ -1122,7 +1130,8 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio,
 	 * We need to dec pending if this was a write.
 	 */
 	if (rw == WRITE) {
-		dm_rh_dec(ms->rh, map_context->ll);
+		if (likely(!bio_empty_barrier(bio)))
+			dm_rh_dec(ms->rh, map_context->ll);
 		return error;
 	}
 
