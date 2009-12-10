@@ -43,7 +43,7 @@
 /* mono volume with index (index=0,1,...) (channel=1,2) */
 #define HDA_CODEC_VOLUME_MONO_IDX(xname, xcidx, nid, channel, xindex, direction) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx,  \
-	  .subdevice = HDA_SUBDEV_NID_FLAG | HDA_SUBDEV_AMP_FLAG | (nid), \
+	  .subdevice = HDA_SUBDEV_AMP_FLAG, \
 	  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | \
 	  	    SNDRV_CTL_ELEM_ACCESS_TLV_READ | \
 	  	    SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK, \
@@ -64,7 +64,7 @@
 /* mono mute switch with index (index=0,1,...) (channel=1,2) */
 #define HDA_CODEC_MUTE_MONO_IDX(xname, xcidx, nid, channel, xindex, direction) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx, \
-	  .subdevice = HDA_SUBDEV_NID_FLAG | HDA_SUBDEV_AMP_FLAG | (nid), \
+	  .subdevice = HDA_SUBDEV_AMP_FLAG, \
 	  .info = snd_hda_mixer_amp_switch_info, \
 	  .get = snd_hda_mixer_amp_switch_get, \
 	  .put = snd_hda_mixer_amp_switch_put, \
@@ -82,7 +82,7 @@
 /* special beep mono mute switch with index (index=0,1,...) (channel=1,2) */
 #define HDA_CODEC_MUTE_BEEP_MONO_IDX(xname, xcidx, nid, channel, xindex, direction) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx, \
-	  .subdevice = HDA_SUBDEV_NID_FLAG | HDA_SUBDEV_AMP_FLAG | (nid), \
+	  .subdevice = HDA_SUBDEV_AMP_FLAG, \
 	  .info = snd_hda_mixer_amp_switch_info, \
 	  .get = snd_hda_mixer_amp_switch_get, \
 	  .put = snd_hda_mixer_amp_switch_put_beep, \

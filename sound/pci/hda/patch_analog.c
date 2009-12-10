@@ -209,9 +209,7 @@ static int ad198x_build_controls(struct hda_codec *codec)
 			if (!kctl)
 				return -ENOMEM;
 			kctl->private_value = spec->beep_amp;
-			err = snd_hda_ctl_add(codec,
-						get_amp_nid_(spec->beep_amp),
-						kctl);
+			err = snd_hda_ctl_add(codec, 0, kctl);
 			if (err < 0)
 				return err;
 		}
@@ -832,7 +830,7 @@ static struct snd_kcontrol_new ad1986a_automute_master_mixers[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
-		.subdevice = HDA_SUBDEV_NID_FLAG | HDA_SUBDEV_AMP_FLAG | 0x1a,
+		.subdevice = HDA_SUBDEV_AMP_FLAG,
 		.info = snd_hda_mixer_amp_switch_info,
 		.get = snd_hda_mixer_amp_switch_get,
 		.put = ad1986a_hp_master_sw_put,
@@ -2602,9 +2600,7 @@ static int add_control(struct ad198x_spec *spec, int type, const char *name,
 	if (! knew->name)
 		return -ENOMEM;
 	if (get_amp_nid_(val))
-		knew->subdevice = HDA_SUBDEV_NID_FLAG |
-				  HDA_SUBDEV_AMP_FLAG |
-				  get_amp_nid_(val);
+		knew->subdevice = HDA_SUBDEV_AMP_FLAG;
 	knew->private_value = val;
 	return 0;
 }
@@ -3758,7 +3754,7 @@ static struct snd_kcontrol_new ad1884a_laptop_mixers[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
-		.subdevice = HDA_SUBDEV_NID_FLAG | HDA_SUBDEV_AMP_FLAG | 0x21,
+		.subdevice = HDA_SUBDEV_AMP_FLAG,
 		.info = snd_hda_mixer_amp_switch_info,
 		.get = snd_hda_mixer_amp_switch_get,
 		.put = ad1884a_mobile_master_sw_put,
@@ -3787,7 +3783,7 @@ static struct snd_kcontrol_new ad1884a_mobile_mixers[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
-		.subdevice = HDA_SUBDEV_NID_FLAG | HDA_SUBDEV_AMP_FLAG | 0x21,
+		.subdevice = HDA_SUBDEV_AMP_FLAG,
 		.info = snd_hda_mixer_amp_switch_info,
 		.get = snd_hda_mixer_amp_switch_get,
 		.put = ad1884a_mobile_master_sw_put,
@@ -4129,7 +4125,7 @@ static struct snd_kcontrol_new ad1984a_touchsmart_mixers[] = {
 /*	HDA_CODEC_MUTE("Master Playback Switch", 0x21, 0x0, HDA_OUTPUT),*/
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.subdevice = HDA_SUBDEV_NID_FLAG | HDA_SUBDEV_AMP_FLAG | 0x21,
+		.subdevice = HDA_SUBDEV_AMP_FLAG,
 		.name = "Master Playback Switch",
 		.info = snd_hda_mixer_amp_switch_info,
 		.get = snd_hda_mixer_amp_switch_get,

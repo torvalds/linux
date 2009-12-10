@@ -1733,11 +1733,14 @@ int snd_hda_ctl_add(struct hda_codec *codec, hda_nid_t nid,
 	unsigned short flags = 0;
 	struct hda_nid_item *item;
 
-	if (kctl->id.subdevice & HDA_SUBDEV_AMP_FLAG)
+	if (kctl->id.subdevice & HDA_SUBDEV_AMP_FLAG) {
 		flags |= HDA_NID_ITEM_AMP;
+		if (nid == 0)
+			nid = get_amp_nid_(kctl->private_value);
+	}
 	if ((kctl->id.subdevice & HDA_SUBDEV_NID_FLAG) != 0 && nid == 0)
 		nid = kctl->id.subdevice & 0xffff;
-	if (kctl->id.subdevice & 0xf0000000)
+	if (kctl->id.subdevice & (HDA_SUBDEV_NID_FLAG|HDA_SUBDEV_AMP_FLAG))
 		kctl->id.subdevice = 0;
 	err = snd_ctl_add(codec->bus->card, kctl);
 	if (err < 0)
