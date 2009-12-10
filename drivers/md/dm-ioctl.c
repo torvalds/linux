@@ -235,7 +235,7 @@ static void __hash_remove(struct hash_cell *hc)
 	dm_set_mdptr(hc->md, NULL);
 	mutex_unlock(&dm_hash_cells_mutex);
 
-	table = dm_get_table(hc->md);
+	table = dm_get_live_table(hc->md);
 	if (table) {
 		dm_table_event(table);
 		dm_table_put(table);
@@ -338,7 +338,7 @@ static int dm_hash_rename(uint32_t cookie, const char *old, const char *new)
 	/*
 	 * Wake up any dm event waiters.
 	 */
-	table = dm_get_table(hc->md);
+	table = dm_get_live_table(hc->md);
 	if (table) {
 		dm_table_event(table);
 		dm_table_put(table);
@@ -564,7 +564,7 @@ static int __dev_status(struct mapped_device *md, struct dm_ioctl *param)
 
 	param->event_nr = dm_get_event_nr(md);
 
-	table = dm_get_table(md);
+	table = dm_get_live_table(md);
 	if (table) {
 		param->flags |= DM_ACTIVE_PRESENT_FLAG;
 		param->target_count = dm_table_get_num_targets(table);
@@ -993,7 +993,7 @@ static int dev_wait(struct dm_ioctl *param, size_t param_size)
 	if (r)
 		goto out;
 
-	table = dm_get_table(md);
+	table = dm_get_live_table(md);
 	if (table) {
 		retrieve_status(table, param, param_size);
 		dm_table_put(table);
@@ -1226,7 +1226,7 @@ static int table_deps(struct dm_ioctl *param, size_t param_size)
 	if (r)
 		goto out;
 
-	table = dm_get_table(md);
+	table = dm_get_live_table(md);
 	if (table) {
 		retrieve_deps(table, param, param_size);
 		dm_table_put(table);
@@ -1255,7 +1255,7 @@ static int table_status(struct dm_ioctl *param, size_t param_size)
 	if (r)
 		goto out;
 
-	table = dm_get_table(md);
+	table = dm_get_live_table(md);
 	if (table) {
 		retrieve_status(table, param, param_size);
 		dm_table_put(table);
@@ -1299,7 +1299,7 @@ static int target_message(struct dm_ioctl *param, size_t param_size)
 		goto out;
 	}
 
-	table = dm_get_table(md);
+	table = dm_get_live_table(md);
 	if (!table)
 		goto out_argv;
 

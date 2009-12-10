@@ -276,7 +276,7 @@ void dm_table_unplug_all(struct dm_table *t);
 /*
  * Table reference counting.
  */
-struct dm_table *dm_get_table(struct mapped_device *md);
+struct dm_table *dm_get_live_table(struct mapped_device *md);
 void dm_table_get(struct dm_table *t);
 void dm_table_put(struct dm_table *t);
 

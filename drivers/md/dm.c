@@ -397,7 +397,7 @@ static int dm_blk_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long arg)
 {
 	struct mapped_device *md = bdev->bd_disk->private_data;
-	struct dm_table *map = dm_get_table(md);
+	struct dm_table *map = dm_get_live_table(md);
 	struct dm_target *tgt;
 	int r = -ENOTTY;
 
@@ -528,7 +528,7 @@ static void queue_io(struct mapped_device *md, struct bio *bio)
  * function to access the md->map field, and make sure they call
  * dm_table_put() when finished.
  */
-struct dm_table *dm_get_table(struct mapped_device *md)
+struct dm_table *dm_get_live_table(struct mapped_device *md)
 {
 	struct dm_table *t;
 	unsigned long flags;
@@ -1294,7 +1294,7 @@ static void __split_and_process_bio(struct mapped_device *md, struct bio *bio)
 	struct clone_info ci;
 	int error = 0;
 
-	ci.map = dm_get_table(md);
+	ci.map = dm_get_live_table(md);
 	if (unlikely(!ci.map)) {
 		if (!bio_rw_flagged(bio, BIO_RW_BARRIER))
 			bio_io_error(bio);
@@ -1335,7 +1335,7 @@ static int dm_merge_bvec(struct request_queue *q,
 			 struct bio_vec *biovec)
 {
 	struct mapped_device *md = q->queuedata;
-	struct dm_table *map = dm_get_table(md);
+	struct dm_table *map = dm_get_live_table(md);
 	struct dm_target *ti;
 	sector_t max_sectors;
 	int max_size = 0;
@@ -1638,7 +1638,7 @@ static void map_request(struct dm_target *ti, struct request *clone,
 static void dm_request_fn(struct request_queue *q)
 {
 	struct mapped_device *md = q->queuedata;
-	struct dm_table *map = dm_get_table(md);
+	struct dm_table *map = dm_get_live_table(md);
 	struct dm_target *ti;
 	struct request *rq, *clone;
 
@@ -1697,7 +1697,7 @@ static int dm_lld_busy(struct request_queue *q)
 {
 	int r;
 	struct mapped_device *md = q->queuedata;
-	struct dm_table *map = dm_get_table(md);
+	struct dm_table *map = dm_get_live_table(md);
 
 	if (!map || test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags))
 		r = 1;
@@ -1712,7 +1712,7 @@ static int dm_lld_busy(struct request_queue *q)
 static void dm_unplug_all(struct request_queue *q)
 {
 	struct mapped_device *md = q->queuedata;
-	struct dm_table *map = dm_get_table(md);
+	struct dm_table *map = dm_get_live_table(md);
 
 	if (map) {
 		if (dm_request_based(md))
@@ -1730,7 +1730,7 @@ static int dm_any_congested(void *congested_data, int bdi_bits)
 	struct dm_table *map;
 
 	if (!test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags)) {
-		map = dm_get_table(md);
+		map = dm_get_live_table(md);
 		if (map) {
 			/*
 			 * Request-based dm cares about only own queue for
@@ -2166,7 +2166,7 @@ void dm_put(struct mapped_device *md)
 	BUG_ON(test_bit(DMF_FREEING, &md->flags));
 
 	if (atomic_dec_and_lock(&md->holders, &_minor_lock)) {
-		map = dm_get_table(md);
+		map = dm_get_live_table(md);
 		idr_replace(&_minor_idr, MINOR_ALLOCED,
 			    MINOR(disk_devt(dm_disk(md))));
 		set_bit(DMF_FREEING, &md->flags);
@@ -2302,7 +2302,7 @@ static void dm_rq_set_flush_nr(struct request *clone, unsigned flush_nr)
 static int dm_rq_barrier(struct mapped_device *md)
 {
 	int i, j;
-	struct dm_table *map = dm_get_table(md);
+	struct dm_table *map = dm_get_live_table(md);
 	unsigned num_targets = dm_table_get_num_targets(map);
 	struct dm_target *ti;
 	struct request *clone;
@@ -2453,7 +2453,7 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 		goto out_unlock;
 	}
 
-	map = dm_get_table(md);
+	map = dm_get_live_table(md);
 
 	/*
 	 * DMF_NOFLUSH_SUSPENDING must be set before presuspend.
@@ -2558,7 +2558,7 @@ int dm_resume(struct mapped_device *md)
 	if (!dm_suspended(md))
 		goto out;
 
-	map = dm_get_table(md);
+	map = dm_get_live_table(md);
 	if (!map || !dm_table_get_size(map))
 		goto out;
 
