@@ -2033,9 +2033,13 @@ static void __set_size(struct mapped_device *md, sector_t size)
 	mutex_unlock(&md->bdev->bd_inode->i_mutex);
 }
 
-static int __bind(struct mapped_device *md, struct dm_table *t,
-		  struct queue_limits *limits)
+/*
+ * Returns old map, which caller must destroy.
+ */
+static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
+			       struct queue_limits *limits)
 {
+	struct dm_table *old_map;
 	struct request_queue *q = md->queue;
 	sector_t size;
 	unsigned long flags;
@@ -2049,11 +2053,6 @@ static int __bind(struct mapped_device *md, struct dm_table *t,
 		memset(&md->geometry, 0, sizeof(md->geometry));
 
 	__set_size(md, size);
-
-	if (!size) {
-		dm_table_destroy(t);
-		return 0;
-	}
 
 	dm_table_event_callback(t, event_callback, md);
 
@@ -2070,11 +2069,12 @@ static int __bind(struct mapped_device *md, struct dm_table *t,
 	__bind_mempools(md, t);
 
 	write_lock_irqsave(&md->map_lock, flags);
+	old_map = md->map;
 	md->map = t;
 	dm_table_set_restrictions(t, q, limits);
 	write_unlock_irqrestore(&md->map_lock, flags);
 
-	return 0;
+	return old_map;
 }
 
 /*
@@ -2368,13 +2368,13 @@ static void dm_rq_barrier_work(struct work_struct *work)
 }
 
 /*
- * Swap in a new table (destroying old one).
+ * Swap in a new table, returning the old one for the caller to destroy.
  */
-int dm_swap_table(struct mapped_device *md, struct dm_table *table)
+struct dm_table *dm_swap_table(struct mapped_device *md, struct dm_table *table)
 {
-	struct dm_table *map;
+	struct dm_table *map = ERR_PTR(-EINVAL);
 	struct queue_limits limits;
-	int r = -EINVAL;
+	int r;
 
 	mutex_lock(&md->suspend_lock);
 
@@ -2383,8 +2383,10 @@ int dm_swap_table(struct mapped_device *md, struct dm_table *table)
 		goto out;
 
 	r = dm_calculate_queue_limits(table, &limits);
-	if (r)
+	if (r) {
+		map = ERR_PTR(r);
 		goto out;
+	}
 
 	/* cannot change the device type, once a table is bound */
 	if (md->map &&
@@ -2393,13 +2395,11 @@ int dm_swap_table(struct mapped_device *md, struct dm_table *table)
 		goto out;
 	}
 
-	map = __unbind(md);
-	r = __bind(md, table, &limits);
-	dm_table_destroy(map);
+	map = __bind(md, table, &limits);
 
 out:
 	mutex_unlock(&md->suspend_lock);
-	return r;
+	return map;
 }
 
 /*

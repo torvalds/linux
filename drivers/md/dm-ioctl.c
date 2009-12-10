@@ -855,7 +855,7 @@ static int do_resume(struct dm_ioctl *param)
 	unsigned suspend_flags = DM_SUSPEND_LOCKFS_FLAG;
 	struct hash_cell *hc;
 	struct mapped_device *md;
-	struct dm_table *new_map;
+	struct dm_table *new_map, *old_map = NULL;
 
 	down_write(&_hash_lock);
 
@@ -884,11 +884,11 @@ static int do_resume(struct dm_ioctl *param)
 		if (!dm_suspended(md))
 			dm_suspend(md, suspend_flags);
 
-		r = dm_swap_table(md, new_map);
-		if (r) {
+		old_map = dm_swap_table(md, new_map);
+		if (IS_ERR(old_map)) {
 			dm_table_destroy(new_map);
 			dm_put(md);
-			return r;
+			return PTR_ERR(old_map);
 		}
 
 		if (dm_table_get_mode(new_map) & FMODE_WRITE)
@@ -900,6 +900,8 @@ static int do_resume(struct dm_ioctl *param)
 	if (dm_suspended(md))
 		r = dm_resume(md);
 
+	if (old_map)
+		dm_table_destroy(old_map);
 
 	if (!r) {
 		dm_kobject_uevent(md, KOBJ_CHANGE, param->event_nr);
