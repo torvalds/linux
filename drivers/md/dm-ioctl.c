@@ -523,8 +523,6 @@ static int list_versions(struct dm_ioctl *param, size_t param_size)
 	return 0;
 }
 
-
-
 static int check_name(const char *name)
 {
 	if (strchr(name, '/')) {
@@ -533,6 +531,40 @@ static int check_name(const char *name)
 	}
 
 	return 0;
+}
+
+/*
+ * On successful return, the caller must not attempt to acquire
+ * _hash_lock without first calling dm_table_put, because dm_table_destroy
+ * waits for this dm_table_put and could be called under this lock.
+ */
+static struct dm_table *dm_get_inactive_table(struct mapped_device *md)
+{
+	struct hash_cell *hc;
+	struct dm_table *table = NULL;
+
+	down_read(&_hash_lock);
+	hc = dm_get_mdptr(md);
+	if (!hc || hc->md != md) {
+		DMWARN("device has been removed from the dev hash table.");
+		goto out;
+	}
+
+	table = hc->new_map;
+	if (table)
+		dm_table_get(table);
+
+out:
+	up_read(&_hash_lock);
+
+	return table;
+}
+
+static struct dm_table *dm_get_live_or_inactive_table(struct mapped_device *md,
+						      struct dm_ioctl *param)
+{
+	return (param->flags & DM_QUERY_INACTIVE_TABLE_FLAG) ?
+		dm_get_inactive_table(md) : dm_get_live_table(md);
 }
 
 /*
@@ -559,18 +591,30 @@ static int __dev_status(struct mapped_device *md, struct dm_ioctl *param)
 	 */
 	param->open_count = dm_open_count(md);
 
-	if (get_disk_ro(disk))
-		param->flags |= DM_READONLY_FLAG;
-
 	param->event_nr = dm_get_event_nr(md);
+	param->target_count = 0;
 
 	table = dm_get_live_table(md);
 	if (table) {
-		param->flags |= DM_ACTIVE_PRESENT_FLAG;
-		param->target_count = dm_table_get_num_targets(table);
+		if (!(param->flags & DM_QUERY_INACTIVE_TABLE_FLAG)) {
+			if (get_disk_ro(disk))
+				param->flags |= DM_READONLY_FLAG;
+			param->target_count = dm_table_get_num_targets(table);
+		}
 		dm_table_put(table);
-	} else
-		param->target_count = 0;
+
+		param->flags |= DM_ACTIVE_PRESENT_FLAG;
+	}
+
+	if (param->flags & DM_QUERY_INACTIVE_TABLE_FLAG) {
+		table = dm_get_inactive_table(md);
+		if (table) {
+			if (!(dm_table_get_mode(table) & FMODE_WRITE))
+				param->flags |= DM_READONLY_FLAG;
+			param->target_count = dm_table_get_num_targets(table);
+			dm_table_put(table);
+		}
+	}
 
 	return 0;
 }
@@ -993,7 +1037,7 @@ static int dev_wait(struct dm_ioctl *param, size_t param_size)
 	if (r)
 		goto out;
 
-	table = dm_get_live_table(md);
+	table = dm_get_live_or_inactive_table(md, param);
 	if (table) {
 		retrieve_status(table, param, param_size);
 		dm_table_put(table);
@@ -1226,7 +1270,7 @@ static int table_deps(struct dm_ioctl *param, size_t param_size)
 	if (r)
 		goto out;
 
-	table = dm_get_live_table(md);
+	table = dm_get_live_or_inactive_table(md, param);
 	if (table) {
 		retrieve_deps(table, param, param_size);
 		dm_table_put(table);
@@ -1255,13 +1299,13 @@ static int table_status(struct dm_ioctl *param, size_t param_size)
 	if (r)
 		goto out;
 
-	table = dm_get_live_table(md);
+	table = dm_get_live_or_inactive_table(md, param);
 	if (table) {
 		retrieve_status(table, param, param_size);
 		dm_table_put(table);
 	}
 
- out:
+out:
 	dm_put(md);
 	return r;
 }
