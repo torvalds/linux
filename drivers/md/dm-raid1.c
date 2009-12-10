@@ -181,6 +181,17 @@ static void set_default_mirror(struct mirror *m)
 	atomic_set(&ms->default_mirror, m - m0);
 }
 
+static struct mirror *get_valid_mirror(struct mirror_set *ms)
+{
+	struct mirror *m;
+
+	for (m = ms->mirror; m < ms->mirror + ms->nr_mirrors; m++)
+		if (!atomic_read(&m->error_count))
+			return m;
+
+	return NULL;
+}
+
 /* fail_mirror
  * @m: mirror device to fail
  * @error_type: one of the enum's, DM_RAID1_*_ERROR
@@ -226,13 +237,10 @@ static void fail_mirror(struct mirror *m, enum dm_raid1_error error_type)
 		goto out;
 	}
 
-	for (new = ms->mirror; new < ms->mirror + ms->nr_mirrors; new++)
-		if (!atomic_read(&new->error_count)) {
-			set_default_mirror(new);
-			break;
-		}
-
-	if (unlikely(new == ms->mirror + ms->nr_mirrors))
+	new = get_valid_mirror(ms);
+	if (new)
+		set_default_mirror(new);
+	else
 		DMWARN("All sides of mirror have failed.");
 
 out:
