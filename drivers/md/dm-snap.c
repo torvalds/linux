@@ -106,7 +106,19 @@ struct dm_snapshot {
 	mempool_t *tracked_chunk_pool;
 	spinlock_t tracked_chunk_lock;
 	struct hlist_head tracked_chunk_hash[DM_TRACKED_CHUNK_HASH_SIZE];
+
+	/* Wait for events based on state_bits */
+	unsigned long state_bits;
 };
+
+/*
+ * state_bits:
+ *   RUNNING_MERGE  - Merge operation is in progress.
+ *   SHUTDOWN_MERGE - Set to signal that merge needs to be stopped;
+ *                    cleared afterwards.
+ */
+#define RUNNING_MERGE          0
+#define SHUTDOWN_MERGE         1
 
 struct dm_dev *dm_snap_cow(struct dm_snapshot *s)
 {
@@ -383,6 +395,13 @@ static int __validate_exception_handover(struct dm_snapshot *snap)
 	 */
 	if (snap_merge) {
 		snap->ti->error = "A snapshot is already merging.";
+		return -EINVAL;
+	}
+
+	if (!snap_src->store->type->prepare_merge ||
+	    !snap_src->store->type->commit_merge) {
+		snap->ti->error = "Snapshot exception store does not "
+				  "support snapshot-merge.";
 		return -EINVAL;
 	}
 
@@ -721,6 +740,178 @@ static int init_hash_tables(struct dm_snapshot *s)
 	return 0;
 }
 
+static void merge_shutdown(struct dm_snapshot *s)
+{
+	clear_bit_unlock(RUNNING_MERGE, &s->state_bits);
+	smp_mb__after_clear_bit();
+	wake_up_bit(&s->state_bits, RUNNING_MERGE);
+}
+
+/*
+ * Remove one chunk from the index of completed exceptions.
+ */
+static int __remove_single_exception_chunk(struct dm_snapshot *s,
+					   chunk_t old_chunk)
+{
+	struct dm_exception *e;
+
+	/* FIXME: interlock writes to this chunk */
+
+	e = dm_lookup_exception(&s->complete, old_chunk);
+	if (!e) {
+		DMERR("Corruption detected: exception for block %llu is "
+		      "on disk but not in memory",
+		      (unsigned long long)old_chunk);
+		return -EINVAL;
+	}
+
+	/*
+	 * If this is the only chunk using this exception, remove exception.
+	 */
+	if (!dm_consecutive_chunk_count(e)) {
+		dm_remove_exception(e);
+		free_completed_exception(e);
+		return 0;
+	}
+
+	/*
+	 * The chunk may be either at the beginning or the end of a
+	 * group of consecutive chunks - never in the middle.  We are
+	 * removing chunks in the opposite order to that in which they
+	 * were added, so this should always be true.
+	 * Decrement the consecutive chunk counter and adjust the
+	 * starting point if necessary.
+	 */
+	if (old_chunk == e->old_chunk) {
+		e->old_chunk++;
+		e->new_chunk++;
+	} else if (old_chunk != e->old_chunk +
+		   dm_consecutive_chunk_count(e)) {
+		DMERR("Attempt to merge block %llu from the "
+		      "middle of a chunk range [%llu - %llu]",
+		      (unsigned long long)old_chunk,
+		      (unsigned long long)e->old_chunk,
+		      (unsigned long long)
+		      e->old_chunk + dm_consecutive_chunk_count(e));
+		return -EINVAL;
+	}
+
+	dm_consecutive_chunk_count_dec(e);
+
+	return 0;
+}
+
+static int remove_single_exception_chunk(struct dm_snapshot *s,
+					 chunk_t old_chunk)
+{
+	int r = 0;
+
+	down_write(&s->lock);
+	r = __remove_single_exception_chunk(s, old_chunk);
+	up_write(&s->lock);
+
+	return r;
+}
+
+static void merge_callback(int read_err, unsigned long write_err,
+			   void *context);
+
+static void snapshot_merge_next_chunks(struct dm_snapshot *s)
+{
+	int r;
+	chunk_t old_chunk, new_chunk;
+	struct dm_io_region src, dest;
+
+	BUG_ON(!test_bit(RUNNING_MERGE, &s->state_bits));
+	if (unlikely(test_bit(SHUTDOWN_MERGE, &s->state_bits)))
+		goto shut;
+
+	/*
+	 * valid flag never changes during merge, so no lock required.
+	 */
+	if (!s->valid) {
+		DMERR("Snapshot is invalid: can't merge");
+		goto shut;
+	}
+
+	r = s->store->type->prepare_merge(s->store, &old_chunk, &new_chunk);
+	if (r <= 0) {
+		if (r < 0)
+			DMERR("Read error in exception store: "
+			      "shutting down merge");
+		goto shut;
+	}
+
+	/* TODO: use larger I/O size once we verify that kcopyd handles it */
+
+	if (remove_single_exception_chunk(s, old_chunk) < 0)
+		goto shut;
+
+	dest.bdev = s->origin->bdev;
+	dest.sector = chunk_to_sector(s->store, old_chunk);
+	dest.count = min((sector_t)s->store->chunk_size,
+			 get_dev_size(dest.bdev) - dest.sector);
+
+	src.bdev = s->cow->bdev;
+	src.sector = chunk_to_sector(s->store, new_chunk);
+	src.count = dest.count;
+
+	dm_kcopyd_copy(s->kcopyd_client, &src, 1, &dest, 0, merge_callback, s);
+	return;
+
+shut:
+	merge_shutdown(s);
+}
+
+static void merge_callback(int read_err, unsigned long write_err, void *context)
+{
+	struct dm_snapshot *s = context;
+
+	if (read_err || write_err) {
+		if (read_err)
+			DMERR("Read error: shutting down merge.");
+		else
+			DMERR("Write error: shutting down merge.");
+		goto shut;
+	}
+
+	if (s->store->type->commit_merge(s->store, 1) < 0) {
+		DMERR("Write error in exception store: shutting down merge");
+		goto shut;
+	}
+
+	snapshot_merge_next_chunks(s);
+
+	return;
+
+shut:
+	merge_shutdown(s);
+}
+
+static void start_merge(struct dm_snapshot *s)
+{
+	if (!test_and_set_bit(RUNNING_MERGE, &s->state_bits))
+		snapshot_merge_next_chunks(s);
+}
+
+static int wait_schedule(void *ptr)
+{
+	schedule();
+
+	return 0;
+}
+
+/*
+ * Stop the merging process and wait until it finishes.
+ */
+static void stop_merge(struct dm_snapshot *s)
+{
+	set_bit(SHUTDOWN_MERGE, &s->state_bits);
+	wait_on_bit(&s->state_bits, RUNNING_MERGE, wait_schedule,
+		    TASK_UNINTERRUPTIBLE);
+	clear_bit(SHUTDOWN_MERGE, &s->state_bits);
+}
+
 /*
  * Construct a snapshot mapping: <origin_dev> <COW-dev> <p/n> <chunk-size>
  */
@@ -791,6 +982,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	init_rwsem(&s->lock);
 	INIT_LIST_HEAD(&s->list);
 	spin_lock_init(&s->pe_lock);
+	s->state_bits = 0;
 
 	/* Allocate hash table for COW data */
 	if (init_hash_tables(s)) {
@@ -962,6 +1154,9 @@ static void snapshot_dtr(struct dm_target *ti)
 		DMERR("Cancelling snapshot handover.");
 	}
 	up_read(&_origins_lock);
+
+	if (dm_target_is_snapshot_merge(ti))
+		stop_merge(s);
 
 	/* Prevent further origin writes from using this snapshot. */
 	/* After this returns there can be no new kcopyd jobs. */
@@ -1404,6 +1599,13 @@ static int snapshot_end_io(struct dm_target *ti, struct bio *bio,
 	return 0;
 }
 
+static void snapshot_merge_presuspend(struct dm_target *ti)
+{
+	struct dm_snapshot *s = ti->private;
+
+	stop_merge(s);
+}
+
 static void snapshot_postsuspend(struct dm_target *ti)
 {
 	struct dm_snapshot *s = ti->private;
@@ -1462,6 +1664,34 @@ static void snapshot_resume(struct dm_target *ti)
 	s->active = 1;
 	s->suspended = 0;
 	up_write(&s->lock);
+}
+
+static sector_t get_origin_minimum_chunksize(struct block_device *bdev)
+{
+	sector_t min_chunksize;
+
+	down_read(&_origins_lock);
+	min_chunksize = __minimum_chunk_size(__lookup_origin(bdev));
+	up_read(&_origins_lock);
+
+	return min_chunksize;
+}
+
+static void snapshot_merge_resume(struct dm_target *ti)
+{
+	struct dm_snapshot *s = ti->private;
+
+	/*
+	 * Handover exceptions from existing snapshot.
+	 */
+	snapshot_resume(ti);
+
+	/*
+	 * snapshot-merge acts as an origin, so set ti->split_io
+	 */
+	ti->split_io = get_origin_minimum_chunksize(s->origin->bdev);
+
+	start_merge(s);
 }
 
 static int snapshot_status(struct dm_target *ti, status_type_t type,
@@ -1722,11 +1952,7 @@ static void origin_resume(struct dm_target *ti)
 {
 	struct dm_dev *dev = ti->private;
 
-	down_read(&_origins_lock);
-
-	ti->split_io = __minimum_chunk_size(__lookup_origin(dev->bdev));
-
-	up_read(&_origins_lock);
+	ti->split_io = get_origin_minimum_chunksize(dev->bdev);
 }
 
 static int origin_status(struct dm_target *ti, status_type_t type, char *result,
@@ -1790,9 +2016,10 @@ static struct target_type merge_target = {
 	.dtr     = snapshot_dtr,
 	.map     = snapshot_merge_map,
 	.end_io  = snapshot_end_io,
+	.presuspend = snapshot_merge_presuspend,
 	.postsuspend = snapshot_postsuspend,
 	.preresume  = snapshot_preresume,
-	.resume  = snapshot_resume,
+	.resume  = snapshot_merge_resume,
 	.status  = snapshot_status,
 	.iterate_devices = snapshot_iterate_devices,
 };
