@@ -1200,7 +1200,7 @@ static struct pci_driver cx18_pci_driver = {
       .remove =   cx18_remove,
 };
 
-static int module_start(void)
+static int __init module_start(void)
 {
 	printk(KERN_INFO "cx18:  Start initialization, version %s\n", CX18_VERSION);
 
@@ -1224,7 +1224,7 @@ static int module_start(void)
 	return 0;
 }
 
-static void module_cleanup(void)
+static void __exit module_cleanup(void)
 {
 	pci_unregister_driver(&cx18_pci_driver);
 }

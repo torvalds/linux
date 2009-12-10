@@ -556,7 +556,7 @@ static void rlb_update_rx_clients(struct bonding *bond)
 		}
 	}
 
-	/* do not update the entries again untill this counter is zero so that
+	/* do not update the entries again until this counter is zero so that
 	 * not to confuse the clients.
 	 */
 	bond_info->rlb_update_delay_counter = RLB_UPDATE_DELAY;

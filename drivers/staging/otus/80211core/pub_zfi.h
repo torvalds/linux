@@ -20,7 +20,7 @@
 #include "../oal_dt.h"
 
 /***** Section 1 : Tunable Parameters *****/
-/* The defintions in this section are tunabel parameters */
+/* The definitions in this section are tunabel parameters */
 
 /* Maximum number of BSS that could be scaned */
 #define ZM_MAX_BSS                          128

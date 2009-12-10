@@ -3651,7 +3651,7 @@ static int ql_adapter_up(struct ql3_adapter *qdev)
 		ql_sem_unlock(qdev, QL_DRVR_SEM_MASK);
 	} else {
 		printk(KERN_ERR PFX
-		       "%s: Could not aquire driver lock.\n",
+		       "%s: Could not acquire driver lock.\n",
 		       ndev->name);
 		goto err_lock;
 	}

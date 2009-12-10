@@ -427,7 +427,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 
 		/*
 		 * We need to use vmap to get the desired page protection
-		 * or to make the buffer object look contigous.
+		 * or to make the buffer object look contiguous.
 		 */
 		prot = (mem->placement & TTM_PL_FLAG_CACHED) ?
 			PAGE_KERNEL :

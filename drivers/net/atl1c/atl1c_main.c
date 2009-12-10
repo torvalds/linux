@@ -1540,7 +1540,7 @@ static irqreturn_t atl1c_intr(int irq, void *data)
 		if (status & ISR_OVER)
 			if (netif_msg_intr(adapter))
 				dev_warn(&pdev->dev,
-					"TX/RX over flow (status = 0x%x)\n",
+					"TX/RX overflow (status = 0x%x)\n",
 					status & ISR_OVER);
 
 		/* link event */

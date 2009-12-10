@@ -96,7 +96,7 @@
  *
  *      Change by Mike Sullivan et al.:
  *      + added turbo card support. No need to use lanaid to configure
- *      the adapter into isa compatiblity mode.
+ *      the adapter into isa compatibility mode.
  *
  *      Changes by Burt Silverman to allow the computer to behave nicely when
  *	a cable is pulled or not in place, or a PCMCIA card is removed hot.

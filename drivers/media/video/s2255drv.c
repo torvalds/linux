@@ -1980,7 +1980,7 @@ static int save_frame(struct s2255_dev *dev, struct s2255_pipeinfo *pipe_info)
 					wake_up(&dev->fw_data->wait_fw);
 					break;
 				default:
-					printk(KERN_INFO "s2255 unknwn resp\n");
+					printk(KERN_INFO "s2255 unknown resp\n");
 				}
 			default:
 				pdata++;
