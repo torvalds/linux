@@ -536,8 +536,7 @@ void zfProtRspSim(zdev_t* dev, zbuf_t* buf)
         zm_msg2_rx(ZM_LV_2, "ip1=", dip[1]);
 
         //ARP request to 192.168.1.15
-        if ((arpOp == 0x0100) && (dip[0] == 0xa8c0) && (dip[1] == 0x0f01));
-        {
+        if ((arpOp == 0x0100) && (dip[0] == 0xa8c0) && (dip[1] == 0x0f01)) {
             zm_msg0_rx(ZM_LV_2, "ARP");
             /* ARP response */
             zmw_rx_buf_writeh(dev, buf, 20, 0x0200);
