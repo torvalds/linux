@@ -71,7 +71,10 @@ struct dm_snapshot {
 	/* List of snapshots per Origin */
 	struct list_head list;
 
-	/* You can't use a snapshot if this is 0 (e.g. if full) */
+	/*
+	 * You can't use a snapshot if this is 0 (e.g. if full).
+	 * A snapshot-merge target never clears this.
+	 */
 	int valid;
 
 	/* Origin writes don't trigger exceptions until this is set */
@@ -106,6 +109,21 @@ struct dm_snapshot {
 	mempool_t *tracked_chunk_pool;
 	spinlock_t tracked_chunk_lock;
 	struct hlist_head tracked_chunk_hash[DM_TRACKED_CHUNK_HASH_SIZE];
+
+	/*
+	 * The merge operation failed if this flag is set.
+	 * Failure modes are handled as follows:
+	 * - I/O error reading the header
+	 *   	=> don't load the target; abort.
+	 * - Header does not have "valid" flag set
+	 *   	=> use the origin; forget about the snapshot.
+	 * - I/O error when reading exceptions
+	 *   	=> don't load the target; abort.
+	 *         (We can't use the intermediate origin state.)
+	 * - I/O error while merging
+	 *	=> stop merging; set merge_failed; process I/O normally.
+	 */
+	int merge_failed;
 
 	/* Wait for events based on state_bits */
 	unsigned long state_bits;
@@ -900,9 +918,13 @@ static void snapshot_merge_next_chunks(struct dm_snapshot *s)
 	linear_chunks = s->store->type->prepare_merge(s->store, &old_chunk,
 						      &new_chunk);
 	if (linear_chunks <= 0) {
-		if (linear_chunks < 0)
+		if (linear_chunks < 0) {
 			DMERR("Read error in exception store: "
 			      "shutting down merge");
+			down_write(&s->lock);
+			s->merge_failed = 1;
+			up_write(&s->lock);
+		}
 		goto shut;
 	}
 
@@ -988,6 +1010,7 @@ static void merge_callback(int read_err, unsigned long write_err, void *context)
 
 shut:
 	down_write(&s->lock);
+	s->merge_failed = 1;
 	b = __release_queued_bios_after_merge(s);
 	up_write(&s->lock);
 	error_bios(b);
@@ -1090,6 +1113,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	INIT_LIST_HEAD(&s->list);
 	spin_lock_init(&s->pe_lock);
 	s->state_bits = 0;
+	s->merge_failed = 0;
 	s->first_merging_chunk = 0;
 	s->num_merging_chunks = 0;
 	bio_list_init(&s->bios_queued_during_merge);
@@ -1835,6 +1859,8 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 
 		if (!snap->valid)
 			DMEMIT("Invalid");
+		else if (snap->merge_failed)
+			DMEMIT("Merge failed");
 		else {
 			if (snap->store->type->usage) {
 				sector_t total_sectors, sectors_allocated,
