@@ -735,15 +735,15 @@ ptregs_##name: \
 	ALIGN; \
 ptregs_##name: \
 	leal 4(%esp),%edx; \
-	movl PT_EBX(%edx),%eax; \
+	movl (PT_EBX+4)(%esp),%eax; \
 	jmp sys_##name;
 
 #define PTREGSCALL2(name) \
 	ALIGN; \
 ptregs_##name: \
 	leal 4(%esp),%ecx; \
-	movl PT_ECX(%ecx),%edx; \
-	movl PT_EBX(%ecx),%eax; \
+	movl (PT_ECX+4)(%esp),%edx; \
+	movl (PT_EBX+4)(%esp),%eax; \
 	jmp sys_##name;
 
 #define PTREGSCALL3(name) \
