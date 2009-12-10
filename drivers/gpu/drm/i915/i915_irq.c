@@ -546,7 +546,6 @@ static void i915_handle_error(struct drm_device *dev, bool wedged)
 		/*
 		 * Wakeup waiting processes so they don't hang
 		 */
-		printk("i915: Waking up sleeping processes\n");
 		DRM_WAKEUP(&dev_priv->irq_queue);
 	}
 

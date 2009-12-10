@@ -756,10 +756,6 @@ int i915_save_state(struct drm_device *dev)
 		dev_priv->saveIMR = I915_READ(IMR);
 	}
 
-	/* Clock gating state */
-	dev_priv->saveD_STATE = I915_READ(D_STATE);
-	dev_priv->saveDSPCLK_GATE_D = I915_READ(DSPCLK_GATE_D); /* Not sure about this */
-
 	/* Cache mode state */
 	dev_priv->saveCACHE_MODE_0 = I915_READ(CACHE_MODE_0);
 
@@ -834,8 +830,7 @@ int i915_restore_state(struct drm_device *dev)
 	}
 
 	/* Clock gating state */
-	I915_WRITE (D_STATE, dev_priv->saveD_STATE);
-	I915_WRITE (DSPCLK_GATE_D, dev_priv->saveDSPCLK_GATE_D);
+	intel_init_clock_gating(dev);
 
 	/* Cache mode state */
 	I915_WRITE (CACHE_MODE_0, dev_priv->saveCACHE_MODE_0 | 0xffff0000);
