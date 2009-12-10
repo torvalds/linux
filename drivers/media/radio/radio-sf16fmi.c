@@ -1,4 +1,4 @@
-/* SF16FMI radio driver for Linux radio support
+/* SF16-FMI and SF16-FMP radio driver for Linux radio support
  * heavily based on rtrack driver...
  * (c) 1997 M. Kirkwood
  * (c) 1998 Petr Vandrovec, vandrove@vc.cvut.cz
@@ -11,7 +11,7 @@
  *
  *  Frequency control is done digitally -- ie out(port,encodefreq(95.8));
  *  No volume control - only mute/unmute - you have to use line volume
- *  control on SB-part of SF16FMI
+ *  control on SB-part of SF16-FMI/SF16-FMP
  *
  * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@infradead.org>
  */
@@ -30,14 +30,14 @@
 #include <media/v4l2-ioctl.h>
 
 MODULE_AUTHOR("Petr Vandrovec, vandrove@vc.cvut.cz and M. Kirkwood");
-MODULE_DESCRIPTION("A driver for the SF16MI radio.");
+MODULE_DESCRIPTION("A driver for the SF16-FMI and SF16-FMP radio.");
 MODULE_LICENSE("GPL");
 
 static int io = -1;
 static int radio_nr = -1;
 
 module_param(io, int, 0);
-MODULE_PARM_DESC(io, "I/O address of the SF16MI card (0x284 or 0x384)");
+MODULE_PARM_DESC(io, "I/O address of the SF16-FMI or SF16-FMP card (0x284 or 0x384)");
 module_param(radio_nr, int, 0);
 
 #define RADIO_VERSION KERNEL_VERSION(0, 0, 2)
@@ -47,7 +47,7 @@ struct fmi
 	struct v4l2_device v4l2_dev;
 	struct video_device vdev;
 	int io;
-	int curvol; /* 1 or 0 */
+	bool mute;
 	unsigned long curfreq; /* freq in kHz */
 	struct mutex lock;
 };
@@ -105,7 +105,7 @@ static inline int fmi_setfreq(struct fmi *fmi, unsigned long freq)
 	outbits(8, 0xC0, fmi->io);
 	msleep(143);		/* was schedule_timeout(HZ/7) */
 	mutex_unlock(&fmi->lock);
-	if (fmi->curvol)
+	if (!fmi->mute)
 		fmi_unmute(fmi);
 	return 0;
 }
@@ -116,7 +116,7 @@ static inline int fmi_getsigstr(struct fmi *fmi)
 	int res;
 
 	mutex_lock(&fmi->lock);
-	val = fmi->curvol ? 0x08 : 0x00;	/* unmute/mute */
+	val = fmi->mute ? 0x00 : 0x08;	/* mute/unmute */
 	outb(val, fmi->io);
 	outb(val | 0x10, fmi->io);
 	msleep(143); 		/* was schedule_timeout(HZ/7) */
@@ -208,7 +208,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
-		ctrl->value = fmi->curvol;
+		ctrl->value = fmi->mute;
 		return 0;
 	}
 	return -EINVAL;
@@ -225,7 +225,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 			fmi_mute(fmi);
 		else
 			fmi_unmute(fmi);
-		fmi->curvol = ctrl->value;
+		fmi->mute = ctrl->value;
 		return 0;
 	}
 	return -EINVAL;
