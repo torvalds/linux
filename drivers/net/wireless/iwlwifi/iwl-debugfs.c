@@ -1867,6 +1867,58 @@ static ssize_t iwl_dbgfs_csr_write(struct file *file,
 	return count;
 }
 
+static ssize_t iwl_dbgfs_ucode_tracing_read(struct file *file,
+					char __user *user_buf,
+					size_t count, loff_t *ppos) {
+
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	int pos = 0;
+	char buf[128];
+	const size_t bufsz = sizeof(buf);
+	ssize_t ret;
+
+	pos += scnprintf(buf + pos, bufsz - pos, "ucode trace timer is %s\n",
+			priv->event_log.ucode_trace ? "On" : "Off");
+	pos += scnprintf(buf + pos, bufsz - pos, "non_wraps_count:\t\t %u\n",
+			priv->event_log.non_wraps_count);
+	pos += scnprintf(buf + pos, bufsz - pos, "wraps_once_count:\t\t %u\n",
+			priv->event_log.wraps_once_count);
+	pos += scnprintf(buf + pos, bufsz - pos, "wraps_more_count:\t\t %u\n",
+			priv->event_log.wraps_more_count);
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	return ret;
+}
+
+static ssize_t iwl_dbgfs_ucode_tracing_write(struct file *file,
+					 const char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	char buf[8];
+	int buf_size;
+	int trace;
+
+	memset(buf, 0, sizeof(buf));
+	buf_size = min(count, sizeof(buf) -  1);
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	if (sscanf(buf, "%d", &trace) != 1)
+		return -EFAULT;
+
+	if (trace) {
+		priv->event_log.ucode_trace = true;
+		/* schedule the ucode timer to occur in UCODE_TRACE_PERIOD */
+		mod_timer(&priv->ucode_trace,
+			jiffies + msecs_to_jiffies(UCODE_TRACE_PERIOD));
+	} else {
+		priv->event_log.ucode_trace = false;
+		del_timer_sync(&priv->ucode_trace);
+	}
+
+	return count;
+}
+
 DEBUGFS_READ_FILE_OPS(rx_statistics);
 DEBUGFS_READ_FILE_OPS(tx_statistics);
 DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
@@ -1882,6 +1934,7 @@ DEBUGFS_READ_FILE_OPS(power_save_status);
 DEBUGFS_WRITE_FILE_OPS(clear_ucode_statistics);
 DEBUGFS_WRITE_FILE_OPS(clear_traffic_statistics);
 DEBUGFS_WRITE_FILE_OPS(csr);
+DEBUGFS_READ_WRITE_FILE_OPS(ucode_tracing);
 
 /*
  * Create the debugfs files and directories
@@ -1939,6 +1992,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 		DEBUGFS_ADD_FILE(ucode_general_stats, debug, S_IRUSR);
 		DEBUGFS_ADD_FILE(sensitivity, debug, S_IRUSR);
 		DEBUGFS_ADD_FILE(chain_noise, debug, S_IRUSR);
+		DEBUGFS_ADD_FILE(ucode_tracing, debug, S_IWUSR | S_IRUSR);
 	}
 	DEBUGFS_ADD_BOOL(disable_sensitivity, rf, &priv->disable_sens_cal);
 	DEBUGFS_ADD_BOOL(disable_chain_noise, rf,
@@ -2002,6 +2056,8 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 			file_sensitivity);
 		DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.
 			file_chain_noise);
+		DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.
+			file_ucode_tracing);
 	}
 	DEBUGFS_REMOVE(priv->dbgfs->dir_debug);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_sensitivity);

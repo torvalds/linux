@@ -657,6 +657,131 @@ static void iwl_bg_statistics_periodic(unsigned long data)
 	iwl_send_statistics_request(priv, CMD_ASYNC, false);
 }
 
+
+static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
+					u32 start_idx, u32 num_events,
+					u32 mode)
+{
+	u32 i;
+	u32 ptr;        /* SRAM byte address of log data */
+	u32 ev, time, data; /* event log data */
+	unsigned long reg_flags;
+
+	if (mode == 0)
+		ptr = base + (4 * sizeof(u32)) + (start_idx * 2 * sizeof(u32));
+	else
+		ptr = base + (4 * sizeof(u32)) + (start_idx * 3 * sizeof(u32));
+
+	/* Make sure device is powered up for SRAM reads */
+	spin_lock_irqsave(&priv->reg_lock, reg_flags);
+	if (iwl_grab_nic_access(priv)) {
+		spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
+		return;
+	}
+
+	/* Set starting address; reads will auto-increment */
+	_iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR, ptr);
+	rmb();
+
+	/*
+	 * "time" is actually "data" for mode 0 (no timestamp).
+	 * place event id # at far right for easier visual parsing.
+	 */
+	for (i = 0; i < num_events; i++) {
+		ev = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
+		time = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
+		if (mode == 0) {
+			trace_iwlwifi_dev_ucode_cont_event(priv,
+							0, time, ev);
+		} else {
+			data = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
+			trace_iwlwifi_dev_ucode_cont_event(priv,
+						time, data, ev);
+		}
+	}
+	/* Allow device to power down */
+	iwl_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
+}
+
+void iwl_continuous_event_trace(struct iwl_priv *priv)
+{
+	u32 capacity;   /* event log capacity in # entries */
+	u32 base;       /* SRAM byte address of event log header */
+	u32 mode;       /* 0 - no timestamp, 1 - timestamp recorded */
+	u32 num_wraps;  /* # times uCode wrapped to top of log */
+	u32 next_entry; /* index of next entry to be written by uCode */
+
+	if (priv->ucode_type == UCODE_INIT)
+		base = le32_to_cpu(priv->card_alive_init.error_event_table_ptr);
+	else
+		base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
+	if (priv->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
+		capacity = iwl_read_targ_mem(priv, base);
+		num_wraps = iwl_read_targ_mem(priv, base + (2 * sizeof(u32)));
+		mode = iwl_read_targ_mem(priv, base + (1 * sizeof(u32)));
+		next_entry = iwl_read_targ_mem(priv, base + (3 * sizeof(u32)));
+	} else
+		return;
+
+	if (num_wraps == priv->event_log.num_wraps) {
+		iwl_print_cont_event_trace(priv,
+				       base, priv->event_log.next_entry,
+				       next_entry - priv->event_log.next_entry,
+				       mode);
+		priv->event_log.non_wraps_count++;
+	} else {
+		if ((num_wraps - priv->event_log.num_wraps) > 1)
+			priv->event_log.wraps_more_count++;
+		else
+			priv->event_log.wraps_once_count++;
+		trace_iwlwifi_dev_ucode_wrap_event(priv,
+				num_wraps - priv->event_log.num_wraps,
+				next_entry, priv->event_log.next_entry);
+		if (next_entry < priv->event_log.next_entry) {
+			iwl_print_cont_event_trace(priv, base,
+			       priv->event_log.next_entry,
+			       capacity - priv->event_log.next_entry,
+			       mode);
+
+			iwl_print_cont_event_trace(priv, base, 0,
+				next_entry, mode);
+		} else {
+			iwl_print_cont_event_trace(priv, base,
+			       next_entry, capacity - next_entry,
+			       mode);
+
+			iwl_print_cont_event_trace(priv, base, 0,
+				next_entry, mode);
+		}
+	}
+	priv->event_log.num_wraps = num_wraps;
+	priv->event_log.next_entry = next_entry;
+}
+
+/**
+ * iwl_bg_ucode_trace - Timer callback to log ucode event
+ *
+ * The timer is continually set to execute every
+ * UCODE_TRACE_PERIOD milliseconds after the last timer expired
+ * this function is to perform continuous uCode event logging operation
+ * if enabled
+ */
+static void iwl_bg_ucode_trace(unsigned long data)
+{
+	struct iwl_priv *priv = (struct iwl_priv *)data;
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	if (priv->event_log.ucode_trace) {
+		iwl_continuous_event_trace(priv);
+		/* Reschedule the timer to occur in UCODE_TRACE_PERIOD */
+		mod_timer(&priv->ucode_trace,
+			 jiffies + msecs_to_jiffies(UCODE_TRACE_PERIOD));
+	}
+}
+
 static void iwl_rx_beacon_notif(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb)
 {
@@ -3128,6 +3253,10 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	priv->statistics_periodic.data = (unsigned long)priv;
 	priv->statistics_periodic.function = iwl_bg_statistics_periodic;
 
+	init_timer(&priv->ucode_trace);
+	priv->ucode_trace.data = (unsigned long)priv;
+	priv->ucode_trace.function = iwl_bg_ucode_trace;
+
 	if (!priv->cfg->use_isr_legacy)
 		tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
 			iwl_irq_tasklet, (unsigned long)priv);
@@ -3146,6 +3275,7 @@ static void iwl_cancel_deferred_work(struct iwl_priv *priv)
 	cancel_delayed_work(&priv->alive_start);
 	cancel_work_sync(&priv->beacon_update);
 	del_timer_sync(&priv->statistics_periodic);
+	del_timer_sync(&priv->ucode_trace);
 }
 
 static void iwl_init_hw_rates(struct iwl_priv *priv,
