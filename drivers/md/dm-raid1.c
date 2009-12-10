@@ -237,6 +237,40 @@ out:
 	schedule_work(&ms->trigger_event);
 }
 
+static int mirror_flush(struct dm_target *ti)
+{
+	struct mirror_set *ms = ti->private;
+	unsigned long error_bits;
+
+	unsigned int i;
+	struct dm_io_region io[ms->nr_mirrors];
+	struct mirror *m;
+	struct dm_io_request io_req = {
+		.bi_rw = WRITE_BARRIER,
+		.mem.type = DM_IO_KMEM,
+		.mem.ptr.bvec = NULL,
+		.client = ms->io_client,
+	};
+
+	for (i = 0, m = ms->mirror; i < ms->nr_mirrors; i++, m++) {
+		io[i].bdev = m->dev->bdev;
+		io[i].sector = 0;
+		io[i].count = 0;
+	}
+
+	error_bits = -1;
+	dm_io(&io_req, ms->nr_mirrors, io, &error_bits);
+	if (unlikely(error_bits != 0)) {
+		for (i = 0; i < ms->nr_mirrors; i++)
+			if (test_bit(i, &error_bits))
+				fail_mirror(ms->mirror + i,
+					    DM_RAID1_WRITE_ERROR);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 /*-----------------------------------------------------------------
  * Recovery.
  *
@@ -896,7 +930,8 @@ static struct dm_dirty_log *create_dirty_log(struct dm_target *ti,
 		return NULL;
 	}
 
-	dl = dm_dirty_log_create(argv[0], ti, NULL, param_count, argv + 2);
+	dl = dm_dirty_log_create(argv[0], ti, mirror_flush, param_count,
+				 argv + 2);
 	if (!dl) {
 		ti->error = "Error creating mirror dirty log";
 		return NULL;
