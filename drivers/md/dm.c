@@ -329,6 +329,11 @@ static void __exit dm_exit(void)
 /*
  * Block device functions
  */
+int dm_deleting_md(struct mapped_device *md)
+{
+	return test_bit(DMF_DELETING, &md->flags);
+}
+
 static int dm_blk_open(struct block_device *bdev, fmode_t mode)
 {
 	struct mapped_device *md;
@@ -340,7 +345,7 @@ static int dm_blk_open(struct block_device *bdev, fmode_t mode)
 		goto out;
 
 	if (test_bit(DMF_FREEING, &md->flags) ||
-	    test_bit(DMF_DELETING, &md->flags)) {
+	    dm_deleting_md(md)) {
 		md = NULL;
 		goto out;
 	}
@@ -2659,7 +2664,7 @@ struct mapped_device *dm_get_from_kobject(struct kobject *kobj)
 		return NULL;
 
 	if (test_bit(DMF_FREEING, &md->flags) ||
-	    test_bit(DMF_DELETING, &md->flags))
+	    dm_deleting_md(md))
 		return NULL;
 
 	dm_get(md);
