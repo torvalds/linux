@@ -1274,6 +1274,10 @@ static int __init amd_iommu_init(void)
 	if (ret)
 		goto free;
 
+	ret = amd_iommu_init_devices();
+	if (ret)
+		goto free;
+
 	if (iommu_pass_through)
 		ret = amd_iommu_init_passthrough();
 	else
@@ -1296,6 +1300,9 @@ out:
 	return ret;
 
 free:
+
+	amd_iommu_uninit_devices();
+
 	free_pages((unsigned long)amd_iommu_pd_alloc_bitmap,
 		   get_order(MAX_DOMAIN_ID/8));
 

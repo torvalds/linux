@@ -166,6 +166,43 @@ static void iommu_uninit_device(struct device *dev)
 {
 	kfree(dev->archdata.iommu);
 }
+
+void __init amd_iommu_uninit_devices(void)
+{
+	struct pci_dev *pdev = NULL;
+
+	for_each_pci_dev(pdev) {
+
+		if (!check_device(&pdev->dev))
+			continue;
+
+		iommu_uninit_device(&pdev->dev);
+	}
+}
+
+int __init amd_iommu_init_devices(void)
+{
+	struct pci_dev *pdev = NULL;
+	int ret = 0;
+
+	for_each_pci_dev(pdev) {
+
+		if (!check_device(&pdev->dev))
+			continue;
+
+		ret = iommu_init_device(&pdev->dev);
+		if (ret)
+			goto out_free;
+	}
+
+	return 0;
+
+out_free:
+
+	amd_iommu_uninit_devices();
+
+	return ret;
+}
 #ifdef CONFIG_AMD_IOMMU_STATS
 
 /*
@@ -2144,8 +2181,6 @@ static void prealloc_protection_domains(void)
 		/* Do we handle this device? */
 		if (!check_device(&dev->dev))
 			continue;
-
-		iommu_init_device(&dev->dev);
 
 		/* Is there already any domain for it? */
 		if (domain_for_device(&dev->dev))
