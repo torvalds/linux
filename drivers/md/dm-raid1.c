@@ -849,6 +849,10 @@ static struct mirror_set *alloc_context(unsigned int nr_mirrors,
 	}
 
 	spin_lock_init(&ms->lock);
+	bio_list_init(&ms->reads);
+	bio_list_init(&ms->writes);
+	bio_list_init(&ms->failures);
+	bio_list_init(&ms->holds);
 
 	ms->ti = ti;
 	ms->nr_mirrors = nr_mirrors;
