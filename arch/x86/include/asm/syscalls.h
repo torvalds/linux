@@ -18,6 +18,7 @@
 /* Common in X86_32 and X86_64 */
 /* kernel/ioport.c */
 asmlinkage long sys_ioperm(unsigned long, unsigned long, int);
+long sys_iopl(unsigned int, struct pt_regs *);
 
 /* kernel/process.c */
 int sys_fork(struct pt_regs *);
@@ -35,8 +36,6 @@ asmlinkage int sys_get_thread_area(struct user_desc __user *);
 
 /* X86_32 only */
 #ifdef CONFIG_X86_32
-/* kernel/ioport.c */
-long sys_iopl(struct pt_regs *);
 
 /* kernel/process_32.c */
 int sys_clone(struct pt_regs *);
@@ -70,9 +69,6 @@ int sys_vm86(struct pt_regs *);
 #else /* CONFIG_X86_32 */
 
 /* X86_64 only */
-/* kernel/ioport.c */
-asmlinkage long sys_iopl(unsigned int, struct pt_regs *);
-
 /* kernel/process_64.c */
 asmlinkage long sys_clone(unsigned long, unsigned long,
 			  void __user *, void __user *,

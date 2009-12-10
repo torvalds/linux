@@ -758,7 +758,7 @@ ptregs_##name: \
 	addl $4,%esp; \
 	ret
 
-PTREGSCALL0(iopl)
+PTREGSCALL1(iopl)
 PTREGSCALL0(fork)
 PTREGSCALL0(clone)
 PTREGSCALL0(vfork)
