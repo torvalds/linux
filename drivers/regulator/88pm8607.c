@@ -48,7 +48,6 @@ static inline int check_range(struct pm8607_regulator_info *info,
 static int pm8607_list_voltage(struct regulator_dev *rdev, unsigned index)
 {
 	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
-	uint8_t chip_id = info->chip->chip_version;
 	int ret = -EINVAL;
 
 	switch (info->desc.id) {
@@ -90,79 +89,29 @@ static int pm8607_list_voltage(struct regulator_dev *rdev, unsigned index)
 	case PM8607_ID_LDO2:
 	case PM8607_ID_LDO3:
 	case PM8607_ID_LDO9:
-		switch (chip_id) {
-		case PM8607_CHIP_A0:
-		case PM8607_CHIP_A1:
-			ret = (index < 3) ? (index * 50000 + 1800000) :
-				((index < 8) ? (index * 50000 + 2550000) :
-				 -EINVAL);
-			break;
-		case PM8607_CHIP_B0:
-			ret = (index < 3) ? (index * 50000 + 1800000) :
-				((index < 7) ? (index * 50000 + 2550000) :
-				3300000);
-			break;
-		}
+		ret = (index < 3) ? (index * 50000 + 1800000) :
+			((index < 7) ? (index * 50000 + 2550000) :
+			3300000);
 		break;
 	case PM8607_ID_LDO4:
-		switch (chip_id) {
-		case PM8607_CHIP_A0:
-		case PM8607_CHIP_A1:
-			ret = (index < 3) ? (index * 50000 + 1800000) :
-				((index < 8) ? (index * 50000 + 2550000) :
-				 -EINVAL);
-			break;
-		case PM8607_CHIP_B0:
-			ret = (index < 3) ? (index * 50000 + 1800000) :
-				((index < 6) ? (index * 50000 + 2550000) :
-				((index == 6) ? 2900000 : 3300000));
-			break;
-		}
+		ret = (index < 3) ? (index * 50000 + 1800000) :
+			((index < 6) ? (index * 50000 + 2550000) :
+			((index == 6) ? 2900000 : 3300000));
 		break;
 	case PM8607_ID_LDO6:
-		switch (chip_id) {
-		case PM8607_CHIP_A0:
-		case PM8607_CHIP_A1:
-			ret = (index < 3) ? (index * 50000 + 1800000) :
-				((index < 8) ? (index * 50000 + 2450000) :
-				-EINVAL);
-			break;
-		case PM8607_CHIP_B0:
-			ret = (index < 2) ? (index * 50000 + 1800000) :
-				((index < 7) ? (index * 50000 + 2500000) :
-				3300000);
-			break;
-		}
+		ret = (index < 2) ? (index * 50000 + 1800000) :
+			((index < 7) ? (index * 50000 + 2500000) :
+			3300000);
 		break;
 	case PM8607_ID_LDO10:
-		switch (chip_id) {
-		case PM8607_CHIP_A0:
-		case PM8607_CHIP_A1:
-			ret = (index < 3) ? (index * 50000 + 1800000) :
-				((index < 8) ? (index * 50000 + 2550000) :
-				1200000);
-			break;
-		case PM8607_CHIP_B0:
-			ret = (index < 3) ? (index * 50000 + 1800000) :
-				((index < 7) ? (index * 50000 + 2550000) :
-				((index == 7) ? 3300000 : 1200000));
-			break;
-		}
+		ret = (index < 3) ? (index * 50000 + 1800000) :
+			((index < 7) ? (index * 50000 + 2550000) :
+			((index == 7) ? 3300000 : 1200000));
 		break;
 	case PM8607_ID_LDO14:
-		switch (chip_id) {
-		case PM8607_CHIP_A0:
-		case PM8607_CHIP_A1:
-			ret = (index < 3) ? (index * 50000 + 1800000) :
-				((index < 8) ? (index * 50000 + 2550000) :
-				 -EINVAL);
-			break;
-		case PM8607_CHIP_B0:
-			ret = (index < 2) ? (index * 50000 + 1800000) :
-				((index < 7) ? (index * 50000 + 2600000) :
-				3300000);
-			break;
-		}
+		ret = (index < 2) ? (index * 50000 + 1800000) :
+			((index < 7) ? (index * 50000 + 2600000) :
+			3300000);
 		break;
 	}
 	return ret;
@@ -171,7 +120,6 @@ static int pm8607_list_voltage(struct regulator_dev *rdev, unsigned index)
 static int choose_voltage(struct regulator_dev *rdev, int min_uV, int max_uV)
 {
 	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
-	uint8_t chip_id = info->chip->chip_version;
 	int val = -ENOENT;
 	int ret;
 
@@ -256,161 +204,77 @@ static int choose_voltage(struct regulator_dev *rdev, int min_uV, int max_uV)
 	case PM8607_ID_LDO2:
 	case PM8607_ID_LDO3:
 	case PM8607_ID_LDO9:
-		switch (chip_id) {
-		case PM8607_CHIP_A0:
-		case PM8607_CHIP_A1:
-			if (min_uV < 2700000)	/* 1800mV ~ 1900mV / 50mV */
-				if (min_uV <= 1800000)
-					val = 0;
-				else if (min_uV <= 1900000)
-					val = (min_uV - 1750001) / 50000;
-				else
-					val = 3;	/* 2700mV */
-			else {			/* 2700mV ~ 2900mV / 50mV */
-				if (min_uV <= 2900000) {
-					val = (min_uV - 2650001) / 50000;
-					val += 3;
-				} else
-					val = -EINVAL;
-			}
-			break;
-		case PM8607_CHIP_B0:
-			if (min_uV < 2700000) {	/* 1800mV ~ 1900mV / 50mV */
-				if (min_uV <= 1800000)
-					val = 0;
-				else if (min_uV <= 1900000)
-					val = (min_uV - 1750001) / 50000;
-				else
-					val = 3;	/* 2700mV */
-			} else {		 /* 2700mV ~ 2850mV / 50mV */
-				if (min_uV <= 2850000) {
-					val = (min_uV - 2650001) / 50000;
-					val += 3;
-				} else if (min_uV <= 3300000)
-					val = 7;
-				else
-					val = -EINVAL;
-			}
-			break;
+		if (min_uV < 2700000) {	/* 1800mV ~ 1900mV / 50mV */
+			if (min_uV <= 1800000)
+				val = 0;
+			else if (min_uV <= 1900000)
+				val = (min_uV - 1750001) / 50000;
+			else
+				val = 3;	/* 2700mV */
+		} else {		 /* 2700mV ~ 2850mV / 50mV */
+			if (min_uV <= 2850000) {
+				val = (min_uV - 2650001) / 50000;
+				val += 3;
+			} else if (min_uV <= 3300000)
+				val = 7;
+			else
+				val = -EINVAL;
 		}
 		break;
 	case PM8607_ID_LDO4:
-		switch (chip_id) {
-		case PM8607_CHIP_A0:
-		case PM8607_CHIP_A1:
-			if (min_uV < 2700000)	/* 1800mV ~ 1900mV / 50mV */
-				if (min_uV <= 1800000)
-					val = 0;
-				else if (min_uV <= 1900000)
-					val = (min_uV - 1750001) / 50000;
-				else
-					val = 3;	/* 2700mV */
-			else {			/* 2700mV ~ 2900mV / 50mV */
-				if (min_uV <= 2900000) {
-					val = (min_uV - 2650001) / 50000;
-					val += 3;
-				} else
-					val = -EINVAL;
-			}
-			break;
-		case PM8607_CHIP_B0:
-			if (min_uV < 2700000) {	/* 1800mV ~ 1900mV / 50mV */
-				if (min_uV <= 1800000)
-					val = 0;
-				else if (min_uV <= 1900000)
-					val = (min_uV - 1750001) / 50000;
-				else
-					val = 3;	/* 2700mV */
-			} else {		 /* 2700mV ~ 2800mV / 50mV */
-				if (min_uV <= 2850000) {
-					val = (min_uV - 2650001) / 50000;
-					val += 3;
-				} else if (min_uV <= 2900000)
-					val = 6;
-				else if (min_uV <= 3300000)
-					val = 7;
-				else
-					val = -EINVAL;
-			}
-			break;
+		if (min_uV < 2700000) {	/* 1800mV ~ 1900mV / 50mV */
+			if (min_uV <= 1800000)
+				val = 0;
+			else if (min_uV <= 1900000)
+				val = (min_uV - 1750001) / 50000;
+			else
+				val = 3;	/* 2700mV */
+		} else {		 /* 2700mV ~ 2800mV / 50mV */
+			if (min_uV <= 2850000) {
+				val = (min_uV - 2650001) / 50000;
+				val += 3;
+			} else if (min_uV <= 2900000)
+				val = 6;
+			else if (min_uV <= 3300000)
+				val = 7;
+			else
+				val = -EINVAL;
 		}
 		break;
 	case PM8607_ID_LDO6:
-		switch (chip_id) {
-		case PM8607_CHIP_A0:
-		case PM8607_CHIP_A1:
-			if (min_uV < 2600000) {	/* 1800mV ~ 1900mV / 50mV */
-				if (min_uV <= 1800000)
-					val = 0;
-				else if (min_uV <= 1900000)
-					val = (min_uV - 1750001) / 50000;
-				else
-					val = 3;	/* 2600mV */
-			} else {		/* 2600mV ~ 2800mV / 50mV */
-				if (min_uV <= 2800000) {
-					val = (min_uV - 2550001) / 50000;
-					val += 3;
-				} else
-					val = -EINVAL;
-			}
-			break;
-		case PM8607_CHIP_B0:
-			if (min_uV < 2600000) {	/* 1800mV ~ 1850mV / 50mV */
-				if (min_uV <= 1800000)
-					val = 0;
-				else if (min_uV <= 1850000)
-					val = (min_uV - 1750001) / 50000;
-				else
-					val = 2;	/* 2600mV */
-			} else {		/* 2600mV ~ 2800mV / 50mV */
-				if (min_uV <= 2800000) {
-					val = (min_uV - 2550001) / 50000;
-					val += 2;
-				} else if (min_uV <= 3300000)
-					val = 7;
-				else
-					val = -EINVAL;
-			}
-			break;
+		if (min_uV < 2600000) {	/* 1800mV ~ 1850mV / 50mV */
+			if (min_uV <= 1800000)
+				val = 0;
+			else if (min_uV <= 1850000)
+				val = (min_uV - 1750001) / 50000;
+			else
+				val = 2;	/* 2600mV */
+		} else {		/* 2600mV ~ 2800mV / 50mV */
+			if (min_uV <= 2800000) {
+				val = (min_uV - 2550001) / 50000;
+				val += 2;
+			} else if (min_uV <= 3300000)
+				val = 7;
+			else
+				val = -EINVAL;
 		}
 		break;
 	case PM8607_ID_LDO14:
-		switch (chip_id) {
-		case PM8607_CHIP_A0:
-		case PM8607_CHIP_A1:
-			if (min_uV < 2700000) {	/* 1800mV ~ 1900mV / 50mV */
-				if (min_uV <= 1800000)
-					val = 0;
-				else if (min_uV <= 1900000)
-					val = (min_uV - 1750001) / 50000;
-				else
-					val = 3;	/* 2700mV */
-			} else {		 /* 2700mV ~ 2900mV / 50mV */
-				if (min_uV <= 2900000) {
-					val = (min_uV - 2650001) / 50000;
-					val += 3;
-				} else
-					val = -EINVAL;
-			}
-			break;
-		case PM8607_CHIP_B0:
-			if (min_uV < 2700000) {	/* 1800mV ~ 1850mV / 50mV */
-				if (min_uV <= 1800000)
-					val = 0;
-				else if (min_uV <= 1850000)
-					val = (min_uV - 1750001) / 50000;
-				else
-					val = 2;	/* 2700mV */
-			} else {		 /* 2700mV ~ 2900mV / 50mV */
-				if (min_uV <= 2900000) {
-					val = (min_uV - 2650001) / 50000;
-					val += 2;
-				} else if (min_uV <= 3300000)
-					val = 7;
-				else
-					val = -EINVAL;
-			}
-			break;
+		if (min_uV < 2700000) {	/* 1800mV ~ 1850mV / 50mV */
+			if (min_uV <= 1800000)
+				val = 0;
+			else if (min_uV <= 1850000)
+				val = (min_uV - 1750001) / 50000;
+			else
+				val = 2;	/* 2700mV */
+		} else {		 /* 2700mV ~ 2900mV / 50mV */
+			if (min_uV <= 2900000) {
+				val = (min_uV - 2650001) / 50000;
+				val += 2;
+			} else if (min_uV <= 3300000)
+				val = 7;
+			else
+				val = -EINVAL;
 		}
 		break;
 	}
