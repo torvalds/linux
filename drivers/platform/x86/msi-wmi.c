@@ -23,14 +23,8 @@
 
 
 #include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/types.h>
 #include <linux/input.h>
-#include <acpi/acpi_drivers.h>
 #include <linux/acpi.h>
-#include <linux/string.h>
-#include <linux/hrtimer.h>
 #include <linux/backlight.h>
 
 MODULE_AUTHOR("Thomas Renninger <trenn@suse.de>");
