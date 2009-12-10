@@ -31,6 +31,9 @@ asmlinkage int sys_modify_ldt(int, void __user *, unsigned long);
 
 /* kernel/signal.c */
 long sys_rt_sigreturn(struct pt_regs *);
+long sys_sigaltstack(const stack_t __user *, stack_t __user *,
+		     struct pt_regs *);
+
 
 /* kernel/tls.c */
 asmlinkage int sys_set_thread_area(struct user_desc __user *);
@@ -46,7 +49,6 @@ int sys_clone(struct pt_regs *);
 asmlinkage int sys_sigsuspend(int, int, old_sigset_t);
 asmlinkage int sys_sigaction(int, const struct old_sigaction __user *,
 			     struct old_sigaction __user *);
-int sys_sigaltstack(struct pt_regs *);
 unsigned long sys_sigreturn(struct pt_regs *);
 
 /* kernel/sys_i386_32.c */
@@ -75,10 +77,6 @@ asmlinkage long sys_clone(unsigned long, unsigned long,
 			  void __user *, void __user *,
 			  struct pt_regs *);
 long sys_arch_prctl(int, unsigned long);
-
-/* kernel/signal.c */
-asmlinkage long sys_sigaltstack(const stack_t __user *, stack_t __user *,
-				struct pt_regs *);
 
 /* kernel/sys_x86_64.c */
 struct new_utsname;
