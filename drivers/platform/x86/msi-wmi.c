@@ -56,7 +56,6 @@ struct key_entry {
 	char type;		/* See KE_* below */
 	u16 code;
 	u16 keycode;
-	int instance;
 	ktime_t last_pressed;
 };
 
@@ -67,10 +66,10 @@ struct key_entry {
 enum { KE_KEY, KE_END };
 
 static struct key_entry msi_wmi_keymap[] = {
-	{ KE_KEY, 0xd0, KEY_BRIGHTNESSUP,   0, {0, } },
-	{ KE_KEY, 0xd1, KEY_BRIGHTNESSDOWN, 1, {0, } },
-	{ KE_KEY, 0xd2, KEY_VOLUMEUP,	2, {0, } },
-	{ KE_KEY, 0xd3, KEY_VOLUMEDOWN,	3, {0, } },
+	{ KE_KEY, 0xd0, KEY_BRIGHTNESSUP,   {0, } },
+	{ KE_KEY, 0xd1, KEY_BRIGHTNESSDOWN, {0, } },
+	{ KE_KEY, 0xd2, KEY_VOLUMEUP,	{0, } },
+	{ KE_KEY, 0xd3, KEY_VOLUMEDOWN,	{0, } },
 	{ KE_END, 0}
 };
 
