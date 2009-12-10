@@ -95,6 +95,8 @@ struct multipath {
 	mempool_t *mpio_pool;
 
 	struct mutex work_mutex;
+
+	unsigned suspended;	/* Don't create new I/O internally when set. */
 };
 
 /*
@@ -1274,6 +1276,7 @@ static void multipath_postsuspend(struct dm_target *ti)
 	struct multipath *m = ti->private;
 
 	mutex_lock(&m->work_mutex);
+	m->suspended = 1;
 	flush_multipath_work();
 	mutex_unlock(&m->work_mutex);
 }
@@ -1285,6 +1288,10 @@ static void multipath_resume(struct dm_target *ti)
 {
 	struct multipath *m = (struct multipath *) ti->private;
 	unsigned long flags;
+
+	mutex_lock(&m->work_mutex);
+	m->suspended = 0;
+	mutex_unlock(&m->work_mutex);
 
 	spin_lock_irqsave(&m->lock, flags);
 	m->queue_if_no_path = m->saved_queue_if_no_path;
@@ -1420,6 +1427,11 @@ static int multipath_message(struct dm_target *ti, unsigned argc, char **argv)
 	action_fn action;
 
 	mutex_lock(&m->work_mutex);
+
+	if (m->suspended) {
+		r = -EBUSY;
+		goto out;
+	}
 
 	if (argc == 1) {
 		if (!strnicmp(argv[0], MESG_STR("queue_if_no_path"))) {
