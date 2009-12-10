@@ -243,14 +243,10 @@ static void msi_wmi_notify(u32 value, void *context)
 			}
 			key->last_pressed = cur;
 
-			switch (key->type) {
-			case KE_KEY:
-				/* Brightness is served via acpi video driver */
-				if (!backlight &&
-				    (key->keycode == KEY_BRIGHTNESSUP ||
-				     key->keycode == KEY_BRIGHTNESSDOWN))
-					break;
-
+			if (key->type == KE_KEY &&
+			/* Brightness is served via acpi video driver */
+			(backlight || (key->keycode != KEY_BRIGHTNESSUP &&
+			key->keycode != KEY_BRIGHTNESSDOWN))) {
 				dprintk("Send key: 0x%X - "
 					"Input layer keycode: %d\n", key->code,
 					 key->keycode);
@@ -260,7 +256,6 @@ static void msi_wmi_notify(u32 value, void *context)
 				input_report_key(msi_wmi_input_dev,
 						 key->keycode, 0);
 				input_sync(msi_wmi_input_dev);
-				break;
 			}
 		} else
 			printk(KERN_INFO "Unknown key pressed - %x\n",
