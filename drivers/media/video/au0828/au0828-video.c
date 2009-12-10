@@ -1570,7 +1570,6 @@ static const struct video_device au0828_video_template = {
 	.fops                       = &au0828_v4l_fops,
 	.release                    = video_device_release,
 	.ioctl_ops 		    = &video_ioctl_ops,
-	.minor                      = -1,
 	.tvnorms                    = V4L2_STD_NTSC_M,
 	.current_norm               = V4L2_STD_NTSC_M,
 };

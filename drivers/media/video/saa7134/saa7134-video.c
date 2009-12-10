@@ -2495,7 +2495,6 @@ struct video_device saa7134_video_template = {
 	.name				= "saa7134-video",
 	.fops				= &video_fops,
 	.ioctl_ops 			= &video_ioctl_ops,
-	.minor				= -1,
 	.tvnorms			= SAA7134_NORMS,
 	.current_norm			= V4L2_STD_PAL,
 };
@@ -2504,7 +2503,6 @@ struct video_device saa7134_radio_template = {
 	.name			= "saa7134-radio",
 	.fops			= &radio_fops,
 	.ioctl_ops 		= &radio_ioctl_ops,
-	.minor			= -1,
 };
 
 int saa7134_video_init1(struct saa7134_dev *dev)

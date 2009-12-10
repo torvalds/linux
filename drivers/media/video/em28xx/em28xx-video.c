@@ -2405,8 +2405,6 @@ static const struct video_device em28xx_video_template = {
 	.release                    = video_device_release,
 	.ioctl_ops 		    = &video_ioctl_ops,
 
-	.minor                      = -1,
-
 	.tvnorms                    = V4L2_STD_ALL,
 	.current_norm               = V4L2_STD_PAL,
 };
@@ -2441,7 +2439,6 @@ static struct video_device em28xx_radio_template = {
 	.name                 = "em28xx-radio",
 	.fops                 = &radio_fops,
 	.ioctl_ops 	      = &radio_ioctl_ops,
-	.minor                = -1,
 };
 
 /******************************** usb interface ******************************/
@@ -2459,7 +2456,6 @@ static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 		return NULL;
 
 	*vfd		= *template;
-	vfd->minor	= -1;
 	vfd->v4l2_dev	= &dev->v4l2_dev;
 	vfd->release	= video_device_release;
 	vfd->debug	= video_debug;

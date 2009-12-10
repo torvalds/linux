@@ -1989,7 +1989,6 @@ static struct video_device gspca_template = {
 	.fops = &dev_fops,
 	.ioctl_ops = &dev_ioctl_ops,
 	.release = gspca_release,
-	.minor = -1,
 };
 
 /*

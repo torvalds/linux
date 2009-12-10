@@ -1926,7 +1926,6 @@ static const struct v4l2_file_operations fops_template = {
 static struct video_device cpia2_template = {
 	/* I could not find any place for the old .initialize initializer?? */
 	.name=		"CPiA2 Camera",
-	.minor=		-1,
 	.fops=		&fops_template,
 	.release=	video_device_release,
 };

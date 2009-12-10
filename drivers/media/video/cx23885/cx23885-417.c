@@ -1721,7 +1721,6 @@ static struct video_device cx23885_mpeg_template = {
 	.name          = "cx23885",
 	.fops          = &mpeg_fops,
 	.ioctl_ops     = &mpeg_ioctl_ops,
-	.minor         = -1,
 	.tvnorms       = CX23885_NORMS,
 	.current_norm  = V4L2_STD_NTSC_M,
 };

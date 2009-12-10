@@ -1296,7 +1296,6 @@ static struct video_device vivi_template = {
 	.name		= "vivi",
 	.fops           = &vivi_fops,
 	.ioctl_ops 	= &vivi_ioctl_ops,
-	.minor		= -1,
 	.release	= video_device_release,
 
 	.tvnorms              = V4L2_STD_525_60,

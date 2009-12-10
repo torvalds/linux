@@ -1210,7 +1210,6 @@ static struct video_device cx8802_mpeg_template = {
 	.name                 = "cx8802",
 	.fops                 = &mpeg_fops,
 	.ioctl_ops 	      = &mpeg_ioctl_ops,
-	.minor                = -1,
 	.tvnorms              = CX88_NORMS,
 	.current_norm         = V4L2_STD_NTSC_M,
 };

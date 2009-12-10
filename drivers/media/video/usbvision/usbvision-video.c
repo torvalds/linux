@@ -1328,7 +1328,6 @@ static struct video_device usbvision_video_template = {
 	.ioctl_ops 	= &usbvision_ioctl_ops,
 	.name           = "usbvision-video",
 	.release	= video_device_release,
-	.minor		= -1,
 	.tvnorms              = USBVISION_NORMS,
 	.current_norm         = V4L2_STD_PAL
 };
@@ -1362,7 +1361,6 @@ static struct video_device usbvision_radio_template = {
 	.fops		= &usbvision_radio_fops,
 	.name           = "usbvision-radio",
 	.release	= video_device_release,
-	.minor		= -1,
 	.ioctl_ops 	= &usbvision_radio_ioctl_ops,
 
 	.tvnorms              = USBVISION_NORMS,
@@ -1382,7 +1380,6 @@ static struct video_device usbvision_vbi_template=
 	.fops		= &usbvision_vbi_fops,
 	.release	= video_device_release,
 	.name           = "usbvision-vbi",
-	.minor		= -1,
 };
 
 
@@ -1404,7 +1401,6 @@ static struct video_device *usbvision_vdev_init(struct usb_usbvision *usbvision,
 		return NULL;
 	}
 	*vdev = *vdev_template;
-//	vdev->minor   = -1;
 	vdev->v4l2_dev = &usbvision->v4l2_dev;
 	snprintf(vdev->name, sizeof(vdev->name), "%s", name);
 	video_set_drvdata(vdev, usbvision);

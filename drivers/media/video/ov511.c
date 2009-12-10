@@ -4674,7 +4674,6 @@ static struct video_device vdev_template = {
 	.name =		"OV511 USB Camera",
 	.fops =		&ov511_fops,
 	.release =	video_device_release,
-	.minor =	-1,
 };
 
 /****************************************************************************

@@ -1405,7 +1405,6 @@ static struct video_device stv680_template = {
 	.name =		"STV0680 USB camera",
 	.fops =         &stv680_fops,
 	.release =	video_device_release,
-	.minor = 	-1,
 };
 
 static int stv680_probe (struct usb_interface *intf, const struct usb_device_id *id)

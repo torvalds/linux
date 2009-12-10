@@ -427,7 +427,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 struct video_device cx25821_video_template7 = {
 	.name = "cx25821-video",
 	.fops = &video_fops,
-	.minor = -1,
 	.ioctl_ops = &video_ioctl_ops,
 	.tvnorms = CX25821_NORMS,
 	.current_norm = V4L2_STD_NTSC_M,

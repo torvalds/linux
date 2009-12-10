@@ -1455,7 +1455,6 @@ static struct video_device zr364xx_template = {
 	.fops = &zr364xx_fops,
 	.ioctl_ops = &zr364xx_ioctl_ops,
 	.release = video_device_release,
-	.minor = -1,
 };
 
 

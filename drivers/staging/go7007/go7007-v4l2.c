@@ -1787,7 +1787,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 static struct video_device go7007_template = {
 	.name		= "go7007",
 	.fops		= &go7007_fops,
-	.minor		= -1,
 	.release	= go7007_vfl_release,
 	.ioctl_ops	= &video_ioctl_ops,
 	.tvnorms	= V4L2_STD_ALL,

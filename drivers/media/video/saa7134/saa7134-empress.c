@@ -481,7 +481,6 @@ static const struct v4l2_ioctl_ops ts_ioctl_ops = {
 static struct video_device saa7134_empress_template = {
 	.name          = "saa7134-empress",
 	.fops          = &ts_fops,
-	.minor	       = -1,
 	.ioctl_ops     = &ts_ioctl_ops,
 
 	.tvnorms			= SAA7134_NORMS,

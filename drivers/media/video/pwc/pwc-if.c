@@ -169,7 +169,6 @@ static struct video_device pwc_template = {
 	.name =		"Philips Webcam",	/* Filled in later */
 	.release =	video_device_release,
 	.fops =         &pwc_fops,
-	.minor =        -1,
 };
 
 /***************************************************************************/

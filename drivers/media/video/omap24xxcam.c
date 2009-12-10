@@ -1660,7 +1660,6 @@ static int omap24xxcam_device_register(struct v4l2_int_device *s)
 
 	strlcpy(vfd->name, CAM_NAME, sizeof(vfd->name));
 	vfd->fops		 = &omap24xxcam_fops;
-	vfd->minor		 = -1;
 	vfd->ioctl_ops		 = &omap24xxcam_ioctl_fops;
 
 	omap24xxcam_hwinit(cam);
@@ -1671,7 +1670,6 @@ static int omap24xxcam_device_register(struct v4l2_int_device *s)
 
 	if (video_register_device(vfd, VFL_TYPE_GRABBER, video_nr) < 0) {
 		dev_err(cam->dev, "could not register V4L device\n");
-		vfd->minor = -1;
 		rval = -EBUSY;
 		goto err;
 	}

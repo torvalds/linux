@@ -1967,7 +1967,6 @@ static __init int vpfe_probe(struct platform_device *pdev)
 	vfd->release		= video_device_release;
 	vfd->fops		= &vpfe_fops;
 	vfd->ioctl_ops		= &vpfe_ioctl_ops;
-	vfd->minor		= -1;
 	vfd->tvnorms		= 0;
 	vfd->current_norm	= V4L2_STD_PAL;
 	vfd->v4l2_dev 		= &vpfe_dev->v4l2_dev;

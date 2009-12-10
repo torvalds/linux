@@ -1268,7 +1268,6 @@ static int video_dev_create(struct soc_camera_device *icd)
 	vdev->fops		= &soc_camera_fops;
 	vdev->ioctl_ops		= &soc_camera_ioctl_ops;
 	vdev->release		= video_device_release;
-	vdev->minor		= -1;
 	vdev->tvnorms		= V4L2_STD_UNKNOWN;
 
 	icd->vdev = vdev;
@@ -1291,8 +1290,7 @@ static int soc_camera_video_start(struct soc_camera_device *icd)
 	    !icd->ops->set_bus_param)
 		return -EINVAL;
 
-	ret = video_register_device(icd->vdev, VFL_TYPE_GRABBER,
-				    icd->vdev->minor);
+	ret = video_register_device(icd->vdev, VFL_TYPE_GRABBER, -1);
 	if (ret < 0) {
 		dev_err(&icd->dev, "video_register_device failed: %d\n", ret);
 		return ret;

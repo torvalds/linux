@@ -3398,7 +3398,6 @@ static const struct v4l2_ioctl_ops bttv_ioctl_ops = {
 
 static struct video_device bttv_video_template = {
 	.fops         = &bttv_fops,
-	.minor        = -1,
 	.ioctl_ops    = &bttv_ioctl_ops,
 	.tvnorms      = BTTV_NORMS,
 	.current_norm = V4L2_STD_PAL,
@@ -3642,7 +3641,6 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 
 static struct video_device radio_template = {
 	.fops      = &radio_fops,
-	.minor     = -1,
 	.ioctl_ops = &radio_ioctl_ops,
 };
 

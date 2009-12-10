@@ -1307,7 +1307,6 @@ static void stk_v4l_dev_release(struct video_device *vd)
 
 static struct video_device stk_v4l_data = {
 	.name = "stkwebcam",
-	.minor = -1,
 	.tvnorms = V4L2_STD_UNKNOWN,
 	.current_norm = V4L2_STD_UNKNOWN,
 	.fops = &v4l_stk_fops,

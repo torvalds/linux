@@ -318,7 +318,6 @@ static struct video_device *cx23885_vdev_init(struct cx23885_dev *dev,
 	if (NULL == vfd)
 		return NULL;
 	*vfd = *template;
-	vfd->minor = -1;
 	vfd->v4l2_dev = &dev->v4l2_dev;
 	vfd->release = video_device_release;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
@@ -1430,7 +1429,6 @@ static struct video_device cx23885_vbi_template;
 static struct video_device cx23885_video_template = {
 	.name                 = "cx23885-video",
 	.fops                 = &video_fops,
-	.minor                = -1,
 	.ioctl_ops 	      = &video_ioctl_ops,
 	.tvnorms              = CX23885_NORMS,
 	.current_norm         = V4L2_STD_NTSC_M,

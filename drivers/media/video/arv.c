@@ -767,7 +767,6 @@ static struct video_device ar_template = {
 	.name		= "Colour AR VGA",
 	.fops		= &ar_fops,
 	.release	= ar_release,
-	.minor		= -1,
 };
 
 #define ALIGN4(x)	((((int)(x)) & 0x3) == 0)

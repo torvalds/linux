@@ -1722,7 +1722,6 @@ static struct video_device cx8800_vbi_template;
 static struct video_device cx8800_video_template = {
 	.name                 = "cx8800-video",
 	.fops                 = &video_fops,
-	.minor                = -1,
 	.ioctl_ops 	      = &video_ioctl_ops,
 	.tvnorms              = CX88_NORMS,
 	.current_norm         = V4L2_STD_NTSC_M,
@@ -1758,7 +1757,6 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 static struct video_device cx8800_radio_template = {
 	.name                 = "cx8800-radio",
 	.fops                 = &radio_fops,
-	.minor                = -1,
 	.ioctl_ops 	      = &radio_ioctl_ops,
 };
 
