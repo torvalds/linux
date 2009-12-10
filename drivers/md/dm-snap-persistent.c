@@ -55,6 +55,8 @@
  */
 #define SNAPSHOT_DISK_VERSION 1
 
+#define NUM_SNAPSHOT_HDR_CHUNKS 1
+
 struct disk_header {
 	uint32_t magic;
 
@@ -120,7 +122,22 @@ struct pstore {
 
 	/*
 	 * The next free chunk for an exception.
+	 *
+	 * When creating exceptions, all the chunks here and above are
+	 * free.  It holds the next chunk to be allocated.  On rare
+	 * occasions (e.g. after a system crash) holes can be left in
+	 * the exception store because chunks can be committed out of
+	 * order.
+	 *
+	 * When merging exceptions, it does not necessarily mean all the
+	 * chunks here and above are free.  It holds the value it would
+	 * have held if all chunks had been committed in order of
+	 * allocation.  Consequently the value may occasionally be
+	 * slightly too low, but since it's only used for 'status' and
+	 * it can never reach its minimum value too early this doesn't
+	 * matter.
 	 */
+
 	chunk_t next_free;
 
 	/*
@@ -409,6 +426,15 @@ static void write_exception(struct pstore *ps,
 	e->new_chunk = cpu_to_le64(de->new_chunk);
 }
 
+static void clear_exception(struct pstore *ps, uint32_t index)
+{
+	struct disk_exception *e = get_exception(ps, index);
+
+	/* clear it */
+	e->old_chunk = 0;
+	e->new_chunk = 0;
+}
+
 /*
  * Registers the exceptions that are present in the current area.
  * 'full' is filled in to indicate if the area has been
@@ -505,7 +531,8 @@ static void persistent_usage(struct dm_exception_store *store,
 	 * Then there are (ps->current_area + 1) metadata chunks, each one
 	 * separated from the next by ps->exceptions_per_area data chunks.
 	 */
-	*metadata_sectors = (ps->current_area + 2) * store->chunk_size;
+	*metadata_sectors = (ps->current_area + 1 + NUM_SNAPSHOT_HDR_CHUNKS) *
+			    store->chunk_size;
 }
 
 static void persistent_dtr(struct dm_exception_store *store)
@@ -680,6 +707,85 @@ static void persistent_commit_exception(struct dm_exception_store *store,
 	ps->callback_count = 0;
 }
 
+static int persistent_prepare_merge(struct dm_exception_store *store,
+				    chunk_t *last_old_chunk,
+				    chunk_t *last_new_chunk)
+{
+	struct pstore *ps = get_info(store);
+	struct disk_exception de;
+	int nr_consecutive;
+	int r;
+
+	/*
+	 * When current area is empty, move back to preceding area.
+	 */
+	if (!ps->current_committed) {
+		/*
+		 * Have we finished?
+		 */
+		if (!ps->current_area)
+			return 0;
+
+		ps->current_area--;
+		r = area_io(ps, READ);
+		if (r < 0)
+			return r;
+		ps->current_committed = ps->exceptions_per_area;
+	}
+
+	read_exception(ps, ps->current_committed - 1, &de);
+	*last_old_chunk = de.old_chunk;
+	*last_new_chunk = de.new_chunk;
+
+	/*
+	 * Find number of consecutive chunks within the current area,
+	 * working backwards.
+	 */
+	for (nr_consecutive = 1; nr_consecutive < ps->current_committed;
+	     nr_consecutive++) {
+		read_exception(ps, ps->current_committed - 1 - nr_consecutive,
+			       &de);
+		if (de.old_chunk != *last_old_chunk - nr_consecutive ||
+		    de.new_chunk != *last_new_chunk - nr_consecutive)
+			break;
+	}
+
+	return nr_consecutive;
+}
+
+static int persistent_commit_merge(struct dm_exception_store *store,
+				   int nr_merged)
+{
+	int r, i;
+	struct pstore *ps = get_info(store);
+
+	BUG_ON(nr_merged > ps->current_committed);
+
+	for (i = 0; i < nr_merged; i++)
+		clear_exception(ps, ps->current_committed - 1 - i);
+
+	r = area_io(ps, WRITE);
+	if (r < 0)
+		return r;
+
+	ps->current_committed -= nr_merged;
+
+	/*
+	 * At this stage, only persistent_usage() uses ps->next_free, so
+	 * we make no attempt to keep ps->next_free strictly accurate
+	 * as exceptions may have been committed out-of-order originally.
+	 * Once a snapshot has become merging, we set it to the value it
+	 * would have held had all the exceptions been committed in order.
+	 *
+	 * ps->current_area does not get reduced by prepare_merge() until
+	 * after commit_merge() has removed the nr_merged previous exceptions.
+	 */
+	ps->next_free = (area_location(ps, ps->current_area) - 1) +
+			(ps->current_committed + 1) + NUM_SNAPSHOT_HDR_CHUNKS;
+
+	return 0;
+}
+
 static void persistent_drop_snapshot(struct dm_exception_store *store)
 {
 	struct pstore *ps = get_info(store);
@@ -705,7 +811,7 @@ static int persistent_ctr(struct dm_exception_store *store,
 	ps->area = NULL;
 	ps->zero_area = NULL;
 	ps->header_area = NULL;
-	ps->next_free = 2;	/* skipping the header and first area */
+	ps->next_free = NUM_SNAPSHOT_HDR_CHUNKS + 1; /* header and 1st area */
 	ps->current_committed = 0;
 
 	ps->callback_count = 0;
@@ -748,6 +854,8 @@ static struct dm_exception_store_type _persistent_type = {
 	.read_metadata = persistent_read_metadata,
 	.prepare_exception = persistent_prepare_exception,
 	.commit_exception = persistent_commit_exception,
+	.prepare_merge = persistent_prepare_merge,
+	.commit_merge = persistent_commit_merge,
 	.drop_snapshot = persistent_drop_snapshot,
 	.usage = persistent_usage,
 	.status = persistent_status,
@@ -761,6 +869,8 @@ static struct dm_exception_store_type _persistent_compat_type = {
 	.read_metadata = persistent_read_metadata,
 	.prepare_exception = persistent_prepare_exception,
 	.commit_exception = persistent_commit_exception,
+	.prepare_merge = persistent_prepare_merge,
+	.commit_merge = persistent_commit_merge,
 	.drop_snapshot = persistent_drop_snapshot,
 	.usage = persistent_usage,
 	.status = persistent_status,
