@@ -94,11 +94,11 @@ struct dm_exception_store_type {
 	struct list_head list;
 };
 
+struct dm_snapshot;
+
 struct dm_exception_store {
 	struct dm_exception_store_type *type;
-	struct dm_target *ti;
-
-	struct dm_dev *cow;
+	struct dm_snapshot *snap;
 
 	/* Size of data blocks saved - must be a power of 2 */
 	unsigned chunk_size;
@@ -107,6 +107,11 @@ struct dm_exception_store {
 
 	void *context;
 };
+
+/*
+ * Obtain the cow device used by a given snapshot.
+ */
+struct dm_dev *dm_snap_cow(struct dm_snapshot *snap);
 
 /*
  * Funtions to manipulate consecutive chunks
@@ -173,6 +178,7 @@ int dm_exception_store_set_chunk_size(struct dm_exception_store *store,
 				      char **error);
 
 int dm_exception_store_create(struct dm_target *ti, int argc, char **argv,
+			      struct dm_snapshot *snap,
 			      unsigned *args_used,
 			      struct dm_exception_store **store);
 void dm_exception_store_destroy(struct dm_exception_store *store);

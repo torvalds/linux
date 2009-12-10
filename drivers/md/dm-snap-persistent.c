@@ -214,7 +214,7 @@ static int chunk_io(struct pstore *ps, void *area, chunk_t chunk, int rw,
 		    int metadata)
 {
 	struct dm_io_region where = {
-		.bdev = ps->store->cow->bdev,
+		.bdev = dm_snap_cow(ps->store->snap)->bdev,
 		.sector = ps->store->chunk_size * chunk,
 		.count = ps->store->chunk_size,
 	};
@@ -294,7 +294,8 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 	 */
 	if (!ps->store->chunk_size) {
 		ps->store->chunk_size = max(DM_CHUNK_SIZE_DEFAULT_SECTORS,
-		    bdev_logical_block_size(ps->store->cow->bdev) >> 9);
+		    bdev_logical_block_size(dm_snap_cow(ps->store->snap)->
+					    bdev) >> 9);
 		ps->store->chunk_mask = ps->store->chunk_size - 1;
 		ps->store->chunk_shift = ffs(ps->store->chunk_size) - 1;
 		chunk_size_supplied = 0;
@@ -497,7 +498,7 @@ static void persistent_usage(struct dm_exception_store *store,
 	struct pstore *ps = get_info(store);
 
 	*sectors_allocated = ps->next_free * store->chunk_size;
-	*total_sectors = get_dev_size(store->cow->bdev);
+	*total_sectors = get_dev_size(dm_snap_cow(store->snap)->bdev);
 
 	/*
 	 * First chunk is the fixed header.
@@ -596,7 +597,7 @@ static int persistent_prepare_exception(struct dm_exception_store *store,
 	struct pstore *ps = get_info(store);
 	uint32_t stride;
 	chunk_t next_free;
-	sector_t size = get_dev_size(store->cow->bdev);
+	sector_t size = get_dev_size(dm_snap_cow(store->snap)->bdev);
 
 	/* Is there enough room ? */
 	if (size < ((ps->next_free + 1) * store->chunk_size))
@@ -733,8 +734,7 @@ static unsigned persistent_status(struct dm_exception_store *store,
 	case STATUSTYPE_INFO:
 		break;
 	case STATUSTYPE_TABLE:
-		DMEMIT(" %s P %llu", store->cow->name,
-		       (unsigned long long)store->chunk_size);
+		DMEMIT(" P %llu", (unsigned long long)store->chunk_size);
 	}
 
 	return sz;

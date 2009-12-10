@@ -39,7 +39,7 @@ static int transient_prepare_exception(struct dm_exception_store *store,
 				       struct dm_exception *e)
 {
 	struct transient_c *tc = store->context;
-	sector_t size = get_dev_size(store->cow->bdev);
+	sector_t size = get_dev_size(dm_snap_cow(store->snap)->bdev);
 
 	if (size < (tc->next_free + store->chunk_size))
 		return -1;
@@ -65,7 +65,7 @@ static void transient_usage(struct dm_exception_store *store,
 			    sector_t *metadata_sectors)
 {
 	*sectors_allocated = ((struct transient_c *) store->context)->next_free;
-	*total_sectors = get_dev_size(store->cow->bdev);
+	*total_sectors = get_dev_size(dm_snap_cow(store->snap)->bdev);
 	*metadata_sectors = 0;
 }
 
@@ -94,8 +94,7 @@ static unsigned transient_status(struct dm_exception_store *store,
 	case STATUSTYPE_INFO:
 		break;
 	case STATUSTYPE_TABLE:
-		DMEMIT(" %s N %llu", store->cow->name,
-		       (unsigned long long)store->chunk_size);
+		DMEMIT(" N %llu", (unsigned long long)store->chunk_size);
 	}
 
 	return sz;

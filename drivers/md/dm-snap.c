@@ -59,6 +59,9 @@ struct dm_snapshot {
 	struct rw_semaphore lock;
 
 	struct dm_dev *origin;
+	struct dm_dev *cow;
+
+	struct dm_target *ti;
 
 	/* List of snapshots per Origin */
 	struct list_head list;
@@ -96,6 +99,12 @@ struct dm_snapshot {
 	spinlock_t tracked_chunk_lock;
 	struct hlist_head tracked_chunk_hash[DM_TRACKED_CHUNK_HASH_SIZE];
 };
+
+struct dm_dev *dm_snap_cow(struct dm_snapshot *s)
+{
+	return s->cow;
+}
+EXPORT_SYMBOL(dm_snap_cow);
 
 static struct workqueue_struct *ksnapd;
 static void flush_queued_bios(struct work_struct *work);
@@ -558,7 +567,7 @@ static int init_hash_tables(struct dm_snapshot *s)
 	 * Calculate based on the size of the original volume or
 	 * the COW volume...
 	 */
-	cow_dev_size = get_dev_size(s->store->cow->bdev);
+	cow_dev_size = get_dev_size(s->cow->bdev);
 	origin_dev_size = get_dev_size(s->origin->bdev);
 	max_buckets = calc_max_buckets();
 
@@ -596,37 +605,47 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	struct dm_snapshot *s;
 	int i;
 	int r = -EINVAL;
-	char *origin_path;
-	struct dm_exception_store *store;
+	char *origin_path, *cow_path;
 	unsigned args_used;
 
 	if (argc != 4) {
 		ti->error = "requires exactly 4 arguments";
 		r = -EINVAL;
-		goto bad_args;
+		goto bad;
 	}
 
 	origin_path = argv[0];
 	argv++;
 	argc--;
 
-	r = dm_exception_store_create(ti, argc, argv, &args_used, &store);
-	if (r) {
-		ti->error = "Couldn't create exception store";
-		r = -EINVAL;
-		goto bad_args;
-	}
-
-	argv += args_used;
-	argc -= args_used;
-
 	s = kmalloc(sizeof(*s), GFP_KERNEL);
 	if (!s) {
 		ti->error = "Cannot allocate snapshot context private "
 		    "structure";
 		r = -ENOMEM;
-		goto bad_snap;
+		goto bad;
 	}
+
+	cow_path = argv[0];
+	argv++;
+	argc--;
+
+	r = dm_get_device(ti, cow_path, 0, 0,
+			  FMODE_READ | FMODE_WRITE, &s->cow);
+	if (r) {
+		ti->error = "Cannot get COW device";
+		goto bad_cow;
+	}
+
+	r = dm_exception_store_create(ti, argc, argv, s, &args_used, &s->store);
+	if (r) {
+		ti->error = "Couldn't create exception store";
+		r = -EINVAL;
+		goto bad_store;
+	}
+
+	argv += args_used;
+	argc -= args_used;
 
 	r = dm_get_device(ti, origin_path, 0, ti->len, FMODE_READ, &s->origin);
 	if (r) {
@@ -634,7 +653,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad_origin;
 	}
 
-	s->store = store;
+	s->ti = ti;
 	s->valid = 1;
 	s->active = 0;
 	atomic_set(&s->pending_exceptions_count, 0);
@@ -723,12 +742,15 @@ bad_hash_tables:
 	dm_put_device(ti, s->origin);
 
 bad_origin:
+	dm_exception_store_destroy(s->store);
+
+bad_store:
+	dm_put_device(ti, s->cow);
+
+bad_cow:
 	kfree(s);
 
-bad_snap:
-	dm_exception_store_destroy(store);
-
-bad_args:
+bad:
 	return r;
 }
 
@@ -776,6 +798,8 @@ static void snapshot_dtr(struct dm_target *ti)
 	dm_put_device(ti, s->origin);
 
 	dm_exception_store_destroy(s->store);
+
+	dm_put_device(ti, s->cow);
 
 	kfree(s);
 }
@@ -839,7 +863,7 @@ static void __invalidate_snapshot(struct dm_snapshot *s, int err)
 
 	s->valid = 0;
 
-	dm_table_event(s->store->ti->table);
+	dm_table_event(s->ti->table);
 }
 
 static void get_pending_exception(struct dm_snap_pending_exception *pe)
@@ -977,7 +1001,7 @@ static void start_copy(struct dm_snap_pending_exception *pe)
 	src.sector = chunk_to_sector(s->store, pe->e.old_chunk);
 	src.count = min((sector_t)s->store->chunk_size, dev_size - src.sector);
 
-	dest.bdev = s->store->cow->bdev;
+	dest.bdev = s->cow->bdev;
 	dest.sector = chunk_to_sector(s->store, pe->e.new_chunk);
 	dest.count = src.count;
 
@@ -1038,7 +1062,7 @@ __find_pending_exception(struct dm_snapshot *s,
 static void remap_exception(struct dm_snapshot *s, struct dm_exception *e,
 			    struct bio *bio, chunk_t chunk)
 {
-	bio->bi_bdev = s->store->cow->bdev;
+	bio->bi_bdev = s->cow->bdev;
 	bio->bi_sector = chunk_to_sector(s->store,
 					 dm_chunk_number(e->new_chunk) +
 					 (chunk - e->old_chunk)) +
@@ -1056,7 +1080,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 	struct dm_snap_pending_exception *pe = NULL;
 
 	if (unlikely(bio_empty_barrier(bio))) {
-		bio->bi_bdev = s->store->cow->bdev;
+		bio->bi_bdev = s->cow->bdev;
 		return DM_MAPIO_REMAPPED;
 	}
 
@@ -1200,7 +1224,7 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 		 * to make private copies if the output is to
 		 * make sense.
 		 */
-		DMEMIT("%s", snap->origin->name);
+		DMEMIT("%s %s", snap->origin->name, snap->cow->name);
 		snap->store->type->status(snap->store, type, result + sz,
 					  maxlen - sz);
 		break;
@@ -1240,7 +1264,7 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 			goto next_snapshot;
 
 		/* Nothing to do if writing beyond end of snapshot */
-		if (bio->bi_sector >= dm_table_get_size(snap->store->ti->table))
+		if (bio->bi_sector >= dm_table_get_size(snap->ti->table))
 			goto next_snapshot;
 
 		/*
