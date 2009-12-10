@@ -934,14 +934,14 @@ static int crypt_set_key(struct crypt_config *cc, char *key)
 
 	set_bit(DM_CRYPT_KEY_VALID, &cc->flags);
 
-	return 0;
+	return crypto_ablkcipher_setkey(cc->tfm, cc->key, cc->key_size);
 }
 
 static int crypt_wipe_key(struct crypt_config *cc)
 {
 	clear_bit(DM_CRYPT_KEY_VALID, &cc->flags);
 	memset(&cc->key, 0, cc->key_size * sizeof(u8));
-	return 0;
+	return crypto_ablkcipher_setkey(cc->tfm, cc->key, cc->key_size);
 }
 
 /*
@@ -983,11 +983,6 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -ENOMEM;
 	}
 
- 	if (crypt_set_key(cc, argv[1])) {
-		ti->error = "Error decoding key";
-		goto bad_cipher;
-	}
-
 	/* Compatibility mode for old dm-crypt cipher strings */
 	if (!chainmode || (strcmp(chainmode, "plain") == 0 && !ivmode)) {
 		chainmode = "cbc";
@@ -1014,6 +1009,11 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	strcpy(cc->cipher, cipher);
 	strcpy(cc->chainmode, chainmode);
 	cc->tfm = tfm;
+
+	if (crypt_set_key(cc, argv[1]) < 0) {
+		ti->error = "Error decoding and setting key";
+		goto bad_ivmode;
+	}
 
 	/*
 	 * Choose ivmode. Valid modes: "plain", "essiv:<esshash>", "benbi".
@@ -1083,11 +1083,6 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (!cc->bs) {
 		ti->error = "Cannot allocate crypt bioset";
 		goto bad_bs;
-	}
-
-	if (crypto_ablkcipher_setkey(tfm, cc->key, key_size) < 0) {
-		ti->error = "Error setting key";
-		goto bad_device;
 	}
 
 	if (sscanf(argv[2], "%llu", &tmpll) != 1) {
