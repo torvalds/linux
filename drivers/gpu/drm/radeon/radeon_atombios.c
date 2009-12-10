@@ -70,6 +70,7 @@ static inline struct radeon_i2c_bus_rec radeon_lookup_i2c_gpio(struct radeon_dev
 	int index = GetIndexIntoMasterTable(DATA, GPIO_I2C_Info);
 	struct _ATOM_GPIO_I2C_INFO *i2c_info;
 	uint16_t data_offset;
+	int i;
 
 	memset(&i2c, 0, sizeof(struct radeon_i2c_bus_rec));
 	i2c.valid = false;
@@ -78,38 +79,43 @@ static inline struct radeon_i2c_bus_rec radeon_lookup_i2c_gpio(struct radeon_dev
 
 	i2c_info = (struct _ATOM_GPIO_I2C_INFO *)(ctx->bios + data_offset);
 
-	gpio = &i2c_info->asGPIO_Info[id];
 
-	i2c.mask_clk_reg = le16_to_cpu(gpio->usClkMaskRegisterIndex) * 4;
-	i2c.mask_data_reg = le16_to_cpu(gpio->usDataMaskRegisterIndex) * 4;
-	i2c.en_clk_reg = le16_to_cpu(gpio->usClkEnRegisterIndex) * 4;
-	i2c.en_data_reg = le16_to_cpu(gpio->usDataEnRegisterIndex) * 4;
-	i2c.y_clk_reg = le16_to_cpu(gpio->usClkY_RegisterIndex) * 4;
-	i2c.y_data_reg = le16_to_cpu(gpio->usDataY_RegisterIndex) * 4;
-	i2c.a_clk_reg = le16_to_cpu(gpio->usClkA_RegisterIndex) * 4;
-	i2c.a_data_reg = le16_to_cpu(gpio->usDataA_RegisterIndex) * 4;
-	i2c.mask_clk_mask = (1 << gpio->ucClkMaskShift);
-	i2c.mask_data_mask = (1 << gpio->ucDataMaskShift);
-	i2c.en_clk_mask = (1 << gpio->ucClkEnShift);
-	i2c.en_data_mask = (1 << gpio->ucDataEnShift);
-	i2c.y_clk_mask = (1 << gpio->ucClkY_Shift);
-	i2c.y_data_mask = (1 << gpio->ucDataY_Shift);
-	i2c.a_clk_mask = (1 << gpio->ucClkA_Shift);
-	i2c.a_data_mask = (1 << gpio->ucDataA_Shift);
+	for (i = 0; i < ATOM_MAX_SUPPORTED_DEVICE; i++) {
+		gpio = &i2c_info->asGPIO_Info[i];
 
-	if (gpio->sucI2cId.sbfAccess.bfHW_Capable)
-		i2c.hw_capable = true;
-	else
-		i2c.hw_capable = false;
+		if (gpio->sucI2cId.ucAccess == id) {
+			i2c.mask_clk_reg = le16_to_cpu(gpio->usClkMaskRegisterIndex) * 4;
+			i2c.mask_data_reg = le16_to_cpu(gpio->usDataMaskRegisterIndex) * 4;
+			i2c.en_clk_reg = le16_to_cpu(gpio->usClkEnRegisterIndex) * 4;
+			i2c.en_data_reg = le16_to_cpu(gpio->usDataEnRegisterIndex) * 4;
+			i2c.y_clk_reg = le16_to_cpu(gpio->usClkY_RegisterIndex) * 4;
+			i2c.y_data_reg = le16_to_cpu(gpio->usDataY_RegisterIndex) * 4;
+			i2c.a_clk_reg = le16_to_cpu(gpio->usClkA_RegisterIndex) * 4;
+			i2c.a_data_reg = le16_to_cpu(gpio->usDataA_RegisterIndex) * 4;
+			i2c.mask_clk_mask = (1 << gpio->ucClkMaskShift);
+			i2c.mask_data_mask = (1 << gpio->ucDataMaskShift);
+			i2c.en_clk_mask = (1 << gpio->ucClkEnShift);
+			i2c.en_data_mask = (1 << gpio->ucDataEnShift);
+			i2c.y_clk_mask = (1 << gpio->ucClkY_Shift);
+			i2c.y_data_mask = (1 << gpio->ucDataY_Shift);
+			i2c.a_clk_mask = (1 << gpio->ucClkA_Shift);
+			i2c.a_data_mask = (1 << gpio->ucDataA_Shift);
 
-	if (gpio->sucI2cId.ucAccess == 0xa0)
-		i2c.mm_i2c = true;
-	else
-		i2c.mm_i2c = false;
+			if (gpio->sucI2cId.sbfAccess.bfHW_Capable)
+				i2c.hw_capable = true;
+			else
+				i2c.hw_capable = false;
 
-	i2c.i2c_id = gpio->sucI2cId.ucAccess;
+			if (gpio->sucI2cId.ucAccess == 0xa0)
+				i2c.mm_i2c = true;
+			else
+				i2c.mm_i2c = false;
 
-	i2c.valid = true;
+			i2c.i2c_id = gpio->sucI2cId.ucAccess;
+
+			i2c.valid = true;
+		}
+	}
 
 	return i2c;
 }
@@ -503,6 +509,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 								 usRecordOffset));
 						ATOM_I2C_RECORD *i2c_record;
 						ATOM_HPD_INT_RECORD *hpd_record;
+						ATOM_I2C_ID_CONFIG_ACCESS *i2c_config;
 						hpd.hpd = RADEON_HPD_NONE;
 
 						while (record->ucRecordType > 0
@@ -514,10 +521,12 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 								i2c_record =
 								    (ATOM_I2C_RECORD *)
 									record;
+								i2c_config =
+									(ATOM_I2C_ID_CONFIG_ACCESS *)
+									&i2c_record->sucI2cId;
 								ddc_bus = radeon_lookup_i2c_gpio(rdev,
-												 i2c_record->
-												 sucI2cId.
-												 bfI2C_LineMux);
+												 i2c_config->
+												 ucAccess);
 								break;
 							case ATOM_HPD_INT_RECORD_TYPE:
 								hpd_record =
@@ -670,22 +679,8 @@ bool radeon_get_atom_connector_info_from_supported_devices_table(struct
 
 		dac = ci.sucConnectorInfo.sbfAccess.bfAssociatedDAC;
 
-		if ((rdev->family == CHIP_RS690) ||
-		    (rdev->family == CHIP_RS740)) {
-			if ((i == ATOM_DEVICE_DFP2_INDEX)
-			    && (ci.sucI2cId.sbfAccess.bfI2C_LineMux == 2))
-				bios_connectors[i].line_mux =
-				    ci.sucI2cId.sbfAccess.bfI2C_LineMux + 1;
-			else if ((i == ATOM_DEVICE_DFP3_INDEX)
-				 && (ci.sucI2cId.sbfAccess.bfI2C_LineMux == 1))
-				bios_connectors[i].line_mux =
-				    ci.sucI2cId.sbfAccess.bfI2C_LineMux + 1;
-			else
-				bios_connectors[i].line_mux =
-				    ci.sucI2cId.sbfAccess.bfI2C_LineMux;
-		} else
-			bios_connectors[i].line_mux =
-			    ci.sucI2cId.sbfAccess.bfI2C_LineMux;
+		bios_connectors[i].line_mux =
+			ci.sucI2cId.ucAccess;
 
 		/* give tv unique connector ids */
 		if (i == ATOM_DEVICE_TV1_INDEX) {
@@ -876,7 +871,8 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 			 * pre-DCE 3.0 r6xx hardware.  This might need to be adjusted per
 			 * family.
 			 */
-			p1pll->pll_out_min = 64800;
+			if (!radeon_new_pll)
+				p1pll->pll_out_min = 64800;
 		}
 
 		p1pll->pll_in_min =
@@ -1006,6 +1002,7 @@ static struct radeon_atom_ss *radeon_atombios_get_ss_info(struct
 	struct _ATOM_SPREAD_SPECTRUM_INFO *ss_info;
 	uint8_t frev, crev;
 	struct radeon_atom_ss *ss = NULL;
+	int i;
 
 	if (id > ATOM_MAX_SS_ENTRY)
 		return NULL;
@@ -1023,12 +1020,17 @@ static struct radeon_atom_ss *radeon_atombios_get_ss_info(struct
 		if (!ss)
 			return NULL;
 
-		ss->percentage = le16_to_cpu(ss_info->asSS_Info[id].usSpreadSpectrumPercentage);
-		ss->type = ss_info->asSS_Info[id].ucSpreadSpectrumType;
-		ss->step = ss_info->asSS_Info[id].ucSS_Step;
-		ss->delay = ss_info->asSS_Info[id].ucSS_Delay;
-		ss->range = ss_info->asSS_Info[id].ucSS_Range;
-		ss->refdiv = ss_info->asSS_Info[id].ucRecommendedRef_Div;
+		for (i = 0; i < ATOM_MAX_SS_ENTRY; i++) {
+			if (ss_info->asSS_Info[i].ucSS_Id == id) {
+				ss->percentage =
+					le16_to_cpu(ss_info->asSS_Info[i].usSpreadSpectrumPercentage);
+				ss->type = ss_info->asSS_Info[i].ucSpreadSpectrumType;
+				ss->step = ss_info->asSS_Info[i].ucSS_Step;
+				ss->delay = ss_info->asSS_Info[i].ucSS_Delay;
+				ss->range = ss_info->asSS_Info[i].ucSS_Range;
+				ss->refdiv = ss_info->asSS_Info[i].ucRecommendedRef_Div;
+			}
+		}
 	}
 	return ss;
 }

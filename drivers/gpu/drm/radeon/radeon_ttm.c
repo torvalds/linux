@@ -197,16 +197,19 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 	return 0;
 }
 
-static uint32_t radeon_evict_flags(struct ttm_buffer_object *bo)
+static void radeon_evict_flags(struct ttm_buffer_object *bo,
+				struct ttm_placement *placement)
 {
-	uint32_t cur_placement = bo->mem.placement & ~TTM_PL_MASK_MEMTYPE;
-
+	struct radeon_bo *rbo = container_of(bo, struct radeon_bo, tbo);
 	switch (bo->mem.mem_type) {
+	case TTM_PL_VRAM:
+		radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_GTT);
+		break;
+	case TTM_PL_TT:
 	default:
-		return (cur_placement & ~TTM_PL_MASK_CACHING) |
-			TTM_PL_FLAG_SYSTEM |
-			TTM_PL_FLAG_CACHED;
+		radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_CPU);
 	}
+	*placement = rbo->placement;
 }
 
 static int radeon_verify_access(struct ttm_buffer_object *bo, struct file *filp)
@@ -283,14 +286,21 @@ static int radeon_move_vram_ram(struct ttm_buffer_object *bo,
 	struct radeon_device *rdev;
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	struct ttm_mem_reg tmp_mem;
-	uint32_t proposed_placement;
+	u32 placements;
+	struct ttm_placement placement;
 	int r;
 
 	rdev = radeon_get_rdev(bo->bdev);
 	tmp_mem = *new_mem;
 	tmp_mem.mm_node = NULL;
-	proposed_placement = TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING;
-	r = ttm_bo_mem_space(bo, proposed_placement, &tmp_mem,
+	placement.fpfn = 0;
+	placement.lpfn = 0;
+	placement.num_placement = 1;
+	placement.placement = &placements;
+	placement.num_busy_placement = 1;
+	placement.busy_placement = &placements;
+	placements = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
+	r = ttm_bo_mem_space(bo, &placement, &tmp_mem,
 			     interruptible, no_wait);
 	if (unlikely(r)) {
 		return r;
@@ -329,15 +339,21 @@ static int radeon_move_ram_vram(struct ttm_buffer_object *bo,
 	struct radeon_device *rdev;
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	struct ttm_mem_reg tmp_mem;
-	uint32_t proposed_flags;
+	struct ttm_placement placement;
+	u32 placements;
 	int r;
 
 	rdev = radeon_get_rdev(bo->bdev);
 	tmp_mem = *new_mem;
 	tmp_mem.mm_node = NULL;
-	proposed_flags = TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING;
-	r = ttm_bo_mem_space(bo, proposed_flags, &tmp_mem,
-			     interruptible, no_wait);
+	placement.fpfn = 0;
+	placement.lpfn = 0;
+	placement.num_placement = 1;
+	placement.placement = &placements;
+	placement.num_busy_placement = 1;
+	placement.busy_placement = &placements;
+	placements = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
+	r = ttm_bo_mem_space(bo, &placement, &tmp_mem, interruptible, no_wait);
 	if (unlikely(r)) {
 		return r;
 	}
@@ -407,18 +423,6 @@ memcpy:
 	return r;
 }
 
-const uint32_t radeon_mem_prios[] = {
-	TTM_PL_VRAM,
-	TTM_PL_TT,
-	TTM_PL_SYSTEM,
-};
-
-const uint32_t radeon_busy_prios[] = {
-	TTM_PL_TT,
-	TTM_PL_VRAM,
-	TTM_PL_SYSTEM,
-};
-
 static int radeon_sync_obj_wait(void *sync_obj, void *sync_arg,
 				bool lazy, bool interruptible)
 {
@@ -446,10 +450,6 @@ static bool radeon_sync_obj_signaled(void *sync_obj, void *sync_arg)
 }
 
 static struct ttm_bo_driver radeon_bo_driver = {
-	.mem_type_prio = radeon_mem_prios,
-	.mem_busy_prio = radeon_busy_prios,
-	.num_mem_type_prio = ARRAY_SIZE(radeon_mem_prios),
-	.num_mem_busy_prio = ARRAY_SIZE(radeon_busy_prios),
 	.create_ttm_backend_entry = &radeon_create_ttm_backend_entry,
 	.invalidate_caches = &radeon_invalidate_caches,
 	.init_mem_type = &radeon_init_mem_type,
@@ -483,7 +483,7 @@ int radeon_ttm_init(struct radeon_device *rdev)
 		return r;
 	}
 	r = ttm_bo_init_mm(&rdev->mman.bdev, TTM_PL_VRAM,
-				0, rdev->mc.real_vram_size >> PAGE_SHIFT);
+				rdev->mc.real_vram_size >> PAGE_SHIFT);
 	if (r) {
 		DRM_ERROR("Failed initializing VRAM heap.\n");
 		return r;
@@ -506,7 +506,7 @@ int radeon_ttm_init(struct radeon_device *rdev)
 	DRM_INFO("radeon: %uM of VRAM memory ready\n",
 		 (unsigned)rdev->mc.real_vram_size / (1024 * 1024));
 	r = ttm_bo_init_mm(&rdev->mman.bdev, TTM_PL_TT,
-				0, rdev->mc.gtt_size >> PAGE_SHIFT);
+				rdev->mc.gtt_size >> PAGE_SHIFT);
 	if (r) {
 		DRM_ERROR("Failed initializing GTT heap.\n");
 		return r;

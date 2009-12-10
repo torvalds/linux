@@ -499,8 +499,18 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	else
 		pll = &rdev->clock.p2pll;
 
-	radeon_compute_pll(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
-			   &ref_div, &post_div, pll_flags);
+	if (ASIC_IS_AVIVO(rdev)) {
+		if (radeon_new_pll)
+			radeon_compute_pll_avivo(pll, adjusted_clock, &pll_clock,
+						 &fb_div, &frac_fb_div,
+						 &ref_div, &post_div, pll_flags);
+		else
+			radeon_compute_pll(pll, adjusted_clock, &pll_clock,
+					   &fb_div, &frac_fb_div,
+					   &ref_div, &post_div, pll_flags);
+	} else
+		radeon_compute_pll(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
+				   &ref_div, &post_div, pll_flags);
 
 	index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
 	atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev,
@@ -599,8 +609,6 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	}
 	radeon_bo_get_tiling_flags(rbo, &tiling_flags, NULL);
 	radeon_bo_unreserve(rbo);
-	if (tiling_flags & RADEON_TILING_MACRO)
-		fb_format |= AVIVO_D1GRPH_MACRO_ADDRESS_MODE;
 
 	switch (crtc->fb->bits_per_pixel) {
 	case 8:
@@ -629,6 +637,9 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 			  crtc->fb->bits_per_pixel);
 		return -EINVAL;
 	}
+
+	if (tiling_flags & RADEON_TILING_MACRO)
+		fb_format |= AVIVO_D1GRPH_MACRO_ADDRESS_MODE;
 
 	if (tiling_flags & RADEON_TILING_MICRO)
 		fb_format |= AVIVO_D1GRPH_TILED;

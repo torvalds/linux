@@ -260,8 +260,9 @@ void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 
 	b.full = rfixed_const(mode->crtc_hdisplay);
 	c.full = rfixed_const(256);
-	a.full = rfixed_mul(wm->num_line_pair, b);
-	request_fifo_depth.full = rfixed_div(a, c);
+	a.full = rfixed_div(b, c);
+	request_fifo_depth.full = rfixed_mul(a, wm->num_line_pair);
+	request_fifo_depth.full = rfixed_ceil(request_fifo_depth);
 	if (a.full < rfixed_const(4)) {
 		wm->lb_request_fifo_depth = 4;
 	} else {
@@ -390,6 +391,7 @@ void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 	a.full = rfixed_const(16);
 	wm->priority_mark_max.full = rfixed_const(crtc->base.mode.crtc_hdisplay);
 	wm->priority_mark_max.full = rfixed_div(wm->priority_mark_max, a);
+	wm->priority_mark_max.full = rfixed_ceil(wm->priority_mark_max);
 
 	/* Determine estimated width */
 	estimated_width.full = tolerable_latency.full - wm->worst_case_latency.full;
@@ -399,6 +401,7 @@ void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 	} else {
 		a.full = rfixed_const(16);
 		wm->priority_mark.full = rfixed_div(estimated_width, a);
+		wm->priority_mark.full = rfixed_ceil(wm->priority_mark);
 		wm->priority_mark.full = wm->priority_mark_max.full - wm->priority_mark.full;
 	}
 }
@@ -655,6 +658,8 @@ int rs690_resume(struct radeon_device *rdev)
 	atom_asic_init(rdev->mode_info.atom_context);
 	/* Resume clock after posting */
 	rv515_clock_startup(rdev);
+	/* Initialize surface registers */
+	radeon_surface_init(rdev);
 	return rs690_startup(rdev);
 }
 

@@ -560,6 +560,98 @@ void radeon_compute_pll(struct radeon_pll *pll,
 	*post_div_p = best_post_div;
 }
 
+void radeon_compute_pll_avivo(struct radeon_pll *pll,
+			      uint64_t freq,
+			      uint32_t *dot_clock_p,
+			      uint32_t *fb_div_p,
+			      uint32_t *frac_fb_div_p,
+			      uint32_t *ref_div_p,
+			      uint32_t *post_div_p,
+			      int flags)
+{
+	fixed20_12 m, n, frac_n, p, f_vco, f_pclk, best_freq;
+	fixed20_12 pll_out_max, pll_out_min;
+	fixed20_12 pll_in_max, pll_in_min;
+	fixed20_12 reference_freq;
+	fixed20_12 error, ffreq, a, b;
+
+	pll_out_max.full = rfixed_const(pll->pll_out_max);
+	pll_out_min.full = rfixed_const(pll->pll_out_min);
+	pll_in_max.full = rfixed_const(pll->pll_in_max);
+	pll_in_min.full = rfixed_const(pll->pll_in_min);
+	reference_freq.full = rfixed_const(pll->reference_freq);
+	do_div(freq, 10);
+	ffreq.full = rfixed_const(freq);
+	error.full = rfixed_const(100 * 100);
+
+	/* max p */
+	p.full = rfixed_div(pll_out_max, ffreq);
+	p.full = rfixed_floor(p);
+
+	/* min m */
+	m.full = rfixed_div(reference_freq, pll_in_max);
+	m.full = rfixed_ceil(m);
+
+	while (1) {
+		n.full = rfixed_div(ffreq, reference_freq);
+		n.full = rfixed_mul(n, m);
+		n.full = rfixed_mul(n, p);
+
+		f_vco.full = rfixed_div(n, m);
+		f_vco.full = rfixed_mul(f_vco, reference_freq);
+
+		f_pclk.full = rfixed_div(f_vco, p);
+
+		if (f_pclk.full > ffreq.full)
+			error.full = f_pclk.full - ffreq.full;
+		else
+			error.full = ffreq.full - f_pclk.full;
+		error.full = rfixed_div(error, f_pclk);
+		a.full = rfixed_const(100 * 100);
+		error.full = rfixed_mul(error, a);
+
+		a.full = rfixed_mul(m, p);
+		a.full = rfixed_div(n, a);
+		best_freq.full = rfixed_mul(reference_freq, a);
+
+		if (rfixed_trunc(error) < 25)
+			break;
+
+		a.full = rfixed_const(1);
+		m.full = m.full + a.full;
+		a.full = rfixed_div(reference_freq, m);
+		if (a.full >= pll_in_min.full)
+			continue;
+
+		m.full = rfixed_div(reference_freq, pll_in_max);
+		m.full = rfixed_ceil(m);
+		a.full= rfixed_const(1);
+		p.full = p.full - a.full;
+		a.full = rfixed_mul(p, ffreq);
+		if (a.full >= pll_out_min.full)
+			continue;
+		else {
+			DRM_ERROR("Unable to find pll dividers\n");
+			break;
+		}
+	}
+
+	a.full = rfixed_const(10);
+	b.full = rfixed_mul(n, a);
+
+	frac_n.full = rfixed_floor(n);
+	frac_n.full = rfixed_mul(frac_n, a);
+	frac_n.full = b.full - frac_n.full;
+
+	*dot_clock_p = rfixed_trunc(best_freq);
+	*fb_div_p = rfixed_trunc(n);
+	*frac_fb_div_p = rfixed_trunc(frac_n);
+	*ref_div_p = rfixed_trunc(m);
+	*post_div_p = rfixed_trunc(p);
+
+	DRM_DEBUG("%u %d.%d, %d, %d\n", *dot_clock_p * 10, *fb_div_p, *frac_fb_div_p, *ref_div_p, *post_div_p);
+}
+
 static void radeon_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct radeon_framebuffer *radeon_fb = to_radeon_framebuffer(fb);
@@ -660,7 +752,7 @@ int radeon_modeset_create_props(struct radeon_device *rdev)
 			return -ENOMEM;
 
 		rdev->mode_info.coherent_mode_property->values[0] = 0;
-		rdev->mode_info.coherent_mode_property->values[0] = 1;
+		rdev->mode_info.coherent_mode_property->values[1] = 1;
 	}
 
 	if (!ASIC_IS_AVIVO(rdev)) {
@@ -684,7 +776,7 @@ int radeon_modeset_create_props(struct radeon_device *rdev)
 	if (!rdev->mode_info.load_detect_property)
 		return -ENOMEM;
 	rdev->mode_info.load_detect_property->values[0] = 0;
-	rdev->mode_info.load_detect_property->values[0] = 1;
+	rdev->mode_info.load_detect_property->values[1] = 1;
 
 	drm_mode_create_scaling_mode_property(rdev->ddev);
 

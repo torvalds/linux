@@ -44,6 +44,29 @@ struct ttm_bo_device;
 
 struct drm_mm_node;
 
+
+/**
+ * struct ttm_placement
+ *
+ * @fpfn:		first valid page frame number to put the object
+ * @lpfn:		last valid page frame number to put the object
+ * @num_placement:	number of prefered placements
+ * @placement:		prefered placements
+ * @num_busy_placement:	number of prefered placements when need to evict buffer
+ * @busy_placement:	prefered placements when need to evict buffer
+ *
+ * Structure indicating the placement you request for an object.
+ */
+struct ttm_placement {
+	unsigned	fpfn;
+	unsigned	lpfn;
+	unsigned	num_placement;
+	const uint32_t	*placement;
+	unsigned	num_busy_placement;
+	const uint32_t	*busy_placement;
+};
+
+
 /**
  * struct ttm_mem_reg
  *
@@ -109,10 +132,6 @@ struct ttm_tt;
  * the object is destroyed.
  * @event_queue: Queue for processes waiting on buffer object status change.
  * @lock: spinlock protecting mostly synchronization members.
- * @proposed_placement: Proposed placement for the buffer. Changed only by the
- * creator prior to validation as opposed to bo->mem.proposed_flags which is
- * changed by the implementation prior to a buffer move if it wants to outsmart
- * the buffer creator / user. This latter happens, for example, at eviction.
  * @mem: structure describing current placement.
  * @persistant_swap_storage: Usually the swap storage is deleted for buffers
  * pinned in physical memory. If this behaviour is not desired, this member
@@ -177,7 +196,6 @@ struct ttm_buffer_object {
 	 * Members protected by the bo::reserved lock.
 	 */
 
-	uint32_t proposed_placement;
 	struct ttm_mem_reg mem;
 	struct file *persistant_swap_storage;
 	struct ttm_tt *ttm;
@@ -285,7 +303,7 @@ ttm_bo_reference(struct ttm_buffer_object *bo)
  * Note: It might be necessary to block validations before the
  * wait by reserving the buffer.
  * Returns -EBUSY if no_wait is true and the buffer is busy.
- * Returns -ERESTART if interrupted by a signal.
+ * Returns -ERESTARTSYS if interrupted by a signal.
  */
 extern int ttm_bo_wait(struct ttm_buffer_object *bo, bool lazy,
 		       bool interruptible, bool no_wait);
@@ -293,21 +311,22 @@ extern int ttm_bo_wait(struct ttm_buffer_object *bo, bool lazy,
  * ttm_buffer_object_validate
  *
  * @bo: The buffer object.
- * @proposed_placement: Proposed_placement for the buffer object.
+ * @placement: Proposed placement for the buffer object.
  * @interruptible: Sleep interruptible if sleeping.
  * @no_wait: Return immediately if the buffer is busy.
  *
  * Changes placement and caching policy of the buffer object
- * according to bo::proposed_flags.
+ * according proposed placement.
  * Returns
- * -EINVAL on invalid proposed_flags.
+ * -EINVAL on invalid proposed placement.
  * -ENOMEM on out-of-memory condition.
  * -EBUSY if no_wait is true and buffer busy.
- * -ERESTART if interrupted by a signal.
+ * -ERESTARTSYS if interrupted by a signal.
  */
 extern int ttm_buffer_object_validate(struct ttm_buffer_object *bo,
-				      uint32_t proposed_placement,
-				      bool interruptible, bool no_wait);
+					struct ttm_placement *placement,
+					bool interruptible, bool no_wait);
+
 /**
  * ttm_bo_unref
  *
@@ -328,7 +347,7 @@ extern void ttm_bo_unref(struct ttm_buffer_object **bo);
  * waiting for buffer idle. This lock is recursive.
  * Returns
  * -EBUSY if the buffer is busy and no_wait is true.
- * -ERESTART if interrupted by a signal.
+ * -ERESTARTSYS if interrupted by a signal.
  */
 
 extern int
@@ -371,7 +390,7 @@ extern void ttm_bo_synccpu_write_release(struct ttm_buffer_object *bo);
  * Returns
  * -ENOMEM: Out of memory.
  * -EINVAL: Invalid placement flags.
- * -ERESTART: Interrupted by signal while sleeping waiting for resources.
+ * -ERESTARTSYS: Interrupted by signal while sleeping waiting for resources.
  */
 
 extern int ttm_buffer_object_init(struct ttm_bo_device *bdev,
@@ -411,7 +430,7 @@ extern int ttm_buffer_object_init(struct ttm_bo_device *bdev,
  * Returns
  * -ENOMEM: Out of memory.
  * -EINVAL: Invalid placement flags.
- * -ERESTART: Interrupted by signal while waiting for resources.
+ * -ERESTARTSYS: Interrupted by signal while waiting for resources.
  */
 
 extern int ttm_buffer_object_create(struct ttm_bo_device *bdev,
@@ -445,7 +464,6 @@ extern int ttm_bo_check_placement(struct ttm_buffer_object *bo,
  *
  * @bdev: Pointer to a ttm_bo_device struct.
  * @mem_type: The memory type.
- * @p_offset: offset for managed area in pages.
  * @p_size: size managed area in pages.
  *
  * Initialize a manager for a given memory type.
@@ -458,7 +476,7 @@ extern int ttm_bo_check_placement(struct ttm_buffer_object *bo,
  */
 
 extern int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
-			  unsigned long p_offset, unsigned long p_size);
+				unsigned long p_size);
 /**
  * ttm_bo_clean_mm
  *
@@ -503,7 +521,7 @@ extern int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type);
  *
  * Returns:
  * -EINVAL: Invalid or uninitialized memory type.
- * -ERESTART: The call was interrupted by a signal while waiting to
+ * -ERESTARTSYS: The call was interrupted by a signal while waiting to
  * evict a buffer.
  */
 
@@ -606,7 +624,7 @@ extern int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
  * be called from the fops::read and fops::write method.
  * Returns:
  * See man (2) write, man(2) read. In particular,
- * the function may return -EINTR if
+ * the function may return -ERESTARTSYS if
  * interrupted by a signal.
  */
 

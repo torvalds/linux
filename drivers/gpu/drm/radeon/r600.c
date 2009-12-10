@@ -1845,6 +1845,14 @@ int r600_startup(struct radeon_device *rdev)
 {
 	int r;
 
+	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
+		r = r600_init_microcode(rdev);
+		if (r) {
+			DRM_ERROR("Failed to load firmware!\n");
+			return r;
+		}
+	}
+
 	r600_mc_program(rdev);
 	if (rdev->flags & RADEON_IS_AGP) {
 		r600_agp_enable(rdev);
@@ -2026,25 +2034,17 @@ int r600_init(struct radeon_device *rdev)
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);
 
-	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
-		r = r600_init_microcode(rdev);
-		if (r) {
-			DRM_ERROR("Failed to load firmware!\n");
-			return r;
-		}
-	}
-
 	r = r600_pcie_gart_init(rdev);
 	if (r)
 		return r;
 
-	rdev->accel_working = true;
 	r = r600_blit_init(rdev);
 	if (r) {
-		DRM_ERROR("radeon: failled blitter (%d).\n", r);
+		DRM_ERROR("radeon: failed blitter (%d).\n", r);
 		return r;
 	}
 
+	rdev->accel_working = true;
 	r = r600_startup(rdev);
 	if (r) {
 		r600_suspend(rdev);
@@ -2056,12 +2056,12 @@ int r600_init(struct radeon_device *rdev)
 	if (rdev->accel_working) {
 		r = radeon_ib_pool_init(rdev);
 		if (r) {
-			DRM_ERROR("radeon: failled initializing IB pool (%d).\n", r);
+			DRM_ERROR("radeon: failed initializing IB pool (%d).\n", r);
 			rdev->accel_working = false;
 		}
 		r = r600_ib_test(rdev);
 		if (r) {
-			DRM_ERROR("radeon: failled testing IB (%d).\n", r);
+			DRM_ERROR("radeon: failed testing IB (%d).\n", r);
 			rdev->accel_working = false;
 		}
 	}

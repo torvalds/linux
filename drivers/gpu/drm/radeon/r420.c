@@ -231,7 +231,8 @@ int r420_resume(struct radeon_device *rdev)
 	}
 	/* Resume clock after posting */
 	r420_clock_resume(rdev);
-
+	/* Initialize surface registers */
+	radeon_surface_init(rdev);
 	return r420_startup(rdev);
 }
 

@@ -3299,6 +3299,8 @@ int r100_resume(struct radeon_device *rdev)
 	radeon_combios_asic_init(rdev->ddev);
 	/* Resume clock after posting */
 	r100_clock_startup(rdev);
+	/* Initialize surface registers */
+	radeon_surface_init(rdev);
 	return r100_startup(rdev);
 }
 

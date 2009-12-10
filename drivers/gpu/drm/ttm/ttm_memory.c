@@ -323,8 +323,10 @@ static int ttm_mem_init_dma32_zone(struct ttm_mem_global *glob,
 	 * No special dma32 zone needed.
 	 */
 
-	if (mem <= ((uint64_t) 1ULL << 32))
+	if (mem <= ((uint64_t) 1ULL << 32)) {
+		kfree(zone);
 		return 0;
+	}
 
 	/*
 	 * Limit max dma32 memory to 4GB for now
