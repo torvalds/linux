@@ -277,21 +277,20 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 {
 	struct trace_ksym *entry;
 	struct hlist_node *node;
-	char *input_string, *ksymname = NULL;
+	char *buf, *input_string, *ksymname = NULL;
 	unsigned long ksym_addr = 0;
 	int ret, op, changed = 0;
 
-	input_string = kzalloc(count + 1, GFP_KERNEL);
-	if (!input_string)
+	buf = kzalloc(count + 1, GFP_KERNEL);
+	if (!buf)
 		return -ENOMEM;
 
-	if (copy_from_user(input_string, buffer, count)) {
-		kfree(input_string);
-		return -EFAULT;
-	}
-	input_string[count] = '\0';
+	ret = -EFAULT;
+	if (copy_from_user(buf, buffer, count))
+		goto out;
 
-	strstrip(input_string);
+	buf[count] = '\0';
+	input_string = strstrip(buf);
 
 	/*
 	 * Clear all breakpoints if:
@@ -302,15 +301,13 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 	if (!input_string[0] || !strcmp(input_string, "0") ||
 	    !strcmp(input_string, "*:---")) {
 		__ksym_trace_reset();
-		kfree(input_string);
-		return count;
+		ret = 0;
+		goto out;
 	}
 
 	ret = op = parse_ksym_trace_str(input_string, &ksymname, &ksym_addr);
-	if (ret < 0) {
-		kfree(input_string);
-		return ret;
-	}
+	if (ret < 0)
+		goto out;
 
 	mutex_lock(&ksym_tracer_mutex);
 
@@ -321,7 +318,7 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 			if (entry->attr.bp_type != op)
 				changed = 1;
 			else
-				goto out;
+				goto out_unlock;
 			break;
 		}
 	}
@@ -336,28 +333,24 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 			if (IS_ERR(entry->ksym_hbp))
 				ret = PTR_ERR(entry->ksym_hbp);
 			else
-				goto out;
+				goto out_unlock;
 		}
 		/* Error or "symbol:---" case: drop it */
 		ksym_filter_entry_count--;
 		hlist_del_rcu(&(entry->ksym_hlist));
 		synchronize_rcu();
 		kfree(entry);
-		goto out;
+		goto out_unlock;
 	} else {
 		/* Check for malformed request: (4) */
-		if (op == 0)
-			goto out;
-		ret = process_new_ksym_entry(ksymname, op, ksym_addr);
+		if (op)
+			ret = process_new_ksym_entry(ksymname, op, ksym_addr);
 	}
-out:
+out_unlock:
 	mutex_unlock(&ksym_tracer_mutex);
-
-	kfree(input_string);
-
-	if (!ret)
-		ret = count;
-	return ret;
+out:
+	kfree(buf);
+	return !ret ? count : ret;
 }
 
 static const struct file_operations ksym_tracing_fops = {
