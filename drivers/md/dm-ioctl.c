@@ -1303,6 +1303,11 @@ static int target_message(struct dm_ioctl *param, size_t param_size)
 	if (!table)
 		goto out_argv;
 
+	if (dm_deleting_md(md)) {
+		r = -ENXIO;
+		goto out_table;
+	}
+
 	ti = dm_table_find_target(table, tmsg->sector);
 	if (!dm_target_is_valid(ti)) {
 		DMWARN("Target message sector outside device.");
@@ -1314,6 +1319,7 @@ static int target_message(struct dm_ioctl *param, size_t param_size)
 		r = -EINVAL;
 	}
 
+ out_table:
 	dm_table_put(table);
  out_argv:
 	kfree(argv);
