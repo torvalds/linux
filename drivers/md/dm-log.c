@@ -288,6 +288,19 @@ static int rw_header(struct log_c *lc, int rw)
 	return dm_io(&lc->io_req, 1, &lc->header_location, NULL);
 }
 
+static int flush_header(struct log_c *lc)
+{
+	struct dm_io_region null_location = {
+		.bdev = lc->header_location.bdev,
+		.sector = 0,
+		.count = 0,
+	};
+
+	lc->io_req.bi_rw = WRITE_BARRIER;
+
+	return dm_io(&lc->io_req, 1, &null_location, NULL);
+}
+
 static int read_header(struct log_c *log)
 {
 	int r;
@@ -616,6 +629,8 @@ static int disk_resume(struct dm_dirty_log *log)
 
 	/* write the new header */
 	r = rw_header(lc, WRITE);
+	if (!r)
+		r = flush_header(lc);
 	if (r) {
 		DMWARN("%s: Failed to write header on dirty region log device",
 		       lc->log_dev->name);
@@ -669,7 +684,13 @@ static int disk_flush(struct dm_dirty_log *log)
 	if (r)
 		fail_log_device(lc);
 	else {
-		lc->touched_dirtied = 0;
+		if (lc->touched_dirtied) {
+			r = flush_header(lc);
+			if (r)
+				fail_log_device(lc);
+			else
+				lc->touched_dirtied = 0;
+		}
 		lc->touched_cleaned = 0;
 	}
 
