@@ -578,7 +578,6 @@ static void write_callback(unsigned long error, void *context)
 	unsigned i, ret = 0;
 	struct bio *bio = (struct bio *) context;
 	struct mirror_set *ms;
-	int uptodate = 0;
 	int should_wake = 0;
 	unsigned long flags;
 
@@ -591,36 +590,27 @@ static void write_callback(unsigned long error, void *context)
 	 * This way we handle both writes to SYNC and NOSYNC
 	 * regions with the same code.
 	 */
-	if (likely(!error))
-		goto out;
+	if (likely(!error)) {
+		bio_endio(bio, ret);
+		return;
+	}
 
 	for (i = 0; i < ms->nr_mirrors; i++)
 		if (test_bit(i, &error))
 			fail_mirror(ms->mirror + i, DM_RAID1_WRITE_ERROR);
-		else
-			uptodate = 1;
 
-	if (unlikely(!uptodate)) {
-		DMERR("All replicated volumes dead, failing I/O");
-		/* None of the writes succeeded, fail the I/O. */
-		ret = -EIO;
-	} else if (errors_handled(ms)) {
-		/*
-		 * Need to raise event.  Since raising
-		 * events can block, we need to do it in
-		 * the main thread.
-		 */
-		spin_lock_irqsave(&ms->lock, flags);
-		if (!ms->failures.head)
-			should_wake = 1;
-		bio_list_add(&ms->failures, bio);
-		spin_unlock_irqrestore(&ms->lock, flags);
-		if (should_wake)
-			wakeup_mirrord(ms);
-		return;
-	}
-out:
-	bio_endio(bio, ret);
+	/*
+	 * Need to raise event.  Since raising
+	 * events can block, we need to do it in
+	 * the main thread.
+	 */
+	spin_lock_irqsave(&ms->lock, flags);
+	if (!ms->failures.head)
+		should_wake = 1;
+	bio_list_add(&ms->failures, bio);
+	spin_unlock_irqrestore(&ms->lock, flags);
+	if (should_wake)
+		wakeup_mirrord(ms);
 }
 
 static void do_write(struct mirror_set *ms, struct bio *bio)
@@ -773,15 +763,26 @@ static void do_failures(struct mirror_set *ms, struct bio_list *failures)
 	 * for us to treat them the same and requeue them
 	 * as well.
 	 */
-
 	while ((bio = bio_list_pop(failures))) {
-		if (ms->log_failure)
-			hold_bio(ms, bio);
-		else {
+		if (!ms->log_failure) {
 			ms->in_sync = 0;
 			dm_rh_mark_nosync(ms->rh, bio);
-			bio_endio(bio, 0);
 		}
+
+		/*
+		 * If all the legs are dead, fail the I/O.
+		 * If we have been told to handle errors, hold the bio
+		 * and wait for userspace to deal with the problem.
+		 * Otherwise pretend that the I/O succeeded. (This would
+		 * be wrong if the failed leg returned after reboot and
+		 * got replicated back to the good legs.)
+		 */
+		if (!get_valid_mirror(ms))
+			bio_endio(bio, -EIO);
+		else if (errors_handled(ms))
+			hold_bio(ms, bio);
+		else
+			bio_endio(bio, 0);
 	}
 }
 
