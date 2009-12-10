@@ -390,13 +390,6 @@ static uint32_t exception_hash(struct exception_table *et, chunk_t chunk)
 	return (chunk >> et->hash_shift) & et->hash_mask;
 }
 
-static void insert_exception(struct exception_table *eh,
-			     struct dm_snap_exception *e)
-{
-	struct list_head *l = &eh->table[exception_hash(eh, e->old_chunk)];
-	list_add(&e->hash_list, l);
-}
-
 static void remove_exception(struct dm_snap_exception *e)
 {
 	list_del(&e->hash_list);
@@ -457,10 +450,9 @@ static void free_pending_exception(struct dm_snap_pending_exception *pe)
 	atomic_dec(&s->pending_exceptions_count);
 }
 
-static void insert_completed_exception(struct dm_snapshot *s,
-				       struct dm_snap_exception *new_e)
+static void insert_exception(struct exception_table *eh,
+			     struct dm_snap_exception *new_e)
 {
-	struct exception_table *eh = &s->complete;
 	struct list_head *l;
 	struct dm_snap_exception *e = NULL;
 
@@ -518,7 +510,7 @@ static int dm_add_exception(void *context, chunk_t old, chunk_t new)
 	/* Consecutive_count is implicitly initialised to zero */
 	e->new_chunk = new;
 
-	insert_completed_exception(s, e);
+	insert_exception(&s->complete, e);
 
 	return 0;
 }
@@ -925,7 +917,7 @@ static void pending_complete(struct dm_snap_pending_exception *pe, int success)
 	 * Add a proper exception, and remove the
 	 * in-flight exception from the list.
 	 */
-	insert_completed_exception(s, e);
+	insert_exception(&s->complete, e);
 
  out:
 	remove_exception(&pe->e);
