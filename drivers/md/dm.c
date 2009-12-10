@@ -2077,19 +2077,23 @@ static int __bind(struct mapped_device *md, struct dm_table *t,
 	return 0;
 }
 
-static void __unbind(struct mapped_device *md)
+/*
+ * Returns unbound table for the caller to free.
+ */
+static struct dm_table *__unbind(struct mapped_device *md)
 {
 	struct dm_table *map = md->map;
 	unsigned long flags;
 
 	if (!map)
-		return;
+		return NULL;
 
 	dm_table_event_callback(map, NULL, NULL);
 	write_lock_irqsave(&md->map_lock, flags);
 	md->map = NULL;
 	write_unlock_irqrestore(&md->map_lock, flags);
-	dm_table_destroy(map);
+
+	return map;
 }
 
 /*
@@ -2182,7 +2186,7 @@ void dm_put(struct mapped_device *md)
 		}
 		dm_sysfs_exit(md);
 		dm_table_put(map);
-		__unbind(md);
+		dm_table_destroy(__unbind(md));
 		free_dev(md);
 	}
 }
@@ -2368,6 +2372,7 @@ static void dm_rq_barrier_work(struct work_struct *work)
  */
 int dm_swap_table(struct mapped_device *md, struct dm_table *table)
 {
+	struct dm_table *map;
 	struct queue_limits limits;
 	int r = -EINVAL;
 
@@ -2388,8 +2393,9 @@ int dm_swap_table(struct mapped_device *md, struct dm_table *table)
 		goto out;
 	}
 
-	__unbind(md);
+	map = __unbind(md);
 	r = __bind(md, table, &limits);
+	dm_table_destroy(map);
 
 out:
 	mutex_unlock(&md->suspend_lock);
