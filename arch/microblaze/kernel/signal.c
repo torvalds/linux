@@ -176,6 +176,11 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	struct rt_sigframe __user *frame;
 	int err = 0;
 	int signal;
+	unsigned long address = 0;
+#ifdef CONFIG_MMU
+	pmd_t *pmdp;
+	pte_t *ptep;
+#endif
 
 	frame = get_sigframe(ka, regs, sizeof(*frame));
 
@@ -216,8 +221,29 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	 Negative 8 offset because return is rtsd r15, 8 */
 	regs->r15 = ((unsigned long)frame->tramp)-8;
 
-	__invalidate_cache_sigtramp((unsigned long)frame->tramp);
+	address = ((unsigned long)frame->tramp);
+#ifdef CONFIG_MMU
+	pmdp = pmd_offset(pud_offset(
+			pgd_offset(current->mm, address),
+					address), address);
 
+	preempt_disable();
+	ptep = pte_offset_map(pmdp, address);
+	if (pte_present(*ptep)) {
+		address = (unsigned long) page_address(pte_page(*ptep));
+		/* MS: I need add offset in page */
+		address += ((unsigned long)frame->tramp) & ~PAGE_MASK;
+		/* MS address is virtual */
+		address = virt_to_phys(address);
+		invalidate_icache_range(address, address + 8);
+		flush_dcache_range(address, address + 8);
+	}
+	pte_unmap(ptep);
+	preempt_enable();
+#else
+	flush_icache_range(address, address + 8);
+	flush_dcache_range(address, address + 8);
+#endif
 	if (err)
 		goto give_sigsegv;
 
