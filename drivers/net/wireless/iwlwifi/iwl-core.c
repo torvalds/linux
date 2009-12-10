@@ -450,8 +450,6 @@ static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 	if (priv->cfg->ht_greenfield_support)
 		ht_info->cap |= IEEE80211_HT_CAP_GRN_FLD;
 	ht_info->cap |= IEEE80211_HT_CAP_SGI_20;
-	ht_info->cap |= (IEEE80211_HT_CAP_SM_PS &
-			     (priv->cfg->sm_ps_mode << 2));
 	max_bit_rate = MAX_BIT_RATE_20_MHZ;
 	if (priv->hw_params.ht40_channel & BIT(band)) {
 		ht_info->cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
@@ -636,7 +634,7 @@ EXPORT_SYMBOL(iwlcore_rts_tx_cmd_flag);
 
 static bool is_single_rx_stream(struct iwl_priv *priv)
 {
-	return !priv->current_ht_config.is_ht ||
+	return priv->current_ht_config.smps == IEEE80211_SMPS_STATIC ||
 	       priv->current_ht_config.single_chain_sufficient;
 }
 
@@ -1003,28 +1001,18 @@ static int iwl_get_active_rx_chain_count(struct iwl_priv *priv)
  */
 static int iwl_get_idle_rx_chain_count(struct iwl_priv *priv, int active_cnt)
 {
-	int idle_cnt = active_cnt;
-	bool is_cam = !test_bit(STATUS_POWER_PMI, &priv->status);
-
-	/* # Rx chains when idling and maybe trying to save power */
-	switch (priv->cfg->sm_ps_mode) {
-	case WLAN_HT_CAP_SM_PS_STATIC:
-		idle_cnt = (is_cam) ? active_cnt : IWL_NUM_IDLE_CHAINS_SINGLE;
-		break;
-	case WLAN_HT_CAP_SM_PS_DYNAMIC:
-		idle_cnt = (is_cam) ? IWL_NUM_IDLE_CHAINS_DUAL :
-			IWL_NUM_IDLE_CHAINS_SINGLE;
-		break;
-	case WLAN_HT_CAP_SM_PS_DISABLED:
-		break;
-	case WLAN_HT_CAP_SM_PS_INVALID:
+	/* # Rx chains when idling, depending on SMPS mode */
+	switch (priv->current_ht_config.smps) {
+	case IEEE80211_SMPS_STATIC:
+	case IEEE80211_SMPS_DYNAMIC:
+		return IWL_NUM_IDLE_CHAINS_SINGLE;
+	case IEEE80211_SMPS_OFF:
+		return active_cnt;
 	default:
-		IWL_ERR(priv, "invalid sm_ps mode %u\n",
-			priv->cfg->sm_ps_mode);
-		WARN_ON(1);
-		break;
+		WARN(1, "invalid SMPS mode %d",
+		     priv->current_ht_config.smps);
+		return active_cnt;
 	}
-	return idle_cnt;
 }
 
 /* up to 4 chains */
@@ -2686,6 +2674,21 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 		IWL_DEBUG_MAC80211(priv, "leave - scanning\n");
 	}
 
+	if (changed & (IEEE80211_CONF_CHANGE_SMPS |
+		       IEEE80211_CONF_CHANGE_CHANNEL)) {
+		/* mac80211 uses static for non-HT which is what we want */
+		priv->current_ht_config.smps = conf->smps_mode;
+
+		/*
+		 * Recalculate chain counts.
+		 *
+		 * If monitor mode is enabled then mac80211 will
+		 * set up the SM PS mode to OFF if an HT channel is
+		 * configured.
+		 */
+		if (priv->cfg->ops->hcmd->set_rxon_chain)
+			priv->cfg->ops->hcmd->set_rxon_chain(priv);
+	}
 
 	/* during scanning mac80211 will delay channel setting until
 	 * scan finish with changed = 0
@@ -2781,10 +2784,6 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 
 		iwl_set_tx_power(priv, conf->power_level, false);
 	}
-
-	/* call to ensure that 4965 rx_chain is set properly in monitor mode */
-	if (priv->cfg->ops->hcmd->set_rxon_chain)
-		priv->cfg->ops->hcmd->set_rxon_chain(priv);
 
 	if (!iwl_is_ready(priv)) {
 		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");

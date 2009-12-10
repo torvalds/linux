@@ -2623,6 +2623,10 @@ static int iwl_setup_mac(struct iwl_priv *priv)
 		hw->flags |= IEEE80211_HW_SUPPORTS_PS |
 			     IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
 
+	if (priv->cfg->sku & IWL_SKU_N)
+		hw->flags |= IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
+			     IEEE80211_HW_SUPPORTS_STATIC_SMPS;
+
 	hw->sta_data_size = sizeof(struct iwl_station_priv);
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_STATION) |
@@ -3361,6 +3365,7 @@ static int iwl_init_drv(struct iwl_priv *priv)
 	priv->band = IEEE80211_BAND_2GHZ;
 
 	priv->iw_mode = NL80211_IFTYPE_STATION;
+	priv->current_ht_config.smps = IEEE80211_SMPS_STATIC;
 
 	/* Choose which receivers/antennas to use */
 	if (priv->cfg->ops->hcmd->set_rxon_chain)
