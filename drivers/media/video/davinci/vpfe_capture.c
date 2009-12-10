@@ -2090,7 +2090,7 @@ probe_free_dev_mem:
 /*
  * vpfe_remove : It un-register device from V4L2 driver
  */
-static int vpfe_remove(struct platform_device *pdev)
+static int __devexit vpfe_remove(struct platform_device *pdev)
 {
 	struct vpfe_device *vpfe_dev = platform_get_drvdata(pdev);
 	struct resource *res;
