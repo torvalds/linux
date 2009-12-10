@@ -71,8 +71,15 @@ struct crypt_iv_operations {
 	int (*ctr)(struct crypt_config *cc, struct dm_target *ti,
 		   const char *opts);
 	void (*dtr)(struct crypt_config *cc);
-	const char *(*status)(struct crypt_config *cc);
 	int (*generator)(struct crypt_config *cc, u8 *iv, sector_t sector);
+};
+
+struct iv_essiv_private {
+	struct crypto_cipher *tfm;
+};
+
+struct iv_benbi_private {
+	int shift;
 };
 
 /*
@@ -102,8 +109,8 @@ struct crypt_config {
 	struct crypt_iv_operations *iv_gen_ops;
 	char *iv_mode;
 	union {
-		struct crypto_cipher *essiv_tfm;
-		int benbi_shift;
+		struct iv_essiv_private essiv;
+		struct iv_benbi_private benbi;
 	} iv_gen_private;
 	sector_t iv_offset;
 	unsigned int iv_size;
@@ -167,6 +174,14 @@ static int crypt_iv_plain_gen(struct crypt_config *cc, u8 *iv, sector_t sector)
 	*(u32 *)iv = cpu_to_le32(sector & 0xffffffff);
 
 	return 0;
+}
+
+static void crypt_iv_essiv_dtr(struct crypt_config *cc)
+{
+	struct iv_essiv_private *essiv = &cc->iv_gen_private.essiv;
+
+	crypto_free_cipher(essiv->tfm);
+	essiv->tfm = NULL;
 }
 
 static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
@@ -236,21 +251,15 @@ static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
 	}
 	kfree(salt);
 
-	cc->iv_gen_private.essiv_tfm = essiv_tfm;
+	cc->iv_gen_private.essiv.tfm = essiv_tfm;
 	return 0;
-}
-
-static void crypt_iv_essiv_dtr(struct crypt_config *cc)
-{
-	crypto_free_cipher(cc->iv_gen_private.essiv_tfm);
-	cc->iv_gen_private.essiv_tfm = NULL;
 }
 
 static int crypt_iv_essiv_gen(struct crypt_config *cc, u8 *iv, sector_t sector)
 {
 	memset(iv, 0, cc->iv_size);
 	*(u64 *)iv = cpu_to_le64(sector);
-	crypto_cipher_encrypt_one(cc->iv_gen_private.essiv_tfm, iv, iv);
+	crypto_cipher_encrypt_one(cc->iv_gen_private.essiv.tfm, iv, iv);
 	return 0;
 }
 
@@ -273,7 +282,7 @@ static int crypt_iv_benbi_ctr(struct crypt_config *cc, struct dm_target *ti,
 		return -EINVAL;
 	}
 
-	cc->iv_gen_private.benbi_shift = 9 - log;
+	cc->iv_gen_private.benbi.shift = 9 - log;
 
 	return 0;
 }
@@ -288,7 +297,7 @@ static int crypt_iv_benbi_gen(struct crypt_config *cc, u8 *iv, sector_t sector)
 
 	memset(iv, 0, cc->iv_size - sizeof(u64)); /* rest is cleared below */
 
-	val = cpu_to_be64(((u64)sector << cc->iv_gen_private.benbi_shift) + 1);
+	val = cpu_to_be64(((u64)sector << cc->iv_gen_private.benbi.shift) + 1);
 	put_unaligned(val, (__be64 *)(iv + cc->iv_size - sizeof(u64)));
 
 	return 0;
