@@ -268,7 +268,7 @@ int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 	struct drm_gem_object *gobj;
 	struct radeon_bo *robj;
 	int r;
-	uint32_t cur_placement;
+	uint32_t cur_placement = 0;
 
 	gobj = drm_gem_object_lookup(dev, filp, args->handle);
 	if (gobj == NULL) {
