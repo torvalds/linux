@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2003 Christophe Saout <christophe@saout.de>
  * Copyright (C) 2004 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2006-2008 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2006-2009 Red Hat, Inc. All rights reserved.
  *
  * This file is released under the GPL.
  */
@@ -72,6 +72,7 @@ struct crypt_iv_operations {
 		   const char *opts);
 	void (*dtr)(struct crypt_config *cc);
 	int (*init)(struct crypt_config *cc);
+	int (*wipe)(struct crypt_config *cc);
 	int (*generator)(struct crypt_config *cc, u8 *iv, sector_t sector);
 };
 
@@ -197,6 +198,17 @@ static int crypt_iv_essiv_init(struct crypt_config *cc)
 
 	return crypto_cipher_setkey(essiv->tfm, essiv->salt,
 				    crypto_hash_digestsize(essiv->hash_tfm));
+}
+
+/* Wipe salt and reset key derived from volume key */
+static int crypt_iv_essiv_wipe(struct crypt_config *cc)
+{
+	struct iv_essiv_private *essiv = &cc->iv_gen_private.essiv;
+	unsigned salt_size = crypto_hash_digestsize(essiv->hash_tfm);
+
+	memset(essiv->salt, 0, salt_size);
+
+	return crypto_cipher_setkey(essiv->tfm, essiv->salt, salt_size);
 }
 
 static void crypt_iv_essiv_dtr(struct crypt_config *cc)
@@ -334,6 +346,7 @@ static struct crypt_iv_operations crypt_iv_essiv_ops = {
 	.ctr       = crypt_iv_essiv_ctr,
 	.dtr       = crypt_iv_essiv_dtr,
 	.init      = crypt_iv_essiv_init,
+	.wipe      = crypt_iv_essiv_wipe,
 	.generator = crypt_iv_essiv_gen
 };
 
@@ -1305,6 +1318,7 @@ static void crypt_resume(struct dm_target *ti)
 static int crypt_message(struct dm_target *ti, unsigned argc, char **argv)
 {
 	struct crypt_config *cc = ti->private;
+	int ret = -EINVAL;
 
 	if (argc < 2)
 		goto error;
@@ -1314,10 +1328,22 @@ static int crypt_message(struct dm_target *ti, unsigned argc, char **argv)
 			DMWARN("not suspended during key manipulation.");
 			return -EINVAL;
 		}
-		if (argc == 3 && !strnicmp(argv[1], MESG_STR("set")))
-			return crypt_set_key(cc, argv[2]);
-		if (argc == 2 && !strnicmp(argv[1], MESG_STR("wipe")))
+		if (argc == 3 && !strnicmp(argv[1], MESG_STR("set"))) {
+			ret = crypt_set_key(cc, argv[2]);
+			if (ret)
+				return ret;
+			if (cc->iv_gen_ops && cc->iv_gen_ops->init)
+				ret = cc->iv_gen_ops->init(cc);
+			return ret;
+		}
+		if (argc == 2 && !strnicmp(argv[1], MESG_STR("wipe"))) {
+			if (cc->iv_gen_ops && cc->iv_gen_ops->wipe) {
+				ret = cc->iv_gen_ops->wipe(cc);
+				if (ret)
+					return ret;
+			}
 			return crypt_wipe_key(cc);
+		}
 	}
 
 error:
