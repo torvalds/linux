@@ -489,11 +489,22 @@ static struct pstore *get_info(struct dm_exception_store *store)
 	return (struct pstore *) store->context;
 }
 
-static void persistent_fraction_full(struct dm_exception_store *store,
-				     sector_t *numerator, sector_t *denominator)
+static void persistent_usage(struct dm_exception_store *store,
+			     sector_t *total_sectors,
+			     sector_t *sectors_allocated,
+			     sector_t *metadata_sectors)
 {
-	*numerator = get_info(store)->next_free * store->chunk_size;
-	*denominator = get_dev_size(store->cow->bdev);
+	struct pstore *ps = get_info(store);
+
+	*sectors_allocated = ps->next_free * store->chunk_size;
+	*total_sectors = get_dev_size(store->cow->bdev);
+
+	/*
+	 * First chunk is the fixed header.
+	 * Then there are (ps->current_area + 1) metadata chunks, each one
+	 * separated from the next by ps->exceptions_per_area data chunks.
+	 */
+	*metadata_sectors = (ps->current_area + 2) * store->chunk_size;
 }
 
 static void persistent_dtr(struct dm_exception_store *store)
@@ -738,7 +749,7 @@ static struct dm_exception_store_type _persistent_type = {
 	.prepare_exception = persistent_prepare_exception,
 	.commit_exception = persistent_commit_exception,
 	.drop_snapshot = persistent_drop_snapshot,
-	.fraction_full = persistent_fraction_full,
+	.usage = persistent_usage,
 	.status = persistent_status,
 };
 
@@ -751,7 +762,7 @@ static struct dm_exception_store_type _persistent_compat_type = {
 	.prepare_exception = persistent_prepare_exception,
 	.commit_exception = persistent_commit_exception,
 	.drop_snapshot = persistent_drop_snapshot,
-	.fraction_full = persistent_fraction_full,
+	.usage = persistent_usage,
 	.status = persistent_status,
 };
 

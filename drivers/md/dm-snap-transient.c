@@ -59,11 +59,14 @@ static void transient_commit_exception(struct dm_exception_store *store,
 	callback(callback_context, 1);
 }
 
-static void transient_fraction_full(struct dm_exception_store *store,
-				    sector_t *numerator, sector_t *denominator)
+static void transient_usage(struct dm_exception_store *store,
+			    sector_t *total_sectors,
+			    sector_t *sectors_allocated,
+			    sector_t *metadata_sectors)
 {
-	*numerator = ((struct transient_c *) store->context)->next_free;
-	*denominator = get_dev_size(store->cow->bdev);
+	*sectors_allocated = ((struct transient_c *) store->context)->next_free;
+	*total_sectors = get_dev_size(store->cow->bdev);
+	*metadata_sectors = 0;
 }
 
 static int transient_ctr(struct dm_exception_store *store,
@@ -106,7 +109,7 @@ static struct dm_exception_store_type _transient_type = {
 	.read_metadata = transient_read_metadata,
 	.prepare_exception = transient_prepare_exception,
 	.commit_exception = transient_commit_exception,
-	.fraction_full = transient_fraction_full,
+	.usage = transient_usage,
 	.status = transient_status,
 };
 
@@ -118,7 +121,7 @@ static struct dm_exception_store_type _transient_compat_type = {
 	.read_metadata = transient_read_metadata,
 	.prepare_exception = transient_prepare_exception,
 	.commit_exception = transient_commit_exception,
-	.fraction_full = transient_fraction_full,
+	.usage = transient_usage,
 	.status = transient_status,
 };
 

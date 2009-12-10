@@ -86,9 +86,9 @@ struct dm_exception_store_type {
 	/*
 	 * Return how full the snapshot is.
 	 */
-	void (*fraction_full) (struct dm_exception_store *store,
-			       sector_t *numerator,
-			       sector_t *denominator);
+	void (*usage) (struct dm_exception_store *store,
+		       sector_t *total_sectors, sector_t *sectors_allocated,
+		       sector_t *metadata_sectors);
 
 	/* For internal device-mapper use only. */
 	struct list_head list;

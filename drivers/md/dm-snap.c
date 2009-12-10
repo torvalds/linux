@@ -1174,14 +1174,17 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 		if (!snap->valid)
 			DMEMIT("Invalid");
 		else {
-			if (snap->store->type->fraction_full) {
-				sector_t numerator, denominator;
-				snap->store->type->fraction_full(snap->store,
-								 &numerator,
-								 &denominator);
-				DMEMIT("%llu/%llu",
-				       (unsigned long long)numerator,
-				       (unsigned long long)denominator);
+			if (snap->store->type->usage) {
+				sector_t total_sectors, sectors_allocated,
+					 metadata_sectors;
+				snap->store->type->usage(snap->store,
+							 &total_sectors,
+							 &sectors_allocated,
+							 &metadata_sectors);
+				DMEMIT("%llu/%llu %llu",
+				       (unsigned long long)sectors_allocated,
+				       (unsigned long long)total_sectors,
+				       (unsigned long long)metadata_sectors);
 			}
 			else
 				DMEMIT("Unknown");
@@ -1462,7 +1465,7 @@ static struct target_type origin_target = {
 
 static struct target_type snapshot_target = {
 	.name    = "snapshot",
-	.version = {1, 7, 0},
+	.version = {1, 8, 0},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,
