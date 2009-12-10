@@ -38,7 +38,7 @@ struct dev_pm_ops {
 	...
 	int (*runtime_suspend)(struct device *dev);
 	int (*runtime_resume)(struct device *dev);
-	void (*runtime_idle)(struct device *dev);
+	int (*runtime_idle)(struct device *dev);
 	...
 };
 
@@ -71,9 +71,9 @@ what to do to handle the device).
     purpose).
 
 In particular, if the driver requires remote wakeup capability for proper
-functioning and device_may_wakeup() returns 'false' for the device, then
+functioning and device_run_wake() returns 'false' for the device, then
 ->runtime_suspend() should return -EBUSY.  On the other hand, if
-device_may_wakeup() returns 'true' for the device and the device is put
+device_run_wake() returns 'true' for the device and the device is put
 into a low power state during the execution of its bus type's
 ->runtime_suspend(), it is expected that remote wake-up (i.e. hardware mechanism
 allowing the device to request a change of its power state, such as PCI PME)
@@ -114,7 +114,8 @@ The action performed by a bus type's ->runtime_idle() callback is totally
 dependent on the bus type in question, but the expected and recommended action
 is to check if the device can be suspended (i.e. if all of the conditions
 necessary for suspending the device are satisfied) and to queue up a suspend
-request for the device in that case.
+request for the device in that case.  The value returned by this callback is
+ignored by the PM core.
 
 The helper functions provided by the PM core, described in Section 4, guarantee
 that the following constraints are met with respect to the bus type's run-time
@@ -213,6 +214,9 @@ defined in include/linux/pm.h:
     - set if ->runtime_resume() is about to be run while ->runtime_suspend() is
       being executed for that device and it is not practical to wait for the
       suspend to complete; means "start a resume as soon as you've suspended"
+
+  unsigned int run_wake;
+    - set if the device is capable of generating run-time wake-up events
 
   enum rpm_status runtime_status;
     - the run-time PM status of the device; this field's initial value is

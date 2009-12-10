@@ -184,7 +184,7 @@ static atomic_t ppp_unit_count = ATOMIC_INIT(0);
 static atomic_t channel_count = ATOMIC_INIT(0);
 
 /* per-net private data for this module */
-static int ppp_net_id;
+static int ppp_net_id __read_mostly;
 struct ppp_net {
 	/* units to ppp mapping */
 	struct idr units_idr;
@@ -425,8 +425,8 @@ static ssize_t ppp_read(struct file *file, char __user *buf,
 			 * network traffic (demand mode).
 			 */
 			struct ppp *ppp = PF_TO_PPP(pf);
-			if (ppp->n_channels == 0
-			    && (ppp->flags & SC_LOOP_TRAFFIC) == 0)
+			if (ppp->n_channels == 0 &&
+			    (ppp->flags & SC_LOOP_TRAFFIC) == 0)
 				break;
 		}
 		ret = -EAGAIN;
@@ -511,8 +511,8 @@ static unsigned int ppp_poll(struct file *file, poll_table *wait)
 	else if (pf->kind == INTERFACE) {
 		/* see comment in ppp_read */
 		struct ppp *ppp = PF_TO_PPP(pf);
-		if (ppp->n_channels == 0
-		    && (ppp->flags & SC_LOOP_TRAFFIC) == 0)
+		if (ppp->n_channels == 0 &&
+		    (ppp->flags & SC_LOOP_TRAFFIC) == 0)
 			mask |= POLLIN | POLLRDNORM;
 	}
 
@@ -864,12 +864,7 @@ static const struct file_operations ppp_device_fops = {
 
 static __net_init int ppp_init_net(struct net *net)
 {
-	struct ppp_net *pn;
-	int err;
-
-	pn = kzalloc(sizeof(*pn), GFP_KERNEL);
-	if (!pn)
-		return -ENOMEM;
+	struct ppp_net *pn = net_generic(net, ppp_net_id);
 
 	idr_init(&pn->units_idr);
 	mutex_init(&pn->all_ppp_mutex);
@@ -879,32 +874,21 @@ static __net_init int ppp_init_net(struct net *net)
 
 	spin_lock_init(&pn->all_channels_lock);
 
-	err = net_assign_generic(net, ppp_net_id, pn);
-	if (err) {
-		kfree(pn);
-		return err;
-	}
-
 	return 0;
 }
 
 static __net_exit void ppp_exit_net(struct net *net)
 {
-	struct ppp_net *pn;
+	struct ppp_net *pn = net_generic(net, ppp_net_id);
 
-	pn = net_generic(net, ppp_net_id);
 	idr_destroy(&pn->units_idr);
-	/*
-	 * if someone has cached our net then
-	 * further net_generic call will return NULL
-	 */
-	net_assign_generic(net, ppp_net_id, NULL);
-	kfree(pn);
 }
 
 static struct pernet_operations ppp_net_ops = {
 	.init = ppp_init_net,
 	.exit = ppp_exit_net,
+	.id   = &ppp_net_id,
+	.size = sizeof(struct ppp_net),
 };
 
 #define PPP_MAJOR	108
@@ -917,7 +901,7 @@ static int __init ppp_init(void)
 
 	printk(KERN_INFO "PPP generic driver version " PPP_VERSION "\n");
 
-	err = register_pernet_gen_device(&ppp_net_id, &ppp_net_ops);
+	err = register_pernet_device(&ppp_net_ops);
 	if (err) {
 		printk(KERN_ERR "failed to register PPP pernet device (%d)\n", err);
 		goto out;
@@ -943,7 +927,7 @@ static int __init ppp_init(void)
 out_chrdev:
 	unregister_chrdev(PPP_MAJOR, "ppp");
 out_net:
-	unregister_pernet_gen_device(ppp_net_id, &ppp_net_ops);
+	unregister_pernet_device(&ppp_net_ops);
 out:
 	return err;
 }
@@ -1073,8 +1057,8 @@ ppp_xmit_process(struct ppp *ppp)
 	ppp_xmit_lock(ppp);
 	if (!ppp->closing) {
 		ppp_push(ppp);
-		while (!ppp->xmit_pending
-		       && (skb = skb_dequeue(&ppp->file.xq)))
+		while (!ppp->xmit_pending &&
+		       (skb = skb_dequeue(&ppp->file.xq)))
 			ppp_send_frame(ppp, skb);
 		/* If there's no work left to do, tell the core net
 		   code that we can accept some more. */
@@ -1153,18 +1137,18 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 		/* the filter instructions are constructed assuming
 		   a four-byte PPP header on each packet */
 		*skb_push(skb, 2) = 1;
-		if (ppp->pass_filter
-		    && sk_run_filter(skb, ppp->pass_filter,
-				     ppp->pass_len) == 0) {
+		if (ppp->pass_filter &&
+		    sk_run_filter(skb, ppp->pass_filter,
+				  ppp->pass_len) == 0) {
 			if (ppp->debug & 1)
 				printk(KERN_DEBUG "PPP: outbound frame not passed\n");
 			kfree_skb(skb);
 			return;
 		}
 		/* if this packet passes the active filter, record the time */
-		if (!(ppp->active_filter
-		      && sk_run_filter(skb, ppp->active_filter,
-				       ppp->active_len) == 0))
+		if (!(ppp->active_filter &&
+		      sk_run_filter(skb, ppp->active_filter,
+				    ppp->active_len) == 0))
 			ppp->last_xmit = jiffies;
 		skb_pull(skb, 2);
 #else
@@ -1218,8 +1202,8 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 	}
 
 	/* try to do packet compression */
-	if ((ppp->xstate & SC_COMP_RUN) && ppp->xc_state
-	    && proto != PPP_LCP && proto != PPP_CCP) {
+	if ((ppp->xstate & SC_COMP_RUN) && ppp->xc_state &&
+	    proto != PPP_LCP && proto != PPP_CCP) {
 		if (!(ppp->flags & SC_CCP_UP) && (ppp->flags & SC_MUST_COMP)) {
 			if (net_ratelimit())
 				printk(KERN_ERR "ppp: compression required but down - pkt dropped.\n");
@@ -1593,8 +1577,8 @@ ppp_input(struct ppp_channel *chan, struct sk_buff *skb)
 		/* put it on the channel queue */
 		skb_queue_tail(&pch->file.rq, skb);
 		/* drop old frames if queue too long */
-		while (pch->file.rq.qlen > PPP_MAX_RQLEN
-		       && (skb = skb_dequeue(&pch->file.rq)))
+		while (pch->file.rq.qlen > PPP_MAX_RQLEN &&
+		       (skb = skb_dequeue(&pch->file.rq)))
 			kfree_skb(skb);
 		wake_up_interruptible(&pch->file.rwait);
 	} else {
@@ -1670,8 +1654,8 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 	 * Note that some decompressors need to see uncompressed frames
 	 * that come in as well as compressed frames.
 	 */
-	if (ppp->rc_state && (ppp->rstate & SC_DECOMP_RUN)
-	    && (ppp->rstate & (SC_DC_FERROR | SC_DC_ERROR)) == 0)
+	if (ppp->rc_state && (ppp->rstate & SC_DECOMP_RUN) &&
+	    (ppp->rstate & (SC_DC_FERROR | SC_DC_ERROR)) == 0)
 		skb = ppp_decompress_frame(ppp, skb);
 
 	if (ppp->flags & SC_MUST_COMP && ppp->rstate & SC_DC_FERROR)
@@ -1742,8 +1726,8 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 		/* control or unknown frame - pass it to pppd */
 		skb_queue_tail(&ppp->file.rq, skb);
 		/* limit queue length by dropping old frames */
-		while (ppp->file.rq.qlen > PPP_MAX_RQLEN
-		       && (skb = skb_dequeue(&ppp->file.rq)))
+		while (ppp->file.rq.qlen > PPP_MAX_RQLEN &&
+		       (skb = skb_dequeue(&ppp->file.rq)))
 			kfree_skb(skb);
 		/* wake up any process polling or blocking on read */
 		wake_up_interruptible(&ppp->file.rwait);
@@ -1761,26 +1745,26 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 				goto err;
 
 			*skb_push(skb, 2) = 0;
-			if (ppp->pass_filter
-			    && sk_run_filter(skb, ppp->pass_filter,
-					     ppp->pass_len) == 0) {
+			if (ppp->pass_filter &&
+			    sk_run_filter(skb, ppp->pass_filter,
+					  ppp->pass_len) == 0) {
 				if (ppp->debug & 1)
 					printk(KERN_DEBUG "PPP: inbound frame "
 					       "not passed\n");
 				kfree_skb(skb);
 				return;
 			}
-			if (!(ppp->active_filter
-			      && sk_run_filter(skb, ppp->active_filter,
-					       ppp->active_len) == 0))
+			if (!(ppp->active_filter &&
+			      sk_run_filter(skb, ppp->active_filter,
+					    ppp->active_len) == 0))
 				ppp->last_recv = jiffies;
 			__skb_pull(skb, 2);
 		} else
 #endif /* CONFIG_PPP_FILTER */
 			ppp->last_recv = jiffies;
 
-		if ((ppp->dev->flags & IFF_UP) == 0
-		    || ppp->npmode[npi] != NPMODE_PASS) {
+		if ((ppp->dev->flags & IFF_UP) == 0 ||
+		    ppp->npmode[npi] != NPMODE_PASS) {
 			kfree_skb(skb);
 		} else {
 			/* chop off protocol */
@@ -2244,13 +2228,13 @@ ppp_set_compress(struct ppp *ppp, unsigned long arg)
 	unsigned char ccp_option[CCP_MAX_OPTION_LENGTH];
 
 	err = -EFAULT;
-	if (copy_from_user(&data, (void __user *) arg, sizeof(data))
-	    || (data.length <= CCP_MAX_OPTION_LENGTH
-		&& copy_from_user(ccp_option, (void __user *) data.ptr, data.length)))
+	if (copy_from_user(&data, (void __user *) arg, sizeof(data)) ||
+	    (data.length <= CCP_MAX_OPTION_LENGTH &&
+	     copy_from_user(ccp_option, (void __user *) data.ptr, data.length)))
 		goto out;
 	err = -EINVAL;
-	if (data.length > CCP_MAX_OPTION_LENGTH
-	    || ccp_option[1] < 2 || ccp_option[1] > data.length)
+	if (data.length > CCP_MAX_OPTION_LENGTH ||
+	    ccp_option[1] < 2 || ccp_option[1] > data.length)
 		goto out;
 
 	cp = try_then_request_module(
@@ -2835,7 +2819,7 @@ static void __exit ppp_cleanup(void)
 	unregister_chrdev(PPP_MAJOR, "ppp");
 	device_destroy(ppp_class, MKDEV(PPP_MAJOR, 0));
 	class_destroy(ppp_class);
-	unregister_pernet_gen_device(ppp_net_id, &ppp_net_ops);
+	unregister_pernet_device(&ppp_net_ops);
 }
 
 /*

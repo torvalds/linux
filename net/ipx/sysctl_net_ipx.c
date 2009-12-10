@@ -18,19 +18,18 @@ extern int sysctl_ipx_pprop_broadcasting;
 
 static struct ctl_table ipx_table[] = {
 	{
-		.ctl_name	= NET_IPX_PPROP_BROADCASTING,
 		.procname	= "ipx_pprop_broadcasting",
 		.data		= &sysctl_ipx_pprop_broadcasting,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-	{ 0 },
+	{ },
 };
 
 static struct ctl_path ipx_path[] = {
-	{ .procname = "net", .ctl_name = CTL_NET, },
-	{ .procname = "ipx", .ctl_name = NET_IPX, },
+	{ .procname = "net", },
+	{ .procname = "ipx", },
 	{ }
 };
 

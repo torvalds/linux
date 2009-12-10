@@ -420,7 +420,7 @@ static int bdx_hw_start(struct bdx_priv *priv)
 		  GMAC_RX_FILTER_AM | GMAC_RX_FILTER_AB);
 
 #define BDX_IRQ_TYPE	((priv->nic->irq_type == IRQ_MSI)?0:IRQF_SHARED)
-	if ((rc = request_irq(priv->pdev->irq, &bdx_isr_napi, BDX_IRQ_TYPE,
+	if ((rc = request_irq(priv->pdev->irq, bdx_isr_napi, BDX_IRQ_TYPE,
 			 ndev->name, ndev)))
 		goto err_irq;
 	bdx_enable_interrupts(priv);
@@ -1784,9 +1784,9 @@ static void bdx_tx_cleanup(struct bdx_priv *priv)
 	}
 #endif
 
-	if (unlikely(netif_queue_stopped(priv->ndev)
-		     && netif_carrier_ok(priv->ndev)
-		     && (priv->tx_level >= BDX_MIN_TX_LEVEL))) {
+	if (unlikely(netif_queue_stopped(priv->ndev) &&
+		     netif_carrier_ok(priv->ndev) &&
+		     (priv->tx_level >= BDX_MIN_TX_LEVEL))) {
 		DBG("%s: %s: TX Q WAKE level %d\n",
 		    BDX_DRV_NAME, priv->ndev->name, priv->tx_level);
 		netif_wake_queue(priv->ndev);
@@ -1878,7 +1878,7 @@ static void bdx_tx_push_desc_safe(struct bdx_priv *priv, void *data, int size)
 			udelay(50);	/* give hw a chance to clean fifo */
 			continue;
 		}
-		avail = MIN(avail, size);
+		avail = min(avail, size);
 		DBG("about to push  %d bytes starting %p size %d\n", avail,
 		    data, size);
 		bdx_tx_push_desc(priv, data, avail);
@@ -2105,12 +2105,6 @@ err_pci:
 }
 
 /****************** Ethtool interface *********************/
-/* get strings for tests */
-static const char
- bdx_test_names[][ETH_GSTRING_LEN] = {
-	"No tests defined"
-};
-
 /* get strings for statistics counters */
 static const char
  bdx_stat_names[][ETH_GSTRING_LEN] = {
@@ -2279,8 +2273,8 @@ bdx_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ecoal)
 	    (((tx_max_coal * BDX_TXF_DESC_SZ) + PCK_TH_MULT - 1)
 	     / PCK_TH_MULT);
 
-	if ((rx_coal > 0x7FFF) || (tx_coal > 0x7FFF)
-	    || (rx_max_coal > 0xF) || (tx_max_coal > 0xF))
+	if ((rx_coal > 0x7FFF) || (tx_coal > 0x7FFF) ||
+	    (rx_max_coal > 0xF) || (tx_max_coal > 0xF))
 		return -EINVAL;
 
 	rdintcm = INT_REG_VAL(rx_coal, GET_INT_COAL_RC(priv->rdintcm),
@@ -2353,8 +2347,8 @@ bdx_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 		tx_size = 3;
 
 	/*Is there anything to do? */
-	if ((rx_size == priv->rxf_size)
-	    && (tx_size == priv->txd_size))
+	if ((rx_size == priv->rxf_size) &&
+	    (tx_size == priv->txd_size))
 		return 0;
 
 	priv->rxf_size = rx_size;
@@ -2380,9 +2374,6 @@ bdx_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 static void bdx_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 {
 	switch (stringset) {
-	case ETH_SS_TEST:
-		memcpy(data, *bdx_test_names, sizeof(bdx_test_names));
-		break;
 	case ETH_SS_STATS:
 		memcpy(data, *bdx_stat_names, sizeof(bdx_stat_names));
 		break;
@@ -2390,15 +2381,21 @@ static void bdx_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 }
 
 /*
- * bdx_get_stats_count - return number of 64bit statistics counters
+ * bdx_get_sset_count - return number of statistics or tests
  * @netdev
  */
-static int bdx_get_stats_count(struct net_device *netdev)
+static int bdx_get_sset_count(struct net_device *netdev, int stringset)
 {
 	struct bdx_priv *priv = netdev_priv(netdev);
-	BDX_ASSERT(ARRAY_SIZE(bdx_stat_names)
-		   != sizeof(struct bdx_stats) / sizeof(u64));
-	return ((priv->stats_flag) ? ARRAY_SIZE(bdx_stat_names)	: 0);
+
+	switch (stringset) {
+	case ETH_SS_STATS:
+		BDX_ASSERT(ARRAY_SIZE(bdx_stat_names)
+			   != sizeof(struct bdx_stats) / sizeof(u64));
+		return ((priv->stats_flag) ? ARRAY_SIZE(bdx_stat_names)	: 0);
+	default:
+		return -EINVAL;
+	}
 }
 
 /*
@@ -2441,7 +2438,7 @@ static void bdx_ethtool_ops(struct net_device *netdev)
 		.get_sg = ethtool_op_get_sg,
 		.get_tso = ethtool_op_get_tso,
 		.get_strings = bdx_get_strings,
-		.get_stats_count = bdx_get_stats_count,
+		.get_sset_count = bdx_get_sset_count,
 		.get_ethtool_stats = bdx_get_ethtool_stats,
 	};
 

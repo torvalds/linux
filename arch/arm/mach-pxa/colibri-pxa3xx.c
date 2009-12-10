@@ -25,7 +25,7 @@
 #include <mach/colibri.h>
 #include <mach/mmc.h>
 #include <mach/pxafb.h>
-#include <mach/pxa3xx_nand.h>
+#include <plat/pxa3xx_nand.h>
 
 #include "generic.h"
 #include "devices.h"

@@ -885,7 +885,7 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 
 	/* Find ACPI data for processor */
 	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
-				ACPI_UINT32_MAX, &longhaul_walk_callback,
+				ACPI_UINT32_MAX, &longhaul_walk_callback, NULL,
 				NULL, (void *)&pr);
 
 	/* Check ACPI support for C3 state */

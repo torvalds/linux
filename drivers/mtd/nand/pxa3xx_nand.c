@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
@@ -22,7 +23,7 @@
 #include <linux/irq.h>
 
 #include <mach/dma.h>
-#include <mach/pxa3xx_nand.h>
+#include <plat/pxa3xx_nand.h>
 
 #define	CHIP_DELAY_TIMEOUT	(2 * HZ/10)
 
@@ -84,10 +85,6 @@
 #define NDCB0_CMD1_MASK		(0xff)
 #define NDCB0_ADDR_CYC_SHIFT	(16)
 
-/* dma-able I/O address for the NAND data and commands */
-#define NDCB0_DMA_ADDR		(0x43100048)
-#define NDDB_DMA_ADDR		(0x43100040)
-
 /* macros for registers read/write */
 #define nand_writel(info, off, val)	\
 	__raw_writel((val), (info)->mmio_base + (off))
@@ -123,6 +120,7 @@ struct pxa3xx_nand_info {
 
 	struct clk		*clk;
 	void __iomem		*mmio_base;
+	unsigned long		mmio_phys;
 
 	unsigned int 		buf_start;
 	unsigned int		buf_count;
@@ -228,13 +226,35 @@ static struct pxa3xx_nand_flash samsung512MbX16 = {
 	.chip_id	= 0x46ec,
 };
 
+static struct pxa3xx_nand_flash samsung2GbX8 = {
+	.timing		= &samsung512MbX16_timing,
+	.cmdset		= &smallpage_cmdset,
+	.page_per_block	= 64,
+	.page_size	= 2048,
+	.flash_width	= 8,
+	.dfc_width	= 8,
+	.num_blocks	= 2048,
+	.chip_id	= 0xdaec,
+};
+
+static struct pxa3xx_nand_flash samsung32GbX8 = {
+	.timing		= &samsung512MbX16_timing,
+	.cmdset		= &smallpage_cmdset,
+	.page_per_block	= 128,
+	.page_size	= 4096,
+	.flash_width	= 8,
+	.dfc_width	= 8,
+	.num_blocks	= 8192,
+	.chip_id	= 0xd7ec,
+};
+
 static struct pxa3xx_nand_timing micron_timing = {
 	.tCH	= 10,
 	.tCS	= 25,
 	.tWH	= 15,
 	.tWP	= 25,
 	.tRH	= 15,
-	.tRP	= 25,
+	.tRP	= 30,
 	.tR	= 25000,
 	.tWHR	= 60,
 	.tAR	= 10,
@@ -262,6 +282,28 @@ static struct pxa3xx_nand_flash micron1GbX16 = {
 	.chip_id	= 0xb12c,
 };
 
+static struct pxa3xx_nand_flash micron4GbX8 = {
+	.timing		= &micron_timing,
+	.cmdset		= &largepage_cmdset,
+	.page_per_block	= 64,
+	.page_size	= 2048,
+	.flash_width	= 8,
+	.dfc_width	= 8,
+	.num_blocks	= 4096,
+	.chip_id	= 0xdc2c,
+};
+
+static struct pxa3xx_nand_flash micron4GbX16 = {
+	.timing		= &micron_timing,
+	.cmdset		= &largepage_cmdset,
+	.page_per_block	= 64,
+	.page_size	= 2048,
+	.flash_width	= 16,
+	.dfc_width	= 16,
+	.num_blocks	= 4096,
+	.chip_id	= 0xcc2c,
+};
+
 static struct pxa3xx_nand_timing stm2GbX16_timing = {
 	.tCH = 10,
 	.tCS = 35,
@@ -287,8 +329,12 @@ static struct pxa3xx_nand_flash stm2GbX16 = {
 
 static struct pxa3xx_nand_flash *builtin_flash_types[] = {
 	&samsung512MbX16,
+	&samsung2GbX8,
+	&samsung32GbX8,
 	&micron1GbX8,
 	&micron1GbX16,
+	&micron4GbX8,
+	&micron4GbX16,
 	&stm2GbX16,
 };
 #endif /* CONFIG_MTD_NAND_PXA3xx_BUILTIN */
@@ -489,7 +535,7 @@ static int handle_data_pio(struct pxa3xx_nand_info *info)
 	switch (info->state) {
 	case STATE_PIO_WRITING:
 		__raw_writesl(info->mmio_base + NDDB, info->data_buff,
-				info->data_size << 2);
+				DIV_ROUND_UP(info->data_size, 4));
 
 		enable_int(info, NDSR_CS0_BBD | NDSR_CS0_CMDD);
 
@@ -501,7 +547,7 @@ static int handle_data_pio(struct pxa3xx_nand_info *info)
 		break;
 	case STATE_PIO_READING:
 		__raw_readsl(info->mmio_base + NDDB, info->data_buff,
-				info->data_size << 2);
+				DIV_ROUND_UP(info->data_size, 4));
 		break;
 	default:
 		printk(KERN_ERR "%s: invalid state %d\n", __func__,
@@ -523,11 +569,11 @@ static void start_data_dma(struct pxa3xx_nand_info *info, int dir_out)
 
 	if (dir_out) {
 		desc->dsadr = info->data_buff_phys;
-		desc->dtadr = NDDB_DMA_ADDR;
+		desc->dtadr = info->mmio_phys + NDDB;
 		desc->dcmd |= DCMD_INCSRCADDR | DCMD_FLOWTRG;
 	} else {
 		desc->dtadr = info->data_buff_phys;
-		desc->dsadr = NDDB_DMA_ADDR;
+		desc->dsadr = info->mmio_phys + NDDB;
 		desc->dcmd |= DCMD_INCTRGADDR | DCMD_FLOWSRC;
 	}
 
@@ -669,6 +715,7 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		/* disable HW ECC to get all the OOB data */
 		info->buf_count = mtd->writesize + mtd->oobsize;
 		info->buf_start = mtd->writesize + column;
+		memset(info->data_buff, 0xFF, info->buf_count);
 
 		if (prepare_read_prog_cmd(info, cmdset->read1, column, page_addr))
 			break;
@@ -1239,13 +1286,17 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto fail_free_res;
 	}
+	info->mmio_phys = r->start;
 
 	ret = pxa3xx_nand_init_buff(info);
 	if (ret)
 		goto fail_free_io;
 
-	ret = request_irq(IRQ_NAND, pxa3xx_nand_irq, IRQF_DISABLED,
-				pdev->name, info);
+	/* initialize all interrupts to be disabled */
+	disable_int(info, NDSR_MASK);
+
+	ret = request_irq(irq, pxa3xx_nand_irq, IRQF_DISABLED,
+			  pdev->name, info);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
 		goto fail_free_buf;
@@ -1271,7 +1322,7 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 	return add_mtd_partitions(mtd, pdata->parts, pdata->nr_parts);
 
 fail_free_irq:
-	free_irq(IRQ_NAND, info);
+	free_irq(irq, info);
 fail_free_buf:
 	if (use_dma) {
 		pxa_free_dma(info->data_dma_ch);
@@ -1296,12 +1347,15 @@ static int pxa3xx_nand_remove(struct platform_device *pdev)
 	struct mtd_info *mtd = platform_get_drvdata(pdev);
 	struct pxa3xx_nand_info *info = mtd->priv;
 	struct resource *r;
+	int irq;
 
 	platform_set_drvdata(pdev, NULL);
 
 	del_mtd_device(mtd);
 	del_mtd_partitions(mtd);
-	free_irq(IRQ_NAND, info);
+	irq = platform_get_irq(pdev, 0);
+	if (irq >= 0)
+		free_irq(irq, info);
 	if (use_dma) {
 		pxa_free_dma(info->data_dma_ch);
 		dma_free_writecombine(&pdev->dev, info->data_buff_size,

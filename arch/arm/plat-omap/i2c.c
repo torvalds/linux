@@ -27,7 +27,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <mach/irqs.h>
-#include <mach/mux.h>
+#include <plat/mux.h>
 
 #define OMAP_I2C_SIZE		0x3f
 #define OMAP1_I2C_BASE		0xfffb3800

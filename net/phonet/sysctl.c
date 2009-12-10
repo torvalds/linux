@@ -84,20 +84,18 @@ static int proc_local_port_range(ctl_table *table, int write,
 
 static struct ctl_table phonet_table[] = {
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "local_port_range",
 		.data		= &local_port_range,
 		.maxlen		= sizeof(local_port_range),
 		.mode		= 0644,
 		.proc_handler	= proc_local_port_range,
-		.strategy	= NULL,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static struct ctl_path phonet_ctl_path[] = {
-	{ .procname = "net", .ctl_name = CTL_NET, },
-	{ .procname = "phonet", .ctl_name = CTL_UNNUMBERED, },
+	{ .procname = "net", },
+	{ .procname = "phonet", },
 	{ },
 };
 

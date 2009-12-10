@@ -191,6 +191,7 @@ static int ads7828_detect(struct i2c_client *client, int kind,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
+	int ch;
 
 	/* Check we have a valid client */
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_WORD_DATA))
@@ -202,20 +203,17 @@ static int ads7828_detect(struct i2c_client *client, int kind,
 	- Read from the 8 channel addresses
 	- Check the top 4 bits of each result are not set (12 data bits)
 	*/
-	if (kind < 0) {
-		int ch;
-		for (ch = 0; ch < ADS7828_NCH; ch++) {
-			u16 in_data;
-			u8 cmd = channel_cmd_byte(ch);
-			in_data = ads7828_read_value(client, cmd);
-			if (in_data & 0xF000) {
-				printk(KERN_DEBUG
-				"%s : Doesn't look like an ads7828 device\n",
-				__func__);
-				return -ENODEV;
-			}
+	for (ch = 0; ch < ADS7828_NCH; ch++) {
+		u16 in_data;
+		u8 cmd = channel_cmd_byte(ch);
+		in_data = ads7828_read_value(client, cmd);
+		if (in_data & 0xF000) {
+			pr_debug("%s : Doesn't look like an ads7828 device\n",
+				 __func__);
+			return -ENODEV;
 		}
 	}
+
 	strlcpy(info->type, "ads7828", I2C_NAME_SIZE);
 
 	return 0;

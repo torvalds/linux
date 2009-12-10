@@ -29,6 +29,8 @@
 
 
 #define SPI_FIFO_SIZE 4
+#define SPI_MAX_DIVIDER 0xff	/* Max. value for SPCR1.SER */
+#define SPI_MIN_DIVIDER 1	/* Min. value for SPCR1.SER */
 
 #define TXx9_SPMCR		0x00
 #define TXx9_SPCR0		0x04
@@ -193,11 +195,8 @@ static void txx9spi_work_one(struct txx9spi *c, struct spi_message *m)
 
 		if (prev_speed_hz != speed_hz
 				|| prev_bits_per_word != bits_per_word) {
-			u32 n = (c->baseclk + speed_hz - 1) / speed_hz;
-			if (n < 1)
-				n = 1;
-			else if (n > 0xff)
-				n = 0xff;
+			int n = DIV_ROUND_UP(c->baseclk, speed_hz) - 1;
+			n = clamp(n, SPI_MIN_DIVIDER, SPI_MAX_DIVIDER);
 			/* enter config mode */
 			txx9spi_wr(c, mcr | TXx9_SPMCR_CONFIG | TXx9_SPMCR_BCLR,
 					TXx9_SPMCR);
@@ -370,8 +369,8 @@ static int __init txx9spi_probe(struct platform_device *dev)
 		goto exit;
 	}
 	c->baseclk = clk_get_rate(c->clk);
-	c->min_speed_hz = (c->baseclk + 0xff - 1) / 0xff;
-	c->max_speed_hz = c->baseclk;
+	c->min_speed_hz = DIV_ROUND_UP(c->baseclk, SPI_MAX_DIVIDER + 1);
+	c->max_speed_hz = c->baseclk / (SPI_MIN_DIVIDER + 1);
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!res)

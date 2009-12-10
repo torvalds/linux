@@ -337,10 +337,9 @@ static int rdma_set_ctxt_sge(struct svcxprt_rdma *xprt,
 
 static int rdma_read_max_sge(struct svcxprt_rdma *xprt, int sge_count)
 {
-	if ((RDMA_TRANSPORT_IWARP ==
-	     rdma_node_get_transport(xprt->sc_cm_id->
-				     device->node_type))
-	    && sge_count > 1)
+	if ((rdma_node_get_transport(xprt->sc_cm_id->device->node_type) ==
+	     RDMA_TRANSPORT_IWARP) &&
+	    sge_count > 1)
 		return 1;
 	else
 		return min_t(int, sge_count, xprt->sc_max_sge);

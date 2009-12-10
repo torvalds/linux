@@ -537,6 +537,44 @@ struct platform_device mxc_fec_device = {
 };
 #endif
 
+static struct resource imx_ssi_resources0[] = {
+	{
+		.start	= SSI1_BASE_ADDR,
+		.end	= SSI1_BASE_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= MX31_INT_SSI1,
+		.end	= MX31_INT_SSI1,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct resource imx_ssi_resources1[] = {
+	{
+		.start	= SSI2_BASE_ADDR,
+		.end	= SSI2_BASE_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM
+	}, {
+		.start	= MX31_INT_SSI2,
+		.end	= MX31_INT_SSI2,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device imx_ssi_device0 = {
+	.name = "imx-ssi",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(imx_ssi_resources0),
+	.resource = imx_ssi_resources0,
+};
+
+struct platform_device imx_ssi_device1 = {
+	.name = "imx-ssi",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(imx_ssi_resources1),
+	.resource = imx_ssi_resources1,
+};
+
 static int mx3_devices_init(void)
 {
 	if (cpu_is_mx31()) {
@@ -546,7 +584,7 @@ static int mx3_devices_init(void)
 	}
 	if (cpu_is_mx35()) {
 		mxc_nand_resources[0].start = MX35_NFC_BASE_ADDR;
-		mxc_nand_resources[0].end = MX35_NFC_BASE_ADDR + 0xfff;
+		mxc_nand_resources[0].end = MX35_NFC_BASE_ADDR + 0x1fff;
 		otg_resources[0].start = MX35_OTG_BASE_ADDR;
 		otg_resources[0].end = MX35_OTG_BASE_ADDR + 0x1ff;
 		otg_resources[1].start = MXC_INT_USBOTG;
@@ -555,6 +593,10 @@ static int mx3_devices_init(void)
 		mxc_usbh1_resources[0].end = MX35_OTG_BASE_ADDR + 0x5ff;
 		mxc_usbh1_resources[1].start = MXC_INT_USBHS;
 		mxc_usbh1_resources[1].end = MXC_INT_USBHS;
+		imx_ssi_resources0[1].start = MX35_INT_SSI1;
+		imx_ssi_resources0[1].end = MX35_INT_SSI1;
+		imx_ssi_resources1[1].start = MX35_INT_SSI2;
+		imx_ssi_resources1[1].end = MX35_INT_SSI2;
 	}
 
 	return 0;

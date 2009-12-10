@@ -67,7 +67,7 @@ unsigned long qnx4_count_free_blocks(struct super_block *sb)
 
 	while (total < size) {
 		if ((bh = sb_bread(sb, start + offset)) == NULL) {
-			printk("qnx4: I/O error in counting free blocks\n");
+			printk(KERN_ERR "qnx4: I/O error in counting free blocks\n");
 			break;
 		}
 		count_bits(bh->b_data, size - total, &total_free);

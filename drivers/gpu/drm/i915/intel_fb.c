@@ -70,7 +70,7 @@ static struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 
 
 /**
- * Curretly it is assumed that the old framebuffer is reused.
+ * Currently it is assumed that the old framebuffer is reused.
  *
  * LOCKING
  * caller should hold the mode config lock.

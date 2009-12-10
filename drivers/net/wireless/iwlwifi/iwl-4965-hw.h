@@ -76,12 +76,9 @@
 
 /*
  * uCode queue management definitions ...
- * Queue #4 is the command queue for 3945 and 4965; map it to Tx FIFO chnl 4.
  * The first queue used for block-ack aggregation is #7 (4965 only).
  * All block-ack aggregation queues should map to Tx DMA/FIFO channel 7.
  */
-#define IWL_CMD_QUEUE_NUM       4
-#define IWL_CMD_FIFO_NUM        4
 #define IWL49_FIRST_AMPDU_QUEUE	7
 
 /* Time constants */

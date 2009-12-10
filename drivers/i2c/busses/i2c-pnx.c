@@ -638,7 +638,8 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 
 	/* Register this adapter with the I2C subsystem */
 	i2c_pnx->adapter->dev.parent = &pdev->dev;
-	ret = i2c_add_adapter(i2c_pnx->adapter);
+	i2c_pnx->adapter->nr = pdev->id;
+	ret = i2c_add_numbered_adapter(i2c_pnx->adapter);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "I2C: Failed to add bus\n");
 		goto out_irq;
@@ -650,7 +651,7 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 	return 0;
 
 out_irq:
-	free_irq(alg_data->irq, alg_data);
+	free_irq(alg_data->irq, i2c_pnx->adapter);
 out_clock:
 	i2c_pnx->set_clock_stop(pdev);
 out_unmap:
@@ -669,7 +670,7 @@ static int __devexit i2c_pnx_remove(struct platform_device *pdev)
 	struct i2c_adapter *adap = i2c_pnx->adapter;
 	struct i2c_pnx_algo_data *alg_data = adap->algo_data;
 
-	free_irq(alg_data->irq, alg_data);
+	free_irq(alg_data->irq, i2c_pnx->adapter);
 	i2c_del_adapter(adap);
 	i2c_pnx->set_clock_stop(pdev);
 	iounmap((void *)alg_data->ioaddr);

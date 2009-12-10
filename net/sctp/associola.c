@@ -63,6 +63,12 @@
 static void sctp_assoc_bh_rcv(struct work_struct *work);
 static void sctp_assoc_free_asconf_acks(struct sctp_association *asoc);
 
+/* Keep track of the new idr low so that we don't re-use association id
+ * numbers too fast.  It is protected by they idr spin lock is in the
+ * range of 1 - INT_MAX.
+ */
+static u32 idr_low = 1;
+
 
 /* 1st Level Abstractions. */
 
@@ -167,7 +173,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_HEARTBEAT] = 0;
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_SACK] = asoc->sackdelay;
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE] =
-		sp->autoclose * HZ;
+		(unsigned long)sp->autoclose * HZ;
 
 	/* Initilizes the timers */
 	for (i = SCTP_EVENT_TIMEOUT_NONE; i < SCTP_NUM_TIMEOUT_TYPES; ++i)
@@ -512,7 +518,13 @@ void sctp_assoc_set_primary(struct sctp_association *asoc,
 	 * to this destination address earlier. The sender MUST set
 	 * CYCLING_CHANGEOVER to indicate that this switch is a
 	 * double switch to the same destination address.
+	 *
+	 * Really, only bother is we have data queued or outstanding on
+	 * the association.
 	 */
+	if (!asoc->outqueue.outstanding_bytes && !asoc->outqueue.out_qlen)
+		return;
+
 	if (transport->cacc.changeover_active)
 		transport->cacc.cycling_changeover = changeover;
 
@@ -732,6 +744,7 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 
 	peer->partial_bytes_acked = 0;
 	peer->flight_size = 0;
+	peer->burst_limited = 0;
 
 	/* Set the transport's RTO.initial value */
 	peer->rto = asoc->rto_initial;
@@ -1377,8 +1390,9 @@ static inline int sctp_peer_needs_update(struct sctp_association *asoc)
 	case SCTP_STATE_SHUTDOWN_RECEIVED:
 	case SCTP_STATE_SHUTDOWN_SENT:
 		if ((asoc->rwnd > asoc->a_rwnd) &&
-		    ((asoc->rwnd - asoc->a_rwnd) >=
-		     min_t(__u32, (asoc->base.sk->sk_rcvbuf >> 1), asoc->pathmtu)))
+		    ((asoc->rwnd - asoc->a_rwnd) >= max_t(__u32,
+			   (asoc->base.sk->sk_rcvbuf >> sctp_rwnd_upd_shift),
+			   asoc->pathmtu)))
 			return 1;
 		break;
 	default:
@@ -1545,7 +1559,12 @@ retry:
 
 	spin_lock_bh(&sctp_assocs_id_lock);
 	error = idr_get_new_above(&sctp_assocs_id, (void *)asoc,
-				    1, &assoc_id);
+				    idr_low, &assoc_id);
+	if (!error) {
+		idr_low = assoc_id + 1;
+		if (idr_low == INT_MAX)
+			idr_low = 1;
+	}
 	spin_unlock_bh(&sctp_assocs_id_lock);
 	if (error == -EAGAIN)
 		goto retry;

@@ -1,6 +1,6 @@
 /* linux/arch/arm/plat-s3c24xx/irq.c
  *
- * Copyright (c) 2003,2004 Simtec Electronics 
+ * Copyright (c) 2003-2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -522,6 +522,8 @@ int s3c24xx_set_fiq(unsigned int irq, bool on)
 	__raw_writel(intmod, S3C2410_INTMOD);
 	return 0;
 }
+
+EXPORT_SYMBOL_GPL(s3c24xx_set_fiq);
 #endif
 
 

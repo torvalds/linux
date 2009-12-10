@@ -47,7 +47,7 @@
    TBD:
    * look at deferring rx frames rather than discarding (as per tulip)
    * handle tx ring full as per tulip
-   * performace test to tune rx_copybreak
+   * performance test to tune rx_copybreak
 
    Most of my modifications relate to the braindead big-endian
    implementation by Intel.  When the i596 is operating in
@@ -470,11 +470,11 @@ static inline int init_rx_bufs(struct net_device *dev)
 
 	for (i = 0, rbd = dma->rbds; i < rx_ring_size; i++, rbd++) {
 		dma_addr_t dma_addr;
-		struct sk_buff *skb = netdev_alloc_skb(dev, PKT_BUF_SZ + 4);
+		struct sk_buff *skb;
 
+		skb = netdev_alloc_skb_ip_align(dev, PKT_BUF_SZ);
 		if (skb == NULL)
 			return -1;
-		skb_reserve(skb, 2);
 		dma_addr = dma_map_single(dev->dev.parent, skb->data,
 					  PKT_BUF_SZ, DMA_FROM_DEVICE);
 		rbd->v_next = rbd+1;
@@ -588,7 +588,7 @@ static int init_i596_mem(struct net_device *dev)
 			     "%s: i82596 initialization successful\n",
 			     dev->name));
 
-	if (request_irq(dev->irq, &i596_interrupt, 0, "i82596", dev)) {
+	if (request_irq(dev->irq, i596_interrupt, 0, "i82596", dev)) {
 		printk(KERN_ERR "%s: IRQ %d not free\n", dev->name, dev->irq);
 		goto failed;
 	}
@@ -697,12 +697,12 @@ static inline int i596_rx(struct net_device *dev)
 						 (dma_addr_t)SWAP32(rbd->b_data),
 						 PKT_BUF_SZ, DMA_FROM_DEVICE);
 				/* Get fresh skbuff to replace filled one. */
-				newskb = netdev_alloc_skb(dev, PKT_BUF_SZ + 4);
+				newskb = netdev_alloc_skb_ip_align(dev,
+								   PKT_BUF_SZ);
 				if (newskb == NULL) {
 					skb = NULL;	/* drop pkt */
 					goto memory_squeeze;
 				}
-				skb_reserve(newskb, 2);
 
 				/* Pass up the skb already on the Rx ring. */
 				skb_put(skb, pkt_len);
@@ -716,7 +716,7 @@ static inline int i596_rx(struct net_device *dev)
 				rbd->b_data = SWAP32(dma_addr);
 				DMA_WBACK_INV(dev, rbd, sizeof(struct i596_rbd));
 			} else
-				skb = netdev_alloc_skb(dev, pkt_len + 2);
+				skb = netdev_alloc_skb_ip_align(dev, pkt_len);
 memory_squeeze:
 			if (skb == NULL) {
 				/* XXX tulip.c can defer packets here!! */
@@ -730,7 +730,6 @@ memory_squeeze:
 					dma_sync_single_for_cpu(dev->dev.parent,
 								(dma_addr_t)SWAP32(rbd->b_data),
 								PKT_BUF_SZ, DMA_FROM_DEVICE);
-					skb_reserve(skb, 2);
 					memcpy(skb_put(skb, pkt_len), rbd->v_data, pkt_len);
 					dma_sync_single_for_device(dev->dev.parent,
 								   (dma_addr_t)SWAP32(rbd->b_data),

@@ -38,7 +38,7 @@ static struct pcmcia_irqs cd_irqs[] = {
 
 static int e740_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
-	skt->irq = skt->nr == 0 ? IRQ_GPIO(GPIO_E740_PCMCIA_RDY0) :
+	skt->socket.pci_irq = skt->nr == 0 ? IRQ_GPIO(GPIO_E740_PCMCIA_RDY0) :
 				IRQ_GPIO(GPIO_E740_PCMCIA_RDY1);
 
 	return soc_pcmcia_request_irqs(skt, &cd_irqs[skt->nr], 1);

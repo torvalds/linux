@@ -318,6 +318,13 @@ error:
 	return r;
 }
 
+MODULE_FIRMWARE(FW_ZD1211B_PREFIX "ur");
+MODULE_FIRMWARE(FW_ZD1211_PREFIX "ur");
+MODULE_FIRMWARE(FW_ZD1211B_PREFIX "ub");
+MODULE_FIRMWARE(FW_ZD1211_PREFIX "ub");
+MODULE_FIRMWARE(FW_ZD1211B_PREFIX "uphr");
+MODULE_FIRMWARE(FW_ZD1211_PREFIX "uphr");
+
 /* Read data from device address space using "firmware interface" which does
  * not require firmware to be loaded. */
 int zd_usb_read_fw(struct zd_usb *usb, zd_addr_t addr, u8 *data, u16 len)
@@ -419,7 +426,7 @@ static void int_urb_complete(struct urb *urb)
 		handle_regs_int(urb);
 		break;
 	case USB_INT_ID_RETRY_FAILED:
-		zd_mac_tx_failed(zd_usb_to_hw(urb->context));
+		zd_mac_tx_failed(urb);
 		break;
 	default:
 		dev_dbg_f(urb_dev(urb), "error: urb %p unknown id %x\n", urb,
@@ -553,6 +560,8 @@ static void handle_rx_packet(struct zd_usb *usb, const u8 *buffer,
 
 	if (length < sizeof(struct rx_length_info)) {
 		/* It's not a complete packet anyhow. */
+		printk("%s: invalid, small RX packet : %d\n",
+		       __func__, length);
 		return;
 	}
 	length_info = (struct rx_length_info *)

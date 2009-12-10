@@ -32,9 +32,9 @@
 #include <mach/hardware.h>
 #include <asm/mach/map.h>
 
-#include <mach/board.h>
-#include <mach/sram.h>
-#include <mach/omapfb.h>
+#include <plat/board.h>
+#include <plat/sram.h>
+#include <plat/omapfb.h>
 
 #if defined(CONFIG_FB_OMAP) || defined(CONFIG_FB_OMAP_MODULE)
 

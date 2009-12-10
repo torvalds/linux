@@ -701,6 +701,7 @@ static int asb100_detect(struct i2c_client *client, int kind,
 			 struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
+	int val1, val2;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		pr_debug("asb100.o: detect failed, "
@@ -708,50 +709,30 @@ static int asb100_detect(struct i2c_client *client, int kind,
 		return -ENODEV;
 	}
 
-	/* The chip may be stuck in some other bank than bank 0. This may
-	   make reading other information impossible. Specify a force=... or
-	   force_*=... parameter, and the chip will be reset to the right
-	   bank. */
-	if (kind < 0) {
+	val1 = i2c_smbus_read_byte_data(client, ASB100_REG_BANK);
+	val2 = i2c_smbus_read_byte_data(client, ASB100_REG_CHIPMAN);
 
-		int val1 = i2c_smbus_read_byte_data(client, ASB100_REG_BANK);
-		int val2 = i2c_smbus_read_byte_data(client, ASB100_REG_CHIPMAN);
+	/* If we're in bank 0 */
+	if ((!(val1 & 0x07)) &&
+			/* Check for ASB100 ID (low byte) */
+			(((!(val1 & 0x80)) && (val2 != 0x94)) ||
+			/* Check for ASB100 ID (high byte ) */
+			((val1 & 0x80) && (val2 != 0x06)))) {
+		pr_debug("asb100: detect failed, bad chip id 0x%02x!\n", val2);
+		return -ENODEV;
+	}
 
-		/* If we're in bank 0 */
-		if ((!(val1 & 0x07)) &&
-				/* Check for ASB100 ID (low byte) */
-				(((!(val1 & 0x80)) && (val2 != 0x94)) ||
-				/* Check for ASB100 ID (high byte ) */
-				((val1 & 0x80) && (val2 != 0x06)))) {
-			pr_debug("asb100.o: detect failed, "
-					"bad chip id 0x%02x!\n", val2);
-			return -ENODEV;
-		}
-
-	} /* kind < 0 */
-
-	/* We have either had a force parameter, or we have already detected
-	   Winbond. Put it now into bank 0 and Vendor ID High Byte */
+	/* Put it now into bank 0 and Vendor ID High Byte */
 	i2c_smbus_write_byte_data(client, ASB100_REG_BANK,
 		(i2c_smbus_read_byte_data(client, ASB100_REG_BANK) & 0x78)
 		| 0x80);
 
 	/* Determine the chip type. */
-	if (kind <= 0) {
-		int val1 = i2c_smbus_read_byte_data(client, ASB100_REG_WCHIPID);
-		int val2 = i2c_smbus_read_byte_data(client, ASB100_REG_CHIPMAN);
+	val1 = i2c_smbus_read_byte_data(client, ASB100_REG_WCHIPID);
+	val2 = i2c_smbus_read_byte_data(client, ASB100_REG_CHIPMAN);
 
-		if ((val1 == 0x31) && (val2 == 0x06))
-			kind = asb100;
-		else {
-			if (kind == 0)
-				dev_warn(&adapter->dev, "ignoring "
-					"'force' parameter for unknown chip "
-					"at adapter %d, address 0x%02x.\n",
-					i2c_adapter_id(adapter), client->addr);
-			return -ENODEV;
-		}
-	}
+	if (val1 != 0x31 || val2 != 0x06)
+		return -ENODEV;
 
 	strlcpy(info->type, "asb100", I2C_NAME_SIZE);
 

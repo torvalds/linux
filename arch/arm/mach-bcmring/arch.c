@@ -47,10 +47,6 @@ HW_DECLARE_SPINLOCK(gpio)
     EXPORT_SYMBOL(bcmring_gpio_reg_lock);
 #endif
 
-/* FIXME: temporary solution */
-#define BCM_SYSCTL_REBOOT_WARM               1
-#define CTL_BCM_REBOOT                 112
-
 /* sysctl */
 int bcmring_arch_warm_reboot;	/* do a warm reboot on hard reset */
 
@@ -58,18 +54,16 @@ static struct ctl_table_header *bcmring_sysctl_header;
 
 static struct ctl_table bcmring_sysctl_warm_reboot[] = {
 	{
-	 .ctl_name = BCM_SYSCTL_REBOOT_WARM,
 	 .procname = "warm",
 	 .data = &bcmring_arch_warm_reboot,
 	 .maxlen = sizeof(int),
 	 .mode = 0644,
-	 .proc_handler = &proc_dointvec},
+	 .proc_handler = proc_dointvec},
 	{}
 };
 
 static struct ctl_table bcmring_sysctl_reboot[] = {
 	{
-	 .ctl_name = CTL_BCM_REBOOT,
 	 .procname = "reboot",
 	 .mode = 0555,
 	 .child = bcmring_sysctl_warm_reboot},

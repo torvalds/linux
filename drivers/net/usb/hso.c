@@ -378,7 +378,7 @@ static void dbg_dump(int line_count, const char *func_name, unsigned char *buf,
 }
 
 #define DUMP(buf_, len_)	\
-	dbg_dump(__LINE__, __func__, buf_, len_)
+	dbg_dump(__LINE__, __func__, (unsigned char *)buf_, len_)
 
 #define DUMP1(buf_, len_)			\
 	do {					\
@@ -602,9 +602,9 @@ static struct hso_serial *get_serial_by_shared_int_and_type(
 	port = hso_mux_to_port(mux);
 
 	for (i = 0; i < HSO_SERIAL_TTY_MINORS; i++) {
-		if (serial_table[i]
-		    && (dev2ser(serial_table[i])->shared_int == shared_int)
-		    && ((serial_table[i]->port_spec & HSO_PORT_MASK) == port)) {
+		if (serial_table[i] &&
+		    (dev2ser(serial_table[i])->shared_int == shared_int) &&
+		    ((serial_table[i]->port_spec & HSO_PORT_MASK) == port)) {
 			return dev2ser(serial_table[i]);
 		}
 	}
@@ -846,8 +846,8 @@ static void hso_net_tx_timeout(struct net_device *net)
 	dev_warn(&net->dev, "Tx timed out.\n");
 
 	/* Tear the waiting frame off the list */
-	if (odev->mux_bulk_tx_urb
-	    && (odev->mux_bulk_tx_urb->status == -EINPROGRESS))
+	if (odev->mux_bulk_tx_urb &&
+	    (odev->mux_bulk_tx_urb->status == -EINPROGRESS))
 		usb_unlink_urb(odev->mux_bulk_tx_urb);
 
 	/* Update statistics */
@@ -1020,9 +1020,9 @@ static void read_bulk_callback(struct urb *urb)
 		u32 rest;
 		u8 crc_check[4] = { 0xDE, 0xAD, 0xBE, 0xEF };
 		rest = urb->actual_length % odev->in_endp->wMaxPacketSize;
-		if (((rest == 5) || (rest == 6))
-		    && !memcmp(((u8 *) urb->transfer_buffer) +
-			       urb->actual_length - 4, crc_check, 4)) {
+		if (((rest == 5) || (rest == 6)) &&
+		    !memcmp(((u8 *) urb->transfer_buffer) +
+			    urb->actual_length - 4, crc_check, 4)) {
 			urb->actual_length -= 4;
 		}
 	}
@@ -1226,9 +1226,9 @@ static void hso_std_serial_read_bulk_callback(struct urb *urb)
 			rest =
 			    urb->actual_length %
 			    serial->in_endp->wMaxPacketSize;
-			if (((rest == 5) || (rest == 6))
-			    && !memcmp(((u8 *) urb->transfer_buffer) +
-				       urb->actual_length - 4, crc_check, 4)) {
+			if (((rest == 5) || (rest == 6)) &&
+			    !memcmp(((u8 *) urb->transfer_buffer) +
+				    urb->actual_length - 4, crc_check, 4)) {
 				urb->actual_length -= 4;
 			}
 		}
@@ -1363,7 +1363,7 @@ static void hso_serial_close(struct tty_struct *tty, struct file *filp)
 	/* reset the rts and dtr */
 	/* do the actual close */
 	serial->open_count--;
-	kref_put(&serial->parent->ref, hso_serial_ref_free);
+
 	if (serial->open_count <= 0) {
 		serial->open_count = 0;
 		spin_lock_irq(&serial->serial_lock);
@@ -1383,6 +1383,8 @@ static void hso_serial_close(struct tty_struct *tty, struct file *filp)
 		usb_autopm_put_interface(serial->parent->interface);
 
 	mutex_unlock(&serial->parent->mutex);
+
+	kref_put(&serial->parent->ref, hso_serial_ref_free);
 }
 
 /* close the requested serial port */
@@ -1527,7 +1529,7 @@ static void tiocmget_intr_callback(struct urb *urb)
 		dev_warn(&usb->dev,
 			 "hso received invalid serial state notification\n");
 		DUMP(serial_state_notification,
-		     sizeof(hso_serial_state_notifation))
+		     sizeof(struct hso_serial_state_notification));
 	} else {
 
 		UART_state_bitmap = le16_to_cpu(serial_state_notification->
@@ -2980,8 +2982,8 @@ static int hso_probe(struct usb_interface *interface,
 
 	case HSO_INTF_BULK:
 		/* It's a regular bulk interface */
-		if (((port_spec & HSO_PORT_MASK) == HSO_PORT_NETWORK)
-		    && !disable_net)
+		if (((port_spec & HSO_PORT_MASK) == HSO_PORT_NETWORK) &&
+		    !disable_net)
 			hso_dev = hso_create_net_device(interface, port_spec);
 		else
 			hso_dev =
@@ -3144,8 +3146,8 @@ static void hso_free_interface(struct usb_interface *interface)
 	int i;
 
 	for (i = 0; i < HSO_SERIAL_TTY_MINORS; i++) {
-		if (serial_table[i]
-		    && (serial_table[i]->interface == interface)) {
+		if (serial_table[i] &&
+		    (serial_table[i]->interface == interface)) {
 			hso_dev = dev2ser(serial_table[i]);
 			spin_lock_irq(&hso_dev->serial_lock);
 			tty = tty_kref_get(hso_dev->tty);
@@ -3161,8 +3163,8 @@ static void hso_free_interface(struct usb_interface *interface)
 	}
 
 	for (i = 0; i < HSO_MAX_NET_DEVICES; i++) {
-		if (network_table[i]
-		    && (network_table[i]->interface == interface)) {
+		if (network_table[i] &&
+		    (network_table[i]->interface == interface)) {
 			struct rfkill *rfk = dev2net(network_table[i])->rfkill;
 			/* hso_stop_net_device doesn't stop the net queue since
 			 * traffic needs to start it again when suspended */

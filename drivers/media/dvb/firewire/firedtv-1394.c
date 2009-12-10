@@ -1,5 +1,5 @@
 /*
- * FireDTV driver (formerly known as FireSAT)
+ * FireDTV driver -- ieee1394 I/O backend
  *
  * Copyright (C) 2004 Andreas Monitzer <andy@monitzer.com>
  * Copyright (C) 2007-2008 Ben Backx <ben@bbackx.com>
@@ -26,13 +26,16 @@
 #include <iso.h>
 #include <nodemgr.h>
 
+#include <dvb_demux.h>
+
 #include "firedtv.h"
 
 static LIST_HEAD(node_list);
 static DEFINE_SPINLOCK(node_list_lock);
 
-#define FIREWIRE_HEADER_SIZE	4
-#define CIP_HEADER_SIZE		8
+#define CIP_HEADER_SIZE			8
+#define MPEG2_TS_HEADER_SIZE		4
+#define MPEG2_TS_SOURCE_PACKET_SIZE	(4 + 188)
 
 static void rawiso_activity_cb(struct hpsb_iso *iso)
 {
@@ -62,20 +65,20 @@ static void rawiso_activity_cb(struct hpsb_iso *iso)
 		buf = dma_region_i(&iso->data_buf, unsigned char,
 			iso->infos[packet].offset + CIP_HEADER_SIZE);
 		count = (iso->infos[packet].len - CIP_HEADER_SIZE) /
-			(188 + FIREWIRE_HEADER_SIZE);
+			MPEG2_TS_SOURCE_PACKET_SIZE;
 
 		/* ignore empty packet */
 		if (iso->infos[packet].len <= CIP_HEADER_SIZE)
 			continue;
 
 		while (count--) {
-			if (buf[FIREWIRE_HEADER_SIZE] == 0x47)
+			if (buf[MPEG2_TS_HEADER_SIZE] == 0x47)
 				dvb_dmx_swfilter_packets(&fdtv->demux,
-						&buf[FIREWIRE_HEADER_SIZE], 1);
+						&buf[MPEG2_TS_HEADER_SIZE], 1);
 			else
 				dev_err(fdtv->device,
 					"skipping invalid packet\n");
-			buf += 188 + FIREWIRE_HEADER_SIZE;
+			buf += MPEG2_TS_SOURCE_PACKET_SIZE;
 		}
 	}
 out:
@@ -87,15 +90,20 @@ static inline struct node_entry *node_of(struct firedtv *fdtv)
 	return container_of(fdtv->device, struct unit_directory, device)->ne;
 }
 
-static int node_lock(struct firedtv *fdtv, u64 addr, void *data, __be32 arg)
+static int node_lock(struct firedtv *fdtv, u64 addr, __be32 data[])
 {
-	return hpsb_node_lock(node_of(fdtv), addr, EXTCODE_COMPARE_SWAP, data,
-			      (__force quadlet_t)arg);
+	int ret;
+
+	ret = hpsb_node_lock(node_of(fdtv), addr, EXTCODE_COMPARE_SWAP,
+		(__force quadlet_t *)&data[1], (__force quadlet_t)data[0]);
+	data[0] = data[1];
+
+	return ret;
 }
 
-static int node_read(struct firedtv *fdtv, u64 addr, void *data, size_t len)
+static int node_read(struct firedtv *fdtv, u64 addr, void *data)
 {
-	return hpsb_node_read(node_of(fdtv), addr, data, len);
+	return hpsb_node_read(node_of(fdtv), addr, data, 4);
 }
 
 static int node_write(struct firedtv *fdtv, u64 addr, void *data, size_t len)
@@ -212,6 +220,7 @@ static int node_probe(struct device *dev)
 		goto fail;
 
 	avc_register_remote_control(fdtv);
+
 	return 0;
 fail:
 	spin_lock_irq(&node_list_lock);
@@ -220,6 +229,7 @@ fail:
 	fdtv_unregister_rc(fdtv);
 fail_free:
 	kfree(fdtv);
+
 	return err;
 }
 
@@ -233,10 +243,9 @@ static int node_remove(struct device *dev)
 	list_del(&fdtv->list);
 	spin_unlock_irq(&node_list_lock);
 
-	cancel_work_sync(&fdtv->remote_ctrl_work);
 	fdtv_unregister_rc(fdtv);
-
 	kfree(fdtv);
+
 	return 0;
 }
 
@@ -252,6 +261,7 @@ static int node_update(struct unit_directory *ud)
 
 static struct hpsb_protocol_driver fdtv_driver = {
 	.name		= "firedtv",
+	.id_table	= fdtv_id_table,
 	.update		= node_update,
 	.driver         = {
 		.probe  = node_probe,
@@ -264,12 +274,11 @@ static struct hpsb_highlevel fdtv_highlevel = {
 	.fcp_request	= fcp_request,
 };
 
-int __init fdtv_1394_init(struct ieee1394_device_id id_table[])
+int __init fdtv_1394_init(void)
 {
 	int ret;
 
 	hpsb_register_highlevel(&fdtv_highlevel);
-	fdtv_driver.id_table = id_table;
 	ret = hpsb_register_protocol(&fdtv_driver);
 	if (ret) {
 		printk(KERN_ERR "firedtv: failed to register protocol\n");

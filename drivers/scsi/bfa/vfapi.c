@@ -189,7 +189,7 @@ bfa_fcs_vf_lookup(struct bfa_fcs_s *fcs, u16 vf_id)
 {
 	bfa_trc(fcs, vf_id);
 	if (vf_id == FC_VF_ID_NULL)
-		return (&fcs->fabric);
+		return &fcs->fabric;
 
 	/**
 	 * @todo vf support

@@ -62,6 +62,9 @@ MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_AUTHOR(DRV_COPYRIGHT);
 MODULE_LICENSE("GPL");
 
+struct cfg80211_ops libipw_config_ops = { };
+void *libipw_wiphy_privid = &libipw_wiphy_privid;
+
 static int libipw_networks_allocate(struct libipw_device *ieee)
 {
 	if (ieee->networks)
@@ -140,7 +143,7 @@ int libipw_change_mtu(struct net_device *dev, int new_mtu)
 }
 EXPORT_SYMBOL(libipw_change_mtu);
 
-struct net_device *alloc_ieee80211(int sizeof_priv)
+struct net_device *alloc_ieee80211(int sizeof_priv, int monitor)
 {
 	struct libipw_device *ieee;
 	struct net_device *dev;
@@ -157,10 +160,31 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 
 	ieee->dev = dev;
 
+	if (!monitor) {
+		ieee->wdev.wiphy = wiphy_new(&libipw_config_ops, 0);
+		if (!ieee->wdev.wiphy) {
+			LIBIPW_ERROR("Unable to allocate wiphy.\n");
+			goto failed_free_netdev;
+		}
+
+		ieee->dev->ieee80211_ptr = &ieee->wdev;
+		ieee->wdev.iftype = NL80211_IFTYPE_STATION;
+
+		/* Fill-out wiphy structure bits we know...  Not enough info
+		   here to call set_wiphy_dev or set MAC address or channel info
+		   -- have to do that in ->ndo_init... */
+		ieee->wdev.wiphy->privid = libipw_wiphy_privid;
+
+		ieee->wdev.wiphy->max_scan_ssids = 1;
+		ieee->wdev.wiphy->max_scan_ie_len = 0;
+		ieee->wdev.wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION)
+						| BIT(NL80211_IFTYPE_ADHOC);
+	}
+
 	err = libipw_networks_allocate(ieee);
 	if (err) {
 		LIBIPW_ERROR("Unable to allocate beacon storage: %d\n", err);
-		goto failed_free_netdev;
+		goto failed_free_wiphy;
 	}
 	libipw_networks_initialize(ieee);
 
@@ -175,7 +199,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	ieee->host_decrypt = 1;
 	ieee->host_mc_decrypt = 1;
 
-	/* Host fragementation in Open mode. Default is enabled.
+	/* Host fragmentation in Open mode. Default is enabled.
 	 * Note: host fragmentation is always enabled if host encryption
 	 * is enabled. For cards can do hardware encryption, they must do
 	 * hardware fragmentation as well. So we don't need a variable
@@ -193,19 +217,27 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 
 	return dev;
 
+failed_free_wiphy:
+	if (!monitor)
+		wiphy_free(ieee->wdev.wiphy);
 failed_free_netdev:
 	free_netdev(dev);
 failed:
 	return NULL;
 }
 
-void free_ieee80211(struct net_device *dev)
+void free_ieee80211(struct net_device *dev, int monitor)
 {
 	struct libipw_device *ieee = netdev_priv(dev);
 
 	lib80211_crypt_info_free(&ieee->crypt_info);
 
 	libipw_networks_free(ieee);
+
+	/* free cfg80211 resources */
+	if (!monitor)
+		wiphy_free(ieee->wdev.wiphy);
+
 	free_netdev(dev);
 }
 
@@ -216,17 +248,22 @@ u32 libipw_debug_level = 0;
 EXPORT_SYMBOL_GPL(libipw_debug_level);
 static struct proc_dir_entry *libipw_proc = NULL;
 
-static int show_debug_level(char *page, char **start, off_t offset,
-			    int count, int *eof, void *data)
+static int debug_level_proc_show(struct seq_file *m, void *v)
 {
-	return snprintf(page, count, "0x%08X\n", libipw_debug_level);
+	seq_printf(m, "0x%08X\n", libipw_debug_level);
+	return 0;
 }
 
-static int store_debug_level(struct file *file, const char __user * buffer,
-			     unsigned long count, void *data)
+static int debug_level_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, debug_level_proc_show, NULL);
+}
+
+static ssize_t debug_level_proc_write(struct file *file,
+		const char __user *buffer, size_t count, loff_t *pos)
 {
 	char buf[] = "0x00000000\n";
-	unsigned long len = min((unsigned long)sizeof(buf) - 1, count);
+	size_t len = min(sizeof(buf) - 1, count);
 	unsigned long val;
 
 	if (copy_from_user(buf, buffer, len))
@@ -240,6 +277,15 @@ static int store_debug_level(struct file *file, const char __user * buffer,
 
 	return strnlen(buf, len);
 }
+
+static const struct file_operations debug_level_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= debug_level_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= debug_level_proc_write,
+};
 #endif				/* CONFIG_LIBIPW_DEBUG */
 
 static int __init libipw_init(void)
@@ -254,16 +300,13 @@ static int __init libipw_init(void)
 				" proc directory\n");
 		return -EIO;
 	}
-	e = create_proc_entry("debug_level", S_IFREG | S_IRUGO | S_IWUSR,
-			      libipw_proc);
+	e = proc_create("debug_level", S_IRUGO | S_IWUSR, libipw_proc,
+			&debug_level_proc_fops);
 	if (!e) {
 		remove_proc_entry(DRV_NAME, init_net.proc_net);
 		libipw_proc = NULL;
 		return -EIO;
 	}
-	e->read_proc = show_debug_level;
-	e->write_proc = store_debug_level;
-	e->data = NULL;
 #endif				/* CONFIG_LIBIPW_DEBUG */
 
 	printk(KERN_INFO DRV_NAME ": " DRV_DESCRIPTION ", " DRV_VERSION "\n");

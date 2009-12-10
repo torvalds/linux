@@ -31,7 +31,7 @@
 #include <linux/linkage.h>
 #include <asm/thread_info.h>
 #include <asm/page.h>
-#include <asm/prom.h>		/* for OF_DT_HEADER */
+#include <linux/of_fdt.h>		/* for OF_DT_HEADER */
 
 #ifdef CONFIG_MMU
 #include <asm/setup.h> /* COMMAND_LINE_SIZE */

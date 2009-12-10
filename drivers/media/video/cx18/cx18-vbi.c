@@ -105,6 +105,7 @@ static void copy_vbi_data(struct cx18 *cx, int lines, u32 pts_stamp)
 
 /* Compress raw VBI format, removes leading SAV codes and surplus space
    after the frame.  Returns new compressed size. */
+/* FIXME - this function ignores the input size. */
 static u32 compress_raw_buf(struct cx18 *cx, u8 *buf, u32 size, u32 hdr_size)
 {
 	u32 line_size = vbi_active_samples;
@@ -185,8 +186,7 @@ static u32 compress_sliced_buf(struct cx18 *cx, u8 *buf, u32 size,
 	return line;
 }
 
-void cx18_process_vbi_data(struct cx18 *cx, struct cx18_buffer *buf,
-			   int streamtype)
+static void _cx18_process_vbi_data(struct cx18 *cx, struct cx18_buffer *buf)
 {
 	/*
 	 * The CX23418 provides a 12 byte header in its raw VBI buffers to us:
@@ -202,9 +202,6 @@ void cx18_process_vbi_data(struct cx18 *cx, struct cx18_buffer *buf,
 	u32 size = buf->bytesused;
 	u32 pts;
 	int lines;
-
-	if (streamtype != CX18_ENC_STREAM_TYPE_VBI)
-		return;
 
 	/*
 	 * The CX23418 sends us data that is 32 bit little-endian swapped,
@@ -249,4 +246,32 @@ void cx18_process_vbi_data(struct cx18 *cx, struct cx18_buffer *buf,
 	if (cx->vbi.insert_mpeg)
 		copy_vbi_data(cx, lines, pts);
 	cx->vbi.frame++;
+}
+
+void cx18_process_vbi_data(struct cx18 *cx, struct cx18_mdl *mdl,
+			   int streamtype)
+{
+	struct cx18_buffer *buf;
+	u32 orig_used;
+
+	if (streamtype != CX18_ENC_STREAM_TYPE_VBI)
+		return;
+
+	/*
+	 * Big assumption here:
+	 * Every buffer hooked to the MDL's buf_list is a complete VBI frame
+	 * that ends at the end of the buffer.
+	 *
+	 * To assume anything else would make the code in this file
+	 * more complex, or require extra memcpy()'s to make the
+	 * buffers satisfy the above assumption.  It's just simpler to set
+	 * up the encoder buffer transfers to make the assumption true.
+	 */
+	list_for_each_entry(buf, &mdl->buf_list, list) {
+		orig_used = buf->bytesused;
+		if (orig_used == 0)
+			break;
+		_cx18_process_vbi_data(cx, buf);
+		mdl->bytesused -= (orig_used - buf->bytesused);
+	}
 }

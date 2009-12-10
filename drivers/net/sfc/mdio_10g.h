@@ -1,6 +1,6 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
- * Copyright 2006-2008 Solarflare Communications Inc.
+ * Copyright 2006-2009 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -17,7 +17,6 @@
  */
 
 #include "efx.h"
-#include "boards.h"
 
 static inline unsigned efx_mdio_id_rev(u32 id) { return id & 0xf; }
 static inline unsigned efx_mdio_id_model(u32 id) { return (id >> 4) & 0x3f; }
@@ -86,6 +85,9 @@ extern void efx_mdio_set_mmds_lpower(struct efx_nic *efx,
 
 /* Set (some of) the PHY settings over MDIO */
 extern int efx_mdio_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd);
+
+/* Push advertising flags and restart autonegotiation */
+extern void efx_mdio_an_reconfigure(struct efx_nic *efx);
 
 /* Get pause parameters from AN if available (otherwise return
  * requested pause parameters)
