@@ -432,9 +432,10 @@ static void free_tio(struct mapped_device *md, struct dm_target_io *tio)
 	mempool_free(tio, md->tio_pool);
 }
 
-static struct dm_rq_target_io *alloc_rq_tio(struct mapped_device *md)
+static struct dm_rq_target_io *alloc_rq_tio(struct mapped_device *md,
+					    gfp_t gfp_mask)
 {
-	return mempool_alloc(md->tio_pool, GFP_ATOMIC);
+	return mempool_alloc(md->tio_pool, gfp_mask);
 }
 
 static void free_rq_tio(struct dm_rq_target_io *tio)
@@ -1471,7 +1472,7 @@ static int dm_prep_fn(struct request_queue *q, struct request *rq)
 		return BLKPREP_KILL;
 	}
 
-	tio = alloc_rq_tio(md); /* Only one for each original request */
+	tio = alloc_rq_tio(md, GFP_ATOMIC);
 	if (!tio)
 		/* -ENOMEM */
 		return BLKPREP_DEFER;
