@@ -1762,7 +1762,9 @@ int ext4_ext_walk_space(struct inode *inode, ext4_lblk_t block,
 	while (block < last && block != EXT_MAX_BLOCK) {
 		num = last - block;
 		/* find extent for this block */
+		down_read(&EXT4_I(inode)->i_data_sem);
 		path = ext4_ext_find_extent(inode, block, path);
+		up_read(&EXT4_I(inode)->i_data_sem);
 		if (IS_ERR(path)) {
 			err = PTR_ERR(path);
 			path = NULL;
@@ -3724,10 +3726,8 @@ int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		 * Walk the extent tree gathering extent information.
 		 * ext4_ext_fiemap_cb will push extents back to user.
 		 */
-		down_read(&EXT4_I(inode)->i_data_sem);
 		error = ext4_ext_walk_space(inode, start_blk, len_blks,
 					  ext4_ext_fiemap_cb, fieinfo);
-		up_read(&EXT4_I(inode)->i_data_sem);
 	}
 
 	return error;
