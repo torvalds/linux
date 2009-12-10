@@ -879,9 +879,10 @@ static void increment_pending_exceptions_done_count(void)
 
 static void snapshot_merge_next_chunks(struct dm_snapshot *s)
 {
-	int r;
+	int i, linear_chunks;
 	chunk_t old_chunk, new_chunk;
 	struct dm_io_region src, dest;
+	sector_t io_size;
 	uint64_t previous_count;
 
 	BUG_ON(!test_bit(RUNNING_MERGE, &s->state_bits));
@@ -896,20 +897,28 @@ static void snapshot_merge_next_chunks(struct dm_snapshot *s)
 		goto shut;
 	}
 
-	r = s->store->type->prepare_merge(s->store, &old_chunk, &new_chunk);
-	if (r <= 0) {
-		if (r < 0)
+	linear_chunks = s->store->type->prepare_merge(s->store, &old_chunk,
+						      &new_chunk);
+	if (linear_chunks <= 0) {
+		if (linear_chunks < 0)
 			DMERR("Read error in exception store: "
 			      "shutting down merge");
 		goto shut;
 	}
 
-	/* TODO: use larger I/O size once we verify that kcopyd handles it */
+	/* Adjust old_chunk and new_chunk to reflect start of linear region */
+	old_chunk = old_chunk + 1 - linear_chunks;
+	new_chunk = new_chunk + 1 - linear_chunks;
+
+	/*
+	 * Use one (potentially large) I/O to copy all 'linear_chunks'
+	 * from the exception store to the origin
+	 */
+	io_size = linear_chunks * s->store->chunk_size;
 
 	dest.bdev = s->origin->bdev;
 	dest.sector = chunk_to_sector(s->store, old_chunk);
-	dest.count = min((sector_t)s->store->chunk_size,
-			 get_dev_size(dest.bdev) - dest.sector);
+	dest.count = min(io_size, get_dev_size(dest.bdev) - dest.sector);
 
 	src.bdev = s->cow->bdev;
 	src.sector = chunk_to_sector(s->store, new_chunk);
@@ -925,7 +934,7 @@ static void snapshot_merge_next_chunks(struct dm_snapshot *s)
 	 * significant impact on performance.
 	 */
 	previous_count = read_pending_exceptions_done_count();
-	while (origin_write_extent(s, dest.sector, s->store->chunk_size)) {
+	while (origin_write_extent(s, dest.sector, io_size)) {
 		wait_event(_pending_exceptions_done,
 			   (read_pending_exceptions_done_count() !=
 			    previous_count));
@@ -935,10 +944,12 @@ static void snapshot_merge_next_chunks(struct dm_snapshot *s)
 
 	down_write(&s->lock);
 	s->first_merging_chunk = old_chunk;
-	s->num_merging_chunks = 1;
+	s->num_merging_chunks = linear_chunks;
 	up_write(&s->lock);
 
-	__check_for_conflicting_io(s, old_chunk);
+	/* Wait until writes to all 'linear_chunks' drain */
+	for (i = 0; i < linear_chunks; i++)
+		__check_for_conflicting_io(s, old_chunk + i);
 
 	dm_kcopyd_copy(s->kcopyd_client, &src, 1, &dest, 0, merge_callback, s);
 	return;
