@@ -1308,6 +1308,54 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 	return r;
 }
 
+/*
+ * A snapshot-merge target behaves like a combination of a snapshot
+ * target and a snapshot-origin target.  It only generates new
+ * exceptions in other snapshots and not in the one that is being
+ * merged.
+ *
+ * For each chunk, if there is an existing exception, it is used to
+ * redirect I/O to the cow device.  Otherwise I/O is sent to the origin,
+ * which in turn might generate exceptions in other snapshots.
+ */
+static int snapshot_merge_map(struct dm_target *ti, struct bio *bio,
+			      union map_info *map_context)
+{
+	struct dm_exception *e;
+	struct dm_snapshot *s = ti->private;
+	int r = DM_MAPIO_REMAPPED;
+	chunk_t chunk;
+
+	chunk = sector_to_chunk(s->store, bio->bi_sector);
+
+	down_read(&s->lock);
+
+	/* Full snapshots are not usable */
+	if (!s->valid) {
+		r = -EIO;
+		goto out_unlock;
+	}
+
+	/* If the block is already remapped - use that */
+	e = dm_lookup_exception(&s->complete, chunk);
+	if (e) {
+		remap_exception(s, e, bio, chunk);
+		goto out_unlock;
+	}
+
+	bio->bi_bdev = s->origin->bdev;
+
+	if (bio_rw(bio) == WRITE) {
+		up_read(&s->lock);
+		return do_origin(s->origin, bio);
+	}
+
+out_unlock:
+	up_read(&s->lock);
+
+	return r;
+}
+
 static int snapshot_end_io(struct dm_target *ti, struct bio *bio,
 			   int error, union map_info *map_context)
 {
@@ -1465,6 +1513,13 @@ static int __origin_write(struct list_head *snapshots, sector_t sector,
 
 	/* Do all the snapshots on this origin */
 	list_for_each_entry (snap, snapshots, list) {
+		/*
+		 * Don't make new exceptions in a merging snapshot
+		 * because it has effectively been deleted
+		 */
+		if (dm_target_is_snapshot_merge(snap->ti))
+			continue;
+
 		down_write(&snap->lock);
 
 		/* Only deal with valid and active snapshots */
@@ -1697,7 +1752,7 @@ static struct target_type merge_target = {
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,
-	.map     = snapshot_map,
+	.map     = snapshot_merge_map,
 	.end_io  = snapshot_end_io,
 	.postsuspend = snapshot_postsuspend,
 	.preresume  = snapshot_preresume,
