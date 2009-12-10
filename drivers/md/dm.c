@@ -2550,9 +2550,9 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	 * requests are being added to md->deferred list.
 	 */
 
-	dm_table_postsuspend_targets(map);
-
 	set_bit(DMF_SUSPENDED, &md->flags);
+
+	dm_table_postsuspend_targets(map);
 
 out:
 	dm_table_put(map);
