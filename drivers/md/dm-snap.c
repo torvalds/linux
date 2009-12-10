@@ -1467,7 +1467,19 @@ static int snapshot_iterate_devices(struct dm_target *ti,
 /*-----------------------------------------------------------------
  * Origin methods
  *---------------------------------------------------------------*/
-static int __origin_write(struct list_head *snapshots, struct bio *bio)
+
+/*
+ * If no exceptions need creating, DM_MAPIO_REMAPPED is returned and any
+ * supplied bio was ignored.  The caller may submit it immediately.
+ * (No remapping actually occurs as the origin is always a direct linear
+ * map.)
+ *
+ * If further exceptions are required, DM_MAPIO_SUBMITTED is returned
+ * and any supplied bio is added to a list to be submitted once all
+ * the necessary exceptions exist.
+ */
+static int __origin_write(struct list_head *snapshots, sector_t sector,
+			  struct bio *bio)
 {
 	int r = DM_MAPIO_REMAPPED, first = 0;
 	struct dm_snapshot *snap;
@@ -1486,14 +1498,14 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 			goto next_snapshot;
 
 		/* Nothing to do if writing beyond end of snapshot */
-		if (bio->bi_sector >= dm_table_get_size(snap->ti->table))
+		if (sector >= dm_table_get_size(snap->ti->table))
 			goto next_snapshot;
 
 		/*
 		 * Remember, different snapshots can have
 		 * different chunk sizes.
 		 */
-		chunk = sector_to_chunk(snap->store, bio->bi_sector);
+		chunk = sector_to_chunk(snap->store, sector);
 
 		/*
 		 * Check exception table to see if block
@@ -1543,7 +1555,8 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 				first = 1;
 			}
 
-			bio_list_add(&primary_pe->origin_bios, bio);
+			if (bio)
+				bio_list_add(&primary_pe->origin_bios, bio);
 
 			r = DM_MAPIO_SUBMITTED;
 		}
@@ -1599,7 +1612,7 @@ static int do_origin(struct dm_dev *origin, struct bio *bio)
 	down_read(&_origins_lock);
 	o = __lookup_origin(origin->bdev);
 	if (o)
-		r = __origin_write(&o->snapshots, bio);
+		r = __origin_write(&o->snapshots, bio->bi_sector, bio);
 	up_read(&_origins_lock);
 
 	return r;
