@@ -93,13 +93,14 @@ static struct videobuf_queue_ops cx25821_video_qops = {
 
 static int video_open(struct file *file)
 {
-	int minor = video_devdata(file)->minor;
+	struct video_device *vdev = video_devdata(file);
 	struct cx25821_dev *dev = video_drvdata(file);
 	struct cx25821_fh *fh;
 	enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	u32 pix_format;
 
-	printk("open minor=%d type=%s\n", minor, v4l2_type_names[type]);
+	printk("open dev=%s type=%s\n", video_device_node_name(vdev),
+		v4l2_type_names[type]);
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);

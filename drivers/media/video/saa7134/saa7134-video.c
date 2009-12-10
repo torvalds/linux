@@ -1326,7 +1326,6 @@ static int saa7134_resource(struct saa7134_fh *fh)
 
 static int video_open(struct file *file)
 {
-	int minor = video_devdata(file)->minor;
 	struct video_device *vdev = video_devdata(file);
 	struct saa7134_dev *dev = video_drvdata(file);
 	struct saa7134_fh *fh;
@@ -1345,8 +1344,8 @@ static int video_open(struct file *file)
 		break;
 	}
 
-	dprintk("open minor=%d radio=%d type=%s\n",minor,radio,
-		v4l2_type_names[type]);
+	dprintk("open dev=%s radio=%d type=%s\n", video_device_node_name(vdev),
+		radio, v4l2_type_names[type]);
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh),GFP_KERNEL);

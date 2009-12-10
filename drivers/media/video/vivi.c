@@ -1222,8 +1222,7 @@ static int vivi_close(struct file *file)
 	struct vivi_fh         *fh = file->private_data;
 	struct vivi_dev *dev       = fh->dev;
 	struct vivi_dmaqueue *vidq = &dev->vidq;
-
-	int minor = video_devdata(file)->minor;
+	struct video_device  *vdev = video_devdata(file);
 
 	vivi_stop_thread(vidq);
 	videobuf_stop(&fh->vb_vidq);
@@ -1235,8 +1234,8 @@ static int vivi_close(struct file *file)
 	dev->users--;
 	mutex_unlock(&dev->mutex);
 
-	dprintk(dev, 1, "close called (minor=%d, users=%d)\n",
-		minor, dev->users);
+	dprintk(dev, 1, "close called (dev=%s, users=%d)\n",
+		video_device_node_name(vdev), dev->users);
 
 	return 0;
 }

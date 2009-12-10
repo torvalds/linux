@@ -1048,7 +1048,7 @@ static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *id)
 
 static int mpeg_open(struct file *file)
 {
-	int minor = video_devdata(file)->minor;
+	struct video_device *vdev = video_devdata(file);
 	struct cx8802_dev *dev = video_drvdata(file);
 	struct cx8802_fh *fh;
 	struct cx8802_driver *drv = NULL;
@@ -1075,7 +1075,7 @@ static int mpeg_open(struct file *file)
 		unlock_kernel();
 		return -EINVAL;
 	}
-	dprintk(1,"open minor=%d\n",minor);
+	dprintk(1, "open dev=%s\n", video_device_node_name(vdev));
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh),GFP_KERNEL);

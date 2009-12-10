@@ -1530,7 +1530,6 @@ static int vidioc_s_parm(struct file *file, void *priv,
 }
 static int s2255_open(struct file *file)
 {
-	int minor = video_devdata(file)->minor;
 	struct video_device *vdev = video_devdata(file);
 	struct s2255_dev *dev = video_drvdata(file);
 	struct s2255_fh *fh;
@@ -1538,7 +1537,9 @@ static int s2255_open(struct file *file)
 	int i = 0;
 	int cur_channel = -1;
 	int state;
-	dprintk(1, "s2255: open called (minor=%d)\n", minor);
+
+	dprintk(1, "s2255: open called (dev=%s)\n",
+		video_device_node_name(vdev));
 
 	lock_kernel();
 
@@ -1650,8 +1651,9 @@ static int s2255_open(struct file *file)
 	for (i = 0; i < ARRAY_SIZE(s2255_qctrl); i++)
 		qctl_regs[i] = s2255_qctrl[i].default_value;
 
-	dprintk(1, "s2255drv: open minor=%d type=%s users=%d\n",
-		minor, v4l2_type_names[type], dev->users[cur_channel]);
+	dprintk(1, "s2255drv: open dev=%s type=%s users=%d\n",
+		video_device_node_name(vdev), v4l2_type_names[type],
+		dev->users[cur_channel]);
 	dprintk(2, "s2255drv: open: fh=0x%08lx, dev=0x%08lx, vidq=0x%08lx\n",
 		(unsigned long)fh, (unsigned long)dev,
 		(unsigned long)&dev->vidq[cur_channel]);
@@ -1728,7 +1730,8 @@ static int s2255_close(struct file *file)
 {
 	struct s2255_fh *fh = file->private_data;
 	struct s2255_dev *dev = fh->dev;
-	int minor = video_devdata(file)->minor;
+	struct video_device *vdev = video_devdata(file);
+
 	if (!dev)
 		return -ENODEV;
 
@@ -1748,8 +1751,8 @@ static int s2255_close(struct file *file)
 	mutex_unlock(&dev->open_lock);
 
 	kref_put(&dev->kref, s2255_destroy);
-	dprintk(1, "s2255: close called (minor=%d, users=%d)\n",
-		minor, dev->users[fh->channel]);
+	dprintk(1, "s2255: close called (dev=%s, users=%d)\n",
+		video_device_node_name(vdev), dev->users[fh->channel]);
 	kfree(fh);
 	return 0;
 }

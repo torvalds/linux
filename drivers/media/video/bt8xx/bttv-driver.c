@@ -3207,11 +3207,12 @@ err:
 static int bttv_open(struct file *file)
 {
 	int minor = video_devdata(file)->minor;
+	struct video_device *vdev = video_devdata(file);
 	struct bttv *btv = video_drvdata(file);
 	struct bttv_fh *fh;
 	enum v4l2_buf_type type = 0;
 
-	dprintk(KERN_DEBUG "bttv: open minor=%d\n",minor);
+	dprintk(KERN_DEBUG "bttv: open dev=%s\n", video_device_node_name(vdev));
 
 	lock_kernel();
 	if (btv->video_dev->minor == minor) {
@@ -3409,10 +3410,11 @@ static struct video_device bttv_video_template = {
 static int radio_open(struct file *file)
 {
 	int minor = video_devdata(file)->minor;
+	struct video_device *vdev = video_devdata(file);
 	struct bttv *btv = video_drvdata(file);
 	struct bttv_fh *fh;
 
-	dprintk("bttv: open minor=%d\n",minor);
+	dprintk("bttv: open dev=%s\n", video_device_node_name(vdev));
 
 	lock_kernel();
 	WARN_ON(btv->radio_dev && btv->radio_dev->minor != minor);

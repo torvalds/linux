@@ -5867,8 +5867,8 @@ ov51x_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	ov511_devused |= 1 << nr;
 	ov->nr = nr;
 
-	dev_info(&intf->dev, "Device at %s registered to minor %d\n",
-		 ov->usb_path, ov->vdev->minor);
+	dev_info(&intf->dev, "Device at %s registered to %s\n",
+		 ov->usb_path, video_device_node_name(ov->vdev));
 
 	usb_set_intfdata(intf, ov);
 	if (ov_create_sysfs(ov->vdev)) {

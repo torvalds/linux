@@ -194,7 +194,6 @@ void saa7146_buffer_timeout(unsigned long data)
 
 static int fops_open(struct file *file)
 {
-	unsigned int minor = video_devdata(file)->minor;
 	struct video_device *vdev = video_devdata(file);
 	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_fh *fh = NULL;
@@ -202,7 +201,7 @@ static int fops_open(struct file *file)
 
 	enum v4l2_buf_type type;
 
-	DEB_EE(("file:%p, minor:%d\n", file, minor));
+	DEB_EE(("file:%p, dev:%s\n", file, video_device_node_name(vdev)));
 
 	if (mutex_lock_interruptible(&saa7146_devices_lock))
 		return -ERESTARTSYS;

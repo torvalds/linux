@@ -86,11 +86,11 @@ static int ts_init_encoder(struct saa7134_dev* dev)
 
 static int ts_open(struct file *file)
 {
-	int minor = video_devdata(file)->minor;
+	struct video_device *vdev = video_devdata(file);
 	struct saa7134_dev *dev = video_drvdata(file);
 	int err;
 
-	dprintk("open minor=%d\n",minor);
+	dprintk("open dev=%s\n", video_device_node_name(vdev));
 	err = -EBUSY;
 	if (!mutex_trylock(&dev->empress_tsq.vb_lock))
 		goto done;

@@ -2081,7 +2081,6 @@ static int radio_queryctrl(struct file *file, void *priv,
  */
 static int em28xx_v4l2_open(struct file *filp)
 {
-	int minor = video_devdata(filp)->minor;
 	int errCode = 0, radio = 0;
 	struct video_device *vdev = video_devdata(filp);
 	struct em28xx *dev = video_drvdata(filp);
@@ -2103,8 +2102,9 @@ static int em28xx_v4l2_open(struct file *filp)
 
 	mutex_lock(&dev->lock);
 
-	em28xx_videodbg("open minor=%d type=%s users=%d\n",
-				minor, v4l2_type_names[fh_type], dev->users);
+	em28xx_videodbg("open dev=%s type=%s users=%d\n",
+			video_device_node_name(vdev), v4l2_type_names[fh_type],
+			dev->users);
 
 
 	fh = kzalloc(sizeof(struct em28xx_fh), GFP_KERNEL);

@@ -1916,7 +1916,6 @@ static int radio_queryctrl(struct file *file, void *priv,
  */
 static int cx231xx_v4l2_open(struct file *filp)
 {
-	int minor = video_devdata(filp)->minor;
 	int errCode = 0, radio = 0;
 	struct video_device *vdev = video_devdata(filp);
 	struct cx231xx *dev = video_drvdata(filp);
@@ -1937,8 +1936,9 @@ static int cx231xx_v4l2_open(struct file *filp)
 
 	mutex_lock(&dev->lock);
 
-	cx231xx_videodbg("open minor=%d type=%s users=%d\n",
-			 minor, v4l2_type_names[fh_type], dev->users);
+	cx231xx_videodbg("open dev=%s type=%s users=%d\n",
+			 video_device_node_name(vdev), v4l2_type_names[fh_type],
+			 dev->users);
 
 #if 0
 	errCode = cx231xx_set_mode(dev, CX231XX_ANALOG_MODE);
