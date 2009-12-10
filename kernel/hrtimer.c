@@ -756,17 +756,33 @@ static inline void hrtimer_init_timer_hres(struct hrtimer *timer) { }
 
 #endif /* CONFIG_HIGH_RES_TIMERS */
 
-#ifdef CONFIG_TIMER_STATS
-void __timer_stats_hrtimer_set_start_info(struct hrtimer *timer, void *addr)
+static inline void timer_stats_hrtimer_set_start_info(struct hrtimer *timer)
 {
+#ifdef CONFIG_TIMER_STATS
 	if (timer->start_site)
 		return;
-
-	timer->start_site = addr;
+	timer->start_site = __builtin_return_address(0);
 	memcpy(timer->start_comm, current->comm, TASK_COMM_LEN);
 	timer->start_pid = current->pid;
-}
 #endif
+}
+
+static inline void timer_stats_hrtimer_clear_start_info(struct hrtimer *timer)
+{
+#ifdef CONFIG_TIMER_STATS
+	timer->start_site = NULL;
+#endif
+}
+
+static inline void timer_stats_account_hrtimer(struct hrtimer *timer)
+{
+#ifdef CONFIG_TIMER_STATS
+	if (likely(!timer_stats_active))
+		return;
+	timer_stats_update_stats(timer, timer->start_pid, timer->start_site,
+				 timer->function, timer->start_comm, 0);
+#endif
+}
 
 /*
  * Counterpart to lock_hrtimer_base above:
