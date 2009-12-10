@@ -1433,6 +1433,11 @@ static int multipath_message(struct dm_target *ti, unsigned argc, char **argv)
 		goto out;
 	}
 
+	if (dm_suspended(ti)) {
+		r = -EBUSY;
+		goto out;
+	}
+
 	if (argc == 1) {
 		if (!strnicmp(argv[0], MESG_STR("queue_if_no_path"))) {
 			r = queue_if_no_path(m, 1, 0);
