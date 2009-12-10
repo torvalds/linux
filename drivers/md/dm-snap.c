@@ -709,12 +709,18 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	int i;
 	int r = -EINVAL;
 	char *origin_path, *cow_path;
-	unsigned args_used;
+	unsigned args_used, num_flush_requests = 1;
+	fmode_t origin_mode = FMODE_READ;
 
 	if (argc != 4) {
 		ti->error = "requires exactly 4 arguments";
 		r = -EINVAL;
 		goto bad;
+	}
+
+	if (dm_target_is_snapshot_merge(ti)) {
+		num_flush_requests = 2;
+		origin_mode = FMODE_WRITE;
 	}
 
 	origin_path = argv[0];
@@ -750,7 +756,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	argv += args_used;
 	argc -= args_used;
 
-	r = dm_get_device(ti, origin_path, 0, ti->len, FMODE_READ, &s->origin);
+	r = dm_get_device(ti, origin_path, 0, ti->len, origin_mode, &s->origin);
 	if (r) {
 		ti->error = "Cannot get origin device";
 		goto bad_origin;
@@ -801,7 +807,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	INIT_WORK(&s->queued_bios_work, flush_queued_bios);
 
 	ti->private = s;
-	ti->num_flush_requests = 1;
+	ti->num_flush_requests = num_flush_requests;
 
 	/* Add snapshot to the list of snapshots for this origin */
 	/* Exceptions aren't triggered till snapshot_resume() is called */
@@ -1325,6 +1331,15 @@ static int snapshot_merge_map(struct dm_target *ti, struct bio *bio,
 	struct dm_snapshot *s = ti->private;
 	int r = DM_MAPIO_REMAPPED;
 	chunk_t chunk;
+
+	if (unlikely(bio_empty_barrier(bio))) {
+		if (!map_context->flush_request)
+			bio->bi_bdev = s->origin->bdev;
+		else
+			bio->bi_bdev = s->cow->bdev;
+		map_context->ptr = NULL;
+		return DM_MAPIO_REMAPPED;
+	}
 
 	chunk = sector_to_chunk(s->store, bio->bi_sector);
 
