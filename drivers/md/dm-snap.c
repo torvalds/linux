@@ -1152,10 +1152,11 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 	unsigned sz = 0;
 	struct dm_snapshot *snap = ti->private;
 
-	down_write(&snap->lock);
-
 	switch (type) {
 	case STATUSTYPE_INFO:
+
+		down_write(&snap->lock);
+
 		if (!snap->valid)
 			DMEMIT("Invalid");
 		else {
@@ -1171,6 +1172,9 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 			else
 				DMEMIT("Unknown");
 		}
+
+		up_write(&snap->lock);
+
 		break;
 
 	case STATUSTYPE_TABLE:
@@ -1184,8 +1188,6 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 					  maxlen - sz);
 		break;
 	}
-
-	up_write(&snap->lock);
 
 	return 0;
 }
