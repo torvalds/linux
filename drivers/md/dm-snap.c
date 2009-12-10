@@ -270,6 +270,10 @@ struct origin {
 static struct list_head *_origins;
 static struct rw_semaphore _origins_lock;
 
+static DECLARE_WAIT_QUEUE_HEAD(_pending_exceptions_done);
+static DEFINE_SPINLOCK(_pending_exceptions_done_spinlock);
+static uint64_t _pending_exceptions_done_count;
+
 static int init_origin_hash(void)
 {
 	int i;
@@ -847,14 +851,38 @@ out:
 	return r;
 }
 
+static int origin_write_extent(struct dm_snapshot *merging_snap,
+			       sector_t sector, unsigned chunk_size);
+
 static void merge_callback(int read_err, unsigned long write_err,
 			   void *context);
+
+static uint64_t read_pending_exceptions_done_count(void)
+{
+	uint64_t pending_exceptions_done;
+
+	spin_lock(&_pending_exceptions_done_spinlock);
+	pending_exceptions_done = _pending_exceptions_done_count;
+	spin_unlock(&_pending_exceptions_done_spinlock);
+
+	return pending_exceptions_done;
+}
+
+static void increment_pending_exceptions_done_count(void)
+{
+	spin_lock(&_pending_exceptions_done_spinlock);
+	_pending_exceptions_done_count++;
+	spin_unlock(&_pending_exceptions_done_spinlock);
+
+	wake_up_all(&_pending_exceptions_done);
+}
 
 static void snapshot_merge_next_chunks(struct dm_snapshot *s)
 {
 	int r;
 	chunk_t old_chunk, new_chunk;
 	struct dm_io_region src, dest;
+	uint64_t previous_count;
 
 	BUG_ON(!test_bit(RUNNING_MERGE, &s->state_bits));
 	if (unlikely(test_bit(SHUTDOWN_MERGE, &s->state_bits)))
@@ -886,6 +914,24 @@ static void snapshot_merge_next_chunks(struct dm_snapshot *s)
 	src.bdev = s->cow->bdev;
 	src.sector = chunk_to_sector(s->store, new_chunk);
 	src.count = dest.count;
+
+	/*
+	 * Reallocate any exceptions needed in other snapshots then
+	 * wait for the pending exceptions to complete.
+	 * Each time any pending exception (globally on the system)
+	 * completes we are woken and repeat the process to find out
+	 * if we can proceed.  While this may not seem a particularly
+	 * efficient algorithm, it is not expected to have any
+	 * significant impact on performance.
+	 */
+	previous_count = read_pending_exceptions_done_count();
+	while (origin_write_extent(s, dest.sector, s->store->chunk_size)) {
+		wait_event(_pending_exceptions_done,
+			   (read_pending_exceptions_done_count() !=
+			    previous_count));
+		/* Retry after the wait, until all exceptions are done. */
+		previous_count = read_pending_exceptions_done_count();
+	}
 
 	down_write(&s->lock);
 	s->first_merging_chunk = old_chunk;
@@ -1371,6 +1417,8 @@ static void pending_complete(struct dm_snap_pending_exception *pe, int success)
 	snapshot_bios = bio_list_get(&pe->snapshot_bios);
 	origin_bios = bio_list_get(&pe->origin_bios);
 	free_pending_exception(pe);
+
+	increment_pending_exceptions_done_count();
 
 	up_write(&s->lock);
 
@@ -1960,6 +2008,41 @@ static int do_origin(struct dm_dev *origin, struct bio *bio)
 	up_read(&_origins_lock);
 
 	return r;
+}
+
+/*
+ * Trigger exceptions in all non-merging snapshots.
+ *
+ * The chunk size of the merging snapshot may be larger than the chunk
+ * size of some other snapshot so we may need to reallocate multiple
+ * chunks in other snapshots.
+ *
+ * We scan all the overlapping exceptions in the other snapshots.
+ * Returns 1 if anything was reallocated and must be waited for,
+ * otherwise returns 0.
+ *
+ * size must be a multiple of merging_snap's chunk_size.
+ */
+static int origin_write_extent(struct dm_snapshot *merging_snap,
+			       sector_t sector, unsigned size)
+{
+	int must_wait = 0;
+	sector_t n;
+	struct origin *o;
+
+	/*
+	 * The origin's __minimum_chunk_size() got stored in split_io
+	 * by snapshot_merge_resume().
+	 */
+	down_read(&_origins_lock);
+	o = __lookup_origin(merging_snap->origin->bdev);
+	for (n = 0; n < size; n += merging_snap->ti->split_io)
+		if (__origin_write(&o->snapshots, sector + n, NULL) ==
+		    DM_MAPIO_SUBMITTED)
+			must_wait = 1;
+	up_read(&_origins_lock);
+
+	return must_wait;
 }
 
 /*
