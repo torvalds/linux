@@ -487,6 +487,44 @@ static __devexit int si470x_i2c_remove(struct i2c_client *client)
 }
 
 
+#ifdef CONFIG_PM
+/*
+ * si470x_i2c_suspend - suspend the device
+ */
+static int si470x_i2c_suspend(struct i2c_client *client, pm_message_t mesg)
+{
+	struct si470x_device *radio = i2c_get_clientdata(client);
+
+	/* power down */
+	radio->registers[POWERCFG] |= POWERCFG_DISABLE;
+	if (si470x_set_register(radio, POWERCFG) < 0)
+		return -EIO;
+
+	return 0;
+}
+
+
+/*
+ * si470x_i2c_resume - resume the device
+ */
+static int si470x_i2c_resume(struct i2c_client *client)
+{
+	struct si470x_device *radio = i2c_get_clientdata(client);
+
+	/* power up : need 110ms */
+	radio->registers[POWERCFG] |= POWERCFG_ENABLE;
+	if (si470x_set_register(radio, POWERCFG) < 0)
+		return -EIO;
+	msleep(110);
+
+	return 0;
+}
+#else
+#define si470x_i2c_suspend	NULL
+#define si470x_i2c_resume	NULL
+#endif
+
+
 /*
  * si470x_i2c_driver - i2c driver interface
  */
@@ -497,6 +535,8 @@ static struct i2c_driver si470x_i2c_driver = {
 	},
 	.probe			= si470x_i2c_probe,
 	.remove			= __devexit_p(si470x_i2c_remove),
+	.suspend		= si470x_i2c_suspend,
+	.resume			= si470x_i2c_resume,
 	.id_table		= si470x_i2c_id,
 };
 
