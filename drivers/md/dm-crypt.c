@@ -71,11 +71,14 @@ struct crypt_iv_operations {
 	int (*ctr)(struct crypt_config *cc, struct dm_target *ti,
 		   const char *opts);
 	void (*dtr)(struct crypt_config *cc);
+	int (*init)(struct crypt_config *cc);
 	int (*generator)(struct crypt_config *cc, u8 *iv, sector_t sector);
 };
 
 struct iv_essiv_private {
 	struct crypto_cipher *tfm;
+	struct crypto_hash *hash_tfm;
+	u8 *salt;
 };
 
 struct iv_benbi_private {
@@ -176,12 +179,38 @@ static int crypt_iv_plain_gen(struct crypt_config *cc, u8 *iv, sector_t sector)
 	return 0;
 }
 
+/* Initialise ESSIV - compute salt but no local memory allocations */
+static int crypt_iv_essiv_init(struct crypt_config *cc)
+{
+	struct iv_essiv_private *essiv = &cc->iv_gen_private.essiv;
+	struct hash_desc desc;
+	struct scatterlist sg;
+	int err;
+
+	sg_init_one(&sg, cc->key, cc->key_size);
+	desc.tfm = essiv->hash_tfm;
+	desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	err = crypto_hash_digest(&desc, &sg, cc->key_size, essiv->salt);
+	if (err)
+		return err;
+
+	return crypto_cipher_setkey(essiv->tfm, essiv->salt,
+				    crypto_hash_digestsize(essiv->hash_tfm));
+}
+
 static void crypt_iv_essiv_dtr(struct crypt_config *cc)
 {
 	struct iv_essiv_private *essiv = &cc->iv_gen_private.essiv;
 
 	crypto_free_cipher(essiv->tfm);
 	essiv->tfm = NULL;
+
+	crypto_free_hash(essiv->hash_tfm);
+	essiv->hash_tfm = NULL;
+
+	kzfree(essiv->salt);
+	essiv->salt = NULL;
 }
 
 static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
@@ -189,9 +218,6 @@ static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
 {
 	struct crypto_cipher *essiv_tfm = NULL;
 	struct crypto_hash *hash_tfm = NULL;
-	struct hash_desc desc;
-	struct scatterlist sg;
-	unsigned int saltsize;
 	u8 *salt = NULL;
 	int err;
 
@@ -200,7 +226,7 @@ static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
 		return -EINVAL;
 	}
 
-	/* Hash the cipher key with the given hash algorithm */
+	/* Allocate hash algorithm */
 	hash_tfm = crypto_alloc_hash(opts, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(hash_tfm)) {
 		ti->error = "Error initializing ESSIV hash";
@@ -208,27 +234,14 @@ static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
 		goto bad;
 	}
 
-	saltsize = crypto_hash_digestsize(hash_tfm);
-	salt = kzalloc(saltsize, GFP_KERNEL);
+	salt = kzalloc(crypto_hash_digestsize(hash_tfm), GFP_KERNEL);
 	if (!salt) {
 		ti->error = "Error kmallocing salt storage in ESSIV";
 		err = -ENOMEM;
 		goto bad;
 	}
 
-	sg_init_one(&sg, cc->key, cc->key_size);
-	desc.tfm = hash_tfm;
-	desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
-	err = crypto_hash_digest(&desc, &sg, cc->key_size, salt);
-	crypto_free_hash(hash_tfm);
-	hash_tfm = NULL;
-
-	if (err) {
-		ti->error = "Error calculating hash in ESSIV";
-		goto bad;
-	}
-
-	/* Setup the essiv_tfm with the given salt */
+	/* Allocate essiv_tfm */
 	essiv_tfm = crypto_alloc_cipher(cc->cipher, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(essiv_tfm)) {
 		ti->error = "Error allocating crypto tfm for ESSIV";
@@ -242,14 +255,11 @@ static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
 		err = -EINVAL;
 		goto bad;
 	}
-	err = crypto_cipher_setkey(essiv_tfm, salt, saltsize);
-	if (err) {
-		ti->error = "Failed to set key for ESSIV cipher";
-		goto bad;
-	}
-	kzfree(salt);
 
+	cc->iv_gen_private.essiv.salt = salt;
 	cc->iv_gen_private.essiv.tfm = essiv_tfm;
+	cc->iv_gen_private.essiv.hash_tfm = hash_tfm;
+
 	return 0;
 
 bad:
@@ -257,7 +267,7 @@ bad:
 		crypto_free_cipher(essiv_tfm);
 	if (hash_tfm && !IS_ERR(hash_tfm))
 		crypto_free_hash(hash_tfm);
-	kzfree(salt);
+	kfree(salt);
 	return err;
 }
 
@@ -323,6 +333,7 @@ static struct crypt_iv_operations crypt_iv_plain_ops = {
 static struct crypt_iv_operations crypt_iv_essiv_ops = {
 	.ctr       = crypt_iv_essiv_ctr,
 	.dtr       = crypt_iv_essiv_dtr,
+	.init      = crypt_iv_essiv_init,
 	.generator = crypt_iv_essiv_gen
 };
 
@@ -1053,6 +1064,12 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (cc->iv_gen_ops && cc->iv_gen_ops->ctr &&
 	    cc->iv_gen_ops->ctr(cc, ti, ivopts) < 0)
 		goto bad_ivmode;
+
+	if (cc->iv_gen_ops && cc->iv_gen_ops->init &&
+	    cc->iv_gen_ops->init(cc) < 0) {
+		ti->error = "Error initialising IV";
+		goto bad_slab_pool;
+	}
 
 	cc->iv_size = crypto_ablkcipher_ivsize(tfm);
 	if (cc->iv_size)
