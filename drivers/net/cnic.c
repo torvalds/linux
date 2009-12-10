@@ -1104,6 +1104,8 @@ static int cnic_alloc_bnx2x_resc(struct cnic_dev *dev)
 	cp->bnx2x_status_blk = cp->status_blk;
 	cp->bnx2x_def_status_blk = cp->ethdev->irq_arr[1].status_blk;
 
+	memset(cp->bnx2x_status_blk, 0, sizeof(struct host_status_block));
+
 	cp->l2_rx_ring_size = 15;
 
 	ret = cnic_alloc_l2_rings(dev, 4);
@@ -4295,6 +4297,9 @@ static void cnic_stop_bnx2x_hw(struct cnic_dev *dev)
 		  offsetof(struct cstorm_status_block_c,
 			   index_values[HC_INDEX_C_ISCSI_EQ_CONS]),
 		  0);
+	CNIC_WR(dev, BAR_CSTRORM_INTMEM +
+		CSTORM_ISCSI_EQ_CONS_OFFSET(cp->func, 0), 0);
+	CNIC_WR16(dev, cp->kcq_io_addr, 0);
 	cnic_free_resc(dev);
 }
 
