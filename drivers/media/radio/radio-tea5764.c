@@ -314,7 +314,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	if (v->index > 0)
 		return -EINVAL;
 
-	memset(v, 0, sizeof(v));
+	memset(v, 0, sizeof(*v));
 	strcpy(v->name, "FM");
 	v->type = V4L2_TUNER_RADIO;
 	tea5764_i2c_read(radio);
@@ -373,7 +373,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 	if (f->tuner != 0)
 		return -EINVAL;
 	tea5764_i2c_read(radio);
-	memset(f, 0, sizeof(f));
+	memset(f, 0, sizeof(*f));
 	f->type = V4L2_TUNER_RADIO;
 	if (r->tnctrl & TEA5764_TNCTRL_PUPD0)
 		f->frequency = (tea5764_get_freq(radio) * 2) / 125;
