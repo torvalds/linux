@@ -4183,6 +4183,12 @@ static void cnic_shutdown_rings(struct cnic_dev *dev)
 		cnic_submit_kwqe_16(dev, RAMROD_CMD_ID_ETH_HALT,
 			BNX2X_ISCSI_L2_CID, ETH_CONNECTION_TYPE, &l5_data);
 		msleep(10);
+
+		memset(&l5_data, 0, sizeof(l5_data));
+		cnic_submit_kwqe_16(dev, RAMROD_CMD_ID_ETH_CFC_DEL,
+			BNX2X_ISCSI_L2_CID, ETH_CONNECTION_TYPE |
+			(1 << SPE_HDR_COMMON_RAMROD_SHIFT), &l5_data);
+		msleep(10);
 	}
 }
 
