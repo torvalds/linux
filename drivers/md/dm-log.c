@@ -237,6 +237,7 @@ struct log_c {
 	 * Disk log fields
 	 */
 	int log_dev_failed;
+	int log_dev_flush_failed;
 	struct dm_dev *log_dev;
 	struct log_header header;
 
@@ -425,6 +426,7 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 	} else {
 		lc->log_dev = dev;
 		lc->log_dev_failed = 0;
+		lc->log_dev_flush_failed = 0;
 		lc->header_location.bdev = lc->log_dev->bdev;
 		lc->header_location.sector = 0;
 
@@ -633,8 +635,11 @@ static int disk_resume(struct dm_dirty_log *log)
 
 	/* write the new header */
 	r = rw_header(lc, WRITE);
-	if (!r)
+	if (!r) {
 		r = flush_header(lc);
+		if (r)
+			lc->log_dev_flush_failed = 1;
+	}
 	if (r) {
 		DMWARN("%s: Failed to write header on dirty region log device",
 		       lc->log_dev->name);
@@ -703,9 +708,10 @@ static int disk_flush(struct dm_dirty_log *log)
 	else {
 		if (lc->touched_dirtied) {
 			r = flush_header(lc);
-			if (r)
+			if (r) {
+				lc->log_dev_flush_failed = 1;
 				fail_log_device(lc);
-			else
+			} else
 				lc->touched_dirtied = 0;
 		}
 		lc->touched_cleaned = 0;
@@ -805,7 +811,9 @@ static int disk_status(struct dm_dirty_log *log, status_type_t status,
 	switch(status) {
 	case STATUSTYPE_INFO:
 		DMEMIT("3 %s %s %c", log->type->name, lc->log_dev->name,
-		       lc->log_dev_failed ? 'D' : 'A');
+		       lc->log_dev_flush_failed ? 'F' :
+		       lc->log_dev_failed ? 'D' :
+		       'A');
 		break;
 
 	case STATUSTYPE_TABLE:

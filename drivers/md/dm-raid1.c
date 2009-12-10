@@ -35,6 +35,7 @@ static DECLARE_WAIT_QUEUE_HEAD(_kmirrord_recovery_stopped);
  *---------------------------------------------------------------*/
 enum dm_raid1_error {
 	DM_RAID1_WRITE_ERROR,
+	DM_RAID1_FLUSH_ERROR,
 	DM_RAID1_SYNC_ERROR,
 	DM_RAID1_READ_ERROR
 };
@@ -264,7 +265,7 @@ static int mirror_flush(struct dm_target *ti)
 		for (i = 0; i < ms->nr_mirrors; i++)
 			if (test_bit(i, &error_bits))
 				fail_mirror(ms->mirror + i,
-					    DM_RAID1_WRITE_ERROR);
+					    DM_RAID1_FLUSH_ERROR);
 		return -EIO;
 	}
 
@@ -1288,7 +1289,8 @@ static char device_status_char(struct mirror *m)
 	if (!atomic_read(&(m->error_count)))
 		return 'A';
 
-	return (test_bit(DM_RAID1_WRITE_ERROR, &(m->error_type))) ? 'D' :
+	return (test_bit(DM_RAID1_FLUSH_ERROR, &(m->error_type))) ? 'F' :
+		(test_bit(DM_RAID1_WRITE_ERROR, &(m->error_type))) ? 'D' :
 		(test_bit(DM_RAID1_SYNC_ERROR, &(m->error_type))) ? 'S' :
 		(test_bit(DM_RAID1_READ_ERROR, &(m->error_type))) ? 'R' : 'U';
 }
