@@ -72,6 +72,9 @@ struct dm_snapshot {
 	/* Origin writes don't trigger exceptions until this is set */
 	int active;
 
+	/* Whether or not owning mapped_device is suspended */
+	int suspended;
+
 	mempool_t *pending_pool;
 
 	atomic_t pending_exceptions_count;
@@ -656,6 +659,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	s->ti = ti;
 	s->valid = 1;
 	s->active = 0;
+	s->suspended = 0;
 	atomic_set(&s->pending_exceptions_count, 0);
 	init_rwsem(&s->lock);
 	spin_lock_init(&s->pe_lock);
@@ -1175,12 +1179,22 @@ static int snapshot_end_io(struct dm_target *ti, struct bio *bio,
 	return 0;
 }
 
+static void snapshot_postsuspend(struct dm_target *ti)
+{
+	struct dm_snapshot *s = ti->private;
+
+	down_write(&s->lock);
+	s->suspended = 1;
+	up_write(&s->lock);
+}
+
 static void snapshot_resume(struct dm_target *ti)
 {
 	struct dm_snapshot *s = ti->private;
 
 	down_write(&s->lock);
 	s->active = 1;
+	s->suspended = 0;
 	up_write(&s->lock);
 }
 
@@ -1489,12 +1503,13 @@ static struct target_type origin_target = {
 
 static struct target_type snapshot_target = {
 	.name    = "snapshot",
-	.version = {1, 8, 0},
+	.version = {1, 9, 0},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,
 	.map     = snapshot_map,
 	.end_io  = snapshot_end_io,
+	.postsuspend = snapshot_postsuspend,
 	.resume  = snapshot_resume,
 	.status  = snapshot_status,
 	.iterate_devices = snapshot_iterate_devices,
