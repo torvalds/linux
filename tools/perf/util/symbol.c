@@ -30,7 +30,6 @@ enum dso_origin {
 
 static void dsos__add(struct list_head *head, struct dso *dso);
 static struct map *map__new2(u64 start, struct dso *dso, enum map_type type);
-struct symbol *dso__find_symbol(struct dso *self, enum map_type type, u64 addr);
 static int dso__load_kernel_sym(struct dso *self, struct map *map,
 				struct map_groups *mg, symbol_filter_t filter);
 unsigned int symbol__priv_size;
@@ -186,7 +185,6 @@ struct dso *dso__new(const char *name)
 		self->short_name = self->name;
 		for (i = 0; i < MAP__NR_TYPES; ++i)
 			self->symbols[i] = self->symbol_names[i] = RB_ROOT;
-		self->find_symbol = dso__find_symbol;
 		self->slen_calculated = 0;
 		self->origin = DSO__ORIG_NOT_FOUND;
 		self->loaded = 0;

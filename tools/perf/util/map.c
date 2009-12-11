@@ -149,7 +149,7 @@ struct symbol *map__find_symbol(struct map *self, u64 addr,
 	if (!dso__loaded(self->dso, self->type) && map__load(self, filter) < 0)
 		return NULL;
 
-	return self->dso->find_symbol(self->dso, self->type, addr);
+	return dso__find_symbol(self->dso, self->type, addr);
 }
 
 struct symbol *map__find_symbol_by_name(struct map *self, const char *name,
