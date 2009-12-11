@@ -722,31 +722,6 @@ struct conf_conn_settings {
 	u8 psm_entry_retries;
 };
 
-#define CONF_SR_ERR_TBL_MAX_VALUES   14
-
-struct conf_mart_reflex_err_table {
-	/*
-	 * Length of the error table values table.
-	 *
-	 * Range: 0 - CONF_SR_ERR_TBL_MAX_VALUES
-	 */
-	u8 len;
-
-	/*
-	 * Smart Reflex error table upper limit.
-	 *
-	 * Range: s8
-	 */
-	s8 upper_limit;
-
-	/*
-	 * Smart Reflex error table values.
-	 *
-	 * Range: s8
-	 */
-	s8 values[CONF_SR_ERR_TBL_MAX_VALUES];
-};
-
 enum {
 	CONF_REF_CLK_19_2_E,
 	CONF_REF_CLK_26_E,
@@ -907,21 +882,7 @@ struct conf_radio_parms {
 	u8  degraded_normal_to_high_threshold_5;
 };
 
-#define CONF_SR_ERR_TBL_COUNT        3
-
 struct conf_init_settings {
-	/*
-	 * Configure Smart Reflex error table values.
-	 */
-	struct conf_mart_reflex_err_table sr_err_tbl[CONF_SR_ERR_TBL_COUNT];
-
-	/*
-	 * Smart Reflex enable flag.
-	 *
-	 * Range: 1 - Smart Reflex enabled, 0 - Smart Reflex disabled
-	 */
-	u8 sr_enable;
-
 	/*
 	 * Configure general parameters.
 	 */

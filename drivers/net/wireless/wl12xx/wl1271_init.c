@@ -303,11 +303,6 @@ int wl1271_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		goto out_free_memmap;
 
-	/* Configure smart reflex */
-	ret = wl1271_acx_smart_reflex(wl);
-	if (ret < 0)
-		goto out_free_memmap;
-
 	return 0;
 
  out_free_memmap:

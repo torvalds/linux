@@ -226,30 +226,6 @@ static struct conf_drv_settings default_conf = {
 		.psm_entry_retries           = 3
 	},
 	.init = {
-		.sr_err_tbl = {
-			[0] = {
-				.len         = 7,
-				.upper_limit = 0x03,
-				.values      = {
-					0x18, 0x10, 0x05, 0xfb, 0xf0, 0xe8,
-					0x00 }
-			},
-			[1] = {
-				.len         = 7,
-				.upper_limit = 0x03,
-				.values      = {
-					0x18, 0x10, 0x05, 0xf6, 0xf0, 0xe8,
-					0x00 }
-			},
-			[2] = {
-				.len         = 7,
-				.upper_limit = 0x03,
-				.values      = {
-					0x18, 0x10, 0x05, 0xfb, 0xf0, 0xe8,
-					0x00 }
-			}
-		},
-		.sr_enable                   = 1,
 		.genparam                    = {
 			.ref_clk             = CONF_REF_CLK_38_4_E,
 			.settling_time       = 5,

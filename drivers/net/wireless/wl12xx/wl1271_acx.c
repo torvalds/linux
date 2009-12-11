@@ -1041,59 +1041,6 @@ out:
 	return ret;
 }
 
-int wl1271_acx_smart_reflex(struct wl1271 *wl)
-{
-	struct acx_smart_reflex_state *sr_state = NULL;
-	struct acx_smart_reflex_config_params *sr_param = NULL;
-	int i, ret;
-
-	wl1271_debug(DEBUG_ACX, "acx smart reflex");
-
-	sr_param = kzalloc(sizeof(*sr_param), GFP_KERNEL);
-	if (!sr_param) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	for (i = 0; i < CONF_SR_ERR_TBL_COUNT; i++) {
-		struct conf_mart_reflex_err_table *e =
-			&(wl->conf.init.sr_err_tbl[i]);
-
-		sr_param->error_table[i].len = e->len;
-		sr_param->error_table[i].upper_limit = e->upper_limit;
-		memcpy(sr_param->error_table[i].values, e->values, e->len);
-	}
-
-	ret = wl1271_cmd_configure(wl, ACX_SET_SMART_REFLEX_PARAMS,
-				   sr_param, sizeof(*sr_param));
-	if (ret < 0) {
-		wl1271_warning("failed to set smart reflex params: %d", ret);
-		goto out;
-	}
-
-	sr_state = kzalloc(sizeof(*sr_state), GFP_KERNEL);
-	if (!sr_state) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	/* enable smart reflex */
-	sr_state->enable = wl->conf.init.sr_enable;
-
-	ret = wl1271_cmd_configure(wl, ACX_SET_SMART_REFLEX_STATE,
-				   sr_state, sizeof(*sr_state));
-	if (ret < 0) {
-		wl1271_warning("failed to set smart reflex params: %d", ret);
-		goto out;
-	}
-
-out:
-	kfree(sr_state);
-	kfree(sr_param);
-	return ret;
-
-}
-
 int wl1271_acx_bet_enable(struct wl1271 *wl, bool enable)
 {
 	struct wl1271_acx_bet_enable *acx = NULL;

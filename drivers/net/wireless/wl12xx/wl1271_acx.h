@@ -415,25 +415,6 @@ struct acx_bt_wlan_coex {
 	u8 pad[3];
 } __attribute__ ((packed));
 
-struct acx_smart_reflex_state {
-	struct acx_header header;
-
-	u8 enable;
-	u8 padding[3];
-} __attribute__ ((packed));
-
-struct smart_reflex_err_table {
-	u8 len;
-	s8 upper_limit;
-	s8 values[14];
-} __attribute__ ((packed));
-
-struct acx_smart_reflex_config_params {
-	struct acx_header header;
-
-	struct smart_reflex_err_table error_table[3];
-} __attribute__ ((packed));
-
 struct acx_dco_itrim_params {
 	struct acx_header header;
 
@@ -1035,8 +1016,6 @@ enum {
 	ACX_HT_BSS_OPERATION        = 0x0058,
 	ACX_COEX_ACTIVITY           = 0x0059,
 	ACX_SET_SMART_REFLEX_DEBUG  = 0x005A,
-	ACX_SET_SMART_REFLEX_STATE  = 0x005B,
-	ACX_SET_SMART_REFLEX_PARAMS = 0x005F,
 	ACX_SET_DCO_ITRIM_PARAMS    = 0x0061,
 	DOT11_RX_MSDU_LIFE_TIME     = 0x1004,
 	DOT11_CUR_TX_PWR            = 0x100D,
