@@ -244,6 +244,9 @@ do {                                                            \
 
 #define write_rdtscp_aux(val) wrmsr(0xc0000103, (val), 0)
 
+struct msr *msrs_alloc(void);
+void msrs_free(struct msr *msrs);
+
 #ifdef CONFIG_SMP
 int rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h);
 int wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h);
