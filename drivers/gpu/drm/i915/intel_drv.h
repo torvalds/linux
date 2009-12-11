@@ -110,6 +110,32 @@ struct intel_output {
 	int clone_mask;
 };
 
+struct intel_crtc;
+struct intel_overlay {
+	struct drm_device *dev;
+	struct intel_crtc *crtc;
+	struct drm_i915_gem_object *vid_bo;
+	struct drm_i915_gem_object *old_vid_bo;
+	int active;
+	int pfit_active;
+	u32 pfit_vscale_ratio; /* shifted-point number, (1<<12) == 1.0 */
+	u32 color_key;
+	u32 brightness, contrast, saturation;
+	u32 old_xscale, old_yscale;
+	/* register access */
+	u32 flip_addr;
+	struct drm_i915_gem_object *reg_bo;
+	void *virt_addr;
+	/* flip handling */
+	uint32_t last_flip_req;
+	int hw_wedged;
+#define HW_WEDGED		1
+#define NEEDS_WAIT_FOR_FLIP	2
+#define RELEASE_OLD_VID		3
+#define SWITCH_OFF_STAGE_1	4
+#define SWITCH_OFF_STAGE_2	5
+};
+
 struct intel_crtc {
 	struct drm_crtc base;
 	enum pipe pipe;
@@ -121,6 +147,8 @@ struct intel_crtc {
 	bool busy; /* is scanout buffer being updated frequently? */
 	struct timer_list idle_timer;
 	bool lowfreq_avail;
+	struct intel_overlay *overlay;
+	struct intel_unpin_work *unpin_work;
 };
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
@@ -134,6 +162,8 @@ void intel_i2c_destroy(struct i2c_adapter *adapter);
 int intel_ddc_get_modes(struct intel_output *intel_output);
 extern bool intel_ddc_probe(struct intel_output *intel_output);
 void intel_i2c_quirk_set(struct drm_device *dev, bool enable);
+void intel_i2c_reset_gmbus(struct drm_device *dev);
+
 extern void intel_crt_init(struct drm_device *dev);
 extern void intel_hdmi_init(struct drm_device *dev, int sdvox_reg);
 extern bool intel_sdvo_init(struct drm_device *dev, int output_device);
@@ -148,6 +178,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 extern void intel_edp_link_config (struct intel_output *, int *, int *);
 
 
+extern int intel_panel_fitter_pipe (struct drm_device *dev);
 extern void intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void intel_encoder_prepare (struct drm_encoder *encoder);
 extern void intel_encoder_commit (struct drm_encoder *encoder);
@@ -177,10 +208,23 @@ extern void intel_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 				    u16 blue, int regno);
 extern void intel_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 				    u16 *blue, int regno);
+extern void intel_init_clock_gating(struct drm_device *dev);
 
 extern int intel_framebuffer_create(struct drm_device *dev,
 				    struct drm_mode_fb_cmd *mode_cmd,
 				    struct drm_framebuffer **fb,
 				    struct drm_gem_object *obj);
 
+extern void intel_prepare_page_flip(struct drm_device *dev, int plane);
+extern void intel_finish_page_flip(struct drm_device *dev, int pipe);
+
+extern void intel_setup_overlay(struct drm_device *dev);
+extern void intel_cleanup_overlay(struct drm_device *dev);
+extern int intel_overlay_switch_off(struct intel_overlay *overlay);
+extern int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay,
+						int interruptible);
+extern int intel_overlay_put_image(struct drm_device *dev, void *data,
+				   struct drm_file *file_priv);
+extern int intel_overlay_attrs(struct drm_device *dev, void *data,
+			       struct drm_file *file_priv);
 #endif /* __INTEL_DRV_H__ */

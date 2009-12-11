@@ -28,84 +28,20 @@
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/i2c.h>
-#include "intel_dp.h"
+#include "drm_dp_helper.h"
 #include "drmP.h"
 
 /* Run a single AUX_CH I2C transaction, writing/reading data as necessary */
-
-#define MODE_I2C_START	1
-#define MODE_I2C_WRITE	2
-#define MODE_I2C_READ	4
-#define MODE_I2C_STOP	8
-
 static int
 i2c_algo_dp_aux_transaction(struct i2c_adapter *adapter, int mode,
 			    uint8_t write_byte, uint8_t *read_byte)
 {
 	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
-	uint16_t address = algo_data->address;
-	uint8_t msg[5];
-	uint8_t reply[2];
-	int msg_bytes;
-	int reply_bytes;
 	int ret;
-
-	/* Set up the command byte */
-	if (mode & MODE_I2C_READ)
-		msg[0] = AUX_I2C_READ << 4;
-	else
-		msg[0] = AUX_I2C_WRITE << 4;
-
-	if (!(mode & MODE_I2C_STOP))
-		msg[0] |= AUX_I2C_MOT << 4;
-
-	msg[1] = address >> 8;
-	msg[2] = address;
-
-	switch (mode) {
-	case MODE_I2C_WRITE:
-		msg[3] = 0;
-		msg[4] = write_byte;
-		msg_bytes = 5;
-		reply_bytes = 1;
-		break;
-	case MODE_I2C_READ:
-		msg[3] = 0;
-		msg_bytes = 4;
-		reply_bytes = 2;
-		break;
-	default:
-		msg_bytes = 3;
-		reply_bytes = 1;
-		break;
-	}
-
-	for (;;) {
-		ret = (*algo_data->aux_ch)(adapter,
-					   msg, msg_bytes,
-					   reply, reply_bytes);
-		if (ret < 0) {
-			DRM_DEBUG("aux_ch failed %d\n", ret);
-			return ret;
-		}
-		switch (reply[0] & AUX_I2C_REPLY_MASK) {
-		case AUX_I2C_REPLY_ACK:
-			if (mode == MODE_I2C_READ) {
-				*read_byte = reply[1];
-			}
-			return reply_bytes - 1;
-		case AUX_I2C_REPLY_NACK:
-			DRM_DEBUG("aux_ch nack\n");
-			return -EREMOTEIO;
-		case AUX_I2C_REPLY_DEFER:
-			DRM_DEBUG("aux_ch defer\n");
-			udelay(100);
-			break;
-		default:
-			DRM_ERROR("aux_ch invalid reply 0x%02x\n", reply[0]);
-			return -EREMOTEIO;
-		}
-	}
+	
+	ret = (*algo_data->aux_ch)(adapter, mode,
+				   write_byte, read_byte);
+	return ret;
 }
 
 /*
@@ -224,7 +160,7 @@ i2c_algo_dp_aux_xfer(struct i2c_adapter *adapter,
 	if (ret >= 0)
 		ret = num;
 	i2c_algo_dp_aux_stop(adapter, reading);
-	DRM_DEBUG("dp_aux_xfer return %d\n", ret);
+	DRM_DEBUG_KMS("dp_aux_xfer return %d\n", ret);
 	return ret;
 }
 
