@@ -29,7 +29,7 @@
 #include <media/tw9910.h>
 
 #define GET_ID(val)  ((val & 0xF8) >> 3)
-#define GET_ReV(val) (val & 0x07)
+#define GET_REV(val) (val & 0x07)
 
 /*
  * register offset
@@ -225,6 +225,7 @@ struct tw9910_priv {
 	struct v4l2_subdev                subdev;
 	struct tw9910_video_info       *info;
 	const struct tw9910_scale_ctrl *scale;
+	u32                             revision;
 };
 
 /*
@@ -575,8 +576,11 @@ static int tw9910_enum_input(struct soc_camera_device *icd,
 static int tw9910_g_chip_ident(struct v4l2_subdev *sd,
 			       struct v4l2_dbg_chip_ident *id)
 {
+	struct i2c_client *client = sd->priv;
+	struct tw9910_priv *priv = to_tw9910(client);
+
 	id->ident = V4L2_IDENT_TW9910;
-	id->revision = 0;
+	id->revision = priv->revision;
 
 	return 0;
 }
@@ -886,16 +890,18 @@ static int tw9910_video_probe(struct soc_camera_device *icd,
 	 * So far only revisions 0 and 1 have been seen
 	 */
 	val = i2c_smbus_read_byte_data(client, ID);
+	priv->revision = GET_REV(val);
 
 	if (0x0B != GET_ID(val) ||
-	    0x01 < GET_ReV(val)) {
+	    0x01 < priv->revision) {
 		dev_err(&client->dev,
-			"Product ID error %x:%x\n", GET_ID(val), GET_ReV(val));
+			"Product ID error %x:%x\n",
+			GET_ID(val), priv->revision);
 		return -ENODEV;
 	}
 
 	dev_info(&client->dev,
-		 "tw9910 Product ID %0x:%0x\n", GET_ID(val), GET_ReV(val));
+		 "tw9910 Product ID %0x:%0x\n", GET_ID(val), priv->revision);
 
 	icd->vdev->tvnorms      = V4L2_STD_NTSC | V4L2_STD_PAL;
 	icd->vdev->current_norm = V4L2_STD_NTSC;
