@@ -1151,6 +1151,22 @@ void __trace_stack(struct trace_array *tr, unsigned long flags, int skip,
 	__ftrace_trace_stack(tr->buffer, flags, skip, pc);
 }
 
+/**
+ * trace_dump_stack - record a stack back trace in the trace buffer
+ */
+void trace_dump_stack(void)
+{
+	unsigned long flags;
+
+	if (tracing_disabled || tracing_selftest_running)
+		return 0;
+
+	local_save_flags(flags);
+
+	/* skipping 3 traces, seems to get us at the caller of this function */
+	__ftrace_trace_stack(global_trace.buffer, flags, 3, preempt_count());
+}
+
 void
 ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags, int pc)
 {
