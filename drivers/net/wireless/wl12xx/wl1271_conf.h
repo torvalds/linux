@@ -258,7 +258,8 @@ struct conf_rx_settings {
 #define CONF_TX_MAX_RATE_CLASSES       8
 
 #define CONF_TX_RATE_MASK_UNSPECIFIED  0
-#define CONF_TX_RATE_MASK_ALL          0x1eff
+#define CONF_TX_RATE_MASK_BASIC        (CONF_HW_BIT_RATE_1MBPS | \
+					CONF_HW_BIT_RATE_2MBPS)
 #define CONF_TX_RATE_RETRY_LIMIT       10
 
 struct conf_tx_rate_class {

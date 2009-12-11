@@ -107,8 +107,6 @@ enum {
 				  CFG_RX_CTL_EN | CFG_RX_BCN_EN |     \
 				  CFG_RX_AUTH_EN | CFG_RX_ASSOC_EN)
 
-#define WL1271_DEFAULT_BASIC_RATE_SET (CONF_TX_RATE_MASK_ALL)
-
 #define WL1271_FW_NAME "wl1271-fw.bin"
 #define WL1271_NVS_NAME "wl1271-nvs.bin"
 #define WL1271_NVS_LEN  468

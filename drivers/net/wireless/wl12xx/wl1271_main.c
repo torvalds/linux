@@ -1180,6 +1180,11 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 			wl1271_unjoin_channel(wl);
 		else
 			wl1271_join_channel(wl, channel);
+
+		if (conf->flags & IEEE80211_CONF_IDLE) {
+			wl->basic_rate_set = CONF_TX_RATE_MASK_BASIC;
+			wl1271_acx_rate_policies(wl, CONF_TX_RATE_MASK_BASIC);
+		}
 	}
 
 	/* if the channel changes while joined, join again */
@@ -1568,7 +1573,6 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			}
 		} else {
 			/* use defaults when not associated */
-			wl->basic_rate_set = WL1271_DEFAULT_BASIC_RATE_SET;
 			wl->aid = 0;
 		}
 
@@ -1897,7 +1901,7 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	wl->psm_entry_retry = 0;
 	wl->tx_queue_stopped = false;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
-	wl->basic_rate_set = WL1271_DEFAULT_BASIC_RATE_SET;
+	wl->basic_rate_set = CONF_TX_RATE_MASK_BASIC;
 	wl->band = IEEE80211_BAND_2GHZ;
 	wl->vif = NULL;
 	wl->joined = false;
