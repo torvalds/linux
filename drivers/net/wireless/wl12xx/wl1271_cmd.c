@@ -273,6 +273,8 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 	       CONF_NUMBER_OF_RATE_GROUPS);
 	memcpy(radio_parms->tx_rate_limits_degraded, r->tx_rate_limits_degraded,
 	       CONF_NUMBER_OF_RATE_GROUPS);
+	memcpy(radio_parms->tx_rate_limits_extreme, r->tx_rate_limits_extreme,
+	       CONF_NUMBER_OF_RATE_GROUPS);
 
 	memcpy(radio_parms->tx_channel_limits_11b, r->tx_channel_limits_11b,
 	       CONF_NUMBER_OF_CHANNELS_2_4);
@@ -283,6 +285,11 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 	memcpy(radio_parms->tx_ibias, r->tx_ibias, CONF_NUMBER_OF_RATE_GROUPS);
 
 	radio_parms->rx_fem_insertion_loss = r->rx_fem_insertion_loss;
+	radio_parms->degraded_low_to_normal_threshold =
+		r->degraded_low_to_normal_threshold;
+	radio_parms->degraded_normal_to_high_threshold =
+		r->degraded_normal_to_high_threshold;
+
 
 	for (i = 0; i < CONF_NUMBER_OF_SUB_BANDS_5; i++)
 		radio_parms->tx_ref_pd_voltage_5[i] =
@@ -295,6 +302,8 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 	       r->tx_rate_limits_normal_5, CONF_NUMBER_OF_RATE_GROUPS);
 	memcpy(radio_parms->tx_rate_limits_degraded_5,
 	       r->tx_rate_limits_degraded_5, CONF_NUMBER_OF_RATE_GROUPS);
+	memcpy(radio_parms->tx_rate_limits_extreme_5,
+	       r->tx_rate_limits_extreme_5, CONF_NUMBER_OF_RATE_GROUPS);
 	memcpy(radio_parms->tx_channel_limits_ofdm_5,
 	       r->tx_channel_limits_ofdm_5, CONF_NUMBER_OF_CHANNELS_5);
 	memcpy(radio_parms->tx_pdv_rate_offsets_5, r->tx_pdv_rate_offsets_5,
@@ -303,6 +312,10 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 	       CONF_NUMBER_OF_RATE_GROUPS);
 	memcpy(radio_parms->rx_fem_insertion_loss_5,
 	       r->rx_fem_insertion_loss_5, CONF_NUMBER_OF_SUB_BANDS_5);
+	radio_parms->degraded_low_to_normal_threshold_5 =
+		r->degraded_low_to_normal_threshold_5;
+	radio_parms->degraded_normal_to_high_threshold_5 =
+		r->degraded_normal_to_high_threshold_5;
 
 	wl1271_dump(DEBUG_CMD, "TEST_CMD_INI_FILE_RADIO_PARAM: ",
 		    radio_parms, sizeof(*radio_parms));
