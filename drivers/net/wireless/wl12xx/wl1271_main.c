@@ -1139,10 +1139,14 @@ out:
 
 static int wl1271_join_channel(struct wl1271 *wl, int channel)
 {
-	int ret;
+	int ret = 0;
 	/* we need to use a dummy BSSID for now */
 	static const u8 dummy_bssid[ETH_ALEN] = { 0x0b, 0xad, 0xde,
 						  0xad, 0xbe, 0xef };
+
+	/* the dummy join is not required for ad-hoc */
+	if (wl->bss_type == BSS_TYPE_IBSS)
+		goto out;
 
 	/* disable mac filter, so we hear everything */
 	wl->rx_config &= ~CFG_BSSID_FILTER_EN;
@@ -1572,6 +1576,42 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			wl->joined = true;
 	}
 
+	if (wl->bss_type == BSS_TYPE_IBSS) {
+		/* FIXME: This implements rudimentary ad-hoc support -
+		   proper templates are on the wish list and notification
+		   on when they change. This patch will update the templates
+		   on every call to this function. Also, the firmware will not
+		   answer to probe-requests as it does not have the proper
+		   SSID set in the JOIN command. The probe-response template
+		   is set nevertheless, as the FW will ASSERT without it */
+		struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
+
+		if (beacon) {
+			struct ieee80211_hdr *hdr;
+			ret = wl1271_cmd_template_set(wl, CMD_TEMPL_BEACON,
+						      beacon->data,
+						      beacon->len);
+
+			if (ret < 0) {
+				dev_kfree_skb(beacon);
+				goto out_sleep;
+			}
+
+			hdr = (struct ieee80211_hdr *) beacon->data;
+			hdr->frame_control = cpu_to_le16(
+				IEEE80211_FTYPE_MGMT |
+				IEEE80211_STYPE_PROBE_RESP);
+
+			ret = wl1271_cmd_template_set(wl,
+						      CMD_TEMPL_PROBE_RESPONSE,
+						      beacon->data,
+						      beacon->len);
+			dev_kfree_skb(beacon);
+			if (ret < 0)
+				goto out_sleep;
+		}
+	}
+
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
 			wl->aid = bss_conf->aid;
@@ -1857,7 +1897,8 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 		IEEE80211_HW_BEACON_FILTER |
 		IEEE80211_HW_SUPPORTS_PS;
 
-	wl->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
+	wl->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
+		BIT(NL80211_IFTYPE_ADHOC);
 	wl->hw->wiphy->max_scan_ssids = 1;
 	wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &wl1271_band_2ghz;
 
