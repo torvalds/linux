@@ -111,6 +111,7 @@ enum {
 
 #define WL1271_FW_NAME "wl1271-fw.bin"
 #define WL1271_NVS_NAME "wl1271-nvs.bin"
+#define WL1271_NVS_LEN  468
 
 /*
  * Enable/disable 802.11a support for WL1273
