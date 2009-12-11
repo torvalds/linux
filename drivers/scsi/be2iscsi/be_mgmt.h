@@ -175,7 +175,9 @@ struct mgmt_hba_attributes {
 	u8 phy_port;
 	u32 firmware_post_status;
 	u32 hba_mtu[8];
-	u32 future_u32[4];
+	u8 iscsi_features;
+	u8 future_u8[3];
+	u32 future_u32[3];
 } __packed;
 
 struct mgmt_controller_attributes {
@@ -246,4 +248,8 @@ unsigned char mgmt_invalidate_connection(struct beiscsi_hba *phba,
 					 unsigned short cid,
 					 unsigned short issue_reset,
 					 unsigned short savecfg_flag);
+
+unsigned char mgmt_fw_cmd(struct be_ctrl_info *ctrl,
+			  struct beiscsi_hba *phba,
+			  char *buf, unsigned int len);
 #endif

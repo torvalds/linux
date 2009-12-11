@@ -418,8 +418,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *data,			/* isoc packet */
+			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -435,11 +434,11 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	 *		(without ending - ff d9)
 	 */
 	if (data[0] == 0xff && data[1] == 0xfe) {
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
-					ffd9, 2);
+		gspca_frame_add(gspca_dev, LAST_PACKET,
+				ffd9, 2);
 
 		/* put the JPEG 411 header */
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+		gspca_frame_add(gspca_dev, FIRST_PACKET,
 			sd->jpeg_hdr, JPEG_HDR_SZ);
 
 		/* beginning of the frame */
@@ -447,7 +446,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		data += STKHDRSZ;
 		len -= STKHDRSZ;
 	}
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)

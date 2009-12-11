@@ -223,39 +223,36 @@ static int tmp421_init_client(struct i2c_client *client)
 	return 0;
 }
 
-static int tmp421_detect(struct i2c_client *client, int kind,
+static int tmp421_detect(struct i2c_client *client, int _kind,
 			 struct i2c_board_info *info)
 {
+	enum chips kind;
 	struct i2c_adapter *adapter = client->adapter;
 	const char *names[] = { "TMP421", "TMP422", "TMP423" };
+	u8 reg;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	if (kind <= 0) {
-		u8 reg;
+	reg = i2c_smbus_read_byte_data(client, TMP421_MANUFACTURER_ID_REG);
+	if (reg != TMP421_MANUFACTURER_ID)
+		return -ENODEV;
 
-		reg = i2c_smbus_read_byte_data(client,
-					       TMP421_MANUFACTURER_ID_REG);
-		if (reg != TMP421_MANUFACTURER_ID)
-			return -ENODEV;
-
-		reg = i2c_smbus_read_byte_data(client,
-					       TMP421_DEVICE_ID_REG);
-		switch (reg) {
-		case TMP421_DEVICE_ID:
-			kind = tmp421;
-			break;
-		case TMP422_DEVICE_ID:
-			kind = tmp422;
-			break;
-		case TMP423_DEVICE_ID:
-			kind = tmp423;
-			break;
-		default:
-			return -ENODEV;
-		}
+	reg = i2c_smbus_read_byte_data(client, TMP421_DEVICE_ID_REG);
+	switch (reg) {
+	case TMP421_DEVICE_ID:
+		kind = tmp421;
+		break;
+	case TMP422_DEVICE_ID:
+		kind = tmp422;
+		break;
+	case TMP423_DEVICE_ID:
+		kind = tmp423;
+		break;
+	default:
+		return -ENODEV;
 	}
+
 	strlcpy(info->type, tmp421_id[kind - 1].name, I2C_NAME_SIZE);
 	dev_info(&adapter->dev, "Detected TI %s chip at 0x%02x\n",
 		 names[kind - 1], client->addr);

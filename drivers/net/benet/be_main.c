@@ -1982,7 +1982,7 @@ int be_load_fw(struct be_adapter *adapter, u8 *func)
 		goto fw_exit;
 	}
 
-	dev_info(&adapter->pdev->dev, "Firmware flashed succesfully\n");
+	dev_info(&adapter->pdev->dev, "Firmware flashed successfully\n");
 
 fw_exit:
 	release_firmware(fw);

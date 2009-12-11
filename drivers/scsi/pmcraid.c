@@ -278,12 +278,17 @@ static void pmcraid_slave_destroy(struct scsi_device *scsi_dev)
  * pmcraid_change_queue_depth - Change the device's queue depth
  * @scsi_dev: scsi device struct
  * @depth: depth to set
+ * @reason: calling context
  *
  * Return value
  * 	actual depth set
  */
-static int pmcraid_change_queue_depth(struct scsi_device *scsi_dev, int depth)
+static int pmcraid_change_queue_depth(struct scsi_device *scsi_dev, int depth,
+				      int reason)
 {
+	if (reason != SCSI_QDEPTH_DEFAULT)
+		return -EOPNOTSUPP;
+
 	if (depth > PMCRAID_MAX_CMD_PER_LUN)
 		depth = PMCRAID_MAX_CMD_PER_LUN;
 
@@ -3342,7 +3347,7 @@ static int pmcraid_chr_fasync(int fd, struct file *filep, int mode)
  * @direction : data transfer direction
  *
  * Return value
- *  0 on sucess, non-zero error code on failure
+ *  0 on success, non-zero error code on failure
  */
 static int pmcraid_build_passthrough_ioadls(
 	struct pmcraid_cmd *cmd,
@@ -3401,7 +3406,7 @@ static int pmcraid_build_passthrough_ioadls(
  * @direction: data transfer direction
  *
  * Return value
- *  0 on sucess, non-zero error code on failure
+ *  0 on success, non-zero error code on failure
  */
 static void pmcraid_release_passthrough_ioadls(
 	struct pmcraid_cmd *cmd,
@@ -3429,7 +3434,7 @@ static void pmcraid_release_passthrough_ioadls(
  * @arg: pointer to pmcraid_passthrough_buffer user buffer
  *
  * Return value
- *  0 on sucess, non-zero error code on failure
+ *  0 on success, non-zero error code on failure
  */
 static long pmcraid_ioctl_passthrough(
 	struct pmcraid_instance *pinstance,

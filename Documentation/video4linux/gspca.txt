@@ -6,7 +6,8 @@ The modules are:
 
 xxxx		vend:prod
 ----
-spca501		0000:0000	MystFromOri Unknow Camera
+spca501		0000:0000	MystFromOri Unknown Camera
+spca508		0130:0130	Clone Digital Webcam 11043
 m5602		0402:5602	ALi Video Camera Controller
 spca501		040a:0002	Kodak DVC-325
 spca500		040a:0300	Kodak EZ200
@@ -37,6 +38,7 @@ ov519		041e:405f	Creative Live! VISTA VF0330
 ov519		041e:4060	Creative Live! VISTA VF0350
 ov519		041e:4061	Creative Live! VISTA VF0400
 ov519		041e:4064	Creative Live! VISTA VF0420
+ov519		041e:4067	Creative Live! Cam Video IM (VF0350)
 ov519		041e:4068	Creative Live! VISTA VF0470
 spca561		0458:7004	Genius VideoCAM Express V2
 sunplus		0458:7006	Genius Dsc 1.3 Smart
@@ -68,12 +70,12 @@ zc3xx		046d:08a3	Logitech QC Chat
 zc3xx		046d:08a6	Logitech QCim
 zc3xx		046d:08a7	Logitech QuickCam Image
 zc3xx		046d:08a9	Logitech Notebook Deluxe
-zc3xx		046d:08aa	Labtec Webcam  Notebook
+zc3xx		046d:08aa	Labtec Webcam Notebook
 zc3xx		046d:08ac	Logitech QuickCam Cool
 zc3xx		046d:08ad	Logitech QCCommunicate STX
 zc3xx		046d:08ae	Logitech QuickCam for Notebooks
 zc3xx		046d:08af	Logitech QuickCam Cool
-zc3xx		046d:08b9	Logitech QC IM ???
+zc3xx		046d:08b9	Logitech QuickCam Express
 zc3xx		046d:08d7	Logitech QCam STX
 zc3xx		046d:08d9	Logitech QuickCam IM/Connect
 zc3xx		046d:08d8	Logitech Notebook Deluxe
@@ -82,7 +84,7 @@ zc3xx		046d:08dd	Logitech QuickCam for Notebooks
 spca500		046d:0900	Logitech Inc. ClickSmart 310
 spca500		046d:0901	Logitech Inc. ClickSmart 510
 sunplus		046d:0905	Logitech ClickSmart 820
-tv8532		046d:0920	QC Express
+tv8532		046d:0920	Logitech QuickCam Express
 tv8532		046d:0921	Labtec Webcam
 spca561		046d:0928	Logitech QC Express Etch2
 spca561		046d:0929	Labtec Webcam Elch2
@@ -91,7 +93,7 @@ spca561		046d:092b	Labtec Webcam Plus
 spca561		046d:092c	Logitech QC chat Elch2
 spca561		046d:092d	Logitech QC Elch2
 spca561		046d:092e	Logitech QC Elch2
-spca561		046d:092f	Logitech  QuickCam Express Plus
+spca561		046d:092f	Logitech QuickCam Express Plus
 sunplus		046d:0960	Logitech ClickSmart 420
 sunplus		0471:0322	Philips DMVC1300K
 zc3xx		0471:0325	Philips SPC 200 NC
@@ -187,7 +189,6 @@ sonixj		06f8:3004	Hercules Classic Silver
 sonixj		06f8:3008	Hercules Deluxe Optical Glass
 pac7311		06f8:3009	Hercules Classic Link
 spca508		0733:0110	ViewQuest VQ110
-spca508		0130:0130	Clone Digital Webcam 11043
 spca501		0733:0401	Intel Create and Share
 spca501		0733:0402	ViewQuest M318B
 spca505		0733:0430	Intel PC Camera Pro
@@ -202,6 +203,7 @@ spca500		084d:0003	D-Link DSC-350
 spca500		08ca:0103	Aiptek PocketDV
 sunplus		08ca:0104	Aiptek PocketDVII 1.3
 sunplus		08ca:0106	Aiptek Pocket DV3100+
+mr97310a	08ca:0110	Trust Spyc@m 100
 mr97310a	08ca:0111	Aiptek PenCam VGA+
 sunplus		08ca:2008	Aiptek Mini PenCam 2 M
 sunplus		08ca:2010	Aiptek PocketCam 3M
@@ -222,7 +224,7 @@ pac207		093a:2460	Qtec Webcam 100
 pac207		093a:2461	HP Webcam
 pac207		093a:2463	Philips SPC 220 NC
 pac207		093a:2464	Labtec Webcam 1200
-pac207		093a:2468	PAC207
+pac207		093a:2468	Webcam WB-1400T
 pac207		093a:2470	Genius GF112
 pac207		093a:2471	Genius VideoCam ge111
 pac207		093a:2472	Genius VideoCam ge110
@@ -230,7 +232,7 @@ pac207		093a:2474	Genius iLook 111
 pac207		093a:2476	Genius e-Messenger 112
 pac7311		093a:2600	PAC7311 Typhoon
 pac7311		093a:2601	Philips SPC 610 NC
-pac7311		093a:2603	PAC7312
+pac7311		093a:2603	Philips SPC 500 NC
 pac7311		093a:2608	Trust WB-3300p
 pac7311		093a:260e	Gigaware VGA PC Camera, Trust WB-3350p, SIGMA cam 2350
 pac7311		093a:260f	SnakeCam
@@ -239,6 +241,7 @@ pac7311		093a:2621	PAC731x
 pac7311		093a:2622	Genius Eye 312
 pac7311		093a:2624	PAC7302
 pac7311		093a:2626	Labtec 2200
+pac7311		093a:2628	Genius iLook 300
 pac7311		093a:2629	Genious iSlim 300
 pac7311		093a:262a	Webcam 300k
 pac7311		093a:262c	Philips SPC 230 NC
@@ -250,7 +253,7 @@ vc032x		0ac8:0328	A4Tech PK-130MG
 zc3xx		0ac8:301b	Z-Star zc301b
 zc3xx		0ac8:303b	Vimicro 0x303b
 zc3xx		0ac8:305b	Z-star Vimicro zc0305b
-zc3xx		0ac8:307b	Ldlc VC302+Ov7620
+zc3xx		0ac8:307b	PC Camera (ZS0211)
 vc032x		0ac8:c001	Sony embedded vimicro
 vc032x		0ac8:c002	Sony embedded vimicro
 vc032x		0ac8:c301	Samsung Q1 Ultra Premium

@@ -109,7 +109,7 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 
 	count = (*connector_funcs->get_modes)(connector);
 	if (!count) {
-		count = drm_add_modes_noedid(connector, 800, 600);
+		count = drm_add_modes_noedid(connector, 1024, 768);
 		if (!count)
 			return 0;
 	}
@@ -1019,6 +1019,9 @@ bool drm_helper_plugged_event(struct drm_device *dev)
 bool drm_helper_initial_config(struct drm_device *dev)
 {
 	int count = 0;
+
+	/* disable all the possible outputs/crtcs before entering KMS mode */
+	drm_helper_disable_unused_functions(dev);
 
 	drm_fb_helper_parse_command_line(dev);
 

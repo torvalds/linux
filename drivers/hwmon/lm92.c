@@ -323,31 +323,22 @@ static int lm92_detect(struct i2c_client *new_client, int kind,
 		       struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = new_client->adapter;
+	u8 config;
+	u16 man_id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA
 					    | I2C_FUNC_SMBUS_WORD_DATA))
 		return -ENODEV;
 
-	/* A negative kind means that the driver was loaded with no force
-	   parameter (default), so we must identify the chip. */
-	if (kind < 0) {
-		u8 config = i2c_smbus_read_byte_data(new_client,
-			     LM92_REG_CONFIG);
-		u16 man_id = i2c_smbus_read_word_data(new_client,
-			     LM92_REG_MAN_ID);
+	config = i2c_smbus_read_byte_data(new_client, LM92_REG_CONFIG);
+	man_id = i2c_smbus_read_word_data(new_client, LM92_REG_MAN_ID);
 
-		if ((config & 0xe0) == 0x00
-		 && man_id == 0x0180) {
-			pr_info("lm92: Found National Semiconductor LM92 chip\n");
-	 		kind = lm92;
-		} else
-		if (max6635_check(new_client)) {
-			pr_info("lm92: Found Maxim MAX6635 chip\n");
-			kind = lm92; /* No separate prefix */
-		}
-		else
-			return -ENODEV;
-	}
+	if ((config & 0xe0) == 0x00 && man_id == 0x0180)
+		pr_info("lm92: Found National Semiconductor LM92 chip\n");
+	else if (max6635_check(new_client))
+		pr_info("lm92: Found Maxim MAX6635 chip\n");
+	else
+		return -ENODEV;
 
 	strlcpy(info->type, "lm92", I2C_NAME_SIZE);
 

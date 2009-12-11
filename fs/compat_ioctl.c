@@ -1920,7 +1920,7 @@ COMPATIBLE_IOCTL(TIOCSLTC)
 #endif
 #ifdef TIOCSTART
 /*
- * For these two we have defintions in ioctls.h and/or termios.h on
+ * For these two we have definitions in ioctls.h and/or termios.h on
  * some architectures but no actual implemention.  Some applications
  * like bash call them if they are defined in the headers, so we provide
  * entries here to avoid syslog message spew.

@@ -8,7 +8,6 @@
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
  */
-#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/serial_8250.h>
@@ -18,7 +17,6 @@
 #include <asm/mach/map.h>
 
 #include <mach/dm644x.h>
-#include <mach/clock.h>
 #include <mach/cputype.h>
 #include <mach/edma.h>
 #include <mach/irqs.h>
@@ -370,6 +368,11 @@ MUX_CFG(DM644X, ATAEN_DISABLE,	0,   17,    1,	  0,	 true)
 MUX_CFG(DM644X, HPIEN_DISABLE,	0,   29,    1,	  0,	 true)
 
 MUX_CFG(DM644X, AEAW,		0,   0,     31,	  31,	 true)
+MUX_CFG(DM644X, AEAW0,		0,   0,     1,	  0,	 true)
+MUX_CFG(DM644X, AEAW1,		0,   1,     1,	  0,	 true)
+MUX_CFG(DM644X, AEAW2,		0,   2,     1,	  0,	 true)
+MUX_CFG(DM644X, AEAW3,		0,   3,     1,	  0,	 true)
+MUX_CFG(DM644X, AEAW4,		0,   4,     1,	  0,	 true)
 
 MUX_CFG(DM644X, MSTK,		1,   9,     1,	  0,	 false)
 

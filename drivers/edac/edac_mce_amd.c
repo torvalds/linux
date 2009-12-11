@@ -306,7 +306,7 @@ void amd_decode_nb_mce(int node_id, struct err_regs *regs, int handle_errors)
 	 * value encoding has changed so interpret those differently
 	 */
 	if ((boot_cpu_data.x86 == 0x10) &&
-	    (boot_cpu_data.x86_model > 8)) {
+	    (boot_cpu_data.x86_model > 7)) {
 		if (regs->nbsh & K8_NBSH_ERR_CPU_VAL)
 			pr_cont(", core: %u\n", (u8)(regs->nbsh & 0xf));
 	} else {

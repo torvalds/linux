@@ -1,5 +1,5 @@
 /**
- * drivers/usb/class/usbtmc.c - USB Test & Measurment class driver
+ * drivers/usb/class/usbtmc.c - USB Test & Measurement class driver
  *
  * Copyright (C) 2007 Stefan Kopp, Gechingen, Germany
  * Copyright (C) 2008 Novell, Inc.

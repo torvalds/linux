@@ -237,20 +237,16 @@ static int ds1621_detect(struct i2c_client *client, int kind,
 		return -ENODEV;
 
 	/* Now, we do the remaining detection. It is lousy. */
-	if (kind < 0) {
-		/* The NVB bit should be low if no EEPROM write has been 
-		   requested during the latest 10ms, which is highly 
-		   improbable in our case. */
-		conf = i2c_smbus_read_byte_data(client, DS1621_REG_CONF);
-		if (conf < 0 || conf & DS1621_REG_CONFIG_NVB)
+	/* The NVB bit should be low if no EEPROM write has been  requested
+	   during the latest 10ms, which is highly improbable in our case. */
+	conf = i2c_smbus_read_byte_data(client, DS1621_REG_CONF);
+	if (conf < 0 || conf & DS1621_REG_CONFIG_NVB)
+		return -ENODEV;
+	/* The 7 lowest bits of a temperature should always be 0. */
+	for (i = 0; i < ARRAY_SIZE(DS1621_REG_TEMP); i++) {
+		temp = i2c_smbus_read_word_data(client, DS1621_REG_TEMP[i]);
+		if (temp < 0 || (temp & 0x7f00))
 			return -ENODEV;
-		/* The 7 lowest bits of a temperature should always be 0. */
-		for (i = 0; i < ARRAY_SIZE(DS1621_REG_TEMP); i++) {
-			temp = i2c_smbus_read_word_data(client,
-							DS1621_REG_TEMP[i]);
-			if (temp < 0 || (temp & 0x7f00))
-				return -ENODEV;
-		}
 	}
 
 	strlcpy(info->type, "ds1621", I2C_NAME_SIZE);

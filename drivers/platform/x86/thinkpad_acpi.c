@@ -1087,7 +1087,7 @@ static int __init tpacpi_check_std_acpi_brightness_support(void)
 	 */
 
 	status = acpi_walk_namespace(ACPI_TYPE_METHOD, vid_handle, 3,
-				     tpacpi_acpi_walk_find_bcl, NULL,
+				     tpacpi_acpi_walk_find_bcl, NULL, NULL,
 				     &bcl_ptr);
 
 	if (ACPI_SUCCESS(status) && bcl_levels > 2) {
@@ -6545,7 +6545,7 @@ static struct ibm_struct volume_driver_data = {
  * 	The speeds are stored on handles
  * 	(FANA:FAN9), (FANC:FANB), (FANE:FAND).
  *
- * 	There are three default speed sets, acessible as handles:
+ * 	There are three default speed sets, accessible as handles:
  * 	FS1L,FS1M,FS1H; FS2L,FS2M,FS2H; FS3L,FS3M,FS3H
  *
  * 	ACPI DSDT switches which set is in use depending on various

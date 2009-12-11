@@ -483,3 +483,10 @@ Why:	With the recent innovations in CPU hardware acceleration technologies
 Who:	Alok N Kataria <akataria@vmware.com>
 
 ----------------------------
+
+What:	adt7473 hardware monitoring driver
+When:	February 2010
+Why:	Obsoleted by the adt7475 driver.
+Who:	Jean Delvare <khali@linux-fr.org>
+
+---------------------------

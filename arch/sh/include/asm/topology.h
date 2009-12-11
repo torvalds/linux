@@ -40,6 +40,14 @@
 
 #endif
 
+#define mc_capable()    (1)
+
+const struct cpumask *cpu_coregroup_mask(unsigned int cpu);
+
+extern cpumask_t cpu_core_map[NR_CPUS];
+
+#define topology_core_cpumask(cpu)	(&cpu_core_map[cpu])
+
 #include <asm-generic/topology.h>
 
 #endif /* _ASM_SH_TOPOLOGY_H */

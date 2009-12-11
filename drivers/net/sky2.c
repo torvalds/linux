@@ -2017,7 +2017,7 @@ static void sky2_link_down(struct sky2_port *sky2)
 
 	netif_carrier_off(sky2->netdev);
 
-	/* Turn on link LED */
+	/* Turn off link LED */
 	sky2_write8(hw, SK_REG(port, LNK_LED_REG), LINKLED_OFF);
 
 	if (netif_msg_link(sky2))

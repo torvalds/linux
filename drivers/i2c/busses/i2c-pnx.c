@@ -638,7 +638,8 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 
 	/* Register this adapter with the I2C subsystem */
 	i2c_pnx->adapter->dev.parent = &pdev->dev;
-	ret = i2c_add_adapter(i2c_pnx->adapter);
+	i2c_pnx->adapter->nr = pdev->id;
+	ret = i2c_add_numbered_adapter(i2c_pnx->adapter);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "I2C: Failed to add bus\n");
 		goto out_irq;

@@ -1252,7 +1252,7 @@ static void create_dma_lch_chain(int lch_head, int lch_queue)
  * 					      OMAP_DMA_DYNAMIC_CHAIN
  * @params - Channel parameters
  *
- * @return - Succes : 0
+ * @return - Success : 0
  * 	     Failure: -EINVAL/-ENOMEM
  */
 int omap_request_dma_chain(int dev_id, const char *dev_name,

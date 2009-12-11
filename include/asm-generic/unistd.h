@@ -631,7 +631,7 @@ __SYSCALL(__NR_perf_event_open, sys_perf_event_open)
  * these are provided for both review and as a porting
  * help for the C library version.
 *
- * Last chance: are any of these important enought to
+ * Last chance: are any of these important enough to
  * enable by default?
  */
 #ifdef __ARCH_WANT_SYSCALL_NO_AT

@@ -275,7 +275,7 @@ static void ir_key_poll(struct IR_i2c *ir)
 	if (0 == rc) {
 		ir_input_nokey(ir->input, &ir->ir);
 	} else {
-		ir_input_keydown(ir->input, &ir->ir, ir_key, ir_raw);
+		ir_input_keydown(ir->input, &ir->ir, ir_key);
 	}
 }
 
@@ -299,7 +299,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct ir_scancode_table *ir_codes = NULL;
 	const char *name = NULL;
-	int ir_type;
+	int ir_type = 0;
 	struct IR_i2c *ir;
 	struct input_dev *input_dev;
 	struct i2c_adapter *adap = client->adapter;
@@ -353,10 +353,8 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir_type     = IR_TYPE_RC5;
 		ir_codes    = &ir_codes_fusionhdtv_mce_table;
 		break;
-	case 0x7a:
 	case 0x47:
 	case 0x71:
-	case 0x2d:
 		if (adap->id == I2C_HW_B_CX2388x ||
 		    adap->id == I2C_HW_B_CX2341X) {
 			/* Handled by cx88-input */
@@ -381,10 +379,6 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir_type     = IR_TYPE_OTHER;
 		ir_codes    = &ir_codes_avermedia_cardbus_table;
 		break;
-	default:
-		dprintk(1, DEVNAME ": Unsupported i2c address 0x%02x\n", addr);
-		err = -ENODEV;
-		goto err_out_free;
 	}
 
 	/* Let the caller override settings */
@@ -427,7 +421,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	/* Make sure we are all setup before going on */
-	if (!name || !ir->get_key || !ir_codes) {
+	if (!name || !ir->get_key || !ir_type || !ir_codes) {
 		dprintk(1, DEVNAME ": Unsupported device at address 0x%02x\n",
 			addr);
 		err = -ENODEV;
@@ -443,7 +437,10 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		 dev_name(&client->dev));
 
 	/* init + register input device */
-	ir_input_init(input_dev, &ir->ir, ir_type, ir->ir_codes);
+	err = ir_input_init(input_dev, &ir->ir, ir_type, ir->ir_codes);
+	if (err < 0)
+		goto err_out_free;
+
 	input_dev->id.bustype = BUS_I2C;
 	input_dev->name       = ir->name;
 	input_dev->phys       = ir->phys;
@@ -462,6 +459,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	return 0;
 
  err_out_free:
+	ir_input_free(input_dev);
 	input_free_device(input_dev);
 	kfree(ir);
 	return err;
@@ -475,6 +473,7 @@ static int ir_remove(struct i2c_client *client)
 	cancel_delayed_work_sync(&ir->work);
 
 	/* unregister device */
+	ir_input_free(ir->input);
 	input_unregister_device(ir->input);
 
 	/* free memory */
