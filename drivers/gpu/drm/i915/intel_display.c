@@ -4068,29 +4068,43 @@ static void intel_setup_outputs(struct drm_device *dev)
 		bool found = false;
 
 		if (I915_READ(SDVOB) & SDVO_DETECTED) {
+			DRM_DEBUG_KMS("probing SDVOB\n");
 			found = intel_sdvo_init(dev, SDVOB);
-			if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
+			if (!found && SUPPORTS_INTEGRATED_HDMI(dev)) {
+				DRM_DEBUG_KMS("probing HDMI on SDVOB\n");
 				intel_hdmi_init(dev, SDVOB);
+			}
 
-			if (!found && SUPPORTS_INTEGRATED_DP(dev))
+			if (!found && SUPPORTS_INTEGRATED_DP(dev)) {
+				DRM_DEBUG_KMS("probing DP_B\n");
 				intel_dp_init(dev, DP_B);
+			}
 		}
 
 		/* Before G4X SDVOC doesn't have its own detect register */
 
-		if (I915_READ(SDVOB) & SDVO_DETECTED)
+		if (I915_READ(SDVOB) & SDVO_DETECTED) {
+			DRM_DEBUG_KMS("probing SDVOC\n");
 			found = intel_sdvo_init(dev, SDVOC);
+		}
 
 		if (!found && (I915_READ(SDVOC) & SDVO_DETECTED)) {
 
-			if (SUPPORTS_INTEGRATED_HDMI(dev))
+			if (SUPPORTS_INTEGRATED_HDMI(dev)) {
+				DRM_DEBUG_KMS("probing HDMI on SDVOC\n");
 				intel_hdmi_init(dev, SDVOC);
-			if (SUPPORTS_INTEGRATED_DP(dev))
+			}
+			if (SUPPORTS_INTEGRATED_DP(dev)) {
+				DRM_DEBUG_KMS("probing DP_C\n");
 				intel_dp_init(dev, DP_C);
+			}
 		}
 
-		if (SUPPORTS_INTEGRATED_DP(dev) && (I915_READ(DP_D) & DP_DETECTED))
+		if (SUPPORTS_INTEGRATED_DP(dev) &&
+		    (I915_READ(DP_D) & DP_DETECTED)) {
+			DRM_DEBUG_KMS("probing DP_D\n");
 			intel_dp_init(dev, DP_D);
+		}
 	} else if (IS_I8XX(dev))
 		intel_dvo_init(dev);
 

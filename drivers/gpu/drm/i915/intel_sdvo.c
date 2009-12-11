@@ -2743,6 +2743,7 @@ static void intel_sdvo_create_enhance_property(struct drm_connector *connector)
 
 bool intel_sdvo_init(struct drm_device *dev, int output_device)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_connector *connector;
 	struct intel_output *intel_output;
 	struct intel_sdvo_priv *sdvo_priv;
@@ -2789,10 +2790,12 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 		intel_output->ddc_bus = intel_i2c_create(dev, GPIOE, "SDVOB DDC BUS");
 		sdvo_priv->analog_ddc_bus = intel_i2c_create(dev, GPIOA,
 						"SDVOB/VGA DDC BUS");
+		dev_priv->hotplug_supported_mask |= SDVOB_HOTPLUG_INT_STATUS;
 	} else {
 		intel_output->ddc_bus = intel_i2c_create(dev, GPIOE, "SDVOC DDC BUS");
 		sdvo_priv->analog_ddc_bus = intel_i2c_create(dev, GPIOA,
 						"SDVOC/VGA DDC BUS");
+		dev_priv->hotplug_supported_mask |= SDVOC_HOTPLUG_INT_STATUS;
 	}
 
 	if (intel_output->ddc_bus == NULL)

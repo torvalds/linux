@@ -1290,14 +1290,20 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 			break;
 		case DP_B:
 		case PCH_DP_B:
+			dev_priv->hotplug_supported_mask |=
+				HDMIB_HOTPLUG_INT_STATUS;
 			name = "DPDDC-B";
 			break;
 		case DP_C:
 		case PCH_DP_C:
+			dev_priv->hotplug_supported_mask |=
+				HDMIC_HOTPLUG_INT_STATUS;
 			name = "DPDDC-C";
 			break;
 		case DP_D:
 		case PCH_DP_D:
+			dev_priv->hotplug_supported_mask |=
+				HDMID_HOTPLUG_INT_STATUS;
 			name = "DPDDC-D";
 			break;
 	}
