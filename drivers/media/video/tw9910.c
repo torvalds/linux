@@ -239,18 +239,6 @@ struct tw9910_priv {
 	u32                             revision;
 };
 
-/*
- * register settings
- */
-
-#define ENDMARKER { 0xff, 0xff }
-
-static const struct regval_list tw9910_default_regs[] =
-{
-	{ OUTCTR1, VSP_LO | VSSL_VVALID | HSP_HI | HSSL_HSYNC },
-	ENDMARKER,
-};
-
 static const struct tw9910_scale_ctrl tw9910_ntsc_scales[] = {
 	{
 		.name   = "NTSC SQ",
@@ -459,20 +447,6 @@ static int tw9910_set_hsync(struct i2c_client *client,
 	return ret;
 }
 
-static int tw9910_write_array(struct i2c_client *client,
-			      const struct regval_list *vals)
-{
-	while (vals->reg_num != 0xff) {
-		int ret = i2c_smbus_write_byte_data(client,
-						    vals->reg_num,
-						    vals->value);
-		if (ret < 0)
-			return ret;
-		vals++;
-	}
-	return 0;
-}
-
 static void tw9910_reset(struct i2c_client *client)
 {
 	tw9910_mask_set(client, ACNTL1, SRESET, SRESET);
@@ -577,7 +551,14 @@ static int tw9910_s_stream(struct v4l2_subdev *sd, int enable)
 static int tw9910_set_bus_param(struct soc_camera_device *icd,
 				unsigned long flags)
 {
-	return 0;
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+	struct i2c_client *client = sd->priv;
+
+	/*
+	 * set OUTCTR1
+	 */
+	return i2c_smbus_write_byte_data(client, OUTCTR1,
+					 VSSL_VVALID | HSSL_DVALID);
 }
 
 static unsigned long tw9910_query_bus_param(struct soc_camera_device *icd)
@@ -680,9 +661,6 @@ static int tw9910_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	 * reset hardware
 	 */
 	tw9910_reset(client);
-	ret = tw9910_write_array(client, tw9910_default_regs);
-	if (ret < 0)
-		goto tw9910_set_fmt_error;
 
 	/*
 	 * set bus width
