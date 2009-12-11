@@ -62,11 +62,11 @@ void AuthStateMachineInit(IN PRTMP_ADAPTER pAd,
 			 (STATE_MACHINE_FUNC) Drop, AUTH_REQ_IDLE,
 			 AUTH_MACHINE_BASE);
 
-	// the first column
+	/* the first column */
 	StateMachineSetAction(Sm, AUTH_REQ_IDLE, MT2_MLME_AUTH_REQ,
 			      (STATE_MACHINE_FUNC) MlmeAuthReqAction);
 
-	// the second column
+	/* the second column */
 	StateMachineSetAction(Sm, AUTH_WAIT_SEQ2, MT2_MLME_AUTH_REQ,
 			      (STATE_MACHINE_FUNC) InvalidStateWhenAuth);
 	StateMachineSetAction(Sm, AUTH_WAIT_SEQ2, MT2_PEER_AUTH_EVEN,
@@ -74,7 +74,7 @@ void AuthStateMachineInit(IN PRTMP_ADAPTER pAd,
 	StateMachineSetAction(Sm, AUTH_WAIT_SEQ2, MT2_AUTH_TIMEOUT,
 			      (STATE_MACHINE_FUNC) AuthTimeoutAction);
 
-	// the third column
+	/* the third column */
 	StateMachineSetAction(Sm, AUTH_WAIT_SEQ4, MT2_MLME_AUTH_REQ,
 			      (STATE_MACHINE_FUNC) InvalidStateWhenAuth);
 	StateMachineSetAction(Sm, AUTH_WAIT_SEQ4, MT2_PEER_AUTH_EVEN,
@@ -103,13 +103,13 @@ VOID AuthTimeout(IN PVOID SystemSpecific1,
 
 	DBGPRINT(RT_DEBUG_TRACE, ("AUTH - AuthTimeout\n"));
 
-	// Do nothing if the driver is starting halt state.
-	// This might happen when timer already been fired before cancel timer with mlmehalt
+	/* Do nothing if the driver is starting halt state. */
+	/* This might happen when timer already been fired before cancel timer with mlmehalt */
 	if (RTMP_TEST_FLAG
 	    (pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
 		return;
 
-	// send a de-auth to reset AP's state machine (Patch AP-Dir635)
+	/* send a de-auth to reset AP's state machine (Patch AP-Dir635) */
 	if (pAd->Mlme.AuthMachine.CurrState == AUTH_WAIT_SEQ2)
 		Cls2errAction(pAd, pAd->MlmeAux.Bssid);
 
@@ -173,7 +173,7 @@ VOID PeerAuthRspAtSeq2Action(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 					&TimerCancelled);
 
 			if (Status == MLME_SUCCESS) {
-				// Authentication Mode "LEAP" has allow for CCX 1.X
+				/* Authentication Mode "LEAP" has allow for CCX 1.X */
 				if (pAd->MlmeAux.Alg == Ndis802_11AuthModeOpen) {
 					pAd->Mlme.AuthMachine.CurrState =
 					    AUTH_REQ_IDLE;
@@ -181,11 +181,11 @@ VOID PeerAuthRspAtSeq2Action(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 						    MLME_CNTL_STATE_MACHINE,
 						    MT2_AUTH_CONF, 2, &Status);
 				} else {
-					// 2. shared key, need to be challenged
+					/* 2. shared key, need to be challenged */
 					Seq++;
 					RemoteStatus = MLME_SUCCESS;
 
-					// Get an unused nonpaged memory
+					/* Get an unused nonpaged memory */
 					NStatus =
 					    MlmeAllocateMemory(pAd,
 							       &pOutBuffer);
@@ -208,7 +208,7 @@ VOID PeerAuthRspAtSeq2Action(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 							 SUBTYPE_AUTH, 0, Addr2,
 							 pAd->MlmeAux.Bssid);
 					AuthHdr.FC.Wep = 1;
-					// Encrypt challenge text & auth information
+					/* Encrypt challenge text & auth information */
 					RTMPInitWepEngine(pAd,
 							  pAd->
 							  SharedKey[BSS0][pAd->
@@ -332,7 +332,7 @@ VOID MlmeDeauthReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 	pInfo = (MLME_DEAUTH_REQ_STRUCT *) Elem->Msg;
 
-	NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	//Get an unused nonpaged memory
+	NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	/*Get an unused nonpaged memory */
 	if (NStatus != NDIS_STATUS_SUCCESS) {
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("AUTH - MlmeDeauthReqAction() allocate memory fail\n"));
@@ -359,7 +359,7 @@ VOID MlmeDeauthReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	Status = MLME_SUCCESS;
 	MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_DEAUTH_CONF, 2, &Status);
 
-	// send wireless event - for deauthentication
+	/* send wireless event - for deauthentication */
 	if (pAd->CommonCfg.bWirelessEvent)
 		RTMPSendWirelessEvent(pAd, IW_DEAUTH_EVENT_FLAG,
 				      pAd->MacTab.Content[BSSID_WCID].Addr,
@@ -422,7 +422,7 @@ VOID Cls2errAction(IN PRTMP_ADAPTER pAd, IN PUCHAR pAddr)
 	ULONG FrameLen = 0;
 	USHORT Reason = REASON_CLS2ERR;
 
-	NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	//Get an unused nonpaged memory
+	NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	/*Get an unused nonpaged memory */
 	if (NStatus != NDIS_STATUS_SUCCESS)
 		return;
 
@@ -455,7 +455,7 @@ BOOLEAN AUTH_ReqSend(IN PRTMP_ADAPTER pAd,
 	PUCHAR pOutBuffer = NULL;
 	ULONG FrameLen = 0, tmp = 0;
 
-	// Block all authentication request durning WPA block period
+	/* Block all authentication request durning WPA block period */
 	if (pAd->StaCfg.bBlockAssoc == TRUE) {
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("%s - Block Auth request durning WPA block period!\n",
@@ -475,7 +475,7 @@ BOOLEAN AUTH_ReqSend(IN PRTMP_ADAPTER pAd,
 		Seq = SeqNo;
 		Status = MLME_SUCCESS;
 
-		NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	//Get an unused nonpaged memory
+		NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	/*Get an unused nonpaged memory */
 		if (NStatus != NDIS_STATUS_SUCCESS) {
 			DBGPRINT(RT_DEBUG_TRACE,
 				 ("%s - MlmeAuthReqAction(Alg:%d) allocate memory failed\n",

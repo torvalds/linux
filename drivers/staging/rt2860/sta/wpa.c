@@ -63,7 +63,7 @@ VOID RTMPReportMicError(IN PRTMP_ADAPTER pAd, IN PCIPHER_KEY pWpaKey)
 	ULONG Now;
 	UCHAR unicastKey = (pWpaKey->Type == PAIRWISE_KEY ? 1 : 0);
 
-	// Record Last MIC error time and count
+	/* Record Last MIC error time and count */
 	NdisGetSystemUpTime(&Now);
 	if (pAd->StaCfg.MicErrCnt == 0) {
 		pAd->StaCfg.MicErrCnt++;
@@ -71,7 +71,7 @@ VOID RTMPReportMicError(IN PRTMP_ADAPTER pAd, IN PCIPHER_KEY pWpaKey)
 		NdisZeroMemory(pAd->StaCfg.ReplayCounter, 8);
 	} else if (pAd->StaCfg.MicErrCnt == 1) {
 		if ((pAd->StaCfg.LastMicErrorTime + (60 * OS_HZ)) < Now) {
-			// Update Last MIC error time, this did not violate two MIC errors within 60 seconds
+			/* Update Last MIC error time, this did not violate two MIC errors within 60 seconds */
 			pAd->StaCfg.LastMicErrorTime = Now;
 		} else {
 
@@ -83,23 +83,23 @@ VOID RTMPReportMicError(IN PRTMP_ADAPTER pAd, IN PCIPHER_KEY pWpaKey)
 						      BSS0, 0);
 
 			pAd->StaCfg.LastMicErrorTime = Now;
-			// Violate MIC error counts, MIC countermeasures kicks in
+			/* Violate MIC error counts, MIC countermeasures kicks in */
 			pAd->StaCfg.MicErrCnt++;
-			// We shall block all reception
-			// We shall clean all Tx ring and disassoicate from AP after next EAPOL frame
-			//
-			// No necessary to clean all Tx ring, on RTMPHardTransmit will stop sending non-802.1X EAPOL packets
-			// if pAd->StaCfg.MicErrCnt greater than 2.
-			//
-			// RTMPRingCleanUp(pAd, QID_AC_BK);
-			// RTMPRingCleanUp(pAd, QID_AC_BE);
-			// RTMPRingCleanUp(pAd, QID_AC_VI);
-			// RTMPRingCleanUp(pAd, QID_AC_VO);
-			// RTMPRingCleanUp(pAd, QID_HCCA);
+			/* We shall block all reception */
+			/* We shall clean all Tx ring and disassoicate from AP after next EAPOL frame */
+			/* */
+			/* No necessary to clean all Tx ring, on RTMPHardTransmit will stop sending non-802.1X EAPOL packets */
+			/* if pAd->StaCfg.MicErrCnt greater than 2. */
+			/* */
+			/* RTMPRingCleanUp(pAd, QID_AC_BK); */
+			/* RTMPRingCleanUp(pAd, QID_AC_BE); */
+			/* RTMPRingCleanUp(pAd, QID_AC_VI); */
+			/* RTMPRingCleanUp(pAd, QID_AC_VO); */
+			/* RTMPRingCleanUp(pAd, QID_HCCA); */
 		}
 	} else {
-		// MIC error count >= 2
-		// This should not happen
+		/* MIC error count >= 2 */
+		/* This should not happen */
 		;
 	}
 	MlmeEnqueue(pAd,
@@ -112,7 +112,7 @@ VOID RTMPReportMicError(IN PRTMP_ADAPTER pAd, IN PCIPHER_KEY pWpaKey)
 }
 
 #define	LENGTH_EAP_H    4
-// If the received frame is EAP-Packet ,find out its EAP-Code (Request(0x01), Response(0x02), Success(0x03), Failure(0x04)).
+/* If the received frame is EAP-Packet ,find out its EAP-Code (Request(0x01), Response(0x02), Success(0x03), Failure(0x04)). */
 INT WpaCheckEapCode(IN PRTMP_ADAPTER pAd,
 		    IN PUCHAR pFrame, IN USHORT FrameLen, IN USHORT OffSet)
 {
@@ -123,11 +123,11 @@ INT WpaCheckEapCode(IN PRTMP_ADAPTER pAd,
 	if (FrameLen < OffSet + LENGTH_EAPOL_H + LENGTH_EAP_H)
 		return result;
 
-	pData = pFrame + OffSet;	// skip offset bytes
+	pData = pFrame + OffSet;	/* skip offset bytes */
 
-	if (*(pData + 1) == EAPPacket)	// 802.1x header - Packet Type
+	if (*(pData + 1) == EAPPacket)	/* 802.1x header - Packet Type */
 	{
-		result = *(pData + 4);	// EAP header - Code
+		result = *(pData + 4);	/* EAP header - Code */
 	}
 
 	return result;
@@ -161,7 +161,7 @@ VOID WpaMicFailureReportFrame(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	bUnicast = (Elem->Msg[0] == 1 ? TRUE : FALSE);
 	pAd->Sequence = ((pAd->Sequence) + 1) & (MAX_SEQ_NUMBER);
 
-	// init 802.3 header and Fill Packet
+	/* init 802.3 header and Fill Packet */
 	MAKE_802_3_HEADER(Header802_3, pAd->CommonCfg.Bssid,
 			  pAd->CurrentAddress, EAPOL);
 
@@ -171,59 +171,59 @@ VOID WpaMicFailureReportFrame(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 	Packet.KeyDesc.Type = WPA1_KEY_DESC;
 
-	// Request field presented
+	/* Request field presented */
 	Packet.KeyDesc.KeyInfo.Request = 1;
 
 	if (pAd->StaCfg.WepStatus == Ndis802_11Encryption3Enabled) {
 		Packet.KeyDesc.KeyInfo.KeyDescVer = 2;
-	} else			// TKIP
+	} else			/* TKIP */
 	{
 		Packet.KeyDesc.KeyInfo.KeyDescVer = 1;
 	}
 
 	Packet.KeyDesc.KeyInfo.KeyType = (bUnicast ? PAIRWISEKEY : GROUPKEY);
 
-	// KeyMic field presented
+	/* KeyMic field presented */
 	Packet.KeyDesc.KeyInfo.KeyMic = 1;
 
-	// Error field presented
+	/* Error field presented */
 	Packet.KeyDesc.KeyInfo.Error = 1;
 
-	// Update packet length after decide Key data payload
+	/* Update packet length after decide Key data payload */
 	SET_UINT16_TO_ARRARY(Packet.Body_Len, LEN_EAPOL_KEY_MSG)
-	    // Key Replay Count
+	    /* Key Replay Count */
 	    NdisMoveMemory(Packet.KeyDesc.ReplayCounter,
 			   pAd->StaCfg.ReplayCounter, LEN_KEY_DESC_REPLAY);
 	inc_byte_array(pAd->StaCfg.ReplayCounter, 8);
 
-	// Convert to little-endian format.
+	/* Convert to little-endian format. */
 	*((USHORT *) & Packet.KeyDesc.KeyInfo) =
 	    cpu2le16(*((USHORT *) & Packet.KeyDesc.KeyInfo));
 
-	MlmeAllocateMemory(pAd, (PUCHAR *) & pOutBuffer);	// allocate memory
+	MlmeAllocateMemory(pAd, (PUCHAR *) & pOutBuffer);	/* allocate memory */
 	if (pOutBuffer == NULL) {
 		return;
 	}
-	// Prepare EAPOL frame for MIC calculation
-	// Be careful, only EAPOL frame is counted for MIC calculation
+	/* Prepare EAPOL frame for MIC calculation */
+	/* Be careful, only EAPOL frame is counted for MIC calculation */
 	MakeOutgoingFrame(pOutBuffer, &FrameLen,
 			  CONV_ARRARY_TO_UINT16(Packet.Body_Len) + 4, &Packet,
 			  END_OF_ARGS);
 
-	// Prepare and Fill MIC value
+	/* Prepare and Fill MIC value */
 	NdisZeroMemory(Mic, sizeof(Mic));
-	if (pAd->StaCfg.WepStatus == Ndis802_11Encryption3Enabled) {	// AES
+	if (pAd->StaCfg.WepStatus == Ndis802_11Encryption3Enabled) {	/* AES */
 		UCHAR digest[20] = { 0 };
 		HMAC_SHA1(pAd->StaCfg.PTK, LEN_EAP_MICK, pOutBuffer, FrameLen,
 			  digest, SHA1_DIGEST_SIZE);
 		NdisMoveMemory(Mic, digest, LEN_KEY_DESC_MIC);
-	} else {		// TKIP
+	} else {		/* TKIP */
 		HMAC_MD5(pAd->StaCfg.PTK, LEN_EAP_MICK, pOutBuffer, FrameLen,
 			 Mic, MD5_DIGEST_SIZE);
 	}
 	NdisMoveMemory(Packet.KeyDesc.KeyMic, Mic, LEN_KEY_DESC_MIC);
 
-	// copy frame to Tx ring and send MIC failure report frame to authenticator
+	/* copy frame to Tx ring and send MIC failure report frame to authenticator */
 	RTMPToWirelessSta(pAd, &pAd->MacTab.Content[BSSID_WCID],
 			  Header802_3, LENGTH_802_3,
 			  (PUCHAR) & Packet,
@@ -262,7 +262,7 @@ VOID WpaDisassocApAndBlockAssoc(IN PVOID SystemSpecific1,
 	RTMP_ADAPTER *pAd = (PRTMP_ADAPTER) FunctionContext;
 	MLME_DISASSOC_REQ_STRUCT DisassocReq;
 
-	// disassoc from current AP first
+	/* disassoc from current AP first */
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("RTMPReportMicError - disassociate with current AP after sending second continuous EAPOL frame\n"));
 	DisassocParmFill(pAd, &DisassocReq, pAd->CommonCfg.Bssid,
@@ -281,12 +281,12 @@ VOID WpaStaPairwiseKeySetting(IN PRTMP_ADAPTER pAd)
 
 	pEntry = &pAd->MacTab.Content[BSSID_WCID];
 
-	// Pairwise key shall use key#0
+	/* Pairwise key shall use key#0 */
 	pSharedKey = &pAd->SharedKey[BSS0][0];
 
 	NdisMoveMemory(pAd->StaCfg.PTK, pEntry->PTK, LEN_PTK);
 
-	// Prepare pair-wise key information into shared key table
+	/* Prepare pair-wise key information into shared key table */
 	NdisZeroMemory(pSharedKey, sizeof(CIPHER_KEY));
 	pSharedKey->KeyLen = LEN_TKIP_EK;
 	NdisMoveMemory(pSharedKey->Key, &pAd->StaCfg.PTK[32], LEN_TKIP_EK);
@@ -295,7 +295,7 @@ VOID WpaStaPairwiseKeySetting(IN PRTMP_ADAPTER pAd)
 	NdisMoveMemory(pSharedKey->TxMic,
 		       &pAd->StaCfg.PTK[48 + LEN_TKIP_RXMICK], LEN_TKIP_TXMICK);
 
-	// Decide its ChiperAlg
+	/* Decide its ChiperAlg */
 	if (pAd->StaCfg.PairCipher == Ndis802_11Encryption2Enabled)
 		pSharedKey->CipherAlg = CIPHER_TKIP;
 	else if (pAd->StaCfg.PairCipher == Ndis802_11Encryption3Enabled)
@@ -303,7 +303,7 @@ VOID WpaStaPairwiseKeySetting(IN PRTMP_ADAPTER pAd)
 	else
 		pSharedKey->CipherAlg = CIPHER_NONE;
 
-	// Update these related information to MAC_TABLE_ENTRY
+	/* Update these related information to MAC_TABLE_ENTRY */
 	NdisMoveMemory(pEntry->PairwiseKey.Key, &pAd->StaCfg.PTK[32],
 		       LEN_TKIP_EK);
 	NdisMoveMemory(pEntry->PairwiseKey.RxMic, &pAd->StaCfg.PTK[48],
@@ -312,7 +312,7 @@ VOID WpaStaPairwiseKeySetting(IN PRTMP_ADAPTER pAd)
 		       &pAd->StaCfg.PTK[48 + LEN_TKIP_RXMICK], LEN_TKIP_TXMICK);
 	pEntry->PairwiseKey.CipherAlg = pSharedKey->CipherAlg;
 
-	// Update pairwise key information to ASIC Shared Key Table
+	/* Update pairwise key information to ASIC Shared Key Table */
 	AsicAddSharedKeyEntry(pAd,
 			      BSS0,
 			      0,
@@ -320,7 +320,7 @@ VOID WpaStaPairwiseKeySetting(IN PRTMP_ADAPTER pAd)
 			      pSharedKey->Key,
 			      pSharedKey->TxMic, pSharedKey->RxMic);
 
-	// Update ASIC WCID attribute table and IVEIV table
+	/* Update ASIC WCID attribute table and IVEIV table */
 	RTMPAddWcidAttributeEntry(pAd, BSS0, 0, pSharedKey->CipherAlg, pEntry);
 	STA_PORT_SECURED(pAd);
 	pAd->IndicateMediaState = NdisMediaStateConnected;
@@ -336,7 +336,7 @@ VOID WpaStaGroupKeySetting(IN PRTMP_ADAPTER pAd)
 
 	pSharedKey = &pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId];
 
-	// Prepare pair-wise key information into shared key table
+	/* Prepare pair-wise key information into shared key table */
 	NdisZeroMemory(pSharedKey, sizeof(CIPHER_KEY));
 	pSharedKey->KeyLen = LEN_TKIP_EK;
 	NdisMoveMemory(pSharedKey->Key, pAd->StaCfg.GTK, LEN_TKIP_EK);
@@ -345,7 +345,7 @@ VOID WpaStaGroupKeySetting(IN PRTMP_ADAPTER pAd)
 	NdisMoveMemory(pSharedKey->TxMic, &pAd->StaCfg.GTK[24],
 		       LEN_TKIP_TXMICK);
 
-	// Update Shared Key CipherAlg
+	/* Update Shared Key CipherAlg */
 	pSharedKey->CipherAlg = CIPHER_NONE;
 	if (pAd->StaCfg.GroupCipher == Ndis802_11Encryption2Enabled)
 		pSharedKey->CipherAlg = CIPHER_TKIP;
@@ -356,7 +356,7 @@ VOID WpaStaGroupKeySetting(IN PRTMP_ADAPTER pAd)
 	else if (pAd->StaCfg.GroupCipher == Ndis802_11GroupWEP104Enabled)
 		pSharedKey->CipherAlg = CIPHER_WEP128;
 
-	// Update group key information to ASIC Shared Key Table
+	/* Update group key information to ASIC Shared Key Table */
 	AsicAddSharedKeyEntry(pAd,
 			      BSS0,
 			      pAd->StaCfg.DefaultKeyId,
@@ -364,7 +364,7 @@ VOID WpaStaGroupKeySetting(IN PRTMP_ADAPTER pAd)
 			      pSharedKey->Key,
 			      pSharedKey->TxMic, pSharedKey->RxMic);
 
-	// Update ASIC WCID attribute table and IVEIV table
+	/* Update ASIC WCID attribute table and IVEIV table */
 	RTMPAddWcidAttributeEntry(pAd,
 				  BSS0,
 				  pAd->StaCfg.DefaultKeyId,

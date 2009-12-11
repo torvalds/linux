@@ -55,11 +55,11 @@ VOID AuthRspStateMachineInit(IN PRTMP_ADAPTER pAd,
 			 (STATE_MACHINE_FUNC) Drop, AUTH_RSP_IDLE,
 			 AUTH_RSP_MACHINE_BASE);
 
-	// column 1
+	/* column 1 */
 	StateMachineSetAction(Sm, AUTH_RSP_IDLE, MT2_PEER_DEAUTH,
 			      (STATE_MACHINE_FUNC) PeerDeauthAction);
 
-	// column 2
+	/* column 2 */
 	StateMachineSetAction(Sm, AUTH_RSP_WAIT_CHAL, MT2_PEER_DEAUTH,
 			      (STATE_MACHINE_FUNC) PeerDeauthAction);
 
@@ -88,7 +88,7 @@ VOID PeerAuthSimpleRspGenAndSend(IN PRTMP_ADAPTER pAd,
 		DBGPRINT(RT_DEBUG_TRACE, ("Peer AUTH fail...\n"));
 		return;
 	}
-	//Get an unused nonpaged memory
+	/*Get an unused nonpaged memory */
 	NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);
 	if (NStatus != NDIS_STATUS_SUCCESS)
 		return;
@@ -126,7 +126,7 @@ VOID PeerDeauthAction(IN PRTMP_ADAPTER pAd, IN PMLME_QUEUE_ELEM Elem)
 			RtmpOSWrielessEventSend(pAd, SIOCGIWAP, -1, NULL, NULL,
 						0);
 
-			// send wireless event - for deauthentication
+			/* send wireless event - for deauthentication */
 			if (pAd->CommonCfg.bWirelessEvent)
 				RTMPSendWirelessEvent(pAd, IW_DEAUTH_EVENT_FLAG,
 						      pAd->MacTab.

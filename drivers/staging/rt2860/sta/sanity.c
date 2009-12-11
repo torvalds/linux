@@ -86,7 +86,7 @@ BOOLEAN MlmeStartReqSanity(IN PRTMP_ADAPTER pAd,
 
     ==========================================================================
  */
-BOOLEAN PeerAssocRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * pMsg, IN ULONG MsgLen, OUT PUCHAR pAddr2, OUT USHORT * pCapabilityInfo, OUT USHORT * pStatus, OUT USHORT * pAid, OUT UCHAR SupRate[], OUT UCHAR * pSupRateLen, OUT UCHAR ExtRate[], OUT UCHAR * pExtRateLen, OUT HT_CAPABILITY_IE * pHtCapability, OUT ADD_HT_INFO_IE * pAddHtInfo,	// AP might use this additional ht info IE
+BOOLEAN PeerAssocRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * pMsg, IN ULONG MsgLen, OUT PUCHAR pAddr2, OUT USHORT * pCapabilityInfo, OUT USHORT * pStatus, OUT USHORT * pAid, OUT UCHAR SupRate[], OUT UCHAR * pSupRateLen, OUT UCHAR ExtRate[], OUT UCHAR * pExtRateLen, OUT HT_CAPABILITY_IE * pHtCapability, OUT ADD_HT_INFO_IE * pAddHtInfo,	/* AP might use this additional ht info IE */
 			   OUT UCHAR * pHtCapabilityLen,
 			   OUT UCHAR * pAddHtInfoLen,
 			   OUT UCHAR * pNewExtChannelOffset,
@@ -118,10 +118,10 @@ BOOLEAN PeerAssocRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * pMsg, IN ULONG MsgLen
 	NdisMoveMemory(pAid, &pFrame->Octet[4], 2);
 	Length += 2;
 
-	// Aid already swaped byte order in RTMPFrameEndianChange() for big endian platform
-	*pAid = (*pAid) & 0x3fff;	// AID is low 14-bit
+	/* Aid already swaped byte order in RTMPFrameEndianChange() for big endian platform */
+	*pAid = (*pAid) & 0x3fff;	/* AID is low 14-bit */
 
-	// -- get supported rates from payload and advance the pointer
+	/* -- get supported rates from payload and advance the pointer */
 	IeType = pFrame->Octet[6];
 	*pSupRateLen = pFrame->Octet[7];
 	if ((IeType != IE_SUPP_RATES)
@@ -134,11 +134,11 @@ BOOLEAN PeerAssocRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * pMsg, IN ULONG MsgLen
 
 	Length = Length + 2 + *pSupRateLen;
 
-	// many AP implement proprietary IEs in non-standard order, we'd better
-	// tolerate mis-ordered IEs to get best compatibility
+	/* many AP implement proprietary IEs in non-standard order, we'd better */
+	/* tolerate mis-ordered IEs to get best compatibility */
 	pEid = (PEID_STRUCT) & pFrame->Octet[8 + (*pSupRateLen)];
 
-	// get variable fields from payload and advance the pointer
+	/* get variable fields from payload and advance the pointer */
 	while ((Length + 2 + pEid->Len) <= MsgLen) {
 		switch (pEid->Eid) {
 		case IE_EXT_SUPP_RATES:
@@ -150,7 +150,7 @@ BOOLEAN PeerAssocRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * pMsg, IN ULONG MsgLen
 
 		case IE_HT_CAP:
 		case IE_HT_CAP2:
-			if (pEid->Len >= SIZE_HT_CAP_IE)	//Note: allow extension.!!
+			if (pEid->Len >= SIZE_HT_CAP_IE)	/*Note: allow extension.!! */
 			{
 				NdisMoveMemory(pHtCapability, pEid->Octet,
 					       SIZE_HT_CAP_IE);
@@ -172,8 +172,8 @@ BOOLEAN PeerAssocRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * pMsg, IN ULONG MsgLen
 		case IE_ADD_HT:
 		case IE_ADD_HT2:
 			if (pEid->Len >= sizeof(ADD_HT_INFO_IE)) {
-				// This IE allows extension, but we can ignore extra bytes beyond our knowledge , so only
-				// copy first sizeof(ADD_HT_INFO_IE)
+				/* This IE allows extension, but we can ignore extra bytes beyond our knowledge , so only */
+				/* copy first sizeof(ADD_HT_INFO_IE) */
 				NdisMoveMemory(pAddHtInfo, pEid->Octet,
 					       sizeof(ADD_HT_INFO_IE));
 
@@ -201,31 +201,31 @@ BOOLEAN PeerAssocRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * pMsg, IN ULONG MsgLen
 			break;
 
 		case IE_VENDOR_SPECIFIC:
-			// handle WME PARAMTER ELEMENT
+			/* handle WME PARAMTER ELEMENT */
 			if (NdisEqualMemory(pEid->Octet, WME_PARM_ELEM, 6)
 			    && (pEid->Len == 24)) {
 				PUCHAR ptr;
 				int i;
 
-				// parsing EDCA parameters
+				/* parsing EDCA parameters */
 				pEdcaParm->bValid = TRUE;
-				pEdcaParm->bQAck = FALSE;	// pEid->Octet[0] & 0x10;
-				pEdcaParm->bQueueRequest = FALSE;	// pEid->Octet[0] & 0x20;
-				pEdcaParm->bTxopRequest = FALSE;	// pEid->Octet[0] & 0x40;
-				//pEdcaParm->bMoreDataAck    = FALSE; // pEid->Octet[0] & 0x80;
+				pEdcaParm->bQAck = FALSE;	/* pEid->Octet[0] & 0x10; */
+				pEdcaParm->bQueueRequest = FALSE;	/* pEid->Octet[0] & 0x20; */
+				pEdcaParm->bTxopRequest = FALSE;	/* pEid->Octet[0] & 0x40; */
+				/*pEdcaParm->bMoreDataAck    = FALSE; // pEid->Octet[0] & 0x80; */
 				pEdcaParm->EdcaUpdateCount =
 				    pEid->Octet[6] & 0x0f;
 				pEdcaParm->bAPSDCapable =
 				    (pEid->Octet[6] & 0x80) ? 1 : 0;
 				ptr = (PUCHAR) & pEid->Octet[8];
 				for (i = 0; i < 4; i++) {
-					UCHAR aci = (*ptr & 0x60) >> 5;	// b5~6 is AC INDEX
-					pEdcaParm->bACM[aci] = (((*ptr) & 0x10) == 0x10);	// b5 is ACM
-					pEdcaParm->Aifsn[aci] = (*ptr) & 0x0f;	// b0~3 is AIFSN
-					pEdcaParm->Cwmin[aci] = *(ptr + 1) & 0x0f;	// b0~4 is Cwmin
-					pEdcaParm->Cwmax[aci] = *(ptr + 1) >> 4;	// b5~8 is Cwmax
-					pEdcaParm->Txop[aci] = *(ptr + 2) + 256 * (*(ptr + 3));	// in unit of 32-us
-					ptr += 4;	// point to next AC
+					UCHAR aci = (*ptr & 0x60) >> 5;	/* b5~6 is AC INDEX */
+					pEdcaParm->bACM[aci] = (((*ptr) & 0x10) == 0x10);	/* b5 is ACM */
+					pEdcaParm->Aifsn[aci] = (*ptr) & 0x0f;	/* b0~3 is AIFSN */
+					pEdcaParm->Cwmin[aci] = *(ptr + 1) & 0x0f;	/* b0~4 is Cwmin */
+					pEdcaParm->Cwmax[aci] = *(ptr + 1) >> 4;	/* b5~8 is Cwmax */
+					pEdcaParm->Txop[aci] = *(ptr + 2) + 256 * (*(ptr + 3));	/* in unit of 32-us */
+					ptr += 4;	/* point to next AC */
 				}
 			}
 			break;
@@ -280,7 +280,7 @@ BOOLEAN PeerProbeReqSanity(IN PRTMP_ADAPTER pAd,
 
 	Idx = *pSsidLen + 2;
 
-	// -- get supported rates from payload and advance the pointer
+	/* -- get supported rates from payload and advance the pointer */
 	IeType = pFrame->Octet[Idx];
 	RateLen = pFrame->Octet[Idx + 1];
 	if (IeType != IE_SUPP_RATES) {
@@ -319,15 +319,15 @@ BOOLEAN GetTimBit(IN CHAR * Ptr,
 	IdxPtr++;
 	*TimLen = *IdxPtr;
 
-	// get DTIM Count from TIM element
+	/* get DTIM Count from TIM element */
 	IdxPtr++;
 	*DtimCount = *IdxPtr;
 
-	// get DTIM Period from TIM element
+	/* get DTIM Period from TIM element */
 	IdxPtr++;
 	*DtimPeriod = *IdxPtr;
 
-	// get Bitmap Control from TIM element
+	/* get Bitmap Control from TIM element */
 	IdxPtr++;
 	BitCntl = *IdxPtr;
 
@@ -336,20 +336,20 @@ BOOLEAN GetTimBit(IN CHAR * Ptr,
 	else
 		*BcastFlag = FALSE;
 
-	// Parse Partial Virtual Bitmap from TIM element
-	N1 = BitCntl & 0xfe;	// N1 is the first bitmap byte#
-	N2 = *TimLen - 4 + N1;	// N2 is the last bitmap byte#
+	/* Parse Partial Virtual Bitmap from TIM element */
+	N1 = BitCntl & 0xfe;	/* N1 is the first bitmap byte# */
+	N2 = *TimLen - 4 + N1;	/* N2 is the last bitmap byte# */
 
 	if ((Aid < (N1 << 3)) || (Aid >= ((N2 + 1) << 3)))
 		*MessageToMe = FALSE;
 	else {
-		MyByte = (Aid >> 3) - N1;	// my byte position in the bitmap byte-stream
+		MyByte = (Aid >> 3) - N1;	/* my byte position in the bitmap byte-stream */
 		MyBit = Aid % 16 - ((MyByte & 0x01) ? 8 : 0);
 
 		IdxPtr += (MyByte + 1);
 
-		//if (*IdxPtr)
-		//    DBGPRINT(RT_DEBUG_WARN, ("TIM bitmap = 0x%02x\n", *IdxPtr));
+		/*if (*IdxPtr) */
+		/*    DBGPRINT(RT_DEBUG_WARN, ("TIM bitmap = 0x%02x\n", *IdxPtr)); */
 
 		if (*IdxPtr & (0x01 << MyBit))
 			*MessageToMe = TRUE;
