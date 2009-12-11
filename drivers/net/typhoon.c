@@ -2113,7 +2113,7 @@ typhoon_tx_timeout(struct net_device *dev)
 	if(typhoon_reset(tp->ioaddr, WaitNoSleep) < 0) {
 		printk(KERN_WARNING "%s: could not reset in tx timeout\n",
 					dev->name);
-		goto truely_dead;
+		goto truly_dead;
 	}
 
 	/* If we ever start using the Hi ring, it will need cleaning too */
@@ -2123,13 +2123,13 @@ typhoon_tx_timeout(struct net_device *dev)
 	if(typhoon_start_runtime(tp) < 0) {
 		printk(KERN_ERR "%s: could not start runtime in tx timeout\n",
 					dev->name);
-		goto truely_dead;
+		goto truly_dead;
         }
 
 	netif_wake_queue(dev);
 	return;
 
-truely_dead:
+truly_dead:
 	/* Reset the hardware, and turn off carrier to avoid more timeouts */
 	typhoon_reset(tp->ioaddr, NoWait);
 	netif_carrier_off(dev);
