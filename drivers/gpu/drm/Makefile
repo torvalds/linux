@@ -31,3 +31,5 @@ obj-$(CONFIG_DRM_I915)  += i915/
 obj-$(CONFIG_DRM_SIS)   += sis/
 obj-$(CONFIG_DRM_SAVAGE)+= savage/
 obj-$(CONFIG_DRM_VIA)	+=via/
+obj-$(CONFIG_DRM_NOUVEAU) +=nouveau/
+obj-y			+= i2c/
