@@ -687,6 +687,23 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 	if (!common_flags)
 		return -EINVAL;
 
+	/* Make choises, based on platform preferences */
+	if ((common_flags & SOCAM_HSYNC_ACTIVE_HIGH) &&
+	    (common_flags & SOCAM_HSYNC_ACTIVE_LOW)) {
+		if (pcdev->pdata->flags & SH_CEU_FLAG_HSYNC_LOW)
+			common_flags &= ~SOCAM_HSYNC_ACTIVE_HIGH;
+		else
+			common_flags &= ~SOCAM_HSYNC_ACTIVE_LOW;
+	}
+
+	if ((common_flags & SOCAM_VSYNC_ACTIVE_HIGH) &&
+	    (common_flags & SOCAM_VSYNC_ACTIVE_LOW)) {
+		if (pcdev->pdata->flags & SH_CEU_FLAG_VSYNC_LOW)
+			common_flags &= ~SOCAM_VSYNC_ACTIVE_HIGH;
+		else
+			common_flags &= ~SOCAM_VSYNC_ACTIVE_LOW;
+	}
+
 	ret = icd->ops->set_bus_param(icd, common_flags);
 	if (ret < 0)
 		return ret;
