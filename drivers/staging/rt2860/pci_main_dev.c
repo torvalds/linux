@@ -599,7 +599,6 @@ VOID RTMPInitPCIeLinkCtrlValue(
 				}
 
 				DBGPRINT(RT_DEBUG_TRACE, ("====> rt28xx Write 0x83 Command = 0x%x.\n", PCIePowerSaveLevel));
-					       printk("\n\n\n%s:%d\n",__FUNCTION__,__LINE__);
 
 				AsicSendCommandToMcu(pAd, 0x83, 0xff, (UCHAR)PCIePowerSaveLevel, 0x00);
 			}

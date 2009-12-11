@@ -1261,7 +1261,8 @@ VOID	NICInitAsicFromEEPROM(
 			&& (pAd->StaCfg.PSControl.field.rt30xxPowerMode == 3)
 			&& (pAd->StaCfg.PSControl.field.EnableNewPS == TRUE))
 		{
-			DBGPRINT(RT_DEBUG_TRACE,("%s::%d,release Mcu Lock\n",__FUNCTION__,__LINE__));
+			DBGPRINT(RT_DEBUG_TRACE,
+				("%s, release Mcu Lock\n", __func__));
 			RTMP_SEM_LOCK(&pAd->McuCmdLock);
 			pAd->brt30xxBanMcuCmd = FALSE;
 			RTMP_SEM_UNLOCK(&pAd->McuCmdLock);

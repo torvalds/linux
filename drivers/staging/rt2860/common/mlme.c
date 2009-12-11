@@ -1222,13 +1222,11 @@ if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE))
 			{
 			if (pAd->StaCfg.PSControl.field.EnableNewPS == TRUE)
 	{
-				DBGPRINT(RT_DEBUG_TRACE, ("%s::%d\n",__FUNCTION__,__LINE__));
-
+				DBGPRINT(RT_DEBUG_TRACE, ("%s\n", __func__));
 				RT28xxPciAsicRadioOff(pAd, GUI_IDLE_POWER_SAVE, 0);
 				}
 			else
 				{
-				DBGPRINT(RT_DEBUG_TRACE, ("%s::%d\n",__FUNCTION__,__LINE__));
 				AsicSendCommandToMcu(pAd, 0x30, PowerSafeCID, 0xff, 0x2);
 				// Wait command success
 				AsicCheckCommanOk(pAd, PowerSafeCID);
@@ -1240,12 +1238,11 @@ if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE))
                 {
 			if (pAd->StaCfg.PSControl.field.EnableNewPS == TRUE)
 				{
-				DBGPRINT(RT_DEBUG_TRACE, ("%s::%d\n",__FUNCTION__,__LINE__));
+				DBGPRINT(RT_DEBUG_TRACE, ("%s\n", __func__));
 				RT28xxPciAsicRadioOff(pAd, GUI_IDLE_POWER_SAVE, 0);
 				 }
 				else
 				{
-				DBGPRINT(RT_DEBUG_TRACE, ("%s::%d\n",__FUNCTION__,__LINE__));
 				AsicSendCommandToMcu(pAd, 0x30, PowerSafeCID, 0xff, 0x02);
 				// Wait command success
 				AsicCheckCommanOk(pAd, PowerSafeCID);
