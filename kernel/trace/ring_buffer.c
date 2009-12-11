@@ -2541,7 +2541,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_record_disable);
  * @buffer: The ring buffer to enable writes
  *
  * Note, multiple disables will need the same number of enables
- * to truely enable the writing (much like preempt_disable).
+ * to truly enable the writing (much like preempt_disable).
  */
 void ring_buffer_record_enable(struct ring_buffer *buffer)
 {
@@ -2577,7 +2577,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_record_disable_cpu);
  * @cpu: The CPU to enable.
  *
  * Note, multiple disables will need the same number of enables
- * to truely enable the writing (much like preempt_disable).
+ * to truly enable the writing (much like preempt_disable).
  */
 void ring_buffer_record_enable_cpu(struct ring_buffer *buffer, int cpu)
 {
