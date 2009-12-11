@@ -608,6 +608,13 @@ static const struct dmi_system_id bad_lid_status[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire one"),
 		},
 	},
+	{
+		.ident = "PC-81005",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MALATA"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "PC-81005"),
+		},
+	},
 	{ }
 };
 
