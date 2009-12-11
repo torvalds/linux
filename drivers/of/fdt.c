@@ -15,6 +15,10 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 
+#ifdef CONFIG_PPC
+#include <asm/machdep.h>
+#endif /* CONFIG_PPC */
+
 int __initdata dt_root_addr_cells;
 int __initdata dt_root_size_cells;
 
@@ -438,6 +442,40 @@ u64 __init dt_mem_next_cell(int s, u32 **cellp)
 
 	*cellp = p + s;
 	return of_read_number(p, s);
+}
+
+int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
+				     int depth, void *data)
+{
+	unsigned long l;
+	char *p;
+
+	pr_debug("search \"chosen\", depth: %d, uname: %s\n", depth, uname);
+
+	if (depth != 1 ||
+	    (strcmp(uname, "chosen") != 0 && strcmp(uname, "chosen@0") != 0))
+		return 0;
+
+	early_init_dt_check_for_initrd(node);
+
+	/* Retreive command line */
+	p = of_get_flat_dt_prop(node, "bootargs", &l);
+	if (p != NULL && l > 0)
+		strlcpy(cmd_line, p, min((int)l, COMMAND_LINE_SIZE));
+
+#ifdef CONFIG_CMDLINE
+#ifndef CONFIG_CMDLINE_FORCE
+	if (p == NULL || l == 0 || (l == 1 && (*p) == 0))
+#endif
+		strlcpy(cmd_line, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
+#endif /* CONFIG_CMDLINE */
+
+	early_init_dt_scan_chosen_arch(node);
+
+	pr_debug("Command line is: %s\n", cmd_line);
+
+	/* break now */
+	return 1;
 }
 
 /**

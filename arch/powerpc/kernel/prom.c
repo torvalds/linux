@@ -367,18 +367,9 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	return 0;
 }
 
-static int __init early_init_dt_scan_chosen(unsigned long node,
-					    const char *uname, int depth, void *data)
+void __init early_init_dt_scan_chosen_arch(unsigned long node)
 {
 	unsigned long *lprop;
-	unsigned long l;
-	char *p;
-
-	DBG("search \"chosen\", depth: %d, uname: %s\n", depth, uname);
-
-	if (depth != 1 ||
-	    (strcmp(uname, "chosen") != 0 && strcmp(uname, "chosen@0") != 0))
-		return 0;
 
 #ifdef CONFIG_PPC64
 	/* check if iommu is forced on or off */
@@ -389,17 +380,17 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 #endif
 
 	/* mem=x on the command line is the preferred mechanism */
- 	lprop = of_get_flat_dt_prop(node, "linux,memory-limit", NULL);
- 	if (lprop)
- 		memory_limit = *lprop;
+	lprop = of_get_flat_dt_prop(node, "linux,memory-limit", NULL);
+	if (lprop)
+		memory_limit = *lprop;
 
 #ifdef CONFIG_PPC64
- 	lprop = of_get_flat_dt_prop(node, "linux,tce-alloc-start", NULL);
- 	if (lprop)
- 		tce_alloc_start = *lprop;
- 	lprop = of_get_flat_dt_prop(node, "linux,tce-alloc-end", NULL);
- 	if (lprop)
- 		tce_alloc_end = *lprop;
+	lprop = of_get_flat_dt_prop(node, "linux,tce-alloc-start", NULL);
+	if (lprop)
+		tce_alloc_start = *lprop;
+	lprop = of_get_flat_dt_prop(node, "linux,tce-alloc-end", NULL);
+	if (lprop)
+		tce_alloc_end = *lprop;
 #endif
 
 #ifdef CONFIG_KEXEC
@@ -411,23 +402,6 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 	if (lprop)
 		crashk_res.end = crashk_res.start + *lprop - 1;
 #endif
-
-	early_init_dt_check_for_initrd(node);
-
-	/* Retreive command line */
- 	p = of_get_flat_dt_prop(node, "bootargs", &l);
-	if (p != NULL && l > 0)
-		strlcpy(cmd_line, p, min((int)l, COMMAND_LINE_SIZE));
-
-#ifdef CONFIG_CMDLINE
-	if (p == NULL || l == 0 || (l == 1 && (*p) == 0))
-		strlcpy(cmd_line, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
-#endif /* CONFIG_CMDLINE */
-
-	DBG("Command line is: %s\n", cmd_line);
-
-	/* break now */
-	return 1;
 }
 
 #ifdef CONFIG_PPC_PSERIES

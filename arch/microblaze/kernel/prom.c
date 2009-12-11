@@ -108,49 +108,9 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	return 0;
 }
 
-static int __init early_init_dt_scan_chosen(unsigned long node,
-				const char *uname, int depth, void *data)
+void __init early_init_dt_scan_chosen_arch(unsigned long node)
 {
-	unsigned long l;
-	char *p;
-
-	pr_debug("search \"chosen\", depth: %d, uname: %s\n", depth, uname);
-
-	if (depth != 1 ||
-		(strcmp(uname, "chosen") != 0 &&
-				strcmp(uname, "chosen@0") != 0))
-		return 0;
-
-#ifdef CONFIG_KEXEC
-	lprop = (u64 *)of_get_flat_dt_prop(node,
-				"linux,crashkernel-base", NULL);
-	if (lprop)
-		crashk_res.start = *lprop;
-
-	lprop = (u64 *)of_get_flat_dt_prop(node,
-				"linux,crashkernel-size", NULL);
-	if (lprop)
-		crashk_res.end = crashk_res.start + *lprop - 1;
-#endif
-
-	early_init_dt_check_for_initrd(node);
-
-	/* Retreive command line */
-	p = of_get_flat_dt_prop(node, "bootargs", &l);
-	if (p != NULL && l > 0)
-		strlcpy(cmd_line, p, min((int)l, COMMAND_LINE_SIZE));
-
-#ifdef CONFIG_CMDLINE
-#ifndef CONFIG_CMDLINE_FORCE
-	if (p == NULL || l == 0 || (l == 1 && (*p) == 0))
-#endif
-		strlcpy(cmd_line, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
-#endif /* CONFIG_CMDLINE */
-
-	pr_debug("Command line is: %s\n", cmd_line);
-
-	/* break now */
-	return 1;
+	/* No Microblaze specific code here */
 }
 
 static int __init early_init_dt_scan_memory(unsigned long node,
