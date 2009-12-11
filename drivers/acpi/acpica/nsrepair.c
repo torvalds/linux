@@ -399,6 +399,11 @@ acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
 		break;
 
 	case ACPI_TYPE_PACKAGE:
+		/*
+		 * This case is often seen for predefined names that must return a
+		 * Buffer object with multiple DWORD integers within. For example,
+		 * _FDE and _GTM. The Package can be converted to a Buffer.
+		 */
 
 		/* All elements of the Package must be integers */
 

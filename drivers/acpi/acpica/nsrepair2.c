@@ -111,8 +111,8 @@ acpi_ns_sort_list(union acpi_operand_object **elements,
  * As necessary:
  *
  * _ALR: Sort the list ascending by ambient_illuminance
- * _FDE: Convert a Package or Buffer of BYTEs to a Buffer of DWORDs
- * _GTM: Convert a Package or Buffer of BYTEs to a Buffer of DWORDs
+ * _FDE: Convert Buffer of BYTEs to a Buffer of DWORDs
+ * _GTM: Convert Buffer of BYTEs to a Buffer of DWORDs
  * _PSS: Sort the list descending by Power
  * _TSS: Sort the list descending by Power
  */
@@ -238,10 +238,9 @@ acpi_ns_repair_ALR(struct acpi_predefined_data *data,
  * RETURN:      Status. AE_OK if object is OK or was repaired successfully
  *
  * DESCRIPTION: Repair for the _FDE and _GTM objects. The expected return
- *              value is a Buffer of 5 DWORDs. This function repairs two
- *              possible problems:
- *              1) The return value is a Buffer of BYTEs, not DWORDs
- *              2) The return value is a Package of Integer objects
+ *              value is a Buffer of 5 DWORDs. This function repairs a common
+ *              problem where the return value is a Buffer of BYTEs, not
+ *              DWORDs.
  *
  *****************************************************************************/
 
