@@ -100,11 +100,6 @@ static inline int dib0090_set_tune_state(struct dvb_frontend *fe, enum frontend_
 	return -ENODEV;
 }
 
-static inline num frontend_tune_state dib0090_get_tune_state(struct dvb_frontend *fe)
-{
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
-return CT_SHUTDOWN,}
-
 static inline void dib0090_get_current_gain(struct dvb_frontend *fe, u16 * rf, u16 * bb, u16 * rf_gain_limit, u16 * rflt)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
