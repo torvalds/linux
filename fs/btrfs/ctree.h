@@ -373,11 +373,13 @@ struct btrfs_super_block {
  * ones specified below then we will fail to mount
  */
 #define BTRFS_FEATURE_INCOMPAT_MIXED_BACKREF	(1ULL << 0)
+#define BTRFS_FEATURE_INCOMPAT_DEFAULT_SUBVOL	(2ULL << 0)
 
 #define BTRFS_FEATURE_COMPAT_SUPP		0ULL
 #define BTRFS_FEATURE_COMPAT_RO_SUPP		0ULL
 #define BTRFS_FEATURE_INCOMPAT_SUPP		\
-	BTRFS_FEATURE_INCOMPAT_MIXED_BACKREF
+	(BTRFS_FEATURE_INCOMPAT_MIXED_BACKREF |	\
+	 BTRFS_FEATURE_INCOMPAT_DEFAULT_SUBVOL)
 
 /*
  * A leaf is full of items. offset and size tell us where to find

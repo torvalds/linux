@@ -1579,6 +1579,79 @@ out:
 	return ret;
 }
 
+static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
+{
+	struct inode *inode = fdentry(file)->d_inode;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_root *new_root;
+	struct btrfs_dir_item *di;
+	struct btrfs_trans_handle *trans;
+	struct btrfs_path *path;
+	struct btrfs_key location;
+	struct btrfs_disk_key disk_key;
+	struct btrfs_super_block *disk_super;
+	u64 features;
+	u64 objectid = 0;
+	u64 dir_id;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (copy_from_user(&objectid, argp, sizeof(objectid)))
+		return -EFAULT;
+
+	if (!objectid)
+		objectid = root->root_key.objectid;
+
+	location.objectid = objectid;
+	location.type = BTRFS_ROOT_ITEM_KEY;
+	location.offset = (u64)-1;
+
+	new_root = btrfs_read_fs_root_no_name(root->fs_info, &location);
+	if (IS_ERR(new_root))
+		return PTR_ERR(new_root);
+
+	if (btrfs_root_refs(&new_root->root_item) == 0)
+		return -ENOENT;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+	path->leave_spinning = 1;
+
+	trans = btrfs_start_transaction(root, 1);
+	if (!trans) {
+		btrfs_free_path(path);
+		return -ENOMEM;
+	}
+
+	dir_id = btrfs_super_root_dir(&root->fs_info->super_copy);
+	di = btrfs_lookup_dir_item(trans, root->fs_info->tree_root, path,
+				   dir_id, "default", 7, 1);
+	if (!di) {
+		btrfs_free_path(path);
+		btrfs_end_transaction(trans, root);
+		printk(KERN_ERR "Umm, you don't have the default dir item, "
+		       "this isn't going to work\n");
+		return -ENOENT;
+	}
+
+	btrfs_cpu_key_to_disk(&disk_key, &new_root->root_key);
+	btrfs_set_dir_item_key(path->nodes[0], di, &disk_key);
+	btrfs_mark_buffer_dirty(path->nodes[0]);
+	btrfs_free_path(path);
+
+	disk_super = &root->fs_info->super_copy;
+	features = btrfs_super_incompat_flags(disk_super);
+	if (!(features & BTRFS_FEATURE_INCOMPAT_DEFAULT_SUBVOL)) {
+		features |= BTRFS_FEATURE_INCOMPAT_DEFAULT_SUBVOL;
+		btrfs_set_super_incompat_flags(disk_super, features);
+	}
+	btrfs_end_transaction(trans, root);
+
+	return 0;
+}
+
 /*
  * there are many ways the trans_start and trans_end ioctls can lead
  * to deadlocks.  They should only be used by applications that
@@ -1625,6 +1698,8 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_snap_create(file, argp, 1);
 	case BTRFS_IOC_SNAP_DESTROY:
 		return btrfs_ioctl_snap_destroy(file, argp);
+	case BTRFS_IOC_DEFAULT_SUBVOL:
+		return btrfs_ioctl_default_subvol(file, argp);
 	case BTRFS_IOC_DEFRAG:
 		return btrfs_ioctl_defrag(file);
 	case BTRFS_IOC_RESIZE:
