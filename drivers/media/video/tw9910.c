@@ -512,12 +512,21 @@ static int tw9910_set_bus_param(struct soc_camera_device *icd,
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct i2c_client *client = sd->priv;
+	u8 val = VSSL_VVALID | HSSL_DVALID;
 
 	/*
 	 * set OUTCTR1
+	 *
+	 * We use VVALID and DVALID signals to control VSYNC and HSYNC
+	 * outputs, in this mode their polarity is inverted.
 	 */
-	return i2c_smbus_write_byte_data(client, OUTCTR1,
-					 VSSL_VVALID | HSSL_DVALID);
+	if (flags & SOCAM_HSYNC_ACTIVE_LOW)
+		val |= HSP_HI;
+
+	if (flags & SOCAM_VSYNC_ACTIVE_LOW)
+		val |= VSP_HI;
+
+	return i2c_smbus_write_byte_data(client, OUTCTR1, val);
 }
 
 static unsigned long tw9910_query_bus_param(struct soc_camera_device *icd)
@@ -527,6 +536,7 @@ static unsigned long tw9910_query_bus_param(struct soc_camera_device *icd)
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
 	unsigned long flags = SOCAM_PCLK_SAMPLE_RISING | SOCAM_MASTER |
 		SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_HIGH |
+		SOCAM_VSYNC_ACTIVE_LOW  | SOCAM_HSYNC_ACTIVE_LOW  |
 		SOCAM_DATA_ACTIVE_HIGH | priv->info->buswidth;
 
 	return soc_camera_apply_sensor_flags(icl, flags);
