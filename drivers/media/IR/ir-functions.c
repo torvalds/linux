@@ -56,23 +56,10 @@ int ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
 {
 	ir->ir_type = ir_type;
 
-	ir->keytable.size = ir_roundup_tablesize(ir_codes->size);
-	ir->keytable.scan = kzalloc(ir->keytable.size *
-				    sizeof(struct ir_scancode), GFP_KERNEL);
-	if (!ir->keytable.scan)
-		return -ENOMEM;
-
-	IR_dprintk(1, "Allocated space for %d keycode entries (%zd bytes)\n",
-		ir->keytable.size,
-		ir->keytable.size * sizeof(ir->keytable.scan));
-
-	ir_copy_table(&ir->keytable, ir_codes);
-	ir_set_keycode_table(dev, &ir->keytable);
-
-	clear_bit(0, dev->keybit);
-	set_bit(EV_KEY, dev->evbit);
 	if (repeat)
 		set_bit(EV_REP, dev->evbit);
+
+	ir_input_register(dev, ir_codes);
 
 	return 0;
 }

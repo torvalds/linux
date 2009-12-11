@@ -125,7 +125,8 @@ static int ir_getkeycode(struct input_dev *dev,
 			 int scancode, int *keycode)
 {
 	int elem;
-	struct ir_scancode_table *rc_tab = input_get_drvdata(dev);
+	struct ir_input_dev *ir_dev = input_get_drvdata(dev);
+	struct ir_scancode_table *rc_tab = &ir_dev->rc_tab;
 
 	elem = ir_seek_table(rc_tab, scancode);
 	if (elem >= 0) {
@@ -296,7 +297,8 @@ static int ir_setkeycode(struct input_dev *dev,
 			 int scancode, int keycode)
 {
 	int rc = 0;
-	struct ir_scancode_table *rc_tab = input_get_drvdata(dev);
+	struct ir_input_dev *ir_dev = input_get_drvdata(dev);
+	struct ir_scancode_table *rc_tab = &ir_dev->rc_tab;
 	struct ir_scancode *keymap = rc_tab->scan;
 	unsigned long flags;
 
@@ -370,7 +372,8 @@ static int ir_setkeycode(struct input_dev *dev,
  */
 u32 ir_g_keycode_from_table(struct input_dev *dev, u32 scancode)
 {
-	struct ir_scancode_table *rc_tab = input_get_drvdata(dev);
+	struct ir_input_dev *ir_dev = input_get_drvdata(dev);
+	struct ir_scancode_table *rc_tab = &ir_dev->rc_tab;
 	struct ir_scancode *keymap = rc_tab->scan;
 	int elem;
 
@@ -391,7 +394,7 @@ u32 ir_g_keycode_from_table(struct input_dev *dev, u32 scancode)
 EXPORT_SYMBOL_GPL(ir_g_keycode_from_table);
 
 /**
- * ir_set_keycode_table() - sets the IR keycode table and add the handlers
+ * ir_input_register() - sets the IR keycode table and add the handlers
  *			    for keymap table get/set
  * @input_dev:	the struct input_dev descriptor of the device
  * @rc_tab:	the struct ir_scancode_table table of scancode/keymap
@@ -400,16 +403,33 @@ EXPORT_SYMBOL_GPL(ir_g_keycode_from_table);
  * an IR.
  * It should be called before registering the IR device.
  */
-int ir_set_keycode_table(struct input_dev *input_dev,
-			 struct ir_scancode_table *rc_tab)
+int ir_input_register(struct input_dev *input_dev,
+		      struct ir_scancode_table *rc_tab)
 {
-	struct ir_scancode *keymap = rc_tab->scan;
+	struct ir_input_dev *ir_dev;
+	struct ir_scancode  *keymap    = rc_tab->scan;
 	int i;
-
-	spin_lock_init(&rc_tab->lock);
 
 	if (rc_tab->scan == NULL || !rc_tab->size)
 		return -EINVAL;
+
+	ir_dev = kzalloc(sizeof(*ir_dev), GFP_KERNEL);
+	if (!ir_dev)
+		return -ENOMEM;
+
+	spin_lock_init(&rc_tab->lock);
+
+	ir_dev->rc_tab.size = ir_roundup_tablesize(rc_tab->size);
+	ir_dev->rc_tab.scan = kzalloc(ir_dev->rc_tab.size *
+				    sizeof(struct ir_scancode), GFP_KERNEL);
+	if (!ir_dev->rc_tab.scan)
+		return -ENOMEM;
+
+	IR_dprintk(1, "Allocated space for %d keycode entries (%zd bytes)\n",
+		ir_dev->rc_tab.size,
+		ir_dev->rc_tab.size * sizeof(ir_dev->rc_tab.scan));
+
+	ir_copy_table(&ir_dev->rc_tab, rc_tab);
 
 	/* set the bits for the keys */
 	IR_dprintk(1, "key map size: %d\n", rc_tab->size);
@@ -418,18 +438,22 @@ int ir_set_keycode_table(struct input_dev *input_dev,
 			i, keymap[i].keycode);
 		set_bit(keymap[i].keycode, input_dev->keybit);
 	}
+	clear_bit(0, input_dev->keybit);
+
+	set_bit(EV_KEY, input_dev->evbit);
 
 	input_dev->getkeycode = ir_getkeycode;
 	input_dev->setkeycode = ir_setkeycode;
-	input_set_drvdata(input_dev, rc_tab);
+	input_set_drvdata(input_dev, ir_dev);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ir_set_keycode_table);
+EXPORT_SYMBOL_GPL(ir_input_register);
 
 void ir_input_free(struct input_dev *dev)
 {
-	struct ir_scancode_table *rc_tab = input_get_drvdata(dev);
+	struct ir_input_dev *ir_dev = input_get_drvdata(dev);
+	struct ir_scancode_table *rc_tab = &ir_dev->rc_tab;
 
 	if (!rc_tab)
 		return;
@@ -439,6 +463,9 @@ void ir_input_free(struct input_dev *dev)
 	rc_tab->size = 0;
 	kfree(rc_tab->scan);
 	rc_tab->scan = NULL;
+
+	kfree(ir_dev);
+	input_set_drvdata(dev, NULL);
 }
 EXPORT_SYMBOL_GPL(ir_input_free);
 

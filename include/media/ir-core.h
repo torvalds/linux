@@ -41,6 +41,11 @@ struct ir_scancode_table {
 	spinlock_t		lock;
 };
 
+struct ir_input_dev {
+	struct input_dev		*dev;
+	struct ir_scancode_table	rc_tab;
+};
+
 /* Routines from ir-keytable.c */
 
 u32 ir_g_keycode_from_table(struct input_dev *input_dev,
@@ -50,8 +55,8 @@ int ir_set_keycode_table(struct input_dev *input_dev,
 			 struct ir_scancode_table *rc_tab);
 
 int ir_roundup_tablesize(int n_elems);
-int ir_copy_table(struct ir_scancode_table *destin,
-		 const struct ir_scancode_table *origin);
+int ir_input_register(struct input_dev *dev,
+		      struct ir_scancode_table *ir_codes);
 void ir_input_free(struct input_dev *input_dev);
 
 #endif

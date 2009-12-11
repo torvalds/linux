@@ -37,8 +37,6 @@ struct ir_input_state {
 	/* configuration */
 	int                ir_type;
 
-	struct ir_scancode_table keytable;
-
 	/* key info */
 	u32                ir_key;      /* ir scancode */
 	u32                keycode;     /* linux key code */
