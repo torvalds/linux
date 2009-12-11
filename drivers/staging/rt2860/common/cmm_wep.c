@@ -135,7 +135,7 @@ u8   WEPKEY[] = {
 
 	========================================================================
 */
-void RTMPInitWepEngine(IN PRTMP_ADAPTER pAd,
+void RTMPInitWepEngine(struct rt_rtmp_adapter *pAd,
 		       u8 *pKey,
 		       u8 KeyId, u8 KeyLen, IN u8 *pDest)
 {
@@ -184,7 +184,7 @@ void RTMPInitWepEngine(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-void RTMPEncryptData(IN PRTMP_ADAPTER pAd,
+void RTMPEncryptData(struct rt_rtmp_adapter *pAd,
 		     u8 *pSrc, u8 *pDest, u32 Len)
 {
 	pAd->PrivateInfo.FCSCRC32 =
@@ -211,9 +211,9 @@ void RTMPEncryptData(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-BOOLEAN RTMPSoftDecryptWEP(IN PRTMP_ADAPTER pAd,
+BOOLEAN RTMPSoftDecryptWEP(struct rt_rtmp_adapter *pAd,
 			   u8 *pData,
-			   unsigned long DataByteCnt, IN PCIPHER_KEY pGroupKey)
+			   unsigned long DataByteCnt, struct rt_cipher_key *pGroupKey)
 {
 	u32 trailfcs;
 	u32 crc32;
@@ -255,10 +255,10 @@ BOOLEAN RTMPSoftDecryptWEP(IN PRTMP_ADAPTER pAd,
 	========================================================================
 
 	Routine	Description:
-		The Stream Cipher Encryption Algorithm "ARCFOUR" initialize
+		The Stream Cipher Encryption Algorithm "struct rt_arcfour" initialize
 
 	Arguments:
-	   Ctx         Pointer to ARCFOUR CONTEXT (SBOX)
+	   Ctx         Pointer to struct rt_arcfour CONTEXT (SBOX)
 		pKey        Pointer to the WEP KEY
 		KeyLen      Indicate the length fo the WEP KEY
 
@@ -271,7 +271,7 @@ BOOLEAN RTMPSoftDecryptWEP(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-void ARCFOUR_INIT(IN PARCFOURCONTEXT Ctx, u8 *pKey, u32 KeyLen)
+void ARCFOUR_INIT(struct rt_arcfourcontext *Ctx, u8 *pKey, u32 KeyLen)
 {
 	u8 t, u;
 	u32 keyindex;
@@ -301,19 +301,19 @@ void ARCFOUR_INIT(IN PARCFOURCONTEXT Ctx, u8 *pKey, u32 KeyLen)
 	========================================================================
 
 	Routine	Description:
-		Get bytes from ARCFOUR CONTEXT (S-BOX)
+		Get bytes from struct rt_arcfour CONTEXT (S-BOX)
 
 	Arguments:
-	   Ctx         Pointer to ARCFOUR CONTEXT (SBOX)
+	   Ctx         Pointer to struct rt_arcfour CONTEXT (SBOX)
 
 	Return Value:
-	   u8  - the value of the ARCFOUR CONTEXT (S-BOX)
+	   u8  - the value of the struct rt_arcfour CONTEXT (S-BOX)
 
 	Note:
 
 	========================================================================
 */
-u8 ARCFOUR_BYTE(IN PARCFOURCONTEXT Ctx)
+u8 ARCFOUR_BYTE(struct rt_arcfourcontext *Ctx)
 {
 	u32 x;
 	u32 y;
@@ -341,7 +341,7 @@ u8 ARCFOUR_BYTE(IN PARCFOURCONTEXT Ctx)
 		The Stream Cipher Decryption Algorithm
 
 	Arguments:
-		Ctx         Pointer to ARCFOUR CONTEXT (SBOX)
+		Ctx         Pointer to struct rt_arcfour CONTEXT (SBOX)
 		pDest			Pointer to the Destination
 		pSrc        Pointer to the Source data
 		Len         Indicate the length of the Source data
@@ -353,7 +353,7 @@ u8 ARCFOUR_BYTE(IN PARCFOURCONTEXT Ctx)
 
 	========================================================================
 */
-void ARCFOUR_DECRYPT(IN PARCFOURCONTEXT Ctx,
+void ARCFOUR_DECRYPT(struct rt_arcfourcontext *Ctx,
 		     u8 *pDest, u8 *pSrc, u32 Len)
 {
 	u32 i;
@@ -369,7 +369,7 @@ void ARCFOUR_DECRYPT(IN PARCFOURCONTEXT Ctx,
 		The Stream Cipher Encryption Algorithm
 
 	Arguments:
-		Ctx         Pointer to ARCFOUR CONTEXT (SBOX)
+		Ctx         Pointer to struct rt_arcfour CONTEXT (SBOX)
 		pDest			Pointer to the Destination
 		pSrc        Pointer to the Source data
 		Len         Indicate the length of the Source dta
@@ -383,7 +383,7 @@ void ARCFOUR_DECRYPT(IN PARCFOURCONTEXT Ctx,
 
 	========================================================================
 */
-void ARCFOUR_ENCRYPT(IN PARCFOURCONTEXT Ctx,
+void ARCFOUR_ENCRYPT(struct rt_arcfourcontext *Ctx,
 		     u8 *pDest, u8 *pSrc, u32 Len)
 {
 	u32 i;
@@ -399,7 +399,7 @@ void ARCFOUR_ENCRYPT(IN PARCFOURCONTEXT Ctx,
 		The Stream Cipher Encryption Algorithm which conform to the special requirement to encrypt  GTK.
 
 	Arguments:
-		Ctx         Pointer to ARCFOUR CONTEXT (SBOX)
+		Ctx         Pointer to struct rt_arcfour CONTEXT (SBOX)
 		pDest			Pointer to the Destination
 		pSrc        Pointer to the Source data
 		Len         Indicate the length of the Source dta
@@ -407,7 +407,7 @@ void ARCFOUR_ENCRYPT(IN PARCFOURCONTEXT Ctx,
 	========================================================================
 */
 
-void WPAARCFOUR_ENCRYPT(IN PARCFOURCONTEXT Ctx,
+void WPAARCFOUR_ENCRYPT(struct rt_arcfourcontext *Ctx,
 			u8 *pDest, u8 *pSrc, u32 Len)
 {
 	u32 i;
@@ -463,7 +463,7 @@ u32 RTMP_CALC_FCS32(u32 Fcs, u8 *Cp, int Len)
 
 	========================================================================
 */
-void RTMPSetICV(IN PRTMP_ADAPTER pAd, u8 *pDest)
+void RTMPSetICV(struct rt_rtmp_adapter *pAd, u8 *pDest)
 {
 	pAd->PrivateInfo.FCSCRC32 ^= 0xffffffff;	/* complement */
 	pAd->PrivateInfo.FCSCRC32 = cpu2le32(pAd->PrivateInfo.FCSCRC32);

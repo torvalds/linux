@@ -38,7 +38,7 @@
 #include	"../rt_config.h"
 
 /* IRQL = PASSIVE_LEVEL */
-static inline void RaiseClock(IN PRTMP_ADAPTER pAd, u32 * x)
+static inline void RaiseClock(struct rt_rtmp_adapter *pAd, u32 * x)
 {
 	*x = *x | EESK;
 	RTMP_IO_WRITE32(pAd, E2PROM_CSR, *x);
@@ -46,7 +46,7 @@ static inline void RaiseClock(IN PRTMP_ADAPTER pAd, u32 * x)
 }
 
 /* IRQL = PASSIVE_LEVEL */
-static inline void LowerClock(IN PRTMP_ADAPTER pAd, u32 * x)
+static inline void LowerClock(struct rt_rtmp_adapter *pAd, u32 * x)
 {
 	*x = *x & ~EESK;
 	RTMP_IO_WRITE32(pAd, E2PROM_CSR, *x);
@@ -54,7 +54,7 @@ static inline void LowerClock(IN PRTMP_ADAPTER pAd, u32 * x)
 }
 
 /* IRQL = PASSIVE_LEVEL */
-static inline u16 ShiftInBits(IN PRTMP_ADAPTER pAd)
+static inline u16 ShiftInBits(struct rt_rtmp_adapter *pAd)
 {
 	u32 x, i;
 	u16 data = 0;
@@ -79,7 +79,7 @@ static inline u16 ShiftInBits(IN PRTMP_ADAPTER pAd)
 }
 
 /* IRQL = PASSIVE_LEVEL */
-static inline void ShiftOutBits(IN PRTMP_ADAPTER pAd,
+static inline void ShiftOutBits(struct rt_rtmp_adapter *pAd,
 				u16 data, u16 count)
 {
 	u32 x, mask;
@@ -107,7 +107,7 @@ static inline void ShiftOutBits(IN PRTMP_ADAPTER pAd,
 }
 
 /* IRQL = PASSIVE_LEVEL */
-static inline void EEpromCleanup(IN PRTMP_ADAPTER pAd)
+static inline void EEpromCleanup(struct rt_rtmp_adapter *pAd)
 {
 	u32 x;
 
@@ -120,7 +120,7 @@ static inline void EEpromCleanup(IN PRTMP_ADAPTER pAd)
 	LowerClock(pAd, &x);
 }
 
-static inline void EWEN(IN PRTMP_ADAPTER pAd)
+static inline void EWEN(struct rt_rtmp_adapter *pAd)
 {
 	u32 x;
 
@@ -141,7 +141,7 @@ static inline void EWEN(IN PRTMP_ADAPTER pAd)
 	EEpromCleanup(pAd);
 }
 
-static inline void EWDS(IN PRTMP_ADAPTER pAd)
+static inline void EWDS(struct rt_rtmp_adapter *pAd)
 {
 	u32 x;
 
@@ -163,7 +163,7 @@ static inline void EWDS(IN PRTMP_ADAPTER pAd)
 }
 
 /* IRQL = PASSIVE_LEVEL */
-int rtmp_ee_prom_read16(IN PRTMP_ADAPTER pAd,
+int rtmp_ee_prom_read16(struct rt_rtmp_adapter *pAd,
 			u16 Offset, u16 * pValue)
 {
 	u32 x;

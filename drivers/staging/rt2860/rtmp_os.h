@@ -48,14 +48,14 @@
 	The definition of this data structure may various depends on different
 	OS. Use it carefully.
 */
-typedef struct _RTMP_OS_NETDEV_OP_HOOK_ {
+struct rt_rtmp_os_netdev_op_hook {
 	const struct net_device_ops *netdev_ops;
 	void *priv;
 	int priv_flags;
 	unsigned char devAddr[6];
 	unsigned char devName[16];
 	unsigned char needProtcted;
-} RTMP_OS_NETDEV_OP_HOOK, *PRTMP_OS_NETDEV_OP_HOOK;
+};
 
 typedef enum _RTMP_TASK_STATUS_ {
 	RTMP_TASK_STAT_UNKNOWN = 0,
@@ -66,7 +66,7 @@ typedef enum _RTMP_TASK_STATUS_ {
 #define RTMP_TASK_CAN_DO_INSERT		(RTMP_TASK_STAT_INITED |RTMP_TASK_STAT_RUNNING)
 
 #define RTMP_OS_TASK_NAME_LEN	16
-typedef struct _RTMP_OS_TASK_ {
+struct rt_rtmp_os_task {
 	char taskName[RTMP_OS_TASK_NAME_LEN];
 	void *priv;
 	/*unsigned long         taskFlags; */
@@ -82,7 +82,7 @@ typedef struct _RTMP_OS_TASK_ {
 	wait_queue_head_t kthread_q;
 	BOOLEAN kthread_running;
 #endif
-} RTMP_OS_TASK;
+};
 
 int RtmpOSIRQRequest(struct net_device *pNetDev);
 int RtmpOSIRQRelease(struct net_device *pNetDev);

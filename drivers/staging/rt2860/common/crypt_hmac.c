@@ -51,14 +51,14 @@ void HMAC_SHA1(IN const u8 Key[],
 	       IN const u8 Message[],
 	       u32 MessageLen, u8 MAC[], u32 MACLen)
 {
-	SHA1_CTX_STRUC sha_ctx1;
-	SHA1_CTX_STRUC sha_ctx2;
+	struct rt_sha1_ctx sha_ctx1;
+	struct rt_sha1_ctx sha_ctx2;
 	u8 K0[SHA1_BLOCK_SIZE];
 	u8 Digest[SHA1_DIGEST_SIZE];
 	u32 index;
 
-	NdisZeroMemory(&sha_ctx1, sizeof(SHA1_CTX_STRUC));
-	NdisZeroMemory(&sha_ctx2, sizeof(SHA1_CTX_STRUC));
+	NdisZeroMemory(&sha_ctx1, sizeof(struct rt_sha1_ctx));
+	NdisZeroMemory(&sha_ctx2, sizeof(struct rt_sha1_ctx));
 	/*
 	 * If the length of K = B(Block size): K0 = K.
 	 * If the length of K > B: hash K to obtain an L byte string,
@@ -130,14 +130,14 @@ void HMAC_MD5(IN const u8 Key[],
 	      IN const u8 Message[],
 	      u32 MessageLen, u8 MAC[], u32 MACLen)
 {
-	MD5_CTX_STRUC md5_ctx1;
-	MD5_CTX_STRUC md5_ctx2;
+	struct rt_md5_ctx_struc md5_ctx1;
+	struct rt_md5_ctx_struc md5_ctx2;
 	u8 K0[MD5_BLOCK_SIZE];
 	u8 Digest[MD5_DIGEST_SIZE];
 	u32 index;
 
-	NdisZeroMemory(&md5_ctx1, sizeof(MD5_CTX_STRUC));
-	NdisZeroMemory(&md5_ctx2, sizeof(MD5_CTX_STRUC));
+	NdisZeroMemory(&md5_ctx1, sizeof(struct rt_md5_ctx_struc));
+	NdisZeroMemory(&md5_ctx2, sizeof(struct rt_md5_ctx_struc));
 	/*
 	 * If the length of K = B(Block size): K0 = K.
 	 * If the length of K > B: hash K to obtain an L byte string,

@@ -46,7 +46,7 @@
 /* */
 /* RF register initialization set */
 /* */
-REG_PAIR RT30xx_RFRegTable[] = {
+struct rt_reg_pair RT30xx_RFRegTable[] = {
 	{RF_R04, 0x40}
 	,
 	{RF_R05, 0x03}
@@ -87,7 +87,7 @@ REG_PAIR RT30xx_RFRegTable[] = {
 	,
 };
 
-u8 NUM_RF_REG_PARMS = (sizeof(RT30xx_RFRegTable) / sizeof(REG_PAIR));
+u8 NUM_RF_REG_PARMS = (sizeof(RT30xx_RFRegTable) / sizeof(struct rt_reg_pair));
 
 /* Antenna divesity use GPIO3 and EESK pin for control */
 /* Antenna and EEPROM access are both using EESK pin, */
@@ -95,7 +95,7 @@ u8 NUM_RF_REG_PARMS = (sizeof(RT30xx_RFRegTable) / sizeof(REG_PAIR));
 /* Then restore antenna after EEPROM access */
 /* The original name of this function is AsicSetRxAnt(), now change to */
 /*void AsicSetRxAnt( */
-void RT30xxSetRxAnt(IN PRTMP_ADAPTER pAd, u8 Ant)
+void RT30xxSetRxAnt(struct rt_rtmp_adapter *pAd, u8 Ant)
 {
 	u32 Value;
 #ifdef RTMP_MAC_PCI
@@ -159,7 +159,7 @@ void RT30xxSetRxAnt(IN PRTMP_ADAPTER pAd, u8 Ant)
 
 	========================================================================
 */
-void RTMPFilterCalibration(IN PRTMP_ADAPTER pAd)
+void RTMPFilterCalibration(struct rt_rtmp_adapter *pAd)
 {
 	u8 R55x = 0, value, FilterTarget = 0x1E, BBPValue = 0;
 	u32 loop = 0, count = 0, loopcnt = 0, ReTry = 0;
@@ -306,7 +306,7 @@ void RTMPFilterCalibration(IN PRTMP_ADAPTER pAd)
 
 	==========================================================================
  */
-void RT30xxLoadRFNormalModeSetup(IN PRTMP_ADAPTER pAd)
+void RT30xxLoadRFNormalModeSetup(struct rt_rtmp_adapter *pAd)
 {
 	u8 RFValue;
 
@@ -372,7 +372,7 @@ void RT30xxLoadRFNormalModeSetup(IN PRTMP_ADAPTER pAd)
 
 	==========================================================================
  */
-void RT30xxLoadRFSleepModeSetup(IN PRTMP_ADAPTER pAd)
+void RT30xxLoadRFSleepModeSetup(struct rt_rtmp_adapter *pAd)
 {
 	u8 RFValue;
 	u32 MACValue;
@@ -428,7 +428,7 @@ void RT30xxLoadRFSleepModeSetup(IN PRTMP_ADAPTER pAd)
 
 	==========================================================================
  */
-void RT30xxReverseRFSleepModeSetup(IN PRTMP_ADAPTER pAd)
+void RT30xxReverseRFSleepModeSetup(struct rt_rtmp_adapter *pAd)
 {
 	u8 RFValue;
 	u32 MACValue;
@@ -493,7 +493,7 @@ void RT30xxReverseRFSleepModeSetup(IN PRTMP_ADAPTER pAd)
 
 /* end johnli */
 
-void RT30xxHaltAction(IN PRTMP_ADAPTER pAd)
+void RT30xxHaltAction(struct rt_rtmp_adapter *pAd)
 {
 	u32 TxPinCfg = 0x00050F0F;
 

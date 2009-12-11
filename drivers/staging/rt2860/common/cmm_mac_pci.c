@@ -48,18 +48,18 @@
 
 	========================================================================
 */
-int RTMPAllocTxRxRingMemory(IN PRTMP_ADAPTER pAd)
+int RTMPAllocTxRxRingMemory(struct rt_rtmp_adapter *pAd)
 {
 	int Status = NDIS_STATUS_SUCCESS;
 	unsigned long RingBasePaHigh;
 	unsigned long RingBasePaLow;
 	void *RingBaseVa;
 	int index, num;
-	PTXD_STRUC pTxD;
-	PRXD_STRUC pRxD;
+	struct rt_txd * pTxD;
+	struct rt_rxd * pRxD;
 	unsigned long ErrorValue = 0;
-	PRTMP_TX_RING pTxRing;
-	PRTMP_DMABUF pDmaBuf;
+	struct rt_rtmp_tx_ring *pTxRing;
+	struct rt_rtmp_dmabuf *pDmaBuf;
 	void *pPacket;
 /*      PRTMP_REORDERBUF        pReorderBuf; */
 
@@ -166,7 +166,7 @@ int RTMPAllocTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 
 				/* link the pre-allocated TxBuf to TXD */
 				pTxD =
-				    (PTXD_STRUC) pTxRing->Cell[index].AllocVa;
+				    (struct rt_txd *) pTxRing->Cell[index].AllocVa;
 				pTxD->SDPtr0 = BufBasePaLow;
 				/* advance to next ring descriptor address */
 				pTxD->DMADONE = 1;
@@ -231,7 +231,7 @@ int RTMPAllocTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 			RingBaseVa = (u8 *)RingBaseVa + TXD_SIZE;
 
 			/* link the pre-allocated TxBuf to TXD */
-			pTxD = (PTXD_STRUC) pAd->MgmtRing.Cell[index].AllocVa;
+			pTxD = (struct rt_txd *) pAd->MgmtRing.Cell[index].AllocVa;
 			pTxD->DMADONE = 1;
 
 			/* no pre-allocated buffer required in MgmtRing for scatter-gather case */
@@ -312,7 +312,7 @@ int RTMPAllocTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 			NdisZeroMemory(pDmaBuf->AllocVa, pDmaBuf->AllocSize);
 
 			/* Write RxD buffer address & allocated buffer length */
-			pRxD = (PRXD_STRUC) pAd->RxRing.Cell[index].AllocVa;
+			pRxD = (struct rt_rxd *) pAd->RxRing.Cell[index].AllocVa;
 			pRxD->SDP0 =
 			    RTMP_GetPhysicalAddressLow(pDmaBuf->AllocPa);
 			pRxD->DDONE = 0;
@@ -324,7 +324,7 @@ int RTMPAllocTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 
 	} while (FALSE);
 
-	NdisZeroMemory(&pAd->FragFrame, sizeof(FRAGMENT_FRAME));
+	NdisZeroMemory(&pAd->FragFrame, sizeof(struct rt_fragment_frame));
 	pAd->FragFrame.pFragPacket =
 	    RTMP_AllocateFragPacketBuffer(pAd, RX_BUFFER_NORMSIZE);
 
@@ -400,14 +400,14 @@ int RTMPAllocTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-void RTMPRingCleanUp(IN PRTMP_ADAPTER pAd, u8 RingType)
+void RTMPRingCleanUp(struct rt_rtmp_adapter *pAd, u8 RingType)
 {
-	PTXD_STRUC pTxD;
-	PRXD_STRUC pRxD;
-	PQUEUE_ENTRY pEntry;
+	struct rt_txd * pTxD;
+	struct rt_rxd * pRxD;
+	struct rt_queue_entry *pEntry;
 	void *pPacket;
 	int i;
-	PRTMP_TX_RING pTxRing;
+	struct rt_rtmp_tx_ring *pTxRing;
 	unsigned long IrqFlags;
 	/*u32                        RxSwReadIdx; */
 
@@ -426,7 +426,7 @@ void RTMPRingCleanUp(IN PRTMP_ADAPTER pAd, u8 RingType)
 		/* We have to clean all descriptors in case some error happened with reset */
 		for (i = 0; i < TX_RING_SIZE; i++)	/* We have to scan all TX ring */
 		{
-			pTxD = (PTXD_STRUC) pTxRing->Cell[i].AllocVa;
+			pTxD = (struct rt_txd *) pTxRing->Cell[i].AllocVa;
 
 			pPacket = (void *)pTxRing->Cell[i].pNdisPacket;
 			/* release scatter-and-gather char */
@@ -471,7 +471,7 @@ void RTMPRingCleanUp(IN PRTMP_ADAPTER pAd, u8 RingType)
 		NdisAcquireSpinLock(&pAd->MgmtRingLock);
 
 		for (i = 0; i < MGMT_RING_SIZE; i++) {
-			pTxD = (PTXD_STRUC) pAd->MgmtRing.Cell[i].AllocVa;
+			pTxD = (struct rt_txd *) pAd->MgmtRing.Cell[i].AllocVa;
 
 			pPacket =
 			    (void *)pAd->MgmtRing.Cell[i].pNdisPacket;
@@ -514,7 +514,7 @@ void RTMPRingCleanUp(IN PRTMP_ADAPTER pAd, u8 RingType)
 		NdisAcquireSpinLock(&pAd->RxRingLock);
 
 		for (i = 0; i < RX_RING_SIZE; i++) {
-			pRxD = (PRXD_STRUC) pAd->RxRing.Cell[i].AllocVa;
+			pRxD = (struct rt_rxd *) pAd->RxRing.Cell[i].AllocVa;
 			pRxD->DDONE = 0;
 		}
 
@@ -533,11 +533,11 @@ void RTMPRingCleanUp(IN PRTMP_ADAPTER pAd, u8 RingType)
 	}
 }
 
-void RTMPFreeTxRxRingMemory(IN PRTMP_ADAPTER pAd)
+void RTMPFreeTxRxRingMemory(struct rt_rtmp_adapter *pAd)
 {
 	int index, num, j;
-	PRTMP_TX_RING pTxRing;
-	PTXD_STRUC pTxD;
+	struct rt_rtmp_tx_ring *pTxRing;
+	struct rt_txd * pTxD;
 	void *pPacket;
 	unsigned int IrqFlags;
 
@@ -547,9 +547,9 @@ void RTMPFreeTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 
 	/* Free TxSwQueue Packet */
 	for (index = 0; index < NUM_OF_TX_RING; index++) {
-		PQUEUE_ENTRY pEntry;
+		struct rt_queue_entry *pEntry;
 		void *pPacket;
-		PQUEUE_HEADER pQueue;
+		struct rt_queue_header *pQueue;
 
 		RTMP_IRQ_LOCK(&pAd->irq_lock, IrqFlags);
 		pQueue = &pAd->TxSwQueue[index];
@@ -566,7 +566,7 @@ void RTMPFreeTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 		pTxRing = &pAd->TxRing[index];
 
 		for (j = 0; j < TX_RING_SIZE; j++) {
-			pTxD = (PTXD_STRUC) (pTxRing->Cell[j].AllocVa);
+			pTxD = (struct rt_txd *) (pTxRing->Cell[j].AllocVa);
 			pPacket = pTxRing->Cell[j].pNdisPacket;
 
 			if (pPacket) {
@@ -607,21 +607,21 @@ void RTMPFreeTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 					    NDIS_STATUS_SUCCESS);
 		}
 	}
-	NdisZeroMemory(pAd->RxRing.Cell, RX_RING_SIZE * sizeof(RTMP_DMACB));
+	NdisZeroMemory(pAd->RxRing.Cell, RX_RING_SIZE * sizeof(struct rt_rtmp_dmacb));
 
 	if (pAd->RxDescRing.AllocVa) {
 		RTMP_FreeDescMemory(pAd, pAd->RxDescRing.AllocSize,
 				    pAd->RxDescRing.AllocVa,
 				    pAd->RxDescRing.AllocPa);
 	}
-	NdisZeroMemory(&pAd->RxDescRing, sizeof(RTMP_DMABUF));
+	NdisZeroMemory(&pAd->RxDescRing, sizeof(struct rt_rtmp_dmabuf));
 
 	if (pAd->MgmtDescRing.AllocVa) {
 		RTMP_FreeDescMemory(pAd, pAd->MgmtDescRing.AllocSize,
 				    pAd->MgmtDescRing.AllocVa,
 				    pAd->MgmtDescRing.AllocPa);
 	}
-	NdisZeroMemory(&pAd->MgmtDescRing, sizeof(RTMP_DMABUF));
+	NdisZeroMemory(&pAd->MgmtDescRing, sizeof(struct rt_rtmp_dmabuf));
 
 	for (num = 0; num < NUM_OF_TX_RING; num++) {
 		if (pAd->TxBufSpace[num].AllocVa) {
@@ -631,14 +631,14 @@ void RTMPFreeTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 					       pAd->TxBufSpace[num].AllocVa,
 					       pAd->TxBufSpace[num].AllocPa);
 		}
-		NdisZeroMemory(&pAd->TxBufSpace[num], sizeof(RTMP_DMABUF));
+		NdisZeroMemory(&pAd->TxBufSpace[num], sizeof(struct rt_rtmp_dmabuf));
 
 		if (pAd->TxDescRing[num].AllocVa) {
 			RTMP_FreeDescMemory(pAd, pAd->TxDescRing[num].AllocSize,
 					    pAd->TxDescRing[num].AllocVa,
 					    pAd->TxDescRing[num].AllocPa);
 		}
-		NdisZeroMemory(&pAd->TxDescRing[num], sizeof(RTMP_DMABUF));
+		NdisZeroMemory(&pAd->TxDescRing[num], sizeof(struct rt_rtmp_dmabuf));
 	}
 
 	if (pAd->FragFrame.pFragPacket)
@@ -667,7 +667,7 @@ Return Value:
 Note:
 ========================================================================
 */
-void RT28XXDMADisable(IN RTMP_ADAPTER * pAd)
+void RT28XXDMADisable(struct rt_rtmp_adapter *pAd)
 {
 	WPDMA_GLO_CFG_STRUC GloCfg;
 
@@ -691,7 +691,7 @@ Return Value:
 Note:
 ========================================================================
 */
-void RT28XXDMAEnable(IN RTMP_ADAPTER * pAd)
+void RT28XXDMAEnable(struct rt_rtmp_adapter *pAd)
 {
 	WPDMA_GLO_CFG_STRUC GloCfg;
 	int i = 0;
@@ -721,7 +721,7 @@ void RT28XXDMAEnable(IN RTMP_ADAPTER * pAd)
 
 }
 
-BOOLEAN AsicCheckCommanOk(IN PRTMP_ADAPTER pAd, u8 Command)
+BOOLEAN AsicCheckCommanOk(struct rt_rtmp_adapter *pAd, u8 Command)
 {
 	u32 CmdStatus = 0, CID = 0, i;
 	u32 ThisCIDMask = 0;
@@ -794,7 +794,7 @@ Return Value:
 Note:
 ========================================================================
 */
-void RT28xx_UpdateBeaconToAsic(IN RTMP_ADAPTER * pAd,
+void RT28xx_UpdateBeaconToAsic(struct rt_rtmp_adapter *pAd,
 			       int apidx,
 			       unsigned long FrameLen, unsigned long UpdatePos)
 {
@@ -853,7 +853,7 @@ void RT28xx_UpdateBeaconToAsic(IN RTMP_ADAPTER * pAd,
 
 }
 
-void RT28xxPciStaAsicForceWakeup(IN PRTMP_ADAPTER pAd, IN BOOLEAN bFromTx)
+void RT28xxPciStaAsicForceWakeup(struct rt_rtmp_adapter *pAd, IN BOOLEAN bFromTx)
 {
 	AUTO_WAKEUP_STRUC AutoWakeupCfg;
 
@@ -888,7 +888,7 @@ void RT28xxPciStaAsicForceWakeup(IN PRTMP_ADAPTER pAd, IN BOOLEAN bFromTx)
 			/* add by johnli, RF power sequence setup, load RF normal operation-mode setup */
 			if ((IS_RT3090(pAd) || IS_RT3572(pAd) || IS_RT3390(pAd))
 			    && IS_VERSION_AFTER_F(pAd)) {
-				RTMP_CHIP_OP *pChipOps = &pAd->chipOps;
+				struct rt_rtmp_chip_op *pChipOps = &pAd->chipOps;
 
 				if (pChipOps->AsicReverseRfFromSleepMode)
 					pChipOps->
@@ -949,7 +949,7 @@ void RT28xxPciStaAsicForceWakeup(IN PRTMP_ADAPTER pAd, IN BOOLEAN bFromTx)
 	DBGPRINT(RT_DEBUG_TRACE, ("<=======RT28xxPciStaAsicForceWakeup\n"));
 }
 
-void RT28xxPciStaAsicSleepThenAutoWakeup(IN PRTMP_ADAPTER pAd,
+void RT28xxPciStaAsicSleepThenAutoWakeup(struct rt_rtmp_adapter *pAd,
 					 u16 TbttNumToNextWakeUp)
 {
 	BOOLEAN brc;
@@ -1020,7 +1020,7 @@ void PsPollWakeExec(void *SystemSpecific1,
 		    void *FunctionContext,
 		    void *SystemSpecific2, void *SystemSpecific3)
 {
-	RTMP_ADAPTER *pAd = (RTMP_ADAPTER *) FunctionContext;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)FunctionContext;
 	unsigned long flags;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("-->PsPollWakeExec \n"));
@@ -1048,8 +1048,8 @@ void RadioOnExec(void *SystemSpecific1,
 		 void *FunctionContext,
 		 void *SystemSpecific2, void *SystemSpecific3)
 {
-	RTMP_ADAPTER *pAd = (RTMP_ADAPTER *) FunctionContext;
-	RTMP_CHIP_OP *pChipOps = &pAd->chipOps;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)FunctionContext;
+	struct rt_rtmp_chip_op *pChipOps = &pAd->chipOps;
 	WPDMA_GLO_CFG_STRUC DmaCfg;
 	BOOLEAN Cancelled;
 
@@ -1164,7 +1164,7 @@ void RadioOnExec(void *SystemSpecific1,
 
 	==========================================================================
  */
-BOOLEAN RT28xxPciAsicRadioOn(IN PRTMP_ADAPTER pAd, u8 Level)
+BOOLEAN RT28xxPciAsicRadioOn(struct rt_rtmp_adapter *pAd, u8 Level)
 {
 	/*WPDMA_GLO_CFG_STRUC       DmaCfg; */
 	BOOLEAN Cancelled;
@@ -1223,7 +1223,7 @@ BOOLEAN RT28xxPciAsicRadioOn(IN PRTMP_ADAPTER pAd, u8 Level)
 
 		/* add by johnli, RF power sequence setup, load RF normal operation-mode setup */
 		if ((IS_RT3090(pAd) || IS_RT3572(pAd) || IS_RT3390(pAd))) {
-			RTMP_CHIP_OP *pChipOps = &pAd->chipOps;
+			struct rt_rtmp_chip_op *pChipOps = &pAd->chipOps;
 
 			if (pChipOps->AsicReverseRfFromSleepMode)
 				pChipOps->AsicReverseRfFromSleepMode(pAd);
@@ -1286,7 +1286,7 @@ BOOLEAN RT28xxPciAsicRadioOn(IN PRTMP_ADAPTER pAd, u8 Level)
 
 	==========================================================================
  */
-BOOLEAN RT28xxPciAsicRadioOff(IN PRTMP_ADAPTER pAd,
+BOOLEAN RT28xxPciAsicRadioOff(struct rt_rtmp_adapter *pAd,
 			      u8 Level, u16 TbttNumToNextWakeUp)
 {
 	WPDMA_GLO_CFG_STRUC DmaCfg;
@@ -1497,7 +1497,7 @@ BOOLEAN RT28xxPciAsicRadioOff(IN PRTMP_ADAPTER pAd,
 	return TRUE;
 }
 
-void RT28xxPciMlmeRadioOn(IN PRTMP_ADAPTER pAd)
+void RT28xxPciMlmeRadioOn(struct rt_rtmp_adapter *pAd)
 {
 	if (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF))
 		return;
@@ -1546,7 +1546,7 @@ void RT28xxPciMlmeRadioOn(IN PRTMP_ADAPTER pAd)
 	}
 }
 
-void RT28xxPciMlmeRadioOFF(IN PRTMP_ADAPTER pAd)
+void RT28xxPciMlmeRadioOFF(struct rt_rtmp_adapter *pAd)
 {
 	BOOLEAN brc = TRUE;
 
@@ -1556,9 +1556,9 @@ void RT28xxPciMlmeRadioOFF(IN PRTMP_ADAPTER pAd)
 	/* Link down first if any association exists */
 	if (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)) {
 		if (INFRA_ON(pAd) || ADHOC_ON(pAd)) {
-			MLME_DISASSOC_REQ_STRUCT DisReq;
-			MLME_QUEUE_ELEM *pMsgElem =
-			    (MLME_QUEUE_ELEM *) kmalloc(sizeof(MLME_QUEUE_ELEM),
+			struct rt_mlme_disassoc_req DisReq;
+			struct rt_mlme_queue_elem *pMsgElem =
+			    (struct rt_mlme_queue_elem *)kmalloc(sizeof(struct rt_mlme_queue_elem),
 							MEM_ALLOC_FLAG);
 
 			if (pMsgElem) {
@@ -1569,10 +1569,10 @@ void RT28xxPciMlmeRadioOFF(IN PRTMP_ADAPTER pAd)
 				pMsgElem->Machine = ASSOC_STATE_MACHINE;
 				pMsgElem->MsgType = MT2_MLME_DISASSOC_REQ;
 				pMsgElem->MsgLen =
-				    sizeof(MLME_DISASSOC_REQ_STRUCT);
+				    sizeof(struct rt_mlme_disassoc_req);
 				NdisMoveMemory(pMsgElem->Msg, &DisReq,
 					       sizeof
-					       (MLME_DISASSOC_REQ_STRUCT));
+					       (struct rt_mlme_disassoc_req));
 
 				MlmeDisassocReqAction(pAd, pMsgElem);
 				kfree(pMsgElem);

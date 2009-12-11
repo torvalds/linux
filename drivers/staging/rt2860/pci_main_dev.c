@@ -59,7 +59,7 @@ static void __exit rt2860_cleanup_module(void);
 static int __init rt2860_init_module(void);
 
 static void RTMPInitPCIeDevice(IN struct pci_dev *pci_dev,
-			       IN PRTMP_ADAPTER pAd);
+			       struct rt_rtmp_adapter *pAd);
 
 #ifdef CONFIG_PM
 static int rt2860_suspend(struct pci_dev *pci_dev, pm_message_t state);
@@ -123,7 +123,7 @@ resume:rt2860_resume,
  ***************************************************************************/
 #ifdef CONFIG_PM
 
-void RT2860RejectPendingPackets(IN PRTMP_ADAPTER pAd)
+void RT2860RejectPendingPackets(struct rt_rtmp_adapter *pAd)
 {
 	/* clear PS packets */
 	/* clear TxSw packets */
@@ -132,7 +132,7 @@ void RT2860RejectPendingPackets(IN PRTMP_ADAPTER pAd)
 static int rt2860_suspend(struct pci_dev *pci_dev, pm_message_t state)
 {
 	struct net_device *net_dev = pci_get_drvdata(pci_dev);
-	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) NULL;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)NULL;
 	int retval = 0;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("===> rt2860_suspend()\n"));
@@ -184,7 +184,7 @@ static int rt2860_suspend(struct pci_dev *pci_dev, pm_message_t state)
 static int rt2860_resume(struct pci_dev *pci_dev)
 {
 	struct net_device *net_dev = pci_get_drvdata(pci_dev);
-	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) NULL;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)NULL;
 	int retval;
 
 	/* set the power state of a PCI device */
@@ -268,13 +268,13 @@ module_exit(rt2860_cleanup_module);
 static int __devinit rt2860_probe(IN struct pci_dev *pci_dev,
 				  IN const struct pci_device_id *pci_id)
 {
-	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) NULL;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)NULL;
 	struct net_device *net_dev;
 	void *handle;
 	char *print_name;
 	unsigned long csr_addr;
 	int rv = 0;
-	RTMP_OS_NETDEV_OP_HOOK netDevHook;
+	struct rt_rtmp_os_netdev_op_hook netDevHook;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("===> rt2860_probe\n"));
 
@@ -314,7 +314,7 @@ static int __devinit rt2860_probe(IN struct pci_dev *pci_dev,
 	pci_set_master(pci_dev);
 
 /*RtmpDevInit============================================== */
-	/* Allocate RTMP_ADAPTER adapter structure */
+	/* Allocate struct rt_rtmp_adapter adapter structure */
 	handle = kmalloc(sizeof(struct os_cookie), GFP_KERNEL);
 	if (handle == NULL) {
 		DBGPRINT(RT_DEBUG_ERROR,
@@ -325,10 +325,10 @@ static int __devinit rt2860_probe(IN struct pci_dev *pci_dev,
 
 	((struct os_cookie *)handle)->pci_dev = pci_dev;
 
-	rv = RTMPAllocAdapterBlock(handle, &pAd);	/*shiang: we may need the pci_dev for allocate structure of "RTMP_ADAPTER" */
+	rv = RTMPAllocAdapterBlock(handle, &pAd);	/*shiang: we may need the pci_dev for allocate structure of "struct rt_rtmp_adapter" */
 	if (rv != NDIS_STATUS_SUCCESS)
 		goto err_out_iounmap;
-	/* Here are the RTMP_ADAPTER structure with pci-bus specific parameters. */
+	/* Here are the struct rt_rtmp_adapter structure with pci-bus specific parameters. */
 	pAd->CSRBaseAddress = (u8 *)csr_addr;
 	DBGPRINT(RT_DEBUG_ERROR,
 		 ("pAd->CSRBaseAddress =0x%lx, csr_addr=0x%lx!\n",
@@ -369,7 +369,7 @@ err_out_free_netdev:
 	RtmpOSNetDevFree(net_dev);
 
 err_out_free_radev:
-	/* free RTMP_ADAPTER strcuture and os_cookie */
+	/* free struct rt_rtmp_adapter strcuture and os_cookie */
 	RTMPFreeAdapter(pAd);
 
 err_out_iounmap:
@@ -392,7 +392,7 @@ err_out:
 static void __devexit rt2860_remove_one(IN struct pci_dev *pci_dev)
 {
 	struct net_device *net_dev = pci_get_drvdata(pci_dev);
-	RTMP_ADAPTER *pAd = NULL;
+	struct rt_rtmp_adapter *pAd = NULL;
 	unsigned long csr_addr = net_dev->base_addr;	/* pAd->CSRBaseAddress; */
 
 	GET_PAD_FROM_NET_DEV(pAd, net_dev);
@@ -410,7 +410,7 @@ static void __devexit rt2860_remove_one(IN struct pci_dev *pci_dev)
 		release_mem_region(pci_resource_start(pci_dev, 0),
 				   pci_resource_len(pci_dev, 0));
 
-		/* Free RTMP_ADAPTER related structures. */
+		/* Free struct rt_rtmp_adapter related structures. */
 		RtmpRaDevCtrlExit(pAd);
 
 	} else {
@@ -456,7 +456,7 @@ BOOLEAN RT28XXChipsetCheck(IN void *_dev_p)
  *	PCIe device initialization related procedures.
  *
  ***************************************************************************/
-static void RTMPInitPCIeDevice(IN struct pci_dev *pci_dev, IN PRTMP_ADAPTER pAd)
+static void RTMPInitPCIeDevice(struct pci_dev *pci_dev, struct rt_rtmp_adapter *pAd)
 {
 	u16 device_id;
 	struct os_cookie *pObj;
@@ -495,7 +495,7 @@ static void RTMPInitPCIeDevice(IN struct pci_dev *pci_dev, IN PRTMP_ADAPTER pAd)
 	}
 }
 
-void RTMPInitPCIeLinkCtrlValue(IN PRTMP_ADAPTER pAd)
+void RTMPInitPCIeLinkCtrlValue(struct rt_rtmp_adapter *pAd)
 {
 	int pos;
 	u16 reg16, data2, PCIePowerSaveLevel, Configuration;
@@ -810,7 +810,7 @@ void RTMPInitPCIeLinkCtrlValue(IN PRTMP_ADAPTER pAd)
 	}
 }
 
-void RTMPFindHostPCIDev(IN PRTMP_ADAPTER pAd)
+void RTMPFindHostPCIDev(struct rt_rtmp_adapter *pAd)
 {
 	u16 reg16;
 	u8 reg8;
@@ -856,7 +856,7 @@ void RTMPFindHostPCIDev(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-void RTMPPCIeLinkCtrlValueRestore(IN PRTMP_ADAPTER pAd, u8 Level)
+void RTMPPCIeLinkCtrlValueRestore(struct rt_rtmp_adapter *pAd, u8 Level)
 {
 	u16 PCIePowerSaveLevel, reg16;
 	u16 Configuration;
@@ -950,7 +950,7 @@ void RTMPPCIeLinkCtrlValueRestore(IN PRTMP_ADAPTER pAd, u8 Level)
 
 	========================================================================
 */
-void RTMPPCIeLinkCtrlSetting(IN PRTMP_ADAPTER pAd, u16 Max)
+void RTMPPCIeLinkCtrlSetting(struct rt_rtmp_adapter *pAd, u16 Max)
 {
 	u16 PCIePowerSaveLevel, reg16;
 	u16 Configuration;
@@ -1076,7 +1076,7 @@ void RTMPPCIeLinkCtrlSetting(IN PRTMP_ADAPTER pAd, u16 Max)
 
 	========================================================================
 */
-void RTMPrt3xSetPCIePowerLinkCtrl(IN PRTMP_ADAPTER pAd)
+void RTMPrt3xSetPCIePowerLinkCtrl(struct rt_rtmp_adapter *pAd)
 {
 
 	unsigned long HostConfiguration = 0;

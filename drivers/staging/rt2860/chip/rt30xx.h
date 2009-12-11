@@ -39,7 +39,7 @@
 
 #ifdef RT30xx
 
-extern REG_PAIR RT30xx_RFRegTable[];
+extern struct rt_reg_pair RT30xx_RFRegTable[];
 extern u8 NUM_RF_REG_PARMS;
 
 #endif /* RT30xx // */

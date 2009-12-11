@@ -48,7 +48,7 @@
 
 /* The length is the EAPoL-Key frame except key data field. */
 /* Please refer to 802.11i-2004 ,Figure 43u in p.78 */
-#define LEN_EAPOL_KEY_MSG			(sizeof(KEY_DESCRIPTER) - MAX_LEN_OF_RSNIE)
+#define LEN_EAPOL_KEY_MSG			(sizeof(struct rt_key_descripter) - MAX_LEN_OF_RSNIE)
 
 /* EAP Code Type. */
 #define EAP_CODE_REQUEST	1
@@ -195,7 +195,7 @@
 #define IS_WPA_CAPABILITY(a)       (((a) >= Ndis802_11AuthModeWPA) && ((a) <= Ndis802_11AuthModeWPA1PSKWPA2PSK))
 
 /* EAPOL Key Information definition within Key descriptor format */
-typedef struct PACKED _KEY_INFO {
+struct PACKED rt_key_info {
 	u8 KeyMic:1;
 	u8 Secure:1;
 	u8 Error:1;
@@ -207,12 +207,12 @@ typedef struct PACKED _KEY_INFO {
 	u8 KeyIndex:2;
 	u8 Install:1;
 	u8 KeyAck:1;
-} KEY_INFO, *PKEY_INFO;
+};
 
 /* EAPOL Key descriptor format */
-typedef struct PACKED _KEY_DESCRIPTER {
+struct PACKED rt_key_descripter {
 	u8 Type;
-	KEY_INFO KeyInfo;
+	struct rt_key_info KeyInfo;
 	u8 KeyLength[2];
 	u8 ReplayCounter[LEN_KEY_DESC_REPLAY];
 	u8 KeyNonce[LEN_KEY_DESC_NONCE];
@@ -222,34 +222,34 @@ typedef struct PACKED _KEY_DESCRIPTER {
 	u8 KeyMic[LEN_KEY_DESC_MIC];
 	u8 KeyDataLen[2];
 	u8 KeyData[MAX_LEN_OF_RSNIE];
-} KEY_DESCRIPTER, *PKEY_DESCRIPTER;
+};
 
-typedef struct PACKED _EAPOL_PACKET {
+struct PACKED rt_eapol_packet {
 	u8 ProVer;
 	u8 ProType;
 	u8 Body_Len[2];
-	KEY_DESCRIPTER KeyDesc;
-} EAPOL_PACKET, *PEAPOL_PACKET;
+	struct rt_key_descripter KeyDesc;
+};
 
 /*802.11i D10 page 83 */
-typedef struct PACKED _GTK_ENCAP {
+struct PACKED rt_gtk_encap {
 	u8 Kid:2;
 	u8 tx:1;
 	u8 rsv:5;
 	u8 rsv1;
 	u8 GTK[TKIP_GTK_LENGTH];
-} GTK_ENCAP, *PGTK_ENCAP;
+};
 
-typedef struct PACKED _KDE_ENCAP {
+struct PACKED rt_kde_encap {
 	u8 Type;
 	u8 Len;
 	u8 OUI[3];
 	u8 DataType;
-	GTK_ENCAP GTKEncap;
-} KDE_ENCAP, *PKDE_ENCAP;
+	struct rt_gtk_encap GTKEncap;
+};
 
 /* For WPA1 */
-typedef struct PACKED _RSNIE {
+struct PACKED rt_rsnie {
 	u8 oui[4];
 	u16 version;
 	u8 mcast[4];
@@ -257,25 +257,25 @@ typedef struct PACKED _RSNIE {
 	struct PACKED {
 		u8 oui[4];
 	} ucast[1];
-} RSNIE, *PRSNIE;
+};
 
 /* For WPA2 */
-typedef struct PACKED _RSNIE2 {
+struct PACKED rt_rsnie2 {
 	u16 version;
 	u8 mcast[4];
 	u16 ucount;
 	struct PACKED {
 		u8 oui[4];
 	} ucast[1];
-} RSNIE2, *PRSNIE2;
+};
 
 /* AKM Suite */
-typedef struct PACKED _RSNIE_AUTH {
+struct PACKED rt_rsnie_auth {
 	u16 acount;
 	struct PACKED {
 		u8 oui[4];
 	} auth[1];
-} RSNIE_AUTH, *PRSNIE_AUTH;
+};
 
 typedef union PACKED _RSN_CAPABILITIES {
 	struct PACKED {
@@ -288,14 +288,14 @@ typedef union PACKED _RSN_CAPABILITIES {
 	u16 word;
 } RSN_CAPABILITIES, *PRSN_CAPABILITIES;
 
-typedef struct PACKED _EAP_HDR {
+struct PACKED rt_eap_hdr {
 	u8 ProVer;
 	u8 ProType;
 	u8 Body_Len[2];
 	u8 code;
 	u8 identifier;
 	u8 length[2];	/* including code and identifier, followed by length-2 octets of data */
-} EAP_HDR, *PEAP_HDR;
+};
 
 /* For supplicant state machine states. 802.11i Draft 4.1, p. 97 */
 /* We simplified it */
@@ -338,32 +338,32 @@ typedef enum _WpaMixPairCipher {
 	WPA_TKIPAES_WPA2_TKIPAES = 0x0F,
 } WPA_MIX_PAIR_CIPHER;
 
-typedef struct PACKED _RSN_IE_HEADER_STRUCT {
+struct PACKED rt_rsn_ie_header {
 	u8 Eid;
 	u8 Length;
 	u16 Version;		/* Little endian format */
-} RSN_IE_HEADER_STRUCT, *PRSN_IE_HEADER_STRUCT;
+};
 
 /* Cipher suite selector types */
-typedef struct PACKED _CIPHER_SUITE_STRUCT {
+struct PACKED rt_cipher_suite_struct {
 	u8 Oui[3];
 	u8 Type;
-} CIPHER_SUITE_STRUCT, *PCIPHER_SUITE_STRUCT;
+};
 
 /* Authentication and Key Management suite selector */
-typedef struct PACKED _AKM_SUITE_STRUCT {
+struct PACKED rt_akm_suite {
 	u8 Oui[3];
 	u8 Type;
-} AKM_SUITE_STRUCT, *PAKM_SUITE_STRUCT;
+};
 
 /* RSN capability */
-typedef struct PACKED _RSN_CAPABILITY {
+struct PACKED rt_rsn_capability {
 	u16 Rsv:10;
 	u16 GTKSAReplayCnt:2;
 	u16 PTKSAReplayCnt:2;
 	u16 NoPairwise:1;
 	u16 PreAuth:1;
-} RSN_CAPABILITY, *PRSN_CAPABILITY;
+};
 
 /*========================================
 	The prototype is defined in cmm_wpa.c

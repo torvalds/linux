@@ -80,7 +80,7 @@
 
 	========================================================================
 */
-int RtmpAsicEraseFirmware(IN PRTMP_ADAPTER pAd)
+int RtmpAsicEraseFirmware(struct rt_rtmp_adapter *pAd)
 {
 	unsigned long i;
 
@@ -107,7 +107,7 @@ int RtmpAsicEraseFirmware(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-int RtmpAsicLoadFirmware(IN PRTMP_ADAPTER pAd)
+int RtmpAsicLoadFirmware(struct rt_rtmp_adapter *pAd)
 {
 
 	int Status = NDIS_STATUS_SUCCESS;
@@ -172,7 +172,7 @@ int RtmpAsicLoadFirmware(IN PRTMP_ADAPTER pAd)
 	return Status;
 }
 
-int RtmpAsicSendCommandToMcu(IN PRTMP_ADAPTER pAd,
+int RtmpAsicSendCommandToMcu(struct rt_rtmp_adapter *pAd,
 			     u8 Command,
 			     u8 Token, u8 Arg0, u8 Arg1)
 {

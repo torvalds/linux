@@ -184,11 +184,11 @@ struct iw_statistics *rt28xx_get_wireless_stats(IN struct net_device *net_dev);
 /***********************************************************************************
  *	OS file operation related data structure definitions
  ***********************************************************************************/
-typedef struct _RTMP_OS_FS_INFO_ {
+struct rt_rtmp_os_fs_info {
 	int fsuid;
 	int fsgid;
 	mm_segment_t fs;
-} RTMP_OS_FS_INFO;
+};
 
 #define IS_FILE_OPEN_ERR(_fd)	IS_ERR((_fd))
 
@@ -373,7 +373,7 @@ static inline void NdisGetSystemUpTime(unsigned long * time)
 }
 
 /***********************************************************************************
- *	OS specific cookie data structure binding to RTMP_ADAPTER
+ *	OS specific cookie data structure binding to struct rt_rtmp_adapter
  ***********************************************************************************/
 
 struct os_cookie {
@@ -631,7 +631,7 @@ void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size,
 	(void *)(pEntry)
 
 #define PACKET_TO_QUEUE_ENTRY(pPacket) \
-	(PQUEUE_ENTRY)(pPacket)
+	(struct rt_queue_entry *)(pPacket)
 
 #define GET_SG_LIST_FROM_PACKET(_p, _sc)	\
     rt_get_sg_list_from_packet(_p, _sc)
@@ -842,6 +842,6 @@ int rt28xx_sta_ioctl(struct net_device *net_dev, IN OUT struct ifreq *rq, int cm
 extern int ra_mtd_write(int num, loff_t to, size_t len, const u_char * buf);
 extern int ra_mtd_read(int num, loff_t from, size_t len, u_char * buf);
 
-#define GET_PAD_FROM_NET_DEV(_pAd, _net_dev)	(_pAd) = (PRTMP_ADAPTER)(_net_dev)->ml_priv;
+#define GET_PAD_FROM_NET_DEV(_pAd, _net_dev)	(_pAd) = (struct rt_rtmp_adapter *)(_net_dev)->ml_priv;
 
 #endif /* __RT_LINUX_H__ // */

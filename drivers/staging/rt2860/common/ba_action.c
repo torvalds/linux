@@ -38,12 +38,12 @@
 
 #define RESET_RCV_SEQ		(0xFFFF)
 
-static void ba_mpdu_blk_free(PRTMP_ADAPTER pAd,
+static void ba_mpdu_blk_free(struct rt_rtmp_adapter *pAd,
 			     struct reordering_mpdu *mpdu_blk);
 
-BA_ORI_ENTRY *BATableAllocOriEntry(IN PRTMP_ADAPTER pAd, u16 * Idx);
+struct rt_ba_ori_entry *BATableAllocOriEntry(struct rt_rtmp_adapter *pAd, u16 * Idx);
 
-BA_REC_ENTRY *BATableAllocRecEntry(IN PRTMP_ADAPTER pAd, u16 * Idx);
+struct rt_ba_rec_entry *BATableAllocRecEntry(struct rt_rtmp_adapter *pAd, u16 * Idx);
 
 void BAOriSessionSetupTimeout(void *SystemSpecific1,
 			      void *FunctionContext,
@@ -61,8 +61,8 @@ BUILD_TIMER_FUNCTION(BARecSessionIdleTimeout);
 #define ANNOUNCE_REORDERING_PACKET(_pAd, _mpdu_blk)	\
 			Announce_Reordering_Packet(_pAd, _mpdu_blk);
 
-void BA_MaxWinSizeReasign(IN PRTMP_ADAPTER pAd,
-			  IN MAC_TABLE_ENTRY * pEntryPeer, u8 * pWinSize)
+void BA_MaxWinSizeReasign(struct rt_rtmp_adapter *pAd,
+			  struct rt_mac_table_entry *pEntryPeer, u8 * pWinSize)
 {
 	u8 MaxSize;
 
@@ -97,7 +97,7 @@ void BA_MaxWinSizeReasign(IN PRTMP_ADAPTER pAd,
 	}
 }
 
-void Announce_Reordering_Packet(IN PRTMP_ADAPTER pAd,
+void Announce_Reordering_Packet(struct rt_rtmp_adapter *pAd,
 				IN struct reordering_mpdu *mpdu)
 {
 	void *pPacket;
@@ -194,10 +194,10 @@ static inline struct reordering_mpdu *ba_reordering_mpdu_probe(struct
 /*
  * free all resource for reordering mechanism
  */
-void ba_reordering_resource_release(PRTMP_ADAPTER pAd)
+void ba_reordering_resource_release(struct rt_rtmp_adapter *pAd)
 {
-	BA_TABLE *Tab;
-	PBA_REC_ENTRY pBAEntry;
+	struct rt_ba_table *Tab;
+	struct rt_ba_rec_entry *pBAEntry;
 	struct reordering_mpdu *mpdu_blk;
 	int i;
 
@@ -229,7 +229,7 @@ void ba_reordering_resource_release(PRTMP_ADAPTER pAd)
 /*
  * Allocate all resource for reordering mechanism
  */
-BOOLEAN ba_reordering_resource_init(PRTMP_ADAPTER pAd, int num)
+BOOLEAN ba_reordering_resource_init(struct rt_rtmp_adapter *pAd, int num)
 {
 	int i;
 	u8 *mem;
@@ -277,7 +277,7 @@ BOOLEAN ba_reordering_resource_init(PRTMP_ADAPTER pAd, int num)
 
 /*static int blk_count=0; // sample take off, no use */
 
-static struct reordering_mpdu *ba_mpdu_blk_alloc(PRTMP_ADAPTER pAd)
+static struct reordering_mpdu *ba_mpdu_blk_alloc(struct rt_rtmp_adapter *pAd)
 {
 	struct reordering_mpdu *mpdu_blk;
 
@@ -292,7 +292,7 @@ static struct reordering_mpdu *ba_mpdu_blk_alloc(PRTMP_ADAPTER pAd)
 	return mpdu_blk;
 }
 
-static void ba_mpdu_blk_free(PRTMP_ADAPTER pAd,
+static void ba_mpdu_blk_free(struct rt_rtmp_adapter *pAd,
 			     struct reordering_mpdu *mpdu_blk)
 {
 	ASSERT(mpdu_blk);
@@ -303,8 +303,8 @@ static void ba_mpdu_blk_free(PRTMP_ADAPTER pAd,
 	NdisReleaseSpinLock(&pAd->mpdu_blk_pool.lock);
 }
 
-static u16 ba_indicate_reordering_mpdus_in_order(IN PRTMP_ADAPTER pAd,
-						    IN PBA_REC_ENTRY pBAEntry,
+static u16 ba_indicate_reordering_mpdus_in_order(struct rt_rtmp_adapter *pAd,
+						    struct rt_ba_rec_entry *pBAEntry,
 						    u16 StartSeq)
 {
 	struct reordering_mpdu *mpdu_blk;
@@ -334,8 +334,8 @@ static u16 ba_indicate_reordering_mpdus_in_order(IN PRTMP_ADAPTER pAd,
 	return LastIndSeq;
 }
 
-static void ba_indicate_reordering_mpdus_le_seq(IN PRTMP_ADAPTER pAd,
-						IN PBA_REC_ENTRY pBAEntry,
+static void ba_indicate_reordering_mpdus_le_seq(struct rt_rtmp_adapter *pAd,
+						struct rt_ba_rec_entry *pBAEntry,
 						u16 Sequence)
 {
 	struct reordering_mpdu *mpdu_blk;
@@ -358,8 +358,8 @@ static void ba_indicate_reordering_mpdus_le_seq(IN PRTMP_ADAPTER pAd,
 	NdisReleaseSpinLock(&pBAEntry->RxReRingLock);
 }
 
-static void ba_refresh_reordering_mpdus(IN PRTMP_ADAPTER pAd,
-					PBA_REC_ENTRY pBAEntry)
+static void ba_refresh_reordering_mpdus(struct rt_rtmp_adapter *pAd,
+					struct rt_ba_rec_entry *pBAEntry)
 {
 	struct reordering_mpdu *mpdu_blk;
 
@@ -381,8 +381,8 @@ static void ba_refresh_reordering_mpdus(IN PRTMP_ADAPTER pAd,
 }
 
 /*static */
-void ba_flush_reordering_timeout_mpdus(IN PRTMP_ADAPTER pAd,
-				       IN PBA_REC_ENTRY pBAEntry,
+void ba_flush_reordering_timeout_mpdus(struct rt_rtmp_adapter *pAd,
+				       struct rt_ba_rec_entry *pBAEntry,
 				       unsigned long Now32)
 {
 	u16 Sequence;
@@ -440,14 +440,14 @@ void ba_flush_reordering_timeout_mpdus(IN PRTMP_ADAPTER pAd,
  * generate ADDBA request to
  * set up BA agreement
  */
-void BAOriSessionSetUp(IN PRTMP_ADAPTER pAd,
-		       IN MAC_TABLE_ENTRY * pEntry,
+void BAOriSessionSetUp(struct rt_rtmp_adapter *pAd,
+		       struct rt_mac_table_entry *pEntry,
 		       u8 TID,
 		       u16 TimeOut,
 		       unsigned long DelayTime, IN BOOLEAN isForced)
 {
-	/*MLME_ADDBA_REQ_STRUCT AddbaReq; */
-	BA_ORI_ENTRY *pBAEntry = NULL;
+	/*struct rt_mlme_addba_req AddbaReq; */
+	struct rt_ba_ori_entry *pBAEntry = NULL;
 	u16 Idx;
 	BOOLEAN Cancelled;
 
@@ -506,17 +506,17 @@ void BAOriSessionSetUp(IN PRTMP_ADAPTER pAd,
 	RTMPSetTimer(&pBAEntry->ORIBATimer, DelayTime);
 }
 
-void BAOriSessionAdd(IN PRTMP_ADAPTER pAd,
-		     IN MAC_TABLE_ENTRY * pEntry, IN PFRAME_ADDBA_RSP pFrame)
+void BAOriSessionAdd(struct rt_rtmp_adapter *pAd,
+		     struct rt_mac_table_entry *pEntry, struct rt_frame_addba_rsp * pFrame)
 {
-	BA_ORI_ENTRY *pBAEntry = NULL;
+	struct rt_ba_ori_entry *pBAEntry = NULL;
 	BOOLEAN Cancelled;
 	u8 TID;
 	u16 Idx;
 	u8 *pOutBuffer2 = NULL;
 	int NStatus;
 	unsigned long FrameLen;
-	FRAME_BAR FrameBar;
+	struct rt_frame_bar FrameBar;
 
 	TID = pFrame->BaParm.TID;
 	Idx = pEntry->BAOriWcidArray[TID];
@@ -562,7 +562,7 @@ void BAOriSessionAdd(IN PRTMP_ADAPTER pAd,
 		FrameBar.StartingSeq.field.StartSeq = pBAEntry->Sequence;	/* make sure sequence not clear in DEL funciton. */
 		FrameBar.BarControl.TID = pBAEntry->TID;	/* make sure sequence not clear in DEL funciton. */
 		MakeOutgoingFrame(pOutBuffer2, &FrameLen,
-				  sizeof(FRAME_BAR), &FrameBar, END_OF_ARGS);
+				  sizeof(struct rt_frame_bar), &FrameBar, END_OF_ARGS);
 		MiniportMMRequest(pAd, QID_AC_BE, pOutBuffer2, FrameLen);
 		MlmeFreeMemory(pAd, pOutBuffer2);
 
@@ -571,10 +571,10 @@ void BAOriSessionAdd(IN PRTMP_ADAPTER pAd,
 	}
 }
 
-BOOLEAN BARecSessionAdd(IN PRTMP_ADAPTER pAd,
-			IN MAC_TABLE_ENTRY * pEntry, IN PFRAME_ADDBA_REQ pFrame)
+BOOLEAN BARecSessionAdd(struct rt_rtmp_adapter *pAd,
+			struct rt_mac_table_entry *pEntry, struct rt_frame_addba_req * pFrame)
 {
-	BA_REC_ENTRY *pBAEntry = NULL;
+	struct rt_ba_rec_entry *pBAEntry = NULL;
 	BOOLEAN Status = TRUE;
 	BOOLEAN Cancelled;
 	u16 Idx;
@@ -660,10 +660,10 @@ BOOLEAN BARecSessionAdd(IN PRTMP_ADAPTER pAd,
 	return (Status);
 }
 
-BA_REC_ENTRY *BATableAllocRecEntry(IN PRTMP_ADAPTER pAd, u16 * Idx)
+struct rt_ba_rec_entry *BATableAllocRecEntry(struct rt_rtmp_adapter *pAd, u16 * Idx)
 {
 	int i;
-	BA_REC_ENTRY *pBAEntry = NULL;
+	struct rt_ba_rec_entry *pBAEntry = NULL;
 
 	NdisAcquireSpinLock(&pAd->BATabLock);
 
@@ -690,10 +690,10 @@ done:
 	return pBAEntry;
 }
 
-BA_ORI_ENTRY *BATableAllocOriEntry(IN PRTMP_ADAPTER pAd, u16 * Idx)
+struct rt_ba_ori_entry *BATableAllocOriEntry(struct rt_rtmp_adapter *pAd, u16 * Idx)
 {
 	int i;
-	BA_ORI_ENTRY *pBAEntry = NULL;
+	struct rt_ba_ori_entry *pBAEntry = NULL;
 
 	NdisAcquireSpinLock(&pAd->BATabLock);
 
@@ -718,10 +718,10 @@ done:
 	return pBAEntry;
 }
 
-void BATableFreeOriEntry(IN PRTMP_ADAPTER pAd, unsigned long Idx)
+void BATableFreeOriEntry(struct rt_rtmp_adapter *pAd, unsigned long Idx)
 {
-	BA_ORI_ENTRY *pBAEntry = NULL;
-	MAC_TABLE_ENTRY *pEntry;
+	struct rt_ba_ori_entry *pBAEntry = NULL;
+	struct rt_mac_table_entry *pEntry;
 
 	if ((Idx == 0) || (Idx >= MAX_LEN_OF_BA_ORI_TABLE))
 		return;
@@ -752,10 +752,10 @@ void BATableFreeOriEntry(IN PRTMP_ADAPTER pAd, unsigned long Idx)
 	}
 }
 
-void BATableFreeRecEntry(IN PRTMP_ADAPTER pAd, unsigned long Idx)
+void BATableFreeRecEntry(struct rt_rtmp_adapter *pAd, unsigned long Idx)
 {
-	BA_REC_ENTRY *pBAEntry = NULL;
-	MAC_TABLE_ENTRY *pEntry;
+	struct rt_ba_rec_entry *pBAEntry = NULL;
+	struct rt_mac_table_entry *pEntry;
 
 	if ((Idx == 0) || (Idx >= MAX_LEN_OF_BA_REC_TABLE))
 		return;
@@ -777,13 +777,13 @@ void BATableFreeRecEntry(IN PRTMP_ADAPTER pAd, unsigned long Idx)
 	}
 }
 
-void BAOriSessionTearDown(IN OUT PRTMP_ADAPTER pAd,
+void BAOriSessionTearDown(struct rt_rtmp_adapter *pAd,
 			  u8 Wcid,
 			  u8 TID,
 			  IN BOOLEAN bPassive, IN BOOLEAN bForceSend)
 {
 	unsigned long Idx = 0;
-	BA_ORI_ENTRY *pBAEntry;
+	struct rt_ba_ori_entry *pBAEntry;
 	BOOLEAN Cancelled;
 
 	if (Wcid >= MAX_LEN_OF_MAC_TABLE) {
@@ -796,13 +796,13 @@ void BAOriSessionTearDown(IN OUT PRTMP_ADAPTER pAd,
 	if ((Idx == 0) || (Idx >= MAX_LEN_OF_BA_ORI_TABLE)) {
 		if (bForceSend == TRUE) {
 			/* force send specified TID DelBA */
-			MLME_DELBA_REQ_STRUCT DelbaReq;
-			MLME_QUEUE_ELEM *Elem =
-			    (MLME_QUEUE_ELEM *) kmalloc(sizeof(MLME_QUEUE_ELEM),
+			struct rt_mlme_delba_req DelbaReq;
+			struct rt_mlme_queue_elem *Elem =
+			    (struct rt_mlme_queue_elem *)kmalloc(sizeof(struct rt_mlme_queue_elem),
 							MEM_ALLOC_FLAG);
 			if (Elem != NULL) {
 				NdisZeroMemory(&DelbaReq, sizeof(DelbaReq));
-				NdisZeroMemory(Elem, sizeof(MLME_QUEUE_ELEM));
+				NdisZeroMemory(Elem, sizeof(struct rt_mlme_queue_elem));
 
 				COPY_MAC_ADDR(DelbaReq.Addr,
 					      pAd->MacTab.Content[Wcid].Addr);
@@ -836,13 +836,13 @@ void BAOriSessionTearDown(IN OUT PRTMP_ADAPTER pAd,
 	/* */
 	if ((bPassive == FALSE) && (TID == pBAEntry->TID)
 	    && (pBAEntry->ORI_BA_Status == Originator_Done)) {
-		MLME_DELBA_REQ_STRUCT DelbaReq;
-		MLME_QUEUE_ELEM *Elem =
-		    (MLME_QUEUE_ELEM *) kmalloc(sizeof(MLME_QUEUE_ELEM),
+		struct rt_mlme_delba_req DelbaReq;
+		struct rt_mlme_queue_elem *Elem =
+		    (struct rt_mlme_queue_elem *)kmalloc(sizeof(struct rt_mlme_queue_elem),
 						MEM_ALLOC_FLAG);
 		if (Elem != NULL) {
 			NdisZeroMemory(&DelbaReq, sizeof(DelbaReq));
-			NdisZeroMemory(Elem, sizeof(MLME_QUEUE_ELEM));
+			NdisZeroMemory(Elem, sizeof(struct rt_mlme_queue_elem));
 
 			COPY_MAC_ADDR(DelbaReq.Addr,
 				      pAd->MacTab.Content[Wcid].Addr);
@@ -867,11 +867,11 @@ void BAOriSessionTearDown(IN OUT PRTMP_ADAPTER pAd,
 	}
 }
 
-void BARecSessionTearDown(IN OUT PRTMP_ADAPTER pAd,
+void BARecSessionTearDown(struct rt_rtmp_adapter *pAd,
 			  u8 Wcid, u8 TID, IN BOOLEAN bPassive)
 {
 	unsigned long Idx = 0;
-	BA_REC_ENTRY *pBAEntry;
+	struct rt_ba_rec_entry *pBAEntry;
 
 	if (Wcid >= MAX_LEN_OF_MAC_TABLE) {
 		return;
@@ -895,7 +895,7 @@ void BARecSessionTearDown(IN OUT PRTMP_ADAPTER pAd,
 	/* */
 	if ((TID == pBAEntry->TID)
 	    && (pBAEntry->REC_BA_Status == Recipient_Accept)) {
-		MLME_DELBA_REQ_STRUCT DelbaReq;
+		struct rt_mlme_delba_req DelbaReq;
 		BOOLEAN Cancelled;
 		/*unsigned long   offset; */
 		/*u32  VALUE; */
@@ -906,12 +906,12 @@ void BARecSessionTearDown(IN OUT PRTMP_ADAPTER pAd,
 		/* 1. Send DELBA Action Frame */
 		/* */
 		if (bPassive == FALSE) {
-			MLME_QUEUE_ELEM *Elem =
-			    (MLME_QUEUE_ELEM *) kmalloc(sizeof(MLME_QUEUE_ELEM),
+			struct rt_mlme_queue_elem *Elem =
+			    (struct rt_mlme_queue_elem *)kmalloc(sizeof(struct rt_mlme_queue_elem),
 							MEM_ALLOC_FLAG);
 			if (Elem != NULL) {
 				NdisZeroMemory(&DelbaReq, sizeof(DelbaReq));
-				NdisZeroMemory(Elem, sizeof(MLME_QUEUE_ELEM));
+				NdisZeroMemory(Elem, sizeof(struct rt_mlme_queue_elem));
 
 				COPY_MAC_ADDR(DelbaReq.Addr,
 					      pAd->MacTab.Content[Wcid].Addr);
@@ -956,7 +956,7 @@ void BARecSessionTearDown(IN OUT PRTMP_ADAPTER pAd,
 	BATableFreeRecEntry(pAd, Idx);
 }
 
-void BASessionTearDownALL(IN OUT PRTMP_ADAPTER pAd, u8 Wcid)
+void BASessionTearDownALL(struct rt_rtmp_adapter *pAd, u8 Wcid)
 {
 	int i;
 
@@ -985,9 +985,9 @@ void BAOriSessionSetupTimeout(void *SystemSpecific1,
 			      void *SystemSpecific2,
 			      void *SystemSpecific3)
 {
-	BA_ORI_ENTRY *pBAEntry = (BA_ORI_ENTRY *) FunctionContext;
-	MAC_TABLE_ENTRY *pEntry;
-	PRTMP_ADAPTER pAd;
+	struct rt_ba_ori_entry *pBAEntry = (struct rt_ba_ori_entry *)FunctionContext;
+	struct rt_mac_table_entry *pEntry;
+	struct rt_rtmp_adapter *pAd;
 
 	if (pBAEntry == NULL)
 		return;
@@ -1004,7 +1004,7 @@ void BAOriSessionSetupTimeout(void *SystemSpecific1,
 
 	if ((pBAEntry->ORI_BA_Status == Originator_WaitRes)
 	    && (pBAEntry->Token < ORI_SESSION_MAX_RETRY)) {
-		MLME_ADDBA_REQ_STRUCT AddbaReq;
+		struct rt_mlme_addba_req AddbaReq;
 
 		NdisZeroMemory(&AddbaReq, sizeof(AddbaReq));
 		COPY_MAC_ADDR(AddbaReq.pAddr, pEntry->Addr);
@@ -1015,7 +1015,7 @@ void BAOriSessionSetupTimeout(void *SystemSpecific1,
 		AddbaReq.TimeOutValue = 0;
 		AddbaReq.Token = pBAEntry->Token;
 		MlmeEnqueue(pAd, ACTION_STATE_MACHINE, MT2_MLME_ADD_BA_CATE,
-			    sizeof(MLME_ADDBA_REQ_STRUCT), (void *)& AddbaReq);
+			    sizeof(struct rt_mlme_addba_req), (void *)& AddbaReq);
 		RTMP_MLME_HANDLER(pAd);
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("BA Ori Session Timeout(%d) : Send ADD BA again\n",
@@ -1047,8 +1047,8 @@ void BARecSessionIdleTimeout(void *SystemSpecific1,
 			     void *SystemSpecific2, void *SystemSpecific3)
 {
 
-	BA_REC_ENTRY *pBAEntry = (BA_REC_ENTRY *) FunctionContext;
-	PRTMP_ADAPTER pAd;
+	struct rt_ba_rec_entry *pBAEntry = (struct rt_ba_rec_entry *)FunctionContext;
+	struct rt_rtmp_adapter *pAd;
 	unsigned long Now32;
 
 	if (pBAEntry == NULL)
@@ -1070,20 +1070,20 @@ void BARecSessionIdleTimeout(void *SystemSpecific1,
 	}
 }
 
-void PeerAddBAReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerAddBAReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	/*      7.4.4.1 */
 	/*unsigned long Idx; */
 	u8 Status = 1;
 	u8 pAddr[6];
-	FRAME_ADDBA_RSP ADDframe;
+	struct rt_frame_addba_rsp ADDframe;
 	u8 *pOutBuffer = NULL;
 	int NStatus;
-	PFRAME_ADDBA_REQ pAddreqFrame = NULL;
+	struct rt_frame_addba_req * pAddreqFrame = NULL;
 	/*u8         BufSize; */
 	unsigned long FrameLen;
 	unsigned long *ptemp;
-	PMAC_TABLE_ENTRY pMacEntry;
+	struct rt_mac_table_entry *pMacEntry;
 
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("%s ==> (Wcid = %d)\n", __func__, Elem->Wcid));
@@ -1103,7 +1103,7 @@ void PeerAddBAReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 		if ((pAd->CommonCfg.bBADecline == FALSE)
 		    && IS_HT_STA(pMacEntry)) {
-			pAddreqFrame = (PFRAME_ADDBA_REQ) (&Elem->Msg[0]);
+			pAddreqFrame = (struct rt_frame_addba_req *) (&Elem->Msg[0]);
 			DBGPRINT(RT_DEBUG_OFF,
 				 ("Rcv Wcid(%d) AddBAReq\n", Elem->Wcid));
 			if (BARecSessionAdd
@@ -1120,7 +1120,7 @@ void PeerAddBAReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	if (pAd->MacTab.Content[Elem->Wcid].ValidAsCLI)
 		ASSERT(pAd->MacTab.Content[Elem->Wcid].Sst == SST_ASSOC);
 
-	pAddreqFrame = (PFRAME_ADDBA_REQ) (&Elem->Msg[0]);
+	pAddreqFrame = (struct rt_frame_addba_req *) (&Elem->Msg[0]);
 	/* 2. Always send back ADDBA Response */
 	NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	/*Get an unused nonpaged memory */
 	if (NStatus != NDIS_STATUS_SUCCESS) {
@@ -1129,7 +1129,7 @@ void PeerAddBAReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		return;
 	}
 
-	NdisZeroMemory(&ADDframe, sizeof(FRAME_ADDBA_RSP));
+	NdisZeroMemory(&ADDframe, sizeof(struct rt_frame_addba_rsp));
 
 	/* 2-1. Prepare ADDBA Response frame. */
 	{
@@ -1164,7 +1164,7 @@ void PeerAddBAReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	ADDframe.TimeOutValue = cpu2le16(ADDframe.TimeOutValue);
 
 	MakeOutgoingFrame(pOutBuffer, &FrameLen,
-			  sizeof(FRAME_ADDBA_RSP), &ADDframe, END_OF_ARGS);
+			  sizeof(struct rt_frame_addba_rsp), &ADDframe, END_OF_ARGS);
 	MiniportMMRequest(pAd, QID_AC_BE, pOutBuffer, FrameLen);
 	MlmeFreeMemory(pAd, pOutBuffer);
 
@@ -1173,12 +1173,12 @@ void PeerAddBAReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		  ADDframe.BaParm.TID, ADDframe.BaParm.BufSize));
 }
 
-void PeerAddBARspAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerAddBARspAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	/*u8         Idx, i; */
 	/*u8 *                  pOutBuffer = NULL; */
-	PFRAME_ADDBA_RSP pFrame = NULL;
-	/*PBA_ORI_ENTRY         pBAEntry; */
+	struct rt_frame_addba_rsp * pFrame = NULL;
+	/*struct rt_ba_ori_entry *pBAEntry; */
 
 	/*ADDBA Response from unknown peer, ignore this. */
 	if (Elem->Wcid >= MAX_LEN_OF_MAC_TABLE)
@@ -1189,7 +1189,7 @@ void PeerAddBARspAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	/*hex_dump("PeerAddBARspAction()", Elem->Msg, Elem->MsgLen); */
 
 	if (PeerAddBARspActionSanity(pAd, Elem->Msg, Elem->MsgLen)) {
-		pFrame = (PFRAME_ADDBA_RSP) (&Elem->Msg[0]);
+		pFrame = (struct rt_frame_addba_rsp *) (&Elem->Msg[0]);
 
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("\t\t StatusCode = %d\n", pFrame->StatusCode));
@@ -1216,16 +1216,16 @@ void PeerAddBARspAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	}
 }
 
-void PeerDelBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerDelBAAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	/*u8                         Idx; */
 	/*u8 *                               pOutBuffer = NULL; */
-	PFRAME_DELBA_REQ pDelFrame = NULL;
+	struct rt_frame_delba_req * pDelFrame = NULL;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("%s ==>\n", __func__));
 	/*DELBA Request from unknown peer, ignore this. */
 	if (PeerDelBAActionSanity(pAd, Elem->Wcid, Elem->Msg, Elem->MsgLen)) {
-		pDelFrame = (PFRAME_DELBA_REQ) (&Elem->Msg[0]);
+		pDelFrame = (struct rt_frame_delba_req *) (&Elem->Msg[0]);
 		if (pDelFrame->DelbaParm.Initiator == ORIGINATOR) {
 			DBGPRINT(RT_DEBUG_TRACE,
 				 ("BA - PeerDelBAAction----> ORIGINATOR\n"));
@@ -1243,14 +1243,14 @@ void PeerDelBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	}
 }
 
-BOOLEAN CntlEnqueueForRecv(IN PRTMP_ADAPTER pAd,
+BOOLEAN CntlEnqueueForRecv(struct rt_rtmp_adapter *pAd,
 			   unsigned long Wcid,
-			   unsigned long MsgLen, IN PFRAME_BA_REQ pMsg)
+			   unsigned long MsgLen, struct rt_frame_ba_req * pMsg)
 {
-	PFRAME_BA_REQ pFrame = pMsg;
+	struct rt_frame_ba_req * pFrame = pMsg;
 	/*PRTMP_REORDERBUF      pBuffer; */
 	/*PRTMP_REORDERBUF      pDmaBuf; */
-	PBA_REC_ENTRY pBAEntry;
+	struct rt_ba_rec_entry *pBAEntry;
 	/*BOOLEAN       Result; */
 	unsigned long Idx;
 	/*u8 NumRxPkt; */
@@ -1271,10 +1271,10 @@ BOOLEAN CntlEnqueueForRecv(IN PRTMP_ADAPTER pAd,
 	if (MsgLen > MGMT_DMA_BUFFER_SIZE) {
 		DBGPRINT_ERR(("CntlEnqueueForRecv: frame too large, size = %ld \n", MsgLen));
 		return FALSE;
-	} else if (MsgLen != sizeof(FRAME_BA_REQ)) {
+	} else if (MsgLen != sizeof(struct rt_frame_ba_req)) {
 		DBGPRINT_ERR(("CntlEnqueueForRecv: BlockAck Request frame length size = %ld incorrect\n", MsgLen));
 		return FALSE;
-	} else if (MsgLen != sizeof(FRAME_BA_REQ)) {
+	} else if (MsgLen != sizeof(struct rt_frame_ba_req)) {
 		DBGPRINT_ERR(("CntlEnqueueForRecv: BlockAck Request frame length size = %ld incorrect\n", MsgLen));
 		return FALSE;
 	}
@@ -1309,12 +1309,12 @@ BOOLEAN CntlEnqueueForRecv(IN PRTMP_ADAPTER pAd,
 /*
 Description : Send PSMP Action frame If PSMP mode switches.
 */
-void SendPSMPAction(IN PRTMP_ADAPTER pAd, u8 Wcid, u8 Psmp)
+void SendPSMPAction(struct rt_rtmp_adapter *pAd, u8 Wcid, u8 Psmp)
 {
 	u8 *pOutBuffer = NULL;
 	int NStatus;
 	/*unsigned long           Idx; */
-	FRAME_PSMP_ACTION Frame;
+	struct rt_frame_psmp_action Frame;
 	unsigned long FrameLen;
 
 	NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	/*Get an unused nonpaged memory */
@@ -1355,7 +1355,7 @@ void SendPSMPAction(IN PRTMP_ADAPTER pAd, u8 Wcid, u8 Psmp)
 		break;
 	}
 	MakeOutgoingFrame(pOutBuffer, &FrameLen,
-			  sizeof(FRAME_PSMP_ACTION), &Frame, END_OF_ARGS);
+			  sizeof(struct rt_frame_psmp_action), &Frame, END_OF_ARGS);
 	MiniportMMRequest(pAd, QID_AC_BE, pOutBuffer, FrameLen);
 	MlmeFreeMemory(pAd, pOutBuffer);
 	DBGPRINT(RT_DEBUG_ERROR, ("HT - SendPSMPAction( %d )  \n", Frame.Psmp));
@@ -1363,7 +1363,7 @@ void SendPSMPAction(IN PRTMP_ADAPTER pAd, u8 Wcid, u8 Psmp)
 
 #define RADIO_MEASUREMENT_REQUEST_ACTION	0
 
-typedef struct PACKED {
+struct PACKED rt_beacon_request {
 	u8 RegulatoryClass;
 	u8 ChannelNumber;
 	u16 RandomInterval;
@@ -1373,18 +1373,18 @@ typedef struct PACKED {
 	u8 ReportingCondition;
 	u8 Threshold;
 	u8 SSIDIE[2];	/* 2 byte */
-} BEACON_REQUEST;
+};
 
-typedef struct PACKED {
+struct PACKED rt_measurement_req {
 	u8 ID;
 	u8 Length;
 	u8 Token;
 	u8 RequestMode;
 	u8 Type;
-} MEASUREMENT_REQ;
+};
 
-void convert_reordering_packet_to_preAMSDU_or_802_3_packet(IN PRTMP_ADAPTER pAd,
-							   IN RX_BLK * pRxBlk,
+void convert_reordering_packet_to_preAMSDU_or_802_3_packet(struct rt_rtmp_adapter *pAd,
+							   struct rt_rx_blk *pRxBlk,
 							   u8
 							   FromWhichBSSID)
 {
@@ -1436,9 +1436,9 @@ void convert_reordering_packet_to_preAMSDU_or_802_3_packet(IN PRTMP_ADAPTER pAd,
     	}																\
 	} while (0);
 
-static void ba_enqueue_reordering_packet(IN PRTMP_ADAPTER pAd,
-					 IN PBA_REC_ENTRY pBAEntry,
-					 IN RX_BLK * pRxBlk,
+static void ba_enqueue_reordering_packet(struct rt_rtmp_adapter *pAd,
+					 struct rt_ba_rec_entry *pBAEntry,
+					 struct rt_rx_blk *pRxBlk,
 					 u8 FromWhichBSSID)
 {
 	struct reordering_mpdu *mpdu_blk;
@@ -1515,11 +1515,11 @@ static void ba_enqueue_reordering_packet(IN PRTMP_ADAPTER pAd,
 	==========================================================================
  */
 
-void Indicate_AMPDU_Packet(IN PRTMP_ADAPTER pAd,
-			   IN RX_BLK * pRxBlk, u8 FromWhichBSSID)
+void Indicate_AMPDU_Packet(struct rt_rtmp_adapter *pAd,
+			   struct rt_rx_blk *pRxBlk, u8 FromWhichBSSID)
 {
 	u16 Idx;
-	PBA_REC_ENTRY pBAEntry = NULL;
+	struct rt_ba_rec_entry *pBAEntry = NULL;
 	u16 Sequence = pRxBlk->pHeader->Sequence;
 	unsigned long Now32;
 	u8 Wcid = pRxBlk->pRxWI->WirelessCliID;

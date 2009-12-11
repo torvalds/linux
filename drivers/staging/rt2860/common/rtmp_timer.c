@@ -74,15 +74,15 @@ BUILD_TIMER_FUNCTION(LedCtrlMain);
 #endif
 
 #ifdef RTMP_TIMER_TASK_SUPPORT
-static void RtmpTimerQHandle(RTMP_ADAPTER * pAd)
+static void RtmpTimerQHandle(struct rt_rtmp_adapter *pAd)
 {
 #ifndef KTHREAD_SUPPORT
 	int status;
 #endif
-	RALINK_TIMER_STRUCT *pTimer;
-	RTMP_TIMER_TASK_ENTRY *pEntry;
+	struct rt_ralink_timer *pTimer;
+	struct rt_rtmp_timer_task_entry *pEntry;
 	unsigned long irqFlag;
-	RTMP_OS_TASK *pTask;
+	struct rt_rtmp_os_task *pTask;
 
 	pTask = &pAd->timerTask;
 	while (!pTask->task_killed) {
@@ -140,11 +140,11 @@ static void RtmpTimerQHandle(RTMP_ADAPTER * pAd)
 
 int RtmpTimerQThread(IN void *Context)
 {
-	RTMP_OS_TASK *pTask;
-	PRTMP_ADAPTER pAd;
+	struct rt_rtmp_os_task *pTask;
+	struct rt_rtmp_adapter *pAd;
 
-	pTask = (RTMP_OS_TASK *) Context;
-	pAd = (PRTMP_ADAPTER) pTask->priv;
+	pTask = (struct rt_rtmp_os_task *)Context;
+	pAd = (struct rt_rtmp_adapter *)pTask->priv;
 
 	RtmpOSTaskCustomize(pTask);
 
@@ -174,12 +174,12 @@ int RtmpTimerQThread(IN void *Context)
 
 }
 
-RTMP_TIMER_TASK_ENTRY *RtmpTimerQInsert(IN RTMP_ADAPTER * pAd,
-					IN RALINK_TIMER_STRUCT * pTimer)
+struct rt_rtmp_timer_task_entry *RtmpTimerQInsert(struct rt_rtmp_adapter *pAd,
+					struct rt_ralink_timer *pTimer)
 {
-	RTMP_TIMER_TASK_ENTRY *pQNode = NULL, *pQTail;
+	struct rt_rtmp_timer_task_entry *pQNode = NULL, *pQTail;
 	unsigned long irqFlags;
-	RTMP_OS_TASK *pTask = &pAd->timerTask;
+	struct rt_rtmp_os_task *pTask = &pAd->timerTask;
 
 	RTMP_INT_LOCK(&pAd->TimerQLock, irqFlags);
 	if (pAd->TimerQ.status & RTMP_TASK_CAN_DO_INSERT) {
@@ -211,9 +211,9 @@ RTMP_TIMER_TASK_ENTRY *RtmpTimerQInsert(IN RTMP_ADAPTER * pAd,
 	return pQNode;
 }
 
-BOOLEAN RtmpTimerQRemove(IN RTMP_ADAPTER * pAd, IN RALINK_TIMER_STRUCT * pTimer)
+BOOLEAN RtmpTimerQRemove(struct rt_rtmp_adapter *pAd, struct rt_ralink_timer *pTimer)
 {
-	RTMP_TIMER_TASK_ENTRY *pNode, *pPrev = NULL;
+	struct rt_rtmp_timer_task_entry *pNode, *pPrev = NULL;
 	unsigned long irqFlags;
 
 	RTMP_INT_LOCK(&pAd->TimerQLock, irqFlags);
@@ -245,9 +245,9 @@ BOOLEAN RtmpTimerQRemove(IN RTMP_ADAPTER * pAd, IN RALINK_TIMER_STRUCT * pTimer)
 	return TRUE;
 }
 
-void RtmpTimerQExit(RTMP_ADAPTER * pAd)
+void RtmpTimerQExit(struct rt_rtmp_adapter *pAd)
 {
-	RTMP_TIMER_TASK_ENTRY *pTimerQ;
+	struct rt_rtmp_timer_task_entry *pTimerQ;
 	unsigned long irqFlags;
 
 	RTMP_INT_LOCK(&pAd->TimerQLock, irqFlags);
@@ -267,10 +267,10 @@ void RtmpTimerQExit(RTMP_ADAPTER * pAd)
 
 }
 
-void RtmpTimerQInit(RTMP_ADAPTER * pAd)
+void RtmpTimerQInit(struct rt_rtmp_adapter *pAd)
 {
 	int i;
-	RTMP_TIMER_TASK_ENTRY *pQNode, *pEntry;
+	struct rt_rtmp_timer_task_entry *pQNode, *pEntry;
 	unsigned long irqFlags;
 
 	NdisAllocateSpinLock(&pAd->TimerQLock);
@@ -278,12 +278,12 @@ void RtmpTimerQInit(RTMP_ADAPTER * pAd)
 	NdisZeroMemory(&pAd->TimerQ, sizeof(pAd->TimerQ));
 
 	os_alloc_mem(pAd, &pAd->TimerQ.pTimerQPoll,
-		     sizeof(RTMP_TIMER_TASK_ENTRY) * TIMER_QUEUE_SIZE_MAX);
+		     sizeof(struct rt_rtmp_timer_task_entry) * TIMER_QUEUE_SIZE_MAX);
 	if (pAd->TimerQ.pTimerQPoll) {
 		pEntry = NULL;
-		pQNode = (RTMP_TIMER_TASK_ENTRY *) pAd->TimerQ.pTimerQPoll;
+		pQNode = (struct rt_rtmp_timer_task_entry *)pAd->TimerQ.pTimerQPoll;
 		NdisZeroMemory(pAd->TimerQ.pTimerQPoll,
-			       sizeof(RTMP_TIMER_TASK_ENTRY) *
+			       sizeof(struct rt_rtmp_timer_task_entry) *
 			       TIMER_QUEUE_SIZE_MAX);
 
 		RTMP_INT_LOCK(&pAd->TimerQLock, irqFlags);

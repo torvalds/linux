@@ -47,7 +47,7 @@
 
 	========================================================================
 */
-void RTMPSetDesiredRates(IN PRTMP_ADAPTER pAdapter, long Rates)
+void RTMPSetDesiredRates(struct rt_rtmp_adapter *pAdapter, long Rates)
 {
 	NDIS_802_11_RATES aryRates;
 
@@ -235,7 +235,7 @@ void RTMPSetDesiredRates(IN PRTMP_ADAPTER pAdapter, long Rates)
 
 	========================================================================
 */
-void RTMPWPARemoveAllKeys(IN PRTMP_ADAPTER pAd)
+void RTMPWPARemoveAllKeys(struct rt_rtmp_adapter *pAd)
 {
 
 	u8 i;
@@ -262,7 +262,7 @@ void RTMPWPARemoveAllKeys(IN PRTMP_ADAPTER pAd)
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("remove %s key #%d\n",
 			  CipherName[pAd->SharedKey[BSS0][i].CipherAlg], i));
-		NdisZeroMemory(&pAd->SharedKey[BSS0][i], sizeof(CIPHER_KEY));
+		NdisZeroMemory(&pAd->SharedKey[BSS0][i], sizeof(struct rt_cipher_key));
 
 		AsicRemoveSharedKeyEntry(pAd, BSS0, i);
 	}
@@ -307,7 +307,7 @@ void RTMPWPARemoveAllKeys(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-void RTMPSetPhyMode(IN PRTMP_ADAPTER pAd, unsigned long phymode)
+void RTMPSetPhyMode(struct rt_rtmp_adapter *pAd, unsigned long phymode)
 {
 	int i;
 	/* the selected phymode must be supported by the RF IC encoded in E2PROM */
@@ -435,7 +435,7 @@ void RTMPSetPhyMode(IN PRTMP_ADAPTER pAd, unsigned long phymode)
 
 	========================================================================
 */
-void RTMPSetHT(IN PRTMP_ADAPTER pAd, IN OID_SET_HT_PHYMODE * pHTPhyMode)
+void RTMPSetHT(struct rt_rtmp_adapter *pAd, struct rt_oid_set_ht_phymode *pHTPhyMode)
 {
 	/*unsigned long *pmcs; */
 	u32 Value = 0;
@@ -648,9 +648,9 @@ void RTMPSetHT(IN PRTMP_ADAPTER pAd, IN OID_SET_HT_PHYMODE * pHTPhyMode)
 
 	========================================================================
 */
-void RTMPSetIndividualHT(IN PRTMP_ADAPTER pAd, u8 apidx)
+void RTMPSetIndividualHT(struct rt_rtmp_adapter *pAd, u8 apidx)
 {
-	PRT_HT_PHY_INFO pDesired_ht_phy = NULL;
+	struct rt_ht_phy_info *pDesired_ht_phy = NULL;
 	u8 TxStream = pAd->CommonCfg.TxStream;
 	u8 DesiredMcs = MCS_AUTO;
 
@@ -669,7 +669,7 @@ void RTMPSetIndividualHT(IN PRTMP_ADAPTER pAd, u8 apidx)
 			 ("RTMPSetIndividualHT: invalid apidx(%d)\n", apidx));
 		return;
 	}
-	RTMPZeroMemory(pDesired_ht_phy, sizeof(RT_HT_PHY_INFO));
+	RTMPZeroMemory(pDesired_ht_phy, sizeof(struct rt_ht_phy_info));
 
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("RTMPSetIndividualHT : Desired MCS = %d\n", DesiredMcs));
@@ -755,13 +755,13 @@ void RTMPSetIndividualHT(IN PRTMP_ADAPTER pAd, u8 apidx)
 
 	========================================================================
 */
-void RTMPUpdateHTIE(IN RT_HT_CAPABILITY * pRtHt,
+void RTMPUpdateHTIE(struct rt_ht_capability *pRtHt,
 		    u8 * pMcsSet,
-		    OUT HT_CAPABILITY_IE * pHtCapability,
-		    OUT ADD_HT_INFO_IE * pAddHtInfo)
+		    struct rt_ht_capability_ie * pHtCapability,
+		    struct rt_add_ht_info_ie * pAddHtInfo)
 {
-	RTMPZeroMemory(pHtCapability, sizeof(HT_CAPABILITY_IE));
-	RTMPZeroMemory(pAddHtInfo, sizeof(ADD_HT_INFO_IE));
+	RTMPZeroMemory(pHtCapability, sizeof(struct rt_ht_capability_ie));
+	RTMPZeroMemory(pAddHtInfo, sizeof(struct rt_add_ht_info_ie));
 
 	pHtCapability->HtCapInfo.ChannelWidth = pRtHt->ChannelWidth;
 	pHtCapability->HtCapInfo.MimoPs = pRtHt->MimoPs;
@@ -790,10 +790,10 @@ void RTMPUpdateHTIE(IN RT_HT_CAPABILITY * pRtHt,
     Return:
 	========================================================================
 */
-void RTMPAddWcidAttributeEntry(IN PRTMP_ADAPTER pAd,
+void RTMPAddWcidAttributeEntry(struct rt_rtmp_adapter *pAd,
 			       u8 BssIdx,
 			       u8 KeyIdx,
-			       u8 CipherAlg, IN MAC_TABLE_ENTRY * pEntry)
+			       u8 CipherAlg, struct rt_mac_table_entry *pEntry)
 {
 	u32 WCIDAttri = 0;
 	u16 offset;
@@ -914,9 +914,9 @@ char *GetAuthMode(char auth)
 	return "UNKNOW";
 }
 
-int SetCommonHT(IN PRTMP_ADAPTER pAd)
+int SetCommonHT(struct rt_rtmp_adapter *pAd)
 {
-	OID_SET_HT_PHYMODE SetHT;
+	struct rt_oid_set_ht_phymode SetHT;
 
 	if (pAd->CommonCfg.PhyMode < PHY_11ABGN_MIXED)
 		return FALSE;

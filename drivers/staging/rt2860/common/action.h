@@ -39,18 +39,18 @@
 #ifndef	__ACTION_H__
 #define	__ACTION_H__
 
-typedef struct PACKED __HT_INFO_OCTET {
+struct PACKED rt_ht_information_octet {
 	u8 Request:1;
 	u8 Forty_MHz_Intolerant:1;
 	u8 STA_Channel_Width:1;
 	u8 Reserved:5;
-} HT_INFORMATION_OCTET;
+};
 
-typedef struct PACKED __FRAME_HT_INFO {
-	HEADER_802_11 Hdr;
+struct PACKED rt_frame_ht_info {
+	struct rt_header_802_11 Hdr;
 	u8 Category;
 	u8 Action;
-	HT_INFORMATION_OCTET HT_Info;
-} FRAME_HT_INFO, *PFRAME_HT_INFO;
+	struct rt_ht_information_octet HT_Info;
+};
 
 #endif /* __ACTION_H__ */

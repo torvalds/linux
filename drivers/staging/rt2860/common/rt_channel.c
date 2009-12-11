@@ -26,7 +26,7 @@
 */
 #include "../rt_config.h"
 
-CH_FREQ_MAP CH_HZ_ID_MAP[] = {
+struct rt_ch_freq_map CH_HZ_ID_MAP[] = {
 	{1, 2412}
 	,
 	{2, 2417}
@@ -144,9 +144,9 @@ CH_FREQ_MAP CH_HZ_ID_MAP[] = {
 	,			/* Japan, means J16 */
 };
 
-int CH_HZ_ID_MAP_NUM = (sizeof(CH_HZ_ID_MAP) / sizeof(CH_FREQ_MAP));
+int CH_HZ_ID_MAP_NUM = (sizeof(CH_HZ_ID_MAP) / sizeof(struct rt_ch_freq_map));
 
-CH_REGION ChRegion[] = {
+struct rt_ch_region ChRegion[] = {
 	{			/* Antigua and Berbuda */
 	 "AG",
 	 CE,
@@ -1422,10 +1422,10 @@ CH_REGION ChRegion[] = {
 	,
 };
 
-static PCH_REGION GetChRegion(u8 *CntryCode)
+static struct rt_ch_region *GetChRegion(u8 *CntryCode)
 {
 	int loop = 0;
-	PCH_REGION pChRegion = NULL;
+	struct rt_ch_region *pChRegion = NULL;
 
 	while (strcmp((char *)ChRegion[loop].CountReg, "") != 0) {
 		if (strncmp
@@ -1461,8 +1461,8 @@ static void ChBandCheck(u8 PhyMode, u8 *pChType)
 	}
 }
 
-static u8 FillChList(IN PRTMP_ADAPTER pAd,
-			IN PCH_DESP pChDesp,
+static u8 FillChList(struct rt_rtmp_adapter *pAd,
+			struct rt_ch_desp *pChDesp,
 			u8 Offset, u8 increment)
 {
 	int i, j, l;
@@ -1494,12 +1494,12 @@ static u8 FillChList(IN PRTMP_ADAPTER pAd,
 	return j;
 }
 
-static inline void CreateChList(IN PRTMP_ADAPTER pAd,
-				IN PCH_REGION pChRegion, u8 Geography)
+static inline void CreateChList(struct rt_rtmp_adapter *pAd,
+				struct rt_ch_region *pChRegion, u8 Geography)
 {
 	int i;
 	u8 offset = 0;
-	PCH_DESP pChDesp;
+	struct rt_ch_desp *pChDesp;
 	u8 ChType;
 	u8 increment;
 
@@ -1532,21 +1532,21 @@ static inline void CreateChList(IN PRTMP_ADAPTER pAd,
 	}
 }
 
-void BuildChannelListEx(IN PRTMP_ADAPTER pAd)
+void BuildChannelListEx(struct rt_rtmp_adapter *pAd)
 {
-	PCH_REGION pChReg;
+	struct rt_ch_region *pChReg;
 
 	pChReg = GetChRegion(pAd->CommonCfg.CountryCode);
 	CreateChList(pAd, pChReg, pAd->CommonCfg.Geography);
 }
 
-void BuildBeaconChList(IN PRTMP_ADAPTER pAd,
+void BuildBeaconChList(struct rt_rtmp_adapter *pAd,
 		       u8 *pBuf, unsigned long *pBufLen)
 {
 	int i;
 	unsigned long TmpLen;
-	PCH_REGION pChRegion;
-	PCH_DESP pChDesp;
+	struct rt_ch_region *pChRegion;
+	struct rt_ch_desp *pChDesp;
 	u8 ChType;
 
 	pChRegion = GetChRegion(pAd->CommonCfg.CountryCode);
@@ -1581,7 +1581,7 @@ void BuildBeaconChList(IN PRTMP_ADAPTER pAd,
 	}
 }
 
-static BOOLEAN IsValidChannel(IN PRTMP_ADAPTER pAd, u8 channel)
+static BOOLEAN IsValidChannel(struct rt_rtmp_adapter *pAd, u8 channel)
 {
 	int i;
 
@@ -1608,7 +1608,7 @@ static u8 GetExtCh(u8 Channel, u8 Direction)
 	return ExtCh;
 }
 
-void N_ChannelCheck(IN PRTMP_ADAPTER pAd)
+void N_ChannelCheck(struct rt_rtmp_adapter *pAd)
 {
 	/*u8 ChannelNum = pAd->ChannelListNum; */
 	u8 Channel = pAd->CommonCfg.Channel;
@@ -1670,7 +1670,7 @@ void N_ChannelCheck(IN PRTMP_ADAPTER pAd)
 
 }
 
-void N_SetCenCh(IN PRTMP_ADAPTER pAd)
+void N_SetCenCh(struct rt_rtmp_adapter *pAd)
 {
 	if (pAd->CommonCfg.RegTransmitSetting.field.BW == BW_40) {
 		if (pAd->CommonCfg.RegTransmitSetting.field.EXTCHA ==
@@ -1690,7 +1690,7 @@ void N_SetCenCh(IN PRTMP_ADAPTER pAd)
 	}
 }
 
-u8 GetCuntryMaxTxPwr(IN PRTMP_ADAPTER pAd, u8 channel)
+u8 GetCuntryMaxTxPwr(struct rt_rtmp_adapter *pAd, u8 channel)
 {
 	int i;
 	for (i = 0; i < pAd->ChannelListNum; i++) {

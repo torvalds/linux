@@ -43,12 +43,12 @@ Return Value:
 
 Note:
 	Initialize all receive releated private buffer, include those define
-	in RTMP_ADAPTER structure and all private data structures. The mahor
+	in struct rt_rtmp_adapter structure and all private data structures. The mahor
 	work is to allocate buffer for each packet and chain buffer to
 	NDIS packet descriptor.
 ========================================================================
 */
-int NICInitRecv(IN PRTMP_ADAPTER pAd)
+int NICInitRecv(struct rt_rtmp_adapter *pAd)
 {
 	u8 i;
 	int Status = NDIS_STATUS_SUCCESS;
@@ -64,7 +64,7 @@ int NICInitRecv(IN PRTMP_ADAPTER pAd)
 	pAd->NextRxBulkInPosition = 0;
 
 	for (i = 0; i < (RX_RING_SIZE); i++) {
-		PRX_CONTEXT pRxContext = &(pAd->RxContext[i]);
+		struct rt_rx_context *pRxContext = &(pAd->RxContext[i]);
 
 		/*Allocate URB */
 		pRxContext->pUrb = RTUSB_ALLOC_URB(0);
@@ -98,7 +98,7 @@ int NICInitRecv(IN PRTMP_ADAPTER pAd)
 
 out1:
 	for (i = 0; i < (RX_RING_SIZE); i++) {
-		PRX_CONTEXT pRxContext = &(pAd->RxContext[i]);
+		struct rt_rx_context *pRxContext = &(pAd->RxContext[i]);
 
 		if (NULL != pRxContext->TransferBuffer) {
 			RTUSB_URB_FREE_BUFFER(pObj->pUsb_Dev, MAX_RXBULK_SIZE,
@@ -132,7 +132,7 @@ Return Value:
 Note:
 ========================================================================
 */
-int NICInitTransmit(IN PRTMP_ADAPTER pAd)
+int NICInitTransmit(struct rt_rtmp_adapter *pAd)
 {
 #define LM_USB_ALLOC(pObj, Context, TB_Type, BufferSize, Status, msg1, err1, msg2, err2)	\
 	Context->pUrb = RTUSB_ALLOC_URB(0);		\
@@ -161,15 +161,15 @@ int NICInitTransmit(IN PRTMP_ADAPTER pAd)
 
 	u8 i, acidx;
 	int Status = NDIS_STATUS_SUCCESS;
-	PTX_CONTEXT pNullContext = &(pAd->NullContext);
-	PTX_CONTEXT pPsPollContext = &(pAd->PsPollContext);
-	PTX_CONTEXT pRTSContext = &(pAd->RTSContext);
-	PTX_CONTEXT pMLMEContext = NULL;
-/*      PHT_TX_CONTEXT  pHTTXContext = NULL; */
+	struct rt_tx_context *pNullContext = &(pAd->NullContext);
+	struct rt_tx_context *pPsPollContext = &(pAd->PsPollContext);
+	struct rt_tx_context *pRTSContext = &(pAd->RTSContext);
+	struct rt_tx_context *pMLMEContext = NULL;
+/*      struct rt_ht_tx_context *pHTTXContext = NULL; */
 	struct os_cookie *pObj = (struct os_cookie *)pAd->OS_Cookie;
 	void *RingBaseVa;
-/*      RTMP_TX_RING    *pTxRing; */
-	RTMP_MGMT_RING *pMgmtRing;
+/*      struct rt_rtmp_tx_ring *pTxRing; */
+	struct rt_rtmp_mgmt_ring *pMgmtRing;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("--> NICInitTransmit\n"));
 	pObj = pObj;
@@ -199,15 +199,15 @@ int NICInitTransmit(IN PRTMP_ADAPTER pAd)
 		/* TX_RING_SIZE, 4 ACs */
 		/* */
 		for (acidx = 0; acidx < 4; acidx++) {
-			PHT_TX_CONTEXT pHTTXContext = &(pAd->TxContext[acidx]);
+			struct rt_ht_tx_context *pHTTXContext = &(pAd->TxContext[acidx]);
 
-			NdisZeroMemory(pHTTXContext, sizeof(HT_TX_CONTEXT));
+			NdisZeroMemory(pHTTXContext, sizeof(struct rt_ht_tx_context));
 			/*Allocate URB */
-			LM_USB_ALLOC(pObj, pHTTXContext, PHTTX_BUFFER,
-				     sizeof(HTTX_BUFFER), Status,
+			LM_USB_ALLOC(pObj, pHTTXContext, struct rt_httx_buffer *,
+				     sizeof(struct rt_httx_buffer), Status,
 				     ("<-- ERROR in Alloc TX TxContext[%d] urb!! \n",
 				      acidx), done,
-				     ("<-- ERROR in Alloc TX TxContext[%d] HTTX_BUFFER !! \n",
+				     ("<-- ERROR in Alloc TX TxContext[%d] struct rt_httx_buffer !! \n",
 				      acidx), out1);
 
 			NdisZeroMemory(pHTTXContext->TransferBuffer->
@@ -232,7 +232,7 @@ int NICInitTransmit(IN PRTMP_ADAPTER pAd)
 
 		/* Allocate MGMT ring descriptor's memory */
 		pAd->MgmtDescRing.AllocSize =
-		    MGMT_RING_SIZE * sizeof(TX_CONTEXT);
+		    MGMT_RING_SIZE * sizeof(struct rt_tx_context);
 		os_alloc_mem(pAd, (u8 **) (&pAd->MgmtDescRing.AllocVa),
 			     pAd->MgmtDescRing.AllocSize);
 		if (pAd->MgmtDescRing.AllocVa == NULL) {
@@ -248,14 +248,14 @@ int NICInitTransmit(IN PRTMP_ADAPTER pAd)
 		pMgmtRing = &pAd->MgmtRing;
 		for (i = 0; i < MGMT_RING_SIZE; i++) {
 			/* link the pre-allocated Mgmt buffer to MgmtRing.Cell */
-			pMgmtRing->Cell[i].AllocSize = sizeof(TX_CONTEXT);
+			pMgmtRing->Cell[i].AllocSize = sizeof(struct rt_tx_context);
 			pMgmtRing->Cell[i].AllocVa = RingBaseVa;
 			pMgmtRing->Cell[i].pNdisPacket = NULL;
 			pMgmtRing->Cell[i].pNextNdisPacket = NULL;
 
 			/*Allocate URB for MLMEContext */
 			pMLMEContext =
-			    (PTX_CONTEXT) pAd->MgmtRing.Cell[i].AllocVa;
+			    (struct rt_tx_context *)pAd->MgmtRing.Cell[i].AllocVa;
 			pMLMEContext->pUrb = RTUSB_ALLOC_URB(0);
 			if (pMLMEContext->pUrb == NULL) {
 				DBGPRINT(RT_DEBUG_ERROR,
@@ -274,7 +274,7 @@ int NICInitTransmit(IN PRTMP_ADAPTER pAd)
 			pMLMEContext->SelfIdx = i;
 
 			/* Offset to next ring descriptor address */
-			RingBaseVa = (u8 *)RingBaseVa + sizeof(TX_CONTEXT);
+			RingBaseVa = (u8 *)RingBaseVa + sizeof(struct rt_tx_context);
 		}
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("MGMT Ring: total %d entry allocated\n", i));
@@ -289,16 +289,16 @@ int NICInitTransmit(IN PRTMP_ADAPTER pAd)
 		/* */
 		for (i = 0; i < BEACON_RING_SIZE; i++)	/* 2 */
 		{
-			PTX_CONTEXT pBeaconContext = &(pAd->BeaconContext[i]);
+			struct rt_tx_context *pBeaconContext = &(pAd->BeaconContext[i]);
 
-			NdisZeroMemory(pBeaconContext, sizeof(TX_CONTEXT));
+			NdisZeroMemory(pBeaconContext, sizeof(struct rt_tx_context));
 
 			/*Allocate URB */
-			LM_USB_ALLOC(pObj, pBeaconContext, PTX_BUFFER,
-				     sizeof(TX_BUFFER), Status,
+			LM_USB_ALLOC(pObj, pBeaconContext, struct rt_tx_buffer *,
+				     sizeof(struct rt_tx_buffer), Status,
 				     ("<-- ERROR in Alloc TX BeaconContext[%d] urb!! \n",
 				      i), out2,
-				     ("<-- ERROR in Alloc TX BeaconContext[%d] TX_BUFFER !! \n",
+				     ("<-- ERROR in Alloc TX BeaconContext[%d] struct rt_tx_buffer !! \n",
 				      i), out3);
 
 			pBeaconContext->pAd = pAd;
@@ -310,14 +310,14 @@ int NICInitTransmit(IN PRTMP_ADAPTER pAd)
 		/* */
 		/* NullContext */
 		/* */
-		NdisZeroMemory(pNullContext, sizeof(TX_CONTEXT));
+		NdisZeroMemory(pNullContext, sizeof(struct rt_tx_context));
 
 		/*Allocate URB */
-		LM_USB_ALLOC(pObj, pNullContext, PTX_BUFFER, sizeof(TX_BUFFER),
+		LM_USB_ALLOC(pObj, pNullContext, struct rt_tx_buffer *, sizeof(struct rt_tx_buffer),
 			     Status,
 			     ("<-- ERROR in Alloc TX NullContext urb!! \n"),
 			     out3,
-			     ("<-- ERROR in Alloc TX NullContext TX_BUFFER !! \n"),
+			     ("<-- ERROR in Alloc TX NullContext struct rt_tx_buffer !! \n"),
 			     out4);
 
 		pNullContext->pAd = pAd;
@@ -328,14 +328,14 @@ int NICInitTransmit(IN PRTMP_ADAPTER pAd)
 		/* */
 		/* RTSContext */
 		/* */
-		NdisZeroMemory(pRTSContext, sizeof(TX_CONTEXT));
+		NdisZeroMemory(pRTSContext, sizeof(struct rt_tx_context));
 
 		/*Allocate URB */
-		LM_USB_ALLOC(pObj, pRTSContext, PTX_BUFFER, sizeof(TX_BUFFER),
+		LM_USB_ALLOC(pObj, pRTSContext, struct rt_tx_buffer *, sizeof(struct rt_tx_buffer),
 			     Status,
 			     ("<-- ERROR in Alloc TX RTSContext urb!! \n"),
 			     out4,
-			     ("<-- ERROR in Alloc TX RTSContext TX_BUFFER !! \n"),
+			     ("<-- ERROR in Alloc TX RTSContext struct rt_tx_buffer !! \n"),
 			     out5);
 
 		pRTSContext->pAd = pAd;
@@ -346,13 +346,13 @@ int NICInitTransmit(IN PRTMP_ADAPTER pAd)
 		/* */
 		/* PsPollContext */
 		/* */
-		/*NdisZeroMemory(pPsPollContext, sizeof(TX_CONTEXT)); */
+		/*NdisZeroMemory(pPsPollContext, sizeof(struct rt_tx_context)); */
 		/*Allocate URB */
-		LM_USB_ALLOC(pObj, pPsPollContext, PTX_BUFFER,
-			     sizeof(TX_BUFFER), Status,
+		LM_USB_ALLOC(pObj, pPsPollContext, struct rt_tx_buffer *,
+			     sizeof(struct rt_tx_buffer), Status,
 			     ("<-- ERROR in Alloc TX PsPollContext urb!! \n"),
 			     out5,
-			     ("<-- ERROR in Alloc TX PsPollContext TX_BUFFER !! \n"),
+			     ("<-- ERROR in Alloc TX PsPollContext struct rt_tx_buffer !! \n"),
 			     out6);
 
 		pPsPollContext->pAd = pAd;
@@ -371,19 +371,19 @@ done:
 
 	/* --------------------------- ERROR HANDLE --------------------------- */
 out6:
-	LM_URB_FREE(pObj, pPsPollContext, sizeof(TX_BUFFER));
+	LM_URB_FREE(pObj, pPsPollContext, sizeof(struct rt_tx_buffer));
 
 out5:
-	LM_URB_FREE(pObj, pRTSContext, sizeof(TX_BUFFER));
+	LM_URB_FREE(pObj, pRTSContext, sizeof(struct rt_tx_buffer));
 
 out4:
-	LM_URB_FREE(pObj, pNullContext, sizeof(TX_BUFFER));
+	LM_URB_FREE(pObj, pNullContext, sizeof(struct rt_tx_buffer));
 
 out3:
 	for (i = 0; i < BEACON_RING_SIZE; i++) {
-		PTX_CONTEXT pBeaconContext = &(pAd->BeaconContext[i]);
+		struct rt_tx_context *pBeaconContext = &(pAd->BeaconContext[i]);
 		if (pBeaconContext)
-			LM_URB_FREE(pObj, pBeaconContext, sizeof(TX_BUFFER));
+			LM_URB_FREE(pObj, pBeaconContext, sizeof(struct rt_tx_buffer));
 	}
 
 out2:
@@ -391,10 +391,10 @@ out2:
 		pMgmtRing = &pAd->MgmtRing;
 		for (i = 0; i < MGMT_RING_SIZE; i++) {
 			pMLMEContext =
-			    (PTX_CONTEXT) pAd->MgmtRing.Cell[i].AllocVa;
+			    (struct rt_tx_context *)pAd->MgmtRing.Cell[i].AllocVa;
 			if (pMLMEContext)
 				LM_URB_FREE(pObj, pMLMEContext,
-					    sizeof(TX_BUFFER));
+					    sizeof(struct rt_tx_buffer));
 		}
 		os_free_mem(pAd, pAd->MgmtDescRing.AllocVa);
 		pAd->MgmtDescRing.AllocVa = NULL;
@@ -402,9 +402,9 @@ out2:
 
 out1:
 	for (acidx = 0; acidx < 4; acidx++) {
-		PHT_TX_CONTEXT pTxContext = &(pAd->TxContext[acidx]);
+		struct rt_ht_tx_context *pTxContext = &(pAd->TxContext[acidx]);
 		if (pTxContext)
-			LM_URB_FREE(pObj, pTxContext, sizeof(HTTX_BUFFER));
+			LM_URB_FREE(pObj, pTxContext, sizeof(struct rt_httx_buffer));
 	}
 
 	/* Here we didn't have any pre-allocated memory need to free. */
@@ -428,16 +428,16 @@ Return Value:
 Note:
 ========================================================================
 */
-int RTMPAllocTxRxRingMemory(IN PRTMP_ADAPTER pAd)
+int RTMPAllocTxRxRingMemory(struct rt_rtmp_adapter *pAd)
 {
-/*      COUNTER_802_11  pCounter = &pAd->WlanCounters; */
+/*      struct rt_counter_802_11  pCounter = &pAd->WlanCounters; */
 	int Status;
 	int num;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("--> RTMPAllocTxRxRingMemory\n"));
 
 	do {
-		/* Init the CmdQ and CmdQLock */
+		/* Init the struct rt_cmdq and CmdQLock */
 		NdisAllocateSpinLock(&pAd->CmdQLock);
 		NdisAcquireSpinLock(&pAd->CmdQLock);
 		RTUSBInitializeCmdQ(&pAd->CmdQ);
@@ -490,7 +490,7 @@ int RTMPAllocTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 
 	} while (FALSE);
 
-	NdisZeroMemory(&pAd->FragFrame, sizeof(FRAGMENT_FRAME));
+	NdisZeroMemory(&pAd->FragFrame, sizeof(struct rt_fragment_frame));
 	pAd->FragFrame.pFragPacket =
 	    RTMP_AllocateFragPacketBuffer(pAd, RX_BUFFER_NORMSIZE);
 
@@ -519,7 +519,7 @@ Return Value:
 Note:
 ========================================================================
 */
-void RTMPFreeTxRxRingMemory(IN PRTMP_ADAPTER pAd)
+void RTMPFreeTxRxRingMemory(struct rt_rtmp_adapter *pAd)
 {
 #define LM_URB_FREE(pObj, Context, BufferSize)				\
 	if (NULL != Context->pUrb) {							\
@@ -533,45 +533,45 @@ void RTMPFreeTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 		Context->TransferBuffer = NULL; }
 
 	u32 i, acidx;
-	PTX_CONTEXT pNullContext = &pAd->NullContext;
-	PTX_CONTEXT pPsPollContext = &pAd->PsPollContext;
-	PTX_CONTEXT pRTSContext = &pAd->RTSContext;
-/*      PHT_TX_CONTEXT          pHTTXContext; */
+	struct rt_tx_context *pNullContext = &pAd->NullContext;
+	struct rt_tx_context *pPsPollContext = &pAd->PsPollContext;
+	struct rt_tx_context *pRTSContext = &pAd->RTSContext;
+/*      struct rt_ht_tx_context *pHTTXContext; */
 	/*PRTMP_REORDERBUF      pReorderBuf; */
 	struct os_cookie *pObj = (struct os_cookie *)pAd->OS_Cookie;
-/*      RTMP_TX_RING            *pTxRing; */
+/*      struct rt_rtmp_tx_ring *pTxRing; */
 
 	DBGPRINT(RT_DEBUG_ERROR, ("---> RTMPFreeTxRxRingMemory\n"));
 	pObj = pObj;
 
 	/* Free all resources for the RECEIVE buffer queue. */
 	for (i = 0; i < (RX_RING_SIZE); i++) {
-		PRX_CONTEXT pRxContext = &(pAd->RxContext[i]);
+		struct rt_rx_context *pRxContext = &(pAd->RxContext[i]);
 		if (pRxContext)
 			LM_URB_FREE(pObj, pRxContext, MAX_RXBULK_SIZE);
 	}
 
 	/* Free PsPoll frame resource */
-	LM_URB_FREE(pObj, pPsPollContext, sizeof(TX_BUFFER));
+	LM_URB_FREE(pObj, pPsPollContext, sizeof(struct rt_tx_buffer));
 
 	/* Free NULL frame resource */
-	LM_URB_FREE(pObj, pNullContext, sizeof(TX_BUFFER));
+	LM_URB_FREE(pObj, pNullContext, sizeof(struct rt_tx_buffer));
 
 	/* Free RTS frame resource */
-	LM_URB_FREE(pObj, pRTSContext, sizeof(TX_BUFFER));
+	LM_URB_FREE(pObj, pRTSContext, sizeof(struct rt_tx_buffer));
 
 	/* Free beacon frame resource */
 	for (i = 0; i < BEACON_RING_SIZE; i++) {
-		PTX_CONTEXT pBeaconContext = &(pAd->BeaconContext[i]);
+		struct rt_tx_context *pBeaconContext = &(pAd->BeaconContext[i]);
 		if (pBeaconContext)
-			LM_URB_FREE(pObj, pBeaconContext, sizeof(TX_BUFFER));
+			LM_URB_FREE(pObj, pBeaconContext, sizeof(struct rt_tx_buffer));
 	}
 
 	/* Free mgmt frame resource */
 	for (i = 0; i < MGMT_RING_SIZE; i++) {
-		PTX_CONTEXT pMLMEContext =
-		    (PTX_CONTEXT) pAd->MgmtRing.Cell[i].AllocVa;
-		/*LM_URB_FREE(pObj, pMLMEContext, sizeof(TX_BUFFER)); */
+		struct rt_tx_context *pMLMEContext =
+		    (struct rt_tx_context *)pAd->MgmtRing.Cell[i].AllocVa;
+		/*LM_URB_FREE(pObj, pMLMEContext, sizeof(struct rt_tx_buffer)); */
 		if (NULL != pAd->MgmtRing.Cell[i].pNdisPacket) {
 			RTMPFreeNdisPacket(pAd,
 					   pAd->MgmtRing.Cell[i].pNdisPacket);
@@ -592,9 +592,9 @@ void RTMPFreeTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 
 	/* Free Tx frame resource */
 	for (acidx = 0; acidx < 4; acidx++) {
-		PHT_TX_CONTEXT pHTTXContext = &(pAd->TxContext[acidx]);
+		struct rt_ht_tx_context *pHTTXContext = &(pAd->TxContext[acidx]);
 		if (pHTTXContext)
-			LM_URB_FREE(pObj, pHTTXContext, sizeof(HTTX_BUFFER));
+			LM_URB_FREE(pObj, pHTTXContext, sizeof(struct rt_httx_buffer));
 	}
 
 	if (pAd->FragFrame.pFragPacket)
@@ -636,7 +636,7 @@ Return Value:
 Note:
 ========================================================================
 */
-int RTUSBWriteHWMACAddress(IN PRTMP_ADAPTER pAd)
+int RTUSBWriteHWMACAddress(struct rt_rtmp_adapter *pAd)
 {
 	MAC_DW0_STRUC StaMacReg0;
 	MAC_DW1_STRUC StaMacReg1;
@@ -687,7 +687,7 @@ Return Value:
 Note:
 ========================================================================
 */
-void RT28XXDMADisable(IN RTMP_ADAPTER * pAd)
+void RT28XXDMADisable(struct rt_rtmp_adapter *pAd)
 {
 	/* no use */
 }
@@ -706,7 +706,7 @@ Return Value:
 Note:
 ========================================================================
 */
-void RT28XXDMAEnable(IN RTMP_ADAPTER * pAd)
+void RT28XXDMAEnable(struct rt_rtmp_adapter *pAd)
 {
 	WPDMA_GLO_CFG_STRUC GloCfg;
 	USB_DMA_CFG_STRUC UsbCfg;
@@ -767,14 +767,14 @@ Return Value:
 Note:
 ========================================================================
 */
-void RT28xx_UpdateBeaconToAsic(IN RTMP_ADAPTER * pAd,
+void RT28xx_UpdateBeaconToAsic(struct rt_rtmp_adapter *pAd,
 			       int apidx,
 			       unsigned long FrameLen, unsigned long UpdatePos)
 {
 	u8 *pBeaconFrame = NULL;
 	u8 *ptr;
 	u32 i, padding;
-	BEACON_SYNC_STRUCT *pBeaconSync = pAd->CommonCfg.pBeaconSync;
+	struct rt_beacon_sync *pBeaconSync = pAd->CommonCfg.pBeaconSync;
 	u32 longValue;
 /*      u16                  shortValue; */
 	BOOLEAN bBcnReq = FALSE;
@@ -849,9 +849,9 @@ void RT28xx_UpdateBeaconToAsic(IN RTMP_ADAPTER * pAd,
 
 }
 
-void RTUSBBssBeaconStop(IN RTMP_ADAPTER * pAd)
+void RTUSBBssBeaconStop(struct rt_rtmp_adapter *pAd)
 {
-	BEACON_SYNC_STRUCT *pBeaconSync;
+	struct rt_beacon_sync *pBeaconSync;
 	int i, offset;
 	BOOLEAN Cancelled = TRUE;
 
@@ -883,10 +883,10 @@ void RTUSBBssBeaconStop(IN RTMP_ADAPTER * pAd)
 	}
 }
 
-void RTUSBBssBeaconStart(IN RTMP_ADAPTER * pAd)
+void RTUSBBssBeaconStart(struct rt_rtmp_adapter *pAd)
 {
 	int apidx;
-	BEACON_SYNC_STRUCT *pBeaconSync;
+	struct rt_beacon_sync *pBeaconSync;
 /*      LARGE_INTEGER   tsfTime, deltaTime; */
 
 	pBeaconSync = pAd->CommonCfg.pBeaconSync;
@@ -929,17 +929,17 @@ void RTUSBBssBeaconStart(IN RTMP_ADAPTER * pAd)
 	}
 }
 
-void RTUSBBssBeaconInit(IN RTMP_ADAPTER * pAd)
+void RTUSBBssBeaconInit(struct rt_rtmp_adapter *pAd)
 {
-	BEACON_SYNC_STRUCT *pBeaconSync;
+	struct rt_beacon_sync *pBeaconSync;
 	int i;
 
 	os_alloc_mem(pAd, (u8 **) (&pAd->CommonCfg.pBeaconSync),
-		     sizeof(BEACON_SYNC_STRUCT));
-	/*NdisAllocMemory(pAd->CommonCfg.pBeaconSync, sizeof(BEACON_SYNC_STRUCT), MEM_ALLOC_FLAG); */
+		     sizeof(struct rt_beacon_sync));
+	/*NdisAllocMemory(pAd->CommonCfg.pBeaconSync, sizeof(struct rt_beacon_sync), MEM_ALLOC_FLAG); */
 	if (pAd->CommonCfg.pBeaconSync) {
 		pBeaconSync = pAd->CommonCfg.pBeaconSync;
-		NdisZeroMemory(pBeaconSync, sizeof(BEACON_SYNC_STRUCT));
+		NdisZeroMemory(pBeaconSync, sizeof(struct rt_beacon_sync));
 		for (i = 0; i < HW_BEACON_MAX_COUNT; i++) {
 			NdisZeroMemory(pBeaconSync->BeaconBuf[i],
 				       HW_BEACON_OFFSET);
@@ -954,9 +954,9 @@ void RTUSBBssBeaconInit(IN RTMP_ADAPTER * pAd)
 	}
 }
 
-void RTUSBBssBeaconExit(IN RTMP_ADAPTER * pAd)
+void RTUSBBssBeaconExit(struct rt_rtmp_adapter *pAd)
 {
-	BEACON_SYNC_STRUCT *pBeaconSync;
+	struct rt_beacon_sync *pBeaconSync;
 	BOOLEAN Cancelled = TRUE;
 	int i;
 
@@ -1001,7 +1001,7 @@ void BeaconUpdateExec(void *SystemSpecific1,
 		      void *FunctionContext,
 		      void *SystemSpecific2, void *SystemSpecific3)
 {
-	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) FunctionContext;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)FunctionContext;
 	LARGE_INTEGER tsfTime_a;	/*, tsfTime_b, deltaTime_exp, deltaTime_ab; */
 	u32 delta, delta2MS, period2US, remain, remain_low, remain_high;
 /*      BOOLEAN                 positive; */
@@ -1038,9 +1038,9 @@ void BeaconUpdateExec(void *SystemSpecific1,
   *	2870 Radio on/off Related functions.
   *
   ********************************************************************/
-void RT28xxUsbMlmeRadioOn(IN PRTMP_ADAPTER pAd)
+void RT28xxUsbMlmeRadioOn(struct rt_rtmp_adapter *pAd)
 {
-	RTMP_CHIP_OP *pChipOps = &pAd->chipOps;
+	struct rt_rtmp_chip_op *pChipOps = &pAd->chipOps;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("RT28xxUsbMlmeRadioOn()\n"));
 
@@ -1068,7 +1068,7 @@ void RT28xxUsbMlmeRadioOn(IN PRTMP_ADAPTER pAd)
 	RTMPSetLED(pAd, LED_RADIO_ON);
 }
 
-void RT28xxUsbMlmeRadioOFF(IN PRTMP_ADAPTER pAd)
+void RT28xxUsbMlmeRadioOFF(struct rt_rtmp_adapter *pAd)
 {
 	WPDMA_GLO_CFG_STRUC GloCfg;
 	u32 Value, i;
@@ -1080,14 +1080,14 @@ void RT28xxUsbMlmeRadioOFF(IN PRTMP_ADAPTER pAd)
 
 	/* Clear PMKID cache. */
 	pAd->StaCfg.SavedPMKNum = 0;
-	RTMPZeroMemory(pAd->StaCfg.SavedPMK, (PMKID_NO * sizeof(BSSID_INFO)));
+	RTMPZeroMemory(pAd->StaCfg.SavedPMK, (PMKID_NO * sizeof(struct rt_bssid_info)));
 
 	/* Link down first if any association exists */
 	if (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)) {
 		if (INFRA_ON(pAd) || ADHOC_ON(pAd)) {
-			MLME_DISASSOC_REQ_STRUCT DisReq;
-			MLME_QUEUE_ELEM *pMsgElem =
-			    (MLME_QUEUE_ELEM *) kmalloc(sizeof(MLME_QUEUE_ELEM),
+			struct rt_mlme_disassoc_req DisReq;
+			struct rt_mlme_queue_elem *pMsgElem =
+			    (struct rt_mlme_queue_elem *)kmalloc(sizeof(struct rt_mlme_queue_elem),
 							MEM_ALLOC_FLAG);
 
 			if (pMsgElem) {
@@ -1098,10 +1098,10 @@ void RT28xxUsbMlmeRadioOFF(IN PRTMP_ADAPTER pAd)
 				pMsgElem->Machine = ASSOC_STATE_MACHINE;
 				pMsgElem->MsgType = MT2_MLME_DISASSOC_REQ;
 				pMsgElem->MsgLen =
-				    sizeof(MLME_DISASSOC_REQ_STRUCT);
+				    sizeof(struct rt_mlme_disassoc_req);
 				NdisMoveMemory(pMsgElem->Msg, &DisReq,
 					       sizeof
-					       (MLME_DISASSOC_REQ_STRUCT));
+					       (struct rt_mlme_disassoc_req));
 
 				MlmeDisassocReqAction(pAd, pMsgElem);
 				kfree(pMsgElem);

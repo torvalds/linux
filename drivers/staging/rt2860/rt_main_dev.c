@@ -83,7 +83,7 @@ Note:
 */
 int MainVirtualIF_close(IN struct net_device *net_dev)
 {
-	RTMP_ADAPTER *pAd = NULL;
+	struct rt_rtmp_adapter *pAd = NULL;
 
 	GET_PAD_FROM_NET_DEV(pAd, net_dev);
 
@@ -99,9 +99,9 @@ int MainVirtualIF_close(IN struct net_device *net_dev)
 
 		if (INFRA_ON(pAd) &&
 		    (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST))) {
-			MLME_DISASSOC_REQ_STRUCT DisReq;
-			MLME_QUEUE_ELEM *MsgElem =
-			    (MLME_QUEUE_ELEM *) kmalloc(sizeof(MLME_QUEUE_ELEM),
+			struct rt_mlme_disassoc_req DisReq;
+			struct rt_mlme_queue_elem *MsgElem =
+			    (struct rt_mlme_queue_elem *)kmalloc(sizeof(struct rt_mlme_queue_elem),
 							MEM_ALLOC_FLAG);
 
 			if (MsgElem) {
@@ -112,10 +112,10 @@ int MainVirtualIF_close(IN struct net_device *net_dev)
 				MsgElem->Machine = ASSOC_STATE_MACHINE;
 				MsgElem->MsgType = MT2_MLME_DISASSOC_REQ;
 				MsgElem->MsgLen =
-				    sizeof(MLME_DISASSOC_REQ_STRUCT);
+				    sizeof(struct rt_mlme_disassoc_req);
 				NdisMoveMemory(MsgElem->Msg, &DisReq,
 					       sizeof
-					       (MLME_DISASSOC_REQ_STRUCT));
+					       (struct rt_mlme_disassoc_req));
 
 				/* Prevent to connect AP again in STAMlmePeriodicExec */
 				pAd->MlmeAux.AutoReconnectSsidLen = 32;
@@ -167,7 +167,7 @@ Note:
 */
 int MainVirtualIF_open(IN struct net_device *net_dev)
 {
-	RTMP_ADAPTER *pAd = NULL;
+	struct rt_rtmp_adapter *pAd = NULL;
 
 	GET_PAD_FROM_NET_DEV(pAd, net_dev);
 
@@ -211,7 +211,7 @@ Note:
 int rt28xx_close(struct net_device *dev)
 {
 	struct net_device *net_dev = (struct net_device *)dev;
-	RTMP_ADAPTER *pAd = NULL;
+	struct rt_rtmp_adapter *pAd = NULL;
 	BOOLEAN Cancelled;
 	u32 i = 0;
 
@@ -381,7 +381,7 @@ Note:
 int rt28xx_open(struct net_device *dev)
 {
 	struct net_device *net_dev = (struct net_device *)dev;
-	PRTMP_ADAPTER pAd = NULL;
+	struct rt_rtmp_adapter *pAd = NULL;
 	int retval = 0;
 	/*struct os_cookie *pObj; */
 
@@ -459,14 +459,14 @@ static const struct net_device_ops rt2860_netdev_ops = {
 	.ndo_start_xmit = rt28xx_send_packets,
 };
 
-struct net_device *RtmpPhyNetDevInit(IN RTMP_ADAPTER * pAd,
-			   IN RTMP_OS_NETDEV_OP_HOOK * pNetDevHook)
+struct net_device *RtmpPhyNetDevInit(struct rt_rtmp_adapter *pAd,
+			   struct rt_rtmp_os_netdev_op_hook *pNetDevHook)
 {
 	struct net_device *net_dev = NULL;
 /*      int             Status; */
 
 	net_dev =
-	    RtmpOSNetDevCreate(pAd, INT_MAIN, 0, sizeof(PRTMP_ADAPTER),
+	    RtmpOSNetDevCreate(pAd, INT_MAIN, 0, sizeof(struct rt_rtmp_adapter *),
 			       INF_MAIN_DEV_NAME);
 	if (net_dev == NULL) {
 		printk
@@ -475,7 +475,7 @@ struct net_device *RtmpPhyNetDevInit(IN RTMP_ADAPTER * pAd,
 	}
 
 	NdisZeroMemory((unsigned char *)pNetDevHook,
-		       sizeof(RTMP_OS_NETDEV_OP_HOOK));
+		       sizeof(struct rt_rtmp_os_netdev_op_hook));
 	pNetDevHook->netdev_ops = &rt2860_netdev_ops;
 	pNetDevHook->priv_flags = INT_MAIN;
 	pNetDevHook->needProtcted = FALSE;
@@ -509,7 +509,7 @@ Note:
 int rt28xx_packet_xmit(struct sk_buff *skb)
 {
 	struct net_device *net_dev = skb->dev;
-	PRTMP_ADAPTER pAd = NULL;
+	struct rt_rtmp_adapter *pAd = NULL;
 	int status = NETDEV_TX_OK;
 	void *pPacket = (void *)skb;
 
@@ -561,7 +561,7 @@ Note:
 static int rt28xx_send_packets(IN struct sk_buff *skb_p,
 			       IN struct net_device *net_dev)
 {
-	RTMP_ADAPTER *pAd = NULL;
+	struct rt_rtmp_adapter *pAd = NULL;
 
 	GET_PAD_FROM_NET_DEV(pAd, net_dev);
 
@@ -580,7 +580,7 @@ static int rt28xx_send_packets(IN struct sk_buff *skb_p,
 /* This function will be called when query /proc */
 struct iw_statistics *rt28xx_get_wireless_stats(IN struct net_device *net_dev)
 {
-	PRTMP_ADAPTER pAd = NULL;
+	struct rt_rtmp_adapter *pAd = NULL;
 
 	GET_PAD_FROM_NET_DEV(pAd, net_dev);
 
@@ -643,7 +643,7 @@ void tbtt_tasklet(unsigned long data)
 static struct net_device_stats *RT28xx_get_ether_stats(IN struct net_device
 						       *net_dev)
 {
-	RTMP_ADAPTER *pAd = NULL;
+	struct rt_rtmp_adapter *pAd = NULL;
 
 	if (net_dev)
 		GET_PAD_FROM_NET_DEV(pAd, net_dev);
@@ -690,7 +690,7 @@ static struct net_device_stats *RT28xx_get_ether_stats(IN struct net_device
 		return NULL;
 }
 
-BOOLEAN RtmpPhyNetDevExit(IN RTMP_ADAPTER * pAd, struct net_device *net_dev)
+BOOLEAN RtmpPhyNetDevExit(struct rt_rtmp_adapter *pAd, struct net_device *net_dev)
 {
 
 	/* Unregister network device */
@@ -724,11 +724,11 @@ Note:
 int AdapterBlockAllocateMemory(void *handle, void ** ppAd)
 {
 
-	*ppAd = (void *)vmalloc(sizeof(RTMP_ADAPTER));	/*pci_alloc_consistent(pci_dev, sizeof(RTMP_ADAPTER), phy_addr); */
+	*ppAd = (void *)vmalloc(sizeof(struct rt_rtmp_adapter));	/*pci_alloc_consistent(pci_dev, sizeof(struct rt_rtmp_adapter), phy_addr); */
 
 	if (*ppAd) {
-		NdisZeroMemory(*ppAd, sizeof(RTMP_ADAPTER));
-		((PRTMP_ADAPTER) * ppAd)->OS_Cookie = handle;
+		NdisZeroMemory(*ppAd, sizeof(struct rt_rtmp_adapter));
+		((struct rt_rtmp_adapter *)* ppAd)->OS_Cookie = handle;
 		return (NDIS_STATUS_SUCCESS);
 	} else {
 		return (NDIS_STATUS_FAILURE);

@@ -73,8 +73,8 @@ u8 Ccx2IeInfo[] = { 0x00, 0x40, 0x96, 0x03, 0x02 };
 
 	==========================================================================
  */
-void AssocStateMachineInit(IN PRTMP_ADAPTER pAd,
-			   IN STATE_MACHINE * S, OUT STATE_MACHINE_FUNC Trans[])
+void AssocStateMachineInit(struct rt_rtmp_adapter *pAd,
+			   struct rt_state_machine *S, OUT STATE_MACHINE_FUNC Trans[])
 {
 	StateMachineInit(S, Trans, MAX_ASSOC_STATE, MAX_ASSOC_MSG,
 			 (STATE_MACHINE_FUNC) Drop, ASSOC_IDLE,
@@ -169,7 +169,7 @@ void AssocTimeout(void *SystemSpecific1,
 		  void *FunctionContext,
 		  void *SystemSpecific2, void *SystemSpecific3)
 {
-	RTMP_ADAPTER *pAd = (RTMP_ADAPTER *) FunctionContext;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)FunctionContext;
 
 	/* Do nothing if the driver is starting halt state. */
 	/* This might happen when timer already been fired before cancel timer with mlmehalt */
@@ -197,7 +197,7 @@ void ReassocTimeout(void *SystemSpecific1,
 		    void *FunctionContext,
 		    void *SystemSpecific2, void *SystemSpecific3)
 {
-	RTMP_ADAPTER *pAd = (RTMP_ADAPTER *) FunctionContext;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)FunctionContext;
 
 	/* Do nothing if the driver is starting halt state. */
 	/* This might happen when timer already been fired before cancel timer with mlmehalt */
@@ -225,7 +225,7 @@ void DisassocTimeout(void *SystemSpecific1,
 		     void *FunctionContext,
 		     void *SystemSpecific2, void *SystemSpecific3)
 {
-	RTMP_ADAPTER *pAd = (RTMP_ADAPTER *) FunctionContext;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)FunctionContext;
 
 	/* Do nothing if the driver is starting halt state. */
 	/* This might happen when timer already been fired before cancel timer with mlmehalt */
@@ -259,10 +259,10 @@ void DisassocTimeout(void *SystemSpecific1,
 
 	==========================================================================
  */
-void MlmeAssocReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void MlmeAssocReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u8 ApAddr[6];
-	HEADER_802_11 AssocHdr;
+	struct rt_header_802_11 AssocHdr;
 	u8 WmeIe[9] =
 	    { IE_VENDOR_SPECIFIC, 0x07, 0x00, 0x50, 0xf2, 0x02, 0x00, 0x01,
        0x00 };
@@ -306,7 +306,7 @@ void MlmeAssocReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		}
 		/* Add by James 03/06/27 */
 		pAd->StaCfg.AssocInfo.Length =
-		    sizeof(NDIS_802_11_ASSOCIATION_INFORMATION);
+		    sizeof(struct rt_ndis_802_11_association_information);
 		/* Association don't need to report MAC address */
 		pAd->StaCfg.AssocInfo.AvailableRequestFixedIEs =
 		    NDIS_802_11_AI_REQFI_CAPABILITIES |
@@ -318,7 +318,7 @@ void MlmeAssocReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		/* Only reassociate need this */
 		/*COPY_MAC_ADDR(pAd->StaCfg.AssocInfo.RequestFixedIEs.CurrentAPAddress, ApAddr); */
 		pAd->StaCfg.AssocInfo.OffsetRequestIEs =
-		    sizeof(NDIS_802_11_ASSOCIATION_INFORMATION);
+		    sizeof(struct rt_ndis_802_11_association_information);
 
 		NdisZeroMemory(pAd->StaCfg.ReqVarIEs, MAX_VIE_LEN);
 		/* First add SSID */
@@ -355,7 +355,7 @@ void MlmeAssocReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 		/* Build basic frame first */
 		MakeOutgoingFrame(pOutBuffer, &FrameLen,
-				  sizeof(HEADER_802_11), &AssocHdr,
+				  sizeof(struct rt_header_802_11), &AssocHdr,
 				  2, &CapabilityInfo,
 				  2, &ListenIntv,
 				  1, &SsidIe,
@@ -440,10 +440,10 @@ void MlmeAssocReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		if (pAd->MlmeAux.APEdcaParm.bValid) {
 			if (pAd->CommonCfg.bAPSDCapable
 			    && pAd->MlmeAux.APEdcaParm.bAPSDCapable) {
-				QBSS_STA_INFO_PARM QosInfo;
+				struct rt_qbss_sta_info_parm QosInfo;
 
 				NdisZeroMemory(&QosInfo,
-					       sizeof(QBSS_STA_INFO_PARM));
+					       sizeof(struct rt_qbss_sta_info_parm));
 				QosInfo.UAPSD_AC_BE = pAd->CommonCfg.bAPSDAC_BE;
 				QosInfo.UAPSD_AC_BK = pAd->CommonCfg.bAPSDAC_BK;
 				QosInfo.UAPSD_AC_VI = pAd->CommonCfg.bAPSDAC_VI;
@@ -589,10 +589,10 @@ void MlmeAssocReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 	==========================================================================
  */
-void MlmeReassocReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void MlmeReassocReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u8 ApAddr[6];
-	HEADER_802_11 ReassocHdr;
+	struct rt_header_802_11 ReassocHdr;
 	u8 WmeIe[9] =
 	    { IE_VENDOR_SPECIFIC, 0x07, 0x00, 0x50, 0xf2, 0x02, 0x00, 0x01,
        0x00 };
@@ -638,7 +638,7 @@ void MlmeReassocReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 			 ("ASSOC - Send RE-ASSOC request...\n"));
 		MgtMacHeaderInit(pAd, &ReassocHdr, SUBTYPE_REASSOC_REQ, 0,
 				 ApAddr, ApAddr);
-		MakeOutgoingFrame(pOutBuffer, &FrameLen, sizeof(HEADER_802_11),
+		MakeOutgoingFrame(pOutBuffer, &FrameLen, sizeof(struct rt_header_802_11),
 				  &ReassocHdr, 2, &CapabilityInfo, 2,
 				  &ListenIntv, MAC_ADDR_LEN, ApAddr, 1, &SsidIe,
 				  1, &pAd->MlmeAux.SsidLen,
@@ -659,10 +659,10 @@ void MlmeReassocReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		if (pAd->MlmeAux.APEdcaParm.bValid) {
 			if (pAd->CommonCfg.bAPSDCapable
 			    && pAd->MlmeAux.APEdcaParm.bAPSDCapable) {
-				QBSS_STA_INFO_PARM QosInfo;
+				struct rt_qbss_sta_info_parm QosInfo;
 
 				NdisZeroMemory(&QosInfo,
-					       sizeof(QBSS_STA_INFO_PARM));
+					       sizeof(struct rt_qbss_sta_info_parm));
 				QosInfo.UAPSD_AC_BE = pAd->CommonCfg.bAPSDAC_BE;
 				QosInfo.UAPSD_AC_BK = pAd->CommonCfg.bAPSDAC_BK;
 				QosInfo.UAPSD_AC_VI = pAd->CommonCfg.bAPSDAC_VI;
@@ -765,11 +765,11 @@ void MlmeReassocReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 	==========================================================================
  */
-void MlmeDisassocReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void MlmeDisassocReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
-	PMLME_DISASSOC_REQ_STRUCT pDisassocReq;
-	HEADER_802_11 DisassocHdr;
-	PHEADER_802_11 pDisassocHdr;
+	struct rt_mlme_disassoc_req *pDisassocReq;
+	struct rt_header_802_11 DisassocHdr;
+	struct rt_header_802_11 * pDisassocHdr;
 	u8 *pOutBuffer = NULL;
 	unsigned long FrameLen = 0;
 	int NStatus;
@@ -778,7 +778,7 @@ void MlmeDisassocReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	u16 Status;
 
 	/* skip sanity check */
-	pDisassocReq = (PMLME_DISASSOC_REQ_STRUCT) (Elem->Msg);
+	pDisassocReq = (struct rt_mlme_disassoc_req *)(Elem->Msg);
 
 	NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	/*Get an unused nonpaged memory */
 	if (NStatus != NDIS_STATUS_SUCCESS) {
@@ -801,14 +801,14 @@ void MlmeDisassocReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		  pDisassocReq->Reason));
 	MgtMacHeaderInit(pAd, &DisassocHdr, SUBTYPE_DISASSOC, 0, pDisassocReq->Addr, pDisassocReq->Addr);	/* patch peap ttls switching issue */
 	MakeOutgoingFrame(pOutBuffer, &FrameLen,
-			  sizeof(HEADER_802_11), &DisassocHdr,
+			  sizeof(struct rt_header_802_11), &DisassocHdr,
 			  2, &pDisassocReq->Reason, END_OF_ARGS);
 	MiniportMMRequest(pAd, 0, pOutBuffer, FrameLen);
 
 	/* To patch Instance and Buffalo(N) AP */
 	/* Driver has to send deauth to Instance AP, but Buffalo(N) needs to send disassoc to reset Authenticator's state machine */
 	/* Therefore, we send both of them. */
-	pDisassocHdr = (PHEADER_802_11) pOutBuffer;
+	pDisassocHdr = (struct rt_header_802_11 *) pOutBuffer;
 	pDisassocHdr->FC.SubType = SUBTYPE_DEAUTH;
 	MiniportMMRequest(pAd, 0, pOutBuffer, FrameLen);
 
@@ -835,7 +835,7 @@ void MlmeDisassocReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 	==========================================================================
  */
-void PeerAssocRspAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerAssocRspAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u16 CapabilityInfo, Status, Aid;
 	u8 SupRate[MAX_LEN_OF_SUPPORTED_RATES], SupRateLen;
@@ -843,9 +843,9 @@ void PeerAssocRspAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	u8 Addr2[MAC_ADDR_LEN];
 	BOOLEAN TimerCancelled;
 	u8 CkipFlag;
-	EDCA_PARM EdcaParm;
-	HT_CAPABILITY_IE HtCapability;
-	ADD_HT_INFO_IE AddHtInfo;	/* AP might use this additional ht info IE */
+	struct rt_edca_parm EdcaParm;
+	struct rt_ht_capability_ie HtCapability;
+	struct rt_add_ht_info_ie AddHtInfo;	/* AP might use this additional ht info IE */
 	u8 HtCapabilityLen = 0;
 	u8 AddHtInfoLen;
 	u8 NewExtChannelOffset = 0xff;
@@ -924,7 +924,7 @@ void PeerAssocRspAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 	==========================================================================
  */
-void PeerReassocRspAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerReassocRspAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u16 CapabilityInfo;
 	u16 Status;
@@ -934,9 +934,9 @@ void PeerReassocRspAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	u8 Addr2[MAC_ADDR_LEN];
 	u8 CkipFlag;
 	BOOLEAN TimerCancelled;
-	EDCA_PARM EdcaParm;
-	HT_CAPABILITY_IE HtCapability;
-	ADD_HT_INFO_IE AddHtInfo;	/* AP might use this additional ht info IE */
+	struct rt_edca_parm EdcaParm;
+	struct rt_ht_capability_ie HtCapability;
+	struct rt_add_ht_info_ie AddHtInfo;	/* AP might use this additional ht info IE */
 	u8 HtCapabilityLen;
 	u8 AddHtInfoLen;
 	u8 NewExtChannelOffset = 0xff;
@@ -994,7 +994,7 @@ void PeerReassocRspAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 	==========================================================================
  */
-void AssocPostProc(IN PRTMP_ADAPTER pAd, u8 *pAddr2, u16 CapabilityInfo, u16 Aid, u8 SupRate[], u8 SupRateLen, u8 ExtRate[], u8 ExtRateLen, IN PEDCA_PARM pEdcaParm, IN HT_CAPABILITY_IE * pHtCapability, u8 HtCapabilityLen, IN ADD_HT_INFO_IE * pAddHtInfo)	/* AP might use this additional ht info IE */
+void AssocPostProc(struct rt_rtmp_adapter *pAd, u8 *pAddr2, u16 CapabilityInfo, u16 Aid, u8 SupRate[], u8 SupRateLen, u8 ExtRate[], u8 ExtRateLen, struct rt_edca_parm *pEdcaParm, struct rt_ht_capability_ie * pHtCapability, u8 HtCapabilityLen, struct rt_add_ht_info_ie * pAddHtInfo)	/* AP might use this additional ht info IE */
 {
 	unsigned long Idx;
 
@@ -1029,7 +1029,7 @@ void AssocPostProc(IN PRTMP_ADAPTER pAd, u8 *pAddr2, u16 CapabilityInfo, u16 Aid
 
 	}
 
-	NdisMoveMemory(&pAd->MlmeAux.APEdcaParm, pEdcaParm, sizeof(EDCA_PARM));
+	NdisMoveMemory(&pAd->MlmeAux.APEdcaParm, pEdcaParm, sizeof(struct rt_edca_parm));
 
 	/* filter out un-supported rates */
 	pAd->MlmeAux.SupRateLen = SupRateLen;
@@ -1069,7 +1069,7 @@ void AssocPostProc(IN PRTMP_ADAPTER pAd, u8 *pAddr2, u16 CapabilityInfo, u16 Aid
 		    && (pAd->ScanTab.BssEntry[Idx].VarIELen != 0)) {
 			u8 *pVIE;
 			u16 len;
-			PEID_STRUCT pEid;
+			struct rt_eid * pEid;
 
 			pVIE = pAd->ScanTab.BssEntry[Idx].VarIEs;
 			len = pAd->ScanTab.BssEntry[Idx].VarIELen;
@@ -1079,7 +1079,7 @@ void AssocPostProc(IN PRTMP_ADAPTER pAd, u8 *pAddr2, u16 CapabilityInfo, u16 Aid
 			RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
 
 			while (len > 0) {
-				pEid = (PEID_STRUCT) pVIE;
+				pEid = (struct rt_eid *) pVIE;
 				/* For WPA/WPAPSK */
 				if ((pEid->Eid == IE_WPA)
 				    &&
@@ -1144,7 +1144,7 @@ void AssocPostProc(IN PRTMP_ADAPTER pAd, u8 *pAddr2, u16 CapabilityInfo, u16 Aid
 
 	==========================================================================
  */
-void PeerDisassocAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerDisassocAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u8 Addr2[MAC_ADDR_LEN];
 	u16 Reason;
@@ -1189,7 +1189,7 @@ void PeerDisassocAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 	==========================================================================
  */
-void AssocTimeoutAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void AssocTimeoutAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u16 Status;
 	DBGPRINT(RT_DEBUG_TRACE, ("ASSOC - AssocTimeoutAction\n"));
@@ -1207,7 +1207,7 @@ void AssocTimeoutAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 	==========================================================================
  */
-void ReassocTimeoutAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void ReassocTimeoutAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u16 Status;
 	DBGPRINT(RT_DEBUG_TRACE, ("ASSOC - ReassocTimeoutAction\n"));
@@ -1225,7 +1225,7 @@ void ReassocTimeoutAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 	==========================================================================
  */
-void DisassocTimeoutAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void DisassocTimeoutAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u16 Status;
 	DBGPRINT(RT_DEBUG_TRACE, ("ASSOC - DisassocTimeoutAction\n"));
@@ -1235,7 +1235,7 @@ void DisassocTimeoutAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		    &Status);
 }
 
-void InvalidStateWhenAssoc(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void InvalidStateWhenAssoc(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u16 Status;
 	DBGPRINT(RT_DEBUG_TRACE,
@@ -1246,7 +1246,7 @@ void InvalidStateWhenAssoc(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_ASSOC_CONF, 2, &Status);
 }
 
-void InvalidStateWhenReassoc(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void InvalidStateWhenReassoc(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u16 Status;
 	DBGPRINT(RT_DEBUG_TRACE,
@@ -1257,8 +1257,8 @@ void InvalidStateWhenReassoc(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_REASSOC_CONF, 2, &Status);
 }
 
-void InvalidStateWhenDisassociate(IN PRTMP_ADAPTER pAd,
-				  IN MLME_QUEUE_ELEM * Elem)
+void InvalidStateWhenDisassociate(struct rt_rtmp_adapter *pAd,
+				  struct rt_mlme_queue_elem *Elem)
 {
 	u16 Status;
 	DBGPRINT(RT_DEBUG_TRACE,
@@ -1283,10 +1283,10 @@ void InvalidStateWhenDisassociate(IN PRTMP_ADAPTER pAd,
 
 	==========================================================================
  */
-void Cls3errAction(IN PRTMP_ADAPTER pAd, u8 *pAddr)
+void Cls3errAction(struct rt_rtmp_adapter *pAd, u8 *pAddr)
 {
-	HEADER_802_11 DisassocHdr;
-	PHEADER_802_11 pDisassocHdr;
+	struct rt_header_802_11 DisassocHdr;
+	struct rt_header_802_11 * pDisassocHdr;
 	u8 *pOutBuffer = NULL;
 	unsigned long FrameLen = 0;
 	int NStatus;
@@ -1300,14 +1300,14 @@ void Cls3errAction(IN PRTMP_ADAPTER pAd, u8 *pAddr)
 		 ("ASSOC - Class 3 Error, Send DISASSOC frame\n"));
 	MgtMacHeaderInit(pAd, &DisassocHdr, SUBTYPE_DISASSOC, 0, pAddr, pAd->CommonCfg.Bssid);	/* patch peap ttls switching issue */
 	MakeOutgoingFrame(pOutBuffer, &FrameLen,
-			  sizeof(HEADER_802_11), &DisassocHdr,
+			  sizeof(struct rt_header_802_11), &DisassocHdr,
 			  2, &Reason, END_OF_ARGS);
 	MiniportMMRequest(pAd, 0, pOutBuffer, FrameLen);
 
 	/* To patch Instance and Buffalo(N) AP */
 	/* Driver has to send deauth to Instance AP, but Buffalo(N) needs to send disassoc to reset Authenticator's state machine */
 	/* Therefore, we send both of them. */
-	pDisassocHdr = (PHEADER_802_11) pOutBuffer;
+	pDisassocHdr = (struct rt_header_802_11 *) pOutBuffer;
 	pDisassocHdr->FC.SubType = SUBTYPE_DEAUTH;
 	MiniportMMRequest(pAd, 0, pOutBuffer, FrameLen);
 
@@ -1317,7 +1317,7 @@ void Cls3errAction(IN PRTMP_ADAPTER pAd, u8 *pAddr)
 	COPY_MAC_ADDR(pAd->StaCfg.DisassocSta, pAddr);
 }
 
-int wext_notify_event_assoc(IN RTMP_ADAPTER * pAd)
+int wext_notify_event_assoc(struct rt_rtmp_adapter *pAd)
 {
 	char custom[IW_CUSTOM_MAX] = { 0 };
 
@@ -1334,12 +1334,12 @@ int wext_notify_event_assoc(IN RTMP_ADAPTER * pAd)
 
 }
 
-BOOLEAN StaAddMacTableEntry(IN PRTMP_ADAPTER pAd,
-			    IN PMAC_TABLE_ENTRY pEntry,
+BOOLEAN StaAddMacTableEntry(struct rt_rtmp_adapter *pAd,
+			    struct rt_mac_table_entry *pEntry,
 			    u8 MaxSupportedRateIn500Kbps,
-			    IN HT_CAPABILITY_IE * pHtCapability,
+			    struct rt_ht_capability_ie * pHtCapability,
 			    u8 HtCapabilityLen,
-			    IN ADD_HT_INFO_IE * pAddHtInfo,
+			    struct rt_add_ht_info_ie * pAddHtInfo,
 			    u8 AddHtInfoLen, u16 CapabilityInfo)
 {
 	u8 MaxSupportedRate = RATE_11;

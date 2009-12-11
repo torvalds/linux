@@ -79,7 +79,7 @@ Note:
     None
 ========================================================================
 */
-void MD5_Init(IN MD5_CTX_STRUC * pMD5_CTX)
+void MD5_Init(struct rt_md5_ctx_struc *pMD5_CTX)
 {
 	NdisMoveMemory(pMD5_CTX->HashValue, MD5_DefaultHashValue,
 		       sizeof(MD5_DefaultHashValue));
@@ -103,7 +103,7 @@ Note:
     T[i] := floor(abs(sin(i + 1)) * (2 pow 32)), i is number of round
 ========================================================================
 */
-void MD5_Hash(IN MD5_CTX_STRUC * pMD5_CTX)
+void MD5_Hash(struct rt_md5_ctx_struc *pMD5_CTX)
 {
 	u32 X_i;
 	u32 X[16];
@@ -227,7 +227,7 @@ Routine Description:
 will be called.
 
 Arguments:
-    pMD5_CTX        Pointer to MD5_CTX_STRUC
+    pMD5_CTX        Pointer to struct rt_md5_ctx_struc
     message         Message context
     messageLen      The length of message in bytes
 
@@ -238,7 +238,7 @@ Note:
     None
 ========================================================================
 */
-void MD5_Append(IN MD5_CTX_STRUC * pMD5_CTX,
+void MD5_Append(struct rt_md5_ctx_struc *pMD5_CTX,
 		IN const u8 Message[], u32 MessageLen)
 {
 	u32 appendLen = 0;
@@ -271,7 +271,7 @@ Routine Description:
     3. Transform the Hash Value to digest message
 
 Arguments:
-    pMD5_CTX        Pointer to MD5_CTX_STRUC
+    pMD5_CTX        Pointer to struct rt_md5_ctx_struc
 
 Return Value:
     digestMessage   Digest message
@@ -280,7 +280,7 @@ Note:
     None
 ========================================================================
 */
-void MD5_End(IN MD5_CTX_STRUC * pMD5_CTX, u8 DigestMessage[])
+void MD5_End(struct rt_md5_ctx_struc *pMD5_CTX, u8 DigestMessage[])
 {
 	u32 index;
 	u64 message_length_bits;
@@ -326,9 +326,9 @@ Note:
 void RT_MD5(IN const u8 Message[],
 	    u32 MessageLen, u8 DigestMessage[])
 {
-	MD5_CTX_STRUC md5_ctx;
+	struct rt_md5_ctx_struc md5_ctx;
 
-	NdisZeroMemory(&md5_ctx, sizeof(MD5_CTX_STRUC));
+	NdisZeroMemory(&md5_ctx, sizeof(struct rt_md5_ctx_struc));
 	MD5_Init(&md5_ctx);
 	MD5_Append(&md5_ctx, Message, MessageLen);
 	MD5_End(&md5_ctx, DigestMessage);

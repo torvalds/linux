@@ -126,7 +126,7 @@ void RTUSBBulkRxComplete(struct urb *pUrb, struct pt_regs *pt_regs);
 #ifdef KTHREAD_SUPPORT
 #define RTUSBMlmeUp(pAd) \
 	do{								    \
-		RTMP_OS_TASK	*_pTask = &((pAd)->mlmeTask);\
+		struct rt_rtmp_os_task *_pTask = &((pAd)->mlmeTask);\
 		if (_pTask->kthread_task) \
         { \
 			_pTask->kthread_running = TRUE; \
@@ -136,7 +136,7 @@ void RTUSBBulkRxComplete(struct urb *pUrb, struct pt_regs *pt_regs);
 #else
 #define RTUSBMlmeUp(pAd)	        \
 	do{								    \
-		RTMP_OS_TASK	*_pTask = &((pAd)->mlmeTask);\
+		struct rt_rtmp_os_task *_pTask = &((pAd)->mlmeTask);\
 		CHECK_PID_LEGALITY(_pTask->taskPID)		    \
 		{ \
 			RTMP_SEM_EVENT_UP(&(_pTask->taskSema)); \
@@ -147,7 +147,7 @@ void RTUSBBulkRxComplete(struct urb *pUrb, struct pt_regs *pt_regs);
 #ifdef KTHREAD_SUPPORT
 #define RTUSBCMDUp(pAd) \
 	do{	\
-		RTMP_OS_TASK	*_pTask = &((pAd)->cmdQTask);	\
+		struct rt_rtmp_os_task *_pTask = &((pAd)->cmdQTask);	\
 		{ \
 			_pTask->kthread_running = TRUE; \
 	        wake_up(&_pTask->kthread_q); \
@@ -157,7 +157,7 @@ void RTUSBBulkRxComplete(struct urb *pUrb, struct pt_regs *pt_regs);
 #else
 #define RTUSBCMDUp(pAd)	                \
 	do{									    \
-		RTMP_OS_TASK	*_pTask = &((pAd)->cmdQTask);	\
+		struct rt_rtmp_os_task *_pTask = &((pAd)->cmdQTask);	\
 		CHECK_PID_LEGALITY(_pTask->taskPID)	    \
 		{\
 			RTMP_SEM_EVENT_UP(&(_pTask->taskSema)); \

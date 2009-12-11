@@ -43,7 +43,7 @@ char *CipherName[] =
 /* */
 /* BBP register initialization set */
 /* */
-REG_PAIR BBPRegTable[] = {
+struct rt_reg_pair BBPRegTable[] = {
 	{BBP_R65, 0x2C},	/* fix rssi issue */
 	{BBP_R66, 0x38},	/* Also set this default value to pAd->BbpTuning.R66CurrentValue at initial */
 	{BBP_R69, 0x12},
@@ -61,13 +61,13 @@ REG_PAIR BBPRegTable[] = {
 	{BBP_R106, 0x35},	/* for ShortGI throughput */
 };
 
-#define	NUM_BBP_REG_PARMS	(sizeof(BBPRegTable) / sizeof(REG_PAIR))
+#define	NUM_BBP_REG_PARMS	(sizeof(BBPRegTable) / sizeof(struct rt_reg_pair))
 
 /* */
 /* ASIC register initialization sets */
 /* */
 
-RTMP_REG_PAIR MACRegTable[] = {
+struct rt_rtmp_reg_pair MACRegTable[] = {
 #if defined(HW_BEACON_OFFSET) && (HW_BEACON_OFFSET == 0x200)
 	{BCN_OFFSET0, 0xf8f0e8e0},	/* 0x3800(e0), 0x3A00(e8), 0x3C00(f0), 0x3E00(f8), 512B for each beacon */
 	{BCN_OFFSET1, 0x6f77d0c8},	/* 0x3200(c8), 0x3400(d0), 0x1DC0(77), 0x1BC0(6f), 512B for each beacon */
@@ -124,20 +124,20 @@ RTMP_REG_PAIR MACRegTable[] = {
 	{PWR_PIN_CFG, 0x00000003},	/* patch for 2880-E */
 };
 
-RTMP_REG_PAIR STAMACRegTable[] = {
+struct rt_rtmp_reg_pair STAMACRegTable[] = {
 	{WMM_AIFSN_CFG, 0x00002273},
 	{WMM_CWMIN_CFG, 0x00002344},
 	{WMM_CWMAX_CFG, 0x000034aa},
 };
 
-#define	NUM_MAC_REG_PARMS		(sizeof(MACRegTable) / sizeof(RTMP_REG_PAIR))
-#define	NUM_STA_MAC_REG_PARMS	(sizeof(STAMACRegTable) / sizeof(RTMP_REG_PAIR))
+#define	NUM_MAC_REG_PARMS		(sizeof(MACRegTable) / sizeof(struct rt_rtmp_reg_pair))
+#define	NUM_STA_MAC_REG_PARMS	(sizeof(STAMACRegTable) / sizeof(struct rt_rtmp_reg_pair))
 
 /*
 	========================================================================
 
 	Routine Description:
-		Allocate RTMP_ADAPTER data block and do some initialization
+		Allocate struct rt_rtmp_adapter data block and do some initialization
 
 	Arguments:
 		Adapter		Pointer to our adapter
@@ -153,9 +153,9 @@ RTMP_REG_PAIR STAMACRegTable[] = {
 	========================================================================
 */
 int RTMPAllocAdapterBlock(void *handle,
-				  OUT PRTMP_ADAPTER * ppAdapter)
+				  struct rt_rtmp_adapter * * ppAdapter)
 {
-	PRTMP_ADAPTER pAd;
+	struct rt_rtmp_adapter *pAd;
 	int Status;
 	int index;
 	u8 *pBeaconBuf = NULL;
@@ -165,7 +165,7 @@ int RTMPAllocAdapterBlock(void *handle,
 	*ppAdapter = NULL;
 
 	do {
-		/* Allocate RTMP_ADAPTER memory block */
+		/* Allocate struct rt_rtmp_adapter memory block */
 		pBeaconBuf = kmalloc(MAX_BEACON_SIZE, MEM_ALLOC_FLAG);
 		if (pBeaconBuf == NULL) {
 			Status = NDIS_STATUS_FAILURE;
@@ -182,7 +182,7 @@ int RTMPAllocAdapterBlock(void *handle,
 		pAd->BeaconBuf = pBeaconBuf;
 		DBGPRINT(RT_DEBUG_OFF,
 			 ("\n\n=== pAd = %p, size = %d ===\n\n", pAd,
-			  (u32)sizeof(RTMP_ADAPTER)));
+			  (u32)sizeof(struct rt_rtmp_adapter)));
 
 		/* Init spin locks */
 		NdisAllocateSpinLock(&pAd->MgmtRingLock);
@@ -230,7 +230,7 @@ int RTMPAllocAdapterBlock(void *handle,
 
 	========================================================================
 */
-void RTMPReadTxPwrPerRate(IN PRTMP_ADAPTER pAd)
+void RTMPReadTxPwrPerRate(struct rt_rtmp_adapter *pAd)
 {
 	unsigned long data, Adata, Gdata;
 	u16 i, value, value2;
@@ -441,7 +441,7 @@ void RTMPReadTxPwrPerRate(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-void RTMPReadChannelPwr(IN PRTMP_ADAPTER pAd)
+void RTMPReadChannelPwr(struct rt_rtmp_adapter *pAd)
 {
 	u8 i, choffset;
 	EEPROM_TX_PWR_STRUC Power;
@@ -650,7 +650,7 @@ void RTMPReadChannelPwr(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-int NICReadRegParameters(IN PRTMP_ADAPTER pAd,
+int NICReadRegParameters(struct rt_rtmp_adapter *pAd,
 				 void *WrapperConfigurationContext)
 {
 	int Status = NDIS_STATUS_SUCCESS;
@@ -676,7 +676,7 @@ int NICReadRegParameters(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-void NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, u8 *mac_addr)
+void NICReadEEPROMParameters(struct rt_rtmp_adapter *pAd, u8 *mac_addr)
 {
 	u32 data = 0;
 	u16 i, value, value2;
@@ -1133,7 +1133,7 @@ void NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, u8 *mac_addr)
 
 	========================================================================
 */
-void NICInitAsicFromEEPROM(IN PRTMP_ADAPTER pAd)
+void NICInitAsicFromEEPROM(struct rt_rtmp_adapter *pAd)
 {
 	u32 data = 0;
 	u8 BBPR1 = 0;
@@ -1242,7 +1242,7 @@ void NICInitAsicFromEEPROM(IN PRTMP_ADAPTER pAd)
 #ifdef RTMP_MAC_PCI
 #ifdef RT30xx
 	if (IS_RT3090(pAd) || IS_RT3572(pAd) || IS_RT3390(pAd)) {
-		RTMP_CHIP_OP *pChipOps = &pAd->chipOps;
+		struct rt_rtmp_chip_op *pChipOps = &pAd->chipOps;
 		if (pChipOps->AsicReverseRfFromSleepMode)
 			pChipOps->AsicReverseRfFromSleepMode(pAd);
 	}
@@ -1366,7 +1366,7 @@ void NICInitAsicFromEEPROM(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-int NICInitializeAdapter(IN PRTMP_ADAPTER pAd, IN BOOLEAN bHardReset)
+int NICInitializeAdapter(struct rt_rtmp_adapter *pAd, IN BOOLEAN bHardReset)
 {
 	int Status = NDIS_STATUS_SUCCESS;
 	WPDMA_GLO_CFG_STRUC GloCfg;
@@ -1562,7 +1562,7 @@ retry:
 
 	========================================================================
 */
-int NICInitializeAsic(IN PRTMP_ADAPTER pAd, IN BOOLEAN bHardReset)
+int NICInitializeAsic(struct rt_rtmp_adapter *pAd, IN BOOLEAN bHardReset)
 {
 	unsigned long Index = 0;
 	u8 R0 = 0xff;
@@ -1929,7 +1929,7 @@ int NICInitializeAsic(IN PRTMP_ADAPTER pAd, IN BOOLEAN bHardReset)
 
 	========================================================================
 */
-void NICIssueReset(IN PRTMP_ADAPTER pAd)
+void NICIssueReset(struct rt_rtmp_adapter *pAd)
 {
 	u32 Value = 0;
 	DBGPRINT(RT_DEBUG_TRACE, ("--> NICIssueReset\n"));
@@ -1965,15 +1965,15 @@ void NICIssueReset(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-BOOLEAN NICCheckForHang(IN PRTMP_ADAPTER pAd)
+BOOLEAN NICCheckForHang(struct rt_rtmp_adapter *pAd)
 {
 	return (FALSE);
 }
 
-void NICUpdateFifoStaCounters(IN PRTMP_ADAPTER pAd)
+void NICUpdateFifoStaCounters(struct rt_rtmp_adapter *pAd)
 {
 	TX_STA_FIFO_STRUC StaFifo;
-	MAC_TABLE_ENTRY *pEntry;
+	struct rt_mac_table_entry *pEntry;
 	u8 i = 0;
 	u8 pid = 0, wcid = 0;
 	char reTry;
@@ -2094,7 +2094,7 @@ void NICUpdateFifoStaCounters(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-void NICUpdateRawCounters(IN PRTMP_ADAPTER pAd)
+void NICUpdateRawCounters(struct rt_rtmp_adapter *pAd)
 {
 	u32 OldValue;	/*, Value2; */
 	/*unsigned long PageSum, OneSecTransmitCount; */
@@ -2114,7 +2114,7 @@ void NICUpdateRawCounters(IN PRTMP_ADAPTER pAd)
 	TX_AGG_CNT5_STRUC TxAggCnt5;
 	TX_AGG_CNT6_STRUC TxAggCnt6;
 	TX_AGG_CNT7_STRUC TxAggCnt7;
-	COUNTER_RALINK *pRalinkCounters;
+	struct rt_counter_ralink *pRalinkCounters;
 
 	pRalinkCounters = &pAd->RalinkCounters;
 
@@ -2299,7 +2299,7 @@ void NICUpdateRawCounters(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-void NICResetFromError(IN PRTMP_ADAPTER pAd)
+void NICResetFromError(struct rt_rtmp_adapter *pAd)
 {
 	/* Reset BBP (according to alex, reset ASIC will force reset BBP */
 	/* Therefore, skip the reset BBP */
@@ -2317,7 +2317,7 @@ void NICResetFromError(IN PRTMP_ADAPTER pAd)
 	AsicLockChannel(pAd, pAd->CommonCfg.CentralChannel);
 }
 
-int NICLoadFirmware(IN PRTMP_ADAPTER pAd)
+int NICLoadFirmware(struct rt_rtmp_adapter *pAd)
 {
 	int status = NDIS_STATUS_SUCCESS;
 	if (pAd->chipOps.loadFirmware)
@@ -2339,7 +2339,7 @@ int NICLoadFirmware(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-void NICEraseFirmware(IN PRTMP_ADAPTER pAd)
+void NICEraseFirmware(struct rt_rtmp_adapter *pAd)
 {
 	if (pAd->chipOps.eraseFirmware)
 		pAd->chipOps.eraseFirmware(pAd);
@@ -2367,7 +2367,7 @@ void NICEraseFirmware(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-int NICLoadRateSwitchingParams(IN PRTMP_ADAPTER pAd)
+int NICLoadRateSwitchingParams(struct rt_rtmp_adapter *pAd)
 {
 	return NDIS_STATUS_SUCCESS;
 }
@@ -2500,7 +2500,7 @@ void RTMPMoveMemory(void *pDest, void *pSrc, unsigned long Length)
 
 	========================================================================
 */
-void UserCfgInit(IN PRTMP_ADAPTER pAd)
+void UserCfgInit(struct rt_rtmp_adapter *pAd)
 {
 	u32 key_index, bss_index;
 
@@ -2673,7 +2673,7 @@ void UserCfgInit(IN PRTMP_ADAPTER pAd)
 		pAd->CommonCfg.NdisRadioStateOff = FALSE;	/* New to support microsoft disable radio with OID command */
 
 		pAd->StaCfg.RssiTrigger = 0;
-		NdisZeroMemory(&pAd->StaCfg.RssiSample, sizeof(RSSI_SAMPLE));
+		NdisZeroMemory(&pAd->StaCfg.RssiSample, sizeof(struct rt_rssi_sample));
 		pAd->StaCfg.RssiTriggerMode =
 		    RSSI_TRIGGERED_UPON_BELOW_THRESHOLD;
 		pAd->StaCfg.AtimWin = 0;
@@ -2793,7 +2793,7 @@ void UserCfgInit(IN PRTMP_ADAPTER pAd)
 	/*pAd->bTest1 = FALSE; */
 
 	/* initialize MAC table and allocate spin lock */
-	NdisZeroMemory(&pAd->MacTab, sizeof(MAC_TABLE));
+	NdisZeroMemory(&pAd->MacTab, sizeof(struct rt_mac_table));
 	InitializeQueueHeader(&pAd->MacTab.McastPsQueue);
 	NdisAllocateSpinLock(&pAd->MacTabLock);
 
@@ -2875,8 +2875,8 @@ void AtoH(char *src, u8 *dest, int destlen)
 
 	========================================================================
 */
-void RTMPInitTimer(IN PRTMP_ADAPTER pAd,
-		   IN PRALINK_TIMER_STRUCT pTimer,
+void RTMPInitTimer(struct rt_rtmp_adapter *pAd,
+		   struct rt_ralink_timer *pTimer,
 		   void *pTimerFunc, void *pData, IN BOOLEAN Repeat)
 {
 	/* */
@@ -2915,7 +2915,7 @@ void RTMPInitTimer(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-void RTMPSetTimer(IN PRALINK_TIMER_STRUCT pTimer, unsigned long Value)
+void RTMPSetTimer(struct rt_ralink_timer *pTimer, unsigned long Value)
 {
 	if (pTimer->Valid) {
 		pTimer->TimerValue = Value;
@@ -2950,7 +2950,7 @@ void RTMPSetTimer(IN PRALINK_TIMER_STRUCT pTimer, unsigned long Value)
 
 	========================================================================
 */
-void RTMPModTimer(IN PRALINK_TIMER_STRUCT pTimer, unsigned long Value)
+void RTMPModTimer(struct rt_ralink_timer *pTimer, unsigned long Value)
 {
 	BOOLEAN Cancel;
 
@@ -2989,7 +2989,7 @@ void RTMPModTimer(IN PRALINK_TIMER_STRUCT pTimer, unsigned long Value)
 
 	========================================================================
 */
-void RTMPCancelTimer(IN PRALINK_TIMER_STRUCT pTimer, OUT BOOLEAN * pCancelled)
+void RTMPCancelTimer(struct rt_ralink_timer *pTimer, OUT BOOLEAN * pCancelled)
 {
 	if (pTimer->Valid) {
 		if (pTimer->State == FALSE)
@@ -3030,7 +3030,7 @@ void RTMPCancelTimer(IN PRALINK_TIMER_STRUCT pTimer, OUT BOOLEAN * pCancelled)
 
 	========================================================================
 */
-void RTMPSetLED(IN PRTMP_ADAPTER pAd, u8 Status)
+void RTMPSetLED(struct rt_rtmp_adapter *pAd, u8 Status)
 {
 	/*unsigned long                 data; */
 	u8 HighByte = 0;
@@ -3117,7 +3117,7 @@ void RTMPSetLED(IN PRTMP_ADAPTER pAd, u8 Status)
 		 > -57  Excellent
 	========================================================================
 */
-void RTMPSetSignalLED(IN PRTMP_ADAPTER pAd, IN NDIS_802_11_RSSI Dbm)
+void RTMPSetSignalLED(struct rt_rtmp_adapter *pAd, IN NDIS_802_11_RSSI Dbm)
 {
 	u8 nLed = 0;
 
@@ -3164,7 +3164,7 @@ void RTMPSetSignalLED(IN PRTMP_ADAPTER pAd, IN NDIS_802_11_RSSI Dbm)
 		Before Enable RX, make sure you have enabled Interrupt.
 	========================================================================
 */
-void RTMPEnableRxTx(IN PRTMP_ADAPTER pAd)
+void RTMPEnableRxTx(struct rt_rtmp_adapter *pAd)
 {
 /*      WPDMA_GLO_CFG_STRUC     GloCfg; */
 /*      unsigned long   i = 0; */
@@ -3193,12 +3193,12 @@ void RTMPEnableRxTx(IN PRTMP_ADAPTER pAd)
 }
 
 /*+++Add by shiang, move from os/linux/rt_main_dev.c */
-void CfgInitHook(PRTMP_ADAPTER pAd)
+void CfgInitHook(struct rt_rtmp_adapter *pAd)
 {
 	pAd->bBroadComHT = TRUE;
 }
 
-int rt28xx_init(IN PRTMP_ADAPTER pAd,
+int rt28xx_init(struct rt_rtmp_adapter *pAd,
 		char *pDefaultMac, char *pHostName)
 {
 	u32 index;
@@ -3476,12 +3476,12 @@ err0:
 
 /*---Add by shiang, move from os/linux/rt_main_dev.c */
 
-static int RtmpChipOpsRegister(IN RTMP_ADAPTER * pAd, int infType)
+static int RtmpChipOpsRegister(struct rt_rtmp_adapter *pAd, int infType)
 {
-	RTMP_CHIP_OP *pChipOps = &pAd->chipOps;
+	struct rt_rtmp_chip_op *pChipOps = &pAd->chipOps;
 	int status;
 
-	memset(pChipOps, 0, sizeof(RTMP_CHIP_OP));
+	memset(pChipOps, 0, sizeof(struct rt_rtmp_chip_op));
 
 	/* set eeprom related hook functions */
 	status = RtmpChipOpsEepromHook(pAd, infType);
@@ -3508,7 +3508,7 @@ static int RtmpChipOpsRegister(IN RTMP_ADAPTER * pAd, int infType)
 	return status;
 }
 
-int RtmpRaDevCtrlInit(IN RTMP_ADAPTER * pAd, IN RTMP_INF_TYPE infType)
+int RtmpRaDevCtrlInit(struct rt_rtmp_adapter *pAd, IN RTMP_INF_TYPE infType)
 {
 	/*void  *handle; */
 
@@ -3535,7 +3535,7 @@ int RtmpRaDevCtrlInit(IN RTMP_ADAPTER * pAd, IN RTMP_INF_TYPE infType)
 	return 0;
 }
 
-BOOLEAN RtmpRaDevCtrlExit(IN RTMP_ADAPTER * pAd)
+BOOLEAN RtmpRaDevCtrlExit(struct rt_rtmp_adapter *pAd)
 {
 
 	RTMPFreeAdapter(pAd);
@@ -3544,7 +3544,7 @@ BOOLEAN RtmpRaDevCtrlExit(IN RTMP_ADAPTER * pAd)
 }
 
 /* not yet support MBSS */
-struct net_device *get_netdev_from_bssid(IN PRTMP_ADAPTER pAd, u8 FromWhichBSSID)
+struct net_device *get_netdev_from_bssid(struct rt_rtmp_adapter *pAd, u8 FromWhichBSSID)
 {
 	struct net_device *dev_p = NULL;
 

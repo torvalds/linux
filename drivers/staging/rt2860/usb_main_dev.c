@@ -148,12 +148,12 @@ int const rtusb_usb_id_len =
 
 MODULE_DEVICE_TABLE(usb, rtusb_usb_id);
 
-static void rt2870_disconnect(IN struct usb_device *dev, IN PRTMP_ADAPTER pAd);
+static void rt2870_disconnect(struct usb_device *dev, struct rt_rtmp_adapter *pAd);
 
 static int __devinit rt2870_probe(IN struct usb_interface *intf,
 				  IN struct usb_device *usb_dev,
 				  IN const struct usb_device_id *dev_id,
-				  IN RTMP_ADAPTER ** ppAd);
+				  struct rt_rtmp_adapter ** ppAd);
 
 #ifndef PF_NOFREEZE
 #define PF_NOFREEZE  0
@@ -164,7 +164,7 @@ extern int rt28xx_open(struct net_device *net_dev);
 
 static BOOLEAN USBDevConfigInit(IN struct usb_device *dev,
 				IN struct usb_interface *intf,
-				IN RTMP_ADAPTER * pAd);
+				struct rt_rtmp_adapter *pAd);
 
 /*
 ========================================================================
@@ -222,7 +222,7 @@ static void rtusb_disconnect(struct usb_interface *intf);
 
 static BOOLEAN USBDevConfigInit(IN struct usb_device *dev,
 				IN struct usb_interface *intf,
-				IN RTMP_ADAPTER * pAd)
+				struct rt_rtmp_adapter *pAd)
 {
 	struct usb_host_interface *iface_desc;
 	unsigned long BulkOutIdx;
@@ -299,7 +299,7 @@ static BOOLEAN USBDevConfigInit(IN struct usb_device *dev,
 static int rtusb_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
 {
-	RTMP_ADAPTER *pAd;
+	struct rt_rtmp_adapter *pAd;
 	struct usb_device *dev;
 	int rv;
 
@@ -316,7 +316,7 @@ static int rtusb_probe(struct usb_interface *intf,
 static void rtusb_disconnect(struct usb_interface *intf)
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
-	PRTMP_ADAPTER pAd;
+	struct rt_rtmp_adapter *pAd;
 
 	pAd = usb_get_intfdata(intf);
 	usb_set_intfdata(intf, NULL);
@@ -338,7 +338,7 @@ resume:rt2870_resume,
 
 #ifdef CONFIG_PM
 
-void RT2870RejectPendingPackets(IN PRTMP_ADAPTER pAd)
+void RT2870RejectPendingPackets(struct rt_rtmp_adapter *pAd)
 {
 	/* clear PS packets */
 	/* clear TxSw packets */
@@ -347,7 +347,7 @@ void RT2870RejectPendingPackets(IN PRTMP_ADAPTER pAd)
 static int rt2870_suspend(struct usb_interface *intf, pm_message_t state)
 {
 	struct net_device *net_dev;
-	PRTMP_ADAPTER pAd = usb_get_intfdata(intf);
+	struct rt_rtmp_adapter *pAd = usb_get_intfdata(intf);
 
 	DBGPRINT(RT_DEBUG_TRACE, ("===> rt2870_suspend()\n"));
 	net_dev = pAd->net_dev;
@@ -365,7 +365,7 @@ static int rt2870_suspend(struct usb_interface *intf, pm_message_t state)
 static int rt2870_resume(struct usb_interface *intf)
 {
 	struct net_device *net_dev;
-	PRTMP_ADAPTER pAd = usb_get_intfdata(intf);
+	struct rt_rtmp_adapter *pAd = usb_get_intfdata(intf);
 
 	DBGPRINT(RT_DEBUG_TRACE, ("===> rt2870_resume()\n"));
 
@@ -418,13 +418,13 @@ Note:
 */
 int MlmeThread(IN void *Context)
 {
-	RTMP_ADAPTER *pAd;
-	RTMP_OS_TASK *pTask;
+	struct rt_rtmp_adapter *pAd;
+	struct rt_rtmp_os_task *pTask;
 	int status;
 	status = 0;
 
-	pTask = (RTMP_OS_TASK *) Context;
-	pAd = (PRTMP_ADAPTER) pTask->priv;
+	pTask = (struct rt_rtmp_os_task *)Context;
+	pAd = (struct rt_rtmp_adapter *)pTask->priv;
 
 	RtmpOSTaskCustomize(pTask);
 
@@ -487,13 +487,13 @@ Note:
 */
 int RTUSBCmdThread(IN void *Context)
 {
-	RTMP_ADAPTER *pAd;
-	RTMP_OS_TASK *pTask;
+	struct rt_rtmp_adapter *pAd;
+	struct rt_rtmp_os_task *pTask;
 	int status;
 	status = 0;
 
-	pTask = (RTMP_OS_TASK *) Context;
-	pAd = (PRTMP_ADAPTER) pTask->priv;
+	pTask = (struct rt_rtmp_os_task *)Context;
+	pAd = (struct rt_rtmp_adapter *)pTask->priv;
 
 	RtmpOSTaskCustomize(pTask);
 
@@ -522,7 +522,7 @@ int RTUSBCmdThread(IN void *Context)
 	}
 
 	if (pAd && !pAd->PM_FlgSuspend) {	/* Clear the CmdQElements. */
-		CmdQElmt *pCmdQElmt = NULL;
+		struct rt_cmdqelmt *pCmdQElmt = NULL;
 
 		NdisAcquireSpinLock(&pAd->CmdQLock);
 		pAd->CmdQ.CmdQState = RTMP_TASK_STAT_STOPED;
@@ -570,9 +570,9 @@ int RTUSBCmdThread(IN void *Context)
 
 }
 
-void RTUSBWatchDog(IN RTMP_ADAPTER * pAd)
+void RTUSBWatchDog(struct rt_rtmp_adapter *pAd)
 {
-	PHT_TX_CONTEXT pHTTXContext;
+	struct rt_ht_tx_context *pHTTXContext;
 	int idx;
 	unsigned long irqFlags;
 	PURB pUrb;
@@ -635,7 +635,7 @@ void RTUSBWatchDog(IN RTMP_ADAPTER * pAd)
 			    ) {
 				/* FIXME: Following code just support single bulk out. If you wanna support multiple bulk out. Modify it! */
 				pHTTXContext =
-				    (PHT_TX_CONTEXT) (&pAd->TxContext[idx]);
+				    (struct rt_ht_tx_context *)(&pAd->TxContext[idx]);
 				if (pHTTXContext->IRPPending) {	/* Check TxContext. */
 					pUrb = pHTTXContext->pUrb;
 
@@ -644,19 +644,19 @@ void RTUSBWatchDog(IN RTMP_ADAPTER * pAd)
 					    pUrb->transfer_buffer_length;
 					isDataPacket = TRUE;
 				} else if (idx == MGMTPIPEIDX) {
-					PTX_CONTEXT pMLMEContext, pNULLContext,
-					    pPsPollContext;
+					struct rt_tx_context *pMLMEContext, *pNULLContext,
+					    *pPsPollContext;
 
 					/*Check MgmtContext. */
 					pMLMEContext =
-					    (PTX_CONTEXT) (pAd->MgmtRing.
+					    (struct rt_tx_context *)(pAd->MgmtRing.
 							   Cell[pAd->MgmtRing.
 								TxDmaIdx].
 							   AllocVa);
 					pPsPollContext =
-					    (PTX_CONTEXT) (&pAd->PsPollContext);
+					    (struct rt_tx_context *)(&pAd->PsPollContext);
 					pNULLContext =
-					    (PTX_CONTEXT) (&pAd->NullContext);
+					    (struct rt_tx_context *)(&pAd->NullContext);
 
 					if (pMLMEContext->IRPPending) {
 						ASSERT(pMLMEContext->
@@ -724,7 +724,7 @@ void RTUSBWatchDog(IN RTMP_ADAPTER * pAd)
 	/* For Sigma debug, dump the ba_reordering sequence. */
 	if ((needDumpSeq == TRUE) && (pAd->CommonCfg.bDisableReordering == 0)) {
 		u16 Idx;
-		PBA_REC_ENTRY pBAEntry = NULL;
+		struct rt_ba_rec_entry *pBAEntry = NULL;
 		u8 count = 0;
 		struct reordering_mpdu *mpdu_blk;
 
@@ -768,7 +768,7 @@ Return Value:
 Note:
 ========================================================================
 */
-static void rt2870_disconnect(struct usb_device *dev, PRTMP_ADAPTER pAd)
+static void rt2870_disconnect(struct usb_device *dev, struct rt_rtmp_adapter *pAd)
 {
 	DBGPRINT(RT_DEBUG_ERROR,
 		 ("rtusb_disconnect: unregister usbnet usb-%s-%s\n",
@@ -805,13 +805,13 @@ static void rt2870_disconnect(struct usb_device *dev, PRTMP_ADAPTER pAd)
 static int __devinit rt2870_probe(IN struct usb_interface *intf,
 				  IN struct usb_device *usb_dev,
 				  IN const struct usb_device_id *dev_id,
-				  IN RTMP_ADAPTER ** ppAd)
+				  struct rt_rtmp_adapter ** ppAd)
 {
 	struct net_device *net_dev = NULL;
-	RTMP_ADAPTER *pAd = (RTMP_ADAPTER *) NULL;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)NULL;
 	int status, rv;
 	void *handle;
-	RTMP_OS_NETDEV_OP_HOOK netDevHook;
+	struct rt_rtmp_os_netdev_op_hook netDevHook;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("===>rt2870_probe()!\n"));
 
@@ -820,7 +820,7 @@ static int __devinit rt2870_probe(IN struct usb_interface *intf,
 	/*      goto err_out; */
 
 /*RtmpDevInit============================================= */
-	/* Allocate RTMP_ADAPTER adapter structure */
+	/* Allocate struct rt_rtmp_adapter adapter structure */
 	handle = kmalloc(sizeof(struct os_cookie), GFP_KERNEL);
 	if (handle == NULL) {
 		printk

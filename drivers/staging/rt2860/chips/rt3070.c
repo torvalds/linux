@@ -43,7 +43,7 @@
 #error "You Should Enable compile flag RTMP_RF_RW_SUPPORT for this chip"
 #endif /* RTMP_RF_RW_SUPPORT // */
 
-void NICInitRT3070RFRegisters(IN PRTMP_ADAPTER pAd)
+void NICInitRT3070RFRegisters(struct rt_rtmp_adapter *pAd)
 {
 	int i;
 	u8 RFValue;

@@ -80,7 +80,7 @@ char *GetBW(int BW)
         TRUE if all parameters are OK, FALSE otherwise
     ==========================================================================
 */
-int RT_CfgSetCountryRegion(IN PRTMP_ADAPTER pAd, char *arg, int band)
+int RT_CfgSetCountryRegion(struct rt_rtmp_adapter *pAd, char *arg, int band)
 {
 	long region, regionMax;
 	u8 *pCountryRegion;
@@ -126,7 +126,7 @@ int RT_CfgSetCountryRegion(IN PRTMP_ADAPTER pAd, char *arg, int band)
         TRUE if all parameters are OK, FALSE otherwise
     ==========================================================================
 */
-int RT_CfgSetWirelessMode(IN PRTMP_ADAPTER pAd, char *arg)
+int RT_CfgSetWirelessMode(struct rt_rtmp_adapter *pAd, char *arg)
 {
 	int MaxPhyMode = PHY_11G;
 	long WirelessMode;
@@ -143,7 +143,7 @@ int RT_CfgSetWirelessMode(IN PRTMP_ADAPTER pAd, char *arg)
 
 }
 
-int RT_CfgSetShortSlot(IN PRTMP_ADAPTER pAd, char *arg)
+int RT_CfgSetShortSlot(struct rt_rtmp_adapter *pAd, char *arg)
 {
 	long ShortSlot;
 
@@ -167,9 +167,9 @@ int RT_CfgSetShortSlot(IN PRTMP_ADAPTER pAd, char *arg)
         TRUE if all parameters are OK, FALSE otherwise
     ==========================================================================
 */
-int RT_CfgSetWepKey(IN PRTMP_ADAPTER pAd,
+int RT_CfgSetWepKey(struct rt_rtmp_adapter *pAd,
 		    char *keyString,
-		    IN CIPHER_KEY * pSharedKey, int keyIdx)
+		    struct rt_cipher_key *pSharedKey, int keyIdx)
 {
 	int KeyLen;
 	int i;
@@ -177,7 +177,7 @@ int RT_CfgSetWepKey(IN PRTMP_ADAPTER pAd,
 	BOOLEAN bKeyIsHex = FALSE;
 
 	/* TODO: Shall we do memset for the original key info?? */
-	memset(pSharedKey, 0, sizeof(CIPHER_KEY));
+	memset(pSharedKey, 0, sizeof(struct rt_cipher_key));
 	KeyLen = strlen(keyString);
 	switch (KeyLen) {
 	case 5:		/*wep 40 Ascii type */
@@ -230,7 +230,7 @@ int RT_CfgSetWepKey(IN PRTMP_ADAPTER pAd,
         TRUE if all parameters are OK, FALSE otherwise
     ==========================================================================
 */
-int RT_CfgSetWPAPSKKey(IN RTMP_ADAPTER * pAd,
+int RT_CfgSetWPAPSKKey(struct rt_rtmp_adapter *pAd,
 		       char *keyString,
 		       u8 * pHashStr,
 		       int hashStrLen, u8 *pPMKBuf)

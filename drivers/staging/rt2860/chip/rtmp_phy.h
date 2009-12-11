@@ -212,7 +212,7 @@
 #ifdef RTMP_MAC_PCI
 /*
 	basic marco for BBP read operation.
-	_pAd: the data structure pointer of RTMP_ADAPTER
+	_pAd: the data structure pointer of struct rt_rtmp_adapter
 	_bbpID : the bbp register ID
 	_pV: data pointer used to save the value of queried bbp register.
 	_bViaMCU: if we need access the bbp via the MCU.
@@ -370,7 +370,7 @@
 
 /*
 	basic marco for BBP write operation.
-	_pAd: the data structure pointer of RTMP_ADAPTER
+	_pAd: the data structure pointer of struct rt_rtmp_adapter
 	_bbpID : the bbp register ID
 	_pV: data used to save the value of queried bbp register.
 	_bViaMCU: if we need access the bbp via the MCU.

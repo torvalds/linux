@@ -69,7 +69,7 @@
 //
 // TX descriptor format, Tx     ring, Mgmt Ring
 //
-typedef struct PACKED _TXD_STRUC {
+struct PACKED rt_txd {
 	// Word 0
 	u32 SDPtr0;
 	// Word 1
@@ -89,12 +89,12 @@ typedef struct PACKED _TXD_STRUC {
 	u32 TCO:1;		/* */
 	u32 UCO:1;		/* */
 	u32 ICO:1;		/* */
-} TXD_STRUC, *PTXD_STRUC;
+};
 
 //
 // Rx descriptor format, Rx Ring
 //
-typedef struct PACKED _RXD_STRUC {
+typedef struct PACKED rt_rxd {
 	// Word 0
 	u32 SDP0;
 	// Word 1
@@ -125,7 +125,7 @@ typedef struct PACKED _RXD_STRUC {
 	u32 PlcpSignal:1;	/* To be moved */
 	u32 PlcpRssil:1;	/* To be moved */
 	u32 Rsv1:13;
-} RXD_STRUC, *PRXD_STRUC, RT28XX_RXD_STRUC, *PRT28XX_RXD_STRUC;
+} RT28XX_RXD_STRUC, *PRT28XX_RXD_STRUC;
 
 typedef union _TX_ATTENUATION_CTRL_STRUC {
 	struct {

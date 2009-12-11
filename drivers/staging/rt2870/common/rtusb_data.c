@@ -44,7 +44,7 @@
 extern u8 Phy11BGNextRateUpward[];	/* defined in mlme.c */
 extern u8 EpToQueue[];
 
-void REPORT_AMSDU_FRAMES_TO_LLC(IN PRTMP_ADAPTER pAd,
+void REPORT_AMSDU_FRAMES_TO_LLC(struct rt_rtmp_adapter *pAd,
 				u8 *pData, unsigned long DataSize)
 {
 	void *pPacket;
@@ -85,7 +85,7 @@ void REPORT_AMSDU_FRAMES_TO_LLC(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-int RTUSBFreeDescriptorRequest(IN PRTMP_ADAPTER pAd,
+int RTUSBFreeDescriptorRequest(struct rt_rtmp_adapter *pAd,
 				       u8 BulkOutPipeId,
 				       u32 NumberRequired)
 {
@@ -93,7 +93,7 @@ int RTUSBFreeDescriptorRequest(IN PRTMP_ADAPTER pAd,
 /*      u32                    Index; */
 	int Status = NDIS_STATUS_FAILURE;
 	unsigned long IrqFlags;
-	HT_TX_CONTEXT *pHTTXContext;
+	struct rt_ht_tx_context *pHTTXContext;
 
 	pHTTXContext = &pAd->TxContext[BulkOutPipeId];
 	RTMP_IRQ_LOCK(&pAd->TxContextQueueLock[BulkOutPipeId], IrqFlags);
@@ -127,11 +127,11 @@ int RTUSBFreeDescriptorRequest(IN PRTMP_ADAPTER pAd,
 	return (Status);
 }
 
-int RTUSBFreeDescriptorRelease(IN RTMP_ADAPTER * pAd,
+int RTUSBFreeDescriptorRelease(struct rt_rtmp_adapter *pAd,
 				       u8 BulkOutPipeId)
 {
 	unsigned long IrqFlags;
-	HT_TX_CONTEXT *pHTTXContext;
+	struct rt_ht_tx_context *pHTTXContext;
 
 	pHTTXContext = &pAd->TxContext[BulkOutPipeId];
 	RTMP_IRQ_LOCK(&pAd->TxContextQueueLock[BulkOutPipeId], IrqFlags);
@@ -141,10 +141,10 @@ int RTUSBFreeDescriptorRelease(IN RTMP_ADAPTER * pAd,
 	return (NDIS_STATUS_SUCCESS);
 }
 
-BOOLEAN RTUSBNeedQueueBackForAgg(IN RTMP_ADAPTER * pAd, u8 BulkOutPipeId)
+BOOLEAN RTUSBNeedQueueBackForAgg(struct rt_rtmp_adapter *pAd, u8 BulkOutPipeId)
 {
 	unsigned long IrqFlags;
-	HT_TX_CONTEXT *pHTTXContext;
+	struct rt_ht_tx_context *pHTTXContext;
 	BOOLEAN needQueBack = FALSE;
 
 	pHTTXContext = &pAd->TxContext[BulkOutPipeId];
@@ -191,17 +191,17 @@ BOOLEAN RTUSBNeedQueueBackForAgg(IN RTMP_ADAPTER * pAd, u8 BulkOutPipeId)
 
 	========================================================================
 */
-void RTUSBRejectPendingPackets(IN PRTMP_ADAPTER pAd)
+void RTUSBRejectPendingPackets(struct rt_rtmp_adapter *pAd)
 {
 	u8 Index;
-	PQUEUE_ENTRY pEntry;
+	struct rt_queue_entry *pEntry;
 	void *pPacket;
-	PQUEUE_HEADER pQueue;
+	struct rt_queue_header *pQueue;
 
 	for (Index = 0; Index < 4; Index++) {
 		NdisAcquireSpinLock(&pAd->TxSwQueueLock[Index]);
 		while (pAd->TxSwQueue[Index].Head != NULL) {
-			pQueue = (PQUEUE_HEADER) & (pAd->TxSwQueue[Index]);
+			pQueue = (struct rt_queue_header *)& (pAd->TxSwQueue[Index]);
 			pEntry = RemoveHeadQueue(pQueue);
 			pPacket = QUEUE_ENTRY_TO_PACKET(pEntry);
 			RELEASE_NDIS_PACKET(pAd, pPacket, NDIS_STATUS_FAILURE);
@@ -240,8 +240,8 @@ void RTUSBRejectPendingPackets(IN PRTMP_ADAPTER pAd)
 	========================================================================
 */
 
-void RTMPWriteTxInfo(IN PRTMP_ADAPTER pAd,
-		     IN PTXINFO_STRUC pTxInfo,
+void RTMPWriteTxInfo(struct rt_rtmp_adapter *pAd,
+		     struct rt_txinfo *pTxInfo,
 		     u16 USBDMApktLen,
 		     IN BOOLEAN bWiv,
 		     u8 QueueSel, u8 NextValid, u8 TxBurst)

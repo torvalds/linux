@@ -356,7 +356,7 @@ u8 ZeroSsid[32] =
 
 	==========================================================================
 */
-int MlmeInit(IN PRTMP_ADAPTER pAd)
+int MlmeInit(struct rt_rtmp_adapter *pAd)
 {
 	int Status = NDIS_STATUS_SUCCESS;
 
@@ -453,9 +453,9 @@ int MlmeInit(IN PRTMP_ADAPTER pAd)
 
 	==========================================================================
  */
-void MlmeHandler(IN PRTMP_ADAPTER pAd)
+void MlmeHandler(struct rt_rtmp_adapter *pAd)
 {
-	MLME_QUEUE_ELEM *Elem = NULL;
+	struct rt_mlme_queue_elem *Elem = NULL;
 
 	/* Only accept MLME and Frame from peer side, no other (control/data) frame should */
 	/* get into this state machine */
@@ -571,7 +571,7 @@ void MlmeHandler(IN PRTMP_ADAPTER pAd)
 
 	==========================================================================
  */
-void MlmeHalt(IN PRTMP_ADAPTER pAd)
+void MlmeHalt(struct rt_rtmp_adapter *pAd)
 {
 	BOOLEAN Cancelled;
 
@@ -610,7 +610,7 @@ void MlmeHalt(IN PRTMP_ADAPTER pAd)
 	RTMPCancelTimer(&pAd->Mlme.RxAntEvalTimer, &Cancelled);
 
 	if (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)) {
-		RTMP_CHIP_OP *pChipOps = &pAd->chipOps;
+		struct rt_rtmp_chip_op *pChipOps = &pAd->chipOps;
 
 		/* Set LED */
 		RTMPSetLED(pAd, LED_HALT);
@@ -639,7 +639,7 @@ void MlmeHalt(IN PRTMP_ADAPTER pAd)
 	DBGPRINT(RT_DEBUG_TRACE, ("<== MlmeHalt\n"));
 }
 
-void MlmeResetRalinkCounters(IN PRTMP_ADAPTER pAd)
+void MlmeResetRalinkCounters(struct rt_rtmp_adapter *pAd)
 {
 	pAd->RalinkCounters.LastOneSecRxOkDataCnt =
 	    pAd->RalinkCounters.OneSecRxOkDataCnt;
@@ -694,7 +694,7 @@ void MlmePeriodicExec(void *SystemSpecific1,
 		      void *SystemSpecific2, void *SystemSpecific3)
 {
 	unsigned long TxTotalCnt;
-	PRTMP_ADAPTER pAd = (RTMP_ADAPTER *) FunctionContext;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)FunctionContext;
 
 #ifdef RTMP_MAC_PCI
 	{
@@ -938,8 +938,8 @@ BOOLEAN MlmeValidateSSID(u8 *pSsid, u8 SsidLen)
 	return (TRUE);
 }
 
-void MlmeSelectTxRateTable(IN PRTMP_ADAPTER pAd,
-			   IN PMAC_TABLE_ENTRY pEntry,
+void MlmeSelectTxRateTable(struct rt_rtmp_adapter *pAd,
+			   struct rt_mac_table_entry *pEntry,
 			   u8 ** ppTable,
 			   u8 *pTableSize, u8 *pInitTxRateIdx)
 {
@@ -1144,7 +1144,7 @@ void MlmeSelectTxRateTable(IN PRTMP_ADAPTER pAd,
 	} while (FALSE);
 }
 
-void STAMlmePeriodicExec(PRTMP_ADAPTER pAd)
+void STAMlmePeriodicExec(struct rt_rtmp_adapter *pAd)
 {
 	unsigned long TxTotalCnt;
 	int i;
@@ -1385,7 +1385,7 @@ void STAMlmePeriodicExec(PRTMP_ADAPTER pAd)
 		     pAd->StaCfg.LastBeaconRxTime + ADHOC_BEACON_LOST_TIME)
 		    && OPSTATUS_TEST_FLAG(pAd,
 					  fOP_STATUS_MEDIA_STATE_CONNECTED)) {
-			MLME_START_REQ_STRUCT StartReq;
+			struct rt_mlme_start_req StartReq;
 
 			DBGPRINT(RT_DEBUG_TRACE,
 				 ("MMCHK - excessive BEACON lost, last STA in this IBSS, MediaState=Disconnected\n"));
@@ -1395,12 +1395,12 @@ void STAMlmePeriodicExec(PRTMP_ADAPTER pAd)
 				      (char *) pAd->MlmeAux.Ssid,
 				      pAd->MlmeAux.SsidLen);
 			MlmeEnqueue(pAd, SYNC_STATE_MACHINE, MT2_MLME_START_REQ,
-				    sizeof(MLME_START_REQ_STRUCT), &StartReq);
+				    sizeof(struct rt_mlme_start_req), &StartReq);
 			pAd->Mlme.CntlMachine.CurrState = CNTL_WAIT_START;
 		}
 
 		for (i = 1; i < MAX_LEN_OF_MAC_TABLE; i++) {
-			MAC_TABLE_ENTRY *pEntry = &pAd->MacTab.Content[i];
+			struct rt_mac_table_entry *pEntry = &pAd->MacTab.Content[i];
 
 			if (pEntry->ValidAsCLI == FALSE)
 				continue;
@@ -1429,7 +1429,7 @@ void STAMlmePeriodicExec(PRTMP_ADAPTER pAd)
 		      pAd->MlmeAux.AutoReconnectSsidLen) == TRUE)) {
 			if ((pAd->ScanTab.BssNr == 0)
 			    && (pAd->Mlme.CntlMachine.CurrState == CNTL_IDLE)) {
-				MLME_SCAN_REQ_STRUCT ScanReq;
+				struct rt_mlme_scan_req ScanReq;
 
 				if (RTMP_TIME_AFTER
 				    (pAd->Mlme.Now32,
@@ -1447,7 +1447,7 @@ void STAMlmePeriodicExec(PRTMP_ADAPTER pAd)
 					MlmeEnqueue(pAd, SYNC_STATE_MACHINE,
 						    MT2_MLME_SCAN_REQ,
 						    sizeof
-						    (MLME_SCAN_REQ_STRUCT),
+						    (struct rt_mlme_scan_req),
 						    &ScanReq);
 					pAd->Mlme.CntlMachine.CurrState =
 					    CNTL_WAIT_OID_LIST_SCAN;
@@ -1491,10 +1491,10 @@ void LinkDownExec(void *SystemSpecific1,
 		  void *FunctionContext,
 		  void *SystemSpecific2, void *SystemSpecific3)
 {
-	RTMP_ADAPTER *pAd = (RTMP_ADAPTER *) FunctionContext;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)FunctionContext;
 
 	if (pAd != NULL) {
-		MLME_DISASSOC_REQ_STRUCT DisassocReq;
+		struct rt_mlme_disassoc_req DisassocReq;
 
 		if ((pAd->StaCfg.PortSecured == WPA_802_1X_PORT_NOT_SECURED) &&
 		    (INFRA_ON(pAd))) {
@@ -1505,7 +1505,7 @@ void LinkDownExec(void *SystemSpecific1,
 					 REASON_DISASSOC_STA_LEAVING);
 			MlmeEnqueue(pAd, ASSOC_STATE_MACHINE,
 				    MT2_MLME_DISASSOC_REQ,
-				    sizeof(MLME_DISASSOC_REQ_STRUCT),
+				    sizeof(struct rt_mlme_disassoc_req),
 				    &DisassocReq);
 			pAd->Mlme.CntlMachine.CurrState = CNTL_WAIT_DISASSOC;
 
@@ -1517,7 +1517,7 @@ void LinkDownExec(void *SystemSpecific1,
 }
 
 /* IRQL = DISPATCH_LEVEL */
-void MlmeAutoScan(IN PRTMP_ADAPTER pAd)
+void MlmeAutoScan(struct rt_rtmp_adapter *pAd)
 {
 	/* check CntlMachine.CurrState to avoid collision with NDIS SetOID request */
 	if (pAd->Mlme.CntlMachine.CurrState == CNTL_IDLE) {
@@ -1532,7 +1532,7 @@ void MlmeAutoScan(IN PRTMP_ADAPTER pAd)
 }
 
 /* IRQL = DISPATCH_LEVEL */
-void MlmeAutoReconnectLastSSID(IN PRTMP_ADAPTER pAd)
+void MlmeAutoReconnectLastSSID(struct rt_rtmp_adapter *pAd)
 {
 	if (pAd->StaCfg.bAutoConnectByBssid) {
 		DBGPRINT(RT_DEBUG_TRACE,
@@ -1555,7 +1555,7 @@ void MlmeAutoReconnectLastSSID(IN PRTMP_ADAPTER pAd)
 		 (MlmeValidateSSID
 		  (pAd->MlmeAux.AutoReconnectSsid,
 		   pAd->MlmeAux.AutoReconnectSsidLen) == TRUE)) {
-		NDIS_802_11_SSID OidSsid;
+		struct rt_ndis_802_11_ssid OidSsid;
 		OidSsid.SsidLength = pAd->MlmeAux.AutoReconnectSsidLen;
 		NdisMoveMemory(OidSsid.Ssid, pAd->MlmeAux.AutoReconnectSsid,
 			       pAd->MlmeAux.AutoReconnectSsidLen);
@@ -1565,7 +1565,7 @@ void MlmeAutoReconnectLastSSID(IN PRTMP_ADAPTER pAd)
 			  pAd->MlmeAux.AutoReconnectSsid,
 			  pAd->MlmeAux.AutoReconnectSsidLen));
 		MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, OID_802_11_SSID,
-			    sizeof(NDIS_802_11_SSID), &OidSsid);
+			    sizeof(struct rt_ndis_802_11_ssid), &OidSsid);
 		RTMP_MLME_HANDLER(pAd);
 	}
 }
@@ -1582,11 +1582,11 @@ void MlmeAutoReconnectLastSSID(IN PRTMP_ADAPTER pAd)
 	Output:
 	==========================================================================
  */
-void MlmeCheckForRoaming(IN PRTMP_ADAPTER pAd, unsigned long Now32)
+void MlmeCheckForRoaming(struct rt_rtmp_adapter *pAd, unsigned long Now32)
 {
 	u16 i;
-	BSS_TABLE *pRoamTab = &pAd->MlmeAux.RoamTab;
-	BSS_ENTRY *pBss;
+	struct rt_bss_table *pRoamTab = &pAd->MlmeAux.RoamTab;
+	struct rt_bss_entry *pBss;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("==> MlmeCheckForRoaming\n"));
 	/* put all roaming candidates into RoamTab, and sort in RSSI order */
@@ -1607,7 +1607,7 @@ void MlmeCheckForRoaming(IN PRTMP_ADAPTER pAd, unsigned long Now32)
 
 		/* AP passing all above rules is put into roaming candidate table */
 		NdisMoveMemory(&pRoamTab->BssEntry[pRoamTab->BssNr], pBss,
-			       sizeof(BSS_ENTRY));
+			       sizeof(struct rt_bss_entry));
 		pRoamTab->BssNr += 1;
 	}
 
@@ -1640,11 +1640,11 @@ void MlmeCheckForRoaming(IN PRTMP_ADAPTER pAd, unsigned long Now32)
 	Output:
 	==========================================================================
  */
-BOOLEAN MlmeCheckForFastRoaming(IN PRTMP_ADAPTER pAd)
+BOOLEAN MlmeCheckForFastRoaming(struct rt_rtmp_adapter *pAd)
 {
 	u16 i;
-	BSS_TABLE *pRoamTab = &pAd->MlmeAux.RoamTab;
-	BSS_ENTRY *pBss;
+	struct rt_bss_table *pRoamTab = &pAd->MlmeAux.RoamTab;
+	struct rt_bss_entry *pBss;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("==> MlmeCheckForFastRoaming\n"));
 	/* put all roaming candidates into RoamTab, and sort in RSSI order */
@@ -1676,7 +1676,7 @@ BOOLEAN MlmeCheckForFastRoaming(IN PRTMP_ADAPTER pAd)
 			  pBss->Rssi));
 		/* AP passing all above rules is put into roaming candidate table */
 		NdisMoveMemory(&pRoamTab->BssEntry[pRoamTab->BssNr], pBss,
-			       sizeof(BSS_ENTRY));
+			       sizeof(struct rt_bss_entry));
 		pRoamTab->BssNr += 1;
 	}
 
@@ -1699,8 +1699,8 @@ BOOLEAN MlmeCheckForFastRoaming(IN PRTMP_ADAPTER pAd)
 	return FALSE;
 }
 
-void MlmeSetTxRate(IN PRTMP_ADAPTER pAd,
-		   IN PMAC_TABLE_ENTRY pEntry, IN PRTMP_TX_RATE_SWITCH pTxRate)
+void MlmeSetTxRate(struct rt_rtmp_adapter *pAd,
+		   struct rt_mac_table_entry *pEntry, struct rt_rtmp_tx_rate_switch * pTxRate)
 {
 	u8 MaxMode = MODE_OFDM;
 
@@ -1840,13 +1840,13 @@ void MlmeSetTxRate(IN PRTMP_ADAPTER pAd,
 		call this routine every second
 	==========================================================================
  */
-void MlmeDynamicTxRateSwitching(IN PRTMP_ADAPTER pAd)
+void MlmeDynamicTxRateSwitching(struct rt_rtmp_adapter *pAd)
 {
 	u8 UpRateIdx = 0, DownRateIdx = 0, CurrRateIdx;
 	unsigned long i, AccuTxTotalCnt = 0, TxTotalCnt;
 	unsigned long TxErrorRatio = 0;
 	BOOLEAN bTxRateChanged = FALSE, bUpgradeQuality = FALSE;
-	PRTMP_TX_RATE_SWITCH pCurrTxRate, pNextTxRate = NULL;
+	struct rt_rtmp_tx_rate_switch *pCurrTxRate, *pNextTxRate = NULL;
 	u8 *pTable;
 	u8 TableSize = 0;
 	u8 InitTxRateIdx = 0, TrainUp, TrainDown;
@@ -1854,8 +1854,8 @@ void MlmeDynamicTxRateSwitching(IN PRTMP_ADAPTER pAd)
 	TX_STA_CNT1_STRUC StaTx1;
 	TX_STA_CNT0_STRUC TxStaCnt0;
 	unsigned long TxRetransmit = 0, TxSuccess = 0, TxFailCount = 0;
-	MAC_TABLE_ENTRY *pEntry;
-	RSSI_SAMPLE *pRssi = &pAd->StaCfg.RssiSample;
+	struct rt_mac_table_entry *pEntry;
+	struct rt_rssi_sample *pRssi = &pAd->StaCfg.RssiSample;
 
 	/* */
 	/* walk through MAC table, see if need to change AP's TX rate toward each entry */
@@ -1982,7 +1982,7 @@ void MlmeDynamicTxRateSwitching(IN PRTMP_ADAPTER pAd)
 		/* When switch from Fixed rate -> auto rate, the REAL TX rate might be different from pAd->CommonCfg.TxRateIndex. */
 		/* So need to sync here. */
 		pCurrTxRate =
-		    (PRTMP_TX_RATE_SWITCH) & pTable[(CurrRateIdx + 1) * 5];
+		    (struct rt_rtmp_tx_rate_switch *) & pTable[(CurrRateIdx + 1) * 5];
 		if ((pEntry->HTPhyMode.field.MCS != pCurrTxRate->CurrMCS)
 		    /*&& (pAd->StaCfg.bAutoTxRateSwitch == TRUE) */
 		    ) {
@@ -1990,7 +1990,7 @@ void MlmeDynamicTxRateSwitching(IN PRTMP_ADAPTER pAd)
 			/* Need to sync Real Tx rate and our record. */
 			/* Then return for next DRS. */
 			pCurrTxRate =
-			    (PRTMP_TX_RATE_SWITCH) & pTable[(InitTxRateIdx + 1)
+			    (struct rt_rtmp_tx_rate_switch *) & pTable[(InitTxRateIdx + 1)
 							    * 5];
 			pEntry->CurrTxRateIndex = InitTxRateIdx;
 			MlmeSetTxRate(pAd, pEntry, pCurrTxRate);
@@ -2012,7 +2012,7 @@ void MlmeDynamicTxRateSwitching(IN PRTMP_ADAPTER pAd)
 		}
 
 		pCurrTxRate =
-		    (PRTMP_TX_RATE_SWITCH) & pTable[(CurrRateIdx + 1) * 5];
+		    (struct rt_rtmp_tx_rate_switch *) & pTable[(CurrRateIdx + 1) * 5];
 
 		if ((Rssi > -65) && (pCurrTxRate->Mode >= MODE_HTMIX)) {
 			TrainUp =
@@ -2049,7 +2049,7 @@ void MlmeDynamicTxRateSwitching(IN PRTMP_ADAPTER pAd)
 			/* check the existence and index of each needed MCS */
 			while (idx < pTable[0]) {
 				pCurrTxRate =
-				    (PRTMP_TX_RATE_SWITCH) & pTable[(idx + 1) *
+				    (struct rt_rtmp_tx_rate_switch *) & pTable[(idx + 1) *
 								    5];
 
 				if (pCurrTxRate->CurrMCS == MCS_0) {
@@ -2192,7 +2192,7 @@ void MlmeDynamicTxRateSwitching(IN PRTMP_ADAPTER pAd)
 			{
 				pEntry->CurrTxRateIndex = TxRateIdx;
 				pNextTxRate =
-				    (PRTMP_TX_RATE_SWITCH) &
+				    (struct rt_rtmp_tx_rate_switch *) &
 				    pTable[(pEntry->CurrTxRateIndex + 1) * 5];
 				MlmeSetTxRate(pAd, pEntry, pNextTxRate);
 			}
@@ -2332,7 +2332,7 @@ void MlmeDynamicTxRateSwitching(IN PRTMP_ADAPTER pAd)
 			}
 
 			pNextTxRate =
-			    (PRTMP_TX_RATE_SWITCH) & pTable[(tmpTxRate + 1) *
+			    (struct rt_rtmp_tx_rate_switch *) & pTable[(tmpTxRate + 1) *
 							    5];
 		}
 		if (bTxRateChanged && pNextTxRate) {
@@ -2364,12 +2364,12 @@ void StaQuickResponeForRateUpExec(void *SystemSpecific1,
 				  void *SystemSpecific2,
 				  void *SystemSpecific3)
 {
-	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) FunctionContext;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)FunctionContext;
 	u8 UpRateIdx = 0, DownRateIdx = 0, CurrRateIdx = 0;
 	unsigned long TxTotalCnt;
 	unsigned long TxErrorRatio = 0;
 	BOOLEAN bTxRateChanged;	/*, bUpgradeQuality = FALSE; */
-	PRTMP_TX_RATE_SWITCH pCurrTxRate, pNextTxRate = NULL;
+	struct rt_rtmp_tx_rate_switch *pCurrTxRate, *pNextTxRate = NULL;
 	u8 *pTable;
 	u8 TableSize = 0;
 	u8 InitTxRateIdx = 0, TrainUp, TrainDown;
@@ -2377,7 +2377,7 @@ void StaQuickResponeForRateUpExec(void *SystemSpecific1,
 	TX_STA_CNT0_STRUC TxStaCnt0;
 	char Rssi, ratio;
 	unsigned long TxRetransmit = 0, TxSuccess = 0, TxFailCount = 0;
-	MAC_TABLE_ENTRY *pEntry;
+	struct rt_mac_table_entry *pEntry;
 	unsigned long i;
 
 	pAd->StaCfg.StaQuickResponeForRateUpTimerRunning = FALSE;
@@ -2421,7 +2421,7 @@ void StaQuickResponeForRateUpExec(void *SystemSpecific1,
 		}
 
 		pCurrTxRate =
-		    (PRTMP_TX_RATE_SWITCH) & pTable[(CurrRateIdx + 1) * 5];
+		    (struct rt_rtmp_tx_rate_switch *) & pTable[(CurrRateIdx + 1) * 5];
 
 		if ((Rssi > -65) && (pCurrTxRate->Mode >= MODE_HTMIX)) {
 			TrainUp =
@@ -2574,7 +2574,7 @@ void StaQuickResponeForRateUpExec(void *SystemSpecific1,
 		}
 
 		pNextTxRate =
-		    (PRTMP_TX_RATE_SWITCH) &
+		    (struct rt_rtmp_tx_rate_switch *) &
 		    pTable[(pAd->CommonCfg.TxRateIndex + 1) * 5];
 		if (bTxRateChanged && pNextTxRate) {
 			MlmeSetTxRate(pAd, pEntry, pNextTxRate);
@@ -2601,7 +2601,7 @@ void StaQuickResponeForRateUpExec(void *SystemSpecific1,
 
 	==========================================================================
  */
-void MlmeCheckPsmChange(IN PRTMP_ADAPTER pAd, unsigned long Now32)
+void MlmeCheckPsmChange(struct rt_rtmp_adapter *pAd, unsigned long Now32)
 {
 	unsigned long PowerMode;
 
@@ -2638,7 +2638,7 @@ void MlmeCheckPsmChange(IN PRTMP_ADAPTER pAd, unsigned long Now32)
 
 /* IRQL = PASSIVE_LEVEL */
 /* IRQL = DISPATCH_LEVEL */
-void MlmeSetPsmBit(IN PRTMP_ADAPTER pAd, u16 psm)
+void MlmeSetPsmBit(struct rt_rtmp_adapter *pAd, u16 psm)
 {
 	AUTO_RSP_CFG_STRUC csr4;
 
@@ -2669,14 +2669,14 @@ void MlmeSetPsmBit(IN PRTMP_ADAPTER pAd, u16 psm)
 		channel quality based on the most up-to-date information
 	==========================================================================
  */
-void MlmeCalculateChannelQuality(IN PRTMP_ADAPTER pAd,
-				 IN PMAC_TABLE_ENTRY pMacEntry, unsigned long Now32)
+void MlmeCalculateChannelQuality(struct rt_rtmp_adapter *pAd,
+				 struct rt_mac_table_entry *pMacEntry, unsigned long Now32)
 {
 	unsigned long TxOkCnt, TxCnt, TxPER, TxPRR;
 	unsigned long RxCnt, RxPER;
 	u8 NorRssi;
 	char MaxRssi;
-	RSSI_SAMPLE *pRssiSample = NULL;
+	struct rt_rssi_sample *pRssiSample = NULL;
 	u32 OneSecTxNoRetryOkCount = 0;
 	u32 OneSecTxRetryOkCount = 0;
 	u32 OneSecTxFailCount = 0;
@@ -2751,7 +2751,7 @@ void MlmeCalculateChannelQuality(IN PRTMP_ADAPTER pAd,
 }
 
 /* IRQL = DISPATCH_LEVEL */
-void MlmeSetTxPreamble(IN PRTMP_ADAPTER pAd, u16 TxPreamble)
+void MlmeSetTxPreamble(struct rt_rtmp_adapter *pAd, u16 TxPreamble)
 {
 	AUTO_RSP_CFG_STRUC csr4;
 
@@ -2785,7 +2785,7 @@ void MlmeSetTxPreamble(IN PRTMP_ADAPTER pAd, u16 TxPreamble)
     ==========================================================================
  */
 
-void UpdateBasicRateBitmap(IN PRTMP_ADAPTER pAdapter)
+void UpdateBasicRateBitmap(struct rt_rtmp_adapter *pAdapter)
 {
 	int i, j;
 	/* 1  2  5.5, 11,  6,  9, 12, 18, 24, 36, 48,  54 */
@@ -2831,7 +2831,7 @@ void UpdateBasicRateBitmap(IN PRTMP_ADAPTER pAdapter)
 /* IRQL = DISPATCH_LEVEL */
 /* bLinkUp is to identify the inital link speed. */
 /* TRUE indicates the rate update at linkup, we should not try to set the rate at 54Mbps. */
-void MlmeUpdateTxRates(IN PRTMP_ADAPTER pAd, IN BOOLEAN bLinkUp, u8 apidx)
+void MlmeUpdateTxRates(struct rt_rtmp_adapter *pAd, IN BOOLEAN bLinkUp, u8 apidx)
 {
 	int i, num;
 	u8 Rate = RATE_6, MaxDesire = RATE_1, MaxSupport = RATE_1;
@@ -3292,15 +3292,15 @@ void MlmeUpdateTxRates(IN PRTMP_ADAPTER pAd, IN BOOLEAN bLinkUp, u8 apidx)
 
 	==========================================================================
  */
-void MlmeUpdateHtTxRates(IN PRTMP_ADAPTER pAd, u8 apidx)
+void MlmeUpdateHtTxRates(struct rt_rtmp_adapter *pAd, u8 apidx)
 {
 	u8 StbcMcs;		/*j, StbcMcs, bitmask; */
 	char i;			/* 3*3 */
-	RT_HT_CAPABILITY *pRtHtCap = NULL;
-	RT_HT_PHY_INFO *pActiveHtPhy = NULL;
+	struct rt_ht_capability *pRtHtCap = NULL;
+	struct rt_ht_phy_info *pActiveHtPhy = NULL;
 	unsigned long BasicMCS;
 	u8 j, bitmask;
-	PRT_HT_PHY_INFO pDesireHtPhy = NULL;
+	struct rt_ht_phy_info *pDesireHtPhy = NULL;
 	PHTTRANSMIT_SETTING pHtPhy = NULL;
 	PHTTRANSMIT_SETTING pMaxHtPhy = NULL;
 	PHTTRANSMIT_SETTING pMinHtPhy = NULL;
@@ -3444,7 +3444,7 @@ void MlmeUpdateHtTxRates(IN PRTMP_ADAPTER pAd, u8 apidx)
 	DBGPRINT(RT_DEBUG_TRACE, ("MlmeUpdateHtTxRates<=== \n"));
 }
 
-void BATableInit(IN PRTMP_ADAPTER pAd, IN BA_TABLE * Tab)
+void BATableInit(struct rt_rtmp_adapter *pAd, struct rt_ba_table *Tab)
 {
 	int i;
 
@@ -3462,13 +3462,13 @@ void BATableInit(IN PRTMP_ADAPTER pAd, IN BA_TABLE * Tab)
 }
 
 /* IRQL = DISPATCH_LEVEL */
-void MlmeRadioOff(IN PRTMP_ADAPTER pAd)
+void MlmeRadioOff(struct rt_rtmp_adapter *pAd)
 {
 	RTMP_MLME_RADIO_OFF(pAd);
 }
 
 /* IRQL = DISPATCH_LEVEL */
-void MlmeRadioOn(IN PRTMP_ADAPTER pAd)
+void MlmeRadioOn(struct rt_rtmp_adapter *pAd)
 {
 	RTMP_MLME_RADIO_ON(pAd);
 }
@@ -3487,14 +3487,14 @@ void MlmeRadioOn(IN PRTMP_ADAPTER pAd)
  IRQL = DISPATCH_LEVEL
 
  */
-void BssTableInit(IN BSS_TABLE * Tab)
+void BssTableInit(struct rt_bss_table *Tab)
 {
 	int i;
 
 	Tab->BssNr = 0;
 	Tab->BssOverlapNr = 0;
 	for (i = 0; i < MAX_LEN_OF_BSS_TABLE; i++) {
-		NdisZeroMemory(&Tab->BssEntry[i], sizeof(BSS_ENTRY));
+		NdisZeroMemory(&Tab->BssEntry[i], sizeof(struct rt_bss_entry));
 		Tab->BssEntry[i].Rssi = -127;	/* initial the rssi as a minimum value */
 	}
 }
@@ -3510,7 +3510,7 @@ void BssTableInit(IN BSS_TABLE * Tab)
  IRQL = DISPATCH_LEVEL
 
  */
-unsigned long BssTableSearch(IN BSS_TABLE * Tab, u8 *pBssid, u8 Channel)
+unsigned long BssTableSearch(struct rt_bss_table *Tab, u8 *pBssid, u8 Channel)
 {
 	u8 i;
 
@@ -3528,7 +3528,7 @@ unsigned long BssTableSearch(IN BSS_TABLE * Tab, u8 *pBssid, u8 Channel)
 	return (unsigned long)BSS_NOT_FOUND;
 }
 
-unsigned long BssSsidTableSearch(IN BSS_TABLE * Tab,
+unsigned long BssSsidTableSearch(struct rt_bss_table *Tab,
 			 u8 *pBssid,
 			 u8 *pSsid, u8 SsidLen, u8 Channel)
 {
@@ -3550,7 +3550,7 @@ unsigned long BssSsidTableSearch(IN BSS_TABLE * Tab,
 	return (unsigned long)BSS_NOT_FOUND;
 }
 
-unsigned long BssTableSearchWithSSID(IN BSS_TABLE * Tab,
+unsigned long BssTableSearchWithSSID(struct rt_bss_table *Tab,
 			     u8 *Bssid,
 			     u8 *pSsid,
 			     u8 SsidLen, u8 Channel)
@@ -3575,7 +3575,7 @@ unsigned long BssTableSearchWithSSID(IN BSS_TABLE * Tab,
 	return (unsigned long)BSS_NOT_FOUND;
 }
 
-unsigned long BssSsidTableSearchBySSID(IN BSS_TABLE * Tab,
+unsigned long BssSsidTableSearchBySSID(struct rt_bss_table *Tab,
 			       u8 *pSsid, u8 SsidLen)
 {
 	u8 i;
@@ -3591,7 +3591,7 @@ unsigned long BssSsidTableSearchBySSID(IN BSS_TABLE * Tab,
 }
 
 /* IRQL = DISPATCH_LEVEL */
-void BssTableDeleteEntry(IN OUT BSS_TABLE * Tab,
+void BssTableDeleteEntry(struct rt_bss_table *Tab,
 			 u8 *pBssid, u8 Channel)
 {
 	u8 i, j;
@@ -3602,10 +3602,10 @@ void BssTableDeleteEntry(IN OUT BSS_TABLE * Tab,
 			for (j = i; j < Tab->BssNr - 1; j++) {
 				NdisMoveMemory(&(Tab->BssEntry[j]),
 					       &(Tab->BssEntry[j + 1]),
-					       sizeof(BSS_ENTRY));
+					       sizeof(struct rt_bss_entry));
 			}
 			NdisZeroMemory(&(Tab->BssEntry[Tab->BssNr - 1]),
-				       sizeof(BSS_ENTRY));
+				       sizeof(struct rt_bss_entry));
 			Tab->BssNr -= 1;
 			return;
 		}
@@ -3621,8 +3621,8 @@ void BssTableDeleteEntry(IN OUT BSS_TABLE * Tab,
 	// IRQL = DISPATCH_LEVEL
 	========================================================================
 */
-void BATableDeleteORIEntry(IN OUT PRTMP_ADAPTER pAd,
-			   IN BA_ORI_ENTRY * pBAORIEntry)
+void BATableDeleteORIEntry(struct rt_rtmp_adapter *pAd,
+			   struct rt_ba_ori_entry *pBAORIEntry)
 {
 
 	if (pBAORIEntry->ORI_BA_Status != Originator_NONE) {
@@ -3652,7 +3652,7 @@ void BATableDeleteORIEntry(IN OUT PRTMP_ADAPTER pAd,
  IRQL = DISPATCH_LEVEL
 
  */
-void BssEntrySet(IN PRTMP_ADAPTER pAd, OUT BSS_ENTRY * pBss, u8 *pBssid, char Ssid[], u8 SsidLen, u8 BssType, u16 BeaconPeriod, IN PCF_PARM pCfParm, u16 AtimWin, u16 CapabilityInfo, u8 SupRate[], u8 SupRateLen, u8 ExtRate[], u8 ExtRateLen, IN HT_CAPABILITY_IE * pHtCapability, IN ADD_HT_INFO_IE * pAddHtInfo,	/* AP might use this additional ht info IE */
+void BssEntrySet(struct rt_rtmp_adapter *pAd, struct rt_bss_entry *pBss, u8 *pBssid, char Ssid[], u8 SsidLen, u8 BssType, u16 BeaconPeriod, struct rt_cf_parm * pCfParm, u16 AtimWin, u16 CapabilityInfo, u8 SupRate[], u8 SupRateLen, u8 ExtRate[], u8 ExtRateLen, struct rt_ht_capability_ie * pHtCapability, struct rt_add_ht_info_ie * pAddHtInfo,	/* AP might use this additional ht info IE */
 		 u8 HtCapabilityLen,
 		 u8 AddHtInfoLen,
 		 u8 NewExtChanOffset,
@@ -3660,10 +3660,10 @@ void BssEntrySet(IN PRTMP_ADAPTER pAd, OUT BSS_ENTRY * pBss, u8 *pBssid, char Ss
 		 char Rssi,
 		 IN LARGE_INTEGER TimeStamp,
 		 u8 CkipFlag,
-		 IN PEDCA_PARM pEdcaParm,
-		 IN PQOS_CAPABILITY_PARM pQosCapability,
-		 IN PQBSS_LOAD_PARM pQbssLoad,
-		 u16 LengthVIE, IN PNDIS_802_11_VARIABLE_IEs pVIE)
+		 struct rt_edca_parm *pEdcaParm,
+		 struct rt_qos_capability_parm *pQosCapability,
+		 struct rt_qbss_load_parm *pQbssLoad,
+		 u16 LengthVIE, struct rt_ndis_802_11_variable_ies *pVIE)
 {
 	COPY_MAC_ADDR(pBss->Bssid, pBssid);
 	/* Default Hidden SSID to be TRUE, it will be turned to FALSE after coping SSID */
@@ -3761,27 +3761,27 @@ void BssEntrySet(IN PRTMP_ADAPTER pAd, OUT BSS_ENTRY * pBss, u8 *pBssid, char Ss
 
 	/* new for QOS */
 	if (pEdcaParm)
-		NdisMoveMemory(&pBss->EdcaParm, pEdcaParm, sizeof(EDCA_PARM));
+		NdisMoveMemory(&pBss->EdcaParm, pEdcaParm, sizeof(struct rt_edca_parm));
 	else
 		pBss->EdcaParm.bValid = FALSE;
 	if (pQosCapability)
 		NdisMoveMemory(&pBss->QosCapability, pQosCapability,
-			       sizeof(QOS_CAPABILITY_PARM));
+			       sizeof(struct rt_qos_capability_parm));
 	else
 		pBss->QosCapability.bValid = FALSE;
 	if (pQbssLoad)
 		NdisMoveMemory(&pBss->QbssLoad, pQbssLoad,
-			       sizeof(QBSS_LOAD_PARM));
+			       sizeof(struct rt_qbss_load_parm));
 	else
 		pBss->QbssLoad.bValid = FALSE;
 
 	{
-		PEID_STRUCT pEid;
+		struct rt_eid * pEid;
 		u16 Length = 0;
 
 		NdisZeroMemory(&pBss->WpaIE.IE[0], MAX_CUSTOM_LEN);
 		NdisZeroMemory(&pBss->RsnIE.IE[0], MAX_CUSTOM_LEN);
-		pEid = (PEID_STRUCT) pVIE;
+		pEid = (struct rt_eid *) pVIE;
 		while ((Length + 2 + (u16)pEid->Len) <= LengthVIE) {
 			switch (pEid->Eid) {
 			case IE_WPA:
@@ -3809,7 +3809,7 @@ void BssEntrySet(IN PRTMP_ADAPTER pAd, OUT BSS_ENTRY * pBss, u8 *pBssid, char Ss
 				break;
 			}
 			Length = Length + 2 + (u16)pEid->Len;	/* Eid[1] + Len[1]+ content[Len] */
-			pEid = (PEID_STRUCT) ((u8 *) pEid + 2 + pEid->Len);
+			pEid = (struct rt_eid *) ((u8 *) pEid + 2 + pEid->Len);
 		}
 	}
 }
@@ -3837,7 +3837,7 @@ void BssEntrySet(IN PRTMP_ADAPTER pAd, OUT BSS_ENTRY * pBss, u8 *pBssid, char Ss
  IRQL = DISPATCH_LEVEL
 
  */
-unsigned long BssTableSetEntry(IN PRTMP_ADAPTER pAd, OUT BSS_TABLE * Tab, u8 *pBssid, char Ssid[], u8 SsidLen, u8 BssType, u16 BeaconPeriod, IN CF_PARM * CfParm, u16 AtimWin, u16 CapabilityInfo, u8 SupRate[], u8 SupRateLen, u8 ExtRate[], u8 ExtRateLen, IN HT_CAPABILITY_IE * pHtCapability, IN ADD_HT_INFO_IE * pAddHtInfo,	/* AP might use this additional ht info IE */
+unsigned long BssTableSetEntry(struct rt_rtmp_adapter *pAd, struct rt_bss_table *Tab, u8 *pBssid, char Ssid[], u8 SsidLen, u8 BssType, u16 BeaconPeriod, struct rt_cf_parm * CfParm, u16 AtimWin, u16 CapabilityInfo, u8 SupRate[], u8 SupRateLen, u8 ExtRate[], u8 ExtRateLen, struct rt_ht_capability_ie * pHtCapability, struct rt_add_ht_info_ie * pAddHtInfo,	/* AP might use this additional ht info IE */
 		       u8 HtCapabilityLen,
 		       u8 AddHtInfoLen,
 		       u8 NewExtChanOffset,
@@ -3845,10 +3845,10 @@ unsigned long BssTableSetEntry(IN PRTMP_ADAPTER pAd, OUT BSS_TABLE * Tab, u8 *pB
 		       char Rssi,
 		       IN LARGE_INTEGER TimeStamp,
 		       u8 CkipFlag,
-		       IN PEDCA_PARM pEdcaParm,
-		       IN PQOS_CAPABILITY_PARM pQosCapability,
-		       IN PQBSS_LOAD_PARM pQbssLoad,
-		       u16 LengthVIE, IN PNDIS_802_11_VARIABLE_IEs pVIE)
+		       struct rt_edca_parm *pEdcaParm,
+		       struct rt_qos_capability_parm *pQosCapability,
+		       struct rt_qbss_load_parm *pQbssLoad,
+		       u16 LengthVIE, struct rt_ndis_802_11_variable_ies *pVIE)
 {
 	unsigned long Idx;
 
@@ -3924,14 +3924,14 @@ unsigned long BssTableSetEntry(IN PRTMP_ADAPTER pAd, OUT BSS_TABLE * Tab, u8 *pB
 }
 
 /* IRQL = DISPATCH_LEVEL */
-void BssTableSsidSort(IN PRTMP_ADAPTER pAd,
-		      OUT BSS_TABLE * OutTab, char Ssid[], u8 SsidLen)
+void BssTableSsidSort(struct rt_rtmp_adapter *pAd,
+		      struct rt_bss_table *OutTab, char Ssid[], u8 SsidLen)
 {
 	int i;
 	BssTableInit(OutTab);
 
 	for (i = 0; i < pAd->ScanTab.BssNr; i++) {
-		BSS_ENTRY *pInBss = &pAd->ScanTab.BssEntry[i];
+		struct rt_bss_entry *pInBss = &pAd->ScanTab.BssEntry[i];
 		BOOLEAN bIsHiddenApIncluded = FALSE;
 
 		if (((pAd->CommonCfg.bIEEE80211H == 1) &&
@@ -3945,7 +3945,7 @@ void BssTableSsidSort(IN PRTMP_ADAPTER pAd,
 		if ((pInBss->BssType == pAd->StaCfg.BssType) &&
 		    (SSID_EQUAL(Ssid, SsidLen, pInBss->Ssid, pInBss->SsidLen)
 		     || bIsHiddenApIncluded)) {
-			BSS_ENTRY *pOutBss = &OutTab->BssEntry[OutTab->BssNr];
+			struct rt_bss_entry *pOutBss = &OutTab->BssEntry[OutTab->BssNr];
 
 			/* 2.4G/5G N only mode */
 			if ((pInBss->HtCapabilityLen == 0) &&
@@ -4067,12 +4067,12 @@ void BssTableSsidSort(IN PRTMP_ADAPTER pAd,
 				}
 			}
 			/* copy matching BSS from InTab to OutTab */
-			NdisMoveMemory(pOutBss, pInBss, sizeof(BSS_ENTRY));
+			NdisMoveMemory(pOutBss, pInBss, sizeof(struct rt_bss_entry));
 
 			OutTab->BssNr++;
 		} else if ((pInBss->BssType == pAd->StaCfg.BssType)
 			   && (SsidLen == 0)) {
-			BSS_ENTRY *pOutBss = &OutTab->BssEntry[OutTab->BssNr];
+			struct rt_bss_entry *pOutBss = &OutTab->BssEntry[OutTab->BssNr];
 
 			/* 2.4G/5G N only mode */
 			if ((pInBss->HtCapabilityLen == 0) &&
@@ -4167,7 +4167,7 @@ void BssTableSsidSort(IN PRTMP_ADAPTER pAd,
 				}
 			}
 			/* copy matching BSS from InTab to OutTab */
-			NdisMoveMemory(pOutBss, pInBss, sizeof(BSS_ENTRY));
+			NdisMoveMemory(pOutBss, pInBss, sizeof(struct rt_bss_entry));
 
 			OutTab->BssNr++;
 		}
@@ -4180,33 +4180,33 @@ void BssTableSsidSort(IN PRTMP_ADAPTER pAd,
 }
 
 /* IRQL = DISPATCH_LEVEL */
-void BssTableSortByRssi(IN OUT BSS_TABLE * OutTab)
+void BssTableSortByRssi(struct rt_bss_table *OutTab)
 {
 	int i, j;
-	BSS_ENTRY TmpBss;
+	struct rt_bss_entry TmpBss;
 
 	for (i = 0; i < OutTab->BssNr - 1; i++) {
 		for (j = i + 1; j < OutTab->BssNr; j++) {
 			if (OutTab->BssEntry[j].Rssi > OutTab->BssEntry[i].Rssi) {
 				NdisMoveMemory(&TmpBss, &OutTab->BssEntry[j],
-					       sizeof(BSS_ENTRY));
+					       sizeof(struct rt_bss_entry));
 				NdisMoveMemory(&OutTab->BssEntry[j],
 					       &OutTab->BssEntry[i],
-					       sizeof(BSS_ENTRY));
+					       sizeof(struct rt_bss_entry));
 				NdisMoveMemory(&OutTab->BssEntry[i], &TmpBss,
-					       sizeof(BSS_ENTRY));
+					       sizeof(struct rt_bss_entry));
 			}
 		}
 	}
 }
 
-void BssCipherParse(IN OUT PBSS_ENTRY pBss)
+void BssCipherParse(struct rt_bss_entry *pBss)
 {
-	PEID_STRUCT pEid;
+	struct rt_eid * pEid;
 	u8 *pTmp;
-	PRSN_IE_HEADER_STRUCT pRsnHeader;
-	PCIPHER_SUITE_STRUCT pCipher;
-	PAKM_SUITE_STRUCT pAKM;
+	struct rt_rsn_ie_header * pRsnHeader;
+	struct rt_cipher_suite_struct * pCipher;
+	struct rt_akm_suite * pAKM;
 	u16 Count;
 	int Length;
 	NDIS_802_11_ENCRYPTION_STATUS TmpCipher;
@@ -4242,7 +4242,7 @@ void BssCipherParse(IN OUT PBSS_ENTRY pBss)
 	while (Length > 0) {
 		/* Parse cipher suite base on WPA1 & WPA2, they should be parsed differently */
 		pTmp = ((u8 *)pBss->VarIEs) + pBss->VarIELen - Length;
-		pEid = (PEID_STRUCT) pTmp;
+		pEid = (struct rt_eid *) pTmp;
 		switch (pEid->Eid) {
 		case IE_WPA:
 			if (NdisEqualMemory(pEid->Octet, SES_OUI, 3)
@@ -4380,15 +4380,15 @@ void BssCipherParse(IN OUT PBSS_ENTRY pBss)
 			break;
 
 		case IE_RSN:
-			pRsnHeader = (PRSN_IE_HEADER_STRUCT) pTmp;
+			pRsnHeader = (struct rt_rsn_ie_header *) pTmp;
 
 			/* 0. Version must be 1 */
 			if (le2cpu16(pRsnHeader->Version) != 1)
 				break;
-			pTmp += sizeof(RSN_IE_HEADER_STRUCT);
+			pTmp += sizeof(struct rt_rsn_ie_header);
 
 			/* 1. Check group cipher */
-			pCipher = (PCIPHER_SUITE_STRUCT) pTmp;
+			pCipher = (struct rt_cipher_suite_struct *) pTmp;
 			if (!RTMPEqualMemory(pTmp, RSN_OUI, 3))
 				break;
 
@@ -4414,7 +4414,7 @@ void BssCipherParse(IN OUT PBSS_ENTRY pBss)
 				break;
 			}
 			/* set to correct offset for next parsing */
-			pTmp += sizeof(CIPHER_SUITE_STRUCT);
+			pTmp += sizeof(struct rt_cipher_suite_struct);
 
 			/* 2. Get pairwise cipher counts */
 			/*Count = *(u16 *)pTmp; */
@@ -4425,7 +4425,7 @@ void BssCipherParse(IN OUT PBSS_ENTRY pBss)
 			/* Parsing all unicast cipher suite */
 			while (Count > 0) {
 				/* Skip OUI */
-				pCipher = (PCIPHER_SUITE_STRUCT) pTmp;
+				pCipher = (struct rt_cipher_suite_struct *) pTmp;
 				TmpCipher = Ndis802_11WEPDisabled;
 				switch (pCipher->Type) {
 				case 1:
@@ -4452,7 +4452,7 @@ void BssCipherParse(IN OUT PBSS_ENTRY pBss)
 				} else {
 					pBss->WPA2.PairCipherAux = TmpCipher;
 				}
-				pTmp += sizeof(CIPHER_SUITE_STRUCT);
+				pTmp += sizeof(struct rt_cipher_suite_struct);
 				Count--;
 			}
 
@@ -4464,7 +4464,7 @@ void BssCipherParse(IN OUT PBSS_ENTRY pBss)
 			/* 5. Get AKM ciphers */
 			/* Parsing all AKM ciphers */
 			while (Count > 0) {
-				pAKM = (PAKM_SUITE_STRUCT) pTmp;
+				pAKM = (struct rt_akm_suite *) pTmp;
 				if (!RTMPEqualMemory(pTmp, RSN_OUI, 3))
 					break;
 
@@ -4499,7 +4499,7 @@ void BssCipherParse(IN OUT PBSS_ENTRY pBss)
 						    Ndis802_11AuthModeMax;
 					break;
 				}
-				pTmp += (Count * sizeof(AKM_SUITE_STRUCT));
+				pTmp += (Count * sizeof(struct rt_akm_suite));
 				Count--;
 			}
 
@@ -4546,7 +4546,7 @@ void BssCipherParse(IN OUT PBSS_ENTRY pBss)
  *	\pre
  *	\post
  */
-void MacAddrRandomBssid(IN PRTMP_ADAPTER pAd, u8 *pAddr)
+void MacAddrRandomBssid(struct rt_rtmp_adapter *pAd, u8 *pAddr)
 {
 	int i;
 
@@ -4572,12 +4572,12 @@ void MacAddrRandomBssid(IN PRTMP_ADAPTER pAd, u8 *pAddr)
 	IRQL = DISPATCH_LEVEL
 
  */
-void MgtMacHeaderInit(IN PRTMP_ADAPTER pAd,
-		      IN OUT PHEADER_802_11 pHdr80211,
+void MgtMacHeaderInit(struct rt_rtmp_adapter *pAd,
+		      struct rt_header_802_11 * pHdr80211,
 		      u8 SubType,
 		      u8 ToDs, u8 *pDA, u8 *pBssid)
 {
-	NdisZeroMemory(pHdr80211, sizeof(HEADER_802_11));
+	NdisZeroMemory(pHdr80211, sizeof(struct rt_header_802_11));
 
 	pHdr80211->FC.Type = BTYPE_MGMT;
 	pHdr80211->FC.SubType = SubType;
@@ -4650,7 +4650,7 @@ unsigned long MakeOutgoingFrame(u8 * Buffer, unsigned long * FrameLen, ...)
  IRQL = PASSIVE_LEVEL
 
  */
-int MlmeQueueInit(IN MLME_QUEUE * Queue)
+int MlmeQueueInit(struct rt_mlme_queue *Queue)
 {
 	int i;
 
@@ -4684,12 +4684,12 @@ int MlmeQueueInit(IN MLME_QUEUE * Queue)
 	IRQL = DISPATCH_LEVEL
 
  */
-BOOLEAN MlmeEnqueue(IN PRTMP_ADAPTER pAd,
+BOOLEAN MlmeEnqueue(struct rt_rtmp_adapter *pAd,
 		    unsigned long Machine,
 		    unsigned long MsgType, unsigned long MsgLen, void * Msg)
 {
 	int Tail;
-	MLME_QUEUE *Queue = (MLME_QUEUE *) & pAd->Mlme.Queue;
+	struct rt_mlme_queue *Queue = (struct rt_mlme_queue *)& pAd->Mlme.Queue;
 
 	/* Do nothing if the driver is starting halt state. */
 	/* This might happen when timer already been fired before cancel timer with mlmehalt */
@@ -4744,7 +4744,7 @@ BOOLEAN MlmeEnqueue(IN PRTMP_ADAPTER pAd,
  IRQL = DISPATCH_LEVEL
 
  */
-BOOLEAN MlmeEnqueueForRecv(IN PRTMP_ADAPTER pAd,
+BOOLEAN MlmeEnqueueForRecv(struct rt_rtmp_adapter *pAd,
 			   unsigned long Wcid,
 			   unsigned long TimeStampHigh,
 			   unsigned long TimeStampLow,
@@ -4754,9 +4754,9 @@ BOOLEAN MlmeEnqueueForRecv(IN PRTMP_ADAPTER pAd,
 			   unsigned long MsgLen, void * Msg, u8 Signal)
 {
 	int Tail, Machine;
-	PFRAME_802_11 pFrame = (PFRAME_802_11) Msg;
+	struct rt_frame_802_11 * pFrame = (struct rt_frame_802_11 *) Msg;
 	int MsgType;
-	MLME_QUEUE *Queue = (MLME_QUEUE *) & pAd->Mlme.Queue;
+	struct rt_mlme_queue *Queue = (struct rt_mlme_queue *)& pAd->Mlme.Queue;
 
 	/* Do nothing if the driver is starting halt state. */
 	/* This might happen when timer already been fired before cancel timer with mlmehalt */
@@ -4826,7 +4826,7 @@ BOOLEAN MlmeEnqueueForRecv(IN PRTMP_ADAPTER pAd,
  IRQL = DISPATCH_LEVEL
 
  */
-BOOLEAN MlmeDequeue(IN MLME_QUEUE * Queue, OUT MLME_QUEUE_ELEM ** Elem)
+BOOLEAN MlmeDequeue(struct rt_mlme_queue *Queue, struct rt_mlme_queue_elem ** Elem)
 {
 	NdisAcquireSpinLock(&(Queue->Lock));
 	*Elem = &(Queue->Entry[Queue->Head]);
@@ -4840,10 +4840,10 @@ BOOLEAN MlmeDequeue(IN MLME_QUEUE * Queue, OUT MLME_QUEUE_ELEM ** Elem)
 }
 
 /* IRQL = DISPATCH_LEVEL */
-void MlmeRestartStateMachine(IN PRTMP_ADAPTER pAd)
+void MlmeRestartStateMachine(struct rt_rtmp_adapter *pAd)
 {
 #ifdef RTMP_MAC_PCI
-	MLME_QUEUE_ELEM *Elem = NULL;
+	struct rt_mlme_queue_elem *Elem = NULL;
 #endif /* RTMP_MAC_PCI // */
 	BOOLEAN Cancelled;
 
@@ -4919,7 +4919,7 @@ void MlmeRestartStateMachine(IN PRTMP_ADAPTER pAd)
  IRQL = DISPATCH_LEVEL
 
  */
-BOOLEAN MlmeQueueEmpty(IN MLME_QUEUE * Queue)
+BOOLEAN MlmeQueueEmpty(struct rt_mlme_queue *Queue)
 {
 	BOOLEAN Ans;
 
@@ -4940,7 +4940,7 @@ BOOLEAN MlmeQueueEmpty(IN MLME_QUEUE * Queue)
  IRQL = DISPATCH_LEVEL
 
  */
-BOOLEAN MlmeQueueFull(IN MLME_QUEUE * Queue)
+BOOLEAN MlmeQueueFull(struct rt_mlme_queue *Queue)
 {
 	BOOLEAN Ans;
 
@@ -4962,7 +4962,7 @@ BOOLEAN MlmeQueueFull(IN MLME_QUEUE * Queue)
  IRQL = PASSIVE_LEVEL
 
  */
-void MlmeQueueDestroy(IN MLME_QUEUE * pQueue)
+void MlmeQueueDestroy(struct rt_mlme_queue *pQueue)
 {
 	NdisAcquireSpinLock(&(pQueue->Lock));
 	pQueue->Num = 0;
@@ -4983,8 +4983,8 @@ void MlmeQueueDestroy(IN MLME_QUEUE * pQueue)
  IRQL = DISPATCH_LEVEL
 
  */
-BOOLEAN MsgTypeSubst(IN PRTMP_ADAPTER pAd,
-		     IN PFRAME_802_11 pFrame,
+BOOLEAN MsgTypeSubst(struct rt_rtmp_adapter *pAd,
+		     struct rt_frame_802_11 * pFrame,
 		     int * Machine, int * MsgType)
 {
 	u16 Seq, Alg;
@@ -5097,7 +5097,7 @@ BOOLEAN MsgTypeSubst(IN PRTMP_ADAPTER pAd,
  IRQL = PASSIVE_LEVEL
 
  */
-void StateMachineInit(IN STATE_MACHINE * S,
+void StateMachineInit(struct rt_state_machine *S,
 		      IN STATE_MACHINE_FUNC Trans[],
 		      unsigned long StNr,
 		      unsigned long MsgNr,
@@ -5135,7 +5135,7 @@ void StateMachineInit(IN STATE_MACHINE * S,
  IRQL = PASSIVE_LEVEL
 
  */
-void StateMachineSetAction(IN STATE_MACHINE * S,
+void StateMachineSetAction(struct rt_state_machine *S,
 			   unsigned long St,
 			   unsigned long Msg, IN STATE_MACHINE_FUNC Func)
 {
@@ -5158,8 +5158,8 @@ void StateMachineSetAction(IN STATE_MACHINE * S,
  IRQL = DISPATCH_LEVEL
 
  */
-void StateMachinePerformAction(IN PRTMP_ADAPTER pAd,
-			       IN STATE_MACHINE * S, IN MLME_QUEUE_ELEM * Elem)
+void StateMachinePerformAction(struct rt_rtmp_adapter *pAd,
+			       struct rt_state_machine *S, struct rt_mlme_queue_elem *Elem)
 {
 	(*(S->TransFunc[S->CurrState * S->NrMsg + Elem->MsgType - S->Base]))
 	    (pAd, Elem);
@@ -5173,7 +5173,7 @@ void StateMachinePerformAction(IN PRTMP_ADAPTER pAd,
 		StateMachinePerformAction()
 	==========================================================================
  */
-void Drop(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void Drop(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 }
 
@@ -5189,7 +5189,7 @@ void Drop(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 	==========================================================================
  */
-void LfsrInit(IN PRTMP_ADAPTER pAd, unsigned long Seed)
+void LfsrInit(struct rt_rtmp_adapter *pAd, unsigned long Seed)
 {
 	if (Seed == 0)
 		pAd->Mlme.ShiftReg = 1;
@@ -5202,7 +5202,7 @@ void LfsrInit(IN PRTMP_ADAPTER pAd, unsigned long Seed)
 	Description:
 	==========================================================================
  */
-u8 RandomByte(IN PRTMP_ADAPTER pAd)
+u8 RandomByte(struct rt_rtmp_adapter *pAd)
 {
 	unsigned long i;
 	u8 R, Result;
@@ -5244,7 +5244,7 @@ u8 RandomByte(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-void RTMPCheckRates(IN PRTMP_ADAPTER pAd,
+void RTMPCheckRates(struct rt_rtmp_adapter *pAd,
 		    IN u8 SupRate[], IN u8 * SupRateLen)
 {
 	u8 RateIdx, i, j;
@@ -5267,7 +5267,7 @@ void RTMPCheckRates(IN PRTMP_ADAPTER pAd,
 	NdisMoveMemory(SupRate, NewRate, NewRateLen);
 }
 
-BOOLEAN RTMPCheckChannel(IN PRTMP_ADAPTER pAd,
+BOOLEAN RTMPCheckChannel(struct rt_rtmp_adapter *pAd,
 			 u8 CentralChannel, u8 Channel)
 {
 	u8 k;
@@ -5320,10 +5320,10 @@ BOOLEAN RTMPCheckChannel(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-BOOLEAN RTMPCheckHt(IN PRTMP_ADAPTER pAd,
+BOOLEAN RTMPCheckHt(struct rt_rtmp_adapter *pAd,
 		    u8 Wcid,
-		    IN HT_CAPABILITY_IE * pHtCapability,
-		    IN ADD_HT_INFO_IE * pAddHtInfo)
+		    struct rt_ht_capability_ie * pHtCapability,
+		    struct rt_add_ht_info_ie * pAddHtInfo)
 {
 	if (Wcid >= MAX_LEN_OF_MAC_TABLE)
 		return FALSE;
@@ -5449,7 +5449,7 @@ BOOLEAN RTMPCheckHt(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-void RTMPUpdateMlmeRate(IN PRTMP_ADAPTER pAd)
+void RTMPUpdateMlmeRate(struct rt_rtmp_adapter *pAd)
 {
 	u8 MinimumRate;
 	u8 ProperMlmeRate;	/*= RATE_54; */
@@ -5558,7 +5558,7 @@ void RTMPUpdateMlmeRate(IN PRTMP_ADAPTER pAd)
 		  pAd->CommonCfg.MlmeTransmit.word));
 }
 
-char RTMPMaxRssi(IN PRTMP_ADAPTER pAd,
+char RTMPMaxRssi(struct rt_rtmp_adapter *pAd,
 		 char Rssi0, char Rssi1, char Rssi2)
 {
 	char larger = -127;
@@ -5594,7 +5594,7 @@ char RTMPMaxRssi(IN PRTMP_ADAPTER pAd,
 
     ========================================================================
 */
-void AsicEvaluateRxAnt(IN PRTMP_ADAPTER pAd)
+void AsicEvaluateRxAnt(struct rt_rtmp_adapter *pAd)
 {
 	u8 BBPR3 = 0;
 
@@ -5677,7 +5677,7 @@ void AsicRxAntEvalTimeout(void *SystemSpecific1,
 			  void *FunctionContext,
 			  void *SystemSpecific2, void *SystemSpecific3)
 {
-	RTMP_ADAPTER *pAd = (RTMP_ADAPTER *) FunctionContext;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)FunctionContext;
 	u8 BBPR3 = 0;
 	char larger = -127, rssi0, rssi1, rssi2;
 
@@ -5749,7 +5749,7 @@ void APSDPeriodicExec(void *SystemSpecific1,
 		      void *FunctionContext,
 		      void *SystemSpecific2, void *SystemSpecific3)
 {
-	RTMP_ADAPTER *pAd = (RTMP_ADAPTER *) FunctionContext;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)FunctionContext;
 
 	if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED))
 		return;
@@ -5784,7 +5784,7 @@ void APSDPeriodicExec(void *SystemSpecific1,
 
     ========================================================================
 */
-void RTMPSetPiggyBack(IN PRTMP_ADAPTER pAd, IN BOOLEAN bPiggyBack)
+void RTMPSetPiggyBack(struct rt_rtmp_adapter *pAd, IN BOOLEAN bPiggyBack)
 {
 	TX_LINK_CFG_STRUC TxLinkCfg;
 
@@ -5809,8 +5809,8 @@ void RTMPSetPiggyBack(IN PRTMP_ADAPTER pAd, IN BOOLEAN bPiggyBack)
 
     ========================================================================
 */
-BOOLEAN RTMPCheckEntryEnableAutoRateSwitch(IN PRTMP_ADAPTER pAd,
-					   IN PMAC_TABLE_ENTRY pEntry)
+BOOLEAN RTMPCheckEntryEnableAutoRateSwitch(struct rt_rtmp_adapter *pAd,
+					   struct rt_mac_table_entry *pEntry)
 {
 	BOOLEAN result = TRUE;
 
@@ -5826,7 +5826,7 @@ BOOLEAN RTMPCheckEntryEnableAutoRateSwitch(IN PRTMP_ADAPTER pAd,
 	return result;
 }
 
-BOOLEAN RTMPAutoRateSwitchCheck(IN PRTMP_ADAPTER pAd)
+BOOLEAN RTMPAutoRateSwitchCheck(struct rt_rtmp_adapter *pAd)
 {
 	{
 		if (pAd->StaCfg.bAutoTxRateSwitch)
@@ -5850,7 +5850,7 @@ BOOLEAN RTMPAutoRateSwitchCheck(IN PRTMP_ADAPTER pAd)
 
     ========================================================================
 */
-u8 RTMPStaFixedTxMode(IN PRTMP_ADAPTER pAd, IN PMAC_TABLE_ENTRY pEntry)
+u8 RTMPStaFixedTxMode(struct rt_rtmp_adapter *pAd, struct rt_mac_table_entry *pEntry)
 {
 	u8 tx_mode = FIXED_TXMODE_HT;
 
@@ -5878,7 +5878,7 @@ u8 RTMPStaFixedTxMode(IN PRTMP_ADAPTER pAd, IN PMAC_TABLE_ENTRY pEntry)
 
     ========================================================================
 */
-void RTMPUpdateLegacyTxSetting(u8 fixed_tx_mode, PMAC_TABLE_ENTRY pEntry)
+void RTMPUpdateLegacyTxSetting(u8 fixed_tx_mode, struct rt_mac_table_entry *pEntry)
 {
 	HTTRANSMIT_SETTING TransmitSetting;
 
@@ -5921,7 +5921,7 @@ void RTMPUpdateLegacyTxSetting(u8 fixed_tx_mode, PMAC_TABLE_ENTRY pEntry)
 
 	==========================================================================
  */
-void AsicStaBbpTuning(IN PRTMP_ADAPTER pAd)
+void AsicStaBbpTuning(struct rt_rtmp_adapter *pAd)
 {
 	u8 OrigR66Value = 0, R66;	/*, R66UpperBound = 0x30, R66LowerBound = 0x30; */
 	char Rssi;
@@ -6033,7 +6033,7 @@ void AsicStaBbpTuning(IN PRTMP_ADAPTER pAd)
 	}
 }
 
-void RTMPSetAGCInitValue(IN PRTMP_ADAPTER pAd, u8 BandWidth)
+void RTMPSetAGCInitValue(struct rt_rtmp_adapter *pAd, u8 BandWidth)
 {
 	u8 R66 = 0x30;
 

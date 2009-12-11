@@ -32,16 +32,16 @@
 */
 #include	"../rt_config.h"
 
-u16 RtmpPCI_WriteTxResource(IN PRTMP_ADAPTER pAd,
-			       IN TX_BLK * pTxBlk,
+u16 RtmpPCI_WriteTxResource(struct rt_rtmp_adapter *pAd,
+			       struct rt_tx_blk *pTxBlk,
 			       IN BOOLEAN bIsLast, u16 * FreeNumber)
 {
 
 	u8 *pDMAHeaderBufVA;
 	u16 TxIdx, RetTxIdx;
-	PTXD_STRUC pTxD;
+	struct rt_txd * pTxD;
 	u32 BufBasePaLow;
-	PRTMP_TX_RING pTxRing;
+	struct rt_rtmp_tx_ring *pTxRing;
 	u16 hwHeaderLen;
 
 	/* */
@@ -73,7 +73,7 @@ u16 RtmpPCI_WriteTxResource(IN PRTMP_ADAPTER pAd,
 	/* build Tx Descriptor */
 	/* */
 
-	pTxD = (PTXD_STRUC) pTxRing->Cell[TxIdx].AllocVa;
+	pTxD = (struct rt_txd *) pTxRing->Cell[TxIdx].AllocVa;
 	NdisZeroMemory(pTxD, TXD_SIZE);
 
 	pTxD->SDPtr0 = BufBasePaLow;
@@ -97,17 +97,17 @@ u16 RtmpPCI_WriteTxResource(IN PRTMP_ADAPTER pAd,
 	return RetTxIdx;
 }
 
-u16 RtmpPCI_WriteSingleTxResource(IN PRTMP_ADAPTER pAd,
-				     IN TX_BLK * pTxBlk,
+u16 RtmpPCI_WriteSingleTxResource(struct rt_rtmp_adapter *pAd,
+				     struct rt_tx_blk *pTxBlk,
 				     IN BOOLEAN bIsLast,
 				     u16 * FreeNumber)
 {
 
 	u8 *pDMAHeaderBufVA;
 	u16 TxIdx, RetTxIdx;
-	PTXD_STRUC pTxD;
+	struct rt_txd * pTxD;
 	u32 BufBasePaLow;
-	PRTMP_TX_RING pTxRing;
+	struct rt_rtmp_tx_ring *pTxRing;
 	u16 hwHeaderLen;
 
 	/* */
@@ -132,7 +132,7 @@ u16 RtmpPCI_WriteSingleTxResource(IN PRTMP_ADAPTER pAd,
 	/* */
 	/* build Tx Descriptor */
 	/* */
-	pTxD = (PTXD_STRUC) pTxRing->Cell[TxIdx].AllocVa;
+	pTxD = (struct rt_txd *) pTxRing->Cell[TxIdx].AllocVa;
 	NdisZeroMemory(pTxD, TXD_SIZE);
 
 	pTxD->SDPtr0 = BufBasePaLow;
@@ -156,16 +156,16 @@ u16 RtmpPCI_WriteSingleTxResource(IN PRTMP_ADAPTER pAd,
 	return RetTxIdx;
 }
 
-u16 RtmpPCI_WriteMultiTxResource(IN PRTMP_ADAPTER pAd,
-				    IN TX_BLK * pTxBlk,
+u16 RtmpPCI_WriteMultiTxResource(struct rt_rtmp_adapter *pAd,
+				    struct rt_tx_blk *pTxBlk,
 				    u8 frameNum, u16 * FreeNumber)
 {
 	BOOLEAN bIsLast;
 	u8 *pDMAHeaderBufVA;
 	u16 TxIdx, RetTxIdx;
-	PTXD_STRUC pTxD;
+	struct rt_txd * pTxD;
 	u32 BufBasePaLow;
-	PRTMP_TX_RING pTxRing;
+	struct rt_rtmp_tx_ring *pTxRing;
 	u16 hwHdrLen;
 	u32 firstDMALen;
 
@@ -210,7 +210,7 @@ u16 RtmpPCI_WriteMultiTxResource(IN PRTMP_ADAPTER pAd,
 	/* */
 	/* build Tx Descriptor */
 	/* */
-	pTxD = (PTXD_STRUC) pTxRing->Cell[TxIdx].AllocVa;
+	pTxD = (struct rt_txd *) pTxRing->Cell[TxIdx].AllocVa;
 	NdisZeroMemory(pTxD, TXD_SIZE);
 
 	pTxD->SDPtr0 = BufBasePaLow;
@@ -235,28 +235,28 @@ u16 RtmpPCI_WriteMultiTxResource(IN PRTMP_ADAPTER pAd,
 
 }
 
-void RtmpPCI_FinalWriteTxResource(IN PRTMP_ADAPTER pAd,
-				  IN TX_BLK * pTxBlk,
+void RtmpPCI_FinalWriteTxResource(struct rt_rtmp_adapter *pAd,
+				  struct rt_tx_blk *pTxBlk,
 				  u16 totalMPDUSize, u16 FirstTxIdx)
 {
 
-	PTXWI_STRUC pTxWI;
-	PRTMP_TX_RING pTxRing;
+	struct rt_txwi * pTxWI;
+	struct rt_rtmp_tx_ring *pTxRing;
 
 	/* */
 	/* get Tx Ring Resource */
 	/* */
 	pTxRing = &pAd->TxRing[pTxBlk->QueIdx];
-	pTxWI = (PTXWI_STRUC) pTxRing->Cell[FirstTxIdx].DmaBuf.AllocVa;
+	pTxWI = (struct rt_txwi *) pTxRing->Cell[FirstTxIdx].DmaBuf.AllocVa;
 	pTxWI->MPDUtotalByteCount = totalMPDUSize;
 
 }
 
-void RtmpPCIDataLastTxIdx(IN PRTMP_ADAPTER pAd,
+void RtmpPCIDataLastTxIdx(struct rt_rtmp_adapter *pAd,
 			  u8 QueIdx, u16 LastTxIdx)
 {
-	PTXD_STRUC pTxD;
-	PRTMP_TX_RING pTxRing;
+	struct rt_txd * pTxD;
+	struct rt_rtmp_tx_ring *pTxRing;
 
 	/* */
 	/* get Tx Ring Resource */
@@ -266,21 +266,21 @@ void RtmpPCIDataLastTxIdx(IN PRTMP_ADAPTER pAd,
 	/* */
 	/* build Tx Descriptor */
 	/* */
-	pTxD = (PTXD_STRUC) pTxRing->Cell[LastTxIdx].AllocVa;
+	pTxD = (struct rt_txd *) pTxRing->Cell[LastTxIdx].AllocVa;
 
 	pTxD->LastSec1 = 1;
 
 }
 
-u16 RtmpPCI_WriteFragTxResource(IN PRTMP_ADAPTER pAd,
-				   IN TX_BLK * pTxBlk,
+u16 RtmpPCI_WriteFragTxResource(struct rt_rtmp_adapter *pAd,
+				   struct rt_tx_blk *pTxBlk,
 				   u8 fragNum, u16 * FreeNumber)
 {
 	u8 *pDMAHeaderBufVA;
 	u16 TxIdx, RetTxIdx;
-	PTXD_STRUC pTxD;
+	struct rt_txd * pTxD;
 	u32 BufBasePaLow;
-	PRTMP_TX_RING pTxRing;
+	struct rt_rtmp_tx_ring *pTxRing;
 	u16 hwHeaderLen;
 	u32 firstDMALen;
 
@@ -305,7 +305,7 @@ u16 RtmpPCI_WriteFragTxResource(IN PRTMP_ADAPTER pAd,
 	/* */
 	/* Build Tx Descriptor */
 	/* */
-	pTxD = (PTXD_STRUC) pTxRing->Cell[TxIdx].AllocVa;
+	pTxD = (struct rt_txd *) pTxRing->Cell[TxIdx].AllocVa;
 	NdisZeroMemory(pTxD, TXD_SIZE);
 
 	if (fragNum == pTxBlk->TotalFragNum) {
@@ -341,15 +341,15 @@ u16 RtmpPCI_WriteFragTxResource(IN PRTMP_ADAPTER pAd,
 	Must be run in Interrupt context
 	This function handle PCI specific TxDesc and cpu index update and kick the packet out.
  */
-int RtmpPCIMgmtKickOut(IN RTMP_ADAPTER * pAd,
+int RtmpPCIMgmtKickOut(struct rt_rtmp_adapter *pAd,
 		       u8 QueIdx,
 		       void *pPacket,
 		       u8 *pSrcBufVA, u32 SrcBufLen)
 {
-	PTXD_STRUC pTxD;
+	struct rt_txd * pTxD;
 	unsigned long SwIdx = pAd->MgmtRing.TxCpuIdx;
 
-	pTxD = (PTXD_STRUC) pAd->MgmtRing.Cell[SwIdx].AllocVa;
+	pTxD = (struct rt_txd *) pAd->MgmtRing.Cell[SwIdx].AllocVa;
 
 	pAd->MgmtRing.Cell[SwIdx].pNdisPacket = pPacket;
 	pAd->MgmtRing.Cell[SwIdx].pNextNdisPacket = NULL;
@@ -405,11 +405,11 @@ int RtmpPCIMgmtKickOut(IN RTMP_ADAPTER * pAd,
 
 	========================================================================
 */
-int RTMPCheckRxError(IN PRTMP_ADAPTER pAd,
-			     IN PHEADER_802_11 pHeader,
-			     IN PRXWI_STRUC pRxWI, IN PRT28XX_RXD_STRUC pRxD)
+int RTMPCheckRxError(struct rt_rtmp_adapter *pAd,
+			     struct rt_header_802_11 * pHeader,
+			     struct rt_rxwi * pRxWI, IN PRT28XX_RXD_STRUC pRxD)
 {
-	PCIPHER_KEY pWpaKey;
+	struct rt_cipher_key *pWpaKey;
 	int dBm;
 
 	/* Phy errors & CRC errors */
@@ -516,13 +516,13 @@ int RTMPCheckRxError(IN PRTMP_ADAPTER pAd,
 	return (NDIS_STATUS_SUCCESS);
 }
 
-BOOLEAN RTMPFreeTXDUponTxDmaDone(IN PRTMP_ADAPTER pAd, u8 QueIdx)
+BOOLEAN RTMPFreeTXDUponTxDmaDone(struct rt_rtmp_adapter *pAd, u8 QueIdx)
 {
-	PRTMP_TX_RING pTxRing;
-	PTXD_STRUC pTxD;
+	struct rt_rtmp_tx_ring *pTxRing;
+	struct rt_txd * pTxD;
 	void *pPacket;
 	u8 FREE = 0;
-	TXD_STRUC TxD, *pOriTxD;
+	struct rt_txd TxD, *pOriTxD;
 	/*unsigned long         IrqFlags; */
 	BOOLEAN bReschedule = FALSE;
 
@@ -541,9 +541,9 @@ BOOLEAN RTMPFreeTXDUponTxDmaDone(IN PRTMP_ADAPTER pAd, u8 QueIdx)
 		/* Note : If (pAd->ate.bQATxStart == TRUE), we will never reach here. */
 		FREE++;
 		pTxD =
-		    (PTXD_STRUC) (pTxRing->Cell[pTxRing->TxSwFreeIdx].AllocVa);
+		    (struct rt_txd *) (pTxRing->Cell[pTxRing->TxSwFreeIdx].AllocVa);
 		pOriTxD = pTxD;
-		NdisMoveMemory(&TxD, pTxD, sizeof(TXD_STRUC));
+		NdisMoveMemory(&TxD, pTxD, sizeof(struct rt_txd));
 		pTxD = &TxD;
 
 		pTxD->DMADONE = 0;
@@ -584,7 +584,7 @@ BOOLEAN RTMPFreeTXDUponTxDmaDone(IN PRTMP_ADAPTER pAd, u8 QueIdx)
 		/* get tx_tdx_idx again */
 		RTMP_IO_READ32(pAd, TX_DTX_IDX0 + QueIdx * RINGREG_DIFF,
 			       &pTxRing->TxDmaIdx);
-		NdisMoveMemory(pOriTxD, pTxD, sizeof(TXD_STRUC));
+		NdisMoveMemory(pOriTxD, pTxD, sizeof(struct rt_txd));
 
 /*         RTMP_IRQ_UNLOCK(&pAd->irq_lock, IrqFlags); */
 	}
@@ -609,7 +609,7 @@ BOOLEAN RTMPFreeTXDUponTxDmaDone(IN PRTMP_ADAPTER pAd, u8 QueIdx)
 
 	========================================================================
 */
-BOOLEAN RTMPHandleTxRingDmaDoneInterrupt(IN PRTMP_ADAPTER pAd,
+BOOLEAN RTMPHandleTxRingDmaDoneInterrupt(struct rt_rtmp_adapter *pAd,
 					 INT_SOURCE_CSR_STRUC TxRingBitmap)
 {
 /*      u8                   Count = 0; */
@@ -661,13 +661,13 @@ BOOLEAN RTMPHandleTxRingDmaDoneInterrupt(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-void RTMPHandleMgmtRingDmaDoneInterrupt(IN PRTMP_ADAPTER pAd)
+void RTMPHandleMgmtRingDmaDoneInterrupt(struct rt_rtmp_adapter *pAd)
 {
-	PTXD_STRUC pTxD;
+	struct rt_txd * pTxD;
 	void *pPacket;
 /*      int              i; */
 	u8 FREE = 0;
-	PRTMP_MGMT_RING pMgmtRing = &pAd->MgmtRing;
+	struct rt_rtmp_mgmt_ring *pMgmtRing = &pAd->MgmtRing;
 
 	NdisAcquireSpinLock(&pAd->MgmtRingLock);
 
@@ -675,7 +675,7 @@ void RTMPHandleMgmtRingDmaDoneInterrupt(IN PRTMP_ADAPTER pAd)
 	while (pMgmtRing->TxSwFreeIdx != pMgmtRing->TxDmaIdx) {
 		FREE++;
 		pTxD =
-		    (PTXD_STRUC) (pMgmtRing->Cell[pAd->MgmtRing.TxSwFreeIdx].
+		    (struct rt_txd *) (pMgmtRing->Cell[pAd->MgmtRing.TxSwFreeIdx].
 				  AllocVa);
 		pTxD->DMADONE = 0;
 		pPacket = pMgmtRing->Cell[pMgmtRing->TxSwFreeIdx].pNdisPacket;
@@ -713,7 +713,7 @@ void RTMPHandleMgmtRingDmaDoneInterrupt(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-void RTMPHandleTBTTInterrupt(IN PRTMP_ADAPTER pAd)
+void RTMPHandleTBTTInterrupt(struct rt_rtmp_adapter *pAd)
 {
 	{
 		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE)) {
@@ -732,7 +732,7 @@ void RTMPHandleTBTTInterrupt(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-void RTMPHandlePreTBTTInterrupt(IN PRTMP_ADAPTER pAd)
+void RTMPHandlePreTBTTInterrupt(struct rt_rtmp_adapter *pAd)
 {
 	{
 		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE)) {
@@ -743,7 +743,7 @@ void RTMPHandlePreTBTTInterrupt(IN PRTMP_ADAPTER pAd)
 
 }
 
-void RTMPHandleRxCoherentInterrupt(IN PRTMP_ADAPTER pAd)
+void RTMPHandleRxCoherentInterrupt(struct rt_rtmp_adapter *pAd)
 {
 	WPDMA_GLO_CFG_STRUC GloCfg;
 
@@ -773,18 +773,18 @@ void RTMPHandleRxCoherentInterrupt(IN PRTMP_ADAPTER pAd)
 	DBGPRINT(RT_DEBUG_TRACE, ("<== RTMPHandleRxCoherentInterrupt \n"));
 }
 
-void *GetPacketFromRxRing(IN PRTMP_ADAPTER pAd,
+void *GetPacketFromRxRing(struct rt_rtmp_adapter *pAd,
 				 OUT PRT28XX_RXD_STRUC pSaveRxD,
 				 OUT BOOLEAN * pbReschedule,
 				 IN u32 * pRxPending)
 {
-	PRXD_STRUC pRxD;
+	struct rt_rxd * pRxD;
 	void *pRxPacket = NULL;
 	void *pNewPacket;
 	void *AllocVa;
 	dma_addr_t AllocPa;
 	BOOLEAN bReschedule = FALSE;
-	RTMP_DMACB *pRxCell;
+	struct rt_rtmp_dmacb *pRxCell;
 
 	RTMP_SEM_LOCK(&pAd->RxRingLock);
 
@@ -811,7 +811,7 @@ void *GetPacketFromRxRing(IN PRTMP_ADAPTER pAd,
 	pRxCell = &pAd->RxRing.Cell[pAd->RxRing.RxSwReadIdx];
 
 	/* Point to Rx indexed rx ring descriptor */
-	pRxD = (PRXD_STRUC) pRxCell->AllocVa;
+	pRxD = (struct rt_rxd *) pRxCell->AllocVa;
 
 	if (pRxD->DDONE == 0) {
 		*pRxPending = 0;
@@ -864,24 +864,24 @@ done:
 	return pRxPacket;
 }
 
-int MlmeHardTransmitTxRing(IN PRTMP_ADAPTER pAd,
+int MlmeHardTransmitTxRing(struct rt_rtmp_adapter *pAd,
 				   u8 QueIdx, void *pPacket)
 {
-	PACKET_INFO PacketInfo;
+	struct rt_packet_info PacketInfo;
 	u8 *pSrcBufVA;
 	u32 SrcBufLen;
-	PTXD_STRUC pTxD;
-	PHEADER_802_11 pHeader_802_11;
+	struct rt_txd * pTxD;
+	struct rt_header_802_11 * pHeader_802_11;
 	BOOLEAN bAckRequired, bInsertTimestamp;
 	unsigned long SrcBufPA;
 	/*u8                 TxBufIdx; */
 	u8 MlmeRate;
 	unsigned long SwIdx = pAd->TxRing[QueIdx].TxCpuIdx;
-	PTXWI_STRUC pFirstTxWI;
+	struct rt_txwi * pFirstTxWI;
 	/*unsigned long i; */
 	/*HTTRANSMIT_SETTING    MlmeTransmit;   //Rate for this MGMT frame. */
 	unsigned long FreeNum;
-	MAC_TABLE_ENTRY *pMacEntry = NULL;
+	struct rt_mac_table_entry *pMacEntry = NULL;
 
 	RTMP_QueryPacketInfo(pPacket, &PacketInfo, &pSrcBufVA, &SrcBufLen);
 
@@ -901,7 +901,7 @@ int MlmeHardTransmitTxRing(IN PRTMP_ADAPTER pAd,
 
 	SwIdx = pAd->TxRing[QueIdx].TxCpuIdx;
 
-	pTxD = (PTXD_STRUC) pAd->TxRing[QueIdx].Cell[SwIdx].AllocVa;
+	pTxD = (struct rt_txd *) pAd->TxRing[QueIdx].Cell[SwIdx].AllocVa;
 
 	if (pAd->TxRing[QueIdx].Cell[SwIdx].pNdisPacket) {
 		DBGPRINT(RT_DEBUG_OFF, ("MlmeHardTransmit Error\n"));
@@ -915,9 +915,9 @@ int MlmeHardTransmitTxRing(IN PRTMP_ADAPTER pAd,
 		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
 			AsicForceWakeup(pAd, TRUE);
 	}
-	pFirstTxWI = (PTXWI_STRUC) pSrcBufVA;
+	pFirstTxWI = (struct rt_txwi *) pSrcBufVA;
 
-	pHeader_802_11 = (PHEADER_802_11) (pSrcBufVA + TXWI_SIZE);
+	pHeader_802_11 = (struct rt_header_802_11 *) (pSrcBufVA + TXWI_SIZE);
 	if (pHeader_802_11->Addr1[0] & 0x01) {
 		MlmeRate = pAd->CommonCfg.BasicMlmeRate;
 	} else {
@@ -1040,7 +1040,7 @@ int MlmeHardTransmitTxRing(IN PRTMP_ADAPTER pAd,
 	return NDIS_STATUS_SUCCESS;
 }
 
-int MlmeDataHardTransmit(IN PRTMP_ADAPTER pAd,
+int MlmeDataHardTransmit(struct rt_rtmp_adapter *pAd,
 				 u8 QueIdx, void *pPacket)
 {
 	if ((pAd->CommonCfg.RadarDetect.RDMode != RD_NORMAL_MODE)
@@ -1078,8 +1078,8 @@ int MlmeDataHardTransmit(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-void RTMPWriteTxDescriptor(IN PRTMP_ADAPTER pAd,
-			   IN PTXD_STRUC pTxD,
+void RTMPWriteTxDescriptor(struct rt_rtmp_adapter *pAd,
+			   struct rt_txd * pTxD,
 			   IN BOOLEAN bWIV, u8 QueueSEL)
 {
 	/* */

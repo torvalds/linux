@@ -39,7 +39,7 @@
 #include "../rt_config.h"
 #include "action.h"
 
-static void ReservedAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem);
+static void ReservedAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem);
 
 /*
     ==========================================================================
@@ -58,8 +58,8 @@ static void ReservedAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem);
         MT2_CLS3ERR              cls3err_action
     ==========================================================================
  */
-void ActionStateMachineInit(IN PRTMP_ADAPTER pAd,
-			    IN STATE_MACHINE * S,
+void ActionStateMachineInit(struct rt_rtmp_adapter *pAd,
+			    struct rt_state_machine *S,
 			    OUT STATE_MACHINE_FUNC Trans[])
 {
 	StateMachineInit(S, (STATE_MACHINE_FUNC *) Trans, MAX_ACT_STATE,
@@ -98,19 +98,19 @@ void ActionStateMachineInit(IN PRTMP_ADAPTER pAd,
 			      (STATE_MACHINE_FUNC) MlmeInvalidAction);
 }
 
-void MlmeADDBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void MlmeADDBAAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
-	MLME_ADDBA_REQ_STRUCT *pInfo;
+	struct rt_mlme_addba_req *pInfo;
 	u8 Addr[6];
 	u8 *pOutBuffer = NULL;
 	int NStatus;
 	unsigned long Idx;
-	FRAME_ADDBA_REQ Frame;
+	struct rt_frame_addba_req Frame;
 	unsigned long FrameLen;
-	BA_ORI_ENTRY *pBAEntry = NULL;
+	struct rt_ba_ori_entry *pBAEntry = NULL;
 
-	pInfo = (MLME_ADDBA_REQ_STRUCT *) Elem->Msg;
-	NdisZeroMemory(&Frame, sizeof(FRAME_ADDBA_REQ));
+	pInfo = (struct rt_mlme_addba_req *)Elem->Msg;
+	NdisZeroMemory(&Frame, sizeof(struct rt_frame_addba_req));
 
 	if (MlmeAddBAReqSanity(pAd, Elem->Msg, Elem->MsgLen, Addr)) {
 		NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	/*Get an unused nonpaged memory */
@@ -161,7 +161,7 @@ void MlmeADDBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		Frame.BaStartSeq.word = cpu2le16(Frame.BaStartSeq.word);
 
 		MakeOutgoingFrame(pOutBuffer, &FrameLen,
-				  sizeof(FRAME_ADDBA_REQ), &Frame, END_OF_ARGS);
+				  sizeof(struct rt_frame_addba_req), &Frame, END_OF_ARGS);
 
 		MiniportMMRequest(pAd,
 				  (MGMT_USE_QUEUE_FLAG |
@@ -182,26 +182,26 @@ void MlmeADDBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
     Description:
         send DELBA and delete BaEntry if any
     Parametrs:
-        Elem - MLME message MLME_DELBA_REQ_STRUCT
+        Elem - MLME message struct rt_mlme_delba_req
 
 	IRQL = DISPATCH_LEVEL
 
     ==========================================================================
  */
-void MlmeDELBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void MlmeDELBAAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
-	MLME_DELBA_REQ_STRUCT *pInfo;
+	struct rt_mlme_delba_req *pInfo;
 	u8 *pOutBuffer = NULL;
 	u8 *pOutBuffer2 = NULL;
 	int NStatus;
 	unsigned long Idx;
-	FRAME_DELBA_REQ Frame;
+	struct rt_frame_delba_req Frame;
 	unsigned long FrameLen;
-	FRAME_BAR FrameBar;
+	struct rt_frame_bar FrameBar;
 
-	pInfo = (MLME_DELBA_REQ_STRUCT *) Elem->Msg;
+	pInfo = (struct rt_mlme_delba_req *)Elem->Msg;
 	/* must send back DELBA */
-	NdisZeroMemory(&Frame, sizeof(FRAME_DELBA_REQ));
+	NdisZeroMemory(&Frame, sizeof(struct rt_frame_delba_req));
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("==> MlmeDELBAAction(), Initiator(%d) \n", pInfo->Initiator));
 
@@ -236,7 +236,7 @@ void MlmeDELBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		FrameBar.BarControl.MTID = 0;	/* make sure sequence not clear in DEL funciton. */
 
 		MakeOutgoingFrame(pOutBuffer2, &FrameLen,
-				  sizeof(FRAME_BAR), &FrameBar, END_OF_ARGS);
+				  sizeof(struct rt_frame_bar), &FrameBar, END_OF_ARGS);
 		MiniportMMRequest(pAd, QID_AC_BE, pOutBuffer2, FrameLen);
 		MlmeFreeMemory(pAd, pOutBuffer2);
 		DBGPRINT(RT_DEBUG_TRACE,
@@ -269,7 +269,7 @@ void MlmeDELBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		Frame.ReasonCode = cpu2le16(Frame.ReasonCode);
 
 		MakeOutgoingFrame(pOutBuffer, &FrameLen,
-				  sizeof(FRAME_DELBA_REQ), &Frame, END_OF_ARGS);
+				  sizeof(struct rt_frame_delba_req), &Frame, END_OF_ARGS);
 		MiniportMMRequest(pAd, QID_AC_BE, pOutBuffer, FrameLen);
 		MlmeFreeMemory(pAd, pOutBuffer);
 		DBGPRINT(RT_DEBUG_TRACE,
@@ -278,25 +278,25 @@ void MlmeDELBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	}
 }
 
-void MlmeQOSAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void MlmeQOSAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 }
 
-void MlmeDLSAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void MlmeDLSAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 }
 
-void MlmeInvalidAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void MlmeInvalidAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	/*u8 *                  pOutBuffer = NULL; */
 	/*Return the receiving frame except the MSB of category filed set to 1.  7.3.1.11 */
 }
 
-void PeerQOSAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerQOSAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 }
 
-void PeerBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerBAAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u8 Action = Elem->Msg[LENGTH_802_11 + 1];
 
@@ -313,13 +313,13 @@ void PeerBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	}
 }
 
-void PeerPublicAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerPublicAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	if (Elem->Wcid >= MAX_LEN_OF_MAC_TABLE)
 		return;
 }
 
-static void ReservedAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+static void ReservedAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u8 Category;
 
@@ -333,18 +333,18 @@ static void ReservedAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	hex_dump("Reserved Action Frame", &Elem->Msg[0], Elem->MsgLen);
 }
 
-void PeerRMAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerRMAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	return;
 }
 
-static void respond_ht_information_exchange_action(IN PRTMP_ADAPTER pAd,
-						   IN MLME_QUEUE_ELEM * Elem)
+static void respond_ht_information_exchange_action(struct rt_rtmp_adapter *pAd,
+						   struct rt_mlme_queue_elem *Elem)
 {
 	u8 *pOutBuffer = NULL;
 	int NStatus;
 	unsigned long FrameLen;
-	FRAME_HT_INFO HTINFOframe, *pFrame;
+	struct rt_frame_ht_info HTINFOframe, *pFrame;
 	u8 *pAddr;
 
 	/* 2. Always send back ADDBA Response */
@@ -356,10 +356,10 @@ static void respond_ht_information_exchange_action(IN PRTMP_ADAPTER pAd,
 		return;
 	}
 	/* get RA */
-	pFrame = (FRAME_HT_INFO *) & Elem->Msg[0];
+	pFrame = (struct rt_frame_ht_info *) & Elem->Msg[0];
 	pAddr = pFrame->Hdr.Addr2;
 
-	NdisZeroMemory(&HTINFOframe, sizeof(FRAME_HT_INFO));
+	NdisZeroMemory(&HTINFOframe, sizeof(struct rt_frame_ht_info));
 	/* 2-1. Prepare ADDBA Response frame. */
 	{
 		if (ADHOC_ON(pAd))
@@ -381,13 +381,13 @@ static void respond_ht_information_exchange_action(IN PRTMP_ADAPTER pAd,
 	    pAd->CommonCfg.AddHTInfo.AddHtInfo.RecomWidth;
 
 	MakeOutgoingFrame(pOutBuffer, &FrameLen,
-			  sizeof(FRAME_HT_INFO), &HTINFOframe, END_OF_ARGS);
+			  sizeof(struct rt_frame_ht_info), &HTINFOframe, END_OF_ARGS);
 
 	MiniportMMRequest(pAd, QID_AC_BE, pOutBuffer, FrameLen);
 	MlmeFreeMemory(pAd, pOutBuffer);
 }
 
-void PeerHTAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerHTAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u8 Action = Elem->Msg[LENGTH_802_11 + 1];
 
@@ -436,10 +436,10 @@ void PeerHTAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		break;
 	case HT_INFO_EXCHANGE:
 		{
-			HT_INFORMATION_OCTET *pHT_info;
+			struct rt_ht_information_octet *pHT_info;
 
 			pHT_info =
-			    (HT_INFORMATION_OCTET *) & Elem->Msg[LENGTH_802_11 +
+			    (struct rt_ht_information_octet *) & Elem->Msg[LENGTH_802_11 +
 								 2];
 			/* 7.4.8.10 */
 			DBGPRINT(RT_DEBUG_TRACE,
@@ -467,9 +467,9 @@ void PeerHTAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 				FALSE , then continue indicaterx at this moment.
 	==========================================================================
  */
-void ORIBATimerTimeout(IN PRTMP_ADAPTER pAd)
+void ORIBATimerTimeout(struct rt_rtmp_adapter *pAd)
 {
-	MAC_TABLE_ENTRY *pEntry;
+	struct rt_mac_table_entry *pEntry;
 	int i, total;
 	u8 TID;
 
@@ -489,16 +489,16 @@ void ORIBATimerTimeout(IN PRTMP_ADAPTER pAd)
 	}
 }
 
-void SendRefreshBAR(IN PRTMP_ADAPTER pAd, IN MAC_TABLE_ENTRY * pEntry)
+void SendRefreshBAR(struct rt_rtmp_adapter *pAd, struct rt_mac_table_entry *pEntry)
 {
-	FRAME_BAR FrameBar;
+	struct rt_frame_bar FrameBar;
 	unsigned long FrameLen;
 	int NStatus;
 	u8 *pOutBuffer = NULL;
 	u16 Sequence;
 	u8 i, TID;
 	u16 idx;
-	BA_ORI_ENTRY *pBAEntry;
+	struct rt_ba_ori_entry *pBAEntry;
 
 	for (i = 0; i < NUM_OF_TID; i++) {
 		idx = pEntry->BAOriWcidArray[i];
@@ -529,7 +529,7 @@ void SendRefreshBAR(IN PRTMP_ADAPTER pAd, IN MAC_TABLE_ENTRY * pEntry)
 			FrameBar.BarControl.TID = TID;	/* make sure sequence not clear in DEL funciton. */
 
 			MakeOutgoingFrame(pOutBuffer, &FrameLen,
-					  sizeof(FRAME_BAR), &FrameBar,
+					  sizeof(struct rt_frame_bar), &FrameBar,
 					  END_OF_ARGS);
 			/*if (!(CLIENT_STATUS_TEST_FLAG(pEntry, fCLIENT_STATUS_RALINK_CHIPSET))) */
 			if (1)	/* Now we always send BAR. */
@@ -547,11 +547,11 @@ void SendRefreshBAR(IN PRTMP_ADAPTER pAd, IN MAC_TABLE_ENTRY * pEntry)
 	}
 }
 
-void ActHeaderInit(IN PRTMP_ADAPTER pAd,
-		   IN OUT PHEADER_802_11 pHdr80211,
+void ActHeaderInit(struct rt_rtmp_adapter *pAd,
+		   struct rt_header_802_11 * pHdr80211,
 		   u8 *Addr1, u8 *Addr2, u8 *Addr3)
 {
-	NdisZeroMemory(pHdr80211, sizeof(HEADER_802_11));
+	NdisZeroMemory(pHdr80211, sizeof(struct rt_header_802_11));
 	pHdr80211->FC.Type = BTYPE_MGMT;
 	pHdr80211->FC.SubType = SUBTYPE_ACTION;
 
@@ -560,10 +560,10 @@ void ActHeaderInit(IN PRTMP_ADAPTER pAd,
 	COPY_MAC_ADDR(pHdr80211->Addr3, Addr3);
 }
 
-void BarHeaderInit(IN PRTMP_ADAPTER pAd,
-		   IN OUT PFRAME_BAR pCntlBar, u8 *pDA, u8 *pSA)
+void BarHeaderInit(struct rt_rtmp_adapter *pAd,
+		   struct rt_frame_bar * pCntlBar, u8 *pDA, u8 *pSA)
 {
-	NdisZeroMemory(pCntlBar, sizeof(FRAME_BAR));
+	NdisZeroMemory(pCntlBar, sizeof(struct rt_frame_bar));
 	pCntlBar->FC.Type = BTYPE_CNTL;
 	pCntlBar->FC.SubType = SUBTYPE_BLOCK_ACK_REQ;
 	pCntlBar->BarControl.MTID = 0;
@@ -571,7 +571,7 @@ void BarHeaderInit(IN PRTMP_ADAPTER pAd,
 	pCntlBar->BarControl.ACKPolicy = 0;
 
 	pCntlBar->Duration =
-	    16 + RTMPCalcDuration(pAd, RATE_1, sizeof(FRAME_BA));
+	    16 + RTMPCalcDuration(pAd, RATE_1, sizeof(struct rt_frame_ba));
 
 	COPY_MAC_ADDR(pCntlBar->Addr1, pDA);
 	COPY_MAC_ADDR(pCntlBar->Addr2, pSA);
@@ -591,7 +591,7 @@ void BarHeaderInit(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-void InsertActField(IN PRTMP_ADAPTER pAd,
+void InsertActField(struct rt_rtmp_adapter *pAd,
 		    u8 *pFrameBuf,
 		    unsigned long *pFrameLen, u8 Category, u8 ActCode)
 {

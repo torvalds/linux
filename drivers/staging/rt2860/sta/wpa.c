@@ -58,7 +58,7 @@ void inc_byte_array(u8 * counter, int len);
 
 	========================================================================
 */
-void RTMPReportMicError(IN PRTMP_ADAPTER pAd, IN PCIPHER_KEY pWpaKey)
+void RTMPReportMicError(struct rt_rtmp_adapter *pAd, struct rt_cipher_key *pWpaKey)
 {
 	unsigned long Now;
 	u8 unicastKey = (pWpaKey->Type == PAIRWISE_KEY ? 1 : 0);
@@ -113,7 +113,7 @@ void RTMPReportMicError(IN PRTMP_ADAPTER pAd, IN PCIPHER_KEY pWpaKey)
 
 #define	LENGTH_EAP_H    4
 /* If the received frame is EAP-Packet ,find out its EAP-Code (Request(0x01), Response(0x02), Success(0x03), Failure(0x04)). */
-int WpaCheckEapCode(IN PRTMP_ADAPTER pAd,
+int WpaCheckEapCode(struct rt_rtmp_adapter *pAd,
 		    u8 *pFrame, u16 FrameLen, u16 OffSet)
 {
 
@@ -133,7 +133,7 @@ int WpaCheckEapCode(IN PRTMP_ADAPTER pAd,
 	return result;
 }
 
-void WpaSendMicFailureToWpaSupplicant(IN PRTMP_ADAPTER pAd, IN BOOLEAN bUnicast)
+void WpaSendMicFailureToWpaSupplicant(struct rt_rtmp_adapter *pAd, IN BOOLEAN bUnicast)
 {
 	char custom[IW_CUSTOM_MAX] = { 0 };
 
@@ -147,12 +147,12 @@ void WpaSendMicFailureToWpaSupplicant(IN PRTMP_ADAPTER pAd, IN BOOLEAN bUnicast)
 	return;
 }
 
-void WpaMicFailureReportFrame(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void WpaMicFailureReportFrame(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u8 *pOutBuffer = NULL;
 	u8 Header802_3[14];
 	unsigned long FrameLen = 0;
-	EAPOL_PACKET Packet;
+	struct rt_eapol_packet Packet;
 	u8 Mic[16];
 	BOOLEAN bUnicast;
 
@@ -259,8 +259,8 @@ void WpaDisassocApAndBlockAssoc(void *SystemSpecific1,
 				void *SystemSpecific2,
 				void *SystemSpecific3)
 {
-	RTMP_ADAPTER *pAd = (PRTMP_ADAPTER) FunctionContext;
-	MLME_DISASSOC_REQ_STRUCT DisassocReq;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)FunctionContext;
+	struct rt_mlme_disassoc_req DisassocReq;
 
 	/* disassoc from current AP first */
 	DBGPRINT(RT_DEBUG_TRACE,
@@ -268,16 +268,16 @@ void WpaDisassocApAndBlockAssoc(void *SystemSpecific1,
 	DisassocParmFill(pAd, &DisassocReq, pAd->CommonCfg.Bssid,
 			 REASON_MIC_FAILURE);
 	MlmeEnqueue(pAd, ASSOC_STATE_MACHINE, MT2_MLME_DISASSOC_REQ,
-		    sizeof(MLME_DISASSOC_REQ_STRUCT), &DisassocReq);
+		    sizeof(struct rt_mlme_disassoc_req), &DisassocReq);
 
 	pAd->Mlme.CntlMachine.CurrState = CNTL_WAIT_DISASSOC;
 	pAd->StaCfg.bBlockAssoc = TRUE;
 }
 
-void WpaStaPairwiseKeySetting(IN PRTMP_ADAPTER pAd)
+void WpaStaPairwiseKeySetting(struct rt_rtmp_adapter *pAd)
 {
-	PCIPHER_KEY pSharedKey;
-	PMAC_TABLE_ENTRY pEntry;
+	struct rt_cipher_key *pSharedKey;
+	struct rt_mac_table_entry *pEntry;
 
 	pEntry = &pAd->MacTab.Content[BSSID_WCID];
 
@@ -287,7 +287,7 @@ void WpaStaPairwiseKeySetting(IN PRTMP_ADAPTER pAd)
 	NdisMoveMemory(pAd->StaCfg.PTK, pEntry->PTK, LEN_PTK);
 
 	/* Prepare pair-wise key information into shared key table */
-	NdisZeroMemory(pSharedKey, sizeof(CIPHER_KEY));
+	NdisZeroMemory(pSharedKey, sizeof(struct rt_cipher_key));
 	pSharedKey->KeyLen = LEN_TKIP_EK;
 	NdisMoveMemory(pSharedKey->Key, &pAd->StaCfg.PTK[32], LEN_TKIP_EK);
 	NdisMoveMemory(pSharedKey->RxMic, &pAd->StaCfg.PTK[48],
@@ -303,7 +303,7 @@ void WpaStaPairwiseKeySetting(IN PRTMP_ADAPTER pAd)
 	else
 		pSharedKey->CipherAlg = CIPHER_NONE;
 
-	/* Update these related information to MAC_TABLE_ENTRY */
+	/* Update these related information to struct rt_mac_table_entry */
 	NdisMoveMemory(pEntry->PairwiseKey.Key, &pAd->StaCfg.PTK[32],
 		       LEN_TKIP_EK);
 	NdisMoveMemory(pEntry->PairwiseKey.RxMic, &pAd->StaCfg.PTK[48],
@@ -330,14 +330,14 @@ void WpaStaPairwiseKeySetting(IN PRTMP_ADAPTER pAd)
 
 }
 
-void WpaStaGroupKeySetting(IN PRTMP_ADAPTER pAd)
+void WpaStaGroupKeySetting(struct rt_rtmp_adapter *pAd)
 {
-	PCIPHER_KEY pSharedKey;
+	struct rt_cipher_key *pSharedKey;
 
 	pSharedKey = &pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId];
 
 	/* Prepare pair-wise key information into shared key table */
-	NdisZeroMemory(pSharedKey, sizeof(CIPHER_KEY));
+	NdisZeroMemory(pSharedKey, sizeof(struct rt_cipher_key));
 	pSharedKey->KeyLen = LEN_TKIP_EK;
 	NdisMoveMemory(pSharedKey->Key, pAd->StaCfg.GTK, LEN_TKIP_EK);
 	NdisMoveMemory(pSharedKey->RxMic, &pAd->StaCfg.GTK[16],

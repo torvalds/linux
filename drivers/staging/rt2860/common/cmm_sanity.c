@@ -58,14 +58,14 @@ extern u8 WPS_OUI[];
 
     ==========================================================================
  */
-BOOLEAN MlmeAddBAReqSanity(IN PRTMP_ADAPTER pAd,
+BOOLEAN MlmeAddBAReqSanity(struct rt_rtmp_adapter *pAd,
 			   void * Msg, unsigned long MsgLen, u8 *pAddr2)
 {
-	PMLME_ADDBA_REQ_STRUCT pInfo;
+	struct rt_mlme_addba_req *pInfo;
 
-	pInfo = (MLME_ADDBA_REQ_STRUCT *) Msg;
+	pInfo = (struct rt_mlme_addba_req *)Msg;
 
-	if ((MsgLen != sizeof(MLME_ADDBA_REQ_STRUCT))) {
+	if ((MsgLen != sizeof(struct rt_mlme_addba_req))) {
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("MlmeAddBAReqSanity fail - message lenght not correct.\n"));
 		return FALSE;
@@ -97,12 +97,12 @@ BOOLEAN MlmeAddBAReqSanity(IN PRTMP_ADAPTER pAd,
 
     ==========================================================================
  */
-BOOLEAN MlmeDelBAReqSanity(IN PRTMP_ADAPTER pAd, void * Msg, unsigned long MsgLen)
+BOOLEAN MlmeDelBAReqSanity(struct rt_rtmp_adapter *pAd, void * Msg, unsigned long MsgLen)
 {
-	MLME_DELBA_REQ_STRUCT *pInfo;
-	pInfo = (MLME_DELBA_REQ_STRUCT *) Msg;
+	struct rt_mlme_delba_req *pInfo;
+	pInfo = (struct rt_mlme_delba_req *)Msg;
 
-	if ((MsgLen != sizeof(MLME_DELBA_REQ_STRUCT))) {
+	if ((MsgLen != sizeof(struct rt_mlme_delba_req))) {
 		DBGPRINT(RT_DEBUG_ERROR,
 			 ("MlmeDelBAReqSanity fail - message lenght not correct.\n"));
 		return FALSE;
@@ -131,14 +131,14 @@ BOOLEAN MlmeDelBAReqSanity(IN PRTMP_ADAPTER pAd, void * Msg, unsigned long MsgLe
 	return TRUE;
 }
 
-BOOLEAN PeerAddBAReqActionSanity(IN PRTMP_ADAPTER pAd,
+BOOLEAN PeerAddBAReqActionSanity(struct rt_rtmp_adapter *pAd,
 				 void * pMsg,
 				 unsigned long MsgLen, u8 *pAddr2)
 {
-	PFRAME_802_11 pFrame = (PFRAME_802_11) pMsg;
-	PFRAME_ADDBA_REQ pAddFrame;
-	pAddFrame = (PFRAME_ADDBA_REQ) (pMsg);
-	if (MsgLen < (sizeof(FRAME_ADDBA_REQ))) {
+	struct rt_frame_802_11 * pFrame = (struct rt_frame_802_11 *) pMsg;
+	struct rt_frame_addba_req * pAddFrame;
+	pAddFrame = (struct rt_frame_addba_req *) (pMsg);
+	if (MsgLen < (sizeof(struct rt_frame_addba_req))) {
 		DBGPRINT(RT_DEBUG_ERROR,
 			 ("PeerAddBAReqActionSanity: ADDBA Request frame length size = %ld incorrect\n",
 			  MsgLen));
@@ -171,13 +171,13 @@ BOOLEAN PeerAddBAReqActionSanity(IN PRTMP_ADAPTER pAd,
 	return TRUE;
 }
 
-BOOLEAN PeerAddBARspActionSanity(IN PRTMP_ADAPTER pAd,
+BOOLEAN PeerAddBARspActionSanity(struct rt_rtmp_adapter *pAd,
 				 void * pMsg, unsigned long MsgLen)
 {
-	PFRAME_ADDBA_RSP pAddFrame;
+	struct rt_frame_addba_rsp * pAddFrame;
 
-	pAddFrame = (PFRAME_ADDBA_RSP) (pMsg);
-	if (MsgLen < (sizeof(FRAME_ADDBA_RSP))) {
+	pAddFrame = (struct rt_frame_addba_rsp *) (pMsg);
+	if (MsgLen < (sizeof(struct rt_frame_addba_rsp))) {
 		DBGPRINT(RT_DEBUG_ERROR,
 			 ("PeerAddBARspActionSanity: ADDBA Response frame length size = %ld incorrect\n",
 			  MsgLen));
@@ -206,18 +206,18 @@ BOOLEAN PeerAddBARspActionSanity(IN PRTMP_ADAPTER pAd,
 
 }
 
-BOOLEAN PeerDelBAActionSanity(IN PRTMP_ADAPTER pAd,
+BOOLEAN PeerDelBAActionSanity(struct rt_rtmp_adapter *pAd,
 			      u8 Wcid, void * pMsg, unsigned long MsgLen)
 {
-	/*PFRAME_802_11 pFrame = (PFRAME_802_11)pMsg; */
-	PFRAME_DELBA_REQ pDelFrame;
-	if (MsgLen != (sizeof(FRAME_DELBA_REQ)))
+	/*struct rt_frame_802_11 * pFrame = (struct rt_frame_802_11 *)pMsg; */
+	struct rt_frame_delba_req * pDelFrame;
+	if (MsgLen != (sizeof(struct rt_frame_delba_req)))
 		return FALSE;
 
 	if (Wcid >= MAX_LEN_OF_MAC_TABLE)
 		return FALSE;
 
-	pDelFrame = (PFRAME_DELBA_REQ) (pMsg);
+	pDelFrame = (struct rt_frame_delba_req *) (pMsg);
 
 	*(u16 *) (&pDelFrame->DelbaParm) =
 	    cpu2le16(*(u16 *) (&pDelFrame->DelbaParm));
@@ -240,14 +240,14 @@ BOOLEAN PeerDelBAActionSanity(IN PRTMP_ADAPTER pAd,
 
     ==========================================================================
  */
-BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, void * Msg, unsigned long MsgLen, u8 MsgChannel, u8 *pAddr2, u8 *pBssid, char Ssid[], u8 * pSsidLen, u8 * pBssType, u16 * pBeaconPeriod, u8 * pChannel, u8 * pNewChannel, OUT LARGE_INTEGER * pTimestamp, OUT CF_PARM * pCfParm, u16 * pAtimWin, u16 * pCapabilityInfo, u8 * pErp, u8 * pDtimCount, u8 * pDtimPeriod, u8 * pBcastFlag, u8 * pMessageToMe, u8 SupRate[], u8 * pSupRateLen, u8 ExtRate[], u8 * pExtRateLen, u8 * pCkipFlag, u8 * pAironetCellPowerLimit, OUT PEDCA_PARM pEdcaParm, OUT PQBSS_LOAD_PARM pQbssLoad, OUT PQOS_CAPABILITY_PARM pQosCapability, unsigned long * pRalinkIe, u8 * pHtCapabilityLen, u8 * pPreNHtCapabilityLen, OUT HT_CAPABILITY_IE * pHtCapability, u8 * AddHtInfoLen, OUT ADD_HT_INFO_IE * AddHtInfo, u8 * NewExtChannelOffset,	/* Ht extension channel offset(above or below) */
+BOOLEAN PeerBeaconAndProbeRspSanity(struct rt_rtmp_adapter *pAd, void * Msg, unsigned long MsgLen, u8 MsgChannel, u8 *pAddr2, u8 *pBssid, char Ssid[], u8 * pSsidLen, u8 * pBssType, u16 * pBeaconPeriod, u8 * pChannel, u8 * pNewChannel, OUT LARGE_INTEGER * pTimestamp, struct rt_cf_parm * pCfParm, u16 * pAtimWin, u16 * pCapabilityInfo, u8 * pErp, u8 * pDtimCount, u8 * pDtimPeriod, u8 * pBcastFlag, u8 * pMessageToMe, u8 SupRate[], u8 * pSupRateLen, u8 ExtRate[], u8 * pExtRateLen, u8 * pCkipFlag, u8 * pAironetCellPowerLimit, struct rt_edca_parm *pEdcaParm, struct rt_qbss_load_parm *pQbssLoad, struct rt_qos_capability_parm *pQosCapability, unsigned long * pRalinkIe, u8 * pHtCapabilityLen, u8 * pPreNHtCapabilityLen, struct rt_ht_capability_ie * pHtCapability, u8 * AddHtInfoLen, struct rt_add_ht_info_ie * AddHtInfo, u8 * NewExtChannelOffset,	/* Ht extension channel offset(above or below) */
 				    u16 * LengthVIE,
-				    OUT PNDIS_802_11_VARIABLE_IEs pVIE)
+				    struct rt_ndis_802_11_variable_ies *pVIE)
 {
 	u8 *Ptr;
 	u8 TimLen;
-	PFRAME_802_11 pFrame;
-	PEID_STRUCT pEid;
+	struct rt_frame_802_11 * pFrame;
+	struct rt_eid * pEid;
 	u8 SubType;
 	u8 Sanity;
 	/*u8                             ECWMin, ECWMax; */
@@ -284,7 +284,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, void * Msg, unsigned l
 	pEdcaParm->bValid = FALSE;	/* default: no IE_EDCA_PARAMETER found */
 	pQosCapability->bValid = FALSE;	/* default: no IE_QOS_CAPABILITY found */
 
-	pFrame = (PFRAME_802_11) Msg;
+	pFrame = (struct rt_frame_802_11 *) Msg;
 
 	/* get subtype from header */
 	SubType = (u8)pFrame->Hdr.FC.SubType;
@@ -320,7 +320,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, void * Msg, unsigned l
 	else
 		*pBssType = BSS_ADHOC;
 
-	pEid = (PEID_STRUCT) Ptr;
+	pEid = (struct rt_eid *) Ptr;
 
 	/* get variable fields from payload and advance the pointer */
 	while ((Length + 2 + pEid->Len) <= MsgLen) {
@@ -374,7 +374,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, void * Msg, unsigned l
 			if (pEid->Len >= SIZE_HT_CAP_IE)	/*Note: allow extension.!! */
 			{
 				NdisMoveMemory(pHtCapability, pEid->Octet,
-					       sizeof(HT_CAPABILITY_IE));
+					       sizeof(struct rt_ht_capability_ie));
 				*pHtCapabilityLen = SIZE_HT_CAP_IE;	/* Nnow we only support 26 bytes. */
 
 				*(u16 *) (&pHtCapability->HtCapInfo) =
@@ -401,11 +401,11 @@ BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, void * Msg, unsigned l
 
 			break;
 		case IE_ADD_HT:
-			if (pEid->Len >= sizeof(ADD_HT_INFO_IE)) {
+			if (pEid->Len >= sizeof(struct rt_add_ht_info_ie)) {
 				/* This IE allows extension, but we can ignore extra bytes beyond our knowledge , so only */
-				/* copy first sizeof(ADD_HT_INFO_IE) */
+				/* copy first sizeof(struct rt_add_ht_info_ie) */
 				NdisMoveMemory(AddHtInfo, pEid->Octet,
-					       sizeof(ADD_HT_INFO_IE));
+					       sizeof(struct rt_add_ht_info_ie));
 				*AddHtInfoLen = SIZE_ADD_HT_INFO_IE;
 
 				CtrlChannel = AddHtInfo->ControlChan;
@@ -516,14 +516,14 @@ BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, void * Msg, unsigned l
 			   if ((pEid->Octet[3] == OUI_BROADCOM_HT) && (pEid->Len >= 30))
 			   {
 			   {
-			   NdisMoveMemory(pHtCapability, &pEid->Octet[4], sizeof(HT_CAPABILITY_IE));
+			   NdisMoveMemory(pHtCapability, &pEid->Octet[4], sizeof(struct rt_ht_capability_ie));
 			   *pHtCapabilityLen = SIZE_HT_CAP_IE;  // Nnow we only support 26 bytes.
 			   }
 			   }
 			   if ((pEid->Octet[3] == OUI_BROADCOM_HT) && (pEid->Len >= 26))
 			   {
 			   {
-			   NdisMoveMemory(AddHtInfo, &pEid->Octet[4], sizeof(ADD_HT_INFO_IE));
+			   NdisMoveMemory(AddHtInfo, &pEid->Octet[4], sizeof(struct rt_add_ht_info_ie));
 			   *AddHtInfoLen = SIZE_ADD_HT_INFO_IE; // Nnow we only support 26 bytes.
 			   }
 			   }
@@ -552,7 +552,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, void * Msg, unsigned l
 					NdisMoveMemory(pHtCapability,
 						       &pEid->Octet[4],
 						       sizeof
-						       (HT_CAPABILITY_IE));
+						       (struct rt_ht_capability_ie));
 					*pPreNHtCapabilityLen = SIZE_HT_CAP_IE;
 				}
 
@@ -560,7 +560,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, void * Msg, unsigned l
 				    && (pEid->Len >= 26)) {
 					NdisMoveMemory(AddHtInfo,
 						       &pEid->Octet[4],
-						       sizeof(ADD_HT_INFO_IE));
+						       sizeof(struct rt_add_ht_info_ie));
 					*AddHtInfoLen = SIZE_ADD_HT_INFO_IE;
 				}
 			} else if (NdisEqualMemory(pEid->Octet, WPA_OUI, 4)) {
@@ -696,7 +696,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, void * Msg, unsigned l
 		}
 
 		Length = Length + 2 + pEid->Len;	/* Eid[1] + Len[1]+ content[Len] */
-		pEid = (PEID_STRUCT) ((u8 *) pEid + 2 + pEid->Len);
+		pEid = (struct rt_eid *) ((u8 *) pEid + 2 + pEid->Len);
 	}
 
 	/* For some 11a AP. it did not have the channel EID, patch here */
@@ -730,16 +730,16 @@ BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, void * Msg, unsigned l
         TRUE if all parameters are OK, FALSE otherwise
     ==========================================================================
  */
-BOOLEAN MlmeScanReqSanity(IN PRTMP_ADAPTER pAd,
+BOOLEAN MlmeScanReqSanity(struct rt_rtmp_adapter *pAd,
 			  void * Msg,
 			  unsigned long MsgLen,
 			  u8 * pBssType,
 			  char Ssid[],
 			  u8 * pSsidLen, u8 * pScanType)
 {
-	MLME_SCAN_REQ_STRUCT *Info;
+	struct rt_mlme_scan_req *Info;
 
-	Info = (MLME_SCAN_REQ_STRUCT *) (Msg);
+	Info = (struct rt_mlme_scan_req *)(Msg);
 	*pBssType = Info->BssType;
 	*pSsidLen = Info->SsidLen;
 	NdisMoveMemory(Ssid, Info->Ssid, *pSsidLen);
@@ -757,7 +757,7 @@ BOOLEAN MlmeScanReqSanity(IN PRTMP_ADAPTER pAd,
 }
 
 /* IRQL = DISPATCH_LEVEL */
-u8 ChannelSanity(IN PRTMP_ADAPTER pAd, u8 channel)
+u8 ChannelSanity(struct rt_rtmp_adapter *pAd, u8 channel)
 {
 	int i;
 
@@ -779,12 +779,12 @@ u8 ChannelSanity(IN PRTMP_ADAPTER pAd, u8 channel)
 
     ==========================================================================
  */
-BOOLEAN PeerDeauthSanity(IN PRTMP_ADAPTER pAd,
+BOOLEAN PeerDeauthSanity(struct rt_rtmp_adapter *pAd,
 			 void * Msg,
 			 unsigned long MsgLen,
 			 u8 *pAddr2, u16 * pReason)
 {
-	PFRAME_802_11 pFrame = (PFRAME_802_11) Msg;
+	struct rt_frame_802_11 * pFrame = (struct rt_frame_802_11 *) Msg;
 
 	COPY_MAC_ADDR(pAddr2, pFrame->Hdr.Addr2);
 	NdisMoveMemory(pReason, &pFrame->Octet[0], 2);
@@ -803,7 +803,7 @@ BOOLEAN PeerDeauthSanity(IN PRTMP_ADAPTER pAd,
 
     ==========================================================================
  */
-BOOLEAN PeerAuthSanity(IN PRTMP_ADAPTER pAd,
+BOOLEAN PeerAuthSanity(struct rt_rtmp_adapter *pAd,
 		       void * Msg,
 		       unsigned long MsgLen,
 		       u8 *pAddr,
@@ -811,7 +811,7 @@ BOOLEAN PeerAuthSanity(IN PRTMP_ADAPTER pAd,
 		       u16 * pSeq,
 		       u16 * pStatus, char * pChlgText)
 {
-	PFRAME_802_11 pFrame = (PFRAME_802_11) Msg;
+	struct rt_frame_802_11 * pFrame = (struct rt_frame_802_11 *) Msg;
 
 	COPY_MAC_ADDR(pAddr, pFrame->Hdr.Addr2);
 	NdisMoveMemory(pAlg, &pFrame->Octet[0], 2);
@@ -853,15 +853,15 @@ BOOLEAN PeerAuthSanity(IN PRTMP_ADAPTER pAd,
         TRUE if all parameters are OK, FALSE otherwise
     ==========================================================================
  */
-BOOLEAN MlmeAuthReqSanity(IN PRTMP_ADAPTER pAd,
+BOOLEAN MlmeAuthReqSanity(struct rt_rtmp_adapter *pAd,
 			  void * Msg,
 			  unsigned long MsgLen,
 			  u8 *pAddr,
 			  unsigned long * pTimeout, u16 * pAlg)
 {
-	MLME_AUTH_REQ_STRUCT *pInfo;
+	struct rt_mlme_auth_req *pInfo;
 
-	pInfo = (MLME_AUTH_REQ_STRUCT *) Msg;
+	pInfo = (struct rt_mlme_auth_req *)Msg;
 	COPY_MAC_ADDR(pAddr, pInfo->Addr);
 	*pTimeout = pInfo->Timeout;
 	*pAlg = pInfo->Alg;
@@ -887,16 +887,16 @@ BOOLEAN MlmeAuthReqSanity(IN PRTMP_ADAPTER pAd,
 
     ==========================================================================
  */
-BOOLEAN MlmeAssocReqSanity(IN PRTMP_ADAPTER pAd,
+BOOLEAN MlmeAssocReqSanity(struct rt_rtmp_adapter *pAd,
 			   void * Msg,
 			   unsigned long MsgLen,
 			   u8 *pApAddr,
 			   u16 * pCapabilityInfo,
 			   unsigned long * pTimeout, u16 * pListenIntv)
 {
-	MLME_ASSOC_REQ_STRUCT *pInfo;
+	struct rt_mlme_assoc_req *pInfo;
 
-	pInfo = (MLME_ASSOC_REQ_STRUCT *) Msg;
+	pInfo = (struct rt_mlme_assoc_req *)Msg;
 	*pTimeout = pInfo->Timeout;	/* timeout */
 	COPY_MAC_ADDR(pApAddr, pInfo->Addr);	/* AP address */
 	*pCapabilityInfo = pInfo->CapabilityInfo;	/* capability info */
@@ -916,12 +916,12 @@ BOOLEAN MlmeAssocReqSanity(IN PRTMP_ADAPTER pAd,
 
     ==========================================================================
  */
-BOOLEAN PeerDisassocSanity(IN PRTMP_ADAPTER pAd,
+BOOLEAN PeerDisassocSanity(struct rt_rtmp_adapter *pAd,
 			   void * Msg,
 			   unsigned long MsgLen,
 			   u8 *pAddr2, u16 * pReason)
 {
-	PFRAME_802_11 pFrame = (PFRAME_802_11) Msg;
+	struct rt_frame_802_11 * pFrame = (struct rt_frame_802_11 *) Msg;
 
 	COPY_MAC_ADDR(pAddr2, pFrame->Hdr.Addr2);
 	NdisMoveMemory(pReason, &pFrame->Octet[0], 2);
@@ -946,7 +946,7 @@ BOOLEAN PeerDisassocSanity(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-NDIS_802_11_NETWORK_TYPE NetworkTypeInUseSanity(IN PBSS_ENTRY pBss)
+NDIS_802_11_NETWORK_TYPE NetworkTypeInUseSanity(struct rt_bss_entry *pBss)
 {
 	NDIS_802_11_NETWORK_TYPE NetWorkType;
 	u8 rate, i;
@@ -1012,15 +1012,15 @@ NDIS_802_11_NETWORK_TYPE NetworkTypeInUseSanity(IN PBSS_ENTRY pBss)
         FALSE otherwise
     ==========================================================================
  */
-BOOLEAN PeerWpaMessageSanity(IN PRTMP_ADAPTER pAd,
-			     IN PEAPOL_PACKET pMsg,
+BOOLEAN PeerWpaMessageSanity(struct rt_rtmp_adapter *pAd,
+			     struct rt_eapol_packet * pMsg,
 			     unsigned long MsgLen,
-			     u8 MsgType, IN MAC_TABLE_ENTRY * pEntry)
+			     u8 MsgType, struct rt_mac_table_entry *pEntry)
 {
 	u8 mic[LEN_KEY_DESC_MIC], digest[80], KEYDATA[MAX_LEN_OF_RSNIE];
 	BOOLEAN bReplayDiff = FALSE;
 	BOOLEAN bWPA2 = FALSE;
-	KEY_INFO EapolKeyInfo;
+	struct rt_key_info EapolKeyInfo;
 	u8 GroupKeyIndex = 0;
 
 	NdisZeroMemory(mic, sizeof(mic));
@@ -1029,7 +1029,7 @@ BOOLEAN PeerWpaMessageSanity(IN PRTMP_ADAPTER pAd,
 	NdisZeroMemory((u8 *)& EapolKeyInfo, sizeof(EapolKeyInfo));
 
 	NdisMoveMemory((u8 *)& EapolKeyInfo,
-		       (u8 *)& pMsg->KeyDesc.KeyInfo, sizeof(KEY_INFO));
+		       (u8 *)& pMsg->KeyDesc.KeyInfo, sizeof(struct rt_key_info));
 
 	*((u16 *) & EapolKeyInfo) = cpu2le16(*((u16 *) & EapolKeyInfo));
 

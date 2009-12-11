@@ -31,7 +31,7 @@
 #include "rtmp_type.h"
 
 /* 4-byte HTC field.  maybe included in any frame except non-QOS data frame.  The Order bit must set 1. */
-typedef struct PACKED {
+struct PACKED rt_ht_control {
 	u32 MA:1;		/*management action payload exist in (QoS Null+HTC) */
 	u32 TRQ:1;		/*sounding request */
 	u32 MRQ:1;		/*MCS feedback. Request for a MCS feedback */
@@ -46,19 +46,19 @@ typedef struct PACKED {
 	u32 rsv:5;		/*calibration sequence */
 	u32 ACConstraint:1;	/*feedback request */
 	u32 RDG:1;		/*RDG / More PPDU */
-} HT_CONTROL, *PHT_CONTROL;
+};
 
 /* 2-byte QOS CONTROL field */
-typedef struct PACKED {
+struct PACKED rt_qos_control {
 	u16 TID:4;
 	u16 EOSP:1;
 	u16 AckPolicy:2;	/*0: normal ACK 1:No ACK 2:scheduled under MTBA/PSMP  3: BA */
 	u16 AMsduPresent:1;
 	u16 Txop_QueueSize:8;
-} QOS_CONTROL, *PQOS_CONTROL;
+};
 
 /* 2-byte Frame control field */
-typedef struct PACKED {
+struct PACKED rt_frame_control {
 	u16 Ver:2;		/* Protocol version */
 	u16 Type:2;		/* MSDU type */
 	u16 SubType:4;	/* MSDU subtype */
@@ -70,10 +70,10 @@ typedef struct PACKED {
 	u16 MoreData:1;	/* More data bit */
 	u16 Wep:1;		/* Wep data */
 	u16 Order:1;		/* Strict order expected */
-} FRAME_CONTROL, *PFRAME_CONTROL;
+};
 
-typedef struct PACKED _HEADER_802_11 {
-	FRAME_CONTROL FC;
+struct PACKED rt_header_802_11 {
+	struct rt_frame_control FC;
 	u16 Duration;
 	u8 Addr1[MAC_ADDR_LEN];
 	u8 Addr2[MAC_ADDR_LEN];
@@ -81,20 +81,20 @@ typedef struct PACKED _HEADER_802_11 {
 	u16 Frag:4;
 	u16 Sequence:12;
 	u8 Octet[0];
-} HEADER_802_11, *PHEADER_802_11;
+};
 
-typedef struct PACKED _PSPOLL_FRAME {
-	FRAME_CONTROL FC;
+struct PACKED rt_pspoll_frame {
+	struct rt_frame_control FC;
 	u16 Aid;
 	u8 Bssid[MAC_ADDR_LEN];
 	u8 Ta[MAC_ADDR_LEN];
-} PSPOLL_FRAME, *PPSPOLL_FRAME;
+};
 
-typedef struct PACKED _RTS_FRAME {
-	FRAME_CONTROL FC;
+struct PACKED rt_rts_frame {
+	struct rt_frame_control FC;
 	u16 Duration;
 	u8 Addr1[MAC_ADDR_LEN];
 	u8 Addr2[MAC_ADDR_LEN];
-} RTS_FRAME, *PRTS_FRAME;
+};
 
 #endif /* __DOT11_BASE_H__ // */

@@ -37,11 +37,11 @@
 
 #include	"../rt_config.h"
 
-typedef struct {
+struct aes_context {
 	u32 erk[64];		/* encryption round keys */
 	u32 drk[64];		/* decryption round keys */
 	int nr;			/* number of rounds */
-} aes_context;
+};
 
 /*****************************/
 /******** SBOX Table *********/
@@ -408,9 +408,9 @@ void construct_ctr_preload(unsigned char *ctr_preload,
 
 }
 
-BOOLEAN RTMPSoftDecryptAES(IN PRTMP_ADAPTER pAd,
+BOOLEAN RTMPSoftDecryptAES(struct rt_rtmp_adapter *pAd,
 			   u8 *pData,
-			   unsigned long DataByteCnt, IN PCIPHER_KEY pWpaKey)
+			   unsigned long DataByteCnt, struct rt_cipher_key *pWpaKey)
 {
 	u8 KeyID;
 	u32 HeaderLen;
@@ -878,7 +878,7 @@ static uint32 KT3[256];
 	(b)[(i)	+ 3] = (uint8) ( (n)	   );		\
 }
 
-int rt_aes_set_key(aes_context * ctx, uint8 * key, int nbits)
+int rt_aes_set_key(struct aes_context * ctx, uint8 * key, int nbits)
 {
 	int i;
 	uint32 *RK, *SK;
@@ -1020,7 +1020,7 @@ int rt_aes_set_key(aes_context * ctx, uint8 * key, int nbits)
 
 /* AES 128-bit block encryption	routine	*/
 
-void rt_aes_encrypt(aes_context * ctx, uint8 input[16], uint8 output[16])
+void rt_aes_encrypt(struct aes_context * ctx, uint8 input[16], uint8 output[16])
 {
 	uint32 *RK, X0, X1, X2, X3, Y0, Y1, Y2, Y3;
 
@@ -1107,7 +1107,7 @@ void rt_aes_encrypt(aes_context * ctx, uint8 input[16], uint8 output[16])
 
 /* AES 128-bit block decryption	routine	*/
 
-void rt_aes_decrypt(aes_context * ctx, uint8 input[16], uint8 output[16])
+void rt_aes_decrypt(struct aes_context * ctx, uint8 input[16], uint8 output[16])
 {
 	uint32 *RK, X0, X1, X2, X3, Y0, Y1, Y2, Y3;
 
@@ -1210,7 +1210,7 @@ void AES_GTK_KEY_WRAP(u8 * key,
 	u8 R[512];
 	int num_blocks = p_len / 8;	/* unit:64bits */
 	int i, j;
-	aes_context aesctx;
+	struct aes_context aesctx;
 	u8 xor;
 
 	rt_aes_set_key(&aesctx, key, 128);
@@ -1271,7 +1271,7 @@ void AES_GTK_KEY_UNWRAP(u8 * key,
 	u8 A[8], BIN[16], BOUT[16];
 	u8 xor;
 	int i, j;
-	aes_context aesctx;
+	struct aes_context aesctx;
 	u8 *R;
 	int num_blocks = c_len / 8;	/* unit:64bits */
 

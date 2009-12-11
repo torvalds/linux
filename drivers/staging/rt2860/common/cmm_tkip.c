@@ -115,7 +115,7 @@ u32 Tkip_Sbox_Upper[256] = {
 /* */
 /* Expanded IV for TKIP function. */
 /* */
-typedef struct PACKED _IV_CONTROL_ {
+struct PACKED rt_tkip_iv {
 	union PACKED {
 		struct PACKED {
 			u8 rc0;
@@ -136,7 +136,7 @@ typedef struct PACKED _IV_CONTROL_ {
 	} IV16;
 
 	unsigned long IV32;
-} TKIP_IV, *PTKIP_IV;
+};
 
 /*
 	========================================================================
@@ -214,7 +214,7 @@ void RTMPTkipPutUInt32(IN u8 *pDst, unsigned long val)
 
 	========================================================================
 */
-void RTMPTkipSetMICKey(IN PTKIP_KEY_INFO pTkip, u8 *pMICKey)
+void RTMPTkipSetMICKey(struct rt_tkip_key_info *pTkip, u8 *pMICKey)
 {
 	/* Set the key */
 	pTkip->K0 = RTMPTkipGetUInt32(pMICKey);
@@ -245,7 +245,7 @@ void RTMPTkipSetMICKey(IN PTKIP_KEY_INFO pTkip, u8 *pMICKey)
 
 	========================================================================
 */
-void RTMPTkipAppendByte(IN PTKIP_KEY_INFO pTkip, u8 uChar)
+void RTMPTkipAppendByte(struct rt_tkip_key_info *pTkip, u8 uChar)
 {
 	/* Append the byte to our word-sized buffer */
 	pTkip->M |= (uChar << (8 * pTkip->nBytesInM));
@@ -289,7 +289,7 @@ void RTMPTkipAppendByte(IN PTKIP_KEY_INFO pTkip, u8 uChar)
 
 	========================================================================
 */
-void RTMPTkipAppend(IN PTKIP_KEY_INFO pTkip, u8 *pSrc, u32 nBytes)
+void RTMPTkipAppend(struct rt_tkip_key_info *pTkip, u8 *pSrc, u32 nBytes)
 {
 	/* This is simple */
 	while (nBytes > 0) {
@@ -316,7 +316,7 @@ void RTMPTkipAppend(IN PTKIP_KEY_INFO pTkip, u8 *pSrc, u32 nBytes)
 		the MIC Value is store in pAd->PrivateInfo.MIC
 	========================================================================
 */
-void RTMPTkipGetMIC(IN PTKIP_KEY_INFO pTkip)
+void RTMPTkipGetMIC(struct rt_tkip_key_info *pTkip)
 {
 	/* Append the minimum padding */
 	RTMPTkipAppendByte(pTkip, 0x5a);
@@ -355,17 +355,17 @@ void RTMPTkipGetMIC(IN PTKIP_KEY_INFO pTkip)
 
 	========================================================================
 */
-void RTMPInitTkipEngine(IN PRTMP_ADAPTER pAd,
+void RTMPInitTkipEngine(struct rt_rtmp_adapter *pAd,
 			u8 *pKey,
 			u8 KeyId,
 			u8 *pTA,
 			u8 *pMICKey,
 			u8 *pTSC, unsigned long *pIV16, unsigned long *pIV32)
 {
-	TKIP_IV tkipIv;
+	struct rt_tkip_iv tkipIv;
 
 	/* Prepare 8 bytes TKIP encapsulation for MPDU */
-	NdisZeroMemory(&tkipIv, sizeof(TKIP_IV));
+	NdisZeroMemory(&tkipIv, sizeof(struct rt_tkip_iv));
 	tkipIv.IV16.field.rc0 = *(pTSC + 1);
 	tkipIv.IV16.field.rc1 = (tkipIv.IV16.field.rc0 | 0x20) & 0x7f;
 	tkipIv.IV16.field.rc2 = *pTSC;
@@ -399,7 +399,7 @@ void RTMPInitTkipEngine(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-void RTMPInitMICEngine(IN PRTMP_ADAPTER pAd,
+void RTMPInitMICEngine(struct rt_rtmp_adapter *pAd,
 		       u8 *pKey,
 		       u8 *pDA,
 		       u8 *pSA, u8 UserPriority, u8 *pMICKey)
@@ -440,7 +440,7 @@ void RTMPInitMICEngine(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-BOOLEAN RTMPTkipCompareMICValue(IN PRTMP_ADAPTER pAd,
+BOOLEAN RTMPTkipCompareMICValue(struct rt_rtmp_adapter *pAd,
 				u8 *pSrc,
 				u8 *pDA,
 				u8 *pSA,
@@ -500,12 +500,12 @@ BOOLEAN RTMPTkipCompareMICValue(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-void RTMPCalculateMICValue(IN PRTMP_ADAPTER pAd,
+void RTMPCalculateMICValue(struct rt_rtmp_adapter *pAd,
 			   void *pPacket,
 			   u8 *pEncap,
-			   IN PCIPHER_KEY pKey, u8 apidx)
+			   struct rt_cipher_key *pKey, u8 apidx)
 {
-	PACKET_INFO PacketInfo;
+	struct rt_packet_info PacketInfo;
 	u8 *pSrcBufVA;
 	u32 SrcBufLen;
 	u8 *pSrc;
@@ -698,10 +698,10 @@ void RTMPTkipMixKey(u8 * key, u8 * ta, unsigned long pnl,	/* Least significant 1
 /* TRUE: Success! */
 /* FALSE: Decrypt Error! */
 /* */
-BOOLEAN RTMPSoftDecryptTKIP(IN PRTMP_ADAPTER pAd,
+BOOLEAN RTMPSoftDecryptTKIP(struct rt_rtmp_adapter *pAd,
 			    u8 *pData,
 			    unsigned long DataByteCnt,
-			    u8 UserPriority, IN PCIPHER_KEY pWpaKey)
+			    u8 UserPriority, struct rt_cipher_key *pWpaKey)
 {
 	u8 KeyID;
 	u32 HeaderLen;
@@ -726,7 +726,7 @@ BOOLEAN RTMPSoftDecryptTKIP(IN PRTMP_ADAPTER pAd,
 	unsigned long pnh;		/* Most significant 32 bits of PN */
 	u32 num_blocks;
 	u32 payload_remainder;
-	ARCFOURCONTEXT ArcFourContext;
+	struct rt_arcfourcontext ArcFourContext;
 	u32 crc32 = 0;
 	u32 trailfcs = 0;
 	u8 MIC[8];

@@ -55,8 +55,8 @@
     ==========================================================================
  */
 
-void AuthStateMachineInit(IN PRTMP_ADAPTER pAd,
-			  IN STATE_MACHINE * Sm, OUT STATE_MACHINE_FUNC Trans[])
+void AuthStateMachineInit(struct rt_rtmp_adapter *pAd,
+			  struct rt_state_machine *Sm, OUT STATE_MACHINE_FUNC Trans[])
 {
 	StateMachineInit(Sm, Trans, MAX_AUTH_STATE, MAX_AUTH_MSG,
 			 (STATE_MACHINE_FUNC) Drop, AUTH_REQ_IDLE,
@@ -99,7 +99,7 @@ void AuthTimeout(void *SystemSpecific1,
 		 void *FunctionContext,
 		 void *SystemSpecific2, void *SystemSpecific3)
 {
-	RTMP_ADAPTER *pAd = (RTMP_ADAPTER *) FunctionContext;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)FunctionContext;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("AUTH - AuthTimeout\n"));
 
@@ -125,7 +125,7 @@ void AuthTimeout(void *SystemSpecific1,
 
     ==========================================================================
  */
-void MlmeAuthReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void MlmeAuthReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	if (AUTH_ReqSend
 	    (pAd, Elem, &pAd->MlmeAux.AuthTimer, "AUTH", 1, NULL, 0))
@@ -148,14 +148,14 @@ void MlmeAuthReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
     ==========================================================================
  */
-void PeerAuthRspAtSeq2Action(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerAuthRspAtSeq2Action(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u8 Addr2[MAC_ADDR_LEN];
 	u16 Seq, Status, RemoteStatus, Alg;
 	u8 ChlgText[CIPHER_TEXT_LEN];
 	u8 CyperChlgText[CIPHER_TEXT_LEN + 8 + 8];
 	u8 Element[2];
-	HEADER_802_11 AuthHdr;
+	struct rt_header_802_11 AuthHdr;
 	BOOLEAN TimerCancelled;
 	u8 *pOutBuffer = NULL;
 	int NStatus;
@@ -246,7 +246,7 @@ void PeerAuthRspAtSeq2Action(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 							128);
 					RTMPSetICV(pAd, CyperChlgText + 140);
 					MakeOutgoingFrame(pOutBuffer, &FrameLen,
-							  sizeof(HEADER_802_11),
+							  sizeof(struct rt_header_802_11),
 							  &AuthHdr,
 							  CIPHER_TEXT_LEN + 16,
 							  CyperChlgText,
@@ -282,7 +282,7 @@ void PeerAuthRspAtSeq2Action(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
     ==========================================================================
  */
-void PeerAuthRspAtSeq4Action(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerAuthRspAtSeq4Action(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u8 Addr2[MAC_ADDR_LEN];
 	u16 Alg, Seq, Status;
@@ -321,16 +321,16 @@ void PeerAuthRspAtSeq4Action(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
     ==========================================================================
  */
-void MlmeDeauthReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void MlmeDeauthReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
-	MLME_DEAUTH_REQ_STRUCT *pInfo;
-	HEADER_802_11 DeauthHdr;
+	struct rt_mlme_deauth_req *pInfo;
+	struct rt_header_802_11 DeauthHdr;
 	u8 *pOutBuffer = NULL;
 	int NStatus;
 	unsigned long FrameLen = 0;
 	u16 Status;
 
-	pInfo = (MLME_DEAUTH_REQ_STRUCT *) Elem->Msg;
+	pInfo = (struct rt_mlme_deauth_req *)Elem->Msg;
 
 	NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	/*Get an unused nonpaged memory */
 	if (NStatus != NDIS_STATUS_SUCCESS) {
@@ -348,7 +348,7 @@ void MlmeDeauthReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		  pInfo->Reason));
 	MgtMacHeaderInit(pAd, &DeauthHdr, SUBTYPE_DEAUTH, 0, pInfo->Addr,
 			 pAd->MlmeAux.Bssid);
-	MakeOutgoingFrame(pOutBuffer, &FrameLen, sizeof(HEADER_802_11),
+	MakeOutgoingFrame(pOutBuffer, &FrameLen, sizeof(struct rt_header_802_11),
 			  &DeauthHdr, 2, &pInfo->Reason, END_OF_ARGS);
 	MiniportMMRequest(pAd, 0, pOutBuffer, FrameLen);
 	MlmeFreeMemory(pAd, pOutBuffer);
@@ -374,7 +374,7 @@ void MlmeDeauthReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
     ==========================================================================
  */
-void AuthTimeoutAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void AuthTimeoutAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u16 Status;
 	DBGPRINT(RT_DEBUG_TRACE, ("AUTH - AuthTimeoutAction\n"));
@@ -391,7 +391,7 @@ void AuthTimeoutAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
     ==========================================================================
  */
-void InvalidStateWhenAuth(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void InvalidStateWhenAuth(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u16 Status;
 	DBGPRINT(RT_DEBUG_TRACE,
@@ -414,9 +414,9 @@ void InvalidStateWhenAuth(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
     ==========================================================================
  */
-void Cls2errAction(IN PRTMP_ADAPTER pAd, u8 *pAddr)
+void Cls2errAction(struct rt_rtmp_adapter *pAd, u8 *pAddr)
 {
-	HEADER_802_11 DeauthHdr;
+	struct rt_header_802_11 DeauthHdr;
 	u8 *pOutBuffer = NULL;
 	int NStatus;
 	unsigned long FrameLen = 0;
@@ -430,7 +430,7 @@ void Cls2errAction(IN PRTMP_ADAPTER pAd, u8 *pAddr)
 		 ("AUTH - Class 2 error, Send DEAUTH frame...\n"));
 	MgtMacHeaderInit(pAd, &DeauthHdr, SUBTYPE_DEAUTH, 0, pAddr,
 			 pAd->MlmeAux.Bssid);
-	MakeOutgoingFrame(pOutBuffer, &FrameLen, sizeof(HEADER_802_11),
+	MakeOutgoingFrame(pOutBuffer, &FrameLen, sizeof(struct rt_header_802_11),
 			  &DeauthHdr, 2, &Reason, END_OF_ARGS);
 	MiniportMMRequest(pAd, 0, pOutBuffer, FrameLen);
 	MlmeFreeMemory(pAd, pOutBuffer);
@@ -439,9 +439,9 @@ void Cls2errAction(IN PRTMP_ADAPTER pAd, u8 *pAddr)
 	COPY_MAC_ADDR(pAd->StaCfg.DeauthSta, pAddr);
 }
 
-BOOLEAN AUTH_ReqSend(IN PRTMP_ADAPTER pAd,
-		     IN PMLME_QUEUE_ELEM pElem,
-		     IN PRALINK_TIMER_STRUCT pAuthTimer,
+BOOLEAN AUTH_ReqSend(struct rt_rtmp_adapter *pAd,
+		     struct rt_mlme_queue_elem *pElem,
+		     struct rt_ralink_timer *pAuthTimer,
 		     char *pSMName,
 		     u16 SeqNo,
 		     u8 *pNewElement, unsigned long ElementLen)
@@ -449,7 +449,7 @@ BOOLEAN AUTH_ReqSend(IN PRTMP_ADAPTER pAd,
 	u16 Alg, Seq, Status;
 	u8 Addr[6];
 	unsigned long Timeout;
-	HEADER_802_11 AuthHdr;
+	struct rt_header_802_11 AuthHdr;
 	BOOLEAN TimerCancelled;
 	int NStatus;
 	u8 *pOutBuffer = NULL;
@@ -492,7 +492,7 @@ BOOLEAN AUTH_ReqSend(IN PRTMP_ADAPTER pAd,
 			  Alg));
 		MgtMacHeaderInit(pAd, &AuthHdr, SUBTYPE_AUTH, 0, Addr,
 				 pAd->MlmeAux.Bssid);
-		MakeOutgoingFrame(pOutBuffer, &FrameLen, sizeof(HEADER_802_11),
+		MakeOutgoingFrame(pOutBuffer, &FrameLen, sizeof(struct rt_header_802_11),
 				  &AuthHdr, 2, &Alg, 2, &Seq, 2, &Status,
 				  END_OF_ARGS);
 

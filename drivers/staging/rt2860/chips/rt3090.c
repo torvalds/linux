@@ -43,7 +43,7 @@
 #error "You Should Enable compile flag RTMP_RF_RW_SUPPORT for this chip"
 #endif /* RTMP_RF_RW_SUPPORT // */
 
-void NICInitRT3090RFRegisters(IN PRTMP_ADAPTER pAd)
+void NICInitRT3090RFRegisters(struct rt_rtmp_adapter *pAd)
 {
 	int i;
 	/* Driver must read EEPROM to get RfIcType before initial RF registers */

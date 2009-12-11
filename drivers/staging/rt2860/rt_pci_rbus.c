@@ -77,7 +77,7 @@ static void fifo_statistic_full_tasklet(unsigned long data);
   *
   **************************************************************************/
 /* Function for TxDesc Memory allocation. */
-void RTMP_AllocateTxDescMemory(IN PRTMP_ADAPTER pAd,
+void RTMP_AllocateTxDescMemory(struct rt_rtmp_adapter *pAd,
 			       u32 Index,
 			       unsigned long Length,
 			       IN BOOLEAN Cached,
@@ -93,7 +93,7 @@ void RTMP_AllocateTxDescMemory(IN PRTMP_ADAPTER pAd,
 }
 
 /* Function for MgmtDesc Memory allocation. */
-void RTMP_AllocateMgmtDescMemory(IN PRTMP_ADAPTER pAd,
+void RTMP_AllocateMgmtDescMemory(struct rt_rtmp_adapter *pAd,
 				 unsigned long Length,
 				 IN BOOLEAN Cached,
 				 void ** VirtualAddress,
@@ -108,7 +108,7 @@ void RTMP_AllocateMgmtDescMemory(IN PRTMP_ADAPTER pAd,
 }
 
 /* Function for RxDesc Memory allocation. */
-void RTMP_AllocateRxDescMemory(IN PRTMP_ADAPTER pAd,
+void RTMP_AllocateRxDescMemory(struct rt_rtmp_adapter *pAd,
 			       unsigned long Length,
 			       IN BOOLEAN Cached,
 			       void ** VirtualAddress,
@@ -123,7 +123,7 @@ void RTMP_AllocateRxDescMemory(IN PRTMP_ADAPTER pAd,
 }
 
 /* Function for free allocated Desc Memory. */
-void RTMP_FreeDescMemory(IN PRTMP_ADAPTER pAd,
+void RTMP_FreeDescMemory(struct rt_rtmp_adapter *pAd,
 			 unsigned long Length,
 			 void *VirtualAddress,
 			 dma_addr_t PhysicalAddress)
@@ -135,7 +135,7 @@ void RTMP_FreeDescMemory(IN PRTMP_ADAPTER pAd,
 }
 
 /* Function for TxData DMA Memory allocation. */
-void RTMP_AllocateFirstTxBuffer(IN PRTMP_ADAPTER pAd,
+void RTMP_AllocateFirstTxBuffer(struct rt_rtmp_adapter *pAd,
 				u32 Index,
 				unsigned long Length,
 				IN BOOLEAN Cached,
@@ -149,7 +149,7 @@ void RTMP_AllocateFirstTxBuffer(IN PRTMP_ADAPTER pAd,
 					 PhysicalAddress);
 }
 
-void RTMP_FreeFirstTxBuffer(IN PRTMP_ADAPTER pAd,
+void RTMP_FreeFirstTxBuffer(struct rt_rtmp_adapter *pAd,
 			    unsigned long Length,
 			    IN BOOLEAN Cached,
 			    void *VirtualAddress,
@@ -170,7 +170,7 @@ void RTMP_FreeFirstTxBuffer(IN PRTMP_ADAPTER pAd,
  *     VirtualAddress:  Pointer to memory is returned here
  *     PhysicalAddress:  Physical address corresponding to virtual address
  */
-void RTMP_AllocateSharedMemory(IN PRTMP_ADAPTER pAd,
+void RTMP_AllocateSharedMemory(struct rt_rtmp_adapter *pAd,
 			       unsigned long Length,
 			       IN BOOLEAN Cached,
 			       void ** VirtualAddress,
@@ -194,7 +194,7 @@ void RTMP_AllocateSharedMemory(IN PRTMP_ADAPTER pAd,
  * Notes:
  *     Cached is ignored: always cached memory
  */
-void *RTMP_AllocateRxPacketBuffer(IN PRTMP_ADAPTER pAd,
+void *RTMP_AllocateRxPacketBuffer(struct rt_rtmp_adapter *pAd,
 					 unsigned long Length,
 					 IN BOOLEAN Cached,
 					 void ** VirtualAddress,
@@ -224,7 +224,7 @@ void *RTMP_AllocateRxPacketBuffer(IN PRTMP_ADAPTER pAd,
 	return (void *)pkt;
 }
 
-void Invalid_Remaining_Packet(IN PRTMP_ADAPTER pAd, unsigned long VirtualAddress)
+void Invalid_Remaining_Packet(struct rt_rtmp_adapter *pAd, unsigned long VirtualAddress)
 {
 	dma_addr_t PhysicalAddress;
 
@@ -233,7 +233,7 @@ void Invalid_Remaining_Packet(IN PRTMP_ADAPTER pAd, unsigned long VirtualAddress
 			   RX_BUFFER_NORMSIZE - 1600, -1, PCI_DMA_FROMDEVICE);
 }
 
-int RtmpNetTaskInit(IN RTMP_ADAPTER * pAd)
+int RtmpNetTaskInit(struct rt_rtmp_adapter *pAd)
 {
 	struct os_cookie *pObj;
 
@@ -257,7 +257,7 @@ int RtmpNetTaskInit(IN RTMP_ADAPTER * pAd)
 	return NDIS_STATUS_SUCCESS;
 }
 
-void RtmpNetTaskExit(IN RTMP_ADAPTER * pAd)
+void RtmpNetTaskExit(struct rt_rtmp_adapter *pAd)
 {
 	struct os_cookie *pObj;
 
@@ -273,7 +273,7 @@ void RtmpNetTaskExit(IN RTMP_ADAPTER * pAd)
 	tasklet_kill(&pObj->fifo_statistic_full_task);
 }
 
-int RtmpMgmtTaskInit(IN RTMP_ADAPTER * pAd)
+int RtmpMgmtTaskInit(struct rt_rtmp_adapter *pAd)
 {
 
 	return NDIS_STATUS_SUCCESS;
@@ -293,13 +293,13 @@ Return Value:
 Note:
 ========================================================================
 */
-void RtmpMgmtTaskExit(IN RTMP_ADAPTER * pAd)
+void RtmpMgmtTaskExit(struct rt_rtmp_adapter *pAd)
 {
 
 	return;
 }
 
-static inline void rt2860_int_enable(PRTMP_ADAPTER pAd, unsigned int mode)
+static inline void rt2860_int_enable(struct rt_rtmp_adapter *pAd, unsigned int mode)
 {
 	u32 regValue;
 
@@ -316,7 +316,7 @@ static inline void rt2860_int_enable(PRTMP_ADAPTER pAd, unsigned int mode)
 		RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_ACTIVE);
 }
 
-static inline void rt2860_int_disable(PRTMP_ADAPTER pAd, unsigned int mode)
+static inline void rt2860_int_disable(struct rt_rtmp_adapter *pAd, unsigned int mode)
 {
 	u32 regValue;
 
@@ -337,7 +337,7 @@ static inline void rt2860_int_disable(PRTMP_ADAPTER pAd, unsigned int mode)
 static void mgmt_dma_done_tasklet(unsigned long data)
 {
 	unsigned long flags;
-	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) data;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)data;
 	INT_SOURCE_CSR_STRUC IntSource;
 	struct os_cookie *pObj;
 
@@ -376,7 +376,7 @@ static void mgmt_dma_done_tasklet(unsigned long data)
 static void rx_done_tasklet(unsigned long data)
 {
 	unsigned long flags;
-	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) data;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)data;
 	BOOLEAN bReschedule = 0;
 	struct os_cookie *pObj;
 
@@ -410,7 +410,7 @@ static void rx_done_tasklet(unsigned long data)
 void fifo_statistic_full_tasklet(unsigned long data)
 {
 	unsigned long flags;
-	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) data;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)data;
 	struct os_cookie *pObj;
 
 	/* Do nothing if the driver is starting halt state. */
@@ -444,7 +444,7 @@ void fifo_statistic_full_tasklet(unsigned long data)
 static void ac3_dma_done_tasklet(unsigned long data)
 {
 	unsigned long flags;
-	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) data;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)data;
 	INT_SOURCE_CSR_STRUC IntSource;
 	struct os_cookie *pObj;
 	BOOLEAN bReschedule = 0;
@@ -482,7 +482,7 @@ static void ac3_dma_done_tasklet(unsigned long data)
 static void ac2_dma_done_tasklet(unsigned long data)
 {
 	unsigned long flags;
-	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) data;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)data;
 	INT_SOURCE_CSR_STRUC IntSource;
 	struct os_cookie *pObj;
 	BOOLEAN bReschedule = 0;
@@ -520,7 +520,7 @@ static void ac2_dma_done_tasklet(unsigned long data)
 static void ac1_dma_done_tasklet(unsigned long data)
 {
 	unsigned long flags;
-	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) data;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)data;
 	INT_SOURCE_CSR_STRUC IntSource;
 	struct os_cookie *pObj;
 	BOOLEAN bReschedule = 0;
@@ -558,7 +558,7 @@ static void ac1_dma_done_tasklet(unsigned long data)
 static void ac0_dma_done_tasklet(unsigned long data)
 {
 	unsigned long flags;
-	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) data;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)data;
 	INT_SOURCE_CSR_STRUC IntSource;
 	struct os_cookie *pObj;
 	BOOLEAN bReschedule = 0;
@@ -604,7 +604,7 @@ int print_int_count;
 IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance)
 {
 	struct net_device *net_dev = (struct net_device *)dev_instance;
-	PRTMP_ADAPTER pAd = NULL;
+	struct rt_rtmp_adapter *pAd = NULL;
 	INT_SOURCE_CSR_STRUC IntSource;
 	struct os_cookie *pObj;
 
@@ -793,7 +793,7 @@ IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance)
 dma_addr_t linux_pci_map_single(void *handle, void *ptr, size_t size,
 				int sd_idx, int direction)
 {
-	PRTMP_ADAPTER pAd;
+	struct rt_rtmp_adapter *pAd;
 	struct os_cookie *pObj;
 
 	/*
@@ -812,12 +812,12 @@ dma_addr_t linux_pci_map_single(void *handle, void *ptr, size_t size,
 	   sd_idx = -1
 	 */
 
-	pAd = (PRTMP_ADAPTER) handle;
+	pAd = (struct rt_rtmp_adapter *)handle;
 	pObj = (struct os_cookie *)pAd->OS_Cookie;
 
 	if (sd_idx == 1) {
-		PTX_BLK pTxBlk;
-		pTxBlk = (PTX_BLK) ptr;
+		struct rt_tx_blk *pTxBlk;
+		pTxBlk = (struct rt_tx_blk *)ptr;
 		return pci_map_single(pObj->pci_dev, pTxBlk->pSrcBufData,
 				      pTxBlk->SrcBufLen, direction);
 	} else {
@@ -829,10 +829,10 @@ dma_addr_t linux_pci_map_single(void *handle, void *ptr, size_t size,
 void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size,
 			    int direction)
 {
-	PRTMP_ADAPTER pAd;
+	struct rt_rtmp_adapter *pAd;
 	struct os_cookie *pObj;
 
-	pAd = (PRTMP_ADAPTER) handle;
+	pAd = (struct rt_rtmp_adapter *)handle;
 	pObj = (struct os_cookie *)pAd->OS_Cookie;
 
 	pci_unmap_single(pObj->pci_dev, dma_addr, size, direction);

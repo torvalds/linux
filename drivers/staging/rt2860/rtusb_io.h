@@ -78,27 +78,29 @@
 /*CMDTHREAD_MULTI_WRITE_MAC */
 /*CMDTHREAD_VENDOR_EEPROM_READ */
 /*CMDTHREAD_VENDOR_EEPROM_WRITE */
-typedef struct _CMDHandler_TLV {
+struct rt_cmdhandler_tlv {
 	u16 Offset;
 	u16 Length;
 	u8 DataFirst;
-} CMDHandler_TLV, *PCMDHandler_TLV;
+};
 
-typedef struct _CmdQElmt {
+struct rt_cmdqelmt;
+
+struct rt_cmdqelmt {
 	u32 command;
 	void *buffer;
 	unsigned long bufferlength;
 	BOOLEAN CmdFromNdis;
 	BOOLEAN SetOperation;
-	struct _CmdQElmt *next;
-} CmdQElmt, *PCmdQElmt;
+	struct rt_cmdqelmt *next;
+};
 
-typedef struct _CmdQ {
+struct rt_cmdq {
 	u32 size;
-	CmdQElmt *head;
-	CmdQElmt *tail;
+	struct rt_cmdqelmt *head;
+	struct rt_cmdqelmt *tail;
 	u32 CmdQState;
-} CmdQ, *PCmdQ;
+};
 
 #define EnqueueCmd(cmdq, cmdqelmt)		\
 {										\
@@ -118,17 +120,17 @@ typedef struct _CmdQ {
 ******************************************************************************/
 /* reset MAC of a station entry to 0xFFFFFFFFFFFF */
 #define RTMP_STA_ENTRY_MAC_RESET(pAd, Wcid)					\
-	{	RT_SET_ASIC_WCID	SetAsicWcid;						\
+	{	struct rt_set_asic_wcid	SetAsicWcid;						\
 		SetAsicWcid.WCID = Wcid;								\
 		SetAsicWcid.SetTid = 0xffffffff;						\
 		SetAsicWcid.DeleteTid = 0xffffffff;						\
 		RTUSBEnqueueInternalCmd(pAd, CMDTHREAD_SET_ASIC_WCID,	\
-				&SetAsicWcid, sizeof(RT_SET_ASIC_WCID));	}
+				&SetAsicWcid, sizeof(struct rt_set_asic_wcid));	}
 
 /* add this entry into ASIC RX WCID search table */
 #define RTMP_STA_ENTRY_ADD(pAd, pEntry)							\
 	RTUSBEnqueueInternalCmd(pAd, CMDTHREAD_SET_CLIENT_MAC_ENTRY,	\
-							pEntry, sizeof(MAC_TABLE_ENTRY));
+							pEntry, sizeof(struct rt_mac_table_entry));
 
 /* add by johnli, fix "in_interrupt" error when call "MacTableDeleteEntry" in Rx tasklet */
 /* Set MAC register value according operation mode */
@@ -144,7 +146,7 @@ typedef struct _CmdQ {
 #define RTMP_STA_SECURITY_INFO_ADD(pAd, apidx, KeyID, pEntry)						\
 	{	RTMP_STA_ENTRY_MAC_RESET(pAd, pEntry->Aid);								\
 		if (pEntry->Aid >= 1) {														\
-			RT_SET_ASIC_WCID_ATTRI	SetAsicWcidAttri;								\
+			struct rt_set_asic_wcid_attri	SetAsicWcidAttri;								\
 			SetAsicWcidAttri.WCID = pEntry->Aid;									\
 			if ((pEntry->AuthMode <= Ndis802_11AuthModeAutoSwitch) &&				\
 				(pEntry->WepStatus == Ndis802_11Encryption1Enabled))				\
@@ -158,26 +160,26 @@ typedef struct _CmdQ {
 			else SetAsicWcidAttri.Cipher = 0;										\
             DBGPRINT(RT_DEBUG_TRACE, ("aid cipher = %ld\n",SetAsicWcidAttri.Cipher));       \
 			RTUSBEnqueueInternalCmd(pAd, CMDTHREAD_SET_ASIC_WCID_CIPHER,			\
-							&SetAsicWcidAttri, sizeof(RT_SET_ASIC_WCID_ATTRI)); } }
+							&SetAsicWcidAttri, sizeof(struct rt_set_asic_wcid_attri)); } }
 
 /* Insert the BA bitmap to ASIC for the Wcid entry */
 #define RTMP_ADD_BA_SESSION_TO_ASIC(_pAd, _Aid, _TID)					\
 		do{																\
-			RT_SET_ASIC_WCID	SetAsicWcid;							\
+			struct rt_set_asic_wcid	SetAsicWcid;							\
 			SetAsicWcid.WCID = (_Aid);									\
 			SetAsicWcid.SetTid = (0x10000<<(_TID));						\
 			SetAsicWcid.DeleteTid = 0xffffffff;							\
-			RTUSBEnqueueInternalCmd((_pAd), CMDTHREAD_SET_ASIC_WCID, &SetAsicWcid, sizeof(RT_SET_ASIC_WCID));	\
+			RTUSBEnqueueInternalCmd((_pAd), CMDTHREAD_SET_ASIC_WCID, &SetAsicWcid, sizeof(struct rt_set_asic_wcid));	\
 		}while(0)
 
 /* Remove the BA bitmap from ASIC for the Wcid entry */
 #define RTMP_DEL_BA_SESSION_FROM_ASIC(_pAd, _Wcid, _TID)				\
 		do{																\
-			RT_SET_ASIC_WCID	SetAsicWcid;							\
+			struct rt_set_asic_wcid	SetAsicWcid;							\
 			SetAsicWcid.WCID = (_Wcid);									\
 			SetAsicWcid.SetTid = (0xffffffff);							\
 			SetAsicWcid.DeleteTid = (0x10000<<(_TID) );					\
-			RTUSBEnqueueInternalCmd((_pAd), CMDTHREAD_SET_ASIC_WCID, &SetAsicWcid, sizeof(RT_SET_ASIC_WCID));	\
+			RTUSBEnqueueInternalCmd((_pAd), CMDTHREAD_SET_ASIC_WCID, &SetAsicWcid, sizeof(struct rt_set_asic_wcid));	\
 		}while(0)
 
 #endif /* __RTUSB_IO_H__ // */

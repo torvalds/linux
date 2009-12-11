@@ -54,7 +54,7 @@
 /*txop : for txop mode */
 /* 0:txop for the MPDU frame will be handles by ASIC by register */
 /* 1/2/3:the MPDU frame is send after PIFS/backoff/SIFS */
-typedef struct PACKED _TXWI_STRUC {
+struct PACKED rt_txwi {
 	/* Word 0 */
 	/* ex: 00 03 00 40 means txop = 3, PHYMODE = 1 */
 	u32 FRAG:1;		/* 1 to inform TKIP engine this is a fragment. */
@@ -88,12 +88,12 @@ typedef struct PACKED _TXWI_STRUC {
 	u32 IV;
 	/*Word3 */
 	u32 EIV;
-} TXWI_STRUC, *PTXWI_STRUC;
+};
 
 /* */
 /* RXWI wireless information format, in PBF. invisible in driver. */
 /* */
-typedef struct PACKED _RXWI_STRUC {
+struct PACKED rt_rxwi {
 	/* Word 0 */
 	u32 WirelessCliID:8;
 	u32 KeyIndex:2;
@@ -121,7 +121,7 @@ typedef struct PACKED _RXWI_STRUC {
 	u32 FOFFSET:8;	/* RT35xx */
 	u32 rsv2:8;
 	/*u32                rsv2:16; */
-} RXWI_STRUC, *PRXWI_STRUC;
+};
 
 /* ================================================================================= */
 /* Register format */
@@ -999,40 +999,41 @@ typedef union _SHAREDKEY_MODE_STRUC {
 	} field;
 	u32 word;
 } SHAREDKEY_MODE_STRUC, *PSHAREDKEY_MODE_STRUC;
-/* 64-entry for pairwise key table */
-typedef struct _HW_WCID_ENTRY {	/* 8-byte per entry */
+
+/* 8-byte per entry, 64-entry for pairwise key table */
+struct rt_hw_wcid_entry {
 	u8 Address[6];
 	u8 Rsv[2];
-} HW_WCID_ENTRY, PHW_WCID_ENTRY;
+};
 
 /* ================================================================================= */
 /* WCID  format */
 /* ================================================================================= */
 /*7.1   WCID  ENTRY  format  : 8bytes */
-typedef struct _WCID_ENTRY_STRUC {
+struct rt_wcid_entry {
 	u8 RXBABitmap7;	/* bit0 for TID8, bit7 for TID 15 */
 	u8 RXBABitmap0;	/* bit0 for TID0, bit7 for TID 7 */
 	u8 MAC[6];		/* 0 for shared key table.  1 for pairwise key table */
-} WCID_ENTRY_STRUC, *PWCID_ENTRY_STRUC;
+};
 
 /*8.1.1 SECURITY  KEY  format  : 8DW */
 /* 32-byte per entry, total 16-entry for shared key table, 64-entry for pairwise key table */
-typedef struct _HW_KEY_ENTRY {	/* 32-byte per entry */
+struct rt_hw_key_entry {
 	u8 Key[16];
 	u8 TxMic[8];
 	u8 RxMic[8];
-} HW_KEY_ENTRY, *PHW_KEY_ENTRY;
+};
 
 /*8.1.2 IV/EIV  format  : 2DW */
 
 /*8.1.3 RX attribute entry format  : 1DW */
-typedef struct _MAC_ATTRIBUTE_STRUC {
+struct rt_mac_attribute {
 	u32 KeyTab:1;	/* 0 for shared key table.  1 for pairwise key table */
 	u32 PairKeyMode:3;
 	u32 BSSIDIdx:3;	/*multipleBSS index for the WCID */
 	u32 RXWIUDF:3;
 	u32 rsv:22;
-} MAC_ATTRIBUTE_STRUC, *PMAC_ATTRIBUTE_STRUC;
+};
 
 /* ================================================================================= */
 /* HOST-MCU communication data structure */

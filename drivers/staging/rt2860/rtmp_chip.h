@@ -161,7 +161,7 @@
   *   EEPROM operation related marcos
   */
 #define RT28xx_EEPROM_READ16(_pAd, _offset, _value)			\
-	(_pAd)->chipOps.eeread((RTMP_ADAPTER *)(_pAd), (u16)(_offset), (u16 *)&(_value))
+	(_pAd)->chipOps.eeread((struct rt_rtmp_adapter *)(_pAd), (u16)(_offset), (u16 *)&(_value))
 
 /* ------------------------------------------------------------------- */
 /*  E2PROM data layout */

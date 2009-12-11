@@ -58,8 +58,8 @@ void RTUSB_FILL_BULK_URB(struct urb *pUrb,
 
 }
 
-void RTUSBInitTxDesc(IN PRTMP_ADAPTER pAd,
-		     IN PTX_CONTEXT pTxContext,
+void RTUSBInitTxDesc(struct rt_rtmp_adapter *pAd,
+		     struct rt_tx_context *pTxContext,
 		     u8 BulkOutPipeId, IN usb_complete_t Func)
 {
 	PURB pUrb;
@@ -96,8 +96,8 @@ void RTUSBInitTxDesc(IN PRTMP_ADAPTER pAd,
 
 }
 
-void RTUSBInitHTTxDesc(IN PRTMP_ADAPTER pAd,
-		       IN PHT_TX_CONTEXT pTxContext,
+void RTUSBInitHTTxDesc(struct rt_rtmp_adapter *pAd,
+		       struct rt_ht_tx_context *pTxContext,
 		       u8 BulkOutPipeId,
 		       unsigned long BulkOutSize, IN usb_complete_t Func)
 {
@@ -128,7 +128,7 @@ void RTUSBInitHTTxDesc(IN PRTMP_ADAPTER pAd,
 
 }
 
-void RTUSBInitRxDesc(IN PRTMP_ADAPTER pAd, IN PRX_CONTEXT pRxContext)
+void RTUSBInitRxDesc(struct rt_rtmp_adapter *pAd, struct rt_rx_context *pRxContext)
 {
 	PURB pUrb;
 	struct os_cookie *pObj = (struct os_cookie *)pAd->OS_Cookie;
@@ -179,15 +179,15 @@ void RTUSBInitRxDesc(IN PRTMP_ADAPTER pAd, IN PRX_CONTEXT pRxContext)
 		if(1 /*!(in_interrupt() & 0xffff0000)*/)	\
 			RTMP_IRQ_UNLOCK((pLock), IrqFlags);
 
-void RTUSBBulkOutDataPacket(IN PRTMP_ADAPTER pAd,
+void RTUSBBulkOutDataPacket(struct rt_rtmp_adapter *pAd,
 			    u8 BulkOutPipeId, u8 Index)
 {
 
-	PHT_TX_CONTEXT pHTTXContext;
+	struct rt_ht_tx_context *pHTTXContext;
 	PURB pUrb;
 	int ret = 0;
-	PTXINFO_STRUC pTxInfo, pLastTxInfo = NULL;
-	PTXWI_STRUC pTxWI;
+	struct rt_txinfo *pTxInfo, *pLastTxInfo = NULL;
+	struct rt_txwi * pTxWI;
 	unsigned long TmpBulkEndPos, ThisBulkSize;
 	unsigned long IrqFlags = 0, IrqFlags2 = 0;
 	u8 *pWirelessPkt, *pAppendant;
@@ -273,9 +273,9 @@ void RTUSBBulkOutDataPacket(IN PRTMP_ADAPTER pAd,
 	}
 
 	do {
-		pTxInfo = (PTXINFO_STRUC) & pWirelessPkt[TmpBulkEndPos];
+		pTxInfo = (struct rt_txinfo *)& pWirelessPkt[TmpBulkEndPos];
 		pTxWI =
-		    (PTXWI_STRUC) & pWirelessPkt[TmpBulkEndPos + TXINFO_SIZE];
+		    (struct rt_txwi *) & pWirelessPkt[TmpBulkEndPos + TXINFO_SIZE];
 
 		if (pAd->bForcePrintTX == TRUE)
 			DBGPRINT(RT_DEBUG_TRACE,
@@ -497,12 +497,12 @@ void RTUSBBulkOutDataPacket(IN PRTMP_ADAPTER pAd,
 
 void RTUSBBulkOutDataPacketComplete(struct urb *pUrb, struct pt_regs * pt_regs)
 {
-	PHT_TX_CONTEXT pHTTXContext;
-	PRTMP_ADAPTER pAd;
+	struct rt_ht_tx_context *pHTTXContext;
+	struct rt_rtmp_adapter *pAd;
 	struct os_cookie *pObj;
 	u8 BulkOutPipeId;
 
-	pHTTXContext = (PHT_TX_CONTEXT) pUrb->context;
+	pHTTXContext = (struct rt_ht_tx_context *)pUrb->context;
 	pAd = pHTTXContext->pAd;
 	pObj = (struct os_cookie *)pAd->OS_Cookie;
 
@@ -544,9 +544,9 @@ void RTUSBBulkOutDataPacketComplete(struct urb *pUrb, struct pt_regs * pt_regs)
 
 	========================================================================
 */
-void RTUSBBulkOutNullFrame(IN PRTMP_ADAPTER pAd)
+void RTUSBBulkOutNullFrame(struct rt_rtmp_adapter *pAd)
 {
-	PTX_CONTEXT pNullContext = &(pAd->NullContext);
+	struct rt_tx_context *pNullContext = &(pAd->NullContext);
 	PURB pUrb;
 	int ret = 0;
 	unsigned long IrqFlags;
@@ -591,12 +591,12 @@ void RTUSBBulkOutNullFrame(IN PRTMP_ADAPTER pAd)
 /* NULL frame use BulkOutPipeId = 0 */
 void RTUSBBulkOutNullFrameComplete(struct urb *pUrb, struct pt_regs * pt_regs)
 {
-	PRTMP_ADAPTER pAd;
-	PTX_CONTEXT pNullContext;
+	struct rt_rtmp_adapter *pAd;
+	struct rt_tx_context *pNullContext;
 	int Status;
 	struct os_cookie *pObj;
 
-	pNullContext = (PTX_CONTEXT) pUrb->context;
+	pNullContext = (struct rt_tx_context *)pUrb->context;
 	pAd = pNullContext->pAd;
 	Status = pUrb->status;
 
@@ -618,15 +618,15 @@ void RTUSBBulkOutNullFrameComplete(struct urb *pUrb, struct pt_regs * pt_regs)
 
 	========================================================================
 */
-void RTUSBBulkOutMLMEPacket(IN PRTMP_ADAPTER pAd, u8 Index)
+void RTUSBBulkOutMLMEPacket(struct rt_rtmp_adapter *pAd, u8 Index)
 {
-	PTX_CONTEXT pMLMEContext;
+	struct rt_tx_context *pMLMEContext;
 	PURB pUrb;
 	int ret = 0;
 	unsigned long IrqFlags;
 
 	pMLMEContext =
-	    (PTX_CONTEXT) pAd->MgmtRing.Cell[pAd->MgmtRing.TxDmaIdx].AllocVa;
+	    (struct rt_tx_context *)pAd->MgmtRing.Cell[pAd->MgmtRing.TxDmaIdx].AllocVa;
 	pUrb = pMLMEContext->pUrb;
 
 	if ((pAd->MgmtRing.TxSwFreeIdx >= MGMT_RING_SIZE) ||
@@ -686,14 +686,14 @@ void RTUSBBulkOutMLMEPacket(IN PRTMP_ADAPTER pAd, u8 Index)
 
 void RTUSBBulkOutMLMEPacketComplete(struct urb *pUrb, struct pt_regs * pt_regs)
 {
-	PTX_CONTEXT pMLMEContext;
-	PRTMP_ADAPTER pAd;
+	struct rt_tx_context *pMLMEContext;
+	struct rt_rtmp_adapter *pAd;
 	int Status;
 	struct os_cookie *pObj;
 	int index;
 
 	/*DBGPRINT_RAW(RT_DEBUG_INFO, ("--->RTUSBBulkOutMLMEPacketComplete\n")); */
-	pMLMEContext = (PTX_CONTEXT) pUrb->context;
+	pMLMEContext = (struct rt_tx_context *)pUrb->context;
 	pAd = pMLMEContext->pAd;
 	pObj = (struct os_cookie *)pAd->OS_Cookie;
 	Status = pUrb->status;
@@ -716,9 +716,9 @@ void RTUSBBulkOutMLMEPacketComplete(struct urb *pUrb, struct pt_regs * pt_regs)
 
 	========================================================================
 */
-void RTUSBBulkOutPsPoll(IN PRTMP_ADAPTER pAd)
+void RTUSBBulkOutPsPoll(struct rt_rtmp_adapter *pAd)
 {
-	PTX_CONTEXT pPsPollContext = &(pAd->PsPollContext);
+	struct rt_tx_context *pPsPollContext = &(pAd->PsPollContext);
 	PURB pUrb;
 	int ret = 0;
 	unsigned long IrqFlags;
@@ -760,12 +760,12 @@ void RTUSBBulkOutPsPoll(IN PRTMP_ADAPTER pAd)
 /* PS-Poll frame use BulkOutPipeId = 0 */
 void RTUSBBulkOutPsPollComplete(struct urb *pUrb, struct pt_regs * pt_regs)
 {
-	PRTMP_ADAPTER pAd;
-	PTX_CONTEXT pPsPollContext;
+	struct rt_rtmp_adapter *pAd;
+	struct rt_tx_context *pPsPollContext;
 	int Status;
 	struct os_cookie *pObj;
 
-	pPsPollContext = (PTX_CONTEXT) pUrb->context;
+	pPsPollContext = (struct rt_tx_context *)pUrb->context;
 	pAd = pPsPollContext->pAd;
 	Status = pUrb->status;
 
@@ -774,9 +774,9 @@ void RTUSBBulkOutPsPollComplete(struct urb *pUrb, struct pt_regs * pt_regs)
 	tasklet_hi_schedule(&pObj->pspoll_frame_complete_task);
 }
 
-void DoBulkIn(IN RTMP_ADAPTER * pAd)
+void DoBulkIn(struct rt_rtmp_adapter *pAd)
 {
-	PRX_CONTEXT pRxContext;
+	struct rt_rx_context *pRxContext;
 	PURB pUrb;
 	int ret = 0;
 	unsigned long IrqFlags;
@@ -845,9 +845,9 @@ void DoBulkIn(IN RTMP_ADAPTER * pAd)
 		 fRTMP_ADAPTER_RADIO_OFF | fRTMP_ADAPTER_RESET_IN_PROGRESS | \
 		 fRTMP_ADAPTER_REMOVE_IN_PROGRESS)
 
-void RTUSBBulkReceive(IN PRTMP_ADAPTER pAd)
+void RTUSBBulkReceive(struct rt_rtmp_adapter *pAd)
 {
-	PRX_CONTEXT pRxContext;
+	struct rt_rx_context *pRxContext;
 	unsigned long IrqFlags;
 
 	/* sanity check */
@@ -917,11 +917,11 @@ void RTUSBBulkRxComplete(struct urb *pUrb, struct pt_regs *pt_regs)
 	/* use a receive tasklet to handle received packets; */
 	/* or sometimes hardware IRQ will be disabled here, so we can not */
 	/* use spin_lock_bh()/spin_unlock_bh() after IRQ is disabled. :< */
-	PRX_CONTEXT pRxContext;
-	PRTMP_ADAPTER pAd;
+	struct rt_rx_context *pRxContext;
+	struct rt_rtmp_adapter *pAd;
 	struct os_cookie *pObj;
 
-	pRxContext = (PRX_CONTEXT) pUrb->context;
+	pRxContext = (struct rt_rx_context *)pUrb->context;
 	pAd = pRxContext->pAd;
 	pObj = (struct os_cookie *)pAd->OS_Cookie;
 
@@ -943,7 +943,7 @@ void RTUSBBulkRxComplete(struct urb *pUrb, struct pt_regs *pt_regs)
 
 	========================================================================
 */
-void RTUSBKickBulkOut(IN PRTMP_ADAPTER pAd)
+void RTUSBKickBulkOut(struct rt_rtmp_adapter *pAd)
 {
 	/* BulkIn Reset will reset whole USB PHY. So we need to make sure fRTMP_ADAPTER_BULKIN_RESET not flaged. */
 	if (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NEED_STOP_TX)
@@ -1033,10 +1033,10 @@ void RTUSBKickBulkOut(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-void RTUSBCleanUpDataBulkOutQueue(IN PRTMP_ADAPTER pAd)
+void RTUSBCleanUpDataBulkOutQueue(struct rt_rtmp_adapter *pAd)
 {
 	u8 Idx;
-	PHT_TX_CONTEXT pTxContext;
+	struct rt_ht_tx_context *pTxContext;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("--->CleanUpDataBulkOutQueue\n"));
 
@@ -1066,7 +1066,7 @@ void RTUSBCleanUpDataBulkOutQueue(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-void RTUSBCleanUpMLMEBulkOutQueue(IN PRTMP_ADAPTER pAd)
+void RTUSBCleanUpMLMEBulkOutQueue(struct rt_rtmp_adapter *pAd)
 {
 	DBGPRINT(RT_DEBUG_TRACE, ("--->CleanUpMLMEBulkOutQueue\n"));
 	DBGPRINT(RT_DEBUG_TRACE, ("<---CleanUpMLMEBulkOutQueue\n"));
@@ -1085,7 +1085,7 @@ void RTUSBCleanUpMLMEBulkOutQueue(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-void RTUSBCancelPendingIRPs(IN PRTMP_ADAPTER pAd)
+void RTUSBCancelPendingIRPs(struct rt_rtmp_adapter *pAd)
 {
 	RTUSBCancelPendingBulkInIRP(pAd);
 	RTUSBCancelPendingBulkOutIRP(pAd);
@@ -1104,9 +1104,9 @@ void RTUSBCancelPendingIRPs(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-void RTUSBCancelPendingBulkInIRP(IN PRTMP_ADAPTER pAd)
+void RTUSBCancelPendingBulkInIRP(struct rt_rtmp_adapter *pAd)
 {
-	PRX_CONTEXT pRxContext;
+	struct rt_rx_context *pRxContext;
 	u32 i;
 
 	DBGPRINT_RAW(RT_DEBUG_TRACE, ("--->RTUSBCancelPendingBulkInIRP\n"));
@@ -1136,14 +1136,14 @@ void RTUSBCancelPendingBulkInIRP(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-void RTUSBCancelPendingBulkOutIRP(IN PRTMP_ADAPTER pAd)
+void RTUSBCancelPendingBulkOutIRP(struct rt_rtmp_adapter *pAd)
 {
-	PHT_TX_CONTEXT pHTTXContext;
-	PTX_CONTEXT pMLMEContext;
-	PTX_CONTEXT pBeaconContext;
-	PTX_CONTEXT pNullContext;
-	PTX_CONTEXT pPsPollContext;
-	PTX_CONTEXT pRTSContext;
+	struct rt_ht_tx_context *pHTTXContext;
+	struct rt_tx_context *pMLMEContext;
+	struct rt_tx_context *pBeaconContext;
+	struct rt_tx_context *pNullContext;
+	struct rt_tx_context *pPsPollContext;
+	struct rt_tx_context *pRTSContext;
 	u32 i, Idx;
 /*      unsigned int            IrqFlags; */
 /*      spinlock_t          *pLock; */
@@ -1173,7 +1173,7 @@ void RTUSBCancelPendingBulkOutIRP(IN PRTMP_ADAPTER pAd)
 
 	/*RTMP_IRQ_LOCK(pLock, IrqFlags); */
 	for (i = 0; i < MGMT_RING_SIZE; i++) {
-		pMLMEContext = (PTX_CONTEXT) pAd->MgmtRing.Cell[i].AllocVa;
+		pMLMEContext = (struct rt_tx_context *)pAd->MgmtRing.Cell[i].AllocVa;
 		if (pMLMEContext && (pMLMEContext->IRPPending == TRUE)) {
 
 			/* Get the USB_CONTEXT and cancel it's IRP; the completion routine will itself */

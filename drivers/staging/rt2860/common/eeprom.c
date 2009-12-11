@@ -36,9 +36,9 @@
 */
 #include "../rt_config.h"
 
-int RtmpChipOpsEepromHook(IN RTMP_ADAPTER * pAd, int infType)
+int RtmpChipOpsEepromHook(struct rt_rtmp_adapter *pAd, int infType)
 {
-	RTMP_CHIP_OP *pChipOps = &pAd->chipOps;
+	struct rt_rtmp_chip_op *pChipOps = &pAd->chipOps;
 #ifdef RT30xx
 #ifdef RTMP_EFUSE_SUPPORT
 	u32 eFuseCtrl, MacCsr0;

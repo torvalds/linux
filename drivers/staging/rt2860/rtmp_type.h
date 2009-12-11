@@ -55,33 +55,33 @@ typedef union _LARGE_INTEGER {
 /* */
 /* Register set pair for initialzation register set definition */
 /* */
-typedef struct _RTMP_REG_PAIR {
+struct rt_rtmp_reg_pair {
 	unsigned long Register;
 	unsigned long Value;
-} RTMP_REG_PAIR, *PRTMP_REG_PAIR;
+};
 
-typedef struct _REG_PAIR {
+struct rt_reg_pair {
 	u8 Register;
 	u8 Value;
-} REG_PAIR, *PREG_PAIR;
+};
 
 /* */
 /* Register set pair for initialzation register set definition */
 /* */
-typedef struct _RTMP_RF_REGS {
+struct rt_rtmp_rf_regs {
 	u8 Channel;
 	unsigned long R1;
 	unsigned long R2;
 	unsigned long R3;
 	unsigned long R4;
-} RTMP_RF_REGS, *PRTMP_RF_REGS;
+};
 
-typedef struct _FREQUENCY_ITEM {
+struct rt_frequency_item {
 	u8 Channel;
 	u8 N;
 	u8 R;
 	u8 K;
-} FREQUENCY_ITEM, *PFREQUENCY_ITEM;
+};
 
 #define STATUS_SUCCESS				0x00
 #define STATUS_UNSUCCESSFUL		0x01

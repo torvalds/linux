@@ -50,8 +50,8 @@
 
 	==========================================================================
  */
-void SyncStateMachineInit(IN PRTMP_ADAPTER pAd,
-			  IN STATE_MACHINE * Sm, OUT STATE_MACHINE_FUNC Trans[])
+void SyncStateMachineInit(struct rt_rtmp_adapter *pAd,
+			  struct rt_state_machine *Sm, OUT STATE_MACHINE_FUNC Trans[])
 {
 	StateMachineInit(Sm, Trans, MAX_SYNC_STATE, MAX_SYNC_MSG,
 			 (STATE_MACHINE_FUNC) Drop, SYNC_IDLE,
@@ -115,7 +115,7 @@ void BeaconTimeout(void *SystemSpecific1,
 		   void *FunctionContext,
 		   void *SystemSpecific2, void *SystemSpecific3)
 {
-	RTMP_ADAPTER *pAd = (RTMP_ADAPTER *) FunctionContext;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)FunctionContext;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("SYNC - BeaconTimeout\n"));
 
@@ -155,7 +155,7 @@ void ScanTimeout(void *SystemSpecific1,
 		 void *FunctionContext,
 		 void *SystemSpecific2, void *SystemSpecific3)
 {
-	RTMP_ADAPTER *pAd = (RTMP_ADAPTER *) FunctionContext;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)FunctionContext;
 
 	/* Do nothing if the driver is starting halt state. */
 	/* This might happen when timer already been fired before cancel timer with mlmehalt */
@@ -183,13 +183,13 @@ void ScanTimeout(void *SystemSpecific1,
 		MLME SCAN req state machine procedure
 	==========================================================================
  */
-void MlmeScanReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void MlmeScanReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u8 Ssid[MAX_LEN_OF_SSID], SsidLen, ScanType, BssType, BBPValue = 0;
 	BOOLEAN TimerCancelled;
 	unsigned long Now;
 	u16 Status;
-	PHEADER_802_11 pHdr80211;
+	struct rt_header_802_11 * pHdr80211;
 	u8 *pOutBuffer = NULL;
 	int NStatus;
 
@@ -241,7 +241,7 @@ void MlmeScanReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		    && (INFRA_ON(pAd))) {
 			NStatus = MlmeAllocateMemory(pAd, (void *)& pOutBuffer);
 			if (NStatus == NDIS_STATUS_SUCCESS) {
-				pHdr80211 = (PHEADER_802_11) pOutBuffer;
+				pHdr80211 = (struct rt_header_802_11 *) pOutBuffer;
 				MgtMacHeaderInit(pAd, pHdr80211,
 						 SUBTYPE_NULL_FUNC, 1,
 						 pAd->CommonCfg.Bssid,
@@ -252,7 +252,7 @@ void MlmeScanReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 				/* Send using priority queue */
 				MiniportMMRequest(pAd, 0, pOutBuffer,
-						  sizeof(HEADER_802_11));
+						  sizeof(struct rt_header_802_11));
 				DBGPRINT(RT_DEBUG_TRACE,
 					 ("MlmeScanReqAction -- Send PSM Data frame for off channel RM\n"));
 				MlmeFreeMemory(pAd, pOutBuffer);
@@ -297,12 +297,12 @@ void MlmeScanReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		MLME JOIN req state machine procedure
 	==========================================================================
  */
-void MlmeJoinReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void MlmeJoinReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u8 BBPValue = 0;
-	BSS_ENTRY *pBss;
+	struct rt_bss_entry *pBss;
 	BOOLEAN TimerCancelled;
-	HEADER_802_11 Hdr80211;
+	struct rt_header_802_11 Hdr80211;
 	int NStatus;
 	unsigned long FrameLen = 0;
 	u8 *pOutBuffer = NULL;
@@ -312,7 +312,7 @@ void MlmeJoinReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	u8 ExtRateLen;
 	u8 ASupRate[] = { 0x8C, 0x12, 0x98, 0x24, 0xb0, 0x48, 0x60, 0x6C };
 	u8 ASupRateLen = sizeof(ASupRate) / sizeof(u8);
-	MLME_JOIN_REQ_STRUCT *pInfo = (MLME_JOIN_REQ_STRUCT *) (Elem->Msg);
+	struct rt_mlme_join_req *pInfo = (struct rt_mlme_join_req *)(Elem->Msg);
 
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("SYNC - MlmeJoinReqAction(BSS #%ld)\n", pInfo->BssIdx));
@@ -400,7 +400,7 @@ void MlmeJoinReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 						 BROADCAST_ADDR);
 
 			MakeOutgoingFrame(pOutBuffer, &FrameLen,
-					  sizeof(HEADER_802_11), &Hdr80211,
+					  sizeof(struct rt_header_802_11), &Hdr80211,
 					  1, &SsidIe,
 					  1, &pAd->MlmeAux.SsidLen,
 					  pAd->MlmeAux.SsidLen,
@@ -437,20 +437,20 @@ void MlmeJoinReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		MLME START Request state machine procedure, starting an IBSS
 	==========================================================================
  */
-void MlmeStartReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void MlmeStartReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u8 Ssid[MAX_LEN_OF_SSID], SsidLen;
 	BOOLEAN TimerCancelled;
 
 	/* New for WPA security suites */
 	u8 VarIE[MAX_VIE_LEN];	/* Total VIE length = MAX_VIE_LEN - -5 */
-	NDIS_802_11_VARIABLE_IEs *pVIE = NULL;
+	struct rt_ndis_802_11_variable_ies *pVIE = NULL;
 	LARGE_INTEGER TimeStamp;
 	BOOLEAN Privacy;
 	u16 Status;
 
 	/* Init Variable IE structure */
-	pVIE = (PNDIS_802_11_VARIABLE_IEs) VarIE;
+	pVIE = (struct rt_ndis_802_11_variable_ies *)VarIE;
 	pVIE->Length = 0;
 	TimeStamp.u.LowPart = 0;
 	TimeStamp.u.HighPart = 0;
@@ -506,7 +506,7 @@ void MlmeStartReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 				       &pAd->StaCfg.DesiredHtPhyInfo.MCSSet[0],
 				       &pAd->MlmeAux.HtCapability,
 				       &pAd->MlmeAux.AddHtInfo);
-			pAd->MlmeAux.HtCapabilityLen = sizeof(HT_CAPABILITY_IE);
+			pAd->MlmeAux.HtCapabilityLen = sizeof(struct rt_ht_capability_ie);
 			/* Not turn pAd->StaActive.SupportedHtPhy.bHtEnable = TRUE here. */
 			DBGPRINT(RT_DEBUG_TRACE,
 				 ("SYNC -pAd->StaActive.SupportedHtPhy.bHtEnable = TRUE\n"));
@@ -517,11 +517,11 @@ void MlmeStartReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 				       MCSSet[0], 16);
 		}
 		/* temporarily not support QOS in IBSS */
-		NdisZeroMemory(&pAd->MlmeAux.APEdcaParm, sizeof(EDCA_PARM));
+		NdisZeroMemory(&pAd->MlmeAux.APEdcaParm, sizeof(struct rt_edca_parm));
 		NdisZeroMemory(&pAd->MlmeAux.APQbssLoad,
-			       sizeof(QBSS_LOAD_PARM));
+			       sizeof(struct rt_qbss_load_parm));
 		NdisZeroMemory(&pAd->MlmeAux.APQosCapability,
-			       sizeof(QOS_CAPABILITY_PARM));
+			       sizeof(struct rt_qos_capability_parm));
 
 		AsicSwitchChannel(pAd, pAd->MlmeAux.Channel, FALSE);
 		AsicLockChannel(pAd, pAd->MlmeAux.Channel);
@@ -550,14 +550,14 @@ void MlmeStartReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		peer sends beacon back when scanning
 	==========================================================================
  */
-void PeerBeaconAtScanAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerBeaconAtScanAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u8 Bssid[MAC_ADDR_LEN], Addr2[MAC_ADDR_LEN];
 	u8 Ssid[MAX_LEN_OF_SSID], BssType, Channel, NewChannel,
 	    SsidLen, DtimCount, DtimPeriod, BcastFlag, MessageToMe;
-	CF_PARM CfParm;
+	struct rt_cf_parm CfParm;
 	u16 BeaconPeriod, AtimWin, CapabilityInfo;
-	PFRAME_802_11 pFrame;
+	struct rt_frame_802_11 * pFrame;
 	LARGE_INTEGER TimeStamp;
 	u8 Erp;
 	u8 SupRate[MAX_LEN_OF_SUPPORTED_RATES],
@@ -566,26 +566,26 @@ void PeerBeaconAtScanAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	u16 LenVIE;
 	u8 CkipFlag;
 	u8 AironetCellPowerLimit;
-	EDCA_PARM EdcaParm;
-	QBSS_LOAD_PARM QbssLoad;
-	QOS_CAPABILITY_PARM QosCapability;
+	struct rt_edca_parm EdcaParm;
+	struct rt_qbss_load_parm QbssLoad;
+	struct rt_qos_capability_parm QosCapability;
 	unsigned long RalinkIe;
 	u8 VarIE[MAX_VIE_LEN];	/* Total VIE length = MAX_VIE_LEN - -5 */
-	NDIS_802_11_VARIABLE_IEs *pVIE = NULL;
-	HT_CAPABILITY_IE HtCapability;
-	ADD_HT_INFO_IE AddHtInfo;	/* AP might use this additional ht info IE */
+	struct rt_ndis_802_11_variable_ies *pVIE = NULL;
+	struct rt_ht_capability_ie HtCapability;
+	struct rt_add_ht_info_ie AddHtInfo;	/* AP might use this additional ht info IE */
 	u8 HtCapabilityLen = 0, PreNHtCapabilityLen = 0;
 	u8 AddHtInfoLen;
 	u8 NewExtChannelOffset = 0xff;
 
 	/* NdisFillMemory(Ssid, MAX_LEN_OF_SSID, 0x00); */
-	pFrame = (PFRAME_802_11) Elem->Msg;
+	pFrame = (struct rt_frame_802_11 *) Elem->Msg;
 	/* Init Variable IE structure */
-	pVIE = (PNDIS_802_11_VARIABLE_IEs) VarIE;
+	pVIE = (struct rt_ndis_802_11_variable_ies *)VarIE;
 	pVIE->Length = 0;
 
 	RTMPZeroMemory(&HtCapability, sizeof(HtCapability));
-	RTMPZeroMemory(&AddHtInfo, sizeof(ADD_HT_INFO_IE));
+	RTMPZeroMemory(&AddHtInfo, sizeof(struct rt_add_ht_info_ie));
 
 	if (PeerBeaconAndProbeRspSanity(pAd,
 					Elem->Msg,
@@ -668,14 +668,14 @@ void PeerBeaconAtScanAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		When waiting joining the (I)BSS, beacon received from external
 	==========================================================================
  */
-void PeerBeaconAtJoinAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerBeaconAtJoinAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u8 Bssid[MAC_ADDR_LEN], Addr2[MAC_ADDR_LEN];
 	u8 Ssid[MAX_LEN_OF_SSID], SsidLen, BssType, Channel, MessageToMe,
 	    DtimCount, DtimPeriod, BcastFlag, NewChannel;
 	LARGE_INTEGER TimeStamp;
 	u16 BeaconPeriod, AtimWin, CapabilityInfo;
-	CF_PARM Cf;
+	struct rt_cf_parm Cf;
 	BOOLEAN TimerCancelled;
 	u8 Erp;
 	u8 SupRate[MAX_LEN_OF_SUPPORTED_RATES],
@@ -684,16 +684,16 @@ void PeerBeaconAtJoinAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	u8 CkipFlag;
 	u16 LenVIE;
 	u8 AironetCellPowerLimit;
-	EDCA_PARM EdcaParm;
-	QBSS_LOAD_PARM QbssLoad;
-	QOS_CAPABILITY_PARM QosCapability;
+	struct rt_edca_parm EdcaParm;
+	struct rt_qbss_load_parm QbssLoad;
+	struct rt_qos_capability_parm QosCapability;
 	u16 Status;
 	u8 VarIE[MAX_VIE_LEN];	/* Total VIE length = MAX_VIE_LEN - -5 */
-	NDIS_802_11_VARIABLE_IEs *pVIE = NULL;
+	struct rt_ndis_802_11_variable_ies *pVIE = NULL;
 	unsigned long RalinkIe;
 	unsigned long Idx;
-	HT_CAPABILITY_IE HtCapability;
-	ADD_HT_INFO_IE AddHtInfo;	/* AP might use this additional ht info IE */
+	struct rt_ht_capability_ie HtCapability;
+	struct rt_add_ht_info_ie AddHtInfo;	/* AP might use this additional ht info IE */
 	u8 HtCapabilityLen = 0, PreNHtCapabilityLen = 0;
 	u8 AddHtInfoLen;
 	u8 NewExtChannelOffset = 0xff;
@@ -701,10 +701,10 @@ void PeerBeaconAtJoinAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	BOOLEAN bAllowNrate = FALSE;
 
 	/* Init Variable IE structure */
-	pVIE = (PNDIS_802_11_VARIABLE_IEs) VarIE;
+	pVIE = (struct rt_ndis_802_11_variable_ies *)VarIE;
 	pVIE->Length = 0;
 	RTMPZeroMemory(&HtCapability, sizeof(HtCapability));
-	RTMPZeroMemory(&AddHtInfo, sizeof(ADD_HT_INFO_IE));
+	RTMPZeroMemory(&AddHtInfo, sizeof(struct rt_add_ht_info_ie));
 
 	if (PeerBeaconAndProbeRspSanity(pAd,
 					Elem->Msg,
@@ -993,20 +993,20 @@ void PeerBeaconAtJoinAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 			    || (pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED)
 			    ) {
 				NdisMoveMemory(&pAd->MlmeAux.APEdcaParm,
-					       &EdcaParm, sizeof(EDCA_PARM));
+					       &EdcaParm, sizeof(struct rt_edca_parm));
 				NdisMoveMemory(&pAd->MlmeAux.APQbssLoad,
 					       &QbssLoad,
-					       sizeof(QBSS_LOAD_PARM));
+					       sizeof(struct rt_qbss_load_parm));
 				NdisMoveMemory(&pAd->MlmeAux.APQosCapability,
 					       &QosCapability,
-					       sizeof(QOS_CAPABILITY_PARM));
+					       sizeof(struct rt_qos_capability_parm));
 			} else {
 				NdisZeroMemory(&pAd->MlmeAux.APEdcaParm,
-					       sizeof(EDCA_PARM));
+					       sizeof(struct rt_edca_parm));
 				NdisZeroMemory(&pAd->MlmeAux.APQbssLoad,
-					       sizeof(QBSS_LOAD_PARM));
+					       sizeof(struct rt_qbss_load_parm));
 				NdisZeroMemory(&pAd->MlmeAux.APQosCapability,
-					       sizeof(QOS_CAPABILITY_PARM));
+					       sizeof(struct rt_qos_capability_parm));
 			}
 
 			DBGPRINT(RT_DEBUG_TRACE,
@@ -1041,11 +1041,11 @@ void PeerBeaconAtJoinAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 	==========================================================================
  */
-void PeerBeacon(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerBeacon(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u8 Bssid[MAC_ADDR_LEN], Addr2[MAC_ADDR_LEN];
 	char Ssid[MAX_LEN_OF_SSID];
-	CF_PARM CfParm;
+	struct rt_cf_parm CfParm;
 	u8 SsidLen, MessageToMe = 0, BssType, Channel, NewChannel, index = 0;
 	u8 DtimCount = 0, DtimPeriod = 0, BcastFlag = 0;
 	u16 CapabilityInfo, AtimWin, BeaconPeriod;
@@ -1058,15 +1058,15 @@ void PeerBeacon(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	u8 CkipFlag;
 	u16 LenVIE;
 	u8 AironetCellPowerLimit;
-	EDCA_PARM EdcaParm;
-	QBSS_LOAD_PARM QbssLoad;
-	QOS_CAPABILITY_PARM QosCapability;
+	struct rt_edca_parm EdcaParm;
+	struct rt_qbss_load_parm QbssLoad;
+	struct rt_qos_capability_parm QosCapability;
 	unsigned long RalinkIe;
 	/* New for WPA security suites */
 	u8 VarIE[MAX_VIE_LEN];	/* Total VIE length = MAX_VIE_LEN - -5 */
-	NDIS_802_11_VARIABLE_IEs *pVIE = NULL;
-	HT_CAPABILITY_IE HtCapability;
-	ADD_HT_INFO_IE AddHtInfo;	/* AP might use this additional ht info IE */
+	struct rt_ndis_802_11_variable_ies *pVIE = NULL;
+	struct rt_ht_capability_ie HtCapability;
+	struct rt_add_ht_info_ie AddHtInfo;	/* AP might use this additional ht info IE */
 	u8 HtCapabilityLen, PreNHtCapabilityLen;
 	u8 AddHtInfoLen;
 	u8 NewExtChannelOffset = 0xff;
@@ -1076,10 +1076,10 @@ void PeerBeacon(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		return;
 
 	/* Init Variable IE structure */
-	pVIE = (PNDIS_802_11_VARIABLE_IEs) VarIE;
+	pVIE = (struct rt_ndis_802_11_variable_ies *)VarIE;
 	pVIE->Length = 0;
 	RTMPZeroMemory(&HtCapability, sizeof(HtCapability));
-	RTMPZeroMemory(&AddHtInfo, sizeof(ADD_HT_INFO_IE));
+	RTMPZeroMemory(&AddHtInfo, sizeof(struct rt_add_ht_info_ie));
 
 	if (PeerBeaconAndProbeRspSanity(pAd,
 					Elem->Msg,
@@ -1120,7 +1120,7 @@ void PeerBeacon(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 					&NewExtChannelOffset, &LenVIE, pVIE)) {
 		BOOLEAN is_my_bssid, is_my_ssid;
 		unsigned long Bssidx, Now;
-		BSS_ENTRY *pBss;
+		struct rt_bss_entry *pBss;
 		char RealRssi =
 		    RTMPMaxRssi(pAd, ConvertToRssi(pAd, Elem->Rssi0, RSSI_0),
 				ConvertToRssi(pAd, Elem->Rssi1, RSSI_1),
@@ -1251,7 +1251,7 @@ void PeerBeacon(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		/* BEACON from my BSSID - either IBSS or INFRA network */
 		/* */
 		if (is_my_bssid) {
-			RXWI_STRUC RxWI;
+			struct rt_rxwi RxWI;
 
 			pAd->StaCfg.DtimCount = DtimCount;
 			pAd->StaCfg.DtimPeriod = DtimPeriod;
@@ -1281,7 +1281,7 @@ void PeerBeacon(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 			if (ADHOC_ON(pAd) && (CAP_IS_IBSS_ON(CapabilityInfo))) {
 				u8 MaxSupportedRateIn500Kbps = 0;
 				u8 idx;
-				MAC_TABLE_ENTRY *pEntry;
+				struct rt_mac_table_entry *pEntry;
 
 				/* supported rates array may not be sorted. sort it and find the maximum rate */
 				for (idx = 0; idx < SupRateLen; idx++) {
@@ -1535,10 +1535,10 @@ void PeerBeacon(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 				/* copy QOS related information */
 				NdisMoveMemory(&pAd->CommonCfg.APQbssLoad,
 					       &QbssLoad,
-					       sizeof(QBSS_LOAD_PARM));
+					       sizeof(struct rt_qbss_load_parm));
 				NdisMoveMemory(&pAd->CommonCfg.APQosCapability,
 					       &QosCapability,
-					       sizeof(QOS_CAPABILITY_PARM));
+					       sizeof(struct rt_qos_capability_parm));
 			}
 			/* only INFRASTRUCTURE mode support power-saving feature */
 			if ((INFRA_ON(pAd) && (pAd->StaCfg.Psm == PWR_SAVE))
@@ -1703,13 +1703,13 @@ void PeerBeacon(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		Receive PROBE REQ from remote peer when operating in IBSS mode
 	==========================================================================
  */
-void PeerProbeReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerProbeReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u8 Addr2[MAC_ADDR_LEN];
 	char Ssid[MAX_LEN_OF_SSID];
 	u8 SsidLen;
 	u8 HtLen, AddHtLen, NewExtLen;
-	HEADER_802_11 ProbeRspHdr;
+	struct rt_header_802_11 ProbeRspHdr;
 	int NStatus;
 	u8 *pOutBuffer = NULL;
 	unsigned long FrameLen = 0;
@@ -1748,7 +1748,7 @@ void PeerProbeReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 					  Rt802_11PreambleShort), 0, 0);
 
 			MakeOutgoingFrame(pOutBuffer, &FrameLen,
-					  sizeof(HEADER_802_11), &ProbeRspHdr,
+					  sizeof(struct rt_header_802_11), &ProbeRspHdr,
 					  TIMESTAMP_LEN, &FakeTimestamp,
 					  2, &pAd->CommonCfg.BeaconPeriod,
 					  2, &CapabilityInfo,
@@ -1807,19 +1807,19 @@ void PeerProbeReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 							  &TmpLen, 1, &HtCapIe,
 							  1, &HtLen,
 							  sizeof
-							  (HT_CAPABILITY_IE),
+							  (struct rt_ht_capability_ie),
 							  &pAd->CommonCfg.
 							  HtCapability, 1,
 							  &AddHtInfoIe, 1,
 							  &AddHtLen,
 							  sizeof
-							  (ADD_HT_INFO_IE),
+							  (struct rt_add_ht_info_ie),
 							  &pAd->CommonCfg.
 							  AddHTInfo, 1,
 							  &NewExtChanIe, 1,
 							  &NewExtLen,
 							  sizeof
-							  (NEW_EXT_CHAN_IE),
+							  (struct rt_new_ext_chan_ie),
 							  &pAd->CommonCfg.
 							  NewExtChanOffset,
 							  END_OF_ARGS);
@@ -1833,7 +1833,7 @@ void PeerProbeReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	}
 }
 
-void BeaconTimeoutAtJoinAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void BeaconTimeoutAtJoinAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u16 Status;
 	DBGPRINT(RT_DEBUG_TRACE, ("SYNC - BeaconTimeoutAtJoinAction\n"));
@@ -1848,7 +1848,7 @@ void BeaconTimeoutAtJoinAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		Scan timeout procedure. basically add channel index by 1 and rescan
 	==========================================================================
  */
-void ScanTimeoutAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void ScanTimeoutAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	pAd->MlmeAux.Channel = NextChannel(pAd, pAd->MlmeAux.Channel);
 
@@ -1868,7 +1868,7 @@ void ScanTimeoutAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	Description:
 	==========================================================================
  */
-void InvalidStateWhenScan(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void InvalidStateWhenScan(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u16 Status;
 	DBGPRINT(RT_DEBUG_TRACE,
@@ -1884,7 +1884,7 @@ void InvalidStateWhenScan(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	Description:
 	==========================================================================
  */
-void InvalidStateWhenJoin(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void InvalidStateWhenJoin(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u16 Status;
 	DBGPRINT(RT_DEBUG_TRACE,
@@ -1900,7 +1900,7 @@ void InvalidStateWhenJoin(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	Description:
 	==========================================================================
  */
-void InvalidStateWhenStart(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void InvalidStateWhenStart(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u16 Status;
 	DBGPRINT(RT_DEBUG_TRACE,
@@ -1919,13 +1919,13 @@ void InvalidStateWhenStart(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 	==========================================================================
  */
-void EnqueuePsPoll(IN PRTMP_ADAPTER pAd)
+void EnqueuePsPoll(struct rt_rtmp_adapter *pAd)
 {
 
 	if (pAd->StaCfg.WindowsPowerMode == Ndis802_11PowerModeLegacy_PSP)
 		pAd->PsPollFrame.FC.PwrMgmt = PWR_SAVE;
 	MiniportMMRequest(pAd, 0, (u8 *)& pAd->PsPollFrame,
-			  sizeof(PSPOLL_FRAME));
+			  sizeof(struct rt_pspoll_frame));
 }
 
 /*
@@ -1933,12 +1933,12 @@ void EnqueuePsPoll(IN PRTMP_ADAPTER pAd)
 	Description:
 	==========================================================================
  */
-void EnqueueProbeRequest(IN PRTMP_ADAPTER pAd)
+void EnqueueProbeRequest(struct rt_rtmp_adapter *pAd)
 {
 	int NState;
 	u8 *pOutBuffer;
 	unsigned long FrameLen = 0;
-	HEADER_802_11 Hdr80211;
+	struct rt_header_802_11 Hdr80211;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("force out a ProbeRequest ...\n"));
 
@@ -1949,7 +1949,7 @@ void EnqueueProbeRequest(IN PRTMP_ADAPTER pAd)
 
 		/* this ProbeRequest explicitly specify SSID to reduce unwanted ProbeResponse */
 		MakeOutgoingFrame(pOutBuffer, &FrameLen,
-				  sizeof(HEADER_802_11), &Hdr80211,
+				  sizeof(struct rt_header_802_11), &Hdr80211,
 				  1, &SsidIe,
 				  1, &pAd->CommonCfg.SsidLen,
 				  pAd->CommonCfg.SsidLen, pAd->CommonCfg.Ssid,
@@ -1963,7 +1963,7 @@ void EnqueueProbeRequest(IN PRTMP_ADAPTER pAd)
 
 }
 
-BOOLEAN ScanRunning(IN PRTMP_ADAPTER pAd)
+BOOLEAN ScanRunning(struct rt_rtmp_adapter *pAd)
 {
 	return (pAd->Mlme.SyncMachine.CurrState == SCAN_LISTEN) ? TRUE : FALSE;
 }

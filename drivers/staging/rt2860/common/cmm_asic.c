@@ -38,7 +38,7 @@
 #include "../rt_config.h"
 
 /* Reset the RFIC setting to new series */
-RTMP_RF_REGS RF2850RegTable[] = {
+struct rt_rtmp_rf_regs RF2850RegTable[] = {
 /*              ch       R1              R2              R3(TX0~4=0) R4 */
 	{1, 0x98402ecc, 0x984c0786, 0x9816b455, 0x9800510b}
 	,
@@ -177,9 +177,9 @@ RTMP_RF_REGS RF2850RegTable[] = {
 	/* still lack of MMAC(Japan) ch 34,38,42,46 */
 };
 
-u8 NUM_OF_2850_CHNL = (sizeof(RF2850RegTable) / sizeof(RTMP_RF_REGS));
+u8 NUM_OF_2850_CHNL = (sizeof(RF2850RegTable) / sizeof(struct rt_rtmp_rf_regs));
 
-FREQUENCY_ITEM FreqItems3020[] = {
+struct rt_frequency_item FreqItems3020[] = {
 	/**************************************************/
 	/* ISM : 2.4 to 2.483 GHz                         // */
 	/**************************************************/
@@ -216,16 +216,16 @@ FREQUENCY_ITEM FreqItems3020[] = {
 	,
 };
 
-u8 NUM_OF_3020_CHNL = (sizeof(FreqItems3020) / sizeof(FREQUENCY_ITEM));
+u8 NUM_OF_3020_CHNL = (sizeof(FreqItems3020) / sizeof(struct rt_frequency_item));
 
-void AsicUpdateAutoFallBackTable(IN PRTMP_ADAPTER pAd, u8 *pRateTable)
+void AsicUpdateAutoFallBackTable(struct rt_rtmp_adapter *pAd, u8 *pRateTable)
 {
 	u8 i;
 	HT_FBK_CFG0_STRUC HtCfg0;
 	HT_FBK_CFG1_STRUC HtCfg1;
 	LG_FBK_CFG0_STRUC LgCfg0;
 	LG_FBK_CFG1_STRUC LgCfg1;
-	PRTMP_TX_RATE_SWITCH pCurrTxRate, pNextTxRate;
+	struct rt_rtmp_tx_rate_switch *pCurrTxRate, *pNextTxRate;
 
 	/* set to initial value */
 	HtCfg0.word = 0x65432100;
@@ -233,9 +233,9 @@ void AsicUpdateAutoFallBackTable(IN PRTMP_ADAPTER pAd, u8 *pRateTable)
 	LgCfg0.word = 0xedcba988;
 	LgCfg1.word = 0x00002100;
 
-	pNextTxRate = (PRTMP_TX_RATE_SWITCH) pRateTable + 1;
+	pNextTxRate = (struct rt_rtmp_tx_rate_switch *) pRateTable + 1;
 	for (i = 1; i < *((u8 *)pRateTable); i++) {
-		pCurrTxRate = (PRTMP_TX_RATE_SWITCH) pRateTable + 1 + i;
+		pCurrTxRate = (struct rt_rtmp_tx_rate_switch *) pRateTable + 1 + i;
 		switch (pCurrTxRate->Mode) {
 		case 0:	/*CCK */
 			break;
@@ -417,7 +417,7 @@ void AsicUpdateAutoFallBackTable(IN PRTMP_ADAPTER pAd, u8 *pRateTable)
 			we should choose not to use GF. But still set correct ASIC registers.
 	========================================================================
 */
-void AsicUpdateProtect(IN PRTMP_ADAPTER pAd,
+void AsicUpdateProtect(struct rt_rtmp_adapter *pAd,
 		       u16 OperationMode,
 		       u8 SetMask,
 		       IN BOOLEAN bDisableBGProtect, IN BOOLEAN bNonGFExist)
@@ -631,13 +631,13 @@ void AsicUpdateProtect(IN PRTMP_ADAPTER pAd,
 
 	==========================================================================
  */
-void AsicSwitchChannel(IN PRTMP_ADAPTER pAd, u8 Channel, IN BOOLEAN bScan)
+void AsicSwitchChannel(struct rt_rtmp_adapter *pAd, u8 Channel, IN BOOLEAN bScan)
 {
 	unsigned long R2 = 0, R3 = DEFAULT_RF_TX_POWER, R4 = 0;
 	char TxPwer = 0, TxPwer2 = DEFAULT_RF_TX_POWER;	/*Bbp94 = BBPR94_DEFAULT, TxPwer2 = DEFAULT_RF_TX_POWER; */
 	u8 index;
 	u32 Value = 0;	/*BbpReg, Value; */
-	RTMP_RF_REGS *RFRegTable;
+	struct rt_rtmp_rf_regs *RFRegTable;
 	u8 RFValue;
 
 	RFValue = 0;
@@ -1002,7 +1002,7 @@ void AsicSwitchChannel(IN PRTMP_ADAPTER pAd, u8 Channel, IN BOOLEAN bScan)
 	RTMPusecDelay(1000);
 }
 
-void AsicResetBBPAgent(IN PRTMP_ADAPTER pAd)
+void AsicResetBBPAgent(struct rt_rtmp_adapter *pAd)
 {
 	BBP_CSR_CFG_STRUC BbpCsr;
 	DBGPRINT(RT_DEBUG_ERROR, ("Reset BBP Agent busy bit.!! \n"));
@@ -1025,7 +1025,7 @@ void AsicResetBBPAgent(IN PRTMP_ADAPTER pAd)
 
 	==========================================================================
  */
-void AsicLockChannel(IN PRTMP_ADAPTER pAd, u8 Channel)
+void AsicLockChannel(struct rt_rtmp_adapter *pAd, u8 Channel)
 {
 }
 
@@ -1052,7 +1052,7 @@ void AsicRfTuningExec(void *SystemSpecific1,
 		it should be called AFTER MlmeDynamicTxRatSwitching()
 	==========================================================================
  */
-void AsicAdjustTxPower(IN PRTMP_ADAPTER pAd)
+void AsicAdjustTxPower(struct rt_rtmp_adapter *pAd)
 {
 	int i, j;
 	char DeltaPwr = 0;
@@ -1277,7 +1277,7 @@ void AsicAdjustTxPower(IN PRTMP_ADAPTER pAd)
 
 	==========================================================================
  */
-void AsicSleepThenAutoWakeup(IN PRTMP_ADAPTER pAd,
+void AsicSleepThenAutoWakeup(struct rt_rtmp_adapter *pAd,
 			     u16 TbttNumToNextWakeUp)
 {
 	RTMP_STA_SLEEP_THEN_AUTO_WAKEUP(pAd, TbttNumToNextWakeUp);
@@ -1291,7 +1291,7 @@ void AsicSleepThenAutoWakeup(IN PRTMP_ADAPTER pAd,
 		in INFRA BSS, we should use AsicSleepThenAutoWakeup() instead.
 	==========================================================================
  */
-void AsicForceSleep(IN PRTMP_ADAPTER pAd)
+void AsicForceSleep(struct rt_rtmp_adapter *pAd)
 {
 
 }
@@ -1306,7 +1306,7 @@ void AsicForceSleep(IN PRTMP_ADAPTER pAd)
 	IRQL = DISPATCH_LEVEL
 	==========================================================================
  */
-void AsicForceWakeup(IN PRTMP_ADAPTER pAd, IN BOOLEAN bFromTx)
+void AsicForceWakeup(struct rt_rtmp_adapter *pAd, IN BOOLEAN bFromTx)
 {
 	DBGPRINT(RT_DEBUG_INFO, ("--> AsicForceWakeup \n"));
 	RTMP_STA_FORCE_WAKEUP(pAd, bFromTx);
@@ -1321,7 +1321,7 @@ void AsicForceWakeup(IN PRTMP_ADAPTER pAd, IN BOOLEAN bFromTx)
 
 	==========================================================================
  */
-void AsicSetBssid(IN PRTMP_ADAPTER pAd, u8 *pBssid)
+void AsicSetBssid(struct rt_rtmp_adapter *pAd, u8 *pBssid)
 {
 	unsigned long Addr4;
 	DBGPRINT(RT_DEBUG_TRACE,
@@ -1340,9 +1340,9 @@ void AsicSetBssid(IN PRTMP_ADAPTER pAd, u8 *pBssid)
 	RTMP_IO_WRITE32(pAd, MAC_BSSID_DW1, Addr4);
 }
 
-void AsicSetMcastWC(IN PRTMP_ADAPTER pAd)
+void AsicSetMcastWC(struct rt_rtmp_adapter *pAd)
 {
-	MAC_TABLE_ENTRY *pEntry = &pAd->MacTab.Content[MCAST_WCID];
+	struct rt_mac_table_entry *pEntry = &pAd->MacTab.Content[MCAST_WCID];
 	u16 offset;
 
 	pEntry->Sst = SST_ASSOC;
@@ -1360,7 +1360,7 @@ void AsicSetMcastWC(IN PRTMP_ADAPTER pAd)
 
 	==========================================================================
  */
-void AsicDelWcidTab(IN PRTMP_ADAPTER pAd, u8 Wcid)
+void AsicDelWcidTab(struct rt_rtmp_adapter *pAd, u8 Wcid)
 {
 	unsigned long Addr0 = 0x0, Addr1 = 0x0;
 	unsigned long offset;
@@ -1380,7 +1380,7 @@ void AsicDelWcidTab(IN PRTMP_ADAPTER pAd, u8 Wcid)
 
 	==========================================================================
  */
-void AsicEnableRDG(IN PRTMP_ADAPTER pAd)
+void AsicEnableRDG(struct rt_rtmp_adapter *pAd)
 {
 	TX_LINK_CFG_STRUC TxLinkCfg;
 	u32 Data = 0;
@@ -1405,7 +1405,7 @@ void AsicEnableRDG(IN PRTMP_ADAPTER pAd)
 
 	==========================================================================
  */
-void AsicDisableRDG(IN PRTMP_ADAPTER pAd)
+void AsicDisableRDG(struct rt_rtmp_adapter *pAd)
 {
 	TX_LINK_CFG_STRUC TxLinkCfg;
 	u32 Data = 0;
@@ -1441,7 +1441,7 @@ void AsicDisableRDG(IN PRTMP_ADAPTER pAd)
 
 	==========================================================================
  */
-void AsicDisableSync(IN PRTMP_ADAPTER pAd)
+void AsicDisableSync(struct rt_rtmp_adapter *pAd)
 {
 	BCN_TIME_CFG_STRUC csr;
 
@@ -1468,7 +1468,7 @@ void AsicDisableSync(IN PRTMP_ADAPTER pAd)
 
 	==========================================================================
  */
-void AsicEnableBssSync(IN PRTMP_ADAPTER pAd)
+void AsicEnableBssSync(struct rt_rtmp_adapter *pAd)
 {
 	BCN_TIME_CFG_STRUC csr;
 
@@ -1498,7 +1498,7 @@ void AsicEnableBssSync(IN PRTMP_ADAPTER pAd)
 
 	==========================================================================
  */
-void AsicEnableIbssSync(IN PRTMP_ADAPTER pAd)
+void AsicEnableIbssSync(struct rt_rtmp_adapter *pAd)
 {
 	BCN_TIME_CFG_STRUC csr9;
 	u8 *ptr;
@@ -1581,7 +1581,7 @@ void AsicEnableIbssSync(IN PRTMP_ADAPTER pAd)
 
 	==========================================================================
  */
-void AsicSetEdcaParm(IN PRTMP_ADAPTER pAd, IN PEDCA_PARM pEdcaParm)
+void AsicSetEdcaParm(struct rt_rtmp_adapter *pAd, struct rt_edca_parm *pEdcaParm)
 {
 	EDCA_AC_CFG_STRUC Ac0Cfg, Ac1Cfg, Ac2Cfg, Ac3Cfg;
 	AC_TXOP_CSR0_STRUC csr0;
@@ -1676,7 +1676,7 @@ void AsicSetEdcaParm(IN PRTMP_ADAPTER pAd, IN PEDCA_PARM pEdcaParm)
 
 		RTMP_IO_WRITE32(pAd, WMM_AIFSN_CFG, 0x00002222);
 
-		NdisZeroMemory(&pAd->CommonCfg.APEdcaParm, sizeof(EDCA_PARM));
+		NdisZeroMemory(&pAd->CommonCfg.APEdcaParm, sizeof(struct rt_edca_parm));
 	} else {
 		OPSTATUS_SET_FLAG(pAd, fOP_STATUS_WMM_INUSED);
 		/*======================================================== */
@@ -1823,7 +1823,7 @@ void AsicSetEdcaParm(IN PRTMP_ADAPTER pAd, IN PEDCA_PARM pEdcaParm)
 		RTMP_IO_WRITE32(pAd, WMM_AIFSN_CFG, AifsnCsr.word);
 
 		NdisMoveMemory(&pAd->CommonCfg.APEdcaParm, pEdcaParm,
-			       sizeof(EDCA_PARM));
+			       sizeof(struct rt_edca_parm));
 		if (!ADHOC_ON(pAd)) {
 			DBGPRINT(RT_DEBUG_TRACE,
 				 ("EDCA [#%d]: AIFSN CWmin CWmax  TXOP(us)  ACM\n",
@@ -1862,7 +1862,7 @@ void AsicSetEdcaParm(IN PRTMP_ADAPTER pAd, IN PEDCA_PARM pEdcaParm)
 
 	==========================================================================
  */
-void AsicSetSlotTime(IN PRTMP_ADAPTER pAd, IN BOOLEAN bUseShortSlotTime)
+void AsicSetSlotTime(struct rt_rtmp_adapter *pAd, IN BOOLEAN bUseShortSlotTime)
 {
 	unsigned long SlotTime;
 	u32 RegValue = 0;
@@ -1930,7 +1930,7 @@ void AsicSetSlotTime(IN PRTMP_ADAPTER pAd, IN BOOLEAN bUseShortSlotTime)
     Return:
 	========================================================================
 */
-void AsicAddSharedKeyEntry(IN PRTMP_ADAPTER pAd,
+void AsicAddSharedKeyEntry(struct rt_rtmp_adapter *pAd,
 			   u8 BssIndex,
 			   u8 KeyIdx,
 			   u8 CipherAlg,
@@ -2048,7 +2048,7 @@ void AsicAddSharedKeyEntry(IN PRTMP_ADAPTER pAd,
 }
 
 /*      IRQL = DISPATCH_LEVEL */
-void AsicRemoveSharedKeyEntry(IN PRTMP_ADAPTER pAd,
+void AsicRemoveSharedKeyEntry(struct rt_rtmp_adapter *pAd,
 			      u8 BssIndex, u8 KeyIdx)
 {
 	/*unsigned long SecCsr0; */
@@ -2088,7 +2088,7 @@ void AsicRemoveSharedKeyEntry(IN PRTMP_ADAPTER pAd,
 
 }
 
-void AsicUpdateWCIDAttribute(IN PRTMP_ADAPTER pAd,
+void AsicUpdateWCIDAttribute(struct rt_rtmp_adapter *pAd,
 			     u16 WCID,
 			     u8 BssIndex,
 			     u8 CipherAlg,
@@ -2106,7 +2106,7 @@ void AsicUpdateWCIDAttribute(IN PRTMP_ADAPTER pAd,
 	RTMP_IO_WRITE32(pAd, offset, WCIDAttri);
 }
 
-void AsicUpdateWCIDIVEIV(IN PRTMP_ADAPTER pAd,
+void AsicUpdateWCIDIVEIV(struct rt_rtmp_adapter *pAd,
 			 u16 WCID, unsigned long uIV, unsigned long uEIV)
 {
 	unsigned long offset;
@@ -2117,7 +2117,7 @@ void AsicUpdateWCIDIVEIV(IN PRTMP_ADAPTER pAd,
 	RTMP_IO_WRITE32(pAd, offset + 4, uEIV);
 }
 
-void AsicUpdateRxWCIDTable(IN PRTMP_ADAPTER pAd,
+void AsicUpdateRxWCIDTable(struct rt_rtmp_adapter *pAd,
 			   u16 WCID, u8 *pAddr)
 {
 	unsigned long offset;
@@ -2163,11 +2163,11 @@ void AsicUpdateRxWCIDTable(IN PRTMP_ADAPTER pAd,
 	For AP mode bTxKey must be always set to TRUE.
     ========================================================================
 */
-void AsicAddKeyEntry(IN PRTMP_ADAPTER pAd,
+void AsicAddKeyEntry(struct rt_rtmp_adapter *pAd,
 		     u16 WCID,
 		     u8 BssIndex,
 		     u8 KeyIdx,
-		     IN PCIPHER_KEY pCipherKey,
+		     struct rt_cipher_key *pCipherKey,
 		     IN BOOLEAN bUsePairewiseKeyTable, IN BOOLEAN bTxKey)
 {
 	unsigned long offset;
@@ -2339,9 +2339,9 @@ void AsicAddKeyEntry(IN PRTMP_ADAPTER pAd,
     Return:
 	========================================================================
 */
-void AsicAddPairwiseKeyEntry(IN PRTMP_ADAPTER pAd,
+void AsicAddPairwiseKeyEntry(struct rt_rtmp_adapter *pAd,
 			     u8 *pAddr,
-			     u8 WCID, IN CIPHER_KEY * pCipherKey)
+			     u8 WCID, struct rt_cipher_key *pCipherKey)
 {
 	int i;
 	unsigned long offset;
@@ -2422,7 +2422,7 @@ void AsicAddPairwiseKeyEntry(IN PRTMP_ADAPTER pAd,
     Return:
 	========================================================================
 */
-void AsicRemovePairwiseKeyEntry(IN PRTMP_ADAPTER pAd,
+void AsicRemovePairwiseKeyEntry(struct rt_rtmp_adapter *pAd,
 				u8 BssIdx, u8 Wcid)
 {
 	unsigned long WCIDAttri;
@@ -2434,7 +2434,7 @@ void AsicRemovePairwiseKeyEntry(IN PRTMP_ADAPTER pAd,
 	RTMP_IO_WRITE32(pAd, offset, WCIDAttri);
 }
 
-BOOLEAN AsicSendCommandToMcu(IN PRTMP_ADAPTER pAd,
+BOOLEAN AsicSendCommandToMcu(struct rt_rtmp_adapter *pAd,
 			     u8 Command,
 			     u8 Token, u8 Arg0, u8 Arg1)
 {
@@ -2445,7 +2445,7 @@ BOOLEAN AsicSendCommandToMcu(IN PRTMP_ADAPTER pAd,
 	return TRUE;
 }
 
-void AsicSetRxAnt(IN PRTMP_ADAPTER pAd, u8 Ant)
+void AsicSetRxAnt(struct rt_rtmp_adapter *pAd, u8 Ant)
 {
 #ifdef RT30xx
 	/* RT3572 ATE need not to do this. */
@@ -2453,7 +2453,7 @@ void AsicSetRxAnt(IN PRTMP_ADAPTER pAd, u8 Ant)
 #endif /* RT30xx // */
 }
 
-void AsicTurnOffRFClk(IN PRTMP_ADAPTER pAd, u8 Channel)
+void AsicTurnOffRFClk(struct rt_rtmp_adapter *pAd, u8 Channel)
 {
 	if (pAd->chipOps.AsicRfTurnOff) {
 		pAd->chipOps.AsicRfTurnOff(pAd);
@@ -2461,7 +2461,7 @@ void AsicTurnOffRFClk(IN PRTMP_ADAPTER pAd, u8 Channel)
 		/* RF R2 bit 18 = 0 */
 		u32 R1 = 0, R2 = 0, R3 = 0;
 		u8 index;
-		RTMP_RF_REGS *RFRegTable;
+		struct rt_rtmp_rf_regs *RFRegTable;
 
 		RFRegTable = RF2850RegTable;
 
@@ -2507,12 +2507,12 @@ void AsicTurnOffRFClk(IN PRTMP_ADAPTER pAd, u8 Channel)
 	}
 }
 
-void AsicTurnOnRFClk(IN PRTMP_ADAPTER pAd, u8 Channel)
+void AsicTurnOnRFClk(struct rt_rtmp_adapter *pAd, u8 Channel)
 {
 	/* RF R2 bit 18 = 0 */
 	u32 R1 = 0, R2 = 0, R3 = 0;
 	u8 index;
-	RTMP_RF_REGS *RFRegTable;
+	struct rt_rtmp_rf_regs *RFRegTable;
 
 #ifdef PCIE_PS_SUPPORT
 	/* The RF programming sequence is difference between 3xxx and 2xxx */

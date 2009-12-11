@@ -54,14 +54,14 @@ extern u8 BROADCOM_OUI[];
         TRUE if all parameters are OK, FALSE otherwise
     ==========================================================================
  */
-BOOLEAN MlmeStartReqSanity(IN PRTMP_ADAPTER pAd,
+BOOLEAN MlmeStartReqSanity(struct rt_rtmp_adapter *pAd,
 			   void * Msg,
 			   unsigned long MsgLen,
 			   char Ssid[], u8 * pSsidLen)
 {
-	MLME_START_REQ_STRUCT *Info;
+	struct rt_mlme_start_req *Info;
 
-	Info = (MLME_START_REQ_STRUCT *) (Msg);
+	Info = (struct rt_mlme_start_req *)(Msg);
 
 	if (Info->SsidLen > MAX_LEN_OF_SSID) {
 		DBGPRINT(RT_DEBUG_TRACE,
@@ -86,15 +86,15 @@ BOOLEAN MlmeStartReqSanity(IN PRTMP_ADAPTER pAd,
 
     ==========================================================================
  */
-BOOLEAN PeerAssocRspSanity(IN PRTMP_ADAPTER pAd, void * pMsg, unsigned long MsgLen, u8 *pAddr2, u16 * pCapabilityInfo, u16 * pStatus, u16 * pAid, u8 SupRate[], u8 * pSupRateLen, u8 ExtRate[], u8 * pExtRateLen, OUT HT_CAPABILITY_IE * pHtCapability, OUT ADD_HT_INFO_IE * pAddHtInfo,	/* AP might use this additional ht info IE */
+BOOLEAN PeerAssocRspSanity(struct rt_rtmp_adapter *pAd, void * pMsg, unsigned long MsgLen, u8 *pAddr2, u16 * pCapabilityInfo, u16 * pStatus, u16 * pAid, u8 SupRate[], u8 * pSupRateLen, u8 ExtRate[], u8 * pExtRateLen, struct rt_ht_capability_ie * pHtCapability, struct rt_add_ht_info_ie * pAddHtInfo,	/* AP might use this additional ht info IE */
 			   u8 * pHtCapabilityLen,
 			   u8 * pAddHtInfoLen,
 			   u8 * pNewExtChannelOffset,
-			   OUT PEDCA_PARM pEdcaParm, u8 * pCkipFlag)
+			   struct rt_edca_parm *pEdcaParm, u8 * pCkipFlag)
 {
 	char IeType, *Ptr;
-	PFRAME_802_11 pFrame = (PFRAME_802_11) pMsg;
-	PEID_STRUCT pEid;
+	struct rt_frame_802_11 * pFrame = (struct rt_frame_802_11 *) pMsg;
+	struct rt_eid * pEid;
 	unsigned long Length = 0;
 
 	*pNewExtChannelOffset = 0xff;
@@ -136,7 +136,7 @@ BOOLEAN PeerAssocRspSanity(IN PRTMP_ADAPTER pAd, void * pMsg, unsigned long MsgL
 
 	/* many AP implement proprietary IEs in non-standard order, we'd better */
 	/* tolerate mis-ordered IEs to get best compatibility */
-	pEid = (PEID_STRUCT) & pFrame->Octet[8 + (*pSupRateLen)];
+	pEid = (struct rt_eid *) & pFrame->Octet[8 + (*pSupRateLen)];
 
 	/* get variable fields from payload and advance the pointer */
 	while ((Length + 2 + pEid->Len) <= MsgLen) {
@@ -171,11 +171,11 @@ BOOLEAN PeerAssocRspSanity(IN PRTMP_ADAPTER pAd, void * pMsg, unsigned long MsgL
 			break;
 		case IE_ADD_HT:
 		case IE_ADD_HT2:
-			if (pEid->Len >= sizeof(ADD_HT_INFO_IE)) {
+			if (pEid->Len >= sizeof(struct rt_add_ht_info_ie)) {
 				/* This IE allows extension, but we can ignore extra bytes beyond our knowledge , so only */
-				/* copy first sizeof(ADD_HT_INFO_IE) */
+				/* copy first sizeof(struct rt_add_ht_info_ie) */
 				NdisMoveMemory(pAddHtInfo, pEid->Octet,
-					       sizeof(ADD_HT_INFO_IE));
+					       sizeof(struct rt_add_ht_info_ie));
 
 				*(u16 *) (&pAddHtInfo->AddHtInfo2) =
 				    cpu2le16(*(u16 *)
@@ -237,7 +237,7 @@ BOOLEAN PeerAssocRspSanity(IN PRTMP_ADAPTER pAd, void * pMsg, unsigned long MsgL
 		}
 
 		Length = Length + 2 + pEid->Len;
-		pEid = (PEID_STRUCT) ((u8 *) pEid + 2 + pEid->Len);
+		pEid = (struct rt_eid *) ((u8 *) pEid + 2 + pEid->Len);
 	}
 
 	return TRUE;
@@ -254,7 +254,7 @@ BOOLEAN PeerAssocRspSanity(IN PRTMP_ADAPTER pAd, void * pMsg, unsigned long MsgL
 
     ==========================================================================
  */
-BOOLEAN PeerProbeReqSanity(IN PRTMP_ADAPTER pAd,
+BOOLEAN PeerProbeReqSanity(struct rt_rtmp_adapter *pAd,
 			   void * Msg,
 			   unsigned long MsgLen,
 			   u8 *pAddr2,
@@ -263,7 +263,7 @@ BOOLEAN PeerProbeReqSanity(IN PRTMP_ADAPTER pAd,
 	u8 Idx;
 	u8 RateLen;
 	char IeType;
-	PFRAME_802_11 pFrame = (PFRAME_802_11) Msg;
+	struct rt_frame_802_11 * pFrame = (struct rt_frame_802_11 *) Msg;
 
 	COPY_MAC_ADDR(pAddr2, pFrame->Hdr.Addr2);
 

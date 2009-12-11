@@ -49,28 +49,28 @@
 #define BAND_24G        1
 #define BAND_BOTH       2
 
-typedef struct _CH_DESP {
+struct rt_ch_desp {
 	u8 FirstChannel;
 	u8 NumOfCh;
 	char MaxTxPwr;		/* dBm */
 	u8 Geography;	/* 0:out door, 1:in door, 2:both */
 	BOOLEAN DfsReq;		/* Dfs require, 0: No, 1: yes. */
-} CH_DESP, *PCH_DESP;
+};
 
-typedef struct _CH_REGION {
+struct rt_ch_region {
 	u8 CountReg[3];
 	u8 DfsType;		/* 0: CE, 1: FCC, 2: JAP, 3:JAP_W53, JAP_W56 */
-	CH_DESP ChDesp[10];
-} CH_REGION, *PCH_REGION;
+	struct rt_ch_desp ChDesp[10];
+};
 
-extern CH_REGION ChRegion[];
+extern struct rt_ch_region ChRegion[];
 
-typedef struct _CH_FREQ_MAP_ {
+struct rt_ch_freq_map {
 	u16 channel;
 	u16 freqKHz;
-} CH_FREQ_MAP;
+};
 
-extern CH_FREQ_MAP CH_HZ_ID_MAP[];
+extern struct rt_ch_freq_map CH_HZ_ID_MAP[];
 extern int CH_HZ_ID_MAP_NUM;
 
 #define     MAP_CHANNEL_ID_TO_KHZ(_ch, _khz)					\
@@ -103,15 +103,15 @@ extern int CH_HZ_ID_MAP_NUM;
 				(_ch) = 1;											\
 		}while(0)
 
-void BuildChannelListEx(IN PRTMP_ADAPTER pAd);
+void BuildChannelListEx(struct rt_rtmp_adapter *pAd);
 
-void BuildBeaconChList(IN PRTMP_ADAPTER pAd,
+void BuildBeaconChList(struct rt_rtmp_adapter *pAd,
 		       u8 *pBuf, unsigned long *pBufLen);
 
-void N_ChannelCheck(IN PRTMP_ADAPTER pAd);
+void N_ChannelCheck(struct rt_rtmp_adapter *pAd);
 
-void N_SetCenCh(IN PRTMP_ADAPTER pAd);
+void N_SetCenCh(struct rt_rtmp_adapter *pAd);
 
-u8 GetCuntryMaxTxPwr(IN PRTMP_ADAPTER pAd, u8 channel);
+u8 GetCuntryMaxTxPwr(struct rt_rtmp_adapter *pAd, u8 channel);
 
 #endif /* __CHLIST_H__ */

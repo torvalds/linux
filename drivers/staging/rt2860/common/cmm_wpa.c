@@ -54,30 +54,30 @@ u8 OUI_WPA2_8021X_AKM[4] = { 0x00, 0x0F, 0xAC, 0x01 };
 u8 OUI_WPA2_PSK_AKM[4] = { 0x00, 0x0F, 0xAC, 0x02 };
 u8 OUI_WPA2_WEP104[4] = { 0x00, 0x0F, 0xAC, 0x05 };
 
-static void ConstructEapolKeyData(IN PMAC_TABLE_ENTRY pEntry,
+static void ConstructEapolKeyData(struct rt_mac_table_entry *pEntry,
 				  u8 GroupKeyWepStatus,
 				  u8 keyDescVer,
 				  u8 MsgType,
 				  u8 DefaultKeyIdx,
 				  u8 * GTK,
 				  u8 * RSNIE,
-				  u8 RSNIE_LEN, OUT PEAPOL_PACKET pMsg);
+				  u8 RSNIE_LEN, struct rt_eapol_packet * pMsg);
 
 static void CalculateMIC(u8 KeyDescVer,
-			 u8 * PTK, OUT PEAPOL_PACKET pMsg);
+			 u8 * PTK, struct rt_eapol_packet * pMsg);
 
-static void WpaEAPPacketAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem);
+static void WpaEAPPacketAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem);
 
-static void WpaEAPOLASFAlertAction(IN PRTMP_ADAPTER pAd,
-				   IN MLME_QUEUE_ELEM * Elem);
+static void WpaEAPOLASFAlertAction(struct rt_rtmp_adapter *pAd,
+				   struct rt_mlme_queue_elem *Elem);
 
-static void WpaEAPOLLogoffAction(IN PRTMP_ADAPTER pAd,
-				 IN MLME_QUEUE_ELEM * Elem);
+static void WpaEAPOLLogoffAction(struct rt_rtmp_adapter *pAd,
+				 struct rt_mlme_queue_elem *Elem);
 
-static void WpaEAPOLStartAction(IN PRTMP_ADAPTER pAd,
-				IN MLME_QUEUE_ELEM * Elem);
+static void WpaEAPOLStartAction(struct rt_rtmp_adapter *pAd,
+				struct rt_mlme_queue_elem *Elem);
 
-static void WpaEAPOLKeyAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem);
+static void WpaEAPOLKeyAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem);
 
 /*
     ==========================================================================
@@ -87,8 +87,8 @@ static void WpaEAPOLKeyAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem);
         S - pointer to the association state machine
     ==========================================================================
  */
-void WpaStateMachineInit(IN PRTMP_ADAPTER pAd,
-			 IN STATE_MACHINE * S, OUT STATE_MACHINE_FUNC Trans[])
+void WpaStateMachineInit(struct rt_rtmp_adapter *pAd,
+			 struct rt_state_machine *S, OUT STATE_MACHINE_FUNC Trans[])
 {
 	StateMachineInit(S, (STATE_MACHINE_FUNC *) Trans, MAX_WPA_PTK_STATE,
 			 MAX_WPA_MSG, (STATE_MACHINE_FUNC) Drop, WPA_PTK,
@@ -115,15 +115,15 @@ void WpaStateMachineInit(IN PRTMP_ADAPTER pAd,
     Return:
     ==========================================================================
 */
-void WpaEAPPacketAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void WpaEAPPacketAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 }
 
-void WpaEAPOLASFAlertAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void WpaEAPOLASFAlertAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 }
 
-void WpaEAPOLLogoffAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void WpaEAPOLLogoffAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 }
 
@@ -134,14 +134,14 @@ void WpaEAPOLLogoffAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
     Return:
     ==========================================================================
 */
-void WpaEAPOLStartAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void WpaEAPOLStartAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
-	MAC_TABLE_ENTRY *pEntry;
-	PHEADER_802_11 pHeader;
+	struct rt_mac_table_entry *pEntry;
+	struct rt_header_802_11 * pHeader;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("WpaEAPOLStartAction ===> \n"));
 
-	pHeader = (PHEADER_802_11) Elem->Msg;
+	pHeader = (struct rt_header_802_11 *) Elem->Msg;
 
 	/*For normaol PSK, we enqueue an EAPOL-Start command to trigger the process. */
 	if (Elem->MsgLen == 6)
@@ -187,23 +187,23 @@ void WpaEAPOLStartAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
     Return:
     ==========================================================================
 */
-void WpaEAPOLKeyAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void WpaEAPOLKeyAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
-	MAC_TABLE_ENTRY *pEntry;
-	PHEADER_802_11 pHeader;
-	PEAPOL_PACKET pEapol_packet;
-	KEY_INFO peerKeyInfo;
+	struct rt_mac_table_entry *pEntry;
+	struct rt_header_802_11 * pHeader;
+	struct rt_eapol_packet * pEapol_packet;
+	struct rt_key_info peerKeyInfo;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("WpaEAPOLKeyAction ===>\n"));
 
-	pHeader = (PHEADER_802_11) Elem->Msg;
+	pHeader = (struct rt_header_802_11 *) Elem->Msg;
 	pEapol_packet =
-	    (PEAPOL_PACKET) & Elem->Msg[LENGTH_802_11 + LENGTH_802_1_H];
+	    (struct rt_eapol_packet *) & Elem->Msg[LENGTH_802_11 + LENGTH_802_1_H];
 
 	NdisZeroMemory((u8 *)& peerKeyInfo, sizeof(peerKeyInfo));
 	NdisMoveMemory((u8 *)& peerKeyInfo,
 		       (u8 *)& pEapol_packet->KeyDesc.KeyInfo,
-		       sizeof(KEY_INFO));
+		       sizeof(struct rt_key_info));
 
 	hex_dump("Received Eapol frame", (unsigned char *)pEapol_packet,
 		 (Elem->MsgLen - LENGTH_802_11 - LENGTH_802_1_H));
@@ -357,8 +357,8 @@ void WpaEAPOLKeyAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 	========================================================================
 */
-void RTMPToWirelessSta(IN PRTMP_ADAPTER pAd,
-		       IN PMAC_TABLE_ENTRY pEntry,
+void RTMPToWirelessSta(struct rt_rtmp_adapter *pAd,
+		       struct rt_mac_table_entry *pEntry,
 		       u8 *pHeader802_3,
 		       u32 HdrLen,
 		       u8 *pData, u32 DataLen, IN BOOLEAN bClearFrame)
@@ -433,11 +433,11 @@ void RTMPToWirelessSta(IN PRTMP_ADAPTER pAd,
 
     ==========================================================================
 */
-void WPAStart4WayHS(IN PRTMP_ADAPTER pAd,
-		    IN MAC_TABLE_ENTRY * pEntry, unsigned long TimeInterval)
+void WPAStart4WayHS(struct rt_rtmp_adapter *pAd,
+		    struct rt_mac_table_entry *pEntry, unsigned long TimeInterval)
 {
 	u8 Header802_3[14];
-	EAPOL_PACKET EAPOLPKT;
+	struct rt_eapol_packet EAPOLPKT;
 	u8 *pBssid = NULL;
 	u8 group_cipher = Ndis802_11WEPDisabled;
 
@@ -472,7 +472,7 @@ void WPAStart4WayHS(IN PRTMP_ADAPTER pAd,
 
 	/* Construct EAPoL message - Pairwise Msg 1 */
 	/* EAPOL-Key(0,0,1,0,P,0,0,ANonce,0,DataKD_M1) */
-	NdisZeroMemory(&EAPOLPKT, sizeof(EAPOL_PACKET));
+	NdisZeroMemory(&EAPOLPKT, sizeof(struct rt_eapol_packet));
 	ConstructEapolMsg(pEntry, group_cipher, EAPOL_PAIR_MSG_1, 0,	/* Default key index */
 			  pEntry->ANonce, NULL,	/* TxRSC */
 			  NULL,	/* GTK */
@@ -516,14 +516,14 @@ void WPAStart4WayHS(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-void PeerPairMsg1Action(IN PRTMP_ADAPTER pAd,
-			IN MAC_TABLE_ENTRY * pEntry, IN MLME_QUEUE_ELEM * Elem)
+void PeerPairMsg1Action(struct rt_rtmp_adapter *pAd,
+			struct rt_mac_table_entry *pEntry, struct rt_mlme_queue_elem *Elem)
 {
 	u8 PTK[80];
 	u8 Header802_3[14];
-	PEAPOL_PACKET pMsg1;
+	struct rt_eapol_packet * pMsg1;
 	u32 MsgLen;
-	EAPOL_PACKET EAPOLPKT;
+	struct rt_eapol_packet EAPOLPKT;
 	u8 *pCurrentAddr = NULL;
 	u8 *pmk_ptr = NULL;
 	u8 group_cipher = Ndis802_11WEPDisabled;
@@ -537,7 +537,7 @@ void PeerPairMsg1Action(IN PRTMP_ADAPTER pAd,
 
 	if (Elem->MsgLen <
 	    (LENGTH_802_11 + LENGTH_802_1_H + LENGTH_EAPOL_H +
-	     sizeof(KEY_DESCRIPTER) - MAX_LEN_OF_RSNIE - 2))
+	     sizeof(struct rt_key_descripter) - MAX_LEN_OF_RSNIE - 2))
 		return;
 
 	{
@@ -549,7 +549,7 @@ void PeerPairMsg1Action(IN PRTMP_ADAPTER pAd,
 	}
 
 	/* Store the received frame */
-	pMsg1 = (PEAPOL_PACKET) & Elem->Msg[LENGTH_802_11 + LENGTH_802_1_H];
+	pMsg1 = (struct rt_eapol_packet *) & Elem->Msg[LENGTH_802_11 + LENGTH_802_1_H];
 	MsgLen = Elem->MsgLen - LENGTH_802_11 - LENGTH_802_1_H;
 
 	/* Sanity Check peer Pairwise message 1 - Replay Counter */
@@ -585,7 +585,7 @@ void PeerPairMsg1Action(IN PRTMP_ADAPTER pAd,
 
 	/* Construct EAPoL message - Pairwise Msg 2 */
 	/*  EAPOL-Key(0,1,0,0,P,0,0,SNonce,MIC,DataKD_M2) */
-	NdisZeroMemory(&EAPOLPKT, sizeof(EAPOL_PACKET));
+	NdisZeroMemory(&EAPOLPKT, sizeof(struct rt_eapol_packet));
 	ConstructEapolMsg(pEntry, group_cipher, EAPOL_PAIR_MSG_2, 0,	/* DefaultKeyIdx */
 			  pEntry->SNonce, NULL,	/* TxRsc */
 			  NULL,	/* GTK */
@@ -609,14 +609,14 @@ void PeerPairMsg1Action(IN PRTMP_ADAPTER pAd,
     Return:
     ==========================================================================
 */
-void PeerPairMsg2Action(IN PRTMP_ADAPTER pAd,
-			IN MAC_TABLE_ENTRY * pEntry, IN MLME_QUEUE_ELEM * Elem)
+void PeerPairMsg2Action(struct rt_rtmp_adapter *pAd,
+			struct rt_mac_table_entry *pEntry, struct rt_mlme_queue_elem *Elem)
 {
 	u8 PTK[80];
 	BOOLEAN Cancelled;
-	PHEADER_802_11 pHeader;
-	EAPOL_PACKET EAPOLPKT;
-	PEAPOL_PACKET pMsg2;
+	struct rt_header_802_11 * pHeader;
+	struct rt_eapol_packet EAPOLPKT;
+	struct rt_eapol_packet * pMsg2;
 	u32 MsgLen;
 	u8 Header802_3[LENGTH_802_3];
 	u8 TxTsc[6];
@@ -635,7 +635,7 @@ void PeerPairMsg2Action(IN PRTMP_ADAPTER pAd,
 
 	if (Elem->MsgLen <
 	    (LENGTH_802_11 + LENGTH_802_1_H + LENGTH_EAPOL_H +
-	     sizeof(KEY_DESCRIPTER) - MAX_LEN_OF_RSNIE - 2))
+	     sizeof(struct rt_key_descripter) - MAX_LEN_OF_RSNIE - 2))
 		return;
 
 	/* check Entry in valid State */
@@ -643,10 +643,10 @@ void PeerPairMsg2Action(IN PRTMP_ADAPTER pAd,
 		return;
 
 	/* pointer to 802.11 header */
-	pHeader = (PHEADER_802_11) Elem->Msg;
+	pHeader = (struct rt_header_802_11 *) Elem->Msg;
 
 	/* skip 802.11_header(24-byte) and LLC_header(8) */
-	pMsg2 = (PEAPOL_PACKET) & Elem->Msg[LENGTH_802_11 + LENGTH_802_1_H];
+	pMsg2 = (struct rt_eapol_packet *) & Elem->Msg[LENGTH_802_11 + LENGTH_802_1_H];
 	MsgLen = Elem->MsgLen - LENGTH_802_11 - LENGTH_802_1_H;
 
 	/* Store SNonce */
@@ -678,7 +678,7 @@ void PeerPairMsg2Action(IN PRTMP_ADAPTER pAd,
 		ADD_ONE_To_64BIT_VAR(pEntry->R_Counter);
 
 		/* Construct EAPoL message - Pairwise Msg 3 */
-		NdisZeroMemory(&EAPOLPKT, sizeof(EAPOL_PACKET));
+		NdisZeroMemory(&EAPOLPKT, sizeof(struct rt_eapol_packet));
 		ConstructEapolMsg(pEntry,
 				  group_cipher,
 				  EAPOL_PAIR_MSG_3,
@@ -724,13 +724,13 @@ void PeerPairMsg2Action(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-void PeerPairMsg3Action(IN PRTMP_ADAPTER pAd,
-			IN MAC_TABLE_ENTRY * pEntry, IN MLME_QUEUE_ELEM * Elem)
+void PeerPairMsg3Action(struct rt_rtmp_adapter *pAd,
+			struct rt_mac_table_entry *pEntry, struct rt_mlme_queue_elem *Elem)
 {
-	PHEADER_802_11 pHeader;
+	struct rt_header_802_11 * pHeader;
 	u8 Header802_3[14];
-	EAPOL_PACKET EAPOLPKT;
-	PEAPOL_PACKET pMsg3;
+	struct rt_eapol_packet EAPOLPKT;
+	struct rt_eapol_packet * pMsg3;
 	u32 MsgLen;
 	u8 *pCurrentAddr = NULL;
 	u8 group_cipher = Ndis802_11WEPDisabled;
@@ -742,7 +742,7 @@ void PeerPairMsg3Action(IN PRTMP_ADAPTER pAd,
 
 	if (Elem->MsgLen <
 	    (LENGTH_802_11 + LENGTH_802_1_H + LENGTH_EAPOL_H +
-	     sizeof(KEY_DESCRIPTER) - MAX_LEN_OF_RSNIE - 2))
+	     sizeof(struct rt_key_descripter) - MAX_LEN_OF_RSNIE - 2))
 		return;
 
 	{
@@ -752,8 +752,8 @@ void PeerPairMsg3Action(IN PRTMP_ADAPTER pAd,
 	}
 
 	/* Record 802.11 header & the received EAPOL packet Msg3 */
-	pHeader = (PHEADER_802_11) Elem->Msg;
-	pMsg3 = (PEAPOL_PACKET) & Elem->Msg[LENGTH_802_11 + LENGTH_802_1_H];
+	pHeader = (struct rt_header_802_11 *) Elem->Msg;
+	pMsg3 = (struct rt_eapol_packet *) & Elem->Msg[LENGTH_802_11 + LENGTH_802_1_H];
 	MsgLen = Elem->MsgLen - LENGTH_802_11 - LENGTH_802_1_H;
 
 	/* Sanity Check peer Pairwise message 3 - Replay Counter, MIC, RSNIE */
@@ -771,7 +771,7 @@ void PeerPairMsg3Action(IN PRTMP_ADAPTER pAd,
 		return;
 	}
 	/* Construct EAPoL message - Pairwise Msg 4 */
-	NdisZeroMemory(&EAPOLPKT, sizeof(EAPOL_PACKET));
+	NdisZeroMemory(&EAPOLPKT, sizeof(struct rt_eapol_packet));
 	ConstructEapolMsg(pEntry, group_cipher, EAPOL_PAIR_MSG_4, 0,	/* group key index not used in message 4 */
 			  NULL,	/* Nonce not used in message 4 */
 			  NULL,	/* TxRSC not used in message 4 */
@@ -784,14 +784,14 @@ void PeerPairMsg3Action(IN PRTMP_ADAPTER pAd,
 
 	/* Update pairwise key */
 	{
-		PCIPHER_KEY pSharedKey;
+		struct rt_cipher_key *pSharedKey;
 
 		pSharedKey = &pAd->SharedKey[BSS0][0];
 
 		NdisMoveMemory(pAd->StaCfg.PTK, pEntry->PTK, LEN_PTK);
 
 		/* Prepare pair-wise key information into shared key table */
-		NdisZeroMemory(pSharedKey, sizeof(CIPHER_KEY));
+		NdisZeroMemory(pSharedKey, sizeof(struct rt_cipher_key));
 		pSharedKey->KeyLen = LEN_TKIP_EK;
 		NdisMoveMemory(pSharedKey->Key, &pAd->StaCfg.PTK[32],
 			       LEN_TKIP_EK);
@@ -809,7 +809,7 @@ void PeerPairMsg3Action(IN PRTMP_ADAPTER pAd,
 		else
 			pSharedKey->CipherAlg = CIPHER_NONE;
 
-		/* Update these related information to MAC_TABLE_ENTRY */
+		/* Update these related information to struct rt_mac_table_entry */
 		pEntry = &pAd->MacTab.Content[BSSID_WCID];
 		NdisMoveMemory(pEntry->PairwiseKey.Key, &pAd->StaCfg.PTK[32],
 			       LEN_TKIP_EK);
@@ -871,11 +871,11 @@ void PeerPairMsg3Action(IN PRTMP_ADAPTER pAd,
     Return:
     ==========================================================================
 */
-void PeerPairMsg4Action(IN PRTMP_ADAPTER pAd,
-			IN MAC_TABLE_ENTRY * pEntry, IN MLME_QUEUE_ELEM * Elem)
+void PeerPairMsg4Action(struct rt_rtmp_adapter *pAd,
+			struct rt_mac_table_entry *pEntry, struct rt_mlme_queue_elem *Elem)
 {
-	PEAPOL_PACKET pMsg4;
-	PHEADER_802_11 pHeader;
+	struct rt_eapol_packet * pMsg4;
+	struct rt_header_802_11 * pHeader;
 	u32 MsgLen;
 	BOOLEAN Cancelled;
 	u8 group_cipher = Ndis802_11WEPDisabled;
@@ -888,18 +888,18 @@ void PeerPairMsg4Action(IN PRTMP_ADAPTER pAd,
 
 		if (Elem->MsgLen <
 		    (LENGTH_802_11 + LENGTH_802_1_H + LENGTH_EAPOL_H +
-		     sizeof(KEY_DESCRIPTER) - MAX_LEN_OF_RSNIE - 2))
+		     sizeof(struct rt_key_descripter) - MAX_LEN_OF_RSNIE - 2))
 			break;
 
 		if (pEntry->WpaState < AS_PTKINIT_NEGOTIATING)
 			break;
 
 		/* pointer to 802.11 header */
-		pHeader = (PHEADER_802_11) Elem->Msg;
+		pHeader = (struct rt_header_802_11 *) Elem->Msg;
 
 		/* skip 802.11_header(24-byte) and LLC_header(8) */
 		pMsg4 =
-		    (PEAPOL_PACKET) & Elem->Msg[LENGTH_802_11 + LENGTH_802_1_H];
+		    (struct rt_eapol_packet *) & Elem->Msg[LENGTH_802_11 + LENGTH_802_1_H];
 		MsgLen = Elem->MsgLen - LENGTH_802_11 - LENGTH_802_1_H;
 
 		/* Sanity Check peer Pairwise message 4 - Replay Counter, MIC */
@@ -908,7 +908,7 @@ void PeerPairMsg4Action(IN PRTMP_ADAPTER pAd,
 			break;
 
 		/* 3. uses the MLME.SETKEYS.request to configure PTK into MAC */
-		NdisZeroMemory(&pEntry->PairwiseKey, sizeof(CIPHER_KEY));
+		NdisZeroMemory(&pEntry->PairwiseKey, sizeof(struct rt_cipher_key));
 
 		/* reset IVEIV in Asic */
 		AsicUpdateWCIDIVEIV(pAd, pEntry->Aid, 1, 0);
@@ -990,11 +990,11 @@ void PeerPairMsg4Action(IN PRTMP_ADAPTER pAd,
 
     ==========================================================================
 */
-void WPAStart2WayGroupHS(IN PRTMP_ADAPTER pAd, IN MAC_TABLE_ENTRY * pEntry)
+void WPAStart2WayGroupHS(struct rt_rtmp_adapter *pAd, struct rt_mac_table_entry *pEntry)
 {
 	u8 Header802_3[14];
 	u8 TxTsc[6];
-	EAPOL_PACKET EAPOLPKT;
+	struct rt_eapol_packet EAPOLPKT;
 	u8 group_cipher = Ndis802_11WEPDisabled;
 	u8 default_key = 0;
 	u8 *gnonce_ptr = NULL;
@@ -1011,7 +1011,7 @@ void WPAStart2WayGroupHS(IN PRTMP_ADAPTER pAd, IN MAC_TABLE_ENTRY * pEntry)
 		ADD_ONE_To_64BIT_VAR(pEntry->R_Counter);
 
 		/* Construct EAPoL message - Group Msg 1 */
-		NdisZeroMemory(&EAPOLPKT, sizeof(EAPOL_PACKET));
+		NdisZeroMemory(&EAPOLPKT, sizeof(struct rt_eapol_packet));
 		ConstructEapolMsg(pEntry,
 				  group_cipher,
 				  EAPOL_GROUP_MSG_1,
@@ -1052,12 +1052,12 @@ void WPAStart2WayGroupHS(IN PRTMP_ADAPTER pAd, IN MAC_TABLE_ENTRY * pEntry)
 
 	========================================================================
 */
-void PeerGroupMsg1Action(IN PRTMP_ADAPTER pAd,
-			 IN MAC_TABLE_ENTRY * pEntry, IN MLME_QUEUE_ELEM * Elem)
+void PeerGroupMsg1Action(struct rt_rtmp_adapter *pAd,
+			 struct rt_mac_table_entry *pEntry, struct rt_mlme_queue_elem *Elem)
 {
 	u8 Header802_3[14];
-	EAPOL_PACKET EAPOLPKT;
-	PEAPOL_PACKET pGroup;
+	struct rt_eapol_packet EAPOLPKT;
+	struct rt_eapol_packet * pGroup;
 	u32 MsgLen;
 	BOOLEAN Cancelled;
 	u8 default_key = 0;
@@ -1076,7 +1076,7 @@ void PeerGroupMsg1Action(IN PRTMP_ADAPTER pAd,
 	}
 
 	/* Process Group Message 1 frame. skip 802.11 header(24) & LLC_SNAP header(8) */
-	pGroup = (PEAPOL_PACKET) & Elem->Msg[LENGTH_802_11 + LENGTH_802_1_H];
+	pGroup = (struct rt_eapol_packet *) & Elem->Msg[LENGTH_802_11 + LENGTH_802_1_H];
 	MsgLen = Elem->MsgLen - LENGTH_802_11 - LENGTH_802_1_H;
 
 	/* Sanity Check peer group message 1 - Replay Counter, MIC, RSNIE */
@@ -1092,7 +1092,7 @@ void PeerGroupMsg1Action(IN PRTMP_ADAPTER pAd,
 		       LEN_KEY_DESC_REPLAY);
 
 	/* Construct EAPoL message - Group Msg 2 */
-	NdisZeroMemory(&EAPOLPKT, sizeof(EAPOL_PACKET));
+	NdisZeroMemory(&EAPOLPKT, sizeof(struct rt_eapol_packet));
 	ConstructEapolMsg(pEntry, group_cipher, EAPOL_GROUP_MSG_2, default_key, NULL,	/* Nonce not used */
 			  NULL,	/* TxRSC not used */
 			  NULL,	/* GTK not used */
@@ -1131,14 +1131,14 @@ void PeerGroupMsg1Action(IN PRTMP_ADAPTER pAd,
     Return:
     ==========================================================================
 */
-void PeerGroupMsg2Action(IN PRTMP_ADAPTER pAd,
-			 IN MAC_TABLE_ENTRY * pEntry,
+void PeerGroupMsg2Action(struct rt_rtmp_adapter *pAd,
+			 struct rt_mac_table_entry *pEntry,
 			 void * Msg, u32 MsgLen)
 {
 	u32 Len;
 	u8 *pData;
 	BOOLEAN Cancelled;
-	PEAPOL_PACKET pMsg2;
+	struct rt_eapol_packet * pMsg2;
 	u8 group_cipher = Ndis802_11WEPDisabled;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("===> PeerGroupMsg2Action \n"));
@@ -1148,7 +1148,7 @@ void PeerGroupMsg2Action(IN PRTMP_ADAPTER pAd,
 			break;
 
 		if (MsgLen <
-		    (LENGTH_802_1_H + LENGTH_EAPOL_H + sizeof(KEY_DESCRIPTER) -
+		    (LENGTH_802_1_H + LENGTH_EAPOL_H + sizeof(struct rt_key_descripter) -
 		     MAX_LEN_OF_RSNIE - 2))
 			break;
 
@@ -1156,7 +1156,7 @@ void PeerGroupMsg2Action(IN PRTMP_ADAPTER pAd,
 			break;
 
 		pData = (u8 *)Msg;
-		pMsg2 = (PEAPOL_PACKET) (pData + LENGTH_802_1_H);
+		pMsg2 = (struct rt_eapol_packet *) (pData + LENGTH_802_1_H);
 		Len = MsgLen - LENGTH_802_1_H;
 
 		/* Sanity Check peer group message 2 - Replay Counter, MIC */
@@ -1399,7 +1399,7 @@ int PasswordHash(char *password, u8 *ssid, int ssidlength, u8 *output)
 
 	========================================================================
 */
-void WpaDerivePTK(IN PRTMP_ADAPTER pAd,
+void WpaDerivePTK(struct rt_rtmp_adapter *pAd,
 		  u8 * PMK,
 		  u8 * ANonce,
 		  u8 * AA,
@@ -1478,7 +1478,7 @@ void WpaDerivePTK(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-void GenRandom(IN PRTMP_ADAPTER pAd, u8 * macAddr, u8 * random)
+void GenRandom(struct rt_rtmp_adapter *pAd, u8 * macAddr, u8 * random)
 {
 	int i, curr;
 	u8 local[80], KeyCounter[32];
@@ -1537,7 +1537,7 @@ void GenRandom(IN PRTMP_ADAPTER pAd, u8 * macAddr, u8 * random)
 
 	========================================================================
 */
-static void RTMPMakeRsnIeCipher(IN PRTMP_ADAPTER pAd,
+static void RTMPMakeRsnIeCipher(struct rt_rtmp_adapter *pAd,
 				u8 ElementID,
 				u32 WepStatus,
 				IN BOOLEAN bMixCipher,
@@ -1550,7 +1550,7 @@ static void RTMPMakeRsnIeCipher(IN PRTMP_ADAPTER pAd,
 
 	/* decide WPA2 or WPA1 */
 	if (ElementID == Wpa2Ie) {
-		RSNIE2 *pRsnie_cipher = (RSNIE2 *) pRsnIe;
+		struct rt_rsnie2 *pRsnie_cipher = (struct rt_rsnie2 *)pRsnIe;
 
 		/* Assign the verson as 1 */
 		pRsnie_cipher->version = 1;
@@ -1562,7 +1562,7 @@ static void RTMPMakeRsnIeCipher(IN PRTMP_ADAPTER pAd,
 			pRsnie_cipher->ucount = 1;
 			NdisMoveMemory(pRsnie_cipher->ucast[0].oui,
 				       OUI_WPA2_TKIP, 4);
-			*rsn_len = sizeof(RSNIE2);
+			*rsn_len = sizeof(struct rt_rsnie2);
 			break;
 
 			/* AES mode */
@@ -1576,7 +1576,7 @@ static void RTMPMakeRsnIeCipher(IN PRTMP_ADAPTER pAd,
 			pRsnie_cipher->ucount = 1;
 			NdisMoveMemory(pRsnie_cipher->ucast[0].oui,
 				       OUI_WPA2_CCMP, 4);
-			*rsn_len = sizeof(RSNIE2);
+			*rsn_len = sizeof(struct rt_rsnie2);
 			break;
 
 			/* TKIP-AES mix mode */
@@ -1602,7 +1602,7 @@ static void RTMPMakeRsnIeCipher(IN PRTMP_ADAPTER pAd,
 			}
 
 			pRsnie_cipher->ucount = PairwiseCnt;
-			*rsn_len = sizeof(RSNIE2) + (4 * (PairwiseCnt - 1));
+			*rsn_len = sizeof(struct rt_rsnie2) + (4 * (PairwiseCnt - 1));
 			break;
 		}
 
@@ -1625,7 +1625,7 @@ static void RTMPMakeRsnIeCipher(IN PRTMP_ADAPTER pAd,
 		pRsnie_cipher->version = cpu2le16(pRsnie_cipher->version);
 		pRsnie_cipher->ucount = cpu2le16(pRsnie_cipher->ucount);
 	} else {
-		RSNIE *pRsnie_cipher = (RSNIE *) pRsnIe;
+		struct rt_rsnie *pRsnie_cipher = (struct rt_rsnie *)pRsnIe;
 
 		/* Assign OUI and version */
 		NdisMoveMemory(pRsnie_cipher->oui, OUI_WPA_VERSION, 4);
@@ -1638,7 +1638,7 @@ static void RTMPMakeRsnIeCipher(IN PRTMP_ADAPTER pAd,
 			pRsnie_cipher->ucount = 1;
 			NdisMoveMemory(pRsnie_cipher->ucast[0].oui,
 				       OUI_WPA_TKIP, 4);
-			*rsn_len = sizeof(RSNIE);
+			*rsn_len = sizeof(struct rt_rsnie);
 			break;
 
 			/* AES mode */
@@ -1652,7 +1652,7 @@ static void RTMPMakeRsnIeCipher(IN PRTMP_ADAPTER pAd,
 			pRsnie_cipher->ucount = 1;
 			NdisMoveMemory(pRsnie_cipher->ucast[0].oui,
 				       OUI_WPA_CCMP, 4);
-			*rsn_len = sizeof(RSNIE);
+			*rsn_len = sizeof(struct rt_rsnie);
 			break;
 
 			/* TKIP-AES mix mode */
@@ -1678,7 +1678,7 @@ static void RTMPMakeRsnIeCipher(IN PRTMP_ADAPTER pAd,
 			}
 
 			pRsnie_cipher->ucount = PairwiseCnt;
-			*rsn_len = sizeof(RSNIE) + (4 * (PairwiseCnt - 1));
+			*rsn_len = sizeof(struct rt_rsnie) + (4 * (PairwiseCnt - 1));
 			break;
 		}
 
@@ -1722,16 +1722,16 @@ static void RTMPMakeRsnIeCipher(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-static void RTMPMakeRsnIeAKM(IN PRTMP_ADAPTER pAd,
+static void RTMPMakeRsnIeAKM(struct rt_rtmp_adapter *pAd,
 			     u8 ElementID,
 			     u32 AuthMode,
 			     u8 apidx,
 			     u8 *pRsnIe, u8 * rsn_len)
 {
-	RSNIE_AUTH *pRsnie_auth;
+	struct rt_rsnie_auth *pRsnie_auth;
 	u8 AkmCnt = 1;	/* default as 1 */
 
-	pRsnie_auth = (RSNIE_AUTH *) (pRsnIe + (*rsn_len));
+	pRsnie_auth = (struct rt_rsnie_auth *) (pRsnIe + (*rsn_len));
 
 	/* decide WPA2 or WPA1 */
 	if (ElementID == Wpa2Ie) {
@@ -1781,7 +1781,7 @@ static void RTMPMakeRsnIeAKM(IN PRTMP_ADAPTER pAd,
 	pRsnie_auth->acount = cpu2le16(pRsnie_auth->acount);
 
 	/* update current RSNIE length */
-	(*rsn_len) += (sizeof(RSNIE_AUTH) + (4 * (AkmCnt - 1)));
+	(*rsn_len) += (sizeof(struct rt_rsnie_auth) + (4 * (AkmCnt - 1)));
 
 }
 
@@ -1803,7 +1803,7 @@ static void RTMPMakeRsnIeAKM(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-static void RTMPMakeRsnIeCap(IN PRTMP_ADAPTER pAd,
+static void RTMPMakeRsnIeCap(struct rt_rtmp_adapter *pAd,
 			     u8 ElementID,
 			     u8 apidx,
 			     u8 *pRsnIe, u8 * rsn_len)
@@ -1840,7 +1840,7 @@ static void RTMPMakeRsnIeCap(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-void RTMPMakeRSNIE(IN PRTMP_ADAPTER pAd,
+void RTMPMakeRSNIE(struct rt_rtmp_adapter *pAd,
 		   u32 AuthMode, u32 WepStatus, u8 apidx)
 {
 	u8 *pRsnIe = NULL;	/* primary RSNIE */
@@ -1932,8 +1932,8 @@ void RTMPMakeRSNIE(IN PRTMP_ADAPTER pAd,
          FALSE			-	otherwise
     ==========================================================================
 */
-BOOLEAN RTMPCheckWPAframe(IN PRTMP_ADAPTER pAd,
-			  IN PMAC_TABLE_ENTRY pEntry,
+BOOLEAN RTMPCheckWPAframe(struct rt_rtmp_adapter *pAd,
+			  struct rt_mac_table_entry *pEntry,
 			  u8 *pData,
 			  unsigned long DataByteCount, u8 FromWhichBSSID)
 {
@@ -2044,22 +2044,22 @@ char *GetEapolMsgType(char msg)
 
 	========================================================================
 */
-BOOLEAN RTMPCheckRSNIE(IN PRTMP_ADAPTER pAd,
+BOOLEAN RTMPCheckRSNIE(struct rt_rtmp_adapter *pAd,
 		       u8 *pData,
 		       u8 DataLen,
-		       IN MAC_TABLE_ENTRY * pEntry, u8 * Offset)
+		       struct rt_mac_table_entry *pEntry, u8 * Offset)
 {
 	u8 *pVIE;
 	u8 len;
-	PEID_STRUCT pEid;
+	struct rt_eid * pEid;
 	BOOLEAN result = FALSE;
 
 	pVIE = pData;
 	len = DataLen;
 	*Offset = 0;
 
-	while (len > sizeof(RSNIE2)) {
-		pEid = (PEID_STRUCT) pVIE;
+	while (len > sizeof(struct rt_rsnie2)) {
+		pEid = (struct rt_eid *) pVIE;
 		/* WPA RSN IE */
 		if ((pEid->Eid == IE_WPA)
 		    && (NdisEqualMemory(pEid->Octet, WPA_OUI, 4))) {
@@ -2118,14 +2118,14 @@ BOOLEAN RTMPCheckRSNIE(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-BOOLEAN RTMPParseEapolKeyData(IN PRTMP_ADAPTER pAd,
+BOOLEAN RTMPParseEapolKeyData(struct rt_rtmp_adapter *pAd,
 			      u8 *pKeyData,
 			      u8 KeyDataLen,
 			      u8 GroupKeyIndex,
 			      u8 MsgType,
-			      IN BOOLEAN bWPA2, IN MAC_TABLE_ENTRY * pEntry)
+			      IN BOOLEAN bWPA2, struct rt_mac_table_entry *pEntry)
 {
-	PKDE_ENCAP pKDE = NULL;
+	struct rt_kde_encap * pKDE = NULL;
 	u8 *pMyKeyData = pKeyData;
 	u8 KeyDataLength = KeyDataLen;
 	u8 GTKLEN = 0;
@@ -2177,7 +2177,7 @@ BOOLEAN RTMPParseEapolKeyData(IN PRTMP_ADAPTER pAd,
 	    && (MsgType == EAPOL_PAIR_MSG_3 || MsgType == EAPOL_GROUP_MSG_1)) {
 		if (KeyDataLength >= 8)	/* KDE format exclude GTK length */
 		{
-			pKDE = (PKDE_ENCAP) pMyKeyData;
+			pKDE = (struct rt_kde_encap *) pMyKeyData;
 
 			DefaultIdx = pKDE->GTKEncap.Kid;
 
@@ -2224,7 +2224,7 @@ BOOLEAN RTMPParseEapolKeyData(IN PRTMP_ADAPTER pAd,
 	}
 
 	{
-		PCIPHER_KEY pSharedKey;
+		struct rt_cipher_key *pSharedKey;
 
 		/* set key material, TxMic and RxMic */
 		NdisMoveMemory(pAd->StaCfg.GTK, pMyKeyData, 32);
@@ -2233,7 +2233,7 @@ BOOLEAN RTMPParseEapolKeyData(IN PRTMP_ADAPTER pAd,
 		pSharedKey = &pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId];
 
 		/* Prepare pair-wise key information into shared key table */
-		NdisZeroMemory(pSharedKey, sizeof(CIPHER_KEY));
+		NdisZeroMemory(pSharedKey, sizeof(struct rt_cipher_key));
 		pSharedKey->KeyLen = LEN_TKIP_EK;
 		NdisMoveMemory(pSharedKey->Key, pAd->StaCfg.GTK, LEN_TKIP_EK);
 		NdisMoveMemory(pSharedKey->RxMic, &pAd->StaCfg.GTK[16],
@@ -2320,7 +2320,7 @@ BOOLEAN RTMPParseEapolKeyData(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-void ConstructEapolMsg(IN PMAC_TABLE_ENTRY pEntry,
+void ConstructEapolMsg(struct rt_mac_table_entry *pEntry,
 		       u8 GroupKeyWepStatus,
 		       u8 MsgType,
 		       u8 DefaultKeyIdx,
@@ -2328,7 +2328,7 @@ void ConstructEapolMsg(IN PMAC_TABLE_ENTRY pEntry,
 		       u8 * TxRSC,
 		       u8 * GTK,
 		       u8 * RSNIE,
-		       u8 RSNIE_Len, OUT PEAPOL_PACKET pMsg)
+		       u8 RSNIE_Len, struct rt_eapol_packet * pMsg)
 {
 	BOOLEAN bWPA2 = FALSE;
 	u8 KeyDescVer;
@@ -2483,20 +2483,20 @@ void ConstructEapolMsg(IN PMAC_TABLE_ENTRY pEntry,
 
 	========================================================================
 */
-void ConstructEapolKeyData(IN PMAC_TABLE_ENTRY pEntry,
+void ConstructEapolKeyData(struct rt_mac_table_entry *pEntry,
 			   u8 GroupKeyWepStatus,
 			   u8 keyDescVer,
 			   u8 MsgType,
 			   u8 DefaultKeyIdx,
 			   u8 * GTK,
 			   u8 * RSNIE,
-			   u8 RSNIE_LEN, OUT PEAPOL_PACKET pMsg)
+			   u8 RSNIE_LEN, struct rt_eapol_packet * pMsg)
 {
 	u8 *mpool, *Key_Data, *Rc4GTK;
 	u8 ekey[(LEN_KEY_DESC_IV + LEN_EAP_EK)];
 	unsigned long data_offset;
 	BOOLEAN bWPA2Capable = FALSE;
-	PRTMP_ADAPTER pAd = pEntry->pAd;
+	struct rt_rtmp_adapter *pAd = pEntry->pAd;
 	BOOLEAN GTK_Included = FALSE;
 
 	/* Choose WPA2 or not */
@@ -2661,7 +2661,7 @@ void ConstructEapolKeyData(IN PMAC_TABLE_ENTRY pEntry,
 	========================================================================
 */
 static void CalculateMIC(u8 KeyDescVer,
-			 u8 * PTK, OUT PEAPOL_PACKET pMsg)
+			 u8 * PTK, struct rt_eapol_packet * pMsg)
 {
 	u8 *OutBuffer;
 	unsigned long FrameLen = 0;
@@ -2714,12 +2714,12 @@ static void CalculateMIC(u8 KeyDescVer,
 
 	========================================================================
 */
-int RTMPSoftDecryptBroadCastData(IN PRTMP_ADAPTER pAd,
-					 IN RX_BLK * pRxBlk,
+int RTMPSoftDecryptBroadCastData(struct rt_rtmp_adapter *pAd,
+					 struct rt_rx_blk *pRxBlk,
 					 IN NDIS_802_11_ENCRYPTION_STATUS
-					 GroupCipher, IN PCIPHER_KEY pShard_key)
+					 GroupCipher, struct rt_cipher_key *pShard_key)
 {
-	PRXWI_STRUC pRxWI = pRxBlk->pRxWI;
+	struct rt_rxwi * pRxWI = pRxBlk->pRxWI;
 
 	/* handle WEP decryption */
 	if (GroupCipher == Ndis802_11Encryption1Enabled) {
@@ -2777,15 +2777,15 @@ int RTMPSoftDecryptBroadCastData(IN PRTMP_ADAPTER pAd,
 u8 *GetSuiteFromRSNIE(u8 *rsnie,
 			 u32 rsnie_len, u8 type, u8 * count)
 {
-	PEID_STRUCT pEid;
+	struct rt_eid * pEid;
 	int len;
 	u8 *pBuf;
 	int offset = 0;
-	PRSNIE_AUTH pAkm;
+	struct rt_rsnie_auth *pAkm;
 	u16 acount;
 	BOOLEAN isWPA2 = FALSE;
 
-	pEid = (PEID_STRUCT) rsnie;
+	pEid = (struct rt_eid *) rsnie;
 	len = rsnie_len - 2;	/* exclude IE and length */
 	pBuf = (u8 *)& pEid->Octet[0];
 
@@ -2799,10 +2799,10 @@ u8 *GetSuiteFromRSNIE(u8 *rsnie,
 	}
 	/* Check WPA or WPA2 */
 	if (pEid->Eid == IE_WPA) {
-		PRSNIE pRsnie = (PRSNIE) pBuf;
+		struct rt_rsnie *pRsnie = (struct rt_rsnie *)pBuf;
 		u16 ucount;
 
-		if (len < sizeof(RSNIE)) {
+		if (len < sizeof(struct rt_rsnie)) {
 			DBGPRINT_ERR(("%s : The length is too short for WPA\n",
 				      __func__));
 			return NULL;
@@ -2827,15 +2827,15 @@ u8 *GetSuiteFromRSNIE(u8 *rsnie,
 			return pRsnie->ucast[0].oui;
 		}
 
-		offset = sizeof(RSNIE) + (4 * (ucount - 1));
+		offset = sizeof(struct rt_rsnie) + (4 * (ucount - 1));
 
 	} else if (pEid->Eid == IE_RSN) {
-		PRSNIE2 pRsnie = (PRSNIE2) pBuf;
+		struct rt_rsnie2 *pRsnie = (struct rt_rsnie2 *)pBuf;
 		u16 ucount;
 
 		isWPA2 = TRUE;
 
-		if (len < sizeof(RSNIE2)) {
+		if (len < sizeof(struct rt_rsnie2)) {
 			DBGPRINT_ERR(("%s : The length is too short for WPA2\n",
 				      __func__));
 			return NULL;
@@ -2860,7 +2860,7 @@ u8 *GetSuiteFromRSNIE(u8 *rsnie,
 			return pRsnie->ucast[0].oui;
 		}
 
-		offset = sizeof(RSNIE2) + (4 * (ucount - 1));
+		offset = sizeof(struct rt_rsnie2) + (4 * (ucount - 1));
 
 	} else {
 		DBGPRINT_ERR(("%s : Unknown IE (%d)\n", __func__, pEid->Eid));
@@ -2871,13 +2871,13 @@ u8 *GetSuiteFromRSNIE(u8 *rsnie,
 	pBuf += offset;
 	len -= offset;
 
-	if (len < sizeof(RSNIE_AUTH)) {
+	if (len < sizeof(struct rt_rsnie_auth)) {
 		DBGPRINT_ERR(("%s : The length of RSNIE is too short\n",
 			      __func__));
 		return NULL;
 	}
 	/* pointer to AKM count */
-	pAkm = (PRSNIE_AUTH) pBuf;
+	pAkm = (struct rt_rsnie_auth *)pBuf;
 
 	/* Get the count of pairwise cipher */
 	acount = cpu2le16(pAkm->acount);
@@ -2893,7 +2893,7 @@ u8 *GetSuiteFromRSNIE(u8 *rsnie,
 		*count = acount;
 		return pAkm->auth[0].oui;
 	}
-	offset = sizeof(RSNIE_AUTH) + (4 * (acount - 1));
+	offset = sizeof(struct rt_rsnie_auth) + (4 * (acount - 1));
 
 	pBuf += offset;
 	len -= offset;

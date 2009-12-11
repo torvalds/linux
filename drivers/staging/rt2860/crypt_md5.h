@@ -53,18 +53,19 @@
 #ifdef MD5_SUPPORT
 #define MD5_BLOCK_SIZE    64	/* 512 bits = 64 bytes */
 #define MD5_DIGEST_SIZE   16	/* 128 bits = 16 bytes */
-typedef struct {
+
+struct rt_md5_ctx_struc {
 	u32 HashValue[4];
 	u64 MessageLen;
 	u8 Block[MD5_BLOCK_SIZE];
 	u32 BlockLen;
-} MD5_CTX_STRUC, *PMD5_CTX_STRUC;
+};
 
-void MD5_Init(IN MD5_CTX_STRUC * pMD5_CTX);
-void MD5_Hash(IN MD5_CTX_STRUC * pMD5_CTX);
-void MD5_Append(IN MD5_CTX_STRUC * pMD5_CTX,
+void MD5_Init(struct rt_md5_ctx_struc *pMD5_CTX);
+void MD5_Hash(struct rt_md5_ctx_struc *pMD5_CTX);
+void MD5_Append(struct rt_md5_ctx_struc *pMD5_CTX,
 		IN const u8 Message[], u32 MessageLen);
-void MD5_End(IN MD5_CTX_STRUC * pMD5_CTX, u8 DigestMessage[]);
+void MD5_End(struct rt_md5_ctx_struc *pMD5_CTX, u8 DigestMessage[]);
 void RT_MD5(IN const u8 Message[],
 	    u32 MessageLen, u8 DigestMessage[]);
 #endif /* MD5_SUPPORT */

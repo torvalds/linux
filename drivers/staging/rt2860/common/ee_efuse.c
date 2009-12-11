@@ -73,7 +73,7 @@ typedef union _EFUSE_CTRL_STRUC {
 
 ========================================================================
 */
-u8 eFuseReadRegisters(IN PRTMP_ADAPTER pAd,
+u8 eFuseReadRegisters(struct rt_rtmp_adapter *pAd,
 			 u16 Offset, u16 Length, u16 * pData)
 {
 	EFUSE_CTRL_STRUC eFuseCtrlStruc;
@@ -149,7 +149,7 @@ u8 eFuseReadRegisters(IN PRTMP_ADAPTER pAd,
 
 ========================================================================
 */
-void eFusePhysicalReadRegisters(IN PRTMP_ADAPTER pAd,
+void eFusePhysicalReadRegisters(struct rt_rtmp_adapter *pAd,
 				u16 Offset,
 				u16 Length, u16 * pData)
 {
@@ -214,7 +214,7 @@ void eFusePhysicalReadRegisters(IN PRTMP_ADAPTER pAd,
 
 ========================================================================
 */
-static void eFuseReadPhysical(IN PRTMP_ADAPTER pAd,
+static void eFuseReadPhysical(struct rt_rtmp_adapter *pAd,
 			      u16 *lpInBuffer,
 			      unsigned long nInBufferSize,
 			      u16 *lpOutBuffer, unsigned long nOutBufferSize)
@@ -244,7 +244,7 @@ static void eFuseReadPhysical(IN PRTMP_ADAPTER pAd,
 
 ========================================================================
 */
-int set_eFuseGetFreeBlockCount_Proc(IN PRTMP_ADAPTER pAd, char *arg)
+int set_eFuseGetFreeBlockCount_Proc(struct rt_rtmp_adapter *pAd, char *arg)
 {
 	u16 i;
 	u16 LogicalAddress;
@@ -268,7 +268,7 @@ int set_eFuseGetFreeBlockCount_Proc(IN PRTMP_ADAPTER pAd, char *arg)
 	return TRUE;
 }
 
-int set_eFusedump_Proc(IN PRTMP_ADAPTER pAd, char *arg)
+int set_eFusedump_Proc(struct rt_rtmp_adapter *pAd, char *arg)
 {
 	u16 InBuf[3];
 	int i = 0;
@@ -287,14 +287,14 @@ int set_eFusedump_Proc(IN PRTMP_ADAPTER pAd, char *arg)
 	return TRUE;
 }
 
-int rtmp_ee_efuse_read16(IN RTMP_ADAPTER * pAd,
+int rtmp_ee_efuse_read16(struct rt_rtmp_adapter *pAd,
 			 u16 Offset, u16 * pValue)
 {
 	eFuseReadRegisters(pAd, Offset, 2, pValue);
 	return (*pValue);
 }
 
-int RtmpEfuseSupportCheck(IN RTMP_ADAPTER * pAd)
+int RtmpEfuseSupportCheck(struct rt_rtmp_adapter *pAd)
 {
 	u16 value;
 
@@ -305,7 +305,7 @@ int RtmpEfuseSupportCheck(IN RTMP_ADAPTER * pAd)
 	return 0;
 }
 
-void eFuseGetFreeBlockCount(IN PRTMP_ADAPTER pAd, u32 *EfuseFreeBlock)
+void eFuseGetFreeBlockCount(struct rt_rtmp_adapter *pAd, u32 *EfuseFreeBlock)
 {
 	u16 i;
 	u16 LogicalAddress;
@@ -331,7 +331,7 @@ void eFuseGetFreeBlockCount(IN PRTMP_ADAPTER pAd, u32 *EfuseFreeBlock)
 		 ("eFuseGetFreeBlockCount is 0x%x\n", *EfuseFreeBlock));
 }
 
-int eFuse_init(IN PRTMP_ADAPTER pAd)
+int eFuse_init(struct rt_rtmp_adapter *pAd)
 {
 	u32 EfuseFreeBlock = 0;
 	DBGPRINT(RT_DEBUG_ERROR,

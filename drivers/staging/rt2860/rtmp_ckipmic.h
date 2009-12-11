@@ -37,14 +37,14 @@
 #ifndef	__RTMP_CKIPMIC_H__
 #define	__RTMP_CKIPMIC_H__
 
-typedef struct _MIC_CONTEXT {
+struct rt_mic_context {
 	/* --- MMH context                            */
 	u8 CK[16];		/* the key                                    */
 	u8 coefficient[16];	/* current aes counter mode coefficients      */
 	unsigned long long accum;	/* accumulated mic, reduced to u32 in final() */
 	u32 position;		/* current position (byte offset) in message  */
 	u8 part[4];		/* for conversion of message to u32 for mmh   */
-} MIC_CONTEXT, *PMIC_CONTEXT;
+};
 
 void xor_128(u8 *a, u8 *b, u8 *out);
 

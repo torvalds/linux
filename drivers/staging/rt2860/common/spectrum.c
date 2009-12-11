@@ -40,7 +40,7 @@
 #include "action.h"
 
 /* The regulatory information in the USA (US) */
-DOT11_REGULATORY_INFORMATION USARegulatoryInfo[] = {
+struct rt_dot11_regulatory_information USARegulatoryInfo[] = {
 /*  "regulatory class"  "number of channels"  "Max Tx Pwr"  "channel list" */
 	{0, {0, 0, {0}
 	     }
@@ -95,10 +95,10 @@ DOT11_REGULATORY_INFORMATION USARegulatoryInfo[] = {
 	 }
 };
 
-#define USA_REGULATORY_INFO_SIZE (sizeof(USARegulatoryInfo) / sizeof(DOT11_REGULATORY_INFORMATION))
+#define USA_REGULATORY_INFO_SIZE (sizeof(USARegulatoryInfo) / sizeof(struct rt_dot11_regulatory_information))
 
 /* The regulatory information in Europe */
-DOT11_REGULATORY_INFORMATION EuropeRegulatoryInfo[] = {
+struct rt_dot11_regulatory_information EuropeRegulatoryInfo[] = {
 /*  "regulatory class"  "number of channels"  "Max Tx Pwr"  "channel list" */
 	{0, {0, 0, {0}
 	     }
@@ -121,10 +121,10 @@ DOT11_REGULATORY_INFORMATION EuropeRegulatoryInfo[] = {
 	 }
 };
 
-#define EU_REGULATORY_INFO_SIZE (sizeof(EuropeRegulatoryInfo) / sizeof(DOT11_REGULATORY_INFORMATION))
+#define EU_REGULATORY_INFO_SIZE (sizeof(EuropeRegulatoryInfo) / sizeof(struct rt_dot11_regulatory_information))
 
 /* The regulatory information in Japan */
-DOT11_REGULATORY_INFORMATION JapanRegulatoryInfo[] = {
+struct rt_dot11_regulatory_information JapanRegulatoryInfo[] = {
 /*  "regulatory class"  "number of channels"  "Max Tx Pwr"  "channel list" */
 	{0, {0, 0, {0}
 	     }
@@ -259,17 +259,17 @@ DOT11_REGULATORY_INFORMATION JapanRegulatoryInfo[] = {
 	 }
 };
 
-#define JP_REGULATORY_INFO_SIZE (sizeof(JapanRegulatoryInfo) / sizeof(DOT11_REGULATORY_INFORMATION))
+#define JP_REGULATORY_INFO_SIZE (sizeof(JapanRegulatoryInfo) / sizeof(struct rt_dot11_regulatory_information))
 
-char RTMP_GetTxPwr(IN PRTMP_ADAPTER pAd, IN HTTRANSMIT_SETTING HTTxMode)
+char RTMP_GetTxPwr(struct rt_rtmp_adapter *pAd, IN HTTRANSMIT_SETTING HTTxMode)
 {
-	typedef struct __TX_PWR_CFG {
+	struct tx_pwr_cfg {
 		u8 Mode;
 		u8 MCS;
 		u16 req;
 		u8 shift;
 		u32 BitMask;
-	} TX_PWR_CFG;
+	};
 
 	u32 Value;
 	int Idx;
@@ -279,7 +279,7 @@ char RTMP_GetTxPwr(IN PRTMP_ADAPTER pAd, IN HTTRANSMIT_SETTING HTTxMode)
 	char DaltaPwr;
 	unsigned long TxPwr[5];
 
-	TX_PWR_CFG TxPwrCfg[] = {
+	struct tx_pwr_cfg TxPwrCfg[] = {
 		{MODE_CCK, 0, 0, 4, 0x000000f0},
 		{MODE_CCK, 1, 0, 0, 0x0000000f},
 		{MODE_CCK, 2, 0, 12, 0x0000f000},
@@ -310,7 +310,7 @@ char RTMP_GetTxPwr(IN PRTMP_ADAPTER pAd, IN HTTRANSMIT_SETTING HTTxMode)
 		{MODE_HTMIX, 14, 3, 12, 0x0000f000},
 		{MODE_HTMIX, 15, 3, 8, 0x00000f00}
 	};
-#define MAX_TXPWR_TAB_SIZE (sizeof(TxPwrCfg) / sizeof(TX_PWR_CFG))
+#define MAX_TXPWR_TAB_SIZE (sizeof(TxPwrCfg) / sizeof(struct tx_pwr_cfg))
 
 	CurTxPwr = 19;
 
@@ -395,15 +395,15 @@ char RTMP_GetTxPwr(IN PRTMP_ADAPTER pAd, IN HTTRANSMIT_SETTING HTTxMode)
 	return CurTxPwr;
 }
 
-void MeasureReqTabInit(IN PRTMP_ADAPTER pAd)
+void MeasureReqTabInit(struct rt_rtmp_adapter *pAd)
 {
 	NdisAllocateSpinLock(&pAd->CommonCfg.MeasureReqTabLock);
 
 	pAd->CommonCfg.pMeasureReqTab =
-	    kmalloc(sizeof(MEASURE_REQ_TAB), GFP_ATOMIC);
+	    kmalloc(sizeof(struct rt_measure_req_tab), GFP_ATOMIC);
 	if (pAd->CommonCfg.pMeasureReqTab)
 		NdisZeroMemory(pAd->CommonCfg.pMeasureReqTab,
-			       sizeof(MEASURE_REQ_TAB));
+			       sizeof(struct rt_measure_req_tab));
 	else
 		DBGPRINT(RT_DEBUG_ERROR,
 			 ("%s Fail to alloc memory for pAd->CommonCfg.pMeasureReqTab.\n",
@@ -412,7 +412,7 @@ void MeasureReqTabInit(IN PRTMP_ADAPTER pAd)
 	return;
 }
 
-void MeasureReqTabExit(IN PRTMP_ADAPTER pAd)
+void MeasureReqTabExit(struct rt_rtmp_adapter *pAd)
 {
 	NdisFreeSpinLock(&pAd->CommonCfg.MeasureReqTabLock);
 
@@ -423,12 +423,12 @@ void MeasureReqTabExit(IN PRTMP_ADAPTER pAd)
 	return;
 }
 
-PMEASURE_REQ_ENTRY MeasureReqLookUp(IN PRTMP_ADAPTER pAd, u8 DialogToken)
+struct rt_measure_req_entry *MeasureReqLookUp(struct rt_rtmp_adapter *pAd, u8 DialogToken)
 {
 	u32 HashIdx;
-	PMEASURE_REQ_TAB pTab = pAd->CommonCfg.pMeasureReqTab;
-	PMEASURE_REQ_ENTRY pEntry = NULL;
-	PMEASURE_REQ_ENTRY pPrevEntry = NULL;
+	struct rt_measure_req_tab *pTab = pAd->CommonCfg.pMeasureReqTab;
+	struct rt_measure_req_entry *pEntry = NULL;
+	struct rt_measure_req_entry *pPrevEntry = NULL;
 
 	if (pTab == NULL) {
 		DBGPRINT(RT_DEBUG_ERROR,
@@ -455,12 +455,12 @@ PMEASURE_REQ_ENTRY MeasureReqLookUp(IN PRTMP_ADAPTER pAd, u8 DialogToken)
 	return pEntry;
 }
 
-PMEASURE_REQ_ENTRY MeasureReqInsert(IN PRTMP_ADAPTER pAd, u8 DialogToken)
+struct rt_measure_req_entry *MeasureReqInsert(struct rt_rtmp_adapter *pAd, u8 DialogToken)
 {
 	int i;
 	unsigned long HashIdx;
-	PMEASURE_REQ_TAB pTab = pAd->CommonCfg.pMeasureReqTab;
-	PMEASURE_REQ_ENTRY pEntry = NULL, pCurrEntry;
+	struct rt_measure_req_tab *pTab = pAd->CommonCfg.pMeasureReqTab;
+	struct rt_measure_req_entry *pEntry = NULL, *pCurrEntry;
 	unsigned long Now;
 
 	if (pTab == NULL) {
@@ -482,11 +482,11 @@ PMEASURE_REQ_ENTRY MeasureReqInsert(IN PRTMP_ADAPTER pAd, u8 DialogToken)
 							       lastTime +
 							       MQ_REQ_AGE_OUT)))
 			{
-				PMEASURE_REQ_ENTRY pPrevEntry = NULL;
+				struct rt_measure_req_entry *pPrevEntry = NULL;
 				unsigned long HashIdx =
 				    MQ_DIALOGTOKEN_HASH_INDEX(pEntry->
 							      DialogToken);
-				PMEASURE_REQ_ENTRY pProbeEntry =
+				struct rt_measure_req_entry *pProbeEntry =
 				    pTab->Hash[HashIdx];
 
 				/* update Hash list */
@@ -507,7 +507,7 @@ PMEASURE_REQ_ENTRY MeasureReqInsert(IN PRTMP_ADAPTER pAd, u8 DialogToken)
 				} while (pProbeEntry);
 
 				NdisZeroMemory(pEntry,
-					       sizeof(MEASURE_REQ_ENTRY));
+					       sizeof(struct rt_measure_req_entry));
 				pTab->Size--;
 
 				break;
@@ -548,10 +548,10 @@ PMEASURE_REQ_ENTRY MeasureReqInsert(IN PRTMP_ADAPTER pAd, u8 DialogToken)
 	return pEntry;
 }
 
-void MeasureReqDelete(IN PRTMP_ADAPTER pAd, u8 DialogToken)
+void MeasureReqDelete(struct rt_rtmp_adapter *pAd, u8 DialogToken)
 {
-	PMEASURE_REQ_TAB pTab = pAd->CommonCfg.pMeasureReqTab;
-	PMEASURE_REQ_ENTRY pEntry = NULL;
+	struct rt_measure_req_tab *pTab = pAd->CommonCfg.pMeasureReqTab;
+	struct rt_measure_req_entry *pEntry = NULL;
 
 	if (pTab == NULL) {
 		DBGPRINT(RT_DEBUG_ERROR,
@@ -566,9 +566,9 @@ void MeasureReqDelete(IN PRTMP_ADAPTER pAd, u8 DialogToken)
 
 	pEntry = MeasureReqLookUp(pAd, DialogToken);
 	if (pEntry != NULL) {
-		PMEASURE_REQ_ENTRY pPrevEntry = NULL;
+		struct rt_measure_req_entry *pPrevEntry = NULL;
 		unsigned long HashIdx = MQ_DIALOGTOKEN_HASH_INDEX(pEntry->DialogToken);
-		PMEASURE_REQ_ENTRY pProbeEntry = pTab->Hash[HashIdx];
+		struct rt_measure_req_entry *pProbeEntry = pTab->Hash[HashIdx];
 
 		RTMP_SEM_LOCK(&pAd->CommonCfg.MeasureReqTabLock);
 		/* update Hash list */
@@ -586,7 +586,7 @@ void MeasureReqDelete(IN PRTMP_ADAPTER pAd, u8 DialogToken)
 			pProbeEntry = pProbeEntry->pNext;
 		} while (pProbeEntry);
 
-		NdisZeroMemory(pEntry, sizeof(MEASURE_REQ_ENTRY));
+		NdisZeroMemory(pEntry, sizeof(struct rt_measure_req_entry));
 		pTab->Size--;
 
 		RTMP_SEM_UNLOCK(&pAd->CommonCfg.MeasureReqTabLock);
@@ -595,13 +595,13 @@ void MeasureReqDelete(IN PRTMP_ADAPTER pAd, u8 DialogToken)
 	return;
 }
 
-void TpcReqTabInit(IN PRTMP_ADAPTER pAd)
+void TpcReqTabInit(struct rt_rtmp_adapter *pAd)
 {
 	NdisAllocateSpinLock(&pAd->CommonCfg.TpcReqTabLock);
 
-	pAd->CommonCfg.pTpcReqTab = kmalloc(sizeof(TPC_REQ_TAB), GFP_ATOMIC);
+	pAd->CommonCfg.pTpcReqTab = kmalloc(sizeof(struct rt_tpc_req_tab), GFP_ATOMIC);
 	if (pAd->CommonCfg.pTpcReqTab)
-		NdisZeroMemory(pAd->CommonCfg.pTpcReqTab, sizeof(TPC_REQ_TAB));
+		NdisZeroMemory(pAd->CommonCfg.pTpcReqTab, sizeof(struct rt_tpc_req_tab));
 	else
 		DBGPRINT(RT_DEBUG_ERROR,
 			 ("%s Fail to alloc memory for pAd->CommonCfg.pTpcReqTab.\n",
@@ -610,7 +610,7 @@ void TpcReqTabInit(IN PRTMP_ADAPTER pAd)
 	return;
 }
 
-void TpcReqTabExit(IN PRTMP_ADAPTER pAd)
+void TpcReqTabExit(struct rt_rtmp_adapter *pAd)
 {
 	NdisFreeSpinLock(&pAd->CommonCfg.TpcReqTabLock);
 
@@ -621,12 +621,12 @@ void TpcReqTabExit(IN PRTMP_ADAPTER pAd)
 	return;
 }
 
-static PTPC_REQ_ENTRY TpcReqLookUp(IN PRTMP_ADAPTER pAd, u8 DialogToken)
+static struct rt_tpc_req_entry *TpcReqLookUp(struct rt_rtmp_adapter *pAd, u8 DialogToken)
 {
 	u32 HashIdx;
-	PTPC_REQ_TAB pTab = pAd->CommonCfg.pTpcReqTab;
-	PTPC_REQ_ENTRY pEntry = NULL;
-	PTPC_REQ_ENTRY pPrevEntry = NULL;
+	struct rt_tpc_req_tab *pTab = pAd->CommonCfg.pTpcReqTab;
+	struct rt_tpc_req_entry *pEntry = NULL;
+	struct rt_tpc_req_entry *pPrevEntry = NULL;
 
 	if (pTab == NULL) {
 		DBGPRINT(RT_DEBUG_ERROR,
@@ -653,12 +653,12 @@ static PTPC_REQ_ENTRY TpcReqLookUp(IN PRTMP_ADAPTER pAd, u8 DialogToken)
 	return pEntry;
 }
 
-static PTPC_REQ_ENTRY TpcReqInsert(IN PRTMP_ADAPTER pAd, u8 DialogToken)
+static struct rt_tpc_req_entry *TpcReqInsert(struct rt_rtmp_adapter *pAd, u8 DialogToken)
 {
 	int i;
 	unsigned long HashIdx;
-	PTPC_REQ_TAB pTab = pAd->CommonCfg.pTpcReqTab;
-	PTPC_REQ_ENTRY pEntry = NULL, pCurrEntry;
+	struct rt_tpc_req_tab *pTab = pAd->CommonCfg.pTpcReqTab;
+	struct rt_tpc_req_entry *pEntry = NULL, *pCurrEntry;
 	unsigned long Now;
 
 	if (pTab == NULL) {
@@ -680,11 +680,11 @@ static PTPC_REQ_ENTRY TpcReqInsert(IN PRTMP_ADAPTER pAd, u8 DialogToken)
 							       lastTime +
 							       TPC_REQ_AGE_OUT)))
 			{
-				PTPC_REQ_ENTRY pPrevEntry = NULL;
+				struct rt_tpc_req_entry *pPrevEntry = NULL;
 				unsigned long HashIdx =
 				    TPC_DIALOGTOKEN_HASH_INDEX(pEntry->
 							       DialogToken);
-				PTPC_REQ_ENTRY pProbeEntry =
+				struct rt_tpc_req_entry *pProbeEntry =
 				    pTab->Hash[HashIdx];
 
 				/* update Hash list */
@@ -704,7 +704,7 @@ static PTPC_REQ_ENTRY TpcReqInsert(IN PRTMP_ADAPTER pAd, u8 DialogToken)
 					pProbeEntry = pProbeEntry->pNext;
 				} while (pProbeEntry);
 
-				NdisZeroMemory(pEntry, sizeof(TPC_REQ_ENTRY));
+				NdisZeroMemory(pEntry, sizeof(struct rt_tpc_req_entry));
 				pTab->Size--;
 
 				break;
@@ -745,10 +745,10 @@ static PTPC_REQ_ENTRY TpcReqInsert(IN PRTMP_ADAPTER pAd, u8 DialogToken)
 	return pEntry;
 }
 
-static void TpcReqDelete(IN PRTMP_ADAPTER pAd, u8 DialogToken)
+static void TpcReqDelete(struct rt_rtmp_adapter *pAd, u8 DialogToken)
 {
-	PTPC_REQ_TAB pTab = pAd->CommonCfg.pTpcReqTab;
-	PTPC_REQ_ENTRY pEntry = NULL;
+	struct rt_tpc_req_tab *pTab = pAd->CommonCfg.pTpcReqTab;
+	struct rt_tpc_req_entry *pEntry = NULL;
 
 	if (pTab == NULL) {
 		DBGPRINT(RT_DEBUG_ERROR,
@@ -763,9 +763,9 @@ static void TpcReqDelete(IN PRTMP_ADAPTER pAd, u8 DialogToken)
 
 	pEntry = TpcReqLookUp(pAd, DialogToken);
 	if (pEntry != NULL) {
-		PTPC_REQ_ENTRY pPrevEntry = NULL;
+		struct rt_tpc_req_entry *pPrevEntry = NULL;
 		unsigned long HashIdx = TPC_DIALOGTOKEN_HASH_INDEX(pEntry->DialogToken);
-		PTPC_REQ_ENTRY pProbeEntry = pTab->Hash[HashIdx];
+		struct rt_tpc_req_entry *pProbeEntry = pTab->Hash[HashIdx];
 
 		RTMP_SEM_LOCK(&pAd->CommonCfg.TpcReqTabLock);
 		/* update Hash list */
@@ -783,7 +783,7 @@ static void TpcReqDelete(IN PRTMP_ADAPTER pAd, u8 DialogToken)
 			pProbeEntry = pProbeEntry->pNext;
 		} while (pProbeEntry);
 
-		NdisZeroMemory(pEntry, sizeof(TPC_REQ_ENTRY));
+		NdisZeroMemory(pEntry, sizeof(struct rt_tpc_req_entry));
 		pTab->Size--;
 
 		RTMP_SEM_UNLOCK(&pAd->CommonCfg.TpcReqTabLock);
@@ -802,7 +802,7 @@ static void TpcReqDelete(IN PRTMP_ADAPTER pAd, u8 DialogToken)
 	Return	: Current Time Stamp.
 	==========================================================================
  */
-static u64 GetCurrentTimeStamp(IN PRTMP_ADAPTER pAd)
+static u64 GetCurrentTimeStamp(struct rt_rtmp_adapter *pAd)
 {
 	/* get current time stamp. */
 	return 0;
@@ -818,7 +818,7 @@ static u64 GetCurrentTimeStamp(IN PRTMP_ADAPTER pAd)
 	Return	: Current Time Stamp.
 	==========================================================================
  */
-static u8 GetCurTxPwr(IN PRTMP_ADAPTER pAd, u8 Wcid)
+static u8 GetCurTxPwr(struct rt_rtmp_adapter *pAd, u8 Wcid)
 {
 	return 16;		/* 16 dBm */
 }
@@ -833,7 +833,7 @@ static u8 GetCurTxPwr(IN PRTMP_ADAPTER pAd, u8 Wcid)
 	Return	: Current Time Stamp.
 	==========================================================================
  */
-void InsertChannelRepIE(IN PRTMP_ADAPTER pAd,
+void InsertChannelRepIE(struct rt_rtmp_adapter *pAd,
 			u8 *pFrameBuf,
 			unsigned long *pFrameLen,
 			char *pCountry, u8 RegulatoryClass)
@@ -900,7 +900,7 @@ void InsertChannelRepIE(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-void InsertDialogToken(IN PRTMP_ADAPTER pAd,
+void InsertDialogToken(struct rt_rtmp_adapter *pAd,
 		       u8 *pFrameBuf,
 		       unsigned long *pFrameLen, u8 DialogToken)
 {
@@ -924,7 +924,7 @@ void InsertDialogToken(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-static void InsertTpcReqIE(IN PRTMP_ADAPTER pAd,
+static void InsertTpcReqIE(struct rt_rtmp_adapter *pAd,
 			   u8 *pFrameBuf, unsigned long *pFrameLen)
 {
 	unsigned long TempLen;
@@ -953,15 +953,15 @@ static void InsertTpcReqIE(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-void InsertTpcReportIE(IN PRTMP_ADAPTER pAd,
+void InsertTpcReportIE(struct rt_rtmp_adapter *pAd,
 		       u8 *pFrameBuf,
 		       unsigned long *pFrameLen,
 		       u8 TxPwr, u8 LinkMargin)
 {
 	unsigned long TempLen;
-	unsigned long Len = sizeof(TPC_REPORT_INFO);
+	unsigned long Len = sizeof(struct rt_tpc_report_info);
 	u8 ElementID = IE_TPC_REPORT;
-	TPC_REPORT_INFO TpcReportIE;
+	struct rt_tpc_report_info TpcReportIE;
 
 	TpcReportIE.TxPwr = TxPwr;
 	TpcReportIE.LinkMargin = LinkMargin;
@@ -990,16 +990,16 @@ void InsertTpcReportIE(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-static void InsertChSwAnnIE(IN PRTMP_ADAPTER pAd,
+static void InsertChSwAnnIE(struct rt_rtmp_adapter *pAd,
 			    u8 *pFrameBuf,
 			    unsigned long *pFrameLen,
 			    u8 ChSwMode,
 			    u8 NewChannel, u8 ChSwCnt)
 {
 	unsigned long TempLen;
-	unsigned long Len = sizeof(CH_SW_ANN_INFO);
+	unsigned long Len = sizeof(struct rt_ch_sw_ann_info);
 	u8 ElementID = IE_CHANNEL_SWITCH_ANNOUNCEMENT;
-	CH_SW_ANN_INFO ChSwAnnIE;
+	struct rt_ch_sw_ann_info ChSwAnnIE;
 
 	ChSwAnnIE.ChSwMode = ChSwMode;
 	ChSwAnnIE.Channel = NewChannel;
@@ -1031,10 +1031,10 @@ static void InsertChSwAnnIE(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-static void InsertMeasureReqIE(IN PRTMP_ADAPTER pAd,
+static void InsertMeasureReqIE(struct rt_rtmp_adapter *pAd,
 			       u8 *pFrameBuf,
 			       unsigned long *pFrameLen,
-			       u8 Len, IN PMEASURE_REQ_INFO pMeasureReqIE)
+			       u8 Len, struct rt_measure_req_info * pMeasureReqIE)
 {
 	unsigned long TempLen;
 	u8 ElementID = IE_MEASUREMENT_REQUEST;
@@ -1042,7 +1042,7 @@ static void InsertMeasureReqIE(IN PRTMP_ADAPTER pAd,
 	MakeOutgoingFrame(pFrameBuf, &TempLen,
 			  1, &ElementID,
 			  1, &Len,
-			  sizeof(MEASURE_REQ_INFO), pMeasureReqIE, END_OF_ARGS);
+			  sizeof(struct rt_measure_req_info), pMeasureReqIE, END_OF_ARGS);
 
 	*pFrameLen = *pFrameLen + TempLen;
 
@@ -1066,17 +1066,17 @@ static void InsertMeasureReqIE(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-static void InsertMeasureReportIE(IN PRTMP_ADAPTER pAd,
+static void InsertMeasureReportIE(struct rt_rtmp_adapter *pAd,
 				  u8 *pFrameBuf,
 				  unsigned long *pFrameLen,
-				  IN PMEASURE_REPORT_INFO pMeasureReportIE,
+				  struct rt_measure_report_info * pMeasureReportIE,
 				  u8 ReportLnfoLen, u8 *pReportInfo)
 {
 	unsigned long TempLen;
 	unsigned long Len;
 	u8 ElementID = IE_MEASUREMENT_REPORT;
 
-	Len = sizeof(MEASURE_REPORT_INFO) + ReportLnfoLen;
+	Len = sizeof(struct rt_measure_report_info) + ReportLnfoLen;
 
 	MakeOutgoingFrame(pFrameBuf, &TempLen,
 			  1, &ElementID,
@@ -1105,7 +1105,7 @@ static void InsertMeasureReportIE(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-void MakeMeasurementReqFrame(IN PRTMP_ADAPTER pAd,
+void MakeMeasurementReqFrame(struct rt_rtmp_adapter *pAd,
 			     u8 *pOutBuffer,
 			     unsigned long *pFrameLen,
 			     u8 TotalLen,
@@ -1116,7 +1116,7 @@ void MakeMeasurementReqFrame(IN PRTMP_ADAPTER pAd,
 			     u8 MeasureReqType, u8 NumOfRepetitions)
 {
 	unsigned long TempLen;
-	MEASURE_REQ_INFO MeasureReqIE;
+	struct rt_measure_req_info MeasureReqIE;
 
 	InsertActField(pAd, (pOutBuffer + *pFrameLen), pFrameLen, Category,
 		       Action);
@@ -1133,7 +1133,7 @@ void MakeMeasurementReqFrame(IN PRTMP_ADAPTER pAd,
 		*pFrameLen += TempLen;
 	}
 	/* prepare Measurement IE. */
-	NdisZeroMemory(&MeasureReqIE, sizeof(MEASURE_REQ_INFO));
+	NdisZeroMemory(&MeasureReqIE, sizeof(struct rt_measure_req_info));
 	MeasureReqIE.Token = MeasureToken;
 	MeasureReqIE.ReqMode.word = MeasureReqMode;
 	MeasureReqIE.ReqType = MeasureReqType;
@@ -1155,7 +1155,7 @@ void MakeMeasurementReqFrame(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-void EnqueueMeasurementRep(IN PRTMP_ADAPTER pAd,
+void EnqueueMeasurementRep(struct rt_rtmp_adapter *pAd,
 			   u8 *pDA,
 			   u8 DialogToken,
 			   u8 MeasureToken,
@@ -1166,8 +1166,8 @@ void EnqueueMeasurementRep(IN PRTMP_ADAPTER pAd,
 	u8 *pOutBuffer = NULL;
 	int NStatus;
 	unsigned long FrameLen;
-	HEADER_802_11 ActHdr;
-	MEASURE_REPORT_INFO MeasureRepIE;
+	struct rt_header_802_11 ActHdr;
+	struct rt_measure_report_info MeasureRepIE;
 
 	/* build action frame header. */
 	MgtMacHeaderInit(pAd, &ActHdr, SUBTYPE_ACTION, 0, pDA,
@@ -1179,8 +1179,8 @@ void EnqueueMeasurementRep(IN PRTMP_ADAPTER pAd,
 			 ("%s() allocate memory failed \n", __func__));
 		return;
 	}
-	NdisMoveMemory(pOutBuffer, (char *)& ActHdr, sizeof(HEADER_802_11));
-	FrameLen = sizeof(HEADER_802_11);
+	NdisMoveMemory(pOutBuffer, (char *)& ActHdr, sizeof(struct rt_header_802_11));
+	FrameLen = sizeof(struct rt_header_802_11);
 
 	InsertActField(pAd, (pOutBuffer + FrameLen), &FrameLen,
 		       CATEGORY_SPECTRUM, SPEC_MRP);
@@ -1189,7 +1189,7 @@ void EnqueueMeasurementRep(IN PRTMP_ADAPTER pAd,
 	InsertDialogToken(pAd, (pOutBuffer + FrameLen), &FrameLen, DialogToken);
 
 	/* prepare Measurement IE. */
-	NdisZeroMemory(&MeasureRepIE, sizeof(MEASURE_REPORT_INFO));
+	NdisZeroMemory(&MeasureRepIE, sizeof(struct rt_measure_report_info));
 	MeasureRepIE.Token = MeasureToken;
 	MeasureRepIE.ReportMode = MeasureReqMode;
 	MeasureRepIE.ReportType = MeasureReqType;
@@ -1214,13 +1214,13 @@ void EnqueueMeasurementRep(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-void EnqueueTPCReq(IN PRTMP_ADAPTER pAd, u8 *pDA, u8 DialogToken)
+void EnqueueTPCReq(struct rt_rtmp_adapter *pAd, u8 *pDA, u8 DialogToken)
 {
 	u8 *pOutBuffer = NULL;
 	int NStatus;
 	unsigned long FrameLen;
 
-	HEADER_802_11 ActHdr;
+	struct rt_header_802_11 ActHdr;
 
 	/* build action frame header. */
 	MgtMacHeaderInit(pAd, &ActHdr, SUBTYPE_ACTION, 0, pDA,
@@ -1232,8 +1232,8 @@ void EnqueueTPCReq(IN PRTMP_ADAPTER pAd, u8 *pDA, u8 DialogToken)
 			 ("%s() allocate memory failed \n", __func__));
 		return;
 	}
-	NdisMoveMemory(pOutBuffer, (char *)& ActHdr, sizeof(HEADER_802_11));
-	FrameLen = sizeof(HEADER_802_11);
+	NdisMoveMemory(pOutBuffer, (char *)& ActHdr, sizeof(struct rt_header_802_11));
+	FrameLen = sizeof(struct rt_header_802_11);
 
 	InsertActField(pAd, (pOutBuffer + FrameLen), &FrameLen,
 		       CATEGORY_SPECTRUM, SPEC_TPCRQ);
@@ -1262,7 +1262,7 @@ void EnqueueTPCReq(IN PRTMP_ADAPTER pAd, u8 *pDA, u8 DialogToken)
 	Return	: None.
 	==========================================================================
  */
-void EnqueueTPCRep(IN PRTMP_ADAPTER pAd,
+void EnqueueTPCRep(struct rt_rtmp_adapter *pAd,
 		   u8 *pDA,
 		   u8 DialogToken, u8 TxPwr, u8 LinkMargin)
 {
@@ -1270,7 +1270,7 @@ void EnqueueTPCRep(IN PRTMP_ADAPTER pAd,
 	int NStatus;
 	unsigned long FrameLen;
 
-	HEADER_802_11 ActHdr;
+	struct rt_header_802_11 ActHdr;
 
 	/* build action frame header. */
 	MgtMacHeaderInit(pAd, &ActHdr, SUBTYPE_ACTION, 0, pDA,
@@ -1282,8 +1282,8 @@ void EnqueueTPCRep(IN PRTMP_ADAPTER pAd,
 			 ("%s() allocate memory failed \n", __func__));
 		return;
 	}
-	NdisMoveMemory(pOutBuffer, (char *)& ActHdr, sizeof(HEADER_802_11));
-	FrameLen = sizeof(HEADER_802_11);
+	NdisMoveMemory(pOutBuffer, (char *)& ActHdr, sizeof(struct rt_header_802_11));
+	FrameLen = sizeof(struct rt_header_802_11);
 
 	InsertActField(pAd, (pOutBuffer + FrameLen), &FrameLen,
 		       CATEGORY_SPECTRUM, SPEC_TPCRP);
@@ -1315,14 +1315,14 @@ void EnqueueTPCRep(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-void EnqueueChSwAnn(IN PRTMP_ADAPTER pAd,
+void EnqueueChSwAnn(struct rt_rtmp_adapter *pAd,
 		    u8 *pDA, u8 ChSwMode, u8 NewCh)
 {
 	u8 *pOutBuffer = NULL;
 	int NStatus;
 	unsigned long FrameLen;
 
-	HEADER_802_11 ActHdr;
+	struct rt_header_802_11 ActHdr;
 
 	/* build action frame header. */
 	MgtMacHeaderInit(pAd, &ActHdr, SUBTYPE_ACTION, 0, pDA,
@@ -1334,8 +1334,8 @@ void EnqueueChSwAnn(IN PRTMP_ADAPTER pAd,
 			 ("%s() allocate memory failed \n", __func__));
 		return;
 	}
-	NdisMoveMemory(pOutBuffer, (char *)& ActHdr, sizeof(HEADER_802_11));
-	FrameLen = sizeof(HEADER_802_11);
+	NdisMoveMemory(pOutBuffer, (char *)& ActHdr, sizeof(struct rt_header_802_11));
+	FrameLen = sizeof(struct rt_header_802_11);
 
 	InsertActField(pAd, (pOutBuffer + FrameLen), &FrameLen,
 		       CATEGORY_SPECTRUM, SPEC_CHANNEL_SWITCH);
@@ -1349,7 +1349,7 @@ void EnqueueChSwAnn(IN PRTMP_ADAPTER pAd,
 	return;
 }
 
-static BOOLEAN DfsRequirementCheck(IN PRTMP_ADAPTER pAd, u8 Channel)
+static BOOLEAN DfsRequirementCheck(struct rt_rtmp_adapter *pAd, u8 Channel)
 {
 	BOOLEAN Result = FALSE;
 	int i;
@@ -1376,13 +1376,13 @@ static BOOLEAN DfsRequirementCheck(IN PRTMP_ADAPTER pAd, u8 Channel)
 	return Result;
 }
 
-void NotifyChSwAnnToPeerAPs(IN PRTMP_ADAPTER pAd,
+void NotifyChSwAnnToPeerAPs(struct rt_rtmp_adapter *pAd,
 			    u8 *pRA,
 			    u8 *pTA, u8 ChSwMode, u8 Channel)
 {
 }
 
-static void StartDFSProcedure(IN PRTMP_ADAPTER pAd,
+static void StartDFSProcedure(struct rt_rtmp_adapter *pAd,
 			      u8 Channel, u8 ChSwMode)
 {
 	/* start DFS procedure */
@@ -1415,18 +1415,18 @@ static void StartDFSProcedure(IN PRTMP_ADAPTER pAd,
   +----+-----+-----------+------------+-----------+
     1    1        1           1            1
 */
-static BOOLEAN PeerChSwAnnSanity(IN PRTMP_ADAPTER pAd,
+static BOOLEAN PeerChSwAnnSanity(struct rt_rtmp_adapter *pAd,
 				 void * pMsg,
 				 unsigned long MsgLen,
-				 OUT PCH_SW_ANN_INFO pChSwAnnInfo)
+				 struct rt_ch_sw_ann_info * pChSwAnnInfo)
 {
-	PFRAME_802_11 Fr = (PFRAME_802_11) pMsg;
+	struct rt_frame_802_11 * Fr = (struct rt_frame_802_11 *) pMsg;
 	u8 *pFramePtr = Fr->Octet;
 	BOOLEAN result = FALSE;
-	PEID_STRUCT eid_ptr;
+	struct rt_eid * eid_ptr;
 
 	/* skip 802.11 header. */
-	MsgLen -= sizeof(HEADER_802_11);
+	MsgLen -= sizeof(struct rt_header_802_11);
 
 	/* skip category and action code. */
 	pFramePtr += 2;
@@ -1435,7 +1435,7 @@ static BOOLEAN PeerChSwAnnSanity(IN PRTMP_ADAPTER pAd,
 	if (pChSwAnnInfo == NULL)
 		return result;
 
-	eid_ptr = (PEID_STRUCT) pFramePtr;
+	eid_ptr = (struct rt_eid *) pFramePtr;
 	while (((u8 *) eid_ptr + eid_ptr->Len + 1) <
 	       ((u8 *)pFramePtr + MsgLen)) {
 		switch (eid_ptr->Eid) {
@@ -1453,7 +1453,7 @@ static BOOLEAN PeerChSwAnnSanity(IN PRTMP_ADAPTER pAd,
 		default:
 			break;
 		}
-		eid_ptr = (PEID_STRUCT) ((u8 *) eid_ptr + 2 + eid_ptr->Len);
+		eid_ptr = (struct rt_eid *) ((u8 *) eid_ptr + 2 + eid_ptr->Len);
 	}
 
 	return result;
@@ -1472,23 +1472,23 @@ static BOOLEAN PeerChSwAnnSanity(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-static BOOLEAN PeerMeasureReqSanity(IN PRTMP_ADAPTER pAd,
+static BOOLEAN PeerMeasureReqSanity(struct rt_rtmp_adapter *pAd,
 				    void * pMsg,
 				    unsigned long MsgLen,
 				    u8 *pDialogToken,
-				    OUT PMEASURE_REQ_INFO pMeasureReqInfo,
-				    OUT PMEASURE_REQ pMeasureReq)
+				    struct rt_measure_req_info * pMeasureReqInfo,
+				    struct rt_measure_req * pMeasureReq)
 {
-	PFRAME_802_11 Fr = (PFRAME_802_11) pMsg;
+	struct rt_frame_802_11 * Fr = (struct rt_frame_802_11 *) pMsg;
 	u8 *pFramePtr = Fr->Octet;
 	BOOLEAN result = FALSE;
-	PEID_STRUCT eid_ptr;
+	struct rt_eid * eid_ptr;
 	u8 *ptr;
 	u64 MeasureStartTime;
 	u16 MeasureDuration;
 
 	/* skip 802.11 header. */
-	MsgLen -= sizeof(HEADER_802_11);
+	MsgLen -= sizeof(struct rt_header_802_11);
 
 	/* skip category and action code. */
 	pFramePtr += 2;
@@ -1501,7 +1501,7 @@ static BOOLEAN PeerMeasureReqSanity(IN PRTMP_ADAPTER pAd,
 	pFramePtr += 1;
 	MsgLen -= 1;
 
-	eid_ptr = (PEID_STRUCT) pFramePtr;
+	eid_ptr = (struct rt_eid *) pFramePtr;
 	while (((u8 *) eid_ptr + eid_ptr->Len + 1) <
 	       ((u8 *)pFramePtr + MsgLen)) {
 		switch (eid_ptr->Eid) {
@@ -1526,7 +1526,7 @@ static BOOLEAN PeerMeasureReqSanity(IN PRTMP_ADAPTER pAd,
 		default:
 			break;
 		}
-		eid_ptr = (PEID_STRUCT) ((u8 *) eid_ptr + 2 + eid_ptr->Len);
+		eid_ptr = (struct rt_eid *) ((u8 *) eid_ptr + 2 + eid_ptr->Len);
 	}
 
 	return result;
@@ -1566,22 +1566,22 @@ static BOOLEAN PeerMeasureReqSanity(IN PRTMP_ADAPTER pAd,
   +-----+---------------+---------------------+-------+------------+----------+
      0          1                  2              3         4          5-7
 */
-static BOOLEAN PeerMeasureReportSanity(IN PRTMP_ADAPTER pAd,
+static BOOLEAN PeerMeasureReportSanity(struct rt_rtmp_adapter *pAd,
 				       void * pMsg,
 				       unsigned long MsgLen,
 				       u8 *pDialogToken,
-				       OUT PMEASURE_REPORT_INFO
+				       struct rt_measure_report_info *
 				       pMeasureReportInfo,
 				       u8 *pReportBuf)
 {
-	PFRAME_802_11 Fr = (PFRAME_802_11) pMsg;
+	struct rt_frame_802_11 * Fr = (struct rt_frame_802_11 *) pMsg;
 	u8 *pFramePtr = Fr->Octet;
 	BOOLEAN result = FALSE;
-	PEID_STRUCT eid_ptr;
+	struct rt_eid * eid_ptr;
 	u8 *ptr;
 
 	/* skip 802.11 header. */
-	MsgLen -= sizeof(HEADER_802_11);
+	MsgLen -= sizeof(struct rt_header_802_11);
 
 	/* skip category and action code. */
 	pFramePtr += 2;
@@ -1594,7 +1594,7 @@ static BOOLEAN PeerMeasureReportSanity(IN PRTMP_ADAPTER pAd,
 	pFramePtr += 1;
 	MsgLen -= 1;
 
-	eid_ptr = (PEID_STRUCT) pFramePtr;
+	eid_ptr = (struct rt_eid *) pFramePtr;
 	while (((u8 *) eid_ptr + eid_ptr->Len + 1) <
 	       ((u8 *)pFramePtr + MsgLen)) {
 		switch (eid_ptr->Eid) {
@@ -1606,8 +1606,8 @@ static BOOLEAN PeerMeasureReportSanity(IN PRTMP_ADAPTER pAd,
 			NdisMoveMemory(&pMeasureReportInfo->ReportType,
 				       eid_ptr->Octet + 2, 1);
 			if (pMeasureReportInfo->ReportType == RM_BASIC) {
-				PMEASURE_BASIC_REPORT pReport =
-				    (PMEASURE_BASIC_REPORT) pReportBuf;
+				struct rt_measure_basic_report * pReport =
+				    (struct rt_measure_basic_report *) pReportBuf;
 				ptr = (u8 *)(eid_ptr->Octet + 3);
 				NdisMoveMemory(&pReport->ChNum, ptr, 1);
 				NdisMoveMemory(&pReport->MeasureStartTime,
@@ -1617,8 +1617,8 @@ static BOOLEAN PeerMeasureReportSanity(IN PRTMP_ADAPTER pAd,
 				NdisMoveMemory(&pReport->Map, ptr + 11, 1);
 
 			} else if (pMeasureReportInfo->ReportType == RM_CCA) {
-				PMEASURE_CCA_REPORT pReport =
-				    (PMEASURE_CCA_REPORT) pReportBuf;
+				struct rt_measure_cca_report * pReport =
+				    (struct rt_measure_cca_report *) pReportBuf;
 				ptr = (u8 *)(eid_ptr->Octet + 3);
 				NdisMoveMemory(&pReport->ChNum, ptr, 1);
 				NdisMoveMemory(&pReport->MeasureStartTime,
@@ -1630,8 +1630,8 @@ static BOOLEAN PeerMeasureReportSanity(IN PRTMP_ADAPTER pAd,
 
 			} else if (pMeasureReportInfo->ReportType ==
 				   RM_RPI_HISTOGRAM) {
-				PMEASURE_RPI_REPORT pReport =
-				    (PMEASURE_RPI_REPORT) pReportBuf;
+				struct rt_measure_rpi_report * pReport =
+				    (struct rt_measure_rpi_report *) pReportBuf;
 				ptr = (u8 *)(eid_ptr->Octet + 3);
 				NdisMoveMemory(&pReport->ChNum, ptr, 1);
 				NdisMoveMemory(&pReport->MeasureStartTime,
@@ -1647,7 +1647,7 @@ static BOOLEAN PeerMeasureReportSanity(IN PRTMP_ADAPTER pAd,
 		default:
 			break;
 		}
-		eid_ptr = (PEID_STRUCT) ((u8 *) eid_ptr + 2 + eid_ptr->Len);
+		eid_ptr = (struct rt_eid *) ((u8 *) eid_ptr + 2 + eid_ptr->Len);
 	}
 
 	return result;
@@ -1666,16 +1666,16 @@ static BOOLEAN PeerMeasureReportSanity(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-static BOOLEAN PeerTpcReqSanity(IN PRTMP_ADAPTER pAd,
+static BOOLEAN PeerTpcReqSanity(struct rt_rtmp_adapter *pAd,
 				void * pMsg,
 				unsigned long MsgLen, u8 *pDialogToken)
 {
-	PFRAME_802_11 Fr = (PFRAME_802_11) pMsg;
+	struct rt_frame_802_11 * Fr = (struct rt_frame_802_11 *) pMsg;
 	u8 *pFramePtr = Fr->Octet;
 	BOOLEAN result = FALSE;
-	PEID_STRUCT eid_ptr;
+	struct rt_eid * eid_ptr;
 
-	MsgLen -= sizeof(HEADER_802_11);
+	MsgLen -= sizeof(struct rt_header_802_11);
 
 	/* skip category and action code. */
 	pFramePtr += 2;
@@ -1688,7 +1688,7 @@ static BOOLEAN PeerTpcReqSanity(IN PRTMP_ADAPTER pAd,
 	pFramePtr += 1;
 	MsgLen -= 1;
 
-	eid_ptr = (PEID_STRUCT) pFramePtr;
+	eid_ptr = (struct rt_eid *) pFramePtr;
 	while (((u8 *) eid_ptr + eid_ptr->Len + 1) <
 	       ((u8 *)pFramePtr + MsgLen)) {
 		switch (eid_ptr->Eid) {
@@ -1699,7 +1699,7 @@ static BOOLEAN PeerTpcReqSanity(IN PRTMP_ADAPTER pAd,
 		default:
 			break;
 		}
-		eid_ptr = (PEID_STRUCT) ((u8 *) eid_ptr + 2 + eid_ptr->Len);
+		eid_ptr = (struct rt_eid *) ((u8 *) eid_ptr + 2 + eid_ptr->Len);
 	}
 
 	return result;
@@ -1719,18 +1719,18 @@ static BOOLEAN PeerTpcReqSanity(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-static BOOLEAN PeerTpcRepSanity(IN PRTMP_ADAPTER pAd,
+static BOOLEAN PeerTpcRepSanity(struct rt_rtmp_adapter *pAd,
 				void * pMsg,
 				unsigned long MsgLen,
 				u8 *pDialogToken,
-				OUT PTPC_REPORT_INFO pTpcRepInfo)
+				struct rt_tpc_report_info * pTpcRepInfo)
 {
-	PFRAME_802_11 Fr = (PFRAME_802_11) pMsg;
+	struct rt_frame_802_11 * Fr = (struct rt_frame_802_11 *) pMsg;
 	u8 *pFramePtr = Fr->Octet;
 	BOOLEAN result = FALSE;
-	PEID_STRUCT eid_ptr;
+	struct rt_eid * eid_ptr;
 
-	MsgLen -= sizeof(HEADER_802_11);
+	MsgLen -= sizeof(struct rt_header_802_11);
 
 	/* skip category and action code. */
 	pFramePtr += 2;
@@ -1743,7 +1743,7 @@ static BOOLEAN PeerTpcRepSanity(IN PRTMP_ADAPTER pAd,
 	pFramePtr += 1;
 	MsgLen -= 1;
 
-	eid_ptr = (PEID_STRUCT) pFramePtr;
+	eid_ptr = (struct rt_eid *) pFramePtr;
 	while (((u8 *) eid_ptr + eid_ptr->Len + 1) <
 	       ((u8 *)pFramePtr + MsgLen)) {
 		switch (eid_ptr->Eid) {
@@ -1757,7 +1757,7 @@ static BOOLEAN PeerTpcRepSanity(IN PRTMP_ADAPTER pAd,
 		default:
 			break;
 		}
-		eid_ptr = (PEID_STRUCT) ((u8 *) eid_ptr + 2 + eid_ptr->Len);
+		eid_ptr = (struct rt_eid *) ((u8 *) eid_ptr + 2 + eid_ptr->Len);
 	}
 
 	return result;
@@ -1774,14 +1774,14 @@ static BOOLEAN PeerTpcRepSanity(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-static void PeerChSwAnnAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+static void PeerChSwAnnAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
-	CH_SW_ANN_INFO ChSwAnnInfo;
-	PFRAME_802_11 pFr = (PFRAME_802_11) Elem->Msg;
+	struct rt_ch_sw_ann_info ChSwAnnInfo;
+	struct rt_frame_802_11 * pFr = (struct rt_frame_802_11 *) Elem->Msg;
 	u8 index = 0, Channel = 0, NewChannel = 0;
 	unsigned long Bssidx = 0;
 
-	NdisZeroMemory(&ChSwAnnInfo, sizeof(CH_SW_ANN_INFO));
+	NdisZeroMemory(&ChSwAnnInfo, sizeof(struct rt_ch_sw_ann_info));
 	if (!PeerChSwAnnSanity(pAd, Elem->Msg, Elem->MsgLen, &ChSwAnnInfo)) {
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("Invalid Channel Switch Action Frame.\n"));
@@ -1856,13 +1856,13 @@ static void PeerChSwAnnAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	Return	: None.
 	==========================================================================
  */
-static void PeerMeasureReqAction(IN PRTMP_ADAPTER pAd,
-				 IN MLME_QUEUE_ELEM * Elem)
+static void PeerMeasureReqAction(struct rt_rtmp_adapter *pAd,
+				 struct rt_mlme_queue_elem *Elem)
 {
-	PFRAME_802_11 pFr = (PFRAME_802_11) Elem->Msg;
+	struct rt_frame_802_11 * pFr = (struct rt_frame_802_11 *) Elem->Msg;
 	u8 DialogToken;
-	MEASURE_REQ_INFO MeasureReqInfo;
-	MEASURE_REQ MeasureReq;
+	struct rt_measure_req_info MeasureReqInfo;
+	struct rt_measure_req MeasureReq;
 	MEASURE_REPORT_MODE ReportMode;
 
 	if (PeerMeasureReqSanity
@@ -1889,11 +1889,11 @@ static void PeerMeasureReqAction(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-static void PeerMeasureReportAction(IN PRTMP_ADAPTER pAd,
-				    IN MLME_QUEUE_ELEM * Elem)
+static void PeerMeasureReportAction(struct rt_rtmp_adapter *pAd,
+				    struct rt_mlme_queue_elem *Elem)
 {
-	MEASURE_REPORT_INFO MeasureReportInfo;
-	PFRAME_802_11 pFr = (PFRAME_802_11) Elem->Msg;
+	struct rt_measure_report_info MeasureReportInfo;
+	struct rt_frame_802_11 * pFr = (struct rt_frame_802_11 *) Elem->Msg;
 	u8 DialogToken;
 	u8 *pMeasureReportInfo;
 
@@ -1901,20 +1901,20 @@ static void PeerMeasureReportAction(IN PRTMP_ADAPTER pAd,
 /*              return; */
 
 	if ((pMeasureReportInfo =
-	     kmalloc(sizeof(MEASURE_RPI_REPORT), GFP_ATOMIC)) == NULL) {
+	     kmalloc(sizeof(struct rt_measure_rpi_report), GFP_ATOMIC)) == NULL) {
 		DBGPRINT(RT_DEBUG_ERROR,
 			 ("%s unable to alloc memory for measure report buffer (size=%zu).\n",
-			  __func__, sizeof(MEASURE_RPI_REPORT)));
+			  __func__, sizeof(struct rt_measure_rpi_report)));
 		return;
 	}
 
-	NdisZeroMemory(&MeasureReportInfo, sizeof(MEASURE_REPORT_INFO));
-	NdisZeroMemory(pMeasureReportInfo, sizeof(MEASURE_RPI_REPORT));
+	NdisZeroMemory(&MeasureReportInfo, sizeof(struct rt_measure_report_info));
+	NdisZeroMemory(pMeasureReportInfo, sizeof(struct rt_measure_rpi_report));
 	if (PeerMeasureReportSanity
 	    (pAd, Elem->Msg, Elem->MsgLen, &DialogToken, &MeasureReportInfo,
 	     pMeasureReportInfo)) {
 		do {
-			PMEASURE_REQ_ENTRY pEntry = NULL;
+			struct rt_measure_req_entry *pEntry = NULL;
 
 			/* Not a autonomous measure report. */
 			/* check the dialog token field. drop it if the dialog token doesn't match. */
@@ -1927,8 +1927,8 @@ static void PeerMeasureReportAction(IN PRTMP_ADAPTER pAd,
 				MeasureReqDelete(pAd, pEntry->DialogToken);
 
 			if (MeasureReportInfo.ReportType == RM_BASIC) {
-				PMEASURE_BASIC_REPORT pBasicReport =
-				    (PMEASURE_BASIC_REPORT) pMeasureReportInfo;
+				struct rt_measure_basic_report * pBasicReport =
+				    (struct rt_measure_basic_report *) pMeasureReportInfo;
 				if ((pBasicReport->Map.field.Radar)
 				    &&
 				    (DfsRequirementCheck
@@ -1965,9 +1965,9 @@ static void PeerMeasureReportAction(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-static void PeerTpcReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+static void PeerTpcReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
-	PFRAME_802_11 pFr = (PFRAME_802_11) Elem->Msg;
+	struct rt_frame_802_11 * pFr = (struct rt_frame_802_11 *) Elem->Msg;
 	u8 *pFramePtr = pFr->Octet;
 	u8 DialogToken;
 	u8 TxPwr = GetCurTxPwr(pAd, Elem->Wcid);
@@ -2007,13 +2007,13 @@ static void PeerTpcReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	Return	: None.
 	==========================================================================
  */
-static void PeerTpcRepAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+static void PeerTpcRepAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u8 DialogToken;
-	TPC_REPORT_INFO TpcRepInfo;
-	PTPC_REQ_ENTRY pEntry = NULL;
+	struct rt_tpc_report_info TpcRepInfo;
+	struct rt_tpc_req_entry *pEntry = NULL;
 
-	NdisZeroMemory(&TpcRepInfo, sizeof(TPC_REPORT_INFO));
+	NdisZeroMemory(&TpcRepInfo, sizeof(struct rt_tpc_report_info));
 	if (PeerTpcRepSanity
 	    (pAd, Elem->Msg, Elem->MsgLen, &DialogToken, &TpcRepInfo)) {
 		if ((pEntry = TpcReqLookUp(pAd, DialogToken)) != NULL) {
@@ -2040,7 +2040,7 @@ static void PeerTpcRepAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	Return	: None.
 	==========================================================================
  */
-void PeerSpectrumAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerSpectrumAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 
 	u8 Action = Elem->Msg[LENGTH_802_11 + 1];
@@ -2085,7 +2085,7 @@ void PeerSpectrumAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	Return	: None.
 	==========================================================================
  */
-int Set_MeasureReq_Proc(IN PRTMP_ADAPTER pAd, char *arg)
+int Set_MeasureReq_Proc(struct rt_rtmp_adapter *pAd, char *arg)
 {
 	u32 Aid = 1;
 	u32 ArgIdx;
@@ -2096,10 +2096,10 @@ int Set_MeasureReq_Proc(IN PRTMP_ADAPTER pAd, char *arg)
 	u8 MeasureReqType = RM_BASIC;
 	u8 MeasureCh = 1;
 	u64 MeasureStartTime = GetCurrentTimeStamp(pAd);
-	MEASURE_REQ MeasureReq;
+	struct rt_measure_req MeasureReq;
 	u8 TotalLen;
 
-	HEADER_802_11 ActHdr;
+	struct rt_header_802_11 ActHdr;
 	u8 *pOutBuffer = NULL;
 	int NStatus;
 	unsigned long FrameLen;
@@ -2153,13 +2153,13 @@ int Set_MeasureReq_Proc(IN PRTMP_ADAPTER pAd, char *arg)
 	MgtMacHeaderInit(pAd, &ActHdr, SUBTYPE_ACTION, 0,
 			 pAd->MacTab.Content[Aid].Addr, pAd->CurrentAddress);
 
-	NdisMoveMemory(pOutBuffer, (char *)& ActHdr, sizeof(HEADER_802_11));
-	FrameLen = sizeof(HEADER_802_11);
+	NdisMoveMemory(pOutBuffer, (char *)& ActHdr, sizeof(struct rt_header_802_11));
+	FrameLen = sizeof(struct rt_header_802_11);
 
-	TotalLen = sizeof(MEASURE_REQ_INFO) + sizeof(MEASURE_REQ);
+	TotalLen = sizeof(struct rt_measure_req_info) + sizeof(struct rt_measure_req);
 
 	MakeMeasurementReqFrame(pAd, pOutBuffer, &FrameLen,
-				sizeof(MEASURE_REQ_INFO), CATEGORY_RM, RM_BASIC,
+				sizeof(struct rt_measure_req_info), CATEGORY_RM, RM_BASIC,
 				MeasureReqToken, MeasureReqMode.word,
 				MeasureReqType, 0);
 
@@ -2170,7 +2170,7 @@ int Set_MeasureReq_Proc(IN PRTMP_ADAPTER pAd, char *arg)
 	{
 		unsigned long TempLen;
 		MakeOutgoingFrame(pOutBuffer + FrameLen, &TempLen,
-				  sizeof(MEASURE_REQ), &MeasureReq,
+				  sizeof(struct rt_measure_req), &MeasureReq,
 				  END_OF_ARGS);
 		FrameLen += TempLen;
 	}
@@ -2183,7 +2183,7 @@ END_OF_MEASURE_REQ:
 	return TRUE;
 }
 
-int Set_TpcReq_Proc(IN PRTMP_ADAPTER pAd, char *arg)
+int Set_TpcReq_Proc(struct rt_rtmp_adapter *pAd, char *arg)
 {
 	u32 Aid;
 

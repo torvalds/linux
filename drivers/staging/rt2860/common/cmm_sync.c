@@ -105,13 +105,13 @@ u8 BaSizeArray[4] = { 8, 16, 32, 64 };
 
 	==========================================================================
  */
-void BuildChannelList(IN PRTMP_ADAPTER pAd)
+void BuildChannelList(struct rt_rtmp_adapter *pAd)
 {
 	u8 i, j, index = 0, num = 0;
 	u8 *pChannelList = NULL;
 
 	NdisZeroMemory(pAd->ChannelList,
-		       MAX_NUM_OF_CHANNELS * sizeof(CHANNEL_TX_POWER));
+		       MAX_NUM_OF_CHANNELS * sizeof(struct rt_channel_tx_power));
 
 	/* if not 11a-only mode, channel list starts from 2.4Ghz band */
 	if ((pAd->CommonCfg.PhyMode != PHY_11A)
@@ -122,63 +122,63 @@ void BuildChannelList(IN PRTMP_ADAPTER pAd)
 		case REGION_0_BG_BAND:	/* 1 -11 */
 			NdisMoveMemory(&pAd->ChannelList[index],
 				       &pAd->TxPower[BG_BAND_REGION_0_START],
-				       sizeof(CHANNEL_TX_POWER) *
+				       sizeof(struct rt_channel_tx_power) *
 				       BG_BAND_REGION_0_SIZE);
 			index += BG_BAND_REGION_0_SIZE;
 			break;
 		case REGION_1_BG_BAND:	/* 1 - 13 */
 			NdisMoveMemory(&pAd->ChannelList[index],
 				       &pAd->TxPower[BG_BAND_REGION_1_START],
-				       sizeof(CHANNEL_TX_POWER) *
+				       sizeof(struct rt_channel_tx_power) *
 				       BG_BAND_REGION_1_SIZE);
 			index += BG_BAND_REGION_1_SIZE;
 			break;
 		case REGION_2_BG_BAND:	/* 10 - 11 */
 			NdisMoveMemory(&pAd->ChannelList[index],
 				       &pAd->TxPower[BG_BAND_REGION_2_START],
-				       sizeof(CHANNEL_TX_POWER) *
+				       sizeof(struct rt_channel_tx_power) *
 				       BG_BAND_REGION_2_SIZE);
 			index += BG_BAND_REGION_2_SIZE;
 			break;
 		case REGION_3_BG_BAND:	/* 10 - 13 */
 			NdisMoveMemory(&pAd->ChannelList[index],
 				       &pAd->TxPower[BG_BAND_REGION_3_START],
-				       sizeof(CHANNEL_TX_POWER) *
+				       sizeof(struct rt_channel_tx_power) *
 				       BG_BAND_REGION_3_SIZE);
 			index += BG_BAND_REGION_3_SIZE;
 			break;
 		case REGION_4_BG_BAND:	/* 14 */
 			NdisMoveMemory(&pAd->ChannelList[index],
 				       &pAd->TxPower[BG_BAND_REGION_4_START],
-				       sizeof(CHANNEL_TX_POWER) *
+				       sizeof(struct rt_channel_tx_power) *
 				       BG_BAND_REGION_4_SIZE);
 			index += BG_BAND_REGION_4_SIZE;
 			break;
 		case REGION_5_BG_BAND:	/* 1 - 14 */
 			NdisMoveMemory(&pAd->ChannelList[index],
 				       &pAd->TxPower[BG_BAND_REGION_5_START],
-				       sizeof(CHANNEL_TX_POWER) *
+				       sizeof(struct rt_channel_tx_power) *
 				       BG_BAND_REGION_5_SIZE);
 			index += BG_BAND_REGION_5_SIZE;
 			break;
 		case REGION_6_BG_BAND:	/* 3 - 9 */
 			NdisMoveMemory(&pAd->ChannelList[index],
 				       &pAd->TxPower[BG_BAND_REGION_6_START],
-				       sizeof(CHANNEL_TX_POWER) *
+				       sizeof(struct rt_channel_tx_power) *
 				       BG_BAND_REGION_6_SIZE);
 			index += BG_BAND_REGION_6_SIZE;
 			break;
 		case REGION_7_BG_BAND:	/* 5 - 13 */
 			NdisMoveMemory(&pAd->ChannelList[index],
 				       &pAd->TxPower[BG_BAND_REGION_7_START],
-				       sizeof(CHANNEL_TX_POWER) *
+				       sizeof(struct rt_channel_tx_power) *
 				       BG_BAND_REGION_7_SIZE);
 			index += BG_BAND_REGION_7_SIZE;
 			break;
 		case REGION_31_BG_BAND:	/* 1 - 14 */
 			NdisMoveMemory(&pAd->ChannelList[index],
 				       &pAd->TxPower[BG_BAND_REGION_31_START],
-				       sizeof(CHANNEL_TX_POWER) *
+				       sizeof(struct rt_channel_tx_power) *
 				       BG_BAND_REGION_31_SIZE);
 			index += BG_BAND_REGION_31_SIZE;
 			break;
@@ -315,7 +315,7 @@ void BuildChannelList(IN PRTMP_ADAPTER pAd)
 									   + i],
 							       &pAd->TxPower[j],
 							       sizeof
-							       (CHANNEL_TX_POWER));
+							       (struct rt_channel_tx_power));
 				}
 				for (j = 0; j < 15; j++) {
 					if (pChannelList[i] == RadarCh[j])
@@ -359,7 +359,7 @@ void BuildChannelList(IN PRTMP_ADAPTER pAd)
 
 	==========================================================================
  */
-u8 FirstChannel(IN PRTMP_ADAPTER pAd)
+u8 FirstChannel(struct rt_rtmp_adapter *pAd)
 {
 	return pAd->ChannelList[0].Channel;
 }
@@ -375,7 +375,7 @@ u8 FirstChannel(IN PRTMP_ADAPTER pAd)
 		return 0 if no more next channel
 	==========================================================================
  */
-u8 NextChannel(IN PRTMP_ADAPTER pAd, u8 channel)
+u8 NextChannel(struct rt_rtmp_adapter *pAd, u8 channel)
 {
 	int i;
 	u8 next_channel = 0;
@@ -408,7 +408,7 @@ u8 NextChannel(IN PRTMP_ADAPTER pAd, u8 channel)
 		the minimum value or next lower value.
 	==========================================================================
  */
-void ChangeToCellPowerLimit(IN PRTMP_ADAPTER pAd,
+void ChangeToCellPowerLimit(struct rt_rtmp_adapter *pAd,
 			    u8 AironetCellPowerLimit)
 {
 	/*valud 0xFF means that hasn't found power limit information */
@@ -435,7 +435,7 @@ void ChangeToCellPowerLimit(IN PRTMP_ADAPTER pAd,
 
 }
 
-char ConvertToRssi(IN PRTMP_ADAPTER pAd, char Rssi, u8 RssiNumber)
+char ConvertToRssi(struct rt_rtmp_adapter *pAd, char Rssi, u8 RssiNumber)
 {
 	u8 RssiOffset, LNAGain;
 
@@ -469,15 +469,15 @@ char ConvertToRssi(IN PRTMP_ADAPTER pAd, char Rssi, u8 RssiNumber)
 		Scan next channel
 	==========================================================================
  */
-void ScanNextChannel(IN PRTMP_ADAPTER pAd)
+void ScanNextChannel(struct rt_rtmp_adapter *pAd)
 {
-	HEADER_802_11 Hdr80211;
+	struct rt_header_802_11 Hdr80211;
 	u8 *pOutBuffer = NULL;
 	int NStatus;
 	unsigned long FrameLen = 0;
 	u8 SsidLen = 0, ScanType = pAd->MlmeAux.ScanType, BBPValue = 0;
 	u16 Status;
-	PHEADER_802_11 pHdr80211;
+	struct rt_header_802_11 * pHdr80211;
 	u32 ScanTimeIn5gChannel = SHORT_CHANNEL_TIME;
 
 	{
@@ -522,7 +522,7 @@ void ScanNextChannel(IN PRTMP_ADAPTER pAd)
 				    MlmeAllocateMemory(pAd,
 						       (void *)& pOutBuffer);
 				if (NStatus == NDIS_STATUS_SUCCESS) {
-					pHdr80211 = (PHEADER_802_11) pOutBuffer;
+					pHdr80211 = (struct rt_header_802_11 *) pOutBuffer;
 					MgtMacHeaderInit(pAd, pHdr80211,
 							 SUBTYPE_NULL_FUNC, 1,
 							 pAd->CommonCfg.Bssid,
@@ -535,7 +535,7 @@ void ScanNextChannel(IN PRTMP_ADAPTER pAd)
 					/* Send using priority queue */
 					MiniportMMRequest(pAd, 0, pOutBuffer,
 							  sizeof
-							  (HEADER_802_11));
+							  (struct rt_header_802_11));
 					DBGPRINT(RT_DEBUG_TRACE,
 						 ("MlmeScanReqAction -- Send PSM Data frame\n"));
 					MlmeFreeMemory(pAd, pOutBuffer);
@@ -642,7 +642,7 @@ void ScanNextChannel(IN PRTMP_ADAPTER pAd)
 			MgtMacHeaderInit(pAd, &Hdr80211, SUBTYPE_PROBE_REQ, 0,
 					 BROADCAST_ADDR, BROADCAST_ADDR);
 			MakeOutgoingFrame(pOutBuffer, &FrameLen,
-					  sizeof(HEADER_802_11), &Hdr80211, 1,
+					  sizeof(struct rt_header_802_11), &Hdr80211, 1,
 					  &SsidIe, 1, &SsidLen, SsidLen,
 					  pAd->MlmeAux.Ssid, 1, &SupRateIe, 1,
 					  &pAd->CommonCfg.SupRateLen,
@@ -700,12 +700,12 @@ void ScanNextChannel(IN PRTMP_ADAPTER pAd)
 	}
 }
 
-void MgtProbReqMacHeaderInit(IN PRTMP_ADAPTER pAd,
-			     IN OUT PHEADER_802_11 pHdr80211,
+void MgtProbReqMacHeaderInit(struct rt_rtmp_adapter *pAd,
+			     struct rt_header_802_11 * pHdr80211,
 			     u8 SubType,
 			     u8 ToDs, u8 *pDA, u8 *pBssid)
 {
-	NdisZeroMemory(pHdr80211, sizeof(HEADER_802_11));
+	NdisZeroMemory(pHdr80211, sizeof(struct rt_header_802_11));
 
 	pHdr80211->FC.Type = BTYPE_MGMT;
 	pHdr80211->FC.SubType = SubType;

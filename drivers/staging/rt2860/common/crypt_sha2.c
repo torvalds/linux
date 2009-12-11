@@ -52,10 +52,10 @@ static const u32 SHA1_DefaultHashValue[5] = {
 /*
 ========================================================================
 Routine Description:
-    Initial SHA1_CTX_STRUC
+    Initial struct rt_sha1_ctx
 
 Arguments:
-    pSHA_CTX        Pointer to SHA1_CTX_STRUC
+    pSHA_CTX        Pointer to struct rt_sha1_ctx
 
 Return Value:
     None
@@ -64,7 +64,7 @@ Note:
     None
 ========================================================================
 */
-void RT_SHA1_Init(IN SHA1_CTX_STRUC * pSHA_CTX)
+void RT_SHA1_Init(struct rt_sha1_ctx *pSHA_CTX)
 {
 	NdisMoveMemory(pSHA_CTX->HashValue, SHA1_DefaultHashValue,
 		       sizeof(SHA1_DefaultHashValue));
@@ -79,7 +79,7 @@ Routine Description:
     SHA1 computation for one block (512 bits)
 
 Arguments:
-    pSHA_CTX        Pointer to SHA1_CTX_STRUC
+    pSHA_CTX        Pointer to struct rt_sha1_ctx
 
 Return Value:
     None
@@ -88,7 +88,7 @@ Note:
     None
 ========================================================================
 */
-void SHA1_Hash(IN SHA1_CTX_STRUC * pSHA_CTX)
+void SHA1_Hash(struct rt_sha1_ctx *pSHA_CTX)
 {
 	u32 W_i, t, s;
 	u32 W[16];
@@ -157,7 +157,7 @@ Routine Description:
 will be called.
 
 Arguments:
-    pSHA_CTX        Pointer to SHA1_CTX_STRUC
+    pSHA_CTX        Pointer to struct rt_sha1_ctx
     message         Message context
     messageLen      The length of message in bytes
 
@@ -168,7 +168,7 @@ Note:
     None
 ========================================================================
 */
-void SHA1_Append(IN SHA1_CTX_STRUC * pSHA_CTX,
+void SHA1_Append(struct rt_sha1_ctx *pSHA_CTX,
 		 IN const u8 Message[], u32 MessageLen)
 {
 	u32 appendLen = 0;
@@ -201,7 +201,7 @@ Routine Description:
     3. Transform the Hash Value to digest message
 
 Arguments:
-    pSHA_CTX        Pointer to SHA1_CTX_STRUC
+    pSHA_CTX        Pointer to struct rt_sha1_ctx
 
 Return Value:
     digestMessage   Digest message
@@ -210,7 +210,7 @@ Note:
     None
 ========================================================================
 */
-void SHA1_End(IN SHA1_CTX_STRUC * pSHA_CTX, u8 DigestMessage[])
+void SHA1_End(struct rt_sha1_ctx *pSHA_CTX, u8 DigestMessage[])
 {
 	u32 index;
 	u64 message_length_bits;
@@ -257,9 +257,9 @@ void RT_SHA1(IN const u8 Message[],
 	     u32 MessageLen, u8 DigestMessage[])
 {
 
-	SHA1_CTX_STRUC sha_ctx;
+	struct rt_sha1_ctx sha_ctx;
 
-	NdisZeroMemory(&sha_ctx, sizeof(SHA1_CTX_STRUC));
+	NdisZeroMemory(&sha_ctx, sizeof(struct rt_sha1_ctx));
 	RT_SHA1_Init(&sha_ctx);
 	SHA1_Append(&sha_ctx, Message, MessageLen);
 	SHA1_End(&sha_ctx, DigestMessage);

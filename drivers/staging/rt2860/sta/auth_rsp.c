@@ -47,8 +47,8 @@
 
     ==========================================================================
  */
-void AuthRspStateMachineInit(IN PRTMP_ADAPTER pAd,
-			     IN PSTATE_MACHINE Sm,
+void AuthRspStateMachineInit(struct rt_rtmp_adapter *pAd,
+			     struct rt_state_machine *Sm,
 			     IN STATE_MACHINE_FUNC Trans[])
 {
 	StateMachineInit(Sm, Trans, MAX_AUTH_RSP_STATE, MAX_AUTH_RSP_MSG,
@@ -73,13 +73,13 @@ void AuthRspStateMachineInit(IN PRTMP_ADAPTER pAd,
 
     ==========================================================================
 */
-void PeerAuthSimpleRspGenAndSend(IN PRTMP_ADAPTER pAd,
-				 IN PHEADER_802_11 pHdr80211,
+void PeerAuthSimpleRspGenAndSend(struct rt_rtmp_adapter *pAd,
+				 struct rt_header_802_11 * pHdr80211,
 				 u16 Alg,
 				 u16 Seq,
 				 u16 Reason, u16 Status)
 {
-	HEADER_802_11 AuthHdr;
+	struct rt_header_802_11 AuthHdr;
 	unsigned long FrameLen = 0;
 	u8 *pOutBuffer = NULL;
 	int NStatus;
@@ -96,7 +96,7 @@ void PeerAuthSimpleRspGenAndSend(IN PRTMP_ADAPTER pAd,
 	DBGPRINT(RT_DEBUG_TRACE, ("Send AUTH response (seq#2)...\n"));
 	MgtMacHeaderInit(pAd, &AuthHdr, SUBTYPE_AUTH, 0, pHdr80211->Addr2,
 			 pAd->MlmeAux.Bssid);
-	MakeOutgoingFrame(pOutBuffer, &FrameLen, sizeof(HEADER_802_11),
+	MakeOutgoingFrame(pOutBuffer, &FrameLen, sizeof(struct rt_header_802_11),
 			  &AuthHdr, 2, &Alg, 2, &Seq, 2, &Reason, END_OF_ARGS);
 	MiniportMMRequest(pAd, 0, pOutBuffer, FrameLen);
 	MlmeFreeMemory(pAd, pOutBuffer);
@@ -110,7 +110,7 @@ void PeerAuthSimpleRspGenAndSend(IN PRTMP_ADAPTER pAd,
 
     ==========================================================================
 */
-void PeerDeauthAction(IN PRTMP_ADAPTER pAd, IN PMLME_QUEUE_ELEM Elem)
+void PeerDeauthAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 {
 	u8 Addr2[MAC_ADDR_LEN];
 	u16 Reason;

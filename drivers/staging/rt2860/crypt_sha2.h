@@ -54,18 +54,18 @@
 #ifdef SHA1_SUPPORT
 #define SHA1_BLOCK_SIZE    64	/* 512 bits = 64 bytes */
 #define SHA1_DIGEST_SIZE   20	/* 160 bits = 20 bytes */
-typedef struct _SHA1_CTX_STRUC {
+struct rt_sha1_ctx {
 	u32 HashValue[5];	/* 5 = (SHA1_DIGEST_SIZE / 32) */
 	u64 MessageLen;	/* total size */
 	u8 Block[SHA1_BLOCK_SIZE];
 	u32 BlockLen;
-} SHA1_CTX_STRUC, *PSHA1_CTX_STRUC;
+};
 
-void RT_SHA1_Init(IN SHA1_CTX_STRUC * pSHA_CTX);
-void SHA1_Hash(IN SHA1_CTX_STRUC * pSHA_CTX);
-void SHA1_Append(IN SHA1_CTX_STRUC * pSHA_CTX,
+void RT_SHA1_Init(struct rt_sha1_ctx *pSHA_CTX);
+void SHA1_Hash(struct rt_sha1_ctx *pSHA_CTX);
+void SHA1_Append(struct rt_sha1_ctx *pSHA_CTX,
 		 IN const u8 Message[], u32 MessageLen);
-void SHA1_End(IN SHA1_CTX_STRUC * pSHA_CTX, u8 DigestMessage[]);
+void SHA1_End(struct rt_sha1_ctx *pSHA_CTX, u8 DigestMessage[]);
 void RT_SHA1(IN const u8 Message[],
 	     u32 MessageLen, u8 DigestMessage[]);
 #endif /* SHA1_SUPPORT */

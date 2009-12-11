@@ -53,7 +53,7 @@
 
 	========================================================================
 */
-int RT30xxWriteRFRegister(IN PRTMP_ADAPTER pAd,
+int RT30xxWriteRFRegister(struct rt_rtmp_adapter *pAd,
 				  u8 regID, u8 value)
 {
 	RF_CSR_CFG_STRUC rfcsr;
@@ -101,7 +101,7 @@ int RT30xxWriteRFRegister(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-int RT30xxReadRFRegister(IN PRTMP_ADAPTER pAd,
+int RT30xxReadRFRegister(struct rt_rtmp_adapter *pAd,
 				 u8 regID, u8 *pValue)
 {
 	RF_CSR_CFG_STRUC rfcsr;
@@ -139,15 +139,15 @@ int RT30xxReadRFRegister(IN PRTMP_ADAPTER pAd,
 	return STATUS_SUCCESS;
 }
 
-void NICInitRFRegisters(IN RTMP_ADAPTER * pAd)
+void NICInitRFRegisters(struct rt_rtmp_adapter *pAd)
 {
 	if (pAd->chipOps.AsicRfInit)
 		pAd->chipOps.AsicRfInit(pAd);
 }
 
-void RtmpChipOpsRFHook(IN RTMP_ADAPTER * pAd)
+void RtmpChipOpsRFHook(struct rt_rtmp_adapter *pAd)
 {
-	RTMP_CHIP_OP *pChipOps = &pAd->chipOps;
+	struct rt_rtmp_chip_op *pChipOps = &pAd->chipOps;
 
 	pChipOps->pRFRegTable = NULL;
 	pChipOps->AsicRfInit = NULL;

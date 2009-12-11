@@ -104,7 +104,7 @@ QID_AC_VO, QID_AC_VO };
 
 	========================================================================
 */
-int MiniportMMRequest(IN PRTMP_ADAPTER pAd,
+int MiniportMMRequest(struct rt_rtmp_adapter *pAd,
 			      u8 QueIdx, u8 *pData, u32 Length)
 {
 	void *pPacket;
@@ -242,13 +242,13 @@ int MiniportMMRequest(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-int MlmeHardTransmit(IN PRTMP_ADAPTER pAd,
+int MlmeHardTransmit(struct rt_rtmp_adapter *pAd,
 			     u8 QueIdx, void *pPacket)
 {
-	PACKET_INFO PacketInfo;
+	struct rt_packet_info PacketInfo;
 	u8 *pSrcBufVA;
 	u32 SrcBufLen;
-	PHEADER_802_11 pHeader_802_11;
+	struct rt_header_802_11 * pHeader_802_11;
 
 	if ((pAd->CommonCfg.RadarDetect.RDMode != RD_NORMAL_MODE)
 	    ) {
@@ -259,7 +259,7 @@ int MlmeHardTransmit(IN PRTMP_ADAPTER pAd,
 	if (pSrcBufVA == NULL)
 		return NDIS_STATUS_FAILURE;
 
-	pHeader_802_11 = (PHEADER_802_11) (pSrcBufVA + TXINFO_SIZE + TXWI_SIZE);
+	pHeader_802_11 = (struct rt_header_802_11 *) (pSrcBufVA + TXINFO_SIZE + TXWI_SIZE);
 
 #ifdef RTMP_MAC_PCI
 	if (pAd->MACVersion == 0x28600100)
@@ -270,17 +270,17 @@ int MlmeHardTransmit(IN PRTMP_ADAPTER pAd,
 
 }
 
-int MlmeHardTransmitMgmtRing(IN PRTMP_ADAPTER pAd,
+int MlmeHardTransmitMgmtRing(struct rt_rtmp_adapter *pAd,
 				     u8 QueIdx, void *pPacket)
 {
-	PACKET_INFO PacketInfo;
+	struct rt_packet_info PacketInfo;
 	u8 *pSrcBufVA;
 	u32 SrcBufLen;
-	PHEADER_802_11 pHeader_802_11;
+	struct rt_header_802_11 * pHeader_802_11;
 	BOOLEAN bAckRequired, bInsertTimestamp;
 	u8 MlmeRate;
-	PTXWI_STRUC pFirstTxWI;
-	MAC_TABLE_ENTRY *pMacEntry = NULL;
+	struct rt_txwi * pFirstTxWI;
+	struct rt_mac_table_entry *pMacEntry = NULL;
 	u8 PID;
 
 	RTMP_QueryPacketInfo(pPacket, &PacketInfo, &pSrcBufVA, &SrcBufLen);
@@ -299,8 +299,8 @@ int MlmeHardTransmitMgmtRing(IN PRTMP_ADAPTER pAd,
 			AsicForceWakeup(pAd, TRUE);
 	}
 
-	pFirstTxWI = (PTXWI_STRUC) (pSrcBufVA + TXINFO_SIZE);
-	pHeader_802_11 = (PHEADER_802_11) (pSrcBufVA + TXINFO_SIZE + TXWI_SIZE);	/*TXWI_SIZE); */
+	pFirstTxWI = (struct rt_txwi *) (pSrcBufVA + TXINFO_SIZE);
+	pHeader_802_11 = (struct rt_header_802_11 *) (pSrcBufVA + TXINFO_SIZE + TXWI_SIZE);	/*TXWI_SIZE); */
 
 	if (pHeader_802_11->Addr1[0] & 0x01) {
 		MlmeRate = pAd->CommonCfg.BasicMlmeRate;
@@ -506,11 +506,11 @@ int MlmeHardTransmitMgmtRing(IN PRTMP_ADAPTER pAd,
 								(2).Normal
 	========================================================================
 */
-static u8 TxPktClassification(IN RTMP_ADAPTER * pAd, void *pPacket)
+static u8 TxPktClassification(struct rt_rtmp_adapter *pAd, void *pPacket)
 {
 	u8 TxFrameType = TX_UNKOWN_FRAME;
 	u8 Wcid;
-	MAC_TABLE_ENTRY *pMacEntry = NULL;
+	struct rt_mac_table_entry *pMacEntry = NULL;
 	BOOLEAN bHTRate = FALSE;
 
 	Wcid = RTMP_GET_PACKET_WCID(pPacket);
@@ -554,11 +554,11 @@ static u8 TxPktClassification(IN RTMP_ADAPTER * pAd, void *pPacket)
 	return TxFrameType;
 }
 
-BOOLEAN RTMP_FillTxBlkInfo(IN RTMP_ADAPTER * pAd, IN TX_BLK * pTxBlk)
+BOOLEAN RTMP_FillTxBlkInfo(struct rt_rtmp_adapter *pAd, struct rt_tx_blk *pTxBlk)
 {
-	PACKET_INFO PacketInfo;
+	struct rt_packet_info PacketInfo;
 	void *pPacket;
-	PMAC_TABLE_ENTRY pMacEntry = NULL;
+	struct rt_mac_table_entry *pMacEntry = NULL;
 
 	pPacket = pTxBlk->pPacket;
 	RTMP_QueryPacketInfo(pPacket, &PacketInfo, &pTxBlk->pSrcBufHeader,
@@ -662,8 +662,8 @@ BOOLEAN RTMP_FillTxBlkInfo(IN RTMP_ADAPTER * pAd, IN TX_BLK * pTxBlk)
 	return TRUE;
 }
 
-BOOLEAN CanDoAggregateTransmit(IN RTMP_ADAPTER * pAd,
-			       char * pPacket, IN TX_BLK * pTxBlk)
+BOOLEAN CanDoAggregateTransmit(struct rt_rtmp_adapter *pAd,
+			       char * pPacket, struct rt_tx_blk *pTxBlk)
 {
 
 	/*DBGPRINT(RT_DEBUG_TRACE, ("Check if can do aggregation! TxFrameType=%d!\n", pTxBlk->TxFrameType)); */
@@ -712,20 +712,20 @@ BOOLEAN CanDoAggregateTransmit(IN RTMP_ADAPTER * pAd,
 
 	========================================================================
 */
-void RTMPDeQueuePacket(IN PRTMP_ADAPTER pAd, IN BOOLEAN bIntContext, u8 QIdx,	/* BulkOutPipeId */
+void RTMPDeQueuePacket(struct rt_rtmp_adapter *pAd, IN BOOLEAN bIntContext, u8 QIdx,	/* BulkOutPipeId */
 		       u8 Max_Tx_Packets)
 {
-	PQUEUE_ENTRY pEntry = NULL;
+	struct rt_queue_entry *pEntry = NULL;
 	void *pPacket;
 	int Status = NDIS_STATUS_SUCCESS;
 	u8 Count = 0;
-	PQUEUE_HEADER pQueue;
+	struct rt_queue_header *pQueue;
 	unsigned long FreeNumber[NUM_OF_TX_RING];
 	u8 QueIdx, sQIdx, eQIdx;
 	unsigned long IrqFlags = 0;
 	BOOLEAN hasTxDesc = FALSE;
-	TX_BLK TxBlk;
-	TX_BLK *pTxBlk;
+	struct rt_tx_blk TxBlk;
+	struct rt_tx_blk *pTxBlk;
 
 	if (QIdx == NUM_OF_TX_RING) {
 		sQIdx = 0;
@@ -780,7 +780,7 @@ void RTMPDeQueuePacket(IN PRTMP_ADAPTER pAd, IN BOOLEAN bIntContext, u8 QIdx,	/*
 			}
 
 			pTxBlk = &TxBlk;
-			NdisZeroMemory((u8 *)pTxBlk, sizeof(TX_BLK));
+			NdisZeroMemory((u8 *)pTxBlk, sizeof(struct rt_tx_blk));
 			/*InitializeQueueHeader(&pTxBlk->TxPacketList);         // Didn't need it because we already memzero it. */
 			pTxBlk->QueIdx = QueIdx;
 
@@ -908,7 +908,7 @@ void RTMPDeQueuePacket(IN PRTMP_ADAPTER pAd, IN BOOLEAN bIntContext, u8 QIdx,	/*
 
 	========================================================================
 */
-u16 RTMPCalcDuration(IN PRTMP_ADAPTER pAd, u8 Rate, unsigned long Size)
+u16 RTMPCalcDuration(struct rt_rtmp_adapter *pAd, u8 Rate, unsigned long Size)
 {
 	unsigned long Duration = 0;
 
@@ -968,7 +968,7 @@ u16 RTMPCalcDuration(IN PRTMP_ADAPTER pAd, u8 Rate, unsigned long Size)
 
 	========================================================================
 */
-void RTMPWriteTxWI(IN PRTMP_ADAPTER pAd, IN PTXWI_STRUC pOutTxWI, IN BOOLEAN FRAG, IN BOOLEAN CFACK, IN BOOLEAN InsTimestamp, IN BOOLEAN AMPDU, IN BOOLEAN Ack, IN BOOLEAN NSeq,	/* HW new a sequence. */
+void RTMPWriteTxWI(struct rt_rtmp_adapter *pAd, struct rt_txwi * pOutTxWI, IN BOOLEAN FRAG, IN BOOLEAN CFACK, IN BOOLEAN InsTimestamp, IN BOOLEAN AMPDU, IN BOOLEAN Ack, IN BOOLEAN NSeq,	/* HW new a sequence. */
 		   u8 BASize,
 		   u8 WCID,
 		   unsigned long Length,
@@ -978,9 +978,9 @@ void RTMPWriteTxWI(IN PRTMP_ADAPTER pAd, IN PTXWI_STRUC pOutTxWI, IN BOOLEAN FRA
 		   u8 Txopmode,
 		   IN BOOLEAN CfAck, IN HTTRANSMIT_SETTING * pTransmit)
 {
-	PMAC_TABLE_ENTRY pMac = NULL;
-	TXWI_STRUC TxWI;
-	PTXWI_STRUC pTxWI;
+	struct rt_mac_table_entry *pMac = NULL;
+	struct rt_txwi TxWI;
+	struct rt_txwi * pTxWI;
 
 	if (WCID < MAX_LEN_OF_MAC_TABLE)
 		pMac = &pAd->MacTab.Content[WCID];
@@ -1053,14 +1053,14 @@ void RTMPWriteTxWI(IN PRTMP_ADAPTER pAd, IN PTXWI_STRUC pOutTxWI, IN BOOLEAN FRA
 	}
 
 	pTxWI->PacketId = pTxWI->MCS;
-	NdisMoveMemory(pOutTxWI, &TxWI, sizeof(TXWI_STRUC));
+	NdisMoveMemory(pOutTxWI, &TxWI, sizeof(struct rt_txwi));
 }
 
-void RTMPWriteTxWI_Data(IN PRTMP_ADAPTER pAd,
-			IN OUT PTXWI_STRUC pTxWI, IN TX_BLK * pTxBlk)
+void RTMPWriteTxWI_Data(struct rt_rtmp_adapter *pAd,
+			struct rt_txwi * pTxWI, struct rt_tx_blk *pTxBlk)
 {
 	HTTRANSMIT_SETTING *pTransmit;
-	PMAC_TABLE_ENTRY pMacEntry;
+	struct rt_mac_table_entry *pMacEntry;
 	u8 BASize;
 
 	ASSERT(pTxWI);
@@ -1134,11 +1134,11 @@ void RTMPWriteTxWI_Data(IN PRTMP_ADAPTER pAd,
 	pTxWI->PacketId = pTxWI->MCS;
 }
 
-void RTMPWriteTxWI_Cache(IN PRTMP_ADAPTER pAd,
-			 IN OUT PTXWI_STRUC pTxWI, IN TX_BLK * pTxBlk)
+void RTMPWriteTxWI_Cache(struct rt_rtmp_adapter *pAd,
+			 struct rt_txwi * pTxWI, struct rt_tx_blk *pTxBlk)
 {
 	PHTTRANSMIT_SETTING /*pTxHTPhyMode, */ pTransmit;
-	PMAC_TABLE_ENTRY pMacEntry;
+	struct rt_mac_table_entry *pMacEntry;
 
 	/* */
 	/* update TXWI */
@@ -1194,7 +1194,7 @@ void RTMPWriteTxWI_Cache(IN PRTMP_ADAPTER pAd,
 /* 2. AGGREGATION_IN_USED */
 /* 3. Fragmentation not in used */
 /* 4. either no previous frame (pPrevAddr1=NULL) .OR. previoud frame is aggregatible */
-BOOLEAN TxFrameIsAggregatible(IN PRTMP_ADAPTER pAd,
+BOOLEAN TxFrameIsAggregatible(struct rt_rtmp_adapter *pAd,
 			      u8 *pPrevAddr1, u8 *p8023hdr)
 {
 
@@ -1230,8 +1230,8 @@ BOOLEAN TxFrameIsAggregatible(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-BOOLEAN PeerIsAggreOn(IN PRTMP_ADAPTER pAd,
-		      unsigned long TxRate, IN PMAC_TABLE_ENTRY pMacEntry)
+BOOLEAN PeerIsAggreOn(struct rt_rtmp_adapter *pAd,
+		      unsigned long TxRate, struct rt_mac_table_entry *pMacEntry)
 {
 	unsigned long AFlags =
 	    (fCLIENT_STATUS_AMSDU_INUSED | fCLIENT_STATUS_AGGREGATION_CAPABLE);
@@ -1269,7 +1269,7 @@ BOOLEAN PeerIsAggreOn(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-PQUEUE_HEADER RTMPCheckTxSwQueue(IN PRTMP_ADAPTER pAd, u8 *pQueIdx)
+struct rt_queue_header *RTMPCheckTxSwQueue(struct rt_rtmp_adapter *pAd, u8 *pQueIdx)
 {
 
 	unsigned long Number;
@@ -1317,7 +1317,7 @@ PQUEUE_HEADER RTMPCheckTxSwQueue(IN PRTMP_ADAPTER pAd, u8 *pQueIdx)
 
 	========================================================================
 */
-void RTMPSuspendMsduTransmission(IN PRTMP_ADAPTER pAd)
+void RTMPSuspendMsduTransmission(struct rt_rtmp_adapter *pAd)
 {
 	DBGPRINT(RT_DEBUG_TRACE, ("SCANNING, suspend MSDU transmission ...\n"));
 
@@ -1354,7 +1354,7 @@ void RTMPSuspendMsduTransmission(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-void RTMPResumeMsduTransmission(IN PRTMP_ADAPTER pAd)
+void RTMPResumeMsduTransmission(struct rt_rtmp_adapter *pAd)
 {
 /*    u8                     IrqState; */
 
@@ -1379,13 +1379,13 @@ void RTMPResumeMsduTransmission(IN PRTMP_ADAPTER pAd)
 	RTMPDeQueuePacket(pAd, FALSE, NUM_OF_TX_RING, MAX_TX_PROCESS);
 }
 
-u32 deaggregate_AMSDU_announce(IN PRTMP_ADAPTER pAd,
+u32 deaggregate_AMSDU_announce(struct rt_rtmp_adapter *pAd,
 				void *pPacket,
 				u8 *pData, unsigned long DataSize)
 {
 	u16 PayloadSize;
 	u16 SubFrameSize;
-	PHEADER_802_3 pAMSDUsubheader;
+	struct rt_header_802_3 * pAMSDUsubheader;
 	u32 nMSDU;
 	u8 Header802_3[14];
 
@@ -1399,7 +1399,7 @@ u32 deaggregate_AMSDU_announce(IN PRTMP_ADAPTER pAd,
 		nMSDU++;
 
 		/*hex_dump("subheader", pData, 64); */
-		pAMSDUsubheader = (PHEADER_802_3) pData;
+		pAMSDUsubheader = (struct rt_header_802_3 *) pData;
 		/*pData += LENGTH_802_3; */
 		PayloadSize =
 		    pAMSDUsubheader->Octet[1] +
@@ -1421,8 +1421,8 @@ u32 deaggregate_AMSDU_announce(IN PRTMP_ADAPTER pAd,
 
 		if ((Header802_3[12] == 0x88) && (Header802_3[13] == 0x8E)) {
 			/* avoid local heap overflow, use dyanamic allocation */
-			MLME_QUEUE_ELEM *Elem =
-			    (MLME_QUEUE_ELEM *) kmalloc(sizeof(MLME_QUEUE_ELEM),
+			struct rt_mlme_queue_elem *Elem =
+			    (struct rt_mlme_queue_elem *)kmalloc(sizeof(struct rt_mlme_queue_elem),
 							MEM_ALLOC_FLAG);
 			if (Elem != NULL) {
 				memmove(Elem->Msg +
@@ -1479,7 +1479,7 @@ u32 deaggregate_AMSDU_announce(IN PRTMP_ADAPTER pAd,
 	return nMSDU;
 }
 
-u32 BA_Reorder_AMSDU_Annnounce(IN PRTMP_ADAPTER pAd, void *pPacket)
+u32 BA_Reorder_AMSDU_Annnounce(struct rt_rtmp_adapter *pAd, void *pPacket)
 {
 	u8 *pData;
 	u16 DataSize;
@@ -1501,10 +1501,10 @@ u32 BA_Reorder_AMSDU_Annnounce(IN PRTMP_ADAPTER pAd, void *pPacket)
 		pEntry - pointer to the MAC entry; NULL is not found
 	==========================================================================
 */
-MAC_TABLE_ENTRY *MacTableLookup(IN PRTMP_ADAPTER pAd, u8 *pAddr)
+struct rt_mac_table_entry *MacTableLookup(struct rt_rtmp_adapter *pAd, u8 *pAddr)
 {
 	unsigned long HashIdx;
-	MAC_TABLE_ENTRY *pEntry = NULL;
+	struct rt_mac_table_entry *pEntry = NULL;
 
 	HashIdx = MAC_ADDR_HASH_INDEX(pAddr);
 	pEntry = pAd->MacTab.Hash[HashIdx];
@@ -1521,13 +1521,13 @@ MAC_TABLE_ENTRY *MacTableLookup(IN PRTMP_ADAPTER pAd, u8 *pAddr)
 	return pEntry;
 }
 
-MAC_TABLE_ENTRY *MacTableInsertEntry(IN PRTMP_ADAPTER pAd,
+struct rt_mac_table_entry *MacTableInsertEntry(struct rt_rtmp_adapter *pAd,
 				     u8 *pAddr,
 				     u8 apidx, IN BOOLEAN CleanAll)
 {
 	u8 HashIdx;
 	int i, FirstWcid;
-	MAC_TABLE_ENTRY *pEntry = NULL, *pCurrEntry;
+	struct rt_mac_table_entry *pEntry = NULL, *pCurrEntry;
 /*      u16  offset; */
 /*      unsigned long   addr; */
 
@@ -1554,7 +1554,7 @@ MAC_TABLE_ENTRY *MacTableInsertEntry(IN PRTMP_ADAPTER pAd,
 			if (CleanAll == TRUE) {
 				pEntry->MaxSupportedRate = RATE_11;
 				pEntry->CurrTxRate = RATE_11;
-				NdisZeroMemory(pEntry, sizeof(MAC_TABLE_ENTRY));
+				NdisZeroMemory(pEntry, sizeof(struct rt_mac_table_entry));
 				pEntry->PairwiseKey.KeyLen = 0;
 				pEntry->PairwiseKey.CipherAlg = CIPHER_NONE;
 			}
@@ -1658,11 +1658,11 @@ MAC_TABLE_ENTRY *MacTableInsertEntry(IN PRTMP_ADAPTER pAd,
 		Delete a specified client from MAC table
 	==========================================================================
  */
-BOOLEAN MacTableDeleteEntry(IN PRTMP_ADAPTER pAd,
+BOOLEAN MacTableDeleteEntry(struct rt_rtmp_adapter *pAd,
 			    u16 wcid, u8 *pAddr)
 {
 	u16 HashIdx;
-	MAC_TABLE_ENTRY *pEntry, *pPrevEntry, *pProbeEntry;
+	struct rt_mac_table_entry *pEntry, *pPrevEntry, *pProbeEntry;
 	BOOLEAN Cancelled;
 	/*u16        offset; // unused variable */
 	/*u8 j;                      // unused variable */
@@ -1722,7 +1722,7 @@ BOOLEAN MacTableDeleteEntry(IN PRTMP_ADAPTER pAd,
 				    EAPOL_START_DISABLE;
 			}
 
-			NdisZeroMemory(pEntry, sizeof(MAC_TABLE_ENTRY));
+			NdisZeroMemory(pEntry, sizeof(struct rt_mac_table_entry));
 			pAd->MacTab.Size--;
 			DBGPRINT(RT_DEBUG_TRACE,
 				 ("MacTableDeleteEntry1 - Total= %d\n",
@@ -1752,7 +1752,7 @@ BOOLEAN MacTableDeleteEntry(IN PRTMP_ADAPTER pAd,
 		the power-saving queues are freed here.
 	==========================================================================
  */
-void MacTableReset(IN PRTMP_ADAPTER pAd)
+void MacTableReset(struct rt_rtmp_adapter *pAd)
 {
 	int i;
 
@@ -1790,8 +1790,8 @@ void MacTableReset(IN PRTMP_ADAPTER pAd)
 
 	==========================================================================
 */
-void AssocParmFill(IN PRTMP_ADAPTER pAd,
-		   IN OUT MLME_ASSOC_REQ_STRUCT * AssocReq,
+void AssocParmFill(struct rt_rtmp_adapter *pAd,
+		   struct rt_mlme_assoc_req *AssocReq,
 		   u8 *pAddr,
 		   u16 CapabilityInfo,
 		   unsigned long Timeout, u16 ListenIntv)
@@ -1811,8 +1811,8 @@ void AssocParmFill(IN PRTMP_ADAPTER pAd,
 
 	==========================================================================
 */
-void DisassocParmFill(IN PRTMP_ADAPTER pAd,
-		      IN OUT MLME_DISASSOC_REQ_STRUCT * DisassocReq,
+void DisassocParmFill(struct rt_rtmp_adapter *pAd,
+		      struct rt_mlme_disassoc_req *DisassocReq,
 		      u8 *pAddr, u16 Reason)
 {
 	COPY_MAC_ADDR(DisassocReq->Addr, pAddr);
@@ -1853,9 +1853,9 @@ void DisassocParmFill(IN PRTMP_ADAPTER pAd,
 	========================================================================
 */
 
-BOOLEAN RTMPCheckDHCPFrame(IN PRTMP_ADAPTER pAd, void *pPacket)
+BOOLEAN RTMPCheckDHCPFrame(struct rt_rtmp_adapter *pAd, void *pPacket)
 {
-	PACKET_INFO PacketInfo;
+	struct rt_packet_info PacketInfo;
 	unsigned long NumberOfBytesRead = 0;
 	unsigned long CurrentOffset = 0;
 	void *pVirtualAddress = NULL;
@@ -1908,7 +1908,7 @@ BOOLEAN RTMPCheckDHCPFrame(IN PRTMP_ADAPTER pAd, void *pPacket)
 	return TRUE;
 }
 
-BOOLEAN RTMPCheckEtherType(IN PRTMP_ADAPTER pAd, void *pPacket)
+BOOLEAN RTMPCheckEtherType(struct rt_rtmp_adapter *pAd, void *pPacket)
 {
 	u16 TypeLen;
 	u8 Byte0, Byte1;
@@ -2010,8 +2010,8 @@ BOOLEAN RTMPCheckEtherType(IN PRTMP_ADAPTER pAd, void *pPacket)
 
 }
 
-void Update_Rssi_Sample(IN PRTMP_ADAPTER pAd,
-			IN RSSI_SAMPLE * pRssi, IN PRXWI_STRUC pRxWI)
+void Update_Rssi_Sample(struct rt_rtmp_adapter *pAd,
+			struct rt_rssi_sample *pRssi, struct rt_rxwi * pRxWI)
 {
 	char rssi0 = pRxWI->RSSI0;
 	char rssi1 = pRxWI->RSSI1;
@@ -2040,8 +2040,8 @@ void Update_Rssi_Sample(IN PRTMP_ADAPTER pAd,
 }
 
 /* Normal legacy Rx packet indication */
-void Indicate_Legacy_Packet(IN PRTMP_ADAPTER pAd,
-			    IN RX_BLK * pRxBlk, u8 FromWhichBSSID)
+void Indicate_Legacy_Packet(struct rt_rtmp_adapter *pAd,
+			    struct rt_rx_blk *pRxBlk, u8 FromWhichBSSID)
 {
 	void *pRxPacket = pRxBlk->pRxPacket;
 	u8 Header802_3[LENGTH_802_3];
@@ -2063,7 +2063,7 @@ void Indicate_Legacy_Packet(IN PRTMP_ADAPTER pAd,
 
 #ifdef RTMP_MAC_USB
 	if (pAd->CommonCfg.bDisableReordering == 0) {
-		PBA_REC_ENTRY pBAEntry;
+		struct rt_ba_rec_entry *pBAEntry;
 		unsigned long Now32;
 		u8 Wcid = pRxBlk->pRxWI->WirelessCliID;
 		u8 TID = pRxBlk->pRxWI->TID;
@@ -2111,8 +2111,8 @@ void Indicate_Legacy_Packet(IN PRTMP_ADAPTER pAd,
 }
 
 /* Normal, AMPDU or AMSDU */
-void CmmRxnonRalinkFrameIndicate(IN PRTMP_ADAPTER pAd,
-				 IN RX_BLK * pRxBlk, u8 FromWhichBSSID)
+void CmmRxnonRalinkFrameIndicate(struct rt_rtmp_adapter *pAd,
+				 struct rt_rx_blk *pRxBlk, u8 FromWhichBSSID)
 {
 	if (RX_BLK_TEST_FLAG(pRxBlk, fRX_AMPDU)
 	    && (pAd->CommonCfg.bDisableReordering == 0)) {
@@ -2127,9 +2127,9 @@ void CmmRxnonRalinkFrameIndicate(IN PRTMP_ADAPTER pAd,
 	}
 }
 
-void CmmRxRalinkFrameIndicate(IN PRTMP_ADAPTER pAd,
-			      IN MAC_TABLE_ENTRY * pEntry,
-			      IN RX_BLK * pRxBlk, u8 FromWhichBSSID)
+void CmmRxRalinkFrameIndicate(struct rt_rtmp_adapter *pAd,
+			      struct rt_mac_table_entry *pEntry,
+			      struct rt_rx_blk *pRxBlk, u8 FromWhichBSSID)
 {
 	u8 Header802_3[LENGTH_802_3];
 	u16 Msdu2Size;
@@ -2192,9 +2192,9 @@ void CmmRxRalinkFrameIndicate(IN PRTMP_ADAPTER pAd,
 		_fragFrame.Flags = 0;		\
 	}
 
-void *RTMPDeFragmentDataFrame(IN PRTMP_ADAPTER pAd, IN RX_BLK * pRxBlk)
+void *RTMPDeFragmentDataFrame(struct rt_rtmp_adapter *pAd, struct rt_rx_blk *pRxBlk)
 {
-	PHEADER_802_11 pHeader = pRxBlk->pHeader;
+	struct rt_header_802_11 * pHeader = pRxBlk->pHeader;
 	void *pRxPacket = pRxBlk->pRxPacket;
 	u8 *pData = pRxBlk->pData;
 	u16 DataSize = pRxBlk->DataSize;
@@ -2283,7 +2283,7 @@ done:
 			pRetPacket = pAd->FragFrame.pFragPacket;
 			pAd->FragFrame.pFragPacket = pNewFragPacket;
 			pRxBlk->pHeader =
-			    (PHEADER_802_11) GET_OS_PKT_DATAPTR(pRetPacket);
+			    (struct rt_header_802_11 *) GET_OS_PKT_DATAPTR(pRetPacket);
 			pRxBlk->pData = (u8 *) pRxBlk->pHeader + HeaderRoom;
 			pRxBlk->DataSize = pAd->FragFrame.RxSize - HeaderRoom;
 			pRxBlk->pRxPacket = pRetPacket;
@@ -2295,8 +2295,8 @@ done:
 	return pRetPacket;
 }
 
-void Indicate_AMSDU_Packet(IN PRTMP_ADAPTER pAd,
-			   IN RX_BLK * pRxBlk, u8 FromWhichBSSID)
+void Indicate_AMSDU_Packet(struct rt_rtmp_adapter *pAd,
+			   struct rt_rx_blk *pRxBlk, u8 FromWhichBSSID)
 {
 	u32 nMSDU;
 
@@ -2307,10 +2307,10 @@ void Indicate_AMSDU_Packet(IN PRTMP_ADAPTER pAd,
 				       pRxBlk->DataSize);
 }
 
-void Indicate_EAPOL_Packet(IN PRTMP_ADAPTER pAd,
-			   IN RX_BLK * pRxBlk, u8 FromWhichBSSID)
+void Indicate_EAPOL_Packet(struct rt_rtmp_adapter *pAd,
+			   struct rt_rx_blk *pRxBlk, u8 FromWhichBSSID)
 {
-	MAC_TABLE_ENTRY *pEntry = NULL;
+	struct rt_mac_table_entry *pEntry = NULL;
 
 	{
 		pEntry = &pAd->MacTab.Content[BSSID_WCID];
@@ -2329,7 +2329,7 @@ void Indicate_EAPOL_Packet(IN PRTMP_ADAPTER pAd,
 }
 
 #define BCN_TBTT_OFFSET		64	/*defer 64 us */
-void ReSyncBeaconTime(IN PRTMP_ADAPTER pAd)
+void ReSyncBeaconTime(struct rt_rtmp_adapter *pAd)
 {
 
 	u32 Offset;

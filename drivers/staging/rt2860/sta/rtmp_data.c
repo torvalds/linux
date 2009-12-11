@@ -36,12 +36,12 @@
 */
 #include "../rt_config.h"
 
-void STARxEAPOLFrameIndicate(IN PRTMP_ADAPTER pAd,
-			     IN MAC_TABLE_ENTRY * pEntry,
-			     IN RX_BLK * pRxBlk, u8 FromWhichBSSID)
+void STARxEAPOLFrameIndicate(struct rt_rtmp_adapter *pAd,
+			     struct rt_mac_table_entry *pEntry,
+			     struct rt_rx_blk *pRxBlk, u8 FromWhichBSSID)
 {
 	PRT28XX_RXD_STRUC pRxD = &(pRxBlk->RxD);
-	PRXWI_STRUC pRxWI = pRxBlk->pRxWI;
+	struct rt_rxwi * pRxWI = pRxBlk->pRxWI;
 	u8 *pTmpBuf;
 
 	if (pAd->StaCfg.WpaSupplicantUP) {
@@ -76,7 +76,7 @@ void STARxEAPOLFrameIndicate(IN PRTMP_ADAPTER pAd,
 					if (pAd->StaCfg.DesireSharedKey[idx].
 					    KeyLen > 0) {
 #ifdef RTMP_MAC_PCI
-						MAC_TABLE_ENTRY *pEntry =
+						struct rt_mac_table_entry *pEntry =
 						    &pAd->MacTab.
 						    Content[BSSID_WCID];
 
@@ -109,11 +109,11 @@ void STARxEAPOLFrameIndicate(IN PRTMP_ADAPTER pAd,
 #ifdef RTMP_MAC_USB
 						union {
 							char buf[sizeof
-								 (NDIS_802_11_WEP)
+								 (struct rt_ndis_802_11_wep)
 								 +
 								 MAX_LEN_OF_KEY
 								 - 1];
-							NDIS_802_11_WEP keyinfo;
+							struct rt_ndis_802_11_wep keyinfo;
 						}
 						WepKey;
 						int len;
@@ -202,9 +202,9 @@ void STARxEAPOLFrameIndicate(IN PRTMP_ADAPTER pAd,
 
 }
 
-void STARxDataFrameAnnounce(IN PRTMP_ADAPTER pAd,
-			    IN MAC_TABLE_ENTRY * pEntry,
-			    IN RX_BLK * pRxBlk, u8 FromWhichBSSID)
+void STARxDataFrameAnnounce(struct rt_rtmp_adapter *pAd,
+			    struct rt_mac_table_entry *pEntry,
+			    struct rt_rx_blk *pRxBlk, u8 FromWhichBSSID)
 {
 
 	/* non-EAP frame */
@@ -265,14 +265,14 @@ void STARxDataFrameAnnounce(IN PRTMP_ADAPTER pAd,
 }
 
 /* For TKIP frame, calculate the MIC value */
-BOOLEAN STACheckTkipMICValue(IN PRTMP_ADAPTER pAd,
-			     IN MAC_TABLE_ENTRY * pEntry, IN RX_BLK * pRxBlk)
+BOOLEAN STACheckTkipMICValue(struct rt_rtmp_adapter *pAd,
+			     struct rt_mac_table_entry *pEntry, struct rt_rx_blk *pRxBlk)
 {
-	PHEADER_802_11 pHeader = pRxBlk->pHeader;
+	struct rt_header_802_11 * pHeader = pRxBlk->pHeader;
 	u8 *pData = pRxBlk->pData;
 	u16 DataSize = pRxBlk->DataSize;
 	u8 UserPriority = pRxBlk->UserPriority;
-	PCIPHER_KEY pWpaKey;
+	struct rt_cipher_key *pWpaKey;
 	u8 *pDA, *pSA;
 
 	pWpaKey = &pAd->SharedKey[BSS0][pRxBlk->pRxWI->KeyIndex];
@@ -311,21 +311,21 @@ BOOLEAN STACheckTkipMICValue(IN PRTMP_ADAPTER pAd,
 }
 
 /* */
-/* All Rx routines use RX_BLK structure to hande rx events */
+/* All Rx routines use struct rt_rx_blk structure to hande rx events */
 /* It is very important to build pRxBlk attributes */
 /*  1. pHeader pointer to 802.11 Header */
 /*  2. pData pointer to payload including LLC (just skip Header) */
 /*  3. set payload size including LLC to DataSize */
 /*  4. set some flags with RX_BLK_SET_FLAG() */
 /* */
-void STAHandleRxDataFrame(IN PRTMP_ADAPTER pAd, IN RX_BLK * pRxBlk)
+void STAHandleRxDataFrame(struct rt_rtmp_adapter *pAd, struct rt_rx_blk *pRxBlk)
 {
 	PRT28XX_RXD_STRUC pRxD = &(pRxBlk->RxD);
-	PRXWI_STRUC pRxWI = pRxBlk->pRxWI;
-	PHEADER_802_11 pHeader = pRxBlk->pHeader;
+	struct rt_rxwi * pRxWI = pRxBlk->pRxWI;
+	struct rt_header_802_11 * pHeader = pRxBlk->pHeader;
 	void *pRxPacket = pRxBlk->pRxPacket;
 	BOOLEAN bFragment = FALSE;
-	MAC_TABLE_ENTRY *pEntry = NULL;
+	struct rt_mac_table_entry *pEntry = NULL;
 	u8 FromWhichBSSID = BSS0;
 	u8 UserPriority = 0;
 
@@ -610,11 +610,11 @@ void STAHandleRxDataFrame(IN PRTMP_ADAPTER pAd, IN RX_BLK * pRxBlk)
 	RELEASE_NDIS_PACKET(pAd, pRxPacket, NDIS_STATUS_FAILURE);
 }
 
-void STAHandleRxMgmtFrame(IN PRTMP_ADAPTER pAd, IN RX_BLK * pRxBlk)
+void STAHandleRxMgmtFrame(struct rt_rtmp_adapter *pAd, struct rt_rx_blk *pRxBlk)
 {
 	PRT28XX_RXD_STRUC pRxD = &(pRxBlk->RxD);
-	PRXWI_STRUC pRxWI = pRxBlk->pRxWI;
-	PHEADER_802_11 pHeader = pRxBlk->pHeader;
+	struct rt_rxwi * pRxWI = pRxBlk->pRxWI;
+	struct rt_header_802_11 * pHeader = pRxBlk->pHeader;
 	void *pRxPacket = pRxBlk->pRxPacket;
 
 	do {
@@ -656,10 +656,10 @@ void STAHandleRxMgmtFrame(IN PRTMP_ADAPTER pAd, IN RX_BLK * pRxBlk)
 	RELEASE_NDIS_PACKET(pAd, pRxPacket, NDIS_STATUS_SUCCESS);
 }
 
-void STAHandleRxControlFrame(IN PRTMP_ADAPTER pAd, IN RX_BLK * pRxBlk)
+void STAHandleRxControlFrame(struct rt_rtmp_adapter *pAd, struct rt_rx_blk *pRxBlk)
 {
-	PRXWI_STRUC pRxWI = pRxBlk->pRxWI;
-	PHEADER_802_11 pHeader = pRxBlk->pHeader;
+	struct rt_rxwi * pRxWI = pRxBlk->pRxWI;
+	struct rt_header_802_11 * pHeader = pRxBlk->pHeader;
 	void *pRxPacket = pRxBlk->pRxPacket;
 
 	switch (pHeader->FC.SubType) {
@@ -667,7 +667,7 @@ void STAHandleRxControlFrame(IN PRTMP_ADAPTER pAd, IN RX_BLK * pRxBlk)
 		{
 			CntlEnqueueForRecv(pAd, pRxWI->WirelessCliID,
 					   (pRxWI->MPDUtotalByteCount),
-					   (PFRAME_BA_REQ) pHeader);
+					   (struct rt_frame_ba_req *) pHeader);
 		}
 		break;
 	case SUBTYPE_BLOCK_ACK:
@@ -698,17 +698,17 @@ void STAHandleRxControlFrame(IN PRTMP_ADAPTER pAd, IN RX_BLK * pRxBlk)
 		Need to consider QOS DATA format when converting to 802.3
 	========================================================================
 */
-BOOLEAN STARxDoneInterruptHandle(IN PRTMP_ADAPTER pAd, IN BOOLEAN argc)
+BOOLEAN STARxDoneInterruptHandle(struct rt_rtmp_adapter *pAd, IN BOOLEAN argc)
 {
 	int Status;
 	u32 RxProcessed, RxPending;
 	BOOLEAN bReschedule = FALSE;
-	RT28XX_RXD_STRUC *pRxD;
+	PRT28XX_RXD_STRUC pRxD;
 	u8 *pData;
-	PRXWI_STRUC pRxWI;
+	struct rt_rxwi * pRxWI;
 	void *pRxPacket;
-	PHEADER_802_11 pHeader;
-	RX_BLK RxCell;
+	struct rt_header_802_11 * pHeader;
+	struct rt_rx_blk RxCell;
 
 	RxProcessed = RxPending = 0;
 
@@ -750,8 +750,8 @@ BOOLEAN STARxDoneInterruptHandle(IN PRTMP_ADAPTER pAd, IN BOOLEAN argc)
 		pRxD = &(RxCell.RxD);
 		/* get rx data buffer */
 		pData = GET_OS_PKT_DATAPTR(pRxPacket);
-		pRxWI = (PRXWI_STRUC) pData;
-		pHeader = (PHEADER_802_11) (pData + RXWI_SIZE);
+		pRxWI = (struct rt_rxwi *) pData;
+		pHeader = (struct rt_header_802_11 *) (pData + RXWI_SIZE);
 
 		/* build RxCell */
 		RxCell.pRxWI = pRxWI;
@@ -833,7 +833,7 @@ BOOLEAN STARxDoneInterruptHandle(IN PRTMP_ADAPTER pAd, IN BOOLEAN argc)
 
 	========================================================================
 */
-void RTMPHandleTwakeupInterrupt(IN PRTMP_ADAPTER pAd)
+void RTMPHandleTwakeupInterrupt(struct rt_rtmp_adapter *pAd)
 {
 	AsicForceWakeup(pAd, FALSE);
 }
@@ -860,7 +860,7 @@ void STASendPackets(void *MiniportAdapterContext,
 		    void **ppPacketArray, u32 NumberOfPackets)
 {
 	u32 Index;
-	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) MiniportAdapterContext;
+	struct rt_rtmp_adapter *pAd = (struct rt_rtmp_adapter *)MiniportAdapterContext;
 	void *pPacket;
 	BOOLEAN allowToSend = FALSE;
 
@@ -920,16 +920,16 @@ Note:
 	You only can put OS-indepened & STA related code in here.
 ========================================================================
 */
-int STASendPacket(IN PRTMP_ADAPTER pAd, void *pPacket)
+int STASendPacket(struct rt_rtmp_adapter *pAd, void *pPacket)
 {
-	PACKET_INFO PacketInfo;
+	struct rt_packet_info PacketInfo;
 	u8 *pSrcBufVA;
 	u32 SrcBufLen;
 	u32 AllowFragSize;
 	u8 NumberOfFrag;
 	u8 RTSRequired;
 	u8 QueIdx, UserPriority;
-	MAC_TABLE_ENTRY *pEntry = NULL;
+	struct rt_mac_table_entry *pEntry = NULL;
 	unsigned int IrqFlags;
 	u8 FlgIsIP = 0;
 	u8 Rate;
@@ -1144,7 +1144,7 @@ int STASendPacket(IN PRTMP_ADAPTER pAd, void *pPacket)
 
 	if ((pAd->CommonCfg.BACapability.field.AutoBA == TRUE) &&
 	    IS_HT_STA(pEntry)) {
-		/*PMAC_TABLE_ENTRY pMacEntry = &pAd->MacTab.Content[BSSID_WCID]; */
+		/*struct rt_mac_table_entry *pMacEntry = &pAd->MacTab.Content[BSSID_WCID]; */
 		if (((pEntry->TXBAbitmap & (1 << UserPriority)) == 0) &&
 		    ((pEntry->BADeclineBitmap & (1 << UserPriority)) == 0) &&
 		    (pEntry->PortSecured == WPA_802_1X_PORT_SECURED)
@@ -1189,7 +1189,7 @@ int STASendPacket(IN PRTMP_ADAPTER pAd, void *pPacket)
 	========================================================================
 */
 #ifdef RTMP_MAC_PCI
-int RTMPFreeTXDRequest(IN PRTMP_ADAPTER pAd,
+int RTMPFreeTXDRequest(struct rt_rtmp_adapter *pAd,
 			       u8 QueIdx,
 			       u8 NumberRequired, u8 *FreeNumberIs)
 {
@@ -1244,14 +1244,14 @@ int RTMPFreeTXDRequest(IN PRTMP_ADAPTER pAd,
 	Actually, this function used to check if the TxHardware Queue still has frame need to send.
 	If no frame need to send, go to sleep, else, still wake up.
 */
-int RTMPFreeTXDRequest(IN PRTMP_ADAPTER pAd,
+int RTMPFreeTXDRequest(struct rt_rtmp_adapter *pAd,
 			       u8 QueIdx,
 			       u8 NumberRequired, u8 *FreeNumberIs)
 {
 	/*unsigned long         FreeNumber = 0; */
 	int Status = NDIS_STATUS_FAILURE;
 	unsigned long IrqFlags;
-	HT_TX_CONTEXT *pHTTXContext;
+	struct rt_ht_tx_context *pHTTXContext;
 
 	switch (QueIdx) {
 	case QID_AC_BK:
@@ -1289,16 +1289,16 @@ int RTMPFreeTXDRequest(IN PRTMP_ADAPTER pAd,
 }
 #endif /* RTMP_MAC_USB // */
 
-void RTMPSendDisassociationFrame(IN PRTMP_ADAPTER pAd)
+void RTMPSendDisassociationFrame(struct rt_rtmp_adapter *pAd)
 {
 }
 
-void RTMPSendNullFrame(IN PRTMP_ADAPTER pAd,
+void RTMPSendNullFrame(struct rt_rtmp_adapter *pAd,
 		       u8 TxRate, IN BOOLEAN bQosNull)
 {
 	u8 NullFrame[48];
 	unsigned long Length;
-	PHEADER_802_11 pHeader_802_11;
+	struct rt_header_802_11 * pHeader_802_11;
 
 	/* WPA 802.1x secured port control */
 	if (((pAd->StaCfg.AuthMode == Ndis802_11AuthModeWPA) ||
@@ -1311,9 +1311,9 @@ void RTMPSendNullFrame(IN PRTMP_ADAPTER pAd,
 	}
 
 	NdisZeroMemory(NullFrame, 48);
-	Length = sizeof(HEADER_802_11);
+	Length = sizeof(struct rt_header_802_11);
 
-	pHeader_802_11 = (PHEADER_802_11) NullFrame;
+	pHeader_802_11 = (struct rt_header_802_11 *) NullFrame;
 
 	pHeader_802_11->FC.Type = BTYPE_DATA;
 	pHeader_802_11->FC.SubType = SUBTYPE_NULL_FUNC;
@@ -1349,7 +1349,7 @@ void RTMPSendNullFrame(IN PRTMP_ADAPTER pAd,
 }
 
 /* IRQL = DISPATCH_LEVEL */
-void RTMPSendRTSFrame(IN PRTMP_ADAPTER pAd,
+void RTMPSendRTSFrame(struct rt_rtmp_adapter *pAd,
 		      u8 *pDA,
 		      IN unsigned int NextMpduSize,
 		      u8 TxRate,
@@ -1367,13 +1367,13 @@ void RTMPSendRTSFrame(IN PRTMP_ADAPTER pAd,
 /* In Cisco CCX 2.0 Leap Authentication */
 /*                 WepStatus is Ndis802_11Encryption1Enabled but the key will use PairwiseKey */
 /*                 Instead of the SharedKey, SharedKey Length may be Zero. */
-void STAFindCipherAlgorithm(IN PRTMP_ADAPTER pAd, IN TX_BLK * pTxBlk)
+void STAFindCipherAlgorithm(struct rt_rtmp_adapter *pAd, struct rt_tx_blk *pTxBlk)
 {
 	NDIS_802_11_ENCRYPTION_STATUS Cipher;	/* To indicate cipher used for this packet */
 	u8 CipherAlg = CIPHER_NONE;	/* cipher alogrithm */
 	u8 KeyIdx = 0xff;
 	u8 *pSrcBufVA;
-	PCIPHER_KEY pKey = NULL;
+	struct rt_cipher_key *pKey = NULL;
 
 	pSrcBufVA = GET_OS_PKT_DATAPTR(pTxBlk->pPacket);
 
@@ -1429,21 +1429,21 @@ void STAFindCipherAlgorithm(IN PRTMP_ADAPTER pAd, IN TX_BLK * pTxBlk)
 	pTxBlk->pKey = pKey;
 }
 
-void STABuildCommon802_11Header(IN PRTMP_ADAPTER pAd, IN TX_BLK * pTxBlk)
+void STABuildCommon802_11Header(struct rt_rtmp_adapter *pAd, struct rt_tx_blk *pTxBlk)
 {
-	HEADER_802_11 *pHeader_802_11;
+	struct rt_header_802_11 *pHeader_802_11;
 
 	/* */
 	/* MAKE A COMMON 802.11 HEADER */
 	/* */
 
 	/* normal wlan header size : 24 octets */
-	pTxBlk->MpduHeaderLen = sizeof(HEADER_802_11);
+	pTxBlk->MpduHeaderLen = sizeof(struct rt_header_802_11);
 
 	pHeader_802_11 =
-	    (HEADER_802_11 *) & pTxBlk->HeaderBuf[TXINFO_SIZE + TXWI_SIZE];
+	    (struct rt_header_802_11 *) & pTxBlk->HeaderBuf[TXINFO_SIZE + TXWI_SIZE];
 
-	NdisZeroMemory(pHeader_802_11, sizeof(HEADER_802_11));
+	NdisZeroMemory(pHeader_802_11, sizeof(struct rt_header_802_11));
 
 	pHeader_802_11->FC.FrDs = 0;
 	pHeader_802_11->FC.Type = BTYPE_DATA;
@@ -1510,13 +1510,13 @@ void STABuildCommon802_11Header(IN PRTMP_ADAPTER pAd, IN TX_BLK * pTxBlk)
 		pHeader_802_11->FC.PwrMgmt = (pAd->StaCfg.Psm == PWR_SAVE);
 }
 
-void STABuildCache802_11Header(IN RTMP_ADAPTER * pAd,
-			       IN TX_BLK * pTxBlk, u8 * pHeader)
+void STABuildCache802_11Header(struct rt_rtmp_adapter *pAd,
+			       struct rt_tx_blk *pTxBlk, u8 * pHeader)
 {
-	MAC_TABLE_ENTRY *pMacEntry;
-	PHEADER_802_11 pHeader80211;
+	struct rt_mac_table_entry *pMacEntry;
+	struct rt_header_802_11 * pHeader80211;
 
-	pHeader80211 = (PHEADER_802_11) pHeader;
+	pHeader80211 = (struct rt_header_802_11 *) pHeader;
 	pMacEntry = pTxBlk->pMacEntry;
 
 	/* */
@@ -1524,7 +1524,7 @@ void STABuildCache802_11Header(IN RTMP_ADAPTER * pAd,
 	/* */
 
 	/* normal wlan header size : 24 octets */
-	pTxBlk->MpduHeaderLen = sizeof(HEADER_802_11);
+	pTxBlk->MpduHeaderLen = sizeof(struct rt_header_802_11);
 
 	/* More Bit */
 	pHeader80211->FC.MoreData = TX_BLK_TEST_FLAG(pTxBlk, fTX_bMoreData);
@@ -1556,20 +1556,20 @@ void STABuildCache802_11Header(IN RTMP_ADAPTER * pAd,
 		pHeader80211->FC.PwrMgmt = (pAd->StaCfg.Psm == PWR_SAVE);
 }
 
-static inline u8 *STA_Build_ARalink_Frame_Header(IN RTMP_ADAPTER * pAd,
-						    IN TX_BLK * pTxBlk)
+static inline u8 *STA_Build_ARalink_Frame_Header(struct rt_rtmp_adapter *pAd,
+						    struct rt_tx_blk *pTxBlk)
 {
 	u8 *pHeaderBufPtr;
-	HEADER_802_11 *pHeader_802_11;
+	struct rt_header_802_11 *pHeader_802_11;
 	void *pNextPacket;
 	u32 nextBufLen;
-	PQUEUE_ENTRY pQEntry;
+	struct rt_queue_entry *pQEntry;
 
 	STAFindCipherAlgorithm(pAd, pTxBlk);
 	STABuildCommon802_11Header(pAd, pTxBlk);
 
 	pHeaderBufPtr = &pTxBlk->HeaderBuf[TXINFO_SIZE + TXWI_SIZE];
-	pHeader_802_11 = (HEADER_802_11 *) pHeaderBufPtr;
+	pHeader_802_11 = (struct rt_header_802_11 *) pHeaderBufPtr;
 
 	/* steal "order" bit to mark "aggregation" */
 	pHeader_802_11->FC.Order = 1;
@@ -1593,7 +1593,7 @@ static inline u8 *STA_Build_ARalink_Frame_Header(IN RTMP_ADAPTER * pAd,
 	pTxBlk->HdrPadLen = (unsigned long)(pHeaderBufPtr - pTxBlk->HdrPadLen);
 
 	/* For RA Aggregation, */
-	/* put the 2nd MSDU length(extra 2-byte field) after QOS_CONTROL in little endian format */
+	/* put the 2nd MSDU length(extra 2-byte field) after struct rt_qos_control in little endian format */
 	pQEntry = pTxBlk->TxPacketList.Head;
 	pNextPacket = QUEUE_ENTRY_TO_PACKET(pQEntry);
 	nextBufLen = GET_OS_PKT_LEN(pNextPacket);
@@ -1610,17 +1610,17 @@ static inline u8 *STA_Build_ARalink_Frame_Header(IN RTMP_ADAPTER * pAd,
 
 }
 
-static inline u8 *STA_Build_AMSDU_Frame_Header(IN RTMP_ADAPTER * pAd,
-						  IN TX_BLK * pTxBlk)
+static inline u8 *STA_Build_AMSDU_Frame_Header(struct rt_rtmp_adapter *pAd,
+						  struct rt_tx_blk *pTxBlk)
 {
 	u8 *pHeaderBufPtr;	/*, pSaveBufPtr; */
-	HEADER_802_11 *pHeader_802_11;
+	struct rt_header_802_11 *pHeader_802_11;
 
 	STAFindCipherAlgorithm(pAd, pTxBlk);
 	STABuildCommon802_11Header(pAd, pTxBlk);
 
 	pHeaderBufPtr = &pTxBlk->HeaderBuf[TXINFO_SIZE + TXWI_SIZE];
-	pHeader_802_11 = (HEADER_802_11 *) pHeaderBufPtr;
+	pHeader_802_11 = (struct rt_header_802_11 *) pHeaderBufPtr;
 
 	/* skip common header */
 	pHeaderBufPtr += pTxBlk->MpduHeaderLen;
@@ -1655,14 +1655,14 @@ static inline u8 *STA_Build_AMSDU_Frame_Header(IN RTMP_ADAPTER * pAd,
 
 }
 
-void STA_AMPDU_Frame_Tx(IN PRTMP_ADAPTER pAd, IN TX_BLK * pTxBlk)
+void STA_AMPDU_Frame_Tx(struct rt_rtmp_adapter *pAd, struct rt_tx_blk *pTxBlk)
 {
-	HEADER_802_11 *pHeader_802_11;
+	struct rt_header_802_11 *pHeader_802_11;
 	u8 *pHeaderBufPtr;
 	u16 FreeNumber;
-	MAC_TABLE_ENTRY *pMacEntry;
+	struct rt_mac_table_entry *pMacEntry;
 	BOOLEAN bVLANPkt;
-	PQUEUE_ENTRY pQEntry;
+	struct rt_queue_entry *pQEntry;
 
 	ASSERT(pTxBlk);
 
@@ -1684,7 +1684,7 @@ void STA_AMPDU_Frame_Tx(IN PRTMP_ADAPTER pAd, IN TX_BLK * pTxBlk)
 			NdisMoveMemory((u8 *)& pTxBlk->
 				       HeaderBuf[TXINFO_SIZE],
 				       (u8 *)& pMacEntry->CachedBuf[0],
-				       TXWI_SIZE + sizeof(HEADER_802_11));
+				       TXWI_SIZE + sizeof(struct rt_header_802_11));
 			pHeaderBufPtr =
 			    (u8 *)(&pTxBlk->
 				      HeaderBuf[TXINFO_SIZE + TXWI_SIZE]);
@@ -1697,7 +1697,7 @@ void STA_AMPDU_Frame_Tx(IN PRTMP_ADAPTER pAd, IN TX_BLK * pTxBlk)
 			    &pTxBlk->HeaderBuf[TXINFO_SIZE + TXWI_SIZE];
 		}
 
-		pHeader_802_11 = (HEADER_802_11 *) pHeaderBufPtr;
+		pHeader_802_11 = (struct rt_header_802_11 *) pHeaderBufPtr;
 
 		/* skip common header */
 		pHeaderBufPtr += pTxBlk->MpduHeaderLen;
@@ -1773,13 +1773,13 @@ void STA_AMPDU_Frame_Tx(IN PRTMP_ADAPTER pAd, IN TX_BLK * pTxBlk)
 
 		if (pMacEntry->isCached) {
 			RTMPWriteTxWI_Cache(pAd,
-					    (PTXWI_STRUC) (&pTxBlk->
+					    (struct rt_txwi *) (&pTxBlk->
 							   HeaderBuf
 							   [TXINFO_SIZE]),
 					    pTxBlk);
 		} else {
 			RTMPWriteTxWI_Data(pAd,
-					   (PTXWI_STRUC) (&pTxBlk->
+					   (struct rt_txwi *) (&pTxBlk->
 							  HeaderBuf
 							  [TXINFO_SIZE]),
 					   pTxBlk);
@@ -1819,7 +1819,7 @@ void STA_AMPDU_Frame_Tx(IN PRTMP_ADAPTER pAd, IN TX_BLK * pTxBlk)
 
 }
 
-void STA_AMSDU_Frame_Tx(IN PRTMP_ADAPTER pAd, IN TX_BLK * pTxBlk)
+void STA_AMSDU_Frame_Tx(struct rt_rtmp_adapter *pAd, struct rt_tx_blk *pTxBlk)
 {
 	u8 *pHeaderBufPtr;
 	u16 FreeNumber;
@@ -1830,7 +1830,7 @@ void STA_AMSDU_Frame_Tx(IN PRTMP_ADAPTER pAd, IN TX_BLK * pTxBlk)
 	u16 FirstTx = 0, LastTxIdx = 0;
 	BOOLEAN bVLANPkt;
 	int frameNum = 0;
-	PQUEUE_ENTRY pQEntry;
+	struct rt_queue_entry *pQEntry;
 
 	ASSERT(pTxBlk);
 
@@ -1864,7 +1864,7 @@ void STA_AMSDU_Frame_Tx(IN PRTMP_ADAPTER pAd, IN TX_BLK * pTxBlk)
 
 			/* NOTE: TxWI->MPDUtotalByteCount will be updated after final frame was handled. */
 			RTMPWriteTxWI_Data(pAd,
-					   (PTXWI_STRUC) (&pTxBlk->
+					   (struct rt_txwi *) (&pTxBlk->
 							  HeaderBuf
 							  [TXINFO_SIZE]),
 					   pTxBlk);
@@ -1951,13 +1951,13 @@ void STA_AMSDU_Frame_Tx(IN PRTMP_ADAPTER pAd, IN TX_BLK * pTxBlk)
 		HAL_KickOutTx(pAd, pTxBlk, pTxBlk->QueIdx);
 }
 
-void STA_Legacy_Frame_Tx(IN PRTMP_ADAPTER pAd, IN TX_BLK * pTxBlk)
+void STA_Legacy_Frame_Tx(struct rt_rtmp_adapter *pAd, struct rt_tx_blk *pTxBlk)
 {
-	HEADER_802_11 *pHeader_802_11;
+	struct rt_header_802_11 *pHeader_802_11;
 	u8 *pHeaderBufPtr;
 	u16 FreeNumber;
 	BOOLEAN bVLANPkt;
-	PQUEUE_ENTRY pQEntry;
+	struct rt_queue_entry *pQEntry;
 
 	ASSERT(pTxBlk);
 
@@ -1996,7 +1996,7 @@ void STA_Legacy_Frame_Tx(IN PRTMP_ADAPTER pAd, IN TX_BLK * pTxBlk)
 	}
 
 	pHeaderBufPtr = &pTxBlk->HeaderBuf[TXINFO_SIZE + TXWI_SIZE];
-	pHeader_802_11 = (HEADER_802_11 *) pHeaderBufPtr;
+	pHeader_802_11 = (struct rt_header_802_11 *) pHeaderBufPtr;
 
 	/* skip common header */
 	pHeaderBufPtr += pTxBlk->MpduHeaderLen;
@@ -2052,7 +2052,7 @@ void STA_Legacy_Frame_Tx(IN PRTMP_ADAPTER pAd, IN TX_BLK * pTxBlk)
 	/* use Wcid as Key Index */
 	/* */
 
-	RTMPWriteTxWI_Data(pAd, (PTXWI_STRUC) (&pTxBlk->HeaderBuf[TXINFO_SIZE]),
+	RTMPWriteTxWI_Data(pAd, (struct rt_txwi *) (&pTxBlk->HeaderBuf[TXINFO_SIZE]),
 			   pTxBlk);
 
 	/*FreeNumber = GET_TXRING_FREENO(pAd, QueIdx); */
@@ -2069,7 +2069,7 @@ void STA_Legacy_Frame_Tx(IN PRTMP_ADAPTER pAd, IN TX_BLK * pTxBlk)
 		HAL_KickOutTx(pAd, pTxBlk, pTxBlk->QueIdx);
 }
 
-void STA_ARalink_Frame_Tx(IN PRTMP_ADAPTER pAd, IN TX_BLK * pTxBlk)
+void STA_ARalink_Frame_Tx(struct rt_rtmp_adapter *pAd, struct rt_tx_blk *pTxBlk)
 {
 	u8 *pHeaderBufPtr;
 	u16 FreeNumber;
@@ -2077,7 +2077,7 @@ void STA_ARalink_Frame_Tx(IN PRTMP_ADAPTER pAd, IN TX_BLK * pTxBlk)
 	u16 FirstTx, LastTxIdx;
 	int frameNum = 0;
 	BOOLEAN bVLANPkt;
-	PQUEUE_ENTRY pQEntry;
+	struct rt_queue_entry *pQEntry;
 
 	ASSERT(pTxBlk);
 
@@ -2115,7 +2115,7 @@ void STA_ARalink_Frame_Tx(IN PRTMP_ADAPTER pAd, IN TX_BLK * pTxBlk)
 			/* It's ok write the TxWI here, because the TxWI->MPDUtotalByteCount */
 			/*      will be updated after final frame was handled. */
 			RTMPWriteTxWI_Data(pAd,
-					   (PTXWI_STRUC) (&pTxBlk->
+					   (struct rt_txwi *) (&pTxBlk->
 							  HeaderBuf
 							  [TXINFO_SIZE]),
 					   pTxBlk);
@@ -2186,19 +2186,19 @@ void STA_ARalink_Frame_Tx(IN PRTMP_ADAPTER pAd, IN TX_BLK * pTxBlk)
 
 }
 
-void STA_Fragment_Frame_Tx(IN RTMP_ADAPTER * pAd, IN TX_BLK * pTxBlk)
+void STA_Fragment_Frame_Tx(struct rt_rtmp_adapter *pAd, struct rt_tx_blk *pTxBlk)
 {
-	HEADER_802_11 *pHeader_802_11;
+	struct rt_header_802_11 *pHeader_802_11;
 	u8 *pHeaderBufPtr;
 	u16 FreeNumber;
 	u8 fragNum = 0;
-	PACKET_INFO PacketInfo;
+	struct rt_packet_info PacketInfo;
 	u16 EncryptionOverhead = 0;
 	u32 FreeMpduSize, SrcRemainingBytes;
 	u16 AckDuration;
 	u32 NextMpduSize;
 	BOOLEAN bVLANPkt;
-	PQUEUE_ENTRY pQEntry;
+	struct rt_queue_entry *pQEntry;
 	HTTRANSMIT_SETTING *pTransmit;
 
 	ASSERT(pTxBlk);
@@ -2236,7 +2236,7 @@ void STA_Fragment_Frame_Tx(IN RTMP_ADAPTER * pAd, IN TX_BLK * pTxBlk)
 	}
 
 	pHeaderBufPtr = &pTxBlk->HeaderBuf[TXINFO_SIZE + TXWI_SIZE];
-	pHeader_802_11 = (HEADER_802_11 *) pHeaderBufPtr;
+	pHeader_802_11 = (struct rt_header_802_11 *) pHeaderBufPtr;
 
 	/* skip common header */
 	pHeaderBufPtr += pTxBlk->MpduHeaderLen;
@@ -2375,7 +2375,7 @@ void STA_Fragment_Frame_Tx(IN RTMP_ADAPTER * pAd, IN TX_BLK * pTxBlk)
 			pTxBlk->FrameGap = IFS_SIFS;
 
 		RTMPWriteTxWI_Data(pAd,
-				   (PTXWI_STRUC) (&pTxBlk->
+				   (struct rt_txwi *) (&pTxBlk->
 						  HeaderBuf[TXINFO_SIZE]),
 				   pTxBlk);
 
@@ -2434,11 +2434,11 @@ void STA_Fragment_Frame_Tx(IN RTMP_ADAPTER * pAd, IN TX_BLK * pTxBlk)
 
 	========================================================================
 */
-int STAHardTransmit(IN PRTMP_ADAPTER pAd,
-			    IN TX_BLK * pTxBlk, u8 QueIdx)
+int STAHardTransmit(struct rt_rtmp_adapter *pAd,
+			    struct rt_tx_blk *pTxBlk, u8 QueIdx)
 {
 	char *pPacket;
-	PQUEUE_ENTRY pQEntry;
+	struct rt_queue_entry *pQEntry;
 
 	/* --------------------------------------------- */
 	/* STEP 0. DO SANITY CHECK AND SOME EARLY PREPARATION. */
@@ -2537,7 +2537,7 @@ unsigned long HashBytesPolynomial(u8 * value, unsigned int len)
 	return ret;
 }
 
-void Sta_Announce_or_Forward_802_3_Packet(IN PRTMP_ADAPTER pAd,
+void Sta_Announce_or_Forward_802_3_Packet(struct rt_rtmp_adapter *pAd,
 					  void *pPacket,
 					  u8 FromWhichBSSID)
 {

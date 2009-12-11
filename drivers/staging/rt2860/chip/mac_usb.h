@@ -61,7 +61,7 @@
 #define RXINFO_SIZE				4
 #define RT2870_RXDMALEN_FIELD_SIZE	4
 
-typedef struct PACKED _RXINFO_STRUC {
+typedef struct PACKED rt_rxinfo {
 	u32 BA:1;
 	u32 DATA:1;
 	u32 NULLDATA:1;
@@ -82,14 +82,14 @@ typedef struct PACKED _RXINFO_STRUC {
 	u32 CipherAlg:1;
 	u32 LastAMSDU:1;
 	u32 PlcpSignal:12;
-} RXINFO_STRUC, *PRXINFO_STRUC, RT28XX_RXD_STRUC, *PRT28XX_RXD_STRUC;
+} RT28XX_RXD_STRUC, *PRT28XX_RXD_STRUC;
 
 /* */
 /* TXINFO */
 /* */
 #define TXINFO_SIZE				4
 
-typedef struct _TXINFO_STRUC {
+struct rt_txinfo {
 	/* Word 0 */
 	u32 USBDMATxPktLen:16;	/*used ONLY in USB bulk Aggregation,  Total byte counts of all sub-frame. */
 	u32 rsv:8;
@@ -99,47 +99,47 @@ typedef struct _TXINFO_STRUC {
 	u32 rsv2:2;		/* Software use. */
 	u32 USBDMANextVLD:1;	/*used ONLY in USB bulk Aggregation, NextValid */
 	u32 USBDMATxburst:1;	/*used ONLY in USB bulk Aggre. Force USB DMA transmit frame from current selected endpoint */
-} TXINFO_STRUC, *PTXINFO_STRUC;
+};
 
 /* */
 /* Management ring buffer format */
 /* */
-typedef struct _MGMT_STRUC {
+struct rt_mgmt {
 	BOOLEAN Valid;
 	u8 *pBuffer;
 	unsigned long Length;
-} MGMT_STRUC, *PMGMT_STRUC;
+};
 
 /*////////////////////////////////////////////////////////////////////////// */
-/* The TX_BUFFER structure forms the transmitted USB packet to the device */
+/* The struct rt_tx_buffer structure forms the transmitted USB packet to the device */
 /*////////////////////////////////////////////////////////////////////////// */
-typedef struct __TX_BUFFER {
+struct rt_tx_buffer {
 	union {
 		u8 WirelessPacket[TX_BUFFER_NORMSIZE];
-		HEADER_802_11 NullFrame;
-		PSPOLL_FRAME PsPollPacket;
-		RTS_FRAME RTSFrame;
+		struct rt_header_802_11 NullFrame;
+		struct rt_pspoll_frame PsPollPacket;
+		struct rt_rts_frame RTSFrame;
 	} field;
 	u8 Aggregation[4];	/*Buffer for save Aggregation size. */
-} TX_BUFFER, *PTX_BUFFER;
+};
 
-typedef struct __HTTX_BUFFER {
+struct rt_httx_buffer {
 	union {
 		u8 WirelessPacket[MAX_TXBULK_SIZE];
-		HEADER_802_11 NullFrame;
-		PSPOLL_FRAME PsPollPacket;
-		RTS_FRAME RTSFrame;
+		struct rt_header_802_11 NullFrame;
+		struct rt_pspoll_frame PsPollPacket;
+		struct rt_rts_frame RTSFrame;
 	} field;
 	u8 Aggregation[4];	/*Buffer for save Aggregation size. */
-} HTTX_BUFFER, *PHTTX_BUFFER;
+};
 
 /* used to track driver-generated write irps */
-typedef struct _TX_CONTEXT {
+struct rt_tx_context {
 	void *pAd;		/*Initialized in MiniportInitialize */
 	PURB pUrb;		/*Initialized in MiniportInitialize */
 	PIRP pIrp;		/*used to cancel pending bulk out. */
 	/*Initialized in MiniportInitialize */
-	PTX_BUFFER TransferBuffer;	/*Initialized in MiniportInitialize */
+	struct rt_tx_buffer *TransferBuffer;	/*Initialized in MiniportInitialize */
 	unsigned long BulkOutSize;
 	u8 BulkOutPipeId;
 	u8 SelfIdx;
@@ -155,15 +155,15 @@ typedef struct _TX_CONTEXT {
 	u32 TxRate;
 	dma_addr_t data_dma;	/* urb dma on linux */
 
-} TX_CONTEXT, *PTX_CONTEXT, **PPTX_CONTEXT;
+};
 
 /* used to track driver-generated write irps */
-typedef struct _HT_TX_CONTEXT {
+struct rt_ht_tx_context {
 	void *pAd;		/*Initialized in MiniportInitialize */
 	PURB pUrb;		/*Initialized in MiniportInitialize */
 	PIRP pIrp;		/*used to cancel pending bulk out. */
 	/*Initialized in MiniportInitialize */
-	PHTTX_BUFFER TransferBuffer;	/*Initialized in MiniportInitialize */
+	struct rt_httx_buffer *TransferBuffer;	/*Initialized in MiniportInitialize */
 	unsigned long BulkOutSize;	/* Indicate the total bulk-out size in bytes in one bulk-transmission */
 	u8 BulkOutPipeId;
 	BOOLEAN IRPPending;
@@ -179,13 +179,13 @@ typedef struct _HT_TX_CONTEXT {
 	unsigned long ENextBulkOutPosition;	/* Indicate the buffer end offset of a bulk-transmission */
 	u32 TxRate;
 	dma_addr_t data_dma;	/* urb dma on linux */
-} HT_TX_CONTEXT, *PHT_TX_CONTEXT, **PPHT_TX_CONTEXT;
+};
 
 /* */
 /* Structure to keep track of receive packets and buffers to indicate */
 /* receive data to the protocol. */
 /* */
-typedef struct _RX_CONTEXT {
+struct rt_rx_context {
 	u8 *TransferBuffer;
 	void *pAd;
 	PIRP pIrp;		/*used to cancel pending bulk in. */
@@ -200,7 +200,7 @@ typedef struct _RX_CONTEXT {
 	atomic_t IrpLock;
 	spinlock_t RxContextLock;
 	dma_addr_t data_dma;	/* urb dma on linux */
-} RX_CONTEXT, *PRX_CONTEXT;
+};
 
 /******************************************************************************
 
@@ -309,7 +309,7 @@ typedef struct _RX_CONTEXT {
 		        RTUSBMlmeUp(pAd);
 
 #define RTMP_HANDLE_COUNTER_MEASURE(_pAd, _pEntry)		\
-	{	RTUSBEnqueueInternalCmd(_pAd, CMDTHREAD_802_11_COUNTER_MEASURE, _pEntry, sizeof(MAC_TABLE_ENTRY));	\
+	{	RTUSBEnqueueInternalCmd(_pAd, CMDTHREAD_802_11_COUNTER_MEASURE, _pEntry, sizeof(struct rt_mac_table_entry));	\
 		RTUSBMlmeUp(_pAd);									\
 	}
 

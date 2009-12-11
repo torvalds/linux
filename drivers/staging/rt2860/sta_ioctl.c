@@ -51,7 +51,7 @@ extern unsigned long RTDebugLevel;
 
 extern u8 CipherWpa2Template[];
 
-typedef struct PACKED _RT_VERSION_INFO {
+struct PACKED rt_version_info {
 	u8 DriverVersionW;
 	u8 DriverVersionX;
 	u8 DriverVersionY;
@@ -59,7 +59,7 @@ typedef struct PACKED _RT_VERSION_INFO {
 	u32 DriverBuildYear;
 	u32 DriverBuildMonth;
 	u32 DriverBuildDay;
-} RT_VERSION_INFO, *PRT_VERSION_INFO;
+};
 
 static __s32 ralinkrate[] = { 2, 4, 11, 22,	/* CCK */
 	12, 18, 24, 36, 48, 72, 96, 108,	/* OFDM */
@@ -73,14 +73,14 @@ static __s32 ralinkrate[] = { 2, 4, 11, 22,	/* CCK */
 	90, 180, 270, 360, 540, 720, 810, 900
 };
 
-int Set_SSID_Proc(IN PRTMP_ADAPTER pAdapter, char *arg);
+int Set_SSID_Proc(struct rt_rtmp_adapter *pAdapter, char *arg);
 
-int Set_NetworkType_Proc(IN PRTMP_ADAPTER pAdapter, char *arg);
+int Set_NetworkType_Proc(struct rt_rtmp_adapter *pAdapter, char *arg);
 
-void RTMPAddKey(IN PRTMP_ADAPTER pAd, IN PNDIS_802_11_KEY pKey)
+void RTMPAddKey(struct rt_rtmp_adapter *pAd, struct rt_ndis_802_11_key *pKey)
 {
 	unsigned long KeyIdx;
-	MAC_TABLE_ENTRY *pEntry;
+	struct rt_mac_table_entry *pEntry;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("RTMPAddKey ------>\n"));
 
@@ -95,7 +95,7 @@ void RTMPAddKey(IN PRTMP_ADAPTER pAd, IN PNDIS_802_11_KEY pKey)
 			}
 			/* Update PTK */
 			NdisZeroMemory(&pAd->SharedKey[BSS0][0],
-				       sizeof(CIPHER_KEY));
+				       sizeof(struct rt_cipher_key));
 			pAd->SharedKey[BSS0][0].KeyLen = LEN_TKIP_EK;
 			NdisMoveMemory(pAd->SharedKey[BSS0][0].Key,
 				       pKey->KeyMaterial, LEN_TKIP_EK);
@@ -129,7 +129,7 @@ void RTMPAddKey(IN PRTMP_ADAPTER pAd, IN PNDIS_802_11_KEY pKey)
 			else
 				pAd->SharedKey[BSS0][0].CipherAlg = CIPHER_NONE;
 
-			/* Update these related information to MAC_TABLE_ENTRY */
+			/* Update these related information to struct rt_mac_table_entry */
 			pEntry = &pAd->MacTab.Content[BSSID_WCID];
 			NdisMoveMemory(pEntry->PairwiseKey.Key,
 				       pAd->SharedKey[BSS0][0].Key,
@@ -174,7 +174,7 @@ void RTMPAddKey(IN PRTMP_ADAPTER pAd, IN PNDIS_802_11_KEY pKey)
 			NdisZeroMemory(&pAd->
 				       SharedKey[BSS0][pAd->StaCfg.
 						       DefaultKeyId],
-				       sizeof(CIPHER_KEY));
+				       sizeof(struct rt_cipher_key));
 			pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].KeyLen =
 			    LEN_TKIP_EK;
 			NdisMoveMemory(pAd->
@@ -373,7 +373,7 @@ int rt_ioctl_siwfreq(struct net_device *dev,
 		     struct iw_request_info *info,
 		     struct iw_freq *freq, char *extra)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 	int chan = -1;
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
@@ -407,7 +407,7 @@ int rt_ioctl_giwfreq(struct net_device *dev,
 		     struct iw_request_info *info,
 		     struct iw_freq *freq, char *extra)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 	u8 ch;
 	unsigned long m = 2412000;
 
@@ -426,7 +426,7 @@ int rt_ioctl_giwfreq(struct net_device *dev,
 int rt_ioctl_siwmode(struct net_device *dev,
 		     struct iw_request_info *info, __u32 * mode, char *extra)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
 
@@ -462,7 +462,7 @@ int rt_ioctl_siwmode(struct net_device *dev,
 int rt_ioctl_giwmode(struct net_device *dev,
 		     struct iw_request_info *info, __u32 * mode, char *extra)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
 
@@ -482,7 +482,7 @@ int rt_ioctl_giwmode(struct net_device *dev,
 int rt_ioctl_siwsens(struct net_device *dev,
 		     struct iw_request_info *info, char *name, char *extra)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
 
@@ -505,7 +505,7 @@ int rt_ioctl_giwrange(struct net_device *dev,
 		      struct iw_request_info *info,
 		      struct iw_point *data, char *extra)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 	struct iw_range *range = (struct iw_range *)extra;
 	u16 val;
 	int i;
@@ -586,7 +586,7 @@ int rt_ioctl_siwap(struct net_device *dev,
 		   struct iw_request_info *info,
 		   struct sockaddr *ap_addr, char *extra)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 	NDIS_802_11_MAC_ADDRESS Bssid;
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
@@ -626,7 +626,7 @@ int rt_ioctl_giwap(struct net_device *dev,
 		   struct iw_request_info *info,
 		   struct sockaddr *ap_addr, char *extra)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
 
@@ -662,7 +662,7 @@ int rt_ioctl_giwap(struct net_device *dev,
  * NB: various calculations are based on the orinoco/wavelan
  *     drivers for compatibility
  */
-static void set_quality(PRTMP_ADAPTER pAdapter,
+static void set_quality(struct rt_rtmp_adapter *pAdapter,
 			struct iw_quality *iq, signed char rssi)
 {
 	__u8 ChannelQuality;
@@ -689,7 +689,7 @@ int rt_ioctl_iwaplist(struct net_device *dev,
 		      struct iw_request_info *info,
 		      struct iw_point *data, char *extra)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 
 	struct sockaddr addr[IW_MAX_AP];
 	struct iw_quality qual[IW_MAX_AP];
@@ -726,7 +726,7 @@ int rt_ioctl_siwscan(struct net_device *dev,
 		     struct iw_request_info *info,
 		     struct iw_point *data, char *extra)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 
 	unsigned long Now;
 	int Status = NDIS_STATUS_SUCCESS;
@@ -802,7 +802,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
 		     struct iw_request_info *info,
 		     struct iw_point *data, char *extra)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 	int i = 0;
 	char *current_ev = extra, *previous_ev = extra;
 	char *end_buf;
@@ -867,7 +867,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
 		iwe.cmd = SIOCGIWNAME;
 
 		{
-			PBSS_ENTRY pBssEntry = &pAdapter->ScanTab.BssEntry[i];
+			struct rt_bss_entry *pBssEntry = &pAdapter->ScanTab.BssEntry[i];
 			BOOLEAN isGonly = FALSE;
 			int rateCnt = 0;
 
@@ -1052,7 +1052,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
 			    0) {
 				int rate_count =
 				    sizeof(ralinkrate) / sizeof(__s32);
-				HT_CAP_INFO capInfo =
+				struct rt_ht_cap_info capInfo =
 				    pAdapter->ScanTab.BssEntry[i].HtCapability.
 				    HtCapInfo;
 				int shortGI =
@@ -1129,7 +1129,7 @@ int rt_ioctl_siwessid(struct net_device *dev,
 		      struct iw_request_info *info,
 		      struct iw_point *data, char *essid)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
 
@@ -1166,7 +1166,7 @@ int rt_ioctl_giwessid(struct net_device *dev,
 		      struct iw_request_info *info,
 		      struct iw_point *data, char *essid)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
 
@@ -1204,7 +1204,7 @@ int rt_ioctl_siwnickn(struct net_device *dev,
 		      struct iw_request_info *info,
 		      struct iw_point *data, char *nickname)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
 
@@ -1227,7 +1227,7 @@ int rt_ioctl_giwnickn(struct net_device *dev,
 		      struct iw_request_info *info,
 		      struct iw_point *data, char *nickname)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
 
@@ -1244,7 +1244,7 @@ int rt_ioctl_siwrts(struct net_device *dev,
 		    struct iw_request_info *info,
 		    struct iw_param *rts, char *extra)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 	u16 val;
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
@@ -1274,7 +1274,7 @@ int rt_ioctl_giwrts(struct net_device *dev,
 		    struct iw_request_info *info,
 		    struct iw_param *rts, char *extra)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
 
@@ -1295,7 +1295,7 @@ int rt_ioctl_siwfrag(struct net_device *dev,
 		     struct iw_request_info *info,
 		     struct iw_param *frag, char *extra)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 	u16 val;
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
@@ -1324,7 +1324,7 @@ int rt_ioctl_giwfrag(struct net_device *dev,
 		     struct iw_request_info *info,
 		     struct iw_param *frag, char *extra)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
 
@@ -1347,7 +1347,7 @@ int rt_ioctl_siwencode(struct net_device *dev,
 		       struct iw_request_info *info,
 		       struct iw_point *erq, char *extra)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
 
@@ -1451,7 +1451,7 @@ rt_ioctl_giwencode(struct net_device *dev,
 		   struct iw_point *erq, char *key)
 {
 	int kid;
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
 
@@ -1506,14 +1506,14 @@ rt_ioctl_giwencode(struct net_device *dev,
 
 }
 
-void getBaInfo(IN PRTMP_ADAPTER pAd, char *pOutBuf)
+void getBaInfo(struct rt_rtmp_adapter *pAd, char *pOutBuf)
 {
 	int i, j;
-	BA_ORI_ENTRY *pOriBAEntry;
-	BA_REC_ENTRY *pRecBAEntry;
+	struct rt_ba_ori_entry *pOriBAEntry;
+	struct rt_ba_rec_entry *pRecBAEntry;
 
 	for (i = 0; i < MAX_LEN_OF_MAC_TABLE; i++) {
-		PMAC_TABLE_ENTRY pEntry = &pAd->MacTab.Content[i];
+		struct rt_mac_table_entry *pEntry = &pAd->MacTab.Content[i];
 		if (((pEntry->ValidAsCLI || pEntry->ValidAsApCli)
 		     && (pEntry->Sst == SST_ASSOC))
 		    || (pEntry->ValidAsWDS) || (pEntry->ValidAsMesh)) {
@@ -1566,11 +1566,11 @@ int rt_ioctl_siwmlme(struct net_device *dev,
 		     struct iw_request_info *info,
 		     union iwreq_data *wrqu, char *extra)
 {
-	PRTMP_ADAPTER pAd = NULL;
+	struct rt_rtmp_adapter *pAd = NULL;
 	struct iw_mlme *pMlme = (struct iw_mlme *)wrqu->data.pointer;
-	MLME_QUEUE_ELEM MsgElem;
-	MLME_DISASSOC_REQ_STRUCT DisAssocReq;
-	MLME_DEAUTH_REQ_STRUCT DeAuthReq;
+	struct rt_mlme_queue_elem MsgElem;
+	struct rt_mlme_disassoc_req DisAssocReq;
+	struct rt_mlme_deauth_req DeAuthReq;
 
 	GET_PAD_FROM_NET_DEV(pAd, dev);
 
@@ -1586,9 +1586,9 @@ int rt_ioctl_siwmlme(struct net_device *dev,
 			 ("====> %s - IW_MLME_DEAUTH\n", __func__));
 		COPY_MAC_ADDR(DeAuthReq.Addr, pAd->CommonCfg.Bssid);
 		DeAuthReq.Reason = pMlme->reason_code;
-		MsgElem.MsgLen = sizeof(MLME_DEAUTH_REQ_STRUCT);
+		MsgElem.MsgLen = sizeof(struct rt_mlme_deauth_req);
 		NdisMoveMemory(MsgElem.Msg, &DeAuthReq,
-			       sizeof(MLME_DEAUTH_REQ_STRUCT));
+			       sizeof(struct rt_mlme_deauth_req));
 		MlmeDeauthReqAction(pAd, &MsgElem);
 		if (INFRA_ON(pAd)) {
 			LinkDown(pAd, FALSE);
@@ -1605,9 +1605,9 @@ int rt_ioctl_siwmlme(struct net_device *dev,
 
 		MsgElem.Machine = ASSOC_STATE_MACHINE;
 		MsgElem.MsgType = MT2_MLME_DISASSOC_REQ;
-		MsgElem.MsgLen = sizeof(MLME_DISASSOC_REQ_STRUCT);
+		MsgElem.MsgLen = sizeof(struct rt_mlme_disassoc_req);
 		NdisMoveMemory(MsgElem.Msg, &DisAssocReq,
-			       sizeof(MLME_DISASSOC_REQ_STRUCT));
+			       sizeof(struct rt_mlme_disassoc_req));
 
 		pAd->Mlme.CntlMachine.CurrState = CNTL_WAIT_OID_DISASSOC;
 		MlmeDisassocReqAction(pAd, &MsgElem);
@@ -1626,7 +1626,7 @@ int rt_ioctl_siwauth(struct net_device *dev,
 		     struct iw_request_info *info,
 		     union iwreq_data *wrqu, char *extra)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 	struct iw_param *param = &wrqu->param;
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
@@ -1776,7 +1776,7 @@ int rt_ioctl_giwauth(struct net_device *dev,
 		     struct iw_request_info *info,
 		     union iwreq_data *wrqu, char *extra)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 	struct iw_param *param = &wrqu->param;
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
@@ -1815,12 +1815,12 @@ int rt_ioctl_giwauth(struct net_device *dev,
 	return 0;
 }
 
-void fnSetCipherKey(IN PRTMP_ADAPTER pAdapter,
+void fnSetCipherKey(struct rt_rtmp_adapter *pAdapter,
 		    int keyIdx,
 		    u8 CipherAlg,
 		    IN BOOLEAN bGTK, IN struct iw_encode_ext *ext)
 {
-	NdisZeroMemory(&pAdapter->SharedKey[BSS0][keyIdx], sizeof(CIPHER_KEY));
+	NdisZeroMemory(&pAdapter->SharedKey[BSS0][keyIdx], sizeof(struct rt_cipher_key));
 	pAdapter->SharedKey[BSS0][keyIdx].KeyLen = LEN_TKIP_EK;
 	NdisMoveMemory(pAdapter->SharedKey[BSS0][keyIdx].Key, ext->key,
 		       LEN_TKIP_EK);
@@ -1862,7 +1862,7 @@ int rt_ioctl_siwencodeext(struct net_device *dev,
 			  struct iw_request_info *info,
 			  union iwreq_data *wrqu, char *extra)
 {
-	PRTMP_ADAPTER pAdapter = NULL;
+	struct rt_rtmp_adapter *pAdapter = NULL;
 	struct iw_point *encoding = &wrqu->encoding;
 	struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
 	int keyIdx, alg = ext->alg;
@@ -1883,7 +1883,7 @@ int rt_ioctl_siwencodeext(struct net_device *dev,
 		pAdapter->SharedKey[BSS0][keyIdx].CipherAlg = CIPHER_NONE;
 		AsicRemoveSharedKeyEntry(pAdapter, 0, (u8)keyIdx);
 		NdisZeroMemory(&pAdapter->SharedKey[BSS0][keyIdx],
-			       sizeof(CIPHER_KEY));
+			       sizeof(struct rt_cipher_key));
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("%s::Remove all keys!(encoding->flags = %x)\n",
 			  __func__, encoding->flags));
@@ -2018,7 +2018,7 @@ rt_ioctl_giwencodeext(struct net_device *dev,
 		      struct iw_request_info *info,
 		      union iwreq_data *wrqu, char *extra)
 {
-	PRTMP_ADAPTER pAd = NULL;
+	struct rt_rtmp_adapter *pAd = NULL;
 	char *pKey = NULL;
 	struct iw_point *encoding = &wrqu->encoding;
 	struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
@@ -2096,7 +2096,7 @@ int rt_ioctl_siwgenie(struct net_device *dev,
 		      struct iw_request_info *info,
 		      union iwreq_data *wrqu, char *extra)
 {
-	PRTMP_ADAPTER pAd = NULL;
+	struct rt_rtmp_adapter *pAd = NULL;
 
 	GET_PAD_FROM_NET_DEV(pAd, dev);
 
@@ -2123,7 +2123,7 @@ int rt_ioctl_giwgenie(struct net_device *dev,
 		      struct iw_request_info *info,
 		      union iwreq_data *wrqu, char *extra)
 {
-	PRTMP_ADAPTER pAd = NULL;
+	struct rt_rtmp_adapter *pAd = NULL;
 
 	GET_PAD_FROM_NET_DEV(pAd, dev);
 
@@ -2163,7 +2163,7 @@ int rt_ioctl_siwpmksa(struct net_device *dev,
 		      struct iw_request_info *info,
 		      union iwreq_data *wrqu, char *extra)
 {
-	PRTMP_ADAPTER pAd = NULL;
+	struct rt_rtmp_adapter *pAd = NULL;
 	struct iw_pmksa *pPmksa = (struct iw_pmksa *)wrqu->data.pointer;
 	int CachedIdx = 0, idx = 0;
 
@@ -2176,7 +2176,7 @@ int rt_ioctl_siwpmksa(struct net_device *dev,
 	switch (pPmksa->cmd) {
 	case IW_PMKSA_FLUSH:
 		NdisZeroMemory(pAd->StaCfg.SavedPMK,
-			       sizeof(BSSID_INFO) * PMKID_NO);
+			       sizeof(struct rt_bssid_info) * PMKID_NO);
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("rt_ioctl_siwpmksa - IW_PMKSA_FLUSH\n"));
 		break;
@@ -2267,7 +2267,7 @@ int rt_ioctl_siwrate(struct net_device *dev,
 		     struct iw_request_info *info,
 		     union iwreq_data *wrqu, char *extra)
 {
-	PRTMP_ADAPTER pAd = NULL;
+	struct rt_rtmp_adapter *pAd = NULL;
 	u32 rate = wrqu->bitrate.value, fixed = wrqu->bitrate.fixed;
 
 	GET_PAD_FROM_NET_DEV(pAd, dev);
@@ -2323,7 +2323,7 @@ int rt_ioctl_giwrate(struct net_device *dev,
 		     struct iw_request_info *info,
 		     union iwreq_data *wrqu, char *extra)
 {
-	PRTMP_ADAPTER pAd = NULL;
+	struct rt_rtmp_adapter *pAd = NULL;
 	int rate_index = 0, rate_count = 0;
 	HTTRANSMIT_SETTING ht_setting;
 /* Remove to global variable
@@ -2451,7 +2451,7 @@ int rt28xx_sta_ioctl(IN struct net_device *net_dev,
 		     IN OUT struct ifreq *rq, int cmd)
 {
 	struct os_cookie *pObj;
-	RTMP_ADAPTER *pAd = NULL;
+	struct rt_rtmp_adapter *pAd = NULL;
 	struct iwreq *wrq = (struct iwreq *)rq;
 	BOOLEAN StateMachineTouched = FALSE;
 	int Status = NDIS_STATUS_SUCCESS;
@@ -2639,14 +2639,14 @@ int rt28xx_sta_ioctl(IN struct net_device *net_dev,
         TRUE if all parameters are OK, FALSE otherwise
     ==========================================================================
 */
-int Set_SSID_Proc(IN PRTMP_ADAPTER pAdapter, char *arg)
+int Set_SSID_Proc(struct rt_rtmp_adapter *pAdapter, char *arg)
 {
-	NDIS_802_11_SSID Ssid, *pSsid = NULL;
+	struct rt_ndis_802_11_ssid Ssid, *pSsid = NULL;
 	BOOLEAN StateMachineTouched = FALSE;
 	int success = TRUE;
 
 	if (strlen(arg) <= MAX_LEN_OF_SSID) {
-		NdisZeroMemory(&Ssid, sizeof(NDIS_802_11_SSID));
+		NdisZeroMemory(&Ssid, sizeof(struct rt_ndis_802_11_ssid));
 		if (strlen(arg) != 0) {
 			NdisMoveMemory(Ssid.Ssid, arg, strlen(arg));
 			Ssid.SsidLength = strlen(arg);
@@ -2695,7 +2695,7 @@ int Set_SSID_Proc(IN PRTMP_ADAPTER pAdapter, char *arg)
 		MlmeEnqueue(pAdapter,
 			    MLME_CNTL_STATE_MACHINE,
 			    OID_802_11_SSID,
-			    sizeof(NDIS_802_11_SSID), (void *) pSsid);
+			    sizeof(struct rt_ndis_802_11_ssid), (void *) pSsid);
 
 		StateMachineTouched = TRUE;
 		DBGPRINT(RT_DEBUG_TRACE,
@@ -2718,7 +2718,7 @@ int Set_SSID_Proc(IN PRTMP_ADAPTER pAdapter, char *arg)
         TRUE if all parameters are OK, FALSE otherwise
     ==========================================================================
 */
-int Set_NetworkType_Proc(IN PRTMP_ADAPTER pAdapter, char *arg)
+int Set_NetworkType_Proc(struct rt_rtmp_adapter *pAdapter, char *arg)
 {
 	u32 Value = 0;
 
