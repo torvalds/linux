@@ -459,6 +459,7 @@ static int sh_mobile_ceu_add_device(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
+	int ret;
 
 	if (pcdev->icd)
 		return -EBUSY;
@@ -469,9 +470,11 @@ static int sh_mobile_ceu_add_device(struct soc_camera_device *icd)
 
 	pm_runtime_get_sync(ici->v4l2_dev.dev);
 
-	pcdev->icd = icd;
+	ret = sh_mobile_ceu_soft_reset(pcdev);
+	if (!ret)
+		pcdev->icd = icd;
 
-	return sh_mobile_ceu_soft_reset(pcdev);
+	return ret;
 }
 
 /* Called with .video_lock held */
