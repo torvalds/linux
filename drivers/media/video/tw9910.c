@@ -117,7 +117,7 @@
 #define LCTL24		0x68
 #define LCTL25		0x69
 #define LCTL26		0x6A
-#define HSGEGIN		0x6B
+#define HSBEGIN		0x6B
 #define HSEND		0x6C
 #define OVSDLY		0x6D
 #define OVSEND		0x6E
@@ -443,10 +443,11 @@ static int tw9910_set_cropping(struct i2c_client *client,
 static int tw9910_set_hsync(struct i2c_client *client,
 			    const struct tw9910_hsync_ctrl *hsync)
 {
+	struct tw9910_priv *priv = to_tw9910(client);
 	int ret;
 
 	/* bit 10 - 3 */
-	ret = i2c_smbus_write_byte_data(client, HSGEGIN,
+	ret = i2c_smbus_write_byte_data(client, HSBEGIN,
 					(hsync->start & 0x07F8) >> 3);
 	if (ret < 0)
 		return ret;
@@ -457,10 +458,12 @@ static int tw9910_set_hsync(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
+	/* So far only revisions 0 and 1 have been seen */
 	/* bit 2 - 0 */
-	ret = tw9910_mask_set(client, HSLOWCTL, 0x77,
-			      (hsync->start & 0x0007) << 4 |
-			      (hsync->end   & 0x0007));
+	if (1 == priv->revision)
+		ret = tw9910_mask_set(client, HSLOWCTL, 0x77,
+				      (hsync->start & 0x0007) << 4 |
+				      (hsync->end   & 0x0007));
 
 	return ret;
 }
