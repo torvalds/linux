@@ -465,13 +465,6 @@ static inline void flush_kernel_dcache_page(struct page *page)
  */
 #define flush_icache_page(vma,page)	do { } while (0)
 
-static inline void flush_ioremap_region(unsigned long phys, void __iomem *virt,
-	unsigned offset, size_t size)
-{
-	const void *start = (void __force *)virt + offset;
-	dmac_inv_range(start, start + size);
-}
-
 /*
  * flush_cache_vmap() is used when creating mappings (eg, via vmap,
  * vmalloc, ioremap etc) in kernel space for pages.  On non-VIPT
