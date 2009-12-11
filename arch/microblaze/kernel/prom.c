@@ -42,8 +42,6 @@
 #include <asm/sections.h>
 #include <asm/pci-bridge.h>
 
-typedef u32 cell_t;
-
 /* export that to outside world */
 struct device_node *of_chosen;
 
@@ -159,7 +157,7 @@ static int __init early_init_dt_scan_memory(unsigned long node,
 				const char *uname, int depth, void *data)
 {
 	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	cell_t *reg, *endp;
+	__be32 *reg, *endp;
 	unsigned long l;
 
 	/* Look for the ibm,dynamic-reconfiguration-memory node */
@@ -178,13 +176,13 @@ static int __init early_init_dt_scan_memory(unsigned long node,
 	} else if (strcmp(type, "memory") != 0)
 		return 0;
 
-	reg = (cell_t *)of_get_flat_dt_prop(node, "linux,usable-memory", &l);
+	reg = (__be32 *)of_get_flat_dt_prop(node, "linux,usable-memory", &l);
 	if (reg == NULL)
-		reg = (cell_t *)of_get_flat_dt_prop(node, "reg", &l);
+		reg = (__be32 *)of_get_flat_dt_prop(node, "reg", &l);
 	if (reg == NULL)
 		return 0;
 
-	endp = reg + (l / sizeof(cell_t));
+	endp = reg + (l / sizeof(__be32));
 
 	pr_debug("memory scan node %s, reg size %ld, data: %x %x %x %x,\n",
 		uname, l, reg[0], reg[1], reg[2], reg[3]);

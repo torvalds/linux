@@ -67,8 +67,6 @@ int __initdata iommu_force_on;
 unsigned long tce_alloc_start, tce_alloc_end;
 #endif
 
-typedef u32 cell_t;
-
 extern rwlock_t devtree_lock;	/* temporary while merging */
 
 /* export that to outside world */
@@ -441,22 +439,22 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
  */
 static int __init early_init_dt_scan_drconf_memory(unsigned long node)
 {
-	cell_t *dm, *ls, *usm;
+	__be32 *dm, *ls, *usm;
 	unsigned long l, n, flags;
 	u64 base, size, lmb_size;
 	unsigned int is_kexec_kdump = 0, rngs;
 
 	ls = of_get_flat_dt_prop(node, "ibm,lmb-size", &l);
-	if (ls == NULL || l < dt_root_size_cells * sizeof(cell_t))
+	if (ls == NULL || l < dt_root_size_cells * sizeof(__be32))
 		return 0;
 	lmb_size = dt_mem_next_cell(dt_root_size_cells, &ls);
 
 	dm = of_get_flat_dt_prop(node, "ibm,dynamic-memory", &l);
-	if (dm == NULL || l < sizeof(cell_t))
+	if (dm == NULL || l < sizeof(__be32))
 		return 0;
 
 	n = *dm++;	/* number of entries */
-	if (l < (n * (dt_root_addr_cells + 4) + 1) * sizeof(cell_t))
+	if (l < (n * (dt_root_addr_cells + 4) + 1) * sizeof(__be32))
 		return 0;
 
 	/* check if this is a kexec/kdump kernel. */
@@ -515,7 +513,7 @@ static int __init early_init_dt_scan_memory(unsigned long node,
 					    const char *uname, int depth, void *data)
 {
 	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	cell_t *reg, *endp;
+	__be32 *reg, *endp;
 	unsigned long l;
 
 	/* Look for the ibm,dynamic-reconfiguration-memory node */
@@ -540,7 +538,7 @@ static int __init early_init_dt_scan_memory(unsigned long node,
 	if (reg == NULL)
 		return 0;
 
-	endp = reg + (l / sizeof(cell_t));
+	endp = reg + (l / sizeof(__be32));
 
 	DBG("memory scan node %s, reg size %ld, data: %x %x %x %x,\n",
 	    uname, l, reg[0], reg[1], reg[2], reg[3]);
