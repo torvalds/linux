@@ -35,25 +35,18 @@
 	--------    ----------    ----------------------------------------------
 */
 
-
 #include	"../rt_config.h"
 
-
-
 // IRQL = PASSIVE_LEVEL
-static inline VOID RaiseClock(
-    IN	PRTMP_ADAPTER	pAd,
-    IN  UINT32 *x)
+static inline VOID RaiseClock(IN PRTMP_ADAPTER pAd, IN UINT32 * x)
 {
 	*x = *x | EESK;
 	RTMP_IO_WRITE32(pAd, E2PROM_CSR, *x);
-	RTMPusecDelay(1);				// Max frequency = 1MHz in Spec. definition
+	RTMPusecDelay(1);	// Max frequency = 1MHz in Spec. definition
 }
 
 // IRQL = PASSIVE_LEVEL
-static inline VOID LowerClock(
-    IN	PRTMP_ADAPTER	pAd,
-    IN  UINT32 *x)
+static inline VOID LowerClock(IN PRTMP_ADAPTER pAd, IN UINT32 * x)
 {
 	*x = *x & ~EESK;
 	RTMP_IO_WRITE32(pAd, E2PROM_CSR, *x);
@@ -61,67 +54,60 @@ static inline VOID LowerClock(
 }
 
 // IRQL = PASSIVE_LEVEL
-static inline USHORT ShiftInBits(
-	IN PRTMP_ADAPTER	pAd)
+static inline USHORT ShiftInBits(IN PRTMP_ADAPTER pAd)
 {
-	UINT32		x,i;
-	USHORT      data=0;
+	UINT32 x, i;
+	USHORT data = 0;
 
 	RTMP_IO_READ32(pAd, E2PROM_CSR, &x);
 
-	x &= ~( EEDO | EEDI);
+	x &= ~(EEDO | EEDI);
 
-	for(i=0; i<16; i++)
-	{
+	for (i = 0; i < 16; i++) {
 		data = data << 1;
 		RaiseClock(pAd, &x);
 
 		RTMP_IO_READ32(pAd, E2PROM_CSR, &x);
-		LowerClock(pAd, &x); //prevent read failed
+		LowerClock(pAd, &x);	//prevent read failed
 
 		x &= ~(EEDI);
-		if(x & EEDO)
-		    data |= 1;
+		if (x & EEDO)
+			data |= 1;
 	}
 
 	return data;
 }
 
-
 // IRQL = PASSIVE_LEVEL
-static inline VOID ShiftOutBits(
-	IN PRTMP_ADAPTER	pAd,
-	IN USHORT			data,
-	IN USHORT			count)
+static inline VOID ShiftOutBits(IN PRTMP_ADAPTER pAd,
+				IN USHORT data, IN USHORT count)
 {
-	UINT32       x,mask;
+	UINT32 x, mask;
 
 	mask = 0x01 << (count - 1);
 	RTMP_IO_READ32(pAd, E2PROM_CSR, &x);
 
 	x &= ~(EEDO | EEDI);
 
-	do
-	{
-	    x &= ~EEDI;
-	    if(data & mask)		x |= EEDI;
+	do {
+		x &= ~EEDI;
+		if (data & mask)
+			x |= EEDI;
 
-	    RTMP_IO_WRITE32(pAd, E2PROM_CSR, x);
+		RTMP_IO_WRITE32(pAd, E2PROM_CSR, x);
 
-	    RaiseClock(pAd, &x);
-	    LowerClock(pAd, &x);
+		RaiseClock(pAd, &x);
+		LowerClock(pAd, &x);
 
-	    mask = mask >> 1;
-	} while(mask);
+		mask = mask >> 1;
+	} while (mask);
 
 	x &= ~EEDI;
 	RTMP_IO_WRITE32(pAd, E2PROM_CSR, x);
 }
 
-
 // IRQL = PASSIVE_LEVEL
-static inline VOID EEpromCleanup(
-	IN PRTMP_ADAPTER	pAd)
+static inline VOID EEpromCleanup(IN PRTMP_ADAPTER pAd)
 {
 	UINT32 x;
 
@@ -134,11 +120,9 @@ static inline VOID EEpromCleanup(
 	LowerClock(pAd, &x);
 }
 
-
-static inline VOID EWEN(
-	IN PRTMP_ADAPTER	pAd)
+static inline VOID EWEN(IN PRTMP_ADAPTER pAd)
 {
-	UINT32	x;
+	UINT32 x;
 
 	// reset bits and set EECS
 	RTMP_IO_READ32(pAd, E2PROM_CSR, &x);
@@ -157,11 +141,9 @@ static inline VOID EWEN(
 	EEpromCleanup(pAd);
 }
 
-
-static inline VOID EWDS(
-	IN PRTMP_ADAPTER	pAd)
+static inline VOID EWDS(IN PRTMP_ADAPTER pAd)
 {
-	UINT32	x;
+	UINT32 x;
 
 	// reset bits and set EECS
 	RTMP_IO_READ32(pAd, E2PROM_CSR, &x);
@@ -180,16 +162,12 @@ static inline VOID EWDS(
 	EEpromCleanup(pAd);
 }
 
-
 // IRQL = PASSIVE_LEVEL
-int rtmp_ee_prom_read16(
-	IN PRTMP_ADAPTER	pAd,
-	IN USHORT			Offset,
-	OUT USHORT			*pValue)
+int rtmp_ee_prom_read16(IN PRTMP_ADAPTER pAd,
+			IN USHORT Offset, OUT USHORT * pValue)
 {
-	UINT32		x;
-	USHORT		data;
-
+	UINT32 x;
+	USHORT data;
 
 	Offset /= 2;
 	// reset bits and set EECS
@@ -199,13 +177,11 @@ int rtmp_ee_prom_read16(
 	RTMP_IO_WRITE32(pAd, E2PROM_CSR, x);
 
 	// patch can not access e-Fuse issue
-	if (!(IS_RT3090(pAd) || IS_RT3572(pAd) || IS_RT3390(pAd)))
-	{
+	if (!(IS_RT3090(pAd) || IS_RT3572(pAd) || IS_RT3390(pAd))) {
 		// kick a pulse
 		RaiseClock(pAd, &x);
 		LowerClock(pAd, &x);
 	}
-
 	// output the read_opcode and register number in that order
 	ShiftOutBits(pAd, EEPROM_READ_OPCODE, 3);
 	ShiftOutBits(pAd, Offset, pAd->EEPROMAddressNum);
@@ -214,7 +190,6 @@ int rtmp_ee_prom_read16(
 	data = ShiftInBits(pAd);
 
 	EEpromCleanup(pAd);
-
 
 	*pValue = data;
 

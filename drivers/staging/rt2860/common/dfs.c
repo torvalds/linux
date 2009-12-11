@@ -52,17 +52,13 @@
 
 	========================================================================
 */
-BOOLEAN RadarChannelCheck(
-	IN PRTMP_ADAPTER	pAd,
-	IN UCHAR			Ch)
+BOOLEAN RadarChannelCheck(IN PRTMP_ADAPTER pAd, IN UCHAR Ch)
 {
-	INT		i;
+	INT i;
 	BOOLEAN result = FALSE;
 
-	for (i=0; i<pAd->ChannelListNum; i++)
-	{
-		if (Ch == pAd->ChannelList[i].Channel)
-		{
+	for (i = 0; i < pAd->ChannelListNum; i++) {
+		if (Ch == pAd->ChannelList[i].Channel) {
 			result = pAd->ChannelList[i].DfsReq;
 			break;
 		}
