@@ -107,7 +107,8 @@ struct sh_mobile_ceu_dev {
 
 	u32 cflcr;
 
-	unsigned int is_interlaced:1;
+	enum v4l2_field field;
+
 	unsigned int image_mode:1;
 	unsigned int is_16bit:1;
 };
@@ -254,6 +255,8 @@ static int sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 {
 	struct soc_camera_device *icd = pcdev->icd;
 	dma_addr_t phys_addr_top, phys_addr_bottom;
+	unsigned long top1, top2;
+	unsigned long bottom1, bottom2;
 	u32 status;
 	int ret = 0;
 
@@ -282,11 +285,23 @@ static int sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 	if (!pcdev->active)
 		return ret;
 
+	if (V4L2_FIELD_INTERLACED_BT == pcdev->field) {
+		top1	= CDBYR;
+		top2	= CDBCR;
+		bottom1	= CDAYR;
+		bottom2	= CDACR;
+	} else {
+		top1	= CDAYR;
+		top2	= CDACR;
+		bottom1	= CDBYR;
+		bottom2	= CDBCR;
+	}
+
 	phys_addr_top = videobuf_to_dma_contig(pcdev->active);
-	ceu_write(pcdev, CDAYR, phys_addr_top);
-	if (pcdev->is_interlaced) {
+	ceu_write(pcdev, top1, phys_addr_top);
+	if (V4L2_FIELD_NONE != pcdev->field) {
 		phys_addr_bottom = phys_addr_top + icd->user_width;
-		ceu_write(pcdev, CDBYR, phys_addr_bottom);
+		ceu_write(pcdev, bottom1, phys_addr_bottom);
 	}
 
 	switch (icd->current_fmt->host_fmt->fourcc) {
@@ -296,11 +311,10 @@ static int sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 	case V4L2_PIX_FMT_NV61:
 		phys_addr_top += icd->user_width *
 			icd->user_height;
-		ceu_write(pcdev, CDACR, phys_addr_top);
-		if (pcdev->is_interlaced) {
-			phys_addr_bottom = phys_addr_top +
-				icd->user_width;
-			ceu_write(pcdev, CDBCR, phys_addr_bottom);
+		ceu_write(pcdev, top2, phys_addr_top);
+		if (V4L2_FIELD_NONE != pcdev->field) {
+			phys_addr_bottom = phys_addr_top + icd->user_width;
+			ceu_write(pcdev, bottom2, phys_addr_bottom);
 		}
 	}
 
@@ -602,7 +616,7 @@ static void sh_mobile_ceu_set_rect(struct soc_camera_device *icd,
 
 	height = out_height;
 	in_height = rect->height;
-	if (pcdev->is_interlaced) {
+	if (V4L2_FIELD_NONE != pcdev->field) {
 		height /= 2;
 		in_height /= 2;
 		top_offset /= 2;
@@ -729,7 +743,19 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 	ceu_write(pcdev, CAMCR, value);
 
 	ceu_write(pcdev, CAPCR, 0x00300000);
-	ceu_write(pcdev, CAIFR, pcdev->is_interlaced ? 0x101 : 0);
+
+	switch (pcdev->field) {
+	case V4L2_FIELD_INTERLACED_TB:
+		value = 0x101;
+		break;
+	case V4L2_FIELD_INTERLACED_BT:
+		value = 0x102;
+		break;
+	default:
+		value = 0;
+		break;
+	}
+	ceu_write(pcdev, CAIFR, value);
 
 	sh_mobile_ceu_set_rect(icd, icd->user_width, icd->user_height);
 	mdelay(1);
@@ -1357,8 +1383,7 @@ static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
 
 	/* 6. - 9. */
 	mf.code		= cam->code;
-	mf.field	= pcdev->is_interlaced ? V4L2_FIELD_INTERLACED :
-						V4L2_FIELD_NONE;
+	mf.field	= pcdev->field;
 
 	capsr = capture_save_reset(pcdev);
 	dev_dbg(dev, "CAPSR 0x%x, CFLCR 0x%x\n", capsr, pcdev->cflcr);
@@ -1368,7 +1393,8 @@ static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
 	rect->top	-= cam_rect->top;
 
 	ret = client_scale(icd, cam_rect, rect, ceu_rect, &mf,
-			   pcdev->image_mode && !pcdev->is_interlaced);
+			   pcdev->image_mode &&
+			   V4L2_FIELD_NONE == pcdev->field);
 
 	dev_geo(dev, "6-9: %d\n", ret);
 
@@ -1425,18 +1451,20 @@ static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
 	unsigned int scale_cam_h, scale_cam_v;
 	u16 scale_v, scale_h;
 	int ret;
-	bool is_interlaced, image_mode;
+	bool image_mode;
+	enum v4l2_field field;
 
 	switch (pix->field) {
-	case V4L2_FIELD_INTERLACED:
-		is_interlaced = true;
-		break;
-	case V4L2_FIELD_ANY:
 	default:
 		pix->field = V4L2_FIELD_NONE;
 		/* fall-through */
+	case V4L2_FIELD_INTERLACED_TB:
+	case V4L2_FIELD_INTERLACED_BT:
 	case V4L2_FIELD_NONE:
-		is_interlaced = false;
+		field = pix->field;
+		break;
+	case V4L2_FIELD_INTERLACED:
+		field = V4L2_FIELD_INTERLACED_TB;
 		break;
 	}
 
@@ -1505,7 +1533,7 @@ static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
 
 	/* 5. - 9. */
 	ret = client_scale(icd, cam_rect, &cam_subrect, &ceu_rect, &mf,
-			   image_mode && !is_interlaced);
+			   image_mode && V4L2_FIELD_NONE == field);
 
 	dev_geo(dev, "5-9: client scale %d\n", ret);
 
@@ -1555,7 +1583,7 @@ static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
 	cam->ceu_rect		= ceu_rect;
 	icd->current_fmt	= xlate;
 
-	pcdev->is_interlaced = is_interlaced;
+	pcdev->field = field;
 	pcdev->image_mode = image_mode;
 
 	return 0;
@@ -1698,8 +1726,7 @@ static void sh_mobile_ceu_init_videobuf(struct videobuf_queue *q,
 				       &sh_mobile_ceu_videobuf_ops,
 				       icd->dev.parent, &pcdev->lock,
 				       V4L2_BUF_TYPE_VIDEO_CAPTURE,
-				       pcdev->is_interlaced ?
-				       V4L2_FIELD_INTERLACED : V4L2_FIELD_NONE,
+				       pcdev->field,
 				       sizeof(struct sh_mobile_ceu_buffer),
 				       icd);
 }
