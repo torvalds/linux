@@ -322,6 +322,10 @@ struct wl1271 {
 	enum wl1271_state state;
 	struct mutex mutex;
 
+#define WL1271_FLAG_STA_RATES_CHANGED  (0)
+#define WL1271_FLAG_STA_ASSOCIATED     (1)
+	unsigned long flags;
+
 	struct wl1271_partition_set part;
 
 	struct wl1271_chip chip;
@@ -394,7 +398,9 @@ struct wl1271 {
 	u16 aid;
 
 	/* currently configured rate set */
+	u32 sta_rate_set;
 	u32 basic_rate_set;
+	u32 rate_set;
 
 	/* The current band */
 	enum ieee80211_band band;
@@ -416,7 +422,6 @@ struct wl1271 {
 
 	/* PSM mode requested */
 	bool psm_requested;
-	bool associated;
 
 	/* retry counter for PSM entries */
 	u8 psm_entry_retry;

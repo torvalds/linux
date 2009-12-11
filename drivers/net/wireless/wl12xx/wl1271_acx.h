@@ -826,6 +826,9 @@ struct acx_rate_class {
 	u8 reserved;
 };
 
+#define ACX_TX_BASIC_RATE      0
+#define ACX_TX_AP_FULL_RATE    1
+#define ACX_TX_RATE_POLICY_CNT 2
 struct acx_rate_policy {
 	struct acx_header header;
 
@@ -1058,7 +1061,7 @@ int wl1271_acx_set_preamble(struct wl1271 *wl, enum acx_preamble_type preamble);
 int wl1271_acx_cts_protect(struct wl1271 *wl,
 			   enum acx_ctsprotect_type ctsprotect);
 int wl1271_acx_statistics(struct wl1271 *wl, struct acx_statistics *stats);
-int wl1271_acx_rate_policies(struct wl1271 *wl, u32 enabled_rates);
+int wl1271_acx_rate_policies(struct wl1271 *wl);
 int wl1271_acx_ac_cfg(struct wl1271 *wl);
 int wl1271_acx_tid_cfg(struct wl1271 *wl);
 int wl1271_acx_frag_threshold(struct wl1271 *wl);

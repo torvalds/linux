@@ -284,7 +284,7 @@ int wl1271_hw_init(struct wl1271 *wl)
 		goto out_free_memmap;
 
 	/* Configure TX rate classes */
-	ret = wl1271_acx_rate_policies(wl, CONF_TX_RATE_MASK_BASIC);
+	ret = wl1271_acx_rate_policies(wl);
 	if (ret < 0)
 		goto out_free_memmap;
 

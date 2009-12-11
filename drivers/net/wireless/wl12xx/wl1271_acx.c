@@ -787,10 +787,11 @@ int wl1271_acx_statistics(struct wl1271 *wl, struct acx_statistics *stats)
 	return 0;
 }
 
-int wl1271_acx_rate_policies(struct wl1271 *wl, u32 enabled_rates)
+int wl1271_acx_rate_policies(struct wl1271 *wl)
 {
 	struct acx_rate_policy *acx;
 	struct conf_tx_rate_class *c = &wl->conf.tx.rc_conf;
+	int idx = 0;
 	int ret = 0;
 
 	wl1271_debug(DEBUG_ACX, "acx rate policies");
@@ -802,12 +803,21 @@ int wl1271_acx_rate_policies(struct wl1271 *wl, u32 enabled_rates)
 		goto out;
 	}
 
-	/* configure one default (one-size-fits-all) rate class */
-	acx->rate_class_cnt = cpu_to_le32(1);
-	acx->rate_class[0].enabled_rates = cpu_to_le32(enabled_rates);
-	acx->rate_class[0].short_retry_limit = c->short_retry_limit;
-	acx->rate_class[0].long_retry_limit = c->long_retry_limit;
-	acx->rate_class[0].aflags = c->aflags;
+	/* configure one basic rate class */
+	idx = ACX_TX_BASIC_RATE;
+	acx->rate_class[idx].enabled_rates = cpu_to_le32(wl->basic_rate_set);
+	acx->rate_class[idx].short_retry_limit = c->short_retry_limit;
+	acx->rate_class[idx].long_retry_limit = c->long_retry_limit;
+	acx->rate_class[idx].aflags = c->aflags;
+
+	/* configure one AP supported rate class */
+	idx = ACX_TX_AP_FULL_RATE;
+	acx->rate_class[idx].enabled_rates = cpu_to_le32(wl->rate_set);
+	acx->rate_class[idx].short_retry_limit = c->short_retry_limit;
+	acx->rate_class[idx].long_retry_limit = c->long_retry_limit;
+	acx->rate_class[idx].aflags = c->aflags;
+
+	acx->rate_class_cnt = cpu_to_le32(ACX_TX_RATE_POLICY_CNT);
 
 	ret = wl1271_cmd_configure(wl, ACX_RATE_POLICY, acx, sizeof(*acx));
 	if (ret < 0) {

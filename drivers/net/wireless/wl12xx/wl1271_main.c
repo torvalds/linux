@@ -777,7 +777,20 @@ out:
 static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct wl1271 *wl = hw->priv;
+	struct ieee80211_conf *conf = &hw->conf;
+	struct ieee80211_tx_info *txinfo = IEEE80211_SKB_CB(skb);
+	struct ieee80211_sta *sta = txinfo->control.sta;
+	unsigned long flags;
 
+	/* peek into the rates configured in the STA entry */
+	spin_lock_irqsave(&wl->wl_lock, flags);
+	if (sta && sta->supp_rates[conf->channel->band] != wl->sta_rate_set) {
+		wl->sta_rate_set = sta->supp_rates[conf->channel->band];
+		set_bit(WL1271_FLAG_STA_RATES_CHANGED, &wl->flags);
+	}
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
+
+	/* queue the packet */
 	skb_queue_tail(&wl->tx_queue, skb);
 
 	/*
@@ -1004,7 +1017,6 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	wl->elp = false;
 	wl->psm = 0;
 	wl->psm_entry_retry = 0;
-	wl->associated = false;
 	wl->tx_queue_stopped = false;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
 	wl->tx_blocks_available = 0;
@@ -1016,6 +1028,9 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	wl->time_offset = 0;
 	wl->session_counter = 0;
 	wl->joined = false;
+	wl->rate_set = CONF_TX_RATE_MASK_BASIC;
+	wl->sta_rate_set = 0;
+	wl->flags = 0;
 
 	for (i = 0; i < NUM_TX_QUEUES; i++)
 		wl->tx_blocks_freed[i] = 0;
@@ -1212,8 +1227,9 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 			wl1271_join_channel(wl, channel);
 
 		if (conf->flags & IEEE80211_CONF_IDLE) {
-			wl->basic_rate_set = CONF_TX_RATE_MASK_BASIC;
-			wl1271_acx_rate_policies(wl, CONF_TX_RATE_MASK_BASIC);
+			wl->rate_set = CONF_TX_RATE_MASK_BASIC;
+			wl->sta_rate_set = 0;
+			wl1271_acx_rate_policies(wl);
 		}
 	}
 
@@ -1229,7 +1245,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		 * If we're not, we'll enter it when joining an SSID,
 		 * through the bss_info_changed() hook.
 		 */
-		if (wl->associated) {
+		if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) {
 			wl1271_info("psm enabled");
 			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE);
 		}
@@ -1522,22 +1538,6 @@ out:
 	return ret;
 }
 
-static u32 wl1271_enabled_rates_get(struct wl1271 *wl, u64 basic_rate_set)
-{
-	struct ieee80211_supported_band *band;
-	u32 enabled_rates = 0;
-	int bit;
-
-	band = wl->hw->wiphy->bands[wl->band];
-	for (bit = 0; bit < band->n_bitrates; bit++) {
-		if (basic_rate_set & 0x1)
-			enabled_rates |= band->bitrates[bit].hw_value;
-		basic_rate_set >>= 1;
-	}
-
-	return enabled_rates;
-}
-
 static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
 				       struct ieee80211_bss_conf *bss_conf,
@@ -1616,7 +1616,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
 			wl->aid = bss_conf->aid;
-			wl->associated = true;
+			set_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags);
 
 			/*
 			 * with wl1271, we don't need to update the
@@ -1641,7 +1641,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			}
 		} else {
 			/* use defaults when not associated */
-			wl->associated = false;
+			clear_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags);
 			wl->aid = 0;
 		}
 
@@ -1672,17 +1672,6 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			ret = wl1271_acx_cts_protect(wl, CTSPROTECT_DISABLE);
 		if (ret < 0) {
 			wl1271_warning("Set ctsprotect failed %d", ret);
-			goto out_sleep;
-		}
-	}
-
-	if (changed & BSS_CHANGED_BASIC_RATES) {
-		wl->basic_rate_set = wl1271_enabled_rates_get(
-			wl, bss_conf->basic_rates);
-
-		ret = wl1271_acx_rate_policies(wl, wl->basic_rate_set);
-		if (ret < 0) {
-			wl1271_warning("Set rate policies failed %d", ret);
 			goto out_sleep;
 		}
 	}
@@ -1969,14 +1958,16 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	wl->psm = 0;
 	wl->psm_requested = false;
 	wl->psm_entry_retry = 0;
-	wl->associated = false;
 	wl->tx_queue_stopped = false;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
 	wl->basic_rate_set = CONF_TX_RATE_MASK_BASIC;
+	wl->rate_set = CONF_TX_RATE_MASK_BASIC;
+	wl->sta_rate_set = 0;
 	wl->band = IEEE80211_BAND_2GHZ;
 	wl->vif = NULL;
 	wl->joined = false;
 	wl->gpio_power = false;
+	wl->flags = 0;
 
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)
 		wl->tx_frames[i] = NULL;
