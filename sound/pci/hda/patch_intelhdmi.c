@@ -146,38 +146,78 @@ struct cea_channel_speaker_allocation {
 };
 
 /*
+ * ALSA sequence is:
+ *
+ *       surround40   surround41   surround50   surround51   surround71
+ * ch0   front left   =            =            =            =
+ * ch1   front right  =            =            =            =
+ * ch2   rear left    =            =            =            =
+ * ch3   rear right   =            =            =            =
+ * ch4                LFE          center       center       center
+ * ch5                                          LFE          LFE
+ * ch6                                                       side left
+ * ch7                                                       side right
+ *
+ * surround71 = {FL, FR, RLC, RRC, FC, LFE, RL, RR}
+ */
+static int hdmi_channel_mapping[0x32][8] = {
+	/* stereo */
+	[0x00] = { 0x00, 0x11, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7 },
+	/* 2.1 */
+	[0x01] = { 0x00, 0x11, 0x22, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7 },
+	/* Dolby Surround */
+	[0x02] = { 0x00, 0x11, 0x23, 0xf2, 0xf4, 0xf5, 0xf6, 0xf7 },
+	/* surround40 */
+	[0x08] = { 0x00, 0x11, 0x24, 0x35, 0xf3, 0xf2, 0xf6, 0xf7 },
+	/* 4ch */
+	[0x03] = { 0x00, 0x11, 0x23, 0x32, 0x44, 0xf5, 0xf6, 0xf7 },
+	/* surround41 */
+	[0x09] = { 0x00, 0x11, 0x24, 0x34, 0x43, 0xf2, 0xf6, 0xf7 },
+	/* surround50 */
+	[0x0a] = { 0x00, 0x11, 0x24, 0x35, 0x43, 0xf2, 0xf6, 0xf7 },
+	/* surround51 */
+	[0x0b] = { 0x00, 0x11, 0x24, 0x35, 0x43, 0x52, 0xf6, 0xf7 },
+	/* 7.1 */
+	[0x13] = { 0x00, 0x11, 0x26, 0x37, 0x43, 0x52, 0x64, 0x75 },
+};
+
+/*
  * This is an ordered list!
  *
  * The preceding ones have better chances to be selected by
  * hdmi_setup_channel_allocation().
  */
 static struct cea_channel_speaker_allocation channel_allocations[] = {
-/* 			  channel:   8     7    6    5    4     3    2    1  */
+/* 			  channel:   7     6    5    4    3     2    1    0  */
 { .ca_index = 0x00,  .speakers = {   0,    0,   0,   0,   0,    0,  FR,  FL } },
 				 /* 2.1 */
 { .ca_index = 0x01,  .speakers = {   0,    0,   0,   0,   0,  LFE,  FR,  FL } },
 				 /* Dolby Surround */
 { .ca_index = 0x02,  .speakers = {   0,    0,   0,   0,  FC,    0,  FR,  FL } },
+				 /* surround40 */
+{ .ca_index = 0x08,  .speakers = {   0,    0,  RR,  RL,   0,    0,  FR,  FL } },
+				 /* surround41 */
+{ .ca_index = 0x09,  .speakers = {   0,    0,  RR,  RL,   0,  LFE,  FR,  FL } },
+				 /* surround50 */
+{ .ca_index = 0x0a,  .speakers = {   0,    0,  RR,  RL,  FC,    0,  FR,  FL } },
+				 /* surround51 */
+{ .ca_index = 0x0b,  .speakers = {   0,    0,  RR,  RL,  FC,  LFE,  FR,  FL } },
+				 /* 6.1 */
+{ .ca_index = 0x0f,  .speakers = {   0,   RC,  RR,  RL,  FC,  LFE,  FR,  FL } },
+				 /* surround71 */
+{ .ca_index = 0x13,  .speakers = { RRC,  RLC,  RR,  RL,  FC,  LFE,  FR,  FL } },
+
 { .ca_index = 0x03,  .speakers = {   0,    0,   0,   0,  FC,  LFE,  FR,  FL } },
 { .ca_index = 0x04,  .speakers = {   0,    0,   0,  RC,   0,    0,  FR,  FL } },
 { .ca_index = 0x05,  .speakers = {   0,    0,   0,  RC,   0,  LFE,  FR,  FL } },
 { .ca_index = 0x06,  .speakers = {   0,    0,   0,  RC,  FC,    0,  FR,  FL } },
 { .ca_index = 0x07,  .speakers = {   0,    0,   0,  RC,  FC,  LFE,  FR,  FL } },
-{ .ca_index = 0x08,  .speakers = {   0,    0,  RR,  RL,   0,    0,  FR,  FL } },
-{ .ca_index = 0x09,  .speakers = {   0,    0,  RR,  RL,   0,  LFE,  FR,  FL } },
-{ .ca_index = 0x0a,  .speakers = {   0,    0,  RR,  RL,  FC,    0,  FR,  FL } },
-				 /* 5.1 */
-{ .ca_index = 0x0b,  .speakers = {   0,    0,  RR,  RL,  FC,  LFE,  FR,  FL } },
 { .ca_index = 0x0c,  .speakers = {   0,   RC,  RR,  RL,   0,    0,  FR,  FL } },
 { .ca_index = 0x0d,  .speakers = {   0,   RC,  RR,  RL,   0,  LFE,  FR,  FL } },
 { .ca_index = 0x0e,  .speakers = {   0,   RC,  RR,  RL,  FC,    0,  FR,  FL } },
-				 /* 6.1 */
-{ .ca_index = 0x0f,  .speakers = {   0,   RC,  RR,  RL,  FC,  LFE,  FR,  FL } },
 { .ca_index = 0x10,  .speakers = { RRC,  RLC,  RR,  RL,   0,    0,  FR,  FL } },
 { .ca_index = 0x11,  .speakers = { RRC,  RLC,  RR,  RL,   0,  LFE,  FR,  FL } },
 { .ca_index = 0x12,  .speakers = { RRC,  RLC,  RR,  RL,  FC,    0,  FR,  FL } },
-				 /* 7.1 */
-{ .ca_index = 0x13,  .speakers = { RRC,  RLC,  RR,  RL,  FC,  LFE,  FR,  FL } },
 { .ca_index = 0x14,  .speakers = { FRC,  FLC,   0,   0,   0,    0,  FR,  FL } },
 { .ca_index = 0x15,  .speakers = { FRC,  FLC,   0,   0,   0,  LFE,  FR,  FL } },
 { .ca_index = 0x16,  .speakers = { FRC,  FLC,   0,   0,  FC,    0,  FR,  FL } },
@@ -209,7 +249,6 @@ static struct cea_channel_speaker_allocation channel_allocations[] = {
 { .ca_index = 0x30,  .speakers = { FRW,  FLW,  RR,  RL,  FC,    0,  FR,  FL } },
 { .ca_index = 0x31,  .speakers = { FRW,  FLW,  RR,  RL,  FC,  LFE,  FR,  FL } },
 };
-
 
 /*
  * HDA/HDMI auto parsing
@@ -625,19 +664,25 @@ static void hdmi_setup_channel_mapping(struct hda_codec *codec,
 				       struct hdmi_audio_infoframe *ai)
 {
 	int i;
+	int ca = ai->CA;
+	int err;
 
-	if (!ai->CA)
-		return;
+	if (hdmi_channel_mapping[ca][1] == 0) {
+		for (i = 0; i < channel_allocations[ca].channels; i++)
+			hdmi_channel_mapping[ca][i] = i | (i << 4);
+		for (; i < 8; i++)
+			hdmi_channel_mapping[ca][i] = 0xf | (i << 4);
+	}
 
-	/*
-	 * TODO: adjust channel mapping if necessary
-	 * ALSA sequence is front/surr/clfe/side?
-	 */
-
-	for (i = 0; i < 8; i++)
-		snd_hda_codec_write(codec, pin_nid, 0,
-				    AC_VERB_SET_HDMI_CHAN_SLOT,
-				    (i << 4) | i);
+	for (i = 0; i < 8; i++) {
+		err = snd_hda_codec_write(codec, pin_nid, 0,
+					  AC_VERB_SET_HDMI_CHAN_SLOT,
+					  hdmi_channel_mapping[ca][i]);
+		if (err) {
+			snd_printdd(KERN_INFO "HDMI: channel mapping failed\n");
+			break;
+		}
+	}
 
 	hdmi_debug_channel_mapping(codec, pin_nid);
 }
