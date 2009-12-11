@@ -118,6 +118,8 @@ acpi_ns_repair_object(struct acpi_predefined_data *data,
 	union acpi_operand_object *new_object;
 	acpi_status status;
 
+	ACPI_FUNCTION_NAME(ns_repair_object);
+
 	/*
 	 * At this point, we know that the type of the returned object was not
 	 * one of the expected types for this predefined name. Attempt to
@@ -171,19 +173,18 @@ acpi_ns_repair_object(struct acpi_predefined_data *data,
 			return_object->common.reference_count--;
 		}
 
-		ACPI_INFO_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
-				      "Converted %s to expected %s at index %u",
-				      acpi_ut_get_object_type_name
-				      (return_object),
-				      acpi_ut_get_object_type_name(new_object),
-				      package_index));
+		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+				  "%s: Converted %s to expected %s at index %u\n",
+				  data->pathname,
+				  acpi_ut_get_object_type_name(return_object),
+				  acpi_ut_get_object_type_name(new_object),
+				  package_index));
 	} else {
-		ACPI_INFO_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
-				      "Converted %s to expected %s",
-				      acpi_ut_get_object_type_name
-				      (return_object),
-				      acpi_ut_get_object_type_name
-				      (new_object)));
+		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+				  "%s: Converted %s to expected %s\n",
+				  data->pathname,
+				  acpi_ut_get_object_type_name(return_object),
+				  acpi_ut_get_object_type_name(new_object)));
 	}
 
 	/* Delete old object, install the new return object */
@@ -528,6 +529,8 @@ acpi_ns_repair_package_list(struct acpi_predefined_data *data,
 {
 	union acpi_operand_object *pkg_obj_desc;
 
+	ACPI_FUNCTION_NAME(ns_repair_package_list);
+
 	/*
 	 * Create the new outer package and populate it. The new package will
 	 * have a single element, the lone subpackage.
@@ -544,8 +547,9 @@ acpi_ns_repair_package_list(struct acpi_predefined_data *data,
 	*obj_desc_ptr = pkg_obj_desc;
 	data->flags |= ACPI_OBJECT_REPAIRED;
 
-	ACPI_INFO_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
-			      "Repaired Incorrectly formed Package"));
+	ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+			  "%s: Repaired incorrectly formed Package\n",
+			  data->pathname));
 
 	return (AE_OK);
 }

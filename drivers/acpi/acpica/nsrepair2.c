@@ -255,6 +255,8 @@ acpi_ns_repair_FDE(struct acpi_predefined_data *data,
 	u32 *dword_buffer;
 	u32 i;
 
+	ACPI_FUNCTION_NAME(ns_repair_FDE);
+
 	switch (return_object->common.type) {
 	case ACPI_TYPE_BUFFER:
 
@@ -296,8 +298,9 @@ acpi_ns_repair_FDE(struct acpi_predefined_data *data,
 			byte_buffer++;
 		}
 
-		ACPI_INFO_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
-				      "Expanded Byte Buffer to expected DWord Buffer"));
+		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+				  "%s Expanded Byte Buffer to expected DWord Buffer\n",
+				  data->pathname));
 		break;
 
 	default:
@@ -445,6 +448,8 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 	u32 previous_value;
 	acpi_status status;
 
+	ACPI_FUNCTION_NAME(ns_check_sorted_list);
+
 	/* The top-level object must be a package */
 
 	if (return_object->common.type != ACPI_TYPE_PACKAGE) {
@@ -460,8 +465,9 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 	 */
 	status = acpi_ns_remove_null_elements(return_object);
 	if (status == AE_NULL_ENTRY) {
-		ACPI_INFO_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
-				      "NULL elements removed from package"));
+		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+				  "%s: NULL elements removed from package\n",
+				  data->pathname));
 
 		/* Exit if package is now zero length */
 
@@ -522,10 +528,9 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 
 			data->flags |= ACPI_OBJECT_REPAIRED;
 
-			ACPI_INFO_PREDEFINED((AE_INFO, data->pathname,
-					      data->node_flags,
-					      "Repaired unsorted list - now sorted by %s",
-					      sort_key_name));
+			ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+					  "%s: Repaired unsorted list - now sorted by %s\n",
+					  data->pathname, sort_key_name));
 			return (AE_OK);
 		}
 

@@ -462,11 +462,11 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 		if (count < expected_count) {
 			goto package_too_small;
 		} else if (count > expected_count) {
-			ACPI_WARN_PREDEFINED((AE_INFO, data->pathname,
-					      data->node_flags,
-					      "Return Package is larger than needed - "
-					      "found %u, expected %u", count,
-					      expected_count));
+			ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+					  "%s: Return Package is larger than needed - "
+					  "found %u, expected %u\n",
+					  data->pathname, count,
+					  expected_count));
 		}
 
 		/* Validate all elements of the returned package */
