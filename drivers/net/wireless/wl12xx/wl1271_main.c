@@ -1130,6 +1130,47 @@ out:
 }
 #endif
 
+static int wl1271_join_channel(struct wl1271 *wl, int channel)
+{
+	int ret;
+	/* we need to use a dummy BSSID for now */
+	static const u8 dummy_bssid[ETH_ALEN] = { 0x0b, 0xad, 0xde,
+						  0xad, 0xbe, 0xef };
+
+	/* disable mac filter, so we hear everything */
+	wl->rx_config &= ~CFG_BSSID_FILTER_EN;
+
+	wl->channel = channel;
+	memcpy(wl->bssid, dummy_bssid, ETH_ALEN);
+
+	ret = wl1271_cmd_join(wl);
+	if (ret < 0)
+		goto out;
+
+	wl->joined = true;
+
+out:
+	return ret;
+}
+
+static int wl1271_unjoin_channel(struct wl1271 *wl)
+{
+	int ret;
+
+	/* to stop listening to a channel, we disconnect */
+	ret = wl1271_cmd_disconnect(wl);
+	if (ret < 0)
+		goto out;
+
+	wl->joined = false;
+	wl->channel = 0;
+	memset(wl->bssid, 0, ETH_ALEN);
+	wl->rx_config = WL1271_DEFAULT_RX_CONFIG;
+
+out:
+	return ret;
+}
+
 static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct wl1271 *wl = hw->priv;
@@ -1138,10 +1179,11 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 
 	channel = ieee80211_frequency_to_channel(conf->channel->center_freq);
 
-	wl1271_debug(DEBUG_MAC80211, "mac80211 config ch %d psm %s power %d",
+	wl1271_debug(DEBUG_MAC80211, "mac80211 config ch %d psm %s power %d %s",
 		     channel,
 		     conf->flags & IEEE80211_CONF_PS ? "on" : "off",
-		     conf->power_level);
+		     conf->power_level,
+		     conf->flags & IEEE80211_CONF_IDLE ? "idle" : "in use");
 
 	mutex_lock(&wl->mutex);
 
@@ -1151,15 +1193,16 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	if (ret < 0)
 		goto out;
 
-	if (channel != wl->channel) {
-		/*
-		 * We assume that the stack will configure the right channel
-		 * before associating, so we don't need to send a join
-		 * command here.  We will join the right channel when the
-		 * BSSID changes
-		 */
-		wl->channel = channel;
+	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
+		if (conf->flags & IEEE80211_CONF_IDLE && wl->joined)
+			wl1271_unjoin_channel(wl);
+		else
+			wl1271_join_channel(wl, channel);
 	}
+
+	/* if the channel changes while joined, join again */
+	if (channel != wl->channel && wl->joined)
+		wl1271_join_channel(wl, channel);
 
 	if (conf->flags & IEEE80211_CONF_PS && !wl->psm_requested) {
 		wl1271_info("psm enabled");
@@ -1493,6 +1536,18 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	ret = wl1271_ps_elp_wakeup(wl, false);
 	if (ret < 0)
 		goto out;
+
+	if ((changed & BSS_CHANGED_BSSID) &&
+	    /*
+	     * Now we know the correct bssid, so we send a new join command
+	     * and enable the BSSID filter
+	     */
+	    memcmp(wl->bssid, bss_conf->bssid, ETH_ALEN)) {
+			wl->rx_config |= CFG_BSSID_FILTER_EN;
+			memcpy(wl->bssid, bss_conf->bssid, ETH_ALEN);
+			wl1271_cmd_join(wl);
+			wl->joined = true;
+	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
