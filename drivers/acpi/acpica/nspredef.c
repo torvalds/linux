@@ -222,23 +222,21 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 	status = acpi_ns_check_object_type(data, return_object_ptr,
 					   predefined->info.expected_btypes,
 					   ACPI_NOT_PACKAGE_ELEMENT);
-	if (ACPI_FAILURE(status)) {
-		goto check_validation_status;
-	}
+	if (ACPI_SUCCESS(status)) {
 
-	/* For returned Package objects, check the type of all sub-objects */
+		/* For returned Package objects, check the type of all sub-objects */
 
-	if (return_object->common.type == ACPI_TYPE_PACKAGE) {
-		status = acpi_ns_check_package(data, return_object_ptr);
+		if (return_object->common.type == ACPI_TYPE_PACKAGE) {
+			status = acpi_ns_check_package(data, return_object_ptr);
+		}
 	}
 
 	/*
 	 * Perform additional, more complicated repairs on a per-name
-	 * basis.
+	 * basis. Do this regardless of the status from above.
 	 */
 	status = acpi_ns_complex_repairs(data, node, status, return_object_ptr);
 
-check_validation_status:
 	/*
 	 * If the object validation failed or if we successfully repaired one
 	 * or more objects, mark the parent node to suppress further warning
