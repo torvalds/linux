@@ -883,11 +883,12 @@ static int tw9910_video_probe(struct soc_camera_device *icd,
 
 	/*
 	 * check and show Product ID
+	 * So far only revisions 0 and 1 have been seen
 	 */
 	val = i2c_smbus_read_byte_data(client, ID);
 
 	if (0x0B != GET_ID(val) ||
-	    0x00 != GET_ReV(val)) {
+	    0x01 < GET_ReV(val)) {
 		dev_err(&client->dev,
 			"Product ID error %x:%x\n", GET_ID(val), GET_ReV(val));
 		return -ENODEV;
