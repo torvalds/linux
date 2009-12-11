@@ -320,6 +320,11 @@ static void reset_connection(struct ceph_connection *con)
 	ceph_msg_remove_list(&con->out_queue);
 	ceph_msg_remove_list(&con->out_sent);
 
+	if (con->in_msg) {
+		ceph_msg_put(con->in_msg);
+		con->in_msg = NULL;
+	}
+
 	con->connect_seq = 0;
 	con->out_seq = 0;
 	if (con->out_msg) {
@@ -1288,7 +1293,7 @@ static int read_partial_message(struct ceph_connection *con)
 		con->in_msg = con->ops->alloc_msg(con, &con->in_hdr);
 		if (!con->in_msg) {
 			/* skip this message */
-			dout("alloc_msg returned NULL, skipping message\n");
+			pr_err("alloc_msg returned NULL, skipping message\n");
 			con->in_base_pos = -front_len - middle_len - data_len -
 				sizeof(m->footer);
 			con->in_tag = CEPH_MSGR_TAG_READY;
@@ -1327,7 +1332,7 @@ static int read_partial_message(struct ceph_connection *con)
 			if (con->ops->alloc_middle)
 				ret = con->ops->alloc_middle(con, m);
 			if (ret < 0) {
-				dout("alloc_middle failed, skipping payload\n");
+				pr_err("alloc_middle fail skipping payload\n");
 				con->in_base_pos = -middle_len - data_len
 					- sizeof(m->footer);
 				ceph_msg_put(con->in_msg);
@@ -1498,6 +1503,7 @@ more:
 		set_bit(CONNECTING, &con->state);
 		clear_bit(NEGOTIATING, &con->state);
 
+		BUG_ON(con->in_msg);
 		con->in_tag = CEPH_MSGR_TAG_READY;
 		dout("try_write initiating connect on %p new state %lu\n",
 		     con, con->state);
