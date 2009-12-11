@@ -320,17 +320,18 @@ static void ceph_monc_handle_map(struct ceph_mon_client *monc,
 	if (IS_ERR(monmap)) {
 		pr_err("problem decoding monmap, %d\n",
 		       (int)PTR_ERR(monmap));
-		return;
+		goto out;
 	}
 
 	if (ceph_check_fsid(monc->client, &monmap->fsid) < 0) {
 		kfree(monmap);
-		return;
+		goto out;
 	}
 
 	client->monc.monmap = monmap;
 	kfree(old);
 
+out:
 	mutex_unlock(&monc->mutex);
 	wake_up(&client->mount_wq);
 }
