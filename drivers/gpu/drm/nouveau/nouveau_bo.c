@@ -400,10 +400,16 @@ nouveau_bo_evict_flags(struct ttm_buffer_object *bo, struct ttm_placement *pl)
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 
 	switch (bo->mem.mem_type) {
+	case TTM_PL_VRAM:
+		nouveau_bo_placement_set(nvbo, TTM_PL_FLAG_TT |
+					 TTM_PL_FLAG_SYSTEM);
+		break;
 	default:
 		nouveau_bo_placement_set(nvbo, TTM_PL_FLAG_SYSTEM);
 		break;
 	}
+
+	*pl = nvbo->placement;
 }
 
 
