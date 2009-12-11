@@ -836,7 +836,7 @@ isdn_ppp_write(int min, struct file *file, const char __user *buf, int count)
 			unsigned short hl;
 			struct sk_buff *skb;
 			/*
-			 * we need to reserve enought space in front of
+			 * we need to reserve enough space in front of
 			 * sk_buff. old call to dev_alloc_skb only reserved
 			 * 16 bytes, now we are looking what the driver want
 			 */
@@ -1326,7 +1326,7 @@ isdn_ppp_xmit(struct sk_buff *skb, struct net_device *netdev)
 		struct sk_buff *new_skb;
 	        unsigned short hl;
 		/*
-		 * we need to reserve enought space in front of
+		 * we need to reserve enough space in front of
 		 * sk_buff. old call to dev_alloc_skb only reserved
 		 * 16 bytes, now we are looking what the driver want.
 		 */
@@ -1674,7 +1674,7 @@ static void isdn_ppp_mp_receive(isdn_net_dev * net_dev, isdn_net_local * lp,
 	 * - insert new fragment into the proper sequence slot (once that's done
 	 *   newfrag will be set to NULL)
 	 * - reassemble any complete fragment sequence (non-null 'start'
-	 *   indicates there is a continguous sequence present)
+	 *   indicates there is a contiguous sequence present)
 	 * - discard any incomplete sequences that are below minseq -- due
 	 *   to the fact that sender always increment sequence number, if there
 	 *   is an incomplete sequence below minseq, no new fragments would

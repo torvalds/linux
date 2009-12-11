@@ -615,7 +615,7 @@ config SYSFS_DEPRECATED
 	bool
 
 config SYSFS_DEPRECATED_V2
-	bool "enable deprecated sysfs features which may confuse old userspace tools"
+	bool "enable deprecated sysfs features to support old userspace tools"
 	depends on SYSFS
 	default n
 	select SYSFS_DEPRECATED

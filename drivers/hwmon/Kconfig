@@ -191,21 +191,27 @@ config SENSORS_ADT7470
 	  will be called adt7470.
 
 config SENSORS_ADT7473
-	tristate "Analog Devices ADT7473"
+	tristate "Analog Devices ADT7473 (DEPRECATED)"
 	depends on I2C && EXPERIMENTAL
+	select SENSORS_ADT7475
 	help
 	  If you say yes here you get support for the Analog Devices
 	  ADT7473 temperature monitoring chips.
+
+	  This driver is deprecated, you should use the adt7475 driver
+	  instead.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called adt7473.
 
 config SENSORS_ADT7475
-	tristate "Analog Devices ADT7475"
+	tristate "Analog Devices ADT7473, ADT7475, ADT7476 and ADT7490"
 	depends on I2C && EXPERIMENTAL
+	select HWMON_VID
 	help
 	  If you say yes here you get support for the Analog Devices
-	  ADT7475 hardware monitoring chips.
+	  ADT7473, ADT7475, ADT7476 and ADT7490 hardware monitoring
+	  chips.
 
 	  This driver can also be build as a module.  If so, the module
 	  will be called adt7475.
@@ -305,12 +311,12 @@ config SENSORS_F71805F
 	  will be called f71805f.
 
 config SENSORS_F71882FG
-	tristate "Fintek F71858FG, F71862FG, F71882FG and F8000"
+	tristate "Fintek F71858FG, F71862FG, F71882FG, F71889FG and F8000"
 	depends on EXPERIMENTAL
 	help
 	  If you say yes here you get support for hardware monitoring
-	  features of the Fintek F71858FG, F71862FG/71863FG, F71882FG/F71883FG
-	  and F8000 Super-I/O chips.
+	  features of the Fintek F71858FG, F71862FG/71863FG, F71882FG/F71883FG,
+	  F71889FG and F8000 Super-I/O chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called f71882fg.
@@ -441,6 +447,15 @@ config SENSORS_LM70
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm70.
+
+config SENSORS_LM73
+	tristate "National Semiconductor LM73"
+	depends on I2C
+	help
+	  If you say yes here you get support for National Semiconductor LM73
+	  sensor chips.
+	  This driver can also be built as a module.  If so, the module
+	  will be called lm73.
 
 config SENSORS_LM75
 	tristate "National Semiconductor LM75 and compatibles"
@@ -841,7 +856,7 @@ config SENSORS_W83781D
 
 config SENSORS_W83791D
 	tristate "Winbond W83791D"
-	depends on I2C && EXPERIMENTAL
+	depends on I2C
 	select HWMON_VID
 	help
 	  If you say yes here you get support for the Winbond W83791D chip.
@@ -1007,6 +1022,12 @@ config SENSORS_APPLESMC
 
 	  Say Y here if you have an applicable laptop and want to experience
 	  the awesome power of applesmc.
+
+config SENSORS_MC13783_ADC
+        tristate "Freescale MC13783 ADC"
+        depends on MFD_MC13783
+        help
+          Support for the A/D converter on MC13783 PMIC.
 
 if ACPI
 

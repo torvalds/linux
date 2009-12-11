@@ -20,6 +20,8 @@
 #ifndef _FC_FS_H_
 #define _FC_FS_H_
 
+#include <linux/types.h>
+
 /*
  * Fibre Channel Framing and Signalling definitions.
  * From T11 FC-FS-2 Rev 0.90 - 9 August 2005.

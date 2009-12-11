@@ -194,7 +194,8 @@ static int usb_stream_hwdep_open(struct snd_hwdep *hw, struct file *file)
 	if (!us122l->first)
 		us122l->first = file;
 
-	if (us122l->dev->descriptor.idProduct == USB_ID_US144) {
+	if (us122l->dev->descriptor.idProduct == USB_ID_US144 ||
+	    us122l->dev->descriptor.idProduct == USB_ID_US144MKII) {
 		iface = usb_ifnum_to_if(us122l->dev, 0);
 		usb_autopm_get_interface(iface);
 	}
@@ -209,7 +210,8 @@ static int usb_stream_hwdep_release(struct snd_hwdep *hw, struct file *file)
 	struct usb_interface *iface;
 	snd_printdd(KERN_DEBUG "%p %p\n", hw, file);
 
-	if (us122l->dev->descriptor.idProduct == USB_ID_US144) {
+	if (us122l->dev->descriptor.idProduct == USB_ID_US144 ||
+	    us122l->dev->descriptor.idProduct == USB_ID_US144MKII) {
 		iface = usb_ifnum_to_if(us122l->dev, 0);
 		usb_autopm_put_interface(iface);
 	}
@@ -476,7 +478,8 @@ static bool us122l_create_card(struct snd_card *card)
 	int err;
 	struct us122l *us122l = US122L(card);
 
-	if (us122l->dev->descriptor.idProduct == USB_ID_US144) {
+	if (us122l->dev->descriptor.idProduct == USB_ID_US144 ||
+	    us122l->dev->descriptor.idProduct == USB_ID_US144MKII) {
 		err = usb_set_interface(us122l->dev, 0, 1);
 		if (err) {
 			snd_printk(KERN_ERR "usb_set_interface error \n");
@@ -495,7 +498,8 @@ static bool us122l_create_card(struct snd_card *card)
 	if (!us122l_start(us122l, 44100, 256))
 		return false;
 
-	if (us122l->dev->descriptor.idProduct == USB_ID_US144)
+	if (us122l->dev->descriptor.idProduct == USB_ID_US144 ||
+	    us122l->dev->descriptor.idProduct == USB_ID_US144MKII)
 		err = us144_create_usbmidi(card);
 	else
 		err = us122l_create_usbmidi(card);
@@ -597,7 +601,8 @@ static int snd_us122l_probe(struct usb_interface *intf,
 	struct snd_card *card;
 	int err;
 
-	if (device->descriptor.idProduct == USB_ID_US144
+	if ((device->descriptor.idProduct == USB_ID_US144 ||
+	     device->descriptor.idProduct == USB_ID_US144MKII)
 		&& device->speed == USB_SPEED_HIGH) {
 		snd_printk(KERN_ERR "disable ehci-hcd to run US-144 \n");
 		return -ENODEV;
@@ -692,7 +697,8 @@ static int snd_us122l_resume(struct usb_interface *intf)
 
 	mutex_lock(&us122l->mutex);
 	/* needed, doesn't restart without: */
-	if (us122l->dev->descriptor.idProduct == USB_ID_US144) {
+	if (us122l->dev->descriptor.idProduct == USB_ID_US144 ||
+	    us122l->dev->descriptor.idProduct == USB_ID_US144MKII) {
 		err = usb_set_interface(us122l->dev, 0, 1);
 		if (err) {
 			snd_printk(KERN_ERR "usb_set_interface error \n");
@@ -736,6 +742,16 @@ static struct usb_device_id snd_us122l_usb_id_table[] = {
 		.match_flags =	USB_DEVICE_ID_MATCH_DEVICE,
 		.idVendor =	0x0644,
 		.idProduct =	USB_ID_US144
+	},
+	{
+		.match_flags =	USB_DEVICE_ID_MATCH_DEVICE,
+		.idVendor =	0x0644,
+		.idProduct =	USB_ID_US122MKII
+	},
+	{
+		.match_flags =	USB_DEVICE_ID_MATCH_DEVICE,
+		.idVendor =	0x0644,
+		.idProduct =	USB_ID_US144MKII
 	},
 	{ /* terminator */ }
 };

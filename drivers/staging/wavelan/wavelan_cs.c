@@ -3987,7 +3987,7 @@ wavelan_interrupt(int		irq,
 #endif
 
   /* Prevent reentrancy. We need to do that because we may have
-   * multiple interrupt handler running concurently.
+   * multiple interrupt handler running concurrently.
    * It is safe because interrupts are disabled before aquiring
    * the spinlock. */
   spin_lock(&lp->spinlock);

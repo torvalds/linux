@@ -20,6 +20,8 @@
 #ifndef _FC_GS_H_
 #define	_FC_GS_H_
 
+#include <linux/types.h>
+
 /*
  * Fibre Channel Services - Common Transport.
  * From T11.org FC-GS-2 Rev 5.3 November 1998.

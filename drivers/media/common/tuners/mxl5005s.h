@@ -108,6 +108,10 @@ struct mxl5005s_config {
 #define MXL_LOW_IF  1
 	u8 if_mode;
 
+	/* Some boards need to override the built-in logic for determining
+	   the gain when in QAM mode (the HVR-1600 is one such case) */
+	u8 qam_gain;
+
 	/* Stuff I don't know what to do with */
 	u8 AgcMasterByte;
 };

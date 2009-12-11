@@ -15,6 +15,7 @@
 #include <linux/pagemap.h>
 #include <linux/percpu.h>
 #include <linux/io.h>
+#include <linux/dma-mapping.h>
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
 #include <asm/cacheflush.h>
@@ -186,10 +187,20 @@ void __init paging_init(void)
 	set_fixmap_nocache(FIX_UNCACHED, __pa(&__uncached_start));
 }
 
+/*
+ * Early initialization for any I/O MMUs we might have.
+ */
+static void __init iommu_init(void)
+{
+	no_iommu_init();
+}
+
 void __init mem_init(void)
 {
 	int codesize, datasize, initsize;
 	int nid;
+
+	iommu_init();
 
 	num_physpages = 0;
 	high_memory = NULL;
@@ -323,4 +334,12 @@ int memory_add_physaddr_to_nid(u64 addr)
 }
 EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 #endif
+
 #endif /* CONFIG_MEMORY_HOTPLUG */
+
+#ifdef CONFIG_PMB
+int __in_29bit_mode(void)
+{
+	return !(ctrl_inl(PMB_PASCR) & PASCR_SE);
+}
+#endif /* CONFIG_PMB */

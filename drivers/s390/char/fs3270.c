@@ -38,6 +38,8 @@ struct fs3270 {
 	size_t rdbuf_size;		/* size of data returned by RDBUF */
 };
 
+static DEFINE_MUTEX(fs3270_mutex);
+
 static void
 fs3270_wake_up(struct raw3270_request *rq, void *data)
 {
@@ -74,7 +76,7 @@ fs3270_do_io(struct raw3270_view *view, struct raw3270_request *rq)
 		}
 		rc = raw3270_start(view, rq);
 		if (rc == 0) {
-			/* Started sucessfully. Now wait for completion. */
+			/* Started successfully. Now wait for completion. */
 			wait_event(fp->wait, raw3270_request_final(rq));
 		}
 	} while (rc == -EACCES);
@@ -328,7 +330,7 @@ fs3270_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	if (!fp)
 		return -ENODEV;
 	rc = 0;
-	lock_kernel();
+	mutex_lock(&fs3270_mutex);
 	switch (cmd) {
 	case TUBICMD:
 		fp->read_command = arg;
@@ -354,7 +356,7 @@ fs3270_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			rc = -EFAULT;
 		break;
 	}
-	unlock_kernel();
+	mutex_unlock(&fs3270_mutex);
 	return rc;
 }
 
@@ -437,7 +439,7 @@ fs3270_open(struct inode *inode, struct file *filp)
 		minor = tty->index + RAW3270_FIRSTMINOR;
 		tty_kref_put(tty);
 	}
-	lock_kernel();
+	mutex_lock(&fs3270_mutex);
 	/* Check if some other program is already using fullscreen mode. */
 	fp = (struct fs3270 *) raw3270_find_view(&fs3270_fn, minor);
 	if (!IS_ERR(fp)) {
@@ -478,7 +480,7 @@ fs3270_open(struct inode *inode, struct file *filp)
 	}
 	filp->private_data = fp;
 out:
-	unlock_kernel();
+	mutex_unlock(&fs3270_mutex);
 	return rc;
 }
 

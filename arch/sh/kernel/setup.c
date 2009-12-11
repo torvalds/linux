@@ -453,6 +453,10 @@ void __init setup_arch(char **cmdline_p)
 
 	paging_init();
 
+#ifdef CONFIG_PMB_ENABLE
+	pmb_init();
+#endif
+
 #ifdef CONFIG_SMP
 	plat_smp_setup();
 #endif

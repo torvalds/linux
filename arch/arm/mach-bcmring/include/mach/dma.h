@@ -651,7 +651,7 @@ int dma_map_add_region(DMA_MemMap_t *memMap,	/* Stores state information about t
 /**
 *   Creates a descriptor ring from a memory mapping.
 *
-*   @return 0 on sucess, error code otherwise.
+*   @return 0 on success, error code otherwise.
 */
 /****************************************************************************/
 

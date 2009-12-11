@@ -20,8 +20,10 @@
 
 #include <linux/pci.h>
 #include <linux/if_vlan.h>
-
-#define FW_VER_LEN 32
+#include <linux/blk-iopoll.h>
+#define FW_VER_LEN	32
+#define MCC_Q_LEN	128
+#define MCC_CQ_LEN	256
 
 struct be_dma_mem {
 	void *va;
@@ -74,18 +76,14 @@ static inline void queue_tail_inc(struct be_queue_info *q)
 
 struct be_eq_obj {
 	struct be_queue_info q;
-	char desc[32];
-
-	/* Adaptive interrupt coalescing (AIC) info */
-	bool enable_aic;
-	u16 min_eqd;		/* in usecs */
-	u16 max_eqd;		/* in usecs */
-	u16 cur_eqd;		/* in usecs */
+	struct beiscsi_hba *phba;
+	struct be_queue_info *cq;
+	struct blk_iopoll	iopoll;
 };
 
 struct be_mcc_obj {
-	struct be_queue_info *q;
-	struct be_queue_info *cq;
+	struct be_queue_info q;
+	struct be_queue_info cq;
 };
 
 struct be_ctrl_info {
@@ -176,8 +174,4 @@ static inline void swap_dws(void *wrb, int len)
 	} while (len);
 #endif /* __BIG_ENDIAN */
 }
-
-extern void beiscsi_cq_notify(struct be_ctrl_info *ctrl, u16 qid, bool arm,
-			      u16 num_popped);
-
 #endif /* BEISCSI_H */

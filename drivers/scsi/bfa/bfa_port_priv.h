@@ -59,8 +59,8 @@ struct bfa_pport_s {
 	u8			*stats_kva;
 	u64		stats_pa;
 	union bfa_pport_stats_u *stats;	/*  pport stats */
-	u32		mypid : 24;
-	u32		rsvd_b : 8;
+	u32		mypid:24;
+	u32		rsvd_b:8;
 	struct bfa_timer_s 	timer;	/*  timer */
 	union bfa_pport_stats_u 	*stats_ret;
 					/*  driver stats location */
