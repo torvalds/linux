@@ -1545,6 +1545,12 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	    memcmp(wl->bssid, bss_conf->bssid, ETH_ALEN)) {
 			wl->rx_config |= CFG_BSSID_FILTER_EN;
 			memcpy(wl->bssid, bss_conf->bssid, ETH_ALEN);
+			ret = wl1271_cmd_build_null_data(wl);
+			if (ret < 0) {
+				wl1271_warning("cmd buld null data failed %d",
+					       ret);
+				goto out_sleep;
+			}
 			ret = wl1271_cmd_join(wl);
 			if (ret < 0) {
 				wl1271_warning("cmd join failed %d", ret);
