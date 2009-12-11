@@ -42,7 +42,7 @@
 	( ((A) << (n)) | ( ((A)>>(32-(n))) & ( (1UL << (n)) - 1 ) ) )
 #define ROR32( A, n ) ROL32( (A), 32-(n) )
 
-UINT Tkip_Sbox_Lower[256] = {
+u32 Tkip_Sbox_Lower[256] = {
 	0xA5, 0x84, 0x99, 0x8D, 0x0D, 0xBD, 0xB1, 0x54,
 	0x50, 0x03, 0xA9, 0x7D, 0x19, 0x62, 0xE6, 0x9A,
 	0x45, 0x9D, 0x40, 0x87, 0x15, 0xEB, 0xC9, 0x0B,
@@ -77,7 +77,7 @@ UINT Tkip_Sbox_Lower[256] = {
 	0xC3, 0xB0, 0x77, 0x11, 0xCB, 0xFC, 0xD6, 0x3A
 };
 
-UINT Tkip_Sbox_Upper[256] = {
+u32 Tkip_Sbox_Upper[256] = {
 	0xC6, 0xF8, 0xEE, 0xF6, 0xFF, 0xD6, 0xDE, 0x91,
 	0x60, 0x02, 0xCE, 0x56, 0xE7, 0xB5, 0x4D, 0xEC,
 	0x8F, 0x1F, 0x89, 0xFA, 0xEF, 0xB2, 0x8E, 0xFB,
@@ -118,31 +118,31 @@ UINT Tkip_Sbox_Upper[256] = {
 typedef struct PACKED _IV_CONTROL_ {
 	union PACKED {
 		struct PACKED {
-			UCHAR rc0;
-			UCHAR rc1;
-			UCHAR rc2;
+			u8 rc0;
+			u8 rc1;
+			u8 rc2;
 
 			union PACKED {
 				struct PACKED {
-					UCHAR Rsvd:5;
-					UCHAR ExtIV:1;
-					UCHAR KeyID:2;
+					u8 Rsvd:5;
+					u8 ExtIV:1;
+					u8 KeyID:2;
 				} field;
-				UCHAR Byte;
+				u8 Byte;
 			} CONTROL;
 		} field;
 
-		ULONG word;
+		unsigned long word;
 	} IV16;
 
-	ULONG IV32;
+	unsigned long IV32;
 } TKIP_IV, *PTKIP_IV;
 
 /*
 	========================================================================
 
 	Routine	Description:
-		Convert from UCHAR[] to ULONG in a portable way
+		Convert from u8[] to unsigned long in a portable way
 
 	Arguments:
       pMICKey		pointer to MIC Key
@@ -154,10 +154,10 @@ typedef struct PACKED _IV_CONTROL_ {
 
 	========================================================================
 */
-ULONG RTMPTkipGetUInt32(IN PUCHAR pMICKey)
+unsigned long RTMPTkipGetUInt32(u8 *pMICKey)
 {
-	ULONG res = 0;
-	INT i;
+	unsigned long res = 0;
+	int i;
 
 	for (i = 0; i < 4; i++) {
 		res |= (*pMICKey++) << (8 * i);
@@ -170,10 +170,10 @@ ULONG RTMPTkipGetUInt32(IN PUCHAR pMICKey)
 	========================================================================
 
 	Routine	Description:
-		Convert from ULONG to UCHAR[] in a portable way
+		Convert from unsigned long to u8[] in a portable way
 
 	Arguments:
-      pDst			pointer to destination for convert ULONG to UCHAR[]
+      pDst			pointer to destination for convert unsigned long to u8[]
       val			the value for convert
 
 	Return Value:
@@ -185,12 +185,12 @@ ULONG RTMPTkipGetUInt32(IN PUCHAR pMICKey)
 
 	========================================================================
 */
-VOID RTMPTkipPutUInt32(IN OUT PUCHAR pDst, IN ULONG val)
+void RTMPTkipPutUInt32(IN u8 *pDst, unsigned long val)
 {
-	INT i;
+	int i;
 
 	for (i = 0; i < 4; i++) {
-		*pDst++ = (UCHAR) (val & 0xff);
+		*pDst++ = (u8)(val & 0xff);
 		val >>= 8;
 	}
 }
@@ -214,7 +214,7 @@ VOID RTMPTkipPutUInt32(IN OUT PUCHAR pDst, IN ULONG val)
 
 	========================================================================
 */
-VOID RTMPTkipSetMICKey(IN PTKIP_KEY_INFO pTkip, IN PUCHAR pMICKey)
+void RTMPTkipSetMICKey(IN PTKIP_KEY_INFO pTkip, u8 *pMICKey)
 {
 	/* Set the key */
 	pTkip->K0 = RTMPTkipGetUInt32(pMICKey);
@@ -245,7 +245,7 @@ VOID RTMPTkipSetMICKey(IN PTKIP_KEY_INFO pTkip, IN PUCHAR pMICKey)
 
 	========================================================================
 */
-VOID RTMPTkipAppendByte(IN PTKIP_KEY_INFO pTkip, IN UCHAR uChar)
+void RTMPTkipAppendByte(IN PTKIP_KEY_INFO pTkip, u8 uChar)
 {
 	/* Append the byte to our word-sized buffer */
 	pTkip->M |= (uChar << (8 * pTkip->nBytesInM));
@@ -289,7 +289,7 @@ VOID RTMPTkipAppendByte(IN PTKIP_KEY_INFO pTkip, IN UCHAR uChar)
 
 	========================================================================
 */
-VOID RTMPTkipAppend(IN PTKIP_KEY_INFO pTkip, IN PUCHAR pSrc, IN UINT nBytes)
+void RTMPTkipAppend(IN PTKIP_KEY_INFO pTkip, u8 *pSrc, u32 nBytes)
 {
 	/* This is simple */
 	while (nBytes > 0) {
@@ -316,7 +316,7 @@ VOID RTMPTkipAppend(IN PTKIP_KEY_INFO pTkip, IN PUCHAR pSrc, IN UINT nBytes)
 		the MIC Value is store in pAd->PrivateInfo.MIC
 	========================================================================
 */
-VOID RTMPTkipGetMIC(IN PTKIP_KEY_INFO pTkip)
+void RTMPTkipGetMIC(IN PTKIP_KEY_INFO pTkip)
 {
 	/* Append the minimum padding */
 	RTMPTkipAppendByte(pTkip, 0x5a);
@@ -355,12 +355,12 @@ VOID RTMPTkipGetMIC(IN PTKIP_KEY_INFO pTkip)
 
 	========================================================================
 */
-VOID RTMPInitTkipEngine(IN PRTMP_ADAPTER pAd,
-			IN PUCHAR pKey,
-			IN UCHAR KeyId,
-			IN PUCHAR pTA,
-			IN PUCHAR pMICKey,
-			IN PUCHAR pTSC, OUT PULONG pIV16, OUT PULONG pIV32)
+void RTMPInitTkipEngine(IN PRTMP_ADAPTER pAd,
+			u8 *pKey,
+			u8 KeyId,
+			u8 *pTA,
+			u8 *pMICKey,
+			u8 *pTSC, unsigned long *pIV16, unsigned long *pIV32)
 {
 	TKIP_IV tkipIv;
 
@@ -371,7 +371,7 @@ VOID RTMPInitTkipEngine(IN PRTMP_ADAPTER pAd,
 	tkipIv.IV16.field.rc2 = *pTSC;
 	tkipIv.IV16.field.CONTROL.field.ExtIV = 1;	/* 0: non-extended IV, 1: an extended IV */
 	tkipIv.IV16.field.CONTROL.field.KeyID = KeyId;
-/*      tkipIv.IV32 = *(PULONG)(pTSC + 2); */
+/*      tkipIv.IV32 = *(unsigned long *)(pTSC + 2); */
 	NdisMoveMemory(&tkipIv.IV32, (pTSC + 2), 4);	/* Copy IV */
 
 	*pIV16 = tkipIv.IV16.word;
@@ -399,12 +399,12 @@ VOID RTMPInitTkipEngine(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-VOID RTMPInitMICEngine(IN PRTMP_ADAPTER pAd,
-		       IN PUCHAR pKey,
-		       IN PUCHAR pDA,
-		       IN PUCHAR pSA, IN UCHAR UserPriority, IN PUCHAR pMICKey)
+void RTMPInitMICEngine(IN PRTMP_ADAPTER pAd,
+		       u8 *pKey,
+		       u8 *pDA,
+		       u8 *pSA, u8 UserPriority, u8 *pMICKey)
 {
-	ULONG Priority = UserPriority;
+	unsigned long Priority = UserPriority;
 
 	/* Init MIC value calculation */
 	RTMPTkipSetMICKey(&pAd->PrivateInfo.Tx, pMICKey);
@@ -413,7 +413,7 @@ VOID RTMPInitMICEngine(IN PRTMP_ADAPTER pAd,
 	/* SA */
 	RTMPTkipAppend(&pAd->PrivateInfo.Tx, pSA, MAC_ADDR_LEN);
 	/* Priority + 3 bytes of 0 */
-	RTMPTkipAppend(&pAd->PrivateInfo.Tx, (PUCHAR) & Priority, 4);
+	RTMPTkipAppend(&pAd->PrivateInfo.Tx, (u8 *)& Priority, 4);
 }
 
 /*
@@ -441,14 +441,14 @@ VOID RTMPInitMICEngine(IN PRTMP_ADAPTER pAd,
 	========================================================================
 */
 BOOLEAN RTMPTkipCompareMICValue(IN PRTMP_ADAPTER pAd,
-				IN PUCHAR pSrc,
-				IN PUCHAR pDA,
-				IN PUCHAR pSA,
-				IN PUCHAR pMICKey,
-				IN UCHAR UserPriority, IN UINT Len)
+				u8 *pSrc,
+				u8 *pDA,
+				u8 *pSA,
+				u8 *pMICKey,
+				u8 UserPriority, u32 Len)
 {
-	UCHAR OldMic[8];
-	ULONG Priority = UserPriority;
+	u8 OldMic[8];
+	unsigned long Priority = UserPriority;
 
 	/* Init MIC value calculation */
 	RTMPTkipSetMICKey(&pAd->PrivateInfo.Rx, pMICKey);
@@ -457,7 +457,7 @@ BOOLEAN RTMPTkipCompareMICValue(IN PRTMP_ADAPTER pAd,
 	/* SA */
 	RTMPTkipAppend(&pAd->PrivateInfo.Rx, pSA, MAC_ADDR_LEN);
 	/* Priority + 3 bytes of 0 */
-	RTMPTkipAppend(&pAd->PrivateInfo.Rx, (PUCHAR) & Priority, 4);
+	RTMPTkipAppend(&pAd->PrivateInfo.Rx, (u8 *)& Priority, 4);
 
 	/* Calculate MIC value from plain text data */
 	RTMPTkipAppend(&pAd->PrivateInfo.Rx, pSrc, Len);
@@ -500,17 +500,17 @@ BOOLEAN RTMPTkipCompareMICValue(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-VOID RTMPCalculateMICValue(IN PRTMP_ADAPTER pAd,
+void RTMPCalculateMICValue(IN PRTMP_ADAPTER pAd,
 			   IN PNDIS_PACKET pPacket,
-			   IN PUCHAR pEncap,
-			   IN PCIPHER_KEY pKey, IN UCHAR apidx)
+			   u8 *pEncap,
+			   IN PCIPHER_KEY pKey, u8 apidx)
 {
 	PACKET_INFO PacketInfo;
-	PUCHAR pSrcBufVA;
-	UINT SrcBufLen;
-	PUCHAR pSrc;
-	UCHAR UserPriority;
-	UCHAR vlan_offset = 0;
+	u8 *pSrcBufVA;
+	u32 SrcBufLen;
+	u8 *pSrc;
+	u8 UserPriority;
+	u8 vlan_offset = 0;
 
 	RTMP_QueryPacketInfo(pPacket, &PacketInfo, &pSrcBufVA, &SrcBufLen);
 
@@ -555,11 +555,11 @@ VOID RTMPCalculateMICValue(IN PRTMP_ADAPTER pAd,
 /* is synthesized from two 256 entry byte wide tables.		*/
 /************************************************************/
 
-UINT tkip_sbox(UINT index)
+u32 tkip_sbox(u32 index)
 {
-	UINT index_low;
-	UINT index_high;
-	UINT left, right;
+	u32 index_low;
+	u32 index_high;
+	u32 left, right;
 
 	index_low = (index % 256);
 	index_high = ((index >> 8) % 256);
@@ -571,7 +571,7 @@ UINT tkip_sbox(UINT index)
 	return (left ^ right);
 }
 
-UINT rotr1(UINT a)
+u32 rotr1(u32 a)
 {
 	unsigned int b;
 
@@ -584,24 +584,24 @@ UINT rotr1(UINT a)
 	return b;
 }
 
-VOID RTMPTkipMixKey(UCHAR * key, UCHAR * ta, ULONG pnl,	/* Least significant 16 bits of PN */
-		    ULONG pnh,	/* Most significant 32 bits of PN */
-		    UCHAR * rc4key, UINT * p1k)
+void RTMPTkipMixKey(u8 * key, u8 * ta, unsigned long pnl,	/* Least significant 16 bits of PN */
+		    unsigned long pnh,	/* Most significant 32 bits of PN */
+		    u8 * rc4key, u32 * p1k)
 {
 
-	UINT tsc0;
-	UINT tsc1;
-	UINT tsc2;
+	u32 tsc0;
+	u32 tsc1;
+	u32 tsc2;
 
-	UINT ppk0;
-	UINT ppk1;
-	UINT ppk2;
-	UINT ppk3;
-	UINT ppk4;
-	UINT ppk5;
+	u32 ppk0;
+	u32 ppk1;
+	u32 ppk2;
+	u32 ppk3;
+	u32 ppk4;
+	u32 ppk5;
 
-	INT i;
-	INT j;
+	int i;
+	int j;
 
 	tsc0 = (unsigned int)((pnh >> 16) % 65536);	/* msb */
 	tsc1 = (unsigned int)(pnh % 65536);
@@ -610,9 +610,9 @@ VOID RTMPTkipMixKey(UCHAR * key, UCHAR * ta, ULONG pnl,	/* Least significant 16 
 	/* Phase 1, step 1 */
 	p1k[0] = tsc1;
 	p1k[1] = tsc0;
-	p1k[2] = (UINT) (ta[0] + (ta[1] * 256));
-	p1k[3] = (UINT) (ta[2] + (ta[3] * 256));
-	p1k[4] = (UINT) (ta[4] + (ta[5] * 256));
+	p1k[2] = (u32)(ta[0] + (ta[1] * 256));
+	p1k[3] = (u32)(ta[2] + (ta[3] * 256));
+	p1k[4] = (u32)(ta[4] + (ta[5] * 256));
 
 	/* Phase 1, step 2 */
 	for (i = 0; i < 8; i++) {
@@ -699,43 +699,43 @@ VOID RTMPTkipMixKey(UCHAR * key, UCHAR * ta, ULONG pnl,	/* Least significant 16 
 /* FALSE: Decrypt Error! */
 /* */
 BOOLEAN RTMPSoftDecryptTKIP(IN PRTMP_ADAPTER pAd,
-			    IN PUCHAR pData,
-			    IN ULONG DataByteCnt,
-			    IN UCHAR UserPriority, IN PCIPHER_KEY pWpaKey)
+			    u8 *pData,
+			    unsigned long DataByteCnt,
+			    u8 UserPriority, IN PCIPHER_KEY pWpaKey)
 {
-	UCHAR KeyID;
-	UINT HeaderLen;
-	UCHAR fc0;
-	UCHAR fc1;
-	USHORT fc;
-	UINT frame_type;
-	UINT frame_subtype;
-	UINT from_ds;
-	UINT to_ds;
-	INT a4_exists;
-	INT qc_exists;
-	USHORT duration;
-	USHORT seq_control;
-	USHORT qos_control;
-	UCHAR TA[MAC_ADDR_LEN];
-	UCHAR DA[MAC_ADDR_LEN];
-	UCHAR SA[MAC_ADDR_LEN];
-	UCHAR RC4Key[16];
-	UINT p1k[5];		/*for mix_key; */
-	ULONG pnl;		/* Least significant 16 bits of PN */
-	ULONG pnh;		/* Most significant 32 bits of PN */
-	UINT num_blocks;
-	UINT payload_remainder;
+	u8 KeyID;
+	u32 HeaderLen;
+	u8 fc0;
+	u8 fc1;
+	u16 fc;
+	u32 frame_type;
+	u32 frame_subtype;
+	u32 from_ds;
+	u32 to_ds;
+	int a4_exists;
+	int qc_exists;
+	u16 duration;
+	u16 seq_control;
+	u16 qos_control;
+	u8 TA[MAC_ADDR_LEN];
+	u8 DA[MAC_ADDR_LEN];
+	u8 SA[MAC_ADDR_LEN];
+	u8 RC4Key[16];
+	u32 p1k[5];		/*for mix_key; */
+	unsigned long pnl;		/* Least significant 16 bits of PN */
+	unsigned long pnh;		/* Most significant 32 bits of PN */
+	u32 num_blocks;
+	u32 payload_remainder;
 	ARCFOURCONTEXT ArcFourContext;
-	UINT crc32 = 0;
-	UINT trailfcs = 0;
-	UCHAR MIC[8];
-	UCHAR TrailMIC[8];
+	u32 crc32 = 0;
+	u32 trailfcs = 0;
+	u8 MIC[8];
+	u8 TrailMIC[8];
 
 	fc0 = *pData;
 	fc1 = *(pData + 1);
 
-	fc = *((PUSHORT) pData);
+	fc = *((u16 *)pData);
 
 	frame_type = ((fc0 >> 2) & 0x03);
 	frame_subtype = ((fc0 >> 4) & 0x0f);
@@ -753,7 +753,7 @@ BOOLEAN RTMPSoftDecryptTKIP(IN PRTMP_ADAPTER pAd,
 	if (a4_exists)
 		HeaderLen += 6;
 
-	KeyID = *((PUCHAR) (pData + HeaderLen + 3));
+	KeyID = *((u8 *)(pData + HeaderLen + 3));
 	KeyID = KeyID >> 6;
 
 	if (pWpaKey[KeyID].KeyLen == 0) {
@@ -763,15 +763,15 @@ BOOLEAN RTMPSoftDecryptTKIP(IN PRTMP_ADAPTER pAd,
 		return FALSE;
 	}
 
-	duration = *((PUSHORT) (pData + 2));
+	duration = *((u16 *)(pData + 2));
 
-	seq_control = *((PUSHORT) (pData + 22));
+	seq_control = *((u16 *)(pData + 22));
 
 	if (qc_exists) {
 		if (a4_exists) {
-			qos_control = *((PUSHORT) (pData + 30));
+			qos_control = *((u16 *)(pData + 30));
 		} else {
-			qos_control = *((PUSHORT) (pData + 24));
+			qos_control = *((u16 *)(pData + 24));
 		}
 	}
 
@@ -797,7 +797,7 @@ BOOLEAN RTMPSoftDecryptTKIP(IN PRTMP_ADAPTER pAd,
 	payload_remainder = (DataByteCnt - 16) % 16;
 
 	pnl = (*(pData + HeaderLen)) * 256 + *(pData + HeaderLen + 2);
-	pnh = *((PULONG) (pData + HeaderLen + 4));
+	pnh = *((unsigned long *)(pData + HeaderLen + 4));
 	pnh = cpu2le32(pnh);
 	RTMPTkipMixKey(pWpaKey[KeyID].Key, TA, pnl, pnh, RC4Key, p1k);
 

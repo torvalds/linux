@@ -57,37 +57,37 @@
 typedef struct PACKED _TXWI_STRUC {
 	/* Word 0 */
 	/* ex: 00 03 00 40 means txop = 3, PHYMODE = 1 */
-	UINT32 FRAG:1;		/* 1 to inform TKIP engine this is a fragment. */
-	UINT32 MIMOps:1;	/* the remote peer is in dynamic MIMO-PS mode */
-	UINT32 CFACK:1;
-	UINT32 TS:1;
+	u32 FRAG:1;		/* 1 to inform TKIP engine this is a fragment. */
+	u32 MIMOps:1;	/* the remote peer is in dynamic MIMO-PS mode */
+	u32 CFACK:1;
+	u32 TS:1;
 
-	UINT32 AMPDU:1;
-	UINT32 MpduDensity:3;
-	UINT32 txop:2;		/*FOR "THIS" frame. 0:HT TXOP rule , 1:PIFS TX ,2:Backoff, 3:sifs only when previous frame exchange is successful. */
-	UINT32 rsv:6;
+	u32 AMPDU:1;
+	u32 MpduDensity:3;
+	u32 txop:2;		/*FOR "THIS" frame. 0:HT TXOP rule , 1:PIFS TX ,2:Backoff, 3:sifs only when previous frame exchange is successful. */
+	u32 rsv:6;
 
-	UINT32 MCS:7;
-	UINT32 BW:1;		/*channel bandwidth 20MHz or 40 MHz */
-	UINT32 ShortGI:1;
-	UINT32 STBC:2;		/* 1: STBC support MCS =0-7,   2,3 : RESERVE */
-	UINT32 Ifs:1;		/* */
-/*      UINT32          rsv2:2; //channel bandwidth 20MHz or 40 MHz */
-	UINT32 rsv2:1;
-	UINT32 TxBF:1;		/* 3*3 */
-	UINT32 PHYMODE:2;
+	u32 MCS:7;
+	u32 BW:1;		/*channel bandwidth 20MHz or 40 MHz */
+	u32 ShortGI:1;
+	u32 STBC:2;		/* 1: STBC support MCS =0-7,   2,3 : RESERVE */
+	u32 Ifs:1;		/* */
+/*      u32          rsv2:2; //channel bandwidth 20MHz or 40 MHz */
+	u32 rsv2:1;
+	u32 TxBF:1;		/* 3*3 */
+	u32 PHYMODE:2;
 	/* Word1 */
 	/* ex:  1c ff 38 00 means ACK=0, BAWinSize=7, MPDUtotalByteCount = 0x38 */
-	UINT32 ACK:1;
-	UINT32 NSEQ:1;
-	UINT32 BAWinSize:6;
-	UINT32 WirelessCliID:8;
-	UINT32 MPDUtotalByteCount:12;
-	UINT32 PacketId:4;
+	u32 ACK:1;
+	u32 NSEQ:1;
+	u32 BAWinSize:6;
+	u32 WirelessCliID:8;
+	u32 MPDUtotalByteCount:12;
+	u32 PacketId:4;
 	/*Word2 */
-	UINT32 IV;
+	u32 IV;
 	/*Word3 */
-	UINT32 EIV;
+	u32 EIV;
 } TXWI_STRUC, *PTXWI_STRUC;
 
 /* */
@@ -95,32 +95,32 @@ typedef struct PACKED _TXWI_STRUC {
 /* */
 typedef struct PACKED _RXWI_STRUC {
 	/* Word 0 */
-	UINT32 WirelessCliID:8;
-	UINT32 KeyIndex:2;
-	UINT32 BSSID:3;
-	UINT32 UDF:3;
-	UINT32 MPDUtotalByteCount:12;
-	UINT32 TID:4;
+	u32 WirelessCliID:8;
+	u32 KeyIndex:2;
+	u32 BSSID:3;
+	u32 UDF:3;
+	u32 MPDUtotalByteCount:12;
+	u32 TID:4;
 	/* Word 1 */
-	UINT32 FRAG:4;
-	UINT32 SEQUENCE:12;
-	UINT32 MCS:7;
-	UINT32 BW:1;
-	UINT32 ShortGI:1;
-	UINT32 STBC:2;
-	UINT32 rsv:3;
-	UINT32 PHYMODE:2;	/* 1: this RX frame is unicast to me */
+	u32 FRAG:4;
+	u32 SEQUENCE:12;
+	u32 MCS:7;
+	u32 BW:1;
+	u32 ShortGI:1;
+	u32 STBC:2;
+	u32 rsv:3;
+	u32 PHYMODE:2;	/* 1: this RX frame is unicast to me */
 	/*Word2 */
-	UINT32 RSSI0:8;
-	UINT32 RSSI1:8;
-	UINT32 RSSI2:8;
-	UINT32 rsv1:8;
+	u32 RSSI0:8;
+	u32 RSSI1:8;
+	u32 RSSI2:8;
+	u32 rsv1:8;
 	/*Word3 */
-	UINT32 SNR0:8;
-	UINT32 SNR1:8;
-	UINT32 FOFFSET:8;	/* RT35xx */
-	UINT32 rsv2:8;
-	/*UINT32                rsv2:16; */
+	u32 SNR0:8;
+	u32 SNR1:8;
+	u32 FOFFSET:8;	/* RT35xx */
+	u32 rsv2:8;
+	/*u32                rsv2:16; */
 } RXWI_STRUC, *PRXWI_STRUC;
 
 /* ================================================================================= */
@@ -136,27 +136,27 @@ typedef struct PACKED _RXWI_STRUC {
 #define INT_SOURCE_CSR		0x200
 typedef union _INT_SOURCE_CSR_STRUC {
 	struct {
-		UINT32 RxDelayINT:1;
-		UINT32 TxDelayINT:1;
-		UINT32 RxDone:1;
-		UINT32 Ac0DmaDone:1;	/*4 */
-		UINT32 Ac1DmaDone:1;
-		UINT32 Ac2DmaDone:1;
-		UINT32 Ac3DmaDone:1;
-		UINT32 HccaDmaDone:1;	/* bit7 */
-		UINT32 MgmtDmaDone:1;
-		UINT32 MCUCommandINT:1;	/*bit 9 */
-		UINT32 RxTxCoherent:1;
-		UINT32 TBTTInt:1;
-		UINT32 PreTBTT:1;
-		UINT32 TXFifoStatusInt:1;	/*FIFO Statistics is full, sw should read 0x171c */
-		UINT32 AutoWakeup:1;	/*bit14 */
-		UINT32 GPTimer:1;
-		UINT32 RxCoherent:1;	/*bit16 */
-		UINT32 TxCoherent:1;
-		 UINT32:14;
+		u32 RxDelayINT:1;
+		u32 TxDelayINT:1;
+		u32 RxDone:1;
+		u32 Ac0DmaDone:1;	/*4 */
+		u32 Ac1DmaDone:1;
+		u32 Ac2DmaDone:1;
+		u32 Ac3DmaDone:1;
+		u32 HccaDmaDone:1;	/* bit7 */
+		u32 MgmtDmaDone:1;
+		u32 MCUCommandINT:1;	/*bit 9 */
+		u32 RxTxCoherent:1;
+		u32 TBTTInt:1;
+		u32 PreTBTT:1;
+		u32 TXFifoStatusInt:1;	/*FIFO Statistics is full, sw should read 0x171c */
+		u32 AutoWakeup:1;	/*bit14 */
+		u32 GPTimer:1;
+		u32 RxCoherent:1;	/*bit16 */
+		u32 TxCoherent:1;
+		u32 : 14;
 	} field;
-	UINT32 word;
+	u32 word;
 } INT_SOURCE_CSR_STRUC, *PINT_SOURCE_CSR_STRUC;
 
 /* */
@@ -165,76 +165,76 @@ typedef union _INT_SOURCE_CSR_STRUC {
 #define INT_MASK_CSR        0x204
 typedef union _INT_MASK_CSR_STRUC {
 	struct {
-		UINT32 RXDelay_INT_MSK:1;
-		UINT32 TxDelay:1;
-		UINT32 RxDone:1;
-		UINT32 Ac0DmaDone:1;
-		UINT32 Ac1DmaDone:1;
-		UINT32 Ac2DmaDone:1;
-		UINT32 Ac3DmaDone:1;
-		UINT32 HccaDmaDone:1;
-		UINT32 MgmtDmaDone:1;
-		UINT32 MCUCommandINT:1;
-		 UINT32:20;
-		UINT32 RxCoherent:1;
-		UINT32 TxCoherent:1;
+		u32 RXDelay_INT_MSK:1;
+		u32 TxDelay:1;
+		u32 RxDone:1;
+		u32 Ac0DmaDone:1;
+		u32 Ac1DmaDone:1;
+		u32 Ac2DmaDone:1;
+		u32 Ac3DmaDone:1;
+		u32 HccaDmaDone:1;
+		u32 MgmtDmaDone:1;
+		u32 MCUCommandINT:1;
+		u32 : 20;
+		u32 RxCoherent:1;
+		u32 TxCoherent:1;
 	} field;
-	UINT32 word;
+	u32 word;
 } INT_MASK_CSR_STRUC, *PINT_MASK_CSR_STRUC;
 
 #define WPDMA_GLO_CFG	0x208
 typedef union _WPDMA_GLO_CFG_STRUC {
 	struct {
-		UINT32 EnableTxDMA:1;
-		UINT32 TxDMABusy:1;
-		UINT32 EnableRxDMA:1;
-		UINT32 RxDMABusy:1;
-		UINT32 WPDMABurstSIZE:2;
-		UINT32 EnTXWriteBackDDONE:1;
-		UINT32 BigEndian:1;
-		UINT32 RXHdrScater:8;
-		UINT32 HDR_SEG_LEN:16;
+		u32 EnableTxDMA:1;
+		u32 TxDMABusy:1;
+		u32 EnableRxDMA:1;
+		u32 RxDMABusy:1;
+		u32 WPDMABurstSIZE:2;
+		u32 EnTXWriteBackDDONE:1;
+		u32 BigEndian:1;
+		u32 RXHdrScater:8;
+		u32 HDR_SEG_LEN:16;
 	} field;
-	UINT32 word;
+	u32 word;
 } WPDMA_GLO_CFG_STRUC, *PWPDMA_GLO_CFG_STRUC;
 
 #define WPDMA_RST_IDX	0x20c
 typedef union _WPDMA_RST_IDX_STRUC {
 	struct {
-		UINT32 RST_DTX_IDX0:1;
-		UINT32 RST_DTX_IDX1:1;
-		UINT32 RST_DTX_IDX2:1;
-		UINT32 RST_DTX_IDX3:1;
-		UINT32 RST_DTX_IDX4:1;
-		UINT32 RST_DTX_IDX5:1;
-		UINT32 rsv:10;
-		UINT32 RST_DRX_IDX0:1;
-		 UINT32:15;
+		u32 RST_DTX_IDX0:1;
+		u32 RST_DTX_IDX1:1;
+		u32 RST_DTX_IDX2:1;
+		u32 RST_DTX_IDX3:1;
+		u32 RST_DTX_IDX4:1;
+		u32 RST_DTX_IDX5:1;
+		u32 rsv:10;
+		u32 RST_DRX_IDX0:1;
+		u32 : 15;
 	} field;
-	UINT32 word;
+	u32 word;
 } WPDMA_RST_IDX_STRUC, *PWPDMA_RST_IDX_STRUC;
 #define DELAY_INT_CFG  0x0210
 typedef union _DELAY_INT_CFG_STRUC {
 	struct {
-		UINT32 RXMAX_PTIME:8;
-		UINT32 RXMAX_PINT:7;
-		UINT32 RXDLY_INT_EN:1;
-		UINT32 TXMAX_PTIME:8;
-		UINT32 TXMAX_PINT:7;
-		UINT32 TXDLY_INT_EN:1;
+		u32 RXMAX_PTIME:8;
+		u32 RXMAX_PINT:7;
+		u32 RXDLY_INT_EN:1;
+		u32 TXMAX_PTIME:8;
+		u32 TXMAX_PINT:7;
+		u32 TXDLY_INT_EN:1;
 	} field;
-	UINT32 word;
+	u32 word;
 } DELAY_INT_CFG_STRUC, *PDELAY_INT_CFG_STRUC;
 #define WMM_AIFSN_CFG   0x0214
 typedef union _AIFSN_CSR_STRUC {
 	struct {
-		UINT32 Aifsn0:4;	/* for AC_BE */
-		UINT32 Aifsn1:4;	/* for AC_BK */
-		UINT32 Aifsn2:4;	/* for AC_VI */
-		UINT32 Aifsn3:4;	/* for AC_VO */
-		UINT32 Rsv:16;
+		u32 Aifsn0:4;	/* for AC_BE */
+		u32 Aifsn1:4;	/* for AC_BK */
+		u32 Aifsn2:4;	/* for AC_VI */
+		u32 Aifsn3:4;	/* for AC_VO */
+		u32 Rsv:16;
 	} field;
-	UINT32 word;
+	u32 word;
 } AIFSN_CSR_STRUC, *PAIFSN_CSR_STRUC;
 /* */
 /* CWMIN_CSR: CWmin for each EDCA AC */
@@ -242,13 +242,13 @@ typedef union _AIFSN_CSR_STRUC {
 #define WMM_CWMIN_CFG   0x0218
 typedef union _CWMIN_CSR_STRUC {
 	struct {
-		UINT32 Cwmin0:4;	/* for AC_BE */
-		UINT32 Cwmin1:4;	/* for AC_BK */
-		UINT32 Cwmin2:4;	/* for AC_VI */
-		UINT32 Cwmin3:4;	/* for AC_VO */
-		UINT32 Rsv:16;
+		u32 Cwmin0:4;	/* for AC_BE */
+		u32 Cwmin1:4;	/* for AC_BK */
+		u32 Cwmin2:4;	/* for AC_VI */
+		u32 Cwmin3:4;	/* for AC_VO */
+		u32 Rsv:16;
 	} field;
-	UINT32 word;
+	u32 word;
 } CWMIN_CSR_STRUC, *PCWMIN_CSR_STRUC;
 
 /* */
@@ -257,13 +257,13 @@ typedef union _CWMIN_CSR_STRUC {
 #define WMM_CWMAX_CFG   0x021c
 typedef union _CWMAX_CSR_STRUC {
 	struct {
-		UINT32 Cwmax0:4;	/* for AC_BE */
-		UINT32 Cwmax1:4;	/* for AC_BK */
-		UINT32 Cwmax2:4;	/* for AC_VI */
-		UINT32 Cwmax3:4;	/* for AC_VO */
-		UINT32 Rsv:16;
+		u32 Cwmax0:4;	/* for AC_BE */
+		u32 Cwmax1:4;	/* for AC_BK */
+		u32 Cwmax2:4;	/* for AC_VI */
+		u32 Cwmax3:4;	/* for AC_VO */
+		u32 Rsv:16;
 	} field;
-	UINT32 word;
+	u32 word;
 } CWMAX_CSR_STRUC, *PCWMAX_CSR_STRUC;
 
 /* */
@@ -272,10 +272,10 @@ typedef union _CWMAX_CSR_STRUC {
 #define WMM_TXOP0_CFG    0x0220
 typedef union _AC_TXOP_CSR0_STRUC {
 	struct {
-		USHORT Ac0Txop;	/* for AC_BK, in unit of 32us */
-		USHORT Ac1Txop;	/* for AC_BE, in unit of 32us */
+		u16 Ac0Txop;	/* for AC_BK, in unit of 32us */
+		u16 Ac1Txop;	/* for AC_BE, in unit of 32us */
 	} field;
-	UINT32 word;
+	u32 word;
 } AC_TXOP_CSR0_STRUC, *PAC_TXOP_CSR0_STRUC;
 
 /* */
@@ -284,10 +284,10 @@ typedef union _AC_TXOP_CSR0_STRUC {
 #define WMM_TXOP1_CFG    0x0224
 typedef union _AC_TXOP_CSR1_STRUC {
 	struct {
-		USHORT Ac2Txop;	/* for AC_VI, in unit of 32us */
-		USHORT Ac3Txop;	/* for AC_VO, in unit of 32us */
+		u16 Ac2Txop;	/* for AC_VI, in unit of 32us */
+		u16 Ac3Txop;	/* for AC_VO, in unit of 32us */
 	} field;
-	UINT32 word;
+	u32 word;
 } AC_TXOP_CSR1_STRUC, *PAC_TXOP_CSR1_STRUC;
 
 #define RINGREG_DIFF			0x10
@@ -328,20 +328,20 @@ typedef union _AC_TXOP_CSR1_STRUC {
 #define USB_DMA_CFG      0x02a0
 typedef union _USB_DMA_CFG_STRUC {
 	struct {
-		UINT32 RxBulkAggTOut:8;	/*Rx Bulk Aggregation TimeOut  in unit of 33ns */
-		UINT32 RxBulkAggLmt:8;	/*Rx Bulk Aggregation Limit  in unit of 256 bytes */
-		UINT32 phyclear:1;	/*phy watch dog enable. write 1 */
-		UINT32 rsv:2;
-		UINT32 TxClear:1;	/*Clear USB DMA TX path */
-		UINT32 TxopHalt:1;	/*Halt TXOP count down when TX buffer is full. */
-		UINT32 RxBulkAggEn:1;	/*Enable Rx Bulk Aggregation */
-		UINT32 RxBulkEn:1;	/*Enable USB DMA Rx */
-		UINT32 TxBulkEn:1;	/*Enable USB DMA Tx */
-		UINT32 EpoutValid:6;	/*OUT endpoint data valid */
-		UINT32 RxBusy:1;	/*USB DMA RX FSM busy */
-		UINT32 TxBusy:1;	/*USB DMA TX FSM busy */
+		u32 RxBulkAggTOut:8;	/*Rx Bulk Aggregation TimeOut  in unit of 33ns */
+		u32 RxBulkAggLmt:8;	/*Rx Bulk Aggregation Limit  in unit of 256 bytes */
+		u32 phyclear:1;	/*phy watch dog enable. write 1 */
+		u32 rsv:2;
+		u32 TxClear:1;	/*Clear USB DMA TX path */
+		u32 TxopHalt:1;	/*Halt TXOP count down when TX buffer is full. */
+		u32 RxBulkAggEn:1;	/*Enable Rx Bulk Aggregation */
+		u32 RxBulkEn:1;	/*Enable USB DMA Rx */
+		u32 TxBulkEn:1;	/*Enable USB DMA Tx */
+		u32 EpoutValid:6;	/*OUT endpoint data valid */
+		u32 RxBusy:1;	/*USB DMA RX FSM busy */
+		u32 TxBusy:1;	/*USB DMA TX FSM busy */
 	} field;
-	UINT32 word;
+	u32 word;
 } USB_DMA_CFG_STRUC, *PUSB_DMA_CFG_STRUC;
 
 /* */
@@ -384,10 +384,10 @@ typedef union _USB_DMA_CFG_STRUC {
 #define MAC_CSR0            0x1000
 typedef union _ASIC_VER_ID_STRUC {
 	struct {
-		USHORT ASICRev;	/* reversion  : 0 */
-		USHORT ASICVer;	/* version : 2860 */
+		u16 ASICRev;	/* reversion  : 0 */
+		u16 ASICVer;	/* version : 2860 */
 	} field;
-	UINT32 word;
+	u32 word;
 } ASIC_VER_ID_STRUC, *PASIC_VER_ID_STRUC;
 #define MAC_SYS_CTRL            0x1004	/*MAC_CSR1 */
 #define MAC_ADDR_DW0				0x1008	/* MAC ADDR DW0 */
@@ -397,12 +397,12 @@ typedef union _ASIC_VER_ID_STRUC {
 /* */
 typedef union _MAC_DW0_STRUC {
 	struct {
-		UCHAR Byte0;	/* MAC address byte 0 */
-		UCHAR Byte1;	/* MAC address byte 1 */
-		UCHAR Byte2;	/* MAC address byte 2 */
-		UCHAR Byte3;	/* MAC address byte 3 */
+		u8 Byte0;	/* MAC address byte 0 */
+		u8 Byte1;	/* MAC address byte 1 */
+		u8 Byte2;	/* MAC address byte 2 */
+		u8 Byte3;	/* MAC address byte 3 */
 	} field;
-	UINT32 word;
+	u32 word;
 } MAC_DW0_STRUC, *PMAC_DW0_STRUC;
 
 /* */
@@ -410,12 +410,12 @@ typedef union _MAC_DW0_STRUC {
 /* */
 typedef union _MAC_DW1_STRUC {
 	struct {
-		UCHAR Byte4;	/* MAC address byte 4 */
-		UCHAR Byte5;	/* MAC address byte 5 */
-		UCHAR U2MeMask;
-		UCHAR Rsvd1;
+		u8 Byte4;	/* MAC address byte 4 */
+		u8 Byte5;	/* MAC address byte 5 */
+		u8 U2MeMask;
+		u8 Rsvd1;
 	} field;
-	UINT32 word;
+	u32 word;
 } MAC_DW1_STRUC, *PMAC_DW1_STRUC;
 
 #define MAC_BSSID_DW0				0x1010	/* MAC BSSID DW0 */
@@ -426,13 +426,13 @@ typedef union _MAC_DW1_STRUC {
 /* */
 typedef union _MAC_CSR5_STRUC {
 	struct {
-		UCHAR Byte4;	/* BSSID byte 4 */
-		UCHAR Byte5;	/* BSSID byte 5 */
-		USHORT BssIdMask:2;	/* 0: one BSSID, 10: 4 BSSID,  01: 2 BSSID , 11: 8BSSID */
-		USHORT MBssBcnNum:3;
-		USHORT Rsvd:11;
+		u8 Byte4;	/* BSSID byte 4 */
+		u8 Byte5;	/* BSSID byte 5 */
+		u16 BssIdMask:2;	/* 0: one BSSID, 10: 4 BSSID,  01: 2 BSSID , 11: 8BSSID */
+		u16 MBssBcnNum:3;
+		u16 Rsvd:11;
 	} field;
-	UINT32 word;
+	u32 word;
 } MAC_CSR5_STRUC, *PMAC_CSR5_STRUC;
 
 #define MAX_LEN_CFG              0x1018	/* rt2860b max 16k bytes. bit12:13 Maximum PSDU length (power factor) 0:2^13, 1:2^14, 2:2^15, 3:2^16 */
@@ -442,15 +442,15 @@ typedef union _MAC_CSR5_STRUC {
 /* */
 typedef union _BBP_CSR_CFG_STRUC {
 	struct {
-		UINT32 Value:8;	/* Register     value to program into BBP */
-		UINT32 RegNum:8;	/* Selected     BBP     register */
-		UINT32 fRead:1;	/* 0: Write BBP, 1: Read BBP */
-		UINT32 Busy:1;	/* 1: ASIC is busy execute BBP programming. */
-		UINT32 BBP_PAR_DUR:1;	/* 0: 4 MAC clock cycles  1: 8 MAC clock cycles */
-		UINT32 BBP_RW_MODE:1;	/* 0: use serial mode  1:parallel */
-		 UINT32:12;
+		u32 Value:8;	/* Register     value to program into BBP */
+		u32 RegNum:8;	/* Selected     BBP     register */
+		u32 fRead:1;	/* 0: Write BBP, 1: Read BBP */
+		u32 Busy:1;	/* 1: ASIC is busy execute BBP programming. */
+		u32 BBP_PAR_DUR:1;	/* 0: 4 MAC clock cycles  1: 8 MAC clock cycles */
+		u32 BBP_RW_MODE:1;	/* 0: use serial mode  1:parallel */
+		u32 : 12;
 	} field;
-	UINT32 word;
+	u32 word;
 } BBP_CSR_CFG_STRUC, *PBBP_CSR_CFG_STRUC;
 #define RF_CSR_CFG0			0x1020
 /* */
@@ -458,45 +458,45 @@ typedef union _BBP_CSR_CFG_STRUC {
 /* */
 typedef union _RF_CSR_CFG0_STRUC {
 	struct {
-		UINT32 RegIdAndContent:24;	/* Register     value to program into BBP */
-		UINT32 bitwidth:5;	/* Selected     BBP     register */
-		UINT32 StandbyMode:1;	/* 0: high when stand by 1: low when standby */
-		UINT32 Sel:1;	/* 0:RF_LE0 activate  1:RF_LE1 activate */
-		UINT32 Busy:1;	/* 0: idle 1: 8busy */
+		u32 RegIdAndContent:24;	/* Register     value to program into BBP */
+		u32 bitwidth:5;	/* Selected     BBP     register */
+		u32 StandbyMode:1;	/* 0: high when stand by 1: low when standby */
+		u32 Sel:1;	/* 0:RF_LE0 activate  1:RF_LE1 activate */
+		u32 Busy:1;	/* 0: idle 1: 8busy */
 	} field;
-	UINT32 word;
+	u32 word;
 } RF_CSR_CFG0_STRUC, *PRF_CSR_CFG0_STRUC;
 #define RF_CSR_CFG1			0x1024
 typedef union _RF_CSR_CFG1_STRUC {
 	struct {
-		UINT32 RegIdAndContent:24;	/* Register     value to program into BBP */
-		UINT32 RFGap:5;	/* Gap between BB_CONTROL_RF and RF_LE. 0: 3 system clock cycle (37.5usec) 1: 5 system clock cycle (62.5usec) */
-		UINT32 rsv:7;	/* 0: idle 1: 8busy */
+		u32 RegIdAndContent:24;	/* Register     value to program into BBP */
+		u32 RFGap:5;	/* Gap between BB_CONTROL_RF and RF_LE. 0: 3 system clock cycle (37.5usec) 1: 5 system clock cycle (62.5usec) */
+		u32 rsv:7;	/* 0: idle 1: 8busy */
 	} field;
-	UINT32 word;
+	u32 word;
 } RF_CSR_CFG1_STRUC, *PRF_CSR_CFG1_STRUC;
 #define RF_CSR_CFG2			0x1028	/* */
 typedef union _RF_CSR_CFG2_STRUC {
 	struct {
-		UINT32 RegIdAndContent:24;	/* Register     value to program into BBP */
-		UINT32 rsv:8;	/* 0: idle 1: 8busy */
+		u32 RegIdAndContent:24;	/* Register     value to program into BBP */
+		u32 rsv:8;	/* 0: idle 1: 8busy */
 	} field;
-	UINT32 word;
+	u32 word;
 } RF_CSR_CFG2_STRUC, *PRF_CSR_CFG2_STRUC;
 #define LED_CFG				0x102c	/*  MAC_CSR14 */
 typedef union _LED_CFG_STRUC {
 	struct {
-		UINT32 OnPeriod:8;	/* blinking on period unit 1ms */
-		UINT32 OffPeriod:8;	/* blinking off period unit 1ms */
-		UINT32 SlowBlinkPeriod:6;	/* slow blinking period. unit:1ms */
-		UINT32 rsv:2;
-		UINT32 RLedMode:2;	/* red Led Mode    0: off1: blinking upon TX2: periodic slow blinking3: always on */
-		UINT32 GLedMode:2;	/* green Led Mode */
-		UINT32 YLedMode:2;	/* yellow Led Mode */
-		UINT32 LedPolar:1;	/* Led Polarity.  0: active low1: active high */
-		 UINT32:1;
+		u32 OnPeriod:8;	/* blinking on period unit 1ms */
+		u32 OffPeriod:8;	/* blinking off period unit 1ms */
+		u32 SlowBlinkPeriod:6;	/* slow blinking period. unit:1ms */
+		u32 rsv:2;
+		u32 RLedMode:2;	/* red Led Mode    0: off1: blinking upon TX2: periodic slow blinking3: always on */
+		u32 GLedMode:2;	/* green Led Mode */
+		u32 YLedMode:2;	/* yellow Led Mode */
+		u32 LedPolar:1;	/* Led Polarity.  0: active low1: active high */
+		u32 : 1;
 	} field;
-	UINT32 word;
+	u32 word;
 } LED_CFG_STRUC, *PLED_CFG_STRUC;
 /* */
 /*  4.2 MAC TIMING  configuration registers (offset:0x1100) */
@@ -504,14 +504,14 @@ typedef union _LED_CFG_STRUC {
 #define XIFS_TIME_CFG             0x1100	/* MAC_CSR8  MAC_CSR9 */
 typedef union _IFS_SLOT_CFG_STRUC {
 	struct {
-		UINT32 CckmSifsTime:8;	/*  unit 1us. Applied after CCK RX/TX */
-		UINT32 OfdmSifsTime:8;	/*  unit 1us. Applied after OFDM RX/TX */
-		UINT32 OfdmXifsTime:4;	/*OFDM SIFS. unit 1us. Applied after OFDM RX when MAC doesn't reference BBP signal BBRXEND */
-		UINT32 EIFS:9;	/*  unit 1us */
-		UINT32 BBRxendEnable:1;	/*  reference RXEND signal to begin XIFS defer */
-		UINT32 rsv:2;
+		u32 CckmSifsTime:8;	/*  unit 1us. Applied after CCK RX/TX */
+		u32 OfdmSifsTime:8;	/*  unit 1us. Applied after OFDM RX/TX */
+		u32 OfdmXifsTime:4;	/*OFDM SIFS. unit 1us. Applied after OFDM RX when MAC doesn't reference BBP signal BBRXEND */
+		u32 EIFS:9;	/*  unit 1us */
+		u32 BBRxendEnable:1;	/*  reference RXEND signal to begin XIFS defer */
+		u32 rsv:2;
 	} field;
-	UINT32 word;
+	u32 word;
 } IFS_SLOT_CFG_STRUC, *PIFS_SLOT_CFG_STRUC;
 
 #define BKOFF_SLOT_CFG             0x1104	/*  mac_csr9 last 8 bits */
@@ -528,15 +528,15 @@ typedef union _IFS_SLOT_CFG_STRUC {
 /* */
 typedef union _BCN_TIME_CFG_STRUC {
 	struct {
-		UINT32 BeaconInterval:16;	/* in unit of 1/16 TU */
-		UINT32 bTsfTicking:1;	/* Enable TSF auto counting */
-		UINT32 TsfSyncMode:2;	/* Enable TSF sync, 00: disable, 01: infra mode, 10: ad-hoc mode */
-		UINT32 bTBTTEnable:1;
-		UINT32 bBeaconGen:1;	/* Enable beacon generator */
-		 UINT32:3;
-		UINT32 TxTimestampCompensate:8;
+		u32 BeaconInterval:16;	/* in unit of 1/16 TU */
+		u32 bTsfTicking:1;	/* Enable TSF auto counting */
+		u32 TsfSyncMode:2;	/* Enable TSF sync, 00: disable, 01: infra mode, 10: ad-hoc mode */
+		u32 bTBTTEnable:1;
+		u32 bBeaconGen:1;	/* Enable beacon generator */
+		u32 : 3;
+		u32 TxTimestampCompensate:8;
 	} field;
-	UINT32 word;
+	u32 word;
 } BCN_TIME_CFG_STRUC, *PBCN_TIME_CFG_STRUC;
 #define TBTT_SYNC_CFG            0x1118	/* txrx_csr10 */
 #define TSF_TIMER_DW0             0x111C	/* Local TSF timer lsb 32 bits. Read-only */
@@ -557,12 +557,12 @@ typedef union _BCN_TIME_CFG_STRUC {
 /* */
 typedef union _AUTO_WAKEUP_STRUC {
 	struct {
-		UINT32 AutoLeadTime:8;
-		UINT32 NumofSleepingTbtt:7;	/* ForceWake has high privilege than PutToSleep when both set */
-		UINT32 EnableAutoWakeup:1;	/* 0:sleep, 1:awake */
-		 UINT32:16;
+		u32 AutoLeadTime:8;
+		u32 NumofSleepingTbtt:7;	/* ForceWake has high privilege than PutToSleep when both set */
+		u32 EnableAutoWakeup:1;	/* 0:sleep, 1:awake */
+		u32 : 16;
 	} field;
-	UINT32 word;
+	u32 word;
 } AUTO_WAKEUP_STRUC, *PAUTO_WAKEUP_STRUC;
 /* */
 /*  4.3 MAC TX  configuration registers (offset:0x1300) */
@@ -574,13 +574,13 @@ typedef union _AUTO_WAKEUP_STRUC {
 #define EDCA_AC3_CFG	0x130c
 typedef union _EDCA_AC_CFG_STRUC {
 	struct {
-		UINT32 AcTxop:8;	/*  in unit of 32us */
-		UINT32 Aifsn:4;	/* # of slot time */
-		UINT32 Cwmin:4;	/* */
-		UINT32 Cwmax:4;	/*unit power of 2 */
-		 UINT32:12;	/* */
+		u32 AcTxop:8;	/*  in unit of 32us */
+		u32 Aifsn:4;	/* # of slot time */
+		u32 Cwmin:4;	/* */
+		u32 Cwmax:4;	/*unit power of 2 */
+		u32 : 12;	/* */
 	} field;
-	UINT32 word;
+	u32 word;
 } EDCA_AC_CFG_STRUC, *PEDCA_AC_CFG_STRUC;
 
 #define EDCA_TID_AC_MAP	0x1310
@@ -600,104 +600,104 @@ typedef union _EDCA_AC_CFG_STRUC {
 
 typedef union _TX_RTS_CFG_STRUC {
 	struct {
-		UINT32 AutoRtsRetryLimit:8;
-		UINT32 RtsThres:16;	/* unit:byte */
-		UINT32 RtsFbkEn:1;	/* enable rts rate fallback */
-		UINT32 rsv:7;	/* 1: HT non-STBC control frame enable */
+		u32 AutoRtsRetryLimit:8;
+		u32 RtsThres:16;	/* unit:byte */
+		u32 RtsFbkEn:1;	/* enable rts rate fallback */
+		u32 rsv:7;	/* 1: HT non-STBC control frame enable */
 	} field;
-	UINT32 word;
+	u32 word;
 } TX_RTS_CFG_STRUC, *PTX_RTS_CFG_STRUC;
 #define TX_TIMEOUT_CFG	0x1348
 typedef union _TX_TIMEOUT_CFG_STRUC {
 	struct {
-		UINT32 rsv:4;
-		UINT32 MpduLifeTime:4;	/*  expiration time = 2^(9+MPDU LIFE TIME)  us */
-		UINT32 RxAckTimeout:8;	/* unit:slot. Used for TX precedure */
-		UINT32 TxopTimeout:8;	/*TXOP timeout value for TXOP truncation.  It is recommended that (SLOT_TIME) > (TX_OP_TIMEOUT) > (RX_ACK_TIMEOUT) */
-		UINT32 rsv2:8;	/* 1: HT non-STBC control frame enable */
+		u32 rsv:4;
+		u32 MpduLifeTime:4;	/*  expiration time = 2^(9+MPDU LIFE TIME)  us */
+		u32 RxAckTimeout:8;	/* unit:slot. Used for TX precedure */
+		u32 TxopTimeout:8;	/*TXOP timeout value for TXOP truncation.  It is recommended that (SLOT_TIME) > (TX_OP_TIMEOUT) > (RX_ACK_TIMEOUT) */
+		u32 rsv2:8;	/* 1: HT non-STBC control frame enable */
 	} field;
-	UINT32 word;
+	u32 word;
 } TX_TIMEOUT_CFG_STRUC, *PTX_TIMEOUT_CFG_STRUC;
 #define TX_RTY_CFG	0x134c
 typedef union PACKED _TX_RTY_CFG_STRUC {
 	struct {
-		UINT32 ShortRtyLimit:8;	/*  short retry limit */
-		UINT32 LongRtyLimit:8;	/*long retry limit */
-		UINT32 LongRtyThre:12;	/* Long retry threshoold */
-		UINT32 NonAggRtyMode:1;	/* Non-Aggregate MPDU retry mode.  0:expired by retry limit, 1: expired by mpdu life timer */
-		UINT32 AggRtyMode:1;	/* Aggregate MPDU retry mode.  0:expired by retry limit, 1: expired by mpdu life timer */
-		UINT32 TxautoFBEnable:1;	/* Tx retry PHY rate auto fallback enable */
-		UINT32 rsv:1;	/* 1: HT non-STBC control frame enable */
+		u32 ShortRtyLimit:8;	/*  short retry limit */
+		u32 LongRtyLimit:8;	/*long retry limit */
+		u32 LongRtyThre:12;	/* Long retry threshoold */
+		u32 NonAggRtyMode:1;	/* Non-Aggregate MPDU retry mode.  0:expired by retry limit, 1: expired by mpdu life timer */
+		u32 AggRtyMode:1;	/* Aggregate MPDU retry mode.  0:expired by retry limit, 1: expired by mpdu life timer */
+		u32 TxautoFBEnable:1;	/* Tx retry PHY rate auto fallback enable */
+		u32 rsv:1;	/* 1: HT non-STBC control frame enable */
 	} field;
-	UINT32 word;
+	u32 word;
 } TX_RTY_CFG_STRUC, *PTX_RTY_CFG_STRUC;
 #define TX_LINK_CFG	0x1350
 typedef union PACKED _TX_LINK_CFG_STRUC {
 	struct PACKED {
-		UINT32 RemoteMFBLifeTime:8;	/*remote MFB life time. unit : 32us */
-		UINT32 MFBEnable:1;	/*  TX apply remote MFB 1:enable */
-		UINT32 RemoteUMFSEnable:1;	/*  remote unsolicit  MFB enable.  0: not apply remote remote unsolicit (MFS=7) */
-		UINT32 TxMRQEn:1;	/*  MCS request TX enable */
-		UINT32 TxRDGEn:1;	/* RDG TX enable */
-		UINT32 TxCFAckEn:1;	/*   Piggyback CF-ACK enable */
-		UINT32 rsv:3;	/* */
-		UINT32 RemotMFB:8;	/*  remote MCS feedback */
-		UINT32 RemotMFS:8;	/*remote MCS feedback sequence number */
+		u32 RemoteMFBLifeTime:8;	/*remote MFB life time. unit : 32us */
+		u32 MFBEnable:1;	/*  TX apply remote MFB 1:enable */
+		u32 RemoteUMFSEnable:1;	/*  remote unsolicit  MFB enable.  0: not apply remote remote unsolicit (MFS=7) */
+		u32 TxMRQEn:1;	/*  MCS request TX enable */
+		u32 TxRDGEn:1;	/* RDG TX enable */
+		u32 TxCFAckEn:1;	/*   Piggyback CF-ACK enable */
+		u32 rsv:3;	/* */
+		u32 RemotMFB:8;	/*  remote MCS feedback */
+		u32 RemotMFS:8;	/*remote MCS feedback sequence number */
 	} field;
-	UINT32 word;
+	u32 word;
 } TX_LINK_CFG_STRUC, *PTX_LINK_CFG_STRUC;
 #define HT_FBK_CFG0	0x1354
 typedef union PACKED _HT_FBK_CFG0_STRUC {
 	struct {
-		UINT32 HTMCS0FBK:4;
-		UINT32 HTMCS1FBK:4;
-		UINT32 HTMCS2FBK:4;
-		UINT32 HTMCS3FBK:4;
-		UINT32 HTMCS4FBK:4;
-		UINT32 HTMCS5FBK:4;
-		UINT32 HTMCS6FBK:4;
-		UINT32 HTMCS7FBK:4;
+		u32 HTMCS0FBK:4;
+		u32 HTMCS1FBK:4;
+		u32 HTMCS2FBK:4;
+		u32 HTMCS3FBK:4;
+		u32 HTMCS4FBK:4;
+		u32 HTMCS5FBK:4;
+		u32 HTMCS6FBK:4;
+		u32 HTMCS7FBK:4;
 	} field;
-	UINT32 word;
+	u32 word;
 } HT_FBK_CFG0_STRUC, *PHT_FBK_CFG0_STRUC;
 #define HT_FBK_CFG1	0x1358
 typedef union _HT_FBK_CFG1_STRUC {
 	struct {
-		UINT32 HTMCS8FBK:4;
-		UINT32 HTMCS9FBK:4;
-		UINT32 HTMCS10FBK:4;
-		UINT32 HTMCS11FBK:4;
-		UINT32 HTMCS12FBK:4;
-		UINT32 HTMCS13FBK:4;
-		UINT32 HTMCS14FBK:4;
-		UINT32 HTMCS15FBK:4;
+		u32 HTMCS8FBK:4;
+		u32 HTMCS9FBK:4;
+		u32 HTMCS10FBK:4;
+		u32 HTMCS11FBK:4;
+		u32 HTMCS12FBK:4;
+		u32 HTMCS13FBK:4;
+		u32 HTMCS14FBK:4;
+		u32 HTMCS15FBK:4;
 	} field;
-	UINT32 word;
+	u32 word;
 } HT_FBK_CFG1_STRUC, *PHT_FBK_CFG1_STRUC;
 #define LG_FBK_CFG0	0x135c
 typedef union _LG_FBK_CFG0_STRUC {
 	struct {
-		UINT32 OFDMMCS0FBK:4;	/*initial value is 0 */
-		UINT32 OFDMMCS1FBK:4;	/*initial value is 0 */
-		UINT32 OFDMMCS2FBK:4;	/*initial value is 1 */
-		UINT32 OFDMMCS3FBK:4;	/*initial value is 2 */
-		UINT32 OFDMMCS4FBK:4;	/*initial value is 3 */
-		UINT32 OFDMMCS5FBK:4;	/*initial value is 4 */
-		UINT32 OFDMMCS6FBK:4;	/*initial value is 5 */
-		UINT32 OFDMMCS7FBK:4;	/*initial value is 6 */
+		u32 OFDMMCS0FBK:4;	/*initial value is 0 */
+		u32 OFDMMCS1FBK:4;	/*initial value is 0 */
+		u32 OFDMMCS2FBK:4;	/*initial value is 1 */
+		u32 OFDMMCS3FBK:4;	/*initial value is 2 */
+		u32 OFDMMCS4FBK:4;	/*initial value is 3 */
+		u32 OFDMMCS5FBK:4;	/*initial value is 4 */
+		u32 OFDMMCS6FBK:4;	/*initial value is 5 */
+		u32 OFDMMCS7FBK:4;	/*initial value is 6 */
 	} field;
-	UINT32 word;
+	u32 word;
 } LG_FBK_CFG0_STRUC, *PLG_FBK_CFG0_STRUC;
 #define LG_FBK_CFG1		0x1360
 typedef union _LG_FBK_CFG1_STRUC {
 	struct {
-		UINT32 CCKMCS0FBK:4;	/*initial value is 0 */
-		UINT32 CCKMCS1FBK:4;	/*initial value is 0 */
-		UINT32 CCKMCS2FBK:4;	/*initial value is 1 */
-		UINT32 CCKMCS3FBK:4;	/*initial value is 2 */
-		UINT32 rsv:16;
+		u32 CCKMCS0FBK:4;	/*initial value is 0 */
+		u32 CCKMCS1FBK:4;	/*initial value is 0 */
+		u32 CCKMCS2FBK:4;	/*initial value is 1 */
+		u32 CCKMCS3FBK:4;	/*initial value is 2 */
+		u32 rsv:16;
 	} field;
-	UINT32 word;
+	u32 word;
 } LG_FBK_CFG1_STRUC, *PLG_FBK_CFG1_STRUC;
 
 /*======================================================= */
@@ -705,24 +705,24 @@ typedef union _LG_FBK_CFG1_STRUC {
 /*======================================================= */
 #define CCK_PROT_CFG	0x1364	/*CCK Protection */
 #define ASIC_SHORTNAV		1
-#define ASIC_LONGNAV		2
+#define ASIC_longNAV		2
 #define ASIC_RTS		1
 #define ASIC_CTS		2
 typedef union _PROT_CFG_STRUC {
 	struct {
-		UINT32 ProtectRate:16;	/*Protection control frame rate for CCK TX(RTS/CTS/CFEnd). */
-		UINT32 ProtectCtrl:2;	/*Protection control frame type for CCK TX. 1:RTS/CTS, 2:CTS-to-self, 0:None, 3:rsv */
-		UINT32 ProtectNav:2;	/*TXOP protection type for CCK TX. 0:None, 1:ShortNAVprotect,  2:LongNAVProtect, 3:rsv */
-		UINT32 TxopAllowCck:1;	/*CCK TXOP allowance.0:disallow. */
-		UINT32 TxopAllowOfdm:1;	/*CCK TXOP allowance.0:disallow. */
-		UINT32 TxopAllowMM20:1;	/*CCK TXOP allowance. 0:disallow. */
-		UINT32 TxopAllowMM40:1;	/*CCK TXOP allowance.0:disallow. */
-		UINT32 TxopAllowGF20:1;	/*CCK TXOP allowance.0:disallow. */
-		UINT32 TxopAllowGF40:1;	/*CCK TXOP allowance.0:disallow. */
-		UINT32 RTSThEn:1;	/*RTS threshold enable on CCK TX */
-		UINT32 rsv:5;
+		u32 ProtectRate:16;	/*Protection control frame rate for CCK TX(RTS/CTS/CFEnd). */
+		u32 ProtectCtrl:2;	/*Protection control frame type for CCK TX. 1:RTS/CTS, 2:CTS-to-self, 0:None, 3:rsv */
+		u32 ProtectNav:2;	/*TXOP protection type for CCK TX. 0:None, 1:ShortNAVprotect,  2:LongNAVProtect, 3:rsv */
+		u32 TxopAllowCck:1;	/*CCK TXOP allowance.0:disallow. */
+		u32 TxopAllowOfdm:1;	/*CCK TXOP allowance.0:disallow. */
+		u32 TxopAllowMM20:1;	/*CCK TXOP allowance. 0:disallow. */
+		u32 TxopAllowMM40:1;	/*CCK TXOP allowance.0:disallow. */
+		u32 TxopAllowGF20:1;	/*CCK TXOP allowance.0:disallow. */
+		u32 TxopAllowGF40:1;	/*CCK TXOP allowance.0:disallow. */
+		u32 RTSThEn:1;	/*RTS threshold enable on CCK TX */
+		u32 rsv:5;
 	} field;
-	UINT32 word;
+	u32 word;
 } PROT_CFG_STRUC, *PPROT_CFG_STRUC;
 
 #define OFDM_PROT_CFG	0x1368	/*OFDM Protection */
@@ -743,17 +743,17 @@ typedef union _PROT_CFG_STRUC {
 /* */
 typedef union _AUTO_RSP_CFG_STRUC {
 	struct {
-		UINT32 AutoResponderEnable:1;
-		UINT32 BACAckPolicyEnable:1;	/* 0:long, 1:short preamble */
-		UINT32 CTS40MMode:1;	/* Response CTS 40MHz duplicate mode */
-		UINT32 CTS40MRef:1;	/* Response CTS 40MHz duplicate mode */
-		UINT32 AutoResponderPreamble:1;	/* 0:long, 1:short preamble */
-		UINT32 rsv:1;	/* Power bit value in conrtrol frame */
-		UINT32 DualCTSEn:1;	/* Power bit value in conrtrol frame */
-		UINT32 AckCtsPsmBit:1;	/* Power bit value in conrtrol frame */
-		 UINT32:24;
+		u32 AutoResponderEnable:1;
+		u32 BACAckPolicyEnable:1;	/* 0:long, 1:short preamble */
+		u32 CTS40MMode:1;	/* Response CTS 40MHz duplicate mode */
+		u32 CTS40MRef:1;	/* Response CTS 40MHz duplicate mode */
+		u32 AutoResponderPreamble:1;	/* 0:long, 1:short preamble */
+		u32 rsv:1;	/* Power bit value in conrtrol frame */
+		u32 DualCTSEn:1;	/* Power bit value in conrtrol frame */
+		u32 AckCtsPsmBit:1;	/* Power bit value in conrtrol frame */
+		u32 : 24;
 	} field;
-	UINT32 word;
+	u32 word;
 } AUTO_RSP_CFG_STRUC, *PAUTO_RSP_CFG_STRUC;
 
 #define LEGACY_BASIC_RATE	0x1408	/*  TXRX_CSR5           0x3054 */
@@ -789,21 +789,21 @@ typedef union _AUTO_RSP_CFG_STRUC {
 /* */
 typedef union _RX_STA_CNT0_STRUC {
 	struct {
-		USHORT CrcErr;
-		USHORT PhyErr;
+		u16 CrcErr;
+		u16 PhyErr;
 	} field;
-	UINT32 word;
+	u32 word;
 } RX_STA_CNT0_STRUC, *PRX_STA_CNT0_STRUC;
 
 /* */
-/* RX_STA_CNT1_STRUC: RX False CCA count & RX LONG frame count */
+/* RX_STA_CNT1_STRUC: RX False CCA count & RX long frame count */
 /* */
 typedef union _RX_STA_CNT1_STRUC {
 	struct {
-		USHORT FalseCca;
-		USHORT PlcpErr;
+		u16 FalseCca;
+		u16 PlcpErr;
 	} field;
-	UINT32 word;
+	u32 word;
 } RX_STA_CNT1_STRUC, *PRX_STA_CNT1_STRUC;
 
 /* */
@@ -811,10 +811,10 @@ typedef union _RX_STA_CNT1_STRUC {
 /* */
 typedef union _RX_STA_CNT2_STRUC {
 	struct {
-		USHORT RxDupliCount;
-		USHORT RxFifoOverflowCount;
+		u16 RxDupliCount;
+		u16 RxFifoOverflowCount;
 	} field;
-	UINT32 word;
+	u32 word;
 } RX_STA_CNT2_STRUC, *PRX_STA_CNT2_STRUC;
 #define TX_STA_CNT0		0x170C	/* */
 /* */
@@ -822,10 +822,10 @@ typedef union _RX_STA_CNT2_STRUC {
 /* */
 typedef union _TX_STA_CNT0_STRUC {
 	struct {
-		USHORT TxFailCount;
-		USHORT TxBeaconCount;
+		u16 TxFailCount;
+		u16 TxBeaconCount;
 	} field;
-	UINT32 word;
+	u32 word;
 } TX_STA_CNT0_STRUC, *PTX_STA_CNT0_STRUC;
 #define TX_STA_CNT1		0x1710	/* */
 /* */
@@ -833,10 +833,10 @@ typedef union _TX_STA_CNT0_STRUC {
 /* */
 typedef union _TX_STA_CNT1_STRUC {
 	struct {
-		USHORT TxSuccess;
-		USHORT TxRetransmit;
+		u16 TxSuccess;
+		u16 TxRetransmit;
 	} field;
-	UINT32 word;
+	u32 word;
 } TX_STA_CNT1_STRUC, *PTX_STA_CNT1_STRUC;
 #define TX_STA_CNT2		0x1714	/* */
 /* */
@@ -844,10 +844,10 @@ typedef union _TX_STA_CNT1_STRUC {
 /* */
 typedef union _TX_STA_CNT2_STRUC {
 	struct {
-		USHORT TxZeroLenCount;
-		USHORT TxUnderFlowCount;
+		u16 TxZeroLenCount;
+		u16 TxUnderFlowCount;
 	} field;
-	UINT32 word;
+	u32 word;
 } TX_STA_CNT2_STRUC, *PTX_STA_CNT2_STRUC;
 #define TX_STA_FIFO		0x1718	/* */
 /* */
@@ -855,103 +855,103 @@ typedef union _TX_STA_CNT2_STRUC {
 /* */
 typedef union PACKED _TX_STA_FIFO_STRUC {
 	struct {
-		UINT32 bValid:1;	/* 1:This register contains a valid TX result */
-		UINT32 PidType:4;
-		UINT32 TxSuccess:1;	/* Tx No retry success */
-		UINT32 TxAggre:1;	/* Tx Retry Success */
-		UINT32 TxAckRequired:1;	/* Tx fail */
-		UINT32 wcid:8;	/*wireless client index */
-/*              UINT32          SuccessRate:16; //include MCS, mode ,shortGI, BW settingSame format as TXWI Word 0 Bit 31-16. */
-		UINT32 SuccessRate:13;	/*include MCS, mode ,shortGI, BW settingSame format as TXWI Word 0 Bit 31-16. */
-		UINT32 TxBF:1;
-		UINT32 Reserve:2;
+		u32 bValid:1;	/* 1:This register contains a valid TX result */
+		u32 PidType:4;
+		u32 TxSuccess:1;	/* Tx No retry success */
+		u32 TxAggre:1;	/* Tx Retry Success */
+		u32 TxAckRequired:1;	/* Tx fail */
+		u32 wcid:8;	/*wireless client index */
+/*              u32          SuccessRate:16; //include MCS, mode ,shortGI, BW settingSame format as TXWI Word 0 Bit 31-16. */
+		u32 SuccessRate:13;	/*include MCS, mode ,shortGI, BW settingSame format as TXWI Word 0 Bit 31-16. */
+		u32 TxBF:1;
+		u32 Reserve:2;
 	} field;
-	UINT32 word;
+	u32 word;
 } TX_STA_FIFO_STRUC, *PTX_STA_FIFO_STRUC;
 /* Debug counter */
 #define TX_AGG_CNT	0x171c
 typedef union _TX_AGG_CNT_STRUC {
 	struct {
-		USHORT NonAggTxCount;
-		USHORT AggTxCount;
+		u16 NonAggTxCount;
+		u16 AggTxCount;
 	} field;
-	UINT32 word;
+	u32 word;
 } TX_AGG_CNT_STRUC, *PTX_AGG_CNT_STRUC;
 /* Debug counter */
 #define TX_AGG_CNT0	0x1720
 typedef union _TX_AGG_CNT0_STRUC {
 	struct {
-		USHORT AggSize1Count;
-		USHORT AggSize2Count;
+		u16 AggSize1Count;
+		u16 AggSize2Count;
 	} field;
-	UINT32 word;
+	u32 word;
 } TX_AGG_CNT0_STRUC, *PTX_AGG_CNT0_STRUC;
 /* Debug counter */
 #define TX_AGG_CNT1	0x1724
 typedef union _TX_AGG_CNT1_STRUC {
 	struct {
-		USHORT AggSize3Count;
-		USHORT AggSize4Count;
+		u16 AggSize3Count;
+		u16 AggSize4Count;
 	} field;
-	UINT32 word;
+	u32 word;
 } TX_AGG_CNT1_STRUC, *PTX_AGG_CNT1_STRUC;
 #define TX_AGG_CNT2	0x1728
 typedef union _TX_AGG_CNT2_STRUC {
 	struct {
-		USHORT AggSize5Count;
-		USHORT AggSize6Count;
+		u16 AggSize5Count;
+		u16 AggSize6Count;
 	} field;
-	UINT32 word;
+	u32 word;
 } TX_AGG_CNT2_STRUC, *PTX_AGG_CNT2_STRUC;
 /* Debug counter */
 #define TX_AGG_CNT3	0x172c
 typedef union _TX_AGG_CNT3_STRUC {
 	struct {
-		USHORT AggSize7Count;
-		USHORT AggSize8Count;
+		u16 AggSize7Count;
+		u16 AggSize8Count;
 	} field;
-	UINT32 word;
+	u32 word;
 } TX_AGG_CNT3_STRUC, *PTX_AGG_CNT3_STRUC;
 /* Debug counter */
 #define TX_AGG_CNT4	0x1730
 typedef union _TX_AGG_CNT4_STRUC {
 	struct {
-		USHORT AggSize9Count;
-		USHORT AggSize10Count;
+		u16 AggSize9Count;
+		u16 AggSize10Count;
 	} field;
-	UINT32 word;
+	u32 word;
 } TX_AGG_CNT4_STRUC, *PTX_AGG_CNT4_STRUC;
 #define TX_AGG_CNT5	0x1734
 typedef union _TX_AGG_CNT5_STRUC {
 	struct {
-		USHORT AggSize11Count;
-		USHORT AggSize12Count;
+		u16 AggSize11Count;
+		u16 AggSize12Count;
 	} field;
-	UINT32 word;
+	u32 word;
 } TX_AGG_CNT5_STRUC, *PTX_AGG_CNT5_STRUC;
 #define TX_AGG_CNT6		0x1738
 typedef union _TX_AGG_CNT6_STRUC {
 	struct {
-		USHORT AggSize13Count;
-		USHORT AggSize14Count;
+		u16 AggSize13Count;
+		u16 AggSize14Count;
 	} field;
-	UINT32 word;
+	u32 word;
 } TX_AGG_CNT6_STRUC, *PTX_AGG_CNT6_STRUC;
 #define TX_AGG_CNT7		0x173c
 typedef union _TX_AGG_CNT7_STRUC {
 	struct {
-		USHORT AggSize15Count;
-		USHORT AggSize16Count;
+		u16 AggSize15Count;
+		u16 AggSize16Count;
 	} field;
-	UINT32 word;
+	u32 word;
 } TX_AGG_CNT7_STRUC, *PTX_AGG_CNT7_STRUC;
 #define MPDU_DENSITY_CNT		0x1740
 typedef union _MPDU_DEN_CNT_STRUC {
 	struct {
-		USHORT TXZeroDelCount;	/*TX zero length delimiter count */
-		USHORT RXZeroDelCount;	/*RX zero length delimiter count */
+		u16 TXZeroDelCount;	/*TX zero length delimiter count */
+		u16 RXZeroDelCount;	/*RX zero length delimiter count */
 	} field;
-	UINT32 word;
+	u32 word;
 } MPDU_DEN_CNT_STRUC, *PMPDU_DEN_CNT_STRUC;
 /* */
 /* TXRX control registers - base address 0x3000 */
@@ -980,29 +980,29 @@ typedef union _MPDU_DEN_CNT_STRUC {
 
 typedef union _SHAREDKEY_MODE_STRUC {
 	struct {
-		UINT32 Bss0Key0CipherAlg:3;
-		 UINT32:1;
-		UINT32 Bss0Key1CipherAlg:3;
-		 UINT32:1;
-		UINT32 Bss0Key2CipherAlg:3;
-		 UINT32:1;
-		UINT32 Bss0Key3CipherAlg:3;
-		 UINT32:1;
-		UINT32 Bss1Key0CipherAlg:3;
-		 UINT32:1;
-		UINT32 Bss1Key1CipherAlg:3;
-		 UINT32:1;
-		UINT32 Bss1Key2CipherAlg:3;
-		 UINT32:1;
-		UINT32 Bss1Key3CipherAlg:3;
-		 UINT32:1;
+		u32 Bss0Key0CipherAlg:3;
+		u32 : 1;
+		u32 Bss0Key1CipherAlg:3;
+		u32 : 1;
+		u32 Bss0Key2CipherAlg:3;
+		u32 : 1;
+		u32 Bss0Key3CipherAlg:3;
+		u32 : 1;
+		u32 Bss1Key0CipherAlg:3;
+		u32 : 1;
+		u32 Bss1Key1CipherAlg:3;
+		u32 : 1;
+		u32 Bss1Key2CipherAlg:3;
+		u32 : 1;
+		u32 Bss1Key3CipherAlg:3;
+		u32 : 1;
 	} field;
-	UINT32 word;
+	u32 word;
 } SHAREDKEY_MODE_STRUC, *PSHAREDKEY_MODE_STRUC;
 /* 64-entry for pairwise key table */
 typedef struct _HW_WCID_ENTRY {	/* 8-byte per entry */
-	UCHAR Address[6];
-	UCHAR Rsv[2];
+	u8 Address[6];
+	u8 Rsv[2];
 } HW_WCID_ENTRY, PHW_WCID_ENTRY;
 
 /* ================================================================================= */
@@ -1010,28 +1010,28 @@ typedef struct _HW_WCID_ENTRY {	/* 8-byte per entry */
 /* ================================================================================= */
 /*7.1   WCID  ENTRY  format  : 8bytes */
 typedef struct _WCID_ENTRY_STRUC {
-	UCHAR RXBABitmap7;	/* bit0 for TID8, bit7 for TID 15 */
-	UCHAR RXBABitmap0;	/* bit0 for TID0, bit7 for TID 7 */
-	UCHAR MAC[6];		/* 0 for shared key table.  1 for pairwise key table */
+	u8 RXBABitmap7;	/* bit0 for TID8, bit7 for TID 15 */
+	u8 RXBABitmap0;	/* bit0 for TID0, bit7 for TID 7 */
+	u8 MAC[6];		/* 0 for shared key table.  1 for pairwise key table */
 } WCID_ENTRY_STRUC, *PWCID_ENTRY_STRUC;
 
 /*8.1.1 SECURITY  KEY  format  : 8DW */
 /* 32-byte per entry, total 16-entry for shared key table, 64-entry for pairwise key table */
 typedef struct _HW_KEY_ENTRY {	/* 32-byte per entry */
-	UCHAR Key[16];
-	UCHAR TxMic[8];
-	UCHAR RxMic[8];
+	u8 Key[16];
+	u8 TxMic[8];
+	u8 RxMic[8];
 } HW_KEY_ENTRY, *PHW_KEY_ENTRY;
 
 /*8.1.2 IV/EIV  format  : 2DW */
 
 /*8.1.3 RX attribute entry format  : 1DW */
 typedef struct _MAC_ATTRIBUTE_STRUC {
-	UINT32 KeyTab:1;	/* 0 for shared key table.  1 for pairwise key table */
-	UINT32 PairKeyMode:3;
-	UINT32 BSSIDIdx:3;	/*multipleBSS index for the WCID */
-	UINT32 RXWIUDF:3;
-	UINT32 rsv:22;
+	u32 KeyTab:1;	/* 0 for shared key table.  1 for pairwise key table */
+	u32 PairKeyMode:3;
+	u32 BSSIDIdx:3;	/*multipleBSS index for the WCID */
+	u32 RXWIUDF:3;
+	u32 rsv:22;
 } MAC_ATTRIBUTE_STRUC, *PMAC_ATTRIBUTE_STRUC;
 
 /* ================================================================================= */
@@ -1043,12 +1043,12 @@ typedef struct _MAC_ATTRIBUTE_STRUC {
 /* */
 typedef union _H2M_MAILBOX_STRUC {
 	struct {
-		UINT32 LowByte:8;
-		UINT32 HighByte:8;
-		UINT32 CmdToken:8;
-		UINT32 Owner:8;
+		u32 LowByte:8;
+		u32 HighByte:8;
+		u32 CmdToken:8;
+		u32 Owner:8;
 	} field;
-	UINT32 word;
+	u32 word;
 } H2M_MAILBOX_STRUC, *PH2M_MAILBOX_STRUC;
 
 /* */
@@ -1056,24 +1056,24 @@ typedef union _H2M_MAILBOX_STRUC {
 /* */
 typedef union _M2H_CMD_DONE_STRUC {
 	struct {
-		UINT32 CmdToken0;
-		UINT32 CmdToken1;
-		UINT32 CmdToken2;
-		UINT32 CmdToken3;
+		u32 CmdToken0;
+		u32 CmdToken1;
+		u32 CmdToken2;
+		u32 CmdToken3;
 	} field;
-	UINT32 word;
+	u32 word;
 } M2H_CMD_DONE_STRUC, *PM2H_CMD_DONE_STRUC;
 
 /*NAV_TIME_CFG :NAV */
 typedef union _NAV_TIME_CFG_STRUC {
 	struct {
-		UCHAR Sifs;	/* in unit of 1-us */
-		UCHAR SlotTime;	/* in unit of 1-us */
-		USHORT Eifs:9;	/* in unit of 1-us */
-		USHORT ZeroSifs:1;	/* Applied zero SIFS timer after OFDM RX 0: disable */
-		USHORT rsv:6;
+		u8 Sifs;	/* in unit of 1-us */
+		u8 SlotTime;	/* in unit of 1-us */
+		u16 Eifs:9;	/* in unit of 1-us */
+		u16 ZeroSifs:1;	/* Applied zero SIFS timer after OFDM RX 0: disable */
+		u16 rsv:6;
 	} field;
-	UINT32 word;
+	u32 word;
 } NAV_TIME_CFG_STRUC, *PNAV_TIME_CFG_STRUC;
 
 /* */
@@ -1081,30 +1081,30 @@ typedef union _NAV_TIME_CFG_STRUC {
 /* */
 typedef union _RX_FILTR_CFG_STRUC {
 	struct {
-		UINT32 DropCRCErr:1;	/* Drop CRC error */
-		UINT32 DropPhyErr:1;	/* Drop physical error */
-		UINT32 DropNotToMe:1;	/* Drop not to me unicast frame */
-		UINT32 DropNotMyBSSID:1;	/* Drop fram ToDs bit is true */
+		u32 DropCRCErr:1;	/* Drop CRC error */
+		u32 DropPhyErr:1;	/* Drop physical error */
+		u32 DropNotToMe:1;	/* Drop not to me unicast frame */
+		u32 DropNotMyBSSID:1;	/* Drop fram ToDs bit is true */
 
-		UINT32 DropVerErr:1;	/* Drop version error frame */
-		UINT32 DropMcast:1;	/* Drop multicast frames */
-		UINT32 DropBcast:1;	/* Drop broadcast frames */
-		UINT32 DropDuplicate:1;	/* Drop duplicate frame */
+		u32 DropVerErr:1;	/* Drop version error frame */
+		u32 DropMcast:1;	/* Drop multicast frames */
+		u32 DropBcast:1;	/* Drop broadcast frames */
+		u32 DropDuplicate:1;	/* Drop duplicate frame */
 
-		UINT32 DropCFEndAck:1;	/* Drop Ps-Poll */
-		UINT32 DropCFEnd:1;	/* Drop Ps-Poll */
-		UINT32 DropAck:1;	/* Drop Ps-Poll */
-		UINT32 DropCts:1;	/* Drop Ps-Poll */
+		u32 DropCFEndAck:1;	/* Drop Ps-Poll */
+		u32 DropCFEnd:1;	/* Drop Ps-Poll */
+		u32 DropAck:1;	/* Drop Ps-Poll */
+		u32 DropCts:1;	/* Drop Ps-Poll */
 
-		UINT32 DropRts:1;	/* Drop Ps-Poll */
-		UINT32 DropPsPoll:1;	/* Drop Ps-Poll */
-		UINT32 DropBA:1;	/* */
-		UINT32 DropBAR:1;	/* */
+		u32 DropRts:1;	/* Drop Ps-Poll */
+		u32 DropPsPoll:1;	/* Drop Ps-Poll */
+		u32 DropBA:1;	/* */
+		u32 DropBAR:1;	/* */
 
-		UINT32 DropRsvCntlType:1;
-		 UINT32:15;
+		u32 DropRsvCntlType:1;
+		u32 : 15;
 	} field;
-	UINT32 word;
+	u32 word;
 } RX_FILTR_CFG_STRUC, *PRX_FILTR_CFG_STRUC;
 
 /* */
@@ -1112,13 +1112,13 @@ typedef union _RX_FILTR_CFG_STRUC {
 /* */
 typedef union _PHY_CSR4_STRUC {
 	struct {
-		UINT32 RFRegValue:24;	/* Register     value (include register id)     serial out to RF/IF     chip. */
-		UINT32 NumberOfBits:5;	/* Number of bits used in RFRegValue (I:20,     RFMD:22) */
-		UINT32 IFSelect:1;	/* 1: select IF to program,     0: select RF to program */
-		UINT32 PLL_LD:1;	/* RF PLL_LD status */
-		UINT32 Busy:1;	/* 1: ASIC is busy execute RF programming. */
+		u32 RFRegValue:24;	/* Register     value (include register id)     serial out to RF/IF     chip. */
+		u32 NumberOfBits:5;	/* Number of bits used in RFRegValue (I:20,     RFMD:22) */
+		u32 IFSelect:1;	/* 1: select IF to program,     0: select RF to program */
+		u32 PLL_LD:1;	/* RF PLL_LD status */
+		u32 Busy:1;	/* 1: ASIC is busy execute RF programming. */
 	} field;
-	UINT32 word;
+	u32 word;
 } PHY_CSR4_STRUC, *PPHY_CSR4_STRUC;
 
 /* */
@@ -1126,24 +1126,24 @@ typedef union _PHY_CSR4_STRUC {
 /* */
 typedef union _SEC_CSR5_STRUC {
 	struct {
-		UINT32 Bss2Key0CipherAlg:3;
-		 UINT32:1;
-		UINT32 Bss2Key1CipherAlg:3;
-		 UINT32:1;
-		UINT32 Bss2Key2CipherAlg:3;
-		 UINT32:1;
-		UINT32 Bss2Key3CipherAlg:3;
-		 UINT32:1;
-		UINT32 Bss3Key0CipherAlg:3;
-		 UINT32:1;
-		UINT32 Bss3Key1CipherAlg:3;
-		 UINT32:1;
-		UINT32 Bss3Key2CipherAlg:3;
-		 UINT32:1;
-		UINT32 Bss3Key3CipherAlg:3;
-		 UINT32:1;
+		u32 Bss2Key0CipherAlg:3;
+		u32 : 1;
+		u32 Bss2Key1CipherAlg:3;
+		u32 : 1;
+		u32 Bss2Key2CipherAlg:3;
+		u32 : 1;
+		u32 Bss2Key3CipherAlg:3;
+		u32 : 1;
+		u32 Bss3Key0CipherAlg:3;
+		u32 : 1;
+		u32 Bss3Key1CipherAlg:3;
+		u32 : 1;
+		u32 Bss3Key2CipherAlg:3;
+		u32 : 1;
+		u32 Bss3Key3CipherAlg:3;
+		u32 : 1;
 	} field;
-	UINT32 word;
+	u32 word;
 } SEC_CSR5_STRUC, *PSEC_CSR5_STRUC;
 
 /* */
@@ -1151,10 +1151,10 @@ typedef union _SEC_CSR5_STRUC {
 /* */
 typedef union _HOST_CMD_CSR_STRUC {
 	struct {
-		UINT32 HostCommand:8;
-		UINT32 Rsv:24;
+		u32 HostCommand:8;
+		u32 Rsv:24;
 	} field;
-	UINT32 word;
+	u32 word;
 } HOST_CMD_CSR_STRUC, *PHOST_CMD_CSR_STRUC;
 
 /* */
@@ -1166,16 +1166,16 @@ typedef union _HOST_CMD_CSR_STRUC {
 /* */
 typedef union _E2PROM_CSR_STRUC {
 	struct {
-		UINT32 Reload:1;	/* Reload EEPROM content, write one to reload, self-cleared. */
-		UINT32 EepromSK:1;
-		UINT32 EepromCS:1;
-		UINT32 EepromDI:1;
-		UINT32 EepromDO:1;
-		UINT32 Type:1;	/* 1: 93C46, 0:93C66 */
-		UINT32 LoadStatus:1;	/* 1:loading, 0:done */
-		UINT32 Rsvd:25;
+		u32 Reload:1;	/* Reload EEPROM content, write one to reload, self-cleared. */
+		u32 EepromSK:1;
+		u32 EepromCS:1;
+		u32 EepromDI:1;
+		u32 EepromDO:1;
+		u32 Type:1;	/* 1: 93C46, 0:93C66 */
+		u32 LoadStatus:1;	/* 1:loading, 0:done */
+		u32 Rsvd:25;
 	} field;
-	UINT32 word;
+	u32 word;
 } E2PROM_CSR_STRUC, *PE2PROM_CSR_STRUC;
 
 /* */
@@ -1183,12 +1183,12 @@ typedef union _E2PROM_CSR_STRUC {
 /* */
 typedef union _QOS_CSR0_STRUC {
 	struct {
-		UCHAR Byte0;	/* MAC address byte 0 */
-		UCHAR Byte1;	/* MAC address byte 1 */
-		UCHAR Byte2;	/* MAC address byte 2 */
-		UCHAR Byte3;	/* MAC address byte 3 */
+		u8 Byte0;	/* MAC address byte 0 */
+		u8 Byte1;	/* MAC address byte 1 */
+		u8 Byte2;	/* MAC address byte 2 */
+		u8 Byte3;	/* MAC address byte 3 */
 	} field;
-	UINT32 word;
+	u32 word;
 } QOS_CSR0_STRUC, *PQOS_CSR0_STRUC;
 
 /* */
@@ -1196,25 +1196,25 @@ typedef union _QOS_CSR0_STRUC {
 /* */
 typedef union _QOS_CSR1_STRUC {
 	struct {
-		UCHAR Byte4;	/* MAC address byte 4 */
-		UCHAR Byte5;	/* MAC address byte 5 */
-		UCHAR Rsvd0;
-		UCHAR Rsvd1;
+		u8 Byte4;	/* MAC address byte 4 */
+		u8 Byte5;	/* MAC address byte 5 */
+		u8 Rsvd0;
+		u8 Rsvd1;
 	} field;
-	UINT32 word;
+	u32 word;
 } QOS_CSR1_STRUC, *PQOS_CSR1_STRUC;
 
 #define	RF_CSR_CFG	0x500
 typedef union _RF_CSR_CFG_STRUC {
 	struct {
-		UINT RF_CSR_DATA:8;	/* DATA */
-		UINT TESTCSR_RFACC_REGNUM:5;	/* RF register ID */
-		UINT Rsvd2:3;	/* Reserved */
-		UINT RF_CSR_WR:1;	/* 0: read  1: write */
-		UINT RF_CSR_KICK:1;	/* kick RF register read/write */
-		UINT Rsvd1:14;	/* Reserved */
+		u32 RF_CSR_DATA:8;	/* DATA */
+		u32 TESTCSR_RFACC_REGNUM:5;	/* RF register ID */
+		u32 Rsvd2:3;	/* Reserved */
+		u32 RF_CSR_WR:1;	/* 0: read  1: write */
+		u32 RF_CSR_KICK:1;	/* kick RF register read/write */
+		u32 Rsvd1:14;	/* Reserved */
 	} field;
-	UINT word;
+	u32 word;
 } RF_CSR_CFG_STRUC, *PRF_CSR_CFG_STRUC;
 
 /* */

@@ -52,13 +52,13 @@ MODULE_ALIAS("rt3090sta");
 extern int rt28xx_close(IN struct net_device *net_dev);
 extern int rt28xx_open(struct net_device *net_dev);
 
-static VOID __devexit rt2860_remove_one(struct pci_dev *pci_dev);
-static INT __devinit rt2860_probe(struct pci_dev *pci_dev,
+static void __devexit rt2860_remove_one(struct pci_dev *pci_dev);
+static int __devinit rt2860_probe(struct pci_dev *pci_dev,
 				  const struct pci_device_id *ent);
 static void __exit rt2860_cleanup_module(void);
 static int __init rt2860_init_module(void);
 
-static VOID RTMPInitPCIeDevice(IN struct pci_dev *pci_dev,
+static void RTMPInitPCIeDevice(IN struct pci_dev *pci_dev,
 			       IN PRTMP_ADAPTER pAd);
 
 #ifdef CONFIG_PM
@@ -123,7 +123,7 @@ resume:rt2860_resume,
  ***************************************************************************/
 #ifdef CONFIG_PM
 
-VOID RT2860RejectPendingPackets(IN PRTMP_ADAPTER pAd)
+void RT2860RejectPendingPackets(IN PRTMP_ADAPTER pAd)
 {
 	/* clear PS packets */
 	/* clear TxSw packets */
@@ -133,7 +133,7 @@ static int rt2860_suspend(struct pci_dev *pci_dev, pm_message_t state)
 {
 	struct net_device *net_dev = pci_get_drvdata(pci_dev);
 	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) NULL;
-	INT32 retval = 0;
+	int retval = 0;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("===> rt2860_suspend()\n"));
 
@@ -185,7 +185,7 @@ static int rt2860_resume(struct pci_dev *pci_dev)
 {
 	struct net_device *net_dev = pci_get_drvdata(pci_dev);
 	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) NULL;
-	INT32 retval;
+	int retval;
 
 	/* set the power state of a PCI device */
 	/* PCI has 4 power states, DO (normal) ~ D3(less power) */
@@ -246,7 +246,7 @@ static int rt2860_resume(struct pci_dev *pci_dev)
 }
 #endif /* CONFIG_PM // */
 
-static INT __init rt2860_init_module(VOID)
+static int __init rt2860_init_module(void)
 {
 	return pci_register_driver(&rt2860_driver);
 }
@@ -254,7 +254,7 @@ static INT __init rt2860_init_module(VOID)
 /* */
 /* Driver module unload function */
 /* */
-static VOID __exit rt2860_cleanup_module(VOID)
+static void __exit rt2860_cleanup_module(void)
 {
 	pci_unregister_driver(&rt2860_driver);
 }
@@ -265,15 +265,15 @@ module_exit(rt2860_cleanup_module);
 /* */
 /* PCI device probe & initialization function */
 /* */
-static INT __devinit rt2860_probe(IN struct pci_dev *pci_dev,
+static int __devinit rt2860_probe(IN struct pci_dev *pci_dev,
 				  IN const struct pci_device_id *pci_id)
 {
 	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) NULL;
 	struct net_device *net_dev;
-	PVOID handle;
-	PSTRING print_name;
-	ULONG csr_addr;
-	INT rv = 0;
+	void *handle;
+	char *print_name;
+	unsigned long csr_addr;
+	int rv = 0;
 	RTMP_OS_NETDEV_OP_HOOK netDevHook;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("===> rt2860_probe\n"));
@@ -286,7 +286,7 @@ static INT __devinit rt2860_probe(IN struct pci_dev *pci_dev,
 		return rv;
 	}
 
-	print_name = (PSTRING) pci_name(pci_dev);
+	print_name = (char *)pci_name(pci_dev);
 
 	if ((rv = pci_request_regions(pci_dev, print_name)) != 0) {
 		DBGPRINT(RT_DEBUG_ERROR,
@@ -300,14 +300,14 @@ static INT __devinit rt2860_probe(IN struct pci_dev *pci_dev,
 	if (!csr_addr) {
 		DBGPRINT(RT_DEBUG_ERROR,
 			 ("ioremap failed for device %s, region 0x%lX @ 0x%lX\n",
-			  print_name, (ULONG) pci_resource_len(pci_dev, 0),
-			  (ULONG) pci_resource_start(pci_dev, 0)));
+			  print_name, (unsigned long)pci_resource_len(pci_dev, 0),
+			  (unsigned long)pci_resource_start(pci_dev, 0)));
 		goto err_out_free_res;
 	} else {
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("%s: at 0x%lx, VA 0x%lx, IRQ %d. \n", print_name,
-			  (ULONG) pci_resource_start(pci_dev, 0),
-			  (ULONG) csr_addr, pci_dev->irq));
+			  (unsigned long)pci_resource_start(pci_dev, 0),
+			  (unsigned long)csr_addr, pci_dev->irq));
 	}
 
 	/* Set DMA master */
@@ -329,10 +329,10 @@ static INT __devinit rt2860_probe(IN struct pci_dev *pci_dev,
 	if (rv != NDIS_STATUS_SUCCESS)
 		goto err_out_iounmap;
 	/* Here are the RTMP_ADAPTER structure with pci-bus specific parameters. */
-	pAd->CSRBaseAddress = (PUCHAR) csr_addr;
+	pAd->CSRBaseAddress = (u8 *)csr_addr;
 	DBGPRINT(RT_DEBUG_ERROR,
 		 ("pAd->CSRBaseAddress =0x%lx, csr_addr=0x%lx!\n",
-		  (ULONG) pAd->CSRBaseAddress, csr_addr));
+		  (unsigned long)pAd->CSRBaseAddress, csr_addr));
 	RtmpRaDevCtrlInit(pAd, RTMP_DEV_INF_PCI);
 
 /*NetDevInit============================================== */
@@ -389,11 +389,11 @@ err_out:
 	return -ENODEV;		/* probe fail */
 }
 
-static VOID __devexit rt2860_remove_one(IN struct pci_dev *pci_dev)
+static void __devexit rt2860_remove_one(IN struct pci_dev *pci_dev)
 {
 	PNET_DEV net_dev = pci_get_drvdata(pci_dev);
 	RTMP_ADAPTER *pAd = NULL;
-	ULONG csr_addr = net_dev->base_addr;	/* pAd->CSRBaseAddress; */
+	unsigned long csr_addr = net_dev->base_addr;	/* pAd->CSRBaseAddress; */
 
 	GET_PAD_FROM_NET_DEV(pAd, net_dev);
 
@@ -456,9 +456,9 @@ BOOLEAN RT28XXChipsetCheck(IN void *_dev_p)
  *	PCIe device initialization related procedures.
  *
  ***************************************************************************/
-static VOID RTMPInitPCIeDevice(IN struct pci_dev *pci_dev, IN PRTMP_ADAPTER pAd)
+static void RTMPInitPCIeDevice(IN struct pci_dev *pci_dev, IN PRTMP_ADAPTER pAd)
 {
-	USHORT device_id;
+	u16 device_id;
 	POS_COOKIE pObj;
 
 	pObj = (POS_COOKIE) pAd->OS_Cookie;
@@ -477,7 +477,7 @@ static VOID RTMPInitPCIeDevice(IN struct pci_dev *pci_dev, IN PRTMP_ADAPTER pAd)
 		   (device_id == NIC3092_PCIe_DEVICE_ID) ||
 #endif /* RT3090 // */
 		   0) {
-		UINT32 MacCsr0 = 0, Index = 0;
+		u32 MacCsr0 = 0, Index = 0;
 		do {
 			RTMP_IO_READ32(pAd, MAC_CSR0, &MacCsr0);
 
@@ -495,11 +495,11 @@ static VOID RTMPInitPCIeDevice(IN struct pci_dev *pci_dev, IN PRTMP_ADAPTER pAd)
 	}
 }
 
-VOID RTMPInitPCIeLinkCtrlValue(IN PRTMP_ADAPTER pAd)
+void RTMPInitPCIeLinkCtrlValue(IN PRTMP_ADAPTER pAd)
 {
-	INT pos;
-	USHORT reg16, data2, PCIePowerSaveLevel, Configuration;
-	UINT32 MacValue;
+	int pos;
+	u16 reg16, data2, PCIePowerSaveLevel, Configuration;
+	u32 MacValue;
 	BOOLEAN bFindIntel = FALSE;
 	POS_COOKIE pObj;
 
@@ -536,7 +536,7 @@ VOID RTMPInitPCIeLinkCtrlValue(IN PRTMP_ADAPTER pAd)
 				 ("====> Write 0x83 = 0x%x.\n",
 				  PCIePowerSaveLevel));
 			AsicSendCommandToMcu(pAd, 0x83, 0xff,
-					     (UCHAR) PCIePowerSaveLevel, 0x00);
+					     (u8)PCIePowerSaveLevel, 0x00);
 			RT28xx_EEPROM_READ16(pAd, 0x22, PCIePowerSaveLevel);
 			PCIePowerSaveLevel &= 0xff;
 			PCIePowerSaveLevel = PCIePowerSaveLevel >> 6;
@@ -570,7 +570,7 @@ VOID RTMPInitPCIeLinkCtrlValue(IN PRTMP_ADAPTER pAd)
 					  PCIePowerSaveLevel));
 
 				AsicSendCommandToMcu(pAd, 0x83, 0xff,
-						     (UCHAR) PCIePowerSaveLevel,
+						     (u8)PCIePowerSaveLevel,
 						     0x00);
 			}
 			DBGPRINT(RT_DEBUG_TRACE,
@@ -578,7 +578,7 @@ VOID RTMPInitPCIeLinkCtrlValue(IN PRTMP_ADAPTER pAd)
 				  pAd->LnkCtrlBitMask));
 		}
 	} else if (IS_RT3090(pAd) || IS_RT3572(pAd) || IS_RT3390(pAd)) {
-		UCHAR LinkCtrlSetting = 0;
+		u8 LinkCtrlSetting = 0;
 
 		/* Check 3090E special setting chip. */
 		RT28xx_EEPROM_READ16(pAd, 0x24, data2);
@@ -630,7 +630,7 @@ VOID RTMPInitPCIeLinkCtrlValue(IN PRTMP_ADAPTER pAd)
 		/* 1. read setting from inf file. */
 
 		PCIePowerSaveLevel =
-		    (USHORT) pAd->StaCfg.PSControl.field.rt30xxPowerMode;
+		    (u16)pAd->StaCfg.PSControl.field.rt30xxPowerMode;
 		DBGPRINT(RT_DEBUG_ERROR,
 			 ("====> rt30xx Read PowerLevelMode =  0x%x.\n",
 			  PCIePowerSaveLevel));
@@ -642,13 +642,13 @@ VOID RTMPInitPCIeLinkCtrlValue(IN PRTMP_ADAPTER pAd)
 		    && (pAd->b3090ESpecialChip == FALSE)) {
 			/* Chip Version E only allow 1, So force set 1. */
 			PCIePowerSaveLevel &= 0x1;
-			pAd->PCIePowerSaveLevel = (USHORT) PCIePowerSaveLevel;
+			pAd->PCIePowerSaveLevel = (u16)PCIePowerSaveLevel;
 			DBGPRINT(RT_DEBUG_TRACE,
 				 ("====> rt30xx E Write 0x83 Command = 0x%x.\n",
 				  PCIePowerSaveLevel));
 
 			AsicSendCommandToMcu(pAd, 0x83, 0xff,
-					     (UCHAR) PCIePowerSaveLevel, 0x00);
+					     (u8)PCIePowerSaveLevel, 0x00);
 		} else {
 			/* Chip Version F and after only allow 1 or 2 or 3. This might be modified after new chip version come out. */
 			if (!
@@ -658,7 +658,7 @@ VOID RTMPInitPCIeLinkCtrlValue(IN PRTMP_ADAPTER pAd)
 			DBGPRINT(RT_DEBUG_ERROR,
 				 ("====> rt30xx F Write 0x83 Command = 0x%x.\n",
 				  PCIePowerSaveLevel));
-			pAd->PCIePowerSaveLevel = (USHORT) PCIePowerSaveLevel;
+			pAd->PCIePowerSaveLevel = (u16)PCIePowerSaveLevel;
 			/* for 3090F , we need to add high-byte arg for 0x83 command to indicate the link control setting in */
 			/* PCI Configuration Space. Because firmware can't read PCI Configuration Space */
 			if ((pAd->Rt3xxRalinkLinkCtrl & 0x2)
@@ -669,7 +669,7 @@ VOID RTMPInitPCIeLinkCtrlValue(IN PRTMP_ADAPTER pAd)
 				 ("====> rt30xxF LinkCtrlSetting = 0x%x.\n",
 				  LinkCtrlSetting));
 			AsicSendCommandToMcu(pAd, 0x83, 0xff,
-					     (UCHAR) PCIePowerSaveLevel,
+					     (u8)PCIePowerSaveLevel,
 					     LinkCtrlSetting);
 		}
 	}
@@ -702,7 +702,7 @@ VOID RTMPInitPCIeLinkCtrlValue(IN PRTMP_ADAPTER pAd)
 
 		RTMPFindHostPCIDev(pAd);
 		if (pObj->parent_pci_dev) {
-			USHORT vendor_id;
+			u16 vendor_id;
 
 			pci_read_config_word(pObj->parent_pci_dev,
 					     PCI_VENDOR_ID, &vendor_id);
@@ -810,11 +810,11 @@ VOID RTMPInitPCIeLinkCtrlValue(IN PRTMP_ADAPTER pAd)
 	}
 }
 
-VOID RTMPFindHostPCIDev(IN PRTMP_ADAPTER pAd)
+void RTMPFindHostPCIDev(IN PRTMP_ADAPTER pAd)
 {
-	USHORT reg16;
-	UCHAR reg8;
-	UINT DevFn;
+	u16 reg16;
+	u8 reg8;
+	u32 DevFn;
 	PPCI_DEV pPci_dev;
 	POS_COOKIE pObj;
 
@@ -856,10 +856,10 @@ VOID RTMPFindHostPCIDev(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-VOID RTMPPCIeLinkCtrlValueRestore(IN PRTMP_ADAPTER pAd, IN UCHAR Level)
+void RTMPPCIeLinkCtrlValueRestore(IN PRTMP_ADAPTER pAd, u8 Level)
 {
-	USHORT PCIePowerSaveLevel, reg16;
-	USHORT Configuration;
+	u16 PCIePowerSaveLevel, reg16;
+	u16 Configuration;
 	POS_COOKIE pObj;
 
 	pObj = (POS_COOKIE) pAd->OS_Cookie;
@@ -950,10 +950,10 @@ VOID RTMPPCIeLinkCtrlValueRestore(IN PRTMP_ADAPTER pAd, IN UCHAR Level)
 
 	========================================================================
 */
-VOID RTMPPCIeLinkCtrlSetting(IN PRTMP_ADAPTER pAd, IN USHORT Max)
+void RTMPPCIeLinkCtrlSetting(IN PRTMP_ADAPTER pAd, u16 Max)
 {
-	USHORT PCIePowerSaveLevel, reg16;
-	USHORT Configuration;
+	u16 PCIePowerSaveLevel, reg16;
+	u16 Configuration;
 	POS_COOKIE pObj;
 
 	pObj = (POS_COOKIE) pAd->OS_Cookie;
@@ -1076,14 +1076,14 @@ VOID RTMPPCIeLinkCtrlSetting(IN PRTMP_ADAPTER pAd, IN USHORT Max)
 
 	========================================================================
 */
-VOID RTMPrt3xSetPCIePowerLinkCtrl(IN PRTMP_ADAPTER pAd)
+void RTMPrt3xSetPCIePowerLinkCtrl(IN PRTMP_ADAPTER pAd)
 {
 
-	ULONG HostConfiguration = 0;
-	ULONG Configuration;
+	unsigned long HostConfiguration = 0;
+	unsigned long Configuration;
 	POS_COOKIE pObj;
-	INT pos;
-	USHORT reg16;
+	int pos;
+	u16 reg16;
 
 	pObj = (POS_COOKIE) pAd->OS_Cookie;
 

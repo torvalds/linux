@@ -99,7 +99,6 @@ extern const struct iw_handler_def rt28xx_iw_handler_def;
 #define IN
 #define OUT
 #define INOUT
-#define NDIS_STATUS		INT
 
 /***********************************************************************************
  *	OS Specific definitions and data structures
@@ -390,7 +389,7 @@ typedef void (*TIMER_FUNCTION) (unsigned long);
 
 #define ONE_TICK 1
 
-static inline void NdisGetSystemUpTime(ULONG * time)
+static inline void NdisGetSystemUpTime(unsigned long * time)
 {
 	*time = jiffies;
 }
@@ -403,7 +402,7 @@ struct os_cookie {
 #ifdef RTMP_MAC_PCI
 	struct pci_dev *pci_dev;
 	struct pci_dev *parent_pci_dev;
-	USHORT DeviceID;
+	u16 DeviceID;
 	dma_addr_t pAd_pa;
 #endif				/* RTMP_MAC_PCI // */
 #ifdef RTMP_MAC_USB
@@ -427,8 +426,8 @@ struct os_cookie {
 #endif				/* RTMP_MAC_USB // */
 
 	unsigned long apd_pid;	/*802.1x daemon pid */
-	INT ioctl_if_type;
-	INT ioctl_if;
+	int ioctl_if_type;
+	int ioctl_if;
 };
 
 typedef struct os_cookie *POS_COOKIE;
@@ -440,7 +439,7 @@ typedef struct os_cookie *POS_COOKIE;
 	addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]
 
 #ifdef DBG
-extern ULONG RTDebugLevel;
+extern unsigned long RTDebugLevel;
 
 #define DBGPRINT_RAW(Level, Fmt)    \
 do{                                   \
@@ -503,39 +502,39 @@ void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size,
 	dev_alloc_skb(_length)
 #endif /* RTMP_MAC_PCI // */
 #ifdef RTMP_MAC_USB
-#define PCI_MAP_SINGLE(_handle, _ptr, _size, _dir) (ULONG)0
+#define PCI_MAP_SINGLE(_handle, _ptr, _size, _dir) (unsigned long)0
 
 #define PCI_UNMAP_SINGLE(_handle, _ptr, _size, _dir)
 #endif /* RTMP_MAC_USB // */
 
 /*
- * ULONG
+ * unsigned long
  * RTMP_GetPhysicalAddressLow(
  *   IN NDIS_PHYSICAL_ADDRESS  PhysicalAddress);
  */
 #define RTMP_GetPhysicalAddressLow(PhysicalAddress)		(PhysicalAddress)
 
 /*
- * ULONG
+ * unsigned long
  * RTMP_GetPhysicalAddressHigh(
  *   IN NDIS_PHYSICAL_ADDRESS  PhysicalAddress);
  */
 #define RTMP_GetPhysicalAddressHigh(PhysicalAddress)		(0)
 
 /*
- * VOID
+ * void
  * RTMP_SetPhysicalAddressLow(
  *   IN NDIS_PHYSICAL_ADDRESS  PhysicalAddress,
- *   IN ULONG  Value);
+ *   unsigned long  Value);
  */
 #define RTMP_SetPhysicalAddressLow(PhysicalAddress, Value)	\
 			PhysicalAddress = Value;
 
 /*
- * VOID
+ * void
  * RTMP_SetPhysicalAddressHigh(
  *   IN NDIS_PHYSICAL_ADDRESS  PhysicalAddress,
- *   IN ULONG  Value);
+ *   unsigned long  Value);
  */
 #define RTMP_SetPhysicalAddressHigh(PhysicalAddress, Value)
 
@@ -572,7 +571,7 @@ void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size,
 {																				\
     if ((_A)->bPCIclkOff == FALSE)                                  \
     {                                                               \
-	UINT	Val;																\
+	u32 Val;																\
 	Val = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0));			\
 	writel((_V), (void *)((_A)->CSRBaseAddress + (_R)));								\
     }                                                               \
@@ -580,7 +579,7 @@ void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size,
 
 #define RTMP_IO_FORCE_WRITE32(_A, _R, _V)												\
 {																				\
-	UINT	Val;																\
+	u32 Val;																\
 	Val = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0));			\
 	writel(_V, (void *)((_A)->CSRBaseAddress + (_R)));								\
 }
@@ -588,51 +587,51 @@ void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size,
 #if defined(RALINK_2880) || defined(RALINK_3052)
 #define RTMP_IO_WRITE8(_A, _R, _V)            \
 {                    \
-	ULONG Val;                \
-	UCHAR _i;                \
+	unsigned long Val;                \
+	u8 _i;                \
 	_i = ((_R) & 0x3);             \
 	Val = readl((void *)((_A)->CSRBaseAddress + ((_R) - _i)));   \
 	Val = Val & (~(0x000000ff << ((_i)*8)));         \
-	Val = Val | ((ULONG)(_V) << ((_i)*8));         \
+	Val = Val | ((unsigned long)(_V) << ((_i)*8));         \
 	writel((Val), (void *)((_A)->CSRBaseAddress + ((_R) - _i)));    \
 }
 #else
 #define RTMP_IO_WRITE8(_A, _R, _V)												\
 {																				\
-	UINT	Val;																\
+	u32 Val;																\
 	Val = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0));			\
-	writeb((_V), (PUCHAR)((_A)->CSRBaseAddress + (_R)));		\
+	writeb((_V), (u8 *)((_A)->CSRBaseAddress + (_R)));		\
 }
 #endif /* #if defined(BRCM_6358) || defined(RALINK_2880) // */
 
 #define RTMP_IO_WRITE16(_A, _R, _V)												\
 {																				\
-	UINT	Val;																\
+	u32 Val;																\
 	Val = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0));			\
-	writew((_V), (PUSHORT)((_A)->CSRBaseAddress + (_R)));	\
+	writew((_V), (u16 *)((_A)->CSRBaseAddress + (_R)));	\
 }
 #endif /* RTMP_MAC_PCI // */
 #ifdef RTMP_MAC_USB
 /*Patch for ASIC turst read/write bug, needs to remove after metel fix */
 #define RTMP_IO_READ32(_A, _R, _pV)								\
-	RTUSBReadMACRegister((_A), (_R), (PUINT32) (_pV))
+	RTUSBReadMACRegister((_A), (_R), (u32 *)(_pV))
 
 #define RTMP_IO_READ8(_A, _R, _pV)								\
 {																\
 }
 
 #define RTMP_IO_WRITE32(_A, _R, _V)								\
-	RTUSBWriteMACRegister((_A), (_R), (UINT32) (_V))
+	RTUSBWriteMACRegister((_A), (_R), (u32)(_V))
 
 #define RTMP_IO_WRITE8(_A, _R, _V)								\
 {																\
-	USHORT	_Val = _V;											\
-	RTUSBSingleWrite((_A), (_R), (USHORT) (_Val));								\
+	u16	_Val = _V;											\
+	RTUSBSingleWrite((_A), (_R), (u16)(_Val));								\
 }
 
 #define RTMP_IO_WRITE16(_A, _R, _V)								\
 {																\
-	RTUSBSingleWrite((_A), (_R), (USHORT) (_V));								\
+	RTUSBSingleWrite((_A), (_R), (u16)(_V));								\
 }
 #endif /* RTMP_MAC_USB // */
 
@@ -687,7 +686,7 @@ void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size,
 #define GET_OS_PKT_DATATAIL(_pkt) \
 		(RTPKT_TO_OSPKT(_pkt)->tail)
 #define SET_OS_PKT_DATATAIL(_pkt, _start, _len)	\
-		((RTPKT_TO_OSPKT(_pkt))->tail) = (PUCHAR)((_start) + (_len))
+		((RTPKT_TO_OSPKT(_pkt))->tail) = (u8 *)((_start) + (_len))
 
 #define GET_OS_PKT_HEAD(_pkt) \
 		(RTPKT_TO_OSPKT(_pkt)->head)
@@ -731,7 +730,7 @@ void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size,
 /*(this value also as MAC(on-chip WCID) table index) */
 /* 0x80~0xff: TX to a WDS link. b0~6: WDS index */
 #define RTMP_SET_PACKET_WCID(_p, _wdsidx)		(RTPKT_TO_OSPKT(_p)->cb[CB_OFF+2] = _wdsidx)
-#define RTMP_GET_PACKET_WCID(_p)          		((UCHAR)(RTPKT_TO_OSPKT(_p)->cb[CB_OFF+2]))
+#define RTMP_GET_PACKET_WCID(_p)          		((u8)(RTPKT_TO_OSPKT(_p)->cb[CB_OFF+2]))
 
 /* 0xff: PKTSRC_NDIS, others: local TX buffer index. This value affects how to a packet */
 #define RTMP_SET_PACKET_SOURCE(_p, _pktsrc)		(RTPKT_TO_OSPKT(_p)->cb[CB_OFF+3] = _pktsrc)
@@ -862,7 +861,7 @@ int rt28xx_packet_xmit(struct sk_buff *skb);
 IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance);
 #endif /* RTMP_MAC_PCI // */
 
-INT rt28xx_sta_ioctl(IN PNET_DEV net_dev, IN OUT struct ifreq *rq, IN INT cmd);
+int rt28xx_sta_ioctl(IN PNET_DEV net_dev, IN OUT struct ifreq *rq, int cmd);
 
 extern int ra_mtd_write(int num, loff_t to, size_t len, const u_char * buf);
 extern int ra_mtd_read(int num, loff_t from, size_t len, u_char * buf);

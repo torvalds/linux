@@ -50,8 +50,8 @@ typedef struct _INF_PCI_CONFIG_ {
 } INF_PCI_CONFIG;
 
 typedef struct _INF_USB_CONFIG_ {
-	UINT8 BulkInEpAddr;	/* bulk-in endpoint address */
-	UINT8 BulkOutEpAddr[6];	/* bulk-out endpoint address */
+	u8 BulkInEpAddr;	/* bulk-in endpoint address */
+	u8 BulkOutEpAddr[6];	/* bulk-out endpoint address */
 } INF_USB_CONFIG;
 
 typedef struct _INF_RBUS_CONFIG_ {

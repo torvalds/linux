@@ -47,7 +47,7 @@
 
     ==========================================================================
  */
-VOID AuthRspStateMachineInit(IN PRTMP_ADAPTER pAd,
+void AuthRspStateMachineInit(IN PRTMP_ADAPTER pAd,
 			     IN PSTATE_MACHINE Sm,
 			     IN STATE_MACHINE_FUNC Trans[])
 {
@@ -73,16 +73,16 @@ VOID AuthRspStateMachineInit(IN PRTMP_ADAPTER pAd,
 
     ==========================================================================
 */
-VOID PeerAuthSimpleRspGenAndSend(IN PRTMP_ADAPTER pAd,
+void PeerAuthSimpleRspGenAndSend(IN PRTMP_ADAPTER pAd,
 				 IN PHEADER_802_11 pHdr80211,
-				 IN USHORT Alg,
-				 IN USHORT Seq,
-				 IN USHORT Reason, IN USHORT Status)
+				 u16 Alg,
+				 u16 Seq,
+				 u16 Reason, u16 Status)
 {
 	HEADER_802_11 AuthHdr;
-	ULONG FrameLen = 0;
-	PUCHAR pOutBuffer = NULL;
-	NDIS_STATUS NStatus;
+	unsigned long FrameLen = 0;
+	u8 *pOutBuffer = NULL;
+	int NStatus;
 
 	if (Reason != MLME_SUCCESS) {
 		DBGPRINT(RT_DEBUG_TRACE, ("Peer AUTH fail...\n"));
@@ -110,10 +110,10 @@ VOID PeerAuthSimpleRspGenAndSend(IN PRTMP_ADAPTER pAd,
 
     ==========================================================================
 */
-VOID PeerDeauthAction(IN PRTMP_ADAPTER pAd, IN PMLME_QUEUE_ELEM Elem)
+void PeerDeauthAction(IN PRTMP_ADAPTER pAd, IN PMLME_QUEUE_ELEM Elem)
 {
-	UCHAR Addr2[MAC_ADDR_LEN];
-	USHORT Reason;
+	u8 Addr2[MAC_ADDR_LEN];
+	u16 Reason;
 
 	if (PeerDeauthSanity(pAd, Elem->Msg, Elem->MsgLen, Addr2, &Reason)) {
 		if (INFRA_ON(pAd)

@@ -52,9 +52,9 @@
 
 	========================================================================
 */
-BOOLEAN RadarChannelCheck(IN PRTMP_ADAPTER pAd, IN UCHAR Ch)
+BOOLEAN RadarChannelCheck(IN PRTMP_ADAPTER pAd, u8 Ch)
 {
-	INT i;
+	int i;
 	BOOLEAN result = FALSE;
 
 	for (i = 0; i < pAd->ChannelListNum; i++) {

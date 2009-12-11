@@ -36,15 +36,15 @@
 */
 #include "../rt_config.h"
 
-extern UCHAR CISCO_OUI[];
+extern u8 CISCO_OUI[];
 
-extern UCHAR WPA_OUI[];
-extern UCHAR RSN_OUI[];
-extern UCHAR WME_INFO_ELEM[];
-extern UCHAR WME_PARM_ELEM[];
-extern UCHAR Ccx2QosInfo[];
-extern UCHAR RALINK_OUI[];
-extern UCHAR BROADCOM_OUI[];
+extern u8 WPA_OUI[];
+extern u8 RSN_OUI[];
+extern u8 WME_INFO_ELEM[];
+extern u8 WME_PARM_ELEM[];
+extern u8 Ccx2QosInfo[];
+extern u8 RALINK_OUI[];
+extern u8 BROADCOM_OUI[];
 
 /*
     ==========================================================================
@@ -55,9 +55,9 @@ extern UCHAR BROADCOM_OUI[];
     ==========================================================================
  */
 BOOLEAN MlmeStartReqSanity(IN PRTMP_ADAPTER pAd,
-			   IN VOID * Msg,
-			   IN ULONG MsgLen,
-			   OUT CHAR Ssid[], OUT UCHAR * pSsidLen)
+			   void * Msg,
+			   unsigned long MsgLen,
+			   char Ssid[], u8 * pSsidLen)
 {
 	MLME_START_REQ_STRUCT *Info;
 
@@ -86,22 +86,22 @@ BOOLEAN MlmeStartReqSanity(IN PRTMP_ADAPTER pAd,
 
     ==========================================================================
  */
-BOOLEAN PeerAssocRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * pMsg, IN ULONG MsgLen, OUT PUCHAR pAddr2, OUT USHORT * pCapabilityInfo, OUT USHORT * pStatus, OUT USHORT * pAid, OUT UCHAR SupRate[], OUT UCHAR * pSupRateLen, OUT UCHAR ExtRate[], OUT UCHAR * pExtRateLen, OUT HT_CAPABILITY_IE * pHtCapability, OUT ADD_HT_INFO_IE * pAddHtInfo,	/* AP might use this additional ht info IE */
-			   OUT UCHAR * pHtCapabilityLen,
-			   OUT UCHAR * pAddHtInfoLen,
-			   OUT UCHAR * pNewExtChannelOffset,
-			   OUT PEDCA_PARM pEdcaParm, OUT UCHAR * pCkipFlag)
+BOOLEAN PeerAssocRspSanity(IN PRTMP_ADAPTER pAd, void * pMsg, unsigned long MsgLen, u8 *pAddr2, u16 * pCapabilityInfo, u16 * pStatus, u16 * pAid, u8 SupRate[], u8 * pSupRateLen, u8 ExtRate[], u8 * pExtRateLen, OUT HT_CAPABILITY_IE * pHtCapability, OUT ADD_HT_INFO_IE * pAddHtInfo,	/* AP might use this additional ht info IE */
+			   u8 * pHtCapabilityLen,
+			   u8 * pAddHtInfoLen,
+			   u8 * pNewExtChannelOffset,
+			   OUT PEDCA_PARM pEdcaParm, u8 * pCkipFlag)
 {
-	CHAR IeType, *Ptr;
+	char IeType, *Ptr;
 	PFRAME_802_11 pFrame = (PFRAME_802_11) pMsg;
 	PEID_STRUCT pEid;
-	ULONG Length = 0;
+	unsigned long Length = 0;
 
 	*pNewExtChannelOffset = 0xff;
 	*pHtCapabilityLen = 0;
 	*pAddHtInfoLen = 0;
 	COPY_MAC_ADDR(pAddr2, pFrame->Hdr.Addr2);
-	Ptr = (PCHAR) pFrame->Octet;
+	Ptr = (char *)pFrame->Octet;
 	Length += LENGTH_802_11;
 
 	NdisMoveMemory(pCapabilityInfo, &pFrame->Octet[0], 2);
@@ -155,11 +155,11 @@ BOOLEAN PeerAssocRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * pMsg, IN ULONG MsgLen
 				NdisMoveMemory(pHtCapability, pEid->Octet,
 					       SIZE_HT_CAP_IE);
 
-				*(USHORT *) (&pHtCapability->HtCapInfo) =
-				    cpu2le16(*(USHORT *)
+				*(u16 *) (&pHtCapability->HtCapInfo) =
+				    cpu2le16(*(u16 *)
 					     (&pHtCapability->HtCapInfo));
-				*(USHORT *) (&pHtCapability->ExtHtCapInfo) =
-				    cpu2le16(*(USHORT *)
+				*(u16 *) (&pHtCapability->ExtHtCapInfo) =
+				    cpu2le16(*(u16 *)
 					     (&pHtCapability->ExtHtCapInfo));
 
 				*pHtCapabilityLen = SIZE_HT_CAP_IE;
@@ -177,11 +177,11 @@ BOOLEAN PeerAssocRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * pMsg, IN ULONG MsgLen
 				NdisMoveMemory(pAddHtInfo, pEid->Octet,
 					       sizeof(ADD_HT_INFO_IE));
 
-				*(USHORT *) (&pAddHtInfo->AddHtInfo2) =
-				    cpu2le16(*(USHORT *)
+				*(u16 *) (&pAddHtInfo->AddHtInfo2) =
+				    cpu2le16(*(u16 *)
 					     (&pAddHtInfo->AddHtInfo2));
-				*(USHORT *) (&pAddHtInfo->AddHtInfo3) =
-				    cpu2le16(*(USHORT *)
+				*(u16 *) (&pAddHtInfo->AddHtInfo3) =
+				    cpu2le16(*(u16 *)
 					     (&pAddHtInfo->AddHtInfo3));
 
 				*pAddHtInfoLen = SIZE_ADD_HT_INFO_IE;
@@ -204,7 +204,7 @@ BOOLEAN PeerAssocRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * pMsg, IN ULONG MsgLen
 			/* handle WME PARAMTER ELEMENT */
 			if (NdisEqualMemory(pEid->Octet, WME_PARM_ELEM, 6)
 			    && (pEid->Len == 24)) {
-				PUCHAR ptr;
+				u8 *ptr;
 				int i;
 
 				/* parsing EDCA parameters */
@@ -217,9 +217,9 @@ BOOLEAN PeerAssocRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * pMsg, IN ULONG MsgLen
 				    pEid->Octet[6] & 0x0f;
 				pEdcaParm->bAPSDCapable =
 				    (pEid->Octet[6] & 0x80) ? 1 : 0;
-				ptr = (PUCHAR) & pEid->Octet[8];
+				ptr = (u8 *)& pEid->Octet[8];
 				for (i = 0; i < 4; i++) {
-					UCHAR aci = (*ptr & 0x60) >> 5;	/* b5~6 is AC INDEX */
+					u8 aci = (*ptr & 0x60) >> 5;	/* b5~6 is AC INDEX */
 					pEdcaParm->bACM[aci] = (((*ptr) & 0x10) == 0x10);	/* b5 is ACM */
 					pEdcaParm->Aifsn[aci] = (*ptr) & 0x0f;	/* b0~3 is AIFSN */
 					pEdcaParm->Cwmin[aci] = *(ptr + 1) & 0x0f;	/* b0~4 is Cwmin */
@@ -237,7 +237,7 @@ BOOLEAN PeerAssocRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * pMsg, IN ULONG MsgLen
 		}
 
 		Length = Length + 2 + pEid->Len;
-		pEid = (PEID_STRUCT) ((UCHAR *) pEid + 2 + pEid->Len);
+		pEid = (PEID_STRUCT) ((u8 *) pEid + 2 + pEid->Len);
 	}
 
 	return TRUE;
@@ -255,14 +255,14 @@ BOOLEAN PeerAssocRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * pMsg, IN ULONG MsgLen
     ==========================================================================
  */
 BOOLEAN PeerProbeReqSanity(IN PRTMP_ADAPTER pAd,
-			   IN VOID * Msg,
-			   IN ULONG MsgLen,
-			   OUT PUCHAR pAddr2,
-			   OUT CHAR Ssid[], OUT UCHAR * pSsidLen)
+			   void * Msg,
+			   unsigned long MsgLen,
+			   u8 *pAddr2,
+			   char Ssid[], u8 * pSsidLen)
 {
-	UCHAR Idx;
-	UCHAR RateLen;
-	CHAR IeType;
+	u8 Idx;
+	u8 RateLen;
+	char IeType;
 	PFRAME_802_11 pFrame = (PFRAME_802_11) Msg;
 
 	COPY_MAC_ADDR(pAddr2, pFrame->Hdr.Addr2);
@@ -304,15 +304,15 @@ BOOLEAN PeerProbeReqSanity(IN PRTMP_ADAPTER pAd,
 
     ==========================================================================
  */
-BOOLEAN GetTimBit(IN CHAR * Ptr,
-		  IN USHORT Aid,
-		  OUT UCHAR * TimLen,
-		  OUT UCHAR * BcastFlag,
-		  OUT UCHAR * DtimCount,
-		  OUT UCHAR * DtimPeriod, OUT UCHAR * MessageToMe)
+BOOLEAN GetTimBit(char * Ptr,
+		  u16 Aid,
+		  u8 * TimLen,
+		  u8 * BcastFlag,
+		  u8 * DtimCount,
+		  u8 * DtimPeriod, u8 * MessageToMe)
 {
-	UCHAR BitCntl, N1, N2, MyByte, MyBit;
-	CHAR *IdxPtr;
+	u8 BitCntl, N1, N2, MyByte, MyBit;
+	char *IdxPtr;
 
 	IdxPtr = Ptr;
 

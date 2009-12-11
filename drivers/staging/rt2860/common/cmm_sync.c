@@ -57,41 +57,41 @@
 #define	BG_BAND_REGION_31_SIZE	14
 
 /* 5 Ghz channel plan index in the TxPower arrays. */
-UCHAR A_BAND_REGION_0_CHANNEL_LIST[] =
+u8 A_BAND_REGION_0_CHANNEL_LIST[] =
     { 36, 40, 44, 48, 52, 56, 60, 64, 149, 153, 157, 161, 165 };
-UCHAR A_BAND_REGION_1_CHANNEL_LIST[] =
+u8 A_BAND_REGION_1_CHANNEL_LIST[] =
     { 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128,
 132, 136, 140 };
-UCHAR A_BAND_REGION_2_CHANNEL_LIST[] = { 36, 40, 44, 48, 52, 56, 60, 64 };
-UCHAR A_BAND_REGION_3_CHANNEL_LIST[] = { 52, 56, 60, 64, 149, 153, 157, 161 };
-UCHAR A_BAND_REGION_4_CHANNEL_LIST[] = { 149, 153, 157, 161, 165 };
-UCHAR A_BAND_REGION_5_CHANNEL_LIST[] = { 149, 153, 157, 161 };
-UCHAR A_BAND_REGION_6_CHANNEL_LIST[] = { 36, 40, 44, 48 };
-UCHAR A_BAND_REGION_7_CHANNEL_LIST[] =
+u8 A_BAND_REGION_2_CHANNEL_LIST[] = { 36, 40, 44, 48, 52, 56, 60, 64 };
+u8 A_BAND_REGION_3_CHANNEL_LIST[] = { 52, 56, 60, 64, 149, 153, 157, 161 };
+u8 A_BAND_REGION_4_CHANNEL_LIST[] = { 149, 153, 157, 161, 165 };
+u8 A_BAND_REGION_5_CHANNEL_LIST[] = { 149, 153, 157, 161 };
+u8 A_BAND_REGION_6_CHANNEL_LIST[] = { 36, 40, 44, 48 };
+u8 A_BAND_REGION_7_CHANNEL_LIST[] =
     { 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128,
 132, 136, 140, 149, 153, 157, 161, 165, 169, 173 };
-UCHAR A_BAND_REGION_8_CHANNEL_LIST[] = { 52, 56, 60, 64 };
-UCHAR A_BAND_REGION_9_CHANNEL_LIST[] =
+u8 A_BAND_REGION_8_CHANNEL_LIST[] = { 52, 56, 60, 64 };
+u8 A_BAND_REGION_9_CHANNEL_LIST[] =
     { 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 132, 136, 140,
 149, 153, 157, 161, 165 };
-UCHAR A_BAND_REGION_10_CHANNEL_LIST[] =
+u8 A_BAND_REGION_10_CHANNEL_LIST[] =
     { 36, 40, 44, 48, 149, 153, 157, 161, 165 };
-UCHAR A_BAND_REGION_11_CHANNEL_LIST[] =
+u8 A_BAND_REGION_11_CHANNEL_LIST[] =
     { 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 149, 153,
 157, 161 };
-UCHAR A_BAND_REGION_12_CHANNEL_LIST[] =
+u8 A_BAND_REGION_12_CHANNEL_LIST[] =
     { 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128,
 132, 136, 140 };
-UCHAR A_BAND_REGION_13_CHANNEL_LIST[] =
+u8 A_BAND_REGION_13_CHANNEL_LIST[] =
     { 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140,
 149, 153, 157, 161 };
-UCHAR A_BAND_REGION_14_CHANNEL_LIST[] =
+u8 A_BAND_REGION_14_CHANNEL_LIST[] =
     { 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 136, 140, 149,
 153, 157, 161, 165 };
-UCHAR A_BAND_REGION_15_CHANNEL_LIST[] = { 149, 153, 157, 161, 165, 169, 173 };
+u8 A_BAND_REGION_15_CHANNEL_LIST[] = { 149, 153, 157, 161, 165, 169, 173 };
 
 /*BaSizeArray follows the 802.11n definition as MaxRxFactor.  2^(13+factor) bytes. When factor =0, it's about Ba buffer size =8. */
-UCHAR BaSizeArray[4] = { 8, 16, 32, 64 };
+u8 BaSizeArray[4] = { 8, 16, 32, 64 };
 
 /*
 	==========================================================================
@@ -105,10 +105,10 @@ UCHAR BaSizeArray[4] = { 8, 16, 32, 64 };
 
 	==========================================================================
  */
-VOID BuildChannelList(IN PRTMP_ADAPTER pAd)
+void BuildChannelList(IN PRTMP_ADAPTER pAd)
 {
-	UCHAR i, j, index = 0, num = 0;
-	PUCHAR pChannelList = NULL;
+	u8 i, j, index = 0, num = 0;
+	u8 *pChannelList = NULL;
 
 	NdisZeroMemory(pAd->ChannelList,
 		       MAX_NUM_OF_CHANNELS * sizeof(CHANNEL_TX_POWER));
@@ -200,99 +200,99 @@ VOID BuildChannelList(IN PRTMP_ADAPTER pAd)
 		case REGION_0_A_BAND:
 			num =
 			    sizeof(A_BAND_REGION_0_CHANNEL_LIST) /
-			    sizeof(UCHAR);
+			    sizeof(u8);
 			pChannelList = A_BAND_REGION_0_CHANNEL_LIST;
 			break;
 		case REGION_1_A_BAND:
 			num =
 			    sizeof(A_BAND_REGION_1_CHANNEL_LIST) /
-			    sizeof(UCHAR);
+			    sizeof(u8);
 			pChannelList = A_BAND_REGION_1_CHANNEL_LIST;
 			break;
 		case REGION_2_A_BAND:
 			num =
 			    sizeof(A_BAND_REGION_2_CHANNEL_LIST) /
-			    sizeof(UCHAR);
+			    sizeof(u8);
 			pChannelList = A_BAND_REGION_2_CHANNEL_LIST;
 			break;
 		case REGION_3_A_BAND:
 			num =
 			    sizeof(A_BAND_REGION_3_CHANNEL_LIST) /
-			    sizeof(UCHAR);
+			    sizeof(u8);
 			pChannelList = A_BAND_REGION_3_CHANNEL_LIST;
 			break;
 		case REGION_4_A_BAND:
 			num =
 			    sizeof(A_BAND_REGION_4_CHANNEL_LIST) /
-			    sizeof(UCHAR);
+			    sizeof(u8);
 			pChannelList = A_BAND_REGION_4_CHANNEL_LIST;
 			break;
 		case REGION_5_A_BAND:
 			num =
 			    sizeof(A_BAND_REGION_5_CHANNEL_LIST) /
-			    sizeof(UCHAR);
+			    sizeof(u8);
 			pChannelList = A_BAND_REGION_5_CHANNEL_LIST;
 			break;
 		case REGION_6_A_BAND:
 			num =
 			    sizeof(A_BAND_REGION_6_CHANNEL_LIST) /
-			    sizeof(UCHAR);
+			    sizeof(u8);
 			pChannelList = A_BAND_REGION_6_CHANNEL_LIST;
 			break;
 		case REGION_7_A_BAND:
 			num =
 			    sizeof(A_BAND_REGION_7_CHANNEL_LIST) /
-			    sizeof(UCHAR);
+			    sizeof(u8);
 			pChannelList = A_BAND_REGION_7_CHANNEL_LIST;
 			break;
 		case REGION_8_A_BAND:
 			num =
 			    sizeof(A_BAND_REGION_8_CHANNEL_LIST) /
-			    sizeof(UCHAR);
+			    sizeof(u8);
 			pChannelList = A_BAND_REGION_8_CHANNEL_LIST;
 			break;
 		case REGION_9_A_BAND:
 			num =
 			    sizeof(A_BAND_REGION_9_CHANNEL_LIST) /
-			    sizeof(UCHAR);
+			    sizeof(u8);
 			pChannelList = A_BAND_REGION_9_CHANNEL_LIST;
 			break;
 
 		case REGION_10_A_BAND:
 			num =
 			    sizeof(A_BAND_REGION_10_CHANNEL_LIST) /
-			    sizeof(UCHAR);
+			    sizeof(u8);
 			pChannelList = A_BAND_REGION_10_CHANNEL_LIST;
 			break;
 
 		case REGION_11_A_BAND:
 			num =
 			    sizeof(A_BAND_REGION_11_CHANNEL_LIST) /
-			    sizeof(UCHAR);
+			    sizeof(u8);
 			pChannelList = A_BAND_REGION_11_CHANNEL_LIST;
 			break;
 		case REGION_12_A_BAND:
 			num =
 			    sizeof(A_BAND_REGION_12_CHANNEL_LIST) /
-			    sizeof(UCHAR);
+			    sizeof(u8);
 			pChannelList = A_BAND_REGION_12_CHANNEL_LIST;
 			break;
 		case REGION_13_A_BAND:
 			num =
 			    sizeof(A_BAND_REGION_13_CHANNEL_LIST) /
-			    sizeof(UCHAR);
+			    sizeof(u8);
 			pChannelList = A_BAND_REGION_13_CHANNEL_LIST;
 			break;
 		case REGION_14_A_BAND:
 			num =
 			    sizeof(A_BAND_REGION_14_CHANNEL_LIST) /
-			    sizeof(UCHAR);
+			    sizeof(u8);
 			pChannelList = A_BAND_REGION_14_CHANNEL_LIST;
 			break;
 		case REGION_15_A_BAND:
 			num =
 			    sizeof(A_BAND_REGION_15_CHANNEL_LIST) /
-			    sizeof(UCHAR);
+			    sizeof(u8);
 			pChannelList = A_BAND_REGION_15_CHANNEL_LIST;
 			break;
 		default:	/* Error. should never happen */
@@ -303,7 +303,7 @@ VOID BuildChannelList(IN PRTMP_ADAPTER pAd)
 		}
 
 		if (num != 0) {
-			UCHAR RadarCh[15] =
+			u8 RadarCh[15] =
 			    { 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124,
 		    128, 132, 136, 140 };
 			for (i = 0; i < num; i++) {
@@ -359,7 +359,7 @@ VOID BuildChannelList(IN PRTMP_ADAPTER pAd)
 
 	==========================================================================
  */
-UCHAR FirstChannel(IN PRTMP_ADAPTER pAd)
+u8 FirstChannel(IN PRTMP_ADAPTER pAd)
 {
 	return pAd->ChannelList[0].Channel;
 }
@@ -375,10 +375,10 @@ UCHAR FirstChannel(IN PRTMP_ADAPTER pAd)
 		return 0 if no more next channel
 	==========================================================================
  */
-UCHAR NextChannel(IN PRTMP_ADAPTER pAd, IN UCHAR channel)
+u8 NextChannel(IN PRTMP_ADAPTER pAd, u8 channel)
 {
 	int i;
-	UCHAR next_channel = 0;
+	u8 next_channel = 0;
 
 	for (i = 0; i < (pAd->ChannelListNum - 1); i++)
 		if (channel == pAd->ChannelList[i].Channel) {
@@ -408,8 +408,8 @@ UCHAR NextChannel(IN PRTMP_ADAPTER pAd, IN UCHAR channel)
 		the minimum value or next lower value.
 	==========================================================================
  */
-VOID ChangeToCellPowerLimit(IN PRTMP_ADAPTER pAd,
-			    IN UCHAR AironetCellPowerLimit)
+void ChangeToCellPowerLimit(IN PRTMP_ADAPTER pAd,
+			    u8 AironetCellPowerLimit)
 {
 	/*valud 0xFF means that hasn't found power limit information */
 	/*from the AP's Beacon/Probe response. */
@@ -435,9 +435,9 @@ VOID ChangeToCellPowerLimit(IN PRTMP_ADAPTER pAd,
 
 }
 
-CHAR ConvertToRssi(IN PRTMP_ADAPTER pAd, IN CHAR Rssi, IN UCHAR RssiNumber)
+char ConvertToRssi(IN PRTMP_ADAPTER pAd, char Rssi, u8 RssiNumber)
 {
-	UCHAR RssiOffset, LNAGain;
+	u8 RssiOffset, LNAGain;
 
 	/* Rssi equals to zero should be an invalid value */
 	if (Rssi == 0)
@@ -469,16 +469,16 @@ CHAR ConvertToRssi(IN PRTMP_ADAPTER pAd, IN CHAR Rssi, IN UCHAR RssiNumber)
 		Scan next channel
 	==========================================================================
  */
-VOID ScanNextChannel(IN PRTMP_ADAPTER pAd)
+void ScanNextChannel(IN PRTMP_ADAPTER pAd)
 {
 	HEADER_802_11 Hdr80211;
-	PUCHAR pOutBuffer = NULL;
-	NDIS_STATUS NStatus;
-	ULONG FrameLen = 0;
-	UCHAR SsidLen = 0, ScanType = pAd->MlmeAux.ScanType, BBPValue = 0;
-	USHORT Status;
+	u8 *pOutBuffer = NULL;
+	int NStatus;
+	unsigned long FrameLen = 0;
+	u8 SsidLen = 0, ScanType = pAd->MlmeAux.ScanType, BBPValue = 0;
+	u16 Status;
 	PHEADER_802_11 pHdr80211;
-	UINT ScanTimeIn5gChannel = SHORT_CHANNEL_TIME;
+	u32 ScanTimeIn5gChannel = SHORT_CHANNEL_TIME;
 
 	{
 		if (MONITOR_ON(pAd))
@@ -520,7 +520,7 @@ VOID ScanNextChannel(IN PRTMP_ADAPTER pAd)
 			    && (INFRA_ON(pAd))) {
 				NStatus =
 				    MlmeAllocateMemory(pAd,
-						       (PVOID) & pOutBuffer);
+						       (void *)& pOutBuffer);
 				if (NStatus == NDIS_STATUS_SUCCESS) {
 					pHdr80211 = (PHEADER_802_11) pOutBuffer;
 					MgtMacHeaderInit(pAd, pHdr80211,
@@ -650,7 +650,7 @@ VOID ScanNextChannel(IN PRTMP_ADAPTER pAd)
 					  pAd->CommonCfg.SupRate, END_OF_ARGS);
 
 			if (pAd->CommonCfg.ExtRateLen) {
-				ULONG Tmp;
+				unsigned long Tmp;
 				MakeOutgoingFrame(pOutBuffer + FrameLen, &Tmp,
 						  1, &ExtRateIe,
 						  1, &pAd->CommonCfg.ExtRateLen,
@@ -661,9 +661,9 @@ VOID ScanNextChannel(IN PRTMP_ADAPTER pAd)
 			}
 
 			if (pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED) {
-				ULONG Tmp;
-				UCHAR HtLen;
-				UCHAR BROADCOM[4] = { 0x0, 0x90, 0x4c, 0x33 };
+				unsigned long Tmp;
+				u8 HtLen;
+				u8 BROADCOM[4] = { 0x0, 0x90, 0x4c, 0x33 };
 
 				if (pAd->bBroadComHT == TRUE) {
 					HtLen =
@@ -700,10 +700,10 @@ VOID ScanNextChannel(IN PRTMP_ADAPTER pAd)
 	}
 }
 
-VOID MgtProbReqMacHeaderInit(IN PRTMP_ADAPTER pAd,
+void MgtProbReqMacHeaderInit(IN PRTMP_ADAPTER pAd,
 			     IN OUT PHEADER_802_11 pHdr80211,
-			     IN UCHAR SubType,
-			     IN UCHAR ToDs, IN PUCHAR pDA, IN PUCHAR pBssid)
+			     u8 SubType,
+			     u8 ToDs, u8 *pDA, u8 *pBssid)
 {
 	NdisZeroMemory(pHdr80211, sizeof(HEADER_802_11));
 

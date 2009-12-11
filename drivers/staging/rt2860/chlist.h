@@ -50,24 +50,24 @@
 #define BAND_BOTH       2
 
 typedef struct _CH_DESP {
-	UCHAR FirstChannel;
-	UCHAR NumOfCh;
-	CHAR MaxTxPwr;		/* dBm */
-	UCHAR Geography;	/* 0:out door, 1:in door, 2:both */
+	u8 FirstChannel;
+	u8 NumOfCh;
+	char MaxTxPwr;		/* dBm */
+	u8 Geography;	/* 0:out door, 1:in door, 2:both */
 	BOOLEAN DfsReq;		/* Dfs require, 0: No, 1: yes. */
 } CH_DESP, *PCH_DESP;
 
 typedef struct _CH_REGION {
-	UCHAR CountReg[3];
-	UCHAR DfsType;		/* 0: CE, 1: FCC, 2: JAP, 3:JAP_W53, JAP_W56 */
+	u8 CountReg[3];
+	u8 DfsType;		/* 0: CE, 1: FCC, 2: JAP, 3:JAP_W53, JAP_W56 */
 	CH_DESP ChDesp[10];
 } CH_REGION, *PCH_REGION;
 
 extern CH_REGION ChRegion[];
 
 typedef struct _CH_FREQ_MAP_ {
-	UINT16 channel;
-	UINT16 freqKHz;
+	u16 channel;
+	u16 freqKHz;
 } CH_FREQ_MAP;
 
 extern CH_FREQ_MAP CH_HZ_ID_MAP[];
@@ -103,15 +103,15 @@ extern int CH_HZ_ID_MAP_NUM;
 				(_ch) = 1;											\
 		}while(0)
 
-VOID BuildChannelListEx(IN PRTMP_ADAPTER pAd);
+void BuildChannelListEx(IN PRTMP_ADAPTER pAd);
 
-VOID BuildBeaconChList(IN PRTMP_ADAPTER pAd,
-		       OUT PUCHAR pBuf, OUT PULONG pBufLen);
+void BuildBeaconChList(IN PRTMP_ADAPTER pAd,
+		       u8 *pBuf, unsigned long *pBufLen);
 
-VOID N_ChannelCheck(IN PRTMP_ADAPTER pAd);
+void N_ChannelCheck(IN PRTMP_ADAPTER pAd);
 
-VOID N_SetCenCh(IN PRTMP_ADAPTER pAd);
+void N_SetCenCh(IN PRTMP_ADAPTER pAd);
 
-UINT8 GetCuntryMaxTxPwr(IN PRTMP_ADAPTER pAd, IN UINT8 channel);
+u8 GetCuntryMaxTxPwr(IN PRTMP_ADAPTER pAd, u8 channel);
 
 #endif /* __CHLIST_H__ */

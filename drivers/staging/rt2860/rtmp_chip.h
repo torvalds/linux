@@ -161,7 +161,7 @@
   *   EEPROM operation related marcos
   */
 #define RT28xx_EEPROM_READ16(_pAd, _offset, _value)			\
-	(_pAd)->chipOps.eeread((RTMP_ADAPTER *)(_pAd), (USHORT)(_offset), (PUSHORT)&(_value))
+	(_pAd)->chipOps.eeread((RTMP_ADAPTER *)(_pAd), (u16)(_offset), (u16 *)&(_value))
 
 /* ------------------------------------------------------------------- */
 /*  E2PROM data layout */
@@ -172,10 +172,10 @@
 /* */
 typedef union _MCU_LEDCS_STRUC {
 	struct {
-		UCHAR LedMode:7;
-		UCHAR Polarity:1;
+		u8 LedMode:7;
+		u8 Polarity:1;
 	} field;
-	UCHAR word;
+	u8 word;
 } MCU_LEDCS_STRUC, *PMCU_LEDCS_STRUC;
 
 /* */
@@ -183,32 +183,32 @@ typedef union _MCU_LEDCS_STRUC {
 /* */
 typedef union _EEPROM_ANTENNA_STRUC {
 	struct {
-		USHORT RxPath:4;	/* 1: 1R, 2: 2R, 3: 3R */
-		USHORT TxPath:4;	/* 1: 1T, 2: 2T */
-		USHORT RfIcType:4;	/* see E2PROM document */
-		USHORT Rsv:4;
+		u16 RxPath:4;	/* 1: 1R, 2: 2R, 3: 3R */
+		u16 TxPath:4;	/* 1: 1T, 2: 2T */
+		u16 RfIcType:4;	/* see E2PROM document */
+		u16 Rsv:4;
 	} field;
-	USHORT word;
+	u16 word;
 } EEPROM_ANTENNA_STRUC, *PEEPROM_ANTENNA_STRUC;
 
 typedef union _EEPROM_NIC_CINFIG2_STRUC {
 	struct {
-		USHORT HardwareRadioControl:1;	/* 1:enable, 0:disable */
-		USHORT DynamicTxAgcControl:1;	/* */
-		USHORT ExternalLNAForG:1;	/* */
-		USHORT ExternalLNAForA:1;	/* external LNA enable for 2.4G */
-		USHORT CardbusAcceleration:1;	/* !!! NOTE: 0 - enable, 1 - disable */
-		USHORT BW40MSidebandForG:1;
-		USHORT BW40MSidebandForA:1;
-		USHORT EnableWPSPBC:1;	/* WPS PBC Control bit */
-		USHORT BW40MAvailForG:1;	/* 0:enable, 1:disable */
-		USHORT BW40MAvailForA:1;	/* 0:enable, 1:disable */
-		USHORT Rsv1:1;	/* must be 0 */
-		USHORT AntDiversity:1;	/* Antenna diversity */
-		USHORT Rsv2:3;	/* must be 0 */
-		USHORT DACTestBit:1;	/* control if driver should patch the DAC issue */
+		u16 HardwareRadioControl:1;	/* 1:enable, 0:disable */
+		u16 DynamicTxAgcControl:1;	/* */
+		u16 ExternalLNAForG:1;	/* */
+		u16 ExternalLNAForA:1;	/* external LNA enable for 2.4G */
+		u16 CardbusAcceleration:1;	/* !!! NOTE: 0 - enable, 1 - disable */
+		u16 BW40MSidebandForG:1;
+		u16 BW40MSidebandForA:1;
+		u16 EnableWPSPBC:1;	/* WPS PBC Control bit */
+		u16 BW40MAvailForG:1;	/* 0:enable, 1:disable */
+		u16 BW40MAvailForA:1;	/* 0:enable, 1:disable */
+		u16 Rsv1:1;	/* must be 0 */
+		u16 AntDiversity:1;	/* Antenna diversity */
+		u16 Rsv2:3;	/* must be 0 */
+		u16 DACTestBit:1;	/* control if driver should patch the DAC issue */
 	} field;
-	USHORT word;
+	u16 word;
 } EEPROM_NIC_CONFIG2_STRUC, *PEEPROM_NIC_CONFIG2_STRUC;
 
 /* */
@@ -216,43 +216,43 @@ typedef union _EEPROM_NIC_CINFIG2_STRUC {
 /* */
 typedef union _EEPROM_TX_PWR_STRUC {
 	struct {
-		CHAR Byte0;	/* Low Byte */
-		CHAR Byte1;	/* High Byte */
+		char Byte0;	/* Low Byte */
+		char Byte1;	/* High Byte */
 	} field;
-	USHORT word;
+	u16 word;
 } EEPROM_TX_PWR_STRUC, *PEEPROM_TX_PWR_STRUC;
 
 typedef union _EEPROM_VERSION_STRUC {
 	struct {
-		UCHAR FaeReleaseNumber;	/* Low Byte */
-		UCHAR Version;	/* High Byte */
+		u8 FaeReleaseNumber;	/* Low Byte */
+		u8 Version;	/* High Byte */
 	} field;
-	USHORT word;
+	u16 word;
 } EEPROM_VERSION_STRUC, *PEEPROM_VERSION_STRUC;
 
 typedef union _EEPROM_LED_STRUC {
 	struct {
-		USHORT PolarityRDY_G:1;	/* Polarity RDY_G setting. */
-		USHORT PolarityRDY_A:1;	/* Polarity RDY_A setting. */
-		USHORT PolarityACT:1;	/* Polarity ACT setting. */
-		USHORT PolarityGPIO_0:1;	/* Polarity GPIO#0 setting. */
-		USHORT PolarityGPIO_1:1;	/* Polarity GPIO#1 setting. */
-		USHORT PolarityGPIO_2:1;	/* Polarity GPIO#2 setting. */
-		USHORT PolarityGPIO_3:1;	/* Polarity GPIO#3 setting. */
-		USHORT PolarityGPIO_4:1;	/* Polarity GPIO#4 setting. */
-		USHORT LedMode:5;	/* Led mode. */
-		USHORT Rsvd:3;	/* Reserved */
+		u16 PolarityRDY_G:1;	/* Polarity RDY_G setting. */
+		u16 PolarityRDY_A:1;	/* Polarity RDY_A setting. */
+		u16 PolarityACT:1;	/* Polarity ACT setting. */
+		u16 PolarityGPIO_0:1;	/* Polarity GPIO#0 setting. */
+		u16 PolarityGPIO_1:1;	/* Polarity GPIO#1 setting. */
+		u16 PolarityGPIO_2:1;	/* Polarity GPIO#2 setting. */
+		u16 PolarityGPIO_3:1;	/* Polarity GPIO#3 setting. */
+		u16 PolarityGPIO_4:1;	/* Polarity GPIO#4 setting. */
+		u16 LedMode:5;	/* Led mode. */
+		u16 Rsvd:3;	/* Reserved */
 	} field;
-	USHORT word;
+	u16 word;
 } EEPROM_LED_STRUC, *PEEPROM_LED_STRUC;
 
 typedef union _EEPROM_TXPOWER_DELTA_STRUC {
 	struct {
-		UCHAR DeltaValue:6;	/* Tx Power dalta value (MAX=4) */
-		UCHAR Type:1;	/* 1: plus the delta value, 0: minus the delta value */
-		UCHAR TxPowerEnable:1;	/* Enable */
+		u8 DeltaValue:6;	/* Tx Power dalta value (MAX=4) */
+		u8 Type:1;	/* 1: plus the delta value, 0: minus the delta value */
+		u8 TxPowerEnable:1;	/* Enable */
 	} field;
-	UCHAR value;
+	u8 value;
 } EEPROM_TXPOWER_DELTA_STRUC, *PEEPROM_TXPOWER_DELTA_STRUC;
 
 #endif /* __RTMP_CHIP_H__ // */

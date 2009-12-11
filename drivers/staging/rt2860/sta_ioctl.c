@@ -40,7 +40,7 @@
 #include	"rt_config.h"
 
 #ifdef DBG
-extern ULONG RTDebugLevel;
+extern unsigned long RTDebugLevel;
 #endif
 
 #define NR_WEP_KEYS 				4
@@ -49,16 +49,16 @@ extern ULONG RTDebugLevel;
 
 #define GROUP_KEY_NO                4
 
-extern UCHAR CipherWpa2Template[];
+extern u8 CipherWpa2Template[];
 
 typedef struct PACKED _RT_VERSION_INFO {
-	UCHAR DriverVersionW;
-	UCHAR DriverVersionX;
-	UCHAR DriverVersionY;
-	UCHAR DriverVersionZ;
-	UINT DriverBuildYear;
-	UINT DriverBuildMonth;
-	UINT DriverBuildDay;
+	u8 DriverVersionW;
+	u8 DriverVersionX;
+	u8 DriverVersionY;
+	u8 DriverVersionZ;
+	u32 DriverBuildYear;
+	u32 DriverBuildMonth;
+	u32 DriverBuildDay;
 } RT_VERSION_INFO, *PRT_VERSION_INFO;
 
 static __s32 ralinkrate[] = { 2, 4, 11, 22,	/* CCK */
@@ -73,13 +73,13 @@ static __s32 ralinkrate[] = { 2, 4, 11, 22,	/* CCK */
 	90, 180, 270, 360, 540, 720, 810, 900
 };
 
-INT Set_SSID_Proc(IN PRTMP_ADAPTER pAdapter, IN PSTRING arg);
+int Set_SSID_Proc(IN PRTMP_ADAPTER pAdapter, char *arg);
 
-INT Set_NetworkType_Proc(IN PRTMP_ADAPTER pAdapter, IN PSTRING arg);
+int Set_NetworkType_Proc(IN PRTMP_ADAPTER pAdapter, char *arg);
 
-VOID RTMPAddKey(IN PRTMP_ADAPTER pAd, IN PNDIS_802_11_KEY pKey)
+void RTMPAddKey(IN PRTMP_ADAPTER pAd, IN PNDIS_802_11_KEY pKey)
 {
-	ULONG KeyIdx;
+	unsigned long KeyIdx;
 	MAC_TABLE_ENTRY *pEntry;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("RTMPAddKey ------>\n"));
@@ -260,8 +260,8 @@ VOID RTMPAddKey(IN PRTMP_ADAPTER pAd, IN PNDIS_802_11_KEY pKey)
 		}
 	} else			/* dynamic WEP from wpa_supplicant */
 	{
-		UCHAR CipherAlg;
-		PUCHAR Key;
+		u8 CipherAlg;
+		u8 *Key;
 
 		if (pKey->KeyLength == 32)
 			goto end;
@@ -279,7 +279,7 @@ VOID RTMPAddKey(IN PRTMP_ADAPTER pAd, IN PNDIS_802_11_KEY pKey)
 
 					/* set key material and key length */
 					pEntry->PairwiseKey.KeyLen =
-					    (UCHAR) pKey->KeyLength;
+					    (u8)pKey->KeyLength;
 					NdisMoveMemory(pEntry->PairwiseKey.Key,
 						       &pKey->KeyMaterial,
 						       pKey->KeyLength);
@@ -295,7 +295,7 @@ VOID RTMPAddKey(IN PRTMP_ADAPTER pAd, IN PNDIS_802_11_KEY pKey)
 					/* Add Pair-wise key to Asic */
 					AsicAddPairwiseKeyEntry(pAd,
 								pEntry->Addr,
-								(UCHAR) pEntry->
+								(u8)pEntry->
 								Aid,
 								&pEntry->
 								PairwiseKey);
@@ -310,11 +310,11 @@ VOID RTMPAddKey(IN PRTMP_ADAPTER pAd, IN PNDIS_802_11_KEY pKey)
 				}
 			} else {
 				/* Default key for tx (shared key) */
-				pAd->StaCfg.DefaultKeyId = (UCHAR) KeyIdx;
+				pAd->StaCfg.DefaultKeyId = (u8)KeyIdx;
 
 				/* set key material and key length */
 				pAd->SharedKey[BSS0][KeyIdx].KeyLen =
-				    (UCHAR) pKey->KeyLength;
+				    (u8)pKey->KeyLength;
 				NdisMoveMemory(pAd->SharedKey[BSS0][KeyIdx].Key,
 					       &pKey->KeyMaterial,
 					       pKey->KeyLength);
@@ -408,8 +408,8 @@ int rt_ioctl_giwfreq(struct net_device *dev,
 		     struct iw_freq *freq, char *extra)
 {
 	PRTMP_ADAPTER pAdapter = NULL;
-	UCHAR ch;
-	ULONG m = 2412000;
+	u8 ch;
+	unsigned long m = 2412000;
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
 
@@ -613,7 +613,7 @@ int rt_ioctl_siwap(struct net_device *dev,
 	MlmeEnqueue(pAdapter,
 		    MLME_CNTL_STATE_MACHINE,
 		    OID_802_11_BSSID,
-		    sizeof(NDIS_802_11_MAC_ADDRESS), (VOID *) & Bssid);
+		    sizeof(NDIS_802_11_MAC_ADDRESS), (void *) & Bssid);
 
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("IOCTL::SIOCSIWAP %02x:%02x:%02x:%02x:%02x:%02x\n", Bssid[0],
@@ -728,7 +728,7 @@ int rt_ioctl_siwscan(struct net_device *dev,
 {
 	PRTMP_ADAPTER pAdapter = NULL;
 
-	ULONG Now;
+	unsigned long Now;
 	int Status = NDIS_STATUS_SUCCESS;
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
@@ -804,10 +804,10 @@ int rt_ioctl_giwscan(struct net_device *dev,
 {
 	PRTMP_ADAPTER pAdapter = NULL;
 	int i = 0;
-	PSTRING current_ev = extra, previous_ev = extra;
-	PSTRING end_buf;
-	PSTRING current_val;
-	STRING custom[MAX_CUSTOM_LEN] = { 0 };
+	char *current_ev = extra, *previous_ev = extra;
+	char *end_buf;
+	char *current_val;
+	char custom[MAX_CUSTOM_LEN] = { 0 };
 	struct iw_event iwe;
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
@@ -945,7 +945,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
 		previous_ev = current_ev;
 		current_ev =
 		    iwe_stream_add_point(info, current_ev, end_buf, &iwe,
-					 (PSTRING) pAdapter->ScanTab.
+					 (char *)pAdapter->ScanTab.
 					 BssEntry[i].Ssid);
 		if (current_ev == previous_ev)
 			return -E2BIG;
@@ -1027,7 +1027,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
 		/*Bit Rate */
 		/*================================ */
 		if (pAdapter->ScanTab.BssEntry[i].SupRateLen) {
-			UCHAR tmpRate =
+			u8 tmpRate =
 			    pAdapter->ScanTab.BssEntry[i].SupRate[pAdapter->
 								  ScanTab.
 								  BssEntry[i].
@@ -1062,8 +1062,8 @@ int rt_ioctl_giwscan(struct net_device *dev,
 				    pAdapter->ScanTab.BssEntry[i].HtCapability.
 				    MCSSet[1] ? 15 : 7;
 				int rate_index =
-				    12 + ((UCHAR) capInfo.ChannelWidth * 24) +
-				    ((UCHAR) shortGI * 48) + ((UCHAR) maxMCS);
+				    12 + ((u8)capInfo.ChannelWidth * 24) +
+				    ((u8)shortGI * 48) + ((u8)maxMCS);
 				if (rate_index < 0)
 					rate_index = 0;
 				if (rate_index > rate_count)
@@ -1140,7 +1140,7 @@ int rt_ioctl_siwessid(struct net_device *dev,
 	}
 
 	if (data->flags) {
-		PSTRING pSsidString = NULL;
+		char *pSsidString = NULL;
 
 		/* Includes null character. */
 		if (data->length > (IW_ESSID_MAX_SIZE + 1))
@@ -1231,8 +1231,8 @@ int rt_ioctl_giwnickn(struct net_device *dev,
 
 	GET_PAD_FROM_NET_DEV(pAdapter, dev);
 
-	if (data->length > strlen((PSTRING) pAdapter->nickname) + 1)
-		data->length = strlen((PSTRING) pAdapter->nickname) + 1;
+	if (data->length > strlen((char *)pAdapter->nickname) + 1)
+		data->length = strlen((char *)pAdapter->nickname) + 1;
 	if (data->length > 0) {
 		memcpy(nickname, pAdapter->nickname, data->length - 1);
 		nickname[data->length - 1] = '\0';
@@ -1506,9 +1506,9 @@ rt_ioctl_giwencode(struct net_device *dev,
 
 }
 
-void getBaInfo(IN PRTMP_ADAPTER pAd, IN PSTRING pOutBuf)
+void getBaInfo(IN PRTMP_ADAPTER pAd, char *pOutBuf)
 {
-	INT i, j;
+	int i, j;
 	BA_ORI_ENTRY *pOriBAEntry;
 	BA_REC_ENTRY *pRecBAEntry;
 
@@ -1816,8 +1816,8 @@ int rt_ioctl_giwauth(struct net_device *dev,
 }
 
 void fnSetCipherKey(IN PRTMP_ADAPTER pAdapter,
-		    IN INT keyIdx,
-		    IN UCHAR CipherAlg,
+		    int keyIdx,
+		    u8 CipherAlg,
 		    IN BOOLEAN bGTK, IN struct iw_encode_ext *ext)
 {
 	NdisZeroMemory(&pAdapter->SharedKey[BSS0][keyIdx], sizeof(CIPHER_KEY));
@@ -1881,7 +1881,7 @@ int rt_ioctl_siwencodeext(struct net_device *dev,
 		AsicRemovePairwiseKeyEntry(pAdapter, BSS0, BSSID_WCID);
 		pAdapter->SharedKey[BSS0][keyIdx].KeyLen = 0;
 		pAdapter->SharedKey[BSS0][keyIdx].CipherAlg = CIPHER_NONE;
-		AsicRemoveSharedKeyEntry(pAdapter, 0, (UCHAR) keyIdx);
+		AsicRemoveSharedKeyEntry(pAdapter, 0, (u8)keyIdx);
 		NdisZeroMemory(&pAdapter->SharedKey[BSS0][keyIdx],
 			       sizeof(CIPHER_KEY));
 		DBGPRINT(RT_DEBUG_TRACE,
@@ -2019,7 +2019,7 @@ rt_ioctl_giwencodeext(struct net_device *dev,
 		      union iwreq_data *wrqu, char *extra)
 {
 	PRTMP_ADAPTER pAd = NULL;
-	PCHAR pKey = NULL;
+	char *pKey = NULL;
 	struct iw_point *encoding = &wrqu->encoding;
 	struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
 	int idx, max_key_len;
@@ -2063,7 +2063,7 @@ rt_ioctl_giwencodeext(struct net_device *dev,
 			return -E2BIG;
 		else {
 			ext->key_len = pAd->SharedKey[BSS0][idx].KeyLen;
-			pKey = (PCHAR) & (pAd->SharedKey[BSS0][idx].Key[0]);
+			pKey = (char *)& (pAd->SharedKey[BSS0][idx].Key[0]);
 		}
 		break;
 	case Ndis802_11Encryption2Enabled:
@@ -2077,7 +2077,7 @@ rt_ioctl_giwencodeext(struct net_device *dev,
 			return -E2BIG;
 		else {
 			ext->key_len = 32;
-			pKey = (PCHAR) & pAd->StaCfg.PMK[0];
+			pKey = (char *)& pAd->StaCfg.PMK[0];
 		}
 		break;
 	default:
@@ -2140,7 +2140,7 @@ int rt_ioctl_giwgenie(struct net_device *dev,
 		wrqu->data.length = pAd->StaCfg.RSNIE_Len;
 		memcpy(extra, &pAd->StaCfg.RSN_IE[0], pAd->StaCfg.RSNIE_Len);
 	} else {
-		UCHAR RSNIe = IE_WPA;
+		u8 RSNIe = IE_WPA;
 
 		if (wrqu->data.length < (pAd->StaCfg.RSNIE_Len + 2))	/* ID, Len */
 			return -E2BIG;
@@ -2165,7 +2165,7 @@ int rt_ioctl_siwpmksa(struct net_device *dev,
 {
 	PRTMP_ADAPTER pAd = NULL;
 	struct iw_pmksa *pPmksa = (struct iw_pmksa *)wrqu->data.pointer;
-	INT CachedIdx = 0, idx = 0;
+	int CachedIdx = 0, idx = 0;
 
 	GET_PAD_FROM_NET_DEV(pAd, dev);
 
@@ -2268,7 +2268,7 @@ int rt_ioctl_siwrate(struct net_device *dev,
 		     union iwreq_data *wrqu, char *extra)
 {
 	PRTMP_ADAPTER pAd = NULL;
-	UINT32 rate = wrqu->bitrate.value, fixed = wrqu->bitrate.fixed;
+	u32 rate = wrqu->bitrate.value, fixed = wrqu->bitrate.fixed;
 
 	GET_PAD_FROM_NET_DEV(pAd, dev);
 
@@ -2359,15 +2359,15 @@ int rt_ioctl_giwrate(struct net_device *dev,
 		    pAd->MacTab.Content[BSSID_WCID].HTPhyMode.word;
 
 	if (ht_setting.field.MODE >= MODE_HTMIX) {
-/*      rate_index = 12 + ((UCHAR)ht_setting.field.BW *16) + ((UCHAR)ht_setting.field.ShortGI *32) + ((UCHAR)ht_setting.field.MCS); */
+/*      rate_index = 12 + ((u8)ht_setting.field.BW *16) + ((u8)ht_setting.field.ShortGI *32) + ((u8)ht_setting.field.MCS); */
 		rate_index =
-		    12 + ((UCHAR) ht_setting.field.BW * 24) +
-		    ((UCHAR) ht_setting.field.ShortGI * 48) +
-		    ((UCHAR) ht_setting.field.MCS);
+		    12 + ((u8)ht_setting.field.BW * 24) +
+		    ((u8)ht_setting.field.ShortGI * 48) +
+		    ((u8)ht_setting.field.MCS);
 	} else if (ht_setting.field.MODE == MODE_OFDM)
-		rate_index = (UCHAR) (ht_setting.field.MCS) + 4;
+		rate_index = (u8)(ht_setting.field.MCS) + 4;
 	else if (ht_setting.field.MODE == MODE_CCK)
-		rate_index = (UCHAR) (ht_setting.field.MCS);
+		rate_index = (u8)(ht_setting.field.MCS);
 
 	if (rate_index < 0)
 		rate_index = 0;
@@ -2447,14 +2447,14 @@ const struct iw_handler_def rt28xx_iw_handler_def = {
 #endif
 };
 
-INT rt28xx_sta_ioctl(IN struct net_device *net_dev,
-		     IN OUT struct ifreq *rq, IN INT cmd)
+int rt28xx_sta_ioctl(IN struct net_device *net_dev,
+		     IN OUT struct ifreq *rq, int cmd)
 {
 	POS_COOKIE pObj;
 	RTMP_ADAPTER *pAd = NULL;
 	struct iwreq *wrq = (struct iwreq *)rq;
 	BOOLEAN StateMachineTouched = FALSE;
-	INT Status = NDIS_STATUS_SUCCESS;
+	int Status = NDIS_STATUS_SUCCESS;
 
 	GET_PAD_FROM_NET_DEV(pAd, net_dev);
 
@@ -2522,7 +2522,7 @@ INT rt28xx_sta_ioctl(IN struct net_device *net_dev,
 		{
 			struct iw_point *erq = NULL;
 			erq = &wrq->u.data;
-			erq->length = strlen((PSTRING) pAd->nickname);
+			erq->length = strlen((char *)pAd->nickname);
 			Status =
 			    copy_to_user(erq->pointer, pAd->nickname,
 					 erq->length);
@@ -2639,7 +2639,7 @@ INT rt28xx_sta_ioctl(IN struct net_device *net_dev,
         TRUE if all parameters are OK, FALSE otherwise
     ==========================================================================
 */
-INT Set_SSID_Proc(IN PRTMP_ADAPTER pAdapter, IN PSTRING arg)
+int Set_SSID_Proc(IN PRTMP_ADAPTER pAdapter, char *arg)
 {
 	NDIS_802_11_SSID Ssid, *pSsid = NULL;
 	BOOLEAN StateMachineTouched = FALSE;
@@ -2669,18 +2669,18 @@ INT Set_SSID_Proc(IN PRTMP_ADAPTER pAdapter, IN PSTRING arg)
 
 		if ((pAdapter->StaCfg.WpaPassPhraseLen >= 8) &&
 		    (pAdapter->StaCfg.WpaPassPhraseLen <= 64)) {
-			STRING passphrase_str[65] = { 0 };
-			UCHAR keyMaterial[40];
+			char passphrase_str[65] = { 0 };
+			u8 keyMaterial[40];
 
 			RTMPMoveMemory(passphrase_str,
 				       pAdapter->StaCfg.WpaPassPhrase,
 				       pAdapter->StaCfg.WpaPassPhraseLen);
 			RTMPZeroMemory(pAdapter->StaCfg.PMK, 32);
 			if (pAdapter->StaCfg.WpaPassPhraseLen == 64) {
-				AtoH((PSTRING) pAdapter->StaCfg.WpaPassPhrase,
+				AtoH((char *)pAdapter->StaCfg.WpaPassPhrase,
 				     pAdapter->StaCfg.PMK, 32);
 			} else {
-				PasswordHash((PSTRING) pAdapter->StaCfg.
+				PasswordHash((char *)pAdapter->StaCfg.
 					     WpaPassPhrase, Ssid.Ssid,
 					     Ssid.SsidLength, keyMaterial);
 				NdisMoveMemory(pAdapter->StaCfg.PMK,
@@ -2695,7 +2695,7 @@ INT Set_SSID_Proc(IN PRTMP_ADAPTER pAdapter, IN PSTRING arg)
 		MlmeEnqueue(pAdapter,
 			    MLME_CNTL_STATE_MACHINE,
 			    OID_802_11_SSID,
-			    sizeof(NDIS_802_11_SSID), (VOID *) pSsid);
+			    sizeof(NDIS_802_11_SSID), (void *) pSsid);
 
 		StateMachineTouched = TRUE;
 		DBGPRINT(RT_DEBUG_TRACE,
@@ -2718,9 +2718,9 @@ INT Set_SSID_Proc(IN PRTMP_ADAPTER pAdapter, IN PSTRING arg)
         TRUE if all parameters are OK, FALSE otherwise
     ==========================================================================
 */
-INT Set_NetworkType_Proc(IN PRTMP_ADAPTER pAdapter, IN PSTRING arg)
+int Set_NetworkType_Proc(IN PRTMP_ADAPTER pAdapter, char *arg)
 {
-	UINT32 Value = 0;
+	u32 Value = 0;
 
 	if (strcmp(arg, "Adhoc") == 0) {
 		if (pAdapter->StaCfg.BssType != BSS_ADHOC) {
@@ -2789,7 +2789,7 @@ INT Set_NetworkType_Proc(IN PRTMP_ADAPTER pAdapter, IN PSTRING arg)
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("===>Set_NetworkType_Proc::(INFRA)\n"));
 	} else if (strcmp(arg, "Monitor") == 0) {
-		UCHAR bbpValue = 0;
+		u8 bbpValue = 0;
 		BCN_TIME_CFG_STRUC csr;
 		OPSTATUS_CLEAR_FLAG(pAdapter, fOP_STATUS_INFRA_ON);
 		OPSTATUS_CLEAR_FLAG(pAdapter, fOP_STATUS_ADHOC_ON);

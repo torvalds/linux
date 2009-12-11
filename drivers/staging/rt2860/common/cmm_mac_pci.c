@@ -48,16 +48,16 @@
 
 	========================================================================
 */
-NDIS_STATUS RTMPAllocTxRxRingMemory(IN PRTMP_ADAPTER pAd)
+int RTMPAllocTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 {
-	NDIS_STATUS Status = NDIS_STATUS_SUCCESS;
-	ULONG RingBasePaHigh;
-	ULONG RingBasePaLow;
-	PVOID RingBaseVa;
-	INT index, num;
+	int Status = NDIS_STATUS_SUCCESS;
+	unsigned long RingBasePaHigh;
+	unsigned long RingBasePaLow;
+	void *RingBaseVa;
+	int index, num;
 	PTXD_STRUC pTxD;
 	PRXD_STRUC pRxD;
-	ULONG ErrorValue = 0;
+	unsigned long ErrorValue = 0;
 	PRTMP_TX_RING pTxRing;
 	PRTMP_DMABUF pDmaBuf;
 	PNDIS_PACKET pPacket;
@@ -71,9 +71,9 @@ NDIS_STATUS RTMPAllocTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 		/* issue, I intentional set them all to 64 bytes. */
 		/* */
 		for (num = 0; num < NUM_OF_TX_RING; num++) {
-			ULONG BufBasePaHigh;
-			ULONG BufBasePaLow;
-			PVOID BufBaseVa;
+			unsigned long BufBasePaHigh;
+			unsigned long BufBasePaLow;
+			void *BufBaseVa;
 
 			/* */
 			/* Allocate Tx ring descriptor's memory (5 TX rings = 4 ACs + 1 HCCA) */
@@ -171,12 +171,12 @@ NDIS_STATUS RTMPAllocTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 				/* advance to next ring descriptor address */
 				pTxD->DMADONE = 1;
 				RingBasePaLow += TXD_SIZE;
-				RingBaseVa = (PUCHAR) RingBaseVa + TXD_SIZE;
+				RingBaseVa = (u8 *)RingBaseVa + TXD_SIZE;
 
 				/* advance to next TxBuf address */
 				BufBasePaLow += TX_DMA_1ST_BUFFER_SIZE;
 				BufBaseVa =
-				    (PUCHAR) BufBaseVa + TX_DMA_1ST_BUFFER_SIZE;
+				    (u8 *)BufBaseVa + TX_DMA_1ST_BUFFER_SIZE;
 			}
 			DBGPRINT(RT_DEBUG_TRACE,
 				 ("TxRing[%d]: total %d entry allocated\n", num,
@@ -228,7 +228,7 @@ NDIS_STATUS RTMPAllocTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 
 			/* Offset to next ring descriptor address */
 			RingBasePaLow += TXD_SIZE;
-			RingBaseVa = (PUCHAR) RingBaseVa + TXD_SIZE;
+			RingBaseVa = (u8 *)RingBaseVa + TXD_SIZE;
 
 			/* link the pre-allocated TxBuf to TXD */
 			pTxD = (PTXD_STRUC) pAd->MgmtRing.Cell[index].AllocVa;
@@ -286,7 +286,7 @@ NDIS_STATUS RTMPAllocTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 
 			/* Offset to next ring descriptor address */
 			RingBasePaLow += RXD_SIZE;
-			RingBaseVa = (PUCHAR) RingBaseVa + RXD_SIZE;
+			RingBaseVa = (u8 *)RingBaseVa + RXD_SIZE;
 
 			/* Setup Rx associated Buffer size & allocate share memory */
 			pDmaBuf = &pAd->RxRing.Cell[index].DmaBuf;
@@ -400,7 +400,7 @@ NDIS_STATUS RTMPAllocTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-VOID RTMPRingCleanUp(IN PRTMP_ADAPTER pAd, IN UCHAR RingType)
+void RTMPRingCleanUp(IN PRTMP_ADAPTER pAd, u8 RingType)
 {
 	PTXD_STRUC pTxD;
 	PRXD_STRUC pRxD;
@@ -409,7 +409,7 @@ VOID RTMPRingCleanUp(IN PRTMP_ADAPTER pAd, IN UCHAR RingType)
 	int i;
 	PRTMP_TX_RING pTxRing;
 	unsigned long IrqFlags;
-	/*UINT32                        RxSwReadIdx; */
+	/*u32                        RxSwReadIdx; */
 
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("RTMPRingCleanUp(RingIdx=%d, Pending-NDIS=%ld)\n", RingType,
@@ -533,7 +533,7 @@ VOID RTMPRingCleanUp(IN PRTMP_ADAPTER pAd, IN UCHAR RingType)
 	}
 }
 
-VOID RTMPFreeTxRxRingMemory(IN PRTMP_ADAPTER pAd)
+void RTMPFreeTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 {
 	int index, num, j;
 	PRTMP_TX_RING pTxRing;
@@ -667,7 +667,7 @@ Return Value:
 Note:
 ========================================================================
 */
-VOID RT28XXDMADisable(IN RTMP_ADAPTER * pAd)
+void RT28XXDMADisable(IN RTMP_ADAPTER * pAd)
 {
 	WPDMA_GLO_CFG_STRUC GloCfg;
 
@@ -691,7 +691,7 @@ Return Value:
 Note:
 ========================================================================
 */
-VOID RT28XXDMAEnable(IN RTMP_ADAPTER * pAd)
+void RT28XXDMAEnable(IN RTMP_ADAPTER * pAd)
 {
 	WPDMA_GLO_CFG_STRUC GloCfg;
 	int i = 0;
@@ -721,10 +721,10 @@ VOID RT28XXDMAEnable(IN RTMP_ADAPTER * pAd)
 
 }
 
-BOOLEAN AsicCheckCommanOk(IN PRTMP_ADAPTER pAd, IN UCHAR Command)
+BOOLEAN AsicCheckCommanOk(IN PRTMP_ADAPTER pAd, u8 Command)
 {
-	UINT32 CmdStatus = 0, CID = 0, i;
-	UINT32 ThisCIDMask = 0;
+	u32 CmdStatus = 0, CID = 0, i;
+	u32 ThisCIDMask = 0;
 
 	i = 0;
 	do {
@@ -794,15 +794,15 @@ Return Value:
 Note:
 ========================================================================
 */
-VOID RT28xx_UpdateBeaconToAsic(IN RTMP_ADAPTER * pAd,
-			       IN INT apidx,
-			       IN ULONG FrameLen, IN ULONG UpdatePos)
+void RT28xx_UpdateBeaconToAsic(IN RTMP_ADAPTER * pAd,
+			       int apidx,
+			       unsigned long FrameLen, unsigned long UpdatePos)
 {
-	ULONG CapInfoPos = 0;
-	UCHAR *ptr, *ptr_update, *ptr_capinfo;
-	UINT i;
+	unsigned long CapInfoPos = 0;
+	u8 *ptr, *ptr_update, *ptr_capinfo;
+	u32 i;
 	BOOLEAN bBcnReq = FALSE;
-	UCHAR bcn_idx = 0;
+	u8 bcn_idx = 0;
 
 	{
 		DBGPRINT(RT_DEBUG_ERROR,
@@ -821,10 +821,10 @@ VOID RT28xx_UpdateBeaconToAsic(IN RTMP_ADAPTER * pAd,
 			RTMP_IO_WRITE32(pAd, pAd->BeaconOffset[bcn_idx] + i,
 					0x00);
 	} else {
-		ptr = (PUCHAR) & pAd->BeaconTxWI;
+		ptr = (u8 *)& pAd->BeaconTxWI;
 		for (i = 0; i < TXWI_SIZE; i += 4)	/* 16-byte TXWI field */
 		{
-			UINT32 longptr =
+			u32 longptr =
 			    *ptr + (*(ptr + 1) << 8) + (*(ptr + 2) << 16) +
 			    (*(ptr + 3) << 24);
 			RTMP_IO_WRITE32(pAd, pAd->BeaconOffset[bcn_idx] + i,
@@ -853,7 +853,7 @@ VOID RT28xx_UpdateBeaconToAsic(IN RTMP_ADAPTER * pAd,
 
 }
 
-VOID RT28xxPciStaAsicForceWakeup(IN PRTMP_ADAPTER pAd, IN BOOLEAN bFromTx)
+void RT28xxPciStaAsicForceWakeup(IN PRTMP_ADAPTER pAd, IN BOOLEAN bFromTx)
 {
 	AUTO_WAKEUP_STRUC AutoWakeupCfg;
 
@@ -949,8 +949,8 @@ VOID RT28xxPciStaAsicForceWakeup(IN PRTMP_ADAPTER pAd, IN BOOLEAN bFromTx)
 	DBGPRINT(RT_DEBUG_TRACE, ("<=======RT28xxPciStaAsicForceWakeup\n"));
 }
 
-VOID RT28xxPciStaAsicSleepThenAutoWakeup(IN PRTMP_ADAPTER pAd,
-					 IN USHORT TbttNumToNextWakeUp)
+void RT28xxPciStaAsicSleepThenAutoWakeup(IN PRTMP_ADAPTER pAd,
+					 u16 TbttNumToNextWakeUp)
 {
 	BOOLEAN brc;
 
@@ -960,7 +960,7 @@ VOID RT28xxPciStaAsicSleepThenAutoWakeup(IN PRTMP_ADAPTER pAd,
 	}
 	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE)
 	    && pAd->StaCfg.PSControl.field.EnableNewPS == TRUE) {
-		ULONG Now = 0;
+		unsigned long Now = 0;
 		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WAKEUP_NOW)) {
 			DBGPRINT(RT_DEBUG_TRACE, ("waking up now!\n"));
 			OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_DOZE);
@@ -1016,9 +1016,9 @@ VOID RT28xxPciStaAsicSleepThenAutoWakeup(IN PRTMP_ADAPTER pAd,
 
 }
 
-VOID PsPollWakeExec(IN PVOID SystemSpecific1,
-		    IN PVOID FunctionContext,
-		    IN PVOID SystemSpecific2, IN PVOID SystemSpecific3)
+void PsPollWakeExec(void *SystemSpecific1,
+		    void *FunctionContext,
+		    void *SystemSpecific2, void *SystemSpecific3)
 {
 	RTMP_ADAPTER *pAd = (RTMP_ADAPTER *) FunctionContext;
 	unsigned long flags;
@@ -1044,9 +1044,9 @@ VOID PsPollWakeExec(IN PVOID SystemSpecific1,
 #endif /* PCIE_PS_SUPPORT // */
 }
 
-VOID RadioOnExec(IN PVOID SystemSpecific1,
-		 IN PVOID FunctionContext,
-		 IN PVOID SystemSpecific2, IN PVOID SystemSpecific3)
+void RadioOnExec(void *SystemSpecific1,
+		 void *FunctionContext,
+		 void *SystemSpecific2, void *SystemSpecific3)
 {
 	RTMP_ADAPTER *pAd = (RTMP_ADAPTER *) FunctionContext;
 	RTMP_CHIP_OP *pChipOps = &pAd->chipOps;
@@ -1164,11 +1164,11 @@ VOID RadioOnExec(IN PVOID SystemSpecific1,
 
 	==========================================================================
  */
-BOOLEAN RT28xxPciAsicRadioOn(IN PRTMP_ADAPTER pAd, IN UCHAR Level)
+BOOLEAN RT28xxPciAsicRadioOn(IN PRTMP_ADAPTER pAd, u8 Level)
 {
 	/*WPDMA_GLO_CFG_STRUC       DmaCfg; */
 	BOOLEAN Cancelled;
-	/*UINT32                        MACValue; */
+	/*u32                        MACValue; */
 
 	if (pAd->OpMode == OPMODE_AP && Level == DOT11POWERSAVE)
 		return FALSE;
@@ -1287,15 +1287,15 @@ BOOLEAN RT28xxPciAsicRadioOn(IN PRTMP_ADAPTER pAd, IN UCHAR Level)
 	==========================================================================
  */
 BOOLEAN RT28xxPciAsicRadioOff(IN PRTMP_ADAPTER pAd,
-			      IN UCHAR Level, IN USHORT TbttNumToNextWakeUp)
+			      u8 Level, u16 TbttNumToNextWakeUp)
 {
 	WPDMA_GLO_CFG_STRUC DmaCfg;
-	UCHAR i, tempBBP_R3 = 0;
+	u8 i, tempBBP_R3 = 0;
 	BOOLEAN brc = FALSE, Cancelled;
-	UINT32 TbTTTime = 0;
-	UINT32 PsPollTime = 0 /*, MACValue */ ;
-	ULONG BeaconPeriodTime;
-	UINT32 RxDmaIdx, RxCpuIdx;
+	u32 TbTTTime = 0;
+	u32 PsPollTime = 0 /*, MACValue */ ;
+	unsigned long BeaconPeriodTime;
+	u32 RxDmaIdx, RxCpuIdx;
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("AsicRadioOff ===> Lv= %d, TxCpuIdx = %d, TxDmaIdx = %d. RxCpuIdx = %d, RxDmaIdx = %d.\n",
 		  Level, pAd->TxRing[0].TxCpuIdx, pAd->TxRing[0].TxDmaIdx,
@@ -1497,7 +1497,7 @@ BOOLEAN RT28xxPciAsicRadioOff(IN PRTMP_ADAPTER pAd,
 	return TRUE;
 }
 
-VOID RT28xxPciMlmeRadioOn(IN PRTMP_ADAPTER pAd)
+void RT28xxPciMlmeRadioOn(IN PRTMP_ADAPTER pAd)
 {
 	if (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF))
 		return;
@@ -1546,7 +1546,7 @@ VOID RT28xxPciMlmeRadioOn(IN PRTMP_ADAPTER pAd)
 	}
 }
 
-VOID RT28xxPciMlmeRadioOFF(IN PRTMP_ADAPTER pAd)
+void RT28xxPciMlmeRadioOFF(IN PRTMP_ADAPTER pAd)
 {
 	BOOLEAN brc = TRUE;
 

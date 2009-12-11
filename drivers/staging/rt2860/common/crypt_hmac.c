@@ -46,16 +46,16 @@ Note:
     None
 ========================================================================
 */
-VOID HMAC_SHA1(IN const UINT8 Key[],
-	       IN UINT KeyLen,
-	       IN const UINT8 Message[],
-	       IN UINT MessageLen, OUT UINT8 MAC[], IN UINT MACLen)
+void HMAC_SHA1(IN const u8 Key[],
+	       u32 KeyLen,
+	       IN const u8 Message[],
+	       u32 MessageLen, u8 MAC[], u32 MACLen)
 {
 	SHA1_CTX_STRUC sha_ctx1;
 	SHA1_CTX_STRUC sha_ctx2;
-	UINT8 K0[SHA1_BLOCK_SIZE];
-	UINT8 Digest[SHA1_DIGEST_SIZE];
-	UINT index;
+	u8 K0[SHA1_BLOCK_SIZE];
+	u8 Digest[SHA1_DIGEST_SIZE];
+	u32 index;
 
 	NdisZeroMemory(&sha_ctx1, sizeof(SHA1_CTX_STRUC));
 	NdisZeroMemory(&sha_ctx2, sizeof(SHA1_CTX_STRUC));
@@ -125,16 +125,16 @@ Note:
     None
 ========================================================================
 */
-VOID HMAC_MD5(IN const UINT8 Key[],
-	      IN UINT KeyLen,
-	      IN const UINT8 Message[],
-	      IN UINT MessageLen, OUT UINT8 MAC[], IN UINT MACLen)
+void HMAC_MD5(IN const u8 Key[],
+	      u32 KeyLen,
+	      IN const u8 Message[],
+	      u32 MessageLen, u8 MAC[], u32 MACLen)
 {
 	MD5_CTX_STRUC md5_ctx1;
 	MD5_CTX_STRUC md5_ctx2;
-	UINT8 K0[MD5_BLOCK_SIZE];
-	UINT8 Digest[MD5_DIGEST_SIZE];
-	UINT index;
+	u8 K0[MD5_BLOCK_SIZE];
+	u8 Digest[MD5_DIGEST_SIZE];
+	u32 index;
 
 	NdisZeroMemory(&md5_ctx1, sizeof(MD5_CTX_STRUC));
 	NdisZeroMemory(&md5_ctx2, sizeof(MD5_CTX_STRUC));

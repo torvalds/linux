@@ -41,11 +41,11 @@
 #ifdef SHA1_SUPPORT
 /* SHA1 constants */
 #define SHA1_MASK 0x0000000f
-static const UINT32 SHA1_K[4] = {
+static const u32 SHA1_K[4] = {
 	0x5a827999UL, 0x6ed9eba1UL, 0x8f1bbcdcUL, 0xca62c1d6UL
 };
 
-static const UINT32 SHA1_DefaultHashValue[5] = {
+static const u32 SHA1_DefaultHashValue[5] = {
 	0x67452301UL, 0xefcdab89UL, 0x98badcfeUL, 0x10325476UL, 0xc3d2e1f0UL
 };
 
@@ -64,7 +64,7 @@ Note:
     None
 ========================================================================
 */
-VOID RT_SHA1_Init(IN SHA1_CTX_STRUC * pSHA_CTX)
+void RT_SHA1_Init(IN SHA1_CTX_STRUC * pSHA_CTX)
 {
 	NdisMoveMemory(pSHA_CTX->HashValue, SHA1_DefaultHashValue,
 		       sizeof(SHA1_DefaultHashValue));
@@ -88,11 +88,11 @@ Note:
     None
 ========================================================================
 */
-VOID SHA1_Hash(IN SHA1_CTX_STRUC * pSHA_CTX)
+void SHA1_Hash(IN SHA1_CTX_STRUC * pSHA_CTX)
 {
-	UINT32 W_i, t, s;
-	UINT32 W[16];
-	UINT32 a, b, c, d, e, T, f_t = 0;
+	u32 W_i, t, s;
+	u32 W[16];
+	u32 a, b, c, d, e, T, f_t = 0;
 
 	/* Prepare the message schedule, {W_i}, 0 < t < 15 */
 	NdisMoveMemory(W, pSHA_CTX->Block, SHA1_BLOCK_SIZE);
@@ -168,11 +168,11 @@ Note:
     None
 ========================================================================
 */
-VOID SHA1_Append(IN SHA1_CTX_STRUC * pSHA_CTX,
-		 IN const UINT8 Message[], IN UINT MessageLen)
+void SHA1_Append(IN SHA1_CTX_STRUC * pSHA_CTX,
+		 IN const u8 Message[], u32 MessageLen)
 {
-	UINT appendLen = 0;
-	UINT diffLen = 0;
+	u32 appendLen = 0;
+	u32 diffLen = 0;
 
 	while (appendLen != MessageLen) {
 		diffLen = MessageLen - appendLen;
@@ -210,10 +210,10 @@ Note:
     None
 ========================================================================
 */
-VOID SHA1_End(IN SHA1_CTX_STRUC * pSHA_CTX, OUT UINT8 DigestMessage[])
+void SHA1_End(IN SHA1_CTX_STRUC * pSHA_CTX, u8 DigestMessage[])
 {
-	UINT index;
-	UINT64 message_length_bits;
+	u32 index;
+	u64 message_length_bits;
 
 	/* Append bit 1 to end of the message */
 	NdisFillMemory(pSHA_CTX->Block + pSHA_CTX->BlockLen, 1, 0x80);
@@ -229,7 +229,7 @@ VOID SHA1_End(IN SHA1_CTX_STRUC * pSHA_CTX, OUT UINT8 DigestMessage[])
 	NdisMoveMemory(&pSHA_CTX->Block[56], &message_length_bits, 8);
 	SHA1_Hash(pSHA_CTX);
 
-	/* Return message digest, transform the UINT32 hash value to bytes */
+	/* Return message digest, transform the u32 hash value to bytes */
 	for (index = 0; index < 5; index++)
 		pSHA_CTX->HashValue[index] =
 		    cpu2be32(pSHA_CTX->HashValue[index]);
@@ -253,8 +253,8 @@ Note:
     None
 ========================================================================
 */
-VOID RT_SHA1(IN const UINT8 Message[],
-	     IN UINT MessageLen, OUT UINT8 DigestMessage[])
+void RT_SHA1(IN const u8 Message[],
+	     u32 MessageLen, u8 DigestMessage[])
 {
 
 	SHA1_CTX_STRUC sha_ctx;

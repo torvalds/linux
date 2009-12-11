@@ -143,7 +143,7 @@ struct usb_device_id rtusb_usb_id[] = {
 	{}			/* Terminating entry */
 };
 
-INT const rtusb_usb_id_len =
+int const rtusb_usb_id_len =
     sizeof(rtusb_usb_id) / sizeof(struct usb_device_id);
 
 MODULE_DEVICE_TABLE(usb, rtusb_usb_id);
@@ -185,7 +185,7 @@ BOOLEAN RT28XXChipsetCheck(IN void *_dev_p)
 {
 	struct usb_interface *intf = (struct usb_interface *)_dev_p;
 	struct usb_device *dev_p = interface_to_usbdev(intf);
-	UINT32 i;
+	u32 i;
 
 	for (i = 0; i < rtusb_usb_id_len; i++) {
 		if (dev_p->descriptor.idVendor == rtusb_usb_id[i].idVendor &&
@@ -225,8 +225,8 @@ static BOOLEAN USBDevConfigInit(IN struct usb_device *dev,
 				IN RTMP_ADAPTER * pAd)
 {
 	struct usb_host_interface *iface_desc;
-	ULONG BulkOutIdx;
-	UINT32 i;
+	unsigned long BulkOutIdx;
+	u32 i;
 
 	/* get the active interface descriptor */
 	iface_desc = intf->cur_altsetting;
@@ -338,7 +338,7 @@ resume:rt2870_resume,
 
 #ifdef CONFIG_PM
 
-VOID RT2870RejectPendingPackets(IN PRTMP_ADAPTER pAd)
+void RT2870RejectPendingPackets(IN PRTMP_ADAPTER pAd)
 {
 	/* clear PS packets */
 	/* clear TxSw packets */
@@ -382,14 +382,14 @@ static int rt2870_resume(struct usb_interface *intf)
 #endif /* CONFIG_PM // */
 
 /* Init driver module */
-INT __init rtusb_init(void)
+int __init rtusb_init(void)
 {
 	printk("rtusb init --->\n");
 	return usb_register(&rtusb_driver);
 }
 
 /* Deinit driver module */
-VOID __exit rtusb_exit(void)
+void __exit rtusb_exit(void)
 {
 	usb_deregister(&rtusb_driver);
 	printk("<--- rtusb exit\n");
@@ -416,7 +416,7 @@ Return Value:
 Note:
 ========================================================================
 */
-INT MlmeThread(IN void *Context)
+int MlmeThread(IN void *Context)
 {
 	RTMP_ADAPTER *pAd;
 	RTMP_OS_TASK *pTask;
@@ -485,7 +485,7 @@ Return Value:
 Note:
 ========================================================================
 */
-INT RTUSBCmdThread(IN void *Context)
+int RTUSBCmdThread(IN void *Context)
 {
 	RTMP_ADAPTER *pAd;
 	RTMP_OS_TASK *pTask;
@@ -533,13 +533,13 @@ INT RTUSBCmdThread(IN void *Context)
 					if (pCmdQElmt->buffer != NULL)
 						os_free_mem(pAd,
 							    pCmdQElmt->buffer);
-					os_free_mem(pAd, (PUCHAR) pCmdQElmt);
+					os_free_mem(pAd, (u8 *)pCmdQElmt);
 				} else {
 					if ((pCmdQElmt->buffer != NULL)
 					    && (pCmdQElmt->bufferlength != 0))
 						os_free_mem(pAd,
 							    pCmdQElmt->buffer);
-					os_free_mem(pAd, (PUCHAR) pCmdQElmt);
+					os_free_mem(pAd, (u8 *)pCmdQElmt);
 				}
 			}
 		}
@@ -570,15 +570,15 @@ INT RTUSBCmdThread(IN void *Context)
 
 }
 
-VOID RTUSBWatchDog(IN RTMP_ADAPTER * pAd)
+void RTUSBWatchDog(IN RTMP_ADAPTER * pAd)
 {
 	PHT_TX_CONTEXT pHTTXContext;
 	int idx;
-	ULONG irqFlags;
+	unsigned long irqFlags;
 	PURB pUrb;
 	BOOLEAN needDumpSeq = FALSE;
-	UINT32 MACValue;
-	UINT32 TxRxQ_Pcnt;
+	u32 MACValue;
+	u32 TxRxQ_Pcnt;
 
 	idx = 0;
 	RTMP_IO_READ32(pAd, TXRXQ_PCNT, &MACValue);
@@ -621,7 +621,7 @@ VOID RTUSBWatchDog(IN RTMP_ADAPTER * pAd)
 		RTMP_IRQ_LOCK(&pAd->BulkOutLock[idx], irqFlags);
 		if ((pAd->BulkOutPending[idx] == TRUE)
 		    && pAd->watchDogTxPendingCnt) {
-			INT actual_length = 0, transfer_buffer_length = 0;
+			int actual_length = 0, transfer_buffer_length = 0;
 			BOOLEAN isDataPacket = FALSE;
 			pAd->watchDogTxPendingCnt[idx]++;
 
@@ -723,9 +723,9 @@ VOID RTUSBWatchDog(IN RTMP_ADAPTER * pAd)
 
 	/* For Sigma debug, dump the ba_reordering sequence. */
 	if ((needDumpSeq == TRUE) && (pAd->CommonCfg.bDisableReordering == 0)) {
-		USHORT Idx;
+		u16 Idx;
 		PBA_REC_ENTRY pBAEntry = NULL;
-		UCHAR count = 0;
+		u8 count = 0;
 		struct reordering_mpdu *mpdu_blk;
 
 		Idx = pAd->MacTab.Content[BSSID_WCID].BARecWcidArray[0];
@@ -809,8 +809,8 @@ static int __devinit rt2870_probe(IN struct usb_interface *intf,
 {
 	struct net_device *net_dev = NULL;
 	RTMP_ADAPTER *pAd = (RTMP_ADAPTER *) NULL;
-	INT status, rv;
-	PVOID handle;
+	int status, rv;
+	void *handle;
 	RTMP_OS_NETDEV_OP_HOOK netDevHook;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("===>rt2870_probe()!\n"));

@@ -42,26 +42,26 @@
   *	Public function declarations for prom-based chipset
   ************************************************************************/
 int rtmp_ee_prom_read16(IN PRTMP_ADAPTER pAd,
-			IN USHORT Offset, OUT USHORT * pValue);
+			u16 Offset, u16 * pValue);
 #endif /* RTMP_PCI_SUPPORT // */
 #ifdef RTMP_USB_SUPPORT
 /*************************************************************************
   *	Public function declarations for usb-based prom chipset
   ************************************************************************/
-NTSTATUS RTUSBReadEEPROM16(IN PRTMP_ADAPTER pAd,
-			   IN USHORT offset, OUT PUSHORT pData);
+int RTUSBReadEEPROM16(IN PRTMP_ADAPTER pAd,
+			   u16 offset, u16 *pData);
 #endif /* RTMP_USB_SUPPORT // */
 
 #ifdef RT30xx
 #ifdef RTMP_EFUSE_SUPPORT
 int rtmp_ee_efuse_read16(IN RTMP_ADAPTER * pAd,
-			 IN USHORT Offset, OUT USHORT * pValue);
+			 u16 Offset, u16 * pValue);
 #endif /* RTMP_EFUSE_SUPPORT // */
 #endif /* RT30xx // */
 
 /*************************************************************************
   *	Public function declarations for prom operation callback functions setting
   ************************************************************************/
-INT RtmpChipOpsEepromHook(IN RTMP_ADAPTER * pAd, IN INT infType);
+int RtmpChipOpsEepromHook(IN RTMP_ADAPTER * pAd, int infType);
 
 #endif /* __EEPROM_H__ // */

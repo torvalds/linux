@@ -43,22 +43,22 @@
 #error "You Should Enable compile flag RTMP_RF_RW_SUPPORT for this chip"
 #endif /* RTMP_RF_RW_SUPPORT // */
 
-VOID NICInitRT3090RFRegisters(IN PRTMP_ADAPTER pAd)
+void NICInitRT3090RFRegisters(IN PRTMP_ADAPTER pAd)
 {
-	INT i;
+	int i;
 	/* Driver must read EEPROM to get RfIcType before initial RF registers */
 	/* Initialize RF register to default value */
 	if (IS_RT3090(pAd)) {
 		/* Init RF calibration */
 		/* Driver should toggle RF R30 bit7 before init RF registers */
-		UINT32 RfReg = 0, data;
+		u32 RfReg = 0, data;
 
-		RT30xxReadRFRegister(pAd, RF_R30, (PUCHAR) & RfReg);
+		RT30xxReadRFRegister(pAd, RF_R30, (u8 *)& RfReg);
 		RfReg |= 0x80;
-		RT30xxWriteRFRegister(pAd, RF_R30, (UCHAR) RfReg);
+		RT30xxWriteRFRegister(pAd, RF_R30, (u8)RfReg);
 		RTMPusecDelay(1000);
 		RfReg &= 0x7F;
-		RT30xxWriteRFRegister(pAd, RF_R30, (UCHAR) RfReg);
+		RT30xxWriteRFRegister(pAd, RF_R30, (u8)RfReg);
 
 		/* init R24, R31 */
 		RT30xxWriteRFRegister(pAd, RF_R24, 0x0F);
@@ -90,9 +90,9 @@ VOID NICInitRT3090RFRegisters(IN PRTMP_ADAPTER pAd)
 		}
 
 		/* Driver should set RF R6 bit6 on before calibration */
-		RT30xxReadRFRegister(pAd, RF_R06, (PUCHAR) & RfReg);
+		RT30xxReadRFRegister(pAd, RF_R06, (u8 *)& RfReg);
 		RfReg |= 0x40;
-		RT30xxWriteRFRegister(pAd, RF_R06, (UCHAR) RfReg);
+		RT30xxWriteRFRegister(pAd, RF_R06, (u8)RfReg);
 
 		/*For RF filter Calibration */
 		RTMPFilterCalibration(pAd);

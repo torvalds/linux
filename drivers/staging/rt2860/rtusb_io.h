@@ -79,25 +79,25 @@
 /*CMDTHREAD_VENDOR_EEPROM_READ */
 /*CMDTHREAD_VENDOR_EEPROM_WRITE */
 typedef struct _CMDHandler_TLV {
-	USHORT Offset;
-	USHORT Length;
-	UCHAR DataFirst;
+	u16 Offset;
+	u16 Length;
+	u8 DataFirst;
 } CMDHandler_TLV, *PCMDHandler_TLV;
 
 typedef struct _CmdQElmt {
-	UINT command;
-	PVOID buffer;
-	ULONG bufferlength;
+	u32 command;
+	void *buffer;
+	unsigned long bufferlength;
 	BOOLEAN CmdFromNdis;
 	BOOLEAN SetOperation;
 	struct _CmdQElmt *next;
 } CmdQElmt, *PCmdQElmt;
 
 typedef struct _CmdQ {
-	UINT size;
+	u32 size;
 	CmdQElmt *head;
 	CmdQElmt *tail;
-	UINT32 CmdQState;
+	u32 CmdQState;
 } CmdQ, *PCmdQ;
 
 #define EnqueueCmd(cmdq, cmdqelmt)		\

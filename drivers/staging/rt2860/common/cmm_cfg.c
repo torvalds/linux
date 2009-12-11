@@ -80,10 +80,10 @@ char *GetBW(int BW)
         TRUE if all parameters are OK, FALSE otherwise
     ==========================================================================
 */
-INT RT_CfgSetCountryRegion(IN PRTMP_ADAPTER pAd, IN PSTRING arg, IN INT band)
+int RT_CfgSetCountryRegion(IN PRTMP_ADAPTER pAd, char *arg, int band)
 {
-	LONG region, regionMax;
-	UCHAR *pCountryRegion;
+	long region, regionMax;
+	u8 *pCountryRegion;
 
 	region = simple_strtol(arg, 0, 10);
 
@@ -104,9 +104,9 @@ INT RT_CfgSetCountryRegion(IN PRTMP_ADAPTER pAd, IN PSTRING arg, IN INT band)
 	}
 
 	if ((region >= 0) && (region <= REGION_MAXIMUM_BG_BAND)) {
-		*pCountryRegion = (UCHAR) region;
+		*pCountryRegion = (u8)region;
 	} else if ((region == REGION_31_BG_BAND) && (band == BAND_24G)) {
-		*pCountryRegion = (UCHAR) region;
+		*pCountryRegion = (u8)region;
 	} else {
 		DBGPRINT(RT_DEBUG_ERROR,
 			 ("CfgSetCountryRegion():region(%ld) out of range!\n",
@@ -126,10 +126,10 @@ INT RT_CfgSetCountryRegion(IN PRTMP_ADAPTER pAd, IN PSTRING arg, IN INT band)
         TRUE if all parameters are OK, FALSE otherwise
     ==========================================================================
 */
-INT RT_CfgSetWirelessMode(IN PRTMP_ADAPTER pAd, IN PSTRING arg)
+int RT_CfgSetWirelessMode(IN PRTMP_ADAPTER pAd, char *arg)
 {
-	INT MaxPhyMode = PHY_11G;
-	LONG WirelessMode;
+	int MaxPhyMode = PHY_11G;
+	long WirelessMode;
 
 	MaxPhyMode = PHY_11N_5G;
 
@@ -143,9 +143,9 @@ INT RT_CfgSetWirelessMode(IN PRTMP_ADAPTER pAd, IN PSTRING arg)
 
 }
 
-INT RT_CfgSetShortSlot(IN PRTMP_ADAPTER pAd, IN PSTRING arg)
+int RT_CfgSetShortSlot(IN PRTMP_ADAPTER pAd, char *arg)
 {
-	LONG ShortSlot;
+	long ShortSlot;
 
 	ShortSlot = simple_strtol(arg, 0, 10);
 
@@ -167,13 +167,13 @@ INT RT_CfgSetShortSlot(IN PRTMP_ADAPTER pAd, IN PSTRING arg)
         TRUE if all parameters are OK, FALSE otherwise
     ==========================================================================
 */
-INT RT_CfgSetWepKey(IN PRTMP_ADAPTER pAd,
-		    IN PSTRING keyString,
-		    IN CIPHER_KEY * pSharedKey, IN INT keyIdx)
+int RT_CfgSetWepKey(IN PRTMP_ADAPTER pAd,
+		    char *keyString,
+		    IN CIPHER_KEY * pSharedKey, int keyIdx)
 {
-	INT KeyLen;
-	INT i;
-	UCHAR CipherAlg = CIPHER_NONE;
+	int KeyLen;
+	int i;
+	u8 CipherAlg = CIPHER_NONE;
 	BOOLEAN bKeyIsHex = FALSE;
 
 	/* TODO: Shall we do memset for the original key info?? */
@@ -230,13 +230,13 @@ INT RT_CfgSetWepKey(IN PRTMP_ADAPTER pAd,
         TRUE if all parameters are OK, FALSE otherwise
     ==========================================================================
 */
-INT RT_CfgSetWPAPSKKey(IN RTMP_ADAPTER * pAd,
-		       IN PSTRING keyString,
-		       IN UCHAR * pHashStr,
-		       IN INT hashStrLen, OUT PUCHAR pPMKBuf)
+int RT_CfgSetWPAPSKKey(IN RTMP_ADAPTER * pAd,
+		       char *keyString,
+		       u8 * pHashStr,
+		       int hashStrLen, u8 *pPMKBuf)
 {
 	int keyLen;
-	UCHAR keyMaterial[40];
+	u8 keyMaterial[40];
 
 	keyLen = strlen(keyString);
 	if ((keyLen < 8) || (keyLen > 64)) {

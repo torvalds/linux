@@ -144,7 +144,7 @@ CH_FREQ_MAP CH_HZ_ID_MAP[] = {
 	,			/* Japan, means J16 */
 };
 
-INT CH_HZ_ID_MAP_NUM = (sizeof(CH_HZ_ID_MAP) / sizeof(CH_FREQ_MAP));
+int CH_HZ_ID_MAP_NUM = (sizeof(CH_HZ_ID_MAP) / sizeof(CH_FREQ_MAP));
 
 CH_REGION ChRegion[] = {
 	{			/* Antigua and Berbuda */
@@ -1422,14 +1422,14 @@ CH_REGION ChRegion[] = {
 	,
 };
 
-static PCH_REGION GetChRegion(IN PUCHAR CntryCode)
+static PCH_REGION GetChRegion(u8 *CntryCode)
 {
-	INT loop = 0;
+	int loop = 0;
 	PCH_REGION pChRegion = NULL;
 
-	while (strcmp((PSTRING) ChRegion[loop].CountReg, "") != 0) {
+	while (strcmp((char *)ChRegion[loop].CountReg, "") != 0) {
 		if (strncmp
-		    ((PSTRING) ChRegion[loop].CountReg, (PSTRING) CntryCode,
+		    ((char *)ChRegion[loop].CountReg, (char *)CntryCode,
 		     2) == 0) {
 			pChRegion = &ChRegion[loop];
 			break;
@@ -1442,7 +1442,7 @@ static PCH_REGION GetChRegion(IN PUCHAR CntryCode)
 	return pChRegion;
 }
 
-static VOID ChBandCheck(IN UCHAR PhyMode, OUT PUCHAR pChType)
+static void ChBandCheck(u8 PhyMode, u8 *pChType)
 {
 	switch (PhyMode) {
 	case PHY_11A:
@@ -1461,12 +1461,12 @@ static VOID ChBandCheck(IN UCHAR PhyMode, OUT PUCHAR pChType)
 	}
 }
 
-static UCHAR FillChList(IN PRTMP_ADAPTER pAd,
+static u8 FillChList(IN PRTMP_ADAPTER pAd,
 			IN PCH_DESP pChDesp,
-			IN UCHAR Offset, IN UCHAR increment)
+			u8 Offset, u8 increment)
 {
-	INT i, j, l;
-	UCHAR channel;
+	int i, j, l;
+	u8 channel;
 
 	j = Offset;
 	for (i = 0; i < pChDesp->NumOfCh; i++) {
@@ -1494,14 +1494,14 @@ static UCHAR FillChList(IN PRTMP_ADAPTER pAd,
 	return j;
 }
 
-static inline VOID CreateChList(IN PRTMP_ADAPTER pAd,
-				IN PCH_REGION pChRegion, IN UCHAR Geography)
+static inline void CreateChList(IN PRTMP_ADAPTER pAd,
+				IN PCH_REGION pChRegion, u8 Geography)
 {
-	INT i;
-	UCHAR offset = 0;
+	int i;
+	u8 offset = 0;
 	PCH_DESP pChDesp;
-	UCHAR ChType;
-	UCHAR increment;
+	u8 ChType;
+	u8 increment;
 
 	if (pChRegion == NULL)
 		return;
@@ -1532,7 +1532,7 @@ static inline VOID CreateChList(IN PRTMP_ADAPTER pAd,
 	}
 }
 
-VOID BuildChannelListEx(IN PRTMP_ADAPTER pAd)
+void BuildChannelListEx(IN PRTMP_ADAPTER pAd)
 {
 	PCH_REGION pChReg;
 
@@ -1540,14 +1540,14 @@ VOID BuildChannelListEx(IN PRTMP_ADAPTER pAd)
 	CreateChList(pAd, pChReg, pAd->CommonCfg.Geography);
 }
 
-VOID BuildBeaconChList(IN PRTMP_ADAPTER pAd,
-		       OUT PUCHAR pBuf, OUT PULONG pBufLen)
+void BuildBeaconChList(IN PRTMP_ADAPTER pAd,
+		       u8 *pBuf, unsigned long *pBufLen)
 {
-	INT i;
-	ULONG TmpLen;
+	int i;
+	unsigned long TmpLen;
 	PCH_REGION pChRegion;
 	PCH_DESP pChDesp;
-	UCHAR ChType;
+	u8 ChType;
 
 	pChRegion = GetChRegion(pAd->CommonCfg.CountryCode);
 
@@ -1581,9 +1581,9 @@ VOID BuildBeaconChList(IN PRTMP_ADAPTER pAd,
 	}
 }
 
-static BOOLEAN IsValidChannel(IN PRTMP_ADAPTER pAd, IN UCHAR channel)
+static BOOLEAN IsValidChannel(IN PRTMP_ADAPTER pAd, u8 channel)
 {
-	INT i;
+	int i;
 
 	for (i = 0; i < pAd->ChannelListNum; i++) {
 		if (pAd->ChannelList[i].Channel == channel)
@@ -1596,9 +1596,9 @@ static BOOLEAN IsValidChannel(IN PRTMP_ADAPTER pAd, IN UCHAR channel)
 		return TRUE;
 }
 
-static UCHAR GetExtCh(IN UCHAR Channel, IN UCHAR Direction)
+static u8 GetExtCh(u8 Channel, u8 Direction)
 {
-	CHAR ExtCh;
+	char ExtCh;
 
 	if (Direction == EXTCHA_ABOVE)
 		ExtCh = Channel + 4;
@@ -1608,10 +1608,10 @@ static UCHAR GetExtCh(IN UCHAR Channel, IN UCHAR Direction)
 	return ExtCh;
 }
 
-VOID N_ChannelCheck(IN PRTMP_ADAPTER pAd)
+void N_ChannelCheck(IN PRTMP_ADAPTER pAd)
 {
-	/*UCHAR ChannelNum = pAd->ChannelListNum; */
-	UCHAR Channel = pAd->CommonCfg.Channel;
+	/*u8 ChannelNum = pAd->ChannelListNum; */
+	u8 Channel = pAd->CommonCfg.Channel;
 
 	if ((pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED)
 	    && (pAd->CommonCfg.RegTransmitSetting.field.BW == BW_40)) {
@@ -1638,8 +1638,8 @@ VOID N_ChannelCheck(IN PRTMP_ADAPTER pAd)
 			}
 		} else {
 			do {
-				UCHAR ExtCh;
-				UCHAR Dir =
+				u8 ExtCh;
+				u8 Dir =
 				    pAd->CommonCfg.RegTransmitSetting.field.
 				    EXTCHA;
 				ExtCh = GetExtCh(Channel, Dir);
@@ -1670,7 +1670,7 @@ VOID N_ChannelCheck(IN PRTMP_ADAPTER pAd)
 
 }
 
-VOID N_SetCenCh(IN PRTMP_ADAPTER pAd)
+void N_SetCenCh(IN PRTMP_ADAPTER pAd)
 {
 	if (pAd->CommonCfg.RegTransmitSetting.field.BW == BW_40) {
 		if (pAd->CommonCfg.RegTransmitSetting.field.EXTCHA ==
@@ -1690,7 +1690,7 @@ VOID N_SetCenCh(IN PRTMP_ADAPTER pAd)
 	}
 }
 
-UINT8 GetCuntryMaxTxPwr(IN PRTMP_ADAPTER pAd, IN UINT8 channel)
+u8 GetCuntryMaxTxPwr(IN PRTMP_ADAPTER pAd, u8 channel)
 {
 	int i;
 	for (i = 0; i < pAd->ChannelListNum; i++) {

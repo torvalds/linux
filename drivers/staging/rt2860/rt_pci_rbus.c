@@ -78,54 +78,54 @@ static void fifo_statistic_full_tasklet(unsigned long data);
   **************************************************************************/
 /* Function for TxDesc Memory allocation. */
 void RTMP_AllocateTxDescMemory(IN PRTMP_ADAPTER pAd,
-			       IN UINT Index,
-			       IN ULONG Length,
+			       u32 Index,
+			       unsigned long Length,
 			       IN BOOLEAN Cached,
-			       OUT PVOID * VirtualAddress,
+			       void ** VirtualAddress,
 			       OUT PNDIS_PHYSICAL_ADDRESS PhysicalAddress)
 {
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 
 	*VirtualAddress =
-	    (PVOID) pci_alloc_consistent(pObj->pci_dev, sizeof(char) * Length,
+	    (void *)pci_alloc_consistent(pObj->pci_dev, sizeof(char) * Length,
 					 PhysicalAddress);
 
 }
 
 /* Function for MgmtDesc Memory allocation. */
 void RTMP_AllocateMgmtDescMemory(IN PRTMP_ADAPTER pAd,
-				 IN ULONG Length,
+				 unsigned long Length,
 				 IN BOOLEAN Cached,
-				 OUT PVOID * VirtualAddress,
+				 void ** VirtualAddress,
 				 OUT PNDIS_PHYSICAL_ADDRESS PhysicalAddress)
 {
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 
 	*VirtualAddress =
-	    (PVOID) pci_alloc_consistent(pObj->pci_dev, sizeof(char) * Length,
+	    (void *)pci_alloc_consistent(pObj->pci_dev, sizeof(char) * Length,
 					 PhysicalAddress);
 
 }
 
 /* Function for RxDesc Memory allocation. */
 void RTMP_AllocateRxDescMemory(IN PRTMP_ADAPTER pAd,
-			       IN ULONG Length,
+			       unsigned long Length,
 			       IN BOOLEAN Cached,
-			       OUT PVOID * VirtualAddress,
+			       void ** VirtualAddress,
 			       OUT PNDIS_PHYSICAL_ADDRESS PhysicalAddress)
 {
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 
 	*VirtualAddress =
-	    (PVOID) pci_alloc_consistent(pObj->pci_dev, sizeof(char) * Length,
+	    (void *)pci_alloc_consistent(pObj->pci_dev, sizeof(char) * Length,
 					 PhysicalAddress);
 
 }
 
 /* Function for free allocated Desc Memory. */
 void RTMP_FreeDescMemory(IN PRTMP_ADAPTER pAd,
-			 IN ULONG Length,
-			 IN PVOID VirtualAddress,
+			 unsigned long Length,
+			 void *VirtualAddress,
 			 IN NDIS_PHYSICAL_ADDRESS PhysicalAddress)
 {
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
@@ -136,23 +136,23 @@ void RTMP_FreeDescMemory(IN PRTMP_ADAPTER pAd,
 
 /* Function for TxData DMA Memory allocation. */
 void RTMP_AllocateFirstTxBuffer(IN PRTMP_ADAPTER pAd,
-				IN UINT Index,
-				IN ULONG Length,
+				u32 Index,
+				unsigned long Length,
 				IN BOOLEAN Cached,
-				OUT PVOID * VirtualAddress,
+				void ** VirtualAddress,
 				OUT PNDIS_PHYSICAL_ADDRESS PhysicalAddress)
 {
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 
 	*VirtualAddress =
-	    (PVOID) pci_alloc_consistent(pObj->pci_dev, sizeof(char) * Length,
+	    (void *)pci_alloc_consistent(pObj->pci_dev, sizeof(char) * Length,
 					 PhysicalAddress);
 }
 
 void RTMP_FreeFirstTxBuffer(IN PRTMP_ADAPTER pAd,
-			    IN ULONG Length,
+			    unsigned long Length,
 			    IN BOOLEAN Cached,
-			    IN PVOID VirtualAddress,
+			    void *VirtualAddress,
 			    IN NDIS_PHYSICAL_ADDRESS PhysicalAddress)
 {
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
@@ -171,15 +171,15 @@ void RTMP_FreeFirstTxBuffer(IN PRTMP_ADAPTER pAd,
  *     PhysicalAddress:  Physical address corresponding to virtual address
  */
 void RTMP_AllocateSharedMemory(IN PRTMP_ADAPTER pAd,
-			       IN ULONG Length,
+			       unsigned long Length,
 			       IN BOOLEAN Cached,
-			       OUT PVOID * VirtualAddress,
+			       void ** VirtualAddress,
 			       OUT PNDIS_PHYSICAL_ADDRESS PhysicalAddress)
 {
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 
 	*VirtualAddress =
-	    (PVOID) pci_alloc_consistent(pObj->pci_dev, sizeof(char) * Length,
+	    (void *)pci_alloc_consistent(pObj->pci_dev, sizeof(char) * Length,
 					 PhysicalAddress);
 }
 
@@ -195,9 +195,9 @@ void RTMP_AllocateSharedMemory(IN PRTMP_ADAPTER pAd,
  *     Cached is ignored: always cached memory
  */
 PNDIS_PACKET RTMP_AllocateRxPacketBuffer(IN PRTMP_ADAPTER pAd,
-					 IN ULONG Length,
+					 unsigned long Length,
 					 IN BOOLEAN Cached,
-					 OUT PVOID * VirtualAddress,
+					 void ** VirtualAddress,
 					 OUT PNDIS_PHYSICAL_ADDRESS
 					 PhysicalAddress)
 {
@@ -212,19 +212,19 @@ PNDIS_PACKET RTMP_AllocateRxPacketBuffer(IN PRTMP_ADAPTER pAd,
 
 	if (pkt) {
 		RTMP_SET_PACKET_SOURCE(OSPKT_TO_RTPKT(pkt), PKTSRC_NDIS);
-		*VirtualAddress = (PVOID) pkt->data;
+		*VirtualAddress = (void *)pkt->data;
 		*PhysicalAddress =
 		    PCI_MAP_SINGLE(pAd, *VirtualAddress, Length, -1,
 				   PCI_DMA_FROMDEVICE);
 	} else {
-		*VirtualAddress = (PVOID) NULL;
+		*VirtualAddress = (void *)NULL;
 		*PhysicalAddress = (NDIS_PHYSICAL_ADDRESS) NULL;
 	}
 
 	return (PNDIS_PACKET) pkt;
 }
 
-VOID Invalid_Remaining_Packet(IN PRTMP_ADAPTER pAd, IN ULONG VirtualAddress)
+void Invalid_Remaining_Packet(IN PRTMP_ADAPTER pAd, unsigned long VirtualAddress)
 {
 	NDIS_PHYSICAL_ADDRESS PhysicalAddress;
 
@@ -233,7 +233,7 @@ VOID Invalid_Remaining_Packet(IN PRTMP_ADAPTER pAd, IN ULONG VirtualAddress)
 			   RX_BUFFER_NORMSIZE - 1600, -1, PCI_DMA_FROMDEVICE);
 }
 
-NDIS_STATUS RtmpNetTaskInit(IN RTMP_ADAPTER * pAd)
+int RtmpNetTaskInit(IN RTMP_ADAPTER * pAd)
 {
 	POS_COOKIE pObj;
 
@@ -273,7 +273,7 @@ void RtmpNetTaskExit(IN RTMP_ADAPTER * pAd)
 	tasklet_kill(&pObj->fifo_statistic_full_task);
 }
 
-NDIS_STATUS RtmpMgmtTaskInit(IN RTMP_ADAPTER * pAd)
+int RtmpMgmtTaskInit(IN RTMP_ADAPTER * pAd)
 {
 
 	return NDIS_STATUS_SUCCESS;
@@ -293,7 +293,7 @@ Return Value:
 Note:
 ========================================================================
 */
-VOID RtmpMgmtTaskExit(IN RTMP_ADAPTER * pAd)
+void RtmpMgmtTaskExit(IN RTMP_ADAPTER * pAd)
 {
 
 	return;
@@ -401,7 +401,7 @@ static void rx_done_tasklet(unsigned long data)
 		return;
 	}
 
-	/* enable RxINT again */
+	/* enable Rxint again */
 	rt2860_int_enable(pAd, INT_RX);
 	RTMP_INT_UNLOCK(&pAd->irq_lock, flags);
 
@@ -434,7 +434,7 @@ void fifo_statistic_full_tasklet(unsigned long data)
 		return;
 	}
 
-	/* enable RxINT again */
+	/* enable Rxint again */
 
 	rt2860_int_enable(pAd, FifoStaFullInt);
 	RTMP_INT_UNLOCK(&pAd->irq_lock, flags);
@@ -712,7 +712,7 @@ IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance)
 	if (IntSource.word & INT_RX) {
 		if ((pAd->int_disable_mask & INT_RX) == 0) {
 
-			/* mask RxINT */
+			/* mask Rxint */
 			rt2860_int_disable(pAd, INT_RX);
 			tasklet_hi_schedule(&pObj->rx_done_task);
 		}

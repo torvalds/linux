@@ -55,10 +55,10 @@
 /*  submit to ctrl pipe). So we need a wrapper function to take care it. */
 
 #ifdef RTMP_TIMER_TASK_SUPPORT
-typedef VOID(*RTMP_TIMER_TASK_HANDLE) (IN PVOID SystemSpecific1,
-				       IN PVOID FunctionContext,
-				       IN PVOID SystemSpecific2,
-				       IN PVOID SystemSpecific3);
+typedef void(*RTMP_TIMER_TASK_HANDLE) (void *SystemSpecific1,
+				       void *FunctionContext,
+				       void *SystemSpecific2,
+				       void *SystemSpecific3);
 #endif /* RTMP_TIMER_TASK_SUPPORT // */
 
 typedef struct _RALINK_TIMER_STRUCT {
@@ -67,8 +67,8 @@ typedef struct _RALINK_TIMER_STRUCT {
 	BOOLEAN State;		/* True if timer cancelled */
 	BOOLEAN PeriodicType;	/* True if timer is periodic timer */
 	BOOLEAN Repeat;		/* True if periodic timer */
-	ULONG TimerValue;	/* Timer value in milliseconds */
-	ULONG cookie;		/* os specific object */
+	unsigned long TimerValue;	/* Timer value in milliseconds */
+	unsigned long cookie;		/* os specific object */
 #ifdef RTMP_TIMER_TASK_SUPPORT
 	RTMP_TIMER_TASK_HANDLE handle;
 	void *pAd;
@@ -109,7 +109,7 @@ void rtmp_timer_##_func(unsigned long data)										\
 {																			\
 	PRALINK_TIMER_STRUCT	pTimer = (PRALINK_TIMER_STRUCT) data;				\
 																			\
-	_func(NULL, (PVOID) pTimer->cookie, NULL, pTimer);							\
+	_func(NULL, (void *)pTimer->cookie, NULL, pTimer);							\
 	if (pTimer->Repeat)														\
 		RTMP_OS_Add_Timer(&pTimer->TimerObj, pTimer->TimerValue);			\
 }

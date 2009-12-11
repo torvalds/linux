@@ -48,16 +48,16 @@
 
 typedef union _EFUSE_CTRL_STRUC {
 	struct {
-		UINT32 EFSROM_AOUT:6;
-		UINT32 EFSROM_MODE:2;
-		UINT32 EFSROM_LDO_OFF_TIME:6;
-		UINT32 EFSROM_LDO_ON_TIME:2;
-		UINT32 EFSROM_AIN:10;
-		UINT32 RESERVED:4;
-		UINT32 EFSROM_KICK:1;
-		UINT32 SEL_EFUSE:1;
+		u32 EFSROM_AOUT:6;
+		u32 EFSROM_MODE:2;
+		u32 EFSROM_LDO_OFF_TIME:6;
+		u32 EFSROM_LDO_ON_TIME:2;
+		u32 EFSROM_AIN:10;
+		u32 RESERVED:4;
+		u32 EFSROM_KICK:1;
+		u32 SEL_EFUSE:1;
 	} field;
-	UINT32 word;
+	u32 word;
 } EFUSE_CTRL_STRUC, *PEFUSE_CTRL_STRUC;
 
 /*
@@ -73,13 +73,13 @@ typedef union _EFUSE_CTRL_STRUC {
 
 ========================================================================
 */
-UCHAR eFuseReadRegisters(IN PRTMP_ADAPTER pAd,
-			 IN USHORT Offset, IN USHORT Length, OUT USHORT * pData)
+u8 eFuseReadRegisters(IN PRTMP_ADAPTER pAd,
+			 u16 Offset, u16 Length, u16 * pData)
 {
 	EFUSE_CTRL_STRUC eFuseCtrlStruc;
 	int i;
-	USHORT efuseDataOffset;
-	UINT32 data;
+	u16 efuseDataOffset;
+	u32 data;
 
 	RTMP_IO_READ32(pAd, EFUSE_CTRL, &eFuseCtrlStruc.word);
 
@@ -132,7 +132,7 @@ UCHAR eFuseReadRegisters(IN PRTMP_ADAPTER pAd,
 		NdisMoveMemory(pData, &data, Length);
 	}
 
-	return (UCHAR) eFuseCtrlStruc.field.EFSROM_AOUT;
+	return (u8)eFuseCtrlStruc.field.EFSROM_AOUT;
 
 }
 
@@ -149,14 +149,14 @@ UCHAR eFuseReadRegisters(IN PRTMP_ADAPTER pAd,
 
 ========================================================================
 */
-VOID eFusePhysicalReadRegisters(IN PRTMP_ADAPTER pAd,
-				IN USHORT Offset,
-				IN USHORT Length, OUT USHORT * pData)
+void eFusePhysicalReadRegisters(IN PRTMP_ADAPTER pAd,
+				u16 Offset,
+				u16 Length, u16 * pData)
 {
 	EFUSE_CTRL_STRUC eFuseCtrlStruc;
 	int i;
-	USHORT efuseDataOffset;
-	UINT32 data;
+	u16 efuseDataOffset;
+	u32 data;
 
 	RTMP_IO_READ32(pAd, EFUSE_CTRL, &eFuseCtrlStruc.word);
 
@@ -214,16 +214,16 @@ VOID eFusePhysicalReadRegisters(IN PRTMP_ADAPTER pAd,
 
 ========================================================================
 */
-static VOID eFuseReadPhysical(IN PRTMP_ADAPTER pAd,
-			      IN PUSHORT lpInBuffer,
-			      IN ULONG nInBufferSize,
-			      OUT PUSHORT lpOutBuffer, IN ULONG nOutBufferSize)
+static void eFuseReadPhysical(IN PRTMP_ADAPTER pAd,
+			      u16 *lpInBuffer,
+			      unsigned long nInBufferSize,
+			      u16 *lpOutBuffer, unsigned long nOutBufferSize)
 {
-	USHORT *pInBuf = (USHORT *) lpInBuffer;
-	USHORT *pOutBuf = (USHORT *) lpOutBuffer;
+	u16 *pInBuf = (u16 *) lpInBuffer;
+	u16 *pOutBuf = (u16 *) lpOutBuffer;
 
-	USHORT Offset = pInBuf[0];	/*addr */
-	USHORT Length = pInBuf[1];	/*length */
+	u16 Offset = pInBuf[0];	/*addr */
+	u16 Length = pInBuf[1];	/*length */
 	int i;
 
 	for (i = 0; i < Length; i += 2) {
@@ -244,20 +244,20 @@ static VOID eFuseReadPhysical(IN PRTMP_ADAPTER pAd,
 
 ========================================================================
 */
-INT set_eFuseGetFreeBlockCount_Proc(IN PRTMP_ADAPTER pAd, IN PSTRING arg)
+int set_eFuseGetFreeBlockCount_Proc(IN PRTMP_ADAPTER pAd, char *arg)
 {
-	USHORT i;
-	USHORT LogicalAddress;
-	USHORT efusefreenum = 0;
+	u16 i;
+	u16 LogicalAddress;
+	u16 efusefreenum = 0;
 	if (!pAd->bUseEfuse)
 		return FALSE;
 	for (i = EFUSE_USAGE_MAP_START; i <= EFUSE_USAGE_MAP_END; i += 2) {
 		eFusePhysicalReadRegisters(pAd, i, 2, &LogicalAddress);
 		if ((LogicalAddress & 0xff) == 0) {
-			efusefreenum = (UCHAR) (EFUSE_USAGE_MAP_END - i + 1);
+			efusefreenum = (u8)(EFUSE_USAGE_MAP_END - i + 1);
 			break;
 		} else if (((LogicalAddress >> 8) & 0xff) == 0) {
-			efusefreenum = (UCHAR) (EFUSE_USAGE_MAP_END - i);
+			efusefreenum = (u8)(EFUSE_USAGE_MAP_END - i);
 			break;
 		}
 
@@ -268,10 +268,10 @@ INT set_eFuseGetFreeBlockCount_Proc(IN PRTMP_ADAPTER pAd, IN PSTRING arg)
 	return TRUE;
 }
 
-INT set_eFusedump_Proc(IN PRTMP_ADAPTER pAd, IN PSTRING arg)
+int set_eFusedump_Proc(IN PRTMP_ADAPTER pAd, char *arg)
 {
-	USHORT InBuf[3];
-	INT i = 0;
+	u16 InBuf[3];
+	int i = 0;
 	if (!pAd->bUseEfuse)
 		return FALSE;
 	for (i = 0; i < EFUSE_USAGE_MAP_END / 2; i++) {
@@ -288,7 +288,7 @@ INT set_eFusedump_Proc(IN PRTMP_ADAPTER pAd, IN PSTRING arg)
 }
 
 int rtmp_ee_efuse_read16(IN RTMP_ADAPTER * pAd,
-			 IN USHORT Offset, OUT USHORT * pValue)
+			 u16 Offset, u16 * pValue)
 {
 	eFuseReadRegisters(pAd, Offset, 2, pValue);
 	return (*pValue);
@@ -296,7 +296,7 @@ int rtmp_ee_efuse_read16(IN RTMP_ADAPTER * pAd,
 
 int RtmpEfuseSupportCheck(IN RTMP_ADAPTER * pAd)
 {
-	USHORT value;
+	u16 value;
 
 	if (IS_RT30xx(pAd)) {
 		eFusePhysicalReadRegisters(pAd, EFUSE_TAG, 2, &value);
@@ -305,10 +305,10 @@ int RtmpEfuseSupportCheck(IN RTMP_ADAPTER * pAd)
 	return 0;
 }
 
-VOID eFuseGetFreeBlockCount(IN PRTMP_ADAPTER pAd, PUINT EfuseFreeBlock)
+void eFuseGetFreeBlockCount(IN PRTMP_ADAPTER pAd, u32 *EfuseFreeBlock)
 {
-	USHORT i;
-	USHORT LogicalAddress;
+	u16 i;
+	u16 LogicalAddress;
 	if (!pAd->bUseEfuse) {
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("eFuseGetFreeBlockCount Only supports efuse Mode\n"));
@@ -317,10 +317,10 @@ VOID eFuseGetFreeBlockCount(IN PRTMP_ADAPTER pAd, PUINT EfuseFreeBlock)
 	for (i = EFUSE_USAGE_MAP_START; i <= EFUSE_USAGE_MAP_END; i += 2) {
 		eFusePhysicalReadRegisters(pAd, i, 2, &LogicalAddress);
 		if ((LogicalAddress & 0xff) == 0) {
-			*EfuseFreeBlock = (UCHAR) (EFUSE_USAGE_MAP_END - i + 1);
+			*EfuseFreeBlock = (u8)(EFUSE_USAGE_MAP_END - i + 1);
 			break;
 		} else if (((LogicalAddress >> 8) & 0xff) == 0) {
-			*EfuseFreeBlock = (UCHAR) (EFUSE_USAGE_MAP_END - i);
+			*EfuseFreeBlock = (u8)(EFUSE_USAGE_MAP_END - i);
 			break;
 		}
 
@@ -331,9 +331,9 @@ VOID eFuseGetFreeBlockCount(IN PRTMP_ADAPTER pAd, PUINT EfuseFreeBlock)
 		 ("eFuseGetFreeBlockCount is 0x%x\n", *EfuseFreeBlock));
 }
 
-INT eFuse_init(IN PRTMP_ADAPTER pAd)
+int eFuse_init(IN PRTMP_ADAPTER pAd)
 {
-	UINT EfuseFreeBlock = 0;
+	u32 EfuseFreeBlock = 0;
 	DBGPRINT(RT_DEBUG_ERROR,
 		 ("NVM is Efuse and its size =%x[%x-%x] \n",
 		  EFUSE_USAGE_MAP_SIZE, EFUSE_USAGE_MAP_START,

@@ -47,7 +47,7 @@
 
 	========================================================================
 */
-VOID RTMPSetDesiredRates(IN PRTMP_ADAPTER pAdapter, IN LONG Rates)
+void RTMPSetDesiredRates(IN PRTMP_ADAPTER pAdapter, long Rates)
 {
 	NDIS_802_11_RATES aryRates;
 
@@ -235,10 +235,10 @@ VOID RTMPSetDesiredRates(IN PRTMP_ADAPTER pAdapter, IN LONG Rates)
 
 	========================================================================
 */
-VOID RTMPWPARemoveAllKeys(IN PRTMP_ADAPTER pAd)
+void RTMPWPARemoveAllKeys(IN PRTMP_ADAPTER pAd)
 {
 
-	UCHAR i;
+	u8 i;
 
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("RTMPWPARemoveAllKeys(AuthMode=%d, WepStatus=%d)\n",
@@ -307,9 +307,9 @@ VOID RTMPWPARemoveAllKeys(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-VOID RTMPSetPhyMode(IN PRTMP_ADAPTER pAd, IN ULONG phymode)
+void RTMPSetPhyMode(IN PRTMP_ADAPTER pAd, unsigned long phymode)
 {
-	INT i;
+	int i;
 	/* the selected phymode must be supported by the RF IC encoded in E2PROM */
 
 	/* if no change, do nothing */
@@ -317,7 +317,7 @@ VOID RTMPSetPhyMode(IN PRTMP_ADAPTER pAd, IN ULONG phymode)
 	   if (pAd->CommonCfg.PhyMode == phymode)
 	   return;
 	 */
-	pAd->CommonCfg.PhyMode = (UCHAR) phymode;
+	pAd->CommonCfg.PhyMode = (u8)phymode;
 
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("RTMPSetPhyMode : PhyMode=%d, channel=%d \n",
@@ -435,13 +435,13 @@ VOID RTMPSetPhyMode(IN PRTMP_ADAPTER pAd, IN ULONG phymode)
 
 	========================================================================
 */
-VOID RTMPSetHT(IN PRTMP_ADAPTER pAd, IN OID_SET_HT_PHYMODE * pHTPhyMode)
+void RTMPSetHT(IN PRTMP_ADAPTER pAd, IN OID_SET_HT_PHYMODE * pHTPhyMode)
 {
-	/*ULONG *pmcs; */
-	UINT32 Value = 0;
-	UCHAR BBPValue = 0;
-	UCHAR BBP3Value = 0;
-	UCHAR RxStream = pAd->CommonCfg.RxStream;
+	/*unsigned long *pmcs; */
+	u32 Value = 0;
+	u8 BBPValue = 0;
+	u8 BBP3Value = 0;
+	u8 RxStream = pAd->CommonCfg.RxStream;
 
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("RTMPSetHT : HT_mode(%d), ExtOffset(%d), MCS(%d), BW(%d), STBC(%d), SHORTGI(%d)\n",
@@ -475,20 +475,20 @@ VOID RTMPSetHT(IN PRTMP_ADAPTER pAd, IN OID_SET_HT_PHYMODE * pHTPhyMode)
 
 	/* Mimo power save, A-MSDU size, */
 	pAd->CommonCfg.DesiredHtPhy.AmsduEnable =
-	    (USHORT) pAd->CommonCfg.BACapability.field.AmsduEnable;
+	    (u16)pAd->CommonCfg.BACapability.field.AmsduEnable;
 	pAd->CommonCfg.DesiredHtPhy.AmsduSize =
-	    (UCHAR) pAd->CommonCfg.BACapability.field.AmsduSize;
+	    (u8)pAd->CommonCfg.BACapability.field.AmsduSize;
 	pAd->CommonCfg.DesiredHtPhy.MimoPs =
-	    (UCHAR) pAd->CommonCfg.BACapability.field.MMPSmode;
+	    (u8)pAd->CommonCfg.BACapability.field.MMPSmode;
 	pAd->CommonCfg.DesiredHtPhy.MpduDensity =
-	    (UCHAR) pAd->CommonCfg.BACapability.field.MpduDensity;
+	    (u8)pAd->CommonCfg.BACapability.field.MpduDensity;
 
 	pAd->CommonCfg.HtCapability.HtCapInfo.AMsduSize =
-	    (USHORT) pAd->CommonCfg.BACapability.field.AmsduSize;
+	    (u16)pAd->CommonCfg.BACapability.field.AmsduSize;
 	pAd->CommonCfg.HtCapability.HtCapInfo.MimoPs =
-	    (USHORT) pAd->CommonCfg.BACapability.field.MMPSmode;
+	    (u16)pAd->CommonCfg.BACapability.field.MMPSmode;
 	pAd->CommonCfg.HtCapability.HtCapParm.MpduDensity =
-	    (UCHAR) pAd->CommonCfg.BACapability.field.MpduDensity;
+	    (u8)pAd->CommonCfg.BACapability.field.MpduDensity;
 
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("RTMPSetHT : AMsduSize = %d, MimoPs = %d, MpduDensity = %d, MaxRAmpduFactor = %d\n",
@@ -648,11 +648,11 @@ VOID RTMPSetHT(IN PRTMP_ADAPTER pAd, IN OID_SET_HT_PHYMODE * pHTPhyMode)
 
 	========================================================================
 */
-VOID RTMPSetIndividualHT(IN PRTMP_ADAPTER pAd, IN UCHAR apidx)
+void RTMPSetIndividualHT(IN PRTMP_ADAPTER pAd, u8 apidx)
 {
 	PRT_HT_PHY_INFO pDesired_ht_phy = NULL;
-	UCHAR TxStream = pAd->CommonCfg.TxStream;
-	UCHAR DesiredMcs = MCS_AUTO;
+	u8 TxStream = pAd->CommonCfg.TxStream;
+	u8 DesiredMcs = MCS_AUTO;
 
 	do {
 		{
@@ -708,7 +708,7 @@ VOID RTMPSetIndividualHT(IN PRTMP_ADAPTER pAd, IN UCHAR apidx)
 			pDesired_ht_phy->MCSSet[0] = 0xff;
 			pDesired_ht_phy->MCSSet[1] = 0xff;
 		} else if (DesiredMcs <= MCS_15) {
-			ULONG mode;
+			unsigned long mode;
 
 			mode = DesiredMcs / 8;
 			if (mode < 2)
@@ -724,7 +724,7 @@ VOID RTMPSetIndividualHT(IN PRTMP_ADAPTER pAd, IN UCHAR apidx)
 			pDesired_ht_phy->MCSSet[1] = 0xff;
 			pDesired_ht_phy->MCSSet[2] = 0xff;
 		} else if (DesiredMcs <= MCS_23) {
-			ULONG mode;
+			unsigned long mode;
 
 			mode = DesiredMcs / 8;
 			if (mode < 3)
@@ -755,8 +755,8 @@ VOID RTMPSetIndividualHT(IN PRTMP_ADAPTER pAd, IN UCHAR apidx)
 
 	========================================================================
 */
-VOID RTMPUpdateHTIE(IN RT_HT_CAPABILITY * pRtHt,
-		    IN UCHAR * pMcsSet,
+void RTMPUpdateHTIE(IN RT_HT_CAPABILITY * pRtHt,
+		    u8 * pMcsSet,
 		    OUT HT_CAPABILITY_IE * pHtCapability,
 		    OUT ADD_HT_INFO_IE * pAddHtInfo)
 {
@@ -790,15 +790,15 @@ VOID RTMPUpdateHTIE(IN RT_HT_CAPABILITY * pRtHt,
     Return:
 	========================================================================
 */
-VOID RTMPAddWcidAttributeEntry(IN PRTMP_ADAPTER pAd,
-			       IN UCHAR BssIdx,
-			       IN UCHAR KeyIdx,
-			       IN UCHAR CipherAlg, IN MAC_TABLE_ENTRY * pEntry)
+void RTMPAddWcidAttributeEntry(IN PRTMP_ADAPTER pAd,
+			       u8 BssIdx,
+			       u8 KeyIdx,
+			       u8 CipherAlg, IN MAC_TABLE_ENTRY * pEntry)
 {
-	UINT32 WCIDAttri = 0;
-	USHORT offset;
-	UCHAR IVEIV = 0;
-	USHORT Wcid = 0;
+	u32 WCIDAttri = 0;
+	u16 offset;
+	u8 IVEIV = 0;
+	u16 Wcid = 0;
 
 	{
 		{
@@ -872,7 +872,7 @@ Arguments:
     Note:
     ==========================================================================
 */
-PSTRING GetEncryptType(CHAR enc)
+char *GetEncryptType(char enc)
 {
 	if (enc == Ndis802_11WEPDisabled)
 		return "NONE";
@@ -888,7 +888,7 @@ PSTRING GetEncryptType(CHAR enc)
 		return "UNKNOW";
 }
 
-PSTRING GetAuthMode(CHAR auth)
+char *GetAuthMode(char auth)
 {
 	if (auth == Ndis802_11AuthModeOpen)
 		return "OPEN";
@@ -914,7 +914,7 @@ PSTRING GetAuthMode(CHAR auth)
 	return "UNKNOW";
 }
 
-INT SetCommonHT(IN PRTMP_ADAPTER pAd)
+int SetCommonHT(IN PRTMP_ADAPTER pAd)
 {
 	OID_SET_HT_PHYMODE SetHT;
 
@@ -922,21 +922,21 @@ INT SetCommonHT(IN PRTMP_ADAPTER pAd)
 		return FALSE;
 
 	SetHT.PhyMode = pAd->CommonCfg.PhyMode;
-	SetHT.TransmitNo = ((UCHAR) pAd->Antenna.field.TxPath);
-	SetHT.HtMode = (UCHAR) pAd->CommonCfg.RegTransmitSetting.field.HTMODE;
+	SetHT.TransmitNo = ((u8)pAd->Antenna.field.TxPath);
+	SetHT.HtMode = (u8)pAd->CommonCfg.RegTransmitSetting.field.HTMODE;
 	SetHT.ExtOffset =
-	    (UCHAR) pAd->CommonCfg.RegTransmitSetting.field.EXTCHA;
+	    (u8)pAd->CommonCfg.RegTransmitSetting.field.EXTCHA;
 	SetHT.MCS = MCS_AUTO;
-	SetHT.BW = (UCHAR) pAd->CommonCfg.RegTransmitSetting.field.BW;
-	SetHT.STBC = (UCHAR) pAd->CommonCfg.RegTransmitSetting.field.STBC;
-	SetHT.SHORTGI = (UCHAR) pAd->CommonCfg.RegTransmitSetting.field.ShortGI;
+	SetHT.BW = (u8)pAd->CommonCfg.RegTransmitSetting.field.BW;
+	SetHT.STBC = (u8)pAd->CommonCfg.RegTransmitSetting.field.STBC;
+	SetHT.SHORTGI = (u8)pAd->CommonCfg.RegTransmitSetting.field.ShortGI;
 
 	RTMPSetHT(pAd, &SetHT);
 
 	return TRUE;
 }
 
-PSTRING RTMPGetRalinkEncryModeStr(IN USHORT encryMode)
+char *RTMPGetRalinkEncryModeStr(u16 encryMode)
 {
 	switch (encryMode) {
 	case Ndis802_11WEPDisabled:

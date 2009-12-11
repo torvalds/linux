@@ -41,14 +41,14 @@
 
 #include "../rt_config.h"
 
-extern UCHAR Phy11BGNextRateUpward[];	/* defined in mlme.c */
-extern UCHAR EpToQueue[];
+extern u8 Phy11BGNextRateUpward[];	/* defined in mlme.c */
+extern u8 EpToQueue[];
 
-VOID REPORT_AMSDU_FRAMES_TO_LLC(IN PRTMP_ADAPTER pAd,
-				IN PUCHAR pData, IN ULONG DataSize)
+void REPORT_AMSDU_FRAMES_TO_LLC(IN PRTMP_ADAPTER pAd,
+				u8 *pData, unsigned long DataSize)
 {
 	PNDIS_PACKET pPacket;
-	UINT nMSDU;
+	u32 nMSDU;
 	struct sk_buff *pSkb;
 
 	nMSDU = 0;
@@ -85,13 +85,13 @@ VOID REPORT_AMSDU_FRAMES_TO_LLC(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-NDIS_STATUS RTUSBFreeDescriptorRequest(IN PRTMP_ADAPTER pAd,
-				       IN UCHAR BulkOutPipeId,
-				       IN UINT32 NumberRequired)
+int RTUSBFreeDescriptorRequest(IN PRTMP_ADAPTER pAd,
+				       u8 BulkOutPipeId,
+				       u32 NumberRequired)
 {
-/*      UCHAR                   FreeNumber = 0; */
-/*      UINT                    Index; */
-	NDIS_STATUS Status = NDIS_STATUS_FAILURE;
+/*      u8                   FreeNumber = 0; */
+/*      u32                    Index; */
+	int Status = NDIS_STATUS_FAILURE;
 	unsigned long IrqFlags;
 	HT_TX_CONTEXT *pHTTXContext;
 
@@ -127,8 +127,8 @@ NDIS_STATUS RTUSBFreeDescriptorRequest(IN PRTMP_ADAPTER pAd,
 	return (Status);
 }
 
-NDIS_STATUS RTUSBFreeDescriptorRelease(IN RTMP_ADAPTER * pAd,
-				       IN UCHAR BulkOutPipeId)
+int RTUSBFreeDescriptorRelease(IN RTMP_ADAPTER * pAd,
+				       u8 BulkOutPipeId)
 {
 	unsigned long IrqFlags;
 	HT_TX_CONTEXT *pHTTXContext;
@@ -141,7 +141,7 @@ NDIS_STATUS RTUSBFreeDescriptorRelease(IN RTMP_ADAPTER * pAd,
 	return (NDIS_STATUS_SUCCESS);
 }
 
-BOOLEAN RTUSBNeedQueueBackForAgg(IN RTMP_ADAPTER * pAd, IN UCHAR BulkOutPipeId)
+BOOLEAN RTUSBNeedQueueBackForAgg(IN RTMP_ADAPTER * pAd, u8 BulkOutPipeId)
 {
 	unsigned long IrqFlags;
 	HT_TX_CONTEXT *pHTTXContext;
@@ -191,9 +191,9 @@ BOOLEAN RTUSBNeedQueueBackForAgg(IN RTMP_ADAPTER * pAd, IN UCHAR BulkOutPipeId)
 
 	========================================================================
 */
-VOID RTUSBRejectPendingPackets(IN PRTMP_ADAPTER pAd)
+void RTUSBRejectPendingPackets(IN PRTMP_ADAPTER pAd)
 {
-	UCHAR Index;
+	u8 Index;
 	PQUEUE_ENTRY pEntry;
 	PNDIS_PACKET pPacket;
 	PQUEUE_HEADER pQueue;
@@ -240,11 +240,11 @@ VOID RTUSBRejectPendingPackets(IN PRTMP_ADAPTER pAd)
 	========================================================================
 */
 
-VOID RTMPWriteTxInfo(IN PRTMP_ADAPTER pAd,
+void RTMPWriteTxInfo(IN PRTMP_ADAPTER pAd,
 		     IN PTXINFO_STRUC pTxInfo,
-		     IN USHORT USBDMApktLen,
+		     u16 USBDMApktLen,
 		     IN BOOLEAN bWiv,
-		     IN UCHAR QueueSel, IN UCHAR NextValid, IN UCHAR TxBurst)
+		     u8 QueueSel, u8 NextValid, u8 TxBurst)
 {
 	pTxInfo->USBDMATxPktLen = USBDMApktLen;
 	pTxInfo->QSEL = QueueSel;

@@ -36,16 +36,16 @@
 */
 #include "../rt_config.h"
 
-extern UCHAR CISCO_OUI[];
+extern u8 CISCO_OUI[];
 
-extern UCHAR WPA_OUI[];
-extern UCHAR RSN_OUI[];
-extern UCHAR WME_INFO_ELEM[];
-extern UCHAR WME_PARM_ELEM[];
-extern UCHAR Ccx2QosInfo[];
-extern UCHAR RALINK_OUI[];
-extern UCHAR BROADCOM_OUI[];
-extern UCHAR WPS_OUI[];
+extern u8 WPA_OUI[];
+extern u8 RSN_OUI[];
+extern u8 WME_INFO_ELEM[];
+extern u8 WME_PARM_ELEM[];
+extern u8 Ccx2QosInfo[];
+extern u8 RALINK_OUI[];
+extern u8 BROADCOM_OUI[];
+extern u8 WPS_OUI[];
 
 /*
     ==========================================================================
@@ -59,7 +59,7 @@ extern UCHAR WPS_OUI[];
     ==========================================================================
  */
 BOOLEAN MlmeAddBAReqSanity(IN PRTMP_ADAPTER pAd,
-			   IN VOID * Msg, IN ULONG MsgLen, OUT PUCHAR pAddr2)
+			   void * Msg, unsigned long MsgLen, u8 *pAddr2)
 {
 	PMLME_ADDBA_REQ_STRUCT pInfo;
 
@@ -97,7 +97,7 @@ BOOLEAN MlmeAddBAReqSanity(IN PRTMP_ADAPTER pAd,
 
     ==========================================================================
  */
-BOOLEAN MlmeDelBAReqSanity(IN PRTMP_ADAPTER pAd, IN VOID * Msg, IN ULONG MsgLen)
+BOOLEAN MlmeDelBAReqSanity(IN PRTMP_ADAPTER pAd, void * Msg, unsigned long MsgLen)
 {
 	MLME_DELBA_REQ_STRUCT *pInfo;
 	pInfo = (MLME_DELBA_REQ_STRUCT *) Msg;
@@ -132,8 +132,8 @@ BOOLEAN MlmeDelBAReqSanity(IN PRTMP_ADAPTER pAd, IN VOID * Msg, IN ULONG MsgLen)
 }
 
 BOOLEAN PeerAddBAReqActionSanity(IN PRTMP_ADAPTER pAd,
-				 IN VOID * pMsg,
-				 IN ULONG MsgLen, OUT PUCHAR pAddr2)
+				 void * pMsg,
+				 unsigned long MsgLen, u8 *pAddr2)
 {
 	PFRAME_802_11 pFrame = (PFRAME_802_11) pMsg;
 	PFRAME_ADDBA_REQ pAddFrame;
@@ -145,8 +145,8 @@ BOOLEAN PeerAddBAReqActionSanity(IN PRTMP_ADAPTER pAd,
 		return FALSE;
 	}
 	/* we support immediate BA. */
-	*(USHORT *) (&pAddFrame->BaParm) =
-	    cpu2le16(*(USHORT *) (&pAddFrame->BaParm));
+	*(u16 *) (&pAddFrame->BaParm) =
+	    cpu2le16(*(u16 *) (&pAddFrame->BaParm));
 	pAddFrame->TimeOutValue = cpu2le16(pAddFrame->TimeOutValue);
 	pAddFrame->BaStartSeq.word = cpu2le16(pAddFrame->BaStartSeq.word);
 
@@ -172,7 +172,7 @@ BOOLEAN PeerAddBAReqActionSanity(IN PRTMP_ADAPTER pAd,
 }
 
 BOOLEAN PeerAddBARspActionSanity(IN PRTMP_ADAPTER pAd,
-				 IN VOID * pMsg, IN ULONG MsgLen)
+				 void * pMsg, unsigned long MsgLen)
 {
 	PFRAME_ADDBA_RSP pAddFrame;
 
@@ -184,8 +184,8 @@ BOOLEAN PeerAddBARspActionSanity(IN PRTMP_ADAPTER pAd,
 		return FALSE;
 	}
 	/* we support immediate BA. */
-	*(USHORT *) (&pAddFrame->BaParm) =
-	    cpu2le16(*(USHORT *) (&pAddFrame->BaParm));
+	*(u16 *) (&pAddFrame->BaParm) =
+	    cpu2le16(*(u16 *) (&pAddFrame->BaParm));
 	pAddFrame->StatusCode = cpu2le16(pAddFrame->StatusCode);
 	pAddFrame->TimeOutValue = cpu2le16(pAddFrame->TimeOutValue);
 
@@ -207,7 +207,7 @@ BOOLEAN PeerAddBARspActionSanity(IN PRTMP_ADAPTER pAd,
 }
 
 BOOLEAN PeerDelBAActionSanity(IN PRTMP_ADAPTER pAd,
-			      IN UCHAR Wcid, IN VOID * pMsg, IN ULONG MsgLen)
+			      u8 Wcid, void * pMsg, unsigned long MsgLen)
 {
 	/*PFRAME_802_11 pFrame = (PFRAME_802_11)pMsg; */
 	PFRAME_DELBA_REQ pDelFrame;
@@ -219,8 +219,8 @@ BOOLEAN PeerDelBAActionSanity(IN PRTMP_ADAPTER pAd,
 
 	pDelFrame = (PFRAME_DELBA_REQ) (pMsg);
 
-	*(USHORT *) (&pDelFrame->DelbaParm) =
-	    cpu2le16(*(USHORT *) (&pDelFrame->DelbaParm));
+	*(u16 *) (&pDelFrame->DelbaParm) =
+	    cpu2le16(*(u16 *) (&pDelFrame->DelbaParm));
 	pDelFrame->ReasonCode = cpu2le16(pDelFrame->ReasonCode);
 
 	if (pDelFrame->DelbaParm.TID & 0xfff0)
@@ -240,24 +240,24 @@ BOOLEAN PeerDelBAActionSanity(IN PRTMP_ADAPTER pAd,
 
     ==========================================================================
  */
-BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * Msg, IN ULONG MsgLen, IN UCHAR MsgChannel, OUT PUCHAR pAddr2, OUT PUCHAR pBssid, OUT CHAR Ssid[], OUT UCHAR * pSsidLen, OUT UCHAR * pBssType, OUT USHORT * pBeaconPeriod, OUT UCHAR * pChannel, OUT UCHAR * pNewChannel, OUT LARGE_INTEGER * pTimestamp, OUT CF_PARM * pCfParm, OUT USHORT * pAtimWin, OUT USHORT * pCapabilityInfo, OUT UCHAR * pErp, OUT UCHAR * pDtimCount, OUT UCHAR * pDtimPeriod, OUT UCHAR * pBcastFlag, OUT UCHAR * pMessageToMe, OUT UCHAR SupRate[], OUT UCHAR * pSupRateLen, OUT UCHAR ExtRate[], OUT UCHAR * pExtRateLen, OUT UCHAR * pCkipFlag, OUT UCHAR * pAironetCellPowerLimit, OUT PEDCA_PARM pEdcaParm, OUT PQBSS_LOAD_PARM pQbssLoad, OUT PQOS_CAPABILITY_PARM pQosCapability, OUT ULONG * pRalinkIe, OUT UCHAR * pHtCapabilityLen, OUT UCHAR * pPreNHtCapabilityLen, OUT HT_CAPABILITY_IE * pHtCapability, OUT UCHAR * AddHtInfoLen, OUT ADD_HT_INFO_IE * AddHtInfo, OUT UCHAR * NewExtChannelOffset,	/* Ht extension channel offset(above or below) */
-				    OUT USHORT * LengthVIE,
+BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, void * Msg, unsigned long MsgLen, u8 MsgChannel, u8 *pAddr2, u8 *pBssid, char Ssid[], u8 * pSsidLen, u8 * pBssType, u16 * pBeaconPeriod, u8 * pChannel, u8 * pNewChannel, OUT LARGE_INTEGER * pTimestamp, OUT CF_PARM * pCfParm, u16 * pAtimWin, u16 * pCapabilityInfo, u8 * pErp, u8 * pDtimCount, u8 * pDtimPeriod, u8 * pBcastFlag, u8 * pMessageToMe, u8 SupRate[], u8 * pSupRateLen, u8 ExtRate[], u8 * pExtRateLen, u8 * pCkipFlag, u8 * pAironetCellPowerLimit, OUT PEDCA_PARM pEdcaParm, OUT PQBSS_LOAD_PARM pQbssLoad, OUT PQOS_CAPABILITY_PARM pQosCapability, unsigned long * pRalinkIe, u8 * pHtCapabilityLen, u8 * pPreNHtCapabilityLen, OUT HT_CAPABILITY_IE * pHtCapability, u8 * AddHtInfoLen, OUT ADD_HT_INFO_IE * AddHtInfo, u8 * NewExtChannelOffset,	/* Ht extension channel offset(above or below) */
+				    u16 * LengthVIE,
 				    OUT PNDIS_802_11_VARIABLE_IEs pVIE)
 {
-	UCHAR *Ptr;
-	UCHAR TimLen;
+	u8 *Ptr;
+	u8 TimLen;
 	PFRAME_802_11 pFrame;
 	PEID_STRUCT pEid;
-	UCHAR SubType;
-	UCHAR Sanity;
-	/*UCHAR                             ECWMin, ECWMax; */
+	u8 SubType;
+	u8 Sanity;
+	/*u8                             ECWMin, ECWMax; */
 	/*MAC_CSR9_STRUC            Csr9; */
-	ULONG Length = 0;
+	unsigned long Length = 0;
 
 	/* For some 11a AP which didn't have DS_IE, we use two conditions to decide the channel */
 	/*      1. If the AP is 11n enabled, then check the control channel. */
 	/*      2. If the AP didn't have any info about channel, use the channel we received this frame as the channel. (May inaccuracy!!) */
-	UCHAR CtrlChannel = 0;
+	u8 CtrlChannel = 0;
 
 	/* Add for 3 necessary EID field check */
 	Sanity = 0;
@@ -287,7 +287,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * Msg, IN ULON
 	pFrame = (PFRAME_802_11) Msg;
 
 	/* get subtype from header */
-	SubType = (UCHAR) pFrame->Hdr.FC.SubType;
+	SubType = (u8)pFrame->Hdr.FC.SubType;
 
 	/* get Addr2 and BSSID from header */
 	COPY_MAC_ADDR(pAddr2, pFrame->Hdr.Addr2);
@@ -377,17 +377,17 @@ BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * Msg, IN ULON
 					       sizeof(HT_CAPABILITY_IE));
 				*pHtCapabilityLen = SIZE_HT_CAP_IE;	/* Nnow we only support 26 bytes. */
 
-				*(USHORT *) (&pHtCapability->HtCapInfo) =
-				    cpu2le16(*(USHORT *)
+				*(u16 *) (&pHtCapability->HtCapInfo) =
+				    cpu2le16(*(u16 *)
 					     (&pHtCapability->HtCapInfo));
-				*(USHORT *) (&pHtCapability->ExtHtCapInfo) =
-				    cpu2le16(*(USHORT *)
+				*(u16 *) (&pHtCapability->ExtHtCapInfo) =
+				    cpu2le16(*(u16 *)
 					     (&pHtCapability->ExtHtCapInfo));
 
 				{
 					*pPreNHtCapabilityLen = 0;	/* Nnow we only support 26 bytes. */
 
-					Ptr = (PUCHAR) pVIE;
+					Ptr = (u8 *)pVIE;
 					NdisMoveMemory(Ptr + *LengthVIE,
 						       &pEid->Eid,
 						       pEid->Len + 2);
@@ -410,15 +410,15 @@ BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * Msg, IN ULON
 
 				CtrlChannel = AddHtInfo->ControlChan;
 
-				*(USHORT *) (&AddHtInfo->AddHtInfo2) =
-				    cpu2le16(*(USHORT *)
+				*(u16 *) (&AddHtInfo->AddHtInfo2) =
+				    cpu2le16(*(u16 *)
 					     (&AddHtInfo->AddHtInfo2));
-				*(USHORT *) (&AddHtInfo->AddHtInfo3) =
-				    cpu2le16(*(USHORT *)
+				*(u16 *) (&AddHtInfo->AddHtInfo3) =
+				    cpu2le16(*(u16 *)
 					     (&AddHtInfo->AddHtInfo3));
 
 				{
-					Ptr = (PUCHAR) pVIE;
+					Ptr = (u8 *)pVIE;
 					NdisMoveMemory(Ptr + *LengthVIE,
 						       &pEid->Eid,
 						       pEid->Len + 2);
@@ -493,7 +493,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * Msg, IN ULON
 
 		case IE_TIM:
 			if (INFRA_ON(pAd) && SubType == SUBTYPE_BEACON) {
-				GetTimBit((PCHAR) pEid, pAd->StaActive.Aid,
+				GetTimBit((char *)pEid, pAd->StaActive.Aid,
 					  &TimLen, pBcastFlag, pDtimCount,
 					  pDtimPeriod, pMessageToMe);
 			}
@@ -565,14 +565,14 @@ BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * Msg, IN ULON
 				}
 			} else if (NdisEqualMemory(pEid->Octet, WPA_OUI, 4)) {
 				/* Copy to pVIE which will report to microsoft bssid list. */
-				Ptr = (PUCHAR) pVIE;
+				Ptr = (u8 *)pVIE;
 				NdisMoveMemory(Ptr + *LengthVIE, &pEid->Eid,
 					       pEid->Len + 2);
 				*LengthVIE += (pEid->Len + 2);
 			} else
 			    if (NdisEqualMemory(pEid->Octet, WME_PARM_ELEM, 6)
 				&& (pEid->Len == 24)) {
-				PUCHAR ptr;
+				u8 *ptr;
 				int i;
 
 				/* parsing EDCA parameters */
@@ -586,7 +586,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * Msg, IN ULON
 				    (pEid->Octet[6] & 0x80) ? 1 : 0;
 				ptr = &pEid->Octet[8];
 				for (i = 0; i < 4; i++) {
-					UCHAR aci = (*ptr & 0x60) >> 5;	/* b5~6 is AC INDEX */
+					u8 aci = (*ptr & 0x60) >> 5;	/* b5~6 is AC INDEX */
 					pEdcaParm->bACM[aci] = (((*ptr) & 0x10) == 0x10);	/* b5 is ACM */
 					pEdcaParm->Aifsn[aci] = (*ptr) & 0x0f;	/* b0~3 is AIFSN */
 					pEdcaParm->Cwmin[aci] = *(ptr + 1) & 0x0f;	/* b0~4 is Cwmin */
@@ -653,7 +653,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * Msg, IN ULON
 
 		case IE_ERP:
 			if (pEid->Len == 1) {
-				*pErp = (UCHAR) pEid->Octet[0];
+				*pErp = (u8)pEid->Octet[0];
 			}
 			break;
 
@@ -684,7 +684,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * Msg, IN ULON
 			/* There is no OUI for version anymore, check the group cipher OUI before copying */
 			if (RTMPEqualMemory(pEid->Octet + 2, RSN_OUI, 3)) {
 				/* Copy to pVIE which will report to microsoft bssid list. */
-				Ptr = (PUCHAR) pVIE;
+				Ptr = (u8 *)pVIE;
 				NdisMoveMemory(Ptr + *LengthVIE, &pEid->Eid,
 					       pEid->Len + 2);
 				*LengthVIE += (pEid->Len + 2);
@@ -696,12 +696,12 @@ BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * Msg, IN ULON
 		}
 
 		Length = Length + 2 + pEid->Len;	/* Eid[1] + Len[1]+ content[Len] */
-		pEid = (PEID_STRUCT) ((UCHAR *) pEid + 2 + pEid->Len);
+		pEid = (PEID_STRUCT) ((u8 *) pEid + 2 + pEid->Len);
 	}
 
 	/* For some 11a AP. it did not have the channel EID, patch here */
 	{
-		UCHAR LatchRfChannel = MsgChannel;
+		u8 LatchRfChannel = MsgChannel;
 		if ((pAd->LatchRfRegs.Channel > 14) && ((Sanity & 0x4) == 0)) {
 			if (CtrlChannel != 0)
 				*pChannel = CtrlChannel;
@@ -731,11 +731,11 @@ BOOLEAN PeerBeaconAndProbeRspSanity(IN PRTMP_ADAPTER pAd, IN VOID * Msg, IN ULON
     ==========================================================================
  */
 BOOLEAN MlmeScanReqSanity(IN PRTMP_ADAPTER pAd,
-			  IN VOID * Msg,
-			  IN ULONG MsgLen,
-			  OUT UCHAR * pBssType,
-			  OUT CHAR Ssid[],
-			  OUT UCHAR * pSsidLen, OUT UCHAR * pScanType)
+			  void * Msg,
+			  unsigned long MsgLen,
+			  u8 * pBssType,
+			  char Ssid[],
+			  u8 * pSsidLen, u8 * pScanType)
 {
 	MLME_SCAN_REQ_STRUCT *Info;
 
@@ -757,7 +757,7 @@ BOOLEAN MlmeScanReqSanity(IN PRTMP_ADAPTER pAd,
 }
 
 /* IRQL = DISPATCH_LEVEL */
-UCHAR ChannelSanity(IN PRTMP_ADAPTER pAd, IN UCHAR channel)
+u8 ChannelSanity(IN PRTMP_ADAPTER pAd, u8 channel)
 {
 	int i;
 
@@ -780,9 +780,9 @@ UCHAR ChannelSanity(IN PRTMP_ADAPTER pAd, IN UCHAR channel)
     ==========================================================================
  */
 BOOLEAN PeerDeauthSanity(IN PRTMP_ADAPTER pAd,
-			 IN VOID * Msg,
-			 IN ULONG MsgLen,
-			 OUT PUCHAR pAddr2, OUT USHORT * pReason)
+			 void * Msg,
+			 unsigned long MsgLen,
+			 u8 *pAddr2, u16 * pReason)
 {
 	PFRAME_802_11 pFrame = (PFRAME_802_11) Msg;
 
@@ -804,12 +804,12 @@ BOOLEAN PeerDeauthSanity(IN PRTMP_ADAPTER pAd,
     ==========================================================================
  */
 BOOLEAN PeerAuthSanity(IN PRTMP_ADAPTER pAd,
-		       IN VOID * Msg,
-		       IN ULONG MsgLen,
-		       OUT PUCHAR pAddr,
-		       OUT USHORT * pAlg,
-		       OUT USHORT * pSeq,
-		       OUT USHORT * pStatus, CHAR * pChlgText)
+		       void * Msg,
+		       unsigned long MsgLen,
+		       u8 *pAddr,
+		       u16 * pAlg,
+		       u16 * pSeq,
+		       u16 * pStatus, char * pChlgText)
 {
 	PFRAME_802_11 pFrame = (PFRAME_802_11) Msg;
 
@@ -854,10 +854,10 @@ BOOLEAN PeerAuthSanity(IN PRTMP_ADAPTER pAd,
     ==========================================================================
  */
 BOOLEAN MlmeAuthReqSanity(IN PRTMP_ADAPTER pAd,
-			  IN VOID * Msg,
-			  IN ULONG MsgLen,
-			  OUT PUCHAR pAddr,
-			  OUT ULONG * pTimeout, OUT USHORT * pAlg)
+			  void * Msg,
+			  unsigned long MsgLen,
+			  u8 *pAddr,
+			  unsigned long * pTimeout, u16 * pAlg)
 {
 	MLME_AUTH_REQ_STRUCT *pInfo;
 
@@ -888,11 +888,11 @@ BOOLEAN MlmeAuthReqSanity(IN PRTMP_ADAPTER pAd,
     ==========================================================================
  */
 BOOLEAN MlmeAssocReqSanity(IN PRTMP_ADAPTER pAd,
-			   IN VOID * Msg,
-			   IN ULONG MsgLen,
-			   OUT PUCHAR pApAddr,
-			   OUT USHORT * pCapabilityInfo,
-			   OUT ULONG * pTimeout, OUT USHORT * pListenIntv)
+			   void * Msg,
+			   unsigned long MsgLen,
+			   u8 *pApAddr,
+			   u16 * pCapabilityInfo,
+			   unsigned long * pTimeout, u16 * pListenIntv)
 {
 	MLME_ASSOC_REQ_STRUCT *pInfo;
 
@@ -917,9 +917,9 @@ BOOLEAN MlmeAssocReqSanity(IN PRTMP_ADAPTER pAd,
     ==========================================================================
  */
 BOOLEAN PeerDisassocSanity(IN PRTMP_ADAPTER pAd,
-			   IN VOID * Msg,
-			   IN ULONG MsgLen,
-			   OUT PUCHAR pAddr2, OUT USHORT * pReason)
+			   void * Msg,
+			   unsigned long MsgLen,
+			   u8 *pAddr2, u16 * pReason)
 {
 	PFRAME_802_11 pFrame = (PFRAME_802_11) Msg;
 
@@ -949,7 +949,7 @@ BOOLEAN PeerDisassocSanity(IN PRTMP_ADAPTER pAd,
 NDIS_802_11_NETWORK_TYPE NetworkTypeInUseSanity(IN PBSS_ENTRY pBss)
 {
 	NDIS_802_11_NETWORK_TYPE NetWorkType;
-	UCHAR rate, i;
+	u8 rate, i;
 
 	NetWorkType = Ndis802_11DS;
 
@@ -1014,24 +1014,24 @@ NDIS_802_11_NETWORK_TYPE NetworkTypeInUseSanity(IN PBSS_ENTRY pBss)
  */
 BOOLEAN PeerWpaMessageSanity(IN PRTMP_ADAPTER pAd,
 			     IN PEAPOL_PACKET pMsg,
-			     IN ULONG MsgLen,
-			     IN UCHAR MsgType, IN MAC_TABLE_ENTRY * pEntry)
+			     unsigned long MsgLen,
+			     u8 MsgType, IN MAC_TABLE_ENTRY * pEntry)
 {
-	UCHAR mic[LEN_KEY_DESC_MIC], digest[80], KEYDATA[MAX_LEN_OF_RSNIE];
+	u8 mic[LEN_KEY_DESC_MIC], digest[80], KEYDATA[MAX_LEN_OF_RSNIE];
 	BOOLEAN bReplayDiff = FALSE;
 	BOOLEAN bWPA2 = FALSE;
 	KEY_INFO EapolKeyInfo;
-	UCHAR GroupKeyIndex = 0;
+	u8 GroupKeyIndex = 0;
 
 	NdisZeroMemory(mic, sizeof(mic));
 	NdisZeroMemory(digest, sizeof(digest));
 	NdisZeroMemory(KEYDATA, sizeof(KEYDATA));
-	NdisZeroMemory((PUCHAR) & EapolKeyInfo, sizeof(EapolKeyInfo));
+	NdisZeroMemory((u8 *)& EapolKeyInfo, sizeof(EapolKeyInfo));
 
-	NdisMoveMemory((PUCHAR) & EapolKeyInfo,
-		       (PUCHAR) & pMsg->KeyDesc.KeyInfo, sizeof(KEY_INFO));
+	NdisMoveMemory((u8 *)& EapolKeyInfo,
+		       (u8 *)& pMsg->KeyDesc.KeyInfo, sizeof(KEY_INFO));
 
-	*((USHORT *) & EapolKeyInfo) = cpu2le16(*((USHORT *) & EapolKeyInfo));
+	*((u16 *) & EapolKeyInfo) = cpu2le16(*((u16 *) & EapolKeyInfo));
 
 	/* Choose WPA2 or not */
 	if ((pEntry->AuthMode == Ndis802_11AuthModeWPA2)
@@ -1049,7 +1049,7 @@ BOOLEAN PeerWpaMessageSanity(IN PRTMP_ADAPTER pAd,
 	{
 		/* First validate replay counter, only accept message with larger replay counter. */
 		/* Let equal pass, some AP start with all zero replay counter */
-		UCHAR ZeroReplay[LEN_KEY_DESC_REPLAY];
+		u8 ZeroReplay[LEN_KEY_DESC_REPLAY];
 
 		NdisZeroMemory(ZeroReplay, LEN_KEY_DESC_REPLAY);
 		if ((RTMPCompareMemory
@@ -1096,7 +1096,7 @@ BOOLEAN PeerWpaMessageSanity(IN PRTMP_ADAPTER pAd,
 	}
 	/* 2. Verify MIC except Pairwise Msg1 */
 	if (MsgType != EAPOL_PAIR_MSG_1) {
-		UCHAR rcvd_mic[LEN_KEY_DESC_MIC];
+		u8 rcvd_mic[LEN_KEY_DESC_MIC];
 
 		/* Record the received MIC for check later */
 		NdisMoveMemory(rcvd_mic, pMsg->KeyDesc.KeyMic,
@@ -1105,11 +1105,11 @@ BOOLEAN PeerWpaMessageSanity(IN PRTMP_ADAPTER pAd,
 
 		if (EapolKeyInfo.KeyDescVer == DESC_TYPE_TKIP)	/* TKIP */
 		{
-			HMAC_MD5(pEntry->PTK, LEN_EAP_MICK, (PUCHAR) pMsg,
+			HMAC_MD5(pEntry->PTK, LEN_EAP_MICK, (u8 *)pMsg,
 				 MsgLen, mic, MD5_DIGEST_SIZE);
 		} else if (EapolKeyInfo.KeyDescVer == DESC_TYPE_AES)	/* AES */
 		{
-			HMAC_SHA1(pEntry->PTK, LEN_EAP_MICK, (PUCHAR) pMsg,
+			HMAC_SHA1(pEntry->PTK, LEN_EAP_MICK, (u8 *)pMsg,
 				  MsgLen, digest, SHA1_DIGEST_SIZE);
 			NdisMoveMemory(mic, digest, LEN_KEY_DESC_MIC);
 		}
@@ -1142,20 +1142,20 @@ BOOLEAN PeerWpaMessageSanity(IN PRTMP_ADAPTER pAd,
 	/* 2. Extract the context of the Key Data field if it exist. */
 	/* The field in pairwise_msg_2_WPA1(WPA2) & pairwise_msg_3_WPA1 is clear. */
 	/* The field in group_msg_1_WPA1(WPA2) & pairwise_msg_3_WPA2 is encrypted. */
-	if (CONV_ARRARY_TO_UINT16(pMsg->KeyDesc.KeyDataLen) > 0) {
+	if (CONV_ARRARY_TO_u16(pMsg->KeyDesc.KeyDataLen) > 0) {
 		/* Decrypt this field */
 		if ((MsgType == EAPOL_PAIR_MSG_3 && bWPA2)
 		    || (MsgType == EAPOL_GROUP_MSG_1)) {
 			if ((EapolKeyInfo.KeyDescVer == DESC_TYPE_AES)) {
 				/* AES */
 				AES_GTK_KEY_UNWRAP(&pEntry->PTK[16], KEYDATA,
-						   CONV_ARRARY_TO_UINT16(pMsg->
+						   CONV_ARRARY_TO_u16(pMsg->
 									 KeyDesc.
 									 KeyDataLen),
 						   pMsg->KeyDesc.KeyData);
 			} else {
-				INT i;
-				UCHAR Key[32];
+				int i;
+				u8 Key[32];
 				/* Decrypt TKIP GTK */
 				/* Construct 32 bytes RC4 Key */
 				NdisMoveMemory(Key, pMsg->KeyDesc.KeyIv, 16);
@@ -1169,7 +1169,7 @@ BOOLEAN PeerWpaMessageSanity(IN PRTMP_ADAPTER pAd,
 				/* Decrypt GTK. Becareful, there is no ICV to check the result is correct or not */
 				ARCFOUR_DECRYPT(&pAd->PrivateInfo.WEPCONTEXT,
 						KEYDATA, pMsg->KeyDesc.KeyData,
-						CONV_ARRARY_TO_UINT16(pMsg->
+						CONV_ARRARY_TO_u16(pMsg->
 								      KeyDesc.
 								      KeyDataLen));
 			}
@@ -1180,7 +1180,7 @@ BOOLEAN PeerWpaMessageSanity(IN PRTMP_ADAPTER pAd,
 		} else if ((MsgType == EAPOL_PAIR_MSG_2)
 			   || (MsgType == EAPOL_PAIR_MSG_3 && !bWPA2)) {
 			NdisMoveMemory(KEYDATA, pMsg->KeyDesc.KeyData,
-				       CONV_ARRARY_TO_UINT16(pMsg->KeyDesc.
+				       CONV_ARRARY_TO_u16(pMsg->KeyDesc.
 							     KeyDataLen));
 		} else {
 
@@ -1192,7 +1192,7 @@ BOOLEAN PeerWpaMessageSanity(IN PRTMP_ADAPTER pAd,
 		/* 2. verify KDE format for pairwise_msg_3_WPA2, group_msg_1_WPA2 */
 		/* 3. update shared key for pairwise_msg_3_WPA2, group_msg_1_WPA1(WPA2) */
 		if (!RTMPParseEapolKeyData(pAd, KEYDATA,
-					   CONV_ARRARY_TO_UINT16(pMsg->KeyDesc.
+					   CONV_ARRARY_TO_u16(pMsg->KeyDesc.
 								 KeyDataLen),
 					   GroupKeyIndex, MsgType, bWPA2,
 					   pEntry)) {

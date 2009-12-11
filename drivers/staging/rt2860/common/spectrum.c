@@ -261,23 +261,23 @@ DOT11_REGULATORY_INFORMATION JapanRegulatoryInfo[] = {
 
 #define JP_REGULATORY_INFO_SIZE (sizeof(JapanRegulatoryInfo) / sizeof(DOT11_REGULATORY_INFORMATION))
 
-CHAR RTMP_GetTxPwr(IN PRTMP_ADAPTER pAd, IN HTTRANSMIT_SETTING HTTxMode)
+char RTMP_GetTxPwr(IN PRTMP_ADAPTER pAd, IN HTTRANSMIT_SETTING HTTxMode)
 {
 	typedef struct __TX_PWR_CFG {
-		UINT8 Mode;
-		UINT8 MCS;
-		UINT16 req;
-		UINT8 shift;
-		UINT32 BitMask;
+		u8 Mode;
+		u8 MCS;
+		u16 req;
+		u8 shift;
+		u32 BitMask;
 	} TX_PWR_CFG;
 
-	UINT32 Value;
-	INT Idx;
-	UINT8 PhyMode;
-	CHAR CurTxPwr;
-	UINT8 TxPwrRef = 0;
-	CHAR DaltaPwr;
-	ULONG TxPwr[5];
+	u32 Value;
+	int Idx;
+	u8 PhyMode;
+	char CurTxPwr;
+	u8 TxPwrRef = 0;
+	char DaltaPwr;
+	unsigned long TxPwr[5];
 
 	TX_PWR_CFG TxPwrCfg[] = {
 		{MODE_CCK, 0, 0, 4, 0x000000f0},
@@ -385,7 +385,7 @@ CHAR RTMP_GetTxPwr(IN PRTMP_ADAPTER pAd, IN HTTRANSMIT_SETTING HTTxMode)
 		    && (TxPwrCfg[Idx].MCS == HTTxMode.field.MCS)) {
 			Value = TxPwr[TxPwrCfg[Idx].req];
 			DaltaPwr =
-			    TxPwrRef - (CHAR) ((Value & TxPwrCfg[Idx].BitMask)
+			    TxPwrRef - (char)((Value & TxPwrCfg[Idx].BitMask)
 					       >> TxPwrCfg[Idx].shift);
 			CurTxPwr -= DaltaPwr;
 			break;
@@ -395,7 +395,7 @@ CHAR RTMP_GetTxPwr(IN PRTMP_ADAPTER pAd, IN HTTRANSMIT_SETTING HTTxMode)
 	return CurTxPwr;
 }
 
-VOID MeasureReqTabInit(IN PRTMP_ADAPTER pAd)
+void MeasureReqTabInit(IN PRTMP_ADAPTER pAd)
 {
 	NdisAllocateSpinLock(&pAd->CommonCfg.MeasureReqTabLock);
 
@@ -412,7 +412,7 @@ VOID MeasureReqTabInit(IN PRTMP_ADAPTER pAd)
 	return;
 }
 
-VOID MeasureReqTabExit(IN PRTMP_ADAPTER pAd)
+void MeasureReqTabExit(IN PRTMP_ADAPTER pAd)
 {
 	NdisFreeSpinLock(&pAd->CommonCfg.MeasureReqTabLock);
 
@@ -423,9 +423,9 @@ VOID MeasureReqTabExit(IN PRTMP_ADAPTER pAd)
 	return;
 }
 
-PMEASURE_REQ_ENTRY MeasureReqLookUp(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
+PMEASURE_REQ_ENTRY MeasureReqLookUp(IN PRTMP_ADAPTER pAd, u8 DialogToken)
 {
-	UINT HashIdx;
+	u32 HashIdx;
 	PMEASURE_REQ_TAB pTab = pAd->CommonCfg.pMeasureReqTab;
 	PMEASURE_REQ_ENTRY pEntry = NULL;
 	PMEASURE_REQ_ENTRY pPrevEntry = NULL;
@@ -455,13 +455,13 @@ PMEASURE_REQ_ENTRY MeasureReqLookUp(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
 	return pEntry;
 }
 
-PMEASURE_REQ_ENTRY MeasureReqInsert(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
+PMEASURE_REQ_ENTRY MeasureReqInsert(IN PRTMP_ADAPTER pAd, u8 DialogToken)
 {
-	INT i;
-	ULONG HashIdx;
+	int i;
+	unsigned long HashIdx;
 	PMEASURE_REQ_TAB pTab = pAd->CommonCfg.pMeasureReqTab;
 	PMEASURE_REQ_ENTRY pEntry = NULL, pCurrEntry;
-	ULONG Now;
+	unsigned long Now;
 
 	if (pTab == NULL) {
 		DBGPRINT(RT_DEBUG_ERROR,
@@ -483,7 +483,7 @@ PMEASURE_REQ_ENTRY MeasureReqInsert(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
 							       MQ_REQ_AGE_OUT)))
 			{
 				PMEASURE_REQ_ENTRY pPrevEntry = NULL;
-				ULONG HashIdx =
+				unsigned long HashIdx =
 				    MQ_DIALOGTOKEN_HASH_INDEX(pEntry->
 							      DialogToken);
 				PMEASURE_REQ_ENTRY pProbeEntry =
@@ -548,7 +548,7 @@ PMEASURE_REQ_ENTRY MeasureReqInsert(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
 	return pEntry;
 }
 
-VOID MeasureReqDelete(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
+void MeasureReqDelete(IN PRTMP_ADAPTER pAd, u8 DialogToken)
 {
 	PMEASURE_REQ_TAB pTab = pAd->CommonCfg.pMeasureReqTab;
 	PMEASURE_REQ_ENTRY pEntry = NULL;
@@ -567,7 +567,7 @@ VOID MeasureReqDelete(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
 	pEntry = MeasureReqLookUp(pAd, DialogToken);
 	if (pEntry != NULL) {
 		PMEASURE_REQ_ENTRY pPrevEntry = NULL;
-		ULONG HashIdx = MQ_DIALOGTOKEN_HASH_INDEX(pEntry->DialogToken);
+		unsigned long HashIdx = MQ_DIALOGTOKEN_HASH_INDEX(pEntry->DialogToken);
 		PMEASURE_REQ_ENTRY pProbeEntry = pTab->Hash[HashIdx];
 
 		RTMP_SEM_LOCK(&pAd->CommonCfg.MeasureReqTabLock);
@@ -595,7 +595,7 @@ VOID MeasureReqDelete(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
 	return;
 }
 
-VOID TpcReqTabInit(IN PRTMP_ADAPTER pAd)
+void TpcReqTabInit(IN PRTMP_ADAPTER pAd)
 {
 	NdisAllocateSpinLock(&pAd->CommonCfg.TpcReqTabLock);
 
@@ -610,7 +610,7 @@ VOID TpcReqTabInit(IN PRTMP_ADAPTER pAd)
 	return;
 }
 
-VOID TpcReqTabExit(IN PRTMP_ADAPTER pAd)
+void TpcReqTabExit(IN PRTMP_ADAPTER pAd)
 {
 	NdisFreeSpinLock(&pAd->CommonCfg.TpcReqTabLock);
 
@@ -621,9 +621,9 @@ VOID TpcReqTabExit(IN PRTMP_ADAPTER pAd)
 	return;
 }
 
-static PTPC_REQ_ENTRY TpcReqLookUp(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
+static PTPC_REQ_ENTRY TpcReqLookUp(IN PRTMP_ADAPTER pAd, u8 DialogToken)
 {
-	UINT HashIdx;
+	u32 HashIdx;
 	PTPC_REQ_TAB pTab = pAd->CommonCfg.pTpcReqTab;
 	PTPC_REQ_ENTRY pEntry = NULL;
 	PTPC_REQ_ENTRY pPrevEntry = NULL;
@@ -653,13 +653,13 @@ static PTPC_REQ_ENTRY TpcReqLookUp(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
 	return pEntry;
 }
 
-static PTPC_REQ_ENTRY TpcReqInsert(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
+static PTPC_REQ_ENTRY TpcReqInsert(IN PRTMP_ADAPTER pAd, u8 DialogToken)
 {
-	INT i;
-	ULONG HashIdx;
+	int i;
+	unsigned long HashIdx;
 	PTPC_REQ_TAB pTab = pAd->CommonCfg.pTpcReqTab;
 	PTPC_REQ_ENTRY pEntry = NULL, pCurrEntry;
-	ULONG Now;
+	unsigned long Now;
 
 	if (pTab == NULL) {
 		DBGPRINT(RT_DEBUG_ERROR,
@@ -681,7 +681,7 @@ static PTPC_REQ_ENTRY TpcReqInsert(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
 							       TPC_REQ_AGE_OUT)))
 			{
 				PTPC_REQ_ENTRY pPrevEntry = NULL;
-				ULONG HashIdx =
+				unsigned long HashIdx =
 				    TPC_DIALOGTOKEN_HASH_INDEX(pEntry->
 							       DialogToken);
 				PTPC_REQ_ENTRY pProbeEntry =
@@ -745,7 +745,7 @@ static PTPC_REQ_ENTRY TpcReqInsert(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
 	return pEntry;
 }
 
-static VOID TpcReqDelete(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
+static void TpcReqDelete(IN PRTMP_ADAPTER pAd, u8 DialogToken)
 {
 	PTPC_REQ_TAB pTab = pAd->CommonCfg.pTpcReqTab;
 	PTPC_REQ_ENTRY pEntry = NULL;
@@ -764,7 +764,7 @@ static VOID TpcReqDelete(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
 	pEntry = TpcReqLookUp(pAd, DialogToken);
 	if (pEntry != NULL) {
 		PTPC_REQ_ENTRY pPrevEntry = NULL;
-		ULONG HashIdx = TPC_DIALOGTOKEN_HASH_INDEX(pEntry->DialogToken);
+		unsigned long HashIdx = TPC_DIALOGTOKEN_HASH_INDEX(pEntry->DialogToken);
 		PTPC_REQ_ENTRY pProbeEntry = pTab->Hash[HashIdx];
 
 		RTMP_SEM_LOCK(&pAd->CommonCfg.TpcReqTabLock);
@@ -802,7 +802,7 @@ static VOID TpcReqDelete(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
 	Return	: Current Time Stamp.
 	==========================================================================
  */
-static UINT64 GetCurrentTimeStamp(IN PRTMP_ADAPTER pAd)
+static u64 GetCurrentTimeStamp(IN PRTMP_ADAPTER pAd)
 {
 	/* get current time stamp. */
 	return 0;
@@ -818,7 +818,7 @@ static UINT64 GetCurrentTimeStamp(IN PRTMP_ADAPTER pAd)
 	Return	: Current Time Stamp.
 	==========================================================================
  */
-static UINT8 GetCurTxPwr(IN PRTMP_ADAPTER pAd, IN UINT8 Wcid)
+static u8 GetCurTxPwr(IN PRTMP_ADAPTER pAd, u8 Wcid)
 {
 	return 16;		/* 16 dBm */
 }
@@ -833,15 +833,15 @@ static UINT8 GetCurTxPwr(IN PRTMP_ADAPTER pAd, IN UINT8 Wcid)
 	Return	: Current Time Stamp.
 	==========================================================================
  */
-VOID InsertChannelRepIE(IN PRTMP_ADAPTER pAd,
-			OUT PUCHAR pFrameBuf,
-			OUT PULONG pFrameLen,
-			IN PSTRING pCountry, IN UINT8 RegulatoryClass)
+void InsertChannelRepIE(IN PRTMP_ADAPTER pAd,
+			u8 *pFrameBuf,
+			unsigned long *pFrameLen,
+			char *pCountry, u8 RegulatoryClass)
 {
-	ULONG TempLen;
-	UINT8 Len;
-	UINT8 IEId = IE_AP_CHANNEL_REPORT;
-	PUCHAR pChListPtr = NULL;
+	unsigned long TempLen;
+	u8 Len;
+	u8 IEId = IE_AP_CHANNEL_REPORT;
+	u8 *pChListPtr = NULL;
 
 	Len = 1;
 	if (strncmp(pCountry, "US", 2) == 0) {
@@ -900,11 +900,11 @@ VOID InsertChannelRepIE(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-VOID InsertDialogToken(IN PRTMP_ADAPTER pAd,
-		       OUT PUCHAR pFrameBuf,
-		       OUT PULONG pFrameLen, IN UINT8 DialogToken)
+void InsertDialogToken(IN PRTMP_ADAPTER pAd,
+		       u8 *pFrameBuf,
+		       unsigned long *pFrameLen, u8 DialogToken)
 {
-	ULONG TempLen;
+	unsigned long TempLen;
 	MakeOutgoingFrame(pFrameBuf, &TempLen, 1, &DialogToken, END_OF_ARGS);
 
 	*pFrameLen = *pFrameLen + TempLen;
@@ -924,12 +924,12 @@ VOID InsertDialogToken(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-static VOID InsertTpcReqIE(IN PRTMP_ADAPTER pAd,
-			   OUT PUCHAR pFrameBuf, OUT PULONG pFrameLen)
+static void InsertTpcReqIE(IN PRTMP_ADAPTER pAd,
+			   u8 *pFrameBuf, unsigned long *pFrameLen)
 {
-	ULONG TempLen;
-	ULONG Len = 0;
-	UINT8 ElementID = IE_TPC_REQUEST;
+	unsigned long TempLen;
+	unsigned long Len = 0;
+	u8 ElementID = IE_TPC_REQUEST;
 
 	MakeOutgoingFrame(pFrameBuf, &TempLen,
 			  1, &ElementID, 1, &Len, END_OF_ARGS);
@@ -953,14 +953,14 @@ static VOID InsertTpcReqIE(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-VOID InsertTpcReportIE(IN PRTMP_ADAPTER pAd,
-		       OUT PUCHAR pFrameBuf,
-		       OUT PULONG pFrameLen,
-		       IN UINT8 TxPwr, IN UINT8 LinkMargin)
+void InsertTpcReportIE(IN PRTMP_ADAPTER pAd,
+		       u8 *pFrameBuf,
+		       unsigned long *pFrameLen,
+		       u8 TxPwr, u8 LinkMargin)
 {
-	ULONG TempLen;
-	ULONG Len = sizeof(TPC_REPORT_INFO);
-	UINT8 ElementID = IE_TPC_REPORT;
+	unsigned long TempLen;
+	unsigned long Len = sizeof(TPC_REPORT_INFO);
+	u8 ElementID = IE_TPC_REPORT;
 	TPC_REPORT_INFO TpcReportIE;
 
 	TpcReportIE.TxPwr = TxPwr;
@@ -990,15 +990,15 @@ VOID InsertTpcReportIE(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-static VOID InsertChSwAnnIE(IN PRTMP_ADAPTER pAd,
-			    OUT PUCHAR pFrameBuf,
-			    OUT PULONG pFrameLen,
-			    IN UINT8 ChSwMode,
-			    IN UINT8 NewChannel, IN UINT8 ChSwCnt)
+static void InsertChSwAnnIE(IN PRTMP_ADAPTER pAd,
+			    u8 *pFrameBuf,
+			    unsigned long *pFrameLen,
+			    u8 ChSwMode,
+			    u8 NewChannel, u8 ChSwCnt)
 {
-	ULONG TempLen;
-	ULONG Len = sizeof(CH_SW_ANN_INFO);
-	UINT8 ElementID = IE_CHANNEL_SWITCH_ANNOUNCEMENT;
+	unsigned long TempLen;
+	unsigned long Len = sizeof(CH_SW_ANN_INFO);
+	u8 ElementID = IE_CHANNEL_SWITCH_ANNOUNCEMENT;
 	CH_SW_ANN_INFO ChSwAnnIE;
 
 	ChSwAnnIE.ChSwMode = ChSwMode;
@@ -1031,13 +1031,13 @@ static VOID InsertChSwAnnIE(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-static VOID InsertMeasureReqIE(IN PRTMP_ADAPTER pAd,
-			       OUT PUCHAR pFrameBuf,
-			       OUT PULONG pFrameLen,
-			       IN UINT8 Len, IN PMEASURE_REQ_INFO pMeasureReqIE)
+static void InsertMeasureReqIE(IN PRTMP_ADAPTER pAd,
+			       u8 *pFrameBuf,
+			       unsigned long *pFrameLen,
+			       u8 Len, IN PMEASURE_REQ_INFO pMeasureReqIE)
 {
-	ULONG TempLen;
-	UINT8 ElementID = IE_MEASUREMENT_REQUEST;
+	unsigned long TempLen;
+	u8 ElementID = IE_MEASUREMENT_REQUEST;
 
 	MakeOutgoingFrame(pFrameBuf, &TempLen,
 			  1, &ElementID,
@@ -1066,15 +1066,15 @@ static VOID InsertMeasureReqIE(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-static VOID InsertMeasureReportIE(IN PRTMP_ADAPTER pAd,
-				  OUT PUCHAR pFrameBuf,
-				  OUT PULONG pFrameLen,
+static void InsertMeasureReportIE(IN PRTMP_ADAPTER pAd,
+				  u8 *pFrameBuf,
+				  unsigned long *pFrameLen,
 				  IN PMEASURE_REPORT_INFO pMeasureReportIE,
-				  IN UINT8 ReportLnfoLen, IN PUINT8 pReportInfo)
+				  u8 ReportLnfoLen, u8 *pReportInfo)
 {
-	ULONG TempLen;
-	ULONG Len;
-	UINT8 ElementID = IE_MEASUREMENT_REPORT;
+	unsigned long TempLen;
+	unsigned long Len;
+	u8 ElementID = IE_MEASUREMENT_REPORT;
 
 	Len = sizeof(MEASURE_REPORT_INFO) + ReportLnfoLen;
 
@@ -1105,17 +1105,17 @@ static VOID InsertMeasureReportIE(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-VOID MakeMeasurementReqFrame(IN PRTMP_ADAPTER pAd,
-			     OUT PUCHAR pOutBuffer,
-			     OUT PULONG pFrameLen,
-			     IN UINT8 TotalLen,
-			     IN UINT8 Category,
-			     IN UINT8 Action,
-			     IN UINT8 MeasureToken,
-			     IN UINT8 MeasureReqMode,
-			     IN UINT8 MeasureReqType, IN UINT8 NumOfRepetitions)
+void MakeMeasurementReqFrame(IN PRTMP_ADAPTER pAd,
+			     u8 *pOutBuffer,
+			     unsigned long *pFrameLen,
+			     u8 TotalLen,
+			     u8 Category,
+			     u8 Action,
+			     u8 MeasureToken,
+			     u8 MeasureReqMode,
+			     u8 MeasureReqType, u8 NumOfRepetitions)
 {
-	ULONG TempLen;
+	unsigned long TempLen;
 	MEASURE_REQ_INFO MeasureReqIE;
 
 	InsertActField(pAd, (pOutBuffer + *pFrameLen), pFrameLen, Category,
@@ -1155,17 +1155,17 @@ VOID MakeMeasurementReqFrame(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-VOID EnqueueMeasurementRep(IN PRTMP_ADAPTER pAd,
-			   IN PUCHAR pDA,
-			   IN UINT8 DialogToken,
-			   IN UINT8 MeasureToken,
-			   IN UINT8 MeasureReqMode,
-			   IN UINT8 MeasureReqType,
-			   IN UINT8 ReportInfoLen, IN PUINT8 pReportInfo)
+void EnqueueMeasurementRep(IN PRTMP_ADAPTER pAd,
+			   u8 *pDA,
+			   u8 DialogToken,
+			   u8 MeasureToken,
+			   u8 MeasureReqMode,
+			   u8 MeasureReqType,
+			   u8 ReportInfoLen, u8 *pReportInfo)
 {
-	PUCHAR pOutBuffer = NULL;
-	NDIS_STATUS NStatus;
-	ULONG FrameLen;
+	u8 *pOutBuffer = NULL;
+	int NStatus;
+	unsigned long FrameLen;
 	HEADER_802_11 ActHdr;
 	MEASURE_REPORT_INFO MeasureRepIE;
 
@@ -1173,13 +1173,13 @@ VOID EnqueueMeasurementRep(IN PRTMP_ADAPTER pAd,
 	MgtMacHeaderInit(pAd, &ActHdr, SUBTYPE_ACTION, 0, pDA,
 			 pAd->CurrentAddress);
 
-	NStatus = MlmeAllocateMemory(pAd, (PVOID) & pOutBuffer);	/*Get an unused nonpaged memory */
+	NStatus = MlmeAllocateMemory(pAd, (void *)& pOutBuffer);	/*Get an unused nonpaged memory */
 	if (NStatus != NDIS_STATUS_SUCCESS) {
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("%s() allocate memory failed \n", __func__));
 		return;
 	}
-	NdisMoveMemory(pOutBuffer, (PCHAR) & ActHdr, sizeof(HEADER_802_11));
+	NdisMoveMemory(pOutBuffer, (char *)& ActHdr, sizeof(HEADER_802_11));
 	FrameLen = sizeof(HEADER_802_11);
 
 	InsertActField(pAd, (pOutBuffer + FrameLen), &FrameLen,
@@ -1214,11 +1214,11 @@ VOID EnqueueMeasurementRep(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-VOID EnqueueTPCReq(IN PRTMP_ADAPTER pAd, IN PUCHAR pDA, IN UCHAR DialogToken)
+void EnqueueTPCReq(IN PRTMP_ADAPTER pAd, u8 *pDA, u8 DialogToken)
 {
-	PUCHAR pOutBuffer = NULL;
-	NDIS_STATUS NStatus;
-	ULONG FrameLen;
+	u8 *pOutBuffer = NULL;
+	int NStatus;
+	unsigned long FrameLen;
 
 	HEADER_802_11 ActHdr;
 
@@ -1226,13 +1226,13 @@ VOID EnqueueTPCReq(IN PRTMP_ADAPTER pAd, IN PUCHAR pDA, IN UCHAR DialogToken)
 	MgtMacHeaderInit(pAd, &ActHdr, SUBTYPE_ACTION, 0, pDA,
 			 pAd->CurrentAddress);
 
-	NStatus = MlmeAllocateMemory(pAd, (PVOID) & pOutBuffer);	/*Get an unused nonpaged memory */
+	NStatus = MlmeAllocateMemory(pAd, (void *)& pOutBuffer);	/*Get an unused nonpaged memory */
 	if (NStatus != NDIS_STATUS_SUCCESS) {
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("%s() allocate memory failed \n", __func__));
 		return;
 	}
-	NdisMoveMemory(pOutBuffer, (PCHAR) & ActHdr, sizeof(HEADER_802_11));
+	NdisMoveMemory(pOutBuffer, (char *)& ActHdr, sizeof(HEADER_802_11));
 	FrameLen = sizeof(HEADER_802_11);
 
 	InsertActField(pAd, (pOutBuffer + FrameLen), &FrameLen,
@@ -1262,13 +1262,13 @@ VOID EnqueueTPCReq(IN PRTMP_ADAPTER pAd, IN PUCHAR pDA, IN UCHAR DialogToken)
 	Return	: None.
 	==========================================================================
  */
-VOID EnqueueTPCRep(IN PRTMP_ADAPTER pAd,
-		   IN PUCHAR pDA,
-		   IN UINT8 DialogToken, IN UINT8 TxPwr, IN UINT8 LinkMargin)
+void EnqueueTPCRep(IN PRTMP_ADAPTER pAd,
+		   u8 *pDA,
+		   u8 DialogToken, u8 TxPwr, u8 LinkMargin)
 {
-	PUCHAR pOutBuffer = NULL;
-	NDIS_STATUS NStatus;
-	ULONG FrameLen;
+	u8 *pOutBuffer = NULL;
+	int NStatus;
+	unsigned long FrameLen;
 
 	HEADER_802_11 ActHdr;
 
@@ -1276,13 +1276,13 @@ VOID EnqueueTPCRep(IN PRTMP_ADAPTER pAd,
 	MgtMacHeaderInit(pAd, &ActHdr, SUBTYPE_ACTION, 0, pDA,
 			 pAd->CurrentAddress);
 
-	NStatus = MlmeAllocateMemory(pAd, (PVOID) & pOutBuffer);	/*Get an unused nonpaged memory */
+	NStatus = MlmeAllocateMemory(pAd, (void *)& pOutBuffer);	/*Get an unused nonpaged memory */
 	if (NStatus != NDIS_STATUS_SUCCESS) {
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("%s() allocate memory failed \n", __func__));
 		return;
 	}
-	NdisMoveMemory(pOutBuffer, (PCHAR) & ActHdr, sizeof(HEADER_802_11));
+	NdisMoveMemory(pOutBuffer, (char *)& ActHdr, sizeof(HEADER_802_11));
 	FrameLen = sizeof(HEADER_802_11);
 
 	InsertActField(pAd, (pOutBuffer + FrameLen), &FrameLen,
@@ -1315,12 +1315,12 @@ VOID EnqueueTPCRep(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-VOID EnqueueChSwAnn(IN PRTMP_ADAPTER pAd,
-		    IN PUCHAR pDA, IN UINT8 ChSwMode, IN UINT8 NewCh)
+void EnqueueChSwAnn(IN PRTMP_ADAPTER pAd,
+		    u8 *pDA, u8 ChSwMode, u8 NewCh)
 {
-	PUCHAR pOutBuffer = NULL;
-	NDIS_STATUS NStatus;
-	ULONG FrameLen;
+	u8 *pOutBuffer = NULL;
+	int NStatus;
+	unsigned long FrameLen;
 
 	HEADER_802_11 ActHdr;
 
@@ -1328,13 +1328,13 @@ VOID EnqueueChSwAnn(IN PRTMP_ADAPTER pAd,
 	MgtMacHeaderInit(pAd, &ActHdr, SUBTYPE_ACTION, 0, pDA,
 			 pAd->CurrentAddress);
 
-	NStatus = MlmeAllocateMemory(pAd, (PVOID) & pOutBuffer);	/*Get an unused nonpaged memory */
+	NStatus = MlmeAllocateMemory(pAd, (void *)& pOutBuffer);	/*Get an unused nonpaged memory */
 	if (NStatus != NDIS_STATUS_SUCCESS) {
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("%s() allocate memory failed \n", __func__));
 		return;
 	}
-	NdisMoveMemory(pOutBuffer, (PCHAR) & ActHdr, sizeof(HEADER_802_11));
+	NdisMoveMemory(pOutBuffer, (char *)& ActHdr, sizeof(HEADER_802_11));
 	FrameLen = sizeof(HEADER_802_11);
 
 	InsertActField(pAd, (pOutBuffer + FrameLen), &FrameLen,
@@ -1349,10 +1349,10 @@ VOID EnqueueChSwAnn(IN PRTMP_ADAPTER pAd,
 	return;
 }
 
-static BOOLEAN DfsRequirementCheck(IN PRTMP_ADAPTER pAd, IN UINT8 Channel)
+static BOOLEAN DfsRequirementCheck(IN PRTMP_ADAPTER pAd, u8 Channel)
 {
 	BOOLEAN Result = FALSE;
-	INT i;
+	int i;
 
 	do {
 		/* check DFS procedure is running. */
@@ -1376,14 +1376,14 @@ static BOOLEAN DfsRequirementCheck(IN PRTMP_ADAPTER pAd, IN UINT8 Channel)
 	return Result;
 }
 
-VOID NotifyChSwAnnToPeerAPs(IN PRTMP_ADAPTER pAd,
-			    IN PUCHAR pRA,
-			    IN PUCHAR pTA, IN UINT8 ChSwMode, IN UINT8 Channel)
+void NotifyChSwAnnToPeerAPs(IN PRTMP_ADAPTER pAd,
+			    u8 *pRA,
+			    u8 *pTA, u8 ChSwMode, u8 Channel)
 {
 }
 
-static VOID StartDFSProcedure(IN PRTMP_ADAPTER pAd,
-			      IN UCHAR Channel, IN UINT8 ChSwMode)
+static void StartDFSProcedure(IN PRTMP_ADAPTER pAd,
+			      u8 Channel, u8 ChSwMode)
 {
 	/* start DFS procedure */
 	pAd->CommonCfg.Channel = Channel;
@@ -1416,12 +1416,12 @@ static VOID StartDFSProcedure(IN PRTMP_ADAPTER pAd,
     1    1        1           1            1
 */
 static BOOLEAN PeerChSwAnnSanity(IN PRTMP_ADAPTER pAd,
-				 IN VOID * pMsg,
-				 IN ULONG MsgLen,
+				 void * pMsg,
+				 unsigned long MsgLen,
 				 OUT PCH_SW_ANN_INFO pChSwAnnInfo)
 {
 	PFRAME_802_11 Fr = (PFRAME_802_11) pMsg;
-	PUCHAR pFramePtr = Fr->Octet;
+	u8 *pFramePtr = Fr->Octet;
 	BOOLEAN result = FALSE;
 	PEID_STRUCT eid_ptr;
 
@@ -1436,8 +1436,8 @@ static BOOLEAN PeerChSwAnnSanity(IN PRTMP_ADAPTER pAd,
 		return result;
 
 	eid_ptr = (PEID_STRUCT) pFramePtr;
-	while (((UCHAR *) eid_ptr + eid_ptr->Len + 1) <
-	       ((PUCHAR) pFramePtr + MsgLen)) {
+	while (((u8 *) eid_ptr + eid_ptr->Len + 1) <
+	       ((u8 *)pFramePtr + MsgLen)) {
 		switch (eid_ptr->Eid) {
 		case IE_CHANNEL_SWITCH_ANNOUNCEMENT:
 			NdisMoveMemory(&pChSwAnnInfo->ChSwMode, eid_ptr->Octet,
@@ -1453,7 +1453,7 @@ static BOOLEAN PeerChSwAnnSanity(IN PRTMP_ADAPTER pAd,
 		default:
 			break;
 		}
-		eid_ptr = (PEID_STRUCT) ((UCHAR *) eid_ptr + 2 + eid_ptr->Len);
+		eid_ptr = (PEID_STRUCT) ((u8 *) eid_ptr + 2 + eid_ptr->Len);
 	}
 
 	return result;
@@ -1473,19 +1473,19 @@ static BOOLEAN PeerChSwAnnSanity(IN PRTMP_ADAPTER pAd,
 	==========================================================================
  */
 static BOOLEAN PeerMeasureReqSanity(IN PRTMP_ADAPTER pAd,
-				    IN VOID * pMsg,
-				    IN ULONG MsgLen,
-				    OUT PUINT8 pDialogToken,
+				    void * pMsg,
+				    unsigned long MsgLen,
+				    u8 *pDialogToken,
 				    OUT PMEASURE_REQ_INFO pMeasureReqInfo,
 				    OUT PMEASURE_REQ pMeasureReq)
 {
 	PFRAME_802_11 Fr = (PFRAME_802_11) pMsg;
-	PUCHAR pFramePtr = Fr->Octet;
+	u8 *pFramePtr = Fr->Octet;
 	BOOLEAN result = FALSE;
 	PEID_STRUCT eid_ptr;
-	PUCHAR ptr;
-	UINT64 MeasureStartTime;
-	UINT16 MeasureDuration;
+	u8 *ptr;
+	u64 MeasureStartTime;
+	u16 MeasureDuration;
 
 	/* skip 802.11 header. */
 	MsgLen -= sizeof(HEADER_802_11);
@@ -1502,8 +1502,8 @@ static BOOLEAN PeerMeasureReqSanity(IN PRTMP_ADAPTER pAd,
 	MsgLen -= 1;
 
 	eid_ptr = (PEID_STRUCT) pFramePtr;
-	while (((UCHAR *) eid_ptr + eid_ptr->Len + 1) <
-	       ((PUCHAR) pFramePtr + MsgLen)) {
+	while (((u8 *) eid_ptr + eid_ptr->Len + 1) <
+	       ((u8 *)pFramePtr + MsgLen)) {
 		switch (eid_ptr->Eid) {
 		case IE_MEASUREMENT_REQUEST:
 			NdisMoveMemory(&pMeasureReqInfo->Token, eid_ptr->Octet,
@@ -1512,7 +1512,7 @@ static BOOLEAN PeerMeasureReqSanity(IN PRTMP_ADAPTER pAd,
 				       eid_ptr->Octet + 1, 1);
 			NdisMoveMemory(&pMeasureReqInfo->ReqType,
 				       eid_ptr->Octet + 2, 1);
-			ptr = (PUCHAR) (eid_ptr->Octet + 3);
+			ptr = (u8 *)(eid_ptr->Octet + 3);
 			NdisMoveMemory(&pMeasureReq->ChNum, ptr, 1);
 			NdisMoveMemory(&MeasureStartTime, ptr + 1, 8);
 			pMeasureReq->MeasureStartTime =
@@ -1526,7 +1526,7 @@ static BOOLEAN PeerMeasureReqSanity(IN PRTMP_ADAPTER pAd,
 		default:
 			break;
 		}
-		eid_ptr = (PEID_STRUCT) ((UCHAR *) eid_ptr + 2 + eid_ptr->Len);
+		eid_ptr = (PEID_STRUCT) ((u8 *) eid_ptr + 2 + eid_ptr->Len);
 	}
 
 	return result;
@@ -1567,18 +1567,18 @@ static BOOLEAN PeerMeasureReqSanity(IN PRTMP_ADAPTER pAd,
      0          1                  2              3         4          5-7
 */
 static BOOLEAN PeerMeasureReportSanity(IN PRTMP_ADAPTER pAd,
-				       IN VOID * pMsg,
-				       IN ULONG MsgLen,
-				       OUT PUINT8 pDialogToken,
+				       void * pMsg,
+				       unsigned long MsgLen,
+				       u8 *pDialogToken,
 				       OUT PMEASURE_REPORT_INFO
 				       pMeasureReportInfo,
-				       OUT PUINT8 pReportBuf)
+				       u8 *pReportBuf)
 {
 	PFRAME_802_11 Fr = (PFRAME_802_11) pMsg;
-	PUCHAR pFramePtr = Fr->Octet;
+	u8 *pFramePtr = Fr->Octet;
 	BOOLEAN result = FALSE;
 	PEID_STRUCT eid_ptr;
-	PUCHAR ptr;
+	u8 *ptr;
 
 	/* skip 802.11 header. */
 	MsgLen -= sizeof(HEADER_802_11);
@@ -1595,8 +1595,8 @@ static BOOLEAN PeerMeasureReportSanity(IN PRTMP_ADAPTER pAd,
 	MsgLen -= 1;
 
 	eid_ptr = (PEID_STRUCT) pFramePtr;
-	while (((UCHAR *) eid_ptr + eid_ptr->Len + 1) <
-	       ((PUCHAR) pFramePtr + MsgLen)) {
+	while (((u8 *) eid_ptr + eid_ptr->Len + 1) <
+	       ((u8 *)pFramePtr + MsgLen)) {
 		switch (eid_ptr->Eid) {
 		case IE_MEASUREMENT_REPORT:
 			NdisMoveMemory(&pMeasureReportInfo->Token,
@@ -1608,7 +1608,7 @@ static BOOLEAN PeerMeasureReportSanity(IN PRTMP_ADAPTER pAd,
 			if (pMeasureReportInfo->ReportType == RM_BASIC) {
 				PMEASURE_BASIC_REPORT pReport =
 				    (PMEASURE_BASIC_REPORT) pReportBuf;
-				ptr = (PUCHAR) (eid_ptr->Octet + 3);
+				ptr = (u8 *)(eid_ptr->Octet + 3);
 				NdisMoveMemory(&pReport->ChNum, ptr, 1);
 				NdisMoveMemory(&pReport->MeasureStartTime,
 					       ptr + 1, 8);
@@ -1619,7 +1619,7 @@ static BOOLEAN PeerMeasureReportSanity(IN PRTMP_ADAPTER pAd,
 			} else if (pMeasureReportInfo->ReportType == RM_CCA) {
 				PMEASURE_CCA_REPORT pReport =
 				    (PMEASURE_CCA_REPORT) pReportBuf;
-				ptr = (PUCHAR) (eid_ptr->Octet + 3);
+				ptr = (u8 *)(eid_ptr->Octet + 3);
 				NdisMoveMemory(&pReport->ChNum, ptr, 1);
 				NdisMoveMemory(&pReport->MeasureStartTime,
 					       ptr + 1, 8);
@@ -1632,7 +1632,7 @@ static BOOLEAN PeerMeasureReportSanity(IN PRTMP_ADAPTER pAd,
 				   RM_RPI_HISTOGRAM) {
 				PMEASURE_RPI_REPORT pReport =
 				    (PMEASURE_RPI_REPORT) pReportBuf;
-				ptr = (PUCHAR) (eid_ptr->Octet + 3);
+				ptr = (u8 *)(eid_ptr->Octet + 3);
 				NdisMoveMemory(&pReport->ChNum, ptr, 1);
 				NdisMoveMemory(&pReport->MeasureStartTime,
 					       ptr + 1, 8);
@@ -1647,7 +1647,7 @@ static BOOLEAN PeerMeasureReportSanity(IN PRTMP_ADAPTER pAd,
 		default:
 			break;
 		}
-		eid_ptr = (PEID_STRUCT) ((UCHAR *) eid_ptr + 2 + eid_ptr->Len);
+		eid_ptr = (PEID_STRUCT) ((u8 *) eid_ptr + 2 + eid_ptr->Len);
 	}
 
 	return result;
@@ -1667,11 +1667,11 @@ static BOOLEAN PeerMeasureReportSanity(IN PRTMP_ADAPTER pAd,
 	==========================================================================
  */
 static BOOLEAN PeerTpcReqSanity(IN PRTMP_ADAPTER pAd,
-				IN VOID * pMsg,
-				IN ULONG MsgLen, OUT PUINT8 pDialogToken)
+				void * pMsg,
+				unsigned long MsgLen, u8 *pDialogToken)
 {
 	PFRAME_802_11 Fr = (PFRAME_802_11) pMsg;
-	PUCHAR pFramePtr = Fr->Octet;
+	u8 *pFramePtr = Fr->Octet;
 	BOOLEAN result = FALSE;
 	PEID_STRUCT eid_ptr;
 
@@ -1689,8 +1689,8 @@ static BOOLEAN PeerTpcReqSanity(IN PRTMP_ADAPTER pAd,
 	MsgLen -= 1;
 
 	eid_ptr = (PEID_STRUCT) pFramePtr;
-	while (((UCHAR *) eid_ptr + eid_ptr->Len + 1) <
-	       ((PUCHAR) pFramePtr + MsgLen)) {
+	while (((u8 *) eid_ptr + eid_ptr->Len + 1) <
+	       ((u8 *)pFramePtr + MsgLen)) {
 		switch (eid_ptr->Eid) {
 		case IE_TPC_REQUEST:
 			result = TRUE;
@@ -1699,7 +1699,7 @@ static BOOLEAN PeerTpcReqSanity(IN PRTMP_ADAPTER pAd,
 		default:
 			break;
 		}
-		eid_ptr = (PEID_STRUCT) ((UCHAR *) eid_ptr + 2 + eid_ptr->Len);
+		eid_ptr = (PEID_STRUCT) ((u8 *) eid_ptr + 2 + eid_ptr->Len);
 	}
 
 	return result;
@@ -1720,13 +1720,13 @@ static BOOLEAN PeerTpcReqSanity(IN PRTMP_ADAPTER pAd,
 	==========================================================================
  */
 static BOOLEAN PeerTpcRepSanity(IN PRTMP_ADAPTER pAd,
-				IN VOID * pMsg,
-				IN ULONG MsgLen,
-				OUT PUINT8 pDialogToken,
+				void * pMsg,
+				unsigned long MsgLen,
+				u8 *pDialogToken,
 				OUT PTPC_REPORT_INFO pTpcRepInfo)
 {
 	PFRAME_802_11 Fr = (PFRAME_802_11) pMsg;
-	PUCHAR pFramePtr = Fr->Octet;
+	u8 *pFramePtr = Fr->Octet;
 	BOOLEAN result = FALSE;
 	PEID_STRUCT eid_ptr;
 
@@ -1744,8 +1744,8 @@ static BOOLEAN PeerTpcRepSanity(IN PRTMP_ADAPTER pAd,
 	MsgLen -= 1;
 
 	eid_ptr = (PEID_STRUCT) pFramePtr;
-	while (((UCHAR *) eid_ptr + eid_ptr->Len + 1) <
-	       ((PUCHAR) pFramePtr + MsgLen)) {
+	while (((u8 *) eid_ptr + eid_ptr->Len + 1) <
+	       ((u8 *)pFramePtr + MsgLen)) {
 		switch (eid_ptr->Eid) {
 		case IE_TPC_REPORT:
 			NdisMoveMemory(&pTpcRepInfo->TxPwr, eid_ptr->Octet, 1);
@@ -1757,7 +1757,7 @@ static BOOLEAN PeerTpcRepSanity(IN PRTMP_ADAPTER pAd,
 		default:
 			break;
 		}
-		eid_ptr = (PEID_STRUCT) ((UCHAR *) eid_ptr + 2 + eid_ptr->Len);
+		eid_ptr = (PEID_STRUCT) ((u8 *) eid_ptr + 2 + eid_ptr->Len);
 	}
 
 	return result;
@@ -1774,12 +1774,12 @@ static BOOLEAN PeerTpcRepSanity(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-static VOID PeerChSwAnnAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+static void PeerChSwAnnAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
 	CH_SW_ANN_INFO ChSwAnnInfo;
 	PFRAME_802_11 pFr = (PFRAME_802_11) Elem->Msg;
-	UCHAR index = 0, Channel = 0, NewChannel = 0;
-	ULONG Bssidx = 0;
+	u8 index = 0, Channel = 0, NewChannel = 0;
+	unsigned long Bssidx = 0;
 
 	NdisZeroMemory(&ChSwAnnInfo, sizeof(CH_SW_ANN_INFO));
 	if (!PeerChSwAnnSanity(pAd, Elem->Msg, Elem->MsgLen, &ChSwAnnInfo)) {
@@ -1856,11 +1856,11 @@ static VOID PeerChSwAnnAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	Return	: None.
 	==========================================================================
  */
-static VOID PeerMeasureReqAction(IN PRTMP_ADAPTER pAd,
+static void PeerMeasureReqAction(IN PRTMP_ADAPTER pAd,
 				 IN MLME_QUEUE_ELEM * Elem)
 {
 	PFRAME_802_11 pFr = (PFRAME_802_11) Elem->Msg;
-	UINT8 DialogToken;
+	u8 DialogToken;
 	MEASURE_REQ_INFO MeasureReqInfo;
 	MEASURE_REQ MeasureReq;
 	MEASURE_REPORT_MODE ReportMode;
@@ -1889,13 +1889,13 @@ static VOID PeerMeasureReqAction(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-static VOID PeerMeasureReportAction(IN PRTMP_ADAPTER pAd,
+static void PeerMeasureReportAction(IN PRTMP_ADAPTER pAd,
 				    IN MLME_QUEUE_ELEM * Elem)
 {
 	MEASURE_REPORT_INFO MeasureReportInfo;
 	PFRAME_802_11 pFr = (PFRAME_802_11) Elem->Msg;
-	UINT8 DialogToken;
-	PUINT8 pMeasureReportInfo;
+	u8 DialogToken;
+	u8 *pMeasureReportInfo;
 
 /*      if (pAd->CommonCfg.bIEEE80211H != TRUE) */
 /*              return; */
@@ -1965,14 +1965,14 @@ static VOID PeerMeasureReportAction(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-static VOID PeerTpcReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+static void PeerTpcReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
 	PFRAME_802_11 pFr = (PFRAME_802_11) Elem->Msg;
-	PUCHAR pFramePtr = pFr->Octet;
-	UINT8 DialogToken;
-	UINT8 TxPwr = GetCurTxPwr(pAd, Elem->Wcid);
-	UINT8 LinkMargin = 0;
-	CHAR RealRssi;
+	u8 *pFramePtr = pFr->Octet;
+	u8 DialogToken;
+	u8 TxPwr = GetCurTxPwr(pAd, Elem->Wcid);
+	u8 LinkMargin = 0;
+	char RealRssi;
 
 	/* link margin: Ratio of the received signal power to the minimum desired by the station (STA). The */
 	/*                              STA may incorporate rate information and channel conditions, including interference, into its computation */
@@ -2007,9 +2007,9 @@ static VOID PeerTpcReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	Return	: None.
 	==========================================================================
  */
-static VOID PeerTpcRepAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+static void PeerTpcRepAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
-	UINT8 DialogToken;
+	u8 DialogToken;
 	TPC_REPORT_INFO TpcRepInfo;
 	PTPC_REQ_ENTRY pEntry = NULL;
 
@@ -2040,10 +2040,10 @@ static VOID PeerTpcRepAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	Return	: None.
 	==========================================================================
  */
-VOID PeerSpectrumAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerSpectrumAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
 
-	UCHAR Action = Elem->Msg[LENGTH_802_11 + 1];
+	u8 Action = Elem->Msg[LENGTH_802_11 + 1];
 
 	if (pAd->CommonCfg.bIEEE80211H != TRUE)
 		return;
@@ -2085,26 +2085,26 @@ VOID PeerSpectrumAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	Return	: None.
 	==========================================================================
  */
-INT Set_MeasureReq_Proc(IN PRTMP_ADAPTER pAd, IN PSTRING arg)
+int Set_MeasureReq_Proc(IN PRTMP_ADAPTER pAd, char *arg)
 {
-	UINT Aid = 1;
-	UINT ArgIdx;
-	PSTRING thisChar;
+	u32 Aid = 1;
+	u32 ArgIdx;
+	char *thisChar;
 
 	MEASURE_REQ_MODE MeasureReqMode;
-	UINT8 MeasureReqToken = RandomByte(pAd);
-	UINT8 MeasureReqType = RM_BASIC;
-	UINT8 MeasureCh = 1;
-	UINT64 MeasureStartTime = GetCurrentTimeStamp(pAd);
+	u8 MeasureReqToken = RandomByte(pAd);
+	u8 MeasureReqType = RM_BASIC;
+	u8 MeasureCh = 1;
+	u64 MeasureStartTime = GetCurrentTimeStamp(pAd);
 	MEASURE_REQ MeasureReq;
-	UINT8 TotalLen;
+	u8 TotalLen;
 
 	HEADER_802_11 ActHdr;
-	PUCHAR pOutBuffer = NULL;
-	NDIS_STATUS NStatus;
-	ULONG FrameLen;
+	u8 *pOutBuffer = NULL;
+	int NStatus;
+	unsigned long FrameLen;
 
-	NStatus = MlmeAllocateMemory(pAd, (PVOID) & pOutBuffer);	/*Get an unused nonpaged memory */
+	NStatus = MlmeAllocateMemory(pAd, (void *)& pOutBuffer);	/*Get an unused nonpaged memory */
 	if (NStatus != NDIS_STATUS_SUCCESS) {
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("%s() allocate memory failed \n", __func__));
@@ -2115,7 +2115,7 @@ INT Set_MeasureReq_Proc(IN PRTMP_ADAPTER pAd, IN PSTRING arg)
 	while ((thisChar = strsep((char **)&arg, "-")) != NULL) {
 		switch (ArgIdx) {
 		case 1:	/* Aid. */
-			Aid = (UINT8) simple_strtol(thisChar, 0, 16);
+			Aid = (u8)simple_strtol(thisChar, 0, 16);
 			break;
 
 		case 2:	/* Measurement Request Type. */
@@ -2129,7 +2129,7 @@ INT Set_MeasureReq_Proc(IN PRTMP_ADAPTER pAd, IN PSTRING arg)
 			break;
 
 		case 3:	/* Measurement channel. */
-			MeasureCh = (UINT8) simple_strtol(thisChar, 0, 16);
+			MeasureCh = (u8)simple_strtol(thisChar, 0, 16);
 			break;
 		}
 		ArgIdx++;
@@ -2153,7 +2153,7 @@ INT Set_MeasureReq_Proc(IN PRTMP_ADAPTER pAd, IN PSTRING arg)
 	MgtMacHeaderInit(pAd, &ActHdr, SUBTYPE_ACTION, 0,
 			 pAd->MacTab.Content[Aid].Addr, pAd->CurrentAddress);
 
-	NdisMoveMemory(pOutBuffer, (PCHAR) & ActHdr, sizeof(HEADER_802_11));
+	NdisMoveMemory(pOutBuffer, (char *)& ActHdr, sizeof(HEADER_802_11));
 	FrameLen = sizeof(HEADER_802_11);
 
 	TotalLen = sizeof(MEASURE_REQ_INFO) + sizeof(MEASURE_REQ);
@@ -2168,14 +2168,14 @@ INT Set_MeasureReq_Proc(IN PRTMP_ADAPTER pAd, IN PSTRING arg)
 	MeasureReq.MeasureDuration = cpu2le16(2000);
 
 	{
-		ULONG TempLen;
+		unsigned long TempLen;
 		MakeOutgoingFrame(pOutBuffer + FrameLen, &TempLen,
 				  sizeof(MEASURE_REQ), &MeasureReq,
 				  END_OF_ARGS);
 		FrameLen += TempLen;
 	}
 
-	MiniportMMRequest(pAd, QID_AC_BE, pOutBuffer, (UINT) FrameLen);
+	MiniportMMRequest(pAd, QID_AC_BE, pOutBuffer, (u32)FrameLen);
 
 END_OF_MEASURE_REQ:
 	MlmeFreeMemory(pAd, pOutBuffer);
@@ -2183,13 +2183,13 @@ END_OF_MEASURE_REQ:
 	return TRUE;
 }
 
-INT Set_TpcReq_Proc(IN PRTMP_ADAPTER pAd, IN PSTRING arg)
+int Set_TpcReq_Proc(IN PRTMP_ADAPTER pAd, char *arg)
 {
-	UINT Aid;
+	u32 Aid;
 
-	UINT8 TpcReqToken = RandomByte(pAd);
+	u8 TpcReqToken = RandomByte(pAd);
 
-	Aid = (UINT) simple_strtol(arg, 0, 16);
+	Aid = (u32)simple_strtol(arg, 0, 16);
 
 	DBGPRINT(RT_DEBUG_TRACE, ("%s::Aid = %d\n", __func__, Aid));
 	if (!VALID_WCID(Aid)) {

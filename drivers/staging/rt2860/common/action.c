@@ -39,7 +39,7 @@
 #include "../rt_config.h"
 #include "action.h"
 
-static VOID ReservedAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem);
+static void ReservedAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem);
 
 /*
     ==========================================================================
@@ -58,7 +58,7 @@ static VOID ReservedAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem);
         MT2_CLS3ERR              cls3err_action
     ==========================================================================
  */
-VOID ActionStateMachineInit(IN PRTMP_ADAPTER pAd,
+void ActionStateMachineInit(IN PRTMP_ADAPTER pAd,
 			    IN STATE_MACHINE * S,
 			    OUT STATE_MACHINE_FUNC Trans[])
 {
@@ -98,15 +98,15 @@ VOID ActionStateMachineInit(IN PRTMP_ADAPTER pAd,
 			      (STATE_MACHINE_FUNC) MlmeInvalidAction);
 }
 
-VOID MlmeADDBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void MlmeADDBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
 	MLME_ADDBA_REQ_STRUCT *pInfo;
-	UCHAR Addr[6];
-	PUCHAR pOutBuffer = NULL;
-	NDIS_STATUS NStatus;
-	ULONG Idx;
+	u8 Addr[6];
+	u8 *pOutBuffer = NULL;
+	int NStatus;
+	unsigned long Idx;
 	FRAME_ADDBA_REQ Frame;
-	ULONG FrameLen;
+	unsigned long FrameLen;
 	BA_ORI_ENTRY *pBAEntry = NULL;
 
 	pInfo = (MLME_ADDBA_REQ_STRUCT *) Elem->Msg;
@@ -155,8 +155,8 @@ VOID MlmeADDBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		Frame.BaStartSeq.field.StartSeq =
 		    pAd->MacTab.Content[pInfo->Wcid].TxSeq[pInfo->TID];
 
-		*(USHORT *) (&Frame.BaParm) =
-		    cpu2le16(*(USHORT *) (&Frame.BaParm));
+		*(u16 *) (&Frame.BaParm) =
+		    cpu2le16(*(u16 *) (&Frame.BaParm));
 		Frame.TimeOutValue = cpu2le16(Frame.TimeOutValue);
 		Frame.BaStartSeq.word = cpu2le16(Frame.BaStartSeq.word);
 
@@ -188,15 +188,15 @@ VOID MlmeADDBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
     ==========================================================================
  */
-VOID MlmeDELBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void MlmeDELBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
 	MLME_DELBA_REQ_STRUCT *pInfo;
-	PUCHAR pOutBuffer = NULL;
-	PUCHAR pOutBuffer2 = NULL;
-	NDIS_STATUS NStatus;
-	ULONG Idx;
+	u8 *pOutBuffer = NULL;
+	u8 *pOutBuffer2 = NULL;
+	int NStatus;
+	unsigned long Idx;
 	FRAME_DELBA_REQ Frame;
-	ULONG FrameLen;
+	unsigned long FrameLen;
 	FRAME_BAR FrameBar;
 
 	pInfo = (MLME_DELBA_REQ_STRUCT *) Elem->Msg;
@@ -264,8 +264,8 @@ VOID MlmeDELBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		Frame.DelbaParm.Initiator = pInfo->Initiator;
 		Frame.DelbaParm.TID = pInfo->TID;
 		Frame.ReasonCode = 39;	/* Time Out */
-		*(USHORT *) (&Frame.DelbaParm) =
-		    cpu2le16(*(USHORT *) (&Frame.DelbaParm));
+		*(u16 *) (&Frame.DelbaParm) =
+		    cpu2le16(*(u16 *) (&Frame.DelbaParm));
 		Frame.ReasonCode = cpu2le16(Frame.ReasonCode);
 
 		MakeOutgoingFrame(pOutBuffer, &FrameLen,
@@ -278,27 +278,27 @@ VOID MlmeDELBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	}
 }
 
-VOID MlmeQOSAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void MlmeQOSAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
 }
 
-VOID MlmeDLSAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void MlmeDLSAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
 }
 
-VOID MlmeInvalidAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void MlmeInvalidAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
-	/*PUCHAR                   pOutBuffer = NULL; */
+	/*u8 *                  pOutBuffer = NULL; */
 	/*Return the receiving frame except the MSB of category filed set to 1.  7.3.1.11 */
 }
 
-VOID PeerQOSAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerQOSAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
 }
 
-VOID PeerBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
-	UCHAR Action = Elem->Msg[LENGTH_802_11 + 1];
+	u8 Action = Elem->Msg[LENGTH_802_11 + 1];
 
 	switch (Action) {
 	case ADDBA_REQ:
@@ -313,15 +313,15 @@ VOID PeerBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	}
 }
 
-VOID PeerPublicAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerPublicAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
 	if (Elem->Wcid >= MAX_LEN_OF_MAC_TABLE)
 		return;
 }
 
-static VOID ReservedAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+static void ReservedAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
-	UCHAR Category;
+	u8 Category;
 
 	if (Elem->MsgLen <= LENGTH_802_11) {
 		return;
@@ -333,19 +333,19 @@ static VOID ReservedAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	hex_dump("Reserved Action Frame", &Elem->Msg[0], Elem->MsgLen);
 }
 
-VOID PeerRMAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerRMAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
 	return;
 }
 
-static VOID respond_ht_information_exchange_action(IN PRTMP_ADAPTER pAd,
+static void respond_ht_information_exchange_action(IN PRTMP_ADAPTER pAd,
 						   IN MLME_QUEUE_ELEM * Elem)
 {
-	PUCHAR pOutBuffer = NULL;
-	NDIS_STATUS NStatus;
-	ULONG FrameLen;
+	u8 *pOutBuffer = NULL;
+	int NStatus;
+	unsigned long FrameLen;
 	FRAME_HT_INFO HTINFOframe, *pFrame;
-	UCHAR *pAddr;
+	u8 *pAddr;
 
 	/* 2. Always send back ADDBA Response */
 	NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	/*Get an unused nonpaged memory */
@@ -387,9 +387,9 @@ static VOID respond_ht_information_exchange_action(IN PRTMP_ADAPTER pAd,
 	MlmeFreeMemory(pAd, pOutBuffer);
 }
 
-VOID PeerHTAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerHTAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
-	UCHAR Action = Elem->Msg[LENGTH_802_11 + 1];
+	u8 Action = Elem->Msg[LENGTH_802_11 + 1];
 
 	if (Elem->Wcid >= MAX_LEN_OF_MAC_TABLE)
 		return;
@@ -467,11 +467,11 @@ VOID PeerHTAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 				FALSE , then continue indicaterx at this moment.
 	==========================================================================
  */
-VOID ORIBATimerTimeout(IN PRTMP_ADAPTER pAd)
+void ORIBATimerTimeout(IN PRTMP_ADAPTER pAd)
 {
 	MAC_TABLE_ENTRY *pEntry;
-	INT i, total;
-	UCHAR TID;
+	int i, total;
+	u8 TID;
 
 	total = pAd->MacTab.Size * NUM_OF_TID;
 
@@ -489,15 +489,15 @@ VOID ORIBATimerTimeout(IN PRTMP_ADAPTER pAd)
 	}
 }
 
-VOID SendRefreshBAR(IN PRTMP_ADAPTER pAd, IN MAC_TABLE_ENTRY * pEntry)
+void SendRefreshBAR(IN PRTMP_ADAPTER pAd, IN MAC_TABLE_ENTRY * pEntry)
 {
 	FRAME_BAR FrameBar;
-	ULONG FrameLen;
-	NDIS_STATUS NStatus;
-	PUCHAR pOutBuffer = NULL;
-	USHORT Sequence;
-	UCHAR i, TID;
-	USHORT idx;
+	unsigned long FrameLen;
+	int NStatus;
+	u8 *pOutBuffer = NULL;
+	u16 Sequence;
+	u8 i, TID;
+	u16 idx;
 	BA_ORI_ENTRY *pBAEntry;
 
 	for (i = 0; i < NUM_OF_TID; i++) {
@@ -547,9 +547,9 @@ VOID SendRefreshBAR(IN PRTMP_ADAPTER pAd, IN MAC_TABLE_ENTRY * pEntry)
 	}
 }
 
-VOID ActHeaderInit(IN PRTMP_ADAPTER pAd,
+void ActHeaderInit(IN PRTMP_ADAPTER pAd,
 		   IN OUT PHEADER_802_11 pHdr80211,
-		   IN PUCHAR Addr1, IN PUCHAR Addr2, IN PUCHAR Addr3)
+		   u8 *Addr1, u8 *Addr2, u8 *Addr3)
 {
 	NdisZeroMemory(pHdr80211, sizeof(HEADER_802_11));
 	pHdr80211->FC.Type = BTYPE_MGMT;
@@ -560,8 +560,8 @@ VOID ActHeaderInit(IN PRTMP_ADAPTER pAd,
 	COPY_MAC_ADDR(pHdr80211->Addr3, Addr3);
 }
 
-VOID BarHeaderInit(IN PRTMP_ADAPTER pAd,
-		   IN OUT PFRAME_BAR pCntlBar, IN PUCHAR pDA, IN PUCHAR pSA)
+void BarHeaderInit(IN PRTMP_ADAPTER pAd,
+		   IN OUT PFRAME_BAR pCntlBar, u8 *pDA, u8 *pSA)
 {
 	NdisZeroMemory(pCntlBar, sizeof(FRAME_BAR));
 	pCntlBar->FC.Type = BTYPE_CNTL;
@@ -591,11 +591,11 @@ VOID BarHeaderInit(IN PRTMP_ADAPTER pAd,
 	Return	: None.
 	==========================================================================
  */
-VOID InsertActField(IN PRTMP_ADAPTER pAd,
-		    OUT PUCHAR pFrameBuf,
-		    OUT PULONG pFrameLen, IN UINT8 Category, IN UINT8 ActCode)
+void InsertActField(IN PRTMP_ADAPTER pAd,
+		    u8 *pFrameBuf,
+		    unsigned long *pFrameLen, u8 Category, u8 ActCode)
 {
-	ULONG TempLen;
+	unsigned long TempLen;
 
 	MakeOutgoingFrame(pFrameBuf, &TempLen,
 			  1, &Category, 1, &ActCode, END_OF_ARGS);

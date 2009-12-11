@@ -51,8 +51,8 @@
 #define RT_DEBUG_INFO       4
 #define RT_DEBUG_LOUD       5
 
-#define NIC_TAG             ((ULONG)'0682')
-#define NIC_DBG_STRING      ("**RT28xx**")
+#define NIC_TAG             ((unsigned long)'0682')
+#define NIC_DBG_char      ("**RT28xx**")
 
 #ifdef RTMP_MAC_USB
 #define TX_RING_SIZE            8	/* 1 */
@@ -65,9 +65,9 @@
 
 /*#define PACKED */
 
-#define RALINK_2883_VERSION		((UINT32)0x28830300)
-#define RALINK_2880E_VERSION	((UINT32)0x28720200)
-#define RALINK_3070_VERSION		((UINT32)0x30700200)
+#define RALINK_2883_VERSION		((u32)0x28830300)
+#define RALINK_2880E_VERSION	((u32)0x28720200)
+#define RALINK_3070_VERSION		((u32)0x30700200)
 
 #define MAX_RX_PKT_LEN	1520
 
@@ -453,7 +453,7 @@
 /* Reason code definitions */
 #define REASON_RESERVED                 0
 #define REASON_UNSPECIFY                1
-#define REASON_NO_LONGER_VALID          2
+#define REASON_NO_longER_VALID          2
 #define REASON_DEAUTH_STA_LEAVING       3
 #define REASON_DISASSOC_INACTIVE        4
 #define REASON_DISASSPC_AP_UNABLE       5
@@ -533,7 +533,7 @@
 #define IE_TCLAS                        14	/* 802.11e d9 */
 #define IE_SCHEDULE                     15	/* 802.11e d9 */
 #define IE_CHALLENGE_TEXT               16
-#define IE_POWER_CONSTRAINT             32	/* 802.11h d3.3 */
+#define IE_POWER_CONSTRAint             32	/* 802.11h d3.3 */
 #define IE_POWER_CAPABILITY             33	/* 802.11h d3.3 */
 #define IE_TPC_REQUEST                  34	/* 802.11h d3.3 */
 #define IE_TPC_REPORT                   35	/* 802.11h d3.3 */
@@ -980,10 +980,10 @@
 #define MODE_HTGREENFIELD	3
 
 /* MCS for CCK.  BW.SGI.STBC are reserved */
-#define MCS_LONGP_RATE_1                      0	/* long preamble CCK 1Mbps */
-#define MCS_LONGP_RATE_2                      1	/* long preamble CCK 1Mbps */
-#define MCS_LONGP_RATE_5_5                    2
-#define MCS_LONGP_RATE_11                     3
+#define MCS_longP_RATE_1                      0	/* long preamble CCK 1Mbps */
+#define MCS_longP_RATE_2                      1	/* long preamble CCK 1Mbps */
+#define MCS_longP_RATE_5_5                    2
+#define MCS_longP_RATE_11                     3
 #define MCS_SHORTP_RATE_1                      4	/* long preamble CCK 1Mbps. short is forbidden in 1Mbps */
 #define MCS_SHORTP_RATE_2                      5	/* short preamble CCK 2Mbps */
 #define MCS_SHORTP_RATE_5_5                    6
@@ -1109,7 +1109,7 @@
 #define IFS_BACKOFF                 3
 
 /* pTxD->RetryMode */
-#define LONG_RETRY                  1
+#define long_RETRY                  1
 #define SHORT_RETRY                 0
 
 /* Country Region definition */
@@ -1211,7 +1211,7 @@
 
 /* ========================= AP rtmp_def.h =========================== */
 /* value domain for pAd->EventTab.Log[].Event */
-#define EVENT_RESET_ACCESS_POINT    0	/* Log = "hh:mm:ss   Restart Access Point" */
+#define EVENT_RESET_ACCESS_POint    0	/* Log = "hh:mm:ss   Restart Access Point" */
 #define EVENT_ASSOCIATED            1	/* Log = "hh:mm:ss   STA 00:01:02:03:04:05 associated" */
 #define EVENT_DISASSOCIATED         2	/* Log = "hh:mm:ss   STA 00:01:02:03:04:05 left this BSS" */
 #define EVENT_AGED_OUT              3	/* Log = "hh:mm:ss   STA 00:01:02:03:04:05 was aged-out and removed from this BSS" */
@@ -1356,34 +1356,34 @@
 
 /* Endian byte swapping codes */
 #define SWAP16(x) \
-    ((UINT16)( \
-    (((UINT16)(x) & (UINT16) 0x00ffU) << 8) | \
-    (((UINT16)(x) & (UINT16) 0xff00U) >> 8) ))
+    ((u16)( \
+    (((u16)(x) & (u16)0x00ffU) << 8) | \
+    (((u16)(x) & (u16)0xff00U) >> 8) ))
 
 #define SWAP32(x) \
-    ((UINT32)( \
-    (((UINT32)(x) & (UINT32) 0x000000ffUL) << 24) | \
-    (((UINT32)(x) & (UINT32) 0x0000ff00UL) <<  8) | \
-    (((UINT32)(x) & (UINT32) 0x00ff0000UL) >>  8) | \
-    (((UINT32)(x) & (UINT32) 0xff000000UL) >> 24) ))
+    ((u32)( \
+    (((u32)(x) & (u32)0x000000ffUL) << 24) | \
+    (((u32)(x) & (u32)0x0000ff00UL) <<  8) | \
+    (((u32)(x) & (u32)0x00ff0000UL) >>  8) | \
+    (((u32)(x) & (u32)0xff000000UL) >> 24) ))
 
 #define SWAP64(x) \
-    ((UINT64)( \
-    (UINT64)(((UINT64)(x) & (UINT64) 0x00000000000000ffULL) << 56) | \
-    (UINT64)(((UINT64)(x) & (UINT64) 0x000000000000ff00ULL) << 40) | \
-    (UINT64)(((UINT64)(x) & (UINT64) 0x0000000000ff0000ULL) << 24) | \
-    (UINT64)(((UINT64)(x) & (UINT64) 0x00000000ff000000ULL) <<  8) | \
-    (UINT64)(((UINT64)(x) & (UINT64) 0x000000ff00000000ULL) >>  8) | \
-    (UINT64)(((UINT64)(x) & (UINT64) 0x0000ff0000000000ULL) >> 24) | \
-    (UINT64)(((UINT64)(x) & (UINT64) 0x00ff000000000000ULL) >> 40) | \
-    (UINT64)(((UINT64)(x) & (UINT64) 0xff00000000000000ULL) >> 56) ))
+    ((u64)( \
+    (u64)(((u64)(x) & (u64)0x00000000000000ffULL) << 56) | \
+    (u64)(((u64)(x) & (u64)0x000000000000ff00ULL) << 40) | \
+    (u64)(((u64)(x) & (u64)0x0000000000ff0000ULL) << 24) | \
+    (u64)(((u64)(x) & (u64)0x00000000ff000000ULL) <<  8) | \
+    (u64)(((u64)(x) & (u64)0x000000ff00000000ULL) >>  8) | \
+    (u64)(((u64)(x) & (u64)0x0000ff0000000000ULL) >> 24) | \
+    (u64)(((u64)(x) & (u64)0x00ff000000000000ULL) >> 40) | \
+    (u64)(((u64)(x) & (u64)0xff00000000000000ULL) >> 56) ))
 
-#define cpu2le64(x) ((UINT64)(x))
-#define le2cpu64(x) ((UINT64)(x))
-#define cpu2le32(x) ((UINT32)(x))
-#define le2cpu32(x) ((UINT32)(x))
-#define cpu2le16(x) ((UINT16)(x))
-#define le2cpu16(x) ((UINT16)(x))
+#define cpu2le64(x) ((u64)(x))
+#define le2cpu64(x) ((u64)(x))
+#define cpu2le32(x) ((u32)(x))
+#define le2cpu32(x) ((u32)(x))
+#define cpu2le16(x) ((u16)(x))
+#define le2cpu16(x) ((u16)(x))
 #define cpu2be64(x) SWAP64((x))
 #define be2cpu64(x) SWAP64((x))
 #define cpu2be32(x) SWAP32((x))
@@ -1395,7 +1395,7 @@
 
 #define A2Dec(_X, _p)				\
 {									\
-	UCHAR *p;						\
+	u8 *p;						\
 	_X = 0;							\
 	p = _p;							\
 	while (((*p >= '0') && (*p <= '9')))		\

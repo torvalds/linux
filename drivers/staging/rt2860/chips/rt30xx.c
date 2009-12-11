@@ -87,19 +87,19 @@ REG_PAIR RT30xx_RFRegTable[] = {
 	,
 };
 
-UCHAR NUM_RF_REG_PARMS = (sizeof(RT30xx_RFRegTable) / sizeof(REG_PAIR));
+u8 NUM_RF_REG_PARMS = (sizeof(RT30xx_RFRegTable) / sizeof(REG_PAIR));
 
 /* Antenna divesity use GPIO3 and EESK pin for control */
 /* Antenna and EEPROM access are both using EESK pin, */
 /* Therefor we should avoid accessing EESK at the same time */
 /* Then restore antenna after EEPROM access */
 /* The original name of this function is AsicSetRxAnt(), now change to */
-/*VOID AsicSetRxAnt( */
-VOID RT30xxSetRxAnt(IN PRTMP_ADAPTER pAd, IN UCHAR Ant)
+/*void AsicSetRxAnt( */
+void RT30xxSetRxAnt(IN PRTMP_ADAPTER pAd, u8 Ant)
 {
-	UINT32 Value;
+	u32 Value;
 #ifdef RTMP_MAC_PCI
-	UINT32 x;
+	u32 x;
 #endif
 
 	if ((pAd->EepromAccess) ||
@@ -159,11 +159,11 @@ VOID RT30xxSetRxAnt(IN PRTMP_ADAPTER pAd, IN UCHAR Ant)
 
 	========================================================================
 */
-VOID RTMPFilterCalibration(IN PRTMP_ADAPTER pAd)
+void RTMPFilterCalibration(IN PRTMP_ADAPTER pAd)
 {
-	UCHAR R55x = 0, value, FilterTarget = 0x1E, BBPValue = 0;
-	UINT loop = 0, count = 0, loopcnt = 0, ReTry = 0;
-	UCHAR RF_R24_Value = 0;
+	u8 R55x = 0, value, FilterTarget = 0x1E, BBPValue = 0;
+	u32 loop = 0, count = 0, loopcnt = 0, ReTry = 0;
+	u8 RF_R24_Value = 0;
 
 	/* Give bbp filter initial value */
 	pAd->Mlme.CaliBW20RfR24 = 0x1F;
@@ -263,10 +263,10 @@ VOID RTMPFilterCalibration(IN PRTMP_ADAPTER pAd)
 		if (loopcnt < 100) {
 			if (loop++ == 0) {
 				/*BandWidth = 20 MHz */
-				pAd->Mlme.CaliBW20RfR24 = (UCHAR) RF_R24_Value;
+				pAd->Mlme.CaliBW20RfR24 = (u8)RF_R24_Value;
 			} else {
 				/*BandWidth = 40 MHz */
-				pAd->Mlme.CaliBW40RfR24 = (UCHAR) RF_R24_Value;
+				pAd->Mlme.CaliBW40RfR24 = (u8)RF_R24_Value;
 				break;
 			}
 		} else
@@ -306,9 +306,9 @@ VOID RTMPFilterCalibration(IN PRTMP_ADAPTER pAd)
 
 	==========================================================================
  */
-VOID RT30xxLoadRFNormalModeSetup(IN PRTMP_ADAPTER pAd)
+void RT30xxLoadRFNormalModeSetup(IN PRTMP_ADAPTER pAd)
 {
-	UCHAR RFValue;
+	u8 RFValue;
 
 	/* RX0_PD & TX0_PD, RF R1 register Bit 2 & Bit 3 to 0 and RF_BLOCK_en,RX1_PD & TX1_PD, Bit0, Bit 4 & Bit5 to 1 */
 	RT30xxReadRFRegister(pAd, RF_R01, &RFValue);
@@ -372,10 +372,10 @@ VOID RT30xxLoadRFNormalModeSetup(IN PRTMP_ADAPTER pAd)
 
 	==========================================================================
  */
-VOID RT30xxLoadRFSleepModeSetup(IN PRTMP_ADAPTER pAd)
+void RT30xxLoadRFSleepModeSetup(IN PRTMP_ADAPTER pAd)
 {
-	UCHAR RFValue;
-	UINT32 MACValue;
+	u8 RFValue;
+	u32 MACValue;
 
 #ifdef RTMP_MAC_USB
 	if (!IS_RT3572(pAd))
@@ -428,10 +428,10 @@ VOID RT30xxLoadRFSleepModeSetup(IN PRTMP_ADAPTER pAd)
 
 	==========================================================================
  */
-VOID RT30xxReverseRFSleepModeSetup(IN PRTMP_ADAPTER pAd)
+void RT30xxReverseRFSleepModeSetup(IN PRTMP_ADAPTER pAd)
 {
-	UCHAR RFValue;
-	UINT32 MACValue;
+	u8 RFValue;
+	u32 MACValue;
 
 #ifdef RTMP_MAC_USB
 	if (!IS_RT3572(pAd))
@@ -493,9 +493,9 @@ VOID RT30xxReverseRFSleepModeSetup(IN PRTMP_ADAPTER pAd)
 
 /* end johnli */
 
-VOID RT30xxHaltAction(IN PRTMP_ADAPTER pAd)
+void RT30xxHaltAction(IN PRTMP_ADAPTER pAd)
 {
-	UINT32 TxPinCfg = 0x00050F0F;
+	u32 TxPinCfg = 0x00050F0F;
 
 	/* */
 	/* Turn off LNA_PE or TRSW_POL */

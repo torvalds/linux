@@ -77,10 +77,10 @@ Return Value:
 Note:
 ========================================================================
 */
-NDIS_STATUS RtmpMgmtTaskInit(IN RTMP_ADAPTER * pAd)
+int RtmpMgmtTaskInit(IN RTMP_ADAPTER * pAd)
 {
 	RTMP_OS_TASK *pTask;
-	NDIS_STATUS status;
+	int status;
 
 	/*
 	   Creat TimerQ Thread, We need init timerQ related structure before create the timer thread.
@@ -133,9 +133,9 @@ Return Value:
 Note:
 ========================================================================
 */
-VOID RtmpMgmtTaskExit(IN RTMP_ADAPTER * pAd)
+void RtmpMgmtTaskExit(IN RTMP_ADAPTER * pAd)
 {
-	INT ret;
+	int ret;
 	RTMP_OS_TASK *pTask;
 
 	/* Sleep 50 milliseconds so pending io might finish normally */
@@ -201,8 +201,8 @@ static void rtusb_dataout_complete(unsigned long data)
 	purbb_t pUrb;
 	POS_COOKIE pObj;
 	PHT_TX_CONTEXT pHTTXContext;
-	UCHAR BulkOutPipeId;
-	NTSTATUS Status;
+	u8 BulkOutPipeId;
+	int Status;
 	unsigned long IrqFlags;
 
 	pUrb = (purbb_t) data;
@@ -235,7 +235,7 @@ static void rtusb_dataout_complete(unsigned long data)
 
 	} else			/* STATUS_OTHER */
 	{
-		PUCHAR pBuf;
+		u8 *pBuf;
 
 		pAd->BulkOutCompleteOther++;
 
@@ -297,7 +297,7 @@ static void rtusb_null_frame_done_tasklet(unsigned long data)
 	PRTMP_ADAPTER pAd;
 	PTX_CONTEXT pNullContext;
 	purbb_t pUrb;
-	NTSTATUS Status;
+	int Status;
 	unsigned long irqFlag;
 
 	pUrb = (purbb_t) data;
@@ -346,7 +346,7 @@ static void rtusb_rts_frame_done_tasklet(unsigned long data)
 	PRTMP_ADAPTER pAd;
 	PTX_CONTEXT pRTSContext;
 	purbb_t pUrb;
-	NTSTATUS Status;
+	int Status;
 	unsigned long irqFlag;
 
 	pUrb = (purbb_t) data;
@@ -396,7 +396,7 @@ static void rtusb_pspoll_frame_done_tasklet(unsigned long data)
 	PRTMP_ADAPTER pAd;
 	PTX_CONTEXT pPsPollContext;
 	purbb_t pUrb;
-	NTSTATUS Status;
+	int Status;
 
 	pUrb = (purbb_t) data;
 	pPsPollContext = (PTX_CONTEXT) pUrb->context;
@@ -455,7 +455,7 @@ static void rx_done_tasklet(unsigned long data)
 	purbb_t pUrb;
 	PRX_CONTEXT pRxContext;
 	PRTMP_ADAPTER pAd;
-	NTSTATUS Status;
+	int Status;
 	unsigned int IrqFlags;
 
 	pUrb = (purbb_t) data;
@@ -519,7 +519,7 @@ static void rtusb_mgmt_dma_done_tasklet(unsigned long data)
 	int index;
 	PNDIS_PACKET pPacket;
 	purbb_t pUrb;
-	NTSTATUS Status;
+	int Status;
 	unsigned long IrqFlags;
 
 	pUrb = (purbb_t) data;
@@ -597,7 +597,7 @@ static void rtusb_ac3_dma_done_tasklet(unsigned long data)
 {
 	PRTMP_ADAPTER pAd;
 	PHT_TX_CONTEXT pHTTXContext;
-	UCHAR BulkOutPipeId = 3;
+	u8 BulkOutPipeId = 3;
 	purbb_t pUrb;
 
 	pUrb = (purbb_t) data;
@@ -637,7 +637,7 @@ static void rtusb_ac2_dma_done_tasklet(unsigned long data)
 {
 	PRTMP_ADAPTER pAd;
 	PHT_TX_CONTEXT pHTTXContext;
-	UCHAR BulkOutPipeId = 2;
+	u8 BulkOutPipeId = 2;
 	purbb_t pUrb;
 
 	pUrb = (purbb_t) data;
@@ -677,7 +677,7 @@ static void rtusb_ac1_dma_done_tasklet(unsigned long data)
 {
 	PRTMP_ADAPTER pAd;
 	PHT_TX_CONTEXT pHTTXContext;
-	UCHAR BulkOutPipeId = 1;
+	u8 BulkOutPipeId = 1;
 	purbb_t pUrb;
 
 	pUrb = (purbb_t) data;
@@ -717,7 +717,7 @@ static void rtusb_ac0_dma_done_tasklet(unsigned long data)
 {
 	PRTMP_ADAPTER pAd;
 	PHT_TX_CONTEXT pHTTXContext;
-	UCHAR BulkOutPipeId = 0;
+	u8 BulkOutPipeId = 0;
 	purbb_t pUrb;
 
 	pUrb = (purbb_t) data;
@@ -753,12 +753,12 @@ static void rtusb_ac0_dma_done_tasklet(unsigned long data)
 
 }
 
-NDIS_STATUS RtmpNetTaskInit(IN RTMP_ADAPTER * pAd)
+int RtmpNetTaskInit(IN RTMP_ADAPTER * pAd)
 {
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 
 	/* Create receive tasklet */
-	tasklet_init(&pObj->rx_done_task, rx_done_tasklet, (ULONG) pAd);
+	tasklet_init(&pObj->rx_done_task, rx_done_tasklet, (unsigned long)pAd);
 	tasklet_init(&pObj->mgmt_dma_done_task, rtusb_mgmt_dma_done_tasklet,
 		     (unsigned long)pAd);
 	tasklet_init(&pObj->ac0_dma_done_task, rtusb_ac0_dma_done_tasklet,

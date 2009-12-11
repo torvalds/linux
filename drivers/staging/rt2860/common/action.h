@@ -40,16 +40,16 @@
 #define	__ACTION_H__
 
 typedef struct PACKED __HT_INFO_OCTET {
-	UCHAR Request:1;
-	UCHAR Forty_MHz_Intolerant:1;
-	UCHAR STA_Channel_Width:1;
-	UCHAR Reserved:5;
+	u8 Request:1;
+	u8 Forty_MHz_Intolerant:1;
+	u8 STA_Channel_Width:1;
+	u8 Reserved:5;
 } HT_INFORMATION_OCTET;
 
 typedef struct PACKED __FRAME_HT_INFO {
 	HEADER_802_11 Hdr;
-	UCHAR Category;
-	UCHAR Action;
+	u8 Category;
+	u8 Action;
 	HT_INFORMATION_OCTET HT_Info;
 } FRAME_HT_INFO, *PFRAME_HT_INFO;
 

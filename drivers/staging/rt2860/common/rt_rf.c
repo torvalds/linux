@@ -53,11 +53,11 @@
 
 	========================================================================
 */
-NDIS_STATUS RT30xxWriteRFRegister(IN PRTMP_ADAPTER pAd,
-				  IN UCHAR regID, IN UCHAR value)
+int RT30xxWriteRFRegister(IN PRTMP_ADAPTER pAd,
+				  u8 regID, u8 value)
 {
 	RF_CSR_CFG_STRUC rfcsr;
-	UINT i = 0;
+	u32 i = 0;
 
 	do {
 		RTMP_IO_READ32(pAd, RF_CSR_CFG, &rfcsr.word);
@@ -101,11 +101,11 @@ NDIS_STATUS RT30xxWriteRFRegister(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-NDIS_STATUS RT30xxReadRFRegister(IN PRTMP_ADAPTER pAd,
-				 IN UCHAR regID, IN PUCHAR pValue)
+int RT30xxReadRFRegister(IN PRTMP_ADAPTER pAd,
+				 u8 regID, u8 *pValue)
 {
 	RF_CSR_CFG_STRUC rfcsr;
-	UINT i = 0, k = 0;
+	u32 i = 0, k = 0;
 
 	for (i = 0; i < MAX_BUSY_COUNT; i++) {
 		RTMP_IO_READ32(pAd, RF_CSR_CFG, &rfcsr.word);
@@ -126,7 +126,7 @@ NDIS_STATUS RT30xxReadRFRegister(IN PRTMP_ADAPTER pAd,
 		}
 		if ((rfcsr.field.RF_CSR_KICK == IDLE) &&
 		    (rfcsr.field.TESTCSR_RFACC_REGNUM == regID)) {
-			*pValue = (UCHAR) rfcsr.field.RF_CSR_DATA;
+			*pValue = (u8)rfcsr.field.RF_CSR_DATA;
 			break;
 		}
 	}
@@ -139,13 +139,13 @@ NDIS_STATUS RT30xxReadRFRegister(IN PRTMP_ADAPTER pAd,
 	return STATUS_SUCCESS;
 }
 
-VOID NICInitRFRegisters(IN RTMP_ADAPTER * pAd)
+void NICInitRFRegisters(IN RTMP_ADAPTER * pAd)
 {
 	if (pAd->chipOps.AsicRfInit)
 		pAd->chipOps.AsicRfInit(pAd);
 }
 
-VOID RtmpChipOpsRFHook(IN RTMP_ADAPTER * pAd)
+void RtmpChipOpsRFHook(IN RTMP_ADAPTER * pAd)
 {
 	RTMP_CHIP_OP *pChipOps = &pAd->chipOps;
 

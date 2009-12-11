@@ -38,7 +38,7 @@
 #include	"../rt_config.h"
 
 /* IRQL = PASSIVE_LEVEL */
-static inline VOID RaiseClock(IN PRTMP_ADAPTER pAd, IN UINT32 * x)
+static inline void RaiseClock(IN PRTMP_ADAPTER pAd, u32 * x)
 {
 	*x = *x | EESK;
 	RTMP_IO_WRITE32(pAd, E2PROM_CSR, *x);
@@ -46,7 +46,7 @@ static inline VOID RaiseClock(IN PRTMP_ADAPTER pAd, IN UINT32 * x)
 }
 
 /* IRQL = PASSIVE_LEVEL */
-static inline VOID LowerClock(IN PRTMP_ADAPTER pAd, IN UINT32 * x)
+static inline void LowerClock(IN PRTMP_ADAPTER pAd, u32 * x)
 {
 	*x = *x & ~EESK;
 	RTMP_IO_WRITE32(pAd, E2PROM_CSR, *x);
@@ -54,10 +54,10 @@ static inline VOID LowerClock(IN PRTMP_ADAPTER pAd, IN UINT32 * x)
 }
 
 /* IRQL = PASSIVE_LEVEL */
-static inline USHORT ShiftInBits(IN PRTMP_ADAPTER pAd)
+static inline u16 ShiftInBits(IN PRTMP_ADAPTER pAd)
 {
-	UINT32 x, i;
-	USHORT data = 0;
+	u32 x, i;
+	u16 data = 0;
 
 	RTMP_IO_READ32(pAd, E2PROM_CSR, &x);
 
@@ -79,10 +79,10 @@ static inline USHORT ShiftInBits(IN PRTMP_ADAPTER pAd)
 }
 
 /* IRQL = PASSIVE_LEVEL */
-static inline VOID ShiftOutBits(IN PRTMP_ADAPTER pAd,
-				IN USHORT data, IN USHORT count)
+static inline void ShiftOutBits(IN PRTMP_ADAPTER pAd,
+				u16 data, u16 count)
 {
-	UINT32 x, mask;
+	u32 x, mask;
 
 	mask = 0x01 << (count - 1);
 	RTMP_IO_READ32(pAd, E2PROM_CSR, &x);
@@ -107,9 +107,9 @@ static inline VOID ShiftOutBits(IN PRTMP_ADAPTER pAd,
 }
 
 /* IRQL = PASSIVE_LEVEL */
-static inline VOID EEpromCleanup(IN PRTMP_ADAPTER pAd)
+static inline void EEpromCleanup(IN PRTMP_ADAPTER pAd)
 {
-	UINT32 x;
+	u32 x;
 
 	RTMP_IO_READ32(pAd, E2PROM_CSR, &x);
 
@@ -120,9 +120,9 @@ static inline VOID EEpromCleanup(IN PRTMP_ADAPTER pAd)
 	LowerClock(pAd, &x);
 }
 
-static inline VOID EWEN(IN PRTMP_ADAPTER pAd)
+static inline void EWEN(IN PRTMP_ADAPTER pAd)
 {
-	UINT32 x;
+	u32 x;
 
 	/* reset bits and set EECS */
 	RTMP_IO_READ32(pAd, E2PROM_CSR, &x);
@@ -141,9 +141,9 @@ static inline VOID EWEN(IN PRTMP_ADAPTER pAd)
 	EEpromCleanup(pAd);
 }
 
-static inline VOID EWDS(IN PRTMP_ADAPTER pAd)
+static inline void EWDS(IN PRTMP_ADAPTER pAd)
 {
-	UINT32 x;
+	u32 x;
 
 	/* reset bits and set EECS */
 	RTMP_IO_READ32(pAd, E2PROM_CSR, &x);
@@ -164,10 +164,10 @@ static inline VOID EWDS(IN PRTMP_ADAPTER pAd)
 
 /* IRQL = PASSIVE_LEVEL */
 int rtmp_ee_prom_read16(IN PRTMP_ADAPTER pAd,
-			IN USHORT Offset, OUT USHORT * pValue)
+			u16 Offset, u16 * pValue)
 {
-	UINT32 x;
-	USHORT data;
+	u32 x;
+	u16 data;
 
 	Offset /= 2;
 	/* reset bits and set EECS */

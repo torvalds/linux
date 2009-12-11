@@ -180,7 +180,7 @@
 	if ((_A)->bPCIclkOff == FALSE)	                \
 	{												\
 		PHY_CSR4_STRUC  _value;                          \
-		ULONG           _busyCnt = 0;                    \
+		unsigned long           _busyCnt = 0;                    \
 											\
 		do {                                            \
 			RTMP_IO_READ32((_A), RF_CSR_CFG0, &_value.word);  \
@@ -248,7 +248,7 @@
 			if ((BbpCsr.field.Busy == IDLE) &&              \
 				(BbpCsr.field.RegNum == _bbpID))                \
 			{                                               \
-				*(_pV) = (UCHAR)BbpCsr.field.Value;         \
+				*(_pV) = (u8)BbpCsr.field.Value;         \
 				break;                                      \
 			}                                               \
 		}                                                   \
@@ -313,7 +313,7 @@
 				if ((BbpCsr.field.Busy == IDLE) &&								\
 					(BbpCsr.field.RegNum == _I))								\
 				{																\
-					*(_pV) = (UCHAR)BbpCsr.field.Value;							\
+					*(_pV) = (u8)BbpCsr.field.Value;							\
 					break;														\
 				}																\
 			}																\
@@ -351,7 +351,7 @@
 			if ((BbpCsr.field.Busy == IDLE) &&								\
 				(BbpCsr.field.RegNum == _I))								\
 			{																\
-				*(_pV) = (UCHAR)BbpCsr.field.Value;							\
+				*(_pV) = (u8)BbpCsr.field.Value;							\
 				break;														\
 			}																\
 		}																	\
@@ -429,7 +429,7 @@
 #define RTMP_BBP_IO_WRITE8_BY_REG_ID(_A, _I, _V)						\
 {																		\
 	BBP_CSR_CFG_STRUC	BbpCsr;											\
-	INT					BusyCnt = 0;										\
+	int					BusyCnt = 0;										\
 	BOOLEAN					brc;			\
 	if (_I < MAX_NUM_OF_BBP_LATCH)										\
 	{																	\
@@ -523,8 +523,8 @@
 #ifdef RT30xx
 #define RTMP_ASIC_MMPS_DISABLE(_pAd)							\
 	do{															\
-		UINT32 _macData; \
-		UCHAR _bbpData = 0; \
+		u32 _macData; \
+		u8 _bbpData = 0; \
 		/* disable MMPS BBP control register */						\
 		RTMP_BBP_IO_READ8_BY_REG_ID(_pAd, BBP_R3, &_bbpData);	\
 		_bbpData &= ~(0x04);	/*bit 2*/								\
@@ -538,8 +538,8 @@
 
 #define RTMP_ASIC_MMPS_ENABLE(_pAd)							\
 	do{															\
-		UINT32 _macData; \
-		UCHAR _bbpData = 0; \
+		u32 _macData; \
+		u8 _bbpData = 0; \
 		/* enable MMPS BBP control register */						\
 		RTMP_BBP_IO_READ8_BY_REG_ID(_pAd, BBP_R3, &_bbpData);	\
 		_bbpData |= (0x04);	/*bit 2*/								\

@@ -41,19 +41,19 @@
 static void ba_mpdu_blk_free(PRTMP_ADAPTER pAd,
 			     struct reordering_mpdu *mpdu_blk);
 
-BA_ORI_ENTRY *BATableAllocOriEntry(IN PRTMP_ADAPTER pAd, OUT USHORT * Idx);
+BA_ORI_ENTRY *BATableAllocOriEntry(IN PRTMP_ADAPTER pAd, u16 * Idx);
 
-BA_REC_ENTRY *BATableAllocRecEntry(IN PRTMP_ADAPTER pAd, OUT USHORT * Idx);
+BA_REC_ENTRY *BATableAllocRecEntry(IN PRTMP_ADAPTER pAd, u16 * Idx);
 
-VOID BAOriSessionSetupTimeout(IN PVOID SystemSpecific1,
-			      IN PVOID FunctionContext,
-			      IN PVOID SystemSpecific2,
-			      IN PVOID SystemSpecific3);
+void BAOriSessionSetupTimeout(void *SystemSpecific1,
+			      void *FunctionContext,
+			      void *SystemSpecific2,
+			      void *SystemSpecific3);
 
-VOID BARecSessionIdleTimeout(IN PVOID SystemSpecific1,
-			     IN PVOID FunctionContext,
-			     IN PVOID SystemSpecific2,
-			     IN PVOID SystemSpecific3);
+void BARecSessionIdleTimeout(void *SystemSpecific1,
+			     void *FunctionContext,
+			     void *SystemSpecific2,
+			     void *SystemSpecific3);
 
 BUILD_TIMER_FUNCTION(BAOriSessionSetupTimeout);
 BUILD_TIMER_FUNCTION(BARecSessionIdleTimeout);
@@ -61,10 +61,10 @@ BUILD_TIMER_FUNCTION(BARecSessionIdleTimeout);
 #define ANNOUNCE_REORDERING_PACKET(_pAd, _mpdu_blk)	\
 			Announce_Reordering_Packet(_pAd, _mpdu_blk);
 
-VOID BA_MaxWinSizeReasign(IN PRTMP_ADAPTER pAd,
-			  IN MAC_TABLE_ENTRY * pEntryPeer, OUT UCHAR * pWinSize)
+void BA_MaxWinSizeReasign(IN PRTMP_ADAPTER pAd,
+			  IN MAC_TABLE_ENTRY * pEntryPeer, u8 * pWinSize)
 {
-	UCHAR MaxSize;
+	u8 MaxSize;
 
 	if (pAd->MACVersion >= RALINK_2883_VERSION)	/* 3*3 */
 	{
@@ -232,7 +232,7 @@ void ba_reordering_resource_release(PRTMP_ADAPTER pAd)
 BOOLEAN ba_reordering_resource_init(PRTMP_ADAPTER pAd, int num)
 {
 	int i;
-	PUCHAR mem;
+	u8 *mem;
 	struct reordering_mpdu *mpdu_blk;
 	struct reordering_list *freelist;
 
@@ -246,10 +246,10 @@ BOOLEAN ba_reordering_resource_init(PRTMP_ADAPTER pAd, int num)
 
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("Allocate %d memory for BA reordering\n",
-		  (UINT32) (num * sizeof(struct reordering_mpdu))));
+		  (u32)(num * sizeof(struct reordering_mpdu))));
 
 	/* allocate number of mpdu_blk memory */
-	os_alloc_mem(pAd, (PUCHAR *) & mem,
+	os_alloc_mem(pAd, (u8 **) & mem,
 		     (num * sizeof(struct reordering_mpdu)));
 
 	pAd->mpdu_blk_pool.mem = mem;
@@ -303,12 +303,12 @@ static void ba_mpdu_blk_free(PRTMP_ADAPTER pAd,
 	NdisReleaseSpinLock(&pAd->mpdu_blk_pool.lock);
 }
 
-static USHORT ba_indicate_reordering_mpdus_in_order(IN PRTMP_ADAPTER pAd,
+static u16 ba_indicate_reordering_mpdus_in_order(IN PRTMP_ADAPTER pAd,
 						    IN PBA_REC_ENTRY pBAEntry,
-						    IN USHORT StartSeq)
+						    u16 StartSeq)
 {
 	struct reordering_mpdu *mpdu_blk;
-	USHORT LastIndSeq = RESET_RCV_SEQ;
+	u16 LastIndSeq = RESET_RCV_SEQ;
 
 	NdisAcquireSpinLock(&pBAEntry->RxReRingLock);
 
@@ -336,7 +336,7 @@ static USHORT ba_indicate_reordering_mpdus_in_order(IN PRTMP_ADAPTER pAd,
 
 static void ba_indicate_reordering_mpdus_le_seq(IN PRTMP_ADAPTER pAd,
 						IN PBA_REC_ENTRY pBAEntry,
-						IN USHORT Sequence)
+						u16 Sequence)
 {
 	struct reordering_mpdu *mpdu_blk;
 
@@ -383,9 +383,9 @@ static void ba_refresh_reordering_mpdus(IN PRTMP_ADAPTER pAd,
 /*static */
 void ba_flush_reordering_timeout_mpdus(IN PRTMP_ADAPTER pAd,
 				       IN PBA_REC_ENTRY pBAEntry,
-				       IN ULONG Now32)
+				       unsigned long Now32)
 {
-	USHORT Sequence;
+	u16 Sequence;
 
 /*      if ((RTMP_TIME_AFTER((unsigned long)Now32, (unsigned long)(pBAEntry->LastIndSeqAtTimer+REORDERING_PACKET_TIMEOUT)) && */
 /*               (pBAEntry->list.qlen > ((pBAEntry->BAWinSize*7)/8))) //|| */
@@ -440,15 +440,15 @@ void ba_flush_reordering_timeout_mpdus(IN PRTMP_ADAPTER pAd,
  * generate ADDBA request to
  * set up BA agreement
  */
-VOID BAOriSessionSetUp(IN PRTMP_ADAPTER pAd,
+void BAOriSessionSetUp(IN PRTMP_ADAPTER pAd,
 		       IN MAC_TABLE_ENTRY * pEntry,
-		       IN UCHAR TID,
-		       IN USHORT TimeOut,
-		       IN ULONG DelayTime, IN BOOLEAN isForced)
+		       u8 TID,
+		       u16 TimeOut,
+		       unsigned long DelayTime, IN BOOLEAN isForced)
 {
 	/*MLME_ADDBA_REQ_STRUCT AddbaReq; */
 	BA_ORI_ENTRY *pBAEntry = NULL;
-	USHORT Idx;
+	u16 Idx;
 	BOOLEAN Cancelled;
 
 	if ((pAd->CommonCfg.BACapability.field.AutoBA != TRUE)
@@ -506,16 +506,16 @@ VOID BAOriSessionSetUp(IN PRTMP_ADAPTER pAd,
 	RTMPSetTimer(&pBAEntry->ORIBATimer, DelayTime);
 }
 
-VOID BAOriSessionAdd(IN PRTMP_ADAPTER pAd,
+void BAOriSessionAdd(IN PRTMP_ADAPTER pAd,
 		     IN MAC_TABLE_ENTRY * pEntry, IN PFRAME_ADDBA_RSP pFrame)
 {
 	BA_ORI_ENTRY *pBAEntry = NULL;
 	BOOLEAN Cancelled;
-	UCHAR TID;
-	USHORT Idx;
-	PUCHAR pOutBuffer2 = NULL;
-	NDIS_STATUS NStatus;
-	ULONG FrameLen;
+	u8 TID;
+	u16 Idx;
+	u8 *pOutBuffer2 = NULL;
+	int NStatus;
+	unsigned long FrameLen;
 	FRAME_BAR FrameBar;
 
 	TID = pFrame->BaParm.TID;
@@ -526,7 +526,7 @@ VOID BAOriSessionAdd(IN PRTMP_ADAPTER pAd,
 	if ((Idx != 0) && (pBAEntry->TID == TID)
 	    && (pBAEntry->ORI_BA_Status == Originator_WaitRes)) {
 		pBAEntry->BAWinSize =
-		    min(pBAEntry->BAWinSize, ((UCHAR) pFrame->BaParm.BufSize));
+		    min(pBAEntry->BAWinSize, ((u8)pFrame->BaParm.BufSize));
 		BA_MaxWinSizeReasign(pAd, pEntry, &pBAEntry->BAWinSize);
 
 		pBAEntry->TimeOutValue = pFrame->TimeOutValue;
@@ -577,11 +577,11 @@ BOOLEAN BARecSessionAdd(IN PRTMP_ADAPTER pAd,
 	BA_REC_ENTRY *pBAEntry = NULL;
 	BOOLEAN Status = TRUE;
 	BOOLEAN Cancelled;
-	USHORT Idx;
-	UCHAR TID;
-	UCHAR BAWinSize;
-	/*UINT32                  Value; */
-	/*UINT                    offset; */
+	u16 Idx;
+	u8 TID;
+	u8 BAWinSize;
+	/*u32                  Value; */
+	/*u32                    offset; */
 
 	ASSERT(pEntry);
 
@@ -589,8 +589,8 @@ BOOLEAN BARecSessionAdd(IN PRTMP_ADAPTER pAd,
 	TID = pFrame->BaParm.TID;
 
 	BAWinSize =
-	    min(((UCHAR) pFrame->BaParm.BufSize),
-		(UCHAR) pAd->CommonCfg.BACapability.field.RxBAWinLimit);
+	    min(((u8)pFrame->BaParm.BufSize),
+		(u8)pAd->CommonCfg.BACapability.field.RxBAWinLimit);
 
 	/* Intel patch */
 	if (BAWinSize == 0) {
@@ -660,7 +660,7 @@ BOOLEAN BARecSessionAdd(IN PRTMP_ADAPTER pAd,
 	return (Status);
 }
 
-BA_REC_ENTRY *BATableAllocRecEntry(IN PRTMP_ADAPTER pAd, OUT USHORT * Idx)
+BA_REC_ENTRY *BATableAllocRecEntry(IN PRTMP_ADAPTER pAd, u16 * Idx)
 {
 	int i;
 	BA_REC_ENTRY *pBAEntry = NULL;
@@ -690,7 +690,7 @@ done:
 	return pBAEntry;
 }
 
-BA_ORI_ENTRY *BATableAllocOriEntry(IN PRTMP_ADAPTER pAd, OUT USHORT * Idx)
+BA_ORI_ENTRY *BATableAllocOriEntry(IN PRTMP_ADAPTER pAd, u16 * Idx)
 {
 	int i;
 	BA_ORI_ENTRY *pBAEntry = NULL;
@@ -718,7 +718,7 @@ done:
 	return pBAEntry;
 }
 
-VOID BATableFreeOriEntry(IN PRTMP_ADAPTER pAd, IN ULONG Idx)
+void BATableFreeOriEntry(IN PRTMP_ADAPTER pAd, unsigned long Idx)
 {
 	BA_ORI_ENTRY *pBAEntry = NULL;
 	MAC_TABLE_ENTRY *pEntry;
@@ -752,7 +752,7 @@ VOID BATableFreeOriEntry(IN PRTMP_ADAPTER pAd, IN ULONG Idx)
 	}
 }
 
-VOID BATableFreeRecEntry(IN PRTMP_ADAPTER pAd, IN ULONG Idx)
+void BATableFreeRecEntry(IN PRTMP_ADAPTER pAd, unsigned long Idx)
 {
 	BA_REC_ENTRY *pBAEntry = NULL;
 	MAC_TABLE_ENTRY *pEntry;
@@ -777,12 +777,12 @@ VOID BATableFreeRecEntry(IN PRTMP_ADAPTER pAd, IN ULONG Idx)
 	}
 }
 
-VOID BAOriSessionTearDown(IN OUT PRTMP_ADAPTER pAd,
-			  IN UCHAR Wcid,
-			  IN UCHAR TID,
+void BAOriSessionTearDown(IN OUT PRTMP_ADAPTER pAd,
+			  u8 Wcid,
+			  u8 TID,
 			  IN BOOLEAN bPassive, IN BOOLEAN bForceSend)
 {
-	ULONG Idx = 0;
+	unsigned long Idx = 0;
 	BA_ORI_ENTRY *pBAEntry;
 	BOOLEAN Cancelled;
 
@@ -867,10 +867,10 @@ VOID BAOriSessionTearDown(IN OUT PRTMP_ADAPTER pAd,
 	}
 }
 
-VOID BARecSessionTearDown(IN OUT PRTMP_ADAPTER pAd,
-			  IN UCHAR Wcid, IN UCHAR TID, IN BOOLEAN bPassive)
+void BARecSessionTearDown(IN OUT PRTMP_ADAPTER pAd,
+			  u8 Wcid, u8 TID, IN BOOLEAN bPassive)
 {
-	ULONG Idx = 0;
+	unsigned long Idx = 0;
 	BA_REC_ENTRY *pBAEntry;
 
 	if (Wcid >= MAX_LEN_OF_MAC_TABLE) {
@@ -897,8 +897,8 @@ VOID BARecSessionTearDown(IN OUT PRTMP_ADAPTER pAd,
 	    && (pBAEntry->REC_BA_Status == Recipient_Accept)) {
 		MLME_DELBA_REQ_STRUCT DelbaReq;
 		BOOLEAN Cancelled;
-		/*ULONG   offset; */
-		/*UINT32  VALUE; */
+		/*unsigned long   offset; */
+		/*u32  VALUE; */
 
 		RTMPCancelTimer(&pBAEntry->RECBATimer, &Cancelled);
 
@@ -956,7 +956,7 @@ VOID BARecSessionTearDown(IN OUT PRTMP_ADAPTER pAd,
 	BATableFreeRecEntry(pAd, Idx);
 }
 
-VOID BASessionTearDownALL(IN OUT PRTMP_ADAPTER pAd, IN UCHAR Wcid)
+void BASessionTearDownALL(IN OUT PRTMP_ADAPTER pAd, u8 Wcid)
 {
 	int i;
 
@@ -980,10 +980,10 @@ VOID BASessionTearDownALL(IN OUT PRTMP_ADAPTER pAd, IN UCHAR Wcid)
 				FALSE , then continue indicaterx at this moment.
 	==========================================================================
  */
-VOID BAOriSessionSetupTimeout(IN PVOID SystemSpecific1,
-			      IN PVOID FunctionContext,
-			      IN PVOID SystemSpecific2,
-			      IN PVOID SystemSpecific3)
+void BAOriSessionSetupTimeout(void *SystemSpecific1,
+			      void *FunctionContext,
+			      void *SystemSpecific2,
+			      void *SystemSpecific3)
 {
 	BA_ORI_ENTRY *pBAEntry = (BA_ORI_ENTRY *) FunctionContext;
 	MAC_TABLE_ENTRY *pEntry;
@@ -1008,14 +1008,14 @@ VOID BAOriSessionSetupTimeout(IN PVOID SystemSpecific1,
 
 		NdisZeroMemory(&AddbaReq, sizeof(AddbaReq));
 		COPY_MAC_ADDR(AddbaReq.pAddr, pEntry->Addr);
-		AddbaReq.Wcid = (UCHAR) (pEntry->Aid);
+		AddbaReq.Wcid = (u8)(pEntry->Aid);
 		AddbaReq.TID = pBAEntry->TID;
 		AddbaReq.BaBufSize =
 		    pAd->CommonCfg.BACapability.field.RxBAWinLimit;
 		AddbaReq.TimeOutValue = 0;
 		AddbaReq.Token = pBAEntry->Token;
 		MlmeEnqueue(pAd, ACTION_STATE_MACHINE, MT2_MLME_ADD_BA_CATE,
-			    sizeof(MLME_ADDBA_REQ_STRUCT), (PVOID) & AddbaReq);
+			    sizeof(MLME_ADDBA_REQ_STRUCT), (void *)& AddbaReq);
 		RTMP_MLME_HANDLER(pAd);
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("BA Ori Session Timeout(%d) : Send ADD BA again\n",
@@ -1042,14 +1042,14 @@ VOID BAOriSessionSetupTimeout(IN PVOID SystemSpecific1,
 				FALSE , then continue indicaterx at this moment.
 	==========================================================================
  */
-VOID BARecSessionIdleTimeout(IN PVOID SystemSpecific1,
-			     IN PVOID FunctionContext,
-			     IN PVOID SystemSpecific2, IN PVOID SystemSpecific3)
+void BARecSessionIdleTimeout(void *SystemSpecific1,
+			     void *FunctionContext,
+			     void *SystemSpecific2, void *SystemSpecific3)
 {
 
 	BA_REC_ENTRY *pBAEntry = (BA_REC_ENTRY *) FunctionContext;
 	PRTMP_ADAPTER pAd;
-	ULONG Now32;
+	unsigned long Now32;
 
 	if (pBAEntry == NULL)
 		return;
@@ -1070,19 +1070,19 @@ VOID BARecSessionIdleTimeout(IN PVOID SystemSpecific1,
 	}
 }
 
-VOID PeerAddBAReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerAddBAReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
 	/*      7.4.4.1 */
-	/*ULONG Idx; */
-	UCHAR Status = 1;
-	UCHAR pAddr[6];
+	/*unsigned long Idx; */
+	u8 Status = 1;
+	u8 pAddr[6];
 	FRAME_ADDBA_RSP ADDframe;
-	PUCHAR pOutBuffer = NULL;
-	NDIS_STATUS NStatus;
+	u8 *pOutBuffer = NULL;
+	int NStatus;
 	PFRAME_ADDBA_REQ pAddreqFrame = NULL;
-	/*UCHAR         BufSize; */
-	ULONG FrameLen;
-	PULONG ptemp;
+	/*u8         BufSize; */
+	unsigned long FrameLen;
+	unsigned long *ptemp;
 	PMAC_TABLE_ENTRY pMacEntry;
 
 	DBGPRINT(RT_DEBUG_TRACE,
@@ -1096,7 +1096,7 @@ VOID PeerAddBAReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 	pMacEntry = &pAd->MacTab.Content[Elem->Wcid];
 	DBGPRINT(RT_DEBUG_TRACE, ("BA - PeerAddBAReqAction----> \n"));
-	ptemp = (PULONG) Elem->Msg;
+	ptemp = (unsigned long *)Elem->Msg;
 	/*DBGPRINT_RAW(RT_DEBUG_EMU, ("%08x:: %08x:: %08x:: %08x:: %08x:: %08x:: %08x:: %08x:: %08x\n", *(ptemp), *(ptemp+1), *(ptemp+2), *(ptemp+3), *(ptemp+4), *(ptemp+5), *(ptemp+6), *(ptemp+7), *(ptemp+8))); */
 
 	if (PeerAddBAReqActionSanity(pAd, Elem->Msg, Elem->MsgLen, pAddr)) {
@@ -1151,15 +1151,15 @@ VOID PeerAddBAReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	ADDframe.BaParm.AMSDUSupported = 0;
 	ADDframe.BaParm.TID = pAddreqFrame->BaParm.TID;
 	ADDframe.BaParm.BufSize =
-	    min(((UCHAR) pAddreqFrame->BaParm.BufSize),
-		(UCHAR) pAd->CommonCfg.BACapability.field.RxBAWinLimit);
+	    min(((u8)pAddreqFrame->BaParm.BufSize),
+		(u8)pAd->CommonCfg.BACapability.field.RxBAWinLimit);
 	if (ADDframe.BaParm.BufSize == 0) {
 		ADDframe.BaParm.BufSize = 64;
 	}
 	ADDframe.TimeOutValue = 0;	/*pAddreqFrame->TimeOutValue; */
 
-	*(USHORT *) (&ADDframe.BaParm) =
-	    cpu2le16(*(USHORT *) (&ADDframe.BaParm));
+	*(u16 *) (&ADDframe.BaParm) =
+	    cpu2le16(*(u16 *) (&ADDframe.BaParm));
 	ADDframe.StatusCode = cpu2le16(ADDframe.StatusCode);
 	ADDframe.TimeOutValue = cpu2le16(ADDframe.TimeOutValue);
 
@@ -1173,10 +1173,10 @@ VOID PeerAddBAReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		  ADDframe.BaParm.TID, ADDframe.BaParm.BufSize));
 }
 
-VOID PeerAddBARspAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerAddBARspAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
-	/*UCHAR         Idx, i; */
-	/*PUCHAR                   pOutBuffer = NULL; */
+	/*u8         Idx, i; */
+	/*u8 *                  pOutBuffer = NULL; */
 	PFRAME_ADDBA_RSP pFrame = NULL;
 	/*PBA_ORI_ENTRY         pBAEntry; */
 
@@ -1216,10 +1216,10 @@ VOID PeerAddBARspAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	}
 }
 
-VOID PeerDelBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerDelBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
-	/*UCHAR                         Idx; */
-	/*PUCHAR                                pOutBuffer = NULL; */
+	/*u8                         Idx; */
+	/*u8 *                               pOutBuffer = NULL; */
 	PFRAME_DELBA_REQ pDelFrame = NULL;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("%s ==>\n", __func__));
@@ -1244,23 +1244,23 @@ VOID PeerDelBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 }
 
 BOOLEAN CntlEnqueueForRecv(IN PRTMP_ADAPTER pAd,
-			   IN ULONG Wcid,
-			   IN ULONG MsgLen, IN PFRAME_BA_REQ pMsg)
+			   unsigned long Wcid,
+			   unsigned long MsgLen, IN PFRAME_BA_REQ pMsg)
 {
 	PFRAME_BA_REQ pFrame = pMsg;
 	/*PRTMP_REORDERBUF      pBuffer; */
 	/*PRTMP_REORDERBUF      pDmaBuf; */
 	PBA_REC_ENTRY pBAEntry;
 	/*BOOLEAN       Result; */
-	ULONG Idx;
-	/*UCHAR NumRxPkt; */
-	UCHAR TID;		/*, i; */
+	unsigned long Idx;
+	/*u8 NumRxPkt; */
+	u8 TID;		/*, i; */
 
-	TID = (UCHAR) pFrame->BARControl.TID;
+	TID = (u8)pFrame->BARControl.TID;
 
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("%s(): BAR-Wcid(%ld), Tid (%d)\n", __func__, Wcid, TID));
-	/*hex_dump("BAR", (PCHAR) pFrame, MsgLen); */
+	/*hex_dump("BAR", (char *)pFrame, MsgLen); */
 	/* Do nothing if the driver is starting halt state. */
 	/* This might happen when timer already been fired before cancel timer with mlmehalt */
 	if (RTMP_TEST_FLAG
@@ -1309,13 +1309,13 @@ BOOLEAN CntlEnqueueForRecv(IN PRTMP_ADAPTER pAd,
 /*
 Description : Send PSMP Action frame If PSMP mode switches.
 */
-VOID SendPSMPAction(IN PRTMP_ADAPTER pAd, IN UCHAR Wcid, IN UCHAR Psmp)
+void SendPSMPAction(IN PRTMP_ADAPTER pAd, u8 Wcid, u8 Psmp)
 {
-	PUCHAR pOutBuffer = NULL;
-	NDIS_STATUS NStatus;
-	/*ULONG           Idx; */
+	u8 *pOutBuffer = NULL;
+	int NStatus;
+	/*unsigned long           Idx; */
 	FRAME_PSMP_ACTION Frame;
-	ULONG FrameLen;
+	unsigned long FrameLen;
 
 	NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	/*Get an unused nonpaged memory */
 	if (NStatus != NDIS_STATUS_SUCCESS) {
@@ -1364,32 +1364,32 @@ VOID SendPSMPAction(IN PRTMP_ADAPTER pAd, IN UCHAR Wcid, IN UCHAR Psmp)
 #define RADIO_MEASUREMENT_REQUEST_ACTION	0
 
 typedef struct PACKED {
-	UCHAR RegulatoryClass;
-	UCHAR ChannelNumber;
-	USHORT RandomInterval;
-	USHORT MeasurementDuration;
-	UCHAR MeasurementMode;
-	UCHAR BSSID[MAC_ADDR_LEN];
-	UCHAR ReportingCondition;
-	UCHAR Threshold;
-	UCHAR SSIDIE[2];	/* 2 byte */
+	u8 RegulatoryClass;
+	u8 ChannelNumber;
+	u16 RandomInterval;
+	u16 MeasurementDuration;
+	u8 MeasurementMode;
+	u8 BSSID[MAC_ADDR_LEN];
+	u8 ReportingCondition;
+	u8 Threshold;
+	u8 SSIDIE[2];	/* 2 byte */
 } BEACON_REQUEST;
 
 typedef struct PACKED {
-	UCHAR ID;
-	UCHAR Length;
-	UCHAR Token;
-	UCHAR RequestMode;
-	UCHAR Type;
+	u8 ID;
+	u8 Length;
+	u8 Token;
+	u8 RequestMode;
+	u8 Type;
 } MEASUREMENT_REQ;
 
 void convert_reordering_packet_to_preAMSDU_or_802_3_packet(IN PRTMP_ADAPTER pAd,
 							   IN RX_BLK * pRxBlk,
-							   IN UCHAR
+							   u8
 							   FromWhichBSSID)
 {
 	PNDIS_PACKET pRxPkt;
-	UCHAR Header802_3[LENGTH_802_3];
+	u8 Header802_3[LENGTH_802_3];
 
 	/* 1. get 802.3 Header */
 	/* 2. remove LLC */
@@ -1436,13 +1436,13 @@ void convert_reordering_packet_to_preAMSDU_or_802_3_packet(IN PRTMP_ADAPTER pAd,
     	}																\
 	} while (0);
 
-static VOID ba_enqueue_reordering_packet(IN PRTMP_ADAPTER pAd,
+static void ba_enqueue_reordering_packet(IN PRTMP_ADAPTER pAd,
 					 IN PBA_REC_ENTRY pBAEntry,
 					 IN RX_BLK * pRxBlk,
-					 IN UCHAR FromWhichBSSID)
+					 u8 FromWhichBSSID)
 {
 	struct reordering_mpdu *mpdu_blk;
-	UINT16 Sequence = (UINT16) pRxBlk->pHeader->Sequence;
+	u16 Sequence = (u16)pRxBlk->pHeader->Sequence;
 
 	mpdu_blk = ba_mpdu_blk_alloc(pAd);
 	if ((mpdu_blk != NULL) && (!RX_BLK_TEST_FLAG(pRxBlk, fRX_EAP))) {
@@ -1515,15 +1515,15 @@ static VOID ba_enqueue_reordering_packet(IN PRTMP_ADAPTER pAd,
 	==========================================================================
  */
 
-VOID Indicate_AMPDU_Packet(IN PRTMP_ADAPTER pAd,
-			   IN RX_BLK * pRxBlk, IN UCHAR FromWhichBSSID)
+void Indicate_AMPDU_Packet(IN PRTMP_ADAPTER pAd,
+			   IN RX_BLK * pRxBlk, u8 FromWhichBSSID)
 {
-	USHORT Idx;
+	u16 Idx;
 	PBA_REC_ENTRY pBAEntry = NULL;
-	UINT16 Sequence = pRxBlk->pHeader->Sequence;
-	ULONG Now32;
-	UCHAR Wcid = pRxBlk->pRxWI->WirelessCliID;
-	UCHAR TID = pRxBlk->pRxWI->TID;
+	u16 Sequence = pRxBlk->pHeader->Sequence;
+	unsigned long Now32;
+	u8 Wcid = pRxBlk->pRxWI->WirelessCliID;
+	u8 TID = pRxBlk->pRxWI->TID;
 
 	if (!RX_BLK_TEST_FLAG(pRxBlk, fRX_AMSDU)
 	    && (pRxBlk->DataSize > MAX_RX_PKT_LEN)) {
@@ -1578,7 +1578,7 @@ VOID Indicate_AMPDU_Packet(IN PRTMP_ADAPTER pAd,
 	/* I. Check if in order. */
 	/* */
 	if (SEQ_STEPONE(Sequence, pBAEntry->LastIndSeq, MAXSEQ)) {
-		USHORT LastIndSeq;
+		u16 LastIndSeq;
 
 		pBAEntry->LastIndSeq = Sequence;
 		INDICATE_LEGACY_OR_AMSDU(pAd, pRxBlk, FromWhichBSSID);
@@ -1624,7 +1624,7 @@ VOID Indicate_AMPDU_Packet(IN PRTMP_ADAPTER pAd,
 	/* V. Receive seq surpasses Win(lastseq + nMSDU). So refresh all reorder buffer */
 	/* */
 	else {
-		LONG WinStartSeq, TmpSeq;
+		long WinStartSeq, TmpSeq;
 
 		TmpSeq = Sequence - (pBAEntry->BAWinSize) - 1;
 		if (TmpSeq < 0) {

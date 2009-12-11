@@ -38,7 +38,7 @@ typedef struct urb *purbb_t;
 typedef struct usb_ctrlrequest devctrlrequest;
 #endif // LINUX //
 
-extern UCHAR EpToQueue[6];
+extern u8 EpToQueue[6];
 
 #define RXBULKAGGRE_ZISE			12
 #define MAX_TXBULK_LIMIT			(LOCAL_TXBUF_SIZE*(BULKAGGRE_ZISE-1))
@@ -110,8 +110,8 @@ extern void dump_urb(struct urb *purb);
 #define USBD_SHORT_TRANSFER_OK			0
 #define PURB			purbb_t
 
-#define PIRP		PVOID
-#define NDIS_OID	UINT
+#define PIRP		void *
+#define NDIS_OID	u32
 #ifndef USB_ST_NOERROR
 #define USB_ST_NOERROR     0
 #endif
@@ -120,12 +120,12 @@ extern void dump_urb(struct urb *purb);
 #define CONTROL_TIMEOUT_JIFFIES ( (100 * OS_HZ) / 1000)
 #define UNLINK_TIMEOUT_MS		3
 
-VOID RTUSBBulkOutDataPacketComplete(purbb_t purb, struct pt_regs *pt_regs);
-VOID RTUSBBulkOutMLMEPacketComplete(purbb_t pUrb, struct pt_regs *pt_regs);
-VOID RTUSBBulkOutNullFrameComplete(purbb_t pUrb, struct pt_regs *pt_regs);
-VOID RTUSBBulkOutRTSFrameComplete(purbb_t pUrb, struct pt_regs *pt_regs);
-VOID RTUSBBulkOutPsPollComplete(purbb_t pUrb, struct pt_regs *pt_regs);
-VOID RTUSBBulkRxComplete(purbb_t pUrb, struct pt_regs *pt_regs);
+void RTUSBBulkOutDataPacketComplete(purbb_t purb, struct pt_regs *pt_regs);
+void RTUSBBulkOutMLMEPacketComplete(purbb_t pUrb, struct pt_regs *pt_regs);
+void RTUSBBulkOutNullFrameComplete(purbb_t pUrb, struct pt_regs *pt_regs);
+void RTUSBBulkOutRTSFrameComplete(purbb_t pUrb, struct pt_regs *pt_regs);
+void RTUSBBulkOutPsPollComplete(purbb_t pUrb, struct pt_regs *pt_regs);
+void RTUSBBulkRxComplete(purbb_t pUrb, struct pt_regs *pt_regs);
 
 #ifdef KTHREAD_SUPPORT
 #define RTUSBMlmeUp(pAd) \

@@ -43,25 +43,25 @@
 #error "You Should Enable compile flag RTMP_RF_RW_SUPPORT for this chip"
 #endif /* RTMP_RF_RW_SUPPORT // */
 
-VOID NICInitRT3070RFRegisters(IN PRTMP_ADAPTER pAd)
+void NICInitRT3070RFRegisters(IN PRTMP_ADAPTER pAd)
 {
-	INT i;
-	UCHAR RFValue;
+	int i;
+	u8 RFValue;
 
 	/* Driver must read EEPROM to get RfIcType before initial RF registers */
 	/* Initialize RF register to default value */
 	if (IS_RT3070(pAd) || IS_RT3071(pAd)) {
 		/* Init RF calibration */
 		/* Driver should toggle RF R30 bit7 before init RF registers */
-		UINT32 RfReg = 0;
-		UINT32 data;
+		u32 RfReg = 0;
+		u32 data;
 
-		RT30xxReadRFRegister(pAd, RF_R30, (PUCHAR) & RfReg);
+		RT30xxReadRFRegister(pAd, RF_R30, (u8 *)& RfReg);
 		RfReg |= 0x80;
-		RT30xxWriteRFRegister(pAd, RF_R30, (UCHAR) RfReg);
+		RT30xxWriteRFRegister(pAd, RF_R30, (u8)RfReg);
 		RTMPusecDelay(1000);
 		RfReg &= 0x7F;
-		RT30xxWriteRFRegister(pAd, RF_R30, (UCHAR) RfReg);
+		RT30xxWriteRFRegister(pAd, RF_R30, (u8)RfReg);
 
 		/* Initialize RF register to default value */
 		for (i = 0; i < NUM_RF_REG_PARMS; i++) {
@@ -84,9 +84,9 @@ VOID NICInitRT3070RFRegisters(IN PRTMP_ADAPTER pAd)
 			}
 		} else if (IS_RT3071(pAd)) {
 			/* Driver should set RF R6 bit6 on before init RF registers */
-			RT30xxReadRFRegister(pAd, RF_R06, (PUCHAR) & RfReg);
+			RT30xxReadRFRegister(pAd, RF_R06, (u8 *)& RfReg);
 			RfReg |= 0x40;
-			RT30xxWriteRFRegister(pAd, RF_R06, (UCHAR) RfReg);
+			RT30xxWriteRFRegister(pAd, RF_R06, (u8)RfReg);
 
 			/* init R31 */
 			RT30xxWriteRFRegister(pAd, RF_R31, 0x14);

@@ -55,40 +55,40 @@
 
 typedef struct _MEASURE_REQ_ENTRY {
 	struct _MEASURE_REQ_ENTRY *pNext;
-	ULONG lastTime;
+	unsigned long lastTime;
 	BOOLEAN Valid;
-	UINT8 DialogToken;
-	UINT8 MeasureDialogToken[3];	/* 0:basic measure, 1: CCA measure, 2: RPI_Histogram measure. */
+	u8 DialogToken;
+	u8 MeasureDialogToken[3];	/* 0:basic measure, 1: CCA measure, 2: RPI_Histogram measure. */
 } MEASURE_REQ_ENTRY, *PMEASURE_REQ_ENTRY;
 
 typedef struct _MEASURE_REQ_TAB {
-	UCHAR Size;
+	u8 Size;
 	PMEASURE_REQ_ENTRY Hash[MAX_HASH_MEASURE_REQ_TAB_SIZE];
 	MEASURE_REQ_ENTRY Content[MAX_MEASURE_REQ_TAB_SIZE];
 } MEASURE_REQ_TAB, *PMEASURE_REQ_TAB;
 
 typedef struct _TPC_REQ_ENTRY {
 	struct _TPC_REQ_ENTRY *pNext;
-	ULONG lastTime;
+	unsigned long lastTime;
 	BOOLEAN Valid;
-	UINT8 DialogToken;
+	u8 DialogToken;
 } TPC_REQ_ENTRY, *PTPC_REQ_ENTRY;
 
 typedef struct _TPC_REQ_TAB {
-	UCHAR Size;
+	u8 Size;
 	PTPC_REQ_ENTRY Hash[MAX_HASH_TPC_REQ_TAB_SIZE];
 	TPC_REQ_ENTRY Content[MAX_TPC_REQ_TAB_SIZE];
 } TPC_REQ_TAB, *PTPC_REQ_TAB;
 
 /* The regulatory information */
 typedef struct _DOT11_CHANNEL_SET {
-	UCHAR NumberOfChannels;
-	UINT8 MaxTxPwr;
-	UCHAR ChannelList[16];
+	u8 NumberOfChannels;
+	u8 MaxTxPwr;
+	u8 ChannelList[16];
 } DOT11_CHANNEL_SET, *PDOT11_CHANNEL_SET;
 
 typedef struct _DOT11_REGULATORY_INFORMATION {
-	UCHAR RegulatoryClass;
+	u8 RegulatoryClass;
 	DOT11_CHANNEL_SET ChannelSet;
 } DOT11_REGULATORY_INFORMATION, *PDOT11_REGULATORY_INFORMATION;
 
@@ -102,97 +102,97 @@ typedef struct _DOT11_REGULATORY_INFORMATION {
 #define RM_NOISE_HISTOGRAM		4
 
 typedef struct PACKED _TPC_REPORT_INFO {
-	UINT8 TxPwr;
-	UINT8 LinkMargin;
+	u8 TxPwr;
+	u8 LinkMargin;
 } TPC_REPORT_INFO, *PTPC_REPORT_INFO;
 
 typedef struct PACKED _CH_SW_ANN_INFO {
-	UINT8 ChSwMode;
-	UINT8 Channel;
-	UINT8 ChSwCnt;
+	u8 ChSwMode;
+	u8 Channel;
+	u8 ChSwCnt;
 } CH_SW_ANN_INFO, *PCH_SW_ANN_INFO;
 
 typedef union PACKED _MEASURE_REQ_MODE {
 	struct PACKED {
-		UINT8 Parallel:1;
-		UINT8 Enable:1;
-		UINT8 Request:1;
-		UINT8 Report:1;
-		UINT8 DurationMandatory:1;
-		 UINT8:3;
+		u8 Parallel:1;
+		u8 Enable:1;
+		u8 Request:1;
+		u8 Report:1;
+		u8 DurationMandatory:1;
+		 u8:3;
 	} field;
-	UINT8 word;
+	u8 word;
 } MEASURE_REQ_MODE, *PMEASURE_REQ_MODE;
 
 typedef struct PACKED _MEASURE_REQ {
-	UINT8 ChNum;
-	UINT64 MeasureStartTime;
-	UINT16 MeasureDuration;
+	u8 ChNum;
+	u64 MeasureStartTime;
+	u16 MeasureDuration;
 } MEASURE_REQ, *PMEASURE_REQ;
 
 typedef struct PACKED _MEASURE_REQ_INFO {
-	UINT8 Token;
+	u8 Token;
 	MEASURE_REQ_MODE ReqMode;
-	UINT8 ReqType;
-	UINT8 Oct[0];
+	u8 ReqType;
+	u8 Oct[0];
 } MEASURE_REQ_INFO, *PMEASURE_REQ_INFO;
 
 typedef union PACKED _MEASURE_BASIC_REPORT_MAP {
 	struct PACKED {
-		UINT8 BSS:1;
+		u8 BSS:1;
 
-		UINT8 OfdmPreamble:1;
-		UINT8 UnidentifiedSignal:1;
-		UINT8 Radar:1;
-		UINT8 Unmeasure:1;
-		UINT8 Rev:3;
+		u8 OfdmPreamble:1;
+		u8 UnidentifiedSignal:1;
+		u8 Radar:1;
+		u8 Unmeasure:1;
+		u8 Rev:3;
 	} field;
-	UINT8 word;
+	u8 word;
 } MEASURE_BASIC_REPORT_MAP, *PMEASURE_BASIC_REPORT_MAP;
 
 typedef struct PACKED _MEASURE_BASIC_REPORT {
-	UINT8 ChNum;
-	UINT64 MeasureStartTime;
-	UINT16 MeasureDuration;
+	u8 ChNum;
+	u64 MeasureStartTime;
+	u16 MeasureDuration;
 	MEASURE_BASIC_REPORT_MAP Map;
 } MEASURE_BASIC_REPORT, *PMEASURE_BASIC_REPORT;
 
 typedef struct PACKED _MEASURE_CCA_REPORT {
-	UINT8 ChNum;
-	UINT64 MeasureStartTime;
-	UINT16 MeasureDuration;
-	UINT8 CCA_Busy_Fraction;
+	u8 ChNum;
+	u64 MeasureStartTime;
+	u16 MeasureDuration;
+	u8 CCA_Busy_Fraction;
 } MEASURE_CCA_REPORT, *PMEASURE_CCA_REPORT;
 
 typedef struct PACKED _MEASURE_RPI_REPORT {
-	UINT8 ChNum;
-	UINT64 MeasureStartTime;
-	UINT16 MeasureDuration;
-	UINT8 RPI_Density[8];
+	u8 ChNum;
+	u64 MeasureStartTime;
+	u16 MeasureDuration;
+	u8 RPI_Density[8];
 } MEASURE_RPI_REPORT, *PMEASURE_RPI_REPORT;
 
 typedef union PACKED _MEASURE_REPORT_MODE {
 	struct PACKED {
-		UINT8 Late:1;
-		UINT8 Incapable:1;
-		UINT8 Refused:1;
-		UINT8 Rev:5;
+		u8 Late:1;
+		u8 Incapable:1;
+		u8 Refused:1;
+		u8 Rev:5;
 	} field;
-	UINT8 word;
+	u8 word;
 } MEASURE_REPORT_MODE, *PMEASURE_REPORT_MODE;
 
 typedef struct PACKED _MEASURE_REPORT_INFO {
-	UINT8 Token;
-	UINT8 ReportMode;
-	UINT8 ReportType;
-	UINT8 Octect[0];
+	u8 Token;
+	u8 ReportMode;
+	u8 ReportType;
+	u8 Octect[0];
 } MEASURE_REPORT_INFO, *PMEASURE_REPORT_INFO;
 
 typedef struct PACKED _QUIET_INFO {
-	UINT8 QuietCnt;
-	UINT8 QuietPeriod;
-	UINT16 QuietDuration;
-	UINT16 QuietOffset;
+	u8 QuietCnt;
+	u8 QuietPeriod;
+	u16 QuietDuration;
+	u16 QuietOffset;
 } QUIET_INFO, *PQUIET_INFO;
 
 #endif /* __SPECTRUM_DEF_H__ // */

@@ -41,7 +41,7 @@
 
 #include "../rt_config.h"
 /* Match total 6 bulkout endpoint to corresponding queue. */
-UCHAR EpToQueue[6] =
+u8 EpToQueue[6] =
     { FIFO_EDCA, FIFO_EDCA, FIFO_EDCA, FIFO_EDCA, FIFO_EDCA, FIFO_MGMT };
 
 /*static BOOLEAN SingleBulkOut = FALSE; */
@@ -58,12 +58,12 @@ void RTUSB_FILL_BULK_URB(struct urb *pUrb,
 
 }
 
-VOID RTUSBInitTxDesc(IN PRTMP_ADAPTER pAd,
+void RTUSBInitTxDesc(IN PRTMP_ADAPTER pAd,
 		     IN PTX_CONTEXT pTxContext,
-		     IN UCHAR BulkOutPipeId, IN usb_complete_t Func)
+		     u8 BulkOutPipeId, IN usb_complete_t Func)
 {
 	PURB pUrb;
-	PUCHAR pSrc = NULL;
+	u8 *pSrc = NULL;
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 
 	pUrb = pTxContext->pUrb;
@@ -76,7 +76,7 @@ VOID RTUSBInitTxDesc(IN PRTMP_ADAPTER pAd,
 		pSrc = &pTxContext->TransferBuffer->Aggregation[2];
 	} else {
 		pSrc =
-		    (PUCHAR) pTxContext->TransferBuffer->field.WirelessPacket;
+		    (u8 *)pTxContext->TransferBuffer->field.WirelessPacket;
 	}
 
 	/*Initialize a tx bulk urb */
@@ -96,13 +96,13 @@ VOID RTUSBInitTxDesc(IN PRTMP_ADAPTER pAd,
 
 }
 
-VOID RTUSBInitHTTxDesc(IN PRTMP_ADAPTER pAd,
+void RTUSBInitHTTxDesc(IN PRTMP_ADAPTER pAd,
 		       IN PHT_TX_CONTEXT pTxContext,
-		       IN UCHAR BulkOutPipeId,
-		       IN ULONG BulkOutSize, IN usb_complete_t Func)
+		       u8 BulkOutPipeId,
+		       unsigned long BulkOutSize, IN usb_complete_t Func)
 {
 	PURB pUrb;
-	PUCHAR pSrc = NULL;
+	u8 *pSrc = NULL;
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 
 	pUrb = pTxContext->pUrb;
@@ -128,11 +128,11 @@ VOID RTUSBInitHTTxDesc(IN PRTMP_ADAPTER pAd,
 
 }
 
-VOID RTUSBInitRxDesc(IN PRTMP_ADAPTER pAd, IN PRX_CONTEXT pRxContext)
+void RTUSBInitRxDesc(IN PRTMP_ADAPTER pAd, IN PRX_CONTEXT pRxContext)
 {
 	PURB pUrb;
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
-	ULONG RX_bulk_size;
+	unsigned long RX_bulk_size;
 
 	pUrb = pRxContext->pUrb;
 	ASSERT(pUrb);
@@ -179,8 +179,8 @@ VOID RTUSBInitRxDesc(IN PRTMP_ADAPTER pAd, IN PRX_CONTEXT pRxContext)
 		if(1 /*!(in_interrupt() & 0xffff0000)*/)	\
 			RTMP_IRQ_UNLOCK((pLock), IrqFlags);
 
-VOID RTUSBBulkOutDataPacket(IN PRTMP_ADAPTER pAd,
-			    IN UCHAR BulkOutPipeId, IN UCHAR Index)
+void RTUSBBulkOutDataPacket(IN PRTMP_ADAPTER pAd,
+			    u8 BulkOutPipeId, u8 Index)
 {
 
 	PHT_TX_CONTEXT pHTTXContext;
@@ -188,11 +188,11 @@ VOID RTUSBBulkOutDataPacket(IN PRTMP_ADAPTER pAd,
 	int ret = 0;
 	PTXINFO_STRUC pTxInfo, pLastTxInfo = NULL;
 	PTXWI_STRUC pTxWI;
-	ULONG TmpBulkEndPos, ThisBulkSize;
+	unsigned long TmpBulkEndPos, ThisBulkSize;
 	unsigned long IrqFlags = 0, IrqFlags2 = 0;
-	PUCHAR pWirelessPkt, pAppendant;
+	u8 *pWirelessPkt, *pAppendant;
 	BOOLEAN bTxQLastRound = FALSE;
-	UCHAR allzero[4] = { 0x0, 0x0, 0x0, 0x0 };
+	u8 allzero[4] = { 0x0, 0x0, 0x0, 0x0 };
 
 	BULK_OUT_LOCK(&pAd->BulkOutLock[BulkOutPipeId], IrqFlags);
 	if ((pAd->BulkOutPending[BulkOutPipeId] == TRUE)
@@ -334,7 +334,7 @@ VOID RTUSBBulkOutDataPacket(IN PRTMP_ADAPTER pAd,
 				  pHTTXContext->ENextBulkOutPosition,
 				  pHTTXContext->bCopySavePad));
 			hex_dump("Wrong QSel Pkt:",
-				 (PUCHAR) & pWirelessPkt[TmpBulkEndPos],
+				 (u8 *)& pWirelessPkt[TmpBulkEndPos],
 				 (pHTTXContext->CurWritePosition -
 				  pHTTXContext->NextBulkOutPosition));
 		}
@@ -429,7 +429,7 @@ VOID RTUSBBulkOutDataPacket(IN PRTMP_ADAPTER pAd,
 					     ENextBulkOutPosition], 8);
 		pHTTXContext->bCopySavePad = TRUE;
 		if (RTMPEqualMemory(pHTTXContext->SavedPad, allzero, 4)) {
-			PUCHAR pBuf = &pHTTXContext->SavedPad[0];
+			u8 *pBuf = &pHTTXContext->SavedPad[0];
 			DBGPRINT_RAW(RT_DEBUG_ERROR,
 				     ("WARNING-Zero-3:%02x%02x%02x%02x%02x%02x%02x%02x,CWPos=%ld, CWRPos=%ld, bCW=%d, NBPos=%ld, TBPos=%ld, TBSize=%ld\n",
 				      pBuf[0], pBuf[1], pBuf[2], pBuf[3],
@@ -495,12 +495,12 @@ VOID RTUSBBulkOutDataPacket(IN PRTMP_ADAPTER pAd,
 
 }
 
-VOID RTUSBBulkOutDataPacketComplete(purbb_t pUrb, struct pt_regs * pt_regs)
+void RTUSBBulkOutDataPacketComplete(purbb_t pUrb, struct pt_regs * pt_regs)
 {
 	PHT_TX_CONTEXT pHTTXContext;
 	PRTMP_ADAPTER pAd;
 	POS_COOKIE pObj;
-	UCHAR BulkOutPipeId;
+	u8 BulkOutPipeId;
 
 	pHTTXContext = (PHT_TX_CONTEXT) pUrb->context;
 	pAd = pHTTXContext->pAd;
@@ -544,7 +544,7 @@ VOID RTUSBBulkOutDataPacketComplete(purbb_t pUrb, struct pt_regs * pt_regs)
 
 	========================================================================
 */
-VOID RTUSBBulkOutNullFrame(IN PRTMP_ADAPTER pAd)
+void RTUSBBulkOutNullFrame(IN PRTMP_ADAPTER pAd)
 {
 	PTX_CONTEXT pNullContext = &(pAd->NullContext);
 	PURB pUrb;
@@ -589,11 +589,11 @@ VOID RTUSBBulkOutNullFrame(IN PRTMP_ADAPTER pAd)
 }
 
 /* NULL frame use BulkOutPipeId = 0 */
-VOID RTUSBBulkOutNullFrameComplete(purbb_t pUrb, struct pt_regs * pt_regs)
+void RTUSBBulkOutNullFrameComplete(purbb_t pUrb, struct pt_regs * pt_regs)
 {
 	PRTMP_ADAPTER pAd;
 	PTX_CONTEXT pNullContext;
-	NTSTATUS Status;
+	int Status;
 	POS_COOKIE pObj;
 
 	pNullContext = (PTX_CONTEXT) pUrb->context;
@@ -618,7 +618,7 @@ VOID RTUSBBulkOutNullFrameComplete(purbb_t pUrb, struct pt_regs * pt_regs)
 
 	========================================================================
 */
-VOID RTUSBBulkOutMLMEPacket(IN PRTMP_ADAPTER pAd, IN UCHAR Index)
+void RTUSBBulkOutMLMEPacket(IN PRTMP_ADAPTER pAd, u8 Index)
 {
 	PTX_CONTEXT pMLMEContext;
 	PURB pUrb;
@@ -684,11 +684,11 @@ VOID RTUSBBulkOutMLMEPacket(IN PRTMP_ADAPTER pAd, IN UCHAR Index)
 /*      printk("<---RTUSBBulkOutMLMEPacket,Cpu=%d!, Dma=%d, SwIdx=%d!\n", pAd->MgmtRing.TxCpuIdx, pAd->MgmtRing.TxDmaIdx, pAd->MgmtRing.TxSwFreeIdx); */
 }
 
-VOID RTUSBBulkOutMLMEPacketComplete(purbb_t pUrb, struct pt_regs * pt_regs)
+void RTUSBBulkOutMLMEPacketComplete(purbb_t pUrb, struct pt_regs * pt_regs)
 {
 	PTX_CONTEXT pMLMEContext;
 	PRTMP_ADAPTER pAd;
-	NTSTATUS Status;
+	int Status;
 	POS_COOKIE pObj;
 	int index;
 
@@ -716,7 +716,7 @@ VOID RTUSBBulkOutMLMEPacketComplete(purbb_t pUrb, struct pt_regs * pt_regs)
 
 	========================================================================
 */
-VOID RTUSBBulkOutPsPoll(IN PRTMP_ADAPTER pAd)
+void RTUSBBulkOutPsPoll(IN PRTMP_ADAPTER pAd)
 {
 	PTX_CONTEXT pPsPollContext = &(pAd->PsPollContext);
 	PURB pUrb;
@@ -758,11 +758,11 @@ VOID RTUSBBulkOutPsPoll(IN PRTMP_ADAPTER pAd)
 }
 
 /* PS-Poll frame use BulkOutPipeId = 0 */
-VOID RTUSBBulkOutPsPollComplete(purbb_t pUrb, struct pt_regs * pt_regs)
+void RTUSBBulkOutPsPollComplete(purbb_t pUrb, struct pt_regs * pt_regs)
 {
 	PRTMP_ADAPTER pAd;
 	PTX_CONTEXT pPsPollContext;
-	NTSTATUS Status;
+	int Status;
 	POS_COOKIE pObj;
 
 	pPsPollContext = (PTX_CONTEXT) pUrb->context;
@@ -774,7 +774,7 @@ VOID RTUSBBulkOutPsPollComplete(purbb_t pUrb, struct pt_regs * pt_regs)
 	tasklet_hi_schedule(&pObj->pspoll_frame_complete_task);
 }
 
-VOID DoBulkIn(IN RTMP_ADAPTER * pAd)
+void DoBulkIn(IN RTMP_ADAPTER * pAd)
 {
 	PRX_CONTEXT pRxContext;
 	PURB pUrb;
@@ -845,7 +845,7 @@ VOID DoBulkIn(IN RTMP_ADAPTER * pAd)
 		 fRTMP_ADAPTER_RADIO_OFF | fRTMP_ADAPTER_RESET_IN_PROGRESS | \
 		 fRTMP_ADAPTER_REMOVE_IN_PROGRESS)
 
-VOID RTUSBBulkReceive(IN PRTMP_ADAPTER pAd)
+void RTUSBBulkReceive(IN PRTMP_ADAPTER pAd)
 {
 	PRX_CONTEXT pRxContext;
 	unsigned long IrqFlags;
@@ -912,7 +912,7 @@ VOID RTUSBBulkReceive(IN PRTMP_ADAPTER pAd)
 		Always returns STATUS_MORE_PROCESSING_REQUIRED
 	========================================================================
 */
-VOID RTUSBBulkRxComplete(purbb_t pUrb, struct pt_regs *pt_regs)
+void RTUSBBulkRxComplete(purbb_t pUrb, struct pt_regs *pt_regs)
 {
 	/* use a receive tasklet to handle received packets; */
 	/* or sometimes hardware IRQ will be disabled here, so we can not */
@@ -943,7 +943,7 @@ VOID RTUSBBulkRxComplete(purbb_t pUrb, struct pt_regs *pt_regs)
 
 	========================================================================
 */
-VOID RTUSBKickBulkOut(IN PRTMP_ADAPTER pAd)
+void RTUSBKickBulkOut(IN PRTMP_ADAPTER pAd)
 {
 	/* BulkIn Reset will reset whole USB PHY. So we need to make sure fRTMP_ADAPTER_BULKIN_RESET not flaged. */
 	if (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NEED_STOP_TX)
@@ -1033,9 +1033,9 @@ VOID RTUSBKickBulkOut(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-VOID RTUSBCleanUpDataBulkOutQueue(IN PRTMP_ADAPTER pAd)
+void RTUSBCleanUpDataBulkOutQueue(IN PRTMP_ADAPTER pAd)
 {
-	UCHAR Idx;
+	u8 Idx;
 	PHT_TX_CONTEXT pTxContext;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("--->CleanUpDataBulkOutQueue\n"));
@@ -1066,7 +1066,7 @@ VOID RTUSBCleanUpDataBulkOutQueue(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-VOID RTUSBCleanUpMLMEBulkOutQueue(IN PRTMP_ADAPTER pAd)
+void RTUSBCleanUpMLMEBulkOutQueue(IN PRTMP_ADAPTER pAd)
 {
 	DBGPRINT(RT_DEBUG_TRACE, ("--->CleanUpMLMEBulkOutQueue\n"));
 	DBGPRINT(RT_DEBUG_TRACE, ("<---CleanUpMLMEBulkOutQueue\n"));
@@ -1085,7 +1085,7 @@ VOID RTUSBCleanUpMLMEBulkOutQueue(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-VOID RTUSBCancelPendingIRPs(IN PRTMP_ADAPTER pAd)
+void RTUSBCancelPendingIRPs(IN PRTMP_ADAPTER pAd)
 {
 	RTUSBCancelPendingBulkInIRP(pAd);
 	RTUSBCancelPendingBulkOutIRP(pAd);
@@ -1104,10 +1104,10 @@ VOID RTUSBCancelPendingIRPs(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-VOID RTUSBCancelPendingBulkInIRP(IN PRTMP_ADAPTER pAd)
+void RTUSBCancelPendingBulkInIRP(IN PRTMP_ADAPTER pAd)
 {
 	PRX_CONTEXT pRxContext;
-	UINT i;
+	u32 i;
 
 	DBGPRINT_RAW(RT_DEBUG_TRACE, ("--->RTUSBCancelPendingBulkInIRP\n"));
 	for (i = 0; i < (RX_RING_SIZE); i++) {
@@ -1136,7 +1136,7 @@ VOID RTUSBCancelPendingBulkInIRP(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-VOID RTUSBCancelPendingBulkOutIRP(IN PRTMP_ADAPTER pAd)
+void RTUSBCancelPendingBulkOutIRP(IN PRTMP_ADAPTER pAd)
 {
 	PHT_TX_CONTEXT pHTTXContext;
 	PTX_CONTEXT pMLMEContext;
@@ -1144,7 +1144,7 @@ VOID RTUSBCancelPendingBulkOutIRP(IN PRTMP_ADAPTER pAd)
 	PTX_CONTEXT pNullContext;
 	PTX_CONTEXT pPsPollContext;
 	PTX_CONTEXT pRTSContext;
-	UINT i, Idx;
+	u32 i, Idx;
 /*      unsigned int            IrqFlags; */
 /*      NDIS_SPIN_LOCK          *pLock; */
 /*      BOOLEAN                         *pPending; */

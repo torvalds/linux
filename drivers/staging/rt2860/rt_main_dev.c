@@ -41,8 +41,8 @@
 /* Private Variables Used                                              */
 /*---------------------------------------------------------------------*/
 
-PSTRING mac = "";		/* default 00:00:00:00:00:00 */
-PSTRING hostname = "";		/* default CMPC */
+char *mac = "";		/* default 00:00:00:00:00:00 */
+char *hostname = "";		/* default CMPC */
 module_param(mac, charp, 0);
 MODULE_PARM_DESC(mac, "rt28xx: wireless mac addr");
 
@@ -55,7 +55,7 @@ int rt28xx_close(IN struct net_device *net_dev);
 int rt28xx_open(struct net_device *net_dev);
 
 /* private function prototype */
-static INT rt28xx_send_packets(IN struct sk_buff *skb_p,
+static int rt28xx_send_packets(IN struct sk_buff *skb_p,
 			       IN struct net_device *net_dev);
 
 static struct net_device_stats *RT28xx_get_ether_stats(IN struct net_device
@@ -213,7 +213,7 @@ int rt28xx_close(IN PNET_DEV dev)
 	struct net_device *net_dev = (struct net_device *)dev;
 	RTMP_ADAPTER *pAd = NULL;
 	BOOLEAN Cancelled;
-	UINT32 i = 0;
+	u32 i = 0;
 
 #ifdef RTMP_MAC_USB
 	DECLARE_WAIT_QUEUE_HEAD(unlink_wakeup);
@@ -304,7 +304,7 @@ int rt28xx_close(IN PNET_DEV dev)
 #ifdef RTMP_MAC_PCI
 	{
 		BOOLEAN brc;
-		/*      ULONG                   Value; */
+		/*      unsigned long                   Value; */
 
 		if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_ACTIVE)) {
 			RTMP_ASIC_INTERRUPT_DISABLE(pAd);
@@ -418,14 +418,14 @@ int rt28xx_open(IN PNET_DEV dev)
 	RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_START_UP);
 
 	{
-		UINT32 reg = 0;
+		u32 reg = 0;
 		RTMP_IO_READ32(pAd, 0x1300, &reg);	/* clear garbage interrupts */
 		printk("0x1300 = %08x\n", reg);
 	}
 
 	{
 /*      u32 reg; */
-/*      UINT8  byte; */
+/*      u8  byte; */
 /*      u16 tmp; */
 
 /*      RTMP_IO_READ32(pAd, XIFS_TIME_CFG, &reg); */
@@ -463,7 +463,7 @@ PNET_DEV RtmpPhyNetDevInit(IN RTMP_ADAPTER * pAd,
 			   IN RTMP_OS_NETDEV_OP_HOOK * pNetDevHook)
 {
 	struct net_device *net_dev = NULL;
-/*      NDIS_STATUS             Status; */
+/*      int             Status; */
 
 	net_dev =
 	    RtmpOSNetDevCreate(pAd, INT_MAIN, 0, sizeof(PRTMP_ADAPTER),
@@ -480,7 +480,7 @@ PNET_DEV RtmpPhyNetDevInit(IN RTMP_ADAPTER * pAd,
 	pNetDevHook->priv_flags = INT_MAIN;
 	pNetDevHook->needProtcted = FALSE;
 
-	net_dev->ml_priv = (PVOID) pAd;
+	net_dev->ml_priv = (void *)pAd;
 	pAd->net_dev = net_dev;
 
 	netif_stop_queue(net_dev);
@@ -571,7 +571,7 @@ static int rt28xx_send_packets(IN struct sk_buff *skb_p,
 		return NETDEV_TX_OK;
 	}
 
-	NdisZeroMemory((PUCHAR) & skb_p->cb[CB_OFF], 15);
+	NdisZeroMemory((u8 *)& skb_p->cb[CB_OFF], 15);
 	RTMP_SET_PACKET_NET_DEVICE_MBSSID(skb_p, MAIN_MBSSID);
 
 	return rt28xx_packet_xmit(skb_p);
@@ -721,10 +721,10 @@ Return Value:
 Note:
 ========================================================================
 */
-NDIS_STATUS AdapterBlockAllocateMemory(IN PVOID handle, OUT PVOID * ppAd)
+int AdapterBlockAllocateMemory(void *handle, void ** ppAd)
 {
 
-	*ppAd = (PVOID) vmalloc(sizeof(RTMP_ADAPTER));	/*pci_alloc_consistent(pci_dev, sizeof(RTMP_ADAPTER), phy_addr); */
+	*ppAd = (void *)vmalloc(sizeof(RTMP_ADAPTER));	/*pci_alloc_consistent(pci_dev, sizeof(RTMP_ADAPTER), phy_addr); */
 
 	if (*ppAd) {
 		NdisZeroMemory(*ppAd, sizeof(RTMP_ADAPTER));

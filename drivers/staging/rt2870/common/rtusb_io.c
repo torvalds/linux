@@ -56,9 +56,9 @@
 	========================================================================
 */
 
-static NTSTATUS RTUSBFirmwareRun(IN PRTMP_ADAPTER pAd)
+static int RTUSBFirmwareRun(IN PRTMP_ADAPTER pAd)
 {
-	NTSTATUS Status;
+	int Status;
 
 	Status = RTUSB_VendorRequest(pAd,
 				     USBD_TRANSFER_DIRECTION_OUT,
@@ -83,13 +83,13 @@ static NTSTATUS RTUSBFirmwareRun(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-NTSTATUS RTUSBFirmwareWrite(IN PRTMP_ADAPTER pAd,
-			    IN PUCHAR pFwImage, IN ULONG FwLen)
+int RTUSBFirmwareWrite(IN PRTMP_ADAPTER pAd,
+			    u8 *pFwImage, unsigned long FwLen)
 {
-	UINT32 MacReg;
-	NTSTATUS Status;
-/*      ULONG           i; */
-	USHORT writeLen;
+	u32 MacReg;
+	int Status;
+/*      unsigned long           i; */
+	u16 writeLen;
 
 	Status = RTUSBReadMACRegister(pAd, MAC_CSR0, &MacReg);
 
@@ -109,9 +109,9 @@ NTSTATUS RTUSBFirmwareWrite(IN PRTMP_ADAPTER pAd,
 	return Status;
 }
 
-NTSTATUS RTUSBVenderReset(IN PRTMP_ADAPTER pAd)
+int RTUSBVenderReset(IN PRTMP_ADAPTER pAd)
 {
-	NTSTATUS Status;
+	int Status;
 	DBGPRINT_RAW(RT_DEBUG_ERROR, ("-->RTUSBVenderReset\n"));
 	Status = RTUSB_VendorRequest(pAd,
 				     USBD_TRANSFER_DIRECTION_OUT,
@@ -137,10 +137,10 @@ NTSTATUS RTUSBVenderReset(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-NTSTATUS RTUSBMultiRead(IN PRTMP_ADAPTER pAd,
-			IN USHORT Offset, OUT PUCHAR pData, IN USHORT length)
+int RTUSBMultiRead(IN PRTMP_ADAPTER pAd,
+			u16 Offset, u8 *pData, u16 length)
 {
-	NTSTATUS Status;
+	int Status;
 
 	Status = RTUSB_VendorRequest(pAd,
 				     (USBD_TRANSFER_DIRECTION_IN |
@@ -166,10 +166,10 @@ NTSTATUS RTUSBMultiRead(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-NTSTATUS RTUSBMultiWrite_OneByte(IN PRTMP_ADAPTER pAd,
-				 IN USHORT Offset, IN PUCHAR pData)
+int RTUSBMultiWrite_OneByte(IN PRTMP_ADAPTER pAd,
+				 u16 Offset, u8 *pData)
 {
-	NTSTATUS Status;
+	int Status;
 
 	/* TODO: In 2870, use this funciton carefully cause it's not stable. */
 	Status = RTUSB_VendorRequest(pAd,
@@ -180,19 +180,19 @@ NTSTATUS RTUSBMultiWrite_OneByte(IN PRTMP_ADAPTER pAd,
 	return Status;
 }
 
-NTSTATUS RTUSBMultiWrite(IN PRTMP_ADAPTER pAd,
-			 IN USHORT Offset, IN PUCHAR pData, IN USHORT length)
+int RTUSBMultiWrite(IN PRTMP_ADAPTER pAd,
+			 u16 Offset, u8 *pData, u16 length)
 {
-	NTSTATUS Status;
+	int Status;
 
-	USHORT index = 0, Value;
-	PUCHAR pSrc = pData;
-	USHORT resude = 0;
+	u16 index = 0, Value;
+	u8 *pSrc = pData;
+	u16 resude = 0;
 
 	resude = length % 2;
 	length += resude;
 	do {
-		Value = (USHORT) (*pSrc | (*(pSrc + 1) << 8));
+		Value = (u16)(*pSrc | (*(pSrc + 1) << 8));
 		Status = RTUSBSingleWrite(pAd, Offset + index, Value);
 		index += 2;
 		length -= 2;
@@ -202,10 +202,10 @@ NTSTATUS RTUSBMultiWrite(IN PRTMP_ADAPTER pAd,
 	return Status;
 }
 
-NTSTATUS RTUSBSingleWrite(IN RTMP_ADAPTER * pAd,
-			  IN USHORT Offset, IN USHORT Value)
+int RTUSBSingleWrite(IN RTMP_ADAPTER * pAd,
+			  u16 Offset, u16 Value)
 {
-	NTSTATUS Status;
+	int Status;
 
 	Status = RTUSB_VendorRequest(pAd,
 				     USBD_TRANSFER_DIRECTION_OUT,
@@ -231,11 +231,11 @@ NTSTATUS RTUSBSingleWrite(IN RTMP_ADAPTER * pAd,
 
 	========================================================================
 */
-NTSTATUS RTUSBReadMACRegister(IN PRTMP_ADAPTER pAd,
-			      IN USHORT Offset, OUT PUINT32 pValue)
+int RTUSBReadMACRegister(IN PRTMP_ADAPTER pAd,
+			      u16 Offset, u32 *pValue)
 {
-	NTSTATUS Status = 0;
-	UINT32 localVal;
+	int Status = 0;
+	u32 localVal;
 
 	Status = RTUSB_VendorRequest(pAd,
 				     (USBD_TRANSFER_DIRECTION_IN |
@@ -266,18 +266,18 @@ NTSTATUS RTUSBReadMACRegister(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-NTSTATUS RTUSBWriteMACRegister(IN PRTMP_ADAPTER pAd,
-			       IN USHORT Offset, IN UINT32 Value)
+int RTUSBWriteMACRegister(IN PRTMP_ADAPTER pAd,
+			       u16 Offset, u32 Value)
 {
-	NTSTATUS Status;
-	UINT32 localVal;
+	int Status;
+	u32 localVal;
 
 	localVal = Value;
 
-	Status = RTUSBSingleWrite(pAd, Offset, (USHORT) (localVal & 0xffff));
+	Status = RTUSBSingleWrite(pAd, Offset, (u16)(localVal & 0xffff));
 	Status =
 	    RTUSBSingleWrite(pAd, Offset + 2,
-			     (USHORT) ((localVal & 0xffff0000) >> 16));
+			     (u16)((localVal & 0xffff0000) >> 16));
 
 	return Status;
 }
@@ -297,12 +297,12 @@ NTSTATUS RTUSBWriteMACRegister(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-NTSTATUS RTUSBReadBBPRegister(IN PRTMP_ADAPTER pAd,
-			      IN UCHAR Id, IN PUCHAR pValue)
+int RTUSBReadBBPRegister(IN PRTMP_ADAPTER pAd,
+			      u8 Id, u8 *pValue)
 {
 	BBP_CSR_CFG_STRUC BbpCsr;
-	UINT i = 0;
-	NTSTATUS status;
+	u32 i = 0;
+	int status;
 
 	/* Verify the busy condition */
 	do {
@@ -342,7 +342,7 @@ NTSTATUS RTUSBReadBBPRegister(IN PRTMP_ADAPTER pAd,
 		status = RTUSBReadMACRegister(pAd, BBP_CSR_CFG, &BbpCsr.word);
 		if (status >= 0) {
 			if (!(BbpCsr.field.Busy == BUSY)) {
-				*pValue = (UCHAR) BbpCsr.field.Value;
+				*pValue = (u8)BbpCsr.field.Value;
 				break;
 			}
 		}
@@ -383,12 +383,12 @@ NTSTATUS RTUSBReadBBPRegister(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-NTSTATUS RTUSBWriteBBPRegister(IN PRTMP_ADAPTER pAd,
-			       IN UCHAR Id, IN UCHAR Value)
+int RTUSBWriteBBPRegister(IN PRTMP_ADAPTER pAd,
+			       u8 Id, u8 Value)
 {
 	BBP_CSR_CFG_STRUC BbpCsr;
-	UINT i = 0;
-	NTSTATUS status;
+	u32 i = 0;
+	int status;
 	/* Verify the busy condition */
 	do {
 		status = RTUSBReadMACRegister(pAd, BBP_CSR_CFG, &BbpCsr.word);
@@ -438,11 +438,11 @@ NTSTATUS RTUSBWriteBBPRegister(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-NTSTATUS RTUSBWriteRFRegister(IN PRTMP_ADAPTER pAd, IN UINT32 Value)
+int RTUSBWriteRFRegister(IN PRTMP_ADAPTER pAd, u32 Value)
 {
 	PHY_CSR4_STRUC PhyCsr4;
-	UINT i = 0;
-	NTSTATUS status;
+	u32 i = 0;
+	int status;
 
 	NdisZeroMemory(&PhyCsr4, sizeof(PHY_CSR4_STRUC));
 	do {
@@ -486,10 +486,10 @@ NTSTATUS RTUSBWriteRFRegister(IN PRTMP_ADAPTER pAd, IN UINT32 Value)
 
 	========================================================================
 */
-NTSTATUS RTUSBReadEEPROM(IN PRTMP_ADAPTER pAd,
-			 IN USHORT Offset, OUT PUCHAR pData, IN USHORT length)
+int RTUSBReadEEPROM(IN PRTMP_ADAPTER pAd,
+			 u16 Offset, u8 *pData, u16 length)
 {
-	NTSTATUS Status = STATUS_SUCCESS;
+	int Status = STATUS_SUCCESS;
 
 	Status = RTUSB_VendorRequest(pAd,
 				     (USBD_TRANSFER_DIRECTION_IN |
@@ -515,10 +515,10 @@ NTSTATUS RTUSBReadEEPROM(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-NTSTATUS RTUSBWriteEEPROM(IN PRTMP_ADAPTER pAd,
-			  IN USHORT Offset, IN PUCHAR pData, IN USHORT length)
+int RTUSBWriteEEPROM(IN PRTMP_ADAPTER pAd,
+			  u16 Offset, u8 *pData, u16 length)
 {
-	NTSTATUS Status = STATUS_SUCCESS;
+	int Status = STATUS_SUCCESS;
 
 	Status = RTUSB_VendorRequest(pAd,
 				     USBD_TRANSFER_DIRECTION_OUT,
@@ -528,13 +528,13 @@ NTSTATUS RTUSBWriteEEPROM(IN PRTMP_ADAPTER pAd,
 	return Status;
 }
 
-NTSTATUS RTUSBReadEEPROM16(IN PRTMP_ADAPTER pAd,
-			   IN USHORT offset, OUT PUSHORT pData)
+int RTUSBReadEEPROM16(IN PRTMP_ADAPTER pAd,
+			   u16 offset, u16 *pData)
 {
-	NTSTATUS status;
-	USHORT localData;
+	int status;
+	u16 localData;
 
-	status = RTUSBReadEEPROM(pAd, offset, (PUCHAR) (&localData), 2);
+	status = RTUSBReadEEPROM(pAd, offset, (u8 *)(&localData), 2);
 	if (status == STATUS_SUCCESS)
 		*pData = le2cpu16(localData);
 
@@ -557,9 +557,9 @@ NTSTATUS RTUSBReadEEPROM16(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-VOID RTUSBPutToSleep(IN PRTMP_ADAPTER pAd)
+void RTUSBPutToSleep(IN PRTMP_ADAPTER pAd)
 {
-	UINT32 value;
+	u32 value;
 
 	/* Timeout 0x40 x 50us */
 	value = (SLEEPCID << 16) + (OWNERMCU << 24) + (0x40 << 8) + 1;
@@ -585,9 +585,9 @@ VOID RTUSBPutToSleep(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-NTSTATUS RTUSBWakeUp(IN PRTMP_ADAPTER pAd)
+int RTUSBWakeUp(IN PRTMP_ADAPTER pAd)
 {
-	NTSTATUS Status;
+	int Status;
 
 	Status = RTUSB_VendorRequest(pAd,
 				     USBD_TRANSFER_DIRECTION_OUT,
@@ -612,7 +612,7 @@ NTSTATUS RTUSBWakeUp(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-VOID RTUSBInitializeCmdQ(IN PCmdQ cmdq)
+void RTUSBInitializeCmdQ(IN PCmdQ cmdq)
 {
 	cmdq->head = NULL;
 	cmdq->tail = NULL;
@@ -635,13 +635,13 @@ VOID RTUSBInitializeCmdQ(IN PCmdQ cmdq)
 
 	========================================================================
 */
-NDIS_STATUS RTUSBEnqueueCmdFromNdis(IN PRTMP_ADAPTER pAd,
+int RTUSBEnqueueCmdFromNdis(IN PRTMP_ADAPTER pAd,
 				    IN NDIS_OID Oid,
 				    IN BOOLEAN SetInformation,
-				    IN PVOID pInformationBuffer,
-				    IN UINT32 InformationBufferLength)
+				    void *pInformationBuffer,
+				    u32 InformationBufferLength)
 {
-	NDIS_STATUS status;
+	int status;
 	PCmdQElmt cmdqelmt = NULL;
 	RTMP_OS_TASK *pTask = &pAd->cmdQTask;
 
@@ -654,14 +654,14 @@ NDIS_STATUS RTUSBEnqueueCmdFromNdis(IN PRTMP_ADAPTER pAd,
 #endif
 	return (NDIS_STATUS_RESOURCES);
 
-	status = os_alloc_mem(pAd, (PUCHAR *) (&cmdqelmt), sizeof(CmdQElmt));
+	status = os_alloc_mem(pAd, (u8 **) (&cmdqelmt), sizeof(CmdQElmt));
 	if ((status != NDIS_STATUS_SUCCESS) || (cmdqelmt == NULL))
 		return (NDIS_STATUS_RESOURCES);
 
 	cmdqelmt->buffer = NULL;
 	if (pInformationBuffer != NULL) {
 		status =
-		    os_alloc_mem(pAd, (PUCHAR *) & cmdqelmt->buffer,
+		    os_alloc_mem(pAd, (u8 **) & cmdqelmt->buffer,
 				 InformationBufferLength);
 		if ((status != NDIS_STATUS_SUCCESS)
 		    || (cmdqelmt->buffer == NULL)) {
@@ -716,22 +716,22 @@ NDIS_STATUS RTUSBEnqueueCmdFromNdis(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-NDIS_STATUS RTUSBEnqueueInternalCmd(IN PRTMP_ADAPTER pAd,
+int RTUSBEnqueueInternalCmd(IN PRTMP_ADAPTER pAd,
 				    IN NDIS_OID Oid,
-				    IN PVOID pInformationBuffer,
-				    IN UINT32 InformationBufferLength)
+				    void *pInformationBuffer,
+				    u32 InformationBufferLength)
 {
-	NDIS_STATUS status;
+	int status;
 	PCmdQElmt cmdqelmt = NULL;
 
-	status = os_alloc_mem(pAd, (PUCHAR *) & cmdqelmt, sizeof(CmdQElmt));
+	status = os_alloc_mem(pAd, (u8 **) & cmdqelmt, sizeof(CmdQElmt));
 	if ((status != NDIS_STATUS_SUCCESS) || (cmdqelmt == NULL))
 		return (NDIS_STATUS_RESOURCES);
 	NdisZeroMemory(cmdqelmt, sizeof(CmdQElmt));
 
 	if (InformationBufferLength > 0) {
 		status =
-		    os_alloc_mem(pAd, (PUCHAR *) & cmdqelmt->buffer,
+		    os_alloc_mem(pAd, (u8 **) & cmdqelmt->buffer,
 				 InformationBufferLength);
 		if ((status != NDIS_STATUS_SUCCESS)
 		    || (cmdqelmt->buffer == NULL)) {
@@ -785,7 +785,7 @@ NDIS_STATUS RTUSBEnqueueInternalCmd(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-VOID RTUSBDequeueCmd(IN PCmdQ cmdq, OUT PCmdQElmt * pcmdqelmt)
+void RTUSBDequeueCmd(IN PCmdQ cmdq, OUT PCmdQElmt * pcmdqelmt)
 {
 	*pcmdqelmt = cmdq->head;
 
@@ -833,14 +833,14 @@ VOID RTUSBDequeueCmd(IN PCmdQ cmdq, OUT PCmdQElmt * pcmdqelmt)
 
 	========================================================================
 */
-NTSTATUS RTUSB_VendorRequest(IN PRTMP_ADAPTER pAd,
-			     IN UINT32 TransferFlags,
-			     IN UCHAR RequestType,
-			     IN UCHAR Request,
-			     IN USHORT Value,
-			     IN USHORT Index,
-			     IN PVOID TransferBuffer,
-			     IN UINT32 TransferBufferLength)
+int RTUSB_VendorRequest(IN PRTMP_ADAPTER pAd,
+			     u32 TransferFlags,
+			     u8 RequestType,
+			     u8 Request,
+			     u16 Value,
+			     u16 Index,
+			     void *TransferBuffer,
+			     u32 TransferBufferLength)
 {
 	int ret = 0;
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
@@ -954,22 +954,22 @@ NTSTATUS RTUSB_VendorRequest(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-NTSTATUS RTUSB_ResetDevice(IN PRTMP_ADAPTER pAd)
+int RTUSB_ResetDevice(IN PRTMP_ADAPTER pAd)
 {
-	NTSTATUS Status = TRUE;
+	int Status = TRUE;
 
 	DBGPRINT_RAW(RT_DEBUG_TRACE, ("--->USB_ResetDevice\n"));
 	/*RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS); */
 	return Status;
 }
 
-VOID CMDHandler(IN PRTMP_ADAPTER pAd)
+void CMDHandler(IN PRTMP_ADAPTER pAd)
 {
 	PCmdQElmt cmdqelmt;
-	PUCHAR pData;
-	NDIS_STATUS NdisStatus = NDIS_STATUS_SUCCESS;
-/*      ULONG                   Now = 0; */
-	NTSTATUS ntStatus;
+	u8 *pData;
+	int NdisStatus = NDIS_STATUS_SUCCESS;
+/*      unsigned long                   Now = 0; */
+	int ntStatus;
 /*      unsigned long   IrqFlags; */
 
 	while (pAd && pAd->CmdQ.size > 0) {
@@ -990,7 +990,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 			switch (cmdqelmt->command) {
 			case CMDTHREAD_CHECK_GPIO:
 				{
-					UINT32 data;
+					u32 data;
 
 					{
 						/* Read GPIO pin2 as Hardware controlled radio state */
@@ -1052,8 +1052,8 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 
 			case CMDTHREAD_RESET_BULK_OUT:
 				{
-					UINT32 MACValue;
-					UCHAR Index;
+					u32 MACValue;
+					u8 Index;
 					int ret = 0;
 					PHT_TX_CONTEXT pHTTXContext;
 /*                                              RTMP_TX_RING *pTxRing; */
@@ -1273,7 +1273,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 							if (pAd->
 							    bulkResetPipeid ==
 							    0) {
-								UCHAR
+								u8
 								    pendingContext
 								    = 0;
 								PHT_TX_CONTEXT
@@ -1377,7 +1377,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 
 				   if ((atomic_read(&pAd->PendingRx) == 0) && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS)))
 				   {
-				   UCHAR        i;
+				   u8        i;
 				   RTUSBRxPacket(pAd);
 				   pAd->NextRxBulkInReadIndex = 0;      // Next Rx Read index
 				   pAd->NextRxBulkInIndex               = 0;    // Rx Bulk pointer
@@ -1405,7 +1405,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 
 				/* All transfers must be aborted or cancelled before attempting to reset the pipe. */
 				{
-					UINT32 MACValue;
+					u32 MACValue;
 
 					{
 						/*while ((atomic_read(&pAd->PendingRx) > 0) && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST))) */
@@ -1440,7 +1440,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 						 |
 						 fRTMP_ADAPTER_NIC_NOT_EXIST)))))
 					{
-						UCHAR i;
+						u8 i;
 
 						if (RTMP_TEST_FLAG
 						    (pAd,
@@ -1607,8 +1607,8 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 			case CMDTHREAD_SET_ASIC_WCID:
 				{
 					RT_SET_ASIC_WCID SetAsicWcid;
-					USHORT offset;
-					UINT32 MACValue, MACRValue = 0;
+					u16 offset;
+					u32 MACValue, MACRValue = 0;
 					SetAsicWcid =
 					    *((PRT_SET_ASIC_WCID) (pData));
 
@@ -1618,7 +1618,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 
 					offset =
 					    MAC_WCID_BASE +
-					    ((UCHAR) SetAsicWcid.WCID) *
+					    ((u8)SetAsicWcid.WCID) *
 					    HW_WCID_ENTRY_SIZE;
 
 					DBGPRINT_RAW(RT_DEBUG_TRACE,
@@ -1673,8 +1673,8 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 			case CMDTHREAD_SET_ASIC_WCID_CIPHER:
 				{
 					RT_SET_ASIC_WCID_ATTRI SetAsicWcidAttri;
-					USHORT offset;
-					UINT32 MACRValue = 0;
+					u16 offset;
+					u32 MACRValue = 0;
 					SHAREDKEY_MODE_STRUC csr1;
 					SetAsicWcidAttri =
 					    *((PRT_SET_ASIC_WCID_ATTRI)
@@ -1686,7 +1686,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 
 					offset =
 					    MAC_WCID_ATTRIBUTE_BASE +
-					    ((UCHAR) SetAsicWcidAttri.WCID) *
+					    ((u8)SetAsicWcidAttri.WCID) *
 					    HW_WCID_ATTRI_SIZE;
 
 					DBGPRINT_RAW(RT_DEBUG_TRACE,
@@ -1698,7 +1698,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 							     &MACRValue);
 					MACRValue = 0;
 					MACRValue |=
-					    (((UCHAR) SetAsicWcidAttri.
+					    (((u8)SetAsicWcidAttri.
 					      Cipher) << 1);
 
 					RTUSBWriteMACRegister(pAd, offset,
@@ -1709,7 +1709,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 
 					offset =
 					    PAIRWISE_IVEIV_TABLE_BASE +
-					    ((UCHAR) SetAsicWcidAttri.WCID) *
+					    ((u8)SetAsicWcidAttri.WCID) *
 					    HW_IVEIV_ENTRY_SIZE;
 					MACRValue = 0;
 					if ((SetAsicWcidAttri.Cipher <=
@@ -1738,7 +1738,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 								     &MACRValue);
 						MACRValue &= (~0xe);
 						MACRValue |=
-						    (((UCHAR) SetAsicWcidAttri.
+						    (((u8)SetAsicWcidAttri.
 						      Cipher) << 1);
 
 						RTUSBWriteMACRegister(pAd,
@@ -1779,7 +1779,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 					      (pData));
 					AsicAddPairwiseKeyEntry(pAd,
 								KeyInfo.MacAddr,
-								(UCHAR) KeyInfo.
+								(u8)KeyInfo.
 								MacTabMatchWCID,
 								&KeyInfo.
 								CipherKey);
@@ -1789,9 +1789,9 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 			case RT_CMD_SET_RX_WCID_TABLE:	/*General call for RTMPAddWcidAttributeEntry() */
 				{
 					PMAC_TABLE_ENTRY pEntry;
-					UCHAR KeyIdx = 0;
-					UCHAR CipherAlg = CIPHER_NONE;
-					UCHAR ApIdx = BSS0;
+					u8 KeyIdx = 0;
+					u8 CipherAlg = CIPHER_NONE;
+					u8 ApIdx = BSS0;
 
 					pEntry = (PMAC_TABLE_ENTRY) (pData);
 
@@ -1813,7 +1813,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 						AsicRemovePairwiseKeyEntry(pAd,
 									   pEntry->
 									   apidx,
-									   (UCHAR)
+									   (u8)
 									   pEntry->
 									   Aid);
 						if ((pEntry->AuthMode <=
@@ -1821,10 +1821,10 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 						    && (pEntry->WepStatus ==
 							Ndis802_11Encryption1Enabled))
 						{
-							UINT32 uIV = 1;
-							PUCHAR ptr;
+							u32 uIV = 1;
+							u8 *ptr;
 
-							ptr = (PUCHAR) & uIV;
+							ptr = (u8 *)& uIV;
 							*(ptr + 3) =
 							    (pAd->StaCfg.
 							     DefaultKeyId << 6);
@@ -1844,10 +1844,10 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 						} else if (pEntry->AuthMode ==
 							   Ndis802_11AuthModeWPANone)
 						{
-							UINT32 uIV = 1;
-							PUCHAR ptr;
+							u32 uIV = 1;
+							u8 *ptr;
 
-							ptr = (PUCHAR) & uIV;
+							ptr = (u8 *)& uIV;
 							*(ptr + 3) =
 							    (pAd->StaCfg.
 							     DefaultKeyId << 6);
@@ -1869,7 +1869,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 							/* Other case, disable engine. */
 							/* Don't worry WPA key, we will add WPA Key after 4-Way handshaking. */
 							/* */
-							USHORT offset;
+							u16 offset;
 							offset =
 							    MAC_WCID_ATTRIBUTE_BASE
 							    +
@@ -1906,8 +1906,8 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 
 			case OID_802_11_ADD_WEP:
 				{
-					UINT i;
-					UINT32 KeyIdx;
+					u32 i;
+					u32 KeyIdx;
 					PNDIS_802_11_WEP pWepKey;
 
 					DBGPRINT(RT_DEBUG_TRACE,
@@ -1926,10 +1926,10 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 						DBGPRINT(RT_DEBUG_ERROR,
 							 ("CmdThread::OID_802_11_ADD_WEP, INVALID_DATA!!\n"));
 					} else {
-						UCHAR CipherAlg;
+						u8 CipherAlg;
 						pAd->SharedKey[BSS0][KeyIdx].
 						    KeyLen =
-						    (UCHAR) pWepKey->KeyLength;
+						    (u8)pWepKey->KeyLength;
 						NdisMoveMemory(pAd->
 							       SharedKey[BSS0]
 							       [KeyIdx].Key,
@@ -1969,14 +1969,14 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 						if (pWepKey->
 						    KeyIndex & 0x80000000) {
 							/* Default key for tx (shared key) */
-							UCHAR IVEIV[8];
-							UINT32 WCIDAttri, Value;
-							USHORT offset, offset2;
+							u8 IVEIV[8];
+							u32 WCIDAttri, Value;
+							u16 offset, offset2;
 							NdisZeroMemory(IVEIV,
 								       8);
 							pAd->StaCfg.
 							    DefaultKeyId =
-							    (UCHAR) KeyIdx;
+							    (u8)KeyIdx;
 							/* Add BSSID to WCTable. because this is Tx wep key. */
 							/* WCID Attribute UDF:3, BSSIdx:3, Alg:3, Keytable:1=PAIRWISE KEY, BSSIdx is 0 */
 							WCIDAttri =
@@ -1993,7 +1993,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 							     WCIDAttri);
 							/* 1. IV/EIV */
 							/* Specify key index to find shared key. */
-							IVEIV[3] = (UCHAR) (KeyIdx << 6);	/*WEP Eiv bit off. groupkey index is not 0 */
+							IVEIV[3] = (u8)(KeyIdx << 6);	/*WEP Eiv bit off. groupkey index is not 0 */
 							offset =
 							    PAIRWISE_IVEIV_TABLE_BASE
 							    +
@@ -2052,7 +2052,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 
 						}
 						AsicAddSharedKeyEntry(pAd, BSS0,
-								      (UCHAR)
+								      (u8)
 								      KeyIdx,
 								      CipherAlg,
 								      pWepKey->
@@ -2080,7 +2080,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 
 			case CMDTHREAD_SET_PSM_BIT:
 				{
-					USHORT *pPsm = (USHORT *) pData;
+					u16 *pPsm = (u16 *) pData;
 					MlmeSetPsmBit(pAd, *pPsm);
 				}
 				break;

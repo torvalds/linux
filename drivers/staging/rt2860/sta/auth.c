@@ -95,9 +95,9 @@ void AuthStateMachineInit(IN PRTMP_ADAPTER pAd,
 
     ==========================================================================
  */
-VOID AuthTimeout(IN PVOID SystemSpecific1,
-		 IN PVOID FunctionContext,
-		 IN PVOID SystemSpecific2, IN PVOID SystemSpecific3)
+void AuthTimeout(void *SystemSpecific1,
+		 void *FunctionContext,
+		 void *SystemSpecific2, void *SystemSpecific3)
 {
 	RTMP_ADAPTER *pAd = (RTMP_ADAPTER *) FunctionContext;
 
@@ -125,13 +125,13 @@ VOID AuthTimeout(IN PVOID SystemSpecific1,
 
     ==========================================================================
  */
-VOID MlmeAuthReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void MlmeAuthReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
 	if (AUTH_ReqSend
 	    (pAd, Elem, &pAd->MlmeAux.AuthTimer, "AUTH", 1, NULL, 0))
 		pAd->Mlme.AuthMachine.CurrState = AUTH_WAIT_SEQ2;
 	else {
-		USHORT Status;
+		u16 Status;
 
 		pAd->Mlme.AuthMachine.CurrState = AUTH_REQ_IDLE;
 		Status = MLME_INVALID_FORMAT;
@@ -148,23 +148,23 @@ VOID MlmeAuthReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
     ==========================================================================
  */
-VOID PeerAuthRspAtSeq2Action(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerAuthRspAtSeq2Action(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
-	UCHAR Addr2[MAC_ADDR_LEN];
-	USHORT Seq, Status, RemoteStatus, Alg;
-	UCHAR ChlgText[CIPHER_TEXT_LEN];
-	UCHAR CyperChlgText[CIPHER_TEXT_LEN + 8 + 8];
-	UCHAR Element[2];
+	u8 Addr2[MAC_ADDR_LEN];
+	u16 Seq, Status, RemoteStatus, Alg;
+	u8 ChlgText[CIPHER_TEXT_LEN];
+	u8 CyperChlgText[CIPHER_TEXT_LEN + 8 + 8];
+	u8 Element[2];
 	HEADER_802_11 AuthHdr;
 	BOOLEAN TimerCancelled;
-	PUCHAR pOutBuffer = NULL;
-	NDIS_STATUS NStatus;
-	ULONG FrameLen = 0;
-	USHORT Status2;
+	u8 *pOutBuffer = NULL;
+	int NStatus;
+	unsigned long FrameLen = 0;
+	u16 Status2;
 
 	if (PeerAuthSanity
 	    (pAd, Elem->Msg, Elem->MsgLen, Addr2, &Alg, &Seq, &Status,
-	     (PCHAR) ChlgText)) {
+	     (char *)ChlgText)) {
 		if (MAC_ADDR_EQUAL(pAd->MlmeAux.Bssid, Addr2) && Seq == 2) {
 			DBGPRINT(RT_DEBUG_TRACE,
 				 ("AUTH - Receive AUTH_RSP seq#2 to me (Alg=%d, Status=%d)\n",
@@ -224,18 +224,18 @@ VOID PeerAuthRspAtSeq2Action(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 							  KeyLen,
 							  CyperChlgText);
 
-					Alg = cpu2le16(*(USHORT *) & Alg);
-					Seq = cpu2le16(*(USHORT *) & Seq);
+					Alg = cpu2le16(*(u16 *) & Alg);
+					Seq = cpu2le16(*(u16 *) & Seq);
 					RemoteStatus =
-					    cpu2le16(*(USHORT *) &
+					    cpu2le16(*(u16 *) &
 						     RemoteStatus);
 
-					RTMPEncryptData(pAd, (PUCHAR) & Alg,
+					RTMPEncryptData(pAd, (u8 *)& Alg,
 							CyperChlgText + 4, 2);
-					RTMPEncryptData(pAd, (PUCHAR) & Seq,
+					RTMPEncryptData(pAd, (u8 *)& Seq,
 							CyperChlgText + 6, 2);
 					RTMPEncryptData(pAd,
-							(PUCHAR) & RemoteStatus,
+							(u8 *)& RemoteStatus,
 							CyperChlgText + 8, 2);
 					Element[0] = 16;
 					Element[1] = 128;
@@ -282,11 +282,11 @@ VOID PeerAuthRspAtSeq2Action(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
     ==========================================================================
  */
-VOID PeerAuthRspAtSeq4Action(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void PeerAuthRspAtSeq4Action(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
-	UCHAR Addr2[MAC_ADDR_LEN];
-	USHORT Alg, Seq, Status;
-	CHAR ChlgText[CIPHER_TEXT_LEN];
+	u8 Addr2[MAC_ADDR_LEN];
+	u16 Alg, Seq, Status;
+	char ChlgText[CIPHER_TEXT_LEN];
 	BOOLEAN TimerCancelled;
 
 	if (PeerAuthSanity
@@ -321,14 +321,14 @@ VOID PeerAuthRspAtSeq4Action(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
     ==========================================================================
  */
-VOID MlmeDeauthReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void MlmeDeauthReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
 	MLME_DEAUTH_REQ_STRUCT *pInfo;
 	HEADER_802_11 DeauthHdr;
-	PUCHAR pOutBuffer = NULL;
-	NDIS_STATUS NStatus;
-	ULONG FrameLen = 0;
-	USHORT Status;
+	u8 *pOutBuffer = NULL;
+	int NStatus;
+	unsigned long FrameLen = 0;
+	u16 Status;
 
 	pInfo = (MLME_DEAUTH_REQ_STRUCT *) Elem->Msg;
 
@@ -374,9 +374,9 @@ VOID MlmeDeauthReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
     ==========================================================================
  */
-VOID AuthTimeoutAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void AuthTimeoutAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
-	USHORT Status;
+	u16 Status;
 	DBGPRINT(RT_DEBUG_TRACE, ("AUTH - AuthTimeoutAction\n"));
 	pAd->Mlme.AuthMachine.CurrState = AUTH_REQ_IDLE;
 	Status = MLME_REJ_TIMEOUT;
@@ -391,9 +391,9 @@ VOID AuthTimeoutAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
     ==========================================================================
  */
-VOID InvalidStateWhenAuth(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void InvalidStateWhenAuth(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
-	USHORT Status;
+	u16 Status;
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("AUTH - InvalidStateWhenAuth (state=%ld), reset AUTH state machine\n",
 		  pAd->Mlme.AuthMachine.CurrState));
@@ -414,13 +414,13 @@ VOID InvalidStateWhenAuth(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
     ==========================================================================
  */
-VOID Cls2errAction(IN PRTMP_ADAPTER pAd, IN PUCHAR pAddr)
+void Cls2errAction(IN PRTMP_ADAPTER pAd, u8 *pAddr)
 {
 	HEADER_802_11 DeauthHdr;
-	PUCHAR pOutBuffer = NULL;
-	NDIS_STATUS NStatus;
-	ULONG FrameLen = 0;
-	USHORT Reason = REASON_CLS2ERR;
+	u8 *pOutBuffer = NULL;
+	int NStatus;
+	unsigned long FrameLen = 0;
+	u16 Reason = REASON_CLS2ERR;
 
 	NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	/*Get an unused nonpaged memory */
 	if (NStatus != NDIS_STATUS_SUCCESS)
@@ -442,18 +442,18 @@ VOID Cls2errAction(IN PRTMP_ADAPTER pAd, IN PUCHAR pAddr)
 BOOLEAN AUTH_ReqSend(IN PRTMP_ADAPTER pAd,
 		     IN PMLME_QUEUE_ELEM pElem,
 		     IN PRALINK_TIMER_STRUCT pAuthTimer,
-		     IN PSTRING pSMName,
-		     IN USHORT SeqNo,
-		     IN PUCHAR pNewElement, IN ULONG ElementLen)
+		     char *pSMName,
+		     u16 SeqNo,
+		     u8 *pNewElement, unsigned long ElementLen)
 {
-	USHORT Alg, Seq, Status;
-	UCHAR Addr[6];
-	ULONG Timeout;
+	u16 Alg, Seq, Status;
+	u8 Addr[6];
+	unsigned long Timeout;
 	HEADER_802_11 AuthHdr;
 	BOOLEAN TimerCancelled;
-	NDIS_STATUS NStatus;
-	PUCHAR pOutBuffer = NULL;
-	ULONG FrameLen = 0, tmp = 0;
+	int NStatus;
+	u8 *pOutBuffer = NULL;
+	unsigned long FrameLen = 0, tmp = 0;
 
 	/* Block all authentication request durning WPA block period */
 	if (pAd->StaCfg.bBlockAssoc == TRUE) {

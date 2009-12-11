@@ -67,9 +67,9 @@ BUILD_TIMER_FUNCTION(RtmpUsbStaAsicForceWakeupTimeout);
 #endif /* RTMP_MAC_USB // */
 
 #if defined(AP_LED) || defined(STA_LED)
-extern void LedCtrlMain(IN PVOID SystemSpecific1,
-			IN PVOID FunctionContext,
-			IN PVOID SystemSpecific2, IN PVOID SystemSpecific3);
+extern void LedCtrlMain(void *SystemSpecific1,
+			void *FunctionContext,
+			void *SystemSpecific2, void *SystemSpecific3);
 BUILD_TIMER_FUNCTION(LedCtrlMain);
 #endif
 
@@ -119,7 +119,7 @@ static void RtmpTimerQHandle(RTMP_ADAPTER * pAd)
 				if ((pTimer->handle != NULL)
 				    && (!pAd->PM_FlgSuspend))
 					pTimer->handle(NULL,
-						       (PVOID) pTimer->cookie,
+						       (void *)pTimer->cookie,
 						       NULL, pTimer);
 				if ((pTimer->Repeat)
 				    && (pTimer->State == FALSE))
@@ -138,7 +138,7 @@ static void RtmpTimerQHandle(RTMP_ADAPTER * pAd)
 	}
 }
 
-INT RtmpTimerQThread(IN OUT PVOID Context)
+int RtmpTimerQThread(IN void *Context)
 {
 	RTMP_OS_TASK *pTask;
 	PRTMP_ADAPTER pAd;

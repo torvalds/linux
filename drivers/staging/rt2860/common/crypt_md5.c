@@ -39,26 +39,26 @@
 #define ROTL32(x,n) ROTL(x,n,32)	/* 32 bits word */
 
 #define ROUND1(a, b, c, d, x, s, ac) {          \
-    (a) += F((b),(c),(d)) + (x) + (UINT32)(ac); \
+    (a) += F((b),(c),(d)) + (x) + (u32)(ac); \
     (a)  = ROTL32((a),(s));                     \
     (a) += (b);                                 \
 }
 #define ROUND2(a, b, c, d, x, s, ac) {          \
-    (a) += G((b),(c),(d)) + (x) + (UINT32)(ac); \
+    (a) += G((b),(c),(d)) + (x) + (u32)(ac); \
     (a)  = ROTL32((a),(s));                     \
     (a) += (b);                                 \
 }
 #define ROUND3(a, b, c, d, x, s, ac) {          \
-    (a) += H((b),(c),(d)) + (x) + (UINT32)(ac); \
+    (a) += H((b),(c),(d)) + (x) + (u32)(ac); \
     (a)  = ROTL32((a),(s));                     \
     (a) += (b);                                 \
 }
 #define ROUND4(a, b, c, d, x, s, ac) {          \
-    (a) += I((b),(c),(d)) + (x) + (UINT32)(ac); \
+    (a) += I((b),(c),(d)) + (x) + (u32)(ac); \
     (a)  = ROTL32((a),(s));                     \
     (a) += (b);                                 \
 }
-static const UINT32 MD5_DefaultHashValue[4] = {
+static const u32 MD5_DefaultHashValue[4] = {
 	0x67452301UL, 0xefcdab89UL, 0x98badcfeUL, 0x10325476UL
 };
 #endif /* MD5_SUPPORT */
@@ -79,7 +79,7 @@ Note:
     None
 ========================================================================
 */
-VOID MD5_Init(IN MD5_CTX_STRUC * pMD5_CTX)
+void MD5_Init(IN MD5_CTX_STRUC * pMD5_CTX)
 {
 	NdisMoveMemory(pMD5_CTX->HashValue, MD5_DefaultHashValue,
 		       sizeof(MD5_DefaultHashValue));
@@ -103,11 +103,11 @@ Note:
     T[i] := floor(abs(sin(i + 1)) * (2 pow 32)), i is number of round
 ========================================================================
 */
-VOID MD5_Hash(IN MD5_CTX_STRUC * pMD5_CTX)
+void MD5_Hash(IN MD5_CTX_STRUC * pMD5_CTX)
 {
-	UINT32 X_i;
-	UINT32 X[16];
-	UINT32 a, b, c, d;
+	u32 X_i;
+	u32 X[16];
+	u32 a, b, c, d;
 
 	/* Prepare the message schedule, {X_i} */
 	NdisMoveMemory(X, pMD5_CTX->Block, MD5_BLOCK_SIZE);
@@ -238,11 +238,11 @@ Note:
     None
 ========================================================================
 */
-VOID MD5_Append(IN MD5_CTX_STRUC * pMD5_CTX,
-		IN const UINT8 Message[], IN UINT MessageLen)
+void MD5_Append(IN MD5_CTX_STRUC * pMD5_CTX,
+		IN const u8 Message[], u32 MessageLen)
 {
-	UINT appendLen = 0;
-	UINT diffLen = 0;
+	u32 appendLen = 0;
+	u32 diffLen = 0;
 
 	while (appendLen != MessageLen) {
 		diffLen = MessageLen - appendLen;
@@ -280,10 +280,10 @@ Note:
     None
 ========================================================================
 */
-VOID MD5_End(IN MD5_CTX_STRUC * pMD5_CTX, OUT UINT8 DigestMessage[])
+void MD5_End(IN MD5_CTX_STRUC * pMD5_CTX, u8 DigestMessage[])
 {
-	UINT index;
-	UINT64 message_length_bits;
+	u32 index;
+	u64 message_length_bits;
 
 	/* append 1 bits to end of the message */
 	NdisFillMemory(pMD5_CTX->Block + pMD5_CTX->BlockLen, 1, 0x80);
@@ -299,7 +299,7 @@ VOID MD5_End(IN MD5_CTX_STRUC * pMD5_CTX, OUT UINT8 DigestMessage[])
 	NdisMoveMemory(&pMD5_CTX->Block[56], &message_length_bits, 8);
 	MD5_Hash(pMD5_CTX);
 
-	/* Return message digest, transform the UINT32 hash value to bytes */
+	/* Return message digest, transform the u32 hash value to bytes */
 	for (index = 0; index < 4; index++)
 		pMD5_CTX->HashValue[index] =
 		    cpu2le32(pMD5_CTX->HashValue[index]);
@@ -323,8 +323,8 @@ Note:
     None
 ========================================================================
 */
-VOID RT_MD5(IN const UINT8 Message[],
-	    IN UINT MessageLen, OUT UINT8 DigestMessage[])
+void RT_MD5(IN const u8 Message[],
+	    u32 MessageLen, u8 DigestMessage[])
 {
 	MD5_CTX_STRUC md5_ctx;
 

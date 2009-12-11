@@ -57,7 +57,7 @@
 
 /* New 8k byte firmware size for RT3071/RT3072 */
 #define FIRMWAREIMAGE_MAX_LENGTH	0x2000
-#define FIRMWAREIMAGE_LENGTH			(sizeof (FirmwareImage) / sizeof(UCHAR))
+#define FIRMWAREIMAGE_LENGTH			(sizeof (FirmwareImage) / sizeof(u8))
 #define FIRMWARE_MAJOR_VERSION		0
 
 #define FIRMWAREIMAGEV1_LENGTH		0x1000
@@ -80,9 +80,9 @@
 
 	========================================================================
 */
-INT RtmpAsicEraseFirmware(IN PRTMP_ADAPTER pAd)
+int RtmpAsicEraseFirmware(IN PRTMP_ADAPTER pAd)
 {
-	ULONG i;
+	unsigned long i;
 
 	for (i = 0; i < MAX_FIRMWARE_IMAGE_SIZE; i += 4)
 		RTMP_IO_WRITE32(pAd, FIRMWARE_IMAGE_BASE + i, 0);
@@ -107,15 +107,15 @@ INT RtmpAsicEraseFirmware(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-NDIS_STATUS RtmpAsicLoadFirmware(IN PRTMP_ADAPTER pAd)
+int RtmpAsicLoadFirmware(IN PRTMP_ADAPTER pAd)
 {
 
-	NDIS_STATUS Status = NDIS_STATUS_SUCCESS;
-	PUCHAR pFirmwareImage = NULL;
-	ULONG FileLength, Index;
-	UINT32 MacReg = 0;
+	int Status = NDIS_STATUS_SUCCESS;
+	u8 *pFirmwareImage = NULL;
+	unsigned long FileLength, Index;
+	u32 MacReg = 0;
 #ifdef RTMP_MAC_USB
-	UINT32 Version = (pAd->MACVersion >> 16);
+	u32 Version = (pAd->MACVersion >> 16);
 #endif
 
 	/* New 8k byte firmware size for RT3071/RT3072 */
@@ -134,7 +134,7 @@ NDIS_STATUS RtmpAsicLoadFirmware(IN PRTMP_ADAPTER pAd)
 		if ((Version != 0x2860) && (Version != 0x2872) && (Version != 0x3070)) {	/* use the second part */
 			/*printk("KH:Use New Version,part2\n"); */
 			pFirmwareImage =
-			    (PUCHAR) &
+			    (u8 *)&
 			    FirmwareImage_3070[FIRMWAREIMAGEV1_LENGTH];
 			FileLength = FIRMWAREIMAGEV2_LENGTH;
 		} else {
@@ -172,13 +172,13 @@ NDIS_STATUS RtmpAsicLoadFirmware(IN PRTMP_ADAPTER pAd)
 	return Status;
 }
 
-INT RtmpAsicSendCommandToMcu(IN PRTMP_ADAPTER pAd,
-			     IN UCHAR Command,
-			     IN UCHAR Token, IN UCHAR Arg0, IN UCHAR Arg1)
+int RtmpAsicSendCommandToMcu(IN PRTMP_ADAPTER pAd,
+			     u8 Command,
+			     u8 Token, u8 Arg0, u8 Arg1)
 {
 	HOST_CMD_CSR_STRUC H2MCmd;
 	H2M_MAILBOX_STRUC H2MMailbox;
-	ULONG i = 0;
+	unsigned long i = 0;
 
 #ifdef PCIE_PS_SUPPORT
 	/* 3090F power solution 3 has hw limitation that needs to ban all mcu command */

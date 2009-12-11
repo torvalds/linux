@@ -39,19 +39,19 @@
 #include "../rt_config.h"
 #include <stdarg.h>
 
-UCHAR CISCO_OUI[] = { 0x00, 0x40, 0x96 };
+u8 CISCO_OUI[] = { 0x00, 0x40, 0x96 };
 
-UCHAR WPA_OUI[] = { 0x00, 0x50, 0xf2, 0x01 };
-UCHAR RSN_OUI[] = { 0x00, 0x0f, 0xac };
-UCHAR WME_INFO_ELEM[] = { 0x00, 0x50, 0xf2, 0x02, 0x00, 0x01 };
-UCHAR WME_PARM_ELEM[] = { 0x00, 0x50, 0xf2, 0x02, 0x01, 0x01 };
-UCHAR Ccx2QosInfo[] = { 0x00, 0x40, 0x96, 0x04 };
-UCHAR RALINK_OUI[] = { 0x00, 0x0c, 0x43 };
-UCHAR BROADCOM_OUI[] = { 0x00, 0x90, 0x4c };
-UCHAR WPS_OUI[] = { 0x00, 0x50, 0xf2, 0x04 };
-UCHAR PRE_N_HT_OUI[] = { 0x00, 0x90, 0x4c };
+u8 WPA_OUI[] = { 0x00, 0x50, 0xf2, 0x01 };
+u8 RSN_OUI[] = { 0x00, 0x0f, 0xac };
+u8 WME_INFO_ELEM[] = { 0x00, 0x50, 0xf2, 0x02, 0x00, 0x01 };
+u8 WME_PARM_ELEM[] = { 0x00, 0x50, 0xf2, 0x02, 0x01, 0x01 };
+u8 Ccx2QosInfo[] = { 0x00, 0x40, 0x96, 0x04 };
+u8 RALINK_OUI[] = { 0x00, 0x0c, 0x43 };
+u8 BROADCOM_OUI[] = { 0x00, 0x90, 0x4c };
+u8 WPS_OUI[] = { 0x00, 0x50, 0xf2, 0x04 };
+u8 PRE_N_HT_OUI[] = { 0x00, 0x90, 0x4c };
 
-UCHAR RateSwitchTable[] = {
+u8 RateSwitchTable[] = {
 /* Item No.   Mode   Curr-MCS   TrainUp   TrainDown             // Mode- Bit0: STBC, Bit1: Short GI, Bit4,5: Mode(0:CCK, 1:OFDM, 2:HT Mix, 3:HT GF) */
 	0x11, 0x00, 0, 0, 0,	/* Initial used item after association */
 	0x00, 0x00, 0, 40, 101,
@@ -88,7 +88,7 @@ UCHAR RateSwitchTable[] = {
 	0x1f, 0x00, 0, 0, 0,
 };
 
-UCHAR RateSwitchTable11B[] = {
+u8 RateSwitchTable11B[] = {
 /* Item No.   Mode   Curr-MCS   TrainUp   TrainDown             // Mode- Bit0: STBC, Bit1: Short GI, Bit4,5: Mode(0:CCK, 1:OFDM, 2:HT Mix, 3:HT GF) */
 	0x04, 0x03, 0, 0, 0,	/* Initial used item after association */
 	0x00, 0x00, 0, 40, 101,
@@ -97,7 +97,7 @@ UCHAR RateSwitchTable11B[] = {
 	0x03, 0x00, 3, 20, 45,
 };
 
-UCHAR RateSwitchTable11BG[] = {
+u8 RateSwitchTable11BG[] = {
 /* Item No.   Mode   Curr-MCS   TrainUp   TrainDown             // Mode- Bit0: STBC, Bit1: Short GI, Bit4,5: Mode(0:CCK, 1:OFDM, 2:HT Mix, 3:HT GF) */
 	0x0a, 0x00, 0, 0, 0,	/* Initial used item after association */
 	0x00, 0x00, 0, 40, 101,
@@ -112,7 +112,7 @@ UCHAR RateSwitchTable11BG[] = {
 	0x09, 0x10, 7, 10, 13,
 };
 
-UCHAR RateSwitchTable11G[] = {
+u8 RateSwitchTable11G[] = {
 /* Item No.   Mode   Curr-MCS   TrainUp   TrainDown             // Mode- Bit0: STBC, Bit1: Short GI, Bit4,5: Mode(0:CCK, 1:OFDM, 2:HT Mix, 3:HT GF) */
 	0x08, 0x00, 0, 0, 0,	/* Initial used item after association */
 	0x00, 0x10, 0, 20, 101,
@@ -125,7 +125,7 @@ UCHAR RateSwitchTable11G[] = {
 	0x07, 0x10, 7, 10, 13,
 };
 
-UCHAR RateSwitchTable11N1S[] = {
+u8 RateSwitchTable11N1S[] = {
 /* Item No.   Mode   Curr-MCS   TrainUp   TrainDown             // Mode- Bit0: STBC, Bit1: Short GI, Bit4,5: Mode(0:CCK, 1:OFDM, 2:HT Mix, 3:HT GF) */
 	0x0c, 0x0a, 0, 0, 0,	/* Initial used item after association */
 	0x00, 0x00, 0, 40, 101,
@@ -142,7 +142,7 @@ UCHAR RateSwitchTable11N1S[] = {
 	0x0b, 0x23, 7, 8, 14,
 };
 
-UCHAR RateSwitchTable11N2S[] = {
+u8 RateSwitchTable11N2S[] = {
 /* Item No.   Mode   Curr-MCS   TrainUp   TrainDown             // Mode- Bit0: STBC, Bit1: Short GI, Bit4,5: Mode(0:CCK, 1:OFDM, 2:HT Mix, 3:HT GF) */
 	0x0e, 0x0c, 0, 0, 0,	/* Initial used item after association */
 	0x00, 0x00, 0, 40, 101,
@@ -161,7 +161,7 @@ UCHAR RateSwitchTable11N2S[] = {
 	0x0d, 0x22, 15, 8, 15,
 };
 
-UCHAR RateSwitchTable11N3S[] = {
+u8 RateSwitchTable11N3S[] = {
 /* Item No.     Mode    Curr-MCS        TrainUp TrainDown       // Mode- Bit0: STBC, Bit1: Short GI, Bit4,5: Mode(0:CCK, 1:OFDM, 2:HT Mix, 3:HT GF) */
 	0x0b, 0x00, 0, 0, 0,	/* 0x0a, 0x00,  0,  0,  0,      // Initial used item after association */
 	0x00, 0x21, 0, 30, 101,
@@ -177,7 +177,7 @@ UCHAR RateSwitchTable11N3S[] = {
 	0x0a, 0x22, 15, 8, 25,	/* 0x09, 0x22, 15,  8, 25, */
 };
 
-UCHAR RateSwitchTable11N2SForABand[] = {
+u8 RateSwitchTable11N2SForABand[] = {
 /* Item No.   Mode   Curr-MCS   TrainUp   TrainDown             // Mode- Bit0: STBC, Bit1: Short GI, Bit4,5: Mode(0:CCK, 1:OFDM, 2:HT Mix, 3:HT GF) */
 	0x0b, 0x09, 0, 0, 0,	/* Initial used item after association */
 	0x00, 0x21, 0, 30, 101,
@@ -193,7 +193,7 @@ UCHAR RateSwitchTable11N2SForABand[] = {
 	0x0a, 0x22, 15, 8, 25,
 };
 
-UCHAR RateSwitchTable11N3SForABand[] = {	/* 3*3 */
+u8 RateSwitchTable11N3SForABand[] = {	/* 3*3 */
 /* Item No.   Mode   Curr-MCS   TrainUp   TrainDown             // Mode- Bit0: STBC, Bit1: Short GI, Bit4,5: Mode(0:CCK, 1:OFDM, 2:HT Mix, 3:HT GF) */
 	0x0b, 0x09, 0, 0, 0,	/* Initial used item after association */
 	0x00, 0x21, 0, 30, 101,
@@ -209,7 +209,7 @@ UCHAR RateSwitchTable11N3SForABand[] = {	/* 3*3 */
 	0x0a, 0x22, 15, 8, 25,
 };
 
-UCHAR RateSwitchTable11BGN1S[] = {
+u8 RateSwitchTable11BGN1S[] = {
 /* Item No.   Mode   Curr-MCS   TrainUp   TrainDown             // Mode- Bit0: STBC, Bit1: Short GI, Bit4,5: Mode(0:CCK, 1:OFDM, 2:HT Mix, 3:HT GF) */
 	0x0c, 0x0a, 0, 0, 0,	/* Initial used item after association */
 	0x00, 0x00, 0, 40, 101,
@@ -226,7 +226,7 @@ UCHAR RateSwitchTable11BGN1S[] = {
 	0x0b, 0x23, 7, 8, 14,
 };
 
-UCHAR RateSwitchTable11BGN2S[] = {
+u8 RateSwitchTable11BGN2S[] = {
 /* Item No.   Mode   Curr-MCS   TrainUp   TrainDown             // Mode- Bit0: STBC, Bit1: Short GI, Bit4,5: Mode(0:CCK, 1:OFDM, 2:HT Mix, 3:HT GF) */
 	0x0e, 0x0c, 0, 0, 0,	/* Initial used item after association */
 	0x00, 0x00, 0, 40, 101,
@@ -245,7 +245,7 @@ UCHAR RateSwitchTable11BGN2S[] = {
 	0x0d, 0x22, 15, 8, 15,
 };
 
-UCHAR RateSwitchTable11BGN3S[] = {	/* 3*3 */
+u8 RateSwitchTable11BGN3S[] = {	/* 3*3 */
 /* Item No.   Mode   Curr-MCS   TrainUp   TrainDown             // Mode- Bit0: STBC, Bit1: Short GI, Bit4,5: Mode(0:CCK, 1:OFDM, 2:HT Mix, 3:HT GF) */
 	0x0a, 0x00, 0, 0, 0,	/* Initial used item after association */
 	0x00, 0x21, 0, 30, 101,	/*50 */
@@ -260,7 +260,7 @@ UCHAR RateSwitchTable11BGN3S[] = {	/* 3*3 */
 	0x09, 0x22, 23, 8, 25,
 };
 
-UCHAR RateSwitchTable11BGN2SForABand[] = {
+u8 RateSwitchTable11BGN2SForABand[] = {
 /* Item No.   Mode   Curr-MCS   TrainUp   TrainDown             // Mode- Bit0: STBC, Bit1: Short GI, Bit4,5: Mode(0:CCK, 1:OFDM, 2:HT Mix, 3:HT GF) */
 	0x0b, 0x09, 0, 0, 0,	/* Initial used item after association */
 	0x00, 0x21, 0, 30, 101,	/*50 */
@@ -276,7 +276,7 @@ UCHAR RateSwitchTable11BGN2SForABand[] = {
 	0x0a, 0x22, 15, 8, 25,
 };
 
-UCHAR RateSwitchTable11BGN3SForABand[] = {	/* 3*3 */
+u8 RateSwitchTable11BGN3SForABand[] = {	/* 3*3 */
 /* Item No.   Mode   Curr-MCS   TrainUp   TrainDown             // Mode- Bit0: STBC, Bit1: Short GI, Bit4,5: Mode(0:CCK, 1:OFDM, 2:HT Mix, 3:HT GF) */
 	0x0c, 0x09, 0, 0, 0,	/* Initial used item after association */
 	0x00, 0x21, 0, 30, 101,	/*50 */
@@ -293,10 +293,10 @@ UCHAR RateSwitchTable11BGN3SForABand[] = {	/* 3*3 */
 	0x0b, 0x22, 23, 8, 25,
 };
 
-extern UCHAR OfdmRateToRxwiMCS[];
+extern u8 OfdmRateToRxwiMCS[];
 /* since RT61 has better RX sensibility, we have to limit TX ACK rate not to exceed our normal data TX rate. */
 /* otherwise the WLAN peer may not be able to receive the ACK thus downgrade its data TX rate */
-ULONG BasicRateMask[12] =
+unsigned long BasicRateMask[12] =
     { 0xfffff001 /* 1-Mbps */ , 0xfffff003 /* 2 Mbps */ , 0xfffff007 /* 5.5 */ ,
 0xfffff00f /* 11 */ ,
 	0xfffff01f /* 6 */ , 0xfffff03f /* 9 */ , 0xfffff07f /* 12 */ ,
@@ -305,38 +305,38 @@ ULONG BasicRateMask[12] =
 	    0xffffffff /* 54 */
 };
 
-UCHAR BROADCAST_ADDR[MAC_ADDR_LEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-UCHAR ZERO_MAC_ADDR[MAC_ADDR_LEN] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+u8 BROADCAST_ADDR[MAC_ADDR_LEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+u8 ZERO_MAC_ADDR[MAC_ADDR_LEN] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 /* e.g. RssiSafeLevelForTxRate[RATE_36]" means if the current RSSI is greater than */
 /*              this value, then it's quaranteed capable of operating in 36 mbps TX rate in */
 /*              clean environment. */
 /*                                                                TxRate: 1   2   5.5   11       6        9    12       18       24   36   48   54       72  100 */
-CHAR RssiSafeLevelForTxRate[] =
+char RssiSafeLevelForTxRate[] =
     { -92, -91, -90, -87, -88, -86, -85, -83, -81, -78, -72, -71, -40, -40 };
 
-UCHAR RateIdToMbps[] = { 1, 2, 5, 11, 6, 9, 12, 18, 24, 36, 48, 54, 72, 100 };
-USHORT RateIdTo500Kbps[] =
+u8 RateIdToMbps[] = { 1, 2, 5, 11, 6, 9, 12, 18, 24, 36, 48, 54, 72, 100 };
+u16 RateIdTo500Kbps[] =
     { 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108, 144, 200 };
 
-UCHAR SsidIe = IE_SSID;
-UCHAR SupRateIe = IE_SUPP_RATES;
-UCHAR ExtRateIe = IE_EXT_SUPP_RATES;
-UCHAR HtCapIe = IE_HT_CAP;
-UCHAR AddHtInfoIe = IE_ADD_HT;
-UCHAR NewExtChanIe = IE_SECONDARY_CH_OFFSET;
-UCHAR ErpIe = IE_ERP;
-UCHAR DsIe = IE_DS_PARM;
-UCHAR TimIe = IE_TIM;
-UCHAR WpaIe = IE_WPA;
-UCHAR Wpa2Ie = IE_WPA2;
-UCHAR IbssIe = IE_IBSS_PARM;
+u8 SsidIe = IE_SSID;
+u8 SupRateIe = IE_SUPP_RATES;
+u8 ExtRateIe = IE_EXT_SUPP_RATES;
+u8 HtCapIe = IE_HT_CAP;
+u8 AddHtInfoIe = IE_ADD_HT;
+u8 NewExtChanIe = IE_SECONDARY_CH_OFFSET;
+u8 ErpIe = IE_ERP;
+u8 DsIe = IE_DS_PARM;
+u8 TimIe = IE_TIM;
+u8 WpaIe = IE_WPA;
+u8 Wpa2Ie = IE_WPA2;
+u8 IbssIe = IE_IBSS_PARM;
 
-extern UCHAR WPA_OUI[];
+extern u8 WPA_OUI[];
 
-UCHAR SES_OUI[] = { 0x00, 0x90, 0x4c };
+u8 SES_OUI[] = { 0x00, 0x90, 0x4c };
 
-UCHAR ZeroSsid[32] =
+u8 ZeroSsid[32] =
     { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -356,9 +356,9 @@ UCHAR ZeroSsid[32] =
 
 	==========================================================================
 */
-NDIS_STATUS MlmeInit(IN PRTMP_ADAPTER pAd)
+int MlmeInit(IN PRTMP_ADAPTER pAd)
 {
-	NDIS_STATUS Status = NDIS_STATUS_SUCCESS;
+	int Status = NDIS_STATUS_SUCCESS;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("--> MLME Initialize\n"));
 
@@ -453,7 +453,7 @@ NDIS_STATUS MlmeInit(IN PRTMP_ADAPTER pAd)
 
 	==========================================================================
  */
-VOID MlmeHandler(IN PRTMP_ADAPTER pAd)
+void MlmeHandler(IN PRTMP_ADAPTER pAd)
 {
 	MLME_QUEUE_ELEM *Elem = NULL;
 
@@ -571,7 +571,7 @@ VOID MlmeHandler(IN PRTMP_ADAPTER pAd)
 
 	==========================================================================
  */
-VOID MlmeHalt(IN PRTMP_ADAPTER pAd)
+void MlmeHalt(IN PRTMP_ADAPTER pAd)
 {
 	BOOLEAN Cancelled;
 
@@ -639,7 +639,7 @@ VOID MlmeHalt(IN PRTMP_ADAPTER pAd)
 	DBGPRINT(RT_DEBUG_TRACE, ("<== MlmeHalt\n"));
 }
 
-VOID MlmeResetRalinkCounters(IN PRTMP_ADAPTER pAd)
+void MlmeResetRalinkCounters(IN PRTMP_ADAPTER pAd)
 {
 	pAd->RalinkCounters.LastOneSecRxOkDataCnt =
 	    pAd->RalinkCounters.OneSecRxOkDataCnt;
@@ -689,11 +689,11 @@ VOID MlmeResetRalinkCounters(IN PRTMP_ADAPTER pAd)
 	==========================================================================
  */
 #define ADHOC_BEACON_LOST_TIME		(8*OS_HZ)	/* 8 sec */
-VOID MlmePeriodicExec(IN PVOID SystemSpecific1,
-		      IN PVOID FunctionContext,
-		      IN PVOID SystemSpecific2, IN PVOID SystemSpecific3)
+void MlmePeriodicExec(void *SystemSpecific1,
+		      void *FunctionContext,
+		      void *SystemSpecific2, void *SystemSpecific3)
 {
-	ULONG TxTotalCnt;
+	unsigned long TxTotalCnt;
 	PRTMP_ADAPTER pAd = (RTMP_ADAPTER *) FunctionContext;
 
 #ifdef RTMP_MAC_PCI
@@ -706,7 +706,7 @@ VOID MlmePeriodicExec(IN PVOID SystemSpecific1,
 		    && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS))
 		    /*&&(pAd->bPCIclkOff == FALSE) */
 		    ) {
-			UINT32 data = 0;
+			u32 data = 0;
 
 			/* Read GPIO pin2 as Hardware controlled radio state */
 #ifndef RT3090
@@ -891,7 +891,7 @@ VOID MlmePeriodicExec(IN PVOID SystemSpecific1,
 				/* 2. If in 0x10F4 the ((bit29==1) && (bit7==1)) OR ((bit29==1) && (bit5==1)), it means the deadlock has occurred. */
 				/* 3. If the deadlock occurred, reset MAC/BBP by setting 0x1004 to 0x0001 for a while then setting it back to 0x000C again. */
 
-				UINT32 MacReg = 0;
+				u32 MacReg = 0;
 
 				RTMP_IO_READ32(pAd, 0x10F4, &MacReg);
 				if (((MacReg & 0x20000000) && (MacReg & 0x80))
@@ -921,7 +921,7 @@ VOID MlmePeriodicExec(IN PVOID SystemSpecific1,
 	IRQL = DISPATCH_LEVEL
 	==========================================================================
  */
-BOOLEAN MlmeValidateSSID(IN PUCHAR pSsid, IN UCHAR SsidLen)
+BOOLEAN MlmeValidateSSID(u8 *pSsid, u8 SsidLen)
 {
 	int index;
 
@@ -938,10 +938,10 @@ BOOLEAN MlmeValidateSSID(IN PUCHAR pSsid, IN UCHAR SsidLen)
 	return (TRUE);
 }
 
-VOID MlmeSelectTxRateTable(IN PRTMP_ADAPTER pAd,
+void MlmeSelectTxRateTable(IN PRTMP_ADAPTER pAd,
 			   IN PMAC_TABLE_ENTRY pEntry,
-			   IN PUCHAR * ppTable,
-			   IN PUCHAR pTableSize, IN PUCHAR pInitTxRateIdx)
+			   u8 ** ppTable,
+			   u8 *pTableSize, u8 *pInitTxRateIdx)
 {
 	do {
 		/* decide the rate table for tuning */
@@ -1144,9 +1144,9 @@ VOID MlmeSelectTxRateTable(IN PRTMP_ADAPTER pAd,
 	} while (FALSE);
 }
 
-VOID STAMlmePeriodicExec(PRTMP_ADAPTER pAd)
+void STAMlmePeriodicExec(PRTMP_ADAPTER pAd)
 {
-	ULONG TxTotalCnt;
+	unsigned long TxTotalCnt;
 	int i;
 
 	/*
@@ -1341,8 +1341,8 @@ VOID STAMlmePeriodicExec(PRTMP_ADAPTER pAd)
 
 		if (pAd->StaCfg.bAutoRoaming) {
 			BOOLEAN rv = FALSE;
-			CHAR dBmToRoam = pAd->StaCfg.dBmToRoam;
-			CHAR MaxRssi = RTMPMaxRssi(pAd,
+			char dBmToRoam = pAd->StaCfg.dBmToRoam;
+			char MaxRssi = RTMPMaxRssi(pAd,
 						   pAd->StaCfg.RssiSample.
 						   LastRssi0,
 						   pAd->StaCfg.RssiSample.
@@ -1357,7 +1357,7 @@ VOID STAMlmePeriodicExec(PRTMP_ADAPTER pAd)
 			    && (MaxRssi <= dBmToRoam)) {
 				DBGPRINT(RT_DEBUG_TRACE,
 					 ("Rssi=%d, dBmToRoam=%d\n", MaxRssi,
-					  (CHAR) dBmToRoam));
+					  (char)dBmToRoam));
 
 				/* Add auto seamless roaming */
 				if (rv == FALSE)
@@ -1392,7 +1392,7 @@ VOID STAMlmePeriodicExec(PRTMP_ADAPTER pAd)
 			LinkDown(pAd, FALSE);
 
 			StartParmFill(pAd, &StartReq,
-				      (CHAR *) pAd->MlmeAux.Ssid,
+				      (char *) pAd->MlmeAux.Ssid,
 				      pAd->MlmeAux.SsidLen);
 			MlmeEnqueue(pAd, SYNC_STATE_MACHINE, MT2_MLME_START_REQ,
 				    sizeof(MLME_START_REQ_STRUCT), &StartReq);
@@ -1439,7 +1439,7 @@ VOID STAMlmePeriodicExec(PRTMP_ADAPTER pAd)
 						  pAd->MlmeAux.
 						  AutoReconnectSsid));
 					ScanParmFill(pAd, &ScanReq,
-						     (PSTRING) pAd->MlmeAux.
+						     (char *)pAd->MlmeAux.
 						     AutoReconnectSsid,
 						     pAd->MlmeAux.
 						     AutoReconnectSsidLen,
@@ -1487,9 +1487,9 @@ SKIP_AUTO_SCAN_CONN:
 }
 
 /* Link down report */
-VOID LinkDownExec(IN PVOID SystemSpecific1,
-		  IN PVOID FunctionContext,
-		  IN PVOID SystemSpecific2, IN PVOID SystemSpecific3)
+void LinkDownExec(void *SystemSpecific1,
+		  void *FunctionContext,
+		  void *SystemSpecific2, void *SystemSpecific3)
 {
 	RTMP_ADAPTER *pAd = (RTMP_ADAPTER *) FunctionContext;
 
@@ -1517,7 +1517,7 @@ VOID LinkDownExec(IN PVOID SystemSpecific1,
 }
 
 /* IRQL = DISPATCH_LEVEL */
-VOID MlmeAutoScan(IN PRTMP_ADAPTER pAd)
+void MlmeAutoScan(IN PRTMP_ADAPTER pAd)
 {
 	/* check CntlMachine.CurrState to avoid collision with NDIS SetOID request */
 	if (pAd->Mlme.CntlMachine.CurrState == CNTL_IDLE) {
@@ -1532,7 +1532,7 @@ VOID MlmeAutoScan(IN PRTMP_ADAPTER pAd)
 }
 
 /* IRQL = DISPATCH_LEVEL */
-VOID MlmeAutoReconnectLastSSID(IN PRTMP_ADAPTER pAd)
+void MlmeAutoReconnectLastSSID(IN PRTMP_ADAPTER pAd)
 {
 	if (pAd->StaCfg.bAutoConnectByBssid) {
 		DBGPRINT(RT_DEBUG_TRACE,
@@ -1582,9 +1582,9 @@ VOID MlmeAutoReconnectLastSSID(IN PRTMP_ADAPTER pAd)
 	Output:
 	==========================================================================
  */
-VOID MlmeCheckForRoaming(IN PRTMP_ADAPTER pAd, IN ULONG Now32)
+void MlmeCheckForRoaming(IN PRTMP_ADAPTER pAd, unsigned long Now32)
 {
-	USHORT i;
+	u16 i;
 	BSS_TABLE *pRoamTab = &pAd->MlmeAux.RoamTab;
 	BSS_ENTRY *pBss;
 
@@ -1642,7 +1642,7 @@ VOID MlmeCheckForRoaming(IN PRTMP_ADAPTER pAd, IN ULONG Now32)
  */
 BOOLEAN MlmeCheckForFastRoaming(IN PRTMP_ADAPTER pAd)
 {
-	USHORT i;
+	u16 i;
 	BSS_TABLE *pRoamTab = &pAd->MlmeAux.RoamTab;
 	BSS_ENTRY *pBss;
 
@@ -1699,10 +1699,10 @@ BOOLEAN MlmeCheckForFastRoaming(IN PRTMP_ADAPTER pAd)
 	return FALSE;
 }
 
-VOID MlmeSetTxRate(IN PRTMP_ADAPTER pAd,
+void MlmeSetTxRate(IN PRTMP_ADAPTER pAd,
 		   IN PMAC_TABLE_ENTRY pEntry, IN PRTMP_TX_RATE_SWITCH pTxRate)
 {
-	UCHAR MaxMode = MODE_OFDM;
+	u8 MaxMode = MODE_OFDM;
 
 	MaxMode = MODE_HTGREENFIELD;
 
@@ -1820,7 +1820,7 @@ VOID MlmeSetTxRate(IN PRTMP_ADAPTER pAd,
 			pEntry->HTPhyMode.field.MODE = MODE_HTGREENFIELD;
 	}
 
-	pAd->LastTxRate = (USHORT) (pEntry->HTPhyMode.word);
+	pAd->LastTxRate = (u16)(pEntry->HTPhyMode.word);
 }
 
 /*
@@ -1840,20 +1840,20 @@ VOID MlmeSetTxRate(IN PRTMP_ADAPTER pAd,
 		call this routine every second
 	==========================================================================
  */
-VOID MlmeDynamicTxRateSwitching(IN PRTMP_ADAPTER pAd)
+void MlmeDynamicTxRateSwitching(IN PRTMP_ADAPTER pAd)
 {
-	UCHAR UpRateIdx = 0, DownRateIdx = 0, CurrRateIdx;
-	ULONG i, AccuTxTotalCnt = 0, TxTotalCnt;
-	ULONG TxErrorRatio = 0;
+	u8 UpRateIdx = 0, DownRateIdx = 0, CurrRateIdx;
+	unsigned long i, AccuTxTotalCnt = 0, TxTotalCnt;
+	unsigned long TxErrorRatio = 0;
 	BOOLEAN bTxRateChanged = FALSE, bUpgradeQuality = FALSE;
 	PRTMP_TX_RATE_SWITCH pCurrTxRate, pNextTxRate = NULL;
-	PUCHAR pTable;
-	UCHAR TableSize = 0;
-	UCHAR InitTxRateIdx = 0, TrainUp, TrainDown;
-	CHAR Rssi, RssiOffset = 0;
+	u8 *pTable;
+	u8 TableSize = 0;
+	u8 InitTxRateIdx = 0, TrainUp, TrainDown;
+	char Rssi, RssiOffset = 0;
 	TX_STA_CNT1_STRUC StaTx1;
 	TX_STA_CNT0_STRUC TxStaCnt0;
-	ULONG TxRetransmit = 0, TxSuccess = 0, TxFailCount = 0;
+	unsigned long TxRetransmit = 0, TxSuccess = 0, TxFailCount = 0;
 	MAC_TABLE_ENTRY *pEntry;
 	RSSI_SAMPLE *pRssi = &pAd->StaCfg.RssiSample;
 
@@ -1936,8 +1936,8 @@ VOID MlmeDynamicTxRateSwitching(IN PRTMP_ADAPTER pAd)
 			 */
 			if (TxErrorRatio == 100) {
 				TX_RTY_CFG_STRUC TxRtyCfg, TxRtyCfgtmp;
-				ULONG Index;
-				ULONG MACValue;
+				unsigned long Index;
+				unsigned long MACValue;
 
 				RTMP_IO_READ32(pAd, TX_RTY_CFG, &TxRtyCfg.word);
 				TxRtyCfgtmp.word = TxRtyCfg.word;
@@ -2039,12 +2039,12 @@ VOID MlmeDynamicTxRateSwitching(IN PRTMP_ADAPTER pAd)
 		/*         (criteria copied from RT2500 for Netopia case) */
 		/* */
 		if (TxTotalCnt <= 15) {
-			CHAR idx = 0;
-			UCHAR TxRateIdx;
-			UCHAR MCS0 = 0, MCS1 = 0, MCS2 = 0, MCS3 = 0, MCS4 =
+			char idx = 0;
+			u8 TxRateIdx;
+			u8 MCS0 = 0, MCS1 = 0, MCS2 = 0, MCS3 = 0, MCS4 =
 			    0, MCS5 = 0, MCS6 = 0, MCS7 = 0;
-			UCHAR MCS12 = 0, MCS13 = 0, MCS14 = 0, MCS15 = 0;
-			UCHAR MCS20 = 0, MCS21 = 0, MCS22 = 0, MCS23 = 0;	/* 3*3 */
+			u8 MCS12 = 0, MCS13 = 0, MCS14 = 0, MCS15 = 0;
+			u8 MCS20 = 0, MCS21 = 0, MCS22 = 0, MCS23 = 0;	/* 3*3 */
 
 			/* check the existence and index of each needed MCS */
 			while (idx < pTable[0]) {
@@ -2198,10 +2198,10 @@ VOID MlmeDynamicTxRateSwitching(IN PRTMP_ADAPTER pAd)
 			}
 
 			NdisZeroMemory(pEntry->TxQuality,
-				       sizeof(USHORT) *
+				       sizeof(u16)*
 				       MAX_STEP_OF_TX_RATE_SWITCH);
 			NdisZeroMemory(pEntry->PER,
-				       sizeof(UCHAR) *
+				       sizeof(u8)*
 				       MAX_STEP_OF_TX_RATE_SWITCH);
 			pEntry->fLastSecAccordingRSSI = TRUE;
 			/* reset all OneSecTx counters */
@@ -2243,7 +2243,7 @@ VOID MlmeDynamicTxRateSwitching(IN PRTMP_ADAPTER pAd)
 					pEntry->TxQuality[UpRateIdx]--;	/* may improve next UP rate's quality */
 			}
 
-			pEntry->PER[CurrRateIdx] = (UCHAR) TxErrorRatio;
+			pEntry->PER[CurrRateIdx] = (u8)TxErrorRatio;
 
 			if (bTrainUpDown) {
 				/* perform DRS - consider TxRate Down first, then rate up. */
@@ -2265,10 +2265,10 @@ VOID MlmeDynamicTxRateSwitching(IN PRTMP_ADAPTER pAd)
 			pEntry->TxRateUpPenalty = 0;
 			pEntry->LastSecTxRateChangeAction = 1;	/* rate UP */
 			NdisZeroMemory(pEntry->TxQuality,
-				       sizeof(USHORT) *
+				       sizeof(u16)*
 				       MAX_STEP_OF_TX_RATE_SWITCH);
 			NdisZeroMemory(pEntry->PER,
-				       sizeof(UCHAR) *
+				       sizeof(u8)*
 				       MAX_STEP_OF_TX_RATE_SWITCH);
 
 			/* */
@@ -2311,7 +2311,7 @@ VOID MlmeDynamicTxRateSwitching(IN PRTMP_ADAPTER pAd)
 
 		pEntry->LastTxOkCount = TxSuccess;
 		{
-			UCHAR tmpTxRate;
+			u8 tmpTxRate;
 
 			/* to fix tcp ack issue */
 			if (!bTxRateChanged
@@ -2359,26 +2359,26 @@ VOID MlmeDynamicTxRateSwitching(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-VOID StaQuickResponeForRateUpExec(IN PVOID SystemSpecific1,
-				  IN PVOID FunctionContext,
-				  IN PVOID SystemSpecific2,
-				  IN PVOID SystemSpecific3)
+void StaQuickResponeForRateUpExec(void *SystemSpecific1,
+				  void *FunctionContext,
+				  void *SystemSpecific2,
+				  void *SystemSpecific3)
 {
 	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) FunctionContext;
-	UCHAR UpRateIdx = 0, DownRateIdx = 0, CurrRateIdx = 0;
-	ULONG TxTotalCnt;
-	ULONG TxErrorRatio = 0;
+	u8 UpRateIdx = 0, DownRateIdx = 0, CurrRateIdx = 0;
+	unsigned long TxTotalCnt;
+	unsigned long TxErrorRatio = 0;
 	BOOLEAN bTxRateChanged;	/*, bUpgradeQuality = FALSE; */
 	PRTMP_TX_RATE_SWITCH pCurrTxRate, pNextTxRate = NULL;
-	PUCHAR pTable;
-	UCHAR TableSize = 0;
-	UCHAR InitTxRateIdx = 0, TrainUp, TrainDown;
+	u8 *pTable;
+	u8 TableSize = 0;
+	u8 InitTxRateIdx = 0, TrainUp, TrainDown;
 	TX_STA_CNT1_STRUC StaTx1;
 	TX_STA_CNT0_STRUC TxStaCnt0;
-	CHAR Rssi, ratio;
-	ULONG TxRetransmit = 0, TxSuccess = 0, TxFailCount = 0;
+	char Rssi, ratio;
+	unsigned long TxRetransmit = 0, TxSuccess = 0, TxFailCount = 0;
 	MAC_TABLE_ENTRY *pEntry;
-	ULONG i;
+	unsigned long i;
 
 	pAd->StaCfg.StaQuickResponeForRateUpTimerRunning = FALSE;
 
@@ -2480,10 +2480,10 @@ VOID StaQuickResponeForRateUpExec(IN PVOID SystemSpecific1,
 		/* */
 		if (TxTotalCnt <= 12) {
 			NdisZeroMemory(pAd->DrsCounters.TxQuality,
-				       sizeof(USHORT) *
+				       sizeof(u16)*
 				       MAX_STEP_OF_TX_RATE_SWITCH);
 			NdisZeroMemory(pAd->DrsCounters.PER,
-				       sizeof(UCHAR) *
+				       sizeof(u8)*
 				       MAX_STEP_OF_TX_RATE_SWITCH);
 
 			if ((pAd->DrsCounters.LastSecTxRateChangeAction == 1)
@@ -2503,7 +2503,7 @@ VOID StaQuickResponeForRateUpExec(IN PVOID SystemSpecific1,
 		}
 
 		do {
-			ULONG OneSecTxNoRetryOKRationCount;
+			unsigned long OneSecTxNoRetryOKRationCount;
 
 			if (pAd->DrsCounters.LastTimeTxRateChangeAction == 0)
 				ratio = 5;
@@ -2517,7 +2517,7 @@ VOID StaQuickResponeForRateUpExec(IN PVOID SystemSpecific1,
 			}
 
 			pAd->DrsCounters.PER[CurrRateIdx] =
-			    (UCHAR) TxErrorRatio;
+			    (u8)TxErrorRatio;
 
 			OneSecTxNoRetryOKRationCount = (TxSuccess * ratio);
 
@@ -2551,10 +2551,10 @@ VOID StaQuickResponeForRateUpExec(IN PVOID SystemSpecific1,
 		if (pAd->CommonCfg.TxRateIndex > CurrRateIdx) {
 			pAd->DrsCounters.TxRateUpPenalty = 0;
 			NdisZeroMemory(pAd->DrsCounters.TxQuality,
-				       sizeof(USHORT) *
+				       sizeof(u16)*
 				       MAX_STEP_OF_TX_RATE_SWITCH);
 			NdisZeroMemory(pAd->DrsCounters.PER,
-				       sizeof(UCHAR) *
+				       sizeof(u8)*
 				       MAX_STEP_OF_TX_RATE_SWITCH);
 			bTxRateChanged = TRUE;
 		}
@@ -2601,9 +2601,9 @@ VOID StaQuickResponeForRateUpExec(IN PVOID SystemSpecific1,
 
 	==========================================================================
  */
-VOID MlmeCheckPsmChange(IN PRTMP_ADAPTER pAd, IN ULONG Now32)
+void MlmeCheckPsmChange(IN PRTMP_ADAPTER pAd, unsigned long Now32)
 {
-	ULONG PowerMode;
+	unsigned long PowerMode;
 
 	/* condition - */
 	/* 1. Psm maybe ON only happen in INFRASTRUCTURE mode */
@@ -2638,7 +2638,7 @@ VOID MlmeCheckPsmChange(IN PRTMP_ADAPTER pAd, IN ULONG Now32)
 
 /* IRQL = PASSIVE_LEVEL */
 /* IRQL = DISPATCH_LEVEL */
-VOID MlmeSetPsmBit(IN PRTMP_ADAPTER pAd, IN USHORT psm)
+void MlmeSetPsmBit(IN PRTMP_ADAPTER pAd, u16 psm)
 {
 	AUTO_RSP_CFG_STRUC csr4;
 
@@ -2669,21 +2669,21 @@ VOID MlmeSetPsmBit(IN PRTMP_ADAPTER pAd, IN USHORT psm)
 		channel quality based on the most up-to-date information
 	==========================================================================
  */
-VOID MlmeCalculateChannelQuality(IN PRTMP_ADAPTER pAd,
-				 IN PMAC_TABLE_ENTRY pMacEntry, IN ULONG Now32)
+void MlmeCalculateChannelQuality(IN PRTMP_ADAPTER pAd,
+				 IN PMAC_TABLE_ENTRY pMacEntry, unsigned long Now32)
 {
-	ULONG TxOkCnt, TxCnt, TxPER, TxPRR;
-	ULONG RxCnt, RxPER;
-	UCHAR NorRssi;
-	CHAR MaxRssi;
+	unsigned long TxOkCnt, TxCnt, TxPER, TxPRR;
+	unsigned long RxCnt, RxPER;
+	u8 NorRssi;
+	char MaxRssi;
 	RSSI_SAMPLE *pRssiSample = NULL;
-	UINT32 OneSecTxNoRetryOkCount = 0;
-	UINT32 OneSecTxRetryOkCount = 0;
-	UINT32 OneSecTxFailCount = 0;
-	UINT32 OneSecRxOkCnt = 0;
-	UINT32 OneSecRxFcsErrCnt = 0;
-	ULONG ChannelQuality = 0;	/* 0..100, Channel Quality Indication for Roaming */
-	ULONG BeaconLostTime = pAd->StaCfg.BeaconLostTime;
+	u32 OneSecTxNoRetryOkCount = 0;
+	u32 OneSecTxRetryOkCount = 0;
+	u32 OneSecTxFailCount = 0;
+	u32 OneSecRxOkCnt = 0;
+	u32 OneSecRxFcsErrCnt = 0;
+	unsigned long ChannelQuality = 0;	/* 0..100, Channel Quality Indication for Roaming */
+	unsigned long BeaconLostTime = pAd->StaCfg.BeaconLostTime;
 
 	if (pAd->OpMode == OPMODE_STA) {
 		pRssiSample = &pAd->StaCfg.RssiSample;
@@ -2751,7 +2751,7 @@ VOID MlmeCalculateChannelQuality(IN PRTMP_ADAPTER pAd,
 }
 
 /* IRQL = DISPATCH_LEVEL */
-VOID MlmeSetTxPreamble(IN PRTMP_ADAPTER pAd, IN USHORT TxPreamble)
+void MlmeSetTxPreamble(IN PRTMP_ADAPTER pAd, u16 TxPreamble)
 {
 	AUTO_RSP_CFG_STRUC csr4;
 
@@ -2764,13 +2764,13 @@ VOID MlmeSetTxPreamble(IN PRTMP_ADAPTER pAd, IN USHORT TxPreamble)
 	RTMP_IO_READ32(pAd, AUTO_RSP_CFG, &csr4.word);
 	if (TxPreamble == Rt802_11PreambleLong) {
 		DBGPRINT(RT_DEBUG_TRACE,
-			 ("MlmeSetTxPreamble (= LONG PREAMBLE)\n"));
+			 ("MlmeSetTxPreamble (= long PREAMBLE)\n"));
 		OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_SHORT_PREAMBLE_INUSED);
 		csr4.field.AutoResponderPreamble = 0;
 	} else {
 		/* NOTE: 1Mbps should always use long preamble */
 		DBGPRINT(RT_DEBUG_TRACE,
-			 ("MlmeSetTxPreamble (= SHORT PREAMBLE)\n"));
+			 ("MlmeSetTxPreamble (= short PREAMBLE)\n"));
 		OPSTATUS_SET_FLAG(pAd, fOP_STATUS_SHORT_PREAMBLE_INUSED);
 		csr4.field.AutoResponderPreamble = 1;
 	}
@@ -2785,14 +2785,14 @@ VOID MlmeSetTxPreamble(IN PRTMP_ADAPTER pAd, IN USHORT TxPreamble)
     ==========================================================================
  */
 
-VOID UpdateBasicRateBitmap(IN PRTMP_ADAPTER pAdapter)
+void UpdateBasicRateBitmap(IN PRTMP_ADAPTER pAdapter)
 {
-	INT i, j;
+	int i, j;
 	/* 1  2  5.5, 11,  6,  9, 12, 18, 24, 36, 48,  54 */
-	UCHAR rate[] = { 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108 };
-	UCHAR *sup_p = pAdapter->CommonCfg.SupRate;
-	UCHAR *ext_p = pAdapter->CommonCfg.ExtRate;
-	ULONG bitmap = pAdapter->CommonCfg.BasicRateBitmap;
+	u8 rate[] = { 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108 };
+	u8 *sup_p = pAdapter->CommonCfg.SupRate;
+	u8 *ext_p = pAdapter->CommonCfg.ExtRate;
+	unsigned long bitmap = pAdapter->CommonCfg.BasicRateBitmap;
 
 	/* if A mode, always use fix BasicRateBitMap */
 	/*if (pAdapter->CommonCfg.Channel == PHY_11A) */
@@ -2831,19 +2831,19 @@ VOID UpdateBasicRateBitmap(IN PRTMP_ADAPTER pAdapter)
 /* IRQL = DISPATCH_LEVEL */
 /* bLinkUp is to identify the inital link speed. */
 /* TRUE indicates the rate update at linkup, we should not try to set the rate at 54Mbps. */
-VOID MlmeUpdateTxRates(IN PRTMP_ADAPTER pAd, IN BOOLEAN bLinkUp, IN UCHAR apidx)
+void MlmeUpdateTxRates(IN PRTMP_ADAPTER pAd, IN BOOLEAN bLinkUp, u8 apidx)
 {
 	int i, num;
-	UCHAR Rate = RATE_6, MaxDesire = RATE_1, MaxSupport = RATE_1;
-	UCHAR MinSupport = RATE_54;
-	ULONG BasicRateBitmap = 0;
-	UCHAR CurrBasicRate = RATE_1;
-	UCHAR *pSupRate, SupRateLen, *pExtRate, ExtRateLen;
+	u8 Rate = RATE_6, MaxDesire = RATE_1, MaxSupport = RATE_1;
+	u8 MinSupport = RATE_54;
+	unsigned long BasicRateBitmap = 0;
+	u8 CurrBasicRate = RATE_1;
+	u8 *pSupRate, SupRateLen, *pExtRate, ExtRateLen;
 	PHTTRANSMIT_SETTING pHtPhy = NULL;
 	PHTTRANSMIT_SETTING pMaxHtPhy = NULL;
 	PHTTRANSMIT_SETTING pMinHtPhy = NULL;
 	BOOLEAN *auto_rate_cur_p;
-	UCHAR HtMcs = MCS_AUTO;
+	u8 HtMcs = MCS_AUTO;
 
 	/* find max desired rate */
 	UpdateBasicRateBitmap(pAd);
@@ -3112,7 +3112,7 @@ VOID MlmeUpdateTxRates(IN PRTMP_ADAPTER pAd, IN BOOLEAN bLinkUp, IN UCHAR apidx)
 	/* the DURATION field of outgoing uniicast DATA/MGMT frame */
 	for (i = 0; i < MAX_LEN_OF_SUPPORTED_RATES; i++) {
 		if (BasicRateBitmap & (0x01 << i))
-			CurrBasicRate = (UCHAR) i;
+			CurrBasicRate = (u8)i;
 		pAd->CommonCfg.ExpectedACKRate[i] = CurrBasicRate;
 	}
 
@@ -3292,14 +3292,14 @@ VOID MlmeUpdateTxRates(IN PRTMP_ADAPTER pAd, IN BOOLEAN bLinkUp, IN UCHAR apidx)
 
 	==========================================================================
  */
-VOID MlmeUpdateHtTxRates(IN PRTMP_ADAPTER pAd, IN UCHAR apidx)
+void MlmeUpdateHtTxRates(IN PRTMP_ADAPTER pAd, u8 apidx)
 {
-	UCHAR StbcMcs;		/*j, StbcMcs, bitmask; */
-	CHAR i;			/* 3*3 */
+	u8 StbcMcs;		/*j, StbcMcs, bitmask; */
+	char i;			/* 3*3 */
 	RT_HT_CAPABILITY *pRtHtCap = NULL;
 	RT_HT_PHY_INFO *pActiveHtPhy = NULL;
-	ULONG BasicMCS;
-	UCHAR j, bitmask;
+	unsigned long BasicMCS;
+	u8 j, bitmask;
 	PRT_HT_PHY_INFO pDesireHtPhy = NULL;
 	PHTTRANSMIT_SETTING pHtPhy = NULL;
 	PHTTRANSMIT_SETTING pMaxHtPhy = NULL;
@@ -3326,7 +3326,7 @@ VOID MlmeUpdateHtTxRates(IN PRTMP_ADAPTER pAd, IN UCHAR apidx)
 
 		pRtHtCap = &pAd->StaActive.SupportedHtPhy;
 		pActiveHtPhy = &pAd->StaActive.SupportedPhyInfo;
-		StbcMcs = (UCHAR) pAd->MlmeAux.AddHtInfo.AddHtInfo3.StbcMcs;
+		StbcMcs = (u8)pAd->MlmeAux.AddHtInfo.AddHtInfo3.StbcMcs;
 		BasicMCS =
 		    pAd->MlmeAux.AddHtInfo.MCSSet[0] +
 		    (pAd->MlmeAux.AddHtInfo.MCSSet[1] << 8) + (StbcMcs << 16);
@@ -3340,7 +3340,7 @@ VOID MlmeUpdateHtTxRates(IN PRTMP_ADAPTER pAd, IN UCHAR apidx)
 			return;
 
 		pRtHtCap = &pAd->CommonCfg.DesiredHtPhy;
-		StbcMcs = (UCHAR) pAd->CommonCfg.AddHTInfo.AddHtInfo3.StbcMcs;
+		StbcMcs = (u8)pAd->CommonCfg.AddHTInfo.AddHtInfo3.StbcMcs;
 		BasicMCS =
 		    pAd->CommonCfg.AddHTInfo.MCSSet[0] +
 		    (pAd->CommonCfg.AddHTInfo.MCSSet[1] << 8) + (StbcMcs << 16);
@@ -3406,7 +3406,7 @@ VOID MlmeUpdateHtTxRates(IN PRTMP_ADAPTER pAd, IN UCHAR apidx)
 				  pMinHtPhy->field.MCS));
 		}
 
-		for (i = 23; (CHAR) i >= 0; i--)	/* 3*3 */
+		for (i = 23; (char)i >= 0; i--)	/* 3*3 */
 		{
 			j = i / 8;
 			bitmask = (1 << (i - (j * 8)));
@@ -3444,7 +3444,7 @@ VOID MlmeUpdateHtTxRates(IN PRTMP_ADAPTER pAd, IN UCHAR apidx)
 	DBGPRINT(RT_DEBUG_TRACE, ("MlmeUpdateHtTxRates<=== \n"));
 }
 
-VOID BATableInit(IN PRTMP_ADAPTER pAd, IN BA_TABLE * Tab)
+void BATableInit(IN PRTMP_ADAPTER pAd, IN BA_TABLE * Tab)
 {
 	int i;
 
@@ -3462,13 +3462,13 @@ VOID BATableInit(IN PRTMP_ADAPTER pAd, IN BA_TABLE * Tab)
 }
 
 /* IRQL = DISPATCH_LEVEL */
-VOID MlmeRadioOff(IN PRTMP_ADAPTER pAd)
+void MlmeRadioOff(IN PRTMP_ADAPTER pAd)
 {
 	RTMP_MLME_RADIO_OFF(pAd);
 }
 
 /* IRQL = DISPATCH_LEVEL */
-VOID MlmeRadioOn(IN PRTMP_ADAPTER pAd)
+void MlmeRadioOn(IN PRTMP_ADAPTER pAd)
 {
 	RTMP_MLME_RADIO_ON(pAd);
 }
@@ -3487,7 +3487,7 @@ VOID MlmeRadioOn(IN PRTMP_ADAPTER pAd)
  IRQL = DISPATCH_LEVEL
 
  */
-VOID BssTableInit(IN BSS_TABLE * Tab)
+void BssTableInit(IN BSS_TABLE * Tab)
 {
 	int i;
 
@@ -3510,9 +3510,9 @@ VOID BssTableInit(IN BSS_TABLE * Tab)
  IRQL = DISPATCH_LEVEL
 
  */
-ULONG BssTableSearch(IN BSS_TABLE * Tab, IN PUCHAR pBssid, IN UCHAR Channel)
+unsigned long BssTableSearch(IN BSS_TABLE * Tab, u8 *pBssid, u8 Channel)
 {
-	UCHAR i;
+	u8 i;
 
 	for (i = 0; i < Tab->BssNr; i++) {
 		/* */
@@ -3525,14 +3525,14 @@ ULONG BssTableSearch(IN BSS_TABLE * Tab, IN PUCHAR pBssid, IN UCHAR Channel)
 			return i;
 		}
 	}
-	return (ULONG) BSS_NOT_FOUND;
+	return (unsigned long)BSS_NOT_FOUND;
 }
 
-ULONG BssSsidTableSearch(IN BSS_TABLE * Tab,
-			 IN PUCHAR pBssid,
-			 IN PUCHAR pSsid, IN UCHAR SsidLen, IN UCHAR Channel)
+unsigned long BssSsidTableSearch(IN BSS_TABLE * Tab,
+			 u8 *pBssid,
+			 u8 *pSsid, u8 SsidLen, u8 Channel)
 {
-	UCHAR i;
+	u8 i;
 
 	for (i = 0; i < Tab->BssNr; i++) {
 		/* */
@@ -3547,15 +3547,15 @@ ULONG BssSsidTableSearch(IN BSS_TABLE * Tab,
 			return i;
 		}
 	}
-	return (ULONG) BSS_NOT_FOUND;
+	return (unsigned long)BSS_NOT_FOUND;
 }
 
-ULONG BssTableSearchWithSSID(IN BSS_TABLE * Tab,
-			     IN PUCHAR Bssid,
-			     IN PUCHAR pSsid,
-			     IN UCHAR SsidLen, IN UCHAR Channel)
+unsigned long BssTableSearchWithSSID(IN BSS_TABLE * Tab,
+			     u8 *Bssid,
+			     u8 *pSsid,
+			     u8 SsidLen, u8 Channel)
 {
-	UCHAR i;
+	u8 i;
 
 	for (i = 0; i < Tab->BssNr; i++) {
 		if ((((Tab->BssEntry[i].Channel <= 14) && (Channel <= 14)) ||
@@ -3572,13 +3572,13 @@ ULONG BssTableSearchWithSSID(IN BSS_TABLE * Tab,
 			return i;
 		}
 	}
-	return (ULONG) BSS_NOT_FOUND;
+	return (unsigned long)BSS_NOT_FOUND;
 }
 
-ULONG BssSsidTableSearchBySSID(IN BSS_TABLE * Tab,
-			       IN PUCHAR pSsid, IN UCHAR SsidLen)
+unsigned long BssSsidTableSearchBySSID(IN BSS_TABLE * Tab,
+			       u8 *pSsid, u8 SsidLen)
 {
-	UCHAR i;
+	u8 i;
 
 	for (i = 0; i < Tab->BssNr; i++) {
 		if (SSID_EQUAL
@@ -3587,14 +3587,14 @@ ULONG BssSsidTableSearchBySSID(IN BSS_TABLE * Tab,
 			return i;
 		}
 	}
-	return (ULONG) BSS_NOT_FOUND;
+	return (unsigned long)BSS_NOT_FOUND;
 }
 
 /* IRQL = DISPATCH_LEVEL */
-VOID BssTableDeleteEntry(IN OUT BSS_TABLE * Tab,
-			 IN PUCHAR pBssid, IN UCHAR Channel)
+void BssTableDeleteEntry(IN OUT BSS_TABLE * Tab,
+			 u8 *pBssid, u8 Channel)
 {
-	UCHAR i, j;
+	u8 i, j;
 
 	for (i = 0; i < Tab->BssNr; i++) {
 		if ((Tab->BssEntry[i].Channel == Channel) &&
@@ -3621,7 +3621,7 @@ VOID BssTableDeleteEntry(IN OUT BSS_TABLE * Tab,
 	// IRQL = DISPATCH_LEVEL
 	========================================================================
 */
-VOID BATableDeleteORIEntry(IN OUT PRTMP_ADAPTER pAd,
+void BATableDeleteORIEntry(IN OUT PRTMP_ADAPTER pAd,
 			   IN BA_ORI_ENTRY * pBAORIEntry)
 {
 
@@ -3652,18 +3652,18 @@ VOID BATableDeleteORIEntry(IN OUT PRTMP_ADAPTER pAd,
  IRQL = DISPATCH_LEVEL
 
  */
-VOID BssEntrySet(IN PRTMP_ADAPTER pAd, OUT BSS_ENTRY * pBss, IN PUCHAR pBssid, IN CHAR Ssid[], IN UCHAR SsidLen, IN UCHAR BssType, IN USHORT BeaconPeriod, IN PCF_PARM pCfParm, IN USHORT AtimWin, IN USHORT CapabilityInfo, IN UCHAR SupRate[], IN UCHAR SupRateLen, IN UCHAR ExtRate[], IN UCHAR ExtRateLen, IN HT_CAPABILITY_IE * pHtCapability, IN ADD_HT_INFO_IE * pAddHtInfo,	/* AP might use this additional ht info IE */
-		 IN UCHAR HtCapabilityLen,
-		 IN UCHAR AddHtInfoLen,
-		 IN UCHAR NewExtChanOffset,
-		 IN UCHAR Channel,
-		 IN CHAR Rssi,
+void BssEntrySet(IN PRTMP_ADAPTER pAd, OUT BSS_ENTRY * pBss, u8 *pBssid, char Ssid[], u8 SsidLen, u8 BssType, u16 BeaconPeriod, IN PCF_PARM pCfParm, u16 AtimWin, u16 CapabilityInfo, u8 SupRate[], u8 SupRateLen, u8 ExtRate[], u8 ExtRateLen, IN HT_CAPABILITY_IE * pHtCapability, IN ADD_HT_INFO_IE * pAddHtInfo,	/* AP might use this additional ht info IE */
+		 u8 HtCapabilityLen,
+		 u8 AddHtInfoLen,
+		 u8 NewExtChanOffset,
+		 u8 Channel,
+		 char Rssi,
 		 IN LARGE_INTEGER TimeStamp,
-		 IN UCHAR CkipFlag,
+		 u8 CkipFlag,
 		 IN PEDCA_PARM pEdcaParm,
 		 IN PQOS_CAPABILITY_PARM pQosCapability,
 		 IN PQBSS_LOAD_PARM pQbssLoad,
-		 IN USHORT LengthVIE, IN PNDIS_802_11_VARIABLE_IEs pVIE)
+		 u16 LengthVIE, IN PNDIS_802_11_VARIABLE_IEs pVIE)
 {
 	COPY_MAC_ADDR(pBss->Bssid, pBssid);
 	/* Default Hidden SSID to be TRUE, it will be turned to FALSE after coping SSID */
@@ -3777,12 +3777,12 @@ VOID BssEntrySet(IN PRTMP_ADAPTER pAd, OUT BSS_ENTRY * pBss, IN PUCHAR pBssid, I
 
 	{
 		PEID_STRUCT pEid;
-		USHORT Length = 0;
+		u16 Length = 0;
 
 		NdisZeroMemory(&pBss->WpaIE.IE[0], MAX_CUSTOM_LEN);
 		NdisZeroMemory(&pBss->RsnIE.IE[0], MAX_CUSTOM_LEN);
 		pEid = (PEID_STRUCT) pVIE;
-		while ((Length + 2 + (USHORT) pEid->Len) <= LengthVIE) {
+		while ((Length + 2 + (u16)pEid->Len) <= LengthVIE) {
 			switch (pEid->Eid) {
 			case IE_WPA:
 				if (NdisEqualMemory(pEid->Octet, WPA_OUI, 4)) {
@@ -3808,8 +3808,8 @@ VOID BssEntrySet(IN PRTMP_ADAPTER pAd, OUT BSS_ENTRY * pBss, IN PUCHAR pBssid, I
 				}
 				break;
 			}
-			Length = Length + 2 + (USHORT) pEid->Len;	/* Eid[1] + Len[1]+ content[Len] */
-			pEid = (PEID_STRUCT) ((UCHAR *) pEid + 2 + pEid->Len);
+			Length = Length + 2 + (u16)pEid->Len;	/* Eid[1] + Len[1]+ content[Len] */
+			pEid = (PEID_STRUCT) ((u8 *) pEid + 2 + pEid->Len);
 		}
 	}
 }
@@ -3837,23 +3837,23 @@ VOID BssEntrySet(IN PRTMP_ADAPTER pAd, OUT BSS_ENTRY * pBss, IN PUCHAR pBssid, I
  IRQL = DISPATCH_LEVEL
 
  */
-ULONG BssTableSetEntry(IN PRTMP_ADAPTER pAd, OUT BSS_TABLE * Tab, IN PUCHAR pBssid, IN CHAR Ssid[], IN UCHAR SsidLen, IN UCHAR BssType, IN USHORT BeaconPeriod, IN CF_PARM * CfParm, IN USHORT AtimWin, IN USHORT CapabilityInfo, IN UCHAR SupRate[], IN UCHAR SupRateLen, IN UCHAR ExtRate[], IN UCHAR ExtRateLen, IN HT_CAPABILITY_IE * pHtCapability, IN ADD_HT_INFO_IE * pAddHtInfo,	/* AP might use this additional ht info IE */
-		       IN UCHAR HtCapabilityLen,
-		       IN UCHAR AddHtInfoLen,
-		       IN UCHAR NewExtChanOffset,
-		       IN UCHAR ChannelNo,
-		       IN CHAR Rssi,
+unsigned long BssTableSetEntry(IN PRTMP_ADAPTER pAd, OUT BSS_TABLE * Tab, u8 *pBssid, char Ssid[], u8 SsidLen, u8 BssType, u16 BeaconPeriod, IN CF_PARM * CfParm, u16 AtimWin, u16 CapabilityInfo, u8 SupRate[], u8 SupRateLen, u8 ExtRate[], u8 ExtRateLen, IN HT_CAPABILITY_IE * pHtCapability, IN ADD_HT_INFO_IE * pAddHtInfo,	/* AP might use this additional ht info IE */
+		       u8 HtCapabilityLen,
+		       u8 AddHtInfoLen,
+		       u8 NewExtChanOffset,
+		       u8 ChannelNo,
+		       char Rssi,
 		       IN LARGE_INTEGER TimeStamp,
-		       IN UCHAR CkipFlag,
+		       u8 CkipFlag,
 		       IN PEDCA_PARM pEdcaParm,
 		       IN PQOS_CAPABILITY_PARM pQosCapability,
 		       IN PQBSS_LOAD_PARM pQbssLoad,
-		       IN USHORT LengthVIE, IN PNDIS_802_11_VARIABLE_IEs pVIE)
+		       u16 LengthVIE, IN PNDIS_802_11_VARIABLE_IEs pVIE)
 {
-	ULONG Idx;
+	unsigned long Idx;
 
 	Idx =
-	    BssTableSearchWithSSID(Tab, pBssid, (UCHAR *) Ssid, SsidLen,
+	    BssTableSearchWithSSID(Tab, pBssid, (u8 *) Ssid, SsidLen,
 				   ChannelNo);
 	if (Idx == BSS_NOT_FOUND) {
 		if (Tab->BssNr >= MAX_LEN_OF_BSS_TABLE) {
@@ -3924,10 +3924,10 @@ ULONG BssTableSetEntry(IN PRTMP_ADAPTER pAd, OUT BSS_TABLE * Tab, IN PUCHAR pBss
 }
 
 /* IRQL = DISPATCH_LEVEL */
-VOID BssTableSsidSort(IN PRTMP_ADAPTER pAd,
-		      OUT BSS_TABLE * OutTab, IN CHAR Ssid[], IN UCHAR SsidLen)
+void BssTableSsidSort(IN PRTMP_ADAPTER pAd,
+		      OUT BSS_TABLE * OutTab, char Ssid[], u8 SsidLen)
 {
-	INT i;
+	int i;
 	BssTableInit(OutTab);
 
 	for (i = 0; i < pAd->ScanTab.BssNr; i++) {
@@ -4180,9 +4180,9 @@ VOID BssTableSsidSort(IN PRTMP_ADAPTER pAd,
 }
 
 /* IRQL = DISPATCH_LEVEL */
-VOID BssTableSortByRssi(IN OUT BSS_TABLE * OutTab)
+void BssTableSortByRssi(IN OUT BSS_TABLE * OutTab)
 {
-	INT i, j;
+	int i, j;
 	BSS_ENTRY TmpBss;
 
 	for (i = 0; i < OutTab->BssNr - 1; i++) {
@@ -4200,15 +4200,15 @@ VOID BssTableSortByRssi(IN OUT BSS_TABLE * OutTab)
 	}
 }
 
-VOID BssCipherParse(IN OUT PBSS_ENTRY pBss)
+void BssCipherParse(IN OUT PBSS_ENTRY pBss)
 {
 	PEID_STRUCT pEid;
-	PUCHAR pTmp;
+	u8 *pTmp;
 	PRSN_IE_HEADER_STRUCT pRsnHeader;
 	PCIPHER_SUITE_STRUCT pCipher;
 	PAKM_SUITE_STRUCT pAKM;
-	USHORT Count;
-	INT Length;
+	u16 Count;
+	int Length;
 	NDIS_802_11_ENCRYPTION_STATUS TmpCipher;
 
 	/* */
@@ -4237,11 +4237,11 @@ VOID BssCipherParse(IN OUT PBSS_ENTRY pBss)
 	pBss->WPA2.RsnCapability = 0;
 	pBss->WPA2.bMixMode = FALSE;
 
-	Length = (INT) pBss->VarIELen;
+	Length = (int)pBss->VarIELen;
 
 	while (Length > 0) {
 		/* Parse cipher suite base on WPA1 & WPA2, they should be parsed differently */
-		pTmp = ((PUCHAR) pBss->VarIEs) + pBss->VarIELen - Length;
+		pTmp = ((u8 *)pBss->VarIEs) + pBss->VarIELen - Length;
 		pEid = (PEID_STRUCT) pTmp;
 		switch (pEid->Eid) {
 		case IE_WPA:
@@ -4257,7 +4257,7 @@ VOID BssCipherParse(IN OUT PBSS_ENTRY pBss)
 			/* Skip OUI, version, and multicast suite */
 			/* This part should be improved in the future when AP supported multiple cipher suite. */
 			/* For now, it's OK since almost all APs have fixed cipher suite supported. */
-			/* pTmp = (PUCHAR) pEid->Octet; */
+			/* pTmp = (u8 *)pEid->Octet; */
 			pTmp += 11;
 
 			/* Cipher Suite Selectors from Spec P802.11i/D3.2 P26. */
@@ -4293,9 +4293,9 @@ VOID BssCipherParse(IN OUT PBSS_ENTRY pBss)
 			pTmp += 1;
 
 			/* skip all unicast cipher suites */
-			/*Count = *(PUSHORT) pTmp; */
+			/*Count = *(u16 *)pTmp; */
 			Count = (pTmp[1] << 8) + pTmp[0];
-			pTmp += sizeof(USHORT);
+			pTmp += sizeof(u16);
 
 			/* Parsing all unicast cipher suite */
 			while (Count > 0) {
@@ -4332,9 +4332,9 @@ VOID BssCipherParse(IN OUT PBSS_ENTRY pBss)
 			}
 
 			/* 4. get AKM suite counts */
-			/*Count = *(PUSHORT) pTmp; */
+			/*Count = *(u16 *)pTmp; */
 			Count = (pTmp[1] << 8) + pTmp[0];
-			pTmp += sizeof(USHORT);
+			pTmp += sizeof(u16);
 			pTmp += 3;
 
 			switch (*pTmp) {
@@ -4417,9 +4417,9 @@ VOID BssCipherParse(IN OUT PBSS_ENTRY pBss)
 			pTmp += sizeof(CIPHER_SUITE_STRUCT);
 
 			/* 2. Get pairwise cipher counts */
-			/*Count = *(PUSHORT) pTmp; */
+			/*Count = *(u16 *)pTmp; */
 			Count = (pTmp[1] << 8) + pTmp[0];
-			pTmp += sizeof(USHORT);
+			pTmp += sizeof(u16);
 
 			/* 3. Get pairwise cipher */
 			/* Parsing all unicast cipher suite */
@@ -4457,9 +4457,9 @@ VOID BssCipherParse(IN OUT PBSS_ENTRY pBss)
 			}
 
 			/* 4. get AKM suite counts */
-			/*Count = *(PUSHORT) pTmp; */
+			/*Count = *(u16 *)pTmp; */
 			Count = (pTmp[1] << 8) + pTmp[0];
-			pTmp += sizeof(USHORT);
+			pTmp += sizeof(u16);
 
 			/* 5. Get AKM ciphers */
 			/* Parsing all AKM ciphers */
@@ -4520,9 +4520,9 @@ VOID BssCipherParse(IN OUT PBSS_ENTRY pBss)
 			pBss->WepStatus = pBss->WPA2.PairCipher;
 
 			/* 6. Get RSN capability */
-			/*pBss->WPA2.RsnCapability = *(PUSHORT) pTmp; */
+			/*pBss->WPA2.RsnCapability = *(u16 *)pTmp; */
 			pBss->WPA2.RsnCapability = (pTmp[1] << 8) + pTmp[0];
-			pTmp += sizeof(USHORT);
+			pTmp += sizeof(u16);
 
 			/* Check the Pair & Group, if different, turn on mixed mode flag */
 			if (pBss->WPA2.GroupCipher != pBss->WPA2.PairCipher)
@@ -4546,9 +4546,9 @@ VOID BssCipherParse(IN OUT PBSS_ENTRY pBss)
  *	\pre
  *	\post
  */
-VOID MacAddrRandomBssid(IN PRTMP_ADAPTER pAd, OUT PUCHAR pAddr)
+void MacAddrRandomBssid(IN PRTMP_ADAPTER pAd, u8 *pAddr)
 {
-	INT i;
+	int i;
 
 	for (i = 0; i < MAC_ADDR_LEN; i++) {
 		pAddr[i] = RandomByte(pAd);
@@ -4572,10 +4572,10 @@ VOID MacAddrRandomBssid(IN PRTMP_ADAPTER pAd, OUT PUCHAR pAddr)
 	IRQL = DISPATCH_LEVEL
 
  */
-VOID MgtMacHeaderInit(IN PRTMP_ADAPTER pAd,
+void MgtMacHeaderInit(IN PRTMP_ADAPTER pAd,
 		      IN OUT PHEADER_802_11 pHdr80211,
-		      IN UCHAR SubType,
-		      IN UCHAR ToDs, IN PUCHAR pDA, IN PUCHAR pBssid)
+		      u8 SubType,
+		      u8 ToDs, u8 *pDA, u8 *pBssid)
 {
 	NdisZeroMemory(pHdr80211, sizeof(HEADER_802_11));
 
@@ -4611,11 +4611,11 @@ VOID MgtMacHeaderInit(IN PRTMP_ADAPTER pAd,
 	IRQL = DISPATCH_LEVEL
 
  ****************************************************************************/
-ULONG MakeOutgoingFrame(OUT UCHAR * Buffer, OUT ULONG * FrameLen, ...)
+unsigned long MakeOutgoingFrame(u8 * Buffer, unsigned long * FrameLen, ...)
 {
-	UCHAR *p;
+	u8 *p;
 	int leng;
-	ULONG TotLeng;
+	unsigned long TotLeng;
 	va_list Args;
 
 	/* calculates the total length */
@@ -4626,7 +4626,7 @@ ULONG MakeOutgoingFrame(OUT UCHAR * Buffer, OUT ULONG * FrameLen, ...)
 		if (leng == END_OF_ARGS) {
 			break;
 		}
-		p = va_arg(Args, PVOID);
+		p = va_arg(Args, void *);
 		NdisMoveMemory(&Buffer[TotLeng], p, leng);
 		TotLeng = TotLeng + leng;
 	} while (TRUE);
@@ -4650,9 +4650,9 @@ ULONG MakeOutgoingFrame(OUT UCHAR * Buffer, OUT ULONG * FrameLen, ...)
  IRQL = PASSIVE_LEVEL
 
  */
-NDIS_STATUS MlmeQueueInit(IN MLME_QUEUE * Queue)
+int MlmeQueueInit(IN MLME_QUEUE * Queue)
 {
-	INT i;
+	int i;
 
 	NdisAllocateSpinLock(&Queue->Lock);
 
@@ -4685,10 +4685,10 @@ NDIS_STATUS MlmeQueueInit(IN MLME_QUEUE * Queue)
 
  */
 BOOLEAN MlmeEnqueue(IN PRTMP_ADAPTER pAd,
-		    IN ULONG Machine,
-		    IN ULONG MsgType, IN ULONG MsgLen, IN VOID * Msg)
+		    unsigned long Machine,
+		    unsigned long MsgType, unsigned long MsgLen, void * Msg)
 {
-	INT Tail;
+	int Tail;
 	MLME_QUEUE *Queue = (MLME_QUEUE *) & pAd->Mlme.Queue;
 
 	/* Do nothing if the driver is starting halt state. */
@@ -4745,17 +4745,17 @@ BOOLEAN MlmeEnqueue(IN PRTMP_ADAPTER pAd,
 
  */
 BOOLEAN MlmeEnqueueForRecv(IN PRTMP_ADAPTER pAd,
-			   IN ULONG Wcid,
-			   IN ULONG TimeStampHigh,
-			   IN ULONG TimeStampLow,
-			   IN UCHAR Rssi0,
-			   IN UCHAR Rssi1,
-			   IN UCHAR Rssi2,
-			   IN ULONG MsgLen, IN VOID * Msg, IN UCHAR Signal)
+			   unsigned long Wcid,
+			   unsigned long TimeStampHigh,
+			   unsigned long TimeStampLow,
+			   u8 Rssi0,
+			   u8 Rssi1,
+			   u8 Rssi2,
+			   unsigned long MsgLen, void * Msg, u8 Signal)
 {
-	INT Tail, Machine;
+	int Tail, Machine;
 	PFRAME_802_11 pFrame = (PFRAME_802_11) Msg;
-	INT MsgType;
+	int MsgType;
 	MLME_QUEUE *Queue = (MLME_QUEUE *) & pAd->Mlme.Queue;
 
 	/* Do nothing if the driver is starting halt state. */
@@ -4801,7 +4801,7 @@ BOOLEAN MlmeEnqueueForRecv(IN PRTMP_ADAPTER pAd,
 	Queue->Entry[Tail].Rssi1 = Rssi1;
 	Queue->Entry[Tail].Rssi2 = Rssi2;
 	Queue->Entry[Tail].Signal = Signal;
-	Queue->Entry[Tail].Wcid = (UCHAR) Wcid;
+	Queue->Entry[Tail].Wcid = (u8)Wcid;
 
 	Queue->Entry[Tail].Channel = pAd->LatchRfRegs.Channel;
 
@@ -4840,7 +4840,7 @@ BOOLEAN MlmeDequeue(IN MLME_QUEUE * Queue, OUT MLME_QUEUE_ELEM ** Elem)
 }
 
 /* IRQL = DISPATCH_LEVEL */
-VOID MlmeRestartStateMachine(IN PRTMP_ADAPTER pAd)
+void MlmeRestartStateMachine(IN PRTMP_ADAPTER pAd)
 {
 #ifdef RTMP_MAC_PCI
 	MLME_QUEUE_ELEM *Elem = NULL;
@@ -4962,7 +4962,7 @@ BOOLEAN MlmeQueueFull(IN MLME_QUEUE * Queue)
  IRQL = PASSIVE_LEVEL
 
  */
-VOID MlmeQueueDestroy(IN MLME_QUEUE * pQueue)
+void MlmeQueueDestroy(IN MLME_QUEUE * pQueue)
 {
 	NdisAcquireSpinLock(&(pQueue->Lock));
 	pQueue->Num = 0;
@@ -4985,23 +4985,23 @@ VOID MlmeQueueDestroy(IN MLME_QUEUE * pQueue)
  */
 BOOLEAN MsgTypeSubst(IN PRTMP_ADAPTER pAd,
 		     IN PFRAME_802_11 pFrame,
-		     OUT INT * Machine, OUT INT * MsgType)
+		     int * Machine, int * MsgType)
 {
-	USHORT Seq, Alg;
-	UCHAR EAPType;
-	PUCHAR pData;
+	u16 Seq, Alg;
+	u8 EAPType;
+	u8 *pData;
 
 	/* Pointer to start of data frames including SNAP header */
-	pData = (PUCHAR) pFrame + LENGTH_802_11;
+	pData = (u8 *)pFrame + LENGTH_802_11;
 
 	/* The only data type will pass to this function is EAPOL frame */
 	if (pFrame->Hdr.FC.Type == BTYPE_DATA) {
 		{
 			*Machine = WPA_STATE_MACHINE;
 			EAPType =
-			    *((UCHAR *) pFrame + LENGTH_802_11 +
+			    *((u8 *) pFrame + LENGTH_802_11 +
 			      LENGTH_802_1_H + 1);
-			return (WpaMsgTypeSubst(EAPType, (INT *) MsgType));
+			return (WpaMsgTypeSubst(EAPType, (int *) MsgType));
 		}
 	}
 
@@ -5044,8 +5044,8 @@ BOOLEAN MsgTypeSubst(IN PRTMP_ADAPTER pAd,
 		break;
 	case SUBTYPE_AUTH:
 		/* get the sequence number from payload 24 Mac Header + 2 bytes algorithm */
-		NdisMoveMemory(&Seq, &pFrame->Octet[2], sizeof(USHORT));
-		NdisMoveMemory(&Alg, &pFrame->Octet[0], sizeof(USHORT));
+		NdisMoveMemory(&Seq, &pFrame->Octet[2], sizeof(u16));
+		NdisMoveMemory(&Alg, &pFrame->Octet[0], sizeof(u16));
 		if (Seq == 1 || Seq == 3) {
 			*Machine = AUTH_RSP_STATE_MACHINE;
 			*MsgType = MT2_PEER_AUTH_ODD;
@@ -5097,14 +5097,14 @@ BOOLEAN MsgTypeSubst(IN PRTMP_ADAPTER pAd,
  IRQL = PASSIVE_LEVEL
 
  */
-VOID StateMachineInit(IN STATE_MACHINE * S,
+void StateMachineInit(IN STATE_MACHINE * S,
 		      IN STATE_MACHINE_FUNC Trans[],
-		      IN ULONG StNr,
-		      IN ULONG MsgNr,
+		      unsigned long StNr,
+		      unsigned long MsgNr,
 		      IN STATE_MACHINE_FUNC DefFunc,
-		      IN ULONG InitState, IN ULONG Base)
+		      unsigned long InitState, unsigned long Base)
 {
-	ULONG i, j;
+	unsigned long i, j;
 
 	/* set number of states and messages */
 	S->NrState = StNr;
@@ -5135,11 +5135,11 @@ VOID StateMachineInit(IN STATE_MACHINE * S,
  IRQL = PASSIVE_LEVEL
 
  */
-VOID StateMachineSetAction(IN STATE_MACHINE * S,
-			   IN ULONG St,
-			   IN ULONG Msg, IN STATE_MACHINE_FUNC Func)
+void StateMachineSetAction(IN STATE_MACHINE * S,
+			   unsigned long St,
+			   unsigned long Msg, IN STATE_MACHINE_FUNC Func)
 {
-	ULONG MsgIdx;
+	unsigned long MsgIdx;
 
 	MsgIdx = Msg - S->Base;
 
@@ -5158,7 +5158,7 @@ VOID StateMachineSetAction(IN STATE_MACHINE * S,
  IRQL = DISPATCH_LEVEL
 
  */
-VOID StateMachinePerformAction(IN PRTMP_ADAPTER pAd,
+void StateMachinePerformAction(IN PRTMP_ADAPTER pAd,
 			       IN STATE_MACHINE * S, IN MLME_QUEUE_ELEM * Elem)
 {
 	(*(S->TransFunc[S->CurrState * S->NrMsg + Elem->MsgType - S->Base]))
@@ -5173,7 +5173,7 @@ VOID StateMachinePerformAction(IN PRTMP_ADAPTER pAd,
 		StateMachinePerformAction()
 	==========================================================================
  */
-VOID Drop(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
+void Drop(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
 }
 
@@ -5189,7 +5189,7 @@ VOID Drop(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 	==========================================================================
  */
-VOID LfsrInit(IN PRTMP_ADAPTER pAd, IN ULONG Seed)
+void LfsrInit(IN PRTMP_ADAPTER pAd, unsigned long Seed)
 {
 	if (Seed == 0)
 		pAd->Mlme.ShiftReg = 1;
@@ -5202,15 +5202,15 @@ VOID LfsrInit(IN PRTMP_ADAPTER pAd, IN ULONG Seed)
 	Description:
 	==========================================================================
  */
-UCHAR RandomByte(IN PRTMP_ADAPTER pAd)
+u8 RandomByte(IN PRTMP_ADAPTER pAd)
 {
-	ULONG i;
-	UCHAR R, Result;
+	unsigned long i;
+	u8 R, Result;
 
 	R = 0;
 
 	if (pAd->Mlme.ShiftReg == 0)
-		NdisGetSystemUpTime((ULONG *) & pAd->Mlme.ShiftReg);
+		NdisGetSystemUpTime((unsigned long *) & pAd->Mlme.ShiftReg);
 
 	for (i = 0; i < 8; i++) {
 		if (pAd->Mlme.ShiftReg & 0x00000001) {
@@ -5244,11 +5244,11 @@ UCHAR RandomByte(IN PRTMP_ADAPTER pAd)
 
 	========================================================================
 */
-VOID RTMPCheckRates(IN PRTMP_ADAPTER pAd,
-		    IN OUT UCHAR SupRate[], IN OUT UCHAR * SupRateLen)
+void RTMPCheckRates(IN PRTMP_ADAPTER pAd,
+		    IN u8 SupRate[], IN u8 * SupRateLen)
 {
-	UCHAR RateIdx, i, j;
-	UCHAR NewRate[12], NewRateLen;
+	u8 RateIdx, i, j;
+	u8 NewRate[12], NewRateLen;
 
 	NewRateLen = 0;
 
@@ -5268,11 +5268,11 @@ VOID RTMPCheckRates(IN PRTMP_ADAPTER pAd,
 }
 
 BOOLEAN RTMPCheckChannel(IN PRTMP_ADAPTER pAd,
-			 IN UCHAR CentralChannel, IN UCHAR Channel)
+			 u8 CentralChannel, u8 Channel)
 {
-	UCHAR k;
-	UCHAR UpperChannel = 0, LowerChannel = 0;
-	UCHAR NoEffectChannelinList = 0;
+	u8 k;
+	u8 UpperChannel = 0, LowerChannel = 0;
+	u8 NoEffectChannelinList = 0;
 
 	/* Find upper and lower channel according to 40MHz current operation. */
 	if (CentralChannel < Channel) {
@@ -5321,7 +5321,7 @@ BOOLEAN RTMPCheckChannel(IN PRTMP_ADAPTER pAd,
 	========================================================================
 */
 BOOLEAN RTMPCheckHt(IN PRTMP_ADAPTER pAd,
-		    IN UCHAR Wcid,
+		    u8 Wcid,
 		    IN HT_CAPABILITY_IE * pHtCapability,
 		    IN ADD_HT_INFO_IE * pAddHtInfo)
 {
@@ -5449,11 +5449,11 @@ BOOLEAN RTMPCheckHt(IN PRTMP_ADAPTER pAd,
 
 	========================================================================
 */
-VOID RTMPUpdateMlmeRate(IN PRTMP_ADAPTER pAd)
+void RTMPUpdateMlmeRate(IN PRTMP_ADAPTER pAd)
 {
-	UCHAR MinimumRate;
-	UCHAR ProperMlmeRate;	/*= RATE_54; */
-	UCHAR i, j, RateIdx = 12;	/*1, 2, 5.5, 11, 6, 9, 12, 18, 24, 36, 48, 54 */
+	u8 MinimumRate;
+	u8 ProperMlmeRate;	/*= RATE_54; */
+	u8 i, j, RateIdx = 12;	/*1, 2, 5.5, 11, 6, 9, 12, 18, 24, 36, 48, 54 */
 	BOOLEAN bMatch = FALSE;
 
 	switch (pAd->CommonCfg.PhyMode) {
@@ -5558,10 +5558,10 @@ VOID RTMPUpdateMlmeRate(IN PRTMP_ADAPTER pAd)
 		  pAd->CommonCfg.MlmeTransmit.word));
 }
 
-CHAR RTMPMaxRssi(IN PRTMP_ADAPTER pAd,
-		 IN CHAR Rssi0, IN CHAR Rssi1, IN CHAR Rssi2)
+char RTMPMaxRssi(IN PRTMP_ADAPTER pAd,
+		 char Rssi0, char Rssi1, char Rssi2)
 {
-	CHAR larger = -127;
+	char larger = -127;
 
 	if ((pAd->Antenna.field.RxPath == 1) && (Rssi0 != 0)) {
 		larger = Rssi0;
@@ -5594,9 +5594,9 @@ CHAR RTMPMaxRssi(IN PRTMP_ADAPTER pAd,
 
     ========================================================================
 */
-VOID AsicEvaluateRxAnt(IN PRTMP_ADAPTER pAd)
+void AsicEvaluateRxAnt(IN PRTMP_ADAPTER pAd)
 {
-	UCHAR BBPR3 = 0;
+	u8 BBPR3 = 0;
 
 	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS |
 			   fRTMP_ADAPTER_HALT_IN_PROGRESS |
@@ -5638,7 +5638,7 @@ VOID AsicEvaluateRxAnt(IN PRTMP_ADAPTER pAd)
 			if (OPSTATUS_TEST_FLAG
 			    (pAd, fOP_STATUS_MEDIA_STATE_CONNECTED)
 			    ) {
-				ULONG TxTotalCnt =
+				unsigned long TxTotalCnt =
 				    pAd->RalinkCounters.OneSecTxNoRetryOkCount +
 				    pAd->RalinkCounters.OneSecTxRetryOkCount +
 				    pAd->RalinkCounters.OneSecTxFailCount;
@@ -5673,13 +5673,13 @@ VOID AsicEvaluateRxAnt(IN PRTMP_ADAPTER pAd)
 
     ========================================================================
 */
-VOID AsicRxAntEvalTimeout(IN PVOID SystemSpecific1,
-			  IN PVOID FunctionContext,
-			  IN PVOID SystemSpecific2, IN PVOID SystemSpecific3)
+void AsicRxAntEvalTimeout(void *SystemSpecific1,
+			  void *FunctionContext,
+			  void *SystemSpecific2, void *SystemSpecific3)
 {
 	RTMP_ADAPTER *pAd = (RTMP_ADAPTER *) FunctionContext;
-	UCHAR BBPR3 = 0;
-	CHAR larger = -127, rssi0, rssi1, rssi2;
+	u8 BBPR3 = 0;
+	char larger = -127, rssi0, rssi1, rssi2;
 
 	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS |
 			   fRTMP_ADAPTER_HALT_IN_PROGRESS |
@@ -5745,9 +5745,9 @@ VOID AsicRxAntEvalTimeout(IN PVOID SystemSpecific1,
 
 }
 
-VOID APSDPeriodicExec(IN PVOID SystemSpecific1,
-		      IN PVOID FunctionContext,
-		      IN PVOID SystemSpecific2, IN PVOID SystemSpecific3)
+void APSDPeriodicExec(void *SystemSpecific1,
+		      void *FunctionContext,
+		      void *SystemSpecific2, void *SystemSpecific3)
 {
 	RTMP_ADAPTER *pAd = (RTMP_ADAPTER *) FunctionContext;
 
@@ -5784,7 +5784,7 @@ VOID APSDPeriodicExec(IN PVOID SystemSpecific1,
 
     ========================================================================
 */
-VOID RTMPSetPiggyBack(IN PRTMP_ADAPTER pAd, IN BOOLEAN bPiggyBack)
+void RTMPSetPiggyBack(IN PRTMP_ADAPTER pAd, IN BOOLEAN bPiggyBack)
 {
 	TX_LINK_CFG_STRUC TxLinkCfg;
 
@@ -5850,13 +5850,13 @@ BOOLEAN RTMPAutoRateSwitchCheck(IN PRTMP_ADAPTER pAd)
 
     ========================================================================
 */
-UCHAR RTMPStaFixedTxMode(IN PRTMP_ADAPTER pAd, IN PMAC_TABLE_ENTRY pEntry)
+u8 RTMPStaFixedTxMode(IN PRTMP_ADAPTER pAd, IN PMAC_TABLE_ENTRY pEntry)
 {
-	UCHAR tx_mode = FIXED_TXMODE_HT;
+	u8 tx_mode = FIXED_TXMODE_HT;
 
 	{
 		tx_mode =
-		    (UCHAR) pAd->StaCfg.DesiredTransmitSetting.field.
+		    (u8)pAd->StaCfg.DesiredTransmitSetting.field.
 		    FixedTxMode;
 	}
 
@@ -5878,7 +5878,7 @@ UCHAR RTMPStaFixedTxMode(IN PRTMP_ADAPTER pAd, IN PMAC_TABLE_ENTRY pEntry)
 
     ========================================================================
 */
-VOID RTMPUpdateLegacyTxSetting(UCHAR fixed_tx_mode, PMAC_TABLE_ENTRY pEntry)
+void RTMPUpdateLegacyTxSetting(u8 fixed_tx_mode, PMAC_TABLE_ENTRY pEntry)
 {
 	HTTRANSMIT_SETTING TransmitSetting;
 
@@ -5921,10 +5921,10 @@ VOID RTMPUpdateLegacyTxSetting(UCHAR fixed_tx_mode, PMAC_TABLE_ENTRY pEntry)
 
 	==========================================================================
  */
-VOID AsicStaBbpTuning(IN PRTMP_ADAPTER pAd)
+void AsicStaBbpTuning(IN PRTMP_ADAPTER pAd)
 {
-	UCHAR OrigR66Value = 0, R66;	/*, R66UpperBound = 0x30, R66LowerBound = 0x30; */
-	CHAR Rssi;
+	u8 OrigR66Value = 0, R66;	/*, R66UpperBound = 0x30, R66LowerBound = 0x30; */
+	char Rssi;
 
 	/* 2860C did not support Fase CCA, therefore can't tune */
 	if (pAd->MACVersion == 0x28600100)
@@ -6033,9 +6033,9 @@ VOID AsicStaBbpTuning(IN PRTMP_ADAPTER pAd)
 	}
 }
 
-VOID RTMPSetAGCInitValue(IN PRTMP_ADAPTER pAd, IN UCHAR BandWidth)
+void RTMPSetAGCInitValue(IN PRTMP_ADAPTER pAd, u8 BandWidth)
 {
-	UCHAR R66 = 0x30;
+	u8 R66 = 0x30;
 
 	if (pAd->LatchRfRegs.Channel <= 14) {	/* BG band */
 #ifdef RT30xx
@@ -6055,12 +6055,12 @@ VOID RTMPSetAGCInitValue(IN PRTMP_ADAPTER pAd, IN UCHAR BandWidth)
 		{
 			if (BandWidth == BW_20) {
 				R66 =
-				    (UCHAR) (0x32 +
+				    (u8)(0x32 +
 					     (GET_LNA_GAIN(pAd) * 5) / 3);
 				RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R66, R66);
 			} else {
 				R66 =
-				    (UCHAR) (0x3A +
+				    (u8)(0x3A +
 					     (GET_LNA_GAIN(pAd) * 5) / 3);
 				RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R66, R66);
 			}

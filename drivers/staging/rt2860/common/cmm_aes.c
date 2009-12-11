@@ -38,8 +38,8 @@
 #include	"../rt_config.h"
 
 typedef struct {
-	UINT32 erk[64];		/* encryption round keys */
-	UINT32 drk[64];		/* decryption round keys */
+	u32 erk[64];		/* encryption round keys */
+	u32 drk[64];		/* decryption round keys */
 	int nr;			/* number of rounds */
 } aes_context;
 
@@ -47,7 +47,7 @@ typedef struct {
 /******** SBOX Table *********/
 /*****************************/
 
-UCHAR SboxTable[256] = {
+u8 SboxTable[256] = {
 	0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5,
 	0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
 	0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0,
@@ -82,34 +82,34 @@ UCHAR SboxTable[256] = {
 	0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16
 };
 
-VOID xor_32(IN PUCHAR a, IN PUCHAR b, OUT PUCHAR out)
+void xor_32(u8 *a, u8 *b, u8 *out)
 {
-	INT i;
+	int i;
 
 	for (i = 0; i < 4; i++) {
 		out[i] = a[i] ^ b[i];
 	}
 }
 
-VOID xor_128(IN PUCHAR a, IN PUCHAR b, OUT PUCHAR out)
+void xor_128(u8 *a, u8 *b, u8 *out)
 {
-	INT i;
+	int i;
 
 	for (i = 0; i < 16; i++) {
 		out[i] = a[i] ^ b[i];
 	}
 }
 
-UCHAR RTMPCkipSbox(IN UCHAR a)
+u8 RTMPCkipSbox(u8 a)
 {
 	return SboxTable[(int)a];
 }
 
-VOID next_key(IN PUCHAR key, IN INT round)
+void next_key(u8 *key, int round)
 {
-	UCHAR rcon;
-	UCHAR sbox_key[4];
-	UCHAR rcon_table[12] = {
+	u8 rcon;
+	u8 sbox_key[4];
+	u8 rcon_table[12] = {
 		0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,
 		0x1b, 0x36, 0x36, 0x36
 	};
@@ -129,9 +129,9 @@ VOID next_key(IN PUCHAR key, IN INT round)
 	xor_32(&key[12], &key[8], &key[12]);
 }
 
-VOID byte_sub(IN PUCHAR in, OUT PUCHAR out)
+void byte_sub(u8 *in, u8 *out)
 {
-	INT i;
+	int i;
 
 	for (i = 0; i < 16; i++) {
 		out[i] = RTMPCkipSbox(in[i]);
@@ -151,7 +151,7 @@ void bitwise_xor(unsigned char *ina, unsigned char *inb, unsigned char *out)
 	}
 }
 
-VOID shift_row(IN PUCHAR in, OUT PUCHAR out)
+void shift_row(u8 *in, u8 *out)
 {
 	out[0] = in[0];
 	out[1] = in[5];
@@ -171,17 +171,17 @@ VOID shift_row(IN PUCHAR in, OUT PUCHAR out)
 	out[15] = in[11];
 }
 
-VOID mix_column(IN PUCHAR in, OUT PUCHAR out)
+void mix_column(u8 *in, u8 *out)
 {
-	INT i;
-	UCHAR add1b[4];
-	UCHAR add1bf7[4];
-	UCHAR rotl[4];
-	UCHAR swap_halfs[4];
-	UCHAR andf7[4];
-	UCHAR rotr[4];
-	UCHAR temp[4];
-	UCHAR tempb[4];
+	int i;
+	u8 add1b[4];
+	u8 add1bf7[4];
+	u8 rotl[4];
+	u8 swap_halfs[4];
+	u8 andf7[4];
+	u8 rotr[4];
+	u8 temp[4];
+	u8 tempb[4];
 
 	for (i = 0; i < 4; i++) {
 		if ((in[i] & 0x80) == 0x80)
@@ -409,40 +409,40 @@ void construct_ctr_preload(unsigned char *ctr_preload,
 }
 
 BOOLEAN RTMPSoftDecryptAES(IN PRTMP_ADAPTER pAd,
-			   IN PUCHAR pData,
-			   IN ULONG DataByteCnt, IN PCIPHER_KEY pWpaKey)
+			   u8 *pData,
+			   unsigned long DataByteCnt, IN PCIPHER_KEY pWpaKey)
 {
-	UCHAR KeyID;
-	UINT HeaderLen;
-	UCHAR PN[6];
-	UINT payload_len;
-	UINT num_blocks;
-	UINT payload_remainder;
-	USHORT fc;
-	UCHAR fc0;
-	UCHAR fc1;
-	UINT frame_type;
-	UINT frame_subtype;
-	UINT from_ds;
-	UINT to_ds;
-	INT a4_exists;
-	INT qc_exists;
-	UCHAR aes_out[16];
+	u8 KeyID;
+	u32 HeaderLen;
+	u8 PN[6];
+	u32 payload_len;
+	u32 num_blocks;
+	u32 payload_remainder;
+	u16 fc;
+	u8 fc0;
+	u8 fc1;
+	u32 frame_type;
+	u32 frame_subtype;
+	u32 from_ds;
+	u32 to_ds;
+	int a4_exists;
+	int qc_exists;
+	u8 aes_out[16];
 	int payload_index;
-	UINT i;
-	UCHAR ctr_preload[16];
-	UCHAR chain_buffer[16];
-	UCHAR padded_buffer[16];
-	UCHAR mic_iv[16];
-	UCHAR mic_header1[16];
-	UCHAR mic_header2[16];
-	UCHAR MIC[8];
-	UCHAR TrailMIC[8];
+	u32 i;
+	u8 ctr_preload[16];
+	u8 chain_buffer[16];
+	u8 padded_buffer[16];
+	u8 mic_iv[16];
+	u8 mic_header1[16];
+	u8 mic_header2[16];
+	u8 MIC[8];
+	u8 TrailMIC[8];
 
 	fc0 = *pData;
 	fc1 = *(pData + 1);
 
-	fc = *((PUSHORT) pData);
+	fc = *((u16 *)pData);
 
 	frame_type = ((fc0 >> 2) & 0x03);
 	frame_subtype = ((fc0 >> 4) & 0x0f);
@@ -460,7 +460,7 @@ BOOLEAN RTMPSoftDecryptAES(IN PRTMP_ADAPTER pAd,
 	if (a4_exists)
 		HeaderLen += 6;
 
-	KeyID = *((PUCHAR) (pData + HeaderLen + 3));
+	KeyID = *((u8 *)(pData + HeaderLen + 3));
 	KeyID = KeyID >> 6;
 
 	if (pWpaKey[KeyID].KeyLen == 0) {
@@ -1202,16 +1202,16 @@ void rt_aes_decrypt(aes_context * ctx, uint8 input[16], uint8 output[16])
     Return:
     ==========================================================================
 */
-VOID AES_GTK_KEY_WRAP(IN UCHAR * key,
-		      IN UCHAR * plaintext,
-		      IN UINT32 p_len, OUT UCHAR * ciphertext)
+void AES_GTK_KEY_WRAP(u8 * key,
+		      u8 * plaintext,
+		      u32 p_len, u8 * ciphertext)
 {
-	UCHAR A[8], BIN[16], BOUT[16];
-	UCHAR R[512];
-	INT num_blocks = p_len / 8;	/* unit:64bits */
-	INT i, j;
+	u8 A[8], BIN[16], BOUT[16];
+	u8 R[512];
+	int num_blocks = p_len / 8;	/* unit:64bits */
+	int i, j;
 	aes_context aesctx;
-	UCHAR xor;
+	u8 xor;
 
 	rt_aes_set_key(&aesctx, key, 128);
 
@@ -1264,18 +1264,18 @@ VOID AES_GTK_KEY_WRAP(IN UCHAR * key,
 
 	========================================================================
 */
-VOID AES_GTK_KEY_UNWRAP(IN UCHAR * key,
-			OUT UCHAR * plaintext,
-			IN UINT32 c_len, IN UCHAR * ciphertext)
+void AES_GTK_KEY_UNWRAP(u8 * key,
+			u8 * plaintext,
+			u32 c_len, u8 * ciphertext)
 {
-	UCHAR A[8], BIN[16], BOUT[16];
-	UCHAR xor;
-	INT i, j;
+	u8 A[8], BIN[16], BOUT[16];
+	u8 xor;
+	int i, j;
 	aes_context aesctx;
-	UCHAR *R;
-	INT num_blocks = c_len / 8;	/* unit:64bits */
+	u8 *R;
+	int num_blocks = c_len / 8;	/* unit:64bits */
 
-	os_alloc_mem(NULL, (PUCHAR *) & R, 512);
+	os_alloc_mem(NULL, (u8 **) & R, 512);
 
 	if (R == NULL) {
 		DBGPRINT(RT_DEBUG_ERROR,

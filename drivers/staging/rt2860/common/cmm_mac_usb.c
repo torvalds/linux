@@ -48,10 +48,10 @@ Note:
 	NDIS packet descriptor.
 ========================================================================
 */
-NDIS_STATUS NICInitRecv(IN PRTMP_ADAPTER pAd)
+int NICInitRecv(IN PRTMP_ADAPTER pAd)
 {
-	UCHAR i;
-	NDIS_STATUS Status = NDIS_STATUS_SUCCESS;
+	u8 i;
+	int Status = NDIS_STATUS_SUCCESS;
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("--> NICInitRecv\n"));
@@ -132,7 +132,7 @@ Return Value:
 Note:
 ========================================================================
 */
-NDIS_STATUS NICInitTransmit(IN PRTMP_ADAPTER pAd)
+int NICInitTransmit(IN PRTMP_ADAPTER pAd)
 {
 #define LM_USB_ALLOC(pObj, Context, TB_Type, BufferSize, Status, msg1, err1, msg2, err2)	\
 	Context->pUrb = RTUSB_ALLOC_URB(0);		\
@@ -159,15 +159,15 @@ NDIS_STATUS NICInitTransmit(IN PRTMP_ADAPTER pAd)
 								Context->data_dma);			\
 		Context->TransferBuffer = NULL; }
 
-	UCHAR i, acidx;
-	NDIS_STATUS Status = NDIS_STATUS_SUCCESS;
+	u8 i, acidx;
+	int Status = NDIS_STATUS_SUCCESS;
 	PTX_CONTEXT pNullContext = &(pAd->NullContext);
 	PTX_CONTEXT pPsPollContext = &(pAd->PsPollContext);
 	PTX_CONTEXT pRTSContext = &(pAd->RTSContext);
 	PTX_CONTEXT pMLMEContext = NULL;
 /*      PHT_TX_CONTEXT  pHTTXContext = NULL; */
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
-	PVOID RingBaseVa;
+	void *RingBaseVa;
 /*      RTMP_TX_RING    *pTxRing; */
 	RTMP_MGMT_RING *pMgmtRing;
 
@@ -233,7 +233,7 @@ NDIS_STATUS NICInitTransmit(IN PRTMP_ADAPTER pAd)
 		/* Allocate MGMT ring descriptor's memory */
 		pAd->MgmtDescRing.AllocSize =
 		    MGMT_RING_SIZE * sizeof(TX_CONTEXT);
-		os_alloc_mem(pAd, (PUCHAR *) (&pAd->MgmtDescRing.AllocVa),
+		os_alloc_mem(pAd, (u8 **) (&pAd->MgmtDescRing.AllocVa),
 			     pAd->MgmtDescRing.AllocSize);
 		if (pAd->MgmtDescRing.AllocVa == NULL) {
 			DBGPRINT_ERR(("Failed to allocate a big buffer for MgmtDescRing!\n"));
@@ -274,7 +274,7 @@ NDIS_STATUS NICInitTransmit(IN PRTMP_ADAPTER pAd)
 			pMLMEContext->SelfIdx = i;
 
 			/* Offset to next ring descriptor address */
-			RingBaseVa = (PUCHAR) RingBaseVa + sizeof(TX_CONTEXT);
+			RingBaseVa = (u8 *)RingBaseVa + sizeof(TX_CONTEXT);
 		}
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("MGMT Ring: total %d entry allocated\n", i));
@@ -428,11 +428,11 @@ Return Value:
 Note:
 ========================================================================
 */
-NDIS_STATUS RTMPAllocTxRxRingMemory(IN PRTMP_ADAPTER pAd)
+int RTMPAllocTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 {
 /*      COUNTER_802_11  pCounter = &pAd->WlanCounters; */
-	NDIS_STATUS Status;
-	INT num;
+	int Status;
+	int num;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("--> RTMPAllocTxRxRingMemory\n"));
 
@@ -519,7 +519,7 @@ Return Value:
 Note:
 ========================================================================
 */
-VOID RTMPFreeTxRxRingMemory(IN PRTMP_ADAPTER pAd)
+void RTMPFreeTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 {
 #define LM_URB_FREE(pObj, Context, BufferSize)				\
 	if (NULL != Context->pUrb) {							\
@@ -532,7 +532,7 @@ VOID RTMPFreeTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 								Context->data_dma);			\
 		Context->TransferBuffer = NULL; }
 
-	UINT i, acidx;
+	u32 i, acidx;
 	PTX_CONTEXT pNullContext = &pAd->NullContext;
 	PTX_CONTEXT pPsPollContext = &pAd->PsPollContext;
 	PTX_CONTEXT pRTSContext = &pAd->RTSContext;
@@ -636,11 +636,11 @@ Return Value:
 Note:
 ========================================================================
 */
-NDIS_STATUS RTUSBWriteHWMACAddress(IN PRTMP_ADAPTER pAd)
+int RTUSBWriteHWMACAddress(IN PRTMP_ADAPTER pAd)
 {
 	MAC_DW0_STRUC StaMacReg0;
 	MAC_DW1_STRUC StaMacReg1;
-	NDIS_STATUS Status = NDIS_STATUS_SUCCESS;
+	int Status = NDIS_STATUS_SUCCESS;
 	LARGE_INTEGER NOW;
 
 	/* initialize the random number generator */
@@ -687,7 +687,7 @@ Return Value:
 Note:
 ========================================================================
 */
-VOID RT28XXDMADisable(IN RTMP_ADAPTER * pAd)
+void RT28XXDMADisable(IN RTMP_ADAPTER * pAd)
 {
 	/* no use */
 }
@@ -706,7 +706,7 @@ Return Value:
 Note:
 ========================================================================
 */
-VOID RT28XXDMAEnable(IN RTMP_ADAPTER * pAd)
+void RT28XXDMAEnable(IN RTMP_ADAPTER * pAd)
 {
 	WPDMA_GLO_CFG_STRUC GloCfg;
 	USB_DMA_CFG_STRUC UsbCfg;
@@ -767,18 +767,18 @@ Return Value:
 Note:
 ========================================================================
 */
-VOID RT28xx_UpdateBeaconToAsic(IN RTMP_ADAPTER * pAd,
-			       IN INT apidx,
-			       IN ULONG FrameLen, IN ULONG UpdatePos)
+void RT28xx_UpdateBeaconToAsic(IN RTMP_ADAPTER * pAd,
+			       int apidx,
+			       unsigned long FrameLen, unsigned long UpdatePos)
 {
-	PUCHAR pBeaconFrame = NULL;
-	UCHAR *ptr;
-	UINT i, padding;
+	u8 *pBeaconFrame = NULL;
+	u8 *ptr;
+	u32 i, padding;
 	BEACON_SYNC_STRUCT *pBeaconSync = pAd->CommonCfg.pBeaconSync;
-	UINT32 longValue;
-/*      USHORT                  shortValue; */
+	u32 longValue;
+/*      u16                  shortValue; */
 	BOOLEAN bBcnReq = FALSE;
-	UCHAR bcn_idx = 0;
+	u8 bcn_idx = 0;
 
 	if (pBeaconFrame == NULL) {
 		DBGPRINT(RT_DEBUG_ERROR, ("pBeaconFrame is NULL!\n"));
@@ -803,7 +803,7 @@ VOID RT28xx_UpdateBeaconToAsic(IN RTMP_ADAPTER * pAd,
 		    (~(BEACON_BITMAP_MASK & (1 << bcn_idx)));
 		NdisZeroMemory(pBeaconSync->BeaconTxWI[bcn_idx], TXWI_SIZE);
 	} else {
-		ptr = (PUCHAR) & pAd->BeaconTxWI;
+		ptr = (u8 *)& pAd->BeaconTxWI;
 		if (NdisEqualMemory(pBeaconSync->BeaconTxWI[bcn_idx], &pAd->BeaconTxWI, TXWI_SIZE) == FALSE) {	/* If BeaconTxWI changed, we need to rewrite the TxWI for the Beacon frames. */
 			pBeaconSync->BeaconBitMap &=
 			    (~(BEACON_BITMAP_MASK & (1 << bcn_idx)));
@@ -827,7 +827,7 @@ VOID RT28xx_UpdateBeaconToAsic(IN RTMP_ADAPTER * pAd,
 
 		ptr = pBeaconSync->BeaconBuf[bcn_idx];
 		padding = (FrameLen & 0x01);
-		NdisZeroMemory((PUCHAR) (pBeaconFrame + FrameLen), padding);
+		NdisZeroMemory((u8 *)(pBeaconFrame + FrameLen), padding);
 		FrameLen += padding;
 		for (i = 0; i < FrameLen /*HW_BEACON_OFFSET */ ; i += 2) {
 			if (NdisEqualMemory(ptr, pBeaconFrame, 2) == FALSE) {
@@ -849,7 +849,7 @@ VOID RT28xx_UpdateBeaconToAsic(IN RTMP_ADAPTER * pAd,
 
 }
 
-VOID RTUSBBssBeaconStop(IN RTMP_ADAPTER * pAd)
+void RTUSBBssBeaconStop(IN RTMP_ADAPTER * pAd)
 {
 	BEACON_SYNC_STRUCT *pBeaconSync;
 	int i, offset;
@@ -857,7 +857,7 @@ VOID RTUSBBssBeaconStop(IN RTMP_ADAPTER * pAd)
 
 	pBeaconSync = pAd->CommonCfg.pBeaconSync;
 	if (pBeaconSync && pBeaconSync->EnableBeacon) {
-		INT NumOfBcn;
+		int NumOfBcn;
 
 		{
 			NumOfBcn = MAX_MESH_NUM;
@@ -883,7 +883,7 @@ VOID RTUSBBssBeaconStop(IN RTMP_ADAPTER * pAd)
 	}
 }
 
-VOID RTUSBBssBeaconStart(IN RTMP_ADAPTER * pAd)
+void RTUSBBssBeaconStart(IN RTMP_ADAPTER * pAd)
 {
 	int apidx;
 	BEACON_SYNC_STRUCT *pBeaconSync;
@@ -891,15 +891,15 @@ VOID RTUSBBssBeaconStart(IN RTMP_ADAPTER * pAd)
 
 	pBeaconSync = pAd->CommonCfg.pBeaconSync;
 	if (pBeaconSync && pBeaconSync->EnableBeacon) {
-		INT NumOfBcn;
+		int NumOfBcn;
 
 		{
 			NumOfBcn = MAX_MESH_NUM;
 		}
 
 		for (apidx = 0; apidx < NumOfBcn; apidx++) {
-			UCHAR CapabilityInfoLocationInBeacon = 0;
-			UCHAR TimIELocationInBeacon = 0;
+			u8 CapabilityInfoLocationInBeacon = 0;
+			u8 TimIELocationInBeacon = 0;
 
 			NdisZeroMemory(pBeaconSync->BeaconBuf[apidx],
 				       HW_BEACON_OFFSET);
@@ -929,12 +929,12 @@ VOID RTUSBBssBeaconStart(IN RTMP_ADAPTER * pAd)
 	}
 }
 
-VOID RTUSBBssBeaconInit(IN RTMP_ADAPTER * pAd)
+void RTUSBBssBeaconInit(IN RTMP_ADAPTER * pAd)
 {
 	BEACON_SYNC_STRUCT *pBeaconSync;
 	int i;
 
-	os_alloc_mem(pAd, (PUCHAR *) (&pAd->CommonCfg.pBeaconSync),
+	os_alloc_mem(pAd, (u8 **) (&pAd->CommonCfg.pBeaconSync),
 		     sizeof(BEACON_SYNC_STRUCT));
 	/*NdisAllocMemory(pAd->CommonCfg.pBeaconSync, sizeof(BEACON_SYNC_STRUCT), MEM_ALLOC_FLAG); */
 	if (pAd->CommonCfg.pBeaconSync) {
@@ -954,7 +954,7 @@ VOID RTUSBBssBeaconInit(IN RTMP_ADAPTER * pAd)
 	}
 }
 
-VOID RTUSBBssBeaconExit(IN RTMP_ADAPTER * pAd)
+void RTUSBBssBeaconExit(IN RTMP_ADAPTER * pAd)
 {
 	BEACON_SYNC_STRUCT *pBeaconSync;
 	BOOLEAN Cancelled = TRUE;
@@ -997,13 +997,13 @@ VOID RTUSBBssBeaconExit(IN RTMP_ADAPTER * pAd)
 
     ========================================================================
 */
-VOID BeaconUpdateExec(IN PVOID SystemSpecific1,
-		      IN PVOID FunctionContext,
-		      IN PVOID SystemSpecific2, IN PVOID SystemSpecific3)
+void BeaconUpdateExec(void *SystemSpecific1,
+		      void *FunctionContext,
+		      void *SystemSpecific2, void *SystemSpecific3)
 {
 	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) FunctionContext;
 	LARGE_INTEGER tsfTime_a;	/*, tsfTime_b, deltaTime_exp, deltaTime_ab; */
-	UINT32 delta, delta2MS, period2US, remain, remain_low, remain_high;
+	u32 delta, delta2MS, period2US, remain, remain_low, remain_high;
 /*      BOOLEAN                 positive; */
 
 	if (pAd->CommonCfg.IsUpdateBeacon == TRUE) {
@@ -1038,7 +1038,7 @@ VOID BeaconUpdateExec(IN PVOID SystemSpecific1,
   *	2870 Radio on/off Related functions.
   *
   ********************************************************************/
-VOID RT28xxUsbMlmeRadioOn(IN PRTMP_ADAPTER pAd)
+void RT28xxUsbMlmeRadioOn(IN PRTMP_ADAPTER pAd)
 {
 	RTMP_CHIP_OP *pChipOps = &pAd->chipOps;
 
@@ -1068,10 +1068,10 @@ VOID RT28xxUsbMlmeRadioOn(IN PRTMP_ADAPTER pAd)
 	RTMPSetLED(pAd, LED_RADIO_ON);
 }
 
-VOID RT28xxUsbMlmeRadioOFF(IN PRTMP_ADAPTER pAd)
+void RT28xxUsbMlmeRadioOFF(IN PRTMP_ADAPTER pAd)
 {
 	WPDMA_GLO_CFG_STRUC GloCfg;
-	UINT32 Value, i;
+	u32 Value, i;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("RT28xxUsbMlmeRadioOFF()\n"));
 

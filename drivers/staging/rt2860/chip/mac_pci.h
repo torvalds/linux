@@ -71,24 +71,24 @@
 //
 typedef struct PACKED _TXD_STRUC {
 	// Word 0
-	UINT32 SDPtr0;
+	u32 SDPtr0;
 	// Word 1
-	UINT32 SDLen1:14;
-	UINT32 LastSec1:1;
-	UINT32 Burst:1;
-	UINT32 SDLen0:14;
-	UINT32 LastSec0:1;
-	UINT32 DMADONE:1;
+	u32 SDLen1:14;
+	u32 LastSec1:1;
+	u32 Burst:1;
+	u32 SDLen0:14;
+	u32 LastSec0:1;
+	u32 DMADONE:1;
 	//Word2
-	UINT32 SDPtr1;
+	u32 SDPtr1;
 	//Word3
-	UINT32 rsv2:24;
-	UINT32 WIV:1;		// Wireless Info Valid. 1 if Driver already fill WI,  o if DMA needs to copy WI to correctposition
-	UINT32 QSEL:2;		// select on-chip FIFO ID for 2nd-stage output scheduler.0:MGMT, 1:HCCA 2:EDCA
-	UINT32 rsv:2;
-	UINT32 TCO:1;		//
-	UINT32 UCO:1;		//
-	UINT32 ICO:1;		//
+	u32 rsv2:24;
+	u32 WIV:1;		/* Wireless Info Valid. 1 if Driver already fill WI,  o if DMA needs to copy WI to correctposition */
+	u32 QSEL:2;		/* select on-chip FIFO ID for 2nd-stage output scheduler.0:MGMT, 1:HCCA 2:EDCA */
+	u32 rsv:2;
+	u32 TCO:1;		/* */
+	u32 UCO:1;		/* */
+	u32 ICO:1;		/* */
 } TXD_STRUC, *PTXD_STRUC;
 
 //
@@ -96,47 +96,47 @@ typedef struct PACKED _TXD_STRUC {
 //
 typedef struct PACKED _RXD_STRUC {
 	// Word 0
-	UINT32 SDP0;
+	u32 SDP0;
 	// Word 1
-	UINT32 SDL1:14;
-	UINT32 Rsv:2;
-	UINT32 SDL0:14;
-	UINT32 LS0:1;
-	UINT32 DDONE:1;
+	u32 SDL1:14;
+	u32 Rsv:2;
+	u32 SDL0:14;
+	u32 LS0:1;
+	u32 DDONE:1;
 	// Word 2
-	UINT32 SDP1;
+	u32 SDP1;
 	// Word 3
-	UINT32 BA:1;
-	UINT32 DATA:1;
-	UINT32 NULLDATA:1;
-	UINT32 FRAG:1;
-	UINT32 U2M:1;		// 1: this RX frame is unicast to me
-	UINT32 Mcast:1;		// 1: this is a multicast frame
-	UINT32 Bcast:1;		// 1: this is a broadcast frame
-	UINT32 MyBss:1;		// 1: this frame belongs to the same BSSID
-	UINT32 Crc:1;		// 1: CRC error
-	UINT32 CipherErr:2;	// 0: decryption okay, 1:ICV error, 2:MIC error, 3:KEY not valid
-	UINT32 AMSDU:1;		// rx with 802.3 header, not 802.11 header.
-	UINT32 HTC:1;
-	UINT32 RSSI:1;
-	UINT32 L2PAD:1;
-	UINT32 AMPDU:1;
-	UINT32 Decrypted:1;	// this frame is being decrypted.
-	UINT32 PlcpSignal:1;	// To be moved
-	UINT32 PlcpRssil:1;	// To be moved
-	UINT32 Rsv1:13;
+	u32 BA:1;
+	u32 DATA:1;
+	u32 NULLDATA:1;
+	u32 FRAG:1;
+	u32 U2M:1;		/* 1: this RX frame is unicast to me */
+	u32 Mcast:1;		/* 1: this is a multicast frame */
+	u32 Bcast:1;		/* 1: this is a broadcast frame */
+	u32 MyBss:1;		/* 1: this frame belongs to the same BSSID */
+	u32 Crc:1;		/* 1: CRC error */
+	u32 CipherErr:2;	/* 0: decryption okay, 1:ICV error, 2:MIC error, 3:KEY not valid */
+	u32 AMSDU:1;		/* rx with 802.3 header, not 802.11 header. */
+	u32 HTC:1;
+	u32 RSSI:1;
+	u32 L2PAD:1;
+	u32 AMPDU:1;
+	u32 Decrypted:1;	/* this frame is being decrypted. */
+	u32 PlcpSignal:1;	/* To be moved */
+	u32 PlcpRssil:1;	/* To be moved */
+	u32 Rsv1:13;
 } RXD_STRUC, *PRXD_STRUC, RT28XX_RXD_STRUC, *PRT28XX_RXD_STRUC;
 
 typedef union _TX_ATTENUATION_CTRL_STRUC {
 	struct {
-		ULONG RF_ISOLATION_ENABLE:1;
-		ULONG Reserve2:7;
-		ULONG PCIE_PHY_TX_ATTEN_VALUE:3;
-		ULONG PCIE_PHY_TX_ATTEN_EN:1;
-		ULONG Reserve1:20;
+		unsigned long RF_ISOLATION_ENABLE:1;
+		unsigned long Reserve2:7;
+		unsigned long PCIE_PHY_TX_ATTEN_VALUE:3;
+		unsigned long PCIE_PHY_TX_ATTEN_EN:1;
+		unsigned long Reserve1:20;
 	} field;
 
-	ULONG word;
+	unsigned long word;
 } TX_ATTENUATION_CTRL_STRUC, *PTX_ATTENUATION_CTRL_STRUC;
 
 /* ----------------- EEPROM Related MACRO ----------------- */
@@ -148,7 +148,7 @@ typedef union _TX_ATTENUATION_CTRL_STRUC {
 /* ----------------- Frimware Related MACRO ----------------- */
 #define RTMP_WRITE_FIRMWARE(_pAd, _pFwImage, _FwLen)			\
 	do{								\
-		ULONG	_i, _firm;					\
+		unsigned long	_i, _firm;					\
 		RTMP_IO_WRITE32(_pAd, PBF_SYS_CTRL, 0x10000);		\
 									\
 		for(_i=0; _i<_FwLen; _i+=4)				\
@@ -172,7 +172,7 @@ typedef union _TX_ATTENUATION_CTRL_STRUC {
 #define RTMP_STOP_DEQUEUE(pAd, QueIdx, irqFlags)		do{}while(0)
 
 #define RTMP_HAS_ENOUGH_FREE_DESC(pAd, pTxBlk, freeNum, pPacket) \
-		((freeNum) >= (ULONG)(pTxBlk->TotalFragNum + RTMP_GET_PACKET_FRAGMENTS(pPacket) + 3))	/* rough estimate we will use 3 more descriptor. */
+		((freeNum) >= (unsigned long)(pTxBlk->TotalFragNum + RTMP_GET_PACKET_FRAGMENTS(pPacket) + 3))	/* rough estimate we will use 3 more descriptor. */
 #define RTMP_RELEASE_DESC_RESOURCE(pAd, QueIdx)	\
 		do{}while(0)
 
@@ -238,7 +238,7 @@ typedef union _TX_ATTENUATION_CTRL_STRUC {
 
 // remove Pair-wise key material from ASIC
 #define RTMP_STA_ENTRY_KEY_DEL(pAd, BssIdx, Wcid)	\
-	AsicRemovePairwiseKeyEntry(pAd, BssIdx, (UCHAR)Wcid);
+	AsicRemovePairwiseKeyEntry(pAd, BssIdx, (u8)Wcid);
 
 // add Client security information into ASIC WCID table and IVEIV table
 #define RTMP_STA_SECURITY_INFO_ADD(pAd, apidx, KeyID, pEntry)		\
@@ -260,7 +260,7 @@ typedef union _TX_ATTENUATION_CTRL_STRUC {
 // Insert the BA bitmap to ASIC for the Wcid entry
 #define RTMP_ADD_BA_SESSION_TO_ASIC(_pAd, _Aid, _TID)	\
 		do{					\
-			UINT32	_Value = 0, _Offset;					\
+			u32 _Value = 0, _Offset;					\
 			_Offset = MAC_WCID_BASE + (_Aid) * HW_WCID_ENTRY_SIZE + 4;	\
 			RTMP_IO_READ32((_pAd), _Offset, &_Value);\
 			_Value |= (0x10000<<(_TID));	\
@@ -271,7 +271,7 @@ typedef union _TX_ATTENUATION_CTRL_STRUC {
 //              bitmap field starts at 0x10000 in ASIC WCID table
 #define RTMP_DEL_BA_SESSION_FROM_ASIC(_pAd, _Wcid, _TID)				\
 		do{								\
-			UINT32	_Value = 0, _Offset;				\
+			u32 _Value = 0, _Offset;				\
 			_Offset = MAC_WCID_BASE + (_Wcid) * HW_WCID_ENTRY_SIZE + 4;	\
 			RTMP_IO_READ32((_pAd), _Offset, &_Value);			\
 			_Value &= (~(0x10000 << (_TID)));				\
