@@ -505,23 +505,6 @@ static int mimio_probe(struct usb_interface *ifc,
 	input_set_abs_params(input_dev, ABS_Y, 0, MIMIO_YRANGE_MAX, 0, 0);
 	input_dev->absbit[BIT_WORD(ABS_MISC)] |= BIT_MASK(ABS_MISC);
 
-#if 0
-	input_dev->absmin[ABS_X] = 0;
-	input_dev->absmin[ABS_Y] = 0;
-	input_dev->absmax[ABS_X] = 9600;
-	input_dev->absmax[ABS_Y] = 4800;
-	input_dev->absfuzz[ABS_X] = 0;
-	input_dev->absfuzz[ABS_Y] = 0;
-	input_dev->absflat[ABS_X] = 0;
-	input_dev->absflat[ABS_Y] = 0;
-#endif
-
-#if 0
-	/* this will just reduce the precision */
-	input_dev->absfuzz[ABS_X] = 8; /* experimental; may need to change */
-	input_dev->absfuzz[ABS_Y] = 8; /* experimental; may need to change */
-#endif
-
 	/*
 	 * Register the input device.
 	 */
@@ -720,13 +703,6 @@ static void mimio_rx_handler(struct mimio *mimio,
 			if (instr_ofst[mimio->pktbuf.instr] >= 0) {
 				int code = BTN_TOOL_PEN +
 					   instr_ofst[mimio->last_pen_down];
-#if 0
-				/* Utter hack to ensure we get forwarded _AND_
-				 * so we can identify when a complete signal is
-				 * received */
-				mimio->idev->abs[ABS_Y] = -1;
-				mimio->idev->abs[ABS_X] = -1;
-#endif
 				/* input_regs(mimio->idev, regs); */
 				input_report_abs(mimio->idev, ABS_X, x);
 				input_report_abs(mimio->idev, ABS_Y, y);
