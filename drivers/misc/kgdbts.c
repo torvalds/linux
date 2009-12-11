@@ -712,6 +712,12 @@ static int run_simple_test(int is_get_char, int chr)
 
 	/* End of packet == #XX so look for the '#' */
 	if (put_buf_cnt > 3 && put_buf[put_buf_cnt - 3] == '#') {
+		if (put_buf_cnt >= BUFMAX) {
+			eprintk("kgdbts: ERROR: put buffer overflow on"
+				" '%s' line %i\n", ts.name, ts.idx);
+			put_buf_cnt = 0;
+			return 0;
+		}
 		put_buf[put_buf_cnt] = '\0';
 		v2printk("put%i: %s\n", ts.idx, put_buf);
 		/* Trigger check here */
