@@ -73,7 +73,7 @@
 #define IS_RT2070(_pAd)		(((_pAd)->RfIcType == RFIC_2020) || ((_pAd)->EFuseTag == 0x27))
 
 #define IS_RT30xx(_pAd)		(((_pAd)->MACVersion & 0xfff00000) == 0x30700000||IS_RT3090A(_pAd))
-//#define IS_RT305X(_pAd)		((_pAd)->MACVersion == 0x28720200)
+//#define IS_RT305X(_pAd)               ((_pAd)->MACVersion == 0x28720200)
 
 /* RT3572, 3592, 3562, 3062 share the same MAC version */
 #define IS_RT3572(_pAd)		(((_pAd)->MACVersion & 0xffff0000) == 0x35720000)
@@ -103,14 +103,11 @@
 
 #define RETRY_LIMIT		10
 
-
-
 // ------------------------------------------------------
-// BBP & RF	definition
+// BBP & RF     definition
 // ------------------------------------------------------
 #define	BUSY		                1
 #define	IDLE		                0
-
 
 //-------------------------------------------------------------------------
 // EEPROM definition
@@ -126,11 +123,11 @@
 #define EEPROM_EWDS_OPCODE          0x10
 #define EEPROM_EWEN_OPCODE          0x13
 
-#define NUM_EEPROM_BBP_PARMS		19			// Include NIC Config 0, 1, CR, TX ALC step, BBPs
+#define NUM_EEPROM_BBP_PARMS		19	// Include NIC Config 0, 1, CR, TX ALC step, BBPs
 #define NUM_EEPROM_TX_G_PARMS		7
-#define EEPROM_NIC1_OFFSET          0x34		// The address is from NIC config 0, not BBP register ID
-#define EEPROM_NIC2_OFFSET          0x36		// The address is from NIC config 0, not BBP register ID
-#define EEPROM_BBP_BASE_OFFSET		0xf0		// The address is from NIC config 0, not BBP register ID
+#define EEPROM_NIC1_OFFSET          0x34	// The address is from NIC config 0, not BBP register ID
+#define EEPROM_NIC2_OFFSET          0x36	// The address is from NIC config 0, not BBP register ID
+#define EEPROM_BBP_BASE_OFFSET		0xf0	// The address is from NIC config 0, not BBP register ID
 #define EEPROM_G_TX_PWR_OFFSET		0x52
 #define EEPROM_G_TX2_PWR_OFFSET		0x60
 #define EEPROM_LED1_OFFSET			0x3c
@@ -150,23 +147,21 @@
 #define EEPROM_A_TX2_PWR_OFFSET      0xa6
 //#define EEPROM_Japan_TX_PWR_OFFSET      0x90 // 802.11j
 //#define EEPROM_Japan_TX2_PWR_OFFSET      0xbe
-//#define EEPROM_TSSI_REF_OFFSET	0x54
-//#define EEPROM_TSSI_DELTA_OFFSET	0x24
+//#define EEPROM_TSSI_REF_OFFSET        0x54
+//#define EEPROM_TSSI_DELTA_OFFSET      0x24
 //#define EEPROM_CCK_TX_PWR_OFFSET  0x62
-//#define EEPROM_CALIBRATE_OFFSET	0x7c
+//#define EEPROM_CALIBRATE_OFFSET       0x7c
 #define EEPROM_VERSION_OFFSET       0x02
 #define EEPROM_FREQ_OFFSET			0x3a
 #define EEPROM_TXPOWER_BYRATE	0xde	// 20MHZ power.
 #define EEPROM_TXPOWER_DELTA		0x50	// 20MHZ AND 40 MHZ use different power. This is delta in 40MHZ.
 #define VALID_EEPROM_VERSION        1
 
-
 /*
   *   EEPROM operation related marcos
   */
 #define RT28xx_EEPROM_READ16(_pAd, _offset, _value)			\
 	(_pAd)->chipOps.eeread((RTMP_ADAPTER *)(_pAd), (USHORT)(_offset), (PUSHORT)&(_value))
-
 
 // -------------------------------------------------------------------
 //  E2PROM data layout
@@ -175,90 +170,89 @@
 //
 // MCU_LEDCS: MCU LED Control Setting.
 //
-typedef union  _MCU_LEDCS_STRUC {
-	struct	{
-		UCHAR		LedMode:7;
-		UCHAR		Polarity:1;
+typedef union _MCU_LEDCS_STRUC {
+	struct {
+		UCHAR LedMode:7;
+		UCHAR Polarity:1;
 	} field;
-	UCHAR				word;
+	UCHAR word;
 } MCU_LEDCS_STRUC, *PMCU_LEDCS_STRUC;
-
 
 //
 // EEPROM antenna select format
 //
-typedef	union	_EEPROM_ANTENNA_STRUC	{
-	struct	{
-		USHORT		RxPath:4;	// 1: 1R, 2: 2R, 3: 3R
-		USHORT		TxPath:4;	// 1: 1T, 2: 2T
-		USHORT      RfIcType:4;             // see E2PROM document
-		USHORT      Rsv:4;
-	}	field;
-	USHORT			word;
-}	EEPROM_ANTENNA_STRUC, *PEEPROM_ANTENNA_STRUC;
-
-typedef	union _EEPROM_NIC_CINFIG2_STRUC	{
+typedef union _EEPROM_ANTENNA_STRUC {
 	struct {
-		USHORT		HardwareRadioControl:1;	// 1:enable, 0:disable
-		USHORT		DynamicTxAgcControl:1;			//
-		USHORT		ExternalLNAForG:1;				//
-		USHORT		ExternalLNAForA:1;			// external LNA enable for 2.4G
-		USHORT		CardbusAcceleration:1;	// !!! NOTE: 0 - enable, 1 - disable
-		USHORT		BW40MSidebandForG:1;
-		USHORT		BW40MSidebandForA:1;
-		USHORT		EnableWPSPBC:1;                 // WPS PBC Control bit
-		USHORT		BW40MAvailForG:1;			// 0:enable, 1:disable
-		USHORT		BW40MAvailForA:1;			// 0:enable, 1:disable
-		USHORT		Rsv1:1;					// must be 0
-		USHORT		AntDiversity:1;			// Antenna diversity
-		USHORT		Rsv2:3;					// must be 0
-		USHORT		DACTestBit:1;			// control if driver should patch the DAC issue
-	}	field;
-	USHORT			word;
-}	EEPROM_NIC_CONFIG2_STRUC, *PEEPROM_NIC_CONFIG2_STRUC;
+		USHORT RxPath:4;	// 1: 1R, 2: 2R, 3: 3R
+		USHORT TxPath:4;	// 1: 1T, 2: 2T
+		USHORT RfIcType:4;	// see E2PROM document
+		USHORT Rsv:4;
+	} field;
+	USHORT word;
+} EEPROM_ANTENNA_STRUC, *PEEPROM_ANTENNA_STRUC;
+
+typedef union _EEPROM_NIC_CINFIG2_STRUC {
+	struct {
+		USHORT HardwareRadioControl:1;	// 1:enable, 0:disable
+		USHORT DynamicTxAgcControl:1;	//
+		USHORT ExternalLNAForG:1;	//
+		USHORT ExternalLNAForA:1;	// external LNA enable for 2.4G
+		USHORT CardbusAcceleration:1;	// !!! NOTE: 0 - enable, 1 - disable
+		USHORT BW40MSidebandForG:1;
+		USHORT BW40MSidebandForA:1;
+		USHORT EnableWPSPBC:1;	// WPS PBC Control bit
+		USHORT BW40MAvailForG:1;	// 0:enable, 1:disable
+		USHORT BW40MAvailForA:1;	// 0:enable, 1:disable
+		USHORT Rsv1:1;	// must be 0
+		USHORT AntDiversity:1;	// Antenna diversity
+		USHORT Rsv2:3;	// must be 0
+		USHORT DACTestBit:1;	// control if driver should patch the DAC issue
+	} field;
+	USHORT word;
+} EEPROM_NIC_CONFIG2_STRUC, *PEEPROM_NIC_CONFIG2_STRUC;
 
 //
 // TX_PWR Value valid range 0xFA(-6) ~ 0x24(36)
 //
-typedef	union	_EEPROM_TX_PWR_STRUC	{
-	struct	{
-		CHAR	Byte0;				// Low Byte
-		CHAR	Byte1;				// High Byte
-	}	field;
-	USHORT	word;
-}	EEPROM_TX_PWR_STRUC, *PEEPROM_TX_PWR_STRUC;
+typedef union _EEPROM_TX_PWR_STRUC {
+	struct {
+		CHAR Byte0;	// Low Byte
+		CHAR Byte1;	// High Byte
+	} field;
+	USHORT word;
+} EEPROM_TX_PWR_STRUC, *PEEPROM_TX_PWR_STRUC;
 
-typedef	union	_EEPROM_VERSION_STRUC	{
-	struct	{
-		UCHAR	FaeReleaseNumber;	// Low Byte
-		UCHAR	Version;			// High Byte
-	}	field;
-	USHORT	word;
-}	EEPROM_VERSION_STRUC, *PEEPROM_VERSION_STRUC;
+typedef union _EEPROM_VERSION_STRUC {
+	struct {
+		UCHAR FaeReleaseNumber;	// Low Byte
+		UCHAR Version;	// High Byte
+	} field;
+	USHORT word;
+} EEPROM_VERSION_STRUC, *PEEPROM_VERSION_STRUC;
 
-typedef	union	_EEPROM_LED_STRUC	{
-	struct	{
-		USHORT	PolarityRDY_G:1;		// Polarity RDY_G setting.
-		USHORT	PolarityRDY_A:1;		// Polarity RDY_A setting.
-		USHORT	PolarityACT:1;		// Polarity ACT setting.
-		USHORT	PolarityGPIO_0:1;	// Polarity GPIO#0 setting.
-		USHORT	PolarityGPIO_1:1;	// Polarity GPIO#1 setting.
-		USHORT	PolarityGPIO_2:1;	// Polarity GPIO#2 setting.
-		USHORT	PolarityGPIO_3:1;	// Polarity GPIO#3 setting.
-		USHORT	PolarityGPIO_4:1;	// Polarity GPIO#4 setting.
-		USHORT	LedMode:5;			// Led mode.
-		USHORT	Rsvd:3;				// Reserved
-	}	field;
-	USHORT	word;
-}	EEPROM_LED_STRUC, *PEEPROM_LED_STRUC;
+typedef union _EEPROM_LED_STRUC {
+	struct {
+		USHORT PolarityRDY_G:1;	// Polarity RDY_G setting.
+		USHORT PolarityRDY_A:1;	// Polarity RDY_A setting.
+		USHORT PolarityACT:1;	// Polarity ACT setting.
+		USHORT PolarityGPIO_0:1;	// Polarity GPIO#0 setting.
+		USHORT PolarityGPIO_1:1;	// Polarity GPIO#1 setting.
+		USHORT PolarityGPIO_2:1;	// Polarity GPIO#2 setting.
+		USHORT PolarityGPIO_3:1;	// Polarity GPIO#3 setting.
+		USHORT PolarityGPIO_4:1;	// Polarity GPIO#4 setting.
+		USHORT LedMode:5;	// Led mode.
+		USHORT Rsvd:3;	// Reserved
+	} field;
+	USHORT word;
+} EEPROM_LED_STRUC, *PEEPROM_LED_STRUC;
 
-typedef	union	_EEPROM_TXPOWER_DELTA_STRUC	{
-	struct	{
-		UCHAR	DeltaValue:6;	// Tx Power dalta value (MAX=4)
-		UCHAR	Type:1;			// 1: plus the delta value, 0: minus the delta value
-		UCHAR	TxPowerEnable:1;// Enable
-	}	field;
-	UCHAR	value;
-}	EEPROM_TXPOWER_DELTA_STRUC, *PEEPROM_TXPOWER_DELTA_STRUC;
+typedef union _EEPROM_TXPOWER_DELTA_STRUC {
+	struct {
+		UCHAR DeltaValue:6;	// Tx Power dalta value (MAX=4)
+		UCHAR Type:1;	// 1: plus the delta value, 0: minus the delta value
+		UCHAR TxPowerEnable:1;	// Enable
+	} field;
+	UCHAR value;
+} EEPROM_TXPOWER_DELTA_STRUC, *PEEPROM_TXPOWER_DELTA_STRUC;
 
-#endif	// __RTMP_CHIP_H__ //
+#endif // __RTMP_CHIP_H__ //

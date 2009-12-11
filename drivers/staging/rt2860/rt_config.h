@@ -68,5 +68,4 @@
 #include "igmp_snoop.h"
 #endif // IGMP_SNOOP_SUPPORT //
 
-#endif	// __RT_CONFIG_H__
-
+#endif // __RT_CONFIG_H__

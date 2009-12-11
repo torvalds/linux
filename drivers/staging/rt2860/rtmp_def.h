@@ -55,9 +55,9 @@
 #define NIC_DBG_STRING      ("**RT28xx**")
 
 #ifdef RTMP_MAC_USB
-#define TX_RING_SIZE            8 // 1
+#define TX_RING_SIZE            8	// 1
 #define PRIO_RING_SIZE          8
-#define MGMT_RING_SIZE		32 // PRIO_RING_SIZE
+#define MGMT_RING_SIZE		32	// PRIO_RING_SIZE
 #define RX_RING_SIZE            8
 #define MAX_TX_PROCESS          4
 #define LOCAL_TXBUF_SIZE        2048
@@ -76,29 +76,29 @@
 //
 
 #ifdef RTMP_MAC_PCI
-#define TX_RING_SIZE            64 //64
+#define TX_RING_SIZE            64	//64
 #define MGMT_RING_SIZE          128
-#define RX_RING_SIZE            128 //64
-#define MAX_TX_PROCESS          TX_RING_SIZE //8
+#define RX_RING_SIZE            128	//64
+#define MAX_TX_PROCESS          TX_RING_SIZE	//8
 #define MAX_DMA_DONE_PROCESS    TX_RING_SIZE
-#define MAX_TX_DONE_PROCESS     TX_RING_SIZE //8
+#define MAX_TX_DONE_PROCESS     TX_RING_SIZE	//8
 #define LOCAL_TXBUF_SIZE        2
 #endif // RTMP_MAC_PCI //
 
-#define MAX_RX_PROCESS          128 //64 //32
+#define MAX_RX_PROCESS          128	//64 //32
 #define NUM_OF_LOCAL_TXBUF      2
 #define TXD_SIZE                16
 #define TXWI_SIZE               16
 #define RXD_SIZE               	16
 #define RXWI_SIZE             	16
 // TXINFO_SIZE + TXWI_SIZE + 802.11 Header Size + AMSDU sub frame header
-#define TX_DMA_1ST_BUFFER_SIZE  96    // only the 1st physical buffer is pre-allocated
-#define MGMT_DMA_BUFFER_SIZE    1536 //2048
-#define RX_BUFFER_AGGRESIZE     3840 //3904 //3968 //4096 //2048 //4096
-#define RX_BUFFER_NORMSIZE      3840 //3904 //3968 //4096 //2048 //4096
+#define TX_DMA_1ST_BUFFER_SIZE  96	// only the 1st physical buffer is pre-allocated
+#define MGMT_DMA_BUFFER_SIZE    1536	//2048
+#define RX_BUFFER_AGGRESIZE     3840	//3904 //3968 //4096 //2048 //4096
+#define RX_BUFFER_NORMSIZE      3840	//3904 //3968 //4096 //2048 //4096
 #define TX_BUFFER_NORMSIZE		RX_BUFFER_NORMSIZE
-#define MAX_FRAME_SIZE          2346                    // Maximum 802.11 frame size
-#define MAX_AGGREGATION_SIZE    3840 //3904 //3968 //4096
+#define MAX_FRAME_SIZE          2346	// Maximum 802.11 frame size
+#define MAX_AGGREGATION_SIZE    3840	//3904 //3968 //4096
 #define MAX_NUM_OF_TUPLE_CACHE  2
 #define MAX_MCAST_LIST_SIZE     32
 #define MAX_LEN_OF_VENDOR_DESC  64
@@ -106,7 +106,6 @@
 #define MAX_SIZE_OF_MCAST_PSQ               32
 
 #define MAX_RX_PROCESS_CNT	(RX_RING_SIZE)
-
 
 /*
 	WMM Note: If memory of your system is not much, please reduce the definition;
@@ -127,12 +126,11 @@
 	clConfig.clNum = RX_RING_SIZE * 4;
 */
 // TODO: For VxWorks the size is 256. Shall we cahnge the value as 256 for all OS?????
-#define MAX_PACKETS_IN_QUEUE				(512) //(512)    // to pass WMM A5-WPAPSK
+#define MAX_PACKETS_IN_QUEUE				(512)	//(512)    // to pass WMM A5-WPAPSK
 
 #define MAX_PACKETS_IN_MCAST_PS_QUEUE		32
 #define MAX_PACKETS_IN_PS_QUEUE				128	//32
-#define WMM_NUM_OF_AC                       4  /* AC0, AC1, AC2, and AC3 */
-
+#define WMM_NUM_OF_AC                       4	/* AC0, AC1, AC2, and AC3 */
 
 #ifdef RTMP_EFUSE_SUPPORT
 //2008/09/11:KH add to support efuse<--
@@ -189,8 +187,8 @@
 #define fOP_STATUS_MEDIA_STATE_CONNECTED    0x00000080
 #define fOP_STATUS_WMM_INUSED               0x00000100
 #define fOP_STATUS_AGGREGATION_INUSED       0x00000200
-#define fOP_STATUS_DOZE                     0x00000400  // debug purpose
-#define fOP_STATUS_PIGGYBACK_INUSED         0x00000800  // piggy-back, and aggregation
+#define fOP_STATUS_DOZE                     0x00000400	// debug purpose
+#define fOP_STATUS_PIGGYBACK_INUSED         0x00000800	// piggy-back, and aggregation
 #define fOP_STATUS_APSD_INUSED				0x00001000
 #define fOP_STATUS_TX_AMSDU_INUSED			0x00002000
 #define fOP_STATUS_MAX_RETRY_ENABLED		0x00004000
@@ -229,9 +227,9 @@
 //
 //  AP's client table operation status flags
 //
-#define fCLIENT_STATUS_WMM_CAPABLE          0x00000001  // CLIENT can parse QOS DATA frame
-#define fCLIENT_STATUS_AGGREGATION_CAPABLE  0x00000002  // CLIENT can receive Ralink's proprietary TX aggregation frame
-#define fCLIENT_STATUS_PIGGYBACK_CAPABLE    0x00000004  // CLIENT support piggy-back
+#define fCLIENT_STATUS_WMM_CAPABLE          0x00000001	// CLIENT can parse QOS DATA frame
+#define fCLIENT_STATUS_AGGREGATION_CAPABLE  0x00000002	// CLIENT can receive Ralink's proprietary TX aggregation frame
+#define fCLIENT_STATUS_PIGGYBACK_CAPABLE    0x00000004	// CLIENT support piggy-back
 #define fCLIENT_STATUS_AMSDU_INUSED			0x00000008
 #define fCLIENT_STATUS_SGI20_CAPABLE		0x00000010
 #define fCLIENT_STATUS_SGI40_CAPABLE		0x00000020
@@ -240,7 +238,7 @@
 #define fCLIENT_STATUS_HTC_CAPABLE			0x00000100
 #define fCLIENT_STATUS_RDG_CAPABLE			0x00000200
 #define fCLIENT_STATUS_MCSFEEDBACK_CAPABLE  0x00000400
-#define fCLIENT_STATUS_APSD_CAPABLE         0x00000800  /* UAPSD STATION */
+#define fCLIENT_STATUS_APSD_CAPABLE         0x00000800	/* UAPSD STATION */
 
 #define fCLIENT_STATUS_RALINK_CHIPSET		0x00100000
 //
@@ -303,17 +301,15 @@
 #define ERRLOG_NO_INTERRUPT_RESOURCE    0x00000604L
 #define ERRLOG_NO_MEMORY_RESOURCE       0x00000605L
 
-
 // WDS definition
 #define	MAX_WDS_ENTRY               4
-#define WDS_PAIRWISE_KEY_OFFSET     60    // WDS links uses pairwise key#60 ~ 63 in ASIC pairwise key table
+#define WDS_PAIRWISE_KEY_OFFSET     60	// WDS links uses pairwise key#60 ~ 63 in ASIC pairwise key table
 
 #define	WDS_DISABLE_MODE            0
 #define	WDS_RESTRICT_MODE           1
 #define	WDS_BRIDGE_MODE             2
 #define	WDS_REPEATER_MODE           3
 #define	WDS_LAZY_MODE               4
-
 
 #define MAX_MESH_NUM				0
 
@@ -336,12 +332,11 @@
 #define MAIN_MBSSID                 0
 #define FIRST_MBSSID                1
 
-
 #define MAX_BEACON_SIZE				512
 // If the MAX_MBSSID_NUM is larger than 6,
 // it shall reserve some WCID space(wcid 222~253) for beacon frames.
-// -	these wcid 238~253 are reserved for beacon#6(ra6).
-// -	these wcid 222~237 are reserved for beacon#7(ra7).
+// -    these wcid 238~253 are reserved for beacon#6(ra6).
+// -    these wcid 222~237 are reserved for beacon#7(ra7).
 #if defined(MAX_MBSSID_NUM) && (MAX_MBSSID_NUM == 8)
 #define HW_RESERVED_WCID	222
 #elif defined(MAX_MBSSID_NUM) && (MAX_MBSSID_NUM == 7)
@@ -368,7 +363,6 @@
 
 #define IsGroupKeyWCID(__wcid) (((__wcid) < LAST_SPECIFIC_WCID) && ((__wcid) >= (LAST_SPECIFIC_WCID - (MAX_MBSSID_NUM))))
 
-
 // definition to support multiple BSSID
 #define BSS0                            0
 #define BSS1                            1
@@ -379,20 +373,19 @@
 #define BSS6                            6
 #define BSS7                            7
 
-
 //============================================================
 // Length definitions
 #define PEER_KEY_NO                     2
 #define MAC_ADDR_LEN                    6
 #define TIMESTAMP_LEN                   8
-#define MAX_LEN_OF_SUPPORTED_RATES      MAX_LENGTH_OF_SUPPORT_RATES // 1, 2, 5.5, 11, 6, 9, 12, 18, 24, 36, 48, 54
-#define MAX_LEN_OF_KEY                  32      // 32 octets == 256 bits, Redefine for WPA
-#define MAX_NUM_OF_CHANNELS             MAX_NUM_OF_CHS      // 14 channels @2.4G +  12@UNII + 4 @MMAC + 11 @HiperLAN2 + 7 @Japan + 1 as NULL termination
-#define MAX_NUM_OF_11JCHANNELS             20      // 14 channels @2.4G +  12@UNII + 4 @MMAC + 11 @HiperLAN2 + 7 @Japan + 1 as NULL termination
+#define MAX_LEN_OF_SUPPORTED_RATES      MAX_LENGTH_OF_SUPPORT_RATES	// 1, 2, 5.5, 11, 6, 9, 12, 18, 24, 36, 48, 54
+#define MAX_LEN_OF_KEY                  32	// 32 octets == 256 bits, Redefine for WPA
+#define MAX_NUM_OF_CHANNELS             MAX_NUM_OF_CHS	// 14 channels @2.4G +  12@UNII + 4 @MMAC + 11 @HiperLAN2 + 7 @Japan + 1 as NULL termination
+#define MAX_NUM_OF_11JCHANNELS             20	// 14 channels @2.4G +  12@UNII + 4 @MMAC + 11 @HiperLAN2 + 7 @Japan + 1 as NULL termination
 #define MAX_LEN_OF_SSID                 32
 #define CIPHER_TEXT_LEN                 128
 #define HASH_TABLE_SIZE                 256
-#define MAX_VIE_LEN                     1024   // New for WPA cipher suite variable IE sizes.
+#define MAX_VIE_LEN                     1024	// New for WPA cipher suite variable IE sizes.
 #define MAX_SUPPORT_MCS             32
 #define MAX_NUM_OF_BBP_LATCH             140
 
@@ -413,7 +406,7 @@
 
 #define MAX_NUM_OF_ACL_LIST				MAX_NUMBER_OF_ACL
 
-#define MAX_LEN_OF_MAC_TABLE            MAX_NUMBER_OF_MAC // if MAX_MBSSID_NUM is 8, this value can't be larger than 211
+#define MAX_LEN_OF_MAC_TABLE            MAX_NUMBER_OF_MAC	// if MAX_MBSSID_NUM is 8, this value can't be larger than 211
 
 #if MAX_LEN_OF_MAC_TABLE>MAX_AVAILABLE_CLIENT_WCID
 #error MAX_LEN_OF_MAC_TABLE can not be larger than MAX_AVAILABLE_CLIENT_WCID!!!!
@@ -426,37 +419,36 @@
 
 #define NUM_OF_TID			8
 #define MAX_AID_BA                    4
-#define MAX_LEN_OF_BA_REC_TABLE          ((NUM_OF_TID * MAX_LEN_OF_MAC_TABLE)/2)//   (NUM_OF_TID*MAX_AID_BA + 32)	 //Block ACK recipient
-#define MAX_LEN_OF_BA_ORI_TABLE          ((NUM_OF_TID * MAX_LEN_OF_MAC_TABLE)/2)//   (NUM_OF_TID*MAX_AID_BA + 32)   // Block ACK originator
+#define MAX_LEN_OF_BA_REC_TABLE          ((NUM_OF_TID * MAX_LEN_OF_MAC_TABLE)/2)	//   (NUM_OF_TID*MAX_AID_BA + 32)        //Block ACK recipient
+#define MAX_LEN_OF_BA_ORI_TABLE          ((NUM_OF_TID * MAX_LEN_OF_MAC_TABLE)/2)	//   (NUM_OF_TID*MAX_AID_BA + 32)   // Block ACK originator
 #define MAX_LEN_OF_BSS_TABLE             64
 #define MAX_REORDERING_MPDU_NUM			 512
 
 // key related definitions
 #define SHARE_KEY_NUM                   4
-#define MAX_LEN_OF_SHARE_KEY            16    // byte count
-#define MAX_LEN_OF_PEER_KEY             16    // byte count
-#define PAIRWISE_KEY_NUM                64    // in MAC ASIC pairwise key table
+#define MAX_LEN_OF_SHARE_KEY            16	// byte count
+#define MAX_LEN_OF_PEER_KEY             16	// byte count
+#define PAIRWISE_KEY_NUM                64	// in MAC ASIC pairwise key table
 #define GROUP_KEY_NUM                   4
 #define PMK_LEN                         32
-#define WDS_PAIRWISE_KEY_OFFSET         60    // WDS links uses pairwise key#60 ~ 63 in ASIC pairwise key table
-#define	PMKID_NO                        4     // Number of PMKID saved supported
+#define WDS_PAIRWISE_KEY_OFFSET         60	// WDS links uses pairwise key#60 ~ 63 in ASIC pairwise key table
+#define	PMKID_NO                        4	// Number of PMKID saved supported
 #define MAX_LEN_OF_MLME_BUFFER          2048
 
 // power status related definitions
 #define PWR_ACTIVE                      0
 #define PWR_SAVE                        1
-#define PWR_MMPS                        2			//MIMO power save
+#define PWR_MMPS                        2	//MIMO power save
 
 // Auth and Assoc mode related definitions
 #define AUTH_MODE_OPEN                  0x00
 #define AUTH_MODE_KEY                   0x01
 
 // BSS Type definitions
-#define BSS_ADHOC                       0  // = Ndis802_11IBSS
-#define BSS_INFRA                       1  // = Ndis802_11Infrastructure
-#define BSS_ANY                         2  // = Ndis802_11AutoUnknown
-#define BSS_MONITOR			            3  // = Ndis802_11Monitor
-
+#define BSS_ADHOC                       0	// = Ndis802_11IBSS
+#define BSS_INFRA                       1	// = Ndis802_11Infrastructure
+#define BSS_ANY                         2	// = Ndis802_11AutoUnknown
+#define BSS_MONITOR			            3	// = Ndis802_11Monitor
 
 // Reason code definitions
 #define REASON_RESERVED                 0
@@ -533,65 +525,63 @@
 #define IE_CF_PARM                      4
 #define IE_TIM                          5
 #define IE_IBSS_PARM                    6
-#define IE_COUNTRY                      7     // 802.11d
-#define IE_802_11D_REQUEST              10    // 802.11d
-#define IE_QBSS_LOAD                    11    // 802.11e d9
-#define IE_EDCA_PARAMETER               12    // 802.11e d9
-#define IE_TSPEC                        13    // 802.11e d9
-#define IE_TCLAS                        14    // 802.11e d9
-#define IE_SCHEDULE                     15    // 802.11e d9
+#define IE_COUNTRY                      7	// 802.11d
+#define IE_802_11D_REQUEST              10	// 802.11d
+#define IE_QBSS_LOAD                    11	// 802.11e d9
+#define IE_EDCA_PARAMETER               12	// 802.11e d9
+#define IE_TSPEC                        13	// 802.11e d9
+#define IE_TCLAS                        14	// 802.11e d9
+#define IE_SCHEDULE                     15	// 802.11e d9
 #define IE_CHALLENGE_TEXT               16
-#define IE_POWER_CONSTRAINT             32    // 802.11h d3.3
-#define IE_POWER_CAPABILITY             33    // 802.11h d3.3
-#define IE_TPC_REQUEST                  34    // 802.11h d3.3
-#define IE_TPC_REPORT                   35    // 802.11h d3.3
-#define IE_SUPP_CHANNELS                36    // 802.11h d3.3
-#define IE_CHANNEL_SWITCH_ANNOUNCEMENT  37    // 802.11h d3.3
-#define IE_MEASUREMENT_REQUEST          38    // 802.11h d3.3
-#define IE_MEASUREMENT_REPORT           39    // 802.11h d3.3
-#define IE_QUIET                        40    // 802.11h d3.3
-#define IE_IBSS_DFS                     41    // 802.11h d3.3
-#define IE_ERP                          42    // 802.11g
-#define IE_TS_DELAY                     43    // 802.11e d9
-#define IE_TCLAS_PROCESSING             44    // 802.11e d9
-#define IE_QOS_CAPABILITY               46    // 802.11e d6
-#define IE_HT_CAP                       45    // 802.11n d1. HT CAPABILITY. ELEMENT ID TBD
-#define IE_AP_CHANNEL_REPORT			51    // 802.11k d6
-#define IE_HT_CAP2                         52    // 802.11n d1. HT CAPABILITY. ELEMENT ID TBD
-#define IE_RSN                          48    // 802.11i d3.0
-#define IE_WPA2                         48    // WPA2
-#define IE_EXT_SUPP_RATES               50    // 802.11g
-#define IE_SUPP_REG_CLASS               59    // 802.11y. Supported regulatory classes.
+#define IE_POWER_CONSTRAINT             32	// 802.11h d3.3
+#define IE_POWER_CAPABILITY             33	// 802.11h d3.3
+#define IE_TPC_REQUEST                  34	// 802.11h d3.3
+#define IE_TPC_REPORT                   35	// 802.11h d3.3
+#define IE_SUPP_CHANNELS                36	// 802.11h d3.3
+#define IE_CHANNEL_SWITCH_ANNOUNCEMENT  37	// 802.11h d3.3
+#define IE_MEASUREMENT_REQUEST          38	// 802.11h d3.3
+#define IE_MEASUREMENT_REPORT           39	// 802.11h d3.3
+#define IE_QUIET                        40	// 802.11h d3.3
+#define IE_IBSS_DFS                     41	// 802.11h d3.3
+#define IE_ERP                          42	// 802.11g
+#define IE_TS_DELAY                     43	// 802.11e d9
+#define IE_TCLAS_PROCESSING             44	// 802.11e d9
+#define IE_QOS_CAPABILITY               46	// 802.11e d6
+#define IE_HT_CAP                       45	// 802.11n d1. HT CAPABILITY. ELEMENT ID TBD
+#define IE_AP_CHANNEL_REPORT			51	// 802.11k d6
+#define IE_HT_CAP2                         52	// 802.11n d1. HT CAPABILITY. ELEMENT ID TBD
+#define IE_RSN                          48	// 802.11i d3.0
+#define IE_WPA2                         48	// WPA2
+#define IE_EXT_SUPP_RATES               50	// 802.11g
+#define IE_SUPP_REG_CLASS               59	// 802.11y. Supported regulatory classes.
 #define IE_EXT_CHANNEL_SWITCH_ANNOUNCEMENT	60	// 802.11n
-#define IE_ADD_HT                         61    // 802.11n d1. ADDITIONAL HT CAPABILITY. ELEMENT ID TBD
-#define IE_ADD_HT2                        53    // 802.11n d1. ADDITIONAL HT CAPABILITY. ELEMENT ID TBD
-
+#define IE_ADD_HT                         61	// 802.11n d1. ADDITIONAL HT CAPABILITY. ELEMENT ID TBD
+#define IE_ADD_HT2                        53	// 802.11n d1. ADDITIONAL HT CAPABILITY. ELEMENT ID TBD
 
 // For 802.11n D3.03
 //#define IE_NEW_EXT_CHA_OFFSET             62    // 802.11n d1. New extension channel offset elemet
-#define IE_SECONDARY_CH_OFFSET		62	// 802.11n D3.03	Secondary Channel Offset element
-#define IE_WAPI							68		// WAPI information element
-#define IE_2040_BSS_COEXIST               72    // 802.11n D3.0.3
-#define IE_2040_BSS_INTOLERANT_REPORT     73    // 802.11n D3.03
-#define IE_OVERLAPBSS_SCAN_PARM           74    // 802.11n D3.03
-#define IE_EXT_CAPABILITY                127   // 802.11n D3.03
+#define IE_SECONDARY_CH_OFFSET		62	// 802.11n D3.03        Secondary Channel Offset element
+#define IE_WAPI							68	// WAPI information element
+#define IE_2040_BSS_COEXIST               72	// 802.11n D3.0.3
+#define IE_2040_BSS_INTOLERANT_REPORT     73	// 802.11n D3.03
+#define IE_OVERLAPBSS_SCAN_PARM           74	// 802.11n D3.03
+#define IE_EXT_CAPABILITY                127	// 802.11n D3.03
 
+#define IE_WPA                          221	// WPA
+#define IE_VENDOR_SPECIFIC              221	// Wifi WMM (WME)
 
-#define IE_WPA                          221   // WPA
-#define IE_VENDOR_SPECIFIC              221   // Wifi WMM (WME)
-
-#define OUI_BROADCOM_HT              51   //
-#define OUI_BROADCOM_HTADD              52   //
-#define OUI_PREN_HT_CAP              51   //
-#define OUI_PREN_ADD_HT              52   //
+#define OUI_BROADCOM_HT              51	//
+#define OUI_BROADCOM_HTADD              52	//
+#define OUI_PREN_HT_CAP              51	//
+#define OUI_PREN_ADD_HT              52	//
 
 // CCX information
-#define IE_AIRONET_CKIP                 133   // CCX1.0 ID 85H for CKIP
-#define IE_AP_TX_POWER                  150   // CCX 2.0 for AP transmit power
-#define IE_MEASUREMENT_CAPABILITY       221   // CCX 2.0
+#define IE_AIRONET_CKIP                 133	// CCX1.0 ID 85H for CKIP
+#define IE_AP_TX_POWER                  150	// CCX 2.0 for AP transmit power
+#define IE_MEASUREMENT_CAPABILITY       221	// CCX 2.0
 #define IE_CCX_V2                       221
-#define IE_AIRONET_IPADDRESS            149   // CCX ID 95H for IP Address
-#define IE_AIRONET_CCKMREASSOC          156   // CCX ID 9CH for CCKM Reassociation Request element
+#define IE_AIRONET_IPADDRESS            149	// CCX ID 95H for IP Address
+#define IE_AIRONET_CCKMREASSOC          156	// CCX ID 9CH for CCKM Reassociation Request element
 #define CKIP_NEGOTIATION_LENGTH         30
 #define AIRONET_IPADDRESS_LENGTH        10
 #define AIRONET_CCKMREASSOC_LENGTH      24
@@ -619,10 +609,7 @@
 #define WSC_STATE_MACHINE            17
 #define WSC_UPNP_STATE_MACHINE		    18
 
-
 #define WPA_STATE_MACHINE			23
-
-
 
 //
 // STA's CONTROL/CONNECT state machine: states, events, total function #
@@ -700,9 +687,8 @@
 #define MT2_PEER_PUBLIC_CATE             4
 #define MT2_PEER_RM_CATE             5
 /* "FT_CATEGORY_BSS_TRANSITION equal to 6" is defined file of "dot11r_ft.h" */
-#define MT2_PEER_HT_CATE             7	//	7.4.7
+#define MT2_PEER_HT_CATE             7	//      7.4.7
 #define MAX_PEER_CATE_MSG                   7
-
 
 #define MT2_MLME_ADD_BA_CATE             8
 #define MT2_MLME_ORI_DELBA_CATE             9
@@ -721,7 +707,6 @@
 #define CATEGORY_RM			5
 #define CATEGORY_HT			7
 
-
 // DLS Action frame definition
 #define ACTION_DLS_REQUEST			0
 #define ACTION_DLS_RESPONSE			1
@@ -733,7 +718,6 @@
 #define SPEC_TPCRQ	2
 #define SPEC_TPCRP	3
 #define SPEC_CHANNEL_SWITCH	4
-
 
 //BA  Action field value
 #define ADDBA_REQ	0
@@ -748,9 +732,8 @@
 #define ACTION_EXT_CH_SWITCH_ANNOUNCE		4	// 11y D9.0
 #define ACTION_DSE_MEASUREMENT_REQ			5	// 11y D9.0
 #define ACTION_DSE_MEASUREMENT_REPORT		6	// 11y D9.0
-#define ACTION_MEASUREMENT_PILOT_ACTION		7  	// 11y D9.0
+#define ACTION_MEASUREMENT_PILOT_ACTION		7	// 11y D9.0
 #define ACTION_DSE_POWER_CONSTRAINT			8	// 11y D9.0
-
 
 //HT  Action field value
 #define NOTIFY_BW_ACTION				0
@@ -798,7 +781,7 @@
 //
 // STA's SYNC state machine: states, events, total function #
 //
-#define SYNC_IDLE                       0  // merge NO_BSS,IBSS_IDLE,IBSS_ACTIVE and BSS in to 1 state
+#define SYNC_IDLE                       0	// merge NO_BSS,IBSS_IDLE,IBSS_ACTIVE and BSS in to 1 state
 #define JOIN_WAIT_BEACON                1
 #define SCAN_LISTEN                     2
 #define MAX_SYNC_STATE                  3
@@ -907,8 +890,6 @@
 
 #define WPA_FUNC_SIZE                (MAX_WPA_PTK_STATE * MAX_WPA_MSG)
 
-
-
 // =============================================================================
 
 // value domain of 802.11 header FC.Tyte, which is b3..b2 of the 1st-byte of MAC header
@@ -961,10 +942,10 @@
 #define SUBTYPE_QOS_CFACK_CFPOLL    15
 
 // ACK policy of QOS Control field bit 6:5
-#define NORMAL_ACK                  0x00  // b6:5 = 00
-#define NO_ACK                      0x20  // b6:5 = 01
-#define NO_EXPLICIT_ACK             0x40  // b6:5 = 10
-#define BLOCK_ACK                   0x60  // b6:5 = 11
+#define NORMAL_ACK                  0x00	// b6:5 = 00
+#define NO_ACK                      0x20	// b6:5 = 01
+#define NO_EXPLICIT_ACK             0x40	// b6:5 = 10
+#define BLOCK_ACK                   0x60	// b6:5 = 11
 
 //
 // rtmp_data.c use these definition
@@ -982,7 +963,7 @@
 #define LENGTH_CRC                  4
 #define MAX_SEQ_NUMBER              0x0fff
 #define LENGTH_802_3_NO_TYPE		12
-#define LENGTH_802_1Q				4 /* VLAN related */
+#define LENGTH_802_1Q				4	/* VLAN related */
 
 // STA_CSR4.field.TxResult
 #define TX_RESULT_SUCCESS           0
@@ -999,23 +980,23 @@
 #define MODE_HTGREENFIELD	3
 
 // MCS for CCK.  BW.SGI.STBC are reserved
-#define MCS_LONGP_RATE_1                      0	 // long preamble CCK 1Mbps
+#define MCS_LONGP_RATE_1                      0	// long preamble CCK 1Mbps
 #define MCS_LONGP_RATE_2                      1	// long preamble CCK 1Mbps
 #define MCS_LONGP_RATE_5_5                    2
 #define MCS_LONGP_RATE_11                     3
-#define MCS_SHORTP_RATE_1                      4	 // long preamble CCK 1Mbps. short is forbidden in 1Mbps
+#define MCS_SHORTP_RATE_1                      4	// long preamble CCK 1Mbps. short is forbidden in 1Mbps
 #define MCS_SHORTP_RATE_2                      5	// short preamble CCK 2Mbps
 #define MCS_SHORTP_RATE_5_5                    6
 #define MCS_SHORTP_RATE_11                     7
 // To send duplicate legacy OFDM. set BW=BW_40.  SGI.STBC are reserved
-#define MCS_RATE_6                      0   // legacy OFDM
-#define MCS_RATE_9                      1   // OFDM
-#define MCS_RATE_12                     2   // OFDM
-#define MCS_RATE_18                     3   // OFDM
-#define MCS_RATE_24                     4  // OFDM
-#define MCS_RATE_36                     5   // OFDM
-#define MCS_RATE_48                     6  // OFDM
-#define MCS_RATE_54                     7 // OFDM
+#define MCS_RATE_6                      0	// legacy OFDM
+#define MCS_RATE_9                      1	// OFDM
+#define MCS_RATE_12                     2	// OFDM
+#define MCS_RATE_18                     3	// OFDM
+#define MCS_RATE_24                     4	// OFDM
+#define MCS_RATE_36                     5	// OFDM
+#define MCS_RATE_48                     6	// OFDM
+#define MCS_RATE_54                     7	// OFDM
 // HT
 #define MCS_0		0	// 1S
 #define MCS_1		1
@@ -1070,7 +1051,7 @@
 #define RXSTBC_TWO	2	// rx support of 1 and 2 spatial stream
 #define RXSTBC_THR	3	// rx support of 1~3 spatial stream
 // MCS FEEDBACK
-#define MCSFBK_NONE	0  // not support mcs feedback /
+#define MCSFBK_NONE	0	// not support mcs feedback /
 #define MCSFBK_RSV	1	// reserved
 #define MCSFBK_UNSOLICIT	2	// only support unsolict mcs feedback
 #define MCSFBK_MRQ	3	// response to both MRQ and unsolict mcs feedback
@@ -1080,7 +1061,6 @@
 #define	MMPS_DYNAMIC		1
 #define   MMPS_RSV		2
 #define MMPS_ENABLE		3
-
 
 // A-MSDU size
 #define	AMSDU_0	0
@@ -1094,28 +1074,28 @@
 #define RATE_2                      1
 #define RATE_5_5                    2
 #define RATE_11                     3
-#define RATE_6                      4   // OFDM
-#define RATE_9                      5   // OFDM
-#define RATE_12                     6   // OFDM
-#define RATE_18                     7   // OFDM
-#define RATE_24                     8   // OFDM
-#define RATE_36                     9   // OFDM
-#define RATE_48                     10  // OFDM
-#define RATE_54                     11  // OFDM
+#define RATE_6                      4	// OFDM
+#define RATE_9                      5	// OFDM
+#define RATE_12                     6	// OFDM
+#define RATE_18                     7	// OFDM
+#define RATE_24                     8	// OFDM
+#define RATE_36                     9	// OFDM
+#define RATE_48                     10	// OFDM
+#define RATE_54                     11	// OFDM
 #define RATE_FIRST_OFDM_RATE        RATE_6
 #define RATE_LAST_OFDM_RATE        	RATE_54
-#define RATE_6_5                    12  // HT mix
-#define RATE_13                     13  // HT mix
-#define RATE_19_5                   14  // HT mix
-#define RATE_26                     15  // HT mix
-#define RATE_39                     16  // HT mix
-#define RATE_52                     17  // HT mix
-#define RATE_58_5                   18  // HT mix
-#define RATE_65                     19  // HT mix
-#define RATE_78                     20  // HT mix
-#define RATE_104                    21  // HT mix
-#define RATE_117                    22  // HT mix
-#define RATE_130                    23  // HT mix
+#define RATE_6_5                    12	// HT mix
+#define RATE_13                     13	// HT mix
+#define RATE_19_5                   14	// HT mix
+#define RATE_26                     15	// HT mix
+#define RATE_39                     16	// HT mix
+#define RATE_52                     17	// HT mix
+#define RATE_58_5                   18	// HT mix
+#define RATE_65                     19	// HT mix
+#define RATE_78                     20	// HT mix
+#define RATE_104                    21	// HT mix
+#define RATE_117                    22	// HT mix
+#define RATE_130                    23	// HT mix
 //#define RATE_AUTO_SWITCH            255 // for StaCfg.FixedTxRate only
 #define HTRATE_0                      12
 #define RATE_FIRST_MM_RATE        HTRATE_0
@@ -1134,34 +1114,34 @@
 
 // Country Region definition
 #define REGION_MINIMUM_BG_BAND            0
-#define REGION_0_BG_BAND                  0       // 1-11
-#define REGION_1_BG_BAND                  1       // 1-13
-#define REGION_2_BG_BAND                  2       // 10-11
-#define REGION_3_BG_BAND                  3       // 10-13
-#define REGION_4_BG_BAND                  4       // 14
-#define REGION_5_BG_BAND                  5       // 1-14
-#define REGION_6_BG_BAND                  6       // 3-9
-#define REGION_7_BG_BAND                  7       // 5-13
-#define REGION_31_BG_BAND                 31       // 5-13
+#define REGION_0_BG_BAND                  0	// 1-11
+#define REGION_1_BG_BAND                  1	// 1-13
+#define REGION_2_BG_BAND                  2	// 10-11
+#define REGION_3_BG_BAND                  3	// 10-13
+#define REGION_4_BG_BAND                  4	// 14
+#define REGION_5_BG_BAND                  5	// 1-14
+#define REGION_6_BG_BAND                  6	// 3-9
+#define REGION_7_BG_BAND                  7	// 5-13
+#define REGION_31_BG_BAND                 31	// 5-13
 #define REGION_MAXIMUM_BG_BAND            7
 
 #define REGION_MINIMUM_A_BAND             0
-#define REGION_0_A_BAND                   0       // 36, 40, 44, 48, 52, 56, 60, 64, 149, 153, 157, 161, 165
-#define REGION_1_A_BAND                   1       // 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140
-#define REGION_2_A_BAND                   2       // 36, 40, 44, 48, 52, 56, 60, 64
-#define REGION_3_A_BAND                   3       // 52, 56, 60, 64, 149, 153, 157, 161
-#define REGION_4_A_BAND                   4       // 149, 153, 157, 161, 165
-#define REGION_5_A_BAND                   5       // 149, 153, 157, 161
-#define REGION_6_A_BAND                   6       // 36, 40, 44, 48
-#define REGION_7_A_BAND                   7       // 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165, 169, 173
-#define REGION_8_A_BAND                   8       // 52, 56, 60, 64
-#define REGION_9_A_BAND                   9       // 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 132, 136, 140, 149, 153, 157, 161, 165
-#define REGION_10_A_BAND                  10	  // 36, 40, 44, 48, 149, 153, 157, 161, 165
-#define REGION_11_A_BAND                  11	  // 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 149, 153, 157, 161
-#define REGION_12_A_BAND                  12       // 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140
-#define REGION_13_A_BAND                  13       // 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161
-#define REGION_14_A_BAND                  14       // 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 136, 140, 149, 153, 157, 161, 165
-#define REGION_15_A_BAND                  15       // 149, 153, 157, 161, 165, 169, 173
+#define REGION_0_A_BAND                   0	// 36, 40, 44, 48, 52, 56, 60, 64, 149, 153, 157, 161, 165
+#define REGION_1_A_BAND                   1	// 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140
+#define REGION_2_A_BAND                   2	// 36, 40, 44, 48, 52, 56, 60, 64
+#define REGION_3_A_BAND                   3	// 52, 56, 60, 64, 149, 153, 157, 161
+#define REGION_4_A_BAND                   4	// 149, 153, 157, 161, 165
+#define REGION_5_A_BAND                   5	// 149, 153, 157, 161
+#define REGION_6_A_BAND                   6	// 36, 40, 44, 48
+#define REGION_7_A_BAND                   7	// 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165, 169, 173
+#define REGION_8_A_BAND                   8	// 52, 56, 60, 64
+#define REGION_9_A_BAND                   9	// 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 132, 136, 140, 149, 153, 157, 161, 165
+#define REGION_10_A_BAND                  10	// 36, 40, 44, 48, 149, 153, 157, 161, 165
+#define REGION_11_A_BAND                  11	// 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 149, 153, 157, 161
+#define REGION_12_A_BAND                  12	// 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140
+#define REGION_13_A_BAND                  13	// 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161
+#define REGION_14_A_BAND                  14	// 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 136, 140, 149, 153, 157, 161, 165
+#define REGION_15_A_BAND                  15	// 149, 153, 157, 161, 165, 169, 173
 #define REGION_MAXIMUM_A_BAND             15
 
 // pTxD->CipherAlg
@@ -1172,9 +1152,8 @@
 #define CIPHER_AES                  4
 #define CIPHER_CKIP64               5
 #define CIPHER_CKIP128              6
-#define CIPHER_TKIP_NO_MIC          7       // MIC appended by driver: not a valid value in hardware key table
+#define CIPHER_TKIP_NO_MIC          7	// MIC appended by driver: not a valid value in hardware key table
 #define CIPHER_SMS4					8
-
 
 // LED Status.
 #define LED_LINK_DOWN               0
@@ -1189,11 +1168,11 @@
 // value domain of pAd->LedCntl.LedMode and E2PROM
 #define LED_MODE_DEFAULT            0
 #define LED_MODE_TWO_LED			1
-//#define LED_MODE_SIGNAL_STREGTH		8  // EEPROM define =8
-#define LED_MODE_SIGNAL_STREGTH		0x40 // EEPROM define = 64
+//#define LED_MODE_SIGNAL_STREGTH               8  // EEPROM define =8
+#define LED_MODE_SIGNAL_STREGTH		0x40	// EEPROM define = 64
 
 // RC4 init value, used fro WEP & TKIP
-#define PPPINITFCS32                0xffffffff   /* Initial FCS value */
+#define PPPINITFCS32                0xffffffff	/* Initial FCS value */
 
 // value domain of pAd->StaCfg.PortSecured. 802.1X controlled port definition
 #define WPA_802_1X_PORT_SECURED     1
@@ -1204,7 +1183,6 @@
 
 //definition of DRS
 #define MAX_STEP_OF_TX_RATE_SWITCH	32
-
 
 // pre-allocated free NDIS PACKET/BUFFER poll for internal usage
 #define MAX_NUM_OF_FREE_NDIS_PACKET 128
@@ -1223,7 +1201,7 @@
 #define DEFAULT_RF_TX_POWER         5
 
 #define MAX_INI_BUFFER_SIZE			4096
-#define MAX_PARAM_BUFFER_SIZE		(2048) // enough for ACL (18*64)
+#define MAX_PARAM_BUFFER_SIZE		(2048)	// enough for ACL (18*64)
 											//18 : the length of Mac address acceptable format "01:02:03:04:05:06;")
 											//64 : MAX_NUM_OF_ACL_LIST
 // definition of pAd->OpMode
@@ -1233,10 +1211,10 @@
 
 // ========================= AP rtmp_def.h ===========================
 // value domain for pAd->EventTab.Log[].Event
-#define EVENT_RESET_ACCESS_POINT    0 // Log = "hh:mm:ss   Restart Access Point"
-#define EVENT_ASSOCIATED            1 // Log = "hh:mm:ss   STA 00:01:02:03:04:05 associated"
-#define EVENT_DISASSOCIATED         2 // Log = "hh:mm:ss   STA 00:01:02:03:04:05 left this BSS"
-#define EVENT_AGED_OUT              3 // Log = "hh:mm:ss   STA 00:01:02:03:04:05 was aged-out and removed from this BSS"
+#define EVENT_RESET_ACCESS_POINT    0	// Log = "hh:mm:ss   Restart Access Point"
+#define EVENT_ASSOCIATED            1	// Log = "hh:mm:ss   STA 00:01:02:03:04:05 associated"
+#define EVENT_DISASSOCIATED         2	// Log = "hh:mm:ss   STA 00:01:02:03:04:05 left this BSS"
+#define EVENT_AGED_OUT              3	// Log = "hh:mm:ss   STA 00:01:02:03:04:05 was aged-out and removed from this BSS"
 #define EVENT_COUNTER_M             4
 #define EVENT_INVALID_PSK           5
 #define EVENT_MAX_EVENT_TYPE        6
@@ -1262,7 +1240,6 @@
 // MBSSID definition
 #define ENTRY_NOT_FOUND             0xFF
 
-
 /* After Linux 2.6.9,
  * VLAN module use Private (from user) interface flags (netdevice->priv_flags).
  * #define IFF_802_1Q_VLAN 0x1         --    802.1Q VLAN device.  in if.h
@@ -1282,12 +1259,9 @@
 #define INF_APCLI_DEV_NAME		"apcli"
 #define INF_MESH_DEV_NAME		"mesh"
 
-
 // WEP Key TYPE
 #define WEP_HEXADECIMAL_TYPE    0
 #define WEP_ASCII_TYPE          1
-
-
 
 // WIRELESS EVENTS definition
 /* Max number of char in custom event, refer to wireless_tools.28/wireless.20.h */
@@ -1375,7 +1349,6 @@
 #define GUI_IDLE_POWER_SAVE		3
 // --
 
-
 // definition for WpaSupport flag
 #define WPA_SUPPLICANT_DISABLE				0
 #define WPA_SUPPLICANT_ENABLE				1
@@ -1418,9 +1391,7 @@
 #define cpu2be16(x) SWAP16((x))
 #define be2cpu16(x) SWAP16((x))
 
-
 #define ABS(_x, _y) ((_x) > (_y)) ? ((_x) -(_y)) : ((_y) -(_x))
-
 
 #define A2Dec(_X, _p)				\
 {									\
@@ -1434,7 +1405,6 @@
 		p++;										\
 	}												\
 }
-
 
 #define A2Hex(_X, _p)				\
 do{									\
@@ -1453,6 +1423,4 @@ do{									\
 	}												\
 }while(0)
 
-#endif  // __RTMP_DEF_H__
-
-
+#endif // __RTMP_DEF_H__

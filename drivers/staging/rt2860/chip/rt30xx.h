@@ -39,7 +39,6 @@
 
 #ifdef RT30xx
 
-
 extern REG_PAIR RT30xx_RFRegTable[];
 extern UCHAR NUM_RF_REG_PARMS;
 

@@ -79,7 +79,6 @@
  *	Profile related sections
  ***********************************************************************************/
 
-
 #ifdef RTMP_MAC_PCI
 #define STA_PROFILE_PATH			"/etc/Wireless/RT2860STA/RT2860STA.dat"
 #define STA_DRIVER_VERSION			"2.1.0.0"
@@ -90,8 +89,7 @@
 // RT3070 version: 2.1.1.0
 #endif // RTMP_MAC_USB //
 
-extern	const struct iw_handler_def rt28xx_iw_handler_def;
-
+extern const struct iw_handler_def rt28xx_iw_handler_def;
 
 /***********************************************************************************
  *	Compiler related definitions
@@ -103,23 +101,23 @@ extern	const struct iw_handler_def rt28xx_iw_handler_def;
 #define INOUT
 #define NDIS_STATUS		INT
 
-
 /***********************************************************************************
  *	OS Specific definitions and data structures
  ***********************************************************************************/
-typedef struct pci_dev		* PPCI_DEV;
-typedef struct net_device	* PNET_DEV;
-typedef void				* PNDIS_PACKET;
-typedef char				NDIS_PACKET;
-typedef PNDIS_PACKET		* PPNDIS_PACKET;
-typedef	dma_addr_t			NDIS_PHYSICAL_ADDRESS;
-typedef	dma_addr_t			* PNDIS_PHYSICAL_ADDRESS;
-typedef void				* NDIS_HANDLE;
-typedef char				* PNDIS_BUFFER;
-typedef	struct pid *	RTMP_OS_PID;
-typedef struct semaphore	RTMP_OS_SEM;
+typedef struct pci_dev *PPCI_DEV;
+typedef struct net_device *PNET_DEV;
+typedef void *PNDIS_PACKET;
+typedef char NDIS_PACKET;
+typedef PNDIS_PACKET *PPNDIS_PACKET;
+typedef dma_addr_t NDIS_PHYSICAL_ADDRESS;
+typedef dma_addr_t *PNDIS_PHYSICAL_ADDRESS;
+typedef void *NDIS_HANDLE;
+typedef char *PNDIS_BUFFER;
+typedef struct pid *RTMP_OS_PID;
+typedef struct semaphore RTMP_OS_SEM;
 
-typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_dev);
+typedef int (*HARD_START_XMIT_FUNC) (struct sk_buff * skb,
+				     struct net_device * net_dev);
 
 #ifdef RTMP_MAC_PCI
 #ifndef PCI_DEVICE
@@ -142,11 +140,8 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 #define RTMP_DEC_REF(_A)		0
 #define RTMP_GET_REF(_A)		0
 
-
 // This function will be called when query /proc
-struct iw_statistics *rt28xx_get_wireless_stats(
-    IN struct net_device *net_dev);
-
+struct iw_statistics *rt28xx_get_wireless_stats(IN struct net_device *net_dev);
 
 /***********************************************************************************
  *	Network related constant definitions
@@ -178,18 +173,16 @@ struct iw_statistics *rt28xx_get_wireless_stats(
 #define STATS_INC_RX_DROPPED(_pAd, _dev)
 #define STATS_INC_TX_DROPPED(_pAd, _dev)
 
-
 /***********************************************************************************
  *	Ralink Specific network related constant definitions
  ***********************************************************************************/
-#define MIN_NET_DEVICE_FOR_AID			0x00		//0x00~0x3f
-#define MIN_NET_DEVICE_FOR_MBSSID		0x00		//0x00,0x10,0x20,0x30
-#define MIN_NET_DEVICE_FOR_WDS			0x10		//0x40,0x50,0x60,0x70
+#define MIN_NET_DEVICE_FOR_AID			0x00	//0x00~0x3f
+#define MIN_NET_DEVICE_FOR_MBSSID		0x00	//0x00,0x10,0x20,0x30
+#define MIN_NET_DEVICE_FOR_WDS			0x10	//0x40,0x50,0x60,0x70
 #define MIN_NET_DEVICE_FOR_APCLI		0x20
 #define MIN_NET_DEVICE_FOR_MESH			0x30
 #define MIN_NET_DEVICE_FOR_DLS			0x40
-#define NET_DEVICE_REAL_IDX_MASK		0x0f		// for each operation mode, we maximum support 15 entities.
-
+#define NET_DEVICE_REAL_IDX_MASK		0x0f	// for each operation mode, we maximum support 15 entities.
 
 #define NDIS_PACKET_TYPE_DIRECTED		0
 #define NDIS_PACKET_TYPE_MULTICAST		1
@@ -197,36 +190,32 @@ struct iw_statistics *rt28xx_get_wireless_stats(
 #define NDIS_PACKET_TYPE_ALL_MULTICAST	3
 #define NDIS_PACKET_TYPE_PROMISCUOUS	4
 
-
 /***********************************************************************************
  *	OS signaling related constant definitions
  ***********************************************************************************/
 
-
 /***********************************************************************************
  *	OS file operation related data structure definitions
  ***********************************************************************************/
-typedef struct file* RTMP_OS_FD;
+typedef struct file *RTMP_OS_FD;
 
-typedef struct _RTMP_OS_FS_INFO_
-{
-	int				fsuid;
-	int				fsgid;
-	mm_segment_t	fs;
-}RTMP_OS_FS_INFO;
+typedef struct _RTMP_OS_FS_INFO_ {
+	int fsuid;
+	int fsgid;
+	mm_segment_t fs;
+} RTMP_OS_FS_INFO;
 
 #define IS_FILE_OPEN_ERR(_fd)	IS_ERR((_fd))
-
 
 /***********************************************************************************
  *	OS semaphore related data structure and definitions
  ***********************************************************************************/
-struct os_lock  {
-	spinlock_t		lock;
-	unsigned long	flags;
+struct os_lock {
+	spinlock_t lock;
+	unsigned long flags;
 };
 
-typedef spinlock_t			NDIS_SPIN_LOCK;
+typedef spinlock_t NDIS_SPIN_LOCK;
 
 //
 //  spin_lock enhanced for Nested spin lock
@@ -239,7 +228,6 @@ typedef spinlock_t			NDIS_SPIN_LOCK;
 #define NdisFreeSpinLock(lock)          \
 	do{}while(0)
 
-
 #define RTMP_SEM_LOCK(__lock)					\
 {												\
 	spin_lock_bh((spinlock_t *)(__lock));		\
@@ -249,7 +237,6 @@ typedef spinlock_t			NDIS_SPIN_LOCK;
 {												\
 	spin_unlock_bh((spinlock_t *)(__lock));		\
 }
-
 
 // sample, use semaphore lock to replace IRQ lock, 2007/11/15
 #define RTMP_IRQ_LOCK(__lock, __irqflags)			\
@@ -343,7 +330,7 @@ do { \
 /***********************************************************************************
  *	OS Memory Access related data structure and definitions
  ***********************************************************************************/
-#define MEM_ALLOC_FLAG      (GFP_ATOMIC) //(GFP_DMA | GFP_ATOMIC)
+#define MEM_ALLOC_FLAG      (GFP_ATOMIC)	//(GFP_DMA | GFP_ATOMIC)
 
 #define NdisMoveMemory(Destination, Source, Length) memmove(Destination, Source, Length)
 #define NdisCopyMemory(Destination, Source, Length) memcpy(Destination, Source, Length)
@@ -358,32 +345,29 @@ do { \
 
 #define COPY_MAC_ADDR(Addr1, Addr2)             memcpy((Addr1), (Addr2), MAC_ADDR_LEN)
 
-
 /***********************************************************************************
  *	OS task related data structure and definitions
  ***********************************************************************************/
 #define RTMP_OS_MGMT_TASK_FLAGS	CLONE_VM
 
-typedef	struct pid *	THREAD_PID;
+typedef struct pid *THREAD_PID;
 #define	THREAD_PID_INIT_VALUE	NULL
 #define	GET_PID(_v)	find_get_pid((_v))
 #define	GET_PID_NUMBER(_v)	pid_nr((_v))
 #define CHECK_PID_LEGALITY(_pid)	if (pid_nr((_pid)) > 0)
 #define KILL_THREAD_PID(_A, _B, _C)	kill_pid((_A), (_B), (_C))
 
-typedef struct tasklet_struct  RTMP_NET_TASK_STRUCT;
-typedef struct tasklet_struct  *PRTMP_NET_TASK_STRUCT;
-
+typedef struct tasklet_struct RTMP_NET_TASK_STRUCT;
+typedef struct tasklet_struct *PRTMP_NET_TASK_STRUCT;
 
 /***********************************************************************************
  * Timer related definitions and data structures.
  **********************************************************************************/
 #define OS_HZ			HZ
 
-typedef struct timer_list	NDIS_MINIPORT_TIMER;
-typedef struct timer_list	RTMP_OS_TIMER;
-typedef void (*TIMER_FUNCTION)(unsigned long);
-
+typedef struct timer_list NDIS_MINIPORT_TIMER;
+typedef struct timer_list RTMP_OS_TIMER;
+typedef void (*TIMER_FUNCTION) (unsigned long);
 
 #define OS_WAIT(_time) \
 {	int _i; \
@@ -406,11 +390,10 @@ typedef void (*TIMER_FUNCTION)(unsigned long);
 
 #define ONE_TICK 1
 
-static inline void NdisGetSystemUpTime(ULONG *time)
+static inline void NdisGetSystemUpTime(ULONG * time)
 {
 	*time = jiffies;
 }
-
 
 /***********************************************************************************
  *	OS specific cookie data structure binding to RTMP_ADAPTER
@@ -418,14 +401,14 @@ static inline void NdisGetSystemUpTime(ULONG *time)
 
 struct os_cookie {
 #ifdef RTMP_MAC_PCI
-	struct pci_dev			*pci_dev;
-	struct pci_dev			*parent_pci_dev;
-	USHORT                  DeviceID;
-	dma_addr_t				pAd_pa;
-#endif // RTMP_MAC_PCI //
+	struct pci_dev *pci_dev;
+	struct pci_dev *parent_pci_dev;
+	USHORT DeviceID;
+	dma_addr_t pAd_pa;
+#endif				// RTMP_MAC_PCI //
 #ifdef RTMP_MAC_USB
-	struct usb_device		*pUsb_Dev;
-#endif // RTMP_MAC_USB //
+	struct usb_device *pUsb_Dev;
+#endif				// RTMP_MAC_USB //
 
 	RTMP_NET_TASK_STRUCT rx_done_task;
 	RTMP_NET_TASK_STRUCT mgmt_dma_done_task;
@@ -436,21 +419,19 @@ struct os_cookie {
 	RTMP_NET_TASK_STRUCT tbtt_task;
 #ifdef RTMP_MAC_PCI
 	RTMP_NET_TASK_STRUCT fifo_statistic_full_task;
-#endif // RTMP_MAC_PCI //
+#endif				// RTMP_MAC_PCI //
 #ifdef RTMP_MAC_USB
 	RTMP_NET_TASK_STRUCT null_frame_complete_task;
 	RTMP_NET_TASK_STRUCT rts_frame_complete_task;
 	RTMP_NET_TASK_STRUCT pspoll_frame_complete_task;
-#endif // RTMP_MAC_USB //
+#endif				// RTMP_MAC_USB //
 
-	unsigned long			apd_pid; //802.1x daemon pid
-	INT						ioctl_if_type;
-	INT					ioctl_if;
+	unsigned long apd_pid;	//802.1x daemon pid
+	INT ioctl_if_type;
+	INT ioctl_if;
 };
 
-typedef struct os_cookie	* POS_COOKIE;
-
-
+typedef struct os_cookie *POS_COOKIE;
 
 /***********************************************************************************
  *	OS debugging and printing related definitions and data structure
@@ -459,7 +440,7 @@ typedef struct os_cookie	* POS_COOKIE;
 	addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]
 
 #ifdef DBG
-extern ULONG    RTDebugLevel;
+extern ULONG RTDebugLevel;
 
 #define DBGPRINT_RAW(Level, Fmt)    \
 do{                                   \
@@ -470,7 +451,6 @@ do{                                   \
 }while(0)
 
 #define DBGPRINT(Level, Fmt)    DBGPRINT_RAW(Level, Fmt)
-
 
 #define DBGPRINT_ERR(Fmt)           \
 {                                   \
@@ -483,7 +463,6 @@ do{                                   \
 	printk Fmt;					\
 }
 
-
 #else
 #define DBGPRINT(Level, Fmt)
 #define DBGPRINT_RAW(Level, Fmt)
@@ -495,18 +474,18 @@ do{                                   \
 
 void hex_dump(char *str, unsigned char *pSrcBufVA, unsigned int SrcBufLen);
 
-
 /*********************************************************************************************************
 	The following code are not revised, temporary put it here.
   *********************************************************************************************************/
-
 
 /***********************************************************************************
  * Device DMA Access related definitions and data structures.
  **********************************************************************************/
 #ifdef RTMP_MAC_PCI
-dma_addr_t linux_pci_map_single(void *handle, void *ptr, size_t size, int sd_idx, int direction);
-void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size, int direction);
+dma_addr_t linux_pci_map_single(void *handle, void *ptr, size_t size,
+				int sd_idx, int direction);
+void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size,
+			    int direction);
 
 #define PCI_MAP_SINGLE(_handle, _ptr, _size, _sd_idx, _dir) \
 	linux_pci_map_single(_handle, _ptr, _size, _sd_idx, _dir)
@@ -561,8 +540,6 @@ void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size, int 
 #define RTMP_SetPhysicalAddressHigh(PhysicalAddress, Value)
 
 #define NdisMIndicateStatus(_w, _x, _y, _z)
-
-
 
 /***********************************************************************************
  * Device Register I/O Access related definitions and data structures.
@@ -729,7 +706,6 @@ void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size, int 
 #define GET_OS_PKT_NEXT(_pkt) \
 		(RTPKT_TO_OSPKT(_pkt)->next)
 
-
 #define OS_PKT_CLONED(_pkt)		skb_cloned(RTPKT_TO_OSPKT(_pkt))
 
 #define OS_NTOHS(_Val) \
@@ -783,9 +759,8 @@ void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size, int 
 #define RTMP_SET_PACKET_MOREDATA(_p, _morebit)		(RTPKT_TO_OSPKT(_p)->cb[CB_OFF+7] = _morebit)
 #define RTMP_GET_PACKET_MOREDATA(_p)				(RTPKT_TO_OSPKT(_p)->cb[CB_OFF+7])
 
-
 //
-//	Sepcific Pakcet Type definition
+//      Sepcific Pakcet Type definition
 //
 #define RTMP_PACKET_SPECIFIC_CB_OFFSET	11
 
@@ -863,12 +838,9 @@ void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size, int 
 
 #define RTMP_GET_PACKET_IPV4(_p)		(RTPKT_TO_OSPKT(_p)->cb[CB_OFF+11] & RTMP_PACKET_SPECIFIC_IPV4)
 
-
 // If this flag is set, it indicates that this EAPoL frame MUST be clear.
 #define RTMP_SET_PACKET_CLEAR_EAP_FRAME(_p, _flg)   (RTPKT_TO_OSPKT(_p)->cb[CB_OFF+12] = _flg)
 #define RTMP_GET_PACKET_CLEAR_EAP_FRAME(_p)         (RTPKT_TO_OSPKT(_p)->cb[CB_OFF+12])
-
-
 
 /* use bit3 of cb[CB_OFF+16] */
 
@@ -877,12 +849,10 @@ void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size, int 
 
 /* Max skb->cb = 48B = [CB_OFF+38] */
 
-
-
 /***********************************************************************************
  *	Other function prototypes definitions
  ***********************************************************************************/
-void RTMP_GetCurrentSystemTime(LARGE_INTEGER *time);
+void RTMP_GetCurrentSystemTime(LARGE_INTEGER * time);
 int rt28xx_packet_xmit(struct sk_buff *skb);
 
 #ifdef RTMP_MAC_PCI
@@ -892,13 +862,10 @@ int rt28xx_packet_xmit(struct sk_buff *skb);
 IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance);
 #endif // RTMP_MAC_PCI //
 
-INT rt28xx_sta_ioctl(
-	IN	PNET_DEV		net_dev,
-	IN	OUT	struct ifreq	*rq,
-	IN	INT			cmd);
+INT rt28xx_sta_ioctl(IN PNET_DEV net_dev, IN OUT struct ifreq *rq, IN INT cmd);
 
-extern int ra_mtd_write(int num, loff_t to, size_t len, const u_char *buf);
-extern int ra_mtd_read(int num, loff_t from, size_t len, u_char *buf);
+extern int ra_mtd_write(int num, loff_t to, size_t len, const u_char * buf);
+extern int ra_mtd_read(int num, loff_t from, size_t len, u_char * buf);
 
 #define GET_PAD_FROM_NET_DEV(_pAd, _net_dev)	(_pAd) = (PRTMP_ADAPTER)(_net_dev)->ml_priv;
 

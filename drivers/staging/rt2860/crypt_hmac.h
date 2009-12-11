@@ -48,24 +48,18 @@
 
 #ifdef SHA1_SUPPORT
 #define HMAC_SHA1_SUPPORT
-VOID HMAC_SHA1 (
-    IN  const UINT8 Key[],
-    IN  UINT KeyLen,
-    IN  const UINT8 Message[],
-    IN  UINT MessageLen,
-    OUT UINT8 MAC[],
-    IN  UINT MACLen);
+VOID HMAC_SHA1(IN const UINT8 Key[],
+	       IN UINT KeyLen,
+	       IN const UINT8 Message[],
+	       IN UINT MessageLen, OUT UINT8 MAC[], IN UINT MACLen);
 #endif /* SHA1_SUPPORT */
 
 #ifdef MD5_SUPPORT
 #define HMAC_MD5_SUPPORT
-VOID HMAC_MD5 (
-    IN  const UINT8 Key[],
-    IN  UINT KeyLen,
-    IN  const UINT8 Message[],
-    IN  UINT MessageLen,
-    OUT UINT8 MAC[],
-    IN  UINT MACLen);
+VOID HMAC_MD5(IN const UINT8 Key[],
+	      IN UINT KeyLen,
+	      IN const UINT8 Message[],
+	      IN UINT MessageLen, OUT UINT8 MAC[], IN UINT MACLen);
 #endif /* MD5_SUPPORT */
 
 #endif /* __CRYPT_HMAC_H__ */

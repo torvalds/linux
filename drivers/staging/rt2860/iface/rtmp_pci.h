@@ -31,7 +31,6 @@
 #define RT28XX_HANDLE_DEV_ASSIGN(handle, dev_p)				\
 	((POS_COOKIE)handle)->pci_dev = dev_p;
 
-
 #ifdef LINUX
 // set driver data
 #define RT28XX_DRVDATA_SET(_a)			pci_set_drvdata(_a, net_dev);
@@ -64,7 +63,6 @@
 							pci_resource_len(dev_p, 0)); }	\
 	if (net_dev->irq) pci_release_regions(dev_p); }
 
-
 #define PCI_REG_READ_WORD(pci_dev, offset, Configuration)   \
     if (pci_read_config_word(pci_dev, offset, &reg16) == 0)     \
         Configuration = le2cpu16(reg16);                        \
@@ -76,6 +74,5 @@
     pci_write_config_word(pci_dev, offset, reg16);
 
 #endif // LINUX //
-
 
 #endif // __RTMP_PCI_H__ //

@@ -40,8 +40,7 @@
 #include "../rtmp_type.h"
 #include "mac_usb.h"
 
-
-//#define RTMP_CHIP_NAME		"RT2870"
+//#define RTMP_CHIP_NAME                "RT2870"
 
 #endif // RT2870 //
 #endif //__RT2870_H__ //

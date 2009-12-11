@@ -43,7 +43,6 @@
 #include "../rtmp_iface.h"
 #include "../rtmp_dot11.h"
 
-
 //
 // Device ID & Vendor ID related definitions,
 // NOTE: you should not add the new VendorID/DeviceID here unless you not sure it belongs to what chip.
@@ -61,10 +60,6 @@
 #define PCI_CLASS_BRIDGE_PCI		0x0604
 #endif
 
-
-
-
-
 #define TXINFO_SIZE						0
 #define RTMP_PKT_TAIL_PADDING			0
 #define fRTMP_ADAPTER_NEED_STOP_TX	0
@@ -72,86 +67,83 @@
 #define AUX_CTRL           0x10c
 
 //
-// TX descriptor format, Tx	ring, Mgmt Ring
+// TX descriptor format, Tx     ring, Mgmt Ring
 //
-typedef	struct	PACKED _TXD_STRUC {
-	// Word	0
-	UINT32		SDPtr0;
-	// Word	1
-	UINT32		SDLen1:14;
-	UINT32		LastSec1:1;
-	UINT32		Burst:1;
-	UINT32		SDLen0:14;
-	UINT32		LastSec0:1;
-	UINT32		DMADONE:1;
+typedef struct PACKED _TXD_STRUC {
+	// Word 0
+	UINT32 SDPtr0;
+	// Word 1
+	UINT32 SDLen1:14;
+	UINT32 LastSec1:1;
+	UINT32 Burst:1;
+	UINT32 SDLen0:14;
+	UINT32 LastSec0:1;
+	UINT32 DMADONE:1;
 	//Word2
-	UINT32		SDPtr1;
+	UINT32 SDPtr1;
 	//Word3
-	UINT32		rsv2:24;
-	UINT32		WIV:1;	// Wireless Info Valid. 1 if Driver already fill WI,  o if DMA needs to copy WI to correctposition
-	UINT32		QSEL:2;	// select on-chip FIFO ID for 2nd-stage output scheduler.0:MGMT, 1:HCCA 2:EDCA
-	UINT32		rsv:2;
-	UINT32		TCO:1;	//
-	UINT32		UCO:1;	//
-	UINT32		ICO:1;	//
-}	TXD_STRUC, *PTXD_STRUC;
-
+	UINT32 rsv2:24;
+	UINT32 WIV:1;		// Wireless Info Valid. 1 if Driver already fill WI,  o if DMA needs to copy WI to correctposition
+	UINT32 QSEL:2;		// select on-chip FIFO ID for 2nd-stage output scheduler.0:MGMT, 1:HCCA 2:EDCA
+	UINT32 rsv:2;
+	UINT32 TCO:1;		//
+	UINT32 UCO:1;		//
+	UINT32 ICO:1;		//
+} TXD_STRUC, *PTXD_STRUC;
 
 //
 // Rx descriptor format, Rx Ring
 //
-typedef	struct	PACKED _RXD_STRUC{
-	// Word	0
-	UINT32		SDP0;
-	// Word	1
-	UINT32		SDL1:14;
-	UINT32		Rsv:2;
-	UINT32		SDL0:14;
-	UINT32		LS0:1;
-	UINT32		DDONE:1;
-	// Word	2
-	UINT32		SDP1;
-	// Word	3
-	UINT32		BA:1;
-	UINT32		DATA:1;
-	UINT32		NULLDATA:1;
-	UINT32		FRAG:1;
-	UINT32		U2M:1;              // 1: this RX frame is unicast to me
-	UINT32		Mcast:1;            // 1: this is a multicast frame
-	UINT32		Bcast:1;            // 1: this is a broadcast frame
-	UINT32		MyBss:1;	// 1: this frame belongs to the same BSSID
-	UINT32		Crc:1;              // 1: CRC error
-	UINT32		CipherErr:2;        // 0: decryption okay, 1:ICV error, 2:MIC error, 3:KEY not valid
-	UINT32		AMSDU:1;		// rx with 802.3 header, not 802.11 header.
-	UINT32		HTC:1;
-	UINT32		RSSI:1;
-	UINT32		L2PAD:1;
-	UINT32		AMPDU:1;
-	UINT32		Decrypted:1;	// this frame is being decrypted.
-	UINT32		PlcpSignal:1;		// To be moved
-	UINT32		PlcpRssil:1;// To be moved
-	UINT32		Rsv1:13;
-}	RXD_STRUC, *PRXD_STRUC, RT28XX_RXD_STRUC, *PRT28XX_RXD_STRUC;
+typedef struct PACKED _RXD_STRUC {
+	// Word 0
+	UINT32 SDP0;
+	// Word 1
+	UINT32 SDL1:14;
+	UINT32 Rsv:2;
+	UINT32 SDL0:14;
+	UINT32 LS0:1;
+	UINT32 DDONE:1;
+	// Word 2
+	UINT32 SDP1;
+	// Word 3
+	UINT32 BA:1;
+	UINT32 DATA:1;
+	UINT32 NULLDATA:1;
+	UINT32 FRAG:1;
+	UINT32 U2M:1;		// 1: this RX frame is unicast to me
+	UINT32 Mcast:1;		// 1: this is a multicast frame
+	UINT32 Bcast:1;		// 1: this is a broadcast frame
+	UINT32 MyBss:1;		// 1: this frame belongs to the same BSSID
+	UINT32 Crc:1;		// 1: CRC error
+	UINT32 CipherErr:2;	// 0: decryption okay, 1:ICV error, 2:MIC error, 3:KEY not valid
+	UINT32 AMSDU:1;		// rx with 802.3 header, not 802.11 header.
+	UINT32 HTC:1;
+	UINT32 RSSI:1;
+	UINT32 L2PAD:1;
+	UINT32 AMPDU:1;
+	UINT32 Decrypted:1;	// this frame is being decrypted.
+	UINT32 PlcpSignal:1;	// To be moved
+	UINT32 PlcpRssil:1;	// To be moved
+	UINT32 Rsv1:13;
+} RXD_STRUC, *PRXD_STRUC, RT28XX_RXD_STRUC, *PRT28XX_RXD_STRUC;
 
 typedef union _TX_ATTENUATION_CTRL_STRUC {
-	struct
-	{
-		ULONG	RF_ISOLATION_ENABLE:1;
-		ULONG	Reserve2:7;
-		ULONG	PCIE_PHY_TX_ATTEN_VALUE:3;
-		ULONG	PCIE_PHY_TX_ATTEN_EN:1;
-		ULONG	Reserve1:20;
+	struct {
+		ULONG RF_ISOLATION_ENABLE:1;
+		ULONG Reserve2:7;
+		ULONG PCIE_PHY_TX_ATTEN_VALUE:3;
+		ULONG PCIE_PHY_TX_ATTEN_EN:1;
+		ULONG Reserve1:20;
 	} field;
 
-	ULONG	word;
+	ULONG word;
 } TX_ATTENUATION_CTRL_STRUC, *PTX_ATTENUATION_CTRL_STRUC;
 
 /* ----------------- EEPROM Related MACRO ----------------- */
 
 // 8051 firmware image for RT2860 - base address = 0x4000
 #define FIRMWARE_IMAGE_BASE     0x2000
-#define MAX_FIRMWARE_IMAGE_SIZE 0x2000    // 8kbyte
-
+#define MAX_FIRMWARE_IMAGE_SIZE 0x2000	// 8kbyte
 
 /* ----------------- Frimware Related MACRO ----------------- */
 #define RTMP_WRITE_FIRMWARE(_pAd, _pFwImage, _FwLen)			\
@@ -175,14 +167,12 @@ typedef union _TX_ATTENUATION_CTRL_STRUC {
 		RTMP_IO_WRITE32(_pAd, H2M_MAILBOX_CSR, 0);		\
 	}while(0)
 
-
 /* ----------------- TX Related MACRO ----------------- */
 #define RTMP_START_DEQUEUE(pAd, QueIdx, irqFlags)		do{}while(0)
 #define RTMP_STOP_DEQUEUE(pAd, QueIdx, irqFlags)		do{}while(0)
 
-
 #define RTMP_HAS_ENOUGH_FREE_DESC(pAd, pTxBlk, freeNum, pPacket) \
-		((freeNum) >= (ULONG)(pTxBlk->TotalFragNum + RTMP_GET_PACKET_FRAGMENTS(pPacket) + 3)) /* rough estimate we will use 3 more descriptor. */
+		((freeNum) >= (ULONG)(pTxBlk->TotalFragNum + RTMP_GET_PACKET_FRAGMENTS(pPacket) + 3))	/* rough estimate we will use 3 more descriptor. */
 #define RTMP_RELEASE_DESC_RESOURCE(pAd, QueIdx)	\
 		do{}while(0)
 
@@ -190,12 +180,11 @@ typedef union _TX_ATTENUATION_CTRL_STRUC {
 		(((freeNum != (TX_RING_SIZE-1)) && (pAd->TxSwQueue[QueIdx].Number == 0)) || (freeNum<3))
 		//(((freeNum) != (TX_RING_SIZE-1)) && (pAd->TxSwQueue[QueIdx].Number == 1 /*0*/))
 
-
 #define HAL_KickOutMgmtTx(_pAd, _QueIdx, _pPacket, _pSrcBufVA, _SrcBufLen)	\
 			RtmpPCIMgmtKickOut(_pAd, _QueIdx, _pPacket, _pSrcBufVA, _SrcBufLen)
 
 #define HAL_WriteSubTxResource(pAd, pTxBlk, bIsLast, pFreeNumber)	\
-		/* RtmpPCI_WriteSubTxResource(pAd, pTxBlk, bIsLast, pFreeNumber)*/
+				/* RtmpPCI_WriteSubTxResource(pAd, pTxBlk, bIsLast, pFreeNumber) */
 
 #define HAL_WriteTxResource(pAd, pTxBlk,bIsLast, pFreeNumber)	\
 			RtmpPCI_WriteSingleTxResource(pAd, pTxBlk, bIsLast, pFreeNumber)
@@ -210,7 +199,7 @@ typedef union _TX_ATTENUATION_CTRL_STRUC {
 			RtmpPCI_FinalWriteTxResource(_pAd, _pTxBlk, _TotalMPDUSize, _FirstTxIdx)
 
 #define HAL_LastTxIdx(_pAd, _QueIdx,_LastTxIdx) \
-			/*RtmpPCIDataLastTxIdx(_pAd, _QueIdx,_LastTxIdx)*/
+				/*RtmpPCIDataLastTxIdx(_pAd, _QueIdx,_LastTxIdx) */
 
 #define HAL_KickOutTx(_pAd, _pTxBlk, _QueIdx)	\
 			RTMP_IO_WRITE32((_pAd), TX_CTX_IDX0+((_QueIdx)*0x10), (_pAd)->TxRing[(_QueIdx)].TxCpuIdx)
@@ -225,16 +214,13 @@ typedef union _TX_ATTENUATION_CTRL_STRUC {
 			 :	\
 			(_pAd->TxRing[_QueIdx].TxSwFreeIdx + TX_RING_SIZE - _pAd->TxRing[_QueIdx].TxCpuIdx - 1);
 
-
 #define GET_MGMTRING_FREENO(_pAd) \
 	(_pAd->MgmtRing.TxSwFreeIdx > _pAd->MgmtRing.TxCpuIdx)	? \
 			(_pAd->MgmtRing.TxSwFreeIdx - _pAd->MgmtRing.TxCpuIdx - 1) \
 			 :	\
 			(_pAd->MgmtRing.TxSwFreeIdx + MGMT_RING_SIZE - _pAd->MgmtRing.TxCpuIdx - 1);
 
-
 /* ----------------- RX Related MACRO ----------------- */
-
 
 /* ----------------- ASIC Related MACRO ----------------- */
 // reset MAC of a station entry to 0x000000000000
@@ -272,7 +258,6 @@ typedef union _TX_ATTENUATION_CTRL_STRUC {
 						  pAd->SharedKey[apidx][KeyID].CipherAlg,		\
 						  pEntry); }
 
-
 // Insert the BA bitmap to ASIC for the Wcid entry
 #define RTMP_ADD_BA_SESSION_TO_ASIC(_pAd, _Aid, _TID)	\
 		do{					\
@@ -283,9 +268,8 @@ typedef union _TX_ATTENUATION_CTRL_STRUC {
 			RTMP_IO_WRITE32((_pAd), _Offset, _Value);\
 		}while(0)
 
-
 // Remove the BA bitmap from ASIC for the Wcid entry
-//		bitmap field starts at 0x10000 in ASIC WCID table
+//              bitmap field starts at 0x10000 in ASIC WCID table
 #define RTMP_DEL_BA_SESSION_FROM_ASIC(_pAd, _Wcid, _TID)				\
 		do{								\
 			UINT32	_Value = 0, _Offset;				\
@@ -294,7 +278,6 @@ typedef union _TX_ATTENUATION_CTRL_STRUC {
 			_Value &= (~(0x10000 << (_TID)));				\
 			RTMP_IO_WRITE32((_pAd), _Offset, _Value);			\
 		}while(0)
-
 
 /* ----------------- Interface Related MACRO ----------------- */
 
@@ -314,7 +297,6 @@ typedef union _TX_ATTENUATION_CTRL_STRUC {
 		RTMP_SET_FLAG((_pAd), fRTMP_ADAPTER_INTERRUPT_ACTIVE);	\
 	}while(0)
 
-
 #define RTMP_IRQ_INIT(pAd)	\
 	{	pAd->int_enable_reg = ((DELAYINTMASK) |		\
 					(RxINT|TxDataInt|TxMgmtInt)) & ~(0x03);	\
@@ -325,7 +307,6 @@ typedef union _TX_ATTENUATION_CTRL_STRUC {
 	{	/* clear garbage ints */			\
 		RTMP_IO_WRITE32(pAd, INT_SOURCE_CSR, 0xffffffff);\
 		RTMP_ASIC_INTERRUPT_ENABLE(pAd); }
-
 
 /* ----------------- MLME Related MACRO ----------------- */
 #define RTMP_MLME_HANDLER(pAd)			MlmeHandler(pAd)
@@ -344,7 +325,6 @@ typedef union _TX_ATTENUATION_CTRL_STRUC {
 /* ----------------- Power Save Related MACRO ----------------- */
 #define RTMP_PS_POLL_ENQUEUE(pAd)				EnqueuePsPoll(pAd)
 
-
 // For RTMPPCIePowerLinkCtrlRestore () function
 #define RESTORE_HALT		1
 #define RESTORE_WAKEUP		2
@@ -357,7 +337,6 @@ typedef union _TX_ATTENUATION_CTRL_STRUC {
 #define CID1MASK		0x0000ff00
 #define CID2MASK		0x00ff0000
 #define CID3MASK		0xff000000
-
 
 #define RTMP_STA_FORCE_WAKEUP(pAd, bFromTx) \
     RT28xxPciStaAsicForceWakeup(pAd, bFromTx);

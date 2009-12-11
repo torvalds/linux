@@ -126,12 +126,12 @@
 
 //#ifdef CONFIG_AP_SUPPORT
 // WPA mechanism retry timer interval
-#define PEER_MSG1_RETRY_EXEC_INTV           1000			// 1 sec
-#define PEER_MSG3_RETRY_EXEC_INTV           3000			// 3 sec
-#define GROUP_KEY_UPDATE_EXEC_INTV          1000				// 1 sec
-#define PEER_GROUP_KEY_UPDATE_INIV			2000				// 2 sec
+#define PEER_MSG1_RETRY_EXEC_INTV           1000	// 1 sec
+#define PEER_MSG3_RETRY_EXEC_INTV           3000	// 3 sec
+#define GROUP_KEY_UPDATE_EXEC_INTV          1000	// 1 sec
+#define PEER_GROUP_KEY_UPDATE_INIV			2000	// 2 sec
 
-#define ENQUEUE_EAPOL_START_TIMER			200					// 200 ms
+#define ENQUEUE_EAPOL_START_TIMER			200	// 200 ms
 
 // group rekey interval
 #define TIME_REKEY                          0
@@ -146,7 +146,6 @@
 #define PAIRWISE_SUITE				1
 #define AKM_SUITE					2
 #define PMKID_LIST					3
-
 
 #define EAPOL_START_DISABLE					0
 #define EAPOL_START_PSK						1
@@ -181,7 +180,6 @@
 
 #define	CONV_ARRARY_TO_UINT16(_V)	((_V[0]<<8) | (_V[1]))
 
-
 #define	ADD_ONE_To_64BIT_VAR(_V)		\
 {										\
 	UCHAR	cnt = LEN_KEY_DESC_REPLAY;	\
@@ -197,224 +195,199 @@
 #define IS_WPA_CAPABILITY(a)       (((a) >= Ndis802_11AuthModeWPA) && ((a) <= Ndis802_11AuthModeWPA1PSKWPA2PSK))
 
 // EAPOL Key Information definition within Key descriptor format
-typedef	struct PACKED _KEY_INFO
-{
-	UCHAR	KeyMic:1;
-	UCHAR	Secure:1;
-	UCHAR	Error:1;
-	UCHAR	Request:1;
-	UCHAR	EKD_DL:1;       // EKD for AP; DL for STA
-	UCHAR	Rsvd:3;
-	UCHAR	KeyDescVer:3;
-	UCHAR	KeyType:1;
-	UCHAR	KeyIndex:2;
-	UCHAR	Install:1;
-	UCHAR	KeyAck:1;
-}	KEY_INFO, *PKEY_INFO;
+typedef struct PACKED _KEY_INFO {
+	UCHAR KeyMic:1;
+	UCHAR Secure:1;
+	UCHAR Error:1;
+	UCHAR Request:1;
+	UCHAR EKD_DL:1;		// EKD for AP; DL for STA
+	UCHAR Rsvd:3;
+	UCHAR KeyDescVer:3;
+	UCHAR KeyType:1;
+	UCHAR KeyIndex:2;
+	UCHAR Install:1;
+	UCHAR KeyAck:1;
+} KEY_INFO, *PKEY_INFO;
 
 // EAPOL Key descriptor format
-typedef	struct PACKED _KEY_DESCRIPTER
-{
-	UCHAR		Type;
-	KEY_INFO	KeyInfo;
-	UCHAR		KeyLength[2];
-	UCHAR		ReplayCounter[LEN_KEY_DESC_REPLAY];
-	UCHAR		KeyNonce[LEN_KEY_DESC_NONCE];
-	UCHAR		KeyIv[LEN_KEY_DESC_IV];
-	UCHAR		KeyRsc[LEN_KEY_DESC_RSC];
-	UCHAR		KeyId[LEN_KEY_DESC_ID];
-	UCHAR		KeyMic[LEN_KEY_DESC_MIC];
-	UCHAR		KeyDataLen[2];
-	UCHAR		KeyData[MAX_LEN_OF_RSNIE];
-}	KEY_DESCRIPTER, *PKEY_DESCRIPTER;
+typedef struct PACKED _KEY_DESCRIPTER {
+	UCHAR Type;
+	KEY_INFO KeyInfo;
+	UCHAR KeyLength[2];
+	UCHAR ReplayCounter[LEN_KEY_DESC_REPLAY];
+	UCHAR KeyNonce[LEN_KEY_DESC_NONCE];
+	UCHAR KeyIv[LEN_KEY_DESC_IV];
+	UCHAR KeyRsc[LEN_KEY_DESC_RSC];
+	UCHAR KeyId[LEN_KEY_DESC_ID];
+	UCHAR KeyMic[LEN_KEY_DESC_MIC];
+	UCHAR KeyDataLen[2];
+	UCHAR KeyData[MAX_LEN_OF_RSNIE];
+} KEY_DESCRIPTER, *PKEY_DESCRIPTER;
 
-typedef	struct PACKED _EAPOL_PACKET
-{
-	UCHAR	 			ProVer;
-	UCHAR	 			ProType;
-	UCHAR	 			Body_Len[2];
-	KEY_DESCRIPTER		KeyDesc;
-}	EAPOL_PACKET, *PEAPOL_PACKET;
+typedef struct PACKED _EAPOL_PACKET {
+	UCHAR ProVer;
+	UCHAR ProType;
+	UCHAR Body_Len[2];
+	KEY_DESCRIPTER KeyDesc;
+} EAPOL_PACKET, *PEAPOL_PACKET;
 
 //802.11i D10 page 83
-typedef struct PACKED _GTK_ENCAP
-{
-    UCHAR               Kid:2;
-    UCHAR               tx:1;
-    UCHAR               rsv:5;
-    UCHAR               rsv1;
-    UCHAR               GTK[TKIP_GTK_LENGTH];
-}   GTK_ENCAP, *PGTK_ENCAP;
+typedef struct PACKED _GTK_ENCAP {
+	UCHAR Kid:2;
+	UCHAR tx:1;
+	UCHAR rsv:5;
+	UCHAR rsv1;
+	UCHAR GTK[TKIP_GTK_LENGTH];
+} GTK_ENCAP, *PGTK_ENCAP;
 
-typedef struct PACKED _KDE_ENCAP
-{
-    UCHAR               Type;
-    UCHAR               Len;
-    UCHAR               OUI[3];
-    UCHAR               DataType;
-    GTK_ENCAP      GTKEncap;
-}   KDE_ENCAP, *PKDE_ENCAP;
+typedef struct PACKED _KDE_ENCAP {
+	UCHAR Type;
+	UCHAR Len;
+	UCHAR OUI[3];
+	UCHAR DataType;
+	GTK_ENCAP GTKEncap;
+} KDE_ENCAP, *PKDE_ENCAP;
 
 // For WPA1
 typedef struct PACKED _RSNIE {
-    UCHAR   oui[4];
-    USHORT  version;
-    UCHAR   mcast[4];
-    USHORT  ucount;
-    struct PACKED {
-        UCHAR oui[4];
-    }ucast[1];
+	UCHAR oui[4];
+	USHORT version;
+	UCHAR mcast[4];
+	USHORT ucount;
+	struct PACKED {
+		UCHAR oui[4];
+	} ucast[1];
 } RSNIE, *PRSNIE;
 
 // For WPA2
 typedef struct PACKED _RSNIE2 {
-    USHORT  version;
-    UCHAR   mcast[4];
-    USHORT  ucount;
-    struct PACKED {
-        UCHAR oui[4];
-    }ucast[1];
+	USHORT version;
+	UCHAR mcast[4];
+	USHORT ucount;
+	struct PACKED {
+		UCHAR oui[4];
+	} ucast[1];
 } RSNIE2, *PRSNIE2;
 
 // AKM Suite
 typedef struct PACKED _RSNIE_AUTH {
-    USHORT acount;
-    struct PACKED {
-        UCHAR oui[4];
-    }auth[1];
-} RSNIE_AUTH,*PRSNIE_AUTH;
+	USHORT acount;
+	struct PACKED {
+		UCHAR oui[4];
+	} auth[1];
+} RSNIE_AUTH, *PRSNIE_AUTH;
 
-typedef	union PACKED _RSN_CAPABILITIES	{
-	struct	PACKED {
-        USHORT		PreAuth:1;
-		USHORT		No_Pairwise:1;
-		USHORT		PTKSA_R_Counter:2;
-		USHORT		GTKSA_R_Counter:2;
-		USHORT		Rsvd:10;
-	}	field;
-	USHORT			word;
-}	RSN_CAPABILITIES, *PRSN_CAPABILITIES;
+typedef union PACKED _RSN_CAPABILITIES {
+	struct PACKED {
+		USHORT PreAuth:1;
+		USHORT No_Pairwise:1;
+		USHORT PTKSA_R_Counter:2;
+		USHORT GTKSA_R_Counter:2;
+		USHORT Rsvd:10;
+	} field;
+	USHORT word;
+} RSN_CAPABILITIES, *PRSN_CAPABILITIES;
 
 typedef struct PACKED _EAP_HDR {
-    UCHAR   ProVer;
-    UCHAR   ProType;
-    UCHAR   Body_Len[2];
-    UCHAR   code;
-    UCHAR   identifier;
-    UCHAR   length[2]; // including code and identifier, followed by length-2 octets of data
+	UCHAR ProVer;
+	UCHAR ProType;
+	UCHAR Body_Len[2];
+	UCHAR code;
+	UCHAR identifier;
+	UCHAR length[2];	// including code and identifier, followed by length-2 octets of data
 } EAP_HDR, *PEAP_HDR;
 
 // For supplicant state machine states. 802.11i Draft 4.1, p. 97
 // We simplified it
-typedef	enum	_WpaState
-{
-	SS_NOTUSE,				// 0
-	SS_START,				// 1
-	SS_WAIT_MSG_3,			// 2
-	SS_WAIT_GROUP,			// 3
-	SS_FINISH,  			// 4
-	SS_KEYUPDATE,			// 5
-}	WPA_STATE;
+typedef enum _WpaState {
+	SS_NOTUSE,		// 0
+	SS_START,		// 1
+	SS_WAIT_MSG_3,		// 2
+	SS_WAIT_GROUP,		// 3
+	SS_FINISH,		// 4
+	SS_KEYUPDATE,		// 5
+} WPA_STATE;
 
 //
-//	The definition of the cipher combination
+//      The definition of the cipher combination
 //
-// 	 bit3	bit2  bit1   bit0
-//	+------------+------------+
-// 	|	  WPA	 |	   WPA2   |
-//	+------+-----+------+-----+
-//	| TKIP | AES | TKIP | AES |
-//	|	0  |  1  |   1  |  0  | -> 0x06
-//	|	0  |  1  |   1  |  1  | -> 0x07
-//	|	1  |  0  |   0  |  1  | -> 0x09
-//	|	1  |  0  |   1  |  1  | -> 0x0B
-//	|	1  |  1  |   0  |  1  | -> 0x0D
-//	|	1  |  1  |   1  |  0  | -> 0x0E
-//	|	1  |  1  |   1  |  1  |	-> 0x0F
-//	+------+-----+------+-----+
+//       bit3   bit2  bit1   bit0
+//      +------------+------------+
+//      |         WPA    |         WPA2   |
+//      +------+-----+------+-----+
+//      | TKIP | AES | TKIP | AES |
+//      |       0  |  1  |   1  |  0  | -> 0x06
+//      |       0  |  1  |   1  |  1  | -> 0x07
+//      |       1  |  0  |   0  |  1  | -> 0x09
+//      |       1  |  0  |   1  |  1  | -> 0x0B
+//      |       1  |  1  |   0  |  1  | -> 0x0D
+//      |       1  |  1  |   1  |  0  | -> 0x0E
+//      |       1  |  1  |   1  |  1  | -> 0x0F
+//      +------+-----+------+-----+
 //
-typedef	enum	_WpaMixPairCipher
-{
-	MIX_CIPHER_NOTUSE 			= 0x00,
-	WPA_NONE_WPA2_TKIPAES		= 0x03,		// WPA2-TKIPAES
-	WPA_AES_WPA2_TKIP 			= 0x06,
-	WPA_AES_WPA2_TKIPAES		= 0x07,
-	WPA_TKIP_WPA2_AES			= 0x09,
-	WPA_TKIP_WPA2_TKIPAES		= 0x0B,
-	WPA_TKIPAES_WPA2_NONE		= 0x0C,		// WPA-TKIPAES
-	WPA_TKIPAES_WPA2_AES		= 0x0D,
-	WPA_TKIPAES_WPA2_TKIP		= 0x0E,
-	WPA_TKIPAES_WPA2_TKIPAES	= 0x0F,
-}	WPA_MIX_PAIR_CIPHER;
+typedef enum _WpaMixPairCipher {
+	MIX_CIPHER_NOTUSE = 0x00,
+	WPA_NONE_WPA2_TKIPAES = 0x03,	// WPA2-TKIPAES
+	WPA_AES_WPA2_TKIP = 0x06,
+	WPA_AES_WPA2_TKIPAES = 0x07,
+	WPA_TKIP_WPA2_AES = 0x09,
+	WPA_TKIP_WPA2_TKIPAES = 0x0B,
+	WPA_TKIPAES_WPA2_NONE = 0x0C,	// WPA-TKIPAES
+	WPA_TKIPAES_WPA2_AES = 0x0D,
+	WPA_TKIPAES_WPA2_TKIP = 0x0E,
+	WPA_TKIPAES_WPA2_TKIPAES = 0x0F,
+} WPA_MIX_PAIR_CIPHER;
 
-typedef struct PACKED _RSN_IE_HEADER_STRUCT	{
-	UCHAR		Eid;
-	UCHAR		Length;
-	USHORT		Version;	// Little endian format
-}	RSN_IE_HEADER_STRUCT, *PRSN_IE_HEADER_STRUCT;
+typedef struct PACKED _RSN_IE_HEADER_STRUCT {
+	UCHAR Eid;
+	UCHAR Length;
+	USHORT Version;		// Little endian format
+} RSN_IE_HEADER_STRUCT, *PRSN_IE_HEADER_STRUCT;
 
 // Cipher suite selector types
-typedef struct PACKED _CIPHER_SUITE_STRUCT	{
-	UCHAR		Oui[3];
-	UCHAR		Type;
-}	CIPHER_SUITE_STRUCT, *PCIPHER_SUITE_STRUCT;
+typedef struct PACKED _CIPHER_SUITE_STRUCT {
+	UCHAR Oui[3];
+	UCHAR Type;
+} CIPHER_SUITE_STRUCT, *PCIPHER_SUITE_STRUCT;
 
 // Authentication and Key Management suite selector
-typedef struct PACKED _AKM_SUITE_STRUCT	{
-	UCHAR		Oui[3];
-	UCHAR		Type;
-}	AKM_SUITE_STRUCT, *PAKM_SUITE_STRUCT;
+typedef struct PACKED _AKM_SUITE_STRUCT {
+	UCHAR Oui[3];
+	UCHAR Type;
+} AKM_SUITE_STRUCT, *PAKM_SUITE_STRUCT;
 
 // RSN capability
-typedef struct	PACKED _RSN_CAPABILITY	{
-	USHORT		Rsv:10;
-	USHORT		GTKSAReplayCnt:2;
-	USHORT		PTKSAReplayCnt:2;
-	USHORT		NoPairwise:1;
-	USHORT		PreAuth:1;
-}	RSN_CAPABILITY, *PRSN_CAPABILITY;
-
+typedef struct PACKED _RSN_CAPABILITY {
+	USHORT Rsv:10;
+	USHORT GTKSAReplayCnt:2;
+	USHORT PTKSAReplayCnt:2;
+	USHORT NoPairwise:1;
+	USHORT PreAuth:1;
+} RSN_CAPABILITY, *PRSN_CAPABILITY;
 
 /*========================================
 	The prototype is defined in cmm_wpa.c
   ========================================*/
-BOOLEAN WpaMsgTypeSubst(
-	IN  UCHAR   EAPType,
-	OUT INT		*MsgType);
+BOOLEAN WpaMsgTypeSubst(IN UCHAR EAPType, OUT INT * MsgType);
 
-VOID    PRF(
-	IN  UCHAR   *key,
-	IN  INT     key_len,
-	IN  UCHAR   *prefix,
-	IN  INT     prefix_len,
-	IN  UCHAR   *data,
-	IN  INT     data_len,
-	OUT UCHAR   *output,
-	IN  INT     len);
+VOID PRF(IN UCHAR * key,
+	 IN INT key_len,
+	 IN UCHAR * prefix,
+	 IN INT prefix_len,
+	 IN UCHAR * data, IN INT data_len, OUT UCHAR * output, IN INT len);
 
-int PasswordHash(
-	char *password,
-	unsigned char *ssid,
-	int ssidlength,
-	unsigned char *output);
+int PasswordHash(char *password,
+		 unsigned char *ssid, int ssidlength, unsigned char *output);
 
-PUINT8	GetSuiteFromRSNIE(
-		IN	PUINT8	rsnie,
-		IN	UINT	rsnie_len,
-		IN	UINT8	type,
-		OUT	UINT8	*count);
+PUINT8 GetSuiteFromRSNIE(IN PUINT8 rsnie,
+			 IN UINT rsnie_len, IN UINT8 type, OUT UINT8 * count);
 
-VOID WpaShowAllsuite(
-	IN	PUINT8	rsnie,
-	IN	UINT	rsnie_len);
+VOID WpaShowAllsuite(IN PUINT8 rsnie, IN UINT rsnie_len);
 
-VOID RTMPInsertRSNIE(
-	IN PUCHAR pFrameBuf,
-	OUT PULONG pFrameLen,
-	IN PUINT8 rsnie_ptr,
-	IN UINT8  rsnie_len,
-	IN PUINT8 pmkid_ptr,
-	IN UINT8  pmkid_len);
-
+VOID RTMPInsertRSNIE(IN PUCHAR pFrameBuf,
+		     OUT PULONG pFrameLen,
+		     IN PUINT8 rsnie_ptr,
+		     IN UINT8 rsnie_len,
+		     IN PUINT8 pmkid_ptr, IN UINT8 pmkid_len);
 
 #endif

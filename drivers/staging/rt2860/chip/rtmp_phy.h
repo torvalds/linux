@@ -38,7 +38,6 @@
 #ifndef __RTMP_PHY_H__
 #define __RTMP_PHY_H__
 
-
 /*
 	RF sections
 */
@@ -75,31 +74,30 @@
 #define RF_R30			30
 #define RF_R31			31
 
-
 // value domain of pAd->RfIcType
-#define RFIC_2820                   1       // 2.4G 2T3R
-#define RFIC_2850                   2       // 2.4G/5G 2T3R
-#define RFIC_2720                   3       // 2.4G 1T2R
-#define RFIC_2750                   4       // 2.4G/5G 1T2R
-#define RFIC_3020                   5       // 2.4G 1T1R
-#define RFIC_2020                   6       // 2.4G B/G
-#define RFIC_3021                   7       // 2.4G 1T2R
-#define RFIC_3022                   8       // 2.4G 2T2R
-#define RFIC_3052                   9       // 2.4G/5G 2T2R
+#define RFIC_2820                   1	// 2.4G 2T3R
+#define RFIC_2850                   2	// 2.4G/5G 2T3R
+#define RFIC_2720                   3	// 2.4G 1T2R
+#define RFIC_2750                   4	// 2.4G/5G 1T2R
+#define RFIC_3020                   5	// 2.4G 1T1R
+#define RFIC_2020                   6	// 2.4G B/G
+#define RFIC_3021                   7	// 2.4G 1T2R
+#define RFIC_3022                   8	// 2.4G 2T2R
+#define RFIC_3052                   9	// 2.4G/5G 2T2R
 
 /*
 	BBP sections
 */
-#define BBP_R0			0  // version
-#define BBP_R1			1  // TSSI
-#define BBP_R2			2  // TX configure
+#define BBP_R0			0	// version
+#define BBP_R1			1	// TSSI
+#define BBP_R2			2	// TX configure
 #define BBP_R3			3
 #define BBP_R4			4
 #define BBP_R5			5
 #define BBP_R6			6
-#define BBP_R14			14 // RX configure
+#define BBP_R14			14	// RX configure
 #define BBP_R16			16
-#define BBP_R17			17 // RX sensibility
+#define BBP_R17			17	// RX sensibility
 #define BBP_R18			18
 #define BBP_R21			21
 #define BBP_R22			22
@@ -108,12 +106,12 @@
 #define BBP_R26			26
 #define BBP_R27			27
 #define BBP_R31			31
-#define BBP_R49			49 //TSSI
+#define BBP_R49			49	//TSSI
 #define BBP_R50			50
 #define BBP_R51			51
 #define BBP_R52			52
 #define BBP_R55			55
-#define BBP_R62			62 // Rx SQ0 Threshold HIGH
+#define BBP_R62			62	// Rx SQ0 Threshold HIGH
 #define BBP_R63			63
 #define BBP_R64			64
 #define BBP_R65			65
@@ -121,7 +119,7 @@
 #define BBP_R67			67
 #define BBP_R68			68
 #define BBP_R69			69
-#define BBP_R70			70 // Rx AGC SQ CCK Xcorr threshold
+#define BBP_R70			70	// Rx AGC SQ CCK Xcorr threshold
 #define BBP_R73			73
 #define BBP_R75			75
 #define BBP_R77			77
@@ -135,7 +133,7 @@
 #define BBP_R86			86
 #define BBP_R91			91
 #define BBP_R92			92
-#define BBP_R94			94 // Tx Gain Control
+#define BBP_R94			94	// Tx Gain Control
 #define BBP_R103		103
 #define BBP_R105		105
 #define BBP_R106		106
@@ -151,16 +149,16 @@
 #define BBP_R122		122
 #define BBP_R123		123
 #ifdef RT30xx
-#define BBP_R138		138 // add by johnli, RF power sequence setup, ADC dynamic on/off control
+#define BBP_R138		138	// add by johnli, RF power sequence setup, ADC dynamic on/off control
 #endif // RT30xx //
 
-#define BBPR94_DEFAULT	0x06 // Add 1 value will gain 1db
+#define BBPR94_DEFAULT	0x06	// Add 1 value will gain 1db
 
 //
 // BBP & RF are using indirect access. Before write any value into it.
 // We have to make sure there is no outstanding command pending via checking busy bit.
 //
-#define MAX_BUSY_COUNT  100         // Number of retry before failing access BBP & RF indirect register
+#define MAX_BUSY_COUNT  100	// Number of retry before failing access BBP & RF indirect register
 
 //#define PHY_TR_SWITCH_TIME          5  // usec
 
@@ -416,7 +414,6 @@
 		}														\
 	}while(0)
 
-
 /*
 	This marco used for the BBP write operation which didn't need via MCU.
 */
@@ -538,7 +535,6 @@
 		_macData &= ~(0x09);	/*bit 0, 3*/							\
 		RTMP_IO_WRITE32(_pAd, 0x1210, _macData);				\
 	}while(0)
-
 
 #define RTMP_ASIC_MMPS_ENABLE(_pAd)							\
 	do{															\

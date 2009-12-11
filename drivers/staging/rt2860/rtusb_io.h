@@ -25,7 +25,6 @@
  *************************************************************************
 */
 
-
 #ifndef __RTUSB_IO_H__
 #define __RTUSB_IO_H__
 
@@ -60,8 +59,8 @@
 #define CMDTHREAD_SET_ASIC_WCID                     0x0D730226	// cmd
 #define CMDTHREAD_SET_ASIC_WCID_CIPHER              0x0D730227	// cmd
 #define CMDTHREAD_QKERIODIC_EXECUT                  0x0D73023D	// cmd
-#define RT_CMD_SET_KEY_TABLE                        0x0D730228  // cmd
-#define RT_CMD_SET_RX_WCID_TABLE                    0x0D730229  // cmd
+#define RT_CMD_SET_KEY_TABLE                        0x0D730228	// cmd
+#define RT_CMD_SET_RX_WCID_TABLE                    0x0D730229	// cmd
 #define CMDTHREAD_SET_CLIENT_MAC_ENTRY              0x0D73023E	// cmd
 #define CMDTHREAD_SET_GROUP_KEY						0x0D73023F	// cmd
 #define CMDTHREAD_SET_PAIRWISE_KEY					0x0D730240	// cmd
@@ -75,34 +74,31 @@
 #define CMDTHREAD_UPDATE_PROTECT					0x0D790103	// cmd
 // end johnli
 
-
 //CMDTHREAD_MULTI_READ_MAC
 //CMDTHREAD_MULTI_WRITE_MAC
 //CMDTHREAD_VENDOR_EEPROM_READ
 //CMDTHREAD_VENDOR_EEPROM_WRITE
-typedef	struct	_CMDHandler_TLV	{
-	USHORT		Offset;
-	USHORT		Length;
-	UCHAR		DataFirst;
-}	CMDHandler_TLV, *PCMDHandler_TLV;
+typedef struct _CMDHandler_TLV {
+	USHORT Offset;
+	USHORT Length;
+	UCHAR DataFirst;
+} CMDHandler_TLV, *PCMDHandler_TLV;
 
+typedef struct _CmdQElmt {
+	UINT command;
+	PVOID buffer;
+	ULONG bufferlength;
+	BOOLEAN CmdFromNdis;
+	BOOLEAN SetOperation;
+	struct _CmdQElmt *next;
+} CmdQElmt, *PCmdQElmt;
 
-typedef	struct _CmdQElmt	{
-	UINT				command;
-	PVOID				buffer;
-	ULONG				bufferlength;
-	BOOLEAN				CmdFromNdis;
-	BOOLEAN				SetOperation;
-	struct _CmdQElmt	*next;
-}	CmdQElmt, *PCmdQElmt;
-
-typedef	struct	_CmdQ	{
-	UINT		size;
-	CmdQElmt	*head;
-	CmdQElmt	*tail;
-	UINT32		CmdQState;
-}CmdQ, *PCmdQ;
-
+typedef struct _CmdQ {
+	UINT size;
+	CmdQElmt *head;
+	CmdQElmt *tail;
+	UINT32 CmdQState;
+} CmdQ, *PCmdQ;
 
 #define EnqueueCmd(cmdq, cmdqelmt)		\
 {										\
@@ -114,7 +110,6 @@ typedef	struct	_CmdQ	{
 	cmdqelmt->next = NULL;				\
 	cmdq->size++;						\
 }
-
 
 /******************************************************************************
 
@@ -184,6 +179,5 @@ typedef	struct	_CmdQ	{
 			SetAsicWcid.DeleteTid = (0x10000<<(_TID) );					\
 			RTUSBEnqueueInternalCmd((_pAd), CMDTHREAD_SET_ASIC_WCID, &SetAsicWcid, sizeof(RT_SET_ASIC_WCID));	\
 		}while(0)
-
 
 #endif // __RTUSB_IO_H__ //

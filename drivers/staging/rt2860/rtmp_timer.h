@@ -43,13 +43,11 @@
 
 #include "rtmp_os.h"
 
-
 #define DECLARE_TIMER_FUNCTION(_func)			\
 	void rtmp_timer_##_func(unsigned long data)
 
 #define GET_TIMER_FUNCTION(_func)				\
 	rtmp_timer_##_func
-
 
 /* ----------------- Timer Related MARCO ---------------*/
 // In some os or chipset, we have a lot of timer functions and will read/write register,
@@ -57,45 +55,40 @@
 //  submit to ctrl pipe). So we need a wrapper function to take care it.
 
 #ifdef RTMP_TIMER_TASK_SUPPORT
-typedef VOID (*RTMP_TIMER_TASK_HANDLE)(
-	IN  PVOID   SystemSpecific1,
-	IN  PVOID   FunctionContext,
-	IN  PVOID   SystemSpecific2,
-	IN  PVOID   SystemSpecific3);
+typedef VOID(*RTMP_TIMER_TASK_HANDLE) (IN PVOID SystemSpecific1,
+				       IN PVOID FunctionContext,
+				       IN PVOID SystemSpecific2,
+				       IN PVOID SystemSpecific3);
 #endif // RTMP_TIMER_TASK_SUPPORT //
 
-typedef struct  _RALINK_TIMER_STRUCT    {
-	RTMP_OS_TIMER		TimerObj;       // Ndis Timer object
-	BOOLEAN				Valid;			// Set to True when call RTMPInitTimer
-	BOOLEAN				State;          // True if timer cancelled
-	BOOLEAN				PeriodicType;	// True if timer is periodic timer
-	BOOLEAN				Repeat;         // True if periodic timer
-	ULONG				TimerValue;     // Timer value in milliseconds
-	ULONG				cookie;			// os specific object
+typedef struct _RALINK_TIMER_STRUCT {
+	RTMP_OS_TIMER TimerObj;	// Ndis Timer object
+	BOOLEAN Valid;		// Set to True when call RTMPInitTimer
+	BOOLEAN State;		// True if timer cancelled
+	BOOLEAN PeriodicType;	// True if timer is periodic timer
+	BOOLEAN Repeat;		// True if periodic timer
+	ULONG TimerValue;	// Timer value in milliseconds
+	ULONG cookie;		// os specific object
 #ifdef RTMP_TIMER_TASK_SUPPORT
-	RTMP_TIMER_TASK_HANDLE	handle;
-	void					*pAd;
-#endif // RTMP_TIMER_TASK_SUPPORT //
-}RALINK_TIMER_STRUCT, *PRALINK_TIMER_STRUCT;
-
+	RTMP_TIMER_TASK_HANDLE handle;
+	void *pAd;
+#endif				// RTMP_TIMER_TASK_SUPPORT //
+} RALINK_TIMER_STRUCT, *PRALINK_TIMER_STRUCT;
 
 #ifdef RTMP_TIMER_TASK_SUPPORT
-typedef struct _RTMP_TIMER_TASK_ENTRY_
-{
-	RALINK_TIMER_STRUCT			*pRaTimer;
-	struct _RTMP_TIMER_TASK_ENTRY_	*pNext;
-}RTMP_TIMER_TASK_ENTRY;
-
+typedef struct _RTMP_TIMER_TASK_ENTRY_ {
+	RALINK_TIMER_STRUCT *pRaTimer;
+	struct _RTMP_TIMER_TASK_ENTRY_ *pNext;
+} RTMP_TIMER_TASK_ENTRY;
 
 #define TIMER_QUEUE_SIZE_MAX	128
-typedef struct _RTMP_TIMER_TASK_QUEUE_
-{
-	unsigned int				status;
-	unsigned char				*pTimerQPoll;
-	RTMP_TIMER_TASK_ENTRY	*pQPollFreeList;
-	RTMP_TIMER_TASK_ENTRY	*pQHead;
-	RTMP_TIMER_TASK_ENTRY	*pQTail;
-}RTMP_TIMER_TASK_QUEUE;
+typedef struct _RTMP_TIMER_TASK_QUEUE_ {
+	unsigned int status;
+	unsigned char *pTimerQPoll;
+	RTMP_TIMER_TASK_ENTRY *pQPollFreeList;
+	RTMP_TIMER_TASK_ENTRY *pQHead;
+	RTMP_TIMER_TASK_ENTRY *pQTail;
+} RTMP_TIMER_TASK_QUEUE;
 
 #define BUILD_TIMER_FUNCTION(_func)										\
 void rtmp_timer_##_func(unsigned long data)										\
@@ -121,7 +114,6 @@ void rtmp_timer_##_func(unsigned long data)										\
 		RTMP_OS_Add_Timer(&pTimer->TimerObj, pTimer->TimerValue);			\
 }
 #endif // RTMP_TIMER_TASK_SUPPORT //
-
 
 DECLARE_TIMER_FUNCTION(MlmePeriodicExec);
 DECLARE_TIMER_FUNCTION(MlmeRssiReportExec);
@@ -151,6 +143,5 @@ DECLARE_TIMER_FUNCTION(RtmpUsbStaAsicForceWakeupTimeout);
 #if defined(AP_LED) || defined(STA_LED)
 DECLARE_TIMER_FUNCTION(LedCtrlMain);
 #endif
-
 
 #endif // __RTMP_TIMER_H__ //
