@@ -215,31 +215,42 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 	data->node_flags = node->flags;
 	data->pathname = pathname;
 
-	/* TBD: For variable-length Packages, remove NULL elements here */
-
 	/*
-	 * Check that the type of the return object is what is expected for
-	 * this predefined name
+	 * Check that the type of the main return object is what is expected
+	 * for this predefined name
 	 */
 	status = acpi_ns_check_object_type(data, return_object_ptr,
 					   predefined->info.expected_btypes,
 					   ACPI_NOT_PACKAGE_ELEMENT);
-	if (ACPI_SUCCESS(status)) {
-		/*
-		 * For returned Package objects, check the type of all sub-objects.
-		 * Note: Package may have been created by call above.
-		 */
-		if ((*return_object_ptr)->common.type == ACPI_TYPE_PACKAGE) {
-			status = acpi_ns_check_package(data, return_object_ptr);
+	if (ACPI_FAILURE(status)) {
+		goto exit;
+	}
+
+	/*
+	 * For returned Package objects, check the type of all sub-objects.
+	 * Note: Package may have been newly created by call above.
+	 */
+	if ((*return_object_ptr)->common.type == ACPI_TYPE_PACKAGE) {
+
+		/* TBD: For variable-length Packages, remove NULL elements here */
+
+		status = acpi_ns_check_package(data, return_object_ptr);
+		if (ACPI_FAILURE(status)) {
+			goto exit;
 		}
 	}
 
 	/*
-	 * Perform additional, more complicated repairs on a per-name
-	 * basis. Do this regardless of the status from above.
+	 * The return object was OK, or it was successfully repaired above.
+	 * Now make some additional checks such as verifying that package
+	 * objects are sorted correctly (if required) or buffer objects have
+	 * the correct data width (bytes vs. dwords). These repairs are
+	 * performed on a per-name basis, i.e., the code is specific to
+	 * particular predefined names.
 	 */
 	status = acpi_ns_complex_repairs(data, node, status, return_object_ptr);
 
+exit:
 	/*
 	 * If the object validation failed or if we successfully repaired one
 	 * or more objects, mark the parent node to suppress further warning
