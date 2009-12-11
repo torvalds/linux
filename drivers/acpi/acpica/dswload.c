@@ -700,15 +700,16 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 		case ACPI_TYPE_BUFFER:
 
 			/*
-			 * These types we will allow, but we will change the type. This
-			 * enables some existing code of the form:
+			 * These types we will allow, but we will change the type.
+			 * This enables some existing code of the form:
 			 *
 			 *  Name (DEB, 0)
 			 *  Scope (DEB) { ... }
 			 */
 			ACPI_WARNING((AE_INFO,
-				      "Type override - [%4.4s] had invalid type (%s) for Scope operator, changed to (Scope)",
-				      buffer_ptr,
+				      "Type override - [%4.4s] had invalid type (%s) "
+				      "for Scope operator, changed to type ANY\n",
+				      acpi_ut_get_node_name(node),
 				      acpi_ut_get_type_name(node->type)));
 
 			node->type = ACPI_TYPE_ANY;
@@ -720,9 +721,10 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 			/* All other types are an error */
 
 			ACPI_ERROR((AE_INFO,
-				    "Invalid type (%s) for target of Scope operator [%4.4s]",
+				    "Invalid type (%s) for target of "
+				    "Scope operator [%4.4s] (Cannot override)",
 				    acpi_ut_get_type_name(node->type),
-				    buffer_ptr));
+				    acpi_ut_get_node_name(node)));
 
 			return (AE_AML_OPERAND_TYPE);
 		}
