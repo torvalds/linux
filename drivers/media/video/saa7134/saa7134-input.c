@@ -708,7 +708,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0",
 		 pci_name(dev->pci));
 
-	err = ir_input_init(input_dev, &ir->ir, ir_type, ir_codes);
+	err = ir_input_init(input_dev, &ir->ir, ir_type);
 	if (err < 0)
 		goto err_out_free;
 
@@ -728,7 +728,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	dev->remote = ir;
 	saa7134_ir_start(dev, ir);
 
-	err = input_register_device(ir->dev);
+	err = ir_input_register(ir->dev, ir_codes);
 	if (err)
 		goto err_out_stop;
 
@@ -742,8 +742,6 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	saa7134_ir_stop(dev);
 	dev->remote = NULL;
  err_out_free:
-	ir_input_unregister(input_dev);
-	input_free_device(input_dev);
 	kfree(ir);
 	return err;
 }
@@ -755,7 +753,6 @@ void saa7134_input_fini(struct saa7134_dev *dev)
 
 	saa7134_ir_stop(dev);
 	ir_input_unregister(dev->remote->dev);
-	input_unregister_device(dev->remote->dev);
 	kfree(dev->remote);
 	dev->remote = NULL;
 }

@@ -52,14 +52,12 @@ static void ir_input_key_event(struct input_dev *dev, struct ir_input_state *ir)
 /* -------------------------------------------------------------------------- */
 
 int ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
-		   int ir_type, struct ir_scancode_table *ir_codes)
+		   int ir_type)
 {
 	ir->ir_type = ir_type;
 
 	if (repeat)
 		set_bit(EV_REP, dev->evbit);
-
-	ir_input_register(dev, ir_codes);
 
 	return 0;
 }

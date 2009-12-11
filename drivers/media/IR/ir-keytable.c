@@ -12,8 +12,8 @@
  *  GNU General Public License for more details.
  */
 
-#include <linux/usb/input.h>
 
+#include <linux/usb/input.h>
 #include <media/ir-common.h>
 
 #define IR_TAB_MIN_SIZE	32
@@ -408,7 +408,7 @@ int ir_input_register(struct input_dev *input_dev,
 {
 	struct ir_input_dev *ir_dev;
 	struct ir_scancode  *keymap    = rc_tab->scan;
-	int i;
+	int i, rc;
 
 	if (rc_tab->scan == NULL || !rc_tab->size)
 		return -EINVAL;
@@ -446,26 +446,34 @@ int ir_input_register(struct input_dev *input_dev,
 	input_dev->setkeycode = ir_setkeycode;
 	input_set_drvdata(input_dev, ir_dev);
 
-	return 0;
+	rc = input_register_device(input_dev);
+	if (rc < 0) {
+		kfree(rc_tab->scan);
+		kfree(ir_dev);
+		input_set_drvdata(input_dev, NULL);
+	}
+
+	return rc;
 }
 EXPORT_SYMBOL_GPL(ir_input_register);
 
 void ir_input_unregister(struct input_dev *dev)
 {
 	struct ir_input_dev *ir_dev = input_get_drvdata(dev);
-	struct ir_scancode_table *rc_tab = &ir_dev->rc_tab;
+	struct ir_scancode_table *rc_tab;
 
-	if (!rc_tab)
+	if (!ir_dev)
 		return;
 
 	IR_dprintk(1, "Freed keycode table\n");
 
+	rc_tab = &ir_dev->rc_tab;
 	rc_tab->size = 0;
 	kfree(rc_tab->scan);
 	rc_tab->scan = NULL;
 
 	kfree(ir_dev);
-	input_set_drvdata(dev, NULL);
+	input_unregister_device(dev);
 }
 EXPORT_SYMBOL_GPL(ir_input_unregister);
 

@@ -84,7 +84,7 @@ struct card_ir {
 /* Routines from ir-functions.c */
 
 int ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
-		   int ir_type, struct ir_scancode_table *ir_codes);
+		   int ir_type);
 void ir_input_nokey(struct input_dev *dev, struct ir_input_state *ir);
 void ir_input_keydown(struct input_dev *dev, struct ir_input_state *ir,
 		      u32 ir_key);

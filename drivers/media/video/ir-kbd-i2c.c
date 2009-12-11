@@ -438,7 +438,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		 dev_name(&client->dev));
 
 	/* init + register input device */
-	err = ir_input_init(input_dev, &ir->ir, ir_type, ir->ir_codes);
+	err = ir_input_init(input_dev, &ir->ir, ir_type);
 	if (err < 0)
 		goto err_out_free;
 
@@ -446,7 +446,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	input_dev->name       = ir->name;
 	input_dev->phys       = ir->phys;
 
-	err = input_register_device(ir->input);
+	err = ir_input_register(ir->input, ir->ir_codes);
 	if (err)
 		goto err_out_free;
 
@@ -460,8 +460,6 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	return 0;
 
  err_out_free:
-	ir_input_unregister(input_dev);
-	input_free_device(input_dev);
 	kfree(ir);
 	return err;
 }
@@ -475,7 +473,6 @@ static int ir_remove(struct i2c_client *client)
 
 	/* unregister device */
 	ir_input_unregister(ir->input);
-	input_unregister_device(ir->input);
 
 	/* free memory */
 	kfree(ir);
