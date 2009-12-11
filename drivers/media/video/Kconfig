@@ -37,10 +37,6 @@ config VIDEO_BTCX
 	depends on PCI
 	tristate
 
-config VIDEO_IR
-	tristate
-	depends on INPUT
-
 config VIDEO_TVEEPROM
 	tristate
 	depends on I2C

@@ -1,0 +1,4 @@
+config VIDEO_IR
+	tristate
+	depends on INPUT
+	default INPUT

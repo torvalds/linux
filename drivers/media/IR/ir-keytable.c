@@ -10,6 +10,7 @@
 #define IR_TAB_MIN_SIZE	32
 #define IR_TAB_MAX_SIZE	1024
 
+
 /**
  * ir_seek_table() - returns the element order on the table
  * @rc_tab:	the ir_scancode_table with the keymap to be used
