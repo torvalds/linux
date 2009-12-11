@@ -434,6 +434,14 @@ struct acx_smart_reflex_config_params {
 	struct smart_reflex_err_table error_table[3];
 } __attribute__ ((packed));
 
+struct acx_dco_itrim_params {
+	struct acx_header header;
+
+	u8 enable;
+	u8 padding[3];
+	__le32 timeout;
+} __attribute__ ((packed));
+
 #define PTA_ANTENNA_TYPE_DEF		  (0)
 #define PTA_BT_HP_MAXTIME_DEF		  (2000)
 #define PTA_WLAN_HP_MAX_TIME_DEF	  (5000)
@@ -1029,6 +1037,7 @@ enum {
 	ACX_SET_SMART_REFLEX_DEBUG  = 0x005A,
 	ACX_SET_SMART_REFLEX_STATE  = 0x005B,
 	ACX_SET_SMART_REFLEX_PARAMS = 0x005F,
+	ACX_SET_DCO_ITRIM_PARAMS    = 0x0061,
 	DOT11_RX_MSDU_LIFE_TIME     = 0x1004,
 	DOT11_CUR_TX_PWR            = 0x100D,
 	DOT11_RX_DOT11_MODE         = 0x1012,
@@ -1056,6 +1065,7 @@ int wl1271_acx_group_address_tbl(struct wl1271 *wl, bool enable,
 				 void *mc_list, u32 mc_list_len);
 int wl1271_acx_service_period_timeout(struct wl1271 *wl);
 int wl1271_acx_rts_threshold(struct wl1271 *wl, u16 rts_threshold);
+int wl1271_acx_dco_itrim_params(struct wl1271 *wl);
 int wl1271_acx_beacon_filter_opt(struct wl1271 *wl, bool enable_filter);
 int wl1271_acx_beacon_filter_table(struct wl1271 *wl);
 int wl1271_acx_conn_monit_params(struct wl1271 *wl);

@@ -229,6 +229,10 @@ int wl1271_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		goto out_free_memmap;
 
+	ret = wl1271_acx_dco_itrim_params(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
 	/* Initialize connection monitoring thresholds */
 	ret = wl1271_acx_conn_monit_params(wl);
 	if (ret < 0)

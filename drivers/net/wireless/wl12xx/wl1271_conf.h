@@ -934,12 +934,21 @@ struct conf_init_settings {
 
 };
 
+struct conf_itrim_settings {
+	/* enable dco itrim */
+	u8 enable;
+
+	/* moderation timeout in microsecs from the last TX */
+	u32 timeout;
+};
+
 struct conf_drv_settings {
 	struct conf_sg_settings sg;
 	struct conf_rx_settings rx;
 	struct conf_tx_settings tx;
 	struct conf_conn_settings conn;
 	struct conf_init_settings init;
+	struct conf_itrim_settings itrim;
 };
 
 #endif

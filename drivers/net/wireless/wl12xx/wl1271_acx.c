@@ -390,6 +390,35 @@ out:
 	return ret;
 }
 
+int wl1271_acx_dco_itrim_params(struct wl1271 *wl)
+{
+	struct acx_dco_itrim_params *dco;
+	struct conf_itrim_settings *c = &wl->conf.itrim;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx dco itrim parameters");
+
+	dco = kzalloc(sizeof(*dco), GFP_KERNEL);
+	if (!dco) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	dco->enable = c->enable;
+	dco->timeout = cpu_to_le32(c->timeout);
+
+	ret = wl1271_cmd_configure(wl, ACX_SET_DCO_ITRIM_PARAMS,
+				   dco, sizeof(*dco));
+	if (ret < 0) {
+		wl1271_warning("failed to set dco itrim parameters: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(dco);
+	return ret;
+}
+
 int wl1271_acx_beacon_filter_opt(struct wl1271 *wl, bool enable_filter)
 {
 	struct acx_beacon_filter_option *beacon_filter = NULL;

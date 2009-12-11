@@ -338,6 +338,10 @@ static struct conf_drv_settings default_conf = {
 			.degraded_low_to_normal_threshold_5 = 0x00,
 			.degraded_normal_to_high_threshold_5 = 0x00
 		}
+	},
+	.itrim = {
+		.enable = false,
+		.timeout = 50000,
 	}
 };
 
