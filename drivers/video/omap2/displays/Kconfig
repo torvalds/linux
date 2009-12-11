@@ -31,4 +31,10 @@ config PANEL_TOPPOLY_TDO35S
         help
           LCD Panel used in CM-T35
 
+config PANEL_TPO_TD043MTEA1
+        tristate "TPO TD043MTEA1 LCD Panel"
+        depends on OMAP2_DSS && I2C
+        help
+          LCD Panel used in OMAP3 Pandora
+
 endmenu
