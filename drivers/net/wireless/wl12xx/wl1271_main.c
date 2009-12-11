@@ -1223,7 +1223,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		if (conf->flags & IEEE80211_CONF_IDLE &&
 		    test_bit(WL1271_FLAG_JOINED, &wl->flags))
 			wl1271_unjoin_channel(wl);
-		else
+		else if (!(conf->flags & IEEE80211_CONF_IDLE))
 			wl1271_join_channel(wl, channel);
 
 		if (conf->flags & IEEE80211_CONF_IDLE) {
