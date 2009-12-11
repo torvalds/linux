@@ -415,6 +415,12 @@ acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
 	ACPI_DEBUG_PRINT((ACPI_DB_INIT, "Executed module-level code at %p\n",
 			  method_obj->method.aml_start));
 
+	/* Delete a possible implicit return value (in slack mode) */
+
+	if (info->return_object) {
+		acpi_ut_remove_reference(info->return_object);
+	}
+
 	/* Detach the temporary method object */
 
 	acpi_ns_detach_object(parent_node);
