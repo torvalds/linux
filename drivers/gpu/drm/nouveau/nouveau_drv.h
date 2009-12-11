@@ -59,10 +59,18 @@ struct nouveau_grctx;
 #define MAX_NUM_DCB_ENTRIES 16
 
 #define NOUVEAU_MAX_CHANNEL_NR 128
+#define NOUVEAU_MAX_TILE_NR 15
 
 #define NV50_VM_MAX_VRAM (2*1024*1024*1024ULL)
 #define NV50_VM_BLOCK    (512*1024*1024ULL)
 #define NV50_VM_VRAM_NR  (NV50_VM_MAX_VRAM / NV50_VM_BLOCK)
+
+struct nouveau_tile_reg {
+	struct nouveau_fence *fence;
+	uint32_t addr;
+	uint32_t size;
+	bool used;
+};
 
 struct nouveau_bo {
 	struct ttm_buffer_object bo;
@@ -83,6 +91,7 @@ struct nouveau_bo {
 
 	uint32_t tile_mode;
 	uint32_t tile_flags;
+	struct nouveau_tile_reg *tile;
 
 	struct drm_gem_object *gem;
 	struct drm_file *cpu_filp;
@@ -558,6 +567,12 @@ struct drm_nouveau_private {
 		unsigned long sg_handle;
 	} gart_info;
 
+	/* nv10-nv40 tiling regions */
+	struct {
+		struct nouveau_tile_reg reg[NOUVEAU_MAX_TILE_NR];
+		spinlock_t lock;
+	} tile;
+
 	/* G8x/G9x virtual address space */
 	uint64_t vm_gart_base;
 	uint64_t vm_gart_size;
@@ -695,6 +710,13 @@ extern void nouveau_mem_release(struct drm_file *, struct mem_block *heap);
 extern int  nouveau_mem_init(struct drm_device *);
 extern int  nouveau_mem_init_agp(struct drm_device *);
 extern void nouveau_mem_close(struct drm_device *);
+extern struct nouveau_tile_reg *nv10_mem_set_tiling(struct drm_device *dev,
+						    uint32_t addr,
+						    uint32_t size,
+						    uint32_t pitch);
+extern void nv10_mem_expire_tiling(struct drm_device *dev,
+				   struct nouveau_tile_reg *tile,
+				   struct nouveau_fence *fence);
 extern int  nv50_mem_vm_bind_linear(struct drm_device *, uint64_t virt,
 				    uint32_t size, uint32_t flags,
 				    uint64_t phys);
