@@ -371,6 +371,19 @@ static struct tw9910_priv *to_tw9910(const struct i2c_client *client)
 			    subdev);
 }
 
+static int tw9910_mask_set(struct i2c_client *client, u8 command,
+			   u8 mask, u8 set)
+{
+	s32 val = i2c_smbus_read_byte_data(client, command);
+	if (val < 0)
+		return val;
+
+	val &= ~mask;
+	val |= set & mask;
+
+	return i2c_smbus_write_byte_data(client, command, val);
+}
+
 static int tw9910_set_scale(struct i2c_client *client,
 			    const struct tw9910_scale_ctrl *scale)
 {
@@ -445,14 +458,9 @@ static int tw9910_set_hsync(struct i2c_client *client,
 		return ret;
 
 	/* bit 2 - 0 */
-	ret = i2c_smbus_read_byte_data(client, HSLOWCTL);
-	if (ret < 0)
-		return ret;
-
-	ret = i2c_smbus_write_byte_data(client, HSLOWCTL,
-					(ret & 0x88)                 |
-					(hsync->start & 0x0007) << 4 |
-					(hsync->end   & 0x0007));
+	ret = tw9910_mask_set(client, HSLOWCTL, 0x77,
+			      (hsync->start & 0x0007) << 4 |
+			      (hsync->end   & 0x0007));
 
 	return ret;
 }
@@ -469,19 +477,6 @@ static int tw9910_write_array(struct i2c_client *client,
 		vals++;
 	}
 	return 0;
-}
-
-static int tw9910_mask_set(struct i2c_client *client, u8 command,
-			   u8 mask, u8 set)
-{
-	s32 val = i2c_smbus_read_byte_data(client, command);
-	if (val < 0)
-		return val;
-
-	val &= ~mask;
-	val |= set & mask;
-
-	return i2c_smbus_write_byte_data(client, command, val);
 }
 
 static void tw9910_reset(struct i2c_client *client)
