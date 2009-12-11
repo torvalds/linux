@@ -29,7 +29,6 @@ enum dso_origin {
 };
 
 static void dsos__add(struct list_head *head, struct dso *dso);
-static struct map *map_groups__find_by_name(struct map_groups *self, char *name);
 static struct map *map__new2(u64 start, struct dso *dso, enum map_type type);
 struct symbol *dso__find_symbol(struct dso *self, enum map_type type, u64 addr);
 static int dso__load_kernel_sym(struct dso *self, struct map *map,
@@ -51,9 +50,19 @@ bool dso__loaded(const struct dso *self, enum map_type type)
 	return self->loaded & (1 << type);
 }
 
+bool dso__sorted_by_name(const struct dso *self, enum map_type type)
+{
+	return self->sorted_by_name & (1 << type);
+}
+
 static void dso__set_loaded(struct dso *self, enum map_type type)
 {
 	self->loaded |= (1 << type);
+}
+
+static void dso__set_sorted_by_name(struct dso *self, enum map_type type)
+{
+	self->sorted_by_name |= (1 << type);
 }
 
 static bool symbol_type__is_a(char symbol_type, enum map_type map_type)
@@ -176,11 +185,12 @@ struct dso *dso__new(const char *name)
 		dso__set_long_name(self, self->name);
 		self->short_name = self->name;
 		for (i = 0; i < MAP__NR_TYPES; ++i)
-			self->symbols[i] = RB_ROOT;
+			self->symbols[i] = self->symbol_names[i] = RB_ROOT;
 		self->find_symbol = dso__find_symbol;
 		self->slen_calculated = 0;
 		self->origin = DSO__ORIG_NOT_FOUND;
 		self->loaded = 0;
+		self->sorted_by_name = 0;
 		self->has_build_id = 0;
 	}
 
@@ -258,9 +268,83 @@ static struct symbol *symbols__find(struct rb_root *self, u64 ip)
 	return NULL;
 }
 
-struct symbol *dso__find_symbol(struct dso *self, enum map_type type, u64 addr)
+struct symbol_name_rb_node {
+	struct rb_node	rb_node;
+	struct symbol	sym;
+};
+
+static void symbols__insert_by_name(struct rb_root *self, struct symbol *sym)
+{
+	struct rb_node **p = &self->rb_node;
+	struct rb_node *parent = NULL;
+	struct symbol_name_rb_node *symn = ((void *)sym) - sizeof(*parent), *s;
+
+	while (*p != NULL) {
+		parent = *p;
+		s = rb_entry(parent, struct symbol_name_rb_node, rb_node);
+		if (strcmp(sym->name, s->sym.name) < 0)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+	rb_link_node(&symn->rb_node, parent, p);
+	rb_insert_color(&symn->rb_node, self);
+}
+
+static void symbols__sort_by_name(struct rb_root *self, struct rb_root *source)
+{
+	struct rb_node *nd;
+
+	for (nd = rb_first(source); nd; nd = rb_next(nd)) {
+		struct symbol *pos = rb_entry(nd, struct symbol, rb_node);
+		symbols__insert_by_name(self, pos);
+	}
+}
+
+static struct symbol *symbols__find_by_name(struct rb_root *self, const char *name)
+{
+	struct rb_node *n;
+
+	if (self == NULL)
+		return NULL;
+
+	n = self->rb_node;
+
+	while (n) {
+		struct symbol_name_rb_node *s;
+		int cmp;
+
+		s = rb_entry(n, struct symbol_name_rb_node, rb_node);
+		cmp = strcmp(name, s->sym.name);
+
+		if (cmp < 0)
+			n = n->rb_left;
+		else if (cmp > 0)
+			n = n->rb_right;
+		else
+			return &s->sym;
+	}
+
+	return NULL;
+}
+
+struct symbol *dso__find_symbol(struct dso *self,
+				enum map_type type, u64 addr)
 {
 	return symbols__find(&self->symbols[type], addr);
+}
+
+struct symbol *dso__find_symbol_by_name(struct dso *self, enum map_type type,
+					const char *name)
+{
+	return symbols__find_by_name(&self->symbol_names[type], name);
+}
+
+void dso__sort_by_name(struct dso *self, enum map_type type)
+{
+	dso__set_sorted_by_name(self, type);
+	return symbols__sort_by_name(&self->symbol_names[type],
+				     &self->symbols[type]);
 }
 
 int build_id__sprintf(u8 *self, int len, char *bf)
@@ -397,7 +481,7 @@ static int dso__split_kallsyms(struct dso *self, struct map *map,
 			*module++ = '\0';
 
 			if (strcmp(self->name, module)) {
-				curr_map = map_groups__find_by_name(mg, module);
+				curr_map = map_groups__find_by_name(mg, map->type, module);
 				if (curr_map == NULL) {
 					pr_debug("/proc/{kallsyms,modules} "
 					         "inconsistency!\n");
@@ -895,7 +979,7 @@ static int dso__load_sym(struct dso *self, struct map *map,
 			snprintf(dso_name, sizeof(dso_name),
 				 "%s%s", self->short_name, section_name);
 
-			curr_map = map_groups__find_by_name(mg, dso_name);
+			curr_map = map_groups__find_by_name(mg, map->type, dso_name);
 			if (curr_map == NULL) {
 				u64 start = sym.st_value;
 
@@ -1226,11 +1310,12 @@ out:
 	return ret;
 }
 
-static struct map *map_groups__find_by_name(struct map_groups *self, char *name)
+struct map *map_groups__find_by_name(struct map_groups *self,
+				     enum map_type type, const char *name)
 {
 	struct rb_node *nd;
 
-	for (nd = rb_first(&self->maps[MAP__FUNCTION]); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&self->maps[type]); nd; nd = rb_next(nd)) {
 		struct map *map = rb_entry(nd, struct map, rb_node);
 
 		if (map->dso && strcmp(map->dso->name, name) == 0)
@@ -1274,7 +1359,7 @@ static int dsos__set_modules_path_dir(char *dirname)
 				 (int)(dot - dent->d_name), dent->d_name);
 
 			strxfrchar(dso_name, '-', '_');
-			map = map_groups__find_by_name(kmaps, dso_name);
+			map = map_groups__find_by_name(kmaps, MAP__FUNCTION, dso_name);
 			if (map == NULL)
 				continue;
 
@@ -1671,6 +1756,9 @@ int symbol__init(struct symbol_conf *conf)
 
 	elf_version(EV_CURRENT);
 	symbol__priv_size = pconf->priv_size;
+	if (pconf->sort_by_name)
+		symbol__priv_size += (sizeof(struct symbol_name_rb_node) -
+				      sizeof(struct symbol));
 	map_groups__init(kmaps);
 
 	if (pconf->try_vmlinux_path && vmlinux_path__init() < 0)

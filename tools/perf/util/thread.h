@@ -64,4 +64,7 @@ map_groups__find_function(struct map_groups *self, u64 addr,
 {
 	return map_groups__find_symbol(self, MAP__FUNCTION, addr, filter);
 }
+
+struct map *map_groups__find_by_name(struct map_groups *self,
+				     enum map_type type, const char *name);
 #endif	/* __PERF_THREAD_H */
