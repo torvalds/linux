@@ -47,6 +47,8 @@
 #include "wl1271_cmd.h"
 #include "wl1271_boot.h"
 
+#define WL1271_BOOT_RETRIES 3
+
 static struct conf_drv_settings default_conf = {
 	.sg = {
 		.per_threshold               = 7500,
@@ -645,7 +647,7 @@ static int wl1271_chip_wakeup(struct wl1271 *wl)
 
 		ret = wl1271_setup(wl);
 		if (ret < 0)
-			goto out_power_off;
+			goto out;
 		break;
 	case CHIP_ID_1271_PG20:
 		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (1271 PG20)",
@@ -653,31 +655,26 @@ static int wl1271_chip_wakeup(struct wl1271 *wl)
 
 		ret = wl1271_setup(wl);
 		if (ret < 0)
-			goto out_power_off;
+			goto out;
 		break;
 	default:
-		wl1271_error("unsupported chip id: 0x%x", wl->chip.id);
+		wl1271_warning("unsupported chip id: 0x%x", wl->chip.id);
 		ret = -ENODEV;
-		goto out_power_off;
+		goto out;
 	}
 
 	if (wl->fw == NULL) {
 		ret = wl1271_fetch_firmware(wl);
 		if (ret < 0)
-			goto out_power_off;
+			goto out;
 	}
 
 	/* No NVS from netlink, try to get it from the filesystem */
 	if (wl->nvs == NULL) {
 		ret = wl1271_fetch_nvs(wl);
 		if (ret < 0)
-			goto out_power_off;
+			goto out;
 	}
-
-	goto out;
-
-out_power_off:
-	wl1271_power_off(wl);
 
 out:
 	return ret;
@@ -685,6 +682,7 @@ out:
 
 int wl1271_plt_start(struct wl1271 *wl)
 {
+	int retries = WL1271_BOOT_RETRIES;
 	int ret;
 
 	mutex_lock(&wl->mutex);
@@ -698,35 +696,48 @@ int wl1271_plt_start(struct wl1271 *wl)
 		goto out;
 	}
 
-	wl->state = WL1271_STATE_PLT;
+	while (retries) {
+		retries--;
+		ret = wl1271_chip_wakeup(wl);
+		if (ret < 0)
+			goto power_off;
 
-	ret = wl1271_chip_wakeup(wl);
-	if (ret < 0)
+		ret = wl1271_boot(wl);
+		if (ret < 0)
+			goto power_off;
+
+		ret = wl1271_plt_init(wl);
+		if (ret < 0)
+			goto irq_disable;
+
+		/* Make sure power saving is disabled */
+		ret = wl1271_acx_sleep_auth(wl, WL1271_PSM_CAM);
+		if (ret < 0)
+			goto irq_disable;
+
+		wl->state = WL1271_STATE_PLT;
+		wl1271_notice("firmware booted in PLT mode (%s)",
+			      wl->chip.fw_ver);
 		goto out;
 
-	ret = wl1271_boot(wl);
-	if (ret < 0)
-		goto out_power_off;
+irq_disable:
+		wl1271_disable_interrupts(wl);
+		mutex_unlock(&wl->mutex);
+		/* Unlocking the mutex in the middle of handling is
+		   inherently unsafe. In this case we deem it safe to do,
+		   because we need to let any possibly pending IRQ out of
+		   the system (and while we are WL1271_STATE_OFF the IRQ
+		   work function will not do anything.) Also, any other
+		   possible concurrent operations will fail due to the
+		   current state, hence the wl1271 struct should be safe. */
+		cancel_work_sync(&wl->irq_work);
+		mutex_lock(&wl->mutex);
+power_off:
+		wl1271_power_off(wl);
+	}
 
-	wl1271_notice("firmware booted in PLT mode (%s)", wl->chip.fw_ver);
-
-	ret = wl1271_plt_init(wl);
-	if (ret < 0)
-		goto out_irq_disable;
-
-	/* Make sure power saving is disabled */
-	ret = wl1271_acx_sleep_auth(wl, WL1271_PSM_CAM);
-	if (ret < 0)
-		goto out_irq_disable;
-
-	goto out;
-
-out_irq_disable:
-	wl1271_disable_interrupts(wl);
-
-out_power_off:
-	wl1271_power_off(wl);
-
+	wl1271_error("firmware boot in PLT mode failed despite %d retries",
+		     WL1271_BOOT_RETRIES);
 out:
 	mutex_unlock(&wl->mutex);
 
@@ -882,6 +893,7 @@ static struct notifier_block wl1271_dev_notifier = {
 static int wl1271_op_start(struct ieee80211_hw *hw)
 {
 	struct wl1271 *wl = hw->priv;
+	int retries = WL1271_BOOT_RETRIES;
 	int ret = 0;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 start");
@@ -895,30 +907,42 @@ static int wl1271_op_start(struct ieee80211_hw *hw)
 		goto out;
 	}
 
-	ret = wl1271_chip_wakeup(wl);
-	if (ret < 0)
+	while (retries) {
+		retries--;
+		ret = wl1271_chip_wakeup(wl);
+		if (ret < 0)
+			goto power_off;
+
+		ret = wl1271_boot(wl);
+		if (ret < 0)
+			goto power_off;
+
+		ret = wl1271_hw_init(wl);
+		if (ret < 0)
+			goto irq_disable;
+
+		wl->state = WL1271_STATE_ON;
+		wl1271_info("firmware booted (%s)", wl->chip.fw_ver);
 		goto out;
 
-	ret = wl1271_boot(wl);
-	if (ret < 0)
-		goto out_power_off;
+irq_disable:
+		wl1271_disable_interrupts(wl);
+		mutex_unlock(&wl->mutex);
+		/* Unlocking the mutex in the middle of handling is
+		   inherently unsafe. In this case we deem it safe to do,
+		   because we need to let any possibly pending IRQ out of
+		   the system (and while we are WL1271_STATE_OFF the IRQ
+		   work function will not do anything.) Also, any other
+		   possible concurrent operations will fail due to the
+		   current state, hence the wl1271 struct should be safe. */
+		cancel_work_sync(&wl->irq_work);
+		mutex_lock(&wl->mutex);
+power_off:
+		wl1271_power_off(wl);
+	}
 
-	ret = wl1271_hw_init(wl);
-	if (ret < 0)
-		goto out_irq_disable;
-
-	wl->state = WL1271_STATE_ON;
-
-	wl1271_info("firmware booted (%s)", wl->chip.fw_ver);
-
-	goto out;
-
-out_irq_disable:
-	wl1271_disable_interrupts(wl);
-
-out_power_off:
-	wl1271_power_off(wl);
-
+	wl1271_error("firmware boot failed despite %d retries",
+		     WL1271_BOOT_RETRIES);
 out:
 	mutex_unlock(&wl->mutex);
 
