@@ -41,16 +41,16 @@
 
 #ifndef RTMP_RF_RW_SUPPORT
 #error "You Should Enable compile flag RTMP_RF_RW_SUPPORT for this chip"
-#endif // RTMP_RF_RW_SUPPORT //
+#endif /* RTMP_RF_RW_SUPPORT // */
 
 VOID NICInitRT3090RFRegisters(IN PRTMP_ADAPTER pAd)
 {
 	INT i;
-	// Driver must read EEPROM to get RfIcType before initial RF registers
-	// Initialize RF register to default value
+	/* Driver must read EEPROM to get RfIcType before initial RF registers */
+	/* Initialize RF register to default value */
 	if (IS_RT3090(pAd)) {
-		// Init RF calibration
-		// Driver should toggle RF R30 bit7 before init RF registers
+		/* Init RF calibration */
+		/* Driver should toggle RF R30 bit7 before init RF registers */
 		UINT32 RfReg = 0, data;
 
 		RT30xxReadRFRegister(pAd, RF_R30, (PUCHAR) & RfReg);
@@ -60,14 +60,14 @@ VOID NICInitRT3090RFRegisters(IN PRTMP_ADAPTER pAd)
 		RfReg &= 0x7F;
 		RT30xxWriteRFRegister(pAd, RF_R30, (UCHAR) RfReg);
 
-		// init R24, R31
+		/* init R24, R31 */
 		RT30xxWriteRFRegister(pAd, RF_R24, 0x0F);
 		RT30xxWriteRFRegister(pAd, RF_R31, 0x0F);
 
-		// RT309x version E has fixed this issue
+		/* RT309x version E has fixed this issue */
 		if ((pAd->NicConfig2.field.DACTestBit == 1)
 		    && ((pAd->MACVersion & 0xffff) < 0x0211)) {
-			// patch tx EVM issue temporarily
+			/* patch tx EVM issue temporarily */
 			RTMP_IO_READ32(pAd, LDO_CFG0, &data);
 			data = ((data & 0xE0FFFFFF) | 0x0D000000);
 			RTMP_IO_WRITE32(pAd, LDO_CFG0, data);
@@ -77,43 +77,43 @@ VOID NICInitRT3090RFRegisters(IN PRTMP_ADAPTER pAd)
 			RTMP_IO_WRITE32(pAd, LDO_CFG0, data);
 		}
 
-		// patch LNA_PE_G1 failed issue
+		/* patch LNA_PE_G1 failed issue */
 		RTMP_IO_READ32(pAd, GPIO_SWITCH, &data);
 		data &= ~(0x20);
 		RTMP_IO_WRITE32(pAd, GPIO_SWITCH, data);
 
-		// Initialize RF register to default value
+		/* Initialize RF register to default value */
 		for (i = 0; i < NUM_RF_REG_PARMS; i++) {
 			RT30xxWriteRFRegister(pAd,
 					      RT30xx_RFRegTable[i].Register,
 					      RT30xx_RFRegTable[i].Value);
 		}
 
-		// Driver should set RF R6 bit6 on before calibration
+		/* Driver should set RF R6 bit6 on before calibration */
 		RT30xxReadRFRegister(pAd, RF_R06, (PUCHAR) & RfReg);
 		RfReg |= 0x40;
 		RT30xxWriteRFRegister(pAd, RF_R06, (UCHAR) RfReg);
 
-		//For RF filter Calibration
+		/*For RF filter Calibration */
 		RTMPFilterCalibration(pAd);
 
-		// Initialize RF R27 register, set RF R27 must be behind RTMPFilterCalibration()
+		/* Initialize RF R27 register, set RF R27 must be behind RTMPFilterCalibration() */
 		if ((pAd->MACVersion & 0xffff) < 0x0211)
 			RT30xxWriteRFRegister(pAd, RF_R27, 0x3);
 
-		// set led open drain enable
+		/* set led open drain enable */
 		RTMP_IO_READ32(pAd, OPT_14, &data);
 		data |= 0x01;
 		RTMP_IO_WRITE32(pAd, OPT_14, data);
 
-		// set default antenna as main
+		/* set default antenna as main */
 		if (pAd->RfIcType == RFIC_3020)
 			AsicSetRxAnt(pAd, pAd->RxAnt.Pair1PrimaryRxAnt);
 
-		// add by johnli, RF power sequence setup, load RF normal operation-mode setup
+		/* add by johnli, RF power sequence setup, load RF normal operation-mode setup */
 		RT30xxLoadRFNormalModeSetup(pAd);
 	}
 
 }
 
-#endif // RT3090 //
+#endif /* RT3090 // */

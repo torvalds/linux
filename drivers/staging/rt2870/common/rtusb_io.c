@@ -88,7 +88,7 @@ NTSTATUS RTUSBFirmwareWrite(IN PRTMP_ADAPTER pAd,
 {
 	UINT32 MacReg;
 	NTSTATUS Status;
-//      ULONG           i;
+/*      ULONG           i; */
 	USHORT writeLen;
 
 	Status = RTUSBReadMACRegister(pAd, MAC_CSR0, &MacReg);
@@ -100,11 +100,11 @@ NTSTATUS RTUSBFirmwareWrite(IN PRTMP_ADAPTER pAd,
 	Status = RTUSBWriteMACRegister(pAd, 0x701c, 0xffffffff);
 	Status = RTUSBFirmwareRun(pAd);
 
-	//2008/11/28:KH add to fix the dead rf frequency offset bug<--
+	/*2008/11/28:KH add to fix the dead rf frequency offset bug<-- */
 	RTMPusecDelay(10000);
 	RTUSBWriteMACRegister(pAd, H2M_MAILBOX_CSR, 0);
-	AsicSendCommandToMcu(pAd, 0x72, 0x00, 0x00, 0x00);	//reset rf by MCU supported by new firmware
-	//2008/11/28:KH add to fix the dead rf frequency offset bug-->
+	AsicSendCommandToMcu(pAd, 0x72, 0x00, 0x00, 0x00);	/*reset rf by MCU supported by new firmware */
+	/*2008/11/28:KH add to fix the dead rf frequency offset bug--> */
 
 	return Status;
 }
@@ -171,7 +171,7 @@ NTSTATUS RTUSBMultiWrite_OneByte(IN PRTMP_ADAPTER pAd,
 {
 	NTSTATUS Status;
 
-	// TODO: In 2870, use this funciton carefully cause it's not stable.
+	/* TODO: In 2870, use this funciton carefully cause it's not stable. */
 	Status = RTUSB_VendorRequest(pAd,
 				     USBD_TRANSFER_DIRECTION_OUT,
 				     DEVICE_VENDOR_REQUEST_OUT,
@@ -304,7 +304,7 @@ NTSTATUS RTUSBReadBBPRegister(IN PRTMP_ADAPTER pAd,
 	UINT i = 0;
 	NTSTATUS status;
 
-	// Verify the busy condition
+	/* Verify the busy condition */
 	do {
 		status = RTUSBReadMACRegister(pAd, BBP_CSR_CFG, &BbpCsr.word);
 		if (status >= 0) {
@@ -320,16 +320,16 @@ NTSTATUS RTUSBReadBBPRegister(IN PRTMP_ADAPTER pAd,
 
 	if ((i == RETRY_LIMIT)
 	    || (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST))) {
-		//
-		// Read failed then Return Default value.
-		//
+		/* */
+		/* Read failed then Return Default value. */
+		/* */
 		*pValue = pAd->BbpWriteLatch[Id];
 
 		DBGPRINT_RAW(RT_DEBUG_ERROR,
 			     ("Retry count exhausted or device removed!!!\n"));
 		return STATUS_UNSUCCESSFUL;
 	}
-	// Prepare for write material
+	/* Prepare for write material */
 	BbpCsr.word = 0;
 	BbpCsr.field.fRead = 1;
 	BbpCsr.field.Busy = 1;
@@ -337,7 +337,7 @@ NTSTATUS RTUSBReadBBPRegister(IN PRTMP_ADAPTER pAd,
 	RTUSBWriteMACRegister(pAd, BBP_CSR_CFG, BbpCsr.word);
 
 	i = 0;
-	// Verify the busy condition
+	/* Verify the busy condition */
 	do {
 		status = RTUSBReadMACRegister(pAd, BBP_CSR_CFG, &BbpCsr.word);
 		if (status >= 0) {
@@ -355,9 +355,9 @@ NTSTATUS RTUSBReadBBPRegister(IN PRTMP_ADAPTER pAd,
 
 	if ((i == RETRY_LIMIT)
 	    || (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST))) {
-		//
-		// Read failed then Return Default value.
-		//
+		/* */
+		/* Read failed then Return Default value. */
+		/* */
 		*pValue = pAd->BbpWriteLatch[Id];
 
 		DBGPRINT_RAW(RT_DEBUG_ERROR,
@@ -389,7 +389,7 @@ NTSTATUS RTUSBWriteBBPRegister(IN PRTMP_ADAPTER pAd,
 	BBP_CSR_CFG_STRUC BbpCsr;
 	UINT i = 0;
 	NTSTATUS status;
-	// Verify the busy condition
+	/* Verify the busy condition */
 	do {
 		status = RTUSBReadMACRegister(pAd, BBP_CSR_CFG, &BbpCsr.word);
 		if (status >= 0) {
@@ -410,7 +410,7 @@ NTSTATUS RTUSBWriteBBPRegister(IN PRTMP_ADAPTER pAd,
 			     ("Retry count exhausted or device removed!!!\n"));
 		return STATUS_UNSUCCESSFUL;
 	}
-	// Prepare for write material
+	/* Prepare for write material */
 	BbpCsr.word = 0;
 	BbpCsr.field.fRead = 0;
 	BbpCsr.field.Value = Value;
@@ -561,11 +561,11 @@ VOID RTUSBPutToSleep(IN PRTMP_ADAPTER pAd)
 {
 	UINT32 value;
 
-	// Timeout 0x40 x 50us
+	/* Timeout 0x40 x 50us */
 	value = (SLEEPCID << 16) + (OWNERMCU << 24) + (0x40 << 8) + 1;
 	RTUSBWriteMACRegister(pAd, 0x7010, value);
 	RTUSBWriteMACRegister(pAd, 0x404, 0x30);
-	//RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS);
+	/*RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS); */
 	DBGPRINT_RAW(RT_DEBUG_ERROR, ("Sleep Mailbox testvalue %x\n", value));
 
 }
@@ -959,7 +959,7 @@ NTSTATUS RTUSB_ResetDevice(IN PRTMP_ADAPTER pAd)
 	NTSTATUS Status = TRUE;
 
 	DBGPRINT_RAW(RT_DEBUG_TRACE, ("--->USB_ResetDevice\n"));
-	//RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS);
+	/*RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS); */
 	return Status;
 }
 
@@ -968,9 +968,9 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 	PCmdQElmt cmdqelmt;
 	PUCHAR pData;
 	NDIS_STATUS NdisStatus = NDIS_STATUS_SUCCESS;
-//      ULONG                   Now = 0;
+/*      ULONG                   Now = 0; */
 	NTSTATUS ntStatus;
-//      unsigned long   IrqFlags;
+/*      unsigned long   IrqFlags; */
 
 	while (pAd && pAd->CmdQ.size > 0) {
 		NdisStatus = NDIS_STATUS_SUCCESS;
@@ -993,7 +993,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 					UINT32 data;
 
 					{
-						// Read GPIO pin2 as Hardware controlled radio state
+						/* Read GPIO pin2 as Hardware controlled radio state */
 
 						RTUSBReadMACRegister(pAd,
 								     GPIO_CTRL_CFG,
@@ -1023,7 +1023,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 
 								MlmeRadioOn
 								    (pAd);
-								// Update extra information
+								/* Update extra information */
 								pAd->ExtraInfo =
 								    EXTRA_INFO_CLEAR;
 							} else {
@@ -1033,7 +1033,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 
 								MlmeRadioOff
 								    (pAd);
-								// Update extra information
+								/* Update extra information */
 								pAd->ExtraInfo =
 								    HW_RADIO_OFF;
 							}
@@ -1056,15 +1056,15 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 					UCHAR Index;
 					int ret = 0;
 					PHT_TX_CONTEXT pHTTXContext;
-//                                              RTMP_TX_RING *pTxRing;
+/*                                              RTMP_TX_RING *pTxRing; */
 					unsigned long IrqFlags;
 
 					DBGPRINT_RAW(RT_DEBUG_TRACE,
 						     ("CmdThread : CMDTHREAD_RESET_BULK_OUT(ResetPipeid=0x%0x)===>\n",
 						      pAd->bulkResetPipeid));
-					// All transfers must be aborted or cancelled before attempting to reset the pipe.
-					//RTUSBCancelPendingBulkOutIRP(pAd);
-					// Wait 10ms to let previous packet that are already in HW FIFO to clear. by MAXLEE 12-25-2007
+					/* All transfers must be aborted or cancelled before attempting to reset the pipe. */
+					/*RTUSBCancelPendingBulkOutIRP(pAd); */
+					/* Wait 10ms to let previous packet that are already in HW FIFO to clear. by MAXLEE 12-25-2007 */
 					Index = 0;
 					do {
 						RTUSBReadMACRegister(pAd,
@@ -1079,12 +1079,12 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 					MACValue = 0;
 					RTUSBReadMACRegister(pAd, USB_DMA_CFG,
 							     &MACValue);
-					// To prevent Read Register error, we 2nd check the validity.
+					/* To prevent Read Register error, we 2nd check the validity. */
 					if ((MACValue & 0xc00000) == 0)
 						RTUSBReadMACRegister(pAd,
 								     USB_DMA_CFG,
 								     &MACValue);
-					// To prevent Read Register error, we 3rd check the validity.
+					/* To prevent Read Register error, we 3rd check the validity. */
 					if ((MACValue & 0xc00000) == 0)
 						RTUSBReadMACRegister(pAd,
 								     USB_DMA_CFG,
@@ -1093,7 +1093,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 					RTUSBWriteMACRegister(pAd, USB_DMA_CFG,
 							      MACValue);
 
-					// Wait 1ms to prevent next URB to bulkout before HW reset. by MAXLEE 12-25-2007
+					/* Wait 1ms to prevent next URB to bulkout before HW reset. by MAXLEE 12-25-2007 */
 					RTMPusecDelay(1000);
 
 					MACValue &= (~0x80000);
@@ -1102,8 +1102,8 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 					DBGPRINT_RAW(RT_DEBUG_TRACE,
 						     ("\tSet 0x2a0 bit19. Clear USB DMA TX path\n"));
 
-					// Wait 5ms to prevent next URB to bulkout before HW reset. by MAXLEE 12-25-2007
-					//RTMPusecDelay(5000);
+					/* Wait 5ms to prevent next URB to bulkout before HW reset. by MAXLEE 12-25-2007 */
+					/*RTMPusecDelay(5000); */
 
 					if ((pAd->
 					     bulkResetPipeid &
@@ -1127,7 +1127,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 						    &(pAd->
 						      TxContext[pAd->
 								bulkResetPipeid]);
-						//NdisAcquireSpinLock(&pAd->BulkOutLock[pAd->bulkResetPipeid]);
+						/*NdisAcquireSpinLock(&pAd->BulkOutLock[pAd->bulkResetPipeid]); */
 						RTMP_INT_LOCK(&pAd->
 							      BulkOutLock[pAd->
 									  bulkResetPipeid],
@@ -1148,11 +1148,11 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 							     bulkResetPipeid] =
 							    1;
 
-							// no matter what, clean the flag
+							/* no matter what, clean the flag */
 							RTMP_CLEAR_FLAG(pAd,
 									fRTMP_ADAPTER_BULKOUT_RESET);
 
-							//NdisReleaseSpinLock(&pAd->BulkOutLock[pAd->bulkResetPipeid]);
+							/*NdisReleaseSpinLock(&pAd->BulkOutLock[pAd->bulkResetPipeid]); */
 							RTMP_INT_UNLOCK(&pAd->
 									BulkOutLock
 									[pAd->
@@ -1259,8 +1259,8 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 								}
 							}
 						} else {
-							//NdisReleaseSpinLock(&pAd->BulkOutLock[pAd->bulkResetPipeid]);
-							//RTMP_INT_UNLOCK(&pAd->BulkOutLock[pAd->bulkResetPipeid], IrqFlags);
+							/*NdisReleaseSpinLock(&pAd->BulkOutLock[pAd->bulkResetPipeid]); */
+							/*RTMP_INT_UNLOCK(&pAd->BulkOutLock[pAd->bulkResetPipeid], IrqFlags); */
 
 							DBGPRINT_RAW
 							    (RT_DEBUG_ERROR,
@@ -1338,7 +1338,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 								     ("\tTX Occupied by %d!\n",
 								      pendingContext));
 							}
-							// no matter what, clean the flag
+							/* no matter what, clean the flag */
 							RTMP_CLEAR_FLAG(pAd,
 									fRTMP_ADAPTER_BULKOUT_RESET);
 
@@ -1358,7 +1358,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 						RTMPDeQueuePacket(pAd, FALSE,
 								  NUM_OF_TX_RING,
 								  MAX_TX_PROCESS);
-						//RTUSBKickBulkOut(pAd);
+						/*RTUSBKickBulkOut(pAd); */
 					}
 
 				}
@@ -1403,12 +1403,12 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 				DBGPRINT_RAW(RT_DEBUG_TRACE,
 					     ("CmdThread : CMDTHREAD_RESET_BULK_IN === >\n"));
 
-				// All transfers must be aborted or cancelled before attempting to reset the pipe.
+				/* All transfers must be aborted or cancelled before attempting to reset the pipe. */
 				{
 					UINT32 MACValue;
 
 					{
-						//while ((atomic_read(&pAd->PendingRx) > 0) && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)))
+						/*while ((atomic_read(&pAd->PendingRx) > 0) && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST))) */
 						if ((pAd->PendingRx > 0)
 						    &&
 						    (!RTMP_TEST_FLAG
@@ -1425,7 +1425,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 						}
 					}
 
-					// Wait 10ms before reading register.
+					/* Wait 10ms before reading register. */
 					RTMPusecDelay(10000);
 					ntStatus =
 					    RTUSBReadMACRegister(pAd, MAC_CSR0,
@@ -1505,7 +1505,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 						     i <
 						     pAd->CommonCfg.
 						     NumOfBulkInIRP; i++) {
-							//RTUSBBulkReceive(pAd);
+							/*RTUSBBulkReceive(pAd); */
 							PRX_CONTEXT pRxContext;
 							PURB pUrb;
 							int ret = 0;
@@ -1541,11 +1541,11 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 									BulkInLock,
 									IrqFlags);
 
-							// Init Rx context descriptor
+							/* Init Rx context descriptor */
 							RTUSBInitRxDesc(pAd,
 									pRxContext);
 							pUrb = pRxContext->pUrb;
-							if ((ret = RTUSB_SUBMIT_URB(pUrb)) != 0) {	// fail
+							if ((ret = RTUSB_SUBMIT_URB(pUrb)) != 0) {	/* fail */
 
 								RTMP_IRQ_LOCK
 								    (&pAd->
@@ -1571,9 +1571,9 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 								      ret,
 								      pUrb->
 								      status));
-							} else {	// success
-								//DBGPRINT(RT_DEBUG_TRACE, ("BIDone, Pend=%d,BIIdx=%d,BIRIdx=%d!\n",
-								//                                                      pAd->PendingRx, pAd->NextRxBulkInIndex, pAd->NextRxBulkInReadIndex));
+							} else {	/* success */
+								/*DBGPRINT(RT_DEBUG_TRACE, ("BIDone, Pend=%d,BIIdx=%d,BIRIdx=%d!\n", */
+								/*                                                      pAd->PendingRx, pAd->NextRxBulkInIndex, pAd->NextRxBulkInReadIndex)); */
 								DBGPRINT_RAW
 								    (RT_DEBUG_TRACE,
 								     ("CMDTHREAD_RESET_BULK_IN: Submit Rx URB Done, status=%d!\n",
@@ -1584,7 +1584,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 						}
 
 					} else {
-						// Card must be removed
+						/* Card must be removed */
 						if (NT_SUCCESS(ntStatus) !=
 						    TRUE) {
 							RTMP_SET_FLAG(pAd,
@@ -1643,7 +1643,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 						      MACValue));
 					RTUSBWriteMACRegister(pAd, offset,
 							      MACValue);
-					// Read bitmask
+					/* Read bitmask */
 					RTUSBReadMACRegister(pAd, offset + 4,
 							     &MACRValue);
 					if (SetAsicWcid.DeleteTid != 0xffffffff)
@@ -1693,7 +1693,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 						     ("Cmd : CMDTHREAD_SET_ASIC_WCID_CIPHER : WCID = %ld, Cipher = %lx.\n",
 						      SetAsicWcidAttri.WCID,
 						      SetAsicWcidAttri.Cipher));
-					// Read bitmask
+					/* Read bitmask */
 					RTUSBReadMACRegister(pAd, offset,
 							     &MACRValue);
 					MACRValue = 0;
@@ -1725,10 +1725,10 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 						     ("2-offset = %x , MACValue= %x,\n",
 						      offset, MACRValue));
 
-					//
-					// Update cipher algorithm. WSTA always use BSS0
-					//
-					// for adhoc mode only ,because wep status slow than add key, when use zero config
+					/* */
+					/* Update cipher algorithm. WSTA always use BSS0 */
+					/* */
+					/* for adhoc mode only ,because wep status slow than add key, when use zero config */
 					if (pAd->StaCfg.BssType == BSS_ADHOC) {
 						offset =
 						    MAC_WCID_ATTRIBUTE_BASE;
@@ -1745,7 +1745,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 								      offset,
 								      MACRValue);
 
-						//Update group key cipher,,because wep status slow than add key, when use zero config
+						/*Update group key cipher,,because wep status slow than add key, when use zero config */
 						RTUSBReadMACRegister(pAd,
 								     SHARED_KEY_MODE_BASE
 								     +
@@ -1770,8 +1770,8 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 				}
 				break;
 
-//Benson modified for USB interface, avoid in interrupt when write key, 20080724 -->
-			case RT_CMD_SET_KEY_TABLE:	//General call for AsicAddPairwiseKeyEntry()
+/*Benson modified for USB interface, avoid in interrupt when write key, 20080724 --> */
+			case RT_CMD_SET_KEY_TABLE:	/*General call for AsicAddPairwiseKeyEntry() */
 				{
 					RT_ADD_PAIRWISE_KEY_ENTRY KeyInfo;
 					KeyInfo =
@@ -1786,7 +1786,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 				}
 				break;
 
-			case RT_CMD_SET_RX_WCID_TABLE:	//General call for RTMPAddWcidAttributeEntry()
+			case RT_CMD_SET_RX_WCID_TABLE:	/*General call for RTMPAddWcidAttributeEntry() */
 				{
 					PMAC_TABLE_ENTRY pEntry;
 					UCHAR KeyIdx = 0;
@@ -1802,7 +1802,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 								  pEntry);
 				}
 				break;
-//Benson modified for USB interface, avoid in interrupt when write key, 20080724 <--
+/*Benson modified for USB interface, avoid in interrupt when write key, 20080724 <-- */
 
 			case CMDTHREAD_SET_CLIENT_MAC_ENTRY:
 				{
@@ -1865,17 +1865,17 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 							      DefaultKeyId].
 							     CipherAlg, FALSE);
 						} else {
-							//
-							// Other case, disable engine.
-							// Don't worry WPA key, we will add WPA Key after 4-Way handshaking.
-							//
+							/* */
+							/* Other case, disable engine. */
+							/* Don't worry WPA key, we will add WPA Key after 4-Way handshaking. */
+							/* */
 							USHORT offset;
 							offset =
 							    MAC_WCID_ATTRIBUTE_BASE
 							    +
 							    (pEntry->Aid *
 							     HW_WCID_ATTRI_SIZE);
-							// RX_PKEY_MODE:0 for no security; RX_KEY_TAB:0 for shared key table; BSS_IDX:0
+							/* RX_PKEY_MODE:0 for no security; RX_KEY_TAB:0 for shared key table; BSS_IDX:0 */
 							RTUSBWriteMACRegister
 							    (pAd, offset, 0);
 						}
@@ -1894,7 +1894,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 				}
 				break;
 
-// add by johnli, fix "in_interrupt" error when call "MacTableDeleteEntry" in Rx tasklet
+/* add by johnli, fix "in_interrupt" error when call "MacTableDeleteEntry" in Rx tasklet */
 			case CMDTHREAD_UPDATE_PROTECT:
 				{
 					AsicUpdateProtect(pAd, 0,
@@ -1902,7 +1902,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 							  TRUE, 0);
 				}
 				break;
-// end johnli
+/* end johnli */
 
 			case OID_802_11_ADD_WEP:
 				{
@@ -1916,7 +1916,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 					pWepKey = (PNDIS_802_11_WEP) pData;
 					KeyIdx = pWepKey->KeyIndex & 0x0fffffff;
 
-					// it is a shared key
+					/* it is a shared key */
 					if ((KeyIdx >= 4)
 					    || ((pWepKey->KeyLength != 5)
 						&& (pWepKey->KeyLength !=
@@ -1944,10 +1944,10 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 						     5) ? CIPHER_WEP64 :
 						    CIPHER_WEP128;
 
-						//
-						// Change the WEP cipher to CKIP cipher if CKIP KP on.
-						// Funk UI or Meetinghouse UI will add ckip key from this path.
-						//
+						/* */
+						/* Change the WEP cipher to CKIP cipher if CKIP KP on. */
+						/* Funk UI or Meetinghouse UI will add ckip key from this path. */
+						/* */
 
 						if (pAd->OpMode == OPMODE_STA) {
 							pAd->MacTab.
@@ -1968,7 +1968,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 						    CipherAlg = CipherAlg;
 						if (pWepKey->
 						    KeyIndex & 0x80000000) {
-							// Default key for tx (shared key)
+							/* Default key for tx (shared key) */
 							UCHAR IVEIV[8];
 							UINT32 WCIDAttri, Value;
 							USHORT offset, offset2;
@@ -1977,8 +1977,8 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 							pAd->StaCfg.
 							    DefaultKeyId =
 							    (UCHAR) KeyIdx;
-							// Add BSSID to WCTable. because this is Tx wep key.
-							// WCID Attribute UDF:3, BSSIdx:3, Alg:3, Keytable:1=PAIRWISE KEY, BSSIdx is 0
+							/* Add BSSID to WCTable. because this is Tx wep key. */
+							/* WCID Attribute UDF:3, BSSIdx:3, Alg:3, Keytable:1=PAIRWISE KEY, BSSIdx is 0 */
 							WCIDAttri =
 							    (CipherAlg << 1) |
 							    SHAREDKEYTABLE;
@@ -1991,9 +1991,9 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 							RTUSBWriteMACRegister
 							    (pAd, offset,
 							     WCIDAttri);
-							// 1. IV/EIV
-							// Specify key index to find shared key.
-							IVEIV[3] = (UCHAR) (KeyIdx << 6);	//WEP Eiv bit off. groupkey index is not 0
+							/* 1. IV/EIV */
+							/* Specify key index to find shared key. */
+							IVEIV[3] = (UCHAR) (KeyIdx << 6);	/*WEP Eiv bit off. groupkey index is not 0 */
 							offset =
 							    PAIRWISE_IVEIV_TABLE_BASE
 							    +
@@ -2030,7 +2030,7 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 								i += 4;
 							}
 
-							// 2. WCID Attribute UDF:3, BSSIdx:3, Alg:3, Keytable:use share key, BSSIdx is 0
+							/* 2. WCID Attribute UDF:3, BSSIdx:3, Alg:3, Keytable:use share key, BSSIdx is 0 */
 							WCIDAttri =
 							    (pAd->
 							     SharedKey[BSS0]
@@ -2109,4 +2109,4 @@ VOID CMDHandler(IN PRTMP_ADAPTER pAd)
 	}			/* end of while */
 }
 
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */

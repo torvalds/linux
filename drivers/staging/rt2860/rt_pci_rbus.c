@@ -51,23 +51,23 @@ static void fifo_statistic_full_tasklet(unsigned long data);
 /*---------------------------------------------------------------------*/
 /* Symbol & Macro Definitions                                          */
 /*---------------------------------------------------------------------*/
-#define RT2860_INT_RX_DLY				(1<<0)	// bit 0
-#define RT2860_INT_TX_DLY				(1<<1)	// bit 1
-#define RT2860_INT_RX_DONE				(1<<2)	// bit 2
-#define RT2860_INT_AC0_DMA_DONE			(1<<3)	// bit 3
-#define RT2860_INT_AC1_DMA_DONE			(1<<4)	// bit 4
-#define RT2860_INT_AC2_DMA_DONE			(1<<5)	// bit 5
-#define RT2860_INT_AC3_DMA_DONE			(1<<6)	// bit 6
-#define RT2860_INT_HCCA_DMA_DONE		(1<<7)	// bit 7
-#define RT2860_INT_MGMT_DONE			(1<<8)	// bit 8
+#define RT2860_INT_RX_DLY				(1<<0)	/* bit 0 */
+#define RT2860_INT_TX_DLY				(1<<1)	/* bit 1 */
+#define RT2860_INT_RX_DONE				(1<<2)	/* bit 2 */
+#define RT2860_INT_AC0_DMA_DONE			(1<<3)	/* bit 3 */
+#define RT2860_INT_AC1_DMA_DONE			(1<<4)	/* bit 4 */
+#define RT2860_INT_AC2_DMA_DONE			(1<<5)	/* bit 5 */
+#define RT2860_INT_AC3_DMA_DONE			(1<<6)	/* bit 6 */
+#define RT2860_INT_HCCA_DMA_DONE		(1<<7)	/* bit 7 */
+#define RT2860_INT_MGMT_DONE			(1<<8)	/* bit 8 */
 
 #define INT_RX			RT2860_INT_RX_DONE
 
-#define INT_AC0_DLY		(RT2860_INT_AC0_DMA_DONE)	//| RT2860_INT_TX_DLY)
-#define INT_AC1_DLY		(RT2860_INT_AC1_DMA_DONE)	//| RT2860_INT_TX_DLY)
-#define INT_AC2_DLY		(RT2860_INT_AC2_DMA_DONE)	//| RT2860_INT_TX_DLY)
-#define INT_AC3_DLY		(RT2860_INT_AC3_DMA_DONE)	//| RT2860_INT_TX_DLY)
-#define INT_HCCA_DLY	(RT2860_INT_HCCA_DMA_DONE)	//| RT2860_INT_TX_DLY)
+#define INT_AC0_DLY		(RT2860_INT_AC0_DMA_DONE)	/*| RT2860_INT_TX_DLY) */
+#define INT_AC1_DLY		(RT2860_INT_AC1_DMA_DONE)	/*| RT2860_INT_TX_DLY) */
+#define INT_AC2_DLY		(RT2860_INT_AC2_DMA_DONE)	/*| RT2860_INT_TX_DLY) */
+#define INT_AC3_DLY		(RT2860_INT_AC3_DMA_DONE)	/*| RT2860_INT_TX_DLY) */
+#define INT_HCCA_DLY	(RT2860_INT_HCCA_DMA_DONE)	/*| RT2860_INT_TX_DLY) */
 #define INT_MGMT_DLY	RT2860_INT_MGMT_DONE
 
 /***************************************************************************
@@ -76,7 +76,7 @@ static void fifo_statistic_full_tasklet(unsigned long data);
   *		Mainly for Hardware TxDesc/RxDesc/MgmtDesc, DMA Memory for TxData/RxData, etc.,
   *
   **************************************************************************/
-// Function for TxDesc Memory allocation.
+/* Function for TxDesc Memory allocation. */
 void RTMP_AllocateTxDescMemory(IN PRTMP_ADAPTER pAd,
 			       IN UINT Index,
 			       IN ULONG Length,
@@ -92,7 +92,7 @@ void RTMP_AllocateTxDescMemory(IN PRTMP_ADAPTER pAd,
 
 }
 
-// Function for MgmtDesc Memory allocation.
+/* Function for MgmtDesc Memory allocation. */
 void RTMP_AllocateMgmtDescMemory(IN PRTMP_ADAPTER pAd,
 				 IN ULONG Length,
 				 IN BOOLEAN Cached,
@@ -107,7 +107,7 @@ void RTMP_AllocateMgmtDescMemory(IN PRTMP_ADAPTER pAd,
 
 }
 
-// Function for RxDesc Memory allocation.
+/* Function for RxDesc Memory allocation. */
 void RTMP_AllocateRxDescMemory(IN PRTMP_ADAPTER pAd,
 			       IN ULONG Length,
 			       IN BOOLEAN Cached,
@@ -122,7 +122,7 @@ void RTMP_AllocateRxDescMemory(IN PRTMP_ADAPTER pAd,
 
 }
 
-// Function for free allocated Desc Memory.
+/* Function for free allocated Desc Memory. */
 void RTMP_FreeDescMemory(IN PRTMP_ADAPTER pAd,
 			 IN ULONG Length,
 			 IN PVOID VirtualAddress,
@@ -134,7 +134,7 @@ void RTMP_FreeDescMemory(IN PRTMP_ADAPTER pAd,
 			    PhysicalAddress);
 }
 
-// Function for TxData DMA Memory allocation.
+/* Function for TxData DMA Memory allocation. */
 void RTMP_AllocateFirstTxBuffer(IN PRTMP_ADAPTER pAd,
 				IN UINT Index,
 				IN ULONG Length,
@@ -305,12 +305,12 @@ static inline void rt2860_int_enable(PRTMP_ADAPTER pAd, unsigned int mode)
 
 	pAd->int_disable_mask &= ~(mode);
 	regValue = pAd->int_enable_reg & ~(pAd->int_disable_mask);
-	//if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
+	/*if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE)) */
 	{
-		RTMP_IO_WRITE32(pAd, INT_MASK_CSR, regValue);	// 1:enable
+		RTMP_IO_WRITE32(pAd, INT_MASK_CSR, regValue);	/* 1:enable */
 	}
-	//else
-	//      DBGPRINT(RT_DEBUG_TRACE, ("fOP_STATUS_DOZE !\n"));
+	/*else */
+	/*      DBGPRINT(RT_DEBUG_TRACE, ("fOP_STATUS_DOZE !\n")); */
 
 	if (regValue != 0)
 		RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_ACTIVE);
@@ -322,7 +322,7 @@ static inline void rt2860_int_disable(PRTMP_ADAPTER pAd, unsigned int mode)
 
 	pAd->int_disable_mask |= mode;
 	regValue = pAd->int_enable_reg & ~(pAd->int_disable_mask);
-	RTMP_IO_WRITE32(pAd, INT_MASK_CSR, regValue);	// 0: disable
+	RTMP_IO_WRITE32(pAd, INT_MASK_CSR, regValue);	/* 0: disable */
 
 	if (regValue == 0) {
 		RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_ACTIVE);
@@ -341,23 +341,23 @@ static void mgmt_dma_done_tasklet(unsigned long data)
 	INT_SOURCE_CSR_STRUC IntSource;
 	POS_COOKIE pObj;
 
-	// Do nothing if the driver is starting halt state.
-	// This might happen when timer already been fired before cancel timer with mlmehalt
+	/* Do nothing if the driver is starting halt state. */
+	/* This might happen when timer already been fired before cancel timer with mlmehalt */
 	if (RTMP_TEST_FLAG
 	    (pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
 		return;
 
 	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-//      printk("mgmt_dma_done_process\n");
+/*      printk("mgmt_dma_done_process\n"); */
 	IntSource.word = 0;
 	IntSource.field.MgmtDmaDone = 1;
 	pAd->int_pending &= ~INT_MGMT_DLY;
 
 	RTMPHandleMgmtRingDmaDoneInterrupt(pAd);
 
-	// if you use RTMP_SEM_LOCK, sometimes kernel will hang up, no any
-	// bug report output
+	/* if you use RTMP_SEM_LOCK, sometimes kernel will hang up, no any */
+	/* bug report output */
 	RTMP_INT_LOCK(&pAd->irq_lock, flags);
 	/*
 	 * double check to avoid lose of interrupts
@@ -380,8 +380,8 @@ static void rx_done_tasklet(unsigned long data)
 	BOOLEAN bReschedule = 0;
 	POS_COOKIE pObj;
 
-	// Do nothing if the driver is starting halt state.
-	// This might happen when timer already been fired before cancel timer with mlmehalt
+	/* Do nothing if the driver is starting halt state. */
+	/* This might happen when timer already been fired before cancel timer with mlmehalt */
 	if (RTMP_TEST_FLAG
 	    (pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
 		return;
@@ -413,8 +413,8 @@ void fifo_statistic_full_tasklet(unsigned long data)
 	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) data;
 	POS_COOKIE pObj;
 
-	// Do nothing if the driver is starting halt state.
-	// This might happen when timer already been fired before cancel timer with mlmehalt
+	/* Do nothing if the driver is starting halt state. */
+	/* This might happen when timer already been fired before cancel timer with mlmehalt */
 	if (RTMP_TEST_FLAG
 	    (pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
 		return;
@@ -449,15 +449,15 @@ static void ac3_dma_done_tasklet(unsigned long data)
 	POS_COOKIE pObj;
 	BOOLEAN bReschedule = 0;
 
-	// Do nothing if the driver is starting halt state.
-	// This might happen when timer already been fired before cancel timer with mlmehalt
+	/* Do nothing if the driver is starting halt state. */
+	/* This might happen when timer already been fired before cancel timer with mlmehalt */
 	if (RTMP_TEST_FLAG
 	    (pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
 		return;
 
 	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-//      printk("ac0_dma_done_process\n");
+/*      printk("ac0_dma_done_process\n"); */
 	IntSource.word = 0;
 	IntSource.field.Ac3DmaDone = 1;
 	pAd->int_pending &= ~INT_AC3_DLY;
@@ -487,8 +487,8 @@ static void ac2_dma_done_tasklet(unsigned long data)
 	POS_COOKIE pObj;
 	BOOLEAN bReschedule = 0;
 
-	// Do nothing if the driver is starting halt state.
-	// This might happen when timer already been fired before cancel timer with mlmehalt
+	/* Do nothing if the driver is starting halt state. */
+	/* This might happen when timer already been fired before cancel timer with mlmehalt */
 	if (RTMP_TEST_FLAG
 	    (pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
 		return;
@@ -525,15 +525,15 @@ static void ac1_dma_done_tasklet(unsigned long data)
 	POS_COOKIE pObj;
 	BOOLEAN bReschedule = 0;
 
-	// Do nothing if the driver is starting halt state.
-	// This might happen when timer already been fired before cancel timer with mlmehalt
+	/* Do nothing if the driver is starting halt state. */
+	/* This might happen when timer already been fired before cancel timer with mlmehalt */
 	if (RTMP_TEST_FLAG
 	    (pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
 		return;
 
 	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-//      printk("ac0_dma_done_process\n");
+/*      printk("ac0_dma_done_process\n"); */
 	IntSource.word = 0;
 	IntSource.field.Ac1DmaDone = 1;
 	pAd->int_pending &= ~INT_AC1_DLY;
@@ -563,20 +563,20 @@ static void ac0_dma_done_tasklet(unsigned long data)
 	POS_COOKIE pObj;
 	BOOLEAN bReschedule = 0;
 
-	// Do nothing if the driver is starting halt state.
-	// This might happen when timer already been fired before cancel timer with mlmehalt
+	/* Do nothing if the driver is starting halt state. */
+	/* This might happen when timer already been fired before cancel timer with mlmehalt */
 	if (RTMP_TEST_FLAG
 	    (pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
 		return;
 
 	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-//      printk("ac0_dma_done_process\n");
+/*      printk("ac0_dma_done_process\n"); */
 	IntSource.word = 0;
 	IntSource.field.Ac0DmaDone = 1;
 	pAd->int_pending &= ~INT_AC0_DLY;
 
-//      RTMPHandleMgmtRingDmaDoneInterrupt(pAd);
+/*      RTMPHandleMgmtRingDmaDoneInterrupt(pAd); */
 	bReschedule = RTMPHandleTxRingDmaDoneInterrupt(pAd, IntSource);
 
 	RTMP_INT_LOCK(&pAd->irq_lock, flags);
@@ -617,52 +617,52 @@ IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance)
 	   RTMP_IO_WRITE32(pAd, INT_SOURCE_CSR, IntSource.word);
 	   Or kernel will panic after ifconfig ra0 down sometimes */
 
-	//
-	// Inital the Interrupt source.
-	//
+	/* */
+	/* Inital the Interrupt source. */
+	/* */
 	IntSource.word = 0x00000000L;
-//      McuIntSource.word = 0x00000000L;
+/*      McuIntSource.word = 0x00000000L; */
 
-	//
-	// Get the interrupt sources & saved to local variable
-	//
-	//RTMP_IO_READ32(pAd, where, &McuIntSource.word);
-	//RTMP_IO_WRITE32(pAd, , McuIntSource.word);
+	/* */
+	/* Get the interrupt sources & saved to local variable */
+	/* */
+	/*RTMP_IO_READ32(pAd, where, &McuIntSource.word); */
+	/*RTMP_IO_WRITE32(pAd, , McuIntSource.word); */
 
-	//
-	// Flag fOP_STATUS_DOZE On, means ASIC put to sleep, elase means ASICK WakeUp
-	// And at the same time, clock maybe turned off that say there is no DMA service.
-	// when ASIC get to sleep.
-	// To prevent system hang on power saving.
-	// We need to check it before handle the INT_SOURCE_CSR, ASIC must be wake up.
-	//
-	// RT2661 => when ASIC is sleeping, MAC register cannot be read and written.
-	// RT2860 => when ASIC is sleeping, MAC register can be read and written.
-//      if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
+	/* */
+	/* Flag fOP_STATUS_DOZE On, means ASIC put to sleep, elase means ASICK WakeUp */
+	/* And at the same time, clock maybe turned off that say there is no DMA service. */
+	/* when ASIC get to sleep. */
+	/* To prevent system hang on power saving. */
+	/* We need to check it before handle the INT_SOURCE_CSR, ASIC must be wake up. */
+	/* */
+	/* RT2661 => when ASIC is sleeping, MAC register cannot be read and written. */
+	/* RT2860 => when ASIC is sleeping, MAC register can be read and written. */
+/*      if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE)) */
 	{
 		RTMP_IO_READ32(pAd, INT_SOURCE_CSR, &IntSource.word);
-		RTMP_IO_WRITE32(pAd, INT_SOURCE_CSR, IntSource.word);	// write 1 to clear
+		RTMP_IO_WRITE32(pAd, INT_SOURCE_CSR, IntSource.word);	/* write 1 to clear */
 	}
-//      else
-//              DBGPRINT(RT_DEBUG_TRACE, (">>>fOP_STATUS_DOZE<<<\n"));
+/*      else */
+/*              DBGPRINT(RT_DEBUG_TRACE, (">>>fOP_STATUS_DOZE<<<\n")); */
 
-//      RTMP_IO_READ32(pAd, INT_SOURCE_CSR, &IsrAfterClear);
-//      RTMP_IO_READ32(pAd, MCU_INT_SOURCE_CSR, &McuIsrAfterClear);
-//      DBGPRINT(RT_DEBUG_INFO, ("====> RTMPHandleInterrupt(ISR=%08x,Mcu ISR=%08x, After clear ISR=%08x, MCU ISR=%08x)\n",
-//                      IntSource.word, McuIntSource.word, IsrAfterClear, McuIsrAfterClear));
+/*      RTMP_IO_READ32(pAd, INT_SOURCE_CSR, &IsrAfterClear); */
+/*      RTMP_IO_READ32(pAd, MCU_INT_SOURCE_CSR, &McuIsrAfterClear); */
+/*      DBGPRINT(RT_DEBUG_INFO, ("====> RTMPHandleInterrupt(ISR=%08x,Mcu ISR=%08x, After clear ISR=%08x, MCU ISR=%08x)\n", */
+/*                      IntSource.word, McuIntSource.word, IsrAfterClear, McuIsrAfterClear)); */
 
-	// Do nothing if Reset in progress
+	/* Do nothing if Reset in progress */
 	if (RTMP_TEST_FLAG
 	    (pAd,
 	     (fRTMP_ADAPTER_RESET_IN_PROGRESS |
 	      fRTMP_ADAPTER_HALT_IN_PROGRESS))) {
 		return IRQ_HANDLED;
 	}
-	//
-	// Handle interrupt, walk through all bits
-	// Should start from highest priority interrupt
-	// The priority can be adjust by altering processing if statement
-	//
+	/* */
+	/* Handle interrupt, walk through all bits */
+	/* Should start from highest priority interrupt */
+	/* The priority can be adjust by altering processing if statement */
+	/* */
 
 #ifdef DBG
 
@@ -670,11 +670,11 @@ IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance)
 
 	pAd->bPCIclkOff = FALSE;
 
-	// If required spinlock, each interrupt service routine has to acquire
-	// and release itself.
-	//
+	/* If required spinlock, each interrupt service routine has to acquire */
+	/* and release itself. */
+	/* */
 
-	// Do nothing if NIC doesn't exist
+	/* Do nothing if NIC doesn't exist */
 	if (IntSource.word == 0xffffffff) {
 		RTMP_SET_FLAG(pAd,
 			      (fRTMP_ADAPTER_NIC_NOT_EXIST |

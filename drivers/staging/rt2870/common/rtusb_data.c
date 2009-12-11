@@ -41,7 +41,7 @@
 
 #include "../rt_config.h"
 
-extern UCHAR Phy11BGNextRateUpward[];	// defined in mlme.c
+extern UCHAR Phy11BGNextRateUpward[];	/* defined in mlme.c */
 extern UCHAR EpToQueue[];
 
 VOID REPORT_AMSDU_FRAMES_TO_LLC(IN PRTMP_ADAPTER pAd,
@@ -89,8 +89,8 @@ NDIS_STATUS RTUSBFreeDescriptorRequest(IN PRTMP_ADAPTER pAd,
 				       IN UCHAR BulkOutPipeId,
 				       IN UINT32 NumberRequired)
 {
-//      UCHAR                   FreeNumber = 0;
-//      UINT                    Index;
+/*      UCHAR                   FreeNumber = 0; */
+/*      UINT                    Index; */
 	NDIS_STATUS Status = NDIS_STATUS_FAILURE;
 	unsigned long IrqFlags;
 	HT_TX_CONTEXT *pHTTXContext;
@@ -251,7 +251,7 @@ VOID RTMPWriteTxInfo(IN PRTMP_ADAPTER pAd,
 	if (QueueSel != FIFO_EDCA)
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("====> QueueSel != FIFO_EDCA<============\n"));
-	pTxInfo->USBDMANextVLD = FALSE;	//NextValid;  // Need to check with Jan about this.
+	pTxInfo->USBDMANextVLD = FALSE;	/*NextValid;  // Need to check with Jan about this. */
 	pTxInfo->USBDMATxburst = TxBurst;
 	pTxInfo->WIV = bWiv;
 	pTxInfo->SwUseLastRound = 0;
@@ -259,4 +259,4 @@ VOID RTMPWriteTxInfo(IN PRTMP_ADAPTER pAd,
 	pTxInfo->rsv2 = 0;
 }
 
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */

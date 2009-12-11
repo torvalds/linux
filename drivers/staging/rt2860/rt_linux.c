@@ -30,9 +30,9 @@
 
 ULONG RTDebugLevel = RT_DEBUG_ERROR;
 
-// for wireless system event message
+/* for wireless system event message */
 char const *pWirelessSysEventText[IW_SYS_EVENT_TYPE_NUM] = {
-	// system status event
+	/* system status event */
 	"had associated successfully",	/* IW_ASSOC_EVENT_FLAG */
 	"had disassociated",	/* IW_DISASSOC_EVENT_FLAG */
 	"had deauthenticated",	/* IW_DEAUTH_EVENT_FLAG */
@@ -54,7 +54,7 @@ char const *pWirelessSysEventText[IW_SYS_EVENT_TYPE_NUM] = {
 	    "scan terminate!! Busy!! Enqueue fail!!"	/* IW_SCAN_ENQUEUE_FAIL_EVENT_FLAG */
 };
 
-// for wireless IDS_spoof_attack event message
+/* for wireless IDS_spoof_attack event message */
 char const *pWirelessSpoofEventText[IW_SPOOF_EVENT_TYPE_NUM] = {
 	"detected conflict SSID",	/* IW_CONFLICT_SSID_EVENT_FLAG */
 	"detected spoofed association response",	/* IW_SPOOF_ASSOC_RESP_EVENT_FLAG */
@@ -68,7 +68,7 @@ char const *pWirelessSpoofEventText[IW_SPOOF_EVENT_TYPE_NUM] = {
 	"detected replay attack"	/* IW_REPLAY_ATTACK_EVENT_FLAG */
 };
 
-// for wireless IDS_flooding_attack event message
+/* for wireless IDS_flooding_attack event message */
 char const *pWirelessFloodEventText[IW_FLOOD_EVENT_TYPE_NUM] = {
 	"detected authentication flooding",	/* IW_FLOOD_AUTH_EVENT_FLAG */
 	"detected association request flooding",	/* IW_FLOOD_ASSOC_REQ_EVENT_FLAG */
@@ -129,10 +129,10 @@ VOID RTMP_OS_Del_Timer(IN NDIS_MINIPORT_TIMER * pTimer,
 
 VOID RTMP_OS_Release_Packet(IN PRTMP_ADAPTER pAd, IN PQUEUE_ENTRY pEntry)
 {
-	//RTMPFreeNdisPacket(pAd, (struct sk_buff *)pEntry);
+	/*RTMPFreeNdisPacket(pAd, (struct sk_buff *)pEntry); */
 }
 
-// Unify all delay routine by using udelay
+/* Unify all delay routine by using udelay */
 VOID RTMPusecDelay(IN ULONG usec)
 {
 	ULONG i;
@@ -149,7 +149,7 @@ void RTMP_GetCurrentSystemTime(LARGE_INTEGER * time)
 	time->u.LowPart = jiffies;
 }
 
-// pAd MUST allow to be NULL
+/* pAd MUST allow to be NULL */
 NDIS_STATUS os_alloc_mem(IN RTMP_ADAPTER * pAd, OUT UCHAR ** mem, IN ULONG size)
 {
 	*mem = (PUCHAR) kmalloc(size, GFP_ATOMIC);
@@ -159,7 +159,7 @@ NDIS_STATUS os_alloc_mem(IN RTMP_ADAPTER * pAd, OUT UCHAR ** mem, IN ULONG size)
 		return (NDIS_STATUS_FAILURE);
 }
 
-// pAd MUST allow to be NULL
+/* pAd MUST allow to be NULL */
 NDIS_STATUS os_free_mem(IN PRTMP_ADAPTER pAd, IN PVOID mem)
 {
 
@@ -249,8 +249,8 @@ VOID RTMPFreeAdapter(IN PRTMP_ADAPTER pAd)
 	NdisFreeSpinLock(&pAd->RxRingLock);
 #ifdef RT3090
 	NdisFreeSpinLock(&pAd->McuCmdLock);
-#endif // RT3090 //
-#endif // RTMP_MAC_PCI //
+#endif /* RT3090 // */
+#endif /* RTMP_MAC_PCI // */
 
 	for (index = 0; index < NUM_OF_TX_RING; index++) {
 		NdisFreeSpinLock(&pAd->TxSwQueueLock[index]);
@@ -260,7 +260,7 @@ VOID RTMPFreeAdapter(IN PRTMP_ADAPTER pAd)
 
 	NdisFreeSpinLock(&pAd->irq_lock);
 
-	vfree(pAd);		// pci_free_consistent(os_cookie->pci_dev,sizeof(RTMP_ADAPTER),pAd,os_cookie->pAd_pa);
+	vfree(pAd);		/* pci_free_consistent(os_cookie->pci_dev,sizeof(RTMP_ADAPTER),pAd,os_cookie->pAd_pa); */
 	if (os_cookie)
 		kfree(os_cookie);
 }
@@ -303,7 +303,7 @@ NDIS_STATUS RTMPCloneNdisPacket(IN PRTMP_ADAPTER pAd,
 	ASSERT(pInPacket);
 	ASSERT(ppOutPacket);
 
-	// 1. Allocate a packet
+	/* 1. Allocate a packet */
 	pkt = dev_alloc_skb(2048);
 
 	if (pkt == NULL) {
@@ -322,7 +322,7 @@ NDIS_STATUS RTMPCloneNdisPacket(IN PRTMP_ADAPTER pAd,
 	return NDIS_STATUS_SUCCESS;
 }
 
-// the allocated NDIS PACKET must be freed via RTMPFreeNdisPacket()
+/* the allocated NDIS PACKET must be freed via RTMPFreeNdisPacket() */
 NDIS_STATUS RTMPAllocateNdisPacket(IN PRTMP_ADAPTER pAd,
 				   OUT PNDIS_PACKET * ppPacket,
 				   IN PUCHAR pHeader,
@@ -333,7 +333,7 @@ NDIS_STATUS RTMPAllocateNdisPacket(IN PRTMP_ADAPTER pAd,
 	ASSERT(pData);
 	ASSERT(DataLen);
 
-	// 1. Allocate a packet
+	/* 1. Allocate a packet */
 	pPacket =
 	    (PNDIS_PACKET *) dev_alloc_skb(HeaderLen + DataLen +
 					   RTMP_PKT_TAIL_PADDING);
@@ -344,18 +344,18 @@ NDIS_STATUS RTMPAllocateNdisPacket(IN PRTMP_ADAPTER pAd,
 #endif
 		return NDIS_STATUS_FAILURE;
 	}
-	// 2. clone the frame content
+	/* 2. clone the frame content */
 	if (HeaderLen > 0)
 		NdisMoveMemory(GET_OS_PKT_DATAPTR(pPacket), pHeader, HeaderLen);
 	if (DataLen > 0)
 		NdisMoveMemory(GET_OS_PKT_DATAPTR(pPacket) + HeaderLen, pData,
 			       DataLen);
 
-	// 3. update length of packet
+	/* 3. update length of packet */
 	skb_put(GET_OS_PKT_TYPE(pPacket), HeaderLen + DataLen);
 
 	RTMP_SET_PACKET_SOURCE(pPacket, PKTSRC_NDIS);
-//      printk("%s : pPacket = %p, len = %d\n", __func__, pPacket, GET_OS_PKT_LEN(pPacket));
+/*      printk("%s : pPacket = %p, len = %d\n", __func__, pPacket, GET_OS_PKT_LEN(pPacket)); */
 	*ppPacket = pPacket;
 	return NDIS_STATUS_SUCCESS;
 }
@@ -372,9 +372,9 @@ VOID RTMPFreeNdisPacket(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket)
 	dev_kfree_skb_any(RTPKT_TO_OSPKT(pPacket));
 }
 
-// IRQL = DISPATCH_LEVEL
-// NOTE: we do have an assumption here, that Byte0 and Byte1 always reasid at the same
-//                       scatter gather buffer
+/* IRQL = DISPATCH_LEVEL */
+/* NOTE: we do have an assumption here, that Byte0 and Byte1 always reasid at the same */
+/*                       scatter gather buffer */
 NDIS_STATUS Sniff2BytesFromNdisBuffer(IN PNDIS_BUFFER pFirstBuffer,
 				      IN UCHAR DesiredOffset,
 				      OUT PUCHAR pByte0, OUT PUCHAR pByte1)
@@ -481,7 +481,7 @@ PNDIS_PACKET duplicate_pkt_with_TKIP_MIC(IN PRTMP_ADAPTER pAd,
 
 	skb = RTPKT_TO_OSPKT(pPacket);
 	if (skb_tailroom(skb) < TKIP_TX_MIC_SIZE) {
-		// alloc a new skb and copy the packet
+		/* alloc a new skb and copy the packet */
 		newskb =
 		    skb_copy_expand(skb, skb_headroom(skb), TKIP_TX_MIC_SIZE,
 				    GFP_ATOMIC);
@@ -507,11 +507,11 @@ PNDIS_PACKET ClonePacket(IN PRTMP_ADAPTER pAd,
 	ASSERT(pPacket);
 	pRxPkt = RTPKT_TO_OSPKT(pPacket);
 
-	// clone the packet
+	/* clone the packet */
 	pClonedPkt = skb_clone(pRxPkt, MEM_ALLOC_FLAG);
 
 	if (pClonedPkt) {
-		// set the correct dataptr and data len
+		/* set the correct dataptr and data len */
 		pClonedPkt->dev = pRxPkt->dev;
 		pClonedPkt->data = pData;
 		pClonedPkt->len = DataSize;
@@ -521,9 +521,9 @@ PNDIS_PACKET ClonePacket(IN PRTMP_ADAPTER pAd,
 	return pClonedPkt;
 }
 
-//
-// change OS packet DataPtr and DataLen
-//
+/* */
+/* change OS packet DataPtr and DataLen */
+/* */
 void update_os_packet_info(IN PRTMP_ADAPTER pAd,
 			   IN RX_BLK * pRxBlk, IN UCHAR FromWhichBSSID)
 {
@@ -555,10 +555,10 @@ void wlan_802_11_to_802_3_packet(IN PRTMP_ADAPTER pAd,
 	pOSPkt->len = pRxBlk->DataSize;
 	pOSPkt->tail = pOSPkt->data + pOSPkt->len;
 
-	//
-	// copy 802.3 header
-	//
-	//
+	/* */
+	/* copy 802.3 header */
+	/* */
+	/* */
 
 	NdisMoveMemory(skb_push(pOSPkt, LENGTH_802_3), pHeader802_3,
 		       LENGTH_802_3);
@@ -633,7 +633,7 @@ VOID RTMPSendWirelessEvent(IN PRTMP_ADAPTER pAd,
 			   IN PUCHAR pAddr, IN UCHAR BssIdx, IN CHAR Rssi)
 {
 
-	//union         iwreq_data      wrqu;
+	/*union         iwreq_data      wrqu; */
 	PSTRING pBuf = NULL, pBufPtr = NULL;
 	USHORT event, type, BufLen;
 	UCHAR event_table_len = 0;
@@ -668,9 +668,9 @@ VOID RTMPSendWirelessEvent(IN PRTMP_ADAPTER pAd,
 			  event));
 		return;
 	}
-	//Allocate memory and copy the msg.
+	/*Allocate memory and copy the msg. */
 	if ((pBuf = kmalloc(IW_CUSTOM_MAX_LEN, GFP_ATOMIC)) != NULL) {
-		//Prepare the payload
+		/*Prepare the payload */
 		memset(pBuf, 0, IW_CUSTOM_MAX_LEN);
 
 		pBufPtr = pBuf;
@@ -706,7 +706,7 @@ VOID RTMPSendWirelessEvent(IN PRTMP_ADAPTER pAd,
 
 		RtmpOSWrielessEventSend(pAd, IWEVCUSTOM, Event_flag, NULL,
 					(PUCHAR) pBuf, BufLen);
-		//DBGPRINT(RT_DEBUG_TRACE, ("%s : %s\n", __func__, pBuf));
+		/*DBGPRINT(RT_DEBUG_TRACE, ("%s : %s\n", __func__, pBuf)); */
 
 		kfree(pBuf);
 	} else
@@ -723,7 +723,7 @@ void send_monitor_packets(IN PRTMP_ADAPTER pAd, IN RX_BLK * pRxBlk)
 	USHORT header_len = 0;
 	UCHAR temp_header[40] = { 0 };
 
-	u_int32_t ralinkrate[256] = { 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108, 109, 110, 111, 112, 13, 26, 39, 52, 78, 104, 117, 130, 26, 52, 78, 104, 156, 208, 234, 260, 27, 54, 81, 108, 162, 216, 243, 270,	// Last 38
+	u_int32_t ralinkrate[256] = { 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108, 109, 110, 111, 112, 13, 26, 39, 52, 78, 104, 117, 130, 26, 52, 78, 104, 156, 208, 234, 260, 27, 54, 81, 108, 162, 216, 243, 270,	/* Last 38 */
 		54, 108, 162, 216, 324, 432, 486, 540, 14, 29, 43, 57, 87, 115,
 		    130, 144, 29, 59, 87, 115, 173, 230, 260, 288, 30, 60, 90,
 		    120, 180, 240, 270, 300, 60, 120, 180, 240, 360, 480, 540,
@@ -761,39 +761,39 @@ void send_monitor_packets(IN PRTMP_ADAPTER pAd, IN RX_BLK * pRxBlk)
 		else
 			header_len = LENGTH_802_11;
 
-		// QOS
+		/* QOS */
 		if (pRxBlk->pHeader->FC.SubType & 0x08) {
 			header_len += 2;
-			// Data skip QOS contorl field
+			/* Data skip QOS contorl field */
 			pRxBlk->DataSize -= 2;
 		}
-		// Order bit: A-Ralink or HTC+
+		/* Order bit: A-Ralink or HTC+ */
 		if (pRxBlk->pHeader->FC.Order) {
 			header_len += 4;
-			// Data skip HTC contorl field
+			/* Data skip HTC contorl field */
 			pRxBlk->DataSize -= 4;
 		}
-		// Copy Header
+		/* Copy Header */
 		if (header_len <= 40)
 			NdisMoveMemory(temp_header, pRxBlk->pData, header_len);
 
-		// skip HW padding
+		/* skip HW padding */
 		if (pRxBlk->RxD.L2PAD)
 			pRxBlk->pData += (header_len + 2);
 		else
 			pRxBlk->pData += header_len;
-	}			//end if
+	}			/*end if */
 
 	if (pRxBlk->DataSize < pOSPkt->len) {
 		skb_trim(pOSPkt, pRxBlk->DataSize);
 	} else {
 		skb_put(pOSPkt, (pRxBlk->DataSize - pOSPkt->len));
-	}			//end if
+	}			/*end if */
 
 	if ((pRxBlk->pData - pOSPkt->data) > 0) {
 		skb_put(pOSPkt, (pRxBlk->pData - pOSPkt->data));
 		skb_pull(pOSPkt, (pRxBlk->pData - pOSPkt->data));
-	}			//end if
+	}			/*end if */
 
 	if (skb_headroom(pOSPkt) < (sizeof(wlan_ng_prism2_header) + header_len)) {
 		if (pskb_expand_head
@@ -803,8 +803,8 @@ void send_monitor_packets(IN PRTMP_ADAPTER pAd, IN RX_BLK * pRxBlk)
 				 ("%s : Reallocate header size of sk_buff fail!\n",
 				  __func__));
 			goto err_free_sk_buff;
-		}		//end if
-	}			//end if
+		}		/*end if */
+	}			/*end if */
 
 	if (header_len > 0)
 		NdisMoveMemory(skb_push(pOSPkt, header_len), temp_header,
@@ -856,7 +856,7 @@ void send_monitor_packets(IN PRTMP_ADAPTER pAd, IN RX_BLK * pRxBlk)
 	ph->signal.did = DIDmsg_lnxind_wlansniffrm_signal;
 	ph->signal.status = 0;
 	ph->signal.len = 4;
-	ph->signal.data = 0;	//rssi + noise;
+	ph->signal.data = 0;	/*rssi + noise; */
 
 	ph->noise.did = DIDmsg_lnxind_wlansniffrm_noise;
 	ph->noise.status = 0;
@@ -948,7 +948,7 @@ int RtmpOSIRQRelease(IN PNET_DEV pNetDev)
 		free_irq(pObj->pci_dev->irq, (net_dev));
 		RTMP_MSI_DISABLE(pAd);
 	}
-#endif // RTMP_PCI_SUPPORT //
+#endif /* RTMP_PCI_SUPPORT // */
 
 	return 0;
 }
@@ -985,7 +985,7 @@ void RtmpOSFileSeek(RTMP_OS_FD osfd, int offset)
 
 int RtmpOSFileRead(RTMP_OS_FD osfd, char *pDataPtr, int readLen)
 {
-	// The object must have a read method
+	/* The object must have a read method */
 	if (osfd->f_op && osfd->f_op->read) {
 		return osfd->f_op->read(osfd, pDataPtr, readLen, &osfd->f_pos);
 	} else {
@@ -1090,7 +1090,7 @@ NDIS_STATUS RtmpOSTaskAttach(IN RTMP_OS_TASK * pTask,
 	} else {
 		pTask->taskPID = GET_PID(pid_number);
 
-		// Wait for the thread to start
+		/* Wait for the thread to start */
 		wait_for_completion(&pTask->taskComplete);
 		status = NDIS_STATUS_SUCCESS;
 	}
@@ -1172,7 +1172,7 @@ int RtmpOSNetDevAddrSet(IN PNET_DEV pNetDev, IN PUCHAR pMacAddr)
 	net_dev = pNetDev;
 	GET_PAD_FROM_NET_DEV(pAd, net_dev);
 
-	// work-around for the SuSE due to it has it's own interface name management system.
+	/* work-around for the SuSE due to it has it's own interface name management system. */
 	{
 		NdisZeroMemory(pAd->StaCfg.dev_name, 16);
 		NdisMoveMemory(pAd->StaCfg.dev_name, net_dev->name,
@@ -1245,7 +1245,7 @@ void RtmpOSNetDevFree(PNET_DEV pNetDev)
 
 INT RtmpOSNetDevAlloc(IN PNET_DEV * new_dev_p, IN UINT32 privDataSize)
 {
-	// assign it as null first.
+	/* assign it as null first. */
 	*new_dev_p = NULL;
 
 	DBGPRINT(RT_DEBUG_TRACE,
@@ -1281,7 +1281,7 @@ void RtmpOSNetDeviceRefPut(PNET_DEV pNetDev)
 INT RtmpOSNetDevDestory(IN RTMP_ADAPTER * pAd, IN PNET_DEV pNetDev)
 {
 
-	// TODO: Need to fix this
+	/* TODO: Need to fix this */
 	printk("WARNING: This function(%s) not implement yet!!!\n", __func__);
 	return 0;
 }
@@ -1297,7 +1297,7 @@ int RtmpOSNetDevAttach(IN PNET_DEV pNetDev,
 	int ret, rtnl_locked = FALSE;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("RtmpOSNetDevAttach()--->\n"));
-	// If we need hook some callback function to the net device structrue, now do it.
+	/* If we need hook some callback function to the net device structrue, now do it. */
 	if (pDevOpHook) {
 		PRTMP_ADAPTER pAd = NULL;
 
@@ -1312,7 +1312,7 @@ int RtmpOSNetDevAttach(IN PNET_DEV pNetDev,
 			pNetDev->wireless_handlers = &rt28xx_iw_handler_def;
 		}
 
-		// copy the net device mac address to the net_device structure.
+		/* copy the net device mac address to the net_device structure. */
 		NdisMoveMemory(pNetDev->dev_addr, &pDevOpHook->devAddr[0],
 			       MAC_ADDR_LEN);
 

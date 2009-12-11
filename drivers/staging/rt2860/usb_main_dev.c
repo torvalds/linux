@@ -26,9 +26,9 @@
 
 #include "rt_config.h"
 
-// Following information will be show when you run 'modinfo'
-// *** If you have a solution for the bug in current version of driver, please mail to me.
-// Otherwise post to forum in ralinktech's web site(www.ralinktech.com) and let all users help you. ***
+/* Following information will be show when you run 'modinfo' */
+/* *** If you have a solution for the bug in current version of driver, please mail to me. */
+/* Otherwise post to forum in ralinktech's web site(www.ralinktech.com) and let all users help you. *** */
 MODULE_AUTHOR("Paul Lin <paul_lin@ralinktech.com>");
 MODULE_DESCRIPTION("RT2870/RT3070 Wireless Lan Linux Driver");
 MODULE_LICENSE("GPL");
@@ -101,7 +101,7 @@ struct usb_device_id rtusb_usb_id[] = {
 	{USB_DEVICE(0x1737, 0x0071)},	/* Linksys WUSB600N */
 	{USB_DEVICE(0x0411, 0x00e8)},	/* Buffalo WLI-UC-G300N */
 	{USB_DEVICE(0x050d, 0x815c)},	/* Belkin F5D8053 */
-#endif // RT2870 //
+#endif /* RT2870 // */
 #ifdef RT3070
 	{USB_DEVICE(0x148F, 0x3070)},	/* Ralink 3070 */
 	{USB_DEVICE(0x148F, 0x3071)},	/* Ralink 3071 */
@@ -134,7 +134,7 @@ struct usb_device_id rtusb_usb_id[] = {
 	{USB_DEVICE(0x5A57, 0x0283)},	/* Zinwell 3072 */
 	{USB_DEVICE(0x04BB, 0x0945)},	/* I-O DATA 3072 */
 	{USB_DEVICE(0x203D, 0x1480)},	/* Encore 3070 */
-#endif // RT3070 //
+#endif /* RT3070 // */
 	{USB_DEVICE(0x0DF6, 0x003F)},	/* Sitecom WL-608 */
 	{USB_DEVICE(0x1737, 0x0077)},	/* Linksys WUSB54GC-EU v3 */
 	{USB_DEVICE(0x2001, 0x3C09)},	/* D-Link */
@@ -207,14 +207,14 @@ BOOLEAN RT28XXChipsetCheck(IN void *_dev_p)
 
 /**************************************************************************/
 /**************************************************************************/
-//tested for kernel 2.6series
+/*tested for kernel 2.6series */
 /**************************************************************************/
 /**************************************************************************/
 
 #ifdef CONFIG_PM
 static int rt2870_suspend(struct usb_interface *intf, pm_message_t state);
 static int rt2870_resume(struct usb_interface *intf);
-#endif // CONFIG_PM //
+#endif /* CONFIG_PM // */
 
 static int rtusb_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id);
@@ -264,8 +264,8 @@ static BOOLEAN USBDevConfigInit(IN struct usb_device *dev,
 			((iface_desc->endpoint[i].desc.
 			  bEndpointAddress & USB_ENDPOINT_DIR_MASK) ==
 			 USB_DIR_OUT)) {
-			// there are 6 bulk out EP. EP6 highest priority.
-			// EP1-4 is EDCA.  EP5 is HCCA.
+			/* there are 6 bulk out EP. EP6 highest priority. */
+			/* EP1-4 is EDCA.  EP5 is HCCA. */
 			pAd->BulkOutEpAddr[BulkOutIdx++] =
 			    iface_desc->endpoint[i].desc.bEndpointAddress;
 			pAd->BulkOutMaxPacketSize =
@@ -340,8 +340,8 @@ resume:rt2870_resume,
 
 VOID RT2870RejectPendingPackets(IN PRTMP_ADAPTER pAd)
 {
-	// clear PS packets
-	// clear TxSw packets
+	/* clear PS packets */
+	/* clear TxSw packets */
 }
 
 static int rt2870_suspend(struct usb_interface *intf, pm_message_t state)
@@ -379,16 +379,16 @@ static int rt2870_resume(struct usb_interface *intf)
 	DBGPRINT(RT_DEBUG_TRACE, ("<=== rt2870_resume()\n"));
 	return 0;
 }
-#endif // CONFIG_PM //
+#endif /* CONFIG_PM // */
 
-// Init driver module
+/* Init driver module */
 INT __init rtusb_init(void)
 {
 	printk("rtusb init --->\n");
 	return usb_register(&rtusb_driver);
 }
 
-// Deinit driver module
+/* Deinit driver module */
 VOID __exit rtusb_exit(void)
 {
 	usb_deregister(&rtusb_driver);
@@ -442,7 +442,7 @@ INT MlmeThread(IN void *Context)
 #endif
 
 		/* lock the device pointers , need to check if required */
-		//down(&(pAd->usbdev_semaphore));
+		/*down(&(pAd->usbdev_semaphore)); */
 
 		if (!pAd->PM_FlgSuspend)
 			MlmeHandler(pAd);
@@ -521,7 +521,7 @@ INT RTUSBCmdThread(IN void *Context)
 			CMDHandler(pAd);
 	}
 
-	if (pAd && !pAd->PM_FlgSuspend) {	// Clear the CmdQElements.
+	if (pAd && !pAd->PM_FlgSuspend) {	/* Clear the CmdQElements. */
 		CmdQElmt *pCmdQElmt = NULL;
 
 		NdisAcquireSpinLock(&pAd->CmdQLock);
@@ -633,10 +633,10 @@ VOID RTUSBWatchDog(IN RTMP_ADAPTER * pAd)
 			       fRTMP_ADAPTER_NIC_NOT_EXIST |
 			       fRTMP_ADAPTER_BULKOUT_RESET)))
 			    ) {
-				// FIXME: Following code just support single bulk out. If you wanna support multiple bulk out. Modify it!
+				/* FIXME: Following code just support single bulk out. If you wanna support multiple bulk out. Modify it! */
 				pHTTXContext =
 				    (PHT_TX_CONTEXT) (&pAd->TxContext[idx]);
-				if (pHTTXContext->IRPPending) {	// Check TxContext.
+				if (pHTTXContext->IRPPending) {	/* Check TxContext. */
 					pUrb = pHTTXContext->pUrb;
 
 					actual_length = pUrb->actual_length;
@@ -647,7 +647,7 @@ VOID RTUSBWatchDog(IN RTMP_ADAPTER * pAd)
 					PTX_CONTEXT pMLMEContext, pNULLContext,
 					    pPsPollContext;
 
-					//Check MgmtContext.
+					/*Check MgmtContext. */
 					pMLMEContext =
 					    (PTX_CONTEXT) (pAd->MgmtRing.
 							   Cell[pAd->MgmtRing.
@@ -688,7 +688,7 @@ VOID RTUSBWatchDog(IN RTMP_ADAPTER * pAd)
 					     && pAd->TransferedLength[idx] <
 					     transfer_buffer_length
 					     && actual_length != 0
-//                                      && TxRxQ_Pcnt==0
+/*                                      && TxRxQ_Pcnt==0 */
 					     && pAd->watchDogTxPendingCnt[idx] >
 					     3)
 					    || isDataPacket == FALSE
@@ -699,10 +699,10 @@ VOID RTUSBWatchDog(IN RTMP_ADAPTER * pAd)
 							  idx));
 						DBGPRINT(RT_DEBUG_TRACE,
 							 ("Unlink the pending URB!\n"));
-						// unlink it now
+						/* unlink it now */
 						RTUSB_UNLINK_URB(pUrb);
-						// Sleep 200 microseconds to give cancellation time to work
-						//RTMPusecDelay(200);
+						/* Sleep 200 microseconds to give cancellation time to work */
+						/*RTMPusecDelay(200); */
 						needDumpSeq = TRUE;
 					}
 				} else {
@@ -721,7 +721,7 @@ VOID RTUSBWatchDog(IN RTMP_ADAPTER * pAd)
 		}
 	}
 
-	// For Sigma debug, dump the ba_reordering sequence.
+	/* For Sigma debug, dump the ba_reordering sequence. */
 	if ((needDumpSeq == TRUE) && (pAd->CommonCfg.bDisableReordering == 0)) {
 		USHORT Idx;
 		PBA_REC_ENTRY pBAEntry = NULL;
@@ -780,22 +780,22 @@ static void rt2870_disconnect(struct usb_device *dev, PRTMP_ADAPTER pAd)
 	}
 	RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST);
 
-	// for debug, wait to show some messages to /proc system
+	/* for debug, wait to show some messages to /proc system */
 	udelay(1);
 
 	RtmpPhyNetDevExit(pAd, pAd->net_dev);
 
-	// FIXME: Shall we need following delay and flush the schedule??
+	/* FIXME: Shall we need following delay and flush the schedule?? */
 	udelay(1);
 	flush_scheduled_work();
 	udelay(1);
 
-	// free the root net_device
+	/* free the root net_device */
 	RtmpOSNetDevFree(pAd->net_dev);
 
 	RtmpRaDevCtrlExit(pAd);
 
-	// release a use of the usb device structure
+	/* release a use of the usb device structure */
 	usb_put_dev(dev);
 	udelay(1);
 
@@ -815,12 +815,12 @@ static int __devinit rt2870_probe(IN struct usb_interface *intf,
 
 	DBGPRINT(RT_DEBUG_TRACE, ("===>rt2870_probe()!\n"));
 
-	// Check chipset vendor/product ID
-	//if (RT28XXChipsetCheck(_dev_p) == FALSE)
-	//      goto err_out;
+	/* Check chipset vendor/product ID */
+	/*if (RT28XXChipsetCheck(_dev_p) == FALSE) */
+	/*      goto err_out; */
 
-//RtmpDevInit=============================================
-	// Allocate RTMP_ADAPTER adapter structure
+/*RtmpDevInit============================================= */
+	/* Allocate RTMP_ADAPTER adapter structure */
 	handle = kmalloc(sizeof(struct os_cookie), GFP_KERNEL);
 	if (handle == NULL) {
 		printk
@@ -834,18 +834,18 @@ static int __devinit rt2870_probe(IN struct usb_interface *intf,
 		kfree(handle);
 		goto err_out;
 	}
-//USBDevInit==============================================
+/*USBDevInit============================================== */
 	if (USBDevConfigInit(usb_dev, intf, pAd) == FALSE)
 		goto err_out_free_radev;
 
 	RtmpRaDevCtrlInit(pAd, RTMP_DEV_INF_USB);
 
-//NetDevInit==============================================
+/*NetDevInit============================================== */
 	net_dev = RtmpPhyNetDevInit(pAd, &netDevHook);
 	if (net_dev == NULL)
 		goto err_out_free_radev;
 
-	// Here are the net_device structure with usb specific parameters.
+	/* Here are the net_device structure with usb specific parameters. */
 	/* for supporting Network Manager.
 	 * Set the sysfs physical device reference for the network logical device if set prior to registration will
 	 * cause a symlink during initialization.
@@ -854,8 +854,8 @@ static int __devinit rt2870_probe(IN struct usb_interface *intf,
 
 	pAd->StaCfg.OriDevType = net_dev->type;
 
-//All done, it's time to register the net device to linux kernel.
-	// Register this device
+/*All done, it's time to register the net device to linux kernel. */
+	/* Register this device */
 	status = RtmpOSNetDevAttach(net_dev, &netDevHook);
 	if (status != 0)
 		goto err_out_free_netdev;
