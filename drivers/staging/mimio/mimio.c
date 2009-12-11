@@ -145,7 +145,7 @@ static void mimio_rx_handler(struct mimio *, unsigned char *, unsigned int);
 static int mimio_tx(struct mimio *, const char *, int);
 
 static char mimio_name[] = "VirtualInk mimio-Xi";
-static struct usb_device_id mimio_table [] = {
+static struct usb_device_id mimio_table[] = {
 	{ USB_DEVICE(MIMIO_VENDOR_ID, MIMIO_PRODUCT_ID) },
 	{ USB_DEVICE(0x0525, 0xa4a0) }, /* gadget zero firmware */
 	{ }
@@ -588,7 +588,7 @@ static int handle_mimio_rx_penupdown(struct mimio *mimio,
 			*(mimio->pktbuf.p + 2);
 		if (x != *(mimio->pktbuf.p + 3)) {
 			dev_dbg(&mimio->idev->dev, "EV_PEN%s: bad xsum.\n",
-				down ? "DOWN":"UP");
+				down ? "DOWN" : "UP");
 			/* skip this event data */
 			mimio->pktbuf.p += 4;
 			/* decode any remaining events */
