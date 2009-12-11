@@ -39,19 +39,19 @@
 
 #ifdef RTMP_PCI_SUPPORT
 #include "iface/rtmp_pci.h"
-#endif // RTMP_PCI_SUPPORT //
+#endif /* RTMP_PCI_SUPPORT // */
 #ifdef RTMP_USB_SUPPORT
 #include "iface/rtmp_usb.h"
-#endif // RTMP_USB_SUPPORT //
+#endif /* RTMP_USB_SUPPORT // */
 
 typedef struct _INF_PCI_CONFIG_ {
-	unsigned long CSRBaseAddress;	// PCI MMIO Base Address, all access will use
+	unsigned long CSRBaseAddress;	/* PCI MMIO Base Address, all access will use */
 	unsigned int irq_num;
 } INF_PCI_CONFIG;
 
 typedef struct _INF_USB_CONFIG_ {
-	UINT8 BulkInEpAddr;	// bulk-in endpoint address
-	UINT8 BulkOutEpAddr[6];	// bulk-out endpoint address
+	UINT8 BulkInEpAddr;	/* bulk-in endpoint address */
+	UINT8 BulkOutEpAddr[6];	/* bulk-out endpoint address */
 } INF_USB_CONFIG;
 
 typedef struct _INF_RBUS_CONFIG_ {
@@ -72,4 +72,4 @@ typedef union _RTMP_INF_CONFIG_ {
 	struct _INF_RBUS_CONFIG_ rbusConfig;
 } RTMP_INF_CONFIG;
 
-#endif // __RTMP_IFACE_H__ //
+#endif /* __RTMP_IFACE_H__ // */

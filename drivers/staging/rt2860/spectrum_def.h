@@ -58,7 +58,7 @@ typedef struct _MEASURE_REQ_ENTRY {
 	ULONG lastTime;
 	BOOLEAN Valid;
 	UINT8 DialogToken;
-	UINT8 MeasureDialogToken[3];	// 0:basic measure, 1: CCA measure, 2: RPI_Histogram measure.
+	UINT8 MeasureDialogToken[3];	/* 0:basic measure, 1: CCA measure, 2: RPI_Histogram measure. */
 } MEASURE_REQ_ENTRY, *PMEASURE_REQ_ENTRY;
 
 typedef struct _MEASURE_REQ_TAB {
@@ -195,4 +195,4 @@ typedef struct PACKED _QUIET_INFO {
 	UINT16 QuietOffset;
 } QUIET_INFO, *PQUIET_INFO;
 
-#endif // __SPECTRUM_DEF_H__ //
+#endif /* __SPECTRUM_DEF_H__ // */

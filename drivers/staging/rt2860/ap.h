@@ -40,7 +40,7 @@
 #ifndef __AP_H__
 #define __AP_H__
 
-// ap_wpa.c
+/* ap_wpa.c */
 VOID WpaStateMachineInit(IN PRTMP_ADAPTER pAd,
 			 IN STATE_MACHINE * Sm, OUT STATE_MACHINE_FUNC Trans[]);
 
@@ -48,7 +48,7 @@ VOID WpaStateMachineInit(IN PRTMP_ADAPTER pAd,
 VOID BeaconUpdateExec(IN PVOID SystemSpecific1,
 		      IN PVOID FunctionContext,
 		      IN PVOID SystemSpecific2, IN PVOID SystemSpecific3);
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 
 VOID RTMPSetPiggyBack(IN PRTMP_ADAPTER pAd, IN BOOLEAN bPiggyBack);
 
@@ -63,4 +63,4 @@ BOOLEAN MacTableDeleteEntry(IN PRTMP_ADAPTER pAd,
 
 MAC_TABLE_ENTRY *MacTableLookup(IN PRTMP_ADAPTER pAd, IN PUCHAR pAddr);
 
-#endif // __AP_H__
+#endif /* __AP_H__ */

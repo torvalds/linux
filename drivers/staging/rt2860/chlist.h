@@ -52,14 +52,14 @@
 typedef struct _CH_DESP {
 	UCHAR FirstChannel;
 	UCHAR NumOfCh;
-	CHAR MaxTxPwr;		// dBm
-	UCHAR Geography;	// 0:out door, 1:in door, 2:both
-	BOOLEAN DfsReq;		// Dfs require, 0: No, 1: yes.
+	CHAR MaxTxPwr;		/* dBm */
+	UCHAR Geography;	/* 0:out door, 1:in door, 2:both */
+	BOOLEAN DfsReq;		/* Dfs require, 0: No, 1: yes. */
 } CH_DESP, *PCH_DESP;
 
 typedef struct _CH_REGION {
 	UCHAR CountReg[3];
-	UCHAR DfsType;		// 0: CE, 1: FCC, 2: JAP, 3:JAP_W53, JAP_W56
+	UCHAR DfsType;		/* 0: CE, 1: FCC, 2: JAP, 3:JAP_W53, JAP_W56 */
 	CH_DESP ChDesp[10];
 } CH_REGION, *PCH_REGION;
 
@@ -114,4 +114,4 @@ VOID N_SetCenCh(IN PRTMP_ADAPTER pAd);
 
 UINT8 GetCuntryMaxTxPwr(IN PRTMP_ADAPTER pAd, IN UINT8 channel);
 
-#endif // __CHLIST_H__
+#endif /* __CHLIST_H__ */

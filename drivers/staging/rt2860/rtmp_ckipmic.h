@@ -60,4 +60,4 @@ VOID shift_row(IN PUCHAR in, OUT PUCHAR out);
 
 VOID mix_column(IN PUCHAR in, OUT PUCHAR out);
 
-#endif //__RTMP_CKIPMIC_H__
+#endif /*__RTMP_CKIPMIC_H__ */

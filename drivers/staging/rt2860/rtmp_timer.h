@@ -50,29 +50,29 @@
 	rtmp_timer_##_func
 
 /* ----------------- Timer Related MARCO ---------------*/
-// In some os or chipset, we have a lot of timer functions and will read/write register,
-//   it's not allowed in Linux USB sub-system to do it ( because of sleep issue when
-//  submit to ctrl pipe). So we need a wrapper function to take care it.
+/* In some os or chipset, we have a lot of timer functions and will read/write register, */
+/*   it's not allowed in Linux USB sub-system to do it ( because of sleep issue when */
+/*  submit to ctrl pipe). So we need a wrapper function to take care it. */
 
 #ifdef RTMP_TIMER_TASK_SUPPORT
 typedef VOID(*RTMP_TIMER_TASK_HANDLE) (IN PVOID SystemSpecific1,
 				       IN PVOID FunctionContext,
 				       IN PVOID SystemSpecific2,
 				       IN PVOID SystemSpecific3);
-#endif // RTMP_TIMER_TASK_SUPPORT //
+#endif /* RTMP_TIMER_TASK_SUPPORT // */
 
 typedef struct _RALINK_TIMER_STRUCT {
-	RTMP_OS_TIMER TimerObj;	// Ndis Timer object
-	BOOLEAN Valid;		// Set to True when call RTMPInitTimer
-	BOOLEAN State;		// True if timer cancelled
-	BOOLEAN PeriodicType;	// True if timer is periodic timer
-	BOOLEAN Repeat;		// True if periodic timer
-	ULONG TimerValue;	// Timer value in milliseconds
-	ULONG cookie;		// os specific object
+	RTMP_OS_TIMER TimerObj;	/* Ndis Timer object */
+	BOOLEAN Valid;		/* Set to True when call RTMPInitTimer */
+	BOOLEAN State;		/* True if timer cancelled */
+	BOOLEAN PeriodicType;	/* True if timer is periodic timer */
+	BOOLEAN Repeat;		/* True if periodic timer */
+	ULONG TimerValue;	/* Timer value in milliseconds */
+	ULONG cookie;		/* os specific object */
 #ifdef RTMP_TIMER_TASK_SUPPORT
 	RTMP_TIMER_TASK_HANDLE handle;
 	void *pAd;
-#endif				// RTMP_TIMER_TASK_SUPPORT //
+#endif				/* RTMP_TIMER_TASK_SUPPORT // */
 } RALINK_TIMER_STRUCT, *PRALINK_TIMER_STRUCT;
 
 #ifdef RTMP_TIMER_TASK_SUPPORT
@@ -113,7 +113,7 @@ void rtmp_timer_##_func(unsigned long data)										\
 	if (pTimer->Repeat)														\
 		RTMP_OS_Add_Timer(&pTimer->TimerObj, pTimer->TimerValue);			\
 }
-#endif // RTMP_TIMER_TASK_SUPPORT //
+#endif /* RTMP_TIMER_TASK_SUPPORT // */
 
 DECLARE_TIMER_FUNCTION(MlmePeriodicExec);
 DECLARE_TIMER_FUNCTION(MlmeRssiReportExec);
@@ -122,7 +122,7 @@ DECLARE_TIMER_FUNCTION(APSDPeriodicExec);
 DECLARE_TIMER_FUNCTION(AsicRfTuningExec);
 #ifdef RTMP_MAC_USB
 DECLARE_TIMER_FUNCTION(BeaconUpdateExec);
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 
 DECLARE_TIMER_FUNCTION(BeaconTimeout);
 DECLARE_TIMER_FUNCTION(ScanTimeout);
@@ -138,10 +138,10 @@ DECLARE_TIMER_FUNCTION(RadioOnExec);
 
 #ifdef RTMP_MAC_USB
 DECLARE_TIMER_FUNCTION(RtmpUsbStaAsicForceWakeupTimeout);
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 
 #if defined(AP_LED) || defined(STA_LED)
 DECLARE_TIMER_FUNCTION(LedCtrlMain);
 #endif
 
-#endif // __RTMP_TIMER_H__ //
+#endif /* __RTMP_TIMER_H__ // */

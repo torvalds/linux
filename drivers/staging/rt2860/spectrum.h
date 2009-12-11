@@ -186,4 +186,4 @@ VOID NotifyChSwAnnToPeerAPs(IN PRTMP_ADAPTER pAd,
 
 VOID RguClass_BuildBcnChList(IN PRTMP_ADAPTER pAd,
 			     OUT PUCHAR pBuf, OUT PULONG pBufLen);
-#endif // __SPECTRUM_H__ //
+#endif /* __SPECTRUM_H__ // */

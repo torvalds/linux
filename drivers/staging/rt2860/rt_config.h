@@ -66,6 +66,6 @@
 
 #ifdef IGMP_SNOOP_SUPPORT
 #include "igmp_snoop.h"
-#endif // IGMP_SNOOP_SUPPORT //
+#endif /* IGMP_SNOOP_SUPPORT // */
 
-#endif // __RT_CONFIG_H__
+#endif /* __RT_CONFIG_H__ */

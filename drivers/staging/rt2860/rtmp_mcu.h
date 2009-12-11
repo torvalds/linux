@@ -46,4 +46,4 @@ INT RtmpAsicSendCommandToMcu(IN PRTMP_ADAPTER pAd,
 			     IN UCHAR Command,
 			     IN UCHAR Token, IN UCHAR Arg0, IN UCHAR Arg1);
 
-#endif // __RTMP_MCU_H__ //
+#endif /* __RTMP_MCU_H__ // */

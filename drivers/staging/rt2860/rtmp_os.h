@@ -39,7 +39,7 @@
 
 #ifdef LINUX
 #include "rt_linux.h"
-#endif // LINUX //
+#endif /* LINUX // */
 
 /*
 	This data structure mainly strip some callback function defined in
@@ -69,7 +69,7 @@ typedef enum _RTMP_TASK_STATUS_ {
 typedef struct _RTMP_OS_TASK_ {
 	char taskName[RTMP_OS_TASK_NAME_LEN];
 	void *priv;
-	//unsigned long         taskFlags;
+	/*unsigned long         taskFlags; */
 	RTMP_TASK_STATUS taskStatus;
 #ifndef KTHREAD_SUPPORT
 	RTMP_OS_SEM taskSema;
@@ -87,4 +87,4 @@ typedef struct _RTMP_OS_TASK_ {
 int RtmpOSIRQRequest(IN PNET_DEV pNetDev);
 int RtmpOSIRQRelease(IN PNET_DEV pNetDev);
 
-#endif // __RMTP_OS_H__ //
+#endif /* __RMTP_OS_H__ // */

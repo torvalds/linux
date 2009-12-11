@@ -60,13 +60,13 @@
 #include "mac_pci.h"
 #include "rt30xx.h"
 
-//
-// Device ID & Vendor ID, these values should match EEPROM value
-//
-#define NIC3090_PCIe_DEVICE_ID  0x3090	// 1T/1R miniCard
-#define NIC3091_PCIe_DEVICE_ID  0x3091	// 1T/2R miniCard
-#define NIC3092_PCIe_DEVICE_ID  0x3092	// 2T/2R miniCard
+/* */
+/* Device ID & Vendor ID, these values should match EEPROM value */
+/* */
+#define NIC3090_PCIe_DEVICE_ID  0x3090	/* 1T/1R miniCard */
+#define NIC3091_PCIe_DEVICE_ID  0x3091	/* 1T/2R miniCard */
+#define NIC3092_PCIe_DEVICE_ID  0x3092	/* 2T/2R miniCard */
 
-#endif // RT3090 //
+#endif /* RT3090 // */
 
-#endif //__RT3090_H__ //
+#endif /*__RT3090_H__ // */

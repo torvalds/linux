@@ -38,7 +38,7 @@
 #ifndef	__WPA_H__
 #define	__WPA_H__
 
-// EAPOL Key descripter frame format related length
+/* EAPOL Key descripter frame format related length */
 #define LEN_KEY_DESC_NONCE			32
 #define LEN_KEY_DESC_IV				16
 #define LEN_KEY_DESC_RSC			8
@@ -46,25 +46,25 @@
 #define LEN_KEY_DESC_REPLAY			8
 #define LEN_KEY_DESC_MIC			16
 
-// The length is the EAPoL-Key frame except key data field.
-// Please refer to 802.11i-2004 ,Figure 43u in p.78
+/* The length is the EAPoL-Key frame except key data field. */
+/* Please refer to 802.11i-2004 ,Figure 43u in p.78 */
 #define LEN_EAPOL_KEY_MSG			(sizeof(KEY_DESCRIPTER) - MAX_LEN_OF_RSNIE)
 
-// EAP Code Type.
+/* EAP Code Type. */
 #define EAP_CODE_REQUEST	1
 #define EAP_CODE_RESPONSE	2
 #define EAP_CODE_SUCCESS    3
 #define EAP_CODE_FAILURE    4
 
-// EAPOL frame Protocol Version
+/* EAPOL frame Protocol Version */
 #define	EAPOL_VER					1
 #define	EAPOL_VER2					2
 
-// EAPOL-KEY Descriptor Type
+/* EAPOL-KEY Descriptor Type */
 #define	WPA1_KEY_DESC				0xfe
 #define WPA2_KEY_DESC               0x02
 
-// Key Descriptor Version of Key Information
+/* Key Descriptor Version of Key Information */
 #define	DESC_TYPE_TKIP				1
 #define	DESC_TYPE_AES				2
 
@@ -73,11 +73,11 @@
 
 #define LEN_MASTER_KEY				32
 
-// EAPOL EK, MK
+/* EAPOL EK, MK */
 #define LEN_EAP_EK					16
 #define LEN_EAP_MICK				16
 #define LEN_EAP_KEY					((LEN_EAP_EK)+(LEN_EAP_MICK))
-// TKIP key related
+/* TKIP key related */
 #define LEN_PMKID					16
 #define LEN_TKIP_EK					16
 #define LEN_TKIP_RXMICK				8
@@ -94,13 +94,13 @@
 #define LEN_PMK_NAME				16
 #define LEN_NONCE					32
 
-// RSN IE Length definition
+/* RSN IE Length definition */
 #define MAX_LEN_OF_RSNIE		255
 #define MIN_LEN_OF_RSNIE         	8
 
 #define KEY_LIFETIME				3600
 
-//EAP Packet Type
+/*EAP Packet Type */
 #define	EAPPacket		0
 #define	EAPOLStart		1
 #define	EAPOLLogoff		2
@@ -119,28 +119,28 @@
 #define PAIRWISEKEY					1
 #define GROUPKEY					0
 
-// Retry timer counter initial value
+/* Retry timer counter initial value */
 #define PEER_MSG1_RETRY_TIMER_CTR           0
 #define PEER_MSG3_RETRY_TIMER_CTR           10
 #define GROUP_MSG1_RETRY_TIMER_CTR          20
 
-//#ifdef CONFIG_AP_SUPPORT
-// WPA mechanism retry timer interval
-#define PEER_MSG1_RETRY_EXEC_INTV           1000	// 1 sec
-#define PEER_MSG3_RETRY_EXEC_INTV           3000	// 3 sec
-#define GROUP_KEY_UPDATE_EXEC_INTV          1000	// 1 sec
-#define PEER_GROUP_KEY_UPDATE_INIV			2000	// 2 sec
+/*#ifdef CONFIG_AP_SUPPORT */
+/* WPA mechanism retry timer interval */
+#define PEER_MSG1_RETRY_EXEC_INTV           1000	/* 1 sec */
+#define PEER_MSG3_RETRY_EXEC_INTV           3000	/* 3 sec */
+#define GROUP_KEY_UPDATE_EXEC_INTV          1000	/* 1 sec */
+#define PEER_GROUP_KEY_UPDATE_INIV			2000	/* 2 sec */
 
-#define ENQUEUE_EAPOL_START_TIMER			200	// 200 ms
+#define ENQUEUE_EAPOL_START_TIMER			200	/* 200 ms */
 
-// group rekey interval
+/* group rekey interval */
 #define TIME_REKEY                          0
 #define PKT_REKEY                           1
 #define DISABLE_REKEY                       2
 #define MAX_REKEY                           2
 
 #define MAX_REKEY_INTER                     0x3ffffff
-//#endif // CONFIG_AP_SUPPORT //
+/*#endif // CONFIG_AP_SUPPORT // */
 
 #define GROUP_SUITE					0
 #define PAIRWISE_SUITE				1
@@ -194,13 +194,13 @@
 
 #define IS_WPA_CAPABILITY(a)       (((a) >= Ndis802_11AuthModeWPA) && ((a) <= Ndis802_11AuthModeWPA1PSKWPA2PSK))
 
-// EAPOL Key Information definition within Key descriptor format
+/* EAPOL Key Information definition within Key descriptor format */
 typedef struct PACKED _KEY_INFO {
 	UCHAR KeyMic:1;
 	UCHAR Secure:1;
 	UCHAR Error:1;
 	UCHAR Request:1;
-	UCHAR EKD_DL:1;		// EKD for AP; DL for STA
+	UCHAR EKD_DL:1;		/* EKD for AP; DL for STA */
 	UCHAR Rsvd:3;
 	UCHAR KeyDescVer:3;
 	UCHAR KeyType:1;
@@ -209,7 +209,7 @@ typedef struct PACKED _KEY_INFO {
 	UCHAR KeyAck:1;
 } KEY_INFO, *PKEY_INFO;
 
-// EAPOL Key descriptor format
+/* EAPOL Key descriptor format */
 typedef struct PACKED _KEY_DESCRIPTER {
 	UCHAR Type;
 	KEY_INFO KeyInfo;
@@ -231,7 +231,7 @@ typedef struct PACKED _EAPOL_PACKET {
 	KEY_DESCRIPTER KeyDesc;
 } EAPOL_PACKET, *PEAPOL_PACKET;
 
-//802.11i D10 page 83
+/*802.11i D10 page 83 */
 typedef struct PACKED _GTK_ENCAP {
 	UCHAR Kid:2;
 	UCHAR tx:1;
@@ -248,7 +248,7 @@ typedef struct PACKED _KDE_ENCAP {
 	GTK_ENCAP GTKEncap;
 } KDE_ENCAP, *PKDE_ENCAP;
 
-// For WPA1
+/* For WPA1 */
 typedef struct PACKED _RSNIE {
 	UCHAR oui[4];
 	USHORT version;
@@ -259,7 +259,7 @@ typedef struct PACKED _RSNIE {
 	} ucast[1];
 } RSNIE, *PRSNIE;
 
-// For WPA2
+/* For WPA2 */
 typedef struct PACKED _RSNIE2 {
 	USHORT version;
 	UCHAR mcast[4];
@@ -269,7 +269,7 @@ typedef struct PACKED _RSNIE2 {
 	} ucast[1];
 } RSNIE2, *PRSNIE2;
 
-// AKM Suite
+/* AKM Suite */
 typedef struct PACKED _RSNIE_AUTH {
 	USHORT acount;
 	struct PACKED {
@@ -294,45 +294,45 @@ typedef struct PACKED _EAP_HDR {
 	UCHAR Body_Len[2];
 	UCHAR code;
 	UCHAR identifier;
-	UCHAR length[2];	// including code and identifier, followed by length-2 octets of data
+	UCHAR length[2];	/* including code and identifier, followed by length-2 octets of data */
 } EAP_HDR, *PEAP_HDR;
 
-// For supplicant state machine states. 802.11i Draft 4.1, p. 97
-// We simplified it
+/* For supplicant state machine states. 802.11i Draft 4.1, p. 97 */
+/* We simplified it */
 typedef enum _WpaState {
-	SS_NOTUSE,		// 0
-	SS_START,		// 1
-	SS_WAIT_MSG_3,		// 2
-	SS_WAIT_GROUP,		// 3
-	SS_FINISH,		// 4
-	SS_KEYUPDATE,		// 5
+	SS_NOTUSE,		/* 0 */
+	SS_START,		/* 1 */
+	SS_WAIT_MSG_3,		/* 2 */
+	SS_WAIT_GROUP,		/* 3 */
+	SS_FINISH,		/* 4 */
+	SS_KEYUPDATE,		/* 5 */
 } WPA_STATE;
 
-//
-//      The definition of the cipher combination
-//
-//       bit3   bit2  bit1   bit0
-//      +------------+------------+
-//      |         WPA    |         WPA2   |
-//      +------+-----+------+-----+
-//      | TKIP | AES | TKIP | AES |
-//      |       0  |  1  |   1  |  0  | -> 0x06
-//      |       0  |  1  |   1  |  1  | -> 0x07
-//      |       1  |  0  |   0  |  1  | -> 0x09
-//      |       1  |  0  |   1  |  1  | -> 0x0B
-//      |       1  |  1  |   0  |  1  | -> 0x0D
-//      |       1  |  1  |   1  |  0  | -> 0x0E
-//      |       1  |  1  |   1  |  1  | -> 0x0F
-//      +------+-----+------+-----+
-//
+/* */
+/*      The definition of the cipher combination */
+/* */
+/*       bit3   bit2  bit1   bit0 */
+/*      +------------+------------+ */
+/*      |         WPA    |         WPA2   | */
+/*      +------+-----+------+-----+ */
+/*      | TKIP | AES | TKIP | AES | */
+/*      |       0  |  1  |   1  |  0  | -> 0x06 */
+/*      |       0  |  1  |   1  |  1  | -> 0x07 */
+/*      |       1  |  0  |   0  |  1  | -> 0x09 */
+/*      |       1  |  0  |   1  |  1  | -> 0x0B */
+/*      |       1  |  1  |   0  |  1  | -> 0x0D */
+/*      |       1  |  1  |   1  |  0  | -> 0x0E */
+/*      |       1  |  1  |   1  |  1  | -> 0x0F */
+/*      +------+-----+------+-----+ */
+/* */
 typedef enum _WpaMixPairCipher {
 	MIX_CIPHER_NOTUSE = 0x00,
-	WPA_NONE_WPA2_TKIPAES = 0x03,	// WPA2-TKIPAES
+	WPA_NONE_WPA2_TKIPAES = 0x03,	/* WPA2-TKIPAES */
 	WPA_AES_WPA2_TKIP = 0x06,
 	WPA_AES_WPA2_TKIPAES = 0x07,
 	WPA_TKIP_WPA2_AES = 0x09,
 	WPA_TKIP_WPA2_TKIPAES = 0x0B,
-	WPA_TKIPAES_WPA2_NONE = 0x0C,	// WPA-TKIPAES
+	WPA_TKIPAES_WPA2_NONE = 0x0C,	/* WPA-TKIPAES */
 	WPA_TKIPAES_WPA2_AES = 0x0D,
 	WPA_TKIPAES_WPA2_TKIP = 0x0E,
 	WPA_TKIPAES_WPA2_TKIPAES = 0x0F,
@@ -341,22 +341,22 @@ typedef enum _WpaMixPairCipher {
 typedef struct PACKED _RSN_IE_HEADER_STRUCT {
 	UCHAR Eid;
 	UCHAR Length;
-	USHORT Version;		// Little endian format
+	USHORT Version;		/* Little endian format */
 } RSN_IE_HEADER_STRUCT, *PRSN_IE_HEADER_STRUCT;
 
-// Cipher suite selector types
+/* Cipher suite selector types */
 typedef struct PACKED _CIPHER_SUITE_STRUCT {
 	UCHAR Oui[3];
 	UCHAR Type;
 } CIPHER_SUITE_STRUCT, *PCIPHER_SUITE_STRUCT;
 
-// Authentication and Key Management suite selector
+/* Authentication and Key Management suite selector */
 typedef struct PACKED _AKM_SUITE_STRUCT {
 	UCHAR Oui[3];
 	UCHAR Type;
 } AKM_SUITE_STRUCT, *PAKM_SUITE_STRUCT;
 
-// RSN capability
+/* RSN capability */
 typedef struct PACKED _RSN_CAPABILITY {
 	USHORT Rsv:10;
 	USHORT GTKSAReplayCnt:2;
