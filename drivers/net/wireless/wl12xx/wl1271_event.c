@@ -184,7 +184,7 @@ void wl1271_event_mbox_config(struct wl1271 *wl)
 		     wl->mbox_ptr[0], wl->mbox_ptr[1]);
 }
 
-int wl1271_event_handle(struct wl1271 *wl, u8 mbox_num, bool do_ack)
+int wl1271_event_handle(struct wl1271 *wl, u8 mbox_num)
 {
 	struct event_mailbox mbox;
 	int ret;
@@ -204,9 +204,7 @@ int wl1271_event_handle(struct wl1271 *wl, u8 mbox_num, bool do_ack)
 		return ret;
 
 	/* then we let the firmware know it can go on...*/
-	if (do_ack)
-		wl1271_spi_write32(wl, ACX_REG_INTERRUPT_TRIG,
-				   INTR_TRIG_EVENT_ACK);
+	wl1271_spi_write32(wl, ACX_REG_INTERRUPT_TRIG, INTR_TRIG_EVENT_ACK);
 
 	return 0;
 }
