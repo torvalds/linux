@@ -71,6 +71,8 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 		rbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
 	if (domain & RADEON_GEM_DOMAIN_CPU)
 		rbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
+	if (!c)
+		rbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
 	rbo->placement.num_placement = c;
 	rbo->placement.num_busy_placement = c;
 }
