@@ -1052,9 +1052,22 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 			}
 
 			/*
-			 * If we are executing a method, initialize the region
+			 * The op_region is not fully parsed at this time. The only valid
+			 * argument is the space_id. (We must save the address of the
+			 * AML of the address and length operands)
+			 *
+			 * If we have a valid region, initialize it. The namespace is
+			 * unlocked at this point.
+			 *
+			 * Need to unlock interpreter if it is locked (if we are running
+			 * a control method), in order to allow _REG methods to be run
+			 * during acpi_ev_initialize_region.
 			 */
 			if (walk_state->method_node) {
+				/*
+				 * Executing a method: initialize the region and unlock
+				 * the interpreter
+				 */
 				status =
 				    acpi_ex_create_region(op->named.data,
 							  op->named.length,
@@ -1063,21 +1076,17 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 				if (ACPI_FAILURE(status)) {
 					return (status);
 				}
+
+				acpi_ex_exit_interpreter();
 			}
 
-			/*
-			 * The op_region is not fully parsed at this time. Only valid
-			 * argument is the space_id. (We must save the address of the
-			 * AML of the address and length operands)
-			 */
-
-			/*
-			 * If we have a valid region, initialize it
-			 * Namespace is NOT locked at this point.
-			 */
 			status =
 			    acpi_ev_initialize_region
 			    (acpi_ns_get_attached_object(node), FALSE);
+			if (walk_state->method_node) {
+				acpi_ex_enter_interpreter();
+			}
+
 			if (ACPI_FAILURE(status)) {
 				/*
 				 *  If AE_NOT_EXIST is returned, it is not fatal
