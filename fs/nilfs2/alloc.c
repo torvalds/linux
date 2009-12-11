@@ -142,29 +142,75 @@ static void nilfs_palloc_desc_block_init(struct inode *inode,
 	}
 }
 
+static int nilfs_palloc_get_block(struct inode *inode, unsigned long blkoff,
+				  int create,
+				  void (*init_block)(struct inode *,
+						     struct buffer_head *,
+						     void *),
+				  struct buffer_head **bhp,
+				  struct nilfs_bh_assoc *prev,
+				  spinlock_t *lock)
+{
+	int ret;
+
+	spin_lock(lock);
+	if (prev->bh && blkoff == prev->blkoff) {
+		get_bh(prev->bh);
+		*bhp = prev->bh;
+		spin_unlock(lock);
+		return 0;
+	}
+	spin_unlock(lock);
+
+	ret = nilfs_mdt_get_block(inode, blkoff, create, init_block, bhp);
+	if (!ret) {
+		spin_lock(lock);
+		/*
+		 * The following code must be safe for change of the
+		 * cache contents during the get block call.
+		 */
+		brelse(prev->bh);
+		get_bh(*bhp);
+		prev->bh = *bhp;
+		prev->blkoff = blkoff;
+		spin_unlock(lock);
+	}
+	return ret;
+}
+
 static int nilfs_palloc_get_desc_block(struct inode *inode,
 				       unsigned long group,
 				       int create, struct buffer_head **bhp)
 {
-	return nilfs_mdt_get_block(inode,
-				   nilfs_palloc_desc_blkoff(inode, group),
-				   create, nilfs_palloc_desc_block_init, bhp);
+	struct nilfs_palloc_cache *cache = NILFS_MDT(inode)->mi_palloc_cache;
+
+	return nilfs_palloc_get_block(inode,
+				      nilfs_palloc_desc_blkoff(inode, group),
+				      create, nilfs_palloc_desc_block_init,
+				      bhp, &cache->prev_desc, &cache->lock);
 }
 
 static int nilfs_palloc_get_bitmap_block(struct inode *inode,
 					 unsigned long group,
 					 int create, struct buffer_head **bhp)
 {
-	return nilfs_mdt_get_block(inode,
-				   nilfs_palloc_bitmap_blkoff(inode, group),
-				   create, NULL, bhp);
+	struct nilfs_palloc_cache *cache = NILFS_MDT(inode)->mi_palloc_cache;
+
+	return nilfs_palloc_get_block(inode,
+				      nilfs_palloc_bitmap_blkoff(inode, group),
+				      create, NULL, bhp,
+				      &cache->prev_bitmap, &cache->lock);
 }
 
 int nilfs_palloc_get_entry_block(struct inode *inode, __u64 nr,
 				 int create, struct buffer_head **bhp)
 {
-	return nilfs_mdt_get_block(inode, nilfs_palloc_entry_blkoff(inode, nr),
-				   create, NULL, bhp);
+	struct nilfs_palloc_cache *cache = NILFS_MDT(inode)->mi_palloc_cache;
+
+	return nilfs_palloc_get_block(inode,
+				      nilfs_palloc_entry_blkoff(inode, nr),
+				      create, NULL, bhp,
+				      &cache->prev_entry, &cache->lock);
 }
 
 static struct nilfs_palloc_group_desc *
@@ -174,13 +220,6 @@ nilfs_palloc_block_get_group_desc(const struct inode *inode,
 {
 	return (struct nilfs_palloc_group_desc *)(kaddr + bh_offset(bh)) +
 		group % nilfs_palloc_groups_per_desc_block(inode);
-}
-
-static unsigned char *
-nilfs_palloc_block_get_bitmap(const struct inode *inode,
-			      const struct buffer_head *bh, void *kaddr)
-{
-	return (unsigned char *)(kaddr + bh_offset(bh));
 }
 
 void *nilfs_palloc_block_get_entry(const struct inode *inode, __u64 nr,
@@ -289,8 +328,7 @@ int nilfs_palloc_prepare_alloc_entry(struct inode *inode,
 				if (ret < 0)
 					goto out_desc;
 				bitmap_kaddr = kmap(bitmap_bh->b_page);
-				bitmap = nilfs_palloc_block_get_bitmap(
-					inode, bitmap_bh, bitmap_kaddr);
+				bitmap = bitmap_kaddr + bh_offset(bitmap_bh);
 				pos = nilfs_palloc_find_available_slot(
 					inode, group, group_offset, bitmap,
 					entries_per_group);
@@ -351,8 +389,7 @@ void nilfs_palloc_commit_free_entry(struct inode *inode,
 	desc = nilfs_palloc_block_get_group_desc(inode, group,
 						 req->pr_desc_bh, desc_kaddr);
 	bitmap_kaddr = kmap(req->pr_bitmap_bh->b_page);
-	bitmap = nilfs_palloc_block_get_bitmap(inode, req->pr_bitmap_bh,
-					       bitmap_kaddr);
+	bitmap = bitmap_kaddr + bh_offset(req->pr_bitmap_bh);
 
 	if (!nilfs_clear_bit_atomic(nilfs_mdt_bgl_lock(inode, group),
 				    group_offset, bitmap))
@@ -385,8 +422,7 @@ void nilfs_palloc_abort_alloc_entry(struct inode *inode,
 	desc = nilfs_palloc_block_get_group_desc(inode, group,
 						 req->pr_desc_bh, desc_kaddr);
 	bitmap_kaddr = kmap(req->pr_bitmap_bh->b_page);
-	bitmap = nilfs_palloc_block_get_bitmap(inode, req->pr_bitmap_bh,
-					       bitmap_kaddr);
+	bitmap = bitmap_kaddr + bh_offset(req->pr_bitmap_bh);
 	if (!nilfs_clear_bit_atomic(nilfs_mdt_bgl_lock(inode, group),
 				    group_offset, bitmap))
 		printk(KERN_WARNING "%s: entry numer %llu already freed\n",
@@ -472,8 +508,7 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 		desc = nilfs_palloc_block_get_group_desc(
 			inode, group, desc_bh, desc_kaddr);
 		bitmap_kaddr = kmap(bitmap_bh->b_page);
-		bitmap = nilfs_palloc_block_get_bitmap(
-			inode, bitmap_bh, bitmap_kaddr);
+		bitmap = bitmap_kaddr + bh_offset(bitmap_bh);
 		for (j = i, n = 0;
 		     (j < nitems) && nilfs_palloc_group_is_in(inode, group,
 							      entry_nrs[j]);
@@ -501,4 +536,31 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 		brelse(desc_bh);
 	}
 	return 0;
+}
+
+void nilfs_palloc_setup_cache(struct inode *inode,
+			      struct nilfs_palloc_cache *cache)
+{
+	NILFS_MDT(inode)->mi_palloc_cache = cache;
+	spin_lock_init(&cache->lock);
+}
+
+void nilfs_palloc_clear_cache(struct inode *inode)
+{
+	struct nilfs_palloc_cache *cache = NILFS_MDT(inode)->mi_palloc_cache;
+
+	spin_lock(&cache->lock);
+	brelse(cache->prev_desc.bh);
+	brelse(cache->prev_bitmap.bh);
+	brelse(cache->prev_entry.bh);
+	cache->prev_desc.bh = NULL;
+	cache->prev_bitmap.bh = NULL;
+	cache->prev_entry.bh = NULL;
+	spin_unlock(&cache->lock);
+}
+
+void nilfs_palloc_destroy_cache(struct inode *inode)
+{
+	nilfs_palloc_clear_cache(inode);
+	NILFS_MDT(inode)->mi_palloc_cache = NULL;
 }
