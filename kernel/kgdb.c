@@ -541,11 +541,16 @@ static struct task_struct *getthread(struct pt_regs *regs, int tid)
 	 */
 	if (tid == 0 || tid == -1)
 		tid = -atomic_read(&kgdb_active) - 2;
-	if (tid < 0) {
+	if (tid < -1 && tid > -NR_CPUS - 2) {
 		if (kgdb_info[-tid - 2].task)
 			return kgdb_info[-tid - 2].task;
 		else
 			return idle_task(-tid - 2);
+	}
+	if (tid <= 0) {
+		printk(KERN_ERR "KGDB: Internal thread select error\n");
+		dump_stack();
+		return NULL;
 	}
 
 	/*
