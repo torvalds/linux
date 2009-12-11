@@ -152,7 +152,10 @@
 			 /* 1 : non-auto */
 #define VSCTL       0x08 /* 1 : Vertical out ctrl by DVALID */
 			 /* 0 : Vertical out ctrl by HACTIVE and DVALID */
-#define OEN         0x04 /* Output Enable together with TRI_SEL. */
+#define OEN_TRI_SEL_MASK	0x07
+#define OEN_TRI_SEL_ALL_ON	0x00 /* Enable output for Rev0/Rev1 */
+#define OEN_TRI_SEL_ALL_OFF_r0	0x06 /* All tri-stated for Rev0 */
+#define OEN_TRI_SEL_ALL_OFF_r1	0x07 /* All tri-stated for Rev1 */
 
 /* OUTCTR1 */
 #define VSP_LO      0x00 /* 0 : VS pin output polarity is active low */
@@ -236,7 +239,6 @@ struct tw9910_priv {
 
 static const struct regval_list tw9910_default_regs[] =
 {
-	{ OPFORM,  0x00 },
 	{ OUTCTR1, VSP_LO | VSSL_VVALID | HSP_HI | HSSL_HSYNC },
 	ENDMARKER,
 };
@@ -519,20 +521,35 @@ static int tw9910_s_stream(struct v4l2_subdev *sd, int enable)
 	struct i2c_client *client = sd->priv;
 	struct tw9910_priv *priv = to_tw9910(client);
 
-	if (!enable)
-		return 0;
+	u8 val;
 
-	if (!priv->scale) {
-		dev_err(&client->dev, "norm select error\n");
-		return -EPERM;
+	if (!enable) {
+		switch (priv->revision) {
+		case 0:
+			val = OEN_TRI_SEL_ALL_OFF_r0;
+			break;
+		case 1:
+			val = OEN_TRI_SEL_ALL_OFF_r1;
+			break;
+		default:
+			dev_err(&client->dev, "un-supported revision\n");
+			return -EINVAL;
+		}
+	} else {
+		val = OEN_TRI_SEL_ALL_ON;
+
+		if (!priv->scale) {
+			dev_err(&client->dev, "norm select error\n");
+			return -EPERM;
+		}
+
+		dev_dbg(&client->dev, "%s %dx%d\n",
+			priv->scale->name,
+			priv->scale->width,
+			priv->scale->height);
 	}
 
-	dev_dbg(&client->dev, "%s %dx%d\n",
-		 priv->scale->name,
-		 priv->scale->width,
-		 priv->scale->height);
-
-	return 0;
+	return tw9910_mask_set(client, OPFORM, OEN_TRI_SEL_MASK, val);
 }
 
 static int tw9910_set_bus_param(struct soc_camera_device *icd,
