@@ -344,7 +344,7 @@ static int intel_hdmi_parse_codec(struct hda_codec *codec)
 			break;
 		case AC_WID_PIN:
 			caps = snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
-			if (!(caps & AC_PINCAP_HDMI))
+			if (!(caps & (AC_PINCAP_HDMI | AC_PINCAP_DP)))
 				continue;
 			if (intel_hdmi_add_pin(codec, nid) < 0)
 				return -EINVAL;

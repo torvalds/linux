@@ -255,6 +255,9 @@ enum {
  *       in HD-audio specification
  */
 #define AC_PINCAP_HDMI			(1<<7)	/* HDMI pin */
+#define AC_PINCAP_DP			(1<<24)	/* DisplayPort pin, can
+						 * coexist with AC_PINCAP_HDMI
+						 */
 #define AC_PINCAP_VREF			(0x37<<8)
 #define AC_PINCAP_VREF_SHIFT		8
 #define AC_PINCAP_EAPD			(1<<16)	/* EAPD capable */

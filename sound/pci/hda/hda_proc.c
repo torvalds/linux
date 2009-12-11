@@ -246,6 +246,8 @@ static void print_pin_caps(struct snd_info_buffer *buffer,
 			snd_iprintf(buffer, " HDMI");
 		}
 	}
+	if (caps & AC_PINCAP_DP)
+		snd_iprintf(buffer, " DP");
 	if (caps & AC_PINCAP_TRIG_REQ)
 		snd_iprintf(buffer, " Trigger");
 	if (caps & AC_PINCAP_IMP_SENSE)
