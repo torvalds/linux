@@ -206,13 +206,13 @@ static int sh_mobile_ceu_videobuf_setup(struct videobuf_queue *vq,
 	if (bytes_per_line < 0)
 		return bytes_per_line;
 
-	*size = PAGE_ALIGN(bytes_per_line * icd->user_height);
+	*size = bytes_per_line * icd->user_height;
 
 	if (0 == *count)
 		*count = 2;
 
 	if (pcdev->video_limit) {
-		while (*size * *count > pcdev->video_limit)
+		while (PAGE_ALIGN(*size) * *count > pcdev->video_limit)
 			(*count)--;
 	}
 
