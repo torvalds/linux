@@ -625,11 +625,21 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 	}
 
 	if (twl_has_regulator()) {
-		/*
 		child = add_regulator(TWL4030_REG_VPLL1, pdata->vpll1);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
-		*/
+
+		child = add_regulator(TWL4030_REG_VIO, pdata->vio);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL4030_REG_VDD1, pdata->vdd1);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL4030_REG_VDD2, pdata->vdd2);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
 
 		child = add_regulator(TWL4030_REG_VMMC1, pdata->vmmc1);
 		if (IS_ERR(child))
@@ -643,6 +653,18 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 					? TWL4030_REG_VAUX2_4030
 					: TWL4030_REG_VAUX2,
 				pdata->vaux2);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL4030_REG_VINTANA1, pdata->vintana1);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL4030_REG_VINTANA2, pdata->vintana2);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL4030_REG_VINTDIG, pdata->vintdig);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 	}

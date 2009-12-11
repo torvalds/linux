@@ -484,8 +484,12 @@ struct twl4030_platform_data {
 	struct regulator_init_data		*vaux2;
 	struct regulator_init_data		*vaux3;
 	struct regulator_init_data		*vaux4;
-
-	/* REVISIT more to come ... _nothing_ should be hard-wired */
+	struct regulator_init_data		*vio;
+	struct regulator_init_data		*vdd1;
+	struct regulator_init_data		*vdd2;
+	struct regulator_init_data		*vintana1;
+	struct regulator_init_data		*vintana2;
+	struct regulator_init_data		*vintdig;
 };
 
 /*----------------------------------------------------------------------*/
