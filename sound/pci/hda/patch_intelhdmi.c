@@ -436,14 +436,15 @@ static void hdmi_set_channel_count(struct hda_codec *codec,
 				    AC_VERB_SET_CVT_CHAN_COUNT, chs - 1);
 }
 
-static void hdmi_debug_channel_mapping(struct hda_codec *codec, hda_nid_t nid)
+static void hdmi_debug_channel_mapping(struct hda_codec *codec,
+				       hda_nid_t pin_nid)
 {
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 	int i;
 	int slot;
 
 	for (i = 0; i < 8; i++) {
-		slot = snd_hda_codec_read(codec, nid, 0,
+		slot = snd_hda_codec_read(codec, pin_nid, 0,
 						AC_VERB_GET_HDMI_CHAN_SLOT, i);
 		printk(KERN_DEBUG "HDMI: ASP channel %d => slot %d\n",
 						slot >> 4, slot & 0xf);
@@ -619,7 +620,8 @@ static int hdmi_setup_channel_allocation(struct hda_codec *codec, hda_nid_t nid,
 	return ai->CA;
 }
 
-static void hdmi_setup_channel_mapping(struct hda_codec *codec, hda_nid_t nid,
+static void hdmi_setup_channel_mapping(struct hda_codec *codec,
+				       hda_nid_t pin_nid,
 				       struct hdmi_audio_infoframe *ai)
 {
 	int i;
@@ -633,11 +635,11 @@ static void hdmi_setup_channel_mapping(struct hda_codec *codec, hda_nid_t nid,
 	 */
 
 	for (i = 0; i < 8; i++)
-		snd_hda_codec_write(codec, nid, 0,
+		snd_hda_codec_write(codec, pin_nid, 0,
 				    AC_VERB_SET_HDMI_CHAN_SLOT,
 				    (i << 4) | i);
 
-	hdmi_debug_channel_mapping(codec, nid);
+	hdmi_debug_channel_mapping(codec, pin_nid);
 }
 
 static bool hdmi_infoframe_uptodate(struct hda_codec *codec, hda_nid_t pin_nid,
@@ -676,7 +678,6 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, hda_nid_t nid,
 	};
 
 	hdmi_setup_channel_allocation(codec, nid, &ai);
-	hdmi_setup_channel_mapping(codec, nid, &ai);
 
 	for (i = 0; i < spec->num_pins; i++) {
 		if (spec->pin_cvt[i] != nid)
@@ -686,6 +687,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, hda_nid_t nid,
 
 		pin_nid = spec->pin[i];
 		if (!hdmi_infoframe_uptodate(codec, pin_nid, &ai)) {
+			hdmi_setup_channel_mapping(codec, pin_nid, &ai);
 			hdmi_stop_infoframe_trans(codec, pin_nid);
 			hdmi_fill_audio_infoframe(codec, pin_nid, &ai);
 			hdmi_start_infoframe_trans(codec, pin_nid);
