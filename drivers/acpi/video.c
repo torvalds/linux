@@ -2122,7 +2122,7 @@ static void acpi_video_bus_notify(struct acpi_device *device, u32 event)
 {
 	struct acpi_video_bus *video = acpi_driver_data(device);
 	struct input_dev *input;
-	int keycode;
+	int keycode = 0;
 
 	if (!video)
 		return;
@@ -2158,17 +2158,19 @@ static void acpi_video_bus_notify(struct acpi_device *device, u32 event)
 		break;
 
 	default:
-		keycode = KEY_UNKNOWN;
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Unsupported event [0x%x]\n", event));
 		break;
 	}
 
 	acpi_notifier_call_chain(device, event, 0);
-	input_report_key(input, keycode, 1);
-	input_sync(input);
-	input_report_key(input, keycode, 0);
-	input_sync(input);
+
+	if (keycode) {
+		input_report_key(input, keycode, 1);
+		input_sync(input);
+		input_report_key(input, keycode, 0);
+		input_sync(input);
+	}
 
 	return;
 }
@@ -2179,7 +2181,7 @@ static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 	struct acpi_device *device = NULL;
 	struct acpi_video_bus *bus;
 	struct input_dev *input;
-	int keycode;
+	int keycode = 0;
 
 	if (!video_device)
 		return;
@@ -2220,17 +2222,19 @@ static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 		keycode = KEY_DISPLAY_OFF;
 		break;
 	default:
-		keycode = KEY_UNKNOWN;
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Unsupported event [0x%x]\n", event));
 		break;
 	}
 
 	acpi_notifier_call_chain(device, event, 0);
-	input_report_key(input, keycode, 1);
-	input_sync(input);
-	input_report_key(input, keycode, 0);
-	input_sync(input);
+
+	if (keycode) {
+		input_report_key(input, keycode, 1);
+		input_sync(input);
+		input_report_key(input, keycode, 0);
+		input_sync(input);
+	}
 
 	return;
 }
@@ -2357,7 +2361,6 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	set_bit(KEY_BRIGHTNESSDOWN, input->keybit);
 	set_bit(KEY_BRIGHTNESS_ZERO, input->keybit);
 	set_bit(KEY_DISPLAY_OFF, input->keybit);
-	set_bit(KEY_UNKNOWN, input->keybit);
 
 	error = input_register_device(input);
 	if (error)
