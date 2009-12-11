@@ -403,7 +403,7 @@ static void __print_result(struct rb_root *root, int n_lines, int is_caller)
 		if (is_caller) {
 			addr = data->call_site;
 			if (!raw_ip)
-				sym = thread__find_function(kthread, addr, NULL);
+				sym = map_groups__find_function(kmaps, addr, NULL);
 		} else
 			addr = data->ptr;
 
