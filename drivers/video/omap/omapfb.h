@@ -1,5 +1,5 @@
 /*
- * File: arch/arm/plat-omap/include/mach/omapfb.h
+ * File: drivers/video/omap/omapfb.h
  *
  * Framebuffer driver for TI OMAP boards
  *
@@ -24,151 +24,12 @@
 #ifndef __OMAPFB_H
 #define __OMAPFB_H
 
-#include <asm/ioctl.h>
-#include <asm/types.h>
-
-/* IOCTL commands. */
-
-#define OMAP_IOW(num, dtype)	_IOW('O', num, dtype)
-#define OMAP_IOR(num, dtype)	_IOR('O', num, dtype)
-#define OMAP_IOWR(num, dtype)	_IOWR('O', num, dtype)
-#define OMAP_IO(num)		_IO('O', num)
-
-#define OMAPFB_MIRROR		OMAP_IOW(31, int)
-#define OMAPFB_SYNC_GFX		OMAP_IO(37)
-#define OMAPFB_VSYNC		OMAP_IO(38)
-#define OMAPFB_SET_UPDATE_MODE	OMAP_IOW(40, int)
-#define OMAPFB_GET_CAPS		OMAP_IOR(42, struct omapfb_caps)
-#define OMAPFB_GET_UPDATE_MODE	OMAP_IOW(43, int)
-#define OMAPFB_LCD_TEST		OMAP_IOW(45, int)
-#define OMAPFB_CTRL_TEST	OMAP_IOW(46, int)
-#define OMAPFB_UPDATE_WINDOW_OLD OMAP_IOW(47, struct omapfb_update_window_old)
-#define OMAPFB_SET_COLOR_KEY	OMAP_IOW(50, struct omapfb_color_key)
-#define OMAPFB_GET_COLOR_KEY	OMAP_IOW(51, struct omapfb_color_key)
-#define OMAPFB_SETUP_PLANE	OMAP_IOW(52, struct omapfb_plane_info)
-#define OMAPFB_QUERY_PLANE	OMAP_IOW(53, struct omapfb_plane_info)
-#define OMAPFB_UPDATE_WINDOW	OMAP_IOW(54, struct omapfb_update_window)
-#define OMAPFB_SETUP_MEM	OMAP_IOW(55, struct omapfb_mem_info)
-#define OMAPFB_QUERY_MEM	OMAP_IOW(56, struct omapfb_mem_info)
-
-#define OMAPFB_CAPS_GENERIC_MASK	0x00000fff
-#define OMAPFB_CAPS_LCDC_MASK		0x00fff000
-#define OMAPFB_CAPS_PANEL_MASK		0xff000000
-
-#define OMAPFB_CAPS_MANUAL_UPDATE	0x00001000
-#define OMAPFB_CAPS_TEARSYNC		0x00002000
-#define OMAPFB_CAPS_PLANE_RELOCATE_MEM	0x00004000
-#define OMAPFB_CAPS_PLANE_SCALE		0x00008000
-#define OMAPFB_CAPS_WINDOW_PIXEL_DOUBLE	0x00010000
-#define OMAPFB_CAPS_WINDOW_SCALE	0x00020000
-#define OMAPFB_CAPS_WINDOW_OVERLAY	0x00040000
-#define OMAPFB_CAPS_WINDOW_ROTATE	0x00080000
-#define OMAPFB_CAPS_SET_BACKLIGHT	0x01000000
-
-/* Values from DSP must map to lower 16-bits */
-#define OMAPFB_FORMAT_MASK		0x00ff
-#define OMAPFB_FORMAT_FLAG_DOUBLE	0x0100
-#define OMAPFB_FORMAT_FLAG_TEARSYNC	0x0200
-#define OMAPFB_FORMAT_FLAG_FORCE_VSYNC	0x0400
-#define OMAPFB_FORMAT_FLAG_ENABLE_OVERLAY	0x0800
-#define OMAPFB_FORMAT_FLAG_DISABLE_OVERLAY	0x1000
+#include <linux/fb.h>
+#include <linux/mutex.h>
+#include <linux/omapfb.h>
 
 #define OMAPFB_EVENT_READY	1
 #define OMAPFB_EVENT_DISABLED	2
-
-#define OMAPFB_MEMTYPE_SDRAM		0
-#define OMAPFB_MEMTYPE_SRAM		1
-#define OMAPFB_MEMTYPE_MAX		1
-
-enum omapfb_color_format {
-	OMAPFB_COLOR_RGB565 = 0,
-	OMAPFB_COLOR_YUV422,
-	OMAPFB_COLOR_YUV420,
-	OMAPFB_COLOR_CLUT_8BPP,
-	OMAPFB_COLOR_CLUT_4BPP,
-	OMAPFB_COLOR_CLUT_2BPP,
-	OMAPFB_COLOR_CLUT_1BPP,
-	OMAPFB_COLOR_RGB444,
-	OMAPFB_COLOR_YUY422,
-};
-
-struct omapfb_update_window {
-	__u32 x, y;
-	__u32 width, height;
-	__u32 format;
-	__u32 out_x, out_y;
-	__u32 out_width, out_height;
-	__u32 reserved[8];
-};
-
-struct omapfb_update_window_old {
-	__u32 x, y;
-	__u32 width, height;
-	__u32 format;
-};
-
-enum omapfb_plane {
-	OMAPFB_PLANE_GFX = 0,
-	OMAPFB_PLANE_VID1,
-	OMAPFB_PLANE_VID2,
-};
-
-enum omapfb_channel_out {
-	OMAPFB_CHANNEL_OUT_LCD = 0,
-	OMAPFB_CHANNEL_OUT_DIGIT,
-};
-
-struct omapfb_plane_info {
-	__u32 pos_x;
-	__u32 pos_y;
-	__u8  enabled;
-	__u8  channel_out;
-	__u8  mirror;
-	__u8  reserved1;
-	__u32 out_width;
-	__u32 out_height;
-	__u32 reserved2[12];
-};
-
-struct omapfb_mem_info {
-	__u32 size;
-	__u8  type;
-	__u8  reserved[3];
-};
-
-struct omapfb_caps {
-	__u32 ctrl;
-	__u32 plane_color;
-	__u32 wnd_color;
-};
-
-enum omapfb_color_key_type {
-	OMAPFB_COLOR_KEY_DISABLED = 0,
-	OMAPFB_COLOR_KEY_GFX_DST,
-	OMAPFB_COLOR_KEY_VID_SRC,
-};
-
-struct omapfb_color_key {
-	__u8  channel_out;
-	__u32 background;
-	__u32 trans_key;
-	__u8  key_type;
-};
-
-enum omapfb_update_mode {
-	OMAPFB_UPDATE_DISABLED = 0,
-	OMAPFB_AUTO_UPDATE,
-	OMAPFB_MANUAL_UPDATE
-};
-
-#ifdef __KERNEL__
-
-#include <linux/completion.h>
-#include <linux/interrupt.h>
-#include <linux/fb.h>
-#include <linux/mutex.h>
-
-#include <plat/board.h>
 
 #define OMAP_LCDC_INV_VSYNC             0x0001
 #define OMAP_LCDC_INV_HSYNC             0x0002
@@ -183,12 +44,6 @@ enum omapfb_update_mode {
 
 #define OMAPFB_PLANE_XRES_MIN		8
 #define OMAPFB_PLANE_YRES_MIN		8
-
-#ifdef CONFIG_ARCH_OMAP1
-#define OMAPFB_PLANE_NUM		1
-#else
-#define OMAPFB_PLANE_NUM		3
-#endif
 
 struct omapfb_device;
 
@@ -256,7 +111,7 @@ struct lcd_ctrl_extif {
 	void (*read_data)	(void *buf, unsigned int len);
 	void (*write_data)	(const void *buf, unsigned int len);
 	void (*transfer_area)	(int width, int height,
-				 void (callback)(void * data), void *data);
+				 void (callback)(void *data), void *data);
 	int  (*setup_tearsync)	(unsigned pin_cnt,
 				 unsigned hs_pulse_time, unsigned vs_pulse_time,
 				 int hs_pol_inv, int vs_pol_inv, int div);
@@ -274,20 +129,6 @@ struct omapfb_notifier_block {
 typedef int (*omapfb_notifier_callback_t)(struct notifier_block *,
 					  unsigned long event,
 					  void *fbi);
-
-struct omapfb_mem_region {
-	u32		paddr;
-	void __iomem	*vaddr;
-	unsigned long	size;
-	u8		type;		/* OMAPFB_PLANE_MEM_* */
-	unsigned	alloc:1;	/* allocated by the driver */
-	unsigned	map:1;		/* kernel mapped by the driver */
-};
-
-struct omapfb_mem_desc {
-	int				region_cnt;
-	struct omapfb_mem_region	region[OMAPFB_PLANE_NUM];
-};
 
 struct lcd_ctrl {
 	const char	*name;
@@ -331,9 +172,9 @@ struct lcd_ctrl {
 };
 
 enum omapfb_state {
-	OMAPFB_DISABLED	= 0,
-	OMAPFB_SUSPENDED= 99,
-	OMAPFB_ACTIVE	= 100
+	OMAPFB_DISABLED		= 0,
+	OMAPFB_SUSPENDED	= 99,
+	OMAPFB_ACTIVE		= 100
 };
 
 struct omapfb_plane_struct {
@@ -345,8 +186,8 @@ struct omapfb_plane_struct {
 
 struct omapfb_device {
 	int			state;
-	int                     ext_lcdc;               /* Using external
-                                                           LCD controller */
+	int                     ext_lcdc;		/* Using external
+							   LCD controller */
 	struct mutex		rqueue_mutex;
 
 	int			palette_size;
@@ -364,19 +205,12 @@ struct omapfb_device {
 	struct fb_info			*fb_info[OMAPFB_PLANE_NUM];
 };
 
-struct omapfb_platform_data {
-	struct omap_lcd_config		lcd;
-	struct omapfb_mem_desc		mem_desc;
-	void				*ctrl_platform_data;
-};
-
 #ifdef CONFIG_ARCH_OMAP1
 extern struct lcd_ctrl omap1_lcd_ctrl;
 #else
 extern struct lcd_ctrl omap2_disp_ctrl;
 #endif
 
-extern void omapfb_reserve_sdram(void);
 extern void omapfb_register_panel(struct lcd_panel *panel);
 extern void omapfb_write_first_pixel(struct omapfb_device *fbdev, u16 pixval);
 extern void omapfb_notify_clients(struct omapfb_device *fbdev,
@@ -389,10 +223,5 @@ extern int  omapfb_update_window_async(struct fb_info *fbi,
 				       struct omapfb_update_window *win,
 				       void (*callback)(void *),
 				       void *callback_data);
-
-/* in arch/arm/plat-omap/fb.c */
-extern void omapfb_set_ctrl_platform_data(void *pdata);
-
-#endif /* __KERNEL__ */
 
 #endif /* __OMAPFB_H */
