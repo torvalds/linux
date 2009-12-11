@@ -99,9 +99,11 @@ struct mx1_buffer {
 	int inwork;
 };
 
-/* i.MX1/i.MXL is only supposed to handle one camera on its Camera Sensor
+/*
+ * i.MX1/i.MXL is only supposed to handle one camera on its Camera Sensor
  * Interface. If anyone ever builds hardware to enable more than
- * one camera, they will have to modify this driver too */
+ * one camera, they will have to modify this driver too
+ */
 struct mx1_camera_dev {
 	struct soc_camera_host		soc_host;
 	struct soc_camera_device	*icd;
@@ -151,8 +153,10 @@ static void free_buffer(struct videobuf_queue *vq, struct mx1_buffer *buf)
 	dev_dbg(icd->dev.parent, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
-	/* This waits until this buffer is out of danger, i.e., until it is no
-	 * longer in STATE_QUEUED or STATE_ACTIVE */
+	/*
+	 * This waits until this buffer is out of danger, i.e., until it is no
+	 * longer in STATE_QUEUED or STATE_ACTIVE
+	 */
 	videobuf_waiton(vb, 0, 0);
 	videobuf_dma_contig_free(vq, vb);
 
@@ -174,8 +178,10 @@ static int mx1_videobuf_prepare(struct videobuf_queue *vq,
 
 	BUG_ON(NULL == icd->current_fmt);
 
-	/* I think, in buf_prepare you only have to protect global data,
-	 * the actual buffer is yours */
+	/*
+	 * I think, in buf_prepare you only have to protect global data,
+	 * the actual buffer is yours
+	 */
 	buf->inwork = 1;
 
 	if (buf->fmt	!= icd->current_fmt ||
@@ -381,8 +387,10 @@ static int mclk_get_divisor(struct mx1_camera_dev *pcdev)
 
 	lcdclk = clk_get_rate(pcdev->clk);
 
-	/* We verify platform_mclk_10khz != 0, so if anyone breaks it, here
-	 * they get a nice Oops */
+	/*
+	 * We verify platform_mclk_10khz != 0, so if anyone breaks it, here
+	 * they get a nice Oops
+	 */
 	div = (lcdclk + 2 * mclk - 1) / (2 * mclk) - 1;
 
 	dev_dbg(pcdev->icd->dev.parent,
@@ -420,8 +428,10 @@ static void mx1_camera_deactivate(struct mx1_camera_dev *pcdev)
 	clk_disable(pcdev->clk);
 }
 
-/* The following two functions absolutely depend on the fact, that
- * there can be only one camera on i.MX1/i.MXL camera sensor interface */
+/*
+ * The following two functions absolutely depend on the fact, that
+ * there can be only one camera on i.MX1/i.MXL camera sensor interface
+ */
 static int mx1_camera_add_device(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
@@ -578,10 +588,12 @@ static int mx1_camera_reqbufs(struct soc_camera_file *icf,
 {
 	int i;
 
-	/* This is for locking debugging only. I removed spinlocks and now I
+	/*
+	 * This is for locking debugging only. I removed spinlocks and now I
 	 * check whether .prepare is ever called on a linked buffer, or whether
 	 * a dma IRQ can occur for an in-work or unlinked buffer. Until now
-	 * it hadn't triggered */
+	 * it hadn't triggered
+	 */
 	for (i = 0; i < p->count; i++) {
 		struct mx1_buffer *buf = container_of(icf->vb_vidq.bufs[i],
 						      struct mx1_buffer, vb);

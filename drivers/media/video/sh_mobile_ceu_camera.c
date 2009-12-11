@@ -252,7 +252,8 @@ static int sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 	u32 status;
 	int ret = 0;
 
-	/* The hardware is _very_ picky about this sequence. Especially
+	/*
+	 * The hardware is _very_ picky about this sequence. Especially
 	 * the CEU_CETCR_MAGIC value. It seems like we need to acknowledge
 	 * several not-so-well documented interrupt sources in CETCR.
 	 */
@@ -321,8 +322,10 @@ static int sh_mobile_ceu_videobuf_prepare(struct videobuf_queue *vq,
 	WARN_ON(!list_empty(&vb->queue));
 
 #ifdef DEBUG
-	/* This can be useful if you want to see if we actually fill
-	 * the buffer with something */
+	/*
+	 * This can be useful if you want to see if we actually fill
+	 * the buffer with something
+	 */
 	memset((void *)vb->baddr, 0xaa, vb->bsize);
 #endif
 
@@ -709,7 +712,8 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 
 	ceu_write(pcdev, CFLCR, pcdev->cflcr);
 
-	/* A few words about byte order (observed in Big Endian mode)
+	/*
+	 * A few words about byte order (observed in Big Endian mode)
 	 *
 	 * In data fetch mode bytes are received in chunks of 8 bytes.
 	 * D0, D1, D2, D3, D4, D5, D6, D7 (D0 received first)
@@ -1573,10 +1577,12 @@ static int sh_mobile_ceu_reqbufs(struct soc_camera_file *icf,
 {
 	int i;
 
-	/* This is for locking debugging only. I removed spinlocks and now I
+	/*
+	 * This is for locking debugging only. I removed spinlocks and now I
 	 * check whether .prepare is ever called on a linked buffer, or whether
 	 * a dma IRQ can occur for an in-work or unlinked buffer. Until now
-	 * it hadn't triggered */
+	 * it hadn't triggered
+	 */
 	for (i = 0; i < p->count; i++) {
 		struct sh_mobile_ceu_buffer *buf;
 

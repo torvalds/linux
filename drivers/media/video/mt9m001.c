@@ -17,9 +17,11 @@
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
 
-/* mt9m001 i2c address 0x5d
+/*
+ * mt9m001 i2c address 0x5d
  * The platform has to define ctruct i2c_board_info objects and link to them
- * from struct soc_camera_link */
+ * from struct soc_camera_link
+ */
 
 /* mt9m001 selected register addresses */
 #define MT9M001_CHIP_VERSION		0x00
@@ -47,8 +49,10 @@
 #define MT9M001_ROW_SKIP		12
 
 static const struct soc_camera_data_format mt9m001_colour_formats[] = {
-	/* Order important: first natively supported,
-	 * second supported with a GPIO extender */
+	/*
+	 * Order important: first natively supported,
+	 * second supported with a GPIO extender
+	 */
 	{
 		.name		= "Bayer (sRGB) 10 bit",
 		.depth		= 10,
@@ -230,8 +234,10 @@ static int mt9m001_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	if (!ret)
 		ret = reg_write(client, MT9M001_VERTICAL_BLANKING, vblank);
 
-	/* The caller provides a supported format, as verified per
-	 * call to icd->try_fmt() */
+	/*
+	 * The caller provides a supported format, as verified per
+	 * call to icd->try_fmt()
+	 */
 	if (!ret)
 		ret = reg_write(client, MT9M001_COLUMN_START, rect.left);
 	if (!ret)
@@ -569,8 +575,10 @@ static int mt9m001_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	return 0;
 }
 
-/* Interface active, can use i2c. If it fails, it can indeed mean, that
- * this wasn't our capture interface, so, we wait for the right one */
+/*
+ * Interface active, can use i2c. If it fails, it can indeed mean, that
+ * this wasn't our capture interface, so, we wait for the right one
+ */
 static int mt9m001_video_probe(struct soc_camera_device *icd,
 			       struct i2c_client *client)
 {
@@ -580,8 +588,10 @@ static int mt9m001_video_probe(struct soc_camera_device *icd,
 	unsigned long flags;
 	int ret;
 
-	/* We must have a parent by now. And it cannot be a wrong one.
-	 * So this entire test is completely redundant. */
+	/*
+	 * We must have a parent by now. And it cannot be a wrong one.
+	 * So this entire test is completely redundant.
+	 */
 	if (!icd->dev.parent ||
 	    to_soc_camera_host(icd->dev.parent)->nr != icd->iface)
 		return -ENODEV;
@@ -737,8 +747,10 @@ static int mt9m001_probe(struct i2c_client *client,
 	mt9m001->rect.width	= MT9M001_MAX_WIDTH;
 	mt9m001->rect.height	= MT9M001_MAX_HEIGHT;
 
-	/* Simulated autoexposure. If enabled, we calculate shutter width
-	 * ourselves in the driver based on vertical blanking and frame width */
+	/*
+	 * Simulated autoexposure. If enabled, we calculate shutter width
+	 * ourselves in the driver based on vertical blanking and frame width
+	 */
 	mt9m001->autoexposure = 1;
 
 	ret = mt9m001_video_probe(icd, client);

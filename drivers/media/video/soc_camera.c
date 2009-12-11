@@ -621,8 +621,10 @@ static int soc_camera_streamoff(struct file *file, void *priv,
 
 	mutex_lock(&icd->video_lock);
 
-	/* This calls buf_release from host driver's videobuf_queue_ops for all
-	 * remaining buffers. When the last buffer is freed, stop capture */
+	/*
+	 * This calls buf_release from host driver's videobuf_queue_ops for all
+	 * remaining buffers. When the last buffer is freed, stop capture
+	 */
 	videobuf_streamoff(&icf->vb_vidq);
 
 	v4l2_subdev_call(sd, video, s_stream, 0);
@@ -1004,8 +1006,10 @@ epower:
 	return ret;
 }
 
-/* This is called on device_unregister, which only means we have to disconnect
- * from the host, but not remove ourselves from the device list */
+/*
+ * This is called on device_unregister, which only means we have to disconnect
+ * from the host, but not remove ourselves from the device list
+ */
 static int soc_camera_remove(struct device *dev)
 {
 	struct soc_camera_device *icd = to_soc_camera_dev(dev);
@@ -1205,8 +1209,10 @@ static int soc_camera_device_register(struct soc_camera_device *icd)
 	}
 
 	if (num < 0)
-		/* ok, we have 256 cameras on this host...
-		 * man, stay reasonable... */
+		/*
+		 * ok, we have 256 cameras on this host...
+		 * man, stay reasonable...
+		 */
 		return -ENOMEM;
 
 	icd->devnum		= num;
@@ -1333,9 +1339,11 @@ escdevreg:
 	return ret;
 }
 
-/* Only called on rmmod for each platform device, since they are not
+/*
+ * Only called on rmmod for each platform device, since they are not
  * hot-pluggable. Now we know, that all our users - hosts and devices have
- * been unloaded already */
+ * been unloaded already
+ */
 static int __devexit soc_camera_pdrv_remove(struct platform_device *pdev)
 {
 	struct soc_camera_device *icd = platform_get_drvdata(pdev);

@@ -197,9 +197,11 @@ struct pxa_buffer {
 
 struct pxa_camera_dev {
 	struct soc_camera_host	soc_host;
-	/* PXA27x is only supposed to handle one camera on its Quick Capture
+	/*
+	 * PXA27x is only supposed to handle one camera on its Quick Capture
 	 * interface. If anyone ever builds hardware to enable more than
-	 * one camera, they will have to modify this driver too */
+	 * one camera, they will have to modify this driver too
+	 */
 	struct soc_camera_device *icd;
 	struct clk		*clk;
 
@@ -267,8 +269,10 @@ static void free_buffer(struct videobuf_queue *vq, struct pxa_buffer *buf)
 	dev_dbg(icd->dev.parent, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		&buf->vb, buf->vb.baddr, buf->vb.bsize);
 
-	/* This waits until this buffer is out of danger, i.e., until it is no
-	 * longer in STATE_QUEUED or STATE_ACTIVE */
+	/*
+	 * This waits until this buffer is out of danger, i.e., until it is no
+	 * longer in STATE_QUEUED or STATE_ACTIVE
+	 */
 	videobuf_waiton(&buf->vb, 0, 0);
 	videobuf_dma_unmap(vq, dma);
 	videobuf_dma_free(dma);
@@ -437,15 +441,19 @@ static int pxa_videobuf_prepare(struct videobuf_queue *vq,
 	WARN_ON(!list_empty(&vb->queue));
 
 #ifdef DEBUG
-	/* This can be useful if you want to see if we actually fill
-	 * the buffer with something */
+	/*
+	 * This can be useful if you want to see if we actually fill
+	 * the buffer with something
+	 */
 	memset((void *)vb->baddr, 0xaa, vb->bsize);
 #endif
 
 	BUG_ON(NULL == icd->current_fmt);
 
-	/* I think, in buf_prepare you only have to protect global data,
-	 * the actual buffer is yours */
+	/*
+	 * I think, in buf_prepare you only have to protect global data,
+	 * the actual buffer is yours
+	 */
 	buf->inwork = 1;
 
 	if (buf->fmt	!= icd->current_fmt ||
@@ -834,8 +842,10 @@ static void pxa_camera_init_videobuf(struct videobuf_queue *q,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct pxa_camera_dev *pcdev = ici->priv;
 
-	/* We must pass NULL as dev pointer, then all pci_* dma operations
-	 * transform to normal dma_* ones. */
+	/*
+	 * We must pass NULL as dev pointer, then all pci_* dma operations
+	 * transform to normal dma_* ones.
+	 */
 	videobuf_queue_sg_init(q, &pxa_videobuf_ops, NULL, &pcdev->lock,
 				V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
 				sizeof(struct pxa_buffer), icd);
@@ -1059,8 +1069,10 @@ static void pxa_camera_setup_cicr(struct soc_camera_device *icd,
 	if (ret < 0)
 		y_skip_top = 0;
 
-	/* Datawidth is now guaranteed to be equal to one of the three values.
-	 * We fix bit-per-pixel equal to data-width... */
+	/*
+	 * Datawidth is now guaranteed to be equal to one of the three values.
+	 * We fix bit-per-pixel equal to data-width...
+	 */
 	switch (flags & SOCAM_DATAWIDTH_MASK) {
 	case SOCAM_DATAWIDTH_10:
 		dw = 4;
@@ -1071,8 +1083,10 @@ static void pxa_camera_setup_cicr(struct soc_camera_device *icd,
 		bpp = 0x20;
 		break;
 	default:
-		/* Actually it can only be 8 now,
-		 * default is just to silence compiler warnings */
+		/*
+		 * Actually it can only be 8 now,
+		 * default is just to silence compiler warnings
+		 */
 	case SOCAM_DATAWIDTH_8:
 		dw = 2;
 		bpp = 0;
@@ -1524,10 +1538,12 @@ static int pxa_camera_reqbufs(struct soc_camera_file *icf,
 {
 	int i;
 
-	/* This is for locking debugging only. I removed spinlocks and now I
+	/*
+	 * This is for locking debugging only. I removed spinlocks and now I
 	 * check whether .prepare is ever called on a linked buffer, or whether
 	 * a dma IRQ can occur for an in-work or unlinked buffer. Until now
-	 * it hadn't triggered */
+	 * it hadn't triggered
+	 */
 	for (i = 0; i < p->count; i++) {
 		struct pxa_buffer *buf = container_of(icf->vb_vidq.bufs[i],
 						      struct pxa_buffer, vb);
@@ -1662,8 +1678,10 @@ static int __devinit pxa_camera_probe(struct platform_device *pdev)
 	pcdev->platform_flags = pcdev->pdata->flags;
 	if (!(pcdev->platform_flags & (PXA_CAMERA_DATAWIDTH_8 |
 			PXA_CAMERA_DATAWIDTH_9 | PXA_CAMERA_DATAWIDTH_10))) {
-		/* Platform hasn't set available data widths. This is bad.
-		 * Warn and use a default. */
+		/*
+		 * Platform hasn't set available data widths. This is bad.
+		 * Warn and use a default.
+		 */
 		dev_warn(&pdev->dev, "WARNING! Platform hasn't set available "
 			 "data widths, using default 10 bit\n");
 		pcdev->platform_flags |= PXA_CAMERA_DATAWIDTH_10;

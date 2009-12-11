@@ -564,8 +564,10 @@ static int test_platform_param(struct mx3_camera_dev *mx3_cam,
 		SOCAM_DATA_ACTIVE_HIGH |
 		SOCAM_DATA_ACTIVE_LOW;
 
-	/* If requested data width is supported by the platform, use it or any
-	 * possible lower value - i.MX31 is smart enough to schift bits */
+	/*
+	 * If requested data width is supported by the platform, use it or any
+	 * possible lower value - i.MX31 is smart enough to schift bits
+	 */
 	switch (buswidth) {
 	case 15:
 		if (!(mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_15))
@@ -1027,8 +1029,10 @@ static int mx3_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 			common_flags &= ~SOCAM_PCLK_SAMPLE_FALLING;
 	}
 
-	/* Make the camera work in widest common mode, we'll take care of
-	 * the rest */
+	/*
+	 * Make the camera work in widest common mode, we'll take care of
+	 * the rest
+	 */
 	if (common_flags & SOCAM_DATAWIDTH_15)
 		common_flags = (common_flags & ~SOCAM_DATAWIDTH_MASK) |
 			SOCAM_DATAWIDTH_15;
@@ -1152,8 +1156,10 @@ static int __devinit mx3_camera_probe(struct platform_device *pdev)
 	if (!(mx3_cam->platform_flags & (MX3_CAMERA_DATAWIDTH_4 |
 			MX3_CAMERA_DATAWIDTH_8 | MX3_CAMERA_DATAWIDTH_10 |
 			MX3_CAMERA_DATAWIDTH_15))) {
-		/* Platform hasn't set available data widths. This is bad.
-		 * Warn and use a default. */
+		/*
+		 * Platform hasn't set available data widths. This is bad.
+		 * Warn and use a default.
+		 */
 		dev_warn(&pdev->dev, "WARNING! Platform hasn't set available "
 			 "data widths, using default 8 bit\n");
 		mx3_cam->platform_flags |= MX3_CAMERA_DATAWIDTH_8;

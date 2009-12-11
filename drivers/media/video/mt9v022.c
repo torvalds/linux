@@ -18,9 +18,11 @@
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
 
-/* mt9v022 i2c address 0x48, 0x4c, 0x58, 0x5c
+/*
+ * mt9v022 i2c address 0x48, 0x4c, 0x58, 0x5c
  * The platform has to define ctruct i2c_board_info objects and link to them
- * from struct soc_camera_link */
+ * from struct soc_camera_link
+ */
 
 static char *sensor_type;
 module_param(sensor_type, charp, S_IRUGO);
@@ -63,8 +65,10 @@ MODULE_PARM_DESC(sensor_type, "Sensor type: \"colour\" or \"monochrome\"");
 #define MT9V022_ROW_SKIP		4
 
 static const struct soc_camera_data_format mt9v022_colour_formats[] = {
-	/* Order important: first natively supported,
-	 * second supported with a GPIO extender */
+	/*
+	 * Order important: first natively supported,
+	 * second supported with a GPIO extender
+	 */
 	{
 		.name		= "Bayer (sRGB) 10 bit",
 		.depth		= 10,
@@ -144,9 +148,11 @@ static int mt9v022_init(struct i2c_client *client)
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
 	int ret;
 
-	/* Almost the default mode: master, parallel, simultaneous, and an
+	/*
+	 * Almost the default mode: master, parallel, simultaneous, and an
 	 * undocumented bit 0x200, which is present in table 7, but not in 8,
-	 * plus snapshot mode to disable scan for now */
+	 * plus snapshot mode to disable scan for now
+	 */
 	mt9v022->chip_control |= 0x10;
 	ret = reg_write(client, MT9V022_CHIP_CONTROL, mt9v022->chip_control);
 	if (!ret)
@@ -298,8 +304,10 @@ static int mt9v022_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	if (!ret)
 		ret = reg_write(client, MT9V022_ROW_START, rect.top);
 	if (!ret)
-		/* Default 94, Phytec driver says:
-		 * "width + horizontal blank >= 660" */
+		/*
+		 * Default 94, Phytec driver says:
+		 * "width + horizontal blank >= 660"
+		 */
 		ret = reg_write(client, MT9V022_HORIZONTAL_BLANKING,
 				rect.width > 660 - 43 ? 43 :
 				660 - rect.width);
@@ -376,8 +384,10 @@ static int mt9v022_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	};
 	int ret;
 
-	/* The caller provides a supported format, as verified per call to
-	 * icd->try_fmt(), datawidth is from our supported format list */
+	/*
+	 * The caller provides a supported format, as verified per call to
+	 * icd->try_fmt(), datawidth is from our supported format list
+	 */
 	switch (pix->pixelformat) {
 	case V4L2_PIX_FMT_GREY:
 	case V4L2_PIX_FMT_Y16:
@@ -635,8 +645,10 @@ static int mt9v022_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 					      48 + range / 2) / range + 16;
 			if (gain >= 32)
 				gain &= ~1;
-			/* The user wants to set gain manually, hope, she
-			 * knows, what she's doing... Switch AGC off. */
+			/*
+			 * The user wants to set gain manually, hope, she
+			 * knows, what she's doing... Switch AGC off.
+			 */
 
 			if (reg_clear(client, MT9V022_AEC_AGC_ENABLE, 0x2) < 0)
 				return -EIO;
@@ -655,8 +667,10 @@ static int mt9v022_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 			unsigned long range = qctrl->maximum - qctrl->minimum;
 			unsigned long shutter = ((ctrl->value - qctrl->minimum) *
 						 479 + range / 2) / range + 1;
-			/* The user wants to set shutter width manually, hope,
-			 * she knows, what she's doing... Switch AEC off. */
+			/*
+			 * The user wants to set shutter width manually, hope,
+			 * she knows, what she's doing... Switch AEC off.
+			 */
 
 			if (reg_clear(client, MT9V022_AEC_AGC_ENABLE, 0x1) < 0)
 				return -EIO;
@@ -689,8 +703,10 @@ static int mt9v022_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	return 0;
 }
 
-/* Interface active, can use i2c. If it fails, it can indeed mean, that
- * this wasn't our capture interface, so, we wait for the right one */
+/*
+ * Interface active, can use i2c. If it fails, it can indeed mean, that
+ * this wasn't our capture interface, so, we wait for the right one
+ */
 static int mt9v022_video_probe(struct soc_camera_device *icd,
 			       struct i2c_client *client)
 {

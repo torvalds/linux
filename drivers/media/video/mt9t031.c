@@ -17,9 +17,11 @@
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
 
-/* mt9t031 i2c address 0x5d
+/*
+ * mt9t031 i2c address 0x5d
  * The platform has to define i2c_board_info and link to it from
- * struct soc_camera_link */
+ * struct soc_camera_link
+ */
 
 /* mt9t031 selected register addresses */
 #define MT9T031_CHIP_VERSION		0x00
@@ -292,8 +294,10 @@ static int mt9t031_set_params(struct soc_camera_device *icd,
 	dev_dbg(&client->dev, "new physical left %u, top %u\n",
 		rect->left, rect->top);
 
-	/* The caller provides a supported format, as guaranteed by
-	 * icd->try_fmt_cap(), soc_camera_s_crop() and soc_camera_cropcap() */
+	/*
+	 * The caller provides a supported format, as guaranteed by
+	 * icd->try_fmt_cap(), soc_camera_s_crop() and soc_camera_cropcap()
+	 */
 	if (ret >= 0)
 		ret = reg_write(client, MT9T031_COLUMN_START, rect->left);
 	if (ret >= 0)
@@ -674,8 +678,10 @@ static int mt9t031_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	return 0;
 }
 
-/* Interface active, can use i2c. If it fails, it can indeed mean, that
- * this wasn't our capture interface, so, we wait for the right one */
+/*
+ * Interface active, can use i2c. If it fails, it can indeed mean, that
+ * this wasn't our capture interface, so, we wait for the right one
+ */
 static int mt9t031_video_probe(struct i2c_client *client)
 {
 	struct soc_camera_device *icd = client->dev.platform_data;
@@ -796,8 +802,10 @@ static int mt9t031_probe(struct i2c_client *client,
 	mt9t031->rect.width	= MT9T031_MAX_WIDTH;
 	mt9t031->rect.height	= MT9T031_MAX_HEIGHT;
 
-	/* Simulated autoexposure. If enabled, we calculate shutter width
-	 * ourselves in the driver based on vertical blanking and frame width */
+	/*
+	 * Simulated autoexposure. If enabled, we calculate shutter width
+	 * ourselves in the driver based on vertical blanking and frame width
+	 */
 	mt9t031->autoexposure = 1;
 
 	mt9t031->xskip = 1;

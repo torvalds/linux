@@ -1,4 +1,5 @@
-/* ov772x Camera
+/*
+ * ov772x Camera
  *
  * Copyright (C) 2008 Renesas Solutions Corp.
  * Kuninori Morimoto <morimoto.kuninori@renesas.com>

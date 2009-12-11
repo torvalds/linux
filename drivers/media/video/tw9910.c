@@ -180,9 +180,8 @@
 			  */
 
 /* VBICNTL */
-/* RTSEL : control the real time signal
-*          output from the MPOUT pin
-*/
+
+/* RTSEL : control the real time signal output from the MPOUT pin */
 #define RTSEL_MASK  0x07
 #define RTSEL_VLOSS 0x00 /* 0000 = Video loss */
 #define RTSEL_HLOCK 0x01 /* 0001 = H-lock */
@@ -596,7 +595,8 @@ static int tw9910_g_register(struct v4l2_subdev *sd,
 	if (ret < 0)
 		return ret;
 
-	/* ret      = int
+	/*
+	 * ret      = int
 	 * reg->val = __u64
 	 */
 	reg->val = (__u64)ret;
