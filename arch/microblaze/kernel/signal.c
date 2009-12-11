@@ -44,7 +44,6 @@
 
 asmlinkage int do_signal(struct pt_regs *regs, sigset_t *oldset, int in_sycall);
 
-
 asmlinkage long
 sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 		struct pt_regs *regs)
