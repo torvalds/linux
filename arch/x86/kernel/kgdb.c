@@ -220,8 +220,7 @@ static void kgdb_correct_hw_break(void)
 			dr7 |= ((breakinfo[breakno].len << 2) |
 				 breakinfo[breakno].type) <<
 			       ((breakno << 2) + 16);
-			if (breakno >= 0 && breakno <= 3)
-				set_debugreg(breakinfo[breakno].addr, breakno);
+			set_debugreg(breakinfo[breakno].addr, breakno);
 
 		} else {
 			if ((dr7 & breakbit) && !breakinfo[breakno].enabled) {
