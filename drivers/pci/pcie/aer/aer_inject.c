@@ -392,8 +392,14 @@ static int aer_inject(struct aer_error_inj *einj)
 	if (ret)
 		goto out_put;
 
-	if (find_aer_device(rpdev, &edev))
+	if (find_aer_device(rpdev, &edev)) {
+		if (!get_service_data(edev)) {
+			printk(KERN_WARNING "AER service is not initialized\n");
+			ret = -EINVAL;
+			goto out_put;
+		}
 		aer_irq(-1, edev);
+	}
 	else
 		ret = -EINVAL;
 out_put:
