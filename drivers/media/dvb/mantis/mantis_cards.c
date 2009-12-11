@@ -194,9 +194,21 @@ static int __devinit mantis_pci_probe(struct pci_dev *pdev, const struct pci_dev
 		dprintk(MANTIS_ERROR, 1, "ERROR: Mantis DVB initialization failed <%d>", err);
 		goto fail4;
 	}
+	err = mantis_uart_init(mantis);
+	if (err < 0) {
+		dprintk(MANTIS_ERROR, 1, "ERROR: Mantis UART initialization failed <%d>", err);
+		goto fail6;
+	}
+
 	devs++;
 
 	return err;
+
+
+	dprintk(MANTIS_ERROR, 1, "ERROR: Mantis UART exit! <%d>", err);
+	mantis_uart_exit(mantis);
+
+fail6:
 fail4:
 	dprintk(MANTIS_ERROR, 1, "ERROR: Mantis DMA exit! <%d>", err);
 	mantis_dma_exit(mantis);
@@ -222,6 +234,8 @@ static void __devexit mantis_pci_remove(struct pci_dev *pdev)
 	struct mantis_pci *mantis = pci_get_drvdata(pdev);
 
 	if (mantis) {
+
+		mantis_uart_exit(mantis);
 		mantis_dvb_exit(mantis);
 		mantis_dma_exit(mantis);
 		mantis_i2c_exit(mantis);

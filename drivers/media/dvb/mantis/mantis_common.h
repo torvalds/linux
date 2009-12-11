@@ -170,6 +170,8 @@ struct mantis_pci {
 	wait_queue_head_t	uart_wq;
 	struct work_struct	uart_work;
 	spinlock_t		uart_lock;
+
+	struct input_dev	*rc;
 };
 
 #define MANTIS_HIF_STATUS	(mantis->gpio_status)

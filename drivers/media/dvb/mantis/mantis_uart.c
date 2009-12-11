@@ -1,7 +1,26 @@
+/*
+	Mantis PCI bridge driver
+
+	Copyright (C) Manu Abraham (abraham.manu@gmail.com)
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 
-#include <asm/irq.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
@@ -19,6 +38,24 @@
 struct mantis_uart_params {
 	enum mantis_baud	baud_rate;
 	enum mantis_parity	parity;
+};
+
+static struct {
+	char string[7];
+} rates[5] = {
+	{ "9600" },
+	{ "19200" },
+	{ "38400" },
+	{ "57600" },
+	{ "115200" }
+};
+
+static struct {
+	char string[5];
+} parity[3] = {
+	{ "NONE" },
+	{ "ODD" },
+	{ "EVEN" }
 };
 
 #define UART_MAX_BUF			16
@@ -60,12 +97,10 @@ static void mantis_uart_work(struct work_struct *work)
 	u8 buf[16];
 	int i;
 
-	dprintk(MANTIS_DEBUG, 1, "UART read");
 	mantis_uart_read(mantis, buf);
 
-	dprintk(MANTIS_DEBUG, 1, "UART: ");
 	for (i = 0; i < (config->bytes + 1); i++)
-		dprintk(MANTIS_DEBUG, 0, "<%02x> ", buf[i]);
+		dprintk(MANTIS_INFO, 1, "UART BUF:%d <%02x> ", i, buf[i]);
 
 	dprintk(MANTIS_DEBUG, 0, "\n");
 }
@@ -73,14 +108,7 @@ static void mantis_uart_work(struct work_struct *work)
 static int mantis_uart_setup(struct mantis_pci *mantis,
 			     struct mantis_uart_params *params)
 {
-	char* rates[] = { "B_9600", "B_19200", "B_38400", "B_57600", "B_115200" };
-	char* parity[] = { "NONE", "ODD", "EVEN" };
-
 	u32 reg;
-
-	dprintk(MANTIS_DEBUG, 1, "Set Parity <%s> Baud Rate <%s>",
-		parity[params->parity],
-		rates[params->baud_rate]);
 
 	mmwrite((mmread(MANTIS_UART_CTL) | (params->parity & 0x3)), MANTIS_UART_CTL);
 
@@ -116,10 +144,12 @@ int mantis_uart_init(struct mantis_pci *mantis)
 	struct mantis_hwconfig *config = mantis->hwconfig;
 	struct mantis_uart_params params;
 
-	dprintk(MANTIS_DEBUG, 1, "Initializing UART ..");
 	/* default parity: */
 	params.baud_rate = config->baud_rate;
 	params.parity = config->parity;
+	dprintk(MANTIS_INFO, 1, "Initializing UART @ %sbps parity:%s",
+		rates[params.baud_rate].string,
+		parity[params.parity].string);
 
 	init_waitqueue_head(&mantis->uart_wq);
 	spin_lock_init(&mantis->uart_lock);
@@ -142,6 +172,7 @@ int mantis_uart_init(struct mantis_pci *mantis)
 	mmwrite(mmread(MANTIS_UART_CTL) | MANTIS_UART_RXINT, MANTIS_UART_CTL);
 
 	schedule_work(&mantis->uart_work);
+	dprintk(MANTIS_DEBUG, 1, "UART succesfully initialized");
 
 	return 0;
 }

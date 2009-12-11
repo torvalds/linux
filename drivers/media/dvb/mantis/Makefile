@@ -7,7 +7,8 @@ mantis_core-objs :=	mantis_ioc.o	\
 			mantis_evm.o	\
 			mantis_hif.o	\
 			mantis_ca.o	\
-			mantis_pcmcia.o
+			mantis_pcmcia.o	\
+			mantis_input.o
 
 mantis-objs	:=	mantis_cards.o	\
 			mantis_vp1033.o	\

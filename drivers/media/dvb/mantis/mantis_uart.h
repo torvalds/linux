@@ -45,10 +45,9 @@ enum mantis_baud {
 };
 
 enum mantis_parity {
-	MANTIS_PARITY_UNDEFINED	= 0,
+	MANTIS_PARITY_NONE	= 0,
 	MANTIS_PARITY_EVEN,
 	MANTIS_PARITY_ODD,
-	MANTIS_PARITY_NONE
 };
 
 struct mantis_pci;
