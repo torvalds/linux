@@ -639,6 +639,7 @@ struct hda_bus {
 	unsigned int rirb_error:1;	/* error in codec communication */
 	unsigned int response_reset:1;	/* controller was reset */
 	unsigned int in_reset:1;	/* during reset operation */
+	unsigned int power_keep_link_on:1; /* don't power off HDA link */
 };
 
 /*
