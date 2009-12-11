@@ -546,6 +546,7 @@ typedef struct drm_i915_private {
 	struct timer_list idle_timer;
 	bool busy;
 	u16 orig_clock;
+	struct drm_connector *int_lvds_connector;
 } drm_i915_private_t;
 
 /** driver private structure attached to each drm_gem_object */
