@@ -978,6 +978,7 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	wl->elp = false;
 	wl->psm = 0;
 	wl->psm_entry_retry = 0;
+	wl->associated = false;
 	wl->tx_queue_stopped = false;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
 	wl->tx_blocks_available = 0;
@@ -1191,8 +1192,6 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		wl1271_join_channel(wl, channel);
 
 	if (conf->flags & IEEE80211_CONF_PS && !wl->psm_requested) {
-		wl1271_info("psm enabled");
-
 		wl->psm_requested = true;
 
 		/*
@@ -1200,7 +1199,10 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		 * If we're not, we'll enter it when joining an SSID,
 		 * through the bss_info_changed() hook.
 		 */
-		ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE);
+		if (wl->associated) {
+			wl1271_info("psm enabled");
+			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE);
+		}
 	} else if (!(conf->flags & IEEE80211_CONF_PS) &&
 		   wl->psm_requested) {
 		wl1271_info("psm disabled");
@@ -1548,6 +1550,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
 			wl->aid = bss_conf->aid;
+			wl->associated = true;
 
 			/*
 			 * with wl1271, we don't need to update the
@@ -1572,6 +1575,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			}
 		} else {
 			/* use defaults when not associated */
+			wl->associated = false;
 			wl->aid = 0;
 		}
 
@@ -1898,6 +1902,7 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	wl->psm = 0;
 	wl->psm_requested = false;
 	wl->psm_entry_retry = 0;
+	wl->associated = false;
 	wl->tx_queue_stopped = false;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
 	wl->basic_rate_set = CONF_TX_RATE_MASK_BASIC;

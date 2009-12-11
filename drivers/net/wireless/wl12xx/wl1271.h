@@ -416,6 +416,7 @@ struct wl1271 {
 
 	/* PSM mode requested */
 	bool psm_requested;
+	bool associated;
 
 	/* retry counter for PSM entries */
 	u8 psm_entry_retry;
