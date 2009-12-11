@@ -201,6 +201,71 @@ static unsigned long mt9t031_query_bus_param(struct soc_camera_device *icd)
 	return soc_camera_apply_sensor_flags(icl, MT9T031_BUS_PARAM);
 }
 
+enum {
+	MT9T031_CTRL_VFLIP,
+	MT9T031_CTRL_HFLIP,
+	MT9T031_CTRL_GAIN,
+	MT9T031_CTRL_EXPOSURE,
+	MT9T031_CTRL_EXPOSURE_AUTO,
+};
+
+static const struct v4l2_queryctrl mt9t031_controls[] = {
+	[MT9T031_CTRL_VFLIP] = {
+		.id		= V4L2_CID_VFLIP,
+		.type		= V4L2_CTRL_TYPE_BOOLEAN,
+		.name		= "Flip Vertically",
+		.minimum	= 0,
+		.maximum	= 1,
+		.step		= 1,
+		.default_value	= 0,
+	},
+	[MT9T031_CTRL_HFLIP] = {
+		.id		= V4L2_CID_HFLIP,
+		.type		= V4L2_CTRL_TYPE_BOOLEAN,
+		.name		= "Flip Horizontally",
+		.minimum	= 0,
+		.maximum	= 1,
+		.step		= 1,
+		.default_value	= 0,
+	},
+	[MT9T031_CTRL_GAIN] = {
+		.id		= V4L2_CID_GAIN,
+		.type		= V4L2_CTRL_TYPE_INTEGER,
+		.name		= "Gain",
+		.minimum	= 0,
+		.maximum	= 127,
+		.step		= 1,
+		.default_value	= 64,
+		.flags		= V4L2_CTRL_FLAG_SLIDER,
+	},
+	[MT9T031_CTRL_EXPOSURE] = {
+		.id		= V4L2_CID_EXPOSURE,
+		.type		= V4L2_CTRL_TYPE_INTEGER,
+		.name		= "Exposure",
+		.minimum	= 1,
+		.maximum	= 255,
+		.step		= 1,
+		.default_value	= 255,
+		.flags		= V4L2_CTRL_FLAG_SLIDER,
+	},
+	[MT9T031_CTRL_EXPOSURE_AUTO] = {
+		.id		= V4L2_CID_EXPOSURE_AUTO,
+		.type		= V4L2_CTRL_TYPE_BOOLEAN,
+		.name		= "Automatic Exposure",
+		.minimum	= 0,
+		.maximum	= 1,
+		.step		= 1,
+		.default_value	= 1,
+	}
+};
+
+static struct soc_camera_ops mt9t031_ops = {
+	.set_bus_param		= mt9t031_set_bus_param,
+	.query_bus_param	= mt9t031_query_bus_param,
+	.controls		= mt9t031_controls,
+	.num_controls		= ARRAY_SIZE(mt9t031_controls),
+};
+
 /* target must be _even_ */
 static u16 mt9t031_skip(s32 *source, s32 target, s32 max)
 {
@@ -220,10 +285,9 @@ static u16 mt9t031_skip(s32 *source, s32 target, s32 max)
 }
 
 /* rect is the sensor rectangle, the caller guarantees parameter validity */
-static int mt9t031_set_params(struct soc_camera_device *icd,
+static int mt9t031_set_params(struct i2c_client *client,
 			      struct v4l2_rect *rect, u16 xskip, u16 yskip)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
 	int ret;
 	u16 xbin, ybin;
@@ -304,8 +368,7 @@ static int mt9t031_set_params(struct soc_camera_device *icd,
 		if (ret >= 0) {
 			const u32 shutter_max = MT9T031_MAX_HEIGHT + vblank;
 			const struct v4l2_queryctrl *qctrl =
-				soc_camera_find_qctrl(icd->ops,
-						      V4L2_CID_EXPOSURE);
+				&mt9t031_controls[MT9T031_CTRL_EXPOSURE];
 			mt9t031->exposure = (shutter_max / 2 + (total_h - 1) *
 				 (qctrl->maximum - qctrl->minimum)) /
 				shutter_max + qctrl->minimum;
@@ -330,7 +393,6 @@ static int mt9t031_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	struct v4l2_rect rect = a->c;
 	struct i2c_client *client = sd->priv;
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
-	struct soc_camera_device *icd = client->dev.platform_data;
 
 	rect.width = ALIGN(rect.width, 2);
 	rect.height = ALIGN(rect.height, 2);
@@ -341,7 +403,7 @@ static int mt9t031_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	soc_camera_limit_side(&rect.top, &rect.height,
 		     MT9T031_ROW_SKIP, MT9T031_MIN_HEIGHT, MT9T031_MAX_HEIGHT);
 
-	return mt9t031_set_params(icd, &rect, mt9t031->xskip, mt9t031->yskip);
+	return mt9t031_set_params(client, &rect, mt9t031->xskip, mt9t031->yskip);
 }
 
 static int mt9t031_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
@@ -389,7 +451,6 @@ static int mt9t031_s_fmt(struct v4l2_subdev *sd,
 {
 	struct i2c_client *client = sd->priv;
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
-	struct soc_camera_device *icd = client->dev.platform_data;
 	u16 xskip, yskip;
 	struct v4l2_rect rect = mt9t031->rect;
 
@@ -404,7 +465,7 @@ static int mt9t031_s_fmt(struct v4l2_subdev *sd,
 	mf->colorspace	= V4L2_COLORSPACE_SRGB;
 
 	/* mt9t031_set_params() doesn't change width and height */
-	return mt9t031_set_params(icd, &rect, xskip, yskip);
+	return mt9t031_set_params(client, &rect, xskip, yskip);
 }
 
 /*
@@ -480,59 +541,6 @@ static int mt9t031_s_register(struct v4l2_subdev *sd,
 }
 #endif
 
-static const struct v4l2_queryctrl mt9t031_controls[] = {
-	{
-		.id		= V4L2_CID_VFLIP,
-		.type		= V4L2_CTRL_TYPE_BOOLEAN,
-		.name		= "Flip Vertically",
-		.minimum	= 0,
-		.maximum	= 1,
-		.step		= 1,
-		.default_value	= 0,
-	}, {
-		.id		= V4L2_CID_HFLIP,
-		.type		= V4L2_CTRL_TYPE_BOOLEAN,
-		.name		= "Flip Horizontally",
-		.minimum	= 0,
-		.maximum	= 1,
-		.step		= 1,
-		.default_value	= 0,
-	}, {
-		.id		= V4L2_CID_GAIN,
-		.type		= V4L2_CTRL_TYPE_INTEGER,
-		.name		= "Gain",
-		.minimum	= 0,
-		.maximum	= 127,
-		.step		= 1,
-		.default_value	= 64,
-		.flags		= V4L2_CTRL_FLAG_SLIDER,
-	}, {
-		.id		= V4L2_CID_EXPOSURE,
-		.type		= V4L2_CTRL_TYPE_INTEGER,
-		.name		= "Exposure",
-		.minimum	= 1,
-		.maximum	= 255,
-		.step		= 1,
-		.default_value	= 255,
-		.flags		= V4L2_CTRL_FLAG_SLIDER,
-	}, {
-		.id		= V4L2_CID_EXPOSURE_AUTO,
-		.type		= V4L2_CTRL_TYPE_BOOLEAN,
-		.name		= "Automatic Exposure",
-		.minimum	= 0,
-		.maximum	= 1,
-		.step		= 1,
-		.default_value	= 1,
-	}
-};
-
-static struct soc_camera_ops mt9t031_ops = {
-	.set_bus_param		= mt9t031_set_bus_param,
-	.query_bus_param	= mt9t031_query_bus_param,
-	.controls		= mt9t031_controls,
-	.num_controls		= ARRAY_SIZE(mt9t031_controls),
-};
-
 static int mt9t031_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	struct i2c_client *client = sd->priv;
@@ -569,14 +577,8 @@ static int mt9t031_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	struct i2c_client *client = sd->priv;
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
-	struct soc_camera_device *icd = client->dev.platform_data;
 	const struct v4l2_queryctrl *qctrl;
 	int data;
-
-	qctrl = soc_camera_find_qctrl(&mt9t031_ops, ctrl->id);
-
-	if (!qctrl)
-		return -EINVAL;
 
 	switch (ctrl->id) {
 	case V4L2_CID_VFLIP:
@@ -596,6 +598,7 @@ static int mt9t031_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 			return -EIO;
 		break;
 	case V4L2_CID_GAIN:
+		qctrl = &mt9t031_controls[MT9T031_CTRL_GAIN];
 		if (ctrl->value > qctrl->maximum || ctrl->value < qctrl->minimum)
 			return -EINVAL;
 		/* See Datasheet Table 7, Gain settings. */
@@ -635,6 +638,7 @@ static int mt9t031_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		mt9t031->gain = ctrl->value;
 		break;
 	case V4L2_CID_EXPOSURE:
+		qctrl = &mt9t031_controls[MT9T031_CTRL_EXPOSURE];
 		/* mt9t031 has maximum == default */
 		if (ctrl->value > qctrl->maximum || ctrl->value < qctrl->minimum)
 			return -EINVAL;
@@ -662,7 +666,7 @@ static int mt9t031_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
 			if (set_shutter(client, total_h) < 0)
 				return -EIO;
-			qctrl = soc_camera_find_qctrl(icd->ops, V4L2_CID_EXPOSURE);
+			qctrl = &mt9t031_controls[MT9T031_CTRL_EXPOSURE];
 			mt9t031->exposure = (shutter_max / 2 + (total_h - 1) *
 				 (qctrl->maximum - qctrl->minimum)) /
 				shutter_max + qctrl->minimum;
@@ -670,6 +674,8 @@ static int mt9t031_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		} else
 			mt9t031->autoexposure = 0;
 		break;
+	default:
+		return -EINVAL;
 	}
 	return 0;
 }
@@ -771,18 +777,16 @@ static int mt9t031_probe(struct i2c_client *client,
 	struct mt9t031 *mt9t031;
 	struct soc_camera_device *icd = client->dev.platform_data;
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
-	struct soc_camera_link *icl;
 	int ret;
 
-	if (!icd) {
-		dev_err(&client->dev, "MT9T031: missing soc-camera data!\n");
-		return -EINVAL;
-	}
+	if (icd) {
+		struct soc_camera_link *icl = to_soc_camera_link(icd);
+		if (!icl) {
+			dev_err(&client->dev, "MT9T031 driver needs platform data\n");
+			return -EINVAL;
+		}
 
-	icl = to_soc_camera_link(icd);
-	if (!icl) {
-		dev_err(&client->dev, "MT9T031 driver needs platform data\n");
-		return -EINVAL;
+		icd->ops = &mt9t031_ops;
 	}
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WORD_DATA)) {
@@ -796,9 +800,6 @@ static int mt9t031_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	v4l2_i2c_subdev_init(&mt9t031->subdev, client, &mt9t031_subdev_ops);
-
-	/* Second stage probe - when a capture adapter is there */
-	icd->ops		= &mt9t031_ops;
 
 	mt9t031->y_skip_top	= 0;
 	mt9t031->rect.left	= MT9T031_COLUMN_SKIP;
@@ -822,7 +823,8 @@ static int mt9t031_probe(struct i2c_client *client,
 	mt9t031_disable(client);
 
 	if (ret) {
-		icd->ops = NULL;
+		if (icd)
+			icd->ops = NULL;
 		i2c_set_clientdata(client, NULL);
 		kfree(mt9t031);
 	}
@@ -835,7 +837,8 @@ static int mt9t031_remove(struct i2c_client *client)
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
 	struct soc_camera_device *icd = client->dev.platform_data;
 
-	icd->ops = NULL;
+	if (icd)
+		icd->ops = NULL;
 	i2c_set_clientdata(client, NULL);
 	client->driver = NULL;
 	kfree(mt9t031);
