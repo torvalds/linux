@@ -255,8 +255,6 @@ xfs_read(
 
 	iocb->ki_pos = *offset;
 	ret = generic_file_aio_read(iocb, iovp, segs, *offset);
-	if (ret == -EIOCBQUEUED && !(ioflags & IO_ISAIO))
-		ret = wait_on_sync_kiocb(iocb);
 	if (ret > 0)
 		XFS_STATS_ADD(xs_read_bytes, ret);
 
@@ -773,9 +771,6 @@ write_retry:
 	}
 
 	current->backing_dev_info = NULL;
-
-	if (ret == -EIOCBQUEUED && !(ioflags & IO_ISAIO))
-		ret = wait_on_sync_kiocb(iocb);
 
 	isize = i_size_read(inode);
 	if (unlikely(ret < 0 && ret != -EFAULT && *offset > isize))
