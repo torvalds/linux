@@ -45,6 +45,7 @@
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
+#include "acpredef.h"
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsrepair2")
@@ -91,9 +92,6 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 			  u32 expected_count,
 			  u32 sort_index,
 			  u8 sort_direction, char *sort_key_name);
-
-static acpi_status
-acpi_ns_remove_null_elements(union acpi_operand_object *package);
 
 static acpi_status
 acpi_ns_sort_list(union acpi_operand_object **elements,
@@ -456,25 +454,10 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 	}
 
 	/*
-	 * Detect any NULL package elements and remove them from the
-	 * package.
-	 *
-	 * TBD: We may want to do this for all predefined names that
-	 * return a variable-length package of packages.
+	 * NOTE: assumes list of sub-packages contains no NULL elements.
+	 * Any NULL elements should have been removed by earlier call
+	 * to acpi_ns_remove_null_elements.
 	 */
-	status = acpi_ns_remove_null_elements(return_object);
-	if (status == AE_NULL_ENTRY) {
-		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
-				  "%s: NULL elements removed from package\n",
-				  data->pathname));
-
-		/* Exit if package is now zero length */
-
-		if (!return_object->package.count) {
-			return (AE_NULL_ENTRY);
-		}
-	}
-
 	outer_elements = return_object->package.elements;
 	outer_element_count = return_object->package.count;
 	if (!outer_element_count) {
@@ -544,24 +527,52 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_remove_null_elements
  *
- * PARAMETERS:  obj_desc            - A Package object
+ * PARAMETERS:  Data                - Pointer to validation data structure
+ *              package_type        - An acpi_return_package_types value
+ *              obj_desc            - A Package object
  *
- * RETURN:      Status. AE_NULL_ENTRY means that one or more elements were
- *              removed.
+ * RETURN:      None.
  *
- * DESCRIPTION: Remove all NULL package elements and update the package count.
+ * DESCRIPTION: Remove all NULL package elements from packages that contain
+ *              a variable number of sub-packages.
  *
  *****************************************************************************/
 
-static acpi_status
-acpi_ns_remove_null_elements(union acpi_operand_object *obj_desc)
+void
+acpi_ns_remove_null_elements(struct acpi_predefined_data *data,
+			     u8 package_type,
+			     union acpi_operand_object *obj_desc)
 {
 	union acpi_operand_object **source;
 	union acpi_operand_object **dest;
-	acpi_status status = AE_OK;
 	u32 count;
 	u32 new_count;
 	u32 i;
+
+	ACPI_FUNCTION_NAME(ns_remove_null_elements);
+
+	/*
+	 * PTYPE1 packages contain no subpackages.
+	 * PTYPE2 packages contain a variable number of sub-packages. We can
+	 * safely remove all NULL elements from the PTYPE2 packages.
+	 */
+	switch (package_type) {
+	case ACPI_PTYPE1_FIXED:
+	case ACPI_PTYPE1_VAR:
+	case ACPI_PTYPE1_OPTION:
+		return;
+
+	case ACPI_PTYPE2:
+	case ACPI_PTYPE2_COUNT:
+	case ACPI_PTYPE2_PKG_COUNT:
+	case ACPI_PTYPE2_FIXED:
+	case ACPI_PTYPE2_MIN:
+	case ACPI_PTYPE2_REV_FIXED:
+		break;
+
+	default:
+		return;
+	}
 
 	count = obj_desc->package.count;
 	new_count = count;
@@ -569,11 +580,10 @@ acpi_ns_remove_null_elements(union acpi_operand_object *obj_desc)
 	source = obj_desc->package.elements;
 	dest = source;
 
-	/* Examine all elements of the package object */
+	/* Examine all elements of the package object, remove nulls */
 
 	for (i = 0; i < count; i++) {
 		if (!*source) {
-			status = AE_NULL_ENTRY;
 			new_count--;
 		} else {
 			*dest = *source;
@@ -582,15 +592,18 @@ acpi_ns_remove_null_elements(union acpi_operand_object *obj_desc)
 		source++;
 	}
 
-	if (status == AE_NULL_ENTRY) {
+	/* Update parent package if any null elements were removed */
+
+	if (new_count < count) {
+		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+				  "%s: Found and removed %u NULL elements\n",
+				  data->pathname, (count - new_count)));
 
 		/* NULL terminate list and update the package count */
 
 		*dest = NULL;
 		obj_desc->package.count = new_count;
 	}
-
-	return (status);
 }
 
 /******************************************************************************

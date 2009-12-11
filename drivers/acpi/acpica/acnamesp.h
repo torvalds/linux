@@ -296,6 +296,11 @@ acpi_ns_complex_repairs(struct acpi_predefined_data *data,
 			acpi_status validate_status,
 			union acpi_operand_object **return_object_ptr);
 
+void
+acpi_ns_remove_null_elements(struct acpi_predefined_data *data,
+			     u8 package_type,
+			     union acpi_operand_object *obj_desc);
+
 /*
  * nssearch - Namespace searching and entry
  */
