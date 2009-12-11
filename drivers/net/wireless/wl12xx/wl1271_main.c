@@ -618,6 +618,7 @@ static int wl1271_chip_wakeup(struct wl1271 *wl)
 	struct wl1271_partition_set partition;
 	int ret = 0;
 
+	msleep(WL1271_PRE_POWER_ON_SLEEP);
 	wl1271_power_on(wl);
 	msleep(WL1271_POWER_ON_SLEEP);
 	wl1271_spi_reset(wl);
