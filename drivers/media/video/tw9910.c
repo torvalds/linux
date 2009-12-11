@@ -830,7 +830,7 @@ static int tw9910_g_fmt(struct v4l2_subdev *sd,
 	mf->height	= priv->scale->height;
 	mf->code	= V4L2_MBUS_FMT_YVYU8_2X8_BE;
 	mf->colorspace	= V4L2_COLORSPACE_JPEG;
-	mf->field	= V4L2_FIELD_INTERLACED;
+	mf->field	= V4L2_FIELD_INTERLACED_BT;
 
 	return 0;
 }
@@ -852,7 +852,7 @@ static int tw9910_s_fmt(struct v4l2_subdev *sd,
 	int ret;
 
 	WARN_ON(mf->field != V4L2_FIELD_ANY &&
-		mf->field != V4L2_FIELD_INTERLACED);
+		mf->field != V4L2_FIELD_INTERLACED_BT);
 
 	/*
 	 * check color format
@@ -878,8 +878,8 @@ static int tw9910_try_fmt(struct v4l2_subdev *sd,
 	const struct tw9910_scale_ctrl *scale;
 
 	if (V4L2_FIELD_ANY == mf->field) {
-		mf->field = V4L2_FIELD_INTERLACED;
-	} else if (V4L2_FIELD_INTERLACED != mf->field) {
+		mf->field = V4L2_FIELD_INTERLACED_BT;
+	} else if (V4L2_FIELD_INTERLACED_BT != mf->field) {
 		dev_err(&client->dev, "Field type %d invalid.\n", mf->field);
 		return -EINVAL;
 	}
