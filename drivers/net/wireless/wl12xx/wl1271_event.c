@@ -89,7 +89,6 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 		} else {
 			wl1271_error("PSM entry failed, giving up.\n");
 			wl->psm_entry_retry = 0;
-			*beacon_loss = true;
 		}
 		break;
 	case EVENT_ENTER_POWER_SAVE_SUCCESS:
