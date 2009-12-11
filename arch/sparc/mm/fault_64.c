@@ -31,13 +31,12 @@
 #include <asm/sections.h>
 #include <asm/mmu_context.h>
 
-#ifdef CONFIG_KPROBES
 static inline int notify_page_fault(struct pt_regs *regs)
 {
 	int ret = 0;
 
 	/* kprobe_running() needs smp_processor_id() */
-	if (!user_mode(regs)) {
+	if (kprobes_built_in() && !user_mode(regs)) {
 		preempt_disable();
 		if (kprobe_running() && kprobe_fault_handler(regs, 0))
 			ret = 1;
@@ -45,12 +44,6 @@ static inline int notify_page_fault(struct pt_regs *regs)
 	}
 	return ret;
 }
-#else
-static inline int notify_page_fault(struct pt_regs *regs)
-{
-	return 0;
-}
-#endif
 
 static void __kprobes unhandled_fault(unsigned long address,
 				      struct task_struct *tsk,
