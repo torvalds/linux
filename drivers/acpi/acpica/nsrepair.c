@@ -350,7 +350,7 @@ acpi_ns_convert_to_string(union acpi_operand_object *original_object,
  *
  * RETURN:      Status. AE_OK if conversion was successful.
  *
- * DESCRIPTION: Attempt to convert a Integer/String object to a Buffer.
+ * DESCRIPTION: Attempt to convert a Integer/String/Package object to a Buffer.
  *
  ******************************************************************************/
 
@@ -360,6 +360,10 @@ acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
 {
 	union acpi_operand_object *new_object;
 	acpi_status status;
+	union acpi_operand_object **elements;
+	u32 *dword_buffer;
+	u32 count;
+	u32 i;
 
 	switch (original_object->common.type) {
 	case ACPI_TYPE_INTEGER:
@@ -391,6 +395,40 @@ acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
 		ACPI_MEMCPY(new_object->buffer.pointer,
 			    original_object->string.pointer,
 			    original_object->string.length);
+		break;
+
+	case ACPI_TYPE_PACKAGE:
+
+		/* All elements of the Package must be integers */
+
+		elements = original_object->package.elements;
+		count = original_object->package.count;
+
+		for (i = 0; i < count; i++) {
+			if ((!*elements) ||
+			    ((*elements)->common.type != ACPI_TYPE_INTEGER)) {
+				return (AE_AML_OPERAND_TYPE);
+			}
+			elements++;
+		}
+
+		/* Create the new buffer object to replace the Package */
+
+		new_object = acpi_ut_create_buffer_object(ACPI_MUL_4(count));
+		if (!new_object) {
+			return (AE_NO_MEMORY);
+		}
+
+		/* Copy the package elements (integers) to the buffer as DWORDs */
+
+		elements = original_object->package.elements;
+		dword_buffer = ACPI_CAST_PTR(u32, new_object->buffer.pointer);
+
+		for (i = 0; i < count; i++) {
+			*dword_buffer = (u32) (*elements)->integer.value;
+			dword_buffer++;
+			elements++;
+		}
 		break;
 
 	default:
@@ -441,7 +479,8 @@ acpi_ns_convert_to_package(union acpi_operand_object *original_object,
 		buffer = original_object->buffer.pointer;
 
 		while (length--) {
-			*elements = acpi_ut_create_integer_object(*buffer);
+			*elements =
+			    acpi_ut_create_integer_object((u64) *buffer);
 			if (!*elements) {
 				acpi_ut_remove_reference(new_object);
 				return (AE_NO_MEMORY);

@@ -250,11 +250,9 @@ acpi_ns_repair_FDE(struct acpi_predefined_data *data,
 		   union acpi_operand_object **return_object_ptr)
 {
 	union acpi_operand_object *return_object = *return_object_ptr;
-	union acpi_operand_object **elements;
 	union acpi_operand_object *buffer_object;
 	u8 *byte_buffer;
 	u32 *dword_buffer;
-	u32 count;
 	u32 i;
 
 	switch (return_object->common.type) {
@@ -300,47 +298,6 @@ acpi_ns_repair_FDE(struct acpi_predefined_data *data,
 
 		ACPI_INFO_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
 				      "Expanded Byte Buffer to expected DWord Buffer"));
-		break;
-
-	case ACPI_TYPE_PACKAGE:
-
-		/* All elements of the Package must be integers */
-
-		elements = return_object->package.elements;
-		count =
-		    ACPI_MIN(ACPI_FDE_FIELD_COUNT,
-			     return_object->package.count);
-
-		for (i = 0; i < count; i++) {
-			if ((!*elements) ||
-			    ((*elements)->common.type != ACPI_TYPE_INTEGER)) {
-				return (AE_AML_OPERAND_TYPE);
-			}
-			elements++;
-		}
-
-		/* Create the new buffer object to replace the Package */
-
-		buffer_object =
-		    acpi_ut_create_buffer_object(ACPI_FDE_DWORD_BUFFER_SIZE);
-		if (!buffer_object) {
-			return (AE_NO_MEMORY);
-		}
-
-		/* Copy the package elements (integers) to the buffer */
-
-		elements = return_object->package.elements;
-		dword_buffer =
-		    ACPI_CAST_PTR(u32, buffer_object->buffer.pointer);
-
-		for (i = 0; i < count; i++) {
-			*dword_buffer = (u32) (*elements)->integer.value;
-			dword_buffer++;
-			elements++;
-		}
-
-		ACPI_INFO_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
-				      "Converted Package to expected Buffer"));
 		break;
 
 	default:

@@ -215,6 +215,8 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 	data->node_flags = node->flags;
 	data->pathname = pathname;
 
+	/* TBD: For variable-length Packages, remove NULL elements here */
+
 	/*
 	 * Check that the type of the return object is what is expected for
 	 * this predefined name
@@ -223,10 +225,11 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 					   predefined->info.expected_btypes,
 					   ACPI_NOT_PACKAGE_ELEMENT);
 	if (ACPI_SUCCESS(status)) {
-
-		/* For returned Package objects, check the type of all sub-objects */
-
-		if (return_object->common.type == ACPI_TYPE_PACKAGE) {
+		/*
+		 * For returned Package objects, check the type of all sub-objects.
+		 * Note: Package may have been created by call above.
+		 */
+		if ((*return_object_ptr)->common.type == ACPI_TYPE_PACKAGE) {
 			status = acpi_ns_check_package(data, return_object_ptr);
 		}
 	}
