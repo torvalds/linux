@@ -806,7 +806,7 @@ write_retry:
 	XFS_STATS_ADD(xs_write_bytes, ret);
 
 	/* Handle various SYNC-type writes */
-	if ((file->f_flags & O_SYNC) || IS_SYNC(inode)) {
+	if ((file->f_flags & O_DSYNC) || IS_SYNC(inode)) {
 		loff_t end = pos + ret - 1;
 		int error2;
 

@@ -1656,6 +1656,15 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	int will_write;
 	int flag = open_to_namei_flags(open_flag);
 
+	/*
+	 * O_SYNC is implemented as __O_SYNC|O_DSYNC.  As many places only
+	 * check for O_DSYNC if the need any syncing at all we enforce it's
+	 * always set instead of having to deal with possibly weird behaviour
+	 * for malicious applications setting only __O_SYNC.
+	 */
+	if (open_flag & __O_SYNC)
+		open_flag |= O_DSYNC;
+
 	if (!acc_mode)
 		acc_mode = MAY_OPEN | ACC_MODE(flag);
 

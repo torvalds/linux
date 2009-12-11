@@ -76,8 +76,10 @@ static inline fmode_t cifs_posix_convert_flags(unsigned int flags)
 	   reopening a file.  They had their effect on the original open */
 	if (flags & O_APPEND)
 		posix_flags |= (fmode_t)O_APPEND;
-	if (flags & O_SYNC)
-		posix_flags |= (fmode_t)O_SYNC;
+	if (flags & O_DSYNC)
+		posix_flags |= (fmode_t)O_DSYNC;
+	if (flags & __O_SYNC)
+		posix_flags |= (fmode_t)__O_SYNC;
 	if (flags & O_DIRECTORY)
 		posix_flags |= (fmode_t)O_DIRECTORY;
 	if (flags & O_NOFOLLOW)
