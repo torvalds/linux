@@ -437,6 +437,21 @@ struct wl1271_general_parms_cmd {
 	u8 tx_bip_fem_autodetect;
 	u8 tx_bip_fem_manufacturer;
 	u8 settings;
+
+	u8 sr_state;
+
+	s8 srf1[CONF_MAX_SMART_REFLEX_PARAMS];
+	s8 srf2[CONF_MAX_SMART_REFLEX_PARAMS];
+	s8 srf3[CONF_MAX_SMART_REFLEX_PARAMS];
+
+	s8 sr_debug_table[CONF_MAX_SMART_REFLEX_PARAMS];
+
+	u8 sr_sen_n_p;
+	u8 sr_sen_n_p_gain;
+	u8 sr_sen_nrn;
+	u8 sr_sen_prn;
+
+	u8 padding[3];
 } __attribute__ ((packed));
 
 struct wl1271_radio_parms_cmd {

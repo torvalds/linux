@@ -209,6 +209,26 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 	gen_parms->tx_bip_fem_manufacturer = g->tx_bip_fem_manufacturer;
 	gen_parms->settings = g->settings;
 
+	gen_parms->sr_state = g->sr_state;
+
+	memcpy(gen_parms->srf1,
+	       g->srf1,
+	       CONF_MAX_SMART_REFLEX_PARAMS);
+	memcpy(gen_parms->srf2,
+	       g->srf2,
+	       CONF_MAX_SMART_REFLEX_PARAMS);
+	memcpy(gen_parms->srf3,
+	       g->srf3,
+	       CONF_MAX_SMART_REFLEX_PARAMS);
+	memcpy(gen_parms->sr_debug_table,
+	       g->sr_debug_table,
+	       CONF_MAX_SMART_REFLEX_PARAMS);
+
+	gen_parms->sr_sen_n_p = g->sr_sen_n_p;
+	gen_parms->sr_sen_n_p_gain = g->sr_sen_n_p_gain;
+	gen_parms->sr_sen_nrn = g->sr_sen_nrn;
+	gen_parms->sr_sen_prn = g->sr_sen_prn;
+
 	ret = wl1271_cmd_test(wl, gen_parms, sizeof(*gen_parms), 0);
 	if (ret < 0)
 		wl1271_warning("CMD_INI_FILE_GENERAL_PARAM failed");

@@ -759,6 +759,9 @@ enum single_dual_band_enum {
 	CONF_DUAL_BAND
 };
 
+
+#define CONF_MAX_SMART_REFLEX_PARAMS 16
+
 struct conf_general_parms {
 	/*
 	 * RF Reference Clock type / speed
@@ -815,6 +818,20 @@ struct conf_general_parms {
 	 * Range: Unknown
 	 */
 	u8 settings;
+
+	/* Smart reflex settings */
+	u8 sr_state;
+
+	s8 srf1[CONF_MAX_SMART_REFLEX_PARAMS];
+	s8 srf2[CONF_MAX_SMART_REFLEX_PARAMS];
+	s8 srf3[CONF_MAX_SMART_REFLEX_PARAMS];
+
+	s8 sr_debug_table[CONF_MAX_SMART_REFLEX_PARAMS];
+
+	u8 sr_sen_n_p;
+	u8 sr_sen_n_p_gain;
+	u8 sr_sen_nrn;
+	u8 sr_sen_prn;
 };
 
 #define CONF_RSSI_AND_PROCESS_COMPENSATION_SIZE 15
