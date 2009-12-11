@@ -751,6 +751,26 @@ out:
 	return 0;
 }
 
+static bool elf_sym__is_a(GElf_Sym *self, enum map_type type)
+{
+	switch (type) {
+	case MAP__FUNCTION:
+		return elf_sym__is_function(self);
+	default:
+		return false;
+	}
+}
+
+static bool elf_sec__is_a(GElf_Shdr *self, Elf_Data *secstrs, enum map_type type)
+{
+	switch (type) {
+	case MAP__FUNCTION:
+		return elf_sec__is_text(self, secstrs);
+	default:
+		return false;
+	}
+}
+
 static int dso__load_sym(struct dso *self, struct map *map,
 			 struct map_groups *mg, const char *name, int fd,
 			 symbol_filter_t filter, int kernel, int kmodule)
@@ -825,7 +845,7 @@ static int dso__load_sym(struct dso *self, struct map *map,
 		int is_label = elf_sym__is_label(&sym);
 		const char *section_name;
 
-		if (!is_label && !elf_sym__is_function(&sym))
+		if (!is_label && !elf_sym__is_a(&sym, map->type))
 			continue;
 
 		sec = elf_getscn(elf, sym.st_shndx);
@@ -834,7 +854,7 @@ static int dso__load_sym(struct dso *self, struct map *map,
 
 		gelf_getshdr(sec, &shdr);
 
-		if (is_label && !elf_sec__is_text(&shdr, secstrs))
+		if (is_label && !elf_sec__is_a(&shdr, secstrs, map->type))
 			continue;
 
 		elf_name = elf_sym__name(&sym, symstrs);
