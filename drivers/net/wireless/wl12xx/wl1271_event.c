@@ -150,7 +150,7 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 			return ret;
 	}
 
-	if (beacon_loss) {
+	if (wl->vif && beacon_loss) {
 		/* Obviously, it's dangerous to release the mutex while
 		   we are holding many of the variables in the wl struct.
 		   That's why it's done last in the function, and care must
