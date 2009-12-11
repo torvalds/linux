@@ -58,7 +58,7 @@ struct dst_trans *dst_trans_search(struct dst_node *node, dst_gen_t gen)
 	}
 
 	dprintk("%s: %s transaction: id: %llu.\n", __func__,
-			(ret)?"found":"not found", gen);
+			(ret) ? "found" : "not found", gen);
 
 	return ret;
 }
@@ -88,9 +88,9 @@ static int dst_trans_insert(struct dst_trans *new)
 
 	new->send_time = jiffies;
 	if (ret) {
-		printk("%s: exist: old: gen: %llu, bio: %llu/%u, send_time: %lu, "
-				"new: gen: %llu, bio: %llu/%u, send_time: %lu.\n",
-			__func__,
+		printk(KERN_DEBUG "%s: exist: old: gen: %llu, bio: %llu/%u, "
+			"send_time: %lu, new: gen: %llu, bio: %llu/%u, "
+			"send_time: %lu.\n", __func__,
 			ret->gen, (u64)ret->bio->bi_sector,
 			ret->bio->bi_size, ret->send_time,
 			new->gen, (u64)new->bio->bi_sector,
@@ -206,7 +206,8 @@ err_out_exit:
  */
 static void dst_trans_scan(struct work_struct *work)
 {
-	struct dst_node *n = container_of(work, struct dst_node, trans_work.work);
+	struct dst_node *n = container_of(work, struct dst_node,
+			trans_work.work);
 	struct rb_node *rb_node;
 	struct dst_trans *t;
 	unsigned long timeout = n->trans_scan_timeout;
@@ -246,8 +247,8 @@ static void dst_trans_scan(struct work_struct *work)
 	mutex_unlock(&n->trans_lock);
 
 	/*
-	 * If no timeout specified then system is in the middle of exiting process,
-	 * so no need to reschedule scanning process again.
+	 * If no timeout specified then system is in the middle of exiting
+	 * process, so no need to reschedule scanning process again.
 	 */
 	if (timeout) {
 		if (!num)
@@ -313,7 +314,8 @@ int dst_node_trans_init(struct dst_node *n, unsigned int size)
 	if (!n->trans_cache)
 		goto err_out_exit;
 
-	n->trans_pool = mempool_create_slab_pool(dst_mempool_num, n->trans_cache);
+	n->trans_pool = mempool_create_slab_pool(dst_mempool_num,
+			n->trans_cache);
 	if (!n->trans_pool)
 		goto err_out_cache_destroy;
 

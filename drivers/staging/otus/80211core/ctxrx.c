@@ -3093,7 +3093,7 @@ u16_t zfWlanRxFilter(zdev_t* dev, zbuf_t* buf)
 
     frameType = zmw_rx_buf_readh(dev, buf, offset);
 
-    // Don't divide 2^4 because we don't want the fragementation pkt to be treated as
+    // Don't divide 2^4 because we don't want the fragmentation pkt to be treated as
     // duplicated frames
     seq = zmw_rx_buf_readh(dev, buf, offset+22);
     dst0 = zmw_rx_buf_readh(dev, buf, offset+4);

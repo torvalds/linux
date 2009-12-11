@@ -30,8 +30,7 @@
  * When action is being performed, thread can not be used by other users,
  * instead they will sleep until there is free thread to pick their work.
  */
-struct thread_pool_worker
-{
+struct thread_pool_worker {
 	struct list_head	worker_entry;
 
 	struct task_struct	*thread;
@@ -48,8 +47,8 @@ struct thread_pool_worker
 	void			*private;
 	void			*schedule_data;
 
-	int			(* action)(void *private, void *schedule_data);
-	void			(* cleanup)(void *private);
+	int			(*action)(void *private, void *schedule_data);
+	void			(*cleanup)(void *private);
 };
 
 static void thread_pool_exit_worker(struct thread_pool_worker *w)
@@ -116,10 +115,12 @@ void thread_pool_del_worker(struct thread_pool *p)
 	struct thread_pool_worker *w = NULL;
 
 	while (!w && p->thread_num) {
-		wait_event(p->wait, !list_empty(&p->ready_list) || !p->thread_num);
+		wait_event(p->wait, !list_empty(&p->ready_list) ||
+				!p->thread_num);
 
 		dprintk("%s: locking list_empty: %d, thread_num: %d.\n",
-				__func__, list_empty(&p->ready_list), p->thread_num);
+				__func__, list_empty(&p->ready_list),
+				p->thread_num);
 
 		mutex_lock(&p->thread_lock);
 		if (!list_empty(&p->ready_list)) {
@@ -127,8 +128,9 @@ void thread_pool_del_worker(struct thread_pool *p)
 					struct thread_pool_worker,
 					worker_entry);
 
-			dprintk("%s: deleting w: %p, thread_num: %d, list: %p [%p.%p].\n",
-					__func__, w, p->thread_num, &p->ready_list,
+			dprintk("%s: deleting w: %p, thread_num: %d, "
+					"list: %p [%p.%p].\n", __func__,
+					w, p->thread_num, &p->ready_list,
 					p->ready_list.prev, p->ready_list.next);
 
 			p->thread_num--;
@@ -182,8 +184,8 @@ void thread_pool_del_worker_id(struct thread_pool *p, unsigned int id)
 int thread_pool_add_worker(struct thread_pool *p,
 		char *name,
 		unsigned int id,
-		void *(* init)(void *private),
-		void (* cleanup)(void *private),
+		void *(*init)(void *private),
+		void (*cleanup)(void *private),
 		void *private)
 {
 	struct thread_pool_worker *w;
@@ -243,8 +245,8 @@ void thread_pool_destroy(struct thread_pool *p)
  * They will have sequential IDs started from zero.
  */
 struct thread_pool *thread_pool_create(int num, char *name,
-		void *(* init)(void *private),
-		void (* cleanup)(void *private),
+		void *(*init)(void *private),
+		void (*cleanup)(void *private),
 		void *private)
 {
 	struct thread_pool_worker *w, *tmp;
@@ -262,7 +264,7 @@ struct thread_pool *thread_pool_create(int num, char *name,
 	INIT_LIST_HEAD(&p->active_list);
 	p->thread_num = 0;
 
-	for (i=0; i<num; ++i) {
+	for (i = 0; i < num; ++i) {
 		err = thread_pool_add_worker(p, name, i, init,
 				cleanup, private);
 		if (err)
@@ -287,8 +289,8 @@ err_out_exit:
  * private data.
  */
 int thread_pool_schedule_private(struct thread_pool *p,
-		int (* setup)(void *private, void *data),
-		int (* action)(void *private, void *data),
+		int (*setup)(void *private, void *data),
+		int (*action)(void *private, void *data),
 		void *data, long timeout, void *id)
 {
 	struct thread_pool_worker *w, *tmp, *worker = NULL;
@@ -321,7 +323,8 @@ int thread_pool_schedule_private(struct thread_pool *p,
 				w->has_data = 1;
 				wake_up(&w->wait);
 			} else {
-				list_move_tail(&w->worker_entry, &p->ready_list);
+				list_move_tail(&w->worker_entry,
+						&p->ready_list);
 			}
 
 			break;
@@ -336,8 +339,8 @@ int thread_pool_schedule_private(struct thread_pool *p,
  * Schedule execution on arbitrary thread from the pool.
  */
 int thread_pool_schedule(struct thread_pool *p,
-		int (* setup)(void *private, void *data),
-		int (* action)(void *private, void *data),
+		int (*setup)(void *private, void *data),
+		int (*action)(void *private, void *data),
 		void *data, long timeout)
 {
 	return thread_pool_schedule_private(p, setup,

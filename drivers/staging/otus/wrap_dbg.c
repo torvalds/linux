@@ -29,70 +29,67 @@
 #include <linux/netlink.h>
 #include <net/iw_handler.h>
 
-void zfwDumpBuf(zdev_t* dev, zbuf_t* buf)
+void zfwDumpBuf(zdev_t *dev, zbuf_t *buf)
 {
-    u16_t i;
+	u16_t i;
 
-    for (i=0; i<buf->len; i++)
-    {
-        printk("%02x ", *(((u8_t*)buf->data)+i));
-        if ((i&0xf)==0xf)
-        {
-            printk("\n");
-        }
-    }
-    printk("\n");
+	for (i = 0; i < buf->len; i++) {
+		printk(KERN_DEBUG "%02x ", *(((u8_t *)buf->data)+i));
+		if ((i & 0xf) == 0xf)
+			printk(KERN_DEBUG "\n");
+	}
+	printk(KERN_DEBUG "\n");
 }
 
 
-void zfwDbgReadRegDone(zdev_t* dev, u32_t addr, u32_t val)
+void zfwDbgReadRegDone(zdev_t *dev, u32_t addr, u32_t val)
 {
-    printk("Read addr:%x = %x\n", addr, val);
+	printk(KERN_DEBUG "Read addr:%x = %x\n", addr, val);
 }
 
-void zfwDbgWriteRegDone(zdev_t* dev, u32_t addr, u32_t val)
+void zfwDbgWriteRegDone(zdev_t *dev, u32_t addr, u32_t val)
 {
-    printk("Write addr:%x = %x\n", addr, val);
+	printk(KERN_DEBUG "Write addr:%x = %x\n", addr, val);
 }
 
-void zfwDbgReadTallyDone(zdev_t* dev)
+void zfwDbgReadTallyDone(zdev_t *dev)
 {
-    //printk("Read Tall Done\n");
+	/* printk(KERN_DEBUG "Read Tall Done\n"); */
 }
 
-void zfwDbgWriteEepromDone(zdev_t* dev, u32_t addr, u32_t val)
-{
-}
-
-void zfwDbgQueryHwTxBusyDone(zdev_t* dev, u32_t val)
+void zfwDbgWriteEepromDone(zdev_t *dev, u32_t addr, u32_t val)
 {
 }
 
-//For Evl ++
-void zfwDbgReadFlashDone(zdev_t* dev, u32_t addr, u32_t* rspdata, u32_t datalen)
+void zfwDbgQueryHwTxBusyDone(zdev_t *dev, u32_t val)
 {
-    printk("Read Flash addr:%x length:%x\n", addr, datalen);
 }
 
-void zfwDbgProgrameFlashDone(zdev_t* dev)
+/* For Evl ++ */
+void zfwDbgReadFlashDone(zdev_t *dev, u32_t addr, u32_t *rspdata, u32_t datalen)
 {
-    printk("Program Flash Done\n");
+	printk(KERN_DEBUG "Read Flash addr:%x length:%x\n", addr, datalen);
 }
 
-void zfwDbgProgrameFlashChkDone(zdev_t* dev)
+void zfwDbgProgrameFlashDone(zdev_t *dev)
 {
-    printk("Program Flash Done\n");
+	printk(KERN_DEBUG "Program Flash Done\n");
 }
 
-void zfwDbgGetFlashChkSumDone(zdev_t* dev, u32_t* rspdata)
+void zfwDbgProgrameFlashChkDone(zdev_t *dev)
 {
-    printk("Get Flash ChkSum Done\n");
+	printk(KERN_DEBUG "Program Flash Done\n");
 }
 
-void zfwDbgDownloadFwInitDone(zdev_t* dev)
+void zfwDbgGetFlashChkSumDone(zdev_t *dev, u32_t *rspdata)
 {
-    printk("Download FW Init Done\n");
+	printk(KERN_DEBUG "Get Flash ChkSum Done\n");
 }
-//For Evl --
+
+void zfwDbgDownloadFwInitDone(zdev_t *dev)
+{
+	printk(KERN_DEBUG "Download FW Init Done\n");
+}
+/* For Evl -- */
 
 /* Leave an empty line below to remove warning message on some compiler */

@@ -777,7 +777,7 @@ static int dt282x_ai_cmdtest(struct comedi_device *dev,
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
-	/* note that mutual compatiblity is not an issue here */
+	/* note that mutual compatibility is not an issue here */
 	if (cmd->scan_begin_src != TRIG_FOLLOW &&
 	    cmd->scan_begin_src != TRIG_EXT)
 		err++;
@@ -1050,7 +1050,7 @@ static int dt282x_ao_cmdtest(struct comedi_device *dev,
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
-	/* note that mutual compatiblity is not an issue here */
+	/* note that mutual compatibility is not an issue here */
 	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
 		err++;
 
