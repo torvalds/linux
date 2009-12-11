@@ -23,7 +23,6 @@ struct soc_camera_platform_info {
 	unsigned long bus_param;
 	struct device *dev;
 	int (*set_capture)(struct soc_camera_platform_info *info, int enable);
-	struct soc_camera_link link;
 };
 
 #endif /* __SOC_CAMERA_H__ */

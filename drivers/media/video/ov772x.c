@@ -1143,10 +1143,10 @@ static int ov772x_probe(struct i2c_client *client,
 	}
 
 	icl = to_soc_camera_link(icd);
-	if (!icl)
+	if (!icl || !icl->priv)
 		return -EINVAL;
 
-	info = container_of(icl, struct ov772x_camera_info, link);
+	info = icl->priv;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		dev_err(&adapter->dev,

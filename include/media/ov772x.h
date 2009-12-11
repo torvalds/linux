@@ -55,7 +55,6 @@ struct ov772x_edge_ctrl {
 struct ov772x_camera_info {
 	unsigned long          buswidth;
 	unsigned long          flags;
-	struct soc_camera_link link;
 	struct ov772x_edge_ctrl edgectrl;
 };
 

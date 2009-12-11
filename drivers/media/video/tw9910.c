@@ -955,10 +955,10 @@ static int tw9910_probe(struct i2c_client *client,
 	}
 
 	icl = to_soc_camera_link(icd);
-	if (!icl)
+	if (!icl || !icl->priv)
 		return -EINVAL;
 
-	info = container_of(icl, struct tw9910_video_info, link);
+	info = icl->priv;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		dev_err(&client->dev,
@@ -976,7 +976,7 @@ static int tw9910_probe(struct i2c_client *client,
 	v4l2_i2c_subdev_init(&priv->subdev, client, &tw9910_subdev_ops);
 
 	icd->ops     = &tw9910_ops;
-	icd->iface   = info->link.bus_id;
+	icd->iface   = icl->bus_id;
 
 	ret = tw9910_video_probe(icd, client);
 	if (ret) {
