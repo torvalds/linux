@@ -160,7 +160,7 @@ static int rt2860_suspend(struct pci_dev *pci_dev, pm_message_t state)
 			RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF);
 
 			/* take down the device */
-			rt28xx_close((PNET_DEV) net_dev);
+			rt28xx_close((struct net_device *)net_dev);
 
 			RT_MOD_DEC_USE_COUNT();
 		}
@@ -223,7 +223,7 @@ static int rt2860_resume(struct pci_dev *pci_dev)
 			/* mark device as attached from system and restart if needed */
 			netif_device_attach(net_dev);
 
-			if (rt28xx_open((PNET_DEV) net_dev) != 0) {
+			if (rt28xx_open((struct net_device *)net_dev) != 0) {
 				/* open fail */
 				DBGPRINT(RT_DEBUG_TRACE,
 					 ("<=== rt2860_resume()\n"));
@@ -323,7 +323,7 @@ static int __devinit rt2860_probe(IN struct pci_dev *pci_dev,
 		goto err_out_iounmap;
 	}
 
-	((POS_COOKIE) handle)->pci_dev = pci_dev;
+	((struct os_cookie *)handle)->pci_dev = pci_dev;
 
 	rv = RTMPAllocAdapterBlock(handle, &pAd);	/*shiang: we may need the pci_dev for allocate structure of "RTMP_ADAPTER" */
 	if (rv != NDIS_STATUS_SUCCESS)
@@ -391,7 +391,7 @@ err_out:
 
 static void __devexit rt2860_remove_one(IN struct pci_dev *pci_dev)
 {
-	PNET_DEV net_dev = pci_get_drvdata(pci_dev);
+	struct net_device *net_dev = pci_get_drvdata(pci_dev);
 	RTMP_ADAPTER *pAd = NULL;
 	unsigned long csr_addr = net_dev->base_addr;	/* pAd->CSRBaseAddress; */
 
@@ -459,9 +459,9 @@ BOOLEAN RT28XXChipsetCheck(IN void *_dev_p)
 static void RTMPInitPCIeDevice(IN struct pci_dev *pci_dev, IN PRTMP_ADAPTER pAd)
 {
 	u16 device_id;
-	POS_COOKIE pObj;
+	struct os_cookie *pObj;
 
-	pObj = (POS_COOKIE) pAd->OS_Cookie;
+	pObj = (struct os_cookie *)pAd->OS_Cookie;
 	pci_read_config_word(pci_dev, PCI_DEVICE_ID, &device_id);
 	device_id = le2cpu16(device_id);
 	pObj->DeviceID = device_id;
@@ -501,9 +501,9 @@ void RTMPInitPCIeLinkCtrlValue(IN PRTMP_ADAPTER pAd)
 	u16 reg16, data2, PCIePowerSaveLevel, Configuration;
 	u32 MacValue;
 	BOOLEAN bFindIntel = FALSE;
-	POS_COOKIE pObj;
+	struct os_cookie *pObj;
 
-	pObj = (POS_COOKIE) pAd->OS_Cookie;
+	pObj = (struct os_cookie *)pAd->OS_Cookie;
 
 	if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE))
 		return;
@@ -815,10 +815,10 @@ void RTMPFindHostPCIDev(IN PRTMP_ADAPTER pAd)
 	u16 reg16;
 	u8 reg8;
 	u32 DevFn;
-	PPCI_DEV pPci_dev;
-	POS_COOKIE pObj;
+	struct pci_dev *pPci_dev;
+	struct os_cookie *pObj;
 
-	pObj = (POS_COOKIE) pAd->OS_Cookie;
+	pObj = (struct os_cookie *)pAd->OS_Cookie;
 
 	if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE))
 		return;
@@ -860,9 +860,9 @@ void RTMPPCIeLinkCtrlValueRestore(IN PRTMP_ADAPTER pAd, u8 Level)
 {
 	u16 PCIePowerSaveLevel, reg16;
 	u16 Configuration;
-	POS_COOKIE pObj;
+	struct os_cookie *pObj;
 
-	pObj = (POS_COOKIE) pAd->OS_Cookie;
+	pObj = (struct os_cookie *)pAd->OS_Cookie;
 
 	if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE))
 		return;
@@ -954,9 +954,9 @@ void RTMPPCIeLinkCtrlSetting(IN PRTMP_ADAPTER pAd, u16 Max)
 {
 	u16 PCIePowerSaveLevel, reg16;
 	u16 Configuration;
-	POS_COOKIE pObj;
+	struct os_cookie *pObj;
 
-	pObj = (POS_COOKIE) pAd->OS_Cookie;
+	pObj = (struct os_cookie *)pAd->OS_Cookie;
 
 	if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE))
 		return;
@@ -1081,11 +1081,11 @@ void RTMPrt3xSetPCIePowerLinkCtrl(IN PRTMP_ADAPTER pAd)
 
 	unsigned long HostConfiguration = 0;
 	unsigned long Configuration;
-	POS_COOKIE pObj;
+	struct os_cookie *pObj;
 	int pos;
 	u16 reg16;
 
-	pObj = (POS_COOKIE) pAd->OS_Cookie;
+	pObj = (struct os_cookie *)pAd->OS_Cookie;
 
 	DBGPRINT(RT_DEBUG_INFO,
 		 ("RTMPrt3xSetPCIePowerLinkCtrl.===> %lx\n",

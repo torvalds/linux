@@ -479,23 +479,23 @@ typedef struct _RTMP_SCATTER_GATHER_LIST {
 typedef struct _RTMP_DMABUF {
 	unsigned long AllocSize;
 	void *AllocVa;		/* TxBuf virtual address */
-	NDIS_PHYSICAL_ADDRESS AllocPa;	/* TxBuf physical address */
+	dma_addr_t AllocPa;	/* TxBuf physical address */
 } RTMP_DMABUF, *PRTMP_DMABUF;
 
 /* */
 /* Control block (Descriptor) for all ring descriptor DMA operation, buffer must be */
-/* contiguous physical memory. NDIS_PACKET stored the binding Rx packet descriptor */
+/* contiguous physical memory. char stored the binding Rx packet descriptor */
 /* which won't be released, driver has to wait until upper layer return the packet */
 /* before giveing up this rx ring descriptor to ASIC. NDIS_BUFFER is assocaited pair */
-/* to describe the packet buffer. For Tx, NDIS_PACKET stored the tx packet descriptor */
+/* to describe the packet buffer. For Tx, char stored the tx packet descriptor */
 /* which driver should ACK upper layer when the tx is physically done or failed. */
 /* */
 typedef struct _RTMP_DMACB {
 	unsigned long AllocSize;	/* Control block size */
 	void *AllocVa;		/* Control block virtual address */
-	NDIS_PHYSICAL_ADDRESS AllocPa;	/* Control block physical address */
-	PNDIS_PACKET pNdisPacket;
-	PNDIS_PACKET pNextNdisPacket;
+	dma_addr_t AllocPa;	/* Control block physical address */
+	void *pNdisPacket;
+	void *pNextNdisPacket;
 
 	RTMP_DMABUF DmaBuf;	/* Associated DMA buffer structure */
 } RTMP_DMACB, *PRTMP_DMACB;
@@ -728,7 +728,7 @@ typedef struct _CISCO_IAPP_CONTENT_ {
   *	Fragment Frame structure
   */
 typedef struct _FRAGMENT_FRAME {
-	PNDIS_PACKET pFragPacket;
+	void *pFragPacket;
 	unsigned long RxSize;
 	u16 Sequence;
 	u16 LastFrag;
@@ -742,7 +742,7 @@ typedef struct _PACKET_INFO {
 	u32 PhysicalBufferCount;	/* Physical breaks of buffer descripor chained */
 	u32 BufferCount;	/* Number of Buffer descriptor chained */
 	u32 TotalPacketLength;	/* Self explained */
-	PNDIS_BUFFER pFirstBuffer;	/* Pointer to first buffer descriptor */
+	char *pFirstBuffer;	/* Pointer to first buffer descriptor */
 } PACKET_INFO, *PPACKET_INFO;
 
 /* */
@@ -906,7 +906,7 @@ typedef struct _MLME_STRUCT {
 	unsigned long LastSendNULLpsmTime;
 
 	BOOLEAN bRunning;
-	NDIS_SPIN_LOCK TaskLock;
+	spinlock_t TaskLock;
 	MLME_QUEUE Queue;
 
 	u32 ShiftReg;
@@ -944,7 +944,7 @@ typedef struct _MLME_STRUCT {
   **************************************************************************/
 struct reordering_mpdu {
 	struct reordering_mpdu *next;
-	PNDIS_PACKET pPacket;	/* coverted to 802.3 frame */
+	void *pPacket;	/* coverted to 802.3 frame */
 	int Sequence;		/* sequence number of MPDU */
 	BOOLEAN bAMSDU;
 };
@@ -956,7 +956,7 @@ struct reordering_list {
 
 struct reordering_mpdu_pool {
 	void *mem;
-	NDIS_SPIN_LOCK lock;
+	spinlock_t lock;
 	struct reordering_list freelist;
 };
 
@@ -1004,7 +1004,7 @@ typedef struct _BA_REC_ENTRY {
 /*      u8   RxBufIdxUsed; */
 	/* corresponding virtual address for RX reordering packet storage. */
 	/*RTMP_REORDERDMABUF MAP_RXBuf[MAX_RX_REORDERBUF]; */
-	NDIS_SPIN_LOCK RxReRingLock;	/* Rx Ring spinlock */
+	spinlock_t RxReRingLock;	/* Rx Ring spinlock */
 /*      struct _BA_REC_ENTRY *pNext; */
 	void *pAdapter;
 	struct reordering_list list;
@@ -1327,10 +1327,10 @@ typedef struct _COMMON_CONFIG {
 	u32 BeaconRemain;
 #endif				/* RTMP_MAC_USB // */
 
-	NDIS_SPIN_LOCK MeasureReqTabLock;
+	spinlock_t MeasureReqTabLock;
 	PMEASURE_REQ_TAB pMeasureReqTab;
 
-	NDIS_SPIN_LOCK TpcReqTabLock;
+	spinlock_t TpcReqTabLock;
 	PTPC_REQ_TAB pTpcReqTab;
 
 	BOOLEAN PSPXlink;	/* 0: Disable. 1: Enable */
@@ -1716,7 +1716,7 @@ struct _RTMP_CHIP_OP_ {
 /* */
 struct _RTMP_ADAPTER {
 	void *OS_Cookie;	/* save specific structure relative to OS */
-	PNET_DEV net_dev;
+	struct net_device *net_dev;
 	unsigned long VirtualIfCnt;
 
 	RTMP_CHIP_OP chipOps;
@@ -1756,7 +1756,7 @@ struct _RTMP_ADAPTER {
 	RTMP_TX_RING TxRing[NUM_OF_TX_RING];	/* AC0~4 + HCCA */
 #endif				/* RTMP_MAC_PCI // */
 
-	NDIS_SPIN_LOCK irq_lock;
+	spinlock_t irq_lock;
 	u8 irq_disabled;
 
 #ifdef RTMP_MAC_USB
@@ -1778,11 +1778,11 @@ struct _RTMP_ADAPTER {
 
 	/*======Cmd Thread */
 	CmdQ CmdQ;
-	NDIS_SPIN_LOCK CmdQLock;	/* CmdQLock spinlock */
+	spinlock_t CmdQLock;	/* CmdQLock spinlock */
 	RTMP_OS_TASK cmdQTask;
 
 	/*======Semaphores (event) */
-	RTMP_OS_SEM UsbVendorReq_semaphore;
+	struct semaphore UsbVendorReq_semaphore;
 	void *UsbVendorReqBuf;
 	wait_queue_head_t *wait;
 #endif				/* RTMP_MAC_USB // */
@@ -1804,7 +1804,7 @@ struct _RTMP_ADAPTER {
 #ifdef RTMP_TIMER_TASK_SUPPORT
 	/* If you want use timer task to handle the timer related jobs, enable this. */
 	RTMP_TIMER_TASK_QUEUE TimerQ;
-	NDIS_SPIN_LOCK TimerQLock;
+	spinlock_t TimerQLock;
 	RTMP_OS_TASK timerTask;
 #endif				/* RTMP_TIMER_TASK_SUPPORT // */
 
@@ -1812,15 +1812,15 @@ struct _RTMP_ADAPTER {
 /*      Tx related parameters                                                           */
 /*****************************************************************************************/
 	BOOLEAN DeQueueRunning[NUM_OF_TX_RING];	/* for ensuring RTUSBDeQueuePacket get call once */
-	NDIS_SPIN_LOCK DeQueueLock[NUM_OF_TX_RING];
+	spinlock_t DeQueueLock[NUM_OF_TX_RING];
 
 #ifdef RTMP_MAC_USB
 	/* Data related context and AC specified, 4 AC supported */
-	NDIS_SPIN_LOCK BulkOutLock[6];	/* BulkOut spinlock for 4 ACs */
-	NDIS_SPIN_LOCK MLMEBulkOutLock;	/* MLME BulkOut lock */
+	spinlock_t BulkOutLock[6];	/* BulkOut spinlock for 4 ACs */
+	spinlock_t MLMEBulkOutLock;	/* MLME BulkOut lock */
 
 	HT_TX_CONTEXT TxContext[NUM_OF_TX_RING];
-	NDIS_SPIN_LOCK TxContextQueueLock[NUM_OF_TX_RING];	/* TxContextQueue spinlock */
+	spinlock_t TxContextQueueLock[NUM_OF_TX_RING];	/* TxContextQueue spinlock */
 
 	/* 4 sets of Bulk Out index and pending flag */
 	u8 NextBulkOutIndex[4];	/* only used for 4 EDCA bulkout pipe */
@@ -1833,11 +1833,11 @@ struct _RTMP_ADAPTER {
 
 	/* resource for software backlog queues */
 	QUEUE_HEADER TxSwQueue[NUM_OF_TX_RING];	/* 4 AC + 1 HCCA */
-	NDIS_SPIN_LOCK TxSwQueueLock[NUM_OF_TX_RING];	/* TxSwQueue spinlock */
+	spinlock_t TxSwQueueLock[NUM_OF_TX_RING];	/* TxSwQueue spinlock */
 
 	RTMP_DMABUF MgmtDescRing;	/* Shared memory for MGMT descriptors */
 	RTMP_MGMT_RING MgmtRing;
-	NDIS_SPIN_LOCK MgmtRingLock;	/* Prio Ring spinlock */
+	spinlock_t MgmtRingLock;	/* Prio Ring spinlock */
 
 /*****************************************************************************************/
 /*      Rx related parameters                                                           */
@@ -1845,14 +1845,14 @@ struct _RTMP_ADAPTER {
 
 #ifdef RTMP_MAC_PCI
 	RTMP_RX_RING RxRing;
-	NDIS_SPIN_LOCK RxRingLock;	/* Rx Ring spinlock */
+	spinlock_t RxRingLock;	/* Rx Ring spinlock */
 #ifdef RT3090
-	NDIS_SPIN_LOCK McuCmdLock;	/*MCU Command Queue spinlock */
+	spinlock_t McuCmdLock;	/*MCU Command Queue spinlock */
 #endif				/* RT3090 // */
 #endif				/* RTMP_MAC_PCI // */
 #ifdef RTMP_MAC_USB
 	RX_CONTEXT RxContext[RX_RING_SIZE];	/* 1 for redundant multiple IRP bulk in. */
-	NDIS_SPIN_LOCK BulkInLock;	/* BulkIn spinlock for 4 ACs */
+	spinlock_t BulkInLock;	/* BulkIn spinlock for 4 ACs */
 	u8 PendingRx;	/* The Maximum pending Rx value should be       RX_RING_SIZE. */
 	u8 NextRxBulkInIndex;	/* Indicate the current RxContext Index which hold by Host controller. */
 	u8 NextRxBulkInReadIndex;	/* Indicate the current RxContext Index which driver can read & process it. */
@@ -2013,11 +2013,11 @@ struct _RTMP_ADAPTER {
 
 	/*About MacTab, the sta driver will use #0 and #1 for multicast and AP. */
 	MAC_TABLE MacTab;	/* ASIC on-chip WCID entry table.  At TX, ASIC always use key according to this on-chip table. */
-	NDIS_SPIN_LOCK MacTabLock;
+	spinlock_t MacTabLock;
 
 	BA_TABLE BATable;
 
-	NDIS_SPIN_LOCK BATabLock;
+	spinlock_t BATabLock;
 	RALINK_TIMER_STRUCT RECBATimer;
 
 	/* encryption/decryption KEY tables */
@@ -2170,7 +2170,7 @@ typedef struct _RX_BLK_ {
 	RT28XX_RXD_STRUC RxD;
 	PRXWI_STRUC pRxWI;
 	PHEADER_802_11 pHeader;
-	PNDIS_PACKET pRxPacket;
+	void *pRxPacket;
 	u8 *pData;
 	u16 DataSize;
 	u16 Flags;
@@ -2223,7 +2223,7 @@ typedef struct _TX_BLK_ {
 	HTTRANSMIT_SETTING *pTransmit;
 
 	/* Following structure used for the characteristics of a specific packet. */
-	PNDIS_PACKET pPacket;
+	void *pPacket;
 	u8 *pSrcBufHeader;	/* Reference to the head of sk_buff->data */
 	u8 *pSrcBufData;	/* Reference to the sk_buff->data, will changed depends on hanlding progresss */
 	u32 SrcBufLen;		/* Length of packet payload which not including Layer 2 header */
@@ -2316,7 +2316,7 @@ int RTMPAllocTxRxRingMemory(IN PRTMP_ADAPTER pAd);
 void RTMPFreeAdapter(IN PRTMP_ADAPTER pAd);
 
 int NICReadRegParameters(IN PRTMP_ADAPTER pAd,
-				 IN NDIS_HANDLE WrapperConfigurationContext);
+				 void *WrapperConfigurationContext);
 
 #ifdef RTMP_RF_RW_SUPPORT
 void NICInitRFRegisters(IN PRTMP_ADAPTER pAd);
@@ -2468,21 +2468,21 @@ BOOLEAN TxFrameIsAggregatible(IN PRTMP_ADAPTER pAd,
 BOOLEAN PeerIsAggreOn(IN PRTMP_ADAPTER pAd,
 		      unsigned long TxRate, IN PMAC_TABLE_ENTRY pMacEntry);
 
-int Sniff2BytesFromNdisBuffer(IN PNDIS_BUFFER pFirstBuffer,
+int Sniff2BytesFromNdisBuffer(char *pFirstBuffer,
 				      u8 DesiredOffset,
 				      u8 *pByte0, u8 *pByte1);
 
-int STASendPacket(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket);
+int STASendPacket(IN PRTMP_ADAPTER pAd, void *pPacket);
 
-void STASendPackets(IN NDIS_HANDLE MiniportAdapterContext,
-		    IN PPNDIS_PACKET ppPacketArray, u32 NumberOfPackets);
+void STASendPackets(void *MiniportAdapterContext,
+		    void **ppPacketArray, u32 NumberOfPackets);
 
 void RTMPDeQueuePacket(IN PRTMP_ADAPTER pAd,
 		       IN BOOLEAN bIntContext,
 		       u8 QueIdx, u8 Max_Tx_Packets);
 
 int RTMPHardTransmit(IN PRTMP_ADAPTER pAd,
-			     IN PNDIS_PACKET pPacket,
+			     void *pPacket,
 			     u8 QueIdx, unsigned long *pFreeTXDLeft);
 
 int STAHardTransmit(IN PRTMP_ADAPTER pAd,
@@ -2497,17 +2497,17 @@ int RTMPFreeTXDRequest(IN PRTMP_ADAPTER pAd,
 			       u8 NumberRequired, u8 *FreeNumberIs);
 
 int MlmeHardTransmit(IN PRTMP_ADAPTER pAd,
-			     u8 QueIdx, IN PNDIS_PACKET pPacket);
+			     u8 QueIdx, void *pPacket);
 
 int MlmeHardTransmitMgmtRing(IN PRTMP_ADAPTER pAd,
-				     u8 QueIdx, IN PNDIS_PACKET pPacket);
+				     u8 QueIdx, void *pPacket);
 
 #ifdef RTMP_MAC_PCI
 int MlmeHardTransmitTxRing(IN PRTMP_ADAPTER pAd,
-				   u8 QueIdx, IN PNDIS_PACKET pPacket);
+				   u8 QueIdx, void *pPacket);
 
 int MlmeDataHardTransmit(IN PRTMP_ADAPTER pAd,
-				 u8 QueIdx, IN PNDIS_PACKET pPacket);
+				 u8 QueIdx, void *pPacket);
 
 void RTMPWriteTxDescriptor(IN PRTMP_ADAPTER pAd,
 			   IN PTXD_STRUC pTxD, IN BOOLEAN bWIV, u8 QSEL);
@@ -2571,22 +2571,22 @@ void WpaStaGroupKeySetting(IN PRTMP_ADAPTER pAd);
 
 int RTMPCloneNdisPacket(IN PRTMP_ADAPTER pAd,
 				IN BOOLEAN pInsAMSDUHdr,
-				IN PNDIS_PACKET pInPacket,
-				OUT PNDIS_PACKET * ppOutPacket);
+				void *pInPacket,
+				void ** ppOutPacket);
 
 int RTMPAllocateNdisPacket(IN PRTMP_ADAPTER pAd,
-				   IN PNDIS_PACKET * pPacket,
+				   void ** pPacket,
 				   u8 *pHeader,
 				   u32 HeaderLen,
 				   u8 *pData, u32 DataLen);
 
-void RTMPFreeNdisPacket(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket);
+void RTMPFreeNdisPacket(IN PRTMP_ADAPTER pAd, void *pPacket);
 
 BOOLEAN RTMPFreeTXDUponTxDmaDone(IN PRTMP_ADAPTER pAd, u8 QueIdx);
 
-BOOLEAN RTMPCheckDHCPFrame(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket);
+BOOLEAN RTMPCheckDHCPFrame(IN PRTMP_ADAPTER pAd, void *pPacket);
 
-BOOLEAN RTMPCheckEtherType(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket);
+BOOLEAN RTMPCheckEtherType(IN PRTMP_ADAPTER pAd, void *pPacket);
 
 /* */
 /* Private routines in rtmp_wep.c */
@@ -3356,7 +3356,7 @@ BOOLEAN RTMPTkipCompareMICValue(IN PRTMP_ADAPTER pAd,
 				u8 UserPriority, u32 Len);
 
 void RTMPCalculateMICValue(IN PRTMP_ADAPTER pAd,
-			   IN PNDIS_PACKET pPacket,
+			   void *pPacket,
 			   u8 *pEncap,
 			   IN PCIPHER_KEY pKey, u8 apidx);
 
@@ -3527,20 +3527,20 @@ void AES_GTK_KEY_WRAP(u8 * key,
 /*typedef void (*TIMER_FUNCTION)(unsigned long); */
 
 /* timeout -- ms */
-void RTMP_SetPeriodicTimer(IN NDIS_MINIPORT_TIMER * pTimer,
+void RTMP_SetPeriodicTimer(struct timer_list * pTimer,
 			   IN unsigned long timeout);
 
 void RTMP_OS_Init_Timer(IN PRTMP_ADAPTER pAd,
-			IN NDIS_MINIPORT_TIMER * pTimer,
+			struct timer_list * pTimer,
 			IN TIMER_FUNCTION function, void *data);
 
-void RTMP_OS_Add_Timer(IN NDIS_MINIPORT_TIMER * pTimer,
+void RTMP_OS_Add_Timer(struct timer_list * pTimer,
 		       IN unsigned long timeout);
 
-void RTMP_OS_Mod_Timer(IN NDIS_MINIPORT_TIMER * pTimer,
+void RTMP_OS_Mod_Timer(struct timer_list * pTimer,
 		       IN unsigned long timeout);
 
-void RTMP_OS_Del_Timer(IN NDIS_MINIPORT_TIMER * pTimer,
+void RTMP_OS_Del_Timer(struct timer_list * pTimer,
 		       OUT BOOLEAN * pCancelled);
 
 void RTMP_OS_Release_Packet(IN PRTMP_ADAPTER pAd, IN PQUEUE_ENTRY pEntry);
@@ -3556,7 +3556,7 @@ void RTMP_AllocateSharedMemory(IN PRTMP_ADAPTER pAd,
 			       unsigned long Length,
 			       IN BOOLEAN Cached,
 			       void ** VirtualAddress,
-			       OUT PNDIS_PHYSICAL_ADDRESS PhysicalAddress);
+			       dma_addr_t *PhysicalAddress);
 
 void RTMPFreeTxRxRingMemory(IN PRTMP_ADAPTER pAd);
 
@@ -3567,82 +3567,82 @@ void RTMP_AllocateTxDescMemory(IN PRTMP_ADAPTER pAd,
 			       unsigned long Length,
 			       IN BOOLEAN Cached,
 			       void ** VirtualAddress,
-			       OUT PNDIS_PHYSICAL_ADDRESS PhysicalAddress);
+			       dma_addr_t *PhysicalAddress);
 
 void RTMP_AllocateFirstTxBuffer(IN PRTMP_ADAPTER pAd,
 				u32 Index,
 				unsigned long Length,
 				IN BOOLEAN Cached,
 				void ** VirtualAddress,
-				OUT PNDIS_PHYSICAL_ADDRESS PhysicalAddress);
+				dma_addr_t *PhysicalAddress);
 
 void RTMP_FreeFirstTxBuffer(IN PRTMP_ADAPTER pAd,
 			    unsigned long Length,
 			    IN BOOLEAN Cached,
 			    void *VirtualAddress,
-			    IN NDIS_PHYSICAL_ADDRESS PhysicalAddress);
+			    dma_addr_t PhysicalAddress);
 
 void RTMP_AllocateMgmtDescMemory(IN PRTMP_ADAPTER pAd,
 				 unsigned long Length,
 				 IN BOOLEAN Cached,
 				 void ** VirtualAddress,
-				 OUT PNDIS_PHYSICAL_ADDRESS PhysicalAddress);
+				 dma_addr_t *PhysicalAddress);
 
 void RTMP_AllocateRxDescMemory(IN PRTMP_ADAPTER pAd,
 			       unsigned long Length,
 			       IN BOOLEAN Cached,
 			       void ** VirtualAddress,
-			       OUT PNDIS_PHYSICAL_ADDRESS PhysicalAddress);
+			       dma_addr_t *PhysicalAddress);
 
 void RTMP_FreeDescMemory(IN PRTMP_ADAPTER pAd,
 			 unsigned long Length,
 			 void *VirtualAddress,
-			 IN NDIS_PHYSICAL_ADDRESS PhysicalAddress);
+			 dma_addr_t PhysicalAddress);
 
-PNDIS_PACKET RtmpOSNetPktAlloc(IN RTMP_ADAPTER * pAd, IN int size);
+void *RtmpOSNetPktAlloc(IN RTMP_ADAPTER * pAd, IN int size);
 
-PNDIS_PACKET RTMP_AllocateRxPacketBuffer(IN PRTMP_ADAPTER pAd,
+void *RTMP_AllocateRxPacketBuffer(IN PRTMP_ADAPTER pAd,
 					 unsigned long Length,
 					 IN BOOLEAN Cached,
 					 void ** VirtualAddress,
-					 OUT PNDIS_PHYSICAL_ADDRESS
+					 OUT dma_addr_t *
 					 PhysicalAddress);
 
-PNDIS_PACKET RTMP_AllocateTxPacketBuffer(IN PRTMP_ADAPTER pAd,
+void *RTMP_AllocateTxPacketBuffer(IN PRTMP_ADAPTER pAd,
 					 unsigned long Length,
 					 IN BOOLEAN Cached,
 					 void ** VirtualAddress);
 
-PNDIS_PACKET RTMP_AllocateFragPacketBuffer(IN PRTMP_ADAPTER pAd,
+void *RTMP_AllocateFragPacketBuffer(IN PRTMP_ADAPTER pAd,
 					   unsigned long Length);
 
-void RTMP_QueryPacketInfo(IN PNDIS_PACKET pPacket,
+void RTMP_QueryPacketInfo(void *pPacket,
 			  OUT PACKET_INFO * pPacketInfo,
 			  u8 ** pSrcBufVA, u32 * pSrcBufLen);
 
-void RTMP_QueryNextPacketInfo(IN PNDIS_PACKET * ppPacket,
+void RTMP_QueryNextPacketInfo(void ** ppPacket,
 			      OUT PACKET_INFO * pPacketInfo,
 			      u8 ** pSrcBufVA, u32 * pSrcBufLen);
 
 BOOLEAN RTMP_FillTxBlkInfo(IN RTMP_ADAPTER * pAd, IN TX_BLK * pTxBlk);
 
 PRTMP_SCATTER_GATHER_LIST
-rt_get_sg_list_from_packet(PNDIS_PACKET pPacket, RTMP_SCATTER_GATHER_LIST * sg);
+rt_get_sg_list_from_packet(void *pPacket, RTMP_SCATTER_GATHER_LIST * sg);
 
-void announce_802_3_packet(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket);
+void announce_802_3_packet(IN PRTMP_ADAPTER pAd, void *pPacket);
 
-u32 BA_Reorder_AMSDU_Annnounce(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket);
+u32 BA_Reorder_AMSDU_Annnounce(IN PRTMP_ADAPTER pAd, void *pPacket);
 
-PNET_DEV get_netdev_from_bssid(IN PRTMP_ADAPTER pAd, u8 FromWhichBSSID);
+struct net_device *get_netdev_from_bssid(IN PRTMP_ADAPTER pAd, u8 FromWhichBSSID);
 
-PNDIS_PACKET duplicate_pkt(IN PRTMP_ADAPTER pAd,
+void *duplicate_pkt(IN PRTMP_ADAPTER pAd,
 			   u8 *pHeader802_3,
 			   u32 HdrLen,
 			   u8 *pData,
 			   unsigned long DataSize, u8 FromWhichBSSID);
 
-PNDIS_PACKET duplicate_pkt_with_TKIP_MIC(IN PRTMP_ADAPTER pAd,
-					 IN PNDIS_PACKET pOldPkt);
+void *duplicate_pkt_with_TKIP_MIC(IN PRTMP_ADAPTER pAd,
+					 void *pOldPkt);
 
 void ba_flush_reordering_timeout_mpdus(IN PRTMP_ADAPTER pAd,
 				       IN PBA_REC_ENTRY pBAEntry,
@@ -3659,7 +3659,7 @@ void BASessionTearDownALL(IN OUT PRTMP_ADAPTER pAd, u8 Wcid);
 BOOLEAN OS_Need_Clone_Packet(void);
 
 void build_tx_packet(IN PRTMP_ADAPTER pAd,
-		     IN PNDIS_PACKET pPacket,
+		     void *pPacket,
 		     u8 *pFrame, unsigned long FrameLen);
 
 void BAOriSessionTearDown(IN OUT PRTMP_ADAPTER pAd,
@@ -3743,18 +3743,18 @@ void wlan_802_11_to_802_3_packet(IN PRTMP_ADAPTER pAd,
 }
 
 void Sta_Announce_or_Forward_802_3_Packet(IN PRTMP_ADAPTER pAd,
-					  IN PNDIS_PACKET pPacket,
+					  void *pPacket,
 					  u8 FromWhichBSSID);
 
 #define ANNOUNCE_OR_FORWARD_802_3_PACKET(_pAd, _pPacket, _FromWhichBSS)\
 			Sta_Announce_or_Forward_802_3_Packet(_pAd, _pPacket, _FromWhichBSS);
 			/*announce_802_3_packet(_pAd, _pPacket); */
 
-PNDIS_PACKET DuplicatePacket(IN PRTMP_ADAPTER pAd,
-			     IN PNDIS_PACKET pPacket, u8 FromWhichBSSID);
+void *DuplicatePacket(IN PRTMP_ADAPTER pAd,
+			     void *pPacket, u8 FromWhichBSSID);
 
-PNDIS_PACKET ClonePacket(IN PRTMP_ADAPTER pAd,
-			 IN PNDIS_PACKET pPacket,
+void *ClonePacket(IN PRTMP_ADAPTER pAd,
+			 void *pPacket,
 			 u8 *pData, unsigned long DataSize);
 
 /* Normal, AMPDU or AMSDU */
@@ -3768,12 +3768,12 @@ void CmmRxRalinkFrameIndicate(IN PRTMP_ADAPTER pAd,
 void Update_Rssi_Sample(IN PRTMP_ADAPTER pAd,
 			IN RSSI_SAMPLE * pRssi, IN PRXWI_STRUC pRxWI);
 
-PNDIS_PACKET GetPacketFromRxRing(IN PRTMP_ADAPTER pAd,
+void *GetPacketFromRxRing(IN PRTMP_ADAPTER pAd,
 				 OUT PRT28XX_RXD_STRUC pSaveRxD,
 				 OUT BOOLEAN * pbReschedule,
 				 IN u32 * pRxPending);
 
-PNDIS_PACKET RTMPDeFragmentDataFrame(IN PRTMP_ADAPTER pAd, IN RX_BLK * pRxBlk);
+void *RTMPDeFragmentDataFrame(IN PRTMP_ADAPTER pAd, IN RX_BLK * pRxBlk);
 
 enum {
 	DIDmsg_lnxind_wlansniffrm = 0x00000044,
@@ -3903,10 +3903,10 @@ void RtmpMgmtTaskExit(IN RTMP_ADAPTER * pAd);
 
 void tbtt_tasklet(unsigned long data);
 
-PNET_DEV RtmpPhyNetDevInit(IN RTMP_ADAPTER * pAd,
+struct net_device *RtmpPhyNetDevInit(IN RTMP_ADAPTER * pAd,
 			   IN RTMP_OS_NETDEV_OP_HOOK * pNetHook);
 
-BOOLEAN RtmpPhyNetDevExit(IN RTMP_ADAPTER * pAd, IN PNET_DEV net_dev);
+BOOLEAN RtmpPhyNetDevExit(IN RTMP_ADAPTER * pAd, struct net_device *net_dev);
 
 int RtmpRaDevCtrlInit(IN RTMP_ADAPTER * pAd, IN RTMP_INF_TYPE infType);
 
@@ -3950,7 +3950,7 @@ void RtmpPCIDataKickOut(IN PRTMP_ADAPTER pAd,
 
 int RtmpPCIMgmtKickOut(IN RTMP_ADAPTER * pAd,
 		       u8 QueIdx,
-		       IN PNDIS_PACKET pPacket,
+		       void *pPacket,
 		       u8 *pSrcBufVA, u32 SrcBufLen);
 
 int RTMPCheckRxError(IN PRTMP_ADAPTER pAd,
@@ -4137,10 +4137,10 @@ void append_pkt(IN PRTMP_ADAPTER pAd,
 		u8 *pHeader802_3,
 		u32 HdrLen,
 		u8 *pData,
-		unsigned long DataSize, OUT PNDIS_PACKET * ppPacket);
+		unsigned long DataSize, void ** ppPacket);
 
 u32 deaggregate_AMSDU_announce(IN PRTMP_ADAPTER pAd,
-				PNDIS_PACKET pPacket,
+				void *pPacket,
 				u8 *pData, unsigned long DataSize);
 
 int RTMPCheckRxError(IN PRTMP_ADAPTER pAd,
@@ -4199,7 +4199,7 @@ void RtmpUSBDataKickOut(IN PRTMP_ADAPTER pAd,
 
 int RtmpUSBMgmtKickOut(IN RTMP_ADAPTER * pAd,
 		       u8 QueIdx,
-		       IN PNDIS_PACKET pPacket,
+		       void *pPacket,
 		       u8 *pSrcBufVA, u32 SrcBufLen);
 
 void RtmpUSBNullFrameKickOut(IN RTMP_ADAPTER * pAd,
@@ -4262,8 +4262,8 @@ void ReSyncBeaconTime(IN PRTMP_ADAPTER pAd);
 
 void RTMPSetAGCInitValue(IN PRTMP_ADAPTER pAd, u8 BandWidth);
 
-int rt28xx_close(IN PNET_DEV dev);
-int rt28xx_open(IN PNET_DEV dev);
+int rt28xx_close(struct net_device *dev);
+int rt28xx_open(struct net_device *dev);
 
 #define VIRTUAL_IF_INC(__pAd) ((__pAd)->VirtualIfCnt++)
 #define VIRTUAL_IF_DEC(__pAd) ((__pAd)->VirtualIfCnt--)
@@ -4303,24 +4303,24 @@ int RtmpOSWrielessEventSend(IN RTMP_ADAPTER * pAd,
 			    u8 *pSrcMac,
 			    u8 *pData, u32 dataLen);
 
-int RtmpOSNetDevAddrSet(IN PNET_DEV pNetDev, u8 *pMacAddr);
+int RtmpOSNetDevAddrSet(struct net_device *pNetDev, u8 *pMacAddr);
 
-int RtmpOSNetDevAttach(IN PNET_DEV pNetDev,
+int RtmpOSNetDevAttach(struct net_device *pNetDev,
 		       IN RTMP_OS_NETDEV_OP_HOOK * pDevOpHook);
 
-void RtmpOSNetDevClose(IN PNET_DEV pNetDev);
+void RtmpOSNetDevClose(struct net_device *pNetDev);
 
-void RtmpOSNetDevDetach(IN PNET_DEV pNetDev);
+void RtmpOSNetDevDetach(struct net_device *pNetDev);
 
-int RtmpOSNetDevAlloc(IN PNET_DEV * pNewNetDev, u32 privDataSize);
+int RtmpOSNetDevAlloc(struct net_device ** pNewNetDev, u32 privDataSize);
 
-void RtmpOSNetDevFree(IN PNET_DEV pNetDev);
+void RtmpOSNetDevFree(struct net_device *pNetDev);
 
-PNET_DEV RtmpOSNetDevGetByName(IN PNET_DEV pNetDev, char *pDevName);
+struct net_device *RtmpOSNetDevGetByName(struct net_device *pNetDev, char *pDevName);
 
-void RtmpOSNetDeviceRefPut(IN PNET_DEV pNetDev);
+void RtmpOSNetDeviceRefPut(struct net_device *pNetDev);
 
-PNET_DEV RtmpOSNetDevCreate(IN RTMP_ADAPTER * pAd,
+struct net_device *RtmpOSNetDevCreate(IN RTMP_ADAPTER * pAd,
 			    int devType,
 			    int devNum,
 			    int privMemSize, char *pNamePrefix);
@@ -4343,14 +4343,14 @@ int RtmpOSTaskAttach(IN RTMP_OS_TASK * pTask,
 /*
 	File operation related function prototypes
 */
-RTMP_OS_FD RtmpOSFileOpen(IN char *pPath, IN int flag, IN int mode);
+struct file *RtmpOSFileOpen(IN char *pPath, IN int flag, IN int mode);
 
-int RtmpOSFileClose(IN RTMP_OS_FD osfd);
+int RtmpOSFileClose(struct file *osfd);
 
-void RtmpOSFileSeek(IN RTMP_OS_FD osfd, IN int offset);
+void RtmpOSFileSeek(struct file *osfd, IN int offset);
 
-int RtmpOSFileRead(IN RTMP_OS_FD osfd, IN char *pDataPtr, IN int readLen);
+int RtmpOSFileRead(struct file *osfd, IN char *pDataPtr, IN int readLen);
 
-int RtmpOSFileWrite(IN RTMP_OS_FD osfd, IN char *pDataPtr, IN int writeLen);
+int RtmpOSFileWrite(struct file *osfd, IN char *pDataPtr, IN int writeLen);
 
 #endif /* __RTMP_H__ */

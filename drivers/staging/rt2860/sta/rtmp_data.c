@@ -323,7 +323,7 @@ void STAHandleRxDataFrame(IN PRTMP_ADAPTER pAd, IN RX_BLK * pRxBlk)
 	PRT28XX_RXD_STRUC pRxD = &(pRxBlk->RxD);
 	PRXWI_STRUC pRxWI = pRxBlk->pRxWI;
 	PHEADER_802_11 pHeader = pRxBlk->pHeader;
-	PNDIS_PACKET pRxPacket = pRxBlk->pRxPacket;
+	void *pRxPacket = pRxBlk->pRxPacket;
 	BOOLEAN bFragment = FALSE;
 	MAC_TABLE_ENTRY *pEntry = NULL;
 	u8 FromWhichBSSID = BSS0;
@@ -615,7 +615,7 @@ void STAHandleRxMgmtFrame(IN PRTMP_ADAPTER pAd, IN RX_BLK * pRxBlk)
 	PRT28XX_RXD_STRUC pRxD = &(pRxBlk->RxD);
 	PRXWI_STRUC pRxWI = pRxBlk->pRxWI;
 	PHEADER_802_11 pHeader = pRxBlk->pHeader;
-	PNDIS_PACKET pRxPacket = pRxBlk->pRxPacket;
+	void *pRxPacket = pRxBlk->pRxPacket;
 
 	do {
 
@@ -660,7 +660,7 @@ void STAHandleRxControlFrame(IN PRTMP_ADAPTER pAd, IN RX_BLK * pRxBlk)
 {
 	PRXWI_STRUC pRxWI = pRxBlk->pRxWI;
 	PHEADER_802_11 pHeader = pRxBlk->pHeader;
-	PNDIS_PACKET pRxPacket = pRxBlk->pRxPacket;
+	void *pRxPacket = pRxBlk->pRxPacket;
 
 	switch (pHeader->FC.SubType) {
 	case SUBTYPE_BLOCK_ACK_REQ:
@@ -706,7 +706,7 @@ BOOLEAN STARxDoneInterruptHandle(IN PRTMP_ADAPTER pAd, IN BOOLEAN argc)
 	RT28XX_RXD_STRUC *pRxD;
 	u8 *pData;
 	PRXWI_STRUC pRxWI;
-	PNDIS_PACKET pRxPacket;
+	void *pRxPacket;
 	PHEADER_802_11 pHeader;
 	RX_BLK RxCell;
 
@@ -844,8 +844,8 @@ Routine Description:
     Early checking and OS-depened parsing for Tx packet send to our STA driver.
 
 Arguments:
-    NDIS_HANDLE 	MiniportAdapterContext	Pointer refer to the device handle, i.e., the pAd.
-	PPNDIS_PACKET	ppPacketArray			The packet array need to do transmission.
+    void *	MiniportAdapterContext	Pointer refer to the device handle, i.e., the pAd.
+	void **	ppPacketArray			The packet array need to do transmission.
 	u32			NumberOfPackets			Number of packet in packet array.
 
 Return Value:
@@ -856,12 +856,12 @@ Note:
 	You only can put OS-depened & STA related code in here.
 ========================================================================
 */
-void STASendPackets(IN NDIS_HANDLE MiniportAdapterContext,
-		    IN PPNDIS_PACKET ppPacketArray, u32 NumberOfPackets)
+void STASendPackets(void *MiniportAdapterContext,
+		    void **ppPacketArray, u32 NumberOfPackets)
 {
 	u32 Index;
 	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) MiniportAdapterContext;
-	PNDIS_PACKET pPacket;
+	void *pPacket;
 	BOOLEAN allowToSend = FALSE;
 
 	for (Index = 0; Index < NumberOfPackets; Index++) {
@@ -920,7 +920,7 @@ Note:
 	You only can put OS-indepened & STA related code in here.
 ========================================================================
 */
-int STASendPacket(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket)
+int STASendPacket(IN PRTMP_ADAPTER pAd, void *pPacket)
 {
 	PACKET_INFO PacketInfo;
 	u8 *pSrcBufVA;
@@ -1561,7 +1561,7 @@ static inline u8 *STA_Build_ARalink_Frame_Header(IN RTMP_ADAPTER * pAd,
 {
 	u8 *pHeaderBufPtr;
 	HEADER_802_11 *pHeader_802_11;
-	PNDIS_PACKET pNextPacket;
+	void *pNextPacket;
 	u32 nextBufLen;
 	PQUEUE_ENTRY pQEntry;
 
@@ -2422,7 +2422,7 @@ void STA_Fragment_Frame_Tx(IN RTMP_ADAPTER * pAd, IN TX_BLK * pTxBlk)
 
 	Arguments:
 		pAd 	Pointer to our adapter
-		PNDIS_PACKET	Pointer to outgoing Ndis frame
+		void *	Pointer to outgoing Ndis frame
 		NumberOfFrag	Number of fragment required
 
 	Return Value:
@@ -2437,7 +2437,7 @@ void STA_Fragment_Frame_Tx(IN RTMP_ADAPTER * pAd, IN TX_BLK * pTxBlk)
 int STAHardTransmit(IN PRTMP_ADAPTER pAd,
 			    IN TX_BLK * pTxBlk, u8 QueIdx)
 {
-	NDIS_PACKET *pPacket;
+	char *pPacket;
 	PQUEUE_ENTRY pQEntry;
 
 	/* --------------------------------------------- */
@@ -2538,7 +2538,7 @@ unsigned long HashBytesPolynomial(u8 * value, unsigned int len)
 }
 
 void Sta_Announce_or_Forward_802_3_Packet(IN PRTMP_ADAPTER pAd,
-					  IN PNDIS_PACKET pPacket,
+					  void *pPacket,
 					  u8 FromWhichBSSID)
 {
 	if (TRUE) {

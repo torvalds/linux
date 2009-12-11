@@ -29,7 +29,7 @@
 #define __RTMP_PCI_H__
 
 #define RT28XX_HANDLE_DEV_ASSIGN(handle, dev_p)				\
-	((POS_COOKIE)handle)->pci_dev = dev_p;
+	((struct os_cookie *)handle)->pci_dev = dev_p;
 
 #ifdef LINUX
 // set driver data
@@ -41,12 +41,12 @@
 
 #ifdef PCI_MSI_SUPPORT
 #define RTMP_MSI_ENABLE(_pAd) \
-	{     POS_COOKIE _pObj = (POS_COOKIE)(_pAd->OS_Cookie); \
+	{     struct os_cookie *_pObj = (struct os_cookie *)(_pAd->OS_Cookie); \
 		(_pAd)->HaveMsi = pci_enable_msi(_pObj->pci_dev) == 0 ? TRUE : FALSE; \
 	}
 
 #define RTMP_MSI_DISABLE(_pAd) \
-	{     POS_COOKIE _pObj = (POS_COOKIE)(_pAd->OS_Cookie); \
+	{     struct os_cookie *_pObj = (struct os_cookie *)(_pAd->OS_Cookie); \
 		if (_pAd->HaveMsi == TRUE) \
 			pci_disable_msi(_pObj->pci_dev); \
 		_pAd->HaveMsi = FALSE;  \

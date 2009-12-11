@@ -47,14 +47,14 @@ extern u8 EpToQueue[];
 void REPORT_AMSDU_FRAMES_TO_LLC(IN PRTMP_ADAPTER pAd,
 				u8 *pData, unsigned long DataSize)
 {
-	PNDIS_PACKET pPacket;
+	void *pPacket;
 	u32 nMSDU;
 	struct sk_buff *pSkb;
 
 	nMSDU = 0;
 	/* allocate a rx packet */
 	pSkb = dev_alloc_skb(RX_BUFFER_AGGRESIZE);
-	pPacket = (PNDIS_PACKET) OSPKT_TO_RTPKT(pSkb);
+	pPacket = (void *)OSPKT_TO_RTPKT(pSkb);
 	if (pSkb) {
 
 		/* convert 802.11 to 802.3 packet */
@@ -195,7 +195,7 @@ void RTUSBRejectPendingPackets(IN PRTMP_ADAPTER pAd)
 {
 	u8 Index;
 	PQUEUE_ENTRY pEntry;
-	PNDIS_PACKET pPacket;
+	void *pPacket;
 	PQUEUE_HEADER pQueue;
 
 	for (Index = 0; Index < 4; Index++) {

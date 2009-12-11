@@ -107,7 +107,7 @@ QID_AC_VO, QID_AC_VO };
 int MiniportMMRequest(IN PRTMP_ADAPTER pAd,
 			      u8 QueIdx, u8 *pData, u32 Length)
 {
-	PNDIS_PACKET pPacket;
+	void *pPacket;
 	int Status = NDIS_STATUS_SUCCESS;
 	unsigned long FreeNum;
 	u8 rtmpHwHdr[TXINFO_SIZE + TXWI_SIZE];	/*RTMP_HW_HDR_LEN]; */
@@ -243,7 +243,7 @@ int MiniportMMRequest(IN PRTMP_ADAPTER pAd,
 	========================================================================
 */
 int MlmeHardTransmit(IN PRTMP_ADAPTER pAd,
-			     u8 QueIdx, IN PNDIS_PACKET pPacket)
+			     u8 QueIdx, void *pPacket)
 {
 	PACKET_INFO PacketInfo;
 	u8 *pSrcBufVA;
@@ -271,7 +271,7 @@ int MlmeHardTransmit(IN PRTMP_ADAPTER pAd,
 }
 
 int MlmeHardTransmitMgmtRing(IN PRTMP_ADAPTER pAd,
-				     u8 QueIdx, IN PNDIS_PACKET pPacket)
+				     u8 QueIdx, void *pPacket)
 {
 	PACKET_INFO PacketInfo;
 	u8 *pSrcBufVA;
@@ -506,7 +506,7 @@ int MlmeHardTransmitMgmtRing(IN PRTMP_ADAPTER pAd,
 								(2).Normal
 	========================================================================
 */
-static u8 TxPktClassification(IN RTMP_ADAPTER * pAd, IN PNDIS_PACKET pPacket)
+static u8 TxPktClassification(IN RTMP_ADAPTER * pAd, void *pPacket)
 {
 	u8 TxFrameType = TX_UNKOWN_FRAME;
 	u8 Wcid;
@@ -557,7 +557,7 @@ static u8 TxPktClassification(IN RTMP_ADAPTER * pAd, IN PNDIS_PACKET pPacket)
 BOOLEAN RTMP_FillTxBlkInfo(IN RTMP_ADAPTER * pAd, IN TX_BLK * pTxBlk)
 {
 	PACKET_INFO PacketInfo;
-	PNDIS_PACKET pPacket;
+	void *pPacket;
 	PMAC_TABLE_ENTRY pMacEntry = NULL;
 
 	pPacket = pTxBlk->pPacket;
@@ -663,7 +663,7 @@ BOOLEAN RTMP_FillTxBlkInfo(IN RTMP_ADAPTER * pAd, IN TX_BLK * pTxBlk)
 }
 
 BOOLEAN CanDoAggregateTransmit(IN RTMP_ADAPTER * pAd,
-			       IN NDIS_PACKET * pPacket, IN TX_BLK * pTxBlk)
+			       char * pPacket, IN TX_BLK * pTxBlk)
 {
 
 	/*DBGPRINT(RT_DEBUG_TRACE, ("Check if can do aggregation! TxFrameType=%d!\n", pTxBlk->TxFrameType)); */
@@ -716,7 +716,7 @@ void RTMPDeQueuePacket(IN PRTMP_ADAPTER pAd, IN BOOLEAN bIntContext, u8 QIdx,	/*
 		       u8 Max_Tx_Packets)
 {
 	PQUEUE_ENTRY pEntry = NULL;
-	PNDIS_PACKET pPacket;
+	void *pPacket;
 	int Status = NDIS_STATUS_SUCCESS;
 	u8 Count = 0;
 	PQUEUE_HEADER pQueue;
@@ -1380,7 +1380,7 @@ void RTMPResumeMsduTransmission(IN PRTMP_ADAPTER pAd)
 }
 
 u32 deaggregate_AMSDU_announce(IN PRTMP_ADAPTER pAd,
-				PNDIS_PACKET pPacket,
+				void *pPacket,
 				u8 *pData, unsigned long DataSize)
 {
 	u16 PayloadSize;
@@ -1390,7 +1390,7 @@ u32 deaggregate_AMSDU_announce(IN PRTMP_ADAPTER pAd,
 	u8 Header802_3[14];
 
 	u8 *pPayload, *pDA, *pSA, *pRemovedLLCSNAP;
-	PNDIS_PACKET pClonePacket;
+	void *pClonePacket;
 
 	nMSDU = 0;
 
@@ -1479,7 +1479,7 @@ u32 deaggregate_AMSDU_announce(IN PRTMP_ADAPTER pAd,
 	return nMSDU;
 }
 
-u32 BA_Reorder_AMSDU_Annnounce(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket)
+u32 BA_Reorder_AMSDU_Annnounce(IN PRTMP_ADAPTER pAd, void *pPacket)
 {
 	u8 *pData;
 	u16 DataSize;
@@ -1853,7 +1853,7 @@ void DisassocParmFill(IN PRTMP_ADAPTER pAd,
 	========================================================================
 */
 
-BOOLEAN RTMPCheckDHCPFrame(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket)
+BOOLEAN RTMPCheckDHCPFrame(IN PRTMP_ADAPTER pAd, void *pPacket)
 {
 	PACKET_INFO PacketInfo;
 	unsigned long NumberOfBytesRead = 0;
@@ -1908,7 +1908,7 @@ BOOLEAN RTMPCheckDHCPFrame(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket)
 	return TRUE;
 }
 
-BOOLEAN RTMPCheckEtherType(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket)
+BOOLEAN RTMPCheckEtherType(IN PRTMP_ADAPTER pAd, void *pPacket)
 {
 	u16 TypeLen;
 	u8 Byte0, Byte1;
@@ -1938,7 +1938,7 @@ BOOLEAN RTMPCheckEtherType(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket)
 		 */
 		if (pSrcBuf[0] == 0xAA && pSrcBuf[1] == 0xAA
 		    && pSrcBuf[2] == 0x03) {
-			Sniff2BytesFromNdisBuffer((PNDIS_BUFFER) pSrcBuf, 6,
+			Sniff2BytesFromNdisBuffer((char *)pSrcBuf, 6,
 						  &Byte0, &Byte1);
 			RTMP_SET_PACKET_LLCSNAP(pPacket, 1);
 			TypeLen = (u16)((Byte0 << 8) + Byte1);
@@ -1961,7 +1961,7 @@ BOOLEAN RTMPCheckEtherType(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket)
 		   Frame Check Sequence (4-bytes) */
 
 		RTMP_SET_PACKET_VLAN(pPacket, 1);
-		Sniff2BytesFromNdisBuffer((PNDIS_BUFFER) pSrcBuf, 2, &Byte0,
+		Sniff2BytesFromNdisBuffer((char *)pSrcBuf, 2, &Byte0,
 					  &Byte1);
 		TypeLen = (u16)((Byte0 << 8) + Byte1);
 
@@ -2043,7 +2043,7 @@ void Update_Rssi_Sample(IN PRTMP_ADAPTER pAd,
 void Indicate_Legacy_Packet(IN PRTMP_ADAPTER pAd,
 			    IN RX_BLK * pRxBlk, u8 FromWhichBSSID)
 {
-	PNDIS_PACKET pRxPacket = pRxBlk->pRxPacket;
+	void *pRxPacket = pRxBlk->pRxPacket;
 	u8 Header802_3[LENGTH_802_3];
 
 	/* 1. get 802.3 Header */
@@ -2135,7 +2135,7 @@ void CmmRxRalinkFrameIndicate(IN PRTMP_ADAPTER pAd,
 	u16 Msdu2Size;
 	u16 Payload1Size, Payload2Size;
 	u8 *pData2;
-	PNDIS_PACKET pPacket2 = NULL;
+	void *pPacket2 = NULL;
 
 	Msdu2Size = *(pRxBlk->pData) + (*(pRxBlk->pData + 1) << 8);
 
@@ -2192,13 +2192,13 @@ void CmmRxRalinkFrameIndicate(IN PRTMP_ADAPTER pAd,
 		_fragFrame.Flags = 0;		\
 	}
 
-PNDIS_PACKET RTMPDeFragmentDataFrame(IN PRTMP_ADAPTER pAd, IN RX_BLK * pRxBlk)
+void *RTMPDeFragmentDataFrame(IN PRTMP_ADAPTER pAd, IN RX_BLK * pRxBlk)
 {
 	PHEADER_802_11 pHeader = pRxBlk->pHeader;
-	PNDIS_PACKET pRxPacket = pRxBlk->pRxPacket;
+	void *pRxPacket = pRxBlk->pRxPacket;
 	u8 *pData = pRxBlk->pData;
 	u16 DataSize = pRxBlk->DataSize;
-	PNDIS_PACKET pRetPacket = NULL;
+	void *pRetPacket = NULL;
 	u8 *pFragBuffer = NULL;
 	BOOLEAN bReassDone = FALSE;
 	u8 HeaderRoom = 0;
@@ -2273,7 +2273,7 @@ done:
 	/* return defragmented packet if packet is reassembled completely */
 	/* otherwise return NULL */
 	if (bReassDone) {
-		PNDIS_PACKET pNewFragPacket;
+		void *pNewFragPacket;
 
 		/* allocate a new packet buffer for fragment */
 		pNewFragPacket =

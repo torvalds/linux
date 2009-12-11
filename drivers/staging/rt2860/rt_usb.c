@@ -198,17 +198,17 @@ void RtmpMgmtTaskExit(IN RTMP_ADAPTER * pAd)
 static void rtusb_dataout_complete(unsigned long data)
 {
 	PRTMP_ADAPTER pAd;
-	purbb_t pUrb;
-	POS_COOKIE pObj;
+	struct urb *pUrb;
+	struct os_cookie *pObj;
 	PHT_TX_CONTEXT pHTTXContext;
 	u8 BulkOutPipeId;
 	int Status;
 	unsigned long IrqFlags;
 
-	pUrb = (purbb_t) data;
+	pUrb = (struct urb *)data;
 	pHTTXContext = (PHT_TX_CONTEXT) pUrb->context;
 	pAd = pHTTXContext->pAd;
-	pObj = (POS_COOKIE) pAd->OS_Cookie;
+	pObj = (struct os_cookie *)pAd->OS_Cookie;
 	Status = pUrb->status;
 
 	/* Store BulkOut PipeId */
@@ -296,11 +296,11 @@ static void rtusb_null_frame_done_tasklet(unsigned long data)
 {
 	PRTMP_ADAPTER pAd;
 	PTX_CONTEXT pNullContext;
-	purbb_t pUrb;
+	struct urb *pUrb;
 	int Status;
 	unsigned long irqFlag;
 
-	pUrb = (purbb_t) data;
+	pUrb = (struct urb *)data;
 	pNullContext = (PTX_CONTEXT) pUrb->context;
 	pAd = pNullContext->pAd;
 	Status = pUrb->status;
@@ -345,11 +345,11 @@ static void rtusb_rts_frame_done_tasklet(unsigned long data)
 {
 	PRTMP_ADAPTER pAd;
 	PTX_CONTEXT pRTSContext;
-	purbb_t pUrb;
+	struct urb *pUrb;
 	int Status;
 	unsigned long irqFlag;
 
-	pUrb = (purbb_t) data;
+	pUrb = (struct urb *)data;
 	pRTSContext = (PTX_CONTEXT) pUrb->context;
 	pAd = pRTSContext->pAd;
 	Status = pUrb->status;
@@ -395,10 +395,10 @@ static void rtusb_pspoll_frame_done_tasklet(unsigned long data)
 {
 	PRTMP_ADAPTER pAd;
 	PTX_CONTEXT pPsPollContext;
-	purbb_t pUrb;
+	struct urb *pUrb;
 	int Status;
 
-	pUrb = (purbb_t) data;
+	pUrb = (struct urb *)data;
 	pPsPollContext = (PTX_CONTEXT) pUrb->context;
 	pAd = pPsPollContext->pAd;
 	Status = pUrb->status;
@@ -452,13 +452,13 @@ Note:
 */
 static void rx_done_tasklet(unsigned long data)
 {
-	purbb_t pUrb;
+	struct urb *pUrb;
 	PRX_CONTEXT pRxContext;
 	PRTMP_ADAPTER pAd;
 	int Status;
 	unsigned int IrqFlags;
 
-	pUrb = (purbb_t) data;
+	pUrb = (struct urb *)data;
 	pRxContext = (PRX_CONTEXT) pUrb->context;
 	pAd = pRxContext->pAd;
 	Status = pUrb->status;
@@ -517,12 +517,12 @@ static void rtusb_mgmt_dma_done_tasklet(unsigned long data)
 	PRTMP_ADAPTER pAd;
 	PTX_CONTEXT pMLMEContext;
 	int index;
-	PNDIS_PACKET pPacket;
-	purbb_t pUrb;
+	void *pPacket;
+	struct urb *pUrb;
 	int Status;
 	unsigned long IrqFlags;
 
-	pUrb = (purbb_t) data;
+	pUrb = (struct urb *)data;
 	pMLMEContext = (PTX_CONTEXT) pUrb->context;
 	pAd = pMLMEContext->pAd;
 	Status = pUrb->status;
@@ -598,9 +598,9 @@ static void rtusb_ac3_dma_done_tasklet(unsigned long data)
 	PRTMP_ADAPTER pAd;
 	PHT_TX_CONTEXT pHTTXContext;
 	u8 BulkOutPipeId = 3;
-	purbb_t pUrb;
+	struct urb *pUrb;
 
-	pUrb = (purbb_t) data;
+	pUrb = (struct urb *)data;
 	pHTTXContext = (PHT_TX_CONTEXT) pUrb->context;
 	pAd = pHTTXContext->pAd;
 
@@ -638,9 +638,9 @@ static void rtusb_ac2_dma_done_tasklet(unsigned long data)
 	PRTMP_ADAPTER pAd;
 	PHT_TX_CONTEXT pHTTXContext;
 	u8 BulkOutPipeId = 2;
-	purbb_t pUrb;
+	struct urb *pUrb;
 
-	pUrb = (purbb_t) data;
+	pUrb = (struct urb *)data;
 	pHTTXContext = (PHT_TX_CONTEXT) pUrb->context;
 	pAd = pHTTXContext->pAd;
 
@@ -678,9 +678,9 @@ static void rtusb_ac1_dma_done_tasklet(unsigned long data)
 	PRTMP_ADAPTER pAd;
 	PHT_TX_CONTEXT pHTTXContext;
 	u8 BulkOutPipeId = 1;
-	purbb_t pUrb;
+	struct urb *pUrb;
 
-	pUrb = (purbb_t) data;
+	pUrb = (struct urb *)data;
 	pHTTXContext = (PHT_TX_CONTEXT) pUrb->context;
 	pAd = pHTTXContext->pAd;
 
@@ -718,9 +718,9 @@ static void rtusb_ac0_dma_done_tasklet(unsigned long data)
 	PRTMP_ADAPTER pAd;
 	PHT_TX_CONTEXT pHTTXContext;
 	u8 BulkOutPipeId = 0;
-	purbb_t pUrb;
+	struct urb *pUrb;
 
-	pUrb = (purbb_t) data;
+	pUrb = (struct urb *)data;
 	pHTTXContext = (PHT_TX_CONTEXT) pUrb->context;
 	pAd = pHTTXContext->pAd;
 
@@ -755,7 +755,7 @@ static void rtusb_ac0_dma_done_tasklet(unsigned long data)
 
 int RtmpNetTaskInit(IN RTMP_ADAPTER * pAd)
 {
-	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
+	struct os_cookie *pObj = (struct os_cookie *)pAd->OS_Cookie;
 
 	/* Create receive tasklet */
 	tasklet_init(&pObj->rx_done_task, rx_done_tasklet, (unsigned long)pAd);
@@ -782,9 +782,9 @@ int RtmpNetTaskInit(IN RTMP_ADAPTER * pAd)
 
 void RtmpNetTaskExit(IN RTMP_ADAPTER * pAd)
 {
-	POS_COOKIE pObj;
+	struct os_cookie *pObj;
 
-	pObj = (POS_COOKIE) pAd->OS_Cookie;
+	pObj = (struct os_cookie *)pAd->OS_Cookie;
 
 	tasklet_kill(&pObj->rx_done_task);
 	tasklet_kill(&pObj->mgmt_dma_done_task);

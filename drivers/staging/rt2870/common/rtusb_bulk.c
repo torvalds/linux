@@ -64,7 +64,7 @@ void RTUSBInitTxDesc(IN PRTMP_ADAPTER pAd,
 {
 	PURB pUrb;
 	u8 *pSrc = NULL;
-	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
+	struct os_cookie *pObj = (struct os_cookie *)pAd->OS_Cookie;
 
 	pUrb = pTxContext->pUrb;
 	ASSERT(pUrb);
@@ -103,7 +103,7 @@ void RTUSBInitHTTxDesc(IN PRTMP_ADAPTER pAd,
 {
 	PURB pUrb;
 	u8 *pSrc = NULL;
-	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
+	struct os_cookie *pObj = (struct os_cookie *)pAd->OS_Cookie;
 
 	pUrb = pTxContext->pUrb;
 	ASSERT(pUrb);
@@ -131,7 +131,7 @@ void RTUSBInitHTTxDesc(IN PRTMP_ADAPTER pAd,
 void RTUSBInitRxDesc(IN PRTMP_ADAPTER pAd, IN PRX_CONTEXT pRxContext)
 {
 	PURB pUrb;
-	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
+	struct os_cookie *pObj = (struct os_cookie *)pAd->OS_Cookie;
 	unsigned long RX_bulk_size;
 
 	pUrb = pRxContext->pUrb;
@@ -495,16 +495,16 @@ void RTUSBBulkOutDataPacket(IN PRTMP_ADAPTER pAd,
 
 }
 
-void RTUSBBulkOutDataPacketComplete(purbb_t pUrb, struct pt_regs * pt_regs)
+void RTUSBBulkOutDataPacketComplete(struct urb *pUrb, struct pt_regs * pt_regs)
 {
 	PHT_TX_CONTEXT pHTTXContext;
 	PRTMP_ADAPTER pAd;
-	POS_COOKIE pObj;
+	struct os_cookie *pObj;
 	u8 BulkOutPipeId;
 
 	pHTTXContext = (PHT_TX_CONTEXT) pUrb->context;
 	pAd = pHTTXContext->pAd;
-	pObj = (POS_COOKIE) pAd->OS_Cookie;
+	pObj = (struct os_cookie *)pAd->OS_Cookie;
 
 	/* Store BulkOut PipeId */
 	BulkOutPipeId = pHTTXContext->BulkOutPipeId;
@@ -589,18 +589,18 @@ void RTUSBBulkOutNullFrame(IN PRTMP_ADAPTER pAd)
 }
 
 /* NULL frame use BulkOutPipeId = 0 */
-void RTUSBBulkOutNullFrameComplete(purbb_t pUrb, struct pt_regs * pt_regs)
+void RTUSBBulkOutNullFrameComplete(struct urb *pUrb, struct pt_regs * pt_regs)
 {
 	PRTMP_ADAPTER pAd;
 	PTX_CONTEXT pNullContext;
 	int Status;
-	POS_COOKIE pObj;
+	struct os_cookie *pObj;
 
 	pNullContext = (PTX_CONTEXT) pUrb->context;
 	pAd = pNullContext->pAd;
 	Status = pUrb->status;
 
-	pObj = (POS_COOKIE) pAd->OS_Cookie;
+	pObj = (struct os_cookie *)pAd->OS_Cookie;
 	pObj->null_frame_complete_task.data = (unsigned long)pUrb;
 	tasklet_hi_schedule(&pObj->null_frame_complete_task);
 }
@@ -684,18 +684,18 @@ void RTUSBBulkOutMLMEPacket(IN PRTMP_ADAPTER pAd, u8 Index)
 /*      printk("<---RTUSBBulkOutMLMEPacket,Cpu=%d!, Dma=%d, SwIdx=%d!\n", pAd->MgmtRing.TxCpuIdx, pAd->MgmtRing.TxDmaIdx, pAd->MgmtRing.TxSwFreeIdx); */
 }
 
-void RTUSBBulkOutMLMEPacketComplete(purbb_t pUrb, struct pt_regs * pt_regs)
+void RTUSBBulkOutMLMEPacketComplete(struct urb *pUrb, struct pt_regs * pt_regs)
 {
 	PTX_CONTEXT pMLMEContext;
 	PRTMP_ADAPTER pAd;
 	int Status;
-	POS_COOKIE pObj;
+	struct os_cookie *pObj;
 	int index;
 
 	/*DBGPRINT_RAW(RT_DEBUG_INFO, ("--->RTUSBBulkOutMLMEPacketComplete\n")); */
 	pMLMEContext = (PTX_CONTEXT) pUrb->context;
 	pAd = pMLMEContext->pAd;
-	pObj = (POS_COOKIE) pAd->OS_Cookie;
+	pObj = (struct os_cookie *)pAd->OS_Cookie;
 	Status = pUrb->status;
 	index = pMLMEContext->SelfIdx;
 
@@ -758,18 +758,18 @@ void RTUSBBulkOutPsPoll(IN PRTMP_ADAPTER pAd)
 }
 
 /* PS-Poll frame use BulkOutPipeId = 0 */
-void RTUSBBulkOutPsPollComplete(purbb_t pUrb, struct pt_regs * pt_regs)
+void RTUSBBulkOutPsPollComplete(struct urb *pUrb, struct pt_regs * pt_regs)
 {
 	PRTMP_ADAPTER pAd;
 	PTX_CONTEXT pPsPollContext;
 	int Status;
-	POS_COOKIE pObj;
+	struct os_cookie *pObj;
 
 	pPsPollContext = (PTX_CONTEXT) pUrb->context;
 	pAd = pPsPollContext->pAd;
 	Status = pUrb->status;
 
-	pObj = (POS_COOKIE) pAd->OS_Cookie;
+	pObj = (struct os_cookie *)pAd->OS_Cookie;
 	pObj->pspoll_frame_complete_task.data = (unsigned long)pUrb;
 	tasklet_hi_schedule(&pObj->pspoll_frame_complete_task);
 }
@@ -912,18 +912,18 @@ void RTUSBBulkReceive(IN PRTMP_ADAPTER pAd)
 		Always returns STATUS_MORE_PROCESSING_REQUIRED
 	========================================================================
 */
-void RTUSBBulkRxComplete(purbb_t pUrb, struct pt_regs *pt_regs)
+void RTUSBBulkRxComplete(struct urb *pUrb, struct pt_regs *pt_regs)
 {
 	/* use a receive tasklet to handle received packets; */
 	/* or sometimes hardware IRQ will be disabled here, so we can not */
 	/* use spin_lock_bh()/spin_unlock_bh() after IRQ is disabled. :< */
 	PRX_CONTEXT pRxContext;
 	PRTMP_ADAPTER pAd;
-	POS_COOKIE pObj;
+	struct os_cookie *pObj;
 
 	pRxContext = (PRX_CONTEXT) pUrb->context;
 	pAd = pRxContext->pAd;
-	pObj = (POS_COOKIE) pAd->OS_Cookie;
+	pObj = (struct os_cookie *)pAd->OS_Cookie;
 
 	pObj->rx_done_task.data = (unsigned long)pUrb;
 	tasklet_hi_schedule(&pObj->rx_done_task);
@@ -1146,7 +1146,7 @@ void RTUSBCancelPendingBulkOutIRP(IN PRTMP_ADAPTER pAd)
 	PTX_CONTEXT pRTSContext;
 	u32 i, Idx;
 /*      unsigned int            IrqFlags; */
-/*      NDIS_SPIN_LOCK          *pLock; */
+/*      spinlock_t          *pLock; */
 /*      BOOLEAN                         *pPending; */
 
 /*      pLock = &pAd->BulkOutLock[MGMTPIPEIDX]; */

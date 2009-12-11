@@ -343,7 +343,7 @@ u16 RtmpPCI_WriteFragTxResource(IN PRTMP_ADAPTER pAd,
  */
 int RtmpPCIMgmtKickOut(IN RTMP_ADAPTER * pAd,
 		       u8 QueIdx,
-		       IN PNDIS_PACKET pPacket,
+		       void *pPacket,
 		       u8 *pSrcBufVA, u32 SrcBufLen)
 {
 	PTXD_STRUC pTxD;
@@ -520,7 +520,7 @@ BOOLEAN RTMPFreeTXDUponTxDmaDone(IN PRTMP_ADAPTER pAd, u8 QueIdx)
 {
 	PRTMP_TX_RING pTxRing;
 	PTXD_STRUC pTxD;
-	PNDIS_PACKET pPacket;
+	void *pPacket;
 	u8 FREE = 0;
 	TXD_STRUC TxD, *pOriTxD;
 	/*unsigned long         IrqFlags; */
@@ -664,7 +664,7 @@ BOOLEAN RTMPHandleTxRingDmaDoneInterrupt(IN PRTMP_ADAPTER pAd,
 void RTMPHandleMgmtRingDmaDoneInterrupt(IN PRTMP_ADAPTER pAd)
 {
 	PTXD_STRUC pTxD;
-	PNDIS_PACKET pPacket;
+	void *pPacket;
 /*      int              i; */
 	u8 FREE = 0;
 	PRTMP_MGMT_RING pMgmtRing = &pAd->MgmtRing;
@@ -773,16 +773,16 @@ void RTMPHandleRxCoherentInterrupt(IN PRTMP_ADAPTER pAd)
 	DBGPRINT(RT_DEBUG_TRACE, ("<== RTMPHandleRxCoherentInterrupt \n"));
 }
 
-PNDIS_PACKET GetPacketFromRxRing(IN PRTMP_ADAPTER pAd,
+void *GetPacketFromRxRing(IN PRTMP_ADAPTER pAd,
 				 OUT PRT28XX_RXD_STRUC pSaveRxD,
 				 OUT BOOLEAN * pbReschedule,
 				 IN u32 * pRxPending)
 {
 	PRXD_STRUC pRxD;
-	PNDIS_PACKET pRxPacket = NULL;
-	PNDIS_PACKET pNewPacket;
+	void *pRxPacket = NULL;
+	void *pNewPacket;
 	void *AllocVa;
-	NDIS_PHYSICAL_ADDRESS AllocPa;
+	dma_addr_t AllocPa;
 	BOOLEAN bReschedule = FALSE;
 	RTMP_DMACB *pRxCell;
 
@@ -834,7 +834,7 @@ PNDIS_PACKET GetPacketFromRxRing(IN PRTMP_ADAPTER pAd,
 		pRxPacket = pRxCell->pNdisPacket;
 
 		pRxCell->DmaBuf.AllocSize = RX_BUFFER_AGGRESIZE;
-		pRxCell->pNdisPacket = (PNDIS_PACKET) pNewPacket;
+		pRxCell->pNdisPacket = (void *)pNewPacket;
 		pRxCell->DmaBuf.AllocVa = AllocVa;
 		pRxCell->DmaBuf.AllocPa = AllocPa;
 		/* update SDP0 to new buffer of rx packet */
@@ -865,7 +865,7 @@ done:
 }
 
 int MlmeHardTransmitTxRing(IN PRTMP_ADAPTER pAd,
-				   u8 QueIdx, IN PNDIS_PACKET pPacket)
+				   u8 QueIdx, void *pPacket)
 {
 	PACKET_INFO PacketInfo;
 	u8 *pSrcBufVA;
@@ -1041,7 +1041,7 @@ int MlmeHardTransmitTxRing(IN PRTMP_ADAPTER pAd,
 }
 
 int MlmeDataHardTransmit(IN PRTMP_ADAPTER pAd,
-				 u8 QueIdx, IN PNDIS_PACKET pPacket)
+				 u8 QueIdx, void *pPacket)
 {
 	if ((pAd->CommonCfg.RadarDetect.RDMode != RD_NORMAL_MODE)
 	    ) {

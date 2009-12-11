@@ -487,7 +487,7 @@ BOOLEAN RTMPTkipCompareMICValue(IN PRTMP_ADAPTER pAd,
 
 	Arguments:
 		pAd		Pointer	to our adapter
-		PNDIS_PACKET	Pointer to Ndis Packet for MIC calculation
+		void *	Pointer to Ndis Packet for MIC calculation
 		pEncap			Pointer to LLC encap data
 		LenEncap		Total encap length, might be 0 which indicates no encap
 
@@ -501,7 +501,7 @@ BOOLEAN RTMPTkipCompareMICValue(IN PRTMP_ADAPTER pAd,
 	========================================================================
 */
 void RTMPCalculateMICValue(IN PRTMP_ADAPTER pAd,
-			   IN PNDIS_PACKET pPacket,
+			   void *pPacket,
 			   u8 *pEncap,
 			   IN PCIPHER_KEY pKey, u8 apidx)
 {

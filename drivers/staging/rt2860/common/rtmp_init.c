@@ -651,7 +651,7 @@ void RTMPReadChannelPwr(IN PRTMP_ADAPTER pAd)
 	========================================================================
 */
 int NICReadRegParameters(IN PRTMP_ADAPTER pAd,
-				 IN NDIS_HANDLE WrapperConfigurationContext)
+				 void *WrapperConfigurationContext)
 {
 	int Status = NDIS_STATUS_SUCCESS;
 	DBGPRINT_S(Status, ("<-- NICReadRegParameters, Status=%x\n", Status));
@@ -3544,9 +3544,9 @@ BOOLEAN RtmpRaDevCtrlExit(IN RTMP_ADAPTER * pAd)
 }
 
 /* not yet support MBSS */
-PNET_DEV get_netdev_from_bssid(IN PRTMP_ADAPTER pAd, u8 FromWhichBSSID)
+struct net_device *get_netdev_from_bssid(IN PRTMP_ADAPTER pAd, u8 FromWhichBSSID)
 {
-	PNET_DEV dev_p = NULL;
+	struct net_device *dev_p = NULL;
 
 	{
 		dev_p = pAd->net_dev;

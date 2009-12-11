@@ -60,7 +60,7 @@ int RTMPAllocTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 	unsigned long ErrorValue = 0;
 	PRTMP_TX_RING pTxRing;
 	PRTMP_DMABUF pDmaBuf;
-	PNDIS_PACKET pPacket;
+	void *pPacket;
 /*      PRTMP_REORDERBUF        pReorderBuf; */
 
 	DBGPRINT(RT_DEBUG_TRACE, ("--> RTMPAllocTxRxRingMemory\n"));
@@ -405,7 +405,7 @@ void RTMPRingCleanUp(IN PRTMP_ADAPTER pAd, u8 RingType)
 	PTXD_STRUC pTxD;
 	PRXD_STRUC pRxD;
 	PQUEUE_ENTRY pEntry;
-	PNDIS_PACKET pPacket;
+	void *pPacket;
 	int i;
 	PRTMP_TX_RING pTxRing;
 	unsigned long IrqFlags;
@@ -428,8 +428,8 @@ void RTMPRingCleanUp(IN PRTMP_ADAPTER pAd, u8 RingType)
 		{
 			pTxD = (PTXD_STRUC) pTxRing->Cell[i].AllocVa;
 
-			pPacket = (PNDIS_PACKET) pTxRing->Cell[i].pNdisPacket;
-			/* release scatter-and-gather NDIS_PACKET */
+			pPacket = (void *)pTxRing->Cell[i].pNdisPacket;
+			/* release scatter-and-gather char */
 			if (pPacket) {
 				RELEASE_NDIS_PACKET(pAd, pPacket,
 						    NDIS_STATUS_FAILURE);
@@ -437,8 +437,8 @@ void RTMPRingCleanUp(IN PRTMP_ADAPTER pAd, u8 RingType)
 			}
 
 			pPacket =
-			    (PNDIS_PACKET) pTxRing->Cell[i].pNextNdisPacket;
-			/* release scatter-and-gather NDIS_PACKET */
+			    (void *)pTxRing->Cell[i].pNextNdisPacket;
+			/* release scatter-and-gather char */
 			if (pPacket) {
 				RELEASE_NDIS_PACKET(pAd, pPacket,
 						    NDIS_STATUS_FAILURE);
@@ -474,8 +474,8 @@ void RTMPRingCleanUp(IN PRTMP_ADAPTER pAd, u8 RingType)
 			pTxD = (PTXD_STRUC) pAd->MgmtRing.Cell[i].AllocVa;
 
 			pPacket =
-			    (PNDIS_PACKET) pAd->MgmtRing.Cell[i].pNdisPacket;
-			/* rlease scatter-and-gather NDIS_PACKET */
+			    (void *)pAd->MgmtRing.Cell[i].pNdisPacket;
+			/* rlease scatter-and-gather char */
 			if (pPacket) {
 				PCI_UNMAP_SINGLE(pAd, pTxD->SDPtr0,
 						 pTxD->SDLen0,
@@ -486,9 +486,9 @@ void RTMPRingCleanUp(IN PRTMP_ADAPTER pAd, u8 RingType)
 			pAd->MgmtRing.Cell[i].pNdisPacket = NULL;
 
 			pPacket =
-			    (PNDIS_PACKET) pAd->MgmtRing.Cell[i].
+			    (void *)pAd->MgmtRing.Cell[i].
 			    pNextNdisPacket;
-			/* release scatter-and-gather NDIS_PACKET */
+			/* release scatter-and-gather char */
 			if (pPacket) {
 				PCI_UNMAP_SINGLE(pAd, pTxD->SDPtr1,
 						 pTxD->SDLen1,
@@ -538,17 +538,17 @@ void RTMPFreeTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 	int index, num, j;
 	PRTMP_TX_RING pTxRing;
 	PTXD_STRUC pTxD;
-	PNDIS_PACKET pPacket;
+	void *pPacket;
 	unsigned int IrqFlags;
 
-	/*POS_COOKIE pObj =(POS_COOKIE) pAd->OS_Cookie; */
+	/*struct os_cookie *pObj =(struct os_cookie *)pAd->OS_Cookie; */
 
 	DBGPRINT(RT_DEBUG_TRACE, ("--> RTMPFreeTxRxRingMemory\n"));
 
 	/* Free TxSwQueue Packet */
 	for (index = 0; index < NUM_OF_TX_RING; index++) {
 		PQUEUE_ENTRY pEntry;
-		PNDIS_PACKET pPacket;
+		void *pPacket;
 		PQUEUE_HEADER pQueue;
 
 		RTMP_IRQ_LOCK(&pAd->irq_lock, IrqFlags);

@@ -827,7 +827,7 @@ static int __devinit rt2870_probe(IN struct usb_interface *intf,
 		    ("rt2870_probe(): Allocate memory for os handle failed!\n");
 		return -ENOMEM;
 	}
-	((POS_COOKIE) handle)->pUsb_Dev = usb_dev;
+	((struct os_cookie *)handle)->pUsb_Dev = usb_dev;
 
 	rv = RTMPAllocAdapterBlock(handle, &pAd);
 	if (rv != NDIS_STATUS_SUCCESS) {

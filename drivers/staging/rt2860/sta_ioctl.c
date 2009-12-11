@@ -2450,7 +2450,7 @@ const struct iw_handler_def rt28xx_iw_handler_def = {
 int rt28xx_sta_ioctl(IN struct net_device *net_dev,
 		     IN OUT struct ifreq *rq, int cmd)
 {
-	POS_COOKIE pObj;
+	struct os_cookie *pObj;
 	RTMP_ADAPTER *pAd = NULL;
 	struct iwreq *wrq = (struct iwreq *)rq;
 	BOOLEAN StateMachineTouched = FALSE;
@@ -2458,7 +2458,7 @@ int rt28xx_sta_ioctl(IN struct net_device *net_dev,
 
 	GET_PAD_FROM_NET_DEV(pAd, net_dev);
 
-	pObj = (POS_COOKIE) pAd->OS_Cookie;
+	pObj = (struct os_cookie *)pAd->OS_Cookie;
 
 	/*check if the interface is down */
 	if (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_IN_USE)) {

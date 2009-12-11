@@ -575,7 +575,7 @@ void RtmpUSBDataKickOut(IN PRTMP_ADAPTER pAd,
  */
 int RtmpUSBMgmtKickOut(IN RTMP_ADAPTER * pAd,
 		       u8 QueIdx,
-		       IN PNDIS_PACKET pPacket,
+		       void *pPacket,
 		       u8 *pSrcBufVA, u32 SrcBufLen)
 {
 	PTXINFO_STRUC pTxInfo;
@@ -707,13 +707,13 @@ Return Value:
 Note:
 ========================================================================
 */
-PNDIS_PACKET GetPacketFromRxRing(IN PRTMP_ADAPTER pAd,
+void *GetPacketFromRxRing(IN PRTMP_ADAPTER pAd,
 				 OUT PRT28XX_RXD_STRUC pSaveRxD,
 				 OUT BOOLEAN * pbReschedule,
 				 IN u32 * pRxPending)
 {
 	PRX_CONTEXT pRxContext;
-	PNDIS_PACKET pSkb;
+	void *pSkb;
 	u8 *pData;
 	unsigned long ThisFrameLen;
 	unsigned long RxBufferLength;

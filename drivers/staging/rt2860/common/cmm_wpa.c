@@ -347,7 +347,7 @@ void WpaEAPOLKeyAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 	Arguments:
 		pAd		Pointer	to our adapter
-		PNDIS_PACKET	Pointer to outgoing Ndis frame
+		void *	Pointer to outgoing Ndis frame
 		NumberOfFrag	Number of fragment required
 
 	Return Value:
@@ -363,7 +363,7 @@ void RTMPToWirelessSta(IN PRTMP_ADAPTER pAd,
 		       u32 HdrLen,
 		       u8 *pData, u32 DataLen, IN BOOLEAN bClearFrame)
 {
-	PNDIS_PACKET pPacket;
+	void *pPacket;
 	int Status;
 
 	if ((!pEntry) || ((!pEntry->ValidAsCLI) && (!pEntry->ValidAsApCli)))

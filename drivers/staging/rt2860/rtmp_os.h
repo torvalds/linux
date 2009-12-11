@@ -72,8 +72,8 @@ typedef struct _RTMP_OS_TASK_ {
 	/*unsigned long         taskFlags; */
 	RTMP_TASK_STATUS taskStatus;
 #ifndef KTHREAD_SUPPORT
-	RTMP_OS_SEM taskSema;
-	RTMP_OS_PID taskPID;
+	struct semaphore taskSema;
+	struct pid *taskPID;
 	struct completion taskComplete;
 #endif
 	unsigned char task_killed;
@@ -84,7 +84,7 @@ typedef struct _RTMP_OS_TASK_ {
 #endif
 } RTMP_OS_TASK;
 
-int RtmpOSIRQRequest(IN PNET_DEV pNetDev);
-int RtmpOSIRQRelease(IN PNET_DEV pNetDev);
+int RtmpOSIRQRequest(struct net_device *pNetDev);
+int RtmpOSIRQRelease(struct net_device *pNetDev);
 
 #endif /* __RMTP_OS_H__ // */

@@ -103,18 +103,6 @@ extern const struct iw_handler_def rt28xx_iw_handler_def;
 /***********************************************************************************
  *	OS Specific definitions and data structures
  ***********************************************************************************/
-typedef struct pci_dev *PPCI_DEV;
-typedef struct net_device *PNET_DEV;
-typedef void *PNDIS_PACKET;
-typedef char NDIS_PACKET;
-typedef PNDIS_PACKET *PPNDIS_PACKET;
-typedef dma_addr_t NDIS_PHYSICAL_ADDRESS;
-typedef dma_addr_t *PNDIS_PHYSICAL_ADDRESS;
-typedef void *NDIS_HANDLE;
-typedef char *PNDIS_BUFFER;
-typedef struct pid *RTMP_OS_PID;
-typedef struct semaphore RTMP_OS_SEM;
-
 typedef int (*HARD_START_XMIT_FUNC) (struct sk_buff * skb,
 				     struct net_device * net_dev);
 
@@ -196,8 +184,6 @@ struct iw_statistics *rt28xx_get_wireless_stats(IN struct net_device *net_dev);
 /***********************************************************************************
  *	OS file operation related data structure definitions
  ***********************************************************************************/
-typedef struct file *RTMP_OS_FD;
-
 typedef struct _RTMP_OS_FS_INFO_ {
 	int fsuid;
 	int fsgid;
@@ -213,8 +199,6 @@ struct os_lock {
 	spinlock_t lock;
 	unsigned long flags;
 };
-
-typedef spinlock_t NDIS_SPIN_LOCK;
 
 /* */
 /*  spin_lock enhanced for Nested spin lock */
@@ -349,23 +333,17 @@ do { \
  ***********************************************************************************/
 #define RTMP_OS_MGMT_TASK_FLAGS	CLONE_VM
 
-typedef struct pid *THREAD_PID;
 #define	THREAD_PID_INIT_VALUE	NULL
 #define	GET_PID(_v)	find_get_pid((_v))
 #define	GET_PID_NUMBER(_v)	pid_nr((_v))
 #define CHECK_PID_LEGALITY(_pid)	if (pid_nr((_pid)) > 0)
 #define KILL_THREAD_PID(_A, _B, _C)	kill_pid((_A), (_B), (_C))
 
-typedef struct tasklet_struct RTMP_NET_TASK_STRUCT;
-typedef struct tasklet_struct *PRTMP_NET_TASK_STRUCT;
-
 /***********************************************************************************
  * Timer related definitions and data structures.
  **********************************************************************************/
 #define OS_HZ			HZ
 
-typedef struct timer_list NDIS_MINIPORT_TIMER;
-typedef struct timer_list RTMP_OS_TIMER;
 typedef void (*TIMER_FUNCTION) (unsigned long);
 
 #define OS_WAIT(_time) \
@@ -409,28 +387,26 @@ struct os_cookie {
 	struct usb_device *pUsb_Dev;
 #endif				/* RTMP_MAC_USB // */
 
-	RTMP_NET_TASK_STRUCT rx_done_task;
-	RTMP_NET_TASK_STRUCT mgmt_dma_done_task;
-	RTMP_NET_TASK_STRUCT ac0_dma_done_task;
-	RTMP_NET_TASK_STRUCT ac1_dma_done_task;
-	RTMP_NET_TASK_STRUCT ac2_dma_done_task;
-	RTMP_NET_TASK_STRUCT ac3_dma_done_task;
-	RTMP_NET_TASK_STRUCT tbtt_task;
+	struct tasklet_struct rx_done_task;
+	struct tasklet_struct mgmt_dma_done_task;
+	struct tasklet_struct ac0_dma_done_task;
+	struct tasklet_struct ac1_dma_done_task;
+	struct tasklet_struct ac2_dma_done_task;
+	struct tasklet_struct ac3_dma_done_task;
+	struct tasklet_struct tbtt_task;
 #ifdef RTMP_MAC_PCI
-	RTMP_NET_TASK_STRUCT fifo_statistic_full_task;
+	struct tasklet_struct fifo_statistic_full_task;
 #endif				/* RTMP_MAC_PCI // */
 #ifdef RTMP_MAC_USB
-	RTMP_NET_TASK_STRUCT null_frame_complete_task;
-	RTMP_NET_TASK_STRUCT rts_frame_complete_task;
-	RTMP_NET_TASK_STRUCT pspoll_frame_complete_task;
+	struct tasklet_struct null_frame_complete_task;
+	struct tasklet_struct rts_frame_complete_task;
+	struct tasklet_struct pspoll_frame_complete_task;
 #endif				/* RTMP_MAC_USB // */
 
 	unsigned long apd_pid;	/*802.1x daemon pid */
 	int ioctl_if_type;
 	int ioctl_if;
 };
-
-typedef struct os_cookie *POS_COOKIE;
 
 /***********************************************************************************
  *	OS debugging and printing related definitions and data structure
@@ -510,21 +486,21 @@ void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size,
 /*
  * unsigned long
  * RTMP_GetPhysicalAddressLow(
- *   IN NDIS_PHYSICAL_ADDRESS  PhysicalAddress);
+ *   dma_addr_t  PhysicalAddress);
  */
 #define RTMP_GetPhysicalAddressLow(PhysicalAddress)		(PhysicalAddress)
 
 /*
  * unsigned long
  * RTMP_GetPhysicalAddressHigh(
- *   IN NDIS_PHYSICAL_ADDRESS  PhysicalAddress);
+ *   dma_addr_t  PhysicalAddress);
  */
 #define RTMP_GetPhysicalAddressHigh(PhysicalAddress)		(0)
 
 /*
  * void
  * RTMP_SetPhysicalAddressLow(
- *   IN NDIS_PHYSICAL_ADDRESS  PhysicalAddress,
+ *   dma_addr_t  PhysicalAddress,
  *   unsigned long  Value);
  */
 #define RTMP_SetPhysicalAddressLow(PhysicalAddress, Value)	\
@@ -533,7 +509,7 @@ void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size,
 /*
  * void
  * RTMP_SetPhysicalAddressHigh(
- *   IN NDIS_PHYSICAL_ADDRESS  PhysicalAddress,
+ *   dma_addr_t  PhysicalAddress,
  *   unsigned long  Value);
  */
 #define RTMP_SetPhysicalAddressHigh(PhysicalAddress, Value)
@@ -652,7 +628,7 @@ void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size,
 #define RTMP_OS_NETDEV_CARRIER_OFF(_pNetDev)	netif_carrier_off((_pNetDev))
 
 #define QUEUE_ENTRY_TO_PACKET(pEntry) \
-	(PNDIS_PACKET)(pEntry)
+	(void *)(pEntry)
 
 #define PACKET_TO_QUEUE_ENTRY(pPacket) \
 	(PQUEUE_ENTRY)(pPacket)
@@ -671,7 +647,7 @@ void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size,
  *             os packet to rt packet
  */
 #define RTPKT_TO_OSPKT(_p)		((struct sk_buff *)(_p))
-#define OSPKT_TO_RTPKT(_p)		((PNDIS_PACKET)(_p))
+#define OSPKT_TO_RTPKT(_p)		((void *)(_p))
 
 #define GET_OS_PKT_DATAPTR(_pkt) \
 		(RTPKT_TO_OSPKT(_pkt)->data)
@@ -861,7 +837,7 @@ int rt28xx_packet_xmit(struct sk_buff *skb);
 IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance);
 #endif /* RTMP_MAC_PCI // */
 
-int rt28xx_sta_ioctl(IN PNET_DEV net_dev, IN OUT struct ifreq *rq, int cmd);
+int rt28xx_sta_ioctl(struct net_device *net_dev, IN OUT struct ifreq *rq, int cmd);
 
 extern int ra_mtd_write(int num, loff_t to, size_t len, const u_char * buf);
 extern int ra_mtd_read(int num, loff_t from, size_t len, u_char * buf);

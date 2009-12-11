@@ -208,7 +208,7 @@ Note:
 		(3) BA Reordering: 				ba_reordering_resource_release()
 ========================================================================
 */
-int rt28xx_close(IN PNET_DEV dev)
+int rt28xx_close(struct net_device *dev)
 {
 	struct net_device *net_dev = (struct net_device *)dev;
 	RTMP_ADAPTER *pAd = NULL;
@@ -378,12 +378,12 @@ Return Value:
 Note:
 ========================================================================
 */
-int rt28xx_open(IN PNET_DEV dev)
+int rt28xx_open(struct net_device *dev)
 {
 	struct net_device *net_dev = (struct net_device *)dev;
 	PRTMP_ADAPTER pAd = NULL;
 	int retval = 0;
-	/*POS_COOKIE pObj; */
+	/*struct os_cookie *pObj; */
 
 	GET_PAD_FROM_NET_DEV(pAd, net_dev);
 
@@ -459,7 +459,7 @@ static const struct net_device_ops rt2860_netdev_ops = {
 	.ndo_start_xmit = rt28xx_send_packets,
 };
 
-PNET_DEV RtmpPhyNetDevInit(IN RTMP_ADAPTER * pAd,
+struct net_device *RtmpPhyNetDevInit(IN RTMP_ADAPTER * pAd,
 			   IN RTMP_OS_NETDEV_OP_HOOK * pNetDevHook)
 {
 	struct net_device *net_dev = NULL;
@@ -511,7 +511,7 @@ int rt28xx_packet_xmit(struct sk_buff *skb)
 	struct net_device *net_dev = skb->dev;
 	PRTMP_ADAPTER pAd = NULL;
 	int status = NETDEV_TX_OK;
-	PNDIS_PACKET pPacket = (PNDIS_PACKET) skb;
+	void *pPacket = (void *)skb;
 
 	GET_PAD_FROM_NET_DEV(pAd, net_dev);
 
@@ -534,7 +534,7 @@ int rt28xx_packet_xmit(struct sk_buff *skb)
 	}
 
 	RTMP_SET_PACKET_5VT(pPacket, 0);
-	STASendPackets((NDIS_HANDLE) pAd, (PPNDIS_PACKET) & pPacket, 1);
+	STASendPackets((void *)pAd, (void **)& pPacket, 1);
 
 	status = NETDEV_TX_OK;
 done:
@@ -566,7 +566,7 @@ static int rt28xx_send_packets(IN struct sk_buff *skb_p,
 	GET_PAD_FROM_NET_DEV(pAd, net_dev);
 
 	if (!(net_dev->flags & IFF_UP)) {
-		RELEASE_NDIS_PACKET(pAd, (PNDIS_PACKET) skb_p,
+		RELEASE_NDIS_PACKET(pAd, (void *)skb_p,
 				    NDIS_STATUS_FAILURE);
 		return NETDEV_TX_OK;
 	}
@@ -690,7 +690,7 @@ static struct net_device_stats *RT28xx_get_ether_stats(IN struct net_device
 		return NULL;
 }
 
-BOOLEAN RtmpPhyNetDevExit(IN RTMP_ADAPTER * pAd, IN PNET_DEV net_dev)
+BOOLEAN RtmpPhyNetDevExit(IN RTMP_ADAPTER * pAd, struct net_device *net_dev)
 {
 
 	/* Unregister network device */

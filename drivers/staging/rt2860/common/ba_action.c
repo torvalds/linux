@@ -100,7 +100,7 @@ void BA_MaxWinSizeReasign(IN PRTMP_ADAPTER pAd,
 void Announce_Reordering_Packet(IN PRTMP_ADAPTER pAd,
 				IN struct reordering_mpdu *mpdu)
 {
-	PNDIS_PACKET pPacket;
+	void *pPacket;
 
 	pPacket = mpdu->pPacket;
 
@@ -1388,7 +1388,7 @@ void convert_reordering_packet_to_preAMSDU_or_802_3_packet(IN PRTMP_ADAPTER pAd,
 							   u8
 							   FromWhichBSSID)
 {
-	PNDIS_PACKET pRxPkt;
+	void *pRxPkt;
 	u8 Header802_3[LENGTH_802_3];
 
 	/* 1. get 802.3 Header */

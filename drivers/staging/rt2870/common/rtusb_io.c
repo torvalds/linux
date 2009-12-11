@@ -843,7 +843,7 @@ int RTUSB_VendorRequest(IN PRTMP_ADAPTER pAd,
 			     u32 TransferBufferLength)
 {
 	int ret = 0;
-	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
+	struct os_cookie *pObj = (struct os_cookie *)pAd->OS_Cookie;
 
 	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)) {
 		DBGPRINT(RT_DEBUG_ERROR, ("device disconnected\n"));

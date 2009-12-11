@@ -843,7 +843,7 @@ typedef struct _MLME_QUEUE {
 	unsigned long Num;
 	unsigned long Head;
 	unsigned long Tail;
-	NDIS_SPIN_LOCK Lock;
+	spinlock_t Lock;
 	MLME_QUEUE_ELEM Entry[MAX_LEN_OF_MLME_QUEUE];
 } MLME_QUEUE, *PMLME_QUEUE;
 

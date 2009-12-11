@@ -52,7 +52,7 @@ int NICInitRecv(IN PRTMP_ADAPTER pAd)
 {
 	u8 i;
 	int Status = NDIS_STATUS_SUCCESS;
-	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
+	struct os_cookie *pObj = (struct os_cookie *)pAd->OS_Cookie;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("--> NICInitRecv\n"));
 	pObj = pObj;
@@ -166,7 +166,7 @@ int NICInitTransmit(IN PRTMP_ADAPTER pAd)
 	PTX_CONTEXT pRTSContext = &(pAd->RTSContext);
 	PTX_CONTEXT pMLMEContext = NULL;
 /*      PHT_TX_CONTEXT  pHTTXContext = NULL; */
-	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
+	struct os_cookie *pObj = (struct os_cookie *)pAd->OS_Cookie;
 	void *RingBaseVa;
 /*      RTMP_TX_RING    *pTxRing; */
 	RTMP_MGMT_RING *pMgmtRing;
@@ -538,7 +538,7 @@ void RTMPFreeTxRxRingMemory(IN PRTMP_ADAPTER pAd)
 	PTX_CONTEXT pRTSContext = &pAd->RTSContext;
 /*      PHT_TX_CONTEXT          pHTTXContext; */
 	/*PRTMP_REORDERBUF      pReorderBuf; */
-	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
+	struct os_cookie *pObj = (struct os_cookie *)pAd->OS_Cookie;
 /*      RTMP_TX_RING            *pTxRing; */
 
 	DBGPRINT(RT_DEBUG_ERROR, ("---> RTMPFreeTxRxRingMemory\n"));

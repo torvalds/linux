@@ -62,7 +62,7 @@ typedef void(*RTMP_TIMER_TASK_HANDLE) (void *SystemSpecific1,
 #endif /* RTMP_TIMER_TASK_SUPPORT // */
 
 typedef struct _RALINK_TIMER_STRUCT {
-	RTMP_OS_TIMER TimerObj;	/* Ndis Timer object */
+	struct timer_list TimerObj;	/* Ndis Timer object */
 	BOOLEAN Valid;		/* Set to True when call RTMPInitTimer */
 	BOOLEAN State;		/* True if timer cancelled */
 	BOOLEAN PeriodicType;	/* True if timer is periodic timer */

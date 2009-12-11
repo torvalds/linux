@@ -80,7 +80,7 @@ char const *pWirelessFloodEventText[IW_FLOOD_EVENT_TYPE_NUM] = {
 };
 
 /* timeout -- ms */
-void RTMP_SetPeriodicTimer(IN NDIS_MINIPORT_TIMER * pTimer,
+void RTMP_SetPeriodicTimer(struct timer_list * pTimer,
 			   IN unsigned long timeout)
 {
 	timeout = ((timeout * OS_HZ) / 1000);
@@ -90,7 +90,7 @@ void RTMP_SetPeriodicTimer(IN NDIS_MINIPORT_TIMER * pTimer,
 
 /* convert NdisMInitializeTimer --> RTMP_OS_Init_Timer */
 void RTMP_OS_Init_Timer(IN PRTMP_ADAPTER pAd,
-			IN NDIS_MINIPORT_TIMER * pTimer,
+			struct timer_list * pTimer,
 			IN TIMER_FUNCTION function, void *data)
 {
 	init_timer(pTimer);
@@ -98,7 +98,7 @@ void RTMP_OS_Init_Timer(IN PRTMP_ADAPTER pAd,
 	pTimer->function = function;
 }
 
-void RTMP_OS_Add_Timer(IN NDIS_MINIPORT_TIMER * pTimer,
+void RTMP_OS_Add_Timer(struct timer_list * pTimer,
 		       IN unsigned long timeout)
 {
 	if (timer_pending(pTimer))
@@ -109,14 +109,14 @@ void RTMP_OS_Add_Timer(IN NDIS_MINIPORT_TIMER * pTimer,
 	add_timer(pTimer);
 }
 
-void RTMP_OS_Mod_Timer(IN NDIS_MINIPORT_TIMER * pTimer,
+void RTMP_OS_Mod_Timer(struct timer_list * pTimer,
 		       IN unsigned long timeout)
 {
 	timeout = ((timeout * OS_HZ) / 1000);
 	mod_timer(pTimer, jiffies + timeout);
 }
 
-void RTMP_OS_Del_Timer(IN NDIS_MINIPORT_TIMER * pTimer,
+void RTMP_OS_Del_Timer(struct timer_list * pTimer,
 		       OUT BOOLEAN * pCancelled)
 {
 	if (timer_pending(pTimer)) {
@@ -168,16 +168,16 @@ int os_free_mem(IN PRTMP_ADAPTER pAd, void *mem)
 	return (NDIS_STATUS_SUCCESS);
 }
 
-PNDIS_PACKET RtmpOSNetPktAlloc(IN RTMP_ADAPTER * pAd, IN int size)
+void *RtmpOSNetPktAlloc(IN RTMP_ADAPTER * pAd, IN int size)
 {
 	struct sk_buff *skb;
 	/* Add 2 more bytes for ip header alignment */
 	skb = dev_alloc_skb(size + 2);
 
-	return ((PNDIS_PACKET) skb);
+	return ((void *)skb);
 }
 
-PNDIS_PACKET RTMP_AllocateFragPacketBuffer(IN PRTMP_ADAPTER pAd,
+void *RTMP_AllocateFragPacketBuffer(IN PRTMP_ADAPTER pAd,
 					   unsigned long Length)
 {
 	struct sk_buff *pkt;
@@ -193,10 +193,10 @@ PNDIS_PACKET RTMP_AllocateFragPacketBuffer(IN PRTMP_ADAPTER pAd,
 		RTMP_SET_PACKET_SOURCE(OSPKT_TO_RTPKT(pkt), PKTSRC_NDIS);
 	}
 
-	return (PNDIS_PACKET) pkt;
+	return (void *)pkt;
 }
 
-PNDIS_PACKET RTMP_AllocateTxPacketBuffer(IN PRTMP_ADAPTER pAd,
+void *RTMP_AllocateTxPacketBuffer(IN PRTMP_ADAPTER pAd,
 					 unsigned long Length,
 					 IN BOOLEAN Cached,
 					 void ** VirtualAddress)
@@ -217,11 +217,11 @@ PNDIS_PACKET RTMP_AllocateTxPacketBuffer(IN PRTMP_ADAPTER pAd,
 		*VirtualAddress = (void *)NULL;
 	}
 
-	return (PNDIS_PACKET) pkt;
+	return (void *)pkt;
 }
 
 void build_tx_packet(IN PRTMP_ADAPTER pAd,
-		     IN PNDIS_PACKET pPacket,
+		     void *pPacket,
 		     u8 *pFrame, unsigned long FrameLen)
 {
 
@@ -235,10 +235,10 @@ void build_tx_packet(IN PRTMP_ADAPTER pAd,
 
 void RTMPFreeAdapter(IN PRTMP_ADAPTER pAd)
 {
-	POS_COOKIE os_cookie;
+	struct os_cookie *os_cookie;
 	int index;
 
-	os_cookie = (POS_COOKIE) pAd->OS_Cookie;
+	os_cookie = (struct os_cookie *)pAd->OS_Cookie;
 
 	if (pAd->BeaconBuf)
 		kfree(pAd->BeaconBuf);
@@ -277,7 +277,7 @@ BOOLEAN OS_Need_Clone_Packet(void)
 		clone an input NDIS PACKET to another one. The new internally created NDIS PACKET
 		must have only one NDIS BUFFER
 		return - byte copied. 0 means can't create NDIS PACKET
-		NOTE: internally created NDIS_PACKET should be destroyed by RTMPFreeNdisPacket
+		NOTE: internally created char should be destroyed by RTMPFreeNdisPacket
 
 	Arguments:
 		pAd 	Pointer to our adapter
@@ -294,8 +294,8 @@ BOOLEAN OS_Need_Clone_Packet(void)
 */
 int RTMPCloneNdisPacket(IN PRTMP_ADAPTER pAd,
 				IN BOOLEAN pInsAMSDUHdr,
-				IN PNDIS_PACKET pInPacket,
-				OUT PNDIS_PACKET * ppOutPacket)
+				void *pInPacket,
+				void ** ppOutPacket)
 {
 
 	struct sk_buff *pkt;
@@ -324,18 +324,18 @@ int RTMPCloneNdisPacket(IN PRTMP_ADAPTER pAd,
 
 /* the allocated NDIS PACKET must be freed via RTMPFreeNdisPacket() */
 int RTMPAllocateNdisPacket(IN PRTMP_ADAPTER pAd,
-				   OUT PNDIS_PACKET * ppPacket,
+				   void ** ppPacket,
 				   u8 *pHeader,
 				   u32 HeaderLen,
 				   u8 *pData, u32 DataLen)
 {
-	PNDIS_PACKET pPacket;
+	void *pPacket;
 	ASSERT(pData);
 	ASSERT(DataLen);
 
 	/* 1. Allocate a packet */
 	pPacket =
-	    (PNDIS_PACKET *) dev_alloc_skb(HeaderLen + DataLen +
+	    (void **) dev_alloc_skb(HeaderLen + DataLen +
 					   RTMP_PKT_TAIL_PADDING);
 	if (pPacket == NULL) {
 		*ppPacket = NULL;
@@ -363,11 +363,11 @@ int RTMPAllocateNdisPacket(IN PRTMP_ADAPTER pAd,
 /*
   ========================================================================
   Description:
-	This routine frees a miniport internally allocated NDIS_PACKET and its
+	This routine frees a miniport internally allocated char and its
 	corresponding NDIS_BUFFER and allocated memory.
   ========================================================================
 */
-void RTMPFreeNdisPacket(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket)
+void RTMPFreeNdisPacket(IN PRTMP_ADAPTER pAd, void *pPacket)
 {
 	dev_kfree_skb_any(RTPKT_TO_OSPKT(pPacket));
 }
@@ -375,7 +375,7 @@ void RTMPFreeNdisPacket(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket)
 /* IRQL = DISPATCH_LEVEL */
 /* NOTE: we do have an assumption here, that Byte0 and Byte1 always reasid at the same */
 /*                       scatter gather buffer */
-int Sniff2BytesFromNdisBuffer(IN PNDIS_BUFFER pFirstBuffer,
+int Sniff2BytesFromNdisBuffer(char *pFirstBuffer,
 				      u8 DesiredOffset,
 				      u8 *pByte0, u8 *pByte1)
 {
@@ -385,12 +385,12 @@ int Sniff2BytesFromNdisBuffer(IN PNDIS_BUFFER pFirstBuffer,
 	return NDIS_STATUS_SUCCESS;
 }
 
-void RTMP_QueryPacketInfo(IN PNDIS_PACKET pPacket,
+void RTMP_QueryPacketInfo(void *pPacket,
 			  OUT PACKET_INFO * pPacketInfo,
 			  u8 ** pSrcBufVA, u32 * pSrcBufLen)
 {
 	pPacketInfo->BufferCount = 1;
-	pPacketInfo->pFirstBuffer = (PNDIS_BUFFER) GET_OS_PKT_DATAPTR(pPacket);
+	pPacketInfo->pFirstBuffer = (char *)GET_OS_PKT_DATAPTR(pPacket);
 	pPacketInfo->PhysicalBufferCount = 1;
 	pPacketInfo->TotalPacketLength = GET_OS_PKT_LEN(pPacket);
 
@@ -398,11 +398,11 @@ void RTMP_QueryPacketInfo(IN PNDIS_PACKET pPacket,
 	*pSrcBufLen = GET_OS_PKT_LEN(pPacket);
 }
 
-void RTMP_QueryNextPacketInfo(IN PNDIS_PACKET * ppPacket,
+void RTMP_QueryNextPacketInfo(void ** ppPacket,
 			      OUT PACKET_INFO * pPacketInfo,
 			      u8 ** pSrcBufVA, u32 * pSrcBufLen)
 {
-	PNDIS_PACKET pPacket = NULL;
+	void *pPacket = NULL;
 
 	if (*ppPacket)
 		pPacket = GET_OS_PKT_NEXT(*ppPacket);
@@ -410,7 +410,7 @@ void RTMP_QueryNextPacketInfo(IN PNDIS_PACKET * ppPacket,
 	if (pPacket) {
 		pPacketInfo->BufferCount = 1;
 		pPacketInfo->pFirstBuffer =
-		    (PNDIS_BUFFER) GET_OS_PKT_DATAPTR(pPacket);
+		    (char *)GET_OS_PKT_DATAPTR(pPacket);
 		pPacketInfo->PhysicalBufferCount = 1;
 		pPacketInfo->TotalPacketLength = GET_OS_PKT_LEN(pPacket);
 
@@ -429,11 +429,11 @@ void RTMP_QueryNextPacketInfo(IN PNDIS_PACKET * ppPacket,
 	}
 }
 
-PNDIS_PACKET DuplicatePacket(IN PRTMP_ADAPTER pAd,
-			     IN PNDIS_PACKET pPacket, u8 FromWhichBSSID)
+void *DuplicatePacket(IN PRTMP_ADAPTER pAd,
+			     void *pPacket, u8 FromWhichBSSID)
 {
 	struct sk_buff *skb;
-	PNDIS_PACKET pRetPacket = NULL;
+	void *pRetPacket = NULL;
 	u16 DataSize;
 	u8 *pData;
 
@@ -450,14 +450,14 @@ PNDIS_PACKET DuplicatePacket(IN PRTMP_ADAPTER pAd,
 
 }
 
-PNDIS_PACKET duplicate_pkt(IN PRTMP_ADAPTER pAd,
+void *duplicate_pkt(IN PRTMP_ADAPTER pAd,
 			   u8 *pHeader802_3,
 			   u32 HdrLen,
 			   u8 *pData,
 			   unsigned long DataSize, u8 FromWhichBSSID)
 {
 	struct sk_buff *skb;
-	PNDIS_PACKET pPacket = NULL;
+	void *pPacket = NULL;
 
 	if ((skb =
 	     __dev_alloc_skb(HdrLen + DataSize + 2, MEM_ALLOC_FLAG)) != NULL) {
@@ -474,8 +474,8 @@ PNDIS_PACKET duplicate_pkt(IN PRTMP_ADAPTER pAd,
 }
 
 #define TKIP_TX_MIC_SIZE		8
-PNDIS_PACKET duplicate_pkt_with_TKIP_MIC(IN PRTMP_ADAPTER pAd,
-					 IN PNDIS_PACKET pPacket)
+void *duplicate_pkt_with_TKIP_MIC(IN PRTMP_ADAPTER pAd,
+					 void *pPacket)
 {
 	struct sk_buff *skb, *newskb;
 
@@ -497,8 +497,8 @@ PNDIS_PACKET duplicate_pkt_with_TKIP_MIC(IN PRTMP_ADAPTER pAd,
 	return OSPKT_TO_RTPKT(skb);
 }
 
-PNDIS_PACKET ClonePacket(IN PRTMP_ADAPTER pAd,
-			 IN PNDIS_PACKET pPacket,
+void *ClonePacket(IN PRTMP_ADAPTER pAd,
+			 void *pPacket,
 			 u8 *pData, unsigned long DataSize)
 {
 	struct sk_buff *pRxPkt;
@@ -564,7 +564,7 @@ void wlan_802_11_to_802_3_packet(IN PRTMP_ADAPTER pAd,
 		       LENGTH_802_3);
 }
 
-void announce_802_3_packet(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket)
+void announce_802_3_packet(IN PRTMP_ADAPTER pAd, void *pPacket)
 {
 
 	struct sk_buff *pRxPkt;
@@ -580,7 +580,7 @@ void announce_802_3_packet(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket)
 }
 
 PRTMP_SCATTER_GATHER_LIST
-rt_get_sg_list_from_packet(PNDIS_PACKET pPacket, RTMP_SCATTER_GATHER_LIST * sg)
+rt_get_sg_list_from_packet(void *pPacket, RTMP_SCATTER_GATHER_LIST * sg)
 {
 	sg->NumberOfElements = 1;
 	sg->Elements[0].Address = GET_OS_PKT_DATAPTR(pPacket);
@@ -905,7 +905,7 @@ err_free_sk_buff:
 	Device IRQ related functions.
 
  *******************************************************************************/
-int RtmpOSIRQRequest(IN PNET_DEV pNetDev)
+int RtmpOSIRQRequest(struct net_device *pNetDev)
 {
 #ifdef RTMP_PCI_SUPPORT
 	struct net_device *net_dev = pNetDev;
@@ -917,7 +917,7 @@ int RtmpOSIRQRequest(IN PNET_DEV pNetDev)
 	ASSERT(pAd);
 
 	if (pAd->infType == RTMP_DEV_INF_PCI) {
-		POS_COOKIE _pObj = (POS_COOKIE) (pAd->OS_Cookie);
+		struct os_cookie *_pObj = (struct os_cookie *)(pAd->OS_Cookie);
 		RTMP_MSI_ENABLE(pAd);
 		retval =
 		    request_irq(_pObj->pci_dev->irq, rt2860_interrupt, SA_SHIRQ,
@@ -932,7 +932,7 @@ int RtmpOSIRQRequest(IN PNET_DEV pNetDev)
 #endif
 }
 
-int RtmpOSIRQRelease(IN PNET_DEV pNetDev)
+int RtmpOSIRQRelease(struct net_device *pNetDev)
 {
 	struct net_device *net_dev = pNetDev;
 	PRTMP_ADAPTER pAd = NULL;
@@ -943,7 +943,7 @@ int RtmpOSIRQRelease(IN PNET_DEV pNetDev)
 
 #ifdef RTMP_PCI_SUPPORT
 	if (pAd->infType == RTMP_DEV_INF_PCI) {
-		POS_COOKIE pObj = (POS_COOKIE) (pAd->OS_Cookie);
+		struct os_cookie *pObj = (struct os_cookie *)(pAd->OS_Cookie);
 		synchronize_irq(pObj->pci_dev->irq);
 		free_irq(pObj->pci_dev->irq, (net_dev));
 		RTMP_MSI_DISABLE(pAd);
@@ -958,7 +958,7 @@ int RtmpOSIRQRelease(IN PNET_DEV pNetDev)
 	File open/close related functions.
 
  *******************************************************************************/
-RTMP_OS_FD RtmpOSFileOpen(char *pPath, int flag, int mode)
+struct file *RtmpOSFileOpen(char *pPath, int flag, int mode)
 {
 	struct file *filePtr;
 
@@ -969,21 +969,21 @@ RTMP_OS_FD RtmpOSFileOpen(char *pPath, int flag, int mode)
 			  -PTR_ERR(filePtr), pPath));
 	}
 
-	return (RTMP_OS_FD) filePtr;
+	return (struct file *)filePtr;
 }
 
-int RtmpOSFileClose(RTMP_OS_FD osfd)
+int RtmpOSFileClose(struct file *osfd)
 {
 	filp_close(osfd, NULL);
 	return 0;
 }
 
-void RtmpOSFileSeek(RTMP_OS_FD osfd, int offset)
+void RtmpOSFileSeek(struct file *osfd, int offset)
 {
 	osfd->f_pos = offset;
 }
 
-int RtmpOSFileRead(RTMP_OS_FD osfd, char *pDataPtr, int readLen)
+int RtmpOSFileRead(struct file *osfd, char *pDataPtr, int readLen)
 {
 	/* The object must have a read method */
 	if (osfd->f_op && osfd->f_op->read) {
@@ -994,7 +994,7 @@ int RtmpOSFileRead(RTMP_OS_FD osfd, char *pDataPtr, int readLen)
 	}
 }
 
-int RtmpOSFileWrite(RTMP_OS_FD osfd, char *pDataPtr, int writeLen)
+int RtmpOSFileWrite(struct file *osfd, char *pDataPtr, int writeLen)
 {
 	return osfd->f_op->write(osfd, pDataPtr, (size_t) writeLen,
 				 &osfd->f_pos);
@@ -1164,7 +1164,7 @@ int RtmpOSWrielessEventSend(IN RTMP_ADAPTER * pAd,
 	return 0;
 }
 
-int RtmpOSNetDevAddrSet(IN PNET_DEV pNetDev, u8 *pMacAddr)
+int RtmpOSNetDevAddrSet(struct net_device *pNetDev, u8 *pMacAddr)
 {
 	struct net_device *net_dev;
 	RTMP_ADAPTER *pAd;
@@ -1188,10 +1188,10 @@ int RtmpOSNetDevAddrSet(IN PNET_DEV pNetDev, u8 *pMacAddr)
   *	Assign the network dev name for created Ralink WiFi interface.
   */
 static int RtmpOSNetDevRequestName(IN RTMP_ADAPTER * pAd,
-				   IN PNET_DEV dev,
+				   struct net_device *dev,
 				   char *pPrefixStr, int devIdx)
 {
-	PNET_DEV existNetDev;
+	struct net_device *existNetDev;
 	char suffixName[IFNAMSIZ];
 	char desiredName[IFNAMSIZ];
 	int ifNameIdx, prefixLen, slotNameLen;
@@ -1231,19 +1231,19 @@ static int RtmpOSNetDevRequestName(IN RTMP_ADAPTER * pAd,
 	return Status;
 }
 
-void RtmpOSNetDevClose(IN PNET_DEV pNetDev)
+void RtmpOSNetDevClose(struct net_device *pNetDev)
 {
 	dev_close(pNetDev);
 }
 
-void RtmpOSNetDevFree(PNET_DEV pNetDev)
+void RtmpOSNetDevFree(struct net_device *pNetDev)
 {
 	ASSERT(pNetDev);
 
 	free_netdev(pNetDev);
 }
 
-int RtmpOSNetDevAlloc(IN PNET_DEV * new_dev_p, u32 privDataSize)
+int RtmpOSNetDevAlloc(struct net_device ** new_dev_p, u32 privDataSize)
 {
 	/* assign it as null first. */
 	*new_dev_p = NULL;
@@ -1258,16 +1258,16 @@ int RtmpOSNetDevAlloc(IN PNET_DEV * new_dev_p, u32 privDataSize)
 		return NDIS_STATUS_FAILURE;
 }
 
-PNET_DEV RtmpOSNetDevGetByName(PNET_DEV pNetDev, char *pDevName)
+struct net_device *RtmpOSNetDevGetByName(struct net_device *pNetDev, char *pDevName)
 {
-	PNET_DEV pTargetNetDev = NULL;
+	struct net_device *pTargetNetDev = NULL;
 
 	pTargetNetDev = dev_get_by_name(dev_net(pNetDev), pDevName);
 
 	return pTargetNetDev;
 }
 
-void RtmpOSNetDeviceRefPut(PNET_DEV pNetDev)
+void RtmpOSNetDeviceRefPut(struct net_device *pNetDev)
 {
 	/*
 	   every time dev_get_by_name is called, and it has returned a valid struct
@@ -1278,7 +1278,7 @@ void RtmpOSNetDeviceRefPut(PNET_DEV pNetDev)
 		dev_put(pNetDev);
 }
 
-int RtmpOSNetDevDestory(IN RTMP_ADAPTER * pAd, IN PNET_DEV pNetDev)
+int RtmpOSNetDevDestory(IN RTMP_ADAPTER * pAd, struct net_device *pNetDev)
 {
 
 	/* TODO: Need to fix this */
@@ -1286,12 +1286,12 @@ int RtmpOSNetDevDestory(IN RTMP_ADAPTER * pAd, IN PNET_DEV pNetDev)
 	return 0;
 }
 
-void RtmpOSNetDevDetach(PNET_DEV pNetDev)
+void RtmpOSNetDevDetach(struct net_device *pNetDev)
 {
 	unregister_netdev(pNetDev);
 }
 
-int RtmpOSNetDevAttach(IN PNET_DEV pNetDev,
+int RtmpOSNetDevAttach(struct net_device *pNetDev,
 		       IN RTMP_OS_NETDEV_OP_HOOK * pDevOpHook)
 {
 	int ret, rtnl_locked = FALSE;
@@ -1331,7 +1331,7 @@ int RtmpOSNetDevAttach(IN PNET_DEV pNetDev,
 		return NDIS_STATUS_FAILURE;
 }
 
-PNET_DEV RtmpOSNetDevCreate(IN RTMP_ADAPTER * pAd,
+struct net_device *RtmpOSNetDevCreate(IN RTMP_ADAPTER * pAd,
 			    int devType,
 			    int devNum,
 			    int privMemSize, char *pNamePrefix)

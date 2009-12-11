@@ -198,7 +198,7 @@ typedef struct _RX_CONTEXT {
 	BOOLEAN Readable;	/* Receive Complete back. OK for driver to indicate receiving packet. */
 	BOOLEAN IRPPending;	/* TODO: To be removed */
 	atomic_t IrpLock;
-	NDIS_SPIN_LOCK RxContextLock;
+	spinlock_t RxContextLock;
 	dma_addr_t data_dma;	/* urb dma on linux */
 } RX_CONTEXT, *PRX_CONTEXT;
 
