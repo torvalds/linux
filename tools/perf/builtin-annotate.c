@@ -25,6 +25,7 @@
 #include "util/thread.h"
 #include "util/sort.h"
 #include "util/hist.h"
+#include "util/session.h"
 #include "util/data_map.h"
 
 static char		const *input_name = "perf.data";
@@ -462,21 +463,23 @@ static struct perf_file_handler file_handler = {
 
 static int __cmd_annotate(void)
 {
-	struct perf_header *header;
+	struct perf_session *session = perf_session__new(input_name, O_RDONLY, force);
 	struct thread *idle;
 	int ret;
+
+	if (session == NULL)
+		return -ENOMEM;
 
 	idle = register_idle_thread();
 	register_perf_file_handler(&file_handler);
 
-	ret = mmap_dispatch_perf_file(&header, input_name, 0, 0,
-				      &event__cwdlen, &event__cwd);
+	ret = perf_session__process_events(session, 0, &event__cwdlen, &event__cwd);
 	if (ret)
-		return ret;
+		goto out_delete;
 
 	if (dump_trace) {
 		event__print_totals();
-		return 0;
+		goto out_delete;
 	}
 
 	if (verbose > 3)
@@ -489,6 +492,8 @@ static int __cmd_annotate(void)
 	output__resort(event__total[0]);
 
 	find_annotations();
+out_delete:
+	perf_session__delete(session);
 
 	return ret;
 }

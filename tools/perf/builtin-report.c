@@ -22,6 +22,7 @@
 #include "perf.h"
 #include "util/debug.h"
 #include "util/header.h"
+#include "util/session.h"
 
 #include "util/parse-options.h"
 #include "util/parse-events.h"
@@ -52,7 +53,7 @@ static int		exclude_other = 1;
 
 static char		callchain_default_opt[] = "fractal,0.5";
 
-static struct perf_header *header;
+static struct perf_session *session;
 
 static u64		sample_type;
 
@@ -701,7 +702,7 @@ static int process_read_event(event_t *event)
 {
 	struct perf_event_attr *attr;
 
-	attr = perf_header__find_attr(event->read.id, header);
+	attr = perf_header__find_attr(event->read.id, &session->header);
 
 	if (show_threads) {
 		const char *name = attr ? __event_name(attr->type, attr->config)
@@ -766,6 +767,10 @@ static int __cmd_report(void)
 	struct thread *idle;
 	int ret;
 
+	session = perf_session__new(input_name, O_RDONLY, force);
+	if (session == NULL)
+		return -ENOMEM;
+
 	idle = register_idle_thread();
 	thread__comm_adjust(idle);
 
@@ -774,14 +779,14 @@ static int __cmd_report(void)
 
 	register_perf_file_handler(&file_handler);
 
-	ret = mmap_dispatch_perf_file(&header, input_name, force,
-				      full_paths, &event__cwdlen, &event__cwd);
+	ret = perf_session__process_events(session, full_paths,
+					   &event__cwdlen, &event__cwd);
 	if (ret)
-		return ret;
+		goto out_delete;
 
 	if (dump_trace) {
 		event__print_totals();
-		return 0;
+		goto out_delete;
 	}
 
 	if (verbose > 3)
@@ -796,7 +801,8 @@ static int __cmd_report(void)
 
 	if (show_threads)
 		perf_read_values_destroy(&show_threads_values);
-
+out_delete:
+	perf_session__delete(session);
 	return ret;
 }
 

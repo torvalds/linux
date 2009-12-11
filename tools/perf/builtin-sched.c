@@ -6,6 +6,7 @@
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/header.h"
+#include "util/session.h"
 
 #include "util/parse-options.h"
 #include "util/trace-event.h"
@@ -21,7 +22,6 @@
 
 static char			const *input_name = "perf.data";
 
-static struct perf_header	*header;
 static u64			sample_type;
 
 static char			default_sort_order[] = "avg, max, switch, runtime";
@@ -1663,11 +1663,18 @@ static struct perf_file_handler file_handler = {
 
 static int read_events(void)
 {
+	int err;
+	struct perf_session *session = perf_session__new(input_name, O_RDONLY, 0);
+
+	if (session == NULL)
+		return -ENOMEM;
+
 	register_idle_thread();
 	register_perf_file_handler(&file_handler);
 
-	return mmap_dispatch_perf_file(&header, input_name, 0, 0,
-				       &event__cwdlen, &event__cwd);
+	err = perf_session__process_events(session, 0, &event__cwdlen, &event__cwd);
+	perf_session__delete(session);
+	return err;
 }
 
 static void print_bad_events(void)
