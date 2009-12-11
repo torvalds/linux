@@ -56,6 +56,16 @@ static void dso__set_loaded(struct dso *self, enum map_type type)
 	self->loaded |= (1 << type);
 }
 
+static bool symbol_type__is_a(char symbol_type, enum map_type map_type)
+{
+	switch (map_type) {
+	case MAP__FUNCTION:
+		return symbol_type == 'T' || symbol_type == 'W';
+	default:
+		return false;
+	}
+}
+
 static void symbols__fixup_end(struct rb_root *self)
 {
 	struct rb_node *nd, *prevnd = rb_first(self);
@@ -327,10 +337,7 @@ static int dso__load_all_kallsyms(struct dso *self, struct map *map)
 			continue;
 
 		symbol_type = toupper(line[len]);
-		/*
-		 * We're interested only in code ('T'ext)
-		 */
-		if (symbol_type != 'T' && symbol_type != 'W')
+		if (!symbol_type__is_a(symbol_type, map->type))
 			continue;
 
 		symbol_name = line + len + 2;

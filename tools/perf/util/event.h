@@ -103,9 +103,9 @@ void event__print_totals(void);
 
 enum map_type {
 	MAP__FUNCTION = 0,
-
-	MAP__NR_TYPES,
 };
+
+#define MAP__NR_TYPES (MAP__FUNCTION + 1)
 
 struct map {
 	union {
