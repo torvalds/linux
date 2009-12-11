@@ -172,7 +172,7 @@ VOID RtmpChipOpsRFHook(IN RTMP_ADAPTER * pAd)
 				    RT30xxReverseRFSleepModeSetup;
 			}
 		}
-#endif // RT3070 //
+#endif /* RT3070 // */
 #ifdef RT3090
 		if (IS_RT3090(pAd) && (pAd->infType == RTMP_DEV_INF_PCI)) {
 			pChipOps->AsicRfTurnOff = RT30xxLoadRFSleepModeSetup;
@@ -180,9 +180,9 @@ VOID RtmpChipOpsRFHook(IN RTMP_ADAPTER * pAd)
 			pChipOps->AsicReverseRfFromSleepMode =
 			    RT30xxReverseRFSleepModeSetup;
 		}
-#endif // RT3090 //
+#endif /* RT3090 // */
 	}
-#endif // RT30xx //
+#endif /* RT30xx // */
 }
 
-#endif // RTMP_RF_RW_SUPPORT //
+#endif /* RTMP_RF_RW_SUPPORT // */

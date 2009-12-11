@@ -65,8 +65,8 @@ INT RtmpChipOpsEepromHook(IN RTMP_ADAPTER * pAd, IN INT infType)
 		return 0;
 	} else
 		DBGPRINT(RT_DEBUG_TRACE, ("NVM is EEPROM\n"));
-#endif // RTMP_EFUSE_SUPPORT //
-#endif // RT30xx //
+#endif /* RTMP_EFUSE_SUPPORT // */
+#endif /* RT30xx // */
 
 	switch (infType) {
 #ifdef RTMP_PCI_SUPPORT
@@ -74,13 +74,13 @@ INT RtmpChipOpsEepromHook(IN RTMP_ADAPTER * pAd, IN INT infType)
 		pChipOps->eeinit = NULL;
 		pChipOps->eeread = rtmp_ee_prom_read16;
 		break;
-#endif // RTMP_PCI_SUPPORT //
+#endif /* RTMP_PCI_SUPPORT // */
 #ifdef RTMP_USB_SUPPORT
 	case RTMP_DEV_INF_USB:
 		pChipOps->eeinit = NULL;
 		pChipOps->eeread = RTUSBReadEEPROM16;
 		break;
-#endif // RTMP_USB_SUPPORT //
+#endif /* RTMP_USB_SUPPORT // */
 
 	default:
 		DBGPRINT(RT_DEBUG_ERROR, ("RtmpChipOpsEepromHook() failed!\n"));

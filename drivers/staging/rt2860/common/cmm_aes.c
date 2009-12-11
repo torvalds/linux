@@ -277,7 +277,7 @@ void construct_mic_header2(unsigned char *mic_header2,
 	mic_header2[4] = mpdu[20];
 	mic_header2[5] = mpdu[21];
 
-	// In Sequence Control field, mute sequence numer bits (12-bit)
+	/* In Sequence Control field, mute sequence numer bits (12-bit) */
 	mic_header2[6] = mpdu[22] & 0x0f;	/* SC */
 	mic_header2[7] = 0x00;	/* mpdu[23]; */
 
@@ -403,7 +403,7 @@ void construct_ctr_preload(unsigned char *ctr_preload,
 	for (i = 8; i < 14; i++)
 		ctr_preload[i] = pn_vector[13 - i];	/* ctr_preload[8:13] = PN[5:0] */
 #endif
-	ctr_preload[14] = (unsigned char)(c / 256);	// Ctr
+	ctr_preload[14] = (unsigned char)(c / 256);	/* Ctr */
 	ctr_preload[15] = (unsigned char)(c % 256);
 
 }
@@ -477,12 +477,12 @@ BOOLEAN RTMPSoftDecryptAES(IN PRTMP_ADAPTER pAd,
 	PN[4] = *(pData + HeaderLen + 6);
 	PN[5] = *(pData + HeaderLen + 7);
 
-	payload_len = DataByteCnt - HeaderLen - 8 - 8;	// 8 bytes for CCMP header , 8 bytes for MIC
+	payload_len = DataByteCnt - HeaderLen - 8 - 8;	/* 8 bytes for CCMP header , 8 bytes for MIC */
 	payload_remainder = (payload_len) % 16;
 	num_blocks = (payload_len) / 16;
 
-	// Find start of payload
-	payload_index = HeaderLen + 8;	//IV+EIV
+	/* Find start of payload */
+	payload_index = HeaderLen + 8;	/*IV+EIV */
 
 	for (i = 0; i < num_blocks; i++) {
 		construct_ctr_preload(ctr_preload,
@@ -495,10 +495,10 @@ BOOLEAN RTMPSoftDecryptAES(IN PRTMP_ADAPTER pAd,
 		payload_index += 16;
 	}
 
-	//
-	// If there is a short final block, then pad it
-	// encrypt it and copy the unpadded part back
-	//
+	/* */
+	/* If there is a short final block, then pad it */
+	/* encrypt it and copy the unpadded part back */
+	/* */
 	if (payload_remainder > 0) {
 		construct_ctr_preload(ctr_preload,
 				      a4_exists,
@@ -515,9 +515,9 @@ BOOLEAN RTMPSoftDecryptAES(IN PRTMP_ADAPTER pAd,
 			       payload_remainder);
 		payload_index += payload_remainder;
 	}
-	//
-	// Descrypt the MIC
-	//
+	/* */
+	/* Descrypt the MIC */
+	/* */
 	construct_ctr_preload(ctr_preload, a4_exists, qc_exists, pData, PN, 0);
 	NdisZeroMemory(padded_buffer, 16);
 	NdisMoveMemory(padded_buffer, pData + payload_index, 8);
@@ -528,15 +528,15 @@ BOOLEAN RTMPSoftDecryptAES(IN PRTMP_ADAPTER pAd,
 
 	NdisMoveMemory(TrailMIC, chain_buffer, 8);
 
-	//
-	// Calculate MIC
-	//
+	/* */
+	/* Calculate MIC */
+	/* */
 
-	//Force the protected frame bit on
+	/*Force the protected frame bit on */
 	*(pData + 1) = *(pData + 1) | 0x40;
 
-	// Find start of payload
-	// Because the CCMP header has been removed
+	/* Find start of payload */
+	/* Because the CCMP header has been removed */
 	payload_index = HeaderLen;
 
 	construct_mic_iv(mic_iv, qc_exists, a4_exists, pData, payload_len, PN);
@@ -551,14 +551,14 @@ BOOLEAN RTMPSoftDecryptAES(IN PRTMP_ADAPTER pAd,
 	bitwise_xor(aes_out, mic_header2, chain_buffer);
 	aes128k128d(pWpaKey[KeyID].Key, chain_buffer, aes_out);
 
-	// iterate through each 16 byte payload block
+	/* iterate through each 16 byte payload block */
 	for (i = 0; i < num_blocks; i++) {
 		bitwise_xor(aes_out, pData + payload_index, chain_buffer);
 		payload_index += 16;
 		aes128k128d(pWpaKey[KeyID].Key, chain_buffer, aes_out);
 	}
 
-	// Add on the final payload block if it needs padding
+	/* Add on the final payload block if it needs padding */
 	if (payload_remainder > 0) {
 		NdisZeroMemory(padded_buffer, 16);
 		NdisMoveMemory(padded_buffer, pData + payload_index,
@@ -567,13 +567,13 @@ BOOLEAN RTMPSoftDecryptAES(IN PRTMP_ADAPTER pAd,
 		bitwise_xor(aes_out, padded_buffer, chain_buffer);
 		aes128k128d(pWpaKey[KeyID].Key, chain_buffer, aes_out);
 	}
-	// aes_out contains padded mic, discard most significant
-	// 8 bytes to generate 64 bit MIC
+	/* aes_out contains padded mic, discard most significant */
+	/* 8 bytes to generate 64 bit MIC */
 	for (i = 0; i < 8; i++)
 		MIC[i] = aes_out[i];
 
 	if (!NdisEqualMemory(MIC, TrailMIC, 8)) {
-		DBGPRINT(RT_DEBUG_ERROR, ("RTMPSoftDecryptAES, MIC Error !\n"));	//MIC error.
+		DBGPRINT(RT_DEBUG_ERROR, ("RTMPSoftDecryptAES, MIC Error !\n"));	/*MIC error. */
 		return FALSE;
 	}
 
@@ -1208,27 +1208,27 @@ VOID AES_GTK_KEY_WRAP(IN UCHAR * key,
 {
 	UCHAR A[8], BIN[16], BOUT[16];
 	UCHAR R[512];
-	INT num_blocks = p_len / 8;	// unit:64bits
+	INT num_blocks = p_len / 8;	/* unit:64bits */
 	INT i, j;
 	aes_context aesctx;
 	UCHAR xor;
 
 	rt_aes_set_key(&aesctx, key, 128);
 
-	// Init IA
+	/* Init IA */
 	for (i = 0; i < 8; i++)
 		A[i] = 0xa6;
 
-	//Input plaintext
+	/*Input plaintext */
 	for (i = 0; i < num_blocks; i++) {
 		for (j = 0; j < 8; j++)
 			R[8 * (i + 1) + j] = plaintext[8 * i + j];
 	}
 
-	// Key Mix
+	/* Key Mix */
 	for (j = 0; j < 6; j++) {
 		for (i = 1; i <= num_blocks; i++) {
-			//phase 1
+			/*phase 1 */
 			NdisMoveMemory(BIN, A, 8);
 			NdisMoveMemory(&BIN[8], &R[8 * i], 8);
 			rt_aes_encrypt(&aesctx, BIN, BOUT);
@@ -1240,7 +1240,7 @@ VOID AES_GTK_KEY_WRAP(IN UCHAR * key,
 		}
 	}
 
-	// Output ciphertext
+	/* Output ciphertext */
 	NdisMoveMemory(ciphertext, A, 8);
 
 	for (i = 1; i <= num_blocks; i++) {
@@ -1273,7 +1273,7 @@ VOID AES_GTK_KEY_UNWRAP(IN UCHAR * key,
 	INT i, j;
 	aes_context aesctx;
 	UCHAR *R;
-	INT num_blocks = c_len / 8;	// unit:64bits
+	INT num_blocks = c_len / 8;	/* unit:64bits */
 
 	os_alloc_mem(NULL, (PUCHAR *) & R, 512);
 
@@ -1283,9 +1283,9 @@ VOID AES_GTK_KEY_UNWRAP(IN UCHAR * key,
 		return;
 	}
 	/* End of if */
-	// Initialize
+	/* Initialize */
 	NdisMoveMemory(A, ciphertext, 8);
-	//Input plaintext
+	/*Input plaintext */
 	for (i = 0; i < (c_len - 8); i++) {
 		R[i] = ciphertext[i + 8];
 	}
@@ -1304,7 +1304,7 @@ VOID AES_GTK_KEY_UNWRAP(IN UCHAR * key,
 		}
 	}
 
-	// OUTPUT
+	/* OUTPUT */
 	for (i = 0; i < c_len; i++) {
 		plaintext[i] = R[i];
 	}

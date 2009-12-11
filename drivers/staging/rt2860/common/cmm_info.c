@@ -53,144 +53,144 @@ VOID RTMPSetDesiredRates(IN PRTMP_ADAPTER pAdapter, IN LONG Rates)
 
 	memset(&aryRates, 0x00, sizeof(NDIS_802_11_RATES));
 	switch (pAdapter->CommonCfg.PhyMode) {
-	case PHY_11A:		// A only
+	case PHY_11A:		/* A only */
 		switch (Rates) {
-		case 6000000:	//6M
-			aryRates[0] = 0x0c;	// 6M
+		case 6000000:	/*6M */
+			aryRates[0] = 0x0c;	/* 6M */
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_0;
 			break;
-		case 9000000:	//9M
-			aryRates[0] = 0x12;	// 9M
+		case 9000000:	/*9M */
+			aryRates[0] = 0x12;	/* 9M */
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_1;
 			break;
-		case 12000000:	//12M
-			aryRates[0] = 0x18;	// 12M
+		case 12000000:	/*12M */
+			aryRates[0] = 0x18;	/* 12M */
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_2;
 			break;
-		case 18000000:	//18M
-			aryRates[0] = 0x24;	// 18M
+		case 18000000:	/*18M */
+			aryRates[0] = 0x24;	/* 18M */
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_3;
 			break;
-		case 24000000:	//24M
-			aryRates[0] = 0x30;	// 24M
+		case 24000000:	/*24M */
+			aryRates[0] = 0x30;	/* 24M */
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_4;
 			break;
-		case 36000000:	//36M
-			aryRates[0] = 0x48;	// 36M
+		case 36000000:	/*36M */
+			aryRates[0] = 0x48;	/* 36M */
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_5;
 			break;
-		case 48000000:	//48M
-			aryRates[0] = 0x60;	// 48M
+		case 48000000:	/*48M */
+			aryRates[0] = 0x60;	/* 48M */
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_6;
 			break;
-		case 54000000:	//54M
-			aryRates[0] = 0x6c;	// 54M
+		case 54000000:	/*54M */
+			aryRates[0] = 0x6c;	/* 54M */
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_7;
 			break;
-		case -1:	//Auto
+		case -1:	/*Auto */
 		default:
-			aryRates[0] = 0x6c;	// 54Mbps
-			aryRates[1] = 0x60;	// 48Mbps
-			aryRates[2] = 0x48;	// 36Mbps
-			aryRates[3] = 0x30;	// 24Mbps
-			aryRates[4] = 0x24;	// 18M
-			aryRates[5] = 0x18;	// 12M
-			aryRates[6] = 0x12;	// 9M
-			aryRates[7] = 0x0c;	// 6M
+			aryRates[0] = 0x6c;	/* 54Mbps */
+			aryRates[1] = 0x60;	/* 48Mbps */
+			aryRates[2] = 0x48;	/* 36Mbps */
+			aryRates[3] = 0x30;	/* 24Mbps */
+			aryRates[4] = 0x24;	/* 18M */
+			aryRates[5] = 0x18;	/* 12M */
+			aryRates[6] = 0x12;	/* 9M */
+			aryRates[7] = 0x0c;	/* 6M */
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_AUTO;
 			break;
 		}
 		break;
-	case PHY_11BG_MIXED:	// B/G Mixed
-	case PHY_11B:		// B only
-	case PHY_11ABG_MIXED:	// A/B/G Mixed
+	case PHY_11BG_MIXED:	/* B/G Mixed */
+	case PHY_11B:		/* B only */
+	case PHY_11ABG_MIXED:	/* A/B/G Mixed */
 	default:
 		switch (Rates) {
-		case 1000000:	//1M
+		case 1000000:	/*1M */
 			aryRates[0] = 0x02;
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_0;
 			break;
-		case 2000000:	//2M
+		case 2000000:	/*2M */
 			aryRates[0] = 0x04;
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_1;
 			break;
-		case 5000000:	//5.5M
-			aryRates[0] = 0x0b;	// 5.5M
+		case 5000000:	/*5.5M */
+			aryRates[0] = 0x0b;	/* 5.5M */
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_2;
 			break;
-		case 11000000:	//11M
-			aryRates[0] = 0x16;	// 11M
+		case 11000000:	/*11M */
+			aryRates[0] = 0x16;	/* 11M */
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_3;
 			break;
-		case 6000000:	//6M
-			aryRates[0] = 0x0c;	// 6M
+		case 6000000:	/*6M */
+			aryRates[0] = 0x0c;	/* 6M */
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_0;
 			break;
-		case 9000000:	//9M
-			aryRates[0] = 0x12;	// 9M
+		case 9000000:	/*9M */
+			aryRates[0] = 0x12;	/* 9M */
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_1;
 			break;
-		case 12000000:	//12M
-			aryRates[0] = 0x18;	// 12M
+		case 12000000:	/*12M */
+			aryRates[0] = 0x18;	/* 12M */
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_2;
 			break;
-		case 18000000:	//18M
-			aryRates[0] = 0x24;	// 18M
+		case 18000000:	/*18M */
+			aryRates[0] = 0x24;	/* 18M */
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_3;
 			break;
-		case 24000000:	//24M
-			aryRates[0] = 0x30;	// 24M
+		case 24000000:	/*24M */
+			aryRates[0] = 0x30;	/* 24M */
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_4;
 			break;
-		case 36000000:	//36M
-			aryRates[0] = 0x48;	// 36M
+		case 36000000:	/*36M */
+			aryRates[0] = 0x48;	/* 36M */
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_5;
 			break;
-		case 48000000:	//48M
-			aryRates[0] = 0x60;	// 48M
+		case 48000000:	/*48M */
+			aryRates[0] = 0x60;	/* 48M */
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_6;
 			break;
-		case 54000000:	//54M
-			aryRates[0] = 0x6c;	// 54M
+		case 54000000:	/*54M */
+			aryRates[0] = 0x6c;	/* 54M */
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_7;
 			break;
-		case -1:	//Auto
+		case -1:	/*Auto */
 		default:
-			if (pAdapter->CommonCfg.PhyMode == PHY_11B) {	//B Only
-				aryRates[0] = 0x16;	// 11Mbps
-				aryRates[1] = 0x0b;	// 5.5Mbps
-				aryRates[2] = 0x04;	// 2Mbps
-				aryRates[3] = 0x02;	// 1Mbps
-			} else {	//(B/G) Mixed or (A/B/G) Mixed
-				aryRates[0] = 0x6c;	// 54Mbps
-				aryRates[1] = 0x60;	// 48Mbps
-				aryRates[2] = 0x48;	// 36Mbps
-				aryRates[3] = 0x30;	// 24Mbps
-				aryRates[4] = 0x16;	// 11Mbps
-				aryRates[5] = 0x0b;	// 5.5Mbps
-				aryRates[6] = 0x04;	// 2Mbps
-				aryRates[7] = 0x02;	// 1Mbps
+			if (pAdapter->CommonCfg.PhyMode == PHY_11B) {	/*B Only */
+				aryRates[0] = 0x16;	/* 11Mbps */
+				aryRates[1] = 0x0b;	/* 5.5Mbps */
+				aryRates[2] = 0x04;	/* 2Mbps */
+				aryRates[3] = 0x02;	/* 1Mbps */
+			} else {	/*(B/G) Mixed or (A/B/G) Mixed */
+				aryRates[0] = 0x6c;	/* 54Mbps */
+				aryRates[1] = 0x60;	/* 48Mbps */
+				aryRates[2] = 0x48;	/* 36Mbps */
+				aryRates[3] = 0x30;	/* 24Mbps */
+				aryRates[4] = 0x16;	/* 11Mbps */
+				aryRates[5] = 0x0b;	/* 5.5Mbps */
+				aryRates[6] = 0x04;	/* 2Mbps */
+				aryRates[7] = 0x02;	/* 1Mbps */
 			}
 			pAdapter->StaCfg.DesiredTransmitSetting.field.MCS =
 			    MCS_AUTO;
@@ -213,7 +213,7 @@ VOID RTMPSetDesiredRates(IN PRTMP_ADAPTER pAdapter, IN LONG Rates)
 		  pAdapter->CommonCfg.DesireRate[5],
 		  pAdapter->CommonCfg.DesireRate[6],
 		  pAdapter->CommonCfg.DesireRate[7]));
-	// Changing DesiredRate may affect the MAX TX rate we used to TX frames out
+	/* Changing DesiredRate may affect the MAX TX rate we used to TX frames out */
 	MlmeUpdateTxRates(pAdapter, FALSE, 0);
 }
 
@@ -244,20 +244,20 @@ VOID RTMPWPARemoveAllKeys(IN PRTMP_ADAPTER pAd)
 		 ("RTMPWPARemoveAllKeys(AuthMode=%d, WepStatus=%d)\n",
 		  pAd->StaCfg.AuthMode, pAd->StaCfg.WepStatus));
 	RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
-	// For WEP/CKIP, there is no need to remove it, since WinXP won't set it again after
-	// Link up. And it will be replaced if user changed it.
+	/* For WEP/CKIP, there is no need to remove it, since WinXP won't set it again after */
+	/* Link up. And it will be replaced if user changed it. */
 	if (pAd->StaCfg.AuthMode < Ndis802_11AuthModeWPA)
 		return;
 
-	// For WPA-None, there is no need to remove it, since WinXP won't set it again after
-	// Link up. And it will be replaced if user changed it.
+	/* For WPA-None, there is no need to remove it, since WinXP won't set it again after */
+	/* Link up. And it will be replaced if user changed it. */
 	if (pAd->StaCfg.AuthMode == Ndis802_11AuthModeWPANone)
 		return;
 
-	// set BSSID wcid entry of the Pair-wise Key table as no-security mode
+	/* set BSSID wcid entry of the Pair-wise Key table as no-security mode */
 	AsicRemovePairwiseKeyEntry(pAd, BSS0, BSSID_WCID);
 
-	// set all shared key mode as no-security.
+	/* set all shared key mode as no-security. */
 	for (i = 0; i < SHARE_KEY_NUM; i++) {
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("remove %s key #%d\n",
@@ -310,9 +310,9 @@ VOID RTMPWPARemoveAllKeys(IN PRTMP_ADAPTER pAd)
 VOID RTMPSetPhyMode(IN PRTMP_ADAPTER pAd, IN ULONG phymode)
 {
 	INT i;
-	// the selected phymode must be supported by the RF IC encoded in E2PROM
+	/* the selected phymode must be supported by the RF IC encoded in E2PROM */
 
-	// if no change, do nothing
+	/* if no change, do nothing */
 	/* bug fix
 	   if (pAd->CommonCfg.PhyMode == phymode)
 	   return;
@@ -325,7 +325,7 @@ VOID RTMPSetPhyMode(IN PRTMP_ADAPTER pAd, IN ULONG phymode)
 
 	BuildChannelList(pAd);
 
-	// sanity check user setting
+	/* sanity check user setting */
 	for (i = 0; i < pAd->ChannelListNum; i++) {
 		if (pAd->CommonCfg.Channel == pAd->ChannelList[i].Channel)
 			break;
@@ -343,17 +343,17 @@ VOID RTMPSetPhyMode(IN PRTMP_ADAPTER pAd, IN ULONG phymode)
 	NdisZeroMemory(pAd->CommonCfg.DesireRate, MAX_LEN_OF_SUPPORTED_RATES);
 	switch (phymode) {
 	case PHY_11B:
-		pAd->CommonCfg.SupRate[0] = 0x82;	// 1 mbps, in units of 0.5 Mbps, basic rate
-		pAd->CommonCfg.SupRate[1] = 0x84;	// 2 mbps, in units of 0.5 Mbps, basic rate
-		pAd->CommonCfg.SupRate[2] = 0x8B;	// 5.5 mbps, in units of 0.5 Mbps, basic rate
-		pAd->CommonCfg.SupRate[3] = 0x96;	// 11 mbps, in units of 0.5 Mbps, basic rate
+		pAd->CommonCfg.SupRate[0] = 0x82;	/* 1 mbps, in units of 0.5 Mbps, basic rate */
+		pAd->CommonCfg.SupRate[1] = 0x84;	/* 2 mbps, in units of 0.5 Mbps, basic rate */
+		pAd->CommonCfg.SupRate[2] = 0x8B;	/* 5.5 mbps, in units of 0.5 Mbps, basic rate */
+		pAd->CommonCfg.SupRate[3] = 0x96;	/* 11 mbps, in units of 0.5 Mbps, basic rate */
 		pAd->CommonCfg.SupRateLen = 4;
 		pAd->CommonCfg.ExtRateLen = 0;
-		pAd->CommonCfg.DesireRate[0] = 2;	// 1 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.DesireRate[1] = 4;	// 2 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.DesireRate[2] = 11;	// 5.5 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.DesireRate[3] = 22;	// 11 mbps, in units of 0.5 Mbps
-		//pAd->CommonCfg.HTPhyMode.field.MODE = MODE_CCK; // This MODE is only FYI. not use
+		pAd->CommonCfg.DesireRate[0] = 2;	/* 1 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.DesireRate[1] = 4;	/* 2 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.DesireRate[2] = 11;	/* 5.5 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.DesireRate[3] = 22;	/* 11 mbps, in units of 0.5 Mbps */
+		/*pAd->CommonCfg.HTPhyMode.field.MODE = MODE_CCK; // This MODE is only FYI. not use */
 		break;
 
 	case PHY_11G:
@@ -363,57 +363,57 @@ VOID RTMPSetPhyMode(IN PRTMP_ADAPTER pAd, IN ULONG phymode)
 	case PHY_11ABGN_MIXED:
 	case PHY_11BGN_MIXED:
 	case PHY_11GN_MIXED:
-		pAd->CommonCfg.SupRate[0] = 0x82;	// 1 mbps, in units of 0.5 Mbps, basic rate
-		pAd->CommonCfg.SupRate[1] = 0x84;	// 2 mbps, in units of 0.5 Mbps, basic rate
-		pAd->CommonCfg.SupRate[2] = 0x8B;	// 5.5 mbps, in units of 0.5 Mbps, basic rate
-		pAd->CommonCfg.SupRate[3] = 0x96;	// 11 mbps, in units of 0.5 Mbps, basic rate
-		pAd->CommonCfg.SupRate[4] = 0x12;	// 9 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.SupRate[5] = 0x24;	// 18 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.SupRate[6] = 0x48;	// 36 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.SupRate[7] = 0x6c;	// 54 mbps, in units of 0.5 Mbps
+		pAd->CommonCfg.SupRate[0] = 0x82;	/* 1 mbps, in units of 0.5 Mbps, basic rate */
+		pAd->CommonCfg.SupRate[1] = 0x84;	/* 2 mbps, in units of 0.5 Mbps, basic rate */
+		pAd->CommonCfg.SupRate[2] = 0x8B;	/* 5.5 mbps, in units of 0.5 Mbps, basic rate */
+		pAd->CommonCfg.SupRate[3] = 0x96;	/* 11 mbps, in units of 0.5 Mbps, basic rate */
+		pAd->CommonCfg.SupRate[4] = 0x12;	/* 9 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.SupRate[5] = 0x24;	/* 18 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.SupRate[6] = 0x48;	/* 36 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.SupRate[7] = 0x6c;	/* 54 mbps, in units of 0.5 Mbps */
 		pAd->CommonCfg.SupRateLen = 8;
-		pAd->CommonCfg.ExtRate[0] = 0x0C;	// 6 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.ExtRate[1] = 0x18;	// 12 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.ExtRate[2] = 0x30;	// 24 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.ExtRate[3] = 0x60;	// 48 mbps, in units of 0.5 Mbps
+		pAd->CommonCfg.ExtRate[0] = 0x0C;	/* 6 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.ExtRate[1] = 0x18;	/* 12 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.ExtRate[2] = 0x30;	/* 24 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.ExtRate[3] = 0x60;	/* 48 mbps, in units of 0.5 Mbps */
 		pAd->CommonCfg.ExtRateLen = 4;
-		pAd->CommonCfg.DesireRate[0] = 2;	// 1 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.DesireRate[1] = 4;	// 2 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.DesireRate[2] = 11;	// 5.5 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.DesireRate[3] = 22;	// 11 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.DesireRate[4] = 12;	// 6 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.DesireRate[5] = 18;	// 9 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.DesireRate[6] = 24;	// 12 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.DesireRate[7] = 36;	// 18 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.DesireRate[8] = 48;	// 24 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.DesireRate[9] = 72;	// 36 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.DesireRate[10] = 96;	// 48 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.DesireRate[11] = 108;	// 54 mbps, in units of 0.5 Mbps
+		pAd->CommonCfg.DesireRate[0] = 2;	/* 1 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.DesireRate[1] = 4;	/* 2 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.DesireRate[2] = 11;	/* 5.5 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.DesireRate[3] = 22;	/* 11 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.DesireRate[4] = 12;	/* 6 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.DesireRate[5] = 18;	/* 9 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.DesireRate[6] = 24;	/* 12 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.DesireRate[7] = 36;	/* 18 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.DesireRate[8] = 48;	/* 24 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.DesireRate[9] = 72;	/* 36 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.DesireRate[10] = 96;	/* 48 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.DesireRate[11] = 108;	/* 54 mbps, in units of 0.5 Mbps */
 		break;
 
 	case PHY_11A:
 	case PHY_11AN_MIXED:
 	case PHY_11AGN_MIXED:
 	case PHY_11N_5G:
-		pAd->CommonCfg.SupRate[0] = 0x8C;	// 6 mbps, in units of 0.5 Mbps, basic rate
-		pAd->CommonCfg.SupRate[1] = 0x12;	// 9 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.SupRate[2] = 0x98;	// 12 mbps, in units of 0.5 Mbps, basic rate
-		pAd->CommonCfg.SupRate[3] = 0x24;	// 18 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.SupRate[4] = 0xb0;	// 24 mbps, in units of 0.5 Mbps, basic rate
-		pAd->CommonCfg.SupRate[5] = 0x48;	// 36 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.SupRate[6] = 0x60;	// 48 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.SupRate[7] = 0x6c;	// 54 mbps, in units of 0.5 Mbps
+		pAd->CommonCfg.SupRate[0] = 0x8C;	/* 6 mbps, in units of 0.5 Mbps, basic rate */
+		pAd->CommonCfg.SupRate[1] = 0x12;	/* 9 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.SupRate[2] = 0x98;	/* 12 mbps, in units of 0.5 Mbps, basic rate */
+		pAd->CommonCfg.SupRate[3] = 0x24;	/* 18 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.SupRate[4] = 0xb0;	/* 24 mbps, in units of 0.5 Mbps, basic rate */
+		pAd->CommonCfg.SupRate[5] = 0x48;	/* 36 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.SupRate[6] = 0x60;	/* 48 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.SupRate[7] = 0x6c;	/* 54 mbps, in units of 0.5 Mbps */
 		pAd->CommonCfg.SupRateLen = 8;
 		pAd->CommonCfg.ExtRateLen = 0;
-		pAd->CommonCfg.DesireRate[0] = 12;	// 6 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.DesireRate[1] = 18;	// 9 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.DesireRate[2] = 24;	// 12 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.DesireRate[3] = 36;	// 18 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.DesireRate[4] = 48;	// 24 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.DesireRate[5] = 72;	// 36 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.DesireRate[6] = 96;	// 48 mbps, in units of 0.5 Mbps
-		pAd->CommonCfg.DesireRate[7] = 108;	// 54 mbps, in units of 0.5 Mbps
-		//pAd->CommonCfg.HTPhyMode.field.MODE = MODE_OFDM; // This MODE is only FYI. not use
+		pAd->CommonCfg.DesireRate[0] = 12;	/* 6 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.DesireRate[1] = 18;	/* 9 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.DesireRate[2] = 24;	/* 12 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.DesireRate[3] = 36;	/* 18 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.DesireRate[4] = 48;	/* 24 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.DesireRate[5] = 72;	/* 36 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.DesireRate[6] = 96;	/* 48 mbps, in units of 0.5 Mbps */
+		pAd->CommonCfg.DesireRate[7] = 108;	/* 54 mbps, in units of 0.5 Mbps */
+		/*pAd->CommonCfg.HTPhyMode.field.MODE = MODE_OFDM; // This MODE is only FYI. not use */
 		break;
 
 	default:
@@ -437,7 +437,7 @@ VOID RTMPSetPhyMode(IN PRTMP_ADAPTER pAd, IN ULONG phymode)
 */
 VOID RTMPSetHT(IN PRTMP_ADAPTER pAd, IN OID_SET_HT_PHYMODE * pHTPhyMode)
 {
-	//ULONG *pmcs;
+	/*ULONG *pmcs; */
 	UINT32 Value = 0;
 	UCHAR BBPValue = 0;
 	UCHAR BBP3Value = 0;
@@ -448,7 +448,7 @@ VOID RTMPSetHT(IN PRTMP_ADAPTER pAd, IN OID_SET_HT_PHYMODE * pHTPhyMode)
 		  pHTPhyMode->HtMode, pHTPhyMode->ExtOffset, pHTPhyMode->MCS,
 		  pHTPhyMode->BW, pHTPhyMode->STBC, pHTPhyMode->SHORTGI));
 
-	// Don't zero supportedHyPhy structure.
+	/* Don't zero supportedHyPhy structure. */
 	RTMPZeroMemory(&pAd->CommonCfg.HtCapability,
 		       sizeof(pAd->CommonCfg.HtCapability));
 	RTMPZeroMemory(&pAd->CommonCfg.AddHTInfo,
@@ -473,7 +473,7 @@ VOID RTMPSetHT(IN PRTMP_ADAPTER pAd, IN OID_SET_HT_PHYMODE * pHTPhyMode)
 		 ("RTMPSetHT : RxBAWinLimit = %d\n",
 		  pAd->CommonCfg.BACapability.field.RxBAWinLimit));
 
-	// Mimo power save, A-MSDU size,
+	/* Mimo power save, A-MSDU size, */
 	pAd->CommonCfg.DesiredHtPhy.AmsduEnable =
 	    (USHORT) pAd->CommonCfg.BACapability.field.AmsduEnable;
 	pAd->CommonCfg.DesiredHtPhy.AmsduSize =
@@ -503,7 +503,7 @@ VOID RTMPSetHT(IN PRTMP_ADAPTER pAd, IN OID_SET_HT_PHYMODE * pHTPhyMode)
 	} else
 		pAd->CommonCfg.DesiredHtPhy.GF = 0;
 
-	// Decide Rx MCSSet
+	/* Decide Rx MCSSet */
 	switch (RxStream) {
 	case 1:
 		pAd->CommonCfg.HtCapability.MCSSet[0] = 0xff;
@@ -515,7 +515,7 @@ VOID RTMPSetHT(IN PRTMP_ADAPTER pAd, IN OID_SET_HT_PHYMODE * pHTPhyMode)
 		pAd->CommonCfg.HtCapability.MCSSet[1] = 0xff;
 		break;
 
-	case 3:		// 3*3
+	case 3:		/* 3*3 */
 		pAd->CommonCfg.HtCapability.MCSSet[0] = 0xff;
 		pAd->CommonCfg.HtCapability.MCSSet[1] = 0xff;
 		pAd->CommonCfg.HtCapability.MCSSet[2] = 0xff;
@@ -529,7 +529,7 @@ VOID RTMPSetHT(IN PRTMP_ADAPTER pAd, IN OID_SET_HT_PHYMODE * pHTPhyMode)
 	}
 
 	if (pHTPhyMode->BW == BW_40) {
-		pAd->CommonCfg.HtCapability.MCSSet[4] = 0x1;	// MCS 32
+		pAd->CommonCfg.HtCapability.MCSSet[4] = 0x1;	/* MCS 32 */
 		pAd->CommonCfg.HtCapability.HtCapInfo.ChannelWidth = 1;
 		if (pAd->CommonCfg.Channel <= 14)
 			pAd->CommonCfg.HtCapability.HtCapInfo.CCKmodein40 = 1;
@@ -539,7 +539,7 @@ VOID RTMPSetHT(IN PRTMP_ADAPTER pAd, IN OID_SET_HT_PHYMODE * pHTPhyMode)
 		pAd->CommonCfg.AddHTInfo.AddHtInfo.ExtChanOffset =
 		    (pHTPhyMode->ExtOffset ==
 		     EXTCHA_BELOW) ? (EXTCHA_BELOW) : EXTCHA_ABOVE;
-		// Set Regsiter for extension channel position.
+		/* Set Regsiter for extension channel position. */
 		RTMP_IO_READ32(pAd, TX_BAND_CFG, &Value);
 		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &BBP3Value);
 		if ((pHTPhyMode->ExtOffset == EXTCHA_BELOW)) {
@@ -551,8 +551,8 @@ VOID RTMPSetHT(IN PRTMP_ADAPTER pAd, IN OID_SET_HT_PHYMODE * pHTPhyMode)
 			BBP3Value &= (~0x20);
 			RTMP_IO_WRITE32(pAd, TX_BAND_CFG, Value);
 		}
-		// Turn on BBP 40MHz mode now only as AP .
-		// Sta can turn on BBP 40MHz after connection with 40MHz AP. Sta only broadcast 40MHz capability before connection.
+		/* Turn on BBP 40MHz mode now only as AP . */
+		/* Sta can turn on BBP 40MHz after connection with 40MHz AP. Sta only broadcast 40MHz capability before connection. */
 		if ((pAd->OpMode == OPMODE_AP) || INFRA_ON(pAd) || ADHOC_ON(pAd)
 		    ) {
 			RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R4, &BBPValue);
@@ -569,7 +569,7 @@ VOID RTMPSetHT(IN PRTMP_ADAPTER pAd, IN OID_SET_HT_PHYMODE * pHTPhyMode)
 		pAd->CommonCfg.AddHTInfo.AddHtInfo.RecomWidth = 0;
 		pAd->CommonCfg.AddHTInfo.AddHtInfo.ExtChanOffset = EXTCHA_NONE;
 		pAd->CommonCfg.CentralChannel = pAd->CommonCfg.Channel;
-		// Turn on BBP 20MHz mode by request here.
+		/* Turn on BBP 20MHz mode by request here. */
 		{
 			RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R4, &BBPValue);
 			BBPValue &= (~0x18);
@@ -600,12 +600,12 @@ VOID RTMPSetHT(IN PRTMP_ADAPTER pAd, IN OID_SET_HT_PHYMODE * pHTPhyMode)
 		pAd->CommonCfg.DesiredHtPhy.ShortGIfor40 = 0;
 	}
 
-	// We support link adaptation for unsolicit MCS feedback, set to 2.
-	pAd->CommonCfg.HtCapability.ExtHtCapInfo.MCSFeedback = MCSFBK_NONE;	//MCSFBK_UNSOLICIT;
+	/* We support link adaptation for unsolicit MCS feedback, set to 2. */
+	pAd->CommonCfg.HtCapability.ExtHtCapInfo.MCSFeedback = MCSFBK_NONE;	/*MCSFBK_UNSOLICIT; */
 	pAd->CommonCfg.AddHTInfo.ControlChan = pAd->CommonCfg.Channel;
-	// 1, the extension channel above the control channel.
+	/* 1, the extension channel above the control channel. */
 
-	// EDCA parameters used for AP's own transmission
+	/* EDCA parameters used for AP's own transmission */
 	if (pAd->CommonCfg.APEdcaParm.bValid == FALSE) {
 		pAd->CommonCfg.APEdcaParm.bValid = TRUE;
 		pAd->CommonCfg.APEdcaParm.Aifsn[0] = 3;
@@ -659,7 +659,7 @@ VOID RTMPSetIndividualHT(IN PRTMP_ADAPTER pAd, IN UCHAR apidx)
 			pDesired_ht_phy = &pAd->StaCfg.DesiredHtPhyInfo;
 			DesiredMcs =
 			    pAd->StaCfg.DesiredTransmitSetting.field.MCS;
-			//pAd->StaCfg.bAutoTxRateSwitch = (DesiredMcs == MCS_AUTO) ? TRUE : FALSE;
+			/*pAd->StaCfg.bAutoTxRateSwitch = (DesiredMcs == MCS_AUTO) ? TRUE : FALSE; */
 			break;
 		}
 	} while (FALSE);
@@ -673,7 +673,7 @@ VOID RTMPSetIndividualHT(IN PRTMP_ADAPTER pAd, IN UCHAR apidx)
 
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("RTMPSetIndividualHT : Desired MCS = %d\n", DesiredMcs));
-	// Check the validity of MCS
+	/* Check the validity of MCS */
 	if ((TxStream == 1)
 	    && ((DesiredMcs >= MCS_8) && (DesiredMcs <= MCS_15))) {
 		DBGPRINT(RT_DEBUG_WARN,
@@ -691,7 +691,7 @@ VOID RTMPSetIndividualHT(IN PRTMP_ADAPTER pAd, IN UCHAR apidx)
 
 	pDesired_ht_phy->bHtEnable = TRUE;
 
-	// Decide desired Tx MCS
+	/* Decide desired Tx MCS */
 	switch (TxStream) {
 	case 1:
 		if (DesiredMcs == MCS_AUTO) {
@@ -717,7 +717,7 @@ VOID RTMPSetIndividualHT(IN PRTMP_ADAPTER pAd, IN UCHAR apidx)
 		}
 		break;
 
-	case 3:		// 3*3
+	case 3:		/* 3*3 */
 		if (DesiredMcs == MCS_AUTO) {
 			/* MCS0 ~ MCS23, 3 bytes */
 			pDesired_ht_phy->MCSSet[0] = 0xff;
@@ -738,7 +738,7 @@ VOID RTMPSetIndividualHT(IN PRTMP_ADAPTER pAd, IN UCHAR apidx)
 		if (DesiredMcs == MCS_AUTO || DesiredMcs == MCS_32)
 			pDesired_ht_phy->MCSSet[4] = 0x1;
 	}
-	// update HT Rate setting
+	/* update HT Rate setting */
 	if (pAd->OpMode == OPMODE_STA)
 		MlmeUpdateHtTxRates(pAd, BSS0);
 	else
@@ -778,7 +778,7 @@ VOID RTMPUpdateHTIE(IN RT_HT_CAPABILITY * pRtHt,
 	pAddHtInfo->AddHtInfo.RecomWidth = pRtHt->RecomWidth;
 	pAddHtInfo->AddHtInfo2.OperaionMode = pRtHt->OperaionMode;
 	pAddHtInfo->AddHtInfo2.NonGfPresent = pRtHt->NonGfPresent;
-	RTMPMoveMemory(pAddHtInfo->MCSSet, /*pRtHt->MCSSet */ pMcsSet, 4);	// rt2860 only support MCS max=32, no need to copy all 16 uchar.
+	RTMPMoveMemory(pAddHtInfo->MCSSet, /*pRtHt->MCSSet */ pMcsSet, 4);	/* rt2860 only support MCS max=32, no need to copy all 16 uchar. */
 
 	DBGPRINT(RT_DEBUG_TRACE, ("RTMPUpdateHTIE <== \n"));
 }
@@ -808,9 +808,9 @@ VOID RTMPAddWcidAttributeEntry(IN PRTMP_ADAPTER pAd,
 					  BssIdx));
 				return;
 			}
-			// 1.   In ADHOC mode, the AID is wcid number. And NO mesh link exists.
-			// 2.   In Infra mode, the AID:1 MUST be wcid of infra STA.
-			//                                         the AID:2~ assign to mesh link entry.
+			/* 1.   In ADHOC mode, the AID is wcid number. And NO mesh link exists. */
+			/* 2.   In Infra mode, the AID:1 MUST be wcid of infra STA. */
+			/*                                         the AID:2~ assign to mesh link entry. */
 			if (pEntry)
 				Wcid = pEntry->Aid;
 			else
@@ -818,7 +818,7 @@ VOID RTMPAddWcidAttributeEntry(IN PRTMP_ADAPTER pAd,
 		}
 	}
 
-	// Update WCID attribute table
+	/* Update WCID attribute table */
 	offset = MAC_WCID_ATTRIBUTE_BASE + (Wcid * HW_WCID_ATTRI_SIZE);
 
 	{
@@ -830,26 +830,26 @@ VOID RTMPAddWcidAttributeEntry(IN PRTMP_ADAPTER pAd,
 
 	RTMP_IO_WRITE32(pAd, offset, WCIDAttri);
 
-	// Update IV/EIV table
+	/* Update IV/EIV table */
 	offset = MAC_IVEIV_TABLE_BASE + (Wcid * HW_IVEIV_ENTRY_SIZE);
 
-	// WPA mode
+	/* WPA mode */
 	if ((CipherAlg == CIPHER_TKIP) || (CipherAlg == CIPHER_TKIP_NO_MIC)
 	    || (CipherAlg == CIPHER_AES)) {
-		// Eiv bit on. keyid always is 0 for pairwise key
+		/* Eiv bit on. keyid always is 0 for pairwise key */
 		IVEIV = (KeyIdx << 6) | 0x20;
 	} else {
-		// WEP KeyIdx is default tx key.
+		/* WEP KeyIdx is default tx key. */
 		IVEIV = (KeyIdx << 6);
 	}
 
-	// For key index and ext IV bit, so only need to update the position(offset+3).
+	/* For key index and ext IV bit, so only need to update the position(offset+3). */
 #ifdef RTMP_MAC_PCI
 	RTMP_IO_WRITE8(pAd, offset + 3, IVEIV);
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 #ifdef RTMP_MAC_USB
 	RTUSBMultiWrite_OneByte(pAd, offset + 3, &IVEIV);
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("RTMPAddWcidAttributeEntry: WCID #%d, KeyIndex #%d, Alg=%s\n",

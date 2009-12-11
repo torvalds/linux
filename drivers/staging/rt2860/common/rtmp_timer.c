@@ -41,13 +41,13 @@
 #include "../rt_config.h"
 
 BUILD_TIMER_FUNCTION(MlmePeriodicExec);
-//BUILD_TIMER_FUNCTION(MlmeRssiReportExec);
+/*BUILD_TIMER_FUNCTION(MlmeRssiReportExec); */
 BUILD_TIMER_FUNCTION(AsicRxAntEvalTimeout);
 BUILD_TIMER_FUNCTION(APSDPeriodicExec);
 BUILD_TIMER_FUNCTION(AsicRfTuningExec);
 #ifdef RTMP_MAC_USB
 BUILD_TIMER_FUNCTION(BeaconUpdateExec);
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 
 BUILD_TIMER_FUNCTION(BeaconTimeout);
 BUILD_TIMER_FUNCTION(ScanTimeout);
@@ -61,10 +61,10 @@ BUILD_TIMER_FUNCTION(WpaDisassocApAndBlockAssoc);
 #ifdef RTMP_MAC_PCI
 BUILD_TIMER_FUNCTION(PsPollWakeExec);
 BUILD_TIMER_FUNCTION(RadioOnExec);
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 #ifdef RTMP_MAC_USB
 BUILD_TIMER_FUNCTION(RtmpUsbStaAsicForceWakeupTimeout);
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 
 #if defined(AP_LED) || defined(STA_LED)
 extern void LedCtrlMain(IN PVOID SystemSpecific1,
@@ -97,19 +97,19 @@ static void RtmpTimerQHandle(RTMP_ADAPTER * pAd)
 		if (pAd->TimerQ.status == RTMP_TASK_STAT_STOPED)
 			break;
 
-		// event happened.
+		/* event happened. */
 		while (pAd->TimerQ.pQHead) {
 			RTMP_INT_LOCK(&pAd->TimerQLock, irqFlag);
 			pEntry = pAd->TimerQ.pQHead;
 			if (pEntry) {
 				pTimer = pEntry->pRaTimer;
 
-				// update pQHead
+				/* update pQHead */
 				pAd->TimerQ.pQHead = pEntry->pNext;
 				if (pEntry == pAd->TimerQ.pQTail)
 					pAd->TimerQ.pQTail = NULL;
 
-				// return this queue entry to timerQFreeList.
+				/* return this queue entry to timerQFreeList. */
 				pEntry->pNext = pAd->TimerQ.pQPollFreeList;
 				pAd->TimerQ.pQPollFreeList = pEntry;
 			}
@@ -226,7 +226,7 @@ BOOLEAN RtmpTimerQRemove(IN RTMP_ADAPTER * pAd, IN RALINK_TIMER_STRUCT * pTimer)
 			pNode = pNode->pNext;
 		}
 
-		// Now move it to freeList queue.
+		/* Now move it to freeList queue. */
 		if (pNode) {
 			if (pNode == pAd->TimerQ.pQHead)
 				pAd->TimerQ.pQHead = pNode->pNext;
@@ -235,7 +235,7 @@ BOOLEAN RtmpTimerQRemove(IN RTMP_ADAPTER * pAd, IN RALINK_TIMER_STRUCT * pTimer)
 			if (pPrev != NULL)
 				pPrev->pNext = pNode->pNext;
 
-			// return this queue entry to timerQFreeList.
+			/* return this queue entry to timerQFreeList. */
 			pNode->pNext = pAd->TimerQ.pQPollFreeList;
 			pAd->TimerQ.pQPollFreeList = pNode;
 		}
@@ -254,7 +254,7 @@ void RtmpTimerQExit(RTMP_ADAPTER * pAd)
 	while (pAd->TimerQ.pQHead) {
 		pTimerQ = pAd->TimerQ.pQHead;
 		pAd->TimerQ.pQHead = pTimerQ->pNext;
-		// remove the timeQ
+		/* remove the timeQ */
 	}
 	pAd->TimerQ.pQPollFreeList = NULL;
 	os_free_mem(pAd, pAd->TimerQ.pTimerQPoll);
@@ -299,4 +299,4 @@ void RtmpTimerQInit(RTMP_ADAPTER * pAd)
 		RTMP_INT_UNLOCK(&pAd->TimerQLock, irqFlags);
 	}
 }
-#endif // RTMP_TIMER_TASK_SUPPORT //
+#endif /* RTMP_TIMER_TASK_SUPPORT // */

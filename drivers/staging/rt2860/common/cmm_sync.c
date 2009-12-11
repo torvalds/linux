@@ -36,27 +36,27 @@
 */
 #include "../rt_config.h"
 
-// 2.4 Ghz channel plan index in the TxPower arrays.
-#define	BG_BAND_REGION_0_START	0	// 1,2,3,4,5,6,7,8,9,10,11
+/* 2.4 Ghz channel plan index in the TxPower arrays. */
+#define	BG_BAND_REGION_0_START	0	/* 1,2,3,4,5,6,7,8,9,10,11 */
 #define	BG_BAND_REGION_0_SIZE	11
-#define	BG_BAND_REGION_1_START	0	// 1,2,3,4,5,6,7,8,9,10,11,12,13
+#define	BG_BAND_REGION_1_START	0	/* 1,2,3,4,5,6,7,8,9,10,11,12,13 */
 #define	BG_BAND_REGION_1_SIZE	13
-#define	BG_BAND_REGION_2_START	9	// 10,11
+#define	BG_BAND_REGION_2_START	9	/* 10,11 */
 #define	BG_BAND_REGION_2_SIZE	2
-#define	BG_BAND_REGION_3_START	9	// 10,11,12,13
+#define	BG_BAND_REGION_3_START	9	/* 10,11,12,13 */
 #define	BG_BAND_REGION_3_SIZE	4
-#define	BG_BAND_REGION_4_START	13	// 14
+#define	BG_BAND_REGION_4_START	13	/* 14 */
 #define	BG_BAND_REGION_4_SIZE	1
-#define	BG_BAND_REGION_5_START	0	// 1,2,3,4,5,6,7,8,9,10,11,12,13,14
+#define	BG_BAND_REGION_5_START	0	/* 1,2,3,4,5,6,7,8,9,10,11,12,13,14 */
 #define	BG_BAND_REGION_5_SIZE	14
-#define	BG_BAND_REGION_6_START	2	// 3,4,5,6,7,8,9
+#define	BG_BAND_REGION_6_START	2	/* 3,4,5,6,7,8,9 */
 #define	BG_BAND_REGION_6_SIZE	7
-#define	BG_BAND_REGION_7_START	4	// 5,6,7,8,9,10,11,12,13
+#define	BG_BAND_REGION_7_START	4	/* 5,6,7,8,9,10,11,12,13 */
 #define	BG_BAND_REGION_7_SIZE	9
-#define	BG_BAND_REGION_31_START	0	// 1,2,3,4,5,6,7,8,9,10,11,12,13,14
+#define	BG_BAND_REGION_31_START	0	/* 1,2,3,4,5,6,7,8,9,10,11,12,13,14 */
 #define	BG_BAND_REGION_31_SIZE	14
 
-// 5 Ghz channel plan index in the TxPower arrays.
+/* 5 Ghz channel plan index in the TxPower arrays. */
 UCHAR A_BAND_REGION_0_CHANNEL_LIST[] =
     { 36, 40, 44, 48, 52, 56, 60, 64, 149, 153, 157, 161, 165 };
 UCHAR A_BAND_REGION_1_CHANNEL_LIST[] =
@@ -90,7 +90,7 @@ UCHAR A_BAND_REGION_14_CHANNEL_LIST[] =
 153, 157, 161, 165 };
 UCHAR A_BAND_REGION_15_CHANNEL_LIST[] = { 149, 153, 157, 161, 165, 169, 173 };
 
-//BaSizeArray follows the 802.11n definition as MaxRxFactor.  2^(13+factor) bytes. When factor =0, it's about Ba buffer size =8.
+/*BaSizeArray follows the 802.11n definition as MaxRxFactor.  2^(13+factor) bytes. When factor =0, it's about Ba buffer size =8. */
 UCHAR BaSizeArray[4] = { 8, 16, 32, 64 };
 
 /*
@@ -113,76 +113,76 @@ VOID BuildChannelList(IN PRTMP_ADAPTER pAd)
 	NdisZeroMemory(pAd->ChannelList,
 		       MAX_NUM_OF_CHANNELS * sizeof(CHANNEL_TX_POWER));
 
-	// if not 11a-only mode, channel list starts from 2.4Ghz band
+	/* if not 11a-only mode, channel list starts from 2.4Ghz band */
 	if ((pAd->CommonCfg.PhyMode != PHY_11A)
 	    && (pAd->CommonCfg.PhyMode != PHY_11AN_MIXED)
 	    && (pAd->CommonCfg.PhyMode != PHY_11N_5G)
 	    ) {
 		switch (pAd->CommonCfg.CountryRegion & 0x7f) {
-		case REGION_0_BG_BAND:	// 1 -11
+		case REGION_0_BG_BAND:	/* 1 -11 */
 			NdisMoveMemory(&pAd->ChannelList[index],
 				       &pAd->TxPower[BG_BAND_REGION_0_START],
 				       sizeof(CHANNEL_TX_POWER) *
 				       BG_BAND_REGION_0_SIZE);
 			index += BG_BAND_REGION_0_SIZE;
 			break;
-		case REGION_1_BG_BAND:	// 1 - 13
+		case REGION_1_BG_BAND:	/* 1 - 13 */
 			NdisMoveMemory(&pAd->ChannelList[index],
 				       &pAd->TxPower[BG_BAND_REGION_1_START],
 				       sizeof(CHANNEL_TX_POWER) *
 				       BG_BAND_REGION_1_SIZE);
 			index += BG_BAND_REGION_1_SIZE;
 			break;
-		case REGION_2_BG_BAND:	// 10 - 11
+		case REGION_2_BG_BAND:	/* 10 - 11 */
 			NdisMoveMemory(&pAd->ChannelList[index],
 				       &pAd->TxPower[BG_BAND_REGION_2_START],
 				       sizeof(CHANNEL_TX_POWER) *
 				       BG_BAND_REGION_2_SIZE);
 			index += BG_BAND_REGION_2_SIZE;
 			break;
-		case REGION_3_BG_BAND:	// 10 - 13
+		case REGION_3_BG_BAND:	/* 10 - 13 */
 			NdisMoveMemory(&pAd->ChannelList[index],
 				       &pAd->TxPower[BG_BAND_REGION_3_START],
 				       sizeof(CHANNEL_TX_POWER) *
 				       BG_BAND_REGION_3_SIZE);
 			index += BG_BAND_REGION_3_SIZE;
 			break;
-		case REGION_4_BG_BAND:	// 14
+		case REGION_4_BG_BAND:	/* 14 */
 			NdisMoveMemory(&pAd->ChannelList[index],
 				       &pAd->TxPower[BG_BAND_REGION_4_START],
 				       sizeof(CHANNEL_TX_POWER) *
 				       BG_BAND_REGION_4_SIZE);
 			index += BG_BAND_REGION_4_SIZE;
 			break;
-		case REGION_5_BG_BAND:	// 1 - 14
+		case REGION_5_BG_BAND:	/* 1 - 14 */
 			NdisMoveMemory(&pAd->ChannelList[index],
 				       &pAd->TxPower[BG_BAND_REGION_5_START],
 				       sizeof(CHANNEL_TX_POWER) *
 				       BG_BAND_REGION_5_SIZE);
 			index += BG_BAND_REGION_5_SIZE;
 			break;
-		case REGION_6_BG_BAND:	// 3 - 9
+		case REGION_6_BG_BAND:	/* 3 - 9 */
 			NdisMoveMemory(&pAd->ChannelList[index],
 				       &pAd->TxPower[BG_BAND_REGION_6_START],
 				       sizeof(CHANNEL_TX_POWER) *
 				       BG_BAND_REGION_6_SIZE);
 			index += BG_BAND_REGION_6_SIZE;
 			break;
-		case REGION_7_BG_BAND:	// 5 - 13
+		case REGION_7_BG_BAND:	/* 5 - 13 */
 			NdisMoveMemory(&pAd->ChannelList[index],
 				       &pAd->TxPower[BG_BAND_REGION_7_START],
 				       sizeof(CHANNEL_TX_POWER) *
 				       BG_BAND_REGION_7_SIZE);
 			index += BG_BAND_REGION_7_SIZE;
 			break;
-		case REGION_31_BG_BAND:	// 1 - 14
+		case REGION_31_BG_BAND:	/* 1 - 14 */
 			NdisMoveMemory(&pAd->ChannelList[index],
 				       &pAd->TxPower[BG_BAND_REGION_31_START],
 				       sizeof(CHANNEL_TX_POWER) *
 				       BG_BAND_REGION_31_SIZE);
 			index += BG_BAND_REGION_31_SIZE;
 			break;
-		default:	// Error. should never happen
+		default:	/* Error. should never happen */
 			break;
 		}
 		for (i = 0; i < index; i++)
@@ -295,7 +295,7 @@ VOID BuildChannelList(IN PRTMP_ADAPTER pAd)
 			    sizeof(UCHAR);
 			pChannelList = A_BAND_REGION_15_CHANNEL_LIST;
 			break;
-		default:	// Error. should never happen
+		default:	/* Error. should never happen */
 			DBGPRINT(RT_DEBUG_WARN,
 				 ("countryregion=%d not support",
 				  pAd->CommonCfg.CountryRegionForABand));
@@ -411,12 +411,12 @@ UCHAR NextChannel(IN PRTMP_ADAPTER pAd, IN UCHAR channel)
 VOID ChangeToCellPowerLimit(IN PRTMP_ADAPTER pAd,
 			    IN UCHAR AironetCellPowerLimit)
 {
-	//valud 0xFF means that hasn't found power limit information
-	//from the AP's Beacon/Probe response.
+	/*valud 0xFF means that hasn't found power limit information */
+	/*from the AP's Beacon/Probe response. */
 	if (AironetCellPowerLimit == 0xFF)
 		return;
 
-	if (AironetCellPowerLimit < 6)	//Used Lowest Power Percentage.
+	if (AironetCellPowerLimit < 6)	/*Used Lowest Power Percentage. */
 		pAd->CommonCfg.TxPowerPercentage = 6;
 	else if (AironetCellPowerLimit < 9)
 		pAd->CommonCfg.TxPowerPercentage = 10;
@@ -427,7 +427,7 @@ VOID ChangeToCellPowerLimit(IN PRTMP_ADAPTER pAd,
 	else if (AironetCellPowerLimit < 15)
 		pAd->CommonCfg.TxPowerPercentage = 75;
 	else
-		pAd->CommonCfg.TxPowerPercentage = 100;	//else used maximum
+		pAd->CommonCfg.TxPowerPercentage = 100;	/*else used maximum */
 
 	if (pAd->CommonCfg.TxPowerPercentage > pAd->CommonCfg.TxPowerDefault)
 		pAd->CommonCfg.TxPowerPercentage =
@@ -439,7 +439,7 @@ CHAR ConvertToRssi(IN PRTMP_ADAPTER pAd, IN CHAR Rssi, IN UCHAR RssiNumber)
 {
 	UCHAR RssiOffset, LNAGain;
 
-	// Rssi equals to zero should be an invalid value
+	/* Rssi equals to zero should be an invalid value */
 	if (Rssi == 0)
 		return -99;
 
@@ -510,11 +510,11 @@ VOID ScanNextChannel(IN PRTMP_ADAPTER pAd)
 		}
 
 		{
-			//
-			// To prevent data lost.
-			// Send an NULL data with turned PSM bit on to current associated AP before SCAN progress.
-			// Now, we need to send an NULL data with turned PSM bit off to AP, when scan progress done
-			//
+			/* */
+			/* To prevent data lost. */
+			/* Send an NULL data with turned PSM bit on to current associated AP before SCAN progress. */
+			/* Now, we need to send an NULL data with turned PSM bit off to AP, when scan progress done */
+			/* */
 			if (OPSTATUS_TEST_FLAG
 			    (pAd, fOP_STATUS_MEDIA_STATE_CONNECTED)
 			    && (INFRA_ON(pAd))) {
@@ -532,7 +532,7 @@ VOID ScanNextChannel(IN PRTMP_ADAPTER pAd)
 					pHdr80211->FC.PwrMgmt =
 					    (pAd->StaCfg.Psm == PWR_SAVE);
 
-					// Send using priority queue
+					/* Send using priority queue */
 					MiniportMMRequest(pAd, 0, pOutBuffer,
 							  sizeof
 							  (HEADER_802_11));
@@ -557,14 +557,14 @@ VOID ScanNextChannel(IN PRTMP_ADAPTER pAd)
 		pAd->Mlme.SyncMachine.CurrState = SYNC_IDLE;
 		MlmeCntlConfirm(pAd, MT2_SCAN_CONF, MLME_FAIL_NO_RESOURCE);
 	}
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 	else {
 		{
-			// BBP and RF are not accessible in PS mode, we has to wake them up first
+			/* BBP and RF are not accessible in PS mode, we has to wake them up first */
 			if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
 				AsicForceWakeup(pAd, TRUE);
 
-			// leave PSM during scanning. otherwise we may lost ProbeRsp & BEACON
+			/* leave PSM during scanning. otherwise we may lost ProbeRsp & BEACON */
 			if (pAd->StaCfg.Psm == PWR_SAVE)
 				RTMP_SET_PSM_BIT(pAd, PWR_ACTIVE);
 		}
@@ -584,18 +584,18 @@ VOID ScanNextChannel(IN PRTMP_ADAPTER pAd)
 			}
 		}
 
-		//Global country domain(ch1-11:active scan, ch12-14 passive scan)
+		/*Global country domain(ch1-11:active scan, ch12-14 passive scan) */
 		if ((pAd->MlmeAux.Channel <= 14) && (pAd->MlmeAux.Channel >= 12)
 		    && ((pAd->CommonCfg.CountryRegion & 0x7f) ==
 			REGION_31_BG_BAND)) {
 			ScanType = SCAN_PASSIVE;
 		}
-		// We need to shorten active scan time in order for WZC connect issue
-		// Chnage the channel scan time for CISCO stuff based on its IAPP announcement
+		/* We need to shorten active scan time in order for WZC connect issue */
+		/* Chnage the channel scan time for CISCO stuff based on its IAPP announcement */
 		if (ScanType == FAST_SCAN_ACTIVE)
 			RTMPSetTimer(&pAd->MlmeAux.ScanTimer,
 				     FAST_ACTIVE_SCAN_TIME);
-		else		// must be SCAN_PASSIVE or SCAN_ACTIVE
+		else		/* must be SCAN_PASSIVE or SCAN_ACTIVE */
 		{
 			if ((pAd->CommonCfg.PhyMode == PHY_11ABG_MIXED)
 			    || (pAd->CommonCfg.PhyMode == PHY_11ABGN_MIXED)
@@ -615,7 +615,7 @@ VOID ScanNextChannel(IN PRTMP_ADAPTER pAd)
 		if ((ScanType == SCAN_ACTIVE)
 		    || (ScanType == FAST_SCAN_ACTIVE)
 		    ) {
-			NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	//Get an unused nonpaged memory
+			NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	/*Get an unused nonpaged memory */
 			if (NStatus != NDIS_STATUS_SUCCESS) {
 				DBGPRINT(RT_DEBUG_TRACE,
 					 ("SYNC - ScanNextChannel() allocate memory fail\n"));
@@ -631,7 +631,7 @@ VOID ScanNextChannel(IN PRTMP_ADAPTER pAd)
 
 				return;
 			}
-			// There is no need to send broadcast probe request if active scan is in effect.
+			/* There is no need to send broadcast probe request if active scan is in effect. */
 			if ((ScanType == SCAN_ACTIVE)
 			    || (ScanType == FAST_SCAN_ACTIVE)
 			    )
@@ -694,7 +694,7 @@ VOID ScanNextChannel(IN PRTMP_ADAPTER pAd)
 			MiniportMMRequest(pAd, 0, pOutBuffer, FrameLen);
 			MlmeFreeMemory(pAd, pOutBuffer);
 		}
-		// For SCAN_CISCO_PASSIVE, do nothing and silently wait for beacon or other probe reponse
+		/* For SCAN_CISCO_PASSIVE, do nothing and silently wait for beacon or other probe reponse */
 
 		pAd->Mlme.SyncMachine.CurrState = SCAN_LISTEN;
 	}

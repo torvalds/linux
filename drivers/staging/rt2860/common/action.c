@@ -113,13 +113,13 @@ VOID MlmeADDBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	NdisZeroMemory(&Frame, sizeof(FRAME_ADDBA_REQ));
 
 	if (MlmeAddBAReqSanity(pAd, Elem->Msg, Elem->MsgLen, Addr)) {
-		NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	//Get an unused nonpaged memory
+		NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	/*Get an unused nonpaged memory */
 		if (NStatus != NDIS_STATUS_SUCCESS) {
 			DBGPRINT(RT_DEBUG_TRACE,
 				 ("BA - MlmeADDBAAction() allocate memory failed \n"));
 			return;
 		}
-		// 1. find entry
+		/* 1. find entry */
 		Idx =
 		    pAd->MacTab.Content[pInfo->Wcid].BAOriWcidArray[pInfo->TID];
 		if (Idx == 0) {
@@ -200,27 +200,27 @@ VOID MlmeDELBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	FRAME_BAR FrameBar;
 
 	pInfo = (MLME_DELBA_REQ_STRUCT *) Elem->Msg;
-	// must send back DELBA
+	/* must send back DELBA */
 	NdisZeroMemory(&Frame, sizeof(FRAME_DELBA_REQ));
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("==> MlmeDELBAAction(), Initiator(%d) \n", pInfo->Initiator));
 
 	if (MlmeDelBAReqSanity(pAd, Elem->Msg, Elem->MsgLen)) {
-		NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	//Get an unused nonpaged memory
+		NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	/*Get an unused nonpaged memory */
 		if (NStatus != NDIS_STATUS_SUCCESS) {
 			DBGPRINT(RT_DEBUG_ERROR,
 				 ("BA - MlmeDELBAAction() allocate memory failed 1. \n"));
 			return;
 		}
 
-		NStatus = MlmeAllocateMemory(pAd, &pOutBuffer2);	//Get an unused nonpaged memory
+		NStatus = MlmeAllocateMemory(pAd, &pOutBuffer2);	/*Get an unused nonpaged memory */
 		if (NStatus != NDIS_STATUS_SUCCESS) {
 			MlmeFreeMemory(pAd, pOutBuffer);
 			DBGPRINT(RT_DEBUG_ERROR,
 				 ("BA - MlmeDELBAAction() allocate memory failed 2. \n"));
 			return;
 		}
-		// SEND BAR (Send BAR to refresh peer reordering buffer.)
+		/* SEND BAR (Send BAR to refresh peer reordering buffer.) */
 		Idx =
 		    pAd->MacTab.Content[pInfo->Wcid].BAOriWcidArray[pInfo->TID];
 
@@ -228,12 +228,12 @@ VOID MlmeDELBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 			      pAd->MacTab.Content[pInfo->Wcid].Addr,
 			      pAd->CurrentAddress);
 
-		FrameBar.StartingSeq.field.FragNum = 0;	// make sure sequence not clear in DEL funciton.
-		FrameBar.StartingSeq.field.StartSeq = pAd->MacTab.Content[pInfo->Wcid].TxSeq[pInfo->TID];	// make sure sequence not clear in DEL funciton.
-		FrameBar.BarControl.TID = pInfo->TID;	// make sure sequence not clear in DEL funciton.
-		FrameBar.BarControl.ACKPolicy = IMMED_BA;	// make sure sequence not clear in DEL funciton.
-		FrameBar.BarControl.Compressed = 1;	// make sure sequence not clear in DEL funciton.
-		FrameBar.BarControl.MTID = 0;	// make sure sequence not clear in DEL funciton.
+		FrameBar.StartingSeq.field.FragNum = 0;	/* make sure sequence not clear in DEL funciton. */
+		FrameBar.StartingSeq.field.StartSeq = pAd->MacTab.Content[pInfo->Wcid].TxSeq[pInfo->TID];	/* make sure sequence not clear in DEL funciton. */
+		FrameBar.BarControl.TID = pInfo->TID;	/* make sure sequence not clear in DEL funciton. */
+		FrameBar.BarControl.ACKPolicy = IMMED_BA;	/* make sure sequence not clear in DEL funciton. */
+		FrameBar.BarControl.Compressed = 1;	/* make sure sequence not clear in DEL funciton. */
+		FrameBar.BarControl.MTID = 0;	/* make sure sequence not clear in DEL funciton. */
 
 		MakeOutgoingFrame(pOutBuffer2, &FrameLen,
 				  sizeof(FRAME_BAR), &FrameBar, END_OF_ARGS);
@@ -242,7 +242,7 @@ VOID MlmeDELBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("BA - MlmeDELBAAction() . Send BAR to refresh peer reordering buffer \n"));
 
-		// SEND DELBA FRAME
+		/* SEND DELBA FRAME */
 		FrameLen = 0;
 
 		{
@@ -263,7 +263,7 @@ VOID MlmeDELBAAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		Frame.Action = DELBA;
 		Frame.DelbaParm.Initiator = pInfo->Initiator;
 		Frame.DelbaParm.TID = pInfo->TID;
-		Frame.ReasonCode = 39;	// Time Out
+		Frame.ReasonCode = 39;	/* Time Out */
 		*(USHORT *) (&Frame.DelbaParm) =
 		    cpu2le16(*(USHORT *) (&Frame.DelbaParm));
 		Frame.ReasonCode = cpu2le16(Frame.ReasonCode);
@@ -288,8 +288,8 @@ VOID MlmeDLSAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 VOID MlmeInvalidAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 {
-	//PUCHAR                   pOutBuffer = NULL;
-	//Return the receiving frame except the MSB of category filed set to 1.  7.3.1.11
+	/*PUCHAR                   pOutBuffer = NULL; */
+	/*Return the receiving frame except the MSB of category filed set to 1.  7.3.1.11 */
 }
 
 VOID PeerQOSAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
@@ -347,20 +347,20 @@ static VOID respond_ht_information_exchange_action(IN PRTMP_ADAPTER pAd,
 	FRAME_HT_INFO HTINFOframe, *pFrame;
 	UCHAR *pAddr;
 
-	// 2. Always send back ADDBA Response
-	NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	//Get an unused nonpaged memory
+	/* 2. Always send back ADDBA Response */
+	NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	/*Get an unused nonpaged memory */
 
 	if (NStatus != NDIS_STATUS_SUCCESS) {
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("ACTION - respond_ht_information_exchange_action() allocate memory failed \n"));
 		return;
 	}
-	// get RA
+	/* get RA */
 	pFrame = (FRAME_HT_INFO *) & Elem->Msg[0];
 	pAddr = pFrame->Hdr.Addr2;
 
 	NdisZeroMemory(&HTINFOframe, sizeof(FRAME_HT_INFO));
-	// 2-1. Prepare ADDBA Response frame.
+	/* 2-1. Prepare ADDBA Response frame. */
 	{
 		if (ADHOC_ON(pAd))
 			ActHeaderInit(pAd, &HTINFOframe.Hdr, pAddr,
@@ -400,21 +400,21 @@ VOID PeerHTAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 			 ("ACTION - HT Notify Channel bandwidth action----> \n"));
 
 		if (pAd->StaActive.SupportedPhyInfo.bHtEnable == FALSE) {
-			// Note, this is to patch DIR-1353 AP. When the AP set to Wep, it will use legacy mode. But AP still keeps
-			// sending BW_Notify Action frame, and cause us to linkup and linkdown.
-			// In legacy mode, don't need to parse HT action frame.
+			/* Note, this is to patch DIR-1353 AP. When the AP set to Wep, it will use legacy mode. But AP still keeps */
+			/* sending BW_Notify Action frame, and cause us to linkup and linkdown. */
+			/* In legacy mode, don't need to parse HT action frame. */
 			DBGPRINT(RT_DEBUG_TRACE,
 				 ("ACTION -Ignore HT Notify Channel BW when link as legacy mode. BW = %d---> \n",
 				  Elem->Msg[LENGTH_802_11 + 2]));
 			break;
 		}
 
-		if (Elem->Msg[LENGTH_802_11 + 2] == 0)	// 7.4.8.2. if value is 1, keep the same as supported channel bandwidth.
+		if (Elem->Msg[LENGTH_802_11 + 2] == 0)	/* 7.4.8.2. if value is 1, keep the same as supported channel bandwidth. */
 			pAd->MacTab.Content[Elem->Wcid].HTPhyMode.field.BW = 0;
 
 		break;
 	case SMPS_ACTION:
-		// 7.3.1.25
+		/* 7.3.1.25 */
 		DBGPRINT(RT_DEBUG_TRACE, ("ACTION - SMPS action----> \n"));
 		if (((Elem->Msg[LENGTH_802_11 + 2] & 0x1) == 0)) {
 			pAd->MacTab.Content[Elem->Wcid].MmpsMode = MMPS_ENABLE;
@@ -427,7 +427,7 @@ VOID PeerHTAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("Aid(%d) MIMO PS = %d\n", Elem->Wcid,
 			  pAd->MacTab.Content[Elem->Wcid].MmpsMode));
-		// rt2860c : add something for smps change.
+		/* rt2860c : add something for smps change. */
 		break;
 
 	case SETPCO_ACTION:
@@ -441,7 +441,7 @@ VOID PeerHTAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 			pHT_info =
 			    (HT_INFORMATION_OCTET *) & Elem->Msg[LENGTH_802_11 +
 								 2];
-			// 7.4.8.10
+			/* 7.4.8.10 */
 			DBGPRINT(RT_DEBUG_TRACE,
 				 ("ACTION - HT Information Exchange action----> \n"));
 			if (pHT_info->Request) {
@@ -512,7 +512,7 @@ VOID SendRefreshBAR(IN PRTMP_ADAPTER pAd, IN MAC_TABLE_ENTRY * pEntry)
 
 			ASSERT(pBAEntry->Wcid < MAX_LEN_OF_MAC_TABLE);
 
-			NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	//Get an unused nonpaged memory
+			NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	/*Get an unused nonpaged memory */
 			if (NStatus != NDIS_STATUS_SUCCESS) {
 				DBGPRINT(RT_DEBUG_ERROR,
 					 ("BA - MlmeADDBAAction() allocate memory failed \n"));
@@ -524,17 +524,17 @@ VOID SendRefreshBAR(IN PRTMP_ADAPTER pAd, IN MAC_TABLE_ENTRY * pEntry)
 			BarHeaderInit(pAd, &FrameBar, pEntry->Addr,
 				      pAd->CurrentAddress);
 
-			FrameBar.StartingSeq.field.FragNum = 0;	// make sure sequence not clear in DEL function.
-			FrameBar.StartingSeq.field.StartSeq = Sequence;	// make sure sequence not clear in DEL funciton.
-			FrameBar.BarControl.TID = TID;	// make sure sequence not clear in DEL funciton.
+			FrameBar.StartingSeq.field.FragNum = 0;	/* make sure sequence not clear in DEL function. */
+			FrameBar.StartingSeq.field.StartSeq = Sequence;	/* make sure sequence not clear in DEL funciton. */
+			FrameBar.BarControl.TID = TID;	/* make sure sequence not clear in DEL funciton. */
 
 			MakeOutgoingFrame(pOutBuffer, &FrameLen,
 					  sizeof(FRAME_BAR), &FrameBar,
 					  END_OF_ARGS);
-			//if (!(CLIENT_STATUS_TEST_FLAG(pEntry, fCLIENT_STATUS_RALINK_CHIPSET)))
-			if (1)	// Now we always send BAR.
+			/*if (!(CLIENT_STATUS_TEST_FLAG(pEntry, fCLIENT_STATUS_RALINK_CHIPSET))) */
+			if (1)	/* Now we always send BAR. */
 			{
-				//MiniportMMRequestUnlock(pAd, 0, pOutBuffer, FrameLen);
+				/*MiniportMMRequestUnlock(pAd, 0, pOutBuffer, FrameLen); */
 				MiniportMMRequest(pAd,
 						  (MGMT_USE_QUEUE_FLAG |
 						   MapUserPriorityToAccessCategory

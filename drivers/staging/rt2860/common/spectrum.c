@@ -45,7 +45,7 @@ DOT11_REGULATORY_INFORMATION USARegulatoryInfo[] = {
 	{0, {0, 0, {0}
 	     }
 	 }
-	,			// Invlid entry
+	,			/* Invlid entry */
 	{1, {4, 16, {36, 40, 44, 48}
 	     }
 	 }
@@ -103,7 +103,7 @@ DOT11_REGULATORY_INFORMATION EuropeRegulatoryInfo[] = {
 	{0, {0, 0, {0}
 	     }
 	 }
-	,			// Invalid entry
+	,			/* Invalid entry */
 	{1, {4, 20, {36, 40, 44, 48}
 	     }
 	 }
@@ -129,7 +129,7 @@ DOT11_REGULATORY_INFORMATION JapanRegulatoryInfo[] = {
 	{0, {0, 0, {0}
 	     }
 	 }
-	,			// Invalid entry
+	,			/* Invalid entry */
 	{1, {4, 22, {34, 38, 42, 46}
 	     }
 	 }
@@ -489,7 +489,7 @@ PMEASURE_REQ_ENTRY MeasureReqInsert(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
 				PMEASURE_REQ_ENTRY pProbeEntry =
 				    pTab->Hash[HashIdx];
 
-				// update Hash list
+				/* update Hash list */
 				do {
 					if (pProbeEntry == pEntry) {
 						if (pPrevEntry == NULL) {
@@ -529,7 +529,7 @@ PMEASURE_REQ_ENTRY MeasureReqInsert(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
 				 ("%s: pMeasureReqTab tab full.\n", __func__));
 		}
 
-		// add this Neighbor entry into HASH table
+		/* add this Neighbor entry into HASH table */
 		if (pEntry) {
 			HashIdx = MQ_DIALOGTOKEN_HASH_INDEX(DialogToken);
 			if (pTab->Hash[HashIdx] == NULL) {
@@ -558,7 +558,7 @@ VOID MeasureReqDelete(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
 			 ("%s: pMeasureReqTab doesn't exist.\n", __func__));
 		return;
 	}
-	// if empty, return
+	/* if empty, return */
 	if (pTab->Size == 0) {
 		DBGPRINT(RT_DEBUG_ERROR, ("pMeasureReqTab empty.\n"));
 		return;
@@ -571,7 +571,7 @@ VOID MeasureReqDelete(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
 		PMEASURE_REQ_ENTRY pProbeEntry = pTab->Hash[HashIdx];
 
 		RTMP_SEM_LOCK(&pAd->CommonCfg.MeasureReqTabLock);
-		// update Hash list
+		/* update Hash list */
 		do {
 			if (pProbeEntry == pEntry) {
 				if (pPrevEntry == NULL) {
@@ -687,7 +687,7 @@ static PTPC_REQ_ENTRY TpcReqInsert(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
 				PTPC_REQ_ENTRY pProbeEntry =
 				    pTab->Hash[HashIdx];
 
-				// update Hash list
+				/* update Hash list */
 				do {
 					if (pProbeEntry == pEntry) {
 						if (pPrevEntry == NULL) {
@@ -726,7 +726,7 @@ static PTPC_REQ_ENTRY TpcReqInsert(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
 				 ("%s: pTpcReqTab tab full.\n", __func__));
 		}
 
-		// add this Neighbor entry into HASH table
+		/* add this Neighbor entry into HASH table */
 		if (pEntry) {
 			HashIdx = TPC_DIALOGTOKEN_HASH_INDEX(DialogToken);
 			if (pTab->Hash[HashIdx] == NULL) {
@@ -755,7 +755,7 @@ static VOID TpcReqDelete(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
 			 ("%s: pTpcReqTab doesn't exist.\n", __func__));
 		return;
 	}
-	// if empty, return
+	/* if empty, return */
 	if (pTab->Size == 0) {
 		DBGPRINT(RT_DEBUG_ERROR, ("pTpcReqTab empty.\n"));
 		return;
@@ -768,7 +768,7 @@ static VOID TpcReqDelete(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
 		PTPC_REQ_ENTRY pProbeEntry = pTab->Hash[HashIdx];
 
 		RTMP_SEM_LOCK(&pAd->CommonCfg.TpcReqTabLock);
-		// update Hash list
+		/* update Hash list */
 		do {
 			if (pProbeEntry == pEntry) {
 				if (pPrevEntry == NULL) {
@@ -804,7 +804,7 @@ static VOID TpcReqDelete(IN PRTMP_ADAPTER pAd, IN UINT8 DialogToken)
  */
 static UINT64 GetCurrentTimeStamp(IN PRTMP_ADAPTER pAd)
 {
-	// get current time stamp.
+	/* get current time stamp. */
 	return 0;
 }
 
@@ -1121,7 +1121,7 @@ VOID MakeMeasurementReqFrame(IN PRTMP_ADAPTER pAd,
 	InsertActField(pAd, (pOutBuffer + *pFrameLen), pFrameLen, Category,
 		       Action);
 
-	// fill Dialog Token
+	/* fill Dialog Token */
 	InsertDialogToken(pAd, (pOutBuffer + *pFrameLen), pFrameLen,
 			  MeasureToken);
 
@@ -1132,7 +1132,7 @@ VOID MakeMeasurementReqFrame(IN PRTMP_ADAPTER pAd,
 
 		*pFrameLen += TempLen;
 	}
-	// prepare Measurement IE.
+	/* prepare Measurement IE. */
 	NdisZeroMemory(&MeasureReqIE, sizeof(MEASURE_REQ_INFO));
 	MeasureReqIE.Token = MeasureToken;
 	MeasureReqIE.ReqMode.word = MeasureReqMode;
@@ -1169,11 +1169,11 @@ VOID EnqueueMeasurementRep(IN PRTMP_ADAPTER pAd,
 	HEADER_802_11 ActHdr;
 	MEASURE_REPORT_INFO MeasureRepIE;
 
-	// build action frame header.
+	/* build action frame header. */
 	MgtMacHeaderInit(pAd, &ActHdr, SUBTYPE_ACTION, 0, pDA,
 			 pAd->CurrentAddress);
 
-	NStatus = MlmeAllocateMemory(pAd, (PVOID) & pOutBuffer);	//Get an unused nonpaged memory
+	NStatus = MlmeAllocateMemory(pAd, (PVOID) & pOutBuffer);	/*Get an unused nonpaged memory */
 	if (NStatus != NDIS_STATUS_SUCCESS) {
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("%s() allocate memory failed \n", __func__));
@@ -1185,10 +1185,10 @@ VOID EnqueueMeasurementRep(IN PRTMP_ADAPTER pAd,
 	InsertActField(pAd, (pOutBuffer + FrameLen), &FrameLen,
 		       CATEGORY_SPECTRUM, SPEC_MRP);
 
-	// fill Dialog Token
+	/* fill Dialog Token */
 	InsertDialogToken(pAd, (pOutBuffer + FrameLen), &FrameLen, DialogToken);
 
-	// prepare Measurement IE.
+	/* prepare Measurement IE. */
 	NdisZeroMemory(&MeasureRepIE, sizeof(MEASURE_REPORT_INFO));
 	MeasureRepIE.Token = MeasureToken;
 	MeasureRepIE.ReportMode = MeasureReqMode;
@@ -1222,11 +1222,11 @@ VOID EnqueueTPCReq(IN PRTMP_ADAPTER pAd, IN PUCHAR pDA, IN UCHAR DialogToken)
 
 	HEADER_802_11 ActHdr;
 
-	// build action frame header.
+	/* build action frame header. */
 	MgtMacHeaderInit(pAd, &ActHdr, SUBTYPE_ACTION, 0, pDA,
 			 pAd->CurrentAddress);
 
-	NStatus = MlmeAllocateMemory(pAd, (PVOID) & pOutBuffer);	//Get an unused nonpaged memory
+	NStatus = MlmeAllocateMemory(pAd, (PVOID) & pOutBuffer);	/*Get an unused nonpaged memory */
 	if (NStatus != NDIS_STATUS_SUCCESS) {
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("%s() allocate memory failed \n", __func__));
@@ -1238,10 +1238,10 @@ VOID EnqueueTPCReq(IN PRTMP_ADAPTER pAd, IN PUCHAR pDA, IN UCHAR DialogToken)
 	InsertActField(pAd, (pOutBuffer + FrameLen), &FrameLen,
 		       CATEGORY_SPECTRUM, SPEC_TPCRQ);
 
-	// fill Dialog Token
+	/* fill Dialog Token */
 	InsertDialogToken(pAd, (pOutBuffer + FrameLen), &FrameLen, DialogToken);
 
-	// Insert TPC Request IE.
+	/* Insert TPC Request IE. */
 	InsertTpcReqIE(pAd, (pOutBuffer + FrameLen), &FrameLen);
 
 	MiniportMMRequest(pAd, QID_AC_BE, pOutBuffer, FrameLen);
@@ -1272,11 +1272,11 @@ VOID EnqueueTPCRep(IN PRTMP_ADAPTER pAd,
 
 	HEADER_802_11 ActHdr;
 
-	// build action frame header.
+	/* build action frame header. */
 	MgtMacHeaderInit(pAd, &ActHdr, SUBTYPE_ACTION, 0, pDA,
 			 pAd->CurrentAddress);
 
-	NStatus = MlmeAllocateMemory(pAd, (PVOID) & pOutBuffer);	//Get an unused nonpaged memory
+	NStatus = MlmeAllocateMemory(pAd, (PVOID) & pOutBuffer);	/*Get an unused nonpaged memory */
 	if (NStatus != NDIS_STATUS_SUCCESS) {
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("%s() allocate memory failed \n", __func__));
@@ -1288,10 +1288,10 @@ VOID EnqueueTPCRep(IN PRTMP_ADAPTER pAd,
 	InsertActField(pAd, (pOutBuffer + FrameLen), &FrameLen,
 		       CATEGORY_SPECTRUM, SPEC_TPCRP);
 
-	// fill Dialog Token
+	/* fill Dialog Token */
 	InsertDialogToken(pAd, (pOutBuffer + FrameLen), &FrameLen, DialogToken);
 
-	// Insert TPC Request IE.
+	/* Insert TPC Request IE. */
 	InsertTpcReportIE(pAd, (pOutBuffer + FrameLen), &FrameLen, TxPwr,
 			  LinkMargin);
 
@@ -1324,11 +1324,11 @@ VOID EnqueueChSwAnn(IN PRTMP_ADAPTER pAd,
 
 	HEADER_802_11 ActHdr;
 
-	// build action frame header.
+	/* build action frame header. */
 	MgtMacHeaderInit(pAd, &ActHdr, SUBTYPE_ACTION, 0, pDA,
 			 pAd->CurrentAddress);
 
-	NStatus = MlmeAllocateMemory(pAd, (PVOID) & pOutBuffer);	//Get an unused nonpaged memory
+	NStatus = MlmeAllocateMemory(pAd, (PVOID) & pOutBuffer);	/*Get an unused nonpaged memory */
 	if (NStatus != NDIS_STATUS_SUCCESS) {
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("%s() allocate memory failed \n", __func__));
@@ -1355,18 +1355,18 @@ static BOOLEAN DfsRequirementCheck(IN PRTMP_ADAPTER pAd, IN UINT8 Channel)
 	INT i;
 
 	do {
-		// check DFS procedure is running.
-		// make sure DFS procedure won't start twice.
+		/* check DFS procedure is running. */
+		/* make sure DFS procedure won't start twice. */
 		if (pAd->CommonCfg.RadarDetect.RDMode != RD_NORMAL_MODE) {
 			Result = FALSE;
 			break;
 		}
-		// check the new channel carried from Channel Switch Announcemnet is valid.
+		/* check the new channel carried from Channel Switch Announcemnet is valid. */
 		for (i = 0; i < pAd->ChannelListNum; i++) {
 			if ((Channel == pAd->ChannelList[i].Channel)
 			    && (pAd->ChannelList[i].RemainingTimeForUse == 0)) {
-				// found radar signal in the channel. the channel can't use at least for 30 minutes.
-				pAd->ChannelList[i].RemainingTimeForUse = 1800;	//30 min = 1800 sec
+				/* found radar signal in the channel. the channel can't use at least for 30 minutes. */
+				pAd->ChannelList[i].RemainingTimeForUse = 1800;	/*30 min = 1800 sec */
 				Result = TRUE;
 				break;
 			}
@@ -1385,7 +1385,7 @@ VOID NotifyChSwAnnToPeerAPs(IN PRTMP_ADAPTER pAd,
 static VOID StartDFSProcedure(IN PRTMP_ADAPTER pAd,
 			      IN UCHAR Channel, IN UINT8 ChSwMode)
 {
-	// start DFS procedure
+	/* start DFS procedure */
 	pAd->CommonCfg.Channel = Channel;
 
 	N_ChannelCheck(pAd);
@@ -1425,10 +1425,10 @@ static BOOLEAN PeerChSwAnnSanity(IN PRTMP_ADAPTER pAd,
 	BOOLEAN result = FALSE;
 	PEID_STRUCT eid_ptr;
 
-	// skip 802.11 header.
+	/* skip 802.11 header. */
 	MsgLen -= sizeof(HEADER_802_11);
 
-	// skip category and action code.
+	/* skip category and action code. */
 	pFramePtr += 2;
 	MsgLen -= 2;
 
@@ -1487,10 +1487,10 @@ static BOOLEAN PeerMeasureReqSanity(IN PRTMP_ADAPTER pAd,
 	UINT64 MeasureStartTime;
 	UINT16 MeasureDuration;
 
-	// skip 802.11 header.
+	/* skip 802.11 header. */
 	MsgLen -= sizeof(HEADER_802_11);
 
-	// skip category and action code.
+	/* skip category and action code. */
 	pFramePtr += 2;
 	MsgLen -= 2;
 
@@ -1580,10 +1580,10 @@ static BOOLEAN PeerMeasureReportSanity(IN PRTMP_ADAPTER pAd,
 	PEID_STRUCT eid_ptr;
 	PUCHAR ptr;
 
-	// skip 802.11 header.
+	/* skip 802.11 header. */
 	MsgLen -= sizeof(HEADER_802_11);
 
-	// skip category and action code.
+	/* skip category and action code. */
 	pFramePtr += 2;
 	MsgLen -= 2;
 
@@ -1677,7 +1677,7 @@ static BOOLEAN PeerTpcReqSanity(IN PRTMP_ADAPTER pAd,
 
 	MsgLen -= sizeof(HEADER_802_11);
 
-	// skip category and action code.
+	/* skip category and action code. */
 	pFramePtr += 2;
 	MsgLen -= 2;
 
@@ -1732,7 +1732,7 @@ static BOOLEAN PeerTpcRepSanity(IN PRTMP_ADAPTER pAd,
 
 	MsgLen -= sizeof(HEADER_802_11);
 
-	// skip category and action code.
+	/* skip category and action code. */
 	pFramePtr += 2;
 	MsgLen -= 2;
 
@@ -1808,16 +1808,16 @@ static VOID PeerChSwAnnAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 		if ((pAd->CommonCfg.bIEEE80211H == 1) && (NewChannel != 0)
 		    && (Channel != NewChannel)) {
-			// Switching to channel 1 can prevent from rescanning the current channel immediately (by auto reconnection).
-			// In addition, clear the MLME queue and the scan table to discard the RX packets and previous scanning results.
+			/* Switching to channel 1 can prevent from rescanning the current channel immediately (by auto reconnection). */
+			/* In addition, clear the MLME queue and the scan table to discard the RX packets and previous scanning results. */
 			AsicSwitchChannel(pAd, 1, FALSE);
 			AsicLockChannel(pAd, 1);
 			LinkDown(pAd, FALSE);
 			MlmeQueueInit(&pAd->Mlme.Queue);
 			BssTableInit(&pAd->ScanTab);
-			RTMPusecDelay(1000000);	// use delay to prevent STA do reassoc
+			RTMPusecDelay(1000000);	/* use delay to prevent STA do reassoc */
 
-			// channel sanity check
+			/* channel sanity check */
 			for (index = 0; index < pAd->ChannelListNum; index++) {
 				if (pAd->ChannelList[index].Channel ==
 				    NewChannel) {
@@ -1897,8 +1897,8 @@ static VOID PeerMeasureReportAction(IN PRTMP_ADAPTER pAd,
 	UINT8 DialogToken;
 	PUINT8 pMeasureReportInfo;
 
-//      if (pAd->CommonCfg.bIEEE80211H != TRUE)
-//              return;
+/*      if (pAd->CommonCfg.bIEEE80211H != TRUE) */
+/*              return; */
 
 	if ((pMeasureReportInfo =
 	     kmalloc(sizeof(MEASURE_RPI_REPORT), GFP_ATOMIC)) == NULL) {
@@ -1916,8 +1916,8 @@ static VOID PeerMeasureReportAction(IN PRTMP_ADAPTER pAd,
 		do {
 			PMEASURE_REQ_ENTRY pEntry = NULL;
 
-			// Not a autonomous measure report.
-			// check the dialog token field. drop it if the dialog token doesn't match.
+			/* Not a autonomous measure report. */
+			/* check the dialog token field. drop it if the dialog token doesn't match. */
 			if ((DialogToken != 0)
 			    && ((pEntry = MeasureReqLookUp(pAd, DialogToken)) ==
 				NULL))
@@ -1974,18 +1974,18 @@ static VOID PeerTpcReqAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 	UINT8 LinkMargin = 0;
 	CHAR RealRssi;
 
-	// link margin: Ratio of the received signal power to the minimum desired by the station (STA). The
-	//                              STA may incorporate rate information and channel conditions, including interference, into its computation
-	//                              of link margin.
+	/* link margin: Ratio of the received signal power to the minimum desired by the station (STA). The */
+	/*                              STA may incorporate rate information and channel conditions, including interference, into its computation */
+	/*                              of link margin. */
 
 	RealRssi = RTMPMaxRssi(pAd, ConvertToRssi(pAd, Elem->Rssi0, RSSI_0),
 			       ConvertToRssi(pAd, Elem->Rssi1, RSSI_1),
 			       ConvertToRssi(pAd, Elem->Rssi2, RSSI_2));
 
-	// skip Category and action code.
+	/* skip Category and action code. */
 	pFramePtr += 2;
 
-	// Dialog token.
+	/* Dialog token. */
 	NdisMoveMemory(&DialogToken, pFramePtr, 1);
 
 	LinkMargin = (RealRssi / MIN_RCV_PWR);
@@ -2050,8 +2050,8 @@ VOID PeerSpectrumAction(IN PRTMP_ADAPTER pAd, IN MLME_QUEUE_ELEM * Elem)
 
 	switch (Action) {
 	case SPEC_MRQ:
-		// current rt2860 unable do such measure specified in Measurement Request.
-		// reject all measurement request.
+		/* current rt2860 unable do such measure specified in Measurement Request. */
+		/* reject all measurement request. */
 		PeerMeasureReqAction(pAd, Elem);
 		break;
 
@@ -2104,7 +2104,7 @@ INT Set_MeasureReq_Proc(IN PRTMP_ADAPTER pAd, IN PSTRING arg)
 	NDIS_STATUS NStatus;
 	ULONG FrameLen;
 
-	NStatus = MlmeAllocateMemory(pAd, (PVOID) & pOutBuffer);	//Get an unused nonpaged memory
+	NStatus = MlmeAllocateMemory(pAd, (PVOID) & pOutBuffer);	/*Get an unused nonpaged memory */
 	if (NStatus != NDIS_STATUS_SUCCESS) {
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("%s() allocate memory failed \n", __func__));
@@ -2114,11 +2114,11 @@ INT Set_MeasureReq_Proc(IN PRTMP_ADAPTER pAd, IN PSTRING arg)
 	ArgIdx = 1;
 	while ((thisChar = strsep((char **)&arg, "-")) != NULL) {
 		switch (ArgIdx) {
-		case 1:	// Aid.
+		case 1:	/* Aid. */
 			Aid = (UINT8) simple_strtol(thisChar, 0, 16);
 			break;
 
-		case 2:	// Measurement Request Type.
+		case 2:	/* Measurement Request Type. */
 			MeasureReqType = simple_strtol(thisChar, 0, 16);
 			if (MeasureReqType > 3) {
 				DBGPRINT(RT_DEBUG_ERROR,
@@ -2128,7 +2128,7 @@ INT Set_MeasureReq_Proc(IN PRTMP_ADAPTER pAd, IN PSTRING arg)
 			}
 			break;
 
-		case 3:	// Measurement channel.
+		case 3:	/* Measurement channel. */
 			MeasureCh = (UINT8) simple_strtol(thisChar, 0, 16);
 			break;
 		}
@@ -2149,7 +2149,7 @@ INT Set_MeasureReq_Proc(IN PRTMP_ADAPTER pAd, IN PSTRING arg)
 
 	MeasureReqInsert(pAd, MeasureReqToken);
 
-	// build action frame header.
+	/* build action frame header. */
 	MgtMacHeaderInit(pAd, &ActHdr, SUBTYPE_ACTION, 0,
 			 pAd->MacTab.Content[Aid].Addr, pAd->CurrentAddress);
 

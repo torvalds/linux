@@ -30,7 +30,7 @@
 UCHAR SNAP_802_1H[] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
 UCHAR SNAP_BRIDGE_TUNNEL[] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
 
-// Add Cisco Aironet SNAP heade for CCX2 support
+/* Add Cisco Aironet SNAP heade for CCX2 support */
 UCHAR SNAP_AIRONET[] = { 0xaa, 0xaa, 0x03, 0x00, 0x40, 0x96, 0x00, 0x00 };
 UCHAR CKIP_LLC_SNAP[] = { 0xaa, 0xaa, 0x03, 0x00, 0x40, 0x96, 0x00, 0x02 };
 UCHAR EAPOL_LLC_SNAP[] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00, 0x88, 0x8e };
@@ -41,28 +41,28 @@ UCHAR IPX[] = { 0x81, 0x37 };
 UCHAR APPLE_TALK[] = { 0x80, 0xf3 };
 
 UCHAR RateIdToPlcpSignal[12] = {
-	0, /* RATE_1 */ 1, /* RATE_2 */ 2, /* RATE_5_5 */ 3,	/* RATE_11 */// see BBP spec
-	11, /* RATE_6 */ 15, /* RATE_9 */ 10, /* RATE_12 */ 14,	/* RATE_18 */// see IEEE802.11a-1999 p.14
+	0, /* RATE_1 */ 1, /* RATE_2 */ 2, /* RATE_5_5 */ 3,	/* RATE_11 *//* see BBP spec */
+	11, /* RATE_6 */ 15, /* RATE_9 */ 10, /* RATE_12 */ 14,	/* RATE_18 *//* see IEEE802.11a-1999 p.14 */
 	9, /* RATE_24 */ 13, /* RATE_36 */ 8, /* RATE_48 */ 12 /* RATE_54 */
-};				// see IEEE802.11a-1999 p.14
+};				/* see IEEE802.11a-1999 p.14 */
 
 UCHAR OfdmSignalToRateId[16] = {
-	RATE_54, RATE_54, RATE_54, RATE_54,	// OFDM PLCP Signal = 0,  1,  2,  3 respectively
-	RATE_54, RATE_54, RATE_54, RATE_54,	// OFDM PLCP Signal = 4,  5,  6,  7 respectively
-	RATE_48, RATE_24, RATE_12, RATE_6,	// OFDM PLCP Signal = 8,  9,  10, 11 respectively
-	RATE_54, RATE_36, RATE_18, RATE_9,	// OFDM PLCP Signal = 12, 13, 14, 15 respectively
+	RATE_54, RATE_54, RATE_54, RATE_54,	/* OFDM PLCP Signal = 0,  1,  2,  3 respectively */
+	RATE_54, RATE_54, RATE_54, RATE_54,	/* OFDM PLCP Signal = 4,  5,  6,  7 respectively */
+	RATE_48, RATE_24, RATE_12, RATE_6,	/* OFDM PLCP Signal = 8,  9,  10, 11 respectively */
+	RATE_54, RATE_36, RATE_18, RATE_9,	/* OFDM PLCP Signal = 12, 13, 14, 15 respectively */
 };
 
 UCHAR OfdmRateToRxwiMCS[12] = {
 	0, 0, 0, 0,
-	0, 1, 2, 3,		// OFDM rate 6,9,12,18 = rxwi mcs 0,1,2,3
-	4, 5, 6, 7,		// OFDM rate 24,36,48,54 = rxwi mcs 4,5,6,7
+	0, 1, 2, 3,		/* OFDM rate 6,9,12,18 = rxwi mcs 0,1,2,3 */
+	4, 5, 6, 7,		/* OFDM rate 24,36,48,54 = rxwi mcs 4,5,6,7 */
 };
 
 UCHAR RxwiMCSToOfdmRate[12] = {
 	RATE_6, RATE_9, RATE_12, RATE_18,
-	RATE_24, RATE_36, RATE_48, RATE_54,	// OFDM rate 6,9,12,18 = rxwi mcs 0,1,2,3
-	4, 5, 6, 7,		// OFDM rate 24,36,48,54 = rxwi mcs 4,5,6,7
+	RATE_24, RATE_36, RATE_48, RATE_54,	/* OFDM rate 6,9,12,18 = rxwi mcs 0,1,2,3 */
+	4, 5, 6, 7,		/* OFDM rate 24,36,48,54 = rxwi mcs 4,5,6,7 */
 };
 
 char *MCSToMbps[] =
@@ -73,7 +73,7 @@ char *MCSToMbps[] =
 
 UCHAR default_cwmin[] =
     { CW_MIN_IN_BITS, CW_MIN_IN_BITS, CW_MIN_IN_BITS - 1, CW_MIN_IN_BITS - 2 };
-//UCHAR default_cwmax[]={CW_MAX_IN_BITS, CW_MAX_IN_BITS, CW_MIN_IN_BITS, CW_MIN_IN_BITS-1};
+/*UCHAR default_cwmax[]={CW_MAX_IN_BITS, CW_MAX_IN_BITS, CW_MIN_IN_BITS, CW_MIN_IN_BITS-1}; */
 UCHAR default_sta_aifsn[] = { 3, 7, 2, 2 };
 
 UCHAR MapUserPriorityToAccessCategory[8] =
@@ -110,11 +110,11 @@ NDIS_STATUS MiniportMMRequest(IN PRTMP_ADAPTER pAd,
 	PNDIS_PACKET pPacket;
 	NDIS_STATUS Status = NDIS_STATUS_SUCCESS;
 	ULONG FreeNum;
-	UCHAR rtmpHwHdr[TXINFO_SIZE + TXWI_SIZE];	//RTMP_HW_HDR_LEN];
+	UCHAR rtmpHwHdr[TXINFO_SIZE + TXWI_SIZE];	/*RTMP_HW_HDR_LEN]; */
 #ifdef RTMP_MAC_PCI
 	unsigned long IrqFlags = 0;
 	UCHAR IrqState;
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 	BOOLEAN bUseDataQ = FALSE;
 	int retryCnt = 0;
 
@@ -125,7 +125,7 @@ NDIS_STATUS MiniportMMRequest(IN PRTMP_ADAPTER pAd,
 		QueIdx &= (~MGMT_USE_QUEUE_FLAG);
 	}
 #ifdef RTMP_MAC_PCI
-	// 2860C use Tx Ring
+	/* 2860C use Tx Ring */
 	IrqState = pAd->irq_disabled;
 	if (pAd->MACVersion == 0x28600100) {
 		QueIdx = (bUseDataQ == TRUE ? QueIdx : 3);
@@ -133,10 +133,10 @@ NDIS_STATUS MiniportMMRequest(IN PRTMP_ADAPTER pAd,
 	}
 	if (bUseDataQ && (!IrqState))
 		RTMP_IRQ_LOCK(&pAd->irq_lock, IrqFlags);
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 
 	do {
-		// Reset is in progress, stop immediately
+		/* Reset is in progress, stop immediately */
 		if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS) ||
 		    RTMP_TEST_FLAG(pAd,
 				   fRTMP_ADAPTER_HALT_IN_PROGRESS |
@@ -145,22 +145,22 @@ NDIS_STATUS MiniportMMRequest(IN PRTMP_ADAPTER pAd,
 			Status = NDIS_STATUS_FAILURE;
 			break;
 		}
-		// Check Free priority queue
-		// Since we use PBF Queue2 for management frame.  Its corresponding DMA ring should be using TxRing.
+		/* Check Free priority queue */
+		/* Since we use PBF Queue2 for management frame.  Its corresponding DMA ring should be using TxRing. */
 #ifdef RTMP_MAC_PCI
 		if (bUseDataQ) {
 			retryCnt = MAX_DATAMM_RETRY;
-			// free Tx(QueIdx) resources
+			/* free Tx(QueIdx) resources */
 			RTMPFreeTXDUponTxDmaDone(pAd, QueIdx);
 			FreeNum = GET_TXRING_FREENO(pAd, QueIdx);
 		} else
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 		{
 			FreeNum = GET_MGMTRING_FREENO(pAd);
 		}
 
 		if ((FreeNum > 0)) {
-			// We need to reserve space for rtmp hardware header. i.e., TxWI for RT2860 and TxInfo+TxWI for RT2870
+			/* We need to reserve space for rtmp hardware header. i.e., TxWI for RT2860 and TxInfo+TxWI for RT2870 */
 			NdisZeroMemory(&rtmpHwHdr, (TXINFO_SIZE + TXWI_SIZE));
 			Status =
 			    RTMPAllocateNdisPacket(pAd, &pPacket,
@@ -172,8 +172,8 @@ NDIS_STATUS MiniportMMRequest(IN PRTMP_ADAPTER pAd,
 					 ("MiniportMMRequest (error:: can't allocate NDIS PACKET)\n"));
 				break;
 			}
-			//pAd->CommonCfg.MlmeTransmit.field.MODE = MODE_CCK;
-			//pAd->CommonCfg.MlmeRate = RATE_2;
+			/*pAd->CommonCfg.MlmeTransmit.field.MODE = MODE_CCK; */
+			/*pAd->CommonCfg.MlmeRate = RATE_2; */
 
 #ifdef RTMP_MAC_PCI
 			if (bUseDataQ) {
@@ -181,7 +181,7 @@ NDIS_STATUS MiniportMMRequest(IN PRTMP_ADAPTER pAd,
 				    MlmeDataHardTransmit(pAd, QueIdx, pPacket);
 				retryCnt--;
 			} else
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 				Status = MlmeHardTransmit(pAd, QueIdx, pPacket);
 			if (Status == NDIS_STATUS_SUCCESS)
 				retryCnt = 0;
@@ -202,7 +202,7 @@ NDIS_STATUS MiniportMMRequest(IN PRTMP_ADAPTER pAd,
 						  MgmtRingFullCount));
 				}
 			}
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 			DBGPRINT(RT_DEBUG_ERROR,
 				 ("Qidx(%d), not enough space in MgmtRing, MgmtRingFullCount=%ld!\n",
 				  QueIdx,
@@ -213,7 +213,7 @@ NDIS_STATUS MiniportMMRequest(IN PRTMP_ADAPTER pAd,
 #ifdef RTMP_MAC_PCI
 	if (bUseDataQ && (!IrqState))
 		RTMP_IRQ_UNLOCK(&pAd->irq_lock, IrqFlags);
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 
 	return Status;
 }
@@ -265,7 +265,7 @@ NDIS_STATUS MlmeHardTransmit(IN PRTMP_ADAPTER pAd,
 	if (pAd->MACVersion == 0x28600100)
 		return MlmeHardTransmitTxRing(pAd, QueIdx, pPacket);
 	else
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 		return MlmeHardTransmitMgmtRing(pAd, QueIdx, pPacket);
 
 }
@@ -285,22 +285,22 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(IN PRTMP_ADAPTER pAd,
 
 	RTMP_QueryPacketInfo(pPacket, &PacketInfo, &pSrcBufVA, &SrcBufLen);
 
-	// Make sure MGMT ring resource won't be used by other threads
+	/* Make sure MGMT ring resource won't be used by other threads */
 	RTMP_SEM_LOCK(&pAd->MgmtRingLock);
 	if (pSrcBufVA == NULL) {
-		// The buffer shouldn't be NULL
+		/* The buffer shouldn't be NULL */
 		RTMP_SEM_UNLOCK(&pAd->MgmtRingLock);
 		return NDIS_STATUS_FAILURE;
 	}
 
 	{
-		// outgoing frame always wakeup PHY to prevent frame lost
+		/* outgoing frame always wakeup PHY to prevent frame lost */
 		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
 			AsicForceWakeup(pAd, TRUE);
 	}
 
 	pFirstTxWI = (PTXWI_STRUC) (pSrcBufVA + TXINFO_SIZE);
-	pHeader_802_11 = (PHEADER_802_11) (pSrcBufVA + TXINFO_SIZE + TXWI_SIZE);	//TXWI_SIZE);
+	pHeader_802_11 = (PHEADER_802_11) (pSrcBufVA + TXINFO_SIZE + TXWI_SIZE);	/*TXWI_SIZE); */
 
 	if (pHeader_802_11->Addr1[0] & 0x01) {
 		MlmeRate = pAd->CommonCfg.BasicMlmeRate;
@@ -308,8 +308,8 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(IN PRTMP_ADAPTER pAd,
 		MlmeRate = pAd->CommonCfg.MlmeRate;
 	}
 
-	// Verify Mlme rate for a / g bands.
-	if ((pAd->LatchRfRegs.Channel > 14) && (MlmeRate < RATE_6))	// 11A band
+	/* Verify Mlme rate for a / g bands. */
+	if ((pAd->LatchRfRegs.Channel > 14) && (MlmeRate < RATE_6))	/* 11A band */
 		MlmeRate = RATE_6;
 
 	if ((pHeader_802_11->FC.Type == BTYPE_DATA) &&
@@ -318,7 +318,7 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(IN PRTMP_ADAPTER pAd,
 	}
 
 	{
-		// Fixed W52 with Activity scan issue in ABG_MIXED and ABGN_MIXED mode.
+		/* Fixed W52 with Activity scan issue in ABG_MIXED and ABGN_MIXED mode. */
 		if (pAd->CommonCfg.PhyMode == PHY_11ABG_MIXED
 		    || pAd->CommonCfg.PhyMode == PHY_11ABGN_MIXED) {
 			if (pAd->LatchRfRegs.Channel > 14)
@@ -328,17 +328,17 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(IN PRTMP_ADAPTER pAd,
 		}
 	}
 
-	//
-	// Should not be hard code to set PwrMgmt to 0 (PWR_ACTIVE)
-	// Snice it's been set to 0 while on MgtMacHeaderInit
-	// By the way this will cause frame to be send on PWR_SAVE failed.
-	//
-	pHeader_802_11->FC.PwrMgmt = PWR_ACTIVE;	// (pAd->StaCfg.Psm == PWR_SAVE);
+	/* */
+	/* Should not be hard code to set PwrMgmt to 0 (PWR_ACTIVE) */
+	/* Snice it's been set to 0 while on MgtMacHeaderInit */
+	/* By the way this will cause frame to be send on PWR_SAVE failed. */
+	/* */
+	pHeader_802_11->FC.PwrMgmt = PWR_ACTIVE;	/* (pAd->StaCfg.Psm == PWR_SAVE); */
 
-	//
-	// In WMM-UAPSD, mlme frame should be set psm as power saving but probe request frame
-	// Data-Null packets alse pass through MMRequest in RT2860, however, we hope control the psm bit to pass APSD
-//      if ((pHeader_802_11->FC.Type != BTYPE_DATA) && (pHeader_802_11->FC.Type != BTYPE_CNTL))
+	/* */
+	/* In WMM-UAPSD, mlme frame should be set psm as power saving but probe request frame */
+	/* Data-Null packets alse pass through MMRequest in RT2860, however, we hope control the psm bit to pass APSD */
+/*      if ((pHeader_802_11->FC.Type != BTYPE_DATA) && (pHeader_802_11->FC.Type != BTYPE_CNTL)) */
 	{
 		if ((pHeader_802_11->FC.SubType == SUBTYPE_ACTION) ||
 		    ((pHeader_802_11->FC.Type == BTYPE_DATA) &&
@@ -353,20 +353,20 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(IN PRTMP_ADAPTER pAd,
 	}
 
 	bInsertTimestamp = FALSE;
-	if (pHeader_802_11->FC.Type == BTYPE_CNTL)	// must be PS-POLL
+	if (pHeader_802_11->FC.Type == BTYPE_CNTL)	/* must be PS-POLL */
 	{
-		//Set PM bit in ps-poll, to fix WLK 1.2  PowerSaveMode_ext failure issue.
+		/*Set PM bit in ps-poll, to fix WLK 1.2  PowerSaveMode_ext failure issue. */
 		if ((pAd->OpMode == OPMODE_STA)
 		    && (pHeader_802_11->FC.SubType == SUBTYPE_PS_POLL)) {
 			pHeader_802_11->FC.PwrMgmt = PWR_SAVE;
 		}
 		bAckRequired = FALSE;
-	} else			// BTYPE_MGMT or BTYPE_DATA(must be NULL frame)
+	} else			/* BTYPE_MGMT or BTYPE_DATA(must be NULL frame) */
 	{
-		//pAd->Sequence++;
-		//pHeader_802_11->Sequence = pAd->Sequence;
+		/*pAd->Sequence++; */
+		/*pHeader_802_11->Sequence = pAd->Sequence; */
 
-		if (pHeader_802_11->Addr1[0] & 0x01)	// MULTICAST, BROADCAST
+		if (pHeader_802_11->Addr1[0] & 0x01)	/* MULTICAST, BROADCAST */
 		{
 			bAckRequired = FALSE;
 			pHeader_802_11->Duration = 0;
@@ -377,12 +377,12 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(IN PRTMP_ADAPTER pAd,
 			if ((pHeader_802_11->FC.SubType == SUBTYPE_PROBE_RSP)
 			    && (pHeader_802_11->FC.Type == BTYPE_MGMT)) {
 				bInsertTimestamp = TRUE;
-				bAckRequired = FALSE;	// Disable ACK to prevent retry 0x1f for Probe Response
+				bAckRequired = FALSE;	/* Disable ACK to prevent retry 0x1f for Probe Response */
 			} else
 			    if ((pHeader_802_11->FC.SubType ==
 				 SUBTYPE_PROBE_REQ)
 				&& (pHeader_802_11->FC.Type == BTYPE_MGMT)) {
-				bAckRequired = FALSE;	// Disable ACK to prevent retry 0x1f for Probe Request
+				bAckRequired = FALSE;	/* Disable ACK to prevent retry 0x1f for Probe Request */
 			}
 		}
 	}
@@ -391,30 +391,30 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(IN PRTMP_ADAPTER pAd,
 	if (pAd->Sequence > 0xfff)
 		pAd->Sequence = 0;
 
-	// Before radar detection done, mgmt frame can not be sent but probe req
-	// Because we need to use probe req to trigger driver to send probe req in passive scan
+	/* Before radar detection done, mgmt frame can not be sent but probe req */
+	/* Because we need to use probe req to trigger driver to send probe req in passive scan */
 	if ((pHeader_802_11->FC.SubType != SUBTYPE_PROBE_REQ)
 	    && (pAd->CommonCfg.bIEEE80211H == 1)
 	    && (pAd->CommonCfg.RadarDetect.RDMode != RD_NORMAL_MODE)) {
 		DBGPRINT(RT_DEBUG_ERROR,
 			 ("MlmeHardTransmit --> radar detect not in normal mode !!!\n"));
-//              if (!IrqState)
+/*              if (!IrqState) */
 		RTMP_SEM_UNLOCK(&pAd->MgmtRingLock);
 		return (NDIS_STATUS_FAILURE);
 	}
 
-	//
-	// fill scatter-and-gather buffer list into TXD. Internally created NDIS PACKET
-	// should always has only one physical buffer, and the whole frame size equals
-	// to the first scatter buffer size
-	//
+	/* */
+	/* fill scatter-and-gather buffer list into TXD. Internally created NDIS PACKET */
+	/* should always has only one physical buffer, and the whole frame size equals */
+	/* to the first scatter buffer size */
+	/* */
 
-	// Initialize TX Descriptor
-	// For inter-frame gap, the number is for this frame and next frame
-	// For MLME rate, we will fix as 2Mb to match other vendor's implement
-//      pAd->CommonCfg.MlmeTransmit.field.MODE = 1;
+	/* Initialize TX Descriptor */
+	/* For inter-frame gap, the number is for this frame and next frame */
+	/* For MLME rate, we will fix as 2Mb to match other vendor's implement */
+/*      pAd->CommonCfg.MlmeTransmit.field.MODE = 1; */
 
-// management frame doesn't need encryption. so use RESERVED_WCID no matter u are sending to specific wcid or not.
+/* management frame doesn't need encryption. so use RESERVED_WCID no matter u are sending to specific wcid or not. */
 	PID = PID_MGMT;
 
 	if (pMacEntry == NULL) {
@@ -434,11 +434,11 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(IN PRTMP_ADAPTER pAd,
 			      IFS_BACKOFF, FALSE, &pMacEntry->MaxHTPhyMode);
 	}
 
-	// Now do hardware-depened kick out.
+	/* Now do hardware-depened kick out. */
 	HAL_KickOutMgmtTx(pAd, QueIdx, pPacket, pSrcBufVA, SrcBufLen);
 
-	// Make sure to release MGMT ring resource
-//      if (!IrqState)
+	/* Make sure to release MGMT ring resource */
+/*      if (!IrqState) */
 	RTMP_SEM_UNLOCK(&pAd->MgmtRingLock);
 	return NDIS_STATUS_SUCCESS;
 }
@@ -514,17 +514,17 @@ static UCHAR TxPktClassification(IN RTMP_ADAPTER * pAd, IN PNDIS_PACKET pPacket)
 	BOOLEAN bHTRate = FALSE;
 
 	Wcid = RTMP_GET_PACKET_WCID(pPacket);
-	if (Wcid == MCAST_WCID) {	// Handle for RA is Broadcast/Multicast Address.
+	if (Wcid == MCAST_WCID) {	/* Handle for RA is Broadcast/Multicast Address. */
 		return TX_MCAST_FRAME;
 	}
-	// Handle for unicast packets
+	/* Handle for unicast packets */
 	pMacEntry = &pAd->MacTab.Content[Wcid];
-	if (RTMP_GET_PACKET_LOWRATE(pPacket)) {	// It's a specific packet need to force low rate, i.e., bDHCPFrame, bEAPOLFrame, bWAIFrame
+	if (RTMP_GET_PACKET_LOWRATE(pPacket)) {	/* It's a specific packet need to force low rate, i.e., bDHCPFrame, bEAPOLFrame, bWAIFrame */
 		TxFrameType = TX_LEGACY_FRAME;
-	} else if (IS_HT_RATE(pMacEntry)) {	// it's a 11n capable packet
+	} else if (IS_HT_RATE(pMacEntry)) {	/* it's a 11n capable packet */
 
-		// Depends on HTPhyMode to check if the peer support the HTRate transmission.
-		//      Currently didn't support A-MSDU embedded in A-MPDU
+		/* Depends on HTPhyMode to check if the peer support the HTRate transmission. */
+		/*      Currently didn't support A-MSDU embedded in A-MPDU */
 		bHTRate = TRUE;
 		if (RTMP_GET_PACKET_MOREDATA(pPacket)
 		    || (pMacEntry->PsMode == PWR_SAVE))
@@ -538,15 +538,15 @@ static UCHAR TxPktClassification(IN RTMP_ADAPTER * pAd, IN PNDIS_PACKET pPacket)
 			return TX_AMSDU_FRAME;
 		else
 			TxFrameType = TX_LEGACY_FRAME;
-	} else {		// it's a legacy b/g packet.
-		if ((CLIENT_STATUS_TEST_FLAG(pMacEntry, fCLIENT_STATUS_AGGREGATION_CAPABLE) && pAd->CommonCfg.bAggregationCapable) && (RTMP_GET_PACKET_TXRATE(pPacket) >= RATE_6) && (!(OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED) && CLIENT_STATUS_TEST_FLAG(pMacEntry, fCLIENT_STATUS_WMM_CAPABLE)))) {	// if peer support Ralink Aggregation, we use it.
+	} else {		/* it's a legacy b/g packet. */
+		if ((CLIENT_STATUS_TEST_FLAG(pMacEntry, fCLIENT_STATUS_AGGREGATION_CAPABLE) && pAd->CommonCfg.bAggregationCapable) && (RTMP_GET_PACKET_TXRATE(pPacket) >= RATE_6) && (!(OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED) && CLIENT_STATUS_TEST_FLAG(pMacEntry, fCLIENT_STATUS_WMM_CAPABLE)))) {	/* if peer support Ralink Aggregation, we use it. */
 			TxFrameType = TX_RALINK_FRAME;
 		} else {
 			TxFrameType = TX_LEGACY_FRAME;
 		}
 	}
 
-	// Currently, our fragment only support when a unicast packet send as NOT-ARALINK, NOT-AMSDU and NOT-AMPDU.
+	/* Currently, our fragment only support when a unicast packet send as NOT-ARALINK, NOT-AMSDU and NOT-AMPDU. */
 	if ((RTMP_GET_PACKET_FRAGMENTS(pPacket) > 1)
 	    && (TxFrameType == TX_LEGACY_FRAME))
 		TxFrameType = TX_FRAG_FRAME;
@@ -567,14 +567,14 @@ BOOLEAN RTMP_FillTxBlkInfo(IN RTMP_ADAPTER * pAd, IN TX_BLK * pTxBlk)
 	pTxBlk->Wcid = RTMP_GET_PACKET_WCID(pPacket);
 	pTxBlk->apidx = RTMP_GET_PACKET_IF(pPacket);
 	pTxBlk->UserPriority = RTMP_GET_PACKET_UP(pPacket);
-	pTxBlk->FrameGap = IFS_HTTXOP;	// ASIC determine Frame Gap
+	pTxBlk->FrameGap = IFS_HTTXOP;	/* ASIC determine Frame Gap */
 
 	if (RTMP_GET_PACKET_CLEAR_EAP_FRAME(pTxBlk->pPacket))
 		TX_BLK_SET_FLAG(pTxBlk, fTX_bClearEAPFrame);
 	else
 		TX_BLK_CLEAR_FLAG(pTxBlk, fTX_bClearEAPFrame);
 
-	// Default to clear this flag
+	/* Default to clear this flag */
 	TX_BLK_CLEAR_FLAG(pTxBlk, fTX_bForceNonQoS);
 
 	if (pTxBlk->Wcid == MCAST_WCID) {
@@ -584,8 +584,8 @@ BOOLEAN RTMP_FillTxBlkInfo(IN RTMP_ADAPTER * pAd, IN TX_BLK * pTxBlk)
 			    &pAd->MacTab.Content[MCAST_WCID].HTPhyMode;
 		}
 
-		TX_BLK_CLEAR_FLAG(pTxBlk, fTX_bAckRequired);	// AckRequired = FALSE, when broadcast packet in Adhoc mode.
-		//TX_BLK_SET_FLAG(pTxBlk, fTX_bForceLowRate);
+		TX_BLK_CLEAR_FLAG(pTxBlk, fTX_bAckRequired);	/* AckRequired = FALSE, when broadcast packet in Adhoc mode. */
+		/*TX_BLK_SET_FLAG(pTxBlk, fTX_bForceLowRate); */
 		TX_BLK_CLEAR_FLAG(pTxBlk, fTX_bAllowFrag);
 		TX_BLK_CLEAR_FLAG(pTxBlk, fTX_bWMM);
 		if (RTMP_GET_PACKET_MOREDATA(pPacket)) {
@@ -598,7 +598,7 @@ BOOLEAN RTMP_FillTxBlkInfo(IN RTMP_ADAPTER * pAd, IN TX_BLK * pTxBlk)
 
 		pMacEntry = pTxBlk->pMacEntry;
 
-		// For all unicast packets, need Ack unless the Ack Policy is not set as NORMAL_ACK.
+		/* For all unicast packets, need Ack unless the Ack Policy is not set as NORMAL_ACK. */
 		if (pAd->CommonCfg.AckPolicy[pTxBlk->QueIdx] != NORMAL_ACK)
 			TX_BLK_CLEAR_FLAG(pTxBlk, fTX_bAckRequired);
 		else
@@ -614,24 +614,24 @@ BOOLEAN RTMP_FillTxBlkInfo(IN RTMP_ADAPTER * pAd, IN TX_BLK * pTxBlk)
 		{
 			{
 
-				// If support WMM, enable it.
+				/* If support WMM, enable it. */
 				if (OPSTATUS_TEST_FLAG
 				    (pAd, fOP_STATUS_WMM_INUSED)
 				    && CLIENT_STATUS_TEST_FLAG(pMacEntry,
 							       fCLIENT_STATUS_WMM_CAPABLE))
 					TX_BLK_SET_FLAG(pTxBlk, fTX_bWMM);
 
-//                              if (pAd->StaCfg.bAutoTxRateSwitch)
-//                                      TX_BLK_SET_FLAG(pTxBlk, fTX_AutoRateSwitch);
+/*                              if (pAd->StaCfg.bAutoTxRateSwitch) */
+/*                                      TX_BLK_SET_FLAG(pTxBlk, fTX_AutoRateSwitch); */
 			}
 		}
 
 		if (pTxBlk->TxFrameType == TX_LEGACY_FRAME) {
-			if ((RTMP_GET_PACKET_LOWRATE(pPacket)) || ((pAd->OpMode == OPMODE_AP) && (pMacEntry->MaxHTPhyMode.field.MODE == MODE_CCK) && (pMacEntry->MaxHTPhyMode.field.MCS == RATE_1))) {	// Specific packet, i.e., bDHCPFrame, bEAPOLFrame, bWAIFrame, need force low rate.
+			if ((RTMP_GET_PACKET_LOWRATE(pPacket)) || ((pAd->OpMode == OPMODE_AP) && (pMacEntry->MaxHTPhyMode.field.MODE == MODE_CCK) && (pMacEntry->MaxHTPhyMode.field.MCS == RATE_1))) {	/* Specific packet, i.e., bDHCPFrame, bEAPOLFrame, bWAIFrame, need force low rate. */
 				pTxBlk->pTransmit =
 				    &pAd->MacTab.Content[MCAST_WCID].HTPhyMode;
 
-				// Modify the WMM bit for ICV issue. If we have a packet with EOSP field need to set as 1, how to handle it???
+				/* Modify the WMM bit for ICV issue. If we have a packet with EOSP field need to set as 1, how to handle it??? */
 				if (IS_HT_STA(pTxBlk->pMacEntry) &&
 				    (CLIENT_STATUS_TEST_FLAG
 				     (pMacEntry, fCLIENT_STATUS_RALINK_CHIPSET))
@@ -645,7 +645,7 @@ BOOLEAN RTMP_FillTxBlkInfo(IN RTMP_ADAPTER * pAd, IN TX_BLK * pTxBlk)
 				}
 			}
 
-			if ((IS_HT_RATE(pMacEntry) == FALSE) && (CLIENT_STATUS_TEST_FLAG(pMacEntry, fCLIENT_STATUS_PIGGYBACK_CAPABLE))) {	// Currently piggy-back only support when peer is operate in b/g mode.
+			if ((IS_HT_RATE(pMacEntry) == FALSE) && (CLIENT_STATUS_TEST_FLAG(pMacEntry, fCLIENT_STATUS_PIGGYBACK_CAPABLE))) {	/* Currently piggy-back only support when peer is operate in b/g mode. */
 				TX_BLK_SET_FLAG(pTxBlk, fTX_bPiggyBack);
 			}
 
@@ -666,7 +666,7 @@ BOOLEAN CanDoAggregateTransmit(IN RTMP_ADAPTER * pAd,
 			       IN NDIS_PACKET * pPacket, IN TX_BLK * pTxBlk)
 {
 
-	//DBGPRINT(RT_DEBUG_TRACE, ("Check if can do aggregation! TxFrameType=%d!\n", pTxBlk->TxFrameType));
+	/*DBGPRINT(RT_DEBUG_TRACE, ("Check if can do aggregation! TxFrameType=%d!\n", pTxBlk->TxFrameType)); */
 
 	if (RTMP_GET_PACKET_WCID(pPacket) == MCAST_WCID)
 		return FALSE;
@@ -675,15 +675,15 @@ BOOLEAN CanDoAggregateTransmit(IN RTMP_ADAPTER * pAd,
 	    RTMP_GET_PACKET_EAPOL(pPacket) || RTMP_GET_PACKET_WAI(pPacket))
 		return FALSE;
 
-	if ((pTxBlk->TxFrameType == TX_AMSDU_FRAME) && ((pTxBlk->TotalFrameLen + GET_OS_PKT_LEN(pPacket)) > (RX_BUFFER_AGGRESIZE - 100))) {	// For AMSDU, allow the packets with total length < max-amsdu size
+	if ((pTxBlk->TxFrameType == TX_AMSDU_FRAME) && ((pTxBlk->TotalFrameLen + GET_OS_PKT_LEN(pPacket)) > (RX_BUFFER_AGGRESIZE - 100))) {	/* For AMSDU, allow the packets with total length < max-amsdu size */
 		return FALSE;
 	}
 
-	if ((pTxBlk->TxFrameType == TX_RALINK_FRAME) && (pTxBlk->TxPacketList.Number == 2)) {	// For RALINK-Aggregation, allow two frames in one batch.
+	if ((pTxBlk->TxFrameType == TX_RALINK_FRAME) && (pTxBlk->TxPacketList.Number == 2)) {	/* For RALINK-Aggregation, allow two frames in one batch. */
 		return FALSE;
 	}
 
-	if ((INFRA_ON(pAd)) && (pAd->OpMode == OPMODE_STA))	// must be unicast to AP
+	if ((INFRA_ON(pAd)) && (pAd->OpMode == OPMODE_STA))	/* must be unicast to AP */
 		return TRUE;
 	else
 		return FALSE;
@@ -729,7 +729,7 @@ VOID RTMPDeQueuePacket(IN PRTMP_ADAPTER pAd, IN BOOLEAN bIntContext, IN UCHAR QI
 
 	if (QIdx == NUM_OF_TX_RING) {
 		sQIdx = 0;
-		eQIdx = 3;	// 4 ACs, start from 0.
+		eQIdx = 3;	/* 4 ACs, start from 0. */
 	} else {
 		sQIdx = eQIdx = QIdx;
 	}
@@ -764,14 +764,14 @@ VOID RTMPDeQueuePacket(IN PRTMP_ADAPTER pAd, IN BOOLEAN bIntContext, IN UCHAR QI
 			FreeNumber[QueIdx] = GET_TXRING_FREENO(pAd, QueIdx);
 
 			if (FreeNumber[QueIdx] <= 5) {
-				// free Tx(QueIdx) resources
+				/* free Tx(QueIdx) resources */
 				RTMPFreeTXDUponTxDmaDone(pAd, QueIdx);
 				FreeNumber[QueIdx] =
 				    GET_TXRING_FREENO(pAd, QueIdx);
 			}
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 
-			// probe the Queue Head
+			/* probe the Queue Head */
 			pQueue = &pAd->TxSwQueue[QueIdx];
 			if ((pEntry = pQueue->Head) == NULL) {
 				DEQUEUE_UNLOCK(&pAd->irq_lock, bIntContext,
@@ -781,12 +781,12 @@ VOID RTMPDeQueuePacket(IN PRTMP_ADAPTER pAd, IN BOOLEAN bIntContext, IN UCHAR QI
 
 			pTxBlk = &TxBlk;
 			NdisZeroMemory((PUCHAR) pTxBlk, sizeof(TX_BLK));
-			//InitializeQueueHeader(&pTxBlk->TxPacketList);         // Didn't need it because we already memzero it.
+			/*InitializeQueueHeader(&pTxBlk->TxPacketList);         // Didn't need it because we already memzero it. */
 			pTxBlk->QueIdx = QueIdx;
 
 			pPacket = QUEUE_ENTRY_TO_PACKET(pEntry);
 
-			// Early check to make sure we have enoguh Tx Resource.
+			/* Early check to make sure we have enoguh Tx Resource. */
 			hasTxDesc =
 			    RTMP_HAS_ENOUGH_FREE_DESC(pAd, pTxBlk,
 						      FreeNumber[QueIdx],
@@ -803,7 +803,7 @@ VOID RTMPDeQueuePacket(IN PRTMP_ADAPTER pAd, IN BOOLEAN bIntContext, IN UCHAR QI
 			pTxBlk->TxFrameType = TxPktClassification(pAd, pPacket);
 			pEntry = RemoveHeadQueue(pQueue);
 			pTxBlk->TotalFrameNum++;
-			pTxBlk->TotalFragNum += RTMP_GET_PACKET_FRAGMENTS(pPacket);	// The real fragment number maybe vary
+			pTxBlk->TotalFragNum += RTMP_GET_PACKET_FRAGMENTS(pPacket);	/* The real fragment number maybe vary */
 			pTxBlk->TotalFrameLen += GET_OS_PKT_LEN(pPacket);
 			pTxBlk->pPacket = pPacket;
 			InsertTailQueue(&pTxBlk->TxPacketList,
@@ -811,7 +811,7 @@ VOID RTMPDeQueuePacket(IN PRTMP_ADAPTER pAd, IN BOOLEAN bIntContext, IN UCHAR QI
 
 			if (pTxBlk->TxFrameType == TX_RALINK_FRAME
 			    || pTxBlk->TxFrameType == TX_AMSDU_FRAME) {
-				// Enhance SW Aggregation Mechanism
+				/* Enhance SW Aggregation Mechanism */
 				if (NEED_QUEUE_BACK_FOR_AGG
 				    (pAd, QueIdx, FreeNumber[QueIdx],
 				     pTxBlk->TxFrameType)) {
@@ -827,7 +827,7 @@ VOID RTMPDeQueuePacket(IN PRTMP_ADAPTER pAd, IN BOOLEAN bIntContext, IN UCHAR QI
 					if ((pEntry = pQueue->Head) == NULL)
 						break;
 
-					// For TX_AMSDU_FRAME/TX_RALINK_FRAME, Need to check if next pakcet can do aggregation.
+					/* For TX_AMSDU_FRAME/TX_RALINK_FRAME, Need to check if next pakcet can do aggregation. */
 					pPacket = QUEUE_ENTRY_TO_PACKET(pEntry);
 					FreeNumber[QueIdx] =
 					    GET_TXRING_FREENO(pAd, QueIdx);
@@ -843,12 +843,12 @@ VOID RTMPDeQueuePacket(IN PRTMP_ADAPTER pAd, IN BOOLEAN bIntContext, IN UCHAR QI
 					     (pAd, pPacket, pTxBlk) == FALSE))
 						break;
 
-					//Remove the packet from the TxSwQueue and insert into pTxBlk
+					/*Remove the packet from the TxSwQueue and insert into pTxBlk */
 					pEntry = RemoveHeadQueue(pQueue);
 					ASSERT(pEntry);
 					pPacket = QUEUE_ENTRY_TO_PACKET(pEntry);
 					pTxBlk->TotalFrameNum++;
-					pTxBlk->TotalFragNum += RTMP_GET_PACKET_FRAGMENTS(pPacket);	// The real fragment number maybe vary
+					pTxBlk->TotalFragNum += RTMP_GET_PACKET_FRAGMENTS(pPacket);	/* The real fragment number maybe vary */
 					pTxBlk->TotalFrameLen +=
 					    GET_OS_PKT_LEN(pPacket);
 					InsertTailQueue(&pTxBlk->TxPacketList,
@@ -861,18 +861,18 @@ VOID RTMPDeQueuePacket(IN PRTMP_ADAPTER pAd, IN BOOLEAN bIntContext, IN UCHAR QI
 			}
 #ifdef RTMP_MAC_USB
 			DEQUEUE_UNLOCK(&pAd->irq_lock, bIntContext, IrqFlags);
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 			Count += pTxBlk->TxPacketList.Number;
 
-			// Do HardTransmit now.
+			/* Do HardTransmit now. */
 			Status = STAHardTransmit(pAd, pTxBlk, QueIdx);
 
 #ifdef RTMP_MAC_PCI
 			DEQUEUE_UNLOCK(&pAd->irq_lock, bIntContext, IrqFlags);
-			// static rate also need NICUpdateFifoStaCounters() function.
-			//if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED))
+			/* static rate also need NICUpdateFifoStaCounters() function. */
+			/*if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED)) */
 			NICUpdateFifoStaCounters(pAd);
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 
 		}
 
@@ -881,7 +881,7 @@ VOID RTMPDeQueuePacket(IN PRTMP_ADAPTER pAd, IN BOOLEAN bIntContext, IN UCHAR QI
 #ifdef RTMP_MAC_USB
 		if (!hasTxDesc)
 			RTUSBKickBulkOut(pAd);
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 	}
 
 }
@@ -912,28 +912,28 @@ USHORT RTMPCalcDuration(IN PRTMP_ADAPTER pAd, IN UCHAR Rate, IN ULONG Size)
 {
 	ULONG Duration = 0;
 
-	if (Rate < RATE_FIRST_OFDM_RATE)	// CCK
+	if (Rate < RATE_FIRST_OFDM_RATE)	/* CCK */
 	{
 		if ((Rate > RATE_1)
 		    && OPSTATUS_TEST_FLAG(pAd,
 					  fOP_STATUS_SHORT_PREAMBLE_INUSED))
-			Duration = 96;	// 72+24 preamble+plcp
+			Duration = 96;	/* 72+24 preamble+plcp */
 		else
-			Duration = 192;	// 144+48 preamble+plcp
+			Duration = 192;	/* 144+48 preamble+plcp */
 
 		Duration += (USHORT) ((Size << 4) / RateIdTo500Kbps[Rate]);
 		if ((Size << 4) % RateIdTo500Kbps[Rate])
 			Duration++;
-	} else if (Rate <= RATE_LAST_OFDM_RATE)	// OFDM rates
+	} else if (Rate <= RATE_LAST_OFDM_RATE)	/* OFDM rates */
 	{
-		Duration = 20 + 6;	// 16+4 preamble+plcp + Signal Extension
+		Duration = 20 + 6;	/* 16+4 preamble+plcp + Signal Extension */
 		Duration +=
 		    4 * (USHORT) ((11 + Size * 4) / RateIdTo500Kbps[Rate]);
 		if ((11 + Size * 4) % RateIdTo500Kbps[Rate])
 			Duration += 4;
-	} else			//mimo rate
+	} else			/*mimo rate */
 	{
-		Duration = 20 + 6;	// 16+4 preamble+plcp + Signal Extension
+		Duration = 20 + 6;	/* 16+4 preamble+plcp + Signal Extension */
 	}
 
 	return (USHORT) Duration;
@@ -968,7 +968,7 @@ USHORT RTMPCalcDuration(IN PRTMP_ADAPTER pAd, IN UCHAR Rate, IN ULONG Size)
 
 	========================================================================
 */
-VOID RTMPWriteTxWI(IN PRTMP_ADAPTER pAd, IN PTXWI_STRUC pOutTxWI, IN BOOLEAN FRAG, IN BOOLEAN CFACK, IN BOOLEAN InsTimestamp, IN BOOLEAN AMPDU, IN BOOLEAN Ack, IN BOOLEAN NSeq,	// HW new a sequence.
+VOID RTMPWriteTxWI(IN PRTMP_ADAPTER pAd, IN PTXWI_STRUC pOutTxWI, IN BOOLEAN FRAG, IN BOOLEAN CFACK, IN BOOLEAN InsTimestamp, IN BOOLEAN AMPDU, IN BOOLEAN Ack, IN BOOLEAN NSeq,	/* HW new a sequence. */
 		   IN UCHAR BASize,
 		   IN UCHAR WCID,
 		   IN ULONG Length,
@@ -985,10 +985,10 @@ VOID RTMPWriteTxWI(IN PRTMP_ADAPTER pAd, IN PTXWI_STRUC pOutTxWI, IN BOOLEAN FRA
 	if (WCID < MAX_LEN_OF_MAC_TABLE)
 		pMac = &pAd->MacTab.Content[WCID];
 
-	//
-	// Always use Long preamble before verifiation short preamble functionality works well.
-	// Todo: remove the following line if short preamble functionality works
-	//
+	/* */
+	/* Always use Long preamble before verifiation short preamble functionality works well. */
+	/* Todo: remove the following line if short preamble functionality works */
+	/* */
 	OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_SHORT_PREAMBLE_INUSED);
 	NdisZeroMemory(&TxWI, TXWI_SIZE);
 	pTxWI = &TxWI;
@@ -1002,7 +1002,7 @@ VOID RTMPWriteTxWI(IN PRTMP_ADAPTER pAd, IN PTXWI_STRUC pOutTxWI, IN BOOLEAN FRA
 	pTxWI->txop = Txopmode;
 
 	pTxWI->NSEQ = NSeq;
-	// John tune the performace with Intel Client in 20 MHz performance
+	/* John tune the performace with Intel Client in 20 MHz performance */
 	BASize = pAd->CommonCfg.TxBASize;
 	if (pAd->MACVersion == 0x28720200) {
 		if (BASize > 13)
@@ -1019,7 +1019,7 @@ VOID RTMPWriteTxWI(IN PRTMP_ADAPTER pAd, IN PTXWI_STRUC pOutTxWI, IN BOOLEAN FRA
 	pTxWI->MPDUtotalByteCount = Length;
 	pTxWI->PacketId = PID;
 
-	// If CCK or OFDM, BW must be 20
+	/* If CCK or OFDM, BW must be 20 */
 	pTxWI->BW =
 	    (pTransmit->field.MODE <=
 	     MODE_OFDM) ? (BW_20) : (pTransmit->field.BW);
@@ -1032,10 +1032,10 @@ VOID RTMPWriteTxWI(IN PRTMP_ADAPTER pAd, IN PTXWI_STRUC pOutTxWI, IN BOOLEAN FRA
 		if (pAd->CommonCfg.bMIMOPSEnable) {
 			if ((pMac->MmpsMode == MMPS_DYNAMIC)
 			    && (pTransmit->field.MCS > 7)) {
-				// Dynamic MIMO Power Save Mode
+				/* Dynamic MIMO Power Save Mode */
 				pTxWI->MIMOps = 1;
 			} else if (pMac->MmpsMode == MMPS_STATIC) {
-				// Static MIMO Power Save Mode
+				/* Static MIMO Power Save Mode */
 				if (pTransmit->field.MODE >= MODE_HTMIX
 				    && pTransmit->field.MCS > 7) {
 					pTxWI->MCS = 7;
@@ -1043,7 +1043,7 @@ VOID RTMPWriteTxWI(IN PRTMP_ADAPTER pAd, IN PTXWI_STRUC pOutTxWI, IN BOOLEAN FRA
 				}
 			}
 		}
-		//pTxWI->MIMOps = (pMac->PsMode == PWR_MMPS)? 1:0;
+		/*pTxWI->MIMOps = (pMac->PsMode == PWR_MMPS)? 1:0; */
 		if (pMac->bIAmBadAtheros
 		    && (pMac->WepStatus != Ndis802_11WEPDisabled)) {
 			pTxWI->MpduDensity = 7;
@@ -1068,10 +1068,10 @@ VOID RTMPWriteTxWI_Data(IN PRTMP_ADAPTER pAd,
 	pTransmit = pTxBlk->pTransmit;
 	pMacEntry = pTxBlk->pMacEntry;
 
-	//
-	// Always use Long preamble before verifiation short preamble functionality works well.
-	// Todo: remove the following line if short preamble functionality works
-	//
+	/* */
+	/* Always use Long preamble before verifiation short preamble functionality works well. */
+	/* Todo: remove the following line if short preamble functionality works */
+	/* */
 	OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_SHORT_PREAMBLE_INUSED);
 	NdisZeroMemory(pTxWI, TXWI_SIZE);
 
@@ -1084,16 +1084,16 @@ VOID RTMPWriteTxWI_Data(IN PRTMP_ADAPTER pAd,
 	pTxWI->MPDUtotalByteCount = pTxBlk->MpduHeaderLen + pTxBlk->SrcBufLen;
 	pTxWI->CFACK = TX_BLK_TEST_FLAG(pTxBlk, fTX_bPiggyBack);
 
-	// If CCK or OFDM, BW must be 20
+	/* If CCK or OFDM, BW must be 20 */
 	pTxWI->BW =
 	    (pTransmit->field.MODE <=
 	     MODE_OFDM) ? (BW_20) : (pTransmit->field.BW);
 	pTxWI->AMPDU = ((pTxBlk->TxFrameType == TX_AMPDU_FRAME) ? TRUE : FALSE);
 
-	// John tune the performace with Intel Client in 20 MHz performance
+	/* John tune the performace with Intel Client in 20 MHz performance */
 	BASize = pAd->CommonCfg.TxBASize;
 	if ((pTxBlk->TxFrameType == TX_AMPDU_FRAME) && (pMacEntry)) {
-		UCHAR RABAOriIdx = 0;	//The RA's BA Originator table index.
+		UCHAR RABAOriIdx = 0;	/*The RA's BA Originator table index. */
 
 		RABAOriIdx =
 		    pTxBlk->pMacEntry->BAOriWcidArray[pTxBlk->UserPriority];
@@ -1111,10 +1111,10 @@ VOID RTMPWriteTxWI_Data(IN PRTMP_ADAPTER pAd,
 	if (pMacEntry) {
 		if ((pMacEntry->MmpsMode == MMPS_DYNAMIC)
 		    && (pTransmit->field.MCS > 7)) {
-			// Dynamic MIMO Power Save Mode
+			/* Dynamic MIMO Power Save Mode */
 			pTxWI->MIMOps = 1;
 		} else if (pMacEntry->MmpsMode == MMPS_STATIC) {
-			// Static MIMO Power Save Mode
+			/* Static MIMO Power Save Mode */
 			if (pTransmit->field.MODE >= MODE_HTMIX
 			    && pTransmit->field.MCS > 7) {
 				pTxWI->MCS = 7;
@@ -1130,7 +1130,7 @@ VOID RTMPWriteTxWI_Data(IN PRTMP_ADAPTER pAd,
 		}
 	}
 
-	// for rate adapation
+	/* for rate adapation */
 	pTxWI->PacketId = pTxWI->MCS;
 }
 
@@ -1140,19 +1140,19 @@ VOID RTMPWriteTxWI_Cache(IN PRTMP_ADAPTER pAd,
 	PHTTRANSMIT_SETTING /*pTxHTPhyMode, */ pTransmit;
 	PMAC_TABLE_ENTRY pMacEntry;
 
-	//
-	// update TXWI
-	//
+	/* */
+	/* update TXWI */
+	/* */
 	pMacEntry = pTxBlk->pMacEntry;
 	pTransmit = pTxBlk->pTransmit;
 
-	//if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED))
-	//if (RTMPCheckEntryEnableAutoRateSwitch(pAd, pMacEntry))
-	//if (TX_BLK_TEST_FLAG(pTxBlk, fTX_AutoRateSwitch))
+	/*if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED)) */
+	/*if (RTMPCheckEntryEnableAutoRateSwitch(pAd, pMacEntry)) */
+	/*if (TX_BLK_TEST_FLAG(pTxBlk, fTX_AutoRateSwitch)) */
 	if (pMacEntry->bAutoTxRateSwitch) {
 		pTxWI->txop = IFS_HTTXOP;
 
-		// If CCK or OFDM, BW must be 20
+		/* If CCK or OFDM, BW must be 20 */
 		pTxWI->BW =
 		    (pTransmit->field.MODE <=
 		     MODE_OFDM) ? (BW_20) : (pTransmit->field.BW);
@@ -1162,7 +1162,7 @@ VOID RTMPWriteTxWI_Cache(IN PRTMP_ADAPTER pAd,
 		pTxWI->MCS = pTransmit->field.MCS;
 		pTxWI->PHYMODE = pTransmit->field.MODE;
 
-		// set PID for TxRateSwitching
+		/* set PID for TxRateSwitching */
 		pTxWI->PacketId = pTransmit->field.MCS;
 	}
 
@@ -1170,13 +1170,13 @@ VOID RTMPWriteTxWI_Cache(IN PRTMP_ADAPTER pAd,
 	pTxWI->MIMOps = 0;
 
 	if (pAd->CommonCfg.bMIMOPSEnable) {
-		// MIMO Power Save Mode
+		/* MIMO Power Save Mode */
 		if ((pMacEntry->MmpsMode == MMPS_DYNAMIC)
 		    && (pTransmit->field.MCS > 7)) {
-			// Dynamic MIMO Power Save Mode
+			/* Dynamic MIMO Power Save Mode */
 			pTxWI->MIMOps = 1;
 		} else if (pMacEntry->MmpsMode == MMPS_STATIC) {
-			// Static MIMO Power Save Mode
+			/* Static MIMO Power Save Mode */
 			if ((pTransmit->field.MODE >= MODE_HTMIX)
 			    && (pTransmit->field.MCS > 7)) {
 				pTxWI->MCS = 7;
@@ -1189,26 +1189,26 @@ VOID RTMPWriteTxWI_Cache(IN PRTMP_ADAPTER pAd,
 
 }
 
-// should be called only when -
-// 1. MEADIA_CONNECTED
-// 2. AGGREGATION_IN_USED
-// 3. Fragmentation not in used
-// 4. either no previous frame (pPrevAddr1=NULL) .OR. previoud frame is aggregatible
+/* should be called only when - */
+/* 1. MEADIA_CONNECTED */
+/* 2. AGGREGATION_IN_USED */
+/* 3. Fragmentation not in used */
+/* 4. either no previous frame (pPrevAddr1=NULL) .OR. previoud frame is aggregatible */
 BOOLEAN TxFrameIsAggregatible(IN PRTMP_ADAPTER pAd,
 			      IN PUCHAR pPrevAddr1, IN PUCHAR p8023hdr)
 {
 
-	// can't aggregate EAPOL (802.1x) frame
+	/* can't aggregate EAPOL (802.1x) frame */
 	if ((p8023hdr[12] == 0x88) && (p8023hdr[13] == 0x8e))
 		return FALSE;
 
-	// can't aggregate multicast/broadcast frame
+	/* can't aggregate multicast/broadcast frame */
 	if (p8023hdr[0] & 0x01)
 		return FALSE;
 
-	if (INFRA_ON(pAd))	// must be unicast to AP
+	if (INFRA_ON(pAd))	/* must be unicast to AP */
 		return TRUE;
-	else if ((pPrevAddr1 == NULL) || MAC_ADDR_EQUAL(pPrevAddr1, p8023hdr))	// unicast to same STA
+	else if ((pPrevAddr1 == NULL) || MAC_ADDR_EQUAL(pPrevAddr1, p8023hdr))	/* unicast to same STA */
 		return TRUE;
 	else
 		return FALSE;
@@ -1241,10 +1241,10 @@ BOOLEAN PeerIsAggreOn(IN PRTMP_ADAPTER pAd,
 			return TRUE;
 		}
 #ifdef AGGREGATION_SUPPORT
-		if (TxRate >= RATE_6 && pAd->CommonCfg.bAggregationCapable && (!(OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED) && CLIENT_STATUS_TEST_FLAG(pMacEntry, fCLIENT_STATUS_WMM_CAPABLE)))) {	// legacy  Ralink Aggregation support
+		if (TxRate >= RATE_6 && pAd->CommonCfg.bAggregationCapable && (!(OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED) && CLIENT_STATUS_TEST_FLAG(pMacEntry, fCLIENT_STATUS_WMM_CAPABLE)))) {	/* legacy  Ralink Aggregation support */
 			return TRUE;
 		}
-#endif // AGGREGATION_SUPPORT //
+#endif /* AGGREGATION_SUPPORT // */
 	}
 
 	return FALSE;
@@ -1273,9 +1273,9 @@ PQUEUE_HEADER RTMPCheckTxSwQueue(IN PRTMP_ADAPTER pAd, OUT PUCHAR pQueIdx)
 {
 
 	ULONG Number;
-	// 2004-11-15 to be removed. test aggregation only
-//      if ((OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_AGGREGATION_INUSED)) && (*pNumber < 2))
-//               return NULL;
+	/* 2004-11-15 to be removed. test aggregation only */
+/*      if ((OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_AGGREGATION_INUSED)) && (*pNumber < 2)) */
+/*               return NULL; */
 
 	Number = pAd->TxSwQueue[QID_AC_BK].Number
 	    + pAd->TxSwQueue[QID_AC_BE].Number
@@ -1295,7 +1295,7 @@ PQUEUE_HEADER RTMPCheckTxSwQueue(IN PRTMP_ADAPTER pAd, OUT PUCHAR pQueIdx)
 		*pQueIdx = QID_AC_BK;
 		return (&pAd->TxSwQueue[QID_AC_BK]);
 	}
-	// No packet pending in Tx Sw queue
+	/* No packet pending in Tx Sw queue */
 	*pQueIdx = QID_AC_BK;
 
 	return (NULL);
@@ -1321,19 +1321,19 @@ VOID RTMPSuspendMsduTransmission(IN PRTMP_ADAPTER pAd)
 {
 	DBGPRINT(RT_DEBUG_TRACE, ("SCANNING, suspend MSDU transmission ...\n"));
 
-	//
-	// Before BSS_SCAN_IN_PROGRESS, we need to keep Current R66 value and
-	// use Lowbound as R66 value on ScanNextChannel(...)
-	//
+	/* */
+	/* Before BSS_SCAN_IN_PROGRESS, we need to keep Current R66 value and */
+	/* use Lowbound as R66 value on ScanNextChannel(...) */
+	/* */
 	RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R66,
 				    &pAd->BbpTuning.R66CurrentValue);
 
-	// set BBP_R66 to 0x30/0x40 when scanning (AsicSwitchChannel will set R66 according to channel when scanning)
-	//RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R66, (0x26 + GET_LNA_GAIN(pAd)));
+	/* set BBP_R66 to 0x30/0x40 when scanning (AsicSwitchChannel will set R66 according to channel when scanning) */
+	/*RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R66, (0x26 + GET_LNA_GAIN(pAd))); */
 	RTMPSetAGCInitValue(pAd, BW_20);
 
 	RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS);
-	//RTMP_IO_WRITE32(pAd, TX_CNTL_CSR, 0x000f0000);                // abort all TX rings
+	/*RTMP_IO_WRITE32(pAd, TX_CNTL_CSR, 0x000f0000);                // abort all TX rings */
 }
 
 /*
@@ -1356,12 +1356,12 @@ VOID RTMPSuspendMsduTransmission(IN PRTMP_ADAPTER pAd)
 */
 VOID RTMPResumeMsduTransmission(IN PRTMP_ADAPTER pAd)
 {
-//    UCHAR                     IrqState;
+/*    UCHAR                     IrqState; */
 
 	DBGPRINT(RT_DEBUG_TRACE, ("SCAN done, resume MSDU transmission ...\n"));
 
-	// After finish BSS_SCAN_IN_PROGRESS, we need to restore Current R66 value
-	// R66 should not be 0
+	/* After finish BSS_SCAN_IN_PROGRESS, we need to restore Current R66 value */
+	/* R66 should not be 0 */
 	if (pAd->BbpTuning.R66CurrentValue == 0) {
 		pAd->BbpTuning.R66CurrentValue = 0x38;
 		DBGPRINT_ERR(("RTMPResumeMsduTransmission, R66CurrentValue=0...\n"));
@@ -1371,11 +1371,11 @@ VOID RTMPResumeMsduTransmission(IN PRTMP_ADAPTER pAd)
 				     pAd->BbpTuning.R66CurrentValue);
 
 	RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS);
-// sample, for IRQ LOCK to SEM LOCK
-//    IrqState = pAd->irq_disabled;
-//      if (IrqState)
-//              RTMPDeQueuePacket(pAd, TRUE, NUM_OF_TX_RING, MAX_TX_PROCESS);
-//    else
+/* sample, for IRQ LOCK to SEM LOCK */
+/*    IrqState = pAd->irq_disabled; */
+/*      if (IrqState) */
+/*              RTMPDeQueuePacket(pAd, TRUE, NUM_OF_TX_RING, MAX_TX_PROCESS); */
+/*    else */
 	RTMPDeQueuePacket(pAd, FALSE, NUM_OF_TX_RING, MAX_TX_PROCESS);
 }
 
@@ -1398,9 +1398,9 @@ UINT deaggregate_AMSDU_announce(IN PRTMP_ADAPTER pAd,
 
 		nMSDU++;
 
-		//hex_dump("subheader", pData, 64);
+		/*hex_dump("subheader", pData, 64); */
 		pAMSDUsubheader = (PHEADER_802_3) pData;
-		//pData += LENGTH_802_3;
+		/*pData += LENGTH_802_3; */
 		PayloadSize =
 		    pAMSDUsubheader->Octet[1] +
 		    (pAMSDUsubheader->Octet[0] << 8);
@@ -1409,13 +1409,13 @@ UINT deaggregate_AMSDU_announce(IN PRTMP_ADAPTER pAd,
 		if ((DataSize < SubFrameSize) || (PayloadSize > 1518)) {
 			break;
 		}
-		//DBGPRINT(RT_DEBUG_TRACE,("%d subframe: Size = %d\n",  nMSDU, PayloadSize));
+		/*DBGPRINT(RT_DEBUG_TRACE,("%d subframe: Size = %d\n",  nMSDU, PayloadSize)); */
 
 		pPayload = pData + LENGTH_802_3;
 		pDA = pData;
 		pSA = pData + MAC_ADDR_LEN;
 
-		// convert to 802.3 header
+		/* convert to 802.3 header */
 		CONVERT_TO_802_3(Header802_3, pDA, pSA, pPayload, PayloadSize,
 				 pRemovedLLCSNAP);
 
@@ -1431,7 +1431,7 @@ UINT deaggregate_AMSDU_announce(IN PRTMP_ADAPTER pAd,
 				Elem->MsgLen =
 				    LENGTH_802_11 + LENGTH_802_1_H +
 				    PayloadSize;
-				//WpaEAPOLKeyAction(pAd, Elem);
+				/*WpaEAPOLKeyAction(pAd, Elem); */
 				REPORT_MGMT_FRAME_TO_MLME(pAd, BSSID_WCID,
 							  Elem->Msg,
 							  Elem->MsgLen, 0, 0, 0,
@@ -1456,8 +1456,8 @@ UINT deaggregate_AMSDU_announce(IN PRTMP_ADAPTER pAd,
 							 (pPacket));
 		}
 
-		// A-MSDU has padding to multiple of 4 including subframe header.
-		// align SubFrameSize up to multiple of 4
+		/* A-MSDU has padding to multiple of 4 including subframe header. */
+		/* align SubFrameSize up to multiple of 4 */
 		SubFrameSize = (SubFrameSize + 3) & (~0x3);
 
 		if (SubFrameSize > 1528 || SubFrameSize < 32) {
@@ -1468,12 +1468,12 @@ UINT deaggregate_AMSDU_announce(IN PRTMP_ADAPTER pAd,
 			pData += SubFrameSize;
 			DataSize -= SubFrameSize;
 		} else {
-			// end of A-MSDU
+			/* end of A-MSDU */
 			DataSize = 0;
 		}
 	}
 
-	// finally release original rx packet
+	/* finally release original rx packet */
 	RELEASE_NDIS_PACKET(pAd, pPacket, NDIS_STATUS_SUCCESS);
 
 	return nMSDU;
@@ -1528,10 +1528,10 @@ MAC_TABLE_ENTRY *MacTableInsertEntry(IN PRTMP_ADAPTER pAd,
 	UCHAR HashIdx;
 	int i, FirstWcid;
 	MAC_TABLE_ENTRY *pEntry = NULL, *pCurrEntry;
-//      USHORT  offset;
-//      ULONG   addr;
+/*      USHORT  offset; */
+/*      ULONG   addr; */
 
-	// if FULL, return
+	/* if FULL, return */
 	if (pAd->MacTab.Size >= MAX_LEN_OF_MAC_TABLE)
 		return NULL;
 
@@ -1540,11 +1540,11 @@ MAC_TABLE_ENTRY *MacTableInsertEntry(IN PRTMP_ADAPTER pAd,
 	if (pAd->StaCfg.BssType == BSS_INFRA)
 		FirstWcid = 2;
 
-	// allocate one MAC entry
+	/* allocate one MAC entry */
 	NdisAcquireSpinLock(&pAd->MacTabLock);
-	for (i = FirstWcid; i < MAX_LEN_OF_MAC_TABLE; i++)	// skip entry#0 so that "entry index == AID" for fast lookup
+	for (i = FirstWcid; i < MAX_LEN_OF_MAC_TABLE; i++)	/* skip entry#0 so that "entry index == AID" for fast lookup */
 	{
-		// pick up the first available vacancy
+		/* pick up the first available vacancy */
 		if ((pAd->MacTab.Content[i].ValidAsCLI == FALSE) &&
 		    (pAd->MacTab.Content[i].ValidAsWDS == FALSE) &&
 		    (pAd->MacTab.Content[i].ValidAsApCli == FALSE) &&
@@ -1602,7 +1602,7 @@ MAC_TABLE_ENTRY *MacTableInsertEntry(IN PRTMP_ADAPTER pAd,
 								   pEntry->
 								   apidx,
 								   (UCHAR) i);
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 				}
 			}
 
@@ -1615,7 +1615,7 @@ MAC_TABLE_ENTRY *MacTableInsertEntry(IN PRTMP_ADAPTER pAd,
 			COPY_MAC_ADDR(pEntry->Addr, pAddr);
 			pEntry->Sst = SST_NOT_AUTH;
 			pEntry->AuthState = AS_NOT_AUTH;
-			pEntry->Aid = (USHORT) i;	//0;
+			pEntry->Aid = (USHORT) i;	/*0; */
 			pEntry->CapabilityInfo = 0;
 			pEntry->PsMode = PWR_ACTIVE;
 			pEntry->PsQIdleCount = 0;
@@ -1625,7 +1625,7 @@ MAC_TABLE_ENTRY *MacTableInsertEntry(IN PRTMP_ADAPTER pAd,
 			InitializeQueueHeader(&pEntry->PsQueue);
 
 			pAd->MacTab.Size++;
-			// Add this entry into ASIC RX WCID search table
+			/* Add this entry into ASIC RX WCID search table */
 			RTMP_STA_ENTRY_ADD(pAd, pEntry);
 
 			DBGPRINT(RT_DEBUG_TRACE,
@@ -1635,7 +1635,7 @@ MAC_TABLE_ENTRY *MacTableInsertEntry(IN PRTMP_ADAPTER pAd,
 		}
 	}
 
-	// add this MAC entry into HASH table
+	/* add this MAC entry into HASH table */
 	if (pEntry) {
 		HashIdx = MAC_ADDR_HASH_INDEX(pAddr);
 		if (pAd->MacTab.Hash[HashIdx] == NULL) {
@@ -1664,8 +1664,8 @@ BOOLEAN MacTableDeleteEntry(IN PRTMP_ADAPTER pAd,
 	USHORT HashIdx;
 	MAC_TABLE_ENTRY *pEntry, *pPrevEntry, *pProbeEntry;
 	BOOLEAN Cancelled;
-	//USHORT        offset; // unused variable
-	//UCHAR j;                      // unused variable
+	/*USHORT        offset; // unused variable */
+	/*UCHAR j;                      // unused variable */
 
 	if (wcid >= MAX_LEN_OF_MAC_TABLE)
 		return FALSE;
@@ -1673,7 +1673,7 @@ BOOLEAN MacTableDeleteEntry(IN PRTMP_ADAPTER pAd,
 	NdisAcquireSpinLock(&pAd->MacTabLock);
 
 	HashIdx = MAC_ADDR_HASH_INDEX(pAddr);
-	//pEntry = pAd->MacTab.Hash[HashIdx];
+	/*pEntry = pAd->MacTab.Hash[HashIdx]; */
 	pEntry = &pAd->MacTab.Content[wcid];
 
 	if (pEntry
@@ -1681,17 +1681,17 @@ BOOLEAN MacTableDeleteEntry(IN PRTMP_ADAPTER pAd,
 		|| pEntry->ValidAsMesh)) {
 		if (MAC_ADDR_EQUAL(pEntry->Addr, pAddr)) {
 
-			// Delete this entry from ASIC on-chip WCID Table
+			/* Delete this entry from ASIC on-chip WCID Table */
 			RTMP_STA_ENTRY_MAC_RESET(pAd, wcid);
 
-			// free resources of BA
+			/* free resources of BA */
 			BASessionTearDownALL(pAd, pEntry->Aid);
 
 			pPrevEntry = NULL;
 			pProbeEntry = pAd->MacTab.Hash[HashIdx];
 			ASSERT(pProbeEntry);
 
-			// update Hash list
+			/* update Hash list */
 			do {
 				if (pProbeEntry == pEntry) {
 					if (pPrevEntry == NULL) {
@@ -1708,7 +1708,7 @@ BOOLEAN MacTableDeleteEntry(IN PRTMP_ADAPTER pAd,
 				pProbeEntry = pProbeEntry->pNext;
 			} while (pProbeEntry);
 
-			// not found !!!
+			/* not found !!! */
 			ASSERT(pProbeEntry != NULL);
 
 			RTMP_STA_ENTRY_KEY_DEL(pAd, BSS0, wcid);
@@ -1736,11 +1736,10 @@ BOOLEAN MacTableDeleteEntry(IN PRTMP_ADAPTER pAd,
 
 	NdisReleaseSpinLock(&pAd->MacTabLock);
 
-	//Reset operating mode when no Sta.
+	/*Reset operating mode when no Sta. */
 	if (pAd->MacTab.Size == 0) {
 		pAd->CommonCfg.AddHTInfo.AddHtInfo2.OperaionMode = 0;
-		//AsicUpdateProtect(pAd, 0 /*pAd->CommonCfg.AddHTInfo.AddHtInfo2.OperaionMode*/, (ALLN_SETPROTECT), TRUE, 0 /*pAd->MacTab.fAnyStationNonGF*/);
-		RTMP_UPDATE_PROTECT(pAd);	// edit by johnli, fix "in_interrupt" error when call "MacTableDeleteEntry" in Rx tasklet
+		RTMP_UPDATE_PROTECT(pAd);	/* edit by johnli, fix "in_interrupt" error when call "MacTableDeleteEntry" in Rx tasklet */
 	}
 
 	return TRUE;
@@ -1758,15 +1757,15 @@ VOID MacTableReset(IN PRTMP_ADAPTER pAd)
 	int i;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("MacTableReset\n"));
-	//NdisAcquireSpinLock(&pAd->MacTabLock);
+	/*NdisAcquireSpinLock(&pAd->MacTabLock); */
 
 	for (i = 1; i < MAX_LEN_OF_MAC_TABLE; i++) {
 #ifdef RTMP_MAC_PCI
 		RTMP_STA_ENTRY_MAC_RESET(pAd, i);
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 		if (pAd->MacTab.Content[i].ValidAsCLI == TRUE) {
 
-			// free resources of BA
+			/* free resources of BA */
 			BASessionTearDownALL(pAd, i);
 
 			pAd->MacTab.Content[i].ValidAsCLI = FALSE;
@@ -1774,9 +1773,9 @@ VOID MacTableReset(IN PRTMP_ADAPTER pAd)
 #ifdef RTMP_MAC_USB
 			NdisZeroMemory(pAd->MacTab.Content[i].Addr, 6);
 			RTMP_STA_ENTRY_MAC_RESET(pAd, i);
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 
-			//AsicDelWcidTab(pAd, i);
+			/*AsicDelWcidTab(pAd, i); */
 		}
 	}
 
@@ -1798,8 +1797,8 @@ VOID AssocParmFill(IN PRTMP_ADAPTER pAd,
 		   IN ULONG Timeout, IN USHORT ListenIntv)
 {
 	COPY_MAC_ADDR(AssocReq->Addr, pAddr);
-	// Add mask to support 802.11b mode only
-	AssocReq->CapabilityInfo = CapabilityInfo & SUPPORTED_CAPABILITY_INFO;	// not cf-pollable, not cf-poll-request
+	/* Add mask to support 802.11b mode only */
+	AssocReq->CapabilityInfo = CapabilityInfo & SUPPORTED_CAPABILITY_INFO;	/* not cf-pollable, not cf-poll-request */
 	AssocReq->Timeout = Timeout;
 	AssocReq->ListenIntv = ListenIntv;
 }
@@ -1874,9 +1873,9 @@ BOOLEAN RTMPCheckDHCPFrame(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket)
 	pSrc = (PUCHAR) pVirtualAddress;
 	Protocol = *(pSrc + 12) * 256 + *(pSrc + 13);
 
-	//
-	// Check DHCP & BOOTP protocol
-	//
+	/* */
+	/* Check DHCP & BOOTP protocol */
+	/* */
 	while (NumberOfBytesRead <= PacketInfo.TotalPacketLength) {
 		if ((NumberOfBytesRead >= 35) && (ReadFirstParm == TRUE)) {
 			CurrentOffset =
@@ -1889,19 +1888,19 @@ BOOLEAN RTMPCheckDHCPFrame(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket)
 			CurrentOffset =
 			    37 - (NumberOfBytesRead - NdisBufferLength);
 			ByteOffset38 = *(pSrc + CurrentOffset);
-			//End of Read
+			/*End of Read */
 			break;
 		}
 		return FALSE;
 	}
 
-	// Check for DHCP & BOOTP protocol
+	/* Check for DHCP & BOOTP protocol */
 	if ((ByteOffset36 != 0x44) || (ByteOffset38 != 0x43)) {
-		//
-		// 2054 (hex 0806) for ARP datagrams
-		// if this packet is not ARP datagrams, then do nothing
-		// ARP datagrams will also be duplicate at 1mb broadcast frames
-		//
+		/* */
+		/* 2054 (hex 0806) for ARP datagrams */
+		/* if this packet is not ARP datagrams, then do nothing */
+		/* ARP datagrams will also be duplicate at 1mb broadcast frames */
+		/* */
 		if (Protocol != 0x0806)
 			return FALSE;
 	}
@@ -1925,12 +1924,12 @@ BOOLEAN RTMPCheckEtherType(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket)
 
 	RTMP_SET_PACKET_SPECIFIC(pPacket, 0);
 
-	// get Ethernet protocol field
+	/* get Ethernet protocol field */
 	TypeLen = (pSrcBuf[12] << 8) | pSrcBuf[13];
 
-	pSrcBuf += LENGTH_802_3;	// Skip the Ethernet Header.
+	pSrcBuf += LENGTH_802_3;	/* Skip the Ethernet Header. */
 
-	if (TypeLen <= 1500) {	// 802.3, 802.3 LLC
+	if (TypeLen <= 1500) {	/* 802.3, 802.3 LLC */
 		/*
 		   DestMAC(6) + SrcMAC(6) + Lenght(2) +
 		   DSAP(1) + SSAP(1) + Control(1) +
@@ -1943,12 +1942,12 @@ BOOLEAN RTMPCheckEtherType(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket)
 						  &Byte0, &Byte1);
 			RTMP_SET_PACKET_LLCSNAP(pPacket, 1);
 			TypeLen = (USHORT) ((Byte0 << 8) + Byte1);
-			pSrcBuf += 8;	// Skip this LLC/SNAP header
+			pSrcBuf += 8;	/* Skip this LLC/SNAP header */
 		} else {
-			//It just has 3-byte LLC header, maybe a legacy ether type frame. we didn't handle it.
+			/*It just has 3-byte LLC header, maybe a legacy ether type frame. we didn't handle it. */
 		}
 	}
-	// If it's a VLAN packet, get the real Type/Length field.
+	/* If it's a VLAN packet, get the real Type/Length field. */
 	if (TypeLen == 0x8100) {
 		/* 0x8100 means VLAN packets */
 
@@ -1966,17 +1965,17 @@ BOOLEAN RTMPCheckEtherType(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket)
 					  &Byte1);
 		TypeLen = (USHORT) ((Byte0 << 8) + Byte1);
 
-		pSrcBuf += 4;	// Skip the VLAN Header.
+		pSrcBuf += 4;	/* Skip the VLAN Header. */
 	}
 
 	switch (TypeLen) {
 	case 0x0800:
 		{
 			ASSERT((pktLen > 34));
-			if (*(pSrcBuf + 9) == 0x11) {	// udp packet
-				ASSERT((pktLen > 34));	// 14 for ethernet header, 20 for IP header
+			if (*(pSrcBuf + 9) == 0x11) {	/* udp packet */
+				ASSERT((pktLen > 34));	/* 14 for ethernet header, 20 for IP header */
 
-				pSrcBuf += 20;	// Skip the IP header
+				pSrcBuf += 20;	/* Skip the IP header */
 				srcPort =
 				    OS_NTOHS(get_unaligned
 					     ((PUINT16) (pSrcBuf)));
@@ -1984,7 +1983,7 @@ BOOLEAN RTMPCheckEtherType(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket)
 				    OS_NTOHS(get_unaligned
 					     ((PUINT16) (pSrcBuf + 2)));
 
-				if ((srcPort == 0x44 && dstPort == 0x43) || (srcPort == 0x43 && dstPort == 0x44)) {	//It's a BOOTP/DHCP packet
+				if ((srcPort == 0x44 && dstPort == 0x43) || (srcPort == 0x43 && dstPort == 0x44)) {	/*It's a BOOTP/DHCP packet */
 					RTMP_SET_PACKET_DHCP(pPacket, 1);
 				}
 			}
@@ -1992,13 +1991,13 @@ BOOLEAN RTMPCheckEtherType(IN PRTMP_ADAPTER pAd, IN PNDIS_PACKET pPacket)
 		break;
 	case 0x0806:
 		{
-			//ARP Packet.
+			/*ARP Packet. */
 			RTMP_SET_PACKET_DHCP(pPacket, 1);
 		}
 		break;
 	case 0x888e:
 		{
-			// EAPOL Packet.
+			/* EAPOL Packet. */
 			RTMP_SET_PACKET_EAPOL(pPacket, 1);
 		}
 		break;
@@ -2040,22 +2039,22 @@ VOID Update_Rssi_Sample(IN PRTMP_ADAPTER pAd,
 	}
 }
 
-// Normal legacy Rx packet indication
+/* Normal legacy Rx packet indication */
 VOID Indicate_Legacy_Packet(IN PRTMP_ADAPTER pAd,
 			    IN RX_BLK * pRxBlk, IN UCHAR FromWhichBSSID)
 {
 	PNDIS_PACKET pRxPacket = pRxBlk->pRxPacket;
 	UCHAR Header802_3[LENGTH_802_3];
 
-	// 1. get 802.3 Header
-	// 2. remove LLC
-	//              a. pointer pRxBlk->pData to payload
-	//      b. modify pRxBlk->DataSize
+	/* 1. get 802.3 Header */
+	/* 2. remove LLC */
+	/*              a. pointer pRxBlk->pData to payload */
+	/*      b. modify pRxBlk->DataSize */
 	RTMP_802_11_REMOVE_LLC_AND_CONVERT_TO_802_3(pRxBlk, Header802_3);
 
 	if (pRxBlk->DataSize > MAX_RX_PKT_LEN) {
 
-		// release packet
+		/* release packet */
 		RELEASE_NDIS_PACKET(pAd, pRxPacket, NDIS_STATUS_FAILURE);
 		return;
 	}
@@ -2070,13 +2069,13 @@ VOID Indicate_Legacy_Packet(IN PRTMP_ADAPTER pAd,
 		UCHAR TID = pRxBlk->pRxWI->TID;
 		USHORT Idx;
 
-#define REORDERING_PACKET_TIMEOUT		((100 * OS_HZ)/1000)	// system ticks -- 100 ms
+#define REORDERING_PACKET_TIMEOUT		((100 * OS_HZ)/1000)	/* system ticks -- 100 ms */
 
 		if (Wcid < MAX_LEN_OF_MAC_TABLE) {
 			Idx = pAd->MacTab.Content[Wcid].BARecWcidArray[TID];
 			if (Idx != 0) {
 				pBAEntry = &pAd->BATable.BARecEntry[Idx];
-				// update last rx time
+				/* update last rx time */
 				NdisGetSystemUpTime(&Now32);
 				if ((pBAEntry->list.qlen > 0) &&
 				    RTMP_TIME_AFTER((unsigned long)Now32,
@@ -2101,17 +2100,17 @@ VOID Indicate_Legacy_Packet(IN PRTMP_ADAPTER pAd,
 			}
 		}
 	}
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 
 	wlan_802_11_to_802_3_packet(pAd, pRxBlk, Header802_3, FromWhichBSSID);
 
-	//
-	// pass this 802.3 packet to upper layer or forward this packet to WM directly
-	//
+	/* */
+	/* pass this 802.3 packet to upper layer or forward this packet to WM directly */
+	/* */
 	ANNOUNCE_OR_FORWARD_802_3_PACKET(pAd, pRxPacket, FromWhichBSSID);
 }
 
-// Normal, AMPDU or AMSDU
+/* Normal, AMPDU or AMSDU */
 VOID CmmRxnonRalinkFrameIndicate(IN PRTMP_ADAPTER pAd,
 				 IN RX_BLK * pRxBlk, IN UCHAR FromWhichBSSID)
 {
@@ -2120,7 +2119,7 @@ VOID CmmRxnonRalinkFrameIndicate(IN PRTMP_ADAPTER pAd,
 		Indicate_AMPDU_Packet(pAd, pRxBlk, FromWhichBSSID);
 	} else {
 		if (RX_BLK_TEST_FLAG(pRxBlk, fRX_AMSDU)) {
-			// handle A-MSDU
+			/* handle A-MSDU */
 			Indicate_AMSDU_Packet(pAd, pRxBlk, FromWhichBSSID);
 		} else {
 			Indicate_Legacy_Packet(pAd, pRxBlk, FromWhichBSSID);
@@ -2145,18 +2144,18 @@ VOID CmmRxRalinkFrameIndicate(IN PRTMP_ADAPTER pAd,
 		pRxBlk->pData += 2;
 		pRxBlk->DataSize -= 2;
 	} else {
-		// release packet
+		/* release packet */
 		RELEASE_NDIS_PACKET(pAd, pRxBlk->pRxPacket,
 				    NDIS_STATUS_FAILURE);
 		return;
 	}
 
-	// get 802.3 Header and  remove LLC
+	/* get 802.3 Header and  remove LLC */
 	RTMP_802_11_REMOVE_LLC_AND_CONVERT_TO_802_3(pRxBlk, Header802_3);
 
 	ASSERT(pRxBlk->pRxPacket);
 
-	// Ralink Aggregation frame
+	/* Ralink Aggregation frame */
 	pAd->RalinkCounters.OneSecRxAggregationCount++;
 	Payload1Size = pRxBlk->DataSize - Msdu2Size;
 	Payload2Size = Msdu2Size - LENGTH_802_3;
@@ -2168,12 +2167,12 @@ VOID CmmRxRalinkFrameIndicate(IN PRTMP_ADAPTER pAd,
 			  Payload2Size, FromWhichBSSID);
 
 	if (!pPacket2) {
-		// release packet
+		/* release packet */
 		RELEASE_NDIS_PACKET(pAd, pRxBlk->pRxPacket,
 				    NDIS_STATUS_FAILURE);
 		return;
 	}
-	// update payload size of 1st packet
+	/* update payload size of 1st packet */
 	pRxBlk->DataSize = Payload1Size;
 	wlan_802_11_to_802_3_packet(pAd, pRxBlk, Header802_3, FromWhichBSSID);
 
@@ -2208,10 +2207,10 @@ PNDIS_PACKET RTMPDeFragmentDataFrame(IN PRTMP_ADAPTER pAd, IN RX_BLK * pRxBlk)
 
 	HeaderRoom = pData - (UCHAR *) pHeader;
 
-	// Re-assemble the fragmented packets
-	if (pHeader->Frag == 0)	// Frag. Number is 0 : First frag or only one pkt
+	/* Re-assemble the fragmented packets */
+	if (pHeader->Frag == 0)	/* Frag. Number is 0 : First frag or only one pkt */
 	{
-		// the first pkt of fragment, record it.
+		/* the first pkt of fragment, record it. */
 		if (pHeader->FC.MoreFrag) {
 			ASSERT(pAd->FragFrame.pFragPacket);
 			pFragBuffer =
@@ -2220,67 +2219,67 @@ PNDIS_PACKET RTMPDeFragmentDataFrame(IN PRTMP_ADAPTER pAd, IN RX_BLK * pRxBlk)
 			NdisMoveMemory(pFragBuffer, pHeader,
 				       pAd->FragFrame.RxSize);
 			pAd->FragFrame.Sequence = pHeader->Sequence;
-			pAd->FragFrame.LastFrag = pHeader->Frag;	// Should be 0
+			pAd->FragFrame.LastFrag = pHeader->Frag;	/* Should be 0 */
 			ASSERT(pAd->FragFrame.LastFrag == 0);
-			goto done;	// end of processing this frame
+			goto done;	/* end of processing this frame */
 		}
-	} else			//Middle & End of fragment
+	} else			/*Middle & End of fragment */
 	{
 		if ((pHeader->Sequence != pAd->FragFrame.Sequence) ||
 		    (pHeader->Frag != (pAd->FragFrame.LastFrag + 1))) {
-			// Fragment is not the same sequence or out of fragment number order
-			// Reset Fragment control blk
+			/* Fragment is not the same sequence or out of fragment number order */
+			/* Reset Fragment control blk */
 			RESET_FRAGFRAME(pAd->FragFrame);
 			DBGPRINT(RT_DEBUG_ERROR,
 				 ("Fragment is not the same sequence or out of fragment number order.\n"));
-			goto done;	// give up this frame
+			goto done;	/* give up this frame */
 		} else if ((pAd->FragFrame.RxSize + DataSize) > MAX_FRAME_SIZE) {
-			// Fragment frame is too large, it exeeds the maximum frame size.
-			// Reset Fragment control blk
+			/* Fragment frame is too large, it exeeds the maximum frame size. */
+			/* Reset Fragment control blk */
 			RESET_FRAGFRAME(pAd->FragFrame);
 			DBGPRINT(RT_DEBUG_ERROR,
 				 ("Fragment frame is too large, it exeeds the maximum frame size.\n"));
-			goto done;	// give up this frame
+			goto done;	/* give up this frame */
 		}
-		//
-		// Broadcom AP(BCM94704AGR) will send out LLC in fragment's packet, LLC only can accpet at first fragment.
-		// In this case, we will dropt it.
-		//
+		/* */
+		/* Broadcom AP(BCM94704AGR) will send out LLC in fragment's packet, LLC only can accpet at first fragment. */
+		/* In this case, we will dropt it. */
+		/* */
 		if (NdisEqualMemory(pData, SNAP_802_1H, sizeof(SNAP_802_1H))) {
 			DBGPRINT(RT_DEBUG_ERROR,
 				 ("Find another LLC at Middle or End fragment(SN=%d, Frag=%d)\n",
 				  pHeader->Sequence, pHeader->Frag));
-			goto done;	// give up this frame
+			goto done;	/* give up this frame */
 		}
 
 		pFragBuffer = GET_OS_PKT_DATAPTR(pAd->FragFrame.pFragPacket);
 
-		// concatenate this fragment into the re-assembly buffer
+		/* concatenate this fragment into the re-assembly buffer */
 		NdisMoveMemory((pFragBuffer + pAd->FragFrame.RxSize), pData,
 			       DataSize);
 		pAd->FragFrame.RxSize += DataSize;
-		pAd->FragFrame.LastFrag = pHeader->Frag;	// Update fragment number
+		pAd->FragFrame.LastFrag = pHeader->Frag;	/* Update fragment number */
 
-		// Last fragment
+		/* Last fragment */
 		if (pHeader->FC.MoreFrag == FALSE) {
 			bReassDone = TRUE;
 		}
 	}
 
 done:
-	// always release rx fragmented packet
+	/* always release rx fragmented packet */
 	RELEASE_NDIS_PACKET(pAd, pRxPacket, NDIS_STATUS_FAILURE);
 
-	// return defragmented packet if packet is reassembled completely
-	// otherwise return NULL
+	/* return defragmented packet if packet is reassembled completely */
+	/* otherwise return NULL */
 	if (bReassDone) {
 		PNDIS_PACKET pNewFragPacket;
 
-		// allocate a new packet buffer for fragment
+		/* allocate a new packet buffer for fragment */
 		pNewFragPacket =
 		    RTMP_AllocateFragPacketBuffer(pAd, RX_BUFFER_NORMSIZE);
 		if (pNewFragPacket) {
-			// update RxBlk
+			/* update RxBlk */
 			pRetPacket = pAd->FragFrame.pFragPacket;
 			pAd->FragFrame.pFragPacket = pNewFragPacket;
 			pRxBlk->pHeader =
@@ -2322,14 +2321,14 @@ VOID Indicate_EAPOL_Packet(IN PRTMP_ADAPTER pAd,
 	if (pEntry == NULL) {
 		DBGPRINT(RT_DEBUG_WARN,
 			 ("Indicate_EAPOL_Packet: drop and release the invalid packet.\n"));
-		// release packet
+		/* release packet */
 		RELEASE_NDIS_PACKET(pAd, pRxBlk->pRxPacket,
 				    NDIS_STATUS_FAILURE);
 		return;
 	}
 }
 
-#define BCN_TBTT_OFFSET		64	//defer 64 us
+#define BCN_TBTT_OFFSET		64	/*defer 64 us */
 VOID ReSyncBeaconTime(IN PRTMP_ADAPTER pAd)
 {
 
@@ -2339,21 +2338,21 @@ VOID ReSyncBeaconTime(IN PRTMP_ADAPTER pAd)
 
 	pAd->TbttTickCount++;
 
-	//
-	// The updated BeaconInterval Value will affect Beacon Interval after two TBTT
-	// beacasue the original BeaconInterval had been loaded into next TBTT_TIMER
-	//
+	/* */
+	/* The updated BeaconInterval Value will affect Beacon Interval after two TBTT */
+	/* beacasue the original BeaconInterval had been loaded into next TBTT_TIMER */
+	/* */
 	if (Offset == (BCN_TBTT_OFFSET - 2)) {
 		BCN_TIME_CFG_STRUC csr;
 		RTMP_IO_READ32(pAd, BCN_TIME_CFG, &csr.word);
-		csr.field.BeaconInterval = (pAd->CommonCfg.BeaconPeriod << 4) - 1;	// ASIC register in units of 1/16 TU = 64us
+		csr.field.BeaconInterval = (pAd->CommonCfg.BeaconPeriod << 4) - 1;	/* ASIC register in units of 1/16 TU = 64us */
 		RTMP_IO_WRITE32(pAd, BCN_TIME_CFG, csr.word);
 	} else {
 		if (Offset == (BCN_TBTT_OFFSET - 1)) {
 			BCN_TIME_CFG_STRUC csr;
 
 			RTMP_IO_READ32(pAd, BCN_TIME_CFG, &csr.word);
-			csr.field.BeaconInterval = (pAd->CommonCfg.BeaconPeriod) << 4;	// ASIC register in units of 1/16 TU
+			csr.field.BeaconInterval = (pAd->CommonCfg.BeaconPeriod) << 4;	/* ASIC register in units of 1/16 TU */
 			RTMP_IO_WRITE32(pAd, BCN_TIME_CFG, csr.word);
 		}
 	}

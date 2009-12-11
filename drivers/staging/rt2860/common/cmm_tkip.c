@@ -37,7 +37,7 @@
 
 #include	"../rt_config.h"
 
-// Rotation functions on 32 bit values
+/* Rotation functions on 32 bit values */
 #define ROL32( A, n ) \
 	( ((A) << (n)) | ( ((A)>>(32-(n))) & ( (1UL << (n)) - 1 ) ) )
 #define ROR32( A, n ) ROL32( (A), 32-(n) )
@@ -112,9 +112,9 @@ UINT Tkip_Sbox_Upper[256] = {
 	0x82, 0x29, 0x5A, 0x1E, 0x7B, 0xA8, 0x6D, 0x2C
 };
 
-//
-// Expanded IV for TKIP function.
-//
+/* */
+/* Expanded IV for TKIP function. */
+/* */
 typedef struct PACKED _IV_CONTROL_ {
 	union PACKED {
 		struct PACKED {
@@ -216,10 +216,10 @@ VOID RTMPTkipPutUInt32(IN OUT PUCHAR pDst, IN ULONG val)
 */
 VOID RTMPTkipSetMICKey(IN PTKIP_KEY_INFO pTkip, IN PUCHAR pMICKey)
 {
-	// Set the key
+	/* Set the key */
 	pTkip->K0 = RTMPTkipGetUInt32(pMICKey);
 	pTkip->K1 = RTMPTkipGetUInt32(pMICKey + 4);
-	// and reset the message
+	/* and reset the message */
 	pTkip->L = pTkip->K0;
 	pTkip->R = pTkip->K1;
 	pTkip->nBytesInM = 0;
@@ -247,10 +247,10 @@ VOID RTMPTkipSetMICKey(IN PTKIP_KEY_INFO pTkip, IN PUCHAR pMICKey)
 */
 VOID RTMPTkipAppendByte(IN PTKIP_KEY_INFO pTkip, IN UCHAR uChar)
 {
-	// Append the byte to our word-sized buffer
+	/* Append the byte to our word-sized buffer */
 	pTkip->M |= (uChar << (8 * pTkip->nBytesInM));
 	pTkip->nBytesInM++;
-	// Process the word if it is full.
+	/* Process the word if it is full. */
 	if (pTkip->nBytesInM >= 4) {
 		pTkip->L ^= pTkip->M;
 		pTkip->R ^= ROL32(pTkip->L, 17);
@@ -263,7 +263,7 @@ VOID RTMPTkipAppendByte(IN PTKIP_KEY_INFO pTkip, IN UCHAR uChar)
 		pTkip->L += pTkip->R;
 		pTkip->R ^= ROR32(pTkip->L, 2);
 		pTkip->L += pTkip->R;
-		// Clear the buffer
+		/* Clear the buffer */
 		pTkip->M = 0;
 		pTkip->nBytesInM = 0;
 	}
@@ -291,7 +291,7 @@ VOID RTMPTkipAppendByte(IN PTKIP_KEY_INFO pTkip, IN UCHAR uChar)
 */
 VOID RTMPTkipAppend(IN PTKIP_KEY_INFO pTkip, IN PUCHAR pSrc, IN UINT nBytes)
 {
-	// This is simple
+	/* This is simple */
 	while (nBytes > 0) {
 		RTMPTkipAppendByte(pTkip, *pSrc++);
 		nBytes--;
@@ -318,17 +318,17 @@ VOID RTMPTkipAppend(IN PTKIP_KEY_INFO pTkip, IN PUCHAR pSrc, IN UINT nBytes)
 */
 VOID RTMPTkipGetMIC(IN PTKIP_KEY_INFO pTkip)
 {
-	// Append the minimum padding
+	/* Append the minimum padding */
 	RTMPTkipAppendByte(pTkip, 0x5a);
 	RTMPTkipAppendByte(pTkip, 0);
 	RTMPTkipAppendByte(pTkip, 0);
 	RTMPTkipAppendByte(pTkip, 0);
 	RTMPTkipAppendByte(pTkip, 0);
-	// and then zeroes until the length is a multiple of 4
+	/* and then zeroes until the length is a multiple of 4 */
 	while (pTkip->nBytesInM != 0) {
 		RTMPTkipAppendByte(pTkip, 0);
 	}
-	// The appendByte function has already computed the result.
+	/* The appendByte function has already computed the result. */
 	RTMPTkipPutUInt32(pTkip->MIC, pTkip->L);
 	RTMPTkipPutUInt32(pTkip->MIC + 4, pTkip->R);
 }
@@ -364,15 +364,15 @@ VOID RTMPInitTkipEngine(IN PRTMP_ADAPTER pAd,
 {
 	TKIP_IV tkipIv;
 
-	// Prepare 8 bytes TKIP encapsulation for MPDU
+	/* Prepare 8 bytes TKIP encapsulation for MPDU */
 	NdisZeroMemory(&tkipIv, sizeof(TKIP_IV));
 	tkipIv.IV16.field.rc0 = *(pTSC + 1);
 	tkipIv.IV16.field.rc1 = (tkipIv.IV16.field.rc0 | 0x20) & 0x7f;
 	tkipIv.IV16.field.rc2 = *pTSC;
-	tkipIv.IV16.field.CONTROL.field.ExtIV = 1;	// 0: non-extended IV, 1: an extended IV
+	tkipIv.IV16.field.CONTROL.field.ExtIV = 1;	/* 0: non-extended IV, 1: an extended IV */
 	tkipIv.IV16.field.CONTROL.field.KeyID = KeyId;
-//      tkipIv.IV32 = *(PULONG)(pTSC + 2);
-	NdisMoveMemory(&tkipIv.IV32, (pTSC + 2), 4);	// Copy IV
+/*      tkipIv.IV32 = *(PULONG)(pTSC + 2); */
+	NdisMoveMemory(&tkipIv.IV32, (pTSC + 2), 4);	/* Copy IV */
 
 	*pIV16 = tkipIv.IV16.word;
 	*pIV32 = tkipIv.IV32;
@@ -406,13 +406,13 @@ VOID RTMPInitMICEngine(IN PRTMP_ADAPTER pAd,
 {
 	ULONG Priority = UserPriority;
 
-	// Init MIC value calculation
+	/* Init MIC value calculation */
 	RTMPTkipSetMICKey(&pAd->PrivateInfo.Tx, pMICKey);
-	// DA
+	/* DA */
 	RTMPTkipAppend(&pAd->PrivateInfo.Tx, pDA, MAC_ADDR_LEN);
-	// SA
+	/* SA */
 	RTMPTkipAppend(&pAd->PrivateInfo.Tx, pSA, MAC_ADDR_LEN);
-	// Priority + 3 bytes of 0
+	/* Priority + 3 bytes of 0 */
 	RTMPTkipAppend(&pAd->PrivateInfo.Tx, (PUCHAR) & Priority, 4);
 }
 
@@ -450,28 +450,28 @@ BOOLEAN RTMPTkipCompareMICValue(IN PRTMP_ADAPTER pAd,
 	UCHAR OldMic[8];
 	ULONG Priority = UserPriority;
 
-	// Init MIC value calculation
+	/* Init MIC value calculation */
 	RTMPTkipSetMICKey(&pAd->PrivateInfo.Rx, pMICKey);
-	// DA
+	/* DA */
 	RTMPTkipAppend(&pAd->PrivateInfo.Rx, pDA, MAC_ADDR_LEN);
-	// SA
+	/* SA */
 	RTMPTkipAppend(&pAd->PrivateInfo.Rx, pSA, MAC_ADDR_LEN);
-	// Priority + 3 bytes of 0
+	/* Priority + 3 bytes of 0 */
 	RTMPTkipAppend(&pAd->PrivateInfo.Rx, (PUCHAR) & Priority, 4);
 
-	// Calculate MIC value from plain text data
+	/* Calculate MIC value from plain text data */
 	RTMPTkipAppend(&pAd->PrivateInfo.Rx, pSrc, Len);
 
-	// Get MIC valude from received frame
+	/* Get MIC valude from received frame */
 	NdisMoveMemory(OldMic, pSrc + Len, 8);
 
-	// Get MIC value from decrypted plain data
+	/* Get MIC value from decrypted plain data */
 	RTMPTkipGetMIC(&pAd->PrivateInfo.Rx);
 
-	// Move MIC value from MSDU, this steps should move to data path.
-	// Since the MIC value might cross MPDUs.
+	/* Move MIC value from MSDU, this steps should move to data path. */
+	/* Since the MIC value might cross MPDUs. */
 	if (!NdisEqualMemory(pAd->PrivateInfo.Rx.MIC, OldMic, 8)) {
-		DBGPRINT_RAW(RT_DEBUG_ERROR, ("RTMPTkipCompareMICValue(): TKIP MIC Error !\n"));	//MIC error.
+		DBGPRINT_RAW(RT_DEBUG_ERROR, ("RTMPTkipCompareMICValue(): TKIP MIC Error !\n"));	/*MIC error. */
 
 		return (FALSE);
 	}
@@ -517,7 +517,7 @@ VOID RTMPCalculateMICValue(IN PRTMP_ADAPTER pAd,
 	UserPriority = RTMP_GET_PACKET_UP(pPacket);
 	pSrc = pSrcBufVA;
 
-	// determine if this is a vlan packet
+	/* determine if this is a vlan packet */
 	if (((*(pSrc + 12) << 8) + *(pSrc + 13)) == 0x8100)
 		vlan_offset = 4;
 
@@ -528,9 +528,9 @@ VOID RTMPCalculateMICValue(IN PRTMP_ADAPTER pAd,
 	}
 
 	if (pEncap != NULL) {
-		// LLC encapsulation
+		/* LLC encapsulation */
 		RTMPTkipAppend(&pAd->PrivateInfo.Tx, pEncap, 6);
-		// Protocol Type
+		/* Protocol Type */
 		RTMPTkipAppend(&pAd->PrivateInfo.Tx, pSrc + 12 + vlan_offset,
 			       2);
 	}
@@ -541,11 +541,11 @@ VOID RTMPCalculateMICValue(IN PRTMP_ADAPTER pAd,
 			RTMPTkipAppend(&pAd->PrivateInfo.Tx, pSrc, SrcBufLen);
 		}
 
-		break;		// No need handle next packet
+		break;		/* No need handle next packet */
 
-	} while (TRUE);		// End of copying payload
+	} while (TRUE);		/* End of copying payload */
 
-	// Compute the final MIC Value
+	/* Compute the final MIC Value */
 	RTMPTkipGetMIC(&pAd->PrivateInfo.Tx);
 }
 
@@ -694,10 +694,10 @@ VOID RTMPTkipMixKey(UCHAR * key, UCHAR * ta, ULONG pnl,	/* Least significant 16 
 	rc4key[15] = (ppk5 >> 8) % 256;
 }
 
-//
-// TRUE: Success!
-// FALSE: Decrypt Error!
-//
+/* */
+/* TRUE: Success! */
+/* FALSE: Decrypt Error! */
+/* */
 BOOLEAN RTMPSoftDecryptTKIP(IN PRTMP_ADAPTER pAd,
 			    IN PUCHAR pData,
 			    IN ULONG DataByteCnt,
@@ -721,7 +721,7 @@ BOOLEAN RTMPSoftDecryptTKIP(IN PRTMP_ADAPTER pAd,
 	UCHAR DA[MAC_ADDR_LEN];
 	UCHAR SA[MAC_ADDR_LEN];
 	UCHAR RC4Key[16];
-	UINT p1k[5];		//for mix_key;
+	UINT p1k[5];		/*for mix_key; */
 	ULONG pnl;		/* Least significant 16 bits of PN */
 	ULONG pnh;		/* Most significant 32 bits of PN */
 	UINT num_blocks;
@@ -778,7 +778,7 @@ BOOLEAN RTMPSoftDecryptTKIP(IN PRTMP_ADAPTER pAd,
 	if (to_ds == 0 && from_ds == 1) {
 		NdisMoveMemory(DA, pData + 4, MAC_ADDR_LEN);
 		NdisMoveMemory(SA, pData + 16, MAC_ADDR_LEN);
-		NdisMoveMemory(TA, pData + 10, MAC_ADDR_LEN);	//BSSID
+		NdisMoveMemory(TA, pData + 10, MAC_ADDR_LEN);	/*BSSID */
 	} else if (to_ds == 0 && from_ds == 0) {
 		NdisMoveMemory(TA, pData + 10, MAC_ADDR_LEN);
 		NdisMoveMemory(DA, pData + 4, MAC_ADDR_LEN);
@@ -806,11 +806,11 @@ BOOLEAN RTMPSoftDecryptTKIP(IN PRTMP_ADAPTER pAd,
 	ARCFOUR_DECRYPT(&ArcFourContext, pData + HeaderLen,
 			pData + HeaderLen + 8, DataByteCnt - HeaderLen - 8);
 	NdisMoveMemory(&trailfcs, pData + DataByteCnt - 8 - 4, 4);
-	crc32 = RTMP_CALC_FCS32(PPPINITFCS32, pData + HeaderLen, DataByteCnt - HeaderLen - 8 - 4);	//Skip IV+EIV 8 bytes & Skip last 4 bytes(FCS).
+	crc32 = RTMP_CALC_FCS32(PPPINITFCS32, pData + HeaderLen, DataByteCnt - HeaderLen - 8 - 4);	/*Skip IV+EIV 8 bytes & Skip last 4 bytes(FCS). */
 	crc32 ^= 0xffffffff;	/* complement */
 
 	if (crc32 != cpu2le32(trailfcs)) {
-		DBGPRINT(RT_DEBUG_TRACE, ("RTMPSoftDecryptTKIP, WEP Data ICV Error !\n"));	//ICV error.
+		DBGPRINT(RT_DEBUG_TRACE, ("RTMPSoftDecryptTKIP, WEP Data ICV Error !\n"));	/*ICV error. */
 
 		return (FALSE);
 	}
@@ -824,10 +824,10 @@ BOOLEAN RTMPSoftDecryptTKIP(IN PRTMP_ADAPTER pAd,
 	NdisMoveMemory(MIC, pAd->PrivateInfo.Tx.MIC, 8);
 
 	if (!NdisEqualMemory(MIC, TrailMIC, 8)) {
-		DBGPRINT(RT_DEBUG_ERROR, ("RTMPSoftDecryptTKIP, WEP Data MIC Error !\n"));	//MIC error.
-		//RTMPReportMicError(pAd, &pWpaKey[KeyID]);     // marked by AlbertY @ 20060630
+		DBGPRINT(RT_DEBUG_ERROR, ("RTMPSoftDecryptTKIP, WEP Data MIC Error !\n"));	/*MIC error. */
+		/*RTMPReportMicError(pAd, &pWpaKey[KeyID]);     // marked by AlbertY @ 20060630 */
 		return (FALSE);
 	}
-	//DBGPRINT(RT_DEBUG_TRACE, "RTMPSoftDecryptTKIP Decript done!!\n");
+	/*DBGPRINT(RT_DEBUG_TRACE, "RTMPSoftDecryptTKIP Decript done!!\n"); */
 	return TRUE;
 }

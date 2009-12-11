@@ -48,16 +48,14 @@
 
 #include <linux/bitrev.h>
 
-//#define BIN_IN_FILE /* use *.bin firmware */
-
 #ifdef RTMP_MAC_USB
-//
-// RT2870 Firmware Spec only used 1 oct for version expression
-//
+/* */
+/* RT2870 Firmware Spec only used 1 oct for version expression */
+/* */
 #define FIRMWARE_MINOR_VERSION	7
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 
-// New 8k byte firmware size for RT3071/RT3072
+/* New 8k byte firmware size for RT3071/RT3072 */
 #define FIRMWAREIMAGE_MAX_LENGTH	0x2000
 #define FIRMWAREIMAGE_LENGTH			(sizeof (FirmwareImage) / sizeof(UCHAR))
 #define FIRMWARE_MAJOR_VERSION		0
@@ -67,7 +65,7 @@
 
 #ifdef RTMP_MAC_PCI
 #define FIRMWARE_MINOR_VERSION		2
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 
 /*
 	========================================================================
@@ -120,7 +118,7 @@ NDIS_STATUS RtmpAsicLoadFirmware(IN PRTMP_ADAPTER pAd)
 	UINT32 Version = (pAd->MACVersion >> 16);
 #endif
 
-	// New 8k byte firmware size for RT3071/RT3072
+	/* New 8k byte firmware size for RT3071/RT3072 */
 	{
 #ifdef RTMP_MAC_PCI
 		if (IS_RT3090(pAd) || IS_RT3390(pAd)) {
@@ -130,24 +128,24 @@ NDIS_STATUS RtmpAsicLoadFirmware(IN PRTMP_ADAPTER pAd)
 			pFirmwareImage = FirmwareImage_2860;
 			FileLength = FIRMWAREIMAGE_MAX_LENGTH;
 		}
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 #ifdef RTMP_MAC_USB
 		/* the firmware image consists of two parts */
 		if ((Version != 0x2860) && (Version != 0x2872) && (Version != 0x3070)) {	/* use the second part */
-			//printk("KH:Use New Version,part2\n");
+			/*printk("KH:Use New Version,part2\n"); */
 			pFirmwareImage =
 			    (PUCHAR) &
 			    FirmwareImage_3070[FIRMWAREIMAGEV1_LENGTH];
 			FileLength = FIRMWAREIMAGEV2_LENGTH;
 		} else {
-			//printk("KH:Use New Version,part1\n");
+			/*printk("KH:Use New Version,part1\n"); */
 			if (Version == 0x3070)
 				pFirmwareImage = FirmwareImage_3070;
 			else
 				pFirmwareImage = FirmwareImage_2870;
 			FileLength = FIRMWAREIMAGEV1_LENGTH;
 		}
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 	}
 
 	RTMP_WRITE_FIRMWARE(pAd, pFirmwareImage, FileLength);
@@ -183,8 +181,8 @@ INT RtmpAsicSendCommandToMcu(IN PRTMP_ADAPTER pAd,
 	ULONG i = 0;
 
 #ifdef PCIE_PS_SUPPORT
-	// 3090F power solution 3 has hw limitation that needs to ban all mcu command
-	// when firmware is in radio state.  For other chip doesn't have this limitation.
+	/* 3090F power solution 3 has hw limitation that needs to ban all mcu command */
+	/* when firmware is in radio state.  For other chip doesn't have this limitation. */
 	if (((IS_RT3090(pAd) || IS_RT3572(pAd) || IS_RT3390(pAd))
 	     && IS_VERSION_AFTER_F(pAd)) && IS_VERSION_AFTER_F(pAd)
 	    && (pAd->StaCfg.PSControl.field.rt30xxPowerMode == 3)
@@ -228,7 +226,7 @@ INT RtmpAsicSendCommandToMcu(IN PRTMP_ADAPTER pAd,
 			return FALSE;
 		}
 
-		H2MMailbox.field.Owner = 1;	// pass ownership to MCU
+		H2MMailbox.field.Owner = 1;	/* pass ownership to MCU */
 		H2MMailbox.field.CmdToken = Token;
 		H2MMailbox.field.HighByte = Arg1;
 		H2MMailbox.field.LowByte = Arg0;
@@ -239,7 +237,7 @@ INT RtmpAsicSendCommandToMcu(IN PRTMP_ADAPTER pAd,
 		RTMP_IO_FORCE_WRITE32(pAd, HOST_CMD_CSR, H2MCmd.word);
 
 	} else
-#endif // PCIE_PS_SUPPORT //
+#endif /* PCIE_PS_SUPPORT // */
 	{
 		do {
 			RTMP_IO_READ32(pAd, H2M_MAILBOX_CSR, &H2MMailbox.word);
@@ -251,16 +249,16 @@ INT RtmpAsicSendCommandToMcu(IN PRTMP_ADAPTER pAd,
 
 		if (i > 100) {
 #ifdef RTMP_MAC_PCI
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 			{
 				DBGPRINT_ERR(("H2M_MAILBOX still hold by MCU. command fail\n"));
 			}
 			return FALSE;
 		}
 #ifdef RTMP_MAC_PCI
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 
-		H2MMailbox.field.Owner = 1;	// pass ownership to MCU
+		H2MMailbox.field.Owner = 1;	/* pass ownership to MCU */
 		H2MMailbox.field.CmdToken = Token;
 		H2MMailbox.field.HighByte = Arg1;
 		H2MMailbox.field.LowByte = Arg0;
@@ -274,20 +272,20 @@ INT RtmpAsicSendCommandToMcu(IN PRTMP_ADAPTER pAd,
 		}
 	}
 #ifdef PCIE_PS_SUPPORT
-	// 3090 MCU Wakeup command needs more time to be stable.
-	// Before stable, don't issue other MCU command to prevent from firmware error.
+	/* 3090 MCU Wakeup command needs more time to be stable. */
+	/* Before stable, don't issue other MCU command to prevent from firmware error. */
 	if (((IS_RT3090(pAd) || IS_RT3572(pAd) || IS_RT3390(pAd))
 	     && IS_VERSION_AFTER_F(pAd)) && IS_VERSION_AFTER_F(pAd)
 	    && (pAd->StaCfg.PSControl.field.rt30xxPowerMode == 3)
 	    && (pAd->StaCfg.PSControl.field.EnableNewPS == TRUE)
 	    && (Command == WAKE_MCU_CMD)) {
 		RTMPusecDelay(2000);
-		//Put this is after RF programming.
-		//NdisAcquireSpinLock(&pAd->McuCmdLock);
-		//pAd->brt30xxBanMcuCmd = FALSE;
-		//NdisReleaseSpinLock(&pAd->McuCmdLock);
+		/*Put this is after RF programming. */
+		/*NdisAcquireSpinLock(&pAd->McuCmdLock); */
+		/*pAd->brt30xxBanMcuCmd = FALSE; */
+		/*NdisReleaseSpinLock(&pAd->McuCmdLock); */
 	}
-#endif // PCIE_PS_SUPPORT //
+#endif /* PCIE_PS_SUPPORT // */
 
 	return TRUE;
 }

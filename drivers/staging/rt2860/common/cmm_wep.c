@@ -141,25 +141,25 @@ VOID RTMPInitWepEngine(IN PRTMP_ADAPTER pAd,
 {
 	UINT i;
 	UCHAR WEPKEY[] = {
-		//IV
+		/*IV */
 		0x00, 0x11, 0x22,
-		//WEP KEY
+		/*WEP KEY */
 		0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99,
 		    0xAA, 0xBB, 0xCC
 	};
 
-	pAd->PrivateInfo.FCSCRC32 = PPPINITFCS32;	//Init crc32.
+	pAd->PrivateInfo.FCSCRC32 = PPPINITFCS32;	/*Init crc32. */
 
 	{
 		NdisMoveMemory(WEPKEY + 3, pKey, KeyLen);
 
 		for (i = 0; i < 3; i++)
-			WEPKEY[i] = RandomByte(pAd);	//Call mlme RandomByte() function.
-		ARCFOUR_INIT(&pAd->PrivateInfo.WEPCONTEXT, WEPKEY, KeyLen + 3);	//INIT SBOX, KEYLEN+3(IV)
+			WEPKEY[i] = RandomByte(pAd);	/*Call mlme RandomByte() function. */
+		ARCFOUR_INIT(&pAd->PrivateInfo.WEPCONTEXT, WEPKEY, KeyLen + 3);	/*INIT SBOX, KEYLEN+3(IV) */
 
-		NdisMoveMemory(pDest, WEPKEY, 3);	//Append Init Vector
+		NdisMoveMemory(pDest, WEPKEY, 3);	/*Append Init Vector */
 	}
-	*(pDest + 3) = (KeyId << 6);	//Append KEYID
+	*(pDest + 3) = (KeyId << 6);	/*Append KEYID */
 
 }
 
@@ -219,16 +219,16 @@ BOOLEAN RTMPSoftDecryptWEP(IN PRTMP_ADAPTER pAd,
 	UINT crc32;
 	UCHAR KeyIdx;
 	UCHAR WEPKEY[] = {
-		//IV
+		/*IV */
 		0x00, 0x11, 0x22,
-		//WEP KEY
+		/*WEP KEY */
 		0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99,
 		    0xAA, 0xBB, 0xCC
 	};
 	UCHAR *pPayload = (UCHAR *) pData + LENGTH_802_11;
 	ULONG payload_len = DataByteCnt - LENGTH_802_11;
 
-	NdisMoveMemory(WEPKEY, pPayload, 3);	//Get WEP IV
+	NdisMoveMemory(WEPKEY, pPayload, 3);	/*Get WEP IV */
 
 	KeyIdx = (*(pPayload + 3) & 0xc0) >> 6;
 	if (pGroupKey[KeyIdx].KeyLen == 0)
@@ -241,11 +241,11 @@ BOOLEAN RTMPSoftDecryptWEP(IN PRTMP_ADAPTER pAd,
 	ARCFOUR_DECRYPT(&pAd->PrivateInfo.WEPCONTEXT, pPayload, pPayload + 4,
 			payload_len - 4);
 	NdisMoveMemory(&trailfcs, pPayload + payload_len - 8, 4);
-	crc32 = RTMP_CALC_FCS32(PPPINITFCS32, pPayload, payload_len - 8);	//Skip last 4 bytes(FCS).
+	crc32 = RTMP_CALC_FCS32(PPPINITFCS32, pPayload, payload_len - 8);	/*Skip last 4 bytes(FCS). */
 	crc32 ^= 0xffffffff;	/* complement */
 
 	if (crc32 != cpu2le32(trailfcs)) {
-		DBGPRINT(RT_DEBUG_TRACE, ("! WEP Data CRC Error !\n"));	//CRC error.
+		DBGPRINT(RT_DEBUG_TRACE, ("! WEP Data CRC Error !\n"));	/*CRC error. */
 		return (FALSE);
 	}
 	return (TRUE);
@@ -411,7 +411,7 @@ VOID WPAARCFOUR_ENCRYPT(IN PARCFOURCONTEXT Ctx,
 			IN PUCHAR pDest, IN PUCHAR pSrc, IN UINT Len)
 {
 	UINT i;
-	//discard first 256 bytes
+	/*discard first 256 bytes */
 	for (i = 0; i < 256; i++)
 		ARCFOUR_BYTE(Ctx);
 

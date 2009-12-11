@@ -83,23 +83,23 @@ UCHAR eFuseReadRegisters(IN PRTMP_ADAPTER pAd,
 
 	RTMP_IO_READ32(pAd, EFUSE_CTRL, &eFuseCtrlStruc.word);
 
-	//Step0. Write 10-bit of address to EFSROM_AIN (0x580, bit25:bit16). The address must be 16-byte alignment.
-	//Use the eeprom logical address and covert to address to block number
+	/*Step0. Write 10-bit of address to EFSROM_AIN (0x580, bit25:bit16). The address must be 16-byte alignment. */
+	/*Use the eeprom logical address and covert to address to block number */
 	eFuseCtrlStruc.field.EFSROM_AIN = Offset & 0xfff0;
 
-	//Step1. Write EFSROM_MODE (0x580, bit7:bit6) to 0.
+	/*Step1. Write EFSROM_MODE (0x580, bit7:bit6) to 0. */
 	eFuseCtrlStruc.field.EFSROM_MODE = 0;
 
-	//Step2. Write EFSROM_KICK (0x580, bit30) to 1 to kick-off physical read procedure.
+	/*Step2. Write EFSROM_KICK (0x580, bit30) to 1 to kick-off physical read procedure. */
 	eFuseCtrlStruc.field.EFSROM_KICK = 1;
 
 	NdisMoveMemory(&data, &eFuseCtrlStruc, 4);
 	RTMP_IO_WRITE32(pAd, EFUSE_CTRL, data);
 
-	//Step3. Polling EFSROM_KICK(0x580, bit30) until it become 0 again.
+	/*Step3. Polling EFSROM_KICK(0x580, bit30) until it become 0 again. */
 	i = 0;
 	while (i < 500) {
-		//rtmp.HwMemoryReadDword(EFUSE_CTRL, (DWORD *) &eFuseCtrlStruc, 4);
+		/*rtmp.HwMemoryReadDword(EFUSE_CTRL, (DWORD *) &eFuseCtrlStruc, 4); */
 		RTMP_IO_READ32(pAd, EFUSE_CTRL, &eFuseCtrlStruc.word);
 		if (eFuseCtrlStruc.field.EFSROM_KICK == 0) {
 			break;
@@ -108,25 +108,25 @@ UCHAR eFuseReadRegisters(IN PRTMP_ADAPTER pAd,
 		i++;
 	}
 
-	//if EFSROM_AOUT is not found in physical address, write 0xffff
+	/*if EFSROM_AOUT is not found in physical address, write 0xffff */
 	if (eFuseCtrlStruc.field.EFSROM_AOUT == 0x3f) {
 		for (i = 0; i < Length / 2; i++)
 			*(pData + 2 * i) = 0xffff;
 	} else {
-		//Step4. Read 16-byte of data from EFUSE_DATA0-3 (0x590-0x59C)
+		/*Step4. Read 16-byte of data from EFUSE_DATA0-3 (0x590-0x59C) */
 		efuseDataOffset = EFUSE_DATA3 - (Offset & 0xC);
-		//data hold 4 bytes data.
-		//In RTMP_IO_READ32 will automatically execute 32-bytes swapping
+		/*data hold 4 bytes data. */
+		/*In RTMP_IO_READ32 will automatically execute 32-bytes swapping */
 		RTMP_IO_READ32(pAd, efuseDataOffset, &data);
-		//Decide the upper 2 bytes or the bottom 2 bytes.
-		// Little-endian                S       |       S       Big-endian
-		// addr 3       2       1       0       |       0       1       2       3
-		// Ori-V        D       C       B       A       |       A       B       C       D
-		//After swapping
-		//              D       C       B       A       |       D       C       B       A
-		//Return 2-bytes
-		//The return byte statrs from S. Therefore, the little-endian will return BA, the Big-endian will return DC.
-		//For returning the bottom 2 bytes, the Big-endian should shift right 2-bytes.
+		/*Decide the upper 2 bytes or the bottom 2 bytes. */
+		/* Little-endian                S       |       S       Big-endian */
+		/* addr 3       2       1       0       |       0       1       2       3 */
+		/* Ori-V        D       C       B       A       |       A       B       C       D */
+		/*After swapping */
+		/*              D       C       B       A       |       D       C       B       A */
+		/*Return 2-bytes */
+		/*The return byte statrs from S. Therefore, the little-endian will return BA, the Big-endian will return DC. */
+		/*For returning the bottom 2 bytes, the Big-endian should shift right 2-bytes. */
 		data = data >> (8 * (Offset & 0x3));
 
 		NdisMoveMemory(pData, &data, Length);
@@ -160,20 +160,20 @@ VOID eFusePhysicalReadRegisters(IN PRTMP_ADAPTER pAd,
 
 	RTMP_IO_READ32(pAd, EFUSE_CTRL, &eFuseCtrlStruc.word);
 
-	//Step0. Write 10-bit of address to EFSROM_AIN (0x580, bit25:bit16). The address must be 16-byte alignment.
+	/*Step0. Write 10-bit of address to EFSROM_AIN (0x580, bit25:bit16). The address must be 16-byte alignment. */
 	eFuseCtrlStruc.field.EFSROM_AIN = Offset & 0xfff0;
 
-	//Step1. Write EFSROM_MODE (0x580, bit7:bit6) to 1.
-	//Read in physical view
+	/*Step1. Write EFSROM_MODE (0x580, bit7:bit6) to 1. */
+	/*Read in physical view */
 	eFuseCtrlStruc.field.EFSROM_MODE = 1;
 
-	//Step2. Write EFSROM_KICK (0x580, bit30) to 1 to kick-off physical read procedure.
+	/*Step2. Write EFSROM_KICK (0x580, bit30) to 1 to kick-off physical read procedure. */
 	eFuseCtrlStruc.field.EFSROM_KICK = 1;
 
 	NdisMoveMemory(&data, &eFuseCtrlStruc, 4);
 	RTMP_IO_WRITE32(pAd, EFUSE_CTRL, data);
 
-	//Step3. Polling EFSROM_KICK(0x580, bit30) until it become 0 again.
+	/*Step3. Polling EFSROM_KICK(0x580, bit30) until it become 0 again. */
 	i = 0;
 	while (i < 500) {
 		RTMP_IO_READ32(pAd, EFUSE_CTRL, &eFuseCtrlStruc.word);
@@ -183,14 +183,14 @@ VOID eFusePhysicalReadRegisters(IN PRTMP_ADAPTER pAd,
 		i++;
 	}
 
-	//Step4. Read 16-byte of data from EFUSE_DATA0-3 (0x59C-0x590)
-	//Because the size of each EFUSE_DATA is 4 Bytes, the size of address of each is 2 bits.
-	//The previous 2 bits is the EFUSE_DATA number, the last 2 bits is used to decide which bytes
-	//Decide which EFUSE_DATA to read
-	//590:F E D C
-	//594:B A 9 8
-	//598:7 6 5 4
-	//59C:3 2 1 0
+	/*Step4. Read 16-byte of data from EFUSE_DATA0-3 (0x59C-0x590) */
+	/*Because the size of each EFUSE_DATA is 4 Bytes, the size of address of each is 2 bits. */
+	/*The previous 2 bits is the EFUSE_DATA number, the last 2 bits is used to decide which bytes */
+	/*Decide which EFUSE_DATA to read */
+	/*590:F E D C */
+	/*594:B A 9 8 */
+	/*598:7 6 5 4 */
+	/*59C:3 2 1 0 */
 	efuseDataOffset = EFUSE_DATA3 - (Offset & 0xC);
 
 	RTMP_IO_READ32(pAd, efuseDataOffset, &data);
@@ -222,8 +222,8 @@ static VOID eFuseReadPhysical(IN PRTMP_ADAPTER pAd,
 	USHORT *pInBuf = (USHORT *) lpInBuffer;
 	USHORT *pOutBuf = (USHORT *) lpOutBuffer;
 
-	USHORT Offset = pInBuf[0];	//addr
-	USHORT Length = pInBuf[1];	//length
+	USHORT Offset = pInBuf[0];	/*addr */
+	USHORT Length = pInBuf[1];	/*length */
 	int i;
 
 	for (i = 0; i < Length; i += 2) {

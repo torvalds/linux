@@ -40,32 +40,32 @@ UCHAR BIT8[] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
 char *CipherName[] =
     { "none", "wep64", "wep128", "TKIP", "AES", "CKIP64", "CKIP128" };
 
-//
-// BBP register initialization set
-//
+/* */
+/* BBP register initialization set */
+/* */
 REG_PAIR BBPRegTable[] = {
-	{BBP_R65, 0x2C},	// fix rssi issue
-	{BBP_R66, 0x38},	// Also set this default value to pAd->BbpTuning.R66CurrentValue at initial
+	{BBP_R65, 0x2C},	/* fix rssi issue */
+	{BBP_R66, 0x38},	/* Also set this default value to pAd->BbpTuning.R66CurrentValue at initial */
 	{BBP_R69, 0x12},
-	{BBP_R70, 0xa},		// BBP_R70 will change to 0x8 in ApStartUp and LinkUp for rt2860C, otherwise value is 0xa
+	{BBP_R70, 0xa},		/* BBP_R70 will change to 0x8 in ApStartUp and LinkUp for rt2860C, otherwise value is 0xa */
 	{BBP_R73, 0x10},
 	{BBP_R81, 0x37},
 	{BBP_R82, 0x62},
 	{BBP_R83, 0x6A},
-	{BBP_R84, 0x99},	// 0x19 is for rt2860E and after. This is for extension channel overlapping IOT. 0x99 is for rt2860D and before
-	{BBP_R86, 0x00},	// middle range issue, Rory @2008-01-28
-	{BBP_R91, 0x04},	// middle range issue, Rory @2008-01-28
-	{BBP_R92, 0x00},	// middle range issue, Rory @2008-01-28
-	{BBP_R103, 0x00},	// near range high-power issue, requested from Gary @2008-0528
-	{BBP_R105, 0x05},	// 0x05 is for rt2860E to turn on FEQ control. It is safe for rt2860D and before, because Bit 7:2 are reserved in rt2860D and before.
-	{BBP_R106, 0x35},	// for ShortGI throughput
+	{BBP_R84, 0x99},	/* 0x19 is for rt2860E and after. This is for extension channel overlapping IOT. 0x99 is for rt2860D and before */
+	{BBP_R86, 0x00},	/* middle range issue, Rory @2008-01-28 */
+	{BBP_R91, 0x04},	/* middle range issue, Rory @2008-01-28 */
+	{BBP_R92, 0x00},	/* middle range issue, Rory @2008-01-28 */
+	{BBP_R103, 0x00},	/* near range high-power issue, requested from Gary @2008-0528 */
+	{BBP_R105, 0x05},	/* 0x05 is for rt2860E to turn on FEQ control. It is safe for rt2860D and before, because Bit 7:2 are reserved in rt2860D and before. */
+	{BBP_R106, 0x35},	/* for ShortGI throughput */
 };
 
 #define	NUM_BBP_REG_PARMS	(sizeof(BBPRegTable) / sizeof(REG_PAIR))
 
-//
-// ASIC register initialization sets
-//
+/* */
+/* ASIC register initialization sets */
+/* */
 
 RTMP_REG_PAIR MACRegTable[] = {
 #if defined(HW_BEACON_OFFSET) && (HW_BEACON_OFFSET == 0x200)
@@ -76,43 +76,43 @@ RTMP_REG_PAIR MACRegTable[] = {
 	{BCN_OFFSET1, 0xfcf8f4f0},	/* 0x3800, 0x3A00, 0x3C00, 0x3E00, 512B for each beacon */
 #else
 #error You must re-calculate new value for BCN_OFFSET0 & BCN_OFFSET1 in MACRegTable[]!!!
-#endif // HW_BEACON_OFFSET //
+#endif /* HW_BEACON_OFFSET // */
 
-	{LEGACY_BASIC_RATE, 0x0000013f},	//  Basic rate set bitmap
-	{HT_BASIC_RATE, 0x00008003},	// Basic HT rate set , 20M, MCS=3, MM. Format is the same as in TXWI.
-	{MAC_SYS_CTRL, 0x00},	// 0x1004, , default Disable RX
-	{RX_FILTR_CFG, 0x17f97},	//0x1400  , RX filter control,
-	{BKOFF_SLOT_CFG, 0x209},	// default set short slot time, CC_DELAY_TIME should be 2
-	//{TX_SW_CFG0,          0x40a06}, // Gary,2006-08-23
-	{TX_SW_CFG0, 0x0},	// Gary,2008-05-21 for CWC test
-	{TX_SW_CFG1, 0x80606},	// Gary,2006-08-23
-	{TX_LINK_CFG, 0x1020},	// Gary,2006-08-23
-	//{TX_TIMEOUT_CFG,      0x00182090},    // CCK has some problem. So increase timieout value. 2006-10-09// MArvek RT
-	{TX_TIMEOUT_CFG, 0x000a2090},	// CCK has some problem. So increase timieout value. 2006-10-09// MArvek RT , Modify for 2860E ,2007-08-01
-	{MAX_LEN_CFG, MAX_AGGREGATION_SIZE | 0x00001000},	// 0x3018, MAX frame length. Max PSDU = 16kbytes.
-	{LED_CFG, 0x7f031e46},	// Gary, 2006-08-23
+	{LEGACY_BASIC_RATE, 0x0000013f},	/*  Basic rate set bitmap */
+	{HT_BASIC_RATE, 0x00008003},	/* Basic HT rate set , 20M, MCS=3, MM. Format is the same as in TXWI. */
+	{MAC_SYS_CTRL, 0x00},	/* 0x1004, , default Disable RX */
+	{RX_FILTR_CFG, 0x17f97},	/*0x1400  , RX filter control, */
+	{BKOFF_SLOT_CFG, 0x209},	/* default set short slot time, CC_DELAY_TIME should be 2 */
+	/*{TX_SW_CFG0,          0x40a06}, // Gary,2006-08-23 */
+	{TX_SW_CFG0, 0x0},	/* Gary,2008-05-21 for CWC test */
+	{TX_SW_CFG1, 0x80606},	/* Gary,2006-08-23 */
+	{TX_LINK_CFG, 0x1020},	/* Gary,2006-08-23 */
+	/*{TX_TIMEOUT_CFG,      0x00182090},    // CCK has some problem. So increase timieout value. 2006-10-09// MArvek RT */
+	{TX_TIMEOUT_CFG, 0x000a2090},	/* CCK has some problem. So increase timieout value. 2006-10-09// MArvek RT , Modify for 2860E ,2007-08-01 */
+	{MAX_LEN_CFG, MAX_AGGREGATION_SIZE | 0x00001000},	/* 0x3018, MAX frame length. Max PSDU = 16kbytes. */
+	{LED_CFG, 0x7f031e46},	/* Gary, 2006-08-23 */
 
-	{PBF_MAX_PCNT, 0x1F3FBF9F},	//0x1F3f7f9f},          //Jan, 2006/04/20
+	{PBF_MAX_PCNT, 0x1F3FBF9F},	/*0x1F3f7f9f},          //Jan, 2006/04/20 */
 
-	{TX_RTY_CFG, 0x47d01f0f},	// Jan, 2006/11/16, Set TxWI->ACK =0 in Probe Rsp Modify for 2860E ,2007-08-03
+	{TX_RTY_CFG, 0x47d01f0f},	/* Jan, 2006/11/16, Set TxWI->ACK =0 in Probe Rsp Modify for 2860E ,2007-08-03 */
 
-	{AUTO_RSP_CFG, 0x00000013},	// Initial Auto_Responder, because QA will turn off Auto-Responder
-	{CCK_PROT_CFG, 0x05740003 /*0x01740003 */ },	// Initial Auto_Responder, because QA will turn off Auto-Responder. And RTS threshold is enabled.
-	{OFDM_PROT_CFG, 0x05740003 /*0x01740003 */ },	// Initial Auto_Responder, because QA will turn off Auto-Responder. And RTS threshold is enabled.
+	{AUTO_RSP_CFG, 0x00000013},	/* Initial Auto_Responder, because QA will turn off Auto-Responder */
+	{CCK_PROT_CFG, 0x05740003 /*0x01740003 */ },	/* Initial Auto_Responder, because QA will turn off Auto-Responder. And RTS threshold is enabled. */
+	{OFDM_PROT_CFG, 0x05740003 /*0x01740003 */ },	/* Initial Auto_Responder, because QA will turn off Auto-Responder. And RTS threshold is enabled. */
 #ifdef RTMP_MAC_USB
-	{PBF_CFG, 0xf40006},	// Only enable Queue 2
-	{MM40_PROT_CFG, 0x3F44084},	// Initial Auto_Responder, because QA will turn off Auto-Responder
+	{PBF_CFG, 0xf40006},	/* Only enable Queue 2 */
+	{MM40_PROT_CFG, 0x3F44084},	/* Initial Auto_Responder, because QA will turn off Auto-Responder */
 	{WPDMA_GLO_CFG, 0x00000030},
-#endif // RTMP_MAC_USB //
-	{GF20_PROT_CFG, 0x01744004},	// set 19:18 --> Short NAV for MIMO PS
+#endif /* RTMP_MAC_USB // */
+	{GF20_PROT_CFG, 0x01744004},	/* set 19:18 --> Short NAV for MIMO PS */
 	{GF40_PROT_CFG, 0x03F44084},
 	{MM20_PROT_CFG, 0x01744004},
 #ifdef RTMP_MAC_PCI
 	{MM40_PROT_CFG, 0x03F54084},
-#endif // RTMP_MAC_PCI //
-	{TXOP_CTRL_CFG, 0x0000583f, /*0x0000243f *//*0x000024bf */ },	//Extension channel backoff.
+#endif /* RTMP_MAC_PCI // */
+	{TXOP_CTRL_CFG, 0x0000583f, /*0x0000243f *//*0x000024bf */ },	/*Extension channel backoff. */
 	{TX_RTS_CFG, 0x00092b20},
-	{EXP_ACK_TIME, 0x002400ca},	// default value
+	{EXP_ACK_TIME, 0x002400ca},	/* default value */
 
 	{TXOP_HLDR_ET, 0x00000002},
 
@@ -121,7 +121,7 @@ RTMP_REG_PAIR MACRegTable[] = {
 	   and beacon1 is SIFS (10us), so if INTEL 2200bg card connects to BSS0, the ping
 	   will always lost. So we change the SIFS of CCK from 10us to 16us. */
 	{XIFS_TIME_CFG, 0x33a41010},
-	{PWR_PIN_CFG, 0x00000003},	// patch for 2880-E
+	{PWR_PIN_CFG, 0x00000003},	/* patch for 2880-E */
 };
 
 RTMP_REG_PAIR STAMACRegTable[] = {
@@ -165,7 +165,7 @@ NDIS_STATUS RTMPAllocAdapterBlock(IN PVOID handle,
 	*ppAdapter = NULL;
 
 	do {
-		// Allocate RTMP_ADAPTER memory block
+		/* Allocate RTMP_ADAPTER memory block */
 		pBeaconBuf = kmalloc(MAX_BEACON_SIZE, MEM_ALLOC_FLAG);
 		if (pBeaconBuf == NULL) {
 			Status = NDIS_STATUS_FAILURE;
@@ -184,14 +184,14 @@ NDIS_STATUS RTMPAllocAdapterBlock(IN PVOID handle,
 			 ("\n\n=== pAd = %p, size = %d ===\n\n", pAd,
 			  (UINT32) sizeof(RTMP_ADAPTER)));
 
-		// Init spin locks
+		/* Init spin locks */
 		NdisAllocateSpinLock(&pAd->MgmtRingLock);
 #ifdef RTMP_MAC_PCI
 		NdisAllocateSpinLock(&pAd->RxRingLock);
 #ifdef RT3090
 		NdisAllocateSpinLock(&pAd->McuCmdLock);
-#endif // RT3090 //
-#endif // RTMP_MAC_PCI //
+#endif /* RT3090 // */
+#endif /* RTMP_MAC_PCI // */
 
 		for (index = 0; index < NUM_OF_TX_RING; index++) {
 			NdisAllocateSpinLock(&pAd->TxSwQueueLock[index]);
@@ -238,9 +238,9 @@ VOID RTMPReadTxPwrPerRate(IN PRTMP_ADAPTER pAd)
 	UCHAR t1, t2, t3, t4;
 	BOOLEAN bApwrdeltaMinus = TRUE, bGpwrdeltaMinus = TRUE;
 
-	//
-	// Get power delta for 20MHz and 40MHz.
-	//
+	/* */
+	/* Get power delta for 20MHz and 40MHz. */
+	/* */
 	DBGPRINT(RT_DEBUG_TRACE, ("Txpower per Rate\n"));
 	RT28xx_EEPROM_READ16(pAd, EEPROM_TXPOWER_DELTA, value2);
 	Apwrdelta = 0;
@@ -267,9 +267,9 @@ VOID RTMPReadTxPwrPerRate(IN PRTMP_ADAPTER pAd)
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("Gpwrdelta = %x, Apwrdelta = %x .\n", Gpwrdelta, Apwrdelta));
 
-	//
-	// Get Txpower per MCS for 20MHz in 2.4G.
-	//
+	/* */
+	/* Get Txpower per MCS for 20MHz in 2.4G. */
+	/* */
 	for (i = 0; i < 5; i++) {
 		RT28xx_EEPROM_READ16(pAd,
 				     EEPROM_TXPOWER_BYRATE_20MHZ_2_4G + i * 4,
@@ -447,12 +447,12 @@ VOID RTMPReadChannelPwr(IN PRTMP_ADAPTER pAd)
 	EEPROM_TX_PWR_STRUC Power;
 	EEPROM_TX_PWR_STRUC Power2;
 
-	// Read Tx power value for all channels
-	// Value from 1 - 0x7f. Default value is 24.
-	// Power value : 2.4G 0x00 (0) ~ 0x1F (31)
-	//             : 5.5G 0xF9 (-7) ~ 0x0F (15)
+	/* Read Tx power value for all channels */
+	/* Value from 1 - 0x7f. Default value is 24. */
+	/* Power value : 2.4G 0x00 (0) ~ 0x1F (31) */
+	/*             : 5.5G 0xF9 (-7) ~ 0x0F (15) */
 
-	// 0. 11b/g, ch1 - ch 14
+	/* 0. 11b/g, ch1 - ch 14 */
 	for (i = 0; i < 7; i++) {
 		RT28xx_EEPROM_READ16(pAd, EEPROM_G_TX_PWR_OFFSET + i * 2,
 				     Power.word);
@@ -482,8 +482,8 @@ VOID RTMPReadChannelPwr(IN PRTMP_ADAPTER pAd)
 			pAd->TxPower[i * 2 + 1].Power2 = Power2.field.Byte1;
 	}
 
-	// 1. U-NII lower/middle band: 36, 38, 40; 44, 46, 48; 52, 54, 56; 60, 62, 64 (including central frequency in BW 40MHz)
-	// 1.1 Fill up channel
+	/* 1. U-NII lower/middle band: 36, 38, 40; 44, 46, 48; 52, 54, 56; 60, 62, 64 (including central frequency in BW 40MHz) */
+	/* 1.1 Fill up channel */
 	choffset = 14;
 	for (i = 0; i < 4; i++) {
 		pAd->TxPower[3 * i + choffset + 0].Channel = 36 + i * 8 + 0;
@@ -499,7 +499,7 @@ VOID RTMPReadChannelPwr(IN PRTMP_ADAPTER pAd)
 		pAd->TxPower[3 * i + choffset + 2].Power2 = DEFAULT_RF_TX_POWER;
 	}
 
-	// 1.2 Fill up power
+	/* 1.2 Fill up power */
 	for (i = 0; i < 6; i++) {
 		RT28xx_EEPROM_READ16(pAd, EEPROM_A_TX_PWR_OFFSET + i * 2,
 				     Power.word);
@@ -523,8 +523,8 @@ VOID RTMPReadChannelPwr(IN PRTMP_ADAPTER pAd)
 			    Power2.field.Byte1;
 	}
 
-	// 2. HipperLAN 2 100, 102 ,104; 108, 110, 112; 116, 118, 120; 124, 126, 128; 132, 134, 136; 140 (including central frequency in BW 40MHz)
-	// 2.1 Fill up channel
+	/* 2. HipperLAN 2 100, 102 ,104; 108, 110, 112; 116, 118, 120; 124, 126, 128; 132, 134, 136; 140 (including central frequency in BW 40MHz) */
+	/* 2.1 Fill up channel */
 	choffset = 14 + 12;
 	for (i = 0; i < 5; i++) {
 		pAd->TxPower[3 * i + choffset + 0].Channel = 100 + i * 8 + 0;
@@ -543,7 +543,7 @@ VOID RTMPReadChannelPwr(IN PRTMP_ADAPTER pAd)
 	pAd->TxPower[3 * 5 + choffset + 0].Power = DEFAULT_RF_TX_POWER;
 	pAd->TxPower[3 * 5 + choffset + 0].Power2 = DEFAULT_RF_TX_POWER;
 
-	// 2.2 Fill up power
+	/* 2.2 Fill up power */
 	for (i = 0; i < 8; i++) {
 		RT28xx_EEPROM_READ16(pAd,
 				     EEPROM_A_TX_PWR_OFFSET + (choffset - 14) +
@@ -569,8 +569,8 @@ VOID RTMPReadChannelPwr(IN PRTMP_ADAPTER pAd)
 			    Power2.field.Byte1;
 	}
 
-	// 3. U-NII upper band: 149, 151, 153; 157, 159, 161; 165, 167, 169; 171, 173 (including central frequency in BW 40MHz)
-	// 3.1 Fill up channel
+	/* 3. U-NII upper band: 149, 151, 153; 157, 159, 161; 165, 167, 169; 171, 173 (including central frequency in BW 40MHz) */
+	/* 3.1 Fill up channel */
 	choffset = 14 + 12 + 16;
 	/*for (i = 0; i < 2; i++) */
 	for (i = 0; i < 3; i++) {
@@ -594,7 +594,7 @@ VOID RTMPReadChannelPwr(IN PRTMP_ADAPTER pAd)
 	pAd->TxPower[3 * 3 + choffset + 1].Power = DEFAULT_RF_TX_POWER;
 	pAd->TxPower[3 * 3 + choffset + 1].Power2 = DEFAULT_RF_TX_POWER;
 
-	// 3.2 Fill up power
+	/* 3.2 Fill up power */
 	/*for (i = 0; i < 4; i++) */
 	for (i = 0; i < 6; i++) {
 		RT28xx_EEPROM_READ16(pAd,
@@ -621,7 +621,7 @@ VOID RTMPReadChannelPwr(IN PRTMP_ADAPTER pAd)
 			    Power2.field.Byte1;
 	}
 
-	// 4. Print and Debug
+	/* 4. Print and Debug */
 	/*choffset = 14 + 12 + 16 + 7; */
 	choffset = 14 + 12 + 16 + 11;
 
@@ -691,21 +691,21 @@ VOID NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, IN PUCHAR mac_addr)
 	if (pAd->chipOps.eeinit)
 		pAd->chipOps.eeinit(pAd);
 
-	// Init EEPROM Address Number, before access EEPROM; if 93c46, EEPROMAddressNum=6, else if 93c66, EEPROMAddressNum=8
+	/* Init EEPROM Address Number, before access EEPROM; if 93c46, EEPROMAddressNum=6, else if 93c66, EEPROMAddressNum=8 */
 	RTMP_IO_READ32(pAd, E2PROM_CSR, &data);
 	DBGPRINT(RT_DEBUG_TRACE, ("--> E2PROM_CSR = 0x%x\n", data));
 
 	if ((data & 0x30) == 0)
-		pAd->EEPROMAddressNum = 6;	// 93C46
+		pAd->EEPROMAddressNum = 6;	/* 93C46 */
 	else if ((data & 0x30) == 0x10)
-		pAd->EEPROMAddressNum = 8;	// 93C66
+		pAd->EEPROMAddressNum = 8;	/* 93C66 */
 	else
-		pAd->EEPROMAddressNum = 8;	// 93C86
+		pAd->EEPROMAddressNum = 8;	/* 93C86 */
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("--> EEPROMAddressNum = %d\n", pAd->EEPROMAddressNum));
 
-	// RT2860 MAC no longer auto load MAC address from E2PROM. Driver has to intialize
-	// MAC address registers according to E2PROM setting
+	/* RT2860 MAC no longer auto load MAC address from E2PROM. Driver has to intialize */
+	/* MAC address registers according to E2PROM setting */
 	if (mac_addr == NULL ||
 	    strlen((PSTRING) mac_addr) != 17 ||
 	    mac_addr[2] != ':' || mac_addr[5] != ':' || mac_addr[8] != ':' ||
@@ -741,12 +741,12 @@ VOID NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, IN PUCHAR mac_addr)
 	}
 
 	{
-		//more conveninet to test mbssid, so ap's bssid &0xf1
+		/*more conveninet to test mbssid, so ap's bssid &0xf1 */
 		if (pAd->PermanentAddress[0] == 0xff)
 			pAd->PermanentAddress[0] = RandomByte(pAd) & 0xf8;
 
-		//if (pAd->PermanentAddress[5] == 0xff)
-		//      pAd->PermanentAddress[5] = RandomByte(pAd)&0xf8;
+		/*if (pAd->PermanentAddress[5] == 0xff) */
+		/*      pAd->PermanentAddress[5] = RandomByte(pAd)&0xf8; */
 
 		DBGPRINT_RAW(RT_DEBUG_TRACE,
 			     ("E2PROM MAC: =%02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -777,12 +777,12 @@ VOID NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, IN PUCHAR mac_addr)
 		}
 	}
 
-	// if not return early. cause fail at emulation.
-	// Init the channel number for TX channel power
+	/* if not return early. cause fail at emulation. */
+	/* Init the channel number for TX channel power */
 	RTMPReadChannelPwr(pAd);
 
-	// if E2PROM version mismatch with driver's expectation, then skip
-	// all subsequent E2RPOM retieval and set a system error bit to notify GUI
+	/* if E2PROM version mismatch with driver's expectation, then skip */
+	/* all subsequent E2RPOM retieval and set a system error bit to notify GUI */
 	RT28xx_EEPROM_READ16(pAd, EEPROM_VERSION_OFFSET, Version.word);
 	pAd->EepromVersion =
 	    Version.field.Version + Version.field.FaeReleaseNumber * 256;
@@ -811,14 +811,14 @@ VOID NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, IN PUCHAR mac_addr)
 		   pAd->EEPROMDefaultValue[i] = 0xffff;
 		   return;  */
 	}
-	// Read BBP default value from EEPROM and store to array(EEPROMDefaultValue) in pAd
+	/* Read BBP default value from EEPROM and store to array(EEPROMDefaultValue) in pAd */
 	RT28xx_EEPROM_READ16(pAd, EEPROM_NIC1_OFFSET, value);
 	pAd->EEPROMDefaultValue[0] = value;
 
 	RT28xx_EEPROM_READ16(pAd, EEPROM_NIC2_OFFSET, value);
 	pAd->EEPROMDefaultValue[1] = value;
 
-	RT28xx_EEPROM_READ16(pAd, 0x38, value);	// Country Region
+	RT28xx_EEPROM_READ16(pAd, 0x38, value);	/* Country Region */
 	pAd->EEPROMDefaultValue[2] = value;
 
 	for (i = 0; i < 8; i++) {
@@ -827,10 +827,10 @@ VOID NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, IN PUCHAR mac_addr)
 		pAd->EEPROMDefaultValue[i + 3] = value;
 	}
 
-	// We have to parse NIC configuration 0 at here.
-	// If TSSI did not have preloaded value, it should reset the TxAutoAgc to false
-	// Therefore, we have to read TxAutoAgc control beforehand.
-	// Read Tx AGC control bit
+	/* We have to parse NIC configuration 0 at here. */
+	/* If TSSI did not have preloaded value, it should reset the TxAutoAgc to false */
+	/* Therefore, we have to read TxAutoAgc control beforehand. */
+	/* Read Tx AGC control bit */
 	Antenna.word = pAd->EEPROMDefaultValue[0];
 	if (Antenna.word == 0xFFFF) {
 #ifdef RT30xx
@@ -840,7 +840,7 @@ VOID NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, IN PUCHAR mac_addr)
 			Antenna.field.TxPath = 1;
 			Antenna.field.RxPath = 1;
 		} else
-#endif // RT30xx //
+#endif /* RT30xx // */
 		{
 
 			Antenna.word = 0;
@@ -852,7 +852,7 @@ VOID NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, IN PUCHAR mac_addr)
 				  Antenna.word));
 		}
 	}
-	// Choose the desired Tx&Rx stream.
+	/* Choose the desired Tx&Rx stream. */
 	if ((pAd->CommonCfg.TxStream == 0)
 	    || (pAd->CommonCfg.TxStream > Antenna.field.TxPath))
 		pAd->CommonCfg.TxStream = Antenna.field.TxPath;
@@ -863,13 +863,13 @@ VOID NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, IN PUCHAR mac_addr)
 
 		if ((pAd->MACVersion < RALINK_2883_VERSION) &&
 		    (pAd->CommonCfg.RxStream > 2)) {
-			// only 2 Rx streams for RT2860 series
+			/* only 2 Rx streams for RT2860 series */
 			pAd->CommonCfg.RxStream = 2;
 		}
 	}
-	// 3*3
-	// read value from EEPROM and set them to CSR174 ~ 177 in chain0 ~ chain2
-	// yet implement
+	/* 3*3 */
+	/* read value from EEPROM and set them to CSR174 ~ 177 in chain0 ~ chain2 */
+	/* yet implement */
 	for (i = 0; i < 3; i++) {
 	}
 
@@ -894,25 +894,25 @@ VOID NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, IN PUCHAR mac_addr)
 		     ("NICReadEEPROMParameters: RxPath = %d, TxPath = %d\n",
 		      Antenna.field.RxPath, Antenna.field.TxPath));
 
-	// Save the antenna for future use
+	/* Save the antenna for future use */
 	pAd->Antenna.word = Antenna.word;
 
-	// Set the RfICType here, then we can initialize RFIC related operation callbacks
+	/* Set the RfICType here, then we can initialize RFIC related operation callbacks */
 	pAd->Mlme.RealRxPath = (UCHAR) Antenna.field.RxPath;
 	pAd->RfIcType = (UCHAR) Antenna.field.RfIcType;
 
 #ifdef RTMP_RF_RW_SUPPORT
 	RtmpChipOpsRFHook(pAd);
-#endif // RTMP_RF_RW_SUPPORT //
+#endif /* RTMP_RF_RW_SUPPORT // */
 
 #ifdef RTMP_MAC_PCI
 	sprintf((PSTRING) pAd->nickname, "RT2860STA");
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 
-	//
-	// Reset PhyMode if we don't support 802.11a
-	// Only RFIC_2850 & RFIC_2750 support 802.11a
-	//
+	/* */
+	/* Reset PhyMode if we don't support 802.11a */
+	/* Only RFIC_2850 & RFIC_2750 support 802.11a */
+	/* */
 	if ((Antenna.field.RfIcType != RFIC_2850)
 	    && (Antenna.field.RfIcType != RFIC_2750)
 	    && (Antenna.field.RfIcType != RFIC_3052)) {
@@ -925,8 +925,8 @@ VOID NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, IN PUCHAR mac_addr)
 			 (pAd->CommonCfg.PhyMode == PHY_11N_5G))
 			pAd->CommonCfg.PhyMode = PHY_11BGN_MIXED;
 	}
-	// Read TSSI reference and TSSI boundary for temperature compensation. This is ugly
-	// 0. 11b/g
+	/* Read TSSI reference and TSSI boundary for temperature compensation. This is ugly */
+	/* 0. 11b/g */
 	{
 		/* these are tempature reference value (0x00 ~ 0xFE)
 		   ex: 0x00 0x15 0x25 0x45 0x88 0xA0 0xB5 0xD0 0xF0
@@ -951,7 +951,7 @@ VOID NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, IN PUCHAR mac_addr)
 		pAd->TssiMinusBoundaryG[0] = pAd->TssiRefG;
 		pAd->TssiPlusBoundaryG[0] = pAd->TssiRefG;
 
-		// Disable TxAgc if the based value is not right
+		/* Disable TxAgc if the based value is not right */
 		if (pAd->TssiRefG == 0xff)
 			pAd->bAutoTxAgcG = FALSE;
 
@@ -965,7 +965,7 @@ VOID NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, IN PUCHAR mac_addr)
 			  pAd->TssiPlusBoundaryG[3], pAd->TssiPlusBoundaryG[4],
 			  pAd->TxAgcStepG, pAd->bAutoTxAgcG));
 	}
-	// 1. 11a
+	/* 1. 11a */
 	{
 		RT28xx_EEPROM_READ16(pAd, 0xD4, Power.word);
 		pAd->TssiMinusBoundaryA[4] = Power.field.Byte0;
@@ -986,7 +986,7 @@ VOID NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, IN PUCHAR mac_addr)
 		pAd->TssiMinusBoundaryA[0] = pAd->TssiRefA;
 		pAd->TssiPlusBoundaryA[0] = pAd->TssiRefA;
 
-		// Disable TxAgc if the based value is not right
+		/* Disable TxAgc if the based value is not right */
 		if (pAd->TssiRefA == 0xff)
 			pAd->bAutoTxAgcA = FALSE;
 
@@ -1002,7 +1002,7 @@ VOID NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, IN PUCHAR mac_addr)
 	}
 	pAd->BbpRssiToDbmDelta = 0x0;
 
-	// Read frequency offset setting for RF
+	/* Read frequency offset setting for RF */
 	RT28xx_EEPROM_READ16(pAd, EEPROM_FREQ_OFFSET, value);
 	if ((value & 0x00FF) != 0x00FF)
 		pAd->RfFreqOffset = (ULONG) (value & 0x00FF);
@@ -1011,9 +1011,9 @@ VOID NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, IN PUCHAR mac_addr)
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("E2PROM: RF FreqOffset=0x%lx \n", pAd->RfFreqOffset));
 
-	//CountryRegion byte offset (38h)
-	value = pAd->EEPROMDefaultValue[2] >> 8;	// 2.4G band
-	value2 = pAd->EEPROMDefaultValue[2] & 0x00FF;	// 5G band
+	/*CountryRegion byte offset (38h) */
+	value = pAd->EEPROMDefaultValue[2] >> 8;	/* 2.4G band */
+	value2 = pAd->EEPROMDefaultValue[2] & 0x00FF;	/* 5G band */
 
 	if ((value <= REGION_MAXIMUM_BG_BAND)
 	    && (value2 <= REGION_MAXIMUM_A_BAND)) {
@@ -1024,10 +1024,10 @@ VOID NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, IN PUCHAR mac_addr)
 		RTMPSetPhyMode(pAd, TmpPhy);
 		SetCommonHT(pAd);
 	}
-	//
-	// Get RSSI Offset on EEPROM 0x9Ah & 0x9Ch.
-	// The valid value are (-10 ~ 10)
-	//
+	/* */
+	/* Get RSSI Offset on EEPROM 0x9Ah & 0x9Ch. */
+	/* The valid value are (-10 ~ 10) */
+	/* */
 	RT28xx_EEPROM_READ16(pAd, EEPROM_RSSI_BG_OFFSET, value);
 	pAd->BGRssiOffset0 = value & 0x00ff;
 	pAd->BGRssiOffset1 = (value >> 8);
@@ -1038,15 +1038,15 @@ VOID NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, IN PUCHAR mac_addr)
 	pAd->BLNAGain = value & 0x00ff;
 	pAd->ALNAGain0 = (value >> 8);
 
-	// Validate 11b/g RSSI_0 offset.
+	/* Validate 11b/g RSSI_0 offset. */
 	if ((pAd->BGRssiOffset0 < -10) || (pAd->BGRssiOffset0 > 10))
 		pAd->BGRssiOffset0 = 0;
 
-	// Validate 11b/g RSSI_1 offset.
+	/* Validate 11b/g RSSI_1 offset. */
 	if ((pAd->BGRssiOffset1 < -10) || (pAd->BGRssiOffset1 > 10))
 		pAd->BGRssiOffset1 = 0;
 
-	// Validate 11b/g RSSI_2 offset.
+	/* Validate 11b/g RSSI_2 offset. */
 	if ((pAd->BGRssiOffset2 < -10) || (pAd->BGRssiOffset2 > 10))
 		pAd->BGRssiOffset2 = 0;
 
@@ -1062,25 +1062,25 @@ VOID NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, IN PUCHAR mac_addr)
 	if (((UCHAR) pAd->ALNAGain2 == 0xFF) || (pAd->ALNAGain2 == 0x00))
 		pAd->ALNAGain2 = pAd->ALNAGain0;
 
-	// Validate 11a RSSI_0 offset.
+	/* Validate 11a RSSI_0 offset. */
 	if ((pAd->ARssiOffset0 < -10) || (pAd->ARssiOffset0 > 10))
 		pAd->ARssiOffset0 = 0;
 
-	// Validate 11a RSSI_1 offset.
+	/* Validate 11a RSSI_1 offset. */
 	if ((pAd->ARssiOffset1 < -10) || (pAd->ARssiOffset1 > 10))
 		pAd->ARssiOffset1 = 0;
 
-	//Validate 11a RSSI_2 offset.
+	/*Validate 11a RSSI_2 offset. */
 	if ((pAd->ARssiOffset2 < -10) || (pAd->ARssiOffset2 > 10))
 		pAd->ARssiOffset2 = 0;
 
 #ifdef RT30xx
-	//
-	// Get TX mixer gain setting
-	// 0xff are invalid value
-	// Note: RT30xX default value is 0x00 and will program to RF_R17 only when this value is not zero.
-	//       RT359X default value is 0x02
-	//
+	/* */
+	/* Get TX mixer gain setting */
+	/* 0xff are invalid value */
+	/* Note: RT30xX default value is 0x00 and will program to RF_R17 only when this value is not zero. */
+	/*       RT359X default value is 0x02 */
+	/* */
 	if (IS_RT30xx(pAd) || IS_RT3572(pAd)) {
 		RT28xx_EEPROM_READ16(pAd, EEPROM_TXMIXER_GAIN_2_4G, value);
 		pAd->TxMixerGain24G = 0;
@@ -1090,11 +1090,11 @@ VOID NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, IN PUCHAR mac_addr)
 			pAd->TxMixerGain24G = (UCHAR) value;
 		}
 	}
-#endif // RT30xx //
+#endif /* RT30xx // */
 
-	//
-	// Get LED Setting.
-	//
+	/* */
+	/* Get LED Setting. */
+	/* */
 	RT28xx_EEPROM_READ16(pAd, 0x3a, value);
 	pAd->LedCntl.word = (value >> 8);
 	RT28xx_EEPROM_READ16(pAd, EEPROM_LED1_OFFSET, value);
@@ -1109,8 +1109,8 @@ VOID NICReadEEPROMParameters(IN PRTMP_ADAPTER pAd, IN PUCHAR mac_addr)
 #ifdef RT30xx
 #ifdef RTMP_EFUSE_SUPPORT
 	RtmpEfuseSupportCheck(pAd);
-#endif // RTMP_EFUSE_SUPPORT //
-#endif // RT30xx //
+#endif /* RTMP_EFUSE_SUPPORT // */
+#endif /* RT30xx // */
 
 	DBGPRINT(RT_DEBUG_TRACE, ("<-- NICReadEEPROMParameters\n"));
 }
@@ -1138,7 +1138,7 @@ VOID NICInitAsicFromEEPROM(IN PRTMP_ADAPTER pAd)
 	UINT32 data = 0;
 	UCHAR BBPR1 = 0;
 	USHORT i;
-//      EEPROM_ANTENNA_STRUC    Antenna;
+/*      EEPROM_ANTENNA_STRUC    Antenna; */
 	EEPROM_NIC_CONFIG2_STRUC NicConfig2;
 	UCHAR BBPR3 = 0;
 
@@ -1166,18 +1166,18 @@ VOID NICInitAsicFromEEPROM(IN PRTMP_ADAPTER pAd)
 		}
 	}
 
-	// Save the antenna for future use
+	/* Save the antenna for future use */
 	pAd->NicConfig2.word = NicConfig2.word;
 
 #ifdef RT30xx
-	// set default antenna as main
+	/* set default antenna as main */
 	if (pAd->RfIcType == RFIC_3020)
 		AsicSetRxAnt(pAd, pAd->RxAnt.Pair1PrimaryRxAnt);
-#endif // RT30xx //
+#endif /* RT30xx // */
 
-	//
-	// Send LED Setting to MCU.
-	//
+	/* */
+	/* Send LED Setting to MCU. */
+	/* */
 	if (pAd->LedCntl.word == 0xFF) {
 		pAd->LedCntl.word = 0x01;
 		pAd->Led1 = 0x5555;
@@ -1185,10 +1185,10 @@ VOID NICInitAsicFromEEPROM(IN PRTMP_ADAPTER pAd)
 
 #ifdef RTMP_MAC_PCI
 		pAd->Led3 = 0xA9F8;
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 #ifdef RTMP_MAC_USB
 		pAd->Led3 = 0x5627;
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 	}
 
 	AsicSendCommandToMcu(pAd, 0x52, 0xff, (UCHAR) pAd->Led1,
@@ -1200,19 +1200,19 @@ VOID NICInitAsicFromEEPROM(IN PRTMP_ADAPTER pAd)
 	AsicSendCommandToMcu(pAd, 0x51, 0xff, 0, pAd->LedCntl.field.Polarity);
 
 	pAd->LedIndicatorStrength = 0xFF;
-	RTMPSetSignalLED(pAd, -100);	// Force signal strength Led to be turned off, before link up
+	RTMPSetSignalLED(pAd, -100);	/* Force signal strength Led to be turned off, before link up */
 
 	{
-		// Read Hardware controlled Radio state enable bit
+		/* Read Hardware controlled Radio state enable bit */
 		if (NicConfig2.field.HardwareRadioControl == 1) {
 			pAd->StaCfg.bHardwareRadio = TRUE;
 
-			// Read GPIO pin2 as Hardware controlled radio state
+			/* Read GPIO pin2 as Hardware controlled radio state */
 			RTMP_IO_READ32(pAd, GPIO_CTRL_CFG, &data);
 			if ((data & 0x04) == 0) {
 				pAd->StaCfg.bHwRadio = FALSE;
 				pAd->StaCfg.bRadio = FALSE;
-//                              RTMP_IO_WRITE32(pAd, PWR_PIN_CFG, 0x00001818);
+/*                              RTMP_IO_WRITE32(pAd, PWR_PIN_CFG, 0x00001818); */
 				RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF);
 			}
 		} else
@@ -1227,15 +1227,15 @@ VOID NICInitAsicFromEEPROM(IN PRTMP_ADAPTER pAd)
 			AsicSendCommandToMcu(pAd, 0x30, PowerRadioOffCID, 0xff,
 					     0x02);
 			AsicCheckCommanOk(pAd, PowerRadioOffCID);
-#endif // RT3090 //
+#endif /* RT3090 // */
 #ifndef RT3090
 			AsicSendCommandToMcu(pAd, 0x30, 0xff, 0xff, 0x02);
-#endif // RT3090 //
+#endif /* RT3090 // */
 			AsicSendCommandToMcu(pAd, 0x31, PowerWakeCID, 0x00,
 					     0x00);
-			// 2-1. wait command ok.
+			/* 2-1. wait command ok. */
 			AsicCheckCommanOk(pAd, PowerWakeCID);
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 		}
 	}
 
@@ -1246,8 +1246,8 @@ VOID NICInitAsicFromEEPROM(IN PRTMP_ADAPTER pAd)
 		if (pChipOps->AsicReverseRfFromSleepMode)
 			pChipOps->AsicReverseRfFromSleepMode(pAd);
 	}
-	// 3090 MCU Wakeup command needs more time to be stable.
-	// Before stable, don't issue other MCU command to prevent from firmware error.
+	/* 3090 MCU Wakeup command needs more time to be stable. */
+	/* Before stable, don't issue other MCU command to prevent from firmware error. */
 
 	if ((IS_RT3090(pAd) || IS_RT3572(pAd) || IS_RT3390(pAd))
 	    && IS_VERSION_AFTER_F(pAd)
@@ -1258,22 +1258,22 @@ VOID NICInitAsicFromEEPROM(IN PRTMP_ADAPTER pAd)
 		pAd->brt30xxBanMcuCmd = FALSE;
 		RTMP_SEM_UNLOCK(&pAd->McuCmdLock);
 	}
-#endif // RT30xx //
-#endif // RTMP_MAC_PCI //
+#endif /* RT30xx // */
+#endif /* RTMP_MAC_PCI // */
 
-	// Turn off patching for cardbus controller
+	/* Turn off patching for cardbus controller */
 	if (NicConfig2.field.CardbusAcceleration == 1) {
-//              pAd->bTest1 = TRUE;
+/*              pAd->bTest1 = TRUE; */
 	}
 
 	if (NicConfig2.field.DynamicTxAgcControl == 1)
 		pAd->bAutoTxAgcA = pAd->bAutoTxAgcG = TRUE;
 	else
 		pAd->bAutoTxAgcA = pAd->bAutoTxAgcG = FALSE;
-	//
-	// Since BBP has been progamed, to make sure BBP setting will be
-	// upate inside of AsicAntennaSelect, so reset to UNKNOWN_BAND!!
-	//
+	/* */
+	/* Since BBP has been progamed, to make sure BBP setting will be */
+	/* upate inside of AsicAntennaSelect, so reset to UNKNOWN_BAND!! */
+	/* */
 	pAd->CommonCfg.BandState = UNKNOWN_BAND;
 
 	RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &BBPR3);
@@ -1288,7 +1288,7 @@ VOID NICInitAsicFromEEPROM(IN PRTMP_ADAPTER pAd)
 	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, BBPR3);
 
 	{
-		// Handle the difference when 1T
+		/* Handle the difference when 1T */
 		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R1, &BBPR1);
 		if (pAd->Antenna.field.TxPath == 1) {
 			BBPR1 &= (~0x18);
@@ -1303,13 +1303,13 @@ VOID NICInitAsicFromEEPROM(IN PRTMP_ADAPTER pAd)
 
 #ifdef RTMP_MAC_USB
 #ifdef RT30xx
-	// update registers from EEPROM for RT3071 or later(3572/3592).
+	/* update registers from EEPROM for RT3071 or later(3572/3592). */
 
 	if (IS_RT3090(pAd) || IS_RT3572(pAd) || IS_RT3390(pAd)) {
 		UCHAR RegIdx, RegValue;
 		USHORT value;
 
-		// after RT3071, write BBP from EEPROM 0xF0 to 0x102
+		/* after RT3071, write BBP from EEPROM 0xF0 to 0x102 */
 		for (i = 0xF0; i <= 0x102; i = i + 2) {
 			value = 0xFFFF;
 			RT28xx_EEPROM_READ16(pAd, i, value);
@@ -1324,7 +1324,7 @@ VOID NICInitAsicFromEEPROM(IN PRTMP_ADAPTER pAd)
 			}
 		}
 
-		// after RT3071, write RF from EEPROM 0x104 to 0x116
+		/* after RT3071, write RF from EEPROM 0x104 to 0x116 */
 		for (i = 0x104; i <= 0x116; i = i + 2) {
 			value = 0xFFFF;
 			RT28xx_EEPROM_READ16(pAd, i, value);
@@ -1338,8 +1338,8 @@ VOID NICInitAsicFromEEPROM(IN PRTMP_ADAPTER pAd)
 			}
 		}
 	}
-#endif // RT30xx //
-#endif // RTMP_MAC_USB //
+#endif /* RT30xx // */
+#endif /* RTMP_MAC_USB // */
 
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("TxPath = %d, RxPath = %d, RFIC=%d, Polar+LED mode=%x\n",
@@ -1373,14 +1373,14 @@ NDIS_STATUS NICInitializeAdapter(IN PRTMP_ADAPTER pAd, IN BOOLEAN bHardReset)
 #ifdef RTMP_MAC_PCI
 	UINT32 Value;
 	DELAY_INT_CFG_STRUC IntCfg;
-#endif // RTMP_MAC_PCI //
-//      INT_MASK_CSR_STRUC              IntMask;
+#endif /* RTMP_MAC_PCI // */
+/*      INT_MASK_CSR_STRUC              IntMask; */
 	ULONG i = 0, j = 0;
 	AC_TXOP_CSR0_STRUC csr0;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("--> NICInitializeAdapter\n"));
 
-	// 3. Set DMA global configuration except TX_DMA_EN and RX_DMA_EN bits:
+	/* 3. Set DMA global configuration except TX_DMA_EN and RX_DMA_EN bits: */
 retry:
 	i = 0;
 	do {
@@ -1398,7 +1398,7 @@ retry:
 	GloCfg.field.EnTXWriteBackDDONE = 1;
 	RTMP_IO_WRITE32(pAd, WPDMA_GLO_CFG, GloCfg.word);
 
-	// Record HW Beacon offset
+	/* Record HW Beacon offset */
 	pAd->BeaconOffset[0] = HW_BEACON_BASE0;
 	pAd->BeaconOffset[1] = HW_BEACON_BASE1;
 	pAd->BeaconOffset[2] = HW_BEACON_BASE2;
@@ -1408,19 +1408,19 @@ retry:
 	pAd->BeaconOffset[6] = HW_BEACON_BASE6;
 	pAd->BeaconOffset[7] = HW_BEACON_BASE7;
 
-	//
-	// write all shared Ring's base address into ASIC
-	//
+	/* */
+	/* write all shared Ring's base address into ASIC */
+	/* */
 
-	// asic simulation sequence put this ahead before loading firmware.
-	// pbf hardware reset
+	/* asic simulation sequence put this ahead before loading firmware. */
+	/* pbf hardware reset */
 #ifdef RTMP_MAC_PCI
-	RTMP_IO_WRITE32(pAd, WPDMA_RST_IDX, 0x1003f);	// 0x10000 for reset rx, 0x3f resets all 6 tx rings.
+	RTMP_IO_WRITE32(pAd, WPDMA_RST_IDX, 0x1003f);	/* 0x10000 for reset rx, 0x3f resets all 6 tx rings. */
 	RTMP_IO_WRITE32(pAd, PBF_SYS_CTRL, 0xe1f);
 	RTMP_IO_WRITE32(pAd, PBF_SYS_CTRL, 0xe00);
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 
-	// Initialze ASIC for TX & Rx operation
+	/* Initialze ASIC for TX & Rx operation */
 	if (NICInitializeAsic(pAd, bHardReset) != NDIS_STATUS_SUCCESS) {
 		if (j++ == 0) {
 			NICLoadFirmware(pAd);
@@ -1430,46 +1430,46 @@ retry:
 	}
 
 #ifdef RTMP_MAC_PCI
-	// Write AC_BK base address register
+	/* Write AC_BK base address register */
 	Value =
 	    RTMP_GetPhysicalAddressLow(pAd->TxRing[QID_AC_BK].Cell[0].AllocPa);
 	RTMP_IO_WRITE32(pAd, TX_BASE_PTR1, Value);
 	DBGPRINT(RT_DEBUG_TRACE, ("--> TX_BASE_PTR1 : 0x%x\n", Value));
 
-	// Write AC_BE base address register
+	/* Write AC_BE base address register */
 	Value =
 	    RTMP_GetPhysicalAddressLow(pAd->TxRing[QID_AC_BE].Cell[0].AllocPa);
 	RTMP_IO_WRITE32(pAd, TX_BASE_PTR0, Value);
 	DBGPRINT(RT_DEBUG_TRACE, ("--> TX_BASE_PTR0 : 0x%x\n", Value));
 
-	// Write AC_VI base address register
+	/* Write AC_VI base address register */
 	Value =
 	    RTMP_GetPhysicalAddressLow(pAd->TxRing[QID_AC_VI].Cell[0].AllocPa);
 	RTMP_IO_WRITE32(pAd, TX_BASE_PTR2, Value);
 	DBGPRINT(RT_DEBUG_TRACE, ("--> TX_BASE_PTR2 : 0x%x\n", Value));
 
-	// Write AC_VO base address register
+	/* Write AC_VO base address register */
 	Value =
 	    RTMP_GetPhysicalAddressLow(pAd->TxRing[QID_AC_VO].Cell[0].AllocPa);
 	RTMP_IO_WRITE32(pAd, TX_BASE_PTR3, Value);
 	DBGPRINT(RT_DEBUG_TRACE, ("--> TX_BASE_PTR3 : 0x%x\n", Value));
 
-	// Write MGMT_BASE_CSR register
+	/* Write MGMT_BASE_CSR register */
 	Value = RTMP_GetPhysicalAddressLow(pAd->MgmtRing.Cell[0].AllocPa);
 	RTMP_IO_WRITE32(pAd, TX_BASE_PTR5, Value);
 	DBGPRINT(RT_DEBUG_TRACE, ("--> TX_BASE_PTR5 : 0x%x\n", Value));
 
-	// Write RX_BASE_CSR register
+	/* Write RX_BASE_CSR register */
 	Value = RTMP_GetPhysicalAddressLow(pAd->RxRing.Cell[0].AllocPa);
 	RTMP_IO_WRITE32(pAd, RX_BASE_PTR, Value);
 	DBGPRINT(RT_DEBUG_TRACE, ("--> RX_BASE_PTR : 0x%x\n", Value));
 
-	// Init RX Ring index pointer
+	/* Init RX Ring index pointer */
 	pAd->RxRing.RxSwReadIdx = 0;
 	pAd->RxRing.RxCpuIdx = RX_RING_SIZE - 1;
 	RTMP_IO_WRITE32(pAd, RX_CRX_IDX, pAd->RxRing.RxCpuIdx);
 
-	// Init TX rings index pointer
+	/* Init TX rings index pointer */
 	{
 		for (i = 0; i < NUM_OF_TX_RING; i++) {
 			pAd->TxRing[i].TxSwFreeIdx = 0;
@@ -1479,16 +1479,16 @@ retry:
 		}
 	}
 
-	// init MGMT ring index pointer
+	/* init MGMT ring index pointer */
 	pAd->MgmtRing.TxSwFreeIdx = 0;
 	pAd->MgmtRing.TxCpuIdx = 0;
 	RTMP_IO_WRITE32(pAd, TX_MGMTCTX_IDX, pAd->MgmtRing.TxCpuIdx);
 
-	//
-	// set each Ring's SIZE  into ASIC. Descriptor Size is fixed by design.
-	//
+	/* */
+	/* set each Ring's SIZE  into ASIC. Descriptor Size is fixed by design. */
+	/* */
 
-	// Write TX_RING_CSR0 register
+	/* Write TX_RING_CSR0 register */
 	Value = TX_RING_SIZE;
 	RTMP_IO_WRITE32(pAd, TX_MAX_CNT0, Value);
 	RTMP_IO_WRITE32(pAd, TX_MAX_CNT1, Value);
@@ -1498,25 +1498,25 @@ retry:
 	Value = MGMT_RING_SIZE;
 	RTMP_IO_WRITE32(pAd, TX_MGMTMAX_CNT, Value);
 
-	// Write RX_RING_CSR register
+	/* Write RX_RING_CSR register */
 	Value = RX_RING_SIZE;
 	RTMP_IO_WRITE32(pAd, RX_MAX_CNT, Value);
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 
-	// WMM parameter
+	/* WMM parameter */
 	csr0.word = 0;
 	RTMP_IO_WRITE32(pAd, WMM_TXOP0_CFG, csr0.word);
 	if (pAd->CommonCfg.PhyMode == PHY_11B) {
-		csr0.field.Ac0Txop = 192;	// AC_VI: 192*32us ~= 6ms
-		csr0.field.Ac1Txop = 96;	// AC_VO: 96*32us  ~= 3ms
+		csr0.field.Ac0Txop = 192;	/* AC_VI: 192*32us ~= 6ms */
+		csr0.field.Ac1Txop = 96;	/* AC_VO: 96*32us  ~= 3ms */
 	} else {
-		csr0.field.Ac0Txop = 96;	// AC_VI: 96*32us ~= 3ms
-		csr0.field.Ac1Txop = 48;	// AC_VO: 48*32us ~= 1.5ms
+		csr0.field.Ac0Txop = 96;	/* AC_VI: 96*32us ~= 3ms */
+		csr0.field.Ac1Txop = 48;	/* AC_VO: 48*32us ~= 1.5ms */
 	}
 	RTMP_IO_WRITE32(pAd, WMM_TXOP1_CFG, csr0.word);
 
 #ifdef RTMP_MAC_PCI
-	// 3. Set DMA global configuration except TX_DMA_EN and RX_DMA_EN bits:
+	/* 3. Set DMA global configuration except TX_DMA_EN and RX_DMA_EN bits: */
 	i = 0;
 	do {
 		RTMP_IO_READ32(pAd, WPDMA_GLO_CFG, &GloCfg.word);
@@ -1534,11 +1534,11 @@ retry:
 
 	IntCfg.word = 0;
 	RTMP_IO_WRITE32(pAd, DELAY_INT_CFG, IntCfg.word);
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 
-	// reset action
-	// Load firmware
-	//  Status = NICLoadFirmware(pAd);
+	/* reset action */
+	/* Load firmware */
+	/*  Status = NICLoadFirmware(pAd); */
 
 	DBGPRINT(RT_DEBUG_TRACE, ("<-- NICInitializeAdapter\n"));
 	return Status;
@@ -1571,25 +1571,25 @@ NDIS_STATUS NICInitializeAsic(IN PRTMP_ADAPTER pAd, IN BOOLEAN bHardReset)
 	UINT32 MacCsr0 = 0;
 	NTSTATUS Status;
 	UCHAR Value = 0xff;
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 #ifdef RT30xx
 	UCHAR bbpreg = 0;
 	UCHAR RFValue = 0;
-#endif // RT30xx //
+#endif /* RT30xx // */
 	USHORT KeyIdx;
 	INT i, apidx;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("--> NICInitializeAsic\n"));
 
 #ifdef RTMP_MAC_PCI
-	RTMP_IO_WRITE32(pAd, PWR_PIN_CFG, 0x3);	// To fix driver disable/enable hang issue when radio off
+	RTMP_IO_WRITE32(pAd, PWR_PIN_CFG, 0x3);	/* To fix driver disable/enable hang issue when radio off */
 	if (bHardReset == TRUE) {
 		RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, 0x3);
 	} else
 		RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, 0x1);
 
 	RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, 0x0);
-	// Initialize MAC register to default value
+	/* Initialize MAC register to default value */
 	for (Index = 0; Index < NUM_MAC_REG_PARMS; Index++) {
 		RTMP_IO_WRITE32(pAd, MACRegTable[Index].Register,
 				MACRegTable[Index].Value);
@@ -1601,15 +1601,15 @@ NDIS_STATUS NICInitializeAsic(IN PRTMP_ADAPTER pAd, IN BOOLEAN bHardReset)
 					STAMACRegTable[Index].Value);
 		}
 	}
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 #ifdef RTMP_MAC_USB
-	//
-	// Make sure MAC gets ready after NICLoadFirmware().
-	//
+	/* */
+	/* Make sure MAC gets ready after NICLoadFirmware(). */
+	/* */
 	Index = 0;
 
-	//To avoid hang-on issue when interface up in kernel 2.4,
-	//we use a local variable "MacCsr0" instead of using "pAd->MACVersion" directly.
+	/*To avoid hang-on issue when interface up in kernel 2.4, */
+	/*we use a local variable "MacCsr0" instead of using "pAd->MACVersion" directly. */
 	do {
 		RTMP_IO_READ32(pAd, MAC_CSR0, &MacCsr0);
 
@@ -1622,7 +1622,7 @@ NDIS_STATUS NICInitializeAsic(IN PRTMP_ADAPTER pAd, IN BOOLEAN bHardReset)
 	pAd->MACVersion = MacCsr0;
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("MAC_CSR0  [ Ver:Rev=0x%08x]\n", pAd->MACVersion));
-	// turn on bit13 (set to zero) after rt2860D. This is to solve high-current issue.
+	/* turn on bit13 (set to zero) after rt2860D. This is to solve high-current issue. */
 	RTMP_IO_READ32(pAd, PBF_SYS_CTRL, &MacCsr12);
 	MacCsr12 &= (~0x2000);
 	RTMP_IO_WRITE32(pAd, PBF_SYS_CTRL, MacCsr12);
@@ -1633,7 +1633,7 @@ NDIS_STATUS NICInitializeAsic(IN PRTMP_ADAPTER pAd, IN BOOLEAN bHardReset)
 
 	RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, 0x0);
 
-	// Initialize MAC register to default value
+	/* Initialize MAC register to default value */
 	for (Index = 0; Index < NUM_MAC_REG_PARMS; Index++) {
 #ifdef RT30xx
 		if ((MACRegTable[Index].Register == TX_SW_CFG0)
@@ -1641,7 +1641,7 @@ NDIS_STATUS NICInitializeAsic(IN PRTMP_ADAPTER pAd, IN BOOLEAN bHardReset)
 			|| IS_RT3090(pAd) || IS_RT3390(pAd))) {
 			MACRegTable[Index].Value = 0x00000400;
 		}
-#endif // RT30xx //
+#endif /* RT30xx // */
 		RTMP_IO_WRITE32(pAd, (USHORT) MACRegTable[Index].Register,
 				MACRegTable[Index].Value);
 	}
@@ -1653,19 +1653,19 @@ NDIS_STATUS NICInitializeAsic(IN PRTMP_ADAPTER pAd, IN BOOLEAN bHardReset)
 					STAMACRegTable[Index].Value);
 		}
 	}
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 
 #ifdef RT30xx
-	// Initialize RT3070 serial MAC registers which is different from RT2870 serial
+	/* Initialize RT3070 serial MAC registers which is different from RT2870 serial */
 	if (IS_RT3090(pAd) || IS_RT3572(pAd) || IS_RT3390(pAd)) {
 		RTMP_IO_WRITE32(pAd, TX_SW_CFG1, 0);
 
-		// RT3071 version E has fixed this issue
+		/* RT3071 version E has fixed this issue */
 		if ((pAd->MACVersion & 0xffff) < 0x0211) {
 			if (pAd->NicConfig2.field.DACTestBit == 1) {
-				RTMP_IO_WRITE32(pAd, TX_SW_CFG2, 0x2C);	// To fix throughput drop drastically
+				RTMP_IO_WRITE32(pAd, TX_SW_CFG2, 0x2C);	/* To fix throughput drop drastically */
 			} else {
-				RTMP_IO_WRITE32(pAd, TX_SW_CFG2, 0x0F);	// To fix throughput drop drastically
+				RTMP_IO_WRITE32(pAd, TX_SW_CFG2, 0x0F);	/* To fix throughput drop drastically */
 			}
 		} else {
 			RTMP_IO_WRITE32(pAd, TX_SW_CFG2, 0x0);
@@ -1673,21 +1673,21 @@ NDIS_STATUS NICInitializeAsic(IN PRTMP_ADAPTER pAd, IN BOOLEAN bHardReset)
 	} else if (IS_RT3070(pAd)) {
 		if (((pAd->MACVersion & 0xffff) < 0x0201)) {
 			RTMP_IO_WRITE32(pAd, TX_SW_CFG1, 0);
-			RTMP_IO_WRITE32(pAd, TX_SW_CFG2, 0x2C);	// To fix throughput drop drastically
+			RTMP_IO_WRITE32(pAd, TX_SW_CFG2, 0x2C);	/* To fix throughput drop drastically */
 		} else {
 			RTMP_IO_WRITE32(pAd, TX_SW_CFG2, 0);
 		}
 	}
-#endif // RT30xx //
+#endif /* RT30xx // */
 
-	//
-	// Before program BBP, we need to wait BBP/RF get wake up.
-	//
+	/* */
+	/* Before program BBP, we need to wait BBP/RF get wake up. */
+	/* */
 	Index = 0;
 	do {
 		RTMP_IO_READ32(pAd, MAC_STATUS_CFG, &MacCsr12);
 
-		if ((MacCsr12 & 0x03) == 0)	// if BB.RF is stable
+		if ((MacCsr12 & 0x03) == 0)	/* if BB.RF is stable */
 			break;
 
 		DBGPRINT(RT_DEBUG_TRACE,
@@ -1695,87 +1695,87 @@ NDIS_STATUS NICInitializeAsic(IN PRTMP_ADAPTER pAd, IN BOOLEAN bHardReset)
 		RTMPusecDelay(1000);
 	} while (Index++ < 100);
 
-	// The commands to firmware should be after these commands, these commands will init firmware
-	// PCI and USB are not the same because PCI driver needs to wait for PCI bus ready
-	RTMP_IO_WRITE32(pAd, H2M_BBP_AGENT, 0);	// initialize BBP R/W access agent
+	/* The commands to firmware should be after these commands, these commands will init firmware */
+	/* PCI and USB are not the same because PCI driver needs to wait for PCI bus ready */
+	RTMP_IO_WRITE32(pAd, H2M_BBP_AGENT, 0);	/* initialize BBP R/W access agent */
 	RTMP_IO_WRITE32(pAd, H2M_MAILBOX_CSR, 0);
 #ifdef RT3090
-	//2008/11/28:KH add to fix the dead rf frequency offset bug<--
+	/*2008/11/28:KH add to fix the dead rf frequency offset bug<-- */
 	AsicSendCommandToMcu(pAd, 0x72, 0, 0, 0);
-	//2008/11/28:KH add to fix the dead rf frequency offset bug-->
-#endif // RT3090 //
+	/*2008/11/28:KH add to fix the dead rf frequency offset bug--> */
+#endif /* RT3090 // */
 	RTMPusecDelay(1000);
 
-	// Read BBP register, make sure BBP is up and running before write new data
+	/* Read BBP register, make sure BBP is up and running before write new data */
 	Index = 0;
 	do {
 		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R0, &R0);
 		DBGPRINT(RT_DEBUG_TRACE, ("BBP version = %x\n", R0));
 	} while ((++Index < 20) && ((R0 == 0xff) || (R0 == 0x00)));
-	//ASSERT(Index < 20); //this will cause BSOD on Check-build driver
+	/*ASSERT(Index < 20); //this will cause BSOD on Check-build driver */
 
 	if ((R0 == 0xff) || (R0 == 0x00))
 		return NDIS_STATUS_FAILURE;
 
-	// Initialize BBP register to default value
+	/* Initialize BBP register to default value */
 	for (Index = 0; Index < NUM_BBP_REG_PARMS; Index++) {
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBPRegTable[Index].Register,
 					     BBPRegTable[Index].Value);
 	}
 
 #ifdef RTMP_MAC_PCI
-	// TODO: shiang, check MACVersion, currently, rbus-based chip use this.
+	/* TODO: shiang, check MACVersion, currently, rbus-based chip use this. */
 	if (pAd->MACVersion == 0x28720200) {
-		//UCHAR value;
+		/*UCHAR value; */
 		ULONG value2;
 
-		//disable MLD by Bruce 20080704
-		//BBP_IO_READ8_BY_REG_ID(pAd, BBP_R105, &value);
-		//BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R105, value | 4);
+		/*disable MLD by Bruce 20080704 */
+		/*BBP_IO_READ8_BY_REG_ID(pAd, BBP_R105, &value); */
+		/*BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R105, value | 4); */
 
-		//Maximum PSDU length from 16K to 32K bytes
+		/*Maximum PSDU length from 16K to 32K bytes */
 		RTMP_IO_READ32(pAd, MAX_LEN_CFG, &value2);
 		value2 &= ~(0x3 << 12);
 		value2 |= (0x2 << 12);
 		RTMP_IO_WRITE32(pAd, MAX_LEN_CFG, value2);
 	}
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 
-	// for rt2860E and after, init BBP_R84 with 0x19. This is for extension channel overlapping IOT.
-	// RT3090 should not program BBP R84 to 0x19, otherwise TX will block.
-	//3070/71/72,3090,3090A( are included in RT30xx),3572,3390
+	/* for rt2860E and after, init BBP_R84 with 0x19. This is for extension channel overlapping IOT. */
+	/* RT3090 should not program BBP R84 to 0x19, otherwise TX will block. */
+	/*3070/71/72,3090,3090A( are included in RT30xx),3572,3390 */
 	if (((pAd->MACVersion & 0xffff) != 0x0101)
 	    && !(IS_RT30xx(pAd) || IS_RT3572(pAd) || IS_RT3390(pAd)))
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R84, 0x19);
 
 #ifdef RT30xx
-// add by johnli, RF power sequence setup
-	if (IS_RT30xx(pAd) || IS_RT3572(pAd) || IS_RT3390(pAd)) {	//update for RT3070/71/72/90/91/92,3572,3390.
+/* add by johnli, RF power sequence setup */
+	if (IS_RT30xx(pAd) || IS_RT3572(pAd) || IS_RT3390(pAd)) {	/*update for RT3070/71/72/90/91/92,3572,3390. */
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R79, 0x13);
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R80, 0x05);
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R81, 0x33);
 	}
 
-	if (IS_RT3090(pAd) || IS_RT3390(pAd))	// RT309x, RT3071/72
+	if (IS_RT3090(pAd) || IS_RT3390(pAd))	/* RT309x, RT3071/72 */
 	{
-		// enable DC filter
+		/* enable DC filter */
 		if ((pAd->MACVersion & 0xffff) >= 0x0211) {
 			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R103, 0xc0);
 		}
-		// improve power consumption
+		/* improve power consumption */
 		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R138, &bbpreg);
 		if (pAd->Antenna.field.TxPath == 1) {
-			// turn off tx DAC_1
+			/* turn off tx DAC_1 */
 			bbpreg = (bbpreg | 0x20);
 		}
 
 		if (pAd->Antenna.field.RxPath == 1) {
-			// turn off tx ADC_1
+			/* turn off tx ADC_1 */
 			bbpreg &= (~0x2);
 		}
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R138, bbpreg);
 
-		// improve power consumption in RT3071 Ver.E
+		/* improve power consumption in RT3071 Ver.E */
 		if ((pAd->MACVersion & 0xffff) >= 0x0211) {
 			RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R31, &bbpreg);
 			bbpreg &= (~0x3);
@@ -1783,39 +1783,39 @@ NDIS_STATUS NICInitializeAsic(IN PRTMP_ADAPTER pAd, IN BOOLEAN bHardReset)
 		}
 	} else if (IS_RT3070(pAd)) {
 		if ((pAd->MACVersion & 0xffff) >= 0x0201) {
-			// enable DC filter
+			/* enable DC filter */
 			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R103, 0xc0);
 
-			// improve power consumption in RT3070 Ver.F
+			/* improve power consumption in RT3070 Ver.F */
 			RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R31, &bbpreg);
 			bbpreg &= (~0x3);
 			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R31, bbpreg);
 		}
-		// TX_LO1_en, RF R17 register Bit 3 to 0
+		/* TX_LO1_en, RF R17 register Bit 3 to 0 */
 		RT30xxReadRFRegister(pAd, RF_R17, &RFValue);
 		RFValue &= (~0x08);
-		// to fix rx long range issue
+		/* to fix rx long range issue */
 		if (pAd->NicConfig2.field.ExternalLNAForG == 0) {
 			RFValue |= 0x20;
 		}
-		// set RF_R17_bit[2:0] equal to EEPROM setting at 0x48h
+		/* set RF_R17_bit[2:0] equal to EEPROM setting at 0x48h */
 		if (pAd->TxMixerGain24G >= 1) {
-			RFValue &= (~0x7);	// clean bit [2:0]
+			RFValue &= (~0x7);	/* clean bit [2:0] */
 			RFValue |= pAd->TxMixerGain24G;
 		}
 		RT30xxWriteRFRegister(pAd, RF_R17, RFValue);
 	}
-// end johnli
-#endif // RT30xx //
+/* end johnli */
+#endif /* RT30xx // */
 
 	if (pAd->MACVersion == 0x28600100) {
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R69, 0x16);
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R73, 0x12);
 	}
 
-	if (pAd->MACVersion >= RALINK_2880E_VERSION && pAd->MACVersion < RALINK_3070_VERSION)	// 3*3
+	if (pAd->MACVersion >= RALINK_2880E_VERSION && pAd->MACVersion < RALINK_3070_VERSION)	/* 3*3 */
 	{
-		// enlarge MAX_LEN_CFG
+		/* enlarge MAX_LEN_CFG */
 		UINT32 csr;
 		RTMP_IO_READ32(pAd, MAX_LEN_CFG, &csr);
 		csr &= 0xFFF;
@@ -1827,7 +1827,7 @@ NDIS_STATUS NICInitializeAsic(IN PRTMP_ADAPTER pAd, IN BOOLEAN bHardReset)
 		UCHAR MAC_Value[] =
 		    { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0 };
 
-		//Initialize WCID table
+		/*Initialize WCID table */
 		Value = 0xff;
 		for (Index = 0; Index < 254; Index++) {
 			RTUSBMultiWrite(pAd,
@@ -1835,18 +1835,18 @@ NDIS_STATUS NICInitializeAsic(IN PRTMP_ADAPTER pAd, IN BOOLEAN bHardReset)
 					MAC_Value, 8);
 		}
 	}
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 
-	// Add radio off control
+	/* Add radio off control */
 	{
 		if (pAd->StaCfg.bRadio == FALSE) {
-//                      RTMP_IO_WRITE32(pAd, PWR_PIN_CFG, 0x00001818);
+/*                      RTMP_IO_WRITE32(pAd, PWR_PIN_CFG, 0x00001818); */
 			RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF);
 			DBGPRINT(RT_DEBUG_TRACE, ("Set Radio Off\n"));
 		}
 	}
 
-	// Clear raw counters
+	/* Clear raw counters */
 	RTMP_IO_READ32(pAd, RX_STA_CNT0, &Counter);
 	RTMP_IO_READ32(pAd, RX_STA_CNT1, &Counter);
 	RTMP_IO_READ32(pAd, RX_STA_CNT2, &Counter);
@@ -1854,29 +1854,29 @@ NDIS_STATUS NICInitializeAsic(IN PRTMP_ADAPTER pAd, IN BOOLEAN bHardReset)
 	RTMP_IO_READ32(pAd, TX_STA_CNT1, &Counter);
 	RTMP_IO_READ32(pAd, TX_STA_CNT2, &Counter);
 
-	// ASIC will keep garbage value after boot
-	// Clear all shared key table when initial
-	// This routine can be ignored in radio-ON/OFF operation.
+	/* ASIC will keep garbage value after boot */
+	/* Clear all shared key table when initial */
+	/* This routine can be ignored in radio-ON/OFF operation. */
 	if (bHardReset) {
 		for (KeyIdx = 0; KeyIdx < 4; KeyIdx++) {
 			RTMP_IO_WRITE32(pAd, SHARED_KEY_MODE_BASE + 4 * KeyIdx,
 					0);
 		}
 
-		// Clear all pairwise key table when initial
+		/* Clear all pairwise key table when initial */
 		for (KeyIdx = 0; KeyIdx < 256; KeyIdx++) {
 			RTMP_IO_WRITE32(pAd,
 					MAC_WCID_ATTRIBUTE_BASE +
 					(KeyIdx * HW_WCID_ATTRI_SIZE), 1);
 		}
 	}
-	// assert HOST ready bit
-//  RTMP_IO_WRITE32(pAd, MAC_CSR1, 0x0); // 2004-09-14 asked by Mark
-//  RTMP_IO_WRITE32(pAd, MAC_CSR1, 0x4);
+	/* assert HOST ready bit */
+/*  RTMP_IO_WRITE32(pAd, MAC_CSR1, 0x0); // 2004-09-14 asked by Mark */
+/*  RTMP_IO_WRITE32(pAd, MAC_CSR1, 0x4); */
 
-	// It isn't necessary to clear this space when not hard reset.
+	/* It isn't necessary to clear this space when not hard reset. */
 	if (bHardReset == TRUE) {
-		// clear all on-chip BEACON frame space
+		/* clear all on-chip BEACON frame space */
 		for (apidx = 0; apidx < HW_BEACON_MAX_COUNT; apidx++) {
 			for (i = 0; i < HW_BEACON_OFFSET >> 2; i += 4)
 				RTMP_IO_WRITE32(pAd,
@@ -1886,22 +1886,22 @@ NDIS_STATUS NICInitializeAsic(IN PRTMP_ADAPTER pAd, IN BOOLEAN bHardReset)
 	}
 #ifdef RTMP_MAC_USB
 	AsicDisableSync(pAd);
-	// Clear raw counters
+	/* Clear raw counters */
 	RTMP_IO_READ32(pAd, RX_STA_CNT0, &Counter);
 	RTMP_IO_READ32(pAd, RX_STA_CNT1, &Counter);
 	RTMP_IO_READ32(pAd, RX_STA_CNT2, &Counter);
 	RTMP_IO_READ32(pAd, TX_STA_CNT0, &Counter);
 	RTMP_IO_READ32(pAd, TX_STA_CNT1, &Counter);
 	RTMP_IO_READ32(pAd, TX_STA_CNT2, &Counter);
-	// Default PCI clock cycle per ms is different as default setting, which is based on PCI.
+	/* Default PCI clock cycle per ms is different as default setting, which is based on PCI. */
 	RTMP_IO_READ32(pAd, USB_CYC_CFG, &Counter);
 	Counter &= 0xffffff00;
 	Counter |= 0x000001e;
 	RTMP_IO_WRITE32(pAd, USB_CYC_CFG, Counter);
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 
 	{
-		// for rt2860E and after, init TXOP_CTRL_CFG with 0x583f. This is for extension channel overlapping IOT.
+		/* for rt2860E and after, init TXOP_CTRL_CFG with 0x583f. This is for extension channel overlapping IOT. */
 		if ((pAd->MACVersion & 0xffff) != 0x0101)
 			RTMP_IO_WRITE32(pAd, TXOP_CTRL_CFG, 0x583f);
 	}
@@ -1934,16 +1934,16 @@ VOID NICIssueReset(IN PRTMP_ADAPTER pAd)
 	UINT32 Value = 0;
 	DBGPRINT(RT_DEBUG_TRACE, ("--> NICIssueReset\n"));
 
-	// Abort Tx, prevent ASIC from writing to Host memory
-	//RTMP_IO_WRITE32(pAd, TX_CNTL_CSR, 0x001f0000);
+	/* Abort Tx, prevent ASIC from writing to Host memory */
+	/*RTMP_IO_WRITE32(pAd, TX_CNTL_CSR, 0x001f0000); */
 
-	// Disable Rx, register value supposed will remain after reset
+	/* Disable Rx, register value supposed will remain after reset */
 	RTMP_IO_READ32(pAd, MAC_SYS_CTRL, &Value);
 	Value &= (0xfffffff3);
 	RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, Value);
 
-	// Issue reset and clear from reset state
-	RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, 0x03);	// 2004-09-17 change from 0x01
+	/* Issue reset and clear from reset state */
+	RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, 0x03);	/* 2004-09-17 change from 0x01 */
 	RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, 0x00);
 
 	DBGPRINT(RT_DEBUG_TRACE, ("<-- NICIssueReset\n"));
@@ -2001,7 +2001,7 @@ VOID NICUpdateFifoStaCounters(IN PRTMP_ADAPTER pAd)
 
 		pEntry->DebugFIFOCount++;
 
-		if (StaFifo.field.TxBF)	// 3*3
+		if (StaFifo.field.TxBF)	/* 3*3 */
 			pEntry->TxBFCount++;
 
 		if (!StaFifo.field.TxSuccess) {
@@ -2022,17 +2022,17 @@ VOID NICUpdateFifoStaCounters(IN PRTMP_ADAPTER pAd)
 								     FALSE);
 					}
 
-					// Update the continuous transmission counter except PS mode
+					/* Update the continuous transmission counter except PS mode */
 					pEntry->ContinueTxFailCnt++;
 				} else {
-					// Clear the FIFOCount when sta in Power Save mode. Basically we assume
-					//     this tx error happened due to sta just go to sleep.
+					/* Clear the FIFOCount when sta in Power Save mode. Basically we assume */
+					/*     this tx error happened due to sta just go to sleep. */
 					pEntry->FIFOCount = 0;
 					pEntry->ContinueTxFailCnt = 0;
 				}
-				//pEntry->FIFOCount = 0;
+				/*pEntry->FIFOCount = 0; */
 			}
-			//pEntry->bSendBAR = TRUE;
+			/*pEntry->bSendBAR = TRUE; */
 		} else {
 			if ((pEntry->PsMode != PWR_SAVE)
 			    && (pEntry->NoBADataCountDown > 0)) {
@@ -2044,7 +2044,7 @@ VOID NICUpdateFifoStaCounters(IN PRTMP_ADAPTER pAd)
 
 			pEntry->FIFOCount = 0;
 			pEntry->OneSecTxNoRetryOkCount++;
-			// update NoDataIdleCount when sucessful send packet to STA.
+			/* update NoDataIdleCount when sucessful send packet to STA. */
 			pEntry->NoDataIdleCount = 0;
 			pEntry->ContinueTxFailCnt = 0;
 		}
@@ -2072,7 +2072,7 @@ VOID NICUpdateFifoStaCounters(IN PRTMP_ADAPTER pAd)
 		}
 
 		i++;
-		// ASIC store 16 stack
+		/* ASIC store 16 stack */
 	} while (i < (2 * TX_RING_SIZE));
 
 }
@@ -2096,9 +2096,9 @@ VOID NICUpdateFifoStaCounters(IN PRTMP_ADAPTER pAd)
 */
 VOID NICUpdateRawCounters(IN PRTMP_ADAPTER pAd)
 {
-	UINT32 OldValue;	//, Value2;
-	//ULONG PageSum, OneSecTransmitCount;
-	//ULONG TxErrorRatio, Retry, Fail;
+	UINT32 OldValue;	/*, Value2; */
+	/*ULONG PageSum, OneSecTransmitCount; */
+	/*ULONG TxErrorRatio, Retry, Fail; */
 	RX_STA_CNT0_STRUC RxStaCnt0;
 	RX_STA_CNT1_STRUC RxStaCnt1;
 	RX_STA_CNT2_STRUC RxStaCnt2;
@@ -2123,34 +2123,34 @@ VOID NICUpdateRawCounters(IN PRTMP_ADAPTER pAd)
 
 	{
 		RTMP_IO_READ32(pAd, RX_STA_CNT1, &RxStaCnt1.word);
-		// Update RX PLCP error counter
+		/* Update RX PLCP error counter */
 		pAd->PrivateInfo.PhyRxErrCnt += RxStaCnt1.field.PlcpErr;
-		// Update False CCA counter
+		/* Update False CCA counter */
 		pAd->RalinkCounters.OneSecFalseCCACnt +=
 		    RxStaCnt1.field.FalseCca;
 	}
 
-	// Update FCS counters
+	/* Update FCS counters */
 	OldValue = pAd->WlanCounters.FCSErrorCount.u.LowPart;
-	pAd->WlanCounters.FCSErrorCount.u.LowPart += (RxStaCnt0.field.CrcErr);	// >> 7);
+	pAd->WlanCounters.FCSErrorCount.u.LowPart += (RxStaCnt0.field.CrcErr);	/* >> 7); */
 	if (pAd->WlanCounters.FCSErrorCount.u.LowPart < OldValue)
 		pAd->WlanCounters.FCSErrorCount.u.HighPart++;
 
-	// Add FCS error count to private counters
+	/* Add FCS error count to private counters */
 	pRalinkCounters->OneSecRxFcsErrCnt += RxStaCnt0.field.CrcErr;
 	OldValue = pRalinkCounters->RealFcsErrCount.u.LowPart;
 	pRalinkCounters->RealFcsErrCount.u.LowPart += RxStaCnt0.field.CrcErr;
 	if (pRalinkCounters->RealFcsErrCount.u.LowPart < OldValue)
 		pRalinkCounters->RealFcsErrCount.u.HighPart++;
 
-	// Update Duplicate Rcv check
+	/* Update Duplicate Rcv check */
 	pRalinkCounters->DuplicateRcv += RxStaCnt2.field.RxDupliCount;
 	pAd->WlanCounters.FrameDuplicateCount.u.LowPart +=
 	    RxStaCnt2.field.RxDupliCount;
-	// Update RX Overflow counter
+	/* Update RX Overflow counter */
 	pAd->Counters8023.RxNoBuffer += (RxStaCnt2.field.RxFifoOverflowCount);
 
-	//pAd->RalinkCounters.RxCount = 0;
+	/*pAd->RalinkCounters.RxCount = 0; */
 #ifdef RTMP_MAC_USB
 	if (pRalinkCounters->RxCount != pAd->watchDogRxCnt) {
 		pAd->watchDogRxCnt = pRalinkCounters->RxCount;
@@ -2161,12 +2161,12 @@ VOID NICUpdateRawCounters(IN PRTMP_ADAPTER pAd)
 		else
 			pAd->watchDogRxOverFlowCnt = 0;
 	}
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 
-	//if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED) ||
-	//      (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED) && (pAd->MacTab.Size != 1)))
+	/*if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED) || */
+	/*      (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED) && (pAd->MacTab.Size != 1))) */
 	if (!pAd->bUpdateBcnCntDone) {
-		// Update BEACON sent count
+		/* Update BEACON sent count */
 		RTMP_IO_READ32(pAd, TX_STA_CNT0, &TxStaCnt0.word);
 		RTMP_IO_READ32(pAd, TX_STA_CNT1, &StaTx1.word);
 		RTMP_IO_READ32(pAd, TX_STA_CNT2, &StaTx2.word);
@@ -2186,7 +2186,7 @@ VOID NICUpdateRawCounters(IN PRTMP_ADAPTER pAd)
 		    TxStaCnt0.field.TxFailCount;
 	}
 
-	//if (pAd->bStaFifoTest == TRUE)
+	/*if (pAd->bStaFifoTest == TRUE) */
 	{
 		RTMP_IO_READ32(pAd, TX_AGG_CNT, &TxAggCnt.word);
 		RTMP_IO_READ32(pAd, TX_AGG_CNT0, &TxAggCnt0.word);
@@ -2236,7 +2236,7 @@ VOID NICUpdateRawCounters(IN PRTMP_ADAPTER pAd)
 		pRalinkCounters->TxAgg16MPDUCount +=
 		    TxAggCnt7.field.AggSize16Count;
 
-		// Calculate the transmitted A-MPDU count
+		/* Calculate the transmitted A-MPDU count */
 		pRalinkCounters->TransmittedAMPDUCount.u.LowPart +=
 		    TxAggCnt0.field.AggSize1Count;
 		pRalinkCounters->TransmittedAMPDUCount.u.LowPart +=
@@ -2301,18 +2301,18 @@ VOID NICUpdateRawCounters(IN PRTMP_ADAPTER pAd)
 */
 VOID NICResetFromError(IN PRTMP_ADAPTER pAd)
 {
-	// Reset BBP (according to alex, reset ASIC will force reset BBP
-	// Therefore, skip the reset BBP
-	// RTMP_IO_WRITE32(pAd, MAC_CSR1, 0x2);
+	/* Reset BBP (according to alex, reset ASIC will force reset BBP */
+	/* Therefore, skip the reset BBP */
+	/* RTMP_IO_WRITE32(pAd, MAC_CSR1, 0x2); */
 
 	RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, 0x1);
-	// Remove ASIC from reset state
+	/* Remove ASIC from reset state */
 	RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, 0x0);
 
 	NICInitializeAdapter(pAd, FALSE);
 	NICInitAsicFromEEPROM(pAd);
 
-	// Switch to current channel, since during reset process, the connection should remains on.
+	/* Switch to current channel, since during reset process, the connection should remains on. */
 	AsicSwitchChannel(pAd, pAd->CommonCfg.CentralChannel, FALSE);
 	AsicLockChannel(pAd, pAd->CommonCfg.CentralChannel);
 }
@@ -2409,7 +2409,7 @@ ULONG RTMPCompareMemory(IN PVOID pSrc1, IN PVOID pSrc2, IN ULONG Length)
 			return (2);
 	}
 
-	// Equal
+	/* Equal */
 	return (0);
 }
 
@@ -2506,9 +2506,9 @@ VOID UserCfgInit(IN PRTMP_ADAPTER pAd)
 
 	DBGPRINT(RT_DEBUG_TRACE, ("--> UserCfgInit\n"));
 
-	//
-	//  part I. intialize common configuration
-	//
+	/* */
+	/*  part I. intialize common configuration */
+	/* */
 #ifdef RTMP_MAC_USB
 	pAd->BulkOutReq = 0;
 
@@ -2519,22 +2519,22 @@ VOID UserCfgInit(IN PRTMP_ADAPTER pAd)
 	pAd->BulkInComplete = 0;
 	pAd->BulkInCompleteFail = 0;
 
-	//pAd->QuickTimerP = 100;
-	//pAd->TurnAggrBulkInCount = 0;
+	/*pAd->QuickTimerP = 100; */
+	/*pAd->TurnAggrBulkInCount = 0; */
 	pAd->bUsbTxBulkAggre = 0;
 
-	// init as unsed value to ensure driver will set to MCU once.
+	/* init as unsed value to ensure driver will set to MCU once. */
 	pAd->LedIndicatorStrength = 0xFF;
 
 	pAd->CommonCfg.MaxPktOneTxBulk = 2;
 	pAd->CommonCfg.TxBulkFactor = 1;
 	pAd->CommonCfg.RxBulkFactor = 1;
 
-	pAd->CommonCfg.TxPower = 100;	//mW
+	pAd->CommonCfg.TxPower = 100;	/*mW */
 
 	NdisZeroMemory(&pAd->CommonCfg.IOTestParm,
 		       sizeof(pAd->CommonCfg.IOTestParm));
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 
 	for (key_index = 0; key_index < SHARE_KEY_NUM; key_index++) {
 		for (bss_index = 0; bss_index < MAX_MBSSID_NUM; bss_index++) {
@@ -2556,29 +2556,29 @@ VOID UserCfgInit(IN PRTMP_ADAPTER pAd)
 	pAd->HostLnkCtrlOffset = 0;
 	pAd->StaCfg.PSControl.field.EnableNewPS = TRUE;
 	pAd->CheckDmaBusyCount = 0;
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 
-	pAd->bAutoTxAgcA = FALSE;	// Default is OFF
-	pAd->bAutoTxAgcG = FALSE;	// Default is OFF
+	pAd->bAutoTxAgcA = FALSE;	/* Default is OFF */
+	pAd->bAutoTxAgcG = FALSE;	/* Default is OFF */
 	pAd->RfIcType = RFIC_2820;
 
-	// Init timer for reset complete event
+	/* Init timer for reset complete event */
 	pAd->CommonCfg.CentralChannel = 1;
 	pAd->bForcePrintTX = FALSE;
 	pAd->bForcePrintRX = FALSE;
 	pAd->bStaFifoTest = FALSE;
 	pAd->bProtectionTest = FALSE;
-	pAd->CommonCfg.Dsifs = 10;	// in units of usec
-	pAd->CommonCfg.TxPower = 100;	//mW
-	pAd->CommonCfg.TxPowerPercentage = 0xffffffff;	// AUTO
-	pAd->CommonCfg.TxPowerDefault = 0xffffffff;	// AUTO
-	pAd->CommonCfg.TxPreamble = Rt802_11PreambleAuto;	// use Long preamble on TX by defaut
+	pAd->CommonCfg.Dsifs = 10;	/* in units of usec */
+	pAd->CommonCfg.TxPower = 100;	/*mW */
+	pAd->CommonCfg.TxPowerPercentage = 0xffffffff;	/* AUTO */
+	pAd->CommonCfg.TxPowerDefault = 0xffffffff;	/* AUTO */
+	pAd->CommonCfg.TxPreamble = Rt802_11PreambleAuto;	/* use Long preamble on TX by defaut */
 	pAd->CommonCfg.bUseZeroToDisableFragment = FALSE;
 	pAd->CommonCfg.RtsThreshold = 2347;
 	pAd->CommonCfg.FragmentThreshold = 2346;
-	pAd->CommonCfg.UseBGProtection = 0;	// 0: AUTO
-	pAd->CommonCfg.bEnableTxBurst = TRUE;	//0;
-	pAd->CommonCfg.PhyMode = 0xff;	// unknown
+	pAd->CommonCfg.UseBGProtection = 0;	/* 0: AUTO */
+	pAd->CommonCfg.bEnableTxBurst = TRUE;	/*0; */
+	pAd->CommonCfg.PhyMode = 0xff;	/* unknown */
 	pAd->CommonCfg.BandState = UNKNOWN_BAND;
 	pAd->CommonCfg.RadarDetect.CSPeriod = 10;
 	pAd->CommonCfg.RadarDetect.CSCount = 0;
@@ -2607,8 +2607,8 @@ VOID UserCfgInit(IN PRTMP_ADAPTER pAd)
 	pAd->CommonCfg.BACapability.field.MMPSmode = MMPS_ENABLE;
 	pAd->CommonCfg.BACapability.field.MpduDensity = 0;
 	pAd->CommonCfg.BACapability.field.Policy = IMMED_BA;
-	pAd->CommonCfg.BACapability.field.RxBAWinLimit = 64;	//32;
-	pAd->CommonCfg.BACapability.field.TxBAWinLimit = 64;	//32;
+	pAd->CommonCfg.BACapability.field.RxBAWinLimit = 64;	/*32; */
+	pAd->CommonCfg.BACapability.field.TxBAWinLimit = 64;	/*32; */
 	DBGPRINT(RT_DEBUG_TRACE,
 		 ("--> UserCfgInit. BACapability = 0x%x\n",
 		  pAd->CommonCfg.BACapability.word));
@@ -2619,35 +2619,35 @@ VOID UserCfgInit(IN PRTMP_ADAPTER pAd)
 	pAd->CommonCfg.bExtChannelSwitchAnnouncement = 1;
 	pAd->CommonCfg.bHTProtect = 1;
 	pAd->CommonCfg.bMIMOPSEnable = TRUE;
-	//2008/11/05:KH add to support Antenna power-saving of AP<--
+	/*2008/11/05:KH add to support Antenna power-saving of AP<-- */
 	pAd->CommonCfg.bGreenAPEnable = FALSE;
-	//2008/11/05:KH add to support Antenna power-saving of AP-->
+	/*2008/11/05:KH add to support Antenna power-saving of AP--> */
 	pAd->CommonCfg.bBADecline = FALSE;
 	pAd->CommonCfg.bDisableReordering = FALSE;
 
 	if (pAd->MACVersion == 0x28720200) {
-		pAd->CommonCfg.TxBASize = 13;	//by Jerry recommend
+		pAd->CommonCfg.TxBASize = 13;	/*by Jerry recommend */
 	} else {
 		pAd->CommonCfg.TxBASize = 7;
 	}
 
 	pAd->CommonCfg.REGBACapability.word = pAd->CommonCfg.BACapability.word;
 
-	//pAd->CommonCfg.HTPhyMode.field.BW = BW_20;
-	//pAd->CommonCfg.HTPhyMode.field.MCS = MCS_AUTO;
-	//pAd->CommonCfg.HTPhyMode.field.ShortGI = GI_800;
-	//pAd->CommonCfg.HTPhyMode.field.STBC = STBC_NONE;
+	/*pAd->CommonCfg.HTPhyMode.field.BW = BW_20; */
+	/*pAd->CommonCfg.HTPhyMode.field.MCS = MCS_AUTO; */
+	/*pAd->CommonCfg.HTPhyMode.field.ShortGI = GI_800; */
+	/*pAd->CommonCfg.HTPhyMode.field.STBC = STBC_NONE; */
 	pAd->CommonCfg.TxRate = RATE_6;
 
 	pAd->CommonCfg.MlmeTransmit.field.MCS = MCS_RATE_6;
 	pAd->CommonCfg.MlmeTransmit.field.BW = BW_20;
 	pAd->CommonCfg.MlmeTransmit.field.MODE = MODE_OFDM;
 
-	pAd->CommonCfg.BeaconPeriod = 100;	// in mSec
+	pAd->CommonCfg.BeaconPeriod = 100;	/* in mSec */
 
-	//
-	// part II. intialize STA specific configuration
-	//
+	/* */
+	/* part II. intialize STA specific configuration */
+	/* */
 	{
 		RX_FILTER_SET_FLAG(pAd, fRX_FILTER_ACCEPT_DIRECT);
 		RX_FILTER_CLEAR_FLAG(pAd, fRX_FILTER_ACCEPT_MULTICAST);
@@ -2662,7 +2662,7 @@ VOID UserCfgInit(IN PRTMP_ADAPTER pAd)
 		pAd->StaCfg.bMixCipher = FALSE;
 		pAd->StaCfg.DefaultKeyId = 0;
 
-		// 802.1x port control
+		/* 802.1x port control */
 		pAd->StaCfg.PrivacyFilter = Ndis802_11PrivFilter8021xWEP;
 		pAd->StaCfg.PortSecured = WPA_802_1X_PORT_NOT_SECURED;
 		pAd->StaCfg.LastMicErrorTime = 0;
@@ -2670,15 +2670,15 @@ VOID UserCfgInit(IN PRTMP_ADAPTER pAd)
 		pAd->StaCfg.bBlockAssoc = FALSE;
 		pAd->StaCfg.WpaState = SS_NOTUSE;
 
-		pAd->CommonCfg.NdisRadioStateOff = FALSE;	// New to support microsoft disable radio with OID command
+		pAd->CommonCfg.NdisRadioStateOff = FALSE;	/* New to support microsoft disable radio with OID command */
 
 		pAd->StaCfg.RssiTrigger = 0;
 		NdisZeroMemory(&pAd->StaCfg.RssiSample, sizeof(RSSI_SAMPLE));
 		pAd->StaCfg.RssiTriggerMode =
 		    RSSI_TRIGGERED_UPON_BELOW_THRESHOLD;
 		pAd->StaCfg.AtimWin = 0;
-		pAd->StaCfg.DefaultListenCount = 3;	//default listen count;
-		pAd->StaCfg.BssType = BSS_INFRA;	// BSS_INFRA or BSS_ADHOC or BSS_MONITOR
+		pAd->StaCfg.DefaultListenCount = 3;	/*default listen count; */
+		pAd->StaCfg.BssType = BSS_INFRA;	/* BSS_INFRA or BSS_ADHOC or BSS_MONITOR */
 		pAd->StaCfg.bScanReqIsFromWebUI = FALSE;
 		OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_DOZE);
 		OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_WAKEUP_NOW);
@@ -2690,23 +2690,23 @@ VOID UserCfgInit(IN PRTMP_ADAPTER pAd)
 #ifdef PCIE_PS_SUPPORT
 	pAd->brt30xxBanMcuCmd = FALSE;
 	pAd->b3090ESpecialChip = FALSE;
-//KH Debug:the following must be removed
+/*KH Debug:the following must be removed */
 	pAd->StaCfg.PSControl.field.rt30xxPowerMode = 3;
 	pAd->StaCfg.PSControl.field.rt30xxForceASPMTest = 0;
 	pAd->StaCfg.PSControl.field.rt30xxFollowHostASPM = 1;
-#endif // PCIE_PS_SUPPORT //
+#endif /* PCIE_PS_SUPPORT // */
 
-	// global variables mXXXX used in MAC protocol state machines
+	/* global variables mXXXX used in MAC protocol state machines */
 	OPSTATUS_SET_FLAG(pAd, fOP_STATUS_RECEIVE_DTIM);
 	OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_ADHOC_ON);
 	OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_INFRA_ON);
 
-	// PHY specification
-	pAd->CommonCfg.PhyMode = PHY_11BG_MIXED;	// default PHY mode
-	OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_SHORT_PREAMBLE_INUSED);	// CCK use LONG preamble
+	/* PHY specification */
+	pAd->CommonCfg.PhyMode = PHY_11BG_MIXED;	/* default PHY mode */
+	OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_SHORT_PREAMBLE_INUSED);	/* CCK use LONG preamble */
 
 	{
-		// user desired power mode
+		/* user desired power mode */
 		pAd->StaCfg.WindowsPowerMode = Ndis802_11PowerModeCAM;
 		pAd->StaCfg.WindowsBatteryPowerMode = Ndis802_11PowerModeCAM;
 		pAd->StaCfg.bWindowsACCAMEnable = FALSE;
@@ -2716,20 +2716,20 @@ VOID UserCfgInit(IN PRTMP_ADAPTER pAd)
 			      pAd, FALSE);
 		pAd->StaCfg.StaQuickResponeForRateUpTimerRunning = FALSE;
 
-		// Patch for Ndtest
+		/* Patch for Ndtest */
 		pAd->StaCfg.ScanCnt = 0;
 
-		pAd->StaCfg.bHwRadio = TRUE;	// Default Hardware Radio status is On
-		pAd->StaCfg.bSwRadio = TRUE;	// Default Software Radio status is On
-		pAd->StaCfg.bRadio = TRUE;	// bHwRadio && bSwRadio
-		pAd->StaCfg.bHardwareRadio = FALSE;	// Default is OFF
-		pAd->StaCfg.bShowHiddenSSID = FALSE;	// Default no show
+		pAd->StaCfg.bHwRadio = TRUE;	/* Default Hardware Radio status is On */
+		pAd->StaCfg.bSwRadio = TRUE;	/* Default Software Radio status is On */
+		pAd->StaCfg.bRadio = TRUE;	/* bHwRadio && bSwRadio */
+		pAd->StaCfg.bHardwareRadio = FALSE;	/* Default is OFF */
+		pAd->StaCfg.bShowHiddenSSID = FALSE;	/* Default no show */
 
-		// Nitro mode control
+		/* Nitro mode control */
 		pAd->StaCfg.bAutoReconnect = TRUE;
 
-		// Save the init time as last scan time, the system should do scan after 2 seconds.
-		// This patch is for driver wake up from standby mode, system will do scan right away.
+		/* Save the init time as last scan time, the system should do scan after 2 seconds. */
+		/* This patch is for driver wake up from standby mode, system will do scan right away. */
 		NdisGetSystemUpTime(&pAd->StaCfg.LastScanTime);
 		if (pAd->StaCfg.LastScanTime > 10 * OS_HZ)
 			pAd->StaCfg.LastScanTime -= (10 * OS_HZ);
@@ -2737,10 +2737,10 @@ VOID UserCfgInit(IN PRTMP_ADAPTER pAd)
 		NdisZeroMemory(pAd->nickname, IW_ESSID_MAX_SIZE + 1);
 #ifdef RTMP_MAC_PCI
 		sprintf((PSTRING) pAd->nickname, "RT2860STA");
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 #ifdef RTMP_MAC_USB
 		sprintf((PSTRING) pAd->nickname, "RT2870STA");
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 		RTMPInitTimer(pAd, &pAd->StaCfg.WpaDisassocAndBlockAssocTimer,
 			      GET_TIMER_FUNCTION(WpaDisassocApAndBlockAssoc),
 			      pAd, FALSE);
@@ -2760,83 +2760,83 @@ VOID UserCfgInit(IN PRTMP_ADAPTER pAd)
 		pAd->StaCfg.bForceTxBurst = FALSE;
 	}
 
-	// Default for extra information is not valid
+	/* Default for extra information is not valid */
 	pAd->ExtraInfo = EXTRA_INFO_CLEAR;
 
-	// Default Config change flag
+	/* Default Config change flag */
 	pAd->bConfigChanged = FALSE;
 
-	//
-	// part III. AP configurations
-	//
+	/* */
+	/* part III. AP configurations */
+	/* */
 
-	//
-	// part IV. others
-	//
-	// dynamic BBP R66:sensibity tuning to overcome background noise
+	/* */
+	/* part IV. others */
+	/* */
+	/* dynamic BBP R66:sensibity tuning to overcome background noise */
 	pAd->BbpTuning.bEnable = TRUE;
 	pAd->BbpTuning.FalseCcaLowerThreshold = 100;
 	pAd->BbpTuning.FalseCcaUpperThreshold = 512;
 	pAd->BbpTuning.R66Delta = 4;
 	pAd->Mlme.bEnableAutoAntennaCheck = TRUE;
 
-	//
-	// Also initial R66CurrentValue, RTUSBResumeMsduTransmission might use this value.
-	// if not initial this value, the default value will be 0.
-	//
+	/* */
+	/* Also initial R66CurrentValue, RTUSBResumeMsduTransmission might use this value. */
+	/* if not initial this value, the default value will be 0. */
+	/* */
 	pAd->BbpTuning.R66CurrentValue = 0x38;
 
 	pAd->Bbp94 = BBPR94_DEFAULT;
 	pAd->BbpForCCK = FALSE;
 
-	// Default is FALSE for test bit 1
-	//pAd->bTest1 = FALSE;
+	/* Default is FALSE for test bit 1 */
+	/*pAd->bTest1 = FALSE; */
 
-	// initialize MAC table and allocate spin lock
+	/* initialize MAC table and allocate spin lock */
 	NdisZeroMemory(&pAd->MacTab, sizeof(MAC_TABLE));
 	InitializeQueueHeader(&pAd->MacTab.McastPsQueue);
 	NdisAllocateSpinLock(&pAd->MacTabLock);
 
-	//RTMPInitTimer(pAd, &pAd->RECBATimer, RECBATimerTimeout, pAd, TRUE);
-	//RTMPSetTimer(&pAd->RECBATimer, REORDER_EXEC_INTV);
+	/*RTMPInitTimer(pAd, &pAd->RECBATimer, RECBATimerTimeout, pAd, TRUE); */
+	/*RTMPSetTimer(&pAd->RECBATimer, REORDER_EXEC_INTV); */
 
 	pAd->CommonCfg.bWiFiTest = FALSE;
 #ifdef RTMP_MAC_PCI
 	pAd->bPCIclkOff = FALSE;
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 
 	RTMP_SET_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
 	DBGPRINT(RT_DEBUG_TRACE, ("<-- UserCfgInit\n"));
 }
 
-// IRQL = PASSIVE_LEVEL
+/* IRQL = PASSIVE_LEVEL */
 UCHAR BtoH(STRING ch)
 {
 	if (ch >= '0' && ch <= '9')
-		return (ch - '0');	// Handle numerals
+		return (ch - '0');	/* Handle numerals */
 	if (ch >= 'A' && ch <= 'F')
-		return (ch - 'A' + 0xA);	// Handle capitol hex digits
+		return (ch - 'A' + 0xA);	/* Handle capitol hex digits */
 	if (ch >= 'a' && ch <= 'f')
-		return (ch - 'a' + 0xA);	// Handle small hex digits
+		return (ch - 'a' + 0xA);	/* Handle small hex digits */
 	return (255);
 }
 
-//
-//  FUNCTION: AtoH(char *, UCHAR *, int)
-//
-//  PURPOSE:  Converts ascii string to network order hex
-//
-//  PARAMETERS:
-//    src    - pointer to input ascii string
-//    dest   - pointer to output hex
-//    destlen - size of dest
-//
-//  COMMENTS:
-//
-//    2 ascii bytes make a hex byte so must put 1st ascii byte of pair
-//    into upper nibble and 2nd ascii byte of pair into lower nibble.
-//
-// IRQL = PASSIVE_LEVEL
+/* */
+/*  FUNCTION: AtoH(char *, UCHAR *, int) */
+/* */
+/*  PURPOSE:  Converts ascii string to network order hex */
+/* */
+/*  PARAMETERS: */
+/*    src    - pointer to input ascii string */
+/*    dest   - pointer to output hex */
+/*    destlen - size of dest */
+/* */
+/*  COMMENTS: */
+/* */
+/*    2 ascii bytes make a hex byte so must put 1st ascii byte of pair */
+/*    into upper nibble and 2nd ascii byte of pair into lower nibble. */
+/* */
+/* IRQL = PASSIVE_LEVEL */
 
 void AtoH(PSTRING src, PUCHAR dest, int destlen)
 {
@@ -2847,14 +2847,14 @@ void AtoH(PSTRING src, PUCHAR dest, int destlen)
 	destTemp = (PUCHAR) dest;
 
 	while (destlen--) {
-		*destTemp = BtoH(*srcptr++) << 4;	// Put 1st ascii byte in upper nibble.
-		*destTemp += BtoH(*srcptr++);	// Add 2nd ascii byte to above.
+		*destTemp = BtoH(*srcptr++) << 4;	/* Put 1st ascii byte in upper nibble. */
+		*destTemp += BtoH(*srcptr++);	/* Add 2nd ascii byte to above. */
 		destTemp++;
 	}
 }
 
-//+++Mark by shiang, not use now, need to remove after confirm
-//---Mark by shiang, not use now, need to remove after confirm
+/*+++Mark by shiang, not use now, need to remove after confirm */
+/*---Mark by shiang, not use now, need to remove after confirm */
 
 /*
 	========================================================================
@@ -2879,11 +2879,11 @@ VOID RTMPInitTimer(IN PRTMP_ADAPTER pAd,
 		   IN PRALINK_TIMER_STRUCT pTimer,
 		   IN PVOID pTimerFunc, IN PVOID pData, IN BOOLEAN Repeat)
 {
-	//
-	// Set Valid to TRUE for later used.
-	// It will crash if we cancel a timer or set a timer
-	// that we haven't initialize before.
-	//
+	/* */
+	/* Set Valid to TRUE for later used. */
+	/* It will crash if we cancel a timer or set a timer */
+	/* that we haven't initialize before. */
+	/* */
 	pTimer->Valid = TRUE;
 
 	pTimer->PeriodicType = Repeat;
@@ -2892,7 +2892,7 @@ VOID RTMPInitTimer(IN PRTMP_ADAPTER pAd,
 
 #ifdef RTMP_TIMER_TASK_SUPPORT
 	pTimer->pAd = pAd;
-#endif // RTMP_TIMER_TASK_SUPPORT //
+#endif /* RTMP_TIMER_TASK_SUPPORT // */
 
 	RTMP_OS_Init_Timer(pAd, &pTimer->TimerObj, pTimerFunc, (PVOID) pTimer);
 }
@@ -3001,10 +3001,10 @@ VOID RTMPCancelTimer(IN PRALINK_TIMER_STRUCT pTimer, OUT BOOLEAN * pCancelled)
 			pTimer->State = TRUE;
 
 #ifdef RTMP_TIMER_TASK_SUPPORT
-		// We need to go-through the TimerQ to findout this timer handler and remove it if
-		//              it's still waiting for execution.
+		/* We need to go-through the TimerQ to findout this timer handler and remove it if */
+		/*              it's still waiting for execution. */
 		RtmpTimerQRemove(pTimer->pAd, pTimer);
-#endif // RTMP_TIMER_TASK_SUPPORT //
+#endif /* RTMP_TIMER_TASK_SUPPORT // */
 	} else {
 		DBGPRINT_ERR(("RTMPCancelTimer failed, Timer hasn't been initialize!\n"));
 	}
@@ -3032,7 +3032,7 @@ VOID RTMPCancelTimer(IN PRALINK_TIMER_STRUCT pTimer, OUT BOOLEAN * pCancelled)
 */
 VOID RTMPSetLED(IN PRTMP_ADAPTER pAd, IN UCHAR Status)
 {
-	//ULONG                 data;
+	/*ULONG                 data; */
 	UCHAR HighByte = 0;
 	UCHAR LowByte;
 
@@ -3055,7 +3055,7 @@ VOID RTMPSetLED(IN PRTMP_ADAPTER pAd, IN UCHAR Status)
 		AsicSendCommandToMcu(pAd, 0x50, 0xff, LowByte, HighByte);
 		break;
 	case LED_HALT:
-		LowByte = 0;	// Driver sets MAC register and MAC controls LED
+		LowByte = 0;	/* Driver sets MAC register and MAC controls LED */
 	case LED_RADIO_OFF:
 		HighByte = 0;
 		AsicSendCommandToMcu(pAd, 0x50, 0xff, LowByte, HighByte);
@@ -3078,10 +3078,10 @@ VOID RTMPSetLED(IN PRTMP_ADAPTER pAd, IN UCHAR Status)
 		break;
 	}
 
-	//
-	// Keep LED status for LED SiteSurvey mode.
-	// After SiteSurvey, we will set the LED mode to previous status.
-	//
+	/* */
+	/* Keep LED status for LED SiteSurvey mode. */
+	/* After SiteSurvey, we will set the LED mode to previous status. */
+	/* */
 	if ((Status != LED_ON_SITE_SURVEY) && (Status != LED_POWER_UP))
 		pAd->LedStatus = Status;
 
@@ -3135,9 +3135,9 @@ VOID RTMPSetSignalLED(IN PRTMP_ADAPTER pAd, IN NDIS_802_11_RSSI Dbm)
 		else
 			nLed = 31;
 
-		//
-		// Update Signal Stregth to firmware if changed.
-		//
+		/* */
+		/* Update Signal Stregth to firmware if changed. */
+		/* */
 		if (pAd->LedIndicatorStrength != nLed) {
 			AsicSendCommandToMcu(pAd, 0x51, 0xff, nLed,
 					     pAd->LedCntl.field.Polarity);
@@ -3166,25 +3166,25 @@ VOID RTMPSetSignalLED(IN PRTMP_ADAPTER pAd, IN NDIS_802_11_RSSI Dbm)
 */
 VOID RTMPEnableRxTx(IN PRTMP_ADAPTER pAd)
 {
-//      WPDMA_GLO_CFG_STRUC     GloCfg;
-//      ULONG   i = 0;
+/*      WPDMA_GLO_CFG_STRUC     GloCfg; */
+/*      ULONG   i = 0; */
 	UINT32 rx_filter_flag;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("==> RTMPEnableRxTx\n"));
 
-	// Enable Rx DMA.
+	/* Enable Rx DMA. */
 	RT28XXDMAEnable(pAd);
 
-	// enable RX of MAC block
+	/* enable RX of MAC block */
 	if (pAd->OpMode == OPMODE_AP) {
 		rx_filter_flag = APNORMAL;
 
-		RTMP_IO_WRITE32(pAd, RX_FILTR_CFG, rx_filter_flag);	// enable RX of DMA block
+		RTMP_IO_WRITE32(pAd, RX_FILTR_CFG, rx_filter_flag);	/* enable RX of DMA block */
 	} else {
 		if (pAd->CommonCfg.PSPXlink)
 			rx_filter_flag = PSPXLINK;
 		else
-			rx_filter_flag = STANORMAL;	// Staion not drop control frame will fail WiFi Certification.
+			rx_filter_flag = STANORMAL;	/* Staion not drop control frame will fail WiFi Certification. */
 		RTMP_IO_WRITE32(pAd, RX_FILTR_CFG, rx_filter_flag);
 	}
 
@@ -3192,7 +3192,7 @@ VOID RTMPEnableRxTx(IN PRTMP_ADAPTER pAd)
 	DBGPRINT(RT_DEBUG_TRACE, ("<== RTMPEnableRxTx\n"));
 }
 
-//+++Add by shiang, move from os/linux/rt_main_dev.c
+/*+++Add by shiang, move from os/linux/rt_main_dev.c */
 void CfgInitHook(PRTMP_ADAPTER pAd)
 {
 	pAd->bBroadComHT = TRUE;
@@ -3208,9 +3208,9 @@ int rt28xx_init(IN PRTMP_ADAPTER pAd,
 
 #ifdef RTMP_MAC_PCI
 	{
-		// If dirver doesn't wake up firmware here,
-		// NICLoadFirmware will hang forever when interface is up again.
-		// RT2860 PCI
+		/* If dirver doesn't wake up firmware here, */
+		/* NICLoadFirmware will hang forever when interface is up again. */
+		/* RT2860 PCI */
 		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE) &&
 		    OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE)) {
 			AUTO_WAKEUP_STRUC AutoWakeupCfg;
@@ -3221,17 +3221,17 @@ int rt28xx_init(IN PRTMP_ADAPTER pAd,
 			OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_DOZE);
 		}
 	}
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 
-	// reset Adapter flags
+	/* reset Adapter flags */
 	RTMP_CLEAR_FLAGS(pAd);
 
-	// Init BssTab & ChannelInfo tabbles for auto channel select.
+	/* Init BssTab & ChannelInfo tabbles for auto channel select. */
 
-	// Allocate BA Reordering memory
+	/* Allocate BA Reordering memory */
 	ba_reordering_resource_init(pAd, MAX_REORDERING_MPDU_NUM);
 
-	// Make sure MAC gets ready.
+	/* Make sure MAC gets ready. */
 	index = 0;
 	do {
 		RTMP_IO_READ32(pAd, MAC_CSR0, &MacCsr0);
@@ -3256,16 +3256,16 @@ int rt28xx_init(IN PRTMP_ADAPTER pAd,
 		RTMP_IO_WRITE32(pAd, AUX_CTRL, MacCsr0);
 		DBGPRINT(RT_DEBUG_TRACE, ("AUX_CTRL = 0x%x\n", MacCsr0));
 	}
-#endif // PCIE_PS_SUPPORT //
+#endif /* PCIE_PS_SUPPORT // */
 
-	// To fix driver disable/enable hang issue when radio off
+	/* To fix driver disable/enable hang issue when radio off */
 	RTMP_IO_WRITE32(pAd, PWR_PIN_CFG, 0x2);
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 
-	// Disable DMA
+	/* Disable DMA */
 	RT28XXDMADisable(pAd);
 
-	// Load 8051 firmware
+	/* Load 8051 firmware */
 	Status = NICLoadFirmware(pAd);
 	if (Status != NDIS_STATUS_SUCCESS) {
 		DBGPRINT_ERR(("NICLoadFirmware failed, Status[=0x%08x]\n",
@@ -3275,13 +3275,13 @@ int rt28xx_init(IN PRTMP_ADAPTER pAd,
 
 	NICLoadRateSwitchingParams(pAd);
 
-	// Disable interrupts here which is as soon as possible
-	// This statement should never be true. We might consider to remove it later
+	/* Disable interrupts here which is as soon as possible */
+	/* This statement should never be true. We might consider to remove it later */
 #ifdef RTMP_MAC_PCI
 	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_ACTIVE)) {
 		RTMP_ASIC_INTERRUPT_DISABLE(pAd);
 	}
-#endif // RTMP_MAC_PCI //
+#endif /* RTMP_MAC_PCI // */
 
 	Status = RTMPAllocTxRxRingMemory(pAd);
 	if (Status != NDIS_STATUS_SUCCESS) {
@@ -3292,8 +3292,8 @@ int rt28xx_init(IN PRTMP_ADAPTER pAd,
 
 	RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_IN_USE);
 
-	// initialize MLME
-	//
+	/* initialize MLME */
+	/* */
 
 	Status = RtmpMgmtTaskInit(pAd);
 	if (Status != NDIS_STATUS_SUCCESS)
@@ -3304,15 +3304,15 @@ int rt28xx_init(IN PRTMP_ADAPTER pAd,
 		DBGPRINT_ERR(("MlmeInit failed, Status[=0x%08x]\n", Status));
 		goto err2;
 	}
-	// Initialize pAd->StaCfg, pAd->ApCfg, pAd->CommonCfg to manufacture default
-	//
+	/* Initialize pAd->StaCfg, pAd->ApCfg, pAd->CommonCfg to manufacture default */
+	/* */
 	UserCfgInit(pAd);
 	Status = RtmpNetTaskInit(pAd);
 	if (Status != NDIS_STATUS_SUCCESS)
 		goto err3;
 
-//      COPY_MAC_ADDR(pAd->ApCfg.MBSSID[apidx].Bssid, netif->hwaddr);
-//      pAd->bForcePrintTX = TRUE;
+/*      COPY_MAC_ADDR(pAd->ApCfg.MBSSID[apidx].Bssid, netif->hwaddr); */
+/*      pAd->bForcePrintTX = TRUE; */
 
 	CfgInitHook(pAd);
 
@@ -3321,9 +3321,9 @@ int rt28xx_init(IN PRTMP_ADAPTER pAd,
 	MeasureReqTabInit(pAd);
 	TpcReqTabInit(pAd);
 
-	//
-	// Init the hardware, we need to init asic before read registry, otherwise mac register will be reset
-	//
+	/* */
+	/* Init the hardware, we need to init asic before read registry, otherwise mac register will be reset */
+	/* */
 	Status = NICInitializeAdapter(pAd, TRUE);
 	if (Status != NDIS_STATUS_SUCCESS) {
 		DBGPRINT_ERR(("NICInitializeAdapter failed, Status[=0x%08x]\n",
@@ -3341,10 +3341,10 @@ int rt28xx_init(IN PRTMP_ADAPTER pAd,
 		pAd->CommonCfg.NumOfBulkInIRP = RX_RING_SIZE;
 	else
 		pAd->CommonCfg.NumOfBulkInIRP = 1;
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 
-	//Init Ba Capability parameters.
-//      RT28XX_BA_INIT(pAd);
+	/*Init Ba Capability parameters. */
+/*      RT28XX_BA_INIT(pAd); */
 	pAd->CommonCfg.DesiredHtPhy.MpduDensity =
 	    (UCHAR) pAd->CommonCfg.BACapability.field.MpduDensity;
 	pAd->CommonCfg.DesiredHtPhy.AmsduEnable =
@@ -3353,7 +3353,7 @@ int rt28xx_init(IN PRTMP_ADAPTER pAd,
 	    (USHORT) pAd->CommonCfg.BACapability.field.AmsduSize;
 	pAd->CommonCfg.DesiredHtPhy.MimoPs =
 	    (USHORT) pAd->CommonCfg.BACapability.field.MMPSmode;
-	// UPdata to HT IE
+	/* UPdata to HT IE */
 	pAd->CommonCfg.HtCapability.HtCapInfo.MimoPs =
 	    (USHORT) pAd->CommonCfg.BACapability.field.MMPSmode;
 	pAd->CommonCfg.HtCapability.HtCapInfo.AMsduSize =
@@ -3361,29 +3361,29 @@ int rt28xx_init(IN PRTMP_ADAPTER pAd,
 	pAd->CommonCfg.HtCapability.HtCapParm.MpduDensity =
 	    (UCHAR) pAd->CommonCfg.BACapability.field.MpduDensity;
 
-	// after reading Registry, we now know if in AP mode or STA mode
+	/* after reading Registry, we now know if in AP mode or STA mode */
 
-	// Load 8051 firmware; crash when FW image not existent
-	// Status = NICLoadFirmware(pAd);
-	// if (Status != NDIS_STATUS_SUCCESS)
-	//    break;
+	/* Load 8051 firmware; crash when FW image not existent */
+	/* Status = NICLoadFirmware(pAd); */
+	/* if (Status != NDIS_STATUS_SUCCESS) */
+	/*    break; */
 
 	DBGPRINT(RT_DEBUG_OFF, ("2. Phy Mode = %d\n", pAd->CommonCfg.PhyMode));
 
-	// We should read EEPROM for all cases.  rt2860b
+	/* We should read EEPROM for all cases.  rt2860b */
 	NICReadEEPROMParameters(pAd, (PUCHAR) pDefaultMac);
 
 	DBGPRINT(RT_DEBUG_OFF, ("3. Phy Mode = %d\n", pAd->CommonCfg.PhyMode));
 
-	NICInitAsicFromEEPROM(pAd);	//rt2860b
+	NICInitAsicFromEEPROM(pAd);	/*rt2860b */
 
-	// Set PHY to appropriate mode
+	/* Set PHY to appropriate mode */
 	TmpPhy = pAd->CommonCfg.PhyMode;
 	pAd->CommonCfg.PhyMode = 0xff;
 	RTMPSetPhyMode(pAd, TmpPhy);
 	SetCommonHT(pAd);
 
-	// No valid channels.
+	/* No valid channels. */
 	if (pAd->ChannelListNum == 0) {
 		DBGPRINT(RT_DEBUG_ERROR,
 			 ("Wrong configuration. No valid channel found. Check \"ContryCode\" and \"ChannelGeography\" setting.\n"));
@@ -3399,35 +3399,35 @@ int rt28xx_init(IN PRTMP_ADAPTER pAd,
 		  pAd->CommonCfg.HtCapability.MCSSet[4]));
 
 #ifdef RTMP_RF_RW_SUPPORT
-	//Init RT30xx RFRegisters after read RFIC type from EEPROM
+	/*Init RT30xx RFRegisters after read RFIC type from EEPROM */
 	NICInitRFRegisters(pAd);
-#endif // RTMP_RF_RW_SUPPORT //
+#endif /* RTMP_RF_RW_SUPPORT // */
 
-//              APInitialize(pAd);
+/*              APInitialize(pAd); */
 
-	//
-	// Initialize RF register to default value
-	//
+	/* */
+	/* Initialize RF register to default value */
+	/* */
 	AsicSwitchChannel(pAd, pAd->CommonCfg.Channel, FALSE);
 	AsicLockChannel(pAd, pAd->CommonCfg.Channel);
 
-	// 8051 firmware require the signal during booting time.
-	//2008/11/28:KH marked the following codes to patch Frequency offset bug
-	//AsicSendCommandToMcu(pAd, 0x72, 0xFF, 0x00, 0x00);
+	/* 8051 firmware require the signal during booting time. */
+	/*2008/11/28:KH marked the following codes to patch Frequency offset bug */
+	/*AsicSendCommandToMcu(pAd, 0x72, 0xFF, 0x00, 0x00); */
 
 	if (pAd && (Status != NDIS_STATUS_SUCCESS)) {
-		//
-		// Undo everything if it failed
-		//
+		/* */
+		/* Undo everything if it failed */
+		/* */
 		if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_IN_USE)) {
-//                      NdisMDeregisterInterrupt(&pAd->Interrupt);
+/*                      NdisMDeregisterInterrupt(&pAd->Interrupt); */
 			RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_IN_USE);
 		}
-//              RTMPFreeAdapter(pAd); // we will free it in disconnect()
+/*              RTMPFreeAdapter(pAd); // we will free it in disconnect() */
 	} else if (pAd) {
-		// Microsoft HCT require driver send a disconnect event after driver initialization.
+		/* Microsoft HCT require driver send a disconnect event after driver initialization. */
 		OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED);
-//              pAd->IndicateMediaState = NdisMediaStateDisconnected;
+/*              pAd->IndicateMediaState = NdisMediaStateDisconnected; */
 		RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_MEDIA_STATE_CHANGE);
 
 		DBGPRINT(RT_DEBUG_TRACE,
@@ -3437,18 +3437,18 @@ int rt28xx_init(IN PRTMP_ADAPTER pAd,
 		RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS);
 		RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_REMOVE_IN_PROGRESS);
 
-		//
-		// Support multiple BulkIn IRP,
-		// the value on pAd->CommonCfg.NumOfBulkInIRP may be large than 1.
-		//
+		/* */
+		/* Support multiple BulkIn IRP, */
+		/* the value on pAd->CommonCfg.NumOfBulkInIRP may be large than 1. */
+		/* */
 		for (index = 0; index < pAd->CommonCfg.NumOfBulkInIRP; index++) {
 			RTUSBBulkReceive(pAd);
 			DBGPRINT(RT_DEBUG_TRACE, ("RTUSBBulkReceive!\n"));
 		}
-#endif // RTMP_MAC_USB //
-	}			// end of else
+#endif /* RTMP_MAC_USB // */
+	}			/* end of else */
 
-	// Set up the Mac address
+	/* Set up the Mac address */
 	RtmpOSNetDevAddrSet(pAd->net_dev, &pAd->CurrentAddress[0]);
 
 	DBGPRINT_S(Status, ("<==== rt28xx_init, Status=%x\n", Status));
@@ -3462,19 +3462,19 @@ err2:
 	RTMPFreeTxRxRingMemory(pAd);
 err1:
 
-	os_free_mem(pAd, pAd->mpdu_blk_pool.mem);	// free BA pool
+	os_free_mem(pAd, pAd->mpdu_blk_pool.mem);	/* free BA pool */
 
-	// shall not set priv to NULL here because the priv didn't been free yet.
-	//net_dev->ml_priv = 0;
+	/* shall not set priv to NULL here because the priv didn't been free yet. */
+	/*net_dev->ml_priv = 0; */
 #ifdef ST
 err0:
-#endif // ST //
+#endif /* ST // */
 
 	DBGPRINT(RT_DEBUG_ERROR, ("!!! rt28xx Initialized fail !!!\n"));
 	return FALSE;
 }
 
-//---Add by shiang, move from os/linux/rt_main_dev.c
+/*---Add by shiang, move from os/linux/rt_main_dev.c */
 
 static INT RtmpChipOpsRegister(IN RTMP_ADAPTER * pAd, IN INT infType)
 {
@@ -3494,13 +3494,13 @@ static INT RtmpChipOpsRegister(IN RTMP_ADAPTER * pAd, IN INT infType)
 		pChipOps->eraseFirmware = RtmpAsicEraseFirmware;
 		pChipOps->sendCommandToMcu = RtmpAsicSendCommandToMcu;
 		break;
-#endif // RTMP_PCI_SUPPORT //
+#endif /* RTMP_PCI_SUPPORT // */
 #ifdef RTMP_USB_SUPPORT
 	case RTMP_DEV_INF_USB:
 		pChipOps->loadFirmware = RtmpAsicLoadFirmware;
 		pChipOps->sendCommandToMcu = RtmpAsicSendCommandToMcu;
 		break;
-#endif // RTMP_USB_SUPPORT //
+#endif /* RTMP_USB_SUPPORT // */
 	default:
 		break;
 	}
@@ -3510,9 +3510,9 @@ static INT RtmpChipOpsRegister(IN RTMP_ADAPTER * pAd, IN INT infType)
 
 INT RtmpRaDevCtrlInit(IN RTMP_ADAPTER * pAd, IN RTMP_INF_TYPE infType)
 {
-	//VOID  *handle;
+	/*VOID  *handle; */
 
-	// Assign the interface type. We need use it when do register/EEPROM access.
+	/* Assign the interface type. We need use it when do register/EEPROM access. */
 	pAd->infType = infType;
 
 	pAd->OpMode = OPMODE_STA;
@@ -3528,7 +3528,7 @@ INT RtmpRaDevCtrlInit(IN RTMP_ADAPTER * pAd, IN RTMP_INF_TYPE infType)
 			 ("Allocate vendor request temp buffer failed!\n"));
 		return FALSE;
 	}
-#endif // RTMP_MAC_USB //
+#endif /* RTMP_MAC_USB // */
 
 	RtmpChipOpsRegister(pAd, infType);
 
@@ -3543,7 +3543,7 @@ BOOLEAN RtmpRaDevCtrlExit(IN RTMP_ADAPTER * pAd)
 	return TRUE;
 }
 
-// not yet support MBSS
+/* not yet support MBSS */
 PNET_DEV get_netdev_from_bssid(IN PRTMP_ADAPTER pAd, IN UCHAR FromWhichBSSID)
 {
 	PNET_DEV dev_p = NULL;

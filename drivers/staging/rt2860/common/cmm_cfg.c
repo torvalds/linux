@@ -95,8 +95,8 @@ INT RT_CfgSetCountryRegion(IN PRTMP_ADAPTER pAd, IN PSTRING arg, IN INT band)
 		regionMax = REGION_MAXIMUM_A_BAND;
 	}
 
-	// TODO: Is it neccesay for following check???
-	// Country can be set only when EEPROM not programmed
+	/* TODO: Is it neccesay for following check??? */
+	/* Country can be set only when EEPROM not programmed */
 	if (*pCountryRegion & 0x80) {
 		DBGPRINT(RT_DEBUG_ERROR,
 			 ("CfgSetCountryRegion():CountryRegion in eeprom was programmed\n"));
@@ -154,7 +154,7 @@ INT RT_CfgSetShortSlot(IN PRTMP_ADAPTER pAd, IN PSTRING arg)
 	else if (ShortSlot == 0)
 		pAd->CommonCfg.bUseShortSlotTime = FALSE;
 	else
-		return FALSE;	//Invalid argument
+		return FALSE;	/*Invalid argument */
 
 	return TRUE;
 }
@@ -176,29 +176,29 @@ INT RT_CfgSetWepKey(IN PRTMP_ADAPTER pAd,
 	UCHAR CipherAlg = CIPHER_NONE;
 	BOOLEAN bKeyIsHex = FALSE;
 
-	// TODO: Shall we do memset for the original key info??
+	/* TODO: Shall we do memset for the original key info?? */
 	memset(pSharedKey, 0, sizeof(CIPHER_KEY));
 	KeyLen = strlen(keyString);
 	switch (KeyLen) {
-	case 5:		//wep 40 Ascii type
-	case 13:		//wep 104 Ascii type
+	case 5:		/*wep 40 Ascii type */
+	case 13:		/*wep 104 Ascii type */
 		bKeyIsHex = FALSE;
 		pSharedKey->KeyLen = KeyLen;
 		NdisMoveMemory(pSharedKey->Key, keyString, KeyLen);
 		break;
 
-	case 10:		//wep 40 Hex type
-	case 26:		//wep 104 Hex type
+	case 10:		/*wep 40 Hex type */
+	case 26:		/*wep 104 Hex type */
 		for (i = 0; i < KeyLen; i++) {
 			if (!isxdigit(*(keyString + i)))
-				return FALSE;	//Not Hex value;
+				return FALSE;	/*Not Hex value; */
 		}
 		bKeyIsHex = TRUE;
 		pSharedKey->KeyLen = KeyLen / 2;
 		AtoH(keyString, pSharedKey->Key, pSharedKey->KeyLen);
 		break;
 
-	default:		//Invalid argument
+	default:		/*Invalid argument */
 		DBGPRINT(RT_DEBUG_TRACE,
 			 ("RT_CfgSetWepKey(keyIdx=%d):Invalid argument (arg=%s)\n",
 			  keyIdx, keyString));
