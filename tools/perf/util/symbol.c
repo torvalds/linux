@@ -61,6 +61,8 @@ static bool symbol_type__is_a(char symbol_type, enum map_type map_type)
 	switch (map_type) {
 	case MAP__FUNCTION:
 		return symbol_type == 'T' || symbol_type == 'W';
+	case MAP__VARIABLE:
+		return symbol_type == 'D' || symbol_type == 'd';
 	default:
 		return false;
 	}
@@ -551,6 +553,13 @@ static inline int elf_sym__is_function(const GElf_Sym *sym)
 	       sym->st_shndx != SHN_UNDEF;
 }
 
+static inline bool elf_sym__is_object(const GElf_Sym *sym)
+{
+	return elf_sym__type(sym) == STT_OBJECT &&
+		sym->st_name != 0 &&
+		sym->st_shndx != SHN_UNDEF;
+}
+
 static inline int elf_sym__is_label(const GElf_Sym *sym)
 {
 	return elf_sym__type(sym) == STT_NOTYPE &&
@@ -569,6 +578,12 @@ static inline int elf_sec__is_text(const GElf_Shdr *shdr,
 					const Elf_Data *secstrs)
 {
 	return strstr(elf_sec__name(shdr, secstrs), "text") != NULL;
+}
+
+static inline bool elf_sec__is_data(const GElf_Shdr *shdr,
+				    const Elf_Data *secstrs)
+{
+	return strstr(elf_sec__name(shdr, secstrs), "data") != NULL;
 }
 
 static inline const char *elf_sym__name(const GElf_Sym *sym,
@@ -756,6 +771,8 @@ static bool elf_sym__is_a(GElf_Sym *self, enum map_type type)
 	switch (type) {
 	case MAP__FUNCTION:
 		return elf_sym__is_function(self);
+	case MAP__VARIABLE:
+		return elf_sym__is_object(self);
 	default:
 		return false;
 	}
@@ -766,6 +783,8 @@ static bool elf_sec__is_a(GElf_Shdr *self, Elf_Data *secstrs, enum map_type type
 	switch (type) {
 	case MAP__FUNCTION:
 		return elf_sec__is_text(self, secstrs);
+	case MAP__VARIABLE:
+		return elf_sec__is_data(self, secstrs);
 	default:
 		return false;
 	}
@@ -1536,42 +1555,59 @@ size_t dsos__fprintf_buildid(FILE *fp)
 		__dsos__fprintf_buildid(&dsos__user, fp));
 }
 
-static int map_groups__create_kernel_map(struct map_groups *self, const char *vmlinux)
+static struct dso *dsos__create_kernel( const char *vmlinux)
 {
-	struct map *kmap;
 	struct dso *kernel = dso__new(vmlinux ?: "[kernel.kallsyms]");
 
 	if (kernel == NULL)
-		return -1;
+		return NULL;
 
-	kmap = map__new2(0, kernel, MAP__FUNCTION);
-	if (kmap == NULL)
-		goto out_delete_kernel_dso;
-
-	kmap->map_ip	   = kmap->unmap_ip = identity__map_ip;
 	kernel->short_name = "[kernel]";
 	kernel->kernel	   = 1;
 
 	vdso = dso__new("[vdso]");
 	if (vdso == NULL)
-		goto out_delete_kernel_map;
+		goto out_delete_kernel_dso;
 	dso__set_loaded(vdso, MAP__FUNCTION);
 
 	if (sysfs__read_build_id("/sys/kernel/notes", kernel->build_id,
 				 sizeof(kernel->build_id)) == 0)
 		kernel->has_build_id = true;
 
-	map_groups__insert(self, kmap);
 	dsos__add(&dsos__kernel, kernel);
 	dsos__add(&dsos__user, vdso);
 
-	return 0;
+	return kernel;
 
-out_delete_kernel_map:
-	map__delete(kmap);
 out_delete_kernel_dso:
 	dso__delete(kernel);
-	return -1;
+	return NULL;
+}
+
+static int map_groups__create_kernel_maps(struct map_groups *self, const char *vmlinux)
+{
+	struct map *functions, *variables;
+	struct dso *kernel = dsos__create_kernel(vmlinux);
+
+	if (kernel == NULL)
+		return -1;
+
+	functions = map__new2(0, kernel, MAP__FUNCTION);
+	if (functions == NULL)
+		return -1;
+
+	variables = map__new2(0, kernel, MAP__VARIABLE);
+	if (variables == NULL) {
+		map__delete(functions);
+		return -1;
+	}
+
+	functions->map_ip = functions->unmap_ip =
+		variables->map_ip = variables->unmap_ip = identity__map_ip;
+	map_groups__insert(self, functions);
+	map_groups__insert(self, variables);
+
+	return 0;
 }
 
 static void vmlinux_path__exit(void)
@@ -1640,7 +1676,7 @@ int symbol__init(struct symbol_conf *conf)
 	if (pconf->try_vmlinux_path && vmlinux_path__init() < 0)
 		return -1;
 
-	if (map_groups__create_kernel_map(kmaps, pconf->vmlinux_name) < 0) {
+	if (map_groups__create_kernel_maps(kmaps, pconf->vmlinux_name) < 0) {
 		vmlinux_path__exit();
 		return -1;
 	}
