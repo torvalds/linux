@@ -354,9 +354,7 @@ acpi_ns_externalize_name(u32 internal_name_length,
 			 const char *internal_name,
 			 u32 * converted_name_length, char **converted_name);
 
-struct acpi_namespace_node *acpi_ns_map_handle_to_node(acpi_handle handle);
-
-acpi_handle acpi_ns_convert_entry_to_handle(struct acpi_namespace_node *node);
+struct acpi_namespace_node *acpi_ns_validate_handle(acpi_handle handle);
 
 void acpi_ns_terminate(void);
 
