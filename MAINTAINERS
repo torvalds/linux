@@ -5391,10 +5391,9 @@ S:	Supported
 F:	drivers/block/ub.c
 
 USB CDC ETHERNET DRIVER
-M:	Greg Kroah-Hartman <greg@kroah.com>
+M:	Oliver Neukum <oliver@neukum.name>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
-W:	http://www.kroah.com/linux-usb/
 F:	drivers/net/usb/cdc_*.c
 F:	include/linux/usb/cdc.h
 
