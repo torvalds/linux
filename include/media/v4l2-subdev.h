@@ -22,6 +22,7 @@
 #define _V4L2_SUBDEV_H
 
 #include <media/v4l2-common.h>
+#include <media/v4l2-mediabus.h>
 
 /* generic v4l2_device notify callback notification values */
 #define V4L2_SUBDEV_IR_RX_NOTIFY		_IOW('v', 0, u32)
@@ -207,7 +208,7 @@ struct v4l2_subdev_audio_ops {
    s_std_output: set v4l2_std_id for video OUTPUT devices. This is ignored by
 	video input devices.
 
-  s_crystal_freq: sets the frequency of the crystal used to generate the
+   s_crystal_freq: sets the frequency of the crystal used to generate the
 	clocks in Hz. An extra flags field allows device specific configuration
 	regarding clock frequency dividers, etc. If not used, then set flags
 	to 0. If the frequency is not supported, then -EINVAL is returned.
@@ -230,6 +231,13 @@ struct v4l2_subdev_audio_ops {
 
    g_dv_timings(): Get custom dv timings in the sub device.
 
+   enum_mbus_fmt: enumerate pixel formats, provided by a video data source
+
+   g_mbus_fmt: get the current pixel format, provided by a video data source
+
+   try_mbus_fmt: try to set a pixel format on a video data source
+
+   s_mbus_fmt: set a pixel format on a video data source
  */
 struct v4l2_subdev_video_ops {
 	int (*s_routing)(struct v4l2_subdev *sd, u32 input, u32 output, u32 config);
@@ -261,6 +269,14 @@ struct v4l2_subdev_video_ops {
 			struct v4l2_dv_timings *timings);
 	int (*g_dv_timings)(struct v4l2_subdev *sd,
 			struct v4l2_dv_timings *timings);
+	int (*enum_mbus_fmt)(struct v4l2_subdev *sd, int index,
+			     enum v4l2_mbus_pixelcode *code);
+	int (*g_mbus_fmt)(struct v4l2_subdev *sd,
+			  struct v4l2_mbus_framefmt *fmt);
+	int (*try_mbus_fmt)(struct v4l2_subdev *sd,
+			    struct v4l2_mbus_framefmt *fmt);
+	int (*s_mbus_fmt)(struct v4l2_subdev *sd,
+			  struct v4l2_mbus_framefmt *fmt);
 };
 
 /**
