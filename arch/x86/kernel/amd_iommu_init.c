@@ -1336,6 +1336,9 @@ void __init amd_iommu_detect(void)
 		iommu_detected = 1;
 		amd_iommu_detected = 1;
 		x86_init.iommu.iommu_init = amd_iommu_init;
+
+		/* Make sure ACS will be enabled */
+		pci_request_acs();
 	}
 }
 

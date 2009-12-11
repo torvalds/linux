@@ -67,14 +67,16 @@ static struct dev_pm_ops pcie_portdrv_pm_ops = {
  * this port device.
  *
  */
-static int __devinit pcie_portdrv_probe (struct pci_dev *dev, 
-				const struct pci_device_id *id )
+static int __devinit pcie_portdrv_probe(struct pci_dev *dev,
+					const struct pci_device_id *id)
 {
-	int			status;
+	int status;
 
-	status = pcie_port_device_probe(dev);
-	if (status)
-		return status;
+	if (!pci_is_pcie(dev) ||
+	    ((dev->pcie_type != PCI_EXP_TYPE_ROOT_PORT) &&
+	     (dev->pcie_type != PCI_EXP_TYPE_UPSTREAM) &&
+	     (dev->pcie_type != PCI_EXP_TYPE_DOWNSTREAM)))
+		return -ENODEV;
 
         if (!dev->irq && dev->pin) {
 		dev_warn(&dev->dev, "device [%04x:%04x] has invalid IRQ; "
