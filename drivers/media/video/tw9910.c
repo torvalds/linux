@@ -181,6 +181,14 @@
 			  * but all register content remain unchanged.
 			  * This bit is self-resetting.
 			  */
+#define ACNTL1_PDN_MASK	0x0e
+#define CLK_PDN		0x08 /* system clock power down */
+#define Y_PDN		0x04 /* Luma ADC power down */
+#define C_PDN		0x02 /* Chroma ADC power down */
+
+/* ACNTL2 */
+#define ACNTL2_PDN_MASK	0x40
+#define PLL_PDN		0x40 /* PLL power down */
 
 /* VBICNTL */
 
@@ -478,8 +486,29 @@ static int tw9910_mask_set(struct i2c_client *client, u8 command,
 
 static void tw9910_reset(struct i2c_client *client)
 {
-	i2c_smbus_write_byte_data(client, ACNTL1, SRESET);
+	tw9910_mask_set(client, ACNTL1, SRESET, SRESET);
 	msleep(1);
+}
+
+static int tw9910_power(struct i2c_client *client, int enable)
+{
+	int ret;
+	u8 acntl1;
+	u8 acntl2;
+
+	if (enable) {
+		acntl1 = 0;
+		acntl2 = 0;
+	} else {
+		acntl1 = CLK_PDN | Y_PDN | C_PDN;
+		acntl2 = PLL_PDN;
+	}
+
+	ret = tw9910_mask_set(client, ACNTL1, ACNTL1_PDN_MASK, acntl1);
+	if (ret < 0)
+		return ret;
+
+	return tw9910_mask_set(client, ACNTL2, ACNTL2_PDN_MASK, acntl2);
 }
 
 static const struct tw9910_scale_ctrl*
@@ -520,8 +549,8 @@ static int tw9910_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct i2c_client *client = sd->priv;
 	struct tw9910_priv *priv = to_tw9910(client);
-
 	u8 val;
+	int ret;
 
 	if (!enable) {
 		switch (priv->revision) {
@@ -549,7 +578,11 @@ static int tw9910_s_stream(struct v4l2_subdev *sd, int enable)
 			priv->scale->height);
 	}
 
-	return tw9910_mask_set(client, OPFORM, OEN_TRI_SEL_MASK, val);
+	ret = tw9910_mask_set(client, OPFORM, OEN_TRI_SEL_MASK, val);
+	if (ret < 0)
+		return ret;
+
+	return tw9910_power(client, enable);
 }
 
 static int tw9910_set_bus_param(struct soc_camera_device *icd,
