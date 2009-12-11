@@ -26,7 +26,6 @@
 
 #include "rt_config.h"
 
-
 // Following information will be show when you run 'modinfo'
 // *** If you have a solution for the bug in current version of driver, please mail to me.
 // Otherwise post to forum in ralinktech's web site(www.ralinktech.com) and let all users help you. ***
@@ -37,141 +36,135 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(STA_DRIVER_VERSION);
 #endif
 
-
 /* module table */
 struct usb_device_id rtusb_usb_id[] = {
 #ifdef RT2870
-	{USB_DEVICE(0x148F,0x2770)}, /* Ralink */
-	{USB_DEVICE(0x148F,0x2870)}, /* Ralink */
-	{USB_DEVICE(0x07B8,0x2870)}, /* AboCom */
-	{USB_DEVICE(0x07B8,0x2770)}, /* AboCom */
-	{USB_DEVICE(0x0DF6,0x0039)}, /* Sitecom 2770 */
-	{USB_DEVICE(0x083A,0x7512)}, /* Arcadyan 2770 */
-	{USB_DEVICE(0x0789,0x0162)}, /* Logitec 2870 */
-	{USB_DEVICE(0x0789,0x0163)}, /* Logitec 2870 */
-	{USB_DEVICE(0x0789,0x0164)}, /* Logitec 2870 */
-	{USB_DEVICE(0x177f,0x0302)}, /* lsusb */
-	{USB_DEVICE(0x0B05,0x1731)}, /* Asus */
-	{USB_DEVICE(0x0B05,0x1732)}, /* Asus */
-	{USB_DEVICE(0x0B05,0x1742)}, /* Asus */
-	{USB_DEVICE(0x0DF6,0x0017)}, /* Sitecom */
-	{USB_DEVICE(0x0DF6,0x002B)}, /* Sitecom */
-	{USB_DEVICE(0x0DF6,0x002C)}, /* Sitecom */
-	{USB_DEVICE(0x0DF6,0x002D)}, /* Sitecom */
-	{USB_DEVICE(0x14B2,0x3C06)}, /* Conceptronic */
-	{USB_DEVICE(0x14B2,0x3C28)}, /* Conceptronic */
-	{USB_DEVICE(0x2019,0xED06)}, /* Planex Communications, Inc. */
-	{USB_DEVICE(0x07D1,0x3C09)}, /* D-Link */
-	{USB_DEVICE(0x07D1,0x3C11)}, /* D-Link */
-	{USB_DEVICE(0x14B2,0x3C07)}, /* AL */
-	{USB_DEVICE(0x050D,0x8053)}, /* Belkin */
-	{USB_DEVICE(0x14B2,0x3C23)}, /* Airlink */
-	{USB_DEVICE(0x14B2,0x3C27)}, /* Airlink */
-	{USB_DEVICE(0x07AA,0x002F)}, /* Corega */
-	{USB_DEVICE(0x07AA,0x003C)}, /* Corega */
-	{USB_DEVICE(0x07AA,0x003F)}, /* Corega */
-	{USB_DEVICE(0x1044,0x800B)}, /* Gigabyte */
-	{USB_DEVICE(0x15A9,0x0006)}, /* Sparklan */
-	{USB_DEVICE(0x083A,0xB522)}, /* SMC */
-	{USB_DEVICE(0x083A,0xA618)}, /* SMC */
-	{USB_DEVICE(0x083A,0x8522)}, /* Arcadyan */
-	{USB_DEVICE(0x083A,0x7522)}, /* Arcadyan */
-	{USB_DEVICE(0x0CDE,0x0022)}, /* ZCOM */
-	{USB_DEVICE(0x0586,0x3416)}, /* Zyxel */
-	{USB_DEVICE(0x0CDE,0x0025)}, /* Zyxel */
-	{USB_DEVICE(0x1740,0x9701)}, /* EnGenius */
-	{USB_DEVICE(0x1740,0x9702)}, /* EnGenius */
-	{USB_DEVICE(0x0471,0x200f)}, /* Philips */
-	{USB_DEVICE(0x14B2,0x3C25)}, /* Draytek */
-	{USB_DEVICE(0x13D3,0x3247)}, /* AzureWave */
-	{USB_DEVICE(0x083A,0x6618)}, /* Accton */
-	{USB_DEVICE(0x15c5,0x0008)}, /* Amit */
-	{USB_DEVICE(0x0E66,0x0001)}, /* Hawking */
-	{USB_DEVICE(0x0E66,0x0003)}, /* Hawking */
-	{USB_DEVICE(0x129B,0x1828)}, /* Siemens */
-	{USB_DEVICE(0x157E,0x300E)},	/* U-Media */
-	{USB_DEVICE(0x050d,0x805c)},
-	{USB_DEVICE(0x050d,0x815c)},
-	{USB_DEVICE(0x1482,0x3C09)}, /* Abocom*/
-	{USB_DEVICE(0x14B2,0x3C09)}, /* Alpha */
-	{USB_DEVICE(0x04E8,0x2018)}, /* samsung */
-	{USB_DEVICE(0x5A57,0x0280)}, /* Zinwell */
-	{USB_DEVICE(0x5A57,0x0282)}, /* Zinwell */
-	{USB_DEVICE(0x7392,0x7718)},
-	{USB_DEVICE(0x7392,0x7717)},
-	{USB_DEVICE(0x1737,0x0070)}, /* Linksys WUSB100 */
-	{USB_DEVICE(0x1737,0x0071)}, /* Linksys WUSB600N */
-	{USB_DEVICE(0x0411,0x00e8)}, /* Buffalo WLI-UC-G300N*/
-	{USB_DEVICE(0x050d,0x815c)}, /* Belkin F5D8053 */
+	{USB_DEVICE(0x148F, 0x2770)},	/* Ralink */
+	{USB_DEVICE(0x148F, 0x2870)},	/* Ralink */
+	{USB_DEVICE(0x07B8, 0x2870)},	/* AboCom */
+	{USB_DEVICE(0x07B8, 0x2770)},	/* AboCom */
+	{USB_DEVICE(0x0DF6, 0x0039)},	/* Sitecom 2770 */
+	{USB_DEVICE(0x083A, 0x7512)},	/* Arcadyan 2770 */
+	{USB_DEVICE(0x0789, 0x0162)},	/* Logitec 2870 */
+	{USB_DEVICE(0x0789, 0x0163)},	/* Logitec 2870 */
+	{USB_DEVICE(0x0789, 0x0164)},	/* Logitec 2870 */
+	{USB_DEVICE(0x177f, 0x0302)},	/* lsusb */
+	{USB_DEVICE(0x0B05, 0x1731)},	/* Asus */
+	{USB_DEVICE(0x0B05, 0x1732)},	/* Asus */
+	{USB_DEVICE(0x0B05, 0x1742)},	/* Asus */
+	{USB_DEVICE(0x0DF6, 0x0017)},	/* Sitecom */
+	{USB_DEVICE(0x0DF6, 0x002B)},	/* Sitecom */
+	{USB_DEVICE(0x0DF6, 0x002C)},	/* Sitecom */
+	{USB_DEVICE(0x0DF6, 0x002D)},	/* Sitecom */
+	{USB_DEVICE(0x14B2, 0x3C06)},	/* Conceptronic */
+	{USB_DEVICE(0x14B2, 0x3C28)},	/* Conceptronic */
+	{USB_DEVICE(0x2019, 0xED06)},	/* Planex Communications, Inc. */
+	{USB_DEVICE(0x07D1, 0x3C09)},	/* D-Link */
+	{USB_DEVICE(0x07D1, 0x3C11)},	/* D-Link */
+	{USB_DEVICE(0x14B2, 0x3C07)},	/* AL */
+	{USB_DEVICE(0x050D, 0x8053)},	/* Belkin */
+	{USB_DEVICE(0x14B2, 0x3C23)},	/* Airlink */
+	{USB_DEVICE(0x14B2, 0x3C27)},	/* Airlink */
+	{USB_DEVICE(0x07AA, 0x002F)},	/* Corega */
+	{USB_DEVICE(0x07AA, 0x003C)},	/* Corega */
+	{USB_DEVICE(0x07AA, 0x003F)},	/* Corega */
+	{USB_DEVICE(0x1044, 0x800B)},	/* Gigabyte */
+	{USB_DEVICE(0x15A9, 0x0006)},	/* Sparklan */
+	{USB_DEVICE(0x083A, 0xB522)},	/* SMC */
+	{USB_DEVICE(0x083A, 0xA618)},	/* SMC */
+	{USB_DEVICE(0x083A, 0x8522)},	/* Arcadyan */
+	{USB_DEVICE(0x083A, 0x7522)},	/* Arcadyan */
+	{USB_DEVICE(0x0CDE, 0x0022)},	/* ZCOM */
+	{USB_DEVICE(0x0586, 0x3416)},	/* Zyxel */
+	{USB_DEVICE(0x0CDE, 0x0025)},	/* Zyxel */
+	{USB_DEVICE(0x1740, 0x9701)},	/* EnGenius */
+	{USB_DEVICE(0x1740, 0x9702)},	/* EnGenius */
+	{USB_DEVICE(0x0471, 0x200f)},	/* Philips */
+	{USB_DEVICE(0x14B2, 0x3C25)},	/* Draytek */
+	{USB_DEVICE(0x13D3, 0x3247)},	/* AzureWave */
+	{USB_DEVICE(0x083A, 0x6618)},	/* Accton */
+	{USB_DEVICE(0x15c5, 0x0008)},	/* Amit */
+	{USB_DEVICE(0x0E66, 0x0001)},	/* Hawking */
+	{USB_DEVICE(0x0E66, 0x0003)},	/* Hawking */
+	{USB_DEVICE(0x129B, 0x1828)},	/* Siemens */
+	{USB_DEVICE(0x157E, 0x300E)},	/* U-Media */
+	{USB_DEVICE(0x050d, 0x805c)},
+	{USB_DEVICE(0x050d, 0x815c)},
+	{USB_DEVICE(0x1482, 0x3C09)},	/* Abocom */
+	{USB_DEVICE(0x14B2, 0x3C09)},	/* Alpha */
+	{USB_DEVICE(0x04E8, 0x2018)},	/* samsung */
+	{USB_DEVICE(0x5A57, 0x0280)},	/* Zinwell */
+	{USB_DEVICE(0x5A57, 0x0282)},	/* Zinwell */
+	{USB_DEVICE(0x7392, 0x7718)},
+	{USB_DEVICE(0x7392, 0x7717)},
+	{USB_DEVICE(0x1737, 0x0070)},	/* Linksys WUSB100 */
+	{USB_DEVICE(0x1737, 0x0071)},	/* Linksys WUSB600N */
+	{USB_DEVICE(0x0411, 0x00e8)},	/* Buffalo WLI-UC-G300N */
+	{USB_DEVICE(0x050d, 0x815c)},	/* Belkin F5D8053 */
 #endif // RT2870 //
 #ifdef RT3070
-	{USB_DEVICE(0x148F,0x3070)}, /* Ralink 3070 */
-	{USB_DEVICE(0x148F,0x3071)}, /* Ralink 3071 */
-	{USB_DEVICE(0x148F,0x3072)}, /* Ralink 3072 */
-	{USB_DEVICE(0x0DB0,0x3820)}, /* Ralink 3070 */
-	{USB_DEVICE(0x0DF6,0x003E)}, /* Sitecom 3070 */
-	{USB_DEVICE(0x0DF6,0x0042)}, /* Sitecom 3072 */
-	{USB_DEVICE(0x14B2,0x3C12)}, /* AL 3070 */
-	{USB_DEVICE(0x18C5,0x0012)}, /* Corega 3070 */
-	{USB_DEVICE(0x083A,0x7511)}, /* Arcadyan 3070 */
-	{USB_DEVICE(0x1740,0x9703)}, /* EnGenius 3070 */
-	{USB_DEVICE(0x1740,0x9705)}, /* EnGenius 3071 */
-	{USB_DEVICE(0x1740,0x9706)}, /* EnGenius 3072 */
-	{USB_DEVICE(0x13D3,0x3273)}, /* AzureWave 3070*/
-	{USB_DEVICE(0x1044,0x800D)}, /* Gigabyte GN-WB32L 3070 */
-	{USB_DEVICE(0x2019,0xAB25)}, /* Planex Communications, Inc. RT3070 */
-	{USB_DEVICE(0x07B8,0x3070)}, /* AboCom 3070 */
-	{USB_DEVICE(0x07B8,0x3071)}, /* AboCom 3071 */
-	{USB_DEVICE(0x07B8,0x3072)}, /* Abocom 3072 */
-	{USB_DEVICE(0x7392,0x7711)}, /* Edimax 3070 */
-	{USB_DEVICE(0x1A32,0x0304)}, /* Quanta 3070 */
-	{USB_DEVICE(0x1EDA,0x2310)}, /* AirTies 3070 */
-	{USB_DEVICE(0x07D1,0x3C0A)}, /* D-Link 3072 */
-	{USB_DEVICE(0x07D1,0x3C0D)}, /* D-Link 3070 */
-	{USB_DEVICE(0x07D1,0x3C0E)}, /* D-Link 3070 */
-	{USB_DEVICE(0x07D1,0x3C0F)}, /* D-Link 3070 */
-	{USB_DEVICE(0x1D4D,0x000C)}, /* Pegatron Corporation 3070 */
-	{USB_DEVICE(0x1D4D,0x000E)}, /* Pegatron Corporation 3070 */
-	{USB_DEVICE(0x5A57,0x5257)}, /* Zinwell 3070 */
-	{USB_DEVICE(0x5A57,0x0283)}, /* Zinwell 3072 */
-	{USB_DEVICE(0x04BB,0x0945)}, /* I-O DATA 3072 */
-	{USB_DEVICE(0x203D,0x1480)}, /* Encore 3070 */
+	{USB_DEVICE(0x148F, 0x3070)},	/* Ralink 3070 */
+	{USB_DEVICE(0x148F, 0x3071)},	/* Ralink 3071 */
+	{USB_DEVICE(0x148F, 0x3072)},	/* Ralink 3072 */
+	{USB_DEVICE(0x0DB0, 0x3820)},	/* Ralink 3070 */
+	{USB_DEVICE(0x0DF6, 0x003E)},	/* Sitecom 3070 */
+	{USB_DEVICE(0x0DF6, 0x0042)},	/* Sitecom 3072 */
+	{USB_DEVICE(0x14B2, 0x3C12)},	/* AL 3070 */
+	{USB_DEVICE(0x18C5, 0x0012)},	/* Corega 3070 */
+	{USB_DEVICE(0x083A, 0x7511)},	/* Arcadyan 3070 */
+	{USB_DEVICE(0x1740, 0x9703)},	/* EnGenius 3070 */
+	{USB_DEVICE(0x1740, 0x9705)},	/* EnGenius 3071 */
+	{USB_DEVICE(0x1740, 0x9706)},	/* EnGenius 3072 */
+	{USB_DEVICE(0x13D3, 0x3273)},	/* AzureWave 3070 */
+	{USB_DEVICE(0x1044, 0x800D)},	/* Gigabyte GN-WB32L 3070 */
+	{USB_DEVICE(0x2019, 0xAB25)},	/* Planex Communications, Inc. RT3070 */
+	{USB_DEVICE(0x07B8, 0x3070)},	/* AboCom 3070 */
+	{USB_DEVICE(0x07B8, 0x3071)},	/* AboCom 3071 */
+	{USB_DEVICE(0x07B8, 0x3072)},	/* Abocom 3072 */
+	{USB_DEVICE(0x7392, 0x7711)},	/* Edimax 3070 */
+	{USB_DEVICE(0x1A32, 0x0304)},	/* Quanta 3070 */
+	{USB_DEVICE(0x1EDA, 0x2310)},	/* AirTies 3070 */
+	{USB_DEVICE(0x07D1, 0x3C0A)},	/* D-Link 3072 */
+	{USB_DEVICE(0x07D1, 0x3C0D)},	/* D-Link 3070 */
+	{USB_DEVICE(0x07D1, 0x3C0E)},	/* D-Link 3070 */
+	{USB_DEVICE(0x07D1, 0x3C0F)},	/* D-Link 3070 */
+	{USB_DEVICE(0x1D4D, 0x000C)},	/* Pegatron Corporation 3070 */
+	{USB_DEVICE(0x1D4D, 0x000E)},	/* Pegatron Corporation 3070 */
+	{USB_DEVICE(0x5A57, 0x5257)},	/* Zinwell 3070 */
+	{USB_DEVICE(0x5A57, 0x0283)},	/* Zinwell 3072 */
+	{USB_DEVICE(0x04BB, 0x0945)},	/* I-O DATA 3072 */
+	{USB_DEVICE(0x203D, 0x1480)},	/* Encore 3070 */
 #endif // RT3070 //
-	{ USB_DEVICE(0x0DF6, 0x003F) }, /* Sitecom WL-608 */
-	{ USB_DEVICE(0x1737, 0x0077) }, /* Linksys WUSB54GC-EU v3 */
-	{ USB_DEVICE(0x2001, 0x3C09) }, /* D-Link */
-	{ USB_DEVICE(0x2001, 0x3C0A) }, /* D-Link 3072*/
-	{ USB_DEVICE(0x2019, 0xED14) }, /* Planex Communications, Inc. */
-	{ }/* Terminating entry */
+	{USB_DEVICE(0x0DF6, 0x003F)},	/* Sitecom WL-608 */
+	{USB_DEVICE(0x1737, 0x0077)},	/* Linksys WUSB54GC-EU v3 */
+	{USB_DEVICE(0x2001, 0x3C09)},	/* D-Link */
+	{USB_DEVICE(0x2001, 0x3C0A)},	/* D-Link 3072 */
+	{USB_DEVICE(0x2019, 0xED14)},	/* Planex Communications, Inc. */
+	{}			/* Terminating entry */
 };
 
-INT const rtusb_usb_id_len = sizeof(rtusb_usb_id) / sizeof(struct usb_device_id);
+INT const rtusb_usb_id_len =
+    sizeof(rtusb_usb_id) / sizeof(struct usb_device_id);
 
 MODULE_DEVICE_TABLE(usb, rtusb_usb_id);
 
-static void rt2870_disconnect(
-	IN struct usb_device *dev,
-	IN PRTMP_ADAPTER pAd);
+static void rt2870_disconnect(IN struct usb_device *dev, IN PRTMP_ADAPTER pAd);
 
-static int __devinit rt2870_probe(
-	IN struct usb_interface *intf,
-	IN struct usb_device *usb_dev,
-	IN const struct usb_device_id *dev_id,
-	IN RTMP_ADAPTER **ppAd);
+static int __devinit rt2870_probe(IN struct usb_interface *intf,
+				  IN struct usb_device *usb_dev,
+				  IN const struct usb_device_id *dev_id,
+				  IN RTMP_ADAPTER ** ppAd);
 
 #ifndef PF_NOFREEZE
 #define PF_NOFREEZE  0
 #endif
 
-
 extern int rt28xx_close(IN struct net_device *net_dev);
 extern int rt28xx_open(struct net_device *net_dev);
 
-static BOOLEAN USBDevConfigInit(
-	IN struct usb_device	*dev,
-	IN struct usb_interface *intf,
-	IN RTMP_ADAPTER *pAd);
-
+static BOOLEAN USBDevConfigInit(IN struct usb_device *dev,
+				IN struct usb_interface *intf,
+				IN RTMP_ADAPTER * pAd);
 
 /*
 ========================================================================
@@ -188,27 +181,23 @@ Return Value:
 Note:
 ========================================================================
 */
-BOOLEAN RT28XXChipsetCheck(
-	IN void *_dev_p)
+BOOLEAN RT28XXChipsetCheck(IN void *_dev_p)
 {
 	struct usb_interface *intf = (struct usb_interface *)_dev_p;
 	struct usb_device *dev_p = interface_to_usbdev(intf);
 	UINT32 i;
 
-
-	for(i=0; i<rtusb_usb_id_len; i++)
-	{
+	for (i = 0; i < rtusb_usb_id_len; i++) {
 		if (dev_p->descriptor.idVendor == rtusb_usb_id[i].idVendor &&
-			dev_p->descriptor.idProduct == rtusb_usb_id[i].idProduct)
-		{
+		    dev_p->descriptor.idProduct == rtusb_usb_id[i].idProduct) {
 			printk("rt2870: idVendor = 0x%x, idProduct = 0x%x\n",
-					dev_p->descriptor.idVendor, dev_p->descriptor.idProduct);
+			       dev_p->descriptor.idVendor,
+			       dev_p->descriptor.idProduct);
 			break;
 		}
 	}
 
-	if (i == rtusb_usb_id_len)
-	{
+	if (i == rtusb_usb_id_len) {
 		printk("rt2870: Error! Device Descriptor not matching!\n");
 		return FALSE;
 	}
@@ -227,61 +216,76 @@ static int rt2870_suspend(struct usb_interface *intf, pm_message_t state);
 static int rt2870_resume(struct usb_interface *intf);
 #endif // CONFIG_PM //
 
-static int rtusb_probe (struct usb_interface *intf,
-						const struct usb_device_id *id);
+static int rtusb_probe(struct usb_interface *intf,
+		       const struct usb_device_id *id);
 static void rtusb_disconnect(struct usb_interface *intf);
 
-static BOOLEAN USBDevConfigInit(
-	IN struct usb_device	*dev,
-	IN struct usb_interface *intf,
-	IN RTMP_ADAPTER		*pAd)
+static BOOLEAN USBDevConfigInit(IN struct usb_device *dev,
+				IN struct usb_interface *intf,
+				IN RTMP_ADAPTER * pAd)
 {
 	struct usb_host_interface *iface_desc;
 	ULONG BulkOutIdx;
 	UINT32 i;
-
 
 	/* get the active interface descriptor */
 	iface_desc = intf->cur_altsetting;
 
 	/* get # of enpoints  */
 	pAd->NumberOfPipes = iface_desc->desc.bNumEndpoints;
-	DBGPRINT(RT_DEBUG_TRACE, ("NumEndpoints=%d\n", iface_desc->desc.bNumEndpoints));
+	DBGPRINT(RT_DEBUG_TRACE,
+		 ("NumEndpoints=%d\n", iface_desc->desc.bNumEndpoints));
 
 	/* Configure Pipes */
 	BulkOutIdx = 0;
 
-	for(i=0; i<pAd->NumberOfPipes; i++)
-	{
+	for (i = 0; i < pAd->NumberOfPipes; i++) {
 		if ((iface_desc->endpoint[i].desc.bmAttributes ==
-				USB_ENDPOINT_XFER_BULK) &&
-			((iface_desc->endpoint[i].desc.bEndpointAddress &
-				USB_ENDPOINT_DIR_MASK) == USB_DIR_IN))
-		{
-			pAd->BulkInEpAddr = iface_desc->endpoint[i].desc.bEndpointAddress;
-			pAd->BulkInMaxPacketSize = le2cpu16(iface_desc->endpoint[i].desc.wMaxPacketSize);
+		     USB_ENDPOINT_XFER_BULK) &&
+		    ((iface_desc->endpoint[i].desc.bEndpointAddress &
+		      USB_ENDPOINT_DIR_MASK) == USB_DIR_IN)) {
+			pAd->BulkInEpAddr =
+			    iface_desc->endpoint[i].desc.bEndpointAddress;
+			pAd->BulkInMaxPacketSize =
+			    le2cpu16(iface_desc->endpoint[i].desc.
+				     wMaxPacketSize);
 
-			DBGPRINT_RAW(RT_DEBUG_TRACE, ("BULK IN MaxPacketSize = %d\n", pAd->BulkInMaxPacketSize));
-			DBGPRINT_RAW(RT_DEBUG_TRACE, ("EP address = 0x%2x\n", iface_desc->endpoint[i].desc.bEndpointAddress));
-		}
-		else if ((iface_desc->endpoint[i].desc.bmAttributes ==
-					USB_ENDPOINT_XFER_BULK) &&
-				((iface_desc->endpoint[i].desc.bEndpointAddress &
-					USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT))
-		{
+			DBGPRINT_RAW(RT_DEBUG_TRACE,
+				     ("BULK IN MaxPacketSize = %d\n",
+				      pAd->BulkInMaxPacketSize));
+			DBGPRINT_RAW(RT_DEBUG_TRACE,
+				     ("EP address = 0x%2x\n",
+				      iface_desc->endpoint[i].desc.
+				      bEndpointAddress));
+		} else
+		    if ((iface_desc->endpoint[i].desc.bmAttributes ==
+			 USB_ENDPOINT_XFER_BULK)
+			&&
+			((iface_desc->endpoint[i].desc.
+			  bEndpointAddress & USB_ENDPOINT_DIR_MASK) ==
+			 USB_DIR_OUT)) {
 			// there are 6 bulk out EP. EP6 highest priority.
 			// EP1-4 is EDCA.  EP5 is HCCA.
-			pAd->BulkOutEpAddr[BulkOutIdx++] = iface_desc->endpoint[i].desc.bEndpointAddress;
-			pAd->BulkOutMaxPacketSize = le2cpu16(iface_desc->endpoint[i].desc.wMaxPacketSize);
+			pAd->BulkOutEpAddr[BulkOutIdx++] =
+			    iface_desc->endpoint[i].desc.bEndpointAddress;
+			pAd->BulkOutMaxPacketSize =
+			    le2cpu16(iface_desc->endpoint[i].desc.
+				     wMaxPacketSize);
 
-			DBGPRINT_RAW(RT_DEBUG_TRACE, ("BULK OUT MaxPacketSize = %d\n", pAd->BulkOutMaxPacketSize));
-			DBGPRINT_RAW(RT_DEBUG_TRACE, ("EP address = 0x%2x  \n", iface_desc->endpoint[i].desc.bEndpointAddress));
+			DBGPRINT_RAW(RT_DEBUG_TRACE,
+				     ("BULK OUT MaxPacketSize = %d\n",
+				      pAd->BulkOutMaxPacketSize));
+			DBGPRINT_RAW(RT_DEBUG_TRACE,
+				     ("EP address = 0x%2x  \n",
+				      iface_desc->endpoint[i].desc.
+				      bEndpointAddress));
 		}
 	}
 
-	if (!(pAd->BulkInEpAddr && pAd->BulkOutEpAddr[0]))
-	{
-		printk("%s: Could not find both bulk-in and bulk-out endpoints\n", __FUNCTION__);
+	if (!(pAd->BulkInEpAddr && pAd->BulkOutEpAddr[0])) {
+		printk
+		    ("%s: Could not find both bulk-in and bulk-out endpoints\n",
+		     __FUNCTION__);
 		return FALSE;
 	}
 
@@ -292,10 +296,8 @@ static BOOLEAN USBDevConfigInit(
 
 }
 
-
-
-static int rtusb_probe (struct usb_interface *intf,
-						const struct usb_device_id *id)
+static int rtusb_probe(struct usb_interface *intf,
+		       const struct usb_device_id *id)
 {
 	RTMP_ADAPTER *pAd;
 	struct usb_device *dev;
@@ -311,12 +313,10 @@ static int rtusb_probe (struct usb_interface *intf,
 	return rv;
 }
 
-
 static void rtusb_disconnect(struct usb_interface *intf)
 {
-	struct usb_device   *dev = interface_to_usbdev(intf);
-	PRTMP_ADAPTER       pAd;
-
+	struct usb_device *dev = interface_to_usbdev(intf);
+	PRTMP_ADAPTER pAd;
 
 	pAd = usb_get_intfdata(intf);
 	usb_set_intfdata(intf, NULL);
@@ -324,35 +324,30 @@ static void rtusb_disconnect(struct usb_interface *intf)
 	rt2870_disconnect(dev, pAd);
 }
 
-
 struct usb_driver rtusb_driver = {
-	.name="rt2870",
-	.probe=rtusb_probe,
-	.disconnect=rtusb_disconnect,
-	.id_table=rtusb_usb_id,
+	.name = "rt2870",
+	.probe = rtusb_probe,
+	.disconnect = rtusb_disconnect,
+	.id_table = rtusb_usb_id,
 
 #ifdef CONFIG_PM
-	suspend:	rt2870_suspend,
-	resume:		rt2870_resume,
+suspend:rt2870_suspend,
+resume:rt2870_resume,
 #endif
-	};
+};
 
 #ifdef CONFIG_PM
 
-VOID RT2870RejectPendingPackets(
-	IN	PRTMP_ADAPTER	pAd)
+VOID RT2870RejectPendingPackets(IN PRTMP_ADAPTER pAd)
 {
 	// clear PS packets
 	// clear TxSw packets
 }
 
-static int rt2870_suspend(
-	struct usb_interface *intf,
-	pm_message_t state)
+static int rt2870_suspend(struct usb_interface *intf, pm_message_t state)
 {
 	struct net_device *net_dev;
 	PRTMP_ADAPTER pAd = usb_get_intfdata(intf);
-
 
 	DBGPRINT(RT_DEBUG_TRACE, ("===> rt2870_suspend()\n"));
 	net_dev = pAd->net_dev;
@@ -367,12 +362,10 @@ static int rt2870_suspend(
 	return 0;
 }
 
-static int rt2870_resume(
-	struct usb_interface *intf)
+static int rt2870_resume(struct usb_interface *intf)
 {
 	struct net_device *net_dev;
 	PRTMP_ADAPTER pAd = usb_get_intfdata(intf);
-
 
 	DBGPRINT(RT_DEBUG_TRACE, ("===> rt2870_resume()\n"));
 
@@ -405,9 +398,6 @@ VOID __exit rtusb_exit(void)
 module_init(rtusb_init);
 module_exit(rtusb_exit);
 
-
-
-
 /*---------------------------------------------------------------------	*/
 /* function declarations												*/
 /*---------------------------------------------------------------------	*/
@@ -426,35 +416,32 @@ Return Value:
 Note:
 ========================================================================
 */
-INT MlmeThread(
-	IN void *Context)
+INT MlmeThread(IN void *Context)
 {
 	RTMP_ADAPTER *pAd;
 	RTMP_OS_TASK *pTask;
 	int status;
 	status = 0;
 
-	pTask = (RTMP_OS_TASK *)Context;
-	pAd = (PRTMP_ADAPTER)pTask->priv;
+	pTask = (RTMP_OS_TASK *) Context;
+	pAd = (PRTMP_ADAPTER) pTask->priv;
 
 	RtmpOSTaskCustomize(pTask);
 
-	while(!pTask->task_killed)
-	{
+	while (!pTask->task_killed) {
 #ifdef KTHREAD_SUPPORT
 		RTMP_WAIT_EVENT_INTERRUPTIBLE(pAd, pTask);
 #else
 		RTMP_SEM_EVENT_WAIT(&(pTask->taskSema), status);
 
 		/* unlock the device pointers */
-		if (status != 0)
-		{
+		if (status != 0) {
 			RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS);
 			break;
 		}
 #endif
 
-		/* lock the device pointers , need to check if required*/
+		/* lock the device pointers , need to check if required */
 		//down(&(pAd->usbdev_semaphore));
 
 		if (!pAd->PM_FlgSuspend)
@@ -475,15 +462,14 @@ INT MlmeThread(
 	 * This is important in preemption kernels, which transfer the flow
 	 * of execution immediately upon a complete().
 	 */
-	DBGPRINT(RT_DEBUG_TRACE,( "<---%s\n",__FUNCTION__));
+	DBGPRINT(RT_DEBUG_TRACE, ("<---%s\n", __FUNCTION__));
 #ifndef KTHREAD_SUPPORT
 	pTask->taskPID = THREAD_PID_INIT_VALUE;
-	complete_and_exit (&pTask->taskComplete, 0);
+	complete_and_exit(&pTask->taskComplete, 0);
 #endif
 	return 0;
 
 }
-
 
 /*
 ========================================================================
@@ -499,16 +485,15 @@ Return Value:
 Note:
 ========================================================================
 */
-INT RTUSBCmdThread(
-	IN void * Context)
+INT RTUSBCmdThread(IN void *Context)
 {
 	RTMP_ADAPTER *pAd;
 	RTMP_OS_TASK *pTask;
 	int status;
 	status = 0;
 
-	pTask = (RTMP_OS_TASK *)Context;
-	pAd = (PRTMP_ADAPTER)pTask->priv;
+	pTask = (RTMP_OS_TASK *) Context;
+	pAd = (PRTMP_ADAPTER) pTask->priv;
 
 	RtmpOSTaskCustomize(pTask);
 
@@ -516,16 +501,14 @@ INT RTUSBCmdThread(
 	pAd->CmdQ.CmdQState = RTMP_TASK_STAT_RUNNING;
 	NdisReleaseSpinLock(&pAd->CmdQLock);
 
-	while (pAd && pAd->CmdQ.CmdQState == RTMP_TASK_STAT_RUNNING)
-	{
+	while (pAd && pAd->CmdQ.CmdQState == RTMP_TASK_STAT_RUNNING) {
 #ifdef KTHREAD_SUPPORT
 		RTMP_WAIT_EVENT_INTERRUPTIBLE(pAd, pTask);
 #else
 		/* lock the device pointers */
 		RTMP_SEM_EVENT_WAIT(&(pTask->taskSema), status);
 
-		if (status != 0)
-		{
+		if (status != 0) {
 			RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS);
 			break;
 		}
@@ -538,28 +521,25 @@ INT RTUSBCmdThread(
 			CMDHandler(pAd);
 	}
 
-	if (pAd && !pAd->PM_FlgSuspend)
-	{	// Clear the CmdQElements.
-		CmdQElmt	*pCmdQElmt = NULL;
+	if (pAd && !pAd->PM_FlgSuspend) {	// Clear the CmdQElements.
+		CmdQElmt *pCmdQElmt = NULL;
 
 		NdisAcquireSpinLock(&pAd->CmdQLock);
 		pAd->CmdQ.CmdQState = RTMP_TASK_STAT_STOPED;
-		while(pAd->CmdQ.size)
-		{
+		while (pAd->CmdQ.size) {
 			RTUSBDequeueCmd(&pAd->CmdQ, &pCmdQElmt);
-			if (pCmdQElmt)
-			{
-				if (pCmdQElmt->CmdFromNdis == TRUE)
-				{
+			if (pCmdQElmt) {
+				if (pCmdQElmt->CmdFromNdis == TRUE) {
 					if (pCmdQElmt->buffer != NULL)
-						os_free_mem(pAd, pCmdQElmt->buffer);
-					os_free_mem(pAd, (PUCHAR)pCmdQElmt);
-				}
-				else
-				{
-					if ((pCmdQElmt->buffer != NULL) && (pCmdQElmt->bufferlength != 0))
-						os_free_mem(pAd, pCmdQElmt->buffer);
-					os_free_mem(pAd, (PUCHAR)pCmdQElmt);
+						os_free_mem(pAd,
+							    pCmdQElmt->buffer);
+					os_free_mem(pAd, (PUCHAR) pCmdQElmt);
+				} else {
+					if ((pCmdQElmt->buffer != NULL)
+					    && (pCmdQElmt->bufferlength != 0))
+						os_free_mem(pAd,
+							    pCmdQElmt->buffer);
+					os_free_mem(pAd, (PUCHAR) pCmdQElmt);
 				}
 			}
 		}
@@ -580,52 +560,54 @@ INT RTUSBCmdThread(
 	 * This is important in preemption kernels, which transfer the flow
 	 * of execution immediately upon a complete().
 	 */
-	DBGPRINT(RT_DEBUG_TRACE,( "<---RTUSBCmdThread\n"));
+	DBGPRINT(RT_DEBUG_TRACE, ("<---RTUSBCmdThread\n"));
 
 #ifndef KTHREAD_SUPPORT
 	pTask->taskPID = THREAD_PID_INIT_VALUE;
-	complete_and_exit (&pTask->taskComplete, 0);
+	complete_and_exit(&pTask->taskComplete, 0);
 #endif
 	return 0;
 
 }
 
-
-VOID RTUSBWatchDog(IN RTMP_ADAPTER *pAd)
+VOID RTUSBWatchDog(IN RTMP_ADAPTER * pAd)
 {
-	PHT_TX_CONTEXT		pHTTXContext;
-	int					idx;
-	ULONG				irqFlags;
-	PURB				pUrb;
-	BOOLEAN				needDumpSeq = FALSE;
-	UINT32			MACValue;
-	UINT32		TxRxQ_Pcnt;
+	PHT_TX_CONTEXT pHTTXContext;
+	int idx;
+	ULONG irqFlags;
+	PURB pUrb;
+	BOOLEAN needDumpSeq = FALSE;
+	UINT32 MACValue;
+	UINT32 TxRxQ_Pcnt;
 
 	idx = 0;
 	RTMP_IO_READ32(pAd, TXRXQ_PCNT, &MACValue);
-	if ((MACValue & 0xff) !=0 )
-	{
-		DBGPRINT(RT_DEBUG_TRACE, ("TX QUEUE 0 Not EMPTY(Value=0x%0x). !!!!!!!!!!!!!!!\n", MACValue));
+	if ((MACValue & 0xff) != 0) {
+		DBGPRINT(RT_DEBUG_TRACE,
+			 ("TX QUEUE 0 Not EMPTY(Value=0x%0x). !!!!!!!!!!!!!!!\n",
+			  MACValue));
 		RTMP_IO_WRITE32(pAd, PBF_CFG, 0xf40012);
-		while((MACValue &0xff) != 0 && (idx++ < 10))
-		{
-		        RTMP_IO_READ32(pAd, TXRXQ_PCNT, &MACValue);
-		        RTMPusecDelay(1);
+		while ((MACValue & 0xff) != 0 && (idx++ < 10)) {
+			RTMP_IO_READ32(pAd, TXRXQ_PCNT, &MACValue);
+			RTMPusecDelay(1);
 		}
 		RTMP_IO_WRITE32(pAd, PBF_CFG, 0xf40006);
 	}
 
-	if (pAd->watchDogRxOverFlowCnt >= 2)
-	{
-		DBGPRINT(RT_DEBUG_TRACE, ("Maybe the Rx Bulk-In hanged! Cancel the pending Rx bulks request!\n"));
-		if ((!RTMP_TEST_FLAG(pAd, (fRTMP_ADAPTER_RESET_IN_PROGRESS |
-									fRTMP_ADAPTER_BULKIN_RESET |
-									fRTMP_ADAPTER_HALT_IN_PROGRESS |
-									fRTMP_ADAPTER_NIC_NOT_EXIST))))
-		{
-			DBGPRINT(RT_DEBUG_TRACE, ("Call CMDTHREAD_RESET_BULK_IN to cancel the pending Rx Bulk!\n"));
+	if (pAd->watchDogRxOverFlowCnt >= 2) {
+		DBGPRINT(RT_DEBUG_TRACE,
+			 ("Maybe the Rx Bulk-In hanged! Cancel the pending Rx bulks request!\n"));
+		if ((!RTMP_TEST_FLAG
+		     (pAd,
+		      (fRTMP_ADAPTER_RESET_IN_PROGRESS |
+		       fRTMP_ADAPTER_BULKIN_RESET |
+		       fRTMP_ADAPTER_HALT_IN_PROGRESS |
+		       fRTMP_ADAPTER_NIC_NOT_EXIST)))) {
+			DBGPRINT(RT_DEBUG_TRACE,
+				 ("Call CMDTHREAD_RESET_BULK_IN to cancel the pending Rx Bulk!\n"));
 			RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_BULKIN_RESET);
-			RTUSBEnqueueInternalCmd(pAd, CMDTHREAD_RESET_BULK_IN, NULL, 0);
+			RTUSBEnqueueInternalCmd(pAd, CMDTHREAD_RESET_BULK_IN,
+						NULL, 0);
 			needDumpSeq = TRUE;
 		}
 		pAd->watchDogRxOverFlowCnt = 0;
@@ -633,126 +615,139 @@ VOID RTUSBWatchDog(IN RTMP_ADAPTER *pAd)
 
 	RTUSBReadMACRegister(pAd, 0x438, &TxRxQ_Pcnt);
 
-	for (idx = 0; idx < NUM_OF_TX_RING; idx++)
-	{
+	for (idx = 0; idx < NUM_OF_TX_RING; idx++) {
 		pUrb = NULL;
 
 		RTMP_IRQ_LOCK(&pAd->BulkOutLock[idx], irqFlags);
-		if ((pAd->BulkOutPending[idx] == TRUE) && pAd->watchDogTxPendingCnt)
-		{
-			INT actual_length=0,transfer_buffer_length=0;
-			BOOLEAN isDataPacket=FALSE;
+		if ((pAd->BulkOutPending[idx] == TRUE)
+		    && pAd->watchDogTxPendingCnt) {
+			INT actual_length = 0, transfer_buffer_length = 0;
+			BOOLEAN isDataPacket = FALSE;
 			pAd->watchDogTxPendingCnt[idx]++;
 
 			if ((pAd->watchDogTxPendingCnt[idx] > 2) &&
-				 (!RTMP_TEST_FLAG(pAd, (fRTMP_ADAPTER_RESET_IN_PROGRESS | fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST | fRTMP_ADAPTER_BULKOUT_RESET)))
-				)
-			{
+			    (!RTMP_TEST_FLAG
+			     (pAd,
+			      (fRTMP_ADAPTER_RESET_IN_PROGRESS |
+			       fRTMP_ADAPTER_HALT_IN_PROGRESS |
+			       fRTMP_ADAPTER_NIC_NOT_EXIST |
+			       fRTMP_ADAPTER_BULKOUT_RESET)))
+			    ) {
 				// FIXME: Following code just support single bulk out. If you wanna support multiple bulk out. Modify it!
-				pHTTXContext = (PHT_TX_CONTEXT)(&pAd->TxContext[idx]);
-				if (pHTTXContext->IRPPending)
-				{	// Check TxContext.
+				pHTTXContext =
+				    (PHT_TX_CONTEXT) (&pAd->TxContext[idx]);
+				if (pHTTXContext->IRPPending) {	// Check TxContext.
 					pUrb = pHTTXContext->pUrb;
 
-					actual_length=pUrb->actual_length;
-					transfer_buffer_length=pUrb->transfer_buffer_length;
-					isDataPacket=TRUE;
-				}
-				else if (idx == MGMTPIPEIDX)
-				{
-					PTX_CONTEXT pMLMEContext, pNULLContext, pPsPollContext;
+					actual_length = pUrb->actual_length;
+					transfer_buffer_length =
+					    pUrb->transfer_buffer_length;
+					isDataPacket = TRUE;
+				} else if (idx == MGMTPIPEIDX) {
+					PTX_CONTEXT pMLMEContext, pNULLContext,
+					    pPsPollContext;
 
 					//Check MgmtContext.
-					pMLMEContext = (PTX_CONTEXT)(pAd->MgmtRing.Cell[pAd->MgmtRing.TxDmaIdx].AllocVa);
-					pPsPollContext = (PTX_CONTEXT)(&pAd->PsPollContext);
-					pNULLContext = (PTX_CONTEXT)(&pAd->NullContext);
+					pMLMEContext =
+					    (PTX_CONTEXT) (pAd->MgmtRing.
+							   Cell[pAd->MgmtRing.
+								TxDmaIdx].
+							   AllocVa);
+					pPsPollContext =
+					    (PTX_CONTEXT) (&pAd->PsPollContext);
+					pNULLContext =
+					    (PTX_CONTEXT) (&pAd->NullContext);
 
-					if (pMLMEContext->IRPPending)
-					{
-						ASSERT(pMLMEContext->IRPPending);
+					if (pMLMEContext->IRPPending) {
+						ASSERT(pMLMEContext->
+						       IRPPending);
 						pUrb = pMLMEContext->pUrb;
-					}
-					else if (pNULLContext->IRPPending)
-					{
-						ASSERT(pNULLContext->IRPPending);
+					} else if (pNULLContext->IRPPending) {
+						ASSERT(pNULLContext->
+						       IRPPending);
 						pUrb = pNULLContext->pUrb;
-					}
-					else if (pPsPollContext->IRPPending)
-					{
-						ASSERT(pPsPollContext->IRPPending);
+					} else if (pPsPollContext->IRPPending) {
+						ASSERT(pPsPollContext->
+						       IRPPending);
 						pUrb = pPsPollContext->pUrb;
 					}
 				}
 
-				RTMP_IRQ_UNLOCK(&pAd->BulkOutLock[idx], irqFlags);
+				RTMP_IRQ_UNLOCK(&pAd->BulkOutLock[idx],
+						irqFlags);
 
 				printk(KERN_INFO "%d:%lu LTL=%d , TL=%d L:%d\n",
 				       idx, pAd->watchDogTxPendingCnt[idx],
 				       pAd->TransferedLength[idx],
 				       actual_length, transfer_buffer_length);
 
-				if (pUrb)
-				{
+				if (pUrb) {
 					if ((isDataPacket
-					&& pAd->TransferedLength[idx]==actual_length
-					&& pAd->TransferedLength[idx]<transfer_buffer_length
-					&& actual_length!=0
-//					&& TxRxQ_Pcnt==0
-					&& pAd->watchDogTxPendingCnt[idx]>3)
-					|| isDataPacket==FALSE || pAd->watchDogTxPendingCnt[idx]>6)
-					{
-						DBGPRINT(RT_DEBUG_TRACE, ("Maybe the Tx Bulk-Out hanged! Cancel the pending Tx bulks request of idx(%d)!\n", idx));
-					DBGPRINT(RT_DEBUG_TRACE, ("Unlink the pending URB!\n"));
-					// unlink it now
-					RTUSB_UNLINK_URB(pUrb);
-					// Sleep 200 microseconds to give cancellation time to work
+					     && pAd->TransferedLength[idx] ==
+					     actual_length
+					     && pAd->TransferedLength[idx] <
+					     transfer_buffer_length
+					     && actual_length != 0
+//                                      && TxRxQ_Pcnt==0
+					     && pAd->watchDogTxPendingCnt[idx] >
+					     3)
+					    || isDataPacket == FALSE
+					    || pAd->watchDogTxPendingCnt[idx] >
+					    6) {
+						DBGPRINT(RT_DEBUG_TRACE,
+							 ("Maybe the Tx Bulk-Out hanged! Cancel the pending Tx bulks request of idx(%d)!\n",
+							  idx));
+						DBGPRINT(RT_DEBUG_TRACE,
+							 ("Unlink the pending URB!\n"));
+						// unlink it now
+						RTUSB_UNLINK_URB(pUrb);
+						// Sleep 200 microseconds to give cancellation time to work
 						//RTMPusecDelay(200);
-					needDumpSeq = TRUE;
+						needDumpSeq = TRUE;
 					}
+				} else {
+					DBGPRINT(RT_DEBUG_ERROR,
+						 ("Unkonw bulkOut URB maybe hanged!!!!!!!!!!!!\n"));
 				}
-				else
-				{
-					DBGPRINT(RT_DEBUG_ERROR, ("Unkonw bulkOut URB maybe hanged!!!!!!!!!!!!\n"));
-				}
-			}
-			else
-			{
-				RTMP_IRQ_UNLOCK(&pAd->BulkOutLock[idx], irqFlags);
+			} else {
+				RTMP_IRQ_UNLOCK(&pAd->BulkOutLock[idx],
+						irqFlags);
 			}
 
-			if (isDataPacket==TRUE)
-				pAd->TransferedLength[idx]=actual_length;
-		}
-		else
-		{
+			if (isDataPacket == TRUE)
+				pAd->TransferedLength[idx] = actual_length;
+		} else {
 			RTMP_IRQ_UNLOCK(&pAd->BulkOutLock[idx], irqFlags);
 		}
 	}
 
 	// For Sigma debug, dump the ba_reordering sequence.
-	if((needDumpSeq == TRUE) && (pAd->CommonCfg.bDisableReordering == 0))
-	{
-		USHORT				Idx;
-		PBA_REC_ENTRY		pBAEntry = NULL;
-		UCHAR				count = 0;
+	if ((needDumpSeq == TRUE) && (pAd->CommonCfg.bDisableReordering == 0)) {
+		USHORT Idx;
+		PBA_REC_ENTRY pBAEntry = NULL;
+		UCHAR count = 0;
 		struct reordering_mpdu *mpdu_blk;
 
 		Idx = pAd->MacTab.Content[BSSID_WCID].BARecWcidArray[0];
 
 		pBAEntry = &pAd->BATable.BARecEntry[Idx];
-		if((pBAEntry->list.qlen > 0) && (pBAEntry->list.next != NULL))
-		{
-			DBGPRINT(RT_DEBUG_TRACE, ("NICUpdateRawCounters():The Queueing pkt in reordering buffer:\n"));
+		if ((pBAEntry->list.qlen > 0) && (pBAEntry->list.next != NULL)) {
+			DBGPRINT(RT_DEBUG_TRACE,
+				 ("NICUpdateRawCounters():The Queueing pkt in reordering buffer:\n"));
 			NdisAcquireSpinLock(&pBAEntry->RxReRingLock);
 			mpdu_blk = pBAEntry->list.next;
-			while (mpdu_blk)
-			{
-				DBGPRINT(RT_DEBUG_TRACE, ("\t%d:Seq-%d, bAMSDU-%d!\n", count, mpdu_blk->Sequence, mpdu_blk->bAMSDU));
+			while (mpdu_blk) {
+				DBGPRINT(RT_DEBUG_TRACE,
+					 ("\t%d:Seq-%d, bAMSDU-%d!\n", count,
+					  mpdu_blk->Sequence,
+					  mpdu_blk->bAMSDU));
 				mpdu_blk = mpdu_blk->next;
 				count++;
 			}
 
-			DBGPRINT(RT_DEBUG_TRACE, ("\npBAEntry->LastIndSeq=%d!\n", pBAEntry->LastIndSeq));
+			DBGPRINT(RT_DEBUG_TRACE,
+				 ("\npBAEntry->LastIndSeq=%d!\n",
+				  pBAEntry->LastIndSeq));
 			NdisReleaseSpinLock(&pBAEntry->RxReRingLock);
 		}
 	}
@@ -775,10 +770,10 @@ Note:
 */
 static void rt2870_disconnect(struct usb_device *dev, PRTMP_ADAPTER pAd)
 {
-	DBGPRINT(RT_DEBUG_ERROR, ("rtusb_disconnect: unregister usbnet usb-%s-%s\n",
-				dev->bus->bus_name, dev->devpath));
-	if (!pAd)
-	{
+	DBGPRINT(RT_DEBUG_ERROR,
+		 ("rtusb_disconnect: unregister usbnet usb-%s-%s\n",
+		  dev->bus->bus_name, dev->devpath));
+	if (!pAd) {
 		usb_put_dev(dev);
 		printk("rtusb_disconnect: pAd == NULL!\n");
 		return;
@@ -787,7 +782,6 @@ static void rt2870_disconnect(struct usb_device *dev, PRTMP_ADAPTER pAd)
 
 	// for debug, wait to show some messages to /proc system
 	udelay(1);
-
 
 	RtmpPhyNetDevExit(pAd, pAd->net_dev);
 
@@ -808,43 +802,38 @@ static void rt2870_disconnect(struct usb_device *dev, PRTMP_ADAPTER pAd)
 	DBGPRINT(RT_DEBUG_ERROR, (" RTUSB disconnect successfully\n"));
 }
 
-
-static int __devinit rt2870_probe(
-	IN struct usb_interface *intf,
-	IN struct usb_device *usb_dev,
-	IN const struct usb_device_id *dev_id,
-	IN RTMP_ADAPTER **ppAd)
+static int __devinit rt2870_probe(IN struct usb_interface *intf,
+				  IN struct usb_device *usb_dev,
+				  IN const struct usb_device_id *dev_id,
+				  IN RTMP_ADAPTER ** ppAd)
 {
-	struct  net_device		*net_dev = NULL;
-	RTMP_ADAPTER		*pAd = (RTMP_ADAPTER *) NULL;
-	INT				status, rv;
-	PVOID				handle;
-	RTMP_OS_NETDEV_OP_HOOK	netDevHook;
-
+	struct net_device *net_dev = NULL;
+	RTMP_ADAPTER *pAd = (RTMP_ADAPTER *) NULL;
+	INT status, rv;
+	PVOID handle;
+	RTMP_OS_NETDEV_OP_HOOK netDevHook;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("===>rt2870_probe()!\n"));
 
 	// Check chipset vendor/product ID
 	//if (RT28XXChipsetCheck(_dev_p) == FALSE)
-	//	goto err_out;
+	//      goto err_out;
 
 //RtmpDevInit=============================================
 	// Allocate RTMP_ADAPTER adapter structure
 	handle = kmalloc(sizeof(struct os_cookie), GFP_KERNEL);
-	if (handle == NULL)
-	{
-		printk("rt2870_probe(): Allocate memory for os handle failed!\n");
+	if (handle == NULL) {
+		printk
+		    ("rt2870_probe(): Allocate memory for os handle failed!\n");
 		return -ENOMEM;
 	}
-	((POS_COOKIE)handle)->pUsb_Dev = usb_dev;
+	((POS_COOKIE) handle)->pUsb_Dev = usb_dev;
 
 	rv = RTMPAllocAdapterBlock(handle, &pAd);
-	if (rv != NDIS_STATUS_SUCCESS)
-	{
+	if (rv != NDIS_STATUS_SUCCESS) {
 		kfree(handle);
 		goto err_out;
 	}
-
 //USBDevInit==============================================
 	if (USBDevConfigInit(usb_dev, intf, pAd) == FALSE)
 		goto err_out_free_radev;
@@ -858,12 +847,12 @@ static int __devinit rt2870_probe(
 
 	// Here are the net_device structure with usb specific parameters.
 	/* for supporting Network Manager.
-	  * Set the sysfs physical device reference for the network logical device if set prior to registration will
-	  * cause a symlink during initialization.
+	 * Set the sysfs physical device reference for the network logical device if set prior to registration will
+	 * cause a symlink during initialization.
 	 */
 	SET_NETDEV_DEV(net_dev, &(usb_dev->dev));
 
-    pAd->StaCfg.OriDevType = net_dev->type;
+	pAd->StaCfg.OriDevType = net_dev->type;
 
 //All done, it's time to register the net device to linux kernel.
 	// Register this device

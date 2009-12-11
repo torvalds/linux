@@ -48,30 +48,27 @@ static void ac2_dma_done_tasklet(unsigned long data);
 static void ac3_dma_done_tasklet(unsigned long data);
 static void fifo_statistic_full_tasklet(unsigned long data);
 
-
-
 /*---------------------------------------------------------------------*/
 /* Symbol & Macro Definitions                                          */
 /*---------------------------------------------------------------------*/
-#define RT2860_INT_RX_DLY				(1<<0)		// bit 0
-#define RT2860_INT_TX_DLY				(1<<1)		// bit 1
-#define RT2860_INT_RX_DONE				(1<<2)		// bit 2
-#define RT2860_INT_AC0_DMA_DONE			(1<<3)		// bit 3
-#define RT2860_INT_AC1_DMA_DONE			(1<<4)		// bit 4
-#define RT2860_INT_AC2_DMA_DONE			(1<<5)		// bit 5
-#define RT2860_INT_AC3_DMA_DONE			(1<<6)		// bit 6
-#define RT2860_INT_HCCA_DMA_DONE		(1<<7)		// bit 7
-#define RT2860_INT_MGMT_DONE			(1<<8)		// bit 8
+#define RT2860_INT_RX_DLY				(1<<0)	// bit 0
+#define RT2860_INT_TX_DLY				(1<<1)	// bit 1
+#define RT2860_INT_RX_DONE				(1<<2)	// bit 2
+#define RT2860_INT_AC0_DMA_DONE			(1<<3)	// bit 3
+#define RT2860_INT_AC1_DMA_DONE			(1<<4)	// bit 4
+#define RT2860_INT_AC2_DMA_DONE			(1<<5)	// bit 5
+#define RT2860_INT_AC3_DMA_DONE			(1<<6)	// bit 6
+#define RT2860_INT_HCCA_DMA_DONE		(1<<7)	// bit 7
+#define RT2860_INT_MGMT_DONE			(1<<8)	// bit 8
 
 #define INT_RX			RT2860_INT_RX_DONE
 
-#define INT_AC0_DLY		(RT2860_INT_AC0_DMA_DONE) //| RT2860_INT_TX_DLY)
-#define INT_AC1_DLY		(RT2860_INT_AC1_DMA_DONE) //| RT2860_INT_TX_DLY)
-#define INT_AC2_DLY		(RT2860_INT_AC2_DMA_DONE) //| RT2860_INT_TX_DLY)
-#define INT_AC3_DLY		(RT2860_INT_AC3_DMA_DONE) //| RT2860_INT_TX_DLY)
-#define INT_HCCA_DLY	(RT2860_INT_HCCA_DMA_DONE) //| RT2860_INT_TX_DLY)
+#define INT_AC0_DLY		(RT2860_INT_AC0_DMA_DONE)	//| RT2860_INT_TX_DLY)
+#define INT_AC1_DLY		(RT2860_INT_AC1_DMA_DONE)	//| RT2860_INT_TX_DLY)
+#define INT_AC2_DLY		(RT2860_INT_AC2_DMA_DONE)	//| RT2860_INT_TX_DLY)
+#define INT_AC3_DLY		(RT2860_INT_AC3_DMA_DONE)	//| RT2860_INT_TX_DLY)
+#define INT_HCCA_DLY	(RT2860_INT_HCCA_DMA_DONE)	//| RT2860_INT_TX_DLY)
 #define INT_MGMT_DLY	RT2860_INT_MGMT_DONE
-
 
 /***************************************************************************
   *
@@ -80,91 +77,89 @@ static void fifo_statistic_full_tasklet(unsigned long data);
   *
   **************************************************************************/
 // Function for TxDesc Memory allocation.
-void RTMP_AllocateTxDescMemory(
-	IN	PRTMP_ADAPTER pAd,
-	IN	UINT	Index,
-	IN	ULONG	Length,
-	IN	BOOLEAN	Cached,
-	OUT	PVOID	*VirtualAddress,
-	OUT	PNDIS_PHYSICAL_ADDRESS PhysicalAddress)
+void RTMP_AllocateTxDescMemory(IN PRTMP_ADAPTER pAd,
+			       IN UINT Index,
+			       IN ULONG Length,
+			       IN BOOLEAN Cached,
+			       OUT PVOID * VirtualAddress,
+			       OUT PNDIS_PHYSICAL_ADDRESS PhysicalAddress)
 {
-	POS_COOKIE pObj = (POS_COOKIE)pAd->OS_Cookie;
+	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-	*VirtualAddress = (PVOID)pci_alloc_consistent(pObj->pci_dev,sizeof(char)*Length, PhysicalAddress);
+	*VirtualAddress =
+	    (PVOID) pci_alloc_consistent(pObj->pci_dev, sizeof(char) * Length,
+					 PhysicalAddress);
 
 }
-
 
 // Function for MgmtDesc Memory allocation.
-void RTMP_AllocateMgmtDescMemory(
-	IN	PRTMP_ADAPTER pAd,
-	IN	ULONG	Length,
-	IN	BOOLEAN	Cached,
-	OUT	PVOID	*VirtualAddress,
-	OUT	PNDIS_PHYSICAL_ADDRESS PhysicalAddress)
+void RTMP_AllocateMgmtDescMemory(IN PRTMP_ADAPTER pAd,
+				 IN ULONG Length,
+				 IN BOOLEAN Cached,
+				 OUT PVOID * VirtualAddress,
+				 OUT PNDIS_PHYSICAL_ADDRESS PhysicalAddress)
 {
-	POS_COOKIE pObj = (POS_COOKIE)pAd->OS_Cookie;
+	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-	*VirtualAddress = (PVOID)pci_alloc_consistent(pObj->pci_dev,sizeof(char)*Length, PhysicalAddress);
+	*VirtualAddress =
+	    (PVOID) pci_alloc_consistent(pObj->pci_dev, sizeof(char) * Length,
+					 PhysicalAddress);
 
 }
-
 
 // Function for RxDesc Memory allocation.
-void RTMP_AllocateRxDescMemory(
-	IN	PRTMP_ADAPTER pAd,
-	IN	ULONG	Length,
-	IN	BOOLEAN	Cached,
-	OUT	PVOID	*VirtualAddress,
-	OUT	PNDIS_PHYSICAL_ADDRESS PhysicalAddress)
+void RTMP_AllocateRxDescMemory(IN PRTMP_ADAPTER pAd,
+			       IN ULONG Length,
+			       IN BOOLEAN Cached,
+			       OUT PVOID * VirtualAddress,
+			       OUT PNDIS_PHYSICAL_ADDRESS PhysicalAddress)
 {
-	POS_COOKIE pObj = (POS_COOKIE)pAd->OS_Cookie;
+	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-	*VirtualAddress = (PVOID)pci_alloc_consistent(pObj->pci_dev,sizeof(char)*Length, PhysicalAddress);
+	*VirtualAddress =
+	    (PVOID) pci_alloc_consistent(pObj->pci_dev, sizeof(char) * Length,
+					 PhysicalAddress);
 
 }
-
 
 // Function for free allocated Desc Memory.
-void RTMP_FreeDescMemory(
-	IN	PRTMP_ADAPTER pAd,
-	IN	ULONG	Length,
-	IN	PVOID	VirtualAddress,
-	IN	NDIS_PHYSICAL_ADDRESS PhysicalAddress)
+void RTMP_FreeDescMemory(IN PRTMP_ADAPTER pAd,
+			 IN ULONG Length,
+			 IN PVOID VirtualAddress,
+			 IN NDIS_PHYSICAL_ADDRESS PhysicalAddress)
 {
-	POS_COOKIE pObj = (POS_COOKIE)pAd->OS_Cookie;
+	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-	pci_free_consistent(pObj->pci_dev, Length, VirtualAddress, PhysicalAddress);
+	pci_free_consistent(pObj->pci_dev, Length, VirtualAddress,
+			    PhysicalAddress);
 }
-
 
 // Function for TxData DMA Memory allocation.
-void RTMP_AllocateFirstTxBuffer(
-	IN	PRTMP_ADAPTER pAd,
-	IN	UINT	Index,
-	IN	ULONG	Length,
-	IN	BOOLEAN	Cached,
-	OUT	PVOID	*VirtualAddress,
-	OUT	PNDIS_PHYSICAL_ADDRESS PhysicalAddress)
+void RTMP_AllocateFirstTxBuffer(IN PRTMP_ADAPTER pAd,
+				IN UINT Index,
+				IN ULONG Length,
+				IN BOOLEAN Cached,
+				OUT PVOID * VirtualAddress,
+				OUT PNDIS_PHYSICAL_ADDRESS PhysicalAddress)
 {
-	POS_COOKIE pObj = (POS_COOKIE)pAd->OS_Cookie;
+	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-	*VirtualAddress = (PVOID)pci_alloc_consistent(pObj->pci_dev,sizeof(char)*Length, PhysicalAddress);
+	*VirtualAddress =
+	    (PVOID) pci_alloc_consistent(pObj->pci_dev, sizeof(char) * Length,
+					 PhysicalAddress);
 }
 
-
-void RTMP_FreeFirstTxBuffer(
-	IN	PRTMP_ADAPTER pAd,
-	IN	ULONG	Length,
-	IN	BOOLEAN	Cached,
-	IN	PVOID	VirtualAddress,
-	IN	NDIS_PHYSICAL_ADDRESS PhysicalAddress)
+void RTMP_FreeFirstTxBuffer(IN PRTMP_ADAPTER pAd,
+			    IN ULONG Length,
+			    IN BOOLEAN Cached,
+			    IN PVOID VirtualAddress,
+			    IN NDIS_PHYSICAL_ADDRESS PhysicalAddress)
 {
-	POS_COOKIE pObj = (POS_COOKIE)pAd->OS_Cookie;
+	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-	pci_free_consistent(pObj->pci_dev, Length, VirtualAddress, PhysicalAddress);
+	pci_free_consistent(pObj->pci_dev, Length, VirtualAddress,
+			    PhysicalAddress);
 }
-
 
 /*
  * FUNCTION: Allocate a common buffer for DMA
@@ -175,18 +170,18 @@ void RTMP_FreeFirstTxBuffer(
  *     VirtualAddress:  Pointer to memory is returned here
  *     PhysicalAddress:  Physical address corresponding to virtual address
  */
-void RTMP_AllocateSharedMemory(
-	IN	PRTMP_ADAPTER pAd,
-	IN	ULONG	Length,
-	IN	BOOLEAN	Cached,
-	OUT	PVOID	*VirtualAddress,
-	OUT	PNDIS_PHYSICAL_ADDRESS PhysicalAddress)
+void RTMP_AllocateSharedMemory(IN PRTMP_ADAPTER pAd,
+			       IN ULONG Length,
+			       IN BOOLEAN Cached,
+			       OUT PVOID * VirtualAddress,
+			       OUT PNDIS_PHYSICAL_ADDRESS PhysicalAddress)
 {
-	POS_COOKIE pObj = (POS_COOKIE)pAd->OS_Cookie;
+	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-	*VirtualAddress = (PVOID)pci_alloc_consistent(pObj->pci_dev,sizeof(char)*Length, PhysicalAddress);
+	*VirtualAddress =
+	    (PVOID) pci_alloc_consistent(pObj->pci_dev, sizeof(char) * Length,
+					 PhysicalAddress);
 }
-
 
 /*
  * FUNCTION: Allocate a packet buffer for DMA
@@ -199,25 +194,28 @@ void RTMP_AllocateSharedMemory(
  * Notes:
  *     Cached is ignored: always cached memory
  */
-PNDIS_PACKET RTMP_AllocateRxPacketBuffer(
-	IN	PRTMP_ADAPTER pAd,
-	IN	ULONG	Length,
-	IN	BOOLEAN	Cached,
-	OUT	PVOID	*VirtualAddress,
-	OUT	PNDIS_PHYSICAL_ADDRESS PhysicalAddress)
+PNDIS_PACKET RTMP_AllocateRxPacketBuffer(IN PRTMP_ADAPTER pAd,
+					 IN ULONG Length,
+					 IN BOOLEAN Cached,
+					 OUT PVOID * VirtualAddress,
+					 OUT PNDIS_PHYSICAL_ADDRESS
+					 PhysicalAddress)
 {
 	struct sk_buff *pkt;
 
 	pkt = dev_alloc_skb(Length);
 
 	if (pkt == NULL) {
-		DBGPRINT(RT_DEBUG_ERROR, ("can't allocate rx %ld size packet\n",Length));
+		DBGPRINT(RT_DEBUG_ERROR,
+			 ("can't allocate rx %ld size packet\n", Length));
 	}
 
 	if (pkt) {
 		RTMP_SET_PACKET_SOURCE(OSPKT_TO_RTPKT(pkt), PKTSRC_NDIS);
 		*VirtualAddress = (PVOID) pkt->data;
-		*PhysicalAddress = PCI_MAP_SINGLE(pAd, *VirtualAddress, Length,  -1, PCI_DMA_FROMDEVICE);
+		*PhysicalAddress =
+		    PCI_MAP_SINGLE(pAd, *VirtualAddress, Length, -1,
+				   PCI_DMA_FROMDEVICE);
 	} else {
 		*VirtualAddress = (PVOID) NULL;
 		*PhysicalAddress = (NDIS_PHYSICAL_ADDRESS) NULL;
@@ -226,36 +224,40 @@ PNDIS_PACKET RTMP_AllocateRxPacketBuffer(
 	return (PNDIS_PACKET) pkt;
 }
 
-
-VOID Invalid_Remaining_Packet(
-	IN	PRTMP_ADAPTER pAd,
-	IN	 ULONG VirtualAddress)
+VOID Invalid_Remaining_Packet(IN PRTMP_ADAPTER pAd, IN ULONG VirtualAddress)
 {
 	NDIS_PHYSICAL_ADDRESS PhysicalAddress;
 
-	PhysicalAddress = PCI_MAP_SINGLE(pAd, (void *)(VirtualAddress+1600), RX_BUFFER_NORMSIZE-1600, -1, PCI_DMA_FROMDEVICE);
+	PhysicalAddress =
+	    PCI_MAP_SINGLE(pAd, (void *)(VirtualAddress + 1600),
+			   RX_BUFFER_NORMSIZE - 1600, -1, PCI_DMA_FROMDEVICE);
 }
 
-NDIS_STATUS RtmpNetTaskInit(IN RTMP_ADAPTER *pAd)
+NDIS_STATUS RtmpNetTaskInit(IN RTMP_ADAPTER * pAd)
 {
 	POS_COOKIE pObj;
 
 	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
 	tasklet_init(&pObj->rx_done_task, rx_done_tasklet, (unsigned long)pAd);
-	tasklet_init(&pObj->mgmt_dma_done_task, mgmt_dma_done_tasklet, (unsigned long)pAd);
-	tasklet_init(&pObj->ac0_dma_done_task, ac0_dma_done_tasklet, (unsigned long)pAd);
-	tasklet_init(&pObj->ac1_dma_done_task, ac1_dma_done_tasklet, (unsigned long)pAd);
-	tasklet_init(&pObj->ac2_dma_done_task, ac2_dma_done_tasklet, (unsigned long)pAd);
-	tasklet_init(&pObj->ac3_dma_done_task, ac3_dma_done_tasklet, (unsigned long)pAd);
+	tasklet_init(&pObj->mgmt_dma_done_task, mgmt_dma_done_tasklet,
+		     (unsigned long)pAd);
+	tasklet_init(&pObj->ac0_dma_done_task, ac0_dma_done_tasklet,
+		     (unsigned long)pAd);
+	tasklet_init(&pObj->ac1_dma_done_task, ac1_dma_done_tasklet,
+		     (unsigned long)pAd);
+	tasklet_init(&pObj->ac2_dma_done_task, ac2_dma_done_tasklet,
+		     (unsigned long)pAd);
+	tasklet_init(&pObj->ac3_dma_done_task, ac3_dma_done_tasklet,
+		     (unsigned long)pAd);
 	tasklet_init(&pObj->tbtt_task, tbtt_tasklet, (unsigned long)pAd);
-	tasklet_init(&pObj->fifo_statistic_full_task, fifo_statistic_full_tasklet, (unsigned long)pAd);
+	tasklet_init(&pObj->fifo_statistic_full_task,
+		     fifo_statistic_full_tasklet, (unsigned long)pAd);
 
 	return NDIS_STATUS_SUCCESS;
 }
 
-
-void RtmpNetTaskExit(IN RTMP_ADAPTER *pAd)
+void RtmpNetTaskExit(IN RTMP_ADAPTER * pAd)
 {
 	POS_COOKIE pObj;
 
@@ -271,14 +273,11 @@ void RtmpNetTaskExit(IN RTMP_ADAPTER *pAd)
 	tasklet_kill(&pObj->fifo_statistic_full_task);
 }
 
-
-NDIS_STATUS RtmpMgmtTaskInit(IN RTMP_ADAPTER *pAd)
+NDIS_STATUS RtmpMgmtTaskInit(IN RTMP_ADAPTER * pAd)
 {
-
 
 	return NDIS_STATUS_SUCCESS;
 }
-
 
 /*
 ========================================================================
@@ -294,14 +293,11 @@ Return Value:
 Note:
 ========================================================================
 */
-VOID RtmpMgmtTaskExit(
-	IN RTMP_ADAPTER *pAd)
+VOID RtmpMgmtTaskExit(IN RTMP_ADAPTER * pAd)
 {
-
 
 	return;
 }
-
 
 static inline void rt2860_int_enable(PRTMP_ADAPTER pAd, unsigned int mode)
 {
@@ -311,30 +307,27 @@ static inline void rt2860_int_enable(PRTMP_ADAPTER pAd, unsigned int mode)
 	regValue = pAd->int_enable_reg & ~(pAd->int_disable_mask);
 	//if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
 	{
-		RTMP_IO_WRITE32(pAd, INT_MASK_CSR, regValue);     // 1:enable
+		RTMP_IO_WRITE32(pAd, INT_MASK_CSR, regValue);	// 1:enable
 	}
 	//else
-	//	DBGPRINT(RT_DEBUG_TRACE, ("fOP_STATUS_DOZE !\n"));
+	//      DBGPRINT(RT_DEBUG_TRACE, ("fOP_STATUS_DOZE !\n"));
 
 	if (regValue != 0)
 		RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_ACTIVE);
 }
-
 
 static inline void rt2860_int_disable(PRTMP_ADAPTER pAd, unsigned int mode)
 {
 	u32 regValue;
 
 	pAd->int_disable_mask |= mode;
-	regValue =	pAd->int_enable_reg & ~(pAd->int_disable_mask);
-	RTMP_IO_WRITE32(pAd, INT_MASK_CSR, regValue);     // 0: disable
+	regValue = pAd->int_enable_reg & ~(pAd->int_disable_mask);
+	RTMP_IO_WRITE32(pAd, INT_MASK_CSR, regValue);	// 0: disable
 
-	if (regValue == 0)
-	{
+	if (regValue == 0) {
 		RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_ACTIVE);
 	}
 }
-
 
 /***************************************************************************
   *
@@ -345,17 +338,18 @@ static void mgmt_dma_done_tasklet(unsigned long data)
 {
 	unsigned long flags;
 	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) data;
-    INT_SOURCE_CSR_STRUC	IntSource;
+	INT_SOURCE_CSR_STRUC IntSource;
 	POS_COOKIE pObj;
 
 	// Do nothing if the driver is starting halt state.
 	// This might happen when timer already been fired before cancel timer with mlmehalt
-	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
+	if (RTMP_TEST_FLAG
+	    (pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
 		return;
 
-    pObj = (POS_COOKIE) pAd->OS_Cookie;
+	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-//	printk("mgmt_dma_done_process\n");
+//      printk("mgmt_dma_done_process\n");
 	IntSource.word = 0;
 	IntSource.field.MgmtDmaDone = 1;
 	pAd->int_pending &= ~INT_MGMT_DLY;
@@ -368,8 +362,7 @@ static void mgmt_dma_done_tasklet(unsigned long data)
 	/*
 	 * double check to avoid lose of interrupts
 	 */
-	if (pAd->int_pending & INT_MGMT_DLY)
-	{
+	if (pAd->int_pending & INT_MGMT_DLY) {
 		tasklet_hi_schedule(&pObj->mgmt_dma_done_task);
 		RTMP_INT_UNLOCK(&pAd->irq_lock, flags);
 		return;
@@ -380,30 +373,29 @@ static void mgmt_dma_done_tasklet(unsigned long data)
 	RTMP_INT_UNLOCK(&pAd->irq_lock, flags);
 }
 
-
 static void rx_done_tasklet(unsigned long data)
 {
 	unsigned long flags;
 	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) data;
-	BOOLEAN	bReschedule = 0;
+	BOOLEAN bReschedule = 0;
 	POS_COOKIE pObj;
 
 	// Do nothing if the driver is starting halt state.
 	// This might happen when timer already been fired before cancel timer with mlmehalt
-	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
+	if (RTMP_TEST_FLAG
+	    (pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
 		return;
 
-    pObj = (POS_COOKIE) pAd->OS_Cookie;
+	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
 	pAd->int_pending &= ~(INT_RX);
-		bReschedule = STARxDoneInterruptHandle(pAd, 0);
+	bReschedule = STARxDoneInterruptHandle(pAd, 0);
 
 	RTMP_INT_LOCK(&pAd->irq_lock, flags);
 	/*
 	 * double check to avoid rotting packet
 	 */
-	if (pAd->int_pending & INT_RX || bReschedule)
-	{
+	if (pAd->int_pending & INT_RX || bReschedule) {
 		tasklet_hi_schedule(&pObj->rx_done_task);
 		RTMP_INT_UNLOCK(&pAd->irq_lock, flags);
 		return;
@@ -415,7 +407,6 @@ static void rx_done_tasklet(unsigned long data)
 
 }
 
-
 void fifo_statistic_full_tasklet(unsigned long data)
 {
 	unsigned long flags;
@@ -424,10 +415,11 @@ void fifo_statistic_full_tasklet(unsigned long data)
 
 	// Do nothing if the driver is starting halt state.
 	// This might happen when timer already been fired before cancel timer with mlmehalt
-	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
+	if (RTMP_TEST_FLAG
+	    (pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
 		return;
 
-    pObj = (POS_COOKIE) pAd->OS_Cookie;
+	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
 	pAd->int_pending &= ~(FifoStaFullInt);
 	NICUpdateFifoStaCounters(pAd);
@@ -436,8 +428,7 @@ void fifo_statistic_full_tasklet(unsigned long data)
 	/*
 	 * double check to avoid rotting packet
 	 */
-	if (pAd->int_pending & FifoStaFullInt)
-	{
+	if (pAd->int_pending & FifoStaFullInt) {
 		tasklet_hi_schedule(&pObj->fifo_statistic_full_task);
 		RTMP_INT_UNLOCK(&pAd->irq_lock, flags);
 		return;
@@ -454,18 +445,19 @@ static void ac3_dma_done_tasklet(unsigned long data)
 {
 	unsigned long flags;
 	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) data;
-    INT_SOURCE_CSR_STRUC	IntSource;
+	INT_SOURCE_CSR_STRUC IntSource;
 	POS_COOKIE pObj;
 	BOOLEAN bReschedule = 0;
 
 	// Do nothing if the driver is starting halt state.
 	// This might happen when timer already been fired before cancel timer with mlmehalt
-	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
+	if (RTMP_TEST_FLAG
+	    (pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
 		return;
 
-    pObj = (POS_COOKIE) pAd->OS_Cookie;
+	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-//	printk("ac0_dma_done_process\n");
+//      printk("ac0_dma_done_process\n");
 	IntSource.word = 0;
 	IntSource.field.Ac3DmaDone = 1;
 	pAd->int_pending &= ~INT_AC3_DLY;
@@ -476,8 +468,7 @@ static void ac3_dma_done_tasklet(unsigned long data)
 	/*
 	 * double check to avoid lose of interrupts
 	 */
-	if ((pAd->int_pending & INT_AC3_DLY) || bReschedule)
-	{
+	if ((pAd->int_pending & INT_AC3_DLY) || bReschedule) {
 		tasklet_hi_schedule(&pObj->ac3_dma_done_task);
 		RTMP_INT_UNLOCK(&pAd->irq_lock, flags);
 		return;
@@ -488,21 +479,21 @@ static void ac3_dma_done_tasklet(unsigned long data)
 	RTMP_INT_UNLOCK(&pAd->irq_lock, flags);
 }
 
-
 static void ac2_dma_done_tasklet(unsigned long data)
 {
 	unsigned long flags;
 	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) data;
-    INT_SOURCE_CSR_STRUC	IntSource;
+	INT_SOURCE_CSR_STRUC IntSource;
 	POS_COOKIE pObj;
 	BOOLEAN bReschedule = 0;
 
 	// Do nothing if the driver is starting halt state.
 	// This might happen when timer already been fired before cancel timer with mlmehalt
-	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
+	if (RTMP_TEST_FLAG
+	    (pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
 		return;
 
-    pObj = (POS_COOKIE) pAd->OS_Cookie;
+	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
 	IntSource.word = 0;
 	IntSource.field.Ac2DmaDone = 1;
@@ -515,8 +506,7 @@ static void ac2_dma_done_tasklet(unsigned long data)
 	/*
 	 * double check to avoid lose of interrupts
 	 */
-	if ((pAd->int_pending & INT_AC2_DLY) || bReschedule)
-	{
+	if ((pAd->int_pending & INT_AC2_DLY) || bReschedule) {
 		tasklet_hi_schedule(&pObj->ac2_dma_done_task);
 		RTMP_INT_UNLOCK(&pAd->irq_lock, flags);
 		return;
@@ -527,23 +517,23 @@ static void ac2_dma_done_tasklet(unsigned long data)
 	RTMP_INT_UNLOCK(&pAd->irq_lock, flags);
 }
 
-
 static void ac1_dma_done_tasklet(unsigned long data)
 {
 	unsigned long flags;
 	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) data;
-    INT_SOURCE_CSR_STRUC	IntSource;
+	INT_SOURCE_CSR_STRUC IntSource;
 	POS_COOKIE pObj;
 	BOOLEAN bReschedule = 0;
 
 	// Do nothing if the driver is starting halt state.
 	// This might happen when timer already been fired before cancel timer with mlmehalt
-	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
+	if (RTMP_TEST_FLAG
+	    (pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
 		return;
 
-    pObj = (POS_COOKIE) pAd->OS_Cookie;
+	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-//	printk("ac0_dma_done_process\n");
+//      printk("ac0_dma_done_process\n");
 	IntSource.word = 0;
 	IntSource.field.Ac1DmaDone = 1;
 	pAd->int_pending &= ~INT_AC1_DLY;
@@ -554,8 +544,7 @@ static void ac1_dma_done_tasklet(unsigned long data)
 	/*
 	 * double check to avoid lose of interrupts
 	 */
-	if ((pAd->int_pending & INT_AC1_DLY) || bReschedule)
-	{
+	if ((pAd->int_pending & INT_AC1_DLY) || bReschedule) {
 		tasklet_hi_schedule(&pObj->ac1_dma_done_task);
 		RTMP_INT_UNLOCK(&pAd->irq_lock, flags);
 		return;
@@ -566,36 +555,35 @@ static void ac1_dma_done_tasklet(unsigned long data)
 	RTMP_INT_UNLOCK(&pAd->irq_lock, flags);
 }
 
-
 static void ac0_dma_done_tasklet(unsigned long data)
 {
 	unsigned long flags;
 	PRTMP_ADAPTER pAd = (PRTMP_ADAPTER) data;
-	INT_SOURCE_CSR_STRUC	IntSource;
+	INT_SOURCE_CSR_STRUC IntSource;
 	POS_COOKIE pObj;
 	BOOLEAN bReschedule = 0;
 
 	// Do nothing if the driver is starting halt state.
 	// This might happen when timer already been fired before cancel timer with mlmehalt
-	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
+	if (RTMP_TEST_FLAG
+	    (pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
 		return;
 
 	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-//	printk("ac0_dma_done_process\n");
+//      printk("ac0_dma_done_process\n");
 	IntSource.word = 0;
 	IntSource.field.Ac0DmaDone = 1;
 	pAd->int_pending &= ~INT_AC0_DLY;
 
-//	RTMPHandleMgmtRingDmaDoneInterrupt(pAd);
+//      RTMPHandleMgmtRingDmaDoneInterrupt(pAd);
 	bReschedule = RTMPHandleTxRingDmaDoneInterrupt(pAd, IntSource);
 
 	RTMP_INT_LOCK(&pAd->irq_lock, flags);
 	/*
 	 * double check to avoid lose of interrupts
 	 */
-	if ((pAd->int_pending & INT_AC0_DLY) || bReschedule)
-	{
+	if ((pAd->int_pending & INT_AC0_DLY) || bReschedule) {
 		tasklet_hi_schedule(&pObj->ac0_dma_done_task);
 		RTMP_INT_UNLOCK(&pAd->irq_lock, flags);
 		return;
@@ -606,9 +594,6 @@ static void ac0_dma_done_tasklet(unsigned long data)
 	RTMP_INT_UNLOCK(&pAd->irq_lock, flags);
 }
 
-
-
-
 /***************************************************************************
   *
   *	interrupt handler related procedures.
@@ -618,27 +603,25 @@ int print_int_count;
 
 IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance)
 {
-	struct net_device *net_dev = (struct net_device *) dev_instance;
+	struct net_device *net_dev = (struct net_device *)dev_instance;
 	PRTMP_ADAPTER pAd = NULL;
-	INT_SOURCE_CSR_STRUC	IntSource;
+	INT_SOURCE_CSR_STRUC IntSource;
 	POS_COOKIE pObj;
 
 	GET_PAD_FROM_NET_DEV(pAd, net_dev);
 
 	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-
 	/* Note 03312008: we can not return here before
-		RTMP_IO_READ32(pAd, INT_SOURCE_CSR, &IntSource.word);
-		RTMP_IO_WRITE32(pAd, INT_SOURCE_CSR, IntSource.word);
-		Or kernel will panic after ifconfig ra0 down sometimes */
-
+	   RTMP_IO_READ32(pAd, INT_SOURCE_CSR, &IntSource.word);
+	   RTMP_IO_WRITE32(pAd, INT_SOURCE_CSR, IntSource.word);
+	   Or kernel will panic after ifconfig ra0 down sometimes */
 
 	//
 	// Inital the Interrupt source.
 	//
 	IntSource.word = 0x00000000L;
-//	McuIntSource.word = 0x00000000L;
+//      McuIntSource.word = 0x00000000L;
 
 	//
 	// Get the interrupt sources & saved to local variable
@@ -655,25 +638,26 @@ IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance)
 	//
 	// RT2661 => when ASIC is sleeping, MAC register cannot be read and written.
 	// RT2860 => when ASIC is sleeping, MAC register can be read and written.
-//	if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
+//      if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
 	{
 		RTMP_IO_READ32(pAd, INT_SOURCE_CSR, &IntSource.word);
-		RTMP_IO_WRITE32(pAd, INT_SOURCE_CSR, IntSource.word); // write 1 to clear
+		RTMP_IO_WRITE32(pAd, INT_SOURCE_CSR, IntSource.word);	// write 1 to clear
 	}
-//	else
-//		DBGPRINT(RT_DEBUG_TRACE, (">>>fOP_STATUS_DOZE<<<\n"));
+//      else
+//              DBGPRINT(RT_DEBUG_TRACE, (">>>fOP_STATUS_DOZE<<<\n"));
 
-//	RTMP_IO_READ32(pAd, INT_SOURCE_CSR, &IsrAfterClear);
-//	RTMP_IO_READ32(pAd, MCU_INT_SOURCE_CSR, &McuIsrAfterClear);
-//	DBGPRINT(RT_DEBUG_INFO, ("====> RTMPHandleInterrupt(ISR=%08x,Mcu ISR=%08x, After clear ISR=%08x, MCU ISR=%08x)\n",
-//			IntSource.word, McuIntSource.word, IsrAfterClear, McuIsrAfterClear));
+//      RTMP_IO_READ32(pAd, INT_SOURCE_CSR, &IsrAfterClear);
+//      RTMP_IO_READ32(pAd, MCU_INT_SOURCE_CSR, &McuIsrAfterClear);
+//      DBGPRINT(RT_DEBUG_INFO, ("====> RTMPHandleInterrupt(ISR=%08x,Mcu ISR=%08x, After clear ISR=%08x, MCU ISR=%08x)\n",
+//                      IntSource.word, McuIntSource.word, IsrAfterClear, McuIsrAfterClear));
 
 	// Do nothing if Reset in progress
-	if (RTMP_TEST_FLAG(pAd, (fRTMP_ADAPTER_RESET_IN_PROGRESS |fRTMP_ADAPTER_HALT_IN_PROGRESS)))
-	{
-        return  IRQ_HANDLED;
+	if (RTMP_TEST_FLAG
+	    (pAd,
+	     (fRTMP_ADAPTER_RESET_IN_PROGRESS |
+	      fRTMP_ADAPTER_HALT_IN_PROGRESS))) {
+		return IRQ_HANDLED;
 	}
-
 	//
 	// Handle interrupt, walk through all bits
 	// Should start from highest priority interrupt
@@ -684,7 +668,6 @@ IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance)
 
 #endif
 
-
 	pAd->bPCIclkOff = FALSE;
 
 	// If required spinlock, each interrupt service routine has to acquire
@@ -692,28 +675,25 @@ IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance)
 	//
 
 	// Do nothing if NIC doesn't exist
-	if (IntSource.word == 0xffffffff)
-	{
-		RTMP_SET_FLAG(pAd, (fRTMP_ADAPTER_NIC_NOT_EXIST | fRTMP_ADAPTER_HALT_IN_PROGRESS));
-        return  IRQ_HANDLED;
+	if (IntSource.word == 0xffffffff) {
+		RTMP_SET_FLAG(pAd,
+			      (fRTMP_ADAPTER_NIC_NOT_EXIST |
+			       fRTMP_ADAPTER_HALT_IN_PROGRESS));
+		return IRQ_HANDLED;
 	}
 
-	if (IntSource.word & TxCoherent)
-	{
+	if (IntSource.word & TxCoherent) {
 		DBGPRINT(RT_DEBUG_ERROR, (">>>TxCoherent<<<\n"));
 		RTMPHandleRxCoherentInterrupt(pAd);
 	}
 
-	if (IntSource.word & RxCoherent)
-	{
+	if (IntSource.word & RxCoherent) {
 		DBGPRINT(RT_DEBUG_ERROR, (">>>RxCoherent<<<\n"));
 		RTMPHandleRxCoherentInterrupt(pAd);
 	}
 
-	if (IntSource.word & FifoStaFullInt)
-	{
-		if ((pAd->int_disable_mask & FifoStaFullInt) == 0)
-		{
+	if (IntSource.word & FifoStaFullInt) {
+		if ((pAd->int_disable_mask & FifoStaFullInt) == 0) {
 			/* mask FifoStaFullInt */
 			rt2860_int_disable(pAd, FifoStaFullInt);
 			tasklet_hi_schedule(&pObj->fifo_statistic_full_task);
@@ -721,20 +701,16 @@ IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance)
 		pAd->int_pending |= FifoStaFullInt;
 	}
 
-	if (IntSource.word & INT_MGMT_DLY)
-	{
-		if ((pAd->int_disable_mask & INT_MGMT_DLY) ==0 )
-		{
+	if (IntSource.word & INT_MGMT_DLY) {
+		if ((pAd->int_disable_mask & INT_MGMT_DLY) == 0) {
 			rt2860_int_disable(pAd, INT_MGMT_DLY);
 			tasklet_hi_schedule(&pObj->mgmt_dma_done_task);
 		}
-		pAd->int_pending |= INT_MGMT_DLY ;
+		pAd->int_pending |= INT_MGMT_DLY;
 	}
 
-	if (IntSource.word & INT_RX)
-	{
-		if ((pAd->int_disable_mask & INT_RX) == 0)
-		{
+	if (IntSource.word & INT_RX) {
+		if ((pAd->int_disable_mask & INT_RX) == 0) {
 
 			/* mask RxINT */
 			rt2860_int_disable(pAd, INT_RX);
@@ -743,11 +719,9 @@ IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance)
 		pAd->int_pending |= INT_RX;
 	}
 
-	if (IntSource.word & INT_AC3_DLY)
-	{
+	if (IntSource.word & INT_AC3_DLY) {
 
-		if ((pAd->int_disable_mask & INT_AC3_DLY) == 0)
-		{
+		if ((pAd->int_disable_mask & INT_AC3_DLY) == 0) {
 			/* mask TxDataInt */
 			rt2860_int_disable(pAd, INT_AC3_DLY);
 			tasklet_hi_schedule(&pObj->ac3_dma_done_task);
@@ -755,11 +729,9 @@ IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance)
 		pAd->int_pending |= INT_AC3_DLY;
 	}
 
-	if (IntSource.word & INT_AC2_DLY)
-	{
+	if (IntSource.word & INT_AC2_DLY) {
 
-		if ((pAd->int_disable_mask & INT_AC2_DLY) == 0)
-		{
+		if ((pAd->int_disable_mask & INT_AC2_DLY) == 0) {
 			/* mask TxDataInt */
 			rt2860_int_disable(pAd, INT_AC2_DLY);
 			tasklet_hi_schedule(&pObj->ac2_dma_done_task);
@@ -767,13 +739,11 @@ IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance)
 		pAd->int_pending |= INT_AC2_DLY;
 	}
 
-	if (IntSource.word & INT_AC1_DLY)
-	{
+	if (IntSource.word & INT_AC1_DLY) {
 
 		pAd->int_pending |= INT_AC1_DLY;
 
-		if ((pAd->int_disable_mask & INT_AC1_DLY) == 0)
-		{
+		if ((pAd->int_disable_mask & INT_AC1_DLY) == 0) {
 			/* mask TxDataInt */
 			rt2860_int_disable(pAd, INT_AC1_DLY);
 			tasklet_hi_schedule(&pObj->ac1_dma_done_task);
@@ -781,8 +751,7 @@ IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance)
 
 	}
 
-	if (IntSource.word & INT_AC0_DLY)
-	{
+	if (IntSource.word & INT_AC0_DLY) {
 
 /*
 		if (IntSource.word & 0x2) {
@@ -793,8 +762,7 @@ IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance)
 */
 		pAd->int_pending |= INT_AC0_DLY;
 
-		if ((pAd->int_disable_mask & INT_AC0_DLY) == 0)
-		{
+		if ((pAd->int_disable_mask & INT_AC0_DLY) == 0) {
 			/* mask TxDataInt */
 			rt2860_int_disable(pAd, INT_AC0_DLY);
 			tasklet_hi_schedule(&pObj->ac0_dma_done_task);
@@ -802,14 +770,11 @@ IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance)
 
 	}
 
-
-	if (IntSource.word & PreTBTTInt)
-	{
+	if (IntSource.word & PreTBTTInt) {
 		RTMPHandlePreTBTTInterrupt(pAd);
 	}
 
-	if (IntSource.word & TBTTInt)
-	{
+	if (IntSource.word & TBTTInt) {
 		RTMPHandleTBTTInterrupt(pAd);
 	}
 
@@ -818,57 +783,57 @@ IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance)
 			RTMPHandleTwakeupInterrupt(pAd);
 	}
 
-	return  IRQ_HANDLED;
+	return IRQ_HANDLED;
 }
 
 /*
  * invaild or writeback cache
  * and convert virtual address to physical address
  */
-dma_addr_t linux_pci_map_single(void *handle, void *ptr, size_t size, int sd_idx, int direction)
+dma_addr_t linux_pci_map_single(void *handle, void *ptr, size_t size,
+				int sd_idx, int direction)
 {
 	PRTMP_ADAPTER pAd;
 	POS_COOKIE pObj;
 
 	/*
-		------ Porting Information ------
-		> For Tx Alloc:
-			mgmt packets => sd_idx = 0
-			SwIdx: pAd->MgmtRing.TxCpuIdx
-			pTxD : pAd->MgmtRing.Cell[SwIdx].AllocVa;
+	   ------ Porting Information ------
+	   > For Tx Alloc:
+	   mgmt packets => sd_idx = 0
+	   SwIdx: pAd->MgmtRing.TxCpuIdx
+	   pTxD : pAd->MgmtRing.Cell[SwIdx].AllocVa;
 
-			data packets => sd_idx = 1
-			TxIdx : pAd->TxRing[pTxBlk->QueIdx].TxCpuIdx
-			QueIdx: pTxBlk->QueIdx
-			pTxD  : pAd->TxRing[pTxBlk->QueIdx].Cell[TxIdx].AllocVa;
+	   data packets => sd_idx = 1
+	   TxIdx : pAd->TxRing[pTxBlk->QueIdx].TxCpuIdx
+	   QueIdx: pTxBlk->QueIdx
+	   pTxD  : pAd->TxRing[pTxBlk->QueIdx].Cell[TxIdx].AllocVa;
 
-		> For Rx Alloc:
-			sd_idx = -1
-	*/
+	   > For Rx Alloc:
+	   sd_idx = -1
+	 */
 
-	pAd = (PRTMP_ADAPTER)handle;
-	pObj = (POS_COOKIE)pAd->OS_Cookie;
+	pAd = (PRTMP_ADAPTER) handle;
+	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-	if (sd_idx == 1)
-	{
-		PTX_BLK		pTxBlk;
-		pTxBlk = (PTX_BLK)ptr;
-		return pci_map_single(pObj->pci_dev, pTxBlk->pSrcBufData, pTxBlk->SrcBufLen, direction);
-	}
-	else
-	{
+	if (sd_idx == 1) {
+		PTX_BLK pTxBlk;
+		pTxBlk = (PTX_BLK) ptr;
+		return pci_map_single(pObj->pci_dev, pTxBlk->pSrcBufData,
+				      pTxBlk->SrcBufLen, direction);
+	} else {
 		return pci_map_single(pObj->pci_dev, ptr, size, direction);
 	}
 
 }
 
-void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size, int direction)
+void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size,
+			    int direction)
 {
 	PRTMP_ADAPTER pAd;
 	POS_COOKIE pObj;
 
-	pAd=(PRTMP_ADAPTER)handle;
-	pObj = (POS_COOKIE)pAd->OS_Cookie;
+	pAd = (PRTMP_ADAPTER) handle;
+	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
 	pci_unmap_single(pObj->pci_dev, dma_addr, size, direction);
 

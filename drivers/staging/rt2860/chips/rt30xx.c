@@ -35,9 +35,7 @@
 	--------    ----------    ----------------------------------------------
 */
 
-
 #ifdef RT30xx
-
 
 #ifndef RTMP_RF_RW_SUPPORT
 #error "You Should Enable compile flag RTMP_RF_RW_SUPPORT for this chip"
@@ -45,35 +43,51 @@
 
 #include "../rt_config.h"
 
-
 //
 // RF register initialization set
 //
-REG_PAIR   RT30xx_RFRegTable[] = {
-        {RF_R04,          0x40},
-        {RF_R05,          0x03},
-        {RF_R06,          0x02},
-        {RF_R07,          0x70},
-        {RF_R09,          0x0F},
-        {RF_R10,          0x41},
-        {RF_R11,          0x21},
-        {RF_R12,          0x7B},
-        {RF_R14,          0x90},
-        {RF_R15,          0x58},
-        {RF_R16,          0xB3},
-        {RF_R17,          0x92},
-        {RF_R18,          0x2C},
-        {RF_R19,          0x02},
-        {RF_R20,          0xBA},
-        {RF_R21,          0xDB},
-        {RF_R24,          0x16},
-        {RF_R25,          0x01},
-        {RF_R29,          0x1F},
+REG_PAIR RT30xx_RFRegTable[] = {
+	{RF_R04, 0x40}
+	,
+	{RF_R05, 0x03}
+	,
+	{RF_R06, 0x02}
+	,
+	{RF_R07, 0x70}
+	,
+	{RF_R09, 0x0F}
+	,
+	{RF_R10, 0x41}
+	,
+	{RF_R11, 0x21}
+	,
+	{RF_R12, 0x7B}
+	,
+	{RF_R14, 0x90}
+	,
+	{RF_R15, 0x58}
+	,
+	{RF_R16, 0xB3}
+	,
+	{RF_R17, 0x92}
+	,
+	{RF_R18, 0x2C}
+	,
+	{RF_R19, 0x02}
+	,
+	{RF_R20, 0xBA}
+	,
+	{RF_R21, 0xDB}
+	,
+	{RF_R24, 0x16}
+	,
+	{RF_R25, 0x01}
+	,
+	{RF_R29, 0x1F}
+	,
 };
 
 UCHAR NUM_RF_REG_PARMS = (sizeof(RT30xx_RFRegTable) / sizeof(REG_PAIR));
-
-
 
 // Antenna divesity use GPIO3 and EESK pin for control
 // Antenna and EEPROM access are both using EESK pin,
@@ -81,27 +95,22 @@ UCHAR NUM_RF_REG_PARMS = (sizeof(RT30xx_RFRegTable) / sizeof(REG_PAIR));
 // Then restore antenna after EEPROM access
 // The original name of this function is AsicSetRxAnt(), now change to
 //VOID AsicSetRxAnt(
-VOID RT30xxSetRxAnt(
-	IN PRTMP_ADAPTER	pAd,
-	IN UCHAR			Ant)
+VOID RT30xxSetRxAnt(IN PRTMP_ADAPTER pAd, IN UCHAR Ant)
 {
-	UINT32	Value;
+	UINT32 Value;
 #ifdef RTMP_MAC_PCI
-	UINT32	x;
+	UINT32 x;
 #endif
 
 	if ((pAd->EepromAccess) ||
-		(RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS))	||
-		(RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS))	||
-		(RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF)) ||
-		(RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)))
-	{
+	    (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS)) ||
+	    (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS)) ||
+	    (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF)) ||
+	    (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST))) {
 		return;
 	}
-
 	// the antenna selection is through firmware and MAC register(GPIO3)
-	if (Ant == 0)
-	{
+	if (Ant == 0) {
 		// Main antenna
 #ifdef RTMP_MAC_PCI
 		RTMP_IO_READ32(pAd, E2PROM_CSR, &x);
@@ -114,10 +123,9 @@ VOID RT30xxSetRxAnt(
 		RTMP_IO_READ32(pAd, GPIO_CTRL_CFG, &Value);
 		Value &= ~(0x0808);
 		RTMP_IO_WRITE32(pAd, GPIO_CTRL_CFG, Value);
-		DBGPRINT_RAW(RT_DEBUG_TRACE, ("AsicSetRxAnt, switch to main antenna\n"));
-	}
-	else
-	{
+		DBGPRINT_RAW(RT_DEBUG_TRACE,
+			     ("AsicSetRxAnt, switch to main antenna\n"));
+	} else {
 		// Aux antenna
 #ifdef RTMP_MAC_PCI
 		RTMP_IO_READ32(pAd, E2PROM_CSR, &x);
@@ -130,10 +138,10 @@ VOID RT30xxSetRxAnt(
 		Value &= ~(0x0808);
 		Value |= 0x08;
 		RTMP_IO_WRITE32(pAd, GPIO_CTRL_CFG, Value);
-		DBGPRINT_RAW(RT_DEBUG_TRACE, ("AsicSetRxAnt, switch to aux antenna\n"));
+		DBGPRINT_RAW(RT_DEBUG_TRACE,
+			     ("AsicSetRxAnt, switch to aux antenna\n"));
 	}
 }
-
 
 /*
 	========================================================================
@@ -151,46 +159,43 @@ VOID RT30xxSetRxAnt(
 
 	========================================================================
 */
-VOID RTMPFilterCalibration(
-	IN PRTMP_ADAPTER pAd)
+VOID RTMPFilterCalibration(IN PRTMP_ADAPTER pAd)
 {
-	UCHAR	R55x = 0, value, FilterTarget = 0x1E, BBPValue=0;
-	UINT	loop = 0, count = 0, loopcnt = 0, ReTry = 0;
-	UCHAR	RF_R24_Value = 0;
+	UCHAR R55x = 0, value, FilterTarget = 0x1E, BBPValue = 0;
+	UINT loop = 0, count = 0, loopcnt = 0, ReTry = 0;
+	UCHAR RF_R24_Value = 0;
 
 	// Give bbp filter initial value
 	pAd->Mlme.CaliBW20RfR24 = 0x1F;
-	pAd->Mlme.CaliBW40RfR24 = 0x2F; //Bit[5] must be 1 for BW 40
+	pAd->Mlme.CaliBW40RfR24 = 0x2F;	//Bit[5] must be 1 for BW 40
 
-	do
-	{
+	do {
 		if (loop == 1)	//BandWidth = 40 MHz
 		{
 			// Write 0x27 to RF_R24 to program filter
 			RF_R24_Value = 0x27;
 			RT30xxWriteRFRegister(pAd, RF_R24, RF_R24_Value);
-			if (IS_RT3090(pAd) || IS_RT3572(pAd)|| IS_RT3390(pAd))
+			if (IS_RT3090(pAd) || IS_RT3572(pAd) || IS_RT3390(pAd))
 				FilterTarget = 0x15;
 			else
 				FilterTarget = 0x19;
 
 			// when calibrate BW40, BBP mask must set to BW40.
 			RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R4, &BBPValue);
-			BBPValue&= (~0x18);
-			BBPValue|= (0x10);
+			BBPValue &= (~0x18);
+			BBPValue |= (0x10);
 			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R4, BBPValue);
 
 			// set to BW40
 			RT30xxReadRFRegister(pAd, RF_R31, &value);
 			value |= 0x20;
 			RT30xxWriteRFRegister(pAd, RF_R31, value);
-		}
-		else			//BandWidth = 20 MHz
+		} else		//BandWidth = 20 MHz
 		{
 			// Write 0x07 to RF_R24 to program filter
 			RF_R24_Value = 0x07;
 			RT30xxWriteRFRegister(pAd, RF_R24, RF_R24_Value);
-			if (IS_RT3090(pAd) || IS_RT3572(pAd)|| IS_RT3390(pAd))
+			if (IS_RT3090(pAd) || IS_RT3572(pAd) || IS_RT3390(pAd))
 				FilterTarget = 0x13;
 			else
 				FilterTarget = 0x16;
@@ -209,8 +214,7 @@ VOID RTMPFilterCalibration(
 		// Write 0x00 to BBP_R24 to set power & frequency of passband test tone
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R24, 0);
 
-		do
-		{
+		do {
 			// Write 0x90 to BBP_R25 to transmit test tone
 			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R25, 0x90);
 
@@ -224,8 +228,7 @@ VOID RTMPFilterCalibration(
 		// Write 0x06 to BBP_R24 to set power & frequency of stopband test tone
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R24, 0x06);
 
-		while(TRUE)
-		{
+		while (TRUE) {
 			// Write 0x90 to BBP_R25 to transmit test tone
 			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R25, 0x90);
 
@@ -233,59 +236,47 @@ VOID RTMPFilterCalibration(
 			RTMPusecDelay(1000);
 			RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R55, &value);
 			value &= 0xFF;
-			if ((R55x - value) < FilterTarget)
-			{
-				RF_R24_Value ++;
-			}
-			else if ((R55x - value) == FilterTarget)
-			{
-				RF_R24_Value ++;
-				count ++;
-			}
-			else
-			{
+			if ((R55x - value) < FilterTarget) {
+				RF_R24_Value++;
+			} else if ((R55x - value) == FilterTarget) {
+				RF_R24_Value++;
+				count++;
+			} else {
 				break;
 			}
 
 			// prevent infinite loop cause driver hang.
-			if (loopcnt++ > 100)
-			{
-				DBGPRINT(RT_DEBUG_ERROR, ("RTMPFilterCalibration - can't find a valid value, loopcnt=%d stop calibrating", loopcnt));
+			if (loopcnt++ > 100) {
+				DBGPRINT(RT_DEBUG_ERROR,
+					 ("RTMPFilterCalibration - can't find a valid value, loopcnt=%d stop calibrating",
+					  loopcnt));
 				break;
 			}
-
 			// Write RF_R24 to program filter
 			RT30xxWriteRFRegister(pAd, RF_R24, RF_R24_Value);
 		}
 
-		if (count > 0)
-		{
+		if (count > 0) {
 			RF_R24_Value = RF_R24_Value - ((count) ? (1) : (0));
 		}
-
 		// Store for future usage
-		if (loopcnt < 100)
-		{
-			if (loop++ == 0)
-			{
+		if (loopcnt < 100) {
+			if (loop++ == 0) {
 				//BandWidth = 20 MHz
-				pAd->Mlme.CaliBW20RfR24 = (UCHAR)RF_R24_Value;
-			}
-			else
-			{
+				pAd->Mlme.CaliBW20RfR24 = (UCHAR) RF_R24_Value;
+			} else {
 				//BandWidth = 40 MHz
-				pAd->Mlme.CaliBW40RfR24 = (UCHAR)RF_R24_Value;
+				pAd->Mlme.CaliBW40RfR24 = (UCHAR) RF_R24_Value;
 				break;
 			}
-		}
-		else
+		} else
 			break;
 
 		RT30xxWriteRFRegister(pAd, RF_R24, RF_R24_Value);
 
 		// reset count
 		count = 0;
-	} while(TRUE);
+	} while (TRUE);
 
 	//
 	// Set back to initial state
@@ -298,12 +289,13 @@ VOID RTMPFilterCalibration(
 
 	// set BBP back to BW20
 	RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R4, &BBPValue);
-	BBPValue&= (~0x18);
+	BBPValue &= (~0x18);
 	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R4, BBPValue);
 
-	DBGPRINT(RT_DEBUG_TRACE, ("RTMPFilterCalibration - CaliBW20RfR24=0x%x, CaliBW40RfR24=0x%x\n", pAd->Mlme.CaliBW20RfR24, pAd->Mlme.CaliBW40RfR24));
+	DBGPRINT(RT_DEBUG_TRACE,
+		 ("RTMPFilterCalibration - CaliBW20RfR24=0x%x, CaliBW40RfR24=0x%x\n",
+		  pAd->Mlme.CaliBW20RfR24, pAd->Mlme.CaliBW40RfR24));
 }
-
 
 // add by johnli, RF power sequence setup
 /*
@@ -314,8 +306,7 @@ VOID RTMPFilterCalibration(
 
 	==========================================================================
  */
-VOID RT30xxLoadRFNormalModeSetup(
-	IN PRTMP_ADAPTER	pAd)
+VOID RT30xxLoadRFNormalModeSetup(IN PRTMP_ADAPTER pAd)
 {
 	UCHAR RFValue;
 
@@ -330,22 +321,22 @@ VOID RT30xxLoadRFNormalModeSetup(
 	RT30xxWriteRFRegister(pAd, RF_R15, RFValue);
 
 	/* move to NICInitRT30xxRFRegisters
-	// TX_LO1_en, RF R17 register Bit 3 to 0
-	RT30xxReadRFRegister(pAd, RF_R17, &RFValue);
-	RFValue &= (~0x08);
-	// to fix rx long range issue
-	if (((pAd->MACVersion & 0xffff) >= 0x0211) && (pAd->NicConfig2.field.ExternalLNAForG == 0))
-	{
-		RFValue |= 0x20;
-	}
-	// set RF_R17_bit[2:0] equal to EEPROM setting at 0x48h
-	if (pAd->TxMixerGain24G >= 2)
-	{
-		RFValue &= (~0x7);  // clean bit [2:0]
-		RFValue |= pAd->TxMixerGain24G;
-	}
-	RT30xxWriteRFRegister(pAd, RF_R17, RFValue);
-	*/
+	   // TX_LO1_en, RF R17 register Bit 3 to 0
+	   RT30xxReadRFRegister(pAd, RF_R17, &RFValue);
+	   RFValue &= (~0x08);
+	   // to fix rx long range issue
+	   if (((pAd->MACVersion & 0xffff) >= 0x0211) && (pAd->NicConfig2.field.ExternalLNAForG == 0))
+	   {
+	   RFValue |= 0x20;
+	   }
+	   // set RF_R17_bit[2:0] equal to EEPROM setting at 0x48h
+	   if (pAd->TxMixerGain24G >= 2)
+	   {
+	   RFValue &= (~0x7);  // clean bit [2:0]
+	   RFValue |= pAd->TxMixerGain24G;
+	   }
+	   RT30xxWriteRFRegister(pAd, RF_R17, RFValue);
+	 */
 
 	// RX_LO1_en, RF R20 register Bit 3 to 0
 	RT30xxReadRFRegister(pAd, RF_R20, &RFValue);
@@ -357,7 +348,7 @@ VOID RT30xxLoadRFNormalModeSetup(
 	RFValue &= (~0x08);
 	RT30xxWriteRFRegister(pAd, RF_R21, RFValue);
 
-	/* add by johnli, reset RF_R27 when interface down & up to fix throughput problem*/
+	/* add by johnli, reset RF_R27 when interface down & up to fix throughput problem */
 	// LDORF_VC, RF R27 register Bit 2 to 0
 	RT30xxReadRFRegister(pAd, RF_R27, &RFValue);
 	// TX to RX IQ glitch(RF_R27) has been fixed in RT3070(F).
@@ -381,15 +372,13 @@ VOID RT30xxLoadRFNormalModeSetup(
 
 	==========================================================================
  */
-VOID RT30xxLoadRFSleepModeSetup(
-	IN PRTMP_ADAPTER	pAd)
+VOID RT30xxLoadRFSleepModeSetup(IN PRTMP_ADAPTER pAd)
 {
 	UCHAR RFValue;
 	UINT32 MACValue;
 
-
 #ifdef RTMP_MAC_USB
-	if(!IS_RT3572(pAd))
+	if (!IS_RT3572(pAd))
 #endif // RTMP_MAC_USB //
 	{
 		// RF_BLOCK_en. RF R1 register Bit 0 to 0
@@ -414,9 +403,8 @@ VOID RT30xxLoadRFSleepModeSetup(
 	}
 
 	if (IS_RT3090(pAd) ||	// IS_RT3090 including RT309x and RT3071/72
-		IS_RT3572(pAd) ||
-		(IS_RT3070(pAd) && ((pAd->MACVersion & 0xffff) < 0x0201)))
-	{
+	    IS_RT3572(pAd) ||
+	    (IS_RT3070(pAd) && ((pAd->MACVersion & 0xffff) < 0x0201))) {
 #ifdef RTMP_MAC_USB
 		if (!IS_RT3572(pAd))
 #endif // RTMP_MAC_USB //
@@ -440,14 +428,13 @@ VOID RT30xxLoadRFSleepModeSetup(
 
 	==========================================================================
  */
-VOID RT30xxReverseRFSleepModeSetup(
-	IN PRTMP_ADAPTER	pAd)
+VOID RT30xxReverseRFSleepModeSetup(IN PRTMP_ADAPTER pAd)
 {
 	UCHAR RFValue;
 	UINT32 MACValue;
 
 #ifdef RTMP_MAC_USB
-	if(!IS_RT3572(pAd))
+	if (!IS_RT3572(pAd))
 #endif // RTMP_MAC_USB //
 	{
 		// RF_BLOCK_en, RF R1 register Bit 0 to 1
@@ -472,10 +459,9 @@ VOID RT30xxReverseRFSleepModeSetup(
 	}
 
 	if (IS_RT3090(pAd) ||	// IS_RT3090 including RT309x and RT3071/72
-		IS_RT3572(pAd) ||
-		IS_RT3390(pAd) ||
-		(IS_RT3070(pAd) && ((pAd->MACVersion & 0xffff) < 0x0201)))
-	{
+	    IS_RT3572(pAd) ||
+	    IS_RT3390(pAd) ||
+	    (IS_RT3070(pAd) && ((pAd->MACVersion & 0xffff) < 0x0201))) {
 #ifdef RTMP_MAC_USB
 		if (!IS_RT3572(pAd))
 #endif // RTMP_MAC_USB //
@@ -487,48 +473,41 @@ VOID RT30xxReverseRFSleepModeSetup(
 				RFValue = (RFValue & (~0x77));
 			RT30xxWriteRFRegister(pAd, RF_R27, RFValue);
 		}
-
 		// RT3071 version E has fixed this issue
-		if ((pAd->NicConfig2.field.DACTestBit == 1) && ((pAd->MACVersion & 0xffff) < 0x0211))
-		{
+		if ((pAd->NicConfig2.field.DACTestBit == 1)
+		    && ((pAd->MACVersion & 0xffff) < 0x0211)) {
 			// patch tx EVM issue temporarily
 			RTMP_IO_READ32(pAd, LDO_CFG0, &MACValue);
 			MACValue = ((MACValue & 0xE0FFFFFF) | 0x0D000000);
 			RTMP_IO_WRITE32(pAd, LDO_CFG0, MACValue);
-		}
-		else
-		{
+		} else {
 			RTMP_IO_READ32(pAd, LDO_CFG0, &MACValue);
 			MACValue = ((MACValue & 0xE0FFFFFF) | 0x01000000);
 			RTMP_IO_WRITE32(pAd, LDO_CFG0, MACValue);
 		}
 	}
 
-	if(IS_RT3572(pAd))
+	if (IS_RT3572(pAd))
 		RT30xxWriteRFRegister(pAd, RF_R08, 0x80);
 }
+
 // end johnli
 
-VOID RT30xxHaltAction(
-	IN PRTMP_ADAPTER	pAd)
+VOID RT30xxHaltAction(IN PRTMP_ADAPTER pAd)
 {
-	UINT32		TxPinCfg = 0x00050F0F;
+	UINT32 TxPinCfg = 0x00050F0F;
 
 	//
 	// Turn off LNA_PE or TRSW_POL
 	//
-	if (IS_RT3070(pAd) || IS_RT3071(pAd) || IS_RT3572(pAd))
-	{
+	if (IS_RT3070(pAd) || IS_RT3071(pAd) || IS_RT3572(pAd)) {
 		if ((IS_RT3071(pAd) || IS_RT3572(pAd))
 #ifdef RTMP_EFUSE_SUPPORT
-			&& (pAd->bUseEfuse)
+		    && (pAd->bUseEfuse)
 #endif // RTMP_EFUSE_SUPPORT //
-			)
-		{
-			TxPinCfg &= 0xFFFBF0F0; // bit18 off
-		}
-		else
-		{
+		    ) {
+			TxPinCfg &= 0xFFFBF0F0;	// bit18 off
+		} else {
 			TxPinCfg &= 0xFFFFF0F0;
 		}
 

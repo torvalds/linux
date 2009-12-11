@@ -39,11 +39,9 @@
 
 #include "../rt_config.h"
 
-
 #ifndef RTMP_RF_RW_SUPPORT
 #error "You Should Enable compile flag RTMP_RF_RW_SUPPORT for this chip"
 #endif // RTMP_RF_RW_SUPPORT //
-
 
 VOID NICInitRT3070RFRegisters(IN PRTMP_ADAPTER pAd)
 {
@@ -52,61 +50,55 @@ VOID NICInitRT3070RFRegisters(IN PRTMP_ADAPTER pAd)
 
 	// Driver must read EEPROM to get RfIcType before initial RF registers
 	// Initialize RF register to default value
-	if (IS_RT3070(pAd) || IS_RT3071(pAd))
-	{
+	if (IS_RT3070(pAd) || IS_RT3071(pAd)) {
 		// Init RF calibration
 		// Driver should toggle RF R30 bit7 before init RF registers
 		UINT32 RfReg = 0;
 		UINT32 data;
 
-		RT30xxReadRFRegister(pAd, RF_R30, (PUCHAR)&RfReg);
+		RT30xxReadRFRegister(pAd, RF_R30, (PUCHAR) & RfReg);
 		RfReg |= 0x80;
-		RT30xxWriteRFRegister(pAd, RF_R30, (UCHAR)RfReg);
+		RT30xxWriteRFRegister(pAd, RF_R30, (UCHAR) RfReg);
 		RTMPusecDelay(1000);
 		RfReg &= 0x7F;
-		RT30xxWriteRFRegister(pAd, RF_R30, (UCHAR)RfReg);
+		RT30xxWriteRFRegister(pAd, RF_R30, (UCHAR) RfReg);
 
 		// Initialize RF register to default value
-		for (i = 0; i < NUM_RF_REG_PARMS; i++)
-		{
-			RT30xxWriteRFRegister(pAd, RT30xx_RFRegTable[i].Register, RT30xx_RFRegTable[i].Value);
+		for (i = 0; i < NUM_RF_REG_PARMS; i++) {
+			RT30xxWriteRFRegister(pAd,
+					      RT30xx_RFRegTable[i].Register,
+					      RT30xx_RFRegTable[i].Value);
 		}
 
 		// add by johnli
-		if (IS_RT3070(pAd))
-		{
+		if (IS_RT3070(pAd)) {
 			//
 			// The DAC issue(LDO_CFG0) has been fixed in RT3070(F).
 			// The voltage raising patch is no longer needed for RT3070(F)
 			//
-			if ((pAd->MACVersion & 0xffff) < 0x0201)
-			{
+			if ((pAd->MACVersion & 0xffff) < 0x0201) {
 				//  Update MAC 0x05D4 from 01xxxxxx to 0Dxxxxxx (voltage 1.2V to 1.35V) for RT3070 to improve yield rate
 				RTUSBReadMACRegister(pAd, LDO_CFG0, &data);
 				data = ((data & 0xF0FFFFFF) | 0x0D000000);
 				RTUSBWriteMACRegister(pAd, LDO_CFG0, data);
 			}
-		}
-		else if (IS_RT3071(pAd))
-		{
+		} else if (IS_RT3071(pAd)) {
 			// Driver should set RF R6 bit6 on before init RF registers
-			RT30xxReadRFRegister(pAd, RF_R06, (PUCHAR)&RfReg);
+			RT30xxReadRFRegister(pAd, RF_R06, (PUCHAR) & RfReg);
 			RfReg |= 0x40;
-			RT30xxWriteRFRegister(pAd, RF_R06, (UCHAR)RfReg);
+			RT30xxWriteRFRegister(pAd, RF_R06, (UCHAR) RfReg);
 
 			// init R31
 			RT30xxWriteRFRegister(pAd, RF_R31, 0x14);
 
 			// RT3071 version E has fixed this issue
-			if ((pAd->NicConfig2.field.DACTestBit == 1) && ((pAd->MACVersion & 0xffff) < 0x0211))
-			{
+			if ((pAd->NicConfig2.field.DACTestBit == 1)
+			    && ((pAd->MACVersion & 0xffff) < 0x0211)) {
 				// patch tx EVM issue temporarily
 				RTUSBReadMACRegister(pAd, LDO_CFG0, &data);
 				data = ((data & 0xE0FFFFFF) | 0x0D000000);
 				RTUSBWriteMACRegister(pAd, LDO_CFG0, data);
-			}
-			else
-			{
+			} else {
 				RTMP_IO_READ32(pAd, LDO_CFG0, &data);
 				data = ((data & 0xE0FFFFFF) | 0x01000000);
 				RTMP_IO_WRITE32(pAd, LDO_CFG0, data);
@@ -117,8 +109,7 @@ VOID NICInitRT3070RFRegisters(IN PRTMP_ADAPTER pAd)
 			data &= ~(0x20);
 			RTUSBWriteMACRegister(pAd, GPIO_SWITCH, data);
 		}
-
-                //For RF filter Calibration
+		//For RF filter Calibration
 		RTMPFilterCalibration(pAd);
 
 		// Initialize RF R27 register, set RF R27 must be behind RTMPFilterCalibration()
@@ -126,15 +117,12 @@ VOID NICInitRT3070RFRegisters(IN PRTMP_ADAPTER pAd)
 		// TX to RX IQ glitch(RF_R27) has been fixed in RT3070(F).
 		// Raising RF voltage is no longer needed for RT3070(F)
 		//
-		if ((IS_RT3070(pAd)) && ((pAd->MACVersion & 0xffff) < 0x0201))
-		{
+		if ((IS_RT3070(pAd)) && ((pAd->MACVersion & 0xffff) < 0x0201)) {
+			RT30xxWriteRFRegister(pAd, RF_R27, 0x3);
+		} else if ((IS_RT3071(pAd))
+			   && ((pAd->MACVersion & 0xffff) < 0x0211)) {
 			RT30xxWriteRFRegister(pAd, RF_R27, 0x3);
 		}
-		else if ((IS_RT3071(pAd)) && ((pAd->MACVersion & 0xffff) < 0x0211))
-		{
-			RT30xxWriteRFRegister(pAd, RF_R27, 0x3);
-		}
-
 		// set led open drain enable
 		RTUSBReadMACRegister(pAd, OPT_14, &data);
 		data |= 0x01;
@@ -145,29 +133,25 @@ VOID NICInitRT3070RFRegisters(IN PRTMP_ADAPTER pAd)
 		RT30xxReadRFRegister(pAd, RF_R17, &RFValue);
 		RFValue &= (~0x08);
 		// to fix rx long range issue
-		if (pAd->NicConfig2.field.ExternalLNAForG == 0)
-		{
-			if ((IS_RT3071(pAd) && ((pAd->MACVersion & 0xffff) >= 0x0211)) || IS_RT3070(pAd))
-			{
+		if (pAd->NicConfig2.field.ExternalLNAForG == 0) {
+			if ((IS_RT3071(pAd)
+			     && ((pAd->MACVersion & 0xffff) >= 0x0211))
+			    || IS_RT3070(pAd)) {
 				RFValue |= 0x20;
 			}
 		}
 		// set RF_R17_bit[2:0] equal to EEPROM setting at 0x48h
-		if (pAd->TxMixerGain24G >= 1)
-		{
-			RFValue &= (~0x7);  // clean bit [2:0]
+		if (pAd->TxMixerGain24G >= 1) {
+			RFValue &= (~0x7);	// clean bit [2:0]
 			RFValue |= pAd->TxMixerGain24G;
 		}
 		RT30xxWriteRFRegister(pAd, RF_R17, RFValue);
 
-		if (IS_RT3071(pAd))
-		{
+		if (IS_RT3071(pAd)) {
 			// add by johnli, RF power sequence setup, load RF normal operation-mode setup
 			RT30xxLoadRFNormalModeSetup(pAd);
-		}
-		else if (IS_RT3070(pAd))
-		{
-			/* add by johnli, reset RF_R27 when interface down & up to fix throughput problem*/
+		} else if (IS_RT3070(pAd)) {
+			/* add by johnli, reset RF_R27 when interface down & up to fix throughput problem */
 			// LDORF_VC, RF R27 register Bit 2 to 0
 			RT30xxReadRFRegister(pAd, RF_R27, &RFValue);
 			// TX to RX IQ glitch(RF_R27) has been fixed in RT3070(F).
