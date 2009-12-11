@@ -277,18 +277,18 @@ void wl1271_tx_work(struct work_struct *work)
 			wl1271_debug(DEBUG_TX, "tx_work: fw buffer full, "
 				     "stop queues");
 			ieee80211_stop_queues(wl->hw);
-			wl->tx_queue_stopped = true;
+			set_bit(WL1271_FLAG_TX_QUEUE_STOPPED, &wl->flags);
 			skb_queue_head(&wl->tx_queue, skb);
 			goto out;
 		} else if (ret < 0) {
 			dev_kfree_skb(skb);
 			goto out;
-		} else if (wl->tx_queue_stopped) {
+		} else if (test_and_clear_bit(WL1271_FLAG_TX_QUEUE_STOPPED,
+					      &wl->flags)) {
 			/* firmware buffer has space, restart queues */
 			wl1271_debug(DEBUG_TX,
 				     "complete_packet: waking queues");
 			ieee80211_wake_queues(wl->hw);
-			wl->tx_queue_stopped = false;
 		}
 	}
 

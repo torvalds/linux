@@ -378,13 +378,13 @@ static void wl1271_disable_interrupts(struct wl1271 *wl)
 static void wl1271_power_off(struct wl1271 *wl)
 {
 	wl->set_power(false);
-	wl->gpio_power = false;
+	clear_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
 }
 
 static void wl1271_power_on(struct wl1271 *wl)
 {
 	wl->set_power(true);
-	wl->gpio_power = true;
+	set_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
 }
 
 static void wl1271_fw_status(struct wl1271 *wl,
@@ -812,7 +812,7 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		 * protected. Maybe fix this by removing the stupid
 		 * variable altogether and checking the real queue state?
 		 */
-		wl->tx_queue_stopped = true;
+		set_bit(WL1271_FLAG_TX_QUEUE_STOPPED, &wl->flags);
 	}
 
 	return NETDEV_TX_OK;
@@ -985,11 +985,10 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 
 	WARN_ON(wl->state != WL1271_STATE_ON);
 
-	if (wl->scanning) {
+	if (test_and_clear_bit(WL1271_FLAG_SCANNING, &wl->flags)) {
 		mutex_unlock(&wl->mutex);
 		ieee80211_scan_completed(wl->hw, true);
 		mutex_lock(&wl->mutex);
-		wl->scanning = false;
 	}
 
 	wl->state = WL1271_STATE_OFF;
@@ -1014,10 +1013,7 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	wl->band = IEEE80211_BAND_2GHZ;
 
 	wl->rx_counter = 0;
-	wl->elp = false;
-	wl->psm = 0;
 	wl->psm_entry_retry = 0;
-	wl->tx_queue_stopped = false;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
 	wl->tx_blocks_available = 0;
 	wl->tx_results_count = 0;
@@ -1027,7 +1023,6 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	wl->tx_security_seq_32 = 0;
 	wl->time_offset = 0;
 	wl->session_counter = 0;
-	wl->joined = false;
 	wl->rate_set = CONF_TX_RATE_MASK_BASIC;
 	wl->sta_rate_set = 0;
 	wl->flags = 0;
@@ -1174,7 +1169,7 @@ static int wl1271_join_channel(struct wl1271 *wl, int channel)
 	if (ret < 0)
 		goto out;
 
-	wl->joined = true;
+	set_bit(WL1271_FLAG_JOINED, &wl->flags);
 
 out:
 	return ret;
@@ -1189,7 +1184,7 @@ static int wl1271_unjoin_channel(struct wl1271 *wl)
 	if (ret < 0)
 		goto out;
 
-	wl->joined = false;
+	clear_bit(WL1271_FLAG_JOINED, &wl->flags);
 	wl->channel = 0;
 	memset(wl->bssid, 0, ETH_ALEN);
 	wl->rx_config = WL1271_DEFAULT_RX_CONFIG;
@@ -1221,7 +1216,8 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		goto out;
 
 	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
-		if (conf->flags & IEEE80211_CONF_IDLE && wl->joined)
+		if (conf->flags & IEEE80211_CONF_IDLE &&
+		    test_bit(WL1271_FLAG_JOINED, &wl->flags))
 			wl1271_unjoin_channel(wl);
 		else
 			wl1271_join_channel(wl, channel);
@@ -1234,11 +1230,12 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	/* if the channel changes while joined, join again */
-	if (channel != wl->channel && wl->joined)
+	if (channel != wl->channel && test_bit(WL1271_FLAG_JOINED, &wl->flags))
 		wl1271_join_channel(wl, channel);
 
-	if (conf->flags & IEEE80211_CONF_PS && !wl->psm_requested) {
-		wl->psm_requested = true;
+	if (conf->flags & IEEE80211_CONF_PS &&
+	    !test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags)) {
+		set_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags);
 
 		/*
 		 * We enter PSM only if we're already associated.
@@ -1250,12 +1247,12 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE);
 		}
 	} else if (!(conf->flags & IEEE80211_CONF_PS) &&
-		   wl->psm_requested) {
+		   test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags)) {
 		wl1271_info("psm disabled");
 
-		wl->psm_requested = false;
+		clear_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags);
 
-		if (wl->psm)
+		if (test_bit(WL1271_FLAG_PSM, &wl->flags))
 			ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE);
 	}
 
@@ -1574,7 +1571,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 				wl1271_warning("cmd join failed %d", ret);
 				goto out_sleep;
 			}
-			wl->joined = true;
+			set_bit(WL1271_FLAG_JOINED, &wl->flags);
 	}
 
 	if (wl->bss_type == BSS_TYPE_IBSS) {
@@ -1633,7 +1630,8 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 				goto out_sleep;
 
 			/* If we want to go in PSM but we're not there yet */
-			if (wl->psm_requested && !wl->psm) {
+			if (test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags) &&
+			    !test_bit(WL1271_FLAG_PSM, &wl->flags)) {
 				mode = STATION_POWER_SAVE_MODE;
 				ret = wl1271_ps_set_mode(wl, mode);
 				if (ret < 0)
@@ -1949,24 +1947,17 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 
 	INIT_DELAYED_WORK(&wl->elp_work, wl1271_elp_work);
 	wl->channel = WL1271_DEFAULT_CHANNEL;
-	wl->scanning = false;
 	wl->default_key = 0;
 	wl->rx_counter = 0;
 	wl->rx_config = WL1271_DEFAULT_RX_CONFIG;
 	wl->rx_filter = WL1271_DEFAULT_RX_FILTER;
-	wl->elp = false;
-	wl->psm = 0;
-	wl->psm_requested = false;
 	wl->psm_entry_retry = 0;
-	wl->tx_queue_stopped = false;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
 	wl->basic_rate_set = CONF_TX_RATE_MASK_BASIC;
 	wl->rate_set = CONF_TX_RATE_MASK_BASIC;
 	wl->sta_rate_set = 0;
 	wl->band = IEEE80211_BAND_2GHZ;
 	wl->vif = NULL;
-	wl->joined = false;
-	wl->gpio_power = false;
 	wl->flags = 0;
 
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)

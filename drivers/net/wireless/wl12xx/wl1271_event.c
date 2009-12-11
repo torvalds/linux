@@ -35,7 +35,7 @@ static int wl1271_event_scan_complete(struct wl1271 *wl,
 	wl1271_debug(DEBUG_EVENT, "status: 0x%x",
 		     mbox->scheduled_scan_status);
 
-	if (wl->scanning) {
+	if (test_bit(WL1271_FLAG_SCANNING, &wl->flags)) {
 		if (wl->scan.state == WL1271_SCAN_BAND_DUAL) {
 			wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_2_4,
 						NULL, size);
@@ -43,7 +43,7 @@ static int wl1271_event_scan_complete(struct wl1271 *wl,
 			 * to the wl1271_cmd_scan function that we are not
 			 * scanning as it checks that.
 			 */
-			wl->scanning = false;
+			clear_bit(WL1271_FLAG_SCANNING, &wl->flags);
 			wl1271_cmd_scan(wl, wl->scan.ssid, wl->scan.ssid_len,
 						wl->scan.active,
 						wl->scan.high_prio,
@@ -62,7 +62,7 @@ static int wl1271_event_scan_complete(struct wl1271 *wl,
 			mutex_unlock(&wl->mutex);
 			ieee80211_scan_completed(wl->hw, false);
 			mutex_lock(&wl->mutex);
-			wl->scanning = false;
+			clear_bit(WL1271_FLAG_SCANNING, &wl->flags);
 		}
 	}
 	return 0;
@@ -78,7 +78,7 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 
 	switch (mbox->ps_status) {
 	case EVENT_ENTER_POWER_SAVE_FAIL:
-		if (!wl->psm) {
+		if (!test_bit(WL1271_FLAG_PSM, &wl->flags)) {
 			wl->psm_entry_retry = 0;
 			break;
 		}
@@ -135,7 +135,8 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 	 * filtering) is enabled. Without PSM, the stack will receive all
 	 * beacons and can detect beacon loss by itself.
 	 */
-	if (vector & BSS_LOSE_EVENT_ID && wl->psm) {
+	if (vector & BSS_LOSE_EVENT_ID &&
+	    test_bit(WL1271_FLAG_PSM, &wl->flags)) {
 		wl1271_debug(DEBUG_EVENT, "BSS_LOSE_EVENT");
 
 		/* indicate to the stack, that beacons have been lost */

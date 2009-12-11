@@ -241,10 +241,12 @@ static ssize_t gpio_power_read(struct file *file, char __user *user_buf,
 			  size_t count, loff_t *ppos)
 {
 	struct wl1271 *wl = file->private_data;
+	bool state = test_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
+
 	int res;
 	char buf[10];
 
-	res = scnprintf(buf, sizeof(buf), "%d\n", wl->gpio_power);
+	res = scnprintf(buf, sizeof(buf), "%d\n", state);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, res);
 }
@@ -274,8 +276,13 @@ static ssize_t gpio_power_write(struct file *file,
 		goto out;
 	}
 
-	wl->set_power(!!value);
-	wl->gpio_power = !!value;
+	if (value) {
+		wl->set_power(true);
+		set_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
+	} else {
+		wl->set_power(false);
+		clear_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
+	}
 
 out:
 	mutex_unlock(&wl->mutex);

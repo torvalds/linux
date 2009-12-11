@@ -655,7 +655,7 @@ int wl1271_cmd_scan(struct wl1271 *wl, u8 *ssid, size_t len,
 	channels = wl->hw->wiphy->bands[ieee_band]->channels;
 	n_ch = wl->hw->wiphy->bands[ieee_band]->n_channels;
 
-	if (wl->scanning)
+	if (test_bit(WL1271_FLAG_SCANNING, &wl->flags))
 		return -EINVAL;
 
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
@@ -730,7 +730,7 @@ int wl1271_cmd_scan(struct wl1271 *wl, u8 *ssid, size_t len,
 
 	wl1271_dump(DEBUG_SCAN, "SCAN: ", params, sizeof(*params));
 
-	wl->scanning = true;
+	set_bit(WL1271_FLAG_SCANNING, &wl->flags);
 	if (wl1271_11a_enabled()) {
 		wl->scan.state = band;
 		if (band == WL1271_SCAN_BAND_DUAL) {
@@ -748,7 +748,7 @@ int wl1271_cmd_scan(struct wl1271 *wl, u8 *ssid, size_t len,
 	ret = wl1271_cmd_send(wl, CMD_SCAN, params, sizeof(*params), 0);
 	if (ret < 0) {
 		wl1271_error("SCAN failed");
-		wl->scanning = false;
+		clear_bit(WL1271_FLAG_SCANNING, &wl->flags);
 		goto out;
 	}
 

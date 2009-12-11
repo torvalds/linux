@@ -324,6 +324,13 @@ struct wl1271 {
 
 #define WL1271_FLAG_STA_RATES_CHANGED  (0)
 #define WL1271_FLAG_STA_ASSOCIATED     (1)
+#define WL1271_FLAG_JOINED             (2)
+#define WL1271_FLAG_GPIO_POWER         (3)
+#define WL1271_FLAG_TX_QUEUE_STOPPED   (4)
+#define WL1271_FLAG_SCANNING           (5)
+#define WL1271_FLAG_IN_ELP             (6)
+#define WL1271_FLAG_PSM                (7)
+#define WL1271_FLAG_PSM_REQUESTED      (8)
 	unsigned long flags;
 
 	struct wl1271_partition_set part;
@@ -363,7 +370,6 @@ struct wl1271 {
 
 	/* Frames scheduled for transmission, not handled yet */
 	struct sk_buff_head tx_queue;
-	bool tx_queue_stopped;
 
 	struct work_struct tx_work;
 
@@ -391,7 +397,6 @@ struct wl1271 {
 	u32 mbox_ptr[2];
 
 	/* Are we currently scanning */
-	bool scanning;
 	struct wl1271_scan scan;
 
 	/* Our association ID */
@@ -411,17 +416,8 @@ struct wl1271 {
 	unsigned int rx_config;
 	unsigned int rx_filter;
 
-	/* is firmware in elp mode */
-	bool elp;
-
 	struct completion *elp_compl;
 	struct delayed_work elp_work;
-
-	/* we can be in psm, but not in elp, we have to differentiate */
-	bool psm;
-
-	/* PSM mode requested */
-	bool psm_requested;
 
 	/* retry counter for PSM entries */
 	u8 psm_entry_retry;
@@ -441,15 +437,10 @@ struct wl1271 {
 
 	struct ieee80211_vif *vif;
 
-	/* Used for a workaround to send disconnect before rejoining */
-	bool joined;
-
 	/* Current chipset configuration */
 	struct conf_drv_settings conf;
 
 	struct list_head list;
-
-	bool gpio_power;
 };
 
 int wl1271_plt_start(struct wl1271 *wl);
