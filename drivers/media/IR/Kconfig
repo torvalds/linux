@@ -1,4 +1,9 @@
-config VIDEO_IR
+config IR_CORE
 	tristate
 	depends on INPUT
 	default INPUT
+
+config VIDEO_IR
+	tristate
+	depends on IR_CORE
+	default IR_CORE

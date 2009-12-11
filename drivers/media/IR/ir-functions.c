@@ -34,9 +34,6 @@ static int repeat = 1;
 module_param(repeat, int, 0444);
 MODULE_PARM_DESC(repeat,"auto-repeat for IR keys (default: on)");
 
-int media_ir_debug;    /* media_ir_debug level (0,1,2) */
-module_param_named(debug, media_ir_debug, int, 0644);
-
 /* -------------------------------------------------------------------------- */
 
 static void ir_input_key_event(struct input_dev *dev, struct ir_input_state *ir)

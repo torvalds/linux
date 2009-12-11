@@ -26,31 +26,7 @@
 #include <linux/input.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
-#include <linux/spinlock.h>
-
-extern int media_ir_debug;    /* media_ir_debug level (0,1,2) */
-#define IR_dprintk(level, fmt, arg...)	if (media_ir_debug >= level) \
-	printk(KERN_DEBUG "%s: " fmt , __func__, ## arg)
-
-enum ir_type {
-	IR_TYPE_UNKNOWN = 0,
-	IR_TYPE_RC5 = 1,
-	IR_TYPE_PD = 2,		 /* Pulse distance encoded IR */
-	IR_TYPE_NEC = 3,
-	IR_TYPE_OTHER = 99,
-};
-
-struct ir_scancode {
-	u16	scancode;
-	u32	keycode;
-};
-
-struct ir_scancode_table {
-	struct ir_scancode *scan;
-	int size;
-	enum ir_type ir_type;
-	spinlock_t lock;
-};
+#include <media/ir-core.h>
 
 #define RC5_START(x)	(((x)>>12)&3)
 #define RC5_TOGGLE(x)	(((x)>>11)&1)
@@ -122,19 +98,6 @@ u32  ir_rc5_decode(unsigned int code);
 
 void ir_rc5_timer_end(unsigned long data);
 void ir_rc5_timer_keyup(unsigned long data);
-
-/* Routines from ir-keytable.c */
-
-u32 ir_g_keycode_from_table(struct input_dev *input_dev,
-			    u32 scancode);
-
-int ir_set_keycode_table(struct input_dev *input_dev,
-			 struct ir_scancode_table *rc_tab);
-
-int ir_roundup_tablesize(int n_elems);
-int ir_copy_table(struct ir_scancode_table *destin,
-		 const struct ir_scancode_table *origin);
-void ir_input_free(struct input_dev *input_dev);
 
 /* scancode->keycode map tables from ir-keymaps.c */
 

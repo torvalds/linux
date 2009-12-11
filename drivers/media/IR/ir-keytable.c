@@ -1,6 +1,15 @@
 /* ir-register.c - handle IR scancode->keycode tables
  *
  * Copyright (C) 2009 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation version 2 of the License.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
  */
 
 #include <linux/usb/input.h>
@@ -9,7 +18,6 @@
 
 #define IR_TAB_MIN_SIZE	32
 #define IR_TAB_MAX_SIZE	1024
-
 
 /**
  * ir_seek_table() - returns the element order on the table
@@ -73,6 +81,7 @@ int ir_roundup_tablesize(int n_elems)
 
 	return n_elems;
 }
+EXPORT_SYMBOL_GPL(ir_roundup_tablesize);
 
 /**
  * ir_copy_table() - copies a keytable, discarding the unused entries
@@ -101,6 +110,7 @@ int ir_copy_table(struct ir_scancode_table *destin,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ir_copy_table);
 
 /**
  * ir_getkeycode() - get a keycode at the evdev scancode ->keycode table
@@ -136,7 +146,6 @@ static int ir_getkeycode(struct input_dev *dev,
 	*keycode = KEY_RESERVED;
 	return 0;
 }
-
 
 /**
  * ir_is_resize_needed() - Check if the table needs rezise
@@ -379,6 +388,7 @@ u32 ir_g_keycode_from_table(struct input_dev *dev, u32 scancode)
 	/* Reports userspace that an unknown keycode were got */
 	return KEY_RESERVED;
 }
+EXPORT_SYMBOL_GPL(ir_g_keycode_from_table);
 
 /**
  * ir_set_keycode_table() - sets the IR keycode table and add the handlers
@@ -415,6 +425,7 @@ int ir_set_keycode_table(struct input_dev *input_dev,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ir_set_keycode_table);
 
 void ir_input_free(struct input_dev *dev)
 {
@@ -431,3 +442,9 @@ void ir_input_free(struct input_dev *dev)
 }
 EXPORT_SYMBOL_GPL(ir_input_free);
 
+int ir_core_debug;    /* ir_debug level (0,1,2) */
+EXPORT_SYMBOL_GPL(ir_core_debug);
+module_param_named(debug, ir_core_debug, int, 0644);
+
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_LICENSE("GPL");
