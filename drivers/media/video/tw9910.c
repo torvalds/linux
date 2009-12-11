@@ -329,13 +329,6 @@ static const struct tw9910_scale_ctrl tw9910_pal_scales[] = {
 	},
 };
 
-static const struct tw9910_cropping_ctrl tw9910_cropping_ctrl = {
-	.vdelay  = 0x0012,
-	.vactive = 0x00F0,
-	.hdelay  = 0x0010,
-	.hactive = 0x02D0,
-};
-
 static const struct tw9910_hsync_ctrl tw9910_hsync_ctrl = {
 	.start = 0x0260,
 	.end   = 0x0300,
@@ -381,40 +374,6 @@ static int tw9910_set_scale(struct i2c_client *client,
 
 	ret = i2c_smbus_write_byte_data(client, VSCALE_LO,
 					scale->vscale & 0x00FF);
-
-	return ret;
-}
-
-static int tw9910_set_cropping(struct i2c_client *client,
-			       const struct tw9910_cropping_ctrl *cropping)
-{
-	int ret;
-
-	ret = i2c_smbus_write_byte_data(client, CROP_HI,
-					(cropping->vdelay  & 0x0300) >> 2 |
-					(cropping->vactive & 0x0300) >> 4 |
-					(cropping->hdelay  & 0x0300) >> 6 |
-					(cropping->hactive & 0x0300) >> 8);
-	if (ret < 0)
-		return ret;
-
-	ret = i2c_smbus_write_byte_data(client, VDELAY_LO,
-					cropping->vdelay & 0x00FF);
-	if (ret < 0)
-		return ret;
-
-	ret = i2c_smbus_write_byte_data(client, VACTIVE_LO,
-					cropping->vactive & 0x00FF);
-	if (ret < 0)
-		return ret;
-
-	ret = i2c_smbus_write_byte_data(client, HDELAY_LO,
-					cropping->hdelay & 0x00FF);
-	if (ret < 0)
-		return ret;
-
-	ret = i2c_smbus_write_byte_data(client, HACTIVE_LO,
-					cropping->hactive & 0x00FF);
 
 	return ret;
 }
@@ -705,13 +664,6 @@ static int tw9910_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	 * set scale
 	 */
 	ret = tw9910_set_scale(client, priv->scale);
-	if (ret < 0)
-		goto tw9910_set_fmt_error;
-
-	/*
-	 * set cropping
-	 */
-	ret = tw9910_set_cropping(client, &tw9910_cropping_ctrl);
 	if (ret < 0)
 		goto tw9910_set_fmt_error;
 
