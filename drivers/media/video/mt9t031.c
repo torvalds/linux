@@ -60,15 +60,6 @@
 	SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_DATA_ACTIVE_HIGH |	\
 	SOCAM_MASTER | SOCAM_DATAWIDTH_10)
 
-static const struct soc_camera_data_format mt9t031_colour_formats[] = {
-	{
-		.name		= "Bayer (sRGB) 10 bit",
-		.depth		= 10,
-		.fourcc		= V4L2_PIX_FMT_SGRBG10,
-		.colorspace	= V4L2_COLORSPACE_SRGB,
-	}
-};
-
 struct mt9t031 {
 	struct v4l2_subdev subdev;
 	struct v4l2_rect rect;	/* Sensor window */
@@ -378,27 +369,27 @@ static int mt9t031_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 	return 0;
 }
 
-static int mt9t031_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int mt9t031_g_fmt(struct v4l2_subdev *sd,
+			 struct v4l2_mbus_framefmt *mf)
 {
 	struct i2c_client *client = sd->priv;
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
-	struct v4l2_pix_format *pix = &f->fmt.pix;
 
-	pix->width		= mt9t031->rect.width / mt9t031->xskip;
-	pix->height		= mt9t031->rect.height / mt9t031->yskip;
-	pix->pixelformat	= V4L2_PIX_FMT_SGRBG10;
-	pix->field		= V4L2_FIELD_NONE;
-	pix->colorspace		= V4L2_COLORSPACE_SRGB;
+	mf->width	= mt9t031->rect.width / mt9t031->xskip;
+	mf->height	= mt9t031->rect.height / mt9t031->yskip;
+	mf->code	= V4L2_MBUS_FMT_SBGGR10_1X10;
+	mf->colorspace	= V4L2_COLORSPACE_SRGB;
+	mf->field	= V4L2_FIELD_NONE;
 
 	return 0;
 }
 
-static int mt9t031_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int mt9t031_s_fmt(struct v4l2_subdev *sd,
+			 struct v4l2_mbus_framefmt *mf)
 {
 	struct i2c_client *client = sd->priv;
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
 	struct soc_camera_device *icd = client->dev.platform_data;
-	struct v4l2_pix_format *pix = &f->fmt.pix;
 	u16 xskip, yskip;
 	struct v4l2_rect rect = mt9t031->rect;
 
@@ -406,8 +397,11 @@ static int mt9t031_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	 * try_fmt has put width and height within limits.
 	 * S_FMT: use binning and skipping for scaling
 	 */
-	xskip = mt9t031_skip(&rect.width, pix->width, MT9T031_MAX_WIDTH);
-	yskip = mt9t031_skip(&rect.height, pix->height, MT9T031_MAX_HEIGHT);
+	xskip = mt9t031_skip(&rect.width, mf->width, MT9T031_MAX_WIDTH);
+	yskip = mt9t031_skip(&rect.height, mf->height, MT9T031_MAX_HEIGHT);
+
+	mf->code	= V4L2_MBUS_FMT_SBGGR10_1X10;
+	mf->colorspace	= V4L2_COLORSPACE_SRGB;
 
 	/* mt9t031_set_params() doesn't change width and height */
 	return mt9t031_set_params(icd, &rect, xskip, yskip);
@@ -417,13 +411,15 @@ static int mt9t031_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
  * If a user window larger than sensor window is requested, we'll increase the
  * sensor window.
  */
-static int mt9t031_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int mt9t031_try_fmt(struct v4l2_subdev *sd,
+			   struct v4l2_mbus_framefmt *mf)
 {
-	struct v4l2_pix_format *pix = &f->fmt.pix;
-
 	v4l_bound_align_image(
-		&pix->width, MT9T031_MIN_WIDTH, MT9T031_MAX_WIDTH, 1,
-		&pix->height, MT9T031_MIN_HEIGHT, MT9T031_MAX_HEIGHT, 1, 0);
+		&mf->width, MT9T031_MIN_WIDTH, MT9T031_MAX_WIDTH, 1,
+		&mf->height, MT9T031_MIN_HEIGHT, MT9T031_MAX_HEIGHT, 1, 0);
+
+	mf->code	= V4L2_MBUS_FMT_SBGGR10_1X10;
+	mf->colorspace	= V4L2_COLORSPACE_SRGB;
 
 	return 0;
 }
@@ -684,7 +680,6 @@ static int mt9t031_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
  */
 static int mt9t031_video_probe(struct i2c_client *client)
 {
-	struct soc_camera_device *icd = client->dev.platform_data;
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
 	s32 data;
 	int ret;
@@ -699,8 +694,6 @@ static int mt9t031_video_probe(struct i2c_client *client)
 	switch (data) {
 	case 0x1621:
 		mt9t031->model = V4L2_IDENT_MT9T031;
-		icd->formats = mt9t031_colour_formats;
-		icd->num_formats = ARRAY_SIZE(mt9t031_colour_formats);
 		break;
 	default:
 		dev_err(&client->dev,
@@ -741,14 +734,25 @@ static struct v4l2_subdev_core_ops mt9t031_subdev_core_ops = {
 #endif
 };
 
+static int mt9t031_enum_fmt(struct v4l2_subdev *sd, int index,
+			    enum v4l2_mbus_pixelcode *code)
+{
+	if (index)
+		return -EINVAL;
+
+	*code = V4L2_MBUS_FMT_SBGGR10_1X10;
+	return 0;
+}
+
 static struct v4l2_subdev_video_ops mt9t031_subdev_video_ops = {
 	.s_stream	= mt9t031_s_stream,
-	.s_fmt		= mt9t031_s_fmt,
-	.g_fmt		= mt9t031_g_fmt,
-	.try_fmt	= mt9t031_try_fmt,
+	.s_mbus_fmt	= mt9t031_s_fmt,
+	.g_mbus_fmt	= mt9t031_g_fmt,
+	.try_mbus_fmt	= mt9t031_try_fmt,
 	.s_crop		= mt9t031_s_crop,
 	.g_crop		= mt9t031_g_crop,
 	.cropcap	= mt9t031_cropcap,
+	.enum_mbus_fmt	= mt9t031_enum_fmt,
 };
 
 static struct v4l2_subdev_sensor_ops mt9t031_subdev_sensor_ops = {

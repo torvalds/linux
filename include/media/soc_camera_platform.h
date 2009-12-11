@@ -19,7 +19,7 @@ struct device;
 struct soc_camera_platform_info {
 	const char *format_name;
 	unsigned long format_depth;
-	struct v4l2_pix_format format;
+	struct v4l2_mbus_framefmt format;
 	unsigned long bus_param;
 	struct device *dev;
 	int (*set_capture)(struct soc_camera_platform_info *info, int enable);

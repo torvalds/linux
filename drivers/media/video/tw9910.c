@@ -251,15 +251,6 @@ static const struct regval_list tw9910_default_regs[] =
 	ENDMARKER,
 };
 
-static const struct soc_camera_data_format tw9910_color_fmt[] = {
-	{
-		.name       = "VYUY",
-		.fourcc     = V4L2_PIX_FMT_VYUY,
-		.depth      = 16,
-		.colorspace = V4L2_COLORSPACE_SMPTE170M,
-	}
-};
-
 static const struct tw9910_scale_ctrl tw9910_ntsc_scales[] = {
 	{
 		.name   = "NTSC SQ",
@@ -814,11 +805,11 @@ static int tw9910_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 	return 0;
 }
 
-static int tw9910_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int tw9910_g_fmt(struct v4l2_subdev *sd,
+			struct v4l2_mbus_framefmt *mf)
 {
 	struct i2c_client *client = sd->priv;
 	struct tw9910_priv *priv = to_tw9910(client);
-	struct v4l2_pix_format *pix = &f->fmt.pix;
 
 	if (!priv->scale) {
 		int ret;
@@ -835,74 +826,76 @@ static int tw9910_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 			return ret;
 	}
 
-	f->type			= V4L2_BUF_TYPE_VIDEO_CAPTURE;
-
-	pix->width		= priv->scale->width;
-	pix->height		= priv->scale->height;
-	pix->pixelformat	= V4L2_PIX_FMT_VYUY;
-	pix->colorspace		= V4L2_COLORSPACE_SMPTE170M;
-	pix->field		= V4L2_FIELD_INTERLACED;
+	mf->width	= priv->scale->width;
+	mf->height	= priv->scale->height;
+	mf->code	= V4L2_MBUS_FMT_YVYU8_2X8_BE;
+	mf->colorspace	= V4L2_COLORSPACE_JPEG;
+	mf->field	= V4L2_FIELD_INTERLACED;
 
 	return 0;
 }
 
-static int tw9910_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int tw9910_s_fmt(struct v4l2_subdev *sd,
+			struct v4l2_mbus_framefmt *mf)
 {
 	struct i2c_client *client = sd->priv;
 	struct tw9910_priv *priv = to_tw9910(client);
-	struct v4l2_pix_format *pix = &f->fmt.pix;
 	/* See tw9910_s_crop() - no proper cropping support */
 	struct v4l2_crop a = {
 		.c = {
 			.left	= 0,
 			.top	= 0,
-			.width	= pix->width,
-			.height	= pix->height,
+			.width	= mf->width,
+			.height	= mf->height,
 		},
 	};
-	int i, ret;
+	int ret;
+
+	WARN_ON(mf->field != V4L2_FIELD_ANY &&
+		mf->field != V4L2_FIELD_INTERLACED);
 
 	/*
 	 * check color format
 	 */
-	for (i = 0; i < ARRAY_SIZE(tw9910_color_fmt); i++)
-		if (pix->pixelformat == tw9910_color_fmt[i].fourcc)
-			break;
-
-	if (i == ARRAY_SIZE(tw9910_color_fmt))
+	if (mf->code != V4L2_MBUS_FMT_YVYU8_2X8_BE)
 		return -EINVAL;
+
+	mf->colorspace = V4L2_COLORSPACE_JPEG;
 
 	ret = tw9910_s_crop(sd, &a);
 	if (!ret) {
-		pix->width = priv->scale->width;
-		pix->height = priv->scale->height;
+		mf->width	= priv->scale->width;
+		mf->height	= priv->scale->height;
 	}
 	return ret;
 }
 
-static int tw9910_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int tw9910_try_fmt(struct v4l2_subdev *sd,
+			  struct v4l2_mbus_framefmt *mf)
 {
 	struct i2c_client *client = sd->priv;
 	struct soc_camera_device *icd = client->dev.platform_data;
-	struct v4l2_pix_format *pix = &f->fmt.pix;
 	const struct tw9910_scale_ctrl *scale;
 
-	if (V4L2_FIELD_ANY == pix->field) {
-		pix->field = V4L2_FIELD_INTERLACED;
-	} else if (V4L2_FIELD_INTERLACED != pix->field) {
-		dev_err(&client->dev, "Field type invalid.\n");
+	if (V4L2_FIELD_ANY == mf->field) {
+		mf->field = V4L2_FIELD_INTERLACED;
+	} else if (V4L2_FIELD_INTERLACED != mf->field) {
+		dev_err(&client->dev, "Field type %d invalid.\n", mf->field);
 		return -EINVAL;
 	}
+
+	mf->code = V4L2_MBUS_FMT_YVYU8_2X8_BE;
+	mf->colorspace = V4L2_COLORSPACE_JPEG;
 
 	/*
 	 * select suitable norm
 	 */
-	scale = tw9910_select_norm(icd, pix->width, pix->height);
+	scale = tw9910_select_norm(icd, mf->width, mf->height);
 	if (!scale)
 		return -EINVAL;
 
-	pix->width  = scale->width;
-	pix->height = scale->height;
+	mf->width	= scale->width;
+	mf->height	= scale->height;
 
 	return 0;
 }
@@ -929,9 +922,6 @@ static int tw9910_video_probe(struct soc_camera_device *icd,
 		dev_err(&client->dev, "bus width error\n");
 		return -ENODEV;
 	}
-
-	icd->formats     = tw9910_color_fmt;
-	icd->num_formats = ARRAY_SIZE(tw9910_color_fmt);
 
 	/*
 	 * check and show Product ID
@@ -973,14 +963,25 @@ static struct v4l2_subdev_core_ops tw9910_subdev_core_ops = {
 #endif
 };
 
+static int tw9910_enum_fmt(struct v4l2_subdev *sd, int index,
+			   enum v4l2_mbus_pixelcode *code)
+{
+	if (index)
+		return -EINVAL;
+
+	*code = V4L2_MBUS_FMT_YVYU8_2X8_BE;
+	return 0;
+}
+
 static struct v4l2_subdev_video_ops tw9910_subdev_video_ops = {
 	.s_stream	= tw9910_s_stream,
-	.g_fmt		= tw9910_g_fmt,
-	.s_fmt		= tw9910_s_fmt,
-	.try_fmt	= tw9910_try_fmt,
+	.g_mbus_fmt	= tw9910_g_fmt,
+	.s_mbus_fmt	= tw9910_s_fmt,
+	.try_mbus_fmt	= tw9910_try_fmt,
 	.cropcap	= tw9910_cropcap,
 	.g_crop		= tw9910_g_crop,
 	.s_crop		= tw9910_s_crop,
+	.enum_mbus_fmt	= tw9910_enum_fmt,
 };
 
 static struct v4l2_subdev_ops tw9910_subdev_ops = {

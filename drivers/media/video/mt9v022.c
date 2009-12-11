@@ -64,41 +64,46 @@ MODULE_PARM_DESC(sensor_type, "Sensor type: \"colour\" or \"monochrome\"");
 #define MT9V022_COLUMN_SKIP		1
 #define MT9V022_ROW_SKIP		4
 
-static const struct soc_camera_data_format mt9v022_colour_formats[] = {
+/* MT9V022 has only one fixed colorspace per pixelcode */
+struct mt9v022_datafmt {
+	enum v4l2_mbus_pixelcode	code;
+	enum v4l2_colorspace		colorspace;
+};
+
+/* Find a data format by a pixel code in an array */
+static const struct mt9v022_datafmt *mt9v022_find_datafmt(
+	enum v4l2_mbus_pixelcode code, const struct mt9v022_datafmt *fmt,
+	int n)
+{
+	int i;
+	for (i = 0; i < n; i++)
+		if (fmt[i].code == code)
+			return fmt + i;
+
+	return NULL;
+}
+
+static const struct mt9v022_datafmt mt9v022_colour_fmts[] = {
 	/*
 	 * Order important: first natively supported,
 	 * second supported with a GPIO extender
 	 */
-	{
-		.name		= "Bayer (sRGB) 10 bit",
-		.depth		= 10,
-		.fourcc		= V4L2_PIX_FMT_SBGGR16,
-		.colorspace	= V4L2_COLORSPACE_SRGB,
-	}, {
-		.name		= "Bayer (sRGB) 8 bit",
-		.depth		= 8,
-		.fourcc		= V4L2_PIX_FMT_SBGGR8,
-		.colorspace	= V4L2_COLORSPACE_SRGB,
-	}
+	{V4L2_MBUS_FMT_SBGGR10_1X10, V4L2_COLORSPACE_SRGB},
+	{V4L2_MBUS_FMT_SBGGR8_1X8, V4L2_COLORSPACE_SRGB},
 };
 
-static const struct soc_camera_data_format mt9v022_monochrome_formats[] = {
+static const struct mt9v022_datafmt mt9v022_monochrome_fmts[] = {
 	/* Order important - see above */
-	{
-		.name		= "Monochrome 10 bit",
-		.depth		= 10,
-		.fourcc		= V4L2_PIX_FMT_Y16,
-	}, {
-		.name		= "Monochrome 8 bit",
-		.depth		= 8,
-		.fourcc		= V4L2_PIX_FMT_GREY,
-	},
+	{V4L2_MBUS_FMT_Y10_1X10, V4L2_COLORSPACE_JPEG},
+	{V4L2_MBUS_FMT_GREY8_1X8, V4L2_COLORSPACE_JPEG},
 };
 
 struct mt9v022 {
 	struct v4l2_subdev subdev;
 	struct v4l2_rect rect;	/* Sensor window */
-	__u32 fourcc;
+	const struct mt9v022_datafmt *fmt;
+	const struct mt9v022_datafmt *fmts;
+	int num_fmts;
 	int model;	/* V4L2_IDENT_MT9V022* codes from v4l2-chip-ident.h */
 	u16 chip_control;
 	unsigned short y_skip_top;	/* Lines to skip at the top */
@@ -275,8 +280,7 @@ static int mt9v022_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	int ret;
 
 	/* Bayer format - even size lengths */
-	if (mt9v022->fourcc == V4L2_PIX_FMT_SBGGR8 ||
-	    mt9v022->fourcc == V4L2_PIX_FMT_SBGGR16) {
+	if (mt9v022->fmts == mt9v022_colour_fmts) {
 		rect.width	= ALIGN(rect.width, 2);
 		rect.height	= ALIGN(rect.height, 2);
 		/* Let the user play with the starting pixel */
@@ -354,32 +358,32 @@ static int mt9v022_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 	return 0;
 }
 
-static int mt9v022_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int mt9v022_g_fmt(struct v4l2_subdev *sd,
+			 struct v4l2_mbus_framefmt *mf)
 {
 	struct i2c_client *client = sd->priv;
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
-	struct v4l2_pix_format *pix = &f->fmt.pix;
 
-	pix->width		= mt9v022->rect.width;
-	pix->height		= mt9v022->rect.height;
-	pix->pixelformat	= mt9v022->fourcc;
-	pix->field		= V4L2_FIELD_NONE;
-	pix->colorspace		= V4L2_COLORSPACE_SRGB;
+	mf->width	= mt9v022->rect.width;
+	mf->height	= mt9v022->rect.height;
+	mf->code	= mt9v022->fmt->code;
+	mf->colorspace	= mt9v022->fmt->colorspace;
+	mf->field	= V4L2_FIELD_NONE;
 
 	return 0;
 }
 
-static int mt9v022_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int mt9v022_s_fmt(struct v4l2_subdev *sd,
+			 struct v4l2_mbus_framefmt *mf)
 {
 	struct i2c_client *client = sd->priv;
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
-	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct v4l2_crop a = {
 		.c = {
 			.left	= mt9v022->rect.left,
 			.top	= mt9v022->rect.top,
-			.width	= pix->width,
-			.height	= pix->height,
+			.width	= mf->width,
+			.height	= mf->height,
 		},
 	};
 	int ret;
@@ -388,14 +392,14 @@ static int mt9v022_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	 * The caller provides a supported format, as verified per call to
 	 * icd->try_fmt(), datawidth is from our supported format list
 	 */
-	switch (pix->pixelformat) {
-	case V4L2_PIX_FMT_GREY:
-	case V4L2_PIX_FMT_Y16:
+	switch (mf->code) {
+	case V4L2_MBUS_FMT_GREY8_1X8:
+	case V4L2_MBUS_FMT_Y10_1X10:
 		if (mt9v022->model != V4L2_IDENT_MT9V022IX7ATM)
 			return -EINVAL;
 		break;
-	case V4L2_PIX_FMT_SBGGR8:
-	case V4L2_PIX_FMT_SBGGR16:
+	case V4L2_MBUS_FMT_SBGGR8_1X8:
+	case V4L2_MBUS_FMT_SBGGR10_1X10:
 		if (mt9v022->model != V4L2_IDENT_MT9V022IX7ATC)
 			return -EINVAL;
 		break;
@@ -409,26 +413,38 @@ static int mt9v022_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	/* No support for scaling on this camera, just crop. */
 	ret = mt9v022_s_crop(sd, &a);
 	if (!ret) {
-		pix->width = mt9v022->rect.width;
-		pix->height = mt9v022->rect.height;
-		mt9v022->fourcc = pix->pixelformat;
+		mf->width	= mt9v022->rect.width;
+		mf->height	= mt9v022->rect.height;
+		mt9v022->fmt	= mt9v022_find_datafmt(mf->code,
+					mt9v022->fmts, mt9v022->num_fmts);
+		mf->colorspace	= mt9v022->fmt->colorspace;
 	}
 
 	return ret;
 }
 
-static int mt9v022_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int mt9v022_try_fmt(struct v4l2_subdev *sd,
+			   struct v4l2_mbus_framefmt *mf)
 {
 	struct i2c_client *client = sd->priv;
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
-	struct v4l2_pix_format *pix = &f->fmt.pix;
-	int align = pix->pixelformat == V4L2_PIX_FMT_SBGGR8 ||
-		pix->pixelformat == V4L2_PIX_FMT_SBGGR16;
+	const struct mt9v022_datafmt *fmt;
+	int align = mf->code == V4L2_MBUS_FMT_SBGGR8_1X8 ||
+		mf->code == V4L2_MBUS_FMT_SBGGR10_1X10;
 
-	v4l_bound_align_image(&pix->width, MT9V022_MIN_WIDTH,
+	v4l_bound_align_image(&mf->width, MT9V022_MIN_WIDTH,
 		MT9V022_MAX_WIDTH, align,
-		&pix->height, MT9V022_MIN_HEIGHT + mt9v022->y_skip_top,
+		&mf->height, MT9V022_MIN_HEIGHT + mt9v022->y_skip_top,
 		MT9V022_MAX_HEIGHT + mt9v022->y_skip_top, align, 0);
+
+	fmt = mt9v022_find_datafmt(mf->code, mt9v022->fmts,
+				   mt9v022->num_fmts);
+	if (!fmt) {
+		fmt = mt9v022->fmt;
+		mf->code = fmt->code;
+	}
+
+	mf->colorspace	= fmt->colorspace;
 
 	return 0;
 }
@@ -749,17 +765,17 @@ static int mt9v022_video_probe(struct soc_camera_device *icd,
 			    !strcmp("color", sensor_type))) {
 		ret = reg_write(client, MT9V022_PIXEL_OPERATION_MODE, 4 | 0x11);
 		mt9v022->model = V4L2_IDENT_MT9V022IX7ATC;
-		icd->formats = mt9v022_colour_formats;
+		mt9v022->fmts = mt9v022_colour_fmts;
 	} else {
 		ret = reg_write(client, MT9V022_PIXEL_OPERATION_MODE, 0x11);
 		mt9v022->model = V4L2_IDENT_MT9V022IX7ATM;
-		icd->formats = mt9v022_monochrome_formats;
+		mt9v022->fmts = mt9v022_monochrome_fmts;
 	}
 
 	if (ret < 0)
 		goto ei2c;
 
-	icd->num_formats = 0;
+	mt9v022->num_fmts = 0;
 
 	/*
 	 * This is a 10bit sensor, so by default we only allow 10bit.
@@ -772,14 +788,14 @@ static int mt9v022_video_probe(struct soc_camera_device *icd,
 		flags = SOCAM_DATAWIDTH_10;
 
 	if (flags & SOCAM_DATAWIDTH_10)
-		icd->num_formats++;
+		mt9v022->num_fmts++;
 	else
-		icd->formats++;
+		mt9v022->fmts++;
 
 	if (flags & SOCAM_DATAWIDTH_8)
-		icd->num_formats++;
+		mt9v022->num_fmts++;
 
-	mt9v022->fourcc = icd->formats->fourcc;
+	mt9v022->fmt = &mt9v022->fmts[0];
 
 	dev_info(&client->dev, "Detected a MT9V022 chip ID %x, %s sensor\n",
 		 data, mt9v022->model == V4L2_IDENT_MT9V022IX7ATM ?
@@ -823,14 +839,28 @@ static struct v4l2_subdev_core_ops mt9v022_subdev_core_ops = {
 #endif
 };
 
+static int mt9v022_enum_fmt(struct v4l2_subdev *sd, int index,
+			    enum v4l2_mbus_pixelcode *code)
+{
+	struct i2c_client *client = sd->priv;
+	struct mt9v022 *mt9v022 = to_mt9v022(client);
+
+	if ((unsigned int)index >= mt9v022->num_fmts)
+		return -EINVAL;
+
+	*code = mt9v022->fmts[index].code;
+	return 0;
+}
+
 static struct v4l2_subdev_video_ops mt9v022_subdev_video_ops = {
 	.s_stream	= mt9v022_s_stream,
-	.s_fmt		= mt9v022_s_fmt,
-	.g_fmt		= mt9v022_g_fmt,
-	.try_fmt	= mt9v022_try_fmt,
+	.s_mbus_fmt	= mt9v022_s_fmt,
+	.g_mbus_fmt	= mt9v022_g_fmt,
+	.try_mbus_fmt	= mt9v022_try_fmt,
 	.s_crop		= mt9v022_s_crop,
 	.g_crop		= mt9v022_g_crop,
 	.cropcap	= mt9v022_cropcap,
+	.enum_mbus_fmt	= mt9v022_enum_fmt,
 };
 
 static struct v4l2_subdev_sensor_ops mt9v022_subdev_sensor_ops = {

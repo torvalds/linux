@@ -16,6 +16,7 @@
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
+#include <media/soc_mediabus.h>
 
 #define RJ54N1_DEV_CODE			0x0400
 #define RJ54N1_DEV_CODE2		0x0401
@@ -85,18 +86,35 @@
 
 /* I2C addresses: 0x50, 0x51, 0x60, 0x61 */
 
-static const struct soc_camera_data_format rj54n1_colour_formats[] = {
-	{
-		.name		= "YUYV",
-		.depth		= 16,
-		.fourcc		= V4L2_PIX_FMT_YUYV,
-		.colorspace	= V4L2_COLORSPACE_JPEG,
-	}, {
-		.name		= "RGB565",
-		.depth		= 16,
-		.fourcc		= V4L2_PIX_FMT_RGB565,
-		.colorspace	= V4L2_COLORSPACE_SRGB,
-	}
+/* RJ54N1CB0C has only one fixed colorspace per pixelcode */
+struct rj54n1_datafmt {
+	enum v4l2_mbus_pixelcode	code;
+	enum v4l2_colorspace		colorspace;
+};
+
+/* Find a data format by a pixel code in an array */
+static const struct rj54n1_datafmt *rj54n1_find_datafmt(
+	enum v4l2_mbus_pixelcode code, const struct rj54n1_datafmt *fmt,
+	int n)
+{
+	int i;
+	for (i = 0; i < n; i++)
+		if (fmt[i].code == code)
+			return fmt + i;
+
+	return NULL;
+}
+
+static const struct rj54n1_datafmt rj54n1_colour_fmts[] = {
+	{V4L2_MBUS_FMT_YUYV8_2X8_LE, V4L2_COLORSPACE_JPEG},
+	{V4L2_MBUS_FMT_YVYU8_2X8_LE, V4L2_COLORSPACE_JPEG},
+	{V4L2_MBUS_FMT_RGB565_2X8_LE, V4L2_COLORSPACE_SRGB},
+	{V4L2_MBUS_FMT_RGB565_2X8_BE, V4L2_COLORSPACE_SRGB},
+	{V4L2_MBUS_FMT_SBGGR10_2X8_PADHI_LE, V4L2_COLORSPACE_SRGB},
+	{V4L2_MBUS_FMT_SBGGR10_2X8_PADLO_LE, V4L2_COLORSPACE_SRGB},
+	{V4L2_MBUS_FMT_SBGGR10_2X8_PADHI_BE, V4L2_COLORSPACE_SRGB},
+	{V4L2_MBUS_FMT_SBGGR10_2X8_PADLO_BE, V4L2_COLORSPACE_SRGB},
+	{V4L2_MBUS_FMT_SBGGR10_1X10, V4L2_COLORSPACE_SRGB},
 };
 
 struct rj54n1_clock_div {
@@ -109,12 +127,12 @@ struct rj54n1_clock_div {
 
 struct rj54n1 {
 	struct v4l2_subdev subdev;
+	const struct rj54n1_datafmt *fmt;
 	struct v4l2_rect rect;	/* Sensor window */
 	unsigned short width;	/* Output window */
 	unsigned short height;
 	unsigned short resize;	/* Sensor * 1024 / resize = Output */
 	struct rj54n1_clock_div clk_div;
-	u32 fourcc;
 	unsigned short scale;
 	u8 bank;
 };
@@ -440,6 +458,16 @@ static int reg_write_multiple(struct i2c_client *client,
 	return 0;
 }
 
+static int rj54n1_enum_fmt(struct v4l2_subdev *sd, int index,
+			   enum v4l2_mbus_pixelcode *code)
+{
+	if ((unsigned int)index >= ARRAY_SIZE(rj54n1_colour_fmts))
+		return -EINVAL;
+
+	*code = rj54n1_colour_fmts[index].code;
+	return 0;
+}
+
 static int rj54n1_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	/* TODO: start / stop streaming */
@@ -527,16 +555,17 @@ static int rj54n1_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 	return 0;
 }
 
-static int rj54n1_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int rj54n1_g_fmt(struct v4l2_subdev *sd,
+			struct v4l2_mbus_framefmt *mf)
 {
 	struct i2c_client *client = sd->priv;
 	struct rj54n1 *rj54n1 = to_rj54n1(client);
-	struct v4l2_pix_format *pix = &f->fmt.pix;
 
-	pix->pixelformat	= rj54n1->fourcc;
-	pix->field		= V4L2_FIELD_NONE;
-	pix->width		= rj54n1->width;
-	pix->height		= rj54n1->height;
+	mf->code	= rj54n1->fmt->code;
+	mf->colorspace	= rj54n1->fmt->colorspace;
+	mf->field	= V4L2_FIELD_NONE;
+	mf->width	= rj54n1->width;
+	mf->height	= rj54n1->height;
 
 	return 0;
 }
@@ -787,26 +816,44 @@ static int rj54n1_reg_init(struct i2c_client *client)
 }
 
 /* FIXME: streaming output only up to 800x600 is functional */
-static int rj54n1_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int rj54n1_try_fmt(struct v4l2_subdev *sd,
+			  struct v4l2_mbus_framefmt *mf)
 {
-	struct v4l2_pix_format *pix = &f->fmt.pix;
+	struct i2c_client *client = sd->priv;
+	struct rj54n1 *rj54n1 = to_rj54n1(client);
+	const struct rj54n1_datafmt *fmt;
+	int align = mf->code == V4L2_MBUS_FMT_SBGGR10_1X10 ||
+		mf->code == V4L2_MBUS_FMT_SBGGR10_2X8_PADHI_BE ||
+		mf->code == V4L2_MBUS_FMT_SBGGR10_2X8_PADLO_BE ||
+		mf->code == V4L2_MBUS_FMT_SBGGR10_2X8_PADHI_LE ||
+		mf->code == V4L2_MBUS_FMT_SBGGR10_2X8_PADLO_LE;
 
-	pix->field = V4L2_FIELD_NONE;
+	dev_dbg(&client->dev, "%s: code = %d, width = %u, height = %u\n",
+		__func__, mf->code, mf->width, mf->height);
 
-	if (pix->width > 800)
-		pix->width = 800;
-	if (pix->height > 600)
-		pix->height = 600;
+	fmt = rj54n1_find_datafmt(mf->code, rj54n1_colour_fmts,
+				  ARRAY_SIZE(rj54n1_colour_fmts));
+	if (!fmt) {
+		fmt = rj54n1->fmt;
+		mf->code = fmt->code;
+	}
+
+	mf->field	= V4L2_FIELD_NONE;
+	mf->colorspace	= fmt->colorspace;
+
+	v4l_bound_align_image(&mf->width, 112, RJ54N1_MAX_WIDTH, align,
+			      &mf->height, 84, RJ54N1_MAX_HEIGHT, align, 0);
 
 	return 0;
 }
 
-static int rj54n1_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int rj54n1_s_fmt(struct v4l2_subdev *sd,
+			struct v4l2_mbus_framefmt *mf)
 {
 	struct i2c_client *client = sd->priv;
 	struct rj54n1 *rj54n1 = to_rj54n1(client);
-	struct v4l2_pix_format *pix = &f->fmt.pix;
-	unsigned int output_w, output_h,
+	const struct rj54n1_datafmt *fmt;
+	unsigned int output_w, output_h, max_w, max_h,
 		input_w = rj54n1->rect.width, input_h = rj54n1->rect.height;
 	int ret;
 
@@ -814,7 +861,7 @@ static int rj54n1_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	 * The host driver can call us without .try_fmt(), so, we have to take
 	 * care ourseleves
 	 */
-	ret = rj54n1_try_fmt(sd, f);
+	ret = rj54n1_try_fmt(sd, mf);
 
 	/*
 	 * Verify if the sensor has just been powered on. TODO: replace this
@@ -832,49 +879,101 @@ static int rj54n1_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	}
 
 	/* RA_SEL_UL is only relevant for raw modes, ignored otherwise. */
-	switch (pix->pixelformat) {
-	case V4L2_PIX_FMT_YUYV:
+	switch (mf->code) {
+	case V4L2_MBUS_FMT_YUYV8_2X8_LE:
 		ret = reg_write(client, RJ54N1_OUT_SEL, 0);
 		if (!ret)
 			ret = reg_set(client, RJ54N1_BYTE_SWAP, 8, 8);
 		break;
-	case V4L2_PIX_FMT_RGB565:
+	case V4L2_MBUS_FMT_YVYU8_2X8_LE:
+		ret = reg_write(client, RJ54N1_OUT_SEL, 0);
+		if (!ret)
+			ret = reg_set(client, RJ54N1_BYTE_SWAP, 0, 8);
+		break;
+	case V4L2_MBUS_FMT_RGB565_2X8_LE:
 		ret = reg_write(client, RJ54N1_OUT_SEL, 0x11);
 		if (!ret)
 			ret = reg_set(client, RJ54N1_BYTE_SWAP, 8, 8);
+		break;
+	case V4L2_MBUS_FMT_RGB565_2X8_BE:
+		ret = reg_write(client, RJ54N1_OUT_SEL, 0x11);
+		if (!ret)
+			ret = reg_set(client, RJ54N1_BYTE_SWAP, 0, 8);
+		break;
+	case V4L2_MBUS_FMT_SBGGR10_2X8_PADLO_LE:
+		ret = reg_write(client, RJ54N1_OUT_SEL, 4);
+		if (!ret)
+			ret = reg_set(client, RJ54N1_BYTE_SWAP, 8, 8);
+		if (!ret)
+			ret = reg_write(client, RJ54N1_RA_SEL_UL, 0);
+		break;
+	case V4L2_MBUS_FMT_SBGGR10_2X8_PADHI_LE:
+		ret = reg_write(client, RJ54N1_OUT_SEL, 4);
+		if (!ret)
+			ret = reg_set(client, RJ54N1_BYTE_SWAP, 8, 8);
+		if (!ret)
+			ret = reg_write(client, RJ54N1_RA_SEL_UL, 8);
+		break;
+	case V4L2_MBUS_FMT_SBGGR10_2X8_PADLO_BE:
+		ret = reg_write(client, RJ54N1_OUT_SEL, 4);
+		if (!ret)
+			ret = reg_set(client, RJ54N1_BYTE_SWAP, 0, 8);
+		if (!ret)
+			ret = reg_write(client, RJ54N1_RA_SEL_UL, 0);
+		break;
+	case V4L2_MBUS_FMT_SBGGR10_2X8_PADHI_BE:
+		ret = reg_write(client, RJ54N1_OUT_SEL, 4);
+		if (!ret)
+			ret = reg_set(client, RJ54N1_BYTE_SWAP, 0, 8);
+		if (!ret)
+			ret = reg_write(client, RJ54N1_RA_SEL_UL, 8);
+		break;
+	case V4L2_MBUS_FMT_SBGGR10_1X10:
+		ret = reg_write(client, RJ54N1_OUT_SEL, 5);
 		break;
 	default:
 		ret = -EINVAL;
 	}
 
+	/* Special case: a raw mode with 10 bits of data per clock tick */
+	if (!ret)
+		ret = reg_set(client, RJ54N1_OCLK_SEL_EN,
+			      (mf->code == V4L2_MBUS_FMT_SBGGR10_1X10) << 1, 2);
+
 	if (ret < 0)
 		return ret;
 
-	/* Supported scales 1:1 - 1:16 */
-	if (pix->width < input_w / 16)
-		pix->width = input_w / 16;
-	if (pix->height < input_h / 16)
-		pix->height = input_h / 16;
+	/* Supported scales 1:1 >= scale > 1:16 */
+	max_w = mf->width * (16 * 1024 - 1) / 1024;
+	if (input_w > max_w)
+		input_w = max_w;
+	max_h = mf->height * (16 * 1024 - 1) / 1024;
+	if (input_h > max_h)
+		input_h = max_h;
 
-	output_w = pix->width;
-	output_h = pix->height;
+	output_w = mf->width;
+	output_h = mf->height;
 
 	ret = rj54n1_sensor_scale(sd, &input_w, &input_h, &output_w, &output_h);
 	if (ret < 0)
 		return ret;
 
-	rj54n1->fourcc		= pix->pixelformat;
+	fmt = rj54n1_find_datafmt(mf->code, rj54n1_colour_fmts,
+				  ARRAY_SIZE(rj54n1_colour_fmts));
+
+	rj54n1->fmt		= fmt;
 	rj54n1->resize		= ret;
 	rj54n1->rect.width	= input_w;
 	rj54n1->rect.height	= input_h;
 	rj54n1->width		= output_w;
 	rj54n1->height		= output_h;
 
-	pix->width		= output_w;
-	pix->height		= output_h;
-	pix->field		= V4L2_FIELD_NONE;
+	mf->width		= output_w;
+	mf->height		= output_h;
+	mf->field		= V4L2_FIELD_NONE;
+	mf->colorspace		= fmt->colorspace;
 
-	return ret;
+	return 0;
 }
 
 static int rj54n1_g_chip_ident(struct v4l2_subdev *sd,
@@ -1054,9 +1153,10 @@ static struct v4l2_subdev_core_ops rj54n1_subdev_core_ops = {
 
 static struct v4l2_subdev_video_ops rj54n1_subdev_video_ops = {
 	.s_stream	= rj54n1_s_stream,
-	.s_fmt		= rj54n1_s_fmt,
-	.g_fmt		= rj54n1_g_fmt,
-	.try_fmt	= rj54n1_try_fmt,
+	.s_mbus_fmt	= rj54n1_s_fmt,
+	.g_mbus_fmt	= rj54n1_g_fmt,
+	.try_mbus_fmt	= rj54n1_try_fmt,
+	.enum_mbus_fmt	= rj54n1_enum_fmt,
 	.g_crop		= rj54n1_g_crop,
 	.cropcap	= rj54n1_cropcap,
 };
@@ -1153,7 +1253,7 @@ static int rj54n1_probe(struct i2c_client *client,
 	rj54n1->rect.height	= RJ54N1_MAX_HEIGHT;
 	rj54n1->width		= RJ54N1_MAX_WIDTH;
 	rj54n1->height		= RJ54N1_MAX_HEIGHT;
-	rj54n1->fourcc		= V4L2_PIX_FMT_YUYV;
+	rj54n1->fmt		= &rj54n1_colour_fmts[0];
 	rj54n1->resize		= 1024;
 
 	ret = rj54n1_video_probe(icd, client);
@@ -1163,9 +1263,6 @@ static int rj54n1_probe(struct i2c_client *client,
 		kfree(rj54n1);
 		return ret;
 	}
-
-	icd->formats		= rj54n1_colour_formats;
-	icd->num_formats	= ARRAY_SIZE(rj54n1_colour_formats);
 
 	return ret;
 }

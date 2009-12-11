@@ -316,8 +316,9 @@ static struct soc_camera_platform_info camera_info = {
 	.format_name = "UYVY",
 	.format_depth = 16,
 	.format = {
-		.pixelformat = V4L2_PIX_FMT_UYVY,
+		.code = V4L2_MBUS_FMT_YUYV8_2X8_BE,
 		.colorspace = V4L2_COLORSPACE_SMPTE170M,
+		.field = V4L2_FIELD_NONE,
 		.width = 640,
 		.height = 480,
 	},
