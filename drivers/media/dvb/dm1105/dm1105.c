@@ -613,7 +613,7 @@ int __devinit dm1105_ir_init(struct dm1105dvb *dm1105)
 
 	err = input_register_device(input_dev);
 	if (err) {
-		ir_input_free(input_dev);
+		ir_input_unregister(input_dev);
 		input_free_device(input_dev);
 		return err;
 	}
@@ -623,7 +623,7 @@ int __devinit dm1105_ir_init(struct dm1105dvb *dm1105)
 
 void __devexit dm1105_ir_exit(struct dm1105dvb *dm1105)
 {
-	ir_input_free(dm1105->ir.input_dev);
+	ir_input_unregister(dm1105->ir.input_dev);
 	input_unregister_device(dm1105->ir.input_dev);
 }
 

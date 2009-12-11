@@ -226,7 +226,7 @@ err_out_stop:
 	cx231xx_ir_stop(ir);
 	dev->ir = NULL;
 err_out_free:
-	ir_input_free(input_dev);
+	ir_input_unregister(input_dev);
 	input_free_device(input_dev);
 	kfree(ir);
 	return err;
@@ -241,7 +241,7 @@ int cx231xx_ir_fini(struct cx231xx *dev)
 		return 0;
 
 	cx231xx_ir_stop(ir);
-	ir_input_free(ir->input);
+	ir_input_unregister(ir->input);
 	input_unregister_device(ir->input);
 	kfree(ir);
 

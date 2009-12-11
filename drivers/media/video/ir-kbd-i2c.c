@@ -460,7 +460,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	return 0;
 
  err_out_free:
-	ir_input_free(input_dev);
+	ir_input_unregister(input_dev);
 	input_free_device(input_dev);
 	kfree(ir);
 	return err;
@@ -474,7 +474,7 @@ static int ir_remove(struct i2c_client *client)
 	cancel_delayed_work_sync(&ir->work);
 
 	/* unregister device */
-	ir_input_free(ir->input);
+	ir_input_unregister(ir->input);
 	input_unregister_device(ir->input);
 
 	/* free memory */

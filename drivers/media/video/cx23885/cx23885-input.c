@@ -407,7 +407,7 @@ err_out_stop:
 	cx23885_input_ir_stop(dev);
 	dev->ir_input = NULL;
 err_out_free:
-	ir_input_free(input_dev);
+	ir_input_unregister(input_dev);
 	input_free_device(input_dev);
 	kfree(ir);
 	return ret;
@@ -420,7 +420,7 @@ void cx23885_input_fini(struct cx23885_dev *dev)
 
 	if (dev->ir_input == NULL)
 		return;
-	ir_input_free(dev->ir_input->dev);
+	ir_input_unregister(dev->ir_input->dev);
 	input_unregister_device(dev->ir_input->dev);
 	kfree(dev->ir_input);
 	dev->ir_input = NULL;

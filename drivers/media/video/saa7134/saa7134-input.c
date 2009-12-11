@@ -742,7 +742,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	saa7134_ir_stop(dev);
 	dev->remote = NULL;
  err_out_free:
-	ir_input_free(input_dev);
+	ir_input_unregister(input_dev);
 	input_free_device(input_dev);
 	kfree(ir);
 	return err;
@@ -754,7 +754,7 @@ void saa7134_input_fini(struct saa7134_dev *dev)
 		return;
 
 	saa7134_ir_stop(dev);
-	ir_input_free(dev->remote->dev);
+	ir_input_unregister(dev->remote->dev);
 	input_unregister_device(dev->remote->dev);
 	kfree(dev->remote);
 	dev->remote = NULL;

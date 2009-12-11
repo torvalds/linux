@@ -403,7 +403,7 @@ int bttv_input_init(struct bttv *btv)
 	bttv_ir_stop(btv);
 	btv->remote = NULL;
  err_out_free:
-	ir_input_free(input_dev);
+	ir_input_unregister(input_dev);
 	input_free_device(input_dev);
 	kfree(ir);
 	return err;
@@ -415,7 +415,7 @@ void bttv_input_fini(struct bttv *btv)
 		return;
 
 	bttv_ir_stop(btv);
-	ir_input_free(btv->remote->dev);
+	ir_input_unregister(btv->remote->dev);
 	input_unregister_device(btv->remote->dev);
 	kfree(btv->remote);
 	btv->remote = NULL;

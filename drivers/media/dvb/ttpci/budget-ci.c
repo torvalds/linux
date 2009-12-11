@@ -286,7 +286,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	return 0;
 
 out2:
-	ir_input_free(input_dev);
+	ir_input_unregister(input_dev);
 	input_free_device(input_dev);
 out1:
 	return error;
@@ -304,7 +304,7 @@ static void msp430_ir_deinit(struct budget_ci *budget_ci)
 	del_timer_sync(&dev->timer);
 	ir_input_nokey(dev, &budget_ci->ir.state);
 
-	ir_input_free(dev);
+	ir_input_unregister(dev);
 	input_unregister_device(dev);
 }
 

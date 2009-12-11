@@ -57,6 +57,6 @@ int ir_set_keycode_table(struct input_dev *input_dev,
 int ir_roundup_tablesize(int n_elems);
 int ir_input_register(struct input_dev *dev,
 		      struct ir_scancode_table *ir_codes);
-void ir_input_free(struct input_dev *input_dev);
+void ir_input_unregister(struct input_dev *input_dev);
 
 #endif

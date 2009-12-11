@@ -450,7 +450,7 @@ int ir_input_register(struct input_dev *input_dev,
 }
 EXPORT_SYMBOL_GPL(ir_input_register);
 
-void ir_input_free(struct input_dev *dev)
+void ir_input_unregister(struct input_dev *dev)
 {
 	struct ir_input_dev *ir_dev = input_get_drvdata(dev);
 	struct ir_scancode_table *rc_tab = &ir_dev->rc_tab;
@@ -467,7 +467,7 @@ void ir_input_free(struct input_dev *dev)
 	kfree(ir_dev);
 	input_set_drvdata(dev, NULL);
 }
-EXPORT_SYMBOL_GPL(ir_input_free);
+EXPORT_SYMBOL_GPL(ir_input_unregister);
 
 int ir_core_debug;    /* ir_debug level (0,1,2) */
 EXPORT_SYMBOL_GPL(ir_core_debug);
