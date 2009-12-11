@@ -41,10 +41,11 @@ sys_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
 
 asmlinkage long
 sys_mmap(unsigned long addr, unsigned long len, unsigned long prot,
-	unsigned long flags, unsigned long fd, off_t pgoff)
+	unsigned long flags, unsigned long fd, off_t offset)
 {
-	/* where's the alignment check? */
-	return sys_mmap_pgoff(addr, len, prot, flags, fd, pgoff >> PAGE_SHIFT);
+	if (unlikely(offset & ~PAGE_MASK))
+		return -EINVAL;
+	return sys_mmap_pgoff(addr, len, prot, flags, fd, offset >> PAGE_SHIFT);
 }
 
 asmlinkage long
