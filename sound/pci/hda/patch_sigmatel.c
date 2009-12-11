@@ -209,6 +209,7 @@ struct sigmatel_spec {
 	unsigned int gpio_data;
 	unsigned int gpio_mute;
 	unsigned int gpio_led;
+	unsigned int gpio_led_polarity;
 
 	/* stream */
 	unsigned int stream_delay;
@@ -4724,13 +4725,61 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 	}
 }
 
-static int hp_bseries_system(u32 subsystem_id)
+/*
+ * This method searches for the mute LED GPIO configuration
+ * provided as OEM string in SMBIOS. The format of that string
+ * is HP_Mute_LED_P_G or HP_Mute_LED_P
+ * where P can be 0 or 1 and defines mute LED GPIO control state (low/high)
+ * that corresponds to the NOT muted state of the master volume
+ * and G is the index of the GPIO to use as the mute LED control (0..9)
+ * If _G portion is missing it is assigned based on the codec ID
+ *
+ * So, HP B-series like systems may have HP_Mute_LED_0 (current models)
+ * or  HP_Mute_LED_0_3 (future models) OEM SMBIOS strings
+ */
+static int find_mute_led_gpio(struct hda_codec *codec)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	const struct dmi_device *dev = NULL;
+
+	if ((codec->subsystem_id >> 16) == PCI_VENDOR_ID_HP) {
+		while ((dev = dmi_find_device(DMI_DEV_TYPE_OEM_STRING,
+								NULL, dev))) {
+			if (sscanf(dev->name, "HP_Mute_LED_%d_%d",
+			      &spec->gpio_led_polarity,
+			      &spec->gpio_led) == 2) {
+				spec->gpio_led = 1 << spec->gpio_led;
+				return 1;
+			}
+			if (sscanf(dev->name, "HP_Mute_LED_%d",
+			      &spec->gpio_led_polarity) == 1) {
+				switch (codec->vendor_id) {
+				case 0x111d7608:
+					/* GPIO 0 */
+					spec->gpio_led = 0x01;
+					return 1;
+				case 0x111d7600:
+				case 0x111d7601:
+				case 0x111d7602:
+				case 0x111d7603:
+					/* GPIO 3 */
+					spec->gpio_led = 0x08;
+					return 1;
+				}
+			}
+		}
+	}
+	return 0;
+}
+
+static int hp_blike_system(u32 subsystem_id)
 {
 	switch (subsystem_id) {
-	case 0x103c307e:
-	case 0x103c307f:
-	case 0x103c3080:
-	case 0x103c3081:
+	case 0x103c1520:
+	case 0x103c1521:
+	case 0x103c1523:
+	case 0x103c1524:
+	case 0x103c1525:
 	case 0x103c1722:
 	case 0x103c1723:
 	case 0x103c1724:
@@ -4739,6 +4788,14 @@ static int hp_bseries_system(u32 subsystem_id)
 	case 0x103c1727:
 	case 0x103c1728:
 	case 0x103c1729:
+	case 0x103c172a:
+	case 0x103c172b:
+	case 0x103c307e:
+	case 0x103c307f:
+	case 0x103c3080:
+	case 0x103c3081:
+	case 0x103c7007:
+	case 0x103c7008:
 		return 1;
 	}
 	return 0;
@@ -4833,7 +4890,7 @@ static int stac92xx_hp_check_power_status(struct hda_codec *codec,
 		else
 			spec->gpio_data |= spec->gpio_led; /* white */
 
-		if (hp_bseries_system(codec->subsystem_id)) {
+		if (!spec->gpio_led_polarity) {
 			/* LED state is inverted on these systems */
 			spec->gpio_data ^= spec->gpio_led;
 		}
@@ -5526,7 +5583,7 @@ again:
 		break;
 	}
 
-	if (hp_bseries_system(codec->subsystem_id)) {
+	if (hp_blike_system(codec->subsystem_id)) {
 		pin_cfg = snd_hda_codec_get_pincfg(codec, 0x0f);
 		if (get_defcfg_device(pin_cfg) == AC_JACK_LINE_OUT ||
 			get_defcfg_device(pin_cfg) == AC_JACK_SPEAKER  ||
@@ -5544,26 +5601,10 @@ again:
 		}
 	}
 
-	if ((codec->subsystem_id >> 16) == PCI_VENDOR_ID_HP) {
-		const struct dmi_device *dev = NULL;
-		while ((dev = dmi_find_device(DMI_DEV_TYPE_OEM_STRING,
-					      NULL, dev))) {
-			if (strcmp(dev->name, "HP_Mute_LED_1")) {
-				switch (codec->vendor_id) {
-				case 0x111d7608:
-					spec->gpio_led = 0x01;
-					break;
-				case 0x111d7600:
-				case 0x111d7601:
-				case 0x111d7602:
-				case 0x111d7603:
-					spec->gpio_led = 0x08;
-					break;
-				}
-				break;
-			}
-		}
-	}
+	if (find_mute_led_gpio(codec))
+		snd_printd("mute LED gpio %d polarity %d\n",
+				spec->gpio_led,
+				spec->gpio_led_polarity);
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (spec->gpio_led) {
