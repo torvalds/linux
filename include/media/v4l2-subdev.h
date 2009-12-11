@@ -263,6 +263,17 @@ struct v4l2_subdev_video_ops {
 			struct v4l2_dv_timings *timings);
 };
 
+/**
+ * struct v4l2_subdev_sensor_ops - v4l2-subdev sensor operations
+ * @g_skip_top_lines: number of lines at the top of the image to be skipped.
+ *		      This is needed for some sensors, which always corrupt
+ *		      several top lines of the output image, or which send their
+ *		      metadata in them.
+ */
+struct v4l2_subdev_sensor_ops {
+	int (*g_skip_top_lines)(struct v4l2_subdev *sd, u32 *lines);
+};
+
 /*
    interrupt_service_routine: Called by the bridge chip's interrupt service
 	handler, when an IR interrupt status has be raised due to this subdev,
@@ -347,11 +358,12 @@ struct v4l2_subdev_ir_ops {
 };
 
 struct v4l2_subdev_ops {
-	const struct v4l2_subdev_core_ops  *core;
-	const struct v4l2_subdev_tuner_ops *tuner;
-	const struct v4l2_subdev_audio_ops *audio;
-	const struct v4l2_subdev_video_ops *video;
-	const struct v4l2_subdev_ir_ops    *ir;
+	const struct v4l2_subdev_core_ops	*core;
+	const struct v4l2_subdev_tuner_ops	*tuner;
+	const struct v4l2_subdev_audio_ops	*audio;
+	const struct v4l2_subdev_video_ops	*video;
+	const struct v4l2_subdev_ir_ops		*ir;
+	const struct v4l2_subdev_sensor_ops	*sensor;
 };
 
 #define V4L2_SUBDEV_NAME_SIZE 32

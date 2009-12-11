@@ -1051,8 +1051,13 @@ static void pxa_camera_setup_cicr(struct soc_camera_device *icd,
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct pxa_camera_dev *pcdev = ici->priv;
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	unsigned long dw, bpp;
-	u32 cicr0, cicr1, cicr2, cicr3, cicr4 = 0;
+	u32 cicr0, cicr1, cicr2, cicr3, cicr4 = 0, y_skip_top;
+	int ret = v4l2_subdev_call(sd, sensor, g_skip_top_lines, &y_skip_top);
+
+	if (ret < 0)
+		y_skip_top = 0;
 
 	/* Datawidth is now guaranteed to be equal to one of the three values.
 	 * We fix bit-per-pixel equal to data-width... */
@@ -1118,7 +1123,7 @@ static void pxa_camera_setup_cicr(struct soc_camera_device *icd,
 
 	cicr2 = 0;
 	cicr3 = CICR3_LPF_VAL(icd->user_height - 1) |
-		CICR3_BFW_VAL(min((unsigned short)255, icd->y_skip_top));
+		CICR3_BFW_VAL(min((u32)255, y_skip_top));
 	cicr4 |= pcdev->mclk_divisor;
 
 	__raw_writel(cicr1, pcdev->base + CICR1);

@@ -128,7 +128,6 @@ static int soc_camera_platform_probe(struct platform_device *pdev)
 	/* Set the control device reference */
 	dev_set_drvdata(&icd->dev, &pdev->dev);
 
-	icd->y_skip_top		= 0;
 	icd->ops		= &soc_camera_platform_ops;
 
 	ici = to_soc_camera_host(icd->dev.parent);
