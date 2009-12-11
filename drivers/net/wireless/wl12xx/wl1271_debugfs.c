@@ -237,6 +237,57 @@ static const struct file_operations tx_queue_len_ops = {
 	.open = wl1271_open_file_generic,
 };
 
+static ssize_t gpio_power_read(struct file *file, char __user *user_buf,
+			  size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+	int res;
+	char buf[10];
+
+	res = scnprintf(buf, sizeof(buf), "%d\n", wl->gpio_power);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, res);
+}
+
+static ssize_t gpio_power_write(struct file *file,
+			   const char __user *user_buf,
+			   size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+	char buf[10];
+	size_t len;
+	unsigned long value;
+	int ret;
+
+	mutex_lock(&wl->mutex);
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len)) {
+		ret = -EFAULT;
+		goto out;
+	}
+	buf[len] = '\0';
+
+	ret = strict_strtoul(buf, 0, &value);
+	if (ret < 0) {
+		wl1271_warning("illegal value in gpio_power");
+		goto out;
+	}
+
+	wl->set_power(!!value);
+	wl->gpio_power = !!value;
+
+out:
+	mutex_unlock(&wl->mutex);
+	return count;
+}
+
+static const struct file_operations gpio_power_ops = {
+	.read = gpio_power_read,
+	.write = gpio_power_write,
+	.open = wl1271_open_file_generic
+};
+
 static void wl1271_debugfs_delete_files(struct wl1271 *wl)
 {
 	DEBUGFS_FWSTATS_DEL(tx, internal_desc_overflow);
@@ -333,6 +384,8 @@ static void wl1271_debugfs_delete_files(struct wl1271 *wl)
 	DEBUGFS_DEL(tx_queue_len);
 	DEBUGFS_DEL(retry_count);
 	DEBUGFS_DEL(excessive_retries);
+
+	DEBUGFS_DEL(gpio_power);
 }
 
 static int wl1271_debugfs_add_files(struct wl1271 *wl)
@@ -433,6 +486,8 @@ static int wl1271_debugfs_add_files(struct wl1271 *wl)
 	DEBUGFS_ADD(tx_queue_len, wl->debugfs.rootdir);
 	DEBUGFS_ADD(retry_count, wl->debugfs.rootdir);
 	DEBUGFS_ADD(excessive_retries, wl->debugfs.rootdir);
+
+	DEBUGFS_ADD(gpio_power, wl->debugfs.rootdir);
 
 out:
 	if (ret < 0)

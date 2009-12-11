@@ -276,6 +276,7 @@ struct wl1271_debugfs {
 
 	struct dentry *retry_count;
 	struct dentry *excessive_retries;
+	struct dentry *gpio_power;
 };
 
 #define NUM_TX_QUEUES              4
@@ -442,6 +443,8 @@ struct wl1271 {
 	struct conf_drv_settings conf;
 
 	struct list_head list;
+
+	bool gpio_power;
 };
 
 int wl1271_plt_start(struct wl1271 *wl);

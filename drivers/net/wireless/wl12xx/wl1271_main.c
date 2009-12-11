@@ -399,11 +399,13 @@ static void wl1271_disable_interrupts(struct wl1271 *wl)
 static void wl1271_power_off(struct wl1271 *wl)
 {
 	wl->set_power(false);
+	wl->gpio_power = false;
 }
 
 static void wl1271_power_on(struct wl1271 *wl)
 {
 	wl->set_power(true);
+	wl->gpio_power = true;
 }
 
 static void wl1271_fw_status(struct wl1271 *wl,
@@ -1923,6 +1925,7 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	wl->band = IEEE80211_BAND_2GHZ;
 	wl->vif = NULL;
 	wl->joined = false;
+	wl->gpio_power = false;
 
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)
 		wl->tx_frames[i] = NULL;
