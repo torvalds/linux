@@ -384,7 +384,7 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_cmd_data_path(wl, wl->channel, 1);
+	ret = wl1271_cmd_data_path(wl, 1);
 	if (ret < 0)
 		return ret;
 

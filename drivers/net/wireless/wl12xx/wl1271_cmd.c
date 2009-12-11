@@ -505,7 +505,7 @@ int wl1271_cmd_configure(struct wl1271 *wl, u16 id, void *buf, size_t len)
 	return 0;
 }
 
-int wl1271_cmd_data_path(struct wl1271 *wl, u8 channel, bool enable)
+int wl1271_cmd_data_path(struct wl1271 *wl, bool enable)
 {
 	struct cmd_enabledisable_path *cmd;
 	int ret;
@@ -519,7 +519,8 @@ int wl1271_cmd_data_path(struct wl1271 *wl, u8 channel, bool enable)
 		goto out;
 	}
 
-	cmd->channel = channel;
+	/* the channel here is only used for calibration, so hardcoded to 1 */
+	cmd->channel = 1;
 
 	if (enable) {
 		cmd_rx = CMD_ENABLE_RX;
@@ -532,22 +533,22 @@ int wl1271_cmd_data_path(struct wl1271 *wl, u8 channel, bool enable)
 	ret = wl1271_cmd_send(wl, cmd_rx, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
 		wl1271_error("rx %s cmd for channel %d failed",
-			     enable ? "start" : "stop", channel);
+			     enable ? "start" : "stop", cmd->channel);
 		goto out;
 	}
 
 	wl1271_debug(DEBUG_BOOT, "rx %s cmd channel %d",
-		     enable ? "start" : "stop", channel);
+		     enable ? "start" : "stop", cmd->channel);
 
 	ret = wl1271_cmd_send(wl, cmd_tx, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
 		wl1271_error("tx %s cmd for channel %d failed",
-			     enable ? "start" : "stop", channel);
+			     enable ? "start" : "stop", cmd->channel);
 		return ret;
 	}
 
 	wl1271_debug(DEBUG_BOOT, "tx %s cmd channel %d",
-		     enable ? "start" : "stop", channel);
+		     enable ? "start" : "stop", cmd->channel);
 
 out:
 	kfree(cmd);

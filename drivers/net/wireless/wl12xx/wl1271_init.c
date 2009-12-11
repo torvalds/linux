@@ -289,7 +289,7 @@ int wl1271_hw_init(struct wl1271 *wl)
 		goto out_free_memmap;
 
 	/* Enable data path */
-	ret = wl1271_cmd_data_path(wl, wl->channel, 1);
+	ret = wl1271_cmd_data_path(wl, 1);
 	if (ret < 0)
 		goto out_free_memmap;
 
