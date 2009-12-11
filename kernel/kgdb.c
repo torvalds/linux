@@ -625,7 +625,8 @@ static void kgdb_flush_swbreak_addr(unsigned long addr)
 static int kgdb_activate_sw_breakpoints(void)
 {
 	unsigned long addr;
-	int error = 0;
+	int error;
+	int ret = 0;
 	int i;
 
 	for (i = 0; i < KGDB_MAX_BREAKPOINTS; i++) {
@@ -635,13 +636,16 @@ static int kgdb_activate_sw_breakpoints(void)
 		addr = kgdb_break[i].bpt_addr;
 		error = kgdb_arch_set_breakpoint(addr,
 				kgdb_break[i].saved_instr);
-		if (error)
-			return error;
+		if (error) {
+			ret = error;
+			printk(KERN_INFO "KGDB: BP install failed: %lx", addr);
+			continue;
+		}
 
 		kgdb_flush_swbreak_addr(addr);
 		kgdb_break[i].state = BP_ACTIVE;
 	}
-	return 0;
+	return ret;
 }
 
 static int kgdb_set_sw_break(unsigned long addr)
@@ -688,7 +692,8 @@ static int kgdb_set_sw_break(unsigned long addr)
 static int kgdb_deactivate_sw_breakpoints(void)
 {
 	unsigned long addr;
-	int error = 0;
+	int error;
+	int ret = 0;
 	int i;
 
 	for (i = 0; i < KGDB_MAX_BREAKPOINTS; i++) {
@@ -697,13 +702,15 @@ static int kgdb_deactivate_sw_breakpoints(void)
 		addr = kgdb_break[i].bpt_addr;
 		error = kgdb_arch_remove_breakpoint(addr,
 					kgdb_break[i].saved_instr);
-		if (error)
-			return error;
+		if (error) {
+			printk(KERN_INFO "KGDB: BP remove failed: %lx\n", addr);
+			ret = error;
+		}
 
 		kgdb_flush_swbreak_addr(addr);
 		kgdb_break[i].state = BP_SET;
 	}
-	return 0;
+	return ret;
 }
 
 static int kgdb_remove_sw_break(unsigned long addr)
