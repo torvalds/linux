@@ -961,6 +961,13 @@ struct wl1271_acx_arp_filter {
 			       used. */
 } __attribute__((packed));
 
+struct wl1271_acx_pm_config {
+	struct acx_header header;
+
+	__le32 host_clk_settling_time;
+	u8 host_fast_wakeup_support;
+	u8 padding[3];
+} __attribute__ ((packed));
 
 enum {
 	ACX_WAKE_UP_CONDITIONS      = 0x0002,
@@ -1025,6 +1032,7 @@ enum {
 	DOT11_RX_DOT11_MODE         = 0x1012,
 	DOT11_RTS_THRESHOLD         = 0x1013,
 	DOT11_GROUP_ADDRESS_TBL     = 0x1014,
+	ACX_PM_CONFIG               = 0x1016,
 
 	MAX_DOT11_IE = DOT11_GROUP_ADDRESS_TBL,
 
@@ -1073,5 +1081,6 @@ int wl1271_acx_smart_reflex(struct wl1271 *wl);
 int wl1271_acx_bet_enable(struct wl1271 *wl, bool enable);
 int wl1271_acx_arp_ip_filter(struct wl1271 *wl, bool enable, u8 *address,
 			     u8 version);
+int wl1271_acx_pm_config(struct wl1271 *wl);
 
 #endif /* __WL1271_ACX_H__ */

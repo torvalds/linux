@@ -321,6 +321,10 @@ static struct conf_drv_settings default_conf = {
 	.itrim = {
 		.enable = false,
 		.timeout = 50000,
+	},
+	.pm_config = {
+		.host_clk_settling_time = 5000,
+		.host_fast_wakeup_support = false
 	}
 };
 

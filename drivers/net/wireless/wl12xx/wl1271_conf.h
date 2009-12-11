@@ -904,6 +904,22 @@ struct conf_itrim_settings {
 	u32 timeout;
 };
 
+struct conf_pm_config_settings {
+	/*
+	 * Host clock settling time
+	 *
+	 * Range: 0 - 30000 us
+	 */
+	u32 host_clk_settling_time;
+
+	/*
+	 * Host fast wakeup support
+	 *
+	 * Range: true, false
+	 */
+	bool host_fast_wakeup_support;
+};
+
 struct conf_drv_settings {
 	struct conf_sg_settings sg;
 	struct conf_rx_settings rx;
@@ -911,6 +927,7 @@ struct conf_drv_settings {
 	struct conf_conn_settings conn;
 	struct conf_init_settings init;
 	struct conf_itrim_settings itrim;
+	struct conf_pm_config_settings pm_config;
 };
 
 #endif
