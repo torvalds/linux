@@ -258,6 +258,7 @@ enum {
 #define AC_PINCAP_VREF			(0x37<<8)
 #define AC_PINCAP_VREF_SHIFT		8
 #define AC_PINCAP_EAPD			(1<<16)	/* EAPD capable */
+#define AC_PINCAP_HBR			(1<<27)	/* High Bit Rate */
 /* Vref status (used in pin cap) */
 #define AC_PINCAP_VREF_HIZ		(1<<0)	/* Hi-Z */
 #define AC_PINCAP_VREF_50		(1<<1)	/* 50% */
