@@ -15,7 +15,7 @@ config BATMAN_ADV
 
 config BATMAN_DEBUG
 	bool "B.A.T.M.A.N. debugging"
-	depends on BATMAN != n
+	depends on BATMAN_ADV != n
 	help
 
 	  This is an option for use by developers; most people should
