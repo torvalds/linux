@@ -67,10 +67,10 @@ static struct conf_drv_settings default_conf = {
 		.ps_poll_timeout             = 15,
 		.upsd_timeout                = 15,
 		.rts_threshold               = 2347,
-		.rx_cca_threshold            = 0xFFEF,
-		.irq_blk_threshold           = 0,
-		.irq_pkt_threshold           = USHORT_MAX,
-		.irq_timeout                 = 5,
+		.rx_cca_threshold            = 0,
+		.irq_blk_threshold           = 0xFFFF,
+		.irq_pkt_threshold           = 0,
+		.irq_timeout                 = 600,
 		.queue_type                  = CONF_RX_QUEUE_TYPE_LOW_PRIORITY,
 	},
 	.tx = {
@@ -172,8 +172,8 @@ static struct conf_drv_settings default_conf = {
 			}
 		},
 		.frag_threshold              = IEEE80211_MAX_FRAG_THRESHOLD,
-		.tx_compl_timeout            = 5,
-		.tx_compl_threshold          = 5
+		.tx_compl_timeout            = 700,
+		.tx_compl_threshold          = 4
 	},
 	.conn = {
 		.wake_up_event               = CONF_WAKE_UP_EVENT_DTIM,
@@ -186,12 +186,12 @@ static struct conf_drv_settings default_conf = {
 				.rule        = CONF_BCN_RULE_PASS_ON_APPEARANCE,
 			}
 		},
-		.synch_fail_thold            = 5,
+		.synch_fail_thold            = 10,
 		.bss_lose_timeout            = 100,
 		.beacon_rx_timeout           = 10000,
 		.broadcast_timeout           = 20000,
 		.rx_broadcast_in_ps          = 1,
-		.ps_poll_threshold           = 4,
+		.ps_poll_threshold           = 20,
 		.sig_trigger_count           = 2,
 		.sig_trigger = {
 			[0] = {

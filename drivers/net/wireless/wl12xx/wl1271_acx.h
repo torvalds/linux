@@ -885,8 +885,8 @@ struct acx_tx_config_options {
 	__le16 tx_compl_threshold;   /* number of packets */
 } __attribute__ ((packed));
 
-#define ACX_RX_MEM_BLOCKS     64
-#define ACX_TX_MIN_MEM_BLOCKS 64
+#define ACX_RX_MEM_BLOCKS     70
+#define ACX_TX_MIN_MEM_BLOCKS 40
 #define ACX_TX_DESCRIPTORS    32
 #define ACX_NUM_SSID_PROFILES 1
 
