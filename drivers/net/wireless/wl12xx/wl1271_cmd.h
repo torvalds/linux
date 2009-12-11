@@ -458,11 +458,12 @@ struct wl1271_radio_parms_cmd {
 	/* Dynamic radio parameters */
 	/* 2.4GHz */
 	__le16 tx_ref_pd_voltage;
-	s8  tx_ref_power;
+	u8  tx_ref_power;
 	s8  tx_offset_db;
 
 	s8  tx_rate_limits_normal[CONF_NUMBER_OF_RATE_GROUPS];
 	s8  tx_rate_limits_degraded[CONF_NUMBER_OF_RATE_GROUPS];
+	s8  tx_rate_limits_extreme[CONF_NUMBER_OF_RATE_GROUPS];
 
 	s8  tx_channel_limits_11b[CONF_NUMBER_OF_CHANNELS_2_4];
 	s8  tx_channel_limits_ofdm[CONF_NUMBER_OF_CHANNELS_2_4];
@@ -471,15 +472,19 @@ struct wl1271_radio_parms_cmd {
 	u8  tx_ibias[CONF_NUMBER_OF_RATE_GROUPS];
 	u8  rx_fem_insertion_loss;
 
-	u8 padding2;
+	u8  degraded_low_to_normal_threshold;
+	u8  degraded_normal_to_high_threshold;
+
+	u8  padding1; /* our own padding, not in ref driver */
 
 	/* 5GHz */
 	__le16 tx_ref_pd_voltage_5[CONF_NUMBER_OF_SUB_BANDS_5];
-	s8  tx_ref_power_5[CONF_NUMBER_OF_SUB_BANDS_5];
+	u8  tx_ref_power_5[CONF_NUMBER_OF_SUB_BANDS_5];
 	s8  tx_offset_db_5[CONF_NUMBER_OF_SUB_BANDS_5];
 
 	s8  tx_rate_limits_normal_5[CONF_NUMBER_OF_RATE_GROUPS];
 	s8  tx_rate_limits_degraded_5[CONF_NUMBER_OF_RATE_GROUPS];
+	s8  tx_rate_limits_extreme_5[CONF_NUMBER_OF_RATE_GROUPS];
 
 	s8  tx_channel_limits_ofdm_5[CONF_NUMBER_OF_CHANNELS_5];
 	s8  tx_pdv_rate_offsets_5[CONF_NUMBER_OF_RATE_GROUPS];
@@ -488,7 +493,10 @@ struct wl1271_radio_parms_cmd {
 	s8  tx_ibias_5[CONF_NUMBER_OF_RATE_GROUPS];
 	s8  rx_fem_insertion_loss_5[CONF_NUMBER_OF_SUB_BANDS_5];
 
-	u8 padding3[2];
+	u8  degraded_low_to_normal_threshold_5;
+	u8  degraded_normal_to_high_threshold_5;
+
+	u8 padding2[2];
 } __attribute__ ((packed));
 
 struct wl1271_cmd_cal_channel_tune {
