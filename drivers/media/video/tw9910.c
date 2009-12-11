@@ -863,7 +863,7 @@ static int tw9910_video_probe(struct soc_camera_device *icd,
 			      struct i2c_client *client)
 {
 	struct tw9910_priv *priv = to_tw9910(client);
-	s32 val;
+	s32 id;
 
 	/*
 	 * We must have a parent by now. And it cannot be a wrong one.
@@ -889,19 +889,20 @@ static int tw9910_video_probe(struct soc_camera_device *icd,
 	 * check and show Product ID
 	 * So far only revisions 0 and 1 have been seen
 	 */
-	val = i2c_smbus_read_byte_data(client, ID);
-	priv->revision = GET_REV(val);
+	id = i2c_smbus_read_byte_data(client, ID);
+	priv->revision = GET_REV(id);
+	id = GET_ID(id);
 
-	if (0x0B != GET_ID(val) ||
+	if (0x0B != id ||
 	    0x01 < priv->revision) {
 		dev_err(&client->dev,
 			"Product ID error %x:%x\n",
-			GET_ID(val), priv->revision);
+			id, priv->revision);
 		return -ENODEV;
 	}
 
 	dev_info(&client->dev,
-		 "tw9910 Product ID %0x:%0x\n", GET_ID(val), priv->revision);
+		 "tw9910 Product ID %0x:%0x\n", id, priv->revision);
 
 	icd->vdev->tvnorms      = V4L2_STD_NTSC | V4L2_STD_PAL;
 	icd->vdev->current_norm = V4L2_STD_NTSC;
