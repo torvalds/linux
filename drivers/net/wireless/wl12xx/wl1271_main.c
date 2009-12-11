@@ -78,7 +78,8 @@ static struct conf_drv_settings default_conf = {
 	.tx = {
 		.tx_energy_detection         = 0,
 		.rc_conf                     = {
-			.enabled_rates       = CONF_TX_RATE_MASK_UNSPECIFIED,
+			.enabled_rates       = CONF_HW_BIT_RATE_1MBPS |
+					       CONF_HW_BIT_RATE_2MBPS,
 			.short_retry_limit   = 10,
 			.long_retry_limit    = 10,
 			.aflags              = 0
