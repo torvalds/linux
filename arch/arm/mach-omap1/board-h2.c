@@ -28,6 +28,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/input.h>
 #include <linux/i2c/tps65010.h>
+#include <linux/smc91x.h>
 
 #include <mach/hardware.h>
 #include <asm/gpio.h>
@@ -200,6 +201,12 @@ static struct platform_device h2_nand_device = {
 	.resource	= &h2_nand_resource,
 };
 
+static struct smc91x_platdata h2_smc91x_info = {
+	.flags	= SMC91X_USE_16BIT | SMC91X_NOWAIT,
+	.leda	= RPC_LED_100_10,
+	.ledb	= RPC_LED_TX_RX,
+};
+
 static struct resource h2_smc91x_resources[] = {
 	[0] = {
 		.start	= OMAP1610_ETHR_START,		/* Physical */
@@ -216,6 +223,9 @@ static struct resource h2_smc91x_resources[] = {
 static struct platform_device h2_smc91x_device = {
 	.name		= "smc91x",
 	.id		= 0,
+	.dev	= {
+		.platform_data	= &h2_smc91x_info,
+	},
 	.num_resources	= ARRAY_SIZE(h2_smc91x_resources),
 	.resource	= h2_smc91x_resources,
 };
