@@ -2480,8 +2480,10 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 	}
 	memcpy(&open->op_stateid, &stp->st_stateid, sizeof(stateid_t));
 
-	if (nfsd4_has_session(&resp->cstate))
+	if (nfsd4_has_session(&resp->cstate)) {
 		open->op_stateowner->so_confirmed = 1;
+		nfsd4_create_clid_dir(open->op_stateowner->so_client);
+	}
 
 	/*
 	* Attempt to hand out a delegation. No error return, because the
