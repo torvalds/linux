@@ -31,7 +31,6 @@
 #include <mach/gpio.h>
 #include <plat/mux.h>
 #include <plat/fpga.h>
-#include <plat/nand.h>
 #include <plat/keypad.h>
 #include <plat/common.h>
 #include <plat/board.h>
@@ -141,8 +140,40 @@ static struct platform_device nor_device = {
 	.resource	= &nor_resource,
 };
 
-static struct omap_nand_platform_data nand_data = {
-	.options	= NAND_SAMSUNG_LP_OPTIONS,
+static void nand_cmd_ctl(struct mtd_info *mtd, int cmd,	unsigned int ctrl)
+{
+	struct nand_chip *this = mtd->priv;
+	unsigned long mask;
+
+	if (cmd == NAND_CMD_NONE)
+		return;
+
+	mask = (ctrl & NAND_CLE) ? 0x02 : 0;
+	if (ctrl & NAND_ALE)
+		mask |= 0x04;
+	writeb(cmd, (unsigned long)this->IO_ADDR_W | mask);
+}
+
+#define P2_NAND_RB_GPIO_PIN	62
+
+static int nand_dev_ready(struct mtd_info *mtd)
+{
+	return gpio_get_value(P2_NAND_RB_GPIO_PIN);
+}
+
+static const char *part_probes[] = { "cmdlinepart", NULL };
+
+static struct platform_nand_data nand_data = {
+	.chip	= {
+		.nr_chips		= 1,
+		.chip_offset		= 0,
+		.options		= NAND_SAMSUNG_LP_OPTIONS,
+		.part_probe_types	= part_probes,
+	},
+	.ctrl	= {
+		.cmd_ctrl	= nand_cmd_ctl,
+		.dev_ready	= nand_dev_ready,
+	},
 };
 
 static struct resource nand_resource = {
@@ -152,7 +183,7 @@ static struct resource nand_resource = {
 };
 
 static struct platform_device nand_device = {
-	.name		= "omapnand",
+	.name		= "gen_nand",
 	.id		= 0,
 	.dev		= {
 		.platform_data	= &nand_data,
@@ -211,13 +242,6 @@ static struct platform_device *devices[] __initdata = {
 	&lcd_device,
 };
 
-#define P2_NAND_RB_GPIO_PIN	62
-
-static int nand_dev_ready(struct omap_nand_platform_data *data)
-{
-	return gpio_get_value(P2_NAND_RB_GPIO_PIN);
-}
-
 static struct omap_lcd_config perseus2_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
@@ -230,7 +254,7 @@ static void __init omap_perseus2_init(void)
 {
 	if (gpio_request(P2_NAND_RB_GPIO_PIN, "NAND ready") < 0)
 		BUG();
-	nand_data.dev_ready = nand_dev_ready;
+	gpio_direction_input(P2_NAND_RB_GPIO_PIN);
 
 	omap_cfg_reg(L3_1610_FLASH_CS2B_OE);
 	omap_cfg_reg(M8_1610_FLASH_CS2B_WE);
