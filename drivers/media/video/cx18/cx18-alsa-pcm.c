@@ -95,6 +95,7 @@ static int snd_cx18_pcm_capture_open(struct snd_pcm_substream *substream)
 	/* See if the stream is available */
 	if (cx18_claim_stream(item, item->type)) {
 		/* No, it's already in use */
+		kfree(item);
 		return -EBUSY;
 	}
 
