@@ -7,6 +7,8 @@
  * published by the Free Software Foundation.
  */
 
+#include "mux34xx.h"
+
 #define OMAP_MUX_TERMINATOR	0xffff
 
 /* 34xx mux mode options for each pin. See TRM for options */
