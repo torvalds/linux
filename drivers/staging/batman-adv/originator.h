@@ -19,18 +19,13 @@
  *
  */
 
-#include "types.h"
+int originator_init(void);
+void free_orig_node(void *data);
+void originator_free(void);
+void purge_orig(struct work_struct *work);
+struct orig_node *orig_find(char *mac);
+struct orig_node *get_orig_node(uint8_t *addr);
+struct neigh_node *
+create_neighbor(struct orig_node *orig_node, struct orig_node *orig_neigh_node,
+		uint8_t *neigh, struct batman_if *if_incoming);
 
-extern wait_queue_head_t thread_wait;
-extern atomic_t exit_cond;
-
-void slide_own_bcast_window(struct batman_if *batman_if);
-void batman_data_ready(struct sock *sk, int len);
-int packet_recv_thread(void *data);
-void receive_bat_packet(struct ethhdr *ethhdr,
-				struct batman_packet *batman_packet,
-				unsigned char *hna_buff, int hna_buff_len,
-				struct batman_if *if_incoming);
-void update_routes(struct orig_node *orig_node,
-				struct neigh_node *neigh_node,
-				unsigned char *hna_buff, int hna_buff_len);

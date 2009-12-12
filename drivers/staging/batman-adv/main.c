@@ -23,6 +23,7 @@
 #include "proc.h"
 #include "routing.h"
 #include "send.h"
+#include "originator.h"
 #include "soft-interface.h"
 #include "device.h"
 #include "translation-table.h"
