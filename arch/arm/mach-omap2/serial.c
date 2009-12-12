@@ -33,6 +33,7 @@
 #include "pm.h"
 #include "prm-regbits-34xx.h"
 
+#define UART_OMAP_NO_EMPTY_FIFO_READ_IP_REV	0x52
 #define UART_OMAP_WER		0x17	/* Wake-up enable register */
 
 #define DEFAULT_TIMEOUT (5 * HZ)
@@ -572,6 +573,23 @@ static struct omap_uart_state omap_uart[] = {
 #endif
 };
 
+/*
+ * Override the default 8250 read handler: mem_serial_in()
+ * Empty RX fifo read causes an abort on omap3630 and omap4
+ * This function makes sure that an empty rx fifo is not read on these silicons
+ * (OMAP1/2/3430 are not affected)
+ */
+static unsigned int serial_in_override(struct uart_port *up, int offset)
+{
+	if (UART_RX == offset) {
+		unsigned int lsr;
+		lsr = serial_read_reg(omap_uart[up->line].p, UART_LSR);
+		if (!(lsr & UART_LSR_DR))
+			return -EPERM;
+	}
+	return serial_read_reg(omap_uart[up->line].p, offset);
+}
+
 void __init omap_serial_early_init(void)
 {
 	int i;
@@ -667,15 +685,15 @@ void __init omap_serial_init_port(int port)
 		DEV_CREATE_FILE(dev, &dev_attr_sleep_timeout);
 	}
 
-	/* omap44xx: Never read empty UART fifo
-	 * omap3xxx: Never read empty UART fifo on UARTs
-	 * with IP rev >=0x52
-	 */
-	if (cpu_is_omap44xx())
-		uart->p->serial_in = serial_in_override;
-	else if ((serial_read_reg(uart->p, UART_OMAP_MVER) & 0xFF)
-			>= UART_OMAP_NO_EMPTY_FIFO_READ_IP_REV)
-		uart->p->serial_in = serial_in_override;
+		/* omap44xx: Never read empty UART fifo
+		 * omap3xxx: Never read empty UART fifo on UARTs
+		 * with IP rev >=0x52
+		 */
+		if (cpu_is_omap44xx())
+			uart->p->serial_in = serial_in_override;
+		else if ((serial_read_reg(uart->p, UART_OMAP_MVER) & 0xFF)
+				>= UART_OMAP_NO_EMPTY_FIFO_READ_IP_REV)
+			uart->p->serial_in = serial_in_override;
 }
 
 /**
