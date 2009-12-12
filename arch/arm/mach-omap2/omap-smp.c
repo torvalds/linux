@@ -17,7 +17,6 @@
  */
 #include <linux/init.h>
 #include <linux/device.h>
-#include <linux/jiffies.h>
 #include <linux/smp.h>
 #include <linux/io.h>
 
@@ -62,8 +61,6 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 
 int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	unsigned long timeout;
-
 	/*
 	 * Set synchronisation state between this boot processor
 	 * and the secondary one
@@ -79,10 +76,6 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	omap_modify_auxcoreboot0(0x200, 0x0);
 	flush_cache_all();
 	smp_wmb();
-
-	timeout = jiffies + (1 * HZ);
-	while (time_before(jiffies, timeout))
-		;
 
 	/*
 	 * Now the secondary core is starting up let it run its
