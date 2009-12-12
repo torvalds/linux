@@ -129,6 +129,7 @@ int mantis_input_init(struct mantis_pci *mantis)
 	err = input_register_device(rc);
 	if (err) {
 		dprintk(MANTIS_ERROR, 1, "IR device registration failed, ret = %d", err);
+		input_free_device(rc);
 		return -ENODEV;
 	}
 
