@@ -147,12 +147,13 @@ void __init generate_cplb_tables_all(void)
 	/* Normal RAM, including MTD FS.  */
 	icplb_bounds[i_i].eaddr = uncached_end;
 	icplb_bounds[i_i++].data = SDRAM_IGENERIC;
-	/* DMA uncached region.  */
-	if (DMA_UNCACHED_REGION) {
-		icplb_bounds[i_i].eaddr = _ramend;
-		icplb_bounds[i_i++].data = 0;
-	}
 	if (_ramend != physical_mem_end) {
+		/* DMA uncached region.  */
+		if (DMA_UNCACHED_REGION) {
+			/* Normally this hole is caught by the async below.  */
+			icplb_bounds[i_i].eaddr = _ramend;
+			icplb_bounds[i_i++].data = 0;
+		}
 		/* Reserved memory.  */
 		icplb_bounds[i_i].eaddr = physical_mem_end;
 		icplb_bounds[i_i++].data = (reserved_mem_icache_on ?
