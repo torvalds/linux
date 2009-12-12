@@ -26,6 +26,7 @@
 #include <linux/leds.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/smc91x.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -120,6 +121,12 @@ static void __init apollon_flash_init(void)
 	apollon_flash_resource[0].end   = base + SZ_128K - 1;
 }
 
+static struct smc91x_platdata appolon_smc91x_info = {
+	.flags	= SMC91X_USE_16BIT | SMC91X_NOWAIT,
+	.leda	= RPC_LED_100_10,
+	.ledb	= RPC_LED_TX_RX,
+};
+
 static struct resource apollon_smc91x_resources[] = {
 	[0] = {
 		.flags  = IORESOURCE_MEM,
@@ -134,6 +141,9 @@ static struct resource apollon_smc91x_resources[] = {
 static struct platform_device apollon_smc91x_device = {
 	.name		= "smc91x",
 	.id		= -1,
+	.dev	= {
+		.platform_data	= &appolon_smc91x_info,
+	},
 	.num_resources	= ARRAY_SIZE(apollon_smc91x_resources),
 	.resource	= apollon_smc91x_resources,
 };
