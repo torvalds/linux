@@ -135,6 +135,7 @@ config MACH_CM_T35
 	bool "CompuLab CM-T35 module"
 	depends on ARCH_OMAP3 && ARCH_OMAP34XX
 	select OMAP_PACKAGE_CUS
+	select OMAP_MUX
 
 config MACH_IGEP0020
 	bool "IGEP0020"
