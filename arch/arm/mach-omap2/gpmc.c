@@ -517,7 +517,7 @@ void __init gpmc_init(void)
 		ck = "gpmc_fck";
 		l = OMAP34XX_GPMC_BASE;
 	} else if (cpu_is_omap44xx()) {
-		ck = "gpmc_fck";
+		ck = "gpmc_ck";
 		l = OMAP44XX_GPMC_BASE;
 	}
 
