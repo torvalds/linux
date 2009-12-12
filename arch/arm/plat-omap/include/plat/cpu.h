@@ -176,11 +176,13 @@ IS_OMAP_CLASS(15xx, 0x15)
 IS_OMAP_CLASS(16xx, 0x16)
 IS_OMAP_CLASS(24xx, 0x24)
 IS_OMAP_CLASS(34xx, 0x34)
+IS_OMAP_CLASS(44xx, 0x44)
 
 IS_OMAP_SUBCLASS(242x, 0x242)
 IS_OMAP_SUBCLASS(243x, 0x243)
 IS_OMAP_SUBCLASS(343x, 0x343)
 IS_OMAP_SUBCLASS(363x, 0x363)
+IS_OMAP_SUBCLASS(443x, 0x443)
 
 #define cpu_is_omap7xx()		0
 #define cpu_is_omap15xx()		0
@@ -408,8 +410,8 @@ IS_OMAP_TYPE(3517, 0x3517)
 # if defined(CONFIG_ARCH_OMAP4)
 # undef cpu_is_omap44xx
 # undef cpu_is_omap443x
-# define cpu_is_omap44xx()		1
-# define cpu_is_omap443x()		1
+# define cpu_is_omap44xx()		is_omap44xx()
+# define cpu_is_omap443x()		is_omap443x()
 # endif
 
 /* Macros to detect if we have OMAP1 or OMAP2 */
@@ -443,7 +445,8 @@ IS_OMAP_TYPE(3517, 0x3517)
 #define OMAP3505_REV(v)		(OMAP35XX_CLASS | (0x3505 << 16) | (v << 12))
 #define OMAP3517_REV(v)		(OMAP35XX_CLASS | (0x3517 << 16) | (v << 12))
 
-#define OMAP443X_CLASS		0x44300034
+#define OMAP443X_CLASS		0x44300044
+#define OMAP4430_REV_ES1_0	0x44300044
 
 /*
  * omap_chip bits
