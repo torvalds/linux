@@ -6919,7 +6919,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	switch (sd->sensor) {
 	case SENSOR_OV7620:
 	case SENSOR_PAS202B:
-	case SENSOR_TAS5130CXX:
 		reg_r(gspca_dev, 0x0180);	/* from win */
 		reg_w(dev, 0x00, 0x0180);
 		break;
