@@ -21,7 +21,6 @@
 
 #include "main.h"
 #include "hard-interface.h"
-#include "log.h"
 #include "soft-interface.h"
 #include "send.h"
 #include "translation-table.h"
@@ -87,9 +86,9 @@ static void check_known_mac_addr(uint8_t *addr)
 			continue;
 
 		addr_to_string(mac_string, addr);
-		debug_log(LOG_TYPE_WARN, "The newly added mac address (%s) already exists on: %s\n",
-		          mac_string, batman_if->dev);
-		debug_log(LOG_TYPE_WARN, "It is strongly recommended to keep mac addresses unique to avoid problems!\n");
+		printk(KERN_WARNING "batman-adv:The newly added mac address (%s) already exists on: %s\n",
+		       mac_string, batman_if->dev);
+		printk(KERN_WARNING "batman-adv:It is strongly recommended to keep mac addresses unique to avoid problems!\n");
 	}
 	rcu_read_unlock();
 }
@@ -171,8 +170,8 @@ void hardif_deactivate_interface(struct batman_if *batman_if)
 	batman_if->if_active = IF_INACTIVE;
 	active_ifs--;
 
-	debug_log(LOG_TYPE_NOTICE, "Interface deactivated: %s\n",
-	          batman_if->dev);
+	printk(KERN_INFO "batman-adv:Interface deactivated: %s\n",
+		  batman_if->dev);
 }
 
 /* (re)activate given interface. */
@@ -197,7 +196,7 @@ static void hardif_activate_interface(struct batman_if *batman_if)
 				  &batman_if->raw_sock);
 
 	if (retval < 0) {
-		debug_log(LOG_TYPE_WARN, "Can't create raw socket: %i\n",
+		printk(KERN_ERR "batman-adv:Can't create raw socket: %i\n",
 			  retval);
 		goto sock_err;
 	}
@@ -210,7 +209,7 @@ static void hardif_activate_interface(struct batman_if *batman_if)
 			     (struct sockaddr *)&bind_addr, sizeof(bind_addr));
 
 	if (retval < 0) {
-		debug_log(LOG_TYPE_WARN, "Can't create bind raw socket: %i\n",
+		printk(KERN_ERR "batman-adv:Can't create bind raw socket: %i\n",
 			  retval);
 		goto bind_err;
 	}
@@ -235,8 +234,8 @@ static void hardif_activate_interface(struct batman_if *batman_if)
 	if (batman_if->if_num == 0)
 		set_main_if_addr(batman_if->net_dev->dev_addr);
 
-	debug_log(LOG_TYPE_NOTICE, "Interface activated: %s\n",
-	          batman_if->dev);
+	printk(KERN_INFO "batman-adv:Interface activated: %s\n",
+		  batman_if->dev);
 
 	return;
 
@@ -290,7 +289,7 @@ static int resize_orig(struct orig_node *orig_node, int if_num)
 	data_ptr = kmalloc((if_num + 1) * sizeof(TYPE_OF_WORD) * NUM_WORDS,
 			   GFP_ATOMIC);
 	if (!data_ptr) {
-		debug_log(LOG_TYPE_WARN, "Can't resize orig: out of memory\n");
+		printk(KERN_ERR "batman-adv:Can't resize orig: out of memory\n");
 		return -1;
 	}
 
@@ -301,7 +300,7 @@ static int resize_orig(struct orig_node *orig_node, int if_num)
 
 	data_ptr = kmalloc((if_num + 1) * sizeof(uint8_t), GFP_ATOMIC);
 	if (!data_ptr) {
-		debug_log(LOG_TYPE_WARN, "Can't resize orig: out of memory\n");
+		printk(KERN_ERR "batman-adv:Can't resize orig: out of memory\n");
 		return -1;
 	}
 
@@ -324,7 +323,7 @@ int hardif_add_interface(char *dev, int if_num)
 	batman_if = kmalloc(sizeof(struct batman_if), GFP_KERNEL);
 
 	if (!batman_if) {
-		debug_log(LOG_TYPE_WARN, "Can't add interface (%s): out of memory\n", dev);
+		printk(KERN_ERR "batman-adv:Can't add interface (%s): out of memory\n", dev);
 		return -1;
 	}
 
@@ -339,7 +338,7 @@ int hardif_add_interface(char *dev, int if_num)
 	batman_if->packet_buff = kmalloc(batman_if->packet_len, GFP_KERNEL);
 
 	if (!batman_if->packet_buff) {
-		debug_log(LOG_TYPE_WARN, "Can't add interface packet (%s): out of memory\n", dev);
+		printk(KERN_ERR "batman-adv:Can't add interface packet (%s): out of memory\n", dev);
 		goto out;
 	}
 
@@ -348,7 +347,7 @@ int hardif_add_interface(char *dev, int if_num)
 	batman_if->if_active = IF_INACTIVE;
 	INIT_RCU_HEAD(&batman_if->rcu);
 
-	debug_log(LOG_TYPE_NOTICE, "Adding interface: %s\n", dev);
+	printk(KERN_INFO "batman-adv:Adding interface: %s\n", dev);
 	avail_ifs++;
 
 	INIT_LIST_HEAD(&batman_if->list);
@@ -389,7 +388,7 @@ int hardif_add_interface(char *dev, int if_num)
 	spin_unlock(&orig_hash_lock);
 
 	if (!hardif_is_interface_up(batman_if->dev))
-		debug_log(LOG_TYPE_WARN, "Not using interface %s (retrying later): interface not active\n", batman_if->dev);
+		printk(KERN_ERR "batman-adv:Not using interface %s (retrying later): interface not active\n", batman_if->dev);
 	else
 		hardif_activate_interface(batman_if);
 
@@ -413,7 +412,7 @@ char hardif_get_active_if_num(void)
 }
 
 static int hard_if_event(struct notifier_block *this,
-                            unsigned long event, void *ptr)
+			    unsigned long event, void *ptr)
 {
 	struct net_device *dev = (struct net_device *)ptr;
 	struct batman_if *batman_if = get_batman_if_by_name(dev->name);
@@ -436,7 +435,6 @@ static int hard_if_event(struct notifier_block *this,
 		break;
 	/* NETDEV_CHANGEADDR - mac address change - what are we doing here ? */
 	default:
-		/* debug_log(LOG_TYPE_CRIT, "hard_if_event: %s %i\n", dev->name, event); */
 		break;
 	};
 
@@ -447,5 +445,5 @@ out:
 }
 
 struct notifier_block hard_if_notifier = {
-        .notifier_call = hard_if_event,
+	.notifier_call = hard_if_event,
 };

@@ -33,16 +33,16 @@
 
 #define TQ_MAX_VALUE 255
 #define JITTER 20
-#define TTL 50		          /* Time To Live of broadcast messages */
-#define MAX_ADDR 16	          /* number of interfaces which can be added to
+#define TTL 50			  /* Time To Live of broadcast messages */
+#define MAX_ADDR 16		  /* number of interfaces which can be added to
 				   * batman. */
 
-#define PURGE_TIMEOUT 200000      /* purge originators after time in ms if no
+#define PURGE_TIMEOUT 200000	  /* purge originators after time in ms if no
 				   * valid packet comes in -> TODO: check
 				   * influence on TQ_LOCAL_WINDOW_SIZE */
 #define LOCAL_HNA_TIMEOUT 3600000
 
-#define TQ_LOCAL_WINDOW_SIZE 64   /* sliding packet range of received originator
+#define TQ_LOCAL_WINDOW_SIZE 64	  /* sliding packet range of received originator
 				   * messages in squence numbers (should be a
 				   * multiple of our word size) */
 #define TQ_GLOBAL_WINDOW_SIZE 5
@@ -69,24 +69,27 @@
 
 
 /*
- * Logging
+ * Debug Messages
  */
 
-#define LOG_TYPE_CRIT 0		/* highest priority for fatal errors such as
-				 * blocked sockets / failed packet delivery /
-				 * programming errors */
-#define LOG_TYPE_WARN 1		/* warnings for small errors like wrong user
-				 * input / damaged packets / etc */
-#define LOG_TYPE_NOTICE 2	/* notice information for new interfaces /
-				 * changed settings / new originators / etc */
-#define LOG_TYPE_BATMAN 4	/* all messages related to routing / flooding /
-				 * broadcasting / etc */
-#define LOG_TYPE_ROUTES 8	/* route or hna added / changed / deleted */
-#define LOG_TYPE_CRIT_NAME	"critical"
-#define LOG_TYPE_WARN_NAME	"warnings"
-#define LOG_TYPE_NOTICE_NAME	"notices"
-#define LOG_TYPE_BATMAN_NAME	"batman"
-#define LOG_TYPE_ROUTES_NAME	"routes"
+#define DBG_BATMAN 1	/* all messages related to routing / flooding /
+			 * broadcasting / etc */
+#define DBG_ROUTES 2	/* route or hna added / changed / deleted */
+
+#ifdef CONFIG_BATMAN_DEBUG
+extern int debug;
+
+extern int bat_debug_type(int type);
+#define bat_dbg(type, fmt, arg...) do {					\
+		if (bat_debug_type(type))				\
+			printk(KERN_DEBUG "batman-adv:" fmt, ## arg);	\
+	}								\
+	while (0)
+#else /* !CONFIG_BATMAN_DEBUG */
+#define bat_dbg(type, fmt, arg...) do {		\
+	}					\
+	while (0)
+#endif
 
 /*
  *  Vis
@@ -147,5 +150,3 @@ int choose_orig(void *data, int32_t size);
 int is_my_mac(uint8_t *addr);
 int is_bcast(uint8_t *addr);
 int is_mcast(uint8_t *addr);
-
-

@@ -21,7 +21,6 @@
 
 #include "main.h"
 #include "translation-table.h"
-#include "log.h"
 #include "soft-interface.h"
 #include "types.h"
 #include "hash.h"
@@ -82,12 +81,12 @@ void hna_local_add(uint8_t *addr)
 	   MAC-flooding. */
 	if ((num_hna + 1 > (ETH_DATA_LEN - BAT_PACKET_LEN) / ETH_ALEN) ||
 	    (num_hna + 1 > 255)) {
-		debug_log(LOG_TYPE_ROUTES, "Can't add new local hna entry (%s): number of local hna entries exceeds packet size \n", hna_str);
+		bat_dbg(DBG_ROUTES, "Can't add new local hna entry (%s): number of local hna entries exceeds packet size \n", hna_str);
 		return;
 	}
 
-	debug_log(LOG_TYPE_ROUTES, "Creating new local hna entry: %s \n",
-		  hna_str);
+	bat_dbg(DBG_ROUTES, "Creating new local hna entry: %s \n",
+		hna_str);
 
 	hna_local_entry = kmalloc(sizeof(struct hna_local_entry), GFP_ATOMIC);
 	if (!hna_local_entry)
@@ -113,7 +112,7 @@ void hna_local_add(uint8_t *addr)
 				       hna_local_hash->size * 2);
 
 		if (swaphash == NULL)
-			debug_log(LOG_TYPE_CRIT, "Couldn't resize local hna hash table \n");
+			printk(KERN_ERR "batman-adv:Couldn't resize local hna hash table \n");
 		else
 			hna_local_hash = swaphash;
 	}
@@ -205,8 +204,8 @@ static void hna_local_del(struct hna_local_entry *hna_local_entry,
 	char hna_str[ETH_STR_LEN];
 
 	addr_to_string(hna_str, hna_local_entry->addr);
-	debug_log(LOG_TYPE_ROUTES, "Deleting local hna entry (%s): %s \n",
-		  hna_str, message);
+	bat_dbg(DBG_ROUTES, "Deleting local hna entry (%s): %s \n",
+		hna_str, message);
 
 	hash_remove(hna_local_hash, hna_local_entry->addr);
 	_hna_local_del(hna_local_entry);
@@ -291,7 +290,9 @@ void hna_global_add_orig(struct orig_node *orig_node,
 			memcpy(hna_global_entry->addr, hna_ptr, ETH_ALEN);
 
 			addr_to_string(hna_str, hna_global_entry->addr);
-			debug_log(LOG_TYPE_ROUTES, "Creating new global hna entry: %s (via %s)\n", hna_str, orig_str);
+			bat_dbg(DBG_ROUTES,
+				"Creating new global hna entry: %s (via %s)\n",
+				hna_str, orig_str);
 
 			spin_lock_irqsave(&hna_global_hash_lock, flags);
 			hash_add(hna_global_hash, hna_global_entry);
@@ -333,7 +334,7 @@ void hna_global_add_orig(struct orig_node *orig_node,
 				       hna_global_hash->size * 2);
 
 		if (swaphash == NULL)
-			debug_log(LOG_TYPE_CRIT, "Couldn't resize global hna hash table \n");
+			printk(KERN_ERR "batman-adv:Couldn't resize global hna hash table \n");
 		else
 			hna_global_hash = swaphash;
 	}
@@ -386,7 +387,8 @@ void _hna_global_del_orig(struct hna_global_entry *hna_global_entry,
 	addr_to_string(orig_str, hna_global_entry->orig_node->orig);
 	addr_to_string(hna_str, hna_global_entry->addr);
 
-	debug_log(LOG_TYPE_ROUTES, "Deleting global hna entry %s (via %s): %s \n", hna_str, orig_str, message);
+	bat_dbg(DBG_ROUTES, "Deleting global hna entry %s (via %s): %s \n",
+		hna_str, orig_str, message);
 
 	hash_remove(hna_global_hash, hna_global_entry->addr);
 	kfree(hna_global_entry);

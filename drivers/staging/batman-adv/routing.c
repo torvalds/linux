@@ -25,7 +25,6 @@
 
 #include "main.h"
 #include "routing.h"
-#include "log.h"
 #include "send.h"
 #include "soft-interface.h"
 #include "hard-interface.h"
@@ -88,7 +87,7 @@ static struct neigh_node *create_neighbor(struct orig_node *orig_node, struct or
 {
 	struct neigh_node *neigh_node;
 
-	debug_log(LOG_TYPE_BATMAN, "Creating new last-hop neighbour of originator\n");
+	bat_dbg(DBG_BATMAN, "Creating new last-hop neighbour of originator\n");
 
 	neigh_node = kmalloc(sizeof(struct neigh_node), GFP_ATOMIC);
 	memset(neigh_node, 0, sizeof(struct neigh_node));
@@ -136,7 +135,7 @@ static struct orig_node *get_orig_node(uint8_t *addr)
 		return orig_node;
 
 	addr_to_string(orig_str, addr);
-	debug_log(LOG_TYPE_BATMAN, "Creating new originator: %s \n", orig_str);
+	bat_dbg(DBG_BATMAN, "Creating new originator: %s \n", orig_str);
 
 	orig_node = kmalloc(sizeof(struct orig_node), GFP_ATOMIC);
 	memset(orig_node, 0, sizeof(struct orig_node));
@@ -159,7 +158,7 @@ static struct orig_node *get_orig_node(uint8_t *addr)
 		swaphash = hash_resize(orig_hash, orig_hash->size * 2);
 
 		if (swaphash == NULL)
-			debug_log(LOG_TYPE_CRIT, "Couldn't resize orig hash table \n");
+			printk(KERN_ERR "batman-adv:Couldn't resize orig hash table \n");
 		else
 			orig_hash = swaphash;
 	}
@@ -196,15 +195,15 @@ static void update_routes(struct orig_node *orig_node, struct neigh_node *neigh_
 
 		/* route deleted */
 		if ((orig_node->router != NULL) && (neigh_node == NULL)) {
-
-			debug_log(LOG_TYPE_ROUTES, "Deleting route towards: %s\n", orig_str);
+			bat_dbg(DBG_ROUTES, "Deleting route towards: %s\n",
+				orig_str);
 			hna_global_del_orig(orig_node, "originator timed out");
 
 		/* route added */
 		} else if ((orig_node->router == NULL) && (neigh_node != NULL)) {
 
 			addr_to_string(neigh_str, neigh_node->addr);
-			debug_log(LOG_TYPE_ROUTES, "Adding route towards: %s (via %s)\n", orig_str, neigh_str);
+			bat_dbg(DBG_ROUTES, "Adding route towards: %s (via %s)\n", orig_str, neigh_str);
 			hna_global_add_orig(orig_node, hna_buff, hna_buff_len);
 
 		/* route changed */
@@ -212,7 +211,7 @@ static void update_routes(struct orig_node *orig_node, struct neigh_node *neigh_
 
 			addr_to_string(neigh_str, neigh_node->addr);
 			addr_to_string(router_str, orig_node->router->addr);
-			debug_log(LOG_TYPE_ROUTES, "Changing route towards: %s (now via %s - was via %s)\n", orig_str, neigh_str, router_str);
+			bat_dbg(DBG_ROUTES, "Changing route towards: %s (now via %s - was via %s)\n", orig_str, neigh_str, router_str);
 
 		}
 
@@ -296,9 +295,9 @@ static int isBidirectionalNeigh(struct orig_node *orig_node, struct orig_node *o
 			(TQ_LOCAL_WINDOW_SIZE - neigh_node->real_packet_count)) /
 			(TQ_LOCAL_WINDOW_SIZE * TQ_LOCAL_WINDOW_SIZE * TQ_LOCAL_WINDOW_SIZE);
 
-	batman_packet->tq = ((batman_packet->tq * orig_neigh_node->tq_own * orig_neigh_node->tq_asym_penalty) / (TQ_MAX_VALUE *  TQ_MAX_VALUE));
+	batman_packet->tq = ((batman_packet->tq * orig_neigh_node->tq_own * orig_neigh_node->tq_asym_penalty) / (TQ_MAX_VALUE *	 TQ_MAX_VALUE));
 
-	debug_log(LOG_TYPE_BATMAN, "bidirectional: orig = %-15s neigh = %-15s => own_bcast = %2i, real recv = %2i, local tq: %3i, asym_penalty: %3i, total tq: %3i \n",
+	bat_dbg(DBG_BATMAN, "bidirectional: orig = %-15s neigh = %-15s => own_bcast = %2i, real recv = %2i, local tq: %3i, asym_penalty: %3i, total tq: %3i \n",
 		  orig_str, neigh_str, total_count, neigh_node->real_packet_count, orig_neigh_node->tq_own, orig_neigh_node->tq_asym_penalty, batman_packet->tq);
 
 	/* if link has the minimum required transmission quality consider it bidirectional */
@@ -313,7 +312,7 @@ static void update_orig(struct orig_node *orig_node, struct ethhdr *ethhdr, stru
 	struct neigh_node *neigh_node = NULL, *tmp_neigh_node = NULL;
 	int tmp_hna_buff_len;
 
-	debug_log(LOG_TYPE_BATMAN, "update_originator(): Searching and updating originator entry of received packet \n");
+	bat_dbg(DBG_BATMAN, "update_originator(): Searching and updating originator entry of received packet \n");
 
 	list_for_each_entry(tmp_neigh_node, &orig_node->neigh_list, list) {
 		if (compare_orig(tmp_neigh_node->addr, ethhdr->h_source) && (tmp_neigh_node->if_incoming == if_incoming)) {
@@ -331,7 +330,7 @@ static void update_orig(struct orig_node *orig_node, struct ethhdr *ethhdr, stru
 	if (neigh_node == NULL)
 		neigh_node = create_neighbor(orig_node, get_orig_node(ethhdr->h_source), ethhdr->h_source, if_incoming);
 	else
-		debug_log(LOG_TYPE_BATMAN, "Updating existing last-hop neighbour of originator\n");
+		bat_dbg(DBG_BATMAN, "Updating existing last-hop neighbour of originator\n");
 
 	orig_node->flags = batman_packet->flags;
 	neigh_node->last_valid = jiffies;
@@ -396,7 +395,8 @@ static char count_real_packets(struct ethhdr *ethhdr, struct batman_packet *batm
 	}
 
 	if (!is_duplicate) {
-		debug_log(LOG_TYPE_BATMAN, "updating last_seqno: old %d, new %d \n", orig_node->last_real_seqno, batman_packet->seqno);
+		bat_dbg(DBG_BATMAN, "updating last_seqno: old %d, new %d \n",
+			orig_node->last_real_seqno, batman_packet->seqno);
 		orig_node->last_real_seqno = batman_packet->seqno;
 	}
 
@@ -436,7 +436,7 @@ void receive_bat_packet(struct ethhdr *ethhdr, struct batman_packet *batman_pack
 
 	is_single_hop_neigh = (compare_orig(ethhdr->h_source, batman_packet->orig) ? 1 : 0);
 
-	debug_log(LOG_TYPE_BATMAN, "Received BATMAN packet via NB: %s, IF: %s [%s] (from OG: %s, via prev OG: %s, seqno %d, tq %d, TTL %d, V %d, IDF %d) \n", neigh_str, if_incoming->dev, if_incoming->addr_str, orig_str, prev_sender_str, batman_packet->seqno, batman_packet->tq, batman_packet->ttl, batman_packet->version, has_directlink_flag);
+	bat_dbg(DBG_BATMAN, "Received BATMAN packet via NB: %s, IF: %s [%s] (from OG: %s, via prev OG: %s, seqno %d, tq %d, TTL %d, V %d, IDF %d) \n", neigh_str, if_incoming->dev, if_incoming->addr_str, orig_str, prev_sender_str, batman_packet->seqno, batman_packet->tq, batman_packet->ttl, batman_packet->version, has_directlink_flag);
 
 	list_for_each_entry_rcu(batman_if, &if_list, list) {
 		if (batman_if->if_active != IF_ACTIVE)
@@ -456,17 +456,17 @@ void receive_bat_packet(struct ethhdr *ethhdr, struct batman_packet *batman_pack
 	}
 
 	if (batman_packet->version != COMPAT_VERSION) {
-		debug_log(LOG_TYPE_BATMAN, "Drop packet: incompatible batman version (%i) \n", batman_packet->version);
+		bat_dbg(DBG_BATMAN, "Drop packet: incompatible batman version (%i) \n", batman_packet->version);
 		return;
 	}
 
 	if (is_my_addr) {
-		debug_log(LOG_TYPE_BATMAN, "Drop packet: received my own broadcast (sender: %s) \n", neigh_str);
+		bat_dbg(DBG_BATMAN, "Drop packet: received my own broadcast (sender: %s) \n", neigh_str);
 		return;
 	}
 
 	if (is_broadcast) {
-		debug_log(LOG_TYPE_BATMAN, "Drop packet: ignoring all packets with broadcast source addr (sender: %s) \n", neigh_str);
+		bat_dbg(DBG_BATMAN, "Drop packet: ignoring all packets with broadcast source addr (sender: %s) \n", neigh_str);
 		return;
 	}
 
@@ -481,19 +481,19 @@ void receive_bat_packet(struct ethhdr *ethhdr, struct batman_packet *batman_pack
 			orig_neigh_node->bcast_own_sum[if_incoming->if_num] = bit_packet_count((TYPE_OF_WORD *)&(orig_neigh_node->bcast_own[if_incoming->if_num * NUM_WORDS]));
 		}
 
-		debug_log(LOG_TYPE_BATMAN, "Drop packet: originator packet from myself (via neighbour) \n");
+		bat_dbg(DBG_BATMAN, "Drop packet: originator packet from myself (via neighbour) \n");
 		return;
 	}
 
 	if (batman_packet->tq == 0) {
 		count_real_packets(ethhdr, batman_packet, if_incoming);
 
-		debug_log(LOG_TYPE_BATMAN, "Drop packet: originator packet with tq equal 0 \n");
+		bat_dbg(DBG_BATMAN, "Drop packet: originator packet with tq equal 0 \n");
 		return;
 	}
 
 	if (is_my_oldorig) {
-		debug_log(LOG_TYPE_BATMAN, "Drop packet: ignoring all rebroadcast echos (sender: %s) \n", neigh_str);
+		bat_dbg(DBG_BATMAN, "Drop packet: ignoring all rebroadcast echos (sender: %s) \n", neigh_str);
 		return;
 	}
 
@@ -508,7 +508,7 @@ void receive_bat_packet(struct ethhdr *ethhdr, struct batman_packet *batman_pack
 	    (compare_orig(orig_node->router->addr, batman_packet->prev_sender)) &&
 	    !(compare_orig(batman_packet->orig, batman_packet->prev_sender)) &&
 	    (compare_orig(orig_node->router->addr, orig_node->router->orig_node->router->addr))) {
-		debug_log(LOG_TYPE_BATMAN, "Drop packet: ignoring all rebroadcast packets that may make me loop (sender: %s) \n", neigh_str);
+		bat_dbg(DBG_BATMAN, "Drop packet: ignoring all rebroadcast packets that may make me loop (sender: %s) \n", neigh_str);
 		return;
 	}
 
@@ -519,7 +519,7 @@ void receive_bat_packet(struct ethhdr *ethhdr, struct batman_packet *batman_pack
 
 	/* drop packet if sender is not a direct neighbor and if we don't route towards it */
 	if (!is_single_hop_neigh && (orig_neigh_node->router == NULL)) {
-		debug_log(LOG_TYPE_BATMAN, "Drop packet: OGM via unknown neighbor! \n");
+		bat_dbg(DBG_BATMAN, "Drop packet: OGM via unknown neighbor!\n");
 		return;
 	}
 
@@ -537,22 +537,22 @@ void receive_bat_packet(struct ethhdr *ethhdr, struct batman_packet *batman_pack
 		/* mark direct link on incoming interface */
 		schedule_forward_packet(orig_node, ethhdr, batman_packet, 1, hna_buff_len, if_incoming);
 
-		debug_log(LOG_TYPE_BATMAN, "Forwarding packet: rebroadcast neighbour packet with direct link flag \n");
+		bat_dbg(DBG_BATMAN, "Forwarding packet: rebroadcast neighbour packet with direct link flag\n");
 		return;
 	}
 
 	/* multihop originator */
 	if (!is_bidirectional) {
-		debug_log(LOG_TYPE_BATMAN, "Drop packet: not received via bidirectional link\n");
+		bat_dbg(DBG_BATMAN, "Drop packet: not received via bidirectional link\n");
 		return;
 	}
 
 	if (is_duplicate) {
-		debug_log(LOG_TYPE_BATMAN, "Drop packet: duplicate packet received\n");
+		bat_dbg(DBG_BATMAN, "Drop packet: duplicate packet received\n");
 		return;
 	}
 
-	debug_log(LOG_TYPE_BATMAN, "Forwarding packet: rebroadcast originator packet \n");
+	bat_dbg(DBG_BATMAN, "Forwarding packet: rebroadcast originator packet\n");
 	schedule_forward_packet(orig_node, ethhdr, batman_packet, 0, hna_buff_len, if_incoming);
 }
 
@@ -574,7 +574,7 @@ void purge_orig(struct work_struct *work)
 
 		if (time_after(jiffies, orig_node->last_valid + ((2 * PURGE_TIMEOUT * HZ) / 1000))) {
 
-			debug_log(LOG_TYPE_BATMAN, "Originator timeout: originator %s, last_valid %u \n", orig_str, (orig_node->last_valid / HZ));
+			bat_dbg(DBG_BATMAN, "Originator timeout: originator %s, last_valid %lu\n", orig_str, (orig_node->last_valid / HZ));
 
 			hash_remove_bucket(orig_hash, hashit);
 			free_orig_node(orig_node);
@@ -591,7 +591,7 @@ void purge_orig(struct work_struct *work)
 				if (time_after(jiffies, neigh_node->last_valid + ((PURGE_TIMEOUT * HZ) / 1000))) {
 
 					addr_to_string(neigh_str, neigh_node->addr);
-					debug_log(LOG_TYPE_BATMAN, "Neighbour timeout: originator %s, neighbour: %s, last_valid %u \n", orig_str, neigh_str, (neigh_node->last_valid / HZ));
+					bat_dbg(DBG_BATMAN, "Neighbour timeout: originator %s, neighbour: %s, last_valid %lu\n", orig_str, neigh_str, (neigh_node->last_valid / HZ));
 
 					neigh_purged = 1;
 					list_del(list_pos);
@@ -652,7 +652,7 @@ int packet_recv_thread(void *data)
 	atomic_set(&exit_cond, 0);
 	packet_buff = kmalloc(PACKBUFF_SIZE, GFP_KERNEL);
 	if (!packet_buff) {
-		debug_log(LOG_TYPE_CRIT, "Could allocate memory for the packet buffer. :(\n");
+		printk(KERN_ERR "batman-adv:Could allocate memory for the packet buffer. :(\n");
 		return -1;
 	}
 
@@ -677,9 +677,9 @@ int packet_recv_thread(void *data)
 			while (1) {
 				if (batman_if->if_active != IF_ACTIVE) {
 					if (batman_if->if_active != IF_TO_BE_ACTIVATED)
-						debug_log(LOG_TYPE_NOTICE,
-						          "Could not read from deactivated interface %s!\n",
-						          batman_if->dev);
+						printk(KERN_WARNING
+						       "batman-adv:Could not read from deactivated interface %s!\n",
+						       batman_if->dev);
 
 					if (batman_if->raw_sock)
 						receive_raw_packet(batman_if->raw_sock, packet_buff, PACKBUFF_SIZE);
@@ -698,7 +698,7 @@ int packet_recv_thread(void *data)
 				batman_packet = (struct batman_packet *)(packet_buff + sizeof(struct ethhdr));
 
 				if (batman_packet->version != COMPAT_VERSION) {
-					debug_log(LOG_TYPE_BATMAN, "Drop packet: incompatible batman version (%i) \n", batman_packet->version);
+					bat_dbg(DBG_BATMAN, "Drop packet: incompatible batman version (%i)\n", batman_packet->version);
 					continue;
 				}
 
@@ -719,9 +719,9 @@ int packet_recv_thread(void *data)
 
 					spin_lock(&orig_hash_lock);
 					receive_aggr_bat_packet(ethhdr,
-					                        packet_buff + sizeof(struct ethhdr),
-					                        result - sizeof(struct ethhdr),
-					                        batman_if);
+								packet_buff + sizeof(struct ethhdr),
+								result - sizeof(struct ethhdr),
+								batman_if);
 					spin_unlock(&orig_hash_lock);
 
 					break;
@@ -768,9 +768,9 @@ int packet_recv_thread(void *data)
 							icmp_packet->ttl = TTL;
 
 							send_raw_packet(packet_buff + sizeof(struct ethhdr),
-							                result - sizeof(struct ethhdr),
-							                orig_node->batman_if,
-							                orig_node->router->addr);
+									result - sizeof(struct ethhdr),
+									orig_node->batman_if,
+									orig_node->router->addr);
 
 						}
 
@@ -785,7 +785,7 @@ int packet_recv_thread(void *data)
 						addr_to_string(src_str, icmp_packet->orig);
 						addr_to_string(dst_str, icmp_packet->dst);
 
-						debug_log(LOG_TYPE_NOTICE, "Error - can't send packet from %s to %s: ttl exceeded\n", src_str, dst_str);
+						printk(KERN_WARNING "batman-adv:Warning - can't send packet from %s to %s: ttl exceeded\n", src_str, dst_str);
 
 						/* send TTL exceeded if packet is an echo request (traceroute) */
 						if (icmp_packet->msg_type != ECHO_REQUEST)
@@ -803,9 +803,9 @@ int packet_recv_thread(void *data)
 							icmp_packet->ttl = TTL;
 
 							send_raw_packet(packet_buff + sizeof(struct ethhdr),
-							                result - sizeof(struct ethhdr),
-							                orig_node->batman_if,
-							                orig_node->router->addr);
+									result - sizeof(struct ethhdr),
+									orig_node->batman_if,
+									orig_node->router->addr);
 
 						}
 
@@ -825,9 +825,9 @@ int packet_recv_thread(void *data)
 
 						/* route it */
 						send_raw_packet(packet_buff + sizeof(struct ethhdr),
-						                result - sizeof(struct ethhdr),
-						                orig_node->batman_if,
-						                orig_node->router->addr);
+								result - sizeof(struct ethhdr),
+								orig_node->batman_if,
+								orig_node->router->addr);
 					}
 
 					spin_unlock(&orig_hash_lock);
@@ -866,7 +866,7 @@ int packet_recv_thread(void *data)
 						addr_to_string(src_str, ((struct ethhdr *)(unicast_packet + 1))->h_source);
 						addr_to_string(dst_str, unicast_packet->dest);
 
-						debug_log(LOG_TYPE_NOTICE, "Error - can't send packet from %s to %s: ttl exceeded\n", src_str, dst_str);
+						printk(KERN_WARNING "batman-adv:Warning - can't send packet from %s to %s: ttl exceeded\n", src_str, dst_str);
 						continue;
 					}
 
@@ -880,9 +880,9 @@ int packet_recv_thread(void *data)
 
 						/* route it */
 						send_raw_packet(packet_buff + sizeof(struct ethhdr),
-						                result - sizeof(struct ethhdr),
-						                orig_node->batman_if,
-						                orig_node->router->addr);
+								result - sizeof(struct ethhdr),
+								orig_node->batman_if,
+								orig_node->router->addr);
 					}
 
 					spin_unlock(&orig_hash_lock);
@@ -980,7 +980,7 @@ int packet_recv_thread(void *data)
 			}
 
 			if ((result < 0) && (result != -EAGAIN))
-				debug_log(LOG_TYPE_CRIT, "Could not receive packet from interface %s: %i\n", batman_if->dev, result);
+				printk(KERN_ERR "batman-adv:Could not receive packet from interface %s: %i\n", batman_if->dev, result);
 
 			/* lock for the next iteration */
 			rcu_read_lock();

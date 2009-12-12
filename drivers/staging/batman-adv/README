@@ -1,4 +1,4 @@
-[state: 07-11-2009]
+[state: 13-11-2009]
 
 BATMAN-ADV
 ----------
@@ -95,6 +95,54 @@ is 1000 ms (1 second).
 To deactivate batman, do:
 
 # echo "" > /proc/net/batman-adv/interfaces
+
+LOGGING/DEBUGGING
+-----------------
+
+All error messages, warnings and information messages are sent to the
+kernel log. Depending on your operating system distribution this can be
+read in one of a number of ways. Try using the commands: dmesg,
+logread, or looking in the files /var/log/kern.log or
+/var/log/syslog. All batman-adv messages are prefixed with
+"batman-adv:" So to see just these messages try
+
+dmesg | grep batman-adv
+
+When investigating problems with your mesh network it is sometimes
+necessary to see more detail debug messages. This must be enabled when
+compiling the batman-adv module. When building batman-adv as part of
+kernel, use "make menuconfig" and enable the option
+"B.A.T.M.A.N. debugging". When compiling outside of the kernel tree it
+is necessary to edit the file Makefile.kbuild and uncomment the line
+
+#EXTRA_CFLAGS += -DCONFIG_BATMAN_DEBUG
+
+The additional debug output is by default disabled. It can be enabled
+either at kernel modules load time or during run time. To enable debug
+output at module load time, add the module parameter debug=<value>.
+<value> can take one of four values.
+
+0 - All debug output disabled
+1 - Enable messages related to routing / flooding / broadcasting
+2 - Enable route or hna added / changed / deleted
+3 - Enable all messages
+
+e.g.
+
+modprobe batman-adv debug=2
+
+will load the module and enable debug messages for when routes or HNAs
+change.
+
+The debug output can also be changed at runtime using the file
+/sys/module/batman-adv/parameters/debug. e.g.
+
+echo 2 > /sys/module/batman-adv/parameters/debug
+
+enables debug messages for when routes or HNAs
+
+The debug output is sent to the kernel logs. So try dmesg, logread etc
+to see the debug messages.
 
 BATCTL
 ------

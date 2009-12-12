@@ -24,7 +24,6 @@
 #include "hard-interface.h"
 #include "send.h"
 #include "translation-table.h"
-#include "log.h"
 #include "types.h"
 #include "hash.h"
 #include <linux/ethtool.h>
@@ -212,7 +211,7 @@ int interface_tx(struct sk_buff *skb, struct net_device *dev)
 		 * dropping */
 		if (!spin_trylock(&orig_hash_lock)) {
 			lock_dropped++;
-			debug_log(LOG_TYPE_NOTICE, "%d packets dropped because lock was hold\n", lock_dropped);
+			printk(KERN_WARNING "batman-adv:%d packets dropped because lock was hold\n", lock_dropped);
 			goto dropped;
 		}
 

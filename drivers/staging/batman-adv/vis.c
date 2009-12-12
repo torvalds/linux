@@ -23,7 +23,6 @@
 #include "send.h"
 #include "translation-table.h"
 #include "vis.h"
-#include "log.h"
 #include "soft-interface.h"
 #include "hard-interface.h"
 #include "hash.h"
@@ -445,8 +444,7 @@ static void send_vis_packet(struct vis_info *info)
 	int packet_length;
 
 	if (info->packet.ttl < 2) {
-		debug_log(LOG_TYPE_NOTICE,
-			  "Error - can't send vis packet: ttl exceeded\n");
+		printk(KERN_WARNING "batman-adv: Error - can't send vis packet: ttl exceeded\n");
 		return;
 	}
 
@@ -495,13 +493,13 @@ int vis_init(void)
 
 	vis_hash = hash_new(256, vis_info_cmp, vis_info_choose);
 	if (!vis_hash) {
-		debug_log(LOG_TYPE_CRIT, "Can't initialize vis_hash\n");
+		printk(KERN_ERR "batman-adv:Can't initialize vis_hash\n");
 		goto err;
 	}
 
 	my_vis_info = kmalloc(1000, GFP_ATOMIC);
 	if (!my_vis_info) {
-		debug_log(LOG_TYPE_CRIT, "Can't initialize vis packet\n");
+		printk(KERN_ERR "batman-adv:Can't initialize vis packet\n");
 		goto err;
 	}
 
@@ -522,8 +520,8 @@ int vis_init(void)
 	memcpy(my_vis_info->packet.sender_orig, mainIfAddr, ETH_ALEN);
 
 	if (hash_add(vis_hash, my_vis_info) < 0) {
-		debug_log(LOG_TYPE_CRIT,
-			  "Can't add own vis packet into hash\n");
+		printk(KERN_ERR
+			  "batman-adv:Can't add own vis packet into hash\n");
 		free_info(my_vis_info);	/* not in hash, need to remove it
 					 * manually. */
 		goto err;
