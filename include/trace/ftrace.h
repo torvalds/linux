@@ -733,7 +733,7 @@ static int ftrace_raw_reg_event_##call(struct ftrace_event_call *unused)\
 	ret = register_trace_##call(ftrace_raw_event_##call);		\
 	if (ret)							\
 		pr_info("event trace: Could not activate trace point "	\
-			"probe to " #call "\n");			\
+			"probe to %s\n", #call);			\
 	return ret;							\
 }									\
 									\
