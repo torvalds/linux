@@ -28,6 +28,7 @@ static inline int gpio_is_valid(int number)
 	return ((unsigned)number) < ARCH_NR_GPIOS;
 }
 
+struct device;
 struct seq_file;
 struct module;
 
@@ -180,6 +181,8 @@ static inline void gpio_set_value_cansleep(unsigned gpio, int value)
 #endif /* !CONFIG_HAVE_GPIO_LIB */
 
 #ifndef CONFIG_GPIO_SYSFS
+
+struct device;
 
 /* sysfs support is only available with gpiolib, where it's optional */
 
