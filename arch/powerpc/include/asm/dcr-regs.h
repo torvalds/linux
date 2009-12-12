@@ -157,4 +157,27 @@
 #define  L2C_SNP_SSR_32G	0x0000f000
 #define  L2C_SNP_ESR		0x00000800
 
+/*
+ * DCR register offsets for 440SP/440SPe I2O/DMA controller.
+ * The base address is configured in the device tree.
+ */
+#define DCRN_I2O0_IBAL		0x006
+#define DCRN_I2O0_IBAH		0x007
+#define I2O_REG_ENABLE		0x00000001	/* Enable I2O/DMA access */
+
+/* 440SP/440SPe Software Reset DCR */
+#define DCRN_SDR0_SRST		0x0200
+#define DCRN_SDR0_SRST_I2ODMA	(0x80000000 >> 15)	/* Reset I2O/DMA */
+
+/* 440SP/440SPe Memory Queue DCR offsets */
+#define DCRN_MQ0_XORBA		0x04
+#define DCRN_MQ0_CF2H		0x06
+#define DCRN_MQ0_CFBHL		0x0f
+#define DCRN_MQ0_BAUH		0x10
+
+/* HB/LL Paths Configuration Register */
+#define MQ0_CFBHL_TPLM		28
+#define MQ0_CFBHL_HBCL		23
+#define MQ0_CFBHL_POLY		15
+
 #endif /* __DCR_REGS_H__ */
