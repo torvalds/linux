@@ -23,6 +23,7 @@
 
 #include <mach/board-zoom.h>
 
+#include "mux.h"
 #include "sdram-hynix-h8mbx00u0mer-0em.h"
 
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
@@ -48,7 +49,9 @@ static inline void board_smc91x_init(void)
 
 static void enable_board_wakeup_source(void)
 {
-	omap_cfg_reg(AF26_34XX_SYS_NIRQ); /* T2 interrupt line (keypad) */
+	/* T2 interrupt line (keypad) */
+	omap_mux_init_signal("sys_nirq",
+		OMAP_WAKEUP_EN | OMAP_PIN_INPUT_PULLUP);
 }
 
 static struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {

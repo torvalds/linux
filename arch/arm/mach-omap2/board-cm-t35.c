@@ -503,7 +503,8 @@ static void __init cm_t35_init(void)
 
 	usb_musb_init();
 
-	omap_cfg_reg(AF26_34XX_SYS_NIRQ);
+	omap_mux_init_signal("sys_nirq",
+		OMAP_WAKEUP_EN | OMAP_PIN_INPUT_PULLUP);
 }
 
 MACHINE_START(CM_T35, "Compulab CM-T35")
