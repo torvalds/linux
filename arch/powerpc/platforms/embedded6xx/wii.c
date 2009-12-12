@@ -20,6 +20,8 @@
 #include <linux/seq_file.h>
 #include <linux/kexec.h>
 #include <linux/of_platform.h>
+#include <linux/lmb.h>
+#include <mm/mmu_decl.h>
 
 #include <asm/io.h>
 #include <asm/machdep.h>
@@ -51,6 +53,67 @@
 
 static void __iomem *hw_ctrl;
 static void __iomem *hw_gpio;
+
+unsigned long wii_hole_start;
+unsigned long wii_hole_size;
+
+
+static int __init page_aligned(unsigned long x)
+{
+	return !(x & (PAGE_SIZE-1));
+}
+
+void __init wii_memory_fixups(void)
+{
+	struct lmb_property *p = lmb.memory.region;
+
+	/*
+	 * This is part of a workaround to allow the use of two
+	 * discontiguous RAM ranges on the Wii, even if this is
+	 * currently unsupported on 32-bit PowerPC Linux.
+	 *
+	 * We coealesce the two memory ranges of the Wii into a
+	 * single range, then create a reservation for the "hole"
+	 * between both ranges.
+	 */
+
+	BUG_ON(lmb.memory.cnt != 2);
+	BUG_ON(!page_aligned(p[0].base) || !page_aligned(p[1].base));
+
+	p[0].size = _ALIGN_DOWN(p[0].size, PAGE_SIZE);
+	p[1].size = _ALIGN_DOWN(p[1].size, PAGE_SIZE);
+
+	wii_hole_start = p[0].base + p[0].size;
+	wii_hole_size = p[1].base - wii_hole_start;
+
+	pr_info("MEM1: <%08llx %08llx>\n", p[0].base, p[0].size);
+	pr_info("HOLE: <%08lx %08lx>\n", wii_hole_start, wii_hole_size);
+	pr_info("MEM2: <%08llx %08llx>\n", p[1].base, p[1].size);
+
+	p[0].size += wii_hole_size + p[1].size;
+
+	lmb.memory.cnt = 1;
+	lmb_analyze();
+
+	/* reserve the hole */
+	lmb_reserve(wii_hole_start, wii_hole_size);
+}
+
+unsigned long __init wii_mmu_mapin_mem2(unsigned long top)
+{
+	unsigned long delta, size, bl;
+	unsigned long max_size = (256<<20);
+
+	/* MEM2 64MB@0x10000000 */
+	delta = wii_hole_start + wii_hole_size;
+	size = top - delta;
+	for (bl = 128<<10; bl < max_size; bl <<= 1) {
+		if (bl * 2 > size)
+			break;
+	}
+	setbat(4, PAGE_OFFSET+delta, delta, bl, PAGE_KERNEL_X);
+	return delta + bl;
+}
 
 static void wii_spin(void)
 {

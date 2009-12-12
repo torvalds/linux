@@ -136,6 +136,14 @@ extern phys_addr_t total_lowmem;
 extern phys_addr_t memstart_addr;
 extern phys_addr_t lowmem_end_addr;
 
+#ifdef CONFIG_WII
+extern unsigned long wii_hole_start;
+extern unsigned long wii_hole_size;
+
+extern unsigned long wii_mmu_mapin_mem2(unsigned long top);
+extern void wii_memory_fixups(void);
+#endif
+
 /* ...and now those things that may be slightly different between processor
  * architectures.  -- Dan
  */
@@ -155,5 +163,5 @@ extern void adjust_total_lowmem(void);
 #elif defined(CONFIG_PPC32)
 /* anything 32-bit except 4xx or 8xx */
 extern void MMU_init_hw(void);
-extern unsigned long mmu_mapin_ram(void);
+extern unsigned long mmu_mapin_ram(unsigned long top);
 #endif

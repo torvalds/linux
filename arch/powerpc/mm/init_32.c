@@ -131,9 +131,13 @@ void __init MMU_init(void)
 	MMU_setup();
 
 	if (lmb.memory.cnt > 1) {
+#ifndef CONFIG_WII
 		lmb.memory.cnt = 1;
 		lmb_analyze();
 		printk(KERN_WARNING "Only using first contiguous memory region");
+#else
+		wii_memory_fixups();
+#endif
 	}
 
 	total_lowmem = total_memory = lmb_end_of_DRAM() - memstart_addr;

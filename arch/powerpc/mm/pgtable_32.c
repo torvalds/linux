@@ -283,18 +283,18 @@ int map_page(unsigned long va, phys_addr_t pa, int flags)
 }
 
 /*
- * Map in a big chunk of physical memory starting at PAGE_OFFSET.
+ * Map in a chunk of physical memory starting at start.
  */
-void __init mapin_ram(void)
+void __init __mapin_ram_chunk(unsigned long offset, unsigned long top)
 {
 	unsigned long v, s, f;
 	phys_addr_t p;
 	int ktext;
 
-	s = mmu_mapin_ram();
+	s = offset;
 	v = PAGE_OFFSET + s;
 	p = memstart_addr + s;
-	for (; s < total_lowmem; s += PAGE_SIZE) {
+	for (; s < top; s += PAGE_SIZE) {
 		ktext = ((char *) v >= _stext && (char *) v < etext);
 		f = ktext ? PAGE_KERNEL_TEXT : PAGE_KERNEL;
 		map_page(v, p, f);
@@ -305,6 +305,30 @@ void __init mapin_ram(void)
 		v += PAGE_SIZE;
 		p += PAGE_SIZE;
 	}
+}
+
+void __init mapin_ram(void)
+{
+	unsigned long s, top;
+
+#ifndef CONFIG_WII
+	top = total_lowmem;
+	s = mmu_mapin_ram(top);
+	__mapin_ram_chunk(s, top);
+#else
+	if (!wii_hole_size) {
+		s = mmu_mapin_ram(total_lowmem);
+		__mapin_ram_chunk(s, total_lowmem);
+	} else {
+		top = wii_hole_start;
+		s = mmu_mapin_ram(top);
+		__mapin_ram_chunk(s, top);
+
+		top = lmb_end_of_DRAM();
+		s = wii_mmu_mapin_mem2(top);
+		__mapin_ram_chunk(s, top);
+	}
+#endif
 }
 
 /* Scan the real Linux page tables and return a PTE pointer for
