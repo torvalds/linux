@@ -21,13 +21,19 @@
 
 #include <plat/i2c.h>
 #include <plat/mux.h>
+#include <plat/cpu.h>
 
 int __init omap_register_i2c_bus(int bus_id, u32 clkrate,
 			  struct i2c_board_info const *info,
 			  unsigned len)
 {
-	omap_cfg_reg(I2C_SDA);
-	omap_cfg_reg(I2C_SCL);
+	if (cpu_is_omap7xx()) {
+		omap_cfg_reg(I2C_7XX_SDA);
+		omap_cfg_reg(I2C_7XX_SCL);
+	} else {
+		omap_cfg_reg(I2C_SDA);
+		omap_cfg_reg(I2C_SCL);
+	}
 
 	return omap_plat_register_i2c_bus(bus_id, clkrate, info, len);
 }

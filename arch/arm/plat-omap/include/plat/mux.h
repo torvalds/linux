@@ -179,6 +179,10 @@ enum omap7xx_index {
 	MMC_7XX_CMD,
 	MMC_7XX_CLK,
 	MMC_7XX_DAT0,
+
+	/* I2C */
+	I2C_7XX_SCL,
+	I2C_7XX_SDA,
 };
 
 enum omap1xxx_index {

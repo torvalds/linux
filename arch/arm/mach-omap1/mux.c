@@ -58,6 +58,10 @@ MUX_CFG_7XX("W19_7XX_USB_DCRST",   3,    7,    1,    6,   0, 0)
 MUX_CFG_7XX("MMC_7XX_CMD",         2,    9,    0,    8,   1, 0)
 MUX_CFG_7XX("MMC_7XX_CLK",         2,   13,    0,   12,   1, 0)
 MUX_CFG_7XX("MMC_7XX_DAT0",        2,   17,    0,   16,   1, 0)
+
+/* I2C interface */
+MUX_CFG_7XX("I2C_7XX_SCL",         5,    1,    0,    0,   1, 0)
+MUX_CFG_7XX("I2C_7XX_SDA",         5,    5,    0,    0,   1, 0)
 };
 #define OMAP7XX_PINS_SZ		ARRAY_SIZE(omap7xx_pins)
 #else
