@@ -30,6 +30,8 @@
 #include <plat/gpmc.h>
 #include <plat/usb.h>
 
+#include "mux.h"
+
 struct omap_sdrc_params *rx51_get_sdram_timings(void);
 
 static struct omap_lcd_config rx51_lcd_config = {
@@ -69,8 +71,17 @@ static void __init rx51_init_irq(void)
 
 extern void __init rx51_peripherals_init(void);
 
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define board_mux	NULL
+#endif
+
 static void __init rx51_init(void)
 {
+	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap_serial_init();
 	usb_musb_init();
 	rx51_peripherals_init();

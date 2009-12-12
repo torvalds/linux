@@ -43,6 +43,7 @@
 #include <plat/common.h>
 #include <plat/mcspi.h>
 
+#include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "mmc-twl4030.h"
 
@@ -422,9 +423,18 @@ static struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 	.reset_gpio_port[2]  = -EINVAL
 };
 
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define board_mux	NULL
+#endif
+
 static void __init omap3_evm_init(void)
 {
 	omap3_evm_get_revision();
+	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 
 	omap3_evm_i2c_init();
 

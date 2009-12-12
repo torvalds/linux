@@ -45,6 +45,7 @@
 
 #include <mach/hardware.h>
 
+#include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "mmc-twl4030.h"
 
@@ -482,8 +483,17 @@ static void __init cm_t35_map_io(void)
 	omap2_map_common_io();
 }
 
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define board_mux	NULL
+#endif
+
 static void __init cm_t35_init(void)
 {
+	omap3_mux_init(board_mux, OMAP_PACKAGE_CUS);
 	omap_serial_init();
 	cm_t35_init_i2c();
 	cm_t35_init_nand();
