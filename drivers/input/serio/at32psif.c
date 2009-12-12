@@ -352,6 +352,7 @@ static struct platform_driver psif_driver = {
 	.remove		= __exit_p(psif_remove),
 	.driver		= {
 		.name	= "atmel_psif",
+		.owner	= THIS_MODULE,
 	},
 	.suspend	= psif_suspend,
 	.resume		= psif_resume,

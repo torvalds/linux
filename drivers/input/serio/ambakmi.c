@@ -197,6 +197,7 @@ static struct amba_id amba_kmi_idtable[] = {
 static struct amba_driver ambakmi_driver = {
 	.drv		= {
 		.name	= "kmi-pl050",
+		.owner	= THIS_MODULE,
 	},
 	.id_table	= amba_kmi_idtable,
 	.probe		= amba_kmi_probe,

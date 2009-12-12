@@ -178,6 +178,7 @@ static struct platform_driver altera_ps2_driver = {
 	.remove		= altera_ps2_remove,
 	.driver	= {
 		.name	= DRV_NAME,
+		.owner	= THIS_MODULE,
 	},
 };
 
