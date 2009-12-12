@@ -555,7 +555,9 @@ static int genregs_set(struct task_struct *target,
 	return ret;
 }
 
-static void ptrace_triggered(struct perf_event *bp, void *data)
+static void ptrace_triggered(struct perf_event *bp, int nmi,
+			     struct perf_sample_data *data,
+			     struct pt_regs *regs)
 {
 	int i;
 	struct thread_struct *thread = &(current->thread);
@@ -593,13 +595,13 @@ static unsigned long ptrace_get_dr7(struct perf_event *bp[])
 	return dr7;
 }
 
-static struct perf_event *
+static int
 ptrace_modify_breakpoint(struct perf_event *bp, int len, int type,
 			 struct task_struct *tsk, int disabled)
 {
 	int err;
 	int gen_len, gen_type;
-	DEFINE_BREAKPOINT_ATTR(attr);
+	struct perf_event_attr attr;
 
 	/*
 	 * We shoud have at least an inactive breakpoint at this
@@ -607,18 +609,18 @@ ptrace_modify_breakpoint(struct perf_event *bp, int len, int type,
 	 * written the address register first
 	 */
 	if (!bp)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	err = arch_bp_generic_fields(len, type, &gen_len, &gen_type);
 	if (err)
-		return ERR_PTR(err);
+		return err;
 
 	attr = bp->attr;
 	attr.bp_len = gen_len;
 	attr.bp_type = gen_type;
 	attr.disabled = disabled;
 
-	return modify_user_hw_breakpoint(bp, &attr, bp->callback, tsk);
+	return modify_user_hw_breakpoint(bp, &attr);
 }
 
 /*
@@ -656,28 +658,17 @@ restore:
 				if (!second_pass)
 					continue;
 
-				thread->ptrace_bps[i] = NULL;
-				bp = ptrace_modify_breakpoint(bp, len, type,
+				rc = ptrace_modify_breakpoint(bp, len, type,
 							      tsk, 1);
-				if (IS_ERR(bp)) {
-					rc = PTR_ERR(bp);
-					thread->ptrace_bps[i] = NULL;
+				if (rc)
 					break;
-				}
-				thread->ptrace_bps[i] = bp;
 			}
 			continue;
 		}
 
-		bp = ptrace_modify_breakpoint(bp, len, type, tsk, 0);
-
-		/* Incorrect bp, or we have a bug in bp API */
-		if (IS_ERR(bp)) {
-			rc = PTR_ERR(bp);
-			thread->ptrace_bps[i] = NULL;
+		rc = ptrace_modify_breakpoint(bp, len, type, tsk, 0);
+		if (rc)
 			break;
-		}
-		thread->ptrace_bps[i] = bp;
 	}
 	/*
 	 * Make a second pass to free the remaining unused breakpoints
@@ -721,9 +712,10 @@ static int ptrace_set_breakpoint_addr(struct task_struct *tsk, int nr,
 {
 	struct perf_event *bp;
 	struct thread_struct *t = &tsk->thread;
-	DEFINE_BREAKPOINT_ATTR(attr);
+	struct perf_event_attr attr;
 
 	if (!t->ptrace_bps[nr]) {
+		hw_breakpoint_init(&attr);
 		/*
 		 * Put stub len and type to register (reserve) an inactive but
 		 * correct bp
@@ -734,26 +726,32 @@ static int ptrace_set_breakpoint_addr(struct task_struct *tsk, int nr,
 		attr.disabled = 1;
 
 		bp = register_user_hw_breakpoint(&attr, ptrace_triggered, tsk);
+
+		/*
+		 * CHECKME: the previous code returned -EIO if the addr wasn't
+		 * a valid task virtual addr. The new one will return -EINVAL in
+		 *  this case.
+		 * -EINVAL may be what we want for in-kernel breakpoints users,
+		 * but -EIO looks better for ptrace, since we refuse a register
+		 * writing for the user. And anyway this is the previous
+		 * behaviour.
+		 */
+		if (IS_ERR(bp))
+			return PTR_ERR(bp);
+
+		t->ptrace_bps[nr] = bp;
 	} else {
+		int err;
+
 		bp = t->ptrace_bps[nr];
-		t->ptrace_bps[nr] = NULL;
 
 		attr = bp->attr;
 		attr.bp_addr = addr;
-		bp = modify_user_hw_breakpoint(bp, &attr, bp->callback, tsk);
+		err = modify_user_hw_breakpoint(bp, &attr);
+		if (err)
+			return err;
 	}
-	/*
-	 * CHECKME: the previous code returned -EIO if the addr wasn't a
-	 * valid task virtual addr. The new one will return -EINVAL in this
-	 * case.
-	 * -EINVAL may be what we want for in-kernel breakpoints users, but
-	 * -EIO looks better for ptrace, since we refuse a register writing
-	 * for the user. And anyway this is the previous behaviour.
-	 */
-	if (IS_ERR(bp))
-		return PTR_ERR(bp);
 
-	t->ptrace_bps[nr] = bp;
 
 	return 0;
 }

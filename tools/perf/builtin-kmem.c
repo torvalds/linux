@@ -57,11 +57,6 @@ static struct rb_root root_caller_sorted;
 static unsigned long total_requested, total_allocated;
 static unsigned long nr_allocs, nr_cross_allocs;
 
-struct raw_event_sample {
-	u32 size;
-	char data[0];
-};
-
 #define PATH_SYS_NODE	"/sys/devices/system/node"
 
 static void init_cpunode_map(void)
@@ -201,7 +196,7 @@ static void insert_caller_stat(unsigned long call_site,
 	}
 }
 
-static void process_alloc_event(struct raw_event_sample *raw,
+static void process_alloc_event(void *data,
 				struct event *event,
 				int cpu,
 				u64 timestamp __used,
@@ -214,10 +209,10 @@ static void process_alloc_event(struct raw_event_sample *raw,
 	int bytes_alloc;
 	int node1, node2;
 
-	ptr = raw_field_value(event, "ptr", raw->data);
-	call_site = raw_field_value(event, "call_site", raw->data);
-	bytes_req = raw_field_value(event, "bytes_req", raw->data);
-	bytes_alloc = raw_field_value(event, "bytes_alloc", raw->data);
+	ptr = raw_field_value(event, "ptr", data);
+	call_site = raw_field_value(event, "call_site", data);
+	bytes_req = raw_field_value(event, "bytes_req", data);
+	bytes_alloc = raw_field_value(event, "bytes_alloc", data);
 
 	insert_alloc_stat(call_site, ptr, bytes_req, bytes_alloc, cpu);
 	insert_caller_stat(call_site, bytes_req, bytes_alloc);
@@ -227,7 +222,7 @@ static void process_alloc_event(struct raw_event_sample *raw,
 
 	if (node) {
 		node1 = cpunode_map[cpu];
-		node2 = raw_field_value(event, "node", raw->data);
+		node2 = raw_field_value(event, "node", data);
 		if (node1 != node2)
 			nr_cross_allocs++;
 	}
@@ -262,7 +257,7 @@ static struct alloc_stat *search_alloc_stat(unsigned long ptr,
 	return NULL;
 }
 
-static void process_free_event(struct raw_event_sample *raw,
+static void process_free_event(void *data,
 			       struct event *event,
 			       int cpu,
 			       u64 timestamp __used,
@@ -271,7 +266,7 @@ static void process_free_event(struct raw_event_sample *raw,
 	unsigned long ptr;
 	struct alloc_stat *s_alloc, *s_caller;
 
-	ptr = raw_field_value(event, "ptr", raw->data);
+	ptr = raw_field_value(event, "ptr", data);
 
 	s_alloc = search_alloc_stat(ptr, 0, &root_alloc_stat, ptr_cmp);
 	if (!s_alloc)
@@ -289,66 +284,53 @@ static void process_free_event(struct raw_event_sample *raw,
 }
 
 static void
-process_raw_event(event_t *raw_event __used, void *more_data,
+process_raw_event(event_t *raw_event __used, void *data,
 		  int cpu, u64 timestamp, struct thread *thread)
 {
-	struct raw_event_sample *raw = more_data;
 	struct event *event;
 	int type;
 
-	type = trace_parse_common_type(raw->data);
+	type = trace_parse_common_type(data);
 	event = trace_find_event(type);
 
 	if (!strcmp(event->name, "kmalloc") ||
 	    !strcmp(event->name, "kmem_cache_alloc")) {
-		process_alloc_event(raw, event, cpu, timestamp, thread, 0);
+		process_alloc_event(data, event, cpu, timestamp, thread, 0);
 		return;
 	}
 
 	if (!strcmp(event->name, "kmalloc_node") ||
 	    !strcmp(event->name, "kmem_cache_alloc_node")) {
-		process_alloc_event(raw, event, cpu, timestamp, thread, 1);
+		process_alloc_event(data, event, cpu, timestamp, thread, 1);
 		return;
 	}
 
 	if (!strcmp(event->name, "kfree") ||
 	    !strcmp(event->name, "kmem_cache_free")) {
-		process_free_event(raw, event, cpu, timestamp, thread);
+		process_free_event(data, event, cpu, timestamp, thread);
 		return;
 	}
 }
 
 static int process_sample_event(event_t *event)
 {
-	u64 ip = event->ip.ip;
-	u64 timestamp = -1;
-	u32 cpu = -1;
-	u64 period = 1;
-	void *more_data = event->ip.__more_data;
-	struct thread *thread = threads__findnew(event->ip.pid);
+	struct sample_data data;
+	struct thread *thread;
 
-	if (sample_type & PERF_SAMPLE_TIME) {
-		timestamp = *(u64 *)more_data;
-		more_data += sizeof(u64);
-	}
+	memset(&data, 0, sizeof(data));
+	data.time = -1;
+	data.cpu = -1;
+	data.period = 1;
 
-	if (sample_type & PERF_SAMPLE_CPU) {
-		cpu = *(u32 *)more_data;
-		more_data += sizeof(u32);
-		more_data += sizeof(u32); /* reserved */
-	}
-
-	if (sample_type & PERF_SAMPLE_PERIOD) {
-		period = *(u64 *)more_data;
-		more_data += sizeof(u64);
-	}
+	event__parse_sample(event, sample_type, &data);
 
 	dump_printf("(IP, %d): %d/%d: %p period: %Ld\n",
 		event->header.misc,
-		event->ip.pid, event->ip.tid,
-		(void *)(long)ip,
-		(long long)period);
+		data.pid, data.tid,
+		(void *)(long)data.ip,
+		(long long)data.period);
 
+	thread = threads__findnew(event->ip.pid);
 	if (thread == NULL) {
 		pr_debug("problem processing %d event, skipping it.\n",
 			 event->header.type);
@@ -357,7 +339,8 @@ static int process_sample_event(event_t *event)
 
 	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
-	process_raw_event(event, more_data, cpu, timestamp, thread);
+	process_raw_event(event, data.raw_data, data.cpu,
+			  data.time, thread);
 
 	return 0;
 }
@@ -543,7 +526,7 @@ static int __cmd_kmem(void)
 }
 
 static const char * const kmem_usage[] = {
-	"perf kmem [<options>] {record}",
+	"perf kmem [<options>] {record|stat}",
 	NULL
 };
 
@@ -703,18 +686,17 @@ static int parse_sort_opt(const struct option *opt __used,
 	return 0;
 }
 
-static int parse_stat_opt(const struct option *opt __used,
-			  const char *arg, int unset __used)
+static int parse_caller_opt(const struct option *opt __used,
+			  const char *arg __used, int unset __used)
 {
-	if (!arg)
-		return -1;
+	caller_flag = (alloc_flag + 1);
+	return 0;
+}
 
-	if (strcmp(arg, "alloc") == 0)
-		alloc_flag = (caller_flag + 1);
-	else if (strcmp(arg, "caller") == 0)
-		caller_flag = (alloc_flag + 1);
-	else
-		return -1;
+static int parse_alloc_opt(const struct option *opt __used,
+			  const char *arg __used, int unset __used)
+{
+	alloc_flag = (caller_flag + 1);
 	return 0;
 }
 
@@ -739,14 +721,17 @@ static int parse_line_opt(const struct option *opt __used,
 static const struct option kmem_options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
 		   "input file name"),
-	OPT_CALLBACK(0, "stat", NULL, "<alloc>|<caller>",
-		     "stat selector, Pass 'alloc' or 'caller'.",
-		     parse_stat_opt),
+	OPT_CALLBACK_NOOPT(0, "caller", NULL, NULL,
+			   "show per-callsite statistics",
+			   parse_caller_opt),
+	OPT_CALLBACK_NOOPT(0, "alloc", NULL, NULL,
+			   "show per-allocation statistics",
+			   parse_alloc_opt),
 	OPT_CALLBACK('s', "sort", NULL, "key[,key2...]",
 		     "sort by keys: ptr, call_site, bytes, hit, pingpong, frag",
 		     parse_sort_opt),
 	OPT_CALLBACK('l', "line", NULL, "num",
-		     "show n lins",
+		     "show n lines",
 		     parse_line_opt),
 	OPT_BOOLEAN(0, "raw-ip", &raw_ip, "show raw ip instead of symbol"),
 	OPT_END()
@@ -790,18 +775,22 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __used)
 
 	argc = parse_options(argc, argv, kmem_options, kmem_usage, 0);
 
-	if (argc && !strncmp(argv[0], "rec", 3))
-		return __cmd_record(argc, argv);
-	else if (argc)
+	if (!argc)
 		usage_with_options(kmem_usage, kmem_options);
 
-	if (list_empty(&caller_sort))
-		setup_sorting(&caller_sort, default_sort_order);
-	if (list_empty(&alloc_sort))
-		setup_sorting(&alloc_sort, default_sort_order);
+	if (!strncmp(argv[0], "rec", 3)) {
+		return __cmd_record(argc, argv);
+	} else if (!strcmp(argv[0], "stat")) {
+		setup_cpunode_map();
 
-	setup_cpunode_map();
+		if (list_empty(&caller_sort))
+			setup_sorting(&caller_sort, default_sort_order);
+		if (list_empty(&alloc_sort))
+			setup_sorting(&alloc_sort, default_sort_order);
 
-	return __cmd_kmem();
+		return __cmd_kmem();
+	}
+
+	return 0;
 }
 

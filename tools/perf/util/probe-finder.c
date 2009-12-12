@@ -106,7 +106,7 @@ static int strtailcmp(const char *s1, const char *s2)
 {
 	int i1 = strlen(s1);
 	int i2 = strlen(s2);
-	while (--i1 > 0 && --i2 > 0) {
+	while (--i1 >= 0 && --i2 >= 0) {
 		if (s1[i1] != s2[i2])
 			return s1[i1] - s2[i2];
 	}
