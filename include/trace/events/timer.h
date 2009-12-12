@@ -301,8 +301,8 @@ TRACE_EVENT(itimer_state,
 		__entry->interval_usec	= value->it_interval.tv_usec;
 	),
 
-	TP_printk("which=%d expires=%lu it_value=%lu.%lu it_interval=%lu.%lu",
-		  __entry->which, __entry->expires,
+	TP_printk("which=%d expires=%llu it_value=%ld.%ld it_interval=%ld.%ld",
+		  __entry->which, (unsigned long long)__entry->expires,
 		  __entry->value_sec, __entry->value_usec,
 		  __entry->interval_sec, __entry->interval_usec)
 );
@@ -331,8 +331,8 @@ TRACE_EVENT(itimer_expire,
 		__entry->pid	= pid_nr(pid);
 	),
 
-	    TP_printk("which=%d pid=%d now=%lu", __entry->which,
-		      (int) __entry->pid, __entry->now)
+	TP_printk("which=%d pid=%d now=%llu", __entry->which,
+		  (int) __entry->pid, (unsigned long long)__entry->now)
 );
 
 #endif /*  _TRACE_TIMER_H */
