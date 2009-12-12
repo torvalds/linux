@@ -52,3 +52,7 @@ led-$(CONFIG_MACH_OMAP_INNOVATOR)	+= leds-innovator.o
 led-$(CONFIG_MACH_OMAP_PERSEUS2)	+= leds-h2p2-debug.o
 led-$(CONFIG_MACH_OMAP_OSK)		+= leds-osk.o
 obj-$(CONFIG_LEDS)			+= $(led-y)
+
+ifneq ($(CONFIG_FB_OMAP),)
+obj-y += lcd_dma.o
+endif
