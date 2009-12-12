@@ -60,7 +60,7 @@ static struct spi_board_info rx51_peripherals_spi_board_info[] __initdata = {
 		.bus_num		= 4,
 		.chip_select		= 0,
 		.max_speed_hz   	= 48000000,
-		.mode                   = SPI_MODE_2,
+		.mode                   = SPI_MODE_3,
 		.controller_data	= &wl1251_mcspi_config,
 		.platform_data		= &wl1251_pdata,
 	},
