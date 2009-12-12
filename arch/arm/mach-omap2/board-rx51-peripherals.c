@@ -33,6 +33,7 @@
 #include <plat/onenand.h>
 #include <plat/gpmc-smc91x.h>
 
+#include "mux.h"
 #include "mmc-twl4030.h"
 
 #define SYSTEM_REV_B_USES_VAUX3	0x1699
@@ -59,7 +60,7 @@ static struct spi_board_info rx51_peripherals_spi_board_info[] __initdata = {
 		.bus_num		= 4,
 		.chip_select		= 0,
 		.max_speed_hz   	= 48000000,
-		.mode                   = SPI_MODE_2,
+		.mode                   = SPI_MODE_3,
 		.controller_data	= &wl1251_mcspi_config,
 		.platform_data		= &wl1251_pdata,
 	},
@@ -630,9 +631,9 @@ static struct omap_smc91x_platform_data board_smc91x_data = {
 
 static void __init board_smc91x_init(void)
 {
-	omap_cfg_reg(U8_34XX_GPIO54_DOWN);
-	omap_cfg_reg(G25_34XX_GPIO86_OUT);
-	omap_cfg_reg(H19_34XX_GPIO164_OUT);
+	omap_mux_init_gpio(54, OMAP_PIN_INPUT_PULLDOWN);
+	omap_mux_init_gpio(86, OMAP_PIN_OUTPUT);
+	omap_mux_init_gpio(164, OMAP_PIN_OUTPUT);
 
 	gpmc_smc91x_init(&board_smc91x_data);
 }

@@ -1,11 +1,11 @@
 /*
- * linux/arch/arm/mach-omap2/board-omap3beagle.c
+ * linux/arch/arm/mach-omap2/board-omap3touchbook.c
  *
- * Copyright (C) 2008 Texas Instruments
+ * Copyright (C) 2009 Always Innovating
  *
- * Modified from mach-omap2/board-3430sdp.c
+ * Modified from mach-omap2/board-omap3beagleboard.c
  *
- * Initial code: Syed Mohammed Khasim
+ * Initial code: Grégoire Gentil, Tim Yamin
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -28,6 +28,11 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand.h>
 
+#include <plat/mcspi.h>
+#include <linux/spi/spi.h>
+
+#include <linux/spi/ads7846.h>
+
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl4030.h>
 
@@ -47,12 +52,21 @@
 #include "mux.h"
 #include "mmc-twl4030.h"
 
+#include <asm/setup.h>
+
 #define GPMC_CS0_BASE  0x60
 #define GPMC_CS_SIZE   0x30
 
 #define NAND_BLOCK_SIZE		SZ_128K
 
-static struct mtd_partition omap3beagle_nand_partitions[] = {
+#define OMAP3_AC_GPIO		136
+#define OMAP3_TS_GPIO		162
+#define TB_BL_PWM_TIMER		9
+#define TB_KILL_POWER_GPIO	168
+
+unsigned long touchbook_revision;
+
+static struct mtd_partition omap3touchbook_nand_partitions[] = {
 	/* All the partition sizes are listed in terms of NAND block size */
 	{
 		.name		= "X-Loader",
@@ -83,27 +97,27 @@ static struct mtd_partition omap3beagle_nand_partitions[] = {
 	},
 };
 
-static struct omap_nand_platform_data omap3beagle_nand_data = {
+static struct omap_nand_platform_data omap3touchbook_nand_data = {
 	.options	= NAND_BUSWIDTH_16,
-	.parts		= omap3beagle_nand_partitions,
-	.nr_parts	= ARRAY_SIZE(omap3beagle_nand_partitions),
+	.parts		= omap3touchbook_nand_partitions,
+	.nr_parts	= ARRAY_SIZE(omap3touchbook_nand_partitions),
 	.dma_channel	= -1,		/* disable DMA in OMAP NAND driver */
 	.nand_setup	= NULL,
 	.dev_ready	= NULL,
 };
 
-static struct resource omap3beagle_nand_resource = {
+static struct resource omap3touchbook_nand_resource = {
 	.flags		= IORESOURCE_MEM,
 };
 
-static struct platform_device omap3beagle_nand_device = {
+static struct platform_device omap3touchbook_nand_device = {
 	.name		= "omap2-nand",
 	.id		= -1,
 	.dev		= {
-		.platform_data	= &omap3beagle_nand_data,
+		.platform_data	= &omap3touchbook_nand_data,
 	},
 	.num_resources	= 1,
-	.resource	= &omap3beagle_nand_resource,
+	.resource	= &omap3touchbook_nand_resource,
 };
 
 #include "sdram-micron-mt46h32m32lf-6.h"
@@ -117,26 +131,26 @@ static struct twl4030_hsmmc_info mmc[] = {
 	{}	/* Terminator */
 };
 
-static struct platform_device omap3_beagle_lcd_device = {
-	.name		= "omap3beagle_lcd",
+static struct platform_device omap3_touchbook_lcd_device = {
+	.name		= "omap3touchbook_lcd",
 	.id		= -1,
 };
 
-static struct omap_lcd_config omap3_beagle_lcd_config __initdata = {
+static struct omap_lcd_config omap3_touchbook_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
-static struct regulator_consumer_supply beagle_vmmc1_supply = {
+static struct regulator_consumer_supply touchbook_vmmc1_supply = {
 	.supply			= "vmmc",
 };
 
-static struct regulator_consumer_supply beagle_vsim_supply = {
+static struct regulator_consumer_supply touchbook_vsim_supply = {
 	.supply			= "vmmc_aux",
 };
 
 static struct gpio_led gpio_leds[];
 
-static int beagle_twl_gpio_setup(struct device *dev,
+static int touchbook_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
 	if (system_rev >= 0x20 && system_rev <= 0x34301000) {
@@ -150,8 +164,8 @@ static int beagle_twl_gpio_setup(struct device *dev,
 	twl4030_mmc_init(mmc);
 
 	/* link regulators to MMC adapters */
-	beagle_vmmc1_supply.dev = mmc[0].dev;
-	beagle_vsim_supply.dev = mmc[0].dev;
+	touchbook_vmmc1_supply.dev = mmc[0].dev;
+	touchbook_vsim_supply.dev = mmc[0].dev;
 
 	/* REVISIT: need ehci-omap hooks for external VBUS
 	 * power switch and overcurrent detect
@@ -170,7 +184,7 @@ static int beagle_twl_gpio_setup(struct device *dev,
 	return 0;
 }
 
-static struct twl4030_gpio_platform_data beagle_gpio_data = {
+static struct twl4030_gpio_platform_data touchbook_gpio_data = {
 	.gpio_base	= OMAP_MAX_GPIO_LINES,
 	.irq_base	= TWL4030_GPIO_IRQ_BASE,
 	.irq_end	= TWL4030_GPIO_IRQ_END,
@@ -178,21 +192,21 @@ static struct twl4030_gpio_platform_data beagle_gpio_data = {
 	.pullups	= BIT(1),
 	.pulldowns	= BIT(2) | BIT(6) | BIT(7) | BIT(8) | BIT(13)
 				| BIT(15) | BIT(16) | BIT(17),
-	.setup		= beagle_twl_gpio_setup,
+	.setup		= touchbook_twl_gpio_setup,
 };
 
-static struct regulator_consumer_supply beagle_vdac_supply = {
+static struct regulator_consumer_supply touchbook_vdac_supply = {
 	.supply		= "vdac",
-	.dev		= &omap3_beagle_lcd_device.dev,
+	.dev		= &omap3_touchbook_lcd_device.dev,
 };
 
-static struct regulator_consumer_supply beagle_vdvi_supply = {
+static struct regulator_consumer_supply touchbook_vdvi_supply = {
 	.supply		= "vdvi",
-	.dev		= &omap3_beagle_lcd_device.dev,
+	.dev		= &omap3_touchbook_lcd_device.dev,
 };
 
 /* VMMC1 for MMC1 pins CMD, CLK, DAT0..DAT3 (20 mA, plus card == max 220 mA) */
-static struct regulator_init_data beagle_vmmc1 = {
+static struct regulator_init_data touchbook_vmmc1 = {
 	.constraints = {
 		.min_uV			= 1850000,
 		.max_uV			= 3150000,
@@ -203,11 +217,11 @@ static struct regulator_init_data beagle_vmmc1 = {
 					| REGULATOR_CHANGE_STATUS,
 	},
 	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &beagle_vmmc1_supply,
+	.consumer_supplies	= &touchbook_vmmc1_supply,
 };
 
 /* VSIM for MMC1 pins DAT4..DAT7 (2 mA, plus card == max 50 mA) */
-static struct regulator_init_data beagle_vsim = {
+static struct regulator_init_data touchbook_vsim = {
 	.constraints = {
 		.min_uV			= 1800000,
 		.max_uV			= 3000000,
@@ -218,11 +232,11 @@ static struct regulator_init_data beagle_vsim = {
 					| REGULATOR_CHANGE_STATUS,
 	},
 	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &beagle_vsim_supply,
+	.consumer_supplies	= &touchbook_vsim_supply,
 };
 
 /* VDAC for DSS driving S-Video (8 mA unloaded, max 65 mA) */
-static struct regulator_init_data beagle_vdac = {
+static struct regulator_init_data touchbook_vdac = {
 	.constraints = {
 		.min_uV			= 1800000,
 		.max_uV			= 1800000,
@@ -232,11 +246,11 @@ static struct regulator_init_data beagle_vdac = {
 					| REGULATOR_CHANGE_STATUS,
 	},
 	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &beagle_vdac_supply,
+	.consumer_supplies	= &touchbook_vdac_supply,
 };
 
 /* VPLL2 for digital video outputs */
-static struct regulator_init_data beagle_vpll2 = {
+static struct regulator_init_data touchbook_vpll2 = {
 	.constraints = {
 		.name			= "VDVI",
 		.min_uV			= 1800000,
@@ -247,68 +261,121 @@ static struct regulator_init_data beagle_vpll2 = {
 					| REGULATOR_CHANGE_STATUS,
 	},
 	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &beagle_vdvi_supply,
+	.consumer_supplies	= &touchbook_vdvi_supply,
 };
 
-static struct twl4030_usb_data beagle_usb_data = {
+static struct twl4030_usb_data touchbook_usb_data = {
 	.usb_mode	= T2_USB_MODE_ULPI,
 };
 
-static struct twl4030_codec_audio_data beagle_audio_data = {
+static struct twl4030_codec_audio_data touchbook_audio_data = {
 	.audio_mclk = 26000000,
 };
 
-static struct twl4030_codec_data beagle_codec_data = {
+static struct twl4030_codec_data touchbook_codec_data = {
 	.audio_mclk = 26000000,
-	.audio = &beagle_audio_data,
+	.audio = &touchbook_audio_data,
 };
 
-static struct twl4030_platform_data beagle_twldata = {
+static struct twl4030_platform_data touchbook_twldata = {
 	.irq_base	= TWL4030_IRQ_BASE,
 	.irq_end	= TWL4030_IRQ_END,
 
 	/* platform_data for children goes here */
-	.usb		= &beagle_usb_data,
-	.gpio		= &beagle_gpio_data,
-	.codec		= &beagle_codec_data,
-	.vmmc1		= &beagle_vmmc1,
-	.vsim		= &beagle_vsim,
-	.vdac		= &beagle_vdac,
-	.vpll2		= &beagle_vpll2,
+	.usb		= &touchbook_usb_data,
+	.gpio		= &touchbook_gpio_data,
+	.codec		= &touchbook_codec_data,
+	.vmmc1		= &touchbook_vmmc1,
+	.vsim		= &touchbook_vsim,
+	.vdac		= &touchbook_vdac,
+	.vpll2		= &touchbook_vpll2,
 };
 
-static struct i2c_board_info __initdata beagle_i2c_boardinfo[] = {
+static struct i2c_board_info __initdata touchbook_i2c_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("twl4030", 0x48),
 		.flags = I2C_CLIENT_WAKE,
 		.irq = INT_34XX_SYS_NIRQ,
-		.platform_data = &beagle_twldata,
+		.platform_data = &touchbook_twldata,
 	},
 };
 
-static int __init omap3_beagle_i2c_init(void)
+static struct i2c_board_info __initdata touchBook_i2c_boardinfo[] = {
+	{
+		I2C_BOARD_INFO("bq27200", 0x55),
+	},
+};
+
+static int __init omap3_touchbook_i2c_init(void)
 {
-	omap_register_i2c_bus(1, 2600, beagle_i2c_boardinfo,
-			ARRAY_SIZE(beagle_i2c_boardinfo));
-	/* Bus 3 is attached to the DVI port where devices like the pico DLP
-	 * projector don't work reliably with 400kHz */
-	omap_register_i2c_bus(3, 100, NULL, 0);
+	/* Standard TouchBook bus */
+	omap_register_i2c_bus(1, 2600, touchbook_i2c_boardinfo,
+			ARRAY_SIZE(touchbook_i2c_boardinfo));
+
+	/* Additional TouchBook bus */
+	omap_register_i2c_bus(3, 100, touchBook_i2c_boardinfo,
+			ARRAY_SIZE(touchBook_i2c_boardinfo));
+
 	return 0;
 }
 
+static void __init omap3_ads7846_init(void)
+{
+	if (gpio_request(OMAP3_TS_GPIO, "ads7846_pen_down")) {
+		printk(KERN_ERR "Failed to request GPIO %d for "
+				"ads7846 pen down IRQ\n", OMAP3_TS_GPIO);
+		return;
+	}
+
+	gpio_direction_input(OMAP3_TS_GPIO);
+	omap_set_gpio_debounce(OMAP3_TS_GPIO, 1);
+	omap_set_gpio_debounce_time(OMAP3_TS_GPIO, 0xa);
+}
+
+static struct ads7846_platform_data ads7846_config = {
+	.x_min			= 100,
+	.y_min			= 265,
+	.x_max			= 3950,
+	.y_max			= 3750,
+	.x_plate_ohms		= 40,
+	.pressure_max		= 255,
+	.debounce_max		= 10,
+	.debounce_tol		= 5,
+	.debounce_rep		= 1,
+	.gpio_pendown		= OMAP3_TS_GPIO,
+	.keep_vref_on		= 1,
+};
+
+static struct omap2_mcspi_device_config ads7846_mcspi_config = {
+	.turbo_mode	= 0,
+	.single_channel	= 1,	/* 0: slave, 1: master */
+};
+
+static struct spi_board_info omap3_ads7846_spi_board_info[] __initdata = {
+	{
+		.modalias		= "ads7846",
+		.bus_num		= 4,
+		.chip_select		= 0,
+		.max_speed_hz		= 1500000,
+		.controller_data	= &ads7846_mcspi_config,
+		.irq			= OMAP_GPIO_IRQ(OMAP3_TS_GPIO),
+		.platform_data		= &ads7846_config,
+	}
+};
+
 static struct gpio_led gpio_leds[] = {
 	{
-		.name			= "beagleboard::usr0",
+		.name			= "touchbook::usr0",
 		.default_trigger	= "heartbeat",
 		.gpio			= 150,
 	},
 	{
-		.name			= "beagleboard::usr1",
+		.name			= "touchbook::usr1",
 		.default_trigger	= "mmc0",
 		.gpio			= 149,
 	},
 	{
-		.name			= "beagleboard::pmu_stat",
+		.name			= "touchbook::pmu_stat",
 		.gpio			= -EINVAL,	/* gets replaced */
 		.active_low		= true,
 	},
@@ -334,6 +401,12 @@ static struct gpio_keys_button gpio_buttons[] = {
 		.desc			= "user",
 		.wakeup			= 1,
 	},
+	{
+		.code			= KEY_POWER,
+		.gpio			= 183,
+		.desc			= "power",
+		.wakeup			= 1,
+	},
 };
 
 static struct gpio_keys_platform_data gpio_key_info = {
@@ -349,14 +422,23 @@ static struct platform_device keys_gpio = {
 	},
 };
 
-static struct omap_board_config_kernel omap3_beagle_config[] __initdata = {
-	{ OMAP_TAG_LCD,		&omap3_beagle_lcd_config },
+static struct omap_board_config_kernel omap3_touchbook_config[] __initdata = {
+	{ OMAP_TAG_LCD,		&omap3_touchbook_lcd_config },
 };
 
-static void __init omap3_beagle_init_irq(void)
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define board_mux	NULL
+#endif
+
+static void __init omap3_touchbook_init_irq(void)
 {
-	omap_board_config = omap3_beagle_config;
-	omap_board_config_size = ARRAY_SIZE(omap3_beagle_config);
+	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
+	omap_board_config = omap3_touchbook_config;
+	omap_board_config_size = ARRAY_SIZE(omap3_touchbook_config);
 	omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
 			     mt46h32m32lf6_sdrc_params);
 	omap_init_irq();
@@ -366,13 +448,13 @@ static void __init omap3_beagle_init_irq(void)
 	omap_gpio_init();
 }
 
-static struct platform_device *omap3_beagle_devices[] __initdata = {
-	&omap3_beagle_lcd_device,
+static struct platform_device *omap3_touchbook_devices[] __initdata = {
+	&omap3_touchbook_lcd_device,
 	&leds_gpio,
 	&keys_gpio,
 };
 
-static void __init omap3beagle_flash_init(void)
+static void __init omap3touchbook_flash_init(void)
 {
 	u8 cs = 0;
 	u8 nandcs = GPMC_CS_NUM + 1;
@@ -399,13 +481,14 @@ static void __init omap3beagle_flash_init(void)
 	}
 
 	if (nandcs < GPMC_CS_NUM) {
-		omap3beagle_nand_data.cs = nandcs;
-		omap3beagle_nand_data.gpmc_cs_baseaddr = (void *)
+		omap3touchbook_nand_data.cs = nandcs;
+		omap3touchbook_nand_data.gpmc_cs_baseaddr = (void *)
 			(gpmc_base_add + GPMC_CS0_BASE + nandcs * GPMC_CS_SIZE);
-		omap3beagle_nand_data.gpmc_baseaddr = (void *) (gpmc_base_add);
+		omap3touchbook_nand_data.gpmc_baseaddr =
+						(void *) (gpmc_base_add);
 
 		printk(KERN_INFO "Registering NAND on CS%d\n", nandcs);
-		if (platform_device_register(&omap3beagle_nand_device) < 0)
+		if (platform_device_register(&omap3touchbook_nand_device) < 0)
 			printk(KERN_ERR "Unable to register NAND device\n");
 	}
 }
@@ -422,49 +505,68 @@ static struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 	.reset_gpio_port[2]  = -EINVAL
 };
 
-#ifdef CONFIG_OMAP_MUX
-static struct omap_board_mux board_mux[] __initdata = {
-	{ .reg_offset = OMAP_MUX_TERMINATOR },
-};
-#else
-#define board_mux	NULL
-#endif
-
-static void __init omap3_beagle_init(void)
+static void omap3_touchbook_poweroff(void)
 {
-	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
-	omap3_beagle_i2c_init();
-	platform_add_devices(omap3_beagle_devices,
-			ARRAY_SIZE(omap3_beagle_devices));
+	int r;
+
+	r = gpio_request(TB_KILL_POWER_GPIO, "DVI reset");
+	if (r < 0) {
+		printk(KERN_ERR "Unable to get kill power GPIO\n");
+		return;
+	}
+
+	gpio_direction_output(TB_KILL_POWER_GPIO, 0);
+}
+
+static void __init early_touchbook_revision(char **p)
+{
+	if (!*p)
+		return;
+
+	strict_strtoul(*p, 10, &touchbook_revision);
+}
+__early_param("tbr=", early_touchbook_revision);
+
+static void __init omap3_touchbook_init(void)
+{
+	pm_power_off = omap3_touchbook_poweroff;
+
+	omap3_touchbook_i2c_init();
+	platform_add_devices(omap3_touchbook_devices,
+			ARRAY_SIZE(omap3_touchbook_devices));
 	omap_serial_init();
 
 	omap_mux_init_gpio(170, OMAP_PIN_INPUT);
-	gpio_request(170, "DVI_nPD");
+	gpio_request(176, "DVI_nPD");
 	/* REVISIT leave DVI powered down until it's needed ... */
-	gpio_direction_output(170, true);
+	gpio_direction_output(176, true);
 
+	/* Touchscreen and accelerometer */
+	spi_register_board_info(omap3_ads7846_spi_board_info,
+				ARRAY_SIZE(omap3_ads7846_spi_board_info));
+	omap3_ads7846_init();
 	usb_musb_init();
 	usb_ehci_init(&ehci_pdata);
-	omap3beagle_flash_init();
+	omap3touchbook_flash_init();
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);
 	omap_mux_init_signal("sdrc_cke1", OMAP_PIN_OUTPUT);
 }
 
-static void __init omap3_beagle_map_io(void)
+static void __init omap3_touchbook_map_io(void)
 {
 	omap2_set_globals_343x();
 	omap2_map_common_io();
 }
 
-MACHINE_START(OMAP3_BEAGLE, "OMAP3 Beagle Board")
-	/* Maintainer: Syed Mohammed Khasim - http://beagleboard.org */
+MACHINE_START(TOUCHBOOK, "OMAP3 touchbook Board")
+	/* Maintainer: Gregoire Gentil - http://www.alwaysinnovating.com */
 	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
+	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_beagle_map_io,
-	.init_irq	= omap3_beagle_init_irq,
-	.init_machine	= omap3_beagle_init,
+	.map_io		= omap3_touchbook_map_io,
+	.init_irq	= omap3_touchbook_init_irq,
+	.init_machine	= omap3_touchbook_init,
 	.timer		= &omap_timer,
 MACHINE_END

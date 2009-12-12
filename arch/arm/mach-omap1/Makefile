@@ -18,6 +18,9 @@ obj-$(CONFIG_PM) += pm.o sleep.o
 obj-$(CONFIG_OMAP_MBOX_FWK)	+= mailbox_mach.o
 mailbox_mach-objs		:= mailbox.o
 
+i2c-omap-$(CONFIG_I2C_OMAP)		:= i2c.o
+obj-y					+= $(i2c-omap-m) $(i2c-omap-y)
+
 led-y := leds.o
 
 # Specific board support
@@ -49,3 +52,7 @@ led-$(CONFIG_MACH_OMAP_INNOVATOR)	+= leds-innovator.o
 led-$(CONFIG_MACH_OMAP_PERSEUS2)	+= leds-h2p2-debug.o
 led-$(CONFIG_MACH_OMAP_OSK)		+= leds-osk.o
 obj-$(CONFIG_LEDS)			+= $(led-y)
+
+ifneq ($(CONFIG_FB_OMAP),)
+obj-y += lcd_dma.o
+endif
