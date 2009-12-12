@@ -1193,6 +1193,7 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct net *net,
 			x->aalg->alg_key_len = key->sadb_key_bits;
 			memcpy(x->aalg->alg_key, key+1, keysize);
 		}
+		x->aalg->alg_trunc_len = a->uinfo.auth.icv_truncbits;
 		x->props.aalgo = sa->sadb_sa_auth;
 		/* x->algo.flags = sa->sadb_sa_flags; */
 	}

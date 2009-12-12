@@ -351,12 +351,13 @@ static inline u32 inet_sk_port_offset(const struct sock *sk)
 					  inet->inet_dport);
 }
 
-void __inet_hash_nolisten(struct sock *sk)
+int __inet_hash_nolisten(struct sock *sk, struct inet_timewait_sock *tw)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
 	struct hlist_nulls_head *list;
 	spinlock_t *lock;
 	struct inet_ehash_bucket *head;
+	int twrefcnt = 0;
 
 	WARN_ON(!sk_unhashed(sk));
 
@@ -367,8 +368,13 @@ void __inet_hash_nolisten(struct sock *sk)
 
 	spin_lock(lock);
 	__sk_nulls_add_node_rcu(sk, list);
+	if (tw) {
+		WARN_ON(sk->sk_hash != tw->tw_hash);
+		twrefcnt = inet_twsk_unhash(tw);
+	}
 	spin_unlock(lock);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
+	return twrefcnt;
 }
 EXPORT_SYMBOL_GPL(__inet_hash_nolisten);
 
@@ -378,7 +384,7 @@ static void __inet_hash(struct sock *sk)
 	struct inet_listen_hashbucket *ilb;
 
 	if (sk->sk_state != TCP_LISTEN) {
-		__inet_hash_nolisten(sk);
+		__inet_hash_nolisten(sk, NULL);
 		return;
 	}
 
@@ -427,7 +433,7 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 		struct sock *sk, u32 port_offset,
 		int (*check_established)(struct inet_timewait_death_row *,
 			struct sock *, __u16, struct inet_timewait_sock **),
-		void (*hash)(struct sock *sk))
+		int (*hash)(struct sock *sk, struct inet_timewait_sock *twp))
 {
 	struct inet_hashinfo *hinfo = death_row->hashinfo;
 	const unsigned short snum = inet_sk(sk)->inet_num;
@@ -435,6 +441,7 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 	struct inet_bind_bucket *tb;
 	int ret;
 	struct net *net = sock_net(sk);
+	int twrefcnt = 1;
 
 	if (!snum) {
 		int i, remaining, low, high, port;
@@ -493,13 +500,18 @@ ok:
 		inet_bind_hash(sk, tb, port);
 		if (sk_unhashed(sk)) {
 			inet_sk(sk)->inet_sport = htons(port);
-			hash(sk);
+			twrefcnt += hash(sk, tw);
 		}
+		if (tw)
+			twrefcnt += inet_twsk_bind_unhash(tw, hinfo);
 		spin_unlock(&head->lock);
 
 		if (tw) {
 			inet_twsk_deschedule(tw, death_row);
-			inet_twsk_put(tw);
+			while (twrefcnt) {
+				twrefcnt--;
+				inet_twsk_put(tw);
+			}
 		}
 
 		ret = 0;
@@ -510,7 +522,7 @@ ok:
 	tb  = inet_csk(sk)->icsk_bind_hash;
 	spin_lock_bh(&head->lock);
 	if (sk_head(&tb->owners) == sk && !sk->sk_bind_node.next) {
-		hash(sk);
+		hash(sk, NULL);
 		spin_unlock_bh(&head->lock);
 		return 0;
 	} else {
