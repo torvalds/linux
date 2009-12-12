@@ -27,4 +27,6 @@ static inline void __init ug_udbg_init(void)
 
 #endif /* CONFIG_USBGECKO_UDBG */
 
+void __init udbg_init_usbgecko(void);
+
 #endif /* __USBGECKO_UDBG_H */

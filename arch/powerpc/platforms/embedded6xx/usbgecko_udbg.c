@@ -17,6 +17,7 @@
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/udbg.h>
+#include <asm/fixmap.h>
 
 #include "usbgecko_udbg.h"
 
@@ -270,3 +271,58 @@ done:
 		of_node_put(np);
 	return;
 }
+
+#ifdef CONFIG_PPC_EARLY_DEBUG_USBGECKO
+
+static phys_addr_t __init ug_early_grab_io_addr(void)
+{
+#if defined(CONFIG_GAMECUBE)
+	return 0x0c000000;
+#elif defined(CONFIG_WII)
+	return 0x0d000000;
+#else
+#error Invalid platform for USB Gecko based early debugging.
+#endif
+}
+
+/*
+ * USB Gecko early debug support initialization for udbg.
+ */
+void __init udbg_init_usbgecko(void)
+{
+	void __iomem *early_debug_area;
+	void __iomem *exi_io_base;
+
+	/*
+	 * At this point we have a BAT already setup that enables I/O
+	 * to the EXI hardware.
+	 *
+	 * The BAT uses a virtual address range reserved at the fixmap.
+	 * This must match the virtual address configured in
+	 * head_32.S:setup_usbgecko_bat().
+	 */
+	early_debug_area = (void __iomem *)__fix_to_virt(FIX_EARLY_DEBUG_BASE);
+	exi_io_base = early_debug_area + 0x00006800;
+
+	/* try to detect a USB Gecko */
+	if (!ug_udbg_probe(exi_io_base))
+		return;
+
+	/* we found a USB Gecko, load udbg hooks */
+	udbg_putc = ug_udbg_putc;
+	udbg_getc = ug_udbg_getc;
+	udbg_getc_poll = ug_udbg_getc_poll;
+
+	/*
+	 * Prepare again the same BAT for MMU_init.
+	 * This allows udbg I/O to continue working after the MMU is
+	 * turned on for real.
+	 * It is safe to continue using the same virtual address as it is
+	 * a reserved fixmap area.
+	 */
+	setbat(1, (unsigned long)early_debug_area,
+	       ug_early_grab_io_addr(), 128*1024, PAGE_KERNEL_NCG);
+}
+
+#endif /* CONFIG_PPC_EARLY_DEBUG_USBGECKO */
+
