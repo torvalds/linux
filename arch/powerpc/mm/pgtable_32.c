@@ -26,6 +26,7 @@
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/highmem.h>
+#include <linux/lmb.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -191,7 +192,8 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, unsigned long flags,
 	 * Don't allow anybody to remap normal RAM that we're using.
 	 * mem_init() sets high_memory so only do the check after that.
 	 */
-	if (mem_init_done && (p < virt_to_phys(high_memory))) {
+	if (mem_init_done && (p < virt_to_phys(high_memory)) &&
+	    !(__allow_ioremap_reserved && lmb_is_region_reserved(p, size))) {
 		printk("__ioremap(): phys addr 0x%llx is RAM lr %p\n",
 		       (unsigned long long)p, __builtin_return_address(0));
 		return NULL;

@@ -115,6 +115,7 @@ extern void settlbcam(int index, unsigned long virt, phys_addr_t phys,
 extern void invalidate_tlbcam_entry(int index);
 
 extern int __map_without_bats;
+extern int __allow_ioremap_reserved;
 extern unsigned long ioremap_base;
 extern unsigned int rtas_data, rtas_size;
 
