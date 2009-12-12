@@ -40,7 +40,6 @@
 #include <mach/hardware.h>
 #include <plat/mcspi.h>
 #include <plat/usb.h>
-#include <plat/mux.h>
 
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"

@@ -41,7 +41,6 @@
 #include <plat/common.h>
 #include <plat/gpmc.h>
 #include <plat/nand.h>
-#include <plat/mux.h>
 #include <plat/usb.h>
 #include <plat/timer-gp.h>
 

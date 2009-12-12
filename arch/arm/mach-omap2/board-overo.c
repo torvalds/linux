@@ -44,7 +44,6 @@
 #include <plat/gpmc.h>
 #include <mach/hardware.h>
 #include <plat/nand.h>
-#include <plat/mux.h>
 #include <plat/usb.h>
 
 #include "mux.h"
