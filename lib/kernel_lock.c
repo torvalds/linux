@@ -122,8 +122,10 @@ void __lockfunc _lock_kernel(const char *func, const char *file, int line)
 
 	trace_lock_kernel(func, file, line);
 
-	if (likely(!depth))
+	if (likely(!depth)) {
+		might_sleep();
 		__lock_kernel();
+	}
 	current->lock_depth = depth;
 }
 
