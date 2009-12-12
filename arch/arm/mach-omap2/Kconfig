@@ -33,6 +33,9 @@ config OMAP_PACKAGE_CBB
 config OMAP_PACKAGE_CUS
        bool
 
+config OMAP_PACKAGE_CBP
+       bool
+
 comment "OMAP Board Type"
 	depends on ARCH_OMAP2 || ARCH_OMAP3 || ARCH_OMAP4
 
@@ -121,6 +124,7 @@ config MACH_OMAP_ZOOM2
 config MACH_OMAP_ZOOM3
 	bool "OMAP3630 Zoom3 board"
 	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+	select OMAP_PACKAGE_CBP
 
 config MACH_CM_T35
 	bool "CompuLab CM-T35 module"
@@ -135,6 +139,7 @@ config MACH_IGEP0020
 config MACH_OMAP_3630SDP
 	bool "OMAP3630 SDP board"
 	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+	select OMAP_PACKAGE_CBP
 
 config MACH_OMAP_4430SDP
 	bool "OMAP 4430 SDP board"
