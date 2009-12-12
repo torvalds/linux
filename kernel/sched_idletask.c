@@ -35,7 +35,7 @@ static void
 dequeue_task_idle(struct rq *rq, struct task_struct *p, int sleep)
 {
 	spin_unlock_irq(&rq->lock);
-	printk(KERN_ERR "bad: scheduling from the idle thread!\n");
+	pr_err("bad: scheduling from the idle thread!\n");
 	dump_stack();
 	spin_lock_irq(&rq->lock);
 }
