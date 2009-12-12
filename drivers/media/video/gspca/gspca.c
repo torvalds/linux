@@ -1175,12 +1175,14 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 				continue;
 			ctrls = &gspca_dev->sd_desc->ctrls[i];
 		}
+		if (ctrls == NULL)
+			return -EINVAL;
 	} else {
 		ctrls = get_ctrl(gspca_dev, id);
+		if (ctrls == NULL)
+			return -EINVAL;
 		i = ctrls - gspca_dev->sd_desc->ctrls;
 	}
-	if (ctrls == NULL)
-		return -EINVAL;
 	memcpy(q_ctrl, ctrls, sizeof *q_ctrl);
 	if (gspca_dev->ctrl_inac & (1 << i))
 		q_ctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
