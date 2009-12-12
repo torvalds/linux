@@ -127,7 +127,7 @@ static struct foo_attribute foo_attribute =
 	__ATTR(foo, 0666, foo_show, foo_store);
 
 /*
- * More complex function where we determine which varible is being accessed by
+ * More complex function where we determine which variable is being accessed by
  * looking at the attribute for the "baz" and "bar" files.
  */
 static ssize_t b_show(struct foo_obj *foo_obj, struct foo_attribute *attr,
@@ -161,7 +161,7 @@ static struct foo_attribute bar_attribute =
 	__ATTR(bar, 0666, b_show, b_store);
 
 /*
- * Create a group of attributes so that we can create and destory them all
+ * Create a group of attributes so that we can create and destroy them all
  * at once.
  */
 static struct attribute *foo_default_attrs[] = {
