@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.32-rc6
-# Sat Nov 14 10:56:01 2009
+# Linux kernel version: 2.6.32-rc8
+# Sat Dec  5 12:16:24 2009
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -198,7 +198,9 @@ CONFIG_ARCH_OMAP1=y
 # OMAP Feature Selections
 #
 # CONFIG_OMAP_RESET_CLOCKS is not set
-# CONFIG_OMAP_MUX is not set
+CONFIG_OMAP_MUX=y
+# CONFIG_OMAP_MUX_DEBUG is not set
+CONFIG_OMAP_MUX_WARNINGS=y
 CONFIG_OMAP_MCBSP=y
 # CONFIG_OMAP_MBOX_FWK is not set
 CONFIG_OMAP_MPU_TIMER=y
@@ -207,6 +209,7 @@ CONFIG_OMAP_LL_DEBUG_UART1=y
 # CONFIG_OMAP_LL_DEBUG_UART2 is not set
 # CONFIG_OMAP_LL_DEBUG_UART3 is not set
 # CONFIG_OMAP_LL_DEBUG_NONE is not set
+CONFIG_OMAP_SERIAL_WAKE=y
 # CONFIG_OMAP_PM_NONE is not set
 CONFIG_OMAP_PM_NOOP=y
 
