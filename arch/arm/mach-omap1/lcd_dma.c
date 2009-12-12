@@ -28,6 +28,7 @@
 #include <linux/io.h>
 
 #include <mach/hardware.h>
+#include <mach/lcdc.h>
 #include <plat/dma.h>
 
 int omap_lcd_dma_running(void)
@@ -37,7 +38,7 @@ int omap_lcd_dma_running(void)
 	 * when it gets enabled, so assume DMA running if LCD enabled.
 	 */
 	if (cpu_is_omap1510())
-		if (omap_readw(0xfffec000 + 0x00) & (1 << 0))
+		if (omap_readw(OMAP_LCDC_CONTROL) & OMAP_LCDC_CTRL_LCD_EN)
 			return 1;
 
 	/* Check if LCD DMA is running */
