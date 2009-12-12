@@ -218,15 +218,12 @@ asmlinkage int sys_execve(char *name, char **argv, char **envp,int dummy,...)
 	char * filename;
 	struct pt_regs *regs = (struct pt_regs *) ((unsigned char *)&dummy-4);
 
-	lock_kernel();
 	filename = getname(name);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
-		goto out;
+		return error;
 	error = do_execve(filename, argv, envp, regs);
 	putname(filename);
-out:
-	unlock_kernel();
 	return error;
 }
 

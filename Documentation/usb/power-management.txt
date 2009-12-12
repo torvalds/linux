@@ -2,7 +2,7 @@
 
 		 Alan Stern <stern@rowland.harvard.edu>
 
-			    October 5, 2007
+			    November 10, 2009
 
 
 
@@ -123,9 +123,9 @@ relevant attribute files are: wakeup, level, and autosuspend.
 
 	power/level
 
-		This file contains one of three words: "on", "auto",
-		or "suspend".  You can write those words to the file
-		to change the device's setting.
+		This file contains one of two words: "on" or "auto".
+		You can write those words to the file to change the
+		device's setting.
 
 		"on" means that the device should be resumed and
 		autosuspend is not allowed.  (Of course, system
@@ -134,10 +134,10 @@ relevant attribute files are: wakeup, level, and autosuspend.
 		"auto" is the normal state in which the kernel is
 		allowed to autosuspend and autoresume the device.
 
-		"suspend" means that the device should remain
-		suspended, and autoresume is not allowed.  (But remote
-		wakeup may still be allowed, since it is controlled
-		separately by the power/wakeup attribute.)
+		(In kernels up to 2.6.32, you could also specify
+		"suspend", meaning that the device should remain
+		suspended and autoresume was not allowed.  This
+		setting is no longer supported.)
 
 	power/autosuspend
 
@@ -313,13 +313,14 @@ three of the methods listed above.  In addition, a driver indicates
 that it supports autosuspend by setting the .supports_autosuspend flag
 in its usb_driver structure.  It is then responsible for informing the
 USB core whenever one of its interfaces becomes busy or idle.  The
-driver does so by calling these five functions:
+driver does so by calling these six functions:
 
 	int  usb_autopm_get_interface(struct usb_interface *intf);
 	void usb_autopm_put_interface(struct usb_interface *intf);
-	int  usb_autopm_set_interface(struct usb_interface *intf);
 	int  usb_autopm_get_interface_async(struct usb_interface *intf);
 	void usb_autopm_put_interface_async(struct usb_interface *intf);
+	void usb_autopm_get_interface_no_resume(struct usb_interface *intf);
+	void usb_autopm_put_interface_no_suspend(struct usb_interface *intf);
 
 The functions work by maintaining a counter in the usb_interface
 structure.  When intf->pm_usage_count is > 0 then the interface is
@@ -331,11 +332,13 @@ considered to be idle, and the kernel may autosuspend the device.
 associated with the device itself rather than any of its interfaces.
 This field is used only by the USB core.)
 
-The driver owns intf->pm_usage_count; it can modify the value however
-and whenever it likes.  A nice aspect of the non-async usb_autopm_*
-routines is that the changes they make are protected by the usb_device
-structure's PM mutex (udev->pm_mutex); however drivers may change
-pm_usage_count without holding the mutex.  Drivers using the async
+Drivers must not modify intf->pm_usage_count directly; its value
+should be changed only be using the functions listed above.  Drivers
+are responsible for insuring that the overall change to pm_usage_count
+during their lifetime balances out to 0 (it may be necessary for the
+disconnect method to call usb_autopm_put_interface() one or more times
+to fulfill this requirement).  The first two routines use the PM mutex
+in struct usb_device for mutual exclusion; drivers using the async
 routines are responsible for their own synchronization and mutual
 exclusion.
 
@@ -347,11 +350,6 @@ exclusion.
 	attempts an autosuspend if the new value is <= 0 and the
 	device isn't suspended.
 
-	usb_autopm_set_interface() leaves pm_usage_count alone.
-	It attempts an autoresume if the value is > 0 and the device
-	is suspended, and it attempts an autosuspend if the value is
-	<= 0 and the device isn't suspended.
-
 	usb_autopm_get_interface_async() and
 	usb_autopm_put_interface_async() do almost the same things as
 	their non-async counterparts.  The differences are: they do
@@ -360,13 +358,11 @@ exclusion.
 	such as an URB's completion handler, but when they return the
 	device will not generally not yet be in the desired state.
 
-There also are a couple of utility routines drivers can use:
-
-	usb_autopm_enable() sets pm_usage_cnt to 0 and then calls
-	usb_autopm_set_interface(), which will attempt an autosuspend.
-
-	usb_autopm_disable() sets pm_usage_cnt to 1 and then calls
-	usb_autopm_set_interface(), which will attempt an autoresume.
+	usb_autopm_get_interface_no_resume() and
+	usb_autopm_put_interface_no_suspend() merely increment or
+	decrement the pm_usage_count value; they do not attempt to
+	carry out an autoresume or an autosuspend.  Hence they can be
+	called in an atomic context.
 
 The conventional usage pattern is that a driver calls
 usb_autopm_get_interface() in its open routine and
@@ -400,11 +396,11 @@ though, setting this flag won't cause the kernel to autoresume it.
 Normally a driver would set this flag in its probe method, at which
 time the device is guaranteed not to be autosuspended.)
 
-The usb_autopm_* routines have to run in a sleepable process context;
-they must not be called from an interrupt handler or while holding a
-spinlock.  In fact, the entire autosuspend mechanism is not well geared
-toward interrupt-driven operation.  However there is one thing a
-driver can do in an interrupt handler:
+The synchronous usb_autopm_* routines have to run in a sleepable
+process context; they must not be called from an interrupt handler or
+while holding a spinlock.  In fact, the entire autosuspend mechanism
+is not well geared toward interrupt-driven operation.  However there
+is one thing a driver can do in an interrupt handler:
 
 	usb_mark_last_busy(struct usb_device *udev);
 
@@ -423,15 +419,16 @@ an URB had completed too recently.
 
 External suspend calls should never be allowed to fail in this way,
 only autosuspend calls.  The driver can tell them apart by checking
-udev->auto_pm; this flag will be set to 1 for internal PM events
-(autosuspend or autoresume) and 0 for external PM events.
+the PM_EVENT_AUTO bit in the message.event argument to the suspend
+method; this bit will be set for internal PM events (autosuspend) and
+clear for external PM events.
 
 Many of the ingredients in the autosuspend framework are oriented
 towards interfaces: The usb_interface structure contains the
 pm_usage_cnt field, and the usb_autopm_* routines take an interface
 pointer as their argument.  But somewhat confusingly, a few of the
-pieces (usb_mark_last_busy() and udev->auto_pm) use the usb_device
-structure instead.  Drivers need to keep this straight; they can call
+pieces (i.e., usb_mark_last_busy()) use the usb_device structure
+instead.  Drivers need to keep this straight; they can call
 interface_to_usbdev() to find the device structure for a given
 interface.
 

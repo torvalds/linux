@@ -131,7 +131,7 @@ bfa_fcpim_path_tov_get(struct bfa_s *bfa)
 {
 	struct bfa_fcpim_mod_s *fcpim = BFA_FCPIM_MOD(bfa);
 
-	return (fcpim->path_tov / 1000);
+	return fcpim->path_tov / 1000;
 }
 
 bfa_status_t
@@ -169,7 +169,7 @@ bfa_fcpim_qdepth_get(struct bfa_s *bfa)
 {
 	struct bfa_fcpim_mod_s *fcpim = BFA_FCPIM_MOD(bfa);
 
-	return (fcpim->q_depth);
+	return fcpim->q_depth;
 }
 
 

@@ -293,10 +293,23 @@ X!Idrivers/video/console/fonts.c
 
   <chapter id="input_subsystem">
      <title>Input Subsystem</title>
+     <sect1><title>Input core</title>
 !Iinclude/linux/input.h
 !Edrivers/input/input.c
 !Edrivers/input/ff-core.c
 !Edrivers/input/ff-memless.c
+     </sect1>
+     <sect1><title>Polled input devices</title>
+!Iinclude/linux/input-polldev.h
+!Edrivers/input/input-polldev.c
+     </sect1>
+     <sect1><title>Matrix keyboars/keypads</title>
+!Iinclude/linux/input/matrix_keypad.h
+     </sect1>
+     <sect1><title>Sparse keymap support</title>
+!Iinclude/linux/input/sparse-keymap.h
+!Edrivers/input/sparse-keymap.c
+     </sect1>
   </chapter>
 
   <chapter id="spi">

@@ -666,10 +666,11 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	 * to wait for at least one CHECK_CONDITION to determine
 	 * SANE_SENSE support
 	 */
-	if ((srb->cmnd[0] == ATA_16 || srb->cmnd[0] == ATA_12) &&
+	if (unlikely((srb->cmnd[0] == ATA_16 || srb->cmnd[0] == ATA_12) &&
 	    result == USB_STOR_TRANSPORT_GOOD &&
 	    !(us->fflags & US_FL_SANE_SENSE) &&
-	    !(srb->cmnd[2] & 0x20)) {
+	    !(us->fflags & US_FL_BAD_SENSE) &&
+	    !(srb->cmnd[2] & 0x20))) {
 		US_DEBUGP("-- SAT supported, increasing auto-sense\n");
 		us->fflags |= US_FL_SANE_SENSE;
 	}
@@ -718,6 +719,12 @@ Retry_Sense:
 		if (test_bit(US_FLIDX_TIMED_OUT, &us->dflags)) {
 			US_DEBUGP("-- auto-sense aborted\n");
 			srb->result = DID_ABORT << 16;
+
+			/* If SANE_SENSE caused this problem, disable it */
+			if (sense_size != US_SENSE_SIZE) {
+				us->fflags &= ~US_FL_SANE_SENSE;
+				us->fflags |= US_FL_BAD_SENSE;
+			}
 			goto Handle_Errors;
 		}
 
@@ -727,10 +734,11 @@ Retry_Sense:
 		 * (small) sense request. This fixes some USB GSM modems
 		 */
 		if (temp_result == USB_STOR_TRANSPORT_FAILED &&
-		    (us->fflags & US_FL_SANE_SENSE) &&
-		    sense_size != US_SENSE_SIZE) {
+				sense_size != US_SENSE_SIZE) {
 			US_DEBUGP("-- auto-sense failure, retry small sense\n");
 			sense_size = US_SENSE_SIZE;
+			us->fflags &= ~US_FL_SANE_SENSE;
+			us->fflags |= US_FL_BAD_SENSE;
 			goto Retry_Sense;
 		}
 
@@ -754,6 +762,7 @@ Retry_Sense:
 		 */
 		if (srb->sense_buffer[7] > (US_SENSE_SIZE - 8) &&
 		    !(us->fflags & US_FL_SANE_SENSE) &&
+		    !(us->fflags & US_FL_BAD_SENSE) &&
 		    (srb->sense_buffer[0] & 0x7C) == 0x70) {
 			US_DEBUGP("-- SANE_SENSE support enabled\n");
 			us->fflags |= US_FL_SANE_SENSE;

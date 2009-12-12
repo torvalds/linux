@@ -35,6 +35,7 @@
 #include "cx23885.h"
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include "cx23885-ioctl.h"
 
 MODULE_DESCRIPTION("v4l2 driver module for cx23885 based TV cards");
 MODULE_AUTHOR("Steven Toth <stoth@linuxtv.org>");
@@ -400,6 +401,13 @@ static int cx23885_video_mux(struct cx23885_dev *dev, unsigned int input)
 		INPUT(input)->gpio0, INPUT(input)->gpio1,
 		INPUT(input)->gpio2, INPUT(input)->gpio3);
 	dev->input = input;
+
+	if (dev->board == CX23885_BOARD_MYGICA_X8506 ||
+		dev->board == CX23885_BOARD_MAGICPRO_PROHDTVE2) {
+		/* Select Analog TV */
+		if (INPUT(input)->type == CX23885_VMUX_TELEVISION)
+			cx23885_gpio_clear(dev, GPIO_0);
+	}
 
 	/* Tell the internal A/V decoder */
 	v4l2_subdev_call(dev->sd_cx25840, video, s_routing,
@@ -1144,6 +1152,7 @@ static int cx23885_enum_input(struct cx23885_dev *dev, struct v4l2_input *i)
 		[CX23885_VMUX_COMPOSITE3] = "Composite3",
 		[CX23885_VMUX_COMPOSITE4] = "Composite4",
 		[CX23885_VMUX_SVIDEO]     = "S-Video",
+		[CX23885_VMUX_COMPONENT]  = "Component",
 		[CX23885_VMUX_TELEVISION] = "Television",
 		[CX23885_VMUX_CABLE]      = "Cable TV",
 		[CX23885_VMUX_DVB]        = "DVB",
@@ -1312,34 +1321,6 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 		cx23885_set_freq(dev, f);
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-static int vidioc_g_register(struct file *file, void *fh,
-				struct v4l2_dbg_register *reg)
-{
-	struct cx23885_dev *dev = ((struct cx23885_fh *)fh)->dev;
-
-	if (!v4l2_chip_match_host(&reg->match))
-		return -EINVAL;
-
-	call_all(dev, core, g_register, reg);
-
-	return 0;
-}
-
-static int vidioc_s_register(struct file *file, void *fh,
-				struct v4l2_dbg_register *reg)
-{
-	struct cx23885_dev *dev = ((struct cx23885_fh *)fh)->dev;
-
-	if (!v4l2_chip_match_host(&reg->match))
-		return -EINVAL;
-
-	call_all(dev, core, s_register, reg);
-
-	return 0;
-}
-#endif
-
 /* ----------------------------------------------------------- */
 
 static void cx23885_vid_timeout(unsigned long data)
@@ -1449,9 +1430,10 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_tuner       = vidioc_s_tuner,
 	.vidioc_g_frequency   = vidioc_g_frequency,
 	.vidioc_s_frequency   = vidioc_s_frequency,
+	.vidioc_g_chip_ident  = cx23885_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	.vidioc_g_register    = vidioc_g_register,
-	.vidioc_s_register    = vidioc_s_register,
+	.vidioc_g_register    = cx23885_g_register,
+	.vidioc_s_register    = cx23885_s_register,
 #endif
 };
 
@@ -1529,9 +1511,11 @@ int cx23885_video_register(struct cx23885_dev *dev)
 		if (sd) {
 			struct tuner_setup tun_setup;
 
+			memset(&tun_setup, 0, sizeof(tun_setup));
 			tun_setup.mode_mask = T_ANALOG_TV;
 			tun_setup.type = dev->tuner_type;
 			tun_setup.addr = v4l2_i2c_subdev_addr(sd);
+			tun_setup.tuner_callback = cx23885_tuner_callback;
 
 			v4l2_subdev_call(sd, tuner, s_type_addr, &tun_setup);
 		}

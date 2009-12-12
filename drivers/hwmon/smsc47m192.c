@@ -491,24 +491,22 @@ static int smsc47m192_detect(struct i2c_client *client, int kind,
 		return -ENODEV;
 
 	/* Detection criteria from sensors_detect script */
-	if (kind < 0) {
-		if (i2c_smbus_read_byte_data(client,
+	version = i2c_smbus_read_byte_data(client, SMSC47M192_REG_VERSION);
+	if (i2c_smbus_read_byte_data(client,
 				SMSC47M192_REG_COMPANY_ID) == 0x55
-		 && ((version = i2c_smbus_read_byte_data(client,
-				SMSC47M192_REG_VERSION)) & 0xf0) == 0x20
-		 && (i2c_smbus_read_byte_data(client,
+	 && (version & 0xf0) == 0x20
+	 && (i2c_smbus_read_byte_data(client,
 				SMSC47M192_REG_VID) & 0x70) == 0x00
-		 && (i2c_smbus_read_byte_data(client,
+	 && (i2c_smbus_read_byte_data(client,
 				SMSC47M192_REG_VID4) & 0xfe) == 0x80) {
-			dev_info(&adapter->dev,
-				 "found SMSC47M192 or compatible, "
-				 "version 2, stepping A%d\n", version & 0x0f);
-		} else {
-			dev_dbg(&adapter->dev,
-				"SMSC47M192 detection failed at 0x%02x\n",
-				client->addr);
-			return -ENODEV;
-		}
+		dev_info(&adapter->dev,
+			 "found SMSC47M192 or compatible, "
+			 "version 2, stepping A%d\n", version & 0x0f);
+	} else {
+		dev_dbg(&adapter->dev,
+			"SMSC47M192 detection failed at 0x%02x\n",
+			client->addr);
+		return -ENODEV;
 	}
 
 	strlcpy(info->type, "smsc47m192", I2C_NAME_SIZE);

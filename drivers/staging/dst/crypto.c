@@ -64,7 +64,8 @@ err_out_exit:
 	return ERR_PTR(err);
 }
 
-static struct crypto_ablkcipher *dst_init_cipher(struct dst_crypto_ctl *ctl, u8 *key)
+static struct crypto_ablkcipher *dst_init_cipher(struct dst_crypto_ctl *ctl,
+		u8 *key)
 {
 	int err = -EINVAL;
 	struct crypto_ablkcipher *cipher;
@@ -105,7 +106,7 @@ static void dst_crypto_pages_free(struct dst_crypto_engine *e)
 {
 	unsigned int i;
 
-	for (i=0; i<e->page_num; ++i)
+	for (i = 0; i < e->page_num; ++i)
 		__free_page(e->pages[i]);
 	kfree(e->pages);
 }
@@ -118,7 +119,7 @@ static int dst_crypto_pages_alloc(struct dst_crypto_engine *e, int num)
 	if (!e->pages)
 		return -ENOMEM;
 
-	for (i=0; i<num; ++i) {
+	for (i = 0; i < num; ++i) {
 		e->pages[i] = alloc_page(GFP_KERNEL);
 		if (!e->pages[i])
 			goto err_out_free_pages;
@@ -139,7 +140,8 @@ err_out_free_pages:
  * Initialize crypto engine for given node.
  * Setup cipher/hash, keys, pool of threads and private data.
  */
-static int dst_crypto_engine_init(struct dst_crypto_engine *e, struct dst_node *n)
+static int dst_crypto_engine_init(struct dst_crypto_engine *e,
+		struct dst_node *n)
 {
 	int err;
 	struct dst_crypto_ctl *ctl = &n->crypto;
@@ -198,8 +200,7 @@ static void dst_crypto_engine_exit(struct dst_crypto_engine *e)
 /*
  * Waiting for cipher processing to be completed.
  */
-struct dst_crypto_completion
-{
+struct dst_crypto_completion {
 	struct completion		complete;
 	int				error;
 };
@@ -237,17 +238,17 @@ static int dst_crypto_process(struct ablkcipher_request *req,
 		err = crypto_ablkcipher_decrypt(req);
 
 	switch (err) {
-		case -EINPROGRESS:
-		case -EBUSY:
-			err = wait_for_completion_interruptible_timeout(&c.complete,
-					timeout);
-			if (!err)
-				err = -ETIMEDOUT;
-			else
-				err = c.error;
-			break;
-		default:
-			break;
+	case -EINPROGRESS:
+	case -EBUSY:
+		err = wait_for_completion_interruptible_timeout(&c.complete,
+				timeout);
+		if (!err)
+			err = -ETIMEDOUT;
+		else
+			err = c.error;
+		break;
+	default:
+		break;
 	}
 
 	return err;
@@ -263,7 +264,7 @@ static int dst_crypto_process(struct ablkcipher_request *req,
  * temporary storage, which is then being sent to the remote peer.
  */
 static int dst_trans_iter_out(struct bio *bio, struct dst_crypto_engine *e,
-		int (* iterator) (struct dst_crypto_engine *e,
+		int (*iterator) (struct dst_crypto_engine *e,
 				  struct scatterlist *dst,
 				  struct scatterlist *src))
 {
@@ -286,7 +287,7 @@ static int dst_trans_iter_out(struct bio *bio, struct dst_crypto_engine *e,
 }
 
 static int dst_trans_iter_in(struct bio *bio, struct dst_crypto_engine *e,
-		int (* iterator) (struct dst_crypto_engine *e,
+		int (*iterator) (struct dst_crypto_engine *e,
 				  struct scatterlist *dst,
 				  struct scatterlist *src))
 {
@@ -411,9 +412,9 @@ static void dst_crypto_thread_cleanup(void *private)
  * Initialize crypto engine for given node: store keys, create pool
  * of threads, initialize each one.
  *
- * Each thread has unique ID, but 0 and 1 are reserved for receiving and accepting
- * threads (if export node), so IDs could start from 2, but starting them
- * from 10 allows easily understand what this thread is for.
+ * Each thread has unique ID, but 0 and 1 are reserved for receiving and
+ * accepting threads (if export node), so IDs could start from 2, but starting
+ * them from 10 allows easily understand what this thread is for.
  */
 int dst_node_crypto_init(struct dst_node *n, struct dst_crypto_ctl *ctl)
 {
@@ -436,10 +437,10 @@ int dst_node_crypto_init(struct dst_node *n, struct dst_crypto_ctl *ctl)
 	}
 	memcpy(&n->crypto, ctl, sizeof(struct dst_crypto_ctl));
 
-	for (i=0; i<ctl->thread_num; ++i) {
+	for (i = 0; i < ctl->thread_num; ++i) {
 		snprintf(name, sizeof(name), "%s-crypto-%d", n->name, i);
 		/* Unique ids... */
-		err = thread_pool_add_worker(n->pool, name, i+10,
+		err = thread_pool_add_worker(n->pool, name, i + 10,
 			dst_crypto_thread_init, dst_crypto_thread_cleanup, n);
 		if (err)
 			goto err_out_free_threads;
@@ -496,8 +497,8 @@ static void dst_dump_bio(struct bio *bio)
 				bv->bv_len, bv->bv_offset);
 
 		p = kmap(bv->bv_page) + bv->bv_offset;
-		for (i=0; i<bv->bv_len; ++i)
-			printk("%02x ", p[i]);
+		for (i = 0; i < bv->bv_len; ++i)
+			printk(KERN_DEBUG "%02x ", p[i]);
 		kunmap(bv->bv_page);
 		printk("\n");
 	}
@@ -532,7 +533,7 @@ static int dst_crypto_process_sending(struct dst_crypto_engine *e,
 			printk(KERN_DEBUG "%s: bio: %llu/%u, rw: %lu, hash: ",
 				__func__, (u64)bio->bi_sector,
 				bio->bi_size, bio_data_dir(bio));
-			for (i=0; i<crypto_hash_digestsize(e->hash); ++i)
+			for (i = 0; i < crypto_hash_digestsize(e->hash); ++i)
 					printk("%02x ", hash[i]);
 			printk("\n");
 		}
@@ -572,9 +573,9 @@ static int dst_crypto_process_receiving(struct dst_crypto_engine *e,
 			unsigned int i;
 
 			printk(", recv/calc: ");
-			for (i=0; i<crypto_hash_digestsize(e->hash); ++i) {
+			for (i = 0; i < crypto_hash_digestsize(e->hash); ++i)
 				printk("%02x/%02x ", recv_hash[i], hash[i]);
-			}
+
 		}
 		printk("\n");
 #endif
@@ -680,8 +681,9 @@ static int dst_export_crypto_action(void *crypto_engine, void *schedule_data)
 	struct dst_export_priv *p = bio->bi_private;
 	int err;
 
-	dprintk("%s: e: %p, data: %p, bio: %llu/%u, dir: %lu.\n", __func__,
-		e, e->data, (u64)bio->bi_sector, bio->bi_size, bio_data_dir(bio));
+	dprintk("%s: e: %p, data: %p, bio: %llu/%u, dir: %lu.\n",
+			__func__, e, e->data, (u64)bio->bi_sector,
+			bio->bi_size, bio_data_dir(bio));
 
 	e->enc = (bio_data_dir(bio) == READ);
 	e->iv = p->cmd.id;

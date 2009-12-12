@@ -510,7 +510,7 @@ static int __init intel_menlow_module_init(void)
 	/* Looking for sensors in each ACPI thermal zone */
 	status = acpi_walk_namespace(ACPI_TYPE_THERMAL, ACPI_ROOT_OBJECT,
 				     ACPI_UINT32_MAX,
-				     intel_menlow_register_sensor, NULL, NULL);
+				     intel_menlow_register_sensor, NULL, NULL, NULL);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 

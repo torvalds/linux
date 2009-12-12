@@ -361,6 +361,16 @@ config KEYBOARD_SH_KEYSC
 	  To compile this driver as a module, choose M here: the
 	  module will be called sh_keysc.
 
+config KEYBOARD_DAVINCI
+	tristate "TI DaVinci Key Scan"
+	depends on ARCH_DAVINCI_DM365
+	help
+	  Say Y to enable keypad module support for the TI DaVinci
+	  platforms (DM365).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called davinci_keyscan.
+
 config KEYBOARD_OMAP
 	tristate "TI OMAP keypad support"
 	depends on (ARCH_OMAP1 || ARCH_OMAP2)

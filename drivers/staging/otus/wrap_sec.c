@@ -33,92 +33,93 @@
 #ifdef ZM_ENABLE_CENC
 extern int zfLnxCencSendMsg(struct sock *netlink_sk, u_int8_t *msg, int len);
 
-u16_t zfLnxCencAsocNotify(zdev_t* dev, u16_t* macAddr, u8_t* body, u16_t bodySize, u16_t port)
+u16_t zfLnxCencAsocNotify(zdev_t *dev, u16_t *macAddr, u8_t *body,
+				u16_t bodySize, u16_t port)
 {
-    struct usbdrv_private *macp = (struct usbdrv_private *)dev->priv;
-    struct zydas_cenc_sta_info cenc_info;
-    //struct sock *netlink_sk;
-    u8_t ie_len;
-    int ii;
+	struct usbdrv_private *macp = (struct usbdrv_private *)dev->priv;
+	struct zydas_cenc_sta_info cenc_info;
+	/* struct sock *netlink_sk;	*/
+	u8_t ie_len;
+	int ii;
 
-    /* Create NETLINK socket */
-    //netlink_sk = netlink_kernel_create(NETLINK_USERSOCK, NULL);
+	/* Create NETLINK socket */
+	/*netlink_sk = netlink_kernel_create(NETLINK_USERSOCK, NULL);	*/
 
-    if (macp->netlink_sk == NULL)
-    {
-        printk(KERN_ERR "NETLINK Socket is NULL\n");
-        return -1;
-    }
+	if (macp->netlink_sk == NULL) {
+		printk(KERN_ERR "NETLINK Socket is NULL\n");
+		return -1;
+	}
 
-    memset(&cenc_info, 0, sizeof(cenc_info));
+	memset(&cenc_info, 0, sizeof(cenc_info));
 
-    //memcpy(cenc_info.gsn, vap->iv_cencmsk_keys.wk_txiv, ZM_CENC_IV_LEN);
-    zfiWlanQueryGSN(dev, cenc_info.gsn, port);
-    cenc_info.datalen += ZM_CENC_IV_LEN;
-    ie_len = body[1] + 2;
-    memcpy(cenc_info.wie, body, ie_len);
-    cenc_info.datalen += ie_len;
+	/* memcpy(cenc_info.gsn, vap->iv_cencmsk_keys.wk_txiv,
+	 *  	ZM_CENC_IV_LEN);
+	 */
+	zfiWlanQueryGSN(dev, cenc_info.gsn, port);
+	cenc_info.datalen += ZM_CENC_IV_LEN;
+	ie_len = body[1] + 2;
+	memcpy(cenc_info.wie, body, ie_len);
+	cenc_info.datalen += ie_len;
 
-    memcpy(cenc_info.sta_mac, macAddr, 6);
-    cenc_info.msg_type = ZM_CENC_WAI_REQUEST;
-    cenc_info.datalen += 6 + 2;
+	memcpy(cenc_info.sta_mac, macAddr, 6);
+	cenc_info.msg_type = ZM_CENC_WAI_REQUEST;
+	cenc_info.datalen += 6 + 2;
 
-    printk(KERN_ERR "===== zfwCencSendMsg, bodySize: %d =====\n", bodySize);
+	printk(KERN_ERR "===== zfwCencSendMsg, bodySize: %d =====\n", bodySize);
 
-    for(ii = 0; ii < bodySize; ii++)
-    {
-        printk(KERN_ERR "%02x ", body[ii]);
+	for (ii = 0; ii < bodySize; ii++) {
+		printk(KERN_ERR "%02x ", body[ii]);
 
-        if ((ii & 0xf) == 0xf)
-        {
-            printk(KERN_ERR "\n");
-        }
-    }
+		if ((ii & 0xf) == 0xf)
+			printk(KERN_ERR "\n");
+	}
 
-    zfLnxCencSendMsg(macp->netlink_sk, (u8_t *)&cenc_info, cenc_info.datalen+4);
+	zfLnxCencSendMsg(macp->netlink_sk, (u8_t *)&cenc_info,
+			 cenc_info.datalen+4);
 
-    /* Close NETLINK socket */
-    //sock_release(netlink_sk);
+	/* Close NETLINK socket */
+	/* sock_release(netlink_sk);	*/
 
-    return 0;
+	return 0;
 }
-#endif //ZM_ENABLE_CENC
+#endif /* ZM_ENABLE_CENC	*/
 
-u8_t zfwCencHandleBeaconProbrespon(zdev_t* dev, u8_t *pWIEc,
-        u8_t *pPeerSSIDc, u8_t *pPeerAddrc)
+u8_t zfwCencHandleBeaconProbrespon(zdev_t *dev, u8_t *pWIEc,
+		u8_t *pPeerSSIDc, u8_t *pPeerAddrc)
 {
-    return 0;
-}
-
-u8_t zfwGetPktEncExemptionActionType(zdev_t* dev, zbuf_t* buf)
-{
-    return ZM_ENCRYPTION_EXEMPT_NO_EXEMPTION;
+	return 0;
 }
 
-void copyToIntTxBuffer(zdev_t* dev, zbuf_t* buf, u8_t* src,
-                         u16_t offset, u16_t length)
+u8_t zfwGetPktEncExemptionActionType(zdev_t *dev, zbuf_t *buf)
 {
-    u16_t i;
-
-    for(i=0; i<length;i++)
-    {
-        //zmw_tx_buf_writeb(dev, buf, offset+i, src[i]);
-        *(u8_t*)((u8_t*)buf->data+offset+i) = src[i];
-    }
+	return ZM_ENCRYPTION_EXEMPT_NO_EXEMPTION;
 }
 
-u16_t zfwStaAddIeWpaRsn(zdev_t* dev, zbuf_t* buf, u16_t offset, u8_t frameType)
+void copyToIntTxBuffer(zdev_t *dev, zbuf_t *buf, u8_t *src,
+						 u16_t offset, u16_t length)
 {
-    struct usbdrv_private *macp = dev->ml_priv;
-    //zm_msg1_mm(ZM_LV_0, "CWY - add wpaie content Length : ", macp->supIe[1]);
-    if (macp->supIe[1] != 0)
-    {
-        copyToIntTxBuffer(dev, buf, macp->supIe, offset, macp->supIe[1]+2);
-        //memcpy(buf->data[offset], macp->supIe, macp->supIe[1]+2);
-        offset += (macp->supIe[1]+2);
-    }
+	u16_t i;
 
-    return offset;
+	for (i = 0; i < length; i++) {
+		/* zmw_tx_buf_writeb(dev, buf, offset+i, src[i]);	*/
+		*(u8_t *)((u8_t *)buf->data+offset+i) = src[i];
+	}
+}
+
+u16_t zfwStaAddIeWpaRsn(zdev_t *dev, zbuf_t *buf, u16_t offset, u8_t frameType)
+{
+	struct usbdrv_private *macp = dev->ml_priv;
+	/* zm_msg1_mm(ZM_LV_0, "CWY - add wpaie content Length : "
+	 * 		, macp->supIe[1]);
+	 */
+	if (macp->supIe[1] != 0) {
+		copyToIntTxBuffer(dev, buf, macp->supIe, offset,
+					 macp->supIe[1]+2);
+		/* memcpy(buf->data[offset], macp->supIe, macp->supIe[1]+2);*/
+		offset += (macp->supIe[1]+2);
+	}
+
+	return offset;
 }
 
 /* Leave an empty line below to remove warning message on some compiler */

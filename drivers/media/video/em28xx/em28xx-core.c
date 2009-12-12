@@ -50,7 +50,7 @@ MODULE_PARM_DESC(reg_debug, "enable debug messages [URB reg]");
 		printk(KERN_INFO "%s %s :"fmt, \
 			 dev->name, __func__ , ##arg); } while (0)
 
-static int alt = EM28XX_PINOUT;
+static int alt;
 module_param(alt, int, 0644);
 MODULE_PARM_DESC(alt, "alternate setting to use for video endpoint");
 
@@ -533,8 +533,15 @@ int em28xx_audio_setup(struct em28xx *dev)
 
 	vid1 = em28xx_read_ac97(dev, AC97_VENDOR_ID1);
 	if (vid1 < 0) {
-		/* Device likely doesn't support AC97 */
+		/*
+		 * Device likely doesn't support AC97
+		 * Note: (some) em2800 devices without eeprom reports 0x91 on
+		 *	 CHIPCFG register, even not having an AC97 chip
+		 */
 		em28xx_warn("AC97 chip type couldn't be determined\n");
+		dev->audio_mode.ac97 = EM28XX_NO_AC97;
+		dev->has_alsa_audio = 0;
+		dev->audio_mode.has_audio = 0;
 		goto init_audio;
 	}
 
@@ -778,6 +785,16 @@ int em28xx_set_alternate(struct em28xx *dev)
 	int i;
 	unsigned int min_pkt_size = dev->width * 2 + 4;
 
+	/*
+	 * alt = 0 is used only for control messages, so, only values
+	 * greater than 0 can be used for streaming.
+	 */
+	if (alt && alt < dev->num_alt) {
+		em28xx_coredbg("alternate forced to %d\n", dev->alt);
+		dev->alt = alt;
+		goto set_alt;
+	}
+
 	/* When image size is bigger than a certain value,
 	   the frame size should be increased, otherwise, only
 	   green screen will be received.
@@ -798,6 +815,7 @@ int em28xx_set_alternate(struct em28xx *dev)
 			dev->alt = i;
 	}
 
+set_alt:
 	if (dev->alt != prev_alt) {
 		em28xx_coredbg("minimum isoc packet size: %u (alt=%d)\n",
 				min_pkt_size, dev->alt);

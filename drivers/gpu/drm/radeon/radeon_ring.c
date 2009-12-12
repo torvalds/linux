@@ -165,19 +165,24 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 		return 0;
 	/* Allocate 1M object buffer */
 	INIT_LIST_HEAD(&rdev->ib_pool.scheduled_ibs);
-	r = radeon_object_create(rdev, NULL,  RADEON_IB_POOL_SIZE*64*1024,
-				 true, RADEON_GEM_DOMAIN_GTT,
-				 false, &rdev->ib_pool.robj);
+	r = radeon_bo_create(rdev, NULL,  RADEON_IB_POOL_SIZE*64*1024,
+				true, RADEON_GEM_DOMAIN_GTT,
+				&rdev->ib_pool.robj);
 	if (r) {
 		DRM_ERROR("radeon: failed to ib pool (%d).\n", r);
 		return r;
 	}
-	r = radeon_object_pin(rdev->ib_pool.robj, RADEON_GEM_DOMAIN_GTT, &gpu_addr);
+	r = radeon_bo_reserve(rdev->ib_pool.robj, false);
+	if (unlikely(r != 0))
+		return r;
+	r = radeon_bo_pin(rdev->ib_pool.robj, RADEON_GEM_DOMAIN_GTT, &gpu_addr);
 	if (r) {
+		radeon_bo_unreserve(rdev->ib_pool.robj);
 		DRM_ERROR("radeon: failed to pin ib pool (%d).\n", r);
 		return r;
 	}
-	r = radeon_object_kmap(rdev->ib_pool.robj, &ptr);
+	r = radeon_bo_kmap(rdev->ib_pool.robj, &ptr);
+	radeon_bo_unreserve(rdev->ib_pool.robj);
 	if (r) {
 		DRM_ERROR("radeon: failed to map ib poll (%d).\n", r);
 		return r;
@@ -203,14 +208,21 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 
 void radeon_ib_pool_fini(struct radeon_device *rdev)
 {
+	int r;
+
 	if (!rdev->ib_pool.ready) {
 		return;
 	}
 	mutex_lock(&rdev->ib_pool.mutex);
 	bitmap_zero(rdev->ib_pool.alloc_bm, RADEON_IB_POOL_SIZE);
 	if (rdev->ib_pool.robj) {
-		radeon_object_kunmap(rdev->ib_pool.robj);
-		radeon_object_unref(&rdev->ib_pool.robj);
+		r = radeon_bo_reserve(rdev->ib_pool.robj, false);
+		if (likely(r == 0)) {
+			radeon_bo_kunmap(rdev->ib_pool.robj);
+			radeon_bo_unpin(rdev->ib_pool.robj);
+			radeon_bo_unreserve(rdev->ib_pool.robj);
+		}
+		radeon_bo_unref(&rdev->ib_pool.robj);
 		rdev->ib_pool.robj = NULL;
 	}
 	mutex_unlock(&rdev->ib_pool.mutex);
@@ -288,29 +300,28 @@ int radeon_ring_init(struct radeon_device *rdev, unsigned ring_size)
 	rdev->cp.ring_size = ring_size;
 	/* Allocate ring buffer */
 	if (rdev->cp.ring_obj == NULL) {
-		r = radeon_object_create(rdev, NULL, rdev->cp.ring_size,
-					 true,
-					 RADEON_GEM_DOMAIN_GTT,
-					 false,
-					 &rdev->cp.ring_obj);
+		r = radeon_bo_create(rdev, NULL, rdev->cp.ring_size, true,
+					RADEON_GEM_DOMAIN_GTT,
+					&rdev->cp.ring_obj);
 		if (r) {
-			DRM_ERROR("radeon: failed to create ring buffer (%d).\n", r);
-			mutex_unlock(&rdev->cp.mutex);
+			dev_err(rdev->dev, "(%d) ring create failed\n", r);
 			return r;
 		}
-		r = radeon_object_pin(rdev->cp.ring_obj,
-				      RADEON_GEM_DOMAIN_GTT,
-				      &rdev->cp.gpu_addr);
+		r = radeon_bo_reserve(rdev->cp.ring_obj, false);
+		if (unlikely(r != 0))
+			return r;
+		r = radeon_bo_pin(rdev->cp.ring_obj, RADEON_GEM_DOMAIN_GTT,
+					&rdev->cp.gpu_addr);
 		if (r) {
-			DRM_ERROR("radeon: failed to pin ring buffer (%d).\n", r);
-			mutex_unlock(&rdev->cp.mutex);
+			radeon_bo_unreserve(rdev->cp.ring_obj);
+			dev_err(rdev->dev, "(%d) ring pin failed\n", r);
 			return r;
 		}
-		r = radeon_object_kmap(rdev->cp.ring_obj,
+		r = radeon_bo_kmap(rdev->cp.ring_obj,
 				       (void **)&rdev->cp.ring);
+		radeon_bo_unreserve(rdev->cp.ring_obj);
 		if (r) {
-			DRM_ERROR("radeon: failed to map ring buffer (%d).\n", r);
-			mutex_unlock(&rdev->cp.mutex);
+			dev_err(rdev->dev, "(%d) ring map failed\n", r);
 			return r;
 		}
 	}
@@ -321,11 +332,17 @@ int radeon_ring_init(struct radeon_device *rdev, unsigned ring_size)
 
 void radeon_ring_fini(struct radeon_device *rdev)
 {
+	int r;
+
 	mutex_lock(&rdev->cp.mutex);
 	if (rdev->cp.ring_obj) {
-		radeon_object_kunmap(rdev->cp.ring_obj);
-		radeon_object_unpin(rdev->cp.ring_obj);
-		radeon_object_unref(&rdev->cp.ring_obj);
+		r = radeon_bo_reserve(rdev->cp.ring_obj, false);
+		if (likely(r == 0)) {
+			radeon_bo_kunmap(rdev->cp.ring_obj);
+			radeon_bo_unpin(rdev->cp.ring_obj);
+			radeon_bo_unreserve(rdev->cp.ring_obj);
+		}
+		radeon_bo_unref(&rdev->cp.ring_obj);
 		rdev->cp.ring = NULL;
 		rdev->cp.ring_obj = NULL;
 	}

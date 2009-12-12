@@ -50,7 +50,6 @@
 #include <linux/list.h>
 
 #ifdef CONFIG_SUPERH
-#include <asm/clock.h>
 #include <asm/sh_bios.h>
 #endif
 
@@ -79,22 +78,18 @@ struct sci_port {
 	struct timer_list	break_timer;
 	int			break_flag;
 
-#ifdef CONFIG_HAVE_CLK
 	/* Interface clock */
 	struct clk		*iclk;
 	/* Data clock */
 	struct clk		*dclk;
-#endif
+
 	struct list_head	node;
 };
 
 struct sh_sci_priv {
 	spinlock_t lock;
 	struct list_head ports;
-
-#ifdef CONFIG_HAVE_CLK
 	struct notifier_block clk_nb;
-#endif
 };
 
 /* Function prototypes */
@@ -155,32 +150,6 @@ static void sci_poll_put_char(struct uart_port *port, unsigned char c)
 	sci_out(port, SCxSR, SCxSR_TDxE_CLEAR(port) & ~SCxSR_TEND(port));
 }
 #endif /* CONFIG_CONSOLE_POLL || CONFIG_SERIAL_SH_SCI_CONSOLE */
-
-#if defined(__H8300S__)
-enum { sci_disable, sci_enable };
-
-static void h8300_sci_config(struct uart_port *port, unsigned int ctrl)
-{
-	volatile unsigned char *mstpcrl = (volatile unsigned char *)MSTPCRL;
-	int ch = (port->mapbase  - SMR0) >> 3;
-	unsigned char mask = 1 << (ch+1);
-
-	if (ctrl == sci_disable)
-		*mstpcrl |= mask;
-	else
-		*mstpcrl &= ~mask;
-}
-
-static void h8300_sci_enable(struct uart_port *port)
-{
-	h8300_sci_config(port, sci_enable);
-}
-
-static void h8300_sci_disable(struct uart_port *port)
-{
-	h8300_sci_config(port, sci_disable);
-}
-#endif
 
 #if defined(__H8300H__) || defined(__H8300S__)
 static void sci_init_pins(struct uart_port *port, unsigned int cflag)
@@ -733,7 +702,6 @@ static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 	return ret;
 }
 
-#ifdef CONFIG_HAVE_CLK
 /*
  * Here we define a transistion notifier so that we can update all of our
  * ports' baud rate when the peripheral clock changes.
@@ -751,7 +719,6 @@ static int sci_notifier(struct notifier_block *self,
 		spin_lock_irqsave(&priv->lock, flags);
 		list_for_each_entry(sci_port, &priv->ports, node)
 			sci_port->port.uartclk = clk_get_rate(sci_port->dclk);
-
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
@@ -778,7 +745,6 @@ static void sci_clk_disable(struct uart_port *port)
 
 	clk_disable(sci_port->dclk);
 }
-#endif
 
 static int sci_request_irq(struct sci_port *port)
 {
@@ -833,8 +799,8 @@ static void sci_free_irq(struct sci_port *port)
 
 static unsigned int sci_tx_empty(struct uart_port *port)
 {
-	/* Can't detect */
-	return TIOCSER_TEMT;
+	unsigned short status = sci_in(port, SCxSR);
+	return status & SCxSR_TEND(port) ? TIOCSER_TEMT : 0;
 }
 
 static void sci_set_mctrl(struct uart_port *port, unsigned int mctrl)
@@ -1077,21 +1043,10 @@ static void __devinit sci_init_single(struct platform_device *dev,
 	sci_port->port.iotype	= UPIO_MEM;
 	sci_port->port.line	= index;
 	sci_port->port.fifosize	= 1;
-
-#if defined(__H8300H__) || defined(__H8300S__)
-#ifdef __H8300S__
-	sci_port->enable	= h8300_sci_enable;
-	sci_port->disable	= h8300_sci_disable;
-#endif
-	sci_port->port.uartclk	= CONFIG_CPU_CLOCK;
-#elif defined(CONFIG_HAVE_CLK)
 	sci_port->iclk		= p->clk ? clk_get(&dev->dev, p->clk) : NULL;
 	sci_port->dclk		= clk_get(&dev->dev, "peripheral_clk");
 	sci_port->enable	= sci_clk_enable;
 	sci_port->disable	= sci_clk_disable;
-#else
-#error "Need a valid uartclk"
-#endif
 
 	sci_port->break_timer.data = (unsigned long)sci_port;
 	sci_port->break_timer.function = sci_break_timer;
@@ -1106,7 +1061,6 @@ static void __devinit sci_init_single(struct platform_device *dev,
 	sci_port->type		= sci_port->port.type = p->type;
 
 	memcpy(&sci_port->irqs, &p->irqs, sizeof(p->irqs));
-
 }
 
 #ifdef CONFIG_SERIAL_SH_SCI_CONSOLE
@@ -1239,14 +1193,11 @@ static int sci_remove(struct platform_device *dev)
 	struct sci_port *p;
 	unsigned long flags;
 
-#ifdef CONFIG_HAVE_CLK
 	cpufreq_unregister_notifier(&priv->clk_nb, CPUFREQ_TRANSITION_NOTIFIER);
-#endif
 
 	spin_lock_irqsave(&priv->lock, flags);
 	list_for_each_entry(p, &priv->ports, node)
 		uart_remove_one_port(&sci_uart_driver, &p->port);
-
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	kfree(priv);
@@ -1307,10 +1258,8 @@ static int __devinit sci_probe(struct platform_device *dev)
 	spin_lock_init(&priv->lock);
 	platform_set_drvdata(dev, priv);
 
-#ifdef CONFIG_HAVE_CLK
 	priv->clk_nb.notifier_call = sci_notifier;
 	cpufreq_register_notifier(&priv->clk_nb, CPUFREQ_TRANSITION_NOTIFIER);
-#endif
 
 	if (dev->id != -1) {
 		ret = sci_probe_single(dev, dev->id, p, &sci_ports[dev->id]);
@@ -1370,7 +1319,7 @@ static struct dev_pm_ops sci_dev_pm_ops = {
 
 static struct platform_driver sci_driver = {
 	.probe		= sci_probe,
-	.remove		= __devexit_p(sci_remove),
+	.remove		= sci_remove,
 	.driver		= {
 		.name	= "sh-sci",
 		.owner	= THIS_MODULE,

@@ -1783,7 +1783,7 @@ retry:
 			goto out;
 
 		/*
-		 * aperture was sucessfully enlarged by 128 MB, try
+		 * aperture was successfully enlarged by 128 MB, try
 		 * allocation again
 		 */
 		goto retry;
@@ -2490,7 +2490,7 @@ int __init amd_iommu_init_passthrough(void)
 	struct pci_dev *dev = NULL;
 	u16 devid;
 
-	/* allocate passthroug domain */
+	/* allocate passthrough domain */
 	pt_domain = protection_domain_alloc();
 	if (!pt_domain)
 		return -ENOMEM;

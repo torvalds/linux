@@ -510,7 +510,7 @@ static void dm1105_emit_key(struct work_struct *work)
 
 	data = (ircom >> 8) & 0x7f;
 
-	ir_input_keydown(ir->input_dev, &ir->ir, data, data);
+	ir_input_keydown(ir->input_dev, &ir->ir, data);
 	ir_input_nokey(ir->input_dev, &ir->ir);
 }
 
@@ -589,7 +589,12 @@ int __devinit dm1105_ir_init(struct dm1105dvb *dm1105)
 	snprintf(dm1105->ir.input_phys, sizeof(dm1105->ir.input_phys),
 		"pci-%s/ir0", pci_name(dm1105->pdev));
 
-	ir_input_init(input_dev, &dm1105->ir.ir, ir_type, ir_codes);
+	err = ir_input_init(input_dev, &dm1105->ir.ir, ir_type, ir_codes);
+	if (err < 0) {
+		input_free_device(input_dev);
+		return err;
+	}
+
 	input_dev->name = "DVB on-card IR receiver";
 	input_dev->phys = dm1105->ir.input_phys;
 	input_dev->id.bustype = BUS_PCI;
@@ -608,6 +613,7 @@ int __devinit dm1105_ir_init(struct dm1105dvb *dm1105)
 
 	err = input_register_device(input_dev);
 	if (err) {
+		ir_input_free(input_dev);
 		input_free_device(input_dev);
 		return err;
 	}
@@ -617,8 +623,8 @@ int __devinit dm1105_ir_init(struct dm1105dvb *dm1105)
 
 void __devexit dm1105_ir_exit(struct dm1105dvb *dm1105)
 {
+	ir_input_free(dm1105->ir.input_dev);
 	input_unregister_device(dm1105->ir.input_dev);
-
 }
 
 static int __devinit dm1105dvb_hw_init(struct dm1105dvb *dm1105dvb)

@@ -281,30 +281,6 @@ void __iomem *ioremap_cache(resource_size_t phys_addr, unsigned long size)
 }
 EXPORT_SYMBOL(ioremap_cache);
 
-static void __iomem *ioremap_default(resource_size_t phys_addr,
-					unsigned long size)
-{
-	unsigned long flags;
-	void __iomem *ret;
-	int err;
-
-	/*
-	 * - WB for WB-able memory and no other conflicting mappings
-	 * - UC_MINUS for non-WB-able memory with no other conflicting mappings
-	 * - Inherit from confliting mappings otherwise
-	 */
-	err = reserve_memtype(phys_addr, phys_addr + size,
-				_PAGE_CACHE_WB, &flags);
-	if (err < 0)
-		return NULL;
-
-	ret = __ioremap_caller(phys_addr, size, flags,
-			       __builtin_return_address(0));
-
-	free_memtype(phys_addr, phys_addr + size);
-	return ret;
-}
-
 void __iomem *ioremap_prot(resource_size_t phys_addr, unsigned long size,
 				unsigned long prot_val)
 {
@@ -380,7 +356,7 @@ void *xlate_dev_mem_ptr(unsigned long phys)
 	if (page_is_ram(start >> PAGE_SHIFT))
 		return __va(phys);
 
-	addr = (void __force *)ioremap_default(start, PAGE_SIZE);
+	addr = (void __force *)ioremap_cache(start, PAGE_SIZE);
 	if (addr)
 		addr = (void *)((unsigned long)addr | (phys & ~PAGE_MASK));
 

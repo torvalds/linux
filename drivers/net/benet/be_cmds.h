@@ -444,7 +444,7 @@ enum be_if_flags {
  * filtering capabilities. */
 struct be_cmd_req_if_create {
 	struct be_cmd_req_hdr hdr;
-	u32 version;		/* ignore currntly */
+	u32 version;		/* ignore currently */
 	u32 capability_flags;
 	u32 enable_flags;
 	u8 mac_addr[ETH_ALEN];

@@ -593,7 +593,7 @@ static u32 OFDMSwingTable[OFDM_Table_Length] = {
 	0x5a400169,	// 3, +3db
 	0x50800142,	// 4, +2db
 	0x47c0011f,	// 5, +1db
-	0x40000100,	// 6, +0db ===> default, upper for higher temprature, lower for low temprature
+	0x40000100,	// 6, +0db ===> default, upper for higher temperature, lower for low temperature
 	0x390000e4,	// 7, -1db
 	0x32c000cb,	// 8, -2db
 	0x2d4000b5,	// 9, -3db
@@ -912,14 +912,14 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 	RT_TRACE(COMP_POWER_TRACKING, "Readback ThermalMeterA = %d \n", tmpRegA);
 	if(tmpRegA < 3 || tmpRegA > 13)
 		return;
-	if(tmpRegA >= 12)	// if over 12, TP will be bad when high temprature
+	if(tmpRegA >= 12)	// if over 12, TP will be bad when high temperature
 		tmpRegA = 12;
 	RT_TRACE(COMP_POWER_TRACKING, "Valid ThermalMeterA = %d \n", tmpRegA);
 	priv->ThermalMeter[0] = ThermalMeterVal;	//We use fixed value by Bryant's suggestion
 	priv->ThermalMeter[1] = ThermalMeterVal;	//We use fixed value by Bryant's suggestion
 
-	//Get current RF-A temprature index
-	if(priv->ThermalMeter[0] >= (u8)tmpRegA)	//lower temprature
+	//Get current RF-A temperature index
+	if(priv->ThermalMeter[0] >= (u8)tmpRegA)	//lower temperature
 	{
 		tmpOFDMindex = tmpCCK20Mindex = 6+(priv->ThermalMeter[0]-(u8)tmpRegA);
 		tmpCCK40Mindex = tmpCCK20Mindex - 6;
@@ -933,7 +933,7 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 	else
 	{
 		tmpval = ((u8)tmpRegA - priv->ThermalMeter[0]);
-		if(tmpval >= 6)								// higher temprature
+		if(tmpval >= 6)								// higher temperature
 			tmpOFDMindex = tmpCCK20Mindex = 0;		// max to +6dB
 		else
 			tmpOFDMindex = tmpCCK20Mindex = 6 - tmpval;

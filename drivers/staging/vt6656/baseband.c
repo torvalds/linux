@@ -46,7 +46,6 @@
 #include "control.h"
 #include "datarate.h"
 #include "rndis.h"
-#include "control.h"
 
 /*---------------------  Static Definitions -------------------------*/
 static int          msglevel                =MSG_LEVEL_INFO;
@@ -1041,7 +1040,7 @@ else {
    if(pDevice->config_file.ZoneType !=pDevice->abyEEPROM[EEP_OFS_ZONETYPE])
       printk("zonetype in file[%02x] mismatch with in EEPROM[%02x]\n",pDevice->config_file.ZoneType,pDevice->abyEEPROM[EEP_OFS_ZONETYPE]);
    else
-      printk("Read Zonetype file sucess,use default zonetype setting[%02x]\n",pDevice->config_file.ZoneType);
+      printk("Read Zonetype file success,use default zonetype setting[%02x]\n",pDevice->config_file.ZoneType);
  }
 }
 

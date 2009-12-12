@@ -977,8 +977,8 @@ apicinterrupt UV_BAU_MESSAGE \
 #endif
 apicinterrupt LOCAL_TIMER_VECTOR \
 	apic_timer_interrupt smp_apic_timer_interrupt
-apicinterrupt GENERIC_INTERRUPT_VECTOR \
-	generic_interrupt smp_generic_interrupt
+apicinterrupt X86_PLATFORM_IPI_VECTOR \
+	x86_platform_ipi smp_x86_platform_ipi
 
 #ifdef CONFIG_SMP
 apicinterrupt INVALIDATE_TLB_VECTOR_START+0 \

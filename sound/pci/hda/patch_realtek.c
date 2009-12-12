@@ -208,6 +208,7 @@ enum {
 	ALC885_MBP3,
 	ALC885_MB5,
 	ALC885_IMAC24,
+	ALC885_IMAC91,
 	ALC883_3ST_2ch_DIG,
 	ALC883_3ST_6ch_DIG,
 	ALC883_3ST_6ch,
@@ -2400,6 +2401,8 @@ static const char *alc_slave_sws[] = {
 	"Speaker Playback Switch",
 	"Mono Playback Switch",
 	"IEC958 Playback Switch",
+	"Line-Out Playback Switch",
+	"PCM Playback Switch",
 	NULL,
 };
 
@@ -6618,7 +6621,7 @@ static struct hda_input_mux alc889A_mb31_capture_source = {
 		/* Front Mic (0x01) unused */
 		{ "Line", 0x2 },
 		/* Line 2 (0x03) unused */
-		/* CD (0x04) unsused? */
+		/* CD (0x04) unused? */
 	},
 };
 
@@ -7049,6 +7052,20 @@ static struct snd_kcontrol_new alc885_mb5_mixer[] = {
 	HDA_CODEC_VOLUME("Mic Boost", 0x19, 0x00, HDA_INPUT),
 	{ } /* end */
 };
+
+static struct snd_kcontrol_new alc885_imac91_mixer[] = {
+	HDA_CODEC_VOLUME("Line-Out Playback Volume", 0x0c, 0x00, HDA_OUTPUT),
+	HDA_BIND_MUTE   ("Line-Out Playback Switch", 0x0c, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE  ("Speaker Playback Switch", 0x14, 0x00, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x0d, 0x00, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE  ("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x00, HDA_INPUT),
+	HDA_CODEC_MUTE  ("Mic Playback Switch", 0x0b, 0x00, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0x00, HDA_INPUT),
+	{ } /* end */
+};
+
 
 static struct snd_kcontrol_new alc882_w2jc_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
@@ -7505,6 +7522,66 @@ static struct hda_verb alc885_mbp3_init_verbs[] = {
 	{ }
 };
 
+/* iMac 9,1 */
+static struct hda_verb alc885_imac91_init_verbs[] = {
+	/* Line-Out mixer: unmute input/output amp left and right (volume = 0) */
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
+	/* Rear mixer */
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
+	/* HP Pin: output 0 (0x0c) */
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x14, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
+	/* Internal Speakers: output 0 (0x0d) */
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
+	/* Mic (rear) pin: input vref at 80% */
+	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
+	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	/* Front Mic pin: input vref at 80% */
+	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
+	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	/* Line In pin: use output 1 when in LineOut mode */
+	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
+	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	{0x1a, AC_VERB_SET_CONNECT_SEL, 0x01},
+
+	/* FIXME: use matrix-type input source selection */
+	/* Mixer elements: 0x18, 19, 1a, 1b, 1c, 1d, 14, 15, 16, 17, 0b */
+	/* Input mixer1: unmute Mic, F-Mic, Line, CD inputs */
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
+	/* Input mixer2 */
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
+	/* Input mixer3 */
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
+	/* ADC1: mute amp left and right */
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x07, AC_VERB_SET_CONNECT_SEL, 0x00},
+	/* ADC2: mute amp left and right */
+	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x08, AC_VERB_SET_CONNECT_SEL, 0x00},
+	/* ADC3: mute amp left and right */
+	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x09, AC_VERB_SET_CONNECT_SEL, 0x00},
+
+	{ }
+};
+
 /* iMac 24 mixer. */
 static struct snd_kcontrol_new alc885_imac24_mixer[] = {
 	HDA_CODEC_VOLUME("Master Playback Volume", 0x0c, 0x00, HDA_OUTPUT),
@@ -7551,6 +7628,26 @@ static void alc885_mbp3_setup(struct hda_codec *codec)
 	spec->autocfg.speaker_pins[0] = 0x14;
 }
 
+static void alc885_imac91_automute(struct hda_codec *codec)
+{
+ 	unsigned int present;
+
+	present = snd_hda_codec_read(codec, 0x14, 0,
+				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
+	snd_hda_codec_amp_stereo(codec, 0x1a, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
+
+}
+
+static void alc885_imac91_unsol_event(struct hda_codec *codec,
+				    unsigned int res)
+{
+	/* Headphone insertion or removal. */
+	if ((res >> 26) == ALC880_HP_EVENT)
+		alc885_imac91_automute(codec);
+}
 
 static struct hda_verb alc882_targa_verbs[] = {
 	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
@@ -8718,6 +8815,7 @@ static const char *alc882_models[ALC882_MODEL_LAST] = {
 	[ALC885_MB5]		= "mb5",
 	[ALC885_MBP3]		= "mbp3",
 	[ALC885_IMAC24]		= "imac24",
+	[ALC885_IMAC91]		= "imac91",
 	[ALC883_3ST_2ch_DIG]	= "3stack-2ch-dig",
 	[ALC883_3ST_6ch_DIG]	= "3stack-6ch-dig",
 	[ALC883_3ST_6ch]	= "3stack-6ch",
@@ -8891,6 +8989,7 @@ static struct snd_pci_quirk alc882_ssid_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x106b, 0x3600, "Macbook 3,1", ALC889A_MB31),
 	SND_PCI_QUIRK(0x106b, 0x3800, "MacbookPro 4,1", ALC885_MBP3),
 	SND_PCI_QUIRK(0x106b, 0x3e00, "iMac 24 Aluminum", ALC885_IMAC24),
+	SND_PCI_QUIRK(0x106b, 0x4900, "iMac 9,1 Aluminum", ALC885_IMAC91),
 	SND_PCI_QUIRK(0x106b, 0x3f00, "Macbook 5,1", ALC885_MB5),
 	/* FIXME: HP jack sense seems not working for MBP 5,1 or 5,2,
 	 * so apparently no perfect solution yet
@@ -9001,6 +9100,20 @@ static struct alc_config_preset alc882_presets[] = {
 		.unsol_event = alc_automute_amp_unsol_event,
 		.setup = alc885_imac24_setup,
 		.init_hook = alc885_imac24_init_hook,
+	},
+	[ALC885_IMAC91] = {
+		.mixers = { alc885_imac91_mixer, alc882_chmode_mixer },
+		.init_verbs = { alc885_imac91_init_verbs,
+				alc880_gpio1_init_verbs },
+		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
+		.dac_nids = alc882_dac_nids,
+		.channel_mode = alc885_mbp_4ch_modes,
+		.num_channel_mode = ARRAY_SIZE(alc885_mbp_4ch_modes),
+		.input_mux = &alc882_capture_source,
+		.dig_out_nid = ALC882_DIGOUT_NID,
+		.dig_in_nid = ALC882_DIGIN_NID,
+		.unsol_event = alc885_imac91_unsol_event,
+		.init_hook = alc885_imac91_automute,
 	},
 	[ALC882_TARGA] = {
 		.mixers = { alc882_targa_mixer, alc882_chmode_mixer },
@@ -9908,10 +10021,12 @@ static int patch_alc882(struct hda_codec *codec)
 		spec->init_amp = ALC_INIT_DEFAULT; /* always initialize */
 
 	if (!spec->adc_nids && spec->input_mux) {
-		int i;
+		int i, j;
 		spec->num_adc_nids = 0;
 		for (i = 0; i < ARRAY_SIZE(alc882_adc_nids); i++) {
+			const struct hda_input_mux *imux = spec->input_mux;
 			hda_nid_t cap;
+			hda_nid_t items[16];
 			hda_nid_t nid = alc882_adc_nids[i];
 			unsigned int wcap = get_wcaps(codec, nid);
 			/* get type */
@@ -9921,6 +10036,15 @@ static int patch_alc882(struct hda_codec *codec)
 			spec->private_adc_nids[spec->num_adc_nids] = nid;
 			err = snd_hda_get_connections(codec, nid, &cap, 1);
 			if (err < 0)
+				continue;
+			err = snd_hda_get_connections(codec, cap, items,
+						      ARRAY_SIZE(items));
+			if (err < 0)
+				continue;
+			for (j = 0; j < imux->num_items; j++)
+				if (imux->items[j].index >= err)
+					break;
+			if (j < imux->num_items)
 				continue;
 			spec->private_capsrc_nids[spec->num_adc_nids] = cap;
 			spec->num_adc_nids++;
@@ -16846,6 +16970,7 @@ static struct snd_pci_quirk alc662_cfg_tbl[] = {
 					ALC662_3ST_6ch_DIG),
 	SND_PCI_QUIRK_MASK(0x1854, 0xf000, 0x2000, "ASUS H13-200x",
 			   ALC663_ASUS_H13),
+	SND_PCI_QUIRK(0x8086, 0xd604, "Intel mobo", ALC662_3ST_2ch_DIG),
 	{}
 };
 

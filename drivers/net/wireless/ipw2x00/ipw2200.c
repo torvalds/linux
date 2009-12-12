@@ -792,7 +792,7 @@ static int ipw_get_ordinal(struct ipw_priv *priv, u32 ord, void *val, u32 * len)
 		/* get number of entries */
 		field_count = *(((u16 *) & field_info) + 1);
 
-		/* abort if not enought memory */
+		/* abort if not enough memory */
 		total_len = field_len * field_count;
 		if (total_len > *len) {
 			*len = total_len;
@@ -7760,7 +7760,7 @@ static void ipw_rebuild_decrypted_skb(struct ipw_priv *priv,
 	case SEC_LEVEL_0:
 		break;
 	default:
-		printk(KERN_ERR "Unknow security level %d\n",
+		printk(KERN_ERR "Unknown security level %d\n",
 		       priv->ieee->sec.level);
 		break;
 	}
@@ -8926,7 +8926,7 @@ static int ipw_wx_get_range(struct net_device *dev,
 	range->max_qual.updated = 7;	/* Updated all three */
 
 	range->avg_qual.qual = 70;
-	/* TODO: Find real 'good' to 'bad' threshol value for RSSI */
+	/* TODO: Find real 'good' to 'bad' threshold value for RSSI */
 	range->avg_qual.level = 0;	/* FIXME to real average level */
 	range->avg_qual.noise = 0;
 	range->avg_qual.updated = 7;	/* Updated all three */
@@ -10299,7 +10299,7 @@ static int ipw_tx_skb(struct ipw_priv *priv, struct libipw_txb *txb,
 		case SEC_LEVEL_0:
 			break;
 		default:
-			printk(KERN_ERR "Unknow security level %d\n",
+			printk(KERN_ERR "Unknown security level %d\n",
 			       priv->ieee->sec.level);
 			break;
 		}

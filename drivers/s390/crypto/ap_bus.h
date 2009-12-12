@@ -87,6 +87,7 @@ struct ap_queue_status {
 #define AP_RESPONSE_INDEX_TOO_BIG	0x11
 #define AP_RESPONSE_NO_FIRST_PART	0x13
 #define AP_RESPONSE_MESSAGE_TOO_BIG	0x15
+#define AP_RESPONSE_REQ_FAC_NOT_INST	0x16
 
 /*
  * Known device types
@@ -96,8 +97,8 @@ struct ap_queue_status {
 #define AP_DEVICE_TYPE_PCIXCC	5
 #define AP_DEVICE_TYPE_CEX2A	6
 #define AP_DEVICE_TYPE_CEX2C	7
-#define AP_DEVICE_TYPE_CEX2A2	8
-#define AP_DEVICE_TYPE_CEX2C2	9
+#define AP_DEVICE_TYPE_CEX3A	8
+#define AP_DEVICE_TYPE_CEX3C	9
 
 /*
  * AP reset flag states
@@ -161,11 +162,24 @@ struct ap_message {
 	size_t length;			/* Message length. */
 
 	void *private;			/* ap driver private pointer. */
+	unsigned int special:1;		/* Used for special commands. */
 };
 
 #define AP_DEVICE(dt)					\
 	.dev_type=(dt),					\
 	.match_flags=AP_DEVICE_ID_MATCH_DEVICE_TYPE,
+
+/**
+ * ap_init_message() - Initialize ap_message.
+ * Initialize a message before using. Otherwise this might result in
+ * unexpected behaviour.
+ */
+static inline void ap_init_message(struct ap_message *ap_msg)
+{
+	ap_msg->psmid = 0;
+	ap_msg->length = 0;
+	ap_msg->special = 0;
+}
 
 /*
  * Note: don't use ap_send/ap_recv after using ap_queue_message

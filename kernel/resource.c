@@ -308,35 +308,37 @@ static int find_resource(struct resource *root, struct resource *new,
 			 void *alignf_data)
 {
 	struct resource *this = root->child;
+	resource_size_t start, end;
 
-	new->start = root->start;
+	start = root->start;
 	/*
 	 * Skip past an allocated resource that starts at 0, since the assignment
 	 * of this->start - 1 to new->end below would cause an underflow.
 	 */
 	if (this && this->start == 0) {
-		new->start = this->end + 1;
+		start = this->end + 1;
 		this = this->sibling;
 	}
 	for(;;) {
 		if (this)
-			new->end = this->start - 1;
+			end = this->start - 1;
 		else
-			new->end = root->end;
-		if (new->start < min)
-			new->start = min;
-		if (new->end > max)
-			new->end = max;
-		new->start = ALIGN(new->start, align);
+			end = root->end;
+		if (start < min)
+			start = min;
+		if (end > max)
+			end = max;
+		start = ALIGN(start, align);
 		if (alignf)
 			alignf(alignf_data, new, size, align);
-		if (new->start < new->end && new->end - new->start >= size - 1) {
-			new->end = new->start + size - 1;
+		if (start < end && end - start >= size - 1) {
+			new->start = start;
+			new->end = start + size - 1;
 			return 0;
 		}
 		if (!this)
 			break;
-		new->start = this->end + 1;
+		start = this->end + 1;
 		this = this->sibling;
 	}
 	return -EBUSY;

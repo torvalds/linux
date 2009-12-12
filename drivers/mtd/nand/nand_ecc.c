@@ -475,7 +475,7 @@ int __nand_correct_data(unsigned char *buf,
 		 *
 		 * The b2 shift is there to get rid of the lowest two bits.
 		 * We could also do addressbits[b2] >> 1 but for the
-		 * performace it does not make any difference
+		 * performance it does not make any difference
 		 */
 		if (eccsize_mult == 1)
 			byte_addr = (addressbits[b1] << 4) + addressbits[b0];

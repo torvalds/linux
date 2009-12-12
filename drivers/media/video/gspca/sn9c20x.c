@@ -2342,7 +2342,6 @@ static void sd_dqcallback(struct gspca_dev *gspca_dev)
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
 			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
@@ -2378,22 +2377,22 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		avg_lum >>= 9;
 		atomic_set(&sd->avg_lum, avg_lum);
 		gspca_frame_add(gspca_dev, LAST_PACKET,
-				frame, data, len);
+				data, len);
 		return;
 	}
 	if (gspca_dev->last_packet_type == LAST_PACKET) {
 		if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv
 				& MODE_JPEG) {
-			gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+			gspca_frame_add(gspca_dev, FIRST_PACKET,
 				sd->jpeg_hdr, JPEG_HDR_SZ);
-			gspca_frame_add(gspca_dev, INTER_PACKET, frame,
+			gspca_frame_add(gspca_dev, INTER_PACKET,
 				data, len);
 		} else {
-			gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+			gspca_frame_add(gspca_dev, FIRST_PACKET,
 				data, len);
 		}
 	} else {
-		gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+		gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 	}
 }
 
