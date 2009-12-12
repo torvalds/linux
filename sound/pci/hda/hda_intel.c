@@ -2082,7 +2082,8 @@ static void azx_power_notify(struct hda_bus *bus)
 	}
 	if (power_on)
 		azx_init_chip(chip);
-	else if (chip->running && power_save_controller)
+	else if (chip->running && power_save_controller &&
+		 !bus->power_keep_link_on)
 		azx_stop_chip(chip);
 }
 #endif /* CONFIG_SND_HDA_POWER_SAVE */
