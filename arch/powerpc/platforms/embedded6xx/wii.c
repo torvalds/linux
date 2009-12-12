@@ -97,6 +97,9 @@ void __init wii_memory_fixups(void)
 
 	/* reserve the hole */
 	lmb_reserve(wii_hole_start, wii_hole_size);
+
+	/* allow ioremapping the address space in the hole */
+	__allow_ioremap_reserved = 1;
 }
 
 unsigned long __init wii_mmu_mapin_mem2(unsigned long top)
