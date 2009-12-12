@@ -28,6 +28,8 @@
 
 /* Needed for secondary core boot */
 extern void omap_secondary_startup(void);
+extern u32 omap_modify_auxcoreboot0(u32 set_mask, u32 clear_mask);
+extern void omap_auxcoreboot_addr(u32 cpu_addr);
 
 /*
  * We use Soft IRQ1 as the IPI
