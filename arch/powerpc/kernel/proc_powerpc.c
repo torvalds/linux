@@ -28,55 +28,7 @@
 #include <asm/uaccess.h>
 #include <asm/prom.h>
 
-static loff_t  page_map_seek( struct file *file, loff_t off, int whence);
-static ssize_t page_map_read( struct file *file, char __user *buf, size_t nbytes,
-			      loff_t *ppos);
-static int     page_map_mmap( struct file *file, struct vm_area_struct *vma );
-
-static const struct file_operations page_map_fops = {
-	.llseek	= page_map_seek,
-	.read	= page_map_read,
-	.mmap	= page_map_mmap
-};
-
-/*
- * Create the ppc64 and ppc64/rtas directories early. This allows us to
- * assume that they have been previously created in drivers.
- */
-static int __init proc_ppc64_create(void)
-{
-	struct proc_dir_entry *root;
-
-	root = proc_mkdir("ppc64", NULL);
-	if (!root)
-		return 1;
-
-	if (!of_find_node_by_path("/rtas"))
-		return 0;
-
-	if (!proc_mkdir("rtas", root))
-		return 1;
-
-	if (!proc_symlink("rtas", NULL, "ppc64/rtas"))
-		return 1;
-
-	return 0;
-}
-core_initcall(proc_ppc64_create);
-
-static int __init proc_ppc64_init(void)
-{
-	struct proc_dir_entry *pde;
-
-	pde = proc_create_data("ppc64/systemcfg", S_IFREG|S_IRUGO, NULL,
-			       &page_map_fops, vdso_data);
-	if (!pde)
-		return 1;
-	pde->size = PAGE_SIZE;
-
-	return 0;
-}
-__initcall(proc_ppc64_init);
+#ifdef CONFIG_PPC64
 
 static loff_t page_map_seek( struct file *file, loff_t off, int whence)
 {
@@ -120,3 +72,55 @@ static int page_map_mmap( struct file *file, struct vm_area_struct *vma )
 	return 0;
 }
 
+static const struct file_operations page_map_fops = {
+	.llseek	= page_map_seek,
+	.read	= page_map_read,
+	.mmap	= page_map_mmap
+};
+
+
+static int __init proc_ppc64_init(void)
+{
+	struct proc_dir_entry *pde;
+
+	pde = proc_create_data("powerpc/systemcfg", S_IFREG|S_IRUGO, NULL,
+			       &page_map_fops, vdso_data);
+	if (!pde)
+		return 1;
+	pde->size = PAGE_SIZE;
+
+	return 0;
+}
+__initcall(proc_ppc64_init);
+
+#endif /* CONFIG_PPC64 */
+
+/*
+ * Create the ppc64 and ppc64/rtas directories early. This allows us to
+ * assume that they have been previously created in drivers.
+ */
+static int __init proc_ppc64_create(void)
+{
+	struct proc_dir_entry *root;
+
+	root = proc_mkdir("powerpc", NULL);
+	if (!root)
+		return 1;
+
+#ifdef CONFIG_PPC64
+	if (!proc_symlink("ppc64", NULL, "powerpc"))
+		pr_err("Failed to create link /proc/ppc64 -> /proc/powerpc\n");
+#endif
+
+	if (!of_find_node_by_path("/rtas"))
+		return 0;
+
+	if (!proc_mkdir("rtas", root))
+		return 1;
+
+	if (!proc_symlink("rtas", NULL, "powerpc/rtas"))
+		return 1;
+
+	return 0;
+}
+core_initcall(proc_ppc64_create);

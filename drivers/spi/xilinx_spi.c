@@ -148,7 +148,8 @@ static int xilinx_spi_setup_transfer(struct spi_device *spi,
 {
 	u8 bits_per_word;
 
-	bits_per_word = (t) ? t->bits_per_word : spi->bits_per_word;
+	bits_per_word = (t && t->bits_per_word)
+			 ? t->bits_per_word : spi->bits_per_word;
 	if (bits_per_word != 8) {
 		dev_err(&spi->dev, "%s, unsupported bits_per_word=%d\n",
 			__func__, bits_per_word);
