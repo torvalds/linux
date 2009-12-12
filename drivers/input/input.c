@@ -296,9 +296,15 @@ static void input_handle_event(struct input_dev *dev,
  * @value: value of the event
  *
  * This function should be used by drivers implementing various input
- * devices. See also input_inject_event().
+ * devices to report input events. See also input_inject_event().
+ *
+ * NOTE: input_event() may be safely used right after input device was
+ * allocated with input_allocate_device(), even before it is registered
+ * with input_register_device(), but the event will not reach any of the
+ * input handlers. Such early invocation of input_event() may be used
+ * to 'seed' initial state of a switch or initial position of absolute
+ * axis, etc.
  */
-
 void input_event(struct input_dev *dev,
 		 unsigned int type, unsigned int code, int value)
 {
