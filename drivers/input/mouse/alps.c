@@ -487,6 +487,17 @@ int alps_init(struct psmouse *psmouse)
 	if (alps_hw_init(psmouse))
 		goto init_fail;
 
+	/*
+	 * Undo part of setup done for us by psmouse core since touchpad
+	 * is not a relative device.
+	 */
+	__clear_bit(EV_REL, dev1->evbit);
+	__clear_bit(REL_X, dev1->relbit);
+	__clear_bit(REL_Y, dev1->relbit);
+
+	/*
+	 * Now set up our capabilities.
+	 */
 	dev1->evbit[BIT_WORD(EV_KEY)] |= BIT_MASK(EV_KEY);
 	dev1->keybit[BIT_WORD(BTN_TOUCH)] |= BIT_MASK(BTN_TOUCH);
 	dev1->keybit[BIT_WORD(BTN_TOOL_FINGER)] |= BIT_MASK(BTN_TOOL_FINGER);
