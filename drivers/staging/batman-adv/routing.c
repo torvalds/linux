@@ -1177,8 +1177,7 @@ static int discard_one_packet(struct batman_if *batman_if,
 {
 	int result = -EAGAIN;
 
-	if ((batman_if->if_active == IF_TO_BE_ACTIVATED)
-		&& (batman_if->raw_sock)) {
+	if (batman_if->raw_sock) {
 			result = receive_raw_packet(batman_if->raw_sock,
 						    packet_buff,
 						    PACKBUFF_SIZE);
