@@ -57,7 +57,7 @@ atomic_t module_state;
 
 struct workqueue_struct *bat_event_workqueue;
 
-#ifdef CONFIG_BATMAN_DEBUG
+#ifdef CONFIG_BATMAN_ADV_DEBUG
 int debug;
 
 module_param(debug, int, 0644);

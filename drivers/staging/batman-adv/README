@@ -115,7 +115,7 @@ kernel, use "make menuconfig" and enable the option
 "B.A.T.M.A.N. debugging". When compiling outside of the kernel tree it
 is necessary to edit the file Makefile.kbuild and uncomment the line
 
-#EXTRA_CFLAGS += -DCONFIG_BATMAN_DEBUG
+#EXTRA_CFLAGS += -DCONFIG_BATMAN_ADV_DEBUG
 
 The additional debug output is by default disabled. It can be enabled
 either at kernel modules load time or during run time. To enable debug

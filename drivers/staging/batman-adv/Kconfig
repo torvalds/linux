@@ -14,10 +14,10 @@ config BATMAN_ADV
         http://www.open-mesh.org/ for more information and user space
         tools.
 
-config BATMAN_DEBUG
+config BATMAN_ADV_DEBUG
 	bool "B.A.T.M.A.N. debugging"
 	depends on BATMAN_ADV != n
-	help
+	---help---
 
 	  This is an option for use by developers; most people should
 	  say N here. This enables compilation of support for

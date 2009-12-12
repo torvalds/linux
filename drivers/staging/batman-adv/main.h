@@ -76,7 +76,7 @@
 			 * broadcasting / etc */
 #define DBG_ROUTES 2	/* route or hna added / changed / deleted */
 
-#ifdef CONFIG_BATMAN_DEBUG
+#ifdef CONFIG_BATMAN_ADV_DEBUG
 extern int debug;
 
 extern int bat_debug_type(int type);
@@ -85,7 +85,7 @@ extern int bat_debug_type(int type);
 			printk(KERN_DEBUG "batman-adv:" fmt, ## arg);	\
 	}								\
 	while (0)
-#else /* !CONFIG_BATMAN_DEBUG */
+#else /* !CONFIG_BATMAN_ADV_DEBUG */
 #define bat_dbg(type, fmt, arg...) do {		\
 	}					\
 	while (0)
