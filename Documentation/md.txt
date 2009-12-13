@@ -233,9 +233,9 @@ All md devices contain:
 
   resync_start
      The point at which resync should start.  If no resync is needed,
-     this will be a very large number.  At array creation it will
-     default to 0, though starting the array as 'clean' will
-     set it much larger.
+     this will be a very large number (or 'none' since 2.6.30-rc1).  At
+     array creation it will default to 0, though starting the array as
+     'clean' will set it much larger.
 
    new_dev
      This file can be written but not read.  The value written should
@@ -379,8 +379,9 @@ Each directory contains:
 	Writing "writemostly" sets the writemostly flag.
 	Writing "-writemostly" clears the writemostly flag.
 	Writing "blocked" sets the "blocked" flag.
-	Writing "-blocked" clear the "blocked" flag and allows writes
+	Writing "-blocked" clears the "blocked" flag and allows writes
 		to complete.
+	Writing "in_sync" sets the in_sync flag.
 
 	This file responds to select/poll. Any change to 'faulty'
 	or 'blocked' causes an event.
@@ -416,6 +417,24 @@ Each directory contains:
 	component_size.  This can be written while assembling an
         array.  If a value less than the current component_size is
         written, it will be rejected.
+
+      recovery_start
+
+        When the device is not 'in_sync', this records the number of
+	sectors from the start of the device which are known to be
+	correct.  This is normally zero, but during a recovery
+	operation is will steadily increase, and if the recovery is
+	interrupted, restoring this value can cause recovery to
+	avoid repeating the earlier blocks.  With v1.x metadata, this
+	value is saved and restored automatically.
+
+	This can be set whenever the device is not an active member of
+	the array, either before the array is activated, or before
+	the 'slot' is set.
+
+	Setting this to 'none' is equivalent to setting 'in_sync'.
+	Setting to any other value also clears the 'in_sync' flag.
+	
 
 
 An active md device will also contain and entry for each active device
