@@ -6,7 +6,11 @@
 
 #define QUICK_PT 1	/* Other page table pages that are zero on free */
 
+#ifdef CONFIG_PGTABLE_LEVELS_3
+#include <asm/pgalloc_pmd.h>
+#else
 #include <asm/pgalloc_nopmd.h>
+#endif
 
 static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd,
 				       pte_t *pte)
