@@ -24,7 +24,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/drbd.h>
 #include <linux/sched.h>
 #include <linux/smp_lock.h>
