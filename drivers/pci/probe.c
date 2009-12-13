@@ -393,6 +393,25 @@ static struct pci_bus * pci_alloc_bus(void)
 	return b;
 }
 
+static unsigned char pcix_bus_speed[] = {
+	PCI_SPEED_UNKNOWN,		/* 0 */
+	PCI_SPEED_66MHz_PCIX,		/* 1 */
+	PCI_SPEED_100MHz_PCIX,		/* 2 */
+	PCI_SPEED_133MHz_PCIX,		/* 3 */
+	PCI_SPEED_UNKNOWN,		/* 4 */
+	PCI_SPEED_66MHz_PCIX_ECC,	/* 5 */
+	PCI_SPEED_100MHz_PCIX_ECC,	/* 6 */
+	PCI_SPEED_133MHz_PCIX_ECC,	/* 7 */
+	PCI_SPEED_UNKNOWN,		/* 8 */
+	PCI_SPEED_66MHz_PCIX_266,	/* 9 */
+	PCI_SPEED_100MHz_PCIX_266,	/* A */
+	PCI_SPEED_133MHz_PCIX_266,	/* B */
+	PCI_SPEED_UNKNOWN,		/* C */
+	PCI_SPEED_66MHz_PCIX_533,	/* D */
+	PCI_SPEED_100MHz_PCIX_533,	/* E */
+	PCI_SPEED_133MHz_PCIX_533	/* F */
+};
+
 static unsigned char pcie_link_speed[] = {
 	PCI_SPEED_UNKNOWN,		/* 0 */
 	PCIE_SPEED_2_5GT,		/* 1 */
@@ -417,6 +436,51 @@ void pcie_update_link_speed(struct pci_bus *bus, u16 linksta)
 	bus->cur_bus_speed = pcie_link_speed[linksta & 0xf];
 }
 EXPORT_SYMBOL_GPL(pcie_update_link_speed);
+
+static void pci_set_bus_speed(struct pci_bus *bus)
+{
+	struct pci_dev *bridge = bus->self;
+	int pos;
+
+	pos = pci_find_capability(bridge, PCI_CAP_ID_PCIX);
+	if (pos) {
+		u16 status;
+		enum pci_bus_speed max;
+		pci_read_config_word(bridge, pos + 2, &status);
+
+		if (status & 0x8000) {
+			max = PCI_SPEED_133MHz_PCIX_533;
+		} else if (status & 0x4000) {
+			max = PCI_SPEED_133MHz_PCIX_266;
+		} else if (status & 0x0002) {
+			if (((status >> 12) & 0x3) == 2) {
+				max = PCI_SPEED_133MHz_PCIX_ECC;
+			} else {
+				max = PCI_SPEED_133MHz_PCIX;
+			}
+		} else {
+			max = PCI_SPEED_66MHz_PCIX;
+		}
+
+		bus->max_bus_speed = max;
+		bus->cur_bus_speed = pcix_bus_speed[(status >> 6) & 0xf];
+
+		return;
+	}
+
+	pos = pci_find_capability(bridge, PCI_CAP_ID_EXP);
+	if (pos) {
+		u32 linkcap;
+		u16 linksta;
+
+		pci_read_config_dword(bridge, pos + PCI_EXP_LNKCAP, &linkcap);
+		bus->max_bus_speed = pcie_link_speed[linkcap & 0xf];
+
+		pci_read_config_word(bridge, pos + PCI_EXP_LNKSTA, &linksta);
+		pcie_update_link_speed(bus, linksta);
+	}
+}
+
 
 static struct pci_bus *pci_alloc_child_bus(struct pci_bus *parent,
 					   struct pci_dev *bridge, int busnr)
@@ -456,6 +520,8 @@ static struct pci_bus *pci_alloc_child_bus(struct pci_bus *parent,
 
 	child->self = bridge;
 	child->bridge = get_device(&bridge->dev);
+
+	pci_set_bus_speed(child);
 
 	/* Set up default resource pointers and names.. */
 	for (i = 0; i < PCI_BRIDGE_RESOURCE_NUM; i++) {
