@@ -12,7 +12,6 @@
 #include "util/trace-event.h"
 
 #include "util/debug.h"
-#include "util/data_map.h"
 
 #include <sys/prctl.h>
 
@@ -1656,7 +1655,7 @@ static int sample_type_check(u64 type)
 	return 0;
 }
 
-static struct perf_file_handler file_handler = {
+static struct perf_event_ops event_ops = {
 	.process_sample_event	= process_sample_event,
 	.process_comm_event	= event__process_comm,
 	.process_lost_event	= process_lost_event,
@@ -1672,9 +1671,9 @@ static int read_events(void)
 		return -ENOMEM;
 
 	register_idle_thread();
-	register_perf_file_handler(&file_handler);
 
-	err = perf_session__process_events(session, 0, &event__cwdlen, &event__cwd);
+	err = perf_session__process_events(session, &event_ops, 0,
+					   &event__cwdlen, &event__cwd);
 	perf_session__delete(session);
 	return err;
 }

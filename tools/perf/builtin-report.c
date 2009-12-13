@@ -27,7 +27,6 @@
 #include "util/parse-options.h"
 #include "util/parse-events.h"
 
-#include "util/data_map.h"
 #include "util/thread.h"
 #include "util/sort.h"
 #include "util/hist.h"
@@ -748,7 +747,7 @@ static int sample_type_check(u64 type)
 	return 0;
 }
 
-static struct perf_file_handler file_handler = {
+static struct perf_event_ops event_ops = {
 	.process_sample_event	= process_sample_event,
 	.process_mmap_event	= event__process_mmap,
 	.process_comm_event	= process_comm_event,
@@ -776,9 +775,7 @@ static int __cmd_report(void)
 	if (show_threads)
 		perf_read_values_init(&show_threads_values);
 
-	register_perf_file_handler(&file_handler);
-
-	ret = perf_session__process_events(session, full_paths,
+	ret = perf_session__process_events(session, &event_ops, full_paths,
 					   &event__cwdlen, &event__cwd);
 	if (ret)
 		goto out_delete;

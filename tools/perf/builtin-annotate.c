@@ -26,7 +26,6 @@
 #include "util/sort.h"
 #include "util/hist.h"
 #include "util/session.h"
-#include "util/data_map.h"
 
 static char		const *input_name = "perf.data";
 
@@ -454,7 +453,7 @@ static void find_annotations(void)
 	}
 }
 
-static struct perf_file_handler file_handler = {
+static struct perf_event_ops event_ops = {
 	.process_sample_event	= process_sample_event,
 	.process_mmap_event	= event__process_mmap,
 	.process_comm_event	= event__process_comm,
@@ -463,7 +462,8 @@ static struct perf_file_handler file_handler = {
 
 static int __cmd_annotate(void)
 {
-	struct perf_session *session = perf_session__new(input_name, O_RDONLY, force);
+	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
+							 force);
 	struct thread *idle;
 	int ret;
 
@@ -471,9 +471,9 @@ static int __cmd_annotate(void)
 		return -ENOMEM;
 
 	idle = register_idle_thread();
-	register_perf_file_handler(&file_handler);
 
-	ret = perf_session__process_events(session, 0, &event__cwdlen, &event__cwd);
+	ret = perf_session__process_events(session, &event_ops, 0,
+					   &event__cwdlen, &event__cwd);
 	if (ret)
 		goto out_delete;
 

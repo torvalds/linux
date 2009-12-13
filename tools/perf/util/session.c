@@ -48,7 +48,8 @@ out_close:
 	return -1;
 }
 
-struct perf_session *perf_session__new(const char *filename, int mode, bool force)
+struct perf_session *perf_session__new(const char *filename, int mode,
+				       bool force)
 {
 	size_t len = strlen(filename) + 1;
 	struct perf_session *self = zalloc(sizeof(*self) + len);

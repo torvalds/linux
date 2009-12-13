@@ -57,7 +57,6 @@ static int cleanup_scripting(void)
 #include "util/debug.h"
 
 #include "util/trace-event.h"
-#include "util/data_map.h"
 #include "util/exec_cmd.h"
 
 static char const		*input_name = "perf.data";
@@ -118,7 +117,7 @@ static int sample_type_check(u64 type)
 	return 0;
 }
 
-static struct perf_file_handler file_handler = {
+static struct perf_event_ops event_ops = {
 	.process_sample_event	= process_sample_event,
 	.process_comm_event	= event__process_comm,
 	.sample_type_check	= sample_type_check,
@@ -127,9 +126,8 @@ static struct perf_file_handler file_handler = {
 static int __cmd_trace(struct perf_session *session)
 {
 	register_idle_thread();
-	register_perf_file_handler(&file_handler);
-
-	return perf_session__process_events(session, 0, &event__cwdlen, &event__cwd);
+	return perf_session__process_events(session, &event_ops, 0,
+					    &event__cwdlen, &event__cwd);
 }
 
 struct script_spec {

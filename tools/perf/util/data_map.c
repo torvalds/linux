@@ -1,10 +1,8 @@
-#include "data_map.h"
 #include "symbol.h"
 #include "util.h"
 #include "debug.h"
+#include "session.h"
 
-
-static struct perf_file_handler *curr_handler;
 static unsigned long	mmap_window = 32;
 static char		__cwd[PATH_MAX];
 
@@ -15,7 +13,7 @@ static int process_event_stub(event_t *event __used,
 	return 0;
 }
 
-void register_perf_file_handler(struct perf_file_handler *handler)
+static void perf_event_ops__fill_defaults(struct perf_event_ops *handler)
 {
 	if (!handler->process_sample_event)
 		handler->process_sample_event = process_event_stub;
@@ -35,8 +33,6 @@ void register_perf_file_handler(struct perf_file_handler *handler)
 		handler->process_throttle_event = process_event_stub;
 	if (!handler->process_unthrottle_event)
 		handler->process_unthrottle_event = process_event_stub;
-
-	curr_handler = handler;
 }
 
 static const char *event__name[] = {
@@ -63,6 +59,7 @@ void event__print_totals(void)
 }
 
 static int process_event(event_t *event, struct perf_session *session,
+			 struct perf_event_ops *ops,
 			 unsigned long offset, unsigned long head)
 {
 	trace_event(event);
@@ -78,25 +75,25 @@ static int process_event(event_t *event, struct perf_session *session,
 
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
-		return curr_handler->process_sample_event(event, session);
+		return ops->process_sample_event(event, session);
 	case PERF_RECORD_MMAP:
-		return curr_handler->process_mmap_event(event, session);
+		return ops->process_mmap_event(event, session);
 	case PERF_RECORD_COMM:
-		return curr_handler->process_comm_event(event, session);
+		return ops->process_comm_event(event, session);
 	case PERF_RECORD_FORK:
-		return curr_handler->process_fork_event(event, session);
+		return ops->process_fork_event(event, session);
 	case PERF_RECORD_EXIT:
-		return curr_handler->process_exit_event(event, session);
+		return ops->process_exit_event(event, session);
 	case PERF_RECORD_LOST:
-		return curr_handler->process_lost_event(event, session);
+		return ops->process_lost_event(event, session);
 	case PERF_RECORD_READ:
-		return curr_handler->process_read_event(event, session);
+		return ops->process_read_event(event, session);
 	case PERF_RECORD_THROTTLE:
-		return curr_handler->process_throttle_event(event, session);
+		return ops->process_throttle_event(event, session);
 	case PERF_RECORD_UNTHROTTLE:
-		return curr_handler->process_unthrottle_event(event, session);
+		return ops->process_unthrottle_event(event, session);
 	default:
-		curr_handler->total_unknown++;
+		ops->total_unknown++;
 		return -1;
 	}
 }
@@ -131,6 +128,7 @@ out:
 }
 
 int perf_session__process_events(struct perf_session *self,
+				 struct perf_event_ops *ops,
 				 int full_paths, int *cwdlen, char **cwd)
 {
 	int err;
@@ -142,10 +140,7 @@ int perf_session__process_events(struct perf_session *self,
 	uint32_t size;
 	char *buf;
 
-	if (curr_handler == NULL) {
-		pr_debug("Forgot to register perf file handler\n");
-		return -EINVAL;
-	}
+	perf_event_ops__fill_defaults(ops);
 
 	page_size = getpagesize();
 
@@ -153,8 +148,8 @@ int perf_session__process_events(struct perf_session *self,
 	sample_type = perf_header__sample_type(&self->header);
 
 	err = -EINVAL;
-	if (curr_handler->sample_type_check &&
-	    curr_handler->sample_type_check(sample_type) < 0)
+	if (ops->sample_type_check &&
+	    ops->sample_type_check(sample_type) < 0)
 		goto out_err;
 
 	if (!full_paths) {
@@ -210,7 +205,7 @@ more:
 			(void *)(long)event->header.size,
 			event->header.type);
 
-	if (!size || process_event(event, self, offset, head) < 0) {
+	if (!size || process_event(event, self, ops, offset, head) < 0) {
 
 		dump_printf("%p [%p]: skipping unknown header type: %d\n",
 			(void *)(offset + head),
