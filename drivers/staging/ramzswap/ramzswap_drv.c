@@ -29,7 +29,6 @@
 #include <linux/swap.h>
 #include <linux/swapops.h>
 #include <linux/vmalloc.h>
-#include <linux/version.h>
 
 #include "ramzswap_drv.h"
 
