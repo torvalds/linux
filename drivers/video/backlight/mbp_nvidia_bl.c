@@ -33,7 +33,7 @@ struct dmi_match_data {
 	unsigned long iostart;
 	unsigned long iolen;
 	/* Backlight operations structure. */
-	struct backlight_ops backlight_ops;
+	const struct backlight_ops backlight_ops;
 };
 
 /* Module parameters. */

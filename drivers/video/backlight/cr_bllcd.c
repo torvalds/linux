@@ -108,7 +108,7 @@ static int cr_backlight_get_intensity(struct backlight_device *bd)
 	return intensity;
 }
 
-static struct backlight_ops cr_backlight_ops = {
+static const struct backlight_ops cr_backlight_ops = {
 	.get_brightness = cr_backlight_get_intensity,
 	.update_status = cr_backlight_set_intensity,
 };
