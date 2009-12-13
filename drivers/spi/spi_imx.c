@@ -594,7 +594,7 @@ static int __init spi_imx_probe(struct platform_device *pdev)
 	clk_enable(spi_imx->clk);
 	spi_imx->spi_clk = clk_get_rate(spi_imx->clk);
 
-	if (!cpu_is_mx31() || !cpu_is_mx35())
+	if (cpu_is_mx1() || cpu_is_mx21() || cpu_is_mx27())
 		writel(1, spi_imx->base + MXC_RESET);
 
 	/* drain receive buffer */
