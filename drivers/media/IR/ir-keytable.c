@@ -447,12 +447,21 @@ int ir_input_register(struct input_dev *input_dev,
 	input_set_drvdata(input_dev, ir_dev);
 
 	rc = input_register_device(input_dev);
+	if (rc < 0)
+		goto err;
+
+	rc = ir_register_class(input_dev);
 	if (rc < 0) {
-		kfree(rc_tab->scan);
-		kfree(ir_dev);
-		input_set_drvdata(input_dev, NULL);
+		input_unregister_device(input_dev);
+		goto err;
 	}
 
+	return 0;
+
+err:
+	kfree(rc_tab->scan);
+	kfree(ir_dev);
+	input_set_drvdata(input_dev, NULL);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(ir_input_register);
@@ -471,6 +480,8 @@ void ir_input_unregister(struct input_dev *dev)
 	rc_tab->size = 0;
 	kfree(rc_tab->scan);
 	rc_tab->scan = NULL;
+
+	ir_unregister_class(dev);
 
 	kfree(ir_dev);
 	input_unregister_device(dev);

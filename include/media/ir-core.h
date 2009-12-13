@@ -42,8 +42,11 @@ struct ir_scancode_table {
 };
 
 struct ir_input_dev {
-	struct input_dev		*dev;
-	struct ir_scancode_table	rc_tab;
+	struct input_dev		*dev;		/* Input device*/
+	struct ir_scancode_table	rc_tab;		/* scan/key table */
+	unsigned long			devno;		/* device number */
+	struct attribute_group		attr;		/* IR attributes */
+	struct device			*class_dev;	/* virtual class dev */
 };
 
 /* Routines from ir-keytable.c */
@@ -58,5 +61,10 @@ int ir_roundup_tablesize(int n_elems);
 int ir_input_register(struct input_dev *dev,
 		      struct ir_scancode_table *ir_codes);
 void ir_input_unregister(struct input_dev *input_dev);
+
+/* Routines from ir-sysfs.c */
+
+int ir_register_class(struct input_dev *input_dev);
+void ir_unregister_class(struct input_dev *input_dev);
 
 #endif
