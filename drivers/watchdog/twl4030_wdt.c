@@ -26,7 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/miscdevice.h>
 #include <linux/uaccess.h>
-#include <linux/i2c/twl4030.h>
+#include <linux/i2c/twl.h>
 
 #define TWL4030_WATCHDOG_CFG_REG_OFFS	0x3
 
