@@ -142,6 +142,7 @@ sunplus		04fc:5360	Sunplus Generic
 spca500		04fc:7333	PalmPixDC85
 sunplus		04fc:ffff	Pure DigitalDakota
 spca501		0506:00df	3Com HomeConnect Lite
+sunplus		052b:1507	Megapixel 5 Pretec DC-1007
 sunplus		052b:1513	Megapix V4
 sunplus		052b:1803	MegaImage VI
 tv8532		0545:808b	Veo Stingray
