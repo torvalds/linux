@@ -199,7 +199,7 @@ static void wm8900_reset(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM8900_REG_RESET, 0);
 
 	memcpy(codec->reg_cache, wm8900_reg_defaults,
-	       sizeof(codec->reg_cache));
+	       sizeof(wm8900_reg_defaults));
 }
 
 static int wm8900_hp_event(struct snd_soc_dapm_widget *w,
