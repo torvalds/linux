@@ -172,6 +172,12 @@ config SPI_OMAP24XX
 	  SPI master controller for OMAP24xx/OMAP34xx Multichannel SPI
 	  (McSPI) modules.
 
+config SPI_OMAP_100K
+	tristate "OMAP SPI 100K"
+	depends on SPI_MASTER && (ARCH_OMAP850 || ARCH_OMAP730)
+	help
+	  OMAP SPI 100K master controller for omap7xx boards.
+
 config SPI_ORION
 	tristate "Orion SPI master (EXPERIMENTAL)"
 	depends on PLAT_ORION && EXPERIMENTAL
