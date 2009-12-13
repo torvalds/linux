@@ -3854,7 +3854,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 	 * script tables is a pointer to the script to execute.
 	 */
 
-	NV_DEBUG(dev, "Searching for output entry for %d %d %d\n",
+	NV_DEBUG_KMS(dev, "Searching for output entry for %d %d %d\n",
 			dcbent->type, dcbent->location, dcbent->or);
 	otable = bios_output_config_match(dev, dcbent, table[1] +
 					  bios->display.script_table_ptr,
@@ -3884,7 +3884,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 	if (pxclk == 0) {
 		script = ROM16(otable[6]);
 		if (!script) {
-			NV_DEBUG(dev, "output script 0 not found\n");
+			NV_DEBUG_KMS(dev, "output script 0 not found\n");
 			return 1;
 		}
 
@@ -3894,7 +3894,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 	if (pxclk == -1) {
 		script = ROM16(otable[8]);
 		if (!script) {
-			NV_DEBUG(dev, "output script 1 not found\n");
+			NV_DEBUG_KMS(dev, "output script 1 not found\n");
 			return 1;
 		}
 
@@ -3907,7 +3907,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 		else
 			script = 0;
 		if (!script) {
-			NV_DEBUG(dev, "output script 2 not found\n");
+			NV_DEBUG_KMS(dev, "output script 2 not found\n");
 			return 1;
 		}
 
@@ -3931,7 +3931,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 		if (script)
 			script = clkcmptable(bios, script, -pxclk);
 		if (!script) {
-			NV_DEBUG(dev, "clock script 1 not found\n");
+			NV_DEBUG_KMS(dev, "clock script 1 not found\n");
 			return 1;
 		}
 
@@ -5234,7 +5234,7 @@ parse_dcb_connector_table(struct nvbios *bios)
 	int i;
 
 	if (!bios->bdcb.connector_table_ptr) {
-		NV_DEBUG(dev, "No DCB connector table present\n");
+		NV_DEBUG_KMS(dev, "No DCB connector table present\n");
 		return;
 	}
 

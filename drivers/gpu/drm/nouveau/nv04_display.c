@@ -99,7 +99,7 @@ nv04_display_create(struct drm_device *dev)
 	uint16_t connector[16] = { 0 };
 	int i, ret;
 
-	NV_DEBUG(dev, "\n");
+	NV_DEBUG_KMS(dev, "\n");
 
 	if (nv_two_heads(dev))
 		nv04_display_store_initial_head_owner(dev);
@@ -222,7 +222,7 @@ nv04_display_destroy(struct drm_device *dev)
 	struct drm_encoder *encoder;
 	struct drm_crtc *crtc;
 
-	NV_DEBUG(dev, "\n");
+	NV_DEBUG_KMS(dev, "\n");
 
 	/* Turn every CRTC off. */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {

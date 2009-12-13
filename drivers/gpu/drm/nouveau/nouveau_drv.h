@@ -1207,14 +1207,24 @@ static inline void nv_wo32(struct drm_device *dev, struct nouveau_gpuobj *obj,
 					pci_name(d->pdev), ##arg)
 #ifndef NV_DEBUG_NOTRACE
 #define NV_DEBUG(d, fmt, arg...) do {                                          \
-	if (drm_debug) {                                                       \
+	if (drm_debug & DRM_UT_DRIVER) {                                       \
+		NV_PRINTK(KERN_DEBUG, d, "%s:%d - " fmt, __func__,             \
+			  __LINE__, ##arg);                                    \
+	}                                                                      \
+} while (0)
+#define NV_DEBUG_KMS(d, fmt, arg...) do {                                      \
+	if (drm_debug & DRM_UT_KMS) {                                          \
 		NV_PRINTK(KERN_DEBUG, d, "%s:%d - " fmt, __func__,             \
 			  __LINE__, ##arg);                                    \
 	}                                                                      \
 } while (0)
 #else
 #define NV_DEBUG(d, fmt, arg...) do {                                          \
-	if (drm_debug)                                                         \
+	if (drm_debug & DRM_UT_DRIVER)                                         \
+		NV_PRINTK(KERN_DEBUG, d, fmt, ##arg);                          \
+} while (0)
+#define NV_DEBUG_KMS(d, fmt, arg...) do {                                      \
+	if (drm_debug & DRM_UT_KMS)                                            \
 		NV_PRINTK(KERN_DEBUG, d, fmt, ##arg);                          \
 } while (0)
 #endif

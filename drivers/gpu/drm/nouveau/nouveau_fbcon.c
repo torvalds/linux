@@ -347,7 +347,7 @@ out:
 int
 nouveau_fbcon_probe(struct drm_device *dev)
 {
-	NV_DEBUG(dev, "\n");
+	NV_DEBUG_KMS(dev, "\n");
 
 	return drm_fb_helper_single_fb_probe(dev, 32, nouveau_fbcon_create);
 }
