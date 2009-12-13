@@ -496,7 +496,7 @@ add_regulator_linked(int num, struct regulator_init_data *pdata,
 	}
 
 	/* NOTE:  we currently ignore regulator IRQs, e.g. for short circuits */
-	return add_numbered_child(3, "twl4030_reg", num,
+	return add_numbered_child(3, "twl_reg", num,
 		pdata, sizeof(*pdata), false, 0, 0);
 }
 
