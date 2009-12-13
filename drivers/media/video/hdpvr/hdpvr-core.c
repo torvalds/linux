@@ -145,7 +145,7 @@ static int device_authorization(struct hdpvr_device *dev)
 #ifdef HDPVR_DEBUG
 	else {
 		hex_dump_to_buffer(dev->usbc_buf, 46, 16, 1, print_buf,
-				   sizeof(print_buf), 0);
+				   5*buf_size+1, 0);
 		v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
 			 "Status request returned, len %d: %s\n",
 			 ret, print_buf);
@@ -168,13 +168,13 @@ static int device_authorization(struct hdpvr_device *dev)
 
 	response = dev->usbc_buf+38;
 #ifdef HDPVR_DEBUG
-	hex_dump_to_buffer(response, 8, 16, 1, print_buf, sizeof(print_buf), 0);
+	hex_dump_to_buffer(response, 8, 16, 1, print_buf, 5*buf_size+1, 0);
 	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev, "challenge: %s\n",
 		 print_buf);
 #endif
 	challenge(response);
 #ifdef HDPVR_DEBUG
-	hex_dump_to_buffer(response, 8, 16, 1, print_buf, sizeof(print_buf), 0);
+	hex_dump_to_buffer(response, 8, 16, 1, print_buf, 5*buf_size+1, 0);
 	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev, " response: %s\n",
 		 print_buf);
 #endif
