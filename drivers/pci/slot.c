@@ -71,6 +71,7 @@ static char *pci_bus_speed_strings[] = {
 	"133 MHz PCI-X 533",	/* 0x13 */
 	"2.5 GT/s PCIe",	/* 0x14 */
 	"5.0 GT/s PCIe",	/* 0x15 */
+	"8.0 GT/s PCIe",	/* 0x16 */
 };
 
 static ssize_t bus_speed_read(enum pci_bus_speed speed, char *buf)

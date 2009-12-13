@@ -416,7 +416,7 @@ static unsigned char pcie_link_speed[] = {
 	PCI_SPEED_UNKNOWN,		/* 0 */
 	PCIE_SPEED_2_5GT,		/* 1 */
 	PCIE_SPEED_5_0GT,		/* 2 */
-	PCI_SPEED_UNKNOWN,		/* 3 */
+	PCIE_SPEED_8_0GT,		/* 3 */
 	PCI_SPEED_UNKNOWN,		/* 4 */
 	PCI_SPEED_UNKNOWN,		/* 5 */
 	PCI_SPEED_UNKNOWN,		/* 6 */
