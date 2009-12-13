@@ -61,11 +61,11 @@ static char *pci_bus_speed_strings[] = {
 	"66 MHz PCI-X 266",	/* 0x09 */
 	"100 MHz PCI-X 266",	/* 0x0a */
 	"133 MHz PCI-X 266",	/* 0x0b */
-	NULL,			/* 0x0c */
-	NULL,			/* 0x0d */
-	NULL,			/* 0x0e */
-	NULL,			/* 0x0f */
-	NULL,			/* 0x10 */
+	"Unknown AGP",		/* 0x0c */
+	"1x AGP",		/* 0x0d */
+	"2x AGP",		/* 0x0e */
+	"4x AGP",		/* 0x0f */
+	"8x AGP",		/* 0x10 */
 	"66 MHz PCI-X 533",	/* 0x11 */
 	"100 MHz PCI-X 533",	/* 0x12 */
 	"133 MHz PCI-X 533",	/* 0x13 */
