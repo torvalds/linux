@@ -123,7 +123,8 @@ static void write_event(event_t *buf, size_t size)
 	write_output(buf, size);
 }
 
-static int process_synthesized_event(event_t *event)
+static int process_synthesized_event(event_t *event,
+				     struct perf_session *self __used)
 {
 	write_event(event, event->header.size);
 	return 0;
@@ -488,9 +489,10 @@ static int __cmd_record(int argc, const char **argv)
 	}
 
 	if (!system_wide)
-		event__synthesize_thread(pid, process_synthesized_event);
+		event__synthesize_thread(pid, process_synthesized_event,
+					 session);
 	else
-		event__synthesize_threads(process_synthesized_event);
+		event__synthesize_threads(process_synthesized_event, session);
 
 	if (target_pid == -1 && argc) {
 		pid = fork();
@@ -510,7 +512,8 @@ static int __cmd_record(int argc, const char **argv)
 			 */
 			usleep(1000);
 			event__synthesize_thread(pid,
-						 process_synthesized_event);
+						 process_synthesized_event,
+						 session);
 		}
 
 		child_pid = pid;

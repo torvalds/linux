@@ -132,7 +132,7 @@ static int hist_entry__add(struct addr_location *al, u64 count)
 	return 0;
 }
 
-static int process_sample_event(event_t *event)
+static int process_sample_event(event_t *event, struct perf_session *session __used)
 {
 	struct addr_location al;
 

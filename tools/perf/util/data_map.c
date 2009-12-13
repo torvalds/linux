@@ -8,7 +8,8 @@ static struct perf_file_handler *curr_handler;
 static unsigned long	mmap_window = 32;
 static char		__cwd[PATH_MAX];
 
-static int process_event_stub(event_t *event __used)
+static int process_event_stub(event_t *event __used,
+			      struct perf_session *session __used)
 {
 	dump_printf(": unhandled!\n");
 	return 0;
@@ -61,8 +62,8 @@ void event__print_totals(void)
 			event__name[i], event__total[i]);
 }
 
-static int
-process_event(event_t *event, unsigned long offset, unsigned long head)
+static int process_event(event_t *event, struct perf_session *session,
+			 unsigned long offset, unsigned long head)
 {
 	trace_event(event);
 
@@ -77,23 +78,23 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
-		return curr_handler->process_sample_event(event);
+		return curr_handler->process_sample_event(event, session);
 	case PERF_RECORD_MMAP:
-		return curr_handler->process_mmap_event(event);
+		return curr_handler->process_mmap_event(event, session);
 	case PERF_RECORD_COMM:
-		return curr_handler->process_comm_event(event);
+		return curr_handler->process_comm_event(event, session);
 	case PERF_RECORD_FORK:
-		return curr_handler->process_fork_event(event);
+		return curr_handler->process_fork_event(event, session);
 	case PERF_RECORD_EXIT:
-		return curr_handler->process_exit_event(event);
+		return curr_handler->process_exit_event(event, session);
 	case PERF_RECORD_LOST:
-		return curr_handler->process_lost_event(event);
+		return curr_handler->process_lost_event(event, session);
 	case PERF_RECORD_READ:
-		return curr_handler->process_read_event(event);
+		return curr_handler->process_read_event(event, session);
 	case PERF_RECORD_THROTTLE:
-		return curr_handler->process_throttle_event(event);
+		return curr_handler->process_throttle_event(event, session);
 	case PERF_RECORD_UNTHROTTLE:
-		return curr_handler->process_unthrottle_event(event);
+		return curr_handler->process_unthrottle_event(event, session);
 	default:
 		curr_handler->total_unknown++;
 		return -1;
@@ -209,7 +210,7 @@ more:
 			(void *)(long)event->header.size,
 			event->header.type);
 
-	if (!size || process_event(event, offset, head) < 0) {
+	if (!size || process_event(event, self, offset, head) < 0) {
 
 		dump_printf("%p [%p]: skipping unknown header type: %d\n",
 			(void *)(offset + head),

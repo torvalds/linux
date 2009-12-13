@@ -5,7 +5,10 @@
 #include "header.h"
 #include "session.h"
 
-typedef int (*event_type_handler_t)(event_t *);
+struct perf_session;
+
+typedef int (*event_type_handler_t)(event_t *self,
+				    struct perf_session *session);
 
 struct perf_file_handler {
 	event_type_handler_t	process_sample_event;

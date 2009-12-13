@@ -312,7 +312,7 @@ process_raw_event(event_t *raw_event __used, void *data,
 	}
 }
 
-static int process_sample_event(event_t *event)
+static int process_sample_event(event_t *event, struct perf_session *session __used)
 {
 	struct sample_data data;
 	struct thread *thread;

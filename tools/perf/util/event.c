@@ -5,7 +5,9 @@
 #include "thread.h"
 
 static pid_t event__synthesize_comm(pid_t pid, int full,
-				    int (*process)(event_t *event))
+				    int (*process)(event_t *event,
+						   struct perf_session *session),
+				    struct perf_session *session)
 {
 	event_t ev;
 	char filename[PATH_MAX];
@@ -54,7 +56,7 @@ out_race:
 	if (!full) {
 		ev.comm.tid = pid;
 
-		process(&ev);
+		process(&ev, session);
 		goto out_fclose;
 	}
 
@@ -72,7 +74,7 @@ out_race:
 
 		ev.comm.tid = pid;
 
-		process(&ev);
+		process(&ev, session);
 	}
 	closedir(tasks);
 
@@ -86,7 +88,9 @@ out_failure:
 }
 
 static int event__synthesize_mmap_events(pid_t pid, pid_t tgid,
-					 int (*process)(event_t *event))
+					 int (*process)(event_t *event,
+							struct perf_session *session),
+					 struct perf_session *session)
 {
 	char filename[PATH_MAX];
 	FILE *fp;
@@ -141,7 +145,7 @@ static int event__synthesize_mmap_events(pid_t pid, pid_t tgid,
 			ev.mmap.pid = tgid;
 			ev.mmap.tid = pid;
 
-			process(&ev);
+			process(&ev, session);
 		}
 	}
 
@@ -149,15 +153,20 @@ static int event__synthesize_mmap_events(pid_t pid, pid_t tgid,
 	return 0;
 }
 
-int event__synthesize_thread(pid_t pid, int (*process)(event_t *event))
+int event__synthesize_thread(pid_t pid,
+			     int (*process)(event_t *event,
+					    struct perf_session *session),
+			     struct perf_session *session)
 {
-	pid_t tgid = event__synthesize_comm(pid, 1, process);
+	pid_t tgid = event__synthesize_comm(pid, 1, process, session);
 	if (tgid == -1)
 		return -1;
-	return event__synthesize_mmap_events(pid, tgid, process);
+	return event__synthesize_mmap_events(pid, tgid, process, session);
 }
 
-void event__synthesize_threads(int (*process)(event_t *event))
+void event__synthesize_threads(int (*process)(event_t *event,
+					      struct perf_session *session),
+			       struct perf_session *session)
 {
 	DIR *proc;
 	struct dirent dirent, *next;
@@ -171,7 +180,7 @@ void event__synthesize_threads(int (*process)(event_t *event))
 		if (*end) /* only interested in proper numerical dirents */
 			continue;
 
-		event__synthesize_thread(pid, process);
+		event__synthesize_thread(pid, process, session);
 	}
 
 	closedir(proc);
@@ -182,7 +191,7 @@ int  event__cwdlen;
 
 struct events_stats event__stats;
 
-int event__process_comm(event_t *self)
+int event__process_comm(event_t *self, struct perf_session *session __used)
 {
 	struct thread *thread = threads__findnew(self->comm.pid);
 
@@ -196,14 +205,14 @@ int event__process_comm(event_t *self)
 	return 0;
 }
 
-int event__process_lost(event_t *self)
+int event__process_lost(event_t *self, struct perf_session *session __used)
 {
 	dump_printf(": id:%Ld: lost:%Ld\n", self->lost.id, self->lost.lost);
 	event__stats.lost += self->lost.lost;
 	return 0;
 }
 
-int event__process_mmap(event_t *self)
+int event__process_mmap(event_t *self, struct perf_session *session __used)
 {
 	struct thread *thread = threads__findnew(self->mmap.pid);
 	struct map *map = map__new(&self->mmap, MAP__FUNCTION,
@@ -224,7 +233,7 @@ int event__process_mmap(event_t *self)
 	return 0;
 }
 
-int event__process_task(event_t *self)
+int event__process_task(event_t *self, struct perf_session *session __used)
 {
 	struct thread *thread = threads__findnew(self->fork.pid);
 	struct thread *parent = threads__findnew(self->fork.ppid);

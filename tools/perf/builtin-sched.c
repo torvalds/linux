@@ -1594,7 +1594,8 @@ process_raw_event(event_t *raw_event __used, void *data,
 		process_sched_migrate_task_event(data, event, cpu, timestamp, thread);
 }
 
-static int process_sample_event(event_t *event)
+static int process_sample_event(event_t *event,
+				struct perf_session *session __used)
 {
 	struct sample_data data;
 	struct thread *thread;
@@ -1632,7 +1633,8 @@ static int process_sample_event(event_t *event)
 	return 0;
 }
 
-static int process_lost_event(event_t *event __used)
+static int process_lost_event(event_t *event __used,
+			      struct perf_session *session __used)
 {
 	nr_lost_chunks++;
 	nr_lost_events += event->lost.lost;

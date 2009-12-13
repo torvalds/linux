@@ -53,8 +53,6 @@ static int		exclude_other = 1;
 
 static char		callchain_default_opt[] = "fractal,0.5";
 
-static struct perf_session *session;
-
 static u64		sample_type;
 
 struct symbol_conf	symbol_conf;
@@ -604,7 +602,7 @@ static int validate_chain(struct ip_callchain *chain, event_t *event)
 	return 0;
 }
 
-static int process_sample_event(event_t *event)
+static int process_sample_event(event_t *event, struct perf_session *session __used)
 {
 	struct sample_data data;
 	int cpumode;
@@ -683,7 +681,7 @@ static int process_sample_event(event_t *event)
 	return 0;
 }
 
-static int process_comm_event(event_t *event)
+static int process_comm_event(event_t *event, struct perf_session *session __used)
 {
 	struct thread *thread = threads__findnew(event->comm.pid);
 
@@ -698,7 +696,7 @@ static int process_comm_event(event_t *event)
 	return 0;
 }
 
-static int process_read_event(event_t *event)
+static int process_read_event(event_t *event, struct perf_session *session __used)
 {
 	struct perf_event_attr *attr;
 
@@ -766,6 +764,7 @@ static int __cmd_report(void)
 {
 	struct thread *idle;
 	int ret;
+	struct perf_session *session;
 
 	session = perf_session__new(input_name, O_RDONLY, force);
 	if (session == NULL)

@@ -62,10 +62,9 @@ static int cleanup_scripting(void)
 
 static char const		*input_name = "perf.data";
 
-static struct perf_session 	*session;
 static u64			sample_type;
 
-static int process_sample_event(event_t *event)
+static int process_sample_event(event_t *event, struct perf_session *session __used)
 {
 	struct sample_data data;
 	struct thread *thread;
@@ -125,20 +124,12 @@ static struct perf_file_handler file_handler = {
 	.sample_type_check	= sample_type_check,
 };
 
-static int __cmd_trace(void)
+static int __cmd_trace(struct perf_session *session)
 {
-	int err;
-
-	session = perf_session__new(input_name, O_RDONLY, 0);
-	if (session == NULL)
-		return -ENOMEM;
-
 	register_idle_thread();
 	register_perf_file_handler(&file_handler);
 
-	err = perf_session__process_events(session, 0, &event__cwdlen, &event__cwd);
-	perf_session__delete(session);
-	return err;
+	return perf_session__process_events(session, 0, &event__cwdlen, &event__cwd);
 }
 
 struct script_spec {
@@ -313,6 +304,7 @@ static const struct option options[] = {
 int cmd_trace(int argc, const char **argv, const char *prefix __used)
 {
 	int err;
+	struct perf_session *session;
 
 	symbol__init(0);
 
@@ -329,6 +321,10 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 	}
 
 	setup_pager();
+
+	session = perf_session__new(input_name, O_RDONLY, 0);
+	if (session == NULL)
+		return -ENOMEM;
 
 	if (generate_script_lang) {
 		struct stat perf_stat;
@@ -367,8 +363,9 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 			goto out;
 	}
 
-	err = __cmd_trace();
+	err = __cmd_trace(session);
 
+	perf_session__delete(session);
 	cleanup_scripting();
 out:
 	return err;
