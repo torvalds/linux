@@ -427,6 +427,12 @@ int twl6030_interrupt_mask(u8 bit_mask, u8 offset);
 #define MSG_SINGULAR(devgrp, id, state) \
 	((devgrp) << 13 | 0 << 12 | (id) << 4 | (state))
 
+#define MSG_BROADCAST_ALL(devgrp, state) \
+	((devgrp) << 5 | (state))
+
+#define MSG_BROADCAST_REF MSG_BROADCAST_ALL
+#define MSG_BROADCAST_PROV MSG_BROADCAST_ALL
+#define MSG_BROADCAST__CLK_RST MSG_BROADCAST_ALL
 /*----------------------------------------------------------------------*/
 
 struct twl4030_clock_init_data {
@@ -602,6 +608,7 @@ int twl4030_sih_setup(int module);
  * VIO is generally fixed.
  */
 
+/* TWL4030 SMPS/LDO's */
 /* EXTERNAL dc-to-dc buck converters */
 #define TWL4030_REG_VDD1	0
 #define TWL4030_REG_VDD2	1
@@ -627,5 +634,32 @@ int twl4030_sih_setup(int module);
 #define TWL4030_REG_VUSB1V5	17
 #define TWL4030_REG_VUSB1V8	18
 #define TWL4030_REG_VUSB3V1	19
+
+/* TWL6030 SMPS/LDO's */
+/* EXTERNAL dc-to-dc buck convertor contollable via SR */
+#define TWL6030_REG_VDD1	30
+#define TWL6030_REG_VDD2	31
+#define TWL6030_REG_VDD3	32
+
+/* Non SR compliant dc-to-dc buck convertors */
+#define	TWL6030_REG_VMEM	33
+#define TWL6030_REG_V2V1	34
+#define	TWL6030_REG_V1V29	35
+#define TWL6030_REG_V1V8	36
+
+/* EXTERNAL LDOs */
+#define TWL6030_REG_VAUX1_6030	37
+#define TWL6030_REG_VAUX2_6030	38
+#define TWL6030_REG_VAUX3_6030	39
+#define TWL6030_REG_VMMC	40
+#define TWL6030_REG_VPP		41
+#define TWL6030_REG_VUSIM	42
+#define TWL6030_REG_VANA	43
+#define TWL6030_REG_VCXIO	44
+#define TWL6030_REG_VDAC	45
+#define TWL6030_REG_VUSB	46
+
+/* INTERNAL LDOs */
+#define TWL6030_REG_VRTC	47
 
 #endif /* End of __TWL4030_H */
