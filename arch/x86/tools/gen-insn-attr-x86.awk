@@ -226,12 +226,12 @@ function add_flags(old,new) {
 }
 
 # convert operands to flags.
-function convert_operands(opnd,       i,imm,mod)
+function convert_operands(count,opnd,       i,j,imm,mod)
 {
 	imm = null
 	mod = null
-	for (i in opnd) {
-		i  = opnd[i]
+	for (j = 1; j <= count; j++) {
+		i = opnd[j]
 		if (match(i, imm_expr) == 1) {
 			if (!imm_flag[i])
 				semantic_error("Unknown imm opnd: " i)
@@ -282,8 +282,8 @@ function convert_operands(opnd,       i,imm,mod)
 		# parse one opcode
 		if (match($i, opnd_expr)) {
 			opnd = $i
-			split($(i++), opnds, ",")
-			flags = convert_operands(opnds)
+			count = split($(i++), opnds, ",")
+			flags = convert_operands(count, opnds)
 		}
 		if (match($i, ext_expr))
 			ext = $(i++)
