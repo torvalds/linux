@@ -1,6 +1,6 @@
 /*
  *
- * builtin-bench-pipe.c
+ * sched-pipe.c
  *
  * pipe: Benchmark for pipe()
  *
@@ -87,7 +87,8 @@ int bench_sched_pipe(int argc, const char **argv,
 	if (pid) {
 		retpid = waitpid(pid, &wait_stat, 0);
 		assert((retpid == pid) && WIFEXITED(wait_stat));
-		return 0;
+	} else {
+		exit(0);
 	}
 
 	switch (bench_format) {
