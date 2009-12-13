@@ -34,27 +34,75 @@
 /*
  * RTC block register offsets (use TWL_MODULE_RTC)
  */
-#define REG_SECONDS_REG                          0x00
-#define REG_MINUTES_REG                          0x01
-#define REG_HOURS_REG                            0x02
-#define REG_DAYS_REG                             0x03
-#define REG_MONTHS_REG                           0x04
-#define REG_YEARS_REG                            0x05
-#define REG_WEEKS_REG                            0x06
+enum {
+	REG_SECONDS_REG = 0,
+	REG_MINUTES_REG,
+	REG_HOURS_REG,
+	REG_DAYS_REG,
+	REG_MONTHS_REG,
+	REG_YEARS_REG,
+	REG_WEEKS_REG,
 
-#define REG_ALARM_SECONDS_REG                    0x07
-#define REG_ALARM_MINUTES_REG                    0x08
-#define REG_ALARM_HOURS_REG                      0x09
-#define REG_ALARM_DAYS_REG                       0x0A
-#define REG_ALARM_MONTHS_REG                     0x0B
-#define REG_ALARM_YEARS_REG                      0x0C
+	REG_ALARM_SECONDS_REG,
+	REG_ALARM_MINUTES_REG,
+	REG_ALARM_HOURS_REG,
+	REG_ALARM_DAYS_REG,
+	REG_ALARM_MONTHS_REG,
+	REG_ALARM_YEARS_REG,
 
-#define REG_RTC_CTRL_REG                         0x0D
-#define REG_RTC_STATUS_REG                       0x0E
-#define REG_RTC_INTERRUPTS_REG                   0x0F
+	REG_RTC_CTRL_REG,
+	REG_RTC_STATUS_REG,
+	REG_RTC_INTERRUPTS_REG,
 
-#define REG_RTC_COMP_LSB_REG                     0x10
-#define REG_RTC_COMP_MSB_REG                     0x11
+	REG_RTC_COMP_LSB_REG,
+	REG_RTC_COMP_MSB_REG,
+};
+const static u8 twl4030_rtc_reg_map[] = {
+	[REG_SECONDS_REG] = 0x00,
+	[REG_MINUTES_REG] = 0x01,
+	[REG_HOURS_REG] = 0x02,
+	[REG_DAYS_REG] = 0x03,
+	[REG_MONTHS_REG] = 0x04,
+	[REG_YEARS_REG] = 0x05,
+	[REG_WEEKS_REG] = 0x06,
+
+	[REG_ALARM_SECONDS_REG] = 0x07,
+	[REG_ALARM_MINUTES_REG] = 0x08,
+	[REG_ALARM_HOURS_REG] = 0x09,
+	[REG_ALARM_DAYS_REG] = 0x0A,
+	[REG_ALARM_MONTHS_REG] = 0x0B,
+	[REG_ALARM_YEARS_REG] = 0x0C,
+
+	[REG_RTC_CTRL_REG] = 0x0D,
+	[REG_RTC_STATUS_REG] = 0x0E,
+	[REG_RTC_INTERRUPTS_REG] = 0x0F,
+
+	[REG_RTC_COMP_LSB_REG] = 0x10,
+	[REG_RTC_COMP_MSB_REG] = 0x11,
+};
+const static u8 twl6030_rtc_reg_map[] = {
+	[REG_SECONDS_REG] = 0x00,
+	[REG_MINUTES_REG] = 0x01,
+	[REG_HOURS_REG] = 0x02,
+	[REG_DAYS_REG] = 0x03,
+	[REG_MONTHS_REG] = 0x04,
+	[REG_YEARS_REG] = 0x05,
+	[REG_WEEKS_REG] = 0x06,
+
+	[REG_ALARM_SECONDS_REG] = 0x08,
+	[REG_ALARM_MINUTES_REG] = 0x09,
+	[REG_ALARM_HOURS_REG] = 0x0A,
+	[REG_ALARM_DAYS_REG] = 0x0B,
+	[REG_ALARM_MONTHS_REG] = 0x0C,
+	[REG_ALARM_YEARS_REG] = 0x0D,
+
+	[REG_RTC_CTRL_REG] = 0x10,
+	[REG_RTC_STATUS_REG] = 0x11,
+	[REG_RTC_INTERRUPTS_REG] = 0x12,
+
+	[REG_RTC_COMP_LSB_REG] = 0x13,
+	[REG_RTC_COMP_MSB_REG] = 0x14,
+};
 
 /* RTC_CTRL_REG bitfields */
 #define BIT_RTC_CTRL_REG_STOP_RTC_M              0x01
@@ -84,6 +132,7 @@
 #define ALL_TIME_REGS		6
 
 /*----------------------------------------------------------------------*/
+static u8  *rtc_reg_map;
 
 /*
  * Supports 1 byte read from TWL RTC register.
@@ -92,7 +141,7 @@ static int twl_rtc_read_u8(u8 *data, u8 reg)
 {
 	int ret;
 
-	ret = twl_i2c_read_u8(TWL_MODULE_RTC, data, reg);
+	ret = twl_i2c_read_u8(TWL_MODULE_RTC, data, (rtc_reg_map[reg]));
 	if (ret < 0)
 		pr_err("twl_rtc: Could not read TWL"
 		       "register %X - error %d\n", reg, ret);
@@ -106,7 +155,7 @@ static int twl_rtc_write_u8(u8 data, u8 reg)
 {
 	int ret;
 
-	ret = twl_i2c_write_u8(TWL_MODULE_RTC, data, reg);
+	ret = twl_i2c_write_u8(TWL_MODULE_RTC, data, (rtc_reg_map[reg]));
 	if (ret < 0)
 		pr_err("twl_rtc: Could not write TWL"
 		       "register %X - error %d\n", reg, ret);
@@ -202,7 +251,7 @@ static int twl_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		return ret;
 
 	ret = twl_i2c_read(TWL_MODULE_RTC, rtc_data,
-			       REG_SECONDS_REG, ALL_TIME_REGS);
+			(rtc_reg_map[REG_SECONDS_REG]), ALL_TIME_REGS);
 
 	if (ret < 0) {
 		dev_err(dev, "rtc_read_time error %d\n", ret);
@@ -244,7 +293,7 @@ static int twl_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 	/* update all the time registers in one shot */
 	ret = twl_i2c_write(TWL_MODULE_RTC, rtc_data,
-			REG_SECONDS_REG, ALL_TIME_REGS);
+		(rtc_reg_map[REG_SECONDS_REG]), ALL_TIME_REGS);
 	if (ret < 0) {
 		dev_err(dev, "rtc_set_time error %d\n", ret);
 		goto out;
@@ -267,7 +316,7 @@ static int twl_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	int ret;
 
 	ret = twl_i2c_read(TWL_MODULE_RTC, rtc_data,
-			       REG_ALARM_SECONDS_REG, ALL_TIME_REGS);
+			(rtc_reg_map[REG_ALARM_SECONDS_REG]), ALL_TIME_REGS);
 	if (ret < 0) {
 		dev_err(dev, "rtc_read_alarm error %d\n", ret);
 		return ret;
@@ -306,7 +355,7 @@ static int twl_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 
 	/* update all the alarm registers in one shot */
 	ret = twl_i2c_write(TWL_MODULE_RTC, alarm_data,
-			REG_ALARM_SECONDS_REG, ALL_TIME_REGS);
+		(rtc_reg_map[REG_ALARM_SECONDS_REG]), ALL_TIME_REGS);
 	if (ret) {
 		dev_err(dev, "rtc_set_alarm error %d\n", ret);
 		goto out;
@@ -352,21 +401,23 @@ static irqreturn_t twl_rtc_interrupt(int irq, void *rtc)
 	if (res)
 		goto out;
 
-	/* Clear on Read enabled. RTC_IT bit of TWL4030_INT_PWR_ISR1
-	 * needs 2 reads to clear the interrupt. One read is done in
-	 * do_twl_pwrirq(). Doing the second read, to clear
-	 * the bit.
-	 *
-	 * FIXME the reason PWR_ISR1 needs an extra read is that
-	 * RTC_IF retriggered until we cleared REG_ALARM_M above.
-	 * But re-reading like this is a bad hack; by doing so we
-	 * risk wrongly clearing status for some other IRQ (losing
-	 * the interrupt).  Be smarter about handling RTC_UF ...
-	 */
-	res = twl_i2c_read_u8(TWL4030_MODULE_INT,
+	if (twl_class_is_4030()) {
+		/* Clear on Read enabled. RTC_IT bit of TWL4030_INT_PWR_ISR1
+		 * needs 2 reads to clear the interrupt. One read is done in
+		 * do_twl_pwrirq(). Doing the second read, to clear
+		 * the bit.
+		 *
+		 * FIXME the reason PWR_ISR1 needs an extra read is that
+		 * RTC_IF retriggered until we cleared REG_ALARM_M above.
+		 * But re-reading like this is a bad hack; by doing so we
+		 * risk wrongly clearing status for some other IRQ (losing
+		 * the interrupt).  Be smarter about handling RTC_UF ...
+		 */
+		res = twl_i2c_read_u8(TWL4030_MODULE_INT,
 			&rd_reg, TWL4030_INT_PWR_ISR1);
-	if (res)
-		goto out;
+		if (res)
+			goto out;
+	}
 
 	/* Notify RTC core on event */
 	rtc_update_irq(rtc, 1, events);
@@ -432,6 +483,13 @@ static int __devinit twl_rtc_probe(struct platform_device *pdev)
 		goto out1;
 	}
 
+	if (twl_class_is_6030()) {
+		twl6030_interrupt_unmask(TWL6030_RTC_INT_MASK,
+			REG_INT_MSK_LINE_A);
+		twl6030_interrupt_unmask(TWL6030_RTC_INT_MASK,
+			REG_INT_MSK_STS_A);
+	}
+
 	/* Check RTC module status, Enable if it is off */
 	ret = twl_rtc_read_u8(&rd_reg, REG_RTC_CTRL_REG);
 	if (ret < 0)
@@ -472,6 +530,13 @@ static int __devexit twl_rtc_remove(struct platform_device *pdev)
 
 	mask_rtc_irq_bit(BIT_RTC_INTERRUPTS_REG_IT_ALARM_M);
 	mask_rtc_irq_bit(BIT_RTC_INTERRUPTS_REG_IT_TIMER_M);
+	if (twl_class_is_6030()) {
+		twl6030_interrupt_mask(TWL6030_RTC_INT_MASK,
+			REG_INT_MSK_LINE_A);
+		twl6030_interrupt_mask(TWL6030_RTC_INT_MASK,
+			REG_INT_MSK_STS_A);
+	}
+
 
 	free_irq(irq, rtc);
 
@@ -526,6 +591,11 @@ static struct platform_driver twl4030rtc_driver = {
 
 static int __init twl_rtc_init(void)
 {
+	if (twl_class_is_4030())
+		rtc_reg_map = (u8 *) twl4030_rtc_reg_map;
+	else
+		rtc_reg_map = (u8 *) twl6030_rtc_reg_map;
+
 	return platform_driver_register(&twl4030rtc_driver);
 }
 module_init(twl_rtc_init);
