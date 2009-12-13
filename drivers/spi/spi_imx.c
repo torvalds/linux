@@ -208,7 +208,7 @@ static int mx31_config(struct spi_imx_data *spi_imx,
 
 	if (cpu_is_mx31())
 		reg |= (config->bpw - 1) << MX31_CSPICTRL_BC_SHIFT;
-	else if (cpu_is_mx35()) {
+	else if (cpu_is_mx25() || cpu_is_mx35()) {
 		reg |= (config->bpw - 1) << MX35_CSPICTRL_BL_SHIFT;
 		reg |= MX31_CSPICTRL_SSCTL;
 	}
@@ -222,7 +222,7 @@ static int mx31_config(struct spi_imx_data *spi_imx,
 	if (config->cs < 0) {
 		if (cpu_is_mx31())
 			reg |= (config->cs + 32) << MX31_CSPICTRL_CS_SHIFT;
-		else if (cpu_is_mx35())
+		else if (cpu_is_mx25() || cpu_is_mx35())
 			reg |= (config->cs + 32) << MX35_CSPICTRL_CS_SHIFT;
 	}
 
@@ -566,7 +566,7 @@ static int __init spi_imx_probe(struct platform_device *pdev)
 		goto out_iounmap;
 	}
 
-	if (cpu_is_mx31() || cpu_is_mx35()) {
+	if (cpu_is_mx25() || cpu_is_mx31() || cpu_is_mx35()) {
 		spi_imx->intctrl = mx31_intctrl;
 		spi_imx->config = mx31_config;
 		spi_imx->trigger = mx31_trigger;
@@ -598,7 +598,7 @@ static int __init spi_imx_probe(struct platform_device *pdev)
 		writel(1, spi_imx->base + MXC_RESET);
 
 	/* drain receive buffer */
-	if (cpu_is_mx31() || cpu_is_mx35())
+	if (cpu_is_mx25() || cpu_is_mx31() || cpu_is_mx35())
 		while (readl(spi_imx->base + MX3_CSPISTAT) & MX3_CSPISTAT_RR)
 			readl(spi_imx->base + MXC_CSPIRXDATA);
 
