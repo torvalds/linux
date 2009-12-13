@@ -61,6 +61,9 @@ struct perf_session *perf_session__new(const char *filename, int mode,
 		goto out_delete;
 
 	memcpy(self->filename, filename, len);
+	self->mmap_window = 32;
+	self->cwd = NULL;
+	self->cwdlen = 0;
 
 	if (mode == O_RDONLY && perf_session__open(self, force) < 0) {
 		perf_session__delete(self);
@@ -77,5 +80,6 @@ void perf_session__delete(struct perf_session *self)
 {
 	perf_header__exit(&self->header);
 	close(self->fd);
+	free(self->cwd);
 	free(self);
 }

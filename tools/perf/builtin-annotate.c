@@ -469,8 +469,7 @@ static int __cmd_annotate(void)
 	if (session == NULL)
 		return -ENOMEM;
 
-	ret = perf_session__process_events(session, &event_ops, 0,
-					   &event__cwdlen, &event__cwd);
+	ret = perf_session__process_events(session, &event_ops);
 	if (ret)
 		goto out_delete;
 

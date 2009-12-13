@@ -7,7 +7,10 @@
 struct perf_session {
 	struct perf_header	header;
 	unsigned long		size;
+	unsigned long		mmap_window;
 	int			fd;
+	int			cwdlen;
+	char			*cwd;
 	char filename[0];
 };
 
@@ -25,6 +28,7 @@ struct perf_event_ops {
 	event_op	process_unthrottle_event;
 	int		(*sample_type_check)(u64 sample_type);
 	unsigned long	total_unknown;
+	bool		full_paths;
 };
 
 struct perf_session *perf_session__new(const char *filename, int mode,
@@ -32,8 +36,7 @@ struct perf_session *perf_session__new(const char *filename, int mode,
 void perf_session__delete(struct perf_session *self);
 
 int perf_session__process_events(struct perf_session *self,
-				 struct perf_event_ops *event_ops,
-				 int full_paths, int *cwdlen, char **cwd);
+				 struct perf_event_ops *event_ops);
 
 int perf_header__read_build_ids(int input, u64 offset, u64 file_size);
 

@@ -125,8 +125,7 @@ static struct perf_event_ops event_ops = {
 
 static int __cmd_trace(struct perf_session *session)
 {
-	return perf_session__process_events(session, &event_ops, 0,
-					    &event__cwdlen, &event__cwd);
+	return perf_session__process_events(session, &event_ops);
 }
 
 struct script_spec {

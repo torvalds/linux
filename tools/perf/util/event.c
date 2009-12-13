@@ -1,6 +1,7 @@
 #include <linux/types.h>
 #include "event.h"
 #include "debug.h"
+#include "session.h"
 #include "string.h"
 #include "thread.h"
 
@@ -186,9 +187,6 @@ void event__synthesize_threads(int (*process)(event_t *event,
 	closedir(proc);
 }
 
-char *event__cwd;
-int  event__cwdlen;
-
 struct events_stats event__stats;
 
 int event__process_comm(event_t *self, struct perf_session *session __used)
@@ -212,11 +210,11 @@ int event__process_lost(event_t *self, struct perf_session *session __used)
 	return 0;
 }
 
-int event__process_mmap(event_t *self, struct perf_session *session __used)
+int event__process_mmap(event_t *self, struct perf_session *session)
 {
 	struct thread *thread = threads__findnew(self->mmap.pid);
 	struct map *map = map__new(&self->mmap, MAP__FUNCTION,
-				   event__cwd, event__cwdlen);
+				   session->cwd, session->cwdlen);
 
 	dump_printf(" %d/%d: [%p(%p) @ %p]: %s\n",
 		    self->mmap.pid, self->mmap.tid,

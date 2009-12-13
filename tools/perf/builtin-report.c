@@ -39,7 +39,6 @@ static struct strlist	*dso_list, *comm_list, *sym_list;
 
 static int		force;
 
-static int		full_paths;
 static int		show_nr_samples;
 
 static int		show_threads;
@@ -771,8 +770,7 @@ static int __cmd_report(void)
 	if (show_threads)
 		perf_read_values_init(&show_threads_values);
 
-	ret = perf_session__process_events(session, &event_ops, full_paths,
-					   &event__cwdlen, &event__cwd);
+	ret = perf_session__process_events(session, &event_ops);
 	if (ret)
 		goto out_delete;
 
@@ -877,7 +875,7 @@ static const struct option options[] = {
 		   "pretty printing style key: normal raw"),
 	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
 		   "sort by key(s): pid, comm, dso, symbol, parent"),
-	OPT_BOOLEAN('P', "full-paths", &full_paths,
+	OPT_BOOLEAN('P', "full-paths", &event_ops.full_paths,
 		    "Don't shorten the pathnames taking into account the cwd"),
 	OPT_STRING('p', "parent", &parent_pattern, "regex",
 		   "regex filter to identify parent, see: '--sort parent'"),

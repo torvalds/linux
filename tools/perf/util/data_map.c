@@ -4,9 +4,6 @@
 #include "thread.h"
 #include "session.h"
 
-static unsigned long	mmap_window = 32;
-static char		__cwd[PATH_MAX];
-
 static int process_event_stub(event_t *event __used,
 			      struct perf_session *session __used)
 {
@@ -141,8 +138,7 @@ static struct thread *perf_session__register_idle_thread(struct perf_session *se
 }
 
 int perf_session__process_events(struct perf_session *self,
-				 struct perf_event_ops *ops,
-				 int full_paths, int *cwdlen, char **cwd)
+				 struct perf_event_ops *ops)
 {
 	int err;
 	unsigned long head, shift;
@@ -168,17 +164,21 @@ int perf_session__process_events(struct perf_session *self,
 	    ops->sample_type_check(sample_type) < 0)
 		goto out_err;
 
-	if (!full_paths) {
-		if (getcwd(__cwd, sizeof(__cwd)) == NULL) {
-			pr_err("failed to get the current directory\n");
+	if (!ops->full_paths) {
+		char bf[PATH_MAX];
+
+		if (getcwd(bf, sizeof(bf)) == NULL) {
 			err = -errno;
+out_getcwd_err:
+			pr_err("failed to get the current directory\n");
 			goto out_err;
 		}
-		*cwd = __cwd;
-		*cwdlen = strlen(*cwd);
-	} else {
-		*cwd = NULL;
-		*cwdlen = 0;
+		self->cwd = strdup(bf);
+		if (self->cwd == NULL) {
+			err = -ENOMEM;
+			goto out_getcwd_err;
+		}
+		self->cwdlen = strlen(self->cwd);
 	}
 
 	shift = page_size * (head / page_size);
@@ -186,7 +186,7 @@ int perf_session__process_events(struct perf_session *self,
 	head -= shift;
 
 remap:
-	buf = mmap(NULL, page_size * mmap_window, PROT_READ,
+	buf = mmap(NULL, page_size * self->mmap_window, PROT_READ,
 		   MAP_SHARED, self->fd, offset);
 	if (buf == MAP_FAILED) {
 		pr_err("failed to mmap file\n");
@@ -201,12 +201,12 @@ more:
 	if (!size)
 		size = 8;
 
-	if (head + event->header.size >= page_size * mmap_window) {
+	if (head + event->header.size >= page_size * self->mmap_window) {
 		int munmap_ret;
 
 		shift = page_size * (head / page_size);
 
-		munmap_ret = munmap(buf, page_size * mmap_window);
+		munmap_ret = munmap(buf, page_size * self->mmap_window);
 		assert(munmap_ret == 0);
 
 		offset += shift;
