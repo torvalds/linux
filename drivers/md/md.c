@@ -6526,12 +6526,14 @@ void md_do_sync(mddev_t *mddev)
 		/* recovery follows the physical size of devices */
 		max_sectors = mddev->dev_sectors;
 		j = MaxSector;
-		list_for_each_entry(rdev, &mddev->disks, same_set)
+		rcu_read_lock();
+		list_for_each_entry_rcu(rdev, &mddev->disks, same_set)
 			if (rdev->raid_disk >= 0 &&
 			    !test_bit(Faulty, &rdev->flags) &&
 			    !test_bit(In_sync, &rdev->flags) &&
 			    rdev->recovery_offset < j)
 				j = rdev->recovery_offset;
+		rcu_read_unlock();
 	}
 
 	printk(KERN_INFO "md: %s of RAID array %s\n", desc, mdname(mddev));
@@ -6701,12 +6703,14 @@ void md_do_sync(mddev_t *mddev)
 		} else {
 			if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery))
 				mddev->curr_resync = MaxSector;
-			list_for_each_entry(rdev, &mddev->disks, same_set)
+			rcu_read_lock();
+			list_for_each_entry_rcu(rdev, &mddev->disks, same_set)
 				if (rdev->raid_disk >= 0 &&
 				    !test_bit(Faulty, &rdev->flags) &&
 				    !test_bit(In_sync, &rdev->flags) &&
 				    rdev->recovery_offset < mddev->curr_resync)
 					rdev->recovery_offset = mddev->curr_resync;
+			rcu_read_unlock();
 		}
 	}
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
