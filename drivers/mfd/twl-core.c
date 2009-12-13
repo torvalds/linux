@@ -181,6 +181,30 @@
 /* Triton Core internal information (END) */
 
 
+/* subchip/slave 0 0x48 - POWER */
+#define TWL6030_BASEADD_RTC		0x0000
+#define TWL6030_BASEADD_MEM		0x0017
+#define TWL6030_BASEADD_PM_MASTER	0x001F
+#define TWL6030_BASEADD_PM_SLAVE_MISC	0x0030 /* PM_RECEIVER */
+#define TWL6030_BASEADD_PM_MISC		0x00E2
+#define TWL6030_BASEADD_PM_PUPD		0x00F0
+
+/* subchip/slave 1 0x49 - FEATURE */
+#define TWL6030_BASEADD_USB		0x0000
+#define TWL6030_BASEADD_GPADC_CTRL	0x002E
+#define TWL6030_BASEADD_AUX		0x0090
+#define TWL6030_BASEADD_PWM		0x00BA
+#define TWL6030_BASEADD_GASGAUGE	0x00C0
+#define TWL6030_BASEADD_PIH		0x00D0
+#define TWL6030_BASEADD_CHARGER		0x00E0
+
+/* subchip/slave 2 0x4A - DFT */
+#define TWL6030_BASEADD_DIEID		0x00C0
+
+/* subchip/slave 3 0x4B - AUDIO */
+#define TWL6030_BASEADD_AUDIO		0x0000
+#define TWL6030_BASEADD_RSV		0x0000
+
 /* Few power values */
 #define R_CFG_BOOT			0x05
 #define R_PROTECT_KEY			0x0E
@@ -202,13 +226,21 @@
 #define TWL4030_VAUX2		BIT(0)	/* pre-5030 voltage ranges */
 #define TPS_SUBSET		BIT(1)	/* tps659[23]0 have fewer LDOs */
 #define TWL5031			BIT(2)  /* twl5031 has different registers */
+#define TWL6030_CLASS		BIT(3)	/* TWL6030 class */
 
 /*----------------------------------------------------------------------*/
 
 /* is driver active, bound to a chip? */
 static bool inuse;
 
-/* Structure for each TWL4030 Slave */
+static unsigned int twl_id;
+unsigned int twl_rev(void)
+{
+	return twl_id;
+}
+EXPORT_SYMBOL(twl_rev);
+
+/* Structure for each TWL4030/TWL6030 Slave */
 struct twl_client {
 	struct i2c_client *client;
 	u8 address;
@@ -228,11 +260,12 @@ struct twl_mapping {
 	unsigned char sid;	/* Slave ID */
 	unsigned char base;	/* base address */
 };
+struct twl_mapping *twl_map;
 
 static struct twl_mapping twl4030_map[TWL4030_MODULE_LAST + 1] = {
 	/*
 	 * NOTE:  don't change this table without updating the
-	 * <linux/i2c/twl4030.h> defines for TWL4030_MODULE_*
+	 * <linux/i2c/twl.h> defines for TWL4030_MODULE_*
 	 * so they continue to match the order in this table.
 	 */
 
@@ -265,6 +298,40 @@ static struct twl_mapping twl4030_map[TWL4030_MODULE_LAST + 1] = {
 	{ 3, TWL4030_BASEADD_SECURED_REG },
 };
 
+static struct twl_mapping twl6030_map[] = {
+	/*
+	 * NOTE:  don't change this table without updating the
+	 * <linux/i2c/twl.h> defines for TWL4030_MODULE_*
+	 * so they continue to match the order in this table.
+	 */
+	{ SUB_CHIP_ID1, TWL6030_BASEADD_USB },
+	{ SUB_CHIP_ID3, TWL6030_BASEADD_AUDIO },
+	{ SUB_CHIP_ID2, TWL6030_BASEADD_DIEID },
+	{ SUB_CHIP_ID2, TWL6030_BASEADD_RSV },
+	{ SUB_CHIP_ID1, TWL6030_BASEADD_PIH },
+
+	{ SUB_CHIP_ID2, TWL6030_BASEADD_RSV },
+	{ SUB_CHIP_ID2, TWL6030_BASEADD_RSV },
+	{ SUB_CHIP_ID1, TWL6030_BASEADD_GPADC_CTRL },
+	{ SUB_CHIP_ID2, TWL6030_BASEADD_RSV },
+	{ SUB_CHIP_ID2, TWL6030_BASEADD_RSV },
+
+	{ SUB_CHIP_ID1, TWL6030_BASEADD_CHARGER },
+	{ SUB_CHIP_ID1, TWL6030_BASEADD_GASGAUGE },
+	{ SUB_CHIP_ID1, TWL6030_BASEADD_PWM },
+	{ SUB_CHIP_ID2, TWL6030_BASEADD_RSV },
+	{ SUB_CHIP_ID2, TWL6030_BASEADD_RSV },
+
+	{ SUB_CHIP_ID2, TWL6030_BASEADD_RSV },
+	{ SUB_CHIP_ID2, TWL6030_BASEADD_RSV },
+	{ SUB_CHIP_ID2, TWL6030_BASEADD_RSV },
+	{ SUB_CHIP_ID0, TWL6030_BASEADD_PM_MASTER },
+	{ SUB_CHIP_ID0, TWL6030_BASEADD_PM_SLAVE_MISC },
+
+	{ SUB_CHIP_ID0, TWL6030_BASEADD_RTC },
+	{ SUB_CHIP_ID0, TWL6030_BASEADD_MEM },
+};
+
 /*----------------------------------------------------------------------*/
 
 /* Exported Functions */
@@ -292,7 +359,7 @@ int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 		pr_err("%s: invalid module number %d\n", DRIVER_NAME, mod_no);
 		return -EPERM;
 	}
-	sid = twl4030_map[mod_no].sid;
+	sid = twl_map[mod_no].sid;
 	twl = &twl_modules[sid];
 
 	if (unlikely(!inuse)) {
@@ -310,7 +377,7 @@ int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 	msg->flags = 0;
 	msg->buf = value;
 	/* over write the first byte of buffer with the register address */
-	*value = twl4030_map[mod_no].base + reg;
+	*value = twl_map[mod_no].base + reg;
 	ret = i2c_transfer(twl->client->adapter, twl->xfer_msg, 1);
 	mutex_unlock(&twl->xfer_lock);
 
@@ -349,7 +416,7 @@ int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 		pr_err("%s: invalid module number %d\n", DRIVER_NAME, mod_no);
 		return -EPERM;
 	}
-	sid = twl4030_map[mod_no].sid;
+	sid = twl_map[mod_no].sid;
 	twl = &twl_modules[sid];
 
 	if (unlikely(!inuse)) {
@@ -362,7 +429,7 @@ int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 	msg->addr = twl->address;
 	msg->len = 1;
 	msg->flags = 0;	/* Read the register value */
-	val = twl4030_map[mod_no].base + reg;
+	val = twl_map[mod_no].base + reg;
 	msg->buf = &val;
 	/* [MSG2] fill the data rx buffer */
 	msg = &twl->xfer_msg[1];
@@ -486,6 +553,7 @@ add_regulator_linked(int num, struct regulator_init_data *pdata,
 		struct regulator_consumer_supply *consumers,
 		unsigned num_consumers)
 {
+	unsigned sub_chip_id;
 	/* regulator framework demands init_data ... */
 	if (!pdata)
 		return NULL;
@@ -496,7 +564,8 @@ add_regulator_linked(int num, struct regulator_init_data *pdata,
 	}
 
 	/* NOTE:  we currently ignore regulator IRQs, e.g. for short circuits */
-	return add_numbered_child(3, "twl_reg", num,
+	sub_chip_id = twl_map[TWL_MODULE_PM_MASTER].sid;
+	return add_numbered_child(sub_chip_id, "twl_reg", num,
 		pdata, sizeof(*pdata), false, 0, 0);
 }
 
@@ -516,6 +585,7 @@ static int
 add_children(struct twl4030_platform_data *pdata, unsigned long features)
 {
 	struct device	*child;
+	unsigned sub_chip_id;
 
 	if (twl_has_bci() && pdata->bci &&
 	    !(features & (TPS_SUBSET | TWL5031))) {
@@ -561,7 +631,8 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 		 * Eventually, Linux might become more aware of such
 		 * HW security concerns, and "least privilege".
 		 */
-		child = add_child(3, "twl_rtc",
+		sub_chip_id = twl_map[TWL_MODULE_RTC].sid;
+		child = add_child(sub_chip_id, "twl_rtc",
 				NULL, 0,
 				true, pdata->irq_base + RTC_INTR_OFFSET, 0);
 		if (IS_ERR(child))
@@ -812,16 +883,22 @@ static void clocks_init(struct device *dev,
 
 /*----------------------------------------------------------------------*/
 
-int twl_init_irq(int irq_num, unsigned irq_base, unsigned irq_end);
-int twl_exit_irq(void);
-int twl_init_chip_irq(const char *chip);
+int twl4030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end);
+int twl4030_exit_irq(void);
+int twl4030_init_chip_irq(const char *chip);
+int twl6030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end);
+int twl6030_exit_irq(void);
 
 static int twl_remove(struct i2c_client *client)
 {
 	unsigned i;
 	int status;
 
-	status = twl_exit_irq();
+	if (twl_class_is_4030())
+		status = twl4030_exit_irq();
+	else
+		status = twl6030_exit_irq();
+
 	if (status < 0)
 		return status;
 
@@ -878,6 +955,13 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		mutex_init(&twl->xfer_lock);
 	}
 	inuse = true;
+	if ((id->driver_data) & TWL6030_CLASS) {
+		twl_id = TWL6030_CLASS_ID;
+		twl_map = &twl6030_map[0];
+	} else {
+		twl_id = TWL4030_CLASS_ID;
+		twl_map = &twl4030_map[0];
+	}
 
 	/* setup clock framework */
 	clocks_init(&client->dev, pdata->clock);
@@ -890,8 +974,15 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (client->irq
 			&& pdata->irq_base
 			&& pdata->irq_end > pdata->irq_base) {
-		twl_init_chip_irq(id->name);
-		status = twl_init_irq(client->irq, pdata->irq_base, pdata->irq_end);
+		if (twl_class_is_4030()) {
+			twl4030_init_chip_irq(id->name);
+			status = twl4030_init_irq(client->irq, pdata->irq_base,
+			pdata->irq_end);
+		} else {
+			status = twl6030_init_irq(client->irq, pdata->irq_base,
+			pdata->irq_end);
+		}
+
 		if (status < 0)
 			goto fail;
 	}
@@ -910,6 +1001,7 @@ static const struct i2c_device_id twl_ids[] = {
 	{ "tps65950", 0 },		/* catalog version of twl5030 */
 	{ "tps65930", TPS_SUBSET },	/* fewer LDOs and DACs; no charger */
 	{ "tps65920", TPS_SUBSET },	/* fewer LDOs; no codec or charger */
+	{ "twl6030", TWL6030_CLASS },	/* "Phoenix power chip" */
 	{ /* end of list */ },
 };
 MODULE_DEVICE_TABLE(i2c, twl_ids);

@@ -778,7 +778,7 @@ int twl4030_sih_setup(int module)
 /* FIXME pass in which interrupt line we'll use ... */
 #define twl_irq_line	0
 
-int twl_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
+int twl4030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 {
 	static struct irq_chip	twl4030_irq_chip;
 
@@ -858,7 +858,7 @@ fail:
 	return status;
 }
 
-int twl_exit_irq(void)
+int twl4030_exit_irq(void)
 {
 	/* FIXME undo twl_init_irq() */
 	if (twl4030_irq_base) {
@@ -868,7 +868,7 @@ int twl_exit_irq(void)
 	return 0;
 }
 
-int twl_init_chip_irq(const char *chip)
+int twl4030_init_chip_irq(const char *chip)
 {
 	if (!strcmp(chip, "twl5031")) {
 		sih_modules = sih_modules_twl5031;
