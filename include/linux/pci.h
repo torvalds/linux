@@ -187,6 +187,27 @@ enum pci_bus_flags {
 	PCI_BUS_FLAGS_NO_MMRBC = (__force pci_bus_flags_t) 2,
 };
 
+/* Based on the PCI Hotplug Spec, but some values are made up by us */
+enum pci_bus_speed {
+	PCI_SPEED_33MHz			= 0x00,
+	PCI_SPEED_66MHz			= 0x01,
+	PCI_SPEED_66MHz_PCIX		= 0x02,
+	PCI_SPEED_100MHz_PCIX		= 0x03,
+	PCI_SPEED_133MHz_PCIX		= 0x04,
+	PCI_SPEED_66MHz_PCIX_ECC	= 0x05,
+	PCI_SPEED_100MHz_PCIX_ECC	= 0x06,
+	PCI_SPEED_133MHz_PCIX_ECC	= 0x07,
+	PCI_SPEED_66MHz_PCIX_266	= 0x09,
+	PCI_SPEED_100MHz_PCIX_266	= 0x0a,
+	PCI_SPEED_133MHz_PCIX_266	= 0x0b,
+	PCI_SPEED_66MHz_PCIX_533	= 0x11,
+	PCI_SPEED_100MHz_PCIX_533	= 0x12,
+	PCI_SPEED_133MHz_PCIX_533	= 0x13,
+	PCIE_SPEED_2_5GT		= 0x14,
+	PCIE_SPEED_5_0GT		= 0x15,
+	PCI_SPEED_UNKNOWN		= 0xff,
+};
+
 struct pci_cap_saved_state {
 	struct hlist_node next;
 	char cap_nr;

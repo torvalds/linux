@@ -28,26 +28,6 @@
 #ifndef _PCI_HOTPLUG_H
 #define _PCI_HOTPLUG_H
 
-
-/* These values come from the PCI Hotplug Spec */
-enum pci_bus_speed {
-	PCI_SPEED_33MHz			= 0x00,
-	PCI_SPEED_66MHz			= 0x01,
-	PCI_SPEED_66MHz_PCIX		= 0x02,
-	PCI_SPEED_100MHz_PCIX		= 0x03,
-	PCI_SPEED_133MHz_PCIX		= 0x04,
-	PCI_SPEED_66MHz_PCIX_ECC	= 0x05,
-	PCI_SPEED_100MHz_PCIX_ECC	= 0x06,
-	PCI_SPEED_133MHz_PCIX_ECC	= 0x07,
-	PCI_SPEED_66MHz_PCIX_266	= 0x09,
-	PCI_SPEED_100MHz_PCIX_266	= 0x0a,
-	PCI_SPEED_133MHz_PCIX_266	= 0x0b,
-	PCI_SPEED_66MHz_PCIX_533	= 0x11,
-	PCI_SPEED_100MHz_PCIX_533	= 0x12,
-	PCI_SPEED_133MHz_PCIX_533	= 0x13,
-	PCI_SPEED_UNKNOWN		= 0xff,
-};
-
 /* These values come from the PCI Express Spec */
 enum pcie_link_width {
 	PCIE_LNK_WIDTH_RESRV	= 0x00,
@@ -59,12 +39,6 @@ enum pcie_link_width {
 	PCIE_LNK_X16		= 0x10,
 	PCIE_LNK_X32		= 0x20,
 	PCIE_LNK_WIDTH_UNKNOWN  = 0xFF,
-};
-
-enum pcie_link_speed {
-	PCIE_2_5GB		= 0x14,
-	PCIE_5_0GB		= 0x15,
-	PCIE_LNK_SPEED_UNKNOWN	= 0xFF,
 };
 
 /**

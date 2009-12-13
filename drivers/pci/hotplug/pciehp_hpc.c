@@ -613,7 +613,7 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 int pciehp_get_max_link_speed(struct slot *slot, enum pci_bus_speed *value)
 {
 	struct controller *ctrl = slot->ctrl;
-	enum pcie_link_speed lnk_speed;
+	enum pci_bus_speed lnk_speed;
 	u32	lnk_cap;
 	int retval = 0;
 
@@ -625,13 +625,13 @@ int pciehp_get_max_link_speed(struct slot *slot, enum pci_bus_speed *value)
 
 	switch (lnk_cap & 0x000F) {
 	case 1:
-		lnk_speed = PCIE_2_5GB;
+		lnk_speed = PCIE_SPEED_2_5GT;
 		break;
 	case 2:
-		lnk_speed = PCIE_5_0GB;
+		lnk_speed = PCIE_SPEED_5_0GT;
 		break;
 	default:
-		lnk_speed = PCIE_LNK_SPEED_UNKNOWN;
+		lnk_speed = PCI_SPEED_UNKNOWN;
 		break;
 	}
 
@@ -694,7 +694,7 @@ int pciehp_get_max_lnk_width(struct slot *slot,
 int pciehp_get_cur_link_speed(struct slot *slot, enum pci_bus_speed *value)
 {
 	struct controller *ctrl = slot->ctrl;
-	enum pcie_link_speed lnk_speed = PCI_SPEED_UNKNOWN;
+	enum pci_bus_speed lnk_speed = PCI_SPEED_UNKNOWN;
 	int retval = 0;
 	u16 lnk_status;
 
@@ -707,13 +707,13 @@ int pciehp_get_cur_link_speed(struct slot *slot, enum pci_bus_speed *value)
 
 	switch (lnk_status & PCI_EXP_LNKSTA_CLS) {
 	case 1:
-		lnk_speed = PCIE_2_5GB;
+		lnk_speed = PCIE_SPEED_2_5GT;
 		break;
 	case 2:
-		lnk_speed = PCIE_5_0GB;
+		lnk_speed = PCIE_SPEED_5_0GT;
 		break;
 	default:
-		lnk_speed = PCIE_LNK_SPEED_UNKNOWN;
+		lnk_speed = PCI_SPEED_UNKNOWN;
 		break;
 	}
 
