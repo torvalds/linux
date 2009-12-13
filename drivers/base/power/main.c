@@ -23,7 +23,6 @@
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/resume-trace.h>
-#include <linux/rwsem.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 
