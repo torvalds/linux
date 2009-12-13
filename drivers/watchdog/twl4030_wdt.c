@@ -48,7 +48,7 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
 
 static int twl4030_wdt_write(unsigned char val)
 {
-	return twl4030_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER, val,
+	return twl_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER, val,
 					TWL4030_WATCHDOG_CFG_REG_OFFS);
 }
 

@@ -64,7 +64,7 @@ twl4030reg_read(struct twlreg_info *info, unsigned offset)
 	u8 value;
 	int status;
 
-	status = twl4030_i2c_read_u8(TWL4030_MODULE_PM_RECEIVER,
+	status = twl_i2c_read_u8(TWL4030_MODULE_PM_RECEIVER,
 			&value, info->base + offset);
 	return (status < 0) ? status : value;
 }
@@ -72,7 +72,7 @@ twl4030reg_read(struct twlreg_info *info, unsigned offset)
 static inline int
 twl4030reg_write(struct twlreg_info *info, unsigned offset, u8 value)
 {
-	return twl4030_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER,
+	return twl_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER,
 			value, info->base + offset);
 }
 
@@ -171,12 +171,12 @@ static int twl4030reg_set_mode(struct regulator_dev *rdev, unsigned mode)
 	if (!(status & (P3_GRP | P2_GRP | P1_GRP)))
 		return -EACCES;
 
-	status = twl4030_i2c_write_u8(TWL4030_MODULE_PM_MASTER,
+	status = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER,
 			message >> 8, 0x15 /* PB_WORD_MSB */ );
 	if (status >= 0)
 		return status;
 
-	return twl4030_i2c_write_u8(TWL4030_MODULE_PM_MASTER,
+	return twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER,
 			message, 0x16 /* PB_WORD_LSB */ );
 }
 

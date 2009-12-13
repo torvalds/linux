@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef __TWL4030_H_
-#define __TWL4030_H_
+#ifndef __TWL_H_
+#define __TWL_H_
 
 #include <linux/types.h>
 #include <linux/input/matrix_keypad.h>
@@ -72,20 +72,37 @@
 #define TWL4030_MODULE_RTC		0x16
 #define TWL4030_MODULE_SECURED_REG	0x17
 
+#define TWL_MODULE_USB		TWL4030_MODULE_USB
+#define TWL_MODULE_AUDIO_VOICE	TWL4030_MODULE_AUDIO_VOICE
+#define TWL_MODULE_PIH		TWL4030_MODULE_PIH
+#define TWL_MODULE_MADC		TWL4030_MODULE_MADC
+#define TWL_MODULE_MAIN_CHARGE	TWL4030_MODULE_MAIN_CHARGE
+#define TWL_MODULE_PM_MASTER	TWL4030_MODULE_PM_MASTER
+#define TWL_MODULE_PM_RECEIVER	TWL4030_MODULE_PM_RECEIVER
+#define TWL_MODULE_RTC		TWL4030_MODULE_RTC
+
+#define GPIO_INTR_OFFSET	0
+#define KEYPAD_INTR_OFFSET	1
+#define BCI_INTR_OFFSET		2
+#define MADC_INTR_OFFSET	3
+#define USB_INTR_OFFSET		4
+#define BCI_PRES_INTR_OFFSET	9
+#define USB_PRES_INTR_OFFSET	10
+#define RTC_INTR_OFFSET		11
 /*
  * Read and write single 8-bit registers
  */
-int twl4030_i2c_write_u8(u8 mod_no, u8 val, u8 reg);
-int twl4030_i2c_read_u8(u8 mod_no, u8 *val, u8 reg);
+int twl_i2c_write_u8(u8 mod_no, u8 val, u8 reg);
+int twl_i2c_read_u8(u8 mod_no, u8 *val, u8 reg);
 
 /*
  * Read and write several 8-bit registers at once.
  *
- * IMPORTANT:  For twl4030_i2c_write(), allocate num_bytes + 1
+ * IMPORTANT:  For twl_i2c_write(), allocate num_bytes + 1
  * for the value, and populate your data starting at offset 1.
  */
-int twl4030_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
-int twl4030_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
+int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
+int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
 
 /*----------------------------------------------------------------------*/
 
