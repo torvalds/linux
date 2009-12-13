@@ -2208,7 +2208,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 	},
 };
 
-static struct iwl_ops iwl4965_ops = {
+static const struct iwl_ops iwl4965_ops = {
 	.ucode = &iwl4965_ucode,
 	.lib = &iwl4965_lib,
 	.hcmd = &iwl4965_hcmd,

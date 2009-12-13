@@ -253,7 +253,7 @@ static struct iwl_lib_ops iwl6000_lib = {
 	 },
 };
 
-static struct iwl_ops iwl6000_ops = {
+static const struct iwl_ops iwl6000_ops = {
 	.ucode = &iwl5000_ucode,
 	.lib = &iwl6000_lib,
 	.hcmd = &iwl5000_hcmd,
@@ -268,7 +268,7 @@ static struct iwl_hcmd_utils_ops iwl6050_hcmd_utils = {
 	.calc_rssi = iwl5000_calc_rssi,
 };
 
-static struct iwl_ops iwl6050_ops = {
+static const struct iwl_ops iwl6050_ops = {
 	.ucode = &iwl5000_ucode,
 	.lib = &iwl6000_lib,
 	.hcmd = &iwl5000_hcmd,
