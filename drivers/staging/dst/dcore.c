@@ -116,7 +116,7 @@ static int dst_request(struct request_queue *q, struct bio *bio)
 		 * bio_rw_flagged(bio, BIO_RW_DISCARD) only, which does not
 		 * work in this case.
 		 */
-		//err = -EOPNOTSUPP;
+		/* err = -EOPNOTSUPP; */
 		err = 0;
 		goto end_io;
 	}
@@ -197,7 +197,8 @@ static int dst_node_create_disk(struct dst_node *n)
 	n->disk->fops = &dst_blk_ops;
 	n->disk->queue = n->queue;
 	n->disk->private_data = n;
-	snprintf(n->disk->disk_name, sizeof(n->disk->disk_name), "dst-%s", n->name);
+	snprintf(n->disk->disk_name, sizeof(n->disk->disk_name),
+			"dst-%s", n->name);
 
 	return 0;
 
@@ -246,7 +247,8 @@ static ssize_t dst_show_type(struct device *dev,
 		return sprintf(buf, "%u.%u.%u.%u:%d\n",
 			NIPQUAD(sin->sin_addr.s_addr), ntohs(sin->sin_port));
 	} else if (family == AF_INET6) {
-		struct sockaddr_in6 *sin = (struct sockaddr_in6 *)&info->net.addr;
+		struct sockaddr_in6 *sin = (struct sockaddr_in6 *)
+				&info->net.addr;
 		return sprintf(buf,
 			"%pi6:%d\n",
 			&sin->sin6_addr, ntohs(sin->sin6_port));
@@ -261,7 +263,7 @@ static ssize_t dst_show_type(struct device *dev,
 		sz -= size;
 		buf += size;
 
-		for (i=0; i<addrlen; ++i) {
+		for (i = 0; i < addrlen; ++i) {
 			if (sz < 3)
 				break;
 
@@ -286,7 +288,7 @@ static int dst_create_node_attributes(struct dst_node *n)
 {
 	int err, i;
 
-	for (i=0; i<ARRAY_SIZE(dst_node_attrs); ++i) {
+	for (i = 0; i < ARRAY_SIZE(dst_node_attrs); ++i) {
 		err = device_create_file(&n->info->device,
 				&dst_node_attrs[i]);
 		if (err)
@@ -306,7 +308,7 @@ static void dst_remove_node_attributes(struct dst_node *n)
 {
 	int i;
 
-	for (i=0; i<ARRAY_SIZE(dst_node_attrs); ++i)
+	for (i = 0; i < ARRAY_SIZE(dst_node_attrs); ++i)
 		device_remove_file(&n->info->device,
 				&dst_node_attrs[i]);
 }
@@ -358,7 +360,7 @@ err_out_exit:
  */
 static inline unsigned int dst_hash(char *str, unsigned int size)
 {
-	return (jhash(str, size, 0) % dst_hashtable_size);
+	return jhash(str, size, 0) % dst_hashtable_size;
 }
 
 static void dst_node_remove(struct dst_node *n)
@@ -641,7 +643,8 @@ static int dst_start_remote(struct dst_node *n)
 	dst_node_set_size(n);
 	add_disk(n->disk);
 
-	dprintk("DST: started remote node '%s', minor: %d.\n", n->name, n->disk->first_minor);
+	dprintk("DST: started remote node '%s', minor: %d.\n",
+			n->name, n->disk->first_minor);
 
 	return 0;
 }
@@ -740,7 +743,8 @@ static int dst_node_remove_unload(struct dst_node *n)
 	 * counter will be equal to 1),
 	 * and subsequent dst_node_put() calls will free the node.
 	 */
-	dprintk("%s: going to sleep with %d refcnt.\n", __func__, atomic_read(&n->refcnt));
+	dprintk("%s: going to sleep with %d refcnt.\n",
+			__func__, atomic_read(&n->refcnt));
 	wait_event(n->wait, atomic_read(&n->refcnt) <= 2);
 
 	dst_node_put(n);
@@ -921,7 +925,7 @@ static int __init dst_hashtable_init(void)
 	if (!dst_hashtable)
 		return -ENOMEM;
 
-	for (i=0; i<dst_hashtable_size; ++i)
+	for (i = 0; i < dst_hashtable_size; ++i)
 		INIT_LIST_HEAD(&dst_hashtable[i]);
 
 	return 0;
@@ -932,7 +936,7 @@ static void dst_hashtable_exit(void)
 	unsigned int i;
 	struct dst_node *n, *tmp;
 
-	for (i=0; i<dst_hashtable_size; ++i) {
+	for (i = 0; i < dst_hashtable_size; ++i) {
 		list_for_each_entry_safe(n, tmp, &dst_hashtable[i], node_entry) {
 			dst_node_remove_unload(n);
 		}

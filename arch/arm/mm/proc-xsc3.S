@@ -396,7 +396,7 @@ __xsc3_setup:
 	orr	r4, r4, #0x18			@ cache the page table in L2
 	mcr	p15, 0, r4, c2, c0, 0		@ load page table pointer
 
-	mov	r0, #0				@ don't allow CP access
+	mov	r0, #1 << 6			@ cp6 access for early sched_clock
 	mcr	p15, 0, r0, c15, c1, 0		@ write CP access register
 
 	mrc	p15, 0, r0, c1, c0, 1		@ get auxiliary control reg

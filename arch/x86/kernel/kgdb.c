@@ -43,6 +43,7 @@
 #include <linux/smp.h>
 #include <linux/nmi.h>
 
+#include <asm/debugreg.h>
 #include <asm/apicdef.h>
 #include <asm/system.h>
 
@@ -85,10 +86,15 @@ void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 	gdb_regs[GDB_DS]	= regs->ds;
 	gdb_regs[GDB_ES]	= regs->es;
 	gdb_regs[GDB_CS]	= regs->cs;
-	gdb_regs[GDB_SS]	= __KERNEL_DS;
 	gdb_regs[GDB_FS]	= 0xFFFF;
 	gdb_regs[GDB_GS]	= 0xFFFF;
-	gdb_regs[GDB_SP]	= (int)&regs->sp;
+	if (user_mode_vm(regs)) {
+		gdb_regs[GDB_SS] = regs->ss;
+		gdb_regs[GDB_SP] = regs->sp;
+	} else {
+		gdb_regs[GDB_SS] = __KERNEL_DS;
+		gdb_regs[GDB_SP] = kernel_stack_pointer(regs);
+	}
 #else
 	gdb_regs[GDB_R8]	= regs->r8;
 	gdb_regs[GDB_R9]	= regs->r9;
@@ -101,7 +107,7 @@ void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 	gdb_regs32[GDB_PS]	= regs->flags;
 	gdb_regs32[GDB_CS]	= regs->cs;
 	gdb_regs32[GDB_SS]	= regs->ss;
-	gdb_regs[GDB_SP]	= regs->sp;
+	gdb_regs[GDB_SP]	= kernel_stack_pointer(regs);
 #endif
 }
 
@@ -220,8 +226,7 @@ static void kgdb_correct_hw_break(void)
 			dr7 |= ((breakinfo[breakno].len << 2) |
 				 breakinfo[breakno].type) <<
 			       ((breakno << 2) + 16);
-			if (breakno >= 0 && breakno <= 3)
-				set_debugreg(breakinfo[breakno].addr, breakno);
+			set_debugreg(breakinfo[breakno].addr, breakno);
 
 		} else {
 			if ((dr7 & breakbit) && !breakinfo[breakno].enabled) {
@@ -395,7 +400,6 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 		/* set the trace bit if we're stepping */
 		if (remcomInBuffer[0] == 's') {
 			linux_regs->flags |= X86_EFLAGS_TF;
-			kgdb_single_step = 1;
 			atomic_set(&kgdb_cpu_doing_single_step,
 				   raw_smp_processor_id());
 		}
@@ -434,6 +438,11 @@ single_step_cont(struct pt_regs *regs, struct die_args *args)
 			"resuming...\n");
 	kgdb_arch_handle_exception(args->trapnr, args->signr,
 				   args->err, "c", "", regs);
+	/*
+	 * Reset the BS bit in dr6 (pointed by args->err) to
+	 * denote completion of processing
+	 */
+	(*(unsigned long *)ERR_PTR(args->err)) &= ~DR_STEP;
 
 	return NOTIFY_STOP;
 }

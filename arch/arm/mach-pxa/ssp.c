@@ -342,8 +342,9 @@ void ssp_free(struct ssp_device *ssp)
 }
 EXPORT_SYMBOL(ssp_free);
 
-static int __devinit ssp_probe(struct platform_device *pdev, int type)
+static int __devinit ssp_probe(struct platform_device *pdev)
 {
+	const struct platform_device_id *id = platform_get_device_id(pdev);
 	struct resource *res;
 	struct ssp_device *ssp;
 	int ret = 0;
@@ -413,7 +414,7 @@ static int __devinit ssp_probe(struct platform_device *pdev, int type)
 	 */
 	ssp->port_id = pdev->id + 1;
 	ssp->use_count = 0;
-	ssp->type = type;
+	ssp->type = (int)id->driver_data;
 
 	mutex_lock(&ssp_lock);
 	list_add(&ssp->node, &ssp_list);
@@ -457,75 +458,31 @@ static int __devexit ssp_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit pxa25x_ssp_probe(struct platform_device *pdev)
-{
-	return ssp_probe(pdev, PXA25x_SSP);
-}
-
-static int __devinit pxa25x_nssp_probe(struct platform_device *pdev)
-{
-	return ssp_probe(pdev, PXA25x_NSSP);
-}
-
-static int __devinit pxa27x_ssp_probe(struct platform_device *pdev)
-{
-	return ssp_probe(pdev, PXA27x_SSP);
-}
-
-static struct platform_driver pxa25x_ssp_driver = {
-	.driver		= {
-		.name	= "pxa25x-ssp",
-	},
-	.probe		= pxa25x_ssp_probe,
-	.remove		= __devexit_p(ssp_remove),
+static const struct platform_device_id ssp_id_table[] = {
+	{ "pxa25x-ssp",		PXA25x_SSP },
+	{ "pxa25x-nssp",	PXA25x_NSSP },
+	{ "pxa27x-ssp",		PXA27x_SSP },
+	{ },
 };
 
-static struct platform_driver pxa25x_nssp_driver = {
-	.driver		= {
-		.name	= "pxa25x-nssp",
-	},
-	.probe		= pxa25x_nssp_probe,
+static struct platform_driver ssp_driver = {
+	.probe		= ssp_probe,
 	.remove		= __devexit_p(ssp_remove),
-};
-
-static struct platform_driver pxa27x_ssp_driver = {
 	.driver		= {
-		.name	= "pxa27x-ssp",
+		.owner	= THIS_MODULE,
+		.name	= "pxa2xx-ssp",
 	},
-	.probe		= pxa27x_ssp_probe,
-	.remove		= __devexit_p(ssp_remove),
+	.id_table	= ssp_id_table,
 };
 
 static int __init pxa_ssp_init(void)
 {
-	int ret = 0;
-
-	ret = platform_driver_register(&pxa25x_ssp_driver);
-	if (ret) {
-		printk(KERN_ERR "failed to register pxa25x_ssp_driver");
-		return ret;
-	}
-
-	ret = platform_driver_register(&pxa25x_nssp_driver);
-	if (ret) {
-		printk(KERN_ERR "failed to register pxa25x_nssp_driver");
-		return ret;
-	}
-
-	ret = platform_driver_register(&pxa27x_ssp_driver);
-	if (ret) {
-		printk(KERN_ERR "failed to register pxa27x_ssp_driver");
-		return ret;
-	}
-
-	return ret;
+	return platform_driver_register(&ssp_driver);
 }
 
 static void __exit pxa_ssp_exit(void)
 {
-	platform_driver_unregister(&pxa25x_ssp_driver);
-	platform_driver_unregister(&pxa25x_nssp_driver);
-	platform_driver_unregister(&pxa27x_ssp_driver);
+	platform_driver_unregister(&ssp_driver);
 }
 
 arch_initcall(pxa_ssp_init);

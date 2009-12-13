@@ -858,6 +858,9 @@ ia32_do_mmap (struct file *file, unsigned long addr, unsigned long len, int prot
 
 	prot = get_prot32(prot);
 
+	if (flags & MAP_HUGETLB)
+		return -ENOMEM;
+
 #if PAGE_SHIFT > IA32_PAGE_SHIFT
 	mutex_lock(&ia32_mmap_mutex);
 	{
@@ -1627,61 +1630,6 @@ sys32_msync (unsigned int start, unsigned int len, int flags)
 	addr = PAGE_START(start);
 	return sys_msync(addr, len + (start - addr), flags);
 }
-
-struct sysctl32 {
-	unsigned int	name;
-	int		nlen;
-	unsigned int	oldval;
-	unsigned int	oldlenp;
-	unsigned int	newval;
-	unsigned int	newlen;
-	unsigned int	__unused[4];
-};
-
-#ifdef CONFIG_SYSCTL_SYSCALL
-asmlinkage long
-sys32_sysctl (struct sysctl32 __user *args)
-{
-	struct sysctl32 a32;
-	mm_segment_t old_fs = get_fs ();
-	void __user *oldvalp, *newvalp;
-	size_t oldlen;
-	int __user *namep;
-	long ret;
-
-	if (copy_from_user(&a32, args, sizeof(a32)))
-		return -EFAULT;
-
-	/*
-	 * We need to pre-validate these because we have to disable address checking
-	 * before calling do_sysctl() because of OLDLEN but we can't run the risk of the
-	 * user specifying bad addresses here.  Well, since we're dealing with 32 bit
-	 * addresses, we KNOW that access_ok() will always succeed, so this is an
-	 * expensive NOP, but so what...
-	 */
-	namep = (int __user *) compat_ptr(a32.name);
-	oldvalp = compat_ptr(a32.oldval);
-	newvalp = compat_ptr(a32.newval);
-
-	if ((oldvalp && get_user(oldlen, (int __user *) compat_ptr(a32.oldlenp)))
-	    || !access_ok(VERIFY_WRITE, namep, 0)
-	    || !access_ok(VERIFY_WRITE, oldvalp, 0)
-	    || !access_ok(VERIFY_WRITE, newvalp, 0))
-		return -EFAULT;
-
-	set_fs(KERNEL_DS);
-	lock_kernel();
-	ret = do_sysctl(namep, a32.nlen, oldvalp, (size_t __user *) &oldlen,
-			newvalp, (size_t) a32.newlen);
-	unlock_kernel();
-	set_fs(old_fs);
-
-	if (oldvalp && put_user (oldlen, (int __user *) compat_ptr(a32.oldlenp)))
-		return -EFAULT;
-
-	return ret;
-}
-#endif
 
 asmlinkage long
 sys32_newuname (struct new_utsname __user *name)

@@ -2063,6 +2063,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
+		.subvendor = 0x161f,
+		.subdevice = 0x203a,
+		.name = "Gateway 4525GZ",		/* AD1981B */
+		.type = AC97_TUNE_INV_EAPD
+	},
+	{
 		.subvendor = 0x1734,
 		.subdevice = 0x0088,
 		.name = "Fujitsu-Siemens D1522",	/* AD1981 */

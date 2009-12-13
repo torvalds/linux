@@ -4806,7 +4806,7 @@ static int airo_config_commit(struct net_device *dev,
 
 static inline int sniffing_mode(struct airo_info *ai)
 {
-	return le16_to_cpu(ai->config.rmode & RXMODE_MASK) >=
+	return (le16_to_cpu(ai->config.rmode) & le16_to_cpu(RXMODE_MASK)) >=
 		le16_to_cpu(RXMODE_RFMON);
 }
 
@@ -5659,7 +5659,8 @@ static int airo_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	pci_enable_wake(pdev, pci_choose_state(pdev, state), 1);
 	pci_save_state(pdev);
-	return pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	return 0;
 }
 
 static int airo_pci_resume(struct pci_dev *pdev)

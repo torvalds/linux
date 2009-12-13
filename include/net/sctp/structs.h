@@ -231,6 +231,11 @@ extern struct sctp_globals {
 	/* Flag to indicate whether computing and verifying checksum
 	 * is disabled. */
         int checksum_disable;
+
+	/* Threshold for rwnd update SACKS.  Receive buffer shifted this many
+	 * bits is an indicator of when to send and window update SACK.
+	 */
+	int rwnd_update_shift;
 } sctp_globals;
 
 #define sctp_rto_initial		(sctp_globals.rto_initial)
@@ -267,6 +272,7 @@ extern struct sctp_globals {
 #define sctp_prsctp_enable		(sctp_globals.prsctp_enable)
 #define sctp_auth_enable		(sctp_globals.auth_enable)
 #define sctp_checksum_disable		(sctp_globals.checksum_disable)
+#define sctp_rwnd_upd_shift		(sctp_globals.rwnd_update_shift)
 
 /* SCTP Socket type: UDP or TCP style. */
 typedef enum {
@@ -935,6 +941,8 @@ struct sctp_transport {
 	/* Data that has been sent, but not acknowledged. */
 	__u32 flight_size;
 
+	__u32 burst_limited;	/* Holds old cwnd when max.burst is applied */
+
 	/* TSN marking the fast recovery exit point */
 	__u32 fast_recovery_exit;
 
@@ -942,12 +950,6 @@ struct sctp_transport {
 	struct dst_entry *dst;
 	/* Source address. */
 	union sctp_addr saddr;
-
-	/* When was the last time(in jiffies) that a data packet was sent on
-	 * this transport?  This is used to adjust the cwnd when the transport
-	 * becomes inactive.
-	 */
-	unsigned long last_time_used;
 
 	/* Heartbeat interval: The endpoint sends out a Heartbeat chunk to
 	 * the destination address every heartbeat interval.
@@ -987,7 +989,7 @@ struct sctp_transport {
 	int init_sent_count;
 
 	/* state       : The current state of this destination,
-	 *             : i.e. SCTP_ACTIVE, SCTP_INACTIVE, SCTP_UNKOWN.
+	 *             : i.e. SCTP_ACTIVE, SCTP_INACTIVE, SCTP_UNKNOWN.
 	 */
 	int state;
 
@@ -1069,6 +1071,8 @@ void sctp_transport_put(struct sctp_transport *);
 void sctp_transport_update_rto(struct sctp_transport *, __u32);
 void sctp_transport_raise_cwnd(struct sctp_transport *, __u32, __u32);
 void sctp_transport_lower_cwnd(struct sctp_transport *, sctp_lower_cwnd_t);
+void sctp_transport_burst_limited(struct sctp_transport *);
+void sctp_transport_burst_reset(struct sctp_transport *);
 unsigned long sctp_transport_timeout(struct sctp_transport *);
 void sctp_transport_reset(struct sctp_transport *);
 void sctp_transport_update_pmtu(struct sctp_transport *, u32);

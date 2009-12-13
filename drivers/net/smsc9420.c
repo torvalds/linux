@@ -1175,7 +1175,7 @@ static int smsc9420_mii_probe(struct net_device *dev)
 		phydev->phy_id);
 
 	phydev = phy_connect(dev, dev_name(&phydev->dev),
-		&smsc9420_phy_adjust_link, 0, PHY_INTERFACE_MODE_MII);
+		smsc9420_phy_adjust_link, 0, PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
 		pr_err("%s: Could not attach to PHY\n", dev->name);

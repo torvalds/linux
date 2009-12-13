@@ -886,8 +886,6 @@ void rtl8180_rx_enable(struct net_device *dev)
 		rxconf = rxconf | (1<<ACCEPT_ALLMAC_FRAME_SHIFT);
 	}else{
 		rxconf = rxconf | (1<<ACCEPT_NICMAC_FRAME_SHIFT);
-		if(priv->card_8185 == 0)
-			rxconf = rxconf | (1<<RX_CHECK_BSSID_SHIFT);
 	}
 
 	if(priv->ieee80211->iw_mode == IW_MODE_MONITOR){
@@ -909,9 +907,6 @@ void rtl8180_rx_enable(struct net_device *dev)
 	rxconf = rxconf | RCR_ONLYERLPKT;
 
 	rxconf = rxconf &~ RCR_CS_MASK;
-
-	if (!priv->card_8185)
-		rxconf |= (priv->rcr_csense<<RCR_CS_SHIFT);
 
 	write_nic_dword(dev, RX_CONF, rxconf);
 
@@ -964,28 +959,19 @@ void rtl8180_tx_enable(struct net_device *dev)
 
 	txconf = read_nic_dword(dev, TX_CONF);
 
-	if (priv->card_8185) {
-		byte = read_nic_byte(dev,CW_CONF);
-		byte &= ~(1<<CW_CONF_PERPACKET_CW_SHIFT);
-		byte &= ~(1<<CW_CONF_PERPACKET_RETRY_SHIFT);
-		write_nic_byte(dev, CW_CONF, byte);
+	byte = read_nic_byte(dev, CW_CONF);
+	byte &= ~(1<<CW_CONF_PERPACKET_CW_SHIFT);
+	byte &= ~(1<<CW_CONF_PERPACKET_RETRY_SHIFT);
+	write_nic_byte(dev, CW_CONF, byte);
 
-		tx_agc_ctl = read_nic_byte(dev, TX_AGC_CTL);
-		tx_agc_ctl &= ~(1<<TX_AGC_CTL_PERPACKET_GAIN_SHIFT);
-		tx_agc_ctl &= ~(1<<TX_AGC_CTL_PERPACKET_ANTSEL_SHIFT);
-		tx_agc_ctl |=(1<<TX_AGC_CTL_FEEDBACK_ANT);
-		write_nic_byte(dev, TX_AGC_CTL, tx_agc_ctl);
-		write_nic_byte(dev, 0xec, 0x3f); /* Disable early TX */
-	}
+	tx_agc_ctl = read_nic_byte(dev, TX_AGC_CTL);
+	tx_agc_ctl &= ~(1<<TX_AGC_CTL_PERPACKET_GAIN_SHIFT);
+	tx_agc_ctl &= ~(1<<TX_AGC_CTL_PERPACKET_ANTSEL_SHIFT);
+	tx_agc_ctl |= (1<<TX_AGC_CTL_FEEDBACK_ANT);
+	write_nic_byte(dev, TX_AGC_CTL, tx_agc_ctl);
+	write_nic_byte(dev, 0xec, 0x3f); /* Disable early TX */
 
-	if (priv->card_8185)
-		txconf = txconf &~ (1<<TCR_PROBE_NOTIMESTAMP_SHIFT);
-	else {
-		if(hwseqnum)
-			txconf= txconf &~ (1<<TX_CONF_HEADER_AUTOICREMENT_SHIFT);
-		else
-			txconf= txconf | (1<<TX_CONF_HEADER_AUTOICREMENT_SHIFT);
-	}
+	txconf = txconf & ~(1<<TCR_PROBE_NOTIMESTAMP_SHIFT);
 
 	txconf = txconf &~ TX_LOOPBACK_MASK;
 	txconf = txconf | (TX_LOOPBACK_NONE <<TX_LOOPBACK_SHIFT);
@@ -995,13 +981,10 @@ void rtl8180_tx_enable(struct net_device *dev)
 	txconf = txconf | (priv->retry_rts<<TX_RTSRETRY_SHIFT);
 	txconf = txconf &~ (1<<TX_NOCRC_SHIFT);
 
-	if (priv->card_8185) {
-		if (priv->hw_plcp_len)
-			txconf = txconf &~ TCR_PLCP_LEN;
-		else
-			txconf = txconf | TCR_PLCP_LEN;
-	} else
-		txconf = txconf &~ TCR_SAT;
+	if (priv->hw_plcp_len)
+		txconf = txconf & ~TCR_PLCP_LEN;
+	else
+		txconf = txconf | TCR_PLCP_LEN;
 
 	txconf = txconf &~ TCR_MXDMA_MASK;
 	txconf = txconf | (TCR_MXDMA_2048<<TCR_MXDMA_SHIFT);
@@ -1720,8 +1703,6 @@ void rtl8180_rx(struct net_device *dev)
 		else
 			quality = 127 - quality;
 		priv->SignalQuality = quality;
-		if(!priv->card_8185)
-			printk("check your card type\n");
 
 		stats.signal = (u8)quality;//priv->wstats.qual.level = priv->SignalStrength;
 		stats.signalstrength = RXAGC;
@@ -1848,7 +1829,7 @@ void rtl8180_rx(struct net_device *dev)
 				    sizeof(u8),
 				    PCI_DMA_FROMDEVICE);
 
-drop: // this is used when we have not enought mem
+drop: // this is used when we have not enough mem
 		/* restore the descriptor */
 		*(priv->rxringtail+2)=priv->rxbuffer->dma;
 		*(priv->rxringtail)=*(priv->rxringtail) &~ 0xfff;
@@ -1919,8 +1900,8 @@ rate)
 	/*
 	* This function doesn't require lock because we make
 	* sure it's called with the tx_lock already acquired.
-	* this come from the kernel's hard_xmit callback (trought
-	* the ieee stack, or from the try_wake_queue (again trought
+	* this come from the kernel's hard_xmit callback (through
+	* the ieee stack, or from the try_wake_queue (again through
 	* the ieee stack.
 	*/
 	priority = AC2Q(skb->priority);
@@ -2221,10 +2202,8 @@ short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
 		*(tail+6) = 0;
 		*(tail+7) = 0;
 
-		if(priv->card_8185){
-			//FIXME: this should be triggered by HW encryption parameters.
-			*tail |= (1<<15); //no encrypt
-		}
+		/*FIXME: this should be triggered by HW encryption parameters.*/
+		*tail |= (1<<15); /* no encrypt */
 
 		if(remain==len && !descfrag) {
 			ownbit_flag = false;	//added by david woo,2007.12.14
@@ -2266,7 +2245,7 @@ short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
 
 		/* hw_plcp_len is not used for rtl8180 chip */
 		/* FIXME */
-		if(priv->card_8185 == 0 || !priv->hw_plcp_len){
+		if (!priv->hw_plcp_len) {
 			duration = rtl8180_len2duration(len, rate, &ext);
 			*(tail+1) = *(tail+1) | ((duration & 0x7fff)<<16);
 			if(ext) *(tail+1) = *(tail+1) |(1<<31); //plcp length extension
@@ -2355,8 +2334,7 @@ void rtl8180_link_change(struct net_device *dev)
 
 	rtl8180_set_mode(dev, EPROM_CMD_NORMAL);
 
-	if(priv->card_8185)
-		rtl8180_set_chan(dev, priv->chan);
+	rtl8180_set_chan(dev, priv->chan);
 }
 
 void rtl8180_rq_tx_ack(struct net_device *dev){
@@ -2702,8 +2680,6 @@ short rtl8180_init(struct net_device *dev)
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	u16 word;
 	u16 version;
-	u8 hw_version;
-	//u8 config3;
 	u32 usValue;
 	u16 tmpu16;
 	int i, j;
@@ -2928,50 +2904,13 @@ short rtl8180_init(struct net_device *dev)
 
 	priv->InitialGain = 6;
 
-	hw_version =( read_nic_dword(dev, TCR) & TCR_HWVERID_MASK)>>TCR_HWVERID_SHIFT;
+	DMESG("MAC controller is a RTL8187SE b/g");
+	priv->phy_ver = 2;
 
-	switch (hw_version){
-		case HW_VERID_R8185B_B:
-                        priv->card_8185 = VERSION_8187S_C;
-		        DMESG("MAC controller is a RTL8187SE b/g");
-			priv->phy_ver = 2;
-			break;
-		case HW_VERID_R8185_ABC:
-			DMESG("MAC controller is a RTL8185 b/g");
-			priv->card_8185 = 1;
-			/* you should not find a card with 8225 PHY ver < C*/
-			priv->phy_ver = 2;
-			break;
-		case HW_VERID_R8185_D:
-			DMESG("MAC controller is a RTL8185 b/g (V. D)");
-			priv->card_8185 = 2;
-			/* you should not find a card with 8225 PHY ver < C*/
-			priv->phy_ver = 2;
-			break;
-		case HW_VERID_R8180_ABCD:
-			DMESG("MAC controller is a RTL8180");
-			priv->card_8185 = 0;
-			break;
-		case HW_VERID_R8180_F:
-			DMESG("MAC controller is a RTL8180 (v. F)");
-			priv->card_8185 = 0;
-			break;
-		default:
-			DMESGW("MAC chip not recognized: version %x. Assuming RTL8180",hw_version);
-			priv->card_8185 = 0;
-			break;
-	}
-
-	if(priv->card_8185){
-		priv->ieee80211->modulation |= IEEE80211_OFDM_MODULATION;
-		priv->ieee80211->short_slot = 1;
-	}
-	/* you should not found any 8185 Ver B Card */
-	priv->card_8185_Bversion = 0;
+	priv->ieee80211->modulation |= IEEE80211_OFDM_MODULATION;
+	priv->ieee80211->short_slot = 1;
 
 	// just for sync 85
-	priv->card_type = PCI;
-        DMESG("This is a PCI NIC");
 	priv->enable_gpio0 = 0;
 
 	usValue = eprom_read(dev, EEPROM_SW_REVD_OFFSET);
@@ -3026,12 +2965,10 @@ short rtl8180_init(struct net_device *dev)
 		priv->chtxpwr[i]=word & 0xff;
 		priv->chtxpwr[i+1]=(word & 0xff00)>>8;
 	}
-	if(priv->card_8185){
-		for(i=1,j=0; i<14; i+=2,j++){
-			word = eprom_read(dev,EPROM_TXPW_OFDM_CH1_2 + j);
-			priv->chtxpwr_ofdm[i]=word & 0xff;
-			priv->chtxpwr_ofdm[i+1]=(word & 0xff00)>>8;
-		}
+	for (i = 1, j = 0; i < 14; i += 2, j++) {
+		word = eprom_read(dev, EPROM_TXPW_OFDM_CH1_2 + j);
+		priv->chtxpwr_ofdm[i] = word & 0xff;
+		priv->chtxpwr_ofdm[i+1] = (word & 0xff00)>>8;
 	}
 
 	//3Read crystal calibtration and thermal meter indication on 87SE.
@@ -3057,37 +2994,11 @@ short rtl8180_init(struct net_device *dev)
 
 	version = eprom_read(dev,EPROM_VERSION);
 	DMESG("EEPROM version %x",version);
-	if( (!priv->card_8185) && version < 0x0101){
-		DMESG ("EEPROM version too old, assuming defaults");
-		DMESG ("If you see this message *plase* send your \
-DMESG output to andreamrl@tiscali.it THANKS");
-		priv->digphy=1;
-		priv->antb=0;
-		priv->diversity=1;
-		priv->cs_treshold=0xc;
-		priv->rcr_csense=1;
-		priv->rf_chip=RFCHIPID_PHILIPS;
-	}else{
-		if(!priv->card_8185){
-			u8 rfparam = eprom_read(dev,RF_PARAM);
-			DMESG("RfParam: %x",rfparam);
+	priv->rcr_csense = 3;
 
-			priv->digphy = rfparam & (1<<RF_PARAM_DIGPHY_SHIFT) ? 0:1;
-			priv->antb =  rfparam & (1<<RF_PARAM_ANTBDEFAULT_SHIFT) ? 1:0;
+	priv->cs_treshold = (eprom_read(dev, ENERGY_TRESHOLD) & 0xff00) >> 8;
 
-			priv->rcr_csense = (rfparam & RF_PARAM_CARRIERSENSE_MASK) >>
-					RF_PARAM_CARRIERSENSE_SHIFT;
-
-			priv->diversity =
-				(read_nic_byte(dev,CONFIG2)&(1<<CONFIG2_ANTENNA_SHIFT)) ? 1:0;
-		}else{
-			priv->rcr_csense = 3;
-		}
-
-		priv->cs_treshold = (eprom_read(dev,ENERGY_TRESHOLD)&0xff00) >>8;
-
-		priv->rf_chip = 0xff & eprom_read(dev,RFCHIPID);
-	}
+	priv->rf_chip = 0xff & eprom_read(dev, RFCHIPID);
 
 	priv->rf_chip = RF_ZEBRA4;
 	priv->rf_sleep = rtl8225z4_rf_sleep;
@@ -3099,19 +3010,6 @@ DMESG output to andreamrl@tiscali.it THANKS");
 	priv->rf_set_chan = rtl8225z2_rf_set_chan;
 	priv->rf_set_sens = NULL;
 
-	if(!priv->card_8185){
-		if(priv->antb)
-			DMESG ("Antenna B is default antenna");
-		else
-			DMESG ("Antenna A is default antenna");
-
-		if(priv->diversity)
-			DMESG ("Antenna diversity is enabled");
-		else
-			DMESG("Antenna diversity is disabled");
-
-		DMESG("Carrier sense %d",priv->rcr_csense);
-	}
 
 	if (0!=alloc_rx_desc_ring(dev, priv->rxbuffersize, priv->rxringcount))
 		return -ENOMEM;
@@ -3144,17 +3042,6 @@ DMESG output to andreamrl@tiscali.it THANKS");
 				  TX_BEACON_RING_ADDR))
 		return -ENOMEM;
 
-	if(!priv->card_8185){
-		if(read_nic_byte(dev, CONFIG0) & (1<<CONFIG0_WEP40_SHIFT))
-			DMESG ("40-bit WEP is supported in hardware");
-		else
-			DMESG ("40-bit WEP is NOT supported in hardware");
-
-		if(read_nic_byte(dev,CONFIG0) & (1<<CONFIG0_WEP104_SHIFT))
-			DMESG ("104-bit WEP is supported in hardware");
-		else
-			DMESG ("104-bit WEP is NOT supported in hardware");
-	}
 #if !defined(SA_SHIRQ)
         if(request_irq(dev->irq, (void *)rtl8180_interrupt, IRQF_SHARED, dev->name, dev)){
 #else
@@ -3172,17 +3059,6 @@ DMESG output to andreamrl@tiscali.it THANKS");
 
 void rtl8180_no_hw_wep(struct net_device *dev)
 {
-	struct r8180_priv *priv = ieee80211_priv(dev);
-
-	if (!priv->card_8185) {
-		u8 security;
-
-		security  = read_nic_byte(dev, SECURITY);
-		security &=~(1<<SECURITY_WEP_TX_ENABLE_SHIFT);
-		security &=~(1<<SECURITY_WEP_RX_ENABLE_SHIFT);
-
-		write_nic_byte(dev, SECURITY, security);
-	}
 }
 
 void rtl8180_set_hw_wep(struct net_device *dev)
@@ -3355,9 +3231,6 @@ void rtl8185_set_rate(struct net_device *dev)
 void rtl8180_adapter_start(struct net_device *dev)
 {
         struct r8180_priv *priv = ieee80211_priv(dev);
-	u32 anaparam;
-	u16 word;
-	u8 config3;
 
 	rtl8180_rtx_disable(dev);
 	rtl8180_reset(dev);
@@ -3371,12 +3244,6 @@ void rtl8180_adapter_start(struct net_device *dev)
 
 	rtl8180_beacon_tx_disable(dev);
 
-	if(priv->card_type == CARDBUS ){
-		config3=read_nic_byte(dev, CONFIG3);
-		write_nic_byte(dev,CONFIG3,config3 | CONFIG3_FuncRegEn);
-		write_nic_word(dev,FEMR, FEMR_INTR | FEMR_WKUP | FEMR_GWAKE |
-			read_nic_word(dev, FEMR));
-	}
 	rtl8180_set_mode(dev, EPROM_CMD_CONFIG);
 	write_nic_dword(dev, MAC0, ((u32*)dev->dev_addr)[0]);
 	write_nic_word(dev, MAC4, ((u32*)dev->dev_addr)[1] & 0xffff );
@@ -3384,12 +3251,6 @@ void rtl8180_adapter_start(struct net_device *dev)
 
 	rtl8180_update_msr(dev);
 
-	if(!priv->card_8185){
-		anaparam  = eprom_read(dev,EPROM_ANAPARAM_ADDRLWORD);
-		anaparam |= eprom_read(dev,EPROM_ANAPARAM_ADDRHWORD)<<16;
-
-		rtl8180_set_anaparam(dev,anaparam);
-	}
 	/* These might be unnecessary since we do in rx_enable / tx_enable */
 	fix_rx_fifo(dev);
 	fix_tx_fifo(dev);
@@ -3399,61 +3260,34 @@ void rtl8180_adapter_start(struct net_device *dev)
 	/*
 	   The following is very strange. seems to be that 1 means test mode,
 	   but we need to acknolwledges the nic when a packet is ready
-	   altought we set it to 0
+	   although we set it to 0
 	*/
 
 	write_nic_byte(dev,
 		       CONFIG2, read_nic_byte(dev,CONFIG2) &~\
 		       (1<<CONFIG2_DMA_POLLING_MODE_SHIFT));
 	//^the nic isn't in test mode
-	if(priv->card_8185)
-			write_nic_byte(dev,
+	write_nic_byte(dev,
 		       CONFIG2, read_nic_byte(dev,CONFIG2)|(1<<4));
 
 	rtl8180_set_mode(dev,EPROM_CMD_NORMAL);
 
 	write_nic_dword(dev,INT_TIMEOUT,0);
 
-	if(!priv->card_8185)
-	{
-		/*
-		experimental - this might be needed to calibrate AGC,
-		anyway it shouldn't hurt
-		*/
-		write_nic_byte(dev, CONFIG5,
-			read_nic_byte(dev, CONFIG5) | (1<<AGCRESET_SHIFT));
-		read_nic_byte(dev, CONFIG5);
-		udelay(15);
-		write_nic_byte(dev, CONFIG5,
-			read_nic_byte(dev, CONFIG5) &~ (1<<AGCRESET_SHIFT));
-	}else{
-		write_nic_byte(dev, WPA_CONFIG, 0);
-		//write_nic_byte(dev, TESTR, 0xd);
-	}
+	write_nic_byte(dev, WPA_CONFIG, 0);
 
 	rtl8180_no_hw_wep(dev);
 
-	if(priv->card_8185){
-		rtl8185_set_rate(dev);
-		write_nic_byte(dev, RATE_FALLBACK, 0x81);
-	}else{
-		word  = read_nic_word(dev, BRSR);
-		word &= ~BRSR_MBR;
-		word &= ~BRSR_BPLCP;
-		word |= ieeerate2rtlrate(priv->ieee80211->basic_rate);
-		word |= 0x0f;
-		write_nic_word(dev, BRSR, word);
-	}
+	rtl8185_set_rate(dev);
+	write_nic_byte(dev, RATE_FALLBACK, 0x81);
 
-	if(priv->card_8185){
-		write_nic_byte(dev, GP_ENABLE,read_nic_byte(dev, GP_ENABLE) & ~(1<<6));
+	write_nic_byte(dev, GP_ENABLE, read_nic_byte(dev, GP_ENABLE) & ~(1<<6));
 
-		//FIXME cfg 3 ClkRun enable - isn't it ReadOnly ?
-		rtl8180_set_mode(dev, EPROM_CMD_CONFIG);
-		write_nic_byte(dev,CONFIG3, read_nic_byte(dev, CONFIG3)
-			       | (1 << CONFIG3_CLKRUN_SHIFT));
-		rtl8180_set_mode(dev, EPROM_CMD_NORMAL);
-	}
+	/*FIXME cfg 3 ClkRun enable - isn't it ReadOnly ? */
+	rtl8180_set_mode(dev, EPROM_CMD_CONFIG);
+	write_nic_byte(dev, CONFIG3, read_nic_byte(dev, CONFIG3)
+		       | (1 << CONFIG3_CLKRUN_SHIFT));
+	rtl8180_set_mode(dev, EPROM_CMD_NORMAL);
 
 	priv->rf_init(dev);
 
@@ -4144,7 +3978,7 @@ void rtl8180_tx_isr(struct net_device *dev, int pri,short error)
 		}
 
 	/* we check all the descriptors between the head and the nic,
-	 * but not the currenly pointed by the nic (the next to be txed)
+	 * but not the currently pointed by the nic (the next to be txed)
 	 * and the previous of the pointed (might be in process ??)
 	*/
 	offs = (nic - nicbegin);

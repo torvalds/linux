@@ -15,8 +15,7 @@
 
 struct seq_file;
 
-struct nf_conntrack_l4proto
-{
+struct nf_conntrack_l4proto {
 	/* L3 Protocol number. */
 	u_int16_t l3proto;
 

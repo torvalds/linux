@@ -269,7 +269,7 @@ int s390_enable_sie(void)
 	struct mm_struct *mm, *old_mm;
 
 	/* Do we have switched amode? If no, we cannot do sie */
-	if (!switch_amode)
+	if (user_mode == HOME_SPACE_MODE)
 		return -EINVAL;
 
 	/* Do we have pgstes? if yes, we are done */

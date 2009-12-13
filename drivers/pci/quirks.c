@@ -357,7 +357,7 @@ static void __devinit quirk_io_region(struct pci_dev *dev, unsigned region,
 		pcibios_bus_to_resource(dev, res, &bus_region);
 
 		pci_claim_resource(dev, nr);
-		dev_info(&dev->dev, "quirk: region %04x-%04x claimed by %s\n", region, region + size - 1, name);
+		dev_info(&dev->dev, "quirk: %pR claimed by %s\n", res, name);
 	}
 }	
 
@@ -1680,6 +1680,7 @@ DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_SERVERWORKS,   PCI_DEVICE_ID_SERVERWORKS_
  */
 #define AMD_813X_MISC			0x40
 #define AMD_813X_NOIOAMODE		(1<<0)
+#define AMD_813X_REV_B1			0x12
 #define AMD_813X_REV_B2			0x13
 
 static void quirk_disable_amd_813x_boot_interrupt(struct pci_dev *dev)
@@ -1688,7 +1689,8 @@ static void quirk_disable_amd_813x_boot_interrupt(struct pci_dev *dev)
 
 	if (noioapicquirk)
 		return;
-	if (dev->revision == AMD_813X_REV_B2)
+	if ((dev->revision == AMD_813X_REV_B1) ||
+	    (dev->revision == AMD_813X_REV_B2))
 		return;
 
 	pci_read_config_dword(dev, AMD_813X_MISC, &pci_config_dword);
@@ -1698,8 +1700,10 @@ static void quirk_disable_amd_813x_boot_interrupt(struct pci_dev *dev)
 	dev_info(&dev->dev, "disabled boot interrupts on device [%04x:%04x]\n",
 		 dev->vendor, dev->device);
 }
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD,   PCI_DEVICE_ID_AMD_8131_BRIDGE, 	quirk_disable_amd_813x_boot_interrupt);
-DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_AMD,   PCI_DEVICE_ID_AMD_8132_BRIDGE, 	quirk_disable_amd_813x_boot_interrupt);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD,	PCI_DEVICE_ID_AMD_8131_BRIDGE,	quirk_disable_amd_813x_boot_interrupt);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_AMD,	PCI_DEVICE_ID_AMD_8131_BRIDGE,	quirk_disable_amd_813x_boot_interrupt);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD,	PCI_DEVICE_ID_AMD_8132_BRIDGE,	quirk_disable_amd_813x_boot_interrupt);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_AMD,	PCI_DEVICE_ID_AMD_8132_BRIDGE,	quirk_disable_amd_813x_boot_interrupt);
 
 #define AMD_8111_PCI_IRQ_ROUTING	0x56
 
@@ -2595,9 +2599,37 @@ void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev)
 static int __init pci_apply_final_quirks(void)
 {
 	struct pci_dev *dev = NULL;
+	u8 cls = 0;
+	u8 tmp;
+
+	if (pci_cache_line_size)
+		printk(KERN_DEBUG "PCI: CLS %u bytes\n",
+		       pci_cache_line_size << 2);
 
 	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
 		pci_fixup_device(pci_fixup_final, dev);
+		/*
+		 * If arch hasn't set it explicitly yet, use the CLS
+		 * value shared by all PCI devices.  If there's a
+		 * mismatch, fall back to the default value.
+		 */
+		if (!pci_cache_line_size) {
+			pci_read_config_byte(dev, PCI_CACHE_LINE_SIZE, &tmp);
+			if (!cls)
+				cls = tmp;
+			if (!tmp || cls == tmp)
+				continue;
+
+			printk(KERN_DEBUG "PCI: CLS mismatch (%u != %u), "
+			       "using %u bytes\n", cls << 2, tmp << 2,
+			       pci_dfl_cache_line_size << 2);
+			pci_cache_line_size = pci_dfl_cache_line_size;
+		}
+	}
+	if (!pci_cache_line_size) {
+		printk(KERN_DEBUG "PCI: CLS %u bytes, default %u\n",
+		       cls << 2, pci_dfl_cache_line_size << 2);
+		pci_cache_line_size = cls;
 	}
 
 	return 0;

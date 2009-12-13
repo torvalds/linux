@@ -866,7 +866,7 @@ static const struct ethtool_ops qeth_l2_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_strings = qeth_core_get_strings,
 	.get_ethtool_stats = qeth_core_get_ethtool_stats,
-	.get_stats_count = qeth_core_get_stats_count,
+	.get_sset_count = qeth_core_get_sset_count,
 	.get_drvinfo = qeth_core_get_drvinfo,
 	.get_settings = qeth_core_ethtool_get_settings,
 };
@@ -874,7 +874,7 @@ static const struct ethtool_ops qeth_l2_ethtool_ops = {
 static const struct ethtool_ops qeth_l2_osn_ops = {
 	.get_strings = qeth_core_get_strings,
 	.get_ethtool_stats = qeth_core_get_ethtool_stats,
-	.get_stats_count = qeth_core_get_stats_count,
+	.get_sset_count = qeth_core_get_sset_count,
 	.get_drvinfo = qeth_core_get_drvinfo,
 };
 
@@ -940,30 +940,17 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 
 	qeth_set_allowed_threads(card, QETH_RECOVER_THREAD, 1);
 	recover_flag = card->state;
-	rc = ccw_device_set_online(CARD_RDEV(card));
-	if (rc) {
-		QETH_DBF_TEXT_(SETUP, 2, "1err%d", rc);
-		return -EIO;
-	}
-	rc = ccw_device_set_online(CARD_WDEV(card));
-	if (rc) {
-		QETH_DBF_TEXT_(SETUP, 2, "1err%d", rc);
-		return -EIO;
-	}
-	rc = ccw_device_set_online(CARD_DDEV(card));
-	if (rc) {
-		QETH_DBF_TEXT_(SETUP, 2, "1err%d", rc);
-		return -EIO;
-	}
-
 	rc = qeth_core_hardsetup_card(card);
 	if (rc) {
 		QETH_DBF_TEXT_(SETUP, 2, "2err%d", rc);
+		rc = -ENODEV;
 		goto out_remove;
 	}
 
-	if (!card->dev && qeth_l2_setup_netdev(card))
+	if (!card->dev && qeth_l2_setup_netdev(card)) {
+		rc = -ENODEV;
 		goto out_remove;
+	}
 
 	if (card->info.type != QETH_CARD_TYPE_OSN)
 		qeth_l2_send_setmac(card, &card->dev->dev_addr[0]);
@@ -983,12 +970,14 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 			card->lan_online = 0;
 			return 0;
 		}
+		rc = -ENODEV;
 		goto out_remove;
 	} else
 		card->lan_online = 1;
 
 	if (card->info.type != QETH_CARD_TYPE_OSN) {
-		qeth_set_large_send(card, card->options.large_send);
+		/* configure isolation level */
+		qeth_set_access_ctrl_online(card);
 		qeth_l2_process_vlans(card, 0);
 	}
 
@@ -997,6 +986,7 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 	rc = qeth_init_qdio_queues(card);
 	if (rc) {
 		QETH_DBF_TEXT_(SETUP, 2, "6err%d", rc);
+		rc = -ENODEV;
 		goto out_remove;
 	}
 	card->state = CARD_STATE_SOFTSETUP;
@@ -1018,6 +1008,7 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 	/* let user_space know that device is online */
 	kobject_uevent(&gdev->dev.kobj, KOBJ_CHANGE);
 	return 0;
+
 out_remove:
 	card->use_hard_stop = 1;
 	qeth_l2_stop_card(card, 0);
@@ -1028,7 +1019,7 @@ out_remove:
 		card->state = CARD_STATE_RECOVER;
 	else
 		card->state = CARD_STATE_DOWN;
-	return -ENODEV;
+	return rc;
 }
 
 static int qeth_l2_set_online(struct ccwgroup_device *gdev)

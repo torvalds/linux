@@ -20,7 +20,7 @@
 #include "../oal_dt.h"
 
 /***** Section 1 : Tunable Parameters *****/
-/* The defintions in this section are tunabel parameters */
+/* The definitions in this section are tunabel parameters */
 
 /* Maximum number of BSS that could be scaned */
 #define ZM_MAX_BSS                          128
@@ -782,7 +782,7 @@ extern void zfiWlanSetDynamicSIFSParam(zdev_t* dev, u8_t val);
 
 /***** End of section 2 *****/
 
-/***** section 3 performace evaluation *****/
+/***** section 3 performance evaluation *****/
 #ifdef ZM_ENABLE_PERFORMANCE_EVALUATION
 extern void zfiTxPerformanceMSDU(zdev_t* dev, u32_t tick);
 extern void zfiRxPerformanceMPDU(zdev_t* dev, zbuf_t* buf);

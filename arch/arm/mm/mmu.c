@@ -881,7 +881,7 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 				BOOTMEM_EXCLUSIVE);
 	}
 
-	if (machine_is_treo680()) {
+	if (machine_is_treo680() || machine_is_centro()) {
 		reserve_bootmem_node(pgdat, 0xa0000000, 0x1000,
 				BOOTMEM_EXCLUSIVE);
 		reserve_bootmem_node(pgdat, 0xa2000000, 0x1000,
@@ -1036,7 +1036,7 @@ void __init paging_init(struct machine_desc *mdesc)
 	 */
 	zero_page = alloc_bootmem_low_pages(PAGE_SIZE);
 	empty_zero_page = virt_to_page(zero_page);
-	flush_dcache_page(empty_zero_page);
+	__flush_dcache_page(NULL, empty_zero_page);
 }
 
 /*

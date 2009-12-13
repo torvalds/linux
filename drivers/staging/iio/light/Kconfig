@@ -3,11 +3,13 @@
 #
 comment "Light sensors"
 
-config TSL2561
-       tristate "TAOS TSL2561 light-to-digital convertor"
-       depends on I2C
-       help
-	Say yes bere to build support for the TAOS light to digital
-	convertor.  This chip has two light sensors. One is broadband
-	including infrared whilst the other measures only infrared.
-	Provides direct access via sysfs.
+config SENSORS_TSL2563
+	tristate "TAOS TSL256[0-3] ambient light sensor"
+	depends on I2C
+	help
+	 If you say yes here you get support for the Taos TSL2560,
+	 TSL2561, TSL2562 and TSL2563 ambient light sensors.
+
+	 This driver can also be built as a module.  If so, the module
+	 will be called tsl2563.
+

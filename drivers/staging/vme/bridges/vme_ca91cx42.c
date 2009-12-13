@@ -15,7 +15,6 @@
  * option) any later version.
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/types.h>
@@ -54,9 +53,6 @@ struct mutex vme_int;   /*
 			 * Only one VME interrupt can be
 			 * generated at a time, provide locking
 			 */
-struct mutex vme_irq;   /* Locking for VME irq callback configuration */
-
-
 
 static char driver_name[] = "vme_ca91cx42";
 
@@ -158,23 +154,13 @@ static u32 ca91cx42_LERR_irqhandler(void)
 static u32 ca91cx42_VIRQ_irqhandler(int stat)
 {
 	int vec, i, serviced = 0;
-	void (*call)(int, int, void *);
-	void *priv_data;
 
 	for (i = 7; i > 0; i--) {
 		if (stat & (1 << i)) {
 			vec = ioread32(ca91cx42_bridge->base +
 				CA91CX42_V_STATID[i]) & 0xff;
 
-			call = ca91cx42_bridge->irq[i - 1].callback[vec].func;
-			priv_data =
-			ca91cx42_bridge->irq[i - 1].callback[vec].priv_data;
-
-			if (call != NULL)
-				call(i, vec, priv_data);
-			else
-				printk("Spurilous VME interrupt, level:%x, "
-					"vector:%x\n", i, vec);
+			vme_irq_handler(ca91cx42_bridge, i, vec);
 
 			serviced |= (1 << i);
 		}
@@ -235,6 +221,8 @@ static int ca91cx42_irq_init(struct vme_bridge *bridge)
 	/* Initialise list for VME bus errors */
 	INIT_LIST_HEAD(&(bridge->vme_errors));
 
+	mutex_init(&(bridge->irq_mtx));
+
 	/* Disable interrupts from PCI to VME */
 	iowrite32(0, bridge->base + VINT_EN);
 
@@ -282,66 +270,31 @@ static void ca91cx42_irq_exit(struct pci_dev *pdev)
 /*
  * Set up an VME interrupt
  */
-int ca91cx42_request_irq(int level, int statid,
-	void (*callback)(int level, int vector, void *priv_data),
-	void *priv_data)
+void ca91cx42_irq_set(int level, int state, int sync)
+
 {
+	struct pci_dev *pdev;
 	u32 tmp;
-
-	mutex_lock(&(vme_irq));
-
-	if (ca91cx42_bridge->irq[level - 1].callback[statid].func) {
-		mutex_unlock(&(vme_irq));
-		printk("VME Interrupt already taken\n");
-		return -EBUSY;
-	}
-
-
-	ca91cx42_bridge->irq[level - 1].count++;
-	ca91cx42_bridge->irq[level - 1].callback[statid].priv_data = priv_data;
-	ca91cx42_bridge->irq[level - 1].callback[statid].func = callback;
 
 	/* Enable IRQ level */
 	tmp = ioread32(ca91cx42_bridge->base + LINT_EN);
-	tmp |= CA91CX42_LINT_VIRQ[level];
+
+	if (state == 0)
+		tmp &= ~CA91CX42_LINT_VIRQ[level];
+	else
+		tmp |= CA91CX42_LINT_VIRQ[level];
+
 	iowrite32(tmp, ca91cx42_bridge->base + LINT_EN);
 
-	mutex_unlock(&(vme_irq));
-
-	return 0;
-}
-
-/*
- * Free VME interrupt
- */
-void ca91cx42_free_irq(int level, int statid)
-{
-	u32 tmp;
-	struct pci_dev *pdev;
-
-	mutex_lock(&(vme_irq));
-
-	ca91cx42_bridge->irq[level - 1].count--;
-
-	/* Disable IRQ level if no more interrupts attached at this level*/
-	if (ca91cx42_bridge->irq[level - 1].count == 0) {
-		tmp = ioread32(ca91cx42_bridge->base + LINT_EN);
-		tmp &= ~CA91CX42_LINT_VIRQ[level];
-		iowrite32(tmp, ca91cx42_bridge->base + LINT_EN);
-
+	if ((state == 0) && (sync != 0)) {
 		pdev = container_of(ca91cx42_bridge->parent, struct pci_dev,
 			dev);
 
 		synchronize_irq(pdev->irq);
 	}
-
-	ca91cx42_bridge->irq[level - 1].callback[statid].func = NULL;
-	ca91cx42_bridge->irq[level - 1].callback[statid].priv_data = NULL;
-
-	mutex_unlock(&(vme_irq));
 }
 
-int ca91cx42_generate_irq(int level, int statid)
+int ca91cx42_irq_generate(int level, int statid)
 {
 	u32 tmp;
 
@@ -1065,7 +1018,6 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	init_waitqueue_head(&dma_queue);
 	init_waitqueue_head(&iack_queue);
 	mutex_init(&(vme_int));
-	mutex_init(&(vme_irq));
 	mutex_init(&(vme_rmw));
 
 	ca91cx42_bridge->parent = &(pdev->dev);
@@ -1182,9 +1134,8 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ca91cx42_bridge->dma_list_exec = ca91cx42_dma_list_exec;
 	ca91cx42_bridge->dma_list_empty = ca91cx42_dma_list_empty;
 #endif
-	ca91cx42_bridge->request_irq = ca91cx42_request_irq;
-	ca91cx42_bridge->free_irq = ca91cx42_free_irq;
-	ca91cx42_bridge->generate_irq = ca91cx42_generate_irq;
+	ca91cx42_bridge->irq_set = ca91cx42_irq_set;
+	ca91cx42_bridge->irq_generate = ca91cx42_irq_generate;
 #if 0
 	ca91cx42_bridge->lm_set = ca91cx42_lm_set;
 	ca91cx42_bridge->lm_get = ca91cx42_lm_get;
@@ -1220,7 +1171,9 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	vme_unregister_bridge(ca91cx42_bridge);
 err_reg:
 	ca91cx42_crcsr_exit(pdev);
+#if 0
 err_crcsr:
+#endif
 err_lm:
 	/* resources are stored in link list */
 	list_for_each(pos, &(ca91cx42_bridge->lm_resources)) {
@@ -1275,7 +1228,6 @@ void ca91cx42_remove(struct pci_dev *pdev)
 	struct vme_slave_resource *slave_image;
 	struct vme_dma_resource *dma_ctrlr;
 	struct vme_lm_resource *lm;
-	int i;
 
 	/* Turn off Ints */
 	iowrite32(0, ca91cx42_bridge->base + LINT_EN);

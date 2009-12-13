@@ -26,11 +26,11 @@ BEGIN_FTR_SECTION
 	srd	r8,r5,r11
 
 	mtctr	r8
-setup:
+.Lsetup:
 	dcbt	r9,r4
 	dcbz	r9,r3
 	add	r9,r9,r12
-	bdnz	setup
+	bdnz	.Lsetup
 END_FTR_SECTION_IFSET(CPU_FTR_CP_USE_DCBTZ)
 	addi	r3,r3,-8
 	srdi    r8,r5,7		/* page is copied in 128 byte strides */

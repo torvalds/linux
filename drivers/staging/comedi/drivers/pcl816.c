@@ -112,7 +112,7 @@ struct pcl816_board {
 	int n_dichan;		/*  num of DI chans */
 	int n_dochan;		/*  num of DO chans */
 	const struct comedi_lrange *ai_range_type;	/*  default A/D rangelist */
-	const struct comedi_lrange *ao_range_type;	/*  dafault D/A rangelist */
+	const struct comedi_lrange *ao_range_type;	/*  default D/A rangelist */
 	unsigned int io_range;	/*  len of IO space */
 	unsigned int IRQbits;	/*  allowed interrupts */
 	unsigned int DMAbits;	/*  allowed DMA chans */
@@ -445,7 +445,7 @@ static irqreturn_t interrupt_pcl816(int irq, void *d)
 		comedi_error(dev, "bad IRQ!");
 		return IRQ_NONE;
 	}
-	comedi_error(dev, "IRQ from unknow source!");
+	comedi_error(dev, "IRQ from unknown source!");
 	return IRQ_NONE;
 }
 
@@ -472,7 +472,7 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp, divisor1, divisor2;
+	int tmp, divisor1 = 0, divisor2 = 0;
 
 	DEBUG(printk("pcl816 pcl812_ai_cmdtest\n"); pcl816_cmdtest_out(-1, cmd);
 	    );
@@ -488,7 +488,9 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
 		err++;
 
-	if (!(cmd->convert_src & (TRIG_EXT | TRIG_TIMER)))
+	tmp = cmd->convert_src;
+	cmd->convert_src &= TRIG_EXT | TRIG_TIMER;
+	if (!cmd->convert_src || tmp != cmd->convert_src)
 		err++;
 
 	tmp = cmd->scan_end_src;

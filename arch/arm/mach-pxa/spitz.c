@@ -768,6 +768,10 @@ static void __init common_init(void)
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(spitz_pin_config));
 
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	spitz_init_spi();
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));

@@ -4,8 +4,7 @@
 /* WARNING: The ordering of these elements must match ordering
  *          of RTA_* rtnetlink attribute numbers.
  */
-struct dn_kern_rta
-{
+struct dn_kern_rta {
         void            *rta_dst;
         void            *rta_src;
         int             *rta_iif;

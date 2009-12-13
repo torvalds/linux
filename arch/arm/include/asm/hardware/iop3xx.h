@@ -234,7 +234,13 @@ extern int iop3xx_get_init_atu(void);
 void iop3xx_map_io(void);
 void iop_init_cp6_handler(void);
 void iop_init_time(unsigned long tickrate);
-unsigned long iop_gettimeoffset(void);
+
+static inline u32 read_tmr0(void)
+{
+	u32 val;
+	asm volatile("mrc p6, 0, %0, c0, c1, 0" : "=r" (val));
+	return val;
+}
 
 static inline void write_tmr0(u32 val)
 {
@@ -253,11 +259,21 @@ static inline u32 read_tcr0(void)
 	return val;
 }
 
+static inline void write_tcr0(u32 val)
+{
+	asm volatile("mcr p6, 0, %0, c2, c1, 0" : : "r" (val));
+}
+
 static inline u32 read_tcr1(void)
 {
 	u32 val;
 	asm volatile("mrc p6, 0, %0, c3, c1, 0" : "=r" (val));
 	return val;
+}
+
+static inline void write_tcr1(u32 val)
+{
+	asm volatile("mcr p6, 0, %0, c3, c1, 0" : : "r" (val));
 }
 
 static inline void write_trr0(u32 val)

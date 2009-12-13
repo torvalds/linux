@@ -17,6 +17,7 @@
 
 #include <linux/user.h>
 #include <linux/elfcore.h>
+#include <asm/debugreg.h>
 
 /*
  * fill in the user structure for an a.out core dump
@@ -32,14 +33,7 @@ static inline void aout_dump_thread(struct pt_regs *regs, struct user *dump)
 			>> PAGE_SHIFT;
 	dump->u_dsize -= dump->u_tsize;
 	dump->u_ssize = 0;
-	dump->u_debugreg[0] = current->thread.debugreg0;
-	dump->u_debugreg[1] = current->thread.debugreg1;
-	dump->u_debugreg[2] = current->thread.debugreg2;
-	dump->u_debugreg[3] = current->thread.debugreg3;
-	dump->u_debugreg[4] = 0;
-	dump->u_debugreg[5] = 0;
-	dump->u_debugreg[6] = current->thread.debugreg6;
-	dump->u_debugreg[7] = current->thread.debugreg7;
+	aout_dump_debugregs(dump);
 
 	if (dump->start_stack < TASK_SIZE)
 		dump->u_ssize = ((unsigned long)(TASK_SIZE - dump->start_stack))

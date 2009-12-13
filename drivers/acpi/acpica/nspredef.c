@@ -232,6 +232,12 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 		status = acpi_ns_check_package(data, return_object_ptr);
 	}
 
+	/*
+	 * Perform additional, more complicated repairs on a per-name
+	 * basis.
+	 */
+	status = acpi_ns_complex_repairs(data, node, status, return_object_ptr);
+
 check_validation_status:
 	/*
 	 * If the object validation failed or if we successfully repaired one
@@ -601,7 +607,8 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 		 * there is only one entry). We may be able to repair this by
 		 * wrapping the returned Package with a new outer Package.
 		 */
-		if ((*elements)->common.type != ACPI_TYPE_PACKAGE) {
+		if (*elements
+		    && ((*elements)->common.type != ACPI_TYPE_PACKAGE)) {
 
 			/* Create the new outer package and populate it */
 
@@ -673,6 +680,7 @@ acpi_ns_check_package_list(struct acpi_predefined_data *data,
 	union acpi_operand_object *sub_package;
 	union acpi_operand_object **sub_elements;
 	acpi_status status;
+	u8 non_trailing_null = FALSE;
 	u32 expected_count;
 	u32 i;
 	u32 j;
@@ -680,6 +688,45 @@ acpi_ns_check_package_list(struct acpi_predefined_data *data,
 	/* Validate each sub-Package in the parent Package */
 
 	for (i = 0; i < count; i++) {
+		/*
+		 * Handling for NULL package elements. For now, we will simply allow
+		 * a parent package with trailing NULL elements. This can happen if
+		 * the package was defined to be longer than the initializer list.
+		 * This is legal as per the ACPI specification. It is often used
+		 * to allow for dynamic initialization of a Package.
+		 *
+		 * A future enhancement may be to simply truncate the package to
+		 * remove the trailing NULL elements.
+		 */
+		if (!(*elements)) {
+			if (!non_trailing_null) {
+
+				/* Ensure the remaining elements are all NULL */
+
+				for (j = 1; j < (count - i + 1); j++) {
+					if (elements[j]) {
+						non_trailing_null = TRUE;
+					}
+				}
+
+				if (!non_trailing_null) {
+
+					/* Ignore the trailing NULL elements */
+
+					return (AE_OK);
+				}
+			}
+
+			/* There are trailing non-null elements, issue warning */
+
+			ACPI_WARN_PREDEFINED((AE_INFO, data->pathname,
+					      data->node_flags,
+					      "Found NULL element at package index %u",
+					      i));
+			elements++;
+			continue;
+		}
+
 		sub_package = *elements;
 		sub_elements = sub_package->package.elements;
 

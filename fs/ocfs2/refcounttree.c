@@ -2431,7 +2431,7 @@ out:
  * we gonna touch and whether we need to create new blocks.
  *
  * Normally the refcount blocks store these refcount should be
- * continguous also, so that we can get the number easily.
+ * contiguous also, so that we can get the number easily.
  * As for meta_ac, we will at most add split 2 refcount record and
  * 2 more refcount block, so just check it in a rough way.
  *

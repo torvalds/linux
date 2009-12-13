@@ -724,7 +724,7 @@ void v_APCI3501_Interrupt(int irq, void *d)
 		APCI3501_TCW_IRQ) & 0x1;
 
 	if ((!ui_Timer_AOWatchdog)) {
-		comedi_error(dev, "IRQ from unknow source");
+		comedi_error(dev, "IRQ from unknown source");
 		return;
 	}
 

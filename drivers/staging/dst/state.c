@@ -30,13 +30,13 @@
  * Polling machinery.
  */
 
-struct dst_poll_helper
-{
-	poll_table 		pt;
+struct dst_poll_helper {
+	poll_table		pt;
 	struct dst_state	*st;
 };
 
-static int dst_queue_wake(wait_queue_t *wait, unsigned mode, int sync, void *key)
+static int dst_queue_wake(wait_queue_t *wait, unsigned mode,
+		int sync, void *key)
 {
 	struct dst_state *st = container_of(wait, struct dst_state, wait);
 
@@ -92,7 +92,7 @@ static int dst_data_recv_header(struct socket *sock,
 	msg.msg_namelen = 0;
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
-	msg.msg_flags = (block)?MSG_WAITALL:MSG_DONTWAIT;
+	msg.msg_flags = (block) ? MSG_WAITALL : MSG_DONTWAIT;
 
 	err = kernel_recvmsg(sock, &msg, &iov, 1, iov.iov_len,
 			msg.msg_flags);
@@ -121,7 +121,7 @@ int dst_data_send_header(struct socket *sock,
 	msg.msg_namelen = 0;
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
-	msg.msg_flags = MSG_WAITALL | (more)?MSG_MORE:0;
+	msg.msg_flags = MSG_WAITALL | (more ? MSG_MORE : 0);
 
 	err = kernel_sendmsg(sock, &msg, &iov, 1, iov.iov_len);
 	if (err != size) {
@@ -217,8 +217,8 @@ void dst_dump_addr(struct socket *sk, struct sockaddr *sa, char *str)
 {
 	if (sk->ops->family == AF_INET) {
 		struct sockaddr_in *sin = (struct sockaddr_in *)sa;
-		printk(KERN_INFO "%s %u.%u.%u.%u:%d.\n",
-			str, NIPQUAD(sin->sin_addr.s_addr), ntohs(sin->sin_port));
+		printk(KERN_INFO "%s %u.%u.%u.%u:%d.\n", str,
+			NIPQUAD(sin->sin_addr.s_addr), ntohs(sin->sin_port));
 	} else if (sk->ops->family == AF_INET6) {
 		struct sockaddr_in6 *sin = (struct sockaddr_in6 *)sa;
 		printk(KERN_INFO "%s %pi6:%d",
@@ -271,13 +271,13 @@ err_out_exit:
  * State reset is used to reconnect to the remote peer.
  * May fail, but who cares, we will try again later.
  */
-static void inline dst_state_reset_nolock(struct dst_state *st)
+static inline void dst_state_reset_nolock(struct dst_state *st)
 {
 	dst_state_exit_connected(st);
 	dst_state_init_connected(st);
 }
 
-static void inline dst_state_reset(struct dst_state *st)
+static inline void dst_state_reset(struct dst_state *st)
 {
 	dst_state_lock(st);
 	dst_state_reset_nolock(st);
@@ -335,9 +335,11 @@ static int dst_send_ping(struct dst_state *st)
 
 		cmd->cmd = __cpu_to_be32(DST_PING);
 
-		err = dst_data_send_header(st->socket, cmd, sizeof(struct dst_cmd), 0);
+		err = dst_data_send_header(st->socket, cmd,
+				sizeof(struct dst_cmd), 0);
 	}
-	dprintk("%s: st: %p, socket: %p, err: %d.\n", __func__, st, st->socket, err);
+	dprintk("%s: st: %p, socket: %p, err: %d.\n", __func__,
+			st, st->socket, err);
 	dst_state_unlock(st);
 
 	return err;
@@ -390,8 +392,7 @@ int dst_data_recv(struct dst_state *st, void *data, unsigned int size)
 		err = -ECONNRESET;
 		dst_state_lock(st);
 
-		if (		st->socket &&
-				(st->read_socket == st->socket) &&
+		if (st->socket && (st->read_socket == st->socket) &&
 				(revents & POLLIN)) {
 			err = dst_data_recv_raw(st, data, size);
 			if (err > 0) {
@@ -402,8 +403,9 @@ int dst_data_recv(struct dst_state *st, void *data, unsigned int size)
 		}
 
 		if (revents & err_mask || !st->socket) {
-			dprintk("%s: revents: %x, socket: %p, size: %u, err: %d.\n",
-					__func__, revents, st->socket, size, err);
+			dprintk("%s: revents: %x, socket: %p, size: %u, "
+					"err: %d.\n", __func__, revents,
+					st->socket, size, err);
 			err = -ECONNRESET;
 		}
 
@@ -440,7 +442,8 @@ static int dst_process_cfg(struct dst_state *st)
 /*
  * Receive block IO from the network.
  */
-static int dst_recv_bio(struct dst_state *st, struct bio *bio, unsigned int total_size)
+static int dst_recv_bio(struct dst_state *st, struct bio *bio,
+		unsigned int total_size)
 {
 	struct bio_vec *bv;
 	int i, err;
@@ -450,9 +453,10 @@ static int dst_recv_bio(struct dst_state *st, struct bio *bio, unsigned int tota
 	bio_for_each_segment(bv, bio, i) {
 		sz = min(total_size, bv->bv_len);
 
-		dprintk("%s: bio: %llu/%u, total: %u, len: %u, sz: %u, off: %u.\n",
-			__func__, (u64)bio->bi_sector, bio->bi_size, total_size,
-			bv->bv_len, sz, bv->bv_offset);
+		dprintk("%s: bio: %llu/%u, total: %u, len: %u, sz: %u, "
+				"off: %u.\n", __func__, (u64)bio->bi_sector,
+				bio->bi_size, total_size, bv->bv_len, sz,
+				bv->bv_offset);
 
 		data = kmap(bv->bv_page) + bv->bv_offset;
 		err = dst_data_recv(st, data, sz);
@@ -590,7 +594,8 @@ static int dst_recv_processing(struct dst_state *st)
 			cmd->flags, cmd->rw);
 
 	/*
-	 * This should catch protocol breakage and random garbage instead of commands.
+	 * This should catch protocol breakage and random garbage
+	 * instead of commands.
 	 */
 	if (unlikely(cmd->csize > st->size - sizeof(struct dst_cmd))) {
 		err = -EBADMSG;
@@ -599,20 +604,20 @@ static int dst_recv_processing(struct dst_state *st)
 
 	err = -EPROTO;
 	switch (cmd->cmd) {
-		case DST_IO_RESPONSE:
-			err = dst_process_io_response(st);
-			break;
-		case DST_IO:
-			err = dst_process_io(st);
-			break;
-		case DST_CFG:
-			err = dst_process_cfg(st);
-			break;
-		case DST_PING:
-			err = 0;
-			break;
-		default:
-			break;
+	case DST_IO_RESPONSE:
+		err = dst_process_io_response(st);
+		break;
+	case DST_IO:
+		err = dst_process_io(st);
+		break;
+	case DST_CFG:
+		err = dst_process_cfg(st);
+		break;
+	case DST_PING:
+		err = 0;
+		break;
+	default:
+		break;
 	}
 
 out_exit:

@@ -24,6 +24,8 @@ struct mem_type {
 
 const struct mem_type *get_mem_type(unsigned int type);
 
+extern void __flush_dcache_page(struct address_space *mapping, struct page *page);
+
 #endif
 
 struct map_desc;

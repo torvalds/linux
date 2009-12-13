@@ -1,6 +1,6 @@
 /* arch/arm/plat-s3c24xx/s3c2440-pll-12000000.c
  *
- * Copyright (c) 2006,2007 Simtec Electronics
+ * Copyright (c) 2006-2007 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *	Vincent Sanders <vince@arm.linux.org.uk>

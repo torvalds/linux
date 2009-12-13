@@ -275,16 +275,12 @@ asmlinkage long sys_execve(char __user *name,
 	char *filename;
 	int error;
 
-	lock_kernel();
-
 	filename = getname(name);
 	error = PTR_ERR(filename);
-	if (!IS_ERR(filename)) {
-		error = do_execve(filename, argv, envp, __frame);
-		putname(filename);
-	}
-
-	unlock_kernel();
+	if (IS_ERR(filename))
+		return error;
+	error = do_execve(filename, argv, envp, __frame);
+	putname(filename);
 	return error;
 }
 

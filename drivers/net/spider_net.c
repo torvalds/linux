@@ -57,6 +57,7 @@ MODULE_AUTHOR("Utz Bacher <utz.bacher@de.ibm.com> and Jens Osterkamp " \
 MODULE_DESCRIPTION("Spider Southbridge Gigabit Ethernet driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(VERSION);
+MODULE_FIRMWARE(SPIDER_NET_FIRMWARE_NAME);
 
 static int rx_descriptors = SPIDER_NET_RX_DESCRIPTORS_DEFAULT;
 static int tx_descriptors = SPIDER_NET_TX_DESCRIPTORS_DEFAULT;
@@ -409,7 +410,7 @@ spider_net_free_rx_chain_contents(struct spider_net_card *card)
  * @card: card structure
  * @descr: descriptor to re-init
  *
- * Return 0 on succes, <0 on failure.
+ * Return 0 on success, <0 on failure.
  *
  * Allocates a new rx skb, iommu-maps it and attaches it to the
  * descriptor. Mark the descriptor as activated, ready-to-use.

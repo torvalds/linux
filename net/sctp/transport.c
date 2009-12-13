@@ -83,7 +83,6 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 	peer->fast_recovery = 0;
 
 	peer->last_time_heard = jiffies;
-	peer->last_time_used = jiffies;
 	peer->last_time_ecne_reduced = jiffies;
 
 	peer->init_sent_count = 0;
@@ -564,10 +563,8 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 		 * to be done every RTO interval, we do it every hearbeat
 		 * interval.
 		 */
-		if (time_after(jiffies, transport->last_time_used +
-					transport->rto))
-			transport->cwnd = max(transport->cwnd/2,
-						 4*transport->asoc->pathmtu);
+		transport->cwnd = max(transport->cwnd/2,
+					 4*transport->asoc->pathmtu);
 		break;
 	}
 
@@ -576,6 +573,43 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 			  "%d ssthresh: %d\n", __func__,
 			  transport, reason,
 			  transport->cwnd, transport->ssthresh);
+}
+
+/* Apply Max.Burst limit to the congestion window:
+ * sctpimpguide-05 2.14.2
+ * D) When the time comes for the sender to
+ * transmit new DATA chunks, the protocol parameter Max.Burst MUST
+ * first be applied to limit how many new DATA chunks may be sent.
+ * The limit is applied by adjusting cwnd as follows:
+ * 	if ((flightsize+ Max.Burst * MTU) < cwnd)
+ * 		cwnd = flightsize + Max.Burst * MTU
+ */
+
+void sctp_transport_burst_limited(struct sctp_transport *t)
+{
+	struct sctp_association *asoc = t->asoc;
+	u32 old_cwnd = t->cwnd;
+	u32 max_burst_bytes;
+
+	if (t->burst_limited)
+		return;
+
+	max_burst_bytes = t->flight_size + (asoc->max_burst * asoc->pathmtu);
+	if (max_burst_bytes < old_cwnd) {
+		t->cwnd = max_burst_bytes;
+		t->burst_limited = old_cwnd;
+	}
+}
+
+/* Restore the old cwnd congestion window, after the burst had it's
+ * desired effect.
+ */
+void sctp_transport_burst_reset(struct sctp_transport *t)
+{
+	if (t->burst_limited) {
+		t->cwnd = t->burst_limited;
+		t->burst_limited = 0;
+	}
 }
 
 /* What is the next timeout value for this transport? */
@@ -600,6 +634,7 @@ void sctp_transport_reset(struct sctp_transport *t)
 	 * (see Section 6.2.1)
 	 */
 	t->cwnd = min(4*asoc->pathmtu, max_t(__u32, 2*asoc->pathmtu, 4380));
+	t->burst_limited = 0;
 	t->ssthresh = asoc->peer.i.a_rwnd;
 	t->rto = asoc->rto_initial;
 	t->rtt = 0;

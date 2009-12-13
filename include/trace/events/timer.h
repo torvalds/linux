@@ -26,7 +26,7 @@ TRACE_EVENT(timer_init,
 		__entry->timer	= timer;
 	),
 
-	TP_printk("timer %p", __entry->timer)
+	TP_printk("timer=%p", __entry->timer)
 );
 
 /**
@@ -54,7 +54,7 @@ TRACE_EVENT(timer_start,
 		__entry->now		= jiffies;
 	),
 
-	TP_printk("timer %p: func %pf, expires %lu, timeout %ld",
+	TP_printk("timer=%p function=%pf expires=%lu [timeout=%ld]",
 		  __entry->timer, __entry->function, __entry->expires,
 		  (long)__entry->expires - __entry->now)
 );
@@ -81,7 +81,7 @@ TRACE_EVENT(timer_expire_entry,
 		__entry->now		= jiffies;
 	),
 
-	TP_printk("timer %p: now %lu", __entry->timer, __entry->now)
+	TP_printk("timer=%p now=%lu", __entry->timer, __entry->now)
 );
 
 /**
@@ -108,7 +108,7 @@ TRACE_EVENT(timer_expire_exit,
 		__entry->timer	= timer;
 	),
 
-	TP_printk("timer %p", __entry->timer)
+	TP_printk("timer=%p", __entry->timer)
 );
 
 /**
@@ -129,7 +129,7 @@ TRACE_EVENT(timer_cancel,
 		__entry->timer	= timer;
 	),
 
-	TP_printk("timer %p", __entry->timer)
+	TP_printk("timer=%p", __entry->timer)
 );
 
 /**
@@ -140,24 +140,24 @@ TRACE_EVENT(timer_cancel,
  */
 TRACE_EVENT(hrtimer_init,
 
-	TP_PROTO(struct hrtimer *timer, clockid_t clockid,
+	TP_PROTO(struct hrtimer *hrtimer, clockid_t clockid,
 		 enum hrtimer_mode mode),
 
-	TP_ARGS(timer, clockid, mode),
+	TP_ARGS(hrtimer, clockid, mode),
 
 	TP_STRUCT__entry(
-		__field( void *,		timer		)
+		__field( void *,		hrtimer		)
 		__field( clockid_t,		clockid		)
 		__field( enum hrtimer_mode,	mode		)
 	),
 
 	TP_fast_assign(
-		__entry->timer		= timer;
+		__entry->hrtimer	= hrtimer;
 		__entry->clockid	= clockid;
 		__entry->mode		= mode;
 	),
 
-	TP_printk("hrtimer %p, clockid %s, mode %s", __entry->timer,
+	TP_printk("hrtimer=%p clockid=%s mode=%s", __entry->hrtimer,
 		  __entry->clockid == CLOCK_REALTIME ?
 			"CLOCK_REALTIME" : "CLOCK_MONOTONIC",
 		  __entry->mode == HRTIMER_MODE_ABS ?
@@ -170,26 +170,26 @@ TRACE_EVENT(hrtimer_init,
  */
 TRACE_EVENT(hrtimer_start,
 
-	TP_PROTO(struct hrtimer *timer),
+	TP_PROTO(struct hrtimer *hrtimer),
 
-	TP_ARGS(timer),
+	TP_ARGS(hrtimer),
 
 	TP_STRUCT__entry(
-		__field( void *,	timer		)
+		__field( void *,	hrtimer		)
 		__field( void *,	function	)
 		__field( s64,		expires		)
 		__field( s64,		softexpires	)
 	),
 
 	TP_fast_assign(
-		__entry->timer		= timer;
-		__entry->function	= timer->function;
-		__entry->expires	= hrtimer_get_expires(timer).tv64;
-		__entry->softexpires	= hrtimer_get_softexpires(timer).tv64;
+		__entry->hrtimer	= hrtimer;
+		__entry->function	= hrtimer->function;
+		__entry->expires	= hrtimer_get_expires(hrtimer).tv64;
+		__entry->softexpires	= hrtimer_get_softexpires(hrtimer).tv64;
 	),
 
-	TP_printk("hrtimer %p, func %pf, expires %llu, softexpires %llu",
-		  __entry->timer, __entry->function,
+	TP_printk("hrtimer=%p function=%pf expires=%llu softexpires=%llu",
+		  __entry->hrtimer, __entry->function,
 		  (unsigned long long)ktime_to_ns((ktime_t) {
 				  .tv64 = __entry->expires }),
 		  (unsigned long long)ktime_to_ns((ktime_t) {
@@ -206,23 +206,22 @@ TRACE_EVENT(hrtimer_start,
  */
 TRACE_EVENT(hrtimer_expire_entry,
 
-	TP_PROTO(struct hrtimer *timer, ktime_t *now),
+	TP_PROTO(struct hrtimer *hrtimer, ktime_t *now),
 
-	TP_ARGS(timer, now),
+	TP_ARGS(hrtimer, now),
 
 	TP_STRUCT__entry(
-		__field( void *,	timer	)
+		__field( void *,	hrtimer	)
 		__field( s64,		now	)
 	),
 
 	TP_fast_assign(
-		__entry->timer	= timer;
-		__entry->now	= now->tv64;
+		__entry->hrtimer	= hrtimer;
+		__entry->now		= now->tv64;
 	),
 
-	TP_printk("hrtimer %p, now %llu", __entry->timer,
-		  (unsigned long long)ktime_to_ns((ktime_t) {
-				  .tv64 = __entry->now }))
+	TP_printk("hrtimer=%p now=%llu", __entry->hrtimer,
+		  (unsigned long long)ktime_to_ns((ktime_t) { .tv64 = __entry->now }))
  );
 
 /**
@@ -234,40 +233,40 @@ TRACE_EVENT(hrtimer_expire_entry,
  */
 TRACE_EVENT(hrtimer_expire_exit,
 
-	TP_PROTO(struct hrtimer *timer),
+	TP_PROTO(struct hrtimer *hrtimer),
 
-	TP_ARGS(timer),
+	TP_ARGS(hrtimer),
 
 	TP_STRUCT__entry(
-		__field( void *,	timer	)
+		__field( void *,	hrtimer	)
 	),
 
 	TP_fast_assign(
-		__entry->timer	= timer;
+		__entry->hrtimer	= hrtimer;
 	),
 
-	TP_printk("hrtimer %p", __entry->timer)
+	TP_printk("hrtimer=%p", __entry->hrtimer)
 );
 
 /**
  * hrtimer_cancel - called when the hrtimer is canceled
- * @timer:	pointer to struct hrtimer
+ * @hrtimer:	pointer to struct hrtimer
  */
 TRACE_EVENT(hrtimer_cancel,
 
-	TP_PROTO(struct hrtimer *timer),
+	TP_PROTO(struct hrtimer *hrtimer),
 
-	TP_ARGS(timer),
+	TP_ARGS(hrtimer),
 
 	TP_STRUCT__entry(
-		__field( void *,	timer	)
+		__field( void *,	hrtimer	)
 	),
 
 	TP_fast_assign(
-		__entry->timer	= timer;
+		__entry->hrtimer	= hrtimer;
 	),
 
-	TP_printk("hrtimer %p", __entry->timer)
+	TP_printk("hrtimer=%p", __entry->hrtimer)
 );
 
 /**
@@ -302,8 +301,8 @@ TRACE_EVENT(itimer_state,
 		__entry->interval_usec	= value->it_interval.tv_usec;
 	),
 
-	TP_printk("which %d, expires %lu, it_value %lu.%lu, it_interval %lu.%lu",
-		  __entry->which, __entry->expires,
+	TP_printk("which=%d expires=%llu it_value=%ld.%ld it_interval=%ld.%ld",
+		  __entry->which, (unsigned long long)__entry->expires,
 		  __entry->value_sec, __entry->value_usec,
 		  __entry->interval_sec, __entry->interval_usec)
 );
@@ -332,8 +331,8 @@ TRACE_EVENT(itimer_expire,
 		__entry->pid	= pid_nr(pid);
 	),
 
-	    TP_printk("which %d, pid %d, now %lu", __entry->which,
-		      (int) __entry->pid, __entry->now)
+	TP_printk("which=%d pid=%d now=%llu", __entry->which,
+		  (int) __entry->pid, (unsigned long long)__entry->now)
 );
 
 #endif /*  _TRACE_TIMER_H */

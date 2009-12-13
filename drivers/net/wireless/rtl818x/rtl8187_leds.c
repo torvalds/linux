@@ -105,19 +105,36 @@ static void rtl8187_led_brightness_set(struct led_classdev *led_dev,
 	struct rtl8187_led *led = container_of(led_dev, struct rtl8187_led,
 					       led_dev);
 	struct ieee80211_hw *hw = led->dev;
-	struct rtl8187_priv *priv = hw->priv;
+	struct rtl8187_priv *priv;
+	static bool radio_on;
 
-	if (brightness == LED_OFF) {
-		ieee80211_queue_delayed_work(hw, &priv->led_off, 0);
-		/* The LED is off for 1/20 sec so that it just blinks. */
-		ieee80211_queue_delayed_work(hw, &priv->led_on, HZ / 20);
-	} else
-		ieee80211_queue_delayed_work(hw, &priv->led_on, 0);
+	if (!hw)
+		return;
+	priv = hw->priv;
+	if (led->is_radio) {
+		if (brightness == LED_FULL) {
+			ieee80211_queue_delayed_work(hw, &priv->led_on, 0);
+			radio_on = true;
+		} else if (radio_on) {
+			radio_on = false;
+			cancel_delayed_work_sync(&priv->led_on);
+			ieee80211_queue_delayed_work(hw, &priv->led_off, 0);
+		}
+	} else if (radio_on) {
+		if (brightness == LED_OFF) {
+			ieee80211_queue_delayed_work(hw, &priv->led_off, 0);
+			/* The LED is off for 1/20 sec - it just blinks. */
+			ieee80211_queue_delayed_work(hw, &priv->led_on,
+						     HZ / 20);
+		} else
+			ieee80211_queue_delayed_work(hw, &priv->led_on, 0);
+	}
 }
 
 static int rtl8187_register_led(struct ieee80211_hw *dev,
 				struct rtl8187_led *led, const char *name,
-				const char *default_trigger, u8 ledpin)
+				const char *default_trigger, u8 ledpin,
+				bool is_radio)
 {
 	int err;
 	struct rtl8187_priv *priv = dev->priv;
@@ -128,6 +145,7 @@ static int rtl8187_register_led(struct ieee80211_hw *dev,
 		return -EINVAL;
 	led->dev = dev;
 	led->ledpin = ledpin;
+	led->is_radio = is_radio;
 	strncpy(led->name, name, sizeof(led->name));
 
 	led->led_dev.name = led->name;
@@ -145,7 +163,11 @@ static int rtl8187_register_led(struct ieee80211_hw *dev,
 
 static void rtl8187_unregister_led(struct rtl8187_led *led)
 {
+	struct ieee80211_hw *hw = led->dev;
+	struct rtl8187_priv *priv = hw->priv;
+
 	led_classdev_unregister(&led->led_dev);
+	flush_delayed_work(&priv->led_off);
 	led->dev = NULL;
 }
 
@@ -183,33 +205,37 @@ void rtl8187_leds_init(struct ieee80211_hw *dev, u16 custid)
 	INIT_DELAYED_WORK(&priv->led_off, led_turn_off);
 
 	snprintf(name, sizeof(name),
+		 "rtl8187-%s::radio", wiphy_name(dev->wiphy));
+	err = rtl8187_register_led(dev, &priv->led_radio, name,
+			 ieee80211_get_radio_led_name(dev), ledpin, true);
+	if (err)
+		return;
+
+	snprintf(name, sizeof(name),
 		 "rtl8187-%s::tx", wiphy_name(dev->wiphy));
 	err = rtl8187_register_led(dev, &priv->led_tx, name,
-			 ieee80211_get_tx_led_name(dev), ledpin);
+			 ieee80211_get_tx_led_name(dev), ledpin, false);
 	if (err)
-		goto error;
+		goto err_tx;
+
 	snprintf(name, sizeof(name),
 		 "rtl8187-%s::rx", wiphy_name(dev->wiphy));
 	err = rtl8187_register_led(dev, &priv->led_rx, name,
-			 ieee80211_get_rx_led_name(dev), ledpin);
-	if (!err) {
-		ieee80211_queue_delayed_work(dev, &priv->led_on, 0);
+			 ieee80211_get_rx_led_name(dev), ledpin, false);
+	if (!err)
 		return;
-	}
-	/* registration of RX LED failed - unregister TX */
+
+	/* registration of RX LED failed - unregister */
 	rtl8187_unregister_led(&priv->led_tx);
-error:
-	/* If registration of either failed, cancel delayed work */
-	cancel_delayed_work_sync(&priv->led_off);
-	cancel_delayed_work_sync(&priv->led_on);
+err_tx:
+	rtl8187_unregister_led(&priv->led_radio);
 }
 
 void rtl8187_leds_exit(struct ieee80211_hw *dev)
 {
 	struct rtl8187_priv *priv = dev->priv;
 
-	/* turn the LED off before exiting */
-	ieee80211_queue_delayed_work(dev, &priv->led_off, 0);
+	rtl8187_unregister_led(&priv->led_radio);
 	rtl8187_unregister_led(&priv->led_rx);
 	rtl8187_unregister_led(&priv->led_tx);
 	cancel_delayed_work_sync(&priv->led_off);

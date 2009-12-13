@@ -2123,6 +2123,7 @@ enum qla_work_type {
 	QLA_EVT_ASYNC_LOGIN_DONE,
 	QLA_EVT_ASYNC_LOGOUT,
 	QLA_EVT_ASYNC_LOGOUT_DONE,
+	QLA_EVT_UEVENT,
 };
 
 
@@ -2146,6 +2147,10 @@ struct qla_work_evt {
 #define QLA_LOGIO_LOGIN_RETRIED	BIT_0
 			u16 data[2];
 		} logio;
+		struct {
+			u32 code;
+#define QLA_UEVENT_CODE_FW_DUMP	0
+		} uevent;
 	} u;
 };
 
@@ -2435,11 +2440,11 @@ struct qla_hw_data {
 	dma_addr_t	edc_data_dma;
 	uint16_t	edc_data_len;
 
-#define XGMAC_DATA_SIZE	PAGE_SIZE
+#define XGMAC_DATA_SIZE	4096
 	void		*xgmac_data;
 	dma_addr_t	xgmac_data_dma;
 
-#define DCBX_TLV_DATA_SIZE PAGE_SIZE
+#define DCBX_TLV_DATA_SIZE 4096
 	void		*dcbx_tlv;
 	dma_addr_t	dcbx_tlv_dma;
 

@@ -1447,6 +1447,7 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 	const struct firmware *fw_entry = NULL;
 	void  *fw_ptr;
 	unsigned int pipe;
+	unsigned int fwsize;
 	int ret;
 	u16 address;
 
@@ -1473,9 +1474,21 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 	usb_clear_halt(hdw->usb_dev, usb_sndbulkpipe(hdw->usb_dev, 0 & 0x7f));
 
 	pipe = usb_sndctrlpipe(hdw->usb_dev, 0);
+	fwsize = fw_entry->size;
 
-	if (fw_entry->size != 0x2000){
-		pvr2_trace(PVR2_TRACE_ERROR_LEGS,"wrong fx2 firmware size");
+	if ((fwsize != 0x2000) &&
+	    (!(hdw->hdw_desc->flag_fx2_16kb && (fwsize == 0x4000)))) {
+		if (hdw->hdw_desc->flag_fx2_16kb) {
+			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+				   "Wrong fx2 firmware size"
+				   " (expected 8192 or 16384, got %u)",
+				   fwsize);
+		} else {
+			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+				   "Wrong fx2 firmware size"
+				   " (expected 8192, got %u)",
+				   fwsize);
+		}
 		release_firmware(fw_entry);
 		return -ENOMEM;
 	}
@@ -1493,7 +1506,7 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 	   chunk. */
 
 	ret = 0;
-	for(address = 0; address < fw_entry->size; address += 0x800) {
+	for (address = 0; address < fwsize; address += 0x800) {
 		memcpy(fw_ptr, fw_entry->data + address, 0x800);
 		ret += usb_control_msg(hdw->usb_dev, pipe, 0xa0, 0x40, address,
 				       0, fw_ptr, 0x800, HZ);
@@ -1509,8 +1522,8 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 
 	trace_firmware("Upload done (%d bytes sent)",ret);
 
-	/* We should have written 8192 bytes */
-	if (ret == 8192) {
+	/* We should have written fwsize bytes */
+	if (ret == fwsize) {
 		hdw->fw1_state = FW1_STATE_RELOAD;
 		return 0;
 	}
@@ -2030,7 +2043,8 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 	fname = (mid < ARRAY_SIZE(module_names)) ? module_names[mid] : NULL;
 	if (!fname) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Module ID %u for device %s has no name",
+			   "Module ID %u for device %s has no name?"
+			   "  The driver might have a configuration problem.",
 			   mid,
 			   hdw->hdw_desc->description);
 		return -EINVAL;
@@ -2058,7 +2072,8 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 	if (!i2ccnt) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "Module ID %u (%s) for device %s:"
-			   " No i2c addresses",
+			   " No i2c addresses."
+			   "  The driver might have a configuration problem.",
 			   mid, fname, hdw->hdw_desc->description);
 		return -EINVAL;
 	}
@@ -2090,7 +2105,9 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 
 	if (!sd) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Module ID %u (%s) for device %s failed to load",
+			   "Module ID %u (%s) for device %s failed to load."
+			   "  Possible missing sub-device kernel module or"
+			   " initialization failure within module.",
 			   mid, fname, hdw->hdw_desc->description);
 		return -EIO;
 	}
@@ -2132,7 +2149,10 @@ static void pvr2_hdw_load_modules(struct pvr2_hdw *hdw)
 	for (idx = 0; idx < ct->cnt; idx++) {
 		if (pvr2_hdw_load_subdev(hdw, &ct->lst[idx]) < 0) okFl = 0;
 	}
-	if (!okFl) pvr2_hdw_render_useless(hdw);
+	if (!okFl) {
+		hdw->flag_modulefail = !0;
+		pvr2_hdw_render_useless(hdw);
+	}
 }
 
 
@@ -2334,6 +2354,20 @@ static void pvr2_hdw_setup(struct pvr2_hdw *hdw)
 				break;
 			}
 		}
+		if (hdw->flag_modulefail) {
+			pvr2_trace(
+				PVR2_TRACE_ERROR_LEGS,
+				"***WARNING*** pvrusb2 driver initialization"
+				" failed due to the failure of one or more"
+				" sub-device kernel modules.");
+			pvr2_trace(
+				PVR2_TRACE_ERROR_LEGS,
+				"You need to resolve the failing condition"
+				" before this driver can function.  There"
+				" should be some earlier messages giving more"
+				" information about the problem.");
+			break;
+		}
 		if (procreload) {
 			pvr2_trace(
 				PVR2_TRACE_ERROR_LEGS,
@@ -2419,6 +2453,8 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	hdw = kzalloc(sizeof(*hdw),GFP_KERNEL);
 	pvr2_trace(PVR2_TRACE_INIT,"pvr2_hdw_create: hdw=%p, type \"%s\"",
 		   hdw,hdw_desc->description);
+	pvr2_trace(PVR2_TRACE_INFO, "Hardware description: %s",
+		hdw_desc->description);
 	if (!hdw) goto fail;
 
 	init_timer(&hdw->quiescent_timer);
@@ -3480,7 +3516,7 @@ static u8 *pvr2_full_eeprom_fetch(struct pvr2_hdw *hdw)
 
 
 void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *hdw,
-				int prom_flag,
+				int mode,
 				int enable_flag)
 {
 	int ret;
@@ -3503,11 +3539,12 @@ void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *hdw,
 			break;
 		}
 
-		hdw->fw_cpu_flag = (prom_flag == 0);
+		hdw->fw_cpu_flag = (mode != 2);
 		if (hdw->fw_cpu_flag) {
+			hdw->fw_size = (mode == 1) ? 0x4000 : 0x2000;
 			pvr2_trace(PVR2_TRACE_FIRMWARE,
-				   "Preparing to suck out CPU firmware");
-			hdw->fw_size = 0x2000;
+				   "Preparing to suck out CPU firmware"
+				   " (size=%u)", hdw->fw_size);
 			hdw->fw_buffer = kzalloc(hdw->fw_size,GFP_KERNEL);
 			if (!hdw->fw_buffer) {
 				hdw->fw_size = 0;

@@ -47,8 +47,7 @@ struct net_protocol {
 };
 
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
-struct inet6_protocol 
-{
+struct inet6_protocol {
 	int	(*handler)(struct sk_buff *skb);
 
 	void	(*err_handler)(struct sk_buff *skb,
@@ -83,10 +82,6 @@ struct inet_protosw {
 	struct proto	 *prot;
 	const struct proto_ops *ops;
   
-	int              capability; /* Which (if any) capability do
-				      * we need to use this socket
-				      * interface?
-                                      */
 	char             no_check;   /* checksum on rcv/xmit/none? */
 	unsigned char	 flags;      /* See INET_PROTOSW_* below.  */
 };

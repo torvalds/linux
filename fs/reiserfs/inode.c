@@ -251,7 +251,6 @@ static int _get_block_create_0(struct inode *inode, sector_t block,
 	struct cpu_key key;
 	struct buffer_head *bh;
 	struct item_head *ih, tmp_ih;
-	int fs_gen;
 	b_blocknr_t blocknr;
 	char *p = NULL;
 	int chars;
@@ -265,7 +264,6 @@ static int _get_block_create_0(struct inode *inode, sector_t block,
 		     (loff_t) block * inode->i_sb->s_blocksize + 1, TYPE_ANY,
 		     3);
 
-      research:
 	result = search_for_position_by_key(inode->i_sb, &key, &path);
 	if (result != POSITION_FOUND) {
 		pathrelse(&path);
@@ -340,7 +338,6 @@ static int _get_block_create_0(struct inode *inode, sector_t block,
 	}
 	// read file tail into part of page
 	offset = (cpu_key_k_offset(&key) - 1) & (PAGE_CACHE_SIZE - 1);
-	fs_gen = get_generation(inode->i_sb);
 	copy_item_head(&tmp_ih, ih);
 
 	/* we only want to kmap if we are reading the tail into the page.
@@ -348,13 +345,9 @@ static int _get_block_create_0(struct inode *inode, sector_t block,
 	 ** sure we need to.  But, this means the item might move if
 	 ** kmap schedules
 	 */
-	if (!p) {
+	if (!p)
 		p = (char *)kmap(bh_result->b_page);
-		if (fs_changed(fs_gen, inode->i_sb)
-		    && item_moved(&tmp_ih, &path)) {
-			goto research;
-		}
-	}
+
 	p += offset;
 	memset(p, 0, inode->i_sb->s_blocksize);
 	do {
@@ -489,10 +482,14 @@ static int reiserfs_get_blocks_direct_io(struct inode *inode,
 	   disappeared */
 	if (REISERFS_I(inode)->i_flags & i_pack_on_close_mask) {
 		int err;
-		lock_kernel();
+
+		reiserfs_write_lock(inode->i_sb);
+
 		err = reiserfs_commit_for_inode(inode);
 		REISERFS_I(inode)->i_flags &= ~i_pack_on_close_mask;
-		unlock_kernel();
+
+		reiserfs_write_unlock(inode->i_sb);
+
 		if (err < 0)
 			ret = err;
 	}
@@ -601,6 +598,7 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 	__le32 *item;
 	int done;
 	int fs_gen;
+	int lock_depth;
 	struct reiserfs_transaction_handle *th = NULL;
 	/* space reserved in transaction batch:
 	   . 3 balancings in direct->indirect conversion
@@ -616,12 +614,11 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 	loff_t new_offset =
 	    (((loff_t) block) << inode->i_sb->s_blocksize_bits) + 1;
 
-	/* bad.... */
-	reiserfs_write_lock(inode->i_sb);
+	lock_depth = reiserfs_write_lock_once(inode->i_sb);
 	version = get_inode_item_key_version(inode);
 
 	if (!file_capable(inode, block)) {
-		reiserfs_write_unlock(inode->i_sb);
+		reiserfs_write_unlock_once(inode->i_sb, lock_depth);
 		return -EFBIG;
 	}
 
@@ -633,7 +630,7 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 		/* find number of block-th logical block of the file */
 		ret = _get_block_create_0(inode, block, bh_result,
 					  create | GET_BLOCK_READ_DIRECT);
-		reiserfs_write_unlock(inode->i_sb);
+		reiserfs_write_unlock_once(inode->i_sb, lock_depth);
 		return ret;
 	}
 	/*
@@ -751,7 +748,7 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 		if (!dangle && th)
 			retval = reiserfs_end_persistent_transaction(th);
 
-		reiserfs_write_unlock(inode->i_sb);
+		reiserfs_write_unlock_once(inode->i_sb, lock_depth);
 
 		/* the item was found, so new blocks were not added to the file
 		 ** there is no need to make sure the inode is updated with this
@@ -935,7 +932,7 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 			if (blocks_needed == 1) {
 				un = &unf_single;
 			} else {
-				un = kzalloc(min(blocks_needed, max_to_insert) * UNFM_P_SIZE, GFP_ATOMIC);	// We need to avoid scheduling.
+				un = kzalloc(min(blocks_needed, max_to_insert) * UNFM_P_SIZE, GFP_NOFS);
 				if (!un) {
 					un = &unf_single;
 					blocks_needed = 1;
@@ -997,10 +994,16 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 			if (retval)
 				goto failure;
 		}
-		/* inserting indirect pointers for a hole can take a
-		 ** long time.  reschedule if needed
+		/*
+		 * inserting indirect pointers for a hole can take a
+		 * long time.  reschedule if needed and also release the write
+		 * lock for others.
 		 */
-		cond_resched();
+		if (need_resched()) {
+			reiserfs_write_unlock_once(inode->i_sb, lock_depth);
+			schedule();
+			lock_depth = reiserfs_write_lock_once(inode->i_sb);
+		}
 
 		retval = search_for_position_by_key(inode->i_sb, &key, &path);
 		if (retval == IO_ERROR) {
@@ -1035,7 +1038,7 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 			retval = err;
 	}
 
-	reiserfs_write_unlock(inode->i_sb);
+	reiserfs_write_unlock_once(inode->i_sb, lock_depth);
 	reiserfs_check_path(&path);
 	return retval;
 }
@@ -2072,8 +2075,9 @@ int reiserfs_truncate_file(struct inode *inode, int update_timestamps)
 	int error;
 	struct buffer_head *bh = NULL;
 	int err2;
+	int lock_depth;
 
-	reiserfs_write_lock(inode->i_sb);
+	lock_depth = reiserfs_write_lock_once(inode->i_sb);
 
 	if (inode->i_size > 0) {
 		error = grab_tail_page(inode, &page, &bh);
@@ -2142,14 +2146,17 @@ int reiserfs_truncate_file(struct inode *inode, int update_timestamps)
 		page_cache_release(page);
 	}
 
-	reiserfs_write_unlock(inode->i_sb);
+	reiserfs_write_unlock_once(inode->i_sb, lock_depth);
+
 	return 0;
       out:
 	if (page) {
 		unlock_page(page);
 		page_cache_release(page);
 	}
-	reiserfs_write_unlock(inode->i_sb);
+
+	reiserfs_write_unlock_once(inode->i_sb, lock_depth);
+
 	return error;
 }
 
@@ -2608,7 +2615,10 @@ int reiserfs_prepare_write(struct file *f, struct page *page,
 	int ret;
 	int old_ref = 0;
 
+	reiserfs_write_unlock(inode->i_sb);
 	reiserfs_wait_on_write_block(inode->i_sb);
+	reiserfs_write_lock(inode->i_sb);
+
 	fix_tail_page_for_writing(page);
 	if (reiserfs_transaction_running(inode->i_sb)) {
 		struct reiserfs_transaction_handle *th;
@@ -2664,6 +2674,8 @@ static int reiserfs_write_end(struct file *file, struct address_space *mapping,
 	int update_sd = 0;
 	struct reiserfs_transaction_handle *th;
 	unsigned start;
+	int lock_depth = 0;
+	bool locked = false;
 
 	if ((unsigned long)fsdata & AOP_FLAG_CONT_EXPAND)
 		pos ++;
@@ -2690,9 +2702,11 @@ static int reiserfs_write_end(struct file *file, struct address_space *mapping,
 	 ** to do the i_size updates here.
 	 */
 	pos += copied;
+
 	if (pos > inode->i_size) {
 		struct reiserfs_transaction_handle myth;
-		reiserfs_write_lock(inode->i_sb);
+		lock_depth = reiserfs_write_lock_once(inode->i_sb);
+		locked = true;
 		/* If the file have grown beyond the border where it
 		   can have a tail, unmark it as needing a tail
 		   packing */
@@ -2703,10 +2717,9 @@ static int reiserfs_write_end(struct file *file, struct address_space *mapping,
 			REISERFS_I(inode)->i_flags &= ~i_pack_on_close_mask;
 
 		ret = journal_begin(&myth, inode->i_sb, 1);
-		if (ret) {
-			reiserfs_write_unlock(inode->i_sb);
+		if (ret)
 			goto journal_error;
-		}
+
 		reiserfs_update_inode_transaction(inode);
 		inode->i_size = pos;
 		/*
@@ -2718,34 +2731,36 @@ static int reiserfs_write_end(struct file *file, struct address_space *mapping,
 		reiserfs_update_sd(&myth, inode);
 		update_sd = 1;
 		ret = journal_end(&myth, inode->i_sb, 1);
-		reiserfs_write_unlock(inode->i_sb);
 		if (ret)
 			goto journal_error;
 	}
 	if (th) {
-		reiserfs_write_lock(inode->i_sb);
+		if (!locked) {
+			lock_depth = reiserfs_write_lock_once(inode->i_sb);
+			locked = true;
+		}
 		if (!update_sd)
 			mark_inode_dirty(inode);
 		ret = reiserfs_end_persistent_transaction(th);
-		reiserfs_write_unlock(inode->i_sb);
 		if (ret)
 			goto out;
 	}
 
       out:
+	if (locked)
+		reiserfs_write_unlock_once(inode->i_sb, lock_depth);
 	unlock_page(page);
 	page_cache_release(page);
 	return ret == 0 ? copied : ret;
 
       journal_error:
+	reiserfs_write_unlock_once(inode->i_sb, lock_depth);
+	locked = false;
 	if (th) {
-		reiserfs_write_lock(inode->i_sb);
 		if (!update_sd)
 			reiserfs_update_sd(th, inode);
 		ret = reiserfs_end_persistent_transaction(th);
-		reiserfs_write_unlock(inode->i_sb);
 	}
-
 	goto out;
 }
 
@@ -2758,7 +2773,10 @@ int reiserfs_commit_write(struct file *f, struct page *page,
 	int update_sd = 0;
 	struct reiserfs_transaction_handle *th = NULL;
 
+	reiserfs_write_unlock(inode->i_sb);
 	reiserfs_wait_on_write_block(inode->i_sb);
+	reiserfs_write_lock(inode->i_sb);
+
 	if (reiserfs_transaction_running(inode->i_sb)) {
 		th = current->journal_info;
 	}
@@ -2770,7 +2788,6 @@ int reiserfs_commit_write(struct file *f, struct page *page,
 	 */
 	if (pos > inode->i_size) {
 		struct reiserfs_transaction_handle myth;
-		reiserfs_write_lock(inode->i_sb);
 		/* If the file have grown beyond the border where it
 		   can have a tail, unmark it as needing a tail
 		   packing */
@@ -2781,10 +2798,9 @@ int reiserfs_commit_write(struct file *f, struct page *page,
 			REISERFS_I(inode)->i_flags &= ~i_pack_on_close_mask;
 
 		ret = journal_begin(&myth, inode->i_sb, 1);
-		if (ret) {
-			reiserfs_write_unlock(inode->i_sb);
+		if (ret)
 			goto journal_error;
-		}
+
 		reiserfs_update_inode_transaction(inode);
 		inode->i_size = pos;
 		/*
@@ -2796,16 +2812,13 @@ int reiserfs_commit_write(struct file *f, struct page *page,
 		reiserfs_update_sd(&myth, inode);
 		update_sd = 1;
 		ret = journal_end(&myth, inode->i_sb, 1);
-		reiserfs_write_unlock(inode->i_sb);
 		if (ret)
 			goto journal_error;
 	}
 	if (th) {
-		reiserfs_write_lock(inode->i_sb);
 		if (!update_sd)
 			mark_inode_dirty(inode);
 		ret = reiserfs_end_persistent_transaction(th);
-		reiserfs_write_unlock(inode->i_sb);
 		if (ret)
 			goto out;
 	}
@@ -2815,11 +2828,9 @@ int reiserfs_commit_write(struct file *f, struct page *page,
 
       journal_error:
 	if (th) {
-		reiserfs_write_lock(inode->i_sb);
 		if (!update_sd)
 			reiserfs_update_sd(th, inode);
 		ret = reiserfs_end_persistent_transaction(th);
-		reiserfs_write_unlock(inode->i_sb);
 	}
 
 	return ret;

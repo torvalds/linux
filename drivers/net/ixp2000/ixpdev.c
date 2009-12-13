@@ -109,9 +109,8 @@ static int ixpdev_rx(struct net_device *dev, int processed, int budget)
 		if (unlikely(!netif_running(nds[desc->channel])))
 			goto err;
 
-		skb = netdev_alloc_skb(dev, desc->pkt_length + 2);
+		skb = netdev_alloc_skb_ip_align(dev, desc->pkt_length);
 		if (likely(skb != NULL)) {
-			skb_reserve(skb, 2);
 			skb_copy_to_linear_data(skb, buf, desc->pkt_length);
 			skb_put(skb, desc->pkt_length);
 			skb->protocol = eth_type_trans(skb, nds[desc->channel]);

@@ -25,7 +25,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt3x2n"
-#define DRV_VERSION	"0.3.4"
+#define DRV_VERSION	"0.3.7"
 
 enum {
 	HPT_PCI_FAST	=	(1 << 31),
@@ -80,14 +80,13 @@ static struct hpt_clock hpt3x2n_clocks[] = {
 
 	{	XFER_MW_DMA_2,	0x2c829c62	},
 	{	XFER_MW_DMA_1,	0x2c829c66	},
-	{	XFER_MW_DMA_0,	0x2c829d2c	},
+	{	XFER_MW_DMA_0,	0x2c829d2e	},
 
 	{	XFER_PIO_4,	0x0c829c62	},
 	{	XFER_PIO_3,	0x0c829c84	},
 	{	XFER_PIO_2,	0x0c829ca6	},
 	{	XFER_PIO_1,	0x0d029d26	},
 	{	XFER_PIO_0,	0x0d029d5e	},
-	{	0,		0x0d029d5e	}
 };
 
 /**
@@ -128,12 +127,15 @@ static int hpt3x2n_cable_detect(struct ata_port *ap)
 
 	pci_read_config_byte(pdev, 0x5B, &scr2);
 	pci_write_config_byte(pdev, 0x5B, scr2 & ~0x01);
+
+	udelay(10); /* debounce */
+
 	/* Cable register now active */
 	pci_read_config_byte(pdev, 0x5A, &ata66);
 	/* Restore state */
 	pci_write_config_byte(pdev, 0x5B, scr2);
 
-	if (ata66 & (1 << ap->port_no))
+	if (ata66 & (2 >> ap->port_no))
 		return ATA_CBL_PATA40;
 	else
 		return ATA_CBL_PATA80;
@@ -185,9 +187,8 @@ static void hpt3x2n_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 	pci_read_config_dword(pdev, addr1, &reg);
 	mode = hpt3x2n_find_mode(ap, adev->pio_mode);
-	mode &= ~0x8000000;	/* No FIFO in PIO */
-	mode &= ~0x30070000;	/* Leave config bits alone */
-	reg &= 0x30070000;	/* Strip timing bits */
+	mode &= 0xCFC3FFFF;	/* Leave DMA bits alone */
+	reg &= ~0xCFC3FFFF;	/* Strip timing bits */
 	pci_write_config_dword(pdev, addr1, reg | mode);
 }
 
@@ -204,8 +205,7 @@ static void hpt3x2n_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u32 addr1, addr2;
-	u32 reg;
-	u32 mode;
+	u32 reg, mode, mask;
 	u8 fast;
 
 	addr1 = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
@@ -216,11 +216,12 @@ static void hpt3x2n_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	fast &= ~0x07;
 	pci_write_config_byte(pdev, addr2, fast);
 
+	mask = adev->dma_mode < XFER_UDMA_0 ? 0x31C001FF : 0x303C0000;
+
 	pci_read_config_dword(pdev, addr1, &reg);
 	mode = hpt3x2n_find_mode(ap, adev->dma_mode);
-	mode |= 0x8000000;	/* FIFO in MWDMA or UDMA */
-	mode &= ~0xC0000000;	/* Leave config bits alone */
-	reg &= 0xC0000000;	/* Strip timing bits */
+	mode &= mask;
+	reg &= ~mask;
 	pci_write_config_dword(pdev, addr1, reg | mode);
 }
 
@@ -447,10 +448,8 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.port_ops = &hpt3x2n_port_ops
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
-
+	u8 rev = dev->revision;
 	u8 irqmask;
-	u32 class_rev;
-
 	unsigned int pci_mhz;
 	unsigned int f_low, f_high;
 	int adjust;
@@ -462,26 +461,23 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class_rev);
-	class_rev &= 0xFF;
-
 	switch(dev->device) {
 		case PCI_DEVICE_ID_TTI_HPT366:
-			if (class_rev < 6)
+			if (rev < 6)
 				return -ENODEV;
 			break;
 		case PCI_DEVICE_ID_TTI_HPT371:
-			if (class_rev < 2)
+			if (rev < 2)
 				return -ENODEV;
 			/* 371N if rev > 1 */
 			break;
 		case PCI_DEVICE_ID_TTI_HPT372:
 			/* 372N if rev >= 2*/
-			if (class_rev < 2)
+			if (rev < 2)
 				return -ENODEV;
 			break;
 		case PCI_DEVICE_ID_TTI_HPT302:
-			if (class_rev < 2)
+			if (rev < 2)
 				return -ENODEV;
 			break;
 		case PCI_DEVICE_ID_TTI_HPT372N:

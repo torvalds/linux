@@ -488,46 +488,43 @@ static void tmp401_init_client(struct i2c_client *client)
 		i2c_smbus_write_byte_data(client, TMP401_CONFIG_WRITE, config);
 }
 
-static int tmp401_detect(struct i2c_client *client, int kind,
+static int tmp401_detect(struct i2c_client *client, int _kind,
 			 struct i2c_board_info *info)
 {
+	enum chips kind;
 	struct i2c_adapter *adapter = client->adapter;
+	u8 reg;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
 	/* Detect and identify the chip */
-	if (kind <= 0) {
-		u8 reg;
+	reg = i2c_smbus_read_byte_data(client, TMP401_MANUFACTURER_ID_REG);
+	if (reg != TMP401_MANUFACTURER_ID)
+		return -ENODEV;
 
-		reg = i2c_smbus_read_byte_data(client,
-					       TMP401_MANUFACTURER_ID_REG);
-		if (reg != TMP401_MANUFACTURER_ID)
-			return -ENODEV;
+	reg = i2c_smbus_read_byte_data(client, TMP401_DEVICE_ID_REG);
 
-		reg = i2c_smbus_read_byte_data(client, TMP401_DEVICE_ID_REG);
-
-		switch (reg) {
-		case TMP401_DEVICE_ID:
-			kind = tmp401;
-			break;
-		case TMP411_DEVICE_ID:
-			kind = tmp411;
-			break;
-		default:
-			return -ENODEV;
-		}
-
-		reg = i2c_smbus_read_byte_data(client, TMP401_CONFIG_READ);
-		if (reg & 0x1b)
-			return -ENODEV;
-
-		reg = i2c_smbus_read_byte_data(client,
-					       TMP401_CONVERSION_RATE_READ);
-		/* Datasheet says: 0x1-0x6 */
-		if (reg > 15)
-			return -ENODEV;
+	switch (reg) {
+	case TMP401_DEVICE_ID:
+		kind = tmp401;
+		break;
+	case TMP411_DEVICE_ID:
+		kind = tmp411;
+		break;
+	default:
+		return -ENODEV;
 	}
+
+	reg = i2c_smbus_read_byte_data(client, TMP401_CONFIG_READ);
+	if (reg & 0x1b)
+		return -ENODEV;
+
+	reg = i2c_smbus_read_byte_data(client, TMP401_CONVERSION_RATE_READ);
+	/* Datasheet says: 0x1-0x6 */
+	if (reg > 15)
+		return -ENODEV;
+
 	strlcpy(info->type, tmp401_id[kind - 1].name, I2C_NAME_SIZE);
 
 	return 0;

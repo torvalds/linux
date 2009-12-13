@@ -3017,7 +3017,7 @@ snd_hdspm_proc_read_madi(struct snd_info_entry * entry,
 		insel = "Coaxial";
 		break;
 	default:
-		insel = "Unkown";
+		insel = "Unknown";
 	}
 
 	switch (hdspm->control_register & HDSPM_SyncRefMask) {
@@ -3028,7 +3028,7 @@ snd_hdspm_proc_read_madi(struct snd_info_entry * entry,
 		syncref = "MADI";
 		break;
 	default:
-		syncref = "Unkown";
+		syncref = "Unknown";
 	}
 	snd_iprintf(buffer, "Inputsel = %s, SyncRef = %s\n", insel,
 		    syncref);

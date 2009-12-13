@@ -1,0 +1,7 @@
+#!/bin/bash
+perf record -c 1 -f -a -M -R -e kmem:kmalloc -e irq:softirq_entry
+
+
+
+
+

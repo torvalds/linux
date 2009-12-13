@@ -2014,7 +2014,7 @@ static int check_leaf(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 		inum = key_inum_flash(c, &dent->key);
 		fscki1 = read_add_inode(c, priv, inum);
 		if (IS_ERR(fscki1)) {
-			err = PTR_ERR(fscki);
+			err = PTR_ERR(fscki1);
 			ubifs_err("error %d while processing entry node and "
 				  "trying to find parent inode node %lu",
 				  err, (unsigned long)inum);

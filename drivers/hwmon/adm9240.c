@@ -556,51 +556,34 @@ static int adm9240_detect(struct i2c_client *new_client, int kind,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	if (kind == 0) {
-		kind = adm9240;
+	/* verify chip: reg address should match i2c address */
+	if (i2c_smbus_read_byte_data(new_client, ADM9240_REG_I2C_ADDR)
+			!= address) {
+		dev_err(&adapter->dev, "detect fail: address match, 0x%02x\n",
+			address);
+		return -ENODEV;
 	}
 
-	if (kind < 0) {
-
-		/* verify chip: reg address should match i2c address */
-		if (i2c_smbus_read_byte_data(new_client, ADM9240_REG_I2C_ADDR)
-				!= address) {
-			dev_err(&adapter->dev, "detect fail: address match, "
-					"0x%02x\n", address);
-			return -ENODEV;
-		}
-
-		/* check known chip manufacturer */
-		man_id = i2c_smbus_read_byte_data(new_client,
-				ADM9240_REG_MAN_ID);
-		if (man_id == 0x23) {
-			kind = adm9240;
-		} else if (man_id == 0xda) {
-			kind = ds1780;
-		} else if (man_id == 0x01) {
-			kind = lm81;
-		} else {
-			dev_err(&adapter->dev, "detect fail: unknown manuf, "
-					"0x%02x\n", man_id);
-			return -ENODEV;
-		}
-
-		/* successful detect, print chip info */
-		die_rev = i2c_smbus_read_byte_data(new_client,
-				ADM9240_REG_DIE_REV);
-		dev_info(&adapter->dev, "found %s revision %u\n",
-				man_id == 0x23 ? "ADM9240" :
-				man_id == 0xda ? "DS1780" : "LM81", die_rev);
-	}
-
-	/* either forced or detected chip kind */
-	if (kind == adm9240) {
+	/* check known chip manufacturer */
+	man_id = i2c_smbus_read_byte_data(new_client, ADM9240_REG_MAN_ID);
+	if (man_id == 0x23) {
 		name = "adm9240";
-	} else if (kind == ds1780) {
+	} else if (man_id == 0xda) {
 		name = "ds1780";
-	} else if (kind == lm81) {
+	} else if (man_id == 0x01) {
 		name = "lm81";
+	} else {
+		dev_err(&adapter->dev, "detect fail: unknown manuf, 0x%02x\n",
+			man_id);
+		return -ENODEV;
 	}
+
+	/* successful detect, print chip info */
+	die_rev = i2c_smbus_read_byte_data(new_client, ADM9240_REG_DIE_REV);
+	dev_info(&adapter->dev, "found %s revision %u\n",
+		 man_id == 0x23 ? "ADM9240" :
+		 man_id == 0xda ? "DS1780" : "LM81", die_rev);
+
 	strlcpy(info->type, name, I2C_NAME_SIZE);
 
 	return 0;

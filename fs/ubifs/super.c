@@ -1842,22 +1842,32 @@ const struct super_operations ubifs_super_operations = {
  * @name: UBI volume name
  * @mode: UBI volume open mode
  *
- * There are several ways to specify UBI volumes when mounting UBIFS:
- * o ubiX_Y    - UBI device number X, volume Y;
- * o ubiY      - UBI device number 0, volume Y;
+ * The primary method of mounting UBIFS is by specifying the UBI volume
+ * character device node path. However, UBIFS may also be mounted withoug any
+ * character device node using one of the following methods:
+ *
+ * o ubiX_Y    - mount UBI device number X, volume Y;
+ * o ubiY      - mount UBI device number 0, volume Y;
  * o ubiX:NAME - mount UBI device X, volume with name NAME;
  * o ubi:NAME  - mount UBI device 0, volume with name NAME.
  *
  * Alternative '!' separator may be used instead of ':' (because some shells
  * like busybox may interpret ':' as an NFS host name separator). This function
- * returns ubi volume object in case of success and a negative error code in
- * case of failure.
+ * returns UBI volume description object in case of success and a negative
+ * error code in case of failure.
  */
 static struct ubi_volume_desc *open_ubi(const char *name, int mode)
 {
+	struct ubi_volume_desc *ubi;
 	int dev, vol;
 	char *endptr;
 
+	/* First, try to open using the device node path method */
+	ubi = ubi_open_volume_path(name, mode);
+	if (!IS_ERR(ubi))
+		return ubi;
+
+	/* Try the "nodev" method */
 	if (name[0] != 'u' || name[1] != 'b' || name[2] != 'i')
 		return ERR_PTR(-EINVAL);
 

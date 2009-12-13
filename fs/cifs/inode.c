@@ -914,8 +914,8 @@ undo_setattr:
 /*
  * If dentry->d_inode is null (usually meaning the cached dentry
  * is a negative dentry) then we would attempt a standard SMB delete, but
- * if that fails we can not attempt the fall back mechanisms on EACESS
- * but will return the EACESS to the caller.  Note that the VFS does not call
+ * if that fails we can not attempt the fall back mechanisms on EACCESS
+ * but will return the EACCESS to the caller. Note that the VFS does not call
  * unlink on negative dentries currently.
  */
 int cifs_unlink(struct inode *dir, struct dentry *dentry)

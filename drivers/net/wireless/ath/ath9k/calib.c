@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "ath9k.h"
+#include "hw.h"
 
 /* We can tune this as we go by monitoring really low values */
 #define ATH9K_NF_TOO_LOW	-60
@@ -26,11 +26,11 @@
 static bool ath9k_hw_nf_in_range(struct ath_hw *ah, s16 nf)
 {
 	if (nf > ATH9K_NF_TOO_LOW) {
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"noise floor value detected (%d) is "
-			"lower than what we think is a "
-			"reasonable value (%d)\n",
-			nf, ATH9K_NF_TOO_LOW);
+		ath_print(ath9k_hw_common(ah), ATH_DBG_CALIBRATE,
+			  "noise floor value detected (%d) is "
+			  "lower than what we think is a "
+			  "reasonable value (%d)\n",
+			  nf, ATH9K_NF_TOO_LOW);
 		return false;
 	}
 	return true;
@@ -89,6 +89,7 @@ static void ath9k_hw_update_nfcal_hist_buffer(struct ath9k_nfcal_hist *h,
 static void ath9k_hw_do_getnf(struct ath_hw *ah,
 			      int16_t nfarray[NUM_NF_READINGS])
 {
+	struct ath_common *common = ath9k_hw_common(ah);
 	int16_t nf;
 
 	if (AR_SREV_9280_10_OR_LATER(ah))
@@ -98,8 +99,8 @@ static void ath9k_hw_do_getnf(struct ath_hw *ah,
 
 	if (nf & 0x100)
 		nf = 0 - ((nf ^ 0x1ff) + 1);
-	DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-		"NF calibrated [ctl] [chain 0] is %d\n", nf);
+	ath_print(common, ATH_DBG_CALIBRATE,
+		  "NF calibrated [ctl] [chain 0] is %d\n", nf);
 	nfarray[0] = nf;
 
 	if (!AR_SREV_9285(ah)) {
@@ -112,8 +113,8 @@ static void ath9k_hw_do_getnf(struct ath_hw *ah,
 
 		if (nf & 0x100)
 			nf = 0 - ((nf ^ 0x1ff) + 1);
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-				"NF calibrated [ctl] [chain 1] is %d\n", nf);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "NF calibrated [ctl] [chain 1] is %d\n", nf);
 		nfarray[1] = nf;
 
 		if (!AR_SREV_9280(ah) && !AR_SREV_9287(ah)) {
@@ -121,8 +122,8 @@ static void ath9k_hw_do_getnf(struct ath_hw *ah,
 					AR_PHY_CH2_MINCCA_PWR);
 			if (nf & 0x100)
 				nf = 0 - ((nf ^ 0x1ff) + 1);
-			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-				"NF calibrated [ctl] [chain 2] is %d\n", nf);
+			ath_print(common, ATH_DBG_CALIBRATE,
+				  "NF calibrated [ctl] [chain 2] is %d\n", nf);
 			nfarray[2] = nf;
 		}
 	}
@@ -136,8 +137,8 @@ static void ath9k_hw_do_getnf(struct ath_hw *ah,
 
 	if (nf & 0x100)
 		nf = 0 - ((nf ^ 0x1ff) + 1);
-	DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-		"NF calibrated [ext] [chain 0] is %d\n", nf);
+	ath_print(common, ATH_DBG_CALIBRATE,
+		  "NF calibrated [ext] [chain 0] is %d\n", nf);
 	nfarray[3] = nf;
 
 	if (!AR_SREV_9285(ah)) {
@@ -150,8 +151,8 @@ static void ath9k_hw_do_getnf(struct ath_hw *ah,
 
 		if (nf & 0x100)
 			nf = 0 - ((nf ^ 0x1ff) + 1);
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-				"NF calibrated [ext] [chain 1] is %d\n", nf);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "NF calibrated [ext] [chain 1] is %d\n", nf);
 		nfarray[4] = nf;
 
 		if (!AR_SREV_9280(ah) && !AR_SREV_9287(ah)) {
@@ -159,8 +160,8 @@ static void ath9k_hw_do_getnf(struct ath_hw *ah,
 					AR_PHY_CH2_EXT_MINCCA_PWR);
 			if (nf & 0x100)
 				nf = 0 - ((nf ^ 0x1ff) + 1);
-			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-				"NF calibrated [ext] [chain 2] is %d\n", nf);
+			ath_print(common, ATH_DBG_CALIBRATE,
+				  "NF calibrated [ext] [chain 2] is %d\n", nf);
 			nfarray[5] = nf;
 		}
 	}
@@ -188,6 +189,8 @@ static bool getNoiseFloorThresh(struct ath_hw *ah,
 static void ath9k_hw_setup_calibration(struct ath_hw *ah,
 				       struct ath9k_cal_list *currCal)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
+
 	REG_RMW_FIELD(ah, AR_PHY_TIMING_CTRL4(0),
 		      AR_PHY_TIMING_CTRL4_IQCAL_LOG_COUNT_MAX,
 		      currCal->calData->calCountMax);
@@ -195,23 +198,23 @@ static void ath9k_hw_setup_calibration(struct ath_hw *ah,
 	switch (currCal->calData->calType) {
 	case IQ_MISMATCH_CAL:
 		REG_WRITE(ah, AR_PHY_CALMODE, AR_PHY_CALMODE_IQ);
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"starting IQ Mismatch Calibration\n");
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "starting IQ Mismatch Calibration\n");
 		break;
 	case ADC_GAIN_CAL:
 		REG_WRITE(ah, AR_PHY_CALMODE, AR_PHY_CALMODE_ADC_GAIN);
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"starting ADC Gain Calibration\n");
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "starting ADC Gain Calibration\n");
 		break;
 	case ADC_DC_CAL:
 		REG_WRITE(ah, AR_PHY_CALMODE, AR_PHY_CALMODE_ADC_DC_PER);
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"starting ADC DC Calibration\n");
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "starting ADC DC Calibration\n");
 		break;
 	case ADC_DC_INIT_CAL:
 		REG_WRITE(ah, AR_PHY_CALMODE, AR_PHY_CALMODE_ADC_DC_INIT);
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"starting Init ADC DC Calibration\n");
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "starting Init ADC DC Calibration\n");
 		break;
 	}
 
@@ -278,7 +281,7 @@ static bool ath9k_hw_per_calibration(struct ath_hw *ah,
 static bool ath9k_hw_iscal_supported(struct ath_hw *ah,
 				     enum ath9k_cal_types calType)
 {
-	struct ieee80211_conf *conf = &ah->ah_sc->hw->conf;
+	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
 
 	switch (calType & ah->supp_cals) {
 	case IQ_MISMATCH_CAL: /* Both 2 GHz and 5 GHz support OFDM */
@@ -304,11 +307,11 @@ static void ath9k_hw_iqcal_collect(struct ath_hw *ah)
 			REG_READ(ah, AR_PHY_CAL_MEAS_1(i));
 		ah->totalIqCorrMeas[i] +=
 			(int32_t) REG_READ(ah, AR_PHY_CAL_MEAS_2(i));
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"%d: Chn %d pmi=0x%08x;pmq=0x%08x;iqcm=0x%08x;\n",
-			ah->cal_samples, i, ah->totalPowerMeasI[i],
-			ah->totalPowerMeasQ[i],
-			ah->totalIqCorrMeas[i]);
+		ath_print(ath9k_hw_common(ah), ATH_DBG_CALIBRATE,
+			  "%d: Chn %d pmi=0x%08x;pmq=0x%08x;iqcm=0x%08x;\n",
+			  ah->cal_samples, i, ah->totalPowerMeasI[i],
+			  ah->totalPowerMeasQ[i],
+			  ah->totalIqCorrMeas[i]);
 	}
 }
 
@@ -326,14 +329,14 @@ static void ath9k_hw_adc_gaincal_collect(struct ath_hw *ah)
 		ah->totalAdcQEvenPhase[i] +=
 			REG_READ(ah, AR_PHY_CAL_MEAS_3(i));
 
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"%d: Chn %d oddi=0x%08x; eveni=0x%08x; "
-			"oddq=0x%08x; evenq=0x%08x;\n",
-			ah->cal_samples, i,
-			ah->totalAdcIOddPhase[i],
-			ah->totalAdcIEvenPhase[i],
-			ah->totalAdcQOddPhase[i],
-			ah->totalAdcQEvenPhase[i]);
+		ath_print(ath9k_hw_common(ah), ATH_DBG_CALIBRATE,
+			  "%d: Chn %d oddi=0x%08x; eveni=0x%08x; "
+			  "oddq=0x%08x; evenq=0x%08x;\n",
+			  ah->cal_samples, i,
+			  ah->totalAdcIOddPhase[i],
+			  ah->totalAdcIEvenPhase[i],
+			  ah->totalAdcQOddPhase[i],
+			  ah->totalAdcQEvenPhase[i]);
 	}
 }
 
@@ -351,19 +354,20 @@ static void ath9k_hw_adc_dccal_collect(struct ath_hw *ah)
 		ah->totalAdcDcOffsetQEvenPhase[i] +=
 			(int32_t) REG_READ(ah, AR_PHY_CAL_MEAS_3(i));
 
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"%d: Chn %d oddi=0x%08x; eveni=0x%08x; "
-			"oddq=0x%08x; evenq=0x%08x;\n",
-			ah->cal_samples, i,
-			ah->totalAdcDcOffsetIOddPhase[i],
-			ah->totalAdcDcOffsetIEvenPhase[i],
-			ah->totalAdcDcOffsetQOddPhase[i],
-			ah->totalAdcDcOffsetQEvenPhase[i]);
+		ath_print(ath9k_hw_common(ah), ATH_DBG_CALIBRATE,
+			  "%d: Chn %d oddi=0x%08x; eveni=0x%08x; "
+			  "oddq=0x%08x; evenq=0x%08x;\n",
+			  ah->cal_samples, i,
+			  ah->totalAdcDcOffsetIOddPhase[i],
+			  ah->totalAdcDcOffsetIEvenPhase[i],
+			  ah->totalAdcDcOffsetQOddPhase[i],
+			  ah->totalAdcDcOffsetQEvenPhase[i]);
 	}
 }
 
 static void ath9k_hw_iqcalibrate(struct ath_hw *ah, u8 numChains)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
 	u32 powerMeasQ, powerMeasI, iqCorrMeas;
 	u32 qCoffDenom, iCoffDenom;
 	int32_t qCoff, iCoff;
@@ -374,13 +378,13 @@ static void ath9k_hw_iqcalibrate(struct ath_hw *ah, u8 numChains)
 		powerMeasQ = ah->totalPowerMeasQ[i];
 		iqCorrMeas = ah->totalIqCorrMeas[i];
 
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"Starting IQ Cal and Correction for Chain %d\n",
-			i);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "Starting IQ Cal and Correction for Chain %d\n",
+			  i);
 
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"Orignal: Chn %diq_corr_meas = 0x%08x\n",
-			i, ah->totalIqCorrMeas[i]);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "Orignal: Chn %diq_corr_meas = 0x%08x\n",
+			  i, ah->totalIqCorrMeas[i]);
 
 		iqCorrNeg = 0;
 
@@ -389,27 +393,28 @@ static void ath9k_hw_iqcalibrate(struct ath_hw *ah, u8 numChains)
 			iqCorrNeg = 1;
 		}
 
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"Chn %d pwr_meas_i = 0x%08x\n", i, powerMeasI);
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"Chn %d pwr_meas_q = 0x%08x\n", i, powerMeasQ);
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE, "iqCorrNeg is 0x%08x\n",
-			iqCorrNeg);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "Chn %d pwr_meas_i = 0x%08x\n", i, powerMeasI);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "Chn %d pwr_meas_q = 0x%08x\n", i, powerMeasQ);
+		ath_print(common, ATH_DBG_CALIBRATE, "iqCorrNeg is 0x%08x\n",
+			  iqCorrNeg);
 
 		iCoffDenom = (powerMeasI / 2 + powerMeasQ / 2) / 128;
 		qCoffDenom = powerMeasQ / 64;
 
-		if (powerMeasQ != 0) {
+		if ((powerMeasQ != 0) && (iCoffDenom != 0) &&
+		    (qCoffDenom != 0)) {
 			iCoff = iqCorrMeas / iCoffDenom;
 			qCoff = powerMeasI / qCoffDenom - 64;
-			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-				"Chn %d iCoff = 0x%08x\n", i, iCoff);
-			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-				"Chn %d qCoff = 0x%08x\n", i, qCoff);
+			ath_print(common, ATH_DBG_CALIBRATE,
+				  "Chn %d iCoff = 0x%08x\n", i, iCoff);
+			ath_print(common, ATH_DBG_CALIBRATE,
+				  "Chn %d qCoff = 0x%08x\n", i, qCoff);
 
 			iCoff = iCoff & 0x3f;
-			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-				"New: Chn %d iCoff = 0x%08x\n", i, iCoff);
+			ath_print(common, ATH_DBG_CALIBRATE,
+				  "New: Chn %d iCoff = 0x%08x\n", i, iCoff);
 			if (iqCorrNeg == 0x0)
 				iCoff = 0x40 - iCoff;
 
@@ -418,9 +423,9 @@ static void ath9k_hw_iqcalibrate(struct ath_hw *ah, u8 numChains)
 			else if (qCoff <= -16)
 				qCoff = 16;
 
-			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-				"Chn %d : iCoff = 0x%x  qCoff = 0x%x\n",
-				i, iCoff, qCoff);
+			ath_print(common, ATH_DBG_CALIBRATE,
+				  "Chn %d : iCoff = 0x%x  qCoff = 0x%x\n",
+				  i, iCoff, qCoff);
 
 			REG_RMW_FIELD(ah, AR_PHY_TIMING_CTRL4(i),
 				      AR_PHY_TIMING_CTRL4_IQCORR_Q_I_COFF,
@@ -428,9 +433,9 @@ static void ath9k_hw_iqcalibrate(struct ath_hw *ah, u8 numChains)
 			REG_RMW_FIELD(ah, AR_PHY_TIMING_CTRL4(i),
 				      AR_PHY_TIMING_CTRL4_IQCORR_Q_Q_COFF,
 				      qCoff);
-			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-				"IQ Cal and Correction done for Chain %d\n",
-				i);
+			ath_print(common, ATH_DBG_CALIBRATE,
+				  "IQ Cal and Correction done for Chain %d\n",
+				  i);
 		}
 	}
 
@@ -440,6 +445,7 @@ static void ath9k_hw_iqcalibrate(struct ath_hw *ah, u8 numChains)
 
 static void ath9k_hw_adc_gaincal_calibrate(struct ath_hw *ah, u8 numChains)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
 	u32 iOddMeasOffset, iEvenMeasOffset, qOddMeasOffset, qEvenMeasOffset;
 	u32 qGainMismatch, iGainMismatch, val, i;
 
@@ -449,21 +455,21 @@ static void ath9k_hw_adc_gaincal_calibrate(struct ath_hw *ah, u8 numChains)
 		qOddMeasOffset = ah->totalAdcQOddPhase[i];
 		qEvenMeasOffset = ah->totalAdcQEvenPhase[i];
 
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"Starting ADC Gain Cal for Chain %d\n", i);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "Starting ADC Gain Cal for Chain %d\n", i);
 
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"Chn %d pwr_meas_odd_i = 0x%08x\n", i,
-			iOddMeasOffset);
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"Chn %d pwr_meas_even_i = 0x%08x\n", i,
-			iEvenMeasOffset);
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"Chn %d pwr_meas_odd_q = 0x%08x\n", i,
-			qOddMeasOffset);
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"Chn %d pwr_meas_even_q = 0x%08x\n", i,
-			qEvenMeasOffset);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "Chn %d pwr_meas_odd_i = 0x%08x\n", i,
+			  iOddMeasOffset);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "Chn %d pwr_meas_even_i = 0x%08x\n", i,
+			  iEvenMeasOffset);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "Chn %d pwr_meas_odd_q = 0x%08x\n", i,
+			  qOddMeasOffset);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "Chn %d pwr_meas_even_q = 0x%08x\n", i,
+			  qEvenMeasOffset);
 
 		if (iOddMeasOffset != 0 && qEvenMeasOffset != 0) {
 			iGainMismatch =
@@ -473,20 +479,20 @@ static void ath9k_hw_adc_gaincal_calibrate(struct ath_hw *ah, u8 numChains)
 				((qOddMeasOffset * 32) /
 				 qEvenMeasOffset) & 0x3f;
 
-			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-				"Chn %d gain_mismatch_i = 0x%08x\n", i,
-				iGainMismatch);
-			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-				"Chn %d gain_mismatch_q = 0x%08x\n", i,
-				qGainMismatch);
+			ath_print(common, ATH_DBG_CALIBRATE,
+				  "Chn %d gain_mismatch_i = 0x%08x\n", i,
+				  iGainMismatch);
+			ath_print(common, ATH_DBG_CALIBRATE,
+				  "Chn %d gain_mismatch_q = 0x%08x\n", i,
+				  qGainMismatch);
 
 			val = REG_READ(ah, AR_PHY_NEW_ADC_DC_GAIN_CORR(i));
 			val &= 0xfffff000;
 			val |= (qGainMismatch) | (iGainMismatch << 6);
 			REG_WRITE(ah, AR_PHY_NEW_ADC_DC_GAIN_CORR(i), val);
 
-			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-				"ADC Gain Cal done for Chain %d\n", i);
+			ath_print(common, ATH_DBG_CALIBRATE,
+				  "ADC Gain Cal done for Chain %d\n", i);
 		}
 	}
 
@@ -497,6 +503,7 @@ static void ath9k_hw_adc_gaincal_calibrate(struct ath_hw *ah, u8 numChains)
 
 static void ath9k_hw_adc_dccal_calibrate(struct ath_hw *ah, u8 numChains)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
 	u32 iOddMeasOffset, iEvenMeasOffset, val, i;
 	int32_t qOddMeasOffset, qEvenMeasOffset, qDcMismatch, iDcMismatch;
 	const struct ath9k_percal_data *calData =
@@ -510,41 +517,41 @@ static void ath9k_hw_adc_dccal_calibrate(struct ath_hw *ah, u8 numChains)
 		qOddMeasOffset = ah->totalAdcDcOffsetQOddPhase[i];
 		qEvenMeasOffset = ah->totalAdcDcOffsetQEvenPhase[i];
 
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"Starting ADC DC Offset Cal for Chain %d\n", i);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			   "Starting ADC DC Offset Cal for Chain %d\n", i);
 
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"Chn %d pwr_meas_odd_i = %d\n", i,
-			iOddMeasOffset);
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"Chn %d pwr_meas_even_i = %d\n", i,
-			iEvenMeasOffset);
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"Chn %d pwr_meas_odd_q = %d\n", i,
-			qOddMeasOffset);
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"Chn %d pwr_meas_even_q = %d\n", i,
-			qEvenMeasOffset);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "Chn %d pwr_meas_odd_i = %d\n", i,
+			  iOddMeasOffset);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "Chn %d pwr_meas_even_i = %d\n", i,
+			  iEvenMeasOffset);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "Chn %d pwr_meas_odd_q = %d\n", i,
+			  qOddMeasOffset);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "Chn %d pwr_meas_even_q = %d\n", i,
+			  qEvenMeasOffset);
 
 		iDcMismatch = (((iEvenMeasOffset - iOddMeasOffset) * 2) /
 			       numSamples) & 0x1ff;
 		qDcMismatch = (((qOddMeasOffset - qEvenMeasOffset) * 2) /
 			       numSamples) & 0x1ff;
 
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"Chn %d dc_offset_mismatch_i = 0x%08x\n", i,
-			iDcMismatch);
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"Chn %d dc_offset_mismatch_q = 0x%08x\n", i,
-			qDcMismatch);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "Chn %d dc_offset_mismatch_i = 0x%08x\n", i,
+			  iDcMismatch);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "Chn %d dc_offset_mismatch_q = 0x%08x\n", i,
+			  qDcMismatch);
 
 		val = REG_READ(ah, AR_PHY_NEW_ADC_DC_GAIN_CORR(i));
 		val &= 0xc0000fff;
 		val |= (qDcMismatch << 12) | (iDcMismatch << 21);
 		REG_WRITE(ah, AR_PHY_NEW_ADC_DC_GAIN_CORR(i), val);
 
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"ADC DC Offset Cal done for Chain %d\n", i);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "ADC DC Offset Cal done for Chain %d\n", i);
 	}
 
 	REG_WRITE(ah, AR_PHY_NEW_ADC_DC_GAIN_CORR(0),
@@ -555,7 +562,8 @@ static void ath9k_hw_adc_dccal_calibrate(struct ath_hw *ah, u8 numChains)
 /* This is done for the currently configured channel */
 bool ath9k_hw_reset_calvalid(struct ath_hw *ah)
 {
-	struct ieee80211_conf *conf = &ah->ah_sc->hw->conf;
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ieee80211_conf *conf = &common->hw->conf;
 	struct ath9k_cal_list *currCal = ah->cal_list_curr;
 
 	if (!ah->curchan)
@@ -568,24 +576,25 @@ bool ath9k_hw_reset_calvalid(struct ath_hw *ah)
 		return true;
 
 	if (currCal->calState != CAL_DONE) {
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"Calibration state incorrect, %d\n",
-			currCal->calState);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "Calibration state incorrect, %d\n",
+			  currCal->calState);
 		return true;
 	}
 
 	if (!ath9k_hw_iscal_supported(ah, currCal->calData->calType))
 		return true;
 
-	DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-		"Resetting Cal %d state for channel %u\n",
-		currCal->calData->calType, conf->channel->center_freq);
+	ath_print(common, ATH_DBG_CALIBRATE,
+		  "Resetting Cal %d state for channel %u\n",
+		  currCal->calData->calType, conf->channel->center_freq);
 
 	ah->curchan->CalValid &= ~currCal->calData->calType;
 	currCal->calState = CAL_WAITING;
 
 	return false;
 }
+EXPORT_SYMBOL(ath9k_hw_reset_calvalid);
 
 void ath9k_hw_start_nfcal(struct ath_hw *ah)
 {
@@ -645,11 +654,11 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 		    AR_PHY_AGC_CONTROL_NO_UPDATE_NF);
 	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
 
-	for (j = 0; j < 1000; j++) {
+	for (j = 0; j < 5; j++) {
 		if ((REG_READ(ah, AR_PHY_AGC_CONTROL) &
 		     AR_PHY_AGC_CONTROL_NF) == 0)
 			break;
-		udelay(10);
+		udelay(50);
 	}
 
 	for (i = 0; i < NUM_NF_READINGS; i++) {
@@ -665,6 +674,7 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 int16_t ath9k_hw_getnf(struct ath_hw *ah,
 		       struct ath9k_channel *chan)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
 	int16_t nf, nfThresh;
 	int16_t nfarray[NUM_NF_READINGS] = { 0 };
 	struct ath9k_nfcal_hist *h;
@@ -672,8 +682,8 @@ int16_t ath9k_hw_getnf(struct ath_hw *ah,
 
 	chan->channelFlags &= (~CHANNEL_CW_INT);
 	if (REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF) {
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"NF did not complete in calibration window\n");
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "NF did not complete in calibration window\n");
 		nf = 0;
 		chan->rawNoiseFloor = nf;
 		return chan->rawNoiseFloor;
@@ -682,10 +692,10 @@ int16_t ath9k_hw_getnf(struct ath_hw *ah,
 		nf = nfarray[0];
 		if (getNoiseFloorThresh(ah, c->band, &nfThresh)
 		    && nf > nfThresh) {
-			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-				"noise floor failed detected; "
-				"detected %d, threshold %d\n",
-				nf, nfThresh);
+			ath_print(common, ATH_DBG_CALIBRATE,
+				  "noise floor failed detected; "
+				  "detected %d, threshold %d\n",
+				  nf, nfThresh);
 			chan->channelFlags |= CHANNEL_CW_INT;
 		}
 	}
@@ -737,51 +747,73 @@ s16 ath9k_hw_getchan_noise(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	return nf;
 }
+EXPORT_SYMBOL(ath9k_hw_getchan_noise);
 
-static void ath9k_olc_temp_compensation(struct ath_hw *ah)
+static void ath9k_olc_temp_compensation_9287(struct ath_hw *ah)
 {
-	u32 rddata, i;
-	int delta, currPDADC, regval, slope;
+	u32 rddata;
+	int32_t delta, currPDADC, slope;
 
 	rddata = REG_READ(ah, AR_PHY_TX_PWRCTRL4);
 	currPDADC = MS(rddata, AR_PHY_TX_PWRCTRL_PD_AVG_OUT);
 
+	if (ah->initPDADC == 0 || currPDADC == 0) {
+		/*
+		 * Zero value indicates that no frames have been transmitted yet,
+		 * can't do temperature compensation until frames are transmitted.
+		 */
+		return;
+	} else {
+		slope = ah->eep_ops->get_eeprom(ah, EEP_TEMPSENSE_SLOPE);
+
+		if (slope == 0) { /* to avoid divide by zero case */
+			delta = 0;
+		} else {
+			delta = ((currPDADC - ah->initPDADC)*4) / slope;
+		}
+		REG_RMW_FIELD(ah, AR_PHY_CH0_TX_PWRCTRL11,
+			      AR_PHY_TX_PWRCTRL_OLPC_TEMP_COMP, delta);
+		REG_RMW_FIELD(ah, AR_PHY_CH1_TX_PWRCTRL11,
+			      AR_PHY_TX_PWRCTRL_OLPC_TEMP_COMP, delta);
+	}
+}
+
+static void ath9k_olc_temp_compensation(struct ath_hw *ah)
+{
+	u32 rddata, i;
+	int delta, currPDADC, regval;
 
 	if (OLC_FOR_AR9287_10_LATER) {
+		ath9k_olc_temp_compensation_9287(ah);
+	} else {
+		rddata = REG_READ(ah, AR_PHY_TX_PWRCTRL4);
+		currPDADC = MS(rddata, AR_PHY_TX_PWRCTRL_PD_AVG_OUT);
+
 		if (ah->initPDADC == 0 || currPDADC == 0) {
 			return;
 		} else {
-			slope = ah->eep_ops->get_eeprom(ah, EEP_TEMPSENSE_SLOPE);
-			if (slope == 0)
-				delta = 0;
+			if (ah->eep_ops->get_eeprom(ah, EEP_DAC_HPWR_5G))
+				delta = (currPDADC - ah->initPDADC + 4) / 8;
 			else
-				delta = ((currPDADC - ah->initPDADC)*4) / slope;
-			REG_RMW_FIELD(ah, AR_PHY_CH0_TX_PWRCTRL11,
-					AR_PHY_TX_PWRCTRL_OLPC_TEMP_COMP, delta);
-			REG_RMW_FIELD(ah, AR_PHY_CH1_TX_PWRCTRL11,
-					AR_PHY_TX_PWRCTRL_OLPC_TEMP_COMP, delta);
-		}
-	} else {
-		if (ah->eep_ops->get_eeprom(ah, EEP_DAC_HPWR_5G))
-			delta = (currPDADC - ah->initPDADC + 4) / 8;
-		else
-			delta = (currPDADC - ah->initPDADC + 5) / 10;
+				delta = (currPDADC - ah->initPDADC + 5) / 10;
 
-		if (delta != ah->PDADCdelta) {
-			ah->PDADCdelta = delta;
-			for (i = 1; i < AR9280_TX_GAIN_TABLE_SIZE; i++) {
-				regval = ah->originalGain[i] - delta;
-				if (regval < 0)
-					regval = 0;
+			if (delta != ah->PDADCdelta) {
+				ah->PDADCdelta = delta;
+				for (i = 1; i < AR9280_TX_GAIN_TABLE_SIZE; i++) {
+					regval = ah->originalGain[i] - delta;
+					if (regval < 0)
+						regval = 0;
 
-				REG_RMW_FIELD(ah, AR_PHY_TX_GAIN_TBL1 + i * 4,
-						AR_PHY_TX_GAIN, regval);
+					REG_RMW_FIELD(ah,
+						      AR_PHY_TX_GAIN_TBL1 + i * 4,
+						      AR_PHY_TX_GAIN, regval);
+				}
 			}
 		}
 	}
 }
 
-static void ath9k_hw_9271_pa_cal(struct ath_hw *ah)
+static void ath9k_hw_9271_pa_cal(struct ath_hw *ah, bool is_reset)
 {
 	u32 regVal;
 	unsigned int i;
@@ -845,7 +877,7 @@ static void ath9k_hw_9271_pa_cal(struct ath_hw *ah)
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G6, AR9271_AN_RF2G6_OFFS, 0);
 
 	/* find off_6_1; */
-	for (i = 6; i >= 0; i--) {
+	for (i = 6; i > 0; i--) {
 		regVal = REG_READ(ah, 0x7834);
 		regVal |= (1 << (20 + i));
 		REG_WRITE(ah, 0x7834, regVal);
@@ -857,10 +889,19 @@ static void ath9k_hw_9271_pa_cal(struct ath_hw *ah)
 		REG_WRITE(ah, 0x7834, regVal);
 	}
 
-	/*  Empirical offset correction  */
-#if 0
-	REG_RMW_FIELD(ah, AR9285_AN_RF2G6, AR9271_AN_RF2G6_OFFS, 0x20);
-#endif
+	regVal = (regVal >>20) & 0x7f;
+
+	/* Update PA cal info */
+	if ((!is_reset) && (ah->pacal_info.prev_offset == regVal)) {
+		if (ah->pacal_info.max_skipcount < MAX_PACAL_SKIPCOUNT)
+			ah->pacal_info.max_skipcount =
+				2 * ah->pacal_info.max_skipcount;
+		ah->pacal_info.skipcount = ah->pacal_info.max_skipcount;
+	} else {
+		ah->pacal_info.max_skipcount = 1;
+		ah->pacal_info.skipcount = 0;
+		ah->pacal_info.prev_offset = regVal;
+	}
 
 	regVal = REG_READ(ah, 0x7834);
 	regVal |= 0x1;
@@ -875,7 +916,7 @@ static void ath9k_hw_9271_pa_cal(struct ath_hw *ah)
 
 static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah, bool is_reset)
 {
-
+	struct ath_common *common = ath9k_hw_common(ah);
 	u32 regVal;
 	int i, offset, offs_6_1, offs_0;
 	u32 ccomp_org, reg_field;
@@ -889,7 +930,7 @@ static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah, bool is_reset)
 		{ 0x7838, 0 },
 	};
 
-	DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE, "Running PA Calibration\n");
+	ath_print(common, ATH_DBG_CALIBRATE, "Running PA Calibration\n");
 
 	/* PA CAL is not needed for high power solution */
 	if (ah->eep_ops->get_eeprom(ah, EEP_TXGAIN_TYPE) ==
@@ -1011,7 +1052,7 @@ bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (longcal) {
 		/* Do periodic PAOffset Cal */
 		if (AR_SREV_9271(ah))
-			ath9k_hw_9271_pa_cal(ah);
+			ath9k_hw_9271_pa_cal(ah, false);
 		else if (AR_SREV_9285_11_OR_LATER(ah)) {
 			if (!ah->pacal_info.skipcount)
 				ath9k_hw_9285_pa_cal(ah, false);
@@ -1036,9 +1077,13 @@ bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	return iscaldone;
 }
+EXPORT_SYMBOL(ath9k_hw_calibrate);
 
+/* Carrier leakage Calibration fix */
 static bool ar9285_clc(struct ath_hw *ah, struct ath9k_channel *chan)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
+
 	REG_SET_BIT(ah, AR_PHY_CL_CAL_CTL, AR_PHY_CL_CAL_ENABLE);
 	if (IS_CHAN_HT20(chan)) {
 		REG_SET_BIT(ah, AR_PHY_CL_CAL_CTL, AR_PHY_PARALLEL_CAL_ENABLE);
@@ -1049,9 +1094,9 @@ static bool ar9285_clc(struct ath_hw *ah, struct ath9k_channel *chan)
 		REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL);
 		if (!ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL,
 				  AR_PHY_AGC_CONTROL_CAL, 0, AH_WAIT_TIMEOUT)) {
-			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE, "offset "
-				"calibration failed to complete in "
-				"1ms; noisy ??\n");
+			ath_print(common, ATH_DBG_CALIBRATE, "offset "
+				  "calibration failed to complete in "
+				  "1ms; noisy ??\n");
 			return false;
 		}
 		REG_CLR_BIT(ah, AR_PHY_TURBO, AR_PHY_FC_DYN2040_EN);
@@ -1064,8 +1109,8 @@ static bool ar9285_clc(struct ath_hw *ah, struct ath9k_channel *chan)
 	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL);
 	if (!ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL,
 			  0, AH_WAIT_TIMEOUT)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE, "offset calibration "
-				"failed to complete in 1ms; noisy ??\n");
+		ath_print(common, ATH_DBG_CALIBRATE, "offset calibration "
+			  "failed to complete in 1ms; noisy ??\n");
 		return false;
 	}
 
@@ -1078,7 +1123,9 @@ static bool ar9285_clc(struct ath_hw *ah, struct ath9k_channel *chan)
 
 bool ath9k_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 {
-	if (AR_SREV_9285_12_OR_LATER(ah)) {
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (AR_SREV_9271(ah) || AR_SREV_9285_12_OR_LATER(ah)) {
 		if (!ar9285_clc(ah, chan))
 			return false;
 	} else {
@@ -1098,9 +1145,9 @@ bool ath9k_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 		/* Poll for offset calibration complete */
 		if (!ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL,
 				   0, AH_WAIT_TIMEOUT)) {
-			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-				"offset calibration failed to complete in 1ms; "
-				"noisy environment?\n");
+			ath_print(common, ATH_DBG_CALIBRATE,
+				  "offset calibration failed to "
+				  "complete in 1ms; noisy environment?\n");
 			return false;
 		}
 
@@ -1114,7 +1161,9 @@ bool ath9k_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 	}
 
 	/* Do PA Calibration */
-	if (AR_SREV_9285_11_OR_LATER(ah))
+	if (AR_SREV_9271(ah))
+		ath9k_hw_9271_pa_cal(ah, true);
+	else if (AR_SREV_9285_11_OR_LATER(ah))
 		ath9k_hw_9285_pa_cal(ah, true);
 
 	/* Do NF Calibration after DC offset and other calibrations */
@@ -1128,20 +1177,20 @@ bool ath9k_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 		if (ath9k_hw_iscal_supported(ah, ADC_GAIN_CAL)) {
 			INIT_CAL(&ah->adcgain_caldata);
 			INSERT_CAL(ah, &ah->adcgain_caldata);
-			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-				"enabling ADC Gain Calibration.\n");
+			ath_print(common, ATH_DBG_CALIBRATE,
+				  "enabling ADC Gain Calibration.\n");
 		}
 		if (ath9k_hw_iscal_supported(ah, ADC_DC_CAL)) {
 			INIT_CAL(&ah->adcdc_caldata);
 			INSERT_CAL(ah, &ah->adcdc_caldata);
-			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-				"enabling ADC DC Calibration.\n");
+			ath_print(common, ATH_DBG_CALIBRATE,
+				  "enabling ADC DC Calibration.\n");
 		}
 		if (ath9k_hw_iscal_supported(ah, IQ_MISMATCH_CAL)) {
 			INIT_CAL(&ah->iq_caldata);
 			INSERT_CAL(ah, &ah->iq_caldata);
-			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-				"enabling IQ Calibration.\n");
+			ath_print(common, ATH_DBG_CALIBRATE,
+				  "enabling IQ Calibration.\n");
 		}
 
 		ah->cal_list_curr = ah->cal_list;

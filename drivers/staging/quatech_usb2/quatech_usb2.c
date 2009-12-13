@@ -1670,7 +1670,7 @@ __func__);
 		dbg("%s(): failed resubmitting read urb, error %d",
 			__func__, result);
 	} else {
-		dbg("%s() sucessfully resumitted read urb", __func__);
+		dbg("%s() successfully resubmitted read urb", __func__);
 		if (tty_st && RxCount) {
 			/* if some inbound data was processed, then
 			 * we need to push that through the tty layer

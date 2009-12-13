@@ -1164,7 +1164,7 @@ ERROR_SC_0:
 static int w83793_detect(struct i2c_client *client, int kind,
 			 struct i2c_board_info *info)
 {
-	u8 tmp, bank;
+	u8 tmp, bank, chip_id;
 	struct i2c_adapter *adapter = client->adapter;
 	unsigned short address = client->addr;
 
@@ -1174,43 +1174,26 @@ static int w83793_detect(struct i2c_client *client, int kind,
 
 	bank = i2c_smbus_read_byte_data(client, W83793_REG_BANKSEL);
 
-	if (kind < 0) {
-		tmp = bank & 0x80 ? 0x5c : 0xa3;
-		/* Check Winbond vendor ID */
-		if (tmp != i2c_smbus_read_byte_data(client,
-							W83793_REG_VENDORID)) {
-			pr_debug("w83793: Detection failed at check "
-				 "vendor id\n");
-			return -ENODEV;
-		}
-
-		/* If Winbond chip, address of chip and W83793_REG_I2C_ADDR
-		   should match */
-		if ((bank & 0x07) == 0
-		 && i2c_smbus_read_byte_data(client, W83793_REG_I2C_ADDR) !=
-		    (address << 1)) {
-			pr_debug("w83793: Detection failed at check "
-				 "i2c addr\n");
-			return -ENODEV;
-		}
-
+	tmp = bank & 0x80 ? 0x5c : 0xa3;
+	/* Check Winbond vendor ID */
+	if (tmp != i2c_smbus_read_byte_data(client, W83793_REG_VENDORID)) {
+		pr_debug("w83793: Detection failed at check vendor id\n");
+		return -ENODEV;
 	}
 
-	/* We have either had a force parameter, or we have already detected the
-	   Winbond. Determine the chip type now */
-
-	if (kind <= 0) {
-		if (0x7b == i2c_smbus_read_byte_data(client,
-						     W83793_REG_CHIPID)) {
-			kind = w83793;
-		} else {
-			if (kind == 0)
-				dev_warn(&adapter->dev, "w83793: Ignoring "
-					 "'force' parameter for unknown chip "
-					 "at address 0x%02x\n", address);
-			return -ENODEV;
-		}
+	/* If Winbond chip, address of chip and W83793_REG_I2C_ADDR
+	   should match */
+	if ((bank & 0x07) == 0
+	 && i2c_smbus_read_byte_data(client, W83793_REG_I2C_ADDR) !=
+	    (address << 1)) {
+		pr_debug("w83793: Detection failed at check i2c addr\n");
+		return -ENODEV;
 	}
+
+	/* Determine the chip type now */
+	chip_id = i2c_smbus_read_byte_data(client, W83793_REG_CHIPID);
+	if (chip_id != 0x7b)
+		return -ENODEV;
 
 	strlcpy(info->type, "w83793", I2C_NAME_SIZE);
 

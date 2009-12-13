@@ -206,7 +206,7 @@ fill_node(struct callchain_node *node, struct ip_callchain *chain,
 	}
 	node->val_nr = chain->nr - start;
 	if (!node->val_nr)
-		printf("Warning: empty node in callchain tree\n");
+		pr_warning("Warning: empty node in callchain tree\n");
 }
 
 static void

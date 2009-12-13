@@ -22,10 +22,10 @@
 
 #include <asm/mach-types.h>
 
-#include <mach/board.h>
-#include <mach/mux.h>
+#include <plat/board.h>
+#include <plat/mux.h>
 #include <mach/gpio.h>
-#include <mach/fpga.h>
+#include <plat/fpga.h>
 
 static struct clk * uart1_ck;
 static struct clk * uart2_ck;
@@ -64,7 +64,6 @@ static void __init omap_serial_reset(struct plat_serial8250_port *p)
 
 static struct plat_serial8250_port serial_platform_data[] = {
 	{
-		.membase	= OMAP1_IO_ADDRESS(OMAP_UART1_BASE),
 		.mapbase	= OMAP_UART1_BASE,
 		.irq		= INT_UART1,
 		.flags		= UPF_BOOT_AUTOCONF,
@@ -73,7 +72,6 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.uartclk	= OMAP16XX_BASE_BAUD * 16,
 	},
 	{
-		.membase	= OMAP1_IO_ADDRESS(OMAP_UART2_BASE),
 		.mapbase	= OMAP_UART2_BASE,
 		.irq		= INT_UART2,
 		.flags		= UPF_BOOT_AUTOCONF,
@@ -82,7 +80,6 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.uartclk	= OMAP16XX_BASE_BAUD * 16,
 	},
 	{
-		.membase	= OMAP1_IO_ADDRESS(OMAP_UART3_BASE),
 		.mapbase	= OMAP_UART3_BASE,
 		.irq		= INT_UART3,
 		.flags		= UPF_BOOT_AUTOCONF,
@@ -110,18 +107,11 @@ void __init omap_serial_init(void)
 {
 	int i;
 
-	if (cpu_is_omap730()) {
+	if (cpu_is_omap7xx()) {
 		serial_platform_data[0].regshift = 0;
 		serial_platform_data[1].regshift = 0;
-		serial_platform_data[0].irq = INT_730_UART_MODEM_1;
-		serial_platform_data[1].irq = INT_730_UART_MODEM_IRDA_2;
-	}
-
-	if (cpu_is_omap850()) {
-		serial_platform_data[0].regshift = 0;
-		serial_platform_data[1].regshift = 0;
-		serial_platform_data[0].irq = INT_850_UART_MODEM_1;
-		serial_platform_data[1].irq = INT_850_UART_MODEM_IRDA_2;
+		serial_platform_data[0].irq = INT_7XX_UART_MODEM_1;
+		serial_platform_data[1].irq = INT_7XX_UART_MODEM_IRDA_2;
 	}
 
 	if (cpu_is_omap15xx()) {
@@ -130,7 +120,15 @@ void __init omap_serial_init(void)
 		serial_platform_data[2].uartclk = OMAP1510_BASE_BAUD * 16;
 	}
 
-	for (i = 0; i < OMAP_MAX_NR_PORTS; i++) {
+	for (i = 0; i < ARRAY_SIZE(serial_platform_data) - 1; i++) {
+
+		/* Static mapping, never released */
+		serial_platform_data[i].membase =
+			ioremap(serial_platform_data[i].mapbase, SZ_2K);
+		if (!serial_platform_data[i].membase) {
+			printk(KERN_ERR "Could not ioremap uart%i\n", i);
+			continue;
+		}
 		switch (i) {
 		case 0:
 			uart1_ck = clk_get(NULL, "uart1_ck");

@@ -93,13 +93,13 @@ static struct ctl_table dccp_default_table[] = {
 		.proc_handler	= proc_dointvec_ms_jiffies,
 	},
 
-	{ .ctl_name = 0, }
+	{ }
 };
 
 static struct ctl_path dccp_path[] = {
-	{ .procname = "net", .ctl_name = CTL_NET, },
-	{ .procname = "dccp", .ctl_name = NET_DCCP, },
-	{ .procname = "default", .ctl_name = NET_DCCP_DEFAULT, },
+	{ .procname = "net", },
+	{ .procname = "dccp", },
+	{ .procname = "default", },
 	{ }
 };
 

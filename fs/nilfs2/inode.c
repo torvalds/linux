@@ -97,6 +97,7 @@ int nilfs_get_block(struct inode *inode, sector_t blkoff,
 			nilfs_transaction_abort(inode->i_sb);
 			goto out;
 		}
+		nilfs_mark_inode_dirty(inode);
 		nilfs_transaction_commit(inode->i_sb); /* never fails */
 		/* Error handling should be detailed */
 		set_buffer_new(bh_result);
@@ -322,7 +323,6 @@ struct inode *nilfs_new_inode(struct inode *dir, int mode)
 				    nilfs_init_acl(), proper cancellation of
 				    above jobs should be considered */
 
-	mark_inode_dirty(inode);
 	return inode;
 
  failed_acl:
@@ -525,7 +525,6 @@ void nilfs_update_inode(struct inode *inode, struct buffer_head *ibh)
 
 	raw_inode = nilfs_ifile_map_inode(sbi->s_ifile, ino, ibh);
 
-	/* The buffer is guarded with lock_buffer() by the caller */
 	if (test_and_clear_bit(NILFS_I_NEW, &ii->i_state))
 		memset(raw_inode, 0, NILFS_MDT(sbi->s_ifile)->mi_entry_size);
 	set_bit(NILFS_I_INODE_DIRTY, &ii->i_state);
@@ -599,6 +598,7 @@ void nilfs_truncate(struct inode *inode)
 	if (IS_SYNC(inode))
 		nilfs_set_transaction_flag(NILFS_TI_SYNC);
 
+	nilfs_mark_inode_dirty(inode);
 	nilfs_set_file_dirty(NILFS_SB(sb), inode, 0);
 	nilfs_transaction_commit(sb);
 	/* May construct a logical segment and may fail in sync mode.
@@ -623,6 +623,7 @@ void nilfs_delete_inode(struct inode *inode)
 		truncate_inode_pages(&inode->i_data, 0);
 
 	nilfs_truncate_bmap(ii, 0);
+	nilfs_mark_inode_dirty(inode);
 	nilfs_free_inode(inode);
 	/* nilfs_free_inode() marks inode buffer dirty */
 	if (IS_SYNC(inode))
@@ -745,9 +746,7 @@ int nilfs_mark_inode_dirty(struct inode *inode)
 			      "failed to reget inode block.\n");
 		return err;
 	}
-	lock_buffer(ibh);
 	nilfs_update_inode(inode, ibh);
-	unlock_buffer(ibh);
 	nilfs_mdt_mark_buffer_dirty(ibh);
 	nilfs_mdt_mark_dirty(sbi->s_ifile);
 	brelse(ibh);

@@ -213,7 +213,8 @@ static irqreturn_t pd6729_interrupt(int irq, void *dev)
 
 			if (csc & I365_CSC_DETECT) {
 				events |= SS_DETECT;
-				dprintk("Card detected in socket %i!\n", i);
+				dev_vdbg(&socket[i].socket.dev,
+					"Card detected in socket %i!\n", i);
 			}
 
 			if (indirect_read(&socket[i], I365_INTCTL)
@@ -331,11 +332,11 @@ static int pd6729_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 	reg = I365_PWR_NORESET; /* default: disable resetdrv on resume */
 
 	if (state->flags & SS_PWR_AUTO) {
-		dprintk("Auto power\n");
+		dev_dbg(&sock->dev, "Auto power\n");
 		reg |= I365_PWR_AUTO;	/* automatic power mngmnt */
 	}
 	if (state->flags & SS_OUTPUT_ENA) {
-		dprintk("Power Enabled\n");
+		dev_dbg(&sock->dev, "Power Enabled\n");
 		reg |= I365_PWR_OUT;	/* enable power */
 	}
 
@@ -343,40 +344,44 @@ static int pd6729_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 	case 0:
 		break;
 	case 33:
-		dprintk("setting voltage to Vcc to 3.3V on socket %i\n",
+		dev_dbg(&sock->dev,
+			"setting voltage to Vcc to 3.3V on socket %i\n",
 			socket->number);
 		reg |= I365_VCC_5V;
 		indirect_setbit(socket, PD67_MISC_CTL_1, PD67_MC1_VCC_3V);
 		break;
 	case 50:
-		dprintk("setting voltage to Vcc to 5V on socket %i\n",
+		dev_dbg(&sock->dev,
+			"setting voltage to Vcc to 5V on socket %i\n",
 			socket->number);
 		reg |= I365_VCC_5V;
 		indirect_resetbit(socket, PD67_MISC_CTL_1, PD67_MC1_VCC_3V);
 		break;
 	default:
-		dprintk("pd6729: pd6729_set_socket called with "
-				"invalid VCC power value: %i\n",
-			state->Vcc);
+		dev_dbg(&sock->dev,
+			"pd6729_set_socket called with invalid VCC power "
+			"value: %i\n", state->Vcc);
 		return -EINVAL;
 	}
 
 	switch (state->Vpp) {
 	case 0:
-		dprintk("not setting Vpp on socket %i\n", socket->number);
+		dev_dbg(&sock->dev, "not setting Vpp on socket %i\n",
+			socket->number);
 		break;
 	case 33:
 	case 50:
-		dprintk("setting Vpp to Vcc for socket %i\n", socket->number);
+		dev_dbg(&sock->dev, "setting Vpp to Vcc for socket %i\n",
+			socket->number);
 		reg |= I365_VPP1_5V;
 		break;
 	case 120:
-		dprintk("setting Vpp to 12.0\n");
+		dev_dbg(&sock->dev, "setting Vpp to 12.0\n");
 		reg |= I365_VPP1_12V;
 		break;
 	default:
-		dprintk("pd6729: pd6729_set_socket called with invalid VPP power value: %i\n",
-			state->Vpp);
+		dev_dbg(&sock->dev, "pd6729: pd6729_set_socket called with "
+			"invalid VPP power value: %i\n", state->Vpp);
 		return -EINVAL;
 	}
 
@@ -438,7 +443,7 @@ static int pd6729_set_io_map(struct pcmcia_socket *sock,
 
 	/* Check error conditions */
 	if (map > 1) {
-		dprintk("pd6729_set_io_map with invalid map");
+		dev_dbg(&sock->dev, "pd6729_set_io_map with invalid map\n");
 		return -EINVAL;
 	}
 
@@ -446,7 +451,7 @@ static int pd6729_set_io_map(struct pcmcia_socket *sock,
 	if (indirect_read(socket, I365_ADDRWIN) & I365_ENA_IO(map))
 		indirect_resetbit(socket, I365_ADDRWIN, I365_ENA_IO(map));
 
-	/* dprintk("set_io_map: Setting range to %x - %x\n",
+	/* dev_dbg(&sock->dev, "set_io_map: Setting range to %x - %x\n",
 	   io->start, io->stop);*/
 
 	/* write the new values */
@@ -478,12 +483,12 @@ static int pd6729_set_mem_map(struct pcmcia_socket *sock,
 
 	map = mem->map;
 	if (map > 4) {
-		printk("pd6729_set_mem_map: invalid map");
+		dev_warn(&sock->dev, "invalid map requested\n");
 		return -EINVAL;
 	}
 
 	if ((mem->res->start > mem->res->end) || (mem->speed > 1000)) {
-		printk("pd6729_set_mem_map: invalid address / speed");
+		dev_warn(&sock->dev, "invalid invalid address / speed\n");
 		return -EINVAL;
 	}
 
@@ -529,12 +534,12 @@ static int pd6729_set_mem_map(struct pcmcia_socket *sock,
 	if (mem->flags & MAP_WRPROT)
 		i |= I365_MEM_WRPROT;
 	if (mem->flags & MAP_ATTRIB) {
-		/* dprintk("requesting attribute memory for socket %i\n",
-			socket->number);*/
+		/* dev_dbg(&sock->dev, "requesting attribute memory for "
+		   "socket %i\n", socket->number);*/
 		i |= I365_MEM_REG;
 	} else {
-		/* dprintk("requesting normal memory for socket %i\n",
-			socket->number);*/
+		/* dev_dbg(&sock->dev, "requesting normal memory for "
+		   "socket %i\n", socket->number);*/
 	}
 	indirect_write16(socket, base + I365_W_OFF, i);
 
@@ -577,7 +582,7 @@ static struct pccard_operations pd6729_operations = {
 
 static irqreturn_t pd6729_test(int irq, void *dev)
 {
-	dprintk("-> hit on irq %d\n", irq);
+	pr_devel("-> hit on irq %d\n", irq);
 	return IRQ_HANDLED;
 }
 
@@ -642,13 +647,13 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 		goto err_out_free_mem;
 
 	if (!pci_resource_start(dev, 0)) {
-		printk(KERN_INFO "pd6729: refusing to load the driver "
-				 "as the io_base is 0.\n");
+		dev_warn(&dev->dev, "refusing to load the driver as the "
+			"io_base is NULL.\n");
 		goto err_out_free_mem;
 	}
 
-	printk(KERN_INFO "pd6729: Cirrus PD6729 PCI to PCMCIA Bridge "
-		"at 0x%llx on irq %d\n",
+	dev_info(&dev->dev, "Cirrus PD6729 PCI to PCMCIA Bridge at 0x%llx "
+		"on irq %d\n",
 		(unsigned long long)pci_resource_start(dev, 0), dev->irq);
  	/*
 	 * Since we have no memory BARs some firmware may not
@@ -656,14 +661,14 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 	 */
 	pci_read_config_byte(dev, PCI_COMMAND, &configbyte);
 	if (!(configbyte & PCI_COMMAND_MEMORY)) {
-		printk(KERN_DEBUG "pd6729: Enabling PCI_COMMAND_MEMORY.\n");
+		dev_dbg(&dev->dev, "pd6729: Enabling PCI_COMMAND_MEMORY.\n");
 		configbyte |= PCI_COMMAND_MEMORY;
 		pci_write_config_byte(dev, PCI_COMMAND, configbyte);
 	}
 
 	ret = pci_request_regions(dev, "pd6729");
 	if (ret) {
-		printk(KERN_INFO "pd6729: pci request region failed.\n");
+		dev_warn(&dev->dev, "pci request region failed.\n");
 		goto err_out_disable;
 	}
 
@@ -672,7 +677,7 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 
 	mask = pd6729_isa_scan();
 	if (irq_mode == 0 && mask == 0) {
-		printk(KERN_INFO "pd6729: no ISA interrupt is available.\n");
+		dev_warn(&dev->dev, "no ISA interrupt is available.\n");
 		goto err_out_free_res;
 	}
 
@@ -697,8 +702,8 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 		/* Register the interrupt handler */
 		if ((ret = request_irq(dev->irq, pd6729_interrupt, IRQF_SHARED,
 							"pd6729", socket))) {
-			printk(KERN_ERR "pd6729: Failed to register irq %d, "
-							"aborting\n", dev->irq);
+			dev_err(&dev->dev, "Failed to register irq %d\n",
+				dev->irq);
 			goto err_out_free_res;
 		}
 	} else {
@@ -713,8 +718,7 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 	for (i = 0; i < MAX_SOCKETS; i++) {
 		ret = pcmcia_register_socket(&socket[i].socket);
 		if (ret) {
-			printk(KERN_INFO "pd6729: pcmcia_register_socket "
-					       "failed.\n");
+			dev_warn(&dev->dev, "pcmcia_register_socket failed.\n");
 			for (j = 0; j < i ; j++)
 				pcmcia_unregister_socket(&socket[j].socket);
 			goto err_out_free_res2;

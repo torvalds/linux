@@ -338,7 +338,7 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 	pm->input = input_dev;
 
 	usb_make_path(udev, pm->phys, sizeof(pm->phys));
-	strlcpy(pm->phys, "/input0", sizeof(pm->phys));
+	strlcat(pm->phys, "/input0", sizeof(pm->phys));
 
 	spin_lock_init(&pm->lock);
 

@@ -1,5 +1,3 @@
-# arch/arm/mach-s3c2442/Kconfig
-#
 # Copyright 2007 Simtec Electronics
 #
 # Licensed under GPLv2
@@ -36,6 +34,4 @@ config MACH_NEO1973_GTA02
 	help
 	   Say Y here if you are using the Openmoko GTA02 / Freerunner GSM Phone
 
-
 endmenu
-

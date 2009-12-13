@@ -4004,7 +4004,7 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 				/* Request irq for rx handling */
 				sprintf(np->name_rx, "%s-rx", dev->name);
 				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector,
-						&nv_nic_irq_rx, IRQF_SHARED, np->name_rx, dev) != 0) {
+						nv_nic_irq_rx, IRQF_SHARED, np->name_rx, dev) != 0) {
 					printk(KERN_INFO "forcedeth: request_irq failed for rx %d\n", ret);
 					pci_disable_msix(np->pci_dev);
 					np->msi_flags &= ~NV_MSI_X_ENABLED;
@@ -4013,7 +4013,7 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 				/* Request irq for tx handling */
 				sprintf(np->name_tx, "%s-tx", dev->name);
 				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector,
-						&nv_nic_irq_tx, IRQF_SHARED, np->name_tx, dev) != 0) {
+						nv_nic_irq_tx, IRQF_SHARED, np->name_tx, dev) != 0) {
 					printk(KERN_INFO "forcedeth: request_irq failed for tx %d\n", ret);
 					pci_disable_msix(np->pci_dev);
 					np->msi_flags &= ~NV_MSI_X_ENABLED;
@@ -4022,7 +4022,7 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 				/* Request irq for link and timer handling */
 				sprintf(np->name_other, "%s-other", dev->name);
 				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector,
-						&nv_nic_irq_other, IRQF_SHARED, np->name_other, dev) != 0) {
+						nv_nic_irq_other, IRQF_SHARED, np->name_other, dev) != 0) {
 					printk(KERN_INFO "forcedeth: request_irq failed for link %d\n", ret);
 					pci_disable_msix(np->pci_dev);
 					np->msi_flags &= ~NV_MSI_X_ENABLED;

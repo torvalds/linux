@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "ath9k.h"
+#include "hw.h"
 
 static int ath9k_hw_get_ani_channel_idx(struct ath_hw *ah,
 					struct ath9k_channel *chan)
@@ -31,8 +31,8 @@ static int ath9k_hw_get_ani_channel_idx(struct ath_hw *ah,
 		}
 	}
 
-	DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-		"No more channel states left. Using channel 0\n");
+	ath_print(ath9k_hw_common(ah), ATH_DBG_ANI,
+		  "No more channel states left. Using channel 0\n");
 
 	return 0;
 }
@@ -41,16 +41,17 @@ static bool ath9k_hw_ani_control(struct ath_hw *ah,
 				 enum ath9k_ani_cmd cmd, int param)
 {
 	struct ar5416AniState *aniState = ah->curani;
+	struct ath_common *common = ath9k_hw_common(ah);
 
 	switch (cmd & ah->ani_function) {
 	case ATH9K_ANI_NOISE_IMMUNITY_LEVEL:{
 		u32 level = param;
 
 		if (level >= ARRAY_SIZE(ah->totalSizeDesired)) {
-			DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-				"level out of range (%u > %u)\n",
-				level,
-				(unsigned)ARRAY_SIZE(ah->totalSizeDesired));
+			ath_print(common, ATH_DBG_ANI,
+				  "level out of range (%u > %u)\n",
+				  level,
+				  (unsigned)ARRAY_SIZE(ah->totalSizeDesired));
 			return false;
 		}
 
@@ -152,10 +153,10 @@ static bool ath9k_hw_ani_control(struct ath_hw *ah,
 		u32 level = param;
 
 		if (level >= ARRAY_SIZE(firstep)) {
-			DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-				"level out of range (%u > %u)\n",
-				level,
-				(unsigned) ARRAY_SIZE(firstep));
+			ath_print(common, ATH_DBG_ANI,
+				  "level out of range (%u > %u)\n",
+				  level,
+				  (unsigned) ARRAY_SIZE(firstep));
 			return false;
 		}
 		REG_RMW_FIELD(ah, AR_PHY_FIND_SIG,
@@ -174,11 +175,10 @@ static bool ath9k_hw_ani_control(struct ath_hw *ah,
 		u32 level = param;
 
 		if (level >= ARRAY_SIZE(cycpwrThr1)) {
-			DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-				"level out of range (%u > %u)\n",
-				level,
-				(unsigned)
-				ARRAY_SIZE(cycpwrThr1));
+			ath_print(common, ATH_DBG_ANI,
+				  "level out of range (%u > %u)\n",
+				  level,
+				  (unsigned) ARRAY_SIZE(cycpwrThr1));
 			return false;
 		}
 		REG_RMW_FIELD(ah, AR_PHY_TIMING5,
@@ -194,25 +194,28 @@ static bool ath9k_hw_ani_control(struct ath_hw *ah,
 	case ATH9K_ANI_PRESENT:
 		break;
 	default:
-		DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-			"invalid cmd %u\n", cmd);
+		ath_print(common, ATH_DBG_ANI,
+			  "invalid cmd %u\n", cmd);
 		return false;
 	}
 
-	DPRINTF(ah->ah_sc, ATH_DBG_ANI, "ANI parameters:\n");
-	DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-		"noiseImmunityLevel=%d, spurImmunityLevel=%d, "
-		"ofdmWeakSigDetectOff=%d\n",
-		aniState->noiseImmunityLevel, aniState->spurImmunityLevel,
-		!aniState->ofdmWeakSigDetectOff);
-	DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-		"cckWeakSigThreshold=%d, "
-		"firstepLevel=%d, listenTime=%d\n",
-		aniState->cckWeakSigThreshold, aniState->firstepLevel,
-		aniState->listenTime);
-	DPRINTF(ah->ah_sc, ATH_DBG_ANI,
+	ath_print(common, ATH_DBG_ANI, "ANI parameters:\n");
+	ath_print(common, ATH_DBG_ANI,
+		  "noiseImmunityLevel=%d, spurImmunityLevel=%d, "
+		  "ofdmWeakSigDetectOff=%d\n",
+		  aniState->noiseImmunityLevel,
+		  aniState->spurImmunityLevel,
+		  !aniState->ofdmWeakSigDetectOff);
+	ath_print(common, ATH_DBG_ANI,
+		  "cckWeakSigThreshold=%d, "
+		  "firstepLevel=%d, listenTime=%d\n",
+		  aniState->cckWeakSigThreshold,
+		  aniState->firstepLevel,
+		  aniState->listenTime);
+	ath_print(common, ATH_DBG_ANI,
 		"cycleCount=%d, ofdmPhyErrCount=%d, cckPhyErrCount=%d\n\n",
-		aniState->cycleCount, aniState->ofdmPhyErrCount,
+		aniState->cycleCount,
+		aniState->ofdmPhyErrCount,
 		aniState->cckPhyErrCount);
 
 	return true;
@@ -231,6 +234,7 @@ static void ath9k_hw_update_mibstats(struct ath_hw *ah,
 static void ath9k_ani_restart(struct ath_hw *ah)
 {
 	struct ar5416AniState *aniState;
+	struct ath_common *common = ath9k_hw_common(ah);
 
 	if (!DO_ANI(ah))
 		return;
@@ -240,24 +244,24 @@ static void ath9k_ani_restart(struct ath_hw *ah)
 
 	if (aniState->ofdmTrigHigh > AR_PHY_COUNTMAX) {
 		aniState->ofdmPhyErrBase = 0;
-		DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-			"OFDM Trigger is too high for hw counters\n");
+		ath_print(common, ATH_DBG_ANI,
+			  "OFDM Trigger is too high for hw counters\n");
 	} else {
 		aniState->ofdmPhyErrBase =
 			AR_PHY_COUNTMAX - aniState->ofdmTrigHigh;
 	}
 	if (aniState->cckTrigHigh > AR_PHY_COUNTMAX) {
 		aniState->cckPhyErrBase = 0;
-		DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-			"CCK Trigger is too high for hw counters\n");
+		ath_print(common, ATH_DBG_ANI,
+			  "CCK Trigger is too high for hw counters\n");
 	} else {
 		aniState->cckPhyErrBase =
 			AR_PHY_COUNTMAX - aniState->cckTrigHigh;
 	}
-	DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-		"Writing ofdmbase=%u   cckbase=%u\n",
-		aniState->ofdmPhyErrBase,
-		aniState->cckPhyErrBase);
+	ath_print(common, ATH_DBG_ANI,
+		  "Writing ofdmbase=%u   cckbase=%u\n",
+		  aniState->ofdmPhyErrBase,
+		  aniState->cckPhyErrBase);
 	REG_WRITE(ah, AR_PHY_ERR_1, aniState->ofdmPhyErrBase);
 	REG_WRITE(ah, AR_PHY_ERR_2, aniState->cckPhyErrBase);
 	REG_WRITE(ah, AR_PHY_ERR_MASK_1, AR_PHY_ERR_OFDM_TIMING);
@@ -271,7 +275,7 @@ static void ath9k_ani_restart(struct ath_hw *ah)
 
 static void ath9k_hw_ani_ofdm_err_trigger(struct ath_hw *ah)
 {
-	struct ieee80211_conf *conf = &ah->ah_sc->hw->conf;
+	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
 	struct ar5416AniState *aniState;
 	int32_t rssi;
 
@@ -343,7 +347,7 @@ static void ath9k_hw_ani_ofdm_err_trigger(struct ath_hw *ah)
 
 static void ath9k_hw_ani_cck_err_trigger(struct ath_hw *ah)
 {
-	struct ieee80211_conf *conf = &ah->ah_sc->hw->conf;
+	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
 	struct ar5416AniState *aniState;
 	int32_t rssi;
 
@@ -464,6 +468,7 @@ void ath9k_ani_reset(struct ath_hw *ah)
 {
 	struct ar5416AniState *aniState;
 	struct ath9k_channel *chan = ah->curchan;
+	struct ath_common *common = ath9k_hw_common(ah);
 	int index;
 
 	if (!DO_ANI(ah))
@@ -475,8 +480,8 @@ void ath9k_ani_reset(struct ath_hw *ah)
 
 	if (DO_ANI(ah) && ah->opmode != NL80211_IFTYPE_STATION
 	    && ah->opmode != NL80211_IFTYPE_ADHOC) {
-		DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-			"Reset ANI state opmode %u\n", ah->opmode);
+		ath_print(common, ATH_DBG_ANI,
+			  "Reset ANI state opmode %u\n", ah->opmode);
 		ah->stats.ast_ani_reset++;
 
 		if (ah->opmode == NL80211_IFTYPE_AP) {
@@ -543,6 +548,7 @@ void ath9k_hw_ani_monitor(struct ath_hw *ah,
 			  struct ath9k_channel *chan)
 {
 	struct ar5416AniState *aniState;
+	struct ath_common *common = ath9k_hw_common(ah);
 	int32_t listenTime;
 	u32 phyCnt1, phyCnt2;
 	u32 ofdmPhyErrCnt, cckPhyErrCnt;
@@ -569,20 +575,22 @@ void ath9k_hw_ani_monitor(struct ath_hw *ah,
 	if (phyCnt1 < aniState->ofdmPhyErrBase ||
 	    phyCnt2 < aniState->cckPhyErrBase) {
 		if (phyCnt1 < aniState->ofdmPhyErrBase) {
-			DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-				"phyCnt1 0x%x, resetting "
-				"counter value to 0x%x\n",
-				phyCnt1, aniState->ofdmPhyErrBase);
+			ath_print(common, ATH_DBG_ANI,
+				  "phyCnt1 0x%x, resetting "
+				  "counter value to 0x%x\n",
+				  phyCnt1,
+				  aniState->ofdmPhyErrBase);
 			REG_WRITE(ah, AR_PHY_ERR_1,
 				  aniState->ofdmPhyErrBase);
 			REG_WRITE(ah, AR_PHY_ERR_MASK_1,
 				  AR_PHY_ERR_OFDM_TIMING);
 		}
 		if (phyCnt2 < aniState->cckPhyErrBase) {
-			DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-				"phyCnt2 0x%x, resetting "
-				"counter value to 0x%x\n",
-				phyCnt2, aniState->cckPhyErrBase);
+			ath_print(common, ATH_DBG_ANI,
+				  "phyCnt2 0x%x, resetting "
+				  "counter value to 0x%x\n",
+				  phyCnt2,
+				  aniState->cckPhyErrBase);
 			REG_WRITE(ah, AR_PHY_ERR_2,
 				  aniState->cckPhyErrBase);
 			REG_WRITE(ah, AR_PHY_ERR_MASK_2,
@@ -621,10 +629,13 @@ void ath9k_hw_ani_monitor(struct ath_hw *ah,
 		}
 	}
 }
+EXPORT_SYMBOL(ath9k_hw_ani_monitor);
 
 void ath9k_enable_mib_counters(struct ath_hw *ah)
 {
-	DPRINTF(ah->ah_sc, ATH_DBG_ANI, "Enable MIB counters\n");
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	ath_print(common, ATH_DBG_ANI, "Enable MIB counters\n");
 
 	ath9k_hw_update_mibstats(ah, &ah->ah_mibStats);
 
@@ -640,7 +651,10 @@ void ath9k_enable_mib_counters(struct ath_hw *ah)
 /* Freeze the MIB counters, get the stats and then clear them */
 void ath9k_hw_disable_mib_counters(struct ath_hw *ah)
 {
-	DPRINTF(ah->ah_sc, ATH_DBG_ANI, "Disable MIB counters\n");
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	ath_print(common, ATH_DBG_ANI, "Disable MIB counters\n");
+
 	REG_WRITE(ah, AR_MIBC, AR_MIBC_FMC);
 	ath9k_hw_update_mibstats(ah, &ah->ah_mibStats);
 	REG_WRITE(ah, AR_MIBC, AR_MIBC_CMC);
@@ -653,6 +667,7 @@ u32 ath9k_hw_GetMibCycleCountsPct(struct ath_hw *ah,
 				  u32 *rxf_pcnt,
 				  u32 *txf_pcnt)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
 	static u32 cycles, rx_clear, rx_frame, tx_frame;
 	u32 good = 1;
 
@@ -662,8 +677,8 @@ u32 ath9k_hw_GetMibCycleCountsPct(struct ath_hw *ah,
 	u32 cc = REG_READ(ah, AR_CCCNT);
 
 	if (cycles == 0 || cycles > cc) {
-		DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-			"cycle counter wrap. ExtBusy = 0\n");
+		ath_print(common, ATH_DBG_ANI,
+			  "cycle counter wrap. ExtBusy = 0\n");
 		good = 0;
 	} else {
 		u32 cc_d = cc - cycles;
@@ -742,6 +757,7 @@ void ath9k_hw_procmibevent(struct ath_hw *ah)
 		ath9k_ani_restart(ah);
 	}
 }
+EXPORT_SYMBOL(ath9k_hw_procmibevent);
 
 void ath9k_hw_ani_setup(struct ath_hw *ah)
 {
@@ -762,9 +778,10 @@ void ath9k_hw_ani_setup(struct ath_hw *ah)
 
 void ath9k_hw_ani_init(struct ath_hw *ah)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
 	int i;
 
-	DPRINTF(ah->ah_sc, ATH_DBG_ANI, "Initialize ANI\n");
+	ath_print(common, ATH_DBG_ANI, "Initialize ANI\n");
 
 	memset(ah->ani, 0, sizeof(ah->ani));
 	for (i = 0; i < ARRAY_SIZE(ah->ani); i++) {
@@ -786,11 +803,11 @@ void ath9k_hw_ani_init(struct ath_hw *ah)
 			AR_PHY_COUNTMAX - ATH9K_ANI_CCK_TRIG_HIGH;
 	}
 
-	DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-		"Setting OfdmErrBase = 0x%08x\n",
-		ah->ani[0].ofdmPhyErrBase);
-	DPRINTF(ah->ah_sc, ATH_DBG_ANI, "Setting cckErrBase = 0x%08x\n",
-		ah->ani[0].cckPhyErrBase);
+	ath_print(common, ATH_DBG_ANI,
+		  "Setting OfdmErrBase = 0x%08x\n",
+		  ah->ani[0].ofdmPhyErrBase);
+	ath_print(common, ATH_DBG_ANI, "Setting cckErrBase = 0x%08x\n",
+		  ah->ani[0].cckPhyErrBase);
 
 	REG_WRITE(ah, AR_PHY_ERR_1, ah->ani[0].ofdmPhyErrBase);
 	REG_WRITE(ah, AR_PHY_ERR_2, ah->ani[0].cckPhyErrBase);
@@ -803,7 +820,7 @@ void ath9k_hw_ani_init(struct ath_hw *ah)
 
 void ath9k_hw_ani_disable(struct ath_hw *ah)
 {
-	DPRINTF(ah->ah_sc, ATH_DBG_ANI, "Disabling ANI\n");
+	ath_print(ath9k_hw_common(ah), ATH_DBG_ANI, "Disabling ANI\n");
 
 	ath9k_hw_disable_mib_counters(ah);
 	REG_WRITE(ah, AR_PHY_ERR_1, 0);

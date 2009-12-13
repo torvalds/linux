@@ -42,7 +42,7 @@ static struct irq_chip mpic_u3msi_chip = {
 	.eoi		= mpic_end_irq,
 	.set_type	= mpic_set_irq_type,
 	.set_affinity	= mpic_set_affinity,
-	.typename	= "MPIC-U3MSI",
+	.name		= "MPIC-U3MSI",
 };
 
 static u64 read_ht_magic_addr(struct pci_dev *pdev, unsigned int pos)

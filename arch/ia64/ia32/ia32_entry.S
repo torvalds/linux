@@ -79,7 +79,7 @@ GLOBAL_ENTRY(ia32_ret_from_clone)
 (p6)	br.cond.spnt .ia32_strace_check_retval
 	;;					// prevent RAW on r8
 END(ia32_ret_from_clone)
-	// fall thrugh
+	// fall through
 GLOBAL_ENTRY(ia32_ret_from_syscall)
 	PT_REGS_UNWIND_INFO(0)
 
@@ -327,7 +327,7 @@ ia32_syscall_table:
 	data8 compat_sys_writev
 	data8 sys_getsid
 	data8 sys_fdatasync
-	data8 sys32_sysctl
+	data8 compat_sys_sysctl
 	data8 sys_mlock		  /* 150 */
 	data8 sys_munlock
 	data8 sys_mlockall

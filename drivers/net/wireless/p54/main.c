@@ -579,7 +579,7 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	 * For now, disable PS by default because it affects
 	 * link stability significantly.
 	 */
-	dev->wiphy->ps_default = false;
+	dev->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	mutex_init(&priv->conf_mutex);
 	mutex_init(&priv->eeprom_mutex);
