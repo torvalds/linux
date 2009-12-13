@@ -600,7 +600,7 @@ static int validate_chain(struct ip_callchain *chain, event_t *event)
 	return 0;
 }
 
-static int process_sample_event(event_t *event, struct perf_session *session __used)
+static int process_sample_event(event_t *event, struct perf_session *session)
 {
 	struct sample_data data;
 	int cpumode;
@@ -636,7 +636,7 @@ static int process_sample_event(event_t *event, struct perf_session *session __u
 		}
 	}
 
-	thread = threads__findnew(data.pid);
+	thread = perf_session__findnew(session, data.pid);
 	if (thread == NULL) {
 		pr_debug("problem processing %d event, skipping it.\n",
 			event->header.type);
@@ -679,9 +679,9 @@ static int process_sample_event(event_t *event, struct perf_session *session __u
 	return 0;
 }
 
-static int process_comm_event(event_t *event, struct perf_session *session __used)
+static int process_comm_event(event_t *event, struct perf_session *session)
 {
-	struct thread *thread = threads__findnew(event->comm.pid);
+	struct thread *thread = perf_session__findnew(session, event->comm.pid);
 
 	dump_printf(": %s:%d\n", event->comm.comm, event->comm.pid);
 
@@ -780,7 +780,7 @@ static int __cmd_report(void)
 	}
 
 	if (verbose > 3)
-		threads__fprintf(stdout);
+		perf_session__fprintf(session, stdout);
 
 	if (verbose > 2)
 		dsos__fprintf(stdout);

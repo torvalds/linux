@@ -3,11 +3,16 @@
 
 #include "event.h"
 #include "header.h"
+#include <linux/rbtree.h>
+
+struct thread;
 
 struct perf_session {
 	struct perf_header	header;
 	unsigned long		size;
 	unsigned long		mmap_window;
+	struct rb_root		threads;
+	struct thread		*last_match;
 	int			fd;
 	int			cwdlen;
 	char			*cwd;

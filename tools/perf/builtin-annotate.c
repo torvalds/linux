@@ -131,14 +131,14 @@ static int hist_entry__add(struct addr_location *al, u64 count)
 	return 0;
 }
 
-static int process_sample_event(event_t *event, struct perf_session *session __used)
+static int process_sample_event(event_t *event, struct perf_session *session)
 {
 	struct addr_location al;
 
 	dump_printf("(IP, %d): %d: %p\n", event->header.misc,
 		    event->ip.pid, (void *)(long)event->ip.ip);
 
-	if (event__preprocess_sample(event, &al, symbol_filter) < 0) {
+	if (event__preprocess_sample(event, session, &al, symbol_filter) < 0) {
 		fprintf(stderr, "problem processing %d event, skipping it.\n",
 			event->header.type);
 		return -1;
@@ -479,7 +479,7 @@ static int __cmd_annotate(void)
 	}
 
 	if (verbose > 3)
-		threads__fprintf(stdout);
+		perf_session__fprintf(session, stdout);
 
 	if (verbose > 2)
 		dsos__fprintf(stdout);

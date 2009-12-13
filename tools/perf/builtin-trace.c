@@ -63,7 +63,7 @@ static char const		*input_name = "perf.data";
 
 static u64			sample_type;
 
-static int process_sample_event(event_t *event, struct perf_session *session __used)
+static int process_sample_event(event_t *event, struct perf_session *session)
 {
 	struct sample_data data;
 	struct thread *thread;
@@ -81,7 +81,7 @@ static int process_sample_event(event_t *event, struct perf_session *session __u
 		(void *)(long)data.ip,
 		(long long)data.period);
 
-	thread = threads__findnew(event->ip.pid);
+	thread = perf_session__findnew(session, event->ip.pid);
 	if (thread == NULL) {
 		pr_debug("problem processing %d event, skipping it.\n",
 			 event->header.type);

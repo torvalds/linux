@@ -23,11 +23,11 @@ struct thread {
 void map_groups__init(struct map_groups *self);
 int thread__set_comm(struct thread *self, const char *comm);
 int thread__comm_len(struct thread *self);
-struct thread *threads__findnew(pid_t pid);
+struct thread *perf_session__findnew(struct perf_session *self, pid_t pid);
 void thread__insert_map(struct thread *self, struct map *map);
 int thread__fork(struct thread *self, struct thread *parent);
 size_t map_groups__fprintf_maps(struct map_groups *self, FILE *fp);
-size_t threads__fprintf(FILE *fp);
+size_t perf_session__fprintf(struct perf_session *self, FILE *fp);
 
 void maps__insert(struct rb_root *maps, struct map *map);
 struct map *maps__find(struct rb_root *maps, u64 addr);

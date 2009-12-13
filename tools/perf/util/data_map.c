@@ -125,9 +125,9 @@ out:
 	return err;
 }
 
-static struct thread *perf_session__register_idle_thread(struct perf_session *self __used)
+static struct thread *perf_session__register_idle_thread(struct perf_session *self)
 {
-	struct thread *thread = threads__findnew(0);
+	struct thread *thread = perf_session__findnew(self, 0);
 
 	if (!thread || thread__set_comm(thread, "swapper")) {
 		pr_err("problem inserting idle task.\n");

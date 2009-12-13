@@ -20,8 +20,9 @@
 
 #include "perf.h"
 
-#include "util/symbol.h"
 #include "util/color.h"
+#include "util/session.h"
+#include "util/symbol.h"
 #include "util/thread.h"
 #include "util/util.h"
 #include <linux/rbtree.h>
@@ -926,7 +927,8 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 	return 0;
 }
 
-static void event__process_sample(const event_t *self, int counter)
+static void event__process_sample(const event_t *self,
+				 struct perf_session *session, int counter)
 {
 	u64 ip = self->ip.ip;
 	struct sym_entry *syme;
@@ -946,7 +948,7 @@ static void event__process_sample(const event_t *self, int counter)
 		return;
 	}
 
-	if (event__preprocess_sample(self, &al, symbol_filter) < 0 ||
+	if (event__preprocess_sample(self, session, &al, symbol_filter) < 0 ||
 	    al.sym == NULL)
 		return;
 
@@ -1053,7 +1055,7 @@ static void perf_session__mmap_read_counter(struct perf_session *self,
 		}
 
 		if (event->header.type == PERF_RECORD_SAMPLE)
-			event__process_sample(event, md->counter);
+			event__process_sample(event, self, md->counter);
 		else
 			event__process(event, self);
 		old += size;
@@ -1157,10 +1159,13 @@ static int __cmd_top(void)
 	int i, counter;
 	int ret;
 	/*
-	 * XXX perf_session__new should allow passing a O_MMAP, so that all this
-	 * mmap reading, etc is encapsulated in it.
+	 * FIXME: perf_session__new should allow passing a O_MMAP, so that all this
+	 * mmap reading, etc is encapsulated in it. Use O_WRONLY for now.
 	 */
-	struct perf_session *session = NULL;
+	struct perf_session *session = perf_session__new(NULL, O_WRONLY, false);
+
+	if (session == NULL)
+		return -ENOMEM;
 
 	if (target_pid != -1)
 		event__synthesize_thread(target_pid, event__process, session);

@@ -51,7 +51,7 @@ out_close:
 struct perf_session *perf_session__new(const char *filename, int mode,
 				       bool force)
 {
-	size_t len = strlen(filename) + 1;
+	size_t len = filename ? strlen(filename) + 1 : 0;
 	struct perf_session *self = zalloc(sizeof(*self) + len);
 
 	if (self == NULL)
@@ -61,6 +61,8 @@ struct perf_session *perf_session__new(const char *filename, int mode,
 		goto out_delete;
 
 	memcpy(self->filename, filename, len);
+	self->threads = RB_ROOT;
+	self->last_match = NULL;
 	self->mmap_window = 32;
 	self->cwd = NULL;
 	self->cwdlen = 0;

@@ -189,9 +189,9 @@ void event__synthesize_threads(int (*process)(event_t *event,
 
 struct events_stats event__stats;
 
-int event__process_comm(event_t *self, struct perf_session *session __used)
+int event__process_comm(event_t *self, struct perf_session *session)
 {
-	struct thread *thread = threads__findnew(self->comm.pid);
+	struct thread *thread = perf_session__findnew(session, self->comm.pid);
 
 	dump_printf(": %s:%d\n", self->comm.comm, self->comm.pid);
 
@@ -212,7 +212,7 @@ int event__process_lost(event_t *self, struct perf_session *session __used)
 
 int event__process_mmap(event_t *self, struct perf_session *session)
 {
-	struct thread *thread = threads__findnew(self->mmap.pid);
+	struct thread *thread = perf_session__findnew(session, self->mmap.pid);
 	struct map *map = map__new(&self->mmap, MAP__FUNCTION,
 				   session->cwd, session->cwdlen);
 
@@ -231,10 +231,10 @@ int event__process_mmap(event_t *self, struct perf_session *session)
 	return 0;
 }
 
-int event__process_task(event_t *self, struct perf_session *session __used)
+int event__process_task(event_t *self, struct perf_session *session)
 {
-	struct thread *thread = threads__findnew(self->fork.pid);
-	struct thread *parent = threads__findnew(self->fork.ppid);
+	struct thread *thread = perf_session__findnew(session, self->fork.pid);
+	struct thread *parent = perf_session__findnew(session, self->fork.ppid);
 
 	dump_printf("(%d:%d):(%d:%d)\n", self->fork.pid, self->fork.tid,
 		    self->fork.ppid, self->fork.ptid);
@@ -300,11 +300,11 @@ try_again:
 	}
 }
 
-int event__preprocess_sample(const event_t *self, struct addr_location *al,
-			     symbol_filter_t filter)
+int event__preprocess_sample(const event_t *self, struct perf_session *session,
+			     struct addr_location *al, symbol_filter_t filter)
 {
 	u8 cpumode = self->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
-	struct thread *thread = threads__findnew(self->ip.pid);
+	struct thread *thread = perf_session__findnew(session, self->ip.pid);
 
 	if (thread == NULL)
 		return -1;
