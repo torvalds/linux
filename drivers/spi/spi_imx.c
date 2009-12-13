@@ -492,7 +492,7 @@ static int __init spi_imx_probe(struct platform_device *pdev)
 	struct resource *res;
 	int i, ret;
 
-	mxc_platform_info = (struct spi_imx_master *)pdev->dev.platform_data;
+	mxc_platform_info = dev_get_platdata(&pdev->dev);
 	if (!mxc_platform_info) {
 		dev_err(&pdev->dev, "can't get the platform data\n");
 		return -EINVAL;
