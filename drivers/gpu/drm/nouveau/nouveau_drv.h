@@ -292,6 +292,8 @@ struct nouveau_fifo_engine {
 	void (*disable)(struct drm_device *);
 	void (*enable)(struct drm_device *);
 	bool (*reassign)(struct drm_device *, bool enable);
+	bool (*cache_flush)(struct drm_device *dev);
+	bool (*cache_pull)(struct drm_device *dev, bool enable);
 
 	int  (*channel_id)(struct drm_device *);
 
@@ -889,6 +891,8 @@ extern int  nv04_fifo_init(struct drm_device *);
 extern void nv04_fifo_disable(struct drm_device *);
 extern void nv04_fifo_enable(struct drm_device *);
 extern bool nv04_fifo_reassign(struct drm_device *, bool);
+extern bool nv04_fifo_cache_flush(struct drm_device *);
+extern bool nv04_fifo_cache_pull(struct drm_device *, bool);
 extern int  nv04_fifo_channel_id(struct drm_device *);
 extern int  nv04_fifo_create_context(struct nouveau_channel *);
 extern void nv04_fifo_destroy_context(struct nouveau_channel *);
