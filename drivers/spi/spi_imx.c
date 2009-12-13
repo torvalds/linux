@@ -484,7 +484,7 @@ static void spi_imx_cleanup(struct spi_device *spi)
 {
 }
 
-static int __init spi_imx_probe(struct platform_device *pdev)
+static int __devinit spi_imx_probe(struct platform_device *pdev)
 {
 	struct spi_imx_master *mxc_platform_info;
 	struct spi_master *master;
@@ -634,7 +634,7 @@ out_master_put:
 	return ret;
 }
 
-static int __exit spi_imx_remove(struct platform_device *pdev)
+static int __devexit spi_imx_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -668,7 +668,7 @@ static struct platform_driver spi_imx_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = spi_imx_probe,
-	.remove = __exit_p(spi_imx_remove),
+	.remove = __devexit_p(spi_imx_remove),
 };
 
 static int __init spi_imx_init(void)
