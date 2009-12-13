@@ -442,7 +442,7 @@ static int __cmd_record(int argc, const char **argv)
 		exit(-1);
 	}
 
-	session = perf_session__new(output_name, O_WRONLY, force);
+	session = perf_session__new(output_name, O_WRONLY, force, NULL);
 	if (session == NULL) {
 		pr_err("Not enough memory for reading perf file header\n");
 		return -1;

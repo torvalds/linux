@@ -318,7 +318,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 
 	setup_pager();
 
-	session = perf_session__new(input_name, O_RDONLY, 0);
+	session = perf_session__new(input_name, O_RDONLY, 0, NULL);
 	if (session == NULL)
 		return -ENOMEM;
 

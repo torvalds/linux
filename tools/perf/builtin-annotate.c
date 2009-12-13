@@ -463,7 +463,7 @@ static struct perf_event_ops event_ops = {
 static int __cmd_annotate(void)
 {
 	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
-							 force);
+							 force, &symbol_conf);
 	int ret;
 
 	if (session == NULL)

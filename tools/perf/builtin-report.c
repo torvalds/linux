@@ -414,6 +414,7 @@ static int call__match(struct symbol *sym)
 }
 
 static struct symbol **resolve_callchain(struct thread *thread,
+					 struct perf_session *session,
 					 struct ip_callchain *chain,
 					 struct symbol **parent)
 {
@@ -447,8 +448,8 @@ static struct symbol **resolve_callchain(struct thread *thread,
 			continue;
 		}
 
-		thread__find_addr_location(thread, cpumode, MAP__FUNCTION,
-					   ip, &al, NULL);
+		thread__find_addr_location(thread, session, cpumode,
+					   MAP__FUNCTION, ip, &al, NULL);
 		if (al.sym != NULL) {
 			if (sort__has_parent && !*parent &&
 			    call__match(al.sym))
@@ -467,6 +468,7 @@ static struct symbol **resolve_callchain(struct thread *thread,
  */
 
 static int hist_entry__add(struct addr_location *al,
+			   struct perf_session *session,
 			   struct ip_callchain *chain, u64 count)
 {
 	struct symbol **syms = NULL, *parent = NULL;
@@ -474,7 +476,7 @@ static int hist_entry__add(struct addr_location *al,
 	struct hist_entry *he;
 
 	if ((sort__has_parent || callchain) && chain)
-		syms = resolve_callchain(al->thread, chain, &parent);
+		syms = resolve_callchain(al->thread, session, chain, &parent);
 
 	he = __hist_entry__add(al, parent, count, &hit);
 	if (he == NULL)
@@ -650,7 +652,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 
 	cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
-	thread__find_addr_location(thread, cpumode,
+	thread__find_addr_location(thread, session, cpumode,
 				   MAP__FUNCTION, data.ip, &al, NULL);
 	/*
 	 * We have to do this here as we may have a dso with no symbol hit that
@@ -669,7 +671,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	if (sym_list && al.sym && !strlist__has_entry(sym_list, al.sym->name))
 		return 0;
 
-	if (hist_entry__add(&al, data.callchain, data.period)) {
+	if (hist_entry__add(&al, session, data.callchain, data.period)) {
 		pr_debug("problem incrementing symbol count, skipping event\n");
 		return -1;
 	}
@@ -763,7 +765,7 @@ static int __cmd_report(void)
 	int ret;
 	struct perf_session *session;
 
-	session = perf_session__new(input_name, O_RDONLY, force);
+	session = perf_session__new(input_name, O_RDONLY, force, &symbol_conf);
 	if (session == NULL)
 		return -ENOMEM;
 

@@ -256,7 +256,8 @@ int event__process_task(event_t *self, struct perf_session *session)
 	return 0;
 }
 
-void thread__find_addr_location(struct thread *self, u8 cpumode,
+void thread__find_addr_location(struct thread *self,
+				struct perf_session *session, u8 cpumode,
 				enum map_type type, u64 addr,
 				struct addr_location *al,
 				symbol_filter_t filter)
@@ -268,7 +269,7 @@ void thread__find_addr_location(struct thread *self, u8 cpumode,
 
 	if (cpumode & PERF_RECORD_MISC_KERNEL) {
 		al->level = 'k';
-		mg = kmaps;
+		mg = &session->kmaps;
 	} else if (cpumode & PERF_RECORD_MISC_USER)
 		al->level = '.';
 	else {
@@ -289,14 +290,14 @@ try_again:
 		 * "[vdso]" dso, but for now lets use the old trick of looking
 		 * in the whole kernel symbol list.
 		 */
-		if ((long long)al->addr < 0 && mg != kmaps) {
-			mg = kmaps;
+		if ((long long)al->addr < 0 && mg != &session->kmaps) {
+			mg = &session->kmaps;
 			goto try_again;
 		}
 		al->sym = NULL;
 	} else {
 		al->addr = al->map->map_ip(al->map, al->addr);
-		al->sym = map__find_symbol(al->map, al->addr, filter);
+		al->sym = map__find_symbol(al->map, session, al->addr, filter);
 	}
 }
 
@@ -311,7 +312,7 @@ int event__preprocess_sample(const event_t *self, struct perf_session *session,
 
 	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
-	thread__find_addr_location(thread, cpumode, MAP__FUNCTION,
+	thread__find_addr_location(thread, session, cpumode, MAP__FUNCTION,
 				   self->ip.ip, al, filter);
 	dump_printf(" ...... dso: %s\n",
 		    al->map ? al->map->dso->long_name :

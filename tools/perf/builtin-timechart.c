@@ -1056,7 +1056,8 @@ static struct perf_event_ops event_ops = {
 
 static int __cmd_timechart(void)
 {
-	struct perf_session *session = perf_session__new(input_name, O_RDONLY, 0);
+	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
+							 0, NULL);
 	int ret;
 
 	if (session == NULL)

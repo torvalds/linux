@@ -98,8 +98,11 @@ bool dso__sorted_by_name(const struct dso *self, enum map_type type);
 
 void dso__sort_by_name(struct dso *self, enum map_type type);
 
+struct perf_session;
+
 struct dso *dsos__findnew(const char *name);
-int dso__load(struct dso *self, struct map *map, symbol_filter_t filter);
+int dso__load(struct dso *self, struct map *map, struct perf_session *session,
+	      symbol_filter_t filter);
 void dsos__fprintf(FILE *fp);
 size_t dsos__fprintf_buildid(FILE *fp);
 
@@ -116,12 +119,10 @@ int sysfs__read_build_id(const char *filename, void *bf, size_t size);
 bool dsos__read_build_ids(void);
 int build_id__sprintf(u8 *self, int len, char *bf);
 
-size_t kernel_maps__fprintf(FILE *fp);
-
 int symbol__init(struct symbol_conf *conf);
+int perf_session__create_kernel_maps(struct perf_session *self,
+				     struct symbol_conf *conf);
 
-struct map_groups;
-struct map_groups *kmaps;
 extern struct list_head dsos__user, dsos__kernel;
 extern struct dso *vdso;
 #endif /* __PERF_SYMBOL */

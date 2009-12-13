@@ -3,19 +3,23 @@
 
 #include "event.h"
 #include "header.h"
+#include "thread.h"
 #include <linux/rbtree.h>
 
 struct thread;
+struct symbol_conf;
 
 struct perf_session {
 	struct perf_header	header;
 	unsigned long		size;
 	unsigned long		mmap_window;
+	struct map_groups	kmaps;
 	struct rb_root		threads;
 	struct thread		*last_match;
 	int			fd;
 	int			cwdlen;
 	char			*cwd;
+	bool			use_modules;
 	char filename[0];
 };
 
@@ -37,7 +41,7 @@ struct perf_event_ops {
 };
 
 struct perf_session *perf_session__new(const char *filename, int mode,
-				       bool force);
+				       bool force, struct symbol_conf *conf);
 void perf_session__delete(struct perf_session *self);
 
 int perf_session__process_events(struct perf_session *self,

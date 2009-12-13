@@ -1162,8 +1162,8 @@ static int __cmd_top(void)
 	 * FIXME: perf_session__new should allow passing a O_MMAP, so that all this
 	 * mmap reading, etc is encapsulated in it. Use O_WRONLY for now.
 	 */
-	struct perf_session *session = perf_session__new(NULL, O_WRONLY, false);
-
+	struct perf_session *session = perf_session__new(NULL, O_WRONLY, false,
+							 &symbol_conf);
 	if (session == NULL)
 		return -ENOMEM;
 
