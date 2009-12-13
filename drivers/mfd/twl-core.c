@@ -639,7 +639,7 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 			return PTR_ERR(child);
 	}
 
-	if (twl_has_usb() && pdata->usb) {
+	if (twl_has_usb() && pdata->usb && twl_class_is_4030()) {
 
 		static struct regulator_consumer_supply usb1v5 = {
 			.supply =	"usb1v5",
@@ -719,7 +719,8 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 			return PTR_ERR(child);
 	}
 
-	if (twl_has_regulator()) {
+	/* twl4030 regulators */
+	if (twl_has_regulator() && twl_class_is_4030()) {
 		child = add_regulator(TWL4030_REG_VPLL1, pdata->vpll1);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
@@ -765,7 +766,8 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 	}
 
 	/* maybe add LDOs that are omitted on cost-reduced parts */
-	if (twl_has_regulator() && !(features & TPS_SUBSET)) {
+	if (twl_has_regulator() && !(features & TPS_SUBSET)
+	  && twl_class_is_4030()) {
 		child = add_regulator(TWL4030_REG_VPLL2, pdata->vpll2);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
@@ -787,6 +789,49 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 			return PTR_ERR(child);
 
 		child = add_regulator(TWL4030_REG_VAUX4, pdata->vaux4);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+	}
+
+	/* twl6030 regulators */
+	if (twl_has_regulator() && twl_class_is_6030()) {
+		child = add_regulator(TWL6030_REG_VMMC, pdata->vmmc);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL6030_REG_VPP, pdata->vpp);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL6030_REG_VUSIM, pdata->vusim);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL6030_REG_VANA, pdata->vana);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL6030_REG_VCXIO, pdata->vcxio);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL6030_REG_VDAC, pdata->vdac);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL6030_REG_VUSB, pdata->vusb);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL6030_REG_VAUX1_6030, pdata->vaux1);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL6030_REG_VAUX2_6030, pdata->vaux2);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL6030_REG_VAUX3_6030, pdata->vaux3);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 	}
