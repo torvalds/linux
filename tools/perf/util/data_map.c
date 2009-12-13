@@ -1,6 +1,7 @@
 #include "symbol.h"
 #include "util.h"
 #include "debug.h"
+#include "thread.h"
 #include "session.h"
 
 static unsigned long	mmap_window = 32;
@@ -127,6 +128,18 @@ out:
 	return err;
 }
 
+static struct thread *perf_session__register_idle_thread(struct perf_session *self __used)
+{
+	struct thread *thread = threads__findnew(0);
+
+	if (!thread || thread__set_comm(thread, "swapper")) {
+		pr_err("problem inserting idle task.\n");
+		thread = NULL;
+	}
+
+	return thread;
+}
+
 int perf_session__process_events(struct perf_session *self,
 				 struct perf_event_ops *ops,
 				 int full_paths, int *cwdlen, char **cwd)
@@ -139,6 +152,9 @@ int perf_session__process_events(struct perf_session *self,
 	event_t *event;
 	uint32_t size;
 	char *buf;
+
+	if (perf_session__register_idle_thread(self) == NULL)
+		return -ENOMEM;
 
 	perf_event_ops__fill_defaults(ops);
 

@@ -125,7 +125,6 @@ static struct perf_event_ops event_ops = {
 
 static int __cmd_trace(struct perf_session *session)
 {
-	register_idle_thread();
 	return perf_session__process_events(session, &event_ops, 0,
 					    &event__cwdlen, &event__cwd);
 }

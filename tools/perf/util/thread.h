@@ -24,7 +24,6 @@ void map_groups__init(struct map_groups *self);
 int thread__set_comm(struct thread *self, const char *comm);
 int thread__comm_len(struct thread *self);
 struct thread *threads__findnew(pid_t pid);
-struct thread *register_idle_thread(void);
 void thread__insert_map(struct thread *self, struct map *map);
 int thread__fork(struct thread *self, struct thread *parent);
 size_t map_groups__fprintf_maps(struct map_groups *self, FILE *fp);

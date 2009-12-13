@@ -761,16 +761,12 @@ static struct perf_event_ops event_ops = {
 
 static int __cmd_report(void)
 {
-	struct thread *idle;
 	int ret;
 	struct perf_session *session;
 
 	session = perf_session__new(input_name, O_RDONLY, force);
 	if (session == NULL)
 		return -ENOMEM;
-
-	idle = register_idle_thread();
-	thread__comm_adjust(idle);
 
 	if (show_threads)
 		perf_read_values_init(&show_threads_values);

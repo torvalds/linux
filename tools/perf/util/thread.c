@@ -161,18 +161,6 @@ struct thread *threads__findnew(pid_t pid)
 	return th;
 }
 
-struct thread *register_idle_thread(void)
-{
-	struct thread *thread = threads__findnew(0);
-
-	if (!thread || thread__set_comm(thread, "swapper")) {
-		fprintf(stderr, "problem inserting idle task.\n");
-		exit(-1);
-	}
-
-	return thread;
-}
-
 static void map_groups__remove_overlappings(struct map_groups *self,
 					    struct map *map)
 {

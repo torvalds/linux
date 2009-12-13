@@ -372,7 +372,6 @@ static int read_events(void)
 	if (session == NULL)
 		return -ENOMEM;
 
-	register_idle_thread();
 	err = perf_session__process_events(session, &event_ops, 0,
 					   &event__cwdlen, &event__cwd);
 	perf_session__delete(session);

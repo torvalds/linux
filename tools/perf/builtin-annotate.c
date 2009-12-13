@@ -464,13 +464,10 @@ static int __cmd_annotate(void)
 {
 	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
 							 force);
-	struct thread *idle;
 	int ret;
 
 	if (session == NULL)
 		return -ENOMEM;
-
-	idle = register_idle_thread();
 
 	ret = perf_session__process_events(session, &event_ops, 0,
 					   &event__cwdlen, &event__cwd);
