@@ -156,7 +156,7 @@ void invalidate_tlbcam_entry(int index)
 	loadcam_entry(index);
 }
 
-unsigned long __init mmu_mapin_ram(void)
+unsigned long __init mmu_mapin_ram(unsigned long top)
 {
 	unsigned long virt = PAGE_OFFSET;
 	phys_addr_t phys = memstart_addr;

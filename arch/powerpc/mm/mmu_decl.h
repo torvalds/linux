@@ -150,15 +150,15 @@ extern void wii_memory_fixups(void);
  */
 #if defined(CONFIG_8xx)
 #define MMU_init_hw()		do { } while(0)
-#define mmu_mapin_ram()		(0UL)
+#define mmu_mapin_ram(top)	(0UL)
 
 #elif defined(CONFIG_4xx)
 extern void MMU_init_hw(void);
-extern unsigned long mmu_mapin_ram(void);
+extern unsigned long mmu_mapin_ram(unsigned long top);
 
 #elif defined(CONFIG_FSL_BOOKE)
 extern void MMU_init_hw(void);
-extern unsigned long mmu_mapin_ram(void);
+extern unsigned long mmu_mapin_ram(unsigned long top);
 extern void adjust_total_lowmem(void);
 
 #elif defined(CONFIG_PPC32)
