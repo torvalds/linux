@@ -323,6 +323,30 @@ int dquot_mark_dquot_dirty(struct dquot *dquot)
 }
 EXPORT_SYMBOL(dquot_mark_dquot_dirty);
 
+/* Dirtify all the dquots - this can block when journalling */
+static inline int mark_all_dquot_dirty(struct dquot * const *dquot)
+{
+	int ret, err, cnt;
+
+	ret = err = 0;
+	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
+		if (dquot[cnt])
+			/* Even in case of error we have to continue */
+			ret = mark_dquot_dirty(dquot[cnt]);
+		if (!err)
+			err = ret;
+	}
+	return err;
+}
+
+static inline void dqput_all(struct dquot **dquot)
+{
+	unsigned int cnt;
+
+	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
+		dqput(dquot[cnt]);
+}
+
 /* This function needs dq_list_lock */
 static inline int clear_dquot_dirty(struct dquot *dquot)
 {
@@ -1268,8 +1292,7 @@ int dquot_initialize(struct inode *inode, int type)
 out_err:
 	up_write(&sb_dqopt(sb)->dqptr_sem);
 	/* Drop unused references */
-	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
-		dqput(got[cnt]);
+	dqput_all(got);
 	return ret;
 }
 EXPORT_SYMBOL(dquot_initialize);
@@ -1288,9 +1311,7 @@ int dquot_drop(struct inode *inode)
 		inode->i_dquot[cnt] = NULL;
 	}
 	up_write(&sb_dqopt(inode->i_sb)->dqptr_sem);
-
-	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
-		dqput(put[cnt]);
+	dqput_all(put);
 	return 0;
 }
 EXPORT_SYMBOL(dquot_drop);
@@ -1439,10 +1460,7 @@ int __dquot_alloc_space(struct inode *inode, qsize_t number,
 
 	if (reserve)
 		goto out_flush_warn;
-	/* Dirtify all the dquots - this can block when journalling */
-	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
-		if (inode->i_dquot[cnt])
-			mark_dquot_dirty(inode->i_dquot[cnt]);
+	mark_all_dquot_dirty(inode->i_dquot);
 out_flush_warn:
 	flush_warnings(inode->i_dquot, warntype);
 out_unlock:
@@ -1500,10 +1518,7 @@ int dquot_alloc_inode(const struct inode *inode, qsize_t number)
 warn_put_all:
 	spin_unlock(&dq_data_lock);
 	if (ret == QUOTA_OK)
-		/* Dirtify all the dquots - this can block when journalling */
-		for (cnt = 0; cnt < MAXQUOTAS; cnt++)
-			if (inode->i_dquot[cnt])
-				mark_dquot_dirty(inode->i_dquot[cnt]);
+		mark_all_dquot_dirty(inode->i_dquot);
 	flush_warnings(inode->i_dquot, warntype);
 	up_read(&sb_dqopt(inode->i_sb)->dqptr_sem);
 	return ret;
@@ -1537,10 +1552,7 @@ int dquot_claim_space(struct inode *inode, qsize_t number)
 	/* Update inode bytes */
 	inode_claim_rsv_space(inode, number);
 	spin_unlock(&dq_data_lock);
-	/* Dirtify all the dquots - this can block when journalling */
-	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
-		if (inode->i_dquot[cnt])
-			mark_dquot_dirty(inode->i_dquot[cnt]);
+	mark_all_dquot_dirty(inode->i_dquot);
 	up_read(&sb_dqopt(inode->i_sb)->dqptr_sem);
 out:
 	return ret;
@@ -1584,10 +1596,7 @@ out_sub:
 
 	if (reserve)
 		goto out_unlock;
-	/* Dirtify all the dquots - this can block when journalling */
-	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
-		if (inode->i_dquot[cnt])
-			mark_dquot_dirty(inode->i_dquot[cnt]);
+	mark_all_dquot_dirty(inode->i_dquot);
 out_unlock:
 	flush_warnings(inode->i_dquot, warntype);
 	up_read(&sb_dqopt(inode->i_sb)->dqptr_sem);
@@ -1637,10 +1646,7 @@ int dquot_free_inode(const struct inode *inode, qsize_t number)
 		dquot_decr_inodes(inode->i_dquot[cnt], number);
 	}
 	spin_unlock(&dq_data_lock);
-	/* Dirtify all the dquots - this can block when journalling */
-	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
-		if (inode->i_dquot[cnt])
-			mark_dquot_dirty(inode->i_dquot[cnt]);
+	mark_all_dquot_dirty(inode->i_dquot);
 	flush_warnings(inode->i_dquot, warntype);
 	up_read(&sb_dqopt(inode->i_sb)->dqptr_sem);
 	return QUOTA_OK;
@@ -1734,25 +1740,18 @@ int dquot_transfer(struct inode *inode, struct iattr *iattr)
 	spin_unlock(&dq_data_lock);
 	up_write(&sb_dqopt(inode->i_sb)->dqptr_sem);
 
-	/* Dirtify all the dquots - this can block when journalling */
-	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
-		if (transfer_from[cnt])
-			mark_dquot_dirty(transfer_from[cnt]);
-		if (transfer_to[cnt]) {
-			mark_dquot_dirty(transfer_to[cnt]);
-			/* The reference we got is transferred to the inode */
-			transfer_to[cnt] = NULL;
-		}
-	}
+	mark_all_dquot_dirty(transfer_from);
+	mark_all_dquot_dirty(transfer_to);
+	/* The reference we got is transferred to the inode */
+	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
+		transfer_to[cnt] = NULL;
 warn_put_all:
 	flush_warnings(transfer_to, warntype_to);
 	flush_warnings(transfer_from, warntype_from_inodes);
 	flush_warnings(transfer_from, warntype_from_space);
 put_all:
-	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
-		dqput(transfer_from[cnt]);
-		dqput(transfer_to[cnt]);
-	}
+	dqput_all(transfer_from);
+	dqput_all(transfer_to);
 	return ret;
 over_quota:
 	spin_unlock(&dq_data_lock);
