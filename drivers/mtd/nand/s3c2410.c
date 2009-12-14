@@ -957,7 +957,7 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 
 	/* currently we assume we have the one resource */
 	res  = pdev->resource;
-	size = res->end - res->start + 1;
+	size = resource_size(res);
 
 	info->area = request_mem_region(res->start, size, pdev->name);
 
