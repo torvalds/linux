@@ -277,6 +277,7 @@ __ioremap_mode(unsigned long offset, unsigned long size, unsigned long flags)
 	return __ioremap(offset, size, flags);
 }
 #else
+#define __ioremap(offset, size, flags)		((void __iomem *)(offset))
 #define __ioremap_mode(offset, size, flags)	((void __iomem *)(offset))
 #define __iounmap(addr)				do { } while (0)
 #endif /* CONFIG_MMU */
