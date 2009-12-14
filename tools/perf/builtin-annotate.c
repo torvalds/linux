@@ -432,7 +432,7 @@ static void find_annotations(void)
 {
 	struct rb_node *nd;
 
-	for (nd = rb_first(&output_hists); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&hist); nd; nd = rb_next(nd)) {
 		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
 		struct sym_priv *priv;
 

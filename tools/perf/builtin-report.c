@@ -567,7 +567,7 @@ static size_t output__fprintf(FILE *fp, u64 total_samples)
 	fprintf(fp, "#\n");
 
 print_entries:
-	for (nd = rb_first(&output_hists); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&hist); nd; nd = rb_next(nd)) {
 		pos = rb_entry(nd, struct hist_entry, rb_node);
 		ret += hist_entry__fprintf(fp, pos, total_samples);
 	}
