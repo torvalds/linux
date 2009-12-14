@@ -1434,8 +1434,9 @@ no_data:
  */
 static void process_message(struct ceph_connection *con)
 {
-	struct ceph_msg *msg = con->in_msg;
+	struct ceph_msg *msg;
 
+	msg = con->in_msg;
 	con->in_msg = NULL;
 
 	/* if first message, set peer_name */
@@ -1810,7 +1811,11 @@ static void ceph_fault(struct ceph_connection *con)
 	clear_bit(BUSY, &con->state);  /* to avoid an improbable race */
 
 	con_close_socket(con);
-	con->in_msg = NULL;
+
+	if (con->in_msg) {
+		ceph_msg_put(con->in_msg);
+		con->in_msg = NULL;
+	}
 
 	/* If there are no messages in the queue, place the connection
 	 * in a STANDBY state (i.e., don't try to reconnect just yet). */
