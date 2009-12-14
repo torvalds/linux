@@ -34,6 +34,8 @@
 #include "mux.h"
 #include "control.h"
 
+#include "devices.h"
+
 #if defined(CONFIG_VIDEO_OMAP2) || defined(CONFIG_VIDEO_OMAP2_MODULE)
 
 static struct resource cam_resources[] = {
@@ -59,8 +61,11 @@ static inline void omap_init_camera(void)
 {
 	platform_device_register(&omap_cam_device);
 }
-
-#elif defined(CONFIG_VIDEO_OMAP3) || defined(CONFIG_VIDEO_OMAP3_MODULE)
+#else
+static inline void omap_init_camera(void)
+{
+}
+#endif
 
 static struct resource omap3isp_resources[] = {
 	{
@@ -146,15 +151,11 @@ static struct platform_device omap3isp_device = {
 	.resource	= omap3isp_resources,
 };
 
-static inline void omap_init_camera(void)
+int omap3_init_camera(struct isp_platform_data *pdata)
 {
-	platform_device_register(&omap3isp_device);
+	omap3isp_device.dev.platform_data = pdata;
+	return platform_device_register(&omap3isp_device);
 }
-#else
-static inline void omap_init_camera(void)
-{
-}
-#endif
 
 #if defined(CONFIG_OMAP_MBOX_FWK) || defined(CONFIG_OMAP_MBOX_FWK_MODULE)
 
