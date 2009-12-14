@@ -288,3 +288,18 @@ int sort_dimension__add(const char *tok)
 
 	return -ESRCH;
 }
+
+void setup_sorting(const char * const usagestr[], const struct option *opts)
+{
+	char *tmp, *tok, *str = strdup(sort_order);
+
+	for (tok = strtok_r(str, ", ", &tmp);
+			tok; tok = strtok_r(NULL, ", ", &tmp)) {
+		if (sort_dimension__add(tok) < 0) {
+			error("Unknown --sort key: `%s'", tok);
+			usage_with_options(usagestr, opts);
+		}
+	}
+
+	free(str);
+}

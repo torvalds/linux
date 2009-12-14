@@ -843,21 +843,6 @@ static const struct option options[] = {
 	OPT_END()
 };
 
-static void setup_sorting(void)
-{
-	char *tmp, *tok, *str = strdup(sort_order);
-
-	for (tok = strtok_r(str, ", ", &tmp);
-			tok; tok = strtok_r(NULL, ", ", &tmp)) {
-		if (sort_dimension__add(tok) < 0) {
-			error("Unknown --sort key: `%s'", tok);
-			usage_with_options(report_usage, options);
-		}
-	}
-
-	free(str);
-}
-
 static void setup_list(struct strlist **list, const char *list_str,
 		       struct sort_entry *se, const char *list_name,
 		       FILE *fp)
@@ -884,7 +869,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 
 	argc = parse_options(argc, argv, options, report_usage, 0);
 
-	setup_sorting();
+	setup_sorting(report_usage, options);
 
 	if (parent_pattern != default_parent_pattern) {
 		sort_dimension__add("parent");
