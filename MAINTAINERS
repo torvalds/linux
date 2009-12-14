@@ -5959,9 +5959,9 @@ F:	sound/soc/codecs/wm8350.c
 F:	sound/soc/codecs/wm8400.c
 
 X.25 NETWORK LAYER
-M:	Henner Eisen <eis@baty.hanse.de>
+M:	Andrew Hendry <andrew.hendry@gmail.com>
 L:	linux-x25@vger.kernel.org
-S:	Maintained
+S:	Odd Fixes
 F:	Documentation/networking/x25*
 F:	include/net/x25*
 F:	net/x25/
