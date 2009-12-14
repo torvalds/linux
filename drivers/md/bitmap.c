@@ -1566,6 +1566,12 @@ void bitmap_dirty_bits(struct bitmap *bitmap, unsigned long s, unsigned long e)
 		sector_t sec = (sector_t)chunk << CHUNK_BLOCK_SHIFT(bitmap);
 		bitmap_set_memory_bits(bitmap, sec, 1);
 		bitmap_file_set_bit(bitmap, sec);
+		if (sec < bitmap->mddev->recovery_cp)
+			/* We are asserting that the array is dirty,
+			 * so move the recovery_cp address back so
+			 * that it is obvious that it is dirty
+			 */
+			bitmap->mddev->recovery_cp = sec;
 	}
 }
 
