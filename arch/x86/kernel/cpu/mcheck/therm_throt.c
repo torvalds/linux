@@ -256,6 +256,16 @@ asmlinkage void smp_thermal_interrupt(struct pt_regs *regs)
 	ack_APIC_irq();
 }
 
+/* Thermal monitoring depends on APIC, ACPI and clock modulation */
+static int intel_thermal_supported(struct cpuinfo_x86 *c)
+{
+	if (!cpu_has_apic)
+		return 0;
+	if (!cpu_has(c, X86_FEATURE_ACPI) || !cpu_has(c, X86_FEATURE_ACC))
+		return 0;
+	return 1;
+}
+
 void __init mcheck_intel_therm_init(void)
 {
 	/*
@@ -263,8 +273,7 @@ void __init mcheck_intel_therm_init(void)
 	 * LVT value on BSP and use that value to restore APs' thermal LVT
 	 * entry BIOS programmed later
 	 */
-	if (cpu_has(&boot_cpu_data, X86_FEATURE_ACPI) &&
-		cpu_has(&boot_cpu_data, X86_FEATURE_ACC))
+	if (intel_thermal_supported(&boot_cpu_data))
 		lvtthmr_init = apic_read(APIC_LVTTHMR);
 }
 
@@ -274,9 +283,7 @@ void intel_init_thermal(struct cpuinfo_x86 *c)
 	int tm2 = 0;
 	u32 l, h;
 
-	/* Thermal monitoring depends on APIC, ACPI and clock modulation */
-	if (!cpu_has_apic || !cpu_has(c, X86_FEATURE_ACPI) ||
-		!cpu_has(c, X86_FEATURE_ACC))
+	if (!intel_thermal_supported(c))
 		return;
 
 	/*
