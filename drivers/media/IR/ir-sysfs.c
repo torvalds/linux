@@ -79,6 +79,7 @@ static ssize_t store_protocol(struct device *d,
 	struct ir_input_dev *ir_dev = dev_get_drvdata(d);
 	enum ir_type ir_type = IR_TYPE_UNKNOWN;
 	int rc = -EINVAL;
+	unsigned long flags;
 	char *buf;
 
 	buf = strsep((char **) &data, "\n");
@@ -104,7 +105,9 @@ static ssize_t store_protocol(struct device *d,
 		return -EINVAL;
 	}
 
+	spin_lock_irqsave(&ir_dev->rc_tab.lock, flags);
 	ir_dev->rc_tab.ir_type = ir_type;
+	spin_unlock_irqrestore(&ir_dev->rc_tab.lock, flags);
 
 	IR_dprintk(1, "Current protocol is %ld\n", ir_type);
 
