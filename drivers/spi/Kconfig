@@ -292,6 +292,16 @@ config SPI_NUC900
 # Add new SPI master controllers in alphabetical order above this line
 #
 
+config SPI_DESIGNWARE
+	bool "DesignWare SPI controller core support"
+	depends on SPI_MASTER
+	help
+	  general driver for SPI controller core from DesignWare
+
+config SPI_DW_PCI
+	tristate "PCI interface driver for DW SPI core"
+	depends on SPI_DESIGNWARE && PCI
+
 #
 # There are lots of SPI device types, with sensors and memory
 # being probably the most widely used ones.
