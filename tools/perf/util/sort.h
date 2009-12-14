@@ -49,9 +49,13 @@ struct hist_entry {
 	struct symbol		*sym;
 	u64			ip;
 	char			level;
-	struct symbol		*parent;
+	struct symbol	  *parent;
 	struct callchain_node	callchain;
-	struct rb_root		sorted_chain;
+	union {
+		unsigned long	  position;
+		struct hist_entry *pair;
+		struct rb_root	  sorted_chain;
+	};
 };
 
 enum sort_type {

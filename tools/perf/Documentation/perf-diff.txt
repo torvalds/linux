@@ -1,0 +1,31 @@
+perf-diff(1)
+==============
+
+NAME
+----
+perf-diff - Read perf.data (created by perf record) and display the profile
+
+SYNOPSIS
+--------
+[verse]
+'perf diff' [oldfile] [newfile]
+
+DESCRIPTION
+-----------
+This command displays the performance difference among two perf.data files
+captured via perf record.
+
+If no parameters are passed it will assume perf.data.old and perf.data.
+
+OPTIONS
+-------
+-p::
+--percentage::
+	Show percentages instead of raw counters
+-v::
+--verbose::
+	Be verbose, for instance, show the raw counters in addition to the
+	diff.
+SEE ALSO
+--------
+linkperf:perf-record[1]
