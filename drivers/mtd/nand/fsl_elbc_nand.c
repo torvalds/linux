@@ -874,7 +874,7 @@ static int __devinit fsl_elbc_chip_probe(struct fsl_elbc_ctrl *ctrl,
 	priv->ctrl = ctrl;
 	priv->dev = ctrl->dev;
 
-	priv->vbase = ioremap(res.start, res.end - res.start + 1);
+	priv->vbase = ioremap(res.start, resource_size(&res));
 	if (!priv->vbase) {
 		dev_err(ctrl->dev, "failed to map chip region\n");
 		ret = -ENOMEM;
