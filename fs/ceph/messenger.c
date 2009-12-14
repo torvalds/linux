@@ -625,8 +625,6 @@ static void prepare_write_connect(struct ceph_messenger *msgr,
 	con->out_connect.global_seq = cpu_to_le32(global_seq);
 	con->out_connect.protocol_version = cpu_to_le32(proto);
 	con->out_connect.flags = 0;
-	if (test_bit(LOSSYTX, &con->state))
-		con->out_connect.flags = CEPH_MSG_CONNECT_LOSSY;
 
 	if (!after_banner) {
 		con->out_kvec_left = 0;
@@ -1168,6 +1166,10 @@ static int process_connect(struct ceph_connection *con)
 		     con->connect_seq);
 		WARN_ON(con->connect_seq !=
 			le32_to_cpu(con->in_reply.connect_seq));
+
+		if (con->in_reply.flags & CEPH_MSG_CONNECT_LOSSY)
+			set_bit(LOSSYTX, &con->state);
+
 		prepare_read_tag(con);
 		break;
 
