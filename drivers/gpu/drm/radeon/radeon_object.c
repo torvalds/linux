@@ -56,6 +56,13 @@ static void radeon_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	kfree(bo);
 }
 
+bool radeon_ttm_bo_is_radeon_bo(struct ttm_buffer_object *bo)
+{
+	if (bo->destroy == &radeon_ttm_bo_destroy)
+		return true;
+	return false;
+}
+
 void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 {
 	u32 c = 0;
@@ -483,14 +490,20 @@ int radeon_bo_check_tiling(struct radeon_bo *bo, bool has_moved,
 }
 
 void radeon_bo_move_notify(struct ttm_buffer_object *bo,
-				struct ttm_mem_reg *mem)
+			   struct ttm_mem_reg *mem)
 {
-	struct radeon_bo *rbo = container_of(bo, struct radeon_bo, tbo);
+	struct radeon_bo *rbo;
+	if (!radeon_ttm_bo_is_radeon_bo(bo))
+		return;
+	rbo = container_of(bo, struct radeon_bo, tbo);
 	radeon_bo_check_tiling(rbo, 0, 1);
 }
 
 void radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 {
-	struct radeon_bo *rbo = container_of(bo, struct radeon_bo, tbo);
+	struct radeon_bo *rbo;
+	if (!radeon_ttm_bo_is_radeon_bo(bo))
+		return;
+	rbo = container_of(bo, struct radeon_bo, tbo);
 	radeon_bo_check_tiling(rbo, 0, 0);
 }
