@@ -270,8 +270,6 @@ static void __cpuinit srat_detect_node(struct cpuinfo_x86 *c)
 		node = cpu_to_node(cpu);
 	}
 	numa_set_node(cpu, node);
-
-	printk(KERN_INFO "CPU %d/0x%x -> Node %d\n", cpu, apicid, node);
 #endif
 }
 

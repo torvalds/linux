@@ -120,11 +120,14 @@ static void __init dma32_free_bootmem(void)
 
 void __init pci_iommu_alloc(void)
 {
+	int use_swiotlb;
+
+	use_swiotlb = pci_swiotlb_init();
 #ifdef CONFIG_X86_64
 	/* free the range so iommu could get some range less than 4G */
 	dma32_free_bootmem();
 #endif
-	if (pci_swiotlb_init())
+	if (use_swiotlb)
 		return;
 
 	gart_iommu_hole_init();
