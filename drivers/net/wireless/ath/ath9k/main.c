@@ -3121,6 +3121,7 @@ static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 	ath9k_wiphy_pause_all_forced(sc, aphy);
 	sc->sc_flags |= SC_OP_SCANNING;
 	del_timer_sync(&common->ani.timer);
+	cancel_delayed_work_sync(&sc->tx_complete_work);
 	mutex_unlock(&sc->mutex);
 }
 
@@ -3135,6 +3136,7 @@ static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 	sc->sc_flags &= ~SC_OP_SCANNING;
 	sc->sc_flags |= SC_OP_FULL_RESET;
 	ath_start_ani(common);
+	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
 	ath_beacon_config(sc, NULL);
 	mutex_unlock(&sc->mutex);
 }
