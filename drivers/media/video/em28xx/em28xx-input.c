@@ -349,6 +349,7 @@ int em28xx_ir_change_protocol(void *priv, enum ir_type ir_type)
 
 	/* Adjust xclk based o IR table for RC5/NEC tables */
 
+	dev->board.ir_codes->ir_type = IR_TYPE_OTHER;
 	if (ir_type == IR_TYPE_RC5) {
 		dev->board.xclk |= EM28XX_XCLK_IR_RC5_MODE;
 		ir->full_code = 1;
@@ -358,6 +359,8 @@ int em28xx_ir_change_protocol(void *priv, enum ir_type ir_type)
 		ir->full_code = 1;
 	} else
 		rc = -EINVAL;
+
+	dev->board.ir_codes->ir_type = ir_type;
 
 	em28xx_write_reg_bits(dev, EM28XX_R0F_XCLK, dev->board.xclk,
 			      EM28XX_XCLK_IR_RC5_MODE);
