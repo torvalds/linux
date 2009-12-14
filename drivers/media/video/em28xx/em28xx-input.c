@@ -75,6 +75,10 @@ struct em28xx_IR {
 	unsigned int repeat_interval;
 
 	int  (*get_key)(struct em28xx_IR *, struct em28xx_ir_poll_result *);
+
+	/* IR device properties */
+
+	struct ir_dev_props props;
 };
 
 /**********************************************************
@@ -336,35 +340,25 @@ static void em28xx_ir_stop(struct em28xx_IR *ir)
 	cancel_delayed_work_sync(&ir->work);
 }
 
-int em28xx_ir_init(struct em28xx *dev)
+int em28xx_ir_change_protocol(void *priv, enum ir_type ir_type)
 {
-	struct em28xx_IR *ir;
-	struct input_dev *input_dev;
-	u8 ir_config;
-	int err = -ENOMEM;
-
-	if (dev->board.ir_codes == NULL) {
-		/* No remote control support */
-		return 0;
-	}
-
-	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!ir || !input_dev)
-		goto err_out_free;
-
-	ir->input = input_dev;
-	ir_config = EM2874_IR_RC5;
+	int rc = 0;
+	struct em28xx_IR *ir = priv;
+	struct em28xx *dev = ir->dev;
+	u8 ir_config = EM2874_IR_RC5;
 
 	/* Adjust xclk based o IR table for RC5/NEC tables */
-	if (dev->board.ir_codes->ir_type == IR_TYPE_RC5) {
+
+	if (ir_type == IR_TYPE_RC5) {
 		dev->board.xclk |= EM28XX_XCLK_IR_RC5_MODE;
 		ir->full_code = 1;
-	} else  if (dev->board.ir_codes->ir_type == IR_TYPE_NEC) {
+	} else if (ir_type == IR_TYPE_NEC) {
 		dev->board.xclk &= ~EM28XX_XCLK_IR_RC5_MODE;
 		ir_config = EM2874_IR_NEC;
 		ir->full_code = 1;
-	}
+	} else
+		rc = -EINVAL;
+
 	em28xx_write_reg_bits(dev, EM28XX_R0F_XCLK, dev->board.xclk,
 			      EM28XX_XCLK_IR_RC5_MODE);
 
@@ -380,8 +374,41 @@ int em28xx_ir_init(struct em28xx *dev)
 		break;
 	default:
 		printk("Unrecognized em28xx chip id: IR not supported\n");
-		goto err_out_free;
+		rc = -EINVAL;
 	}
+
+	return rc;
+}
+
+int em28xx_ir_init(struct em28xx *dev)
+{
+	struct em28xx_IR *ir;
+	struct input_dev *input_dev;
+	int err = -ENOMEM;
+
+	if (dev->board.ir_codes == NULL) {
+		/* No remote control support */
+		return 0;
+	}
+
+	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!ir || !input_dev)
+		goto err_out_free;
+
+	/* record handles to ourself */
+	ir->dev = dev;
+	dev->ir = ir;
+
+	ir->input = input_dev;
+
+	/*
+	 * em2874 supports more protocols. For now, let's just announce
+	 * the two protocols that were already tested
+	 */
+	ir->props.allowed_protos = IR_TYPE_RC5 | IR_TYPE_NEC;
+	ir->props.priv = ir;
+	ir->props.change_protocol = em28xx_ir_change_protocol;
 
 	/* This is how often we ask the chip for IR information */
 	ir->polling = 100; /* ms */
@@ -393,6 +420,8 @@ int em28xx_ir_init(struct em28xx *dev)
 	usb_make_path(dev->udev, ir->phys, sizeof(ir->phys));
 	strlcat(ir->phys, "/input0", sizeof(ir->phys));
 
+	/* Set IR protocol */
+	em28xx_ir_change_protocol(ir, dev->board.ir_codes->ir_type);
 	err = ir_input_init(input_dev, &ir->ir, IR_TYPE_OTHER);
 	if (err < 0)
 		goto err_out_free;
@@ -405,14 +434,13 @@ int em28xx_ir_init(struct em28xx *dev)
 	input_dev->id.product = le16_to_cpu(dev->udev->descriptor.idProduct);
 
 	input_dev->dev.parent = &dev->udev->dev;
-	/* record handles to ourself */
-	ir->dev = dev;
-	dev->ir = ir;
+
 
 	em28xx_ir_start(ir);
 
 	/* all done */
-	err = ir_input_register(ir->input, dev->board.ir_codes, NULL);
+	err = ir_input_register(ir->input, dev->board.ir_codes,
+				&ir->props);
 	if (err)
 		goto err_out_stop;
 
