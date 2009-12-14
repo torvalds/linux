@@ -150,3 +150,4 @@ static void raid6_exit(void)
 subsys_initcall(raid6_select_algo);
 module_exit(raid6_exit);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("RAID6 Q-syndrome calculations");

@@ -567,6 +567,7 @@ static void raid0_exit (void)
 module_init(raid0_init);
 module_exit(raid0_exit);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("RAID0 (striping) personality for MD");
 MODULE_ALIAS("md-personality-2"); /* RAID0 */
 MODULE_ALIAS("md-raid0");
 MODULE_ALIAS("md-level-0");
