@@ -239,6 +239,7 @@ static ssize_t cm_write(struct file *file, const char __user *user_buf,
 		kfree(buf);
 		if (ACPI_FAILURE(status))
 			return -EINVAL;
+		add_taint(TAINT_OVERRIDDEN_ACPI_TABLE);
 	}
 
 	return count;
