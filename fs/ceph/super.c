@@ -602,13 +602,8 @@ int ceph_check_fsid(struct ceph_client *client, struct ceph_fsid *fsid)
 {
 	if (client->have_fsid) {
 		if (ceph_fsid_compare(&client->fsid, fsid)) {
-			print_hex_dump(KERN_ERR, "this fsid: ",
-				       DUMP_PREFIX_NONE, 16, 1,
-				       (void *)fsid, 16, 0);
-			print_hex_dump(KERN_ERR, " old fsid: ",
-				       DUMP_PREFIX_NONE, 16, 1,
-				       (void *)&client->fsid, 16, 0);
-			pr_err("fsid mismatch\n");
+			pr_err("bad fsid, had " FSID_FORMAT " got " FSID_FORMAT,
+			       PR_FSID(&client->fsid), PR_FSID(fsid));
 			return -1;
 		}
 	} else {

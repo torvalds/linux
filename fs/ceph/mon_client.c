@@ -242,6 +242,7 @@ static void handle_subscribe_ack(struct ceph_mon_client *monc,
 	return;
 bad:
 	pr_err("got corrupt subscribe-ack msg\n");
+	ceph_msg_dump(msg);
 }
 
 /*
@@ -364,6 +365,7 @@ static void handle_statfs_reply(struct ceph_mon_client *monc,
 
 bad:
 	pr_err("corrupt statfs reply, no tid\n");
+	ceph_msg_dump(msg);
 }
 
 /*

@@ -254,4 +254,6 @@ static inline void ceph_msg_put(struct ceph_msg *msg)
 	kref_put(&msg->kref, ceph_msg_last_put);
 }
 
+extern void ceph_msg_dump(struct ceph_msg *msg);
+
 #endif

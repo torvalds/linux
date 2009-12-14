@@ -773,6 +773,7 @@ bad:
 	pr_err("corrupt osd_op_reply got %d %d expected %d\n",
 	       (int)msg->front.iov_len, le32_to_cpu(msg->hdr.front_len),
 	       (int)sizeof(*rhead));
+	ceph_msg_dump(msg);
 }
 
 
@@ -964,6 +965,7 @@ done:
 
 bad:
 	pr_err("osdc handle_map corrupt msg\n");
+	ceph_msg_dump(msg);
 	up_write(&osdc->map_sem);
 	return;
 }

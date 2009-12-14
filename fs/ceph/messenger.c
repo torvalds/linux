@@ -2115,3 +2115,23 @@ void ceph_msg_last_put(struct kref *kref)
 	else
 		ceph_msg_kfree(m);
 }
+
+void ceph_msg_dump(struct ceph_msg *msg)
+{
+	pr_debug("msg_dump %p (front_max %d nr_pages %d)\n", msg,
+		 msg->front_max, msg->nr_pages);
+	print_hex_dump(KERN_DEBUG, "header: ",
+		       DUMP_PREFIX_OFFSET, 16, 1,
+		       &msg->hdr, sizeof(msg->hdr), true);
+	print_hex_dump(KERN_DEBUG, " front: ",
+		       DUMP_PREFIX_OFFSET, 16, 1,
+		       msg->front.iov_base, msg->front.iov_len, true);
+	if (msg->middle)
+		print_hex_dump(KERN_DEBUG, "middle: ",
+			       DUMP_PREFIX_OFFSET, 16, 1,
+			       msg->middle->vec.iov_base,
+			       msg->middle->vec.iov_len, true);
+	print_hex_dump(KERN_DEBUG, "footer: ",
+		       DUMP_PREFIX_OFFSET, 16, 1,
+		       &msg->footer, sizeof(msg->footer), true);
+}

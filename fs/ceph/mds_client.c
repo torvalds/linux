@@ -1650,6 +1650,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 		return;
 	if (msg->front.iov_len < sizeof(*head)) {
 		pr_err("mdsc_handle_reply got corrupt (short) reply\n");
+		ceph_msg_dump(msg);
 		return;
 	}
 
@@ -1740,6 +1741,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	mutex_lock(&session->s_mutex);
 	if (err < 0) {
 		pr_err("mdsc_handle_reply got corrupt reply mds%d\n", mds);
+		ceph_msg_dump(msg);
 		goto out_err;
 	}
 
@@ -1929,6 +1931,7 @@ static void handle_session(struct ceph_mds_session *session,
 bad:
 	pr_err("mdsc_handle_session corrupt message mds%d len %d\n", mds,
 	       (int)msg->front.iov_len);
+	ceph_msg_dump(msg);
 	return;
 }
 
@@ -2394,6 +2397,7 @@ out:
 
 bad:
 	pr_err("corrupt lease message\n");
+	ceph_msg_dump(msg);
 }
 
 void ceph_mdsc_lease_send_msg(struct ceph_mds_session *session,

@@ -2681,6 +2681,7 @@ done:
 
 bad:
 	pr_err("ceph_handle_caps: corrupt message\n");
+	ceph_msg_dump(msg);
 	return;
 }
 

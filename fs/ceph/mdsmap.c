@@ -49,6 +49,7 @@ int ceph_mdsmap_get_random_mds(struct ceph_mdsmap *m)
 struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 {
 	struct ceph_mdsmap *m;
+	const void *start = *p;
 	int i, j, n;
 	int err = -EINVAL;
 	u16 version;
@@ -154,6 +155,9 @@ badmem:
 	err = -ENOMEM;
 bad:
 	pr_err("corrupt mdsmap\n");
+	print_hex_dump(KERN_DEBUG, "mdsmap: ",
+		       DUMP_PREFIX_OFFSET, 16, 1,
+		       start, end - start, true);
 	ceph_mdsmap_destroy(m);
 	return ERR_PTR(-EINVAL);
 }

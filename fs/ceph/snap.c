@@ -877,6 +877,7 @@ split_skip_inode:
 
 bad:
 	pr_err("corrupt snap message from mds%d\n", mds);
+	ceph_msg_dump(msg);
 out:
 	if (locked_rwsem)
 		up_write(&mdsc->snap_rwsem);

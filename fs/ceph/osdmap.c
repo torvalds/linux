@@ -726,6 +726,9 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 bad:
 	pr_err("corrupt inc osdmap epoch %d off %d (%p of %p-%p)\n",
 	       epoch, (int)(*p - start), *p, start, end);
+	print_hex_dump(KERN_DEBUG, "osdmap: ",
+		       DUMP_PREFIX_OFFSET, 16, 1,
+		       start, end - start, true);
 	if (newcrush)
 		crush_destroy(newcrush);
 	return ERR_PTR(err);
