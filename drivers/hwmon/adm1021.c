@@ -34,9 +34,8 @@
 static const unsigned short normal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x4c, 0x4d, 0x4e, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_8(adm1021, adm1023, max1617, max1617a, thmc10, lm84, gl523sm,
-			mc1066);
+enum chips {
+	adm1021, adm1023, max1617, max1617a, thmc10, lm84, gl523sm, mc1066 };
 
 /* adm1021 constants specified below */
 
@@ -97,7 +96,7 @@ struct adm1021_data {
 
 static int adm1021_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int adm1021_detect(struct i2c_client *client, int kind,
+static int adm1021_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static void adm1021_init_client(struct i2c_client *client);
 static int adm1021_remove(struct i2c_client *client);
@@ -130,7 +129,7 @@ static struct i2c_driver adm1021_driver = {
 	.remove		= adm1021_remove,
 	.id_table	= adm1021_id,
 	.detect		= adm1021_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static ssize_t show_temp(struct device *dev,
@@ -284,7 +283,7 @@ static const struct attribute_group adm1021_group = {
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int adm1021_detect(struct i2c_client *client, int kind,
+static int adm1021_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;

@@ -64,11 +64,7 @@
 
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
-/*
- * Insmod parameters
- */
-
-I2C_CLIENT_INSMOD_2(adm1025, ne1619);
+enum chips { adm1025, ne1619 };
 
 /*
  * The ADM1025 registers
@@ -111,7 +107,7 @@ static const int in_scale[6] = { 2500, 2250, 3300, 5000, 12000, 3300 };
 
 static int adm1025_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int adm1025_detect(struct i2c_client *client, int kind,
+static int adm1025_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static void adm1025_init_client(struct i2c_client *client);
 static int adm1025_remove(struct i2c_client *client);
@@ -137,7 +133,7 @@ static struct i2c_driver adm1025_driver = {
 	.remove		= adm1025_remove,
 	.id_table	= adm1025_id,
 	.detect		= adm1025_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*
@@ -409,7 +405,7 @@ static const struct attribute_group adm1025_group_in4 = {
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int adm1025_detect(struct i2c_client *client, int kind,
+static int adm1025_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
