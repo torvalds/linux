@@ -227,7 +227,8 @@ extern void iwl3945_rx_replenish(void *data);
 extern void iwl3945_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 extern unsigned int iwl3945_fill_beacon_frame(struct iwl_priv *priv,
 					struct ieee80211_hdr *hdr,int left);
-extern void iwl3945_dump_nic_event_log(struct iwl_priv *priv, bool full_log);
+extern int iwl3945_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
+				       char **buf, bool display);
 extern void iwl3945_dump_nic_error_log(struct iwl_priv *priv);
 
 /*
