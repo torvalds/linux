@@ -52,7 +52,7 @@ static void ir_input_key_event(struct input_dev *dev, struct ir_input_state *ir)
 /* -------------------------------------------------------------------------- */
 
 int ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
-		   int ir_type)
+		  const enum ir_type ir_type)
 {
 	ir->ir_type = ir_type;
 

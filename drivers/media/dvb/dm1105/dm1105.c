@@ -578,7 +578,7 @@ int __devinit dm1105_ir_init(struct dm1105dvb *dm1105)
 {
 	struct input_dev *input_dev;
 	struct ir_scancode_table *ir_codes = &ir_codes_dm1105_nec_table;
-	int ir_type = IR_TYPE_OTHER;
+	enum ir_type ir_type = IR_TYPE_OTHER;
 	int err = -ENOMEM;
 
 	input_dev = input_allocate_device();
@@ -611,7 +611,7 @@ int __devinit dm1105_ir_init(struct dm1105dvb *dm1105)
 
 	INIT_WORK(&dm1105->ir.work, dm1105_emit_key);
 
-	err = ir_input_register(input_dev, ir_codes);
+	err = ir_input_register(input_dev, ir_codes, NULL);
 
 	return err;
 }

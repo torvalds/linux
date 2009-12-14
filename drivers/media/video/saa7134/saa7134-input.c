@@ -460,7 +460,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	int polling      = 0;
 	int rc5_gpio	 = 0;
 	int nec_gpio	 = 0;
-	int ir_type      = IR_TYPE_OTHER;
+	enum ir_type ir_type = IR_TYPE_OTHER;
 	int err;
 
 	if (dev->has_remote != SAA7134_REMOTE_GPIO)
@@ -728,7 +728,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	dev->remote = ir;
 	saa7134_ir_start(dev, ir);
 
-	err = ir_input_register(ir->dev, ir_codes);
+	err = ir_input_register(ir->dev, ir_codes, NULL);
 	if (err)
 		goto err_out_stop;
 

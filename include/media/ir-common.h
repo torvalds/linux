@@ -35,7 +35,7 @@
 
 struct ir_input_state {
 	/* configuration */
-	int                ir_type;
+	enum ir_type       ir_type;
 
 	/* key info */
 	u32                ir_key;      /* ir scancode */
@@ -84,7 +84,7 @@ struct card_ir {
 /* Routines from ir-functions.c */
 
 int ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
-		   int ir_type);
+		   const enum ir_type ir_type);
 void ir_input_nokey(struct input_dev *dev, struct ir_input_state *ir);
 void ir_input_keydown(struct input_dev *dev, struct ir_input_state *ir,
 		      u32 ir_key);

@@ -299,7 +299,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct ir_scancode_table *ir_codes = NULL;
 	const char *name = NULL;
-	int ir_type = 0;
+	enum ir_type ir_type = 0;
 	struct IR_i2c *ir;
 	struct input_dev *input_dev;
 	struct i2c_adapter *adap = client->adapter;
@@ -446,7 +446,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	input_dev->name       = ir->name;
 	input_dev->phys       = ir->phys;
 
-	err = ir_input_register(ir->input, ir->ir_codes);
+	err = ir_input_register(ir->input, ir->ir_codes, NULL);
 	if (err)
 		goto err_out_free;
 

@@ -89,6 +89,8 @@ EXPORT_SYMBOL_GPL(ir_roundup_tablesize);
  * @origin:	origin table
  *
  * Copies all entries where the keycode is not KEY_UNKNOWN/KEY_RESERVED
+ * Also copies table size and table protocol.
+ * NOTE: It shouldn't copy the lock field
  */
 
 int ir_copy_table(struct ir_scancode_table *destin,
@@ -105,6 +107,7 @@ int ir_copy_table(struct ir_scancode_table *destin,
 		j++;
 	}
 	destin->size = j;
+	destin->ir_type = origin->ir_type;
 
 	IR_dprintk(1, "Copied %d scancodes to the new keycode table\n", destin->size);
 
@@ -404,7 +407,8 @@ EXPORT_SYMBOL_GPL(ir_g_keycode_from_table);
  * It should be called before registering the IR device.
  */
 int ir_input_register(struct input_dev *input_dev,
-		      struct ir_scancode_table *rc_tab)
+		      const struct ir_scancode_table *rc_tab,
+		      const struct ir_dev_props *props)
 {
 	struct ir_input_dev *ir_dev;
 	struct ir_scancode  *keymap    = rc_tab->scan;
@@ -417,7 +421,7 @@ int ir_input_register(struct input_dev *input_dev,
 	if (!ir_dev)
 		return -ENOMEM;
 
-	spin_lock_init(&rc_tab->lock);
+	spin_lock_init(&ir_dev->rc_tab.lock);
 
 	ir_dev->rc_tab.size = ir_roundup_tablesize(rc_tab->size);
 	ir_dev->rc_tab.scan = kzalloc(ir_dev->rc_tab.size *
@@ -430,6 +434,7 @@ int ir_input_register(struct input_dev *input_dev,
 		ir_dev->rc_tab.size * sizeof(ir_dev->rc_tab.scan));
 
 	ir_copy_table(&ir_dev->rc_tab, rc_tab);
+	ir_dev->props = props;
 
 	/* set the bits for the keys */
 	IR_dprintk(1, "key map size: %d\n", rc_tab->size);

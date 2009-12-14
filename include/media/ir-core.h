@@ -23,10 +23,10 @@ extern int ir_core_debug;
 
 enum ir_type {
 	IR_TYPE_UNKNOWN	= 0,
-	IR_TYPE_RC5	= 1,
-	IR_TYPE_PD	= 2,		 /* Pulse distance encoded IR */
-	IR_TYPE_NEC	= 3,
-	IR_TYPE_OTHER	= 99,
+	IR_TYPE_RC5	= 1L << 0,	/* Philips RC5 protocol */
+	IR_TYPE_PD	= 1L << 1,	/* Pulse distance encoded IR */
+	IR_TYPE_NEC	= 1L << 2,
+	IR_TYPE_OTHER	= 1L << 63,
 };
 
 struct ir_scancode {
@@ -41,12 +41,19 @@ struct ir_scancode_table {
 	spinlock_t		lock;
 };
 
+struct ir_dev_props {
+	unsigned long allowed_protos;
+	void 		*priv;
+	int (*change_protocol)(void *priv, unsigned long protocol);
+};
+
 struct ir_input_dev {
 	struct input_dev		*dev;		/* Input device*/
 	struct ir_scancode_table	rc_tab;		/* scan/key table */
 	unsigned long			devno;		/* device number */
 	struct attribute_group		attr;		/* IR attributes */
 	struct device			*class_dev;	/* virtual class dev */
+	const struct ir_dev_props	*props;		/* Device properties */
 };
 
 /* Routines from ir-keytable.c */
@@ -59,7 +66,8 @@ int ir_set_keycode_table(struct input_dev *input_dev,
 
 int ir_roundup_tablesize(int n_elems);
 int ir_input_register(struct input_dev *dev,
-		      struct ir_scancode_table *ir_codes);
+		      const struct ir_scancode_table *ir_codes,
+		      const struct ir_dev_props *props);
 void ir_input_unregister(struct input_dev *input_dev);
 
 /* Routines from ir-sysfs.c */
