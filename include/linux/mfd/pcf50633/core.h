@@ -40,10 +40,6 @@ struct pcf50633_platform_data {
 	u8 resumers[5];
 };
 
-struct pcf50633_subdev_pdata {
-	struct pcf50633 *pcf;
-};
-
 struct pcf50633_irq {
 	void (*handler) (int, void *);
 	void *data;
@@ -217,5 +213,9 @@ enum pcf50633_reg_int5 {
 #define PCF50633_REG_LEDCTL 0x2a
 #define PCF50633_REG_LEDDIM 0x2b
 
-#endif
+static inline struct pcf50633 *dev_to_pcf50633(struct device *dev)
+{
+	return dev_get_drvdata(dev);
+}
 
+#endif

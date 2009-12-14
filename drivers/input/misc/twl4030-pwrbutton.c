@@ -27,7 +27,7 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/i2c/twl4030.h>
+#include <linux/i2c/twl.h>
 
 #define PWR_PWRON_IRQ (1 << 0)
 
@@ -49,7 +49,7 @@ static irqreturn_t powerbutton_irq(int irq, void *_pwr)
 	local_irq_enable();
 #endif
 
-	err = twl4030_i2c_read_u8(TWL4030_MODULE_PM_MASTER, &value,
+	err = twl_i2c_read_u8(TWL4030_MODULE_PM_MASTER, &value,
 				  STS_HW_CONDITIONS);
 	if (!err)  {
 		input_report_key(pwr, KEY_POWER, value & PWR_PWRON_IRQ);

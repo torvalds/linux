@@ -303,7 +303,6 @@ static const u8 mbc_irq_handlers[] = {
 static int __devinit pcf50633_mbc_probe(struct platform_device *pdev)
 {
 	struct pcf50633_mbc *mbc;
-	struct pcf50633_subdev_pdata *pdata = pdev->dev.platform_data;
 	int ret;
 	int i;
 	u8 mbcs1;
@@ -313,7 +312,7 @@ static int __devinit pcf50633_mbc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, mbc);
-	mbc->pcf = pdata->pcf;
+	mbc->pcf = dev_to_pcf50633(pdev->dev.parent);
 
 	/* Set up IRQ handlers */
 	for (i = 0; i < ARRAY_SIZE(mbc_irq_handlers); i++)
