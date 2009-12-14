@@ -954,7 +954,7 @@ static void dib8000_set_channel(struct dib8000_state *state, u8 seq, u8 autosear
 	u8 guard, crate, constellation, timeI;
 	u8 permu_seg[] = { 6, 5, 7, 4, 8, 3, 9, 2, 10, 1, 11, 0, 12 };
 	u16 i, coeff[4], P_cfr_left_edge = 0, P_cfr_right_edge = 0, seg_mask13 = 0x1fff;	// All 13 segments enabled
-	const s16 *ncoeff, *ana_fe;
+	const s16 *ncoeff = NULL, *ana_fe;
 	u16 tmcc_pow = 0;
 	u16 coff_pow = 0x2800;
 	u16 init_prbs = 0xfff;
@@ -2121,7 +2121,7 @@ static int dib8000_read_snr(struct dvb_frontend *fe, u16 * snr)
 	else
 		result -= intlog10(2) * 10 * noise_exp - 100;
 
-	*snr = result / (1 << 24);
+	*snr = result / ((1 << 24) / 10);
 	return 0;
 }
 
@@ -2194,6 +2194,25 @@ struct i2c_adapter *dib8000_get_i2c_master(struct dvb_frontend *fe, enum dibx000
 }
 
 EXPORT_SYMBOL(dib8000_get_i2c_master);
+
+int dib8000_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff)
+{
+	struct dib8000_state *st = fe->demodulator_priv;
+    u16 val = dib8000_read_word(st, 299) & 0xffef;
+    val |= (onoff & 0x1) << 4;
+
+    dprintk("pid filter enabled %d", onoff);
+    return dib8000_write_word(st, 299, val);
+}
+EXPORT_SYMBOL(dib8000_pid_filter_ctrl);
+
+int dib8000_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff)
+{
+	struct dib8000_state *st = fe->demodulator_priv;
+    dprintk("Index %x, PID %d, OnOff %d", id, pid, onoff);
+    return dib8000_write_word(st, 305 + id, onoff ? (1 << 13) | pid : 0);
+}
+EXPORT_SYMBOL(dib8000_pid_filter);
 
 static const struct dvb_frontend_ops dib8000_ops = {
 	.info = {

@@ -2082,7 +2082,8 @@ static void azx_power_notify(struct hda_bus *bus)
 	}
 	if (power_on)
 		azx_init_chip(chip);
-	else if (chip->running && power_save_controller)
+	else if (chip->running && power_save_controller &&
+		 !bus->power_keep_link_on)
 		azx_stop_chip(chip);
 }
 #endif /* CONFIG_SND_HDA_POWER_SAVE */
@@ -2449,6 +2450,11 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 			pci_dev_put(p_smbus);
 		}
 	}
+
+	/* disable 64bit DMA address for Teradici */
+	/* it does not work with device 6549:1200 subsys e4a2:040b */
+	if (chip->driver_type == AZX_DRIVER_TERA)
+		gcap &= ~ICH6_GCAP_64OK;
 
 	/* allow 64bit DMA address if supported by H/W */
 	if ((gcap & ICH6_GCAP_64OK) && !pci_set_dma_mask(pci, DMA_BIT_MASK(64)))

@@ -88,7 +88,7 @@ static void iic_eoi(unsigned int irq)
 }
 
 static struct irq_chip iic_chip = {
-	.typename = " CELL-IIC ",
+	.name = " CELL-IIC ",
 	.mask = iic_mask,
 	.unmask = iic_unmask,
 	.eoi = iic_eoi,
@@ -133,7 +133,7 @@ static void iic_ioexc_cascade(unsigned int irq, struct irq_desc *desc)
 
 
 static struct irq_chip iic_ioexc_chip = {
-	.typename = " CELL-IOEX",
+	.name = " CELL-IOEX",
 	.mask = iic_mask,
 	.unmask = iic_unmask,
 	.eoi = iic_ioexc_eoi,
@@ -297,7 +297,7 @@ static int iic_host_map(struct irq_host *h, unsigned int virq,
 }
 
 static int iic_host_xlate(struct irq_host *h, struct device_node *ct,
-			   u32 *intspec, unsigned int intsize,
+			   const u32 *intspec, unsigned int intsize,
 			   irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 
 {

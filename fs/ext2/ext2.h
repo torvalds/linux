@@ -142,7 +142,7 @@ struct dentry *ext2_get_parent(struct dentry *child);
 /* super.c */
 extern void ext2_error (struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
-extern void ext2_warning (struct super_block *, const char *, const char *, ...)
+extern void ext2_msg(struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
 extern void ext2_update_dynamic_rev (struct super_block *sb);
 extern void ext2_write_super (struct super_block *);

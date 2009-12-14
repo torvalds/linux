@@ -86,7 +86,6 @@ The IT8712F and IT8716F additionally feature VID inputs, used to report
 the Vcore voltage of the processor. The early IT8712F have 5 VID pins,
 the IT8716F and late IT8712F have 6. They are shared with other functions
 though, so the functionality may not be available on a given system.
-The driver dumbly assume it is there.
 
 The IT8718F and IT8720F also features VID inputs (up to 8 pins) but the value
 is stored in the Super-I/O configuration space. Due to technical limitations,

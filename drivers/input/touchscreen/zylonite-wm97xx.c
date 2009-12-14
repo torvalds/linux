@@ -96,7 +96,7 @@ static int wm97xx_acc_pen_down(struct wm97xx *wm)
 	/* When the AC97 queue has been drained we need to allow time
 	 * to buffer up samples otherwise we end up spinning polling
 	 * for samples.  The controller can't have a suitably low
-	 * threashold set to use the notifications it gives.
+	 * threshold set to use the notifications it gives.
 	 */
 	msleep(1);
 

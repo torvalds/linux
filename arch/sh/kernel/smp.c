@@ -122,7 +122,9 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	stack_start.bss_start = 0; /* don't clear bss for secondary cpus */
 	stack_start.start_kernel_fn = start_secondary;
 
-	flush_cache_all();
+	flush_icache_range((unsigned long)&stack_start,
+			   (unsigned long)&stack_start + sizeof(stack_start));
+	wmb();
 
 	plat_start_cpu(cpu, (unsigned long)_stext);
 

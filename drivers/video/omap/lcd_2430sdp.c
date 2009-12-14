@@ -28,8 +28,9 @@
 #include <linux/i2c/twl4030.h>
 
 #include <plat/mux.h>
-#include <plat/omapfb.h>
 #include <asm/mach-types.h>
+
+#include "omapfb.h"
 
 #define SDP2430_LCD_PANEL_BACKLIGHT_GPIO	91
 #define SDP2430_LCD_PANEL_ENABLE_GPIO		154

@@ -909,7 +909,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	unsigned long last_index;
 	int will_write;
 
-	will_write = ((file->f_flags & O_SYNC) || IS_SYNC(inode) ||
+	will_write = ((file->f_flags & O_DSYNC) || IS_SYNC(inode) ||
 		      (file->f_flags & O_DIRECT));
 
 	nrptrs = min((count + PAGE_CACHE_SIZE - 1) / PAGE_CACHE_SIZE,
@@ -1076,7 +1076,7 @@ out_nolock:
 		if (err)
 			num_written = err;
 
-		if ((file->f_flags & O_SYNC) || IS_SYNC(inode)) {
+		if ((file->f_flags & O_DSYNC) || IS_SYNC(inode)) {
 			trans = btrfs_start_transaction(root, 1);
 			ret = btrfs_log_dentry_safe(trans, root,
 						    file->f_dentry);

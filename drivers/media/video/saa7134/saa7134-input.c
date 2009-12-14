@@ -102,14 +102,14 @@ static int build_key(struct saa7134_dev *dev)
 		if (data == ir->mask_keycode)
 			ir_input_nokey(ir->dev, &ir->ir);
 		else
-			ir_input_keydown(ir->dev, &ir->ir, data, data);
+			ir_input_keydown(ir->dev, &ir->ir, data);
 		return 0;
 	}
 
 	if (ir->polling) {
 		if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
 		    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
-			ir_input_keydown(ir->dev, &ir->ir, data, data);
+			ir_input_keydown(ir->dev, &ir->ir, data);
 		} else {
 			ir_input_nokey(ir->dev, &ir->ir);
 		}
@@ -117,7 +117,7 @@ static int build_key(struct saa7134_dev *dev)
 	else {	/* IRQ driven mode - handle key press and release in one go */
 		if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
 		    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
-			ir_input_keydown(ir->dev, &ir->ir, data, data);
+			ir_input_keydown(ir->dev, &ir->ir, data);
 			ir_input_nokey(ir->dev, &ir->ir);
 		}
 	}
@@ -616,6 +616,12 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0x003f00;
 		mask_keydown = 0x040000;
 		break;
+	case SAA7134_BOARD_LEADTEK_WINFAST_DTV1000S:
+		ir_codes     = &ir_codes_winfast_table;
+		mask_keycode = 0x5f00;
+		mask_keyup   = 0x020000;
+		polling      = 50; /* ms */
+		break;
 	}
 	if (NULL == ir_codes) {
 		printk("%s: Oops: IR config error [card=%d]\n",
@@ -646,7 +652,10 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0",
 		 pci_name(dev->pci));
 
-	ir_input_init(input_dev, &ir->ir, ir_type, ir_codes);
+	err = ir_input_init(input_dev, &ir->ir, ir_type, ir_codes);
+	if (err < 0)
+		goto err_out_free;
+
 	input_dev->name = ir->name;
 	input_dev->phys = ir->phys;
 	input_dev->id.bustype = BUS_PCI;
@@ -677,6 +686,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	saa7134_ir_stop(dev);
 	dev->remote = NULL;
  err_out_free:
+	ir_input_free(input_dev);
 	input_free_device(input_dev);
 	kfree(ir);
 	return err;
@@ -688,6 +698,7 @@ void saa7134_input_fini(struct saa7134_dev *dev)
 		return;
 
 	saa7134_ir_stop(dev);
+	ir_input_free(dev->remote->dev);
 	input_unregister_device(dev->remote->dev);
 	kfree(dev->remote);
 	dev->remote = NULL;
@@ -695,10 +706,7 @@ void saa7134_input_fini(struct saa7134_dev *dev)
 
 void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 {
-	const unsigned short addr_list[] = {
-		0x7a, 0x47, 0x71, 0x2d,
-		I2C_CLIENT_END
-	};
+	struct i2c_board_info info;
 
 	struct i2c_msg msg_msi = {
 		.addr = 0x50,
@@ -714,9 +722,9 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		return;
 	}
 
-	memset(&dev->info, 0, sizeof(dev->info));
+	memset(&info, 0, sizeof(struct i2c_board_info));
 	memset(&dev->init_data, 0, sizeof(dev->init_data));
-	strlcpy(dev->info.type, "ir_video", I2C_NAME_SIZE);
+	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
 
 	switch (dev->board) {
 	case SAA7134_BOARD_PINNACLE_PCTV_110i:
@@ -725,23 +733,24 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		if (pinnacle_remote == 0) {
 			dev->init_data.get_key = get_key_pinnacle_color;
 			dev->init_data.ir_codes = &ir_codes_pinnacle_color_table;
-			dev->info.addr = 0x47;
+			info.addr = 0x47;
 		} else {
 			dev->init_data.get_key = get_key_pinnacle_grey;
 			dev->init_data.ir_codes = &ir_codes_pinnacle_grey_table;
-			dev->info.addr = 0x47;
+			info.addr = 0x47;
 		}
 		break;
 	case SAA7134_BOARD_UPMOST_PURPLE_TV:
 		dev->init_data.name = "Purple TV";
 		dev->init_data.get_key = get_key_purpletv;
 		dev->init_data.ir_codes = &ir_codes_purpletv_table;
+		info.addr = 0x7a;
 		break;
 	case SAA7134_BOARD_MSI_TVATANYWHERE_PLUS:
 		dev->init_data.name = "MSI TV@nywhere Plus";
 		dev->init_data.get_key = get_key_msi_tvanywhere_plus;
 		dev->init_data.ir_codes = &ir_codes_msi_tvanywhere_plus_table;
-		dev->info.addr = 0x30;
+		info.addr = 0x30;
 		/* MSI TV@nywhere Plus controller doesn't seem to
 		   respond to probes unless we read something from
 		   an existing device. Weird...
@@ -755,6 +764,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		dev->init_data.name = "HVR 1110";
 		dev->init_data.get_key = get_key_hvr1110;
 		dev->init_data.ir_codes = &ir_codes_hauppauge_new_table;
+		info.addr = 0x71;
 		break;
 	case SAA7134_BOARD_BEHOLD_607FM_MK3:
 	case SAA7134_BOARD_BEHOLD_607FM_MK5:
@@ -772,23 +782,20 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		dev->init_data.name = "BeholdTV";
 		dev->init_data.get_key = get_key_beholdm6xx;
 		dev->init_data.ir_codes = &ir_codes_behold_table;
+		info.addr = 0x2d;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS_501:
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS_506:
-		dev->info.addr = 0x40;
+		info.addr = 0x40;
 		break;
-	}
-
-	if (dev->init_data.name)
-		dev->info.platform_data = &dev->init_data;
-	/* No need to probe if address is known */
-	if (dev->info.addr) {
-		i2c_new_device(&dev->i2c_adap, &dev->info);
+	default:
+		dprintk("No I2C IR support for board %x\n", dev->board);
 		return;
 	}
 
-	/* Address not known, fallback to probing */
-	i2c_new_probed_device(&dev->i2c_adap, &dev->info, addr_list);
+	if (dev->init_data.name)
+		info.platform_data = &dev->init_data;
+	i2c_new_device(&dev->i2c_adap, &info);
 }
 
 static int saa7134_rc5_irq(struct saa7134_dev *dev)
@@ -936,7 +943,7 @@ static void nec_task(unsigned long data)
 		dprintk("scancode = 0x%02x (code = 0x%02x, notcode= 0x%02x)\n",
 			 ir->code, ircode, not_code);
 
-		ir_input_keydown(ir->dev, &ir->ir, ir->code, ir->code);
+		ir_input_keydown(ir->dev, &ir->ir, ir->code);
 	} else
 		dprintk("Repeat last key\n");
 

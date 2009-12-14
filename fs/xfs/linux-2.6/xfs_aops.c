@@ -235,71 +235,36 @@ xfs_setfilesize(
 }
 
 /*
- * Buffered IO write completion for delayed allocate extents.
+ * IO write completion.
  */
 STATIC void
-xfs_end_bio_delalloc(
-	struct work_struct	*work)
-{
-	xfs_ioend_t		*ioend =
-		container_of(work, xfs_ioend_t, io_work);
-
-	xfs_setfilesize(ioend);
-	xfs_destroy_ioend(ioend);
-}
-
-/*
- * Buffered IO write completion for regular, written extents.
- */
-STATIC void
-xfs_end_bio_written(
-	struct work_struct	*work)
-{
-	xfs_ioend_t		*ioend =
-		container_of(work, xfs_ioend_t, io_work);
-
-	xfs_setfilesize(ioend);
-	xfs_destroy_ioend(ioend);
-}
-
-/*
- * IO write completion for unwritten extents.
- *
- * Issue transactions to convert a buffer range from unwritten
- * to written extents.
- */
-STATIC void
-xfs_end_bio_unwritten(
+xfs_end_io(
 	struct work_struct	*work)
 {
 	xfs_ioend_t		*ioend =
 		container_of(work, xfs_ioend_t, io_work);
 	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
-	xfs_off_t		offset = ioend->io_offset;
-	size_t			size = ioend->io_size;
 
-	if (likely(!ioend->io_error)) {
-		if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-			int error;
-			error = xfs_iomap_write_unwritten(ip, offset, size);
-			if (error)
-				ioend->io_error = error;
-		}
-		xfs_setfilesize(ioend);
+	/*
+	 * For unwritten extents we need to issue transactions to convert a
+	 * range to normal written extens after the data I/O has finished.
+	 */
+	if (ioend->io_type == IOMAP_UNWRITTEN &&
+	    likely(!ioend->io_error && !XFS_FORCED_SHUTDOWN(ip->i_mount))) {
+		int error;
+
+		error = xfs_iomap_write_unwritten(ip, ioend->io_offset,
+						 ioend->io_size);
+		if (error)
+			ioend->io_error = error;
 	}
-	xfs_destroy_ioend(ioend);
-}
 
-/*
- * IO read completion for regular, written extents.
- */
-STATIC void
-xfs_end_bio_read(
-	struct work_struct	*work)
-{
-	xfs_ioend_t		*ioend =
-		container_of(work, xfs_ioend_t, io_work);
-
+	/*
+	 * We might have to update the on-disk file size after extending
+	 * writes.
+	 */
+	if (ioend->io_type != IOMAP_READ)
+		xfs_setfilesize(ioend);
 	xfs_destroy_ioend(ioend);
 }
 
@@ -314,10 +279,10 @@ xfs_finish_ioend(
 	int		wait)
 {
 	if (atomic_dec_and_test(&ioend->io_remaining)) {
-		struct workqueue_struct *wq = xfsdatad_workqueue;
-		if (ioend->io_work.func == xfs_end_bio_unwritten)
-			wq = xfsconvertd_workqueue;
+		struct workqueue_struct *wq;
 
+		wq = (ioend->io_type == IOMAP_UNWRITTEN) ?
+			xfsconvertd_workqueue : xfsdatad_workqueue;
 		queue_work(wq, &ioend->io_work);
 		if (wait)
 			flush_workqueue(wq);
@@ -355,15 +320,7 @@ xfs_alloc_ioend(
 	ioend->io_offset = 0;
 	ioend->io_size = 0;
 
-	if (type == IOMAP_UNWRITTEN)
-		INIT_WORK(&ioend->io_work, xfs_end_bio_unwritten);
-	else if (type == IOMAP_DELAY)
-		INIT_WORK(&ioend->io_work, xfs_end_bio_delalloc);
-	else if (type == IOMAP_READ)
-		INIT_WORK(&ioend->io_work, xfs_end_bio_read);
-	else
-		INIT_WORK(&ioend->io_work, xfs_end_bio_written);
-
+	INIT_WORK(&ioend->io_work, xfs_end_io);
 	return ioend;
 }
 
@@ -380,7 +337,7 @@ xfs_map_blocks(
 	return -xfs_iomap(XFS_I(inode), offset, count, flags, mapp, &nmaps);
 }
 
-STATIC_INLINE int
+STATIC int
 xfs_iomap_valid(
 	xfs_iomap_t		*iomapp,
 	loff_t			offset)
@@ -412,8 +369,9 @@ xfs_end_bio(
 
 STATIC void
 xfs_submit_ioend_bio(
-	xfs_ioend_t	*ioend,
-	struct bio	*bio)
+	struct writeback_control *wbc,
+	xfs_ioend_t		*ioend,
+	struct bio		*bio)
 {
 	atomic_inc(&ioend->io_remaining);
 	bio->bi_private = ioend;
@@ -426,7 +384,8 @@ xfs_submit_ioend_bio(
 	if (xfs_ioend_new_eof(ioend))
 		xfs_mark_inode_dirty_sync(XFS_I(ioend->io_inode));
 
-	submit_bio(WRITE, bio);
+	submit_bio(wbc->sync_mode == WB_SYNC_ALL ?
+		   WRITE_SYNC_PLUG : WRITE, bio);
 	ASSERT(!bio_flagged(bio, BIO_EOPNOTSUPP));
 	bio_put(bio);
 }
@@ -505,6 +464,7 @@ static inline int bio_add_buffer(struct bio *bio, struct buffer_head *bh)
  */
 STATIC void
 xfs_submit_ioend(
+	struct writeback_control *wbc,
 	xfs_ioend_t		*ioend)
 {
 	xfs_ioend_t		*head = ioend;
@@ -533,19 +493,19 @@ xfs_submit_ioend(
  retry:
 				bio = xfs_alloc_ioend_bio(bh);
 			} else if (bh->b_blocknr != lastblock + 1) {
-				xfs_submit_ioend_bio(ioend, bio);
+				xfs_submit_ioend_bio(wbc, ioend, bio);
 				goto retry;
 			}
 
 			if (bio_add_buffer(bio, bh) != bh->b_size) {
-				xfs_submit_ioend_bio(ioend, bio);
+				xfs_submit_ioend_bio(wbc, ioend, bio);
 				goto retry;
 			}
 
 			lastblock = bh->b_blocknr;
 		}
 		if (bio)
-			xfs_submit_ioend_bio(ioend, bio);
+			xfs_submit_ioend_bio(wbc, ioend, bio);
 		xfs_finish_ioend(ioend, 0);
 	} while ((ioend = next) != NULL);
 }
@@ -1191,7 +1151,7 @@ xfs_page_state_convert(
 	}
 
 	if (iohead)
-		xfs_submit_ioend(iohead);
+		xfs_submit_ioend(wbc, iohead);
 
 	return page_dirty;
 
@@ -1528,7 +1488,7 @@ xfs_end_io_direct(
 		 * didn't map an unwritten extent so switch it's completion
 		 * handler.
 		 */
-		INIT_WORK(&ioend->io_work, xfs_end_bio_written);
+		ioend->io_type = IOMAP_NEW;
 		xfs_finish_ioend(ioend, 0);
 	}
 

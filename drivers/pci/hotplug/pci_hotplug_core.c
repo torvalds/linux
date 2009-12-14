@@ -68,26 +68,26 @@ static DEFINE_MUTEX(pci_hp_mutex);
 static char *pci_bus_speed_strings[] = {
 	"33 MHz PCI",		/* 0x00 */
 	"66 MHz PCI",		/* 0x01 */
-	"66 MHz PCIX", 		/* 0x02 */
-	"100 MHz PCIX",		/* 0x03 */
-	"133 MHz PCIX",		/* 0x04 */
+	"66 MHz PCI-X",		/* 0x02 */
+	"100 MHz PCI-X",	/* 0x03 */
+	"133 MHz PCI-X",	/* 0x04 */
 	NULL,			/* 0x05 */
 	NULL,			/* 0x06 */
 	NULL,			/* 0x07 */
 	NULL,			/* 0x08 */
-	"66 MHz PCIX 266",	/* 0x09 */
-	"100 MHz PCIX 266",	/* 0x0a */
-	"133 MHz PCIX 266",	/* 0x0b */
+	"66 MHz PCI-X 266",	/* 0x09 */
+	"100 MHz PCI-X 266",	/* 0x0a */
+	"133 MHz PCI-X 266",	/* 0x0b */
 	NULL,			/* 0x0c */
 	NULL,			/* 0x0d */
 	NULL,			/* 0x0e */
 	NULL,			/* 0x0f */
 	NULL,			/* 0x10 */
-	"66 MHz PCIX 533",	/* 0x11 */
-	"100 MHz PCIX 533",	/* 0x12 */
-	"133 MHz PCIX 533",	/* 0x13 */
-	"2.5 GT/s PCI-E",	/* 0x14 */
-	"5.0 GT/s PCI-E",	/* 0x15 */
+	"66 MHz PCI-X 533",	/* 0x11 */
+	"100 MHz PCI-X 533",	/* 0x12 */
+	"133 MHz PCI-X 533",	/* 0x13 */
+	"2.5 GT/s PCIe",	/* 0x14 */
+	"5.0 GT/s PCIe",	/* 0x15 */
 };
 
 #ifdef CONFIG_HOTPLUG_PCI_CPCI

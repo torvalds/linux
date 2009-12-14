@@ -38,7 +38,7 @@
 // 2. 0x800/0x900/0xA00/0xC00/0xD00/0xE00
 // 3. RF register 0x00-2E
 // 4. Bit Mask for BB/RF register
-// 5. Other defintion for BB/RF R/W
+// 5. Other definition for BB/RF R/W
 //
 
 
@@ -453,7 +453,7 @@
 #define		bR2RCCAMask               			0x00000f00
 #define		bHSSI_R2TDelay            		0xf8000000
 #define		bHSSI_T2RDelay            		0xf80000
-#define		bContTxHSSI               			0x400     //chane gain at continue Tx
+#define		bContTxHSSI               			0x400     //channel gain at continue Tx
 #define		bIGFromCCK                			0x200
 #define		bAGCAddress               			0x3f
 #define		bRxHPTx                   			0x7000

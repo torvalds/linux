@@ -19,7 +19,7 @@ static char const *input_name = "perf.data";
 static int force;
 
 static const char *const buildid_list_usage[] = {
-	"perf report [<options>]",
+	"perf buildid-list [<options>]",
 	NULL
 };
 

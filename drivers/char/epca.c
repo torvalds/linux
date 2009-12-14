@@ -935,7 +935,7 @@ static int info_open(struct tty_struct *tty, struct file *filp)
 	return 0;
 }
 
-static struct tty_operations info_ops = {
+static const struct tty_operations info_ops = {
 	.open = info_open,
 	.ioctl = info_ioctl,
 };

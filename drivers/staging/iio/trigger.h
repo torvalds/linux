@@ -19,16 +19,18 @@
  * @id:			[INTERN] unique id number
  * @name:		[DRIVER] unique name
  * @dev:		[DRIVER] associated device (if relevant)
- * @sysfs_dev:		[INTERN] sysfs relevant device
  * @private_data:	[DRIVER] device specific data
  * @list:		[INTERN] used in maintenance of global trigger list
  * @alloc_list:		[DRIVER] used for driver specific trigger list
- * @poll_func_list_lock:[INTERN] protection of the polling function list
+ * @pollfunc_list_lock:	[INTERN] protection of the polling function list
  * @pollfunc_list:	[INTERN] list of functions to run on trigger.
  * @control_attrs:	[DRIVER] sysfs attributes relevant to trigger type
- * @set_trigger_state:	[DRIVER] switch on/off the trigger on demand
  * @timestamp:		[INTERN] timestamp usesd by some trigs (e.g. datardy)
  * @owner:		[DRIVER] used to monitor usage count of the trigger.
+ * @use_count:		use count for the trigger
+ * @set_trigger_state:	[DRIVER] switch on/off the trigger on demand
+ * @try_reenable:	function to reenable the trigger when the
+ *			use count is zero (may be NULL)
  **/
 struct iio_trigger {
 	int				id;
@@ -68,6 +70,9 @@ static inline void iio_get_trigger(struct iio_trigger *trig)
 
 /**
  * iio_trigger_read_name() - sysfs access function to get the trigger name
+ * @dev: the system device
+ * @attr: device attributes for the device
+ * @buf: output buffer to store the trigger name
  **/
 ssize_t iio_trigger_read_name(struct device *dev,
 			      struct device_attribute *attr,
@@ -79,6 +84,8 @@ ssize_t iio_trigger_read_name(struct device *dev,
 
 /**
  * iio_trigger_find_by_name() - search global trigger list
+ * @name: trigger name to search for
+ * @len: trigger name string length to compare
  **/
 struct iio_trigger *iio_trigger_find_by_name(const char *name, size_t len);
 
@@ -90,32 +97,35 @@ int iio_trigger_register(struct iio_trigger *trig_info);
 
 /**
  * iio_trigger_unregister() - unregister a trigger from the core
+ * @trig_info:	trigger to be unregistered
  **/
 void iio_trigger_unregister(struct iio_trigger *trig_info);
 
 /**
  * iio_trigger_attach_poll_func() - add a function pair to be run on trigger
  * @trig:	trigger to which the function pair are being added
- * @pf:	poll function pair
+ * @pf:		poll function pair
  **/
 int iio_trigger_attach_poll_func(struct iio_trigger *trig,
 				 struct iio_poll_func *pf);
 
 /**
  * iio_trigger_dettach_poll_func() -	remove function pair from those to be
- *					run on trigger.
- * @trig:	trigger from which the function is being removed.
+ *					run on trigger
+ * @trig:	trigger from which the function is being removed
  * @pf:		poll function pair
  **/
 int iio_trigger_dettach_poll_func(struct iio_trigger *trig,
 				  struct iio_poll_func *pf);
 
 /**
- * iio_trigger_poll() - called on a trigger occuring
+ * iio_trigger_poll() - called on a trigger occurring
+ * @trig: trigger which occurred
+ *
  * Typically called in relevant hardware interrupt handler.
  **/
-void iio_trigger_poll(struct iio_trigger *);
-void iio_trigger_notify_done(struct iio_trigger *);
+void iio_trigger_poll(struct iio_trigger *trig);
+void iio_trigger_notify_done(struct iio_trigger *trig);
 
 /**
  * struct iio_poll_func - poll function pair
@@ -127,11 +137,10 @@ void iio_trigger_notify_done(struct iio_trigger *);
  *				control on sensor supporting it.
  * @poll_func_main:		function in here is run after all immediates.
  *				Reading from sensor etc typically involves
- *				scheduling
- *				from here.
+ *				scheduling from here.
  *
- * The two stage approach used here only important when multiple sensors are
- * being triggered by a single trigger. This really comes into it's own with
+ * The two stage approach used here is only important when multiple sensors are
+ * being triggered by a single trigger. This really comes into its own with
  * simultaneous sampling devices where a simple latch command can be used to
  * make the device store the values on all inputs.
  **/

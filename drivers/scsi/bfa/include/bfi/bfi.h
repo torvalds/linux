@@ -93,13 +93,13 @@ union bfi_addr_u {
  */
 struct bfi_sge_s {
 #ifdef __BIGENDIAN
-	u32        flags	: 2,
-			rsvd	: 2,
-			sg_len	: 28;
+	u32        flags:2,
+			rsvd:2,
+			sg_len:28;
 #else
-	u32        sg_len	: 28,
-			rsvd	: 2,
-			flags	: 2;
+	u32        sg_len:28,
+			rsvd:2,
+			flags:2;
 #endif
 	union bfi_addr_u sga;
 };

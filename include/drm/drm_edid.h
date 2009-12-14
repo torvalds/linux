@@ -106,6 +106,10 @@ struct detailed_data_color_point {
 	u8 wpindex2[3];
 } __attribute__((packed));
 
+struct cvt_timing {
+	u8 code[3];
+} __attribute__((packed));
+
 struct detailed_non_pixel {
 	u8 pad1;
 	u8 type; /* ff=serial, fe=string, fd=monitor range, fc=monitor name
@@ -117,9 +121,13 @@ struct detailed_non_pixel {
 		struct detailed_data_monitor_range range;
 		struct detailed_data_wpindex color;
 		struct std_timing timings[5];
+		struct cvt_timing cvt[4];
 	} data;
 } __attribute__((packed));
 
+#define EDID_DETAIL_EST_TIMINGS 0xf7
+#define EDID_DETAIL_CVT_3BYTE 0xf8
+#define EDID_DETAIL_COLOR_MGMT_DATA 0xf9
 #define EDID_DETAIL_STD_MODES 0xfa
 #define EDID_DETAIL_MONITOR_CPDATA 0xfb
 #define EDID_DETAIL_MONITOR_NAME 0xfc

@@ -930,13 +930,39 @@ xfs_fs_alloc_inode(
  */
 STATIC void
 xfs_fs_destroy_inode(
-	struct inode	*inode)
+	struct inode		*inode)
 {
-	xfs_inode_t		*ip = XFS_I(inode);
+	struct xfs_inode	*ip = XFS_I(inode);
+
+	xfs_itrace_entry(ip);
 
 	XFS_STATS_INC(vn_reclaim);
-	if (xfs_reclaim(ip))
-		panic("%s: cannot reclaim 0x%p\n", __func__, inode);
+
+	/* bad inode, get out here ASAP */
+	if (is_bad_inode(inode))
+		goto out_reclaim;
+
+	xfs_ioend_wait(ip);
+
+	ASSERT(XFS_FORCED_SHUTDOWN(ip->i_mount) || ip->i_delayed_blks == 0);
+
+	/*
+	 * We should never get here with one of the reclaim flags already set.
+	 */
+	ASSERT_ALWAYS(!xfs_iflags_test(ip, XFS_IRECLAIMABLE));
+	ASSERT_ALWAYS(!xfs_iflags_test(ip, XFS_IRECLAIM));
+
+	/*
+	 * If we have nothing to flush with this inode then complete the
+	 * teardown now, otherwise delay the flush operation.
+	 */
+	if (!xfs_inode_clean(ip)) {
+		xfs_inode_set_reclaim_tag(ip);
+		return;
+	}
+
+out_reclaim:
+	xfs_ireclaim(ip);
 }
 
 /*
@@ -973,7 +999,6 @@ xfs_fs_inode_init_once(
 
 	mrlock_init(&ip->i_lock, MRLOCK_ALLOW_EQUAL_PRI|MRLOCK_BARRIER,
 		     "xfsino", ip->i_ino);
-	mrlock_init(&ip->i_iolock, MRLOCK_BARRIER, "xfsio", ip->i_ino);
 }
 
 /*
@@ -1075,6 +1100,20 @@ xfs_fs_clear_inode(
 	XFS_STATS_INC(vn_remove);
 	XFS_STATS_DEC(vn_active);
 
+	/*
+	 * The iolock is used by the file system to coordinate reads,
+	 * writes, and block truncates.  Up to this point the lock
+	 * protected concurrent accesses by users of the inode.  But
+	 * from here forward we're doing some final processing of the
+	 * inode because we're done with it, and although we reuse the
+	 * iolock for protection it is really a distinct lock class
+	 * (in the lockdep sense) from before.  To keep lockdep happy
+	 * (and basically indicate what we are doing), we explicitly
+	 * re-init the iolock here.
+	 */
+	ASSERT(!rwsem_is_locked(&ip->i_iolock.mr_lock));
+	mrlock_init(&ip->i_iolock, MRLOCK_BARRIER, "xfsio", ip->i_ino);
+
 	xfs_inactive(ip);
 }
 
@@ -1092,8 +1131,6 @@ xfs_fs_put_super(
 	struct super_block	*sb)
 {
 	struct xfs_mount	*mp = XFS_M(sb);
-	struct xfs_inode	*rip = mp->m_rootip;
-	int			unmount_event_flags = 0;
 
 	xfs_syncd_stop(mp);
 
@@ -1109,20 +1146,7 @@ xfs_fs_put_super(
 		xfs_sync_attr(mp, 0);
 	}
 
-#ifdef HAVE_DMAPI
-	if (mp->m_flags & XFS_MOUNT_DMAPI) {
-		unmount_event_flags =
-			(mp->m_dmevmask & (1 << DM_EVENT_UNMOUNT)) ?
-				0 : DM_FLAGS_UNWANTED;
-		/*
-		 * Ignore error from dmapi here, first unmount is not allowed
-		 * to fail anyway, and second we wouldn't want to fail a
-		 * unmount because of dmapi.
-		 */
-		XFS_SEND_PREUNMOUNT(mp, rip, DM_RIGHT_NULL, rip, DM_RIGHT_NULL,
-				NULL, NULL, 0, 0, unmount_event_flags);
-	}
-#endif
+	XFS_SEND_PREUNMOUNT(mp);
 
 	/*
 	 * Blow away any referenced inode in the filestreams cache.
@@ -1133,10 +1157,7 @@ xfs_fs_put_super(
 
 	XFS_bflush(mp->m_ddev_targp);
 
-	if (mp->m_flags & XFS_MOUNT_DMAPI) {
-		XFS_SEND_UNMOUNT(mp, rip, DM_RIGHT_NULL, 0, 0,
-				unmount_event_flags);
-	}
+	XFS_SEND_UNMOUNT(mp);
 
 	xfs_unmountfs(mp);
 	xfs_freesb(mp);

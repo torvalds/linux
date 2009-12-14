@@ -1,5 +1,3 @@
-# arch/arm/mach-s3c2440/Kconfig
-#
 # Copyright 2007 Simtec Electronics
 #
 # Licensed under GPLv2
@@ -122,4 +120,3 @@ config MACH_MINI2440
 	  available via various sources. It can come with a 3.5" or 7" touch LCD.
 
 endmenu
-

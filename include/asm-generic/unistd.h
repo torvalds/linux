@@ -622,16 +622,20 @@ __SYSCALL(__NR_move_pages, sys_move_pages)
 __SYSCALL(__NR_rt_tgsigqueueinfo, sys_rt_tgsigqueueinfo)
 #define __NR_perf_event_open 241
 __SYSCALL(__NR_perf_event_open, sys_perf_event_open)
+#define __NR_accept4 242
+__SYSCALL(__NR_accept4, sys_accept4)
+#define __NR_recvmmsg 243
+__SYSCALL(__NR_recvmmsg, sys_recvmmsg)
 
 #undef __NR_syscalls
-#define __NR_syscalls 242
+#define __NR_syscalls 244
 
 /*
  * All syscalls below here should go away really,
  * these are provided for both review and as a porting
  * help for the C library version.
 *
- * Last chance: are any of these important enought to
+ * Last chance: are any of these important enough to
  * enable by default?
  */
 #ifdef __ARCH_WANT_SYSCALL_NO_AT
@@ -802,7 +806,7 @@ __SYSCALL(__NR_fork, sys_ni_syscall)
 #define __NR_statfs __NR3264_statfs
 #define __NR_fstatfs __NR3264_fstatfs
 #define __NR_truncate __NR3264_truncate
-#define __NR_ftruncate __NR3264_truncate
+#define __NR_ftruncate __NR3264_ftruncate
 #define __NR_lseek __NR3264_lseek
 #define __NR_sendfile __NR3264_sendfile
 #define __NR_newfstatat __NR3264_fstatat
@@ -818,7 +822,7 @@ __SYSCALL(__NR_fork, sys_ni_syscall)
 #define __NR_statfs64 __NR3264_statfs
 #define __NR_fstatfs64 __NR3264_fstatfs
 #define __NR_truncate64 __NR3264_truncate
-#define __NR_ftruncate64 __NR3264_truncate
+#define __NR_ftruncate64 __NR3264_ftruncate
 #define __NR_llseek __NR3264_lseek
 #define __NR_sendfile64 __NR3264_sendfile
 #define __NR_fstatat64 __NR3264_fstatat

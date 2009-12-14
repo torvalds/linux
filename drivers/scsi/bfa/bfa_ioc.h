@@ -179,16 +179,16 @@ struct bfa_ioc_s {
 	struct bfa_ioc_mbox_mod_s mbox_mod;
 };
 
-#define bfa_ioc_pcifn(__ioc)		(__ioc)->pcidev.pci_func
-#define bfa_ioc_devid(__ioc)		(__ioc)->pcidev.device_id
-#define bfa_ioc_bar0(__ioc)		(__ioc)->pcidev.pci_bar_kva
+#define bfa_ioc_pcifn(__ioc)		((__ioc)->pcidev.pci_func)
+#define bfa_ioc_devid(__ioc)		((__ioc)->pcidev.device_id)
+#define bfa_ioc_bar0(__ioc)		((__ioc)->pcidev.pci_bar_kva)
 #define bfa_ioc_portid(__ioc)		((__ioc)->port_id)
 #define bfa_ioc_fetch_stats(__ioc, __stats) \
-		((__stats)->drv_stats) = (__ioc)->stats
+		(((__stats)->drv_stats) = (__ioc)->stats)
 #define bfa_ioc_clr_stats(__ioc)	\
 		bfa_os_memset(&(__ioc)->stats, 0, sizeof((__ioc)->stats))
-#define bfa_ioc_maxfrsize(__ioc)	(__ioc)->attr->maxfrsize
-#define bfa_ioc_rx_bbcredit(__ioc)	(__ioc)->attr->rx_bbcredit
+#define bfa_ioc_maxfrsize(__ioc)	((__ioc)->attr->maxfrsize)
+#define bfa_ioc_rx_bbcredit(__ioc)	((__ioc)->attr->rx_bbcredit)
 #define bfa_ioc_speed_sup(__ioc)	\
 	BFI_ADAPTER_GETP(SPEED, (__ioc)->attr->adapter_prop)
 

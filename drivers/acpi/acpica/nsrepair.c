@@ -44,6 +44,7 @@
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
+#include "acinterp.h"
 #include "acpredef.h"
 
 #define _COMPONENT          ACPI_NAMESPACE
@@ -76,7 +77,13 @@ acpi_ns_repair_object(struct acpi_predefined_data *data,
 	union acpi_operand_object *return_object = *return_object_ptr;
 	union acpi_operand_object *new_object;
 	acpi_size length;
+	acpi_status status;
 
+	/*
+	 * At this point, we know that the type of the returned object was not
+	 * one of the expected types for this predefined name. Attempt to
+	 * repair the object. Only a limited number of repairs are possible.
+	 */
 	switch (return_object->common.type) {
 	case ACPI_TYPE_BUFFER:
 
@@ -111,43 +118,94 @@ acpi_ns_repair_object(struct acpi_predefined_data *data,
 		 */
 		ACPI_MEMCPY(new_object->string.pointer,
 			    return_object->buffer.pointer, length);
+		break;
 
-		/*
-		 * If the original object is a package element, we need to:
-		 * 1. Set the reference count of the new object to match the
-		 *    reference count of the old object.
-		 * 2. Decrement the reference count of the original object.
-		 */
-		if (package_index != ACPI_NOT_PACKAGE_ELEMENT) {
-			new_object->common.reference_count =
-			    return_object->common.reference_count;
+	case ACPI_TYPE_INTEGER:
 
-			if (return_object->common.reference_count > 1) {
-				return_object->common.reference_count--;
+		/* 1) Does the method/object legally return a buffer? */
+
+		if (expected_btypes & ACPI_RTYPE_BUFFER) {
+			/*
+			 * Convert the Integer to a packed-byte buffer. _MAT needs
+			 * this sometimes, if a read has been performed on a Field
+			 * object that is less than or equal to the global integer
+			 * size (32 or 64 bits).
+			 */
+			status =
+			    acpi_ex_convert_to_buffer(return_object,
+						      &new_object);
+			if (ACPI_FAILURE(status)) {
+				return (status);
 			}
-
-			ACPI_WARN_PREDEFINED((AE_INFO, data->pathname,
-					      data->node_flags,
-					      "Converted Buffer to expected String at index %u",
-					      package_index));
-		} else {
-			ACPI_WARN_PREDEFINED((AE_INFO, data->pathname,
-					      data->node_flags,
-					      "Converted Buffer to expected String"));
 		}
 
-		/* Delete old object, install the new return object */
+		/* 2) Does the method/object legally return a string? */
 
-		acpi_ut_remove_reference(return_object);
-		*return_object_ptr = new_object;
-		data->flags |= ACPI_OBJECT_REPAIRED;
-		return (AE_OK);
+		else if (expected_btypes & ACPI_RTYPE_STRING) {
+			/*
+			 * The only supported Integer-to-String conversion is to convert
+			 * an integer of value 0 to a NULL string. The last element of
+			 * _BIF and _BIX packages occasionally need this fix.
+			 */
+			if (return_object->integer.value != 0) {
+				return (AE_AML_OPERAND_TYPE);
+			}
+
+			/* Allocate a new NULL string object */
+
+			new_object = acpi_ut_create_string_object(0);
+			if (!new_object) {
+				return (AE_NO_MEMORY);
+			}
+		} else {
+			return (AE_AML_OPERAND_TYPE);
+		}
+		break;
 
 	default:
-		break;
+
+		/* We cannot repair this object */
+
+		return (AE_AML_OPERAND_TYPE);
 	}
 
-	return (AE_AML_OPERAND_TYPE);
+	/* Object was successfully repaired */
+
+	/*
+	 * If the original object is a package element, we need to:
+	 * 1. Set the reference count of the new object to match the
+	 *    reference count of the old object.
+	 * 2. Decrement the reference count of the original object.
+	 */
+	if (package_index != ACPI_NOT_PACKAGE_ELEMENT) {
+		new_object->common.reference_count =
+		    return_object->common.reference_count;
+
+		if (return_object->common.reference_count > 1) {
+			return_object->common.reference_count--;
+		}
+
+		ACPI_INFO_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+				      "Converted %s to expected %s at index %u",
+				      acpi_ut_get_object_type_name
+				      (return_object),
+				      acpi_ut_get_object_type_name(new_object),
+				      package_index));
+	} else {
+		ACPI_INFO_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+				      "Converted %s to expected %s",
+				      acpi_ut_get_object_type_name
+				      (return_object),
+				      acpi_ut_get_object_type_name
+				      (new_object)));
+	}
+
+	/* Delete old object, install the new return object */
+
+	acpi_ut_remove_reference(return_object);
+	*return_object_ptr = new_object;
+	data->flags |= ACPI_OBJECT_REPAIRED;
+	return (AE_OK);
 }
 
 /*******************************************************************************
@@ -196,8 +254,8 @@ acpi_ns_repair_package_list(struct acpi_predefined_data *data,
 	*obj_desc_ptr = pkg_obj_desc;
 	data->flags |= ACPI_OBJECT_REPAIRED;
 
-	ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
-			      "Incorrectly formed Package, attempting repair"));
+	ACPI_INFO_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+			      "Repaired Incorrectly formed Package"));
 
 	return (AE_OK);
 }

@@ -323,7 +323,7 @@ static int __devinit s3c_hwmon_probe(struct platform_device *dev)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(pdata->in); i++) {
-		struct s3c24xx_adc_hwmon_incfg *cfg = pdata->in[i];
+		struct s3c_hwmon_chcfg *cfg = pdata->in[i];
 
 		if (!cfg)
 			continue;
@@ -333,7 +333,7 @@ static int __devinit s3c_hwmon_probe(struct platform_device *dev)
 				 "channel %d multiplier too large\n",
 				 i);
 
-		if (cfg->divider == 0) {
+		if (cfg->div == 0) {
 			dev_err(&dev->dev, "channel %d divider zero\n", i);
 			continue;
 		}

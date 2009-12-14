@@ -50,12 +50,18 @@ MUX_CFG_7XX("E3_7XX_KBC4",        13,   25,    0,   24,   1, 0)
 
 MUX_CFG_7XX("AA17_7XX_USB_DM",     2,   21,    0,   20,   0, 0)
 MUX_CFG_7XX("W16_7XX_USB_PU_EN",   2,   25,    0,   24,   0, 0)
-MUX_CFG_7XX("W17_7XX_USB_VBUSI",   2,   29,    0,   28,   0, 0)
+MUX_CFG_7XX("W17_7XX_USB_VBUSI",   2,   29,    6,   28,   1, 0)
+MUX_CFG_7XX("W18_7XX_USB_DMCK_OUT",3,    3,    1,    2,   0, 0)
+MUX_CFG_7XX("W19_7XX_USB_DCRST",   3,    7,    1,    6,   0, 0)
 
 /* MMC Pins */
 MUX_CFG_7XX("MMC_7XX_CMD",         2,    9,    0,    8,   1, 0)
 MUX_CFG_7XX("MMC_7XX_CLK",         2,   13,    0,   12,   1, 0)
 MUX_CFG_7XX("MMC_7XX_DAT0",        2,   17,    0,   16,   1, 0)
+
+/* I2C interface */
+MUX_CFG_7XX("I2C_7XX_SCL",         5,    1,    0,    0,   1, 0)
+MUX_CFG_7XX("I2C_7XX_SDA",         5,    5,    0,    0,   1, 0)
 };
 #define OMAP7XX_PINS_SZ		ARRAY_SIZE(omap7xx_pins)
 #else

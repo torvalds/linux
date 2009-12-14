@@ -164,7 +164,7 @@ Stereo/Mono and RDS subchannels
 
 The device can also be configured using the available sub channels for
 transmission. To do that use S/G_MODULATOR ioctl and configure txsubchans properly.
-Refer to v4l2-spec for proper use of this ioctl.
+Refer to the V4L2 API specification for proper use of this ioctl.
 
 Testing
 =======

@@ -33,7 +33,8 @@
 #include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
-#include "intel_dp.h"
+#include "drm_dp_helper.h"
+
 
 #define DP_LINK_STATUS_SIZE	6
 #define DP_LINK_CHECK_TIMEOUT	(10 * 1000)
@@ -223,8 +224,8 @@ intel_dp_aux_ch(struct intel_output *intel_output,
 	 */
 	if (IS_eDP(intel_output))
 		aux_clock_divider = 225; /* eDP input clock at 450Mhz */
-	else if (IS_IGDNG(dev))
-		aux_clock_divider = 62; /* IGDNG: input clock fixed at 125Mhz */
+	else if (IS_IRONLAKE(dev))
+		aux_clock_divider = 62; /* IRL input clock fixed at 125Mhz */
 	else
 		aux_clock_divider = intel_hrawclk(dev) / 2;
 
@@ -282,7 +283,7 @@ intel_dp_aux_ch(struct intel_output *intel_output,
 	/* Timeouts occur when the device isn't connected, so they're
 	 * "normal" -- don't fill the kernel log with these */
 	if (status & DP_AUX_CH_CTL_TIME_OUT_ERROR) {
-		DRM_DEBUG("dp_aux_ch timeout status 0x%08x\n", status);
+		DRM_DEBUG_KMS("dp_aux_ch timeout status 0x%08x\n", status);
 		return -ETIMEDOUT;
 	}
 
@@ -382,17 +383,77 @@ intel_dp_aux_native_read(struct intel_output *intel_output,
 }
 
 static int
-intel_dp_i2c_aux_ch(struct i2c_adapter *adapter,
-		    uint8_t *send, int send_bytes,
-		    uint8_t *recv, int recv_bytes)
+intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
+		    uint8_t write_byte, uint8_t *read_byte)
 {
+	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
 	struct intel_dp_priv *dp_priv = container_of(adapter,
 						     struct intel_dp_priv,
 						     adapter);
 	struct intel_output *intel_output = dp_priv->intel_output;
+	uint16_t address = algo_data->address;
+	uint8_t msg[5];
+	uint8_t reply[2];
+	int msg_bytes;
+	int reply_bytes;
+	int ret;
 
-	return intel_dp_aux_ch(intel_output,
-			       send, send_bytes, recv, recv_bytes);
+	/* Set up the command byte */
+	if (mode & MODE_I2C_READ)
+		msg[0] = AUX_I2C_READ << 4;
+	else
+		msg[0] = AUX_I2C_WRITE << 4;
+
+	if (!(mode & MODE_I2C_STOP))
+		msg[0] |= AUX_I2C_MOT << 4;
+
+	msg[1] = address >> 8;
+	msg[2] = address;
+
+	switch (mode) {
+	case MODE_I2C_WRITE:
+		msg[3] = 0;
+		msg[4] = write_byte;
+		msg_bytes = 5;
+		reply_bytes = 1;
+		break;
+	case MODE_I2C_READ:
+		msg[3] = 0;
+		msg_bytes = 4;
+		reply_bytes = 2;
+		break;
+	default:
+		msg_bytes = 3;
+		reply_bytes = 1;
+		break;
+	}
+
+	for (;;) {
+	  ret = intel_dp_aux_ch(intel_output,
+				msg, msg_bytes,
+				reply, reply_bytes);
+		if (ret < 0) {
+			DRM_DEBUG_KMS("aux_ch failed %d\n", ret);
+			return ret;
+		}
+		switch (reply[0] & AUX_I2C_REPLY_MASK) {
+		case AUX_I2C_REPLY_ACK:
+			if (mode == MODE_I2C_READ) {
+				*read_byte = reply[1];
+			}
+			return reply_bytes - 1;
+		case AUX_I2C_REPLY_NACK:
+			DRM_DEBUG_KMS("aux_ch nack\n");
+			return -EREMOTEIO;
+		case AUX_I2C_REPLY_DEFER:
+			DRM_DEBUG_KMS("aux_ch defer\n");
+			udelay(100);
+			break;
+		default:
+			DRM_ERROR("aux_ch invalid reply 0x%02x\n", reply[0]);
+			return -EREMOTEIO;
+		}
+	}
 }
 
 static int
@@ -435,7 +496,8 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 				dp_priv->link_bw = bws[clock];
 				dp_priv->lane_count = lane_count;
 				adjusted_mode->clock = intel_dp_link_clock(dp_priv->link_bw);
-				DRM_DEBUG("Display port link bw %02x lane count %d clock %d\n",
+				DRM_DEBUG_KMS("Display port link bw %02x lane "
+						"count %d clock %d\n",
 				       dp_priv->link_bw, dp_priv->lane_count,
 				       adjusted_mode->clock);
 				return true;
@@ -514,7 +576,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	intel_dp_compute_m_n(3, lane_count,
 			     mode->clock, adjusted_mode->clock, &m_n);
 
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		if (intel_crtc->pipe == 0) {
 			I915_WRITE(TRANSA_DATA_M1,
 				   ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
@@ -606,23 +668,23 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	}
 }
 
-static void igdng_edp_backlight_on (struct drm_device *dev)
+static void ironlake_edp_backlight_on (struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp;
 
-	DRM_DEBUG("\n");
+	DRM_DEBUG_KMS("\n");
 	pp = I915_READ(PCH_PP_CONTROL);
 	pp |= EDP_BLC_ENABLE;
 	I915_WRITE(PCH_PP_CONTROL, pp);
 }
 
-static void igdng_edp_backlight_off (struct drm_device *dev)
+static void ironlake_edp_backlight_off (struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp;
 
-	DRM_DEBUG("\n");
+	DRM_DEBUG_KMS("\n");
 	pp = I915_READ(PCH_PP_CONTROL);
 	pp &= ~EDP_BLC_ENABLE;
 	I915_WRITE(PCH_PP_CONTROL, pp);
@@ -641,13 +703,13 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 		if (dp_reg & DP_PORT_EN) {
 			intel_dp_link_down(intel_output, dp_priv->DP);
 			if (IS_eDP(intel_output))
-				igdng_edp_backlight_off(dev);
+				ironlake_edp_backlight_off(dev);
 		}
 	} else {
 		if (!(dp_reg & DP_PORT_EN)) {
 			intel_dp_link_train(intel_output, dp_priv->DP, dp_priv->link_configuration);
 			if (IS_eDP(intel_output))
-				igdng_edp_backlight_on(dev);
+				ironlake_edp_backlight_on(dev);
 		}
 	}
 	dp_priv->dpms_mode = mode;
@@ -1010,7 +1072,7 @@ intel_dp_link_down(struct intel_output *intel_output, uint32_t DP)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dp_priv *dp_priv = intel_output->dev_priv;
 
-	DRM_DEBUG("\n");
+	DRM_DEBUG_KMS("\n");
 
 	if (IS_eDP(intel_output)) {
 		DP &= ~DP_PLL_ENABLE;
@@ -1071,7 +1133,7 @@ intel_dp_check_link_status(struct intel_output *intel_output)
 }
 
 static enum drm_connector_status
-igdng_dp_detect(struct drm_connector *connector)
+ironlake_dp_detect(struct drm_connector *connector)
 {
 	struct intel_output *intel_output = to_intel_output(connector);
 	struct intel_dp_priv *dp_priv = intel_output->dev_priv;
@@ -1106,8 +1168,8 @@ intel_dp_detect(struct drm_connector *connector)
 
 	dp_priv->has_audio = false;
 
-	if (IS_IGDNG(dev))
-		return igdng_dp_detect(connector);
+	if (IS_IRONLAKE(dev))
+		return ironlake_dp_detect(connector);
 
 	temp = I915_READ(PORT_HOTPLUG_EN);
 
@@ -1227,7 +1289,53 @@ intel_dp_hot_plug(struct intel_output *intel_output)
 	if (dp_priv->dpms_mode == DRM_MODE_DPMS_ON)
 		intel_dp_check_link_status(intel_output);
 }
+/*
+ * Enumerate the child dev array parsed from VBT to check whether
+ * the given DP is present.
+ * If it is present, return 1.
+ * If it is not present, return false.
+ * If no child dev is parsed from VBT, it is assumed that the given
+ * DP is present.
+ */
+static int dp_is_present_in_vbt(struct drm_device *dev, int dp_reg)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct child_device_config *p_child;
+	int i, dp_port, ret;
 
+	if (!dev_priv->child_dev_num)
+		return 1;
+
+	dp_port = 0;
+	if (dp_reg == DP_B || dp_reg == PCH_DP_B)
+		dp_port = PORT_IDPB;
+	else if (dp_reg == DP_C || dp_reg == PCH_DP_C)
+		dp_port = PORT_IDPC;
+	else if (dp_reg == DP_D || dp_reg == PCH_DP_D)
+		dp_port = PORT_IDPD;
+
+	ret = 0;
+	for (i = 0; i < dev_priv->child_dev_num; i++) {
+		p_child = dev_priv->child_dev + i;
+		/*
+		 * If the device type is not DP, continue.
+		 */
+		if (p_child->device_type != DEVICE_TYPE_DP &&
+			p_child->device_type != DEVICE_TYPE_eDP)
+			continue;
+		/* Find the eDP port */
+		if (dp_reg == DP_A && p_child->device_type == DEVICE_TYPE_eDP) {
+			ret = 1;
+			break;
+		}
+		/* Find the DP port */
+		if (p_child->dvo_port == dp_port) {
+			ret = 1;
+			break;
+		}
+	}
+	return ret;
+}
 void
 intel_dp_init(struct drm_device *dev, int output_reg)
 {
@@ -1237,6 +1345,10 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	struct intel_dp_priv *dp_priv;
 	const char *name = NULL;
 
+	if (!dp_is_present_in_vbt(dev, output_reg)) {
+		DRM_DEBUG_KMS("DP is not present. Ignore it\n");
+		return;
+	}
 	intel_output = kcalloc(sizeof(struct intel_output) + 
 			       sizeof(struct intel_dp_priv), 1, GFP_KERNEL);
 	if (!intel_output)
@@ -1254,11 +1366,11 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	else
 		intel_output->type = INTEL_OUTPUT_DISPLAYPORT;
 
-	if (output_reg == DP_B)
+	if (output_reg == DP_B || output_reg == PCH_DP_B)
 		intel_output->clone_mask = (1 << INTEL_DP_B_CLONE_BIT);
-	else if (output_reg == DP_C)
+	else if (output_reg == DP_C || output_reg == PCH_DP_C)
 		intel_output->clone_mask = (1 << INTEL_DP_C_CLONE_BIT);
-	else if (output_reg == DP_D)
+	else if (output_reg == DP_D || output_reg == PCH_DP_D)
 		intel_output->clone_mask = (1 << INTEL_DP_D_CLONE_BIT);
 
 	if (IS_eDP(intel_output)) {

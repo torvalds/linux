@@ -316,13 +316,13 @@
 
 /*
  * HV_STATUS_VMX_INSTRUCTION_FAILED
- * The requested VMX instruction failed to complete succesfully.
+ * The requested VMX instruction failed to complete successfully.
  */
 #define HV_STATUS_VMX_INSTRUCTION_FAILED		((u16)0x1011)
 
 /*
  * HV_STATUS_VMX_INSTRUCTION_FAILED_WITH_STATUS
- * The requested VMX instruction failed to complete succesfully indicating
+ * The requested VMX instruction failed to complete successfully indicating
  * status.
  */
 #define HV_STATUS_VMX_INSTRUCTION_FAILED_WITH_STATUS	((u16)0x1012)

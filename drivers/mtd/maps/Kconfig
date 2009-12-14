@@ -1,5 +1,3 @@
-# drivers/mtd/maps/Kconfig
-
 menu "Mapping drivers for chip access"
 	depends on MTD!=n
 
@@ -389,9 +387,9 @@ config MTD_IXP2000
 	depends on MTD_CFI && MTD_COMPLEX_MAPPINGS && ARCH_IXP2000
 	help
 	  This enables MTD access to flash devices on platforms based
-	  on Intel's IXP2000 family of network processors such as the
-	  IXDP425 and Coyote. If you have an IXP2000 based board and
-	  would like to use the flash chips on it, say 'Y'.
+	  on Intel's IXP2000 family of network processors. If you have an
+	  IXP2000 based board and would like to use the flash chips on it,
+	  say 'Y'.
 
 config MTD_FORTUNET
 	tristate "CFI Flash device mapped on the FortuNet board"

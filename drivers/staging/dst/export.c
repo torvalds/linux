@@ -53,7 +53,8 @@ void dst_export_exit(void)
  * its permissions are checked in a security attributes and sent
  * back.
  */
-static unsigned int dst_check_permissions(struct dst_state *main, struct dst_state *st)
+static unsigned int dst_check_permissions(struct dst_state *main,
+		struct dst_state *st)
 {
 	struct dst_node *n = main->node;
 	struct dst_secure *sentry;
@@ -73,9 +74,9 @@ static unsigned int dst_check_permissions(struct dst_state *main, struct dst_sta
 
 		/*
 		 * This '2' below is a port field. This may be very wrong to do
-		 * in atalk for example though. If there will be any need to extent
-		 * protocol to something else, I can create per-family helpers and
-		 * use them instead of this memcmp.
+		 * in atalk for example though. If there will be any need
+		 * to extent protocol to something else, I can create
+		 * per-family helpers and use them instead of this memcmp.
 		 */
 		if (memcmp(s->addr.sa_data + 2, sa->sa_data + 2,
 					sa->sa_data_len - 2))
@@ -125,8 +126,8 @@ static struct dst_state *dst_accept_client(struct dst_state *st)
 				 * Magic HZ? Polling check above is not safe in
 				 * all cases (like socket reset in BH context),
 				 * so it is simpler just to postpone it to the
-				 * process context instead of implementing special
-				 * locking there.
+				 * process context instead of implementing
+				 * special locking there.
 				 */
 				schedule_timeout(HZ);
 			}
@@ -202,7 +203,7 @@ err_out_exit:
  * so to play good with all cases we just queue BIO into the queue
  * and wake up processing thread, which gets completed request and
  * send (encrypting if needed) it back to the client (if it was a read
- * request), or sends back reply that writing succesfully completed.
+ * request), or sends back reply that writing successfully completed.
  */
 static int dst_export_process_request_queue(struct dst_state *st)
 {
@@ -272,8 +273,8 @@ static void dst_state_cleanup_export(struct dst_state *st)
 			if (p)
 				bio_put(p->bio);
 
-			dprintk("%s: st: %p, refcnt: %d, list_empty: %d, p: %p.\n",
-				__func__, st, atomic_read(&st->refcnt),
+			dprintk("%s: st: %p, refcnt: %d, list_empty: %d, p: "
+				"%p.\n", __func__, st, atomic_read(&st->refcnt),
 				list_empty(&st->request_list), p);
 		}
 	}
@@ -303,9 +304,9 @@ static int dst_accept(void *init_data, void *schedule_data)
 		if (!err) {
 			while (n->trans_scan_timeout) {
 				err = wait_event_interruptible_timeout(st->thread_wait,
-						!list_empty(&st->request_list) ||
-						!n->trans_scan_timeout ||
-						st->need_exit,
+					!list_empty(&st->request_list) ||
+					!n->trans_scan_timeout ||
+					st->need_exit,
 					HZ);
 
 				if (!n->trans_scan_timeout || st->need_exit)
@@ -341,8 +342,9 @@ static int dst_accept(void *init_data, void *schedule_data)
 int dst_start_export(struct dst_node *n)
 {
 	if (list_empty(&n->security_list)) {
-		printk(KERN_ERR "You are trying to export node '%s' without security attributes.\n"
-				"No clients will be allowed to connect. Exiting.\n", n->name);
+		printk(KERN_ERR "You are trying to export node '%s' "
+				"without security attributes.\nNo clients will "
+				"be allowed to connect. Exiting.\n", n->name);
 		return -EINVAL;
 	}
 	return dst_node_trans_init(n, sizeof(struct dst_export_priv));
@@ -552,7 +554,8 @@ int dst_process_io(struct dst_state *st)
 	if (!bio)
 		goto err_out_exit;
 
-	priv = (struct dst_export_priv *)(((void *)bio) - sizeof (struct dst_export_priv));
+	priv = (struct dst_export_priv *)(((void *)bio) -
+			sizeof (struct dst_export_priv));
 
 	priv->state = dst_state_get(st);
 	priv->bio = bio;

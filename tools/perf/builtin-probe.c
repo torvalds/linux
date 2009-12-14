@@ -35,6 +35,7 @@
 #include "perf.h"
 #include "builtin.h"
 #include "util/util.h"
+#include "util/strlist.h"
 #include "util/event.h"
 #include "util/debug.h"
 #include "util/parse-options.h"
@@ -43,11 +44,12 @@
 #include "util/probe-event.h"
 
 /* Default vmlinux search paths */
-#define NR_SEARCH_PATH 3
+#define NR_SEARCH_PATH 4
 const char *default_search_path[NR_SEARCH_PATH] = {
 "/lib/modules/%s/build/vmlinux",		/* Custom build kernel */
 "/usr/lib/debug/lib/modules/%s/vmlinux",	/* Red Hat debuginfo */
 "/boot/vmlinux-debug-%s",			/* Ubuntu */
+"./vmlinux",					/* CWD */
 };
 
 #define MAX_PATH_LEN 256
@@ -60,6 +62,7 @@ static struct {
 	int need_dwarf;
 	int nr_probe;
 	struct probe_point probes[MAX_PROBES];
+	struct strlist *dellist;
 } session;
 
 static bool listing;
@@ -79,11 +82,41 @@ static void parse_probe_event(const char *str)
 	pr_debug("%d arguments\n", pp->nr_args);
 }
 
+static void parse_probe_event_argv(int argc, const char **argv)
+{
+	int i, len;
+	char *buf;
+
+	/* Bind up rest arguments */
+	len = 0;
+	for (i = 0; i < argc; i++)
+		len += strlen(argv[i]) + 1;
+	buf = zalloc(len + 1);
+	if (!buf)
+		die("Failed to allocate memory for binding arguments.");
+	len = 0;
+	for (i = 0; i < argc; i++)
+		len += sprintf(&buf[len], "%s ", argv[i]);
+	parse_probe_event(buf);
+	free(buf);
+}
+
 static int opt_add_probe_event(const struct option *opt __used,
 			      const char *str, int unset __used)
 {
 	if (str)
 		parse_probe_event(str);
+	return 0;
+}
+
+static int opt_del_probe_event(const struct option *opt __used,
+			       const char *str, int unset __used)
+{
+	if (str) {
+		if (!session.dellist)
+			session.dellist = strlist__new(true, NULL);
+		strlist__add(session.dellist, str);
+	}
 	return 0;
 }
 
@@ -121,6 +154,7 @@ static int open_default_vmlinux(void)
 static const char * const probe_usage[] = {
 	"perf probe [<options>] 'PROBEDEF' ['PROBEDEF' ...]",
 	"perf probe [<options>] --add 'PROBEDEF' [--add 'PROBEDEF' ...]",
+	"perf probe [<options>] --del '[GROUP:]EVENT' ...",
 	"perf probe --list",
 	NULL
 };
@@ -132,7 +166,9 @@ static const struct option options[] = {
 	OPT_STRING('k', "vmlinux", &session.vmlinux, "file",
 		"vmlinux/module pathname"),
 #endif
-	OPT_BOOLEAN('l', "list", &listing, "list up current probes"),
+	OPT_BOOLEAN('l', "list", &listing, "list up current probe events"),
+	OPT_CALLBACK('d', "del", NULL, "[GROUP:]EVENT", "delete a probe event.",
+		opt_del_probe_event),
 	OPT_CALLBACK('a', "add", NULL,
 #ifdef NO_LIBDWARF
 		"FUNC[+OFFS|%return] [ARG ...]",
@@ -160,7 +196,7 @@ static const struct option options[] = {
 
 int cmd_probe(int argc, const char **argv, const char *prefix __used)
 {
-	int i, j, ret;
+	int i, ret;
 #ifndef NO_LIBDWARF
 	int fd;
 #endif
@@ -168,16 +204,27 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 
 	argc = parse_options(argc, argv, options, probe_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
-	for (i = 0; i < argc; i++)
-		parse_probe_event(argv[i]);
+	if (argc > 0)
+		parse_probe_event_argv(argc, argv);
 
-	if ((session.nr_probe == 0 && !listing) ||
-	    (session.nr_probe != 0 && listing))
+	if ((session.nr_probe == 0 && !session.dellist && !listing))
 		usage_with_options(probe_usage, options);
 
 	if (listing) {
+		if (session.nr_probe != 0 || session.dellist) {
+			pr_warning("  Error: Don't use --list with"
+				   " --add/--del.\n");
+			usage_with_options(probe_usage, options);
+		}
 		show_perf_probe_events();
 		return 0;
+	}
+
+	if (session.dellist) {
+		del_trace_kprobe_events(session.dellist);
+		strlist__delete(session.dellist);
+		if (session.nr_probe == 0)
+			return 0;
 	}
 
 	if (session.need_dwarf)
@@ -186,22 +233,23 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 #else	/* !NO_LIBDWARF */
 		pr_debug("Some probes require debuginfo.\n");
 
-	if (session.vmlinux)
+	if (session.vmlinux) {
+		pr_debug("Try to open %s.", session.vmlinux);
 		fd = open(session.vmlinux, O_RDONLY);
-	else
+	} else
 		fd = open_default_vmlinux();
 	if (fd < 0) {
 		if (session.need_dwarf)
-			die("Could not open vmlinux/module file.");
+			die("Could not open debuginfo file.");
 
-		pr_warning("Could not open vmlinux/module file."
-			   " Try to use symbols.\n");
+		pr_debug("Could not open vmlinux/module file."
+			 " Try to use symbols.\n");
 		goto end_dwarf;
 	}
 
 	/* Searching probe points */
-	for (j = 0; j < session.nr_probe; j++) {
-		pp = &session.probes[j];
+	for (i = 0; i < session.nr_probe; i++) {
+		pp = &session.probes[i];
 		if (pp->found)
 			continue;
 
@@ -223,8 +271,8 @@ end_dwarf:
 #endif /* !NO_LIBDWARF */
 
 	/* Synthesize probes without dwarf */
-	for (j = 0; j < session.nr_probe; j++) {
-		pp = &session.probes[j];
+	for (i = 0; i < session.nr_probe; i++) {
+		pp = &session.probes[i];
 		if (pp->found)	/* This probe is already found. */
 			continue;
 

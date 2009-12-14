@@ -1223,6 +1223,12 @@ lpfc_rcv_logo_reglogin_issue(struct lpfc_vport *vport,
 	list_for_each_entry_safe(mb, nextmb, &phba->sli.mboxq, list) {
 		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
 		   (ndlp == (struct lpfc_nodelist *) mb->context2)) {
+			if (phba->sli_rev == LPFC_SLI_REV4) {
+				spin_unlock_irq(&phba->hbalock);
+				lpfc_sli4_free_rpi(phba,
+					mb->u.mb.un.varRegLogin.rpi);
+				spin_lock_irq(&phba->hbalock);
+			}
 			mp = (struct lpfc_dmabuf *) (mb->context1);
 			if (mp) {
 				__lpfc_mbuf_free(phba, mp->virt, mp->phys);
@@ -1230,6 +1236,7 @@ lpfc_rcv_logo_reglogin_issue(struct lpfc_vport *vport,
 			}
 			lpfc_nlp_put(ndlp);
 			list_del(&mb->list);
+			phba->sli.mboxq_cnt--;
 			mempool_free(mb, phba->mbox_mem_pool);
 		}
 	}

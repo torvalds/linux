@@ -938,8 +938,9 @@ static bool __dsos__read_build_ids(struct list_head *head)
 
 bool dsos__read_build_ids(void)
 {
-	return __dsos__read_build_ids(&dsos__kernel) ||
-	       __dsos__read_build_ids(&dsos__user);
+	bool kbuildids = __dsos__read_build_ids(&dsos__kernel),
+	     ubuildids = __dsos__read_build_ids(&dsos__user);
+	return kbuildids || ubuildids;
 }
 
 /*

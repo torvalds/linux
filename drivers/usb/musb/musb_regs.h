@@ -465,9 +465,9 @@ static inline u16 musb_read_hwvers(void __iomem *mbase)
 	return 0;
 }
 
-static inline u16 musb_read_target_reg_base(u8 i, void __iomem *mbase)
+static inline void __iomem *musb_read_target_reg_base(u8 i, void __iomem *mbase)
 {
-	return 0;
+	return NULL;
 }
 
 static inline void musb_write_rxfunaddr(void __iomem *ep_target_regs,

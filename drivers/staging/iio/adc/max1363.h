@@ -228,7 +228,7 @@ struct max1363_state {
 	struct iio_trigger		*trig;
 	struct regulator		*reg;
 };
-#ifdef CONFIG_IIO_RING_BUFFER
+#ifdef CONFIG_MAX1363_RING_BUFFER
 
 ssize_t max1363_scan_from_ring(struct device *dev,
 			       struct device_attribute *attr,
@@ -239,7 +239,7 @@ void max1363_ring_cleanup(struct iio_dev *indio_dev);
 int max1363_initialize_ring(struct iio_ring_buffer *ring);
 void max1363_uninitialize_ring(struct iio_ring_buffer *ring);
 
-#else /* CONFIG_IIO_RING_BUFFER */
+#else /* CONFIG_MAX1363_RING_BUFFER */
 
 static inline void max1363_uninitialize_ring(struct iio_ring_buffer *ring)
 {
@@ -265,5 +265,5 @@ max1363_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 };
 
 static inline void max1363_ring_cleanup(struct iio_dev *indio_dev) {};
-#endif /* CONFIG_IIO_RING_BUFFER */
+#endif /* CONFIG_MAX1363_RING_BUFFER */
 #endif /* _MAX1363_H_ */

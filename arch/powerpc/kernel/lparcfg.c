@@ -781,9 +781,9 @@ static int __init lparcfg_init(void)
 			!firmware_has_feature(FW_FEATURE_ISERIES))
 		mode |= S_IWUSR;
 
-	ent = proc_create("ppc64/lparcfg", mode, NULL, &lparcfg_fops);
+	ent = proc_create("powerpc/lparcfg", mode, NULL, &lparcfg_fops);
 	if (!ent) {
-		printk(KERN_ERR "Failed to create ppc64/lparcfg\n");
+		printk(KERN_ERR "Failed to create powerpc/lparcfg\n");
 		return -EIO;
 	}
 

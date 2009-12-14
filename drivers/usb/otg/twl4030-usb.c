@@ -598,12 +598,12 @@ static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 		 * USB_LINK_VBUS state.  musb_hdrc won't care until it
 		 * starts to handle softconnect right.
 		 */
-		twl4030charger_usb_en(status == USB_LINK_VBUS);
-
 		if (status == USB_LINK_NONE)
 			twl4030_phy_suspend(twl, 0);
 		else
 			twl4030_phy_resume(twl);
+
+		twl4030charger_usb_en(status == USB_LINK_VBUS);
 	}
 	sysfs_notify(&twl->dev->kobj, NULL, "vbus");
 
