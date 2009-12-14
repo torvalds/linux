@@ -212,11 +212,6 @@ static struct platform_device physmap_flash_device = {
  */
 static struct map_desc mx31lite_io_desc[] __initdata = {
 	{
-		.virtual = SPBA0_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(SPBA0_BASE_ADDR),
-		.length = SPBA0_SIZE,
-		.type = MT_DEVICE_NONSHARED
-	}, {
 		.virtual = CS4_BASE_ADDR_VIRT,
 		.pfn = __phys_to_pfn(CS4_BASE_ADDR),
 		.length = CS4_SIZE,
