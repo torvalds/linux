@@ -749,7 +749,8 @@ static int iwl_mod_ht40_chan_info(struct iwl_priv *priv,
 	ch_info->ht40_eeprom = *eeprom_ch;
 	ch_info->ht40_max_power_avg = eeprom_ch->max_power_avg;
 	ch_info->ht40_flags = eeprom_ch->flags;
-	ch_info->ht40_extension_channel &= ~clear_ht40_extension_channel;
+	if (eeprom_ch->flags & EEPROM_CHANNEL_VALID)
+		ch_info->ht40_extension_channel &= ~clear_ht40_extension_channel;
 
 	return 0;
 }
