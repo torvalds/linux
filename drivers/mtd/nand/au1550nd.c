@@ -450,7 +450,7 @@ static int __init au1xxx_nand_init(void)
 	u32 nand_phys;
 
 	/* Allocate memory for MTD device structure and private data */
-	au1550_mtd = kmalloc(sizeof(struct mtd_info) + sizeof(struct nand_chip), GFP_KERNEL);
+	au1550_mtd = kzalloc(sizeof(struct mtd_info) + sizeof(struct nand_chip), GFP_KERNEL);
 	if (!au1550_mtd) {
 		printk("Unable to allocate NAND MTD dev structure.\n");
 		return -ENOMEM;
@@ -458,10 +458,6 @@ static int __init au1xxx_nand_init(void)
 
 	/* Get pointer to private data */
 	this = (struct nand_chip *)(&au1550_mtd[1]);
-
-	/* Initialize structures */
-	memset(au1550_mtd, 0, sizeof(struct mtd_info));
-	memset(this, 0, sizeof(struct nand_chip));
 
 	/* Link the private data with the MTD structure */
 	au1550_mtd->priv = this;
