@@ -98,7 +98,7 @@ static const u8 TMP411_TEMP_HIGHEST_LSB[2]		= { 0x33, 0x37 };
 
 static int tmp401_probe(struct i2c_client *client,
 			const struct i2c_device_id *id);
-static int tmp401_detect(struct i2c_client *client, int kind,
+static int tmp401_detect(struct i2c_client *client,
 			 struct i2c_board_info *info);
 static int tmp401_remove(struct i2c_client *client);
 static struct tmp401_data *tmp401_update_device(struct device *dev);
@@ -488,7 +488,7 @@ static void tmp401_init_client(struct i2c_client *client)
 		i2c_smbus_write_byte_data(client, TMP401_CONFIG_WRITE, config);
 }
 
-static int tmp401_detect(struct i2c_client *client, int _kind,
+static int tmp401_detect(struct i2c_client *client,
 			 struct i2c_board_info *info)
 {
 	enum chips kind;

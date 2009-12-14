@@ -81,8 +81,7 @@ static const u8 GL520_REG_TEMP_MAX_HYST[]	= { 0x06, 0x18 };
 
 static int gl520_probe(struct i2c_client *client,
 		       const struct i2c_device_id *id);
-static int gl520_detect(struct i2c_client *client, int kind,
-			struct i2c_board_info *info);
+static int gl520_detect(struct i2c_client *client, struct i2c_board_info *info);
 static void gl520_init_client(struct i2c_client *client);
 static int gl520_remove(struct i2c_client *client);
 static int gl520_read_value(struct i2c_client *client, u8 reg);
@@ -681,8 +680,7 @@ static const struct attribute_group gl520_group_opt = {
  */
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int gl520_detect(struct i2c_client *client, int kind,
-			struct i2c_board_info *info)
+static int gl520_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 

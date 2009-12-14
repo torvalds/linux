@@ -209,7 +209,7 @@ static void asb100_write_value(struct i2c_client *client, u16 reg, u16 val);
 
 static int asb100_probe(struct i2c_client *client,
 			const struct i2c_device_id *id);
-static int asb100_detect(struct i2c_client *client, int kind,
+static int asb100_detect(struct i2c_client *client,
 			 struct i2c_board_info *info);
 static int asb100_remove(struct i2c_client *client);
 static struct asb100_data *asb100_update_device(struct device *dev);
@@ -697,7 +697,7 @@ ERROR_SC_2:
 }
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int asb100_detect(struct i2c_client *client, int kind,
+static int asb100_detect(struct i2c_client *client,
 			 struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;

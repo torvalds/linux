@@ -319,7 +319,7 @@ static const struct attribute_group lm92_group = {
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm92_detect(struct i2c_client *new_client, int kind,
+static int lm92_detect(struct i2c_client *new_client,
 		       struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = new_client->adapter;

@@ -223,7 +223,7 @@ static int tmp421_init_client(struct i2c_client *client)
 	return 0;
 }
 
-static int tmp421_detect(struct i2c_client *client, int _kind,
+static int tmp421_detect(struct i2c_client *client,
 			 struct i2c_board_info *info)
 {
 	enum chips kind;

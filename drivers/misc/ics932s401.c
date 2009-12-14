@@ -106,7 +106,7 @@ struct ics932s401_data {
 
 static int ics932s401_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int ics932s401_detect(struct i2c_client *client, int kind,
+static int ics932s401_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static int ics932s401_remove(struct i2c_client *client);
 
@@ -413,7 +413,7 @@ static ssize_t show_spread(struct device *dev,
 }
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int ics932s401_detect(struct i2c_client *client, int kind,
+static int ics932s401_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;

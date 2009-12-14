@@ -84,7 +84,7 @@ struct thmc50_data {
 	u8 alarms;
 };
 
-static int thmc50_detect(struct i2c_client *client, int kind,
+static int thmc50_detect(struct i2c_client *client,
 			 struct i2c_board_info *info);
 static int thmc50_probe(struct i2c_client *client,
 			const struct i2c_device_id *id);
@@ -286,7 +286,7 @@ static const struct attribute_group temp3_group = {
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int thmc50_detect(struct i2c_client *client, int kind,
+static int thmc50_detect(struct i2c_client *client,
 			 struct i2c_board_info *info)
 {
 	unsigned company;

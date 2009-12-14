@@ -2501,8 +2501,7 @@ static void lm93_init_client(struct i2c_client *client)
 }
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm93_detect(struct i2c_client *client, int kind,
-		       struct i2c_board_info *info)
+static int lm93_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	int mfr, ver;

@@ -113,7 +113,7 @@ struct f75375_data {
 	s8 temp_max_hyst[2];
 };
 
-static int f75375_detect(struct i2c_client *client, int kind,
+static int f75375_detect(struct i2c_client *client,
 			 struct i2c_board_info *info);
 static int f75375_probe(struct i2c_client *client,
 			const struct i2c_device_id *id);
@@ -677,7 +677,7 @@ static int f75375_remove(struct i2c_client *client)
 }
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int f75375_detect(struct i2c_client *client, int kind,
+static int f75375_detect(struct i2c_client *client,
 			 struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;

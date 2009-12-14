@@ -323,8 +323,7 @@ struct lm85_data {
 	struct lm85_zone zone[3];
 };
 
-static int lm85_detect(struct i2c_client *client, int kind,
-		       struct i2c_board_info *info);
+static int lm85_detect(struct i2c_client *client, struct i2c_board_info *info);
 static int lm85_probe(struct i2c_client *client,
 		      const struct i2c_device_id *id);
 static int lm85_remove(struct i2c_client *client);
@@ -1156,8 +1155,7 @@ static int lm85_is_fake(struct i2c_client *client)
 }
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm85_detect(struct i2c_client *client, int kind,
-		       struct i2c_board_info *info)
+static int lm85_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	int address = client->addr;

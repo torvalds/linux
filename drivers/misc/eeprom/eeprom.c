@@ -135,8 +135,7 @@ static struct bin_attribute eeprom_attr = {
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int eeprom_detect(struct i2c_client *client, int kind,
-			 struct i2c_board_info *info)
+static int eeprom_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 

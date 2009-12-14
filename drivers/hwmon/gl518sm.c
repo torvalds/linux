@@ -139,8 +139,7 @@ struct gl518_data {
 
 static int gl518_probe(struct i2c_client *client,
 		       const struct i2c_device_id *id);
-static int gl518_detect(struct i2c_client *client, int kind,
-			struct i2c_board_info *info);
+static int gl518_detect(struct i2c_client *client, struct i2c_board_info *info);
 static void gl518_init_client(struct i2c_client *client);
 static int gl518_remove(struct i2c_client *client);
 static int gl518_read_value(struct i2c_client *client, u8 reg);
@@ -484,8 +483,7 @@ static const struct attribute_group gl518_group_r80 = {
  */
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int gl518_detect(struct i2c_client *client, int kind,
-			struct i2c_board_info *info)
+static int gl518_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	int rev;

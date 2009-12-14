@@ -111,7 +111,7 @@ static const int in_scale[6] = { 2500, 2250, 3300, 5000, 12000, 3300 };
 
 static int adm1025_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int adm1025_detect(struct i2c_client *client, int kind,
+static int adm1025_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static void adm1025_init_client(struct i2c_client *client);
 static int adm1025_remove(struct i2c_client *client);
@@ -409,7 +409,7 @@ static const struct attribute_group adm1025_group_in4 = {
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int adm1025_detect(struct i2c_client *client, int kind,
+static int adm1025_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;

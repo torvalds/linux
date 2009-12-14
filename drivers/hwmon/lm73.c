@@ -151,7 +151,7 @@ static const struct i2c_device_id lm73_ids[] = {
 MODULE_DEVICE_TABLE(i2c, lm73_ids);
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm73_detect(struct i2c_client *new_client, int kind,
+static int lm73_detect(struct i2c_client *new_client,
 			struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = new_client->adapter;

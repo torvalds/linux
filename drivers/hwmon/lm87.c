@@ -158,7 +158,7 @@ static u8 LM87_REG_TEMP_LOW[3] = { 0x3A, 0x38, 0x2C };
 
 static int lm87_probe(struct i2c_client *client,
 		      const struct i2c_device_id *id);
-static int lm87_detect(struct i2c_client *new_client, int kind,
+static int lm87_detect(struct i2c_client *new_client,
 		       struct i2c_board_info *info);
 static void lm87_init_client(struct i2c_client *client);
 static int lm87_remove(struct i2c_client *client);
@@ -662,7 +662,7 @@ static const struct attribute_group lm87_group_opt = {
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm87_detect(struct i2c_client *new_client, int kind,
+static int lm87_detect(struct i2c_client *new_client,
 		       struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = new_client->adapter;

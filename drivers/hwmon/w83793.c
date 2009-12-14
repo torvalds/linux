@@ -230,7 +230,7 @@ static u8 w83793_read_value(struct i2c_client *client, u16 reg);
 static int w83793_write_value(struct i2c_client *client, u16 reg, u8 value);
 static int w83793_probe(struct i2c_client *client,
 			const struct i2c_device_id *id);
-static int w83793_detect(struct i2c_client *client, int kind,
+static int w83793_detect(struct i2c_client *client,
 			 struct i2c_board_info *info);
 static int w83793_remove(struct i2c_client *client);
 static void w83793_init_client(struct i2c_client *client);
@@ -1161,7 +1161,7 @@ ERROR_SC_0:
 }
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int w83793_detect(struct i2c_client *client, int kind,
+static int w83793_detect(struct i2c_client *client,
 			 struct i2c_board_info *info)
 {
 	u8 tmp, bank, chip_id;

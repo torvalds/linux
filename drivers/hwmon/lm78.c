@@ -142,7 +142,7 @@ struct lm78_data {
 };
 
 
-static int lm78_i2c_detect(struct i2c_client *client, int kind,
+static int lm78_i2c_detect(struct i2c_client *client,
 			   struct i2c_board_info *info);
 static int lm78_i2c_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id);
@@ -558,7 +558,7 @@ static int lm78_alias_detect(struct i2c_client *client, u8 chipid)
 	return 1;
 }
 
-static int lm78_i2c_detect(struct i2c_client *client, int kind,
+static int lm78_i2c_detect(struct i2c_client *client,
 			   struct i2c_board_info *info)
 {
 	int i;

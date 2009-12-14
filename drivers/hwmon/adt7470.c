@@ -177,7 +177,7 @@ struct adt7470_data {
 
 static int adt7470_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int adt7470_detect(struct i2c_client *client, int kind,
+static int adt7470_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static int adt7470_remove(struct i2c_client *client);
 
@@ -1225,7 +1225,7 @@ static struct attribute *adt7470_attr[] =
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int adt7470_detect(struct i2c_client *client, int kind,
+static int adt7470_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;

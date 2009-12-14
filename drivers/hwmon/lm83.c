@@ -118,7 +118,7 @@ static const u8 LM83_REG_W_HIGH[] = {
  * Functions declaration
  */
 
-static int lm83_detect(struct i2c_client *new_client, int kind,
+static int lm83_detect(struct i2c_client *new_client,
 		       struct i2c_board_info *info);
 static int lm83_probe(struct i2c_client *client,
 		      const struct i2c_device_id *id);
@@ -291,7 +291,7 @@ static const struct attribute_group lm83_group_opt = {
  */
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm83_detect(struct i2c_client *new_client, int kind,
+static int lm83_detect(struct i2c_client *new_client,
 		       struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = new_client->adapter;

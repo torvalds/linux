@@ -72,7 +72,7 @@ struct ads7828_data {
 };
 
 /* Function declaration - necessary due to function dependencies */
-static int ads7828_detect(struct i2c_client *client, int kind,
+static int ads7828_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static int ads7828_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
@@ -187,7 +187,7 @@ static struct i2c_driver ads7828_driver = {
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int ads7828_detect(struct i2c_client *client, int kind,
+static int ads7828_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;

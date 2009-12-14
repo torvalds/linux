@@ -147,7 +147,7 @@ struct w83l786ng_data {
 
 static int w83l786ng_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id);
-static int w83l786ng_detect(struct i2c_client *client, int kind,
+static int w83l786ng_detect(struct i2c_client *client,
 			    struct i2c_board_info *info);
 static int w83l786ng_remove(struct i2c_client *client);
 static void w83l786ng_init_client(struct i2c_client *client);
@@ -586,8 +586,7 @@ static const struct attribute_group w83l786ng_group = {
 };
 
 static int
-w83l786ng_detect(struct i2c_client *client, int kind,
-		 struct i2c_board_info *info)
+w83l786ng_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	u16 man_id;

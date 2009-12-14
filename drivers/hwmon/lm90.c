@@ -152,8 +152,7 @@ I2C_CLIENT_INSMOD_8(lm90, adm1032, lm99, lm86, max6657, adt7461, max6680,
  * Functions declaration
  */
 
-static int lm90_detect(struct i2c_client *client, int kind,
-		       struct i2c_board_info *info);
+static int lm90_detect(struct i2c_client *client, struct i2c_board_info *info);
 static int lm90_probe(struct i2c_client *client,
 		      const struct i2c_device_id *id);
 static void lm90_init_client(struct i2c_client *client);
@@ -656,7 +655,7 @@ static int lm90_read_reg(struct i2c_client* client, u8 reg, u8 *value)
 }
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm90_detect(struct i2c_client *new_client, int kind,
+static int lm90_detect(struct i2c_client *new_client,
 		       struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = new_client->adapter;

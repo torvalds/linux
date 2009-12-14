@@ -1172,7 +1172,7 @@ static struct attribute_group in4_attr_group = { .attrs = in4_attrs };
 static struct attribute_group in5_attr_group = { .attrs = in5_attrs };
 static struct attribute_group vid_attr_group = { .attrs = vid_attrs };
 
-static int adt7475_detect(struct i2c_client *client, int kind,
+static int adt7475_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;

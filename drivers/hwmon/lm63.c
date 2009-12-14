@@ -134,8 +134,7 @@ static int lm63_remove(struct i2c_client *client);
 
 static struct lm63_data *lm63_update_device(struct device *dev);
 
-static int lm63_detect(struct i2c_client *client, int kind,
-		       struct i2c_board_info *info);
+static int lm63_detect(struct i2c_client *client, struct i2c_board_info *info);
 static void lm63_init_client(struct i2c_client *client);
 
 /*
@@ -423,7 +422,7 @@ static const struct attribute_group lm63_group_fan1 = {
  */
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm63_detect(struct i2c_client *new_client, int kind,
+static int lm63_detect(struct i2c_client *new_client,
 		       struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = new_client->adapter;

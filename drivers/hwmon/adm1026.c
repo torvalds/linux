@@ -293,7 +293,7 @@ struct adm1026_data {
 
 static int adm1026_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int adm1026_detect(struct i2c_client *client, int kind,
+static int adm1026_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static int adm1026_remove(struct i2c_client *client);
 static int adm1026_read_value(struct i2c_client *client, u8 reg);
@@ -1650,7 +1650,7 @@ static const struct attribute_group adm1026_group_in8_9 = {
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int adm1026_detect(struct i2c_client *client, int kind,
+static int adm1026_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;

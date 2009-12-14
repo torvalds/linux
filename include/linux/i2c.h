@@ -161,7 +161,7 @@ struct i2c_driver {
 	const struct i2c_device_id *id_table;
 
 	/* Device detection callback for automatic device creation */
-	int (*detect)(struct i2c_client *, int kind, struct i2c_board_info *);
+	int (*detect)(struct i2c_client *, struct i2c_board_info *);
 	const struct i2c_client_address_data *address_data;
 	struct list_head clients;
 };

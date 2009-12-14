@@ -50,8 +50,7 @@ static int atxp1_probe(struct i2c_client *client,
 		       const struct i2c_device_id *id);
 static int atxp1_remove(struct i2c_client *client);
 static struct atxp1_data * atxp1_update_device(struct device *dev);
-static int atxp1_detect(struct i2c_client *client, int kind,
-			struct i2c_board_info *info);
+static int atxp1_detect(struct i2c_client *client, struct i2c_board_info *info);
 
 static const struct i2c_device_id atxp1_id[] = {
 	{ "atxp1", atxp1 },
@@ -275,7 +274,7 @@ static const struct attribute_group atxp1_group = {
 
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int atxp1_detect(struct i2c_client *new_client, int kind,
+static int atxp1_detect(struct i2c_client *new_client,
 			struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = new_client->adapter;

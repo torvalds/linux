@@ -117,7 +117,7 @@ static const u8 ADM1029_REG_FAN_DIV[] = {
 
 static int adm1029_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int adm1029_detect(struct i2c_client *client, int kind,
+static int adm1029_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static int adm1029_remove(struct i2c_client *client);
 static struct adm1029_data *adm1029_update_device(struct device *dev);
@@ -297,7 +297,7 @@ static const struct attribute_group adm1029_group = {
  */
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int adm1029_detect(struct i2c_client *client, int kind,
+static int adm1029_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;

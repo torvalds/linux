@@ -83,7 +83,7 @@ I2C_CLIENT_INSMOD_1(w83l785ts);
 
 static int w83l785ts_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id);
-static int w83l785ts_detect(struct i2c_client *client, int kind,
+static int w83l785ts_detect(struct i2c_client *client,
 			    struct i2c_board_info *info);
 static int w83l785ts_remove(struct i2c_client *client);
 static u8 w83l785ts_read_value(struct i2c_client *client, u8 reg, u8 defval);
@@ -146,7 +146,7 @@ static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, show_temp, NULL, 1);
  */
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int w83l785ts_detect(struct i2c_client *client, int kind,
+static int w83l785ts_detect(struct i2c_client *client,
 			    struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;

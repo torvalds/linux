@@ -224,7 +224,7 @@ static const struct attribute_group ds1621_group = {
 
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int ds1621_detect(struct i2c_client *client, int kind,
+static int ds1621_detect(struct i2c_client *client,
 			 struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;

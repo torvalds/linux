@@ -326,7 +326,7 @@ struct w83791d_data {
 
 static int w83791d_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int w83791d_detect(struct i2c_client *client, int kind,
+static int w83791d_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static int w83791d_remove(struct i2c_client *client);
 
@@ -1259,7 +1259,7 @@ error_sc_0:
 
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int w83791d_detect(struct i2c_client *client, int kind,
+static int w83791d_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;

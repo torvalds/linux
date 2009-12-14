@@ -302,7 +302,7 @@ struct w83792d_data {
 
 static int w83792d_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int w83792d_detect(struct i2c_client *client, int kind,
+static int w83792d_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static int w83792d_remove(struct i2c_client *client);
 static struct w83792d_data *w83792d_update_device(struct device *dev);
@@ -1263,7 +1263,7 @@ static const struct attribute_group w83792d_group = {
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
 static int
-w83792d_detect(struct i2c_client *client, int kind, struct i2c_board_info *info)
+w83792d_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	int val1, val2;

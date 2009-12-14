@@ -115,7 +115,7 @@ struct smsc47m192_data {
 
 static int smsc47m192_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id);
-static int smsc47m192_detect(struct i2c_client *client, int kind,
+static int smsc47m192_detect(struct i2c_client *client,
 			     struct i2c_board_info *info);
 static int smsc47m192_remove(struct i2c_client *client);
 static struct smsc47m192_data *smsc47m192_update_device(struct device *dev);
@@ -481,7 +481,7 @@ static void smsc47m192_init_client(struct i2c_client *client)
 }
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int smsc47m192_detect(struct i2c_client *client, int kind,
+static int smsc47m192_detect(struct i2c_client *client,
 			     struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
