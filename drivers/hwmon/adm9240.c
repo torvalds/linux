@@ -55,8 +55,7 @@
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 					I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_3(adm9240, ds1780, lm81);
+enum chips { adm9240, ds1780, lm81 };
 
 /* ADM9240 registers */
 #define ADM9240_REG_MAN_ID		0x3e

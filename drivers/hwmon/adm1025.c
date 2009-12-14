@@ -64,11 +64,7 @@
 
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
-/*
- * Insmod parameters
- */
-
-I2C_CLIENT_INSMOD_2(adm1025, ne1619);
+enum chips { adm1025, ne1619 };
 
 /*
  * The ADM1025 registers

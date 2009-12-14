@@ -148,7 +148,7 @@
 
 static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
-I2C_CLIENT_INSMOD_4(adt7473, adt7475, adt7476, adt7490);
+enum chips { adt7473, adt7475, adt7476, adt7490 };
 
 static const struct i2c_device_id adt7475_id[] = {
 	{ "adt7473", adt7473 },

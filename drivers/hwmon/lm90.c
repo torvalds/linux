@@ -93,12 +93,7 @@
 static const unsigned short normal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x4c, 0x4d, 0x4e, I2C_CLIENT_END };
 
-/*
- * Insmod parameters
- */
-
-I2C_CLIENT_INSMOD_8(lm90, adm1032, lm99, lm86, max6657, adt7461, max6680,
-		    max6646);
+enum chips { lm90, adm1032, lm99, lm86, max6657, adt7461, max6680, max6646 };
 
 /*
  * The LM90 registers

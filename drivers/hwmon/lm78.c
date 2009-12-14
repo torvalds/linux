@@ -41,8 +41,7 @@ static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 						0x2e, 0x2f, I2C_CLIENT_END };
 static unsigned short isa_address = 0x290;
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_2(lm78, lm79);
+enum chips { lm78, lm79 };
 
 /* Many LM78 constants specified below */
 

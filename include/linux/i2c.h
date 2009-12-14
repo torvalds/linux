@@ -602,29 +602,5 @@ union i2c_smbus_data {
   module_param_array(var, short, &var##_num, 0); \
   MODULE_PARM_DESC(var, desc)
 
-/* These are the ones you want to use in your own drivers. Pick the one
-   which matches the number of devices the driver differenciates between. */
-#define I2C_CLIENT_INSMOD_2(chip1, chip2)				\
-enum chips { any_chip, chip1, chip2 }
-
-#define I2C_CLIENT_INSMOD_3(chip1, chip2, chip3)			\
-enum chips { any_chip, chip1, chip2, chip3 }
-
-#define I2C_CLIENT_INSMOD_4(chip1, chip2, chip3, chip4)			\
-enum chips { any_chip, chip1, chip2, chip3, chip4 }
-
-#define I2C_CLIENT_INSMOD_5(chip1, chip2, chip3, chip4, chip5)		\
-enum chips { any_chip, chip1, chip2, chip3, chip4, chip5 }
-
-#define I2C_CLIENT_INSMOD_6(chip1, chip2, chip3, chip4, chip5, chip6)	\
-enum chips { any_chip, chip1, chip2, chip3, chip4, chip5, chip6 }
-
-#define I2C_CLIENT_INSMOD_7(chip1, chip2, chip3, chip4, chip5, chip6, chip7) \
-enum chips { any_chip, chip1, chip2, chip3, chip4, chip5, chip6,	\
-	     chip7 }
-
-#define I2C_CLIENT_INSMOD_8(chip1, chip2, chip3, chip4, chip5, chip6, chip7, chip8) \
-enum chips { any_chip, chip1, chip2, chip3, chip4, chip5, chip6,	\
-	     chip7, chip8 }
 #endif /* __KERNEL__ */
 #endif /* _LINUX_I2C_H */

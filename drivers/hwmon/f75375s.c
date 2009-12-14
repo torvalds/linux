@@ -39,8 +39,7 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2d, 0x2e, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_2(f75373, f75375);
+enum chips { f75373, f75375 };
 
 /* Fintek F75375 registers  */
 #define F75375_REG_CONFIG0		0x0

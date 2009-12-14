@@ -42,8 +42,7 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x4c, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_2(tmp401, tmp411);
+enum chips { tmp401, tmp411 };
 
 /*
  * The TMP401 registers, note some registers have different addresses for

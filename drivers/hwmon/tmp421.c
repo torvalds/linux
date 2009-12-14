@@ -39,8 +39,7 @@
 static unsigned short normal_i2c[] = { 0x2a, 0x4c, 0x4d, 0x4e, 0x4f,
 				       I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_3(tmp421, tmp422, tmp423);
+enum chips { tmp421, tmp422, tmp423 };
 
 /* The TMP421 registers */
 #define TMP421_CONFIG_REG_1			0x09

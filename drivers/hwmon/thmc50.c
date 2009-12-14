@@ -35,7 +35,7 @@ MODULE_LICENSE("GPL");
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 /* Insmod parameters */
-I2C_CLIENT_INSMOD_2(thmc50, adm1022);
+enum chips { thmc50, adm1022 };
 
 static unsigned short adm1022_temp3[16];
 static unsigned int adm1022_temp3_num;

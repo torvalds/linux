@@ -64,8 +64,7 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_2(adm1030, adm1031);
+enum chips { adm1030, adm1031 };
 
 typedef u8 auto_chan_table_t[8][2];
 

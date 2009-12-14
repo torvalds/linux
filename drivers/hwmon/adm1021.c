@@ -34,9 +34,8 @@
 static const unsigned short normal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x4c, 0x4d, 0x4e, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_8(adm1021, adm1023, max1617, max1617a, thmc10, lm84, gl523sm,
-			mc1066);
+enum chips {
+	adm1021, adm1023, max1617, max1617a, thmc10, lm84, gl523sm, mc1066 };
 
 /* adm1021 constants specified below */
 
