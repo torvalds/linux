@@ -47,8 +47,50 @@ static ssize_t show_protocol(struct device *d,
 	return sprintf(buf, "%s\n", s);
 }
 
+
+static ssize_t store_protocol(struct device *d,
+			      struct device_attribute *mattr,
+			      const char *data,
+			      size_t len)
+{
+	struct ir_input_dev *ir_dev = dev_get_drvdata(d);
+	enum ir_type ir_type = IR_TYPE_UNKNOWN;
+	int rc = -EINVAL;
+	char *buf;
+
+	buf = strsep((char **) &data, "\n");
+
+	if (!strcasecmp(buf, "rc-5"))
+		ir_type = IR_TYPE_RC5;
+	else if (!strcasecmp(buf, "pd"))
+		ir_type = IR_TYPE_PD;
+	else if (!strcasecmp(buf, "nec"))
+		ir_type = IR_TYPE_NEC;
+
+	if (ir_type == IR_TYPE_UNKNOWN) {
+		IR_dprintk(1, "Error setting protocol to %ld\n", ir_type);
+		return -EINVAL;
+	}
+
+	if (ir_dev->props->change_protocol)
+		rc = ir_dev->props->change_protocol(ir_dev->props->priv,
+						    ir_type);
+
+	if (rc < 0) {
+		IR_dprintk(1, "Error setting protocol to %ld\n", ir_type);
+		return -EINVAL;
+	}
+
+	ir_dev->rc_tab.ir_type = ir_type;
+
+	IR_dprintk(1, "Current protocol is %ld\n", ir_type);
+
+	return len;
+}
+
+
 static DEVICE_ATTR(current_protocol, S_IRUGO | S_IWUSR,
-		   show_protocol, NULL);
+		   show_protocol, store_protocol);
 
 static struct attribute *ir_dev_attrs[] = {
 	&dev_attr_current_protocol.attr,
