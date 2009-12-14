@@ -384,9 +384,16 @@
 #       define AVIVO_D1GRPH_TILED                               (1 << 20)
 #       define AVIVO_D1GRPH_MACRO_ADDRESS_MODE                  (1 << 21)
 
+/* The R7xx *_HIGH surface regs are backwards; the D1 regs are in the D2
+ * block and vice versa.  This applies to GRPH, CUR, etc.
+ */
 #define AVIVO_D1GRPH_LUT_SEL                                    0x6108
 #define AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS                    0x6110
+#define R700_D1GRPH_PRIMARY_SURFACE_ADDRESS_HIGH                0x6914
+#define R700_D2GRPH_PRIMARY_SURFACE_ADDRESS_HIGH                0x6114
 #define AVIVO_D1GRPH_SECONDARY_SURFACE_ADDRESS                  0x6118
+#define R700_D1GRPH_SECONDARY_SURFACE_ADDRESS_HIGH              0x691c
+#define R700_D2GRPH_SECONDARY_SURFACE_ADDRESS_HIGH              0x611c
 #define AVIVO_D1GRPH_PITCH                                      0x6120
 #define AVIVO_D1GRPH_SURFACE_OFFSET_X                           0x6124
 #define AVIVO_D1GRPH_SURFACE_OFFSET_Y                           0x6128
@@ -404,6 +411,8 @@
 #       define AVIVO_D1CURSOR_MODE_MASK         (3 << 8)
 #       define AVIVO_D1CURSOR_MODE_24BPP        2
 #define AVIVO_D1CUR_SURFACE_ADDRESS             0x6408
+#define R700_D1CUR_SURFACE_ADDRESS_HIGH         0x6c0c
+#define R700_D2CUR_SURFACE_ADDRESS_HIGH         0x640c
 #define AVIVO_D1CUR_SIZE                        0x6410
 #define AVIVO_D1CUR_POSITION                    0x6414
 #define AVIVO_D1CUR_HOT_SPOT                    0x6418

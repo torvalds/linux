@@ -1270,6 +1270,9 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 
 	BUG_ON(!kernel_locked());
 
+	if (!state)
+		return;
+
 	uport = state->uart_port;
 	port = &state->port;
 
@@ -1316,9 +1319,9 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	 */
 	if (port->flags & ASYNC_INITIALIZED) {
 		unsigned long flags;
-		spin_lock_irqsave(&port->lock, flags);
+		spin_lock_irqsave(&uport->lock, flags);
 		uport->ops->stop_rx(uport);
-		spin_unlock_irqrestore(&port->lock, flags);
+		spin_unlock_irqrestore(&uport->lock, flags);
 		/*
 		 * Before we drop DTR, make sure the UART transmitter
 		 * has completely drained; this is especially

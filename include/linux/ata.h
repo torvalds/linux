@@ -334,9 +334,12 @@ enum {
 	SETFEATURES_SATA_DISABLE = 0x90, /* Disable use of SATA feature */
 
 	/* SETFEATURE Sector counts for SATA features */
-	SATA_AN			= 0x05,  /* Asynchronous Notification */
-	SATA_DIPM		= 0x03,  /* Device Initiated Power Management */
-	SATA_FPDMA_AA		= 0x02,  /* DMA Setup FIS Auto-Activate */
+	SATA_FPDMA_OFFSET	= 0x01,	/* FPDMA non-zero buffer offsets */
+	SATA_FPDMA_AA		= 0x02, /* FPDMA Setup FIS Auto-Activate */
+	SATA_DIPM		= 0x03,	/* Device Initiated Power Management */
+	SATA_FPDMA_IN_ORDER	= 0x04,	/* FPDMA in-order data delivery */
+	SATA_AN			= 0x05,	/* Asynchronous Notification */
+	SATA_SSP		= 0x06,	/* Software Settings Preservation */
 
 	/* feature values for SET_MAX */
 	ATA_SET_MAX_ADDR	= 0x00,

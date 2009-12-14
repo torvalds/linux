@@ -70,7 +70,7 @@ static void drive_stat_acct(struct request *rq, int new_io)
 		part_stat_inc(cpu, part, merges[rw]);
 	else {
 		part_round_stats(cpu, part);
-		part_inc_in_flight(part);
+		part_inc_in_flight(part, rw);
 	}
 
 	part_stat_unlock();
@@ -1030,9 +1030,9 @@ static void part_round_stats_single(int cpu, struct hd_struct *part,
 	if (now == part->stamp)
 		return;
 
-	if (part->in_flight) {
+	if (part_in_flight(part)) {
 		__part_stat_add(cpu, part, time_in_queue,
-				part->in_flight * (now - part->stamp));
+				part_in_flight(part) * (now - part->stamp));
 		__part_stat_add(cpu, part, io_ticks, (now - part->stamp));
 	}
 	part->stamp = now;
@@ -1161,7 +1161,7 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 	const unsigned int ff = bio->bi_rw & REQ_FAILFAST_MASK;
 	int rw_flags;
 
-	if (bio_rw_flagged(bio, BIO_RW_BARRIER) && bio_has_data(bio) &&
+	if (bio_rw_flagged(bio, BIO_RW_BARRIER) &&
 	    (q->next_ordered == QUEUE_ORDERED_NONE)) {
 		bio_endio(bio, -EOPNOTSUPP);
 		return 0;
@@ -1739,7 +1739,7 @@ static void blk_account_io_done(struct request *req)
 		part_stat_inc(cpu, part, ios[rw]);
 		part_stat_add(cpu, part, ticks[rw], duration);
 		part_round_stats(cpu, part);
-		part_dec_in_flight(part);
+		part_dec_in_flight(part, rw);
 
 		part_stat_unlock();
 	}
@@ -2491,14 +2491,6 @@ int kblockd_schedule_work(struct request_queue *q, struct work_struct *work)
 	return queue_work(kblockd_workqueue, work);
 }
 EXPORT_SYMBOL(kblockd_schedule_work);
-
-int kblockd_schedule_delayed_work(struct request_queue *q,
-				  struct delayed_work *work,
-				  unsigned long delay)
-{
-	return queue_delayed_work(kblockd_workqueue, work, delay);
-}
-EXPORT_SYMBOL(kblockd_schedule_delayed_work);
 
 int __init blk_dev_init(void)
 {

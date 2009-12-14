@@ -2386,7 +2386,7 @@ int bnx2i_map_ep_dbell_regs(struct bnx2i_endpoint *ep)
 		ctx_sz = (config2 & BNX2_MQ_CONFIG2_CONT_SZ) >> 3;
 		if (ctx_sz)
 			reg_off = CTX_OFFSET + MAX_CID_CNT * MB_KERNEL_CTX_SIZE
-				  + PAGE_SIZE *
+				  + BNX2I_570X_PAGE_SIZE_DEFAULT *
 				  (((cid_num - first_l4l5) / ctx_sz) + 256);
 		else
 			reg_off = CTX_OFFSET + (MB_KERNEL_CTX_SIZE * cid_num);

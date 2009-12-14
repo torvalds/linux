@@ -1066,7 +1066,7 @@ EXPORT_SYMBOL_GPL(hid_report_raw_event);
  * @type: HID report type (HID_*_REPORT)
  * @data: report contents
  * @size: size of data parameter
- * @interrupt: called from atomic?
+ * @interrupt: distinguish between interrupt and control transfers
  *
  * This is data entry for lower layers.
  */

@@ -243,15 +243,26 @@ static int be_POST_stage_get(struct be_adapter *adapter, u16 *stage)
 
 int be_cmd_POST(struct be_adapter *adapter)
 {
-	u16 stage, error;
+	u16 stage;
+	int status, timeout = 0;
 
-	error = be_POST_stage_get(adapter, &stage);
-	if (error || stage != POST_STAGE_ARMFW_RDY) {
-		dev_err(&adapter->pdev->dev, "POST failed.\n");
-		return -1;
-	}
+	do {
+		status = be_POST_stage_get(adapter, &stage);
+		if (status) {
+			dev_err(&adapter->pdev->dev, "POST error; stage=0x%x\n",
+				stage);
+			return -1;
+		} else if (stage != POST_STAGE_ARMFW_RDY) {
+			set_current_state(TASK_INTERRUPTIBLE);
+			schedule_timeout(2 * HZ);
+			timeout += 2;
+		} else {
+			return 0;
+		}
+	} while (timeout < 20);
 
-	return 0;
+	dev_err(&adapter->pdev->dev, "POST timeout; stage=0x%x\n", stage);
+	return -1;
 }
 
 static inline void *embedded_payload(struct be_mcc_wrb *wrb)
@@ -729,8 +740,8 @@ int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 /* Create an rx filtering policy configuration on an i/f
  * Uses mbox
  */
-int be_cmd_if_create(struct be_adapter *adapter, u32 flags, u8 *mac,
-		bool pmac_invalid, u32 *if_handle, u32 *pmac_id)
+int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags, u32 en_flags,
+		u8 *mac, bool pmac_invalid, u32 *if_handle, u32 *pmac_id)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_if_create *req;
@@ -746,8 +757,8 @@ int be_cmd_if_create(struct be_adapter *adapter, u32 flags, u8 *mac,
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_NTWK_INTERFACE_CREATE, sizeof(*req));
 
-	req->capability_flags = cpu_to_le32(flags);
-	req->enable_flags = cpu_to_le32(flags);
+	req->capability_flags = cpu_to_le32(cap_flags);
+	req->enable_flags = cpu_to_le32(en_flags);
 	req->pmac_invalid = pmac_invalid;
 	if (!pmac_invalid)
 		memcpy(req->mac_addr, mac, ETH_ALEN);
@@ -1129,7 +1140,6 @@ int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
 	spin_lock_bh(&adapter->mcc_lock);
 
 	wrb = wrb_from_mccq(adapter);
-	req = embedded_payload(wrb);
 	sge = nonembedded_sgl(wrb);
 
 	be_wrb_hdr_prepare(wrb, cmd->size, false, 1);

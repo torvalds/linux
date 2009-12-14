@@ -254,9 +254,14 @@ irqreturn_t igdng_irq_handler(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int ret = IRQ_NONE;
-	u32 de_iir, gt_iir;
+	u32 de_iir, gt_iir, de_ier;
 	u32 new_de_iir, new_gt_iir;
 	struct drm_i915_master_private *master_priv;
+
+	/* disable master interrupt before clearing iir  */
+	de_ier = I915_READ(DEIER);
+	I915_WRITE(DEIER, de_ier & ~DE_MASTER_IRQ_CONTROL);
+	(void)I915_READ(DEIER);
 
 	de_iir = I915_READ(DEIIR);
 	gt_iir = I915_READ(GTIIR);
@@ -289,6 +294,9 @@ irqreturn_t igdng_irq_handler(struct drm_device *dev)
 		de_iir = new_de_iir;
 		gt_iir = new_gt_iir;
 	}
+
+	I915_WRITE(DEIER, de_ier);
+	(void)I915_READ(DEIER);
 
 	return ret;
 }
@@ -723,6 +731,16 @@ void i915_user_irq_put(struct drm_device *dev)
 			i915_disable_irq(dev_priv, I915_USER_INTERRUPT);
 	}
 	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
+}
+
+void i915_trace_irq_get(struct drm_device *dev, u32 seqno)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+
+	if (dev_priv->trace_irq_seqno == 0)
+		i915_user_irq_get(dev);
+
+	dev_priv->trace_irq_seqno = seqno;
 }
 
 static int i915_wait_irq(struct drm_device * dev, int irq_nr)

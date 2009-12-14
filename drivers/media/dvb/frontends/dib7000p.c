@@ -1375,6 +1375,11 @@ struct dvb_frontend * dib7000p_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr,
 	if (dib7000p_identify(st) != 0)
 		goto error;
 
+	/* FIXME: make sure the dev.parent field is initialized, or else
+	request_firmware() will hit an OOPS (this should be moved somewhere
+	more common) */
+	st->i2c_master.gated_tuner_i2c_adap.dev.parent = i2c_adap->dev.parent;
+
 	dibx000_init_i2c_master(&st->i2c_master, DIB7000P, st->i2c_adap, st->i2c_addr);
 
 	dib7000p_demod_reset(st);

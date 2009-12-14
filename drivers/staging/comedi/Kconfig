@@ -1,7 +1,7 @@
 config COMEDI
 	tristate "Data acquisition support (comedi)"
 	default N
-	depends on m
+	depends on m && (PCI || PCMCIA || PCCARD || USB)
 	---help---
 	  Enable support a wide range of data acquisition devices
 	  for Linux.

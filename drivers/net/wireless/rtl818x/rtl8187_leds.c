@@ -210,10 +210,10 @@ void rtl8187_leds_exit(struct ieee80211_hw *dev)
 
 	/* turn the LED off before exiting */
 	ieee80211_queue_delayed_work(dev, &priv->led_off, 0);
-	cancel_delayed_work_sync(&priv->led_off);
-	cancel_delayed_work_sync(&priv->led_on);
 	rtl8187_unregister_led(&priv->led_rx);
 	rtl8187_unregister_led(&priv->led_tx);
+	cancel_delayed_work_sync(&priv->led_off);
+	cancel_delayed_work_sync(&priv->led_on);
 }
 #endif /* def CONFIG_RTL8187_LED */
 

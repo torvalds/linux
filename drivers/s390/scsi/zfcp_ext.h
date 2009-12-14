@@ -28,7 +28,7 @@ extern int zfcp_sg_setup_table(struct scatterlist *, int);
 /* zfcp_ccw.c */
 extern int zfcp_ccw_register(void);
 extern int zfcp_ccw_priv_sch(struct zfcp_adapter *);
-extern struct zfcp_adapter *zfcp_get_adapter_by_busid(char *);
+extern struct ccw_driver zfcp_ccw_driver;
 
 /* zfcp_cfdc.c */
 extern struct miscdevice zfcp_cfdc_misc;
@@ -96,6 +96,7 @@ extern int zfcp_fc_scan_ports(struct zfcp_adapter *);
 extern void _zfcp_fc_scan_ports_later(struct work_struct *);
 extern void zfcp_fc_incoming_els(struct zfcp_fsf_req *);
 extern void zfcp_fc_port_did_lookup(struct work_struct *);
+extern void zfcp_fc_trigger_did_lookup(struct zfcp_port *);
 extern void zfcp_fc_plogi_evaluate(struct zfcp_port *, struct fsf_plogi *);
 extern void zfcp_fc_test_link(struct zfcp_port *);
 extern void zfcp_fc_link_test_work(struct work_struct *);

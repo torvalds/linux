@@ -47,6 +47,7 @@ struct dm_io {
 	atomic_t io_count;
 	struct bio *bio;
 	unsigned long start_time;
+	spinlock_t endio_lock;
 };
 
 /*
@@ -130,7 +131,7 @@ struct mapped_device {
 	/*
 	 * A list of ios that arrived while we were suspended.
 	 */
-	atomic_t pending;
+	atomic_t pending[2];
 	wait_queue_head_t wait;
 	struct work_struct work;
 	struct bio_list deferred;
@@ -453,13 +454,14 @@ static void start_io_acct(struct dm_io *io)
 {
 	struct mapped_device *md = io->md;
 	int cpu;
+	int rw = bio_data_dir(io->bio);
 
 	io->start_time = jiffies;
 
 	cpu = part_stat_lock();
 	part_round_stats(cpu, &dm_disk(md)->part0);
 	part_stat_unlock();
-	dm_disk(md)->part0.in_flight = atomic_inc_return(&md->pending);
+	dm_disk(md)->part0.in_flight[rw] = atomic_inc_return(&md->pending[rw]);
 }
 
 static void end_io_acct(struct dm_io *io)
@@ -479,8 +481,9 @@ static void end_io_acct(struct dm_io *io)
 	 * After this is decremented the bio must not be touched if it is
 	 * a barrier.
 	 */
-	dm_disk(md)->part0.in_flight = pending =
-		atomic_dec_return(&md->pending);
+	dm_disk(md)->part0.in_flight[rw] = pending =
+		atomic_dec_return(&md->pending[rw]);
+	pending += atomic_read(&md->pending[rw^0x1]);
 
 	/* nudge anyone waiting on suspend queue */
 	if (!pending)
@@ -576,8 +579,12 @@ static void dec_pending(struct dm_io *io, int error)
 	struct mapped_device *md = io->md;
 
 	/* Push-back supersedes any I/O errors */
-	if (error && !(io->error > 0 && __noflush_suspending(md)))
-		io->error = error;
+	if (unlikely(error)) {
+		spin_lock_irqsave(&io->endio_lock, flags);
+		if (!(io->error > 0 && __noflush_suspending(md)))
+			io->error = error;
+		spin_unlock_irqrestore(&io->endio_lock, flags);
+	}
 
 	if (atomic_dec_and_test(&io->io_count)) {
 		if (io->error == DM_ENDIO_REQUEUE) {
@@ -1224,6 +1231,7 @@ static void __split_and_process_bio(struct mapped_device *md, struct bio *bio)
 	atomic_set(&ci.io->io_count, 1);
 	ci.io->bio = bio;
 	ci.io->md = md;
+	spin_lock_init(&ci.io->endio_lock);
 	ci.sector = bio->bi_sector;
 	ci.sector_count = bio_sectors(bio);
 	if (unlikely(bio_empty_barrier(bio)))
@@ -1785,7 +1793,8 @@ static struct mapped_device *alloc_dev(int minor)
 	if (!md->disk)
 		goto bad_disk;
 
-	atomic_set(&md->pending, 0);
+	atomic_set(&md->pending[0], 0);
+	atomic_set(&md->pending[1], 0);
 	init_waitqueue_head(&md->wait);
 	INIT_WORK(&md->work, dm_wq_work);
 	init_waitqueue_head(&md->eventq);
@@ -1819,6 +1828,7 @@ static struct mapped_device *alloc_dev(int minor)
 bad_bdev:
 	destroy_workqueue(md->wq);
 bad_thread:
+	del_gendisk(md->disk);
 	put_disk(md->disk);
 bad_disk:
 	blk_cleanup_queue(md->queue);
@@ -2088,7 +2098,8 @@ static int dm_wait_for_completion(struct mapped_device *md, int interruptible)
 				break;
 			}
 			spin_unlock_irqrestore(q->queue_lock, flags);
-		} else if (!atomic_read(&md->pending))
+		} else if (!atomic_read(&md->pending[0]) &&
+					!atomic_read(&md->pending[1]))
 			break;
 
 		if (interruptible == TASK_INTERRUPTIBLE &&

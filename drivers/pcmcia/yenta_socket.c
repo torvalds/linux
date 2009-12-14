@@ -1275,16 +1275,26 @@ static int yenta_dev_resume_noirq(struct device *dev)
 	if (socket->type && socket->type->restore_state)
 		socket->type->restore_state(socket);
 
-	return pcmcia_socket_dev_resume(dev);
+	pcmcia_socket_dev_early_resume(dev);
+	return 0;
+}
+
+static int yenta_dev_resume(struct device *dev)
+{
+	pcmcia_socket_dev_late_resume(dev);
+	return 0;
 }
 
 static struct dev_pm_ops yenta_pm_ops = {
 	.suspend_noirq = yenta_dev_suspend_noirq,
 	.resume_noirq = yenta_dev_resume_noirq,
+	.resume = yenta_dev_resume,
 	.freeze_noirq = yenta_dev_suspend_noirq,
 	.thaw_noirq = yenta_dev_resume_noirq,
+	.thaw = yenta_dev_resume,
 	.poweroff_noirq = yenta_dev_suspend_noirq,
 	.restore_noirq = yenta_dev_resume_noirq,
+	.restore = yenta_dev_resume,
 };
 
 #define YENTA_PM_OPS	(&yenta_pm_ops)

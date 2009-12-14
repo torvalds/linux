@@ -297,7 +297,7 @@ config AUDIT
 
 config AUDITSYSCALL
 	bool "Enable system-call auditing support"
-	depends on AUDIT && (X86 || PPC || PPC64 || S390 || IA64 || UML || SPARC64|| SUPERH)
+	depends on AUDIT && (X86 || PPC || S390 || IA64 || UML || SPARC64 || SUPERH)
 	default y if SECURITY_SELINUX
 	help
 	  Enable low-overhead system-call auditing infrastructure that
@@ -606,7 +606,7 @@ config SYSFS_DEPRECATED
 	bool
 
 config SYSFS_DEPRECATED_V2
-	bool "remove sysfs features which may confuse old userspace tools"
+	bool "enable deprecated sysfs features which may confuse old userspace tools"
 	depends on SYSFS
 	default n
 	select SYSFS_DEPRECATED
@@ -921,6 +921,11 @@ config HAVE_PERF_EVENTS
 	help
 	  See tools/perf/design.txt for details.
 
+config PERF_USE_VMALLOC
+	bool
+	help
+	  See tools/perf/design.txt for details
+
 menu "Kernel Performance Events And Counters"
 
 config PERF_EVENTS
@@ -932,7 +937,7 @@ config PERF_EVENTS
 	  Enable kernel support for various performance events provided
 	  by software and hardware.
 
-	  Software events are supported either build-in or via the
+	  Software events are supported either built-in or via the
 	  use of generic tracepoints.
 
 	  Most modern CPUs support performance events via performance
@@ -944,7 +949,7 @@ config PERF_EVENTS
 	  used to profile the code that runs on that CPU.
 
 	  The Linux Performance Event subsystem provides an abstraction of
-	  these software and hardware cevent apabilities, available via a
+	  these software and hardware event capabilities, available via a
 	  system call and used by the "perf" utility in tools/perf/. It
 	  provides per task and per CPU counters, and it provides event
 	  capabilities on top of those.
@@ -975,6 +980,19 @@ config PERF_COUNTERS
 	  it or not, it is a compatibility placeholder.
 
 	  Say N if unsure.
+
+config DEBUG_PERF_USE_VMALLOC
+	default n
+	bool "Debug: use vmalloc to back perf mmap() buffers"
+	depends on PERF_EVENTS && DEBUG_KERNEL
+	select PERF_USE_VMALLOC
+	help
+	 Use vmalloc memory to back perf mmap() buffers.
+
+	 Mostly useful for debugging the vmalloc code on platforms
+	 that don't require it.
+
+	 Say N if unsure.
 
 endmenu
 
@@ -1077,6 +1095,16 @@ config SLOW_WORK
 	  An example of this would be CacheFiles doing a path lookup followed
 	  by a series of mkdirs and a create call, all of which have to touch
 	  disk.
+
+	  See Documentation/slow-work.txt.
+
+config SLOW_WORK_DEBUG
+	bool "Slow work debugging through debugfs"
+	default n
+	depends on SLOW_WORK && DEBUG_FS
+	help
+	  Display the contents of the slow work run queue through debugfs,
+	  including items currently executing.
 
 	  See Documentation/slow-work.txt.
 

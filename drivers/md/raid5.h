@@ -214,12 +214,20 @@ struct stripe_head {
 	int			disks;		/* disks in stripe */
 	enum check_states	check_state;
 	enum reconstruct_states reconstruct_state;
-	/* stripe_operations
+	/**
+	 * struct stripe_operations
 	 * @target - STRIPE_OP_COMPUTE_BLK target
+	 * @target2 - 2nd compute target in the raid6 case
+	 * @zero_sum_result - P and Q verification flags
+	 * @request - async service request flags for raid_run_ops
 	 */
 	struct stripe_operations {
 		int 		     target, target2;
 		enum sum_check_flags zero_sum_result;
+		#ifdef CONFIG_MULTICORE_RAID456
+		unsigned long	     request;
+		wait_queue_head_t    wait_for_ops;
+		#endif
 	} ops;
 	struct r5dev {
 		struct bio	req;
@@ -294,6 +302,8 @@ struct r6_state {
 #define	STRIPE_FULL_WRITE	13 /* all blocks are set to be overwritten */
 #define	STRIPE_BIOFILL_RUN	14
 #define	STRIPE_COMPUTE_RUN	15
+#define	STRIPE_OPS_REQ_PENDING	16
+
 /*
  * Operation request flags
  */
@@ -478,7 +488,7 @@ static inline int algorithm_valid_raid6(int layout)
 {
 	return (layout >= 0 && layout <= 5)
 		||
-		(layout == 8 || layout == 10)
+		(layout >= 8 && layout <= 10)
 		||
 		(layout >= 16 && layout <= 20);
 }

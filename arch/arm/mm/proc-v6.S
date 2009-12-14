@@ -32,8 +32,10 @@
 
 #ifndef CONFIG_SMP
 #define TTB_FLAGS	TTB_RGN_WBWA
+#define PMD_FLAGS	PMD_SECT_WB
 #else
 #define TTB_FLAGS	TTB_RGN_WBWA|TTB_S
+#define PMD_FLAGS	PMD_SECT_WBWA|PMD_SECT_S
 #endif
 
 ENTRY(cpu_v6_proc_init)
@@ -222,10 +224,9 @@ __v6_proc_info:
 	.long	0x0007b000
 	.long	0x0007f000
 	.long   PMD_TYPE_SECT | \
-		PMD_SECT_BUFFERABLE | \
-		PMD_SECT_CACHEABLE | \
 		PMD_SECT_AP_WRITE | \
-		PMD_SECT_AP_READ
+		PMD_SECT_AP_READ | \
+		PMD_FLAGS
 	.long   PMD_TYPE_SECT | \
 		PMD_SECT_XN | \
 		PMD_SECT_AP_WRITE | \

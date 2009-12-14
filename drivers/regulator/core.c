@@ -1283,7 +1283,8 @@ static int _regulator_disable(struct regulator_dev *rdev)
 		return -EIO;
 
 	/* are we the last user and permitted to disable ? */
-	if (rdev->use_count == 1 && !rdev->constraints->always_on) {
+	if (rdev->use_count == 1 &&
+	    (rdev->constraints && !rdev->constraints->always_on)) {
 
 		/* we are last user */
 		if (_regulator_can_change_status(rdev) &&

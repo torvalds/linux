@@ -913,6 +913,7 @@ journal_t * jbd2_journal_init_dev(struct block_device *bdev,
 
 	return journal;
 out_err:
+	kfree(journal->j_wbuf);
 	jbd2_stats_proc_exit(journal);
 	kfree(journal);
 	return NULL;
@@ -986,6 +987,7 @@ journal_t * jbd2_journal_init_inode (struct inode *inode)
 
 	return journal;
 out_err:
+	kfree(journal->j_wbuf);
 	jbd2_stats_proc_exit(journal);
 	kfree(journal);
 	return NULL;

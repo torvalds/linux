@@ -1464,7 +1464,7 @@ static void ipgre_tap_setup(struct net_device *dev)
 
 	ether_setup(dev);
 
-	dev->netdev_ops		= &ipgre_netdev_ops;
+	dev->netdev_ops		= &ipgre_tap_netdev_ops;
 	dev->destructor 	= free_netdev;
 
 	dev->iflink		= 0;
@@ -1525,25 +1525,29 @@ static int ipgre_changelink(struct net_device *dev, struct nlattr *tb[],
 		if (t->dev != dev)
 			return -EEXIST;
 	} else {
-		unsigned nflags = 0;
-
 		t = nt;
 
-		if (ipv4_is_multicast(p.iph.daddr))
-			nflags = IFF_BROADCAST;
-		else if (p.iph.daddr)
-			nflags = IFF_POINTOPOINT;
+		if (dev->type != ARPHRD_ETHER) {
+			unsigned nflags = 0;
 
-		if ((dev->flags ^ nflags) &
-		    (IFF_POINTOPOINT | IFF_BROADCAST))
-			return -EINVAL;
+			if (ipv4_is_multicast(p.iph.daddr))
+				nflags = IFF_BROADCAST;
+			else if (p.iph.daddr)
+				nflags = IFF_POINTOPOINT;
+
+			if ((dev->flags ^ nflags) &
+			    (IFF_POINTOPOINT | IFF_BROADCAST))
+				return -EINVAL;
+		}
 
 		ipgre_tunnel_unlink(ign, t);
 		t->parms.iph.saddr = p.iph.saddr;
 		t->parms.iph.daddr = p.iph.daddr;
 		t->parms.i_key = p.i_key;
-		memcpy(dev->dev_addr, &p.iph.saddr, 4);
-		memcpy(dev->broadcast, &p.iph.daddr, 4);
+		if (dev->type != ARPHRD_ETHER) {
+			memcpy(dev->dev_addr, &p.iph.saddr, 4);
+			memcpy(dev->broadcast, &p.iph.daddr, 4);
+		}
 		ipgre_tunnel_link(ign, t);
 		netdev_state_change(dev);
 	}

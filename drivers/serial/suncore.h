@@ -26,7 +26,8 @@ extern int sunserial_register_minors(struct uart_driver *, int);
 extern void sunserial_unregister_minors(struct uart_driver *, int);
 
 extern int sunserial_console_match(struct console *, struct device_node *,
-				   struct uart_driver *, int);
-extern void sunserial_console_termios(struct console *);
+				   struct uart_driver *, int, bool);
+extern void sunserial_console_termios(struct console *,
+				      struct device_node *);
 
 #endif /* !(_SERIAL_SUN_H) */

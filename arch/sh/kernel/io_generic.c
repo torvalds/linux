@@ -147,6 +147,9 @@ void generic_outsl(unsigned long port, const void *src, unsigned long count)
 
 void __iomem *generic_ioport_map(unsigned long addr, unsigned int size)
 {
+	if (PXSEG(addr) >= P1SEG)
+		return (void __iomem *)addr;
+
 	return (void __iomem *)(addr + generic_io_base);
 }
 

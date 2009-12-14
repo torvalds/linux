@@ -1046,15 +1046,6 @@ static void ide_port_init_devices(ide_hwif_t *hwif)
 		if (port_ops && port_ops->init_dev)
 			port_ops->init_dev(drive);
 	}
-
-	ide_port_for_each_dev(i, drive, hwif) {
-		/*
-		 * default to PIO Mode 0 before we figure out
-		 * the most suited mode for the attached device
-		 */
-		if (port_ops && port_ops->set_pio_mode)
-			port_ops->set_pio_mode(drive, 0);
-	}
 }
 
 static void ide_init_port(ide_hwif_t *hwif, unsigned int port,

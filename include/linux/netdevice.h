@@ -557,7 +557,7 @@ struct netdev_queue {
  *	Callback uses when the transmitter has not made any progress
  *	for dev->watchdog ticks.
  *
- * struct net_device_stats* (*get_stats)(struct net_device *dev);
+ * struct net_device_stats* (*ndo_get_stats)(struct net_device *dev);
  *	Called when a user wants to get the network device usage
  *	statistics. If not defined, the counters in dev->stats will
  *	be used.

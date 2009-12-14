@@ -31,6 +31,7 @@
  * SOFTWARE.
  */
 
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/idr.h>
 #include <linux/pci.h>

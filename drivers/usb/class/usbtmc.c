@@ -39,7 +39,7 @@
 #define USBTMC_SIZE_IOBUFFER	2048
 
 /* Default USB timeout (in milliseconds) */
-#define USBTMC_TIMEOUT		10
+#define USBTMC_TIMEOUT		5000
 
 /*
  * Maximum number of read cycles to empty bulk in endpoint during CLEAR and

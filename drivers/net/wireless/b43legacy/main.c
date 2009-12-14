@@ -37,6 +37,7 @@
 #include <linux/firmware.h>
 #include <linux/wireless.h>
 #include <linux/workqueue.h>
+#include <linux/sched.h>
 #include <linux/skbuff.h>
 #include <linux/dma-mapping.h>
 #include <net/dst.h>

@@ -1046,13 +1046,15 @@ static void pl2303_push_data(struct tty_struct *tty,
 	/* overrun is special, not associated with a char */
 	if (line_status & UART_OVERRUN_ERROR)
 		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-	if (port->console && port->sysrq) {
+
+	if (tty_flag == TTY_NORMAL && !(port->console && port->sysrq))
+		tty_insert_flip_string(tty, data, urb->actual_length);
+	else {
 		int i;
 		for (i = 0; i < urb->actual_length; ++i)
 			if (!usb_serial_handle_sysrq_char(tty, port, data[i]))
 				tty_insert_flip_char(tty, data[i], tty_flag);
-	} else
-		tty_insert_flip_string(tty, data, urb->actual_length);
+	}
 	tty_flip_buffer_push(tty);
 }
 

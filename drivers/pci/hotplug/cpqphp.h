@@ -32,6 +32,7 @@
 #include <asm/io.h>		/* for read? and write? functions */
 #include <linux/delay.h>	/* for delays */
 #include <linux/mutex.h>
+#include <linux/sched.h>	/* for signal_pending() */
 
 #define MY_NAME	"cpqphp"
 

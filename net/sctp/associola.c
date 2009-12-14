@@ -1485,15 +1485,13 @@ void sctp_assoc_rwnd_decrease(struct sctp_association *asoc, unsigned len)
  * local endpoint and the remote peer.
  */
 int sctp_assoc_set_bind_addr_from_ep(struct sctp_association *asoc,
-				     gfp_t gfp)
+				     sctp_scope_t scope, gfp_t gfp)
 {
-	sctp_scope_t scope;
 	int flags;
 
 	/* Use scoping rules to determine the subset of addresses from
 	 * the endpoint.
 	 */
-	scope = sctp_scope(&asoc->peer.active_path->ipaddr);
 	flags = (PF_INET6 == asoc->base.sk->sk_family) ? SCTP_ADDR6_ALLOWED : 0;
 	if (asoc->peer.ipv4_address)
 		flags |= SCTP_ADDR4_PEERSUPP;

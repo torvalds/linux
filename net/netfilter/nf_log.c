@@ -128,9 +128,8 @@ EXPORT_SYMBOL(nf_log_packet);
 
 #ifdef CONFIG_PROC_FS
 static void *seq_start(struct seq_file *seq, loff_t *pos)
-	__acquires(RCU)
 {
-	rcu_read_lock();
+	mutex_lock(&nf_log_mutex);
 
 	if (*pos >= ARRAY_SIZE(nf_loggers))
 		return NULL;
@@ -149,9 +148,8 @@ static void *seq_next(struct seq_file *s, void *v, loff_t *pos)
 }
 
 static void seq_stop(struct seq_file *s, void *v)
-	__releases(RCU)
 {
-	rcu_read_unlock();
+	mutex_unlock(&nf_log_mutex);
 }
 
 static int seq_show(struct seq_file *s, void *v)
@@ -161,7 +159,7 @@ static int seq_show(struct seq_file *s, void *v)
 	struct nf_logger *t;
 	int ret;
 
-	logger = rcu_dereference(nf_loggers[*pos]);
+	logger = nf_loggers[*pos];
 
 	if (!logger)
 		ret = seq_printf(s, "%2lld NONE (", *pos);
@@ -171,22 +169,16 @@ static int seq_show(struct seq_file *s, void *v)
 	if (ret < 0)
 		return ret;
 
-	mutex_lock(&nf_log_mutex);
 	list_for_each_entry(t, &nf_loggers_l[*pos], list[*pos]) {
 		ret = seq_printf(s, "%s", t->name);
-		if (ret < 0) {
-			mutex_unlock(&nf_log_mutex);
+		if (ret < 0)
 			return ret;
-		}
 		if (&t->list[*pos] != nf_loggers_l[*pos].prev) {
 			ret = seq_printf(s, ",");
-			if (ret < 0) {
-				mutex_unlock(&nf_log_mutex);
+			if (ret < 0)
 				return ret;
-			}
 		}
 	}
-	mutex_unlock(&nf_log_mutex);
 
 	return seq_printf(s, ")\n");
 }

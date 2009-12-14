@@ -292,10 +292,10 @@ const static unsigned int palmtc_keypad_col_gpios[] = {
 
 static struct matrix_keypad_platform_data palmtc_keypad_platform_data = {
 	.keymap_data	= &palmtc_keymap_data,
-	.col_gpios	= palmtc_keypad_row_gpios,
-	.num_col_gpios	= 12,
-	.row_gpios	= palmtc_keypad_col_gpios,
-	.num_row_gpios	= 4,
+	.row_gpios	= palmtc_keypad_row_gpios,
+	.num_row_gpios	= ARRAY_SIZE(palmtc_keypad_row_gpios),
+	.col_gpios	= palmtc_keypad_col_gpios,
+	.num_col_gpios	= ARRAY_SIZE(palmtc_keypad_col_gpios),
 	.active_low	= 1,
 
 	.debounce_ms		= 20,

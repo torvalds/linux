@@ -137,11 +137,20 @@ static int start_log_trans(struct btrfs_trans_handle *trans,
 
 	mutex_lock(&root->log_mutex);
 	if (root->log_root) {
+		if (!root->log_start_pid) {
+			root->log_start_pid = current->pid;
+			root->log_multiple_pids = false;
+		} else if (root->log_start_pid != current->pid) {
+			root->log_multiple_pids = true;
+		}
+
 		root->log_batch++;
 		atomic_inc(&root->log_writers);
 		mutex_unlock(&root->log_mutex);
 		return 0;
 	}
+	root->log_multiple_pids = false;
+	root->log_start_pid = current->pid;
 	mutex_lock(&root->fs_info->tree_log_mutex);
 	if (!root->fs_info->log_root_tree) {
 		ret = btrfs_init_log_root_tree(trans, root->fs_info);
@@ -1971,6 +1980,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	int ret;
 	struct btrfs_root *log = root->log_root;
 	struct btrfs_root *log_root_tree = root->fs_info->log_root_tree;
+	u64 log_transid = 0;
 
 	mutex_lock(&root->log_mutex);
 	index1 = root->log_transid % 2;
@@ -1987,10 +1997,11 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 
 	while (1) {
 		unsigned long batch = root->log_batch;
-		mutex_unlock(&root->log_mutex);
-		schedule_timeout_uninterruptible(1);
-		mutex_lock(&root->log_mutex);
-
+		if (root->log_multiple_pids) {
+			mutex_unlock(&root->log_mutex);
+			schedule_timeout_uninterruptible(1);
+			mutex_lock(&root->log_mutex);
+		}
 		wait_for_writer(trans, root);
 		if (batch == root->log_batch)
 			break;
@@ -2003,14 +2014,19 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	ret = btrfs_write_and_wait_marked_extents(log, &log->dirty_log_pages);
+	/* we start IO on  all the marked extents here, but we don't actually
+	 * wait for them until later.
+	 */
+	ret = btrfs_write_marked_extents(log, &log->dirty_log_pages);
 	BUG_ON(ret);
 
 	btrfs_set_root_node(&log->root_item, log->node);
 
 	root->log_batch = 0;
+	log_transid = root->log_transid;
 	root->log_transid++;
 	log->log_transid = root->log_transid;
+	root->log_start_pid = 0;
 	smp_mb();
 	/*
 	 * log tree has been flushed to disk, new modifications of
@@ -2036,6 +2052,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 
 	index2 = log_root_tree->log_transid % 2;
 	if (atomic_read(&log_root_tree->log_commit[index2])) {
+		btrfs_wait_marked_extents(log, &log->dirty_log_pages);
 		wait_log_commit(trans, log_root_tree,
 				log_root_tree->log_transid);
 		mutex_unlock(&log_root_tree->log_mutex);
@@ -2055,6 +2072,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 * check the full commit flag again
 	 */
 	if (root->fs_info->last_trans_log_full_commit == trans->transid) {
+		btrfs_wait_marked_extents(log, &log->dirty_log_pages);
 		mutex_unlock(&log_root_tree->log_mutex);
 		ret = -EAGAIN;
 		goto out_wake_log_root;
@@ -2063,6 +2081,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	ret = btrfs_write_and_wait_marked_extents(log_root_tree,
 				&log_root_tree->dirty_log_pages);
 	BUG_ON(ret);
+	btrfs_wait_marked_extents(log, &log->dirty_log_pages);
 
 	btrfs_set_super_log_root(&root->fs_info->super_for_commit,
 				log_root_tree->node->start);
@@ -2082,8 +2101,13 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 * the running transaction open, so a full commit can't hop
 	 * in and cause problems either.
 	 */
-	write_ctree_super(trans, root->fs_info->tree_root, 2);
+	write_ctree_super(trans, root->fs_info->tree_root, 1);
 	ret = 0;
+
+	mutex_lock(&root->log_mutex);
+	if (root->last_log_commit < log_transid)
+		root->last_log_commit = log_transid;
+	mutex_unlock(&root->log_mutex);
 
 out_wake_log_root:
 	atomic_set(&log_root_tree->log_commit[index2], 0);
@@ -2852,6 +2876,21 @@ out:
 	return ret;
 }
 
+static int inode_in_log(struct btrfs_trans_handle *trans,
+		 struct inode *inode)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	int ret = 0;
+
+	mutex_lock(&root->log_mutex);
+	if (BTRFS_I(inode)->logged_trans == trans->transid &&
+	    BTRFS_I(inode)->last_sub_trans <= root->last_log_commit)
+		ret = 1;
+	mutex_unlock(&root->log_mutex);
+	return ret;
+}
+
+
 /*
  * helper function around btrfs_log_inode to make sure newly created
  * parent directories also end up in the log.  A minimal inode and backref
@@ -2890,6 +2929,11 @@ int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 					 sb, last_committed);
 	if (ret)
 		goto end_no_trans;
+
+	if (inode_in_log(trans, inode)) {
+		ret = BTRFS_NO_LOG_SYNC;
+		goto end_no_trans;
+	}
 
 	start_log_trans(trans, root);
 

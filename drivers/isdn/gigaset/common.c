@@ -22,6 +22,12 @@
 #define DRIVER_AUTHOR "Hansjoerg Lipp <hjlipp@web.de>, Tilman Schmidt <tilman@imap.cc>, Stefan Eilers"
 #define DRIVER_DESC "Driver for Gigaset 307x"
 
+#ifdef CONFIG_GIGASET_DEBUG
+#define DRIVER_DESC_DEBUG " (debug build)"
+#else
+#define DRIVER_DESC_DEBUG ""
+#endif
+
 /* Module parameters */
 int gigaset_debuglevel = DEBUG_DEFAULT;
 EXPORT_SYMBOL_GPL(gigaset_debuglevel);
@@ -32,6 +38,17 @@ MODULE_PARM_DESC(debug, "debug level");
 #define VALID_MINOR	0x01
 #define VALID_ID	0x02
 
+/**
+ * gigaset_dbg_buffer() - dump data in ASCII and hex for debugging
+ * @level:	debugging level.
+ * @msg:	message prefix.
+ * @len:	number of bytes to dump.
+ * @buf:	data to dump.
+ *
+ * If the current debugging level includes one of the bits set in @level,
+ * @len bytes starting at @buf are logged to dmesg at KERN_DEBUG prio,
+ * prefixed by the text @msg.
+ */
 void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
 			size_t len, const unsigned char *buf)
 {
@@ -274,6 +291,20 @@ static void clear_events(struct cardstate *cs)
 	spin_unlock_irqrestore(&cs->ev_lock, flags);
 }
 
+/**
+ * gigaset_add_event() - add event to device event queue
+ * @cs:		device descriptor structure.
+ * @at_state:	connection state structure.
+ * @type:	event type.
+ * @ptr:	pointer parameter for event.
+ * @parameter:	integer parameter for event.
+ * @arg:	pointer parameter for event.
+ *
+ * Allocate an event queue entry from the device's event queue, and set it up
+ * with the parameters given.
+ *
+ * Return value: added event
+ */
 struct event_t *gigaset_add_event(struct cardstate *cs,
 				  struct at_state_t *at_state, int type,
 				  void *ptr, int parameter, void *arg)
@@ -398,6 +429,15 @@ static void make_invalid(struct cardstate *cs, unsigned mask)
 	spin_unlock_irqrestore(&drv->lock, flags);
 }
 
+/**
+ * gigaset_freecs() - free all associated ressources of a device
+ * @cs:		device descriptor structure.
+ *
+ * Stops all tasklets and timers, unregisters the device from all
+ * subsystems it was registered to, deallocates the device structure
+ * @cs and all structures referenced from it.
+ * Operations on the device should be stopped before calling this.
+ */
 void gigaset_freecs(struct cardstate *cs)
 {
 	int i;
@@ -506,7 +546,12 @@ static void gigaset_inbuf_init(struct inbuf_t *inbuf, struct bc_state *bcs,
 	inbuf->inputstate = inputstate;
 }
 
-/* append received bytes to inbuf */
+/**
+ * gigaset_fill_inbuf() - append received data to input buffer
+ * @inbuf:	buffer structure.
+ * @src:	received data.
+ * @numbytes:	number of bytes received.
+ */
 int gigaset_fill_inbuf(struct inbuf_t *inbuf, const unsigned char *src,
 		       unsigned numbytes)
 {
@@ -606,20 +651,22 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 	return NULL;
 }
 
-/* gigaset_initcs
+/**
+ * gigaset_initcs() - initialize device structure
+ * @drv:	hardware driver the device belongs to
+ * @channels:	number of B channels supported by device
+ * @onechannel:	!=0 if B channel data and AT commands share one
+ *		    communication channel (M10x),
+ *		==0 if B channels have separate communication channels (base)
+ * @ignoreframes:	number of frames to ignore after setting up B channel
+ * @cidmode:	!=0: start in CallID mode
+ * @modulename:	name of driver module for LL registration
+ *
  * Allocate and initialize cardstate structure for Gigaset driver
  * Calls hardware dependent gigaset_initcshw() function
  * Calls B channel initialization function gigaset_initbcs() for each B channel
- * parameters:
- *	drv		hardware driver the device belongs to
- *	channels	number of B channels supported by device
- *	onechannel	!=0: B channel data and AT commands share one
- *			     communication channel
- *			==0: B channels have separate communication channels
- *	ignoreframes	number of frames to ignore after setting up B channel
- *	cidmode		!=0: start in CallID mode
- *	modulename	name of driver module (used for I4L registration)
- * return value:
+ *
+ * Return value:
  *	pointer to cardstate structure
  */
 struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
@@ -837,6 +884,17 @@ static void cleanup_cs(struct cardstate *cs)
 }
 
 
+/**
+ * gigaset_start() - start device operations
+ * @cs:		device descriptor structure.
+ *
+ * Prepares the device for use by setting up communication parameters,
+ * scheduling an EV_START event to initiate device initialization, and
+ * waiting for completion of the initialization.
+ *
+ * Return value:
+ *	1 - success, 0 - error
+ */
 int gigaset_start(struct cardstate *cs)
 {
 	unsigned long flags;
@@ -879,9 +937,15 @@ error:
 }
 EXPORT_SYMBOL_GPL(gigaset_start);
 
-/* gigaset_shutdown
- * check if a device is associated to the cardstate structure and stop it
- * return value: 0 if ok, -1 if no device was associated
+/**
+ * gigaset_shutdown() - shut down device operations
+ * @cs:		device descriptor structure.
+ *
+ * Deactivates the device by scheduling an EV_SHUTDOWN event and
+ * waiting for completion of the shutdown.
+ *
+ * Return value:
+ *	0 - success, -1 - error (no device associated)
  */
 int gigaset_shutdown(struct cardstate *cs)
 {
@@ -912,6 +976,13 @@ exit:
 }
 EXPORT_SYMBOL_GPL(gigaset_shutdown);
 
+/**
+ * gigaset_stop() - stop device operations
+ * @cs:		device descriptor structure.
+ *
+ * Stops operations on the device by scheduling an EV_STOP event and
+ * waiting for completion of the shutdown.
+ */
 void gigaset_stop(struct cardstate *cs)
 {
 	mutex_lock(&cs->mutex);
@@ -1020,6 +1091,14 @@ struct cardstate *gigaset_get_cs_by_tty(struct tty_struct *tty)
 	return gigaset_get_cs_by_minor(tty->index + tty->driver->minor_start);
 }
 
+/**
+ * gigaset_freedriver() - free all associated ressources of a driver
+ * @drv:	driver descriptor structure.
+ *
+ * Unregisters the driver from the system and deallocates the driver
+ * structure @drv and all structures referenced from it.
+ * All devices should be shut down before calling this.
+ */
 void gigaset_freedriver(struct gigaset_driver *drv)
 {
 	unsigned long flags;
@@ -1035,14 +1114,16 @@ void gigaset_freedriver(struct gigaset_driver *drv)
 }
 EXPORT_SYMBOL_GPL(gigaset_freedriver);
 
-/* gigaset_initdriver
+/**
+ * gigaset_initdriver() - initialize driver structure
+ * @minor:	First minor number
+ * @minors:	Number of minors this driver can handle
+ * @procname:	Name of the driver
+ * @devname:	Name of the device files (prefix without minor number)
+ *
  * Allocate and initialize gigaset_driver structure. Initialize interface.
- * parameters:
- *	minor		First minor number
- *	minors		Number of minors this driver can handle
- *	procname	Name of the driver
- *	devname		Name of the device files (prefix without minor number)
- * return value:
+ *
+ * Return value:
  *	Pointer to the gigaset_driver structure on success, NULL on failure.
  */
 struct gigaset_driver *gigaset_initdriver(unsigned minor, unsigned minors,
@@ -1095,6 +1176,13 @@ error:
 }
 EXPORT_SYMBOL_GPL(gigaset_initdriver);
 
+/**
+ * gigaset_blockdriver() - block driver
+ * @drv:	driver descriptor structure.
+ *
+ * Prevents the driver from attaching new devices, in preparation for
+ * deregistration.
+ */
 void gigaset_blockdriver(struct gigaset_driver *drv)
 {
 	drv->blocked = 1;
@@ -1110,7 +1198,7 @@ static int __init gigaset_init_module(void)
 	if (gigaset_debuglevel == 1)
 		gigaset_debuglevel = DEBUG_DEFAULT;
 
-	pr_info(DRIVER_DESC "\n");
+	pr_info(DRIVER_DESC DRIVER_DESC_DEBUG "\n");
 	return 0;
 }
 

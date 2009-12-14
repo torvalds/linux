@@ -220,6 +220,8 @@ static __devinit int s3c64xx_iis_dev_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	clk_enable(i2s->iis_cclk);
+
 	ret = s3c_i2sv2_probe(pdev, dai, i2s, 0);
 	if (ret)
 		goto err_clk;

@@ -132,23 +132,27 @@ static inline struct bcm_sock *bcm_sk(const struct sock *sk)
 /*
  * procfs functions
  */
-static char *bcm_proc_getifname(int ifindex)
+static char *bcm_proc_getifname(char *result, int ifindex)
 {
 	struct net_device *dev;
 
 	if (!ifindex)
 		return "any";
 
-	/* no usage counting */
+	read_lock(&dev_base_lock);
 	dev = __dev_get_by_index(&init_net, ifindex);
 	if (dev)
-		return dev->name;
+		strcpy(result, dev->name);
+	else
+		strcpy(result, "???");
+	read_unlock(&dev_base_lock);
 
-	return "???";
+	return result;
 }
 
 static int bcm_proc_show(struct seq_file *m, void *v)
 {
+	char ifname[IFNAMSIZ];
 	struct sock *sk = (struct sock *)m->private;
 	struct bcm_sock *bo = bcm_sk(sk);
 	struct bcm_op *op;
@@ -157,7 +161,7 @@ static int bcm_proc_show(struct seq_file *m, void *v)
 	seq_printf(m, " / sk %p", sk);
 	seq_printf(m, " / bo %p", bo);
 	seq_printf(m, " / dropped %lu", bo->dropped_usr_msgs);
-	seq_printf(m, " / bound %s", bcm_proc_getifname(bo->ifindex));
+	seq_printf(m, " / bound %s", bcm_proc_getifname(ifname, bo->ifindex));
 	seq_printf(m, " <<<\n");
 
 	list_for_each_entry(op, &bo->rx_ops, list) {
@@ -169,7 +173,7 @@ static int bcm_proc_show(struct seq_file *m, void *v)
 			continue;
 
 		seq_printf(m, "rx_op: %03X %-5s ",
-				op->can_id, bcm_proc_getifname(op->ifindex));
+				op->can_id, bcm_proc_getifname(ifname, op->ifindex));
 		seq_printf(m, "[%d]%c ", op->nframes,
 				(op->flags & RX_CHECK_DLC)?'d':' ');
 		if (op->kt_ival1.tv64)
@@ -194,7 +198,8 @@ static int bcm_proc_show(struct seq_file *m, void *v)
 	list_for_each_entry(op, &bo->tx_ops, list) {
 
 		seq_printf(m, "tx_op: %03X %s [%d] ",
-				op->can_id, bcm_proc_getifname(op->ifindex),
+				op->can_id,
+				bcm_proc_getifname(ifname, op->ifindex),
 				op->nframes);
 
 		if (op->kt_ival1.tv64)

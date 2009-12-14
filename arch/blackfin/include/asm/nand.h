@@ -1,13 +1,9 @@
-/* linux/include/asm-blackfin/nand.h
- *
- * Copyright (c) 2007 Analog Devices, Inc.
- *	Bryan Wu <bryan.wu@analog.com>
- *
+/*
  * BF5XX - NAND flash controller platfrom_device info
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright 2007-2008 Analog Devices, Inc.
+ *
+ * Licensed under the GPL-2
  */
 
 /* struct bf5xx_nand_platform

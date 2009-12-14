@@ -975,8 +975,9 @@ static int m8xx_set_io_map(struct pcmcia_socket *sock, struct pccard_io_map *io)
 #define M8XX_BASE (PCMCIA_IO_WIN_BASE + io->start)
 
 	dprintk("SetIOMap(%d, %d, %#2.2x, %d ns, "
-		"%#4.4x-%#4.4x)\n", lsock, io->map, io->flags,
-		io->speed, io->start, io->stop);
+		"%#4.4llx-%#4.4llx)\n", lsock, io->map, io->flags,
+		io->speed, (unsigned long long)io->start,
+		(unsigned long long)io->stop);
 
 	if ((io->map >= PCMCIA_IO_WIN_NO) || (io->start > 0xffff)
 	    || (io->stop > 0xffff) || (io->stop < io->start))
@@ -1055,8 +1056,9 @@ static int m8xx_set_mem_map(struct pcmcia_socket *sock,
 	pcmconf8xx_t *pcmcia = s->pcmcia;
 
 	dprintk("SetMemMap(%d, %d, %#2.2x, %d ns, "
-		"%#5.5lx, %#5.5x)\n", lsock, mem->map, mem->flags,
-		mem->speed, mem->static_start, mem->card_start);
+		"%#5.5llx, %#5.5x)\n", lsock, mem->map, mem->flags,
+		mem->speed, (unsigned long long)mem->static_start,
+		mem->card_start);
 
 	if ((mem->map >= PCMCIA_MEM_WIN_NO)
 //          || ((mem->s) >= PCMCIA_MEM_WIN_SIZE)
@@ -1107,8 +1109,9 @@ static int m8xx_set_mem_map(struct pcmcia_socket *sock,
 	}
 
 	dprintk("SetMemMap(%d, %d, %#2.2x, %d ns, "
-		"%#5.5lx, %#5.5x)\n", lsock, mem->map, mem->flags,
-		mem->speed, mem->static_start, mem->card_start);
+		"%#5.5llx, %#5.5x)\n", lsock, mem->map, mem->flags,
+		mem->speed, (unsigned long long)mem->static_start,
+		mem->card_start);
 
 	/* copy the struct and modify the copy */
 

@@ -660,6 +660,13 @@ static struct dmi_system_id __initdata bad_bios_dmi_table[] = {
 		},
 	},
 	{
+		.callback = dmi_low_memory_corruption,
+		.ident = "Phoenix/MSC BIOS",
+		.matches = {
+			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix/MSC"),
+		},
+	},
+	{
 	/*
 	 * AMI BIOS with low memory corruption was found on Intel DG45ID board.
 	 * It hase different DMI_BIOS_VENDOR = "Intel Corp.", for now we will

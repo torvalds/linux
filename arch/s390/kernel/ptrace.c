@@ -57,6 +57,7 @@
 enum s390_regset {
 	REGSET_GENERAL,
 	REGSET_FP,
+	REGSET_GENERAL_EXTENDED,
 };
 
 static void
@@ -879,6 +880,67 @@ static int s390_compat_regs_set(struct task_struct *target,
 	return rc;
 }
 
+static int s390_compat_regs_high_get(struct task_struct *target,
+				     const struct user_regset *regset,
+				     unsigned int pos, unsigned int count,
+				     void *kbuf, void __user *ubuf)
+{
+	compat_ulong_t *gprs_high;
+
+	gprs_high = (compat_ulong_t *)
+		&task_pt_regs(target)->gprs[pos / sizeof(compat_ulong_t)];
+	if (kbuf) {
+		compat_ulong_t *k = kbuf;
+		while (count > 0) {
+			*k++ = *gprs_high;
+			gprs_high += 2;
+			count -= sizeof(*k);
+		}
+	} else {
+		compat_ulong_t __user *u = ubuf;
+		while (count > 0) {
+			if (__put_user(*gprs_high, u++))
+				return -EFAULT;
+			gprs_high += 2;
+			count -= sizeof(*u);
+		}
+	}
+	return 0;
+}
+
+static int s390_compat_regs_high_set(struct task_struct *target,
+				     const struct user_regset *regset,
+				     unsigned int pos, unsigned int count,
+				     const void *kbuf, const void __user *ubuf)
+{
+	compat_ulong_t *gprs_high;
+	int rc = 0;
+
+	gprs_high = (compat_ulong_t *)
+		&task_pt_regs(target)->gprs[pos / sizeof(compat_ulong_t)];
+	if (kbuf) {
+		const compat_ulong_t *k = kbuf;
+		while (count > 0) {
+			*gprs_high = *k++;
+			*gprs_high += 2;
+			count -= sizeof(*k);
+		}
+	} else {
+		const compat_ulong_t  __user *u = ubuf;
+		while (count > 0 && !rc) {
+			unsigned long word;
+			rc = __get_user(word, u++);
+			if (rc)
+				break;
+			*gprs_high = word;
+			*gprs_high += 2;
+			count -= sizeof(*u);
+		}
+	}
+
+	return rc;
+}
+
 static const struct user_regset s390_compat_regsets[] = {
 	[REGSET_GENERAL] = {
 		.core_note_type = NT_PRSTATUS,
@@ -895,6 +957,14 @@ static const struct user_regset s390_compat_regsets[] = {
 		.align = sizeof(compat_long_t),
 		.get = s390_fpregs_get,
 		.set = s390_fpregs_set,
+	},
+	[REGSET_GENERAL_EXTENDED] = {
+		.core_note_type = NT_PRXSTATUS,
+		.n = sizeof(s390_compat_regs_high) / sizeof(compat_long_t),
+		.size = sizeof(compat_long_t),
+		.align = sizeof(compat_long_t),
+		.get = s390_compat_regs_high_get,
+		.set = s390_compat_regs_high_set,
 	},
 };
 

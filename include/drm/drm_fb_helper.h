@@ -39,6 +39,8 @@ struct drm_fb_helper_crtc {
 struct drm_fb_helper_funcs {
 	void (*gamma_set)(struct drm_crtc *crtc, u16 red, u16 green,
 			  u16 blue, int regno);
+	void (*gamma_get)(struct drm_crtc *crtc, u16 *red, u16 *green,
+			  u16 *blue, int regno);
 };
 
 /* mode specified on the command line */
@@ -71,6 +73,7 @@ struct drm_fb_helper {
 };
 
 int drm_fb_helper_single_fb_probe(struct drm_device *dev,
+				  int preferred_bpp,
 				  int (*fb_create)(struct drm_device *dev,
 						   uint32_t fb_width,
 						   uint32_t fb_height,
@@ -98,9 +101,11 @@ int drm_fb_helper_setcolreg(unsigned regno,
 void drm_fb_helper_restore(void);
 void drm_fb_helper_fill_var(struct fb_info *info, struct drm_framebuffer *fb,
 			    uint32_t fb_width, uint32_t fb_height);
-void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch);
+void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
+			    uint32_t depth);
 
 int drm_fb_helper_add_connector(struct drm_connector *connector);
 int drm_fb_helper_parse_command_line(struct drm_device *dev);
+int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info);
 
 #endif

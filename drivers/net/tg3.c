@@ -902,11 +902,12 @@ static int tg3_mdio_read(struct mii_bus *bp, int mii_id, int reg)
 	struct tg3 *tp = bp->priv;
 	u32 val;
 
-	if (tp->tg3_flags3 & TG3_FLG3_MDIOBUS_PAUSED)
-		return -EAGAIN;
+	spin_lock_bh(&tp->lock);
 
 	if (tg3_readphy(tp, reg, &val))
-		return -EIO;
+		val = -EIO;
+
+	spin_unlock_bh(&tp->lock);
 
 	return val;
 }
@@ -914,14 +915,16 @@ static int tg3_mdio_read(struct mii_bus *bp, int mii_id, int reg)
 static int tg3_mdio_write(struct mii_bus *bp, int mii_id, int reg, u16 val)
 {
 	struct tg3 *tp = bp->priv;
+	u32 ret = 0;
 
-	if (tp->tg3_flags3 & TG3_FLG3_MDIOBUS_PAUSED)
-		return -EAGAIN;
+	spin_lock_bh(&tp->lock);
 
 	if (tg3_writephy(tp, reg, val))
-		return -EIO;
+		ret = -EIO;
 
-	return 0;
+	spin_unlock_bh(&tp->lock);
+
+	return ret;
 }
 
 static int tg3_mdio_reset(struct mii_bus *bp)
@@ -1011,12 +1014,6 @@ static void tg3_mdio_config_5785(struct tg3 *tp)
 
 static void tg3_mdio_start(struct tg3 *tp)
 {
-	if (tp->tg3_flags3 & TG3_FLG3_MDIOBUS_INITED) {
-		mutex_lock(&tp->mdio_bus->mdio_lock);
-		tp->tg3_flags3 &= ~TG3_FLG3_MDIOBUS_PAUSED;
-		mutex_unlock(&tp->mdio_bus->mdio_lock);
-	}
-
 	tp->mi_mode &= ~MAC_MI_MODE_AUTO_POLL;
 	tw32_f(MAC_MI_MODE, tp->mi_mode);
 	udelay(80);
@@ -1039,15 +1036,6 @@ static void tg3_mdio_start(struct tg3 *tp)
 	if ((tp->tg3_flags3 & TG3_FLG3_MDIOBUS_INITED) &&
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785)
 		tg3_mdio_config_5785(tp);
-}
-
-static void tg3_mdio_stop(struct tg3 *tp)
-{
-	if (tp->tg3_flags3 & TG3_FLG3_MDIOBUS_INITED) {
-		mutex_lock(&tp->mdio_bus->mdio_lock);
-		tp->tg3_flags3 |= TG3_FLG3_MDIOBUS_PAUSED;
-		mutex_unlock(&tp->mdio_bus->mdio_lock);
-	}
 }
 
 static int tg3_mdio_init(struct tg3 *tp)
@@ -1141,7 +1129,6 @@ static void tg3_mdio_fini(struct tg3 *tp)
 		tp->tg3_flags3 &= ~TG3_FLG3_MDIOBUS_INITED;
 		mdiobus_unregister(tp->mdio_bus);
 		mdiobus_free(tp->mdio_bus);
-		tp->tg3_flags3 &= ~TG3_FLG3_MDIOBUS_PAUSED;
 	}
 }
 
@@ -1363,7 +1350,7 @@ static void tg3_adjust_link(struct net_device *dev)
 	struct tg3 *tp = netdev_priv(dev);
 	struct phy_device *phydev = tp->mdio_bus->phy_map[PHY_ADDR];
 
-	spin_lock(&tp->lock);
+	spin_lock_bh(&tp->lock);
 
 	mac_mode = tp->mac_mode & ~(MAC_MODE_PORT_MODE_MASK |
 				    MAC_MODE_HALF_DUPLEX);
@@ -1431,7 +1418,7 @@ static void tg3_adjust_link(struct net_device *dev)
 	tp->link_config.active_speed = phydev->speed;
 	tp->link_config.active_duplex = phydev->duplex;
 
-	spin_unlock(&tp->lock);
+	spin_unlock_bh(&tp->lock);
 
 	if (linkmesg)
 		tg3_link_report(tp);
@@ -6392,8 +6379,6 @@ static int tg3_chip_reset(struct tg3 *tp)
 
 	tg3_nvram_lock(tp);
 
-	tg3_mdio_stop(tp);
-
 	tg3_ape_lock(tp, TG3_APE_LOCK_GRC);
 
 	/* No matching tg3_nvram_unlock() after this because
@@ -8697,6 +8682,8 @@ static int tg3_close(struct net_device *dev)
 	netif_tx_stop_all_queues(dev);
 
 	del_timer_sync(&tp->timer);
+
+	tg3_phy_stop(tp);
 
 	tg3_full_lock(tp, 1);
 #if 0

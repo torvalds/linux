@@ -27,6 +27,7 @@
 #include <linux/swap.h>
 #include <linux/proc_fs.h>
 #include <linux/pfn.h>
+#include <linux/hardirq.h>
 
 #include <asm/asm-offsets.h>
 #include <asm/bootinfo.h>
@@ -132,7 +133,10 @@ void *kmap_coherent(struct page *page, unsigned long addr)
 	inc_preempt_count();
 	idx = (addr >> PAGE_SHIFT) & (FIX_N_COLOURS - 1);
 #ifdef CONFIG_MIPS_MT_SMTC
-	idx += FIX_N_COLOURS * smp_processor_id();
+	idx += FIX_N_COLOURS * smp_processor_id() +
+		(in_interrupt() ? (FIX_N_COLOURS * NR_CPUS) : 0);
+#else
+	idx += in_interrupt() ? FIX_N_COLOURS : 0;
 #endif
 	vaddr = __fix_to_virt(FIX_CMAP_END - idx);
 	pte = mk_pte(page, PAGE_KERNEL);

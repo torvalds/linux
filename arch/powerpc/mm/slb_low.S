@@ -72,19 +72,17 @@ _GLOBAL(slb_miss_kernel_load_vmemmap)
 1:
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
-	/* vmalloc/ioremap mapping encoding bits, the "li" instructions below
-	 * will be patched by the kernel at boot
+	/* vmalloc mapping gets the encoding from the PACA as the mapping
+	 * can be demoted from 64K -> 4K dynamically on some machines
 	 */
-BEGIN_FTR_SECTION
-	/* check whether this is in vmalloc or ioremap space */
 	clrldi	r11,r10,48
 	cmpldi	r11,(VMALLOC_SIZE >> 28) - 1
 	bgt	5f
 	lhz	r11,PACAVMALLOCSLLP(r13)
 	b	6f
 5:
-END_FTR_SECTION_IFCLR(CPU_FTR_CI_LARGE_PAGE)
-_GLOBAL(slb_miss_kernel_load_io)
+	/* IO mapping */
+	_GLOBAL(slb_miss_kernel_load_io)
 	li	r11,0
 6:
 BEGIN_FTR_SECTION

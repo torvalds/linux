@@ -381,6 +381,24 @@
 #define   S_000054_VCRTC_IDX_MASTER(x)                 (((x) & 0x7F) << 24)
 #define   G_000054_VCRTC_IDX_MASTER(x)                 (((x) >> 24) & 0x7F)
 #define   C_000054_VCRTC_IDX_MASTER                    0x80FFFFFF
+#define R_000148_MC_FB_LOCATION                      0x000148
+#define   S_000148_MC_FB_START(x)                      (((x) & 0xFFFF) << 0)
+#define   G_000148_MC_FB_START(x)                      (((x) >> 0) & 0xFFFF)
+#define   C_000148_MC_FB_START                         0xFFFF0000
+#define   S_000148_MC_FB_TOP(x)                        (((x) & 0xFFFF) << 16)
+#define   G_000148_MC_FB_TOP(x)                        (((x) >> 16) & 0xFFFF)
+#define   C_000148_MC_FB_TOP                           0x0000FFFF
+#define R_00014C_MC_AGP_LOCATION                     0x00014C
+#define   S_00014C_MC_AGP_START(x)                     (((x) & 0xFFFF) << 0)
+#define   G_00014C_MC_AGP_START(x)                     (((x) >> 0) & 0xFFFF)
+#define   C_00014C_MC_AGP_START                        0xFFFF0000
+#define   S_00014C_MC_AGP_TOP(x)                       (((x) & 0xFFFF) << 16)
+#define   G_00014C_MC_AGP_TOP(x)                       (((x) >> 16) & 0xFFFF)
+#define   C_00014C_MC_AGP_TOP                          0x0000FFFF
+#define R_000170_AGP_BASE                            0x000170
+#define   S_000170_AGP_BASE_ADDR(x)                    (((x) & 0xFFFFFFFF) << 0)
+#define   G_000170_AGP_BASE_ADDR(x)                    (((x) >> 0) & 0xFFFFFFFF)
+#define   C_000170_AGP_BASE_ADDR                       0x00000000
 #define R_00023C_DISPLAY_BASE_ADDR                   0x00023C
 #define   S_00023C_DISPLAY_BASE_ADDR(x)                (((x) & 0xFFFFFFFF) << 0)
 #define   G_00023C_DISPLAY_BASE_ADDR(x)                (((x) >> 0) & 0xFFFFFFFF)
@@ -403,25 +421,25 @@
 #define   S_000360_CUR2_LOCK(x)                        (((x) & 0x1) << 31)
 #define   G_000360_CUR2_LOCK(x)                        (((x) >> 31) & 0x1)
 #define   C_000360_CUR2_LOCK                           0x7FFFFFFF
-#define R_0003C0_GENMO_WT                            0x0003C0
-#define   S_0003C0_GENMO_MONO_ADDRESS_B(x)             (((x) & 0x1) << 0)
-#define   G_0003C0_GENMO_MONO_ADDRESS_B(x)             (((x) >> 0) & 0x1)
-#define   C_0003C0_GENMO_MONO_ADDRESS_B                0xFFFFFFFE
-#define   S_0003C0_VGA_RAM_EN(x)                       (((x) & 0x1) << 1)
-#define   G_0003C0_VGA_RAM_EN(x)                       (((x) >> 1) & 0x1)
-#define   C_0003C0_VGA_RAM_EN                          0xFFFFFFFD
-#define   S_0003C0_VGA_CKSEL(x)                        (((x) & 0x3) << 2)
-#define   G_0003C0_VGA_CKSEL(x)                        (((x) >> 2) & 0x3)
-#define   C_0003C0_VGA_CKSEL                           0xFFFFFFF3
-#define   S_0003C0_ODD_EVEN_MD_PGSEL(x)                (((x) & 0x1) << 5)
-#define   G_0003C0_ODD_EVEN_MD_PGSEL(x)                (((x) >> 5) & 0x1)
-#define   C_0003C0_ODD_EVEN_MD_PGSEL                   0xFFFFFFDF
-#define   S_0003C0_VGA_HSYNC_POL(x)                    (((x) & 0x1) << 6)
-#define   G_0003C0_VGA_HSYNC_POL(x)                    (((x) >> 6) & 0x1)
-#define   C_0003C0_VGA_HSYNC_POL                       0xFFFFFFBF
-#define   S_0003C0_VGA_VSYNC_POL(x)                    (((x) & 0x1) << 7)
-#define   G_0003C0_VGA_VSYNC_POL(x)                    (((x) >> 7) & 0x1)
-#define   C_0003C0_VGA_VSYNC_POL                       0xFFFFFF7F
+#define R_0003C2_GENMO_WT                            0x0003C0
+#define   S_0003C2_GENMO_MONO_ADDRESS_B(x)             (((x) & 0x1) << 0)
+#define   G_0003C2_GENMO_MONO_ADDRESS_B(x)             (((x) >> 0) & 0x1)
+#define   C_0003C2_GENMO_MONO_ADDRESS_B                0xFE
+#define   S_0003C2_VGA_RAM_EN(x)                       (((x) & 0x1) << 1)
+#define   G_0003C2_VGA_RAM_EN(x)                       (((x) >> 1) & 0x1)
+#define   C_0003C2_VGA_RAM_EN                          0xFD
+#define   S_0003C2_VGA_CKSEL(x)                        (((x) & 0x3) << 2)
+#define   G_0003C2_VGA_CKSEL(x)                        (((x) >> 2) & 0x3)
+#define   C_0003C2_VGA_CKSEL                           0xF3
+#define   S_0003C2_ODD_EVEN_MD_PGSEL(x)                (((x) & 0x1) << 5)
+#define   G_0003C2_ODD_EVEN_MD_PGSEL(x)                (((x) >> 5) & 0x1)
+#define   C_0003C2_ODD_EVEN_MD_PGSEL                   0xDF
+#define   S_0003C2_VGA_HSYNC_POL(x)                    (((x) & 0x1) << 6)
+#define   G_0003C2_VGA_HSYNC_POL(x)                    (((x) >> 6) & 0x1)
+#define   C_0003C2_VGA_HSYNC_POL                       0xBF
+#define   S_0003C2_VGA_VSYNC_POL(x)                    (((x) & 0x1) << 7)
+#define   G_0003C2_VGA_VSYNC_POL(x)                    (((x) >> 7) & 0x1)
+#define   C_0003C2_VGA_VSYNC_POL                       0x7F
 #define R_0003F8_CRTC2_GEN_CNTL                      0x0003F8
 #define   S_0003F8_CRTC2_DBL_SCAN_EN(x)                (((x) & 0x1) << 0)
 #define   G_0003F8_CRTC2_DBL_SCAN_EN(x)                (((x) >> 0) & 0x1)
@@ -545,6 +563,46 @@
 #define   S_000774_SCRATCH_ADDR(x)                     (((x) & 0x7FFFFFF) << 5)
 #define   G_000774_SCRATCH_ADDR(x)                     (((x) >> 5) & 0x7FFFFFF)
 #define   C_000774_SCRATCH_ADDR                        0x0000001F
+#define R_0007C0_CP_STAT                             0x0007C0
+#define   S_0007C0_MRU_BUSY(x)                         (((x) & 0x1) << 0)
+#define   G_0007C0_MRU_BUSY(x)                         (((x) >> 0) & 0x1)
+#define   C_0007C0_MRU_BUSY                            0xFFFFFFFE
+#define   S_0007C0_MWU_BUSY(x)                         (((x) & 0x1) << 1)
+#define   G_0007C0_MWU_BUSY(x)                         (((x) >> 1) & 0x1)
+#define   C_0007C0_MWU_BUSY                            0xFFFFFFFD
+#define   S_0007C0_RSIU_BUSY(x)                        (((x) & 0x1) << 2)
+#define   G_0007C0_RSIU_BUSY(x)                        (((x) >> 2) & 0x1)
+#define   C_0007C0_RSIU_BUSY                           0xFFFFFFFB
+#define   S_0007C0_RCIU_BUSY(x)                        (((x) & 0x1) << 3)
+#define   G_0007C0_RCIU_BUSY(x)                        (((x) >> 3) & 0x1)
+#define   C_0007C0_RCIU_BUSY                           0xFFFFFFF7
+#define   S_0007C0_CSF_PRIMARY_BUSY(x)                 (((x) & 0x1) << 9)
+#define   G_0007C0_CSF_PRIMARY_BUSY(x)                 (((x) >> 9) & 0x1)
+#define   C_0007C0_CSF_PRIMARY_BUSY                    0xFFFFFDFF
+#define   S_0007C0_CSF_INDIRECT_BUSY(x)                (((x) & 0x1) << 10)
+#define   G_0007C0_CSF_INDIRECT_BUSY(x)                (((x) >> 10) & 0x1)
+#define   C_0007C0_CSF_INDIRECT_BUSY                   0xFFFFFBFF
+#define   S_0007C0_CSQ_PRIMARY_BUSY(x)                 (((x) & 0x1) << 11)
+#define   G_0007C0_CSQ_PRIMARY_BUSY(x)                 (((x) >> 11) & 0x1)
+#define   C_0007C0_CSQ_PRIMARY_BUSY                    0xFFFFF7FF
+#define   S_0007C0_CSQ_INDIRECT_BUSY(x)                (((x) & 0x1) << 12)
+#define   G_0007C0_CSQ_INDIRECT_BUSY(x)                (((x) >> 12) & 0x1)
+#define   C_0007C0_CSQ_INDIRECT_BUSY                   0xFFFFEFFF
+#define   S_0007C0_CSI_BUSY(x)                         (((x) & 0x1) << 13)
+#define   G_0007C0_CSI_BUSY(x)                         (((x) >> 13) & 0x1)
+#define   C_0007C0_CSI_BUSY                            0xFFFFDFFF
+#define   S_0007C0_GUIDMA_BUSY(x)                      (((x) & 0x1) << 28)
+#define   G_0007C0_GUIDMA_BUSY(x)                      (((x) >> 28) & 0x1)
+#define   C_0007C0_GUIDMA_BUSY                         0xEFFFFFFF
+#define   S_0007C0_VIDDMA_BUSY(x)                      (((x) & 0x1) << 29)
+#define   G_0007C0_VIDDMA_BUSY(x)                      (((x) >> 29) & 0x1)
+#define   C_0007C0_VIDDMA_BUSY                         0xDFFFFFFF
+#define   S_0007C0_CMDSTRM_BUSY(x)                     (((x) & 0x1) << 30)
+#define   G_0007C0_CMDSTRM_BUSY(x)                     (((x) >> 30) & 0x1)
+#define   C_0007C0_CMDSTRM_BUSY                        0xBFFFFFFF
+#define   S_0007C0_CP_BUSY(x)                          (((x) & 0x1) << 31)
+#define   G_0007C0_CP_BUSY(x)                          (((x) >> 31) & 0x1)
+#define   C_0007C0_CP_BUSY                             0x7FFFFFFF
 #define R_000E40_RBBM_STATUS                         0x000E40
 #define   S_000E40_CMDFIFO_AVAIL(x)                    (((x) & 0x7F) << 0)
 #define   G_000E40_CMDFIFO_AVAIL(x)                    (((x) >> 0) & 0x7F)
@@ -603,5 +661,54 @@
 #define   S_000E40_GUI_ACTIVE(x)                       (((x) & 0x1) << 31)
 #define   G_000E40_GUI_ACTIVE(x)                       (((x) >> 31) & 0x1)
 #define   C_000E40_GUI_ACTIVE                          0x7FFFFFFF
+
+
+#define R_00000D_SCLK_CNTL                           0x00000D
+#define   S_00000D_SCLK_SRC_SEL(x)                     (((x) & 0x7) << 0)
+#define   G_00000D_SCLK_SRC_SEL(x)                     (((x) >> 0) & 0x7)
+#define   C_00000D_SCLK_SRC_SEL                        0xFFFFFFF8
+#define   S_00000D_TCLK_SRC_SEL(x)                     (((x) & 0x7) << 8)
+#define   G_00000D_TCLK_SRC_SEL(x)                     (((x) >> 8) & 0x7)
+#define   C_00000D_TCLK_SRC_SEL                        0xFFFFF8FF
+#define   S_00000D_FORCE_CP(x)                         (((x) & 0x1) << 16)
+#define   G_00000D_FORCE_CP(x)                         (((x) >> 16) & 0x1)
+#define   C_00000D_FORCE_CP                            0xFFFEFFFF
+#define   S_00000D_FORCE_HDP(x)                        (((x) & 0x1) << 17)
+#define   G_00000D_FORCE_HDP(x)                        (((x) >> 17) & 0x1)
+#define   C_00000D_FORCE_HDP                           0xFFFDFFFF
+#define   S_00000D_FORCE_DISP(x)                       (((x) & 0x1) << 18)
+#define   G_00000D_FORCE_DISP(x)                       (((x) >> 18) & 0x1)
+#define   C_00000D_FORCE_DISP                          0xFFFBFFFF
+#define   S_00000D_FORCE_TOP(x)                        (((x) & 0x1) << 19)
+#define   G_00000D_FORCE_TOP(x)                        (((x) >> 19) & 0x1)
+#define   C_00000D_FORCE_TOP                           0xFFF7FFFF
+#define   S_00000D_FORCE_E2(x)                         (((x) & 0x1) << 20)
+#define   G_00000D_FORCE_E2(x)                         (((x) >> 20) & 0x1)
+#define   C_00000D_FORCE_E2                            0xFFEFFFFF
+#define   S_00000D_FORCE_SE(x)                         (((x) & 0x1) << 21)
+#define   G_00000D_FORCE_SE(x)                         (((x) >> 21) & 0x1)
+#define   C_00000D_FORCE_SE                            0xFFDFFFFF
+#define   S_00000D_FORCE_IDCT(x)                       (((x) & 0x1) << 22)
+#define   G_00000D_FORCE_IDCT(x)                       (((x) >> 22) & 0x1)
+#define   C_00000D_FORCE_IDCT                          0xFFBFFFFF
+#define   S_00000D_FORCE_VIP(x)                        (((x) & 0x1) << 23)
+#define   G_00000D_FORCE_VIP(x)                        (((x) >> 23) & 0x1)
+#define   C_00000D_FORCE_VIP                           0xFF7FFFFF
+#define   S_00000D_FORCE_RE(x)                         (((x) & 0x1) << 24)
+#define   G_00000D_FORCE_RE(x)                         (((x) >> 24) & 0x1)
+#define   C_00000D_FORCE_RE                            0xFEFFFFFF
+#define   S_00000D_FORCE_PB(x)                         (((x) & 0x1) << 25)
+#define   G_00000D_FORCE_PB(x)                         (((x) >> 25) & 0x1)
+#define   C_00000D_FORCE_PB                            0xFDFFFFFF
+#define   S_00000D_FORCE_TAM(x)                        (((x) & 0x1) << 26)
+#define   G_00000D_FORCE_TAM(x)                        (((x) >> 26) & 0x1)
+#define   C_00000D_FORCE_TAM                           0xFBFFFFFF
+#define   S_00000D_FORCE_TDM(x)                        (((x) & 0x1) << 27)
+#define   G_00000D_FORCE_TDM(x)                        (((x) >> 27) & 0x1)
+#define   C_00000D_FORCE_TDM                           0xF7FFFFFF
+#define   S_00000D_FORCE_RB(x)                         (((x) & 0x1) << 28)
+#define   G_00000D_FORCE_RB(x)                         (((x) >> 28) & 0x1)
+#define   C_00000D_FORCE_RB                            0xEFFFFFFF
+
 
 #endif

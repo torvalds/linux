@@ -418,6 +418,14 @@ When:	2.6.33
 Why:	Should be implemented in userspace, policy daemon.
 Who:	Johannes Berg <johannes@sipsolutions.net>
 
+---------------------------
+
+What:	CONFIG_INOTIFY
+When:	2.6.33
+Why:	last user (audit) will be converted to the newer more generic
+	and more easily maintained fsnotify subsystem
+Who:	Eric Paris <eparis@redhat.com>
+
 ----------------------------
 
 What:	lock_policy_rwsem_* and unlock_policy_rwsem_* will not be
@@ -451,3 +459,33 @@ Why:	OSS sound_core grabs all legacy minors (0-255) of SOUND_MAJOR
 	will also allow making ALSA OSS emulation independent of
 	sound_core.  The dependency will be broken then too.
 Who:	Tejun Heo <tj@kernel.org>
+
+----------------------------
+
+What:	Support for VMware's guest paravirtuliazation technique [VMI] will be
+	dropped.
+When:	2.6.37 or earlier.
+Why:	With the recent innovations in CPU hardware acceleration technologies
+	from Intel and AMD, VMware ran a few experiments to compare these
+	techniques to guest paravirtualization technique on VMware's platform.
+	These hardware assisted virtualization techniques have outperformed the
+	performance benefits provided by VMI in most of the workloads. VMware
+	expects that these hardware features will be ubiquitous in a couple of
+	years, as a result, VMware has started a phased retirement of this
+	feature from the hypervisor. We will be removing this feature from the
+	Kernel too. Right now we are targeting 2.6.37 but can retire earlier if
+	technical reasons (read opportunity to remove major chunk of pvops)
+	arise.
+
+	Please note that VMI has always been an optimization and non-VMI kernels
+	still work fine on VMware's platform.
+	Latest versions of VMware's product which support VMI are,
+	Workstation 7.0 and VSphere 4.0 on ESX side, future maintainence
+	releases for these products will continue supporting VMI.
+
+	For more details about VMI retirement take a look at this,
+	http://blogs.vmware.com/guestosguide/2009/09/vmi-retirement.html
+
+Who:	Alok N Kataria <akataria@vmware.com>
+
+----------------------------

@@ -1059,9 +1059,7 @@ ssize_t elv_iosched_store(struct request_queue *q, const char *name,
 		return count;
 
 	strlcpy(elevator_name, name, sizeof(elevator_name));
-	strstrip(elevator_name);
-
-	e = elevator_get(elevator_name);
+	e = elevator_get(strstrip(elevator_name));
 	if (!e) {
 		printk(KERN_ERR "elevator: type %s not found\n", elevator_name);
 		return -EINVAL;

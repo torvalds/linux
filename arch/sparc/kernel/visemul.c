@@ -617,7 +617,7 @@ static void pmul(struct pt_regs *regs, unsigned int insn, unsigned int opf)
 		rs2 = fps_regval(f, RS2(insn));
 
 		rd_val = 0;
-		src2 = (rs2 >> (opf == FMUL8x16AU_OPF) ? 16 : 0);
+		src2 = rs2 >> (opf == FMUL8x16AU_OPF ? 16 : 0);
 		for (byte = 0; byte < 4; byte++) {
 			u16 src1 = (rs1 >> (byte * 8)) & 0x00ff;
 			u32 prod = src1 * src2;

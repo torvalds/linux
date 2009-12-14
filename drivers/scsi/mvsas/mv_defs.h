@@ -25,6 +25,8 @@
 #ifndef _MV_DEFS_H_
 #define _MV_DEFS_H_
 
+#define PCI_DEVICE_ID_ARECA_1300	0x1300
+#define PCI_DEVICE_ID_ARECA_1320	0x1320
 
 enum chip_flavors {
 	chip_6320,
@@ -32,6 +34,8 @@ enum chip_flavors {
 	chip_6485,
 	chip_9480,
 	chip_9180,
+	chip_1300,
+	chip_1320
 };
 
 /* driver compile-time configuration */

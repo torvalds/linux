@@ -314,21 +314,24 @@ static void opticon_unthrottle(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	struct opticon_private *priv = usb_get_serial_data(port->serial);
 	unsigned long flags;
-	int result;
+	int result, was_throttled;
 
 	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->throttled = false;
+	was_throttled = priv->actually_throttled;
 	priv->actually_throttled = false;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	priv->bulk_read_urb->dev = port->serial->dev;
-	result = usb_submit_urb(priv->bulk_read_urb, GFP_ATOMIC);
-	if (result)
-		dev_err(&port->dev,
-			"%s - failed submitting read urb, error %d\n",
+	if (was_throttled) {
+		result = usb_submit_urb(priv->bulk_read_urb, GFP_ATOMIC);
+		if (result)
+			dev_err(&port->dev,
+				"%s - failed submitting read urb, error %d\n",
 							__func__, result);
+	}
 }
 
 static int opticon_tiocmget(struct tty_struct *tty, struct file *file)

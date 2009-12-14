@@ -263,11 +263,10 @@ static int dn_def_dev_strategy(ctl_table *table,
 			return -ENODEV;
 
 		rv = -ENODEV;
-		if (dev->dn_ptr != NULL) {
+		if (dev->dn_ptr != NULL)
 			rv = dn_dev_set_default(dev, 1);
-			if (rv)
-				dev_put(dev);
-		}
+		if (rv)
+			dev_put(dev);
 	}
 
 	return rv;
