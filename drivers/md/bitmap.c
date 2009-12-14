@@ -1090,10 +1090,10 @@ void bitmap_daemon_work(mddev_t *mddev)
 	/* Use a mutex to guard daemon_work against
 	 * bitmap_destroy.
 	 */
-	mutex_lock(&mddev->bitmap_mutex);
+	mutex_lock(&mddev->bitmap_info.mutex);
 	bitmap = mddev->bitmap;
 	if (bitmap == NULL) {
-		mutex_unlock(&mddev->bitmap_mutex);
+		mutex_unlock(&mddev->bitmap_info.mutex);
 		return;
 	}
 	if (time_before(jiffies, bitmap->daemon_lastrun + bitmap->daemon_sleep*HZ))
@@ -1211,7 +1211,7 @@ void bitmap_daemon_work(mddev_t *mddev)
  done:
 	if (bitmap->allclean == 0)
 		bitmap->mddev->thread->timeout = bitmap->daemon_sleep * HZ;
-	mutex_unlock(&mddev->bitmap_mutex);
+	mutex_unlock(&mddev->bitmap_info.mutex);
 }
 
 static bitmap_counter_t *bitmap_get_counter(struct bitmap *bitmap,
@@ -1591,9 +1591,9 @@ void bitmap_destroy(mddev_t *mddev)
 	if (!bitmap) /* there was no bitmap */
 		return;
 
-	mutex_lock(&mddev->bitmap_mutex);
+	mutex_lock(&mddev->bitmap_info.mutex);
 	mddev->bitmap = NULL; /* disconnect from the md device */
-	mutex_unlock(&mddev->bitmap_mutex);
+	mutex_unlock(&mddev->bitmap_info.mutex);
 	if (mddev->thread)
 		mddev->thread->timeout = MAX_SCHEDULE_TIMEOUT;
 
@@ -1610,16 +1610,16 @@ int bitmap_create(mddev_t *mddev)
 	sector_t blocks = mddev->resync_max_sectors;
 	unsigned long chunks;
 	unsigned long pages;
-	struct file *file = mddev->bitmap_file;
+	struct file *file = mddev->bitmap_info.file;
 	int err;
 	sector_t start;
 
 	BUILD_BUG_ON(sizeof(bitmap_super_t) != 256);
 
-	if (!file && !mddev->bitmap_offset) /* bitmap disabled, nothing to do */
+	if (!file && !mddev->bitmap_info.offset) /* bitmap disabled, nothing to do */
 		return 0;
 
-	BUG_ON(file && mddev->bitmap_offset);
+	BUG_ON(file && mddev->bitmap_info.offset);
 
 	bitmap = kzalloc(sizeof(*bitmap), GFP_KERNEL);
 	if (!bitmap)
@@ -1633,7 +1633,7 @@ int bitmap_create(mddev_t *mddev)
 	bitmap->mddev = mddev;
 
 	bitmap->file = file;
-	bitmap->offset = mddev->bitmap_offset;
+	bitmap->offset = mddev->bitmap_info.offset;
 	if (file) {
 		get_file(file);
 		/* As future accesses to this file will use bmap,
