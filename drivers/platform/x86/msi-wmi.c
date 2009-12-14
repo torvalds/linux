@@ -53,11 +53,15 @@ MODULE_ALIAS("dmi:*:svnMICRO-STARINTERNATIONAL*:pnMS-6638:*");
 #define dprintk(msg...) pr_debug(DRV_PFX msg)
 
 #define KEYCODE_BASE 0xD0
+#define MSI_WMI_BRIGHTNESSUP   KEYCODE_BASE
+#define MSI_WMI_BRIGHTNESSDOWN (KEYCODE_BASE + 1)
+#define MSI_WMI_VOLUMEUP       (KEYCODE_BASE + 2)
+#define MSI_WMI_VOLUMEDOWN     (KEYCODE_BASE + 3)
 static struct key_entry msi_wmi_keymap[] = {
-	{ KE_KEY, KEYCODE_BASE,     {KEY_BRIGHTNESSUP} },
-	{ KE_KEY, KEYCODE_BASE + 1, {KEY_BRIGHTNESSDOWN} },
-	{ KE_KEY, KEYCODE_BASE + 2, {KEY_VOLUMEUP} },
-	{ KE_KEY, KEYCODE_BASE + 3, {KEY_VOLUMEDOWN} },
+	{ KE_KEY, MSI_WMI_BRIGHTNESSUP,   {KEY_BRIGHTNESSUP} },
+	{ KE_KEY, MSI_WMI_BRIGHTNESSDOWN, {KEY_BRIGHTNESSDOWN} },
+	{ KE_KEY, MSI_WMI_VOLUMEUP,       {KEY_VOLUMEUP} },
+	{ KE_KEY, MSI_WMI_VOLUMEDOWN,     {KEY_VOLUMEDOWN} },
 	{ KE_END, 0}
 };
 static ktime_t last_pressed[ARRAY_SIZE(msi_wmi_keymap) - 1];
@@ -110,12 +114,14 @@ static int msi_wmi_set_block(int instance, int value)
 
 static int bl_get(struct backlight_device *bd)
 {
-	int level, err, ret = 0;
+	int level, err, ret;
 
 	/* Instance 1 is "get backlight", cmp with DSDT */
 	err = msi_wmi_query_block(1, &ret);
-	if (err)
+	if (err) {
 		printk(KERN_ERR DRV_PFX "Could not query backlight: %d\n", err);
+		return -EINVAL;
+	}
 	dprintk("Get: Query block returned: %d\n", ret);
 	for (level = 0; level < ARRAY_SIZE(backlight_map); level++) {
 		if (backlight_map[level] == ret) {
@@ -180,8 +186,9 @@ static void msi_wmi_notify(u32 value, void *context)
 
 			if (key->type == KE_KEY &&
 			/* Brightness is served via acpi video driver */
-			(backlight || (key->keycode != KEY_BRIGHTNESSUP &&
-			key->keycode != KEY_BRIGHTNESSDOWN))) {
+			(!acpi_video_backlight_support() ||
+			(key->code != MSI_WMI_BRIGHTNESSUP &&
+			key->code != MSI_WMI_BRIGHTNESSDOWN))) {
 				dprintk("Send key: 0x%X - "
 					"Input layer keycode: %d\n", key->code,
 					 key->keycode);
