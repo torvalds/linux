@@ -310,9 +310,8 @@ void amd_decode_nb_mce(int node_id, struct err_regs *regs, int handle_errors)
 		if (regs->nbsh & K8_NBSH_ERR_CPU_VAL)
 			pr_cont(", core: %u\n", (u8)(regs->nbsh & 0xf));
 	} else {
-		pr_cont(", core: %d\n", ilog2((regs->nbsh & 0xf)));
+		pr_cont(", core: %d\n", fls((regs->nbsh & 0xf) - 1));
 	}
-
 
 	pr_emerg("%s.\n", EXT_ERR_MSG(xec));
 
