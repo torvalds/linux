@@ -453,12 +453,16 @@ static void prepare_write_message(struct ceph_connection *con)
 		con->out_kvec_bytes = 1 + sizeof(con->out_temp_ack);
 	}
 
-	/* move message to sending/sent list */
 	m = list_first_entry(&con->out_queue,
 		       struct ceph_msg, list_head);
 	con->out_msg = m;
-	ceph_msg_get(m);
-	list_move_tail(&m->list_head, &con->out_sent);
+	if (test_bit(LOSSYTX, &con->state)) {
+		/* put message on sent list */
+		ceph_msg_get(m);
+		list_move_tail(&m->list_head, &con->out_sent);
+	} else {
+		list_del_init(&m->list_head);
+	}
 
 	m->hdr.seq = cpu_to_le64(++con->out_seq);
 
