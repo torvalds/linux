@@ -761,7 +761,7 @@ static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
 	spin_lock(&vbq->lock);
 	list_add(&vb->free_list, &vbq->free);
 	spin_unlock(&vbq->lock);
-	put_cpu_var(vmap_cpu_blocks);
+	put_cpu_var(vmap_block_queue);
 
 	return vb;
 }
@@ -826,7 +826,7 @@ again:
 		}
 		spin_unlock(&vb->lock);
 	}
-	put_cpu_var(vmap_cpu_blocks);
+	put_cpu_var(vmap_block_queue);
 	rcu_read_unlock();
 
 	if (!addr) {

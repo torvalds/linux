@@ -86,17 +86,17 @@ static int dummy_set_flag(u32 old_flags, u32 bit, int set)
  */
 static int tracing_disabled = 1;
 
-DEFINE_PER_CPU(local_t, ftrace_cpu_disabled);
+DEFINE_PER_CPU(int, ftrace_cpu_disabled);
 
 static inline void ftrace_disable_cpu(void)
 {
 	preempt_disable();
-	local_inc(&__get_cpu_var(ftrace_cpu_disabled));
+	__this_cpu_inc(per_cpu_var(ftrace_cpu_disabled));
 }
 
 static inline void ftrace_enable_cpu(void)
 {
-	local_dec(&__get_cpu_var(ftrace_cpu_disabled));
+	__this_cpu_dec(per_cpu_var(ftrace_cpu_disabled));
 	preempt_enable();
 }
 
@@ -203,7 +203,7 @@ cycle_t ftrace_now(int cpu)
  */
 static struct trace_array	max_tr;
 
-static DEFINE_PER_CPU(struct trace_array_cpu, max_data);
+static DEFINE_PER_CPU(struct trace_array_cpu, max_tr_data);
 
 /* tracer_enabled is used to toggle activation of a tracer */
 static int			tracer_enabled = 1;
@@ -1085,7 +1085,7 @@ trace_function(struct trace_array *tr,
 	struct ftrace_entry *entry;
 
 	/* If we are reading the ring buffer, don't trace */
-	if (unlikely(local_read(&__get_cpu_var(ftrace_cpu_disabled))))
+	if (unlikely(__this_cpu_read(per_cpu_var(ftrace_cpu_disabled))))
 		return;
 
 	event = trace_buffer_lock_reserve(buffer, TRACE_FN, sizeof(*entry),
@@ -4454,7 +4454,7 @@ __init static int tracer_alloc_buffers(void)
 	/* Allocate the first page for all buffers */
 	for_each_tracing_cpu(i) {
 		global_trace.data[i] = &per_cpu(global_trace_cpu, i);
-		max_tr.data[i] = &per_cpu(max_data, i);
+		max_tr.data[i] = &per_cpu(max_tr_data, i);
 	}
 
 	trace_init_cmdlines();

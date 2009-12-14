@@ -697,7 +697,7 @@ static inline void init_lock_keys(void)
 static DEFINE_MUTEX(cache_chain_mutex);
 static struct list_head cache_chain;
 
-static DEFINE_PER_CPU(struct delayed_work, reap_work);
+static DEFINE_PER_CPU(struct delayed_work, slab_reap_work);
 
 static inline struct array_cache *cpu_cache_get(struct kmem_cache *cachep)
 {
@@ -838,7 +838,7 @@ __setup("noaliencache", noaliencache_setup);
  * objects freed on different nodes from which they were allocated) and the
  * flushing of remote pcps by calling drain_node_pages.
  */
-static DEFINE_PER_CPU(unsigned long, reap_node);
+static DEFINE_PER_CPU(unsigned long, slab_reap_node);
 
 static void init_reap_node(int cpu)
 {
@@ -848,17 +848,17 @@ static void init_reap_node(int cpu)
 	if (node == MAX_NUMNODES)
 		node = first_node(node_online_map);
 
-	per_cpu(reap_node, cpu) = node;
+	per_cpu(slab_reap_node, cpu) = node;
 }
 
 static void next_reap_node(void)
 {
-	int node = __get_cpu_var(reap_node);
+	int node = __get_cpu_var(slab_reap_node);
 
 	node = next_node(node, node_online_map);
 	if (unlikely(node >= MAX_NUMNODES))
 		node = first_node(node_online_map);
-	__get_cpu_var(reap_node) = node;
+	__get_cpu_var(slab_reap_node) = node;
 }
 
 #else
@@ -875,7 +875,7 @@ static void next_reap_node(void)
  */
 static void __cpuinit start_cpu_timer(int cpu)
 {
-	struct delayed_work *reap_work = &per_cpu(reap_work, cpu);
+	struct delayed_work *reap_work = &per_cpu(slab_reap_work, cpu);
 
 	/*
 	 * When this gets called from do_initcalls via cpucache_init(),
@@ -1039,7 +1039,7 @@ static void __drain_alien_cache(struct kmem_cache *cachep,
  */
 static void reap_alien(struct kmem_cache *cachep, struct kmem_list3 *l3)
 {
-	int node = __get_cpu_var(reap_node);
+	int node = __get_cpu_var(slab_reap_node);
 
 	if (l3->alien) {
 		struct array_cache *ac = l3->alien[node];
@@ -1300,9 +1300,9 @@ static int __cpuinit cpuup_callback(struct notifier_block *nfb,
 		 * anything expensive but will only modify reap_work
 		 * and reschedule the timer.
 		*/
-		cancel_rearming_delayed_work(&per_cpu(reap_work, cpu));
+		cancel_rearming_delayed_work(&per_cpu(slab_reap_work, cpu));
 		/* Now the cache_reaper is guaranteed to be not running. */
-		per_cpu(reap_work, cpu).work.func = NULL;
+		per_cpu(slab_reap_work, cpu).work.func = NULL;
   		break;
   	case CPU_DOWN_FAILED:
   	case CPU_DOWN_FAILED_FROZEN:
