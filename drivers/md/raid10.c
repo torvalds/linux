@@ -2277,7 +2277,7 @@ static void raid10_quiesce(mddev_t *mddev, int state)
 	}
 	if (mddev->thread) {
 		if (mddev->bitmap)
-			mddev->thread->timeout = mddev->bitmap->daemon_sleep * HZ;
+			mddev->thread->timeout = mddev->bitmap_info.daemon_sleep * HZ;
 		else
 			mddev->thread->timeout = MAX_SCHEDULE_TIMEOUT;
 		md_wakeup_thread(mddev->thread);

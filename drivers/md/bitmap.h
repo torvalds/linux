@@ -106,7 +106,7 @@ typedef __u16 bitmap_counter_t;
 #define BITMAP_BLOCK_SHIFT 9
 
 /* how many blocks per chunk? (this is variable) */
-#define CHUNK_BLOCK_RATIO(bitmap) ((bitmap)->chunksize >> BITMAP_BLOCK_SHIFT)
+#define CHUNK_BLOCK_RATIO(bitmap) ((bitmap)->mddev->bitmap_info.chunksize >> BITMAP_BLOCK_SHIFT)
 #define CHUNK_BLOCK_SHIFT(bitmap) ((bitmap)->chunkshift - BITMAP_BLOCK_SHIFT)
 #define CHUNK_BLOCK_MASK(bitmap) (CHUNK_BLOCK_RATIO(bitmap) - 1)
 
@@ -209,7 +209,6 @@ struct bitmap {
 	int counter_bits; /* how many bits per block counter */
 
 	/* bitmap chunksize -- how much data does each bit represent? */
-	unsigned long chunksize;
 	unsigned long chunkshift; /* chunksize = 2^chunkshift (for bitops) */
 	unsigned long chunks; /* total number of data chunks for the array */
 
@@ -226,7 +225,6 @@ struct bitmap {
 	/* bitmap spinlock */
 	spinlock_t lock;
 
-	long offset; /* offset from superblock if file is NULL */
 	struct file *file; /* backing disk file */
 	struct page *sb_page; /* cached copy of the bitmap file superblock */
 	struct page **filemap; /* list of cache pages for the file */
@@ -238,7 +236,6 @@ struct bitmap {
 
 	int allclean;
 
-	unsigned long max_write_behind; /* write-behind mode */
 	atomic_t behind_writes;
 
 	/*
@@ -246,7 +243,6 @@ struct bitmap {
 	 * file, cleaning up bits and flushing out pages to disk as necessary
 	 */
 	unsigned long daemon_lastrun; /* jiffies of last run */
-	unsigned long daemon_sleep; /* how many seconds between updates? */
 	unsigned long last_end_sync; /* when we lasted called end_sync to
 				      * update bitmap with resync progress */
 

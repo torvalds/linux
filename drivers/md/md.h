@@ -291,6 +291,9 @@ struct mddev_s
 							 * eventually be settable by sysfs.
 							 */
 		struct mutex		mutex;
+		unsigned long		chunksize;
+		unsigned long		daemon_sleep; /* how many seconds between updates? */
+		unsigned long		max_write_behind; /* write-behind mode */
 	} bitmap_info;
 
 	struct list_head		all_mddevs;

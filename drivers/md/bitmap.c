@@ -287,27 +287,28 @@ static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 
 	while ((rdev = next_active_rdev(rdev, mddev)) != NULL) {
 			int size = PAGE_SIZE;
+			long offset = mddev->bitmap_info.offset;
 			if (page->index == bitmap->file_pages-1)
 				size = roundup(bitmap->last_page_size,
 					       bdev_logical_block_size(rdev->bdev));
 			/* Just make sure we aren't corrupting data or
 			 * metadata
 			 */
-			if (bitmap->offset < 0) {
+			if (offset < 0) {
 				/* DATA  BITMAP METADATA  */
-				if (bitmap->offset
+				if (offset
 				    + (long)(page->index * (PAGE_SIZE/512))
 				    + size/512 > 0)
 					/* bitmap runs in to metadata */
 					goto bad_alignment;
 				if (rdev->data_offset + mddev->dev_sectors
-				    > rdev->sb_start + bitmap->offset)
+				    > rdev->sb_start + offset)
 					/* data runs in to bitmap */
 					goto bad_alignment;
 			} else if (rdev->sb_start < rdev->data_offset) {
 				/* METADATA BITMAP DATA */
 				if (rdev->sb_start
-				    + bitmap->offset
+				    + offset
 				    + page->index*(PAGE_SIZE/512) + size/512
 				    > rdev->data_offset)
 					/* bitmap runs in to data */
@@ -316,7 +317,7 @@ static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 				/* DATA METADATA BITMAP - no problems */
 			}
 			md_super_write(mddev, rdev,
-				       rdev->sb_start + bitmap->offset
+				       rdev->sb_start + offset
 				       + page->index * (PAGE_SIZE/512),
 				       size,
 				       page);
@@ -550,7 +551,8 @@ static int bitmap_read_sb(struct bitmap *bitmap)
 
 		bitmap->sb_page = read_page(bitmap->file, 0, bitmap, bytes);
 	} else {
-		bitmap->sb_page = read_sb_page(bitmap->mddev, bitmap->offset,
+		bitmap->sb_page = read_sb_page(bitmap->mddev,
+					       bitmap->mddev->bitmap_info.offset,
 					       NULL,
 					       0, sizeof(bitmap_super_t));
 	}
@@ -610,10 +612,10 @@ static int bitmap_read_sb(struct bitmap *bitmap)
 	}
 success:
 	/* assign fields using values from superblock */
-	bitmap->chunksize = chunksize;
-	bitmap->daemon_sleep = daemon_sleep;
+	bitmap->mddev->bitmap_info.chunksize = chunksize;
+	bitmap->mddev->bitmap_info.daemon_sleep = daemon_sleep;
 	bitmap->daemon_lastrun = jiffies;
-	bitmap->max_write_behind = write_behind;
+	bitmap->mddev->bitmap_info.max_write_behind = write_behind;
 	bitmap->flags |= le32_to_cpu(sb->state);
 	if (le32_to_cpu(sb->version) == BITMAP_MAJOR_HOSTENDIAN)
 		bitmap->flags |= BITMAP_HOSTENDIAN;
@@ -907,7 +909,7 @@ static int bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 	chunks = bitmap->chunks;
 	file = bitmap->file;
 
-	BUG_ON(!file && !bitmap->offset);
+	BUG_ON(!file && !bitmap->mddev->bitmap_info.offset);
 
 #ifdef INJECT_FAULTS_3
 	outofdate = 1;
@@ -967,14 +969,15 @@ static int bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 				offset = sizeof(bitmap_super_t);
 				if (!file)
 					read_sb_page(bitmap->mddev,
-						     bitmap->offset,
+						     bitmap->mddev->bitmap_info.offset,
 						     page,
 						     index, count);
 			} else if (file) {
 				page = read_page(file, index, bitmap, count);
 				offset = 0;
 			} else {
-				page = read_sb_page(bitmap->mddev, bitmap->offset,
+				page = read_sb_page(bitmap->mddev,
+						    bitmap->mddev->bitmap_info.offset,
 						    NULL,
 						    index, count);
 				offset = 0;
@@ -1096,7 +1099,8 @@ void bitmap_daemon_work(mddev_t *mddev)
 		mutex_unlock(&mddev->bitmap_info.mutex);
 		return;
 	}
-	if (time_before(jiffies, bitmap->daemon_lastrun + bitmap->daemon_sleep*HZ))
+	if (time_before(jiffies, bitmap->daemon_lastrun
+			+ bitmap->mddev->bitmap_info.daemon_sleep*HZ))
 		goto done;
 
 	bitmap->daemon_lastrun = jiffies;
@@ -1210,7 +1214,8 @@ void bitmap_daemon_work(mddev_t *mddev)
 
  done:
 	if (bitmap->allclean == 0)
-		bitmap->mddev->thread->timeout = bitmap->daemon_sleep * HZ;
+		bitmap->mddev->thread->timeout = 
+			bitmap->mddev->bitmap_info.daemon_sleep * HZ;
 	mutex_unlock(&mddev->bitmap_info.mutex);
 }
 
@@ -1479,7 +1484,7 @@ void bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector)
 		return;
 	}
 	if (time_before(jiffies, (bitmap->last_end_sync
-				  + bitmap->daemon_sleep * HZ)))
+				  + bitmap->mddev->bitmap_info.daemon_sleep * HZ)))
 		return;
 	wait_event(bitmap->mddev->recovery_wait,
 		   atomic_read(&bitmap->mddev->recovery_active) == 0);
@@ -1540,7 +1545,7 @@ void bitmap_dirty_bits(struct bitmap *bitmap, unsigned long s, unsigned long e)
 void bitmap_flush(mddev_t *mddev)
 {
 	struct bitmap *bitmap = mddev->bitmap;
-	int sleep;
+	long sleep;
 
 	if (!bitmap) /* there was no bitmap */
 		return;
@@ -1548,12 +1553,13 @@ void bitmap_flush(mddev_t *mddev)
 	/* run the daemon_work three time to ensure everything is flushed
 	 * that can be
 	 */
-	sleep = bitmap->daemon_sleep;
-	bitmap->daemon_sleep = 0;
+	sleep = mddev->bitmap_info.daemon_sleep * HZ * 2;
+	bitmap->daemon_lastrun -= sleep;
 	bitmap_daemon_work(mddev);
+	bitmap->daemon_lastrun -= sleep;
 	bitmap_daemon_work(mddev);
+	bitmap->daemon_lastrun -= sleep;
 	bitmap_daemon_work(mddev);
-	bitmap->daemon_sleep = sleep;
 	bitmap_update_sb(bitmap);
 }
 
@@ -1633,7 +1639,6 @@ int bitmap_create(mddev_t *mddev)
 	bitmap->mddev = mddev;
 
 	bitmap->file = file;
-	bitmap->offset = mddev->bitmap_info.offset;
 	if (file) {
 		get_file(file);
 		/* As future accesses to this file will use bmap,
@@ -1642,12 +1647,12 @@ int bitmap_create(mddev_t *mddev)
 		 */
 		vfs_fsync(file, file->f_dentry, 1);
 	}
-	/* read superblock from bitmap file (this sets bitmap->chunksize) */
+	/* read superblock from bitmap file (this sets mddev->bitmap_info.chunksize) */
 	err = bitmap_read_sb(bitmap);
 	if (err)
 		goto error;
 
-	bitmap->chunkshift = ffz(~bitmap->chunksize);
+	bitmap->chunkshift = ffz(~mddev->bitmap_info.chunksize);
 
 	/* now that chunksize and chunkshift are set, we can use these macros */
  	chunks = (blocks + CHUNK_BLOCK_RATIO(bitmap) - 1) >>
@@ -1689,7 +1694,7 @@ int bitmap_create(mddev_t *mddev)
 
 	mddev->bitmap = bitmap;
 
-	mddev->thread->timeout = bitmap->daemon_sleep * HZ;
+	mddev->thread->timeout = mddev->bitmap_info.daemon_sleep * HZ;
 
 	bitmap_update_sb(bitmap);
 

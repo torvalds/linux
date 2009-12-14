@@ -4557,6 +4557,9 @@ out:
 		mddev->safemode = 0;
 		mddev->bitmap_info.offset = 0;
 		mddev->bitmap_info.default_offset = 0;
+		mddev->bitmap_info.chunksize = 0;
+		mddev->bitmap_info.daemon_sleep = 0;
+		mddev->bitmap_info.max_write_behind = 0;
 		kobject_uevent(&disk_to_dev(mddev->gendisk)->kobj, KOBJ_CHANGE);
 		if (mddev->hold_active == UNTIL_STOP)
 			mddev->hold_active = 0;
@@ -6089,14 +6092,14 @@ static int md_seq_show(struct seq_file *seq, void *v)
 			unsigned long chunk_kb;
 			unsigned long flags;
 			spin_lock_irqsave(&bitmap->lock, flags);
-			chunk_kb = bitmap->chunksize >> 10;
+			chunk_kb = mddev->bitmap_info.chunksize >> 10;
 			seq_printf(seq, "bitmap: %lu/%lu pages [%luKB], "
 				"%lu%s chunk",
 				bitmap->pages - bitmap->missing_pages,
 				bitmap->pages,
 				(bitmap->pages - bitmap->missing_pages)
 					<< (PAGE_SHIFT - 10),
-				chunk_kb ? chunk_kb : bitmap->chunksize,
+				chunk_kb ? chunk_kb : mddev->bitmap_info.chunksize,
 				chunk_kb ? "KB" : "B");
 			if (bitmap->file) {
 				seq_printf(seq, ", file: ");

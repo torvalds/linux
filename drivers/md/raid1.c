@@ -943,7 +943,8 @@ static int make_request(struct request_queue *q, struct bio * bio)
 
 	/* do behind I/O ? */
 	if (bitmap &&
-	    atomic_read(&bitmap->behind_writes) < bitmap->max_write_behind &&
+	    (atomic_read(&bitmap->behind_writes)
+	     < mddev->bitmap_info.max_write_behind) &&
 	    (behind_pages = alloc_behind_pages(bio)) != NULL)
 		set_bit(R1BIO_BehindIO, &r1_bio->state);
 
