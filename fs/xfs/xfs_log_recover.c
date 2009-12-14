@@ -46,6 +46,7 @@
 #include "xfs_quota.h"
 #include "xfs_rw.h"
 #include "xfs_utils.h"
+#include "xfs_trace.h"
 
 STATIC int	xlog_find_zeroed(xlog_t *, xfs_daddr_t *);
 STATIC int	xlog_clear_stale_blocks(xlog_t *, xfs_lsn_t);
