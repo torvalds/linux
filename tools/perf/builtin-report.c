@@ -52,8 +52,6 @@ static int		exclude_other = 1;
 
 static char		callchain_default_opt[] = "fractal,0.5";
 
-static u64		sample_type;
-
 struct symbol_conf	symbol_conf;
 
 
@@ -557,7 +555,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	memset(&data, 0, sizeof(data));
 	data.period = 1;
 
-	event__parse_sample(event, sample_type, &data);
+	event__parse_sample(event, session->sample_type, &data);
 
 	dump_printf("(IP, %d): %d/%d: %p period: %Ld\n",
 		event->header.misc,
@@ -565,7 +563,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 		(void *)(long)data.ip,
 		(long long)data.period);
 
-	if (sample_type & PERF_SAMPLE_CALLCHAIN) {
+	if (session->sample_type & PERF_SAMPLE_CALLCHAIN) {
 		unsigned int i;
 
 		dump_printf("... chain: nr:%Lu\n", data.callchain->nr);
@@ -664,11 +662,9 @@ static int process_read_event(event_t *event, struct perf_session *session __use
 	return 0;
 }
 
-static int sample_type_check(u64 type, struct perf_session *session)
+static int sample_type_check(struct perf_session *session)
 {
-	sample_type = type;
-
-	if (!(sample_type & PERF_SAMPLE_CALLCHAIN)) {
+	if (!(session->sample_type & PERF_SAMPLE_CALLCHAIN)) {
 		if (sort__has_parent) {
 			fprintf(stderr, "selected --sort parent, but no"
 					" callchain data. Did you call"

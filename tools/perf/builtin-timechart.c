@@ -36,9 +36,6 @@
 static char		const *input_name = "perf.data";
 static char		const *output_name = "output.svg";
 
-
-static u64		sample_type;
-
 static unsigned int	numcpus;
 static u64		min_freq;	/* Lowest CPU frequency seen */
 static u64		max_freq;	/* Highest CPU frequency seen */
@@ -478,17 +475,16 @@ static void sched_switch(int cpu, u64 timestamp, struct trace_entry *te)
 }
 
 
-static int
-process_sample_event(event_t *event)
+static int process_sample_event(event_t *event, struct perf_session *session)
 {
 	struct sample_data data;
 	struct trace_entry *te;
 
 	memset(&data, 0, sizeof(data));
 
-	event__parse_sample(event, sample_type, &data);
+	event__parse_sample(event, session->sample_type, &data);
 
-	if (sample_type & PERF_SAMPLE_TIME) {
+	if (session->sample_type & PERF_SAMPLE_TIME) {
 		if (!first_time || first_time > data.time)
 			first_time = data.time;
 		if (last_time < data.time)
@@ -496,7 +492,7 @@ process_sample_event(event_t *event)
 	}
 
 	te = (void *)data.raw_data;
-	if (sample_type & PERF_SAMPLE_RAW && data.raw_size > 0) {
+	if (session->sample_type & PERF_SAMPLE_RAW && data.raw_size > 0) {
 		char *event_str;
 		struct power_entry *pe;
 
@@ -573,16 +569,16 @@ static void end_sample_processing(void)
 	}
 }
 
-static u64 sample_time(event_t *event)
+static u64 sample_time(event_t *event, const struct perf_session *session)
 {
 	int cursor;
 
 	cursor = 0;
-	if (sample_type & PERF_SAMPLE_IP)
+	if (session->sample_type & PERF_SAMPLE_IP)
 		cursor++;
-	if (sample_type & PERF_SAMPLE_TID)
+	if (session->sample_type & PERF_SAMPLE_TID)
 		cursor++;
-	if (sample_type & PERF_SAMPLE_TIME)
+	if (session->sample_type & PERF_SAMPLE_TIME)
 		return event->sample.array[cursor];
 	return 0;
 }
@@ -592,7 +588,7 @@ static u64 sample_time(event_t *event)
  * We first queue all events, sorted backwards by insertion.
  * The order will get flipped later.
  */
-static int queue_sample_event(event_t *event, struct perf_session *session __used)
+static int queue_sample_event(event_t *event, struct perf_session *session)
 {
 	struct sample_wrapper *copy, *prev;
 	int size;
@@ -606,7 +602,7 @@ static int queue_sample_event(event_t *event, struct perf_session *session __use
 	memset(copy, 0, size);
 
 	copy->next = NULL;
-	copy->timestamp = sample_time(event);
+	copy->timestamp = sample_time(event, session);
 
 	memcpy(&copy->data, event, event->sample.header.size);
 
@@ -1018,7 +1014,7 @@ static void write_svg_file(const char *filename)
 	svg_close();
 }
 
-static void process_samples(void)
+static void process_samples(struct perf_session *session)
 {
 	struct sample_wrapper *cursor;
 	event_t *event;
@@ -1029,15 +1025,13 @@ static void process_samples(void)
 	while (cursor) {
 		event = (void *)&cursor->data;
 		cursor = cursor->next;
-		process_sample_event(event);
+		process_sample_event(event, session);
 	}
 }
 
-static int sample_type_check(u64 type, struct perf_session *session __used)
+static int sample_type_check(struct perf_session *session)
 {
-	sample_type = type;
-
-	if (!(sample_type & PERF_SAMPLE_RAW)) {
+	if (!(session->sample_type & PERF_SAMPLE_RAW)) {
 		fprintf(stderr, "No trace samples found in the file.\n"
 				"Have you used 'perf timechart record' to record it?\n");
 		return -1;
@@ -1067,7 +1061,7 @@ static int __cmd_timechart(void)
 	if (ret)
 		goto out_delete;
 
-	process_samples();
+	process_samples(session);
 
 	end_sample_processing();
 

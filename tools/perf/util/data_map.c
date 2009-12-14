@@ -144,7 +144,6 @@ int perf_session__process_events(struct perf_session *self,
 	unsigned long head, shift;
 	unsigned long offset = 0;
 	size_t	page_size;
-	u64 sample_type;
 	event_t *event;
 	uint32_t size;
 	char *buf;
@@ -157,11 +156,10 @@ int perf_session__process_events(struct perf_session *self,
 	page_size = getpagesize();
 
 	head = self->header.data_offset;
-	sample_type = perf_header__sample_type(&self->header);
+	self->sample_type = perf_header__sample_type(&self->header);
 
 	err = -EINVAL;
-	if (ops->sample_type_check &&
-	    ops->sample_type_check(sample_type, self) < 0)
+	if (ops->sample_type_check && ops->sample_type_check(self) < 0)
 		goto out_err;
 
 	if (!ops->full_paths) {

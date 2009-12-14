@@ -19,6 +19,7 @@ struct perf_session {
 	struct rb_root		threads;
 	struct thread		*last_match;
 	struct rb_root		hists;
+	u64			sample_type;
 	int			fd;
 	int			cwdlen;
 	char			*cwd;
@@ -39,8 +40,7 @@ struct perf_event_ops {
 	event_op	process_read_event;
 	event_op	process_throttle_event;
 	event_op	process_unthrottle_event;
-	int		(*sample_type_check)(u64 sample_type,
-					     struct perf_session *session);
+	int		(*sample_type_check)(struct perf_session *session);
 	unsigned long	total_unknown;
 	bool		full_paths;
 };

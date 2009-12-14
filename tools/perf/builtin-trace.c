@@ -61,8 +61,6 @@ static int cleanup_scripting(void)
 
 static char const		*input_name = "perf.data";
 
-static u64			sample_type;
-
 static int process_sample_event(event_t *event, struct perf_session *session)
 {
 	struct sample_data data;
@@ -73,7 +71,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	data.cpu = -1;
 	data.period = 1;
 
-	event__parse_sample(event, sample_type, &data);
+	event__parse_sample(event, session->sample_type, &data);
 
 	dump_printf("(IP, %d): %d/%d: %p period: %Ld\n",
 		event->header.misc,
@@ -88,7 +86,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 		return -1;
 	}
 
-	if (sample_type & PERF_SAMPLE_RAW) {
+	if (session->sample_type & PERF_SAMPLE_RAW) {
 		/*
 		 * FIXME: better resolve from pid from the struct trace_entry
 		 * field, although it should be the same than this perf
@@ -103,11 +101,9 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	return 0;
 }
 
-static int sample_type_check(u64 type, struct perf_session *session __used)
+static int sample_type_check(struct perf_session *session)
 {
-	sample_type = type;
-
-	if (!(sample_type & PERF_SAMPLE_RAW)) {
+	if (!(session->sample_type & PERF_SAMPLE_RAW)) {
 		fprintf(stderr,
 			"No trace sample to read. Did you call perf record "
 			"without -R?");

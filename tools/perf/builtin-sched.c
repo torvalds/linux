@@ -21,8 +21,6 @@
 
 static char			const *input_name = "perf.data";
 
-static u64			sample_type;
-
 static char			default_sort_order[] = "avg, max, switch, runtime";
 static char			*sort_order = default_sort_order;
 
@@ -1613,7 +1611,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	struct sample_data data;
 	struct thread *thread;
 
-	if (!(sample_type & PERF_SAMPLE_RAW))
+	if (!(session->sample_type & PERF_SAMPLE_RAW))
 		return 0;
 
 	memset(&data, 0, sizeof(data));
@@ -1621,7 +1619,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	data.cpu = -1;
 	data.period = -1;
 
-	event__parse_sample(event, sample_type, &data);
+	event__parse_sample(event, session->sample_type, &data);
 
 	dump_printf("(IP, %d): %d/%d: %p period: %Ld\n",
 		event->header.misc,
@@ -1655,11 +1653,9 @@ static int process_lost_event(event_t *event __used,
 	return 0;
 }
 
-static int sample_type_check(u64 type, struct perf_session *session __used)
+static int sample_type_check(struct perf_session *session __used)
 {
-	sample_type = type;
-
-	if (!(sample_type & PERF_SAMPLE_RAW)) {
+	if (!(session->sample_type & PERF_SAMPLE_RAW)) {
 		fprintf(stderr,
 			"No trace sample to read. Did you call perf record "
 			"without -R?");
