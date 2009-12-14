@@ -2763,6 +2763,47 @@ static void analyze_sbs(mddev_t * mddev)
 	}
 }
 
+/* Read a fixed-point number.
+ * Numbers in sysfs attributes should be in "standard" units where
+ * possible, so time should be in seconds.
+ * However we internally use a a much smaller unit such as 
+ * milliseconds or jiffies.
+ * This function takes a decimal number with a possible fractional
+ * component, and produces an integer which is the result of
+ * multiplying that number by 10^'scale'.
+ * all without any floating-point arithmetic.
+ */
+int strict_strtoul_scaled(const char *cp, unsigned long *res, int scale)
+{
+	unsigned long result = 0;
+	long decimals = -1;
+	while (isdigit(*cp) || (*cp == '.' && decimals < 0)) {
+		if (*cp == '.')
+			decimals = 0;
+		else if (decimals < scale) {
+			unsigned int value;
+			value = *cp - '0';
+			result = result * 10 + value;
+			if (decimals >= 0)
+				decimals++;
+		}
+		cp++;
+	}
+	if (*cp == '\n')
+		cp++;
+	if (*cp)
+		return -EINVAL;
+	if (decimals < 0)
+		decimals = 0;
+	while (decimals < scale) {
+		result *= 10;
+		decimals ++;
+	}
+	*res = result;
+	return 0;
+}
+
+
 static void md_safemode_timeout(unsigned long data);
 
 static ssize_t
@@ -2774,31 +2815,10 @@ safe_delay_show(mddev_t *mddev, char *page)
 static ssize_t
 safe_delay_store(mddev_t *mddev, const char *cbuf, size_t len)
 {
-	int scale=1;
-	int dot=0;
-	int i;
 	unsigned long msec;
-	char buf[30];
 
-	/* remove a period, and count digits after it */
-	if (len >= sizeof(buf))
+	if (strict_strtoul_scaled(cbuf, &msec, 3) < 0)
 		return -EINVAL;
-	strlcpy(buf, cbuf, sizeof(buf));
-	for (i=0; i<len; i++) {
-		if (dot) {
-			if (isdigit(buf[i])) {
-				buf[i-1] = buf[i];
-				scale *= 10;
-			}
-			buf[i] = 0;
-		} else if (buf[i] == '.') {
-			dot=1;
-			buf[i] = 0;
-		}
-	}
-	if (strict_strtoul(buf, 10, &msec) < 0)
-		return -EINVAL;
-	msec = (msec * 1000) / scale;
 	if (msec == 0)
 		mddev->safemode_delay = 0;
 	else {

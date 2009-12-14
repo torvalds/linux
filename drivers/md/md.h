@@ -463,6 +463,7 @@ extern void md_wait_for_blocked_rdev(mdk_rdev_t *rdev, mddev_t *mddev);
 extern void md_set_array_sectors(mddev_t *mddev, sector_t array_sectors);
 extern int md_check_no_bitmap(mddev_t *mddev);
 extern int md_integrity_register(mddev_t *mddev);
-void md_integrity_add_rdev(mdk_rdev_t *rdev, mddev_t *mddev);
+extern void md_integrity_add_rdev(mdk_rdev_t *rdev, mddev_t *mddev);
+extern int strict_strtoul_scaled(const char *cp, unsigned long *res, int scale);
 
 #endif /* _MD_MD_H */
