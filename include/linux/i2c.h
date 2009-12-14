@@ -568,39 +568,4 @@ union i2c_smbus_data {
 #define I2C_SMBUS_BLOCK_PROC_CALL   7		/* SMBus 2.0 */
 #define I2C_SMBUS_I2C_BLOCK_DATA    8
 
-
-#ifdef __KERNEL__
-
-/* These defines are used for probing i2c client addresses */
-/* The length of the option lists */
-#define I2C_CLIENT_MAX_OPTS 48
-
-/* Default fill of many variables */
-#define I2C_CLIENT_DEFAULTS {I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END}
-
-/* I2C_CLIENT_MODULE_PARM creates a module parameter, and puts it in the
-   module header */
-
-#define I2C_CLIENT_MODULE_PARM(var,desc) \
-  static unsigned short var[I2C_CLIENT_MAX_OPTS] = I2C_CLIENT_DEFAULTS; \
-  static unsigned int var##_num; \
-  module_param_array(var, short, &var##_num, 0); \
-  MODULE_PARM_DESC(var, desc)
-
-#endif /* __KERNEL__ */
 #endif /* _LINUX_I2C_H */
