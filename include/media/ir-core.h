@@ -44,8 +44,9 @@ struct ir_scancode_table {
 struct ir_dev_props {
 	unsigned long allowed_protos;
 	void 		*priv;
-	int (*change_protocol)(void *priv, unsigned long protocol);
+	int (*change_protocol)(void *priv, enum ir_type ir_type);
 };
+
 
 struct ir_input_dev {
 	struct input_dev		*dev;		/* Input device*/
@@ -55,6 +56,7 @@ struct ir_input_dev {
 	struct device			*class_dev;	/* virtual class dev */
 	const struct ir_dev_props	*props;		/* Device properties */
 };
+#define to_ir_input_dev(_attr) container_of(_attr, struct ir_input_dev, attr)
 
 /* Routines from ir-keytable.c */
 

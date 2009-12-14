@@ -22,10 +22,36 @@ unsigned long ir_core_dev_number;
 
 static struct class *ir_input_class;
 
-static DEVICE_ATTR(ir_protocol, S_IRUGO | S_IWUSR, NULL, NULL);
+
+static ssize_t show_protocol(struct device *d,
+			     struct device_attribute *mattr, char *buf)
+{
+	char *s;
+	struct ir_input_dev *ir_dev = dev_get_drvdata(d);
+	enum ir_type ir_type = ir_dev->rc_tab.ir_type;
+
+	IR_dprintk(1, "Current protocol is %ld\n", ir_type);
+
+	/* FIXME: doesn't support multiple protocols at the same time */
+	if (ir_type == IR_TYPE_UNKNOWN)
+		s = "Unknown";
+	else if (ir_type == IR_TYPE_RC5)
+		s = "RC-5";
+	else if (ir_type == IR_TYPE_PD)
+		s = "Pulse/distance";
+	else if (ir_type == IR_TYPE_NEC)
+		s = "NEC";
+	else
+		s = "Other";
+
+	return sprintf(buf, "%s\n", s);
+}
+
+static DEVICE_ATTR(current_protocol, S_IRUGO | S_IWUSR,
+		   show_protocol, NULL);
 
 static struct attribute *ir_dev_attrs[] = {
-	&dev_attr_ir_protocol.attr,
+	&dev_attr_current_protocol.attr,
 };
 
 int ir_register_class(struct input_dev *input_dev)
