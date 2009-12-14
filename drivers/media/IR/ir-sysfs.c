@@ -18,11 +18,22 @@
 
 #define IRRCV_NUM_DEVICES	256
 
-unsigned long ir_core_dev_number;
+/* bit array to represent IR sysfs device number */
+static unsigned long ir_core_dev_number;
 
+/* class for /sys/class/irrcv */
 static struct class *ir_input_class;
 
-
+/**
+ * show_protocol() - shows the current IR protocol
+ * @d:		the device descriptor
+ * @mattr:	the device attribute struct (unused)
+ * @buf:	a pointer to the output buffer
+ *
+ * This routine is a callback routine for input read the IR protocol type.
+ * it is trigged by reading /sys/class/irrcv/irrcv?/current_protocol.
+ * It returns the protocol name, as understood by the driver.
+ */
 static ssize_t show_protocol(struct device *d,
 			     struct device_attribute *mattr, char *buf)
 {
@@ -47,7 +58,19 @@ static ssize_t show_protocol(struct device *d,
 	return sprintf(buf, "%s\n", s);
 }
 
-
+/**
+ * store_protocol() - shows the current IR protocol
+ * @d:		the device descriptor
+ * @mattr:	the device attribute struct (unused)
+ * @buf:	a pointer to the input buffer
+ * @len:	length of the input buffer
+ *
+ * This routine is a callback routine for changing the IR protocol type.
+ * it is trigged by reading /sys/class/irrcv/irrcv?/current_protocol.
+ * It changes the IR the protocol name, if the IR type is recognized
+ * by the driver.
+ * If an unknown protocol name is used, returns -EINVAL.
+ */
 static ssize_t store_protocol(struct device *d,
 			      struct device_attribute *mattr,
 			      const char *data,
@@ -88,7 +111,9 @@ static ssize_t store_protocol(struct device *d,
 	return len;
 }
 
-
+/*
+ * Static device attribute struct with the sysfs attributes for IR's
+ */
 static DEVICE_ATTR(current_protocol, S_IRUGO | S_IWUSR,
 		   show_protocol, store_protocol);
 
@@ -96,6 +121,12 @@ static struct attribute *ir_dev_attrs[] = {
 	&dev_attr_current_protocol.attr,
 };
 
+/**
+ * ir_register_class() - creates the sysfs for /sys/class/irrcv/irrcv?
+ * @input_dev:	the struct input_dev descriptor of the device
+ *
+ * This routine is used to register the syfs code for IR class
+ */
 int ir_register_class(struct input_dev *input_dev)
 {
 	int rc;
@@ -127,6 +158,13 @@ int ir_register_class(struct input_dev *input_dev)
 	return 0;
 };
 
+/**
+ * ir_unregister_class() - removes the sysfs for sysfs for
+ *			   /sys/class/irrcv/irrcv?
+ * @input_dev:	the struct input_dev descriptor of the device
+ *
+ * This routine is used to unregister the syfs code for IR class
+ */
 void ir_unregister_class(struct input_dev *input_dev)
 {
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
@@ -141,6 +179,10 @@ void ir_unregister_class(struct input_dev *input_dev)
 
 	kfree(ir_dev->attr.name);
 }
+
+/*
+ * Init/exit code for the module. Basically, creates/removes /sys/class/irrcv
+ */
 
 static int __init ir_core_init(void)
 {

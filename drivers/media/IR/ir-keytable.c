@@ -402,9 +402,10 @@ EXPORT_SYMBOL_GPL(ir_g_keycode_from_table);
  * @input_dev:	the struct input_dev descriptor of the device
  * @rc_tab:	the struct ir_scancode_table table of scancode/keymap
  *
- * This routine is used to initialize the input infrastructure to work with
- * an IR.
- * It should be called before registering the IR device.
+ * This routine is used to initialize the input infrastructure
+ * to work with an IR.
+ * It will register the input/evdev interface for the device and
+ * register the syfs code for IR class
  */
 int ir_input_register(struct input_dev *input_dev,
 		      const struct ir_scancode_table *rc_tab,
@@ -471,6 +472,12 @@ err:
 }
 EXPORT_SYMBOL_GPL(ir_input_register);
 
+/**
+ * ir_input_unregister() - unregisters IR and frees resources
+ * @input_dev:	the struct input_dev descriptor of the device
+
+ * This routine is used to free memory and de-register interfaces.
+ */
 void ir_input_unregister(struct input_dev *dev)
 {
 	struct ir_input_dev *ir_dev = input_get_drvdata(dev);
