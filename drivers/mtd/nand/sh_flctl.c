@@ -797,7 +797,7 @@ static int __init flctl_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	flctl->reg = ioremap(res->start, res->end - res->start + 1);
+	flctl->reg = ioremap(res->start, resource_size(res));
 	if (flctl->reg == NULL) {
 		printk(KERN_ERR "%s: ioremap error.\n", __func__);
 		ret = -ENOMEM;
