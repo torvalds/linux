@@ -5,6 +5,7 @@
 #include "header.h"
 #include "thread.h"
 #include <linux/rbtree.h>
+#include "../../../include/linux/perf_event.h"
 
 struct ip_callchain;
 struct thread;
@@ -18,6 +19,8 @@ struct perf_session {
 	struct map_groups	kmaps;
 	struct rb_root		threads;
 	struct thread		*last_match;
+	struct events_stats	events_stats;
+	unsigned long		event_total[PERF_RECORD_MAX];
 	struct rb_root		hists;
 	u64			sample_type;
 	int			fd;

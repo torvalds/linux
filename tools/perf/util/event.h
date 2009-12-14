@@ -168,11 +168,6 @@ void event__synthesize_threads(int (*process)(event_t *event,
 					      struct perf_session *session),
 			       struct perf_session *session);
 
-extern char *event__cwd;
-extern int  event__cwdlen;
-extern struct events_stats event__stats;
-extern unsigned long event__total[PERF_RECORD_MAX];
-
 int event__process_comm(event_t *self, struct perf_session *session);
 int event__process_lost(event_t *self, struct perf_session *session);
 int event__process_mmap(event_t *self, struct perf_session *session);

@@ -619,8 +619,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 		return -1;
 	}
 
-	event__stats.total += data.period;
-
+	session->events_stats.total += data.period;
 	return 0;
 }
 
@@ -731,8 +730,8 @@ static int __cmd_report(void)
 		dsos__fprintf(stdout);
 
 	perf_session__collapse_resort(session);
-	perf_session__output_resort(session, event__stats.total);
-	perf_session__fprintf_hist_entries(session, event__stats.total, stdout);
+	perf_session__output_resort(session, session->events_stats.total);
+	perf_session__fprintf_hist_entries(session, session->events_stats.total, stdout);
 
 	if (show_threads)
 		perf_read_values_destroy(&show_threads_values);

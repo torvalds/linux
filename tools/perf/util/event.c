@@ -187,8 +187,6 @@ void event__synthesize_threads(int (*process)(event_t *event,
 	closedir(proc);
 }
 
-struct events_stats event__stats;
-
 int event__process_comm(event_t *self, struct perf_session *session)
 {
 	struct thread *thread = perf_session__findnew(session, self->comm.pid);
@@ -203,10 +201,10 @@ int event__process_comm(event_t *self, struct perf_session *session)
 	return 0;
 }
 
-int event__process_lost(event_t *self, struct perf_session *session __used)
+int event__process_lost(event_t *self, struct perf_session *session)
 {
 	dump_printf(": id:%Ld: lost:%Ld\n", self->lost.id, self->lost.lost);
-	event__stats.lost += self->lost.lost;
+	session->events_stats.lost += self->lost.lost;
 	return 0;
 }
 

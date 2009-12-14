@@ -96,8 +96,8 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 					     data.raw_size,
 					     data.time, thread->comm);
 	}
-	event__stats.total += data.period;
 
+	session->events_stats.total += data.period;
 	return 0;
 }
 
