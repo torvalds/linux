@@ -7,6 +7,7 @@
 #include "util/header.h"
 #include "util/exec_cmd.h"
 #include "util/trace-event.h"
+#include "util/session.h"
 
 static char const		*script_name;
 static char const		*generate_script_lang;
@@ -61,7 +62,7 @@ static int cleanup_scripting(void)
 
 static char const		*input_name = "perf.data";
 
-static struct perf_header	*header;
+static struct perf_session 	*session;
 static u64			sample_type;
 
 static int process_sample_event(event_t *event)
@@ -126,11 +127,18 @@ static struct perf_file_handler file_handler = {
 
 static int __cmd_trace(void)
 {
+	int err;
+
+	session = perf_session__new(input_name, O_RDONLY, 0);
+	if (session == NULL)
+		return -ENOMEM;
+
 	register_idle_thread();
 	register_perf_file_handler(&file_handler);
 
-	return mmap_dispatch_perf_file(&header, input_name,
-				       0, 0, &event__cwdlen, &event__cwd);
+	err = perf_session__process_events(session, 0, &event__cwdlen, &event__cwd);
+	perf_session__delete(session);
+	return err;
 }
 
 struct script_spec {
@@ -348,11 +356,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 			return -1;
 		}
 
-		header = perf_header__new();
-		if (header == NULL)
-			return -1;
-
-		perf_header__read(header, input);
+		perf_header__read(&session->header, input);
 		err = scripting_ops->generate_script("perf-trace");
 		goto out;
 	}

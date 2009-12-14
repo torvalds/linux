@@ -254,13 +254,14 @@ void thread__find_addr_location(struct thread *self, u8 cpumode,
 				struct addr_location *al,
 				symbol_filter_t filter)
 {
-	struct thread *thread = al->thread = self;
+	struct map_groups *mg = &self->mg;
 
+	al->thread = self;
 	al->addr = addr;
 
 	if (cpumode & PERF_RECORD_MISC_KERNEL) {
 		al->level = 'k';
-		thread = kthread;
+		mg = kmaps;
 	} else if (cpumode & PERF_RECORD_MISC_USER)
 		al->level = '.';
 	else {
@@ -270,7 +271,7 @@ void thread__find_addr_location(struct thread *self, u8 cpumode,
 		return;
 	}
 try_again:
-	al->map = thread__find_map(thread, type, al->addr);
+	al->map = map_groups__find(mg, type, al->addr);
 	if (al->map == NULL) {
 		/*
 		 * If this is outside of all known maps, and is a negative
@@ -281,8 +282,8 @@ try_again:
 		 * "[vdso]" dso, but for now lets use the old trick of looking
 		 * in the whole kernel symbol list.
 		 */
-		if ((long long)al->addr < 0 && thread != kthread) {
-			thread = kthread;
+		if ((long long)al->addr < 0 && mg != kmaps) {
+			mg = kmaps;
 			goto try_again;
 		}
 		al->sym = NULL;
