@@ -40,8 +40,8 @@
  * Allocates basic resources for this USB host controller.
  *
  */
-int usb_hcd_fsl_probe(const struct hc_driver *driver,
-		      struct platform_device *pdev)
+static int usb_hcd_fsl_probe(const struct hc_driver *driver,
+			     struct platform_device *pdev)
 {
 	struct fsl_usb2_platform_data *pdata;
 	struct usb_hcd *hcd;
@@ -147,7 +147,8 @@ int usb_hcd_fsl_probe(const struct hc_driver *driver,
  * Reverses the effect of usb_hcd_fsl_probe().
  *
  */
-void usb_hcd_fsl_remove(struct usb_hcd *hcd, struct platform_device *pdev)
+static void usb_hcd_fsl_remove(struct usb_hcd *hcd,
+			       struct platform_device *pdev)
 {
 	usb_remove_hcd(hcd);
 	iounmap(hcd->regs);
