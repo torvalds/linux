@@ -1158,7 +1158,7 @@ void trace_dump_stack(void)
 	unsigned long flags;
 
 	if (tracing_disabled || tracing_selftest_running)
-		return 0;
+		return;
 
 	local_save_flags(flags);
 
