@@ -52,12 +52,6 @@
 static const unsigned short normal_i2c[] = { 0x2e, I2C_CLIENT_END };
 
 /*
- * Insmod parameters
- */
-
-I2C_CLIENT_INSMOD_1(w83l785ts);
-
-/*
  * The W83L785TS-S registers
  * Manufacturer ID is 0x5CA3 for Winbond.
  */
@@ -94,7 +88,7 @@ static struct w83l785ts_data *w83l785ts_update_device(struct device *dev);
  */
  
 static const struct i2c_device_id w83l785ts_id[] = {
-	{ "w83l785ts", w83l785ts },
+	{ "w83l785ts", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, w83l785ts_id);

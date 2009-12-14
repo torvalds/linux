@@ -41,9 +41,6 @@ MODULE_PARM_DESC(extra_sensor_type, "Type of extra sensor (0=autodetect, 1=tempe
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(gl520sm);
-
 /* Many GL520 constants specified below
 One of the inputs can be configured as either temp or voltage.
 That's why _TEMP2 and _IN4 access the same register
@@ -90,7 +87,7 @@ static struct gl520_data *gl520_update_device(struct device *dev);
 
 /* Driver data */
 static const struct i2c_device_id gl520_id[] = {
-	{ "gl520sm", gl520sm },
+	{ "gl520sm", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, gl520_id);

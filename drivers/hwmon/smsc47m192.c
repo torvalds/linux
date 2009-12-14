@@ -36,9 +36,6 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(smsc47m192);
-
 /* SMSC47M192 registers */
 #define SMSC47M192_REG_IN(nr)		((nr)<6 ? (0x20 + (nr)) : \
 					(0x50 + (nr) - 6))
@@ -121,7 +118,7 @@ static int smsc47m192_remove(struct i2c_client *client);
 static struct smsc47m192_data *smsc47m192_update_device(struct device *dev);
 
 static const struct i2c_device_id smsc47m192_id[] = {
-	{ "smsc47m192", smsc47m192 },
+	{ "smsc47m192", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, smsc47m192_id);

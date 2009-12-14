@@ -35,9 +35,6 @@
 static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 						0x2e, 0x2f, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(lm80);
-
 /* Many LM80 constants specified below */
 
 /* The LM80 registers */
@@ -145,7 +142,7 @@ static int lm80_write_value(struct i2c_client *client, u8 reg, u8 value);
  */
 
 static const struct i2c_device_id lm80_id[] = {
-	{ "lm80", lm80 },
+	{ "lm80", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm80_id);

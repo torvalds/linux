@@ -38,7 +38,6 @@
 static const unsigned short normal_i2c[] = { 0x2e, 0x2f, I2C_CLIENT_END };
 
 /* Insmod parameters */
-I2C_CLIENT_INSMOD_1(w83l786ng);
 
 static int reset;
 module_param(reset, bool, 0);
@@ -154,7 +153,7 @@ static void w83l786ng_init_client(struct i2c_client *client);
 static struct w83l786ng_data *w83l786ng_update_device(struct device *dev);
 
 static const struct i2c_device_id w83l786ng_id[] = {
-	{ "w83l786ng", w83l786ng },
+	{ "w83l786ng", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, w83l786ng_id);

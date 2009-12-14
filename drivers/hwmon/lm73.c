@@ -27,9 +27,6 @@
 static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4c,
 					0x4d, 0x4e, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(lm73);
-
 /* LM73 registers */
 #define LM73_REG_INPUT		0x00
 #define LM73_REG_CONF		0x01
@@ -145,7 +142,7 @@ static int lm73_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lm73_ids[] = {
-	{ "lm73", lm73 },
+	{ "lm73", 0 },
 	{ /* LIST END */ }
 };
 MODULE_DEVICE_TABLE(i2c, lm73_ids);

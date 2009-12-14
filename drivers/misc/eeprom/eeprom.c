@@ -32,9 +32,6 @@
 static const unsigned short normal_i2c[] = { 0x50, 0x51, 0x52, 0x53, 0x54,
 					0x55, 0x56, 0x57, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(eeprom);
-
 
 /* Size of EEPROM in bytes */
 #define EEPROM_SIZE		256

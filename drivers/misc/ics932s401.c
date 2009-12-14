@@ -30,9 +30,6 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x69, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(ics932s401);
-
 /* ICS932S401 registers */
 #define ICS932S401_REG_CFG2			0x01
 #define 	ICS932S401_CFG1_SPREAD		0x01
@@ -111,7 +108,7 @@ static int ics932s401_detect(struct i2c_client *client,
 static int ics932s401_remove(struct i2c_client *client);
 
 static const struct i2c_device_id ics932s401_id[] = {
-	{ "ics932s401", ics932s401 },
+	{ "ics932s401", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ics932s401_id);

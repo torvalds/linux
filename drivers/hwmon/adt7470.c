@@ -33,9 +33,6 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2C, 0x2E, 0x2F, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(adt7470);
-
 /* ADT7470 registers */
 #define ADT7470_REG_BASE_ADDR			0x20
 #define ADT7470_REG_TEMP_BASE_ADDR		0x20
@@ -182,7 +179,7 @@ static int adt7470_detect(struct i2c_client *client,
 static int adt7470_remove(struct i2c_client *client);
 
 static const struct i2c_device_id adt7470_id[] = {
-	{ "adt7470", adt7470 },
+	{ "adt7470", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adt7470_id);

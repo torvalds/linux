@@ -604,11 +604,6 @@ union i2c_smbus_data {
 
 /* These are the ones you want to use in your own drivers. Pick the one
    which matches the number of devices the driver differenciates between. */
-#define I2C_CLIENT_INSMOD
-
-#define I2C_CLIENT_INSMOD_1(chip1)					\
-enum chips { any_chip, chip1 }
-
 #define I2C_CLIENT_INSMOD_2(chip1, chip2)				\
 enum chips { any_chip, chip1, chip2 }
 

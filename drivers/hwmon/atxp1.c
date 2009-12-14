@@ -44,8 +44,6 @@ MODULE_AUTHOR("Sebastian Witt <se.witt@gmx.net>");
 
 static const unsigned short normal_i2c[] = { 0x37, 0x4e, I2C_CLIENT_END };
 
-I2C_CLIENT_INSMOD_1(atxp1);
-
 static int atxp1_probe(struct i2c_client *client,
 		       const struct i2c_device_id *id);
 static int atxp1_remove(struct i2c_client *client);
@@ -53,7 +51,7 @@ static struct atxp1_data * atxp1_update_device(struct device *dev);
 static int atxp1_detect(struct i2c_client *client, struct i2c_board_info *info);
 
 static const struct i2c_device_id atxp1_id[] = {
-	{ "atxp1", atxp1 },
+	{ "atxp1", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, atxp1_id);

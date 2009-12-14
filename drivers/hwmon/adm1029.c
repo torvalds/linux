@@ -44,12 +44,6 @@ static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 };
 
 /*
- * Insmod parameters
- */
-
-I2C_CLIENT_INSMOD_1(adm1029);
-
-/*
  * The ADM1029 registers
  * Manufacturer ID is 0x41 for Analog Devices
  */
@@ -128,7 +122,7 @@ static int adm1029_init_client(struct i2c_client *client);
  */
 
 static const struct i2c_device_id adm1029_id[] = {
-	{ "adm1029", adm1029 },
+	{ "adm1029", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adm1029_id);

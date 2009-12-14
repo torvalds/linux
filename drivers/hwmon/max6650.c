@@ -62,8 +62,6 @@ module_param(fan_voltage, int, S_IRUGO);
 module_param(prescaler, int, S_IRUGO);
 module_param(clock, int, S_IRUGO);
 
-I2C_CLIENT_INSMOD_1(max6650);
-
 /*
  * MAX 6650/6651 registers
  */
@@ -127,7 +125,7 @@ static struct max6650_data *max6650_update_device(struct device *dev);
  */
 
 static const struct i2c_device_id max6650_id[] = {
-	{ "max6650", max6650 },
+	{ "max6650", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max6650_id);

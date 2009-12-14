@@ -32,15 +32,12 @@
 
 /*
  * This driver handles the LM75 and compatible digital temperature sensors.
- * Only types which are _not_ listed in I2C_CLIENT_INSMOD_*() need to be
- * listed here.  We start at 9 since I2C_CLIENT_INSMOD_*() currently allow
- * definition of up to 8 chip types (plus zero).
  */
 
 enum lm75_type {		/* keep sorted in alphabetical order */
-	ds1775 = 9,
+	ds1775,
 	ds75,
-	/* lm75 -- in I2C_CLIENT_INSMOD_1() */
+	lm75,
 	lm75a,
 	max6625,
 	max6626,
@@ -57,9 +54,6 @@ enum lm75_type {		/* keep sorted in alphabetical order */
 /* Addresses scanned */
 static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, 0x4c,
 					0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
-
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(lm75);
 
 
 /* The LM75 registers */

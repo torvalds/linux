@@ -56,12 +56,6 @@
 static const unsigned short normal_i2c[] = { 0x4c, I2C_CLIENT_END };
 
 /*
- * Insmod parameters
- */
-
-I2C_CLIENT_INSMOD_1(lm63);
-
-/*
  * The LM63 registers
  */
 
@@ -142,7 +136,7 @@ static void lm63_init_client(struct i2c_client *client);
  */
 
 static const struct i2c_device_id lm63_id[] = {
-	{ "lm63", lm63 },
+	{ "lm63", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm63_id);

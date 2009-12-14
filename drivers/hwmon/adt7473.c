@@ -32,9 +32,6 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2C, 0x2D, 0x2E, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(adt7473);
-
 /* ADT7473 registers */
 #define ADT7473_REG_BASE_ADDR			0x20
 
@@ -171,7 +168,7 @@ static int adt7473_detect(struct i2c_client *client,
 static int adt7473_remove(struct i2c_client *client);
 
 static const struct i2c_device_id adt7473_id[] = {
-	{ "adt7473", adt7473 },
+	{ "adt7473", 0 },
 	{ }
 };
 

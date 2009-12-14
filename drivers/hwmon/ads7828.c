@@ -47,10 +47,7 @@
 static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
 	I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(ads7828);
-
-/* Other module parameters */
+/* Module parameters */
 static int se_input = 1; /* Default is SE, 0 == diff */
 static int int_vref = 1; /* Default is internal ref ON */
 static int vref_mv = ADS7828_INT_VREF_MV; /* set if vref != 2.5V */
@@ -168,7 +165,7 @@ static int ads7828_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ads7828_id[] = {
-	{ "ads7828", ads7828 },
+	{ "ads7828", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ads7828_id);

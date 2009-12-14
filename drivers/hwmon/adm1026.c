@@ -37,9 +37,6 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(adm1026);
-
 static int gpio_input[17] = { -1, -1, -1, -1, -1, -1, -1, -1, -1,
 				-1, -1, -1, -1, -1, -1, -1, -1 };
 static int gpio_output[17] = { -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -305,7 +302,7 @@ static void adm1026_init_client(struct i2c_client *client);
 
 
 static const struct i2c_device_id adm1026_id[] = {
-	{ "adm1026", adm1026 },
+	{ "adm1026", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adm1026_id);

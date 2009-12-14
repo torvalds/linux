@@ -32,9 +32,6 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x58, 0x5C, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(adt7462);
-
 /* ADT7462 registers */
 #define ADT7462_REG_DEVICE			0x3D
 #define ADT7462_REG_VENDOR			0x3E
@@ -242,7 +239,7 @@ static int adt7462_detect(struct i2c_client *client,
 static int adt7462_remove(struct i2c_client *client);
 
 static const struct i2c_device_id adt7462_id[] = {
-	{ "adt7462", adt7462 },
+	{ "adt7462", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adt7462_id);

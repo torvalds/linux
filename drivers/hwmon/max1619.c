@@ -41,12 +41,6 @@ static const unsigned short normal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x4c, 0x4d, 0x4e, I2C_CLIENT_END };
 
 /*
- * Insmod parameters
- */
-
-I2C_CLIENT_INSMOD_1(max1619);
-
-/*
  * The MAX1619 registers
  */
 
@@ -99,7 +93,7 @@ static struct max1619_data *max1619_update_device(struct device *dev);
  */
 
 static const struct i2c_device_id max1619_id[] = {
-	{ "max1619", max1619 },
+	{ "max1619", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max1619_id);

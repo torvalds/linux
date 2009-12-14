@@ -39,9 +39,6 @@
 static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
 						I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(lm77);
-
 /* The LM77 registers */
 #define LM77_REG_TEMP		0x00
 #define LM77_REG_CONF		0x01
@@ -76,7 +73,7 @@ static struct lm77_data *lm77_update_device(struct device *dev);
 
 
 static const struct i2c_device_id lm77_id[] = {
-	{ "lm77", lm77 },
+	{ "lm77", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm77_id);

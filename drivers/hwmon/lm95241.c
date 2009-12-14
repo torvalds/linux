@@ -39,9 +39,6 @@
 static const unsigned short normal_i2c[] = {
 	0x19, 0x2a, 0x2b, I2C_CLIENT_END};
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(lm95241);
-
 /* LM95241 registers */
 #define LM95241_REG_R_MAN_ID		0xFE
 #define LM95241_REG_R_CHIP_ID		0xFF
@@ -446,7 +443,7 @@ static struct lm95241_data *lm95241_update_device(struct device *dev)
 
 /* Driver data (common to all clients) */
 static const struct i2c_device_id lm95241_id[] = {
-	{ "lm95241", lm95241 },
+	{ "lm95241", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm95241_id);
