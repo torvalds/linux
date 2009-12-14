@@ -216,9 +216,8 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 		 * force rand to be an odd multiple of UDP_HTABLE_SIZE
 		 */
 		rand = (rand | 1) * (udptable->mask + 1);
-		for (last = first + udptable->mask + 1;
-		     first != last;
-		     first++) {
+		last = first + udptable->mask + 1;
+		do {
 			hslot = udp_hashslot(udptable, net, first);
 			bitmap_zero(bitmap, PORTS_PER_CHAIN);
 			spin_lock_bh(&hslot->lock);
@@ -238,7 +237,7 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 				snum += rand;
 			} while (snum != first);
 			spin_unlock_bh(&hslot->lock);
-		}
+		} while (++first != last);
 		goto fail;
 	} else {
 		hslot = udp_hashslot(udptable, net, snum);
