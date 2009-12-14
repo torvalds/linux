@@ -625,7 +625,6 @@ success:
 	/* assign fields using values from superblock */
 	bitmap->mddev->bitmap_info.chunksize = chunksize;
 	bitmap->mddev->bitmap_info.daemon_sleep = daemon_sleep;
-	bitmap->daemon_lastrun = jiffies;
 	bitmap->mddev->bitmap_info.max_write_behind = write_behind;
 	bitmap->flags |= le32_to_cpu(sb->state);
 	if (le32_to_cpu(sb->version) == BITMAP_MAJOR_HOSTENDIAN)
@@ -1663,6 +1662,7 @@ int bitmap_create(mddev_t *mddev)
 	if (err)
 		goto error;
 
+	bitmap->daemon_lastrun = jiffies;
 	bitmap->chunkshift = ffz(~mddev->bitmap_info.chunksize);
 
 	/* now that chunksize and chunkshift are set, we can use these macros */
