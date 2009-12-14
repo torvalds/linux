@@ -453,7 +453,6 @@ struct ath_softc {
 	int irq;
 	spinlock_t sc_resetlock;
 	spinlock_t sc_serial_rw;
-	spinlock_t ani_lock;
 	spinlock_t sc_pm_lock;
 	struct mutex mutex;
 

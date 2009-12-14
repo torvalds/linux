@@ -363,14 +363,6 @@ static void ath_ani_calibrate(unsigned long data)
 	short_cal_interval = (ah->opmode == NL80211_IFTYPE_AP) ?
 		ATH_AP_SHORT_CALINTERVAL : ATH_STA_SHORT_CALINTERVAL;
 
-	/*
-	* don't calibrate when we're scanning.
-	* we are most likely not on our home channel.
-	*/
-	spin_lock(&sc->ani_lock);
-	if (sc->sc_flags & SC_OP_SCANNING)
-		goto set_timer;
-
 	/* Only calibrate if awake */
 	if (sc->sc_ah->power_mode != ATH9K_PM_AWAKE)
 		goto set_timer;
@@ -437,7 +429,6 @@ static void ath_ani_calibrate(unsigned long data)
 	ath9k_ps_restore(sc);
 
 set_timer:
-	spin_unlock(&sc->ani_lock);
 	/*
 	* Set timer interval based on previous results.
 	* The interval must be the shortest necessary to satisfy ANI,
@@ -1610,7 +1601,6 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	spin_lock_init(&sc->wiphy_lock);
 	spin_lock_init(&sc->sc_resetlock);
 	spin_lock_init(&sc->sc_serial_rw);
-	spin_lock_init(&sc->ani_lock);
 	spin_lock_init(&sc->sc_pm_lock);
 	mutex_init(&sc->mutex);
 	tasklet_init(&sc->intr_tq, ath9k_tasklet, (unsigned long)sc);
@@ -3113,6 +3103,7 @@ static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 {
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
 	mutex_lock(&sc->mutex);
 	if (ath9k_wiphy_scanning(sc)) {
@@ -3128,10 +3119,8 @@ static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 
 	aphy->state = ATH_WIPHY_SCAN;
 	ath9k_wiphy_pause_all_forced(sc, aphy);
-
-	spin_lock_bh(&sc->ani_lock);
 	sc->sc_flags |= SC_OP_SCANNING;
-	spin_unlock_bh(&sc->ani_lock);
+	del_timer_sync(&common->ani.timer);
 	mutex_unlock(&sc->mutex);
 }
 
@@ -3139,13 +3128,13 @@ static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 {
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
 	mutex_lock(&sc->mutex);
-	spin_lock_bh(&sc->ani_lock);
 	aphy->state = ATH_WIPHY_ACTIVE;
 	sc->sc_flags &= ~SC_OP_SCANNING;
 	sc->sc_flags |= SC_OP_FULL_RESET;
-	spin_unlock_bh(&sc->ani_lock);
+	ath_start_ani(common);
 	ath_beacon_config(sc, NULL);
 	mutex_unlock(&sc->mutex);
 }
