@@ -191,15 +191,7 @@ static void scif_sercon_init(char *s)
  * Setup a default console, if more than one is compiled in, rely on the
  * earlyprintk= parsing to give priority.
  */
-static struct console *early_console =
-#ifdef CONFIG_SH_STANDARD_BIOS
-	&bios_console
-#elif defined(CONFIG_EARLY_SCIF_CONSOLE)
-	&scif_console
-#else
-	NULL
-#endif
-	;
+static struct console *early_console;
 
 static int __init setup_early_printk(char *buf)
 {
