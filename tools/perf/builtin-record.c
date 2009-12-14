@@ -421,10 +421,19 @@ static int __cmd_record(int argc, const char **argv)
 	signal(SIGINT, sig_handler);
 
 	if (!stat(output_name, &st) && st.st_size) {
-		if (!force && !append_file) {
-			fprintf(stderr, "Error, output file %s exists, use -A to append or -f to overwrite.\n",
-					output_name);
-			exit(-1);
+		if (!force) {
+			if (!append_file) {
+				pr_err("Error, output file %s exists, use -A "
+				       "to append or -f to overwrite.\n",
+				       output_name);
+				exit(-1);
+			}
+		} else {
+			char oldname[PATH_MAX];
+			snprintf(oldname, sizeof(oldname), "%s.old",
+				 output_name);
+			unlink(oldname);
+			rename(output_name, oldname);
 		}
 	} else {
 		append_file = 0;
