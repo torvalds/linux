@@ -1695,6 +1695,7 @@ int bitmap_create(mddev_t *mddev)
 	mddev->bitmap = bitmap;
 
 	mddev->thread->timeout = mddev->bitmap_info.daemon_sleep;
+	md_wakeup_thread(mddev->thread);
 
 	bitmap_update_sb(bitmap);
 

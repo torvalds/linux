@@ -2275,13 +2275,6 @@ static void raid10_quiesce(mddev_t *mddev, int state)
 		lower_barrier(conf);
 		break;
 	}
-	if (mddev->thread) {
-		if (mddev->bitmap)
-			mddev->thread->timeout = mddev->bitmap_info.daemon_sleep;
-		else
-			mddev->thread->timeout = MAX_SCHEDULE_TIMEOUT;
-		md_wakeup_thread(mddev->thread);
-	}
 }
 
 static struct mdk_personality raid10_personality =
