@@ -1655,7 +1655,7 @@ static int process_lost_event(event_t *event __used,
 	return 0;
 }
 
-static int sample_type_check(u64 type)
+static int sample_type_check(u64 type, struct perf_session *session __used)
 {
 	sample_type = type;
 

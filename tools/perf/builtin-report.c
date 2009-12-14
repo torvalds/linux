@@ -38,6 +38,7 @@ static char		*dso_list_str, *comm_list_str, *sym_list_str,
 static struct strlist	*dso_list, *comm_list, *sym_list;
 
 static int		force;
+static bool		use_callchain;
 
 static int		show_nr_samples;
 
@@ -312,8 +313,9 @@ hist_entry_callchain__fprintf(FILE *fp, struct hist_entry *self,
 	return ret;
 }
 
-static size_t
-hist_entry__fprintf(FILE *fp, struct hist_entry *self, u64 total_samples)
+static size_t hist_entry__fprintf(FILE *fp, struct hist_entry *self,
+				  struct perf_session *session,
+				  u64 total_samples)
 {
 	struct sort_entry *se;
 	size_t ret;
@@ -345,7 +347,7 @@ hist_entry__fprintf(FILE *fp, struct hist_entry *self, u64 total_samples)
 
 	ret += fprintf(fp, "\n");
 
-	if (callchain) {
+	if (session->use_callchain) {
 		int left_margin = 0;
 
 		if (sort__first_dimension == SORT_COMM) {
@@ -422,7 +424,7 @@ static struct symbol **resolve_callchain(struct thread *thread,
 	struct symbol **syms = NULL;
 	unsigned int i;
 
-	if (callchain) {
+	if (session->use_callchain) {
 		syms = calloc(chain->nr, sizeof(*syms));
 		if (!syms) {
 			fprintf(stderr, "Can't allocate memory for symbols\n");
@@ -454,7 +456,7 @@ static struct symbol **resolve_callchain(struct thread *thread,
 			if (sort__has_parent && !*parent &&
 			    call__match(al.sym))
 				*parent = al.sym;
-			if (!callchain)
+			if (!session->use_callchain)
 				break;
 			syms[i] = al.sym;
 		}
@@ -467,25 +469,25 @@ static struct symbol **resolve_callchain(struct thread *thread,
  * collect histogram counts
  */
 
-static int hist_entry__add(struct addr_location *al,
-			   struct perf_session *session,
-			   struct ip_callchain *chain, u64 count)
+static int perf_session__add_hist_entry(struct perf_session *self,
+					struct addr_location *al,
+					struct ip_callchain *chain, u64 count)
 {
 	struct symbol **syms = NULL, *parent = NULL;
 	bool hit;
 	struct hist_entry *he;
 
-	if ((sort__has_parent || callchain) && chain)
-		syms = resolve_callchain(al->thread, session, chain, &parent);
+	if ((sort__has_parent || self->use_callchain) && chain)
+		syms = resolve_callchain(al->thread, self, chain, &parent);
 
-	he = __hist_entry__add(al, parent, count, &hit);
+	he = __perf_session__add_hist_entry(self, al, parent, count, &hit);
 	if (he == NULL)
 		return -ENOMEM;
 
 	if (hit)
 		he->count += count;
 
-	if (callchain) {
+	if (self->use_callchain) {
 		if (!hit)
 			callchain_init(&he->callchain);
 		append_chain(&he->callchain, chain, syms);
@@ -495,7 +497,8 @@ static int hist_entry__add(struct addr_location *al,
 	return 0;
 }
 
-static size_t output__fprintf(FILE *fp, u64 total_samples)
+static size_t perf_session__fprintf_hist_entries(struct perf_session *self,
+						 u64 total_samples, FILE *fp)
 {
 	struct hist_entry *pos;
 	struct sort_entry *se;
@@ -567,9 +570,9 @@ static size_t output__fprintf(FILE *fp, u64 total_samples)
 	fprintf(fp, "#\n");
 
 print_entries:
-	for (nd = rb_first(&hist); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&self->hists); nd; nd = rb_next(nd)) {
 		pos = rb_entry(nd, struct hist_entry, rb_node);
-		ret += hist_entry__fprintf(fp, pos, total_samples);
+		ret += hist_entry__fprintf(fp, pos, self, total_samples);
 	}
 
 	if (sort_order == default_sort_order &&
@@ -671,7 +674,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	if (sym_list && al.sym && !strlist__has_entry(sym_list, al.sym->name))
 		return 0;
 
-	if (hist_entry__add(&al, session, data.callchain, data.period)) {
+	if (perf_session__add_hist_entry(session, &al, data.callchain, data.period)) {
 		pr_debug("problem incrementing symbol count, skipping event\n");
 		return -1;
 	}
@@ -719,7 +722,7 @@ static int process_read_event(event_t *event, struct perf_session *session __use
 	return 0;
 }
 
-static int sample_type_check(u64 type)
+static int sample_type_check(u64 type, struct perf_session *session)
 {
 	sample_type = type;
 
@@ -730,14 +733,14 @@ static int sample_type_check(u64 type)
 					" perf record without -g?\n");
 			return -1;
 		}
-		if (callchain) {
+		if (session->use_callchain) {
 			fprintf(stderr, "selected -g but no callchain data."
 					" Did you call perf record without"
 					" -g?\n");
 			return -1;
 		}
-	} else if (callchain_param.mode != CHAIN_NONE && !callchain) {
-			callchain = 1;
+	} else if (callchain_param.mode != CHAIN_NONE && !session->use_callchain) {
+			session->use_callchain = true;
 			if (register_callchain_param(&callchain_param) < 0) {
 				fprintf(stderr, "Can't register callchain"
 						" params\n");
@@ -769,6 +772,8 @@ static int __cmd_report(void)
 	if (session == NULL)
 		return -ENOMEM;
 
+	session->use_callchain = use_callchain;
+
 	if (show_threads)
 		perf_read_values_init(&show_threads_values);
 
@@ -787,9 +792,9 @@ static int __cmd_report(void)
 	if (verbose > 2)
 		dsos__fprintf(stdout);
 
-	collapse__resort();
-	output__resort(event__stats.total);
-	output__fprintf(stdout, event__stats.total);
+	perf_session__collapse_resort(session);
+	perf_session__output_resort(session, event__stats.total);
+	perf_session__fprintf_hist_entries(session, event__stats.total, stdout);
 
 	if (show_threads)
 		perf_read_values_destroy(&show_threads_values);
@@ -805,7 +810,7 @@ parse_callchain_opt(const struct option *opt __used, const char *arg,
 	char *tok;
 	char *endptr;
 
-	callchain = 1;
+	use_callchain = true;
 
 	if (!arg)
 		return 0;
@@ -826,7 +831,7 @@ parse_callchain_opt(const struct option *opt __used, const char *arg,
 
 	else if (!strncmp(tok, "none", strlen(arg))) {
 		callchain_param.mode = CHAIN_NONE;
-		callchain = 0;
+		use_callchain = true;
 
 		return 0;
 	}

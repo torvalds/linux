@@ -344,7 +344,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	return 0;
 }
 
-static int sample_type_check(u64 type)
+static int sample_type_check(u64 type, struct perf_session *session __used)
 {
 	sample_type = type;
 

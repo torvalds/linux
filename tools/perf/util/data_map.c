@@ -161,7 +161,7 @@ int perf_session__process_events(struct perf_session *self,
 
 	err = -EINVAL;
 	if (ops->sample_type_check &&
-	    ops->sample_type_check(sample_type) < 0)
+	    ops->sample_type_check(sample_type, self) < 0)
 		goto out_err;
 
 	if (!ops->full_paths) {

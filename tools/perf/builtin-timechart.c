@@ -1033,7 +1033,7 @@ static void process_samples(void)
 	}
 }
 
-static int sample_type_check(u64 type)
+static int sample_type_check(u64 type, struct perf_session *session __used)
 {
 	sample_type = type;
 

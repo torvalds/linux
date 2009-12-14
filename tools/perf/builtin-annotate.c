@@ -121,10 +121,12 @@ static void hist_hit(struct hist_entry *he, u64 ip)
 			h->ip[offset]);
 }
 
-static int hist_entry__add(struct addr_location *al, u64 count)
+static int perf_session__add_hist_entry(struct perf_session *self,
+					struct addr_location *al, u64 count)
 {
 	bool hit;
-	struct hist_entry *he = __hist_entry__add(al, NULL, count, &hit);
+	struct hist_entry *he = __perf_session__add_hist_entry(self, al, NULL,
+							       count, &hit);
 	if (he == NULL)
 		return -ENOMEM;
 	hist_hit(he, al->addr);
@@ -144,7 +146,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 		return -1;
 	}
 
-	if (hist_entry__add(&al, 1)) {
+	if (perf_session__add_hist_entry(session, &al, 1)) {
 		fprintf(stderr, "problem incrementing symbol count, "
 				"skipping event\n");
 		return -1;
@@ -428,11 +430,11 @@ static void annotate_sym(struct hist_entry *he)
 		free_source_line(he, len);
 }
 
-static void find_annotations(void)
+static void perf_session__find_annotations(struct perf_session *self)
 {
 	struct rb_node *nd;
 
-	for (nd = rb_first(&hist); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&self->hists); nd; nd = rb_next(nd)) {
 		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
 		struct sym_priv *priv;
 
@@ -484,10 +486,9 @@ static int __cmd_annotate(void)
 	if (verbose > 2)
 		dsos__fprintf(stdout);
 
-	collapse__resort();
-	output__resort(event__total[0]);
-
-	find_annotations();
+	perf_session__collapse_resort(session);
+	perf_session__output_resort(session, event__total[0]);
+	perf_session__find_annotations(session);
 out_delete:
 	perf_session__delete(session);
 
