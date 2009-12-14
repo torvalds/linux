@@ -2318,7 +2318,7 @@ static struct i2c_driver dme1737_i2c_driver = {
 	.remove = dme1737_i2c_remove,
 	.id_table = dme1737_id,
 	.detect = dme1737_i2c_detect,
-	.address_data = &addr_data,
+	.address_list = normal_i2c,
 };
 
 /* ---------------------------------------------------------------------

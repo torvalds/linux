@@ -162,7 +162,7 @@ static struct i2c_driver gl518_driver = {
 	.remove		= gl518_remove,
 	.id_table	= gl518_id,
 	.detect		= gl518_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*

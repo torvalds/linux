@@ -355,7 +355,7 @@ static struct i2c_driver w83791d_driver = {
 	.remove		= w83791d_remove,
 	.id_table	= w83791d_id,
 	.detect		= w83791d_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /* following are the sysfs callback functions */

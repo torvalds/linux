@@ -173,7 +173,7 @@ static struct i2c_driver lm78_driver = {
 	.remove		= lm78_i2c_remove,
 	.id_table	= lm78_i2c_id,
 	.detect		= lm78_i2c_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static struct platform_driver lm78_isa_driver = {

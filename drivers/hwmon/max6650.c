@@ -141,7 +141,7 @@ static struct i2c_driver max6650_driver = {
 	.remove		= max6650_remove,
 	.id_table	= max6650_id,
 	.detect		= max6650_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*

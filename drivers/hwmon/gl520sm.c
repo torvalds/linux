@@ -104,7 +104,7 @@ static struct i2c_driver gl520_driver = {
 	.remove		= gl520_remove,
 	.id_table	= gl520_id,
 	.detect		= gl520_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /* Client data */

@@ -1214,13 +1214,13 @@ static int i2c_detect_address(struct i2c_client *temp_client,
 
 static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 {
-	const struct i2c_client_address_data *address_data;
+	const unsigned short *address_list;
 	struct i2c_client *temp_client;
 	int i, err = 0;
 	int adap_id = i2c_adapter_id(adapter);
 
-	address_data = driver->address_data;
-	if (!driver->detect || !address_data)
+	address_list = driver->address_list;
+	if (!driver->detect || !address_list)
 		return 0;
 
 	/* Set up a temporary client to help detect callback */
@@ -1235,7 +1235,7 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 
 	/* Stop here if we can't use SMBUS_QUICK */
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_QUICK)) {
-		if (address_data->normal_i2c[0] == I2C_CLIENT_END)
+		if (address_list[0] == I2C_CLIENT_END)
 			goto exit_free;
 
 		dev_warn(&adapter->dev, "SMBus Quick command not supported, "
@@ -1244,11 +1244,10 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 		goto exit_free;
 	}
 
-	for (i = 0; address_data->normal_i2c[i] != I2C_CLIENT_END; i += 1) {
+	for (i = 0; address_list[i] != I2C_CLIENT_END; i += 1) {
 		dev_dbg(&adapter->dev, "found normal entry for adapter %d, "
-			"addr 0x%02x\n", adap_id,
-			address_data->normal_i2c[i]);
-		temp_client->addr = address_data->normal_i2c[i];
+			"addr 0x%02x\n", adap_id, address_list[i]);
+		temp_client->addr = address_list[i];
 		err = i2c_detect_address(temp_client, driver);
 		if (err)
 			goto exit_free;

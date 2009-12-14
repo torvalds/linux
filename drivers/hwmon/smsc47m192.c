@@ -135,7 +135,7 @@ static struct i2c_driver smsc47m192_driver = {
 	.remove		= smsc47m192_remove,
 	.id_table	= smsc47m192_id,
 	.detect		= smsc47m192_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /* Voltages */

@@ -182,7 +182,7 @@ static struct i2c_driver lm73_driver = {
 	.remove		= lm73_remove,
 	.id_table	= lm73_ids,
 	.detect		= lm73_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /* module glue */

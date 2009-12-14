@@ -460,7 +460,7 @@ static struct i2c_driver lm95241_driver = {
 	.remove		= lm95241_remove,
 	.id_table	= lm95241_id,
 	.detect		= lm95241_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static int __init sensors_lm95241_init(void)

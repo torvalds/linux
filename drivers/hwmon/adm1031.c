@@ -125,7 +125,7 @@ static struct i2c_driver adm1031_driver = {
 	.remove		= adm1031_remove,
 	.id_table	= adm1031_id,
 	.detect		= adm1031_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static inline u8 adm1031_read_value(struct i2c_client *client, u8 reg)

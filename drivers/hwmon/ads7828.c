@@ -183,7 +183,7 @@ static struct i2c_driver ads7828_driver = {
 	.remove = ads7828_remove,
 	.id_table = ads7828_id,
 	.detect = ads7828_detect,
-	.address_data = &addr_data,
+	.address_list = normal_i2c,
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */

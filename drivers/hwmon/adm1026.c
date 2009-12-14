@@ -319,7 +319,7 @@ static struct i2c_driver adm1026_driver = {
 	.remove		= adm1026_remove,
 	.id_table	= adm1026_id,
 	.detect		= adm1026_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static int adm1026_read_value(struct i2c_client *client, u8 reg)

@@ -113,7 +113,7 @@ static struct i2c_driver max1619_driver = {
 	.remove		= max1619_remove,
 	.id_table	= max1619_id,
 	.detect		= max1619_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*

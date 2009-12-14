@@ -125,7 +125,7 @@ static struct i2c_driver ics932s401_driver = {
 	.remove		= ics932s401_remove,
 	.id_table	= ics932s401_id,
 	.detect		= ics932s401_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static struct ics932s401_data *ics932s401_update_device(struct device *dev)

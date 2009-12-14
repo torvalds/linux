@@ -130,7 +130,7 @@ static struct i2c_driver adm1021_driver = {
 	.remove		= adm1021_remove,
 	.id_table	= adm1021_id,
 	.detect		= adm1021_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static ssize_t show_temp(struct device *dev,

@@ -168,7 +168,7 @@ static struct i2c_driver w83l786ng_driver = {
 	.remove		= w83l786ng_remove,
 	.id_table	= w83l786ng_id,
 	.detect		= w83l786ng_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static u8

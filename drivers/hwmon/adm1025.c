@@ -137,7 +137,7 @@ static struct i2c_driver adm1025_driver = {
 	.remove		= adm1025_remove,
 	.id_table	= adm1025_id,
 	.detect		= adm1025_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*

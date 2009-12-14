@@ -108,7 +108,7 @@ static struct i2c_driver thmc50_driver = {
 	.remove = thmc50_remove,
 	.id_table = thmc50_id,
 	.detect = thmc50_detect,
-	.address_data = &addr_data,
+	.address_list = normal_i2c,
 };
 
 static ssize_t show_analog_out(struct device *dev,

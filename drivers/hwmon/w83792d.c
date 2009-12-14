@@ -328,7 +328,7 @@ static struct i2c_driver w83792d_driver = {
 	.remove		= w83792d_remove,
 	.id_table	= w83792d_id,
 	.detect		= w83792d_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static inline long in_count_from_reg(int nr, struct w83792d_data *data)

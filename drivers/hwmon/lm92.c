@@ -416,7 +416,7 @@ static struct i2c_driver lm92_driver = {
 	.remove		= lm92_remove,
 	.id_table	= lm92_id,
 	.detect		= lm92_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static int __init sensors_lm92_init(void)

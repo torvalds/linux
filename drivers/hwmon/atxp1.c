@@ -67,7 +67,7 @@ static struct i2c_driver atxp1_driver = {
 	.remove		= atxp1_remove,
 	.id_table	= atxp1_id,
 	.detect		= atxp1_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 struct atxp1_data {

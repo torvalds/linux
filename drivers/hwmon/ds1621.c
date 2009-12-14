@@ -321,7 +321,7 @@ static struct i2c_driver ds1621_driver = {
 	.remove		= ds1621_remove,
 	.id_table	= ds1621_id,
 	.detect		= ds1621_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static int __init ds1621_init(void)

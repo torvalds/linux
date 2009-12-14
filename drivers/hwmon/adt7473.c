@@ -184,7 +184,7 @@ static struct i2c_driver adt7473_driver = {
 	.remove		= adt7473_remove,
 	.id_table	= adt7473_id,
 	.detect		= adt7473_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*

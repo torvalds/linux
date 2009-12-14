@@ -322,7 +322,7 @@ static struct i2c_driver tmp421_driver = {
 	.remove = tmp421_remove,
 	.id_table = tmp421_id,
 	.detect = tmp421_detect,
-	.address_data = &addr_data,
+	.address_list = normal_i2c,
 };
 
 static int __init tmp421_init(void)

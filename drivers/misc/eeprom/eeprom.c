@@ -232,7 +232,7 @@ static struct i2c_driver eeprom_driver = {
 
 	.class		= I2C_CLASS_DDC | I2C_CLASS_SPD,
 	.detect		= eeprom_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static int __init eeprom_init(void)

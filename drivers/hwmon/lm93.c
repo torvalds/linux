@@ -2616,7 +2616,7 @@ static struct i2c_driver lm93_driver = {
 	.remove		= lm93_remove,
 	.id_table	= lm93_id,
 	.detect		= lm93_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static int __init lm93_init(void)

@@ -230,7 +230,7 @@ static struct i2c_driver asb100_driver = {
 	.remove		= asb100_remove,
 	.id_table	= asb100_id,
 	.detect		= asb100_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /* 7 Voltages */

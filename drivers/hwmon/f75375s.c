@@ -135,7 +135,7 @@ static struct i2c_driver f75375_driver = {
 	.remove = f75375_remove,
 	.id_table = f75375_id,
 	.detect = f75375_detect,
-	.address_data = &addr_data,
+	.address_list = normal_i2c,
 };
 
 static inline int f75375_read8(struct i2c_client *client, u8 reg)

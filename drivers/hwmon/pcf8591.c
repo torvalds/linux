@@ -299,7 +299,7 @@ static struct i2c_driver pcf8591_driver = {
 
 	.class		= I2C_CLASS_HWMON,	/* Nearest choice */
 	.detect		= pcf8591_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static int __init pcf8591_init(void)

@@ -356,7 +356,7 @@ static struct i2c_driver lm85_driver = {
 	.remove		= lm85_remove,
 	.id_table	= lm85_id,
 	.detect		= lm85_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 

@@ -1412,7 +1412,7 @@ static struct i2c_driver adt7475_driver = {
 	.remove		= adt7475_remove,
 	.id_table	= adt7475_id,
 	.detect		= adt7475_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static void adt7475_read_hystersis(struct i2c_client *client)
