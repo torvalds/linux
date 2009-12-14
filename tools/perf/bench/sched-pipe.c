@@ -100,7 +100,8 @@ int bench_sched_pipe(int argc, const char **argv,
 		result_usec += diff.tv_usec;
 
 		printf(" %14s: %lu.%03lu [sec]\n\n", "Total time",
-		       diff.tv_sec, diff.tv_usec/1000);
+		       diff.tv_sec,
+		       (unsigned long) (diff.tv_usec/1000));
 
 		printf(" %14lf usecs/op\n",
 		       (double)result_usec / (double)loops);
@@ -111,7 +112,8 @@ int bench_sched_pipe(int argc, const char **argv,
 
 	case BENCH_FORMAT_SIMPLE:
 		printf("%lu.%03lu\n",
-		       diff.tv_sec, diff.tv_usec / 1000);
+		       diff.tv_sec,
+		       (unsigned long) (diff.tv_usec / 1000));
 		break;
 
 	default:
