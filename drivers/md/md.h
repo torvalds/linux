@@ -282,11 +282,13 @@ struct mddev_s
 	struct bitmap                   *bitmap; /* the bitmap for the device */
 	struct {
 		struct file		*file; /* the bitmap file */
-		long			offset; /* offset from superblock of
+		loff_t			offset; /* offset from superblock of
 						 * start of bitmap. May be
 						 * negative, but not '0'
+						 * For external metadata, offset
+						 * from start of device. 
 						 */
-		long			default_offset; /* this is the offset to use when
+		loff_t			default_offset; /* this is the offset to use when
 							 * hot-adding a bitmap.  It should
 							 * eventually be settable by sysfs.
 							 */

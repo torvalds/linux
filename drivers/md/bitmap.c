@@ -212,7 +212,7 @@ static void bitmap_checkfree(struct bitmap *bitmap, unsigned long page)
  */
 
 /* IO operations when bitmap is stored near all superblocks */
-static struct page *read_sb_page(mddev_t *mddev, long offset,
+static struct page *read_sb_page(mddev_t *mddev, loff_t offset,
 				 struct page *page,
 				 unsigned long index, int size)
 {
@@ -287,14 +287,22 @@ static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 
 	while ((rdev = next_active_rdev(rdev, mddev)) != NULL) {
 			int size = PAGE_SIZE;
-			long offset = mddev->bitmap_info.offset;
+			loff_t offset = mddev->bitmap_info.offset;
 			if (page->index == bitmap->file_pages-1)
 				size = roundup(bitmap->last_page_size,
 					       bdev_logical_block_size(rdev->bdev));
 			/* Just make sure we aren't corrupting data or
 			 * metadata
 			 */
-			if (offset < 0) {
+			if (mddev->external) {
+				/* Bitmap could be anywhere. */
+				if (rdev->sb_start + offset + (page->index *(PAGE_SIZE/512)) >
+				    rdev->data_offset &&
+				    rdev->sb_start + offset < 
+				    rdev->data_offset + mddev->dev_sectors +
+				    (PAGE_SIZE/512))
+					goto bad_alignment;
+			} else if (offset < 0) {
 				/* DATA  BITMAP METADATA  */
 				if (offset
 				    + (long)(page->index * (PAGE_SIZE/512))
