@@ -849,7 +849,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 	int i, ret;
 
 	mem->mm_node = NULL;
-	for (i = 0; i <= placement->num_placement; ++i) {
+	for (i = 0; i < placement->num_placement; ++i) {
 		ret = ttm_mem_type_from_flags(placement->placement[i],
 						&mem_type);
 		if (ret)
@@ -900,8 +900,8 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 	if (!type_found)
 		return -EINVAL;
 
-	for (i = 0; i <= placement->num_busy_placement; ++i) {
-		ret = ttm_mem_type_from_flags(placement->placement[i],
+	for (i = 0; i < placement->num_busy_placement; ++i) {
+		ret = ttm_mem_type_from_flags(placement->busy_placement[i],
 						&mem_type);
 		if (ret)
 			return ret;
@@ -911,7 +911,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		if (!ttm_bo_mt_compatible(man,
 						bo->type == ttm_bo_type_user,
 						mem_type,
-						placement->placement[i],
+						placement->busy_placement[i],
 						&cur_flags))
 			continue;
 
@@ -921,7 +921,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		 * Use the access and other non-mapping-related flag bits from
 		 * the memory placement flags to the current flags
 		 */
-		ttm_flag_masked(&cur_flags, placement->placement[i],
+		ttm_flag_masked(&cur_flags, placement->busy_placement[i],
 				~TTM_PL_MASK_MEMTYPE);
 
 		ret = ttm_bo_mem_force_space(bo, mem_type, placement, mem,
