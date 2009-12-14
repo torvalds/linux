@@ -286,8 +286,7 @@ void list_common_cmds_help(void)
 
 	puts(" The most commonly used perf commands are:");
 	for (i = 0; i < ARRAY_SIZE(common_cmds); i++) {
-		printf("   %s   ", common_cmds[i].name);
-		mput_char(' ', longest - strlen(common_cmds[i].name));
+		printf("   %-*s   ", longest, common_cmds[i].name);
 		puts(common_cmds[i].help);
 	}
 }
