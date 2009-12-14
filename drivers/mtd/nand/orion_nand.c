@@ -74,6 +74,7 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	struct mtd_info *mtd;
 	struct nand_chip *nc;
 	struct orion_nand_data *board;
+	struct resource *res;
 	void __iomem *io_base;
 	int ret = 0;
 #ifdef CONFIG_MTD_PARTITIONS
@@ -89,8 +90,13 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	}
 	mtd = (struct mtd_info *)(nc + 1);
 
-	io_base = ioremap(pdev->resource[0].start,
-			pdev->resource[0].end - pdev->resource[0].start + 1);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		err = -ENODEV;
+		goto no_res;
+	}
+
+	io_base = ioremap(res->start, resource_size(res));
 	if (!io_base) {
 		printk(KERN_ERR "orion_nand: ioremap failed\n");
 		ret = -EIO;
