@@ -1432,6 +1432,43 @@ static void recovery_request_write(mddev_t *mddev, r10bio_t *r10_bio)
 
 
 /*
+ * Used by fix_read_error() to decay the per rdev read_errors.
+ * We halve the read error count for every hour that has elapsed
+ * since the last recorded read error.
+ *
+ */
+static void check_decay_read_errors(mddev_t *mddev, mdk_rdev_t *rdev)
+{
+	struct timespec cur_time_mon;
+	unsigned long hours_since_last;
+	unsigned int read_errors = atomic_read(&rdev->read_errors);
+
+	ktime_get_ts(&cur_time_mon);
+
+	if (rdev->last_read_error.tv_sec == 0 &&
+	    rdev->last_read_error.tv_nsec == 0) {
+		/* first time we've seen a read error */
+		rdev->last_read_error = cur_time_mon;
+		return;
+	}
+
+	hours_since_last = (cur_time_mon.tv_sec -
+			    rdev->last_read_error.tv_sec) / 3600;
+
+	rdev->last_read_error = cur_time_mon;
+
+	/*
+	 * if hours_since_last is > the number of bits in read_errors
+	 * just set read errors to 0. We do this to avoid
+	 * overflowing the shift of read_errors by hours_since_last.
+	 */
+	if (hours_since_last >= 8 * sizeof(read_errors))
+		atomic_set(&rdev->read_errors, 0);
+	else
+		atomic_set(&rdev->read_errors, read_errors >> hours_since_last);
+}
+
+/*
  * This is a kernel thread which:
  *
  *	1.	Retries failed read operations on working mirrors.
@@ -1444,6 +1481,43 @@ static void fix_read_error(conf_t *conf, mddev_t *mddev, r10bio_t *r10_bio)
 	int sect = 0; /* Offset from r10_bio->sector */
 	int sectors = r10_bio->sectors;
 	mdk_rdev_t*rdev;
+	int max_read_errors = atomic_read(&mddev->max_corr_read_errors);
+
+	rcu_read_lock();
+	{
+		int d = r10_bio->devs[r10_bio->read_slot].devnum;
+		char b[BDEVNAME_SIZE];
+		int cur_read_error_count = 0;
+
+		rdev = rcu_dereference(conf->mirrors[d].rdev);
+		bdevname(rdev->bdev, b);
+
+		if (test_bit(Faulty, &rdev->flags)) {
+			rcu_read_unlock();
+			/* drive has already been failed, just ignore any
+			   more fix_read_error() attempts */
+			return;
+		}
+
+		check_decay_read_errors(mddev, rdev);
+		atomic_inc(&rdev->read_errors);
+		cur_read_error_count = atomic_read(&rdev->read_errors);
+		if (cur_read_error_count > max_read_errors) {
+			rcu_read_unlock();
+			printk(KERN_NOTICE
+			       "raid10: %s: Raid device exceeded "
+			       "read_error threshold "
+			       "[cur %d:max %d]\n",
+			       b, cur_read_error_count, max_read_errors);
+			printk(KERN_NOTICE
+			       "raid10: %s: Failing raid "
+			       "device\n", b);
+			md_error(mddev, conf->mirrors[d].rdev);
+			return;
+		}
+	}
+	rcu_read_unlock();
+
 	while(sectors) {
 		int s = sectors;
 		int sl = r10_bio->read_slot;

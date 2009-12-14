@@ -68,6 +68,12 @@ static DECLARE_WAIT_QUEUE_HEAD(resync_wait);
 #define MD_BUG(x...) { printk("md: bug in file %s, line %d\n", __FILE__, __LINE__); md_print_devices(); }
 
 /*
+ * Default number of read corrections we'll attempt on an rdev
+ * before ejecting it from the array. We divide the read error
+ * count by 2 for every hour elapsed between read errors.
+ */
+#define MD_DEFAULT_MAX_CORRECTED_READ_ERRORS 20
+/*
  * Current RAID-1,4,5 parallel reconstruction 'guaranteed speed limit'
  * is 1000 KB/sec, so the extra system load does not show up that much.
  * Increase it if you want to have more _guaranteed_ speed. Note that
@@ -2653,6 +2659,8 @@ static mdk_rdev_t *md_import_device(dev_t newdev, int super_format, int super_mi
 	rdev->flags = 0;
 	rdev->data_offset = 0;
 	rdev->sb_events = 0;
+	rdev->last_read_error.tv_sec  = 0;
+	rdev->last_read_error.tv_nsec = 0;
 	atomic_set(&rdev->nr_pending, 0);
 	atomic_set(&rdev->read_errors, 0);
 	atomic_set(&rdev->corrected_errors, 0);
@@ -3290,6 +3298,29 @@ static struct md_sysfs_entry md_array_state =
 __ATTR(array_state, S_IRUGO|S_IWUSR, array_state_show, array_state_store);
 
 static ssize_t
+max_corrected_read_errors_show(mddev_t *mddev, char *page) {
+	return sprintf(page, "%d\n",
+		       atomic_read(&mddev->max_corr_read_errors));
+}
+
+static ssize_t
+max_corrected_read_errors_store(mddev_t *mddev, const char *buf, size_t len)
+{
+	char *e;
+	unsigned long n = simple_strtoul(buf, &e, 10);
+
+	if (*buf && (*e == 0 || *e == '\n')) {
+		atomic_set(&mddev->max_corr_read_errors, n);
+		return len;
+	}
+	return -EINVAL;
+}
+
+static struct md_sysfs_entry max_corr_read_errors =
+__ATTR(max_read_errors, S_IRUGO|S_IWUSR, max_corrected_read_errors_show,
+	max_corrected_read_errors_store);
+
+static ssize_t
 null_show(mddev_t *mddev, char *page)
 {
 	return -EINVAL;
@@ -3914,6 +3945,7 @@ static struct attribute *md_default_attrs[] = {
 	&md_array_state.attr,
 	&md_reshape_position.attr,
 	&md_array_size.attr,
+	&max_corr_read_errors.attr,
 	NULL,
 };
 
@@ -4333,6 +4365,8 @@ static int do_md_run(mddev_t * mddev)
 		mddev->ro = 0;
 
  	atomic_set(&mddev->writes_pending,0);
+	atomic_set(&mddev->max_corr_read_errors,
+		   MD_DEFAULT_MAX_CORRECTED_READ_ERRORS);
 	mddev->safemode = 0;
 	mddev->safemode_timer.function = md_safemode_timeout;
 	mddev->safemode_timer.data = (unsigned long) mddev;

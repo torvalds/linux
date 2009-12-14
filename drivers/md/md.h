@@ -97,6 +97,9 @@ struct mdk_rdev_s
 	atomic_t	read_errors;	/* number of consecutive read errors that
 					 * we have tried to ignore.
 					 */
+	struct timespec last_read_error;	/* monotonic time since our
+						 * last read error
+						 */
 	atomic_t	corrected_errors; /* number of corrected read errors,
 					   * for reporting to userspace and storing
 					   * in superblock.
@@ -299,6 +302,7 @@ struct mddev_s
 		int			external;
 	} bitmap_info;
 
+	atomic_t 			max_corr_read_errors; /* max read retries */
 	struct list_head		all_mddevs;
 
 	/* Generic barrier handling.
