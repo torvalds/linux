@@ -296,6 +296,7 @@ struct mddev_s
 		unsigned long		chunksize;
 		unsigned long		daemon_sleep; /* how many seconds between updates? */
 		unsigned long		max_write_behind; /* write-behind mode */
+		int			external;
 	} bitmap_info;
 
 	struct list_head		all_mddevs;

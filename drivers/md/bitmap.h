@@ -118,16 +118,6 @@ typedef __u16 bitmap_counter_t;
 			(CHUNK_BLOCK_SHIFT(bitmap) + PAGE_COUNTER_SHIFT - 1)
 #define PAGEPTR_BLOCK_MASK(bitmap) (PAGEPTR_BLOCK_RATIO(bitmap) - 1)
 
-/*
- * on-disk bitmap:
- *
- * Use one bit per "chunk" (block set). We do the disk I/O on the bitmap
- * file a page at a time. There's a superblock at the start of the file.
- */
-
-/* map chunks (bits) to file pages - offset by the size of the superblock */
-#define CHUNK_BIT_OFFSET(chunk) ((chunk) + (sizeof(bitmap_super_t) << 3))
-
 #endif
 
 /*
@@ -250,6 +240,7 @@ struct bitmap {
 	wait_queue_head_t write_wait;
 	wait_queue_head_t overflow_wait;
 
+	struct sysfs_dirent *sysfs_can_clear;
 };
 
 /* the bitmap API */

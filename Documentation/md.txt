@@ -322,6 +322,22 @@ All md devices contain:
      'backlog' sets a limit on the number of concurrent background
      writes.  If there are more than this, new writes will by
      synchronous.
+  bitmap/metadata
+     This can be either 'internal' or 'external'.
+     'internal' is the default and means the metadata for the bitmap
+     is stored in the first 256 bytes of the allocated space and is
+     managed by the md module.
+     'external' means that bitmap metadata is managed externally to
+     the kernel (i.e. by some userspace program)
+  bitmap/can_clear
+     This is either 'true' or 'false'.  If 'true', then bits in the
+     bitmap will be cleared when the corresponding blocks are thought
+     to be in-sync.  If 'false', bits will never be cleared.
+     This is automatically set to 'false' if a write happens on a
+     degraded array, or if the array becomes degraded during a write.
+     When metadata is managed externally, it should be set to true
+     once the array becomes non-degraded, and this fact has been
+     recorded in the metadata.
      
      
      
