@@ -558,8 +558,7 @@ static int dib0700_rc_query_legacy(struct dvb_usb_device *d, u32 *event,
 struct dib0700_rc_response {
 	u8 report_id;
 	u8 data_state;
-	u8 system_msb;
-	u8 system_lsb;
+	u16 system;
 	u8 data;
 	u8 not_data;
 };
@@ -589,37 +588,50 @@ static int dib0700_rc_query_v1_20(struct dvb_usb_device *d, u32 *event,
 		return 0;
 	}
 
-	if (actlen != sizeof(buf)) {
-		/* We didn't get back the 6 byte message we expected */
-		err("Unexpected RC response size [%d]", actlen);
-		return -1;
+
+	switch (dvb_usb_dib0700_ir_proto) {
+	case 0:
+		poll_reply.report_id  = 0;
+		poll_reply.data_state = 1;
+		poll_reply.system     = buf[2];
+		poll_reply.data       = buf[4];
+		poll_reply.not_data   = buf[5];
+
+		/* NEC protocol sends repeat code as 0 0 0 FF */
+		if ((poll_reply.system == 0x00) && (poll_reply.data == 0x00)
+		    && (poll_reply.not_data == 0xff)) {
+			poll_reply.data_state = 2;
+			break;
+		}
+		break;
+	default:
+		if (actlen != sizeof(buf)) {
+			/* We didn't get back the 6 byte message we expected */
+			err("Unexpected RC response size [%d]", actlen);
+			return -1;
+		}
+
+		poll_reply.report_id  = buf[0];
+		poll_reply.data_state = buf[1];
+		poll_reply.system     = (buf[2] << 8) | buf[3];
+		poll_reply.data       = buf[4];
+		poll_reply.not_data   = buf[5];
+
+		break;
 	}
-
-	poll_reply.report_id  = buf[0];
-	poll_reply.data_state = buf[1];
-	poll_reply.system_msb = buf[2];
-	poll_reply.system_lsb = buf[3];
-	poll_reply.data       = buf[4];
-	poll_reply.not_data   = buf[5];
-
-	/*
-	info("rid=%02x ds=%02x sm=%02x sl=%02x d=%02x nd=%02x\n",
-	     poll_reply.report_id, poll_reply.data_state,
-	     poll_reply.system_msb, poll_reply.system_lsb,
-	     poll_reply.data, poll_reply.not_data);
-	*/
 
 	if ((poll_reply.data + poll_reply.not_data) != 0xff) {
 		/* Key failed integrity check */
-		err("key failed integrity check: %02x %02x %02x %02x",
-		    poll_reply.system_msb, poll_reply.system_lsb,
+		err("key failed integrity check: %04x %02x %02x",
+		    poll_reply.system,
 		    poll_reply.data, poll_reply.not_data);
 		return -1;
 	}
 
+
 	/* Find the key in the map */
 	for (i = 0; i < d->props.rc_key_map_size; i++) {
-		if (rc5_custom(&keymap[i]) == poll_reply.system_lsb &&
+		if (rc5_custom(&keymap[i]) == (poll_reply.system & 0xff) &&
 		    rc5_data(&keymap[i]) == poll_reply.data) {
 			*event = keymap[i].event;
 			found = 1;
@@ -628,8 +640,8 @@ static int dib0700_rc_query_v1_20(struct dvb_usb_device *d, u32 *event,
 	}
 
 	if (found == 0) {
-		err("Unknown remote controller key: %02x %02x %02x %02x",
-		    poll_reply.system_msb, poll_reply.system_lsb,
+		err("Unknown remote controller key: %04x %02x %02x",
+		    poll_reply.system,
 		    poll_reply.data, poll_reply.not_data);
 		d->last_event = 0;
 		return 0;
@@ -874,6 +886,49 @@ static struct dvb_usb_rc_key dib0700_rc_keys[] = {
 	{ 0x1d37, KEY_RECORD },
 	{ 0x1d3b, KEY_GOTO },
 	{ 0x1d3d, KEY_POWER },
+
+	/* Key codes for the Pixelview SBTVD remote (proto NEC) */
+	{ 0x8613, KEY_MUTE },
+	{ 0x8612, KEY_POWER },
+	{ 0x8601, KEY_1 },
+	{ 0x8602, KEY_2 },
+	{ 0x8603, KEY_3 },
+	{ 0x8604, KEY_4 },
+	{ 0x8605, KEY_5 },
+	{ 0x8606, KEY_6 },
+	{ 0x8607, KEY_7 },
+	{ 0x8608, KEY_8 },
+	{ 0x8609, KEY_9 },
+	{ 0x8600, KEY_0 },
+	{ 0x860d, KEY_CHANNELUP },
+	{ 0x8619, KEY_CHANNELDOWN },
+	{ 0x8610, KEY_VOLUMEUP },
+	{ 0x860c, KEY_VOLUMEDOWN },
+
+	{ 0x860a, KEY_CAMERA },
+	{ 0x860b, KEY_ZOOM },
+	{ 0x861b, KEY_BACKSPACE },
+	{ 0x8615, KEY_ENTER },
+
+	{ 0x861d, KEY_UP },
+	{ 0x861e, KEY_DOWN },
+	{ 0x860e, KEY_LEFT },
+	{ 0x860f, KEY_RIGHT },
+
+	{ 0x8618, KEY_RECORD },
+	{ 0x861a, KEY_STOP },
+
+	/* Key codes for the EvolutePC TVWay+ remote (proto NEC) */
+	{ 0x7a00, KEY_MENU },
+	{ 0x7a01, KEY_RECORD },
+	{ 0x7a02, KEY_PLAY },
+	{ 0x7a03, KEY_STOP },
+	{ 0x7a10, KEY_CHANNELUP },
+	{ 0x7a11, KEY_CHANNELDOWN },
+	{ 0x7a12, KEY_VOLUMEUP },
+	{ 0x7a13, KEY_VOLUMEDOWN },
+	{ 0x7a40, KEY_POWER },
+	{ 0x7a41, KEY_MUTE },
 };
 
 /* STK7700P: Hauppauge Nova-T Stick, AVerMedia Volar */
@@ -1133,6 +1188,7 @@ static struct dib0070_config dib7770p_dib0070_config = {
 	 .clock_khz = 12000,
 	 .clock_pad_drive = 0,
 	 .flip_chip = 1,
+	 .charge_pump = 2,
 };
 
 static int dib7070_set_param_override(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
@@ -1207,6 +1263,16 @@ static int dib7070p_tuner_attach(struct dvb_usb_adapter *adap)
 	st->set_param_save = adap->fe->ops.tuner_ops.set_params;
 	adap->fe->ops.tuner_ops.set_params = dib7070_set_param_override;
 	return 0;
+}
+
+static int stk70x0p_pid_filter(struct dvb_usb_adapter *adapter, int index, u16 pid, int onoff)
+{
+    return dib7000p_pid_filter(adapter->fe, index, pid, onoff);
+}
+
+static int stk70x0p_pid_filter_ctrl(struct dvb_usb_adapter *adapter, int onoff)
+{
+    return dib7000p_pid_filter_ctrl(adapter->fe, onoff);
 }
 
 static struct dibx000_bandwidth_config dib7070_bw_config_12_mhz = {
@@ -1500,6 +1566,15 @@ static int dib807x_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
+static int stk807x_pid_filter(struct dvb_usb_adapter *adapter, int index, u16 pid, int onoff)
+{
+    return dib8000_pid_filter(adapter->fe, index, pid, onoff);
+}
+
+static int stk807x_pid_filter_ctrl(struct dvb_usb_adapter *adapter, int onoff)
+{
+    return dib8000_pid_filter_ctrl(adapter->fe, onoff);
+}
 
 /* STK807x */
 static int stk807x_frontend_attach(struct dvb_usb_adapter *adap)
@@ -1861,6 +1936,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK807XPVR) },
 	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK807XP) },
 	{ USB_DEVICE(USB_VID_PIXELVIEW, USB_PID_PIXELVIEW_SBTVD) },
+	{ USB_DEVICE(USB_VID_EVOLUTEPC, USB_PID_TVWAY_PLUS) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -1895,6 +1971,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_adapters = 1,
 		.adapter = {
 			{
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
 				.frontend_attach  = stk7700p_frontend_attach,
 				.tuner_attach     = stk7700p_tuner_attach,
 
@@ -1976,11 +2056,19 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_adapters = 2,
 		.adapter = {
 			{
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
 				.frontend_attach  = stk7700d_frontend_attach,
 				.tuner_attach     = stk7700d_tuner_attach,
 
 				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
 			}, {
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
 				.frontend_attach  = stk7700d_frontend_attach,
 				.tuner_attach     = stk7700d_tuner_attach,
 
@@ -2023,6 +2111,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_adapters = 1,
 		.adapter = {
 			{
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
 				.frontend_attach  = stk7700P2_frontend_attach,
 				.tuner_attach     = stk7700d_tuner_attach,
 
@@ -2055,6 +2147,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_adapters = 1,
 		.adapter = {
 			{
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
 				.frontend_attach  = stk7070p_frontend_attach,
 				.tuner_attach     = dib7070p_tuner_attach,
 
@@ -2122,6 +2218,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_adapters = 1,
 		.adapter = {
 			{
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
 				.frontend_attach  = stk7070p_frontend_attach,
 				.tuner_attach     = dib7070p_tuner_attach,
 
@@ -2157,6 +2257,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_adapters = 2,
 		.adapter = {
 			{
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
 				.frontend_attach  = stk7070pd_frontend_attach0,
 				.tuner_attach     = dib7070p_tuner_attach,
 
@@ -2164,6 +2268,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 
 				.size_of_priv     = sizeof(struct dib0700_adapter_state),
 			}, {
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
 				.frontend_attach  = stk7070pd_frontend_attach1,
 				.tuner_attach     = dib7070p_tuner_attach,
 
@@ -2210,6 +2318,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_adapters = 1,
 		.adapter = {
 			{
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
 				.frontend_attach  = stk7700ph_frontend_attach,
 				.tuner_attach     = stk7700ph_tuner_attach,
 
@@ -2322,6 +2434,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_adapters = 1,
 		.adapter = {
 			{
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
 				.frontend_attach  = stk7070p_frontend_attach,
 				.tuner_attach     = dib7770p_tuner_attach,
 
@@ -2353,6 +2469,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_adapters = 1,
 		.adapter = {
 			{
+				.caps  = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter = stk807x_pid_filter,
+				.pid_filter_ctrl = stk807x_pid_filter_ctrl,
 				.frontend_attach  = stk807x_frontend_attach,
 				.tuner_attach     = dib807x_tuner_attach,
 
@@ -2363,7 +2483,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 2,
+		.num_device_descs = 3,
 		.devices = {
 			{   "DiBcom STK807xP reference design",
 				{ &dib0700_usb_id_table[62], NULL },
@@ -2371,6 +2491,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "Prolink Pixelview SBTVD",
 				{ &dib0700_usb_id_table[63], NULL },
+				{ NULL },
+			},
+			{   "EvolutePC TVWay+",
+				{ &dib0700_usb_id_table[64], NULL },
 				{ NULL },
 			},
 		},
@@ -2384,6 +2508,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_adapters = 2,
 		.adapter = {
 			{
+				.caps  = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter = stk807x_pid_filter,
+				.pid_filter_ctrl = stk807x_pid_filter_ctrl,
 				.frontend_attach  = stk807xpvr_frontend_attach0,
 				.tuner_attach     = dib807x_tuner_attach,
 
@@ -2393,6 +2521,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 					sizeof(struct dib0700_adapter_state),
 			},
 			{
+				.caps  = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter = stk807x_pid_filter,
+				.pid_filter_ctrl = stk807x_pid_filter_ctrl,
 				.frontend_attach  = stk807xpvr_frontend_attach1,
 				.tuner_attach     = dib807x_tuner_attach,
 

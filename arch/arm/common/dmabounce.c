@@ -342,6 +342,22 @@ dma_addr_t dma_map_single(struct device *dev, void *ptr, size_t size,
 }
 EXPORT_SYMBOL(dma_map_single);
 
+/*
+ * see if a mapped address was really a "safe" buffer and if so, copy
+ * the data from the safe buffer back to the unsafe buffer and free up
+ * the safe buffer.  (basically return things back to the way they
+ * should be)
+ */
+void dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
+		enum dma_data_direction dir)
+{
+	dev_dbg(dev, "%s(ptr=%p,size=%d,dir=%x)\n",
+		__func__, (void *) dma_addr, size, dir);
+
+	unmap_single(dev, dma_addr, size, dir);
+}
+EXPORT_SYMBOL(dma_unmap_single);
+
 dma_addr_t dma_map_page(struct device *dev, struct page *page,
 		unsigned long offset, size_t size, enum dma_data_direction dir)
 {
@@ -366,8 +382,7 @@ EXPORT_SYMBOL(dma_map_page);
  * the safe buffer.  (basically return things back to the way they
  * should be)
  */
-
-void dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
+void dma_unmap_page(struct device *dev, dma_addr_t dma_addr, size_t size,
 		enum dma_data_direction dir)
 {
 	dev_dbg(dev, "%s(ptr=%p,size=%d,dir=%x)\n",
@@ -375,7 +390,7 @@ void dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 
 	unmap_single(dev, dma_addr, size, dir);
 }
-EXPORT_SYMBOL(dma_unmap_single);
+EXPORT_SYMBOL(dma_unmap_page);
 
 int dmabounce_sync_for_cpu(struct device *dev, dma_addr_t addr,
 		unsigned long off, size_t sz, enum dma_data_direction dir)

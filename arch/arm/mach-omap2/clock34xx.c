@@ -27,13 +27,13 @@
 #include <linux/limits.h>
 #include <linux/bitops.h>
 
-#include <mach/cpu.h>
-#include <mach/clock.h>
-#include <mach/sram.h>
+#include <plat/cpu.h>
+#include <plat/clock.h>
+#include <plat/sram.h>
 #include <asm/div64.h>
 #include <asm/clkdev.h>
 
-#include <mach/sdrc.h>
+#include <plat/sdrc.h>
 #include "clock.h"
 #include "prm.h"
 #include "prm-regbits-34xx.h"
@@ -119,7 +119,7 @@ static struct omap_clk omap34xx_clks[] = {
 	CLK(NULL,	"dpll3_m2x2_ck", &dpll3_m2x2_ck, CK_343X),
 	CLK(NULL,	"dpll3_m3_ck",	&dpll3_m3_ck,	CK_343X),
 	CLK(NULL,	"dpll3_m3x2_ck", &dpll3_m3x2_ck, CK_343X),
-	CLK(NULL,	"emu_core_alwon_ck", &emu_core_alwon_ck, CK_343X),
+	CLK("etb",	"emu_core_alwon_ck", &emu_core_alwon_ck, CK_343X),
 	CLK(NULL,	"dpll4_ck",	&dpll4_ck,	CK_343X),
 	CLK(NULL,	"dpll4_x2_ck",	&dpll4_x2_ck,	CK_343X),
 	CLK(NULL,	"omap_96m_alwon_fck", &omap_96m_alwon_fck, CK_343X),
@@ -138,7 +138,7 @@ static struct omap_clk omap34xx_clks[] = {
 	CLK(NULL,	"dpll4_m5x2_ck", &dpll4_m5x2_ck, CK_343X),
 	CLK(NULL,	"dpll4_m6_ck",	&dpll4_m6_ck,	CK_343X),
 	CLK(NULL,	"dpll4_m6x2_ck", &dpll4_m6x2_ck, CK_343X),
-	CLK(NULL,	"emu_per_alwon_ck", &emu_per_alwon_ck, CK_343X),
+	CLK("etb",	"emu_per_alwon_ck", &emu_per_alwon_ck, CK_343X),
 	CLK(NULL,	"dpll5_ck",	&dpll5_ck,	CK_3430ES2),
 	CLK(NULL,	"dpll5_m2_ck",	&dpll5_m2_ck,	CK_3430ES2),
 	CLK(NULL,	"clkout2_src_ck", &clkout2_src_ck, CK_343X),
@@ -147,7 +147,7 @@ static struct omap_clk omap34xx_clks[] = {
 	CLK(NULL,	"dpll1_fck",	&dpll1_fck,	CK_343X),
 	CLK(NULL,	"mpu_ck",	&mpu_ck,	CK_343X),
 	CLK(NULL,	"arm_fck",	&arm_fck,	CK_343X),
-	CLK(NULL,	"emu_mpu_alwon_ck", &emu_mpu_alwon_ck, CK_343X),
+	CLK("etb",	"emu_mpu_alwon_ck", &emu_mpu_alwon_ck, CK_343X),
 	CLK(NULL,	"dpll2_fck",	&dpll2_fck,	CK_343X),
 	CLK(NULL,	"iva2_ck",	&iva2_ck,	CK_343X),
 	CLK(NULL,	"l3_ick",	&l3_ick,	CK_343X),
@@ -302,7 +302,7 @@ static struct omap_clk omap34xx_clks[] = {
 	CLK("omap-mcbsp.2", "fck",	&mcbsp2_fck,	CK_343X),
 	CLK("omap-mcbsp.3", "fck",	&mcbsp3_fck,	CK_343X),
 	CLK("omap-mcbsp.4", "fck",	&mcbsp4_fck,	CK_343X),
-	CLK(NULL,	"emu_src_ck",	&emu_src_ck,	CK_343X),
+	CLK("etb",	"emu_src_ck",	&emu_src_ck,	CK_343X),
 	CLK(NULL,	"pclk_fck",	&pclk_fck,	CK_343X),
 	CLK(NULL,	"pclkx2_fck",	&pclkx2_fck,	CK_343X),
 	CLK(NULL,	"atclk_fck",	&atclk_fck,	CK_343X),

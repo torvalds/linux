@@ -11,6 +11,7 @@
 
 #include "host.h"
 #include "decl.h"
+#include "cmd.h"
 #include "defs.h"
 #include "dev.h"
 #include "assoc.h"
@@ -26,23 +27,17 @@
  */
 void lbs_mac_event_disconnected(struct lbs_private *priv)
 {
-	union iwreq_data wrqu;
-
 	if (priv->connect_status != LBS_CONNECTED)
 		return;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
-	memset(wrqu.ap_addr.sa_data, 0x00, ETH_ALEN);
-	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-
 	/*
 	 * Cisco AP sends EAP failure and de-auth in less than 0.5 ms.
 	 * It causes problem in the Supplicant
 	 */
-
 	msleep_interruptible(1000);
-	wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
+	lbs_send_disconnect_notification(priv);
 
 	/* report disconnect to upper layer */
 	netif_stop_queue(priv->dev);
@@ -67,7 +62,7 @@ void lbs_mac_event_disconnected(struct lbs_private *priv)
 	 * no longer valid.
 	 */
 	memset(&priv->curbssparams.bssid, 0, ETH_ALEN);
-	memset(&priv->curbssparams.ssid, 0, IW_ESSID_MAX_SIZE);
+	memset(&priv->curbssparams.ssid, 0, IEEE80211_MAX_SSID_LEN);
 	priv->curbssparams.ssid_len = 0;
 
 	if (priv->psstate != PS_STATE_FULL_POWER) {
@@ -76,32 +71,6 @@ void lbs_mac_event_disconnected(struct lbs_private *priv)
 		lbs_ps_wakeup(priv, 0);
 	}
 	lbs_deb_leave(LBS_DEB_ASSOC);
-}
-
-/**
- *  @brief This function handles MIC failure event.
- *
- *  @param priv    A pointer to struct lbs_private structure
- *  @para  event   the event id
- *  @return 	   n/a
- */
-static void handle_mic_failureevent(struct lbs_private *priv, u32 event)
-{
-	char buf[50];
-
-	lbs_deb_enter(LBS_DEB_CMD);
-	memset(buf, 0, sizeof(buf));
-
-	sprintf(buf, "%s", "MLME-MICHAELMICFAILURE.indication ");
-
-	if (event == MACREG_INT_CODE_MIC_ERR_UNICAST) {
-		strcat(buf, "unicast ");
-	} else {
-		strcat(buf, "multicast ");
-	}
-
-	lbs_send_iwevcustom_event(priv, buf);
-	lbs_deb_leave(LBS_DEB_CMD);
 }
 
 static int lbs_ret_reg_access(struct lbs_private *priv,
@@ -147,53 +116,6 @@ static int lbs_ret_reg_access(struct lbs_private *priv,
 	return ret;
 }
 
-static int lbs_ret_802_11_rssi(struct lbs_private *priv,
-				struct cmd_ds_command *resp)
-{
-	struct cmd_ds_802_11_rssi_rsp *rssirsp = &resp->params.rssirsp;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	/* store the non average value */
-	priv->SNR[TYPE_BEACON][TYPE_NOAVG] = get_unaligned_le16(&rssirsp->SNR);
-	priv->NF[TYPE_BEACON][TYPE_NOAVG] = get_unaligned_le16(&rssirsp->noisefloor);
-
-	priv->SNR[TYPE_BEACON][TYPE_AVG] = get_unaligned_le16(&rssirsp->avgSNR);
-	priv->NF[TYPE_BEACON][TYPE_AVG] = get_unaligned_le16(&rssirsp->avgnoisefloor);
-
-	priv->RSSI[TYPE_BEACON][TYPE_NOAVG] =
-	    CAL_RSSI(priv->SNR[TYPE_BEACON][TYPE_NOAVG],
-		     priv->NF[TYPE_BEACON][TYPE_NOAVG]);
-
-	priv->RSSI[TYPE_BEACON][TYPE_AVG] =
-	    CAL_RSSI(priv->SNR[TYPE_BEACON][TYPE_AVG] / AVG_SCALE,
-		     priv->NF[TYPE_BEACON][TYPE_AVG] / AVG_SCALE);
-
-	lbs_deb_cmd("RSSI: beacon %d, avg %d\n",
-	       priv->RSSI[TYPE_BEACON][TYPE_NOAVG],
-	       priv->RSSI[TYPE_BEACON][TYPE_AVG]);
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-
-static int lbs_ret_802_11_bcn_ctrl(struct lbs_private * priv,
-					struct cmd_ds_command *resp)
-{
-	struct cmd_ds_802_11_beacon_control *bcn_ctrl =
-	    &resp->params.bcn_ctrl;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	if (bcn_ctrl->action == CMD_ACT_GET) {
-		priv->beacon_enable = (u8) le16_to_cpu(bcn_ctrl->beacon_enable);
-		priv->beacon_period = le16_to_cpu(bcn_ctrl->beacon_period);
-	}
-
-	lbs_deb_enter(LBS_DEB_CMD);
-	return 0;
-}
-
 static inline int handle_cmd_response(struct lbs_private *priv,
 				      struct cmd_header *cmd_response)
 {
@@ -227,29 +149,13 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 		ret = lbs_ret_802_11_rssi(priv, resp);
 		break;
 
-	case CMD_RET(CMD_802_11D_DOMAIN_INFO):
-		ret = lbs_ret_802_11d_domain_info(resp);
-		break;
-
 	case CMD_RET(CMD_802_11_TPC_CFG):
 		spin_lock_irqsave(&priv->driver_lock, flags);
 		memmove((void *)priv->cur_cmd->callback_arg, &resp->params.tpccfg,
 			sizeof(struct cmd_ds_802_11_tpc_cfg));
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		break;
-	case CMD_RET(CMD_802_11_LED_GPIO_CTRL):
-		spin_lock_irqsave(&priv->driver_lock, flags);
-		memmove((void *)priv->cur_cmd->callback_arg, &resp->params.ledgpio,
-			sizeof(struct cmd_ds_802_11_led_ctrl));
-		spin_unlock_irqrestore(&priv->driver_lock, flags);
-		break;
 
-	case CMD_RET(CMD_GET_TSF):
-		spin_lock_irqsave(&priv->driver_lock, flags);
-		memcpy((void *)priv->cur_cmd->callback_arg,
-		       &resp->params.gettsf.tsfvalue, sizeof(u64));
-		spin_unlock_irqrestore(&priv->driver_lock, flags);
-		break;
 	case CMD_RET(CMD_BT_ACCESS):
 		spin_lock_irqsave(&priv->driver_lock, flags);
 		if (priv->cur_cmd->callback_arg)
@@ -505,7 +411,19 @@ int lbs_process_event(struct lbs_private *priv, u32 event)
 
 	case MACREG_INT_CODE_HOST_AWAKE:
 		lbs_deb_cmd("EVENT: host awake\n");
+		if (priv->reset_deep_sleep_wakeup)
+			priv->reset_deep_sleep_wakeup(priv);
+		priv->is_deep_sleep = 0;
 		lbs_send_confirmwake(priv);
+		break;
+
+	case MACREG_INT_CODE_DEEP_SLEEP_AWAKE:
+		if (priv->reset_deep_sleep_wakeup)
+			priv->reset_deep_sleep_wakeup(priv);
+		lbs_deb_cmd("EVENT: ds awake\n");
+		priv->is_deep_sleep = 0;
+		priv->wakeup_dev_required = 0;
+		wake_up_interruptible(&priv->ds_awake_q);
 		break;
 
 	case MACREG_INT_CODE_PS_AWAKE:
@@ -533,12 +451,12 @@ int lbs_process_event(struct lbs_private *priv, u32 event)
 
 	case MACREG_INT_CODE_MIC_ERR_UNICAST:
 		lbs_deb_cmd("EVENT: UNICAST MIC ERROR\n");
-		handle_mic_failureevent(priv, MACREG_INT_CODE_MIC_ERR_UNICAST);
+		lbs_send_mic_failureevent(priv, event);
 		break;
 
 	case MACREG_INT_CODE_MIC_ERR_MULTICAST:
 		lbs_deb_cmd("EVENT: MULTICAST MIC ERROR\n");
-		handle_mic_failureevent(priv, MACREG_INT_CODE_MIC_ERR_MULTICAST);
+		lbs_send_mic_failureevent(priv, event);
 		break;
 
 	case MACREG_INT_CODE_MIB_CHANGED:

@@ -22,6 +22,8 @@
 #include <linux/seccomp.h>
 #include <linux/signal.h>
 #include <linux/workqueue.h>
+#include <linux/perf_event.h>
+#include <linux/hw_breakpoint.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -34,6 +36,7 @@
 #include <asm/prctl.h>
 #include <asm/proto.h>
 #include <asm/ds.h>
+#include <asm/hw_breakpoint.h>
 
 #include "tls.h"
 
@@ -48,6 +51,118 @@ enum x86_regset {
 	REGSET_TLS,
 	REGSET_IOPERM32,
 };
+
+struct pt_regs_offset {
+	const char *name;
+	int offset;
+};
+
+#define REG_OFFSET_NAME(r) {.name = #r, .offset = offsetof(struct pt_regs, r)}
+#define REG_OFFSET_END {.name = NULL, .offset = 0}
+
+static const struct pt_regs_offset regoffset_table[] = {
+#ifdef CONFIG_X86_64
+	REG_OFFSET_NAME(r15),
+	REG_OFFSET_NAME(r14),
+	REG_OFFSET_NAME(r13),
+	REG_OFFSET_NAME(r12),
+	REG_OFFSET_NAME(r11),
+	REG_OFFSET_NAME(r10),
+	REG_OFFSET_NAME(r9),
+	REG_OFFSET_NAME(r8),
+#endif
+	REG_OFFSET_NAME(bx),
+	REG_OFFSET_NAME(cx),
+	REG_OFFSET_NAME(dx),
+	REG_OFFSET_NAME(si),
+	REG_OFFSET_NAME(di),
+	REG_OFFSET_NAME(bp),
+	REG_OFFSET_NAME(ax),
+#ifdef CONFIG_X86_32
+	REG_OFFSET_NAME(ds),
+	REG_OFFSET_NAME(es),
+	REG_OFFSET_NAME(fs),
+	REG_OFFSET_NAME(gs),
+#endif
+	REG_OFFSET_NAME(orig_ax),
+	REG_OFFSET_NAME(ip),
+	REG_OFFSET_NAME(cs),
+	REG_OFFSET_NAME(flags),
+	REG_OFFSET_NAME(sp),
+	REG_OFFSET_NAME(ss),
+	REG_OFFSET_END,
+};
+
+/**
+ * regs_query_register_offset() - query register offset from its name
+ * @name:	the name of a register
+ *
+ * regs_query_register_offset() returns the offset of a register in struct
+ * pt_regs from its name. If the name is invalid, this returns -EINVAL;
+ */
+int regs_query_register_offset(const char *name)
+{
+	const struct pt_regs_offset *roff;
+	for (roff = regoffset_table; roff->name != NULL; roff++)
+		if (!strcmp(roff->name, name))
+			return roff->offset;
+	return -EINVAL;
+}
+
+/**
+ * regs_query_register_name() - query register name from its offset
+ * @offset:	the offset of a register in struct pt_regs.
+ *
+ * regs_query_register_name() returns the name of a register from its
+ * offset in struct pt_regs. If the @offset is invalid, this returns NULL;
+ */
+const char *regs_query_register_name(unsigned int offset)
+{
+	const struct pt_regs_offset *roff;
+	for (roff = regoffset_table; roff->name != NULL; roff++)
+		if (roff->offset == offset)
+			return roff->name;
+	return NULL;
+}
+
+static const int arg_offs_table[] = {
+#ifdef CONFIG_X86_32
+	[0] = offsetof(struct pt_regs, ax),
+	[1] = offsetof(struct pt_regs, dx),
+	[2] = offsetof(struct pt_regs, cx)
+#else /* CONFIG_X86_64 */
+	[0] = offsetof(struct pt_regs, di),
+	[1] = offsetof(struct pt_regs, si),
+	[2] = offsetof(struct pt_regs, dx),
+	[3] = offsetof(struct pt_regs, cx),
+	[4] = offsetof(struct pt_regs, r8),
+	[5] = offsetof(struct pt_regs, r9)
+#endif
+};
+
+/**
+ * regs_get_argument_nth() - get Nth argument at function call
+ * @regs:	pt_regs which contains registers at function entry.
+ * @n:		argument number.
+ *
+ * regs_get_argument_nth() returns @n th argument of a function call.
+ * Since usually the kernel stack will be changed right after function entry,
+ * you must use this at function entry. If the @n th entry is NOT in the
+ * kernel stack or pt_regs, this returns 0.
+ */
+unsigned long regs_get_argument_nth(struct pt_regs *regs, unsigned int n)
+{
+	if (n < ARRAY_SIZE(arg_offs_table))
+		return *(unsigned long *)((char *)regs + arg_offs_table[n]);
+	else {
+		/*
+		 * The typical case: arg n is on the stack.
+		 * (Note: stack[0] = return address, so skip it)
+		 */
+		n -= ARRAY_SIZE(arg_offs_table);
+		return regs_get_kernel_stack_nth(regs, 1 + n);
+	}
+}
 
 /*
  * does not yet catch signals sent when the child dies.
@@ -135,11 +250,6 @@ static int set_segment_reg(struct task_struct *task,
 	}
 
 	return 0;
-}
-
-static unsigned long debugreg_addr_limit(struct task_struct *task)
-{
-	return TASK_SIZE - 3;
 }
 
 #else  /* CONFIG_X86_64 */
@@ -264,15 +374,6 @@ static int set_segment_reg(struct task_struct *task,
 	}
 
 	return 0;
-}
-
-static unsigned long debugreg_addr_limit(struct task_struct *task)
-{
-#ifdef CONFIG_IA32_EMULATION
-	if (test_tsk_thread_flag(task, TIF_IA32))
-		return IA32_PAGE_OFFSET - 3;
-#endif
-	return TASK_SIZE_MAX - 7;
 }
 
 #endif	/* CONFIG_X86_32 */
@@ -454,96 +555,236 @@ static int genregs_set(struct task_struct *target,
 	return ret;
 }
 
-/*
- * This function is trivial and will be inlined by the compiler.
- * Having it separates the implementation details of debug
- * registers from the interface details of ptrace.
- */
-static unsigned long ptrace_get_debugreg(struct task_struct *child, int n)
+static void ptrace_triggered(struct perf_event *bp, void *data)
 {
-	switch (n) {
-	case 0:		return child->thread.debugreg0;
-	case 1:		return child->thread.debugreg1;
-	case 2:		return child->thread.debugreg2;
-	case 3:		return child->thread.debugreg3;
-	case 6:		return child->thread.debugreg6;
-	case 7:		return child->thread.debugreg7;
+	int i;
+	struct thread_struct *thread = &(current->thread);
+
+	/*
+	 * Store in the virtual DR6 register the fact that the breakpoint
+	 * was hit so the thread's debugger will see it.
+	 */
+	for (i = 0; i < HBP_NUM; i++) {
+		if (thread->ptrace_bps[i] == bp)
+			break;
 	}
+
+	thread->debugreg6 |= (DR_TRAP0 << i);
+}
+
+/*
+ * Walk through every ptrace breakpoints for this thread and
+ * build the dr7 value on top of their attributes.
+ *
+ */
+static unsigned long ptrace_get_dr7(struct perf_event *bp[])
+{
+	int i;
+	int dr7 = 0;
+	struct arch_hw_breakpoint *info;
+
+	for (i = 0; i < HBP_NUM; i++) {
+		if (bp[i] && !bp[i]->attr.disabled) {
+			info = counter_arch_bp(bp[i]);
+			dr7 |= encode_dr7(i, info->len, info->type);
+		}
+	}
+
+	return dr7;
+}
+
+static struct perf_event *
+ptrace_modify_breakpoint(struct perf_event *bp, int len, int type,
+			 struct task_struct *tsk, int disabled)
+{
+	int err;
+	int gen_len, gen_type;
+	DEFINE_BREAKPOINT_ATTR(attr);
+
+	/*
+	 * We shoud have at least an inactive breakpoint at this
+	 * slot. It means the user is writing dr7 without having
+	 * written the address register first
+	 */
+	if (!bp)
+		return ERR_PTR(-EINVAL);
+
+	err = arch_bp_generic_fields(len, type, &gen_len, &gen_type);
+	if (err)
+		return ERR_PTR(err);
+
+	attr = bp->attr;
+	attr.bp_len = gen_len;
+	attr.bp_type = gen_type;
+	attr.disabled = disabled;
+
+	return modify_user_hw_breakpoint(bp, &attr, bp->callback, tsk);
+}
+
+/*
+ * Handle ptrace writes to debug register 7.
+ */
+static int ptrace_write_dr7(struct task_struct *tsk, unsigned long data)
+{
+	struct thread_struct *thread = &(tsk->thread);
+	unsigned long old_dr7;
+	int i, orig_ret = 0, rc = 0;
+	int enabled, second_pass = 0;
+	unsigned len, type;
+	struct perf_event *bp;
+
+	data &= ~DR_CONTROL_RESERVED;
+	old_dr7 = ptrace_get_dr7(thread->ptrace_bps);
+restore:
+	/*
+	 * Loop through all the hardware breakpoints, making the
+	 * appropriate changes to each.
+	 */
+	for (i = 0; i < HBP_NUM; i++) {
+		enabled = decode_dr7(data, i, &len, &type);
+		bp = thread->ptrace_bps[i];
+
+		if (!enabled) {
+			if (bp) {
+				/*
+				 * Don't unregister the breakpoints right-away,
+				 * unless all register_user_hw_breakpoint()
+				 * requests have succeeded. This prevents
+				 * any window of opportunity for debug
+				 * register grabbing by other users.
+				 */
+				if (!second_pass)
+					continue;
+
+				thread->ptrace_bps[i] = NULL;
+				bp = ptrace_modify_breakpoint(bp, len, type,
+							      tsk, 1);
+				if (IS_ERR(bp)) {
+					rc = PTR_ERR(bp);
+					thread->ptrace_bps[i] = NULL;
+					break;
+				}
+				thread->ptrace_bps[i] = bp;
+			}
+			continue;
+		}
+
+		bp = ptrace_modify_breakpoint(bp, len, type, tsk, 0);
+
+		/* Incorrect bp, or we have a bug in bp API */
+		if (IS_ERR(bp)) {
+			rc = PTR_ERR(bp);
+			thread->ptrace_bps[i] = NULL;
+			break;
+		}
+		thread->ptrace_bps[i] = bp;
+	}
+	/*
+	 * Make a second pass to free the remaining unused breakpoints
+	 * or to restore the original breakpoints if an error occurred.
+	 */
+	if (!second_pass) {
+		second_pass = 1;
+		if (rc < 0) {
+			orig_ret = rc;
+			data = old_dr7;
+		}
+		goto restore;
+	}
+	return ((orig_ret < 0) ? orig_ret : rc);
+}
+
+/*
+ * Handle PTRACE_PEEKUSR calls for the debug register area.
+ */
+static unsigned long ptrace_get_debugreg(struct task_struct *tsk, int n)
+{
+	struct thread_struct *thread = &(tsk->thread);
+	unsigned long val = 0;
+
+	if (n < HBP_NUM) {
+		struct perf_event *bp;
+		bp = thread->ptrace_bps[n];
+		if (!bp)
+			return 0;
+		val = bp->hw.info.address;
+	} else if (n == 6) {
+		val = thread->debugreg6;
+	 } else if (n == 7) {
+		val = ptrace_get_dr7(thread->ptrace_bps);
+	}
+	return val;
+}
+
+static int ptrace_set_breakpoint_addr(struct task_struct *tsk, int nr,
+				      unsigned long addr)
+{
+	struct perf_event *bp;
+	struct thread_struct *t = &tsk->thread;
+	DEFINE_BREAKPOINT_ATTR(attr);
+
+	if (!t->ptrace_bps[nr]) {
+		/*
+		 * Put stub len and type to register (reserve) an inactive but
+		 * correct bp
+		 */
+		attr.bp_addr = addr;
+		attr.bp_len = HW_BREAKPOINT_LEN_1;
+		attr.bp_type = HW_BREAKPOINT_W;
+		attr.disabled = 1;
+
+		bp = register_user_hw_breakpoint(&attr, ptrace_triggered, tsk);
+	} else {
+		bp = t->ptrace_bps[nr];
+		t->ptrace_bps[nr] = NULL;
+
+		attr = bp->attr;
+		attr.bp_addr = addr;
+		bp = modify_user_hw_breakpoint(bp, &attr, bp->callback, tsk);
+	}
+	/*
+	 * CHECKME: the previous code returned -EIO if the addr wasn't a
+	 * valid task virtual addr. The new one will return -EINVAL in this
+	 * case.
+	 * -EINVAL may be what we want for in-kernel breakpoints users, but
+	 * -EIO looks better for ptrace, since we refuse a register writing
+	 * for the user. And anyway this is the previous behaviour.
+	 */
+	if (IS_ERR(bp))
+		return PTR_ERR(bp);
+
+	t->ptrace_bps[nr] = bp;
+
 	return 0;
 }
 
-static int ptrace_set_debugreg(struct task_struct *child,
-			       int n, unsigned long data)
+/*
+ * Handle PTRACE_POKEUSR calls for the debug register area.
+ */
+int ptrace_set_debugreg(struct task_struct *tsk, int n, unsigned long val)
 {
-	int i;
+	struct thread_struct *thread = &(tsk->thread);
+	int rc = 0;
 
-	if (unlikely(n == 4 || n == 5))
+	/* There are no DR4 or DR5 registers */
+	if (n == 4 || n == 5)
 		return -EIO;
 
-	if (n < 4 && unlikely(data >= debugreg_addr_limit(child)))
-		return -EIO;
-
-	switch (n) {
-	case 0:		child->thread.debugreg0 = data; break;
-	case 1:		child->thread.debugreg1 = data; break;
-	case 2:		child->thread.debugreg2 = data; break;
-	case 3:		child->thread.debugreg3 = data; break;
-
-	case 6:
-		if ((data & ~0xffffffffUL) != 0)
-			return -EIO;
-		child->thread.debugreg6 = data;
-		break;
-
-	case 7:
-		/*
-		 * Sanity-check data. Take one half-byte at once with
-		 * check = (val >> (16 + 4*i)) & 0xf. It contains the
-		 * R/Wi and LENi bits; bits 0 and 1 are R/Wi, and bits
-		 * 2 and 3 are LENi. Given a list of invalid values,
-		 * we do mask |= 1 << invalid_value, so that
-		 * (mask >> check) & 1 is a correct test for invalid
-		 * values.
-		 *
-		 * R/Wi contains the type of the breakpoint /
-		 * watchpoint, LENi contains the length of the watched
-		 * data in the watchpoint case.
-		 *
-		 * The invalid values are:
-		 * - LENi == 0x10 (undefined), so mask |= 0x0f00.	[32-bit]
-		 * - R/Wi == 0x10 (break on I/O reads or writes), so
-		 *   mask |= 0x4444.
-		 * - R/Wi == 0x00 && LENi != 0x00, so we have mask |=
-		 *   0x1110.
-		 *
-		 * Finally, mask = 0x0f00 | 0x4444 | 0x1110 == 0x5f54.
-		 *
-		 * See the Intel Manual "System Programming Guide",
-		 * 15.2.4
-		 *
-		 * Note that LENi == 0x10 is defined on x86_64 in long
-		 * mode (i.e. even for 32-bit userspace software, but
-		 * 64-bit kernel), so the x86_64 mask value is 0x5454.
-		 * See the AMD manual no. 24593 (AMD64 System Programming)
-		 */
-#ifdef CONFIG_X86_32
-#define	DR7_MASK	0x5f54
-#else
-#define	DR7_MASK	0x5554
-#endif
-		data &= ~DR_CONTROL_RESERVED;
-		for (i = 0; i < 4; i++)
-			if ((DR7_MASK >> ((data >> (16 + 4*i)) & 0xf)) & 1)
-				return -EIO;
-		child->thread.debugreg7 = data;
-		if (data)
-			set_tsk_thread_flag(child, TIF_DEBUG);
-		else
-			clear_tsk_thread_flag(child, TIF_DEBUG);
-		break;
+	if (n == 6) {
+		thread->debugreg6 = val;
+		goto ret_path;
 	}
+	if (n < HBP_NUM) {
+		rc = ptrace_set_breakpoint_addr(tsk, n, val);
+		if (rc)
+			return rc;
+	}
+	/* All that's left is DR7 */
+	if (n == 7)
+		rc = ptrace_write_dr7(tsk, val);
 
-	return 0;
+ret_path:
+	return rc;
 }
 
 /*

@@ -75,13 +75,31 @@ static inline unsigned long long neff_sign_extend(unsigned long val)
 #define USER_PTRS_PER_PGD	(TASK_SIZE/PGDIR_SIZE)
 #define FIRST_USER_ADDRESS	0
 
-#ifdef CONFIG_32BIT
-#define PHYS_ADDR_MASK		0xffffffff
+#define PHYS_ADDR_MASK29		0x1fffffff
+#define PHYS_ADDR_MASK32		0xffffffff
+
+#ifdef CONFIG_PMB
+static inline unsigned long phys_addr_mask(void)
+{
+	/* Is the MMU in 29bit mode? */
+	if (__in_29bit_mode())
+		return PHYS_ADDR_MASK29;
+
+	return PHYS_ADDR_MASK32;
+}
+#elif defined(CONFIG_32BIT)
+static inline unsigned long phys_addr_mask(void)
+{
+	return PHYS_ADDR_MASK32;
+}
 #else
-#define PHYS_ADDR_MASK		0x1fffffff
+static inline unsigned long phys_addr_mask(void)
+{
+	return PHYS_ADDR_MASK29;
+}
 #endif
 
-#define PTE_PHYS_MASK		(PHYS_ADDR_MASK & PAGE_MASK)
+#define PTE_PHYS_MASK		(phys_addr_mask() & PAGE_MASK)
 #define PTE_FLAGS_MASK		(~(PTE_PHYS_MASK) << PAGE_SHIFT)
 
 #ifdef CONFIG_SUPERH32

@@ -59,7 +59,7 @@ bfa_intx(struct bfa_s *bfa)
 	qintr = intr & __HFN_INT_RME_MASK;
 	bfa_reg_write(bfa->iocfc.bfa_regs.intr_status, qintr);
 
-	for (queue = 0; queue < BFI_IOC_MAX_CQS_ASIC; queue ++) {
+	for (queue = 0; queue < BFI_IOC_MAX_CQS_ASIC; queue++) {
 		if (intr & (__HFN_INT_RME_Q0 << queue))
 			bfa_msix_rspq(bfa, queue & (BFI_IOC_MAX_CQS - 1));
 	}

@@ -209,10 +209,10 @@ void t21142_lnk_change(struct net_device *dev, int csr5)
 			printk(KERN_DEBUG "%s:  Setting CSR6 %8.8x/%x CSR12 %8.8x.\n",
 				   dev->name, tp->csr6, ioread32(ioaddr + CSR6),
 				   ioread32(ioaddr + CSR12));
-	} else if ((tp->nwayset  &&  (csr5 & 0x08000000)
-				&& (dev->if_port == 3  ||  dev->if_port == 5)
-				&& (csr12 & 2) == 2) ||
-			   (tp->nway && (csr5 & (TPLnkFail)))) {
+	} else if ((tp->nwayset  &&  (csr5 & 0x08000000) &&
+		    (dev->if_port == 3  ||  dev->if_port == 5) &&
+		    (csr12 & 2) == 2) ||
+		   (tp->nway && (csr5 & (TPLnkFail)))) {
 		/* Link blew? Maybe restart NWay. */
 		del_timer_sync(&tp->timer);
 		t21142_start_nway(dev);

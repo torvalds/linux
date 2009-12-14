@@ -71,12 +71,7 @@ static inline void early_get_smp_config(void)
 
 static inline void find_smp_config(void)
 {
-	x86_init.mpparse.find_smp_config(1);
-}
-
-static inline void early_find_smp_config(void)
-{
-	x86_init.mpparse.find_smp_config(0);
+	x86_init.mpparse.find_smp_config();
 }
 
 #ifdef CONFIG_X86_MPPARSE
@@ -89,7 +84,7 @@ extern void default_mpc_oem_bus_info(struct mpc_bus *m, char *str);
 # else
 #  define default_mpc_oem_bus_info NULL
 # endif
-extern void default_find_smp_config(unsigned int reserve);
+extern void default_find_smp_config(void);
 extern void default_get_smp_config(unsigned int early);
 #else
 static inline void early_reserve_e820_mpc_new(void) { }
@@ -97,7 +92,7 @@ static inline void early_reserve_e820_mpc_new(void) { }
 #define default_mpc_apic_id NULL
 #define default_smp_read_mpc_oem NULL
 #define default_mpc_oem_bus_info NULL
-#define default_find_smp_config x86_init_uint_noop
+#define default_find_smp_config x86_init_noop
 #define default_get_smp_config x86_init_uint_noop
 #endif
 
@@ -163,14 +158,16 @@ typedef struct physid_mask physid_mask_t;
 #define physids_shift_left(d, s, n)				\
 	bitmap_shift_left((d).mask, (s).mask, n, MAX_APICS)
 
-#define physids_coerce(map)			((map).mask[0])
+static inline unsigned long physids_coerce(physid_mask_t *map)
+{
+	return map->mask[0];
+}
 
-#define physids_promote(physids)					\
-	({								\
-		physid_mask_t __physid_mask = PHYSID_MASK_NONE;		\
-		__physid_mask.mask[0] = physids;			\
-		__physid_mask;						\
-	})
+static inline void physids_promote(unsigned long physids, physid_mask_t *map)
+{
+	physids_clear(*map);
+	map->mask[0] = physids;
+}
 
 /* Note: will create very large stack frames if physid_mask_t is big */
 #define physid_mask_of_physid(physid)					\

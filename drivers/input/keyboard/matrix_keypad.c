@@ -213,8 +213,9 @@ static void matrix_keypad_stop(struct input_dev *dev)
 }
 
 #ifdef CONFIG_PM
-static int matrix_keypad_suspend(struct platform_device *pdev, pm_message_t state)
+static int matrix_keypad_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct matrix_keypad *keypad = platform_get_drvdata(pdev);
 	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
 	int i;
@@ -228,8 +229,9 @@ static int matrix_keypad_suspend(struct platform_device *pdev, pm_message_t stat
 	return 0;
 }
 
-static int matrix_keypad_resume(struct platform_device *pdev)
+static int matrix_keypad_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct matrix_keypad *keypad = platform_get_drvdata(pdev);
 	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
 	int i;
@@ -242,9 +244,9 @@ static int matrix_keypad_resume(struct platform_device *pdev)
 
 	return 0;
 }
-#else
-#define matrix_keypad_suspend	NULL
-#define matrix_keypad_resume	NULL
+
+static const SIMPLE_DEV_PM_OPS(matrix_keypad_pm_ops,
+				matrix_keypad_suspend, matrix_keypad_resume);
 #endif
 
 static int __devinit init_matrix_gpio(struct platform_device *pdev,
@@ -417,11 +419,12 @@ static int __devexit matrix_keypad_remove(struct platform_device *pdev)
 static struct platform_driver matrix_keypad_driver = {
 	.probe		= matrix_keypad_probe,
 	.remove		= __devexit_p(matrix_keypad_remove),
-	.suspend	= matrix_keypad_suspend,
-	.resume		= matrix_keypad_resume,
 	.driver		= {
 		.name	= "matrix-keypad",
 		.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm	= &matrix_keypad_pm_ops,
+#endif
 	},
 };
 

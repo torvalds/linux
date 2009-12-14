@@ -215,12 +215,35 @@ static const struct iwl_txpwr_section enhinfo[] = {
 
 int iwlcore_eeprom_verify_signature(struct iwl_priv *priv)
 {
-	u32 gp = iwl_read32(priv, CSR_EEPROM_GP);
-	if ((gp & CSR_EEPROM_GP_VALID_MSK) == CSR_EEPROM_GP_BAD_SIGNATURE) {
-		IWL_ERR(priv, "EEPROM not found, EEPROM_GP=0x%08x\n", gp);
-		return -ENOENT;
+	u32 gp = iwl_read32(priv, CSR_EEPROM_GP) & CSR_EEPROM_GP_VALID_MSK;
+	int ret = 0;
+
+	IWL_DEBUG_INFO(priv, "EEPROM signature=0x%08x\n", gp);
+	switch (gp) {
+	case CSR_EEPROM_GP_BAD_SIG_EEP_GOOD_SIG_OTP:
+		if (priv->nvm_device_type != NVM_DEVICE_TYPE_OTP) {
+			IWL_ERR(priv, "EEPROM with bad signature: 0x%08x\n",
+				gp);
+			ret = -ENOENT;
+		}
+		break;
+	case CSR_EEPROM_GP_GOOD_SIG_EEP_LESS_THAN_4K:
+	case CSR_EEPROM_GP_GOOD_SIG_EEP_MORE_THAN_4K:
+		if (priv->nvm_device_type != NVM_DEVICE_TYPE_EEPROM) {
+			IWL_ERR(priv, "OTP with bad signature: 0x%08x\n", gp);
+			ret = -ENOENT;
+		}
+		break;
+	case CSR_EEPROM_GP_BAD_SIGNATURE_BOTH_EEP_AND_OTP:
+	default:
+		IWL_ERR(priv, "bad EEPROM/OTP signature, type=%s, "
+			"EEPROM_GP=0x%08x\n",
+			(priv->nvm_device_type == NVM_DEVICE_TYPE_OTP)
+			? "OTP" : "EEPROM", gp);
+		ret = -ENOENT;
+		break;
 	}
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(iwlcore_eeprom_verify_signature);
 
@@ -283,7 +306,8 @@ int iwlcore_eeprom_acquire_semaphore(struct iwl_priv *priv)
 			    CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
 
 		/* See if we got it */
-		ret = iwl_poll_direct_bit(priv, CSR_HW_IF_CONFIG_REG,
+		ret = iwl_poll_bit(priv, CSR_HW_IF_CONFIG_REG,
+				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
 				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
 				EEPROM_SEM_TIMEOUT);
 		if (ret >= 0) {
@@ -322,7 +346,8 @@ static int iwl_init_otp_access(struct iwl_priv *priv)
 		     CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
 	/* wait for clock to be ready */
-	ret = iwl_poll_direct_bit(priv, CSR_GP_CNTRL,
+	ret = iwl_poll_bit(priv, CSR_GP_CNTRL,
+				  CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 				  CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 				  25000);
 	if (ret < 0)
@@ -333,6 +358,14 @@ static int iwl_init_otp_access(struct iwl_priv *priv)
 		udelay(5);
 		iwl_clear_bits_prph(priv, APMG_PS_CTRL_REG,
 				    APMG_PS_CTRL_VAL_RESET_REQ);
+
+		/*
+		 * CSR auto clock gate disable bit -
+		 * this is only applicable for HW with OTP shadow RAM
+		 */
+		if (priv->cfg->shadow_ram_support)
+			iwl_set_bit(priv, CSR_DBG_LINK_PWR_MGMT_REG,
+				CSR_RESET_LINK_PWR_MGMT_DISABLED);
 	}
 	return ret;
 }
@@ -345,7 +378,8 @@ static int iwl_read_otp_word(struct iwl_priv *priv, u16 addr, u16 *eeprom_data)
 
 	_iwl_write32(priv, CSR_EEPROM_REG,
 		     CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
-	ret = iwl_poll_direct_bit(priv, CSR_EEPROM_REG,
+	ret = iwl_poll_bit(priv, CSR_EEPROM_REG,
+				  CSR_EEPROM_REG_READ_VALID_MSK,
 				  CSR_EEPROM_REG_READ_VALID_MSK,
 				  IWL_EEPROM_ACCESS_TIMEOUT);
 	if (ret < 0) {
@@ -484,6 +518,11 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 	}
 	e = (u16 *)priv->eeprom;
 
+	if (priv->nvm_device_type == NVM_DEVICE_TYPE_OTP) {
+		/* OTP reads require powered-up chip */
+		priv->cfg->ops->lib->apm_ops.init(priv);
+	}
+
 	ret = priv->cfg->ops->lib->eeprom_ops.verify_signature(priv);
 	if (ret < 0) {
 		IWL_ERR(priv, "EEPROM not found, EEPROM_GP=0x%08x\n", gp);
@@ -498,7 +537,9 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 		ret = -ENOENT;
 		goto err;
 	}
+
 	if (priv->nvm_device_type == NVM_DEVICE_TYPE_OTP) {
+
 		ret = iwl_init_otp_access(priv);
 		if (ret) {
 			IWL_ERR(priv, "Failed to initialize OTP access.\n");
@@ -529,6 +570,13 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 			e[cache_addr / 2] = eeprom_data;
 			cache_addr += sizeof(u16);
 		}
+
+		/*
+		 * Now that OTP reads are complete, reset chip to save
+		 *   power until we load uCode during "up".
+		 */
+		priv->cfg->ops->lib->apm_ops.stop(priv);
+
 	} else {
 		/* eeprom is an array of 16bit values */
 		for (addr = 0; addr < sz; addr += sizeof(u16)) {
@@ -537,7 +585,8 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 			_iwl_write32(priv, CSR_EEPROM_REG,
 				     CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
 
-			ret = iwl_poll_direct_bit(priv, CSR_EEPROM_REG,
+			ret = iwl_poll_bit(priv, CSR_EEPROM_REG,
+						  CSR_EEPROM_REG_READ_VALID_MSK,
 						  CSR_EEPROM_REG_READ_VALID_MSK,
 						  IWL_EEPROM_ACCESS_TIMEOUT);
 			if (ret < 0) {
@@ -705,9 +754,6 @@ static int iwl_mod_ht40_chan_info(struct iwl_priv *priv,
 
 	ch_info->ht40_eeprom = *eeprom_ch;
 	ch_info->ht40_max_power_avg = eeprom_ch->max_power_avg;
-	ch_info->ht40_curr_txpow = eeprom_ch->max_power_avg;
-	ch_info->ht40_min_power = 0;
-	ch_info->ht40_scan_power = eeprom_ch->max_power_avg;
 	ch_info->ht40_flags = eeprom_ch->flags;
 	ch_info->ht40_extension_channel &= ~clear_ht40_extension_channel;
 
@@ -719,7 +765,8 @@ static int iwl_mod_ht40_chan_info(struct iwl_priv *priv,
  *     find the highest tx power from all chains for the channel
  */
 static s8 iwl_get_max_txpower_avg(struct iwl_priv *priv,
-		struct iwl_eeprom_enhanced_txpwr *enhanced_txpower, int element)
+		struct iwl_eeprom_enhanced_txpwr *enhanced_txpower,
+		int element, s8 *max_txpower_in_half_dbm)
 {
 	s8 max_txpower_avg = 0; /* (dBm) */
 
@@ -751,10 +798,14 @@ static s8 iwl_get_max_txpower_avg(struct iwl_priv *priv,
 	    (enhanced_txpower[element].mimo3_max > max_txpower_avg))
 		max_txpower_avg = enhanced_txpower[element].mimo3_max;
 
-	/* max. tx power in EEPROM is in 1/2 dBm format
-	 * convert from 1/2 dBm to dBm
+	/*
+	 * max. tx power in EEPROM is in 1/2 dBm format
+	 * convert from 1/2 dBm to dBm (round-up convert)
+	 * but we also do not want to loss 1/2 dBm resolution which
+	 * will impact performance
 	 */
-	return max_txpower_avg >> 1;
+	*max_txpower_in_half_dbm = max_txpower_avg;
+	return (max_txpower_avg & 0x01) + (max_txpower_avg >> 1);
 }
 
 /**
@@ -763,7 +814,7 @@ static s8 iwl_get_max_txpower_avg(struct iwl_priv *priv,
  */
 static s8 iwl_update_common_txpower(struct iwl_priv *priv,
 		struct iwl_eeprom_enhanced_txpwr *enhanced_txpower,
-		int section, int element)
+		int section, int element, s8 *max_txpower_in_half_dbm)
 {
 	struct iwl_channel_info *ch_info;
 	int ch;
@@ -777,25 +828,25 @@ static s8 iwl_update_common_txpower(struct iwl_priv *priv,
 	if (element == EEPROM_TXPOWER_COMMON_HT40_INDEX)
 		is_ht40 = true;
 	max_txpower_avg =
-		iwl_get_max_txpower_avg(priv, enhanced_txpower, element);
+		iwl_get_max_txpower_avg(priv, enhanced_txpower,
+					element, max_txpower_in_half_dbm);
+
 	ch_info = priv->channel_info;
 
 	for (ch = 0; ch < priv->channel_count; ch++) {
 		/* find matching band and update tx power if needed */
 		if ((ch_info->band == enhinfo[section].band) &&
-		    (ch_info->max_power_avg < max_txpower_avg) && (!is_ht40)) {
+		    (ch_info->max_power_avg < max_txpower_avg) &&
+		    (!is_ht40)) {
 			/* Update regulatory-based run-time data */
 			ch_info->max_power_avg = ch_info->curr_txpow =
-			    max_txpower_avg;
+				max_txpower_avg;
 			ch_info->scan_power = max_txpower_avg;
 		}
 		if ((ch_info->band == enhinfo[section].band) && is_ht40 &&
-		    ch_info->ht40_max_power_avg &&
 		    (ch_info->ht40_max_power_avg < max_txpower_avg)) {
 			/* Update regulatory-based run-time data */
 			ch_info->ht40_max_power_avg = max_txpower_avg;
-			ch_info->ht40_curr_txpow = max_txpower_avg;
-			ch_info->ht40_scan_power = max_txpower_avg;
 		}
 		ch_info++;
 	}
@@ -808,7 +859,7 @@ static s8 iwl_update_common_txpower(struct iwl_priv *priv,
  */
 static s8 iwl_update_channel_txpower(struct iwl_priv *priv,
 		struct iwl_eeprom_enhanced_txpwr *enhanced_txpower,
-		int section, int element)
+		int section, int element, s8 *max_txpower_in_half_dbm)
 {
 	struct iwl_channel_info *ch_info;
 	int ch;
@@ -817,7 +868,8 @@ static s8 iwl_update_channel_txpower(struct iwl_priv *priv,
 
 	channel = enhinfo[section].iwl_eeprom_section_channel[element];
 	max_txpower_avg =
-		iwl_get_max_txpower_avg(priv, enhanced_txpower, element);
+		iwl_get_max_txpower_avg(priv, enhanced_txpower,
+					element, max_txpower_in_half_dbm);
 
 	ch_info = priv->channel_info;
 	for (ch = 0; ch < priv->channel_count; ch++) {
@@ -831,12 +883,9 @@ static s8 iwl_update_channel_txpower(struct iwl_priv *priv,
 				ch_info->scan_power = max_txpower_avg;
 			}
 			if ((enhinfo[section].is_ht40) &&
-			    (ch_info->ht40_max_power_avg) &&
 			    (ch_info->ht40_max_power_avg < max_txpower_avg)) {
 				/* Update regulatory-based run-time data */
 				ch_info->ht40_max_power_avg = max_txpower_avg;
-				ch_info->ht40_curr_txpow = max_txpower_avg;
-				ch_info->ht40_scan_power = max_txpower_avg;
 			}
 			break;
 		}
@@ -855,6 +904,7 @@ void iwlcore_eeprom_enhanced_txpower(struct iwl_priv *priv)
 	struct iwl_eeprom_enhanced_txpwr *enhanced_txpower;
 	u32 offset;
 	s8 max_txpower_avg; /* (dBm) */
+	s8 max_txpower_in_half_dbm; /* (half-dBm) */
 
 	/* Loop through all the sections
 	 * adjust bands and channel's max tx power
@@ -867,20 +917,43 @@ void iwlcore_eeprom_enhanced_txpower(struct iwl_priv *priv)
 		enhanced_txpower = (struct iwl_eeprom_enhanced_txpwr *)
 				iwl_eeprom_query_addr(priv, offset);
 
+		/*
+		 * check for valid entry -
+		 * different version of EEPROM might contain different set
+		 * of enhanced tx power table
+		 * always check for valid entry before process
+		 * the information
+		 */
+		if (!enhanced_txpower->common || enhanced_txpower->reserved)
+			continue;
+
 		for (element = 0; element < eeprom_section_count; element++) {
 			if (enhinfo[section].is_common)
 				max_txpower_avg =
 					iwl_update_common_txpower(priv,
-					enhanced_txpower, section, element);
+						enhanced_txpower, section,
+						element,
+						&max_txpower_in_half_dbm);
 			else
 				max_txpower_avg =
 					iwl_update_channel_txpower(priv,
-					enhanced_txpower, section, element);
+						enhanced_txpower, section,
+						element,
+						&max_txpower_in_half_dbm);
 
 			/* Update the tx_power_user_lmt to the highest power
 			 * supported by any channel */
 			if (max_txpower_avg > priv->tx_power_user_lmt)
 				priv->tx_power_user_lmt = max_txpower_avg;
+
+			/*
+			 * Update the tx_power_lmt_in_half_dbm to
+			 * the highest power supported by any channel
+			 */
+			if (max_txpower_in_half_dbm >
+			    priv->tx_power_lmt_in_half_dbm)
+				priv->tx_power_lmt_in_half_dbm =
+					max_txpower_in_half_dbm;
 		}
 	}
 }

@@ -295,6 +295,8 @@ void vxge_hw_device_intr_enable(struct __vxge_hw_device *hldev)
 	u64 val64;
 	u32 val32;
 
+	vxge_hw_device_mask_all(hldev);
+
 	for (i = 0; i < VXGE_HW_MAX_VIRTUAL_PATHS; i++) {
 
 		if (!(hldev->vpaths_deployed & vxge_mBIT(i)))
@@ -1232,7 +1234,7 @@ void vxge_hw_fifo_txdl_post(struct __vxge_hw_fifo *fifo, void *txdlh)
 	vxge_hw_channel_dtr_post(&fifo->channel, txdlh);
 
 	__vxge_hw_non_offload_db_post(fifo,
-		(u64)(size_t)txdl_priv->dma_addr,
+		(u64)txdl_priv->dma_addr,
 		txdl_priv->frags - 1,
 		fifo->no_snoop_bits);
 
@@ -1961,14 +1963,14 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 			val64 = readq(&vp_reg->asic_ntwk_vp_err_reg);
 
 			if (((val64 &
-				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT) &&
-			    (!(val64 &
+			      VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT) &&
+			     (!(val64 &
 				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK))) ||
 			    ((val64 &
-				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT_OCCURR)
-				&& (!(val64 &
+			      VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT_OCCURR) &&
+			     (!(val64 &
 				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK_OCCURR)
-			))) {
+				     ))) {
 				sw_stats->error_stats.network_sustained_fault++;
 
 				writeq(
@@ -1981,14 +1983,14 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 			}
 
 			if (((val64 &
-				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK) &&
-			    (!(val64 &
+			      VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK) &&
+			     (!(val64 &
 				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT))) ||
 			    ((val64 &
-				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK_OCCURR)
-				&& (!(val64 &
+			      VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_OK_OCCURR) &&
+			     (!(val64 &
 				VXGE_HW_ASIC_NW_VP_ERR_REG_XMACJ_STN_FLT_OCCURR)
-			))) {
+				     ))) {
 
 				sw_stats->error_stats.network_sustained_ok++;
 

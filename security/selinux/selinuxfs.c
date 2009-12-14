@@ -522,7 +522,7 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
 	if (length < 0)
 		goto out2;
 
-	length = security_compute_av(ssid, tsid, tclass, req, &avd);
+	length = security_compute_av_user(ssid, tsid, tclass, req, &avd);
 	if (length < 0)
 		goto out2;
 
@@ -571,7 +571,7 @@ static ssize_t sel_write_create(struct file *file, char *buf, size_t size)
 	if (length < 0)
 		goto out2;
 
-	length = security_transition_sid(ssid, tsid, tclass, &newsid);
+	length = security_transition_sid_user(ssid, tsid, tclass, &newsid);
 	if (length < 0)
 		goto out2;
 

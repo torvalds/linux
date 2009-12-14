@@ -863,10 +863,8 @@ intel_igdng_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	intel_clock_t clock;
-	int max_n;
-	bool found;
 	int err_most = 47;
-	found = false;
+	int err_min = 10000;
 
 	/* eDP has only 2 clock choice, no n/m/p setting */
 	if (HAS_eDP)
@@ -890,10 +888,9 @@ intel_igdng_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 	}
 
 	memset(best_clock, 0, sizeof(*best_clock));
-	max_n = limit->n.max;
 	for (clock.p1 = limit->p1.max; clock.p1 >= limit->p1.min; clock.p1--) {
 		/* based on hardware requriment prefer smaller n to precision */
-		for (clock.n = limit->n.min; clock.n <= max_n; clock.n++) {
+		for (clock.n = limit->n.min; clock.n <= limit->n.max; clock.n++) {
 			/* based on hardware requirment prefere larger m1,m2 */
 			for (clock.m1 = limit->m1.max;
 			     clock.m1 >= limit->m1.min; clock.m1--) {
@@ -907,18 +904,18 @@ intel_igdng_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 					this_err = abs((10000 - (target*10000/clock.dot)));
 					if (this_err < err_most) {
 						*best_clock = clock;
-						err_most = this_err;
-						max_n = clock.n;
-						found = true;
 						/* found on first matching */
 						goto out;
+					} else if (this_err < err_min) {
+						*best_clock = clock;
+						err_min = this_err;
 					}
 				}
 			}
 		}
 	}
 out:
-	return found;
+	return true;
 }
 
 /* DisplayPort has only two frequencies, 162MHz and 270MHz */

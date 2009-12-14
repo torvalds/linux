@@ -1037,7 +1037,7 @@ init_cifs(void)
 	if (rc)
 		goto out_unregister_key_type;
 #endif
-	rc = slow_work_register_user();
+	rc = slow_work_register_user(THIS_MODULE);
 	if (rc)
 		goto out_unregister_resolver_key;
 

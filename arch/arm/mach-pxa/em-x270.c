@@ -967,7 +967,7 @@ static inline void em_x270_init_gpio_keys(void) {}
 #if defined(CONFIG_VIDEO_PXA27x) || defined(CONFIG_VIDEO_PXA27x_MODULE)
 static struct regulator *em_x270_camera_ldo;
 
-static int em_x270_sensor_init(struct device *dev)
+static int em_x270_sensor_init(void)
 {
 	int ret;
 
@@ -996,7 +996,6 @@ static int em_x270_sensor_init(struct device *dev)
 }
 
 struct pxacamera_platform_data em_x270_camera_platform_data = {
-	.init	= em_x270_sensor_init,
 	.flags  = PXA_CAMERA_MASTER | PXA_CAMERA_DATAWIDTH_8 |
 		PXA_CAMERA_PCLK_EN | PXA_CAMERA_MCLK_EN,
 	.mclk_10khz = 2600,
@@ -1049,8 +1048,10 @@ static struct platform_device em_x270_camera = {
 
 static void  __init em_x270_init_camera(void)
 {
-	pxa_set_camera_info(&em_x270_camera_platform_data);
-	platform_device_register(&em_x270_camera);
+	if (em_x270_sensor_init() == 0) {
+		pxa_set_camera_info(&em_x270_camera_platform_data);
+		platform_device_register(&em_x270_camera);
+	}
 }
 #else
 static inline void em_x270_init_camera(void) {}
@@ -1285,6 +1286,10 @@ static void __init em_x270_exeda_init(void)
 static void __init em_x270_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(common_pin_config));
+
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
 
 #ifdef CONFIG_PM
 	pxa27x_set_pwrmode(PWRMODE_DEEPSLEEP);

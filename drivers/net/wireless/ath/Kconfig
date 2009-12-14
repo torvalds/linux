@@ -1,6 +1,5 @@
 menuconfig ATH_COMMON
 	tristate "Atheros Wireless Cards"
-	depends on WLAN_80211
 	depends on CFG80211
 	---help---
 	  This will enable the support for the Atheros wireless drivers.
@@ -16,7 +15,15 @@ menuconfig ATH_COMMON
 	  http://wireless.kernel.org/en/users/Drivers/Atheros
 
 if ATH_COMMON
+
+config ATH_DEBUG
+	bool "Atheros wireless debugging"
+	---help---
+	  Say Y, if you want to debug atheros wireless drivers.
+	  Right now only ath9k makes use of this.
+
 source "drivers/net/wireless/ath/ath5k/Kconfig"
 source "drivers/net/wireless/ath/ath9k/Kconfig"
 source "drivers/net/wireless/ath/ar9170/Kconfig"
+
 endif

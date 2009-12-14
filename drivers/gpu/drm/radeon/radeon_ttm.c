@@ -378,7 +378,7 @@ static int radeon_bo_move(struct ttm_buffer_object *bo,
 	     new_mem->mem_type == TTM_PL_SYSTEM) ||
 	    (old_mem->mem_type == TTM_PL_SYSTEM &&
 	     new_mem->mem_type == TTM_PL_TT)) {
-		/* bind is enought */
+		/* bind is enough */
 		radeon_move_null(bo, new_mem);
 		return 0;
 	}

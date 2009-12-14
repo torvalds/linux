@@ -17,7 +17,7 @@ config QUOTA
 
 config QUOTA_NETLINK_INTERFACE
 	bool "Report quota messages through netlink interface"
-	depends on QUOTA && NET
+	depends on QUOTACTL && NET
 	help
 	  If you say Y here, quota warnings (about exceeding softlimit, reaching
 	  hardlimit, etc.) will be reported through netlink interface. If unsure,

@@ -22,6 +22,7 @@
 #ifndef ZFCP_DBF_H
 #define ZFCP_DBF_H
 
+#include <scsi/fc/fc_fcp.h>
 #include "zfcp_ext.h"
 #include "zfcp_fsf.h"
 #include "zfcp_def.h"
@@ -122,7 +123,6 @@ struct zfcp_dbf_hba_record_response {
 		} unit;
 		struct {
 			u32 d_id;
-			u8 ls_code;
 		} els;
 	} u;
 } __attribute__ ((packed));
@@ -166,6 +166,7 @@ struct zfcp_dbf_san_record_ct_request {
 	u8 options;
 	u16 max_res_size;
 	u32 len;
+	u32 d_id;
 } __attribute__ ((packed));
 
 struct zfcp_dbf_san_record_ct_response {
@@ -179,16 +180,13 @@ struct zfcp_dbf_san_record_ct_response {
 } __attribute__ ((packed));
 
 struct zfcp_dbf_san_record_els {
-	u8 ls_code;
-	u32 len;
+	u32 d_id;
 } __attribute__ ((packed));
 
 struct zfcp_dbf_san_record {
 	u8 tag[ZFCP_DBF_TAG_SIZE];
 	u64 fsf_reqid;
 	u32 fsf_seqno;
-	u32 s_id;
-	u32 d_id;
 	union {
 		struct zfcp_dbf_san_record_ct_request ct_req;
 		struct zfcp_dbf_san_record_ct_response ct_resp;
@@ -343,7 +341,7 @@ static inline
 void zfcp_dbf_scsi_devreset(const char *tag, u8 flag, struct zfcp_unit *unit,
 			    struct scsi_cmnd *scsi_cmnd)
 {
-	zfcp_dbf_scsi(flag == FCP_TARGET_RESET ? "trst" : "lrst", tag, 1,
+	zfcp_dbf_scsi(flag == FCP_TMF_TGT_RESET ? "trst" : "lrst", tag, 1,
 			    unit->port->adapter->dbf, scsi_cmnd, NULL, 0);
 }
 

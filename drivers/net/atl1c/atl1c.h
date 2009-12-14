@@ -470,11 +470,27 @@ struct atl1c_ring_header {
 struct atl1c_buffer {
 	struct sk_buff *skb;	/* socket buffer */
 	u16 length;		/* rx buffer length */
-	u16 state;		/* state of buffer */
-#define ATL1_BUFFER_FREE	0
-#define ATL1_BUFFER_BUSY	1
+	u16 flags;		/* information of buffer */
+#define ATL1C_BUFFER_FREE		0x0001
+#define ATL1C_BUFFER_BUSY		0x0002
+#define ATL1C_BUFFER_STATE_MASK		0x0003
+
+#define ATL1C_PCIMAP_SINGLE		0x0004
+#define ATL1C_PCIMAP_PAGE		0x0008
+#define ATL1C_PCIMAP_TYPE_MASK		0x000C
+
 	dma_addr_t dma;
 };
+
+#define ATL1C_SET_BUFFER_STATE(buff, state) do {	\
+	((buff)->flags) &= ~ATL1C_BUFFER_STATE_MASK;	\
+	((buff)->flags) |= (state);			\
+	} while (0)
+
+#define ATL1C_SET_PCIMAP_TYPE(buff, type) do {		\
+	((buff)->flags) &= ~ATL1C_PCIMAP_TYPE_MASK;	\
+	((buff)->flags) |= (type);			\
+	} while (0)
 
 /* transimit packet descriptor (tpd) ring */
 struct atl1c_tpd_ring {

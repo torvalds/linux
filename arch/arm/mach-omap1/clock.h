@@ -574,6 +574,16 @@ static struct clk usb_dc_ck = {
 	.enable_bit	= 4,
 };
 
+static struct clk usb_dc_ck7xx = {
+	.name		= "usb_dc_ck",
+	.ops		= &clkops_generic,
+	/* Direct from ULPD, no parent */
+	.rate		= 48000000,
+	.flags		= RATE_FIXED,
+	.enable_reg	= OMAP1_IO_ADDRESS(SOFT_REQ_REG),
+	.enable_bit	= 8,
+};
+
 static struct clk mclk_1510 = {
 	.name		= "mclk",
 	.ops		= &clkops_generic,
@@ -635,6 +645,18 @@ static struct clk mmc2_ck = {
 	.flags		= RATE_FIXED | ENABLE_REG_32BIT | CLOCK_NO_IDLE_PARENT,
 	.enable_reg	= OMAP1_IO_ADDRESS(MOD_CONF_CTRL_0),
 	.enable_bit	= 20,
+};
+
+static struct clk mmc3_ck = {
+	.name		= "mmc_ck",
+	.id		= 2,
+	.ops		= &clkops_generic,
+	/* Functional clock is direct from ULPD, interface clock is ARMPER */
+	.parent		= &armper_ck.clk,
+	.rate		= 48000000,
+	.flags		= RATE_FIXED | ENABLE_REG_32BIT | CLOCK_NO_IDLE_PARENT,
+	.enable_reg	= OMAP1_IO_ADDRESS(SOFT_REQ_REG),
+	.enable_bit	= 12,
 };
 
 static struct clk virtual_ck_mpu = {

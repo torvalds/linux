@@ -377,7 +377,7 @@ static int ni5010_open(struct net_device *dev)
 
 	PRINTK2((KERN_DEBUG "%s: entering ni5010_open()\n", dev->name));
 
-	if (request_irq(dev->irq, &ni5010_interrupt, 0, boardname, dev)) {
+	if (request_irq(dev->irq, ni5010_interrupt, 0, boardname, dev)) {
 		printk(KERN_WARNING "%s: Cannot get irq %#2x\n", dev->name, dev->irq);
 		return -EAGAIN;
 	}

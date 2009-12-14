@@ -13,26 +13,23 @@
 
 
 static ctl_table scsi_table[] = {
-	{ .ctl_name	= DEV_SCSI_LOGGING_LEVEL,
-	  .procname	= "logging_level",
+	{ .procname	= "logging_level",
 	  .data		= &scsi_logging_level,
 	  .maxlen	= sizeof(scsi_logging_level),
 	  .mode		= 0644,
-	  .proc_handler	= &proc_dointvec },
+	  .proc_handler	= proc_dointvec },
 	{ }
 };
 
 static ctl_table scsi_dir_table[] = {
-	{ .ctl_name	= DEV_SCSI,
-	  .procname	= "scsi",
+	{ .procname	= "scsi",
 	  .mode		= 0555,
 	  .child	= scsi_table },
 	{ }
 };
 
 static ctl_table scsi_root_table[] = {
-	{ .ctl_name	= CTL_DEV,
-	  .procname	= "dev",
+	{ .procname	= "dev",
 	  .mode		= 0555,
 	  .child	= scsi_dir_table },
 	{ }

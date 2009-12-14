@@ -466,11 +466,11 @@ static const struct cpumask *es7000_target_cpus(void)
 	return cpumask_of(smp_processor_id());
 }
 
-static unsigned long
-es7000_check_apicid_used(physid_mask_t bitmap, int apicid)
+static unsigned long es7000_check_apicid_used(physid_mask_t *map, int apicid)
 {
 	return 0;
 }
+
 static unsigned long es7000_check_apicid_present(int bit)
 {
 	return physid_isset(bit, phys_cpu_present_map);
@@ -539,14 +539,10 @@ static int es7000_cpu_present_to_apicid(int mps_cpu)
 
 static int cpu_id;
 
-static physid_mask_t es7000_apicid_to_cpu_present(int phys_apicid)
+static void es7000_apicid_to_cpu_present(int phys_apicid, physid_mask_t *retmap)
 {
-	physid_mask_t mask;
-
-	mask = physid_mask_of_physid(cpu_id);
+	physid_set_mask_of_physid(cpu_id, retmap);
 	++cpu_id;
-
-	return mask;
 }
 
 /* Mapping from cpu number to logical apicid */
@@ -561,10 +557,10 @@ static int es7000_cpu_to_logical_apicid(int cpu)
 #endif
 }
 
-static physid_mask_t es7000_ioapic_phys_id_map(physid_mask_t phys_map)
+static void es7000_ioapic_phys_id_map(physid_mask_t *phys_map, physid_mask_t *retmap)
 {
 	/* For clustered we don't have a good way to do this yet - hack */
-	return physids_promote(0xff);
+	physids_promote(0xFFL, retmap);
 }
 
 static int es7000_check_phys_apicid_present(int cpu_physical_apicid)

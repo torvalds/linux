@@ -1225,8 +1225,8 @@ static void netdrv_timer (unsigned long data)
 	mii_lpa = mdio_read (dev, tp->phys[0], MII_LPA);
 
 	if (!tp->duplex_lock && mii_lpa != 0xffff) {
-		int duplex = (mii_lpa & LPA_100FULL)
-		    || (mii_lpa & 0x01C0) == 0x0040;
+		int duplex = ((mii_lpa & LPA_100FULL) ||
+			      (mii_lpa & 0x01C0) == 0x0040);
 		if (tp->full_duplex != duplex) {
 			tp->full_duplex = duplex;
 			printk (KERN_INFO
@@ -1612,8 +1612,8 @@ static void netdrv_weird_interrupt (struct net_device *dev,
 	    (tp->drv_flags & HAS_LNK_CHNG)) {
 		/* Really link-change on new chips. */
 		int lpar = NETDRV_R16 (NWayLPAR);
-		int duplex = (lpar & 0x0100) || (lpar & 0x01C0) == 0x0040
-				|| tp->duplex_lock;
+		int duplex = ((lpar & 0x0100) || (lpar & 0x01C0) == 0x0040 ||
+			      tp->duplex_lock);
 		if (tp->full_duplex != duplex) {
 			tp->full_duplex = duplex;
 			NETDRV_W8 (Cfg9346, Cfg9346_Unlock);
@@ -1820,8 +1820,8 @@ static void netdrv_set_rx_mode (struct net_device *dev)
 		    AcceptBroadcast | AcceptMulticast | AcceptMyPhys |
 		    AcceptAllPhys;
 		mc_filter[1] = mc_filter[0] = 0xffffffff;
-	} else if ((dev->mc_count > multicast_filter_limit)
-		   || (dev->flags & IFF_ALLMULTI)) {
+	} else if ((dev->mc_count > multicast_filter_limit) ||
+		   (dev->flags & IFF_ALLMULTI)) {
 		/* Too many to filter perfectly -- accept all multicasts. */
 		rx_mode = AcceptBroadcast | AcceptMulticast | AcceptMyPhys;
 		mc_filter[1] = mc_filter[0] = 0xffffffff;

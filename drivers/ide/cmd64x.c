@@ -20,14 +20,6 @@
 
 #define DRV_NAME "cmd64x"
 
-#define CMD_DEBUG 0
-
-#if CMD_DEBUG
-#define cmdprintk(x...)	printk(x)
-#else
-#define cmdprintk(x...)
-#endif
-
 /*
  * CMD64x specific registers definition.
  */
@@ -76,9 +68,6 @@ static void program_cycle_times (ide_drive_t *drive, int cycle_time, int active_
 		{15, 15, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0};
 	static const u8 drwtim_regs[4] = {DRWTIM0, DRWTIM1, DRWTIM2, DRWTIM3};
 
-	cmdprintk("program_cycle_times parameters: total=%d, active=%d\n",
-		  cycle_time, active_time);
-
 	cycle_count	= quantize_timing( cycle_time, clock_time);
 	active_count	= quantize_timing(active_time, clock_time);
 	recovery_count	= cycle_count - active_count;
@@ -94,9 +83,6 @@ static void program_cycle_times (ide_drive_t *drive, int cycle_time, int active_
 	if (active_count > 16)		/* shouldn't actually happen... */
 	 	active_count = 16;
 
-	cmdprintk("Final counts: total=%d, active=%d, recovery=%d\n",
-		  cycle_count, active_count, recovery_count);
-
 	/*
 	 * Convert values to internal chipset representation
 	 */
@@ -106,7 +92,6 @@ static void program_cycle_times (ide_drive_t *drive, int cycle_time, int active_
 	/* Program the active/recovery counts into the DRWTIM register */
 	drwtim = (active_count << 4) | recovery_count;
 	(void) pci_write_config_byte(dev, drwtim_regs[drive->dn], drwtim);
-	cmdprintk("Write 0x%02x to reg 0x%x\n", drwtim, drwtim_regs[drive->dn]);
 }
 
 /*
@@ -150,7 +135,6 @@ static void cmd64x_tune_pio(ide_drive_t *drive, const u8 pio)
 
 	if (setup_count > 5)		/* shouldn't actually happen... */
 		setup_count = 5;
-	cmdprintk("Final address setup count: %d\n", setup_count);
 
 	/*
 	 * Program the address setup clocks into the ARTTIM registers.
@@ -162,7 +146,6 @@ static void cmd64x_tune_pio(ide_drive_t *drive, const u8 pio)
 	arttim &= ~0xc0;
 	arttim |= setup_values[setup_count];
 	(void) pci_write_config_byte(dev, arttim_regs[drive->dn], arttim);
-	cmdprintk("Write 0x%02x to reg 0x%x\n", arttim, arttim_regs[drive->dn]);
 }
 
 /*

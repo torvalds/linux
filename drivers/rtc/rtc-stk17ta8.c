@@ -286,7 +286,7 @@ static struct bin_attribute stk17ta8_nvram_attr = {
 	.write = stk17ta8_nvram_write,
 };
 
-static int __init stk17ta8_rtc_probe(struct platform_device *pdev)
+static int __devinit stk17ta8_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 	struct resource *res;

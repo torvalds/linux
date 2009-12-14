@@ -45,7 +45,7 @@ static int tape_proc_show(struct seq_file *m, void *v)
 		seq_printf(m, "TapeNo\tBusID      CuType/Model\t"
 			"DevType/Model\tBlkSize\tState\tOp\tMedState\n");
 	}
-	device = tape_get_device(n);
+	device = tape_find_device(n);
 	if (IS_ERR(device))
 		return 0;
 	spin_lock_irq(get_ccwdev_lock(device->cdev));

@@ -68,7 +68,7 @@ extern struct neigh_table dn_neigh_table;
  */
 __le16 decnet_address = 0;
 
-static DEFINE_RWLOCK(dndev_lock);
+static DEFINE_SPINLOCK(dndev_lock);
 static struct net_device *decnet_default_device;
 static BLOCKING_NOTIFIER_HEAD(dnaddr_chain);
 
@@ -89,7 +89,6 @@ static struct dn_dev_parms dn_dev_list[] =  {
 	.t2 =		1,
 	.t3 =		10,
 	.name =		"ethernet",
-	.ctl_name =	NET_DECNET_CONF_ETHER,
 	.up =		dn_eth_up,
 	.down = 	dn_eth_down,
 	.timer3 =	dn_send_brd_hello,
@@ -101,7 +100,6 @@ static struct dn_dev_parms dn_dev_list[] =  {
 	.t2 =		1,
 	.t3 =		10,
 	.name =		"ipgre",
-	.ctl_name =	NET_DECNET_CONF_GRE,
 	.timer3 =	dn_send_brd_hello,
 },
 #if 0
@@ -112,7 +110,6 @@ static struct dn_dev_parms dn_dev_list[] =  {
 	.t2 =		1,
 	.t3 =		120,
 	.name =		"x25",
-	.ctl_name =	NET_DECNET_CONF_X25,
 	.timer3 =	dn_send_ptp_hello,
 },
 #endif
@@ -124,7 +121,6 @@ static struct dn_dev_parms dn_dev_list[] =  {
 	.t2 =		1,
 	.t3 =		10,
 	.name =		"ppp",
-	.ctl_name =	NET_DECNET_CONF_PPP,
 	.timer3 =	dn_send_brd_hello,
 },
 #endif
@@ -135,7 +131,6 @@ static struct dn_dev_parms dn_dev_list[] =  {
 	.t2 =		1,
 	.t3 =		120,
 	.name =		"ddcmp",
-	.ctl_name =	NET_DECNET_CONF_DDCMP,
 	.timer3 =	dn_send_ptp_hello,
 },
 {
@@ -145,7 +140,6 @@ static struct dn_dev_parms dn_dev_list[] =  {
 	.t2 =		1,
 	.t3 =		10,
 	.name =		"loopback",
-	.ctl_name =	NET_DECNET_CONF_LOOPBACK,
 	.timer3 =	dn_send_brd_hello,
 }
 };
@@ -166,10 +160,6 @@ static int max_priority[] = { 127 }; /* From DECnet spec */
 
 static int dn_forwarding_proc(ctl_table *, int,
 			void __user *, size_t *, loff_t *);
-static int dn_forwarding_sysctl(ctl_table *table,
-			void __user *oldval, size_t __user *oldlenp,
-			void __user *newval, size_t newlen);
-
 static struct dn_dev_sysctl_table {
 	struct ctl_table_header *sysctl_header;
 	ctl_table dn_dev_vars[5];
@@ -177,44 +167,36 @@ static struct dn_dev_sysctl_table {
 	NULL,
 	{
 	{
-		.ctl_name = NET_DECNET_CONF_DEV_FORWARDING,
 		.procname = "forwarding",
 		.data = (void *)DN_DEV_PARMS_OFFSET(forwarding),
 		.maxlen = sizeof(int),
 		.mode = 0644,
 		.proc_handler = dn_forwarding_proc,
-		.strategy = dn_forwarding_sysctl,
 	},
 	{
-		.ctl_name = NET_DECNET_CONF_DEV_PRIORITY,
 		.procname = "priority",
 		.data = (void *)DN_DEV_PARMS_OFFSET(priority),
 		.maxlen = sizeof(int),
 		.mode = 0644,
 		.proc_handler = proc_dointvec_minmax,
-		.strategy = sysctl_intvec,
 		.extra1 = &min_priority,
 		.extra2 = &max_priority
 	},
 	{
-		.ctl_name = NET_DECNET_CONF_DEV_T2,
 		.procname = "t2",
 		.data = (void *)DN_DEV_PARMS_OFFSET(t2),
 		.maxlen = sizeof(int),
 		.mode = 0644,
 		.proc_handler = proc_dointvec_minmax,
-		.strategy = sysctl_intvec,
 		.extra1 = &min_t2,
 		.extra2 = &max_t2
 	},
 	{
-		.ctl_name = NET_DECNET_CONF_DEV_T3,
 		.procname = "t3",
 		.data = (void *)DN_DEV_PARMS_OFFSET(t3),
 		.maxlen = sizeof(int),
 		.mode = 0644,
 		.proc_handler = proc_dointvec_minmax,
-		.strategy = sysctl_intvec,
 		.extra1 = &min_t3,
 		.extra2 = &max_t3
 	},
@@ -230,9 +212,9 @@ static void dn_dev_sysctl_register(struct net_device *dev, struct dn_dev_parms *
 #define DN_CTL_PATH_DEV	3
 
 	struct ctl_path dn_ctl_path[] = {
-		{ .procname = "net", .ctl_name = CTL_NET, },
-		{ .procname = "decnet", .ctl_name = NET_DECNET, },
-		{ .procname = "conf", .ctl_name = NET_DECNET_CONF, },
+		{ .procname = "net",  },
+		{ .procname = "decnet",  },
+		{ .procname = "conf",  },
 		{ /* to be set */ },
 		{ },
 	};
@@ -248,10 +230,8 @@ static void dn_dev_sysctl_register(struct net_device *dev, struct dn_dev_parms *
 
 	if (dev) {
 		dn_ctl_path[DN_CTL_PATH_DEV].procname = dev->name;
-		dn_ctl_path[DN_CTL_PATH_DEV].ctl_name = dev->ifindex;
 	} else {
 		dn_ctl_path[DN_CTL_PATH_DEV].procname = parms->name;
-		dn_ctl_path[DN_CTL_PATH_DEV].ctl_name = parms->ctl_name;
 	}
 
 	t->dn_dev_vars[0].extra1 = (void *)dev;
@@ -312,44 +292,6 @@ static int dn_forwarding_proc(ctl_table *table, int write,
 	}
 
 	return err;
-#else
-	return -EINVAL;
-#endif
-}
-
-static int dn_forwarding_sysctl(ctl_table *table,
-			void __user *oldval, size_t __user *oldlenp,
-			void __user *newval, size_t newlen)
-{
-#ifdef CONFIG_DECNET_ROUTER
-	struct net_device *dev = table->extra1;
-	struct dn_dev *dn_db;
-	int value;
-
-	if (table->extra1 == NULL)
-		return -EINVAL;
-
-	dn_db = dev->dn_ptr;
-
-	if (newval && newlen) {
-		if (newlen != sizeof(int))
-			return -EINVAL;
-
-		if (get_user(value, (int __user *)newval))
-			return -EFAULT;
-		if (value < 0)
-			return -EINVAL;
-		if (value > 2)
-			return -EINVAL;
-
-		if (dn_db->parms.down)
-			dn_db->parms.down(dev);
-		dn_db->parms.forwarding = value;
-		if (dn_db->parms.up)
-			dn_db->parms.up(dev);
-	}
-
-	return 0;
 #else
 	return -EINVAL;
 #endif
@@ -557,7 +499,8 @@ rarok:
 struct net_device *dn_dev_get_default(void)
 {
 	struct net_device *dev;
-	read_lock(&dndev_lock);
+
+	spin_lock(&dndev_lock);
 	dev = decnet_default_device;
 	if (dev) {
 		if (dev->dn_ptr)
@@ -565,7 +508,8 @@ struct net_device *dn_dev_get_default(void)
 		else
 			dev = NULL;
 	}
-	read_unlock(&dndev_lock);
+	spin_unlock(&dndev_lock);
+
 	return dev;
 }
 
@@ -575,13 +519,15 @@ int dn_dev_set_default(struct net_device *dev, int force)
 	int rv = -EBUSY;
 	if (!dev->dn_ptr)
 		return -ENODEV;
-	write_lock(&dndev_lock);
+
+	spin_lock(&dndev_lock);
 	if (force || decnet_default_device == NULL) {
 		old = decnet_default_device;
 		decnet_default_device = dev;
 		rv = 0;
 	}
-	write_unlock(&dndev_lock);
+	spin_unlock(&dndev_lock);
+
 	if (old)
 		dev_put(old);
 	return rv;
@@ -589,26 +535,29 @@ int dn_dev_set_default(struct net_device *dev, int force)
 
 static void dn_dev_check_default(struct net_device *dev)
 {
-	write_lock(&dndev_lock);
+	spin_lock(&dndev_lock);
 	if (dev == decnet_default_device) {
 		decnet_default_device = NULL;
 	} else {
 		dev = NULL;
 	}
-	write_unlock(&dndev_lock);
+	spin_unlock(&dndev_lock);
+
 	if (dev)
 		dev_put(dev);
 }
 
+/*
+ * Called with RTNL
+ */
 static struct dn_dev *dn_dev_by_index(int ifindex)
 {
 	struct net_device *dev;
 	struct dn_dev *dn_dev = NULL;
-	dev = dev_get_by_index(&init_net, ifindex);
-	if (dev) {
+
+	dev = __dev_get_by_index(&init_net, ifindex);
+	if (dev)
 		dn_dev = dev->dn_ptr;
-		dev_put(dev);
-	}
 
 	return dn_dev;
 }
@@ -629,7 +578,7 @@ static int dn_nl_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct dn_ifaddr *ifa, **ifap;
 	int err = -EINVAL;
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		goto errout;
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, dn_ifa_policy);
@@ -668,7 +617,7 @@ static int dn_nl_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct dn_ifaddr *ifa;
 	int err;
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		return -EINVAL;
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, dn_ifa_policy);
@@ -782,7 +731,7 @@ static int dn_nl_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 	struct dn_dev *dn_db;
 	struct dn_ifaddr *ifa;
 
-	if (net != &init_net)
+	if (!net_eq(net, &init_net))
 		return 0;
 
 	skip_ndevs = cb->args[0];
@@ -826,13 +775,17 @@ static int dn_dev_get_first(struct net_device *dev, __le16 *addr)
 	struct dn_dev *dn_db = (struct dn_dev *)dev->dn_ptr;
 	struct dn_ifaddr *ifa;
 	int rv = -ENODEV;
+
 	if (dn_db == NULL)
 		goto out;
+
+	rtnl_lock();
 	ifa = dn_db->ifa_list;
 	if (ifa != NULL) {
 		*addr = ifa->ifa_local;
 		rv = 0;
 	}
+	rtnl_unlock();
 out:
 	return rv;
 }
@@ -854,9 +807,7 @@ int dn_dev_bind_default(__le16 *addr)
 	dev = dn_dev_get_default();
 last_chance:
 	if (dev) {
-		read_lock(&dev_base_lock);
 		rv = dn_dev_get_first(dev, addr);
-		read_unlock(&dev_base_lock);
 		dev_put(dev);
 		if (rv == 0 || dev == init_net.loopback_dev)
 			return rv;
@@ -1321,18 +1272,18 @@ static inline int is_dn_dev(struct net_device *dev)
 }
 
 static void *dn_dev_seq_start(struct seq_file *seq, loff_t *pos)
-	__acquires(&dev_base_lock)
+	__acquires(rcu)
 {
 	int i;
 	struct net_device *dev;
 
-	read_lock(&dev_base_lock);
+	rcu_read_lock();
 
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
 	i = 1;
-	for_each_netdev(&init_net, dev) {
+	for_each_netdev_rcu(&init_net, dev) {
 		if (!is_dn_dev(dev))
 			continue;
 
@@ -1353,7 +1304,7 @@ static void *dn_dev_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	if (v == SEQ_START_TOKEN)
 		dev = net_device_entry(&init_net.dev_base_head);
 
-	for_each_netdev_continue(&init_net, dev) {
+	for_each_netdev_continue_rcu(&init_net, dev) {
 		if (!is_dn_dev(dev))
 			continue;
 
@@ -1364,9 +1315,9 @@ static void *dn_dev_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void dn_dev_seq_stop(struct seq_file *seq, void *v)
-	__releases(&dev_base_lock)
+	__releases(rcu)
 {
-	read_unlock(&dev_base_lock);
+	rcu_read_unlock();
 }
 
 static char *dn_type2asc(char type)

@@ -935,7 +935,7 @@ static int video_release(struct file *file)
 
 	mutex_lock(&dev->core->lock);
 	if(atomic_dec_and_test(&dev->core->users))
-		call_all(dev->core, tuner, s_standby);
+		call_all(dev->core, core, s_power, 0);
 	mutex_unlock(&dev->core->lock);
 
 	return 0;

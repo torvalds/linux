@@ -147,7 +147,8 @@ int wl1251_hw_init_beacon_filter(struct wl1251 *wl)
 {
 	int ret;
 
-	ret = wl1251_acx_beacon_filter_opt(wl);
+	/* disable beacon filtering at this stage */
+	ret = wl1251_acx_beacon_filter_opt(wl, false);
 	if (ret < 0)
 		return ret;
 
@@ -361,6 +362,11 @@ int wl1251_hw_init(struct wl1251 *wl)
 
 	/* PHY layer config */
 	ret = wl1251_hw_init_phy_config(wl);
+	if (ret < 0)
+		goto out_free_data_path;
+
+	/* Initialize connection monitoring thresholds */
+	ret = wl1251_acx_conn_monit_params(wl);
 	if (ret < 0)
 		goto out_free_data_path;
 

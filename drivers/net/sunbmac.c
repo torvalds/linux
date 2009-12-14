@@ -919,7 +919,7 @@ static int bigmac_open(struct net_device *dev)
 	struct bigmac *bp = netdev_priv(dev);
 	int ret;
 
-	ret = request_irq(dev->irq, &bigmac_interrupt, IRQF_SHARED, dev->name, bp);
+	ret = request_irq(dev->irq, bigmac_interrupt, IRQF_SHARED, dev->name, bp);
 	if (ret) {
 		printk(KERN_ERR "BIGMAC: Can't order irq %d to go.\n", dev->irq);
 		return ret;

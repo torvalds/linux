@@ -198,7 +198,7 @@ void __init smdk_machine_init(void)
 	if (machine_is_smdk2443())
 		smdk_nand_info.twrph0 = 50;
 
-	s3c_device_nand.dev.platform_data = &smdk_nand_info;
+	s3c_nand_set_platdata(&smdk_nand_info);
 
 	platform_add_devices(smdk_devs, ARRAY_SIZE(smdk_devs));
 

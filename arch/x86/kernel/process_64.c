@@ -52,6 +52,7 @@
 #include <asm/idle.h>
 #include <asm/syscalls.h>
 #include <asm/ds.h>
+#include <asm/debugreg.h>
 
 asmlinkage extern void ret_from_fork(void);
 
@@ -226,8 +227,7 @@ void __show_regs(struct pt_regs *regs, int all)
 
 void show_regs(struct pt_regs *regs)
 {
-	printk(KERN_INFO "CPU %d:", smp_processor_id());
-	__show_regs(regs, 1);
+	show_registers(regs);
 	show_trace(NULL, regs, (void *)(regs + 1), regs->bp);
 }
 
@@ -297,11 +297,15 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 
 	p->thread.fs = me->thread.fs;
 	p->thread.gs = me->thread.gs;
+	p->thread.io_bitmap_ptr = NULL;
 
 	savesegment(gs, p->thread.gsindex);
 	savesegment(fs, p->thread.fsindex);
 	savesegment(es, p->thread.es);
 	savesegment(ds, p->thread.ds);
+
+	err = -ENOMEM;
+	memset(p->thread.ptrace_bps, 0, sizeof(p->thread.ptrace_bps));
 
 	if (unlikely(test_tsk_thread_flag(me, TIF_IO_BITMAP))) {
 		p->thread.io_bitmap_ptr = kmalloc(IO_BITMAP_BYTES, GFP_KERNEL);
@@ -341,29 +345,46 @@ out:
 		kfree(p->thread.io_bitmap_ptr);
 		p->thread.io_bitmap_max = 0;
 	}
+
 	return err;
 }
 
-void
-start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
+static void
+start_thread_common(struct pt_regs *regs, unsigned long new_ip,
+		    unsigned long new_sp,
+		    unsigned int _cs, unsigned int _ss, unsigned int _ds)
 {
 	loadsegment(fs, 0);
-	loadsegment(es, 0);
-	loadsegment(ds, 0);
+	loadsegment(es, _ds);
+	loadsegment(ds, _ds);
 	load_gs_index(0);
 	regs->ip		= new_ip;
 	regs->sp		= new_sp;
 	percpu_write(old_rsp, new_sp);
-	regs->cs		= __USER_CS;
-	regs->ss		= __USER_DS;
-	regs->flags		= 0x200;
+	regs->cs		= _cs;
+	regs->ss		= _ss;
+	regs->flags		= X86_EFLAGS_IF;
 	set_fs(USER_DS);
 	/*
 	 * Free the old FP and other extended state
 	 */
 	free_thread_xstate(current);
 }
-EXPORT_SYMBOL_GPL(start_thread);
+
+void
+start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
+{
+	start_thread_common(regs, new_ip, new_sp,
+			    __USER_CS, __USER_DS, 0);
+}
+
+#ifdef CONFIG_IA32_EMULATION
+void start_thread_ia32(struct pt_regs *regs, u32 new_ip, u32 new_sp)
+{
+	start_thread_common(regs, new_ip, new_sp,
+			    __USER32_CS, __USER32_DS, __USER32_DS);
+}
+#endif
 
 /*
  *	switch_to(x,y) should switch tasks from x to y.
@@ -495,6 +516,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 */
 	if (preload_fpu)
 		__math_state_restore();
+
 	return prev_p;
 }
 

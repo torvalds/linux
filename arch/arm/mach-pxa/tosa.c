@@ -825,6 +825,11 @@ static void __init tosa_init(void)
 	int dummy;
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(tosa_pin_config));
+
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	gpio_set_wake(MFP_PIN_GPIO1, 1);
 	/* We can't pass to gpio-keys since it will drop the Reset altfunc */
 

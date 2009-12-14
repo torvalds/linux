@@ -58,7 +58,7 @@ static int marvell_pata_active(struct pci_dev *pdev)
 }
 
 /**
- *	marvell_pre_reset	-	check for 40/80 pin
+ *	marvell_pre_reset	-	probe begin
  *	@link: link
  *	@deadline: deadline jiffies for the operation
  *

@@ -40,13 +40,13 @@
 #include <asm/mach/map.h>
 
 #include <mach/irqs.h>
-#include <mach/mux.h>
-#include <mach/tc.h>
-#include <mach/nand.h>
-#include <mach/usb.h>
-#include <mach/keypad.h>
-#include <mach/dma.h>
-#include <mach/common.h>
+#include <plat/mux.h>
+#include <plat/tc.h>
+#include <plat/nand.h>
+#include <plat/usb.h>
+#include <plat/keypad.h>
+#include <plat/dma.h>
+#include <plat/common.h>
 
 #include "board-h3.h"
 

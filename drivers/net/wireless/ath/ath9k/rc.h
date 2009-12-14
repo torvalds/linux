@@ -19,6 +19,8 @@
 #ifndef RC_H
 #define RC_H
 
+#include "hw.h"
+
 struct ath_softc;
 
 #define ATH_RATE_MAX     30
@@ -102,6 +104,7 @@ enum {
  */
 struct ath_rate_table {
 	int rate_cnt;
+	int mcs_start;
 	struct {
 		int valid;
 		int valid_single_stream;
@@ -109,14 +112,12 @@ struct ath_rate_table {
 		u32 ratekbps;
 		u32 user_ratekbps;
 		u8 ratecode;
-		u8 short_preamble;
 		u8 dot11rate;
 		u8 ctrl_rate;
 		u8 base_index;
 		u8 cw40index;
 		u8 sgi_index;
 		u8 ht_index;
-		u32 max_4ms_framelen;
 	} info[RATE_TABLE_SIZE];
 	u32 probe_interval;
 	u8 initial_ratemax;
@@ -165,26 +166,18 @@ struct ath_rate_priv {
 	struct ath_rate_softc *asc;
 };
 
+#define ATH_TX_INFO_FRAME_TYPE_INTERNAL	(1 << 0)
+#define ATH_TX_INFO_FRAME_TYPE_PAUSE	(1 << 1)
+#define ATH_TX_INFO_UPDATE_RC		(1 << 2)
+#define ATH_TX_INFO_XRETRY		(1 << 3)
+#define ATH_TX_INFO_UNDERRUN		(1 << 4)
+
 enum ath9k_internal_frame_type {
 	ATH9K_NOT_INTERNAL,
 	ATH9K_INT_PAUSE,
 	ATH9K_INT_UNPAUSE
 };
 
-struct ath_tx_info_priv {
-	struct ath_wiphy *aphy;
-	struct ath_tx_status tx;
-	int n_frames;
-	int n_bad_frames;
-	bool update_rc;
-	enum ath9k_internal_frame_type frame_type;
-};
-
-#define ATH_TX_INFO_PRIV(tx_info) \
-	((struct ath_tx_info_priv *)((tx_info)->rate_driver_data[0]))
-
-void ath_rate_attach(struct ath_softc *sc);
-u8 ath_rate_findrateix(struct ath_softc *sc, u8 dot11_rate);
 int ath_rate_control_register(void);
 void ath_rate_control_unregister(void);
 

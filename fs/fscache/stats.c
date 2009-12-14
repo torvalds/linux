@@ -25,6 +25,8 @@ atomic_t fscache_n_op_requeue;
 atomic_t fscache_n_op_deferred_release;
 atomic_t fscache_n_op_release;
 atomic_t fscache_n_op_gc;
+atomic_t fscache_n_op_cancelled;
+atomic_t fscache_n_op_rejected;
 
 atomic_t fscache_n_attr_changed;
 atomic_t fscache_n_attr_changed_ok;
@@ -36,6 +38,8 @@ atomic_t fscache_n_allocs;
 atomic_t fscache_n_allocs_ok;
 atomic_t fscache_n_allocs_wait;
 atomic_t fscache_n_allocs_nobufs;
+atomic_t fscache_n_allocs_intr;
+atomic_t fscache_n_allocs_object_dead;
 atomic_t fscache_n_alloc_ops;
 atomic_t fscache_n_alloc_op_waits;
 
@@ -46,6 +50,7 @@ atomic_t fscache_n_retrievals_nodata;
 atomic_t fscache_n_retrievals_nobufs;
 atomic_t fscache_n_retrievals_intr;
 atomic_t fscache_n_retrievals_nomem;
+atomic_t fscache_n_retrievals_object_dead;
 atomic_t fscache_n_retrieval_ops;
 atomic_t fscache_n_retrieval_op_waits;
 
@@ -56,6 +61,14 @@ atomic_t fscache_n_stores_nobufs;
 atomic_t fscache_n_stores_oom;
 atomic_t fscache_n_store_ops;
 atomic_t fscache_n_store_calls;
+atomic_t fscache_n_store_pages;
+atomic_t fscache_n_store_radix_deletes;
+atomic_t fscache_n_store_pages_over_limit;
+
+atomic_t fscache_n_store_vmscan_not_storing;
+atomic_t fscache_n_store_vmscan_gone;
+atomic_t fscache_n_store_vmscan_busy;
+atomic_t fscache_n_store_vmscan_cancelled;
 
 atomic_t fscache_n_marks;
 atomic_t fscache_n_uncaches;
@@ -74,6 +87,7 @@ atomic_t fscache_n_updates_run;
 atomic_t fscache_n_relinquishes;
 atomic_t fscache_n_relinquishes_null;
 atomic_t fscache_n_relinquishes_waitcrt;
+atomic_t fscache_n_relinquishes_retire;
 
 atomic_t fscache_n_cookie_index;
 atomic_t fscache_n_cookie_data;
@@ -84,6 +98,7 @@ atomic_t fscache_n_object_no_alloc;
 atomic_t fscache_n_object_lookups;
 atomic_t fscache_n_object_lookups_negative;
 atomic_t fscache_n_object_lookups_positive;
+atomic_t fscache_n_object_lookups_timed_out;
 atomic_t fscache_n_object_created;
 atomic_t fscache_n_object_avail;
 atomic_t fscache_n_object_dead;
@@ -92,6 +107,23 @@ atomic_t fscache_n_checkaux_none;
 atomic_t fscache_n_checkaux_okay;
 atomic_t fscache_n_checkaux_update;
 atomic_t fscache_n_checkaux_obsolete;
+
+atomic_t fscache_n_cop_alloc_object;
+atomic_t fscache_n_cop_lookup_object;
+atomic_t fscache_n_cop_lookup_complete;
+atomic_t fscache_n_cop_grab_object;
+atomic_t fscache_n_cop_update_object;
+atomic_t fscache_n_cop_drop_object;
+atomic_t fscache_n_cop_put_object;
+atomic_t fscache_n_cop_sync_cache;
+atomic_t fscache_n_cop_attr_changed;
+atomic_t fscache_n_cop_read_or_alloc_page;
+atomic_t fscache_n_cop_read_or_alloc_pages;
+atomic_t fscache_n_cop_allocate_page;
+atomic_t fscache_n_cop_allocate_pages;
+atomic_t fscache_n_cop_write_page;
+atomic_t fscache_n_cop_uncache_page;
+atomic_t fscache_n_cop_dissociate_pages;
 
 /*
  * display the general statistics
@@ -129,10 +161,11 @@ static int fscache_stats_show(struct seq_file *m, void *v)
 		   atomic_read(&fscache_n_acquires_nobufs),
 		   atomic_read(&fscache_n_acquires_oom));
 
-	seq_printf(m, "Lookups: n=%u neg=%u pos=%u crt=%u\n",
+	seq_printf(m, "Lookups: n=%u neg=%u pos=%u crt=%u tmo=%u\n",
 		   atomic_read(&fscache_n_object_lookups),
 		   atomic_read(&fscache_n_object_lookups_negative),
 		   atomic_read(&fscache_n_object_lookups_positive),
+		   atomic_read(&fscache_n_object_lookups_timed_out),
 		   atomic_read(&fscache_n_object_created));
 
 	seq_printf(m, "Updates: n=%u nul=%u run=%u\n",
@@ -140,10 +173,11 @@ static int fscache_stats_show(struct seq_file *m, void *v)
 		   atomic_read(&fscache_n_updates_null),
 		   atomic_read(&fscache_n_updates_run));
 
-	seq_printf(m, "Relinqs: n=%u nul=%u wcr=%u\n",
+	seq_printf(m, "Relinqs: n=%u nul=%u wcr=%u rtr=%u\n",
 		   atomic_read(&fscache_n_relinquishes),
 		   atomic_read(&fscache_n_relinquishes_null),
-		   atomic_read(&fscache_n_relinquishes_waitcrt));
+		   atomic_read(&fscache_n_relinquishes_waitcrt),
+		   atomic_read(&fscache_n_relinquishes_retire));
 
 	seq_printf(m, "AttrChg: n=%u ok=%u nbf=%u oom=%u run=%u\n",
 		   atomic_read(&fscache_n_attr_changed),
@@ -152,14 +186,16 @@ static int fscache_stats_show(struct seq_file *m, void *v)
 		   atomic_read(&fscache_n_attr_changed_nomem),
 		   atomic_read(&fscache_n_attr_changed_calls));
 
-	seq_printf(m, "Allocs : n=%u ok=%u wt=%u nbf=%u\n",
+	seq_printf(m, "Allocs : n=%u ok=%u wt=%u nbf=%u int=%u\n",
 		   atomic_read(&fscache_n_allocs),
 		   atomic_read(&fscache_n_allocs_ok),
 		   atomic_read(&fscache_n_allocs_wait),
-		   atomic_read(&fscache_n_allocs_nobufs));
-	seq_printf(m, "Allocs : ops=%u owt=%u\n",
+		   atomic_read(&fscache_n_allocs_nobufs),
+		   atomic_read(&fscache_n_allocs_intr));
+	seq_printf(m, "Allocs : ops=%u owt=%u abt=%u\n",
 		   atomic_read(&fscache_n_alloc_ops),
-		   atomic_read(&fscache_n_alloc_op_waits));
+		   atomic_read(&fscache_n_alloc_op_waits),
+		   atomic_read(&fscache_n_allocs_object_dead));
 
 	seq_printf(m, "Retrvls: n=%u ok=%u wt=%u nod=%u nbf=%u"
 		   " int=%u oom=%u\n",
@@ -170,9 +206,10 @@ static int fscache_stats_show(struct seq_file *m, void *v)
 		   atomic_read(&fscache_n_retrievals_nobufs),
 		   atomic_read(&fscache_n_retrievals_intr),
 		   atomic_read(&fscache_n_retrievals_nomem));
-	seq_printf(m, "Retrvls: ops=%u owt=%u\n",
+	seq_printf(m, "Retrvls: ops=%u owt=%u abt=%u\n",
 		   atomic_read(&fscache_n_retrieval_ops),
-		   atomic_read(&fscache_n_retrieval_op_waits));
+		   atomic_read(&fscache_n_retrieval_op_waits),
+		   atomic_read(&fscache_n_retrievals_object_dead));
 
 	seq_printf(m, "Stores : n=%u ok=%u agn=%u nbf=%u oom=%u\n",
 		   atomic_read(&fscache_n_stores),
@@ -180,18 +217,49 @@ static int fscache_stats_show(struct seq_file *m, void *v)
 		   atomic_read(&fscache_n_stores_again),
 		   atomic_read(&fscache_n_stores_nobufs),
 		   atomic_read(&fscache_n_stores_oom));
-	seq_printf(m, "Stores : ops=%u run=%u\n",
+	seq_printf(m, "Stores : ops=%u run=%u pgs=%u rxd=%u olm=%u\n",
 		   atomic_read(&fscache_n_store_ops),
-		   atomic_read(&fscache_n_store_calls));
+		   atomic_read(&fscache_n_store_calls),
+		   atomic_read(&fscache_n_store_pages),
+		   atomic_read(&fscache_n_store_radix_deletes),
+		   atomic_read(&fscache_n_store_pages_over_limit));
 
-	seq_printf(m, "Ops    : pend=%u run=%u enq=%u\n",
+	seq_printf(m, "VmScan : nos=%u gon=%u bsy=%u can=%u\n",
+		   atomic_read(&fscache_n_store_vmscan_not_storing),
+		   atomic_read(&fscache_n_store_vmscan_gone),
+		   atomic_read(&fscache_n_store_vmscan_busy),
+		   atomic_read(&fscache_n_store_vmscan_cancelled));
+
+	seq_printf(m, "Ops    : pend=%u run=%u enq=%u can=%u rej=%u\n",
 		   atomic_read(&fscache_n_op_pend),
 		   atomic_read(&fscache_n_op_run),
-		   atomic_read(&fscache_n_op_enqueue));
+		   atomic_read(&fscache_n_op_enqueue),
+		   atomic_read(&fscache_n_op_cancelled),
+		   atomic_read(&fscache_n_op_rejected));
 	seq_printf(m, "Ops    : dfr=%u rel=%u gc=%u\n",
 		   atomic_read(&fscache_n_op_deferred_release),
 		   atomic_read(&fscache_n_op_release),
 		   atomic_read(&fscache_n_op_gc));
+
+	seq_printf(m, "CacheOp: alo=%d luo=%d luc=%d gro=%d\n",
+		   atomic_read(&fscache_n_cop_alloc_object),
+		   atomic_read(&fscache_n_cop_lookup_object),
+		   atomic_read(&fscache_n_cop_lookup_complete),
+		   atomic_read(&fscache_n_cop_grab_object));
+	seq_printf(m, "CacheOp: upo=%d dro=%d pto=%d atc=%d syn=%d\n",
+		   atomic_read(&fscache_n_cop_update_object),
+		   atomic_read(&fscache_n_cop_drop_object),
+		   atomic_read(&fscache_n_cop_put_object),
+		   atomic_read(&fscache_n_cop_attr_changed),
+		   atomic_read(&fscache_n_cop_sync_cache));
+	seq_printf(m, "CacheOp: rap=%d ras=%d alp=%d als=%d wrp=%d ucp=%d dsp=%d\n",
+		   atomic_read(&fscache_n_cop_read_or_alloc_page),
+		   atomic_read(&fscache_n_cop_read_or_alloc_pages),
+		   atomic_read(&fscache_n_cop_allocate_page),
+		   atomic_read(&fscache_n_cop_allocate_pages),
+		   atomic_read(&fscache_n_cop_write_page),
+		   atomic_read(&fscache_n_cop_uncache_page),
+		   atomic_read(&fscache_n_cop_dissociate_pages));
 	return 0;
 }
 
