@@ -2446,7 +2446,7 @@ static int __init pxa_udc_probe(struct platform_device *pdev)
 	}
 
 	retval = -ENOMEM;
-	udc->regs = ioremap(regs->start, regs->end - regs->start + 1);
+	udc->regs = ioremap(regs->start, resource_size(regs));
 	if (!udc->regs) {
 		dev_err(&pdev->dev, "Unable to map UDC I/O memory\n");
 		goto err_map;
