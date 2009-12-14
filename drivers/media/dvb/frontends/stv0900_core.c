@@ -567,6 +567,46 @@ void stv0900_set_bandwidth(struct dvb_frontend *fe, u32 bandwidth)
 	}
 }
 
+u32 stv0900_get_freq_auto(struct stv0900_internal *intp, int demod)
+{
+	u32 freq, round;
+	/*	Formulat :
+	Tuner_Frequency(MHz)	= Regs / 64
+	Tuner_granularity(MHz)	= Regs / 2048
+	real_Tuner_Frequency	= Tuner_Frequency(MHz) - Tuner_granularity(MHz)
+	*/
+	freq = (stv0900_get_bits(intp, TUN_RFFREQ2) << 10) +
+		(stv0900_get_bits(intp, TUN_RFFREQ1) << 2) +
+		stv0900_get_bits(intp, TUN_RFFREQ0);
+
+	freq = (freq * 1000) / 64;
+
+	round = (stv0900_get_bits(intp, TUN_RFRESTE1) >> 2) +
+		stv0900_get_bits(intp, TUN_RFRESTE0);
+
+	round = (round * 1000) / 2048;
+
+	return freq + round;
+}
+
+void stv0900_set_tuner_auto(struct stv0900_internal *intp, u32 Frequency,
+						u32 Bandwidth, int demod)
+{
+	u32 tunerFrequency;
+	/* Formulat:
+	Tuner_frequency_reg= Frequency(MHz)*64
+	*/
+	tunerFrequency = (Frequency * 64) / 1000;
+
+	stv0900_write_bits(intp, TUN_RFFREQ2, (tunerFrequency >> 10));
+	stv0900_write_bits(intp, TUN_RFFREQ1, (tunerFrequency >> 2) & 0xff);
+	stv0900_write_bits(intp, TUN_RFFREQ0, (tunerFrequency & 0x03));
+	/* Low Pass Filter = BW /2 (MHz)*/
+	stv0900_write_bits(intp, TUN_BW, Bandwidth / 2000000);
+	/* Tuner Write trig */
+	stv0900_write_reg(intp, TNRLD, 1);
+}
+
 static s32 stv0900_get_rf_level(struct stv0900_internal *intp,
 				const struct stv0900_table *lookup,
 				enum fe_stv0900_demod_num demod)
@@ -1329,7 +1369,6 @@ static enum fe_stv0900_error stv0900_init_internal(struct dvb_frontend *fe,
 	enum fe_stv0900_error error = STV0900_NO_ERROR;
 	enum fe_stv0900_error demodError = STV0900_NO_ERROR;
 	struct stv0900_internal *intp = NULL;
-
 	int selosci, i;
 
 	struct stv0900_inode *temp_int = find_inode(state->i2c_adap,
@@ -1404,12 +1443,54 @@ static enum fe_stv0900_error stv0900_init_internal(struct dvb_frontend *fe,
 		stv0900_write_bits(intp, F0900_P1_RST_HWARE, 0);
 	}
 
+	intp->tuner_type[0] = p_init->tuner1_type;
+	intp->tuner_type[1] = p_init->tuner2_type;
+	/* tuner init */
+	switch (p_init->tuner1_type) {
+	case 3: /*FE_AUTO_STB6100:*/
+		stv0900_write_reg(intp, R0900_P1_TNRCFG, 0x3c);
+		stv0900_write_reg(intp, R0900_P1_TNRCFG2, 0x86);
+		stv0900_write_reg(intp, R0900_P1_TNRCFG3, 0x18);
+		stv0900_write_reg(intp, R0900_P1_TNRXTAL, 27); /* 27MHz */
+		stv0900_write_reg(intp, R0900_P1_TNRSTEPS, 0x05);
+		stv0900_write_reg(intp, R0900_P1_TNRGAIN, 0x17);
+		stv0900_write_reg(intp, R0900_P1_TNRADJ, 0x1f);
+		stv0900_write_reg(intp, R0900_P1_TNRCTL2, 0x0);
+		stv0900_write_bits(intp, F0900_P1_TUN_TYPE, 3);
+		break;
+	/* case FE_SW_TUNER: */
+	default:
+		stv0900_write_bits(intp, F0900_P1_TUN_TYPE, 6);
+		break;
+	}
+
 	stv0900_write_bits(intp, F0900_P1_TUN_MADDRESS, p_init->tun1_maddress);
 	switch (p_init->tuner1_adc) {
 	case 1:
 		stv0900_write_reg(intp, R0900_TSTTNR1, 0x26);
 		break;
 	default:
+		break;
+	}
+
+	stv0900_write_reg(intp, R0900_P1_TNRLD, 1); /* hw tuner */
+
+	/* tuner init */
+	switch (p_init->tuner2_type) {
+	case 3: /*FE_AUTO_STB6100:*/
+		stv0900_write_reg(intp, R0900_P2_TNRCFG, 0x3c);
+		stv0900_write_reg(intp, R0900_P2_TNRCFG2, 0x86);
+		stv0900_write_reg(intp, R0900_P2_TNRCFG3, 0x18);
+		stv0900_write_reg(intp, R0900_P2_TNRXTAL, 27); /* 27MHz */
+		stv0900_write_reg(intp, R0900_P2_TNRSTEPS, 0x05);
+		stv0900_write_reg(intp, R0900_P2_TNRGAIN, 0x17);
+		stv0900_write_reg(intp, R0900_P2_TNRADJ, 0x1f);
+		stv0900_write_reg(intp, R0900_P2_TNRCTL2, 0x0);
+		stv0900_write_bits(intp, F0900_P2_TUN_TYPE, 3);
+		break;
+	/* case FE_SW_TUNER: */
+	default:
+		stv0900_write_bits(intp, F0900_P2_TUN_TYPE, 6);
 		break;
 	}
 
@@ -1421,6 +1502,8 @@ static enum fe_stv0900_error stv0900_init_internal(struct dvb_frontend *fe,
 	default:
 		break;
 	}
+
+	stv0900_write_reg(intp, R0900_P2_TNRLD, 1); /* hw tuner */
 
 	stv0900_write_bits(intp, F0900_P1_TUN_IQSWAP, p_init->tun1_iq_inv);
 	stv0900_write_bits(intp, F0900_P2_TUN_IQSWAP, p_init->tun2_iq_inv);
@@ -1824,10 +1907,12 @@ struct dvb_frontend *stv0900_attach(const struct stv0900_config *config,
 		init_params.tun1_maddress	= config->tun1_maddress;
 		init_params.tun1_iq_inv		= STV0900_IQ_NORMAL;
 		init_params.tuner1_adc		= config->tun1_adc;
+		init_params.tuner1_type		= config->tun1_type;
 		init_params.path2_ts_clock	= config->path2_mode;
 		init_params.ts_config		= config->ts_config_regs;
 		init_params.tun2_maddress	= config->tun2_maddress;
 		init_params.tuner2_adc		= config->tun2_adc;
+		init_params.tuner2_type		= config->tun2_type;
 		init_params.tun2_iq_inv		= STV0900_IQ_SWAPPED;
 
 		err_stv0900 = stv0900_init_internal(&state->frontend,

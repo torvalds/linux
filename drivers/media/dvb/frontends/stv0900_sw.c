@@ -606,7 +606,12 @@ static int stv0900_get_demod_cold_lock(struct dvb_frontend *fe,
 			tuner_freq -= (current_step * currier_step);
 
 		if (intp->chip_id <= 0x20) {
-			stv0900_set_tuner(fe, tuner_freq, intp->bw[d]);
+			if (intp->tuner_type[d] == 3)
+				stv0900_set_tuner_auto(intp, tuner_freq,
+						intp->bw[d], demod);
+			else
+				stv0900_set_tuner(fe, tuner_freq, intp->bw[d]);
+
 			stv0900_write_reg(intp, DMDISTATE, 0x1c);
 			stv0900_write_reg(intp, CFRINIT1, 0);
 			stv0900_write_reg(intp, CFRINIT0, 0);
@@ -976,8 +981,16 @@ static void stv0900_track_optimization(struct dvb_frontend *fe)
 					intp->rolloff) + 10000000;
 
 		if ((intp->chip_id >= 0x20) || (blind_tun_sw == 1)) {
-			if (intp->srch_algo[demod] != STV0900_WARM_START)
-				stv0900_set_bandwidth(fe, intp->bw[demod]);
+			if (intp->srch_algo[demod] != STV0900_WARM_START) {
+				if (intp->tuner_type[demod] == 3)
+					stv0900_set_tuner_auto(intp,
+							intp->freq[demod],
+							intp->bw[demod],
+							demod);
+				else
+					stv0900_set_bandwidth(fe,
+							intp->bw[demod]);
+			}
 		}
 
 		if ((intp->srch_algo[demod] == STV0900_BLIND_SEARCH) ||
@@ -1202,7 +1215,11 @@ fe_stv0900_signal_type stv0900_get_signal_params(struct dvb_frontend *fe)
 	}
 
 	result->standard = stv0900_get_standard(fe, d);
-	result->frequency = stv0900_get_tuner_freq(fe);
+	if (intp->tuner_type[demod] == 3)
+		result->frequency = stv0900_get_freq_auto(intp, d);
+	else
+		result->frequency = stv0900_get_tuner_freq(fe);
+
 	offsetFreq = stv0900_get_carr_freq(intp, intp->mclk, d) / 1000;
 	result->frequency += offsetFreq;
 	result->symbol_rate = stv0900_get_symbol_rate(intp, intp->mclk, d);
@@ -1239,7 +1256,11 @@ fe_stv0900_signal_type stv0900_get_signal_params(struct dvb_frontend *fe)
 	if ((intp->srch_algo[d] == STV0900_BLIND_SEARCH) ||
 				(intp->symbol_rate[d] < 10000000)) {
 		offsetFreq = result->frequency - intp->freq[d];
-		intp->freq[d] = stv0900_get_tuner_freq(fe);
+		if (intp->tuner_type[demod] == 3)
+			intp->freq[d] = stv0900_get_freq_auto(intp, d);
+		else
+			intp->freq[d] = stv0900_get_tuner_freq(fe);
+
 		if (ABS(offsetFreq) <= ((intp->srch_range[d] / 2000) + 500))
 			range = STV0900_RANGEOK;
 		else if (ABS(offsetFreq) <=
@@ -1481,7 +1502,12 @@ static u32 stv0900_search_srate_coarse(struct dvb_frontend *fe)
 			else
 				tuner_freq -= (current_step * currier_step);
 
-			stv0900_set_tuner(fe, tuner_freq, intp->bw[demod]);
+			if (intp->tuner_type[demod] == 3)
+				stv0900_set_tuner_auto(intp, tuner_freq,
+						intp->bw[demod], demod);
+			else
+				stv0900_set_tuner(fe, tuner_freq,
+						intp->bw[demod]);
 		}
 	}
 
@@ -1875,7 +1901,11 @@ enum fe_stv0900_signal_type stv0900_algo(struct dvb_frontend *fe)
 
 	}
 
-	stv0900_set_tuner(fe, intp->freq[demod], intp->bw[demod]);
+	if (intp->tuner_type[demod] == 3)
+		stv0900_set_tuner_auto(intp, intp->freq[demod],
+				intp->bw[demod], demod);
+	else
+		stv0900_set_tuner(fe, intp->freq[demod], intp->bw[demod]);
 
 	agc1_power = MAKEWORD(stv0900_get_bits(intp, AGCIQ_VALUE1),
 				stv0900_get_bits(intp, AGCIQ_VALUE0));

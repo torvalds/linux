@@ -49,6 +49,8 @@ struct stv0900_config {
 	u8 tun2_maddress;
 	u8 tun1_adc;/* 1 for stv6110, 2 for stb6100 */
 	u8 tun2_adc;
+	u8 tun1_type;/* for now 3 for stb6100 auto, else - software */
+	u8 tun2_type;
 	/* Set device param to start dma */
 	int (*set_ts_params)(struct dvb_frontend *fe, int is_punctured);
 };
