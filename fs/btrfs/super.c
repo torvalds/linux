@@ -325,9 +325,15 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 			break;
 		case Opt_subvolid:
 			intarg = 0;
-			match_int(&args[0], &intarg);
-			if (intarg)
-				*subvol_objectid = intarg;
+			error = match_int(&args[0], &intarg);
+			if (!error) {
+				/* we want the original fs_tree */
+				if (!intarg)
+					*subvol_objectid =
+						BTRFS_FS_TREE_OBJECTID;
+				else
+					*subvol_objectid = intarg;
+			}
 			break;
 		case Opt_device:
 			error = btrfs_scan_one_device(match_strdup(&args[0]),
