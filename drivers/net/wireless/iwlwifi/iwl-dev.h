@@ -1168,7 +1168,7 @@ struct iwl_priv {
 	u32 last_beacon_time;
 	u64 last_tsf;
 
-	/* eeprom */
+	/* eeprom -- this is in the card's little endian byte order */
 	u8 *eeprom;
 	int    nvm_device_type;
 	struct iwl_eeprom_calib_info *calib_info;
