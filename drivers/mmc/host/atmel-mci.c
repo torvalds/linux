@@ -1777,7 +1777,7 @@ static int __init atmci_probe(struct platform_device *pdev)
 	}
 
 	ret = -ENOMEM;
-	host->regs = ioremap(regs->start, regs->end - regs->start + 1);
+	host->regs = ioremap(regs->start, resource_size(regs));
 	if (!host->regs)
 		goto err_ioremap;
 
