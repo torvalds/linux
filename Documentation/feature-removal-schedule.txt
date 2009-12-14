@@ -291,13 +291,6 @@ Who:	Michael Buesch <mb@bu3sch.de>
 
 ---------------------------
 
-What:	usedac i386 kernel parameter
-When:	2.6.27
-Why:	replaced by allowdac and no dac combination
-Who:	Glauber Costa <gcosta@redhat.com>
-
----------------------------
-
 What: print_fn_descriptor_symbol()
 When: October 2009
 Why:  The %pF vsprintf format provides the same functionality in a
