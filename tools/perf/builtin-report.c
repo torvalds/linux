@@ -407,64 +407,6 @@ static int thread__set_comm_adjust(struct thread *self, const char *comm)
 	return 0;
 }
 
-static int call__match(struct symbol *sym)
-{
-	if (sym->name && !regexec(&parent_regex, sym->name, 0, NULL, 0))
-		return 1;
-
-	return 0;
-}
-
-static struct symbol **resolve_callchain(struct thread *thread,
-					 struct perf_session *session,
-					 struct ip_callchain *chain,
-					 struct symbol **parent)
-{
-	u8 cpumode = PERF_RECORD_MISC_USER;
-	struct symbol **syms = NULL;
-	unsigned int i;
-
-	if (session->use_callchain) {
-		syms = calloc(chain->nr, sizeof(*syms));
-		if (!syms) {
-			fprintf(stderr, "Can't allocate memory for symbols\n");
-			exit(-1);
-		}
-	}
-
-	for (i = 0; i < chain->nr; i++) {
-		u64 ip = chain->ips[i];
-		struct addr_location al;
-
-		if (ip >= PERF_CONTEXT_MAX) {
-			switch (ip) {
-			case PERF_CONTEXT_HV:
-				cpumode = PERF_RECORD_MISC_HYPERVISOR;	break;
-			case PERF_CONTEXT_KERNEL:
-				cpumode = PERF_RECORD_MISC_KERNEL;	break;
-			case PERF_CONTEXT_USER:
-				cpumode = PERF_RECORD_MISC_USER;	break;
-			default:
-				break;
-			}
-			continue;
-		}
-
-		thread__find_addr_location(thread, session, cpumode,
-					   MAP__FUNCTION, ip, &al, NULL);
-		if (al.sym != NULL) {
-			if (sort__has_parent && !*parent &&
-			    call__match(al.sym))
-				*parent = al.sym;
-			if (!session->use_callchain)
-				break;
-			syms[i] = al.sym;
-		}
-	}
-
-	return syms;
-}
-
 /*
  * collect histogram counts
  */
@@ -478,8 +420,8 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 	struct hist_entry *he;
 
 	if ((sort__has_parent || self->use_callchain) && chain)
-		syms = resolve_callchain(al->thread, self, chain, &parent);
-
+		syms = perf_session__resolve_callchain(self, al->thread,
+						       chain, &parent);
 	he = __perf_session__add_hist_entry(self, al, parent, count, &hit);
 	if (he == NULL)
 		return -ENOMEM;
