@@ -340,7 +340,7 @@ static void em28xx_ir_stop(struct em28xx_IR *ir)
 	cancel_delayed_work_sync(&ir->work);
 }
 
-int em28xx_ir_change_protocol(void *priv, enum ir_type ir_type)
+int em28xx_ir_change_protocol(void *priv, u64 ir_type)
 {
 	int rc = 0;
 	struct em28xx_IR *ir = priv;

@@ -192,7 +192,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	struct cx88_IR *ir;
 	struct input_dev *input_dev;
 	struct ir_scancode_table *ir_codes = NULL;
-	enum ir_type ir_type = IR_TYPE_OTHER;
+	u64 ir_type = IR_TYPE_OTHER;
 	int err = -ENOMEM;
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);

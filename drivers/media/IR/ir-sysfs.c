@@ -39,9 +39,9 @@ static ssize_t show_protocol(struct device *d,
 {
 	char *s;
 	struct ir_input_dev *ir_dev = dev_get_drvdata(d);
-	enum ir_type ir_type = ir_dev->rc_tab.ir_type;
+	u64 ir_type = ir_dev->rc_tab.ir_type;
 
-	IR_dprintk(1, "Current protocol is %ld\n", ir_type);
+	IR_dprintk(1, "Current protocol is %lld\n", (long long)ir_type);
 
 	/* FIXME: doesn't support multiple protocols at the same time */
 	if (ir_type == IR_TYPE_UNKNOWN)
@@ -77,7 +77,7 @@ static ssize_t store_protocol(struct device *d,
 			      size_t len)
 {
 	struct ir_input_dev *ir_dev = dev_get_drvdata(d);
-	enum ir_type ir_type = IR_TYPE_UNKNOWN;
+	u64 ir_type = IR_TYPE_UNKNOWN;
 	int rc = -EINVAL;
 	unsigned long flags;
 	char *buf;
@@ -92,7 +92,8 @@ static ssize_t store_protocol(struct device *d,
 		ir_type = IR_TYPE_NEC;
 
 	if (ir_type == IR_TYPE_UNKNOWN) {
-		IR_dprintk(1, "Error setting protocol to %ld\n", ir_type);
+		IR_dprintk(1, "Error setting protocol to %lld\n",
+			   (long long)ir_type);
 		return -EINVAL;
 	}
 
@@ -101,7 +102,8 @@ static ssize_t store_protocol(struct device *d,
 						    ir_type);
 
 	if (rc < 0) {
-		IR_dprintk(1, "Error setting protocol to %ld\n", ir_type);
+		IR_dprintk(1, "Error setting protocol to %lld\n",
+			   (long long)ir_type);
 		return -EINVAL;
 	}
 
@@ -109,7 +111,8 @@ static ssize_t store_protocol(struct device *d,
 	ir_dev->rc_tab.ir_type = ir_type;
 	spin_unlock_irqrestore(&ir_dev->rc_tab.lock, flags);
 
-	IR_dprintk(1, "Current protocol is %ld\n", ir_type);
+	IR_dprintk(1, "Current protocol is %lld\n",
+		   (long long)ir_type);
 
 	return len;
 }

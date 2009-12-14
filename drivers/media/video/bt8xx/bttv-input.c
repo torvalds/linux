@@ -247,7 +247,7 @@ int bttv_input_init(struct bttv *btv)
 	struct card_ir *ir;
 	struct ir_scancode_table *ir_codes = NULL;
 	struct input_dev *input_dev;
-	enum ir_type ir_type = IR_TYPE_OTHER;
+	u64 ir_type = IR_TYPE_OTHER;
 	int err = -ENOMEM;
 
 	if (!btv->has_remote)

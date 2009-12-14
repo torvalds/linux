@@ -299,7 +299,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct ir_scancode_table *ir_codes = NULL;
 	const char *name = NULL;
-	enum ir_type ir_type = 0;
+	u64 ir_type = 0;
 	struct IR_i2c *ir;
 	struct input_dev *input_dev;
 	struct i2c_adapter *adap = client->adapter;

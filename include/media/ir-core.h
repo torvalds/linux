@@ -21,13 +21,11 @@ extern int ir_core_debug;
 #define IR_dprintk(level, fmt, arg...)	if (ir_core_debug >= level) \
 	printk(KERN_DEBUG "%s: " fmt , __func__, ## arg)
 
-enum ir_type {
-	IR_TYPE_UNKNOWN	= 0,
-	IR_TYPE_RC5	= 1L << 0,	/* Philips RC5 protocol */
-	IR_TYPE_PD	= 1L << 1,	/* Pulse distance encoded IR */
-	IR_TYPE_NEC	= 1L << 2,
-	IR_TYPE_OTHER	= 1L << 63,
-};
+#define IR_TYPE_UNKNOWN	0
+#define IR_TYPE_RC5	(1  << 0)	/* Philips RC5 protocol */
+#define IR_TYPE_PD	(1  << 1)	/* Pulse distance encoded IR */
+#define IR_TYPE_NEC	(1  << 2)
+#define IR_TYPE_OTHER	(((u64)1) << 63l)
 
 struct ir_scancode {
 	u16	scancode;
@@ -37,14 +35,14 @@ struct ir_scancode {
 struct ir_scancode_table {
 	struct ir_scancode	*scan;
 	int			size;
-	enum			ir_type ir_type;
+	u64		ir_type;
 	spinlock_t		lock;
 };
 
 struct ir_dev_props {
 	unsigned long allowed_protos;
 	void 		*priv;
-	int (*change_protocol)(void *priv, enum ir_type ir_type);
+	int (*change_protocol)(void *priv, u64 ir_type);
 };
 
 
