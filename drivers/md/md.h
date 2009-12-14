@@ -292,6 +292,17 @@ struct mddev_s
 	struct mutex			bitmap_mutex;
 
 	struct list_head		all_mddevs;
+
+	/* Generic barrier handling.
+	 * If there is a pending barrier request, all other
+	 * writes are blocked while the devices are flushed.
+	 * The last to finish a flush schedules a worker to
+	 * submit the barrier request (without the barrier flag),
+	 * then submit more flush requests.
+	 */
+	struct bio *barrier;
+	atomic_t flush_pending;
+	struct work_struct barrier_work;
 };
 
 
@@ -432,6 +443,7 @@ extern void md_done_sync(mddev_t *mddev, int blocks, int ok);
 extern void md_error(mddev_t *mddev, mdk_rdev_t *rdev);
 
 extern int mddev_congested(mddev_t *mddev, int bits);
+extern void md_barrier_request(mddev_t *mddev, struct bio *bio);
 extern void md_super_write(mddev_t *mddev, mdk_rdev_t *rdev,
 			   sector_t sector, int size, struct page *page);
 extern void md_super_wait(mddev_t *mddev);
