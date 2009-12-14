@@ -928,7 +928,7 @@ static int __init at91_mci_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENXIO;
 
-	if (!request_mem_region(res->start, res->end - res->start + 1, DRIVER_NAME))
+	if (!request_mem_region(res->start, resource_size(res), DRIVER_NAME))
 		return -EBUSY;
 
 	mmc = mmc_alloc_host(sizeof(struct at91mci_host), &pdev->dev);
@@ -1017,7 +1017,7 @@ static int __init at91_mci_probe(struct platform_device *pdev)
 	/*
 	 * Map I/O region
 	 */
-	host->baseaddr = ioremap(res->start, res->end - res->start + 1);
+	host->baseaddr = ioremap(res->start, resource_size(res));
 	if (!host->baseaddr) {
 		ret = -ENOMEM;
 		goto fail1;
@@ -1093,7 +1093,7 @@ fail4b:
 fail5:
 	mmc_free_host(mmc);
 fail6:
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 	dev_err(&pdev->dev, "probe failed, err %d\n", ret);
 	return ret;
 }
@@ -1138,7 +1138,7 @@ static int __exit at91_mci_remove(struct platform_device *pdev)
 
 	iounmap(host->baseaddr);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 
 	mmc_free_host(mmc);
 	platform_set_drvdata(pdev, NULL);
