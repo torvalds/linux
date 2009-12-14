@@ -296,6 +296,35 @@ All md devices contain:
      active-idle
          like active, but no writes have been seen for a while (safe_mode_delay).
 
+  bitmap/location
+     This indicates where the write-intent bitmap for the array is
+     stored.
+     It can be one of "none", "file" or "[+-]N".
+     "file" may later be extended to "file:/file/name"
+     "[+-]N" means that many sectors from the start of the metadata.
+       This is replicated on all devices.  For arrays with externally
+       managed metadata, the offset is from the beginning of the
+       device.
+  bitmap/chunksize
+     The size, in bytes, of the chunk which will be represented by a
+     single bit.  For RAID456, it is a portion of an individual
+     device. For RAID10, it is a portion of the array.  For RAID1, it
+     is both (they come to the same thing).
+  bitmap/time_base
+     The time, in seconds, between looking for bits in the bitmap to
+     be cleared. In the current implementation, a bit will be cleared
+     between 2 and 3 times "time_base" after all the covered blocks
+     are known to be in-sync.
+  bitmap/backlog
+     When write-mostly devices are active in a RAID1, write requests
+     to those devices proceed in the background - the filesystem (or
+     other user of the device) does not have to wait for them.
+     'backlog' sets a limit on the number of concurrent background
+     writes.  If there are more than this, new writes will by
+     synchronous.
+     
+     
+     
 
 As component devices are added to an md array, they appear in the 'md'
 directory as new directories named

@@ -372,7 +372,7 @@ struct md_sysfs_entry {
 	ssize_t (*show)(mddev_t *, char *);
 	ssize_t (*store)(mddev_t *, const char *, size_t);
 };
-
+extern struct attribute_group md_bitmap_group;
 
 static inline char * mdname (mddev_t * mddev)
 {
@@ -465,5 +465,6 @@ extern int md_check_no_bitmap(mddev_t *mddev);
 extern int md_integrity_register(mddev_t *mddev);
 extern void md_integrity_add_rdev(mdk_rdev_t *rdev, mddev_t *mddev);
 extern int strict_strtoul_scaled(const char *cp, unsigned long *res, int scale);
+extern void restore_bitmap_write_access(struct file *file);
 
 #endif /* _MD_MD_H */

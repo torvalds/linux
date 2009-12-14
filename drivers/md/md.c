@@ -4018,6 +4018,7 @@ static void mddev_delayed_delete(struct work_struct *ws)
 		mddev->sysfs_action = NULL;
 		mddev->private = NULL;
 	}
+	sysfs_remove_group(&mddev->kobj, &md_bitmap_group);
 	kobject_del(&mddev->kobj);
 	kobject_put(&mddev->kobj);
 }
@@ -4109,6 +4110,8 @@ static int md_alloc(dev_t dev, char *name)
 		       disk->disk_name);
 		error = 0;
 	}
+	if (sysfs_create_group(&mddev->kobj, &md_bitmap_group))
+		printk(KERN_DEBUG "pointless warning\n");
  abort:
 	mutex_unlock(&disks_mutex);
 	if (!error) {
@@ -4434,7 +4437,7 @@ static int deny_bitmap_write_access(struct file * file)
 	return 0;
 }
 
-static void restore_bitmap_write_access(struct file *file)
+void restore_bitmap_write_access(struct file *file)
 {
 	struct inode *inode = file->f_mapping->host;
 

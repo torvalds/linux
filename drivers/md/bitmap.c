@@ -510,6 +510,9 @@ void bitmap_update_sb(struct bitmap *bitmap)
 		bitmap->events_cleared = bitmap->mddev->events;
 		sb->events_cleared = cpu_to_le64(bitmap->events_cleared);
 	}
+	/* Just in case these have been changed via sysfs: */
+	sb->daemon_sleep = cpu_to_le32(bitmap->mddev->bitmap_info.daemon_sleep/HZ);
+	sb->write_behind = cpu_to_le32(bitmap->mddev->bitmap_info.max_write_behind);
 	kunmap_atomic(sb, KM_USER0);
 	write_page(bitmap, bitmap->sb_page, 1);
 }
@@ -1713,6 +1716,208 @@ int bitmap_create(mddev_t *mddev)
 	bitmap_free(bitmap);
 	return err;
 }
+
+static ssize_t
+location_show(mddev_t *mddev, char *page)
+{
+	ssize_t len;
+	if (mddev->bitmap_info.file) {
+		len = sprintf(page, "file");
+	} else if (mddev->bitmap_info.offset) {
+		len = sprintf(page, "%+lld", (long long)mddev->bitmap_info.offset);
+	} else
+		len = sprintf(page, "none");
+	len += sprintf(page+len, "\n");
+	return len;
+}
+
+static ssize_t
+location_store(mddev_t *mddev, const char *buf, size_t len)
+{
+
+	if (mddev->pers) {
+		if (!mddev->pers->quiesce)
+			return -EBUSY;
+		if (mddev->recovery || mddev->sync_thread)
+			return -EBUSY;
+	}
+
+	if (mddev->bitmap || mddev->bitmap_info.file ||
+	    mddev->bitmap_info.offset) {
+		/* bitmap already configured.  Only option is to clear it */
+		if (strncmp(buf, "none", 4) != 0)
+			return -EBUSY;
+		if (mddev->pers) {
+			mddev->pers->quiesce(mddev, 1);
+			bitmap_destroy(mddev);
+			mddev->pers->quiesce(mddev, 0);
+		}
+		mddev->bitmap_info.offset = 0;
+		if (mddev->bitmap_info.file) {
+			struct file *f = mddev->bitmap_info.file;
+			mddev->bitmap_info.file = NULL;
+			restore_bitmap_write_access(f);
+			fput(f);
+		}
+	} else {
+		/* No bitmap, OK to set a location */
+		long long offset;
+		if (strncmp(buf, "none", 4) == 0)
+			/* nothing to be done */;
+		else if (strncmp(buf, "file:", 5) == 0) {
+			/* Not supported yet */
+			return -EINVAL;
+		} else {
+			int rv;
+			if (buf[0] == '+')
+				rv = strict_strtoll(buf+1, 10, &offset);
+			else
+				rv = strict_strtoll(buf, 10, &offset);
+			if (rv)
+				return rv;
+			if (offset == 0)
+				return -EINVAL;
+			if (mddev->major_version == 0 &&
+			    offset != mddev->bitmap_info.default_offset)
+				return -EINVAL;
+			mddev->bitmap_info.offset = offset;
+			if (mddev->pers) {
+				mddev->pers->quiesce(mddev, 1);
+				rv = bitmap_create(mddev);
+				if (rv) {
+					bitmap_destroy(mddev);
+					mddev->bitmap_info.offset = 0;
+				}
+				mddev->pers->quiesce(mddev, 0);
+				if (rv)
+					return rv;
+			}
+		}
+	}
+	if (!mddev->external) {
+		/* Ensure new bitmap info is stored in
+		 * metadata promptly.
+		 */
+		set_bit(MD_CHANGE_DEVS, &mddev->flags);
+		md_wakeup_thread(mddev->thread);
+	}
+	return len;
+}
+
+static struct md_sysfs_entry bitmap_location =
+__ATTR(location, S_IRUGO|S_IWUSR, location_show, location_store);
+
+static ssize_t
+timeout_show(mddev_t *mddev, char *page)
+{
+	ssize_t len;
+	unsigned long secs = mddev->bitmap_info.daemon_sleep / HZ;
+	unsigned long jifs = mddev->bitmap_info.daemon_sleep % HZ;
+	
+	len = sprintf(page, "%lu", secs);
+	if (jifs)
+		len += sprintf(page+len, ".%03u", jiffies_to_msecs(jifs));
+	len += sprintf(page+len, "\n");
+	return len;
+}
+
+static ssize_t
+timeout_store(mddev_t *mddev, const char *buf, size_t len)
+{
+	/* timeout can be set at any time */
+	unsigned long timeout;
+	int rv = strict_strtoul_scaled(buf, &timeout, 4);
+	if (rv)
+		return rv;
+
+	/* just to make sure we don't overflow... */
+	if (timeout >= LONG_MAX / HZ)
+		return -EINVAL;
+
+	timeout = timeout * HZ / 10000;
+
+	if (timeout >= MAX_SCHEDULE_TIMEOUT)
+		timeout = MAX_SCHEDULE_TIMEOUT-1;
+	if (timeout < 1)
+		timeout = 1;
+	mddev->bitmap_info.daemon_sleep = timeout;
+	if (mddev->thread) {
+		/* if thread->timeout is MAX_SCHEDULE_TIMEOUT, then
+		 * the bitmap is all clean and we don't need to
+		 * adjust the timeout right now
+		 */
+		if (mddev->thread->timeout < MAX_SCHEDULE_TIMEOUT) {
+			mddev->thread->timeout = timeout;
+			md_wakeup_thread(mddev->thread);
+		}
+	}
+	return len;
+}
+
+static struct md_sysfs_entry bitmap_timeout =
+__ATTR(time_base, S_IRUGO|S_IWUSR, timeout_show, timeout_store);
+
+static ssize_t
+backlog_show(mddev_t *mddev, char *page)
+{
+	return sprintf(page, "%lu\n", mddev->bitmap_info.max_write_behind);
+}
+
+static ssize_t
+backlog_store(mddev_t *mddev, const char *buf, size_t len)
+{
+	unsigned long backlog;
+	int rv = strict_strtoul(buf, 10, &backlog);
+	if (rv)
+		return rv;
+	if (backlog > COUNTER_MAX)
+		return -EINVAL;
+	mddev->bitmap_info.max_write_behind = backlog;
+	return len;
+}
+
+static struct md_sysfs_entry bitmap_backlog =
+__ATTR(backlog, S_IRUGO|S_IWUSR, backlog_show, backlog_store);
+
+static ssize_t
+chunksize_show(mddev_t *mddev, char *page)
+{
+	return sprintf(page, "%lu\n", mddev->bitmap_info.chunksize);
+}
+
+static ssize_t
+chunksize_store(mddev_t *mddev, const char *buf, size_t len)
+{
+	/* Can only be changed when no bitmap is active */
+	int rv;
+	unsigned long csize;
+	if (mddev->bitmap)
+		return -EBUSY;
+	rv = strict_strtoul(buf, 10, &csize);
+	if (rv)
+		return rv;
+	if (csize < 512 ||
+	    !is_power_of_2(csize))
+		return -EINVAL;
+	mddev->bitmap_info.chunksize = csize;
+	return len;
+}
+
+static struct md_sysfs_entry bitmap_chunksize =
+__ATTR(chunksize, S_IRUGO|S_IWUSR, chunksize_show, chunksize_store);
+
+static struct attribute *md_bitmap_attrs[] = {
+	&bitmap_location.attr,
+	&bitmap_timeout.attr,
+	&bitmap_backlog.attr,
+	&bitmap_chunksize.attr,
+	NULL
+};
+struct attribute_group md_bitmap_group = {
+	.name = "bitmap",
+	.attrs = md_bitmap_attrs,
+};
+
 
 /* the bitmap API -- for raid personalities */
 EXPORT_SYMBOL(bitmap_startwrite);
