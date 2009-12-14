@@ -788,7 +788,7 @@ static int __init atmel_spi_probe(struct platform_device *pdev)
 	spin_lock_init(&as->lock);
 	INIT_LIST_HEAD(&as->queue);
 	as->pdev = pdev;
-	as->regs = ioremap(regs->start, (regs->end - regs->start) + 1);
+	as->regs = ioremap(regs->start, resource_size(regs));
 	if (!as->regs)
 		goto out_free_buffer;
 	as->irq = irq;
