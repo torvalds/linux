@@ -13,6 +13,8 @@ obj-$(CONFIG_SND_SOC_SH4_FSI)	+= snd-soc-fsi.o
 ## boards
 snd-soc-sh7760-ac97-objs	:= sh7760-ac97.o
 snd-soc-fsi-ak4642-objs		:= fsi-ak4642.o
+snd-soc-fsi-da7210-objs		:= fsi-da7210.o
 
 obj-$(CONFIG_SND_SH7760_AC97)	+= snd-soc-sh7760-ac97.o
 obj-$(CONFIG_SND_FSI_AK4642)	+= snd-soc-fsi-ak4642.o
+obj-$(CONFIG_SND_FSI_DA7210)	+= snd-soc-fsi-da7210.o
