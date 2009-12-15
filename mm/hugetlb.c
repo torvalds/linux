@@ -622,6 +622,20 @@ static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
 }
 
 /*
+ * common helper function for hstate_next_node_to_{alloc|free}.
+ * return next node in node_online_map, wrapping at end.
+ */
+static int next_node_allowed(int nid)
+{
+	nid = next_node(nid, node_online_map);
+	if (nid == MAX_NUMNODES)
+		nid = first_node(node_online_map);
+	VM_BUG_ON(nid >= MAX_NUMNODES);
+
+	return nid;
+}
+
+/*
  * Use a helper variable to find the next node and then
  * copy it back to next_nid_to_alloc afterwards:
  * otherwise there's a window in which a racer might
@@ -634,12 +648,12 @@ static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
  */
 static int hstate_next_node_to_alloc(struct hstate *h)
 {
-	int next_nid;
-	next_nid = next_node(h->next_nid_to_alloc, node_online_map);
-	if (next_nid == MAX_NUMNODES)
-		next_nid = first_node(node_online_map);
+	int nid, next_nid;
+
+	nid = h->next_nid_to_alloc;
+	next_nid = next_node_allowed(nid);
 	h->next_nid_to_alloc = next_nid;
-	return next_nid;
+	return nid;
 }
 
 static int alloc_fresh_huge_page(struct hstate *h)
@@ -649,15 +663,17 @@ static int alloc_fresh_huge_page(struct hstate *h)
 	int next_nid;
 	int ret = 0;
 
-	start_nid = h->next_nid_to_alloc;
+	start_nid = hstate_next_node_to_alloc(h);
 	next_nid = start_nid;
 
 	do {
 		page = alloc_fresh_huge_page_node(h, next_nid);
-		if (page)
+		if (page) {
 			ret = 1;
+			break;
+		}
 		next_nid = hstate_next_node_to_alloc(h);
-	} while (!page && next_nid != start_nid);
+	} while (next_nid != start_nid);
 
 	if (ret)
 		count_vm_event(HTLB_BUDDY_PGALLOC);
@@ -668,17 +684,19 @@ static int alloc_fresh_huge_page(struct hstate *h)
 }
 
 /*
- * helper for free_pool_huge_page() - find next node
- * from which to free a huge page
+ * helper for free_pool_huge_page() - return the next node
+ * from which to free a huge page.  Advance the next node id
+ * whether or not we find a free huge page to free so that the
+ * next attempt to free addresses the next node.
  */
 static int hstate_next_node_to_free(struct hstate *h)
 {
-	int next_nid;
-	next_nid = next_node(h->next_nid_to_free, node_online_map);
-	if (next_nid == MAX_NUMNODES)
-		next_nid = first_node(node_online_map);
+	int nid, next_nid;
+
+	nid = h->next_nid_to_free;
+	next_nid = next_node_allowed(nid);
 	h->next_nid_to_free = next_nid;
-	return next_nid;
+	return nid;
 }
 
 /*
@@ -693,7 +711,7 @@ static int free_pool_huge_page(struct hstate *h, bool acct_surplus)
 	int next_nid;
 	int ret = 0;
 
-	start_nid = h->next_nid_to_free;
+	start_nid = hstate_next_node_to_free(h);
 	next_nid = start_nid;
 
 	do {
@@ -715,9 +733,10 @@ static int free_pool_huge_page(struct hstate *h, bool acct_surplus)
 			}
 			update_and_free_page(h, page);
 			ret = 1;
+			break;
 		}
 		next_nid = hstate_next_node_to_free(h);
-	} while (!ret && next_nid != start_nid);
+	} while (next_nid != start_nid);
 
 	return ret;
 }
@@ -1028,10 +1047,9 @@ int __weak alloc_bootmem_huge_page(struct hstate *h)
 		void *addr;
 
 		addr = __alloc_bootmem_node_nopanic(
-				NODE_DATA(h->next_nid_to_alloc),
+				NODE_DATA(hstate_next_node_to_alloc(h)),
 				huge_page_size(h), huge_page_size(h), 0);
 
-		hstate_next_node_to_alloc(h);
 		if (addr) {
 			/*
 			 * Use the beginning of the huge page to store the
@@ -1167,29 +1185,31 @@ static int adjust_pool_surplus(struct hstate *h, int delta)
 	VM_BUG_ON(delta != -1 && delta != 1);
 
 	if (delta < 0)
-		start_nid = h->next_nid_to_alloc;
+		start_nid = hstate_next_node_to_alloc(h);
 	else
-		start_nid = h->next_nid_to_free;
+		start_nid = hstate_next_node_to_free(h);
 	next_nid = start_nid;
 
 	do {
 		int nid = next_nid;
 		if (delta < 0)  {
-			next_nid = hstate_next_node_to_alloc(h);
 			/*
 			 * To shrink on this node, there must be a surplus page
 			 */
-			if (!h->surplus_huge_pages_node[nid])
+			if (!h->surplus_huge_pages_node[nid]) {
+				next_nid = hstate_next_node_to_alloc(h);
 				continue;
+			}
 		}
 		if (delta > 0) {
-			next_nid = hstate_next_node_to_free(h);
 			/*
 			 * Surplus cannot exceed the total number of pages
 			 */
 			if (h->surplus_huge_pages_node[nid] >=
-						h->nr_huge_pages_node[nid])
+						h->nr_huge_pages_node[nid]) {
+				next_nid = hstate_next_node_to_free(h);
 				continue;
+			}
 		}
 
 		h->surplus_huge_pages += delta;
