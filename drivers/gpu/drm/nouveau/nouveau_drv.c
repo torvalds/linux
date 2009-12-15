@@ -35,6 +35,10 @@
 
 #include "drm_pciids.h"
 
+MODULE_PARM_DESC(ctxfw, "Use external firmware blob for grctx init (NV40)");
+int nouveau_ctxfw = 0;
+module_param_named(ctxfw, nouveau_ctxfw, int, 0400);
+
 MODULE_PARM_DESC(noagp, "Disable AGP");
 int nouveau_noagp;
 module_param_named(noagp, nouveau_noagp, int, 0400);
