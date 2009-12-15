@@ -265,8 +265,11 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 		ret = find_probepoint(fd, pp);
 		if (ret > 0)
 			continue;
-		if (ret == 0)	/* No error but failed to find probe point. */
-			die("No probe point found.");
+		if (ret == 0) {	/* No error but failed to find probe point. */
+			synthesize_perf_probe_point(pp);
+			die("Probe point '%s' not found. - probe not added.",
+			    pp->probes[0]);
+		}
 		/* Error path */
 		if (session.need_dwarf) {
 			if (ret == -ENOENT)

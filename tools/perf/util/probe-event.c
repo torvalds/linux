@@ -249,11 +249,12 @@ void parse_trace_kprobe_event(const char *str, struct probe_point *pp)
 	argv_free(argv);
 }
 
-int synthesize_perf_probe_event(struct probe_point *pp)
+/* Synthesize only probe point (not argument) */
+int synthesize_perf_probe_point(struct probe_point *pp)
 {
 	char *buf;
 	char offs[64] = "", line[64] = "";
-	int i, len, ret;
+	int ret;
 
 	pp->probes[0] = buf = zalloc(MAX_CMDLEN);
 	if (!buf)
@@ -274,10 +275,24 @@ int synthesize_perf_probe_event(struct probe_point *pp)
 				 offs, pp->retprobe ? "%return" : "", line);
 	else
 		ret = e_snprintf(buf, MAX_CMDLEN, "%s%s", pp->file, line);
-	if (ret <= 0)
-		goto error;
-	len = ret;
+	if (ret <= 0) {
+error:
+		free(pp->probes[0]);
+		pp->probes[0] = NULL;
+	}
+	return ret;
+}
 
+int synthesize_perf_probe_event(struct probe_point *pp)
+{
+	char *buf;
+	int i, len, ret;
+
+	len = synthesize_perf_probe_point(pp);
+	if (len < 0)
+		return 0;
+
+	buf = pp->probes[0];
 	for (i = 0; i < pp->nr_args; i++) {
 		ret = e_snprintf(&buf[len], MAX_CMDLEN - len, " %s",
 				 pp->args[i]);
@@ -290,6 +305,7 @@ int synthesize_perf_probe_event(struct probe_point *pp)
 	return pp->found;
 error:
 	free(pp->probes[0]);
+	pp->probes[0] = NULL;
 
 	return ret;
 }
@@ -319,6 +335,7 @@ int synthesize_trace_kprobe_event(struct probe_point *pp)
 	return pp->found;
 error:
 	free(pp->probes[0]);
+	pp->probes[0] = NULL;
 
 	return ret;
 }
@@ -418,7 +435,7 @@ static void show_perf_probe_event(const char *event, const char *place,
 /* List up current perf-probe events */
 void show_perf_probe_events(void)
 {
-	int fd, nr;
+	int fd;
 	struct probe_point pp;
 	struct strlist *rawlist;
 	struct str_node *ent;
@@ -430,10 +447,7 @@ void show_perf_probe_events(void)
 	strlist__for_each(ent, rawlist) {
 		parse_trace_kprobe_event(ent->s, &pp);
 		/* Synthesize only event probe point */
-		nr = pp.nr_args;
-		pp.nr_args = 0;
-		synthesize_perf_probe_event(&pp);
-		pp.nr_args = nr;
+		synthesize_perf_probe_point(&pp);
 		/* Show an event */
 		show_perf_probe_event(pp.event, pp.probes[0], &pp);
 		clear_probe_point(&pp);
