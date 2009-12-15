@@ -607,11 +607,14 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		goto out;
 	}
 	for (;;) {
-		PDEBUG(D_STREAM, "init transfer alt %d", gspca_dev->alt);
-		ret = create_urbs(gspca_dev, ep);
-		if (ret < 0) {
-			destroy_urbs(gspca_dev);
-			goto out;
+		if (!gspca_dev->cam.no_urb_create) {
+			PDEBUG(D_STREAM, "init transfer alt %d",
+				gspca_dev->alt);
+			ret = create_urbs(gspca_dev, ep);
+			if (ret < 0) {
+				destroy_urbs(gspca_dev);
+				goto out;
+			}
 		}
 
 		/* clear the bulk endpoint */
