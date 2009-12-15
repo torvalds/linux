@@ -59,6 +59,7 @@ static struct {
 	struct strlist *dellist;
 	struct symbol_conf conf;
 	struct perf_session *psession;
+	struct map *kmap;
 } session;
 
 
@@ -115,22 +116,26 @@ static int opt_del_probe_event(const struct option *opt __used,
 	return 0;
 }
 
+/* Currently just checking function name from symbol map */
+static void evaluate_probe_point(struct probe_point *pp)
+{
+	struct symbol *sym;
+	sym = map__find_symbol_by_name(session.kmap, pp->function,
+				       session.psession, NULL);
+	if (!sym)
+		die("Kernel symbol \'%s\' not found - probe not added.",
+		    pp->function);
+}
+
 #ifndef NO_LIBDWARF
 static int open_vmlinux(void)
 {
-	struct map *kmap;
-	kmap = map_groups__find_by_name(&session.psession->kmaps,
-					MAP__FUNCTION, "[kernel.kallsyms]");
-	if (!kmap) {
-		pr_debug("Could not find kernel map.\n");
-		return -ENOENT;
-	}
-	if (map__load(kmap, session.psession, NULL) < 0) {
+	if (map__load(session.kmap, session.psession, NULL) < 0) {
 		pr_debug("Failed to load kernel map.\n");
 		return -EINVAL;
 	}
-	pr_debug("Try to open %s\n", kmap->dso->long_name);
-	return open(kmap->dso->long_name, O_RDONLY);
+	pr_debug("Try to open %s\n", session.kmap->dso->long_name);
+	return open(session.kmap->dso->long_name, O_RDONLY);
 }
 #endif
 
@@ -219,6 +224,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 	}
 
 	/* Initialize symbol maps for vmlinux */
+	session.conf.sort_by_name = true;
 	if (session.conf.vmlinux_name == NULL)
 		session.conf.try_vmlinux_path = true;
 	if (symbol__init(&session.conf) < 0)
@@ -227,6 +233,11 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 					     &session.conf);
 	if (session.psession == NULL)
 		die("Failed to init perf_session.");
+	session.kmap = map_groups__find_by_name(&session.psession->kmaps,
+						MAP__FUNCTION,
+						"[kernel.kallsyms]");
+	if (!session.kmap)
+		die("Could not find kernel map.\n");
 
 	if (session.need_dwarf)
 #ifdef NO_LIBDWARF
@@ -277,6 +288,7 @@ end_dwarf:
 		if (pp->found)	/* This probe is already found. */
 			continue;
 
+		evaluate_probe_point(pp);
 		ret = synthesize_trace_kprobe_event(pp);
 		if (ret == -E2BIG)
 			die("probe point definition becomes too long.");
