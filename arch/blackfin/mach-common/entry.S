@@ -1357,7 +1357,7 @@ ENTRY(_sys_call_table)
 	.long _sys_newuname
 	.long _sys_ni_syscall	/* old sys_modify_ldt */
 	.long _sys_adjtimex
-	.long _sys_ni_syscall	/* 125 */ /* sys_mprotect */
+	.long _sys_mprotect	/* 125 */
 	.long _sys_ni_syscall	/* old sys_sigprocmask */
 	.long _sys_ni_syscall	/* old "creat_module" */
 	.long _sys_init_module
@@ -1376,16 +1376,16 @@ ENTRY(_sys_call_table)
 	.long _sys_getdents
 	.long _sys_ni_syscall	/* sys_select */
 	.long _sys_flock
-	.long _sys_ni_syscall	/* sys_msync */
+	.long _sys_msync
 	.long _sys_readv		/* 145 */
 	.long _sys_writev
 	.long _sys_getsid
 	.long _sys_fdatasync
 	.long _sys_sysctl
-	.long _sys_ni_syscall	/* 150 */ /* sys_mlock */
-	.long _sys_ni_syscall	/* sys_munlock */
-	.long _sys_ni_syscall	/* sys_mlockall */
-	.long _sys_ni_syscall	/* sys_munlockall */
+	.long _sys_mlock	/* 150 */
+	.long _sys_munlock
+	.long _sys_mlockall
+	.long _sys_munlockall
 	.long _sys_sched_setparam
 	.long _sys_sched_getparam /* 155 */
 	.long _sys_sched_setscheduler
@@ -1450,8 +1450,8 @@ ENTRY(_sys_call_table)
 	.long _sys_setfsuid	/* 215 */
 	.long _sys_setfsgid
 	.long _sys_pivot_root
-	.long _sys_ni_syscall	/* sys_mincore */
-	.long _sys_ni_syscall	/* sys_madvise */
+	.long _sys_mincore
+	.long _sys_madvise
 	.long _sys_getdents64	/* 220 */
 	.long _sys_fcntl64
 	.long _sys_ni_syscall	/* reserved for TUX */
@@ -1507,7 +1507,7 @@ ENTRY(_sys_call_table)
 	.long _sys_utimes
 	.long _sys_fadvise64_64
 	.long _sys_ni_syscall /* vserver */
-	.long _sys_ni_syscall /* 275, mbind */
+	.long _sys_mbind	/* 275 */
 	.long _sys_ni_syscall /* get_mempolicy */
 	.long _sys_ni_syscall /* set_mempolicy */
 	.long _sys_mq_open
