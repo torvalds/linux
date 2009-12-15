@@ -28,6 +28,7 @@
 #include <linux/mfd/sh_mobile_sdhi.h>
 #include <video/sh_mobile_lcdc.h>
 #include <media/sh_mobile_ceu.h>
+#include <media/tw9910.h>
 #include <asm/heartbeat.h>
 #include <asm/sh_eth.h>
 #include <asm/clock.h>
@@ -565,6 +566,50 @@ static struct platform_device msiof0_device = {
 
 #endif
 
+/* I2C Video */
+static struct i2c_board_info i2c_camera[] = {
+	{
+		I2C_BOARD_INFO("tw9910", 0x45),
+	},
+};
+
+/* tw9910 */
+static int tw9910_power(struct device *dev, int mode)
+{
+	int val = mode ? 0 : 1;
+
+	gpio_set_value(GPIO_PTU2, val);
+	if (mode)
+		mdelay(100);
+
+	return 0;
+}
+
+static struct tw9910_video_info tw9910_info = {
+	.buswidth	= SOCAM_DATAWIDTH_8,
+	.mpout		= TW9910_MPO_FIELD,
+};
+
+static struct soc_camera_link tw9910_link = {
+	.i2c_adapter_id	= 0,
+	.bus_id		= 1,
+	.power		= tw9910_power,
+	.board_info	= &i2c_camera[0],
+	.module_name	= "tw9910",
+	.priv		= &tw9910_info,
+};
+
+
+static struct platform_device camera_devices[] = {
+	{
+		.name	= "soc-camera-pdrv",
+		.id	= 0,
+		.dev	= {
+			.platform_data = &tw9910_link,
+		},
+	},
+};
+
 static struct platform_device *ecovec_devices[] __initdata = {
 	&heartbeat_device,
 	&nor_flash_device,
@@ -581,6 +626,7 @@ static struct platform_device *ecovec_devices[] __initdata = {
 #else
 	&msiof0_device,
 #endif
+	&camera_devices[0],
 };
 
 #define EEPROM_ADDR 0x50
@@ -892,6 +938,10 @@ static int __init arch_setup(void)
 
 	spi_register_board_info(spi_bus, ARRAY_SIZE(spi_bus));
 #endif
+
+	/* enable Video */
+	gpio_request(GPIO_PTU2, NULL);
+	gpio_direction_output(GPIO_PTU2, 1);
 
 	/* enable I2C device */
 	i2c_register_board_info(1, i2c1_devices,
