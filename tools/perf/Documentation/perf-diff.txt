@@ -3,7 +3,7 @@ perf-diff(1)
 
 NAME
 ----
-perf-diff - Read perf.data (created by perf record) and display the profile
+perf-diff - Read two perf.data files and display the differential profile
 
 SYNOPSIS
 --------
@@ -12,7 +12,7 @@ SYNOPSIS
 
 DESCRIPTION
 -----------
-This command displays the performance difference among two perf.data files
+This command displays the performance difference amongst two perf.data files
 captured via perf record.
 
 If no parameters are passed it will assume perf.data.old and perf.data.
@@ -21,10 +21,10 @@ OPTIONS
 -------
 -p::
 --percentage::
-	Show percentages instead of raw counters
+	Show percentages instead of raw counts
 -v::
 --verbose::
-	Be verbose, for instance, show the raw counters in addition to the
+	Be verbose, for instance, show the raw counts in addition to the
 	diff.
 SEE ALSO
 --------
