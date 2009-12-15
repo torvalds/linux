@@ -17,6 +17,100 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/88pm860x.h>
 
+char pm860x_backlight_name[][MFD_NAME_SIZE] = {
+	"backlight-0",
+	"backlight-1",
+	"backlight-2",
+};
+EXPORT_SYMBOL(pm860x_backlight_name);
+
+char pm860x_led_name[][MFD_NAME_SIZE] = {
+	"led0-red",
+	"led0-green",
+	"led0-blue",
+	"led1-red",
+	"led1-green",
+	"led1-blue",
+};
+EXPORT_SYMBOL(pm860x_led_name);
+
+#define PM8606_BACKLIGHT_RESOURCE(_i, _x)		\
+{							\
+	.name	= pm860x_backlight_name[_i],		\
+	.start	= PM8606_##_x,				\
+	.end	= PM8606_##_x,				\
+	.flags	= IORESOURCE_IO,			\
+}
+
+static struct resource backlight_resources[] = {
+	PM8606_BACKLIGHT_RESOURCE(PM8606_BACKLIGHT1, WLED1A),
+	PM8606_BACKLIGHT_RESOURCE(PM8606_BACKLIGHT2, WLED2A),
+	PM8606_BACKLIGHT_RESOURCE(PM8606_BACKLIGHT3, WLED3A),
+};
+
+#define PM8606_BACKLIGHT_DEVS(_i)			\
+{							\
+	.name		= "88pm860x-backlight",		\
+	.num_resources	= 1,				\
+	.resources	= &backlight_resources[_i],	\
+	.id		= _i,				\
+}
+
+static struct mfd_cell backlight_devs[] = {
+	PM8606_BACKLIGHT_DEVS(PM8606_BACKLIGHT1),
+	PM8606_BACKLIGHT_DEVS(PM8606_BACKLIGHT2),
+	PM8606_BACKLIGHT_DEVS(PM8606_BACKLIGHT3),
+};
+
+#define PM8606_LED_RESOURCE(_i, _x)			\
+{							\
+	.name	= pm860x_led_name[_i],			\
+	.start	= PM8606_##_x,				\
+	.end	= PM8606_##_x,				\
+	.flags	= IORESOURCE_IO,			\
+}
+
+static struct resource led_resources[] = {
+	PM8606_LED_RESOURCE(PM8606_LED1_RED, RGB2B),
+	PM8606_LED_RESOURCE(PM8606_LED1_GREEN, RGB2C),
+	PM8606_LED_RESOURCE(PM8606_LED1_BLUE, RGB2D),
+	PM8606_LED_RESOURCE(PM8606_LED2_RED, RGB1B),
+	PM8606_LED_RESOURCE(PM8606_LED2_GREEN, RGB1C),
+	PM8606_LED_RESOURCE(PM8606_LED2_BLUE, RGB1D),
+};
+
+#define PM8606_LED_DEVS(_i)				\
+{							\
+	.name		= "88pm860x-led",		\
+	.num_resources	= 1,				\
+	.resources	= &led_resources[_i],		\
+	.id		= _i,				\
+}
+
+static struct mfd_cell led_devs[] = {
+	PM8606_LED_DEVS(PM8606_LED1_RED),
+	PM8606_LED_DEVS(PM8606_LED1_GREEN),
+	PM8606_LED_DEVS(PM8606_LED1_BLUE),
+	PM8606_LED_DEVS(PM8606_LED2_RED),
+	PM8606_LED_DEVS(PM8606_LED2_GREEN),
+	PM8606_LED_DEVS(PM8606_LED2_BLUE),
+};
+
+static struct resource touch_resources[] = {
+	{
+		.start	= PM8607_IRQ_PEN,
+		.end	= PM8607_IRQ_PEN,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct mfd_cell touch_devs[] = {
+	{
+		.name		= "88pm860x-touch",
+		.num_resources	= 1,
+		.resources	= &touch_resources[0],
+	},
+};
 
 #define PM8607_REG_RESOURCE(_start, _end)		\
 {							\
@@ -25,7 +119,7 @@
 	.flags	= IORESOURCE_IO,			\
 }
 
-static struct resource pm8607_regulator_resources[] = {
+static struct resource regulator_resources[] = {
 	PM8607_REG_RESOURCE(BUCK1, BUCK1),
 	PM8607_REG_RESOURCE(BUCK2, BUCK2),
 	PM8607_REG_RESOURCE(BUCK3, BUCK3),
@@ -47,10 +141,11 @@ static struct resource pm8607_regulator_resources[] = {
 {									\
 	.name		= "88pm8607-" #_name,				\
 	.num_resources	= 1,						\
-	.resources	= &pm8607_regulator_resources[PM8607_ID_##_id],	\
+	.resources	= &regulator_resources[PM8607_ID_##_id],	\
+	.id		= PM8607_ID_##_id,				\
 }
 
-static struct mfd_cell pm8607_devs[] = {
+static struct mfd_cell regulator_devs[] = {
 	PM8607_REG_DEVS(buck1, BUCK1),
 	PM8607_REG_DEVS(buck2, BUCK2),
 	PM8607_REG_DEVS(buck3, BUCK3),
@@ -192,6 +287,61 @@ int pm860x_free_irq(struct pm860x_chip *chip, int irq)
 }
 EXPORT_SYMBOL(pm860x_free_irq);
 
+static int __devinit device_gpadc_init(struct pm860x_chip *chip,
+				       struct pm860x_platform_data *pdata)
+{
+	struct i2c_client *i2c = (chip->id == CHIP_PM8607) ? chip->client \
+				: chip->companion;
+	int use_gpadc = 0, data, ret;
+
+	/* initialize GPADC without activating it */
+
+	if (pdata && pdata->touch) {
+		/* set GPADC MISC1 register */
+		data = 0;
+		data |= (pdata->touch->gpadc_prebias << 1)
+			& PM8607_GPADC_PREBIAS_MASK;
+		data |= (pdata->touch->slot_cycle << 3)
+			& PM8607_GPADC_SLOT_CYCLE_MASK;
+		data |= (pdata->touch->off_scale << 5)
+			& PM8607_GPADC_OFF_SCALE_MASK;
+		data |= (pdata->touch->sw_cal << 7)
+			& PM8607_GPADC_SW_CAL_MASK;
+		if (data) {
+			ret = pm860x_reg_write(i2c, PM8607_GPADC_MISC1, data);
+			if (ret < 0)
+				goto out;
+		}
+		/* set tsi prebias time */
+		if (pdata->touch->tsi_prebias) {
+			data = pdata->touch->tsi_prebias;
+			ret = pm860x_reg_write(i2c, PM8607_TSI_PREBIAS, data);
+			if (ret < 0)
+				goto out;
+		}
+		/* set prebias & prechg time of pen detect */
+		data = 0;
+		data |= pdata->touch->pen_prebias & PM8607_PD_PREBIAS_MASK;
+		data |= (pdata->touch->pen_prechg << 5)
+			& PM8607_PD_PRECHG_MASK;
+		if (data) {
+			ret = pm860x_reg_write(i2c, PM8607_PD_PREBIAS, data);
+			if (ret < 0)
+				goto out;
+		}
+
+		use_gpadc = 1;
+	}
+
+	/* turn on GPADC */
+	if (use_gpadc) {
+		ret = pm860x_set_bits(i2c, PM8607_GPADC_MISC1,
+				      PM8607_GPADC_EN, PM8607_GPADC_EN);
+	}
+out:
+	return ret;
+}
+
 static int __devinit device_irq_init(struct pm860x_chip *chip,
 				     struct pm860x_platform_data *pdata)
 {
@@ -264,14 +414,40 @@ static void __devinit device_8606_init(struct pm860x_chip *chip,
 				       struct i2c_client *i2c,
 				       struct pm860x_platform_data *pdata)
 {
+	int ret;
+
+	if (pdata && pdata->backlight) {
+		ret = mfd_add_devices(chip->dev, 0, &backlight_devs[0],
+				      ARRAY_SIZE(backlight_devs),
+				      &backlight_resources[0], 0);
+		if (ret < 0) {
+			dev_err(chip->dev, "Failed to add backlight "
+				"subdev\n");
+			goto out_dev;
+		}
+	}
+
+	if (pdata && pdata->led) {
+		ret = mfd_add_devices(chip->dev, 0, &led_devs[0],
+				      ARRAY_SIZE(led_devs),
+				      &led_resources[0], 0);
+		if (ret < 0) {
+			dev_err(chip->dev, "Failed to add led "
+				"subdev\n");
+			goto out_dev;
+		}
+	}
+	return;
+out_dev:
+	mfd_remove_devices(chip->dev);
+	device_irq_exit(chip);
 }
 
 static void __devinit device_8607_init(struct pm860x_chip *chip,
 				       struct i2c_client *i2c,
 				       struct pm860x_platform_data *pdata)
 {
-	int i, count, data;
-	int ret;
+	int data, ret;
 
 	ret = pm860x_reg_read(i2c, PM8607_CHIP_ID);
 	if (ret < 0) {
@@ -311,19 +487,36 @@ static void __devinit device_8607_init(struct pm860x_chip *chip,
 		goto out;
 	}
 
+	ret = device_gpadc_init(chip, pdata);
+	if (ret < 0)
+		goto out;
+
 	ret = device_irq_init(chip, pdata);
 	if (ret < 0)
 		goto out;
 
-	count = ARRAY_SIZE(pm8607_devs);
-	for (i = 0; i < count; i++) {
-		ret = mfd_add_devices(chip->dev, i, &pm8607_devs[i],
-				      1, NULL, 0);
-		if (ret != 0) {
-			dev_err(chip->dev, "Failed to add subdevs\n");
-			goto out;
+	ret = mfd_add_devices(chip->dev, 0, &regulator_devs[0],
+			      ARRAY_SIZE(regulator_devs),
+			      &regulator_resources[0], 0);
+	if (ret < 0) {
+		dev_err(chip->dev, "Failed to add regulator subdev\n");
+		goto out_dev;
+	}
+
+	if (pdata && pdata->touch) {
+		ret = mfd_add_devices(chip->dev, 0, &touch_devs[0],
+				      ARRAY_SIZE(touch_devs),
+				      &touch_resources[0], 0);
+		if (ret < 0) {
+			dev_err(chip->dev, "Failed to add touch "
+				"subdev\n");
+			goto out_dev;
 		}
 	}
+	return;
+out_dev:
+	mfd_remove_devices(chip->dev);
+	device_irq_exit(chip);
 out:
 	return;
 }

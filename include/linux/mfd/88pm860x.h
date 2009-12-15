@@ -14,12 +14,107 @@
 
 #include <linux/interrupt.h>
 
+#define MFD_NAME_SIZE		(40)
+
 enum {
 	CHIP_INVALID = 0,
 	CHIP_PM8606,
 	CHIP_PM8607,
 	CHIP_MAX,
 };
+
+enum {
+	PM8606_ID_INVALID,
+	PM8606_ID_BACKLIGHT,
+	PM8606_ID_LED,
+	PM8606_ID_VIBRATOR,
+	PM8606_ID_TOUCH,
+	PM8606_ID_SOUND,
+	PM8606_ID_CHARGER,
+	PM8606_ID_MAX,
+};
+
+enum {
+	PM8606_BACKLIGHT1 = 0,
+	PM8606_BACKLIGHT2,
+	PM8606_BACKLIGHT3,
+};
+
+enum {
+	PM8606_LED1_RED = 0,
+	PM8606_LED1_GREEN,
+	PM8606_LED1_BLUE,
+	PM8606_LED2_RED,
+	PM8606_LED2_GREEN,
+	PM8606_LED2_BLUE,
+	PM8607_LED_VIBRATOR,
+};
+
+
+/* 8606 Registers */
+#define PM8606_DCM_BOOST		(0x00)
+#define PM8606_PWM			(0x01)
+
+/* Backlight Registers */
+#define PM8606_WLED1A			(0x02)
+#define PM8606_WLED1B			(0x03)
+#define PM8606_WLED2A			(0x04)
+#define PM8606_WLED2B			(0x05)
+#define PM8606_WLED3A			(0x06)
+#define PM8606_WLED3B			(0x07)
+
+/* LED Registers */
+#define PM8606_RGB2A			(0x08)
+#define PM8606_RGB2B			(0x09)
+#define PM8606_RGB2C			(0x0A)
+#define PM8606_RGB2D			(0x0B)
+#define PM8606_RGB1A			(0x0C)
+#define PM8606_RGB1B			(0x0D)
+#define PM8606_RGB1C			(0x0E)
+#define PM8606_RGB1D			(0x0F)
+
+#define PM8606_PREREGULATORA		(0x10)
+#define PM8606_PREREGULATORB		(0x11)
+#define PM8606_VIBRATORA		(0x12)
+#define PM8606_VIBRATORB		(0x13)
+#define PM8606_VCHG			(0x14)
+#define PM8606_VSYS			(0x15)
+#define PM8606_MISC			(0x16)
+#define PM8606_CHIP_ID			(0x17)
+#define PM8606_STATUS			(0x18)
+#define PM8606_FLAGS			(0x19)
+#define PM8606_PROTECTA			(0x1A)
+#define PM8606_PROTECTB			(0x1B)
+#define PM8606_PROTECTC			(0x1C)
+
+/* Bit definitions of PM8606 registers */
+#define PM8606_DCM_500MA		(0x0)	/* current limit */
+#define PM8606_DCM_750MA		(0x1)
+#define PM8606_DCM_1000MA		(0x2)
+#define PM8606_DCM_1250MA		(0x3)
+#define PM8606_DCM_250MV		(0x0 << 2)
+#define PM8606_DCM_300MV		(0x1 << 2)
+#define PM8606_DCM_350MV		(0x2 << 2)
+#define PM8606_DCM_400MV		(0x3 << 2)
+
+#define PM8606_PWM_31200HZ		(0x0)
+#define PM8606_PWM_15600HZ		(0x1)
+#define PM8606_PWM_7800HZ		(0x2)
+#define PM8606_PWM_3900HZ		(0x3)
+#define PM8606_PWM_1950HZ		(0x4)
+#define PM8606_PWM_976HZ		(0x5)
+#define PM8606_PWM_488HZ		(0x6)
+#define PM8606_PWM_244HZ		(0x7)
+#define PM8606_PWM_FREQ_MASK		(0x7)
+
+#define PM8606_WLED_ON			(1 << 0)
+#define PM8606_WLED_CURRENT(x)		((x & 0x1F) << 1)
+
+#define PM8606_LED_CURRENT(x)		(((x >> 2) & 0x07) << 5)
+
+#define PM8606_VSYS_EN			(1 << 1)
+
+#define PM8606_MISC_OSC_EN		(1 << 4)
 
 enum {
 	PM8607_ID_BUCK1 = 0,
@@ -91,6 +186,21 @@ enum {
 #define PM8607_SUPPLIES_EN21		(0x33)
 #define PM8607_SUPPLIES_EN22		(0x34)
 
+/* Vibrator Control Registers */
+#define PM8607_VIBRATOR_SET		(0x28)
+#define PM8607_VIBRATOR_PWM		(0x29)
+
+/* GPADC Registers */
+#define PM8607_GP_BIAS1			(0x4F)
+#define PM8607_MEAS_EN1			(0x50)
+#define PM8607_MEAS_EN2			(0x51)
+#define PM8607_MEAS_EN3			(0x52)
+#define PM8607_MEAS_OFF_TIME1		(0x53)
+#define PM8607_MEAS_OFF_TIME2		(0x54)
+#define PM8607_TSI_PREBIAS		(0x55)	/* prebias time */
+#define PM8607_PD_PREBIAS		(0x56)	/* prebias time */
+#define PM8607_GPADC_MISC1		(0x57)
+
 /* RTC Control Registers */
 #define PM8607_RTC1			(0xA0)
 #define PM8607_RTC_COUNTER1		(0xA1)
@@ -139,6 +249,16 @@ enum {
 #define PM8607_B0_MISC1_INT_MASK	(1 << 2)
 #define PM8607_B0_MISC1_PI2C		(1 << 3)
 #define PM8607_B0_MISC1_RESET		(1 << 6)
+
+/* bits definitions of GPADC */
+#define PM8607_GPADC_EN			(1 << 0)
+#define PM8607_GPADC_PREBIAS_MASK	(3 << 1)
+#define PM8607_GPADC_SLOT_CYCLE_MASK	(3 << 3)	/* slow mode */
+#define PM8607_GPADC_OFF_SCALE_MASK	(3 << 5)	/* GP sleep mode */
+#define PM8607_GPADC_SW_CAL_MASK	(1 << 7)
+
+#define PM8607_PD_PREBIAS_MASK		(0x1F << 0)
+#define PM8607_PD_PRECHG_MASK		(7 << 5)
 
 /* Interrupt Number in 88PM8607 */
 enum {
@@ -202,12 +322,43 @@ enum {
 	PI2C_PORT,
 };
 
+struct pm860x_backlight_pdata {
+	int		id;
+	int		pwm;
+	int		iset;
+	unsigned long	flags;
+};
+
+struct pm860x_led_pdata {
+	int		id;
+	int		iset;
+	unsigned long	flags;
+};
+
+struct pm860x_touch_pdata {
+	int		gpadc_prebias;
+	int		slot_cycle;
+	int		off_scale;
+	int		sw_cal;
+	int		tsi_prebias;	/* time, slot */
+	int		pen_prebias;	/* time, slot */
+	int		pen_prechg;	/* time, slot */
+	unsigned long	flags;
+};
+
 struct pm860x_platform_data {
+	struct pm860x_backlight_pdata	*backlight;
+	struct pm860x_led_pdata		*led;
+	struct pm860x_touch_pdata	*touch;
+
 	unsigned short	companion_addr;	/* I2C address of companion chip */
 	int		i2c_port;	/* Controlled by GI2C or PI2C */
 	int		irq_mode;	/* Clear interrupt by read/write(0/1) */
 	struct regulator_init_data *regulator[PM8607_MAX_REGULATOR];
 };
+
+extern char pm860x_backlight_name[][MFD_NAME_SIZE];
+extern char pm860x_led_name[][MFD_NAME_SIZE];
 
 extern int pm860x_reg_read(struct i2c_client *, int);
 extern int pm860x_reg_write(struct i2c_client *, int, unsigned char);
