@@ -238,6 +238,9 @@ void dm_table_destroy(struct dm_table *t)
 {
 	unsigned int i;
 
+	if (!t)
+		return;
+
 	while (atomic_read(&t->holders))
 		msleep(1);
 	smp_mb();
