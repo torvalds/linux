@@ -299,6 +299,12 @@ void amd_decode_nb_mce(int node_id, struct err_regs *regs, int handle_errors)
 	if (!handle_errors)
 		return;
 
+	/*
+	 * GART TLB error reporting is disabled by default. Bail out early.
+	 */
+	if (TLB_ERROR(ec) && !report_gart_errors)
+		return;
+
 	pr_emerg(" Northbridge Error, node %d", node_id);
 
 	/*
@@ -332,21 +338,6 @@ static void amd_decode_fr_mce(u64 mc5_status)
 static inline void amd_decode_err_code(unsigned int ec)
 {
 	if (TLB_ERROR(ec)) {
-		/*
-		 * GART errors are intended to help graphics driver developers
-		 * to detect bad GART PTEs. It is recommended by AMD to disable
-		 * GART table walk error reporting by default[1] (currently
-		 * being disabled in mce_cpu_quirks()) and according to the
-		 * comment in mce_cpu_quirks(), such GART errors can be
-		 * incorrectly triggered. We may see these errors anyway and
-		 * unless requested by the user, they won't be reported.
-		 *
-		 * [1] section 13.10.1 on BIOS and Kernel Developers Guide for
-		 *     AMD NPT family 0Fh processors
-		 */
-		if (!report_gart_errors)
-			return;
-
 		pr_emerg(" Transaction: %s, Cache Level %s\n",
 			 TT_MSG(ec), LL_MSG(ec));
 	} else if (MEM_ERROR(ec)) {
