@@ -171,7 +171,7 @@ void generic_exec_single(int cpu, struct call_single_data *data, int wait)
 void generic_smp_call_function_interrupt(void)
 {
 	struct call_function_data *data;
-	int cpu = get_cpu();
+	int cpu = smp_processor_id();
 
 	/*
 	 * Shouldn't receive this interrupt on a cpu that is not yet online.
@@ -212,7 +212,6 @@ void generic_smp_call_function_interrupt(void)
 		csd_unlock(&data->csd);
 	}
 
-	put_cpu();
 }
 
 /*
