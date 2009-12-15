@@ -70,6 +70,9 @@ obj-$(CONFIG_MACH_AT91SAM9G45EKES) += board-sam9m10g45ek.o
 # AT91CAP9 board-specific support
 obj-$(CONFIG_MACH_AT91CAP9ADK)	+= board-cap9adk.o
 
+# AT572D940HF board-specific support
+obj-$(CONFIG_MACH_AT572D940HFEB) += board-at572d940hf_ek.o
+
 # AT91X40 board-specific support
 obj-$(CONFIG_MACH_AT91EB01)	+= board-eb01.o
 

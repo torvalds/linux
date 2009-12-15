@@ -396,6 +396,23 @@ endif
 
 # ----------------------------------------------------------
 
+if ARCH_AT572D940HF
+
+comment "AT572D940HF Board Type"
+
+config MACH_AT572D940HFEB
+	bool "AT572D940HF-EK"
+	depends on ARCH_AT572D940HF
+	select HAVE_AT91_DATAFLASH_CARD
+	select HAVE_NAND_ATMEL_BUSWIDTH_16
+	help
+	  Select this if you are using Atmel's AT572D940HF-EK evaluation kit.
+	  <http://www.atmel.com/products/diopsis/default.asp>
+
+endif
+
+# ----------------------------------------------------------
+
 if ARCH_AT91X40
 
 comment "AT91X40 Board Type"
