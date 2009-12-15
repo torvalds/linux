@@ -83,7 +83,7 @@ static int __devinit altera_ps2_probe(struct platform_device *pdev)
 {
 	struct ps2if *ps2if;
 	struct serio *serio;
-	int error;
+	int error, irq;
 
 	ps2if = kzalloc(sizeof(struct ps2if), GFP_KERNEL);
 	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
@@ -108,11 +108,13 @@ static int __devinit altera_ps2_probe(struct platform_device *pdev)
 		goto err_free_mem;
 	}
 
-	ps2if->irq  = platform_get_irq(pdev, 0);
-	if (ps2if->irq < 0) {
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
 		error = -ENXIO;
 		goto err_free_mem;
 	}
+	ps2if->irq = irq;
 
 	if (!request_mem_region(ps2if->iomem_res->start,
 				resource_size(ps2if->iomem_res), pdev->name)) {
