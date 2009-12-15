@@ -25,7 +25,6 @@ struct perf_session {
 	int			fd;
 	int			cwdlen;
 	char			*cwd;
-	bool			use_callchain;
 	char filename[0];
 };
 

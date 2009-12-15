@@ -55,7 +55,10 @@ struct symbol_conf {
 	unsigned short	priv_size;
 	bool		try_vmlinux_path,
 			use_modules,
-			sort_by_name;
+			sort_by_name,
+			show_nr_samples,
+			use_callchain,
+			exclude_other;
 	const char	*vmlinux_name,
 			*field_sep;
 	char            *dso_list_str,

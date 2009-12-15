@@ -34,17 +34,12 @@
 static char		const *input_name = "perf.data";
 
 static int		force;
-static bool		use_callchain;
-
-static int		show_nr_samples;
 
 static int		show_threads;
 static struct perf_read_values	show_threads_values;
 
 static char		default_pretty_printing_style[] = "normal";
 static char		*pretty_printing_style = default_pretty_printing_style;
-
-static int		exclude_other = 1;
 
 static char		callchain_default_opt[] = "fractal,0.5";
 
@@ -305,23 +300,22 @@ hist_entry_callchain__fprintf(FILE *fp, struct hist_entry *self,
 }
 
 static size_t hist_entry__fprintf(FILE *fp, struct hist_entry *self,
-				  struct perf_session *session,
-				  u64 total_samples)
+				  struct perf_session *session)
 {
 	struct sort_entry *se;
 	size_t ret;
 
-	if (exclude_other && !self->parent)
+	if (symbol_conf.exclude_other && !self->parent)
 		return 0;
 
-	if (total_samples)
+	if (session->events_stats.total)
 		ret = percent_color_fprintf(fp,
 					    symbol_conf.field_sep ? "%.2f" : "   %6.2f%%",
-					(self->count * 100.0) / total_samples);
+					(self->count * 100.0) / session->events_stats.total);
 	else
 		ret = fprintf(fp, symbol_conf.field_sep ? "%lld" : "%12lld ", self->count);
 
-	if (show_nr_samples) {
+	if (symbol_conf.show_nr_samples) {
 		if (symbol_conf.field_sep)
 			fprintf(fp, "%c%lld", *symbol_conf.field_sep, self->count);
 		else
@@ -338,7 +332,7 @@ static size_t hist_entry__fprintf(FILE *fp, struct hist_entry *self,
 
 	ret += fprintf(fp, "\n");
 
-	if (session->use_callchain) {
+	if (symbol_conf.use_callchain) {
 		int left_margin = 0;
 
 		if (sort__first_dimension == SORT_COMM) {
@@ -348,39 +342,11 @@ static size_t hist_entry__fprintf(FILE *fp, struct hist_entry *self,
 			left_margin -= thread__comm_len(self->thread);
 		}
 
-		hist_entry_callchain__fprintf(fp, self, total_samples,
+		hist_entry_callchain__fprintf(fp, self, session->events_stats.total,
 					      left_margin);
 	}
 
 	return ret;
-}
-
-static void thread__comm_adjust(struct thread *self)
-{
-	char *comm = self->comm;
-
-	if (!symbol_conf.col_width_list_str && !symbol_conf.field_sep &&
-	    (!symbol_conf.comm_list ||
-	     strlist__has_entry(symbol_conf.comm_list, comm))) {
-		unsigned int slen = strlen(comm);
-
-		if (slen > comms__col_width) {
-			comms__col_width = slen;
-			threads__col_width = slen + 6;
-		}
-	}
-}
-
-static int thread__set_comm_adjust(struct thread *self, const char *comm)
-{
-	int ret = thread__set_comm(self, comm);
-
-	if (ret)
-		return ret;
-
-	thread__comm_adjust(self);
-
-	return 0;
 }
 
 /*
@@ -395,7 +361,7 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 	bool hit;
 	struct hist_entry *he;
 
-	if ((sort__has_parent || self->use_callchain) && chain)
+	if ((sort__has_parent || symbol_conf.use_callchain) && chain)
 		syms = perf_session__resolve_callchain(self, al->thread,
 						       chain, &parent);
 	he = __perf_session__add_hist_entry(self, al, parent, count, &hit);
@@ -405,7 +371,7 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 	if (hit)
 		he->count += count;
 
-	if (self->use_callchain) {
+	if (symbol_conf.use_callchain) {
 		if (!hit)
 			callchain_init(&he->callchain);
 		append_chain(&he->callchain, chain, syms);
@@ -415,8 +381,7 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 	return 0;
 }
 
-static size_t perf_session__fprintf_hist_entries(struct perf_session *self,
-						 u64 total_samples, FILE *fp)
+static size_t perf_session__fprintf_hists(struct perf_session *self, FILE *fp)
 {
 	struct hist_entry *pos;
 	struct sort_entry *se;
@@ -424,17 +389,14 @@ static size_t perf_session__fprintf_hist_entries(struct perf_session *self,
 	size_t ret = 0;
 	unsigned int width;
 	char *col_width = symbol_conf.col_width_list_str;
-	int raw_printing_style;
-
-	raw_printing_style = !strcmp(pretty_printing_style, "raw");
 
 	init_rem_hits();
 
-	fprintf(fp, "# Samples: %Ld\n", (u64)total_samples);
+	fprintf(fp, "# Samples: %ld\n", self->events_stats.total);
 	fprintf(fp, "#\n");
 
 	fprintf(fp, "# Overhead");
-	if (show_nr_samples) {
+	if (symbol_conf.show_nr_samples) {
 		if (symbol_conf.field_sep)
 			fprintf(fp, "%cSamples", *symbol_conf.field_sep);
 		else
@@ -467,7 +429,7 @@ static size_t perf_session__fprintf_hist_entries(struct perf_session *self,
 		goto print_entries;
 
 	fprintf(fp, "# ........");
-	if (show_nr_samples)
+	if (symbol_conf.show_nr_samples)
 		fprintf(fp, " ..........");
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		unsigned int i;
@@ -490,7 +452,7 @@ static size_t perf_session__fprintf_hist_entries(struct perf_session *self,
 print_entries:
 	for (nd = rb_first(&self->hists); nd; nd = rb_next(nd)) {
 		pos = rb_entry(nd, struct hist_entry, rb_node);
-		ret += hist_entry__fprintf(fp, pos, self, total_samples);
+		ret += hist_entry__fprintf(fp, pos, self);
 	}
 
 	if (sort_order == default_sort_order &&
@@ -502,10 +464,6 @@ print_entries:
 	fprintf(fp, "\n");
 
 	free(rem_sq_bracket);
-
-	if (show_threads)
-		perf_read_values_display(fp, &show_threads_values,
-					 raw_printing_style);
 
 	return ret;
 }
@@ -572,21 +530,6 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	return 0;
 }
 
-static int process_comm_event(event_t *event, struct perf_session *session)
-{
-	struct thread *thread = perf_session__findnew(session, event->comm.pid);
-
-	dump_printf(": %s:%d\n", event->comm.comm, event->comm.pid);
-
-	if (thread == NULL ||
-	    thread__set_comm_adjust(thread, event->comm.comm)) {
-		dump_printf("problem processing PERF_RECORD_COMM, skipping event.\n");
-		return -1;
-	}
-
-	return 0;
-}
-
 static int process_read_event(event_t *event, struct perf_session *session __used)
 {
 	struct perf_event_attr *attr;
@@ -619,14 +562,14 @@ static int sample_type_check(struct perf_session *session)
 					" perf record without -g?\n");
 			return -1;
 		}
-		if (session->use_callchain) {
+		if (symbol_conf.use_callchain) {
 			fprintf(stderr, "selected -g but no callchain data."
 					" Did you call perf record without"
 					" -g?\n");
 			return -1;
 		}
-	} else if (callchain_param.mode != CHAIN_NONE && !session->use_callchain) {
-			session->use_callchain = true;
+	} else if (callchain_param.mode != CHAIN_NONE && !symbol_conf.use_callchain) {
+			symbol_conf.use_callchain = true;
 			if (register_callchain_param(&callchain_param) < 0) {
 				fprintf(stderr, "Can't register callchain"
 						" params\n");
@@ -640,7 +583,7 @@ static int sample_type_check(struct perf_session *session)
 static struct perf_event_ops event_ops = {
 	.process_sample_event	= process_sample_event,
 	.process_mmap_event	= event__process_mmap,
-	.process_comm_event	= process_comm_event,
+	.process_comm_event	= event__process_mmap,
 	.process_exit_event	= event__process_task,
 	.process_fork_event	= event__process_task,
 	.process_lost_event	= event__process_lost,
@@ -657,8 +600,6 @@ static int __cmd_report(void)
 	session = perf_session__new(input_name, O_RDONLY, force);
 	if (session == NULL)
 		return -ENOMEM;
-
-	session->use_callchain = use_callchain;
 
 	if (show_threads)
 		perf_read_values_init(&show_threads_values);
@@ -680,10 +621,13 @@ static int __cmd_report(void)
 
 	perf_session__collapse_resort(session);
 	perf_session__output_resort(session, session->events_stats.total);
-	perf_session__fprintf_hist_entries(session, session->events_stats.total, stdout);
-
-	if (show_threads)
+	perf_session__fprintf_hists(session, stdout);
+	if (show_threads) {
+		bool raw_printing_style = !strcmp(pretty_printing_style, "raw");
+		perf_read_values_display(stdout, &show_threads_values,
+					 raw_printing_style);
 		perf_read_values_destroy(&show_threads_values);
+	}
 out_delete:
 	perf_session__delete(session);
 	return ret;
@@ -696,7 +640,7 @@ parse_callchain_opt(const struct option *opt __used, const char *arg,
 	char *tok;
 	char *endptr;
 
-	use_callchain = true;
+	symbol_conf.use_callchain = true;
 
 	if (!arg)
 		return 0;
@@ -717,7 +661,7 @@ parse_callchain_opt(const struct option *opt __used, const char *arg,
 
 	else if (!strncmp(tok, "none", strlen(arg))) {
 		callchain_param.mode = CHAIN_NONE;
-		use_callchain = true;
+		symbol_conf.use_callchain = true;
 
 		return 0;
 	}
@@ -760,7 +704,7 @@ static const struct option options[] = {
 	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
 	OPT_BOOLEAN('m', "modules", &symbol_conf.use_modules,
 		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
-	OPT_BOOLEAN('n', "show-nr-samples", &show_nr_samples,
+	OPT_BOOLEAN('n', "show-nr-samples", &symbol_conf.show_nr_samples,
 		    "Show a column with the number of samples"),
 	OPT_BOOLEAN('T', "threads", &show_threads,
 		    "Show per-thread event counters"),
@@ -772,7 +716,7 @@ static const struct option options[] = {
 		    "Don't shorten the pathnames taking into account the cwd"),
 	OPT_STRING('p', "parent", &parent_pattern, "regex",
 		   "regex filter to identify parent, see: '--sort parent'"),
-	OPT_BOOLEAN('x', "exclude-other", &exclude_other,
+	OPT_BOOLEAN('x', "exclude-other", &symbol_conf.exclude_other,
 		    "Only display entries with parent-match"),
 	OPT_CALLBACK_DEFAULT('g', "call-graph", NULL, "output_type,min_percent",
 		     "Display callchains using output_type and min percent threshold. "
@@ -817,7 +761,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 		sort_dimension__add("parent");
 		sort_parent.elide = 1;
 	} else
-		exclude_other = 0;
+		symbol_conf.exclude_other = false;
 
 	/*
 	 * Any (unrecognized) arguments left?

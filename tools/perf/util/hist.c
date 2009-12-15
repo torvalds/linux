@@ -156,8 +156,7 @@ void perf_session__collapse_resort(struct perf_session *self)
  * reverse the map, sort on count.
  */
 
-static void perf_session__insert_output_hist_entry(struct perf_session *self,
-						   struct rb_root *root,
+static void perf_session__insert_output_hist_entry(struct rb_root *root,
 						   struct hist_entry *he,
 						   u64 min_callchain_hits)
 {
@@ -165,7 +164,7 @@ static void perf_session__insert_output_hist_entry(struct perf_session *self,
 	struct rb_node *parent = NULL;
 	struct hist_entry *iter;
 
-	if (self->use_callchain)
+	if (symbol_conf.use_callchain)
 		callchain_param.sort(&he->sorted_chain, &he->callchain,
 				      min_callchain_hits, &callchain_param);
 
@@ -201,7 +200,7 @@ void perf_session__output_resort(struct perf_session *self, u64 total_samples)
 		next = rb_next(&n->rb_node);
 
 		rb_erase(&n->rb_node, &self->hists);
-		perf_session__insert_output_hist_entry(self, &tmp, n,
+		perf_session__insert_output_hist_entry(&tmp, n,
 						       min_callchain_hits);
 	}
 

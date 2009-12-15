@@ -38,6 +38,7 @@ static int vmlinux_path__nr_entries;
 static char **vmlinux_path;
 
 struct symbol_conf symbol_conf = {
+	.exclude_other	  = true,
 	.use_modules	  = true,
 	.try_vmlinux_path = true,
 };

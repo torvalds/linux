@@ -108,7 +108,7 @@ struct symbol **perf_session__resolve_callchain(struct perf_session *self,
 	struct symbol **syms = NULL;
 	unsigned int i;
 
-	if (self->use_callchain) {
+	if (symbol_conf.use_callchain) {
 		syms = calloc(chain->nr, sizeof(*syms));
 		if (!syms) {
 			fprintf(stderr, "Can't allocate memory for symbols\n");
@@ -140,7 +140,7 @@ struct symbol **perf_session__resolve_callchain(struct perf_session *self,
 			if (sort__has_parent && !*parent &&
 			    symbol__match_parent_regex(al.sym))
 				*parent = al.sym;
-			if (!self->use_callchain)
+			if (!symbol_conf.use_callchain)
 				break;
 			syms[i] = al.sym;
 		}
