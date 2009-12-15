@@ -940,9 +940,8 @@ int main(int argc, char *argv[])
 			parse_bits_mask(optarg);
 			break;
 		case 'd':
-			opt_no_summary = 1;
 			describe_flags(optarg);
-			break;
+			exit(0);
 		case 'l':
 			opt_list = 1;
 			break;
