@@ -1,7 +1,7 @@
 /*
  * drivers/input/tablet/wacom_sys.c
  *
- *  USB Wacom Graphire and Wacom Intuos tablet support - system specific code
+ *  USB Wacom tablet support - system specific code
  */
 
 /*
@@ -562,9 +562,10 @@ static int wacom_resume(struct usb_interface *intf)
 	int rv;
 
 	mutex_lock(&wacom->lock);
-	if (wacom->open)
+	if (wacom->open) {
 		rv = usb_submit_urb(wacom->irq, GFP_NOIO);
-	else
+		wacom_query_tablet_data(intf);
+	} else
 		rv = 0;
 	mutex_unlock(&wacom->lock);
 
