@@ -190,10 +190,6 @@ static int __devinit hopper_pci_probe(struct pci_dev *pdev, const struct pci_dev
 
 	return err;
 
-fail5:
-	dprintk(MANTIS_ERROR, 1, "ERROR: Mantis DVB exit! <%d>", err);
-	mantis_dvb_exit(mantis);
-
 fail4:
 	dprintk(MANTIS_ERROR, 1, "ERROR: Mantis DMA exit! <%d>", err);
 	mantis_dma_exit(mantis);

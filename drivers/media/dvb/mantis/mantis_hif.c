@@ -22,7 +22,6 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 
-#include <asm/irq.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
@@ -40,22 +39,6 @@
 
 #include "mantis_reg.h"
 
-static int mantis_hif_data_available(struct mantis_ca *ca)
-{
-	struct mantis_pci *mantis = ca->ca_priv;
-	int rc = 0;
-
-	if (wait_event_interruptible_timeout(ca->hif_data_wq,
-					     ca->sbuf_status & MANTIS_SBUF_DATA_AVAIL,
-					     msecs_to_jiffies(500)) == -ERESTARTSYS) {
-
-		dprintk(MANTIS_ERROR, 1, "Adapter(%d) Slot(0): HIF Read wait event timeout !", mantis->num);
-		rc = -EREMOTEIO;
-	}
-	ca->sbuf_status &= ~MANTIS_SBUF_DATA_AVAIL;
-	udelay(2);
-	return rc;
-}
 
 static int mantis_hif_sbuf_opdone_wait(struct mantis_ca *ca)
 {

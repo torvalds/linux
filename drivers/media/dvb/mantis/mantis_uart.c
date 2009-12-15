@@ -26,18 +26,17 @@ struct mantis_uart_params {
 int mantis_uart_read(struct mantis_pci *mantis, u8 *data)
 {
 	struct mantis_hwconfig *config = mantis->hwconfig;
-	u32 stat, i;
-	unsigned long flags;
+	u32 stat = 0, i;
 
 	/* get data */
 	for (i = 0; i < (config->bytes + 1); i++) {
+
+		stat = mmread(MANTIS_UART_STAT);
 
 		if (stat & MANTIS_UART_RXFIFO_FULL) {
 			dprintk(MANTIS_ERROR, 1, "RX Fifo FULL");
 		}
 		data[i] = mmread(MANTIS_UART_RXD) & 0x3f;
-
-		stat = mmread(MANTIS_UART_STAT);
 
 		dprintk(MANTIS_DEBUG, 1, "Reading ... <%02x>", data[i] & 0x3f);
 

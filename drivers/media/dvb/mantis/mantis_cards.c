@@ -197,19 +197,6 @@ static int __devinit mantis_pci_probe(struct pci_dev *pdev, const struct pci_dev
 	devs++;
 
 	return err;
-
-fail7:
-	dprintk(MANTIS_ERROR, 1, "ERROR: Mantis UART exit! <%d>", err);
-	mantis_uart_exit(mantis);
-
-fail6:
-	dprintk(MANTIS_ERROR, 1, "ERROR: Mantis CA exit! <%d>", err);
-	mantis_ca_exit(mantis);
-
-fail5:
-	dprintk(MANTIS_ERROR, 1, "ERROR: Mantis DVB exit! <%d>", err);
-	mantis_dvb_exit(mantis);
-
 fail4:
 	dprintk(MANTIS_ERROR, 1, "ERROR: Mantis DMA exit! <%d>", err);
 	mantis_dma_exit(mantis);

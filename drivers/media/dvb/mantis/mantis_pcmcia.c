@@ -20,7 +20,6 @@
 
 #include <linux/kernel.h>
 
-#include <asm/irq.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
