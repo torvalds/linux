@@ -120,8 +120,8 @@ static int v2_read_file_info(struct super_block *sb, int type)
 		info->dqi_maxilimit = 0xffffffff;
 	} else {
 		/* used space is stored as unsigned 64-bit value */
-		info->dqi_maxblimit = 0xffffffffffffffff;	/* 2^64-1 */
-		info->dqi_maxilimit = 0xffffffffffffffff;
+		info->dqi_maxblimit = 0xffffffffffffffffULL;	/* 2^64-1 */
+		info->dqi_maxilimit = 0xffffffffffffffffULL;
 	}
 	info->dqi_bgrace = le32_to_cpu(dinfo.dqi_bgrace);
 	info->dqi_igrace = le32_to_cpu(dinfo.dqi_igrace);
