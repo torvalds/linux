@@ -19,14 +19,11 @@
  *
  */
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/io.h>
 
 #include <mach/cputype.h>
-#include <mach/hardware.h>
 #include <mach/psc.h>
-#include <mach/mux.h>
 
 /* PSC register offsets */
 #define EPCPR		0x070

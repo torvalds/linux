@@ -8,3 +8,4 @@ unifdef-y += radeon_drm.h
 unifdef-y += sis_drm.h
 unifdef-y += savage_drm.h
 unifdef-y += via_drm.h
+unifdef-y += nouveau_drm.h

@@ -30,10 +30,16 @@ struct i2c_adapter;
 struct xc5000_config {
 	u8   i2c_address;
 	u32  if_khz;
+	u8   radio_input;
 };
 
 /* xc5000 callback command */
 #define XC5000_TUNER_RESET		0
+
+/* Possible Radio inputs */
+#define XC5000_RADIO_NOT_CONFIGURED		0
+#define XC5000_RADIO_FM1			1
+#define XC5000_RADIO_FM2			2
 
 /* For each bridge framework, when it attaches either analog or digital,
  * it has to store a reference back to its _core equivalent structure,

@@ -820,12 +820,17 @@ static void sbp2_release_target(struct kref *kref)
 	fw_device_put(device);
 }
 
-static struct workqueue_struct *sbp2_wq;
+static void sbp2_target_get(struct sbp2_target *tgt)
+{
+	kref_get(&tgt->kref);
+}
 
 static void sbp2_target_put(struct sbp2_target *tgt)
 {
 	kref_put(&tgt->kref, sbp2_release_target);
 }
+
+static struct workqueue_struct *sbp2_wq;
 
 /*
  * Always get the target's kref when scheduling work on one its units.
@@ -833,7 +838,7 @@ static void sbp2_target_put(struct sbp2_target *tgt)
  */
 static void sbp2_queue_work(struct sbp2_logical_unit *lu, unsigned long delay)
 {
-	kref_get(&lu->tgt->kref);
+	sbp2_target_get(lu->tgt);
 	if (!queue_delayed_work(sbp2_wq, &lu->work, delay))
 		sbp2_target_put(lu->tgt);
 }

@@ -26,13 +26,15 @@
 #include <linux/input.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
+#include <linux/spinlock.h>
+
+extern int media_ir_debug;    /* media_ir_debug level (0,1,2) */
+#define IR_dprintk(level, fmt, arg...)	if (media_ir_debug >= level) \
+	printk(KERN_DEBUG "%s: " fmt , __func__, ## arg)
 
 #define IR_TYPE_RC5     1
 #define IR_TYPE_PD      2 /* Pulse distance encoded IR */
 #define IR_TYPE_OTHER  99
-
-#define IR_KEYTAB_TYPE u32
-#define IR_KEYTAB_SIZE	128  /* enougth for rc5, probably need more some day */
 
 struct ir_scancode {
 	u16	scancode;
@@ -42,10 +44,8 @@ struct ir_scancode {
 struct ir_scancode_table {
 	struct ir_scancode *scan;
 	int size;
+	spinlock_t lock;
 };
-
-#define IR_KEYCODE(tab,code)	(((unsigned)code < IR_KEYTAB_SIZE) \
-				 ? tab[code] : KEY_RESERVED)
 
 #define RC5_START(x)	(((x)>>12)&3)
 #define RC5_TOGGLE(x)	(((x)>>11)&1)
@@ -55,11 +55,11 @@ struct ir_scancode_table {
 struct ir_input_state {
 	/* configuration */
 	int                ir_type;
-	IR_KEYTAB_TYPE     ir_codes[IR_KEYTAB_SIZE];
+
+	struct ir_scancode_table keytable;
 
 	/* key info */
-	u32                ir_raw;      /* raw data */
-	u32                ir_key;      /* ir key code */
+	u32                ir_key;      /* ir scancode */
 	u32                keycode;     /* linux key code */
 	int                keypressed;  /* current state */
 };
@@ -102,20 +102,36 @@ struct card_ir {
 	struct tasklet_struct   tlet;
 };
 
-void ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
+/* Routines from ir-functions.c */
+
+int ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
 		   int ir_type, struct ir_scancode_table *ir_codes);
 void ir_input_nokey(struct input_dev *dev, struct ir_input_state *ir);
 void ir_input_keydown(struct input_dev *dev, struct ir_input_state *ir,
-		      u32 ir_key, u32 ir_raw);
+		      u32 ir_key);
 u32  ir_extract_bits(u32 data, u32 mask);
 int  ir_dump_samples(u32 *samples, int count);
 int  ir_decode_biphase(u32 *samples, int count, int low, int high);
 int  ir_decode_pulsedistance(u32 *samples, int count, int low, int high);
+u32  ir_rc5_decode(unsigned int code);
 
 void ir_rc5_timer_end(unsigned long data);
 void ir_rc5_timer_keyup(unsigned long data);
 
-/* Keymaps to be used by other modules */
+/* Routines from ir-keytable.c */
+
+u32 ir_g_keycode_from_table(struct input_dev *input_dev,
+			    u32 scancode);
+
+int ir_set_keycode_table(struct input_dev *input_dev,
+			 struct ir_scancode_table *rc_tab);
+
+int ir_roundup_tablesize(int n_elems);
+int ir_copy_table(struct ir_scancode_table *destin,
+		 const struct ir_scancode_table *origin);
+void ir_input_free(struct input_dev *input_dev);
+
+/* scancode->keycode map tables from ir-keymaps.c */
 
 extern struct ir_scancode_table ir_codes_empty_table;
 extern struct ir_scancode_table ir_codes_avermedia_table;
@@ -150,6 +166,7 @@ extern struct ir_scancode_table ir_codes_rc5_tv_table;
 extern struct ir_scancode_table ir_codes_winfast_table;
 extern struct ir_scancode_table ir_codes_pinnacle_color_table;
 extern struct ir_scancode_table ir_codes_hauppauge_new_table;
+extern struct ir_scancode_table ir_codes_rc5_hauppauge_new_table;
 extern struct ir_scancode_table ir_codes_npgtech_table;
 extern struct ir_scancode_table ir_codes_norwood_table;
 extern struct ir_scancode_table ir_codes_proteus_2309_table;
@@ -172,6 +189,8 @@ extern struct ir_scancode_table ir_codes_ati_tv_wonder_hd_600_table;
 extern struct ir_scancode_table ir_codes_kworld_plus_tv_analog_table;
 extern struct ir_scancode_table ir_codes_kaiomy_table;
 extern struct ir_scancode_table ir_codes_dm1105_nec_table;
+extern struct ir_scancode_table ir_codes_tevii_nec_table;
+extern struct ir_scancode_table ir_codes_tbs_nec_table;
 extern struct ir_scancode_table ir_codes_evga_indtube_table;
 extern struct ir_scancode_table ir_codes_terratec_cinergy_xs_table;
 extern struct ir_scancode_table ir_codes_videomate_s350_table;

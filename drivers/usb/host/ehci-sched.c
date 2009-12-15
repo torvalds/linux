@@ -475,6 +475,8 @@ static int enable_periodic (struct ehci_hcd *ehci)
 	/* make sure ehci_work scans these */
 	ehci->next_uframe = ehci_readl(ehci, &ehci->regs->frame_index)
 		% (ehci->periodic_size << 3);
+	if (unlikely(ehci->broken_periodic))
+		ehci->last_periodic_enable = ktime_get_real();
 	return 0;
 }
 
@@ -485,6 +487,16 @@ static int disable_periodic (struct ehci_hcd *ehci)
 
 	if (--ehci->periodic_sched)
 		return 0;
+
+	if (unlikely(ehci->broken_periodic)) {
+		/* delay experimentally determined */
+		ktime_t safe = ktime_add_us(ehci->last_periodic_enable, 1000);
+		ktime_t now = ktime_get_real();
+		s64 delay = ktime_us_delta(safe, now);
+
+		if (unlikely(delay > 0))
+			udelay(delay);
+	}
 
 	/* did setting PSE not take effect yet?
 	 * takes effect only at frame boundaries...
@@ -1373,7 +1385,7 @@ sitd_slot_ok (
  * given EHCI_TUNE_FLS and the slop).  Or, write a smarter scheduler!
  */
 
-#define SCHEDULE_SLOP	10	/* frames */
+#define SCHEDULE_SLOP	80	/* microframes */
 
 static int
 iso_stream_schedule (
@@ -1382,12 +1394,13 @@ iso_stream_schedule (
 	struct ehci_iso_stream	*stream
 )
 {
-	u32			now, start, max, period;
+	u32			now, next, start, period;
 	int			status;
 	unsigned		mod = ehci->periodic_size << 3;
 	struct ehci_iso_sched	*sched = urb->hcpriv;
+	struct pci_dev		*pdev;
 
-	if (sched->span > (mod - 8 * SCHEDULE_SLOP)) {
+	if (sched->span > (mod - SCHEDULE_SLOP)) {
 		ehci_dbg (ehci, "iso request %p too long\n", urb);
 		status = -EFBIG;
 		goto fail;
@@ -1406,26 +1419,35 @@ iso_stream_schedule (
 
 	now = ehci_readl(ehci, &ehci->regs->frame_index) % mod;
 
-	/* when's the last uframe this urb could start? */
-	max = now + mod;
-
 	/* Typical case: reuse current schedule, stream is still active.
 	 * Hopefully there are no gaps from the host falling behind
 	 * (irq delays etc), but if there are we'll take the next
 	 * slot in the schedule, implicitly assuming URB_ISO_ASAP.
 	 */
 	if (likely (!list_empty (&stream->td_list))) {
+		pdev = to_pci_dev(ehci_to_hcd(ehci)->self.controller);
 		start = stream->next_uframe;
-		if (start < now)
-			start += mod;
+
+		/* For high speed devices, allow scheduling within the
+		 * isochronous scheduling threshold.  For full speed devices,
+		 * don't. (Work around for Intel ICH9 bug.)
+		 */
+		if (!stream->highspeed &&
+				pdev->vendor == PCI_VENDOR_ID_INTEL)
+			next = now + ehci->i_thresh;
+		else
+			next = now;
 
 		/* Fell behind (by up to twice the slop amount)? */
-		if (start >= max - 2 * 8 * SCHEDULE_SLOP)
+		if (((start - next) & (mod - 1)) >=
+				mod - 2 * SCHEDULE_SLOP)
 			start += period * DIV_ROUND_UP(
-					max - start, period) - mod;
+					(next - start) & (mod - 1),
+					period);
 
 		/* Tried to schedule too far into the future? */
-		if (unlikely((start + sched->span) >= max)) {
+		if (unlikely(((start - now) & (mod - 1)) + sched->span
+					>= mod - 2 * SCHEDULE_SLOP)) {
 			status = -EFBIG;
 			goto fail;
 		}
@@ -1439,7 +1461,7 @@ iso_stream_schedule (
 	 * can also help high bandwidth if the dma and irq loads don't
 	 * jump until after the queue is primed.
 	 */
-	start = SCHEDULE_SLOP * 8 + (now & ~0x07);
+	start = SCHEDULE_SLOP + (now & ~0x07);
 	start %= mod;
 	stream->next_uframe = start;
 
@@ -1470,7 +1492,7 @@ iso_stream_schedule (
 	/* no room in the schedule */
 	ehci_dbg (ehci, "iso %ssched full %p (now %d max %d)\n",
 		list_empty (&stream->td_list) ? "" : "re",
-		urb, now, max);
+		urb, now, now + mod);
 	status = -ENOSPC;
 
 fail:

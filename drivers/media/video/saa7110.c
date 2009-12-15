@@ -304,7 +304,7 @@ static int saa7110_s_routing(struct v4l2_subdev *sd,
 {
 	struct saa7110 *decoder = to_saa7110(sd);
 
-	if (input < 0 || input >= SAA7110_MAX_INPUT) {
+	if (input >= SAA7110_MAX_INPUT) {
 		v4l2_dbg(1, debug, sd, "input=%d not available\n", input);
 		return -EINVAL;
 	}

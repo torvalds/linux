@@ -32,7 +32,8 @@ Configuration options:
   [0] - I/O port base address
   [1] - IRQ (unused)
   [2] - DMA (unused)
-  [3] - analog output range, set by jumpers on hardware (0 for -10 to 10V bipolar, 1 for 0V to 10V unipolar)
+  [3] - analog output range, set by jumpers on hardware (0 for -10 to 10V
+	bipolar, 1 for 0V to 10V unipolar)
 
 */
 /*
@@ -431,9 +432,8 @@ static int atao_calib_insn_read(struct comedi_device *dev,
 				struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
-	for (i = 0; i < insn->n; i++) {
+	for (i = 0; i < insn->n; i++)
 		data[i] = 0;	/* XXX */
-	}
 	return insn->n;
 }
 

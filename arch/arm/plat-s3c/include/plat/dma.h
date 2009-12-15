@@ -1,6 +1,6 @@
 /* arch/arm/plat-s3c/include/plat/dma.h
  *
- * Copyright (C) 2003,2004,2006 Simtec Electronics
+ * Copyright (C) 2003-2006 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * Samsung S3C DMA support

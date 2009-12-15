@@ -186,15 +186,10 @@ extern xfs_buf_t *_xfs_buf_find(xfs_buftarg_t *, xfs_off_t, size_t,
 #define xfs_incore(buftarg,blkno,len,lockit) \
 	_xfs_buf_find(buftarg, blkno ,len, lockit, NULL)
 
-extern xfs_buf_t *xfs_buf_get_flags(xfs_buftarg_t *, xfs_off_t, size_t,
+extern xfs_buf_t *xfs_buf_get(xfs_buftarg_t *, xfs_off_t, size_t,
 				xfs_buf_flags_t);
-#define xfs_buf_get(target, blkno, len, flags) \
-	xfs_buf_get_flags((target), (blkno), (len), XBF_LOCK | XBF_MAPPED)
-
-extern xfs_buf_t *xfs_buf_read_flags(xfs_buftarg_t *, xfs_off_t, size_t,
+extern xfs_buf_t *xfs_buf_read(xfs_buftarg_t *, xfs_off_t, size_t,
 				xfs_buf_flags_t);
-#define xfs_buf_read(target, blkno, len, flags) \
-	xfs_buf_read_flags((target), (blkno), (len), XBF_LOCK | XBF_MAPPED)
 
 extern xfs_buf_t *xfs_buf_get_empty(size_t, xfs_buftarg_t *);
 extern xfs_buf_t *xfs_buf_get_noaddr(size_t, xfs_buftarg_t *);

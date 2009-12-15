@@ -1,6 +1,8 @@
-config RTL8187SE
+config R8187SE
 	tristate "RealTek RTL8187SE Wireless LAN NIC driver"
 	depends on PCI && WLAN
-	depends on WIRELESS_EXT
+	select WIRELESS_EXT
+	select WEXT_PRIV
 	default N
 	---help---
+	  If built as a module, it will be called r8187se.ko.

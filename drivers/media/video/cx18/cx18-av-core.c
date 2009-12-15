@@ -99,10 +99,8 @@ int cx18_av_and_or4(struct cx18 *cx, u16 addr, u32 and_mask,
 			     or_value);
 }
 
-static int cx18_av_init(struct v4l2_subdev *sd, u32 val)
+static void cx18_av_init(struct cx18 *cx)
 {
-	struct cx18 *cx = v4l2_get_subdevdata(sd);
-
 	/*
 	 * The crystal freq used in calculations in this driver will be
 	 * 28.636360 MHz.
@@ -125,7 +123,6 @@ static int cx18_av_init(struct v4l2_subdev *sd, u32 val)
 
 	/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x16 */
 	cx18_av_write(cx, CXADEC_I2S_MCLK, 0x56);
-	return 0;
 }
 
 static void cx18_av_initialize(struct v4l2_subdev *sd)
@@ -198,7 +195,7 @@ static void cx18_av_initialize(struct v4l2_subdev *sd)
 	cx18_av_and_or4(cx, CXADEC_CHIP_CTRL, 0xFFFBFFFF, 0x00120000);
 
 	/* Setup the Video and and Aux/Audio PLLs */
-	cx18_av_init(sd, 0);
+	cx18_av_init(cx);
 
 	/* set video to auto-detect */
 	/* Clear bits 11-12 to enable slow locking mode.  Set autodetect mode */
@@ -1355,7 +1352,6 @@ static int cx18_av_s_register(struct v4l2_subdev *sd,
 static const struct v4l2_subdev_core_ops cx18_av_general_ops = {
 	.g_chip_ident = cx18_av_g_chip_ident,
 	.log_status = cx18_av_log_status,
-	.init = cx18_av_init,
 	.load_fw = cx18_av_load_fw,
 	.reset = cx18_av_reset,
 	.queryctrl = cx18_av_queryctrl,
@@ -1399,6 +1395,7 @@ int cx18_av_probe(struct cx18 *cx)
 {
 	struct cx18_av_state *state = &cx->av_state;
 	struct v4l2_subdev *sd;
+	int err;
 
 	state->rev = cx18_av_read4(cx, CXADEC_CHIP_CTRL) & 0xffff;
 	state->id = ((state->rev >> 4) == CXADEC_CHIP_TYPE_MAKO)
@@ -1417,5 +1414,8 @@ int cx18_av_probe(struct cx18 *cx)
 	snprintf(sd->name, sizeof(sd->name),
 		 "%s %03x", cx->v4l2_dev.name, (state->rev >> 4));
 	sd->grp_id = CX18_HW_418_AV;
-	return v4l2_device_register_subdev(&cx->v4l2_dev, sd);
+	err = v4l2_device_register_subdev(&cx->v4l2_dev, sd);
+	if (!err)
+		cx18_av_init(cx);
+	return err;
 }

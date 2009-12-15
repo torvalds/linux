@@ -1,7 +1,8 @@
 config HOSTAP
 	tristate "IEEE 802.11 for Host AP (Prism2/2.5/3 and WEP/TKIP/CCMP)"
-	depends on WLAN_80211
 	select WIRELESS_EXT
+	select WEXT_SPY
+	select WEXT_PRIV
 	select CRYPTO
 	select CRYPTO_ARC4
 	select CRYPTO_ECB

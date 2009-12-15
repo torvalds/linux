@@ -183,7 +183,7 @@ static void __init MP_processor_info(struct mpc_cpu *m)
 		return;
 	}
 
-	apic_cpus = apic->apicid_to_cpu_present(m->apicid);
+	apic->apicid_to_cpu_present(m->apicid, &apic_cpus);
 	physids_or(phys_cpu_present_map, phys_cpu_present_map, apic_cpus);
 	/*
 	 * Validate version
@@ -197,7 +197,7 @@ static void __init MP_processor_info(struct mpc_cpu *m)
 	apic_version[m->apicid] = ver;
 }
 
-static void __init visws_find_smp_config(unsigned int reserve)
+static void __init visws_find_smp_config(void)
 {
 	struct mpc_cpu *mp = phys_to_virt(CO_CPU_TAB_PHYS);
 	unsigned short ncpus = readw(phys_to_virt(CO_CPU_NUM_PHYS));
@@ -486,7 +486,7 @@ static void end_cobalt_irq(unsigned int irq)
 }
 
 static struct irq_chip cobalt_irq_type = {
-	.typename =	"Cobalt-APIC",
+	.name =		"Cobalt-APIC",
 	.startup =	startup_cobalt_irq,
 	.shutdown =	disable_cobalt_irq,
 	.enable =	enable_cobalt_irq,
@@ -523,7 +523,7 @@ static void end_piix4_master_irq(unsigned int irq)
 }
 
 static struct irq_chip piix4_master_irq_type = {
-	.typename =	"PIIX4-master",
+	.name =		"PIIX4-master",
 	.startup =	startup_piix4_master_irq,
 	.ack =		ack_cobalt_irq,
 	.end =		end_piix4_master_irq,
@@ -531,7 +531,7 @@ static struct irq_chip piix4_master_irq_type = {
 
 
 static struct irq_chip piix4_virtual_irq_type = {
-	.typename =	"PIIX4-virtual",
+	.name =		"PIIX4-virtual",
 	.shutdown =	disable_8259A_irq,
 	.enable =	enable_8259A_irq,
 	.disable =	disable_8259A_irq,

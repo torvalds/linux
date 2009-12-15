@@ -62,7 +62,6 @@ static int lec_open(struct net_device *dev);
 static netdev_tx_t lec_start_xmit(struct sk_buff *skb,
 				  struct net_device *dev);
 static int lec_close(struct net_device *dev);
-static void lec_init(struct net_device *dev);
 static struct lec_arp_table *lec_arp_find(struct lec_priv *priv,
 					  const unsigned char *mac_addr);
 static int lec_arp_remove(struct lec_priv *priv,
@@ -670,13 +669,6 @@ static const struct net_device_ops lec_netdev_ops = {
 	.ndo_set_multicast_list	= lec_set_multicast_list,
 };
 
-
-static void lec_init(struct net_device *dev)
-{
-	dev->netdev_ops = &lec_netdev_ops;
-	printk("%s: Initialized!\n", dev->name);
-}
-
 static const unsigned char lec_ctrl_magic[] = {
 	0xff,
 	0x00,
@@ -893,6 +885,7 @@ static int lecd_attach(struct atm_vcc *vcc, int arg)
 			dev_lec[i] = alloc_etherdev(size);
 		if (!dev_lec[i])
 			return -ENOMEM;
+		dev_lec[i]->netdev_ops = &lec_netdev_ops;
 		snprintf(dev_lec[i]->name, IFNAMSIZ, "lec%d", i);
 		if (register_netdev(dev_lec[i])) {
 			free_netdev(dev_lec[i]);
@@ -901,7 +894,6 @@ static int lecd_attach(struct atm_vcc *vcc, int arg)
 
 		priv = netdev_priv(dev_lec[i]);
 		priv->is_trdev = is_trdev;
-		lec_init(dev_lec[i]);
 	} else {
 		priv = netdev_priv(dev_lec[i]);
 		if (priv->lecd)

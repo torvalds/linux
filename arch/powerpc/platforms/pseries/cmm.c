@@ -229,8 +229,9 @@ static void cmm_get_mpp(void)
 {
 	int rc;
 	struct hvcall_mpp_data mpp_data;
-	unsigned long active_pages_target;
-	signed long page_loan_request;
+	signed long active_pages_target, page_loan_request, target;
+	signed long total_pages = totalram_pages + loaned_pages;
+	signed long min_mem_pages = (min_mem_mb * 1024 * 1024) / PAGE_SIZE;
 
 	rc = h_get_mpp(&mpp_data);
 
@@ -238,17 +239,25 @@ static void cmm_get_mpp(void)
 		return;
 
 	page_loan_request = div_s64((s64)mpp_data.loan_request, PAGE_SIZE);
-	loaned_pages_target = page_loan_request + loaned_pages;
-	if (loaned_pages_target > oom_freed_pages)
-		loaned_pages_target -= oom_freed_pages;
+	target = page_loan_request + (signed long)loaned_pages;
+
+	if (target < 0 || total_pages < min_mem_pages)
+		target = 0;
+
+	if (target > oom_freed_pages)
+		target -= oom_freed_pages;
 	else
-		loaned_pages_target = 0;
+		target = 0;
 
-	active_pages_target = totalram_pages + loaned_pages - loaned_pages_target;
+	active_pages_target = total_pages - target;
 
-	if ((min_mem_mb * 1024 * 1024) > (active_pages_target * PAGE_SIZE))
-		loaned_pages_target = totalram_pages + loaned_pages -
-			((min_mem_mb * 1024 * 1024) / PAGE_SIZE);
+	if (min_mem_pages > active_pages_target)
+		target = total_pages - min_mem_pages;
+
+	if (target < 0)
+		target = 0;
+
+	loaned_pages_target = target;
 
 	cmm_dbg("delta = %ld, loaned = %lu, target = %lu, oom = %lu, totalram = %lu\n",
 		page_loan_request, loaned_pages, loaned_pages_target,

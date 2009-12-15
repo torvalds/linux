@@ -24,7 +24,7 @@
 #include <linux/i2c/tps65010.h>
 
 #include <mach/gpio.h>
-#include <mach/omapfb.h>
+#include "omapfb.h"
 
 #define MODULE_NAME	"omapfb-lcd_h3"
 

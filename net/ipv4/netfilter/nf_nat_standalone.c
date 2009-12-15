@@ -197,11 +197,11 @@ nf_nat_out(unsigned int hooknum,
 	    (ct = nf_ct_get(skb, &ctinfo)) != NULL) {
 		enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 
-		if (ct->tuplehash[dir].tuple.src.u3.ip !=
-		    ct->tuplehash[!dir].tuple.dst.u3.ip
-		    || ct->tuplehash[dir].tuple.src.u.all !=
-		       ct->tuplehash[!dir].tuple.dst.u.all
-		    )
+		if ((ct->tuplehash[dir].tuple.src.u3.ip !=
+		     ct->tuplehash[!dir].tuple.dst.u3.ip) ||
+		    (ct->tuplehash[dir].tuple.src.u.all !=
+		     ct->tuplehash[!dir].tuple.dst.u.all)
+		   )
 			return ip_xfrm_me_harder(skb) == 0 ? ret : NF_DROP;
 	}
 #endif

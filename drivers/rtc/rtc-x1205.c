@@ -195,7 +195,7 @@ static int x1205_set_datetime(struct i2c_client *client, struct rtc_time *tm,
 		/* year, since the rtc epoch*/
 		buf[CCR_YEAR] = bin2bcd(tm->tm_year % 100);
 		buf[CCR_WDAY] = tm->tm_wday & 0x07;
-		buf[CCR_Y2K] = bin2bcd(tm->tm_year / 100);
+		buf[CCR_Y2K] = bin2bcd((tm->tm_year + 1900) / 100);
 	}
 
 	/* If writing alarm registers, set compare bits on registers 0-4 */
@@ -280,9 +280,9 @@ static int x1205_fix_osc(struct i2c_client *client)
 	int err;
 	struct rtc_time tm;
 
-	tm.tm_hour = tm.tm_min = tm.tm_sec = 0;
+	memset(&tm, 0, sizeof(tm));
 
-	err = x1205_set_datetime(client, &tm, 0, X1205_CCR_BASE, 0);
+	err = x1205_set_datetime(client, &tm, 1, X1205_CCR_BASE, 0);
 	if (err < 0)
 		dev_err(&client->dev, "unable to restart the oscillator\n");
 

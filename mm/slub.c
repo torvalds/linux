@@ -1735,7 +1735,7 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
 	}
 	local_irq_restore(flags);
 
-	if (unlikely((gfpflags & __GFP_ZERO) && object))
+	if (unlikely(gfpflags & __GFP_ZERO) && object)
 		memset(object, 0, objsize);
 
 	kmemcheck_slab_alloc(s, gfpflags, object, c->objsize);
@@ -4371,12 +4371,28 @@ static int show_stat(struct kmem_cache *s, char *buf, enum stat_item si)
 	return len + sprintf(buf + len, "\n");
 }
 
+static void clear_stat(struct kmem_cache *s, enum stat_item si)
+{
+	int cpu;
+
+	for_each_online_cpu(cpu)
+		get_cpu_slab(s, cpu)->stat[si] = 0;
+}
+
 #define STAT_ATTR(si, text) 					\
 static ssize_t text##_show(struct kmem_cache *s, char *buf)	\
 {								\
 	return show_stat(s, buf, si);				\
 }								\
-SLAB_ATTR_RO(text);						\
+static ssize_t text##_store(struct kmem_cache *s,		\
+				const char *buf, size_t length)	\
+{								\
+	if (buf[0] != '0')					\
+		return -EINVAL;					\
+	clear_stat(s, si);					\
+	return length;						\
+}								\
+SLAB_ATTR(text);						\
 
 STAT_ATTR(ALLOC_FASTPATH, alloc_fastpath);
 STAT_ATTR(ALLOC_SLOWPATH, alloc_slowpath);

@@ -363,7 +363,7 @@
 /* Description: This command provides the offset to a Memory Descriptor List
    IN[0] - Task handle. Handle of the task to start
    IN[1] - Offset of the MDL from the beginning of the local DDR.
-   IN[2] - Number of cx18_mdl structures in the array pointed to by IN[1]
+   IN[2] - Number of cx18_mdl_ent structures in the array pointed to by IN[1]
    IN[3] - Buffer ID
    IN[4] - Total buffer length
    ReturnCode - One of the ERR_DE_... */

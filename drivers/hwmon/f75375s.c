@@ -681,30 +681,20 @@ static int f75375_detect(struct i2c_client *client, int kind,
 			 struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
-	u8 version = 0;
-	const char *name = "";
+	u16 vendid, chipid;
+	u8 version;
+	const char *name;
 
-	if (kind < 0) {
-		u16 vendid = f75375_read16(client, F75375_REG_VENDOR);
-		u16 chipid = f75375_read16(client, F75375_CHIP_ID);
-		version = f75375_read8(client, F75375_REG_VERSION);
-		if (chipid == 0x0306 && vendid == 0x1934) {
-			kind = f75375;
-		} else if (chipid == 0x0204 && vendid == 0x1934) {
-			kind = f75373;
-		} else {
-			dev_err(&adapter->dev,
-				"failed,%02X,%02X,%02X\n",
-				chipid, version, vendid);
-			return -ENODEV;
-		}
-	}
-
-	if (kind == f75375) {
+	vendid = f75375_read16(client, F75375_REG_VENDOR);
+	chipid = f75375_read16(client, F75375_CHIP_ID);
+	if (chipid == 0x0306 && vendid == 0x1934)
 		name = "f75375";
-	} else if (kind == f75373) {
+	else if (chipid == 0x0204 && vendid == 0x1934)
 		name = "f75373";
-	}
+	else
+		return -ENODEV;
+
+	version = f75375_read8(client, F75375_REG_VERSION);
 	dev_info(&adapter->dev, "found %s version: %02X\n", name, version);
 	strlcpy(info->type, name, I2C_NAME_SIZE);
 

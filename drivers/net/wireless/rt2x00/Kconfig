@@ -1,6 +1,6 @@
 menuconfig RT2X00
 	tristate "Ralink driver support"
-	depends on MAC80211 && WLAN_80211
+	depends on MAC80211
 	---help---
 	  This will enable the support for the Ralink drivers,
 	  developed in the rt2x00 project <http://rt2x00.serialmonkey.com>.
@@ -53,6 +53,36 @@ config RT61PCI
 
 	  When compiled as a module, this driver will be called rt61pci.
 
+config RT2800PCI_PCI
+	tristate
+	depends on PCI
+	default y
+
+config RT2800PCI_SOC
+	tristate
+	depends on RALINK_RT288X || RALINK_RT305X
+	default y
+
+config RT2800PCI
+	tristate "Ralink rt2800 (PCI/PCMCIA) support (VERY EXPERIMENTAL)"
+	depends on (RT2800PCI_PCI || RT2800PCI_SOC) && EXPERIMENTAL
+	select RT2800_LIB
+	select RT2X00_LIB_PCI if RT2800PCI_PCI
+	select RT2X00_LIB_SOC if RT2800PCI_SOC
+	select RT2X00_LIB_HT
+	select RT2X00_LIB_FIRMWARE
+	select RT2X00_LIB_CRYPTO
+	select CRC_CCITT
+	select EEPROM_93CX6
+	---help---
+	  This adds support for rt2800 wireless chipset family.
+	  Supported chips: RT2760, RT2790, RT2860, RT2880, RT2890 & RT3052
+
+	  This driver is non-functional at the moment and is intended for
+	  developers.
+
+	  When compiled as a module, this driver will be called "rt2800pci.ko".
+
 config RT2500USB
 	tristate "Ralink rt2500 (USB) support"
 	depends on USB
@@ -78,8 +108,9 @@ config RT73USB
 	  When compiled as a module, this driver will be called rt73usb.
 
 config RT2800USB
-	tristate "Ralink rt2800 (USB) support"
+	tristate "Ralink rt2800 (USB) support (EXPERIMENTAL)"
 	depends on USB && EXPERIMENTAL
+	select RT2800_LIB
 	select RT2X00_LIB_USB
 	select RT2X00_LIB_HT
 	select RT2X00_LIB_FIRMWARE
@@ -89,9 +120,20 @@ config RT2800USB
 	  This adds experimental support for rt2800 wireless chipset family.
 	  Supported chips: RT2770, RT2870 & RT3070.
 
+	  Known issues:
+	  - support for RT2870 chips doesn't work with 802.11n APs yet
+	  - support for RT3070 chips is non-functional at the moment
+
 	  When compiled as a module, this driver will be called "rt2800usb.ko".
 
+config RT2800_LIB
+	tristate
+
 config RT2X00_LIB_PCI
+	tristate
+	select RT2X00_LIB
+
+config RT2X00_LIB_SOC
 	tristate
 	select RT2X00_LIB
 

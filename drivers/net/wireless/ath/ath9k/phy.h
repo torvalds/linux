@@ -17,20 +17,23 @@
 #ifndef PHY_H
 #define PHY_H
 
-void ath9k_hw_ar9280_set_channel(struct ath_hw *ah,
-				 struct ath9k_channel
-				 *chan);
-bool ath9k_hw_set_channel(struct ath_hw *ah,
-			  struct ath9k_channel *chan);
-void ath9k_hw_write_regs(struct ath_hw *ah, u32 modesIndex,
-			 u32 freqIndex, int regWrites);
+/* Common between single chip and non single-chip solutions */
+void ath9k_hw_write_regs(struct ath_hw *ah, u32 freqIndex, int regWrites);
+
+/* Single chip radio settings */
+int ath9k_hw_ar9280_set_channel(struct ath_hw *ah, struct ath9k_channel *chan);
+void ath9k_hw_9280_spur_mitigate(struct ath_hw *ah, struct ath9k_channel *chan);
+
+/* Routines below are for non single-chip solutions */
+int ath9k_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan);
+void ath9k_hw_spur_mitigate(struct ath_hw *ah, struct ath9k_channel *chan);
+
+int ath9k_hw_rf_alloc_ext_banks(struct ath_hw *ah);
+void ath9k_hw_rf_free_ext_banks(struct ath_hw *ah);
+
 bool ath9k_hw_set_rf_regs(struct ath_hw *ah,
 			  struct ath9k_channel *chan,
 			  u16 modesIndex);
-void ath9k_hw_decrease_chain_power(struct ath_hw *ah,
-				   struct ath9k_channel *chan);
-bool ath9k_hw_init_rf(struct ath_hw *ah,
-		      int *status);
 
 #define AR_PHY_BASE     0x9800
 #define AR_PHY(_n)      (AR_PHY_BASE + ((_n)<<2))
@@ -45,6 +48,7 @@ bool ath9k_hw_init_rf(struct ath_hw *ah,
 #define AR_PHY_FC_DYN2040_EN        0x00000004
 #define AR_PHY_FC_DYN2040_PRI_ONLY  0x00000008
 #define AR_PHY_FC_DYN2040_PRI_CH    0x00000010
+/* For 25 MHz channel spacing -- not used but supported by hw */
 #define AR_PHY_FC_DYN2040_EXT_CH    0x00000020
 #define AR_PHY_FC_HT_EN             0x00000040
 #define AR_PHY_FC_SHORT_GI_40       0x00000080
@@ -185,8 +189,20 @@ bool ath9k_hw_init_rf(struct ath_hw *ah,
 #define AR_PHY_PLL_CTL_44_2133  0xeb
 #define AR_PHY_PLL_CTL_40_2133  0xea
 
-#define AR_PHY_SPECTRAL_SCAN		0x9912
-#define AR_PHY_SPECTRAL_SCAN_ENABLE	0x1
+#define AR_PHY_SPECTRAL_SCAN			0x9910  /* AR9280 spectral scan configuration register */
+#define	AR_PHY_SPECTRAL_SCAN_ENABLE		0x1
+#define AR_PHY_SPECTRAL_SCAN_ENA		0x00000001  /* Enable spectral scan, reg 68, bit 0 */
+#define AR_PHY_SPECTRAL_SCAN_ENA_S		0  /* Enable spectral scan, reg 68, bit 0 */
+#define AR_PHY_SPECTRAL_SCAN_ACTIVE		0x00000002  /* Activate spectral scan reg 68, bit 1*/
+#define AR_PHY_SPECTRAL_SCAN_ACTIVE_S		1  /* Activate spectral scan reg 68, bit 1*/
+#define AR_PHY_SPECTRAL_SCAN_FFT_PERIOD		0x000000F0  /* Interval for FFT reports, reg 68, bits 4-7*/
+#define AR_PHY_SPECTRAL_SCAN_FFT_PERIOD_S	4
+#define AR_PHY_SPECTRAL_SCAN_PERIOD		0x0000FF00  /* Interval for FFT reports, reg 68, bits 8-15*/
+#define AR_PHY_SPECTRAL_SCAN_PERIOD_S		8
+#define AR_PHY_SPECTRAL_SCAN_COUNT		0x00FF0000  /* Number of reports, reg 68, bits 16-23*/
+#define AR_PHY_SPECTRAL_SCAN_COUNT_S		16
+#define AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT	0x01000000  /* Short repeat, reg 68, bit 24*/
+#define AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT_S	24  /* Short repeat, reg 68, bit 24*/
 
 #define AR_PHY_RX_DELAY           0x9914
 #define AR_PHY_SEARCH_START_DELAY 0x9918

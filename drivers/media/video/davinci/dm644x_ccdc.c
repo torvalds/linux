@@ -859,7 +859,7 @@ static struct ccdc_hw_device ccdc_hw_dev = {
 	},
 };
 
-static int dm644x_ccdc_init(void)
+static int __init dm644x_ccdc_init(void)
 {
 	printk(KERN_NOTICE "dm644x_ccdc_init\n");
 	if (vpfe_register_ccdc_device(&ccdc_hw_dev) < 0)
@@ -869,7 +869,7 @@ static int dm644x_ccdc_init(void)
 	return 0;
 }
 
-static void dm644x_ccdc_exit(void)
+static void __exit dm644x_ccdc_exit(void)
 {
 	vpfe_unregister_ccdc_device(&ccdc_hw_dev);
 }

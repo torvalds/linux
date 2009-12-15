@@ -20,6 +20,8 @@
 #include <linux/ktime.h>
 #include <linux/trace_clock.h>
 
+#include "trace.h"
+
 /*
  * trace_clock_local(): the simplest and least coherent tracing clock.
  *
@@ -28,17 +30,17 @@
  */
 u64 notrace trace_clock_local(void)
 {
-	unsigned long flags;
 	u64 clock;
+	int resched;
 
 	/*
 	 * sched_clock() is an architecture implemented, fast, scalable,
 	 * lockless clock. It is not guaranteed to be coherent across
 	 * CPUs, nor across CPU idle events.
 	 */
-	raw_local_irq_save(flags);
+	resched = ftrace_preempt_disable();
 	clock = sched_clock();
-	raw_local_irq_restore(flags);
+	ftrace_preempt_enable(resched);
 
 	return clock;
 }

@@ -373,11 +373,9 @@ static void drm_fb_helper_off(struct fb_info *info, int dpms_mode)
 					mutex_unlock(&dev->mode_config.mutex);
 				}
 			}
-			if (dpms_mode == DRM_MODE_DPMS_OFF) {
-				mutex_lock(&dev->mode_config.mutex);
-				crtc_funcs->dpms(crtc, dpms_mode);
-				mutex_unlock(&dev->mode_config.mutex);
-			}
+			mutex_lock(&dev->mode_config.mutex);
+			crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
+			mutex_unlock(&dev->mode_config.mutex);
 		}
 	}
 }
@@ -385,18 +383,23 @@ static void drm_fb_helper_off(struct fb_info *info, int dpms_mode)
 int drm_fb_helper_blank(int blank, struct fb_info *info)
 {
 	switch (blank) {
+	/* Display: On; HSync: On, VSync: On */
 	case FB_BLANK_UNBLANK:
 		drm_fb_helper_on(info);
 		break;
+	/* Display: Off; HSync: On, VSync: On */
 	case FB_BLANK_NORMAL:
-		drm_fb_helper_off(info, DRM_MODE_DPMS_STANDBY);
+		drm_fb_helper_off(info, DRM_MODE_DPMS_ON);
 		break;
+	/* Display: Off; HSync: Off, VSync: On */
 	case FB_BLANK_HSYNC_SUSPEND:
 		drm_fb_helper_off(info, DRM_MODE_DPMS_STANDBY);
 		break;
+	/* Display: Off; HSync: On, VSync: Off */
 	case FB_BLANK_VSYNC_SUSPEND:
 		drm_fb_helper_off(info, DRM_MODE_DPMS_SUSPEND);
 		break;
+	/* Display: Off; HSync: Off, VSync: Off */
 	case FB_BLANK_POWERDOWN:
 		drm_fb_helper_off(info, DRM_MODE_DPMS_OFF);
 		break;
@@ -599,7 +602,7 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 	struct drm_framebuffer *fb = fb_helper->fb;
 	int depth;
 
-	if (var->pixclock == -1 || !var->pixclock)
+	if (var->pixclock != 0)
 		return -EINVAL;
 
 	/* Need to resize the fb object !!! */
@@ -691,7 +694,7 @@ int drm_fb_helper_set_par(struct fb_info *info)
 	int ret;
 	int i;
 
-	if (var->pixclock != -1) {
+	if (var->pixclock != 0) {
 		DRM_ERROR("PIXEL CLCOK SET\n");
 		return -EINVAL;
 	}
@@ -904,9 +907,14 @@ int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 	fb_helper->fb = fb;
 
 	if (new_fb) {
-		info->var.pixclock = -1;
-		if (register_framebuffer(info) < 0)
+		info->var.pixclock = 0;
+		ret = fb_alloc_cmap(&info->cmap, modeset->crtc->gamma_size, 0);
+		if (ret)
+			return ret;
+		if (register_framebuffer(info) < 0) {
+			fb_dealloc_cmap(&info->cmap);
 			return -EINVAL;
+		}
 	} else {
 		drm_fb_helper_set_par(info);
 	}
@@ -936,6 +944,7 @@ void drm_fb_helper_free(struct drm_fb_helper *helper)
 		unregister_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
 	}
 	drm_fb_helper_crtc_free(helper);
+	fb_dealloc_cmap(&helper->fb->fbdev->cmap);
 }
 EXPORT_SYMBOL(drm_fb_helper_free);
 

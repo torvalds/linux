@@ -1227,7 +1227,7 @@ typedef struct smb_com_setattr_rsp {
 /* empty wct response to setattr */
 
 /*******************************************************/
-/* NT Transact structure defintions follow             */
+/* NT Transact structure definitions follow            */
 /* Currently only ioctl, acl (get security descriptor) */
 /* and notify are implemented                          */
 /*******************************************************/

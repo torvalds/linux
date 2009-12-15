@@ -220,7 +220,7 @@ static int mpc52xx_extirq_set_type(unsigned int virq, unsigned int flow_type)
 }
 
 static struct irq_chip mpc52xx_extirq_irqchip = {
-	.typename = "MPC52xx External",
+	.name = "MPC52xx External",
 	.mask = mpc52xx_extirq_mask,
 	.unmask = mpc52xx_extirq_unmask,
 	.ack = mpc52xx_extirq_ack,
@@ -258,7 +258,7 @@ static void mpc52xx_main_unmask(unsigned int virq)
 }
 
 static struct irq_chip mpc52xx_main_irqchip = {
-	.typename = "MPC52xx Main",
+	.name = "MPC52xx Main",
 	.mask = mpc52xx_main_mask,
 	.mask_ack = mpc52xx_main_mask,
 	.unmask = mpc52xx_main_unmask,
@@ -291,7 +291,7 @@ static void mpc52xx_periph_unmask(unsigned int virq)
 }
 
 static struct irq_chip mpc52xx_periph_irqchip = {
-	.typename = "MPC52xx Peripherals",
+	.name = "MPC52xx Peripherals",
 	.mask = mpc52xx_periph_mask,
 	.mask_ack = mpc52xx_periph_mask,
 	.unmask = mpc52xx_periph_unmask,
@@ -335,7 +335,7 @@ static void mpc52xx_sdma_ack(unsigned int virq)
 }
 
 static struct irq_chip mpc52xx_sdma_irqchip = {
-	.typename = "MPC52xx SDMA",
+	.name = "MPC52xx SDMA",
 	.mask = mpc52xx_sdma_mask,
 	.unmask = mpc52xx_sdma_unmask,
 	.ack = mpc52xx_sdma_ack,
@@ -355,7 +355,7 @@ static int mpc52xx_is_extirq(int l1, int l2)
  * mpc52xx_irqhost_xlate - translate virq# from device tree interrupts property
  */
 static int mpc52xx_irqhost_xlate(struct irq_host *h, struct device_node *ct,
-				 u32 *intspec, unsigned int intsize,
+				 const u32 *intspec, unsigned int intsize,
 				 irq_hw_number_t *out_hwirq,
 				 unsigned int *out_flags)
 {

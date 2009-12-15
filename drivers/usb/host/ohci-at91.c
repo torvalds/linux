@@ -35,7 +35,7 @@ extern int usb_disabled(void);
 
 static void at91_start_clock(void)
 {
-	if (cpu_is_at91sam9261())
+	if (cpu_is_at91sam9261() || cpu_is_at91sam9g10())
 		clk_enable(hclk);
 	clk_enable(iclk);
 	clk_enable(fclk);
@@ -46,7 +46,7 @@ static void at91_stop_clock(void)
 {
 	clk_disable(fclk);
 	clk_disable(iclk);
-	if (cpu_is_at91sam9261())
+	if (cpu_is_at91sam9261() || cpu_is_at91sam9g10())
 		clk_disable(hclk);
 	clocked = 0;
 }
@@ -142,7 +142,7 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 
 	iclk = clk_get(&pdev->dev, "ohci_clk");
 	fclk = clk_get(&pdev->dev, "uhpck");
-	if (cpu_is_at91sam9261())
+	if (cpu_is_at91sam9261() || cpu_is_at91sam9g10())
 		hclk = clk_get(&pdev->dev, "hck0");
 
 	at91_start_hc(pdev);
@@ -155,7 +155,7 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 	/* Error handling */
 	at91_stop_hc(pdev);
 
-	if (cpu_is_at91sam9261())
+	if (cpu_is_at91sam9261() || cpu_is_at91sam9g10())
 		clk_put(hclk);
 	clk_put(fclk);
 	clk_put(iclk);
@@ -192,7 +192,7 @@ static void usb_hcd_at91_remove(struct usb_hcd *hcd,
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 
-	if (cpu_is_at91sam9261())
+	if (cpu_is_at91sam9261() || cpu_is_at91sam9g10())
 		clk_put(hclk);
 	clk_put(fclk);
 	clk_put(iclk);

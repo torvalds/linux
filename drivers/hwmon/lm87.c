@@ -666,37 +666,32 @@ static int lm87_detect(struct i2c_client *new_client, int kind,
 		       struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = new_client->adapter;
-	static const char *names[] = { "lm87", "adm1024" };
+	const char *name;
+	u8 cid, rev;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	/* Default to an LM87 if forced */
-	if (kind == 0)
-		kind = lm87;
+	if (lm87_read_value(new_client, LM87_REG_CONFIG) & 0x80)
+		return -ENODEV;
 
 	/* Now, we do the remaining detection. */
-	if (kind < 0) {
-		u8 cid = lm87_read_value(new_client, LM87_REG_COMPANY_ID);
-		u8 rev = lm87_read_value(new_client, LM87_REG_REVISION);
+	cid = lm87_read_value(new_client, LM87_REG_COMPANY_ID);
+	rev = lm87_read_value(new_client, LM87_REG_REVISION);
 
-		if (cid == 0x02			/* National Semiconductor */
-		 && (rev >= 0x01 && rev <= 0x08))
-			kind = lm87;
-		else if (cid == 0x41		/* Analog Devices */
-		      && (rev & 0xf0) == 0x10)
-			kind = adm1024;
-
-		if (kind < 0
-		 || (lm87_read_value(new_client, LM87_REG_CONFIG) & 0x80)) {
-			dev_dbg(&adapter->dev,
-				"LM87 detection failed at 0x%02x.\n",
-				new_client->addr);
-			return -ENODEV;
-		}
+	if (cid == 0x02			/* National Semiconductor */
+	 && (rev >= 0x01 && rev <= 0x08))
+		name = "lm87";
+	else if (cid == 0x41		/* Analog Devices */
+	      && (rev & 0xf0) == 0x10)
+		name = "adm1024";
+	else {
+		dev_dbg(&adapter->dev, "LM87 detection failed at 0x%02x\n",
+			new_client->addr);
+		return -ENODEV;
 	}
 
-	strlcpy(info->type, names[kind - 1], I2C_NAME_SIZE);
+	strlcpy(info->type, name, I2C_NAME_SIZE);
 
 	return 0;
 }

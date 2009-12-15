@@ -3238,7 +3238,7 @@ static u64 s2io_mdio_read(u32 mmd_type, u64 addr, struct net_device *dev)
 
 /**
  *  s2io_chk_xpak_counter - Function to check the status of the xpak counters
- *  @counter      : couter value to be updated
+ *  @counter      : counter value to be updated
  *  @flag         : flag to indicate the status
  *  @type         : counter type
  *  Description:

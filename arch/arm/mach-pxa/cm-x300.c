@@ -3,9 +3,10 @@
  *
  * Support for the CompuLab CM-X300 modules
  *
- * Copyright (C) 2008 CompuLab Ltd.
+ * Copyright (C) 2008,2009 CompuLab Ltd.
  *
  * Mike Rapoport <mike@compulab.co.il>
+ * Igor Grinberg <grinberg@compulab.co.il>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -16,30 +17,41 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
+#include <linux/delay.h>
 #include <linux/platform_device.h>
 
 #include <linux/gpio.h>
 #include <linux/dm9000.h>
 #include <linux/leds.h>
 #include <linux/rtc-v3020.h>
+#include <linux/pwm_backlight.h>
 
 #include <linux/i2c.h>
 #include <linux/i2c/pca953x.h>
+
+#include <linux/mfd/da903x.h>
+
+#include <linux/spi/spi.h>
+#include <linux/spi/spi_gpio.h>
+#include <linux/spi/tdo24m.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/setup.h>
 
 #include <mach/pxa300.h>
+#include <mach/pxa27x-udc.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/ohci.h>
 #include <plat/i2c.h>
-#include <mach/pxa3xx_nand.h>
+#include <plat/pxa3xx_nand.h>
+#include <mach/audio.h>
 
 #include <asm/mach/map.h>
 
 #include "generic.h"
+#include "devices.h"
 
 #define CM_X300_ETH_PHYS	0x08000010
 
@@ -53,7 +65,7 @@
 #define GPIO97_RTC_RD		(97)
 #define GPIO98_RTC_IO		(98)
 
-static mfp_cfg_t cm_x300_mfp_cfg[] __initdata = {
+static mfp_cfg_t cm_x3xx_mfp_cfg[] __initdata = {
 	/* LCD */
 	GPIO54_LCD_LDD_0,
 	GPIO55_LCD_LDD_1,
@@ -137,7 +149,6 @@ static mfp_cfg_t cm_x300_mfp_cfg[] __initdata = {
 	GPIO36_UART1_DTR,
 
 	/* GPIOs */
-	GPIO79_GPIO,			/* LED */
 	GPIO82_GPIO | MFP_PULL_HIGH,	/* MMC CD */
 	GPIO85_GPIO,			/* MMC WP */
 	GPIO99_GPIO,			/* Ethernet IRQ */
@@ -151,6 +162,50 @@ static mfp_cfg_t cm_x300_mfp_cfg[] __initdata = {
 	/* Standard I2C */
 	GPIO21_I2C_SCL,
 	GPIO22_I2C_SDA,
+
+	/* PWM Backlight */
+	GPIO19_PWM2_OUT,
+};
+
+static mfp_cfg_t cm_x3xx_rev_lt130_mfp_cfg[] __initdata = {
+	/* GPIOs */
+	GPIO79_GPIO,			/* LED */
+	GPIO77_GPIO,			/* WiFi reset */
+	GPIO78_GPIO,			/* BT reset */
+};
+
+static mfp_cfg_t cm_x3xx_rev_ge130_mfp_cfg[] __initdata = {
+	/* GPIOs */
+	GPIO76_GPIO,			/* LED */
+	GPIO71_GPIO,			/* WiFi reset */
+	GPIO70_GPIO,			/* BT reset */
+};
+
+static mfp_cfg_t cm_x310_mfp_cfg[] __initdata = {
+	/* USB PORT 2 */
+	ULPI_STP,
+	ULPI_NXT,
+	ULPI_DIR,
+	GPIO30_ULPI_DATA_OUT_0,
+	GPIO31_ULPI_DATA_OUT_1,
+	GPIO32_ULPI_DATA_OUT_2,
+	GPIO33_ULPI_DATA_OUT_3,
+	GPIO34_ULPI_DATA_OUT_4,
+	GPIO35_ULPI_DATA_OUT_5,
+	GPIO36_ULPI_DATA_OUT_6,
+	GPIO37_ULPI_DATA_OUT_7,
+	GPIO38_ULPI_CLK,
+	/* external PHY reset pin */
+	GPIO127_GPIO,
+
+	/* USB PORT 3 */
+	GPIO77_USB_P3_1,
+	GPIO78_USB_P3_2,
+	GPIO79_USB_P3_3,
+	GPIO80_USB_P3_4,
+	GPIO81_USB_P3_5,
+	GPIO82_USB_P3_6,
+	GPIO0_2_USBH_PEN,
 };
 
 #if defined(CONFIG_DM9000) || defined(CONFIG_DM9000_MODULE)
@@ -195,17 +250,18 @@ static void __init cm_x300_init_dm9000(void)
 static inline void cm_x300_init_dm9000(void) {}
 #endif
 
+/* LCD */
 #if defined(CONFIG_FB_PXA) || defined(CONFIG_FB_PXA_MODULE)
 static struct pxafb_mode_info cm_x300_lcd_modes[] = {
 	[0] = {
-		.pixclock	= 38000,
+		.pixclock	= 38250,
 		.bpp		= 16,
 		.xres		= 480,
 		.yres		= 640,
 		.hsync_len	= 8,
 		.vsync_len	= 2,
 		.left_margin	= 8,
-		.upper_margin	= 0,
+		.upper_margin	= 2,
 		.right_margin	= 24,
 		.lower_margin	= 4,
 		.cmap_greyscale	= 0,
@@ -227,7 +283,7 @@ static struct pxafb_mode_info cm_x300_lcd_modes[] = {
 
 static struct pxafb_mach_info cm_x300_lcd = {
 	.modes			= cm_x300_lcd_modes,
-	.num_modes		= 2,
+	.num_modes		= ARRAY_SIZE(cm_x300_lcd_modes),
 	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL,
 };
 
@@ -237,6 +293,87 @@ static void __init cm_x300_init_lcd(void)
 }
 #else
 static inline void cm_x300_init_lcd(void) {}
+#endif
+
+#if defined(CONFIG_BACKLIGHT_PWM) || defined(CONFIG_BACKLIGHT_PWM_MODULE)
+static struct platform_pwm_backlight_data cm_x300_backlight_data = {
+	.pwm_id		= 2,
+	.max_brightness	= 100,
+	.dft_brightness	= 100,
+	.pwm_period_ns	= 10000,
+};
+
+static struct platform_device cm_x300_backlight_device = {
+	.name		= "pwm-backlight",
+	.dev		= {
+		.parent = &pxa27x_device_pwm0.dev,
+		.platform_data	= &cm_x300_backlight_data,
+	},
+};
+
+static void cm_x300_init_bl(void)
+{
+	platform_device_register(&cm_x300_backlight_device);
+}
+#else
+static inline void cm_x300_init_bl(void) {}
+#endif
+
+#if defined(CONFIG_SPI_GPIO) || defined(CONFIG_SPI_GPIO_MODULE)
+#define GPIO_LCD_BASE	(144)
+#define GPIO_LCD_DIN	(GPIO_LCD_BASE + 8)	/* aux_gpio3_0 */
+#define GPIO_LCD_DOUT	(GPIO_LCD_BASE + 9)	/* aux_gpio3_1 */
+#define GPIO_LCD_SCL	(GPIO_LCD_BASE + 10)	/* aux_gpio3_2 */
+#define GPIO_LCD_CS	(GPIO_LCD_BASE + 11)	/* aux_gpio3_3 */
+#define LCD_SPI_BUS_NUM	(1)
+
+static struct spi_gpio_platform_data cm_x300_spi_gpio_pdata = {
+	.sck		= GPIO_LCD_SCL,
+	.mosi		= GPIO_LCD_DIN,
+	.miso		= GPIO_LCD_DOUT,
+	.num_chipselect	= 1,
+};
+
+static struct platform_device cm_x300_spi_gpio = {
+	.name		= "spi_gpio",
+	.id		= LCD_SPI_BUS_NUM,
+	.dev		= {
+		.platform_data	= &cm_x300_spi_gpio_pdata,
+	},
+};
+
+static struct tdo24m_platform_data cm_x300_tdo24m_pdata = {
+	.model = TDO35S,
+};
+
+static struct spi_board_info cm_x300_spi_devices[] __initdata = {
+	{
+		.modalias		= "tdo24m",
+		.max_speed_hz		= 1000000,
+		.bus_num		= LCD_SPI_BUS_NUM,
+		.chip_select		= 0,
+		.controller_data	= (void *) GPIO_LCD_CS,
+		.platform_data		= &cm_x300_tdo24m_pdata,
+	},
+};
+
+static void __init cm_x300_init_spi(void)
+{
+	spi_register_board_info(cm_x300_spi_devices,
+				ARRAY_SIZE(cm_x300_spi_devices));
+	platform_device_register(&cm_x300_spi_gpio);
+}
+#else
+static inline void cm_x300_init_spi(void) {}
+#endif
+
+#if defined(CONFIG_SND_PXA2XX_LIB_AC97)
+static void __init cm_x300_init_ac97(void)
+{
+	pxa_set_ac97_info(NULL);
+}
+#else
+static inline void cm_x300_init_ac97(void) {}
 #endif
 
 #if defined(CONFIG_MTD_NAND_PXA3xx) || defined(CONFIG_MTD_NAND_PXA3xx_MODULE)
@@ -333,9 +470,19 @@ static inline void cm_x300_init_mmc(void) {}
 #endif
 
 #if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
+static int cm_x300_ohci_init(struct device *dev)
+{
+	if (cpu_is_pxa300())
+		UP2OCR = UP2OCR_HXS
+			| UP2OCR_HXOE | UP2OCR_DMPDE | UP2OCR_DPPDE;
+
+	return 0;
+}
+
 static struct pxaohci_platform_data cm_x300_ohci_platform_data = {
 	.port_mode	= PMM_PERPORT_MODE,
-	.flags		= ENABLE_PORT1 | ENABLE_PORT2 | POWER_CONTROL_LOW,
+	.flags		= ENABLE_PORT_ALL | POWER_CONTROL_LOW,
+	.init		= cm_x300_ohci_init,
 };
 
 static void __init cm_x300_init_ohci(void)
@@ -351,7 +498,6 @@ static struct gpio_led cm_x300_leds[] = {
 	[0] = {
 		.name = "cm-x300:green",
 		.default_trigger = "heartbeat",
-		.gpio = 79,
 		.active_low = 1,
 	},
 };
@@ -371,6 +517,11 @@ static struct platform_device cm_x300_led_device = {
 
 static void __init cm_x300_init_leds(void)
 {
+	if (system_rev < 130)
+		cm_x300_leds[0].gpio = 79;
+	else
+		cm_x300_leds[0].gpio = 76;
+
 	platform_device_register(&cm_x300_led_device);
 }
 #else
@@ -433,11 +584,94 @@ static void __init cm_x300_init_rtc(void)
 static inline void cm_x300_init_rtc(void) {}
 #endif
 
-static void __init cm_x300_init(void)
+/* DA9030 */
+struct da903x_subdev_info cm_x300_da9030_subdevs[] = {
+	{
+		.name = "da903x-backlight",
+		.id = DA9030_ID_WLED,
+	}
+};
+
+static struct da903x_platform_data cm_x300_da9030_info = {
+	.num_subdevs = ARRAY_SIZE(cm_x300_da9030_subdevs),
+	.subdevs = cm_x300_da9030_subdevs,
+};
+
+static struct i2c_board_info cm_x300_pmic_info = {
+	I2C_BOARD_INFO("da9030", 0x49),
+	.irq = IRQ_GPIO(0),
+	.platform_data = &cm_x300_da9030_info,
+};
+
+static struct i2c_pxa_platform_data cm_x300_pwr_i2c_info = {
+	.use_pio = 1,
+};
+
+static void __init cm_x300_init_da9030(void)
+{
+	pxa3xx_set_i2c_power_info(&cm_x300_pwr_i2c_info);
+	i2c_register_board_info(1, &cm_x300_pmic_info, 1);
+}
+
+static void __init cm_x300_init_wi2wi(void)
+{
+	int bt_reset, wlan_en;
+	int err;
+
+	if (system_rev < 130) {
+		wlan_en = 77;
+		bt_reset = 78;
+	} else {
+		wlan_en = 71;
+		bt_reset = 70;
+	}
+
+	/* Libertas and CSR reset */
+	err = gpio_request(wlan_en, "wlan en");
+	if (err) {
+		pr_err("CM-X300: failed to request wlan en gpio: %d\n", err);
+	} else {
+		gpio_direction_output(wlan_en, 1);
+		gpio_free(wlan_en);
+	}
+
+	err = gpio_request(bt_reset, "bt reset");
+	if (err) {
+		pr_err("CM-X300: failed to request bt reset gpio: %d\n", err);
+	} else {
+		gpio_direction_output(bt_reset, 1);
+		udelay(10);
+		gpio_set_value(bt_reset, 0);
+		udelay(10);
+		gpio_set_value(bt_reset, 1);
+		gpio_free(bt_reset);
+	}
+}
+
+/* MFP */
+static void __init cm_x300_init_mfp(void)
 {
 	/* board-processor specific GPIO initialization */
-	pxa3xx_mfp_config(ARRAY_AND_SIZE(cm_x300_mfp_cfg));
+	pxa3xx_mfp_config(ARRAY_AND_SIZE(cm_x3xx_mfp_cfg));
 
+	if (system_rev < 130)
+		pxa3xx_mfp_config(ARRAY_AND_SIZE(cm_x3xx_rev_lt130_mfp_cfg));
+	else
+		pxa3xx_mfp_config(ARRAY_AND_SIZE(cm_x3xx_rev_ge130_mfp_cfg));
+
+	if (cpu_is_pxa310())
+		pxa3xx_mfp_config(ARRAY_AND_SIZE(cm_x310_mfp_cfg));
+}
+
+static void __init cm_x300_init(void)
+{
+	cm_x300_init_mfp();
+
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
+	cm_x300_init_da9030();
 	cm_x300_init_dm9000();
 	cm_x300_init_lcd();
 	cm_x300_init_ohci();
@@ -445,7 +679,11 @@ static void __init cm_x300_init(void)
 	cm_x300_init_nand();
 	cm_x300_init_leds();
 	cm_x300_init_i2c();
+	cm_x300_init_spi();
 	cm_x300_init_rtc();
+	cm_x300_init_ac97();
+	cm_x300_init_wi2wi();
+	cm_x300_init_bl();
 }
 
 static void __init cm_x300_fixup(struct machine_desc *mdesc, struct tag *tags,

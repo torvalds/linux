@@ -31,8 +31,10 @@ MODULE_PARM_DESC(rx_frag_size, "Size of a fragment that holds rcvd data.");
 
 static DEFINE_PCI_DEVICE_TABLE(be_dev_ids) = {
 	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID1) },
+	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID2) },
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID1) },
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID2) },
+	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID3) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, be_dev_ids);
@@ -123,6 +125,9 @@ static int be_mac_addr_set(struct net_device *netdev, void *p)
 	struct sockaddr *addr = p;
 	int status = 0;
 
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
+
 	status = be_cmd_pmac_del(adapter, adapter->if_handle, adapter->pmac_id);
 	if (status)
 		return status;
@@ -141,7 +146,7 @@ void netdev_stats_update(struct be_adapter *adapter)
 	struct be_rxf_stats *rxf_stats = &hw_stats->rxf;
 	struct be_port_rxf_stats *port_stats =
 			&rxf_stats->port[adapter->port_num];
-	struct net_device_stats *dev_stats = &adapter->stats.net_stats;
+	struct net_device_stats *dev_stats = &adapter->netdev->stats;
 	struct be_erx_stats *erx_stats = &hw_stats->erx;
 
 	dev_stats->rx_packets = port_stats->rx_total_frames;
@@ -168,7 +173,8 @@ void netdev_stats_update(struct be_adapter *adapter)
 		port_stats->rx_udp_checksum_errs;
 
 	/*  no space in linux buffers: best possible approximation */
-	dev_stats->rx_dropped = erx_stats->rx_drops_no_fragments[0];
+	dev_stats->rx_dropped =
+		erx_stats->rx_drops_no_fragments[adapter->rx_obj.q.id];
 
 	/* detailed rx errors */
 	dev_stats->rx_length_errors = port_stats->rx_in_range_errors +
@@ -214,6 +220,7 @@ void be_link_status_update(struct be_adapter *adapter, bool link_up)
 
 	/* If link came up or went down */
 	if (adapter->link_up != link_up) {
+		adapter->link_speed = -1;
 		if (link_up) {
 			netif_start_queue(netdev);
 			netif_carrier_on(netdev);
@@ -269,9 +276,7 @@ static void be_rx_eqd_update(struct be_adapter *adapter)
 
 static struct net_device_stats *be_get_stats(struct net_device *dev)
 {
-	struct be_adapter *adapter = netdev_priv(dev);
-
-	return &adapter->stats.net_stats;
+	return &dev->stats;
 }
 
 static u32 be_calc_rate(u64 bytes, unsigned long ticks)
@@ -389,15 +394,11 @@ static int make_tx_wrbs(struct be_adapter *adapter,
 	atomic_add(wrb_cnt, &txq->used);
 	queue_head_inc(txq);
 
-	if (skb_dma_map(&pdev->dev, skb, DMA_TO_DEVICE)) {
-		dev_err(&pdev->dev, "TX DMA mapping failed\n");
-		return 0;
-	}
-
 	if (skb->len > skb->data_len) {
 		int len = skb->len - skb->data_len;
+		busaddr = pci_map_single(pdev, skb->data, len,
+					 PCI_DMA_TODEVICE);
 		wrb = queue_head_node(txq);
-		busaddr = skb_shinfo(skb)->dma_head;
 		wrb_fill(wrb, busaddr, len);
 		be_dws_cpu_to_le(wrb, sizeof(*wrb));
 		queue_head_inc(txq);
@@ -407,8 +408,9 @@ static int make_tx_wrbs(struct be_adapter *adapter,
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		struct skb_frag_struct *frag =
 			&skb_shinfo(skb)->frags[i];
-
-		busaddr = skb_shinfo(skb)->dma_maps[i];
+		busaddr = pci_map_page(pdev, frag->page,
+				       frag->page_offset,
+				       frag->size, PCI_DMA_TODEVICE);
 		wrb = queue_head_node(txq);
 		wrb_fill(wrb, busaddr, frag->size);
 		be_dws_cpu_to_le(wrb, sizeof(*wrb));
@@ -562,13 +564,15 @@ static void be_set_multicast_list(struct net_device *netdev)
 		be_cmd_promiscuous_config(adapter, adapter->port_num, 0);
 	}
 
-	if (netdev->flags & IFF_ALLMULTI) {
-		be_cmd_multicast_set(adapter, adapter->if_handle, NULL, 0);
+	/* Enable multicast promisc if num configured exceeds what we support */
+	if (netdev->flags & IFF_ALLMULTI || netdev->mc_count > BE_MAX_MC) {
+		be_cmd_multicast_set(adapter, adapter->if_handle, NULL, 0,
+				&adapter->mc_cmd_mem);
 		goto done;
 	}
 
 	be_cmd_multicast_set(adapter, adapter->if_handle, netdev->mc_list,
-		netdev->mc_count);
+		netdev->mc_count, &adapter->mc_cmd_mem);
 done:
 	return;
 }
@@ -755,18 +759,16 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 
 	/* vlanf could be wrongly set in some cards.
 	 * ignore if vtm is not set */
-	if ((adapter->cap == 0x400) && !vtm)
+	if ((adapter->cap & 0x400) && !vtm)
 		vlanf = 0;
 
-	skb = netdev_alloc_skb(adapter->netdev, BE_HDR_LEN + NET_IP_ALIGN);
+	skb = netdev_alloc_skb_ip_align(adapter->netdev, BE_HDR_LEN);
 	if (!skb) {
 		if (net_ratelimit())
 			dev_warn(&adapter->pdev->dev, "skb alloc failed\n");
 		be_rx_compl_discard(adapter, rxcp);
 		return;
 	}
-
-	skb_reserve(skb, NET_IP_ALIGN);
 
 	skb_fill_rx_data(adapter, skb, rxcp);
 
@@ -814,7 +816,7 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 
 	/* vlanf could be wrongly set in some cards.
 	 * ignore if vtm is not set */
-	if ((adapter->cap == 0x400) && !vtm)
+	if ((adapter->cap & 0x400) && !vtm)
 		vlanf = 0;
 
 	skb = napi_get_frags(&eq_obj->napi);
@@ -981,23 +983,41 @@ static struct be_eth_tx_compl *be_tx_compl_get(struct be_queue_info *tx_cq)
 static void be_tx_compl_process(struct be_adapter *adapter, u16 last_index)
 {
 	struct be_queue_info *txq = &adapter->tx_obj.q;
+	struct be_eth_wrb *wrb;
 	struct sk_buff **sent_skbs = adapter->tx_obj.sent_skb_list;
 	struct sk_buff *sent_skb;
+	u64 busaddr;
 	u16 cur_index, num_wrbs = 0;
 
 	cur_index = txq->tail;
 	sent_skb = sent_skbs[cur_index];
 	BUG_ON(!sent_skb);
 	sent_skbs[cur_index] = NULL;
+	wrb = queue_tail_node(txq);
+	be_dws_le_to_cpu(wrb, sizeof(*wrb));
+	busaddr = ((u64)wrb->frag_pa_hi << 32) | (u64)wrb->frag_pa_lo;
+	if (busaddr != 0) {
+		pci_unmap_single(adapter->pdev, busaddr,
+				 wrb->frag_len, PCI_DMA_TODEVICE);
+	}
+	num_wrbs++;
+	queue_tail_inc(txq);
 
-	do {
+	while (cur_index != last_index) {
 		cur_index = txq->tail;
+		wrb = queue_tail_node(txq);
+		be_dws_le_to_cpu(wrb, sizeof(*wrb));
+		busaddr = ((u64)wrb->frag_pa_hi << 32) | (u64)wrb->frag_pa_lo;
+		if (busaddr != 0) {
+			pci_unmap_page(adapter->pdev, busaddr,
+				       wrb->frag_len, PCI_DMA_TODEVICE);
+		}
 		num_wrbs++;
 		queue_tail_inc(txq);
-	} while (cur_index != last_index);
+	}
 
 	atomic_sub(num_wrbs, &txq->used);
-	skb_dma_unmap(&adapter->pdev->dev, sent_skb, DMA_TO_DEVICE);
+
 	kfree_skb(sent_skb);
 }
 
@@ -1377,6 +1397,7 @@ int be_poll_rx(struct napi_struct *napi, int budget)
 	struct be_eth_rx_compl *rxcp;
 	u32 work_done;
 
+	adapter->stats.drvr_stats.be_rx_polls++;
 	for (work_done = 0; work_done < budget; work_done++) {
 		rxcp = be_rx_compl_get(adapter);
 		if (!rxcp)
@@ -1473,6 +1494,14 @@ static void be_worker(struct work_struct *work)
 	}
 
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
+}
+
+static void be_msix_disable(struct be_adapter *adapter)
+{
+	if (adapter->msix_enabled) {
+		pci_disable_msix(adapter->pdev);
+		adapter->msix_enabled = false;
+	}
 }
 
 static void be_msix_enable(struct be_adapter *adapter)
@@ -1590,6 +1619,8 @@ static int be_open(struct net_device *netdev)
 	struct be_eq_obj *tx_eq = &adapter->tx_eq;
 	bool link_up;
 	int status;
+	u8 mac_speed;
+	u16 link_speed;
 
 	/* First time posting */
 	be_post_rx_frags(adapter);
@@ -1608,7 +1639,8 @@ static int be_open(struct net_device *netdev)
 	/* Rx compl queue may be in unarmed state; rearm it */
 	be_cq_notify(adapter, adapter->rx_obj.cq.id, true, 0);
 
-	status = be_cmd_link_status_query(adapter, &link_up);
+	status = be_cmd_link_status_query(adapter, &link_up, &mac_speed,
+			&link_speed);
 	if (status)
 		goto ret_sts;
 	be_link_status_update(adapter, link_up);
@@ -1624,6 +1656,44 @@ static int be_open(struct net_device *netdev)
 
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(100));
 ret_sts:
+	return status;
+}
+
+static int be_setup_wol(struct be_adapter *adapter, bool enable)
+{
+	struct be_dma_mem cmd;
+	int status = 0;
+	u8 mac[ETH_ALEN];
+
+	memset(mac, 0, ETH_ALEN);
+
+	cmd.size = sizeof(struct be_cmd_req_acpi_wol_magic_config);
+	cmd.va = pci_alloc_consistent(adapter->pdev, cmd.size, &cmd.dma);
+	if (cmd.va == NULL)
+		return -1;
+	memset(cmd.va, 0, cmd.size);
+
+	if (enable) {
+		status = pci_write_config_dword(adapter->pdev,
+			PCICFG_PM_CONTROL_OFFSET, PCICFG_PM_CONTROL_MASK);
+		if (status) {
+			dev_err(&adapter->pdev->dev,
+				"Could not enable Wake-on-lan \n");
+			pci_free_consistent(adapter->pdev, cmd.size, cmd.va,
+					cmd.dma);
+			return status;
+		}
+		status = be_cmd_enable_magic_wol(adapter,
+				adapter->netdev->dev_addr, &cmd);
+		pci_enable_wake(adapter->pdev, PCI_D3hot, 1);
+		pci_enable_wake(adapter->pdev, PCI_D3cold, 1);
+	} else {
+		status = be_cmd_enable_magic_wol(adapter, mac, &cmd);
+		pci_enable_wake(adapter->pdev, PCI_D3hot, 0);
+		pci_enable_wake(adapter->pdev, PCI_D3cold, 0);
+	}
+
+	pci_free_consistent(adapter->pdev, cmd.size, cmd.va, cmd.dma);
 	return status;
 }
 
@@ -1658,6 +1728,8 @@ static int be_setup(struct be_adapter *adapter)
 	if (status != 0)
 		goto rx_qs_destroy;
 
+	adapter->link_speed = -1;
+
 	return 0;
 
 rx_qs_destroy:
@@ -1678,6 +1750,8 @@ static int be_clear(struct be_adapter *adapter)
 
 	be_cmd_if_destroy(adapter, adapter->if_handle);
 
+	/* tell fw we're done with firing cmds */
+	be_cmd_fw_clean(adapter);
 	return 0;
 }
 
@@ -1720,6 +1794,31 @@ static int be_close(struct net_device *netdev)
 #define FW_FILE_HDR_SIGN 	"ServerEngines Corp. "
 char flash_cookie[2][16] =	{"*** SE FLAS",
 				"H DIRECTORY *** "};
+
+static bool be_flash_redboot(struct be_adapter *adapter,
+			const u8 *p)
+{
+	u32 crc_offset;
+	u8 flashed_crc[4];
+	int status;
+	crc_offset = FLASH_REDBOOT_START + FLASH_REDBOOT_IMAGE_MAX_SIZE - 4
+			+ sizeof(struct flash_file_hdr) - 32*1024;
+	p += crc_offset;
+	status = be_cmd_get_flash_crc(adapter, flashed_crc);
+	if (status) {
+		dev_err(&adapter->pdev->dev,
+		"could not get crc from flash, not flashing redboot\n");
+		return false;
+	}
+
+	/*update redboot only if crc does not match*/
+	if (!memcmp(flashed_crc, p, 4))
+		return false;
+	else
+		return true;
+
+}
+
 static int be_flash_image(struct be_adapter *adapter,
 			const struct firmware *fw,
 			struct be_dma_mem *flash_cmd, u32 flash_type)
@@ -1758,6 +1857,12 @@ static int be_flash_image(struct be_adapter *adapter,
 	case FLASHROM_TYPE_PXE_BIOS:
 		image_offset = FLASH_PXE_BIOS_START;
 		image_size = FLASH_BIOS_IMAGE_MAX_SIZE;
+		break;
+	case FLASHROM_TYPE_REDBOOT:
+		if (!be_flash_redboot(adapter, fw->data))
+			return 0;
+		image_offset = FLASH_REDBOOT_ISM_START;
+		image_size = FLASH_REDBOOT_IMAGE_MAX_SIZE;
 		break;
 	default:
 		return 0;
@@ -1877,7 +1982,7 @@ int be_load_fw(struct be_adapter *adapter, u8 *func)
 		goto fw_exit;
 	}
 
-	dev_info(&adapter->pdev->dev, "Firmware flashed succesfully\n");
+	dev_info(&adapter->pdev->dev, "Firmware flashed successfully\n");
 
 fw_exit:
 	release_firmware(fw);
@@ -1905,6 +2010,8 @@ static void be_netdev_init(struct net_device *netdev)
 	netdev->features |= NETIF_F_SG | NETIF_F_HW_VLAN_RX | NETIF_F_TSO |
 		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_FILTER | NETIF_F_HW_CSUM |
 		NETIF_F_GRO;
+
+	netdev->vlan_features |= NETIF_F_SG | NETIF_F_TSO | NETIF_F_HW_CSUM;
 
 	netdev->flags |= IFF_MULTICAST;
 
@@ -1977,34 +2084,61 @@ static void be_ctrl_cleanup(struct be_adapter *adapter)
 	if (mem->va)
 		pci_free_consistent(adapter->pdev, mem->size,
 			mem->va, mem->dma);
+
+	mem = &adapter->mc_cmd_mem;
+	if (mem->va)
+		pci_free_consistent(adapter->pdev, mem->size,
+			mem->va, mem->dma);
 }
 
 static int be_ctrl_init(struct be_adapter *adapter)
 {
 	struct be_dma_mem *mbox_mem_alloc = &adapter->mbox_mem_alloced;
 	struct be_dma_mem *mbox_mem_align = &adapter->mbox_mem;
+	struct be_dma_mem *mc_cmd_mem = &adapter->mc_cmd_mem;
 	int status;
 
 	status = be_map_pci_bars(adapter);
 	if (status)
-		return status;
+		goto done;
 
 	mbox_mem_alloc->size = sizeof(struct be_mcc_mailbox) + 16;
 	mbox_mem_alloc->va = pci_alloc_consistent(adapter->pdev,
 				mbox_mem_alloc->size, &mbox_mem_alloc->dma);
 	if (!mbox_mem_alloc->va) {
-		be_unmap_pci_bars(adapter);
-		return -1;
+		status = -ENOMEM;
+		goto unmap_pci_bars;
 	}
+
 	mbox_mem_align->size = sizeof(struct be_mcc_mailbox);
 	mbox_mem_align->va = PTR_ALIGN(mbox_mem_alloc->va, 16);
 	mbox_mem_align->dma = PTR_ALIGN(mbox_mem_alloc->dma, 16);
 	memset(mbox_mem_align->va, 0, sizeof(struct be_mcc_mailbox));
+
+	mc_cmd_mem->size = sizeof(struct be_cmd_req_mcast_mac_config);
+	mc_cmd_mem->va = pci_alloc_consistent(adapter->pdev, mc_cmd_mem->size,
+			&mc_cmd_mem->dma);
+	if (mc_cmd_mem->va == NULL) {
+		status = -ENOMEM;
+		goto free_mbox;
+	}
+	memset(mc_cmd_mem->va, 0, mc_cmd_mem->size);
+
 	spin_lock_init(&adapter->mbox_lock);
 	spin_lock_init(&adapter->mcc_lock);
 	spin_lock_init(&adapter->mcc_cq_lock);
 
 	return 0;
+
+free_mbox:
+	pci_free_consistent(adapter->pdev, mbox_mem_alloc->size,
+		mbox_mem_alloc->va, mbox_mem_alloc->dma);
+
+unmap_pci_bars:
+	be_unmap_pci_bars(adapter);
+
+done:
+	return status;
 }
 
 static void be_stats_cleanup(struct be_adapter *adapter)
@@ -2032,6 +2166,7 @@ static int be_stats_init(struct be_adapter *adapter)
 static void __devexit be_remove(struct pci_dev *pdev)
 {
 	struct be_adapter *adapter = pci_get_drvdata(pdev);
+
 	if (!adapter)
 		return;
 
@@ -2043,10 +2178,7 @@ static void __devexit be_remove(struct pci_dev *pdev)
 
 	be_ctrl_cleanup(adapter);
 
-	if (adapter->msix_enabled) {
-		pci_disable_msix(adapter->pdev);
-		adapter->msix_enabled = false;
-	}
+	be_msix_disable(adapter);
 
 	pci_set_drvdata(pdev, NULL);
 	pci_release_regions(pdev);
@@ -2055,17 +2187,10 @@ static void __devexit be_remove(struct pci_dev *pdev)
 	free_netdev(adapter->netdev);
 }
 
-static int be_hw_up(struct be_adapter *adapter)
+static int be_get_config(struct be_adapter *adapter)
 {
 	int status;
-
-	status = be_cmd_POST(adapter);
-	if (status)
-		return status;
-
-	status = be_cmd_reset_function(adapter);
-	if (status)
-		return status;
+	u8 mac[ETH_ALEN];
 
 	status = be_cmd_get_fw_ver(adapter, adapter->fw_ver);
 	if (status)
@@ -2073,7 +2198,22 @@ static int be_hw_up(struct be_adapter *adapter)
 
 	status = be_cmd_query_fw_cfg(adapter,
 				&adapter->port_num, &adapter->cap);
-	return status;
+	if (status)
+		return status;
+
+	memset(mac, 0, ETH_ALEN);
+	status = be_cmd_mac_addr_query(adapter, mac,
+			MAC_ADDRESS_TYPE_NETWORK, true /*permanent */, 0);
+	if (status)
+		return status;
+
+	if (!is_valid_ether_addr(mac))
+		return -EADDRNOTAVAIL;
+
+	memcpy(adapter->netdev->dev_addr, mac, ETH_ALEN);
+	memcpy(adapter->netdev->perm_addr, mac, ETH_ALEN);
+
+	return 0;
 }
 
 static int __devinit be_probe(struct pci_dev *pdev,
@@ -2082,7 +2222,6 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	int status = 0;
 	struct be_adapter *adapter;
 	struct net_device *netdev;
-	u8 mac[ETH_ALEN];
 
 	status = pci_enable_device(pdev);
 	if (status)
@@ -2102,6 +2241,8 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	adapter->pdev = pdev;
 	pci_set_drvdata(pdev, adapter);
 	adapter->netdev = netdev;
+	be_netdev_init(netdev);
+	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	be_msix_enable(adapter);
 
@@ -2120,27 +2261,34 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	if (status)
 		goto free_netdev;
 
+	/* sync up with fw's ready state */
+	status = be_cmd_POST(adapter);
+	if (status)
+		goto ctrl_clean;
+
+	/* tell fw we're ready to fire cmds */
+	status = be_cmd_fw_init(adapter);
+	if (status)
+		goto ctrl_clean;
+
+	status = be_cmd_reset_function(adapter);
+	if (status)
+		goto ctrl_clean;
+
 	status = be_stats_init(adapter);
 	if (status)
 		goto ctrl_clean;
 
-	status = be_hw_up(adapter);
+	status = be_get_config(adapter);
 	if (status)
 		goto stats_clean;
-
-	status = be_cmd_mac_addr_query(adapter, mac, MAC_ADDRESS_TYPE_NETWORK,
-			true /* permanent */, 0);
-	if (status)
-		goto stats_clean;
-	memcpy(netdev->dev_addr, mac, ETH_ALEN);
 
 	INIT_DELAYED_WORK(&adapter->work, be_worker);
-	be_netdev_init(netdev);
-	SET_NETDEV_DEV(netdev, &adapter->pdev->dev);
 
 	status = be_setup(adapter);
 	if (status)
 		goto stats_clean;
+
 	status = register_netdev(netdev);
 	if (status != 0)
 		goto unsetup;
@@ -2155,7 +2303,9 @@ stats_clean:
 ctrl_clean:
 	be_ctrl_cleanup(adapter);
 free_netdev:
+	be_msix_disable(adapter);
 	free_netdev(adapter->netdev);
+	pci_set_drvdata(pdev, NULL);
 rel_reg:
 	pci_release_regions(pdev);
 disable_dev:
@@ -2169,6 +2319,9 @@ static int be_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct be_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev =  adapter->netdev;
+
+	if (adapter->wol)
+		be_setup_wol(adapter, true);
 
 	netif_device_detach(netdev);
 	if (netif_running(netdev)) {
@@ -2200,6 +2353,11 @@ static int be_resume(struct pci_dev *pdev)
 	pci_set_power_state(pdev, 0);
 	pci_restore_state(pdev);
 
+	/* tell fw we're ready to fire cmds */
+	status = be_cmd_fw_init(adapter);
+	if (status)
+		return status;
+
 	be_setup(adapter);
 	if (netif_running(netdev)) {
 		rtnl_lock();
@@ -2207,6 +2365,9 @@ static int be_resume(struct pci_dev *pdev)
 		rtnl_unlock();
 	}
 	netif_device_attach(netdev);
+
+	if (adapter->wol)
+		be_setup_wol(adapter, false);
 	return 0;
 }
 
@@ -2221,8 +2382,8 @@ static struct pci_driver be_driver = {
 
 static int __init be_init_module(void)
 {
-	if (rx_frag_size != 8192 && rx_frag_size != 4096
-		&& rx_frag_size != 2048) {
+	if (rx_frag_size != 8192 && rx_frag_size != 4096 &&
+	    rx_frag_size != 2048) {
 		printk(KERN_WARNING DRV_NAME
 			" : Module param rx_frag_size must be 2048/4096/8192."
 			" Using 2048\n");

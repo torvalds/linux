@@ -24,8 +24,7 @@
 /* Structure used to connect() the socket to a particular tunnel UDP
  * socket.
  */
-struct pppol2tp_addr
-{
+struct pppol2tp_addr {
 	__kernel_pid_t	pid;		/* pid that owns the fd.
 					 * 0 => current */
 	int	fd;			/* FD of UDP socket to use */
