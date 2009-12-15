@@ -560,7 +560,7 @@ static void walk_pfn(unsigned long voffset,
 {
 	uint64_t buf[KPAGEFLAGS_BATCH];
 	unsigned long batch;
-	unsigned long pages;
+	long pages;
 	unsigned long i;
 
 	while (count) {
