@@ -21,7 +21,7 @@
  *  02110-1301, USA.
  */
 
-#define TPACPI_VERSION "0.23"
+#define TPACPI_VERSION "0.24"
 #define TPACPI_SYSFS_VERSION 0x020700
 
 /*
