@@ -73,11 +73,11 @@ module_param(lock_stat, int, 0644);
  * to use a raw spinlock - we really dont want the spinlock
  * code to recurse back into the lockdep code...
  */
-static raw_spinlock_t lockdep_lock = (raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
+static arch_spinlock_t lockdep_lock = (arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 
 static int graph_lock(void)
 {
-	__raw_spin_lock(&lockdep_lock);
+	arch_spin_lock(&lockdep_lock);
 	/*
 	 * Make sure that if another CPU detected a bug while
 	 * walking the graph we dont change it (while the other
@@ -85,7 +85,7 @@ static int graph_lock(void)
 	 * dropped already)
 	 */
 	if (!debug_locks) {
-		__raw_spin_unlock(&lockdep_lock);
+		arch_spin_unlock(&lockdep_lock);
 		return 0;
 	}
 	/* prevent any recursions within lockdep from causing deadlocks */
@@ -95,11 +95,11 @@ static int graph_lock(void)
 
 static inline int graph_unlock(void)
 {
-	if (debug_locks && !__raw_spin_is_locked(&lockdep_lock))
+	if (debug_locks && !arch_spin_is_locked(&lockdep_lock))
 		return DEBUG_LOCKS_WARN_ON(1);
 
 	current->lockdep_recursion--;
-	__raw_spin_unlock(&lockdep_lock);
+	arch_spin_unlock(&lockdep_lock);
 	return 0;
 }
 
@@ -111,7 +111,7 @@ static inline int debug_locks_off_graph_unlock(void)
 {
 	int ret = debug_locks_off();
 
-	__raw_spin_unlock(&lockdep_lock);
+	arch_spin_unlock(&lockdep_lock);
 
 	return ret;
 }
@@ -1170,9 +1170,9 @@ unsigned long lockdep_count_forward_deps(struct lock_class *class)
 	this.class = class;
 
 	local_irq_save(flags);
-	__raw_spin_lock(&lockdep_lock);
+	arch_spin_lock(&lockdep_lock);
 	ret = __lockdep_count_forward_deps(&this);
-	__raw_spin_unlock(&lockdep_lock);
+	arch_spin_unlock(&lockdep_lock);
 	local_irq_restore(flags);
 
 	return ret;
@@ -1197,9 +1197,9 @@ unsigned long lockdep_count_backward_deps(struct lock_class *class)
 	this.class = class;
 
 	local_irq_save(flags);
-	__raw_spin_lock(&lockdep_lock);
+	arch_spin_lock(&lockdep_lock);
 	ret = __lockdep_count_backward_deps(&this);
-	__raw_spin_unlock(&lockdep_lock);
+	arch_spin_unlock(&lockdep_lock);
 	local_irq_restore(flags);
 
 	return ret;

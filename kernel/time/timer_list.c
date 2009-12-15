@@ -84,7 +84,7 @@ print_active_timers(struct seq_file *m, struct hrtimer_clock_base *base,
 
 next_one:
 	i = 0;
-	spin_lock_irqsave(&base->cpu_base->lock, flags);
+	raw_spin_lock_irqsave(&base->cpu_base->lock, flags);
 
 	curr = base->first;
 	/*
@@ -100,13 +100,13 @@ next_one:
 
 		timer = rb_entry(curr, struct hrtimer, node);
 		tmp = *timer;
-		spin_unlock_irqrestore(&base->cpu_base->lock, flags);
+		raw_spin_unlock_irqrestore(&base->cpu_base->lock, flags);
 
 		print_timer(m, timer, &tmp, i, now);
 		next++;
 		goto next_one;
 	}
-	spin_unlock_irqrestore(&base->cpu_base->lock, flags);
+	raw_spin_unlock_irqrestore(&base->cpu_base->lock, flags);
 }
 
 static void

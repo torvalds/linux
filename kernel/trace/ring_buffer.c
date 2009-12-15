@@ -423,7 +423,7 @@ struct ring_buffer_per_cpu {
 	int				cpu;
 	struct ring_buffer		*buffer;
 	spinlock_t			reader_lock;	/* serialize readers */
-	raw_spinlock_t			lock;
+	arch_spinlock_t			lock;
 	struct lock_class_key		lock_key;
 	struct list_head		*pages;
 	struct buffer_page		*head_page;	/* read from head */
@@ -998,7 +998,7 @@ rb_allocate_cpu_buffer(struct ring_buffer *buffer, int cpu)
 	cpu_buffer->buffer = buffer;
 	spin_lock_init(&cpu_buffer->reader_lock);
 	lockdep_set_class(&cpu_buffer->reader_lock, buffer->reader_lock_key);
-	cpu_buffer->lock = (raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
+	cpu_buffer->lock = (arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 
 	bpage = kzalloc_node(ALIGN(sizeof(*bpage), cache_line_size()),
 			    GFP_KERNEL, cpu_to_node(cpu));
@@ -2834,7 +2834,7 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	int ret;
 
 	local_irq_save(flags);
-	__raw_spin_lock(&cpu_buffer->lock);
+	arch_spin_lock(&cpu_buffer->lock);
 
  again:
 	/*
@@ -2923,7 +2923,7 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	goto again;
 
  out:
-	__raw_spin_unlock(&cpu_buffer->lock);
+	arch_spin_unlock(&cpu_buffer->lock);
 	local_irq_restore(flags);
 
 	return reader;
@@ -3286,9 +3286,9 @@ ring_buffer_read_start(struct ring_buffer *buffer, int cpu)
 	synchronize_sched();
 
 	spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
-	__raw_spin_lock(&cpu_buffer->lock);
+	arch_spin_lock(&cpu_buffer->lock);
 	rb_iter_reset(iter);
-	__raw_spin_unlock(&cpu_buffer->lock);
+	arch_spin_unlock(&cpu_buffer->lock);
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
 
 	return iter;
@@ -3408,11 +3408,11 @@ void ring_buffer_reset_cpu(struct ring_buffer *buffer, int cpu)
 	if (RB_WARN_ON(cpu_buffer, local_read(&cpu_buffer->committing)))
 		goto out;
 
-	__raw_spin_lock(&cpu_buffer->lock);
+	arch_spin_lock(&cpu_buffer->lock);
 
 	rb_reset_cpu(cpu_buffer);
 
-	__raw_spin_unlock(&cpu_buffer->lock);
+	arch_spin_unlock(&cpu_buffer->lock);
 
  out:
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
