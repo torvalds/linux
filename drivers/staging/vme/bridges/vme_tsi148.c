@@ -63,6 +63,7 @@ int tsi148_slot_get(void);
 
 /* Modue parameter */
 int err_chk = 0;
+static int geoid;
 
 /* XXX These should all be in a per device structure */
 struct vme_bridge *tsi148_bridge;
@@ -2145,8 +2146,12 @@ int tsi148_slot_get(void)
 {
         u32 slot = 0;
 
-	slot = ioread32be(tsi148_bridge->base + TSI148_LCSR_VSTAT);
-	slot = slot & TSI148_LCSR_VSTAT_GA_M;
+	if (!geoid) {
+		slot = ioread32be(tsi148_bridge->base + TSI148_LCSR_VSTAT);
+		slot = slot & TSI148_LCSR_VSTAT_GA_M;
+	} else
+		slot = geoid;
+
 	return (int)slot;
 }
 
@@ -2196,6 +2201,7 @@ static int tsi148_crcsr_init(struct pci_dev *pdev)
 	vstat = tsi148_slot_get();
 
 	if (cbar != vstat) {
+		cbar = vstat;
 		dev_info(&pdev->dev, "Setting CR/CSR offset\n");
 		iowrite32be(cbar<<3, tsi148_bridge->base + TSI148_CBAR);
 	}
@@ -2458,8 +2464,13 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	data = ioread32be(tsi148_bridge->base + TSI148_LCSR_VSTAT);
 	dev_info(&pdev->dev, "Board is%s the VME system controller\n",
 		(data & TSI148_LCSR_VSTAT_SCONS)? "" : " not");
-	dev_info(&pdev->dev, "VME geographical address is %d\n",
-		data & TSI148_LCSR_VSTAT_GA_M);
+	if (!geoid) {
+		dev_info(&pdev->dev, "VME geographical address is %d\n",
+			data & TSI148_LCSR_VSTAT_GA_M);
+	} else {
+		dev_info(&pdev->dev, "VME geographical address is set to %d\n",
+			geoid);
+	}
 	dev_info(&pdev->dev, "VME Write and flush and error check is %s\n",
 		err_chk ? "enabled" : "disabled");
 
@@ -2608,7 +2619,8 @@ static void tsi148_remove(struct pci_dev *pdev)
 
 	/* resources are stored in link list */
 	list_for_each(pos, &(tsi148_bridge->master_resources)) {
-		master_image = list_entry(pos, struct vme_master_resource,				list);
+		master_image = list_entry(pos, struct vme_master_resource,
+			list);
 		list_del(pos);
 		kfree(master_image);
 	}
@@ -2633,6 +2645,9 @@ static void __exit tsi148_exit(void)
 
 MODULE_PARM_DESC(err_chk, "Check for VME errors on reads and writes");
 module_param(err_chk, bool, 0);
+
+MODULE_PARM_DESC(geoid, "Override geographical addressing");
+module_param(geoid, int, 0);
 
 MODULE_DESCRIPTION("VME driver for the Tundra Tempe VME bridge");
 MODULE_LICENSE("GPL");
