@@ -121,6 +121,7 @@ struct ftrace_event_call {
 	int			(*regfunc)(struct ftrace_event_call *);
 	void			(*unregfunc)(struct ftrace_event_call *);
 	int			id;
+	const char		*print_fmt;
 	int			(*raw_init)(struct ftrace_event_call *);
 	int			(*show_format)(struct ftrace_event_call *,
 					       struct trace_seq *);
