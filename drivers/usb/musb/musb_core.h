@@ -412,21 +412,13 @@ struct musb {
 	unsigned		hb_iso_rx:1;	/* high bandwidth iso rx? */
 	unsigned		hb_iso_tx:1;	/* high bandwidth iso tx? */
 
-#ifdef C_MP_TX
-	unsigned bulk_split:1;
+	unsigned		bulk_split:1;
 #define	can_bulk_split(musb,type) \
-		(((type) == USB_ENDPOINT_XFER_BULK) && (musb)->bulk_split)
-#else
-#define	can_bulk_split(musb, type)	0
-#endif
+	(((type) == USB_ENDPOINT_XFER_BULK) && (musb)->bulk_split)
 
-#ifdef C_MP_RX
-	unsigned bulk_combine:1;
+	unsigned		bulk_combine:1;
 #define	can_bulk_combine(musb,type) \
-		(((type) == USB_ENDPOINT_XFER_BULK) && (musb)->bulk_combine)
-#else
-#define	can_bulk_combine(musb, type)	0
-#endif
+	(((type) == USB_ENDPOINT_XFER_BULK) && (musb)->bulk_combine)
 
 #ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	/* is_suspended means USB B_PERIPHERAL suspend */

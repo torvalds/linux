@@ -1314,9 +1314,6 @@ enum { MUSB_CONTROLLER_MHDRC, MUSB_CONTROLLER_HDRC, };
  */
 static int __init musb_core_init(u16 musb_type, struct musb *musb)
 {
-#ifdef MUSB_AHB_ID
-	u32 data;
-#endif
 	u8 reg;
 	char *type;
 	char aInfo[90], aRevision[32], aDate[12];
@@ -1332,19 +1329,11 @@ static int __init musb_core_init(u16 musb_type, struct musb *musb)
 		strcat(aInfo, ", dyn FIFOs");
 	if (reg & MUSB_CONFIGDATA_MPRXE) {
 		strcat(aInfo, ", bulk combine");
-#ifdef C_MP_RX
 		musb->bulk_combine = true;
-#else
-		strcat(aInfo, " (X)");		/* no driver support */
-#endif
 	}
 	if (reg & MUSB_CONFIGDATA_MPTXE) {
 		strcat(aInfo, ", bulk split");
-#ifdef C_MP_TX
 		musb->bulk_split = true;
-#else
-		strcat(aInfo, " (X)");		/* no driver support */
-#endif
 	}
 	if (reg & MUSB_CONFIGDATA_HBRXE) {
 		strcat(aInfo, ", HB-ISO Rx");
@@ -1360,20 +1349,7 @@ static int __init musb_core_init(u16 musb_type, struct musb *musb)
 	printk(KERN_DEBUG "%s: ConfigData=0x%02x (%s)\n",
 			musb_driver_name, reg, aInfo);
 
-#ifdef MUSB_AHB_ID
-	data = musb_readl(mbase, 0x404);
-	sprintf(aDate, "%04d-%02x-%02x", (data & 0xffff),
-		(data >> 16) & 0xff, (data >> 24) & 0xff);
-	/* FIXME ID2 and ID3 are unused */
-	data = musb_readl(mbase, 0x408);
-	printk(KERN_DEBUG "ID2=%lx\n", (long unsigned)data);
-	data = musb_readl(mbase, 0x40c);
-	printk(KERN_DEBUG "ID3=%lx\n", (long unsigned)data);
-	reg = musb_readb(mbase, 0x400);
-	musb_type = ('M' == reg) ? MUSB_CONTROLLER_MHDRC : MUSB_CONTROLLER_HDRC;
-#else
 	aDate[0] = 0;
-#endif
 	if (MUSB_CONTROLLER_MHDRC == musb_type) {
 		musb->is_multipoint = 1;
 		type = "M";
