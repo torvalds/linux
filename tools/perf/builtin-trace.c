@@ -12,7 +12,9 @@
 static char const		*script_name;
 static char const		*generate_script_lang;
 
-static int default_start_script(const char *script __attribute((unused)))
+static int default_start_script(const char *script __unused,
+				int argc __unused,
+				const char **argv __unused)
 {
 	return 0;
 }
@@ -22,7 +24,7 @@ static int default_stop_script(void)
 	return 0;
 }
 
-static int default_generate_script(const char *outfile __attribute ((unused)))
+static int default_generate_script(const char *outfile __unused)
 {
 	return 0;
 }
@@ -302,15 +304,8 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 
 	setup_scripting();
 
-	argc = parse_options(argc, argv, options, annotate_usage, 0);
-	if (argc) {
-		/*
-		 * Special case: if there's an argument left then assume tha
-		 * it's a symbol filter:
-		 */
-		if (argc > 1)
-			usage_with_options(annotate_usage, options);
-	}
+	argc = parse_options(argc, argv, options, annotate_usage,
+			     PARSE_OPT_STOP_AT_NON_OPTION);
 
 	setup_pager();
 
@@ -350,7 +345,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 	}
 
 	if (script_name) {
-		err = scripting_ops->start_script(script_name);
+		err = scripting_ops->start_script(script_name, argc, argv);
 		if (err)
 			goto out;
 	}
