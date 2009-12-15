@@ -154,6 +154,7 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 {
 	unsigned char *data = wacom->data;
 	int x, y, rw;
+	static int penData = 0;
 
 	if (data[0] != WACOM_REPORT_PENABLED) {
 		dbg("wacom_graphire_irq: received unknown report #%d", data[0]);
@@ -162,6 +163,7 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 
 	if (data[1] & 0x80) {
 		/* in prox and not a pad data */
+		penData = 1;
 
 		switch ((data[1] >> 5) & 3) {
 
@@ -231,7 +233,11 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 	switch (wacom->features->type) {
 	    case WACOM_G4:
 		if (data[7] & 0xf8) {
-			wacom_input_sync(wcombo); /* sync last event */
+			if (penData) {
+				wacom_input_sync(wcombo); /* sync last event */
+				if (!wacom->id[0])
+					penData = 0;
+			}
 			wacom->id[1] = PAD_DEVICE_ID;
 			wacom_report_key(wcombo, BTN_0, (data[7] & 0x40));
 			wacom_report_key(wcombo, BTN_4, (data[7] & 0x80));
@@ -241,10 +247,15 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 			wacom_report_abs(wcombo, ABS_MISC, wacom->id[1]);
 			wacom_input_event(wcombo, EV_MSC, MSC_SERIAL, 0xf0);
 		} else if (wacom->id[1]) {
-			wacom_input_sync(wcombo); /* sync last event */
+			if (penData) {
+				wacom_input_sync(wcombo); /* sync last event */
+				if (!wacom->id[0])
+					penData = 0;
+			}
 			wacom->id[1] = 0;
 			wacom_report_key(wcombo, BTN_0, (data[7] & 0x40));
 			wacom_report_key(wcombo, BTN_4, (data[7] & 0x80));
+			wacom_report_rel(wcombo, REL_WHEEL, 0);
 			wacom_report_key(wcombo, BTN_TOOL_FINGER, 0);
 			wacom_report_abs(wcombo, ABS_MISC, 0);
 			wacom_input_event(wcombo, EV_MSC, MSC_SERIAL, 0xf0);
@@ -252,7 +263,11 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 		break;
 	    case WACOM_MO:
 		if ((data[7] & 0xf8) || (data[8] & 0xff)) {
-			wacom_input_sync(wcombo); /* sync last event */
+			if (penData) {
+				wacom_input_sync(wcombo); /* sync last event */
+				if (!wacom->id[0])
+					penData = 0;
+			}
 			wacom->id[1] = PAD_DEVICE_ID;
 			wacom_report_key(wcombo, BTN_0, (data[7] & 0x08));
 			wacom_report_key(wcombo, BTN_1, (data[7] & 0x20));
@@ -263,7 +278,11 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 			wacom_report_abs(wcombo, ABS_MISC, wacom->id[1]);
 			wacom_input_event(wcombo, EV_MSC, MSC_SERIAL, 0xf0);
 		} else if (wacom->id[1]) {
-			wacom_input_sync(wcombo); /* sync last event */
+			if (penData) {
+				wacom_input_sync(wcombo); /* sync last event */
+				if (!wacom->id[0])
+					penData = 0;
+			}
 			wacom->id[1] = 0;
 			wacom_report_key(wcombo, BTN_0, (data[7] & 0x08));
 			wacom_report_key(wcombo, BTN_1, (data[7] & 0x20));
