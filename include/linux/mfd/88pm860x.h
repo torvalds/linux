@@ -12,6 +12,8 @@
 #ifndef __LINUX_MFD_88PM860X_H
 #define __LINUX_MFD_88PM860X_H
 
+#include <linux/interrupt.h>
+
 enum {
 	CHIP_INVALID = 0,
 	CHIP_PM8606,
@@ -109,33 +111,10 @@ enum {
 
 /* Misc Registers */
 #define PM8607_CHIP_ID			(0x00)
+#define PM8607_B0_MISC1			(0x0C)
 #define PM8607_LDO1			(0x10)
 #define PM8607_DVC3			(0x26)
-#define PM8607_MISC1			(0x40)
-
-/* bit definitions for PM8607 events */
-#define PM8607_EVENT_ONKEY		(1 << 0)
-#define PM8607_EVENT_EXTON		(1 << 1)
-#define PM8607_EVENT_CHG		(1 << 2)
-#define PM8607_EVENT_BAT		(1 << 3)
-#define PM8607_EVENT_RTC		(1 << 4)
-#define PM8607_EVENT_CC			(1 << 5)
-#define PM8607_EVENT_VBAT		(1 << 8)
-#define PM8607_EVENT_VCHG		(1 << 9)
-#define PM8607_EVENT_VSYS		(1 << 10)
-#define PM8607_EVENT_TINT		(1 << 11)
-#define PM8607_EVENT_GPADC0		(1 << 12)
-#define PM8607_EVENT_GPADC1		(1 << 13)
-#define PM8607_EVENT_GPADC2		(1 << 14)
-#define PM8607_EVENT_GPADC3		(1 << 15)
-#define PM8607_EVENT_AUDIO_SHORT	(1 << 16)
-#define PM8607_EVENT_PEN		(1 << 17)
-#define PM8607_EVENT_HEADSET		(1 << 18)
-#define PM8607_EVENT_HOOK		(1 << 19)
-#define PM8607_EVENT_MICIN		(1 << 20)
-#define PM8607_EVENT_CHG_TIMEOUT	(1 << 21)
-#define PM8607_EVENT_CHG_DONE		(1 << 22)
-#define PM8607_EVENT_CHG_FAULT		(1 << 23)
+#define PM8607_A1_MISC1			(0x40)
 
 /* bit definitions of Status Query Interface */
 #define PM8607_STATUS_CC		(1 << 3)
@@ -154,7 +133,12 @@ enum {
 #define PM8607_BUCK3_DOUBLE		(1 << 6)
 
 /* bit definitions of Misc1 */
-#define PM8607_MISC1_PI2C		(1 << 0)
+#define PM8607_A1_MISC1_PI2C		(1 << 0)
+#define PM8607_B0_MISC1_INV_INT		(1 << 0)
+#define PM8607_B0_MISC1_INT_CLEAR	(1 << 1)
+#define PM8607_B0_MISC1_INT_MASK	(1 << 2)
+#define PM8607_B0_MISC1_PI2C		(1 << 3)
+#define PM8607_B0_MISC1_RESET		(1 << 6)
 
 /* Interrupt Number in 88PM8607 */
 enum {
@@ -187,15 +171,26 @@ enum {
 	PM8607_CHIP_B0 = 0x48,
 };
 
+#define PM860X_NUM_IRQ		24
+
+struct pm860x_irq {
+	irq_handler_t		handler;
+	void			*data;
+};
+
 struct pm860x_chip {
 	struct device		*dev;
 	struct mutex		io_lock;
+	struct mutex		irq_lock;
 	struct i2c_client	*client;
 	struct i2c_client	*companion;	/* companion chip client */
+	struct pm860x_irq	irq[PM860X_NUM_IRQ];
 
 	int			buck3_double;	/* DVC ramp slope double */
 	unsigned short		companion_addr;
 	int			id;
+	int			irq_mode;
+	int			chip_irq;
 	unsigned char		chip_version;
 
 };
@@ -210,6 +205,7 @@ enum {
 struct pm860x_platform_data {
 	unsigned short	companion_addr;	/* I2C address of companion chip */
 	int		i2c_port;	/* Controlled by GI2C or PI2C */
+	int		irq_mode;	/* Clear interrupt by read/write(0/1) */
 	struct regulator_init_data *regulator[PM8607_MAX_REGULATOR];
 };
 
@@ -219,6 +215,12 @@ extern int pm860x_bulk_read(struct i2c_client *, int, int, unsigned char *);
 extern int pm860x_bulk_write(struct i2c_client *, int, int, unsigned char *);
 extern int pm860x_set_bits(struct i2c_client *, int, unsigned char,
 			   unsigned char);
+
+extern int pm860x_mask_irq(struct pm860x_chip *, int);
+extern int pm860x_unmask_irq(struct pm860x_chip *, int);
+extern int pm860x_request_irq(struct pm860x_chip *, int,
+			      irq_handler_t handler, void *);
+extern int pm860x_free_irq(struct pm860x_chip *, int);
 
 extern int pm860x_device_init(struct pm860x_chip *chip,
 			      struct pm860x_platform_data *pdata);
