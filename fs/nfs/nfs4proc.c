@@ -1835,11 +1835,10 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 			if (calldata->arg.fmode == 0)
 				break;
 		default:
-			if (nfs4_async_handle_error(task, server, state) == -EAGAIN) {
-				nfs_restart_rpc(task, server->nfs_client);
-				return;
-			}
+			if (nfs4_async_handle_error(task, server, state) == -EAGAIN)
+				rpc_restart_call_prepare(task);
 	}
+	nfs_release_seqid(calldata->arg.seqid);
 	nfs_refresh_inode(calldata->inode, calldata->res.fattr);
 }
 

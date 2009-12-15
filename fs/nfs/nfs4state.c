@@ -765,16 +765,21 @@ struct nfs_seqid *nfs_alloc_seqid(struct nfs_seqid_counter *counter)
 	return new;
 }
 
-void nfs_free_seqid(struct nfs_seqid *seqid)
+void nfs_release_seqid(struct nfs_seqid *seqid)
 {
 	if (!list_empty(&seqid->list)) {
 		struct rpc_sequence *sequence = seqid->sequence->sequence;
 
 		spin_lock(&sequence->lock);
-		list_del(&seqid->list);
+		list_del_init(&seqid->list);
 		spin_unlock(&sequence->lock);
 		rpc_wake_up(&sequence->wait);
 	}
+}
+
+void nfs_free_seqid(struct nfs_seqid *seqid)
+{
+	nfs_release_seqid(seqid);
 	kfree(seqid);
 }
 
