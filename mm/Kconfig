@@ -227,6 +227,7 @@ config KSM
 
 config DEFAULT_MMAP_MIN_ADDR
         int "Low address space to protect from user allocation"
+	depends on MMU
         default 4096
         help
 	  This is the portion of low virtual memory which should be protected
