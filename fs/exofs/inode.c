@@ -193,7 +193,7 @@ static int __readpages_done(struct page_collect *pcol, bool do_unlock)
 	else
 		good_bytes = pcol->length - resid;
 
-	EXOFS_DBGMSG("readpages_done(0x%lx) good_bytes=0x%llx"
+	EXOFS_DBGMSG2("readpages_done(0x%lx) good_bytes=0x%llx"
 		     " length=0x%lx nr_pages=%u\n",
 		     pcol->inode->i_ino, _LLU(good_bytes), pcol->length,
 		     pcol->nr_pages);
@@ -222,7 +222,7 @@ static int __readpages_done(struct page_collect *pcol, bool do_unlock)
 	}
 
 	pcol_free(pcol);
-	EXOFS_DBGMSG("readpages_done END\n");
+	EXOFS_DBGMSG2("readpages_done END\n");
 	return ret;
 }
 
@@ -290,7 +290,7 @@ static int read_exec(struct page_collect *pcol, bool is_sync)
 
 	atomic_inc(&pcol->sbi->s_curr_pending);
 
-	EXOFS_DBGMSG("read_exec obj=0x%llx start=0x%llx length=0x%lx\n",
+	EXOFS_DBGMSG2("read_exec obj=0x%llx start=0x%llx length=0x%lx\n",
 		  ios->obj.id, _LLU(ios->offset), pcol->length);
 
 	/* pages ownership was passed to pcol_copy */
@@ -462,7 +462,7 @@ static void writepages_done(struct exofs_io_state *ios, void *p)
 	else
 		good_bytes = pcol->length - resid;
 
-	EXOFS_DBGMSG("writepages_done(0x%lx) good_bytes=0x%llx"
+	EXOFS_DBGMSG2("writepages_done(0x%lx) good_bytes=0x%llx"
 		     " length=0x%lx nr_pages=%u\n",
 		     pcol->inode->i_ino, _LLU(good_bytes), pcol->length,
 		     pcol->nr_pages);
@@ -490,7 +490,7 @@ static void writepages_done(struct exofs_io_state *ios, void *p)
 
 	pcol_free(pcol);
 	kfree(pcol);
-	EXOFS_DBGMSG("writepages_done END\n");
+	EXOFS_DBGMSG2("writepages_done END\n");
 }
 
 static int write_exec(struct page_collect *pcol)
@@ -527,7 +527,7 @@ static int write_exec(struct page_collect *pcol)
 	}
 
 	atomic_inc(&pcol->sbi->s_curr_pending);
-	EXOFS_DBGMSG("write_exec(0x%lx, 0x%llx) start=0x%llx length=0x%lx\n",
+	EXOFS_DBGMSG2("write_exec(0x%lx, 0x%llx) start=0x%llx length=0x%lx\n",
 		  pcol->inode->i_ino, pcol->pg_first, _LLU(ios->offset),
 		  pcol->length);
 	/* pages ownership was passed to pcol_copy */
@@ -616,7 +616,7 @@ try_again:
 
 	ret = pcol_add_page(pcol, page, len);
 	if (unlikely(ret)) {
-		EXOFS_DBGMSG("Failed pcol_add_page "
+		EXOFS_DBGMSG2("Failed pcol_add_page "
 			     "nr_pages=%u total_length=0x%lx\n",
 			     pcol->nr_pages, pcol->length);
 
@@ -663,7 +663,7 @@ static int exofs_writepages(struct address_space *mapping,
 	if (expected_pages < 32L)
 		expected_pages = 32L;
 
-	EXOFS_DBGMSG("inode(0x%lx) wbc->start=0x%llx wbc->end=0x%llx "
+	EXOFS_DBGMSG2("inode(0x%lx) wbc->start=0x%llx wbc->end=0x%llx "
 		     "nrpages=%lu start=0x%lx end=0x%lx expected_pages=%ld\n",
 		     mapping->host->i_ino, wbc->range_start, wbc->range_end,
 		     mapping->nrpages, start, end, expected_pages);
@@ -1170,8 +1170,10 @@ static int exofs_update_inode(struct inode *inode, int do_sync)
 	int ret;
 
 	args = kzalloc(sizeof(*args), GFP_KERNEL);
-	if (!args)
+	if (!args) {
+		EXOFS_DBGMSG("Faild kzalloc of args\n");
 		return -ENOMEM;
+	}
 
 	fcb = &args->fcb;
 
@@ -1234,7 +1236,8 @@ static int exofs_update_inode(struct inode *inode, int do_sync)
 free_args:
 	kfree(args);
 out:
-	EXOFS_DBGMSG("ret=>%d\n", ret);
+	EXOFS_DBGMSG("(0x%lx) do_sync=%d ret=>%d\n",
+		     inode->i_ino, do_sync, ret);
 	return ret;
 }
 

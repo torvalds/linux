@@ -26,6 +26,9 @@
 
 #include "exofs.h"
 
+#define EXOFS_DBGMSG2(M...) do {} while (0)
+/* #define EXOFS_DBGMSG2 EXOFS_DBGMSG */
+
 void exofs_make_credential(u8 cred_a[OSD_CAP_LEN], const struct osd_obj_id *obj)
 {
 	osd_sec_init_nosec_doall_caps(cred_a, obj, false, true);
@@ -73,6 +76,8 @@ int exofs_get_io_state(struct exofs_sb_info *sbi, struct exofs_io_state** pios)
 	 */
 	ios = kzalloc(exofs_io_state_size(sbi->s_numdevs), GFP_KERNEL);
 	if (unlikely(!ios)) {
+		EXOFS_DBGMSG("Faild kzalloc bytes=%d\n",
+			     exofs_io_state_size(sbi->s_numdevs));
 		*pios = NULL;
 		return -ENOMEM;
 	}
@@ -276,6 +281,9 @@ int exofs_sbi_write(struct exofs_io_state *ios)
 				bio = bio_kmalloc(GFP_KERNEL,
 						  ios->bio->bi_max_vecs);
 				if (unlikely(!bio)) {
+					EXOFS_DBGMSG(
+					      "Faild to allocate BIO size=%u\n",
+					      ios->bio->bi_max_vecs);
 					ret = -ENOMEM;
 					goto out;
 				}
@@ -290,14 +298,21 @@ int exofs_sbi_write(struct exofs_io_state *ios)
 
 			osd_req_write(or, &ios->obj, ios->offset, bio,
 				      ios->length);
-/*			EXOFS_DBGMSG("write sync=%d\n", sync);*/
+			EXOFS_DBGMSG("write(0x%llx) offset=0x%llx "
+				      "length=0x%llx dev=%d\n",
+				     _LLU(ios->obj.id), _LLU(ios->offset),
+				     _LLU(ios->length), i);
 		} else if (ios->kern_buff) {
 			osd_req_write_kern(or, &ios->obj, ios->offset,
 					   ios->kern_buff, ios->length);
-/*			EXOFS_DBGMSG("write_kern sync=%d\n", sync);*/
+			EXOFS_DBGMSG2("write_kern(0x%llx) offset=0x%llx "
+				      "length=0x%llx dev=%d\n",
+				     _LLU(ios->obj.id), _LLU(ios->offset),
+				     _LLU(ios->length), i);
 		} else {
 			osd_req_set_attributes(or, &ios->obj);
-/*			EXOFS_DBGMSG("set_attributes sync=%d\n", sync);*/
+			EXOFS_DBGMSG2("obj(0x%llx) set_attributes=%d dev=%d\n",
+				     _LLU(ios->obj.id), ios->out_attr_len, i);
 		}
 
 		if (ios->out_attr)
@@ -335,14 +350,25 @@ int exofs_sbi_read(struct exofs_io_state *ios)
 		if (ios->bio) {
 			osd_req_read(or, &ios->obj, ios->offset, ios->bio,
 				     ios->length);
-/*			EXOFS_DBGMSG("read sync=%d\n", sync);*/
+			EXOFS_DBGMSG("read(0x%llx) offset=0x%llx length=0x%llx"
+				      " dev=%d\n", _LLU(ios->obj.id),
+				     _LLU(ios->offset),
+				     _LLU(ios->length),
+				     first_dev);
 		} else if (ios->kern_buff) {
 			osd_req_read_kern(or, &ios->obj, ios->offset,
 					   ios->kern_buff, ios->length);
-/*			EXOFS_DBGMSG("read_kern sync=%d\n", sync);*/
+			EXOFS_DBGMSG2("read_kern(0x%llx) offset=0x%llx "
+				      "length=0x%llx dev=%d\n",
+				     _LLU(ios->obj.id),
+				     _LLU(ios->offset),
+				     _LLU(ios->length),
+				     first_dev);
 		} else {
 			osd_req_get_attributes(or, &ios->obj);
-/*			EXOFS_DBGMSG("get_attributes sync=%d\n", sync);*/
+			EXOFS_DBGMSG2("obj(0x%llx) get_attributes=%d dev=%d\n",
+				     _LLU(ios->obj.id), ios->in_attr_len,
+				     first_dev);
 		}
 
 		if (ios->out_attr)
