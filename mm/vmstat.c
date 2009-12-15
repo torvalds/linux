@@ -683,6 +683,8 @@ static const char * const vmstat_text[] = {
 	"slabs_scanned",
 	"kswapd_steal",
 	"kswapd_inodesteal",
+	"kswapd_slept_prematurely_fast",
+	"kswapd_slept_prematurely_slow",
 	"pageoutrun",
 	"allocstall",
 

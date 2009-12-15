@@ -1904,6 +1904,24 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
 }
 #endif
 
+/* is kswapd sleeping prematurely? */
+static int sleeping_prematurely(int order, long remaining)
+{
+	struct zone *zone;
+
+	/* If a direct reclaimer woke kswapd within HZ/10, it's premature */
+	if (remaining)
+		return 1;
+
+	/* If after HZ/10, a zone is below the high mark, it's premature */
+	for_each_populated_zone(zone)
+		if (!zone_watermark_ok(zone, order, high_wmark_pages(zone),
+								0, 0))
+			return 1;
+
+	return 0;
+}
+
 /*
  * For kswapd, balance_pgdat() will work across all this node's zones until
  * they are all at high_wmark_pages(zone).
@@ -2185,8 +2203,30 @@ static int kswapd(void *p)
 			 */
 			order = new_order;
 		} else {
-			if (!freezing(current) && !kthread_should_stop())
-				schedule();
+			if (!freezing(current) && !kthread_should_stop()) {
+				long remaining = 0;
+
+				/* Try to sleep for a short interval */
+				if (!sleeping_prematurely(order, remaining)) {
+					remaining = schedule_timeout(HZ/10);
+					finish_wait(&pgdat->kswapd_wait, &wait);
+					prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
+				}
+
+				/*
+				 * After a short sleep, check if it was a
+				 * premature sleep. If not, then go fully
+				 * to sleep until explicitly woken up
+				 */
+				if (!sleeping_prematurely(order, remaining))
+					schedule();
+				else {
+					if (remaining)
+						count_vm_event(KSWAPD_PREMATURE_FAST);
+					else
+						count_vm_event(KSWAPD_PREMATURE_SLOW);
+				}
+			}
 
 			order = pgdat->kswapd_max_order;
 		}
