@@ -364,8 +364,8 @@ char *strstrip(char *s)
 	size_t size;
 	char *end;
 
+	s = skip_spaces(s);
 	size = strlen(s);
-
 	if (!size)
 		return s;
 
@@ -374,7 +374,7 @@ char *strstrip(char *s)
 		end--;
 	*(end + 1) = '\0';
 
-	return skip_spaces(s);
+	return s;
 }
 EXPORT_SYMBOL(strstrip);
 
