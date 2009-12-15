@@ -63,18 +63,6 @@ static inline unsigned long page_order(struct page *page)
 	return page_private(page);
 }
 
-/*
- * unevictable_migrate_page() called only from migrate_page_copy() to
- * migrate unevictable flag to new page.
- * Note that the old page has been isolated from the LRU lists at this
- * point so we don't need to worry about LRU statistics.
- */
-static inline void unevictable_migrate_page(struct page *new, struct page *old)
-{
-	if (TestClearPageUnevictable(old))
-		SetPageUnevictable(new);
-}
-
 #ifdef CONFIG_MMU
 extern long mlock_vma_pages_range(struct vm_area_struct *vma,
 			unsigned long start, unsigned long end);

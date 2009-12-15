@@ -288,8 +288,8 @@ static void migrate_page_copy(struct page *newpage, struct page *page)
 	if (TestClearPageActive(page)) {
 		VM_BUG_ON(PageUnevictable(page));
 		SetPageActive(newpage);
-	} else
-		unevictable_migrate_page(newpage, page);
+	} else if (TestClearPageUnevictable(page))
+		SetPageUnevictable(newpage);
 	if (PageChecked(page))
 		SetPageChecked(newpage);
 	if (PageMappedToDisk(page))
