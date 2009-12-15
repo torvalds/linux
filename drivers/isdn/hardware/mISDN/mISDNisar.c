@@ -860,7 +860,7 @@ isar_pump_statev_modem(struct isar_ch *ch, u8 devt) {
 		pr_debug("%s: pump stev GSTN CLEAR\n", ch->is->name);
 		break;
 	default:
-		pr_info("u%s: nknown pump stev %x\n", ch->is->name, devt);
+		pr_info("u%s: unknown pump stev %x\n", ch->is->name, devt);
 		break;
 	}
 }

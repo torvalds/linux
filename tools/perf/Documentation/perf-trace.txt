@@ -20,6 +20,15 @@ OPTIONS
 --dump-raw-trace=::
         Display verbose dump of the trace data.
 
+-s::
+--script=::
+        Process trace data with the given script ([lang]:script[.ext]).
+
+-g::
+--gen-script=::
+        Generate perf-trace.[ext] starter script for given language,
+        using current perf.data.
+
 SEE ALSO
 --------
-linkperf:perf-record[1]
+linkperf:perf-record[1], linkperf:perf-trace-perl[1]

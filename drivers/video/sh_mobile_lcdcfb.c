@@ -281,18 +281,34 @@ static void sh_mobile_lcdc_deferred_io(struct fb_info *info,
 				       struct list_head *pagelist)
 {
 	struct sh_mobile_lcdc_chan *ch = info->par;
-	unsigned int nr_pages;
 
 	/* enable clocks before accessing hardware */
 	sh_mobile_lcdc_clk_on(ch->lcdc);
 
-	nr_pages = sh_mobile_lcdc_sginit(info, pagelist);
-	dma_map_sg(info->dev, ch->sglist, nr_pages, DMA_TO_DEVICE);
+	/*
+	 * It's possible to get here without anything on the pagelist via
+	 * sh_mobile_lcdc_deferred_io_touch() or via a userspace fsync()
+	 * invocation. In the former case, the acceleration routines are
+	 * stepped in to when using the framebuffer console causing the
+	 * workqueue to be scheduled without any dirty pages on the list.
+	 *
+	 * Despite this, a panel update is still needed given that the
+	 * acceleration routines have their own methods for writing in
+	 * that still need to be updated.
+	 *
+	 * The fsync() and empty pagelist case could be optimized for,
+	 * but we don't bother, as any application exhibiting such
+	 * behaviour is fundamentally broken anyways.
+	 */
+	if (!list_empty(pagelist)) {
+		unsigned int nr_pages = sh_mobile_lcdc_sginit(info, pagelist);
 
-	/* trigger panel update */
-	lcdc_write_chan(ch, LDSM2R, 1);
-
-	dma_unmap_sg(info->dev, ch->sglist, nr_pages, DMA_TO_DEVICE);
+		/* trigger panel update */
+		dma_map_sg(info->dev, ch->sglist, nr_pages, DMA_TO_DEVICE);
+		lcdc_write_chan(ch, LDSM2R, 1);
+		dma_unmap_sg(info->dev, ch->sglist, nr_pages, DMA_TO_DEVICE);
+	} else
+		lcdc_write_chan(ch, LDSM2R, 1);
 }
 
 static void sh_mobile_lcdc_deferred_io_touch(struct fb_info *info)

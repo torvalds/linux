@@ -75,26 +75,25 @@ static int jdccp_sendmsg(struct kiocb *iocb, struct sock *sk,
 			 struct msghdr *msg, size_t size)
 {
 	const struct inet_sock *inet = inet_sk(sk);
-	struct ccid3_hc_tx_sock *hctx = NULL;
+	struct ccid3_hc_tx_sock *hc = NULL;
 
 	if (ccid_get_current_tx_ccid(dccp_sk(sk)) == DCCPC_CCID3)
-		hctx = ccid3_hc_tx_sk(sk);
+		hc = ccid3_hc_tx_sk(sk);
 
-	if (port == 0 || ntohs(inet->dport) == port ||
-	    ntohs(inet->sport) == port) {
-		if (hctx)
-			printl("%pI4:%u %pI4:%u %d %d %d %d %u "
-			       "%llu %llu %d\n",
-			       &inet->saddr, ntohs(inet->sport),
-			       &inet->daddr, ntohs(inet->dport), size,
-			       hctx->ccid3hctx_s, hctx->ccid3hctx_rtt,
-			       hctx->ccid3hctx_p, hctx->ccid3hctx_x_calc,
-			       hctx->ccid3hctx_x_recv >> 6,
-			       hctx->ccid3hctx_x >> 6, hctx->ccid3hctx_t_ipi);
+	if (port == 0 || ntohs(inet->inet_dport) == port ||
+	    ntohs(inet->inet_sport) == port) {
+		if (hc)
+			printl("%pI4:%u %pI4:%u %d %d %d %d %u %llu %llu %d\n",
+			       &inet->inet_saddr, ntohs(inet->inet_sport),
+			       &inet->inet_daddr, ntohs(inet->inet_dport), size,
+			       hc->tx_s, hc->tx_rtt, hc->tx_p,
+			       hc->tx_x_calc, hc->tx_x_recv >> 6,
+			       hc->tx_x >> 6, hc->tx_t_ipi);
 		else
 			printl("%pI4:%u %pI4:%u %d\n",
-			       &inet->saddr, ntohs(inet->sport),
-			       &inet->daddr, ntohs(inet->dport), size);
+			       &inet->inet_saddr, ntohs(inet->inet_sport),
+			       &inet->inet_daddr, ntohs(inet->inet_dport),
+			       size);
 	}
 
 	jprobe_return();

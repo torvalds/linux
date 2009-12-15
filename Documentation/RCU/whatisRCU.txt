@@ -830,7 +830,7 @@ sched:	Critical sections	Grace period		Barrier
 SRCU:	Critical sections	Grace period		Barrier
 
 	srcu_read_lock		synchronize_srcu	N/A
-	srcu_read_unlock
+	srcu_read_unlock	synchronize_srcu_expedited
 
 SRCU:	Initialization/cleanup
 	init_srcu_struct

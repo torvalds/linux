@@ -45,7 +45,8 @@ static int evm_hw_params(struct snd_pcm_substream *substream,
 	unsigned sysclk;
 
 	/* ASP1 on DM355 EVM is clocked by an external oscillator */
-	if (machine_is_davinci_dm355_evm() || machine_is_davinci_dm6467_evm())
+	if (machine_is_davinci_dm355_evm() || machine_is_davinci_dm6467_evm() ||
+	    machine_is_davinci_dm365_evm())
 		sysclk = 27000000;
 
 	/* ASP0 in DM6446 EVM is clocked by U55, as configured by
@@ -176,7 +177,7 @@ static struct snd_soc_dai_link da8xx_evm_dai = {
 	.ops = &evm_ops,
 };
 
-/* davinci-evm audio machine driver */
+/* davinci dm6446, dm355 or dm365 evm audio machine driver */
 static struct snd_soc_card snd_soc_card_evm = {
 	.name = "DaVinci EVM",
 	.platform = &davinci_soc_platform,
@@ -243,7 +244,7 @@ static int __init evm_init(void)
 	int index;
 	int ret;
 
-	if (machine_is_davinci_evm()) {
+	if (machine_is_davinci_evm() || machine_is_davinci_dm365_evm()) {
 		evm_snd_dev_data = &evm_snd_devdata;
 		index = 0;
 	} else if (machine_is_davinci_dm355_evm()) {

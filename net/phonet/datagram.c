@@ -159,11 +159,9 @@ out_nofree:
 static int pn_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	int err = sock_queue_rcv_skb(sk, skb);
-	if (err < 0) {
+
+	if (err < 0)
 		kfree_skb(skb);
-		if (err == -ENOMEM)
-			atomic_inc(&sk->sk_drops);
-	}
 	return err ? NET_RX_DROP : NET_RX_SUCCESS;
 }
 

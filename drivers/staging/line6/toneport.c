@@ -17,9 +17,7 @@
 #include "playback.h"
 #include "toneport.h"
 
-
 static int toneport_send_cmd(struct usb_device *usbdev, int cmd1, int cmd2);
-
 
 static struct snd_ratden toneport_ratden = {
 	.num_min = 44100,
@@ -29,47 +27,44 @@ static struct snd_ratden toneport_ratden = {
 };
 
 static struct line6_pcm_properties toneport_pcm_properties = {
-  .snd_line6_playback_hw = {
-		.info = (SNDRV_PCM_INFO_MMAP |
-						 SNDRV_PCM_INFO_INTERLEAVED |
-						 SNDRV_PCM_INFO_BLOCK_TRANSFER |
-						 SNDRV_PCM_INFO_MMAP_VALID |
-						 SNDRV_PCM_INFO_PAUSE |
-						 SNDRV_PCM_INFO_SYNC_START),
-		.formats =          SNDRV_PCM_FMTBIT_S16_LE,
-		.rates =            SNDRV_PCM_RATE_KNOT,
-		.rate_min =         44100,
-		.rate_max =         44100,
-		.channels_min =     2,
-		.channels_max =     2,
-		.buffer_bytes_max = 60000,
-		.period_bytes_min = 180 * 4,
-		.period_bytes_max = 8192,
-		.periods_min =      1,
-		.periods_max =      1024
-	},
-  .snd_line6_capture_hw = {
-		.info = (SNDRV_PCM_INFO_MMAP |
-						 SNDRV_PCM_INFO_INTERLEAVED |
-						 SNDRV_PCM_INFO_BLOCK_TRANSFER |
-						 SNDRV_PCM_INFO_MMAP_VALID |
-						 SNDRV_PCM_INFO_SYNC_START),
-		.formats =          SNDRV_PCM_FMTBIT_S16_LE,
-		.rates =            SNDRV_PCM_RATE_KNOT,
-		.rate_min =         44100,
-		.rate_max =         44100,
-		.channels_min =     2,
-		.channels_max =     2,
-		.buffer_bytes_max = 60000,
-		.period_bytes_min = 188 * 4,
-		.period_bytes_max = 8192,
-		.periods_min =      1,
-		.periods_max =      1024
-	},
+	.snd_line6_playback_hw = {
+				  .info = (SNDRV_PCM_INFO_MMAP |
+					   SNDRV_PCM_INFO_INTERLEAVED |
+					   SNDRV_PCM_INFO_BLOCK_TRANSFER |
+					   SNDRV_PCM_INFO_MMAP_VALID |
+					   SNDRV_PCM_INFO_PAUSE |
+					   SNDRV_PCM_INFO_SYNC_START),
+				  .formats = SNDRV_PCM_FMTBIT_S16_LE,
+				  .rates = SNDRV_PCM_RATE_KNOT,
+				  .rate_min = 44100,
+				  .rate_max = 44100,
+				  .channels_min = 2,
+				  .channels_max = 2,
+				  .buffer_bytes_max = 60000,
+				  .period_bytes_min = 180 * 4,
+				  .period_bytes_max = 8192,
+				  .periods_min = 1,
+				  .periods_max = 1024},
+	.snd_line6_capture_hw = {
+				 .info = (SNDRV_PCM_INFO_MMAP |
+					  SNDRV_PCM_INFO_INTERLEAVED |
+					  SNDRV_PCM_INFO_BLOCK_TRANSFER |
+					  SNDRV_PCM_INFO_MMAP_VALID |
+					  SNDRV_PCM_INFO_SYNC_START),
+				 .formats = SNDRV_PCM_FMTBIT_S16_LE,
+				 .rates = SNDRV_PCM_RATE_KNOT,
+				 .rate_min = 44100,
+				 .rate_max = 44100,
+				 .channels_min = 2,
+				 .channels_max = 2,
+				 .buffer_bytes_max = 60000,
+				 .period_bytes_min = 188 * 4,
+				 .period_bytes_max = 8192,
+				 .periods_min = 1,
+				 .periods_max = 1024},
 	.snd_line6_rates = {
-		.nrats = 1,
-		.rats = &toneport_ratden
-	},
+			    .nrats = 1,
+			    .rats = &toneport_ratden},
 	.bytes_per_frame = 4
 };
 
@@ -101,8 +96,14 @@ static ssize_t toneport_set_led_red(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
-	char *c;
-	led_red = simple_strtol(buf, &c, 10);
+	int retval;
+	long value;
+
+	retval = strict_strtol(buf, 10, &value);
+	if (retval)
+		return retval;
+
+	led_red = value;
 	toneport_update_led(dev);
 	return count;
 }
@@ -111,15 +112,22 @@ static ssize_t toneport_set_led_green(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf, size_t count)
 {
-	char *c;
-	led_green = simple_strtol(buf, &c, 10);
+	int retval;
+	long value;
+
+	retval = strict_strtol(buf, 10, &value);
+	if (retval)
+		return retval;
+
+	led_green = value;
 	toneport_update_led(dev);
 	return count;
 }
 
-static DEVICE_ATTR(led_red, S_IWUGO | S_IRUGO, line6_nop_read, toneport_set_led_red);
-static DEVICE_ATTR(led_green, S_IWUGO | S_IRUGO, line6_nop_read, toneport_set_led_green);
-
+static DEVICE_ATTR(led_red, S_IWUGO | S_IRUGO, line6_nop_read,
+		   toneport_set_led_red);
+static DEVICE_ATTR(led_green, S_IWUGO | S_IRUGO, line6_nop_read,
+		   toneport_set_led_green);
 
 static int toneport_send_cmd(struct usb_device *usbdev, int cmd1, int cmd2)
 {
@@ -196,16 +204,18 @@ int toneport_init(struct usb_interface *interface,
 	line6_write_data(line6, 0x80c6, &ticks, 4);
 
 	/*
-	seems to work without the first two...
-	*/
+	   seems to work without the first two...
+	 */
 	/* toneport_send_cmd(usbdev, 0x0201, 0x0002); */
 	/* toneport_send_cmd(usbdev, 0x0801, 0x0000); */
 	/* only one that works for me; on GP, TP might be different? */
 	toneport_send_cmd(usbdev, 0x0301, 0x0000);
 
 	if (usbdev->descriptor.idProduct != LINE6_DEVID_GUITARPORT) {
-		CHECK_RETURN(device_create_file(&interface->dev, &dev_attr_led_red));
-		CHECK_RETURN(device_create_file(&interface->dev, &dev_attr_led_green));
+		CHECK_RETURN(device_create_file
+			     (&interface->dev, &dev_attr_led_red));
+		CHECK_RETURN(device_create_file
+			     (&interface->dev, &dev_attr_led_green));
 		toneport_update_led(&usbdev->dev);
 	}
 
@@ -223,7 +233,8 @@ void toneport_disconnect(struct usb_interface *interface)
 		return;
 	toneport = usb_get_intfdata(interface);
 
-	if (toneport->line6.usbdev->descriptor.idProduct != LINE6_DEVID_GUITARPORT) {
+	if (toneport->line6.usbdev->descriptor.idProduct !=
+	    LINE6_DEVID_GUITARPORT) {
 		device_remove_file(&interface->dev, &dev_attr_led_red);
 		device_remove_file(&interface->dev, &dev_attr_led_green);
 	}

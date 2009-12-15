@@ -234,18 +234,19 @@ enum qeth_ipa_setdelip_flags {
 
 /* SETADAPTER IPA Command: ****************************************************/
 enum qeth_ipa_setadp_cmd {
-	IPA_SETADP_QUERY_COMMANDS_SUPPORTED	= 0x0001,
-	IPA_SETADP_ALTER_MAC_ADDRESS		= 0x0002,
-	IPA_SETADP_ADD_DELETE_GROUP_ADDRESS	= 0x0004,
-	IPA_SETADP_ADD_DELETE_FUNCTIONAL_ADDR	= 0x0008,
-	IPA_SETADP_SET_ADDRESSING_MODE		= 0x0010,
-	IPA_SETADP_SET_CONFIG_PARMS		= 0x0020,
-	IPA_SETADP_SET_CONFIG_PARMS_EXTENDED	= 0x0040,
-	IPA_SETADP_SET_BROADCAST_MODE		= 0x0080,
-	IPA_SETADP_SEND_OSA_MESSAGE		= 0x0100,
-	IPA_SETADP_SET_SNMP_CONTROL		= 0x0200,
-	IPA_SETADP_QUERY_CARD_INFO		= 0x0400,
-	IPA_SETADP_SET_PROMISC_MODE		= 0x0800,
+	IPA_SETADP_QUERY_COMMANDS_SUPPORTED	= 0x00000001L,
+	IPA_SETADP_ALTER_MAC_ADDRESS		= 0x00000002L,
+	IPA_SETADP_ADD_DELETE_GROUP_ADDRESS	= 0x00000004L,
+	IPA_SETADP_ADD_DELETE_FUNCTIONAL_ADDR	= 0x00000008L,
+	IPA_SETADP_SET_ADDRESSING_MODE		= 0x00000010L,
+	IPA_SETADP_SET_CONFIG_PARMS		= 0x00000020L,
+	IPA_SETADP_SET_CONFIG_PARMS_EXTENDED	= 0x00000040L,
+	IPA_SETADP_SET_BROADCAST_MODE		= 0x00000080L,
+	IPA_SETADP_SEND_OSA_MESSAGE		= 0x00000100L,
+	IPA_SETADP_SET_SNMP_CONTROL		= 0x00000200L,
+	IPA_SETADP_QUERY_CARD_INFO		= 0x00000400L,
+	IPA_SETADP_SET_PROMISC_MODE		= 0x00000800L,
+	IPA_SETADP_SET_ACCESS_CONTROL		= 0x00010000L,
 };
 enum qeth_ipa_mac_ops {
 	CHANGE_ADDR_READ_MAC		= 0,
@@ -264,6 +265,20 @@ enum qeth_ipa_promisc_modes {
 	SET_PROMISC_MODE_OFF		= 0,
 	SET_PROMISC_MODE_ON		= 1,
 };
+enum qeth_ipa_isolation_modes {
+	ISOLATION_MODE_NONE		= 0x00000000L,
+	ISOLATION_MODE_FWD		= 0x00000001L,
+	ISOLATION_MODE_DROP		= 0x00000002L,
+};
+enum qeth_ipa_set_access_mode_rc {
+	SET_ACCESS_CTRL_RC_SUCCESS		= 0x0000,
+	SET_ACCESS_CTRL_RC_NOT_SUPPORTED	= 0x0004,
+	SET_ACCESS_CTRL_RC_ALREADY_NOT_ISOLATED	= 0x0008,
+	SET_ACCESS_CTRL_RC_ALREADY_ISOLATED	= 0x0010,
+	SET_ACCESS_CTRL_RC_NONE_SHARED_ADAPTER	= 0x0014,
+	SET_ACCESS_CTRL_RC_ACTIVE_CHECKSUM_OFF	= 0x0018,
+};
+
 
 /* (SET)DELIP(M) IPA stuff ***************************************************/
 struct qeth_ipacmd_setdelip4 {
@@ -376,6 +391,11 @@ struct qeth_snmp_ureq {
 	struct qeth_snmp_cmd cmd;
 } __attribute__((packed));
 
+/* SET_ACCESS_CONTROL: same format for request and reply */
+struct qeth_set_access_ctrl {
+	__u32 subcmd_code;
+} __attribute__((packed));
+
 struct qeth_ipacmd_setadpparms_hdr {
 	__u32 supp_hw_cmds;
 	__u32 reserved1;
@@ -394,6 +414,7 @@ struct qeth_ipacmd_setadpparms {
 		struct qeth_query_cmds_supp query_cmds_supp;
 		struct qeth_change_addr change_addr;
 		struct qeth_snmp_cmd snmp;
+		struct qeth_set_access_ctrl set_access_ctrl;
 		__u32 mode;
 	} data;
 } __attribute__ ((packed));
@@ -507,7 +528,7 @@ extern unsigned char ULP_ENABLE[];
 		(PDU_ENCAPSULATION(buffer) + 0x17)
 #define QETH_ULP_ENABLE_RESP_LINK_TYPE(buffer) \
 		(PDU_ENCAPSULATION(buffer) + 0x2b)
-/* Layer 2 defintions */
+/* Layer 2 definitions */
 #define QETH_PROT_LAYER2 0x08
 #define QETH_PROT_TCPIP  0x03
 #define QETH_PROT_OSN2   0x0a

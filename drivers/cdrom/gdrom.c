@@ -214,7 +214,7 @@ static void gdrom_spicommand(void *spi_string, int buflen)
 		gdrom_getsense(NULL);
 		return;
 	}
-	outsw(PHYSADDR(GDROM_DATA_REG), cmd, 6);
+	outsw(GDROM_DATA_REG, cmd, 6);
 }
 
 
@@ -298,7 +298,7 @@ static int gdrom_readtoc_cmd(struct gdromtoc *toc, int session)
 		err = -EINVAL;
 		goto cleanup_readtoc;
 	}
-	insw(PHYSADDR(GDROM_DATA_REG), toc, tocsize/2);
+	insw(GDROM_DATA_REG, toc, tocsize/2);
 	if (gd.status & 0x01)
 		err = -EINVAL;
 
@@ -449,7 +449,7 @@ static int gdrom_getsense(short *bufstring)
 		GDROM_DEFAULT_TIMEOUT);
 	if (gd.pending)
 		goto cleanup_sense;
-	insw(PHYSADDR(GDROM_DATA_REG), &sense, sense_command->buflen/2);
+	insw(GDROM_DATA_REG, &sense, sense_command->buflen/2);
 	if (sense[1] & 40) {
 		printk(KERN_INFO "GDROM: Drive not ready - command aborted\n");
 		goto cleanup_sense;
@@ -586,7 +586,7 @@ static void gdrom_readdisk_dma(struct work_struct *work)
 		spin_unlock(&gdrom_lock);
 		block = blk_rq_pos(req)/GD_TO_BLK + GD_SESSION_OFFSET;
 		block_cnt = blk_rq_sectors(req)/GD_TO_BLK;
-		ctrl_outl(PHYSADDR(req->buffer), GDROM_DMA_STARTADDR_REG);
+		ctrl_outl(virt_to_phys(req->buffer), GDROM_DMA_STARTADDR_REG);
 		ctrl_outl(block_cnt * GDROM_HARD_SECTOR, GDROM_DMA_LENGTH_REG);
 		ctrl_outl(1, GDROM_DMA_DIRECTION_REG);
 		ctrl_outl(1, GDROM_DMA_ENABLE_REG);
@@ -615,7 +615,7 @@ static void gdrom_readdisk_dma(struct work_struct *work)
 			cpu_relax();
 		gd.pending = 1;
 		gd.transfer = 1;
-		outsw(PHYSADDR(GDROM_DATA_REG), &read_command->cmd, 6);
+		outsw(GDROM_DATA_REG, &read_command->cmd, 6);
 		timeout = jiffies + HZ / 2;
 		/* Wait for any pending DMA to finish */
 		while (ctrl_inb(GDROM_DMA_STATUS_REG) &&

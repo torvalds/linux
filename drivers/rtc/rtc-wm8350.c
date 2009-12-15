@@ -315,9 +315,9 @@ static int wm8350_rtc_update_irq_enable(struct device *dev,
 	return 0;
 }
 
-static void wm8350_rtc_alarm_handler(struct wm8350 *wm8350, int irq,
-				     void *data)
+static irqreturn_t wm8350_rtc_alarm_handler(int irq, void *data)
 {
+	struct wm8350 *wm8350 = data;
 	struct rtc_device *rtc = wm8350->rtc.rtc;
 	int ret;
 
@@ -330,14 +330,18 @@ static void wm8350_rtc_alarm_handler(struct wm8350 *wm8350, int irq,
 		dev_err(&(wm8350->rtc.pdev->dev),
 			"Failed to disable alarm: %d\n", ret);
 	}
+
+	return IRQ_HANDLED;
 }
 
-static void wm8350_rtc_update_handler(struct wm8350 *wm8350, int irq,
-				      void *data)
+static irqreturn_t wm8350_rtc_update_handler(int irq, void *data)
 {
+	struct wm8350 *wm8350 = data;
 	struct rtc_device *rtc = wm8350->rtc.rtc;
 
 	rtc_update_irq(rtc, 1, RTC_IRQF | RTC_UF);
+
+	return IRQ_HANDLED;
 }
 
 static const struct rtc_class_ops wm8350_rtc_ops = {
@@ -455,15 +459,14 @@ static int wm8350_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	wm8350_mask_irq(wm8350, WM8350_IRQ_RTC_SEC);
-	wm8350_mask_irq(wm8350, WM8350_IRQ_RTC_PER);
-
 	wm8350_register_irq(wm8350, WM8350_IRQ_RTC_SEC,
-			    wm8350_rtc_update_handler, NULL);
+			    wm8350_rtc_update_handler, 0,
+			    "RTC Seconds", wm8350);
+	wm8350_mask_irq(wm8350, WM8350_IRQ_RTC_SEC);
 
 	wm8350_register_irq(wm8350, WM8350_IRQ_RTC_ALM,
-			    wm8350_rtc_alarm_handler, NULL);
-	wm8350_unmask_irq(wm8350, WM8350_IRQ_RTC_ALM);
+			    wm8350_rtc_alarm_handler, 0,
+			    "RTC Alarm", wm8350);
 
 	return 0;
 }
@@ -472,8 +475,6 @@ static int __devexit wm8350_rtc_remove(struct platform_device *pdev)
 {
 	struct wm8350 *wm8350 = platform_get_drvdata(pdev);
 	struct wm8350_rtc *wm_rtc = &wm8350->rtc;
-
-	wm8350_mask_irq(wm8350, WM8350_IRQ_RTC_SEC);
 
 	wm8350_free_irq(wm8350, WM8350_IRQ_RTC_SEC);
 	wm8350_free_irq(wm8350, WM8350_IRQ_RTC_ALM);

@@ -800,7 +800,7 @@ static int wm8350_add_widgets(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	return snd_soc_dapm_new_widgets(codec);
+	return 0;
 }
 
 static int wm8350_set_dai_sysclk(struct snd_soc_dai *codec_dai,
@@ -1101,7 +1101,7 @@ static inline int fll_factors(struct _fll_div *fll_div, unsigned int input,
 }
 
 static int wm8350_set_fll(struct snd_soc_dai *codec_dai,
-			  int pll_id, unsigned int freq_in,
+			  int pll_id, int source, unsigned int freq_in,
 			  unsigned int freq_out)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -1340,9 +1340,10 @@ static int wm8350_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static void wm8350_hp_jack_handler(struct wm8350 *wm8350, int irq, void *data)
+static irqreturn_t wm8350_hp_jack_handler(int irq, void *data)
 {
 	struct wm8350_data *priv = data;
+	struct wm8350 *wm8350 = priv->codec.control_data;
 	u16 reg;
 	int report;
 	int mask;
@@ -1365,7 +1366,7 @@ static void wm8350_hp_jack_handler(struct wm8350 *wm8350, int irq, void *data)
 
 	if (!jack->jack) {
 		dev_warn(wm8350->dev, "Jack interrupt called with no jack\n");
-		return;
+		return IRQ_NONE;
 	}
 
 	/* Debounce */
@@ -1378,6 +1379,8 @@ static void wm8350_hp_jack_handler(struct wm8350 *wm8350, int irq, void *data)
 		report = 0;
 
 	snd_soc_jack_report(jack->jack, report, jack->report);
+
+	return IRQ_HANDLED;
 }
 
 /**
@@ -1421,9 +1424,7 @@ int wm8350_hp_jack_detect(struct snd_soc_codec *codec, enum wm8350_jack which,
 	wm8350_set_bits(wm8350, WM8350_JACK_DETECT, ena);
 
 	/* Sync status */
-	wm8350_hp_jack_handler(wm8350, irq, priv);
-
-	wm8350_unmask_irq(wm8350, irq);
+	wm8350_hp_jack_handler(irq, priv);
 
 	return 0;
 }
@@ -1482,12 +1483,16 @@ static int wm8350_probe(struct platform_device *pdev)
 	wm8350_set_bits(wm8350, WM8350_ROUT2_VOLUME,
 			WM8350_OUT2_VU | WM8350_OUT2R_MUTE);
 
-	wm8350_mask_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_L);
-	wm8350_mask_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_R);
+	/* Make sure jack detect is disabled to start off with */
+	wm8350_clear_bits(wm8350, WM8350_JACK_DETECT,
+			  WM8350_JDL_ENA | WM8350_JDR_ENA);
+
 	wm8350_register_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_L,
-			    wm8350_hp_jack_handler, priv);
+			    wm8350_hp_jack_handler, 0, "Left jack detect",
+			    priv);
 	wm8350_register_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_R,
-			    wm8350_hp_jack_handler, priv);
+			    wm8350_hp_jack_handler, 0, "Right jack detect",
+			    priv);
 
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
 	if (ret < 0) {
@@ -1501,18 +1506,7 @@ static int wm8350_probe(struct platform_device *pdev)
 
 	wm8350_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to register card\n");
-		goto card_err;
-	}
-
 	return 0;
-
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-	return ret;
 }
 
 static int wm8350_remove(struct platform_device *pdev)
@@ -1527,8 +1521,6 @@ static int wm8350_remove(struct platform_device *pdev)
 			  WM8350_JDL_ENA | WM8350_JDR_ENA);
 	wm8350_clear_bits(wm8350, WM8350_POWER_MGMT_4, WM8350_TOCLK_ENA);
 
-	wm8350_mask_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_L);
-	wm8350_mask_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_R);
 	wm8350_free_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_L);
 	wm8350_free_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_R);
 
@@ -1680,21 +1672,6 @@ static int __devexit wm8350_codec_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8350_codec_suspend(struct platform_device *pdev, pm_message_t m)
-{
-	return snd_soc_suspend_device(&pdev->dev);
-}
-
-static int wm8350_codec_resume(struct platform_device *pdev)
-{
-	return snd_soc_resume_device(&pdev->dev);
-}
-#else
-#define wm8350_codec_suspend NULL
-#define wm8350_codec_resume NULL
-#endif
-
 static struct platform_driver wm8350_codec_driver = {
 	.driver = {
 		   .name = "wm8350-codec",
@@ -1702,8 +1679,6 @@ static struct platform_driver wm8350_codec_driver = {
 		   },
 	.probe = wm8350_codec_probe,
 	.remove = __devexit_p(wm8350_codec_remove),
-	.suspend = wm8350_codec_suspend,
-	.resume = wm8350_codec_resume,
 };
 
 static __init int wm8350_init(void)

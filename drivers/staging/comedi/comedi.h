@@ -24,10 +24,6 @@
 #ifndef _COMEDI_H
 #define _COMEDI_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define COMEDI_MAJORVERSION	0
 #define COMEDI_MINORVERSION	7
 #define COMEDI_MICROVERSION	76
@@ -870,9 +866,5 @@ INSN_CONFIG_ARM */
 		AMPLC_DIO_GAT_RESERVED6,
 		AMPLC_DIO_GAT_RESERVED7
 	};
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* _COMEDI_H */

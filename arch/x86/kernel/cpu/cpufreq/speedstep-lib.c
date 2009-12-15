@@ -34,7 +34,7 @@ static int relaxed_check;
  *                   GET PROCESSOR CORE SPEED IN KHZ                 *
  *********************************************************************/
 
-static unsigned int pentium3_get_frequency(unsigned int processor)
+static unsigned int pentium3_get_frequency(enum speedstep_processor processor)
 {
 	/* See table 14 of p3_ds.pdf and table 22 of 29834003.pdf */
 	struct {
@@ -227,7 +227,7 @@ static unsigned int pentium4_get_frequency(void)
 
 
 /* Warning: may get called from smp_call_function_single. */
-unsigned int speedstep_get_frequency(unsigned int processor)
+unsigned int speedstep_get_frequency(enum speedstep_processor processor)
 {
 	switch (processor) {
 	case SPEEDSTEP_CPU_PCORE:
@@ -380,7 +380,7 @@ EXPORT_SYMBOL_GPL(speedstep_detect_processor);
  *                     DETECT SPEEDSTEP SPEEDS                       *
  *********************************************************************/
 
-unsigned int speedstep_get_freqs(unsigned int processor,
+unsigned int speedstep_get_freqs(enum speedstep_processor processor,
 				  unsigned int *low_speed,
 				  unsigned int *high_speed,
 				  unsigned int *transition_latency,

@@ -334,6 +334,15 @@ config TREE_PREEMPT_RCU
 	  is also required.  It also scales down nicely to
 	  smaller systems.
 
+config TINY_RCU
+	bool "UP-only small-memory-footprint RCU"
+	depends on !SMP
+	help
+	  This option selects the RCU implementation that is
+	  designed for UP systems from which real-time response
+	  is not required.  This option greatly reduces the
+	  memory footprint of RCU.
+
 endchoice
 
 config RCU_TRACE
@@ -606,7 +615,7 @@ config SYSFS_DEPRECATED
 	bool
 
 config SYSFS_DEPRECATED_V2
-	bool "enable deprecated sysfs features which may confuse old userspace tools"
+	bool "enable deprecated sysfs features to support old userspace tools"
 	depends on SYSFS
 	default n
 	select SYSFS_DEPRECATED
@@ -754,6 +763,7 @@ config UID16
 
 config SYSCTL_SYSCALL
 	bool "Sysctl syscall support" if EMBEDDED
+	depends on PROC_SYSCTL
 	default y
 	select SYSCTL
 	---help---
@@ -1220,3 +1230,4 @@ source "block/Kconfig"
 config PREEMPT_NOTIFIERS
 	bool
 
+source "kernel/Kconfig.locks"

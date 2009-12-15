@@ -1,0 +1,37 @@
+menuconfig FB_OMAP2
+        tristate "OMAP2/3 frame buffer support (EXPERIMENTAL)"
+        depends on FB && OMAP2_DSS
+
+	select OMAP2_VRAM
+	select OMAP2_VRFB
+        select FB_CFB_FILLRECT
+        select FB_CFB_COPYAREA
+        select FB_CFB_IMAGEBLIT
+        help
+          Frame buffer driver for OMAP2/3 based boards.
+
+config FB_OMAP2_DEBUG_SUPPORT
+	bool "Debug support for OMAP2/3 FB"
+	default y
+	depends on FB_OMAP2
+	help
+	  Support for debug output. You have to enable the actual printing
+	  with debug module parameter.
+
+config FB_OMAP2_FORCE_AUTO_UPDATE
+	bool "Force main display to automatic update mode"
+	depends on FB_OMAP2
+	help
+	  Forces main display to automatic update mode (if possible),
+	  and also enables tearsync (if possible). By default
+	  displays that support manual update are started in manual
+	  update mode.
+
+config FB_OMAP2_NUM_FBS
+	int "Number of framebuffers"
+	range 1 10
+	default 3
+	depends on FB_OMAP2
+	help
+	  Select the number of framebuffers created. OMAP2/3 has 3 overlays
+	  so normally this would be 3.

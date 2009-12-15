@@ -23,3 +23,16 @@ Description:
                 Since this relates to security (specifically, the
                 lifetime of PTKs and GTKs) it should not be changed
                 from the default.
+
+What:           /sys/class/uwb_rc/uwbN/wusbhc/wusb_phy_rate
+Date:           August 2009
+KernelVersion:  2.6.32
+Contact:        David Vrabel <david.vrabel@csr.com>
+Description:
+                The maximum PHY rate to use for all connected devices.
+                This is only of limited use for testing and
+                development as the hardware's automatic rate
+                adaptation is better then this simple control.
+
+                Refer to [ECMA-368] section 10.3.1.1 for the value to
+                use.

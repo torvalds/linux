@@ -57,7 +57,7 @@ MODULE_PARM_DESC(cidmode, "Call-ID mode");
 #define USB_SX353_PRODUCT_ID    0x0022
 
 /* table of devices that work with this driver */
-static const struct usb_device_id gigaset_table [] = {
+static const struct usb_device_id gigaset_table[] = {
 	{ USB_DEVICE(USB_GIGA_VENDOR_ID, USB_3070_PRODUCT_ID) },
 	{ USB_DEVICE(USB_GIGA_VENDOR_ID, USB_3075_PRODUCT_ID) },
 	{ USB_DEVICE(USB_GIGA_VENDOR_ID, USB_SX303_PRODUCT_ID) },
@@ -137,7 +137,7 @@ struct bas_cardstate {
 #define BS_RESETTING	0x200	/* waiting for HD_RESET_INTERRUPT_PIPE_ACK */
 
 
-static struct gigaset_driver *driver = NULL;
+static struct gigaset_driver *driver;
 
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver gigaset_usb_driver = {
@@ -601,11 +601,12 @@ static int atread_submit(struct cardstate *cs, int timeout)
 	ucs->dr_cmd_in.wLength = cpu_to_le16(ucs->rcvbuf_size);
 	usb_fill_control_urb(ucs->urb_cmd_in, ucs->udev,
 			     usb_rcvctrlpipe(ucs->udev, 0),
-			     (unsigned char*) & ucs->dr_cmd_in,
+			     (unsigned char *) &ucs->dr_cmd_in,
 			     ucs->rcvbuf, ucs->rcvbuf_size,
 			     read_ctrl_callback, cs->inbuf);
 
-	if ((ret = usb_submit_urb(ucs->urb_cmd_in, GFP_ATOMIC)) != 0) {
+	ret = usb_submit_urb(ucs->urb_cmd_in, GFP_ATOMIC);
+	if (ret != 0) {
 		update_basstate(ucs, 0, BS_ATRDPEND);
 		dev_err(cs->dev, "could not submit HD_READ_ATMESSAGE: %s\n",
 			get_usb_rcmsg(ret));
@@ -652,13 +653,11 @@ static void read_int_callback(struct urb *urb)
 		return;
 	case -ENODEV:			/* device removed */
 	case -ESHUTDOWN:		/* device shut down */
-		//FIXME use this as disconnect indicator?
 		gig_dbg(DEBUG_USBREQ, "%s: device disconnected", __func__);
 		return;
 	default:		/* severe trouble */
 		dev_warn(cs->dev, "interrupt read: %s\n",
 			 get_usb_statmsg(status));
-		//FIXME corrective action? resubmission always ok?
 		goto resubmit;
 	}
 
@@ -742,7 +741,8 @@ static void read_int_callback(struct urb *urb)
 			kfree(ucs->rcvbuf);
 			ucs->rcvbuf_size = 0;
 		}
-		if ((ucs->rcvbuf = kmalloc(l, GFP_ATOMIC)) == NULL) {
+		ucs->rcvbuf = kmalloc(l, GFP_ATOMIC);
+		if (ucs->rcvbuf == NULL) {
 			spin_unlock_irqrestore(&cs->lock, flags);
 			dev_err(cs->dev, "out of memory receiving AT data\n");
 			error_reset(cs);
@@ -750,12 +750,12 @@ static void read_int_callback(struct urb *urb)
 		}
 		ucs->rcvbuf_size = l;
 		ucs->retry_cmd_in = 0;
-		if ((rc = atread_submit(cs, BAS_TIMEOUT)) < 0) {
+		rc = atread_submit(cs, BAS_TIMEOUT);
+		if (rc < 0) {
 			kfree(ucs->rcvbuf);
 			ucs->rcvbuf = NULL;
 			ucs->rcvbuf_size = 0;
 			if (rc != -ENODEV) {
-				//FIXME corrective action?
 				spin_unlock_irqrestore(&cs->lock, flags);
 				error_reset(cs);
 				break;
@@ -911,7 +911,7 @@ static int starturbs(struct bc_state *bcs)
 	int rc;
 
 	/* initialize L2 reception */
-	if (bcs->proto2 == ISDN_PROTO_L2_HDLC)
+	if (bcs->proto2 == L2_HDLC)
 		bcs->inputstate |= INS_flag_hunt;
 
 	/* submit all isochronous input URBs */
@@ -940,7 +940,8 @@ static int starturbs(struct bc_state *bcs)
 		}
 
 		dump_urb(DEBUG_ISO, "Initial isoc read", urb);
-		if ((rc = usb_submit_urb(urb, GFP_ATOMIC)) != 0)
+		rc = usb_submit_urb(urb, GFP_ATOMIC);
+		if (rc != 0)
 			goto error;
 	}
 
@@ -1045,7 +1046,8 @@ static int submit_iso_write_urb(struct isow_urbctx_t *ucx)
 
 		/* compute frame length according to flow control */
 		ifd->length = BAS_NORMFRAME;
-		if ((corrbytes = atomic_read(&ubc->corrbytes)) != 0) {
+		corrbytes = atomic_read(&ubc->corrbytes);
+		if (corrbytes != 0) {
 			gig_dbg(DEBUG_ISO, "%s: corrbytes=%d",
 				__func__, corrbytes);
 			if (corrbytes > BAS_HIGHFRAME - BAS_NORMFRAME)
@@ -1064,7 +1066,7 @@ static int submit_iso_write_urb(struct isow_urbctx_t *ucx)
 					"%s: buffer busy at frame %d",
 					__func__, nframe);
 				/* tasklet will be restarted from
-				   gigaset_send_skb() */
+				   gigaset_isoc_send_skb() */
 			} else {
 				dev_err(ucx->bcs->cs->dev,
 					"%s: buffer error %d at frame %d\n",
@@ -1284,7 +1286,8 @@ static void read_iso_tasklet(unsigned long data)
 	for (;;) {
 		/* retrieve URB */
 		spin_lock_irqsave(&ubc->isoinlock, flags);
-		if (!(urb = ubc->isoindone)) {
+		urb = ubc->isoindone;
+		if (!urb) {
 			spin_unlock_irqrestore(&ubc->isoinlock, flags);
 			return;
 		}
@@ -1371,7 +1374,7 @@ static void read_iso_tasklet(unsigned long data)
 				 "isochronous read: %d data bytes missing\n",
 				 totleft);
 
-	error:
+error:
 		/* URB processed, resubmit */
 		for (frame = 0; frame < BAS_NUMFRAMES; frame++) {
 			urb->iso_frame_desc[frame].status = 0;
@@ -1568,7 +1571,7 @@ static int req_submit(struct bc_state *bcs, int req, int val, int timeout)
 	ucs->dr_ctrl.wLength = 0;
 	usb_fill_control_urb(ucs->urb_ctrl, ucs->udev,
 			     usb_sndctrlpipe(ucs->udev, 0),
-			     (unsigned char*) &ucs->dr_ctrl, NULL, 0,
+			     (unsigned char *) &ucs->dr_ctrl, NULL, 0,
 			     write_ctrl_callback, ucs);
 	ucs->retry_ctrl = 0;
 	ret = usb_submit_urb(ucs->urb_ctrl, GFP_ATOMIC);
@@ -1621,7 +1624,8 @@ static int gigaset_init_bchannel(struct bc_state *bcs)
 		return -EHOSTUNREACH;
 	}
 
-	if ((ret = starturbs(bcs)) < 0) {
+	ret = starturbs(bcs);
+	if (ret < 0) {
 		dev_err(cs->dev,
 			"could not start isochronous I/O for channel B%d: %s\n",
 			bcs->channel + 1,
@@ -1633,7 +1637,8 @@ static int gigaset_init_bchannel(struct bc_state *bcs)
 	}
 
 	req = bcs->channel ? HD_OPEN_B2CHANNEL : HD_OPEN_B1CHANNEL;
-	if ((ret = req_submit(bcs, req, 0, BAS_TIMEOUT)) < 0) {
+	ret = req_submit(bcs, req, 0, BAS_TIMEOUT);
+	if (ret < 0) {
 		dev_err(cs->dev, "could not open channel B%d\n",
 			bcs->channel + 1);
 		stopurbs(bcs->hw.bas);
@@ -1677,7 +1682,8 @@ static int gigaset_close_bchannel(struct bc_state *bcs)
 
 	/* channel running: tell device to close it */
 	req = bcs->channel ? HD_CLOSE_B2CHANNEL : HD_CLOSE_B1CHANNEL;
-	if ((ret = req_submit(bcs, req, 0, BAS_TIMEOUT)) < 0)
+	ret = req_submit(bcs, req, 0, BAS_TIMEOUT);
+	if (ret < 0)
 		dev_err(cs->dev, "closing channel B%d failed\n",
 			bcs->channel + 1);
 
@@ -1703,10 +1709,12 @@ static void complete_cb(struct cardstate *cs)
 	gig_dbg(DEBUG_TRANSCMD|DEBUG_LOCKCMD,
 		"write_command: sent %u bytes, %u left",
 		cs->curlen, cs->cmdbytes);
-	if ((cs->cmdbuf = cb->next) != NULL) {
+	if (cb->next != NULL) {
+		cs->cmdbuf = cb->next;
 		cs->cmdbuf->prev = NULL;
 		cs->curlen = cs->cmdbuf->len;
 	} else {
+		cs->cmdbuf = NULL;
 		cs->lastcmdbuf = NULL;
 		cs->curlen = 0;
 	}
@@ -1833,7 +1841,7 @@ static int atwrite_submit(struct cardstate *cs, unsigned char *buf, int len)
 	ucs->dr_cmd_out.wLength = cpu_to_le16(len);
 	usb_fill_control_urb(ucs->urb_cmd_out, ucs->udev,
 			     usb_sndctrlpipe(ucs->udev, 0),
-			     (unsigned char*) &ucs->dr_cmd_out, buf, len,
+			     (unsigned char *) &ucs->dr_cmd_out, buf, len,
 			     write_command_callback, cs);
 	rc = usb_submit_urb(ucs->urb_cmd_out, GFP_ATOMIC);
 	if (unlikely(rc)) {
@@ -1953,7 +1961,8 @@ static int gigaset_write_cmd(struct cardstate *cs,
 
 	if (len > IF_WRITEBUF)
 		len = IF_WRITEBUF;
-	if (!(cb = kmalloc(sizeof(struct cmdbuf_t) + len, GFP_ATOMIC))) {
+	cb = kmalloc(sizeof(struct cmdbuf_t) + len, GFP_ATOMIC);
+	if (!cb) {
 		dev_err(cs->dev, "%s: out of memory\n", __func__);
 		rc = -ENOMEM;
 		goto notqueued;
@@ -2100,14 +2109,15 @@ static int gigaset_initbcshw(struct bc_state *bcs)
 	}
 	ubc->isooutdone = ubc->isooutfree = ubc->isooutovfl = NULL;
 	ubc->numsub = 0;
-	if (!(ubc->isooutbuf = kmalloc(sizeof(struct isowbuf_t), GFP_KERNEL))) {
+	ubc->isooutbuf = kmalloc(sizeof(struct isowbuf_t), GFP_KERNEL);
+	if (!ubc->isooutbuf) {
 		pr_err("out of memory\n");
 		kfree(ubc);
 		bcs->hw.bas = NULL;
 		return 0;
 	}
 	tasklet_init(&ubc->sent_tasklet,
-		     &write_iso_tasklet, (unsigned long) bcs);
+		     write_iso_tasklet, (unsigned long) bcs);
 
 	spin_lock_init(&ubc->isoinlock);
 	for (i = 0; i < BAS_INURBS; ++i)
@@ -2128,7 +2138,7 @@ static int gigaset_initbcshw(struct bc_state *bcs)
 	ubc->shared0s = 0;
 	ubc->stolen0s = 0;
 	tasklet_init(&ubc->rcvd_tasklet,
-		     &read_iso_tasklet, (unsigned long) bcs);
+		     read_iso_tasklet, (unsigned long) bcs);
 	return 1;
 }
 
@@ -2252,7 +2262,8 @@ static int gigaset_probe(struct usb_interface *interface,
 		gig_dbg(DEBUG_ANY,
 			"%s: wrong alternate setting %d - trying to switch",
 			__func__, hostif->desc.bAlternateSetting);
-		if (usb_set_interface(udev, hostif->desc.bInterfaceNumber, 3) < 0) {
+		if (usb_set_interface(udev, hostif->desc.bInterfaceNumber, 3)
+		    < 0) {
 			dev_warn(&udev->dev, "usb_set_interface failed, "
 				 "device %d interface %d altsetting %d\n",
 				 udev->devnum, hostif->desc.bInterfaceNumber,
@@ -2321,14 +2332,16 @@ static int gigaset_probe(struct usb_interface *interface,
 					(endpoint->bEndpointAddress) & 0x0f),
 			 ucs->int_in_buf, IP_MSGSIZE, read_int_callback, cs,
 			 endpoint->bInterval);
-	if ((rc = usb_submit_urb(ucs->urb_int_in, GFP_KERNEL)) != 0) {
+	rc = usb_submit_urb(ucs->urb_int_in, GFP_KERNEL);
+	if (rc != 0) {
 		dev_err(cs->dev, "could not submit interrupt URB: %s\n",
 			get_usb_rcmsg(rc));
 		goto error;
 	}
 
 	/* tell the device that the driver is ready */
-	if ((rc = req_submit(cs->bcs, HD_DEVICE_INIT_ACK, 0, 0)) != 0)
+	rc = req_submit(cs->bcs, HD_DEVICE_INIT_ACK, 0, 0);
+	if (rc != 0)
 		goto error;
 
 	/* tell common part that the device is ready */
@@ -2524,9 +2537,10 @@ static int __init bas_gigaset_init(void)
 	int result;
 
 	/* allocate memory for our driver state and intialize it */
-	if ((driver = gigaset_initdriver(GIGASET_MINOR, GIGASET_MINORS,
-				       GIGASET_MODULENAME, GIGASET_DEVNAME,
-				       &gigops, THIS_MODULE)) == NULL)
+	driver = gigaset_initdriver(GIGASET_MINOR, GIGASET_MINORS,
+				    GIGASET_MODULENAME, GIGASET_DEVNAME,
+				    &gigops, THIS_MODULE);
+	if (driver == NULL)
 		goto error;
 
 	/* register this driver with the USB subsystem */

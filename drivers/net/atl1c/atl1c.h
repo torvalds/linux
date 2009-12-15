@@ -470,11 +470,32 @@ struct atl1c_ring_header {
 struct atl1c_buffer {
 	struct sk_buff *skb;	/* socket buffer */
 	u16 length;		/* rx buffer length */
-	u16 state;		/* state of buffer */
-#define ATL1_BUFFER_FREE	0
-#define ATL1_BUFFER_BUSY	1
+	u16 flags;		/* information of buffer */
+#define ATL1C_BUFFER_FREE		0x0001
+#define ATL1C_BUFFER_BUSY		0x0002
+#define ATL1C_BUFFER_STATE_MASK		0x0003
+
+#define ATL1C_PCIMAP_SINGLE		0x0004
+#define ATL1C_PCIMAP_PAGE		0x0008
+#define ATL1C_PCIMAP_TYPE_MASK		0x000C
+
+#define ATL1C_PCIMAP_TODEVICE		0x0010
+#define ATL1C_PCIMAP_FROMDEVICE		0x0020
+#define ATL1C_PCIMAP_DIRECTION_MASK	0x0030
 	dma_addr_t dma;
 };
+
+#define ATL1C_SET_BUFFER_STATE(buff, state) do {	\
+	((buff)->flags) &= ~ATL1C_BUFFER_STATE_MASK;	\
+	((buff)->flags) |= (state);			\
+	} while (0)
+
+#define ATL1C_SET_PCIMAP_TYPE(buff, type, direction) do {	\
+	((buff)->flags) &= ~ATL1C_PCIMAP_TYPE_MASK;		\
+	((buff)->flags) |= (type);				\
+	((buff)->flags) &= ~ATL1C_PCIMAP_DIRECTION_MASK;	\
+	((buff)->flags) |= (direction);				\
+	} while (0)
 
 /* transimit packet descriptor (tpd) ring */
 struct atl1c_tpd_ring {
@@ -534,6 +555,9 @@ struct atl1c_adapter {
 #define __AT_TESTING        0x0001
 #define __AT_RESETTING      0x0002
 #define __AT_DOWN           0x0003
+	u8 work_event;
+#define ATL1C_WORK_EVENT_RESET 		0x01
+#define ATL1C_WORK_EVENT_LINK_CHANGE	0x02
 	u32 msg_enable;
 
 	bool have_msi;
@@ -545,8 +569,7 @@ struct atl1c_adapter {
 	spinlock_t tx_lock;
 	atomic_t irq_sem;
 
-	struct work_struct reset_task;
-	struct work_struct link_chg_task;
+	struct work_struct common_task;
 	struct timer_list watchdog_timer;
 	struct timer_list phy_config_timer;
 

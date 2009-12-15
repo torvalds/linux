@@ -8,7 +8,7 @@
 #include <linux/sched.h>
 #include <linux/tracepoint.h>
 
-TRACE_EVENT(workqueue_insertion,
+DECLARE_EVENT_CLASS(workqueue,
 
 	TP_PROTO(struct task_struct *wq_thread, struct work_struct *work),
 
@@ -30,26 +30,18 @@ TRACE_EVENT(workqueue_insertion,
 		__entry->thread_pid, __entry->func)
 );
 
-TRACE_EVENT(workqueue_execution,
+DEFINE_EVENT(workqueue, workqueue_insertion,
 
 	TP_PROTO(struct task_struct *wq_thread, struct work_struct *work),
 
-	TP_ARGS(wq_thread, work),
+	TP_ARGS(wq_thread, work)
+);
 
-	TP_STRUCT__entry(
-		__array(char,		thread_comm,	TASK_COMM_LEN)
-		__field(pid_t,		thread_pid)
-		__field(work_func_t,	func)
-	),
+DEFINE_EVENT(workqueue, workqueue_execution,
 
-	TP_fast_assign(
-		memcpy(__entry->thread_comm, wq_thread->comm, TASK_COMM_LEN);
-		__entry->thread_pid	= wq_thread->pid;
-		__entry->func		= work->func;
-	),
+	TP_PROTO(struct task_struct *wq_thread, struct work_struct *work),
 
-	TP_printk("thread=%s:%d func=%pf", __entry->thread_comm,
-		__entry->thread_pid, __entry->func)
+	TP_ARGS(wq_thread, work)
 );
 
 /* Trace the creation of one workqueue thread on a cpu */

@@ -15,8 +15,7 @@
 
 #define	SIOCDEVPLIP	SIOCDEVPRIVATE
 
-struct plipconf
-{
+struct plipconf {
 	unsigned short pcmd;
 	unsigned long  nibble;
 	unsigned long  trigger;

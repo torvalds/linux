@@ -255,8 +255,6 @@ xfs_read(
 
 	iocb->ki_pos = *offset;
 	ret = generic_file_aio_read(iocb, iovp, segs, *offset);
-	if (ret == -EIOCBQUEUED && !(ioflags & IO_ISAIO))
-		ret = wait_on_sync_kiocb(iocb);
 	if (ret > 0)
 		XFS_STATS_ADD(xs_read_bytes, ret);
 
@@ -774,9 +772,6 @@ write_retry:
 
 	current->backing_dev_info = NULL;
 
-	if (ret == -EIOCBQUEUED && !(ioflags & IO_ISAIO))
-		ret = wait_on_sync_kiocb(iocb);
-
 	isize = i_size_read(inode);
 	if (unlikely(ret < 0 && ret != -EFAULT && *offset > isize))
 		*offset = isize;
@@ -811,7 +806,7 @@ write_retry:
 	XFS_STATS_ADD(xs_write_bytes, ret);
 
 	/* Handle various SYNC-type writes */
-	if ((file->f_flags & O_SYNC) || IS_SYNC(inode)) {
+	if ((file->f_flags & O_DSYNC) || IS_SYNC(inode)) {
 		loff_t end = pos + ret - 1;
 		int error2;
 

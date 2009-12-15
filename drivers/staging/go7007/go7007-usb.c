@@ -425,7 +425,7 @@ static struct go7007_usb_board board_sensoray_2250 = {
 		.num_i2c_devs	 = 1,
 		.i2c_devs	 = {
 			{
-				.type	= "s2250_board",
+				.type	= "s2250",
 				.id	= I2C_DRIVERID_S2250,
 				.addr	= 0x43,
 			},
@@ -1057,7 +1057,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 			usb_rcvintpipe(usb->usbdev, 4),
 			usb->intr_urb->transfer_buffer, 2*sizeof(u16),
 			go7007_usb_readinterrupt_complete, go, 8);
-	usb_set_intfdata(intf, go);
+	usb_set_intfdata(intf, &go->v4l2_dev);
 
 	/* Boot the GO7007 */
 	if (go7007_boot_encoder(go, go->board_info->flags &
@@ -1233,7 +1233,7 @@ allocfail:
 
 static void go7007_usb_disconnect(struct usb_interface *intf)
 {
-	struct go7007 *go = usb_get_intfdata(intf);
+	struct go7007 *go = to_go7007(usb_get_intfdata(intf));
 	struct go7007_usb *usb = go->hpi_context;
 	struct urb *vurb, *aurb;
 	int i;

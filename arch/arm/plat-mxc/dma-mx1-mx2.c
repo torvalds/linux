@@ -156,7 +156,8 @@ static inline int imx_dma_sg_next(int channel, struct scatterlist *sg)
 	}
 
 	now = min(imxdma->resbytes, sg->length);
-	imxdma->resbytes -= now;
+	if (imxdma->resbytes != IMX_DMA_LENGTH_LOOP)
+		imxdma->resbytes -= now;
 
 	if ((imxdma->dma_mode & DMA_MODE_MASK) == DMA_MODE_READ)
 		__raw_writel(sg->dma_address, DMA_BASE + DMA_DAR(channel));

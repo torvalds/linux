@@ -208,8 +208,6 @@ ENTRY(_user_exception)
 	lwi	r1, r1, TS_THREAD_INFO		/* get the thread info */
 	/* calculate kernel stack pointer */
 	addik	r1, r1, THREAD_SIZE - PT_SIZE
-	swi	r11, r0, PER_CPU(R11_SAVE)	/* temporarily save r11 */
-	lwi	r11, r0, PER_CPU(KM)		/* load mode indicator */
 2:
 	swi	r11, r1, PT_MODE		/* store the mode */
 	lwi	r11, r0, PER_CPU(R11_SAVE)	/* reload r11 */

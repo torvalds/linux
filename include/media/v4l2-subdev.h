@@ -23,6 +23,16 @@
 
 #include <media/v4l2-common.h>
 
+/* generic v4l2_device notify callback notification values */
+#define V4L2_SUBDEV_IR_RX_NOTIFY		_IOW('v', 0, u32)
+#define V4L2_SUBDEV_IR_RX_FIFO_SERVICE_REQ	0x00000001
+#define V4L2_SUBDEV_IR_RX_END_OF_RX_DETECTED	0x00000002
+#define V4L2_SUBDEV_IR_RX_HW_FIFO_OVERRUN	0x00000004
+#define V4L2_SUBDEV_IR_RX_SW_FIFO_OVERRUN	0x00000008
+
+#define V4L2_SUBDEV_IR_TX_NOTIFY		_IOW('v', 1, u32)
+#define V4L2_SUBDEV_IR_TX_FIFO_SERVICE_REQ	0x00000001
+
 struct v4l2_device;
 struct v4l2_subdev;
 struct tuner_setup;
@@ -96,6 +106,9 @@ struct v4l2_decode_vbi_line {
 
    s_gpio: set GPIO pins. Very simple right now, might need to be extended with
 	a direction argument if needed.
+
+   s_power: puts subdevice in power saving mode (on == 0) or normal operation
+	mode (on == 1).
  */
 struct v4l2_subdev_core_ops {
 	int (*g_chip_ident)(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip);
@@ -118,6 +131,7 @@ struct v4l2_subdev_core_ops {
 	int (*g_register)(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg);
 	int (*s_register)(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg);
 #endif
+	int (*s_power)(struct v4l2_subdev *sd, int on);
 };
 
 /* s_mode: switch the tuner to a specific tuner mode. Replacement of s_radio.
@@ -127,8 +141,6 @@ struct v4l2_subdev_core_ops {
    s_type_addr: sets tuner type and its I2C addr.
 
    s_config: sets tda9887 specific stuff, like port1, port2 and qss
-
-   s_standby: puts tuner on powersaving state, disabling it, except for i2c.
  */
 struct v4l2_subdev_tuner_ops {
 	int (*s_mode)(struct v4l2_subdev *sd, enum v4l2_tuner_type);
@@ -141,7 +153,6 @@ struct v4l2_subdev_tuner_ops {
 	int (*s_modulator)(struct v4l2_subdev *sd, struct v4l2_modulator *vm);
 	int (*s_type_addr)(struct v4l2_subdev *sd, struct tuner_setup *type);
 	int (*s_config)(struct v4l2_subdev *sd, const struct v4l2_priv_tun_config *config);
-	int (*s_standby)(struct v4l2_subdev *sd);
 };
 
 /* s_clock_freq: set the frequency (in Hz) of the audio clock output.
@@ -231,11 +242,95 @@ struct v4l2_subdev_video_ops {
 	int (*enum_frameintervals)(struct v4l2_subdev *sd, struct v4l2_frmivalenum *fival);
 };
 
+/*
+   interrupt_service_routine: Called by the bridge chip's interrupt service
+	handler, when an IR interrupt status has be raised due to this subdev,
+	so that this subdev can handle the details.  It may schedule work to be
+	performed later.  It must not sleep.  *Called from an IRQ context*.
+
+   [rt]x_g_parameters: Get the current operating parameters and state of the
+	the IR receiver or transmitter.
+
+   [rt]x_s_parameters: Set the current operating parameters and state of the
+	the IR receiver or transmitter.  It is recommended to call
+	[rt]x_g_parameters first to fill out the current state, and only change
+	the fields that need to be changed.  Upon return, the actual device
+	operating parameters and state will be returned.  Note that hardware
+	limitations may prevent the actual settings from matching the requested
+	settings - e.g. an actual carrier setting of 35,904 Hz when 36,000 Hz
+	was requested.  An exception is when the shutdown parameter is true.
+	The last used operational parameters will be returned, but the actual
+	state of the hardware be different to minimize power consumption and
+	processing when shutdown is true.
+
+   rx_read: Reads received codes or pulse width data.
+	The semantics are similar to a non-blocking read() call.
+
+   tx_write: Writes codes or pulse width data for transmission.
+	The semantics are similar to a non-blocking write() call.
+ */
+
+enum v4l2_subdev_ir_mode {
+	V4L2_SUBDEV_IR_MODE_PULSE_WIDTH, /* space & mark widths in nanosecs */
+};
+
+/* Data format of data read or written for V4L2_SUBDEV_IR_MODE_PULSE_WIDTH */
+#define V4L2_SUBDEV_IR_PULSE_MAX_WIDTH_NS	0x7fffffff
+#define V4L2_SUBDEV_IR_PULSE_LEVEL_MASK		0x80000000
+#define V4L2_SUBDEV_IR_PULSE_RX_SEQ_END		0xffffffff
+
+struct v4l2_subdev_ir_parameters {
+	/* Either Rx or Tx */
+	unsigned int bytes_per_data_element; /* of data in read or write call */
+	enum v4l2_subdev_ir_mode mode;
+
+	bool enable;
+	bool interrupt_enable;
+	bool shutdown; /* true: set hardware to low/no power, false: normal */
+
+	bool modulation;           /* true: uses carrier, false: baseband */
+	u32 max_pulse_width;       /* ns,      valid only for baseband signal */
+	unsigned int carrier_freq; /* Hz,      valid only for modulated signal*/
+	unsigned int duty_cycle;   /* percent, valid only for modulated signal*/
+	bool invert;		   /* logically invert sense of mark/space */
+
+	/* Rx only */
+	u32 noise_filter_min_width;       /* ns, min time of a valid pulse */
+	unsigned int carrier_range_lower; /* Hz, valid only for modulated sig */
+	unsigned int carrier_range_upper; /* Hz, valid only for modulated sig */
+	u32 resolution;                   /* ns */
+};
+
+struct v4l2_subdev_ir_ops {
+	/* Common to receiver and transmitter */
+	int (*interrupt_service_routine)(struct v4l2_subdev *sd,
+						u32 status, bool *handled);
+
+	/* Receiver */
+	int (*rx_read)(struct v4l2_subdev *sd, u8 *buf, size_t count,
+				ssize_t *num);
+
+	int (*rx_g_parameters)(struct v4l2_subdev *sd,
+				struct v4l2_subdev_ir_parameters *params);
+	int (*rx_s_parameters)(struct v4l2_subdev *sd,
+				struct v4l2_subdev_ir_parameters *params);
+
+	/* Transmitter */
+	int (*tx_write)(struct v4l2_subdev *sd, u8 *buf, size_t count,
+				ssize_t *num);
+
+	int (*tx_g_parameters)(struct v4l2_subdev *sd,
+				struct v4l2_subdev_ir_parameters *params);
+	int (*tx_s_parameters)(struct v4l2_subdev *sd,
+				struct v4l2_subdev_ir_parameters *params);
+};
+
 struct v4l2_subdev_ops {
 	const struct v4l2_subdev_core_ops  *core;
 	const struct v4l2_subdev_tuner_ops *tuner;
 	const struct v4l2_subdev_audio_ops *audio;
 	const struct v4l2_subdev_video_ops *video;
+	const struct v4l2_subdev_ir_ops    *ir;
 };
 
 #define V4L2_SUBDEV_NAME_SIZE 32
@@ -290,7 +385,7 @@ static inline void v4l2_subdev_init(struct v4l2_subdev *sd,
    Example: err = v4l2_subdev_call(sd, core, g_chip_ident, &chip);
  */
 #define v4l2_subdev_call(sd, o, f, args...)				\
-	(!(sd) ? -ENODEV : (((sd) && (sd)->ops->o && (sd)->ops->o->f) ?	\
+	(!(sd) ? -ENODEV : (((sd)->ops->o && (sd)->ops->o->f) ?	\
 		(sd)->ops->o->f((sd) , ##args) : -ENOIOCTLCMD))
 
 /* Send a notification to v4l2_device. */

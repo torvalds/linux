@@ -1050,8 +1050,8 @@ static void scan_object(struct kmemleak_object *object)
 	unsigned long flags;
 
 	/*
-	 * Once the object->lock is aquired, the corresponding memory block
-	 * cannot be freed (the same lock is aquired in delete_object).
+	 * Once the object->lock is acquired, the corresponding memory block
+	 * cannot be freed (the same lock is acquired in delete_object).
 	 */
 	spin_lock_irqsave(&object->lock, flags);
 	if (object->flags & OBJECT_NO_SCAN)

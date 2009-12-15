@@ -4,8 +4,8 @@
 /*
  * OMAP2/3 Clock Management (CM) register definitions
  *
- * Copyright (C) 2007-2008 Texas Instruments, Inc.
- * Copyright (C) 2007-2008 Nokia Corporation
+ * Copyright (C) 2007-2009 Texas Instruments, Inc.
+ * Copyright (C) 2007-2009 Nokia Corporation
  *
  * Written by Paul Walmsley
  *
@@ -17,11 +17,17 @@
 #include "prcm-common.h"
 
 #define OMAP2420_CM_REGADDR(module, reg)				\
-			OMAP2_IO_ADDRESS(OMAP2420_CM_BASE + (module) + (reg))
+			OMAP2_L4_IO_ADDRESS(OMAP2420_CM_BASE + (module) + (reg))
 #define OMAP2430_CM_REGADDR(module, reg)				\
-			OMAP2_IO_ADDRESS(OMAP2430_CM_BASE + (module) + (reg))
+			OMAP2_L4_IO_ADDRESS(OMAP2430_CM_BASE + (module) + (reg))
 #define OMAP34XX_CM_REGADDR(module, reg)				\
-			OMAP2_IO_ADDRESS(OMAP3430_CM_BASE + (module) + (reg))
+			OMAP2_L4_IO_ADDRESS(OMAP3430_CM_BASE + (module) + (reg))
+#define OMAP44XX_CM1_REGADDR(module, reg)				\
+			OMAP2_L4_IO_ADDRESS(OMAP4430_CM1_BASE + (module) + (reg))
+#define OMAP44XX_CM2_REGADDR(module, reg)				\
+			OMAP2_L4_IO_ADDRESS(OMAP4430_CM2_BASE + (module) + (reg))
+
+#include "cm44xx.h"
 
 /*
  * Architecture-specific global CM registers
@@ -89,6 +95,11 @@
 #define OMAP3430_CM_CLKSEL2_EMU				0x0050
 #define OMAP3430_CM_CLKSEL3_EMU				0x0054
 
+/* CM2.CEFUSE_CM2 register offsets */
+
+/* OMAP4 modulemode control */
+#define OMAP4430_MODULEMODE_HWCTRL			0
+#define OMAP4430_MODULEMODE_SWCTRL			1
 
 /* Clock management domain register get/set */
 

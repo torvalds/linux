@@ -13,11 +13,15 @@
 #include <asm/e820.h>
 #include <asm/time.h>
 #include <asm/irq.h>
+#include <asm/pat.h>
 #include <asm/tsc.h>
+#include <asm/iommu.h>
 
 void __cpuinit x86_init_noop(void) { }
 void __init x86_init_uint_noop(unsigned int unused) { }
 void __init x86_init_pgd_noop(pgd_t *unused) { }
+int __init iommu_init_noop(void) { return 0; }
+void iommu_shutdown_noop(void) { }
 
 /*
  * The platform setup functions are preset with the default functions
@@ -62,6 +66,10 @@ struct x86_init_ops x86_init __initdata = {
 		.tsc_pre_init		= x86_init_noop,
 		.timer_init		= hpet_time_init,
 	},
+
+	.iommu = {
+		.iommu_init		= iommu_init_noop,
+	},
 };
 
 struct x86_cpuinit_ops x86_cpuinit __cpuinitdata = {
@@ -72,4 +80,6 @@ struct x86_platform_ops x86_platform = {
 	.calibrate_tsc			= native_calibrate_tsc,
 	.get_wallclock			= mach_get_cmos_time,
 	.set_wallclock			= mach_set_rtc_mmss,
+	.iommu_shutdown			= iommu_shutdown_noop,
+	.is_untracked_pat_range		= is_ISA_range,
 };

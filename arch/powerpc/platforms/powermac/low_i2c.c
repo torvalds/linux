@@ -42,6 +42,7 @@
 #include <linux/interrupt.h>
 #include <linux/timer.h>
 #include <linux/mutex.h>
+#include <linux/i2c.h>
 #include <asm/keylargo.h>
 #include <asm/uninorth.h>
 #include <asm/io.h>
@@ -80,7 +81,7 @@ struct pmac_i2c_bus
 	struct device_node	*busnode;
 	int			type;
 	int			flags;
-	struct i2c_adapter	*adapter;
+	struct i2c_adapter	adapter;
 	void			*hostdata;
 	int			channel;	/* some hosts have multiple */
 	int			mode;		/* current mode */
@@ -1014,25 +1015,9 @@ int pmac_i2c_get_channel(struct pmac_i2c_bus *bus)
 EXPORT_SYMBOL_GPL(pmac_i2c_get_channel);
 
 
-void pmac_i2c_attach_adapter(struct pmac_i2c_bus *bus,
-			     struct i2c_adapter *adapter)
-{
-	WARN_ON(bus->adapter != NULL);
-	bus->adapter = adapter;
-}
-EXPORT_SYMBOL_GPL(pmac_i2c_attach_adapter);
-
-void pmac_i2c_detach_adapter(struct pmac_i2c_bus *bus,
-			     struct i2c_adapter *adapter)
-{
-	WARN_ON(bus->adapter != adapter);
-	bus->adapter = NULL;
-}
-EXPORT_SYMBOL_GPL(pmac_i2c_detach_adapter);
-
 struct i2c_adapter *pmac_i2c_get_adapter(struct pmac_i2c_bus *bus)
 {
-	return bus->adapter;
+	return &bus->adapter;
 }
 EXPORT_SYMBOL_GPL(pmac_i2c_get_adapter);
 
@@ -1041,7 +1026,7 @@ struct pmac_i2c_bus *pmac_i2c_adapter_to_bus(struct i2c_adapter *adapter)
 	struct pmac_i2c_bus *bus;
 
 	list_for_each_entry(bus, &pmac_i2c_busses, link)
-		if (bus->adapter == adapter)
+		if (&bus->adapter == adapter)
 			return bus;
 	return NULL;
 }
@@ -1053,7 +1038,7 @@ int pmac_i2c_match_adapter(struct device_node *dev, struct i2c_adapter *adapter)
 
 	if (bus == NULL)
 		return 0;
-	return (bus->adapter == adapter);
+	return (&bus->adapter == adapter);
 }
 EXPORT_SYMBOL_GPL(pmac_i2c_match_adapter);
 

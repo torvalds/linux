@@ -9,8 +9,7 @@
 extern unsigned int nf_ct_expect_hsize;
 extern unsigned int nf_ct_expect_max;
 
-struct nf_conntrack_expect
-{
+struct nf_conntrack_expect {
 	/* Conntrack expectation list member */
 	struct hlist_node lnode;
 
@@ -64,8 +63,7 @@ static inline struct net *nf_ct_exp_net(struct nf_conntrack_expect *exp)
 #endif
 }
 
-struct nf_conntrack_expect_policy
-{
+struct nf_conntrack_expect_policy {
 	unsigned int	max_expected;
 	unsigned int	timeout;
 };

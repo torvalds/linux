@@ -922,8 +922,7 @@ static void stmmac_dma_interrupt(struct net_device *dev)
 		DBG(intr, INFO, "CSR5[15] DMA ABNORMAL IRQ: ");
 		if (unlikely(intr_status & DMA_STATUS_UNF)) {
 			DBG(intr, INFO, "transmit underflow\n");
-			if (unlikely(tc != SF_DMA_MODE)
-			    && (tc <= 256)) {
+			if (unlikely(tc != SF_DMA_MODE) && (tc <= 256)) {
 				/* Try to bump up the threshold */
 				tc += 64;
 				priv->mac_type->ops->dma_mode(ioaddr, tc,
@@ -1024,7 +1023,7 @@ static int stmmac_open(struct net_device *dev)
 	}
 
 	/* Request the IRQ lines */
-	ret = request_irq(dev->irq, &stmmac_interrupt,
+	ret = request_irq(dev->irq, stmmac_interrupt,
 			  IRQF_SHARED, dev->name, dev);
 	if (unlikely(ret < 0)) {
 		pr_err("%s: ERROR: allocating the IRQ %d (error: %d)\n",

@@ -10,6 +10,7 @@
 #include <linux/time.h>
 #include <linux/mutex.h>
 #include <linux/debugfs.h>
+#include <linux/scatterlist.h>
 #include <asm/uaccess.h>
 
 #include "usb_mon.h"
@@ -137,6 +138,8 @@ static inline char mon_text_get_setup(struct mon_event_text *ep,
 static inline char mon_text_get_data(struct mon_event_text *ep, struct urb *urb,
     int len, char ev_type, struct mon_bus *mbus)
 {
+	void *src;
+
 	if (len <= 0)
 		return 'L';
 	if (len >= DATA_MAX)
@@ -150,10 +153,24 @@ static inline char mon_text_get_data(struct mon_event_text *ep, struct urb *urb,
 			return '>';
 	}
 
-	if (urb->transfer_buffer == NULL)
-		return 'Z';	/* '0' would be not as pretty. */
+	if (urb->num_sgs == 0) {
+		src = urb->transfer_buffer;
+		if (src == NULL)
+			return 'Z';	/* '0' would be not as pretty. */
+	} else {
+		struct scatterlist *sg = urb->sg->sg;
 
-	memcpy(ep->data, urb->transfer_buffer, len);
+		/* If IOMMU coalescing occurred, we cannot trust sg_page */
+		if (urb->sg->nents != urb->num_sgs ||
+				PageHighMem(sg_page(sg)))
+			return 'D';
+
+		/* For the text interface we copy only the first sg buffer */
+		len = min_t(int, sg->length, len);
+		src = sg_virt(sg);
+	}
+
+	memcpy(ep->data, src, len);
 	return 0;
 }
 

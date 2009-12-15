@@ -501,7 +501,7 @@ static int __init com90xx_found(int ioaddr, int airq, u_long shmem, void __iomem
 		goto err_free_dev;
 
 	/* reserve the irq */
-	if (request_irq(airq, &arcnet_interrupt, 0, "arcnet (90xx)", dev)) {
+	if (request_irq(airq, arcnet_interrupt, 0, "arcnet (90xx)", dev)) {
 		BUGMSG(D_NORMAL, "Can't get IRQ %d!\n", airq);
 		goto err_release_mem;
 	}

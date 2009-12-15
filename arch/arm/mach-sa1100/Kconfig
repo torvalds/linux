@@ -4,6 +4,7 @@ menu "SA11x0 Implementations"
 
 config SA1100_ASSABET
 	bool "Assabet"
+	select CPU_FREQ_SA1110
 	help
 	  Say Y here if you are using the Intel(R) StrongARM(R) SA-1110
 	  Microprocessor Development Board (also known as the Assabet).
@@ -19,6 +20,7 @@ config ASSABET_NEPONSET
 
 config SA1100_CERF
 	bool "CerfBoard"
+	select CPU_FREQ_SA1110
 	help
 	  The Intrinsyc CerfBoard is based on the StrongARM 1110 (Discontinued).
 	  More information is available at:
@@ -45,6 +47,7 @@ endchoice
 
 config SA1100_COLLIE
 	bool "Sharp Zaurus SL5500"
+	# FIXME: select CPU_FREQ_SA11x0
 	select SHARP_LOCOMO
 	select SHARP_SCOOP
 	select SHARP_PARAM
@@ -53,27 +56,30 @@ config SA1100_COLLIE
 
 config SA1100_H3100
 	bool "Compaq iPAQ H3100"
+	select HTC_EGPIO
+	select CPU_FREQ_SA1100
 	help
 	  Say Y here if you intend to run this kernel on the Compaq iPAQ
 	  H3100 handheld computer.  Information about this machine and the
 	  Linux port to this machine can be found at:
 
 	  <http://www.handhelds.org/Compaq/index.html#iPAQ_H3100>
-	  <http://www.compaq.com/products/handhelds/pocketpc/>
 
 config SA1100_H3600
 	bool "Compaq iPAQ H3600/H3700"
+	select HTC_EGPIO
+	select CPU_FREQ_SA1100
 	help
 	  Say Y here if you intend to run this kernel on the Compaq iPAQ
 	  H3600 handheld computer.  Information about this machine and the
 	  Linux port to this machine can be found at:
 
 	  <http://www.handhelds.org/Compaq/index.html#iPAQ_H3600>
-	  <http://www.compaq.com/products/handhelds/pocketpc/>
 
 config SA1100_BADGE4
 	bool "HP Labs BadgePAD 4"
 	select SA1111
+	select CPU_FREQ_SA1100
 	help
 	  Say Y here if you want to build a kernel for the HP Laboratories
 	  BadgePAD 4.
@@ -81,6 +87,7 @@ config SA1100_BADGE4
 config SA1100_JORNADA720
 	bool "HP Jornada 720"
 	select SA1111
+	# FIXME: select CPU_FREQ_SA11x0
 	help
 	  Say Y here if you want to build a kernel for the HP Jornada 720
 	  handheld computer.  See <http://www.hp.com/jornada/products/720>
@@ -98,12 +105,14 @@ config SA1100_JORNADA720_SSP
 
 config SA1100_HACKKIT
 	bool "HackKit Core CPU Board"
+	select CPU_FREQ_SA1100
 	help
 	  Say Y here to support the HackKit Core CPU Board
 	  <http://hackkit.eletztrick.de>;
 
 config SA1100_LART
 	bool "LART"
+	select CPU_FREQ_SA1100
 	help
 	  Say Y here if you are using the Linux Advanced Radio Terminal
 	  (also known as the LART).  See <http://www.lartmaker.nl/> for
@@ -111,6 +120,7 @@ config SA1100_LART
 
 config SA1100_PLEB
 	bool "PLEB"
+	select CPU_FREQ_SA1100
 	help
 	  Say Y here if you are using version 1 of the Portable Linux
 	  Embedded Board (also known as PLEB).
@@ -119,6 +129,7 @@ config SA1100_PLEB
 
 config SA1100_SHANNON
 	bool "Shannon"
+	select CPU_FREQ_SA1100
 	help
 	  The Shannon (also known as a Tuxscreen, and also as a IS2630) was a
 	  limited edition webphone produced by Philips. The Shannon is a SA1100
@@ -127,6 +138,7 @@ config SA1100_SHANNON
 
 config SA1100_SIMPAD
 	bool "Simpad"
+	select CPU_FREQ_SA1110
 	help
 	  The SIEMENS webpad SIMpad is based on the StrongARM 1110. There
 	  are two different versions CL4 and SL4. CL4 has 32MB RAM and 16MB
@@ -145,3 +157,4 @@ config SA1100_SSP
 endmenu
 
 endif
+

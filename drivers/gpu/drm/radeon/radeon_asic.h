@@ -76,6 +76,12 @@ int r100_clear_surface_reg(struct radeon_device *rdev, int reg);
 void r100_bandwidth_update(struct radeon_device *rdev);
 void r100_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 int r100_ring_test(struct radeon_device *rdev);
+void r100_hdp_flush(struct radeon_device *rdev);
+void r100_hpd_init(struct radeon_device *rdev);
+void r100_hpd_fini(struct radeon_device *rdev);
+bool r100_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd);
+void r100_hpd_set_polarity(struct radeon_device *rdev,
+			   enum radeon_hpd_id hpd);
 
 static struct radeon_asic r100_asic = {
 	.init = &r100_init,
@@ -107,6 +113,11 @@ static struct radeon_asic r100_asic = {
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
 	.bandwidth_update = &r100_bandwidth_update,
+	.hdp_flush = &r100_hdp_flush,
+	.hpd_init = &r100_hpd_init,
+	.hpd_fini = &r100_hpd_fini,
+	.hpd_sense = &r100_hpd_sense,
+	.hpd_set_polarity = &r100_hpd_set_polarity,
 };
 
 
@@ -162,6 +173,11 @@ static struct radeon_asic r300_asic = {
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
 	.bandwidth_update = &r100_bandwidth_update,
+	.hdp_flush = &r100_hdp_flush,
+	.hpd_init = &r100_hpd_init,
+	.hpd_fini = &r100_hpd_fini,
+	.hpd_sense = &r100_hpd_sense,
+	.hpd_set_polarity = &r100_hpd_set_polarity,
 };
 
 /*
@@ -201,6 +217,11 @@ static struct radeon_asic r420_asic = {
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
 	.bandwidth_update = &r100_bandwidth_update,
+	.hdp_flush = &r100_hdp_flush,
+	.hpd_init = &r100_hpd_init,
+	.hpd_fini = &r100_hpd_fini,
+	.hpd_sense = &r100_hpd_sense,
+	.hpd_set_polarity = &r100_hpd_set_polarity,
 };
 
 
@@ -245,6 +266,11 @@ static struct radeon_asic rs400_asic = {
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
 	.bandwidth_update = &r100_bandwidth_update,
+	.hdp_flush = &r100_hdp_flush,
+	.hpd_init = &r100_hpd_init,
+	.hpd_fini = &r100_hpd_fini,
+	.hpd_sense = &r100_hpd_sense,
+	.hpd_set_polarity = &r100_hpd_set_polarity,
 };
 
 
@@ -263,6 +289,12 @@ int rs600_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
 uint32_t rs600_mc_rreg(struct radeon_device *rdev, uint32_t reg);
 void rs600_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 void rs600_bandwidth_update(struct radeon_device *rdev);
+void rs600_hpd_init(struct radeon_device *rdev);
+void rs600_hpd_fini(struct radeon_device *rdev);
+bool rs600_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd);
+void rs600_hpd_set_polarity(struct radeon_device *rdev,
+			    enum radeon_hpd_id hpd);
+
 static struct radeon_asic rs600_asic = {
 	.init = &rs600_init,
 	.fini = &rs600_fini,
@@ -291,6 +323,11 @@ static struct radeon_asic rs600_asic = {
 	.set_pcie_lanes = NULL,
 	.set_clock_gating = &radeon_atom_set_clock_gating,
 	.bandwidth_update = &rs600_bandwidth_update,
+	.hdp_flush = &r100_hdp_flush,
+	.hpd_init = &rs600_hpd_init,
+	.hpd_fini = &rs600_hpd_fini,
+	.hpd_sense = &rs600_hpd_sense,
+	.hpd_set_polarity = &rs600_hpd_set_polarity,
 };
 
 
@@ -334,6 +371,11 @@ static struct radeon_asic rs690_asic = {
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
 	.bandwidth_update = &rs690_bandwidth_update,
+	.hdp_flush = &r100_hdp_flush,
+	.hpd_init = &rs600_hpd_init,
+	.hpd_fini = &rs600_hpd_fini,
+	.hpd_sense = &rs600_hpd_sense,
+	.hpd_set_polarity = &rs600_hpd_set_polarity,
 };
 
 
@@ -381,6 +423,11 @@ static struct radeon_asic rv515_asic = {
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
 	.bandwidth_update = &rv515_bandwidth_update,
+	.hdp_flush = &r100_hdp_flush,
+	.hpd_init = &rs600_hpd_init,
+	.hpd_fini = &rs600_hpd_fini,
+	.hpd_sense = &rs600_hpd_sense,
+	.hpd_set_polarity = &rs600_hpd_set_polarity,
 };
 
 
@@ -419,6 +466,11 @@ static struct radeon_asic r520_asic = {
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
 	.bandwidth_update = &rv515_bandwidth_update,
+	.hdp_flush = &r100_hdp_flush,
+	.hpd_init = &rs600_hpd_init,
+	.hpd_fini = &rs600_hpd_fini,
+	.hpd_sense = &rs600_hpd_sense,
+	.hpd_set_polarity = &rs600_hpd_set_polarity,
 };
 
 /*
@@ -455,6 +507,12 @@ int r600_ring_test(struct radeon_device *rdev);
 int r600_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset, uint64_t dst_offset,
 		   unsigned num_pages, struct radeon_fence *fence);
+void r600_hdp_flush(struct radeon_device *rdev);
+void r600_hpd_init(struct radeon_device *rdev);
+void r600_hpd_fini(struct radeon_device *rdev);
+bool r600_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd);
+void r600_hpd_set_polarity(struct radeon_device *rdev,
+			   enum radeon_hpd_id hpd);
 
 static struct radeon_asic r600_asic = {
 	.init = &r600_init,
@@ -470,6 +528,7 @@ static struct radeon_asic r600_asic = {
 	.ring_ib_execute = &r600_ring_ib_execute,
 	.irq_set = &r600_irq_set,
 	.irq_process = &r600_irq_process,
+	.get_vblank_counter = &rs600_get_vblank_counter,
 	.fence_ring_emit = &r600_fence_ring_emit,
 	.cs_parse = &r600_cs_parse,
 	.copy_blit = &r600_copy_blit,
@@ -484,6 +543,11 @@ static struct radeon_asic r600_asic = {
 	.set_surface_reg = r600_set_surface_reg,
 	.clear_surface_reg = r600_clear_surface_reg,
 	.bandwidth_update = &rv515_bandwidth_update,
+	.hdp_flush = &r600_hdp_flush,
+	.hpd_init = &r600_hpd_init,
+	.hpd_fini = &r600_hpd_fini,
+	.hpd_sense = &r600_hpd_sense,
+	.hpd_set_polarity = &r600_hpd_set_polarity,
 };
 
 /*
@@ -509,6 +573,7 @@ static struct radeon_asic rv770_asic = {
 	.ring_ib_execute = &r600_ring_ib_execute,
 	.irq_set = &r600_irq_set,
 	.irq_process = &r600_irq_process,
+	.get_vblank_counter = &rs600_get_vblank_counter,
 	.fence_ring_emit = &r600_fence_ring_emit,
 	.cs_parse = &r600_cs_parse,
 	.copy_blit = &r600_copy_blit,
@@ -523,6 +588,11 @@ static struct radeon_asic rv770_asic = {
 	.set_surface_reg = r600_set_surface_reg,
 	.clear_surface_reg = r600_clear_surface_reg,
 	.bandwidth_update = &rv515_bandwidth_update,
+	.hdp_flush = &r600_hdp_flush,
+	.hpd_init = &r600_hpd_init,
+	.hpd_fini = &r600_hpd_fini,
+	.hpd_sense = &r600_hpd_sense,
+	.hpd_set_polarity = &r600_hpd_set_polarity,
 };
 
 #endif

@@ -46,12 +46,6 @@ void machine_crash_shutdown(struct pt_regs *regs)
  */
 int machine_kexec_prepare(struct kimage *image)
 {
-	/* older versions of kexec-tools are passing
-	 * the zImage entry point as a virtual address.
-	 */
-	if (image->start != PHYSADDR(image->start))
-		return -EINVAL; /* upgrade your kexec-tools */
-
 	return 0;
 }
 

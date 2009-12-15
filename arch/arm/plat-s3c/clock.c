@@ -1,6 +1,6 @@
 /* linux/arch/arm/plat-s3c24xx/clock.c
  *
- * Copyright (c) 2004-2005 Simtec Electronics
+ * Copyright 2004-2005 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C24XX Core clock control support
@@ -337,7 +337,7 @@ int s3c24xx_register_clocks(struct clk **clks, int nr_clks)
 
 int __init s3c24xx_register_baseclocks(unsigned long xtal)
 {
-	printk(KERN_INFO "S3C24XX Clocks, (c) 2004 Simtec Electronics\n");
+	printk(KERN_INFO "S3C24XX Clocks, Copyright 2004 Simtec Electronics\n");
 
 	clk_xtal.rate = xtal;
 

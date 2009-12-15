@@ -136,7 +136,8 @@ static const struct ivtv_card ivtv_card_pvr350 = {
 	.hw_audio = IVTV_HW_MSP34XX,
 	.hw_audio_ctrl = IVTV_HW_MSP34XX,
 	.hw_all = IVTV_HW_MSP34XX | IVTV_HW_SAA7115 |
-		  IVTV_HW_SAA7127 | IVTV_HW_TVEEPROM | IVTV_HW_TUNER,
+		  IVTV_HW_SAA7127 | IVTV_HW_TVEEPROM | IVTV_HW_TUNER |
+		  IVTV_HW_I2C_IR_RX_HAUP_EXT | IVTV_HW_I2C_IR_RX_HAUP_INT,
 	.video_inputs = {
 		{ IVTV_CARD_INPUT_VID_TUNER,  0, IVTV_SAA71XX_COMPOSITE4 },
 		{ IVTV_CARD_INPUT_SVIDEO1,    1, IVTV_SAA71XX_SVIDEO0    },
@@ -199,7 +200,9 @@ static const struct ivtv_card ivtv_card_pvr150 = {
 	.hw_audio_ctrl = IVTV_HW_CX25840,
 	.hw_muxer = IVTV_HW_WM8775,
 	.hw_all = IVTV_HW_WM8775 | IVTV_HW_CX25840 |
-		  IVTV_HW_TVEEPROM | IVTV_HW_TUNER,
+		  IVTV_HW_TVEEPROM | IVTV_HW_TUNER |
+		  IVTV_HW_I2C_IR_RX_HAUP_EXT | IVTV_HW_I2C_IR_RX_HAUP_INT |
+		  IVTV_HW_Z8F0811_IR_HAUP,
 	.video_inputs = {
 		{ IVTV_CARD_INPUT_VID_TUNER,  0, CX25840_COMPOSITE7 },
 		{ IVTV_CARD_INPUT_SVIDEO1,    1, CX25840_SVIDEO1    },
@@ -955,7 +958,8 @@ static const struct ivtv_card ivtv_card_avertv_mce116 = {
 	.hw_video = IVTV_HW_CX25840,
 	.hw_audio = IVTV_HW_CX25840,
 	.hw_audio_ctrl = IVTV_HW_CX25840,
-	.hw_all = IVTV_HW_CX25840 | IVTV_HW_TUNER | IVTV_HW_WM8739,
+	.hw_all = IVTV_HW_CX25840 | IVTV_HW_TUNER | IVTV_HW_WM8739 |
+		  IVTV_HW_I2C_IR_RX_AVER,
 	.video_inputs = {
 		{ IVTV_CARD_INPUT_VID_TUNER,  0, CX25840_COMPOSITE2 },
 		{ IVTV_CARD_INPUT_SVIDEO1,    1, CX25840_SVIDEO3    },
@@ -965,6 +969,7 @@ static const struct ivtv_card ivtv_card_avertv_mce116 = {
 		{ IVTV_CARD_INPUT_AUD_TUNER,  CX25840_AUDIO5       },
 		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL, 1 },
 	},
+	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER,  CX25840_AUDIO5 },
 	/* enable line-in */
 	.gpio_init = { .direction = 0xe000, .initial_value = 0x4000 },
 	.xceive_pin = 10,
@@ -1025,13 +1030,15 @@ static const struct ivtv_card ivtv_card_aver_pvr150 = {
 /* AVerMedia UltraTV 1500 MCE (newer non-cx88 version, M113 variant) card */
 
 static const struct ivtv_card_pci_info ivtv_pci_aver_ultra1500mce[] = {
-	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_AVERMEDIA, 0xc019 },
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_AVERMEDIA, 0xc019 }, /* NTSC */
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_AVERMEDIA, 0xc01b }, /* PAL/SECAM */
 	{ 0, 0, 0 }
 };
 
 static const struct ivtv_card ivtv_card_aver_ultra1500mce = {
 	.type = IVTV_CARD_AVER_ULTRA1500MCE,
 	.name = "AVerMedia UltraTV 1500 MCE / AVerTV M113 Philips Tuner",
+	.comment = "For non-NTSC tuners, use the pal= or secam= module options",
 	.v4l2_capabilities = IVTV_CAP_ENCODER,
 	.hw_video = IVTV_HW_CX25840,
 	.hw_audio = IVTV_HW_CX25840,
@@ -1058,6 +1065,7 @@ static const struct ivtv_card ivtv_card_aver_ultra1500mce = {
 	.tuners = {
 		/* The UltraTV 1500 MCE has a Philips FM1236 MK5 TV/FM tuner */
 		{ .std = V4L2_STD_MN, .tuner = TUNER_PHILIPS_FM1236_MK3 },
+		{ .std = V4L2_STD_PAL_SECAM, .tuner = TUNER_PHILIPS_FM1216MK5 },
 	},
 	.pci_list = ivtv_pci_aver_ultra1500mce,
 	.i2c = &ivtv_i2c_std,

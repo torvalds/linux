@@ -78,6 +78,12 @@ enum tda18271_output_options {
 	TDA18271_OUTPUT_XT_OFF = 2,
 };
 
+enum tda18271_small_i2c {
+	TDA18271_39_BYTE_CHUNK_INIT = 0,
+	TDA18271_16_BYTE_CHUNK_INIT = 1,
+	TDA18271_08_BYTE_CHUNK_INIT = 2,
+};
+
 struct tda18271_config {
 	/* override default if freq / std settings (optional) */
 	struct tda18271_std_map *std_map;
@@ -91,11 +97,11 @@ struct tda18271_config {
 	/* output options that can be disabled */
 	enum tda18271_output_options output_opt;
 
+	/* some i2c providers cant write all 39 registers at once */
+	enum tda18271_small_i2c small_i2c;
+
 	/* force rf tracking filter calibration on startup */
 	unsigned int rf_cal_on_startup:1;
-
-	/* some i2c providers cant write all 39 registers at once */
-	unsigned int small_i2c:1;
 
 	/* interface to saa713x / tda829x */
 	unsigned int config;

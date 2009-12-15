@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v2.2"
+#define DRIVER_VERSION "v2.3"
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "Stirling/ITL USB-DUX -- Bernd.Porr@f2s.com"
 /*
@@ -80,6 +80,7 @@ sampling rate. If you sample two channels you get 4kHz and so on.
  * 2.0:  PWM seems to be stable and is not interfering with the other functions
  * 2.1:  changed PWM API
  * 2.2:  added firmware kernel request to fix an udev problem
+ * 2.3:  corrected a bug in bulk timeouts which were far too short
  *
  */
 
@@ -101,8 +102,8 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 
 #define BOARDNAME "usbdux"
 
-/* timeout for the USB-transfer */
-#define EZTIMEOUT 30
+/* timeout for the USB-transfer in ms*/
+#define BULK_TIMEOUT 1000
 
 /* constants for "firmware" upload and download */
 #define USBDUXSUB_FIRMWARE 0xA0
@@ -750,7 +751,7 @@ static int usbduxsub_start(struct usbduxsub *usbduxsub)
 				  /* Length */
 				  1,
 				  /* Timeout */
-				  EZTIMEOUT);
+				  BULK_TIMEOUT);
 	if (errcode < 0) {
 		dev_err(&usbduxsub->interface->dev,
 			"comedi_: control msg failed (start)\n");
@@ -780,7 +781,7 @@ static int usbduxsub_stop(struct usbduxsub *usbduxsub)
 				  /* Length */
 				  1,
 				  /* Timeout */
-				  EZTIMEOUT);
+				  BULK_TIMEOUT);
 	if (errcode < 0) {
 		dev_err(&usbduxsub->interface->dev,
 			"comedi_: control msg failed (stop)\n");
@@ -810,7 +811,7 @@ static int usbduxsub_upload(struct usbduxsub *usbduxsub,
 				  /* length */
 				  len,
 				  /* timeout */
-				  EZTIMEOUT);
+				  BULK_TIMEOUT);
 	dev_dbg(&usbduxsub->interface->dev, "comedi_: result=%d\n", errcode);
 	if (errcode < 0) {
 		dev_err(&usbduxsub->interface->dev, "comedi_: upload failed\n");
@@ -979,7 +980,7 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 
 	/*
 	 * step 2: make sure trigger sources are unique and mutually compatible
-	 * note that mutual compatiblity is not an issue here
+	 * note that mutual compatibility is not an issue here
 	 */
 	if (cmd->scan_begin_src != TRIG_FOLLOW &&
 	    cmd->scan_begin_src != TRIG_EXT &&
@@ -1110,7 +1111,7 @@ static int send_dux_commands(struct usbduxsub *this_usbduxsub, int cmd_type)
 			      usb_sndbulkpipe(this_usbduxsub->usbdev,
 					      COMMAND_OUT_EP),
 			      this_usbduxsub->dux_commands, SIZEOFDUXBUFFER,
-			      &nsent, 10);
+			      &nsent, BULK_TIMEOUT);
 	if (result < 0)
 		dev_err(&this_usbduxsub->interface->dev, "comedi%d: "
 			"could not transmit dux_command to the usb-device, "
@@ -1130,7 +1131,7 @@ static int receive_dux_commands(struct usbduxsub *this_usbduxsub, int command)
 				      usb_rcvbulkpipe(this_usbduxsub->usbdev,
 						      COMMAND_IN_EP),
 				      this_usbduxsub->insnBuffer, SIZEINSNBUF,
-				      &nrec, 1);
+				      &nrec, BULK_TIMEOUT);
 		if (result < 0) {
 			dev_err(&this_usbduxsub->interface->dev, "comedi%d: "
 				"insn: USB error %d while receiving DUX command"
@@ -1557,7 +1558,7 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 
 	/*
 	 * step 2: make sure trigger sources are unique and mutually compatible
-	 * note that mutual compatiblity is not an issue here
+	 * note that mutual compatibility is not an issue here
 	 */
 	if (cmd->scan_begin_src != TRIG_FOLLOW &&
 	    cmd->scan_begin_src != TRIG_EXT &&
@@ -2327,9 +2328,11 @@ static void usbdux_firmware_request_complete_handler(const struct firmware *fw,
 	if (ret) {
 		dev_err(&usbdev->dev,
 			"Could not upload firmware (err=%d)\n", ret);
-		return;
+		goto out;
 	}
 	comedi_usb_auto_config(usbdev, BOARDNAME);
+ out:
+	release_firmware(fw);
 }
 
 /* allocate memory for the urbs and initialise them */
@@ -2580,6 +2583,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 				      FW_ACTION_HOTPLUG,
 				      "usbdux_firmware.bin",
 				      &udev->dev,
+				      GFP_KERNEL,
 				      usbduxsub + index,
 				      usbdux_firmware_request_complete_handler);
 

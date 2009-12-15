@@ -7,7 +7,6 @@ struct msr_info {
 	u32 msr_no;
 	struct msr reg;
 	struct msr *msrs;
-	int off;
 	int err;
 };
 
@@ -18,7 +17,7 @@ static void __rdmsr_on_cpu(void *info)
 	int this_cpu = raw_smp_processor_id();
 
 	if (rv->msrs)
-		reg = &rv->msrs[this_cpu - rv->off];
+		reg = per_cpu_ptr(rv->msrs, this_cpu);
 	else
 		reg = &rv->reg;
 
@@ -32,7 +31,7 @@ static void __wrmsr_on_cpu(void *info)
 	int this_cpu = raw_smp_processor_id();
 
 	if (rv->msrs)
-		reg = &rv->msrs[this_cpu - rv->off];
+		reg = per_cpu_ptr(rv->msrs, this_cpu);
 	else
 		reg = &rv->reg;
 
@@ -71,6 +70,27 @@ int wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
 }
 EXPORT_SYMBOL(wrmsr_on_cpu);
 
+static void __rwmsr_on_cpus(const struct cpumask *mask, u32 msr_no,
+			    struct msr *msrs,
+			    void (*msr_func) (void *info))
+{
+	struct msr_info rv;
+	int this_cpu;
+
+	memset(&rv, 0, sizeof(rv));
+
+	rv.msrs	  = msrs;
+	rv.msr_no = msr_no;
+
+	this_cpu = get_cpu();
+
+	if (cpumask_test_cpu(this_cpu, mask))
+		msr_func(&rv);
+
+	smp_call_function_many(mask, msr_func, &rv, 1);
+	put_cpu();
+}
+
 /* rdmsr on a bunch of CPUs
  *
  * @mask:       which CPUs
@@ -78,24 +98,9 @@ EXPORT_SYMBOL(wrmsr_on_cpu);
  * @msrs:       array of MSR values
  *
  */
-void rdmsr_on_cpus(const cpumask_t *mask, u32 msr_no, struct msr *msrs)
+void rdmsr_on_cpus(const struct cpumask *mask, u32 msr_no, struct msr *msrs)
 {
-	struct msr_info rv;
-	int this_cpu;
-
-	memset(&rv, 0, sizeof(rv));
-
-	rv.off    = cpumask_first(mask);
-	rv.msrs	  = msrs;
-	rv.msr_no = msr_no;
-
-	this_cpu = get_cpu();
-
-	if (cpumask_test_cpu(this_cpu, mask))
-		__rdmsr_on_cpu(&rv);
-
-	smp_call_function_many(mask, __rdmsr_on_cpu, &rv, 1);
-	put_cpu();
+	__rwmsr_on_cpus(mask, msr_no, msrs, __rdmsr_on_cpu);
 }
 EXPORT_SYMBOL(rdmsr_on_cpus);
 
@@ -107,26 +112,31 @@ EXPORT_SYMBOL(rdmsr_on_cpus);
  * @msrs:       array of MSR values
  *
  */
-void wrmsr_on_cpus(const cpumask_t *mask, u32 msr_no, struct msr *msrs)
+void wrmsr_on_cpus(const struct cpumask *mask, u32 msr_no, struct msr *msrs)
 {
-	struct msr_info rv;
-	int this_cpu;
-
-	memset(&rv, 0, sizeof(rv));
-
-	rv.off    = cpumask_first(mask);
-	rv.msrs   = msrs;
-	rv.msr_no = msr_no;
-
-	this_cpu = get_cpu();
-
-	if (cpumask_test_cpu(this_cpu, mask))
-		__wrmsr_on_cpu(&rv);
-
-	smp_call_function_many(mask, __wrmsr_on_cpu, &rv, 1);
-	put_cpu();
+	__rwmsr_on_cpus(mask, msr_no, msrs, __wrmsr_on_cpu);
 }
 EXPORT_SYMBOL(wrmsr_on_cpus);
+
+struct msr *msrs_alloc(void)
+{
+	struct msr *msrs = NULL;
+
+	msrs = alloc_percpu(struct msr);
+	if (!msrs) {
+		pr_warning("%s: error allocating msrs\n", __func__);
+		return NULL;
+	}
+
+	return msrs;
+}
+EXPORT_SYMBOL(msrs_alloc);
+
+void msrs_free(struct msr *msrs)
+{
+	free_percpu(msrs);
+}
+EXPORT_SYMBOL(msrs_free);
 
 /* These "safe" variants are slower and should be used when the target MSR
    may not actually exist. */

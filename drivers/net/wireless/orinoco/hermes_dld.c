@@ -427,7 +427,7 @@ int hermesi_program_init(hermes_t *hw, u32 offset)
 	if (err)
 		return err;
 
-	pr_debug(KERN_DEBUG PFX "Enabling volatile, EP 0x%08x\n", offset);
+	pr_debug(PFX "Enabling volatile, EP 0x%08x\n", offset);
 	err = hermes_doicmd_wait(hw,
 				 HERMES_PROGRAM_ENABLE_VOLATILE,
 				 offset & 0xFFFFu,
@@ -550,7 +550,7 @@ static const struct {							\
 
 #define DEFAULT_PDR(pid) default_pdr_data_##pid
 
-/*  HWIF Compatiblity */
+/*  HWIF Compatibility */
 DEFINE_DEFAULT_PDR(0x0005, 10, "\x00\x00\x06\x00\x01\x00\x01\x00\x01\x00");
 
 /* PPPPSign */
@@ -656,7 +656,7 @@ int hermes_apply_pda_with_defaults(hermes_t *hw,
 					 record_id + 1, pdi);
 			}
 			break;
-		case 0x5: /*  HWIF Compatiblity */
+		case 0x5: /*  HWIF Compatibility */
 			default_pdi = (struct pdi *) &DEFAULT_PDR(0x0005);
 			break;
 		case 0x108: /* PPPPSign */

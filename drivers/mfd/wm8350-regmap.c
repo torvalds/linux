@@ -3170,14 +3170,6 @@ const u16 wm8352_mode3_defaults[] = {
 };
 #endif
 
-/* The register defaults for the config mode used must be compiled in but
- * due to the impact on kernel size it is possible to disable
- */
-#ifndef WM8350_HAVE_CONFIG_MODE
-#warning No WM8350 config modes supported - select at least one of the
-#warning MFD_WM8350_CONFIG_MODE_n options from the board driver.
-#endif
-
 /*
  * Access masks.
  */

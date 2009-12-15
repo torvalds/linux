@@ -320,7 +320,9 @@ int ieee80211_data_to_8023(struct sk_buff *skb, u8 *addr,
 		break;
 	case cpu_to_le16(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS):
 		if (unlikely(iftype != NL80211_IFTYPE_WDS &&
-			     iftype != NL80211_IFTYPE_MESH_POINT))
+			     iftype != NL80211_IFTYPE_MESH_POINT &&
+			     iftype != NL80211_IFTYPE_AP_VLAN &&
+			     iftype != NL80211_IFTYPE_STATION))
 			return -1;
 		if (iftype == NL80211_IFTYPE_MESH_POINT) {
 			struct ieee80211s_hdr *meshdr =
@@ -656,7 +658,14 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 	    !(rdev->wiphy.interface_modes & (1 << ntype)))
 		return -EOPNOTSUPP;
 
+	/* if it's part of a bridge, reject changing type to station/ibss */
+	if (dev->br_port && (ntype == NL80211_IFTYPE_ADHOC ||
+			     ntype == NL80211_IFTYPE_STATION))
+		return -EBUSY;
+
 	if (ntype != otype) {
+		dev->ieee80211_ptr->use_4addr = false;
+
 		switch (otype) {
 		case NL80211_IFTYPE_ADHOC:
 			cfg80211_leave_ibss(rdev, dev, false);
@@ -679,6 +688,35 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 					     ntype, flags, params);
 
 	WARN_ON(!err && dev->ieee80211_ptr->iftype != ntype);
+
+	if (!err && params && params->use_4addr != -1)
+		dev->ieee80211_ptr->use_4addr = params->use_4addr;
+
+	if (!err) {
+		dev->priv_flags &= ~IFF_DONT_BRIDGE;
+		switch (ntype) {
+		case NL80211_IFTYPE_STATION:
+			if (dev->ieee80211_ptr->use_4addr)
+				break;
+			/* fall through */
+		case NL80211_IFTYPE_ADHOC:
+			dev->priv_flags |= IFF_DONT_BRIDGE;
+			break;
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_AP_VLAN:
+		case NL80211_IFTYPE_WDS:
+		case NL80211_IFTYPE_MESH_POINT:
+			/* bridging OK */
+			break;
+		case NL80211_IFTYPE_MONITOR:
+			/* monitor can't bridge anyway */
+			break;
+		case NL80211_IFTYPE_UNSPECIFIED:
+		case __NL80211_IFTYPE_AFTER_LAST:
+			/* not happening */
+			break;
+		}
+	}
 
 	return err;
 }

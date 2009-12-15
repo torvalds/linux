@@ -806,7 +806,7 @@ static void xdi_xlog_request (byte Adapter, byte Id,
           DELIVERY - indication entered isdn_rc function
           RNR=...  - application had returned RNR=... after the
                      look ahead callback
-          RNum=0   - aplication had not returned any buffer to copy
+          RNum=0   - application had not returned any buffer to copy
                      this indication and will copy it self
           COMPLETE - XDI had copied the data to the buffers provided
                      bu the application and is about to issue the

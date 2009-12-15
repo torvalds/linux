@@ -1672,35 +1672,26 @@ static int adm1026_detect(struct i2c_client *client, int kind,
 		i2c_adapter_id(client->adapter), client->addr,
 		company, verstep);
 
-	/* If auto-detecting, Determine the chip type. */
-	if (kind <= 0) {
-		dev_dbg(&adapter->dev, "Autodetecting device at %d,0x%02x "
-			"...\n", i2c_adapter_id(adapter), address);
-		if (company == ADM1026_COMPANY_ANALOG_DEV
-		    && verstep == ADM1026_VERSTEP_ADM1026) {
-			kind = adm1026;
-		} else if (company == ADM1026_COMPANY_ANALOG_DEV
-			&& (verstep & 0xf0) == ADM1026_VERSTEP_GENERIC) {
-			dev_err(&adapter->dev, "Unrecognized stepping "
-				"0x%02x. Defaulting to ADM1026.\n", verstep);
-			kind = adm1026;
-		} else if ((verstep & 0xf0) == ADM1026_VERSTEP_GENERIC) {
-			dev_err(&adapter->dev, "Found version/stepping "
-				"0x%02x. Assuming generic ADM1026.\n",
-				verstep);
-			kind = any_chip;
-		} else {
-			dev_dbg(&adapter->dev, "Autodetection failed\n");
-			/* Not an ADM1026 ... */
-			if (kind == 0) { /* User used force=x,y */
-				dev_err(&adapter->dev, "Generic ADM1026 not "
-					"found at %d,0x%02x.  Try "
-					"force_adm1026.\n",
-					i2c_adapter_id(adapter), address);
-			}
-			return -ENODEV;
-		}
+	/* Determine the chip type. */
+	dev_dbg(&adapter->dev, "Autodetecting device at %d,0x%02x...\n",
+		i2c_adapter_id(adapter), address);
+	if (company == ADM1026_COMPANY_ANALOG_DEV
+	    && verstep == ADM1026_VERSTEP_ADM1026) {
+		/* Analog Devices ADM1026 */
+	} else if (company == ADM1026_COMPANY_ANALOG_DEV
+		&& (verstep & 0xf0) == ADM1026_VERSTEP_GENERIC) {
+		dev_err(&adapter->dev, "Unrecognized stepping "
+			"0x%02x. Defaulting to ADM1026.\n", verstep);
+	} else if ((verstep & 0xf0) == ADM1026_VERSTEP_GENERIC) {
+		dev_err(&adapter->dev, "Found version/stepping "
+			"0x%02x. Assuming generic ADM1026.\n",
+			verstep);
+	} else {
+		dev_dbg(&adapter->dev, "Autodetection failed\n");
+		/* Not an ADM1026... */
+		return -ENODEV;
 	}
+
 	strlcpy(info->type, "adm1026", I2C_NAME_SIZE);
 
 	return 0;

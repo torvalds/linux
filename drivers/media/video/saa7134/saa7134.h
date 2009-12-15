@@ -297,6 +297,8 @@ struct saa7134_format {
 #define SAA7134_BOARD_BEHOLD_X7             171
 #define SAA7134_BOARD_ROVERMEDIA_LINK_PRO_FM 172
 #define SAA7134_BOARD_ZOLID_HYBRID_PCI		173
+#define SAA7134_BOARD_ASUS_EUROPA_HYBRID	174
+#define SAA7134_BOARD_LEADTEK_WINFAST_DTV1000S 175
 
 #define SAA7134_MAXBOARDS 32
 #define SAA7134_INPUT_MAX 8
@@ -592,7 +594,6 @@ struct saa7134_dev {
 	unsigned int               insuspend;
 
 	/* I2C keyboard data */
-	struct i2c_board_info      info;
 	struct IR_i2c_init_data    init_data;
 
 	/* SAA7134_MPEG_* */

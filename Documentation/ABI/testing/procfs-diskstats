@@ -8,7 +8,7 @@ Description:
 		 1 - major number
 		 2 - minor mumber
 		 3 - device name
-		 4 - reads completed succesfully
+		 4 - reads completed successfully
 		 5 - reads merged
 		 6 - sectors read
 		 7 - time spent reading (ms)

@@ -34,7 +34,7 @@ enum {
 
 	SATA_FSL_HOST_FLAGS	= (ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
-				ATA_FLAG_PMP | ATA_FLAG_NCQ),
+				ATA_FLAG_PMP | ATA_FLAG_NCQ | ATA_FLAG_AN),
 
 	SATA_FSL_MAX_CMDS	= SATA_FSL_QUEUE_DEPTH,
 	SATA_FSL_CMD_HDR_SIZE	= 16,	/* 4 DWORDS */
@@ -43,9 +43,9 @@ enum {
 	/*
 	 * SATA-FSL host controller supports a max. of (15+1) direct PRDEs, and
 	 * chained indirect PRDEs upto a max count of 63.
-	 * We are allocating an array of 63 PRDEs contigiously, but PRDE#15 will
+	 * We are allocating an array of 63 PRDEs contiguously, but PRDE#15 will
 	 * be setup as an indirect descriptor, pointing to it's next
-	 * (contigious) PRDE. Though chained indirect PRDE arrays are
+	 * (contiguous) PRDE. Though chained indirect PRDE arrays are
 	 * supported,it will be more efficient to use a direct PRDT and
 	 * a single chain/link to indirect PRDE array/PRDT.
 	 */
@@ -132,7 +132,7 @@ enum {
 	INT_ON_SINGL_DEVICE_ERR = (1 << 1),
 	INT_ON_CMD_COMPLETE = 1,
 
-	INT_ON_ERROR = INT_ON_FATAL_ERR |
+	INT_ON_ERROR = INT_ON_FATAL_ERR | INT_ON_SNOTIFY_UPDATE |
 	    INT_ON_PHYRDY_CHG | INT_ON_SINGL_DEVICE_ERR,
 
 	/*
@@ -153,7 +153,7 @@ enum {
 	IE_ON_CMD_COMPLETE = 1,
 
 	DEFAULT_PORT_IRQ_ENABLE_MASK = IE_ON_FATAL_ERR | IE_ON_PHYRDY_CHG |
-	    IE_ON_SIGNATURE_UPDATE |
+	    IE_ON_SIGNATURE_UPDATE | IE_ON_SNOTIFY_UPDATE |
 	    IE_ON_SINGL_DEVICE_ERR | IE_ON_CMD_COMPLETE,
 
 	EXT_INDIRECT_SEG_PRD_FLAG = (1 << 31),
@@ -314,7 +314,7 @@ static unsigned int sata_fsl_fill_sg(struct ata_queued_cmd *qc, void *cmd_desc,
 	u32 ttl_dwords = 0;
 
 	/*
-	 * NOTE : direct & indirect prdt's are contigiously allocated
+	 * NOTE : direct & indirect prdt's are contiguously allocated
 	 */
 	struct prde *prd = (struct prde *)&((struct command_desc *)
 					    cmd_desc)->prdt;
@@ -992,9 +992,8 @@ static void sata_fsl_error_intr(struct ata_port *ap)
 	 */
 
 	sata_fsl_scr_read(&ap->link, SCR_ERROR, &SError);
-	if (unlikely(SError & 0xFFFF0000)) {
+	if (unlikely(SError & 0xFFFF0000))
 		sata_fsl_scr_write(&ap->link, SCR_ERROR, SError);
-	}
 
 	DPRINTK("error_intr,hStat=0x%x,CE=0x%x,DE =0x%x,SErr=0x%x\n",
 		hstatus, cereg, ioread32(hcr_base + DE), SError);
@@ -1006,6 +1005,10 @@ static void sata_fsl_error_intr(struct ata_port *ap)
 
 		freeze = 1;
 	}
+
+	/* Handle SDB FIS receive & notify update */
+	if (hstatus & INT_ON_SNOTIFY_UPDATE)
+		sata_async_notification(ap);
 
 	/* Handle PHYRDY change notification */
 	if (hstatus & INT_ON_PHYRDY_CHG) {
@@ -1070,9 +1073,9 @@ static void sata_fsl_error_intr(struct ata_port *ap)
 	}
 
 	/* record error info */
-	if (qc) {
+	if (qc)
 		qc->err_mask |= err_mask;
-	} else
+	else
 		ehi->err_mask |= err_mask;
 
 	ehi->action |= action;
@@ -1103,7 +1106,6 @@ static void sata_fsl_host_intr(struct ata_port *ap)
 	if (unlikely(SError & 0xFFFF0000)) {
 		DPRINTK("serror @host_intr : 0x%x\n", SError);
 		sata_fsl_error_intr(ap);
-
 	}
 
 	if (unlikely(hstatus & INT_ON_ERROR)) {

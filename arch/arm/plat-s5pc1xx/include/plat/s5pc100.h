@@ -35,10 +35,9 @@ extern struct clk clk_hpll;
 extern struct clk clk_hd0;
 extern struct clk clk_pd0;
 extern struct clk clk_54m;
-extern struct clk clk_dout_mpll2;
 extern void s5pc1xx_register_clocks(void);
-extern int s5pc1xx_sclk0_ctrl(struct clk *clk, int enable);
-extern int s5pc1xx_sclk1_ctrl(struct clk *clk, int enable);
+extern int s5pc100_sclk0_ctrl(struct clk *clk, int enable);
+extern int s5pc100_sclk1_ctrl(struct clk *clk, int enable);
 
 /* Some day, belows will be moved to plat-s5pc/include/plat/devs.h */
 extern struct s3c24xx_uart_resources s5pc1xx_uart_resources[];

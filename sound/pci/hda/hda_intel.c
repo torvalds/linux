@@ -60,9 +60,13 @@ static int bdl_pos_adj[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = -1};
 static int probe_mask[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = -1};
 static int probe_only[SNDRV_CARDS];
 static int single_cmd;
-static int enable_msi;
+static int enable_msi = -1;
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 static char *patch[SNDRV_CARDS];
+#endif
+#ifdef CONFIG_SND_HDA_INPUT_BEEP
+static int beep_mode[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] =
+					CONFIG_SND_HDA_INPUT_BEEP_MODE};
 #endif
 
 module_param_array(index, int, NULL, 0444);
@@ -90,6 +94,11 @@ MODULE_PARM_DESC(enable_msi, "Enable Message Signaled Interrupt (MSI)");
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 module_param_array(patch, charp, NULL, 0444);
 MODULE_PARM_DESC(patch, "Patch file for Intel HD audio interface.");
+#endif
+#ifdef CONFIG_SND_HDA_INPUT_BEEP
+module_param_array(beep_mode, int, NULL, 0444);
+MODULE_PARM_DESC(beep_mode, "Select HDA Beep registration mode "
+			    "(0=off, 1=on, 2=mute switch on/off) (default=1).");
 #endif
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -404,6 +413,7 @@ struct azx {
 	unsigned short codec_mask;
 	int  codec_probe_mask; /* copied from probe_mask option */
 	struct hda_bus *bus;
+	unsigned int beep_mode;
 
 	/* CORB/RIRB */
 	struct azx_rb corb;
@@ -677,6 +687,14 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus,
 		}
 	}
 
+	if (!chip->polling_mode) {
+		snd_printk(KERN_WARNING SFX "azx_get_response timeout, "
+			   "switching to polling mode: last cmd=0x%08x\n",
+			   chip->last_cmd[addr]);
+		chip->polling_mode = 1;
+		goto again;
+	}
+
 	if (chip->msi) {
 		snd_printk(KERN_WARNING SFX "No response from codec, "
 			   "disabling MSI: last cmd=0x%08x\n",
@@ -689,14 +707,6 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus,
 			bus->rirb_error = 1;
 			return -1;
 		}
-		goto again;
-	}
-
-	if (!chip->polling_mode) {
-		snd_printk(KERN_WARNING SFX "azx_get_response timeout, "
-			   "switching to polling mode: last cmd=0x%08x\n",
-			   chip->last_cmd[addr]);
-		chip->polling_mode = 1;
 		goto again;
 	}
 
@@ -1404,6 +1414,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model)
 			err = snd_hda_codec_new(chip->bus, c, &codec);
 			if (err < 0)
 				continue;
+			codec->beep_mode = chip->beep_mode;
 			codecs++;
 		}
 	}
@@ -2071,7 +2082,8 @@ static void azx_power_notify(struct hda_bus *bus)
 	}
 	if (power_on)
 		azx_init_chip(chip);
-	else if (chip->running && power_save_controller)
+	else if (chip->running && power_save_controller &&
+		 !bus->power_keep_link_on)
 		azx_stop_chip(chip);
 }
 #endif /* CONFIG_SND_HDA_POWER_SAVE */
@@ -2154,6 +2166,7 @@ static int azx_resume(struct pci_dev *pci)
 static int azx_halt(struct notifier_block *nb, unsigned long event, void *buf)
 {
 	struct azx *chip = container_of(nb, struct azx, reboot_notifier);
+	snd_hda_bus_reboot_notify(chip->bus);
 	azx_stop_chip(chip);
 	return NOTIFY_OK;
 }
@@ -2221,7 +2234,9 @@ static int azx_dev_free(struct snd_device *device)
 static struct snd_pci_quirk position_fix_list[] __devinitdata = {
 	SND_PCI_QUIRK(0x1028, 0x01cc, "Dell D820", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1028, 0x01de, "Dell Precision 390", POS_FIX_LPIB),
+	SND_PCI_QUIRK(0x103c, 0x306d, "HP dv3", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1043, 0x813d, "ASUS P5AD2", POS_FIX_LPIB),
+	SND_PCI_QUIRK(0x1462, 0x1002, "MSI Wind U115", POS_FIX_LPIB),
 	{}
 };
 
@@ -2304,11 +2319,9 @@ static void __devinit check_probe_mask(struct azx *chip, int dev)
 }
 
 /*
- * white-list for enable_msi
+ * white/black-list for enable_msi
  */
-static struct snd_pci_quirk msi_white_list[] __devinitdata = {
-	SND_PCI_QUIRK(0x103c, 0x30f7, "HP Pavilion dv4t-1300", 1),
-	SND_PCI_QUIRK(0x103c, 0x3607, "HP Compa CQ40", 1),
+static struct snd_pci_quirk msi_black_list[] __devinitdata = {
 	{}
 };
 
@@ -2316,10 +2329,12 @@ static void __devinit check_msi(struct azx *chip)
 {
 	const struct snd_pci_quirk *q;
 
-	chip->msi = enable_msi;
-	if (chip->msi)
+	if (enable_msi >= 0) {
+		chip->msi = !!enable_msi;
 		return;
-	q = snd_pci_quirk_lookup(chip->pci, msi_white_list);
+	}
+	chip->msi = 1;	/* enable MSI as default */
+	q = snd_pci_quirk_lookup(chip->pci, msi_black_list);
 	if (q) {
 		printk(KERN_INFO
 		       "hda_intel: msi for device %04x:%04x set to %d\n",
@@ -2435,6 +2450,11 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 			pci_dev_put(p_smbus);
 		}
 	}
+
+	/* disable 64bit DMA address for Teradici */
+	/* it does not work with device 6549:1200 subsys e4a2:040b */
+	if (chip->driver_type == AZX_DRIVER_TERA)
+		gcap &= ~ICH6_GCAP_64OK;
 
 	/* allow 64bit DMA address if supported by H/W */
 	if ((gcap & ICH6_GCAP_64OK) && !pci_set_dma_mask(pci, DMA_BIT_MASK(64)))
@@ -2577,6 +2597,10 @@ static int __devinit azx_probe(struct pci_dev *pci,
 	if (err < 0)
 		goto out_free;
 	card->private_data = chip;
+
+#ifdef CONFIG_SND_HDA_INPUT_BEEP
+	chip->beep_mode = beep_mode[dev];
+#endif
 
 	/* create codec instances */
 	err = azx_codec_create(chip, model[dev]);

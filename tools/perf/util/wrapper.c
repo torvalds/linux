@@ -79,43 +79,12 @@ void *xrealloc(void *ptr, size_t size)
 	return ret;
 }
 
-void *xcalloc(size_t nmemb, size_t size)
-{
-	void *ret = calloc(nmemb, size);
-	if (!ret && (!nmemb || !size))
-		ret = calloc(1, 1);
-	if (!ret) {
-		release_pack_memory(nmemb * size, -1);
-		ret = calloc(nmemb, size);
-		if (!ret && (!nmemb || !size))
-			ret = calloc(1, 1);
-		if (!ret)
-			die("Out of memory, calloc failed");
-	}
-	return ret;
-}
-
-void *xmmap(void *start, size_t length,
-	int prot, int flags, int fd, off_t offset)
-{
-	void *ret = mmap(start, length, prot, flags, fd, offset);
-	if (ret == MAP_FAILED) {
-		if (!length)
-			return NULL;
-		release_pack_memory(length, fd);
-		ret = mmap(start, length, prot, flags, fd, offset);
-		if (ret == MAP_FAILED)
-			die("Out of memory? mmap failed: %s", strerror(errno));
-	}
-	return ret;
-}
-
 /*
  * xread() is the same a read(), but it automatically restarts read()
  * operations with a recoverable error (EAGAIN and EINTR). xread()
  * DOES NOT GUARANTEE that "len" bytes is read even if the data is available.
  */
-ssize_t xread(int fd, void *buf, size_t len)
+static ssize_t xread(int fd, void *buf, size_t len)
 {
 	ssize_t nr;
 	while (1) {
@@ -131,7 +100,7 @@ ssize_t xread(int fd, void *buf, size_t len)
  * operations with a recoverable error (EAGAIN and EINTR). xwrite() DOES NOT
  * GUARANTEE that "len" bytes is written even if the operation is successful.
  */
-ssize_t xwrite(int fd, const void *buf, size_t len)
+static ssize_t xwrite(int fd, const void *buf, size_t len)
 {
 	ssize_t nr;
 	while (1) {
@@ -178,30 +147,4 @@ ssize_t write_in_full(int fd, const void *buf, size_t count)
 	}
 
 	return total;
-}
-
-int xdup(int fd)
-{
-	int ret = dup(fd);
-	if (ret < 0)
-		die("dup failed: %s", strerror(errno));
-	return ret;
-}
-
-FILE *xfdopen(int fd, const char *mode)
-{
-	FILE *stream = fdopen(fd, mode);
-	if (stream == NULL)
-		die("Out of memory? fdopen failed: %s", strerror(errno));
-	return stream;
-}
-
-int xmkstemp(char *template)
-{
-	int fd;
-
-	fd = mkstemp(template);
-	if (fd < 0)
-		die("Unable to create temporary file: %s", strerror(errno));
-	return fd;
 }

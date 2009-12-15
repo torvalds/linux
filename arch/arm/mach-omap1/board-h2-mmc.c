@@ -16,7 +16,7 @@
 
 #include <linux/i2c/tps65010.h>
 
-#include <mach/mmc.h>
+#include <plat/mmc.h>
 #include <mach/gpio.h>
 
 #include "board-h2.h"
