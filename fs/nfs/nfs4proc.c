@@ -346,8 +346,12 @@ nfs4_free_slot(struct nfs4_slot_table *tbl, u8 free_slotid)
  */
 static void nfs41_check_drain_session_complete(struct nfs4_session *ses)
 {
+	struct rpc_task *task;
+
 	if (!test_bit(NFS4CLNT_SESSION_DRAINING, &ses->clp->cl_state)) {
-		rpc_wake_up_next(&ses->fc_slot_table.slot_tbl_waitq);
+		task = rpc_wake_up_next(&ses->fc_slot_table.slot_tbl_waitq);
+		if (task)
+			rpc_task_set_priority(task, RPC_PRIORITY_PRIVILEGED);
 		return;
 	}
 
@@ -483,6 +487,14 @@ static int nfs41_setup_sequence(struct nfs4_session *session,
 		return -EAGAIN;
 	}
 
+	if (!rpc_queue_empty(&tbl->slot_tbl_waitq) &&
+	    !rpc_task_has_priority(task, RPC_PRIORITY_PRIVILEGED)) {
+		rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
+		spin_unlock(&tbl->slot_tbl_lock);
+		dprintk("%s enforce FIFO order\n", __func__);
+		return -EAGAIN;
+	}
+
 	slotid = nfs4_find_slot(tbl);
 	if (slotid == NFS4_MAX_SLOT_TABLE) {
 		rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
@@ -492,6 +504,7 @@ static int nfs41_setup_sequence(struct nfs4_session *session,
 	}
 	spin_unlock(&tbl->slot_tbl_lock);
 
+	rpc_task_set_priority(task, RPC_PRIORITY_NORMAL);
 	slot = tbl->slots + slotid;
 	args->sa_session = session;
 	args->sa_slotid = slotid;
@@ -4401,11 +4414,12 @@ static void nfs4_get_lease_time_prepare(struct rpc_task *task,
 			(struct nfs4_get_lease_time_data *)calldata;
 
 	dprintk("--> %s\n", __func__);
+	rpc_task_set_priority(task, RPC_PRIORITY_PRIVILEGED);
 	/* just setup sequence, do not trigger session recovery
 	   since we're invoked within one */
 	ret = nfs41_setup_sequence(data->clp->cl_session,
-					&data->args->la_seq_args,
-					&data->res->lr_seq_res, 0, task);
+				   &data->args->la_seq_args,
+				   &data->res->lr_seq_res, 0, task);
 
 	BUG_ON(ret == -EAGAIN);
 	rpc_call_start(task);
@@ -4625,7 +4639,7 @@ struct nfs4_session *nfs4_alloc_session(struct nfs_client *clp)
 	tbl = &session->fc_slot_table;
 	tbl->highest_used_slotid = -1;
 	spin_lock_init(&tbl->slot_tbl_lock);
-	rpc_init_wait_queue(&tbl->slot_tbl_waitq, "ForeChannel Slot table");
+	rpc_init_priority_wait_queue(&tbl->slot_tbl_waitq, "ForeChannel Slot table");
 
 	tbl = &session->bc_slot_table;
 	tbl->highest_used_slotid = -1;

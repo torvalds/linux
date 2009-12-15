@@ -210,6 +210,7 @@ void rpc_init_priority_wait_queue(struct rpc_wait_queue *queue, const char *qnam
 {
 	__rpc_init_priority_wait_queue(queue, qname, RPC_NR_PRIORITY);
 }
+EXPORT_SYMBOL_GPL(rpc_init_priority_wait_queue);
 
 void rpc_init_wait_queue(struct rpc_wait_queue *queue, const char *qname)
 {

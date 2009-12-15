@@ -138,8 +138,22 @@ static int nfs41_setup_state_renewal(struct nfs_client *clp)
 static void nfs41_end_drain_session(struct nfs_client *clp,
 		struct nfs4_session *ses)
 {
-	if (test_and_clear_bit(NFS4CLNT_SESSION_DRAINING, &clp->cl_state))
-		rpc_wake_up(&ses->fc_slot_table.slot_tbl_waitq);
+	int max_slots;
+
+	if (test_and_clear_bit(NFS4CLNT_SESSION_DRAINING, &clp->cl_state)) {
+		spin_lock(&ses->fc_slot_table.slot_tbl_lock);
+		max_slots = ses->fc_slot_table.max_slots;
+		while (max_slots--) {
+			struct rpc_task *task;
+
+			task = rpc_wake_up_next(&ses->fc_slot_table.
+						slot_tbl_waitq);
+			if (!task)
+				break;
+			rpc_task_set_priority(task, RPC_PRIORITY_PRIVILEGED);
+		}
+		spin_unlock(&ses->fc_slot_table.slot_tbl_lock);
+	}
 }
 
 static int nfs41_begin_drain_session(struct nfs_client *clp,
