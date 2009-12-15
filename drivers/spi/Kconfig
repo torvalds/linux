@@ -219,6 +219,17 @@ config SPI_S3C24XX
 	help
 	  SPI driver for Samsung S3C24XX series ARM SoCs
 
+config SPI_S3C24XX_FIQ
+	bool "S3C24XX driver with FIQ pseudo-DMA"
+	depends on SPI_S3C24XX
+	select FIQ
+	help
+	  Enable FIQ support for the S3C24XX SPI driver to provide pseudo
+	  DMA by using the fast-interrupt request framework, This allows
+	  the driver to get DMA-like performance when there are either
+	  no free DMA channels, or when doing transfers that required both
+	  TX and RX data paths.
+
 config SPI_S3C24XX_GPIO
 	tristate "Samsung S3C24XX series SPI by GPIO"
 	depends on ARCH_S3C2410 && EXPERIMENTAL
