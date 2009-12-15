@@ -2904,7 +2904,7 @@ static struct ioc4_submodule ioc4_serial_submodule = {
 /**
  * ioc4_serial_init - module init
  */
-int ioc4_serial_init(void)
+static int __init ioc4_serial_init(void)
 {
 	int ret;
 
@@ -2926,7 +2926,7 @@ int ioc4_serial_init(void)
 	return ioc4_register_submodule(&ioc4_serial_submodule);
 }
 
-static void __devexit ioc4_serial_exit(void)
+static void __exit ioc4_serial_exit(void)
 {
 	ioc4_unregister_submodule(&ioc4_serial_submodule);
 	uart_unregister_driver(&ioc4_uart_rs232);
