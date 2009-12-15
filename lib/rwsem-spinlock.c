@@ -17,6 +17,19 @@ struct rwsem_waiter {
 #define RWSEM_WAITING_FOR_WRITE	0x00000002
 };
 
+int rwsem_is_locked(struct rw_semaphore *sem)
+{
+	int ret = 1;
+	unsigned long flags;
+
+	if (spin_trylock_irqsave(&sem->wait_lock, flags)) {
+		ret = (sem->activity != 0);
+		spin_unlock_irqrestore(&sem->wait_lock, flags);
+	}
+	return ret;
+}
+EXPORT_SYMBOL(rwsem_is_locked);
+
 /*
  * initialise the semaphore
  */
