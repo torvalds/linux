@@ -66,8 +66,9 @@ int radeon_gem_object_create(struct radeon_device *rdev, int size,
 	}
 	r = radeon_bo_create(rdev, gobj, size, kernel, initial_domain, &robj);
 	if (r) {
-		DRM_ERROR("Failed to allocate GEM object (%d, %d, %u)\n",
-			  size, initial_domain, alignment);
+		if (r != -ERESTARTSYS)
+			DRM_ERROR("Failed to allocate GEM object (%d, %d, %u, %d)\n",
+				  size, initial_domain, alignment, r);
 		mutex_lock(&rdev->ddev->struct_mutex);
 		drm_gem_object_unreference(gobj);
 		mutex_unlock(&rdev->ddev->struct_mutex);
