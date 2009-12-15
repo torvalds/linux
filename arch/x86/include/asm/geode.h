@@ -12,6 +12,7 @@
 
 #include <asm/processor.h>
 #include <linux/io.h>
+#include <linux/cs5535.h>
 
 /* Generic southbridge functions */
 
@@ -115,33 +116,6 @@ extern int geode_get_dev_base(unsigned int dev);
 #define VSA_VR_MEM_SIZE		0x0200
 #define AMD_VSA_SIG		0x4132	/* signature is ascii 'VSA2' */
 #define GSW_VSA_SIG		0x534d  /* General Software signature */
-/* GPIO */
-
-#define GPIO_OUTPUT_VAL		0x00
-#define GPIO_OUTPUT_ENABLE	0x04
-#define GPIO_OUTPUT_OPEN_DRAIN	0x08
-#define GPIO_OUTPUT_INVERT	0x0C
-#define GPIO_OUTPUT_AUX1	0x10
-#define GPIO_OUTPUT_AUX2	0x14
-#define GPIO_PULL_UP		0x18
-#define GPIO_PULL_DOWN		0x1C
-#define GPIO_INPUT_ENABLE	0x20
-#define GPIO_INPUT_INVERT	0x24
-#define GPIO_INPUT_FILTER	0x28
-#define GPIO_INPUT_EVENT_COUNT	0x2C
-#define GPIO_READ_BACK		0x30
-#define GPIO_INPUT_AUX1		0x34
-#define GPIO_EVENTS_ENABLE	0x38
-#define GPIO_LOCK_ENABLE	0x3C
-#define GPIO_POSITIVE_EDGE_EN	0x40
-#define GPIO_NEGATIVE_EDGE_EN	0x44
-#define GPIO_POSITIVE_EDGE_STS	0x48
-#define GPIO_NEGATIVE_EDGE_STS	0x4C
-
-#define GPIO_MAP_X		0xE0
-#define GPIO_MAP_Y		0xE4
-#define GPIO_MAP_Z		0xE8
-#define GPIO_MAP_W		0xEC
 
 static inline u32 geode_gpio(unsigned int nr)
 {
