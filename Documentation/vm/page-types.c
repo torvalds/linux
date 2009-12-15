@@ -100,7 +100,7 @@
 #define BIT(name)		(1ULL << KPF_##name)
 #define BITS_COMPOUND		(BIT(COMPOUND_HEAD) | BIT(COMPOUND_TAIL))
 
-static char *page_flag_names[] = {
+static const char *page_flag_names[] = {
 	[KPF_LOCKED]		= "L:locked",
 	[KPF_ERROR]		= "E:error",
 	[KPF_REFERENCED]	= "R:referenced",
@@ -173,7 +173,7 @@ static int		kpageflags_fd;
 static int		opt_hwpoison;
 static int		opt_unpoison;
 
-static char		*hwpoison_debug_fs = "/debug/hwpoison";
+static const char	hwpoison_debug_fs[] = "/debug/hwpoison";
 static int		hwpoison_inject_fd;
 static int		hwpoison_forget_fd;
 
@@ -885,7 +885,7 @@ static void parse_bits_mask(const char *optarg)
 }
 
 
-static struct option opts[] = {
+static const struct option opts[] = {
 	{ "raw"       , 0, NULL, 'r' },
 	{ "pid"       , 1, NULL, 'p' },
 	{ "file"      , 1, NULL, 'f' },
