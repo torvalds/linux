@@ -45,8 +45,6 @@ extern int geode_get_dev_base(unsigned int dev);
 #define MSR_LBAR_ACPI		0x5140000E
 #define MSR_LBAR_PMS		0x5140000F
 
-#define MSR_DIVIL_SOFT_RESET	0x51400017
-
 #define MSR_LX_SPARE_MSR	0x80000011	/* DC-specific */
 
 #define MSR_GX_GLD_MSR_CONFIG	0xC0002001
