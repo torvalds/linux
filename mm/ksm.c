@@ -29,6 +29,7 @@
 #include <linux/wait.h>
 #include <linux/slab.h>
 #include <linux/rbtree.h>
+#include <linux/memory.h>
 #include <linux/mmu_notifier.h>
 #include <linux/swap.h>
 #include <linux/ksm.h>
@@ -108,14 +109,14 @@ struct ksm_scan {
 
 /**
  * struct stable_node - node of the stable rbtree
- * @page: pointer to struct page of the ksm page
  * @node: rb node of this ksm page in the stable tree
  * @hlist: hlist head of rmap_items using this ksm page
+ * @kpfn: page frame number of this ksm page
  */
 struct stable_node {
-	struct page *page;
 	struct rb_node node;
 	struct hlist_head hlist;
+	unsigned long kpfn;
 };
 
 /**
@@ -515,7 +516,7 @@ static struct page *get_ksm_page(struct stable_node *stable_node)
 	struct page *page;
 	void *expected_mapping;
 
-	page = stable_node->page;
+	page = pfn_to_page(stable_node->kpfn);
 	expected_mapping = (void *)stable_node +
 				(PAGE_MAPPING_ANON | PAGE_MAPPING_KSM);
 	rcu_read_lock();
@@ -973,7 +974,7 @@ static struct page *try_to_merge_two_pages(struct rmap_item *rmap_item,
  * This function returns the stable tree node of identical content if found,
  * NULL otherwise.
  */
-static struct stable_node *stable_tree_search(struct page *page)
+static struct page *stable_tree_search(struct page *page)
 {
 	struct rb_node *node = root_stable_tree.rb_node;
 	struct stable_node *stable_node;
@@ -981,7 +982,7 @@ static struct stable_node *stable_tree_search(struct page *page)
 	stable_node = page_stable_node(page);
 	if (stable_node) {			/* ksm page forked */
 		get_page(page);
-		return stable_node;
+		return page;
 	}
 
 	while (node) {
@@ -1003,7 +1004,7 @@ static struct stable_node *stable_tree_search(struct page *page)
 			put_page(tree_page);
 			node = node->rb_right;
 		} else
-			return stable_node;
+			return tree_page;
 	}
 
 	return NULL;
@@ -1059,7 +1060,7 @@ static struct stable_node *stable_tree_insert(struct page *kpage)
 
 	INIT_HLIST_HEAD(&stable_node->hlist);
 
-	stable_node->page = kpage;
+	stable_node->kpfn = page_to_pfn(kpage);
 	set_page_stable_node(kpage, stable_node);
 
 	return stable_node;
@@ -1170,9 +1171,8 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
 	remove_rmap_item_from_tree(rmap_item);
 
 	/* We first start with searching the page inside the stable tree */
-	stable_node = stable_tree_search(page);
-	if (stable_node) {
-		kpage = stable_node->page;
+	kpage = stable_tree_search(page);
+	if (kpage) {
 		err = try_to_merge_with_ksm_page(rmap_item, page, kpage);
 		if (!err) {
 			/*
@@ -1180,7 +1180,7 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
 			 * add its rmap_item to the stable tree.
 			 */
 			lock_page(kpage);
-			stable_tree_append(rmap_item, stable_node);
+			stable_tree_append(rmap_item, page_stable_node(kpage));
 			unlock_page(kpage);
 		}
 		put_page(kpage);
@@ -1715,11 +1715,62 @@ void ksm_migrate_page(struct page *newpage, struct page *oldpage)
 
 	stable_node = page_stable_node(newpage);
 	if (stable_node) {
-		VM_BUG_ON(stable_node->page != oldpage);
-		stable_node->page = newpage;
+		VM_BUG_ON(stable_node->kpfn != page_to_pfn(oldpage));
+		stable_node->kpfn = page_to_pfn(newpage);
 	}
 }
 #endif /* CONFIG_MIGRATION */
+
+#ifdef CONFIG_MEMORY_HOTREMOVE
+static struct stable_node *ksm_check_stable_tree(unsigned long start_pfn,
+						 unsigned long end_pfn)
+{
+	struct rb_node *node;
+
+	for (node = rb_first(&root_stable_tree); node; node = rb_next(node)) {
+		struct stable_node *stable_node;
+
+		stable_node = rb_entry(node, struct stable_node, node);
+		if (stable_node->kpfn >= start_pfn &&
+		    stable_node->kpfn < end_pfn)
+			return stable_node;
+	}
+	return NULL;
+}
+
+static int ksm_memory_callback(struct notifier_block *self,
+			       unsigned long action, void *arg)
+{
+	struct memory_notify *mn = arg;
+	struct stable_node *stable_node;
+
+	switch (action) {
+	case MEM_GOING_OFFLINE:
+		/*
+		 * Keep it very simple for now: just lock out ksmd and
+		 * MADV_UNMERGEABLE while any memory is going offline.
+		 */
+		mutex_lock(&ksm_thread_mutex);
+		break;
+
+	case MEM_OFFLINE:
+		/*
+		 * Most of the work is done by page migration; but there might
+		 * be a few stable_nodes left over, still pointing to struct
+		 * pages which have been offlined: prune those from the tree.
+		 */
+		while ((stable_node = ksm_check_stable_tree(mn->start_pfn,
+					mn->start_pfn + mn->nr_pages)) != NULL)
+			remove_node_from_stable_tree(stable_node);
+		/* fallthrough */
+
+	case MEM_CANCEL_OFFLINE:
+		mutex_unlock(&ksm_thread_mutex);
+		break;
+	}
+	return NOTIFY_OK;
+}
+#endif /* CONFIG_MEMORY_HOTREMOVE */
 
 #ifdef CONFIG_SYSFS
 /*
@@ -1946,6 +1997,13 @@ static int __init ksm_init(void)
 
 #endif /* CONFIG_SYSFS */
 
+#ifdef CONFIG_MEMORY_HOTREMOVE
+	/*
+	 * Choose a high priority since the callback takes ksm_thread_mutex:
+	 * later callbacks could only be taking locks which nest within that.
+	 */
+	hotplug_memory_notifier(ksm_memory_callback, 100);
+#endif
 	return 0;
 
 out_free2:

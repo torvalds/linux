@@ -543,7 +543,7 @@ static int move_to_new_page(struct page *newpage, struct page *page)
  * to the newly allocated page in newpage.
  */
 static int unmap_and_move(new_page_t get_new_page, unsigned long private,
-			struct page *page, int force)
+			struct page *page, int force, int offlining)
 {
 	int rc = 0;
 	int *result = NULL;
@@ -567,6 +567,20 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
 		if (!force)
 			goto move_newpage;
 		lock_page(page);
+	}
+
+	/*
+	 * Only memory hotplug's offline_pages() caller has locked out KSM,
+	 * and can safely migrate a KSM page.  The other cases have skipped
+	 * PageKsm along with PageReserved - but it is only now when we have
+	 * the page lock that we can be certain it will not go KSM beneath us
+	 * (KSM will not upgrade a page from PageAnon to PageKsm when it sees
+	 * its pagecount raised, but only here do we take the page lock which
+	 * serializes that).
+	 */
+	if (PageKsm(page) && !offlining) {
+		rc = -EBUSY;
+		goto unlock;
 	}
 
 	/* charge against new page */
@@ -685,7 +699,7 @@ move_newpage:
  * Return: Number of pages not migrated or error code.
  */
 int migrate_pages(struct list_head *from,
-		new_page_t get_new_page, unsigned long private)
+		new_page_t get_new_page, unsigned long private, int offlining)
 {
 	int retry = 1;
 	int nr_failed = 0;
@@ -705,7 +719,7 @@ int migrate_pages(struct list_head *from,
 			cond_resched();
 
 			rc = unmap_and_move(get_new_page, private,
-						page, pass > 2);
+						page, pass > 2, offlining);
 
 			switch(rc) {
 			case -ENOMEM:
@@ -801,7 +815,8 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
 		if (!page)
 			goto set_status;
 
-		if (PageReserved(page))		/* Check for zero page */
+		/* Use PageReserved to check for zero page */
+		if (PageReserved(page) || PageKsm(page))
 			goto put_and_set;
 
 		pp->page = page;
@@ -838,7 +853,7 @@ set_status:
 	err = 0;
 	if (!list_empty(&pagelist))
 		err = migrate_pages(&pagelist, new_page_node,
-				(unsigned long)pm);
+				(unsigned long)pm, 0);
 
 	up_read(&mm->mmap_sem);
 	return err;
@@ -959,7 +974,7 @@ static void do_pages_stat_array(struct mm_struct *mm, unsigned long nr_pages,
 
 		err = -ENOENT;
 		/* Use PageReserved to check for zero page */
-		if (!page || PageReserved(page))
+		if (!page || PageReserved(page) || PageKsm(page))
 			goto set_status;
 
 		err = page_to_nid(page);
