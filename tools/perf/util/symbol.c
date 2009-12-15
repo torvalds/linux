@@ -1,6 +1,7 @@
 #include "util.h"
 #include "../perf.h"
 #include "session.h"
+#include "sort.h"
 #include "string.h"
 #include "symbol.h"
 #include "thread.h"
@@ -1739,6 +1740,20 @@ out_fail:
 	return -1;
 }
 
+static int setup_list(struct strlist **list, const char *list_str,
+		      const char *list_name)
+{
+	if (list_str == NULL)
+		return 0;
+
+	*list = strlist__new(true, list_str);
+	if (!*list) {
+		pr_err("problems parsing %s list\n", list_name);
+		return -1;
+	}
+	return 0;
+}
+
 int symbol__init(void)
 {
 	elf_version(EV_CURRENT);
@@ -1749,7 +1764,25 @@ int symbol__init(void)
 	if (symbol_conf.try_vmlinux_path && vmlinux_path__init() < 0)
 		return -1;
 
+	if (setup_list(&symbol_conf.dso_list,
+		       symbol_conf.dso_list_str, "dso") < 0)
+		return -1;
+
+	if (setup_list(&symbol_conf.comm_list,
+		       symbol_conf.comm_list_str, "comm") < 0)
+		goto out_free_dso_list;
+
+	if (setup_list(&symbol_conf.sym_list,
+		       symbol_conf.sym_list_str, "symbol") < 0)
+		goto out_free_comm_list;
+
 	return 0;
+
+out_free_dso_list:
+	strlist__delete(symbol_conf.dso_list);
+out_free_comm_list:
+	strlist__delete(symbol_conf.comm_list);
+	return -1;
 }
 
 int perf_session__create_kernel_maps(struct perf_session *self)

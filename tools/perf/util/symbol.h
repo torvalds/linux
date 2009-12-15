@@ -49,12 +49,21 @@ struct symbol {
 	char		name[0];
 };
 
+struct strlist;
+
 struct symbol_conf {
 	unsigned short	priv_size;
 	bool		try_vmlinux_path,
 			use_modules,
 			sort_by_name;
 	const char	*vmlinux_name;
+	char            *dso_list_str,
+			*comm_list_str,
+			*sym_list_str,
+			*col_width_list_str;
+       struct strlist	*dso_list,
+			*comm_list,
+			*sym_list;
 };
 
 extern struct symbol_conf symbol_conf;

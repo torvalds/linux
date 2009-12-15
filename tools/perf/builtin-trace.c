@@ -579,13 +579,13 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 		exit(-1);
 	}
 
-	symbol__init();
-
 	setup_scripting();
 
 	argc = parse_options(argc, argv, options, annotate_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 
+	if (symbol__init() < 0)
+		return -1;
 	setup_pager();
 
 	session = perf_session__new(input_name, O_RDONLY, 0);

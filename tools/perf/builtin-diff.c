@@ -265,11 +265,6 @@ static const struct option options[] = {
 
 int cmd_diff(int argc, const char **argv, const char *prefix __used)
 {
-	if (symbol__init() < 0)
-		return -1;
-
-	setup_sorting(diff_usage, options);
-
 	argc = parse_options(argc, argv, options, diff_usage, 0);
 	if (argc) {
 		if (argc > 2)
@@ -281,6 +276,10 @@ int cmd_diff(int argc, const char **argv, const char *prefix __used)
 			input_new = argv[0];
 	}
 
+	if (symbol__init() < 0)
+		return -1;
+
+	setup_sorting(diff_usage, options);
 	setup_pager();
 	return __cmd_diff();
 }

@@ -1137,10 +1137,10 @@ static const struct option options[] = {
 
 int cmd_timechart(int argc, const char **argv, const char *prefix __used)
 {
-	symbol__init();
-
 	argc = parse_options(argc, argv, options, timechart_usage,
 			PARSE_OPT_STOP_AT_NON_OPTION);
+
+	symbol__init();
 
 	if (argc && !strncmp(argv[0], "rec", 3))
 		return __cmd_record(argc, argv);

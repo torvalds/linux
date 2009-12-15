@@ -518,13 +518,13 @@ static const struct option options[] = {
 
 int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 {
+	argc = parse_options(argc, argv, options, annotate_usage, 0);
+
 	symbol_conf.priv_size = sizeof(struct sym_priv);
 	symbol_conf.try_vmlinux_path = true;
 
 	if (symbol__init() < 0)
 		return -1;
-
-	argc = parse_options(argc, argv, options, annotate_usage, 0);
 
 	setup_sorting(annotate_usage, options);
 

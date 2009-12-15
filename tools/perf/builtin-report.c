@@ -33,10 +33,6 @@
 
 static char		const *input_name = "perf.data";
 
-static char		*dso_list_str, *comm_list_str, *sym_list_str,
-			*col_width_list_str;
-static struct strlist	*dso_list, *comm_list, *sym_list;
-
 static int		force;
 static bool		use_callchain;
 
@@ -365,8 +361,9 @@ static size_t hist_entry__fprintf(FILE *fp, struct hist_entry *self,
 
 static void dso__calc_col_width(struct dso *self)
 {
-	if (!col_width_list_str && !field_sep &&
-	    (!dso_list || strlist__has_entry(dso_list, self->name))) {
+	if (!symbol_conf.col_width_list_str && !field_sep &&
+	    (!symbol_conf.dso_list ||
+	     strlist__has_entry(symbol_conf.dso_list, self->name))) {
 		unsigned int slen = strlen(self->name);
 		if (slen > dsos__col_width)
 			dsos__col_width = slen;
@@ -379,8 +376,9 @@ static void thread__comm_adjust(struct thread *self)
 {
 	char *comm = self->comm;
 
-	if (!col_width_list_str && !field_sep &&
-	    (!comm_list || strlist__has_entry(comm_list, comm))) {
+	if (!symbol_conf.col_width_list_str && !field_sep &&
+	    (!symbol_conf.comm_list ||
+	     strlist__has_entry(symbol_conf.comm_list, comm))) {
 		unsigned int slen = strlen(comm);
 
 		if (slen > comms__col_width) {
@@ -442,7 +440,7 @@ static size_t perf_session__fprintf_hist_entries(struct perf_session *self,
 	struct rb_node *nd;
 	size_t ret = 0;
 	unsigned int width;
-	char *col_width = col_width_list_str;
+	char *col_width = symbol_conf.col_width_list_str;
 	int raw_printing_style;
 
 	raw_printing_style = !strcmp(pretty_printing_style, "raw");
@@ -468,7 +466,7 @@ static size_t perf_session__fprintf_hist_entries(struct perf_session *self,
 		}
 		width = strlen(se->header);
 		if (se->width) {
-			if (col_width_list_str) {
+			if (symbol_conf.col_width_list_str) {
 				if (col_width) {
 					*se->width = atoi(col_width);
 					col_width = strchr(col_width, ',');
@@ -587,7 +585,8 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 
 	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
-	if (comm_list && !strlist__has_entry(comm_list, thread->comm))
+	if (symbol_conf.comm_list &&
+	    !strlist__has_entry(symbol_conf.comm_list, thread->comm))
 		return 0;
 
 	cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
@@ -601,14 +600,15 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	if (al.map && !sort_dso.elide && !al.map->dso->slen_calculated)
 		dso__calc_col_width(al.map->dso);
 
-	if (dso_list &&
+	if (symbol_conf.dso_list &&
 	    (!al.map || !al.map->dso ||
-	     !(strlist__has_entry(dso_list, al.map->dso->short_name) ||
+	     !(strlist__has_entry(symbol_conf.dso_list, al.map->dso->short_name) ||
 	       (al.map->dso->short_name != al.map->dso->long_name &&
-		strlist__has_entry(dso_list, al.map->dso->long_name)))))
+		strlist__has_entry(symbol_conf.dso_list, al.map->dso->long_name)))))
 		return 0;
 
-	if (sym_list && al.sym && !strlist__has_entry(sym_list, al.sym->name))
+	if (symbol_conf.sym_list && al.sym &&
+	    !strlist__has_entry(symbol_conf.sym_list, al.sym->name))
 		return 0;
 
 	if (perf_session__add_hist_entry(session, &al, data.callchain, data.period)) {
@@ -825,13 +825,13 @@ static const struct option options[] = {
 	OPT_CALLBACK_DEFAULT('g', "call-graph", NULL, "output_type,min_percent",
 		     "Display callchains using output_type and min percent threshold. "
 		     "Default: fractal,0.5", &parse_callchain_opt, callchain_default_opt),
-	OPT_STRING('d', "dsos", &dso_list_str, "dso[,dso...]",
+	OPT_STRING('d', "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
 		   "only consider symbols in these dsos"),
-	OPT_STRING('C', "comms", &comm_list_str, "comm[,comm...]",
+	OPT_STRING('C', "comms", &symbol_conf.comm_list_str, "comm[,comm...]",
 		   "only consider symbols in these comms"),
-	OPT_STRING('S', "symbols", &sym_list_str, "symbol[,symbol...]",
+	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
 		   "only consider these symbols"),
-	OPT_STRING('w', "column-widths", &col_width_list_str,
+	OPT_STRING('w', "column-widths", &symbol_conf.col_width_list_str,
 		   "width[,width...]",
 		   "don't try to adjust column width, use these fixed values"),
 	OPT_STRING('t', "field-separator", &field_sep, "separator",
@@ -840,31 +840,24 @@ static const struct option options[] = {
 	OPT_END()
 };
 
-static void setup_list(struct strlist **list, const char *list_str,
-		       struct sort_entry *se, const char *list_name,
-		       FILE *fp)
+static void sort_entry__setup_elide(struct sort_entry *self,
+				    struct strlist *list,
+				    const char *list_name, FILE *fp)
 {
-	if (list_str) {
-		*list = strlist__new(true, list_str);
-		if (!*list) {
-			fprintf(stderr, "problems parsing %s list\n",
-				list_name);
-			exit(129);
-		}
-		if (strlist__nr_entries(*list) == 1) {
-			fprintf(fp, "# %s: %s\n", list_name,
-				strlist__entry(*list, 0)->s);
-			se->elide = true;
-		}
+	if (list && strlist__nr_entries(list) == 1) {
+		fprintf(fp, "# %s: %s\n", list_name, strlist__entry(list, 0)->s);
+		self->elide = true;
 	}
 }
 
 int cmd_report(int argc, const char **argv, const char *prefix __used)
 {
+	argc = parse_options(argc, argv, options, report_usage, 0);
+
+	setup_pager();
+
 	if (symbol__init() < 0)
 		return -1;
-
-	argc = parse_options(argc, argv, options, report_usage, 0);
 
 	setup_sorting(report_usage, options);
 
@@ -880,11 +873,9 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	if (argc)
 		usage_with_options(report_usage, options);
 
-	setup_pager();
-
-	setup_list(&dso_list, dso_list_str, &sort_dso, "dso", stdout);
-	setup_list(&comm_list, comm_list_str, &sort_comm, "comm", stdout);
-	setup_list(&sym_list, sym_list_str, &sort_sym, "symbol", stdout);
+	sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list, "dso", stdout);
+	sort_entry__setup_elide(&sort_comm, symbol_conf.comm_list, "comm", stdout);
+	sort_entry__setup_elide(&sort_sym, symbol_conf.sym_list, "symbol", stdout);
 
 	if (field_sep && *field_sep == '.') {
 		fputs("'.' is the only non valid --field-separator argument\n",
