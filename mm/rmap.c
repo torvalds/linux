@@ -1203,3 +1203,82 @@ int try_to_munlock(struct page *page)
 	else
 		return try_to_unmap_file(page, TTU_MUNLOCK);
 }
+
+#ifdef CONFIG_MIGRATION
+/*
+ * rmap_walk() and its helpers rmap_walk_anon() and rmap_walk_file():
+ * Called by migrate.c to remove migration ptes, but might be used more later.
+ */
+static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
+		struct vm_area_struct *, unsigned long, void *), void *arg)
+{
+	struct anon_vma *anon_vma;
+	struct vm_area_struct *vma;
+	int ret = SWAP_AGAIN;
+
+	/*
+	 * Note: remove_migration_ptes() cannot use page_lock_anon_vma()
+	 * because that depends on page_mapped(); but not all its usages
+	 * are holding mmap_sem, which also gave the necessary guarantee
+	 * (that this anon_vma's slab has not already been destroyed).
+	 * This needs to be reviewed later: avoiding page_lock_anon_vma()
+	 * is risky, and currently limits the usefulness of rmap_walk().
+	 */
+	anon_vma = page_anon_vma(page);
+	if (!anon_vma)
+		return ret;
+	spin_lock(&anon_vma->lock);
+	list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
+		unsigned long address = vma_address(page, vma);
+		if (address == -EFAULT)
+			continue;
+		ret = rmap_one(page, vma, address, arg);
+		if (ret != SWAP_AGAIN)
+			break;
+	}
+	spin_unlock(&anon_vma->lock);
+	return ret;
+}
+
+static int rmap_walk_file(struct page *page, int (*rmap_one)(struct page *,
+		struct vm_area_struct *, unsigned long, void *), void *arg)
+{
+	struct address_space *mapping = page->mapping;
+	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+	struct vm_area_struct *vma;
+	struct prio_tree_iter iter;
+	int ret = SWAP_AGAIN;
+
+	if (!mapping)
+		return ret;
+	spin_lock(&mapping->i_mmap_lock);
+	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
+		unsigned long address = vma_address(page, vma);
+		if (address == -EFAULT)
+			continue;
+		ret = rmap_one(page, vma, address, arg);
+		if (ret != SWAP_AGAIN)
+			break;
+	}
+	/*
+	 * No nonlinear handling: being always shared, nonlinear vmas
+	 * never contain migration ptes.  Decide what to do about this
+	 * limitation to linear when we need rmap_walk() on nonlinear.
+	 */
+	spin_unlock(&mapping->i_mmap_lock);
+	return ret;
+}
+
+int rmap_walk(struct page *page, int (*rmap_one)(struct page *,
+		struct vm_area_struct *, unsigned long, void *), void *arg)
+{
+	VM_BUG_ON(!PageLocked(page));
+
+	if (unlikely(PageKsm(page)))
+		return rmap_walk_ksm(page, rmap_one, arg);
+	else if (PageAnon(page))
+		return rmap_walk_anon(page, rmap_one, arg);
+	else
+		return rmap_walk_file(page, rmap_one, arg);
+}
+#endif /* CONFIG_MIGRATION */

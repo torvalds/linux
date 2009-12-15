@@ -21,6 +21,7 @@
 #include <linux/mm_inline.h>
 #include <linux/nsproxy.h>
 #include <linux/pagevec.h>
+#include <linux/ksm.h>
 #include <linux/rmap.h>
 #include <linux/topology.h>
 #include <linux/cpu.h>
@@ -78,8 +79,8 @@ int putback_lru_pages(struct list_head *l)
 /*
  * Restore a potential migration pte to a working pte entry
  */
-static void remove_migration_pte(struct vm_area_struct *vma,
-		struct page *old, struct page *new)
+static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
+				 unsigned long addr, void *old)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	swp_entry_t entry;
@@ -88,40 +89,37 @@ static void remove_migration_pte(struct vm_area_struct *vma,
  	pmd_t *pmd;
 	pte_t *ptep, pte;
  	spinlock_t *ptl;
-	unsigned long addr = page_address_in_vma(new, vma);
-
-	if (addr == -EFAULT)
-		return;
 
  	pgd = pgd_offset(mm, addr);
 	if (!pgd_present(*pgd))
-                return;
+		goto out;
 
 	pud = pud_offset(pgd, addr);
 	if (!pud_present(*pud))
-                return;
+		goto out;
 
 	pmd = pmd_offset(pud, addr);
 	if (!pmd_present(*pmd))
-		return;
+		goto out;
 
 	ptep = pte_offset_map(pmd, addr);
 
 	if (!is_swap_pte(*ptep)) {
 		pte_unmap(ptep);
- 		return;
+		goto out;
  	}
 
  	ptl = pte_lockptr(mm, pmd);
  	spin_lock(ptl);
 	pte = *ptep;
 	if (!is_swap_pte(pte))
-		goto out;
+		goto unlock;
 
 	entry = pte_to_swp_entry(pte);
 
-	if (!is_migration_entry(entry) || migration_entry_to_page(entry) != old)
-		goto out;
+	if (!is_migration_entry(entry) ||
+	    migration_entry_to_page(entry) != old)
+		goto unlock;
 
 	get_page(new);
 	pte = pte_mkold(mk_pte(new, vma->vm_page_prot));
@@ -137,55 +135,10 @@ static void remove_migration_pte(struct vm_area_struct *vma,
 
 	/* No need to invalidate - it was non-present before */
 	update_mmu_cache(vma, addr, pte);
-
-out:
+unlock:
 	pte_unmap_unlock(ptep, ptl);
-}
-
-/*
- * Note that remove_file_migration_ptes will only work on regular mappings,
- * Nonlinear mappings do not use migration entries.
- */
-static void remove_file_migration_ptes(struct page *old, struct page *new)
-{
-	struct vm_area_struct *vma;
-	struct address_space *mapping = new->mapping;
-	struct prio_tree_iter iter;
-	pgoff_t pgoff = new->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-
-	if (!mapping)
-		return;
-
-	spin_lock(&mapping->i_mmap_lock);
-
-	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff)
-		remove_migration_pte(vma, old, new);
-
-	spin_unlock(&mapping->i_mmap_lock);
-}
-
-/*
- * Must hold mmap_sem lock on at least one of the vmas containing
- * the page so that the anon_vma cannot vanish.
- */
-static void remove_anon_migration_ptes(struct page *old, struct page *new)
-{
-	struct anon_vma *anon_vma;
-	struct vm_area_struct *vma;
-
-	/*
-	 * We hold the mmap_sem lock. So no need to call page_lock_anon_vma.
-	 */
-	anon_vma = page_anon_vma(new);
-	if (!anon_vma)
-		return;
-
-	spin_lock(&anon_vma->lock);
-
-	list_for_each_entry(vma, &anon_vma->head, anon_vma_node)
-		remove_migration_pte(vma, old, new);
-
-	spin_unlock(&anon_vma->lock);
+out:
+	return SWAP_AGAIN;
 }
 
 /*
@@ -194,10 +147,7 @@ static void remove_anon_migration_ptes(struct page *old, struct page *new)
  */
 static void remove_migration_ptes(struct page *old, struct page *new)
 {
-	if (PageAnon(new))
-		remove_anon_migration_ptes(old, new);
-	else
-		remove_file_migration_ptes(old, new);
+	rmap_walk(new, remove_migration_pte, old);
 }
 
 /*
@@ -358,6 +308,7 @@ static void migrate_page_copy(struct page *newpage, struct page *page)
  	}
 
 	mlock_migrate_page(newpage, page);
+	ksm_migrate_page(newpage, page);
 
 	ClearPageSwapCache(page);
 	ClearPagePrivate(page);
@@ -577,9 +528,9 @@ static int move_to_new_page(struct page *newpage, struct page *page)
 	else
 		rc = fallback_migrate_page(mapping, newpage, page);
 
-	if (!rc) {
+	if (!rc)
 		remove_migration_ptes(page, newpage);
-	} else
+	else
 		newpage->mapping = NULL;
 
 	unlock_page(newpage);
