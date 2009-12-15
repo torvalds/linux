@@ -38,6 +38,9 @@ static int ca91cx42_probe(struct pci_dev *, const struct pci_device_id *);
 static void ca91cx42_remove(struct pci_dev *);
 static void __exit ca91cx42_exit(void);
 
+/* Module parameters */
+static int geoid;
+
 struct vme_bridge *ca91cx42_bridge;
 wait_queue_head_t dma_queue;
 wait_queue_head_t iack_queue;
@@ -881,8 +884,12 @@ int ca91cx42_slot_get(void)
 {
 	u32 slot = 0;
 
-	slot = ioread32(ca91cx42_bridge->base + VCSR_BS);
-	slot = ((slot & CA91CX42_VCSR_BS_SLOT_M) >> 27);
+	if (!geoid) {
+		slot = ioread32(ca91cx42_bridge->base + VCSR_BS);
+		slot = ((slot & CA91CX42_VCSR_BS_SLOT_M) >> 27);
+	} else
+		slot = geoid;
+
 	return (int)slot;
 
 }
@@ -1298,6 +1305,9 @@ static void __exit ca91cx42_exit(void)
 {
 	pci_unregister_driver(&ca91cx42_driver);
 }
+
+MODULE_PARM_DESC(geoid, "Override geographical addressing");
+module_param(geoid, int, 0);
 
 MODULE_DESCRIPTION("VME driver for the Tundra Universe II VME bridge");
 MODULE_LICENSE("GPL");
