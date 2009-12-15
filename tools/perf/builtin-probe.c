@@ -261,15 +261,19 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 
 		lseek(fd, SEEK_SET, 0);
 		ret = find_probepoint(fd, pp);
-		if (ret < 0) {
-			if (session.need_dwarf)
-				die("Could not analyze debuginfo.");
-
-			pr_warning("An error occurred in debuginfo analysis. Try to use symbols.\n");
-			break;
-		}
+		if (ret > 0)
+			continue;
 		if (ret == 0)	/* No error but failed to find probe point. */
 			die("No probe point found.");
+		/* Error path */
+		if (session.need_dwarf) {
+			if (ret == -ENOENT)
+				pr_warning("No dwarf info found in the vmlinux - please rebuild with CONFIG_DEBUG_INFO=y.\n");
+			die("Could not analyze debuginfo.");
+		}
+		pr_debug("An error occurred in debuginfo analysis."
+			 " Try to use symbols.\n");
+		break;
 	}
 	close(fd);
 
