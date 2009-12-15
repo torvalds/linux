@@ -385,10 +385,12 @@ static void clear_probe_point(struct probe_point *pp)
 static void show_perf_probe_event(const char *group, const char *event,
 				  const char *place, struct probe_point *pp)
 {
-	int i;
+	int i, ret;
 	char buf[128];
 
-	e_snprintf(buf, 128, "%s:%s", group, event);
+	ret = e_snprintf(buf, 128, "%s:%s", group, event);
+	if (ret < 0)
+		die("Failed to copy event: %s", strerror(-ret));
 	printf("  %-40s (on %s", buf, place);
 
 	if (pp->nr_args > 0) {
