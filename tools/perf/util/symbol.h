@@ -56,7 +56,8 @@ struct symbol_conf {
 	bool		try_vmlinux_path,
 			use_modules,
 			sort_by_name;
-	const char	*vmlinux_name;
+	const char	*vmlinux_name,
+			*field_sep;
 	char            *dso_list_str,
 			*comm_list_str,
 			*sym_list_str,
@@ -79,6 +80,7 @@ struct addr_location {
 	struct symbol *sym;
 	u64	      addr;
 	char	      level;
+	bool	      filtered;
 };
 
 struct dso {

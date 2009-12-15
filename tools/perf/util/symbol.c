@@ -1764,6 +1764,11 @@ int symbol__init(void)
 	if (symbol_conf.try_vmlinux_path && vmlinux_path__init() < 0)
 		return -1;
 
+	if (symbol_conf.field_sep && *symbol_conf.field_sep == '.') {
+		pr_err("'.' is the only non valid --field-separator argument\n");
+		return -1;
+	}
+
 	if (setup_list(&symbol_conf.dso_list,
 		       symbol_conf.dso_list_str, "dso") < 0)
 		return -1;

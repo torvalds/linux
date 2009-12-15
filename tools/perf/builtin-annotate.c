@@ -141,7 +141,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 		return -1;
 	}
 
-	if (perf_session__add_hist_entry(session, &al, 1)) {
+	if (!al.filtered && perf_session__add_hist_entry(session, &al, 1)) {
 		fprintf(stderr, "problem incrementing symbol count, "
 				"skipping event\n");
 		return -1;

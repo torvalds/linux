@@ -948,7 +948,7 @@ static void event__process_sample(const event_t *self,
 	}
 
 	if (event__preprocess_sample(self, session, &al, symbol_filter) < 0 ||
-	    al.sym == NULL)
+	    al.sym == NULL || al.filtered)
 		return;
 
 	syme = symbol__priv(al.sym);

@@ -2,7 +2,9 @@
 #include "event.h"
 #include "debug.h"
 #include "session.h"
+#include "sort.h"
 #include "string.h"
+#include "strlist.h"
 #include "thread.h"
 
 static pid_t event__synthesize_comm(pid_t pid, int full,
@@ -299,6 +301,19 @@ try_again:
 	}
 }
 
+static void dso__calc_col_width(struct dso *self)
+{
+	if (!symbol_conf.col_width_list_str && !symbol_conf.field_sep &&
+	    (!symbol_conf.dso_list ||
+	     strlist__has_entry(symbol_conf.dso_list, self->name))) {
+		unsigned int slen = strlen(self->name);
+		if (slen > dsos__col_width)
+			dsos__col_width = slen;
+	}
+
+	self->slen_calculated = 1;
+}
+
 int event__preprocess_sample(const event_t *self, struct perf_session *session,
 			     struct addr_location *al, symbol_filter_t filter)
 {
@@ -308,6 +323,10 @@ int event__preprocess_sample(const event_t *self, struct perf_session *session,
 	if (thread == NULL)
 		return -1;
 
+	if (symbol_conf.comm_list &&
+	    !strlist__has_entry(symbol_conf.comm_list, thread->comm))
+		goto out_filtered;
+
 	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
 	thread__find_addr_location(thread, session, cpumode, MAP__FUNCTION,
@@ -315,6 +334,29 @@ int event__preprocess_sample(const event_t *self, struct perf_session *session,
 	dump_printf(" ...... dso: %s\n",
 		    al->map ? al->map->dso->long_name :
 			al->level == 'H' ? "[hypervisor]" : "<not found>");
+	/*
+	 * We have to do this here as we may have a dso with no symbol hit that
+	 * has a name longer than the ones with symbols sampled.
+	 */
+	if (al->map && !sort_dso.elide && !al->map->dso->slen_calculated)
+		dso__calc_col_width(al->map->dso);
+
+	if (symbol_conf.dso_list &&
+	    (!al->map || !al->map->dso ||
+	     !(strlist__has_entry(symbol_conf.dso_list, al->map->dso->short_name) ||
+	       (al->map->dso->short_name != al->map->dso->long_name &&
+		strlist__has_entry(symbol_conf.dso_list, al->map->dso->long_name)))))
+		goto out_filtered;
+
+	if (symbol_conf.sym_list && al->sym &&
+	    !strlist__has_entry(symbol_conf.sym_list, al->sym->name))
+		goto out_filtered;
+
+	al->filtered = false;
+	return 0;
+
+out_filtered:
+	al->filtered = true;
 	return 0;
 }
 

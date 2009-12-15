@@ -50,6 +50,9 @@ static int diff__process_sample_event(event_t *event, struct perf_session *sessi
 		return -1;
 	}
 
+	if (al.filtered)
+		return 0;
+
 	event__parse_sample(event, session->sample_type, &data);
 
 	if (al.sym && perf_session__add_hist_entry(session, &al, data.period)) {
@@ -182,10 +185,14 @@ blank:		memset(displacement, ' ', sizeof(displacement));
 	printed = fprintf(fp, "%4lu %5.5s ", pos, displacement);
 
 	if (show_percent) {
-		double old_percent = (old_count * 100) / pair_session->events_stats.total,
-		       new_percent = (self->count * 100) / session->events_stats.total;
-		double diff = old_percent - new_percent;
+		double old_percent = 0, new_percent = 0, diff;
 
+		if (pair_session->events_stats.total > 0)
+			old_percent = (old_count * 100) / pair_session->events_stats.total;
+		if (session->events_stats.total > 0)
+			new_percent = (self->count * 100) / session->events_stats.total;
+
+		diff = old_percent - new_percent;
 		if (verbose)
 			printed += fprintf(fp, " %3.2f%% %3.2f%%", old_percent, new_percent);
 
@@ -260,6 +267,12 @@ static const struct option options[] = {
 		    "Don't shorten the pathnames taking into account the cwd"),
 	OPT_BOOLEAN('P', "full-paths", &event_ops.full_paths,
 		    "Don't shorten the pathnames taking into account the cwd"),
+	OPT_STRING('d', "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
+		   "only consider symbols in these dsos"),
+	OPT_STRING('C', "comms", &symbol_conf.comm_list_str, "comm[,comm...]",
+		   "only consider symbols in these comms"),
+	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
+		   "only consider these symbols"),
 	OPT_END()
 };
 

@@ -316,14 +316,14 @@ static size_t hist_entry__fprintf(FILE *fp, struct hist_entry *self,
 
 	if (total_samples)
 		ret = percent_color_fprintf(fp,
-					    field_sep ? "%.2f" : "   %6.2f%%",
+					    symbol_conf.field_sep ? "%.2f" : "   %6.2f%%",
 					(self->count * 100.0) / total_samples);
 	else
-		ret = fprintf(fp, field_sep ? "%lld" : "%12lld ", self->count);
+		ret = fprintf(fp, symbol_conf.field_sep ? "%lld" : "%12lld ", self->count);
 
 	if (show_nr_samples) {
-		if (field_sep)
-			fprintf(fp, "%c%lld", *field_sep, self->count);
+		if (symbol_conf.field_sep)
+			fprintf(fp, "%c%lld", *symbol_conf.field_sep, self->count);
 		else
 			fprintf(fp, "%11lld", self->count);
 	}
@@ -332,7 +332,7 @@ static size_t hist_entry__fprintf(FILE *fp, struct hist_entry *self,
 		if (se->elide)
 			continue;
 
-		fprintf(fp, "%s", field_sep ?: "  ");
+		fprintf(fp, "%s", symbol_conf.field_sep ?: "  ");
 		ret += se->print(fp, self, se->width ? *se->width : 0);
 	}
 
@@ -355,28 +355,11 @@ static size_t hist_entry__fprintf(FILE *fp, struct hist_entry *self,
 	return ret;
 }
 
-/*
- *
- */
-
-static void dso__calc_col_width(struct dso *self)
-{
-	if (!symbol_conf.col_width_list_str && !field_sep &&
-	    (!symbol_conf.dso_list ||
-	     strlist__has_entry(symbol_conf.dso_list, self->name))) {
-		unsigned int slen = strlen(self->name);
-		if (slen > dsos__col_width)
-			dsos__col_width = slen;
-	}
-
-	self->slen_calculated = 1;
-}
-
 static void thread__comm_adjust(struct thread *self)
 {
 	char *comm = self->comm;
 
-	if (!symbol_conf.col_width_list_str && !field_sep &&
+	if (!symbol_conf.col_width_list_str && !symbol_conf.field_sep &&
 	    (!symbol_conf.comm_list ||
 	     strlist__has_entry(symbol_conf.comm_list, comm))) {
 		unsigned int slen = strlen(comm);
@@ -452,16 +435,16 @@ static size_t perf_session__fprintf_hist_entries(struct perf_session *self,
 
 	fprintf(fp, "# Overhead");
 	if (show_nr_samples) {
-		if (field_sep)
-			fprintf(fp, "%cSamples", *field_sep);
+		if (symbol_conf.field_sep)
+			fprintf(fp, "%cSamples", *symbol_conf.field_sep);
 		else
 			fputs("  Samples  ", fp);
 	}
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		if (se->elide)
 			continue;
-		if (field_sep) {
-			fprintf(fp, "%c%s", *field_sep, se->header);
+		if (symbol_conf.field_sep) {
+			fprintf(fp, "%c%s", *symbol_conf.field_sep, se->header);
 			continue;
 		}
 		width = strlen(se->header);
@@ -480,7 +463,7 @@ static size_t perf_session__fprintf_hist_entries(struct perf_session *self,
 	}
 	fprintf(fp, "\n");
 
-	if (field_sep)
+	if (symbol_conf.field_sep)
 		goto print_entries;
 
 	fprintf(fp, "# ........");
@@ -542,13 +525,8 @@ static int validate_chain(struct ip_callchain *chain, event_t *event)
 
 static int process_sample_event(event_t *event, struct perf_session *session)
 {
-	struct sample_data data;
-	int cpumode;
+	struct sample_data data = { .period = 1, };
 	struct addr_location al;
-	struct thread *thread;
-
-	memset(&data, 0, sizeof(data));
-	data.period = 1;
 
 	event__parse_sample(event, session->sample_type, &data);
 
@@ -576,39 +554,13 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 		}
 	}
 
-	thread = perf_session__findnew(session, data.pid);
-	if (thread == NULL) {
-		pr_debug("problem processing %d event, skipping it.\n",
+	if (event__preprocess_sample(event, session, &al, NULL) < 0) {
+		fprintf(stderr, "problem processing %d event, skipping it.\n",
 			event->header.type);
 		return -1;
 	}
 
-	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
-
-	if (symbol_conf.comm_list &&
-	    !strlist__has_entry(symbol_conf.comm_list, thread->comm))
-		return 0;
-
-	cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
-
-	thread__find_addr_location(thread, session, cpumode,
-				   MAP__FUNCTION, data.ip, &al, NULL);
-	/*
-	 * We have to do this here as we may have a dso with no symbol hit that
-	 * has a name longer than the ones with symbols sampled.
-	 */
-	if (al.map && !sort_dso.elide && !al.map->dso->slen_calculated)
-		dso__calc_col_width(al.map->dso);
-
-	if (symbol_conf.dso_list &&
-	    (!al.map || !al.map->dso ||
-	     !(strlist__has_entry(symbol_conf.dso_list, al.map->dso->short_name) ||
-	       (al.map->dso->short_name != al.map->dso->long_name &&
-		strlist__has_entry(symbol_conf.dso_list, al.map->dso->long_name)))))
-		return 0;
-
-	if (symbol_conf.sym_list && al.sym &&
-	    !strlist__has_entry(symbol_conf.sym_list, al.sym->name))
+	if (al.filtered)
 		return 0;
 
 	if (perf_session__add_hist_entry(session, &al, data.callchain, data.period)) {
@@ -834,7 +786,7 @@ static const struct option options[] = {
 	OPT_STRING('w', "column-widths", &symbol_conf.col_width_list_str,
 		   "width[,width...]",
 		   "don't try to adjust column width, use these fixed values"),
-	OPT_STRING('t', "field-separator", &field_sep, "separator",
+	OPT_STRING('t', "field-separator", &symbol_conf.field_sep, "separator",
 		   "separator for columns, no spaces will be added between "
 		   "columns '.' is reserved."),
 	OPT_END()
@@ -876,12 +828,6 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list, "dso", stdout);
 	sort_entry__setup_elide(&sort_comm, symbol_conf.comm_list, "comm", stdout);
 	sort_entry__setup_elide(&sort_sym, symbol_conf.sym_list, "symbol", stdout);
-
-	if (field_sep && *field_sep == '.') {
-		fputs("'.' is the only non valid --field-separator argument\n",
-		      stderr);
-		exit(129);
-	}
 
 	return __cmd_report();
 }
