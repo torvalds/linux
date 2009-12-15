@@ -26,9 +26,7 @@ static struct bio *get_swap_bio(gfp_t gfp_flags,
 
 	bio = bio_alloc(gfp_flags, 1);
 	if (bio) {
-		swp_entry_t entry;
-		entry.val = page_private(page);
-		bio->bi_sector = map_swap_page(entry, &bio->bi_bdev);
+		bio->bi_sector = map_swap_page(page, &bio->bi_bdev);
 		bio->bi_sector <<= PAGE_SHIFT - 9;
 		bio->bi_io_vec[0].bv_page = page;
 		bio->bi_io_vec[0].bv_len = PAGE_SIZE;

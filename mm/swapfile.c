@@ -38,6 +38,7 @@
 static bool swap_count_continued(struct swap_info_struct *, pgoff_t,
 				 unsigned char);
 static void free_swap_count_continuations(struct swap_info_struct *);
+static sector_t map_swap_entry(swp_entry_t, struct block_device**);
 
 static DEFINE_SPINLOCK(swap_lock);
 static unsigned int nr_swapfiles;
@@ -782,7 +783,7 @@ sector_t swapdev_block(int type, pgoff_t offset)
 		return 0;
 	if (!(swap_info[type]->flags & SWP_WRITEOK))
 		return 0;
-	return map_swap_page(swp_entry(type, offset), &bdev);
+	return map_swap_entry(swp_entry(type, offset), &bdev);
 }
 
 /*
@@ -1249,10 +1250,11 @@ static void drain_mmlist(void)
 
 /*
  * Use this swapdev's extent info to locate the (PAGE_SIZE) block which
- * corresponds to page offset `offset'.  Note that the type of this function
- * is sector_t, but it returns page offset into the bdev, not sector offset.
+ * corresponds to page offset for the specified swap entry.
+ * Note that the type of this function is sector_t, but it returns page offset
+ * into the bdev, not sector offset.
  */
-sector_t map_swap_page(swp_entry_t entry, struct block_device **bdev)
+static sector_t map_swap_entry(swp_entry_t entry, struct block_device **bdev)
 {
 	struct swap_info_struct *sis;
 	struct swap_extent *start_se;
@@ -1278,6 +1280,16 @@ sector_t map_swap_page(swp_entry_t entry, struct block_device **bdev)
 		sis->curr_swap_extent = se;
 		BUG_ON(se == start_se);		/* It *must* be present */
 	}
+}
+
+/*
+ * Returns the page offset into bdev for the specified page's swap entry.
+ */
+sector_t map_swap_page(struct page *page, struct block_device **bdev)
+{
+	swp_entry_t entry;
+	entry.val = page_private(page);
+	return map_swap_entry(entry, bdev);
 }
 
 /*
