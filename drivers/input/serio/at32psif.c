@@ -137,7 +137,7 @@ static int psif_write(struct serio *io, unsigned char val)
 	spin_lock_irqsave(&psif->lock, flags);
 
 	while (!(psif_readl(psif, SR) & PSIF_BIT(TXEMPTY)) && timeout--)
-		msleep(10);
+		udelay(50);
 
 	if (timeout >= 0) {
 		psif_writel(psif, THR, val);
