@@ -191,6 +191,67 @@ int syscall_enter_format(struct ftrace_event_call *call, struct trace_seq *s)
 	return trace_seq_putc(s, '\n');
 }
 
+static
+int  __set_enter_print_fmt(struct syscall_metadata *entry, char *buf, int len)
+{
+	int i;
+	int pos = 0;
+
+	/* When len=0, we just calculate the needed length */
+#define LEN_OR_ZERO (len ? len - pos : 0)
+
+	pos += snprintf(buf + pos, LEN_OR_ZERO, "\"");
+	for (i = 0; i < entry->nb_args; i++) {
+		pos += snprintf(buf + pos, LEN_OR_ZERO, "%s: 0x%%0%zulx%s",
+				entry->args[i], sizeof(unsigned long),
+				i == entry->nb_args - 1 ? "" : ", ");
+	}
+	pos += snprintf(buf + pos, LEN_OR_ZERO, "\"");
+
+	for (i = 0; i < entry->nb_args; i++) {
+		pos += snprintf(buf + pos, LEN_OR_ZERO,
+				", ((unsigned long)(REC->%s))", entry->args[i]);
+	}
+
+#undef LEN_OR_ZERO
+
+	/* return the length of print_fmt */
+	return pos;
+}
+
+static int set_syscall_print_fmt(struct ftrace_event_call *call)
+{
+	char *print_fmt;
+	int len;
+	struct syscall_metadata *entry = call->data;
+
+	if (entry->enter_event != call) {
+		call->print_fmt = "\"0x%lx\", REC->ret";
+		return 0;
+	}
+
+	/* First: called with 0 length to calculate the needed length */
+	len = __set_enter_print_fmt(entry, NULL, 0);
+
+	print_fmt = kmalloc(len + 1, GFP_KERNEL);
+	if (!print_fmt)
+		return -ENOMEM;
+
+	/* Second: actually write the @print_fmt */
+	__set_enter_print_fmt(entry, print_fmt, len + 1);
+	call->print_fmt = print_fmt;
+
+	return 0;
+}
+
+static void free_syscall_print_fmt(struct ftrace_event_call *call)
+{
+	struct syscall_metadata *entry = call->data;
+
+	if (entry->enter_event == call)
+		kfree(call->print_fmt);
+}
+
 int syscall_exit_format(struct ftrace_event_call *call, struct trace_seq *s)
 {
 	int ret;
@@ -386,9 +447,14 @@ int init_syscall_trace(struct ftrace_event_call *call)
 {
 	int id;
 
+	if (set_syscall_print_fmt(call) < 0)
+		return -ENOMEM;
+
 	id = register_ftrace_event(call->event);
-	if (!id)
+	if (!id) {
+		free_syscall_print_fmt(call);
 		return -ENODEV;
+	}
 	call->id = id;
 	INIT_LIST_HEAD(&call->fields);
 	return 0;
