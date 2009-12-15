@@ -70,6 +70,7 @@
  *      v1.50 (pc) - Fixed a TabletPC touch bug in 2.6.28
  *      v1.51 (pc) - Added support for Intuos4
  *      v1.52 (pc) - Query Wacom data upon system resume
+ *                 - add defines for features->type
  */
 
 /*
