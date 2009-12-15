@@ -942,14 +942,14 @@ static void return_unused_surplus_pages(struct hstate *h,
 
 	/*
 	 * We want to release as many surplus pages as possible, spread
-	 * evenly across all nodes. Iterate across all nodes until we
-	 * can no longer free unreserved surplus pages. This occurs when
-	 * the nodes with surplus pages have no free pages.
-	 * free_pool_huge_page() will balance the the frees across the
-	 * on-line nodes for us and will handle the hstate accounting.
+	 * evenly across all nodes with memory. Iterate across these nodes
+	 * until we can no longer free unreserved surplus pages. This occurs
+	 * when the nodes with surplus pages have no free pages.
+	 * free_pool_huge_page() will balance the the freed pages across the
+	 * on-line nodes with memory and will handle the hstate accounting.
 	 */
 	while (nr_pages--) {
-		if (!free_pool_huge_page(h, &node_online_map, 1))
+		if (!free_pool_huge_page(h, &node_states[N_HIGH_MEMORY], 1))
 			break;
 	}
 }
@@ -1053,14 +1053,14 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
 int __weak alloc_bootmem_huge_page(struct hstate *h)
 {
 	struct huge_bootmem_page *m;
-	int nr_nodes = nodes_weight(node_online_map);
+	int nr_nodes = nodes_weight(node_states[N_HIGH_MEMORY]);
 
 	while (nr_nodes) {
 		void *addr;
 
 		addr = __alloc_bootmem_node_nopanic(
 				NODE_DATA(hstate_next_node_to_alloc(h,
-							&node_online_map)),
+						&node_states[N_HIGH_MEMORY])),
 				huge_page_size(h), huge_page_size(h), 0);
 
 		if (addr) {
@@ -1115,7 +1115,8 @@ static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
 		if (h->order >= MAX_ORDER) {
 			if (!alloc_bootmem_huge_page(h))
 				break;
-		} else if (!alloc_fresh_huge_page(h, &node_online_map))
+		} else if (!alloc_fresh_huge_page(h,
+					 &node_states[N_HIGH_MEMORY]))
 			break;
 	}
 	h->max_huge_pages = i;
@@ -1388,7 +1389,7 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
 
 	h->max_huge_pages = set_max_huge_pages(h, count, nodes_allowed);
 
-	if (nodes_allowed != &node_online_map)
+	if (nodes_allowed != &node_states[N_HIGH_MEMORY])
 		NODEMASK_FREE(nodes_allowed);
 
 	return len;
@@ -1610,7 +1611,7 @@ void hugetlb_unregister_node(struct node *node)
 	struct node_hstate *nhs = &node_hstates[node->sysdev.id];
 
 	if (!nhs->hugepages_kobj)
-		return;
+		return;		/* no hstate attributes */
 
 	for_each_hstate(h)
 		if (nhs->hstate_kobjs[h - hstates]) {
@@ -1675,15 +1676,15 @@ void hugetlb_register_node(struct node *node)
 }
 
 /*
- * hugetlb init time:  register hstate attributes for all registered
- * node sysdevs.  All on-line nodes should have registered their
- * associated sysdev by the time the hugetlb module initializes.
+ * hugetlb init time:  register hstate attributes for all registered node
+ * sysdevs of nodes that have memory.  All on-line nodes should have
+ * registered their associated sysdev by this time.
  */
 static void hugetlb_register_all_nodes(void)
 {
 	int nid;
 
-	for (nid = 0; nid < nr_node_ids; nid++) {
+	for_each_node_state(nid, N_HIGH_MEMORY) {
 		struct node *node = &node_devices[nid];
 		if (node->sysdev.id == nid)
 			hugetlb_register_node(node);
@@ -1777,8 +1778,8 @@ void __init hugetlb_add_hstate(unsigned order)
 	h->free_huge_pages = 0;
 	for (i = 0; i < MAX_NUMNODES; ++i)
 		INIT_LIST_HEAD(&h->hugepage_freelists[i]);
-	h->next_nid_to_alloc = first_node(node_online_map);
-	h->next_nid_to_free = first_node(node_online_map);
+	h->next_nid_to_alloc = first_node(node_states[N_HIGH_MEMORY]);
+	h->next_nid_to_free = first_node(node_states[N_HIGH_MEMORY]);
 	snprintf(h->name, HSTATE_NAME_LEN, "hugepages-%lukB",
 					huge_page_size(h)/1024);
 

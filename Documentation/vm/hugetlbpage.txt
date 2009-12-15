@@ -90,11 +90,11 @@ huge page pool to 20, allocating or freeing huge pages, as required.
 On a NUMA platform, the kernel will attempt to distribute the huge page pool
 over all the set of allowed nodes specified by the NUMA memory policy of the
 task that modifies nr_hugepages.  The default for the allowed nodes--when the
-task has default memory policy--is all on-line nodes.  Allowed nodes with
-insufficient available, contiguous memory for a huge page will be silently
-skipped when allocating persistent huge pages.  See the discussion below of
-the interaction of task memory policy, cpusets and per node attributes with
-the allocation and freeing of persistent huge pages.
+task has default memory policy--is all on-line nodes with memory.  Allowed
+nodes with insufficient available, contiguous memory for a huge page will be
+silently skipped when allocating persistent huge pages.  See the discussion
+below of the interaction of task memory policy, cpusets and per node attributes
+with the allocation and freeing of persistent huge pages.
 
 The success or failure of huge page allocation depends on the amount of
 physically contiguous memory that is present in system at the time of the
@@ -226,7 +226,7 @@ resulting effect on persistent huge page allocation is as follows:
    without first moving to a cpuset that contains all of the desired nodes.
 
 5) Boot-time huge page allocation attempts to distribute the requested number
-   of huge pages over all on-lines nodes.
+   of huge pages over all on-lines nodes with memory.
 
 Per Node Hugepages Attributes
 
