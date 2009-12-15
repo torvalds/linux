@@ -107,10 +107,12 @@ struct ksm_scan {
 
 /**
  * struct stable_node - node of the stable rbtree
+ * @page: pointer to struct page of the ksm page
  * @node: rb node of this ksm page in the stable tree
  * @hlist: hlist head of rmap_items using this ksm page
  */
 struct stable_node {
+	struct page *page;
 	struct rb_node node;
 	struct hlist_head hlist;
 };
@@ -435,23 +437,6 @@ out:		page = NULL;
 }
 
 /*
- * get_ksm_page: checks if the page at the virtual address in rmap_item
- * is still PageKsm, in which case we can trust the content of the page,
- * and it returns the gotten page; but NULL if the page has been zapped.
- */
-static struct page *get_ksm_page(struct rmap_item *rmap_item)
-{
-	struct page *page;
-
-	page = get_mergeable_page(rmap_item);
-	if (page && !PageKsm(page)) {
-		put_page(page);
-		page = NULL;
-	}
-	return page;
-}
-
-/*
  * Removing rmap_item from stable or unstable tree.
  * This function will clean the information from the stable/unstable tree.
  */
@@ -465,6 +450,9 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
 		if (stable_node->hlist.first)
 			ksm_pages_sharing--;
 		else {
+			set_page_stable_node(stable_node->page, NULL);
+			put_page(stable_node->page);
+
 			rb_erase(&stable_node->node, &root_stable_tree);
 			free_stable_node(stable_node);
 			ksm_pages_shared--;
@@ -740,8 +728,7 @@ out:
  * try_to_merge_one_page - take two pages and merge them into one
  * @vma: the vma that holds the pte pointing to page
  * @page: the PageAnon page that we want to replace with kpage
- * @kpage: the PageKsm page (or newly allocated page which page_add_ksm_rmap
- *         will make PageKsm) that we want to map instead of page
+ * @kpage: the PageKsm page that we want to map instead of page
  *
  * This function returns 0 if the pages were merged, -EFAULT otherwise.
  */
@@ -792,6 +779,9 @@ static int try_to_merge_with_ksm_page(struct rmap_item *rmap_item,
 	struct mm_struct *mm = rmap_item->mm;
 	struct vm_area_struct *vma;
 	int err = -EFAULT;
+
+	if (page == kpage)			/* ksm page forked */
+		return 0;
 
 	down_read(&mm->mmap_sem);
 	if (ksm_test_exit(mm))
@@ -846,6 +836,9 @@ static struct page *try_to_merge_two_pages(struct rmap_item *rmap_item,
 		goto up;
 
 	copy_user_highpage(kpage, page, rmap_item->address, vma);
+
+	set_page_stable_node(kpage, NULL);	/* mark it PageKsm */
+
 	err = try_to_merge_one_page(vma, page, kpage);
 up:
 	up_read(&mm->mmap_sem);
@@ -876,41 +869,31 @@ up:
  * This function returns the stable tree node of identical content if found,
  * NULL otherwise.
  */
-static struct stable_node *stable_tree_search(struct page *page,
-					      struct page **tree_pagep)
+static struct stable_node *stable_tree_search(struct page *page)
 {
 	struct rb_node *node = root_stable_tree.rb_node;
 	struct stable_node *stable_node;
 
+	stable_node = page_stable_node(page);
+	if (stable_node) {			/* ksm page forked */
+		get_page(page);
+		return stable_node;
+	}
+
 	while (node) {
-		struct hlist_node *hlist, *hnext;
-		struct rmap_item *tree_rmap_item;
-		struct page *tree_page;
 		int ret;
 
+		cond_resched();
 		stable_node = rb_entry(node, struct stable_node, node);
-		hlist_for_each_entry_safe(tree_rmap_item, hlist, hnext,
-					&stable_node->hlist, hlist) {
-			BUG_ON(!in_stable_tree(tree_rmap_item));
-			cond_resched();
-			tree_page = get_ksm_page(tree_rmap_item);
-			if (tree_page)
-				break;
-			remove_rmap_item_from_tree(tree_rmap_item);
-		}
-		if (!hlist)
-			return NULL;
 
-		ret = memcmp_pages(page, tree_page);
+		ret = memcmp_pages(page, stable_node->page);
 
-		if (ret < 0) {
-			put_page(tree_page);
+		if (ret < 0)
 			node = node->rb_left;
-		} else if (ret > 0) {
-			put_page(tree_page);
+		else if (ret > 0)
 			node = node->rb_right;
-		} else {
-			*tree_pagep = tree_page;
+		else {
+			get_page(stable_node->page);
 			return stable_node;
 		}
 	}
@@ -932,26 +915,12 @@ static struct stable_node *stable_tree_insert(struct page *kpage)
 	struct stable_node *stable_node;
 
 	while (*new) {
-		struct hlist_node *hlist, *hnext;
-		struct rmap_item *tree_rmap_item;
-		struct page *tree_page;
 		int ret;
 
+		cond_resched();
 		stable_node = rb_entry(*new, struct stable_node, node);
-		hlist_for_each_entry_safe(tree_rmap_item, hlist, hnext,
-					&stable_node->hlist, hlist) {
-			BUG_ON(!in_stable_tree(tree_rmap_item));
-			cond_resched();
-			tree_page = get_ksm_page(tree_rmap_item);
-			if (tree_page)
-				break;
-			remove_rmap_item_from_tree(tree_rmap_item);
-		}
-		if (!hlist)
-			return NULL;
 
-		ret = memcmp_pages(kpage, tree_page);
-		put_page(tree_page);
+		ret = memcmp_pages(kpage, stable_node->page);
 
 		parent = *new;
 		if (ret < 0)
@@ -976,6 +945,10 @@ static struct stable_node *stable_tree_insert(struct page *kpage)
 	rb_insert_color(&stable_node->node, &root_stable_tree);
 
 	INIT_HLIST_HEAD(&stable_node->hlist);
+
+	get_page(kpage);
+	stable_node->page = kpage;
+	set_page_stable_node(kpage, stable_node);
 
 	return stable_node;
 }
@@ -1085,14 +1058,10 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
 	remove_rmap_item_from_tree(rmap_item);
 
 	/* We first start with searching the page inside the stable tree */
-	stable_node = stable_tree_search(page, &tree_page);
+	stable_node = stable_tree_search(page);
 	if (stable_node) {
-		kpage = tree_page;
-		if (page == kpage)			/* forked */
-			err = 0;
-		else
-			err = try_to_merge_with_ksm_page(rmap_item,
-							 page, kpage);
+		kpage = stable_node->page;
+		err = try_to_merge_with_ksm_page(rmap_item, page, kpage);
 		if (!err) {
 			/*
 			 * The page was successfully merged:
