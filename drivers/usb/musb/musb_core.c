@@ -1521,6 +1521,14 @@ irqreturn_t musb_interrupt(struct musb *musb)
 		(devctl & MUSB_DEVCTL_HM) ? "host" : "peripheral",
 		musb->int_usb, musb->int_tx, musb->int_rx);
 
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
+	if (is_otg_enabled(musb) || is_peripheral_enabled(musb))
+		if (!musb->gadget_driver) {
+			DBG(5, "No gadget driver loaded\n");
+			return IRQ_HANDLED;
+		}
+#endif
+
 	/* the core can interrupt us for multiple reasons; docs have
 	 * a generic interrupt flowchart to follow
 	 */
