@@ -127,12 +127,14 @@ void lis3lv02d_poweron(struct lis3lv02d *lis3)
 
 	/*
 	 * Common configuration
-	 * BDU: LSB and MSB values are not updated until both have been read.
-	 *      So the value read will always be correct.
+	 * BDU: (12 bits sensors only) LSB and MSB values are not updated until
+	 *      both have been read. So the value read will always be correct.
 	 */
-	lis3->read(lis3, CTRL_REG2, &reg);
-	reg |= CTRL2_BDU;
-	lis3->write(lis3, CTRL_REG2, reg);
+	if (lis3->whoami == LIS_DOUBLE_ID) {
+		lis3->read(lis3, CTRL_REG2, &reg);
+		reg |= CTRL2_BDU;
+		lis3->write(lis3, CTRL_REG2, reg);
+	}
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_poweron);
 
@@ -361,7 +363,8 @@ static ssize_t lis3lv02d_calibrate_store(struct device *dev,
 }
 
 /* conversion btw sampling rate and the register values */
-static int lis3lv02dl_df_val[4] = {40, 160, 640, 2560};
+static int lis3_12_rates[4] = {40, 160, 640, 2560};
+static int lis3_8_rates[2] = {100, 400};
 static ssize_t lis3lv02d_rate_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -369,8 +372,13 @@ static ssize_t lis3lv02d_rate_show(struct device *dev,
 	int val;
 
 	lis3_dev.read(&lis3_dev, CTRL_REG1, &ctrl);
-	val = (ctrl & (CTRL1_DF0 | CTRL1_DF1)) >> 4;
-	return sprintf(buf, "%d\n", lis3lv02dl_df_val[val]);
+
+	if (lis3_dev.whoami == LIS_DOUBLE_ID)
+		val = lis3_12_rates[(ctrl & (CTRL1_DF0 | CTRL1_DF1)) >> 4];
+	else
+		val = lis3_8_rates[(ctrl & CTRL1_DR) >> 7];
+
+	return sprintf(buf, "%d\n", val);
 }
 
 static DEVICE_ATTR(position, S_IRUGO, lis3lv02d_position_show, NULL);
