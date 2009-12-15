@@ -2629,7 +2629,7 @@ static int __init pci_apply_final_quirks(void)
 	if (!pci_cache_line_size) {
 		printk(KERN_DEBUG "PCI: CLS %u bytes, default %u\n",
 		       cls << 2, pci_dfl_cache_line_size << 2);
-		pci_cache_line_size = cls;
+		pci_cache_line_size = cls ? cls : pci_dfl_cache_line_size;
 	}
 
 	return 0;
