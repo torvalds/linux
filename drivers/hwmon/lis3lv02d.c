@@ -53,6 +53,20 @@
 #define LIS3_PWRON_DELAY_WAI_12B	(5000)
 #define LIS3_PWRON_DELAY_WAI_8B		(3000)
 
+/*
+ * LIS3LV02D spec says 1024 LSBs corresponds 1 G -> 1LSB is 1000/1024 mG
+ * LIS302D spec says: 18 mG / digit
+ * LIS3_ACCURACY is used to increase accuracy of the intermediate
+ * calculation results.
+ */
+#define LIS3_ACCURACY			1024
+/* Sensitivity values for -2G +2G scale */
+#define LIS3_SENSITIVITY_12B		((LIS3_ACCURACY * 1000) / 1024)
+#define LIS3_SENSITIVITY_8B		(18 * LIS3_ACCURACY)
+
+#define LIS3_DEFAULT_FUZZ		3
+#define LIS3_DEFAULT_FLAT		3
+
 struct lis3lv02d lis3_dev = {
 	.misc_wait   = __WAIT_QUEUE_HEAD_INITIALIZER(lis3_dev.misc_wait),
 };
@@ -105,12 +119,16 @@ static inline int lis3lv02d_get_axis(s8 axis, int hw_values[3])
 static void lis3lv02d_get_xyz(struct lis3lv02d *lis3, int *x, int *y, int *z)
 {
 	int position[3];
+	int i;
 
 	mutex_lock(&lis3->mutex);
 	position[0] = lis3->read_data(lis3, OUTX);
 	position[1] = lis3->read_data(lis3, OUTY);
 	position[2] = lis3->read_data(lis3, OUTZ);
 	mutex_unlock(&lis3->mutex);
+
+	for (i = 0; i < 3; i++)
+		position[i] = (position[i] * lis3->scale) / LIS3_ACCURACY;
 
 	*x = lis3lv02d_get_axis(lis3->ac.x, position);
 	*y = lis3lv02d_get_axis(lis3->ac.y, position);
@@ -377,6 +395,7 @@ int lis3lv02d_joystick_enable(void)
 {
 	struct input_dev *input_dev;
 	int err;
+	int max_val, fuzz, flat;
 
 	if (lis3_dev.idev)
 		return -EINVAL;
@@ -396,9 +415,12 @@ int lis3lv02d_joystick_enable(void)
 	input_dev->dev.parent = &lis3_dev.pdev->dev;
 
 	set_bit(EV_ABS, input_dev->evbit);
-	input_set_abs_params(input_dev, ABS_X, -lis3_dev.mdps_max_val, lis3_dev.mdps_max_val, 3, 3);
-	input_set_abs_params(input_dev, ABS_Y, -lis3_dev.mdps_max_val, lis3_dev.mdps_max_val, 3, 3);
-	input_set_abs_params(input_dev, ABS_Z, -lis3_dev.mdps_max_val, lis3_dev.mdps_max_val, 3, 3);
+	max_val = (lis3_dev.mdps_max_val * lis3_dev.scale) / LIS3_ACCURACY;
+	fuzz = (LIS3_DEFAULT_FUZZ * lis3_dev.scale) / LIS3_ACCURACY;
+	flat = (LIS3_DEFAULT_FLAT * lis3_dev.scale) / LIS3_ACCURACY;
+	input_set_abs_params(input_dev, ABS_X, -max_val, max_val, fuzz, flat);
+	input_set_abs_params(input_dev, ABS_Y, -max_val, max_val, fuzz, flat);
+	input_set_abs_params(input_dev, ABS_Z, -max_val, max_val, fuzz, flat);
 
 	err = input_register_polled_device(lis3_dev.idev);
 	if (err) {
@@ -515,6 +537,7 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 		dev->pwron_delay = LIS3_PWRON_DELAY_WAI_12B;
 		dev->odrs = lis3_12_rates;
 		dev->odr_mask = CTRL1_DF0 | CTRL1_DF1;
+		dev->scale = LIS3_SENSITIVITY_12B;
 		break;
 	case WAI_8B:
 		printk(KERN_INFO DRIVER_NAME ": 8 bits sensor found\n");
@@ -523,6 +546,7 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 		dev->pwron_delay = LIS3_PWRON_DELAY_WAI_8B;
 		dev->odrs = lis3_8_rates;
 		dev->odr_mask = CTRL1_DR;
+		dev->scale = LIS3_SENSITIVITY_8B;
 		break;
 	default:
 		printk(KERN_ERR DRIVER_NAME
