@@ -1165,10 +1165,8 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 		__mod_zone_page_state(zone, NR_ISOLATED_ANON, nr_anon);
 		__mod_zone_page_state(zone, NR_ISOLATED_FILE, nr_file);
 
-		reclaim_stat->recent_scanned[0] += count[LRU_INACTIVE_ANON];
-		reclaim_stat->recent_scanned[0] += count[LRU_ACTIVE_ANON];
-		reclaim_stat->recent_scanned[1] += count[LRU_INACTIVE_FILE];
-		reclaim_stat->recent_scanned[1] += count[LRU_ACTIVE_FILE];
+		reclaim_stat->recent_scanned[0] += nr_anon;
+		reclaim_stat->recent_scanned[1] += nr_file;
 
 		spin_unlock_irq(&zone->lru_lock);
 
