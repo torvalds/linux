@@ -2,7 +2,7 @@
  *  lis3lv02d.h - ST LIS3LV02DL accelerometer driver
  *
  *  Copyright (C) 2007-2008 Yan Burman
- *  Copyright (C) 2008 Eric Piel
+ *  Copyright (C) 2008-2009 Eric Piel
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,19 +22,17 @@
 #include <linux/input-polldev.h>
 
 /*
- * The actual chip is STMicroelectronics LIS3LV02DL or LIS3LV02DQ that seems to
- * be connected via SPI. There exists also several similar chips (such as LIS302DL or
- * LIS3L02DQ) and they have slightly different registers, but we can provide a
- * common interface for all of them.
- * They can also be connected via I²C.
+ * This driver tries to support the "digital" accelerometer chips from
+ * STMicroelectronics such as LIS3LV02DL, LIS302DL, LIS3L02DQ, LIS331DL,
+ * LIS35DE, or LIS202DL. They are very similar in terms of programming, with
+ * almost the same registers. In addition to differing on physical properties,
+ * they differ on the number of axes (2/3), precision (8/12 bits), and special
+ * features (freefall detection, click...). Unfortunately, not all the
+ * differences can be probed via a register.
+ * They can be connected either via I²C or SPI.
  */
 
 #include <linux/lis3lv02d.h>
-
-/* 2-byte registers */
-#define LIS_DOUBLE_ID	0x3A /* LIS3LV02D[LQ] */
-/* 1-byte registers */
-#define LIS_SINGLE_ID	0x3B /* LIS[32]02DL and others */
 
 enum lis3_reg {
 	WHO_AM_I	= 0x0F,
@@ -92,6 +90,12 @@ enum lis3lv02d_reg {
 	DD_THSI_H	= 0x3D,
 	DD_THSE_L	= 0x3E,
 	DD_THSE_H	= 0x3F,
+};
+
+enum lis3_who_am_i {
+	WAI_12B		= 0x3A, /* 12 bits: LIS3LV02D[LQ]... */
+	WAI_8B		= 0x3B, /* 8 bits: LIS[23]02D[LQ]... */
+	WAI_6B		= 0x52, /* 6 bits: LIS331DLF - not supported */
 };
 
 enum lis3lv02d_ctrl1 {
@@ -194,7 +198,7 @@ struct lis3lv02d {
 	int (*write) (struct lis3lv02d *lis3, int reg, u8 val);
 	int (*read) (struct lis3lv02d *lis3, int reg, u8 *ret);
 
-	u8			whoami;    /* 3Ah: 2-byte registries, 3Bh: 1-byte registries */
+	u8			whoami;    /* indicates measurement precision */
 	s16 (*read_data) (struct lis3lv02d *lis3, int reg);
 	int			mdps_max_val;
 

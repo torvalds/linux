@@ -43,7 +43,7 @@
 #define MDPS_POLL_INTERVAL 50
 /*
  * The sensor can also generate interrupts (DRDY) but it's pretty pointless
- * because their are generated even if the data do not change. So it's better
+ * because they are generated even if the data do not change. So it's better
  * to keep the interrupt for the free-fall event. The values are updated at
  * 40Hz (at the lowest frequency), but as it can be pretty time consuming on
  * some low processor, we poll the sensor only at 20Hz... enough for the
@@ -65,7 +65,7 @@ static s16 lis3lv02d_read_8(struct lis3lv02d *lis3, int reg)
 	return lo;
 }
 
-static s16 lis3lv02d_read_16(struct lis3lv02d *lis3, int reg)
+static s16 lis3lv02d_read_12(struct lis3lv02d *lis3, int reg)
 {
 	u8 lo, hi;
 
@@ -411,20 +411,20 @@ EXPORT_SYMBOL_GPL(lis3lv02d_remove_fs);
 
 /*
  * Initialise the accelerometer and the various subsystems.
- * Should be rather independant of the bus system.
+ * Should be rather independent of the bus system.
  */
 int lis3lv02d_init_device(struct lis3lv02d *dev)
 {
 	dev->whoami = lis3lv02d_read_8(dev, WHO_AM_I);
 
 	switch (dev->whoami) {
-	case LIS_DOUBLE_ID:
-		printk(KERN_INFO DRIVER_NAME ": 2-byte sensor found\n");
-		dev->read_data = lis3lv02d_read_16;
+	case WAI_12B:
+		printk(KERN_INFO DRIVER_NAME ": 12 bits sensor found\n");
+		dev->read_data = lis3lv02d_read_12;
 		dev->mdps_max_val = 2048;
 		break;
-	case LIS_SINGLE_ID:
-		printk(KERN_INFO DRIVER_NAME ": 1-byte sensor found\n");
+	case WAI_8B:
+		printk(KERN_INFO DRIVER_NAME ": 8 bits sensor found\n");
 		dev->read_data = lis3lv02d_read_8;
 		dev->mdps_max_val = 128;
 		break;
@@ -445,7 +445,7 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 	if (dev->pdata) {
 		struct lis3lv02d_platform_data *p = dev->pdata;
 
-		if (p->click_flags && (dev->whoami == LIS_SINGLE_ID)) {
+		if (p->click_flags && (dev->whoami == WAI_8B)) {
 			dev->write(dev, CLICK_CFG, p->click_flags);
 			dev->write(dev, CLICK_TIMELIMIT, p->click_time_limit);
 			dev->write(dev, CLICK_LATENCY, p->click_latency);
@@ -456,7 +456,7 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 					(p->click_thresh_y << 4));
 		}
 
-		if (p->wakeup_flags && (dev->whoami == LIS_SINGLE_ID)) {
+		if (p->wakeup_flags && (dev->whoami == WAI_8B)) {
 			dev->write(dev, FF_WU_CFG_1, p->wakeup_flags);
 			dev->write(dev, FF_WU_THS_1, p->wakeup_thresh & 0x7f);
 			/* default to 2.5ms for now */
