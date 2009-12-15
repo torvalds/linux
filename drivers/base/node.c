@@ -173,6 +173,43 @@ static ssize_t node_read_distance(struct sys_device * dev,
 }
 static SYSDEV_ATTR(distance, S_IRUGO, node_read_distance, NULL);
 
+#ifdef CONFIG_HUGETLBFS
+/*
+ * hugetlbfs per node attributes registration interface:
+ * When/if hugetlb[fs] subsystem initializes [sometime after this module],
+ * it will register its per node attributes for all nodes online at that
+ * time.  It will also call register_hugetlbfs_with_node(), below, to
+ * register its attribute registration functions with this node driver.
+ * Once these hooks have been initialized, the node driver will call into
+ * the hugetlb module to [un]register attributes for hot-plugged nodes.
+ */
+static node_registration_func_t __hugetlb_register_node;
+static node_registration_func_t __hugetlb_unregister_node;
+
+static inline void hugetlb_register_node(struct node *node)
+{
+	if (__hugetlb_register_node)
+		__hugetlb_register_node(node);
+}
+
+static inline void hugetlb_unregister_node(struct node *node)
+{
+	if (__hugetlb_unregister_node)
+		__hugetlb_unregister_node(node);
+}
+
+void register_hugetlbfs_with_node(node_registration_func_t doregister,
+				  node_registration_func_t unregister)
+{
+	__hugetlb_register_node   = doregister;
+	__hugetlb_unregister_node = unregister;
+}
+#else
+static inline void hugetlb_register_node(struct node *node) {}
+
+static inline void hugetlb_unregister_node(struct node *node) {}
+#endif
+
 
 /*
  * register_node - Setup a sysfs device for a node.
@@ -196,6 +233,7 @@ int register_node(struct node *node, int num, struct node *parent)
 		sysdev_create_file(&node->sysdev, &attr_distance);
 
 		scan_unevictable_register_node(node);
+		hugetlb_register_node(node);
 	}
 	return error;
 }
@@ -216,6 +254,7 @@ void unregister_node(struct node *node)
 	sysdev_remove_file(&node->sysdev, &attr_distance);
 
 	scan_unevictable_unregister_node(node);
+	hugetlb_unregister_node(node);
 
 	sysdev_unregister(&node->sysdev);
 }
