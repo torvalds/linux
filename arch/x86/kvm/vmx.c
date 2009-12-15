@@ -1224,6 +1224,8 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	      CPU_BASED_USE_IO_BITMAPS |
 	      CPU_BASED_MOV_DR_EXITING |
 	      CPU_BASED_USE_TSC_OFFSETING |
+	      CPU_BASED_MWAIT_EXITING |
+	      CPU_BASED_MONITOR_EXITING |
 	      CPU_BASED_INVLPG_EXITING;
 	opt = CPU_BASED_TPR_SHADOW |
 	      CPU_BASED_USE_MSR_BITMAPS |
@@ -3416,6 +3418,12 @@ static int handle_pause(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
+static int handle_invalid_op(struct kvm_vcpu *vcpu)
+{
+	kvm_queue_exception(vcpu, UD_VECTOR);
+	return 1;
+}
+
 /*
  * The exit handlers return 1 if the exit was handled fully and guest execution
  * may resume.  Otherwise they set the kvm_run parameter to indicate what needs
@@ -3453,6 +3461,8 @@ static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_EPT_VIOLATION]	      = handle_ept_violation,
 	[EXIT_REASON_EPT_MISCONFIG]           = handle_ept_misconfig,
 	[EXIT_REASON_PAUSE_INSTRUCTION]       = handle_pause,
+	[EXIT_REASON_MWAIT_INSTRUCTION]	      = handle_invalid_op,
+	[EXIT_REASON_MONITOR_INSTRUCTION]     = handle_invalid_op,
 };
 
 static const int kvm_vmx_max_exit_handlers =
