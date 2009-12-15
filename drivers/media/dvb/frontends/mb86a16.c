@@ -1487,16 +1487,19 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 				} else {
 					dprintk(verbose, MB86A16_INFO, 1, "NO  -- SYNC");
 					SEQ_set(state, 1);
+					ret = -1;
 				}
 			}
 		} else {
 			dprintk (verbose, MB86A16_INFO, 1, "NO  -- SIGNAL");
+			ret = -1;
 		}
 
 		sync = sync_chk(state, &junk);
 		if (sync) {
 			dprintk(verbose, MB86A16_INFO, 1, "******* SYNC *******");
 			freqerr_chk(state, state->frequency, state->srate, 1);
+			ret = 0;
 			break;
 		}
 	}
@@ -1610,33 +1613,21 @@ err:
 	return -EREMOTEIO;
 }
 
-#define MB86A16_FE_ALGO		1
-
-static int mb86a16_frontend_algo(struct dvb_frontend *fe)
+static enum dvbfe_search mb86a16_search(struct dvb_frontend *fe,
+					struct dvb_frontend_parameters *p)
 {
-	return MB86A16_FE_ALGO;
-}
-
-static int mb86a16_set_frontend(struct dvb_frontend *fe,
-				struct dvb_frontend_parameters *p,
-				unsigned int mode_flags,
-				int *delay,
-				fe_status_t *status)
-{
-	int ret = 0;
 	struct mb86a16_state *state = fe->demodulator_priv;
 
-	if (p != NULL) {
-		state->frequency = p->frequency / 1000;
-		state->srate = p->u.qpsk.symbol_rate / 1000;
-		ret = mb86a16_set_fe(state);
+	state->frequency = p->frequency / 1000;
+	state->srate = p->u.qpsk.symbol_rate / 1000;
+
+	if (!mb86a16_set_fe(state)) {
+		dprintk(verbose, MB86A16_ERROR, 1, "Succesfully acquired LOCK");
+		return DVBFE_ALGO_SEARCH_SUCCESS;
 	}
-	if (!(mode_flags & FE_TUNE_MODE_ONESHOT))
-		mb86a16_read_status(fe, status);
 
-	*delay = HZ/3000;
-
-	return ret;
+	dprintk(verbose, MB86A16_ERROR, 1, "Lock acquisition failed!");
+	return DVBFE_ALGO_SEARCH_FAILED;
 }
 
 static void mb86a16_release(struct dvb_frontend *fe)
@@ -1809,6 +1800,11 @@ static int mb86a16_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	return 0;
 }
 
+static enum dvbfe_algo mb86a16_frontend_algo(struct dvb_frontend *fe)
+{
+	return DVBFE_ALGO_CUSTOM;
+}
+
 static struct dvb_frontend_ops mb86a16_ops = {
 	.info = {
 		.name			= "Fujitsu MB86A16 DVB-S",
@@ -1826,9 +1822,10 @@ static struct dvb_frontend_ops mb86a16_ops = {
 					  FE_CAN_FEC_AUTO
 	},
 	.release			= mb86a16_release,
-	.tune				= mb86a16_set_frontend,
-	.read_status			= mb86a16_read_status,
+
 	.get_frontend_algo		= mb86a16_frontend_algo,
+	.search				= mb86a16_search,
+	.read_status			= mb86a16_read_status,
 	.init				= mb86a16_init,
 	.sleep				= mb86a16_sleep,
 	.read_status			= mb86a16_read_status,
