@@ -189,14 +189,14 @@ static void atmel_spi_next_xfer_data(struct spi_master *master,
 
 	/* use scratch buffer only when rx or tx data is unspecified */
 	if (xfer->rx_buf)
-		*rx_dma = xfer->rx_dma + xfer->len - len;
+		*rx_dma = xfer->rx_dma + xfer->len - *plen;
 	else {
 		*rx_dma = as->buffer_dma;
 		if (len > BUFFER_SIZE)
 			len = BUFFER_SIZE;
 	}
 	if (xfer->tx_buf)
-		*tx_dma = xfer->tx_dma + xfer->len - len;
+		*tx_dma = xfer->tx_dma + xfer->len - *plen;
 	else {
 		*tx_dma = as->buffer_dma;
 		if (len > BUFFER_SIZE)
