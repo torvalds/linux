@@ -1283,12 +1283,22 @@ static void drain_mmlist(void)
 
 /*
  * Use this swapdev's extent info to locate the (PAGE_SIZE) block which
- * corresponds to page offset `offset'.
+ * corresponds to page offset `offset'.  Note that the type of this function
+ * is sector_t, but it returns page offset into the bdev, not sector offset.
  */
-sector_t map_swap_page(struct swap_info_struct *sis, pgoff_t offset)
+sector_t map_swap_page(swp_entry_t entry, struct block_device **bdev)
 {
-	struct swap_extent *se = sis->curr_swap_extent;
-	struct swap_extent *start_se = se;
+	struct swap_info_struct *sis;
+	struct swap_extent *start_se;
+	struct swap_extent *se;
+	pgoff_t offset;
+
+	sis = swap_info + swp_type(entry);
+	*bdev = sis->bdev;
+
+	offset = swp_offset(entry);
+	start_se = sis->curr_swap_extent;
+	se = start_se;
 
 	for ( ; ; ) {
 		struct list_head *lh;
@@ -1314,12 +1324,14 @@ sector_t map_swap_page(struct swap_info_struct *sis, pgoff_t offset)
 sector_t swapdev_block(int swap_type, pgoff_t offset)
 {
 	struct swap_info_struct *sis;
+	struct block_device *bdev;
 
 	if (swap_type >= nr_swapfiles)
 		return 0;
 
 	sis = swap_info + swap_type;
-	return (sis->flags & SWP_WRITEOK) ? map_swap_page(sis, offset) : 0;
+	return (sis->flags & SWP_WRITEOK) ?
+		map_swap_page(swp_entry(swap_type, offset), &bdev) : 0;
 }
 #endif /* CONFIG_HIBERNATION */
 
@@ -2157,13 +2169,6 @@ void swap_duplicate(swp_entry_t entry)
 int swapcache_prepare(swp_entry_t entry)
 {
 	return __swap_duplicate(entry, SWAP_CACHE);
-}
-
-
-struct swap_info_struct *
-get_swap_info_struct(unsigned type)
-{
-	return &swap_info[type];
 }
 
 /*
