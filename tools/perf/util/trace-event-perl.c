@@ -379,7 +379,11 @@ static int perl_start_script(const char *script, int argc, const char **argv)
 		goto error;
 	}
 
-	perl_run(my_perl);
+	if (perl_run(my_perl)) {
+		err = -1;
+		goto error;
+	}
+
 	if (SvTRUE(ERRSV)) {
 		err = -1;
 		goto error;
