@@ -1001,8 +1001,7 @@ static int try_to_mlock_page(struct page *page, struct vm_area_struct *vma)
  * try_to_unmap_anon - unmap or unlock anonymous page using the object-based
  * rmap method
  * @page: the page to unmap/unlock
- * @unlock:  request for unlock rather than unmap [unlikely]
- * @migration:  unmapping for migration - ignored if @unlock
+ * @flags: action and flags
  *
  * Find all the mappings of a page using the mapping pointer and the vma chains
  * contained in the anon_vma struct it points to.
