@@ -38,7 +38,8 @@ static inline void ksm_exit(struct mm_struct *mm)
  */
 static inline int PageKsm(struct page *page)
 {
-	return ((unsigned long)page->mapping == PAGE_MAPPING_ANON);
+	return ((unsigned long)page->mapping & PAGE_MAPPING_FLAGS) ==
+				(PAGE_MAPPING_ANON | PAGE_MAPPING_KSM);
 }
 
 /*
@@ -47,7 +48,7 @@ static inline int PageKsm(struct page *page)
 static inline void page_add_ksm_rmap(struct page *page)
 {
 	if (atomic_inc_and_test(&page->_mapcount)) {
-		page->mapping = (void *) PAGE_MAPPING_ANON;
+		page->mapping = (void *) (PAGE_MAPPING_ANON | PAGE_MAPPING_KSM);
 		__inc_zone_page_state(page, NR_ANON_PAGES);
 	}
 }
