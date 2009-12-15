@@ -6,6 +6,7 @@
 
 #include <linux/console.h>
 #include <linux/ctype.h>
+#include <linux/string.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/mm.h>
@@ -131,7 +132,7 @@ void mconsole_proc(struct mc_request *req)
 	char *ptr = req->request.data, *buf;
 
 	ptr += strlen("proc");
-	while (isspace(*ptr)) ptr++;
+	ptr = skip_spaces(ptr);
 
 	proc = get_fs_type("proc");
 	if (proc == NULL) {
@@ -212,8 +213,7 @@ void mconsole_proc(struct mc_request *req)
 	char *ptr = req->request.data;
 
 	ptr += strlen("proc");
-	while (isspace(*ptr))
-		ptr++;
+	ptr = skip_spaces(ptr);
 	snprintf(path, sizeof(path), "/proc/%s", ptr);
 
 	fd = sys_open(path, 0, 0);
@@ -560,8 +560,7 @@ void mconsole_config(struct mc_request *req)
 	int err;
 
 	ptr += strlen("config");
-	while (isspace(*ptr))
-		ptr++;
+	ptr = skip_spaces(ptr);
 	dev = mconsole_find_dev(ptr);
 	if (dev == NULL) {
 		mconsole_reply(req, "Bad configuration option", 1, 0);
@@ -588,7 +587,7 @@ void mconsole_remove(struct mc_request *req)
 	int err, start, end, n;
 
 	ptr += strlen("remove");
-	while (isspace(*ptr)) ptr++;
+	ptr = skip_spaces(ptr);
 	dev = mconsole_find_dev(ptr);
 	if (dev == NULL) {
 		mconsole_reply(req, "Bad remove option", 1, 0);
@@ -712,7 +711,7 @@ void mconsole_sysrq(struct mc_request *req)
 	char *ptr = req->request.data;
 
 	ptr += strlen("sysrq");
-	while (isspace(*ptr)) ptr++;
+	ptr = skip_spaces(ptr);
 
 	/*
 	 * With 'b', the system will shut down without a chance to reply,
@@ -757,8 +756,7 @@ void mconsole_stack(struct mc_request *req)
 	 */
 
 	ptr += strlen("stack");
-	while (isspace(*ptr))
-		ptr++;
+	ptr = skip_spaces(ptr);
 
 	/*
 	 * Should really check for multiple pids or reject bad args here

@@ -12,6 +12,7 @@
 #include <linux/blkdev.h>
 #include <linux/namei.h>
 #include <linux/ctype.h>
+#include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
@@ -600,11 +601,8 @@ int dm_split_args(int *argc, char ***argvp, char *input)
 		return -ENOMEM;
 
 	while (1) {
-		start = end;
-
 		/* Skip whitespace */
-		while (*start && isspace(*start))
-			start++;
+		start = skip_spaces(end);
 
 		if (!*start)
 			break;	/* success, we hit the end */
