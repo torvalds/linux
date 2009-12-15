@@ -34,7 +34,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include <linux/i2c/twl4030.h>
+#include <linux/i2c/twl.h>
 
 
 /*
@@ -80,7 +80,7 @@ static unsigned int gpio_usage_count;
  */
 static inline int gpio_twl4030_write(u8 address, u8 data)
 {
-	return twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, data, address);
+	return twl_i2c_write_u8(TWL4030_MODULE_GPIO, data, address);
 }
 
 /*----------------------------------------------------------------------*/
@@ -117,7 +117,7 @@ static inline int gpio_twl4030_read(u8 address)
 	u8 data;
 	int ret = 0;
 
-	ret = twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &data, address);
+	ret = twl_i2c_read_u8(TWL4030_MODULE_GPIO, &data, address);
 	return (ret < 0) ? ret : data;
 }
 
@@ -142,7 +142,7 @@ static void twl4030_led_set_value(int led, int value)
 		cached_leden &= ~mask;
 	else
 		cached_leden |= mask;
-	status = twl4030_i2c_write_u8(TWL4030_MODULE_LED, cached_leden,
+	status = twl_i2c_write_u8(TWL4030_MODULE_LED, cached_leden,
 			TWL4030_LED_LEDEN);
 	mutex_unlock(&gpio_lock);
 }
@@ -223,23 +223,23 @@ static int twl_request(struct gpio_chip *chip, unsigned offset)
 		}
 
 		/* initialize PWM to always-drive */
-		status = twl4030_i2c_write_u8(module, 0x7f,
+		status = twl_i2c_write_u8(module, 0x7f,
 				TWL4030_PWMx_PWMxOFF);
 		if (status < 0)
 			goto done;
-		status = twl4030_i2c_write_u8(module, 0x7f,
+		status = twl_i2c_write_u8(module, 0x7f,
 				TWL4030_PWMx_PWMxON);
 		if (status < 0)
 			goto done;
 
 		/* init LED to not-driven (high) */
 		module = TWL4030_MODULE_LED;
-		status = twl4030_i2c_read_u8(module, &cached_leden,
+		status = twl_i2c_read_u8(module, &cached_leden,
 				TWL4030_LED_LEDEN);
 		if (status < 0)
 			goto done;
 		cached_leden &= ~ledclr_mask;
-		status = twl4030_i2c_write_u8(module, cached_leden,
+		status = twl_i2c_write_u8(module, cached_leden,
 				TWL4030_LED_LEDEN);
 		if (status < 0)
 			goto done;
@@ -370,7 +370,7 @@ static int __devinit gpio_twl4030_pulls(u32 ups, u32 downs)
 		message[i] = bit_mask;
 	}
 
-	return twl4030_i2c_write(TWL4030_MODULE_GPIO, message,
+	return twl_i2c_write(TWL4030_MODULE_GPIO, message,
 				REG_GPIOPUPDCTR1, 5);
 }
 
@@ -387,7 +387,7 @@ static int __devinit gpio_twl4030_debounce(u32 debounce, u8 mmc_cd)
 	debounce >>= 8;
 	message[3] = (debounce & 0x03);
 
-	return twl4030_i2c_write(TWL4030_MODULE_GPIO, message,
+	return twl_i2c_write(TWL4030_MODULE_GPIO, message,
 				REG_GPIO_DEBEN1, 3);
 }
 

@@ -23,7 +23,7 @@
  * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  *                                                                       *
  *************************************************************************
-*/
+ */
 
 #ifndef __SPECTRUM_H__
 #define __SPECTRUM_H__
@@ -31,112 +31,7 @@
 #include "rtmp_type.h"
 #include "spectrum_def.h"
 
-typedef struct PACKED _TPC_REPORT_INFO
-{
-	UINT8 TxPwr;
-	UINT8 LinkMargin;
-} TPC_REPORT_INFO, *PTPC_REPORT_INFO;
-
-typedef struct PACKED _CH_SW_ANN_INFO
-{
-	UINT8 ChSwMode;
-	UINT8 Channel;
-	UINT8 ChSwCnt;
-} CH_SW_ANN_INFO, *PCH_SW_ANN_INFO;
-
-typedef union PACKED _MEASURE_REQ_MODE
-{
-	struct PACKED
-	{
-		UINT8 Rev0:1;
-		UINT8 Enable:1;
-		UINT8 Request:1;
-		UINT8 Report:1;
-		UINT8 Rev1:4;
-	} field;
-	UINT8 word;
-} MEASURE_REQ_MODE, *PMEASURE_REQ_MODE;
-
-typedef struct PACKED _MEASURE_REQ
-{
-	UINT8 ChNum;
-	UINT64 MeasureStartTime;
-	UINT16 MeasureDuration;
-} MEASURE_REQ, *PMEASURE_REQ;
-
-typedef struct PACKED _MEASURE_REQ_INFO
-{
-	UINT8 Token;
-	MEASURE_REQ_MODE ReqMode;
-	UINT8 ReqType;
-	MEASURE_REQ MeasureReq;
-} MEASURE_REQ_INFO, *PMEASURE_REQ_INFO;
-
-typedef union PACKED _MEASURE_BASIC_REPORT_MAP
-{
-	struct PACKED
-	{
-		UINT8 BSS:1;
-		UINT8 OfdmPreamble:1;
-		UINT8 UnidentifiedSignal:1;
-		UINT8 Radar:1;
-		UINT8 Unmeasure:1;
-		UINT8 Rev:3;
-	} field;
-	UINT8 word;
-} MEASURE_BASIC_REPORT_MAP, *PMEASURE_BASIC_REPORT_MAP;
-
-typedef struct PACKED _MEASURE_BASIC_REPORT
-{
-	UINT8 ChNum;
-	UINT64 MeasureStartTime;
-	UINT16 MeasureDuration;
-	MEASURE_BASIC_REPORT_MAP Map;
-} MEASURE_BASIC_REPORT, *PMEASURE_BASIC_REPORT;
-
-typedef struct PACKED _MEASURE_CCA_REPORT
-{
-	UINT8 ChNum;
-	UINT64 MeasureStartTime;
-	UINT16 MeasureDuration;
-	UINT8 CCA_Busy_Fraction;
-} MEASURE_CCA_REPORT, *PMEASURE_CCA_REPORT;
-
-typedef struct PACKED _MEASURE_RPI_REPORT
-{
-	UINT8 ChNum;
-	UINT64 MeasureStartTime;
-	UINT16 MeasureDuration;
-	UINT8 RPI_Density[8];
-} MEASURE_RPI_REPORT, *PMEASURE_RPI_REPORT;
-
-typedef union PACKED _MEASURE_REPORT_MODE
-{
-	struct PACKED
-	{
-		UINT8 Late:1;
-		UINT8 Incapable:1;
-		UINT8 Refused:1;
-		UINT8 Rev:5;
-	} field;
-	UINT8 word;
-} MEASURE_REPORT_MODE, *PMEASURE_REPORT_MODE;
-
-typedef struct PACKED _MEASURE_REPORT_INFO
-{
-	UINT8 Token;
-	MEASURE_REPORT_MODE ReportMode;
-	UINT8 ReportType;
-	UINT8 Octect[0];
-} MEASURE_REPORT_INFO, *PMEASURE_REPORT_INFO;
-
-typedef struct PACKED _QUIET_INFO
-{
-	UINT8 QuietCnt;
-	UINT8 QuietPeriod;
-	UINT8 QuietDuration;
-	UINT8 QuietOffset;
-} QUIET_INFO, *PQUIET_INFO;
+char RTMP_GetTxPwr(struct rt_rtmp_adapter *pAd, IN HTTRANSMIT_SETTING HTTxMode);
 
 /*
 	==========================================================================
@@ -150,14 +45,16 @@ typedef struct PACKED _QUIET_INFO
 	Return	: None.
 	==========================================================================
  */
-VOID EnqueueMeasurementReq(
-	IN PRTMP_ADAPTER pAd,
-	IN PUCHAR pDA,
-	IN UINT8 MeasureToken,
-	IN UINT8 MeasureReqMode,
-	IN UINT8 MeasureReqType,
-	IN UINT8 MeasureCh,
-	IN UINT16 MeasureDuration);
+void MakeMeasurementReqFrame(struct rt_rtmp_adapter *pAd,
+			     u8 *pOutBuffer,
+			     unsigned long *pFrameLen,
+			     u8 TotalLen,
+			     u8 Category,
+			     u8 Action,
+			     u8 MeasureToken,
+			     u8 MeasureReqMode,
+			     u8 MeasureReqType,
+			     u8 NumOfRepetitions);
 
 /*
 	==========================================================================
@@ -171,15 +68,13 @@ VOID EnqueueMeasurementReq(
 	Return	: None.
 	==========================================================================
  */
-VOID EnqueueMeasurementRep(
-	IN PRTMP_ADAPTER pAd,
-	IN PUCHAR pDA,
-	IN UINT8 DialogToken,
-	IN UINT8 MeasureToken,
-	IN UINT8 MeasureReqMode,
-	IN UINT8 MeasureReqType,
-	IN UINT8 ReportInfoLen,
-	IN PUINT8 pReportInfo);
+void EnqueueMeasurementRep(struct rt_rtmp_adapter *pAd,
+			   u8 *pDA,
+			   u8 DialogToken,
+			   u8 MeasureToken,
+			   u8 MeasureReqMode,
+			   u8 MeasureReqType,
+			   u8 ReportInfoLen, u8 *pReportInfo);
 
 /*
 	==========================================================================
@@ -193,10 +88,7 @@ VOID EnqueueMeasurementRep(
 	Return	: None.
 	==========================================================================
  */
-VOID EnqueueTPCReq(
-	IN PRTMP_ADAPTER pAd,
-	IN PUCHAR pDA,
-	IN UCHAR DialogToken);
+void EnqueueTPCReq(struct rt_rtmp_adapter *pAd, u8 *pDA, u8 DialogToken);
 
 /*
 	==========================================================================
@@ -210,12 +102,9 @@ VOID EnqueueTPCReq(
 	Return	: None.
 	==========================================================================
  */
-VOID EnqueueTPCRep(
-	IN PRTMP_ADAPTER pAd,
-	IN PUCHAR pDA,
-	IN UINT8 DialogToken,
-	IN UINT8 TxPwr,
-	IN UINT8 LinkMargin);
+void EnqueueTPCRep(struct rt_rtmp_adapter *pAd,
+		   u8 *pDA,
+		   u8 DialogToken, u8 TxPwr, u8 LinkMargin);
 
 /*
 	==========================================================================
@@ -231,11 +120,8 @@ VOID EnqueueTPCRep(
 	Return	: None.
 	==========================================================================
  */
-VOID EnqueueChSwAnn(
-	IN PRTMP_ADAPTER pAd,
-	IN PUCHAR pDA,
-	IN UINT8 ChSwMode,
-	IN UINT8 NewCh);
+void EnqueueChSwAnn(struct rt_rtmp_adapter *pAd,
+		    u8 *pDA, u8 ChSwMode, u8 NewCh);
 
 /*
 	==========================================================================
@@ -249,9 +135,7 @@ VOID EnqueueChSwAnn(
 	Return	: None.
 	==========================================================================
  */
-VOID PeerSpectrumAction(
-    IN PRTMP_ADAPTER pAd,
-    IN MLME_QUEUE_ELEM *Elem);
+void PeerSpectrumAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem);
 
 /*
 	==========================================================================
@@ -262,31 +146,44 @@ VOID PeerSpectrumAction(
 	Return	: None.
 	==========================================================================
  */
-INT Set_MeasureReq_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PUCHAR			arg);
+int Set_MeasureReq_Proc(struct rt_rtmp_adapter *pAd, char *arg);
 
-INT Set_TpcReq_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PUCHAR			arg);
+int Set_TpcReq_Proc(struct rt_rtmp_adapter *pAd, char *arg);
 
-VOID MeasureReqTabInit(
-	IN PRTMP_ADAPTER pAd);
+int Set_PwrConstraint(struct rt_rtmp_adapter *pAd, char *arg);
 
-VOID MeasureReqTabExit(
-	IN PRTMP_ADAPTER pAd);
+void MeasureReqTabInit(struct rt_rtmp_adapter *pAd);
 
-VOID TpcReqTabInit(
-	IN PRTMP_ADAPTER pAd);
+void MeasureReqTabExit(struct rt_rtmp_adapter *pAd);
 
-VOID TpcReqTabExit(
-	IN PRTMP_ADAPTER pAd);
+struct rt_measure_req_entry *MeasureReqLookUp(struct rt_rtmp_adapter *pAd, u8 DialogToken);
 
-VOID NotifyChSwAnnToPeerAPs(
-	IN PRTMP_ADAPTER pAd,
-	IN PUCHAR pRA,
-	IN PUCHAR pTA,
-	IN UINT8 ChSwMode,
-	IN UINT8 Channel);
-#endif // __SPECTRUM_H__ //
+struct rt_measure_req_entry *MeasureReqInsert(struct rt_rtmp_adapter *pAd, u8 DialogToken);
 
+void MeasureReqDelete(struct rt_rtmp_adapter *pAd, u8 DialogToken);
+
+void InsertChannelRepIE(struct rt_rtmp_adapter *pAd,
+			u8 *pFrameBuf,
+			unsigned long *pFrameLen,
+			char *pCountry, u8 RegulatoryClass);
+
+void InsertTpcReportIE(struct rt_rtmp_adapter *pAd,
+		       u8 *pFrameBuf,
+		       unsigned long *pFrameLen,
+		       u8 TxPwr, u8 LinkMargin);
+
+void InsertDialogToken(struct rt_rtmp_adapter *pAd,
+		       u8 *pFrameBuf,
+		       unsigned long *pFrameLen, u8 DialogToken);
+
+void TpcReqTabInit(struct rt_rtmp_adapter *pAd);
+
+void TpcReqTabExit(struct rt_rtmp_adapter *pAd);
+
+void NotifyChSwAnnToPeerAPs(struct rt_rtmp_adapter *pAd,
+			    u8 *pRA,
+			    u8 *pTA, u8 ChSwMode, u8 Channel);
+
+void RguClass_BuildBcnChList(struct rt_rtmp_adapter *pAd,
+			     u8 *pBuf, unsigned long *pBufLen);
+#endif /* __SPECTRUM_H__ // */

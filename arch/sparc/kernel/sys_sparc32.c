@@ -564,28 +564,6 @@ asmlinkage long sparc32_open(const char __user *filename,
 	return do_sys_open(AT_FDCWD, filename, flags, mode);
 }
 
-extern unsigned long do_mremap(unsigned long addr,
-	unsigned long old_len, unsigned long new_len,
-	unsigned long flags, unsigned long new_addr);
-                
-asmlinkage unsigned long sys32_mremap(unsigned long addr,
-	unsigned long old_len, unsigned long new_len,
-	unsigned long flags, u32 __new_addr)
-{
-	unsigned long ret = -EINVAL;
-	unsigned long new_addr = __new_addr;
-
-	if (unlikely(sparc_mmap_check(addr, old_len)))
-		goto out;
-	if (unlikely(sparc_mmap_check(new_addr, new_len)))
-		goto out;
-	down_write(&current->mm->mmap_sem);
-	ret = do_mremap(addr, old_len, new_len, flags, new_addr);
-	up_write(&current->mm->mmap_sem);
-out:
-	return ret;       
-}
-
 long sys32_lookup_dcookie(unsigned long cookie_high,
 			  unsigned long cookie_low,
 			  char __user *buf, size_t len)

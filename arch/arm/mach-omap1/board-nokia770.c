@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/clk.h>
+#include <linux/omapfb.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
@@ -32,7 +33,6 @@
 #include <plat/keypad.h>
 #include <plat/common.h>
 #include <plat/dsp_common.h>
-#include <plat/omapfb.h>
 #include <plat/hwa742.h>
 #include <plat/lcd_mipid.h>
 #include <plat/mmc.h>

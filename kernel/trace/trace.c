@@ -86,17 +86,17 @@ static int dummy_set_flag(u32 old_flags, u32 bit, int set)
  */
 static int tracing_disabled = 1;
 
-DEFINE_PER_CPU(local_t, ftrace_cpu_disabled);
+DEFINE_PER_CPU(int, ftrace_cpu_disabled);
 
 static inline void ftrace_disable_cpu(void)
 {
 	preempt_disable();
-	local_inc(&__get_cpu_var(ftrace_cpu_disabled));
+	__this_cpu_inc(per_cpu_var(ftrace_cpu_disabled));
 }
 
 static inline void ftrace_enable_cpu(void)
 {
-	local_dec(&__get_cpu_var(ftrace_cpu_disabled));
+	__this_cpu_dec(per_cpu_var(ftrace_cpu_disabled));
 	preempt_enable();
 }
 
@@ -203,7 +203,7 @@ cycle_t ftrace_now(int cpu)
  */
 static struct trace_array	max_tr;
 
-static DEFINE_PER_CPU(struct trace_array_cpu, max_data);
+static DEFINE_PER_CPU(struct trace_array_cpu, max_tr_data);
 
 /* tracer_enabled is used to toggle activation of a tracer */
 static int			tracer_enabled = 1;
@@ -1085,7 +1085,7 @@ trace_function(struct trace_array *tr,
 	struct ftrace_entry *entry;
 
 	/* If we are reading the ring buffer, don't trace */
-	if (unlikely(local_read(&__get_cpu_var(ftrace_cpu_disabled))))
+	if (unlikely(__this_cpu_read(per_cpu_var(ftrace_cpu_disabled))))
 		return;
 
 	event = trace_buffer_lock_reserve(buffer, TRACE_FN, sizeof(*entry),
@@ -1361,11 +1361,7 @@ int trace_array_vprintk(struct trace_array *tr,
 	pause_graph_tracing();
 	raw_local_irq_save(irq_flags);
 	__raw_spin_lock(&trace_buf_lock);
-	if (args == NULL) {
-		strncpy(trace_buf, fmt, TRACE_BUF_SIZE);
-		len = strlen(trace_buf);
-	} else
-		len = vsnprintf(trace_buf, TRACE_BUF_SIZE, fmt, args);
+	len = vsnprintf(trace_buf, TRACE_BUF_SIZE, fmt, args);
 
 	size = sizeof(*entry) + len + 1;
 	buffer = tr->buffer;
@@ -1516,6 +1512,8 @@ static void *s_next(struct seq_file *m, void *v, loff_t *pos)
 	int i = (int)*pos;
 	void *ent;
 
+	WARN_ON_ONCE(iter->leftover);
+
 	(*pos)++;
 
 	/* can't go backwards */
@@ -1614,8 +1612,16 @@ static void *s_start(struct seq_file *m, loff_t *pos)
 			;
 
 	} else {
-		l = *pos - 1;
-		p = s_next(m, p, &l);
+		/*
+		 * If we overflowed the seq_file before, then we want
+		 * to just reuse the trace_seq buffer again.
+		 */
+		if (iter->leftover)
+			p = iter;
+		else {
+			l = *pos - 1;
+			p = s_next(m, p, &l);
+		}
 	}
 
 	trace_event_read_lock();
@@ -1923,6 +1929,7 @@ static enum print_line_t print_trace_line(struct trace_iterator *iter)
 static int s_show(struct seq_file *m, void *v)
 {
 	struct trace_iterator *iter = v;
+	int ret;
 
 	if (iter->ent == NULL) {
 		if (iter->tr) {
@@ -1942,9 +1949,27 @@ static int s_show(struct seq_file *m, void *v)
 			if (!(trace_flags & TRACE_ITER_VERBOSE))
 				print_func_help_header(m);
 		}
+	} else if (iter->leftover) {
+		/*
+		 * If we filled the seq_file buffer earlier, we
+		 * want to just show it now.
+		 */
+		ret = trace_print_seq(m, &iter->seq);
+
+		/* ret should this time be zero, but you never know */
+		iter->leftover = ret;
+
 	} else {
 		print_trace_line(iter);
-		trace_print_seq(m, &iter->seq);
+		ret = trace_print_seq(m, &iter->seq);
+		/*
+		 * If we overflow the seq_file buffer, then it will
+		 * ask us for this data again at start up.
+		 * Use that instead.
+		 *  ret is 0 if seq_file write succeeded.
+		 *        -1 otherwise.
+		 */
+		iter->leftover = ret;
 	}
 
 	return 0;
@@ -2898,6 +2923,10 @@ static int tracing_release_pipe(struct inode *inode, struct file *file)
 	else
 		cpumask_clear_cpu(iter->cpu_file, tracing_reader_cpumask);
 
+
+	if (iter->trace->pipe_close)
+		iter->trace->pipe_close(iter);
+
 	mutex_unlock(&trace_types_lock);
 
 	free_cpumask_var(iter->started);
@@ -3320,6 +3349,16 @@ tracing_entries_write(struct file *filp, const char __user *ubuf,
 	return cnt;
 }
 
+static int mark_printk(const char *fmt, ...)
+{
+	int ret;
+	va_list args;
+	va_start(args, fmt);
+	ret = trace_vprintk(0, fmt, args);
+	va_end(args);
+	return ret;
+}
+
 static ssize_t
 tracing_mark_write(struct file *filp, const char __user *ubuf,
 					size_t cnt, loff_t *fpos)
@@ -3346,7 +3385,7 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	} else
 		buf[cnt] = '\0';
 
-	cnt = trace_vprintk(0, buf, NULL);
+	cnt = mark_printk("%s", buf);
 	kfree(buf);
 	*fpos += cnt;
 
@@ -4415,7 +4454,7 @@ __init static int tracer_alloc_buffers(void)
 	/* Allocate the first page for all buffers */
 	for_each_tracing_cpu(i) {
 		global_trace.data[i] = &per_cpu(global_trace_cpu, i);
-		max_tr.data[i] = &per_cpu(max_data, i);
+		max_tr.data[i] = &per_cpu(max_tr_data, i);
 	}
 
 	trace_init_cmdlines();

@@ -1102,7 +1102,7 @@ struct sched_class {
 
 	void (*set_curr_task) (struct rq *rq);
 	void (*task_tick) (struct rq *rq, struct task_struct *p, int queued);
-	void (*task_new) (struct rq *rq, struct task_struct *p);
+	void (*task_fork) (struct task_struct *p);
 
 	void (*switched_from) (struct rq *this_rq, struct task_struct *task,
 			       int running);
@@ -1111,7 +1111,8 @@ struct sched_class {
 	void (*prio_changed) (struct rq *this_rq, struct task_struct *task,
 			     int oldprio, int running);
 
-	unsigned int (*get_rr_interval) (struct task_struct *task);
+	unsigned int (*get_rr_interval) (struct rq *rq,
+					 struct task_struct *task);
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	void (*moved_group) (struct task_struct *p);
@@ -1151,8 +1152,6 @@ struct sched_entity {
 	u64			start_runtime;
 	u64			avg_wakeup;
 
-	u64			avg_running;
-
 #ifdef CONFIG_SCHEDSTATS
 	u64			wait_start;
 	u64			wait_max;
@@ -1175,7 +1174,6 @@ struct sched_entity {
 	u64			nr_failed_migrations_running;
 	u64			nr_failed_migrations_hot;
 	u64			nr_forced_migrations;
-	u64			nr_forced2_migrations;
 
 	u64			nr_wakeups;
 	u64			nr_wakeups_sync;
@@ -1840,7 +1838,8 @@ static inline int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask)
 extern int sched_clock_stable;
 #endif
 
-extern unsigned long long sched_clock(void);
+/* ftrace calls sched_clock() directly */
+extern unsigned long long notrace sched_clock(void);
 
 extern void sched_clock_init(void);
 extern u64 sched_clock_cpu(int cpu);
@@ -1903,14 +1902,22 @@ extern unsigned int sysctl_sched_wakeup_granularity;
 extern unsigned int sysctl_sched_shares_ratelimit;
 extern unsigned int sysctl_sched_shares_thresh;
 extern unsigned int sysctl_sched_child_runs_first;
+
+enum sched_tunable_scaling {
+	SCHED_TUNABLESCALING_NONE,
+	SCHED_TUNABLESCALING_LOG,
+	SCHED_TUNABLESCALING_LINEAR,
+	SCHED_TUNABLESCALING_END,
+};
+extern enum sched_tunable_scaling sysctl_sched_tunable_scaling;
+
 #ifdef CONFIG_SCHED_DEBUG
-extern unsigned int sysctl_sched_features;
 extern unsigned int sysctl_sched_migration_cost;
 extern unsigned int sysctl_sched_nr_migrate;
 extern unsigned int sysctl_sched_time_avg;
 extern unsigned int sysctl_timer_migration;
 
-int sched_nr_latency_handler(struct ctl_table *table, int write,
+int sched_proc_update_handler(struct ctl_table *table, int write,
 		void __user *buffer, size_t *length,
 		loff_t *ppos);
 #endif

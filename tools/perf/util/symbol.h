@@ -52,7 +52,8 @@ struct symbol {
 struct symbol_conf {
 	unsigned short	priv_size;
 	bool		try_vmlinux_path,
-			use_modules;
+			use_modules,
+			sort_by_name;
 	const char	*vmlinux_name;
 };
 
@@ -74,13 +75,13 @@ struct addr_location {
 struct dso {
 	struct list_head node;
 	struct rb_root	 symbols[MAP__NR_TYPES];
-	struct symbol    *(*find_symbol)(struct dso *self,
-					 enum map_type type, u64 addr);
+	struct rb_root	 symbol_names[MAP__NR_TYPES];
 	u8		 adjust_symbols:1;
 	u8		 slen_calculated:1;
 	u8		 has_build_id:1;
 	u8		 kernel:1;
 	unsigned char	 origin;
+	u8		 sorted_by_name;
 	u8		 loaded;
 	u8		 build_id[BUILD_ID_SIZE];
 	u16		 long_name_len;
@@ -93,6 +94,9 @@ struct dso *dso__new(const char *name);
 void dso__delete(struct dso *self);
 
 bool dso__loaded(const struct dso *self, enum map_type type);
+bool dso__sorted_by_name(const struct dso *self, enum map_type type);
+
+void dso__sort_by_name(struct dso *self, enum map_type type);
 
 struct dso *dsos__findnew(const char *name);
 int dso__load(struct dso *self, struct map *map, symbol_filter_t filter);
@@ -103,6 +107,9 @@ size_t dso__fprintf_buildid(struct dso *self, FILE *fp);
 size_t dso__fprintf(struct dso *self, enum map_type type, FILE *fp);
 char dso__symtab_origin(const struct dso *self);
 void dso__set_build_id(struct dso *self, void *build_id);
+struct symbol *dso__find_symbol(struct dso *self, enum map_type type, u64 addr);
+struct symbol *dso__find_symbol_by_name(struct dso *self, enum map_type type,
+					const char *name);
 
 int filename__read_build_id(const char *filename, void *bf, size_t size);
 int sysfs__read_build_id(const char *filename, void *bf, size_t size);
@@ -113,8 +120,8 @@ size_t kernel_maps__fprintf(FILE *fp);
 
 int symbol__init(struct symbol_conf *conf);
 
-struct thread;
-struct thread *kthread;
+struct map_groups;
+struct map_groups *kmaps;
 extern struct list_head dsos__user, dsos__kernel;
 extern struct dso *vdso;
 #endif /* __PERF_SYMBOL */

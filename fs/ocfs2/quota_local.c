@@ -1325,7 +1325,7 @@ out:
 	return status;
 }
 
-static struct quota_format_ops ocfs2_format_ops = {
+static const struct quota_format_ops ocfs2_format_ops = {
 	.check_quota_file	= ocfs2_local_check_quota_file,
 	.read_file_info		= ocfs2_local_read_info,
 	.write_file_info	= ocfs2_global_write_info,

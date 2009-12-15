@@ -192,12 +192,14 @@ static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			}
 		}
 	}
-	printk("comedi%d: no supported board found! (req. bus/slot: %d/%d)\n",
+	printk(KERN_WARNING
+	       "comedi%d: no supported board found! (req. bus/slot: %d/%d)\n",
 	       dev->minor, it->options[0], it->options[1]);
 	return -EIO;
 
 found:
-	printk("comedi%d: found %s at PCI bus %d, slot %d\n", dev->minor,
+	printk(KERN_INFO
+	       "comedi%d: found %s at PCI bus %d, slot %d\n", dev->minor,
 	       board->name, pci_device->bus->number,
 	       PCI_SLOT(pci_device->devfn));
 	devpriv->pcidev = pci_device;
@@ -206,9 +208,9 @@ found:
 	/* enable PCI device and request regions */
 	error = comedi_pci_enable(pci_device, CNT_DRIVER_NAME);
 	if (error < 0) {
-		printk
-		    ("comedi%d: failed to enable PCI device and request regions!\n",
-		     dev->minor);
+		printk(KERN_WARNING "comedi%d: "
+		       "failed to enable PCI device and request regions!\n",
+		       dev->minor);
 		return error;
 	}
 
@@ -239,7 +241,8 @@ found:
 	outb(0, dev->iobase + 0x20);
 	outb(0, dev->iobase + 0x40);
 
-	printk("comedi%d: " CNT_DRIVER_NAME " attached.\n", dev->minor);
+	printk(KERN_INFO "comedi%d: " CNT_DRIVER_NAME " attached.\n",
+	       dev->minor);
 	return 0;
 }
 
@@ -248,11 +251,11 @@ found:
 static int cnt_detach(struct comedi_device *dev)
 {
 	if (devpriv && devpriv->pcidev) {
-		if (dev->iobase) {
+		if (dev->iobase)
 			comedi_pci_disable(devpriv->pcidev);
-		}
 		pci_dev_put(devpriv->pcidev);
 	}
-	printk("comedi%d: " CNT_DRIVER_NAME " remove\n", dev->minor);
+	printk(KERN_INFO "comedi%d: " CNT_DRIVER_NAME " remove\n",
+	       dev->minor);
 	return 0;
 }

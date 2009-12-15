@@ -29,11 +29,9 @@ enum dso_origin {
 };
 
 static void dsos__add(struct list_head *head, struct dso *dso);
-static struct map *thread__find_map_by_name(struct thread *self, char *name);
 static struct map *map__new2(u64 start, struct dso *dso, enum map_type type);
-struct symbol *dso__find_symbol(struct dso *self, enum map_type type, u64 addr);
 static int dso__load_kernel_sym(struct dso *self, struct map *map,
-				struct thread *thread, symbol_filter_t filter);
+				struct map_groups *mg, symbol_filter_t filter);
 unsigned int symbol__priv_size;
 static int vmlinux_path__nr_entries;
 static char **vmlinux_path;
@@ -43,17 +41,39 @@ static struct symbol_conf symbol_conf__defaults = {
 	.try_vmlinux_path = true,
 };
 
-static struct thread kthread_mem;
-struct thread *kthread = &kthread_mem;
+static struct map_groups kmaps_mem;
+struct map_groups *kmaps = &kmaps_mem;
 
 bool dso__loaded(const struct dso *self, enum map_type type)
 {
 	return self->loaded & (1 << type);
 }
 
+bool dso__sorted_by_name(const struct dso *self, enum map_type type)
+{
+	return self->sorted_by_name & (1 << type);
+}
+
 static void dso__set_loaded(struct dso *self, enum map_type type)
 {
 	self->loaded |= (1 << type);
+}
+
+static void dso__set_sorted_by_name(struct dso *self, enum map_type type)
+{
+	self->sorted_by_name |= (1 << type);
+}
+
+static bool symbol_type__is_a(char symbol_type, enum map_type map_type)
+{
+	switch (map_type) {
+	case MAP__FUNCTION:
+		return symbol_type == 'T' || symbol_type == 'W';
+	case MAP__VARIABLE:
+		return symbol_type == 'D' || symbol_type == 'd';
+	default:
+		return false;
+	}
 }
 
 static void symbols__fixup_end(struct rb_root *self)
@@ -79,7 +99,7 @@ static void symbols__fixup_end(struct rb_root *self)
 		curr->end = roundup(curr->start, 4096);
 }
 
-static void __thread__fixup_maps_end(struct thread *self, enum map_type type)
+static void __map_groups__fixup_end(struct map_groups *self, enum map_type type)
 {
 	struct map *prev, *curr;
 	struct rb_node *nd, *prevnd = rb_first(&self->maps[type]);
@@ -102,11 +122,11 @@ static void __thread__fixup_maps_end(struct thread *self, enum map_type type)
 	curr->end = ~0UL;
 }
 
-static void thread__fixup_maps_end(struct thread *self)
+static void map_groups__fixup_end(struct map_groups *self)
 {
 	int i;
 	for (i = 0; i < MAP__NR_TYPES; ++i)
-		__thread__fixup_maps_end(self, i);
+		__map_groups__fixup_end(self, i);
 }
 
 static struct symbol *symbol__new(u64 start, u64 len, const char *name)
@@ -164,11 +184,11 @@ struct dso *dso__new(const char *name)
 		dso__set_long_name(self, self->name);
 		self->short_name = self->name;
 		for (i = 0; i < MAP__NR_TYPES; ++i)
-			self->symbols[i] = RB_ROOT;
-		self->find_symbol = dso__find_symbol;
+			self->symbols[i] = self->symbol_names[i] = RB_ROOT;
 		self->slen_calculated = 0;
 		self->origin = DSO__ORIG_NOT_FOUND;
 		self->loaded = 0;
+		self->sorted_by_name = 0;
 		self->has_build_id = 0;
 	}
 
@@ -246,9 +266,83 @@ static struct symbol *symbols__find(struct rb_root *self, u64 ip)
 	return NULL;
 }
 
-struct symbol *dso__find_symbol(struct dso *self, enum map_type type, u64 addr)
+struct symbol_name_rb_node {
+	struct rb_node	rb_node;
+	struct symbol	sym;
+};
+
+static void symbols__insert_by_name(struct rb_root *self, struct symbol *sym)
+{
+	struct rb_node **p = &self->rb_node;
+	struct rb_node *parent = NULL;
+	struct symbol_name_rb_node *symn = ((void *)sym) - sizeof(*parent), *s;
+
+	while (*p != NULL) {
+		parent = *p;
+		s = rb_entry(parent, struct symbol_name_rb_node, rb_node);
+		if (strcmp(sym->name, s->sym.name) < 0)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+	rb_link_node(&symn->rb_node, parent, p);
+	rb_insert_color(&symn->rb_node, self);
+}
+
+static void symbols__sort_by_name(struct rb_root *self, struct rb_root *source)
+{
+	struct rb_node *nd;
+
+	for (nd = rb_first(source); nd; nd = rb_next(nd)) {
+		struct symbol *pos = rb_entry(nd, struct symbol, rb_node);
+		symbols__insert_by_name(self, pos);
+	}
+}
+
+static struct symbol *symbols__find_by_name(struct rb_root *self, const char *name)
+{
+	struct rb_node *n;
+
+	if (self == NULL)
+		return NULL;
+
+	n = self->rb_node;
+
+	while (n) {
+		struct symbol_name_rb_node *s;
+		int cmp;
+
+		s = rb_entry(n, struct symbol_name_rb_node, rb_node);
+		cmp = strcmp(name, s->sym.name);
+
+		if (cmp < 0)
+			n = n->rb_left;
+		else if (cmp > 0)
+			n = n->rb_right;
+		else
+			return &s->sym;
+	}
+
+	return NULL;
+}
+
+struct symbol *dso__find_symbol(struct dso *self,
+				enum map_type type, u64 addr)
 {
 	return symbols__find(&self->symbols[type], addr);
+}
+
+struct symbol *dso__find_symbol_by_name(struct dso *self, enum map_type type,
+					const char *name)
+{
+	return symbols__find_by_name(&self->symbol_names[type], name);
+}
+
+void dso__sort_by_name(struct dso *self, enum map_type type)
+{
+	dso__set_sorted_by_name(self, type);
+	return symbols__sort_by_name(&self->symbol_names[type],
+				     &self->symbols[type]);
 }
 
 int build_id__sprintf(u8 *self, int len, char *bf)
@@ -327,10 +421,7 @@ static int dso__load_all_kallsyms(struct dso *self, struct map *map)
 			continue;
 
 		symbol_type = toupper(line[len]);
-		/*
-		 * We're interested only in code ('T'ext)
-		 */
-		if (symbol_type != 'T' && symbol_type != 'W')
+		if (!symbol_type__is_a(symbol_type, map->type))
 			continue;
 
 		symbol_name = line + len + 2;
@@ -364,8 +455,8 @@ out_failure:
  * kernel range is broken in several maps, named [kernel].N, as we don't have
  * the original ELF section names vmlinux have.
  */
-static int dso__split_kallsyms(struct dso *self, struct map *map, struct thread *thread,
-			       symbol_filter_t filter)
+static int dso__split_kallsyms(struct dso *self, struct map *map,
+			       struct map_groups *mg, symbol_filter_t filter)
 {
 	struct map *curr_map = map;
 	struct symbol *pos;
@@ -382,13 +473,13 @@ static int dso__split_kallsyms(struct dso *self, struct map *map, struct thread 
 
 		module = strchr(pos->name, '\t');
 		if (module) {
-			if (!thread->use_modules)
+			if (!mg->use_modules)
 				goto discard_symbol;
 
 			*module++ = '\0';
 
 			if (strcmp(self->name, module)) {
-				curr_map = thread__find_map_by_name(thread, module);
+				curr_map = map_groups__find_by_name(mg, map->type, module);
 				if (curr_map == NULL) {
 					pr_debug("/proc/{kallsyms,modules} "
 					         "inconsistency!\n");
@@ -419,7 +510,7 @@ static int dso__split_kallsyms(struct dso *self, struct map *map, struct thread 
 			}
 
 			curr_map->map_ip = curr_map->unmap_ip = identity__map_ip;
-			__thread__insert_map(thread, curr_map);
+			map_groups__insert(mg, curr_map);
 			++kernel_range;
 		}
 
@@ -440,7 +531,7 @@ discard_symbol:		rb_erase(&pos->rb_node, root);
 
 
 static int dso__load_kallsyms(struct dso *self, struct map *map,
-			      struct thread *thread, symbol_filter_t filter)
+			      struct map_groups *mg, symbol_filter_t filter)
 {
 	if (dso__load_all_kallsyms(self, map) < 0)
 		return -1;
@@ -448,13 +539,13 @@ static int dso__load_kallsyms(struct dso *self, struct map *map,
 	symbols__fixup_end(&self->symbols[map->type]);
 	self->origin = DSO__ORIG_KERNEL;
 
-	return dso__split_kallsyms(self, map, thread, filter);
+	return dso__split_kallsyms(self, map, mg, filter);
 }
 
 size_t kernel_maps__fprintf(FILE *fp)
 {
 	size_t printed = fprintf(fp, "Kernel maps:\n");
-	printed += thread__fprintf_maps(kthread, fp);
+	printed += map_groups__fprintf_maps(kmaps, fp);
 	return printed + fprintf(fp, "END kernel maps\n");
 }
 
@@ -544,6 +635,13 @@ static inline int elf_sym__is_function(const GElf_Sym *sym)
 	       sym->st_shndx != SHN_UNDEF;
 }
 
+static inline bool elf_sym__is_object(const GElf_Sym *sym)
+{
+	return elf_sym__type(sym) == STT_OBJECT &&
+		sym->st_name != 0 &&
+		sym->st_shndx != SHN_UNDEF;
+}
+
 static inline int elf_sym__is_label(const GElf_Sym *sym)
 {
 	return elf_sym__type(sym) == STT_NOTYPE &&
@@ -562,6 +660,12 @@ static inline int elf_sec__is_text(const GElf_Shdr *shdr,
 					const Elf_Data *secstrs)
 {
 	return strstr(elf_sec__name(shdr, secstrs), "text") != NULL;
+}
+
+static inline bool elf_sec__is_data(const GElf_Shdr *shdr,
+				    const Elf_Data *secstrs)
+{
+	return strstr(elf_sec__name(shdr, secstrs), "data") != NULL;
 }
 
 static inline const char *elf_sym__name(const GElf_Sym *sym,
@@ -744,8 +848,32 @@ out:
 	return 0;
 }
 
+static bool elf_sym__is_a(GElf_Sym *self, enum map_type type)
+{
+	switch (type) {
+	case MAP__FUNCTION:
+		return elf_sym__is_function(self);
+	case MAP__VARIABLE:
+		return elf_sym__is_object(self);
+	default:
+		return false;
+	}
+}
+
+static bool elf_sec__is_a(GElf_Shdr *self, Elf_Data *secstrs, enum map_type type)
+{
+	switch (type) {
+	case MAP__FUNCTION:
+		return elf_sec__is_text(self, secstrs);
+	case MAP__VARIABLE:
+		return elf_sec__is_data(self, secstrs);
+	default:
+		return false;
+	}
+}
+
 static int dso__load_sym(struct dso *self, struct map *map,
-			 struct thread *thread, const char *name, int fd,
+			 struct map_groups *mg, const char *name, int fd,
 			 symbol_filter_t filter, int kernel, int kmodule)
 {
 	struct map *curr_map = map;
@@ -818,7 +946,7 @@ static int dso__load_sym(struct dso *self, struct map *map,
 		int is_label = elf_sym__is_label(&sym);
 		const char *section_name;
 
-		if (!is_label && !elf_sym__is_function(&sym))
+		if (!is_label && !elf_sym__is_a(&sym, map->type))
 			continue;
 
 		sec = elf_getscn(elf, sym.st_shndx);
@@ -827,7 +955,7 @@ static int dso__load_sym(struct dso *self, struct map *map,
 
 		gelf_getshdr(sec, &shdr);
 
-		if (is_label && !elf_sec__is_text(&shdr, secstrs))
+		if (is_label && !elf_sec__is_a(&shdr, secstrs, map->type))
 			continue;
 
 		elf_name = elf_sym__name(&sym, symstrs);
@@ -849,7 +977,7 @@ static int dso__load_sym(struct dso *self, struct map *map,
 			snprintf(dso_name, sizeof(dso_name),
 				 "%s%s", self->short_name, section_name);
 
-			curr_map = thread__find_map_by_name(thread, dso_name);
+			curr_map = map_groups__find_by_name(mg, map->type, dso_name);
 			if (curr_map == NULL) {
 				u64 start = sym.st_value;
 
@@ -868,7 +996,7 @@ static int dso__load_sym(struct dso *self, struct map *map,
 				curr_map->map_ip = identity__map_ip;
 				curr_map->unmap_ip = identity__map_ip;
 				curr_dso->origin = DSO__ORIG_KERNEL;
-				__thread__insert_map(kthread, curr_map);
+				map_groups__insert(kmaps, curr_map);
 				dsos__add(&dsos__kernel, curr_dso);
 			} else
 				curr_dso = curr_map->dso;
@@ -938,8 +1066,9 @@ static bool __dsos__read_build_ids(struct list_head *head)
 
 bool dsos__read_build_ids(void)
 {
-	return __dsos__read_build_ids(&dsos__kernel) ||
-	       __dsos__read_build_ids(&dsos__user);
+	bool kbuildids = __dsos__read_build_ids(&dsos__kernel),
+	     ubuildids = __dsos__read_build_ids(&dsos__user);
+	return kbuildids || ubuildids;
 }
 
 /*
@@ -1093,7 +1222,7 @@ int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
 	dso__set_loaded(self, map->type);
 
 	if (self->kernel)
-		return dso__load_kernel_sym(self, map, kthread, filter);
+		return dso__load_kernel_sym(self, map, kmaps, filter);
 
 	name = malloc(size);
 	if (!name)
@@ -1179,11 +1308,12 @@ out:
 	return ret;
 }
 
-static struct map *thread__find_map_by_name(struct thread *self, char *name)
+struct map *map_groups__find_by_name(struct map_groups *self,
+				     enum map_type type, const char *name)
 {
 	struct rb_node *nd;
 
-	for (nd = rb_first(&self->maps[MAP__FUNCTION]); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&self->maps[type]); nd; nd = rb_next(nd)) {
 		struct map *map = rb_entry(nd, struct map, rb_node);
 
 		if (map->dso && strcmp(map->dso->name, name) == 0)
@@ -1227,7 +1357,7 @@ static int dsos__set_modules_path_dir(char *dirname)
 				 (int)(dot - dent->d_name), dent->d_name);
 
 			strxfrchar(dso_name, '-', '_');
-			map = thread__find_map_by_name(kthread, dso_name);
+			map = map_groups__find_by_name(kmaps, MAP__FUNCTION, dso_name);
 			if (map == NULL)
 				continue;
 
@@ -1280,7 +1410,7 @@ static struct map *map__new2(u64 start, struct dso *dso, enum map_type type)
 	return self;
 }
 
-static int thread__create_module_maps(struct thread *self)
+static int map_groups__create_module_maps(struct map_groups *self)
 {
 	char *line = NULL;
 	size_t n;
@@ -1337,7 +1467,7 @@ static int thread__create_module_maps(struct thread *self)
 			dso->has_build_id = true;
 
 		dso->origin = DSO__ORIG_KMODULE;
-		__thread__insert_map(self, map);
+		map_groups__insert(self, map);
 		dsos__add(&dsos__kernel, dso);
 	}
 
@@ -1352,7 +1482,8 @@ out_failure:
 	return -1;
 }
 
-static int dso__load_vmlinux(struct dso *self, struct map *map, struct thread *thread,
+static int dso__load_vmlinux(struct dso *self, struct map *map,
+			     struct map_groups *mg,
 			     const char *vmlinux, symbol_filter_t filter)
 {
 	int err = -1, fd;
@@ -1386,14 +1517,14 @@ static int dso__load_vmlinux(struct dso *self, struct map *map, struct thread *t
 		return -1;
 
 	dso__set_loaded(self, map->type);
-	err = dso__load_sym(self, map, thread, self->long_name, fd, filter, 1, 0);
+	err = dso__load_sym(self, map, mg, self->long_name, fd, filter, 1, 0);
 	close(fd);
 
 	return err;
 }
 
 static int dso__load_kernel_sym(struct dso *self, struct map *map,
-				struct thread *thread, symbol_filter_t filter)
+				struct map_groups *mg, symbol_filter_t filter)
 {
 	int err;
 	bool is_kallsyms;
@@ -1403,7 +1534,7 @@ static int dso__load_kernel_sym(struct dso *self, struct map *map,
 		pr_debug("Looking at the vmlinux_path (%d entries long)\n",
 			 vmlinux_path__nr_entries);
 		for (i = 0; i < vmlinux_path__nr_entries; ++i) {
-			err = dso__load_vmlinux(self, map, thread,
+			err = dso__load_vmlinux(self, map, mg,
 						vmlinux_path[i], filter);
 			if (err > 0) {
 				pr_debug("Using %s for symbols\n",
@@ -1419,12 +1550,12 @@ static int dso__load_kernel_sym(struct dso *self, struct map *map,
 	if (is_kallsyms)
 		goto do_kallsyms;
 
-	err = dso__load_vmlinux(self, map, thread, self->long_name, filter);
+	err = dso__load_vmlinux(self, map, mg, self->long_name, filter);
 	if (err <= 0) {
 		pr_info("The file %s cannot be used, "
 			"trying to use /proc/kallsyms...", self->long_name);
 do_kallsyms:
-		err = dso__load_kallsyms(self, map, thread, filter);
+		err = dso__load_kallsyms(self, map, mg, filter);
 		if (err > 0 && !is_kallsyms)
                         dso__set_long_name(self, strdup("[kernel.kallsyms]"));
 	}
@@ -1507,42 +1638,59 @@ size_t dsos__fprintf_buildid(FILE *fp)
 		__dsos__fprintf_buildid(&dsos__user, fp));
 }
 
-static int thread__create_kernel_map(struct thread *self, const char *vmlinux)
+static struct dso *dsos__create_kernel( const char *vmlinux)
 {
-	struct map *kmap;
 	struct dso *kernel = dso__new(vmlinux ?: "[kernel.kallsyms]");
 
 	if (kernel == NULL)
-		return -1;
+		return NULL;
 
-	kmap = map__new2(0, kernel, MAP__FUNCTION);
-	if (kmap == NULL)
-		goto out_delete_kernel_dso;
-
-	kmap->map_ip	   = kmap->unmap_ip = identity__map_ip;
 	kernel->short_name = "[kernel]";
 	kernel->kernel	   = 1;
 
 	vdso = dso__new("[vdso]");
 	if (vdso == NULL)
-		goto out_delete_kernel_map;
+		goto out_delete_kernel_dso;
 	dso__set_loaded(vdso, MAP__FUNCTION);
 
 	if (sysfs__read_build_id("/sys/kernel/notes", kernel->build_id,
 				 sizeof(kernel->build_id)) == 0)
 		kernel->has_build_id = true;
 
-	__thread__insert_map(self, kmap);
 	dsos__add(&dsos__kernel, kernel);
 	dsos__add(&dsos__user, vdso);
 
-	return 0;
+	return kernel;
 
-out_delete_kernel_map:
-	map__delete(kmap);
 out_delete_kernel_dso:
 	dso__delete(kernel);
-	return -1;
+	return NULL;
+}
+
+static int map_groups__create_kernel_maps(struct map_groups *self, const char *vmlinux)
+{
+	struct map *functions, *variables;
+	struct dso *kernel = dsos__create_kernel(vmlinux);
+
+	if (kernel == NULL)
+		return -1;
+
+	functions = map__new2(0, kernel, MAP__FUNCTION);
+	if (functions == NULL)
+		return -1;
+
+	variables = map__new2(0, kernel, MAP__VARIABLE);
+	if (variables == NULL) {
+		map__delete(functions);
+		return -1;
+	}
+
+	functions->map_ip = functions->unmap_ip =
+		variables->map_ip = variables->unmap_ip = identity__map_ip;
+	map_groups__insert(self, functions);
+	map_groups__insert(self, variables);
+
+	return 0;
 }
 
 static void vmlinux_path__exit(void)
@@ -1606,23 +1754,26 @@ int symbol__init(struct symbol_conf *conf)
 
 	elf_version(EV_CURRENT);
 	symbol__priv_size = pconf->priv_size;
-	thread__init(kthread, 0);
+	if (pconf->sort_by_name)
+		symbol__priv_size += (sizeof(struct symbol_name_rb_node) -
+				      sizeof(struct symbol));
+	map_groups__init(kmaps);
 
 	if (pconf->try_vmlinux_path && vmlinux_path__init() < 0)
 		return -1;
 
-	if (thread__create_kernel_map(kthread, pconf->vmlinux_name) < 0) {
+	if (map_groups__create_kernel_maps(kmaps, pconf->vmlinux_name) < 0) {
 		vmlinux_path__exit();
 		return -1;
 	}
 
-	kthread->use_modules = pconf->use_modules;
-	if (pconf->use_modules && thread__create_module_maps(kthread) < 0)
+	kmaps->use_modules = pconf->use_modules;
+	if (pconf->use_modules && map_groups__create_module_maps(kmaps) < 0)
 		pr_debug("Failed to load list of modules in use, "
 			 "continuing...\n");
 	/*
 	 * Now that we have all the maps created, just set the ->end of them:
 	 */
-	thread__fixup_maps_end(kthread);
+	map_groups__fixup_end(kmaps);
 	return 0;
 }

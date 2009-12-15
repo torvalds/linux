@@ -1468,7 +1468,7 @@ void v_APCI3120_Interrupt(int irq, void *d)
 	int_amcc = inl(devpriv->i_IobaseAmcc + AMCC_OP_REG_INTCSR);	/*  get AMCC int register */
 
 	if ((!int_daq) && (!(int_amcc & ANY_S593X_INT))) {
-		comedi_error(dev, "IRQ from unknow source");
+		comedi_error(dev, "IRQ from unknown source");
 		return;
 	}
 
@@ -2350,7 +2350,7 @@ int i_APCI3120_InsnReadDigitalInput(struct comedi_device *dev,
 	ui_Chan = CR_CHAN(insn->chanspec);	/*  channel specified */
 
 	/* this_board->i_hwdrv_InsnReadDigitalInput(dev,ui_Chan,data); */
-	if (ui_Chan >= 0 && ui_Chan <= 3) {
+	if (ui_Chan <= 3) {
 		ui_TmpValue = (unsigned int) inw(devpriv->iobase + APCI3120_RD_STATUS);
 
 /*
@@ -2539,8 +2539,7 @@ int i_APCI3120_InsnWriteDigitalOutput(struct comedi_device *dev,
 			"Not a valid Data !!! ,Data should be 1 or 0\n");
 		return -EINVAL;
 	}
-	if ((ui_NoOfChannel > (this_board->i_NbrDoChannel - 1))
-		|| (ui_NoOfChannel < 0)) {
+	if (ui_NoOfChannel > this_board->i_NbrDoChannel - 1) {
 		comedi_error(dev,
 			"This board doesn't have specified channel !!! \n");
 		return -EINVAL;

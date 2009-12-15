@@ -57,6 +57,7 @@ struct trace_iterator {
 	/* The below is zeroed out in pipe_read */
 	struct trace_seq	seq;
 	struct trace_entry	*ent;
+	int			leftover;
 	int			cpu;
 	u64			ts;
 

@@ -172,7 +172,7 @@
 /* 160 */	CALL(sys_sched_get_priority_min)
 		CALL(sys_sched_rr_get_interval)
 		CALL(sys_nanosleep)
-		CALL(sys_arm_mremap)
+		CALL(sys_mremap)
 		CALL(sys_setresuid16)
 /* 165 */	CALL(sys_getresuid16)
 		CALL(sys_ni_syscall)		/* vm86 */

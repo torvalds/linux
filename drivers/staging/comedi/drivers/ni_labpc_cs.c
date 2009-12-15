@@ -59,8 +59,7 @@ NI manuals:
 
 */
 
-#undef LABPC_DEBUG
-			    /* #define LABPC_DEBUG *//*  enable debugging messages */
+#undef LABPC_DEBUG  /* debugging messages */
 
 #include "../comedidev.h"
 
@@ -77,14 +76,15 @@ NI manuals:
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
 
-static struct pcmcia_device *pcmcia_cur_dev = NULL;
+static struct pcmcia_device *pcmcia_cur_dev;
 
 static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 
 static const struct labpc_board_struct labpc_cs_boards[] = {
 	{
 	 .name = "daqcard-1200",
-	 .device_id = 0x103,	/*  0x10b is manufacturer id, 0x103 is device id */
+	 .device_id = 0x103,	/* 0x10b is manufacturer id,
+				   0x103 is device id */
 	 .ai_speed = 10000,
 	 .bustype = pcmcia_bustype,
 	 .register_layout = labpc_1200_layout,
@@ -273,9 +273,8 @@ static void labpc_cs_detach(struct pcmcia_device *link)
 		labpc_release(link);
 	}
 
-	/* This points to the parent local_info_t struct */
-	if (link->priv)
-		kfree(link->priv);
+	/* This points to the parent local_info_t struct (may be null) */
+	kfree(link->priv);
 
 }				/* labpc_cs_detach */
 

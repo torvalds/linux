@@ -971,7 +971,7 @@ NORET_TYPE void do_exit(long code)
 	exit_thread();
 	cgroup_exit(tsk, 1);
 
-	if (group_dead && tsk->signal->leader)
+	if (group_dead)
 		disassociate_ctty(1);
 
 	module_put(task_thread_info(tsk)->exec_domain->module);

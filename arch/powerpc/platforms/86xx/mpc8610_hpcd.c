@@ -19,6 +19,7 @@
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/interrupt.h>
 #include <linux/kdev_t.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
@@ -41,10 +42,46 @@
 
 #include "mpc86xx.h"
 
+static struct device_node *pixis_node;
 static unsigned char *pixis_bdcfg0, *pixis_arch;
+
+#ifdef CONFIG_SUSPEND
+static irqreturn_t mpc8610_sw9_irq(int irq, void *data)
+{
+	pr_debug("%s: PIXIS' event (sw9/wakeup) IRQ handled\n", __func__);
+	return IRQ_HANDLED;
+}
+
+static void __init mpc8610_suspend_init(void)
+{
+	int irq;
+	int ret;
+
+	if (!pixis_node)
+		return;
+
+	irq = irq_of_parse_and_map(pixis_node, 0);
+	if (!irq) {
+		pr_err("%s: can't map pixis event IRQ.\n", __func__);
+		return;
+	}
+
+	ret = request_irq(irq, mpc8610_sw9_irq, 0, "sw9/wakeup", NULL);
+	if (ret) {
+		pr_err("%s: can't request pixis event IRQ: %d\n",
+		       __func__, ret);
+		irq_dispose_mapping(irq);
+	}
+
+	enable_irq_wake(irq);
+}
+#else
+static inline void mpc8610_suspend_init(void) { }
+#endif /* CONFIG_SUSPEND */
 
 static struct of_device_id __initdata mpc8610_ids[] = {
 	{ .compatible = "fsl,mpc8610-immr", },
+	{ .compatible = "fsl,mpc8610-guts", },
 	{ .compatible = "simple-bus", },
 	{ .compatible = "gianfar", },
 	{}
@@ -54,6 +91,9 @@ static int __init mpc8610_declare_of_platform_devices(void)
 {
 	/* Firstly, register PIXIS GPIOs. */
 	simple_gpiochip_init("fsl,fpga-pixis-gpio-bank");
+
+	/* Enable wakeup on PIXIS' event IRQ. */
+	mpc8610_suspend_init();
 
 	/* Without this call, the SSI device driver won't get probed. */
 	of_platform_bus_probe(NULL, mpc8610_ids, NULL);
@@ -250,10 +290,10 @@ static void __init mpc86xx_hpcd_setup_arch(void)
 	diu_ops.set_sysfs_monitor_port	= mpc8610hpcd_set_sysfs_monitor_port;
 #endif
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,fpga-pixis");
-	if (np) {
-		of_address_to_resource(np, 0, &r);
-		of_node_put(np);
+	pixis_node = of_find_compatible_node(NULL, NULL, "fsl,fpga-pixis");
+	if (pixis_node) {
+		of_address_to_resource(pixis_node, 0, &r);
+		of_node_put(pixis_node);
 		pixis = ioremap(r.start, 32);
 		if (!pixis) {
 			printk(KERN_ERR "Err: can't map FPGA cfg register!\n");

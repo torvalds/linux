@@ -1,0 +1,37 @@
+batman-adv 0.2:
+
+* support latest kernels (2.6.20 - 2.6.31)
+* temporary routing loops / TTL code bug / ghost entries in originator table fixed
+* internal packet queue for packet aggregation & transmission retry (ARQ)
+  for payload broadcasts added
+* interface detection converted to event based handling to avoid timers
+* major linux coding style adjustments applied
+* all kernel version compatibility functions has been moved to compat.h
+* use random ethernet address generator from the kernel
+* /sys/module/batman_adv/version to export kernel module version
+* vis: secondary interface export for dot draw format + JSON output format added
+* many bugs (alignment issues, race conditions, deadlocks, etc) squashed
+
+ -- Sat, 07 Nov 2009 15:44:31 +0100
+
+batman-adv 0.1:
+
+* support latest kernels (2.6.20 - 2.6.28)
+* LOTS of cleanup: locking, stack usage, memory leaks
+* Change Ethertype from 0x0842 to 0x4305
+  unregistered at IEEE, if you want to sponsor an official Ethertype ($2500)
+  please contact us
+
+ -- Sun, 28 Dec 2008 00:44:31 +0100
+
+batman-adv 0.1-beta:
+
+* layer 2 meshing based on BATMAN TQ algorithm in kernelland
+* operates on any ethernet like interface
+* supports IPv4, IPv6, DHCP, etc
+* is controlled via /proc/net/batman-adv/
+* bridging via brctl is supported
+* interface watchdog (interfaces can be (de)activated dynamically)
+* offers integrated vis server which meshes/syncs with other vis servers in range
+
+ -- Mon, 05 May 2008 14:10:04 +0200

@@ -1044,7 +1044,7 @@ static int do_pages_stat(struct mm_struct *mm, unsigned long nr_pages,
 	int err;
 
 	for (i = 0; i < nr_pages; i += chunk_nr) {
-		if (chunk_nr + i > nr_pages)
+		if (chunk_nr > nr_pages - i)
 			chunk_nr = nr_pages - i;
 
 		err = copy_from_user(chunk_pages, &pages[i],

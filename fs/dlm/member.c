@@ -48,7 +48,7 @@ static int dlm_add_member(struct dlm_ls *ls, int nodeid)
 	struct dlm_member *memb;
 	int w, error;
 
-	memb = kzalloc(sizeof(struct dlm_member), ls->ls_allocation);
+	memb = kzalloc(sizeof(struct dlm_member), GFP_NOFS);
 	if (!memb)
 		return -ENOMEM;
 
@@ -143,7 +143,7 @@ static void make_member_array(struct dlm_ls *ls)
 
 	ls->ls_total_weight = total;
 
-	array = kmalloc(sizeof(int) * total, ls->ls_allocation);
+	array = kmalloc(sizeof(int) * total, GFP_NOFS);
 	if (!array)
 		return;
 
@@ -226,7 +226,7 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 			continue;
 		log_debug(ls, "new nodeid %d is a re-added member", rv->new[i]);
 
-		memb = kzalloc(sizeof(struct dlm_member), ls->ls_allocation);
+		memb = kzalloc(sizeof(struct dlm_member), GFP_NOFS);
 		if (!memb)
 			return -ENOMEM;
 		memb->nodeid = rv->new[i];
@@ -341,7 +341,7 @@ int dlm_ls_start(struct dlm_ls *ls)
 	int *ids = NULL, *new = NULL;
 	int error, ids_count = 0, new_count = 0;
 
-	rv = kzalloc(sizeof(struct dlm_recover), ls->ls_allocation);
+	rv = kzalloc(sizeof(struct dlm_recover), GFP_NOFS);
 	if (!rv)
 		return -ENOMEM;
 

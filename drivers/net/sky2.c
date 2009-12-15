@@ -2152,7 +2152,9 @@ static void sky2_qlink_intr(struct sky2_hw *hw)
 
 	/* reset PHY Link Detect */
 	phy = sky2_pci_read16(hw, PSM_CONFIG_REG4);
+	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 	sky2_pci_write16(hw, PSM_CONFIG_REG4, phy | 1);
+	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 
 	sky2_link_up(sky2);
 }
@@ -2968,8 +2970,13 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 		break;
 
 	case CHIP_ID_YUKON_UL_2:
+		hw->flags = SKY2_HW_GIGABIT
+			| SKY2_HW_ADV_POWER_CTL;
+		break;
+
 	case CHIP_ID_YUKON_OPT:
 		hw->flags = SKY2_HW_GIGABIT
+			| SKY2_HW_NEW_LE
 			| SKY2_HW_ADV_POWER_CTL;
 		break;
 
@@ -3077,6 +3084,7 @@ static void sky2_reset(struct sky2_hw *hw)
 		reg <<= PSM_CONFIG_REG4_TIMER_PHY_LINK_DETECT_BASE;
 
 		/* reset PHY Link Detect */
+		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 		sky2_pci_write16(hw, PSM_CONFIG_REG4,
 				 reg | PSM_CONFIG_REG4_RST_PHY_LINK_DETECT);
 		sky2_pci_write16(hw, PSM_CONFIG_REG4, reg);
@@ -3094,6 +3102,7 @@ static void sky2_reset(struct sky2_hw *hw)
 			/* restore the PCIe Link Control register */
 			sky2_pci_write16(hw, cap + PCI_EXP_LNKCTL, reg);
 		}
+		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 
 		/* re-enable PEX PM in PEX PHY debug reg. 8 (clear bit 12) */
 		sky2_write32(hw, Y2_PEX_PHY_DATA, PEX_DB_ACCESS | (0x08UL << 16));

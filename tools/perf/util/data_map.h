@@ -3,6 +3,7 @@
 
 #include "event.h"
 #include "header.h"
+#include "session.h"
 
 typedef int (*event_type_handler_t)(event_t *);
 
@@ -21,12 +22,8 @@ struct perf_file_handler {
 };
 
 void register_perf_file_handler(struct perf_file_handler *handler);
-int mmap_dispatch_perf_file(struct perf_header **pheader,
-			    const char *input_name,
-			    int force,
-			    int full_paths,
-			    int *cwdlen,
-			    char **cwd);
-int perf_header__read_build_ids(int input, off_t offset, off_t file_size);
+int perf_session__process_events(struct perf_session *self,
+				 int full_paths, int *cwdlen, char **cwd);
+int perf_header__read_build_ids(int input, u64 offset, u64 file_size);
 
 #endif

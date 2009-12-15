@@ -127,7 +127,7 @@ static u32 noop_apic_read(u32 reg)
 
 static void noop_apic_write(u32 reg, u32 v)
 {
-	WARN_ON_ONCE((cpu_has_apic || !disable_apic));
+	WARN_ON_ONCE(cpu_has_apic && !disable_apic);
 }
 
 struct apic apic_noop = {

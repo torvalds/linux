@@ -17,8 +17,8 @@
 }
 
 #define V2_INITQVERSIONS {\
-	0,		/* USRQUOTA */\
-	0		/* GRPQUOTA */\
+	1,		/* USRQUOTA */\
+	1		/* GRPQUOTA */\
 }
 
 /* First generic header */
@@ -32,13 +32,26 @@ struct v2_disk_dqheader {
  * (as it appears on disk) - the file is a radix tree whose leaves point
  * to blocks of these structures.
  */
-struct v2_disk_dqblk {
+struct v2r0_disk_dqblk {
 	__le32 dqb_id;		/* id this quota applies to */
 	__le32 dqb_ihardlimit;	/* absolute limit on allocated inodes */
 	__le32 dqb_isoftlimit;	/* preferred inode limit */
 	__le32 dqb_curinodes;	/* current # allocated inodes */
 	__le32 dqb_bhardlimit;	/* absolute limit on disk space (in QUOTABLOCK_SIZE) */
 	__le32 dqb_bsoftlimit;	/* preferred limit on disk space (in QUOTABLOCK_SIZE) */
+	__le64 dqb_curspace;	/* current space occupied (in bytes) */
+	__le64 dqb_btime;	/* time limit for excessive disk use */
+	__le64 dqb_itime;	/* time limit for excessive inode use */
+};
+
+struct v2r1_disk_dqblk {
+	__le32 dqb_id;		/* id this quota applies to */
+	__le32 dqb_pad;
+	__le64 dqb_ihardlimit;	/* absolute limit on allocated inodes */
+	__le64 dqb_isoftlimit;	/* preferred inode limit */
+	__le64 dqb_curinodes;	/* current # allocated inodes */
+	__le64 dqb_bhardlimit;	/* absolute limit on disk space (in QUOTABLOCK_SIZE) */
+	__le64 dqb_bsoftlimit;	/* preferred limit on disk space (in QUOTABLOCK_SIZE) */
 	__le64 dqb_curspace;	/* current space occupied (in bytes) */
 	__le64 dqb_btime;	/* time limit for excessive disk use */
 	__le64 dqb_itime;	/* time limit for excessive inode use */

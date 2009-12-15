@@ -408,7 +408,7 @@ struct sock *dccp_v4_request_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 	dccp_sync_mss(newsk, dst_mtu(dst));
 
-	__inet_hash_nolisten(newsk);
+	__inet_hash_nolisten(newsk, NULL);
 	__inet_inherit_port(sk, newsk);
 
 	return newsk;

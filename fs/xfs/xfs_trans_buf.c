@@ -79,11 +79,8 @@ xfs_trans_get_buf(xfs_trans_t	*tp,
 	/*
 	 * Default to a normal get_buf() call if the tp is NULL.
 	 */
-	if (tp == NULL) {
-		bp = xfs_buf_get_flags(target_dev, blkno, len,
-							flags | BUF_BUSY);
-		return(bp);
-	}
+	if (tp == NULL)
+		return xfs_buf_get(target_dev, blkno, len, flags | BUF_BUSY);
 
 	/*
 	 * If we find the buffer in the cache with this transaction
@@ -129,7 +126,7 @@ xfs_trans_get_buf(xfs_trans_t	*tp,
 	 * easily deadlock with our current transaction as well as cause
 	 * us to run out of stack space.
 	 */
-	bp = xfs_buf_get_flags(target_dev, blkno, len, flags | BUF_BUSY);
+	bp = xfs_buf_get(target_dev, blkno, len, flags | BUF_BUSY);
 	if (bp == NULL) {
 		return NULL;
 	}
@@ -302,7 +299,7 @@ xfs_trans_read_buf(
 	 * Default to a normal get_buf() call if the tp is NULL.
 	 */
 	if (tp == NULL) {
-		bp = xfs_buf_read_flags(target, blkno, len, flags | BUF_BUSY);
+		bp = xfs_buf_read(target, blkno, len, flags | BUF_BUSY);
 		if (!bp)
 			return (flags & XFS_BUF_TRYLOCK) ?
 					EAGAIN : XFS_ERROR(ENOMEM);
@@ -398,7 +395,7 @@ xfs_trans_read_buf(
 	 * easily deadlock with our current transaction as well as cause
 	 * us to run out of stack space.
 	 */
-	bp = xfs_buf_read_flags(target, blkno, len, flags | BUF_BUSY);
+	bp = xfs_buf_read(target, blkno, len, flags | BUF_BUSY);
 	if (bp == NULL) {
 		*bpp = NULL;
 		return 0;

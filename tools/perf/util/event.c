@@ -254,13 +254,14 @@ void thread__find_addr_location(struct thread *self, u8 cpumode,
 				struct addr_location *al,
 				symbol_filter_t filter)
 {
-	struct thread *thread = al->thread = self;
+	struct map_groups *mg = &self->mg;
 
+	al->thread = self;
 	al->addr = addr;
 
 	if (cpumode & PERF_RECORD_MISC_KERNEL) {
 		al->level = 'k';
-		thread = kthread;
+		mg = kmaps;
 	} else if (cpumode & PERF_RECORD_MISC_USER)
 		al->level = '.';
 	else {
@@ -270,7 +271,7 @@ void thread__find_addr_location(struct thread *self, u8 cpumode,
 		return;
 	}
 try_again:
-	al->map = thread__find_map(thread, type, al->addr);
+	al->map = map_groups__find(mg, type, al->addr);
 	if (al->map == NULL) {
 		/*
 		 * If this is outside of all known maps, and is a negative
@@ -281,8 +282,8 @@ try_again:
 		 * "[vdso]" dso, but for now lets use the old trick of looking
 		 * in the whole kernel symbol list.
 		 */
-		if ((long long)al->addr < 0 && thread != kthread) {
-			thread = kthread;
+		if ((long long)al->addr < 0 && mg != kmaps) {
+			mg = kmaps;
 			goto try_again;
 		}
 		al->sym = NULL;
@@ -308,5 +309,72 @@ int event__preprocess_sample(const event_t *self, struct addr_location *al,
 	dump_printf(" ...... dso: %s\n",
 		    al->map ? al->map->dso->long_name :
 			al->level == 'H' ? "[hypervisor]" : "<not found>");
+	return 0;
+}
+
+int event__parse_sample(event_t *event, u64 type, struct sample_data *data)
+{
+	u64 *array = event->sample.array;
+
+	if (type & PERF_SAMPLE_IP) {
+		data->ip = event->ip.ip;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_TID) {
+		u32 *p = (u32 *)array;
+		data->pid = p[0];
+		data->tid = p[1];
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_TIME) {
+		data->time = *array;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_ADDR) {
+		data->addr = *array;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_ID) {
+		data->id = *array;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_STREAM_ID) {
+		data->stream_id = *array;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_CPU) {
+		u32 *p = (u32 *)array;
+		data->cpu = *p;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_PERIOD) {
+		data->period = *array;
+		array++;
+	}
+
+	if (type & PERF_SAMPLE_READ) {
+		pr_debug("PERF_SAMPLE_READ is unsuported for now\n");
+		return -1;
+	}
+
+	if (type & PERF_SAMPLE_CALLCHAIN) {
+		data->callchain = (struct ip_callchain *)array;
+		array += 1 + data->callchain->nr;
+	}
+
+	if (type & PERF_SAMPLE_RAW) {
+		u32 *p = (u32 *)array;
+		data->raw_size = *p;
+		p++;
+		data->raw_data = p;
+	}
+
 	return 0;
 }

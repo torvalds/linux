@@ -861,8 +861,10 @@ config GEF_WDT
 	  Watchdog timer found in a number of GE Fanuc single board computers.
 
 config MPC5200_WDT
-	tristate "MPC5200 Watchdog Timer"
+	bool "MPC52xx Watchdog Timer"
 	depends on PPC_MPC52xx
+	help
+	  Use General Purpose Timer (GPT) 0 on the MPC5200 as Watchdog.
 
 config 8xxx_WDT
 	tristate "MPC8xxx Platform Watchdog Timer"

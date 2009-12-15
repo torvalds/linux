@@ -55,8 +55,6 @@ struct sel_arg_struct;
 struct oldold_utsname;
 struct old_utsname;
 
-asmlinkage long sys_mmap2(unsigned long, unsigned long, unsigned long,
-			  unsigned long, unsigned long, unsigned long);
 asmlinkage int old_mmap(struct mmap_arg_struct __user *);
 asmlinkage int old_select(struct sel_arg_struct __user *);
 asmlinkage int sys_ipc(uint, int, int, int, void __user *, long);

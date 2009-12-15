@@ -100,11 +100,11 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 	}
 }
 
-int perf_header__read_build_ids(int input, off_t offset, off_t size)
+int perf_header__read_build_ids(int input, u64 offset, u64 size)
 {
 	struct build_id_event bev;
 	char filename[PATH_MAX];
-	off_t limit = offset + size;
+	u64 limit = offset + size;
 	int err = -1;
 
 	while (offset < limit) {
@@ -129,23 +129,16 @@ out:
 	return err;
 }
 
-int mmap_dispatch_perf_file(struct perf_header **pheader,
-			    const char *input_name,
-			    int force,
-			    int full_paths,
-			    int *cwdlen,
-			    char **cwd)
+int perf_session__process_events(struct perf_session *self,
+				 int full_paths, int *cwdlen, char **cwd)
 {
 	int err;
-	struct perf_header *header;
 	unsigned long head, shift;
 	unsigned long offset = 0;
-	struct stat input_stat;
 	size_t	page_size;
 	u64 sample_type;
 	event_t *event;
 	uint32_t size;
-	int input;
 	char *buf;
 
 	if (curr_handler == NULL) {
@@ -155,56 +148,19 @@ int mmap_dispatch_perf_file(struct perf_header **pheader,
 
 	page_size = getpagesize();
 
-	input = open(input_name, O_RDONLY);
-	if (input < 0) {
-		pr_err("Failed to open file: %s", input_name);
-		if (!strcmp(input_name, "perf.data"))
-			pr_err("  (try 'perf record' first)");
-		pr_err("\n");
-		return -errno;
-	}
-
-	if (fstat(input, &input_stat) < 0) {
-		pr_err("failed to stat file");
-		err = -errno;
-		goto out_close;
-	}
-
-	err = -EACCES;
-	if (!force && input_stat.st_uid && (input_stat.st_uid != geteuid())) {
-		pr_err("file: %s not owned by current user or root\n",
-			input_name);
-		goto out_close;
-	}
-
-	if (input_stat.st_size == 0) {
-		pr_info("zero-sized file, nothing to do!\n");
-		goto done;
-	}
-
-	err = -ENOMEM;
-	header = perf_header__new();
-	if (header == NULL)
-		goto out_close;
-
-	err = perf_header__read(header, input);
-	if (err < 0)
-		goto out_delete;
-	*pheader = header;
-	head = header->data_offset;
-
-	sample_type = perf_header__sample_type(header);
+	head = self->header.data_offset;
+	sample_type = perf_header__sample_type(&self->header);
 
 	err = -EINVAL;
 	if (curr_handler->sample_type_check &&
 	    curr_handler->sample_type_check(sample_type) < 0)
-		goto out_delete;
+		goto out_err;
 
 	if (!full_paths) {
 		if (getcwd(__cwd, sizeof(__cwd)) == NULL) {
 			pr_err("failed to get the current directory\n");
 			err = -errno;
-			goto out_delete;
+			goto out_err;
 		}
 		*cwd = __cwd;
 		*cwdlen = strlen(*cwd);
@@ -219,11 +175,11 @@ int mmap_dispatch_perf_file(struct perf_header **pheader,
 
 remap:
 	buf = mmap(NULL, page_size * mmap_window, PROT_READ,
-		   MAP_SHARED, input, offset);
+		   MAP_SHARED, self->fd, offset);
 	if (buf == MAP_FAILED) {
 		pr_err("failed to mmap file\n");
 		err = -errno;
-		goto out_delete;
+		goto out_err;
 	}
 
 more:
@@ -273,19 +229,14 @@ more:
 
 	head += size;
 
-	if (offset + head >= header->data_offset + header->data_size)
+	if (offset + head >= self->header.data_offset + self->header.data_size)
 		goto done;
 
-	if (offset + head < (unsigned long)input_stat.st_size)
+	if (offset + head < self->size)
 		goto more;
 
 done:
 	err = 0;
-out_close:
-	close(input);
-
+out_err:
 	return err;
-out_delete:
-	perf_header__delete(header);
-	goto out_close;
 }

@@ -167,6 +167,19 @@ int acpi_processor_ppc_has_changed(struct acpi_processor *pr)
 		return cpufreq_update_policy(pr->id);
 }
 
+int acpi_processor_get_bios_limit(int cpu, unsigned int *limit)
+{
+	struct acpi_processor *pr;
+
+	pr = per_cpu(processors, cpu);
+	if (!pr || !pr->performance || !pr->performance->state_count)
+		return -ENODEV;
+	*limit = pr->performance->states[pr->performance_platform_limit].
+		core_frequency * 1000;
+	return 0;
+}
+EXPORT_SYMBOL(acpi_processor_get_bios_limit);
+
 void acpi_processor_ppc_init(void)
 {
 	if (!cpufreq_register_notifier

@@ -7,6 +7,7 @@
 #include "util/header.h"
 #include "util/exec_cmd.h"
 #include "util/trace-event.h"
+#include "util/session.h"
 
 static char const		*script_name;
 static char const		*generate_script_lang;
@@ -61,63 +62,45 @@ static int cleanup_scripting(void)
 
 static char const		*input_name = "perf.data";
 
-static struct perf_header	*header;
+static struct perf_session 	*session;
 static u64			sample_type;
 
 static int process_sample_event(event_t *event)
 {
-	u64 ip = event->ip.ip;
-	u64 timestamp = -1;
-	u32 cpu = -1;
-	u64 period = 1;
-	void *more_data = event->ip.__more_data;
-	struct thread *thread = threads__findnew(event->ip.pid);
+	struct sample_data data;
+	struct thread *thread;
 
-	if (sample_type & PERF_SAMPLE_TIME) {
-		timestamp = *(u64 *)more_data;
-		more_data += sizeof(u64);
-	}
+	memset(&data, 0, sizeof(data));
+	data.time = -1;
+	data.cpu = -1;
+	data.period = 1;
 
-	if (sample_type & PERF_SAMPLE_CPU) {
-		cpu = *(u32 *)more_data;
-		more_data += sizeof(u32);
-		more_data += sizeof(u32); /* reserved */
-	}
-
-	if (sample_type & PERF_SAMPLE_PERIOD) {
-		period = *(u64 *)more_data;
-		more_data += sizeof(u64);
-	}
+	event__parse_sample(event, sample_type, &data);
 
 	dump_printf("(IP, %d): %d/%d: %p period: %Ld\n",
 		event->header.misc,
-		event->ip.pid, event->ip.tid,
-		(void *)(long)ip,
-		(long long)period);
+		data.pid, data.tid,
+		(void *)(long)data.ip,
+		(long long)data.period);
 
+	thread = threads__findnew(event->ip.pid);
 	if (thread == NULL) {
 		pr_debug("problem processing %d event, skipping it.\n",
 			 event->header.type);
 		return -1;
 	}
 
-	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
-
 	if (sample_type & PERF_SAMPLE_RAW) {
-		struct {
-			u32 size;
-			char data[0];
-		} *raw = more_data;
-
 		/*
 		 * FIXME: better resolve from pid from the struct trace_entry
 		 * field, although it should be the same than this perf
 		 * event pid
 		 */
-		scripting_ops->process_event(cpu, raw->data, raw->size,
-					     timestamp, thread->comm);
+		scripting_ops->process_event(data.cpu, data.raw_data,
+					     data.raw_size,
+					     data.time, thread->comm);
 	}
-	event__stats.total += period;
+	event__stats.total += data.period;
 
 	return 0;
 }
@@ -144,11 +127,18 @@ static struct perf_file_handler file_handler = {
 
 static int __cmd_trace(void)
 {
+	int err;
+
+	session = perf_session__new(input_name, O_RDONLY, 0);
+	if (session == NULL)
+		return -ENOMEM;
+
 	register_idle_thread();
 	register_perf_file_handler(&file_handler);
 
-	return mmap_dispatch_perf_file(&header, input_name,
-				       0, 0, &event__cwdlen, &event__cwd);
+	err = perf_session__process_events(session, 0, &event__cwdlen, &event__cwd);
+	perf_session__delete(session);
+	return err;
 }
 
 struct script_spec {
@@ -366,11 +356,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 			return -1;
 		}
 
-		header = perf_header__new();
-		if (header == NULL)
-			return -1;
-
-		perf_header__read(header, input);
+		perf_header__read(&session->header, input);
 		err = scripting_ops->generate_script("perf-trace");
 		goto out;
 	}

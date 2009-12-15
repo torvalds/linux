@@ -272,6 +272,7 @@ struct tracer_flags {
  * @pipe_open: called when the trace_pipe file is opened
  * @wait_pipe: override how the user waits for traces on trace_pipe
  * @close: called when the trace file is released
+ * @pipe_close: called when the trace_pipe file is released
  * @read: override the default read callback on trace_pipe
  * @splice_read: override the default splice_read callback on trace_pipe
  * @selftest: selftest to run on boot (see trace_selftest.c)
@@ -290,6 +291,7 @@ struct tracer {
 	void			(*pipe_open)(struct trace_iterator *iter);
 	void			(*wait_pipe)(struct trace_iterator *iter);
 	void			(*close)(struct trace_iterator *iter);
+	void			(*pipe_close)(struct trace_iterator *iter);
 	ssize_t			(*read)(struct trace_iterator *iter,
 					struct file *filp, char __user *ubuf,
 					size_t cnt, loff_t *ppos);
@@ -441,7 +443,7 @@ extern int DYN_FTRACE_TEST_NAME(void);
 
 extern int ring_buffer_expanded;
 extern bool tracing_selftest_disabled;
-DECLARE_PER_CPU(local_t, ftrace_cpu_disabled);
+DECLARE_PER_CPU(int, ftrace_cpu_disabled);
 
 #ifdef CONFIG_FTRACE_STARTUP_TEST
 extern int trace_selftest_startup_function(struct tracer *trace,

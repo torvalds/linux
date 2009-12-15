@@ -558,7 +558,7 @@ extern void wait_for_device_probe(void);
 #ifdef CONFIG_DEVTMPFS
 extern int devtmpfs_create_node(struct device *dev);
 extern int devtmpfs_delete_node(struct device *dev);
-extern int devtmpfs_mount(const char *mountpoint);
+extern int devtmpfs_mount(const char *mntdir);
 #else
 static inline int devtmpfs_create_node(struct device *dev) { return 0; }
 static inline int devtmpfs_delete_node(struct device *dev) { return 0; }

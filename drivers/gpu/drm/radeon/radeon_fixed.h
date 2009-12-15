@@ -38,6 +38,23 @@ typedef union rfixed {
 #define fixed_init_half(A) { .full = rfixed_const_half((A)) }
 #define rfixed_trunc(A) ((A).full >> 12)
 
+static inline u32 rfixed_floor(fixed20_12 A)
+{
+	u32 non_frac = rfixed_trunc(A);
+
+	return rfixed_const(non_frac);
+}
+
+static inline u32 rfixed_ceil(fixed20_12 A)
+{
+	u32 non_frac = rfixed_trunc(A);
+
+	if (A.full > rfixed_const(non_frac))
+		return rfixed_const(non_frac + 1);
+	else
+		return rfixed_const(non_frac);
+}
+
 static inline u32 rfixed_div(fixed20_12 A, fixed20_12 B)
 {
 	u64 tmp = ((u64)A.full << 13);

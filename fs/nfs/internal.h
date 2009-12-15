@@ -30,6 +30,15 @@ static inline int nfs4_has_session(const struct nfs_client *clp)
 	return 0;
 }
 
+static inline int nfs4_has_persistent_session(const struct nfs_client *clp)
+{
+#ifdef CONFIG_NFS_V4_1
+	if (nfs4_has_session(clp))
+		return (clp->cl_session->flags & SESSION4_PERSIST);
+#endif /* CONFIG_NFS_V4_1 */
+	return 0;
+}
+
 struct nfs_clone_mount {
 	const struct super_block *sb;
 	const struct dentry *dentry;
@@ -156,6 +165,7 @@ struct vfsmount *nfs_do_refmount(const struct vfsmount *mnt_parent, struct dentr
 
 /* callback_xdr.c */
 extern struct svc_version nfs4_callback_version1;
+extern struct svc_version nfs4_callback_version4;
 
 /* pagelist.c */
 extern int __init nfs_init_nfspagecache(void);
@@ -177,23 +187,13 @@ extern __be32 * nfs_decode_dirent(__be32 *, struct nfs_entry *, int);
 extern struct rpc_procinfo nfs3_procedures[];
 extern __be32 *nfs3_decode_dirent(__be32 *, struct nfs_entry *, int);
 
-/* nfs4proc.c */
-static inline void nfs4_restart_rpc(struct rpc_task *task,
-				    const struct nfs_client *clp)
-{
-#ifdef CONFIG_NFS_V4_1
-	if (nfs4_has_session(clp) &&
-	    test_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state)) {
-		rpc_restart_call_prepare(task);
-		return;
-	}
-#endif /* CONFIG_NFS_V4_1 */
-	rpc_restart_call(task);
-}
-
 /* nfs4xdr.c */
 #ifdef CONFIG_NFS_V4
 extern __be32 *nfs4_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus);
+#endif
+#ifdef CONFIG_NFS_V4_1
+extern const u32 nfs41_maxread_overhead;
+extern const u32 nfs41_maxwrite_overhead;
 #endif
 
 /* nfs4proc.c */
@@ -272,20 +272,6 @@ extern int _nfs4_call_sync_session(struct nfs_server *server,
 				   struct nfs4_sequence_args *args,
 				   struct nfs4_sequence_res *res,
 				   int cache_reply);
-
-#ifdef CONFIG_NFS_V4_1
-extern void nfs41_sequence_free_slot(const struct nfs_client *,
-				     struct nfs4_sequence_res *res);
-#endif /* CONFIG_NFS_V4_1 */
-
-static inline void nfs4_sequence_free_slot(const struct nfs_client *clp,
-					   struct nfs4_sequence_res *res)
-{
-#ifdef CONFIG_NFS_V4_1
-	if (nfs4_has_session(clp))
-		nfs41_sequence_free_slot(clp, res);
-#endif /* CONFIG_NFS_V4_1 */
-}
 
 /*
  * Determine the device name as a string
@@ -379,4 +365,16 @@ unsigned int nfs_page_array_len(unsigned int base, size_t len)
 {
 	return ((unsigned long)len + (unsigned long)base +
 		PAGE_SIZE - 1) >> PAGE_SHIFT;
+}
+
+/*
+ * Helper for restarting RPC calls in the possible presence of NFSv4.1
+ * sessions.
+ */
+static inline void nfs_restart_rpc(struct rpc_task *task, const struct nfs_client *clp)
+{
+	if (nfs4_has_session(clp))
+		rpc_restart_call_prepare(task);
+	else
+		rpc_restart_call(task);
 }

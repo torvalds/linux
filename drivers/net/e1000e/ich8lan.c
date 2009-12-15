@@ -2755,14 +2755,16 @@ static s32 e1000_setup_copper_link_ich8lan(struct e1000_hw *hw)
 	 * and increase the max iterations when polling the phy;
 	 * this fixes erroneous timeouts at 10Mbps.
 	 */
-	ret_val = e1000e_write_kmrn_reg(hw, GG82563_REG(0x34, 4), 0xFFFF);
+	ret_val = e1000e_write_kmrn_reg(hw, E1000_KMRNCTRLSTA_TIMEOUTS, 0xFFFF);
 	if (ret_val)
 		return ret_val;
-	ret_val = e1000e_read_kmrn_reg(hw, GG82563_REG(0x34, 9), &reg_data);
+	ret_val = e1000e_read_kmrn_reg(hw, E1000_KMRNCTRLSTA_INBAND_PARAM,
+	                               &reg_data);
 	if (ret_val)
 		return ret_val;
 	reg_data |= 0x3F;
-	ret_val = e1000e_write_kmrn_reg(hw, GG82563_REG(0x34, 9), reg_data);
+	ret_val = e1000e_write_kmrn_reg(hw, E1000_KMRNCTRLSTA_INBAND_PARAM,
+	                                reg_data);
 	if (ret_val)
 		return ret_val;
 

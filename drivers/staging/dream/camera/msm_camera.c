@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/sched.h>
 #include <mach/board.h>
 
 #include <linux/fs.h>
@@ -1597,7 +1598,6 @@ static int __msm_release(struct msm_sync *sync)
 		MSM_DRAIN_QUEUE(sync, pict_frame_q);
 
 		sync->sctrl.s_release();
-		wake_unlock(&sync->wake_lock);
 
 		sync->apps_id = NULL;
 		CDBG("msm_release completed!\n");
@@ -1806,7 +1806,6 @@ static int __msm_open(struct msm_sync *sync, const char *const apps_id)
 	sync->apps_id = apps_id;
 
 	if (!sync->opencnt) {
-		wake_lock(&sync->wake_lock);
 
 		msm_camvfe_fn_init(&sync->vfefn, sync);
 		if (sync->vfefn.vfe_init) {
@@ -2044,8 +2043,6 @@ static int msm_sync_init(struct msm_sync *sync,
 	INIT_LIST_HEAD(&sync->pict_frame_q);
 	init_waitqueue_head(&sync->pict_frame_wait);
 
-	wake_lock_init(&sync->wake_lock, WAKE_LOCK_IDLE, "msm_camera");
-
 	rc = msm_camio_probe_on(pdev);
 	if (rc < 0)
 		return rc;
@@ -2058,7 +2055,6 @@ static int msm_sync_init(struct msm_sync *sync,
 	if (rc < 0) {
 		pr_err("msm_camera: failed to initialize %s\n",
 			sync->sdata->sensor_name);
-		wake_lock_destroy(&sync->wake_lock);
 		return rc;
 	}
 
@@ -2070,7 +2066,6 @@ static int msm_sync_init(struct msm_sync *sync,
 
 static int msm_sync_destroy(struct msm_sync *sync)
 {
-	wake_lock_destroy(&sync->wake_lock);
 	return 0;
 }
 
