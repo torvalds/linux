@@ -15,6 +15,8 @@
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/atmel_usba_udc.h>
+
+#include <mach/atmel-mci.h>
 #include <linux/atmel-mci.h>
 
 #include <asm/io.h>
@@ -1320,7 +1322,7 @@ struct platform_device *__init
 at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 {
 	struct platform_device		*pdev;
-	struct dw_dma_slave		*dws = &data->dma_slave;
+	struct mci_dma_slave		*slave;
 	u32				pioa_mask;
 	u32				piob_mask;
 
@@ -1339,12 +1341,16 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 				ARRAY_SIZE(atmel_mci0_resource)))
 		goto fail;
 
-	dws->dma_dev = &dw_dmac0_device.dev;
-	dws->reg_width = DW_DMA_SLAVE_WIDTH_32BIT;
-	dws->cfg_hi = (DWC_CFGH_SRC_PER(0)
+	slave = kzalloc(sizeof(struct mci_dma_slave), GFP_KERNEL);
+
+	slave->sdata.dma_dev = &dw_dmac0_device.dev;
+	slave->sdata.reg_width = DW_DMA_SLAVE_WIDTH_32BIT;
+	slave->sdata.cfg_hi = (DWC_CFGH_SRC_PER(0)
 				| DWC_CFGH_DST_PER(1));
-	dws->cfg_lo &= ~(DWC_CFGL_HS_DST_POL
+	slave->sdata.cfg_lo &= ~(DWC_CFGL_HS_DST_POL
 				| DWC_CFGL_HS_SRC_POL);
+
+	data->dma_slave = slave;
 
 	if (platform_device_add_data(pdev, data,
 				sizeof(struct mci_platform_data)))
@@ -1411,6 +1417,8 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 	return pdev;
 
 fail:
+	data->dma_slave = NULL;
+	kfree(slave);
 	platform_device_put(pdev);
 	return NULL;
 }
