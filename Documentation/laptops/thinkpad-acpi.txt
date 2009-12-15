@@ -1098,17 +1098,30 @@ Volume control
 procfs: /proc/acpi/ibm/volume
 
 This feature allows volume control on ThinkPad models with a digital
-volume knob, as well as mute/unmute control.  The available commands are:
+volume knob (when available, not all models have it), as well as
+mute/unmute control.  The available commands are:
 
 	echo up   >/proc/acpi/ibm/volume
 	echo down >/proc/acpi/ibm/volume
 	echo mute >/proc/acpi/ibm/volume
+	echo unmute >/proc/acpi/ibm/volume
 	echo 'level <level>' >/proc/acpi/ibm/volume
 
 The <level> number range is 0 to 14 although not all of them may be
 distinct. The unmute the volume after the mute command, use either the
-up or down command (the level command will not unmute the volume).
+up or down command (the level command will not unmute the volume), or
+the unmute command.
+
 The current volume level and mute state is shown in the file.
+
+You can use the volume_capabilities parameter to tell the driver
+whether your thinkpad has volume control or mute-only control:
+volume_capabilities=1 for mixers with mute and volume control,
+volume_capabilities=2 for mixers with only mute control.
+
+If the driver misdetects the capabilities for your ThinkPad model,
+please report this to ibm-acpi-devel@lists.sourceforge.net, so that we
+can update the driver.
 
 There are two strategies for volume control.  To select which one
 should be used, use the volume_mode module parameter: volume_mode=1
@@ -1450,3 +1463,5 @@ Sysfs interface changelog:
 		is deprecated and marked for removal.
 
 0x020600:	Marker for backlight change event support.
+
+0x020700:	Support for mute-only mixers.
