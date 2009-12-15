@@ -574,8 +574,8 @@ static int __init vme_user_init(void)
 	 * in future revisions if that ever becomes necessary.
 	 */
 	if (bus_num > USER_BUS_MAX) {
-		printk(KERN_ERR "%s: Driver only able to handle %d PIO2 "
-			"Cards\n", driver_name, USER_BUS_MAX);
+		printk(KERN_ERR "%s: Driver only able to handle %d buses\n",
+			driver_name, USER_BUS_MAX);
 		bus_num = USER_BUS_MAX;
 	}
 
