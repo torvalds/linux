@@ -1977,7 +1977,7 @@ int regulator_bulk_enable(int num_consumers,
 
 err:
 	printk(KERN_ERR "Failed to enable %s: %d\n", consumers[i].supply, ret);
-	for (i = 0; i < num_consumers; i++)
+	for (--i; i >= 0; --i)
 		regulator_disable(consumers[i].consumer);
 
 	return ret;
@@ -2013,7 +2013,7 @@ int regulator_bulk_disable(int num_consumers,
 err:
 	printk(KERN_ERR "Failed to disable %s: %d\n", consumers[i].supply,
 	       ret);
-	for (i = 0; i < num_consumers; i++)
+	for (--i; i >= 0; --i)
 		regulator_enable(consumers[i].consumer);
 
 	return ret;
