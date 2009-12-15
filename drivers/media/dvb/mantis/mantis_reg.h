@@ -1,7 +1,7 @@
 /*
 	Mantis PCI bridge driver
 
-	Copyright (C) 2005, 2006 Manu Abraham (abraham.manu@gmail.com)
+	Copyright (C) Manu Abraham (abraham.manu@gmail.com)
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
