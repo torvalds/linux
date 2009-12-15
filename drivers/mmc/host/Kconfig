@@ -251,6 +251,14 @@ config MMC_MVSDIO
 	  To compile this driver as a module, choose M here: the
 	  module will be called mvsdio.
 
+config MMC_DAVINCI
+        tristate "TI DAVINCI Multimedia Card Interface support"
+        depends on ARCH_DAVINCI
+        help
+          This selects the TI DAVINCI Multimedia card Interface.
+          If you have an DAVINCI board with a Multimedia Card slot,
+          say Y or M here.  If unsure, say N.
+
 config MMC_SPI
 	tristate "MMC/SD/SDIO over SPI"
 	depends on SPI_MASTER && !HIGHMEM && HAS_DMA
