@@ -150,10 +150,13 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 }
 
 /* Parse perf-probe event definition */
-int parse_perf_probe_event(const char *str, struct probe_point *pp)
+void parse_perf_probe_event(const char *str, struct probe_point *pp,
+			    bool *need_dwarf)
 {
 	char **argv;
-	int argc, i, need_dwarf = 0;
+	int argc, i;
+
+	*need_dwarf = false;
 
 	argv = argv_split(str, &argc);
 	if (!argv)
@@ -164,7 +167,7 @@ int parse_perf_probe_event(const char *str, struct probe_point *pp)
 	/* Parse probe point */
 	parse_perf_probe_probepoint(argv[0], pp);
 	if (pp->file || pp->line)
-		need_dwarf = 1;
+		*need_dwarf = true;
 
 	/* Copy arguments and ensure return probe has no C argument */
 	pp->nr_args = argc - 1;
@@ -177,12 +180,11 @@ int parse_perf_probe_event(const char *str, struct probe_point *pp)
 			if (pp->retprobe)
 				semantic_error("You can't specify local"
 						" variable for kretprobe");
-			need_dwarf = 1;
+			*need_dwarf = true;
 		}
 	}
 
 	argv_free(argv);
-	return need_dwarf;
 }
 
 /* Parse kprobe_events event into struct probe_point */

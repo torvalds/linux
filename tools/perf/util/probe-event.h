@@ -1,10 +1,12 @@
 #ifndef _PROBE_EVENT_H
 #define _PROBE_EVENT_H
 
+#include <stdbool.h>
 #include "probe-finder.h"
 #include "strlist.h"
 
-extern int parse_perf_probe_event(const char *str, struct probe_point *pp);
+extern void parse_perf_probe_event(const char *str, struct probe_point *pp,
+				   bool *need_dwarf);
 extern int synthesize_perf_probe_event(struct probe_point *pp);
 extern void parse_trace_kprobe_event(const char *str, char **group,
 				     char **event, struct probe_point *pp);

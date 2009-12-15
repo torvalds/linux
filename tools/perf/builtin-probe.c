@@ -59,13 +59,13 @@ const char *default_search_path[NR_SEARCH_PATH] = {
 static struct {
 	char *vmlinux;
 	char *release;
-	int need_dwarf;
+	bool need_dwarf;
+	bool list_events;
 	int nr_probe;
 	struct probe_point probes[MAX_PROBES];
 	struct strlist *dellist;
 } session;
 
-static bool listing;
 
 /* Parse an event definition. Note that any error must die. */
 static void parse_probe_event(const char *str)
@@ -77,7 +77,7 @@ static void parse_probe_event(const char *str)
 		die("Too many probes (> %d) are specified.", MAX_PROBES);
 
 	/* Parse perf-probe event into probe_point */
-	session.need_dwarf = parse_perf_probe_event(str, pp);
+	parse_perf_probe_event(str, pp, &session.need_dwarf);
 
 	pr_debug("%d arguments\n", pp->nr_args);
 }
@@ -166,7 +166,8 @@ static const struct option options[] = {
 	OPT_STRING('k', "vmlinux", &session.vmlinux, "file",
 		"vmlinux/module pathname"),
 #endif
-	OPT_BOOLEAN('l', "list", &listing, "list up current probe events"),
+	OPT_BOOLEAN('l', "list", &session.list_events,
+		    "list up current probe events"),
 	OPT_CALLBACK('d', "del", NULL, "[GROUP:]EVENT", "delete a probe event.",
 		opt_del_probe_event),
 	OPT_CALLBACK('a', "add", NULL,
@@ -207,10 +208,10 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 	if (argc > 0)
 		parse_probe_event_argv(argc, argv);
 
-	if ((session.nr_probe == 0 && !session.dellist && !listing))
+	if ((!session.nr_probe && !session.dellist && !session.list_events))
 		usage_with_options(probe_usage, options);
 
-	if (listing) {
+	if (session.list_events) {
 		if (session.nr_probe != 0 || session.dellist) {
 			pr_warning("  Error: Don't use --list with"
 				   " --add/--del.\n");
