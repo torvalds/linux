@@ -477,7 +477,8 @@ static int nfs41_setup_sequence(struct nfs4_session *session,
 	tbl = &session->fc_slot_table;
 
 	spin_lock(&tbl->slot_tbl_lock);
-	if (test_bit(NFS4CLNT_SESSION_DRAINING, &session->clp->cl_state)) {
+	if (test_bit(NFS4CLNT_SESSION_DRAINING, &session->clp->cl_state) &&
+	    !rpc_task_has_priority(task, RPC_PRIORITY_PRIVILEGED)) {
 		/*
 		 * The state manager will wait until the slot table is empty.
 		 * Schedule the reset thread
