@@ -1786,6 +1786,13 @@ EXPORT_SYMBOL_GPL(bprintf);
 
 #endif /* CONFIG_BINARY_PRINTF */
 
+static noinline char *skip_space(const char *str)
+{
+	while (isspace(*str))
+		++str;
+	return (char *)str;
+}
+
 /**
  * vsscanf - Unformat a buffer into a list of arguments
  * @buf:	input buffer
@@ -1807,10 +1814,8 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 		 * white space, including none, in the input.
 		 */
 		if (isspace(*fmt)) {
-			while (isspace(*fmt))
-				++fmt;
-			while (isspace(*str))
-				++str;
+			fmt = skip_space(fmt);
+			str = skip_space(str);
 		}
 
 		/* anything that is not a conversion must match exactly */
@@ -1880,8 +1885,7 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 			if (field_width == -1)
 				field_width = INT_MAX;
 			/* first, skip leading white space in buffer */
-			while (isspace(*str))
-				str++;
+			str = skip_space(str);
 
 			/* now copy until next white space */
 			while (*str && !isspace(*str) && field_width--)
@@ -1923,8 +1927,7 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 		/* have some sort of integer conversion.
 		 * first, skip white space in buffer.
 		 */
-		while (isspace(*str))
-			str++;
+		str = skip_space(str);
 
 		digit = *str;
 		if (is_sign && digit == '-')
