@@ -167,17 +167,24 @@ struct usb_host_interface *usb_altnum_to_altsetting(
 }
 EXPORT_SYMBOL_GPL(usb_altnum_to_altsetting);
 
+struct find_interface_arg {
+	int minor;
+	struct usb_interface *interface;
+};
+
 static int __find_interface(struct device *dev, void *data)
 {
-	int *minor = data;
+	struct find_interface_arg *arg = data;
 	struct usb_interface *intf;
 
 	if (!is_usb_interface(dev))
 		return 0;
 
 	intf = to_usb_interface(dev);
-	if (intf->minor != -1 && intf->minor == *minor)
+	if (intf->minor != -1 && intf->minor == arg->minor) {
+		arg->interface = intf;
 		return 1;
+	}
 	return 0;
 }
 
@@ -186,20 +193,21 @@ static int __find_interface(struct device *dev, void *data)
  * @drv: the driver whose current configuration is considered
  * @minor: the minor number of the desired device
  *
- * This walks the bus device list and returns a pointer to the interface
+ * This walks the driver device list and returns a pointer to the interface
  * with the matching minor.  Note, this only works for devices that share the
  * USB major number.
  */
 struct usb_interface *usb_find_interface(struct usb_driver *drv, int minor)
 {
-	struct device *dev;
+	struct find_interface_arg argb;
+	int retval;
 
-	dev = bus_find_device(&usb_bus_type, NULL, &minor, __find_interface);
-
-	/* Drop reference count from bus_find_device */
-	put_device(dev);
-
-	return dev ? to_usb_interface(dev) : NULL;
+	argb.minor = minor;
+	argb.interface = NULL;
+	/* eat the error, it will be in argb.interface */
+	retval = driver_for_each_device(&drv->drvwrap.driver, NULL, &argb,
+					__find_interface);
+	return argb.interface;
 }
 EXPORT_SYMBOL_GPL(usb_find_interface);
 
