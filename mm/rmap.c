@@ -204,7 +204,7 @@ struct anon_vma *page_lock_anon_vma(struct page *page)
 	unsigned long anon_mapping;
 
 	rcu_read_lock();
-	anon_mapping = (unsigned long) page->mapping;
+	anon_mapping = (unsigned long) ACCESS_ONCE(page->mapping);
 	if ((anon_mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_ANON)
 		goto out;
 	if (!page_mapped(page))
@@ -666,7 +666,9 @@ static void __page_check_anon_rmap(struct page *page,
  * @address:	the user virtual address mapped
  *
  * The caller needs to hold the pte lock, and the page must be locked in
- * the anon_vma case: to serialize mapping,index checking after setting.
+ * the anon_vma case: to serialize mapping,index checking after setting,
+ * and to ensure that PageAnon is not being upgraded racily to PageKsm
+ * (but PageKsm is never downgraded to PageAnon).
  */
 void page_add_anon_rmap(struct page *page,
 	struct vm_area_struct *vma, unsigned long address)
