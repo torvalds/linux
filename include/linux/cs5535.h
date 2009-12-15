@@ -12,6 +12,14 @@
 #define _CS5535_H
 
 /* MSRs */
+#define MSR_GLIU_P2D_RO0	0x10000029
+
+#define MSR_LX_GLD_MSR_CONFIG	0x48002001
+#define MSR_LX_MSR_PADSEL	0x48002011	/* NOT 0x48000011; the data
+						 * sheet has the wrong value */
+#define MSR_GLCP_SYS_RSTPLL	0x4C000014
+#define MSR_GLCP_DOTPLL		0x4C000015
+
 #define MSR_LBAR_SMB		0x5140000B
 #define MSR_LBAR_GPIO		0x5140000C
 #define MSR_LBAR_MFGPT		0x5140000D
@@ -29,6 +37,11 @@
 #define MSR_MFGPT_IRQ		0x51400028
 #define MSR_MFGPT_NR		0x51400029
 #define MSR_MFGPT_SETUP		0x5140002B
+
+#define MSR_LX_SPARE_MSR	0x80000011	/* DC-specific */
+
+#define MSR_GX_GLD_MSR_CONFIG	0xC0002001
+#define MSR_GX_MSR_PADSEL	0xC0002011
 
 /* resource sizes */
 #define LBAR_GPIO_SIZE		0xFF

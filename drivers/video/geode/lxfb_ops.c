@@ -13,7 +13,7 @@
 #include <linux/fb.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
-#include <asm/geode.h>
+#include <linux/cs5535.h>
 
 #include "lxfb.h"
 

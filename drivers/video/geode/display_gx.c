@@ -17,7 +17,7 @@
 #include <asm/io.h>
 #include <asm/div64.h>
 #include <asm/delay.h>
-#include <asm/geode.h>
+#include <linux/cs5535.h>
 
 #include "gxfb.h"
 
