@@ -343,6 +343,7 @@ struct pm860x_touch_pdata {
 	int		tsi_prebias;	/* time, slot */
 	int		pen_prebias;	/* time, slot */
 	int		pen_prechg;	/* time, slot */
+	int		res_x;		/* resistor of Xplate */
 	unsigned long	flags;
 };
 

@@ -11,6 +11,18 @@ menuconfig INPUT_TOUCHSCREEN
 
 if INPUT_TOUCHSCREEN
 
+config TOUCHSCREEN_88PM860X
+	tristate "Marvell 88PM860x touchscreen"
+	depends on MFD_88PM860X
+	help
+	  Say Y here if you have a 88PM860x PMIC and want to enable
+	  support for the built-in touchscreen.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called 88pm860x-ts.
+
 config TOUCHSCREEN_ADS7846
 	tristate "ADS7846/TSC2046 and ADS7843 based touchscreens"
 	depends on SPI_MASTER
