@@ -34,6 +34,7 @@
 #include <linux/ksm.h>
 
 #include <asm/tlbflush.h>
+#include "internal.h"
 
 /*
  * A few notes about the KSM scanning process,
@@ -761,6 +762,9 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
 	if (write_protect_page(vma, page, &orig_pte) == 0 &&
 	    pages_identical(page, kpage))
 		err = replace_page(vma, page, kpage, orig_pte);
+
+	if ((vma->vm_flags & VM_LOCKED) && !err)
+		munlock_vma_page(page);
 
 	unlock_page(page);
 out:
