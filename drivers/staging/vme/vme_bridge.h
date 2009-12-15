@@ -229,36 +229,4 @@ struct vmeArbiterCfg {
 };
 typedef struct vmeArbiterCfg vmeArbiterCfg_t;
 
-
-/*
- *  VMEbus RMW Configuration Data
- */
-struct vmeRmwCfg {
-	unsigned int targetAddrU;	/*  VME Address (Upper) to trigger RMW cycle */
-	unsigned int targetAddr;	/*  VME Address (Lower) to trigger RMW cycle */
-	vme_address_t addrSpace;	/*  VME Address Space */
-	int enableMask;		/*  Bit mask defining the bits of interest */
-	int compareData;	/*  Data to be compared with the data read */
-	int swapData;		/*  Data written to the VMEbus on success */
-	int maxAttempts;	/*  Maximum times to try */
-	int numAttempts;	/*  Number of attempts before success */
-	int reserved;		/* For future use */
-
-};
-typedef struct vmeRmwCfg vmeRmwCfg_t;
-
-/*
- *  VMEbus Location Monitor Arg Structure
- */
-struct vmeLmCfg {
-	unsigned int addrU;	/*  Location Monitor Address upper */
-	unsigned int addr;	/*  Location Monitor Address lower */
-	vme_address_t addrSpace;	/*  Address Space */
-	int userAccessType;	/*  User/Supervisor Access Type */
-	int dataAccessType;	/*  Data/Program Access Type */
-	int lmWait;		/* Time to wait for access */
-	int lmEvents;		/* Lm event mask */
-	int reserved;		/* For future use */
-};
-typedef struct vmeLmCfg vmeLmCfg_t;
 #endif
