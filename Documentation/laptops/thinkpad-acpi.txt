@@ -1096,6 +1096,7 @@ Volume control
 --------------
 
 procfs: /proc/acpi/ibm/volume
+ALSA: "ThinkPad Console Audio Control", default ID: "ThinkPadEC"
 
 NOTE: by default, the volume control interface operates in read-only
 mode, as it is supposed to be used for on-screen-display purposes.
@@ -1144,9 +1145,8 @@ The driver will operate in volume_mode=3 by default. If that does not
 work well on your ThinkPad model, please report this to
 ibm-acpi-devel@lists.sourceforge.net.
 
-The ALSA mixer interface to this feature is still missing, but patches
-to add it exist.  That problem should be addressed in the not so
-distant future.
+The driver supports the standard ALSA module parameters.  If the ALSA
+mixer is disabled, the driver will disable all volume functionality.
 
 
 Fan control and monitoring: fan speed, fan enable/disable
@@ -1478,3 +1478,4 @@ Sysfs interface changelog:
 
 0x020700:	Support for mute-only mixers.
 		Volume control in read-only mode by default.
+		Marker for ALSA mixer support.
