@@ -189,7 +189,7 @@ config SGI_XP
 
 config CS5535_MFGPT
 	tristate "CS5535/CS5536 Geode Multi-Function General Purpose Timer (MFGPT) support"
-	depends on PCI && !MGEODE_LX
+	depends on PCI
 	depends on X86
 	default n
 	help
