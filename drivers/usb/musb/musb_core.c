@@ -2134,7 +2134,7 @@ static int __init musb_probe(struct platform_device *pdev)
 	if (!iomem || irq == 0)
 		return -ENODEV;
 
-	base = ioremap(iomem->start, iomem->end - iomem->start + 1);
+	base = ioremap(iomem->start, resource_size(iomem));
 	if (!base) {
 		dev_err(dev, "ioremap failed\n");
 		return -ENOMEM;
