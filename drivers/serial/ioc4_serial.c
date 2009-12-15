@@ -2913,17 +2913,27 @@ static int __init ioc4_serial_init(void)
 		printk(KERN_WARNING
 			"%s: Couldn't register rs232 IOC4 serial driver\n",
 			__func__);
-		return ret;
+		goto out;
 	}
 	if ((ret = uart_register_driver(&ioc4_uart_rs422)) < 0) {
 		printk(KERN_WARNING
 			"%s: Couldn't register rs422 IOC4 serial driver\n",
 			__func__);
-		return ret;
+		goto out_uart_rs232;
 	}
 
 	/* register with IOC4 main module */
-	return ioc4_register_submodule(&ioc4_serial_submodule);
+	ret = ioc4_register_submodule(&ioc4_serial_submodule);
+	if (ret)
+		goto out_uart_rs422;
+	return 0;
+
+out_uart_rs422:
+	uart_unregister_driver(&ioc4_uart_rs422);
+out_uart_rs232:
+	uart_unregister_driver(&ioc4_uart_rs232);
+out:
+	return ret;
 }
 
 static void __exit ioc4_serial_exit(void)

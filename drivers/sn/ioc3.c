@@ -820,7 +820,7 @@ static int __init ioc3_init(void)
 {
 	if (ia64_platform_is("sn2"))
 		return pci_register_driver(&ioc3_driver);
-	return 0;
+	return -ENODEV;
 }
 
 /* Module unload */
