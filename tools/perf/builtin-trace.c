@@ -469,6 +469,49 @@ static int list_available_scripts(const struct option *opt __used,
 	exit(0);
 }
 
+static char *get_script_path(const char *script_root, const char *suffix)
+{
+	struct dirent *script_next, *lang_next, script_dirent, lang_dirent;
+	char scripts_path[MAXPATHLEN];
+	char script_path[MAXPATHLEN];
+	DIR *scripts_dir, *lang_dir;
+	char lang_path[MAXPATHLEN];
+	char *str, *__script_root;
+	char *path = NULL;
+
+	snprintf(scripts_path, MAXPATHLEN, "%s/scripts", perf_exec_path());
+
+	scripts_dir = opendir(scripts_path);
+	if (!scripts_dir)
+		return NULL;
+
+	for_each_lang(scripts_dir, lang_dirent, lang_next) {
+		snprintf(lang_path, MAXPATHLEN, "%s/%s/bin", scripts_path,
+			 lang_dirent.d_name);
+		lang_dir = opendir(lang_path);
+		if (!lang_dir)
+			continue;
+
+		for_each_script(lang_dir, script_dirent, script_next) {
+			__script_root = strdup(script_dirent.d_name);
+			str = ends_with(__script_root, suffix);
+			if (str) {
+				*str = '\0';
+				if (strcmp(__script_root, script_root))
+					continue;
+				snprintf(script_path, MAXPATHLEN, "%s/%s",
+					 lang_path, script_dirent.d_name);
+				path = strdup(script_path);
+				free(__script_root);
+				break;
+			}
+			free(__script_root);
+		}
+	}
+
+	return path;
+}
+
 static const char * const annotate_usage[] = {
 	"perf trace [<options>] <command>",
 	NULL
@@ -494,8 +537,47 @@ static const struct option options[] = {
 
 int cmd_trace(int argc, const char **argv, const char *prefix __used)
 {
-	int err;
 	struct perf_session *session;
+	const char *suffix = NULL;
+	const char **__argv;
+	char *script_path;
+	int i, err;
+
+	if (argc >= 2 && strncmp(argv[1], "rec", strlen("rec")) == 0) {
+		if (argc < 3) {
+			fprintf(stderr,
+				"Please specify a record script\n");
+			return -1;
+		}
+		suffix = RECORD_SUFFIX;
+	}
+
+	if (argc >= 2 && strncmp(argv[1], "rep", strlen("rep")) == 0) {
+		if (argc < 3) {
+			fprintf(stderr,
+				"Please specify a report script\n");
+			return -1;
+		}
+		suffix = REPORT_SUFFIX;
+	}
+
+	if (suffix) {
+		script_path = get_script_path(argv[2], suffix);
+		if (!script_path) {
+			fprintf(stderr, "script not found\n");
+			return -1;
+		}
+
+		__argv = malloc((argc + 1) * sizeof(const char *));
+		__argv[0] = "/bin/sh";
+		__argv[1] = script_path;
+		for (i = 3; i < argc; i++)
+			__argv[i - 1] = argv[i];
+		__argv[argc - 1] = NULL;
+
+		execvp("/bin/sh", (char **)__argv);
+		exit(-1);
+	}
 
 	symbol__init(0);
 
