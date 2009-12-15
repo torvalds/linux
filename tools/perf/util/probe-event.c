@@ -482,7 +482,7 @@ static void write_trace_kprobe_event(int fd, const char *buf)
 }
 
 static void get_new_event_name(char *buf, size_t len, const char *base,
-			       struct strlist *namelist)
+			       struct strlist *namelist, bool allow_suffix)
 {
 	int i, ret;
 
@@ -492,6 +492,12 @@ static void get_new_event_name(char *buf, size_t len, const char *base,
 		die("snprintf() failed: %s", strerror(-ret));
 	if (!strlist__has_entry(namelist, buf))
 		return;
+
+	if (!allow_suffix) {
+		pr_warning("Error: event \"%s\" already exists. "
+			   "(Use -f to force duplicates.)\n", base);
+		die("Can't add new event.");
+	}
 
 	/* Try to add suffix */
 	for (i = 1; i < MAX_EVENT_INDEX; i++) {
@@ -505,13 +511,15 @@ static void get_new_event_name(char *buf, size_t len, const char *base,
 		die("Too many events are on the same function.");
 }
 
-void add_trace_kprobe_events(struct probe_point *probes, int nr_probes)
+void add_trace_kprobe_events(struct probe_point *probes, int nr_probes,
+			     bool force_add)
 {
 	int i, j, fd;
 	struct probe_point *pp;
 	char buf[MAX_CMDLEN];
 	char event[64];
 	struct strlist *namelist;
+	bool allow_suffix;
 
 	fd = open_kprobe_events(O_RDWR, O_APPEND);
 	/* Get current event names */
@@ -524,9 +532,12 @@ void add_trace_kprobe_events(struct probe_point *probes, int nr_probes)
 		if (!pp->group)
 			pp->group = strdup(PERFPROBE_GROUP);
 		DIE_IF(!pp->event || !pp->group);
+		/* If force_add is true, suffix search is allowed */
+		allow_suffix = force_add;
 		for (i = 0; i < pp->found; i++) {
 			/* Get an unused new event name */
-			get_new_event_name(event, 64, pp->event, namelist);
+			get_new_event_name(event, 64, pp->event, namelist,
+					   allow_suffix);
 			snprintf(buf, MAX_CMDLEN, "%c:%s/%s %s\n",
 				 pp->retprobe ? 'r' : 'p',
 				 pp->group, event,
@@ -538,6 +549,13 @@ void add_trace_kprobe_events(struct probe_point *probes, int nr_probes)
 			show_perf_probe_event(event, buf, pp);
 			/* Add added event name to namelist */
 			strlist__add(namelist, event);
+			/*
+			 * Probes after the first probe which comes from same
+			 * user input are always allowed to add suffix, because
+			 * there might be several addresses corresponding to
+			 * one code line.
+			 */
+			allow_suffix = true;
 		}
 	}
 	/* Show how to use the event. */

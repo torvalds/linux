@@ -61,6 +61,7 @@ static struct {
 	char *release;
 	bool need_dwarf;
 	bool list_events;
+	bool force_add;
 	int nr_probe;
 	struct probe_point probes[MAX_PROBES];
 	struct strlist *dellist;
@@ -192,6 +193,8 @@ static const struct option options[] = {
 #endif
 		"\t\t\tkprobe-tracer argument format.)\n",
 		opt_add_probe_event),
+	OPT_BOOLEAN('f', "force", &session.force_add, "forcibly add events"
+		    " with existing name"),
 	OPT_END()
 };
 
@@ -294,7 +297,8 @@ end_dwarf:
 	}
 
 	/* Settng up probe points */
-	add_trace_kprobe_events(session.probes, session.nr_probe);
+	add_trace_kprobe_events(session.probes, session.nr_probe,
+				session.force_add);
 	return 0;
 }
 
