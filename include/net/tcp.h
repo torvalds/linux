@@ -965,7 +965,8 @@ static inline void tcp_sack_reset(struct tcp_options_received *rx_opt)
 /* Determine a window scaling and initial window to offer. */
 extern void tcp_select_initial_window(int __space, __u32 mss,
 				      __u32 *rcv_wnd, __u32 *window_clamp,
-				      int wscale_ok, __u8 *rcv_wscale);
+				      int wscale_ok, __u8 *rcv_wscale,
+				      __u32 init_rcv_wnd);
 
 static inline int tcp_win_from_space(int space)
 {
