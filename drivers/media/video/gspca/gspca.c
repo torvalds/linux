@@ -108,11 +108,8 @@ static const struct vm_operations_struct gspca_vm_ops = {
 struct gspca_frame *gspca_get_i_frame(struct gspca_dev *gspca_dev)
 {
 	struct gspca_frame *frame;
-	int i;
 
-	i = gspca_dev->fr_i;
-	i = gspca_dev->fr_queue[i];
-	frame = &gspca_dev->frame[i];
+	frame = gspca_dev->cur_frame;
 	if ((frame->v4l2_buf.flags & BUF_ALL_FLAGS)
 				!= V4L2_BUF_FLAG_QUEUED)
 		return NULL;
@@ -534,26 +531,22 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 			nurbs = 1;
 	}
 
-	gspca_dev->nurbs = nurbs;
 	for (n = 0; n < nurbs; n++) {
 		urb = usb_alloc_urb(npkt, GFP_KERNEL);
 		if (!urb) {
 			err("usb_alloc_urb failed");
-			destroy_urbs(gspca_dev);
 			return -ENOMEM;
 		}
+		gspca_dev->urb[n] = urb;
 		urb->transfer_buffer = usb_buffer_alloc(gspca_dev->dev,
 						bsize,
 						GFP_KERNEL,
 						&urb->transfer_dma);
 
 		if (urb->transfer_buffer == NULL) {
-			usb_free_urb(urb);
-			err("usb_buffer_urb failed");
-			destroy_urbs(gspca_dev);
+			err("usb_buffer_alloc failed");
 			return -ENOMEM;
 		}
-		gspca_dev->urb[n] = urb;
 		urb->dev = gspca_dev->dev;
 		urb->context = gspca_dev;
 		urb->transfer_buffer_length = bsize;
@@ -585,6 +578,7 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 {
 	struct usb_host_endpoint *ep;
+	struct urb *urb;
 	int n, ret;
 
 	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
@@ -615,8 +609,10 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 	for (;;) {
 		PDEBUG(D_STREAM, "init transfer alt %d", gspca_dev->alt);
 		ret = create_urbs(gspca_dev, ep);
-		if (ret < 0)
+		if (ret < 0) {
+			destroy_urbs(gspca_dev);
 			goto out;
+		}
 
 		/* clear the bulk endpoint */
 		if (gspca_dev->cam.bulk)
@@ -636,8 +632,11 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 			break;
 
 		/* submit the URBs */
-		for (n = 0; n < gspca_dev->nurbs; n++) {
-			ret = usb_submit_urb(gspca_dev->urb[n], GFP_KERNEL);
+		for (n = 0; n < MAX_NURBS; n++) {
+			urb = gspca_dev->urb[n];
+			if (urb == NULL)
+				break;
+			ret = usb_submit_urb(urb, GFP_KERNEL);
 			if (ret < 0)
 				break;
 		}
