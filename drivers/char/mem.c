@@ -154,6 +154,8 @@ static ssize_t read_mem(struct file * file, char __user * buf,
 #endif
 
 	while (count > 0) {
+		unsigned long remaining;
+
 		sz = size_inside_page(p, count);
 
 		if (!range_is_allowed(p >> PAGE_SHIFT, count))
@@ -168,12 +170,10 @@ static ssize_t read_mem(struct file * file, char __user * buf,
 		if (!ptr)
 			return -EFAULT;
 
-		if (copy_to_user(buf, ptr, sz)) {
-			unxlate_dev_mem_ptr(p, ptr);
-			return -EFAULT;
-		}
-
+		remaining = copy_to_user(buf, ptr, sz);
 		unxlate_dev_mem_ptr(p, ptr);
+		if (remaining)
+			return -EFAULT;
 
 		buf += sz;
 		p += sz;
@@ -231,15 +231,13 @@ static ssize_t write_mem(struct file * file, const char __user * buf,
 		}
 
 		copied = copy_from_user(ptr, buf, sz);
+		unxlate_dev_mem_ptr(p, ptr);
 		if (copied) {
 			written += sz - copied;
-			unxlate_dev_mem_ptr(p, ptr);
 			if (written)
 				break;
 			return -EFAULT;
 		}
-
-		unxlate_dev_mem_ptr(p, ptr);
 
 		buf += sz;
 		p += sz;
