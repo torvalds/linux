@@ -835,13 +835,13 @@ F:	arch/arm/mach-pxa/palmte2.c
 F:	arch/arm/mach-pxa/include/mach/palmtc.h
 F:	arch/arm/mach-pxa/palmtc.c
 
-ARM/PALM TREO 680 SUPPORT
+ARM/PALM TREO SUPPORT
 M:	Tomas Cech <sleep_walker@suse.cz>
 L:	linux-arm-kernel@lists.infradead.org
 W:	http://hackndev.com
 S:	Maintained
-F:	arch/arm/mach-pxa/include/mach/treo680.h
-F:	arch/arm/mach-pxa/treo680.c
+F:	arch/arm/mach-pxa/include/mach/palmtreo.h
+F:	arch/arm/mach-pxa/palmtreo.c
 
 ARM/PALMZ72 SUPPORT
 M:	Sergey Lapin <slapin@ossfans.org>
