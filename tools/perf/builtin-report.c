@@ -52,7 +52,7 @@ static int		exclude_other = 1;
 
 static char		callchain_default_opt[] = "fractal,0.5";
 
-struct symbol_conf	symbol_conf;
+static struct symbol_conf	symbol_conf;
 
 
 static size_t

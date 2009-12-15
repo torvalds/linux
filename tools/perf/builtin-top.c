@@ -80,7 +80,7 @@ static int			dump_symtab                     =      0;
 static bool			hide_kernel_symbols		=  false;
 static bool			hide_user_symbols		=  false;
 static struct winsize		winsize;
-struct symbol_conf		symbol_conf;
+static struct symbol_conf	symbol_conf;
 
 /*
  * Source
