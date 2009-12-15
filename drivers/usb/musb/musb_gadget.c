@@ -1731,6 +1731,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 		spin_lock_irqsave(&musb->lock, flags);
 
 		otg_set_peripheral(musb->xceiv, &musb->g);
+		musb->xceiv->state = OTG_STATE_B_IDLE;
 		musb->is_active = 1;
 
 		/* FIXME this ignores the softconnect flag.  Drivers are
