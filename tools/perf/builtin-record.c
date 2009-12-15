@@ -451,7 +451,7 @@ static int __cmd_record(int argc, const char **argv)
 		exit(-1);
 	}
 
-	session = perf_session__new(output_name, O_WRONLY, force, NULL);
+	session = perf_session__new(output_name, O_WRONLY, force);
 	if (session == NULL) {
 		pr_err("Not enough memory for reading perf file header\n");
 		return -1;
@@ -632,7 +632,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 {
 	int counter;
 
-	symbol__init(0);
+	symbol__init();
 
 	argc = parse_options(argc, argv, options, record_usage,
 		PARSE_OPT_STOP_AT_NON_OPTION);

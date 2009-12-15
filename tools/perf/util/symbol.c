@@ -33,11 +33,10 @@ static void dsos__add(struct list_head *head, struct dso *dso);
 static struct map *map__new2(u64 start, struct dso *dso, enum map_type type);
 static int dso__load_kernel_sym(struct dso *self, struct map *map,
 				struct perf_session *session, symbol_filter_t filter);
-unsigned int symbol__priv_size;
 static int vmlinux_path__nr_entries;
 static char **vmlinux_path;
 
-static struct symbol_conf symbol_conf__defaults = {
+struct symbol_conf symbol_conf = {
 	.use_modules	  = true,
 	.try_vmlinux_path = true,
 };
@@ -130,13 +129,13 @@ static void map_groups__fixup_end(struct map_groups *self)
 static struct symbol *symbol__new(u64 start, u64 len, const char *name)
 {
 	size_t namelen = strlen(name) + 1;
-	struct symbol *self = zalloc(symbol__priv_size +
+	struct symbol *self = zalloc(symbol_conf.priv_size +
 				     sizeof(*self) + namelen);
 	if (self == NULL)
 		return NULL;
 
-	if (symbol__priv_size)
-		self = ((void *)self) + symbol__priv_size;
+	if (symbol_conf.priv_size)
+		self = ((void *)self) + symbol_conf.priv_size;
 
 	self->start = start;
 	self->end   = len ? start + len - 1 : start;
@@ -150,7 +149,7 @@ static struct symbol *symbol__new(u64 start, u64 len, const char *name)
 
 static void symbol__delete(struct symbol *self)
 {
-	free(((void *)self) - symbol__priv_size);
+	free(((void *)self) - symbol_conf.priv_size);
 }
 
 static size_t symbol__fprintf(struct symbol *self, FILE *fp)
@@ -471,7 +470,7 @@ static int dso__split_kallsyms(struct dso *self, struct map *map,
 
 		module = strchr(pos->name, '\t');
 		if (module) {
-			if (!session->use_modules)
+			if (!symbol_conf.use_modules)
 				goto discard_symbol;
 
 			*module++ = '\0';
@@ -1740,34 +1739,27 @@ out_fail:
 	return -1;
 }
 
-int symbol__init(struct symbol_conf *conf)
+int symbol__init(void)
 {
-	const struct symbol_conf *pconf = conf ?: &symbol_conf__defaults;
-
 	elf_version(EV_CURRENT);
-	symbol__priv_size = pconf->priv_size;
-	if (pconf->sort_by_name)
-		symbol__priv_size += (sizeof(struct symbol_name_rb_node) -
-				      sizeof(struct symbol));
+	if (symbol_conf.sort_by_name)
+		symbol_conf.priv_size += (sizeof(struct symbol_name_rb_node) -
+					  sizeof(struct symbol));
 
-	if (pconf->try_vmlinux_path && vmlinux_path__init() < 0)
+	if (symbol_conf.try_vmlinux_path && vmlinux_path__init() < 0)
 		return -1;
 
 	return 0;
 }
 
-int perf_session__create_kernel_maps(struct perf_session *self,
-				     struct symbol_conf *conf)
+int perf_session__create_kernel_maps(struct perf_session *self)
 {
-	const struct symbol_conf *pconf = conf ?: &symbol_conf__defaults;
-
 	if (map_groups__create_kernel_maps(&self->kmaps,
-					   pconf->vmlinux_name) < 0)
+					   symbol_conf.vmlinux_name) < 0)
 		return -1;
 
-	self->use_modules = pconf->use_modules;
-
-	if (pconf->use_modules && perf_session__create_module_maps(self) < 0)
+	if (symbol_conf.use_modules &&
+	    perf_session__create_module_maps(self) < 0)
 		pr_debug("Failed to load list of modules for session %s, "
 			 "continuing...\n", self->filename);
 	/*

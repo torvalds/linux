@@ -21,8 +21,6 @@ static char	   const *input_old = "perf.data.old",
 static int	   force;
 static bool 	   show_percent;
 
-struct symbol_conf symbol_conf;
-
 static int perf_session__add_hist_entry(struct perf_session *self,
 					struct addr_location *al, u64 count)
 {
@@ -226,8 +224,8 @@ static int __cmd_diff(void)
 	int ret, i;
 	struct perf_session *session[2];
 
-	session[0] = perf_session__new(input_old, O_RDONLY, force, &symbol_conf);
-	session[1] = perf_session__new(input_new, O_RDONLY, force, &symbol_conf);
+	session[0] = perf_session__new(input_old, O_RDONLY, force);
+	session[1] = perf_session__new(input_new, O_RDONLY, force);
 	if (session[0] == NULL || session[1] == NULL)
 		return -ENOMEM;
 
@@ -267,7 +265,7 @@ static const struct option options[] = {
 
 int cmd_diff(int argc, const char **argv, const char *prefix __used)
 {
-	if (symbol__init(&symbol_conf) < 0)
+	if (symbol__init() < 0)
 		return -1;
 
 	setup_sorting(diff_usage, options);

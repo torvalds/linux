@@ -1675,8 +1675,7 @@ static struct perf_event_ops event_ops = {
 static int read_events(void)
 {
 	int err;
-	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
-							 0, NULL);
+	struct perf_session *session = perf_session__new(input_name, O_RDONLY, 0);
 	if (session == NULL)
 		return -ENOMEM;
 
@@ -1912,7 +1911,7 @@ int cmd_sched(int argc, const char **argv, const char *prefix __used)
 	if (!strcmp(argv[0], "trace"))
 		return cmd_trace(argc, argv, prefix);
 
-	symbol__init(0);
+	symbol__init();
 	if (!strncmp(argv[0], "rec", 3)) {
 		return __cmd_record(argc, argv);
 	} else if (!strncmp(argv[0], "lat", 3)) {

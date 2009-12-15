@@ -80,7 +80,6 @@ static int			dump_symtab                     =      0;
 static bool			hide_kernel_symbols		=  false;
 static bool			hide_user_symbols		=  false;
 static struct winsize		winsize;
-static struct symbol_conf	symbol_conf;
 
 /*
  * Source
@@ -1162,8 +1161,7 @@ static int __cmd_top(void)
 	 * FIXME: perf_session__new should allow passing a O_MMAP, so that all this
 	 * mmap reading, etc is encapsulated in it. Use O_WRONLY for now.
 	 */
-	struct perf_session *session = perf_session__new(NULL, O_WRONLY, false,
-							 &symbol_conf);
+	struct perf_session *session = perf_session__new(NULL, O_WRONLY, false);
 	if (session == NULL)
 		return -ENOMEM;
 
@@ -1284,7 +1282,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 				 (nr_counters + 1) * sizeof(unsigned long));
 	if (symbol_conf.vmlinux_name == NULL)
 		symbol_conf.try_vmlinux_path = true;
-	if (symbol__init(&symbol_conf) < 0)
+	if (symbol__init() < 0)
 		return -1;
 
 	if (delay_secs < 1)

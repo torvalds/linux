@@ -52,9 +52,6 @@ static int		exclude_other = 1;
 
 static char		callchain_default_opt[] = "fractal,0.5";
 
-static struct symbol_conf	symbol_conf;
-
-
 static size_t
 callchain__fprintf_left_margin(FILE *fp, int left_margin)
 {
@@ -705,7 +702,7 @@ static int __cmd_report(void)
 	int ret;
 	struct perf_session *session;
 
-	session = perf_session__new(input_name, O_RDONLY, force, &symbol_conf);
+	session = perf_session__new(input_name, O_RDONLY, force);
 	if (session == NULL)
 		return -ENOMEM;
 
@@ -864,7 +861,7 @@ static void setup_list(struct strlist **list, const char *list_str,
 
 int cmd_report(int argc, const char **argv, const char *prefix __used)
 {
-	if (symbol__init(&symbol_conf) < 0)
+	if (symbol__init() < 0)
 		return -1;
 
 	argc = parse_options(argc, argv, options, report_usage, 0);

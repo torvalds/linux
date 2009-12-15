@@ -10,7 +10,6 @@
 struct ip_callchain;
 struct thread;
 struct symbol;
-struct symbol_conf;
 
 struct perf_session {
 	struct perf_header	header;
@@ -26,7 +25,6 @@ struct perf_session {
 	int			fd;
 	int			cwdlen;
 	char			*cwd;
-	bool			use_modules;
 	bool			use_callchain;
 	char filename[0];
 };
@@ -48,8 +46,7 @@ struct perf_event_ops {
 	bool		full_paths;
 };
 
-struct perf_session *perf_session__new(const char *filename, int mode,
-				       bool force, struct symbol_conf *conf);
+struct perf_session *perf_session__new(const char *filename, int mode, bool force);
 void perf_session__delete(struct perf_session *self);
 
 int perf_session__process_events(struct perf_session *self,

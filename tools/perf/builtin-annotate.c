@@ -51,11 +51,6 @@ struct sym_priv {
 	struct sym_ext	*ext;
 };
 
-static struct symbol_conf symbol_conf = {
-	.priv_size	  = sizeof(struct sym_priv),
-	.try_vmlinux_path = true,
-};
-
 static const char *sym_hist_filter;
 
 static int symbol_filter(struct map *map __used, struct symbol *sym)
@@ -464,10 +459,10 @@ static struct perf_event_ops event_ops = {
 
 static int __cmd_annotate(void)
 {
-	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
-							 force, &symbol_conf);
 	int ret;
+	struct perf_session *session;
 
+	session = perf_session__new(input_name, O_RDONLY, force);
 	if (session == NULL)
 		return -ENOMEM;
 
@@ -523,7 +518,10 @@ static const struct option options[] = {
 
 int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 {
-	if (symbol__init(&symbol_conf) < 0)
+	symbol_conf.priv_size = sizeof(struct sym_priv);
+	symbol_conf.try_vmlinux_path = true;
+
+	if (symbol__init() < 0)
 		return -1;
 
 	argc = parse_options(argc, argv, options, annotate_usage, 0);

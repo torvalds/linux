@@ -57,7 +57,6 @@ static struct {
 	int nr_probe;
 	struct probe_point probes[MAX_PROBES];
 	struct strlist *dellist;
-	struct symbol_conf conf;
 	struct perf_session *psession;
 	struct map *kmap;
 } session;
@@ -151,7 +150,7 @@ static const struct option options[] = {
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show parsed arguments, etc)"),
 #ifndef NO_LIBDWARF
-	OPT_STRING('k', "vmlinux", &session.conf.vmlinux_name,
+	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 #endif
 	OPT_BOOLEAN('l', "list", &session.list_events,
@@ -224,13 +223,12 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 	}
 
 	/* Initialize symbol maps for vmlinux */
-	session.conf.sort_by_name = true;
-	if (session.conf.vmlinux_name == NULL)
-		session.conf.try_vmlinux_path = true;
-	if (symbol__init(&session.conf) < 0)
+	symbol_conf.sort_by_name = true;
+	if (symbol_conf.vmlinux_name == NULL)
+		symbol_conf.try_vmlinux_path = true;
+	if (symbol__init() < 0)
 		die("Failed to init symbol map.");
-	session.psession = perf_session__new(NULL, O_WRONLY, false,
-					     &session.conf);
+	session.psession = perf_session__new(NULL, O_WRONLY, false);
 	if (session.psession == NULL)
 		die("Failed to init perf_session.");
 	session.kmap = map_groups__find_by_name(&session.psession->kmaps,
