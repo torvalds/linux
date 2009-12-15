@@ -36,9 +36,9 @@ static struct ir_scancode mantis_ir_table[] = {
 	{ 0x29, KEY_POWER	},
 	{ 0x28, KEY_FAVORITES	},
 	{ 0x30, KEY_TEXT	},
-	{ 0x17, KEY_INFO	}, // Preview
+	{ 0x17, KEY_INFO	}, /* Preview */
 	{ 0x23, KEY_EPG		},
-	{ 0x3b, KEY_F22		},// Record List
+	{ 0x3b, KEY_F22		}, /* Record List */
 	{ 0x3c, KEY_1		},
 	{ 0x3e, KEY_2		},
 	{ 0x39, KEY_3		},
@@ -71,22 +71,22 @@ static struct ir_scancode mantis_ir_table[] = {
 
 	{ 0x1f, KEY_REWIND	},
 	{ 0x2d, KEY_FASTFORWARD	},
-	{ 0x1e, KEY_PREVIOUS	}, // Replay |<
-	{ 0x1d, KEY_NEXT	}, // Skip   >|
+	{ 0x1e, KEY_PREVIOUS	}, /* Replay |< */
+	{ 0x1d, KEY_NEXT	}, /* Skip   >| */
 
-	{ 0x0b, KEY_CAMERA	}, // Capture
-	{ 0x0f, KEY_LANGUAGE	}, // SAP
-	{ 0x18, KEY_MODE	}, // PIP
-	{ 0x12, KEY_ZOOM	}, // Full screen,
+	{ 0x0b, KEY_CAMERA	}, /* Capture */
+	{ 0x0f, KEY_LANGUAGE	}, /* SAP */
+	{ 0x18, KEY_MODE	}, /* PIP */
+	{ 0x12, KEY_ZOOM	}, /* Full screen */
 	{ 0x1c, KEY_SUBTITLE	},
 	{ 0x2f, KEY_MUTE	},
-	{ 0x16, KEY_F20		}, // L/R,
-	{ 0x38, KEY_F21		}, // Hibernate,
+	{ 0x16, KEY_F20		}, /* L/R */
+	{ 0x38, KEY_F21		}, /* Hibernate */
 
-	{ 0x37, KEY_SWITCHVIDEOMODE }, // A/V
-	{ 0x31, KEY_AGAIN	}, // Recall,
-	{ 0x1a, KEY_KPPLUS	}, // Zoom+,
-	{ 0x19, KEY_KPMINUS	}, // Zoom-,
+	{ 0x37, KEY_SWITCHVIDEOMODE }, /* A/V */
+	{ 0x31, KEY_AGAIN	}, /* Recall */
+	{ 0x1a, KEY_KPPLUS	}, /* Zoom+ */
+	{ 0x19, KEY_KPMINUS	}, /* Zoom- */
 	{ 0x27, KEY_RED		},
 	{ 0x0C, KEY_GREEN	},
 	{ 0x01, KEY_YELLOW	},

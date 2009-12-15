@@ -53,7 +53,7 @@ static int tda1002x_cu1216_tuner_set(struct dvb_frontend *fe, struct dvb_fronten
 	struct i2c_adapter *adapter	= &mantis->adapter;
 
 	u8 buf[6];
-	struct i2c_msg msg = {.addr = 0x60,.flags = 0,.buf = buf,.len = sizeof (buf) };
+	struct i2c_msg msg = {.addr = 0x60, .flags = 0, .buf = buf, .len = sizeof(buf)};
 	int i;
 
 #define CU1216_IF 36125000

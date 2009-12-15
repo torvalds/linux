@@ -37,11 +37,11 @@ struct mb86a16_state {
 	const struct mb86a16_config	*config;
 	struct dvb_frontend		frontend;
 
-	// tuning parameters
+	/* tuning parameters */
 	int				frequency;
 	int				srate;
 
-	// Internal stuff
+	/* Internal stuff */
 	int				master_clk;
 	int				deci;
 	int				csel;
@@ -105,7 +105,7 @@ static int mb86a16_read(struct mb86a16_state *state, u8 reg, u8 *val)
 			.flags = 0,
 			.buf = b0,
 			.len = 1
-		},{
+		}, {
 			.addr = state->config->demod_address,
 			.flags = I2C_M_RD,
 			.buf = b1,
@@ -435,7 +435,7 @@ static int signal_det(struct mb86a16_state *state,
 		wait_sym = 80000;
 	}
 	for (i = 0; i < 3; i++) {
-		if (i == 0 )
+		if (i == 0)
 			smrtd = smrt * 98 / 100;
 		else if (i == 1)
 			smrtd = smrt;
@@ -480,11 +480,11 @@ static int rf_val_set(struct mb86a16_state *state,
 	unsigned char rf_val[5];
 	int ack = -1;
 
-	if (smrt > 37750 )
+	if (smrt > 37750)
 		C = 1;
 	else if (smrt > 18875)
 		C = 2;
-	else if (smrt > 5500 )
+	else if (smrt > 5500)
 		C = 3;
 	else
 		C = 4;
@@ -526,7 +526,7 @@ static int rf_val_set(struct mb86a16_state *state,
 	rf_val[2] = (M & 0x00ff0) >> 4;
 	rf_val[3] = ((M & 0x0000f) << 4) | B;
 
-	// Frequency Set
+	/* Frequency Set */
 	if (mb86a16_write(state, 0x21, rf_val[0]) < 0)
 		ack = 0;
 	if (mb86a16_write(state, 0x22, rf_val[1]) < 0)
@@ -655,8 +655,8 @@ static int freqerr_chk(struct mb86a16_state *state,
 	unsigned char CRM, AFCML, AFCMH;
 	unsigned char temp1, temp2, temp3;
 	int crm, afcm, AFCM;
-	int crrerr, afcerr;		// [kHz]
-	int frqerr;			// [MHz]
+	int crrerr, afcerr;		/* kHz */
+	int frqerr;			/* MHz */
 	int afcen, afcexen = 0;
 	int R, M, fOSC, fOSC_OFS;
 
@@ -718,12 +718,12 @@ static int freqerr_chk(struct mb86a16_state *state,
 
 	fOSC_OFS = fOSC - fTP;
 
-	if (unit == 0) {	//[MHz]
+	if (unit == 0) {	/* MHz */
 		if (crrerr + afcerr + fOSC_OFS * 1000 >= 0)
 			frqerr = (crrerr + afcerr + fOSC_OFS * 1000 + 500) / 1000;
 		else
 			frqerr = (crrerr + afcerr + fOSC_OFS * 1000 - 500) / 1000;
-	} else {	//[kHz]
+	} else {	/* kHz */
 		frqerr = crrerr + afcerr + fOSC_OFS * 1000;
 	}
 
@@ -760,13 +760,13 @@ static void swp_info_get(struct mb86a16_state *state,
 
 	crnt_swp_freq = fOSC_start * 1000 + v * swp_ofs;
 
-	if (R == 0 )
+	if (R == 0)
 		*fOSC = (crnt_swp_freq + 1000) / 2000 * 2;
 	else
 		*fOSC = (crnt_swp_freq + 500) / 1000;
 
 	if (*fOSC >= crnt_swp_freq)
-		*afcex_freq = *fOSC *1000 - crnt_swp_freq;
+		*afcex_freq = *fOSC * 1000 - crnt_swp_freq;
 	else
 		*afcex_freq = crnt_swp_freq - *fOSC * 1000;
 
@@ -782,7 +782,7 @@ static int swp_freq_calcuation(struct mb86a16_state *state, int i, int v, int *V
 	int swp_freq ;
 
 	if ((i % 2 == 1) && (v <= vmax)) {
-		// positive v (case 1)
+		/* positive v (case 1) */
 		if ((v - 1 == vmin)				&&
 		    (*(V + 30 + v) >= 0)			&&
 		    (*(V + 30 + v - 1) >= 0)			&&
@@ -796,7 +796,7 @@ static int swp_freq_calcuation(struct mb86a16_state *state, int i, int v, int *V
 			   (*(V + 30 + v - 1) >= 0)		&&
 			   (*(V + 30 + v) > *(V + 30 + v - 1))	&&
 			   (*(V + 30 + v) > SIGMIN)) {
-			// (case 2)
+			/* (case 2) */
 			swp_freq = fOSC * 1000 + afcex_freq;
 			*SIG1 = *(V + 30 + v);
 		} else if ((*(V + 30 + v) > 0)			&&
@@ -807,7 +807,7 @@ static int swp_freq_calcuation(struct mb86a16_state *state, int i, int v, int *V
 			   (*(V + 30 + v - 2) > *(V + 30 + v - 3)) &&
 			   ((*(V + 30 + v - 1) > SIGMIN)	||
 			   (*(V + 30 + v - 2) > SIGMIN))) {
-			// (case 3)
+			/* (case 3) */
 			if (*(V + 30 + v - 1) >= *(V + 30 + v - 2)) {
 				swp_freq = fOSC * 1000 + afcex_freq - swp_ofs;
 				*SIG1 = *(V + 30 + v - 1);
@@ -823,7 +823,7 @@ static int swp_freq_calcuation(struct mb86a16_state *state, int i, int v, int *V
 			   (*(V + 30 + v - 1) > *(V + 30 + v - 2)) &&
 			   ((*(V + 30 + v) > SIGMIN)		||
 			   (*(V + 30 + v - 1) > SIGMIN))) {
-			// (case 4)
+			/* (case 4) */
 			if (*(V + 30 + v) >= *(V + 30 + v - 1)) {
 				swp_freq = fOSC * 1000 + afcex_freq;
 				*SIG1 = *(V + 30 + v);
@@ -835,7 +835,7 @@ static int swp_freq_calcuation(struct mb86a16_state *state, int i, int v, int *V
 			swp_freq = -1 ;
 		}
 	} else if ((i % 2 == 0) && (v >= vmin)) {
-		// Negative v (case 1)
+		/* Negative v (case 1) */
 		if ((*(V + 30 + v) > 0)				&&
 		    (*(V + 30 + v + 1) > 0)			&&
 		    (*(V + 30 + v + 2) > 0)			&&
@@ -850,7 +850,7 @@ static int swp_freq_calcuation(struct mb86a16_state *state, int i, int v, int *V
 			   (*(V + 30 + v + 1) >= 0)		&&
 			   (*(V + 30 + v + 1) > *(V + 30 + v))	&&
 			   (*(V + 30 + v + 1) > SIGMIN)) {
-			// (case 2)
+			/* (case 2) */
 			swp_freq = fOSC * 1000 + afcex_freq + swp_ofs;
 			*SIG1 = *(V + 30 + v);
 		} else if ((v == vmin)				&&
@@ -860,18 +860,18 @@ static int swp_freq_calcuation(struct mb86a16_state *state, int i, int v, int *V
 			   (*(V + 30 + v) > *(V + 30 + v + 1))	&&
 			   (*(V + 30 + v) > *(V + 30 + v + 2))	&&
 			   (*(V + 30 + v) > SIGMIN)) {
-			// (case 3)
+			/* (case 3) */
 			swp_freq = fOSC * 1000 + afcex_freq;
 			*SIG1 = *(V + 30 + v);
 		} else if ((*(V + 30 + v) >= 0)			&&
 			   (*(V + 30 + v + 1) >= 0)		&&
 			   (*(V + 30 + v + 2) >= 0)		&&
-			   (*(V +30 + v + 3) >= 0)		&&
+			   (*(V + 30 + v + 3) >= 0)		&&
 			   (*(V + 30 + v + 1) > *(V + 30 + v))	&&
 			   (*(V + 30 + v + 2) > *(V + 30 + v + 3)) &&
 			   ((*(V + 30 + v + 1) > SIGMIN)	||
 			    (*(V + 30 + v + 2) > SIGMIN))) {
-			// (case 4)
+			/* (case 4) */
 			if (*(V + 30 + v + 1) >= *(V + 30 + v + 2)) {
 				swp_freq = fOSC * 1000 + afcex_freq + swp_ofs;
 				*SIG1 = *(V + 30 + v + 1);
@@ -889,7 +889,7 @@ static int swp_freq_calcuation(struct mb86a16_state *state, int i, int v, int *V
 			   (*(V + 30 + v + 1) > *(V + 30 + v + 3)) &&
 			   ((*(V + 30 + v) > SIGMIN)		||
 			    (*(V + 30 + v + 1) > SIGMIN))) {
-			// (case 5)
+			/* (case 5) */
 			if (*(V + 30 + v) >= *(V + 30 + v + 1)) {
 				swp_freq = fOSC * 1000 + afcex_freq;
 				*SIG1 = *(V + 30 + v);
@@ -905,7 +905,7 @@ static int swp_freq_calcuation(struct mb86a16_state *state, int i, int v, int *V
 			   (*(V + 30 + v + 2) > *(V + 30 + v))	&&
 			   ((*(V + 30 + v + 1) > SIGMIN)	||
 			    (*(V + 30 + v + 2) > SIGMIN))) {
-			// (case 6)
+			/* (case 6) */
 			if (*(V + 30 + v + 1) >= *(V + 30 + v + 2)) {
 				swp_freq = fOSC * 1000 + afcex_freq + swp_ofs;
 				*SIG1 = *(V + 30 + v + 1);
@@ -916,8 +916,10 @@ static int swp_freq_calcuation(struct mb86a16_state *state, int i, int v, int *V
 		} else if ((vmax == 0) && (vmin == 0) && (*(V + 30 + v) > SIGMIN)) {
 			swp_freq = fOSC * 1000;
 			*SIG1 = *(V + 30 + v);
-		} else swp_freq = -1;
-	} else swp_freq = -1;
+		} else
+			swp_freq = -1;
+	} else
+		swp_freq = -1;
 
 	return swp_freq;
 }
@@ -962,7 +964,7 @@ static void afcex_info_get(struct mb86a16_state *state,
 
 static int SEQ_set(struct mb86a16_state *state, unsigned char loop)
 {
-	// SLOCK0 = 0
+	/* SLOCK0 = 0 */
 	if (mb86a16_write(state, 0x32, 0x02 | (loop << 2)) < 0) {
 		dprintk(verbose, MB86A16_ERROR, 1, "I2C transfer error");
 		return -EREMOTEIO;
@@ -973,7 +975,7 @@ static int SEQ_set(struct mb86a16_state *state, unsigned char loop)
 
 static int iq_vt_set(struct mb86a16_state *state, unsigned char IQINV)
 {
-	// Viterbi Rate, IQ Settings
+	/* Viterbi Rate, IQ Settings */
 	if (mb86a16_write(state, 0x06, 0xdf | (IQINV << 5)) < 0) {
 		dprintk(verbose, MB86A16_ERROR, 1, "I2C transfer error");
 		return -EREMOTEIO;
@@ -1031,7 +1033,7 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 	unsigned char TIMINT1, TIMINT2, TIMEXT;
 	unsigned char S0T, S1T;
 	unsigned char S2T;
-//	unsigned char S2T, S3T;
+/*	unsigned char S2T, S3T; */
 	unsigned char S4T, S5T;
 	unsigned char AFCEX_L, AFCEX_H;
 	unsigned char R;
@@ -1052,7 +1054,7 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 	int temp_freq, delta_freq;
 	int dagcm[4];
 	int smrt_d;
-//	int freq_err;
+/*	int freq_err; */
 	int n;
 	int ret = -1;
 	int sync;
@@ -1093,19 +1095,19 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 		}
 		if (EN_set(state, CREN, AFCEN) < 0) {
 			dprintk(verbose, MB86A16_ERROR, 1, "EN set error");
-			return -1; // (0, 0)
+			return -1; /* (0, 0) */
 		}
 		if (AFCEXEN_set(state, AFCEXEN, state->srate) < 0) {
 			dprintk(verbose, MB86A16_ERROR, 1, "AFCEXEN set error");
-			return -1; // (1, smrt) = (1, symbolrate)
+			return -1; /* (1, smrt) = (1, symbolrate) */
 		}
 		if (CNTM_set(state, TIMINT1, TIMINT2, TIMEXT) < 0) {
 			dprintk(verbose, MB86A16_ERROR, 1, "CNTM set error");
-			return -1; // (0, 1, 2)
+			return -1; /* (0, 1, 2) */
 		}
 		if (S01T_set(state, S1T, S0T) < 0) {
 			dprintk(verbose, MB86A16_ERROR, 1, "S01T set error");
-			return -1; // (0, 0)
+			return -1; /* (0, 0) */
 		}
 		smrt_info_get(state, state->srate);
 		if (smrt_set(state, state->srate) < 0) {
@@ -1133,13 +1135,15 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 			ftemp = ftemp + swp_ofs;
 			vmax++;
 
-			// Upper bound
+			/* Upper bound */
 			if (ftemp > 2150000) {
 				loop = 0;
 				vmax--;
+			} else {
+				if ((ftemp == 2150000) ||
+				    (ftemp - state->frequency * 1000 >= fcp + state->srate / 4))
+					loop = 0;
 			}
-			else if ((ftemp == 2150000) || (ftemp - state->frequency * 1000 >= fcp + state->srate / 4))
-				loop = 0;
 		}
 
 		loop = 1;
@@ -1149,13 +1153,15 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 			ftemp = ftemp - swp_ofs;
 			vmin--;
 
-			// Lower bound
+			/* Lower bound */
 			if (ftemp < 950000) {
 				loop = 0;
 				vmin++;
+			} else {
+				if ((ftemp == 950000) ||
+				    (state->frequency * 1000 - ftemp >= fcp + state->srate / 4))
+					loop = 0;
 			}
-			else if ((ftemp == 950000) || (state->frequency * 1000 - ftemp >= fcp + state->srate / 4))
-				loop = 0;
 		}
 
 		wait_t = (8000 + state->srate / 2) / state->srate;
@@ -1199,7 +1205,7 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 			V[30 + v] = SIG1 ;
 			swp_freq = swp_freq_calcuation(state, i, v, V, vmax, vmin,
 						      SIG1MIN, fOSC, afcex_freq,
-						      swp_ofs, &SIG1);	//changed
+						      swp_ofs, &SIG1);	/* changed */
 
 			signal_dupl = 0;
 			for (j = 0; j < prev_freq_num; j++) {
@@ -1291,7 +1297,7 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 				dprintk(verbose, MB86A16_ERROR, 1, "srst error");
 				return -1;
 			}
-			// delay 4~200
+			/* delay 4~200 */
 			wait_t = 200000 / state->master_clk + 200000 / state->srate;
 			msleep(wait_t);
 			afcerr = afcerr_chk(state);
@@ -1452,7 +1458,7 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 					S2T = 7; S4T = 2; S5T = 8; ETH = 7; VIA = 2;
 					wait_t = 7 + (2097152 + state->srate / 2) / state->srate;
 				}
-				wait_t *= 2; /*		FOS	*/
+				wait_t *= 2; /* FOS */
 				S2T_set(state, S2T);
 				S45T_set(state, S4T, S5T);
 				Vi_set(state, ETH, VIA);
@@ -1461,13 +1467,14 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 				sync = sync_chk(state, &VIRM);
 				dprintk(verbose, MB86A16_INFO, 1, "-------- Viterbi=[%d] SYNC=[%d] ---------", VIRM, sync);
 				if (VIRM) {
-					if (VIRM == 4) { // 5/6
+					if (VIRM == 4) {
+						/* 5/6 */
 						if (SIG1 > 110)
-							wait_t = ( 786432 + state->srate / 2) / state->srate;
+							wait_t = (786432 + state->srate / 2) / state->srate;
 						else
 							wait_t = (1572864 + state->srate / 2) / state->srate;
 						if (state->srate < 5000)
-							// FIXME ! , should be a long wait !
+							/* FIXME ! , should be a long wait ! */
 							msleep_interruptible(wait_t);
 						else
 							msleep_interruptible(wait_t);
@@ -1477,9 +1484,9 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 							FEC_srst(state);
 						}
 					}
-					// 1/2, 2/3, 3/4, 7/8
+					/* 1/2, 2/3, 3/4, 7/8 */
 					if (SIG1 > 110)
-						wait_t = ( 786432 + state->srate / 2) / state->srate;
+						wait_t = (786432 + state->srate / 2) / state->srate;
 					else
 						wait_t = (1572864 + state->srate / 2) / state->srate;
 					msleep_interruptible(wait_t);
@@ -1491,7 +1498,7 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 				}
 			}
 		} else {
-			dprintk (verbose, MB86A16_INFO, 1, "NO  -- SIGNAL");
+			dprintk(verbose, MB86A16_INFO, 1, "NO  -- SIGNAL");
 			ret = -1;
 		}
 
@@ -1846,7 +1853,7 @@ struct dvb_frontend *mb86a16_attach(const struct mb86a16_config *config,
 	u8 dev_id = 0;
 	struct mb86a16_state *state = NULL;
 
-	state = kmalloc(sizeof (struct mb86a16_state), GFP_KERNEL);
+	state = kmalloc(sizeof(struct mb86a16_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error;
 
@@ -1857,7 +1864,7 @@ struct dvb_frontend *mb86a16_attach(const struct mb86a16_config *config,
 	if (dev_id != 0xfe)
 		goto error;
 
-	memcpy(&state->frontend.ops, &mb86a16_ops, sizeof (struct dvb_frontend_ops));
+	memcpy(&state->frontend.ops, &mb86a16_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	state->frontend.ops.set_voltage = state->config->set_voltage;
 

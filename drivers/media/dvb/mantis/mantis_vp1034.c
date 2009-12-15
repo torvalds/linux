@@ -62,7 +62,7 @@ int vp1034_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 		dprintk(MANTIS_ERROR, 1, "Frontend (dummy) POWERDOWN");
 		break;
 	default:
-		dprintk(MANTIS_ERROR, 1, "Invalid = (%d)", (u32 ) voltage);
+		dprintk(MANTIS_ERROR, 1, "Invalid = (%d)", (u32) voltage);
 		return -EINVAL;
 	}
 	mmwrite(0x00, MANTIS_GPIF_DOUT);

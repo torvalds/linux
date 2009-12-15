@@ -33,15 +33,15 @@
 
 
 struct vendorname {
-	__u8  *sub_vendor_name;
-	__u32 sub_vendor_id;
+	u8  *sub_vendor_name;
+	u32 sub_vendor_id;
 };
 
 struct devicetype {
-	__u8  *sub_device_name;
-	__u32 sub_device_id;
-	__u8  device_type;
-	__u32 type_flags;
+	u8  *sub_device_name;
+	u32 sub_device_id;
+	u8  device_type;
+	u32 type_flags;
 };
 
 
@@ -54,4 +54,4 @@ extern int mantis_i2c_exit(struct mantis_pci *mantis);
 extern int mantis_core_init(struct mantis_pci *mantis);
 extern int mantis_core_exit(struct mantis_pci *mantis);
 
-#endif //__MANTIS_CORE_H
+#endif /* __MANTIS_CORE_H */

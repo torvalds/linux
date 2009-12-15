@@ -93,7 +93,7 @@ int lgtdqcs001f_tuner_set(struct dvb_frontend *fe,
 	u32 div;
 
 
-	struct i2c_msg msg = {.addr = 0x61, .flags = 0, .buf = buf, .len = sizeof (buf) };
+	struct i2c_msg msg = {.addr = 0x61, .flags = 0, .buf = buf, .len = sizeof(buf)};
 
 	div = params->frequency / 250;
 
@@ -140,12 +140,12 @@ int lgtdqcs001f_set_symbol_rate(struct dvb_frontend *fe,
 		aclk = 0xb4;
 		bclk = 0x51;
 	}
-	stv0299_writereg (fe, 0x13, aclk);
-	stv0299_writereg (fe, 0x14, bclk);
+	stv0299_writereg(fe, 0x13, aclk);
+	stv0299_writereg(fe, 0x14, bclk);
 
-	stv0299_writereg (fe, 0x1f, (ratio >> 16) & 0xff);
-	stv0299_writereg (fe, 0x20, (ratio >>  8) & 0xff);
-	stv0299_writereg (fe, 0x21, (ratio      ) & 0xf0);
+	stv0299_writereg(fe, 0x1f, (ratio >> 16) & 0xff);
+	stv0299_writereg(fe, 0x20, (ratio >>  8) & 0xff);
+	stv0299_writereg(fe, 0x21,  ratio & 0xf0);
 
 	return 0;
 }

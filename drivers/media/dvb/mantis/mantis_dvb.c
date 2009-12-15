@@ -116,7 +116,6 @@ static int mantis_dvb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	if (mantis->feeds == 1)	 {
 		dprintk(MANTIS_DEBUG, 1, "mantis start feed & dma");
-		printk("mantis start feed & dma\n");
 		mantis_dma_start(mantis);
 	}
 
@@ -137,7 +136,6 @@ static int mantis_dvb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	mantis->feeds--;
 	if (mantis->feeds == 0) {
 		dprintk(MANTIS_DEBUG, 1, "mantis stop feed and dma");
-		printk("mantis stop feed and dma\n");
 		mantis_dma_stop(mantis);
 	}
 
@@ -204,9 +202,9 @@ int __devinit mantis_dvb_init(struct mantis_pci *mantis)
 	}
 
 	mantis->fe_mem.source		= DMX_MEMORY_FE;
-	result = mantis->demux.dmx.add_frontend(&mantis->demux.dmx,&mantis->fe_mem);
+	result = mantis->demux.dmx.add_frontend(&mantis->demux.dmx, &mantis->fe_mem);
 	if (result < 0) {
-		dprintk(MANTIS_ERROR, 1,"dvb_dmx_init failed, ERROR=%d", result);
+		dprintk(MANTIS_ERROR, 1, "dvb_dmx_init failed, ERROR=%d", result);
 		goto err3;
 	}
 
@@ -224,10 +222,6 @@ int __devinit mantis_dvb_init(struct mantis_pci *mantis)
 			dprintk(MANTIS_ERROR, 1, "!!! NO Frontends found !!!");
 			goto err5;
 		} else {
-//			if (mantis->dvb_adapter == NULL) {
-//				dprintk(MANTIS_ERROR, 1, "DVB adapter <NULL>");
-//				goto err5;
-//			}
 			if (mantis->fe == NULL) {
 				dprintk(MANTIS_ERROR, 1, "FE <NULL>");
 				goto err5;
@@ -277,7 +271,7 @@ int __devexit mantis_dvb_exit(struct mantis_pci *mantis)
 	int err;
 
 	if (mantis->fe) {
-//		mantis_ca_exit(mantis);
+		/* mantis_ca_exit(mantis); */
 		err = mantis_frontend_shutdown(mantis);
 		if (err != 0)
 			dprintk(MANTIS_ERROR, 1, "Frontend exit while POWER ON! <%d>", err);

@@ -148,4 +148,4 @@
 #define MB86A16_DISTMON		0x52
 #define MB86A16_VERSION		0x7f
 
-#endif //__MB86A16_PRIV_H
+#endif /* __MB86A16_PRIV_H */

@@ -29,7 +29,7 @@
 #define MANTIS_INT_RISCEN		(0x01 << 27)
 #define MANTIS_INT_I2CRACK		(0x01 << 26)
 
-//#define MANTIS_INT_GPIF			(0xff << 12)
+/* #define MANTIS_INT_GPIF			(0xff << 12) */
 
 #define MANTIS_INT_PCMCIA7		(0x01 << 19)
 #define MANTIS_INT_PCMCIA6		(0x01 << 18)

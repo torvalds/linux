@@ -44,7 +44,7 @@
 
 static const struct stb0899_s1_reg vp1041_stb0899_s1_init_1[] = {
 
-//	 0x0000000b ,	/* SYSREG */
+	/* 0x0000000b, *//* SYSREG */
 	{ STB0899_DEV_ID		, 0x30 },
 	{ STB0899_DISCNTRL1		, 0x32 },
 	{ STB0899_DISCNTRL2     	, 0x80 },
@@ -55,7 +55,7 @@ static const struct stb0899_s1_reg vp1041_stb0899_s1_init_1[] = {
 	{ STB0899_DISSTATUS		, 0x20 },
 	{ STB0899_DISF22        	, 0x99 },
 	{ STB0899_DISF22RX      	, 0xa8 },
-	//SYSREG ?
+	/* SYSREG ? */
 	{ STB0899_ACRPRESC      	, 0x11 },
 	{ STB0899_ACRDIV1       	, 0x0a },
 	{ STB0899_ACRDIV2       	, 0x05 },
@@ -323,9 +323,8 @@ static int vp1041_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *
 				vp1041_stb0899_config.demod_address);
 
 			if (stb6100_attach(mantis->fe, &vp1041_stb6100_config, adapter)) {
-				if (!lnbp21_attach(mantis->fe, adapter, 0, 0)) {
-					printk("%s: No LNBP21 found!\n", __func__);
-				}
+				if (!lnbp21_attach(mantis->fe, adapter, 0, 0))
+					dprintk(MANTIS_ERROR, 1, "No LNBP21 found!");
 			}
 		} else {
 			return -EREMOTEIO;

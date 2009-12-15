@@ -36,14 +36,16 @@ static int read_eeprom_byte(struct mantis_pci *mantis, u8 *data, u8 length)
 			.flags = 0,
 			.buf = data,
 			.len = 1
-		},{
+		}, {
 			.addr = 0x50,
 			.flags = I2C_M_RD,
 			.buf = data,
 			.len = length
 		},
 	};
-	if ((err = i2c_transfer(&mantis->adapter, msg, 2)) < 0) {
+
+	err = i2c_transfer(&mantis->adapter, msg, 2);
+	if (err < 0) {
 		dprintk(verbose, MANTIS_ERROR, 1,
 			"ERROR: i2c read: < err=%i d0=0x%02x d1=0x%02x >",
 			err, data[0], data[1]);
@@ -65,7 +67,8 @@ static int write_eeprom_byte(struct mantis_pci *mantis, u8 *data, u8 length)
 		.len = length
 	};
 
-	if ((err = i2c_transfer(&mantis->adapter, &msg, 1)) < 0) {
+	err = i2c_transfer(&mantis->adapter, &msg, 1);
+	if (err < 0) {
 		dprintk(verbose, MANTIS_ERROR, 1,
 			"ERROR: i2c write: < err=%i length=0x%02x d0=0x%02x, d1=0x%02x >",
 			err, length, data[0], data[1]);
@@ -81,7 +84,8 @@ static int get_mac_address(struct mantis_pci *mantis)
 	int err;
 
 	mantis->mac_address[0] = 0x08;
-	if ((err = read_eeprom_byte(mantis, &mantis->mac_address[0], 6)) < 0) {
+	err = read_eeprom_byte(mantis, &mantis->mac_address[0], 6);
+	if (err < 0) {
 		dprintk(verbose, MANTIS_ERROR, 1, "Mantis EEPROM read error");
 
 		return err;
@@ -106,25 +110,25 @@ struct mantis_hwconfig unknown_device = {
 static void mantis_load_config(struct mantis_pci *mantis)
 {
 	switch (mantis->subsystem_device) {
-	case MANTIS_VP_1033_DVB_S:	// VP-1033
+	case MANTIS_VP_1033_DVB_S:	/* VP-1033 */
 		mantis->hwconfig = &vp1033_mantis_config;
 		break;
-	case MANTIS_VP_1034_DVB_S:	// VP-1034
+	case MANTIS_VP_1034_DVB_S:	/* VP-1034 */
 		mantis->hwconfig = &vp1034_mantis_config;
 		break;
-	case MANTIS_VP_1041_DVB_S2:	// VP-1041
+	case MANTIS_VP_1041_DVB_S2:	/* VP-1041 */
 	case TECHNISAT_SKYSTAR_HD2:
 		mantis->hwconfig = &vp1041_mantis_config;
 		break;
-	case MANTIS_VP_2033_DVB_C:	// VP-2033
+	case MANTIS_VP_2033_DVB_C:	/* VP-2033 */
 		mantis->hwconfig = &vp2033_mantis_config;
 		break;
-	case MANTIS_VP_2040_DVB_C:	// VP-2040
-	case TERRATEC_CINERGY_C_PCI:	// VP-2040 clone
+	case MANTIS_VP_2040_DVB_C:	/* VP-2040 */
+	case TERRATEC_CINERGY_C_PCI:	/* VP-2040 clone */
 	case TECHNISAT_CABLESTAR_HD2:
 		mantis->hwconfig = &vp2040_mantis_config;
 		break;
-	case MANTIS_VP_3030_DVB_T:	// VP-3030
+	case MANTIS_VP_3030_DVB_T:	/* VP-3030 */
 		mantis->hwconfig = &vp3030_mantis_config;
 		break;
 	default:
@@ -149,23 +153,28 @@ int mantis_core_init(struct mantis_pci *mantis)
 		mantis->pdev->irq, mantis->latency,
 		mantis->mantis_addr, mantis->mantis_mmio);
 
-	if ((err = mantis_i2c_init(mantis)) < 0) {
+	err = mantis_i2c_init(mantis);
+	if (err < 0) {
 		dprintk(verbose, MANTIS_ERROR, 1, "Mantis I2C init failed");
 		return err;
 	}
-	if ((err = get_mac_address(mantis)) < 0) {
+	err = get_mac_address(mantis);
+	if (err < 0) {
 		dprintk(verbose, MANTIS_ERROR, 1, "get MAC address failed");
 		return err;
 	}
-	if ((err = mantis_dma_init(mantis)) < 0) {
+	err = mantis_dma_init(mantis);
+	if (err < 0) {
 		dprintk(verbose, MANTIS_ERROR, 1, "Mantis DMA init failed");
 		return err;
 	}
-	if ((err = mantis_dvb_init(mantis)) < 0) {
+	err = mantis_dvb_init(mantis);
+	if (err < 0) {
 		dprintk(verbose, MANTIS_DEBUG, 1, "Mantis DVB init failed");
 		return err;
 	}
-	if ((err = mantis_uart_init(mantis)) < 0) {
+	err = mantis_uart_init(mantis);
+	if (err < 0) {
 		dprintk(verbose, MANTIS_DEBUG, 1, "Mantis UART init failed");
 		return err;
 	}
@@ -191,7 +200,7 @@ int mantis_core_exit(struct mantis_pci *mantis)
 	return 0;
 }
 
-// Turn the given bit on or off.
+/* Turn the given bit on or off. */
 void gpio_set_bits(struct mantis_pci *mantis, u32 bitpos, u8 value)
 {
 	u32 cur;
@@ -207,14 +216,15 @@ void gpio_set_bits(struct mantis_pci *mantis, u32 bitpos, u8 value)
 	udelay(100);
 }
 
-//direction = 0 , no CI passthrough ; 1 , CI passthrough
+/* direction = 0 , no CI passthrough ; 1 , CI passthrough */
 void mantis_set_direction(struct mantis_pci *mantis, int direction)
 {
 	u32 reg;
 
 	reg = mmread(0x28);
 	dprintk(verbose, MANTIS_DEBUG, 1, "TS direction setup");
-	if (direction == 0x01) { //to CI
+	if (direction == 0x01) {
+		/* to CI */
 		reg |= 0x04;
 		mmwrite(reg, 0x28);
 		reg &= 0xff - 0x04;

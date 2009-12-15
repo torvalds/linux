@@ -43,10 +43,10 @@
 #define RISC_IRQ		(0x01 << 24)
 
 #define RISC_STATUS(status)	((((~status) & 0x0f) << 20) | ((status & 0x0f) << 16))
-#define RISC_FLUSH()		mantis->risc_pos = 0
-#define RISC_INSTR(opcode)	mantis->risc_cpu[mantis->risc_pos++] = cpu_to_le32(opcode)
+#define RISC_FLUSH()		(mantis->risc_pos = 0)
+#define RISC_INSTR(opcode)	(mantis->risc_cpu[mantis->risc_pos++] = cpu_to_le32(opcode))
 
-#define MANTIS_BUF_SIZE		64 * 1024
+#define MANTIS_BUF_SIZE		(64 * 1024)
 #define MANTIS_BLOCK_BYTES	(MANTIS_BUF_SIZE >> 4)
 #define MANTIS_BLOCK_COUNT	(1 << 4)
 #define MANTIS_RISC_SIZE	PAGE_SIZE
@@ -158,7 +158,8 @@ int mantis_dma_init(struct mantis_pci *mantis)
 
 		goto err;
 	}
-	if ((err = mantis_calc_lines(mantis)) < 0) {
+	err = mantis_calc_lines(mantis);
+	if (err < 0) {
 		dprintk(MANTIS_ERROR, 1, "Mantis calc lines failed");
 
 		goto err;
@@ -248,7 +249,7 @@ void mantis_dma_xfer(unsigned long data)
 		dprintk(MANTIS_DEBUG, 1, "last block=[%d] finished block=[%d]",
 			mantis->last_block, mantis->finished_block);
 
-		(config->ts_size ? dvb_dmx_swfilter_204: dvb_dmx_swfilter)
+		(config->ts_size ? dvb_dmx_swfilter_204 : dvb_dmx_swfilter)
 		(&mantis->demux, &mantis->buf_cpu[mantis->last_block * MANTIS_BLOCK_BYTES], MANTIS_BLOCK_BYTES);
 		mantis->last_block = (mantis->last_block + 1) % MANTIS_BLOCK_COUNT;
 	}
