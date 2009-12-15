@@ -1092,21 +1092,32 @@ WARNING:
     its level up and down at every change.
 
 
-Volume control -- /proc/acpi/ibm/volume
----------------------------------------
+Volume control
+--------------
 
-This feature allows volume control on ThinkPad models which don't have
-a hardware volume knob. The available commands are:
+procfs: /proc/acpi/ibm/volume
+
+This feature allows volume control on ThinkPad models with a digital
+volume knob, as well as mute/unmute control.  The available commands are:
 
 	echo up   >/proc/acpi/ibm/volume
 	echo down >/proc/acpi/ibm/volume
 	echo mute >/proc/acpi/ibm/volume
 	echo 'level <level>' >/proc/acpi/ibm/volume
 
-The <level> number range is 0 to 15 although not all of them may be
+The <level> number range is 0 to 14 although not all of them may be
 distinct. The unmute the volume after the mute command, use either the
 up or down command (the level command will not unmute the volume).
 The current volume level and mute state is shown in the file.
+
+There are two strategies for volume control.  To select which one
+should be used, use the volume_mode module parameter: volume_mode=1
+selects EC mode, and volume_mode=3 selects EC mode with NVRAM backing
+(so that volume/mute changes are remembered across shutdown/reboot).
+
+The driver will operate in volume_mode=3 by default. If that does not
+work well on your ThinkPad model, please report this to
+ibm-acpi-devel@lists.sourceforge.net.
 
 The ALSA mixer interface to this feature is still missing, but patches
 to add it exist.  That problem should be addressed in the not so
@@ -1376,6 +1387,7 @@ to enable more than one output class, just add their values.
 	0x0008			HKEY event interface, hotkeys
 	0x0010			Fan control
 	0x0020			Backlight brightness
+	0x0040			Audio mixer/volume control
 
 There is also a kernel build option to enable more debugging
 information, which may be necessary to debug driver problems.
