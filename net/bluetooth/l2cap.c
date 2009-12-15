@@ -3435,8 +3435,8 @@ static inline int l2cap_data_channel_sframe(struct sock *sk, u16 rx_control, str
 			    (pi->unacked_frames > 0))
 				__mod_retrans_timer();
 
-			l2cap_ertm_send(sk);
 			pi->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
+			l2cap_ertm_send(sk);
 		}
 		break;
 
