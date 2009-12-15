@@ -686,7 +686,15 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			r100_cs_dump_packet(p, pkt);
 			return r;
 		}
-		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
+
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+			tile_flags |= R300_TXO_MACRO_TILE;
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+			tile_flags |= R300_TXO_MICRO_TILE;
+
+		tmp = idx_value + ((u32)reloc->lobj.gpu_offset);
+		tmp |= tile_flags;
+		ib[idx] = tmp;
 		track->textures[i].robj = reloc->robj;
 		break;
 	/* Tracked registers */
