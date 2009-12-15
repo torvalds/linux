@@ -154,7 +154,7 @@ enum {
 #define SWAP_MAP_MAX	0x7ffe
 #define SWAP_MAP_BAD	0x7fff
 #define SWAP_HAS_CACHE  0x8000		/* There is a swap cache of entry. */
-#define SWAP_COUNT_MASK (~SWAP_HAS_CACHE)
+
 /*
  * The in-memory structure used to track swap areas.
  */
