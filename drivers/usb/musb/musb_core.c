@@ -1696,7 +1696,7 @@ musb_vbus_store(struct device *dev, struct device_attribute *attr,
 	unsigned long	val;
 
 	if (sscanf(buf, "%lu", &val) < 1) {
-		printk(KERN_ERR "Invalid VBUS timeout ms value\n");
+		dev_err(dev, "Invalid VBUS timeout ms value\n");
 		return -EINVAL;
 	}
 
@@ -1746,7 +1746,7 @@ musb_srp_store(struct device *dev, struct device_attribute *attr,
 
 	if (sscanf(buf, "%hu", &srp) != 1
 			|| (srp != 1)) {
-		printk(KERN_ERR "SRP: Value must be 1\n");
+		dev_err(dev, "SRP: Value must be 1\n");
 		return -EINVAL;
 	}
 
