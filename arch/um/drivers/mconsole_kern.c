@@ -833,8 +833,8 @@ static int __init mconsole_init(void)
 
 __initcall(mconsole_init);
 
-static int write_proc_mconsole(struct file *file, const char __user *buffer,
-			       unsigned long count, void *data)
+static ssize_t mconsole_proc_write(struct file *file,
+		const char __user *buffer, size_t count, loff_t *pos)
 {
 	char *buf;
 
@@ -855,6 +855,11 @@ static int write_proc_mconsole(struct file *file, const char __user *buffer,
 	return count;
 }
 
+static const struct file_operations mconsole_proc_fops = {
+	.owner		= THIS_MODULE,
+	.write		= mconsole_proc_write,
+};
+
 static int create_proc_mconsole(void)
 {
 	struct proc_dir_entry *ent;
@@ -862,15 +867,12 @@ static int create_proc_mconsole(void)
 	if (notify_socket == NULL)
 		return 0;
 
-	ent = create_proc_entry("mconsole", S_IFREG | 0200, NULL);
+	ent = proc_create("mconsole", 0200, NULL, &mconsole_proc_fops);
 	if (ent == NULL) {
 		printk(KERN_INFO "create_proc_mconsole : create_proc_entry "
 		       "failed\n");
 		return 0;
 	}
-
-	ent->read_proc = NULL;
-	ent->write_proc = write_proc_mconsole;
 	return 0;
 }
 
