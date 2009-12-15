@@ -388,9 +388,10 @@ static int page_referenced_one(struct page *page,
 out_unmap:
 	(*mapcount)--;
 	pte_unmap_unlock(pte, ptl);
-out:
+
 	if (referenced)
 		*vm_flags |= vma->vm_flags;
+out:
 	return referenced;
 }
 
