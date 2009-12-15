@@ -6467,6 +6467,7 @@ static const struct sensor_by_chipset_revision chipset_revision_sensor[] = {
 	{0x8001, 0x13},
 	{0x8000, 0x14},		/* CS2102K */
 	{0x8400, 0x15},		/* TAS5130K */
+	{0xe400, 0x15},
 };
 
 static int vga_3wr_probe(struct gspca_dev *gspca_dev)
