@@ -2113,7 +2113,9 @@ static void cfq_choose_cfqg(struct cfq_data *cfqd)
 		cfqd->workload_expires = jiffies + cfqg->saved_workload_slice;
 		cfqd->serving_type = cfqg->saved_workload;
 		cfqd->serving_prio = cfqg->saved_serving_prio;
-	}
+	} else
+		cfqd->workload_expires = jiffies - 1;
+
 	choose_service_tree(cfqd, cfqg);
 }
 
