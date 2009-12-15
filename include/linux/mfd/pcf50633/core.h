@@ -29,7 +29,12 @@ struct pcf50633_platform_data {
 	char **batteries;
 	int num_batteries;
 
-	int charging_restart_interval;
+	/*
+	 * Should be set accordingly to the reference resistor used, see
+	 * I_{ch(ref)} charger reference current in the pcf50633 User
+	 * Manual.
+	 */
+	int charger_reference_current_ma;
 
 	/* Callbacks */
 	void (*probe_done)(struct pcf50633 *);
