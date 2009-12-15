@@ -520,14 +520,6 @@ out:
 	return ret;
 }
 
-extern char *__bad_type_size(void);
-
-#undef FIELD
-#define FIELD(type, name)						\
-	sizeof(type) != sizeof(field.name) ? __bad_type_size() :	\
-	#type, "common_" #name, offsetof(typeof(field), name),		\
-		sizeof(field.name), is_signed_type(type)
-
 static ssize_t
 event_format_read(struct file *filp, char __user *ubuf, size_t cnt,
 		  loff_t *ppos)
@@ -964,10 +956,6 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events,
 		trace_create_file("filter", 0644, call->dir, call,
 				  filter);
 	}
-
-	/* A trace may not want to export its format */
-	if (!call->show_format)
-		return 0;
 
 	trace_create_file("format", 0444, call->dir, call,
 			  format);

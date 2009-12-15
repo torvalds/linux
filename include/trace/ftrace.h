@@ -131,130 +131,6 @@
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
 /*
- * Setup the showing format of trace point.
- *
- * int
- * ftrace_format_##call(struct trace_seq *s)
- * {
- *	struct ftrace_raw_##call field;
- *	int ret;
- *
- *	ret = trace_seq_printf(s, #type " " #item ";"
- *			       " offset:%u; size:%u;\n",
- *			       offsetof(struct ftrace_raw_##call, item),
- *			       sizeof(field.type));
- *
- * }
- */
-
-#undef TP_STRUCT__entry
-#define TP_STRUCT__entry(args...) args
-
-#undef __field
-#define __field(type, item)					\
-	ret = trace_seq_printf(s, "\tfield:" #type " " #item ";\t"	\
-			       "offset:%u;\tsize:%u;\tsigned:%u;\n",	\
-			       (unsigned int)offsetof(typeof(field), item), \
-			       (unsigned int)sizeof(field.item),	\
-			       (unsigned int)is_signed_type(type));	\
-	if (!ret)							\
-		return 0;
-
-#undef __field_ext
-#define __field_ext(type, item, filter_type)	__field(type, item)
-
-#undef __array
-#define __array(type, item, len)						\
-	ret = trace_seq_printf(s, "\tfield:" #type " " #item "[" #len "];\t"	\
-			       "offset:%u;\tsize:%u;\tsigned:%u;\n",	\
-			       (unsigned int)offsetof(typeof(field), item), \
-			       (unsigned int)sizeof(field.item),	\
-			       (unsigned int)is_signed_type(type));	\
-	if (!ret)							\
-		return 0;
-
-#undef __dynamic_array
-#define __dynamic_array(type, item, len)				       \
-	ret = trace_seq_printf(s, "\tfield:__data_loc " #type "[] " #item ";\t"\
-			       "offset:%u;\tsize:%u;\tsigned:%u;\n",	       \
-			       (unsigned int)offsetof(typeof(field),	       \
-					__data_loc_##item),		       \
-			       (unsigned int)sizeof(field.__data_loc_##item), \
-			       (unsigned int)is_signed_type(type));	\
-	if (!ret)							       \
-		return 0;
-
-#undef __string
-#define __string(item, src) __dynamic_array(char, item, -1)
-
-#undef __entry
-#define __entry REC
-
-#undef __print_symbolic
-#undef __get_dynamic_array
-#undef __get_str
-
-#undef TP_printk
-#define TP_printk(fmt, args...) "\"%s\", %s\n", fmt, __stringify(args)
-
-#undef TP_fast_assign
-#define TP_fast_assign(args...) args
-
-#undef TP_perf_assign
-#define TP_perf_assign(args...)
-
-#undef DECLARE_EVENT_CLASS
-#define DECLARE_EVENT_CLASS(call, proto, args, tstruct, func, print)	\
-static int								\
-ftrace_format_setup_##call(struct ftrace_event_call *unused,		\
-			   struct trace_seq *s)				\
-{									\
-	struct ftrace_raw_##call field __attribute__((unused));		\
-	int ret = 0;							\
-									\
-	tstruct;							\
-									\
-	return ret;							\
-}									\
-									\
-static int								\
-ftrace_format_##call(struct ftrace_event_call *unused,			\
-		     struct trace_seq *s)				\
-{									\
-	int ret = 0;							\
-									\
-	ret = ftrace_format_setup_##call(unused, s);			\
-	if (!ret)							\
-		return ret;						\
-									\
-	ret = trace_seq_printf(s, "\nprint fmt: " print);		\
-									\
-	return ret;							\
-}
-
-#undef DEFINE_EVENT
-#define DEFINE_EVENT(template, name, proto, args)
-
-#undef DEFINE_EVENT_PRINT
-#define DEFINE_EVENT_PRINT(template, name, proto, args, print)		\
-static int								\
-ftrace_format_##name(struct ftrace_event_call *unused,			\
-		      struct trace_seq *s)				\
-{									\
-	int ret = 0;							\
-									\
-	ret = ftrace_format_setup_##template(unused, s);		\
-	if (!ret)							\
-		return ret;						\
-									\
-	trace_seq_printf(s, "\nprint fmt: " print);			\
-									\
-	return ret;							\
-}
-
-#include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
-
-/*
  * Stage 3 of the trace events.
  *
  * Override the macros in <trace/trace_events.h> to include the following:
@@ -622,7 +498,6 @@ static void ftrace_profile_disable_##name(struct ftrace_event_call *unused)\
  *	.raw_init		= trace_event_raw_init,
  *	.regfunc		= ftrace_reg_event_<call>,
  *	.unregfunc		= ftrace_unreg_event_<call>,
- *	.show_format		= ftrace_format_<call>,
  * }
  *
  */
@@ -656,6 +531,12 @@ static void ftrace_profile_disable_##name(struct ftrace_event_call *unused)\
 #undef __assign_str
 #define __assign_str(dst, src)						\
 	strcpy(__get_str(dst), src);
+
+#undef TP_fast_assign
+#define TP_fast_assign(args...) args
+
+#undef TP_perf_assign
+#define TP_perf_assign(args...)
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
@@ -750,7 +631,6 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.regfunc		= ftrace_raw_reg_event_##call,		\
 	.unregfunc		= ftrace_raw_unreg_event_##call,	\
 	.print_fmt		= print_fmt_##template,			\
-	.show_format		= ftrace_format_##template,		\
 	.define_fields		= ftrace_define_fields_##template,	\
 	_TRACE_PROFILE_INIT(call)					\
 }
@@ -770,7 +650,6 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.regfunc		= ftrace_raw_reg_event_##call,		\
 	.unregfunc		= ftrace_raw_unreg_event_##call,	\
 	.print_fmt		= print_fmt_##call,			\
-	.show_format		= ftrace_format_##call,			\
 	.define_fields		= ftrace_define_fields_##template,	\
 	_TRACE_PROFILE_INIT(call)					\
 }

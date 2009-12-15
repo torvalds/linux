@@ -62,78 +62,6 @@ static void __always_unused ____ftrace_check_##name(void)	\
 
 #include "trace_entries.h"
 
-
-#undef __field
-#define __field(type, item)						\
-	ret = trace_seq_printf(s, "\tfield:" #type " " #item ";\t"	\
-			       "offset:%zu;\tsize:%zu;\tsigned:%u;\n",	\
-			       offsetof(typeof(field), item),		\
-			       sizeof(field.item), is_signed_type(type)); \
-	if (!ret)							\
-		return 0;
-
-#undef __field_desc
-#define __field_desc(type, container, item)				\
-	ret = trace_seq_printf(s, "\tfield:" #type " " #item ";\t"	\
-			       "offset:%zu;\tsize:%zu;\tsigned:%u;\n",	\
-			       offsetof(typeof(field), container.item),	\
-			       sizeof(field.container.item),		\
-			       is_signed_type(type));			\
-	if (!ret)							\
-		return 0;
-
-#undef __array
-#define __array(type, item, len)					\
-	ret = trace_seq_printf(s, "\tfield:" #type " " #item "[" #len "];\t" \
-			       "offset:%zu;\tsize:%zu;\tsigned:%u;\n",	\
-			       offsetof(typeof(field), item),		\
-			       sizeof(field.item), is_signed_type(type)); \
-	if (!ret)							\
-		return 0;
-
-#undef __array_desc
-#define __array_desc(type, container, item, len)			\
-	ret = trace_seq_printf(s, "\tfield:" #type " " #item "[" #len "];\t" \
-			       "offset:%zu;\tsize:%zu;\tsigned:%u;\n",	\
-			       offsetof(typeof(field), container.item),	\
-			       sizeof(field.container.item),		\
-			       is_signed_type(type));			\
-	if (!ret)							\
-		return 0;
-
-#undef __dynamic_array
-#define __dynamic_array(type, item)					\
-	ret = trace_seq_printf(s, "\tfield:" #type " " #item ";\t"	\
-			       "offset:%zu;\tsize:0;\tsigned:%u;\n",	\
-			       offsetof(typeof(field), item),		\
-			       is_signed_type(type));			\
-	if (!ret)							\
-		return 0;
-
-#undef F_printk
-#define F_printk(fmt, args...) "%s, %s\n", #fmt, __stringify(args)
-
-#undef __entry
-#define __entry REC
-
-#undef FTRACE_ENTRY
-#define FTRACE_ENTRY(name, struct_name, id, tstruct, print)		\
-static int								\
-ftrace_format_##name(struct ftrace_event_call *unused,			\
-		     struct trace_seq *s)				\
-{									\
-	struct struct_name field __attribute__((unused));		\
-	int ret = 0;							\
-									\
-	tstruct;							\
-									\
-	trace_seq_printf(s, "\nprint fmt: " print);			\
-									\
-	return ret;							\
-}
-
-#include "trace_entries.h"
-
 #undef __field
 #define __field(type, item)						\
 	ret = trace_define_field(event_call, #type, #item,		\
@@ -235,7 +163,6 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.system			= __stringify(TRACE_SYSTEM),		\
 	.raw_init		= ftrace_raw_init_event,		\
 	.print_fmt		= print,				\
-	.show_format		= ftrace_format_##call,			\
 	.define_fields		= ftrace_define_fields_##call,		\
 };									\
 

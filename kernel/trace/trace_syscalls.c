@@ -143,54 +143,6 @@ extern char *__bad_type_size(void);
 		#type, #name, offsetof(typeof(trace), name),		\
 		sizeof(trace.name), is_signed_type(type)
 
-int syscall_enter_format(struct ftrace_event_call *call, struct trace_seq *s)
-{
-	int i;
-	int ret;
-	struct syscall_metadata *entry = call->data;
-	struct syscall_trace_enter trace;
-	int offset = offsetof(struct syscall_trace_enter, args);
-
-	ret = trace_seq_printf(s, "\tfield:%s %s;\toffset:%zu;\tsize:%zu;"
-			       "\tsigned:%u;\n",
-			       SYSCALL_FIELD(int, nr));
-	if (!ret)
-		return 0;
-
-	for (i = 0; i < entry->nb_args; i++) {
-		ret = trace_seq_printf(s, "\tfield:%s %s;", entry->types[i],
-				        entry->args[i]);
-		if (!ret)
-			return 0;
-		ret = trace_seq_printf(s, "\toffset:%d;\tsize:%zu;"
-				       "\tsigned:%u;\n", offset,
-				       sizeof(unsigned long),
-				       is_signed_type(unsigned long));
-		if (!ret)
-			return 0;
-		offset += sizeof(unsigned long);
-	}
-
-	trace_seq_puts(s, "\nprint fmt: \"");
-	for (i = 0; i < entry->nb_args; i++) {
-		ret = trace_seq_printf(s, "%s: 0x%%0%zulx%s", entry->args[i],
-				        sizeof(unsigned long),
-					i == entry->nb_args - 1 ? "" : ", ");
-		if (!ret)
-			return 0;
-	}
-	trace_seq_putc(s, '"');
-
-	for (i = 0; i < entry->nb_args; i++) {
-		ret = trace_seq_printf(s, ", ((unsigned long)(REC->%s))",
-				       entry->args[i]);
-		if (!ret)
-			return 0;
-	}
-
-	return trace_seq_putc(s, '\n');
-}
-
 static
 int  __set_enter_print_fmt(struct syscall_metadata *entry, char *buf, int len)
 {
@@ -250,24 +202,6 @@ static void free_syscall_print_fmt(struct ftrace_event_call *call)
 
 	if (entry->enter_event == call)
 		kfree(call->print_fmt);
-}
-
-int syscall_exit_format(struct ftrace_event_call *call, struct trace_seq *s)
-{
-	int ret;
-	struct syscall_trace_exit trace;
-
-	ret = trace_seq_printf(s,
-			       "\tfield:%s %s;\toffset:%zu;\tsize:%zu;"
-			       "\tsigned:%u;\n"
-			       "\tfield:%s %s;\toffset:%zu;\tsize:%zu;"
-			       "\tsigned:%u;\n",
-			       SYSCALL_FIELD(int, nr),
-			       SYSCALL_FIELD(long, ret));
-	if (!ret)
-		return 0;
-
-	return trace_seq_printf(s, "\nprint fmt: \"0x%%lx\", REC->ret\n");
 }
 
 int syscall_enter_define_fields(struct ftrace_event_call *call)
