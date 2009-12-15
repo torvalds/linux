@@ -931,6 +931,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 #endif
 	list_del(&codec->list);
 	snd_array_free(&codec->mixers);
+	snd_array_free(&codec->nids);
 	codec->bus->caddr_tbl[codec->addr] = NULL;
 	if (codec->patch_ops.free)
 		codec->patch_ops.free(codec);
@@ -985,7 +986,8 @@ int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr
 	mutex_init(&codec->control_mutex);
 	init_hda_cache(&codec->amp_cache, sizeof(struct hda_amp_info));
 	init_hda_cache(&codec->cmd_cache, sizeof(struct hda_cache_head));
-	snd_array_init(&codec->mixers, sizeof(struct hda_nid_item), 60);
+	snd_array_init(&codec->mixers, sizeof(struct hda_nid_item), 32);
+	snd_array_init(&codec->nids, sizeof(struct hda_nid_item), 32);
 	snd_array_init(&codec->init_pins, sizeof(struct hda_pincfg), 16);
 	snd_array_init(&codec->driver_pins, sizeof(struct hda_pincfg), 16);
 	if (codec->bus->modelname) {
@@ -1706,7 +1708,7 @@ struct snd_kcontrol *snd_hda_find_mixer_ctl(struct hda_codec *codec,
 EXPORT_SYMBOL_HDA(snd_hda_find_mixer_ctl);
 
 /**
- * snd_hda_ctl-add - Add a control element and assign to the codec
+ * snd_hda_ctl_add - Add a control element and assign to the codec
  * @codec: HD-audio codec
  * @nid: corresponding NID (optional)
  * @kctl: the control element to assign
@@ -1721,19 +1723,25 @@ EXPORT_SYMBOL_HDA(snd_hda_find_mixer_ctl);
  *
  * snd_hda_ctl_add() checks the control subdev id field whether
  * #HDA_SUBDEV_NID_FLAG bit is set.  If set (and @nid is zero), the lower
- * bits value is taken as the NID to assign.
+ * bits value is taken as the NID to assign. The #HDA_NID_ITEM_AMP bit
+ * specifies if kctl->private_value is a HDA amplifier value.
  */
 int snd_hda_ctl_add(struct hda_codec *codec, hda_nid_t nid,
 		    struct snd_kcontrol *kctl)
 {
 	int err;
+	unsigned short flags = 0;
 	struct hda_nid_item *item;
 
-	if (kctl->id.subdevice & HDA_SUBDEV_NID_FLAG) {
+	if (kctl->id.subdevice & HDA_SUBDEV_AMP_FLAG) {
+		flags |= HDA_NID_ITEM_AMP;
 		if (nid == 0)
-			nid = kctl->id.subdevice & 0xffff;
-		kctl->id.subdevice = 0;
+			nid = get_amp_nid_(kctl->private_value);
 	}
+	if ((kctl->id.subdevice & HDA_SUBDEV_NID_FLAG) != 0 && nid == 0)
+		nid = kctl->id.subdevice & 0xffff;
+	if (kctl->id.subdevice & (HDA_SUBDEV_NID_FLAG|HDA_SUBDEV_AMP_FLAG))
+		kctl->id.subdevice = 0;
 	err = snd_ctl_add(codec->bus->card, kctl);
 	if (err < 0)
 		return err;
@@ -1742,9 +1750,39 @@ int snd_hda_ctl_add(struct hda_codec *codec, hda_nid_t nid,
 		return -ENOMEM;
 	item->kctl = kctl;
 	item->nid = nid;
+	item->flags = flags;
 	return 0;
 }
 EXPORT_SYMBOL_HDA(snd_hda_ctl_add);
+
+/**
+ * snd_hda_add_nid - Assign a NID to a control element
+ * @codec: HD-audio codec
+ * @nid: corresponding NID (optional)
+ * @kctl: the control element to assign
+ * @index: index to kctl
+ *
+ * Add the given control element to an array inside the codec instance.
+ * This function is used when #snd_hda_ctl_add cannot be used for 1:1
+ * NID:KCTL mapping - for example "Capture Source" selector.
+ */
+int snd_hda_add_nid(struct hda_codec *codec, struct snd_kcontrol *kctl,
+		    unsigned int index, hda_nid_t nid)
+{
+	struct hda_nid_item *item;
+
+	if (nid > 0) {
+		item = snd_array_new(&codec->nids);
+		if (!item)
+			return -ENOMEM;
+		item->kctl = kctl;
+		item->index = index;
+		item->nid = nid;
+		return 0;
+	}
+	return -EINVAL;
+}
+EXPORT_SYMBOL_HDA(snd_hda_add_nid);
 
 /**
  * snd_hda_ctls_clear - Clear all controls assigned to the given codec
@@ -1757,6 +1795,7 @@ void snd_hda_ctls_clear(struct hda_codec *codec)
 	for (i = 0; i < codec->mixers.used; i++)
 		snd_ctl_remove(codec->bus->card, items[i].kctl);
 	snd_array_free(&codec->mixers);
+	snd_array_free(&codec->nids);
 }
 
 /* pseudo device locking
@@ -3476,6 +3515,8 @@ int snd_hda_add_new_ctls(struct hda_codec *codec, struct snd_kcontrol_new *knew)
 
 	for (; knew->name; knew++) {
 		struct snd_kcontrol *kctl;
+		if (knew->iface == -1)	/* skip this codec private value */
+			continue;
 		kctl = snd_ctl_new1(knew, codec);
 		if (!kctl)
 			return -ENOMEM;
@@ -3495,6 +3536,32 @@ int snd_hda_add_new_ctls(struct hda_codec *codec, struct snd_kcontrol_new *knew)
 	return 0;
 }
 EXPORT_SYMBOL_HDA(snd_hda_add_new_ctls);
+
+/**
+ * snd_hda_add_nids - assign nids to controls from the array
+ * @codec: the HDA codec
+ * @kctl: struct snd_kcontrol
+ * @index: index to kctl
+ * @nids: the array of hda_nid_t
+ * @size: count of hda_nid_t items
+ *
+ * This helper function assigns NIDs in the given array to a control element.
+ *
+ * Returns 0 if successful, or a negative error code.
+ */
+int snd_hda_add_nids(struct hda_codec *codec, struct snd_kcontrol *kctl,
+		     unsigned int index, hda_nid_t *nids, unsigned int size)
+{
+	int err;
+
+	for ( ; size > 0; size--, nids++) {
+		err = snd_hda_add_nid(codec, kctl, index, *nids);
+		if (err < 0)
+			return err;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_HDA(snd_hda_add_nids);
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
