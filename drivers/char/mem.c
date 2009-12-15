@@ -581,14 +581,12 @@ static ssize_t write_kmem(struct file * file, const char __user * buf,
 
 			if (len > PAGE_SIZE)
 				len = PAGE_SIZE;
-			if (len) {
-				written = copy_from_user(kbuf, buf, len);
-				if (written) {
-					if (wrote + virtr)
-						break;
-					free_page((unsigned long)kbuf);
-					return -EFAULT;
-				}
+			written = copy_from_user(kbuf, buf, len);
+			if (written) {
+				if (wrote + virtr)
+					break;
+				free_page((unsigned long)kbuf);
+				return -EFAULT;
 			}
 			len = vwrite(kbuf, (char *)p, len);
 			count -= len;
