@@ -544,7 +544,7 @@ static void del_trace_kprobe_event(int fd, const char *group,
 	if (e_snprintf(buf, 128, "%s:%s", group, event) < 0)
 		die("Failed to copy event.");
 	if (!strlist__has_entry(namelist, buf)) {
-		pr_warning("Warning: event \"%s\" is not found.\n", buf);
+		pr_info("Info: event \"%s\" does not exist, could not remove it.\n", buf);
 		return;
 	}
 	/* Convert from perf-probe event to trace-kprobe event */
