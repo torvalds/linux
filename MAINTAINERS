@@ -5976,6 +5976,7 @@ M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
 T:	git git://opensource.wolfsonmicro.com/linux-2.6-audioplus
 W:	http://opensource.wolfsonmicro.com/node/8
 S:	Supported
+F:	Documentation/hwmon/wm83??
 F:	drivers/leds/leds-wm83*.c
 F:	drivers/mfd/wm8*.c
 F:	drivers/power/wm83*.c
@@ -5985,9 +5986,9 @@ F:	drivers/video/backlight/wm83*_bl.c
 F:	drivers/watchdog/wm83*_wdt.c
 F:	include/linux/mfd/wm831x/
 F:	include/linux/mfd/wm8350/
-F:	include/linux/mfd/wm8400/
-F:	sound/soc/codecs/wm8350.c
-F:	sound/soc/codecs/wm8400.c
+F:	include/linux/mfd/wm8400*
+F:	sound/soc/codecs/wm8350.*
+F:	sound/soc/codecs/wm8400.*
 
 X.25 NETWORK LAYER
 M:	Henner Eisen <eis@baty.hanse.de>
