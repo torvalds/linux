@@ -101,7 +101,7 @@ struct vme_irq {
  * Currently we assume that all chips are PCI-based
  */
 struct vme_bridge {
-        char name[VMENAMSIZ];
+	char name[VMENAMSIZ];
 	int num;
 	struct list_head master_resources;
 	struct list_head slave_resources;
@@ -112,7 +112,7 @@ struct vme_bridge {
 
 	/* Bridge Info - XXX Move to private structure? */
 	struct device *parent;	/* Generic device struct (pdev->dev for PCI) */
-	void * base;		/* Base Address of device registers */
+	void *base;		/* Base Address of device registers */
 
 	struct device dev[VME_SLOTS_MAX];	/* Device registered with
 						 * device model on VME bus
@@ -178,8 +178,8 @@ struct vme_bridge {
 
 void vme_irq_handler(struct vme_bridge *, int, int);
 
-int vme_register_bridge (struct vme_bridge *);
-void vme_unregister_bridge (struct vme_bridge *);
+int vme_register_bridge(struct vme_bridge *);
+void vme_unregister_bridge(struct vme_bridge *);
 
 #endif /* _VME_BRIDGE_H_ */
 

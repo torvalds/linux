@@ -98,28 +98,29 @@ struct vme_driver {
 	struct device_driver    driver;
 };
 
-void * vme_alloc_consistent(struct vme_resource *, size_t, dma_addr_t *);
+void *vme_alloc_consistent(struct vme_resource *, size_t, dma_addr_t *);
 void vme_free_consistent(struct vme_resource *, size_t,  void *,
 	dma_addr_t);
 
 size_t vme_get_size(struct vme_resource *);
 
-struct vme_resource * vme_slave_request(struct device *, vme_address_t, vme_cycle_t);
-int vme_slave_set (struct vme_resource *, int, unsigned long long,
+struct vme_resource *vme_slave_request(struct device *, vme_address_t,
+	vme_cycle_t);
+int vme_slave_set(struct vme_resource *, int, unsigned long long,
 	unsigned long long, dma_addr_t, vme_address_t, vme_cycle_t);
-int vme_slave_get (struct vme_resource *, int *, unsigned long long *,
+int vme_slave_get(struct vme_resource *, int *, unsigned long long *,
 	unsigned long long *, dma_addr_t *, vme_address_t *, vme_cycle_t *);
 void vme_slave_free(struct vme_resource *);
 
-struct vme_resource * vme_master_request(struct device *, vme_address_t, vme_cycle_t,
-	vme_width_t);
-int vme_master_set (struct vme_resource *, int, unsigned long long,
+struct vme_resource *vme_master_request(struct device *, vme_address_t,
+	vme_cycle_t, vme_width_t);
+int vme_master_set(struct vme_resource *, int, unsigned long long,
 	unsigned long long, vme_address_t, vme_cycle_t, vme_width_t);
-int vme_master_get (struct vme_resource *, int *, unsigned long long *,
+int vme_master_get(struct vme_resource *, int *, unsigned long long *,
 	unsigned long long *, vme_address_t *, vme_cycle_t *, vme_width_t *);
 ssize_t vme_master_read(struct vme_resource *, void *, size_t, loff_t);
 ssize_t vme_master_write(struct vme_resource *, void *, size_t, loff_t);
-unsigned int vme_master_rmw (struct vme_resource *, unsigned int, unsigned int,
+unsigned int vme_master_rmw(struct vme_resource *, unsigned int, unsigned int,
 	unsigned int, loff_t);
 void vme_master_free(struct vme_resource *);
 
@@ -153,8 +154,8 @@ void vme_lm_free(struct vme_resource *);
 
 int vme_slot_get(struct device *);
 
-int vme_register_driver (struct vme_driver *);
-void vme_unregister_driver (struct vme_driver *);
+int vme_register_driver(struct vme_driver *);
+void vme_unregister_driver(struct vme_driver *);
 
 
 #endif /* _VME_H_ */
