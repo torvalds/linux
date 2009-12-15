@@ -453,6 +453,7 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
 		}
 
 		rmap_item->next = NULL;
+		rmap_item->address &= PAGE_MASK;
 
 	} else if (rmap_item->address & NODE_FLAG) {
 		unsigned char age;
@@ -467,10 +468,10 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
 		BUG_ON(age > 1);
 		if (!age)
 			rb_erase(&rmap_item->node, &root_unstable_tree);
-		ksm_pages_unshared--;
-	}
 
-	rmap_item->address &= PAGE_MASK;
+		ksm_pages_unshared--;
+		rmap_item->address &= PAGE_MASK;
+	}
 
 	cond_resched();		/* we're called from many long loops */
 }
@@ -1086,8 +1087,7 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
 	unsigned int checksum;
 	int err;
 
-	if (in_stable_tree(rmap_item))
-		remove_rmap_item_from_tree(rmap_item);
+	remove_rmap_item_from_tree(rmap_item);
 
 	/* We first start with searching the page inside the stable tree */
 	tree_rmap_item = stable_tree_search(page, page2, rmap_item);
@@ -1143,9 +1143,7 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
 		 * tree, and insert it instead as new node in the stable tree.
 		 */
 		if (!err) {
-			rb_erase(&tree_rmap_item->node, &root_unstable_tree);
-			tree_rmap_item->address &= ~NODE_FLAG;
-			ksm_pages_unshared--;
+			remove_rmap_item_from_tree(tree_rmap_item);
 
 			/*
 			 * If we fail to insert the page into the stable tree,
@@ -1174,11 +1172,8 @@ static struct rmap_item *get_next_rmap_item(struct mm_slot *mm_slot,
 
 	while (cur != &mm_slot->rmap_list) {
 		rmap_item = list_entry(cur, struct rmap_item, link);
-		if ((rmap_item->address & PAGE_MASK) == addr) {
-			if (!in_stable_tree(rmap_item))
-				remove_rmap_item_from_tree(rmap_item);
+		if ((rmap_item->address & PAGE_MASK) == addr)
 			return rmap_item;
-		}
 		if (rmap_item->address > addr)
 			break;
 		cur = cur->next;
