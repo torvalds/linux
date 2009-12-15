@@ -461,7 +461,7 @@ static ssize_t read_kmem(struct file *file, char __user *buf,
 
 
 static inline ssize_t
-do_write_kmem(void *p, unsigned long realp, const char __user * buf,
+do_write_kmem(unsigned long p, const char __user *buf,
 	      size_t count, loff_t *ppos)
 {
 	ssize_t written, sz;
@@ -470,12 +470,11 @@ do_write_kmem(void *p, unsigned long realp, const char __user * buf,
 	written = 0;
 #ifdef __ARCH_HAS_NO_PAGE_ZERO_MAPPED
 	/* we don't have page 0 mapped on sparc and m68k.. */
-	if (realp < PAGE_SIZE) {
-		sz = size_inside_page(realp, count);
+	if (p < PAGE_SIZE) {
+		sz = size_inside_page(p, count);
 		/* Hmm. Do something? */
 		buf += sz;
 		p += sz;
-		realp += sz;
 		count -= sz;
 		written += sz;
 	}
@@ -484,14 +483,14 @@ do_write_kmem(void *p, unsigned long realp, const char __user * buf,
 	while (count > 0) {
 		char *ptr;
 
-		sz = size_inside_page(realp, count);
+		sz = size_inside_page(p, count);
 
 		/*
 		 * On ia64 if a page has been mapped somewhere as
 		 * uncached, then it must also be accessed uncached
 		 * by the kernel or data corruption may occur
 		 */
-		ptr = xlate_dev_kmem_ptr(p);
+		ptr = xlate_dev_kmem_ptr((char *)p);
 
 		copied = copy_from_user(ptr, buf, sz);
 		if (copied) {
@@ -502,7 +501,6 @@ do_write_kmem(void *p, unsigned long realp, const char __user * buf,
 		}
 		buf += sz;
 		p += sz;
-		realp += sz;
 		count -= sz;
 		written += sz;
 	}
@@ -526,7 +524,7 @@ static ssize_t write_kmem(struct file * file, const char __user * buf,
 	if (p < (unsigned long) high_memory) {
 		unsigned long to_write = min_t(unsigned long, count,
 					       (unsigned long)high_memory - p);
-		wrote = do_write_kmem((void *)p, p, buf, to_write, ppos);
+		wrote = do_write_kmem(p, buf, to_write, ppos);
 		if (wrote != to_write)
 			return wrote;
 		p += wrote;
