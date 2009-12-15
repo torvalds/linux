@@ -151,9 +151,9 @@ enum {
 
 #define SWAP_CLUSTER_MAX 32
 
-#define SWAP_MAP_MAX	0x7ffe
-#define SWAP_MAP_BAD	0x7fff
-#define SWAP_HAS_CACHE  0x8000		/* There is a swap cache of entry. */
+#define SWAP_MAP_MAX	0x7e
+#define SWAP_MAP_BAD	0x7f
+#define SWAP_HAS_CACHE	0x80		/* There is a swap cache of entry. */
 
 /*
  * The in-memory structure used to track swap areas.
@@ -167,7 +167,7 @@ struct swap_info_struct {
 	struct block_device *bdev;
 	struct swap_extent first_swap_extent;
 	struct swap_extent *curr_swap_extent;
-	unsigned short *swap_map;
+	unsigned char *swap_map;
 	unsigned int lowest_bit;
 	unsigned int highest_bit;
 	unsigned int lowest_alloc;	/* while preparing discard cluster */
