@@ -172,13 +172,13 @@ static const struct option options[] = {
 		opt_del_probe_event),
 	OPT_CALLBACK('a', "add", NULL,
 #ifdef NO_LIBDWARF
-		"FUNC[+OFFS|%return] [ARG ...]",
+		"[EVENT=]FUNC[+OFFS|%return] [ARG ...]",
 #else
-		"FUNC[+OFFS|%return|:RLN][@SRC]|SRC:ALN [ARG ...]",
+		"[EVENT=]FUNC[+OFFS|%return|:RLN][@SRC]|SRC:ALN [ARG ...]",
 #endif
 		"probe point definition, where\n"
-		"\t\tGRP:\tGroup name (optional)\n"
-		"\t\tNAME:\tEvent name\n"
+		"\t\tGROUP:\tGroup name (optional)\n"
+		"\t\tEVENT:\tEvent name\n"
 		"\t\tFUNC:\tFunction name\n"
 		"\t\tOFFS:\tOffset from function entry (in byte)\n"
 		"\t\t%return:\tPut the probe at function return\n"

@@ -69,9 +69,22 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 	char c, nc = 0;
 	/*
 	 * <Syntax>
-	 * perf probe SRC:LN
-	 * perf probe FUNC[+OFFS|%return][@SRC]
+	 * perf probe [EVENT=]SRC:LN
+	 * perf probe [EVENT=]FUNC[+OFFS|%return][@SRC]
+	 *
+	 * TODO:Group name support
 	 */
+
+	ptr = strchr(arg, '=');
+	if (ptr) {	/* Event name */
+		*ptr = '\0';
+		tmp = ptr + 1;
+		ptr = strchr(arg, ':');
+		if (ptr)	/* Group name is not supported yet. */
+			semantic_error("Group name is not supported yet.");
+		pp->event = strdup(arg);
+		arg = tmp;
+	}
 
 	ptr = strpbrk(arg, ":+@%");
 	if (ptr) {
@@ -188,8 +201,7 @@ void parse_perf_probe_event(const char *str, struct probe_point *pp,
 }
 
 /* Parse kprobe_events event into struct probe_point */
-void parse_trace_kprobe_event(const char *str, char **group, char **event,
-			      struct probe_point *pp)
+void parse_trace_kprobe_event(const char *str, struct probe_point *pp)
 {
 	char pr;
 	char *p;
@@ -205,18 +217,17 @@ void parse_trace_kprobe_event(const char *str, char **group, char **event,
 
 	/* Scan event and group name. */
 	ret = sscanf(argv[0], "%c:%a[^/ \t]/%a[^ \t]",
-		     &pr, (float *)(void *)group, (float *)(void *)event);
+		     &pr, (float *)(void *)&pp->group,
+		     (float *)(void *)&pp->event);
 	if (ret != 3)
 		semantic_error("Failed to parse event name: %s", argv[0]);
-	pr_debug("Group:%s Event:%s probe:%c\n", *group, *event, pr);
-
-	if (!pp)
-		goto end;
+	pr_debug("Group:%s Event:%s probe:%c\n", pp->group, pp->event, pr);
 
 	pp->retprobe = (pr == 'r');
 
 	/* Scan function name and offset */
-	ret = sscanf(argv[1], "%a[^+]+%d", (float *)(void *)&pp->function, &pp->offset);
+	ret = sscanf(argv[1], "%a[^+]+%d", (float *)(void *)&pp->function,
+		     &pp->offset);
 	if (ret == 1)
 		pp->offset = 0;
 
@@ -235,7 +246,6 @@ void parse_trace_kprobe_event(const char *str, char **group, char **event,
 			die("Failed to copy argument.");
 	}
 
-end:
 	argv_free(argv);
 }
 
@@ -368,6 +378,10 @@ static void clear_probe_point(struct probe_point *pp)
 {
 	int i;
 
+	if (pp->event)
+		free(pp->event);
+	if (pp->group)
+		free(pp->group);
 	if (pp->function)
 		free(pp->function);
 	if (pp->file)
@@ -382,13 +396,13 @@ static void clear_probe_point(struct probe_point *pp)
 }
 
 /* Show an event */
-static void show_perf_probe_event(const char *group, const char *event,
-				  const char *place, struct probe_point *pp)
+static void show_perf_probe_event(const char *event, const char *place,
+				  struct probe_point *pp)
 {
 	int i, ret;
 	char buf[128];
 
-	ret = e_snprintf(buf, 128, "%s:%s", group, event);
+	ret = e_snprintf(buf, 128, "%s:%s", pp->group, event);
 	if (ret < 0)
 		die("Failed to copy event: %s", strerror(-ret));
 	printf("  %-40s (on %s", buf, place);
@@ -405,7 +419,6 @@ static void show_perf_probe_event(const char *group, const char *event,
 void show_perf_probe_events(void)
 {
 	int fd, nr;
-	char *group, *event;
 	struct probe_point pp;
 	struct strlist *rawlist;
 	struct str_node *ent;
@@ -415,16 +428,14 @@ void show_perf_probe_events(void)
 	close(fd);
 
 	strlist__for_each(ent, rawlist) {
-		parse_trace_kprobe_event(ent->s, &group, &event, &pp);
+		parse_trace_kprobe_event(ent->s, &pp);
 		/* Synthesize only event probe point */
 		nr = pp.nr_args;
 		pp.nr_args = 0;
 		synthesize_perf_probe_event(&pp);
 		pp.nr_args = nr;
 		/* Show an event */
-		show_perf_probe_event(group, event, pp.probes[0], &pp);
-		free(group);
-		free(event);
+		show_perf_probe_event(pp.event, pp.probes[0], &pp);
 		clear_probe_point(&pp);
 	}
 
@@ -434,24 +445,25 @@ void show_perf_probe_events(void)
 /* Get current perf-probe event names */
 static struct strlist *get_perf_event_names(int fd, bool include_group)
 {
-	char *group, *event;
 	char buf[128];
 	struct strlist *sl, *rawlist;
 	struct str_node *ent;
+	struct probe_point pp;
 
+	memset(&pp, 0, sizeof(pp));
 	rawlist = get_trace_kprobe_event_rawlist(fd);
 
 	sl = strlist__new(true, NULL);
 	strlist__for_each(ent, rawlist) {
-		parse_trace_kprobe_event(ent->s, &group, &event, NULL);
+		parse_trace_kprobe_event(ent->s, &pp);
 		if (include_group) {
-			if (e_snprintf(buf, 128, "%s:%s", group, event) < 0)
+			if (e_snprintf(buf, 128, "%s:%s", pp.group,
+				       pp.event) < 0)
 				die("Failed to copy group:event name.");
 			strlist__add(sl, buf);
 		} else
-			strlist__add(sl, event);
-		free(group);
-		free(event);
+			strlist__add(sl, pp.event);
+		clear_probe_point(&pp);
 	}
 
 	strlist__delete(rawlist);
@@ -507,19 +519,23 @@ void add_trace_kprobe_events(struct probe_point *probes, int nr_probes)
 
 	for (j = 0; j < nr_probes; j++) {
 		pp = probes + j;
+		if (!pp->event)
+			pp->event = strdup(pp->function);
+		if (!pp->group)
+			pp->group = strdup(PERFPROBE_GROUP);
+		DIE_IF(!pp->event || !pp->group);
 		for (i = 0; i < pp->found; i++) {
 			/* Get an unused new event name */
-			get_new_event_name(event, 64, pp->function, namelist);
+			get_new_event_name(event, 64, pp->event, namelist);
 			snprintf(buf, MAX_CMDLEN, "%c:%s/%s %s\n",
 				 pp->retprobe ? 'r' : 'p',
-				 PERFPROBE_GROUP, event,
+				 pp->group, event,
 				 pp->probes[i]);
 			write_trace_kprobe_event(fd, buf);
 			printf("Added new event:\n");
 			/* Get the first parameter (probe-point) */
 			sscanf(pp->probes[i], "%s", buf);
-			show_perf_probe_event(PERFPROBE_GROUP, event,
-					      buf, pp);
+			show_perf_probe_event(event, buf, pp);
 			/* Add added event name to namelist */
 			strlist__add(namelist, event);
 		}
