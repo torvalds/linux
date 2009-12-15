@@ -187,6 +187,30 @@ config SGI_XP
 	  this feature will allow for direct communication between SSIs
 	  based on a network adapter and DMA messaging.
 
+config CS5535_MFGPT
+	tristate "CS5535/CS5536 Geode Multi-Function General Purpose Timer (MFGPT) support"
+	depends on PCI && !MGEODE_LX
+	depends on X86
+	default n
+	help
+	  This driver provides access to MFGPT functionality for other
+	  drivers that need timers.  MFGPTs are available in the CS5535 and
+	  CS5536 companion chips that are found in AMD Geode and several
+	  other platforms.  They have a better resolution and max interval
+	  than the generic PIT, and are suitable for use as high-res timers.
+	  You probably don't want to enable this manually; other drivers that
+	  make use of it should enable it.
+
+config CS5535_MFGPT_DEFAULT_IRQ
+	int
+	default 7
+	help
+	  MFGPTs on the CS5535 require an interrupt.  The selected IRQ
+	  can be overridden as a module option as well as by driver that
+	  use the cs5535_mfgpt_ API; however, different architectures might
+	  want to use a different IRQ by default.  This is here for
+	  architectures to set as necessary.
+
 config HP_ILO
 	tristate "Channel interface driver for HP iLO/iLO2 processor"
 	depends on PCI

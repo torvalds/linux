@@ -47,16 +47,6 @@ extern int geode_get_dev_base(unsigned int dev);
 
 #define MSR_DIVIL_SOFT_RESET	0x51400017
 
-#define MSR_PIC_YSEL_LOW	0x51400020
-#define MSR_PIC_YSEL_HIGH	0x51400021
-#define MSR_PIC_ZSEL_LOW	0x51400022
-#define MSR_PIC_ZSEL_HIGH	0x51400023
-#define MSR_PIC_IRQM_LPC	0x51400025
-
-#define MSR_MFGPT_IRQ		0x51400028
-#define MSR_MFGPT_NR		0x51400029
-#define MSR_MFGPT_SETUP		0x5140002B
-
 #define MSR_LX_SPARE_MSR	0x80000011	/* DC-specific */
 
 #define MSR_GX_GLD_MSR_CONFIG	0xC0002001
@@ -168,36 +158,6 @@ static inline int geode_has_vsa2(void)
 	return 0;
 }
 #endif
-
-/* MFGPTs */
-
-#define MFGPT_MAX_TIMERS	8
-#define MFGPT_TIMER_ANY		(-1)
-
-#define MFGPT_DOMAIN_WORKING	1
-#define MFGPT_DOMAIN_STANDBY	2
-#define MFGPT_DOMAIN_ANY	(MFGPT_DOMAIN_WORKING | MFGPT_DOMAIN_STANDBY)
-
-#define MFGPT_CMP1		0
-#define MFGPT_CMP2		1
-
-#define MFGPT_EVENT_IRQ		0
-#define MFGPT_EVENT_NMI		1
-#define MFGPT_EVENT_RESET	3
-
-#define MFGPT_REG_CMP1		0
-#define MFGPT_REG_CMP2		2
-#define MFGPT_REG_COUNTER	4
-#define MFGPT_REG_SETUP		6
-
-#define MFGPT_SETUP_CNTEN	(1 << 15)
-#define MFGPT_SETUP_CMP2	(1 << 14)
-#define MFGPT_SETUP_CMP1	(1 << 13)
-#define MFGPT_SETUP_SETUP	(1 << 12)
-#define MFGPT_SETUP_STOPEN	(1 << 11)
-#define MFGPT_SETUP_EXTEN	(1 << 10)
-#define MFGPT_SETUP_REVEN	(1 << 5)
-#define MFGPT_SETUP_CLKSEL	(1 << 4)
 
 static inline void geode_mfgpt_write(int timer, u16 reg, u16 value)
 {

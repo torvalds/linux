@@ -18,6 +18,16 @@
 #define MSR_LBAR_ACPI		0x5140000E
 #define MSR_LBAR_PMS		0x5140000F
 
+#define MSR_PIC_YSEL_LOW	0x51400020
+#define MSR_PIC_YSEL_HIGH	0x51400021
+#define MSR_PIC_ZSEL_LOW	0x51400022
+#define MSR_PIC_ZSEL_HIGH	0x51400023
+#define MSR_PIC_IRQM_LPC	0x51400025
+
+#define MSR_MFGPT_IRQ		0x51400028
+#define MSR_MFGPT_NR		0x51400029
+#define MSR_MFGPT_SETUP		0x5140002B
+
 /* resource sizes */
 #define LBAR_GPIO_SIZE		0xFF
 #define LBAR_MFGPT_SIZE		0x40
@@ -54,5 +64,62 @@
 void cs5535_gpio_set(unsigned offset, unsigned int reg);
 void cs5535_gpio_clear(unsigned offset, unsigned int reg);
 int cs5535_gpio_isset(unsigned offset, unsigned int reg);
+
+/* MFGPTs */
+
+#define MFGPT_MAX_TIMERS	8
+#define MFGPT_TIMER_ANY		(-1)
+
+#define MFGPT_DOMAIN_WORKING	1
+#define MFGPT_DOMAIN_STANDBY	2
+#define MFGPT_DOMAIN_ANY	(MFGPT_DOMAIN_WORKING | MFGPT_DOMAIN_STANDBY)
+
+#define MFGPT_CMP1		0
+#define MFGPT_CMP2		1
+
+#define MFGPT_EVENT_IRQ		0
+#define MFGPT_EVENT_NMI		1
+#define MFGPT_EVENT_RESET	3
+
+#define MFGPT_REG_CMP1		0
+#define MFGPT_REG_CMP2		2
+#define MFGPT_REG_COUNTER	4
+#define MFGPT_REG_SETUP		6
+
+#define MFGPT_SETUP_CNTEN	(1 << 15)
+#define MFGPT_SETUP_CMP2	(1 << 14)
+#define MFGPT_SETUP_CMP1	(1 << 13)
+#define MFGPT_SETUP_SETUP	(1 << 12)
+#define MFGPT_SETUP_STOPEN	(1 << 11)
+#define MFGPT_SETUP_EXTEN	(1 << 10)
+#define MFGPT_SETUP_REVEN	(1 << 5)
+#define MFGPT_SETUP_CLKSEL	(1 << 4)
+
+struct cs5535_mfgpt_timer;
+
+extern uint16_t cs5535_mfgpt_read(struct cs5535_mfgpt_timer *timer,
+		uint16_t reg);
+extern void cs5535_mfgpt_write(struct cs5535_mfgpt_timer *timer, uint16_t reg,
+		uint16_t value);
+
+extern int cs5535_mfgpt_toggle_event(struct cs5535_mfgpt_timer *timer, int cmp,
+		int event, int enable);
+extern int cs5535_mfgpt_set_irq(struct cs5535_mfgpt_timer *timer, int cmp,
+		int *irq, int enable);
+extern struct cs5535_mfgpt_timer *cs5535_mfgpt_alloc_timer(int timer,
+		int domain);
+extern void cs5535_mfgpt_free_timer(struct cs5535_mfgpt_timer *timer);
+
+static inline int cs5535_mfgpt_setup_irq(struct cs5535_mfgpt_timer *timer,
+		int cmp, int *irq)
+{
+	return cs5535_mfgpt_set_irq(timer, cmp, irq, 1);
+}
+
+static inline int cs5535_mfgpt_release_irq(struct cs5535_mfgpt_timer *timer,
+		int cmp, int *irq)
+{
+	return cs5535_mfgpt_set_irq(timer, cmp, irq, 0);
+}
 
 #endif
