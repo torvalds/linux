@@ -50,6 +50,9 @@
  * joystick.
  */
 
+#define LIS3_PWRON_DELAY_WAI_12B	(5000)
+#define LIS3_PWRON_DELAY_WAI_8B		(3000)
+
 struct lis3lv02d lis3_dev = {
 	.misc_wait   = __WAIT_QUEUE_HEAD_INITIALIZER(lis3_dev.misc_wait),
 };
@@ -112,6 +115,24 @@ static void lis3lv02d_get_xyz(struct lis3lv02d *lis3, int *x, int *y, int *z)
 	*z = lis3lv02d_get_axis(lis3->ac.z, position);
 }
 
+/* conversion btw sampling rate and the register values */
+static int lis3_12_rates[4] = {40, 160, 640, 2560};
+static int lis3_8_rates[2] = {100, 400};
+
+static int lis3lv02d_get_odr(void)
+{
+	u8 ctrl;
+	int val;
+
+	lis3_dev.read(&lis3_dev, CTRL_REG1, &ctrl);
+
+	if (lis3_dev.whoami == WAI_12B)
+		val = lis3_12_rates[(ctrl & (CTRL1_DF0 | CTRL1_DF1)) >> 4];
+	else
+		val = lis3_8_rates[(ctrl & CTRL1_DR) >> 7];
+	return val;
+}
+
 void lis3lv02d_poweroff(struct lis3lv02d *lis3)
 {
 	/* disable X,Y,Z axis and power down */
@@ -124,6 +145,9 @@ void lis3lv02d_poweron(struct lis3lv02d *lis3)
 	u8 reg;
 
 	lis3->init(lis3);
+
+	/* LIS3 power on delay is quite long */
+	msleep(lis3->pwron_delay / lis3lv02d_get_odr());
 
 	/*
 	 * Common configuration
@@ -364,23 +388,10 @@ static ssize_t lis3lv02d_calibrate_store(struct device *dev,
 	return count;
 }
 
-/* conversion btw sampling rate and the register values */
-static int lis3_12_rates[4] = {40, 160, 640, 2560};
-static int lis3_8_rates[2] = {100, 400};
 static ssize_t lis3lv02d_rate_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	u8 ctrl;
-	int val;
-
-	lis3_dev.read(&lis3_dev, CTRL_REG1, &ctrl);
-
-	if (lis3_dev.whoami == WAI_12B)
-		val = lis3_12_rates[(ctrl & (CTRL1_DF0 | CTRL1_DF1)) >> 4];
-	else
-		val = lis3_8_rates[(ctrl & CTRL1_DR) >> 7];
-
-	return sprintf(buf, "%d\n", val);
+	return sprintf(buf, "%d\n", lis3lv02d_get_odr());
 }
 
 static DEVICE_ATTR(position, S_IRUGO, lis3lv02d_position_show, NULL);
@@ -430,11 +441,13 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 		printk(KERN_INFO DRIVER_NAME ": 12 bits sensor found\n");
 		dev->read_data = lis3lv02d_read_12;
 		dev->mdps_max_val = 2048;
+		dev->pwron_delay = LIS3_PWRON_DELAY_WAI_12B;
 		break;
 	case WAI_8B:
 		printk(KERN_INFO DRIVER_NAME ": 8 bits sensor found\n");
 		dev->read_data = lis3lv02d_read_8;
 		dev->mdps_max_val = 128;
+		dev->pwron_delay = LIS3_PWRON_DELAY_WAI_8B;
 		break;
 	default:
 		printk(KERN_ERR DRIVER_NAME
