@@ -1212,6 +1212,7 @@ static void l2cap_monitor_timeout(unsigned long arg)
 	bh_lock_sock(sk);
 	if (l2cap_pi(sk)->retry_count >= l2cap_pi(sk)->remote_max_tx) {
 		l2cap_send_disconn_req(l2cap_pi(sk)->conn, sk);
+		bh_unlock_sock(sk);
 		return;
 	}
 
