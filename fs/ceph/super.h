@@ -143,6 +143,7 @@ struct ceph_client {
 	struct dentry *debugfs_monmap;
 	struct dentry *debugfs_mdsmap, *debugfs_osdmap;
 	struct dentry *debugfs_dir, *debugfs_dentry_lru, *debugfs_caps;
+	struct dentry *debugfs_bdi;
 #endif
 };
 

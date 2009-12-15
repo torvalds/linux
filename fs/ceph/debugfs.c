@@ -1,5 +1,6 @@
 #include "ceph_debug.h"
 
+#include <linux/device.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
 #include <linux/debugfs.h>
@@ -24,6 +25,7 @@
  *      .../monc        - mon client state
  *      .../dentry_lru  - dump contents of dentry lru
  *      .../caps        - expose cap (reservation) stats
+ *      .../bdi         - symlink to ../../bdi/something
  */
 
 static struct dentry *ceph_debugfs_dir;
@@ -407,6 +409,10 @@ int ceph_debugfs_client_init(struct ceph_client *client)
 	if (!client->debugfs_caps)
 		goto out;
 
+	sprintf(name, "../../bdi/%s", dev_name(client->sb->s_bdi->dev));
+	client->debugfs_bdi = debugfs_create_symlink("bdi", client->debugfs_dir,
+						     name);
+
 	return 0;
 
 out:
@@ -416,6 +422,7 @@ out:
 
 void ceph_debugfs_client_cleanup(struct ceph_client *client)
 {
+	debugfs_remove(client->debugfs_bdi);
 	debugfs_remove(client->debugfs_caps);
 	debugfs_remove(client->debugfs_dentry_lru);
 	debugfs_remove(client->debugfs_osdmap);
