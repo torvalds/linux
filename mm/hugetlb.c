@@ -1278,6 +1278,9 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
 		if (!ret)
 			goto out;
 
+		/* Bail for signals. Probably ctrl-c from user */
+		if (signal_pending(current))
+			goto out;
 	}
 
 	/*
