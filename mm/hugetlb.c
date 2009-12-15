@@ -1361,7 +1361,7 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
 	int nid;
 	unsigned long count;
 	struct hstate *h;
-	NODEMASK_ALLOC(nodemask_t, nodes_allowed);
+	NODEMASK_ALLOC(nodemask_t, nodes_allowed, GFP_KERNEL | __GFP_NORETRY);
 
 	err = strict_strtoul(buf, 10, &count);
 	if (err)
@@ -1857,7 +1857,8 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
 	proc_doulongvec_minmax(table, write, buffer, length, ppos);
 
 	if (write) {
-		NODEMASK_ALLOC(nodemask_t, nodes_allowed);
+		NODEMASK_ALLOC(nodemask_t, nodes_allowed,
+						GFP_KERNEL | __GFP_NORETRY);
 		if (!(obey_mempolicy &&
 			       init_nodemask_of_mempolicy(nodes_allowed))) {
 			NODEMASK_FREE(nodes_allowed);

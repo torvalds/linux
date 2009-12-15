@@ -485,15 +485,17 @@ static inline int num_node_state(enum node_states state)
 #define for_each_online_node(node) for_each_node_state(node, N_ONLINE)
 
 /*
- * For nodemask scrach area.(See CPUMASK_ALLOC() in cpumask.h)
- * NODEMASK_ALLOC(x, m) allocates an object of type 'x' with the name 'm'.
+ * For nodemask scrach area.
+ * NODEMASK_ALLOC(type, name) allocates an object with a specified type and
+ * name.
  */
-#if NODES_SHIFT > 8 /* nodemask_t > 64 bytes */
-#define NODEMASK_ALLOC(x, m)		x *m = kmalloc(sizeof(*m), GFP_KERNEL)
-#define NODEMASK_FREE(m)		kfree(m)
+#if NODES_SHIFT > 8 /* nodemask_t > 256 bytes */
+#define NODEMASK_ALLOC(type, name, gfp_flags)	\
+			type *name = kmalloc(sizeof(*name), gfp_flags)
+#define NODEMASK_FREE(m)			kfree(m)
 #else
-#define NODEMASK_ALLOC(x, m)		x _m, *m = &_m
-#define NODEMASK_FREE(m)		do {} while (0)
+#define NODEMASK_ALLOC(type, name, gfp_flags)	type _name, *name = &_name
+#define NODEMASK_FREE(m)			do {} while (0)
 #endif
 
 /* A example struture for using NODEMASK_ALLOC, used in mempolicy. */
@@ -502,8 +504,9 @@ struct nodemask_scratch {
 	nodemask_t	mask2;
 };
 
-#define NODEMASK_SCRATCH(x)	\
-		NODEMASK_ALLOC(struct nodemask_scratch, x)
+#define NODEMASK_SCRATCH(x)						\
+			NODEMASK_ALLOC(struct nodemask_scratch, x,	\
+					GFP_KERNEL | __GFP_NORETRY)
 #define NODEMASK_SCRATCH_FREE(x)	NODEMASK_FREE(x)
 
 
