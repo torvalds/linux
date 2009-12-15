@@ -548,6 +548,12 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
 	if (usage == SWAP_HAS_CACHE) {
 		VM_BUG_ON(!has_cache);
 		has_cache = 0;
+	} else if (count == SWAP_MAP_SHMEM) {
+		/*
+		 * Or we could insist on shmem.c using a special
+		 * swap_shmem_free() and free_shmem_swap_and_cache()...
+		 */
+		count = 0;
 	} else if ((count & ~COUNT_CONTINUED) <= SWAP_MAP_MAX) {
 		if (count == COUNT_CONTINUED) {
 			if (swap_count_continued(p, offset, count))
@@ -1031,7 +1037,6 @@ static int try_to_unuse(unsigned int type)
 	swp_entry_t entry;
 	unsigned int i = 0;
 	int retval = 0;
-	int shmem;
 
 	/*
 	 * When searching mms for an entry, a good strategy is to
@@ -1107,17 +1112,18 @@ static int try_to_unuse(unsigned int type)
 
 		/*
 		 * Remove all references to entry.
-		 * Whenever we reach init_mm, there's no address space
-		 * to search, but use it as a reminder to search shmem.
 		 */
-		shmem = 0;
 		swcount = *swap_map;
-		if (swap_count(swcount)) {
-			if (start_mm == &init_mm)
-				shmem = shmem_unuse(entry, page);
-			else
-				retval = unuse_mm(start_mm, entry, page);
+		if (swap_count(swcount) == SWAP_MAP_SHMEM) {
+			retval = shmem_unuse(entry, page);
+			/* page has already been unlocked and released */
+			if (retval < 0)
+				break;
+			continue;
 		}
+		if (swap_count(swcount) && start_mm != &init_mm)
+			retval = unuse_mm(start_mm, entry, page);
+
 		if (swap_count(*swap_map)) {
 			int set_start_mm = (*swap_map >= swcount);
 			struct list_head *p = &start_mm->mmlist;
@@ -1128,7 +1134,7 @@ static int try_to_unuse(unsigned int type)
 			atomic_inc(&new_start_mm->mm_users);
 			atomic_inc(&prev_mm->mm_users);
 			spin_lock(&mmlist_lock);
-			while (swap_count(*swap_map) && !retval && !shmem &&
+			while (swap_count(*swap_map) && !retval &&
 					(p = p->next) != &start_mm->mmlist) {
 				mm = list_entry(p, struct mm_struct, mmlist);
 				if (!atomic_inc_not_zero(&mm->mm_users))
@@ -1142,10 +1148,9 @@ static int try_to_unuse(unsigned int type)
 				swcount = *swap_map;
 				if (!swap_count(swcount)) /* any usage ? */
 					;
-				else if (mm == &init_mm) {
+				else if (mm == &init_mm)
 					set_start_mm = 1;
-					shmem = shmem_unuse(entry, page);
-				} else
+				else
 					retval = unuse_mm(mm, entry, page);
 
 				if (set_start_mm && *swap_map < swcount) {
@@ -1160,13 +1165,6 @@ static int try_to_unuse(unsigned int type)
 			mmput(prev_mm);
 			mmput(start_mm);
 			start_mm = new_start_mm;
-		}
-		if (shmem) {
-			/* page has already been unlocked and released */
-			if (shmem > 0)
-				continue;
-			retval = shmem;
-			break;
 		}
 		if (retval) {
 			unlock_page(page);
@@ -2124,6 +2122,15 @@ out:
 bad_file:
 	printk(KERN_ERR "swap_dup: %s%08lx\n", Bad_file, entry.val);
 	goto out;
+}
+
+/*
+ * Help swapoff by noting that swap entry belongs to shmem/tmpfs
+ * (in which case its reference count is never incremented).
+ */
+void swap_shmem_alloc(swp_entry_t entry)
+{
+	__swap_duplicate(entry, SWAP_MAP_SHMEM);
 }
 
 /*
