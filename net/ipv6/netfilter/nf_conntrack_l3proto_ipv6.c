@@ -187,6 +187,16 @@ out:
 	return nf_conntrack_confirm(skb);
 }
 
+static enum ip6_defrag_users nf_ct6_defrag_user(unsigned int hooknum,
+						struct sk_buff *skb)
+{
+	if (hooknum == NF_INET_PRE_ROUTING)
+		return IP6_DEFRAG_CONNTRACK_IN;
+	else
+		return IP6_DEFRAG_CONNTRACK_OUT;
+
+}
+
 static unsigned int ipv6_defrag(unsigned int hooknum,
 				struct sk_buff *skb,
 				const struct net_device *in,
@@ -199,8 +209,7 @@ static unsigned int ipv6_defrag(unsigned int hooknum,
 	if (skb->nfct)
 		return NF_ACCEPT;
 
-	reasm = nf_ct_frag6_gather(skb);
-
+	reasm = nf_ct_frag6_gather(skb, nf_ct6_defrag_user(hooknum, skb));
 	/* queued */
 	if (reasm == NULL)
 		return NF_STOLEN;
