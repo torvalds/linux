@@ -456,7 +456,7 @@ static int hitfb_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops hitfb_dev_pm_ops = {
+static const struct dev_pm_ops hitfb_dev_pm_ops = {
 	.suspend	= hitfb_suspend,
 	.resume		= hitfb_resume,
 };

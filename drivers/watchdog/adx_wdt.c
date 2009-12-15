@@ -314,7 +314,7 @@ static int adx_wdt_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops adx_wdt_pm_ops = {
+static const struct dev_pm_ops adx_wdt_pm_ops = {
 	.suspend = adx_wdt_suspend,
 	.resume = adx_wdt_resume,
 };

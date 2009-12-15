@@ -460,7 +460,7 @@ static int acerhdf_remove(struct platform_device *device)
 	return 0;
 }
 
-static struct dev_pm_ops acerhdf_pm_ops = {
+static const struct dev_pm_ops acerhdf_pm_ops = {
 	.suspend = acerhdf_suspend,
 	.freeze  = acerhdf_suspend,
 };

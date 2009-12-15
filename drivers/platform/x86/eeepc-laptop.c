@@ -154,7 +154,7 @@ static struct eeepc_hotk *ehotk;
 static int eeepc_hotk_thaw(struct device *device);
 static int eeepc_hotk_restore(struct device *device);
 
-static struct dev_pm_ops eeepc_pm_ops = {
+static const struct dev_pm_ops eeepc_pm_ops = {
 	.thaw = eeepc_hotk_thaw,
 	.restore = eeepc_hotk_restore,
 };
