@@ -176,6 +176,7 @@ int nfs41_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)
 {
 	int status;
 
+	nfs4_begin_drain_session(clp);
 	status = nfs4_proc_exchange_id(clp, cred);
 	if (status != 0)
 		goto out;
@@ -1274,6 +1275,7 @@ static int nfs4_reset_session(struct nfs_client *clp)
 {
 	int status;
 
+	nfs4_begin_drain_session(clp);
 	status = nfs4_proc_destroy_session(clp->cl_session);
 	if (status && status != -NFS4ERR_BADSESSION &&
 	    status != -NFS4ERR_DEADSESSION) {
@@ -1299,7 +1301,6 @@ out:
 
 #else /* CONFIG_NFS_V4_1 */
 static int nfs4_reset_session(struct nfs_client *clp) { return 0; }
-static int nfs4_begin_drain_session(struct nfs_client *clp) { return 0; }
 static int nfs4_end_drain_session(struct nfs_client *clp) { return 0; }
 #endif /* CONFIG_NFS_V4_1 */
 
@@ -1332,7 +1333,6 @@ static void nfs4_state_manager(struct nfs_client *clp)
 	for(;;) {
 		if (test_and_clear_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state)) {
 			/* We're going to have to re-establish a clientid */
-			nfs4_begin_drain_session(clp);
 			status = nfs4_reclaim_lease(clp);
 			if (status) {
 				nfs4_set_lease_expired(clp, status);
@@ -1359,7 +1359,6 @@ static void nfs4_state_manager(struct nfs_client *clp)
 		/* Initialize or reset the session */
 		if (test_and_clear_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state)
 		   && nfs4_has_session(clp)) {
-			nfs4_begin_drain_session(clp);
 			status = nfs4_reset_session(clp);
 			if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
 				continue;
