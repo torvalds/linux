@@ -41,21 +41,23 @@ static void __exit ca91cx42_exit(void);
 /* Module parameters */
 static int geoid;
 
-struct vme_bridge *ca91cx42_bridge;
-wait_queue_head_t dma_queue;
-wait_queue_head_t iack_queue;
-wait_queue_head_t lm_queue;
-wait_queue_head_t mbox_queue;
+static struct vme_bridge *ca91cx42_bridge;
+static wait_queue_head_t dma_queue;
+static wait_queue_head_t iack_queue;
+#if 0
+static wait_queue_head_t lm_queue;
+#endif
+static wait_queue_head_t mbox_queue;
 
-void (*lm_callback[4])(int);    /* Called in interrupt handler, be careful! */
-void *crcsr_kernel;
-dma_addr_t crcsr_bus;
+static void (*lm_callback[4])(int);	/* Called in interrupt handler */
+static void *crcsr_kernel;
+static dma_addr_t crcsr_bus;
 
-struct mutex vme_rmw;   /* Only one RMW cycle at a time */
-struct mutex vme_int;   /*
-			 * Only one VME interrupt can be
-			 * generated at a time, provide locking
-			 */
+static struct mutex vme_rmw;	/* Only one RMW cycle at a time */
+static struct mutex vme_int;	/*
+				 * Only one VME interrupt can be
+				 * generated at a time, provide locking
+				 */
 
 static char driver_name[] = "vme_ca91cx42";
 

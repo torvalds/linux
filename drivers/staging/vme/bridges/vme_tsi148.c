@@ -62,19 +62,19 @@ int tsi148_generate_irq(int, int);
 int tsi148_slot_get(void);
 
 /* Modue parameter */
-int err_chk = 0;
+static int err_chk;
 static int geoid;
 
 /* XXX These should all be in a per device structure */
-struct vme_bridge *tsi148_bridge;
-wait_queue_head_t dma_queue[2];
-wait_queue_head_t iack_queue;
-void (*lm_callback[4])(int);	/* Called in interrupt handler, be careful! */
-void *crcsr_kernel;
-dma_addr_t crcsr_bus;
-struct vme_master_resource *flush_image;
-struct mutex vme_rmw;	/* Only one RMW cycle at a time */
-struct mutex vme_int;	/*
+static struct vme_bridge *tsi148_bridge;
+static wait_queue_head_t dma_queue[2];
+static wait_queue_head_t iack_queue;
+static void (*lm_callback[4])(int);	/* Called in interrupt handler */
+static void *crcsr_kernel;
+static dma_addr_t crcsr_bus;
+static struct vme_master_resource *flush_image;
+static struct mutex vme_rmw;	/* Only one RMW cycle at a time */
+static struct mutex vme_int;	/*
 				 * Only one VME interrupt can be
 				 * generated at a time, provide locking
 				 */
