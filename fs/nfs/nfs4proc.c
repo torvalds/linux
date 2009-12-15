@@ -64,6 +64,7 @@
 
 struct nfs4_opendata;
 static int _nfs4_proc_open(struct nfs4_opendata *data);
+static int _nfs4_recover_proc_open(struct nfs4_opendata *data);
 static int nfs4_do_fsinfo(struct nfs_server *, struct nfs_fh *, struct nfs_fsinfo *);
 static int nfs4_async_handle_error(struct rpc_task *, const struct nfs_server *, struct nfs4_state *);
 static int _nfs4_proc_lookup(struct inode *dir, const struct qstr *name, struct nfs_fh *fhandle, struct nfs_fattr *fattr);
@@ -567,6 +568,12 @@ static void nfs41_call_sync_prepare(struct rpc_task *task, void *calldata)
 	rpc_call_start(task);
 }
 
+static void nfs41_call_priv_sync_prepare(struct rpc_task *task, void *calldata)
+{
+	rpc_task_set_priority(task, RPC_PRIORITY_PRIVILEGED);
+	nfs41_call_sync_prepare(task, calldata);
+}
+
 static void nfs41_call_sync_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs41_call_sync_data *data = calldata;
@@ -579,12 +586,18 @@ struct rpc_call_ops nfs41_call_sync_ops = {
 	.rpc_call_done = nfs41_call_sync_done,
 };
 
+struct rpc_call_ops nfs41_call_priv_sync_ops = {
+	.rpc_call_prepare = nfs41_call_priv_sync_prepare,
+	.rpc_call_done = nfs41_call_sync_done,
+};
+
 static int nfs4_call_sync_sequence(struct nfs_client *clp,
 				   struct rpc_clnt *clnt,
 				   struct rpc_message *msg,
 				   struct nfs4_sequence_args *args,
 				   struct nfs4_sequence_res *res,
-				   int cache_reply)
+				   int cache_reply,
+				   int privileged)
 {
 	int ret;
 	struct rpc_task *task;
@@ -602,6 +615,8 @@ static int nfs4_call_sync_sequence(struct nfs_client *clp,
 	};
 
 	res->sr_slotid = NFS4_MAX_SLOT_TABLE;
+	if (privileged)
+		task_setup.callback_ops = &nfs41_call_priv_sync_ops;
 	task = rpc_run_task(&task_setup);
 	if (IS_ERR(task))
 		ret = PTR_ERR(task);
@@ -619,7 +634,7 @@ int _nfs4_call_sync_session(struct nfs_server *server,
 			    int cache_reply)
 {
 	return nfs4_call_sync_sequence(server->nfs_client, server->client,
-				       msg, args, res, cache_reply);
+				       msg, args, res, cache_reply, 0);
 }
 
 #endif /* CONFIG_NFS_V4_1 */
@@ -1057,7 +1072,7 @@ static int nfs4_open_recover_helper(struct nfs4_opendata *opendata, fmode_t fmod
 	memset(&opendata->o_res, 0, sizeof(opendata->o_res));
 	memset(&opendata->c_res, 0, sizeof(opendata->c_res));
 	nfs4_init_opendata_res(opendata);
-	ret = _nfs4_proc_open(opendata);
+	ret = _nfs4_recover_proc_open(opendata);
 	if (ret != 0)
 		return ret; 
 	newstate = nfs4_opendata_to_nfs4_state(opendata);
@@ -1348,6 +1363,12 @@ out_no_action:
 
 }
 
+static void nfs4_recover_open_prepare(struct rpc_task *task, void *calldata)
+{
+	rpc_task_set_priority(task, RPC_PRIORITY_PRIVILEGED);
+	nfs4_open_prepare(task, calldata);
+}
+
 static void nfs4_open_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_opendata *data = calldata;
@@ -1406,10 +1427,13 @@ static const struct rpc_call_ops nfs4_open_ops = {
 	.rpc_release = nfs4_open_release,
 };
 
-/*
- * Note: On error, nfs4_proc_open will free the struct nfs4_opendata
- */
-static int _nfs4_proc_open(struct nfs4_opendata *data)
+static const struct rpc_call_ops nfs4_recover_open_ops = {
+	.rpc_call_prepare = nfs4_recover_open_prepare,
+	.rpc_call_done = nfs4_open_done,
+	.rpc_release = nfs4_open_release,
+};
+
+static int nfs4_run_open_task(struct nfs4_opendata *data, int isrecover)
 {
 	struct inode *dir = data->dir->d_inode;
 	struct nfs_server *server = NFS_SERVER(dir);
@@ -1436,16 +1460,55 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 	data->rpc_done = 0;
 	data->rpc_status = 0;
 	data->cancelled = 0;
+	if (isrecover)
+		task_setup_data.callback_ops = &nfs4_recover_open_ops;
 	task = rpc_run_task(&task_setup_data);
-	if (IS_ERR(task))
-		return PTR_ERR(task);
-	status = nfs4_wait_for_completion_rpc_task(task);
-	if (status != 0) {
-		data->cancelled = 1;
-		smp_wmb();
-	} else
-		status = data->rpc_status;
-	rpc_put_task(task);
+        if (IS_ERR(task))
+                return PTR_ERR(task);
+        status = nfs4_wait_for_completion_rpc_task(task);
+        if (status != 0) {
+                data->cancelled = 1;
+                smp_wmb();
+        } else
+                status = data->rpc_status;
+        rpc_put_task(task);
+
+	return status;
+}
+
+static int _nfs4_recover_proc_open(struct nfs4_opendata *data)
+{
+	struct inode *dir = data->dir->d_inode;
+	struct nfs_openres *o_res = &data->o_res;
+        int status;
+
+	status = nfs4_run_open_task(data, 1);
+	if (status != 0 || !data->rpc_done)
+		return status;
+
+	nfs_refresh_inode(dir, o_res->dir_attr);
+
+	if (o_res->rflags & NFS4_OPEN_RESULT_CONFIRM) {
+		status = _nfs4_proc_open_confirm(data);
+		if (status != 0)
+			return status;
+	}
+
+	return status;
+}
+
+/*
+ * Note: On error, nfs4_proc_open will free the struct nfs4_opendata
+ */
+static int _nfs4_proc_open(struct nfs4_opendata *data)
+{
+	struct inode *dir = data->dir->d_inode;
+	struct nfs_server *server = NFS_SERVER(dir);
+	struct nfs_openargs *o_arg = &data->o_arg;
+	struct nfs_openres *o_res = &data->o_res;
+	int status;
+
+	status = nfs4_run_open_task(data, 0);
 	if (status != 0 || !data->rpc_done)
 		return status;
 
@@ -3960,6 +4023,12 @@ static void nfs4_lock_prepare(struct rpc_task *task, void *calldata)
 	dprintk("%s: done!, ret = %d\n", __func__, data->rpc_status);
 }
 
+static void nfs4_recover_lock_prepare(struct rpc_task *task, void *calldata)
+{
+	rpc_task_set_priority(task, RPC_PRIORITY_PRIVILEGED);
+	nfs4_lock_prepare(task, calldata);
+}
+
 static void nfs4_lock_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_lockdata *data = calldata;
@@ -4015,6 +4084,12 @@ static const struct rpc_call_ops nfs4_lock_ops = {
 	.rpc_release = nfs4_lock_release,
 };
 
+static const struct rpc_call_ops nfs4_recover_lock_ops = {
+	.rpc_call_prepare = nfs4_recover_lock_prepare,
+	.rpc_call_done = nfs4_lock_done,
+	.rpc_release = nfs4_lock_release,
+};
+
 static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *fl, int recovery_type)
 {
 	struct nfs4_lockdata *data;
@@ -4039,8 +4114,11 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *f
 		return -ENOMEM;
 	if (IS_SETLKW(cmd))
 		data->arg.block = 1;
-	if (recovery_type == NFS_LOCK_RECLAIM)
+	if (recovery_type > NFS_LOCK_NEW) {
+		if (recovery_type == NFS_LOCK_RECLAIM)
 			data->arg.reclaim = NFS_LOCK_RECLAIM;
+		task_setup_data.callback_ops = &nfs4_recover_lock_ops;
+	}
 	msg.rpc_argp = &data->arg,
 	msg.rpc_resp = &data->res,
 	task_setup_data.callback_data = data;
@@ -4891,7 +4969,7 @@ static int nfs4_proc_sequence(struct nfs_client *clp, struct rpc_cred *cred)
 	args.sa_cache_this = 0;
 
 	return nfs4_call_sync_sequence(clp, clp->cl_rpcclient, &msg, &args,
-				       &res, 0);
+				       &res, args.sa_cache_this, 1);
 }
 
 void nfs41_sequence_call_done(struct rpc_task *task, void *data)
@@ -4973,6 +5051,7 @@ static void nfs4_reclaim_complete_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs4_reclaim_complete_data *calldata = data;
 
+	rpc_task_set_priority(task, RPC_PRIORITY_PRIVILEGED);
 	if (nfs4_setup_sequence(calldata->clp, &calldata->arg.seq_args,
 				&calldata->res.seq_res, 0, task))
 		return;
