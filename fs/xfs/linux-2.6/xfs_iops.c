@@ -47,6 +47,7 @@
 #include "xfs_buf_item.h"
 #include "xfs_utils.h"
 #include "xfs_vnodeops.h"
+#include "xfs_trace.h"
 
 #include <linux/capability.h>
 #include <linux/xattr.h>

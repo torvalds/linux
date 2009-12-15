@@ -48,6 +48,16 @@ struct xfs_attr_list_context;
 #define ATTR_KERNOTIME	0x1000	/* [kernel] don't update inode timestamps */
 #define ATTR_KERNOVAL	0x2000	/* [kernel] get attr size only, not value */
 
+#define XFS_ATTR_FLAGS \
+	{ ATTR_DONTFOLLOW, 	"DONTFOLLOW" }, \
+	{ ATTR_ROOT,		"ROOT" }, \
+	{ ATTR_TRUST,		"TRUST" }, \
+	{ ATTR_SECURE,		"SECURE" }, \
+	{ ATTR_CREATE,		"CREATE" }, \
+	{ ATTR_REPLACE,		"REPLACE" }, \
+	{ ATTR_KERNOTIME,	"KERNOTIME" }, \
+	{ ATTR_KERNOVAL,	"KERNOVAL" }
+
 /*
  * The maximum size (into the kernel or returned from the kernel) of an
  * attribute value or the buffer used for an attr_list() call.  Larger
