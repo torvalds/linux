@@ -532,26 +532,50 @@ void add_trace_kprobe_events(struct probe_point *probes, int nr_probes)
 	close(fd);
 }
 
+static void __del_trace_kprobe_event(int fd, struct str_node *ent)
+{
+	char *p;
+	char buf[128];
+
+	/* Convert from perf-probe event to trace-kprobe event */
+	if (e_snprintf(buf, 128, "-:%s", ent->s) < 0)
+		die("Failed to copy event.");
+	p = strchr(buf + 2, ':');
+	if (!p)
+		die("Internal error: %s should have ':' but not.", ent->s);
+	*p = '/';
+
+	write_trace_kprobe_event(fd, buf);
+	printf("Remove event: %s\n", ent->s);
+}
+
 static void del_trace_kprobe_event(int fd, const char *group,
 				   const char *event, struct strlist *namelist)
 {
 	char buf[128];
-	struct str_node *ent;
+	struct str_node *ent, *n;
+	int found = 0;
 
 	if (e_snprintf(buf, 128, "%s:%s", group, event) < 0)
 		die("Failed to copy event.");
-	ent = strlist__find(namelist, buf);
-	if (!ent) {
-		pr_info("Info: event \"%s\" does not exist, could not remove it.\n", buf);
-		return;
-	}
-	/* Convert from perf-probe event to trace-kprobe event */
-	if (e_snprintf(buf, 128, "-:%s/%s", group, event) < 0)
-		die("Failed to copy event.");
 
-	write_trace_kprobe_event(fd, buf);
-	printf("Remove event: %s:%s\n", group, event);
-	strlist__remove(namelist, ent);
+	if (strpbrk(buf, "*?")) { /* Glob-exp */
+		strlist__for_each_safe(ent, n, namelist)
+			if (strglobmatch(ent->s, buf)) {
+				found++;
+				__del_trace_kprobe_event(fd, ent);
+				strlist__remove(namelist, ent);
+			}
+	} else {
+		ent = strlist__find(namelist, buf);
+		if (ent) {
+			found++;
+			__del_trace_kprobe_event(fd, ent);
+			strlist__remove(namelist, ent);
+		}
+	}
+	if (found == 0)
+		pr_info("Info: event \"%s\" does not exist, could not remove it.\n", buf);
 }
 
 void del_trace_kprobe_events(struct strlist *dellist)
@@ -570,15 +594,17 @@ void del_trace_kprobe_events(struct strlist *dellist)
 		str = strdup(ent->s);
 		if (!str)
 			die("Failed to copy event.");
+		pr_debug("Parsing: %s\n", str);
 		p = strchr(str, ':');
 		if (p) {
 			group = str;
 			*p = '\0';
 			event = p + 1;
 		} else {
-			group = PERFPROBE_GROUP;
+			group = "*";
 			event = str;
 		}
+		pr_debug("Group: %s, Event: %s\n", group, event);
 		del_trace_kprobe_event(fd, group, event, namelist);
 		free(str);
 	}
