@@ -214,6 +214,9 @@ int misc_register(struct miscdevice * misc)
 	misc->this_device = device_create(misc_class, misc->parent, dev,
 					  misc, "%s", misc->name);
 	if (IS_ERR(misc->this_device)) {
+		int i = misc->minor;
+		if (i < DYNAMIC_MINORS && i >= 0)
+			misc_minors[i>>3] &= ~(1 << (i & 7));
 		err = PTR_ERR(misc->this_device);
 		goto out;
 	}
@@ -248,9 +251,8 @@ int misc_deregister(struct miscdevice *misc)
 	mutex_lock(&misc_mtx);
 	list_del(&misc->list);
 	device_destroy(misc_class, MKDEV(MISC_MAJOR, misc->minor));
-	if (i < DYNAMIC_MINORS && i>0) {
-		misc_minors[i>>3] &= ~(1 << (misc->minor & 7));
-	}
+	if (i < DYNAMIC_MINORS && i >= 0)
+		misc_minors[i>>3] &= ~(1 << (i & 7));
 	mutex_unlock(&misc_mtx);
 	return 0;
 }
