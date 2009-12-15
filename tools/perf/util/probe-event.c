@@ -404,7 +404,6 @@ static void show_perf_probe_event(const char *group, const char *event,
 /* List up current perf-probe events */
 void show_perf_probe_events(void)
 {
-	unsigned int i;
 	int fd, nr;
 	char *group, *event;
 	struct probe_point pp;
@@ -415,8 +414,7 @@ void show_perf_probe_events(void)
 	rawlist = get_trace_kprobe_event_rawlist(fd);
 	close(fd);
 
-	for (i = 0; i < strlist__nr_entries(rawlist); i++) {
-		ent = strlist__entry(rawlist, i);
+	strlist__for_each(ent, rawlist) {
 		parse_trace_kprobe_event(ent->s, &group, &event, &pp);
 		/* Synthesize only event probe point */
 		nr = pp.nr_args;
@@ -436,7 +434,6 @@ void show_perf_probe_events(void)
 /* Get current perf-probe event names */
 static struct strlist *get_perf_event_names(int fd, bool include_group)
 {
-	unsigned int i;
 	char *group, *event;
 	char buf[128];
 	struct strlist *sl, *rawlist;
@@ -445,8 +442,7 @@ static struct strlist *get_perf_event_names(int fd, bool include_group)
 	rawlist = get_trace_kprobe_event_rawlist(fd);
 
 	sl = strlist__new(true, NULL);
-	for (i = 0; i < strlist__nr_entries(rawlist); i++) {
-		ent = strlist__entry(rawlist, i);
+	strlist__for_each(ent, rawlist) {
 		parse_trace_kprobe_event(ent->s, &group, &event, NULL);
 		if (include_group) {
 			if (e_snprintf(buf, 128, "%s:%s", group, event) < 0)
@@ -561,7 +557,6 @@ static void del_trace_kprobe_event(int fd, const char *group,
 void del_trace_kprobe_events(struct strlist *dellist)
 {
 	int fd;
-	unsigned int i;
 	const char *group, *event;
 	char *p, *str;
 	struct str_node *ent;
@@ -571,8 +566,7 @@ void del_trace_kprobe_events(struct strlist *dellist)
 	/* Get current event names */
 	namelist = get_perf_event_names(fd, true);
 
-	for (i = 0; i < strlist__nr_entries(dellist); i++) {
-		ent = strlist__entry(dellist, i);
+	strlist__for_each(ent, dellist) {
 		str = strdup(ent->s);
 		if (!str)
 			die("Failed to copy event.");
