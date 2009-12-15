@@ -152,6 +152,8 @@ size_t map__fprintf(struct map *self, FILE *fp);
 
 struct perf_session;
 
+int map__load(struct map *self, struct perf_session *session,
+	      symbol_filter_t filter);
 struct symbol *map__find_symbol(struct map *self, struct perf_session *session,
 				u64 addr, symbol_filter_t filter);
 struct symbol *map__find_symbol_by_name(struct map *self, const char *name,

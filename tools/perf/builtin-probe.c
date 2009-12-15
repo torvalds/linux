@@ -38,33 +38,27 @@
 #include "util/strlist.h"
 #include "util/event.h"
 #include "util/debug.h"
+#include "util/symbol.h"
+#include "util/thread.h"
+#include "util/session.h"
 #include "util/parse-options.h"
 #include "util/parse-events.h"	/* For debugfs_path */
 #include "util/probe-finder.h"
 #include "util/probe-event.h"
-
-/* Default vmlinux search paths */
-#define NR_SEARCH_PATH 4
-const char *default_search_path[NR_SEARCH_PATH] = {
-"/lib/modules/%s/build/vmlinux",		/* Custom build kernel */
-"/usr/lib/debug/lib/modules/%s/vmlinux",	/* Red Hat debuginfo */
-"/boot/vmlinux-debug-%s",			/* Ubuntu */
-"./vmlinux",					/* CWD */
-};
 
 #define MAX_PATH_LEN 256
 #define MAX_PROBES 128
 
 /* Session management structure */
 static struct {
-	char *vmlinux;
-	char *release;
 	bool need_dwarf;
 	bool list_events;
 	bool force_add;
 	int nr_probe;
 	struct probe_point probes[MAX_PROBES];
 	struct strlist *dellist;
+	struct symbol_conf conf;
+	struct perf_session *psession;
 } session;
 
 
@@ -122,33 +116,21 @@ static int opt_del_probe_event(const struct option *opt __used,
 }
 
 #ifndef NO_LIBDWARF
-static int open_default_vmlinux(void)
+static int open_vmlinux(void)
 {
-	struct utsname uts;
-	char fname[MAX_PATH_LEN];
-	int fd, ret, i;
-
-	ret = uname(&uts);
-	if (ret) {
-		pr_debug("uname() failed.\n");
-		return -errno;
+	struct map *kmap;
+	kmap = map_groups__find_by_name(&session.psession->kmaps,
+					MAP__FUNCTION, "[kernel.kallsyms]");
+	if (!kmap) {
+		pr_debug("Could not find kernel map.\n");
+		return -ENOENT;
 	}
-	session.release = uts.release;
-	for (i = 0; i < NR_SEARCH_PATH; i++) {
-		ret = snprintf(fname, MAX_PATH_LEN,
-			       default_search_path[i], session.release);
-		if (ret >= MAX_PATH_LEN || ret < 0) {
-			pr_debug("Filename(%d,%s) is too long.\n", i,
-				uts.release);
-			errno = E2BIG;
-			return -E2BIG;
-		}
-		pr_debug("try to open %s\n", fname);
-		fd = open(fname, O_RDONLY);
-		if (fd >= 0)
-			break;
+	if (map__load(kmap, session.psession, NULL) < 0) {
+		pr_debug("Failed to load kernel map.\n");
+		return -EINVAL;
 	}
-	return fd;
+	pr_debug("Try to open %s\n", kmap->dso->long_name);
+	return open(kmap->dso->long_name, O_RDONLY);
 }
 #endif
 
@@ -164,8 +146,8 @@ static const struct option options[] = {
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show parsed arguments, etc)"),
 #ifndef NO_LIBDWARF
-	OPT_STRING('k', "vmlinux", &session.vmlinux, "file",
-		"vmlinux/module pathname"),
+	OPT_STRING('k', "vmlinux", &session.conf.vmlinux_name,
+		   "file", "vmlinux pathname"),
 #endif
 	OPT_BOOLEAN('l', "list", &session.list_events,
 		    "list up current probe events"),
@@ -236,17 +218,23 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 			return 0;
 	}
 
+	/* Initialize symbol maps for vmlinux */
+	if (session.conf.vmlinux_name == NULL)
+		session.conf.try_vmlinux_path = true;
+	if (symbol__init(&session.conf) < 0)
+		die("Failed to init symbol map.");
+	session.psession = perf_session__new(NULL, O_WRONLY, false,
+					     &session.conf);
+	if (session.psession == NULL)
+		die("Failed to init perf_session.");
+
 	if (session.need_dwarf)
 #ifdef NO_LIBDWARF
 		die("Debuginfo-analysis is not supported");
 #else	/* !NO_LIBDWARF */
 		pr_debug("Some probes require debuginfo.\n");
 
-	if (session.vmlinux) {
-		pr_debug("Try to open %s.", session.vmlinux);
-		fd = open(session.vmlinux, O_RDONLY);
-	} else
-		fd = open_default_vmlinux();
+	fd = open_vmlinux();
 	if (fd < 0) {
 		if (session.need_dwarf)
 			die("Could not open debuginfo file.");
