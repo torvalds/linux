@@ -71,6 +71,7 @@
  *      v1.51 (pc) - Added support for Intuos4
  *      v1.52 (pc) - Query Wacom data upon system resume
  *                 - add defines for features->type
+ *                 - add new devices (0x9F, 0xE2, and 0XE3)
  */
 
 /*
@@ -135,6 +136,8 @@ extern void input_dev_i4s(struct input_dev *input_dev, struct wacom_wac *wacom_w
 extern void input_dev_i4(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_pl(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_pt(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
+extern void input_dev_tpc(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
+extern void input_dev_tpc2fg(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_mo(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_bee(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern __u16 wacom_le16_to_cpu(unsigned char *data);
