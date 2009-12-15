@@ -165,7 +165,7 @@ struct swap_info_struct {
 	signed char	next;		/* next type on the swap list */
 	struct file *swap_file;
 	struct block_device *bdev;
-	struct list_head extent_list;
+	struct swap_extent first_swap_extent;
 	struct swap_extent *curr_swap_extent;
 	unsigned short *swap_map;
 	unsigned int lowest_bit;
