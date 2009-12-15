@@ -205,8 +205,13 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 
 	argc = parse_options(argc, argv, options, probe_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
-	if (argc > 0)
+	if (argc > 0) {
+		if (strcmp(argv[0], "-") == 0) {
+			pr_warning("  Error: '-' is not supported.\n");
+			usage_with_options(probe_usage, options);
+		}
 		parse_probe_event_argv(argc, argv);
+	}
 
 	if ((!session.nr_probe && !session.dellist && !session.list_events))
 		usage_with_options(probe_usage, options);
