@@ -413,6 +413,12 @@ static void break_cow(struct rmap_item *rmap_item)
 	unsigned long addr = rmap_item->address;
 	struct vm_area_struct *vma;
 
+	/*
+	 * It is not an accident that whenever we want to break COW
+	 * to undo, we also need to drop a reference to the anon_vma.
+	 */
+	drop_anon_vma(rmap_item);
+
 	down_read(&mm->mmap_sem);
 	if (ksm_test_exit(mm))
 		goto out;
@@ -456,6 +462,79 @@ out:		page = NULL;
 	return page;
 }
 
+static void remove_node_from_stable_tree(struct stable_node *stable_node)
+{
+	struct rmap_item *rmap_item;
+	struct hlist_node *hlist;
+
+	hlist_for_each_entry(rmap_item, hlist, &stable_node->hlist, hlist) {
+		if (rmap_item->hlist.next)
+			ksm_pages_sharing--;
+		else
+			ksm_pages_shared--;
+		drop_anon_vma(rmap_item);
+		rmap_item->address &= PAGE_MASK;
+		cond_resched();
+	}
+
+	rb_erase(&stable_node->node, &root_stable_tree);
+	free_stable_node(stable_node);
+}
+
+/*
+ * get_ksm_page: checks if the page indicated by the stable node
+ * is still its ksm page, despite having held no reference to it.
+ * In which case we can trust the content of the page, and it
+ * returns the gotten page; but if the page has now been zapped,
+ * remove the stale node from the stable tree and return NULL.
+ *
+ * You would expect the stable_node to hold a reference to the ksm page.
+ * But if it increments the page's count, swapping out has to wait for
+ * ksmd to come around again before it can free the page, which may take
+ * seconds or even minutes: much too unresponsive.  So instead we use a
+ * "keyhole reference": access to the ksm page from the stable node peeps
+ * out through its keyhole to see if that page still holds the right key,
+ * pointing back to this stable node.  This relies on freeing a PageAnon
+ * page to reset its page->mapping to NULL, and relies on no other use of
+ * a page to put something that might look like our key in page->mapping.
+ *
+ * include/linux/pagemap.h page_cache_get_speculative() is a good reference,
+ * but this is different - made simpler by ksm_thread_mutex being held, but
+ * interesting for assuming that no other use of the struct page could ever
+ * put our expected_mapping into page->mapping (or a field of the union which
+ * coincides with page->mapping).  The RCU calls are not for KSM at all, but
+ * to keep the page_count protocol described with page_cache_get_speculative.
+ *
+ * Note: it is possible that get_ksm_page() will return NULL one moment,
+ * then page the next, if the page is in between page_freeze_refs() and
+ * page_unfreeze_refs(): this shouldn't be a problem anywhere, the page
+ * is on its way to being freed; but it is an anomaly to bear in mind.
+ */
+static struct page *get_ksm_page(struct stable_node *stable_node)
+{
+	struct page *page;
+	void *expected_mapping;
+
+	page = stable_node->page;
+	expected_mapping = (void *)stable_node +
+				(PAGE_MAPPING_ANON | PAGE_MAPPING_KSM);
+	rcu_read_lock();
+	if (page->mapping != expected_mapping)
+		goto stale;
+	if (!get_page_unless_zero(page))
+		goto stale;
+	if (page->mapping != expected_mapping) {
+		put_page(page);
+		goto stale;
+	}
+	rcu_read_unlock();
+	return page;
+stale:
+	rcu_read_unlock();
+	remove_node_from_stable_tree(stable_node);
+	return NULL;
+}
+
 /*
  * Removing rmap_item from stable or unstable tree.
  * This function will clean the information from the stable/unstable tree.
@@ -467,22 +546,19 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
 		struct page *page;
 
 		stable_node = rmap_item->head;
-		page = stable_node->page;
+		page = get_ksm_page(stable_node);
+		if (!page)
+			goto out;
+
 		lock_page(page);
-
 		hlist_del(&rmap_item->hlist);
-		if (stable_node->hlist.first) {
-			unlock_page(page);
-			ksm_pages_sharing--;
-		} else {
-			set_page_stable_node(page, NULL);
-			unlock_page(page);
-			put_page(page);
+		unlock_page(page);
+		put_page(page);
 
-			rb_erase(&stable_node->node, &root_stable_tree);
-			free_stable_node(stable_node);
+		if (stable_node->hlist.first)
+			ksm_pages_sharing--;
+		else
 			ksm_pages_shared--;
-		}
 
 		drop_anon_vma(rmap_item);
 		rmap_item->address &= PAGE_MASK;
@@ -504,7 +580,7 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
 		ksm_pages_unshared--;
 		rmap_item->address &= PAGE_MASK;
 	}
-
+out:
 	cond_resched();		/* we're called from many long loops */
 }
 
@@ -902,10 +978,8 @@ up:
 		 * If that fails, we have a ksm page with only one pte
 		 * pointing to it: so break it.
 		 */
-		if (err) {
-			drop_anon_vma(rmap_item);
+		if (err)
 			break_cow(rmap_item);
-		}
 	}
 	if (err) {
 		put_page(kpage);
@@ -935,21 +1009,25 @@ static struct stable_node *stable_tree_search(struct page *page)
 	}
 
 	while (node) {
+		struct page *tree_page;
 		int ret;
 
 		cond_resched();
 		stable_node = rb_entry(node, struct stable_node, node);
+		tree_page = get_ksm_page(stable_node);
+		if (!tree_page)
+			return NULL;
 
-		ret = memcmp_pages(page, stable_node->page);
+		ret = memcmp_pages(page, tree_page);
 
-		if (ret < 0)
+		if (ret < 0) {
+			put_page(tree_page);
 			node = node->rb_left;
-		else if (ret > 0)
+		} else if (ret > 0) {
+			put_page(tree_page);
 			node = node->rb_right;
-		else {
-			get_page(stable_node->page);
+		} else
 			return stable_node;
-		}
 	}
 
 	return NULL;
@@ -969,12 +1047,17 @@ static struct stable_node *stable_tree_insert(struct page *kpage)
 	struct stable_node *stable_node;
 
 	while (*new) {
+		struct page *tree_page;
 		int ret;
 
 		cond_resched();
 		stable_node = rb_entry(*new, struct stable_node, node);
+		tree_page = get_ksm_page(stable_node);
+		if (!tree_page)
+			return NULL;
 
-		ret = memcmp_pages(kpage, stable_node->page);
+		ret = memcmp_pages(kpage, tree_page);
+		put_page(tree_page);
 
 		parent = *new;
 		if (ret < 0)
@@ -1000,7 +1083,6 @@ static struct stable_node *stable_tree_insert(struct page *kpage)
 
 	INIT_HLIST_HEAD(&stable_node->hlist);
 
-	get_page(kpage);
 	stable_node->page = kpage;
 	set_page_stable_node(kpage, stable_node);
 
@@ -1130,19 +1212,10 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
 	}
 
 	/*
-	 * A ksm page might have got here by fork, but its other
-	 * references have already been removed from the stable tree.
-	 * Or it might be left over from a break_ksm which failed
-	 * when the mem_cgroup had reached its limit: try again now.
-	 */
-	if (PageKsm(page))
-		break_cow(rmap_item);
-
-	/*
-	 * In case the hash value of the page was changed from the last time we
-	 * have calculated it, this page to be changed frequely, therefore we
-	 * don't want to insert it to the unstable tree, and we don't want to
-	 * waste our time to search if there is something identical to it there.
+	 * If the hash value of the page has changed from the last time
+	 * we calculated it, this page is changing frequently: therefore we
+	 * don't want to insert it in the unstable tree, and we don't want
+	 * to waste our time searching for something identical to it there.
 	 */
 	checksum = calc_checksum(page);
 	if (rmap_item->oldchecksum != checksum) {
@@ -1180,9 +1253,7 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
 			 * in which case we need to break_cow on both.
 			 */
 			if (!stable_node) {
-				drop_anon_vma(tree_rmap_item);
 				break_cow(tree_rmap_item);
-				drop_anon_vma(rmap_item);
 				break_cow(rmap_item);
 			}
 		}
