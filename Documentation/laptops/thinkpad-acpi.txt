@@ -1097,6 +1097,18 @@ Volume control
 
 procfs: /proc/acpi/ibm/volume
 
+NOTE: by default, the volume control interface operates in read-only
+mode, as it is supposed to be used for on-screen-display purposes.
+The read/write mode can be enabled through the use of the
+"volume_control=1" module parameter.
+
+NOTE: distros are urged to not enable volume_control by default, this
+should be done by the local admin only.  The ThinkPad UI is for the
+console audio control to be done through the volume keys only, and for
+the desktop environment to just provide on-screen-display feedback.
+Software volume control should be done only in the main AC97/HDA
+mixer.
+
 This feature allows volume control on ThinkPad models with a digital
 volume knob (when available, not all models have it), as well as
 mute/unmute control.  The available commands are:
@@ -1465,3 +1477,4 @@ Sysfs interface changelog:
 0x020600:	Marker for backlight change event support.
 
 0x020700:	Support for mute-only mixers.
+		Volume control in read-only mode by default.
