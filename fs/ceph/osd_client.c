@@ -145,6 +145,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 		ceph_osdc_put_request(req);
 		return ERR_PTR(-ENOMEM);
 	}
+	req->r_num_prealloc_reply = num_reply;
 
 	req->r_osdc = osdc;
 	req->r_mempool = use_mempool;
@@ -165,7 +166,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	else
 		msg = ceph_msg_new(CEPH_MSG_OSD_OP, msg_size, 0, 0, NULL);
 	if (IS_ERR(msg)) {
-		ceph_msgpool_resv(&osdc->msgpool_op_reply, num_reply);
+		ceph_msgpool_resv(&osdc->msgpool_op_reply, -num_reply);
 		ceph_osdc_put_request(req);
 		return ERR_PTR(PTR_ERR(msg));
 	}
@@ -464,6 +465,8 @@ static void __unregister_request(struct ceph_osd_client *osdc,
 	dout("__unregister_request %p tid %lld\n", req, req->r_tid);
 	rb_erase(&req->r_node, &osdc->requests);
 	osdc->num_requests--;
+
+	ceph_msgpool_resv(&osdc->msgpool_op_reply, -req->r_num_prealloc_reply);
 
 	if (req->r_osd) {
 		/* make sure the original request isn't in flight. */
