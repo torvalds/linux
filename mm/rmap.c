@@ -49,6 +49,7 @@
 #include <linux/swapops.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+#include <linux/ksm.h>
 #include <linux/rmap.h>
 #include <linux/rcupdate.h>
 #include <linux/module.h>
@@ -336,9 +337,9 @@ int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
  * Subfunctions of page_referenced: page_referenced_one called
  * repeatedly from either page_referenced_anon or page_referenced_file.
  */
-static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
-			       unsigned long address, unsigned int *mapcount,
-			       unsigned long *vm_flags)
+int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+			unsigned long address, unsigned int *mapcount,
+			unsigned long *vm_flags)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	pte_t *pte;
@@ -507,28 +508,33 @@ int page_referenced(struct page *page,
 		    unsigned long *vm_flags)
 {
 	int referenced = 0;
+	int we_locked = 0;
 
 	if (TestClearPageReferenced(page))
 		referenced++;
 
 	*vm_flags = 0;
 	if (page_mapped(page) && page_rmapping(page)) {
-		if (PageAnon(page))
+		if (!is_locked && (!PageAnon(page) || PageKsm(page))) {
+			we_locked = trylock_page(page);
+			if (!we_locked) {
+				referenced++;
+				goto out;
+			}
+		}
+		if (unlikely(PageKsm(page)))
+			referenced += page_referenced_ksm(page, mem_cont,
+								vm_flags);
+		else if (PageAnon(page))
 			referenced += page_referenced_anon(page, mem_cont,
 								vm_flags);
-		else if (is_locked)
+		else if (page->mapping)
 			referenced += page_referenced_file(page, mem_cont,
 								vm_flags);
-		else if (!trylock_page(page))
-			referenced++;
-		else {
-			if (page->mapping)
-				referenced += page_referenced_file(page,
-							mem_cont, vm_flags);
+		if (we_locked)
 			unlock_page(page);
-		}
 	}
-
+out:
 	if (page_test_and_clear_young(page))
 		referenced++;
 
@@ -620,14 +626,7 @@ static void __page_set_anon_rmap(struct page *page,
 	BUG_ON(!anon_vma);
 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
 	page->mapping = (struct address_space *) anon_vma;
-
 	page->index = linear_page_index(vma, address);
-
-	/*
-	 * nr_mapped state can be updated without turning off
-	 * interrupts because it is not modified via interrupt.
-	 */
-	__inc_zone_page_state(page, NR_ANON_PAGES);
 }
 
 /**
@@ -665,14 +664,21 @@ static void __page_check_anon_rmap(struct page *page,
  * @vma:	the vm area in which the mapping is added
  * @address:	the user virtual address mapped
  *
- * The caller needs to hold the pte lock and the page must be locked.
+ * The caller needs to hold the pte lock, and the page must be locked in
+ * the anon_vma case: to serialize mapping,index checking after setting.
  */
 void page_add_anon_rmap(struct page *page,
 	struct vm_area_struct *vma, unsigned long address)
 {
+	int first = atomic_inc_and_test(&page->_mapcount);
+	if (first)
+		__inc_zone_page_state(page, NR_ANON_PAGES);
+	if (unlikely(PageKsm(page)))
+		return;
+
 	VM_BUG_ON(!PageLocked(page));
 	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
-	if (atomic_inc_and_test(&page->_mapcount))
+	if (first)
 		__page_set_anon_rmap(page, vma, address);
 	else
 		__page_check_anon_rmap(page, vma, address);
@@ -694,6 +700,7 @@ void page_add_new_anon_rmap(struct page *page,
 	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
 	SetPageSwapBacked(page);
 	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) */
+	__inc_zone_page_state(page, NR_ANON_PAGES);
 	__page_set_anon_rmap(page, vma, address);
 	if (page_evictable(page, vma))
 		lru_cache_add_lru(page, LRU_ACTIVE_ANON);
@@ -760,8 +767,8 @@ void page_remove_rmap(struct page *page)
  * Subfunctions of try_to_unmap: try_to_unmap_one called
  * repeatedly from either try_to_unmap_anon or try_to_unmap_file.
  */
-static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
-			    unsigned long address, enum ttu_flags flags)
+int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+		     unsigned long address, enum ttu_flags flags)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	pte_t *pte;
@@ -1156,7 +1163,9 @@ int try_to_unmap(struct page *page, enum ttu_flags flags)
 
 	BUG_ON(!PageLocked(page));
 
-	if (PageAnon(page))
+	if (unlikely(PageKsm(page)))
+		ret = try_to_unmap_ksm(page, flags);
+	else if (PageAnon(page))
 		ret = try_to_unmap_anon(page, flags);
 	else
 		ret = try_to_unmap_file(page, flags);
@@ -1177,15 +1186,17 @@ int try_to_unmap(struct page *page, enum ttu_flags flags)
  *
  * SWAP_AGAIN	- no vma is holding page mlocked, or,
  * SWAP_AGAIN	- page mapped in mlocked vma -- couldn't acquire mmap sem
+ * SWAP_FAIL	- page cannot be located at present
  * SWAP_MLOCK	- page is now mlocked.
  */
 int try_to_munlock(struct page *page)
 {
 	VM_BUG_ON(!PageLocked(page) || PageLRU(page));
 
-	if (PageAnon(page))
+	if (unlikely(PageKsm(page)))
+		return try_to_unmap_ksm(page, TTU_MUNLOCK);
+	else if (PageAnon(page))
 		return try_to_unmap_anon(page, TTU_MUNLOCK);
 	else
 		return try_to_unmap_file(page, TTU_MUNLOCK);
 }
-

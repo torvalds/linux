@@ -2561,6 +2561,12 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	lock_page(page);
 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
 
+	page = ksm_might_need_to_copy(page, vma, address);
+	if (!page) {
+		ret = VM_FAULT_OOM;
+		goto out;
+	}
+
 	if (mem_cgroup_try_charge_swapin(mm, page, GFP_KERNEL, &ptr)) {
 		ret = VM_FAULT_OOM;
 		goto out_page;
