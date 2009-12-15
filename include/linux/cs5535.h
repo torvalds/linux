@@ -36,6 +36,38 @@
 #define LBAR_ACPI_SIZE		0x40
 #define LBAR_PMS_SIZE		0x80
 
+/* VSA2 magic values */
+#define VSA_VRC_INDEX		0xAC1C
+#define VSA_VRC_DATA		0xAC1E
+#define VSA_VR_UNLOCK		0xFC53  /* unlock virtual register */
+#define VSA_VR_SIGNATURE	0x0003
+#define VSA_VR_MEM_SIZE		0x0200
+#define AMD_VSA_SIG		0x4132  /* signature is ascii 'VSA2' */
+#define GSW_VSA_SIG		0x534d  /* General Software signature */
+
+#include <linux/io.h>
+
+static inline int cs5535_has_vsa2(void)
+{
+	static int has_vsa2 = -1;
+
+	if (has_vsa2 == -1) {
+		uint16_t val;
+
+		/*
+		 * The VSA has virtual registers that we can query for a
+		 * signature.
+		 */
+		outw(VSA_VR_UNLOCK, VSA_VRC_INDEX);
+		outw(VSA_VR_SIGNATURE, VSA_VRC_INDEX);
+
+		val = inw(VSA_VRC_DATA);
+		has_vsa2 = (val == AMD_VSA_SIG || val == GSW_VSA_SIG);
+	}
+
+	return has_vsa2;
+}
+
 /* GPIOs */
 #define GPIO_OUTPUT_VAL		0x00
 #define GPIO_OUTPUT_ENABLE	0x04

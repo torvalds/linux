@@ -25,7 +25,7 @@ unsigned int gx_frame_buffer_size(void)
 {
 	unsigned int val;
 
-	if (!geode_has_vsa2()) {
+	if (!cs5535_has_vsa2()) {
 		uint32_t hi, lo;
 
 		/* The number of pages is (PMAX - PMIN)+1 */

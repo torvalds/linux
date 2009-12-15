@@ -95,16 +95,6 @@ extern int geode_get_dev_base(unsigned int dev);
 #define PM_AWKD			0x50
 #define PM_SSC			0x54
 
-/* VSA2 magic values */
-
-#define VSA_VRC_INDEX		0xAC1C
-#define VSA_VRC_DATA		0xAC1E
-#define VSA_VR_UNLOCK		0xFC53	/* unlock virtual register */
-#define VSA_VR_SIGNATURE	0x0003
-#define VSA_VR_MEM_SIZE		0x0200
-#define AMD_VSA_SIG		0x4132	/* signature is ascii 'VSA2' */
-#define GSW_VSA_SIG		0x534d  /* General Software signature */
-
 static inline u32 geode_gpio(unsigned int nr)
 {
 	BUG_ON(nr > 28);
@@ -147,15 +137,6 @@ static inline int is_geode(void)
 {
 	return (is_geode_gx() || is_geode_lx());
 }
-
-#ifdef CONFIG_MGEODE_LX
-extern int geode_has_vsa2(void);
-#else
-static inline int geode_has_vsa2(void)
-{
-	return 0;
-}
-#endif
 
 static inline void geode_mfgpt_write(int timer, u16 reg, u16 value)
 {
