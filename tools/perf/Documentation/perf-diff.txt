@@ -26,6 +26,7 @@ OPTIONS
 --verbose::
 	Be verbose, for instance, show the raw counts in addition to the
 	diff.
+
 SEE ALSO
 --------
 linkperf:perf-record[1]
