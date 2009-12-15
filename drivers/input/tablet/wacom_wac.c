@@ -58,7 +58,7 @@ static int wacom_pl_irq(struct wacom_wac *wacom, void *wcombo)
 	unsigned char *data = wacom->data;
 	int prox, pressure;
 
-	if (data[0] != 2) {
+	if (data[0] != WACOM_REPORT_PENABLED) {
 		dbg("wacom_pl_irq: received unknown report #%d", data[0]);
 		return 0;
 	}
@@ -127,7 +127,7 @@ static int wacom_ptu_irq(struct wacom_wac *wacom, void *wcombo)
 {
 	unsigned char *data = wacom->data;
 
-	if (data[0] != 2) {
+	if (data[0] != WACOM_REPORT_PENABLED) {
 		printk(KERN_INFO "wacom_ptu_irq: received unknown report #%d\n", data[0]);
 		return 0;
 	}
@@ -155,7 +155,7 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 	unsigned char *data = wacom->data;
 	int x, y, rw;
 
-	if (data[0] != 2) {
+	if (data[0] != WACOM_REPORT_PENABLED) {
 		dbg("wacom_graphire_irq: received unknown report #%d", data[0]);
 		return 0;
 	}
@@ -431,7 +431,8 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 	unsigned int t;
 	int idx = 0, result;
 
-	if (data[0] != 2 && data[0] != 5 && data[0] != 6 && data[0] != 12) {
+	if (data[0] != WACOM_REPORT_PENABLED && data[0] != WACOM_REPORT_INTUOSREAD
+		&& data[0] != WACOM_REPORT_INTUOSWRITE && data[0] != WACOM_REPORT_INTUOSPAD) {
 		dbg("wacom_intuos_irq: received unknown report #%d", data[0]);
                 return 0;
 	}
@@ -441,7 +442,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 		idx = data[1] & 0x01;
 
 	/* pad packets. Works as a second tool and is always in prox */
-	if (data[0] == 12) {
+	if (data[0] == WACOM_REPORT_INTUOSPAD) {
 		/* initiate the pad as a device */
 		if (wacom->tool[1] != BTN_TOOL_FINGER)
 			wacom->tool[1] = BTN_TOOL_FINGER;
@@ -648,7 +649,7 @@ static void wacom_tpc_touch_in(struct wacom_wac *wacom, void *wcombo)
 
 	if (urb->actual_length != WACOM_PKGLEN_TPC1FG) {
 		switch (data[0]) {
-			case 6:
+			case WACOM_REPORT_TPC1FG:
 				wacom_report_abs(wcombo, ABS_X, wacom_le16_to_cpu(&data[2]));
 				wacom_report_abs(wcombo, ABS_Y, wacom_le16_to_cpu(&data[4]));
 				wacom_report_abs(wcombo, ABS_PRESSURE, wacom_le16_to_cpu(&data[6]));
@@ -656,7 +657,7 @@ static void wacom_tpc_touch_in(struct wacom_wac *wacom, void *wcombo)
 				wacom_report_abs(wcombo, ABS_MISC, wacom->id[0]);
 				wacom_report_key(wcombo, wacom->tool[0], 1);
 				break;
-			case 13:
+			case WACOM_REPORT_TPC2FG:
 				/* keep this byte to send proper out-prox event */
 				wacom->id[1] = data[1] & 0x03;
 
@@ -705,13 +706,13 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, void *wcombo)
 
 	dbg("wacom_tpc_irq: received report #%d", data[0]);
 
-	if (urb->actual_length == WACOM_PKGLEN_TPC1FG ||
-	    data[0] == 6 || /* single touch */
-	    data[0] == 13) { /* 2FG touch */
+	if (urb->actual_length == WACOM_PKGLEN_TPC1FG || /* single touch */
+	    data[0] == WACOM_REPORT_TPC1FG ||		 /* single touch */
+	    data[0] == WACOM_REPORT_TPC2FG) {		 /* 2FG touch */
 		if (urb->actual_length == WACOM_PKGLEN_TPC1FG) {  /* with touch */
 			prox = data[0] & 0x01;
 		} else {  /* with capacity */
-			if (data[0] == 6)
+			if (data[0] == WACOM_REPORT_TPC1FG)
 				/* single touch */
 				prox = data[1] & 0x01;
 			else
@@ -728,7 +729,7 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, void *wcombo)
 				}
 			} else {
 				/* 2FGT out-prox */
-				if ((data[0] & 0xff) == 13) {
+				if (data[0] == WACOM_REPORT_TPC2FG) {
 					idx = (wacom->id[1] & 0x01) - 1;
 					if (idx == 0) {
 						wacom_tpc_touch_out(wacom, wcombo, idx);
@@ -751,7 +752,7 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, void *wcombo)
 			touchInProx = 1;
 			return 1;
 		}
-	} else if (data[0] == 2) { /* Penabled */
+	} else if (data[0] == WACOM_REPORT_PENABLED) { /* Penabled */
 		prox = data[1] & 0x20;
 
 		touchInProx = 0;
