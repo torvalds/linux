@@ -1597,14 +1597,17 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 	if (!req->r_reply) {
 		mutex_unlock(&mdsc->mutex);
 		if (req->r_timeout) {
-			err = wait_for_completion_timeout(&req->r_completion,
-							  req->r_timeout);
-			if (err > 0)
-				err = 0;
-			else if (err == 0)
+			err = (long)wait_for_completion_interruptible_timeout(
+				&req->r_completion, req->r_timeout);
+			if (err == 0)
 				req->r_reply = ERR_PTR(-EIO);
+			else if (err < 0)
+				req->r_reply = ERR_PTR(err);
 		} else {
-			wait_for_completion(&req->r_completion);
+                        err = wait_for_completion_interruptible(
+                                &req->r_completion);
+                        if (err)
+                                req->r_reply = ERR_PTR(err);
 		}
 		mutex_lock(&mdsc->mutex);
 	}
