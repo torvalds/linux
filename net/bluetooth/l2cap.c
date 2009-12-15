@@ -3471,9 +3471,9 @@ static inline int l2cap_data_channel_sframe(struct sock *sk, u16 rx_control, str
 		pi->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
 
 		if (rx_control & L2CAP_CTRL_POLL) {
-			l2cap_retransmit_frame(sk, tx_seq);
 			pi->expected_ack_seq = tx_seq;
 			l2cap_drop_acked_frames(sk);
+			l2cap_retransmit_frame(sk, tx_seq);
 			l2cap_ertm_send(sk);
 			if (pi->conn_state & L2CAP_CONN_WAIT_F) {
 				pi->srej_save_reqseq = tx_seq;
