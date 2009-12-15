@@ -23,7 +23,12 @@ int strlist__load(struct strlist *self, const char *filename);
 int strlist__add(struct strlist *self, const char *str);
 
 struct str_node *strlist__entry(const struct strlist *self, unsigned int idx);
-bool strlist__has_entry(struct strlist *self, const char *entry);
+struct str_node *strlist__find(struct strlist *self, const char *entry);
+
+static inline bool strlist__has_entry(struct strlist *self, const char *entry)
+{
+	return strlist__find(self, entry) != NULL;
+}
 
 static inline bool strlist__empty(const struct strlist *self)
 {

@@ -540,10 +540,12 @@ static void del_trace_kprobe_event(int fd, const char *group,
 				   const char *event, struct strlist *namelist)
 {
 	char buf[128];
+	struct str_node *ent;
 
 	if (e_snprintf(buf, 128, "%s:%s", group, event) < 0)
 		die("Failed to copy event.");
-	if (!strlist__has_entry(namelist, buf)) {
+	ent = strlist__find(namelist, buf);
+	if (!ent) {
 		pr_info("Info: event \"%s\" does not exist, could not remove it.\n", buf);
 		return;
 	}
@@ -553,6 +555,7 @@ static void del_trace_kprobe_event(int fd, const char *group,
 
 	write_trace_kprobe_event(fd, buf);
 	printf("Remove event: %s:%s\n", group, event);
+	strlist__remove(namelist, ent);
 }
 
 void del_trace_kprobe_events(struct strlist *dellist)
