@@ -435,4 +435,19 @@ config ACPI_TOSHIBA
 
 	  If you have a legacy free Toshiba laptop (such as the Libretto L1
 	  series), say Y.
+
+config TOSHIBA_BT_RFKILL
+	tristate "Toshiba Bluetooth RFKill switch support"
+	depends on ACPI
+	---help---
+	  This driver adds support for Bluetooth events for the RFKill
+	  switch on modern Toshiba laptops with full ACPI support and
+	  an RFKill switch.
+
+	  This driver handles RFKill events for the TOS6205 Bluetooth,
+	  and re-enables it when the switch is set back to the 'on'
+	  position.
+
+	  If you have a modern Toshiba laptop with a Bluetooth and an
+	  RFKill switch (such as the Portege R500), say Y.
 endif # X86_PLATFORM_DEVICES
