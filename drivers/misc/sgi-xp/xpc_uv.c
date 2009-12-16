@@ -1441,7 +1441,6 @@ xpc_handle_notify_mq_msg_uv(struct xpc_partition *part,
 	msg_slot = ch_uv->recv_msg_slots +
 	    (msg->hdr.msg_slot_number % ch->remote_nentries) * ch->entry_size;
 
-	BUG_ON(msg->hdr.msg_slot_number != msg_slot->hdr.msg_slot_number);
 	BUG_ON(msg_slot->hdr.size != 0);
 
 	memcpy(msg_slot, msg, msg->hdr.size);
@@ -1665,8 +1664,6 @@ xpc_received_payload_uv(struct xpc_channel *ch, void *payload)
 			       sizeof(struct xpc_notify_mq_msghdr_uv));
 	if (ret != xpSuccess)
 		XPC_DEACTIVATE_PARTITION(&xpc_partitions[ch->partid], ret);
-
-	msg->hdr.msg_slot_number += ch->remote_nentries;
 }
 
 static struct xpc_arch_operations xpc_arch_ops_uv = {
