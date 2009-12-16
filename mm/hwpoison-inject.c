@@ -3,6 +3,7 @@
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include "internal.h"
 
 static struct dentry *hwpoison_dir;
 
@@ -51,6 +52,16 @@ static int pfn_inject_init(void)
 
 	dentry = debugfs_create_file("unpoison-pfn", 0600, hwpoison_dir,
 				     NULL, &unpoison_fops);
+	if (!dentry)
+		goto fail;
+
+	dentry = debugfs_create_u32("corrupt-filter-dev-major", 0600,
+				    hwpoison_dir, &hwpoison_filter_dev_major);
+	if (!dentry)
+		goto fail;
+
+	dentry = debugfs_create_u32("corrupt-filter-dev-minor", 0600,
+				    hwpoison_dir, &hwpoison_filter_dev_minor);
 	if (!dentry)
 		goto fail;
 

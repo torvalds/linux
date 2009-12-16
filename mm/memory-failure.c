@@ -48,6 +48,50 @@ int sysctl_memory_failure_recovery __read_mostly = 1;
 
 atomic_long_t mce_bad_pages __read_mostly = ATOMIC_LONG_INIT(0);
 
+u32 hwpoison_filter_dev_major = ~0U;
+u32 hwpoison_filter_dev_minor = ~0U;
+EXPORT_SYMBOL_GPL(hwpoison_filter_dev_major);
+EXPORT_SYMBOL_GPL(hwpoison_filter_dev_minor);
+
+static int hwpoison_filter_dev(struct page *p)
+{
+	struct address_space *mapping;
+	dev_t dev;
+
+	if (hwpoison_filter_dev_major == ~0U &&
+	    hwpoison_filter_dev_minor == ~0U)
+		return 0;
+
+	/*
+	 * page_mapping() does not accept slab page
+	 */
+	if (PageSlab(p))
+		return -EINVAL;
+
+	mapping = page_mapping(p);
+	if (mapping == NULL || mapping->host == NULL)
+		return -EINVAL;
+
+	dev = mapping->host->i_sb->s_dev;
+	if (hwpoison_filter_dev_major != ~0U &&
+	    hwpoison_filter_dev_major != MAJOR(dev))
+		return -EINVAL;
+	if (hwpoison_filter_dev_minor != ~0U &&
+	    hwpoison_filter_dev_minor != MINOR(dev))
+		return -EINVAL;
+
+	return 0;
+}
+
+int hwpoison_filter(struct page *p)
+{
+	if (hwpoison_filter_dev(p))
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hwpoison_filter);
+
 /*
  * Send all the processes who have the page mapped an ``action optional''
  * signal.
@@ -842,6 +886,13 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 		printk(KERN_ERR "MCE %#lx: just unpoisoned\n", pfn);
 		res = 0;
 		goto out;
+	}
+	if (hwpoison_filter(p)) {
+		if (TestClearPageHWPoison(p))
+			atomic_long_dec(&mce_bad_pages);
+		unlock_page(p);
+		put_page(p);
+		return 0;
 	}
 
 	wait_on_page_writeback(p);
