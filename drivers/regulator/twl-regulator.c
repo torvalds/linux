@@ -40,6 +40,12 @@ struct twlreg_info {
 	u8			table_len;
 	const u16		*table;
 
+	/* regulator specific turn-on delay */
+	u16			delay;
+
+	/* State REMAP default configuration */
+	u8			remap;
+
 	/* chip constraints on regulator behavior */
 	u16			min_mV;
 
@@ -426,20 +432,30 @@ static struct regulator_ops twlfixed_ops = {
 
 /*----------------------------------------------------------------------*/
 
-#define TWL4030_ADJUSTABLE_LDO(label, offset, num) \
-		TWL_ADJUSTABLE_LDO(label, offset, num, TWL4030)
-#define TWL4030_FIXED_LDO(label, offset, mVolts, num) \
-		TWL_FIXED_LDO(label, offset, mVolts, num, TWL4030)
-#define TWL6030_ADJUSTABLE_LDO(label, offset, num) \
-		TWL_ADJUSTABLE_LDO(label, offset, num, TWL6030)
-#define TWL6030_FIXED_LDO(label, offset, mVolts, num) \
-		TWL_FIXED_LDO(label, offset, mVolts, num, TWL6030)
+#define TWL4030_ADJUSTABLE_LDO(label, offset, num, turnon_delay, remap_conf) \
+		TWL_ADJUSTABLE_LDO(label, offset, num, turnon_delay, \
+			remap_conf, TWL4030)
+#define TWL4030_FIXED_LDO(label, offset, mVolts, num, turnon_delay, \
+			remap_conf) \
+		TWL_FIXED_LDO(label, offset, mVolts, num, turnon_delay, \
+			remap_conf, TWL4030)
+#define TWL6030_ADJUSTABLE_LDO(label, offset, num, turnon_delay, \
+			remap_conf) \
+		TWL_ADJUSTABLE_LDO(label, offset, num, turnon_delay, \
+			remap_conf, TWL6030)
+#define TWL6030_FIXED_LDO(label, offset, mVolts, num, turnon_delay, \
+			remap_conf) \
+		TWL_FIXED_LDO(label, offset, mVolts, num, turnon_delay, \
+			remap_conf, TWL6030)
 
-#define TWL_ADJUSTABLE_LDO(label, offset, num, family) { \
+#define TWL_ADJUSTABLE_LDO(label, offset, num, turnon_delay, remap_conf, \
+		family) { \
 	.base = offset, \
 	.id = num, \
 	.table_len = ARRAY_SIZE(label##_VSEL_table), \
 	.table = label##_VSEL_table, \
+	.delay = turnon_delay, \
+	.remap = remap_conf, \
 	.desc = { \
 		.name = #label, \
 		.id = family##_REG_##label, \
@@ -450,10 +466,13 @@ static struct regulator_ops twlfixed_ops = {
 		}, \
 	}
 
-#define TWL_FIXED_LDO(label, offset, mVolts, num, family) { \
+#define TWL_FIXED_LDO(label, offset, mVolts, num, turnon_delay, remap_conf, \
+		family) { \
 	.base = offset, \
 	.id = num, \
 	.min_mV = mVolts, \
+	.delay = turnon_delay, \
+	.remap = remap_conf, \
 	.desc = { \
 		.name = #label, \
 		.id = family##_REG_##label, \
@@ -469,39 +488,41 @@ static struct regulator_ops twlfixed_ops = {
  * software control over them after boot.
  */
 static struct twlreg_info twl_regs[] = {
-	TWL4030_ADJUSTABLE_LDO(VAUX1, 0x17, 1),
-	TWL4030_ADJUSTABLE_LDO(VAUX2_4030, 0x1b, 2),
-	TWL4030_ADJUSTABLE_LDO(VAUX2, 0x1b, 2),
-	TWL4030_ADJUSTABLE_LDO(VAUX3, 0x1f, 3),
-	TWL4030_ADJUSTABLE_LDO(VAUX4, 0x23, 4),
-	TWL4030_ADJUSTABLE_LDO(VMMC1, 0x27, 5),
-	TWL4030_ADJUSTABLE_LDO(VMMC2, 0x2b, 6),
-	TWL4030_ADJUSTABLE_LDO(VPLL1, 0x2f, 7),
-	TWL4030_ADJUSTABLE_LDO(VPLL2, 0x33, 8),
-	TWL4030_ADJUSTABLE_LDO(VSIM, 0x37, 9),
-	TWL4030_ADJUSTABLE_LDO(VDAC, 0x3b, 10),
-	TWL4030_FIXED_LDO(VINTANA1, 0x3f, 11),
-	TWL4030_ADJUSTABLE_LDO(VINTANA2, 0x43, 12),
-	TWL4030_FIXED_LDO(VINTDIG, 0x47, 13),
-	TWL4030_ADJUSTABLE_LDO(VIO, 0x4b, 14),
-	TWL4030_ADJUSTABLE_LDO(VDD1, 0x55, 15),
-	TWL4030_ADJUSTABLE_LDO(VDD2, 0x63, 16),
-	TWL4030_FIXED_LDO(VUSB1V5, 0x71, 1500, 17),
-	TWL4030_FIXED_LDO(VUSB1V8, 0x74, 1800, 18),
-	TWL4030_FIXED_LDO(VUSB3V1, 0x77, 3100, 19),
+	TWL4030_ADJUSTABLE_LDO(VAUX1, 0x17, 1, 100, 0x08),
+	TWL4030_ADJUSTABLE_LDO(VAUX2_4030, 0x1b, 2, 100, 0x08),
+	TWL4030_ADJUSTABLE_LDO(VAUX2, 0x1b, 2, 100, 0x08),
+	TWL4030_ADJUSTABLE_LDO(VAUX3, 0x1f, 3, 100, 0x08),
+	TWL4030_ADJUSTABLE_LDO(VAUX4, 0x23, 4, 100, 0x08),
+	TWL4030_ADJUSTABLE_LDO(VMMC1, 0x27, 5, 100, 0x08),
+	TWL4030_ADJUSTABLE_LDO(VMMC2, 0x2b, 6, 100, 0x08),
+	TWL4030_ADJUSTABLE_LDO(VPLL1, 0x2f, 7, 100, 0x00),
+	TWL4030_ADJUSTABLE_LDO(VPLL2, 0x33, 8, 100, 0x08),
+	TWL4030_ADJUSTABLE_LDO(VSIM, 0x37, 9, 100, 0x00),
+	TWL4030_ADJUSTABLE_LDO(VDAC, 0x3b, 10, 100, 0x08),
+	TWL4030_FIXED_LDO(VINTANA1, 0x3f, 1500, 11, 100, 0x08),
+	TWL4030_ADJUSTABLE_LDO(VINTANA2, 0x43, 12, 100, 0x08),
+	TWL4030_FIXED_LDO(VINTDIG, 0x47, 1500, 13, 100, 0x08),
+	TWL4030_ADJUSTABLE_LDO(VIO, 0x4b, 14, 1000, 0x08),
+	TWL4030_ADJUSTABLE_LDO(VDD1, 0x55, 15, 1000, 0x08),
+	TWL4030_ADJUSTABLE_LDO(VDD2, 0x63, 16, 1000, 0x08),
+	TWL4030_FIXED_LDO(VUSB1V5, 0x71, 1500, 17, 100, 0x08),
+	TWL4030_FIXED_LDO(VUSB1V8, 0x74, 1800, 18, 100, 0x08),
+	TWL4030_FIXED_LDO(VUSB3V1, 0x77, 3100, 19, 150, 0x08),
 	/* VUSBCP is managed *only* by the USB subchip */
 
 	/* 6030 REG with base as PMC Slave Misc : 0x0030 */
-	TWL6030_ADJUSTABLE_LDO(VAUX1_6030, 0x54, 1),
-	TWL6030_ADJUSTABLE_LDO(VAUX2_6030, 0x58, 2),
-	TWL6030_ADJUSTABLE_LDO(VAUX3_6030, 0x5c, 3),
-	TWL6030_ADJUSTABLE_LDO(VMMC, 0x68, 4),
-	TWL6030_ADJUSTABLE_LDO(VPP, 0x6c, 5),
-	TWL6030_ADJUSTABLE_LDO(VUSIM, 0x74, 7),
-	TWL6030_FIXED_LDO(VANA, 0x50, 2100, 15),
-	TWL6030_FIXED_LDO(VCXIO, 0x60, 1800, 16),
-	TWL6030_FIXED_LDO(VDAC, 0x64, 1800, 17),
-	TWL6030_FIXED_LDO(VUSB, 0x70, 3300, 18)
+	/* Turnon-delay and remap configuration values for 6030 are not
+	   verified since the specification is not public */
+	TWL6030_ADJUSTABLE_LDO(VAUX1_6030, 0x54, 1, 0, 0x08),
+	TWL6030_ADJUSTABLE_LDO(VAUX2_6030, 0x58, 2, 0, 0x08),
+	TWL6030_ADJUSTABLE_LDO(VAUX3_6030, 0x5c, 3, 0, 0x08),
+	TWL6030_ADJUSTABLE_LDO(VMMC, 0x68, 4, 0, 0x08),
+	TWL6030_ADJUSTABLE_LDO(VPP, 0x6c, 5, 0, 0x08),
+	TWL6030_ADJUSTABLE_LDO(VUSIM, 0x74, 7, 0, 0x08),
+	TWL6030_FIXED_LDO(VANA, 0x50, 2100, 15, 0, 0x08),
+	TWL6030_FIXED_LDO(VCXIO, 0x60, 1800, 16, 0, 0x08),
+	TWL6030_FIXED_LDO(VDAC, 0x64, 1800, 17, 0, 0x08),
+	TWL6030_FIXED_LDO(VUSB, 0x70, 3300, 18, 0, 0x08)
 };
 
 static int twlreg_probe(struct platform_device *pdev)
