@@ -284,6 +284,52 @@ i915_pci_resume(struct pci_dev *pdev)
 	return i915_resume(dev);
 }
 
+static int
+i915_pm_suspend(struct device *dev)
+{
+	return i915_pci_suspend(to_pci_dev(dev), PMSG_SUSPEND);
+}
+
+static int
+i915_pm_resume(struct device *dev)
+{
+	return i915_pci_resume(to_pci_dev(dev));
+}
+
+static int
+i915_pm_freeze(struct device *dev)
+{
+	return i915_pci_suspend(to_pci_dev(dev), PMSG_FREEZE);
+}
+
+static int
+i915_pm_thaw(struct device *dev)
+{
+	/* thaw during hibernate, do nothing! */
+	return 0;
+}
+
+static int
+i915_pm_poweroff(struct device *dev)
+{
+	return i915_pci_suspend(to_pci_dev(dev), PMSG_HIBERNATE);
+}
+
+static int
+i915_pm_restore(struct device *dev)
+{
+	return i915_pci_resume(to_pci_dev(dev));
+}
+
+const struct dev_pm_ops i915_pm_ops = {
+     .suspend = i915_pm_suspend,
+     .resume = i915_pm_resume,
+     .freeze = i915_pm_freeze,
+     .thaw = i915_pm_thaw,
+     .poweroff = i915_pm_poweroff,
+     .restore = i915_pm_restore,
+};
+
 static struct vm_operations_struct i915_gem_vm_ops = {
 	.fault = i915_gem_fault,
 	.open = drm_gem_vm_open,
@@ -303,8 +349,6 @@ static struct drm_driver driver = {
 	.lastclose = i915_driver_lastclose,
 	.preclose = i915_driver_preclose,
 	.postclose = i915_driver_postclose,
-	.suspend = i915_suspend,
-	.resume = i915_resume,
 	.device_is_agp = i915_driver_device_is_agp,
 	.enable_vblank = i915_enable_vblank,
 	.disable_vblank = i915_disable_vblank,
@@ -344,10 +388,7 @@ static struct drm_driver driver = {
 		 .id_table = pciidlist,
 		 .probe = i915_pci_probe,
 		 .remove = i915_pci_remove,
-#ifdef CONFIG_PM
-		 .resume = i915_pci_resume,
-		 .suspend = i915_pci_suspend,
-#endif
+		 .driver.pm = &i915_pm_ops,
 	},
 
 	.name = DRIVER_NAME,
