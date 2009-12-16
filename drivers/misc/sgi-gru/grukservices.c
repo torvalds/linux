@@ -200,13 +200,15 @@ static int gru_free_kernel_contexts(void)
 		bs = gru_base[bid];
 		if (!bs)
 			continue;
+
+		/* Ignore busy contexts. Don't want to block here.  */
 		if (down_write_trylock(&bs->bs_kgts_sema)) {
 			kgts = bs->bs_kgts;
 			if (kgts && kgts->ts_gru)
 				gru_unload_context(kgts, 0);
-			kfree(kgts);
 			bs->bs_kgts = NULL;
 			up_write(&bs->bs_kgts_sema);
+			kfree(kgts);
 		} else {
 			ret++;
 		}

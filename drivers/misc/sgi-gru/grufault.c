@@ -733,6 +733,11 @@ long gru_get_gseg_statistics(unsigned long arg)
 	if (copy_from_user(&req, (void __user *)arg, sizeof(req)))
 		return -EFAULT;
 
+	/*
+	 * The library creates arrays of contexts for threaded programs.
+	 * If no gts exists in the array, the context has never been used & all
+	 * statistics are implicitly 0.
+	 */
 	gts = gru_find_lock_gts(req.gseg);
 	if (gts) {
 		memcpy(&req.stats, &gts->ustats, sizeof(gts->ustats));
