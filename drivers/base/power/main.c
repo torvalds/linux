@@ -23,8 +23,8 @@
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/resume-trace.h>
-#include <linux/rwsem.h>
 #include <linux/interrupt.h>
+#include <linux/sched.h>
 
 #include "../base.h"
 #include "power.h"
@@ -172,6 +172,13 @@ static int pm_op(struct device *dev,
 		 pm_message_t state)
 {
 	int error = 0;
+	ktime_t calltime, delta, rettime;
+
+	if (initcall_debug) {
+		pr_info("calling  %s+ @ %i\n",
+				dev_name(dev), task_pid_nr(current));
+		calltime = ktime_get();
+	}
 
 	switch (state.event) {
 #ifdef CONFIG_SUSPEND
@@ -219,6 +226,14 @@ static int pm_op(struct device *dev,
 	default:
 		error = -EINVAL;
 	}
+
+	if (initcall_debug) {
+		rettime = ktime_get();
+		delta = ktime_sub(rettime, calltime);
+		pr_info("call %s+ returned %d after %Ld usecs\n", dev_name(dev),
+			error, (unsigned long long)ktime_to_ns(delta) >> 10);
+	}
+
 	return error;
 }
 
@@ -236,6 +251,13 @@ static int pm_noirq_op(struct device *dev,
 			pm_message_t state)
 {
 	int error = 0;
+	ktime_t calltime, delta, rettime;
+
+	if (initcall_debug) {
+		pr_info("calling  %s_i+ @ %i\n",
+				dev_name(dev), task_pid_nr(current));
+		calltime = ktime_get();
+	}
 
 	switch (state.event) {
 #ifdef CONFIG_SUSPEND
@@ -283,6 +305,14 @@ static int pm_noirq_op(struct device *dev,
 	default:
 		error = -EINVAL;
 	}
+
+	if (initcall_debug) {
+		rettime = ktime_get();
+		delta = ktime_sub(rettime, calltime);
+		printk("initcall %s_i+ returned %d after %Ld usecs\n", dev_name(dev),
+			error, (unsigned long long)ktime_to_ns(delta) >> 10);
+	}
+
 	return error;
 }
 
@@ -341,14 +371,11 @@ static int device_resume_noirq(struct device *dev, pm_message_t state)
 	TRACE_DEVICE(dev);
 	TRACE_RESUME(0);
 
-	if (!dev->bus)
-		goto End;
-
-	if (dev->bus->pm) {
+	if (dev->bus && dev->bus->pm) {
 		pm_dev_dbg(dev, state, "EARLY ");
 		error = pm_noirq_op(dev, dev->bus->pm, state);
 	}
- End:
+
 	TRACE_RESUME(error);
 	return error;
 }
@@ -584,10 +611,7 @@ static int device_suspend_noirq(struct device *dev, pm_message_t state)
 {
 	int error = 0;
 
-	if (!dev->bus)
-		return 0;
-
-	if (dev->bus->pm) {
+	if (dev->bus && dev->bus->pm) {
 		pm_dev_dbg(dev, state, "LATE ");
 		error = pm_noirq_op(dev, dev->bus->pm, state);
 	}
