@@ -32,7 +32,7 @@ static int dev_mount = 1;
 static int dev_mount;
 #endif
 
-static rwlock_t dirlock;
+static DEFINE_MUTEX(dirlock);
 
 static int __init mount_param(char *str)
 {
@@ -93,7 +93,7 @@ static int create_path(const char *nodepath)
 {
 	int err;
 
-	read_lock(&dirlock);
+	mutex_lock(&dirlock);
 	err = dev_mkdir(nodepath, 0755);
 	if (err == -ENOENT) {
 		char *path;
@@ -117,7 +117,7 @@ static int create_path(const char *nodepath)
 		}
 		kfree(path);
 	}
-	read_unlock(&dirlock);
+	mutex_unlock(&dirlock);
 	return err;
 }
 
@@ -229,7 +229,7 @@ static int delete_path(const char *nodepath)
 	if (!path)
 		return -ENOMEM;
 
-	write_lock(&dirlock);
+	mutex_lock(&dirlock);
 	for (;;) {
 		char *base;
 
@@ -241,7 +241,7 @@ static int delete_path(const char *nodepath)
 		if (err)
 			break;
 	}
-	write_unlock(&dirlock);
+	mutex_unlock(&dirlock);
 
 	kfree(path);
 	return err;
@@ -351,8 +351,6 @@ int __init devtmpfs_init(void)
 {
 	int err;
 	struct vfsmount *mnt;
-
-	rwlock_init(&dirlock);
 
 	err = register_filesystem(&dev_fs_type);
 	if (err) {
