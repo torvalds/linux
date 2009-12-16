@@ -114,6 +114,11 @@
 /* IRAM */
 #define MX27_IRAM_BASE_ADDR		0xffff4c00	/* internal ram */
 
+#define MX27_IO_ADDRESS(x) (						\
+	IMX_IO_ADDRESS(x, MX27_AIPI) ?:					\
+	IMX_IO_ADDRESS(x, MX27_SAHB1) ?:				\
+	IMX_IO_ADDRESS(x, MX27_X_MEMC))
+
 /* fixed interrupt numbers */
 #define MX27_INT_I2C2		1
 #define MX27_INT_GPT6		2
