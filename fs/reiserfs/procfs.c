@@ -17,8 +17,6 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 
-#ifdef CONFIG_REISERFS_PROC_INFO
-
 /*
  * LOCKING:
  *
@@ -551,30 +549,6 @@ int reiserfs_proc_info_global_done(void)
 	}
 	return 0;
 }
-
-/* REISERFS_PROC_INFO */
-#else
-
-int reiserfs_proc_info_init(struct super_block *sb)
-{
-	return 0;
-}
-int reiserfs_proc_info_done(struct super_block *sb)
-{
-	return 0;
-}
-
-int reiserfs_proc_info_global_init(void)
-{
-	return 0;
-}
-int reiserfs_proc_info_global_done(void)
-{
-	return 0;
-}
-/* REISERFS_PROC_INFO */
-#endif
-
 /*
  * Revision 1.1.8.2  2001/07/15 17:08:42  god
  *  . use get_super() in procfs.c
