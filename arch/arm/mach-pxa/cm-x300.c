@@ -24,7 +24,6 @@
 #include <linux/dm9000.h>
 #include <linux/leds.h>
 #include <linux/rtc-v3020.h>
-#include <linux/pwm_backlight.h>
 
 #include <linux/i2c.h>
 #include <linux/i2c/pca953x.h>
@@ -51,7 +50,6 @@
 #include <asm/mach/map.h>
 
 #include "generic.h"
-#include "devices.h"
 
 #define CM_X300_ETH_PHYS	0x08000010
 
@@ -162,9 +160,6 @@ static mfp_cfg_t cm_x3xx_mfp_cfg[] __initdata = {
 	/* Standard I2C */
 	GPIO21_I2C_SCL,
 	GPIO22_I2C_SDA,
-
-	/* PWM Backlight */
-	GPIO19_PWM2_OUT,
 };
 
 static mfp_cfg_t cm_x3xx_rev_lt130_mfp_cfg[] __initdata = {
@@ -293,30 +288,6 @@ static void __init cm_x300_init_lcd(void)
 }
 #else
 static inline void cm_x300_init_lcd(void) {}
-#endif
-
-#if defined(CONFIG_BACKLIGHT_PWM) || defined(CONFIG_BACKLIGHT_PWM_MODULE)
-static struct platform_pwm_backlight_data cm_x300_backlight_data = {
-	.pwm_id		= 2,
-	.max_brightness	= 100,
-	.dft_brightness	= 100,
-	.pwm_period_ns	= 10000,
-};
-
-static struct platform_device cm_x300_backlight_device = {
-	.name		= "pwm-backlight",
-	.dev		= {
-		.parent = &pxa27x_device_pwm0.dev,
-		.platform_data	= &cm_x300_backlight_data,
-	},
-};
-
-static void cm_x300_init_bl(void)
-{
-	platform_device_register(&cm_x300_backlight_device);
-}
-#else
-static inline void cm_x300_init_bl(void) {}
 #endif
 
 #if defined(CONFIG_SPI_GPIO) || defined(CONFIG_SPI_GPIO_MODULE)
@@ -683,7 +654,6 @@ static void __init cm_x300_init(void)
 	cm_x300_init_rtc();
 	cm_x300_init_ac97();
 	cm_x300_init_wi2wi();
-	cm_x300_init_bl();
 }
 
 static void __init cm_x300_fixup(struct machine_desc *mdesc, struct tag *tags,
