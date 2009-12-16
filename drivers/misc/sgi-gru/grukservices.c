@@ -1004,6 +1004,7 @@ static int quicktest2(unsigned long arg)
 	int ret = 0;
 	unsigned long *buf;
 	void *cb0, *cb;
+	struct gru_control_block_status *gen;
 	int i, k, istatus, bytes;
 
 	bytes = numcb * 4 * 8;
@@ -1023,26 +1024,52 @@ static int quicktest2(unsigned long arg)
 				XTYPE_DW, 4, 1, IMA_INTERRUPT);
 
 	ret = 0;
-	for (k = 0; k < numcb; k++) {
+	k = numcb;
+	do {
 		gru_wait_async_cbr(han);
 		for (i = 0; i < numcb; i++) {
 			cb = cb0 + i * GRU_HANDLE_STRIDE;
 			istatus = gru_check_status(cb);
-			if (istatus == CBS_ACTIVE)
-				continue;
-			if (istatus == CBS_EXCEPTION)
-				ret = -EFAULT;
-			else if (buf[i] || buf[i + 1] || buf[i + 2] ||
-					buf[i + 3])
-				ret = -EIO;
+			if (istatus != CBS_ACTIVE && istatus != CBS_CALL_OS)
+				break;
 		}
-	}
+		if (i == numcb)
+			continue;
+		if (istatus != CBS_IDLE) {
+			printk(KERN_DEBUG "GRU:%d quicktest2: cb %d, exception\n", smp_processor_id(), i);
+			ret = -EFAULT;
+		} else if (buf[4 * i] || buf[4 * i + 1] || buf[4 * i + 2] ||
+				buf[4 * i + 3]) {
+			printk(KERN_DEBUG "GRU:%d quicktest2:cb %d,  buf 0x%lx, 0x%lx, 0x%lx, 0x%lx\n",
+			       smp_processor_id(), i, buf[4 * i], buf[4 * i + 1], buf[4 * i + 2], buf[4 * i + 3]);
+			ret = -EIO;
+		}
+		k--;
+		gen = cb;
+		gen->istatus = CBS_CALL_OS; /* don't handle this CBR again */
+	} while (k);
 	BUG_ON(cmp.done);
 
 	gru_unlock_async_resource(han);
 	gru_release_async_resources(han);
 done:
 	kfree(buf);
+	return ret;
+}
+
+#define BUFSIZE 200
+static int quicktest3(unsigned long arg)
+{
+	char buf1[BUFSIZE], buf2[BUFSIZE];
+	int ret = 0;
+
+	memset(buf2, 0, sizeof(buf2));
+	memset(buf1, get_cycles() & 255, sizeof(buf1));
+	gru_copy_gpa(uv_gpa(buf2), uv_gpa(buf1), BUFSIZE);
+	if (memcmp(buf1, buf2, BUFSIZE)) {
+		printk(KERN_DEBUG "GRU quicktest3 error\n");
+		ret = -EIO;
+	}
 	return ret;
 }
 
@@ -1063,6 +1090,9 @@ int gru_ktest(unsigned long arg)
 		break;
 	case 2:
 		ret = quicktest2(arg);
+		break;
+	case 3:
+		ret = quicktest3(arg);
 		break;
 	case 99:
 		ret = gru_free_kernel_contexts();
