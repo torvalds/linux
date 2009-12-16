@@ -382,8 +382,6 @@ struct gru_thread_state {
 	char			ts_blade;	/* If >= 0, migrate context if
 						   ref from diferent blade */
 	char			ts_force_cch_reload;
-	char			ts_force_unload;/* force context to be unloaded
-						   after migration */
 	char			ts_cbr_idx[GRU_CBR_AU];/* CBR numbers of each
 							  allocated CB */
 	int			ts_data_valid;	/* Indicates if ts_gdata has
@@ -636,7 +634,7 @@ extern struct gru_state *gru_assign_gru_context(struct gru_thread_state *gts);
 extern void gru_load_context(struct gru_thread_state *gts);
 extern void gru_steal_context(struct gru_thread_state *gts);
 extern void gru_unload_context(struct gru_thread_state *gts, int savestate);
-extern int gru_update_cch(struct gru_thread_state *gts, int force_unload);
+extern int gru_update_cch(struct gru_thread_state *gts);
 extern void gts_drop(struct gru_thread_state *gts);
 extern void gru_tgh_flush_init(struct gru_state *gru);
 extern int gru_kservices_init(void);

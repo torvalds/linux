@@ -551,7 +551,6 @@ void gru_unload_context(struct gru_thread_state *gts, int savestate)
 
 	if (cch_deallocate(cch))
 		BUG();
-	gts->ts_force_unload = 0;	/* ts_force_unload locked by CCH lock */
 	unlock_cch_handle(cch);
 
 	gru_free_gru_context(gts);
@@ -624,11 +623,8 @@ void gru_load_context(struct gru_thread_state *gts)
  * Update fields in an active CCH:
  * 	- retarget interrupts on local blade
  * 	- update sizeavail mask
- * 	- force a delayed context unload by clearing the CCH asids. This
- * 	  forces TLB misses for new GRU instructions. The context is unloaded
- * 	  when the next TLB miss occurs.
  */
-int gru_update_cch(struct gru_thread_state *gts, int force_unload)
+int gru_update_cch(struct gru_thread_state *gts)
 {
 	struct gru_context_configuration_handle *cch;
 	struct gru_state *gru = gts->ts_gru;
@@ -642,21 +638,13 @@ int gru_update_cch(struct gru_thread_state *gts, int force_unload)
 			goto exit;
 		if (cch_interrupt(cch))
 			BUG();
-		if (!force_unload) {
-			for (i = 0; i < 8; i++)
-				cch->sizeavail[i] = gts->ts_sizeavail;
-			gts->ts_tlb_int_select = gru_cpu_fault_map_id();
-			cch->tlb_int_select = gru_cpu_fault_map_id();
-			cch->tfm_fault_bit_enable =
-			  (gts->ts_user_options == GRU_OPT_MISS_FMM_POLL
-			    || gts->ts_user_options == GRU_OPT_MISS_FMM_INTR);
-		} else {
-			for (i = 0; i < 8; i++)
-				cch->asid[i] = 0;
-			cch->tfm_fault_bit_enable = 0;
-			cch->tlb_int_enable = 0;
-			gts->ts_force_unload = 1;
-		}
+		for (i = 0; i < 8; i++)
+			cch->sizeavail[i] = gts->ts_sizeavail;
+		gts->ts_tlb_int_select = gru_cpu_fault_map_id();
+		cch->tlb_int_select = gru_cpu_fault_map_id();
+		cch->tfm_fault_bit_enable =
+		  (gts->ts_user_options == GRU_OPT_MISS_FMM_POLL
+		    || gts->ts_user_options == GRU_OPT_MISS_FMM_INTR);
 		if (cch_start(cch))
 			BUG();
 		ret = 1;
@@ -681,7 +669,7 @@ static int gru_retarget_intr(struct gru_thread_state *gts)
 
 	gru_dbg(grudev, "retarget from %d to %d\n", gts->ts_tlb_int_select,
 		gru_cpu_fault_map_id());
-	return gru_update_cch(gts, 0);
+	return gru_update_cch(gts);
 }
 
 /*

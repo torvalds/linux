@@ -362,7 +362,7 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 
 	if (!(gts->ts_sizeavail & GRU_SIZEAVAIL(pageshift))) {
 		gts->ts_sizeavail |= GRU_SIZEAVAIL(pageshift);
-		if (atomic || !gru_update_cch(gts, 0)) {
+		if (atomic || !gru_update_cch(gts)) {
 			gts->ts_force_cch_reload = 1;
 			goto failupm;
 		}
@@ -553,14 +553,12 @@ int gru_handle_user_call_os(unsigned long cb)
 	 */
 	if (gts->ts_gru && gts->ts_force_cch_reload) {
 		gts->ts_force_cch_reload = 0;
-		gru_update_cch(gts, 0);
+		gru_update_cch(gts);
 	}
 
 	ret = -EAGAIN;
 	cbrnum = thread_cbr_number(gts, ucbnum);
-	if (gts->ts_force_unload) {
-		gru_unload_context(gts, 1);
-	} else if (gts->ts_gru) {
+	if (gts->ts_gru) {
 		tfh = get_tfh_by_index(gts->ts_gru, cbrnum);
 		cbk = get_gseg_base_address_cb(gts->ts_gru->gs_gru_base_vaddr,
 				gts->ts_ctxnum, ucbnum);
