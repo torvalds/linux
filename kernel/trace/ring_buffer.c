@@ -1193,9 +1193,6 @@ rb_remove_pages(struct ring_buffer_per_cpu *cpu_buffer, unsigned nr_pages)
 	struct list_head *p;
 	unsigned i;
 
-	atomic_inc(&cpu_buffer->record_disabled);
-	synchronize_sched();
-
 	spin_lock_irq(&cpu_buffer->reader_lock);
 	rb_head_page_deactivate(cpu_buffer);
 
@@ -1211,12 +1208,9 @@ rb_remove_pages(struct ring_buffer_per_cpu *cpu_buffer, unsigned nr_pages)
 		return;
 
 	rb_reset_cpu(cpu_buffer);
-	spin_unlock_irq(&cpu_buffer->reader_lock);
-
 	rb_check_pages(cpu_buffer);
 
-	atomic_dec(&cpu_buffer->record_disabled);
-
+	spin_unlock_irq(&cpu_buffer->reader_lock);
 }
 
 static void
@@ -1226,9 +1220,6 @@ rb_insert_pages(struct ring_buffer_per_cpu *cpu_buffer,
 	struct buffer_page *bpage;
 	struct list_head *p;
 	unsigned i;
-
-	atomic_inc(&cpu_buffer->record_disabled);
-	synchronize_sched();
 
 	spin_lock_irq(&cpu_buffer->reader_lock);
 	rb_head_page_deactivate(cpu_buffer);
@@ -1242,22 +1233,15 @@ rb_insert_pages(struct ring_buffer_per_cpu *cpu_buffer,
 		list_add_tail(&bpage->list, cpu_buffer->pages);
 	}
 	rb_reset_cpu(cpu_buffer);
-	spin_unlock_irq(&cpu_buffer->reader_lock);
-
 	rb_check_pages(cpu_buffer);
 
-	atomic_dec(&cpu_buffer->record_disabled);
+	spin_unlock_irq(&cpu_buffer->reader_lock);
 }
 
 /**
  * ring_buffer_resize - resize the ring buffer
  * @buffer: the buffer to resize.
  * @size: the new size.
- *
- * The tracer is responsible for making sure that the buffer is
- * not being used while changing the size.
- * Note: We may be able to change the above requirement by using
- *  RCU synchronizations.
  *
  * Minimum size is 2 * BUF_PAGE_SIZE.
  *
@@ -1289,6 +1273,11 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
 
 	if (size == buffer_size)
 		return size;
+
+	atomic_inc(&buffer->record_disabled);
+
+	/* Make sure all writers are done with this buffer. */
+	synchronize_sched();
 
 	mutex_lock(&buffer->mutex);
 	get_online_cpus();
@@ -1352,6 +1341,8 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
 	put_online_cpus();
 	mutex_unlock(&buffer->mutex);
 
+	atomic_dec(&buffer->record_disabled);
+
 	return size;
 
  free_pages:
@@ -1361,6 +1352,7 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
 	}
 	put_online_cpus();
 	mutex_unlock(&buffer->mutex);
+	atomic_dec(&buffer->record_disabled);
 	return -ENOMEM;
 
 	/*
@@ -1370,6 +1362,7 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
  out_fail:
 	put_online_cpus();
 	mutex_unlock(&buffer->mutex);
+	atomic_dec(&buffer->record_disabled);
 	return -1;
 }
 EXPORT_SYMBOL_GPL(ring_buffer_resize);

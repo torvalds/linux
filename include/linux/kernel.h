@@ -535,6 +535,8 @@ extern int
 __trace_printk(unsigned long ip, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
 
+extern void trace_dump_stack(void);
+
 /*
  * The double __builtin_constant_p is because gcc will give us an error
  * if we try to allocate the static variable to fmt if it is not a
@@ -568,6 +570,7 @@ trace_printk(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 static inline void tracing_start(void) { }
 static inline void tracing_stop(void) { }
 static inline void ftrace_off_permanent(void) { }
+static inline void trace_dump_stack(void) { }
 static inline int
 trace_printk(const char *fmt, ...)
 {
