@@ -21,6 +21,7 @@
 #include <linux/fsnotify.h>
 #include <linux/sysctl.h>
 #include <linux/percpu_counter.h>
+#include <linux/ima.h>
 
 #include <asm/atomic.h>
 
@@ -190,6 +191,7 @@ struct file *alloc_file(struct path *path, fmode_t mode,
 		error = mnt_clone_write(path->mnt);
 		WARN_ON(error);
 	}
+	ima_counts_get(file);
 	return file;
 }
 

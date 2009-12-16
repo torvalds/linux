@@ -29,7 +29,6 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/swap.h>
-#include <linux/ima.h>
 
 static struct vfsmount *shm_mnt;
 
@@ -2669,7 +2668,6 @@ struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags
 	if (!file)
 		goto put_dentry;
 
-	ima_counts_get(file);
 	return file;
 
 put_dentry:
