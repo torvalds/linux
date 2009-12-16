@@ -356,7 +356,8 @@ static void dump_tasks(const struct mem_cgroup *mem)
 	} while_each_thread(g, p);
 }
 
-static void dump_header(gfp_t gfp_mask, int order, struct mem_cgroup *mem)
+static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
+							struct mem_cgroup *mem)
 {
 	pr_warning("%s invoked oom-killer: gfp_mask=0x%x, order=%d, "
 		"oom_adj=%d\n",
@@ -365,7 +366,7 @@ static void dump_header(gfp_t gfp_mask, int order, struct mem_cgroup *mem)
 	cpuset_print_task_mems_allowed(current);
 	task_unlock(current);
 	dump_stack();
-	mem_cgroup_print_oom_info(mem, current);
+	mem_cgroup_print_oom_info(mem, p);
 	show_mem();
 	if (sysctl_oom_dump_tasks)
 		dump_tasks(mem);
@@ -440,7 +441,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 	struct task_struct *c;
 
 	if (printk_ratelimit())
-		dump_header(gfp_mask, order, mem);
+		dump_header(p, gfp_mask, order, mem);
 
 	/*
 	 * If the task is already exiting, don't alarm the sysadmin or kill
@@ -576,7 +577,7 @@ retry:
 	/* Found nothing?!?! Either we hang forever, or we panic. */
 	if (!p) {
 		read_unlock(&tasklist_lock);
-		dump_header(gfp_mask, order, NULL);
+		dump_header(NULL, gfp_mask, order, NULL);
 		panic("Out of memory and no killable processes...\n");
 	}
 
@@ -644,7 +645,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 		return;
 
 	if (sysctl_panic_on_oom == 2) {
-		dump_header(gfp_mask, order, NULL);
+		dump_header(NULL, gfp_mask, order, NULL);
 		panic("out of memory. Compulsory panic_on_oom is selected.\n");
 	}
 
@@ -663,7 +664,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
 
 	case CONSTRAINT_NONE:
 		if (sysctl_panic_on_oom) {
-			dump_header(gfp_mask, order, NULL);
+			dump_header(NULL, gfp_mask, order, NULL);
 			panic("out of memory. panic_on_oom is selected\n");
 		}
 		/* Fall-through */
