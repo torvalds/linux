@@ -563,10 +563,7 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 			 */
 			ino = autofs4_dentry_ino(expiring);
 			autofs4_expire_wait(expiring);
-			spin_lock(&sbi->lookup_lock);
-			if (!list_empty(&ino->expiring))
-				list_del_init(&ino->expiring);
-			spin_unlock(&sbi->lookup_lock);
+			autofs4_del_expiring(expiring);
 			dput(expiring);
 		}
 
@@ -732,10 +729,7 @@ static int autofs4_dir_unlink(struct inode *dir, struct dentry *dentry)
 	dir->i_mtime = CURRENT_TIME;
 
 	spin_lock(&dcache_lock);
-	spin_lock(&sbi->lookup_lock);
-	if (list_empty(&ino->expiring))
-		list_add(&ino->expiring, &sbi->expiring_list);
-	spin_unlock(&sbi->lookup_lock);
+	autofs4_add_expiring(dentry);
 	spin_lock(&dentry->d_lock);
 	__d_drop(dentry);
 	spin_unlock(&dentry->d_lock);
@@ -761,10 +755,7 @@ static int autofs4_dir_rmdir(struct inode *dir, struct dentry *dentry)
 		spin_unlock(&dcache_lock);
 		return -ENOTEMPTY;
 	}
-	spin_lock(&sbi->lookup_lock);
-	if (list_empty(&ino->expiring))
-		list_add(&ino->expiring, &sbi->expiring_list);
-	spin_unlock(&sbi->lookup_lock);
+	autofs4_add_expiring(dentry);
 	spin_lock(&dentry->d_lock);
 	__d_drop(dentry);
 	spin_unlock(&dentry->d_lock);
