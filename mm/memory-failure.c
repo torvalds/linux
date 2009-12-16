@@ -654,17 +654,21 @@ static int page_action(struct page_state *ps, struct page *p,
 	action_result(pfn, ps->msg, result);
 
 	count = page_count(p) - 1;
-	if (count != 0)
+	if (ps->action == me_swapcache_dirty && result == DELAYED)
+		count--;
+	if (count != 0) {
 		printk(KERN_ERR
 		       "MCE %#lx: %s page still referenced by %d users\n",
 		       pfn, ps->msg, count);
+		result = FAILED;
+	}
 
 	/* Could do more checks here if page looks ok */
 	/*
 	 * Could adjust zone counters here to correct for the missing page.
 	 */
 
-	return result == RECOVERED ? 0 : -EBUSY;
+	return (result == RECOVERED || result == DELAYED) ? 0 : -EBUSY;
 }
 
 #define N_UNMAP_TRIES 5
