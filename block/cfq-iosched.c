@@ -292,8 +292,7 @@ static struct cfq_group *cfq_get_next_cfqg(struct cfq_data *cfqd);
 
 static struct cfq_rb_root *service_tree_for(struct cfq_group *cfqg,
 					    enum wl_prio_t prio,
-					    enum wl_type_t type,
-					    struct cfq_data *cfqd)
+					    enum wl_type_t type)
 {
 	if (!cfqg)
 		return NULL;
@@ -1146,7 +1145,7 @@ static void cfq_service_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 #endif
 
 	service_tree = service_tree_for(cfqq->cfqg, cfqq_prio(cfqq),
-						cfqq_type(cfqq), cfqd);
+						cfqq_type(cfqq));
 	if (cfq_class_idle(cfqq)) {
 		rb_key = CFQ_IDLE_DELAY;
 		parent = rb_last(&service_tree->rb);
@@ -1609,7 +1608,7 @@ static struct cfq_queue *cfq_get_next_queue(struct cfq_data *cfqd)
 {
 	struct cfq_rb_root *service_tree =
 		service_tree_for(cfqd->serving_group, cfqd->serving_prio,
-					cfqd->serving_type, cfqd);
+					cfqd->serving_type);
 
 	if (!cfqd->rq_queued)
 		return NULL;
@@ -1956,8 +1955,7 @@ static void cfq_setup_merge(struct cfq_queue *cfqq, struct cfq_queue *new_cfqq)
 }
 
 static enum wl_type_t cfq_choose_wl(struct cfq_data *cfqd,
-				struct cfq_group *cfqg, enum wl_prio_t prio,
-				bool prio_changed)
+				struct cfq_group *cfqg, enum wl_prio_t prio)
 {
 	struct cfq_queue *queue;
 	int i;
@@ -1965,24 +1963,9 @@ static enum wl_type_t cfq_choose_wl(struct cfq_data *cfqd,
 	unsigned long lowest_key = 0;
 	enum wl_type_t cur_best = SYNC_NOIDLE_WORKLOAD;
 
-	if (prio_changed) {
-		/*
-		 * When priorities switched, we prefer starting
-		 * from SYNC_NOIDLE (first choice), or just SYNC
-		 * over ASYNC
-		 */
-		if (service_tree_for(cfqg, prio, cur_best, cfqd)->count)
-			return cur_best;
-		cur_best = SYNC_WORKLOAD;
-		if (service_tree_for(cfqg, prio, cur_best, cfqd)->count)
-			return cur_best;
-
-		return ASYNC_WORKLOAD;
-	}
-
-	for (i = 0; i < 3; ++i) {
-		/* otherwise, select the one with lowest rb_key */
-		queue = cfq_rb_first(service_tree_for(cfqg, prio, i, cfqd));
+	for (i = 0; i <= SYNC_WORKLOAD; ++i) {
+		/* select the one with lowest rb_key */
+		queue = cfq_rb_first(service_tree_for(cfqg, prio, i));
 		if (queue &&
 		    (!key_valid || time_before(queue->rb_key, lowest_key))) {
 			lowest_key = queue->rb_key;
@@ -1996,8 +1979,6 @@ static enum wl_type_t cfq_choose_wl(struct cfq_data *cfqd,
 
 static void choose_service_tree(struct cfq_data *cfqd, struct cfq_group *cfqg)
 {
-	enum wl_prio_t previous_prio = cfqd->serving_prio;
-	bool prio_changed;
 	unsigned slice;
 	unsigned count;
 	struct cfq_rb_root *st;
@@ -2025,24 +2006,19 @@ static void choose_service_tree(struct cfq_data *cfqd, struct cfq_group *cfqg)
 	 * (SYNC, SYNC_NOIDLE, ASYNC), and to compute a workload
 	 * expiration time
 	 */
-	prio_changed = (cfqd->serving_prio != previous_prio);
-	st = service_tree_for(cfqg, cfqd->serving_prio, cfqd->serving_type,
-				cfqd);
+	st = service_tree_for(cfqg, cfqd->serving_prio, cfqd->serving_type);
 	count = st->count;
 
 	/*
-	 * If priority didn't change, check workload expiration,
-	 * and that we still have other queues ready
+	 * check workload expiration, and that we still have other queues ready
 	 */
-	if (!prio_changed && count &&
-	    !time_after(jiffies, cfqd->workload_expires))
+	if (count && !time_after(jiffies, cfqd->workload_expires))
 		return;
 
 	/* otherwise select new workload type */
 	cfqd->serving_type =
-		cfq_choose_wl(cfqd, cfqg, cfqd->serving_prio, prio_changed);
-	st = service_tree_for(cfqg, cfqd->serving_prio, cfqd->serving_type,
-				cfqd);
+		cfq_choose_wl(cfqd, cfqg, cfqd->serving_prio);
+	st = service_tree_for(cfqg, cfqd->serving_prio, cfqd->serving_type);
 	count = st->count;
 
 	/*
