@@ -533,6 +533,19 @@ static int twlreg_probe(struct platform_device *pdev)
 	c->valid_ops_mask &= REGULATOR_CHANGE_VOLTAGE
 				| REGULATOR_CHANGE_MODE
 				| REGULATOR_CHANGE_STATUS;
+	switch (pdev->id) {
+	case TWL4030_REG_VIO:
+	case TWL4030_REG_VDD1:
+	case TWL4030_REG_VDD2:
+	case TWL4030_REG_VPLL1:
+	case TWL4030_REG_VINTANA1:
+	case TWL4030_REG_VINTANA2:
+	case TWL4030_REG_VINTDIG:
+		c->always_on = true;
+		break;
+	default:
+		break;
+	}
 
 	rdev = regulator_register(&info->desc, &pdev->dev, initdata, info);
 	if (IS_ERR(rdev)) {
