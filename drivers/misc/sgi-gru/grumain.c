@@ -684,6 +684,40 @@ static int gru_retarget_intr(struct gru_thread_state *gts)
 	return gru_update_cch(gts, 0);
 }
 
+/*
+ * Unload the gru context if it is not assigned to the correct blade or
+ * chiplet. Misassignment can occur if the process migrates to a different
+ * blade or if the user changes the selected blade/chiplet.
+ * 	Return 0 if  context correct placed, otherwise 1
+ */
+void gru_check_context_placement(struct gru_thread_state *gts)
+{
+	struct gru_state *gru;
+	int blade_id, chiplet_id;
+
+	/*
+	 * If the current task is the context owner, verify that the
+	 * context is correctly placed. This test is skipped for non-owner
+	 * references. Pthread apps use non-owner references to the CBRs.
+	 */
+	gru = gts->ts_gru;
+	if (!gru || gts->ts_tgid_owner != current->tgid)
+		return;
+
+	blade_id = gts->ts_user_blade_id;
+	if (blade_id < 0)
+		blade_id = uv_numa_blade_id();
+
+	chiplet_id = gts->ts_user_chiplet_id;
+	if (gru->gs_blade_id != blade_id ||
+	    (chiplet_id >= 0 && chiplet_id != gru->gs_chiplet_id)) {
+		STAT(check_context_unload);
+		gru_unload_context(gts, 1);
+	} else if (gru_retarget_intr(gts)) {
+		STAT(check_context_retarget_intr);
+	}
+}
+
 
 /*
  * Insufficient GRU resources available on the local blade. Steal a context from
@@ -714,13 +748,17 @@ static void gts_stolen(struct gru_thread_state *gts,
 	}
 }
 
-void gru_steal_context(struct gru_thread_state *gts, int blade_id)
+void gru_steal_context(struct gru_thread_state *gts)
 {
 	struct gru_blade_state *blade;
 	struct gru_state *gru, *gru0;
 	struct gru_thread_state *ngts = NULL;
 	int ctxnum, ctxnum0, flag = 0, cbr, dsr;
+	int blade_id = gts->ts_user_blade_id;
+	int chiplet_id = gts->ts_user_chiplet_id;
 
+	if (blade_id < 0)
+		blade_id = uv_numa_blade_id();
 	cbr = gts->ts_cbr_au_count;
 	dsr = gts->ts_dsr_au_count;
 
@@ -731,35 +769,39 @@ void gru_steal_context(struct gru_thread_state *gts, int blade_id)
 	gru = blade->bs_lru_gru;
 	if (ctxnum == 0)
 		gru = next_gru(blade, gru);
+	blade->bs_lru_gru = gru;
+	blade->bs_lru_ctxnum = ctxnum;
 	ctxnum0 = ctxnum;
 	gru0 = gru;
 	while (1) {
-		if (check_gru_resources(gru, cbr, dsr, GRU_NUM_CCH))
-			break;
-		spin_lock(&gru->gs_lock);
-		for (; ctxnum < GRU_NUM_CCH; ctxnum++) {
-			if (flag && gru == gru0 && ctxnum == ctxnum0)
+		if (chiplet_id < 0 || chiplet_id == gru->gs_chiplet_id) {
+			if (check_gru_resources(gru, cbr, dsr, GRU_NUM_CCH))
 				break;
-			ngts = gru->gs_gts[ctxnum];
-			/*
-			 * We are grabbing locks out of order, so trylock is
-			 * needed. GTSs are usually not locked, so the odds of
-			 * success are high. If trylock fails, try to steal a
-			 * different GSEG.
-			 */
-			if (ngts && is_gts_stealable(ngts, blade))
+			spin_lock(&gru->gs_lock);
+			for (; ctxnum < GRU_NUM_CCH; ctxnum++) {
+				if (flag && gru == gru0 && ctxnum == ctxnum0)
+					break;
+				ngts = gru->gs_gts[ctxnum];
+				/*
+			 	* We are grabbing locks out of order, so trylock is
+			 	* needed. GTSs are usually not locked, so the odds of
+			 	* success are high. If trylock fails, try to steal a
+			 	* different GSEG.
+			 	*/
+				if (ngts && is_gts_stealable(ngts, blade))
+					break;
+				ngts = NULL;
+			}
+			spin_unlock(&gru->gs_lock);
+			if (ngts || (flag && gru == gru0 && ctxnum == ctxnum0))
 				break;
-			ngts = NULL;
-			flag = 1;
 		}
-		spin_unlock(&gru->gs_lock);
-		if (ngts || (flag && gru == gru0 && ctxnum == ctxnum0))
+		if (flag && gru == gru0)
 			break;
+		flag = 1;
 		ctxnum = 0;
 		gru = next_gru(blade, gru);
 	}
-	blade->bs_lru_gru = gru;
-	blade->bs_lru_ctxnum = ctxnum;
 	spin_unlock(&blade->bs_lock);
 
 	if (ngts) {
@@ -778,19 +820,35 @@ void gru_steal_context(struct gru_thread_state *gts, int blade_id)
 }
 
 /*
+ * Assign a gru context.
+ */
+static int gru_assign_context_number(struct gru_state *gru)
+{
+	int ctxnum;
+
+	ctxnum = find_first_zero_bit(&gru->gs_context_map, GRU_NUM_CCH);
+	__set_bit(ctxnum, &gru->gs_context_map);
+	return ctxnum;
+}
+
+/*
  * Scan the GRUs on the local blade & assign a GRU context.
  */
-struct gru_state *gru_assign_gru_context(struct gru_thread_state *gts,
-						int blade)
+struct gru_state *gru_assign_gru_context(struct gru_thread_state *gts)
 {
 	struct gru_state *gru, *grux;
 	int i, max_active_contexts;
+	int blade_id = gts->ts_user_blade_id;
+	int chiplet_id = gts->ts_user_chiplet_id;
 
-
+	if (blade_id < 0)
+		blade_id = uv_numa_blade_id();
 again:
 	gru = NULL;
 	max_active_contexts = GRU_NUM_CCH;
-	for_each_gru_on_blade(grux, blade, i) {
+	for_each_gru_on_blade(grux, blade_id, i) {
+		if (chiplet_id >= 0 && chiplet_id != grux->gs_chiplet_id)
+			continue;
 		if (check_gru_resources(grux, gts->ts_cbr_au_count,
 					gts->ts_dsr_au_count,
 					max_active_contexts)) {
@@ -811,12 +869,9 @@ again:
 		reserve_gru_resources(gru, gts);
 		gts->ts_gru = gru;
 		gts->ts_blade = gru->gs_blade_id;
-		gts->ts_ctxnum =
-		    find_first_zero_bit(&gru->gs_context_map, GRU_NUM_CCH);
-		BUG_ON(gts->ts_ctxnum == GRU_NUM_CCH);
+		gts->ts_ctxnum = gru_assign_context_number(gru);
 		atomic_inc(&gts->ts_refcnt);
 		gru->gs_gts[gts->ts_ctxnum] = gts;
-		__set_bit(gts->ts_ctxnum, &gru->gs_context_map);
 		spin_unlock(&gru->gs_lock);
 
 		STAT(assign_context);
@@ -844,7 +899,6 @@ int gru_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct gru_thread_state *gts;
 	unsigned long paddr, vaddr;
-	int blade_id;
 
 	vaddr = (unsigned long)vmf->virtual_address;
 	gru_dbg(grudev, "vma %p, vaddr 0x%lx (0x%lx)\n",
@@ -859,28 +913,18 @@ int gru_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 again:
 	mutex_lock(&gts->ts_ctxlock);
 	preempt_disable();
-	blade_id = uv_numa_blade_id();
 
-	if (gts->ts_gru) {
-		if (gts->ts_gru->gs_blade_id != blade_id) {
-			STAT(migrated_nopfn_unload);
-			gru_unload_context(gts, 1);
-		} else {
-			if (gru_retarget_intr(gts))
-				STAT(migrated_nopfn_retarget);
-		}
-	}
+	gru_check_context_placement(gts);
 
 	if (!gts->ts_gru) {
 		STAT(load_user_context);
-		if (!gru_assign_gru_context(gts, blade_id)) {
+		if (!gru_assign_gru_context(gts)) {
 			preempt_enable();
 			mutex_unlock(&gts->ts_ctxlock);
 			set_current_state(TASK_INTERRUPTIBLE);
 			schedule_timeout(GRU_ASSIGN_DELAY);  /* true hack ZZZ */
-			blade_id = uv_numa_blade_id();
 			if (gts->ts_steal_jiffies + GRU_STEAL_DELAY < jiffies)
-				gru_steal_context(gts, blade_id);
+				gru_steal_context(gts);
 			goto again;
 		}
 		gru_load_context(gts);

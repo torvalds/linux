@@ -160,8 +160,10 @@ static void gru_load_kernel_context(struct gru_blade_state *bs, int blade_id)
 	up_read(&bs->bs_kgts_sema);
 	down_write(&bs->bs_kgts_sema);
 
-	if (!bs->bs_kgts)
+	if (!bs->bs_kgts) {
 		bs->bs_kgts = gru_alloc_gts(NULL, 0, 0, 0, 0);
+		bs->bs_kgts->ts_user_blade_id = blade_id;
+	}
 	kgts = bs->bs_kgts;
 
 	if (!kgts->ts_gru) {
@@ -172,9 +174,9 @@ static void gru_load_kernel_context(struct gru_blade_state *bs, int blade_id)
 		kgts->ts_dsr_au_count = GRU_DS_BYTES_TO_AU(
 			GRU_NUM_KERNEL_DSR_BYTES * ncpus +
 				bs->bs_async_dsr_bytes);
-		while (!gru_assign_gru_context(kgts, blade_id)) {
+		while (!gru_assign_gru_context(kgts)) {
 			msleep(1);
-			gru_steal_context(kgts, blade_id);
+			gru_steal_context(kgts);
 		}
 		gru_load_context(kgts);
 		gru = bs->bs_kgts->ts_gru;

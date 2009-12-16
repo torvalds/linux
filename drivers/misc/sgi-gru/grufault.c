@@ -546,17 +546,7 @@ int gru_handle_user_call_os(unsigned long cb)
 	if (ucbnum >= gts->ts_cbr_au_count * GRU_CBR_AU_SIZE)
 		goto exit;
 
-	/*
-	 * If force_unload is set, the UPM TLB fault is phony. The task
-	 * has migrated to another node and the GSEG must be moved. Just
-	 * unload the context. The task will page fault and assign a new
-	 * context.
-	 */
-	if (gts->ts_tgid_owner == current->tgid && gts->ts_blade >= 0 &&
-				gts->ts_blade != uv_numa_blade_id()) {
-		STAT(call_os_offnode_reference);
-		gts->ts_force_unload = 1;
-	}
+	gru_check_context_placement(gts);
 
 	/*
 	 * CCH may contain stale data if ts_force_cch_reload is set.
@@ -771,6 +761,7 @@ int gru_set_context_option(unsigned long arg)
 		} else {
 			gts->ts_user_blade_id = req.val1;
 			gts->ts_user_chiplet_id = req.val0;
+			gru_check_context_placement(gts);
 		}
 		break;
 	case sco_gseg_owner:

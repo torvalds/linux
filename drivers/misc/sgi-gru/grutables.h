@@ -192,19 +192,14 @@ struct gru_stats_s {
 	atomic_long_t intr;
 	atomic_long_t intr_mm_lock_failed;
 	atomic_long_t call_os;
-	atomic_long_t call_os_offnode_reference;
 	atomic_long_t call_os_check_for_bug;
 	atomic_long_t call_os_wait_queue;
 	atomic_long_t user_flush_tlb;
 	atomic_long_t user_unload_context;
 	atomic_long_t user_exception;
 	atomic_long_t set_context_option;
-	atomic_long_t migrate_check;
-	atomic_long_t migrated_retarget;
-	atomic_long_t migrated_unload;
-	atomic_long_t migrated_unload_delay;
-	atomic_long_t migrated_nopfn_retarget;
-	atomic_long_t migrated_nopfn_unload;
+	atomic_long_t check_context_retarget_intr;
+	atomic_long_t check_context_unload;
 	atomic_long_t tlb_dropin;
 	atomic_long_t tlb_dropin_fail_no_asid;
 	atomic_long_t tlb_dropin_fail_upm;
@@ -425,6 +420,7 @@ struct gru_state {
 							   gru segments (64) */
 	unsigned short		gs_gid;			/* unique GRU number */
 	unsigned short		gs_blade_id;		/* blade of GRU */
+	unsigned char		gs_chiplet_id;		/* blade chiplet of GRU */
 	unsigned char		gs_tgh_local_shift;	/* used to pick TGH for
 							   local flush */
 	unsigned char		gs_tgh_first_remote;	/* starting TGH# for
@@ -636,10 +632,9 @@ extern struct gru_thread_state *gru_find_thread_state(struct vm_area_struct
 				*vma, int tsid);
 extern struct gru_thread_state *gru_alloc_thread_state(struct vm_area_struct
 				*vma, int tsid);
-extern struct gru_state *gru_assign_gru_context(struct gru_thread_state *gts,
-		int blade);
+extern struct gru_state *gru_assign_gru_context(struct gru_thread_state *gts);
 extern void gru_load_context(struct gru_thread_state *gts);
-extern void gru_steal_context(struct gru_thread_state *gts, int blade_id);
+extern void gru_steal_context(struct gru_thread_state *gts);
 extern void gru_unload_context(struct gru_thread_state *gts, int savestate);
 extern int gru_update_cch(struct gru_thread_state *gts, int force_unload);
 extern void gts_drop(struct gru_thread_state *gts);
@@ -654,6 +649,7 @@ extern int gru_user_flush_tlb(unsigned long arg);
 extern int gru_user_unload_context(unsigned long arg);
 extern int gru_get_exception_detail(unsigned long arg);
 extern int gru_set_context_option(unsigned long address);
+extern void gru_check_context_placement(struct gru_thread_state *gts);
 extern int gru_cpu_fault_map_id(void);
 extern struct vm_area_struct *gru_find_vma(unsigned long vaddr);
 extern void gru_flush_all_tlb(struct gru_state *gru);

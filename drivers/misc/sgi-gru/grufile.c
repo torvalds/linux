@@ -232,23 +232,24 @@ static long gru_file_unlocked_ioctl(struct file *file, unsigned int req,
  * system.
  */
 static void gru_init_chiplet(struct gru_state *gru, unsigned long paddr,
-			     void *vaddr, int nid, int bid, int grunum)
+			     void *vaddr, int blade_id, int chiplet_id)
 {
 	spin_lock_init(&gru->gs_lock);
 	spin_lock_init(&gru->gs_asid_lock);
 	gru->gs_gru_base_paddr = paddr;
 	gru->gs_gru_base_vaddr = vaddr;
-	gru->gs_gid = bid * GRU_CHIPLETS_PER_BLADE + grunum;
-	gru->gs_blade = gru_base[bid];
-	gru->gs_blade_id = bid;
+	gru->gs_gid = blade_id * GRU_CHIPLETS_PER_BLADE + chiplet_id;
+	gru->gs_blade = gru_base[blade_id];
+	gru->gs_blade_id = blade_id;
+	gru->gs_chiplet_id = chiplet_id;
 	gru->gs_cbr_map = (GRU_CBR_AU == 64) ? ~0 : (1UL << GRU_CBR_AU) - 1;
 	gru->gs_dsr_map = (1UL << GRU_DSR_AU) - 1;
 	gru->gs_asid_limit = MAX_ASID;
 	gru_tgh_flush_init(gru);
 	if (gru->gs_gid >= gru_max_gids)
 		gru_max_gids = gru->gs_gid + 1;
-	gru_dbg(grudev, "bid %d, nid %d, gid %d, vaddr %p (0x%lx)\n",
-		bid, nid, gru->gs_gid, gru->gs_gru_base_vaddr,
+	gru_dbg(grudev, "bid %d, gid %d, vaddr %p (0x%lx)\n",
+		blade_id, gru->gs_gid, gru->gs_gru_base_vaddr,
 		gru->gs_gru_base_paddr);
 }
 
@@ -283,7 +284,7 @@ static int gru_init_tables(unsigned long gru_base_paddr, void *gru_base_vaddr)
 				chip++, gru++) {
 			paddr = gru_chiplet_paddr(gru_base_paddr, pnode, chip);
 			vaddr = gru_chiplet_vaddr(gru_base_vaddr, pnode, chip);
-			gru_init_chiplet(gru, paddr, vaddr, nid, bid, chip);
+			gru_init_chiplet(gru, paddr, vaddr, bid, chip);
 			n = hweight64(gru->gs_cbr_map) * GRU_CBR_AU_SIZE;
 			cbrs = max(cbrs, n);
 			n = hweight64(gru->gs_dsr_map) * GRU_DSR_AU_BYTES;
