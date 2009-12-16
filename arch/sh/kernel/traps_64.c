@@ -600,7 +600,7 @@ static int misaligned_fpu_load(struct pt_regs *regs,
 		   indexed by register number. */
 		if (last_task_used_math == current) {
 			enable_fpu();
-			save_fpu(current, regs);
+			save_fpu(current);
 			disable_fpu();
 			last_task_used_math = NULL;
 			regs->sr |= SR_FD;
@@ -673,7 +673,7 @@ static int misaligned_fpu_store(struct pt_regs *regs,
 		   indexed by register number. */
 		if (last_task_used_math == current) {
 			enable_fpu();
-			save_fpu(current, regs);
+			save_fpu(current);
 			disable_fpu();
 			last_task_used_math = NULL;
 			regs->sr |= SR_FD;

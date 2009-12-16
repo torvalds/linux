@@ -150,6 +150,7 @@ static struct sh_mobile_lcdc_info kfr2r09_sh_lcdc_info = {
 		},
 		.board_cfg = {
 			.setup_sys = kfr2r09_lcd_setup,
+			.start_transfer = kfr2r09_lcd_start,
 			.display_on = kfr2r09_lcd_on,
 			.display_off = kfr2r09_lcd_off,
 		},
