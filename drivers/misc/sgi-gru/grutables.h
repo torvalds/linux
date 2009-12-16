@@ -192,6 +192,7 @@ struct gru_stats_s {
 	atomic_long_t intr;
 	atomic_long_t intr_cbr;
 	atomic_long_t intr_tfh;
+	atomic_long_t intr_spurious;
 	atomic_long_t intr_mm_lock_failed;
 	atomic_long_t call_os;
 	atomic_long_t call_os_wait_queue;

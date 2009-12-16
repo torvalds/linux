@@ -66,6 +66,7 @@ static int statistics_show(struct seq_file *s, void *p)
 	printstat(s, intr);
 	printstat(s, intr_cbr);
 	printstat(s, intr_tfh);
+	printstat(s, intr_spurious);
 	printstat(s, intr_mm_lock_failed);
 	printstat(s, call_os);
 	printstat(s, call_os_wait_queue);

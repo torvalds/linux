@@ -360,7 +360,8 @@ static void gru_preload_tlb(struct gru_state *gru,
  * 		< 0 = error code
  *
  */
-static int gru_try_dropin(struct gru_thread_state *gts,
+static int gru_try_dropin(struct gru_state *gru,
+			  struct gru_thread_state *gts,
 			  struct gru_tlb_fault_handle *tfh,
 			  struct gru_instruction_bits *cbk)
 {
@@ -432,7 +433,7 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 	}
 
 	if (unlikely(cbe) && pageshift == PAGE_SHIFT) {
-		gru_preload_tlb(gts->ts_gru, gts, atomic, vaddr, asid, write, tlb_preload_count, tfh, cbe);
+		gru_preload_tlb(gru, gts, atomic, vaddr, asid, write, tlb_preload_count, tfh, cbe);
 		gru_flush_cache_cbe(cbe);
 	}
 
@@ -442,7 +443,7 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 	gru_dbg(grudev,
 		"%s: gid %d, gts 0x%p, tfh 0x%p, vaddr 0x%lx, asid 0x%x, indexway 0x%x,"
 		" rw %d, ps %d, gpa 0x%lx\n",
-		atomic ? "atomic" : "non-atomic", gts->ts_gru->gs_gid, gts, tfh, vaddr, asid,
+		atomic ? "atomic" : "non-atomic", gru->gs_gid, gts, tfh, vaddr, asid,
 		indexway, write, pageshift, gpa);
 	STAT(tlb_dropin);
 	return 0;
@@ -528,6 +529,7 @@ static irqreturn_t gru_intr(int chiplet, int blade)
 	struct gru_tlb_fault_map imap, dmap;
 	struct gru_thread_state *gts;
 	struct gru_tlb_fault_handle *tfh = NULL;
+	struct completion *cmp;
 	int cbrnum, ctxnum;
 
 	STAT(intr);
@@ -547,9 +549,11 @@ static irqreturn_t gru_intr(int chiplet, int blade)
 
 	for_each_cbr_in_tfm(cbrnum, dmap.fault_bits) {
 		STAT(intr_cbr);
-		complete(gru->gs_blade->bs_async_wq);
+		cmp = gru->gs_blade->bs_async_wq;
+		if (cmp)
+			complete(cmp);
 		gru_dbg(grudev, "gid %d, cbr_done %d, done %d\n",
-			gru->gs_gid, cbrnum, gru->gs_blade->bs_async_wq->done);
+			gru->gs_gid, cbrnum, cmp ? cmp->done : -1);
 	}
 
 	for_each_cbr_in_tfm(cbrnum, imap.fault_bits) {
@@ -566,6 +570,12 @@ static irqreturn_t gru_intr(int chiplet, int blade)
 		ctxnum = tfh->ctxnum;
 		gts = gru->gs_gts[ctxnum];
 
+		/* Spurious interrupts can cause this. Ignore. */
+		if (!gts) {
+			STAT(intr_spurious);
+			continue;
+		}
+
 		/*
 		 * This is running in interrupt context. Trylock the mmap_sem.
 		 * If it fails, retry the fault in user context.
@@ -573,7 +583,7 @@ static irqreturn_t gru_intr(int chiplet, int blade)
 		if (!gts->ts_force_cch_reload &&
 					down_read_trylock(&gts->ts_mm->mmap_sem)) {
 			gts->ustats.fmm_tlbdropin++;
-			gru_try_dropin(gts, tfh, NULL);
+			gru_try_dropin(gru, gts, tfh, NULL);
 			up_read(&gts->ts_mm->mmap_sem);
 		} else {
 			tfh_user_polling_mode(tfh);
@@ -619,7 +629,7 @@ static int gru_user_dropin(struct gru_thread_state *gts,
 		wait_event(gms->ms_wait_queue,
 			   atomic_read(&gms->ms_range_active) == 0);
 		prefetchw(tfh);	/* Helps on hdw, required for emulator */
-		ret = gru_try_dropin(gts, tfh, cb);
+		ret = gru_try_dropin(gts->ts_gru, gts, tfh, cb);
 		if (ret <= 0)
 			return ret;
 		STAT(call_os_wait_queue);
