@@ -115,9 +115,11 @@ struct da8xx_fb_par {
 	unsigned int databuf_sz;
 	unsigned int palette_sz;
 	unsigned int pxl_clk;
+	int blank;
 #ifdef CONFIG_CPU_FREQ
 	struct notifier_block	freq_transition;
 #endif
+	void (*panel_power_ctrl)(int);
 };
 
 /* Variable Screen Information */
@@ -195,8 +197,18 @@ static struct da8xx_panel known_lcd_panels[] = {
 	},
 };
 
+/* Enable the Raster Engine of the LCD Controller */
+static inline void lcd_enable_raster(void)
+{
+	u32 reg;
+
+	reg = lcdc_read(LCD_RASTER_CTRL_REG);
+	if (!(reg & LCD_RASTER_ENABLE))
+		lcdc_write(reg | LCD_RASTER_ENABLE, LCD_RASTER_CTRL_REG);
+}
+
 /* Disable the Raster Engine of the LCD Controller */
-static void lcd_disable_raster(struct da8xx_fb_par *par)
+static inline void lcd_disable_raster(void)
 {
 	u32 reg;
 
@@ -448,8 +460,7 @@ static int fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 static void lcd_reset(struct da8xx_fb_par *par)
 {
 	/* Disable the Raster if previously Enabled */
-	if (lcdc_read(LCD_RASTER_CTRL_REG) & LCD_RASTER_ENABLE)
-		lcd_disable_raster(par);
+	lcd_disable_raster();
 
 	/* DMA has to be disabled */
 	lcdc_write(0, LCD_DMA_CTRL_REG);
@@ -529,13 +540,11 @@ static int lcd_init(struct da8xx_fb_par *par, const struct lcd_ctrl_config *cfg,
 static irqreturn_t lcdc_irq_handler(int irq, void *arg)
 {
 	u32 stat = lcdc_read(LCD_STAT_REG);
-	u32 reg;
 
 	if ((stat & LCD_SYNC_LOST) && (stat & LCD_FIFO_UNDERFLOW)) {
-		reg = lcdc_read(LCD_RASTER_CTRL_REG);
-		lcdc_write(reg & ~LCD_RASTER_ENABLE, LCD_RASTER_CTRL_REG);
+		lcd_disable_raster();
 		lcdc_write(stat, LCD_STAT_REG);
-		lcdc_write(reg | LCD_RASTER_ENABLE, LCD_RASTER_CTRL_REG);
+		lcd_enable_raster();
 	} else
 		lcdc_write(stat, LCD_STAT_REG);
 
@@ -595,16 +604,13 @@ static int lcd_da8xx_cpufreq_transition(struct notifier_block *nb,
 				     unsigned long val, void *data)
 {
 	struct da8xx_fb_par *par;
-	unsigned int reg;
 
 	par = container_of(nb, struct da8xx_fb_par, freq_transition);
 	if (val == CPUFREQ_PRECHANGE) {
-		reg = lcdc_read(LCD_RASTER_CTRL_REG);
-		lcdc_write(reg & ~LCD_RASTER_ENABLE, LCD_RASTER_CTRL_REG);
+		lcd_disable_raster();
 	} else if (val == CPUFREQ_POSTCHANGE) {
 		lcd_calc_clk_divider(par);
-		reg = lcdc_read(LCD_RASTER_CTRL_REG);
-		lcdc_write(reg | LCD_RASTER_ENABLE, LCD_RASTER_CTRL_REG);
+		lcd_enable_raster();
 	}
 
 	return 0;
@@ -635,8 +641,10 @@ static int __devexit fb_remove(struct platform_device *dev)
 #ifdef CONFIG_CPU_FREQ
 		lcd_da8xx_cpufreq_deregister(par);
 #endif
-		if (lcdc_read(LCD_RASTER_CTRL_REG) & LCD_RASTER_ENABLE)
-			lcd_disable_raster(par);
+		if (par->panel_power_ctrl)
+			par->panel_power_ctrl(0);
+
+		lcd_disable_raster();
 		lcdc_write(0, LCD_RASTER_CTRL_REG);
 
 		/* disable DMA  */
@@ -777,6 +785,10 @@ static int __init fb_probe(struct platform_device *device)
 	par = da8xx_fb_info->par;
 	par->lcdc_clk = fb_clk;
 	par->pxl_clk = lcdc_info->pxl_clk;
+	if (fb_pdata->panel_power_ctrl) {
+		par->panel_power_ctrl = fb_pdata->panel_power_ctrl;
+		par->panel_power_ctrl(1);
+	}
 
 	if (lcd_init(par, lcd_cfg, lcdc_info) < 0) {
 		dev_err(&device->dev, "lcd_init failed\n");
@@ -877,8 +889,7 @@ static int __init fb_probe(struct platform_device *device)
 #endif
 
 	/* enable raster engine */
-	lcdc_write(lcdc_read(LCD_RASTER_CTRL_REG) |
-			LCD_RASTER_ENABLE, LCD_RASTER_CTRL_REG);
+	lcd_enable_raster();
 
 	return 0;
 
