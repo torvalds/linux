@@ -423,7 +423,7 @@ still_pending:
 		 */
 		info->si_signo = sig;
 		info->si_errno = 0;
-		info->si_code = 0;
+		info->si_code = SI_USER;
 		info->si_pid = 0;
 		info->si_uid = 0;
 	}
