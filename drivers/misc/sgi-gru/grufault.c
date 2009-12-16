@@ -40,6 +40,12 @@
 #include "gru_instructions.h"
 #include <asm/uv/uv_hub.h>
 
+/* Return codes for vtop functions */
+#define VTOP_SUCCESS               0
+#define VTOP_INVALID               -1
+#define VTOP_RETRY                 -2
+
+
 /*
  * Test if a physical address is a valid GRU GSEG address
  */
@@ -280,12 +286,12 @@ static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
 	paddr = paddr & ~((1UL << ps) - 1);
 	*gpa = uv_soc_phys_ram_to_gpa(paddr);
 	*pageshift = ps;
-	return 0;
+	return VTOP_SUCCESS;
 
 inval:
-	return -1;
+	return VTOP_INVALID;
 upm:
-	return -2;
+	return VTOP_RETRY;
 }
 
 
@@ -412,9 +418,9 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 		goto failactive;
 
 	ret = gru_vtop(gts, vaddr, write, atomic, &gpa, &pageshift);
-	if (ret == -1)
+	if (ret == VTOP_INVALID)
 		goto failinval;
-	if (ret == -2)
+	if (ret == VTOP_RETRY)
 		goto failupm;
 
 	if (!(gts->ts_sizeavail & GRU_SIZEAVAIL(pageshift))) {
