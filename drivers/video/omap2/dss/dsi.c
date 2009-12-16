@@ -2176,6 +2176,21 @@ int dsi_vc_dcs_write(int channel, u8 *data, int len)
 }
 EXPORT_SYMBOL(dsi_vc_dcs_write);
 
+int dsi_vc_dcs_write_0(int channel, u8 dcs_cmd)
+{
+	return dsi_vc_dcs_write(channel, &dcs_cmd, 1);
+}
+EXPORT_SYMBOL(dsi_vc_dcs_write_0);
+
+int dsi_vc_dcs_write_1(int channel, u8 dcs_cmd, u8 param)
+{
+	u8 buf[2];
+	buf[0] = dcs_cmd;
+	buf[1] = param;
+	return dsi_vc_dcs_write(channel, buf, 2);
+}
+EXPORT_SYMBOL(dsi_vc_dcs_write_1);
+
 int dsi_vc_dcs_read(int channel, u8 dcs_cmd, u8 *buf, int buflen)
 {
 	u32 val;
@@ -2268,6 +2283,21 @@ int dsi_vc_dcs_read(int channel, u8 dcs_cmd, u8 *buf, int buflen)
 }
 EXPORT_SYMBOL(dsi_vc_dcs_read);
 
+int dsi_vc_dcs_read_1(int channel, u8 dcs_cmd, u8 *data)
+{
+	int r;
+
+	r = dsi_vc_dcs_read(channel, dcs_cmd, data, 1);
+
+	if (r < 0)
+		return r;
+
+	if (r != 1)
+		return -EIO;
+
+	return 0;
+}
+EXPORT_SYMBOL(dsi_vc_dcs_read_1);
 
 int dsi_vc_set_max_rx_packet_size(int channel, u16 len)
 {
