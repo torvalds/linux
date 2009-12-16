@@ -83,6 +83,12 @@ static struct caps_table_struct color_caps[] = {
 	{ 1 << OMAPFB_COLOR_YUY422,	"YUY422", },
 };
 
+/* dummy device for clocks */
+static struct platform_device omapdss_device = {
+	.name		= "omapdss",
+	.id		= -1,
+};
+
 /*
  * ---------------------------------------------------------------------------
  * LCD panel
@@ -1700,6 +1706,7 @@ static int omapfb_do_probe(struct platform_device *pdev,
 
 	fbdev->dev = &pdev->dev;
 	fbdev->panel = panel;
+	fbdev->dssdev = &omapdss_device;
 	platform_set_drvdata(pdev, fbdev);
 
 	mutex_init(&fbdev->rqueue_mutex);
@@ -1814,7 +1821,15 @@ cleanup:
 
 static int omapfb_probe(struct platform_device *pdev)
 {
+	int r;
+
 	BUG_ON(fbdev_pdev != NULL);
+
+	r = platform_device_register(&omapdss_device);
+	if (r) {
+		dev_err(&pdev->dev, "can't register omapdss device\n");
+		return r;
+	}
 
 	/* Delay actual initialization until the LCD is registered */
 	fbdev_pdev = pdev;
@@ -1842,6 +1857,9 @@ static int omapfb_remove(struct platform_device *pdev)
 
 	fbdev->state = OMAPFB_DISABLED;
 	omapfb_free_resources(fbdev, saved_state);
+
+	platform_device_unregister(&omapdss_device);
+	fbdev->dssdev = NULL;
 
 	return 0;
 }
