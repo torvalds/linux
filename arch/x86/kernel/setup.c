@@ -109,6 +109,7 @@
 #ifdef CONFIG_X86_64
 #include <asm/numa_64.h>
 #endif
+#include <asm/mce.h>
 
 /*
  * end_pfn only includes RAM, while max_pfn_mapped includes all e820 entries.
@@ -1031,6 +1032,8 @@ void __init setup_arch(char **cmdline_p)
 #endif
 #endif
 	x86_init.oem.banner();
+
+	mcheck_intel_therm_init();
 }
 
 #ifdef CONFIG_X86_32
