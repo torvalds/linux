@@ -2004,32 +2004,6 @@ static inline void check_class_changed(struct rq *rq, struct task_struct *p,
 		p->sched_class->prio_changed(rq, p, oldprio, running);
 }
 
-/**
- * kthread_bind - bind a just-created kthread to a cpu.
- * @p: thread created by kthread_create().
- * @cpu: cpu (might not be online, must be possible) for @k to run on.
- *
- * Description: This function is equivalent to set_cpus_allowed(),
- * except that @cpu doesn't need to be online, and the thread must be
- * stopped (i.e., just returned from kthread_create()).
- *
- * Function lives here instead of kthread.c because it messes with
- * scheduler internals which require locking.
- */
-void kthread_bind(struct task_struct *p, unsigned int cpu)
-{
-	/* Must have done schedule() in kthread() before we set_task_cpu */
-	if (!wait_task_inactive(p, TASK_UNINTERRUPTIBLE)) {
-		WARN_ON(1);
-		return;
-	}
-
-	p->cpus_allowed = cpumask_of_cpu(cpu);
-	p->rt.nr_cpus_allowed = 1;
-	p->flags |= PF_THREAD_BOUND;
-}
-EXPORT_SYMBOL(kthread_bind);
-
 #ifdef CONFIG_SMP
 /*
  * Is this task likely cache-hot:
