@@ -54,8 +54,8 @@ static void start_instruction(void *h)
 {
 	unsigned long *w0 = h;
 
-	wmb();		/* setting CMD bit must be last */
-	*w0 = *w0 | 1;
+	wmb();		/* setting CMD/STATUS bits must be last */
+	*w0 = *w0 | 0x20001;
 	gru_flush_cache(h);
 }
 
