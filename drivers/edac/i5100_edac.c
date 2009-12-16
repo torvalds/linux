@@ -9,6 +9,11 @@
  * Intel 5100X Chipset Memory Controller Hub (MCH) - Datasheet
  *      http://download.intel.com/design/chipsets/datashts/318378.pdf
  *
+ * The intel 5100 has two independent channels. EDAC core currently
+ * can not reflect this configuration so instead the chip-select
+ * rows for each respective channel are layed out one after another,
+ * the first half belonging to channel 0, the second half belonging
+ * to channel 1.
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -734,7 +739,6 @@ static int i5100_read_spd_byte(const struct mem_ctl_info *mci,
  * fill dimm chip select map
  *
  * FIXME:
- *   o only valid for 4 ranks per channel
  *   o not the only way to may chip selects to dimm slots
  *   o investigate if there is some way to obtain this map from the bios
  */
@@ -742,8 +746,6 @@ static void __devinit i5100_init_dimm_csmap(struct mem_ctl_info *mci)
 {
 	struct i5100_priv *priv = mci->pvt_info;
 	int i;
-
-	WARN_ON(priv->ranksperchan != 4);
 
 	for (i = 0; i < I5100_MAX_DIMM_SLOTS_PER_CHAN; i++) {
 		int j;
@@ -753,12 +755,21 @@ static void __devinit i5100_init_dimm_csmap(struct mem_ctl_info *mci)
 	}
 
 	/* only 2 chip selects per slot... */
-	priv->dimm_csmap[0][0] = 0;
-	priv->dimm_csmap[0][1] = 3;
-	priv->dimm_csmap[1][0] = 1;
-	priv->dimm_csmap[1][1] = 2;
-	priv->dimm_csmap[2][0] = 2;
-	priv->dimm_csmap[3][0] = 3;
+	if (priv->ranksperchan == 4) {
+		priv->dimm_csmap[0][0] = 0;
+		priv->dimm_csmap[0][1] = 3;
+		priv->dimm_csmap[1][0] = 1;
+		priv->dimm_csmap[1][1] = 2;
+		priv->dimm_csmap[2][0] = 2;
+		priv->dimm_csmap[3][0] = 3;
+	} else {
+		priv->dimm_csmap[0][0] = 0;
+		priv->dimm_csmap[0][1] = 1;
+		priv->dimm_csmap[1][0] = 2;
+		priv->dimm_csmap[1][1] = 3;
+		priv->dimm_csmap[2][0] = 4;
+		priv->dimm_csmap[2][1] = 5;
+	}
 }
 
 static void __devinit i5100_init_dimm_layout(struct pci_dev *pdev,
@@ -904,13 +915,6 @@ static int __devinit i5100_init_one(struct pci_dev *pdev,
 	/* figure out how many ranks, from strapped state of 48GB_Mode input */
 	pci_read_config_dword(pdev, I5100_MS, &dw);
 	ranksperch = !!(dw & (1 << 8)) * 2 + 4;
-
-	if (ranksperch != 4) {
-		/* FIXME: get 6 ranks / channel to work - need hw... */
-		printk(KERN_INFO "i5100_edac: unsupported configuration.\n");
-		ret = -ENODEV;
-		goto bail_pdev;
-	}
 
 	/* enable error reporting... */
 	pci_read_config_dword(pdev, I5100_EMASK_MEM, &dw);
