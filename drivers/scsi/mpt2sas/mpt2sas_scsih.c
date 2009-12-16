@@ -1309,7 +1309,6 @@ _scsih_slave_alloc(struct scsi_device *sdev)
 	struct MPT2SAS_DEVICE *sas_device_priv_data;
 	struct scsi_target *starget;
 	struct _raid_device *raid_device;
-	struct _sas_device *sas_device;
 	unsigned long flags;
 
 	sas_device_priv_data = kzalloc(sizeof(struct scsi_device), GFP_KERNEL);
@@ -1336,21 +1335,8 @@ _scsih_slave_alloc(struct scsi_device *sdev)
 		if (raid_device)
 			raid_device->sdev = sdev; /* raid is single lun */
 		spin_unlock_irqrestore(&ioc->raid_device_lock, flags);
-	} else {
-		/* set TLR bit for SSP devices */
-		if (!(ioc->facts.IOCCapabilities &
-		     MPI2_IOCFACTS_CAPABILITY_TLR))
-			goto out;
-		spin_lock_irqsave(&ioc->sas_device_lock, flags);
-		sas_device = mpt2sas_scsih_sas_device_find_by_sas_address(ioc,
-		   sas_device_priv_data->sas_target->sas_address);
-		spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
-		if (sas_device && sas_device->device_info &
-		    MPI2_SAS_DEVICE_INFO_SSP_TARGET)
-			sas_device_priv_data->flags |= MPT_DEVICE_TLR_ON;
 	}
 
- out:
 	return 0;
 }
 
@@ -1617,6 +1603,32 @@ _scsih_get_volume_capabilities(struct MPT2SAS_ADAPTER *ioc,
 }
 
 /**
+ * _scsih_enable_tlr - setting TLR flags
+ * @ioc: per adapter object
+ * @sdev: scsi device struct
+ *
+ * Enabling Transaction Layer Retries for tape devices when
+ * vpd page 0x90 is present
+ *
+ */
+static void
+_scsih_enable_tlr(struct MPT2SAS_ADAPTER *ioc, struct scsi_device *sdev)
+{
+	/* only for TAPE */
+	if (sdev->type != TYPE_TAPE)
+		return;
+
+	if (!(ioc->facts.IOCCapabilities & MPI2_IOCFACTS_CAPABILITY_TLR))
+		return;
+
+	sas_enable_tlr(sdev);
+	sdev_printk(KERN_INFO, sdev, "TLR %s\n",
+	    sas_is_tlr_enabled(sdev) ? "Enabled" : "Disabled");
+	return;
+
+}
+
+/**
  * _scsih_slave_configure - device configure routine.
  * @sdev: scsi device struct
  *
@@ -1761,8 +1773,10 @@ _scsih_slave_configure(struct scsi_device *sdev)
 
 	_scsih_change_queue_depth(sdev, qdepth, SCSI_QDEPTH_DEFAULT);
 
-	if (ssp_target)
+	if (ssp_target) {
 		sas_read_port_mode_page(sdev);
+		_scsih_enable_tlr(ioc, sdev);
+	}
 	return 0;
 }
 
@@ -3049,7 +3063,7 @@ _scsih_qcmd(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 	} else
 		mpi_control |= MPI2_SCSIIO_CONTROL_SIMPLEQ;
 
-	if ((sas_device_priv_data->flags & MPT_DEVICE_TLR_ON))
+	if (sas_is_tlr_enabled(scmd->device))
 		mpi_control |= MPI2_SCSIIO_CONTROL_TLR_ON;
 
 	smid = mpt2sas_base_get_smid_scsiio(ioc, ioc->scsi_io_cb_idx, scmd);
@@ -3438,10 +3452,11 @@ _scsih_io_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 		    le32_to_cpu(mpi_reply->ResponseInfo) & 0xFF;
 	if (!sas_device_priv_data->tlr_snoop_check) {
 		sas_device_priv_data->tlr_snoop_check++;
-		if ((sas_device_priv_data->flags & MPT_DEVICE_TLR_ON) &&
-		    response_code == MPI2_SCSITASKMGMT_RSP_INVALID_FRAME)
-			sas_device_priv_data->flags &=
-			    ~MPT_DEVICE_TLR_ON;
+		if (sas_is_tlr_enabled(scmd->device) &&
+		    response_code == MPI2_SCSITASKMGMT_RSP_INVALID_FRAME) {
+			sas_disable_tlr(scmd->device);
+			sdev_printk(KERN_INFO, scmd->device, "TLR disabled\n");
+		}
 	}
 
 	xfer_cnt = le32_to_cpu(mpi_reply->TransferCount);
