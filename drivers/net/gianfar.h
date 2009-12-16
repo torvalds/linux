@@ -940,6 +940,15 @@ struct gfar_priv_tx_q {
 	unsigned short txtime;
 };
 
+/*
+ * Per RX queue stats
+ */
+struct rx_q_stats {
+	unsigned long rx_packets;
+	unsigned long rx_bytes;
+	unsigned long rx_dropped;
+};
+
 /**
  *	struct gfar_priv_rx_q - per rx queue structure
  *	@rxlock: per queue rx spin lock
@@ -962,6 +971,7 @@ struct gfar_priv_rx_q {
 	struct	rxbd8 *cur_rx;
 	struct	net_device *dev;
 	struct gfar_priv_grp *grp;
+	struct rx_q_stats stats;
 	u16	skb_currx;
 	u16	qindex;
 	unsigned int	rx_ring_size;
