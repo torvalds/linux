@@ -277,7 +277,7 @@ nouveau_pci_resume(struct pci_dev *pdev)
 
 		for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
 			chan = dev_priv->fifos[i];
-			if (!chan)
+			if (!chan || !chan->pushbuf_bo)
 				continue;
 
 			for (j = 0; j < NOUVEAU_DMA_SKIPS; j++)
