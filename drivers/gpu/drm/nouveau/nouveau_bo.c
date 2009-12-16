@@ -584,7 +584,7 @@ nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
 
 	placement.fpfn = placement.lpfn = 0;
 	placement.num_placement = placement.num_busy_placement = 1;
-	placement.placement = &placement_memtype;
+	placement.placement = placement.busy_placement = &placement_memtype;
 
 	tmp_mem = *new_mem;
 	tmp_mem.mm_node = NULL;
@@ -622,7 +622,7 @@ nouveau_bo_move_flips(struct ttm_buffer_object *bo, bool evict, bool intr,
 
 	placement.fpfn = placement.lpfn = 0;
 	placement.num_placement = placement.num_busy_placement = 1;
-	placement.placement = &placement_memtype;
+	placement.placement = placement.busy_placement = &placement_memtype;
 
 	tmp_mem = *new_mem;
 	tmp_mem.mm_node = NULL;
