@@ -838,6 +838,16 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 	 * and in many cases impossible, so we just avoid it here.
 	 */
 	lock_page_nosync(p);
+
+	/*
+	 * unpoison always clear PG_hwpoison inside page lock
+	 */
+	if (!PageHWPoison(p)) {
+		action_result(pfn, "unpoisoned", IGNORED);
+		res = 0;
+		goto out;
+	}
+
 	wait_on_page_writeback(p);
 
 	/*
@@ -893,3 +903,61 @@ void memory_failure(unsigned long pfn, int trapno)
 {
 	__memory_failure(pfn, trapno, 0);
 }
+
+/**
+ * unpoison_memory - Unpoison a previously poisoned page
+ * @pfn: Page number of the to be unpoisoned page
+ *
+ * Software-unpoison a page that has been poisoned by
+ * memory_failure() earlier.
+ *
+ * This is only done on the software-level, so it only works
+ * for linux injected failures, not real hardware failures
+ *
+ * Returns 0 for success, otherwise -errno.
+ */
+int unpoison_memory(unsigned long pfn)
+{
+	struct page *page;
+	struct page *p;
+	int freeit = 0;
+
+	if (!pfn_valid(pfn))
+		return -ENXIO;
+
+	p = pfn_to_page(pfn);
+	page = compound_head(p);
+
+	if (!PageHWPoison(p)) {
+		pr_debug("MCE: Page was already unpoisoned %#lx\n", pfn);
+		return 0;
+	}
+
+	if (!get_page_unless_zero(page)) {
+		if (TestClearPageHWPoison(p))
+			atomic_long_dec(&mce_bad_pages);
+		pr_debug("MCE: Software-unpoisoned free page %#lx\n", pfn);
+		return 0;
+	}
+
+	lock_page_nosync(page);
+	/*
+	 * This test is racy because PG_hwpoison is set outside of page lock.
+	 * That's acceptable because that won't trigger kernel panic. Instead,
+	 * the PG_hwpoison page will be caught and isolated on the entrance to
+	 * the free buddy page pool.
+	 */
+	if (TestClearPageHWPoison(p)) {
+		pr_debug("MCE: Software-unpoisoned page %#lx\n", pfn);
+		atomic_long_dec(&mce_bad_pages);
+		freeit = 1;
+	}
+	unlock_page(page);
+
+	put_page(page);
+	if (freeit)
+		put_page(page);
+
+	return 0;
+}
+EXPORT_SYMBOL(unpoison_memory);
