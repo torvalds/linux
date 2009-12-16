@@ -14,7 +14,7 @@
 #include <mach/hardware.h>
 
 /* Base address of PBC controller */
-#define PBC_BASE_ADDRESS        IO_ADDRESS(CS4_BASE_ADDR)
+#define PBC_BASE_ADDRESS        MX31_CS4_BASE_ADDR_VIRT
 /* Offsets for the PBC Controller register */
 
 /* PBC Board status register offset */

@@ -43,7 +43,7 @@ int mxc_set_usbcontrol(int port, unsigned int flags)
 	unsigned int v;
 
 	if (cpu_is_mx31()) {
-		v = readl(IO_ADDRESS(MX31_OTG_BASE_ADDR +
+		v = readl(MX31_IO_ADDRESS(MX31_OTG_BASE_ADDR +
 				     USBCTRL_OTGBASE_OFFSET));
 
 		switch (port) {
@@ -79,7 +79,7 @@ int mxc_set_usbcontrol(int port, unsigned int flags)
 			break;
 		}
 
-		writel(v, IO_ADDRESS(MX31_OTG_BASE_ADDR +
+		writel(v, MX31_IO_ADDRESS(MX31_OTG_BASE_ADDR +
 				     USBCTRL_OTGBASE_OFFSET));
 		return 0;
 	}
