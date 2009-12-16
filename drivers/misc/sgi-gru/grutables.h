@@ -293,13 +293,7 @@ extern struct mcs_op_statistic mcs_op_statistics[mcsop_last];
 #define ASID_INC	8	/* number of regions */
 
 /* Generate a GRU asid value from a GRU base asid & a virtual address. */
-#if defined CONFIG_IA64
 #define VADDR_HI_BIT		64
-#elif defined CONFIG_X86_64
-#define VADDR_HI_BIT		48
-#else
-#error "Unsupported architecture"
-#endif
 #define GRUREGION(addr)		((addr) >> (VADDR_HI_BIT - 3) & 3)
 #define GRUASID(asid, addr)	((asid) + GRUREGION(addr))
 
