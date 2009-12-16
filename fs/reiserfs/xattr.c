@@ -243,7 +243,8 @@ static int reiserfs_for_each_xattr(struct inode *inode,
 		goto out_dir;
 	}
 
-	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_XATTR);
+	reiserfs_mutex_lock_nested_safe(&dir->d_inode->i_mutex, I_MUTEX_XATTR,
+					inode->i_sb);
 	buf.xadir = dir;
 	err = reiserfs_readdir_dentry(dir, &buf, fill_with_dentries, &pos);
 	while ((err == 0 || err == -ENOSPC) && buf.count) {
