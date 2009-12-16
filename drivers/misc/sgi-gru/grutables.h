@@ -444,6 +444,7 @@ struct gru_state {
 							   in use */
 	struct gru_thread_state	*gs_gts[GRU_NUM_CCH];	/* GTS currently using
 							   the context */
+	int			gs_irq[GRU_NUM_TFM];	/* Interrupt irqs */
 };
 
 /*
@@ -610,6 +611,15 @@ static inline int is_kernel_context(struct gru_thread_state *gts)
 	return !gts->ts_mm;
 }
 
+/*
+ * The following are for Nehelem-EX. A more general scheme is needed for
+ * future processors.
+ */
+#define UV_MAX_INT_CORES		8
+#define uv_cpu_socket_number(p)		((cpu_physical_id(p) >> 5) & 1)
+#define uv_cpu_ht_number(p)		(cpu_physical_id(p) & 1)
+#define uv_cpu_core_number(p)		(((cpu_physical_id(p) >> 2) & 4) |	\
+					((cpu_physical_id(p) >> 1) & 3))
 /*-----------------------------------------------------------------------------
  * Function prototypes & externs
  */
@@ -633,9 +643,11 @@ extern void gts_drop(struct gru_thread_state *gts);
 extern void gru_tgh_flush_init(struct gru_state *gru);
 extern int gru_kservices_init(void);
 extern void gru_kservices_exit(void);
+extern irqreturn_t gru0_intr(int irq, void *dev_id);
+extern irqreturn_t gru1_intr(int irq, void *dev_id);
+extern irqreturn_t gru_intr_mblade(int irq, void *dev_id);
 extern int gru_dump_chiplet_request(unsigned long arg);
 extern long gru_get_gseg_statistics(unsigned long arg);
-extern irqreturn_t gru_intr(int irq, void *dev_id);
 extern int gru_handle_user_call_os(unsigned long address);
 extern int gru_user_flush_tlb(unsigned long arg);
 extern int gru_user_unload_context(unsigned long arg);

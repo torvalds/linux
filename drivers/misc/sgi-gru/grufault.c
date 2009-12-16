@@ -134,19 +134,6 @@ static void gru_cb_set_istatus_active(struct gru_instruction_bits *cbk)
 }
 
 /*
- * Convert a interrupt IRQ to a pointer to the GRU GTS that caused the
- * interrupt. Interrupts are always sent to a cpu on the blade that contains the
- * GRU (except for headless blades which are not currently supported). A blade
- * has N grus; a block of N consecutive IRQs is assigned to the GRUs. The IRQ
- * number uniquely identifies the GRU chiplet on the local blade that caused the
- * interrupt. Always called in interrupt context.
- */
-static inline struct gru_state *irq_to_gru(int irq)
-{
-	return &gru_base[uv_numa_blade_id()]->bs_grus[irq - IRQ_GRU];
-}
-
-/*
  * Read & clear a TFM
  *
  * The GRU has an array of fault maps. A map is private to a cpu
@@ -449,7 +436,7 @@ failactive:
  * Note that this is the interrupt handler that is registered with linux
  * interrupt handlers.
  */
-irqreturn_t gru_intr(int irq, void *dev_id)
+static irqreturn_t gru_intr(int chiplet, int blade)
 {
 	struct gru_state *gru;
 	struct gru_tlb_fault_map imap, dmap;
@@ -459,13 +446,18 @@ irqreturn_t gru_intr(int irq, void *dev_id)
 
 	STAT(intr);
 
-	gru = irq_to_gru(irq);
+	gru = &gru_base[blade]->bs_grus[chiplet];
 	if (!gru) {
-		dev_err(grudev, "GRU: invalid interrupt: cpu %d, irq %d\n",
-			raw_smp_processor_id(), irq);
+		dev_err(grudev, "GRU: invalid interrupt: cpu %d, chiplet %d\n",
+			raw_smp_processor_id(), chiplet);
 		return IRQ_NONE;
 	}
 	get_clear_fault_map(gru, &imap, &dmap);
+	gru_dbg(grudev,
+		"cpu %d, chiplet %d, gid %d, imap %016lx %016lx, dmap %016lx %016lx\n",
+		smp_processor_id(), chiplet, gru->gs_gid,
+		imap.fault_bits[0], imap.fault_bits[1],
+		dmap.fault_bits[0], dmap.fault_bits[1]);
 
 	for_each_cbr_in_tfm(cbrnum, dmap.fault_bits) {
 		complete(gru->gs_blade->bs_async_wq);
@@ -499,6 +491,29 @@ irqreturn_t gru_intr(int irq, void *dev_id)
 			tfh_user_polling_mode(tfh);
 			STAT(intr_mm_lock_failed);
 		}
+	}
+	return IRQ_HANDLED;
+}
+
+irqreturn_t gru0_intr(int irq, void *dev_id)
+{
+	return gru_intr(0, uv_numa_blade_id());
+}
+
+irqreturn_t gru1_intr(int irq, void *dev_id)
+{
+	return gru_intr(1, uv_numa_blade_id());
+}
+
+irqreturn_t gru_intr_mblade(int irq, void *dev_id)
+{
+	int blade;
+
+	for_each_possible_blade(blade) {
+		if (uv_blade_nr_possible_cpus(blade))
+			continue;
+		 gru_intr(0, blade);
+		 gru_intr(1, blade);
 	}
 	return IRQ_HANDLED;
 }

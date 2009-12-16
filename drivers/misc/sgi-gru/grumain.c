@@ -49,12 +49,16 @@ struct device *grudev = &gru_device;
 /*
  * Select a gru fault map to be used by the current cpu. Note that
  * multiple cpus may be using the same map.
- *	ZZZ should "shift" be used?? Depends on HT cpu numbering
  *	ZZZ should be inline but did not work on emulator
  */
 int gru_cpu_fault_map_id(void)
 {
-	return uv_blade_processor_id() % GRU_NUM_TFM;
+	int cpu = smp_processor_id();
+	int id, core;
+
+	core = uv_cpu_core_number(cpu);
+	id = core + UV_MAX_INT_CORES * uv_cpu_socket_number(cpu);
+	return id;
 }
 
 /*--------- ASID Management -------------------------------------------
@@ -605,6 +609,7 @@ void gru_load_context(struct gru_thread_state *gts)
 		cch->unmap_enable = 1;
 		cch->tfm_done_bit_enable = 1;
 		cch->cb_int_enable = 1;
+		cch->tlb_int_select = 0;	/* For now, ints go to cpu 0 */
 	} else {
 		cch->unmap_enable = 0;
 		cch->tfm_done_bit_enable = 0;

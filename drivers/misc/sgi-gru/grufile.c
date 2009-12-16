@@ -35,6 +35,9 @@
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
+#ifdef CONFIG_X86_64
+#include <asm/uv/uv_irq.h>
+#endif
 #include <asm/uv/uv.h>
 #include "gru.h"
 #include "grulib.h"
@@ -129,7 +132,6 @@ static int gru_create_new_context(unsigned long arg)
 	struct vm_area_struct *vma;
 	struct gru_vma_data *vdata;
 	int ret = -EINVAL;
-
 
 	if (copy_from_user(&req, (void __user *)arg, sizeof(req)))
 		return -EFAULT;
@@ -302,33 +304,209 @@ fail:
 	return -ENOMEM;
 }
 
+static void gru_free_tables(void)
+{
+	int bid;
+	int order = get_order(sizeof(struct gru_state) *
+			      GRU_CHIPLETS_PER_BLADE);
+
+	for (bid = 0; bid < GRU_MAX_BLADES; bid++)
+		free_pages((unsigned long)gru_base[bid], order);
+}
+
+static unsigned long gru_chiplet_cpu_to_mmr(int chiplet, int cpu, int *corep)
+{
+	unsigned long mmr = 0;
+	int core;
+
+	/*
+	 * We target the cores of a blade and not the hyperthreads themselves.
+	 * There is a max of 8 cores per socket and 2 sockets per blade,
+	 * making for a max total of 16 cores (i.e., 16 CPUs without
+	 * hyperthreading and 32 CPUs with hyperthreading).
+	 */
+	core = uv_cpu_core_number(cpu) + UV_MAX_INT_CORES * uv_cpu_socket_number(cpu);
+	if (core >= GRU_NUM_TFM || uv_cpu_ht_number(cpu))
+		return 0;
+
+	if (chiplet == 0) {
+		mmr = UVH_GR0_TLB_INT0_CONFIG +
+		    core * (UVH_GR0_TLB_INT1_CONFIG - UVH_GR0_TLB_INT0_CONFIG);
+	} else if (chiplet == 1) {
+		mmr = UVH_GR1_TLB_INT0_CONFIG +
+		    core * (UVH_GR1_TLB_INT1_CONFIG - UVH_GR1_TLB_INT0_CONFIG);
+	} else {
+		BUG();
+	}
+
+	*corep = core;
+	return mmr;
+}
+
 #ifdef CONFIG_IA64
 
-static int get_base_irq(void)
+static int gru_irq_count[GRU_CHIPLETS_PER_BLADE];
+
+static void gru_noop(unsigned int irq)
 {
-	return IRQ_GRU;
+}
+
+static struct irq_chip gru_chip[GRU_CHIPLETS_PER_BLADE] = {
+	[0 ... GRU_CHIPLETS_PER_BLADE - 1] {
+		.mask		= gru_noop,
+		.unmask		= gru_noop,
+		.ack		= gru_noop
+	}
+};
+
+static int gru_chiplet_setup_tlb_irq(int chiplet, char *irq_name,
+			irq_handler_t irq_handler, int cpu, int blade)
+{
+	unsigned long mmr;
+	int irq = IRQ_GRU + chiplet;
+	int ret, core;
+
+	mmr = gru_chiplet_cpu_to_mmr(chiplet, cpu, &core);
+	if (mmr == 0)
+		return 0;
+
+	if (gru_irq_count[chiplet] == 0) {
+		gru_chip[chiplet].name = irq_name;
+		ret = set_irq_chip(irq, &gru_chip[chiplet]);
+		if (ret) {
+			printk(KERN_ERR "%s: set_irq_chip failed, errno=%d\n",
+			       GRU_DRIVER_ID_STR, -ret);
+			return ret;
+		}
+
+		ret = request_irq(irq, irq_handler, 0, irq_name, NULL);
+		if (ret) {
+			printk(KERN_ERR "%s: request_irq failed, errno=%d\n",
+			       GRU_DRIVER_ID_STR, -ret);
+			return ret;
+		}
+	}
+	gru_irq_count[chiplet]++;
+
+	return 0;
+}
+
+static void gru_chiplet_teardown_tlb_irq(int chiplet, int cpu, int blade)
+{
+	unsigned long mmr;
+	int core, irq = IRQ_GRU + chiplet;
+
+	if (gru_irq_count[chiplet] == 0)
+		return;
+
+	mmr = gru_chiplet_cpu_to_mmr(chiplet, cpu, &core);
+	if (mmr == 0)
+		return;
+
+	if (--gru_irq_count[chiplet] == 0)
+		free_irq(irq, NULL);
 }
 
 #elif defined CONFIG_X86_64
 
-static void noop(unsigned int irq)
+static int gru_chiplet_setup_tlb_irq(int chiplet, char *irq_name,
+			irq_handler_t irq_handler, int cpu, int blade)
 {
+	unsigned long mmr;
+	int irq, core;
+	int ret;
+
+	mmr = gru_chiplet_cpu_to_mmr(chiplet, cpu, &core);
+	if (mmr == 0)
+		return 0;
+
+	irq = uv_setup_irq(irq_name, cpu, blade, mmr, UV_AFFINITY_CPU);
+	if (irq < 0) {
+		printk(KERN_ERR "%s: uv_setup_irq failed, errno=%d\n",
+		       GRU_DRIVER_ID_STR, -irq);
+		return irq;
+	}
+
+	ret = request_irq(irq, irq_handler, 0, irq_name, NULL);
+	if (ret) {
+		uv_teardown_irq(irq);
+		printk(KERN_ERR "%s: request_irq failed, errno=%d\n",
+		       GRU_DRIVER_ID_STR, -ret);
+		return ret;
+	}
+	gru_base[blade]->bs_grus[chiplet].gs_irq[core] = irq;
+	return 0;
 }
 
-static struct irq_chip gru_chip = {
-	.name		= "gru",
-	.mask		= noop,
-	.unmask		= noop,
-	.ack		= noop,
-};
-
-static int get_base_irq(void)
+static void gru_chiplet_teardown_tlb_irq(int chiplet, int cpu, int blade)
 {
-	set_irq_chip(IRQ_GRU, &gru_chip);
-	set_irq_chip(IRQ_GRU + 1, &gru_chip);
-	return IRQ_GRU;
+	int irq, core;
+	unsigned long mmr;
+
+	mmr = gru_chiplet_cpu_to_mmr(chiplet, cpu, &core);
+	if (mmr) {
+		irq = gru_base[blade]->bs_grus[chiplet].gs_irq[core];
+		if (irq) {
+			free_irq(irq, NULL);
+			uv_teardown_irq(irq);
+		}
+	}
 }
+
 #endif
+
+static void gru_teardown_tlb_irqs(void)
+{
+	int blade;
+	int cpu;
+
+	for_each_online_cpu(cpu) {
+		blade = uv_cpu_to_blade_id(cpu);
+		gru_chiplet_teardown_tlb_irq(0, cpu, blade);
+		gru_chiplet_teardown_tlb_irq(1, cpu, blade);
+	}
+	for_each_possible_blade(blade) {
+		if (uv_blade_nr_possible_cpus(blade))
+			continue;
+		gru_chiplet_teardown_tlb_irq(0, 0, blade);
+		gru_chiplet_teardown_tlb_irq(1, 0, blade);
+	}
+}
+
+static int gru_setup_tlb_irqs(void)
+{
+	int blade;
+	int cpu;
+	int ret;
+
+	for_each_online_cpu(cpu) {
+		blade = uv_cpu_to_blade_id(cpu);
+		ret = gru_chiplet_setup_tlb_irq(0, "GRU0_TLB", gru0_intr, cpu, blade);
+		if (ret != 0)
+			goto exit1;
+
+		ret = gru_chiplet_setup_tlb_irq(1, "GRU1_TLB", gru1_intr, cpu, blade);
+		if (ret != 0)
+			goto exit1;
+	}
+	for_each_possible_blade(blade) {
+		if (uv_blade_nr_possible_cpus(blade))
+			continue;
+		ret = gru_chiplet_setup_tlb_irq(0, "GRU0_TLB", gru_intr_mblade, 0, blade);
+		if (ret != 0)
+			goto exit1;
+
+		ret = gru_chiplet_setup_tlb_irq(1, "GRU1_TLB", gru_intr_mblade, 0, blade);
+		if (ret != 0)
+			goto exit1;
+	}
+
+	return 0;
+
+exit1:
+	gru_teardown_tlb_irqs();
+	return ret;
+}
 
 /*
  * gru_init
@@ -337,8 +515,7 @@ static int get_base_irq(void)
  */
 static int __init gru_init(void)
 {
-	int ret, irq, chip;
-	char id[10];
+	int ret;
 
 	if (!is_uv_system())
 		return 0;
@@ -353,41 +530,29 @@ static int __init gru_init(void)
 	gru_end_paddr = gru_start_paddr + GRU_MAX_BLADES * GRU_SIZE;
 	printk(KERN_INFO "GRU space: 0x%lx - 0x%lx\n",
 	       gru_start_paddr, gru_end_paddr);
-	irq = get_base_irq();
-	for (chip = 0; chip < GRU_CHIPLETS_PER_BLADE; chip++) {
-		ret = request_irq(irq + chip, gru_intr, 0, id, NULL);
-		/* TODO: fix irq handling on x86. For now ignore failure because
-		 * interrupts are not required & not yet fully supported */
-		if (ret) {
-			printk(KERN_WARNING
-			       "!!!WARNING: GRU ignoring request failure!!!\n");
-			ret = 0;
-		}
-		if (ret) {
-			printk(KERN_ERR "%s: request_irq failed\n",
-			       GRU_DRIVER_ID_STR);
-			goto exit1;
-		}
-	}
-
 	ret = misc_register(&gru_miscdev);
 	if (ret) {
 		printk(KERN_ERR "%s: misc_register failed\n",
 		       GRU_DRIVER_ID_STR);
-		goto exit1;
+		goto exit0;
 	}
 
 	ret = gru_proc_init();
 	if (ret) {
 		printk(KERN_ERR "%s: proc init failed\n", GRU_DRIVER_ID_STR);
-		goto exit2;
+		goto exit1;
 	}
 
 	ret = gru_init_tables(gru_start_paddr, gru_start_vaddr);
 	if (ret) {
 		printk(KERN_ERR "%s: init tables failed\n", GRU_DRIVER_ID_STR);
-		goto exit3;
+		goto exit2;
 	}
+
+	ret = gru_setup_tlb_irqs();
+	if (ret != 0)
+		goto exit3;
+
 	gru_kservices_init();
 
 	printk(KERN_INFO "%s: v%s\n", GRU_DRIVER_ID_STR,
@@ -395,31 +560,24 @@ static int __init gru_init(void)
 	return 0;
 
 exit3:
-	gru_proc_exit();
+	gru_free_tables();
 exit2:
-	misc_deregister(&gru_miscdev);
+	gru_proc_exit();
 exit1:
-	for (--chip; chip >= 0; chip--)
-		free_irq(irq + chip, NULL);
+	misc_deregister(&gru_miscdev);
+exit0:
 	return ret;
 
 }
 
 static void __exit gru_exit(void)
 {
-	int i, bid;
-	int order = get_order(sizeof(struct gru_state) *
-			      GRU_CHIPLETS_PER_BLADE);
-
 	if (!is_uv_system())
 		return;
 
-	for (i = 0; i < GRU_CHIPLETS_PER_BLADE; i++)
-		free_irq(IRQ_GRU + i, NULL);
+	gru_teardown_tlb_irqs();
 	gru_kservices_exit();
-	for (bid = 0; bid < GRU_MAX_BLADES; bid++)
-		free_pages((unsigned long)gru_base[bid], order);
-
+	gru_free_tables();
 	misc_deregister(&gru_miscdev);
 	gru_proc_exit();
 }
