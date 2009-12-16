@@ -161,7 +161,7 @@ extern unsigned int gru_max_gids;
 #define GRU_MAX_GRUS		(GRU_MAX_BLADES * GRU_CHIPLETS_PER_BLADE)
 
 #define GRU_DRIVER_ID_STR	"SGI GRU Device Driver"
-#define GRU_DRIVER_VERSION_STR	"0.80"
+#define GRU_DRIVER_VERSION_STR	"0.85"
 
 /*
  * GRU statistics.
