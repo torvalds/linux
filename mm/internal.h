@@ -255,3 +255,5 @@ extern int hwpoison_filter(struct page *p);
 
 extern u32 hwpoison_filter_dev_major;
 extern u32 hwpoison_filter_dev_minor;
+extern u64 hwpoison_filter_flags_mask;
+extern u64 hwpoison_filter_flags_value;

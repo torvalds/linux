@@ -253,6 +253,7 @@ config MEMORY_FAILURE
 config HWPOISON_INJECT
 	tristate "Poison pages injector"
 	depends on MEMORY_FAILURE && DEBUG_KERNEL
+	select PROC_PAGE_MONITOR
 
 config NOMMU_INITIAL_TRIM_EXCESS
 	int "Turn on mmap() excess space trimming before booting"

@@ -102,6 +102,16 @@ static int pfn_inject_init(void)
 	if (!dentry)
 		goto fail;
 
+	dentry = debugfs_create_u64("corrupt-filter-flags-mask", 0600,
+				    hwpoison_dir, &hwpoison_filter_flags_mask);
+	if (!dentry)
+		goto fail;
+
+	dentry = debugfs_create_u64("corrupt-filter-flags-value", 0600,
+				    hwpoison_dir, &hwpoison_filter_flags_value);
+	if (!dentry)
+		goto fail;
+
 	return 0;
 fail:
 	pfn_inject_exit();

@@ -34,6 +34,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/page-flags.h>
+#include <linux/kernel-page-flags.h>
 #include <linux/sched.h>
 #include <linux/ksm.h>
 #include <linux/rmap.h>
@@ -50,8 +51,12 @@ atomic_long_t mce_bad_pages __read_mostly = ATOMIC_LONG_INIT(0);
 
 u32 hwpoison_filter_dev_major = ~0U;
 u32 hwpoison_filter_dev_minor = ~0U;
+u64 hwpoison_filter_flags_mask;
+u64 hwpoison_filter_flags_value;
 EXPORT_SYMBOL_GPL(hwpoison_filter_dev_major);
 EXPORT_SYMBOL_GPL(hwpoison_filter_dev_minor);
+EXPORT_SYMBOL_GPL(hwpoison_filter_flags_mask);
+EXPORT_SYMBOL_GPL(hwpoison_filter_flags_value);
 
 static int hwpoison_filter_dev(struct page *p)
 {
@@ -83,9 +88,24 @@ static int hwpoison_filter_dev(struct page *p)
 	return 0;
 }
 
+static int hwpoison_filter_flags(struct page *p)
+{
+	if (!hwpoison_filter_flags_mask)
+		return 0;
+
+	if ((stable_page_flags(p) & hwpoison_filter_flags_mask) ==
+				    hwpoison_filter_flags_value)
+		return 0;
+	else
+		return -EINVAL;
+}
+
 int hwpoison_filter(struct page *p)
 {
 	if (hwpoison_filter_dev(p))
+		return -EINVAL;
+
+	if (hwpoison_filter_flags(p))
 		return -EINVAL;
 
 	return 0;
