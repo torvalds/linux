@@ -216,7 +216,7 @@ static int nomadik_nand_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops nomadik_nand_pm_ops = {
+static const struct dev_pm_ops nomadik_nand_pm_ops = {
 	.suspend = nomadik_nand_suspend,
 	.resume = nomadik_nand_resume,
 };

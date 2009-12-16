@@ -14,6 +14,7 @@
 #define KMSG_COMPONENT "dasd"
 
 #include <linux/ctype.h>
+#include <linux/string.h>
 #include <linux/seq_file.h>
 #include <linux/vmalloc.h>
 #include <linux/proc_fs.h>
@@ -272,10 +273,10 @@ dasd_statistics_write(struct file *file, const char __user *user_buf,
 	DBF_EVENT(DBF_DEBUG, "/proc/dasd/statictics: '%s'\n", buffer);
 
 	/* check for valid verbs */
-	for (str = buffer; isspace(*str); str++);
+	str = skip_spaces(buffer);
 	if (strncmp(str, "set", 3) == 0 && isspace(str[3])) {
 		/* 'set xxx' was given */
-		for (str = str + 4; isspace(*str); str++);
+		str = skip_spaces(str + 4);
 		if (strcmp(str, "on") == 0) {
 			/* switch on statistics profiling */
 			dasd_profile_level = DASD_PROFILE_ON;

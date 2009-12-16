@@ -1046,25 +1046,27 @@ config SENSORS_ATK0110
 	  will be called asus_atk0110.
 
 config SENSORS_LIS3LV02D
-	tristate "STMicroeletronics LIS3LV02Dx three-axis digital accelerometer"
+	tristate "STMicroeletronics LIS3* three-axis digital accelerometer"
 	depends on INPUT
 	select INPUT_POLLDEV
 	select NEW_LEDS
 	select LEDS_CLASS
 	default n
 	help
-	  This driver provides support for the LIS3LV02Dx accelerometer. In
-	  particular, it can be found in a number of HP laptops, which have the
-	  "Mobile Data Protection System 3D" or "3D DriveGuard" feature. On such
-	  systems the driver should load automatically (via ACPI). The
-	  accelerometer might also be found in other systems, connected via SPI
-	  or I2C.  The accelerometer data is readable via
-	  /sys/devices/platform/lis3lv02d.
+	  This driver provides support for the LIS3* accelerometers, such as the
+	  LIS3LV02DL or the LIS331DL. In particular, it can be found in a number
+	  of HP laptops, which have the "Mobile Data Protection System 3D" or
+	  "3D DriveGuard" feature. On such systems the driver should load
+	  automatically (via ACPI alias). The accelerometer might also be found
+	  in other systems, connected via SPI or I2C. The accelerometer data is
+	  readable via /sys/devices/platform/lis3lv02d.
 
 	  This driver also provides an absolute input class device, allowing
-	  the laptop to act as a pinball machine-esque joystick. On HP laptops,
+	  a laptop to act as a pinball machine-esque joystick. It provides also
+	  a misc device which can be used to detect free-fall. On HP laptops,
 	  if the led infrastructure is activated, support for a led indicating
-	  disk protection will be provided as hp:red:hddprotection.
+	  disk protection will be provided as hp::hddprotect. For more
+	  information on the feature, refer to Documentation/hwmon/lis3lv02d.
 
 	  This driver can also be built as modules.  If so, the core module
 	  will be called lis3lv02d and a specific module for HP laptops will be

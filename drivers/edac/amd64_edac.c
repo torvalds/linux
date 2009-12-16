@@ -13,6 +13,8 @@ module_param(report_gart_errors, int, 0644);
 static int ecc_enable_override;
 module_param(ecc_enable_override, int, 0644);
 
+static struct msr *msrs;
+
 /* Lookup table for all possible MC control instances */
 struct amd64_pvt;
 static struct mem_ctl_info *mci_lookup[EDAC_MAX_NUMNODES];
@@ -2495,8 +2497,7 @@ static void get_cpus_on_this_dct_cpumask(struct cpumask *mask, int nid)
 static bool amd64_nb_mce_bank_enabled_on_node(int nid)
 {
 	cpumask_var_t mask;
-	struct msr *msrs;
-	int cpu, nbe, idx = 0;
+	int cpu, nbe;
 	bool ret = false;
 
 	if (!zalloc_cpumask_var(&mask, GFP_KERNEL)) {
@@ -2507,32 +2508,22 @@ static bool amd64_nb_mce_bank_enabled_on_node(int nid)
 
 	get_cpus_on_this_dct_cpumask(mask, nid);
 
-	msrs = kzalloc(sizeof(struct msr) * cpumask_weight(mask), GFP_KERNEL);
-	if (!msrs) {
-		amd64_printk(KERN_WARNING, "%s: error allocating msrs\n",
-			      __func__);
-		free_cpumask_var(mask);
-		 return false;
-	}
-
 	rdmsr_on_cpus(mask, MSR_IA32_MCG_CTL, msrs);
 
 	for_each_cpu(cpu, mask) {
-		nbe = msrs[idx].l & K8_MSR_MCGCTL_NBE;
+		struct msr *reg = per_cpu_ptr(msrs, cpu);
+		nbe = reg->l & K8_MSR_MCGCTL_NBE;
 
 		debugf0("core: %u, MCG_CTL: 0x%llx, NB MSR is %s\n",
-			cpu, msrs[idx].q,
+			cpu, reg->q,
 			(nbe ? "enabled" : "disabled"));
 
 		if (!nbe)
 			goto out;
-
-		idx++;
 	}
 	ret = true;
 
 out:
-	kfree(msrs);
 	free_cpumask_var(mask);
 	return ret;
 }
@@ -2540,8 +2531,7 @@ out:
 static int amd64_toggle_ecc_err_reporting(struct amd64_pvt *pvt, bool on)
 {
 	cpumask_var_t cmask;
-	struct msr *msrs = NULL;
-	int cpu, idx = 0;
+	int cpu;
 
 	if (!zalloc_cpumask_var(&cmask, GFP_KERNEL)) {
 		amd64_printk(KERN_WARNING, "%s: error allocating mask\n",
@@ -2551,34 +2541,27 @@ static int amd64_toggle_ecc_err_reporting(struct amd64_pvt *pvt, bool on)
 
 	get_cpus_on_this_dct_cpumask(cmask, pvt->mc_node_id);
 
-	msrs = kzalloc(sizeof(struct msr) * cpumask_weight(cmask), GFP_KERNEL);
-	if (!msrs) {
-		amd64_printk(KERN_WARNING, "%s: error allocating msrs\n",
-			     __func__);
-		return -ENOMEM;
-	}
-
 	rdmsr_on_cpus(cmask, MSR_IA32_MCG_CTL, msrs);
 
 	for_each_cpu(cpu, cmask) {
 
+		struct msr *reg = per_cpu_ptr(msrs, cpu);
+
 		if (on) {
-			if (msrs[idx].l & K8_MSR_MCGCTL_NBE)
+			if (reg->l & K8_MSR_MCGCTL_NBE)
 				pvt->flags.ecc_report = 1;
 
-			msrs[idx].l |= K8_MSR_MCGCTL_NBE;
+			reg->l |= K8_MSR_MCGCTL_NBE;
 		} else {
 			/*
 			 * Turn off ECC reporting only when it was off before
 			 */
 			if (!pvt->flags.ecc_report)
-				msrs[idx].l &= ~K8_MSR_MCGCTL_NBE;
+				reg->l &= ~K8_MSR_MCGCTL_NBE;
 		}
-		idx++;
 	}
 	wrmsr_on_cpus(cmask, MSR_IA32_MCG_CTL, msrs);
 
-	kfree(msrs);
 	free_cpumask_var(cmask);
 
 	return 0;
@@ -3036,6 +3019,8 @@ static int __init amd64_edac_init(void)
 	if (cache_k8_northbridges() < 0)
 		return err;
 
+	msrs = msrs_alloc();
+
 	err = pci_register_driver(&amd64_pci_driver);
 	if (err)
 		return err;
@@ -3071,6 +3056,9 @@ static void __exit amd64_edac_exit(void)
 		edac_pci_release_generic_ctl(amd64_ctl_pci);
 
 	pci_unregister_driver(&amd64_pci_driver);
+
+	msrs_free(msrs);
+	msrs = NULL;
 }
 
 module_init(amd64_edac_init);

@@ -1216,7 +1216,7 @@ int nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 				 */
 				argp->stable = NFS_FILE_SYNC;
 			}
-			nfs4_restart_rpc(task, server->nfs_client);
+			nfs_restart_rpc(task, server->nfs_client);
 			return -EAGAIN;
 		}
 		if (time_before(complain, jiffies)) {
@@ -1228,7 +1228,6 @@ int nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 		/* Can't do anything about it except throw an error. */
 		task->tk_status = -EIO;
 	}
-	nfs4_sequence_free_slot(server->nfs_client, &data->res.seq_res);
 	return 0;
 }
 
@@ -1612,15 +1611,16 @@ int nfs_migrate_page(struct address_space *mapping, struct page *newpage,
 	if (ret)
 		goto out_unlock;
 	page_cache_get(newpage);
+	spin_lock(&mapping->host->i_lock);
 	req->wb_page = newpage;
 	SetPagePrivate(newpage);
-	set_page_private(newpage, page_private(page));
+	set_page_private(newpage, (unsigned long)req);
 	ClearPagePrivate(page);
 	set_page_private(page, 0);
+	spin_unlock(&mapping->host->i_lock);
 	page_cache_release(page);
 out_unlock:
 	nfs_clear_page_tag_locked(req);
-	nfs_release_request(req);
 out:
 	return ret;
 }

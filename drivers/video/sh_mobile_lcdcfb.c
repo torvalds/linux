@@ -890,7 +890,7 @@ static int sh_mobile_lcdc_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops sh_mobile_lcdc_dev_pm_ops = {
+static const struct dev_pm_ops sh_mobile_lcdc_dev_pm_ops = {
 	.suspend = sh_mobile_lcdc_suspend,
 	.resume = sh_mobile_lcdc_resume,
 	.runtime_suspend = sh_mobile_lcdc_runtime_suspend,

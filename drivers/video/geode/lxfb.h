@@ -409,7 +409,7 @@ static inline void write_fp(struct lxfb_par *par, int reg, uint32_t val)
 }
 
 
-/* MSRs are defined in asm/geode.h; their bitfields are here */
+/* MSRs are defined in linux/cs5535.h; their bitfields are here */
 
 #define MSR_GLCP_DOTPLL_LOCK		(1 << 25)	/* r/o */
 #define MSR_GLCP_DOTPLL_HALFPIX		(1 << 24)

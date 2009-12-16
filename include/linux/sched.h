@@ -1409,7 +1409,7 @@ struct task_struct {
 #endif
 
 	/* Protection of the PI data structures: */
-	spinlock_t pi_lock;
+	raw_spinlock_t pi_lock;
 
 #ifdef CONFIG_RT_MUTEXES
 	/* PI waiters blocked on a rt_mutex held by this task */
@@ -1446,8 +1446,10 @@ struct task_struct {
 	gfp_t lockdep_reclaim_gfp;
 #endif
 
+#ifdef CONFIG_FS_JOURNAL_INFO
 /* journalling filesystem info */
 	void *journal_info;
+#endif
 
 /* stacked block device info */
 	struct bio *bio_list, **bio_tail;

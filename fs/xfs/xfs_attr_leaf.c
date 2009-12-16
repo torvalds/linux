@@ -42,6 +42,7 @@
 #include "xfs_attr.h"
 #include "xfs_attr_leaf.h"
 #include "xfs_error.h"
+#include "xfs_trace.h"
 
 /*
  * xfs_attr_leaf.c
@@ -594,7 +595,7 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 	cursor = context->cursor;
 	ASSERT(cursor != NULL);
 
-	xfs_attr_trace_l_c("sf start", context);
+	trace_xfs_attr_list_sf(context);
 
 	/*
 	 * If the buffer is large enough and the cursor is at the start,
@@ -627,7 +628,7 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 				return error;
 			sfe = XFS_ATTR_SF_NEXTENTRY(sfe);
 		}
-		xfs_attr_trace_l_c("sf big-gulp", context);
+		trace_xfs_attr_list_sf_all(context);
 		return(0);
 	}
 
@@ -653,7 +654,6 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 			XFS_CORRUPTION_ERROR("xfs_attr_shortform_list",
 					     XFS_ERRLEVEL_LOW,
 					     context->dp->i_mount, sfe);
-			xfs_attr_trace_l_c("sf corrupted", context);
 			kmem_free(sbuf);
 			return XFS_ERROR(EFSCORRUPTED);
 		}
@@ -693,7 +693,6 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 	}
 	if (i == nsbuf) {
 		kmem_free(sbuf);
-		xfs_attr_trace_l_c("blk end", context);
 		return(0);
 	}
 
@@ -719,7 +718,6 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 	}
 
 	kmem_free(sbuf);
-	xfs_attr_trace_l_c("sf E-O-F", context);
 	return(0);
 }
 
@@ -2323,7 +2321,7 @@ xfs_attr_leaf_list_int(xfs_dabuf_t *bp, xfs_attr_list_context_t *context)
 	cursor = context->cursor;
 	cursor->initted = 1;
 
-	xfs_attr_trace_l_cl("blk start", context, leaf);
+	trace_xfs_attr_list_leaf(context);
 
 	/*
 	 * Re-find our place in the leaf block if this is a new syscall.
@@ -2344,7 +2342,7 @@ xfs_attr_leaf_list_int(xfs_dabuf_t *bp, xfs_attr_list_context_t *context)
 			}
 		}
 		if (i == be16_to_cpu(leaf->hdr.count)) {
-			xfs_attr_trace_l_c("not found", context);
+			trace_xfs_attr_list_notfound(context);
 			return(0);
 		}
 	} else {
@@ -2419,7 +2417,7 @@ xfs_attr_leaf_list_int(xfs_dabuf_t *bp, xfs_attr_list_context_t *context)
 			break;
 		cursor->offset++;
 	}
-	xfs_attr_trace_l_cl("blk end", context, leaf);
+	trace_xfs_attr_list_leaf_end(context);
 	return(retval);
 }
 

@@ -170,8 +170,9 @@ struct nfs4_sequence_args {
 struct nfs4_sequence_res {
 	struct nfs4_session	*sr_session;
 	u8			sr_slotid;	/* slot used to send request */
-	unsigned long		sr_renewal_time;
 	int			sr_status;	/* sequence operation status */
+	unsigned long		sr_renewal_time;
+	u32			sr_status_flags;
 };
 
 struct nfs4_get_lease_time_args {
@@ -937,6 +938,16 @@ struct nfs41_create_session_args {
 
 struct nfs41_create_session_res {
 	struct nfs_client	       *client;
+};
+
+struct nfs41_reclaim_complete_args {
+	/* In the future extend to include curr_fh for use with migration */
+	unsigned char			one_fs:1;
+	struct nfs4_sequence_args	seq_args;
+};
+
+struct nfs41_reclaim_complete_res {
+	struct nfs4_sequence_res	seq_res;
 };
 #endif /* CONFIG_NFS_V4_1 */
 

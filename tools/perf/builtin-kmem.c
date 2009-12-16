@@ -6,6 +6,7 @@
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/header.h"
+#include "util/session.h"
 
 #include "util/parse-options.h"
 #include "util/trace-event.h"
@@ -20,7 +21,6 @@ typedef int (*sort_fn_t)(struct alloc_stat *, struct alloc_stat *);
 
 static char const		*input_name = "perf.data";
 
-static struct perf_header	*header;
 static u64			sample_type;
 
 static int			alloc_flag;
@@ -367,11 +367,18 @@ static struct perf_file_handler file_handler = {
 
 static int read_events(void)
 {
+	int err;
+	struct perf_session *session = perf_session__new(input_name, O_RDONLY, 0);
+
+	if (session == NULL)
+		return -ENOMEM;
+
 	register_idle_thread();
 	register_perf_file_handler(&file_handler);
 
-	return mmap_dispatch_perf_file(&header, input_name, 0, 0,
-				       &event__cwdlen, &event__cwd);
+	err = perf_session__process_events(session, 0, &event__cwdlen, &event__cwd);
+	perf_session__delete(session);
+	return err;
 }
 
 static double fragmentation(unsigned long n_req, unsigned long n_alloc)
@@ -403,7 +410,7 @@ static void __print_result(struct rb_root *root, int n_lines, int is_caller)
 		if (is_caller) {
 			addr = data->call_site;
 			if (!raw_ip)
-				sym = thread__find_function(kthread, addr, NULL);
+				sym = map_groups__find_function(kmaps, addr, NULL);
 		} else
 			addr = data->ptr;
 

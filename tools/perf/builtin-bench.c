@@ -31,6 +31,9 @@ struct bench_suite {
 	const char *summary;
 	int (*fn)(int, const char **, const char *);
 };
+						\
+/* sentinel: easy for help */
+#define suite_all { "all", "test all suite (pseudo suite)", NULL }
 
 static struct bench_suite sched_suites[] = {
 	{ "messaging",
@@ -39,6 +42,7 @@ static struct bench_suite sched_suites[] = {
 	{ "pipe",
 	  "Flood of communication over pipe() between two processes",
 	  bench_sched_pipe      },
+	suite_all,
 	{ NULL,
 	  NULL,
 	  NULL                  }
@@ -48,6 +52,7 @@ static struct bench_suite mem_suites[] = {
 	{ "memcpy",
 	  "Simple memory copy in various ways",
 	  bench_mem_memcpy },
+	suite_all,
 	{ NULL,
 	  NULL,
 	  NULL             }
@@ -66,6 +71,9 @@ static struct bench_subsys subsystems[] = {
 	{ "mem",
 	  "memory access performance",
 	  mem_suites },
+	{ "all",		/* sentinel: easy for help */
+	  "test all subsystem (pseudo subsystem)",
+	  NULL },
 	{ NULL,
 	  NULL,
 	  NULL       }
@@ -75,11 +83,11 @@ static void dump_suites(int subsys_index)
 {
 	int i;
 
-	printf("List of available suites for %s...\n\n",
+	printf("# List of available suites for %s...\n\n",
 	       subsystems[subsys_index].name);
 
 	for (i = 0; subsystems[subsys_index].suites[i].name; i++)
-		printf("\t%s: %s\n",
+		printf("%14s: %s\n",
 		       subsystems[subsys_index].suites[i].name,
 		       subsystems[subsys_index].suites[i].summary);
 
@@ -110,10 +118,10 @@ static void print_usage(void)
 		printf("\t%s\n", bench_usage[i]);
 	printf("\n");
 
-	printf("List of available subsystems...\n\n");
+	printf("# List of available subsystems...\n\n");
 
 	for (i = 0; subsystems[i].name; i++)
-		printf("\t%s: %s\n",
+		printf("%14s: %s\n",
 		       subsystems[i].name, subsystems[i].summary);
 	printf("\n");
 }
@@ -129,6 +137,37 @@ static int bench_str2int(char *str)
 		return BENCH_FORMAT_SIMPLE;
 
 	return BENCH_FORMAT_UNKNOWN;
+}
+
+static void all_suite(struct bench_subsys *subsys)	  /* FROM HERE */
+{
+	int i;
+	const char *argv[2];
+	struct bench_suite *suites = subsys->suites;
+
+	argv[1] = NULL;
+	/*
+	 * TODO:
+	 * preparing preset parameters for
+	 * embedded, ordinary PC, HPC, etc...
+	 * will be helpful
+	 */
+	for (i = 0; suites[i].fn; i++) {
+		printf("# Running %s/%s benchmark...\n",
+		       subsys->name,
+		       suites[i].name);
+
+		argv[1] = suites[i].name;
+		suites[i].fn(1, argv, NULL);
+		printf("\n");
+	}
+}
+
+static void all_subsystem(void)
+{
+	int i;
+	for (i = 0; subsystems[i].suites; i++)
+		all_suite(&subsystems[i]);
 }
 
 int cmd_bench(int argc, const char **argv, const char *prefix __used)
@@ -155,6 +194,11 @@ int cmd_bench(int argc, const char **argv, const char *prefix __used)
 		goto end;
 	}
 
+	if (!strcmp(argv[0], "all")) {
+		all_subsystem();
+		goto end;
+	}
+
 	for (i = 0; subsystems[i].name; i++) {
 		if (strcmp(subsystems[i].name, argv[0]))
 			continue;
@@ -162,6 +206,11 @@ int cmd_bench(int argc, const char **argv, const char *prefix __used)
 		if (argc < 2) {
 			/* No suite specified. */
 			dump_suites(i);
+			goto end;
+		}
+
+		if (!strcmp(argv[1], "all")) {
+			all_suite(&subsystems[i]);
 			goto end;
 		}
 

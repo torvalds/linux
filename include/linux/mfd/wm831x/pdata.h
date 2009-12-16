@@ -91,6 +91,7 @@ struct wm831x_pdata {
 	/** Called after subdevices are set up */
 	int (*post_init)(struct wm831x *wm831x);
 
+	int irq_base;
 	int gpio_base;
 	struct wm831x_backlight_pdata *backlight;
 	struct wm831x_backup_pdata *backup;

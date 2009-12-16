@@ -323,7 +323,7 @@ static int monwriter_thaw(struct device *dev)
 	return monwriter_restore(dev);
 }
 
-static struct dev_pm_ops monwriter_pm_ops = {
+static const struct dev_pm_ops monwriter_pm_ops = {
 	.freeze		= monwriter_freeze,
 	.thaw		= monwriter_thaw,
 	.restore	= monwriter_restore,

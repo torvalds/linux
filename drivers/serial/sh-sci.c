@@ -1312,7 +1312,7 @@ static int sci_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops sci_dev_pm_ops = {
+static const struct dev_pm_ops sci_dev_pm_ops = {
 	.suspend	= sci_suspend,
 	.resume		= sci_resume,
 };

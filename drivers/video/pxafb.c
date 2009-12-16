@@ -1667,7 +1667,7 @@ static int pxafb_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops pxafb_pm_ops = {
+static const struct dev_pm_ops pxafb_pm_ops = {
 	.suspend	= pxafb_suspend,
 	.resume		= pxafb_resume,
 };

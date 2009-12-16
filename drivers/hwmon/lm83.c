@@ -51,11 +51,7 @@
 static const unsigned short normal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x4c, 0x4d, 0x4e, I2C_CLIENT_END };
 
-/*
- * Insmod parameters
- */
-
-I2C_CLIENT_INSMOD_2(lm83, lm82);
+enum chips { lm83, lm82 };
 
 /*
  * The LM83 registers
@@ -118,7 +114,7 @@ static const u8 LM83_REG_W_HIGH[] = {
  * Functions declaration
  */
 
-static int lm83_detect(struct i2c_client *new_client, int kind,
+static int lm83_detect(struct i2c_client *new_client,
 		       struct i2c_board_info *info);
 static int lm83_probe(struct i2c_client *client,
 		      const struct i2c_device_id *id);
@@ -145,7 +141,7 @@ static struct i2c_driver lm83_driver = {
 	.remove		= lm83_remove,
 	.id_table	= lm83_id,
 	.detect		= lm83_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*
@@ -291,7 +287,7 @@ static const struct attribute_group lm83_group_opt = {
  */
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm83_detect(struct i2c_client *new_client, int kind,
+static int lm83_detect(struct i2c_client *new_client,
 		       struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = new_client->adapter;

@@ -1059,15 +1059,17 @@ static struct perf_file_handler file_handler = {
 
 static int __cmd_timechart(void)
 {
-	struct perf_header *header;
+	struct perf_session *session = perf_session__new(input_name, O_RDONLY, 0);
 	int ret;
+
+	if (session == NULL)
+		return -ENOMEM;
 
 	register_perf_file_handler(&file_handler);
 
-	ret = mmap_dispatch_perf_file(&header, input_name, 0, 0,
-				      &event__cwdlen, &event__cwd);
+	ret = perf_session__process_events(session, 0, &event__cwdlen, &event__cwd);
 	if (ret)
-		return EXIT_FAILURE;
+		goto out_delete;
 
 	process_samples();
 
@@ -1079,8 +1081,9 @@ static int __cmd_timechart(void)
 
 	pr_info("Written %2.1f seconds of trace to %s.\n",
 		(last_time - first_time) / 1000000000.0, output_name);
-
-	return EXIT_SUCCESS;
+out_delete:
+	perf_session__delete(session);
+	return ret;
 }
 
 static const char * const timechart_usage[] = {

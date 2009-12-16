@@ -33,7 +33,7 @@
 
 
 /* Access speed for IO windows */
-static int io_speed = 0;
+static int io_speed;
 module_param(io_speed, int, 0444);
 
 
@@ -62,7 +62,8 @@ static int alloc_io_space(struct pcmcia_socket *s, u_int attr,
 			       num, align);
 			align = 0;
 		} else
-			while (align && (align < num)) align <<= 1;
+			while (align && (align < num))
+				align <<= 1;
 	}
 	if (*base & ~(align-1)) {
 		dev_dbg(&s->dev, "odd IO request: base %#x align %#x\n",
@@ -338,7 +339,7 @@ static int pcmcia_release_io(struct pcmcia_device *p_dev, io_req_t *req)
 	struct pcmcia_socket *s = p_dev->socket;
 	config_t *c = p_dev->function_config;
 
-	if (!p_dev->_io )
+	if (!p_dev->_io)
 		return -EINVAL;
 
 	p_dev->_io = 0;
@@ -362,7 +363,7 @@ static int pcmcia_release_io(struct pcmcia_device *p_dev, io_req_t *req)
 static int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 {
 	struct pcmcia_socket *s = p_dev->socket;
-	config_t *c= p_dev->function_config;
+	config_t *c = p_dev->function_config;
 
 	if (!p_dev->_irq)
 		return -EINVAL;
@@ -383,9 +384,8 @@ static int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 		s->irq.AssignedIRQ = 0;
 	}
 
-	if (req->Handler) {
+	if (req->Handler)
 		free_irq(req->AssignedIRQ, p_dev->priv);
-	}
 
 #ifdef CONFIG_PCMCIA_PROBE
 	pcmcia_used_irq[req->AssignedIRQ]--;
@@ -656,7 +656,8 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 		type = IRQF_SHARED;
 	else if (req->Attributes & IRQ_TYPE_DYNAMIC_SHARING)
 		type = IRQF_SHARED;
-	else printk(KERN_WARNING "pcmcia: Driver needs updating to support IRQ sharing.\n");
+	else
+		printk(KERN_WARNING "pcmcia: Driver needs updating to support IRQ sharing.\n");
 
 #ifdef CONFIG_PCMCIA_PROBE
 
@@ -788,7 +789,8 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 
 	/* Allocate system memory window */
 	for (w = 0; w < MAX_WIN; w++)
-		if (!(s->state & SOCKET_WIN_REQ(w))) break;
+		if (!(s->state & SOCKET_WIN_REQ(w)))
+			break;
 	if (w == MAX_WIN) {
 		dev_dbg(&s->dev, "all windows are used already\n");
 		return -EINVAL;
@@ -826,18 +828,19 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 	s->state |= SOCKET_WIN_REQ(w);
 
 	/* Return window handle */
-	if (s->features & SS_CAP_STATIC_MAP) {
+	if (s->features & SS_CAP_STATIC_MAP)
 		req->Base = win->static_start;
-	} else {
+	else
 		req->Base = win->res->start;
-	}
+
 	*wh = w + 1;
 
 	return 0;
 } /* pcmcia_request_window */
 EXPORT_SYMBOL(pcmcia_request_window);
 
-void pcmcia_disable_device(struct pcmcia_device *p_dev) {
+void pcmcia_disable_device(struct pcmcia_device *p_dev)
+{
 	pcmcia_release_configuration(p_dev);
 	pcmcia_release_io(p_dev, &p_dev->io);
 	pcmcia_release_irq(p_dev, &p_dev->irq);
@@ -970,7 +973,7 @@ int pcmcia_loop_tuple(struct pcmcia_device *p_dev, cisdata_t code,
 
 	return pccard_loop_tuple(p_dev->socket, p_dev->func, code, NULL,
 				 &loop, pcmcia_do_loop_tuple);
-};
+}
 EXPORT_SYMBOL(pcmcia_loop_tuple);
 
 
@@ -1000,7 +1003,7 @@ static int pcmcia_do_get_tuple(struct pcmcia_device *p_dev, tuple_t *tuple,
 	} else
 		dev_dbg(&p_dev->dev, "do_get_tuple: out of memory\n");
 	return 0;
-};
+}
 
 /**
  * pcmcia_get_tuple() - get first tuple from CIS
@@ -1024,7 +1027,7 @@ size_t pcmcia_get_tuple(struct pcmcia_device *p_dev, cisdata_t code,
 	pcmcia_loop_tuple(p_dev, code, pcmcia_do_get_tuple, &get);
 
 	return get.len;
-};
+}
 EXPORT_SYMBOL(pcmcia_get_tuple);
 
 
@@ -1057,7 +1060,7 @@ static int pcmcia_do_get_mac(struct pcmcia_device *p_dev, tuple_t *tuple,
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = tuple->TupleData[i+2];
 	return 0;
-};
+}
 
 /**
  * pcmcia_get_mac_from_cis() - read out MAC address from CISTPL_FUNCE
@@ -1071,6 +1074,6 @@ static int pcmcia_do_get_mac(struct pcmcia_device *p_dev, tuple_t *tuple,
 int pcmcia_get_mac_from_cis(struct pcmcia_device *p_dev, struct net_device *dev)
 {
 	return pcmcia_loop_tuple(p_dev, CISTPL_FUNCE, pcmcia_do_get_mac, dev);
-};
+}
 EXPORT_SYMBOL(pcmcia_get_mac_from_cis);
 

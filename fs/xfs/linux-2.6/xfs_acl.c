@@ -21,6 +21,7 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
 #include "xfs_vnodeops.h"
+#include "xfs_trace.h"
 #include <linux/xattr.h>
 #include <linux/posix_acl_xattr.h>
 

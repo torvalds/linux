@@ -7,7 +7,6 @@ struct msr_info {
 	u32 msr_no;
 	struct msr reg;
 	struct msr *msrs;
-	int off;
 	int err;
 };
 
@@ -18,7 +17,7 @@ static void __rdmsr_on_cpu(void *info)
 	int this_cpu = raw_smp_processor_id();
 
 	if (rv->msrs)
-		reg = &rv->msrs[this_cpu - rv->off];
+		reg = per_cpu_ptr(rv->msrs, this_cpu);
 	else
 		reg = &rv->reg;
 
@@ -32,7 +31,7 @@ static void __wrmsr_on_cpu(void *info)
 	int this_cpu = raw_smp_processor_id();
 
 	if (rv->msrs)
-		reg = &rv->msrs[this_cpu - rv->off];
+		reg = per_cpu_ptr(rv->msrs, this_cpu);
 	else
 		reg = &rv->reg;
 
@@ -80,7 +79,6 @@ static void __rwmsr_on_cpus(const struct cpumask *mask, u32 msr_no,
 
 	memset(&rv, 0, sizeof(rv));
 
-	rv.off    = cpumask_first(mask);
 	rv.msrs	  = msrs;
 	rv.msr_no = msr_no;
 
@@ -119,6 +117,26 @@ void wrmsr_on_cpus(const struct cpumask *mask, u32 msr_no, struct msr *msrs)
 	__rwmsr_on_cpus(mask, msr_no, msrs, __wrmsr_on_cpu);
 }
 EXPORT_SYMBOL(wrmsr_on_cpus);
+
+struct msr *msrs_alloc(void)
+{
+	struct msr *msrs = NULL;
+
+	msrs = alloc_percpu(struct msr);
+	if (!msrs) {
+		pr_warning("%s: error allocating msrs\n", __func__);
+		return NULL;
+	}
+
+	return msrs;
+}
+EXPORT_SYMBOL(msrs_alloc);
+
+void msrs_free(struct msr *msrs)
+{
+	free_percpu(msrs);
+}
+EXPORT_SYMBOL(msrs_free);
 
 /* These "safe" variants are slower and should be used when the target MSR
    may not actually exist. */

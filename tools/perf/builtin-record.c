@@ -17,6 +17,7 @@
 #include "util/header.h"
 #include "util/event.h"
 #include "util/debug.h"
+#include "util/session.h"
 #include "util/symbol.h"
 
 #include <unistd.h>
@@ -62,7 +63,7 @@ static int			nr_cpu				=      0;
 
 static int			file_new			=      1;
 
-struct perf_header		*header				=   NULL;
+static struct perf_session	*session;
 
 struct mmap_data {
 	int			counter;
@@ -216,12 +217,12 @@ static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int n
 {
 	struct perf_header_attr *h_attr;
 
-	if (nr < header->attrs) {
-		h_attr = header->attr[nr];
+	if (nr < session->header.attrs) {
+		h_attr = session->header.attr[nr];
 	} else {
 		h_attr = perf_header_attr__new(a);
 		if (h_attr != NULL)
-			if (perf_header__add_attr(header, h_attr) < 0) {
+			if (perf_header__add_attr(&session->header, h_attr) < 0) {
 				perf_header_attr__delete(h_attr);
 				h_attr = NULL;
 			}
@@ -395,9 +396,9 @@ static void open_counters(int cpu, pid_t pid)
 
 static void atexit_header(void)
 {
-	header->data_size += bytes_written;
+	session->header.data_size += bytes_written;
 
-	perf_header__write(header, output, true);
+	perf_header__write(&session->header, output, true);
 }
 
 static int __cmd_record(int argc, const char **argv)
@@ -440,24 +441,24 @@ static int __cmd_record(int argc, const char **argv)
 		exit(-1);
 	}
 
-	header = perf_header__new();
-	if (header == NULL) {
+	session = perf_session__new(output_name, O_WRONLY, force);
+	if (session == NULL) {
 		pr_err("Not enough memory for reading perf file header\n");
 		return -1;
 	}
 
 	if (!file_new) {
-		err = perf_header__read(header, output);
+		err = perf_header__read(&session->header, output);
 		if (err < 0)
 			return err;
 	}
 
 	if (raw_samples) {
-		perf_header__set_feat(header, HEADER_TRACE_INFO);
+		perf_header__set_feat(&session->header, HEADER_TRACE_INFO);
 	} else {
 		for (i = 0; i < nr_counters; i++) {
 			if (attrs[i].sample_type & PERF_SAMPLE_RAW) {
-				perf_header__set_feat(header, HEADER_TRACE_INFO);
+				perf_header__set_feat(&session->header, HEADER_TRACE_INFO);
 				break;
 			}
 		}
@@ -481,7 +482,7 @@ static int __cmd_record(int argc, const char **argv)
 	}
 
 	if (file_new) {
-		err = perf_header__write(header, output, false);
+		err = perf_header__write(&session->header, output, false);
 		if (err < 0)
 			return err;
 	}

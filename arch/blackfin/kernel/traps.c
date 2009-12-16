@@ -1140,7 +1140,7 @@ void show_regs(struct pt_regs *fp)
 	if (fp->ipend & ~0x3F) {
 		for (i = 0; i < (NR_IRQS - 1); i++) {
 			if (!in_atomic)
-				spin_lock_irqsave(&irq_desc[i].lock, flags);
+				raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
 
 			action = irq_desc[i].action;
 			if (!action)
@@ -1155,7 +1155,7 @@ void show_regs(struct pt_regs *fp)
 			verbose_printk("\n");
 unlock:
 			if (!in_atomic)
-				spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+				raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
 		}
 	}
 

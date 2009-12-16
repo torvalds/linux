@@ -177,7 +177,7 @@ static int da903x_backlight_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops da903x_backlight_pm_ops = {
+static const struct dev_pm_ops da903x_backlight_pm_ops = {
 	.suspend	= da903x_backlight_suspend,
 	.resume		= da903x_backlight_resume,
 };

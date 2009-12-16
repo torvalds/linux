@@ -210,7 +210,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	if (!desc)
 		return 0;
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 
 	action = desc->action;
 	if (!action || !action->handler)
@@ -237,7 +237,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	seq_putc(p, '\n');
 
 skip:
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 
 	return 0;
 }
@@ -1112,7 +1112,7 @@ static int virq_debug_show(struct seq_file *m, void *private)
 		if (!desc)
 			continue;
 
-		spin_lock_irqsave(&desc->lock, flags);
+		raw_spin_lock_irqsave(&desc->lock, flags);
 
 		if (desc->action && desc->action->handler) {
 			seq_printf(m, "%5d  ", i);
@@ -1131,7 +1131,7 @@ static int virq_debug_show(struct seq_file *m, void *private)
 			seq_printf(m, "%s\n", p);
 		}
 
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 
 	return 0;
