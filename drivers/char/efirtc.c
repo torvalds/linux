@@ -285,6 +285,7 @@ static const struct file_operations efi_rtc_fops = {
 	.unlocked_ioctl	= efi_rtc_ioctl,
 	.open		= efi_rtc_open,
 	.release	= efi_rtc_close,
+	.llseek		= no_llseek,
 };
 
 static struct miscdevice efi_rtc_dev= {

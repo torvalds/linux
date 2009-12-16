@@ -36,8 +36,7 @@ static void printstat_val(struct seq_file *s, atomic_long_t *v, char *id)
 {
 	unsigned long val = atomic_long_read(v);
 
-	if (val)
-		seq_printf(s, "%16lu %s\n", val, id);
+	seq_printf(s, "%16lu %s\n", val, id);
 }
 
 static int statistics_show(struct seq_file *s, void *p)
@@ -46,7 +45,8 @@ static int statistics_show(struct seq_file *s, void *p)
 	printstat(s, vdata_free);
 	printstat(s, gts_alloc);
 	printstat(s, gts_free);
-	printstat(s, vdata_double_alloc);
+	printstat(s, gms_alloc);
+	printstat(s, gms_free);
 	printstat(s, gts_double_allocate);
 	printstat(s, assign_context);
 	printstat(s, assign_context_failed);
@@ -59,28 +59,25 @@ static int statistics_show(struct seq_file *s, void *p)
 	printstat(s, steal_kernel_context);
 	printstat(s, steal_context_failed);
 	printstat(s, nopfn);
-	printstat(s, break_cow);
 	printstat(s, asid_new);
 	printstat(s, asid_next);
 	printstat(s, asid_wrap);
 	printstat(s, asid_reuse);
 	printstat(s, intr);
+	printstat(s, intr_cbr);
+	printstat(s, intr_tfh);
+	printstat(s, intr_spurious);
 	printstat(s, intr_mm_lock_failed);
 	printstat(s, call_os);
-	printstat(s, call_os_offnode_reference);
-	printstat(s, call_os_check_for_bug);
 	printstat(s, call_os_wait_queue);
 	printstat(s, user_flush_tlb);
 	printstat(s, user_unload_context);
 	printstat(s, user_exception);
 	printstat(s, set_context_option);
-	printstat(s, migrate_check);
-	printstat(s, migrated_retarget);
-	printstat(s, migrated_unload);
-	printstat(s, migrated_unload_delay);
-	printstat(s, migrated_nopfn_retarget);
-	printstat(s, migrated_nopfn_unload);
+	printstat(s, check_context_retarget_intr);
+	printstat(s, check_context_unload);
 	printstat(s, tlb_dropin);
+	printstat(s, tlb_preload_page);
 	printstat(s, tlb_dropin_fail_no_asid);
 	printstat(s, tlb_dropin_fail_upm);
 	printstat(s, tlb_dropin_fail_invalid);
@@ -88,16 +85,15 @@ static int statistics_show(struct seq_file *s, void *p)
 	printstat(s, tlb_dropin_fail_idle);
 	printstat(s, tlb_dropin_fail_fmm);
 	printstat(s, tlb_dropin_fail_no_exception);
-	printstat(s, tlb_dropin_fail_no_exception_war);
 	printstat(s, tfh_stale_on_fault);
 	printstat(s, mmu_invalidate_range);
 	printstat(s, mmu_invalidate_page);
-	printstat(s, mmu_clear_flush_young);
 	printstat(s, flush_tlb);
 	printstat(s, flush_tlb_gru);
 	printstat(s, flush_tlb_gru_tgh);
 	printstat(s, flush_tlb_gru_zero_asid);
 	printstat(s, copy_gpa);
+	printstat(s, read_gpa);
 	printstat(s, mesq_receive);
 	printstat(s, mesq_receive_none);
 	printstat(s, mesq_send);
@@ -108,7 +104,6 @@ static int statistics_show(struct seq_file *s, void *p)
 	printstat(s, mesq_send_qlimit_reached);
 	printstat(s, mesq_send_amo_nacked);
 	printstat(s, mesq_send_put_nacked);
-	printstat(s, mesq_qf_not_full);
 	printstat(s, mesq_qf_locked);
 	printstat(s, mesq_qf_noop_not_full);
 	printstat(s, mesq_qf_switch_head_failed);
@@ -118,6 +113,7 @@ static int statistics_show(struct seq_file *s, void *p)
 	printstat(s, mesq_noop_qlimit_reached);
 	printstat(s, mesq_noop_amo_nacked);
 	printstat(s, mesq_noop_put_nacked);
+	printstat(s, mesq_noop_page_overflow);
 	return 0;
 }
 
@@ -133,8 +129,10 @@ static int mcs_statistics_show(struct seq_file *s, void *p)
 	int op;
 	unsigned long total, count, max;
 	static char *id[] = {"cch_allocate", "cch_start", "cch_interrupt",
-		"cch_interrupt_sync", "cch_deallocate", "tgh_invalidate"};
+		"cch_interrupt_sync", "cch_deallocate", "tfh_write_only",
+		"tfh_write_restart", "tgh_invalidate"};
 
+	seq_printf(s, "%-20s%12s%12s%12s\n", "#id", "count", "aver-clks", "max-clks");
 	for (op = 0; op < mcsop_last; op++) {
 		count = atomic_long_read(&mcs_op_statistics[op].count);
 		total = atomic_long_read(&mcs_op_statistics[op].total);
@@ -154,6 +152,7 @@ static ssize_t mcs_statistics_write(struct file *file,
 
 static int options_show(struct seq_file *s, void *p)
 {
+	seq_printf(s, "#bitmask: 1=trace, 2=statistics\n");
 	seq_printf(s, "0x%lx\n", gru_options);
 	return 0;
 }
@@ -183,16 +182,17 @@ static int cch_seq_show(struct seq_file *file, void *data)
 	const char *mode[] = { "??", "UPM", "INTR", "OS_POLL" };
 
 	if (gid == 0)
-		seq_printf(file, "#%5s%5s%6s%9s%6s%8s%8s\n", "gid", "bid",
-			   "ctx#", "pid", "cbrs", "dsbytes", "mode");
+		seq_printf(file, "#%5s%5s%6s%7s%9s%6s%8s%8s\n", "gid", "bid",
+			   "ctx#", "asid", "pid", "cbrs", "dsbytes", "mode");
 	if (gru)
 		for (i = 0; i < GRU_NUM_CCH; i++) {
 			ts = gru->gs_gts[i];
 			if (!ts)
 				continue;
-			seq_printf(file, " %5d%5d%6d%9d%6d%8d%8s\n",
+			seq_printf(file, " %5d%5d%6d%7d%9d%6d%8d%8s\n",
 				   gru->gs_gid, gru->gs_blade_id, i,
-				   ts->ts_tgid_owner,
+				   is_kernel_context(ts) ? 0 : ts->ts_gms->ms_asids[gid].mt_asid,
+				   is_kernel_context(ts) ? 0 : ts->ts_tgid_owner,
 				   ts->ts_cbr_au_count * GRU_CBR_AU_SIZE,
 				   ts->ts_cbr_au_count * GRU_DSR_AU_BYTES,
 				   mode[ts->ts_user_options &
@@ -355,7 +355,7 @@ static void delete_proc_files(void)
 		for (p = proc_files; p->name; p++)
 			if (p->entry)
 				remove_proc_entry(p->name, proc_gru);
-		remove_proc_entry("gru", NULL);
+		remove_proc_entry("gru", proc_gru->parent);
 	}
 }
 
