@@ -130,7 +130,7 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_bo *nvbo;
-	int ret, n = 0;
+	int ret = 0;
 
 	nvbo = kzalloc(sizeof(struct nouveau_bo), GFP_KERNEL);
 	if (!nvbo)
@@ -145,19 +145,11 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 	nouveau_bo_fixup_align(dev, tile_mode, tile_flags, &align, &size);
 	align >>= PAGE_SHIFT;
 
-	if (flags & TTM_PL_FLAG_VRAM)
-		nvbo->placements[n++] = TTM_PL_FLAG_VRAM | TTM_PL_MASK_CACHING;
-	if (flags & TTM_PL_FLAG_TT)
-		nvbo->placements[n++] = TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING;
 	nvbo->placement.fpfn = 0;
 	nvbo->placement.lpfn = mappable ? dev_priv->fb_mappable_pages : 0;
-	nvbo->placement.placement = nvbo->placements;
-	nvbo->placement.busy_placement = nvbo->placements;
-	nvbo->placement.num_placement = n;
-	nvbo->placement.num_busy_placement = n;
+	nouveau_bo_placement_set(nvbo, flags);
 
 	nvbo->channel = chan;
-	nouveau_bo_placement_set(nvbo, flags);
 	ret = ttm_bo_init(&dev_priv->ttm.bdev, &nvbo->bo, size,
 			  ttm_bo_type_device, &nvbo->placement, align, 0,
 			  false, NULL, size, nouveau_bo_del_ttm);
