@@ -18,6 +18,7 @@
 
 static char const *input_old = "perf.data.old",
 		  *input_new = "perf.data";
+static char	  diff__default_sort_order[] = "dso,symbol";
 static int  force;
 static bool show_displacement;
 
@@ -220,6 +221,7 @@ static const struct option options[] = {
 
 int cmd_diff(int argc, const char **argv, const char *prefix __used)
 {
+	sort_order = diff__default_sort_order;
 	argc = parse_options(argc, argv, options, diff_usage, 0);
 	if (argc) {
 		if (argc > 2)
