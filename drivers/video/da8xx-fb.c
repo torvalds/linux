@@ -702,6 +702,35 @@ static int fb_ioctl(struct fb_info *info, unsigned int cmd,
 	return 0;
 }
 
+static int cfb_blank(int blank, struct fb_info *info)
+{
+	struct da8xx_fb_par *par = info->par;
+	int ret = 0;
+
+	if (par->blank == blank)
+		return 0;
+
+	par->blank = blank;
+	switch (blank) {
+	case FB_BLANK_UNBLANK:
+		if (par->panel_power_ctrl)
+			par->panel_power_ctrl(1);
+
+		lcd_enable_raster();
+		break;
+	case FB_BLANK_POWERDOWN:
+		if (par->panel_power_ctrl)
+			par->panel_power_ctrl(0);
+
+		lcd_disable_raster();
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
 static struct fb_ops da8xx_fb_ops = {
 	.owner = THIS_MODULE,
 	.fb_check_var = fb_check_var,
@@ -710,6 +739,7 @@ static struct fb_ops da8xx_fb_ops = {
 	.fb_fillrect = cfb_fillrect,
 	.fb_copyarea = cfb_copyarea,
 	.fb_imageblit = cfb_imageblit,
+	.fb_blank = cfb_blank,
 };
 
 static int __init fb_probe(struct platform_device *device)
