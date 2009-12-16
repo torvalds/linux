@@ -627,7 +627,7 @@ static void action_result(unsigned long pfn, char *msg, int result)
 }
 
 static int page_action(struct page_state *ps, struct page *p,
-			unsigned long pfn, int ref)
+			unsigned long pfn)
 {
 	int result;
 	int count;
@@ -635,7 +635,7 @@ static int page_action(struct page_state *ps, struct page *p,
 	result = ps->action(p, pfn);
 	action_result(pfn, ps->msg, result);
 
-	count = page_count(p) - 1 - ref;
+	count = page_count(p) - 1;
 	if (count != 0)
 		printk(KERN_ERR
 		       "MCE %#lx: %s page still referenced by %d users\n",
@@ -773,7 +773,7 @@ int __memory_failure(unsigned long pfn, int trapno, int ref)
 	 * In fact it's dangerous to directly bump up page count from 0,
 	 * that may make page_freeze_refs()/page_unfreeze_refs() mismatch.
 	 */
-	if (!get_page_unless_zero(compound_head(p))) {
+	if (!ref && !get_page_unless_zero(compound_head(p))) {
 		action_result(pfn, "free or high order kernel", IGNORED);
 		return PageBuddy(compound_head(p)) ? 0 : -EBUSY;
 	}
@@ -821,7 +821,7 @@ int __memory_failure(unsigned long pfn, int trapno, int ref)
 	res = -EBUSY;
 	for (ps = error_states;; ps++) {
 		if (((p->flags | lru_flag)& ps->mask) == ps->res) {
-			res = page_action(ps, p, pfn, ref);
+			res = page_action(ps, p, pfn);
 			break;
 		}
 	}
