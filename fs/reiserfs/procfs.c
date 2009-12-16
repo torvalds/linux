@@ -48,14 +48,6 @@ static int show_version(struct seq_file *m, struct super_block *sb)
 	return 0;
 }
 
-int reiserfs_global_version_in_proc(char *buffer, char **start, off_t offset,
-				    int count, int *eof, void *data)
-{
-	*start = buffer;
-	*eof = 1;
-	return 0;
-}
-
 #define SF( x ) ( r -> x )
 #define SFP( x ) SF( s_proc_info_data.x )
 #define SFPL( x ) SFP( x[ level ] )
@@ -538,19 +530,6 @@ int reiserfs_proc_info_done(struct super_block *sb)
 	return 0;
 }
 
-struct proc_dir_entry *reiserfs_proc_register_global(char *name,
-						     read_proc_t * func)
-{
-	return (proc_info_root) ? create_proc_read_entry(name, 0,
-							 proc_info_root,
-							 func, NULL) : NULL;
-}
-
-void reiserfs_proc_unregister_global(const char *name)
-{
-	remove_proc_entry(name, proc_info_root);
-}
-
 int reiserfs_proc_info_global_init(void)
 {
 	if (proc_info_root == NULL) {
@@ -585,16 +564,6 @@ int reiserfs_proc_info_done(struct super_block *sb)
 	return 0;
 }
 
-struct proc_dir_entry *reiserfs_proc_register_global(char *name,
-						     read_proc_t * func)
-{
-	return NULL;
-}
-
-void reiserfs_proc_unregister_global(const char *name)
-{;
-}
-
 int reiserfs_proc_info_global_init(void)
 {
 	return 0;
@@ -603,14 +572,6 @@ int reiserfs_proc_info_global_done(void)
 {
 	return 0;
 }
-
-int reiserfs_global_version_in_proc(char *buffer, char **start,
-				    off_t offset,
-				    int count, int *eof, void *data)
-{
-	return 0;
-}
-
 /* REISERFS_PROC_INFO */
 #endif
 
