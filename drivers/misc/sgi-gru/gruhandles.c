@@ -54,6 +54,21 @@ static void start_instruction(void *h)
 	gru_flush_cache(h);
 }
 
+static void report_instruction_timeout(void *h)
+{
+	unsigned long goff = GSEGPOFF((unsigned long)h);
+	char *id = "???";
+
+	if (TYPE_IS(CCH, goff))
+		id = "CCH";
+	else if (TYPE_IS(TGH, goff))
+		id = "TGH";
+	else if (TYPE_IS(TFH, goff))
+		id = "TFH";
+
+	panic(KERN_ALERT "GRU %p (%s) is malfunctioning\n", h, id);
+}
+
 static int wait_instruction_complete(void *h, enum mcs_op opc)
 {
 	int status;
@@ -64,9 +79,10 @@ static int wait_instruction_complete(void *h, enum mcs_op opc)
 		status = GET_MSEG_HANDLE_STATUS(h);
 		if (status != CCHSTATUS_ACTIVE)
 			break;
-		if (GRU_OPERATION_TIMEOUT < (get_cycles() - start_time))
-			panic("GRU %p is malfunctioning: start %ld, end %ld\n",
-			      h, start_time, (unsigned long)get_cycles());
+		if (GRU_OPERATION_TIMEOUT < (get_cycles() - start_time)) {
+			report_instruction_timeout(h);
+			start_time = get_cycles();
+		}
 	}
 	if (gru_options & OPT_STATS)
 		update_mcs_stats(opc, get_cycles() - start_time);

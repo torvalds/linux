@@ -91,6 +91,12 @@
 /* Convert an arbitrary handle address to the beginning of the GRU segment */
 #define GRUBASE(h)		((void *)((unsigned long)(h) & ~(GRU_SIZE - 1)))
 
+/* Test a valid handle address to determine the type */
+#define TYPE_IS(hn, h)		((h) >= GRU_##hn##_BASE && (h) <	\
+		GRU_##hn##_BASE + GRU_NUM_##hn * GRU_HANDLE_STRIDE &&   \
+		(((h) & (GRU_HANDLE_STRIDE - 1)) == 0))
+
+
 /* General addressing macros. */
 static inline void *get_gseg_base_address(void *base, int ctxnum)
 {
