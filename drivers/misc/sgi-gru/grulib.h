@@ -98,11 +98,12 @@ struct gru_unload_context_req {
 /*
  * Structure used to set context options
  */
-enum {sco_gseg_owner, sco_cch_req_slice};
+enum {sco_gseg_owner, sco_cch_req_slice, sco_blade_chiplet};
 struct gru_set_context_option_req {
 	unsigned long	gseg;
 	int		op;
-	unsigned long	val1;
+	int		val0;
+	long		val1;
 };
 
 /*

@@ -328,6 +328,8 @@ struct gru_thread_state *gru_alloc_gts(struct vm_area_struct *vma,
 	gts->ts_cbr_au_count = cbr_au_count;
 	gts->ts_dsr_au_count = dsr_au_count;
 	gts->ts_user_options = options;
+	gts->ts_user_blade_id = -1;
+	gts->ts_user_chiplet_id = -1;
 	gts->ts_tsid = tsid;
 	gts->ts_ctxnum = NULLCTX;
 	gts->ts_tlb_int_select = -1;
