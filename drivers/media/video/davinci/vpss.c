@@ -268,7 +268,7 @@ fail1:
 	return status;
 }
 
-static int vpss_remove(struct platform_device *pdev)
+static int __devexit vpss_remove(struct platform_device *pdev)
 {
 	iounmap(oper_cfg.vpss_bl_regs_base);
 	release_mem_region(oper_cfg.r1->start, oper_cfg.len1);

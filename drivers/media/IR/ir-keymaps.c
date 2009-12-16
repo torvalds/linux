@@ -1847,76 +1847,6 @@ struct ir_scancode_table ir_codes_hauppauge_new_table = {
 };
 EXPORT_SYMBOL_GPL(ir_codes_hauppauge_new_table);
 
-/*
- * Hauppauge:the newer, gray remotes (seems there are multiple
- * slightly different versions), shipped with cx88+ivtv cards.
- *
- * This table contains the complete RC5 code, instead of just the data part
- */
-static struct ir_scancode ir_codes_rc5_hauppauge_new[] = {
-	/* Keys 0 to 9 */
-	{ 0x1e00, KEY_0 },
-	{ 0x1e01, KEY_1 },
-	{ 0x1e02, KEY_2 },
-	{ 0x1e03, KEY_3 },
-	{ 0x1e04, KEY_4 },
-	{ 0x1e05, KEY_5 },
-	{ 0x1e06, KEY_6 },
-	{ 0x1e07, KEY_7 },
-	{ 0x1e08, KEY_8 },
-	{ 0x1e09, KEY_9 },
-
-	{ 0x1e0a, KEY_TEXT },		/* keypad asterisk as well */
-	{ 0x1e0b, KEY_RED },		/* red button */
-	{ 0x1e0c, KEY_RADIO },
-	{ 0x1e0d, KEY_MENU },
-	{ 0x1e0e, KEY_SUBTITLE },		/* also the # key */
-	{ 0x1e0f, KEY_MUTE },
-	{ 0x1e10, KEY_VOLUMEUP },
-	{ 0x1e11, KEY_VOLUMEDOWN },
-	{ 0x1e12, KEY_PREVIOUS },		/* previous channel */
-	{ 0x1e14, KEY_UP },
-	{ 0x1e15, KEY_DOWN },
-	{ 0x1e16, KEY_LEFT },
-	{ 0x1e17, KEY_RIGHT },
-	{ 0x1e18, KEY_VIDEO },		/* Videos */
-	{ 0x1e19, KEY_AUDIO },		/* Music */
-	/* 0x1e1a: Pictures - presume this means
-	   "Multimedia Home Platform" -
-	   no "PICTURES" key in input.h
-	 */
-	{ 0x1e1a, KEY_MHP },
-
-	{ 0x1e1b, KEY_EPG },		/* Guide */
-	{ 0x1e1c, KEY_TV },
-	{ 0x1e1e, KEY_NEXTSONG },		/* skip >| */
-	{ 0x1e1f, KEY_EXIT },		/* back/exit */
-	{ 0x1e20, KEY_CHANNELUP },	/* channel / program + */
-	{ 0x1e21, KEY_CHANNELDOWN },	/* channel / program - */
-	{ 0x1e22, KEY_CHANNEL },		/* source (old black remote) */
-	{ 0x1e24, KEY_PREVIOUSSONG },	/* replay |< */
-	{ 0x1e25, KEY_ENTER },		/* OK */
-	{ 0x1e26, KEY_SLEEP },		/* minimize (old black remote) */
-	{ 0x1e29, KEY_BLUE },		/* blue key */
-	{ 0x1e2e, KEY_GREEN },		/* green button */
-	{ 0x1e30, KEY_PAUSE },		/* pause */
-	{ 0x1e32, KEY_REWIND },		/* backward << */
-	{ 0x1e34, KEY_FASTFORWARD },	/* forward >> */
-	{ 0x1e35, KEY_PLAY },
-	{ 0x1e36, KEY_STOP },
-	{ 0x1e37, KEY_RECORD },		/* recording */
-	{ 0x1e38, KEY_YELLOW },		/* yellow key */
-	{ 0x1e3b, KEY_SELECT },		/* top right button */
-	{ 0x1e3c, KEY_ZOOM },		/* full */
-	{ 0x1e3d, KEY_POWER },		/* system power (green button) */
-};
-
-struct ir_scancode_table ir_codes_rc5_hauppauge_new_table = {
-	.scan = ir_codes_rc5_hauppauge_new,
-	.size = ARRAY_SIZE(ir_codes_rc5_hauppauge_new),
-};
-EXPORT_SYMBOL_GPL(ir_codes_rc5_hauppauge_new_table);
-
 static struct ir_scancode ir_codes_npgtech[] = {
 	{ 0x1d, KEY_SWITCHVIDEOMODE },	/* switch inputs */
 	{ 0x2a, KEY_FRONT },
@@ -3313,4 +3243,153 @@ struct ir_scancode_table ir_codes_gadmei_rm008z_table = {
 	.size = ARRAY_SIZE(ir_codes_gadmei_rm008z),
 };
 EXPORT_SYMBOL_GPL(ir_codes_gadmei_rm008z_table);
+
+/*************************************************************
+ *		COMPLETE SCANCODE TABLES
+ * Instead of just a partial scancode, the tables bellow
+ * contains the complete scancode and the receiver protocol
+ *************************************************************/
+
+/*
+ * Hauppauge:the newer, gray remotes (seems there are multiple
+ * slightly different versions), shipped with cx88+ivtv cards.
+ *
+ * This table contains the complete RC5 code, instead of just the data part
+ */
+static struct ir_scancode ir_codes_rc5_hauppauge_new[] = {
+	/* Keys 0 to 9 */
+	{ 0x1e00, KEY_0 },
+	{ 0x1e01, KEY_1 },
+	{ 0x1e02, KEY_2 },
+	{ 0x1e03, KEY_3 },
+	{ 0x1e04, KEY_4 },
+	{ 0x1e05, KEY_5 },
+	{ 0x1e06, KEY_6 },
+	{ 0x1e07, KEY_7 },
+	{ 0x1e08, KEY_8 },
+	{ 0x1e09, KEY_9 },
+
+	{ 0x1e0a, KEY_TEXT },		/* keypad asterisk as well */
+	{ 0x1e0b, KEY_RED },		/* red button */
+	{ 0x1e0c, KEY_RADIO },
+	{ 0x1e0d, KEY_MENU },
+	{ 0x1e0e, KEY_SUBTITLE },		/* also the # key */
+	{ 0x1e0f, KEY_MUTE },
+	{ 0x1e10, KEY_VOLUMEUP },
+	{ 0x1e11, KEY_VOLUMEDOWN },
+	{ 0x1e12, KEY_PREVIOUS },		/* previous channel */
+	{ 0x1e14, KEY_UP },
+	{ 0x1e15, KEY_DOWN },
+	{ 0x1e16, KEY_LEFT },
+	{ 0x1e17, KEY_RIGHT },
+	{ 0x1e18, KEY_VIDEO },		/* Videos */
+	{ 0x1e19, KEY_AUDIO },		/* Music */
+	/* 0x1e1a: Pictures - presume this means
+	   "Multimedia Home Platform" -
+	   no "PICTURES" key in input.h
+	 */
+	{ 0x1e1a, KEY_MHP },
+
+	{ 0x1e1b, KEY_EPG },		/* Guide */
+	{ 0x1e1c, KEY_TV },
+	{ 0x1e1e, KEY_NEXTSONG },		/* skip >| */
+	{ 0x1e1f, KEY_EXIT },		/* back/exit */
+	{ 0x1e20, KEY_CHANNELUP },	/* channel / program + */
+	{ 0x1e21, KEY_CHANNELDOWN },	/* channel / program - */
+	{ 0x1e22, KEY_CHANNEL },		/* source (old black remote) */
+	{ 0x1e24, KEY_PREVIOUSSONG },	/* replay |< */
+	{ 0x1e25, KEY_ENTER },		/* OK */
+	{ 0x1e26, KEY_SLEEP },		/* minimize (old black remote) */
+	{ 0x1e29, KEY_BLUE },		/* blue key */
+	{ 0x1e2e, KEY_GREEN },		/* green button */
+	{ 0x1e30, KEY_PAUSE },		/* pause */
+	{ 0x1e32, KEY_REWIND },		/* backward << */
+	{ 0x1e34, KEY_FASTFORWARD },	/* forward >> */
+	{ 0x1e35, KEY_PLAY },
+	{ 0x1e36, KEY_STOP },
+	{ 0x1e37, KEY_RECORD },		/* recording */
+	{ 0x1e38, KEY_YELLOW },		/* yellow key */
+	{ 0x1e3b, KEY_SELECT },		/* top right button */
+	{ 0x1e3c, KEY_ZOOM },		/* full */
+	{ 0x1e3d, KEY_POWER },		/* system power (green button) */
+};
+
+struct ir_scancode_table ir_codes_rc5_hauppauge_new_table = {
+	.scan = ir_codes_rc5_hauppauge_new,
+	.size = ARRAY_SIZE(ir_codes_rc5_hauppauge_new),
+	.ir_type = IR_TYPE_RC5,
+};
+EXPORT_SYMBOL_GPL(ir_codes_rc5_hauppauge_new_table);
+
+/* Terratec Cinergy Hybrid T USB XS FM
+   Mauro Carvalho Chehab <mchehab@redhat.com>
+ */
+static struct ir_scancode ir_codes_nec_terratec_cinergy_xs[] = {
+	{ 0x1441, KEY_HOME},
+	{ 0x1401, KEY_POWER2},
+
+	{ 0x1442, KEY_MENU},		/* DVD menu */
+	{ 0x1443, KEY_SUBTITLE},
+	{ 0x1444, KEY_TEXT},		/* Teletext */
+	{ 0x1445, KEY_DELETE},
+
+	{ 0x1402, KEY_1},
+	{ 0x1403, KEY_2},
+	{ 0x1404, KEY_3},
+	{ 0x1405, KEY_4},
+	{ 0x1406, KEY_5},
+	{ 0x1407, KEY_6},
+	{ 0x1408, KEY_7},
+	{ 0x1409, KEY_8},
+	{ 0x140a, KEY_9},
+	{ 0x140c, KEY_0},
+
+	{ 0x140b, KEY_TUNER},		/* AV */
+	{ 0x140d, KEY_MODE},		/* A.B */
+
+	{ 0x1446, KEY_TV},
+	{ 0x1447, KEY_DVD},
+	{ 0x1449, KEY_VIDEO},
+	{ 0x144a, KEY_RADIO},		/* Music */
+	{ 0x144b, KEY_CAMERA},		/* PIC */
+
+	{ 0x1410, KEY_UP},
+	{ 0x1411, KEY_LEFT},
+	{ 0x1412, KEY_OK},
+	{ 0x1413, KEY_RIGHT},
+	{ 0x1414, KEY_DOWN},
+
+	{ 0x140f, KEY_EPG},
+	{ 0x1416, KEY_INFO},
+	{ 0x144d, KEY_BACKSPACE},
+
+	{ 0x141c, KEY_VOLUMEUP},
+	{ 0x141e, KEY_VOLUMEDOWN},
+
+	{ 0x144c, KEY_PLAY},
+	{ 0x141d, KEY_MUTE},
+
+	{ 0x141b, KEY_CHANNELUP},
+	{ 0x141f, KEY_CHANNELDOWN},
+
+	{ 0x1417, KEY_RED},
+	{ 0x1418, KEY_GREEN},
+	{ 0x1419, KEY_YELLOW},
+	{ 0x141a, KEY_BLUE},
+
+	{ 0x1458, KEY_RECORD},
+	{ 0x1448, KEY_STOP},
+	{ 0x1440, KEY_PAUSE},
+
+	{ 0x1454, KEY_LAST},
+	{ 0x144e, KEY_REWIND},
+	{ 0x144f, KEY_FASTFORWARD},
+	{ 0x145c, KEY_NEXT},
+};
+struct ir_scancode_table ir_codes_nec_terratec_cinergy_xs_table = {
+	.scan = ir_codes_nec_terratec_cinergy_xs,
+	.size = ARRAY_SIZE(ir_codes_nec_terratec_cinergy_xs),
+	.ir_type = IR_TYPE_NEC,
+};
+EXPORT_SYMBOL_GPL(ir_codes_nec_terratec_cinergy_xs_table);
 

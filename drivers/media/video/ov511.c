@@ -4674,7 +4674,6 @@ static struct video_device vdev_template = {
 	.name =		"OV511 USB Camera",
 	.fops =		&ov511_fops,
 	.release =	video_device_release,
-	.minor =	-1,
 };
 
 /****************************************************************************
@@ -5867,8 +5866,8 @@ ov51x_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	ov511_devused |= 1 << nr;
 	ov->nr = nr;
 
-	dev_info(&intf->dev, "Device at %s registered to minor %d\n",
-		 ov->usb_path, ov->vdev->minor);
+	dev_info(&intf->dev, "Device at %s registered to %s\n",
+		 ov->usb_path, video_device_node_name(ov->vdev));
 
 	usb_set_intfdata(intf, ov);
 	if (ov_create_sysfs(ov->vdev)) {
@@ -5878,13 +5877,13 @@ ov51x_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		goto error;
 	}
 
-	mutex_lock(&ov->lock);
+	mutex_unlock(&ov->lock);
 
 	return 0;
 
 error:
 	if (ov->vdev) {
-		if (-1 == ov->vdev->minor)
+		if (!video_is_registered(ov->vdev))
 			video_device_release(ov->vdev);
 		else
 			video_unregister_device(ov->vdev);

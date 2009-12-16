@@ -34,9 +34,6 @@ static int repeat = 1;
 module_param(repeat, int, 0444);
 MODULE_PARM_DESC(repeat,"auto-repeat for IR keys (default: on)");
 
-int media_ir_debug;    /* media_ir_debug level (0,1,2) */
-module_param_named(debug, media_ir_debug, int, 0644);
-
 /* -------------------------------------------------------------------------- */
 
 static void ir_input_key_event(struct input_dev *dev, struct ir_input_state *ir)
@@ -55,25 +52,10 @@ static void ir_input_key_event(struct input_dev *dev, struct ir_input_state *ir)
 /* -------------------------------------------------------------------------- */
 
 int ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
-		   int ir_type, struct ir_scancode_table *ir_codes)
+		   int ir_type)
 {
 	ir->ir_type = ir_type;
 
-	ir->keytable.size = ir_roundup_tablesize(ir_codes->size);
-	ir->keytable.scan = kzalloc(ir->keytable.size *
-				    sizeof(struct ir_scancode), GFP_KERNEL);
-	if (!ir->keytable.scan)
-		return -ENOMEM;
-
-	IR_dprintk(1, "Allocated space for %d keycode entries (%zd bytes)\n",
-		ir->keytable.size,
-		ir->keytable.size * sizeof(ir->keytable.scan));
-
-	ir_copy_table(&ir->keytable, ir_codes);
-	ir_set_keycode_table(dev, &ir->keytable);
-
-	clear_bit(0, dev->keybit);
-	set_bit(EV_KEY, dev->evbit);
 	if (repeat)
 		set_bit(EV_REP, dev->evbit);
 
