@@ -81,6 +81,9 @@
 #define DA7210_ADC_L_EN			(1 << 3)
 #define DA7210_ADC_R_EN			(1 << 7)
 
+/* DAC_HPF fields */
+#define DA7210_DAC_VOICE_EN		(1 << 7)
+
 /* DAC_SEL bit fields */
 #define DA7210_DAC_L_SRC_DAI_L		(4 << 0)
 #define DA7210_DAC_L_EN			(1 << 3)
