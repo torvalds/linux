@@ -29,6 +29,7 @@
 
 #include "hda_codec.h"
 #include "hda_local.h"
+#include "hda_beep.h"
 
 #define CXT_PIN_DIR_IN              0x00
 #define CXT_PIN_DIR_OUT             0x01
@@ -477,6 +478,7 @@ static void conexant_free(struct hda_codec *codec)
 		snd_array_free(&spec->jacks);
 	}
 #endif
+	snd_hda_detach_beep_device(codec);
 	kfree(codec->spec);
 }
 
@@ -2229,6 +2231,7 @@ static struct snd_kcontrol_new cxt5066_vostro_mixers[] = {
 		.put = cxt5066_mic_boost_mux_enum_put,
 		.private_value = 0x23 | 0x100,
 	},
+	HDA_CODEC_VOLUME_MONO("Beep Playback Volume", 0x13, 1, 0x0, HDA_OUTPUT),
 	{}
 };
 
@@ -2528,6 +2531,7 @@ static int patch_cxt5066(struct hda_codec *codec)
 		spec->mixers[spec->num_mixers++] = cxt5066_vostro_mixers;
 		spec->port_d_mode = 0;
 		spec->dell_vostro = 1;
+		snd_hda_attach_beep_device(codec, 0x13);
 
 		/* no S/PDIF out */
 		spec->multiout.dig_out_nid = 0;
