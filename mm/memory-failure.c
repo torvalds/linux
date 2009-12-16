@@ -325,7 +325,6 @@ static void kill_procs_ao(struct list_head *to_kill, int doit, int trapno,
 			 * In case something went wrong with munmapping
 			 * make sure the process doesn't catch the
 			 * signal and then access the memory. Just kill it.
-			 * the signal handlers
 			 */
 			if (fail || tk->addr_valid == 0) {
 				printk(KERN_ERR
