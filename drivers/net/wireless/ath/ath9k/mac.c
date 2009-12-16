@@ -70,7 +70,7 @@ bool ath9k_hw_updatetxtriglevel(struct ath_hw *ah, bool bIncTrigLevel)
 	u32 txcfg, curLevel, newLevel;
 	enum ath9k_int omask;
 
-	if (ah->tx_trig_level >= MAX_TX_FIFO_THRESHOLD)
+	if (ah->tx_trig_level >= ah->config.max_txtrig_level)
 		return false;
 
 	omask = ath9k_hw_set_interrupts(ah, ah->mask_reg & ~ATH9K_INT_GLOBAL);
@@ -79,7 +79,7 @@ bool ath9k_hw_updatetxtriglevel(struct ath_hw *ah, bool bIncTrigLevel)
 	curLevel = MS(txcfg, AR_FTRIG);
 	newLevel = curLevel;
 	if (bIncTrigLevel) {
-		if (curLevel < MAX_TX_FIFO_THRESHOLD)
+		if (curLevel < ah->config.max_txtrig_level)
 			newLevel++;
 	} else if (curLevel > MIN_TX_FIFO_THRESHOLD)
 		newLevel--;

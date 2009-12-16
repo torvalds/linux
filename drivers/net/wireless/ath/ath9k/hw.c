@@ -937,6 +937,11 @@ int ath9k_hw_init(struct ath_hw *ah)
 	DPRINTF(ah->ah_sc, ATH_DBG_RESET, "serialize_regmode is %d\n",
 		ah->config.serialize_regmode);
 
+	if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
+		ah->config.max_txtrig_level = MAX_TX_FIFO_THRESHOLD >> 1;
+	else
+		ah->config.max_txtrig_level = MAX_TX_FIFO_THRESHOLD;
+
 	if (!ath9k_hw_macversion_supported(ah->hw_version.macVersion)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
 			"Mac Chip Rev 0x%02x.%x is not supported by "
@@ -3670,7 +3675,11 @@ void ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->keycache_size = AR_KEYTABLE_SIZE;
 
 	pCap->hw_caps |= ATH9K_HW_CAP_FASTCC;
-	pCap->tx_triglevel_max = MAX_TX_FIFO_THRESHOLD;
+
+	if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
+		pCap->tx_triglevel_max = MAX_TX_FIFO_THRESHOLD >> 1;
+	else
+		pCap->tx_triglevel_max = MAX_TX_FIFO_THRESHOLD;
 
 	if (AR_SREV_9285_10_OR_LATER(ah))
 		pCap->num_gpio_pins = AR9285_NUM_GPIO;
