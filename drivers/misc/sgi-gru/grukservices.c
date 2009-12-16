@@ -97,9 +97,6 @@
 #define ASYNC_HAN_TO_BID(h)	((h) - 1)
 #define ASYNC_BID_TO_HAN(b)	((b) + 1)
 #define ASYNC_HAN_TO_BS(h)	gru_base[ASYNC_HAN_TO_BID(h)]
-#define KCB_TO_GID(cb)		((cb - gru_start_vaddr) /		\
-					(GRU_SIZE * GRU_CHIPLETS_PER_BLADE))
-#define KCB_TO_BS(cb)		gru_base[KCB_TO_GID(cb)]
 
 #define GRU_NUM_KERNEL_CBR	1
 #define GRU_NUM_KERNEL_DSR_BYTES 256
@@ -388,11 +385,28 @@ int gru_get_cb_exception_detail(void *cb,
 		struct control_block_extended_exc_detail *excdet)
 {
 	struct gru_control_block_extended *cbe;
-	struct gru_blade_state *bs;
-	int cbrnum;
+	struct gru_thread_state *kgts = NULL;
+	unsigned long off;
+	int cbrnum, bid;
 
-	bs = KCB_TO_BS(cb);
-	cbrnum = thread_cbr_number(bs->bs_kgts, get_cb_number(cb));
+	/*
+	 * Locate kgts for cb. This algorithm is SLOW but
+	 * this function is rarely called (ie., almost never).
+	 * Performance does not matter.
+	 */
+	for_each_possible_blade(bid) {
+		if (!gru_base[bid])
+			break;
+		kgts = gru_base[bid]->bs_kgts;
+		if (!kgts || !kgts->ts_gru)
+			continue;
+		off = cb - kgts->ts_gru->gs_gru_base_vaddr;
+		if (off < GRU_SIZE)
+			break;
+		kgts = NULL;
+	}
+	BUG_ON(!kgts);
+	cbrnum = thread_cbr_number(kgts, get_cb_number(cb));
 	cbe = get_cbe(GRUBASE(cb), cbrnum);
 	gru_flush_cache(cbe);	/* CBE not coherent */
 	sync_core();
