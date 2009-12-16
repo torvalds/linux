@@ -113,6 +113,7 @@ struct da8xx_fb_par {
 	unsigned short pseudo_palette[16];
 	unsigned int databuf_sz;
 	unsigned int palette_sz;
+	unsigned int pxl_clk;
 };
 
 /* Variable Screen Information */
@@ -155,7 +156,7 @@ struct da8xx_panel {
 	int		vfp;		/* Vertical front porch */
 	int		vbp;		/* Vertical back porch */
 	int		vsw;		/* Vertical Sync Pulse Width */
-	int		pxl_clk;	/* Pixel clock */
+	unsigned int	pxl_clk;	/* Pixel clock */
 	unsigned char	invert_pxl_clk;	/* Invert Pixel clock */
 };
 
@@ -171,7 +172,7 @@ static struct da8xx_panel known_lcd_panels[] = {
 		.vfp = 2,
 		.vbp = 2,
 		.vsw = 0,
-		.pxl_clk = 0x10,
+		.pxl_clk = 4608000,
 		.invert_pxl_clk = 1,
 	},
 	/* Sharp LK043T1DG01 */
@@ -185,7 +186,7 @@ static struct da8xx_panel known_lcd_panels[] = {
 		.vfp = 2,
 		.vbp = 2,
 		.vsw = 10,
-		.pxl_clk = 0x12,
+		.pxl_clk = 7833600,
 		.invert_pxl_clk = 0,
 	},
 };
@@ -451,6 +452,18 @@ static void lcd_reset(struct da8xx_fb_par *par)
 	lcdc_write(0, LCD_RASTER_CTRL_REG);
 }
 
+static void lcd_calc_clk_divider(struct da8xx_fb_par *par)
+{
+	unsigned int lcd_clk, div;
+
+	lcd_clk = clk_get_rate(par->lcdc_clk);
+	div = lcd_clk / par->pxl_clk;
+
+	/* Configure the LCD clock divisor. */
+	lcdc_write(LCD_CLK_DIVISOR(div) |
+			(LCD_RASTER_MODE & 0x1), LCD_CTRL_REG);
+}
+
 static int lcd_init(struct da8xx_fb_par *par, const struct lcd_ctrl_config *cfg,
 		struct da8xx_panel *panel)
 {
@@ -459,9 +472,8 @@ static int lcd_init(struct da8xx_fb_par *par, const struct lcd_ctrl_config *cfg,
 
 	lcd_reset(par);
 
-	/* Configure the LCD clock divisor. */
-	lcdc_write(LCD_CLK_DIVISOR(panel->pxl_clk) |
-			(LCD_RASTER_MODE & 0x1), LCD_CTRL_REG);
+	/* Calculate the divider */
+	lcd_calc_clk_divider(par);
 
 	if (panel->invert_pxl_clk)
 		lcdc_write((lcdc_read(LCD_RASTER_TIMING_2_REG) |
@@ -721,6 +733,8 @@ static int __init fb_probe(struct platform_device *device)
 	}
 
 	par = da8xx_fb_info->par;
+	par->lcdc_clk = fb_clk;
+	par->pxl_clk = lcdc_info->pxl_clk;
 
 	if (lcd_init(par, lcd_cfg, lcdc_info) < 0) {
 		dev_err(&device->dev, "lcd_init failed\n");
@@ -753,8 +767,6 @@ static int __init fb_probe(struct platform_device *device)
 	da8xx_fb_fix.smem_start = par->p_palette_base + par->palette_sz;
 	da8xx_fb_fix.smem_len = par->databuf_sz - par->palette_sz;
 	da8xx_fb_fix.line_length = (lcdc_info->width * lcd_cfg->bpp) / 8;
-
-	par->lcdc_clk = fb_clk;
 
 	par->irq = platform_get_irq(device, 0);
 	if (par->irq < 0) {
