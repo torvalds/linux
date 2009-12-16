@@ -128,7 +128,7 @@ static int excite_nand_devready(struct mtd_info *mtd)
  * The binding to the mtd and all allocated
  * resources are released.
  */
-static int __exit excite_nand_remove(struct platform_device *dev)
+static int __devexit excite_nand_remove(struct platform_device *dev)
 {
 	struct excite_nand_drvdata * const this = platform_get_drvdata(dev);
 
