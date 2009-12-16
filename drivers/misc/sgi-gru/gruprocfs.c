@@ -351,7 +351,7 @@ static void delete_proc_files(void)
 		for (p = proc_files; p->name; p++)
 			if (p->entry)
 				remove_proc_entry(p->name, proc_gru);
-		remove_proc_entry("gru", NULL);
+		remove_proc_entry("gru", proc_gru->parent);
 	}
 }
 
