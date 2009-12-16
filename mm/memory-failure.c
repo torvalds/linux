@@ -401,14 +401,6 @@ static int me_unknown(struct page *p, unsigned long pfn)
 }
 
 /*
- * Free memory
- */
-static int me_free(struct page *p, unsigned long pfn)
-{
-	return DELAYED;
-}
-
-/*
  * Clean (or cleaned) page cache page.
  */
 static int me_pagecache_clean(struct page *p, unsigned long pfn)
@@ -604,7 +596,6 @@ static int me_huge_page(struct page *p, unsigned long pfn)
 #define tail		(1UL << PG_tail)
 #define compound	(1UL << PG_compound)
 #define slab		(1UL << PG_slab)
-#define buddy		(1UL << PG_buddy)
 #define reserved	(1UL << PG_reserved)
 
 static struct page_state {
@@ -614,7 +605,10 @@ static struct page_state {
 	int (*action)(struct page *p, unsigned long pfn);
 } error_states[] = {
 	{ reserved,	reserved,	"reserved kernel",	me_ignore },
-	{ buddy,	buddy,		"free kernel",	me_free },
+	/*
+	 * free pages are specially detected outside this table:
+	 * PG_buddy pages only make a small fraction of all free pages.
+	 */
 
 	/*
 	 * Could in theory check if slab page is free or if we can drop
