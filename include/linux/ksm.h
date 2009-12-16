@@ -94,12 +94,6 @@ void ksm_migrate_page(struct page *newpage, struct page *oldpage);
 
 #else  /* !CONFIG_KSM */
 
-static inline int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
-		unsigned long end, int advice, unsigned long *vm_flags)
-{
-	return 0;
-}
-
 static inline int ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
 {
 	return 0;
@@ -110,6 +104,13 @@ static inline void ksm_exit(struct mm_struct *mm)
 }
 
 static inline int PageKsm(struct page *page)
+{
+	return 0;
+}
+
+#ifdef CONFIG_MMU
+static inline int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
+		unsigned long end, int advice, unsigned long *vm_flags)
 {
 	return 0;
 }
@@ -140,6 +141,7 @@ static inline int rmap_walk_ksm(struct page *page, int (*rmap_one)(struct page*,
 static inline void ksm_migrate_page(struct page *newpage, struct page *oldpage)
 {
 }
+#endif /* CONFIG_MMU */
 #endif /* !CONFIG_KSM */
 
 #endif /* __LINUX_KSM_H */
