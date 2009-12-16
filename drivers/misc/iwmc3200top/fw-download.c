@@ -228,7 +228,7 @@ static int iwmct_download_section(struct iwmct_priv *priv, const u8 *p_sec,
 		hdr->cmd = cpu_to_le32(cmd);
 		/* send it down */
 		/* TODO: add more proper sending and error checking */
-		ret = iwmct_tx(priv, 0, parser->buf, trans_size);
+		ret = iwmct_tx(priv, parser->buf, trans_size);
 		if (ret != 0) {
 			LOG_INFO(priv, FW_DOWNLOAD,
 				"iwmct_tx returned %d\n", ret);
@@ -280,7 +280,7 @@ static int iwmct_kick_fw(struct iwmct_priv *priv, bool jump)
 	LOG_HEXDUMP(FW_DOWNLOAD, parser->buf, sizeof(*hdr));
 	/* send it down */
 	/* TODO: add more proper sending and error checking */
-	ret = iwmct_tx(priv, 0, parser->buf, IWMC_SDIO_BLK_SIZE);
+	ret = iwmct_tx(priv, parser->buf, IWMC_SDIO_BLK_SIZE);
 	if (ret)
 		LOG_INFO(priv, FW_DOWNLOAD, "iwmct_tx returned %d", ret);
 

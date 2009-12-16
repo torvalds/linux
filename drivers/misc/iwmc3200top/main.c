@@ -49,6 +49,20 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR(DRIVER_COPYRIGHT);
 MODULE_FIRMWARE(FW_NAME(FW_API_VER));
 
+
+static inline int __iwmct_tx(struct iwmct_priv *priv, void *src, int count)
+{
+	return sdio_memcpy_toio(priv->func, IWMC_SDIO_DATA_ADDR, src, count);
+
+}
+int iwmct_tx(struct iwmct_priv *priv, void *src, int count)
+{
+	int ret;
+	sdio_claim_host(priv->func);
+	ret =  __iwmct_tx(priv, src, count);
+	sdio_release_host(priv->func);
+	return ret;
+}
 /*
  * This workers main task is to wait for OP_OPR_ALIVE
  * from TOP FW until ALIVE_MSG_TIMOUT timeout is elapsed.
@@ -158,27 +172,12 @@ int iwmct_send_hcmd(struct iwmct_priv *priv, u8 *cmd, u16 len)
 	}
 
 	memcpy(buf, cmd, len);
-
-	sdio_claim_host(priv->func);
-	ret = sdio_memcpy_toio(priv->func, IWMC_SDIO_DATA_ADDR, buf,
-			       FW_HCMD_BLOCK_SIZE);
-	sdio_release_host(priv->func);
+	ret = iwmct_tx(priv, buf, FW_HCMD_BLOCK_SIZE);
 
 	kfree(buf);
 	return ret;
 }
 
-int iwmct_tx(struct iwmct_priv *priv, unsigned int addr,
-	void *src, int count)
-{
-	int ret;
-
-	sdio_claim_host(priv->func);
-	ret = sdio_memcpy_toio(priv->func, addr, src, count);
-	sdio_release_host(priv->func);
-
-	return ret;
-}
 
 static void iwmct_irq_read_worker(struct work_struct *ws)
 {
@@ -273,8 +272,7 @@ static void iwmct_irq_read_worker(struct work_struct *ws)
 
 		if (barker & BARKER_DNLOAD_SYNC_MSK) {
 			/* Send the same barker back */
-			ret = sdio_memcpy_toio(priv->func, IWMC_SDIO_DATA_ADDR,
-					       buf, iosize);
+			ret = __iwmct_tx(priv, buf, iosize);
 			if (ret) {
 				LOG_ERROR(priv, IRQ,
 					 "error %d echoing barker\n", ret);
