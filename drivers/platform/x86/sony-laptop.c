@@ -1156,35 +1156,73 @@ static void sony_nc_rfkill_update()
 	}
 }
 
-static int sony_nc_rfkill_setup(struct acpi_device *device)
+static void sony_nc_rfkill_setup(struct acpi_device *device)
 {
-	int result, ret;
+	int offset;
+	u8 dev_code, i;
+	acpi_status status;
+	struct acpi_object_list params;
+	union acpi_object in_obj;
+	union acpi_object *device_enum;
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 
-	if (sony_find_snc_handle(0x124) == -1) {
-		if (sony_find_snc_handle(0x135) == -1)
-			return -1;
+	offset = sony_find_snc_handle(0x124);
+	if (offset == -1) {
+		offset = sony_find_snc_handle(0x135);
+		if (offset == -1)
+			return;
 		else
 			sony_rfkill_handle = 0x135;
 	} else
 		sony_rfkill_handle = 0x124;
+	dprintk("Found rkfill handle: 0x%.4x\n", sony_rfkill_handle);
 
-	ret = sony_call_snc_handle(sony_rfkill_handle, 0xb00, &result);
-	if (ret) {
-		printk(KERN_INFO DRV_PFX
-		       "Unable to enumerate rfkill devices: %x\n", ret);
-		return ret;
+	/* need to read the whole buffer returned by the acpi call to SN06
+	 * here otherwise we may miss some features
+	 */
+	params.count = 1;
+	params.pointer = &in_obj;
+	in_obj.type = ACPI_TYPE_INTEGER;
+	in_obj.integer.value = offset;
+	status = acpi_evaluate_object(sony_nc_acpi_handle, "SN06", &params,
+			&buffer);
+	if (ACPI_FAILURE(status)) {
+		dprintk("Radio device enumeration failed\n");
+		return;
 	}
 
-	if (result & 0x1)
-		sony_nc_setup_rfkill(device, SONY_WIFI);
-	if (result & 0x2)
-		sony_nc_setup_rfkill(device, SONY_BLUETOOTH);
-	if (result & 0x1c)
-		sony_nc_setup_rfkill(device, SONY_WWAN);
-	if (result & 0x20)
-		sony_nc_setup_rfkill(device, SONY_WIMAX);
+	device_enum = (union acpi_object *) buffer.pointer;
+	if (!device_enum || device_enum->type != ACPI_TYPE_BUFFER) {
+		printk(KERN_ERR "Invalid SN06 return object 0x%.2x\n",
+				device_enum->type);
+		goto out_no_enum;
+	}
 
-	return 0;
+	/* the buffer is filled with magic numbers describing the devices
+	 * available, 0xff terminates the enumeration
+	 */
+	while ((dev_code = *(device_enum->buffer.pointer + i)) != 0xff &&
+			i < device_enum->buffer.length) {
+		i++;
+		dprintk("Radio devices, looking at 0x%.2x\n", dev_code);
+
+		if (dev_code == 0 && !sony_rfkill_devices[SONY_WIFI])
+			sony_nc_setup_rfkill(device, SONY_WIFI);
+
+		if (dev_code == 0x10 && !sony_rfkill_devices[SONY_BLUETOOTH])
+			sony_nc_setup_rfkill(device, SONY_BLUETOOTH);
+
+		if ((0xf0 & dev_code) == 0x20 &&
+				!sony_rfkill_devices[SONY_WWAN])
+			sony_nc_setup_rfkill(device, SONY_WWAN);
+
+		if (dev_code == 0x30 && !sony_rfkill_devices[SONY_WIMAX])
+			sony_nc_setup_rfkill(device, SONY_WIMAX);
+	}
+
+out_no_enum:
+	kfree(buffer.pointer);
+	return;
 }
 
 static int sony_nc_add(struct acpi_device *device)
