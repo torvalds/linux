@@ -299,12 +299,57 @@ nouveau_vga_set_decode(void *priv, bool state)
 		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
 }
 
+static int
+nouveau_card_init_channel(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_gpuobj *gpuobj;
+	int ret;
+
+	ret = nouveau_channel_alloc(dev, &dev_priv->channel,
+				    (struct drm_file *)-2,
+				    NvDmaFB, NvDmaTT);
+	if (ret)
+		return ret;
+
+	gpuobj = NULL;
+	ret = nouveau_gpuobj_dma_new(dev_priv->channel, NV_CLASS_DMA_IN_MEMORY,
+				     0, nouveau_mem_fb_amount(dev),
+				     NV_DMA_ACCESS_RW, NV_DMA_TARGET_VIDMEM,
+				     &gpuobj);
+	if (ret)
+		goto out_err;
+
+	ret = nouveau_gpuobj_ref_add(dev, dev_priv->channel, NvDmaVRAM,
+				     gpuobj, NULL);
+	if (ret)
+		goto out_err;
+
+	gpuobj = NULL;
+	ret = nouveau_gpuobj_gart_dma_new(dev_priv->channel, 0,
+					  dev_priv->gart_info.aper_size,
+					  NV_DMA_ACCESS_RW, &gpuobj, NULL);
+	if (ret)
+		goto out_err;
+
+	ret = nouveau_gpuobj_ref_add(dev, dev_priv->channel, NvDmaGART,
+				     gpuobj, NULL);
+	if (ret)
+		goto out_err;
+
+	return 0;
+out_err:
+	nouveau_gpuobj_del(dev, &gpuobj);
+	nouveau_channel_free(dev_priv->channel);
+	dev_priv->channel = NULL;
+	return ret;
+}
+
 int
 nouveau_card_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_engine *engine;
-	struct nouveau_gpuobj *gpuobj;
 	int ret;
 
 	NV_DEBUG(dev, "prev state = %d\n", dev_priv->init_state);
@@ -387,39 +432,10 @@ nouveau_card_init(struct drm_device *dev)
 
 	/* what about PVIDEO/PCRTC/PRAMDAC etc? */
 
-	ret = nouveau_channel_alloc(dev, &dev_priv->channel,
-				    (struct drm_file *)-2,
-				    NvDmaFB, NvDmaTT);
-	if (ret)
-		goto out_irq;
-
-	gpuobj = NULL;
-	ret = nouveau_gpuobj_dma_new(dev_priv->channel, NV_CLASS_DMA_IN_MEMORY,
-				     0, nouveau_mem_fb_amount(dev),
-				     NV_DMA_ACCESS_RW, NV_DMA_TARGET_VIDMEM,
-				     &gpuobj);
-	if (ret)
-		goto out_irq;
-
-	ret = nouveau_gpuobj_ref_add(dev, dev_priv->channel, NvDmaVRAM,
-				     gpuobj, NULL);
-	if (ret) {
-		nouveau_gpuobj_del(dev, &gpuobj);
-		goto out_irq;
-	}
-
-	gpuobj = NULL;
-	ret = nouveau_gpuobj_gart_dma_new(dev_priv->channel, 0,
-					  dev_priv->gart_info.aper_size,
-					  NV_DMA_ACCESS_RW, &gpuobj, NULL);
-	if (ret)
-		goto out_irq;
-
-	ret = nouveau_gpuobj_ref_add(dev, dev_priv->channel, NvDmaGART,
-				     gpuobj, NULL);
-	if (ret) {
-		nouveau_gpuobj_del(dev, &gpuobj);
-		goto out_irq;
+	if (!engine->graph.accel_blocked) {
+		ret = nouveau_card_init_channel(dev);
+		if (ret)
+			goto out_irq;
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {

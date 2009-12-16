@@ -461,11 +461,8 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, int no_wait,
 	int ret;
 
 	chan = nvbo->channel;
-	if (!chan || nvbo->tile_flags || nvbo->no_vm) {
+	if (!chan || nvbo->tile_flags || nvbo->no_vm)
 		chan = dev_priv->channel;
-		if (!chan)
-			return -EINVAL;
-	}
 
 	src_offset = old_mem->mm_node->start << PAGE_SHIFT;
 	dst_offset = new_mem->mm_node->start << PAGE_SHIFT;
@@ -631,7 +628,8 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 			return ret;
 	}
 
-	if (dev_priv->init_state != NOUVEAU_CARD_INIT_DONE)
+	if (dev_priv->init_state != NOUVEAU_CARD_INIT_DONE ||
+	    !dev_priv->channel)
 		return ttm_bo_move_memcpy(bo, evict, no_wait, new_mem);
 
 	if (old_mem->mem_type == TTM_PL_SYSTEM && !bo->ttm) {
