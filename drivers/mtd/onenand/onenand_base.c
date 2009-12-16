@@ -3165,10 +3165,10 @@ static int onenand_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
 
 	/* Check User/Factory boundary */
 	if (mode == MTD_OTP_USER) {
-		if (((mtd->writesize * otp_pages) - (from + len)) < 0)
+		if (mtd->writesize * otp_pages < from + len)
 			return 0;
 	} else {
-		if (((mtd->writesize * otp_pages) - len) < 0)
+		if (mtd->writesize * otp_pages <  len)
 			return 0;
 	}
 
