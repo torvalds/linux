@@ -33,7 +33,6 @@
 #include "i915_drm.h"
 #include "i915_drv.h"
 
-#include "drm_pciids.h"
 #include <linux/console.h>
 #include "drm_crtc_helper.h"
 
@@ -48,8 +47,47 @@ module_param_named(powersave, i915_powersave, int, 0400);
 
 static struct drm_driver driver;
 
+#define INTEL_VGA_DEVICE(id) {			\
+	.class = PCI_CLASS_DISPLAY_VGA << 8,	\
+	.class_mask = 0xffff00,			\
+	.vendor = 0x8086,			\
+	.device = id,				\
+	.subvendor = PCI_ANY_ID,		\
+	.subdevice = PCI_ANY_ID,		\
+	.driver_data = 0 }
+
 static struct pci_device_id pciidlist[] = {
-	i915_PCI_IDS
+	INTEL_VGA_DEVICE(0x3577),
+	INTEL_VGA_DEVICE(0x2562),
+	INTEL_VGA_DEVICE(0x3582),
+	INTEL_VGA_DEVICE(0x2572),
+	INTEL_VGA_DEVICE(0x2582),
+	INTEL_VGA_DEVICE(0x258a),
+	INTEL_VGA_DEVICE(0x2592),
+	INTEL_VGA_DEVICE(0x2772),
+	INTEL_VGA_DEVICE(0x27a2),
+	INTEL_VGA_DEVICE(0x27ae),
+	INTEL_VGA_DEVICE(0x2972),
+	INTEL_VGA_DEVICE(0x2982),
+	INTEL_VGA_DEVICE(0x2992),
+	INTEL_VGA_DEVICE(0x29a2),
+	INTEL_VGA_DEVICE(0x29b2),
+	INTEL_VGA_DEVICE(0x29c2),
+	INTEL_VGA_DEVICE(0x29d2),
+	INTEL_VGA_DEVICE(0x2a02),
+	INTEL_VGA_DEVICE(0x2a12),
+	INTEL_VGA_DEVICE(0x2a42),
+	INTEL_VGA_DEVICE(0x2e02),
+	INTEL_VGA_DEVICE(0x2e12),
+	INTEL_VGA_DEVICE(0x2e22),
+	INTEL_VGA_DEVICE(0x2e32),
+	INTEL_VGA_DEVICE(0x2e42),
+	INTEL_VGA_DEVICE(0xa001),
+	INTEL_VGA_DEVICE(0xa011),
+	INTEL_VGA_DEVICE(0x35e8),
+	INTEL_VGA_DEVICE(0x0042),
+	INTEL_VGA_DEVICE(0x0046),
+	{0, 0, 0}
 };
 
 #if defined(CONFIG_DRM_I915_KMS)
