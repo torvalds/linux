@@ -1331,8 +1331,11 @@ extern int account_locked_memory(struct mm_struct *mm, struct rlimit *rlim,
 				 size_t size);
 extern void refund_locked_memory(struct mm_struct *mm, size_t size);
 
+enum mf_flags {
+	MF_COUNT_INCREASED = 1 << 0,
+};
 extern void memory_failure(unsigned long pfn, int trapno);
-extern int __memory_failure(unsigned long pfn, int trapno, int ref);
+extern int __memory_failure(unsigned long pfn, int trapno, int flags);
 extern int sysctl_memory_failure_early_kill;
 extern int sysctl_memory_failure_recovery;
 extern void shake_page(struct page *p);

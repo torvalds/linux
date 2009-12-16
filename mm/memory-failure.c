@@ -737,7 +737,7 @@ static void hwpoison_user_mappings(struct page *p, unsigned long pfn,
 		      ret != SWAP_SUCCESS, pfn);
 }
 
-int __memory_failure(unsigned long pfn, int trapno, int ref)
+int __memory_failure(unsigned long pfn, int trapno, int flags)
 {
 	unsigned long lru_flag;
 	struct page_state *ps;
@@ -773,7 +773,8 @@ int __memory_failure(unsigned long pfn, int trapno, int ref)
 	 * In fact it's dangerous to directly bump up page count from 0,
 	 * that may make page_freeze_refs()/page_unfreeze_refs() mismatch.
 	 */
-	if (!ref && !get_page_unless_zero(compound_head(p))) {
+	if (!(flags & MF_COUNT_INCREASED) &&
+		!get_page_unless_zero(compound_head(p))) {
 		action_result(pfn, "free or high order kernel", IGNORED);
 		return PageBuddy(compound_head(p)) ? 0 : -EBUSY;
 	}
