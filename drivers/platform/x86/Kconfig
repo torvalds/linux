@@ -367,6 +367,18 @@ config ACPI_WMI
 	  It is safe to enable this driver even if your DSDT doesn't define
 	  any ACPI-WMI devices.
 
+config MSI_WMI
+	tristate "MSI WMI extras"
+	depends on ACPI_WMI
+	depends on INPUT
+	depends on BACKLIGHT_CLASS_DEVICE
+	select INPUT_SPARSEKMAP
+	help
+	 Say Y here if you want to support WMI-based hotkeys on MSI laptops.
+
+	 To compile this driver as a module, choose M here: the module will
+	 be called msi-wmi.
+
 config ACPI_ASUS
 	tristate "ASUS/Medion Laptop Extras (DEPRECATED)"
 	depends on ACPI
