@@ -104,11 +104,16 @@ void map__fixup_end(struct map *self)
 
 #define DSO__DELETED "(deleted)"
 
-static int map__load(struct map *self, symbol_filter_t filter)
+int map__load(struct map *self, struct perf_session *session,
+	      symbol_filter_t filter)
 {
 	const char *name = self->dso->long_name;
-	int nr = dso__load(self->dso, self, filter);
+	int nr;
 
+	if (dso__loaded(self->dso, self->type))
+		return 0;
+
+	nr = dso__load(self->dso, self, session, filter);
 	if (nr < 0) {
 		if (self->dso->has_build_id) {
 			char sbuild_id[BUILD_ID_SIZE * 2 + 1];
@@ -143,19 +148,20 @@ static int map__load(struct map *self, symbol_filter_t filter)
 	return 0;
 }
 
-struct symbol *map__find_symbol(struct map *self, u64 addr,
-				symbol_filter_t filter)
+struct symbol *map__find_symbol(struct map *self, struct perf_session *session,
+				u64 addr, symbol_filter_t filter)
 {
-	if (!dso__loaded(self->dso, self->type) && map__load(self, filter) < 0)
+	if (map__load(self, session, filter) < 0)
 		return NULL;
 
 	return dso__find_symbol(self->dso, self->type, addr);
 }
 
 struct symbol *map__find_symbol_by_name(struct map *self, const char *name,
+					struct perf_session *session,
 					symbol_filter_t filter)
 {
-	if (!dso__loaded(self->dso, self->type) && map__load(self, filter) < 0)
+	if (map__load(self, session, filter) < 0)
 		return NULL;
 
 	if (!dso__sorted_by_name(self->dso, self->type))

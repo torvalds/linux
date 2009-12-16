@@ -26,7 +26,6 @@
 #include "util/sort.h"
 #include "util/hist.h"
 #include "util/session.h"
-#include "util/data_map.h"
 
 static char		const *input_name = "perf.data";
 
@@ -50,11 +49,6 @@ struct sym_ext {
 struct sym_priv {
 	struct sym_hist	*hist;
 	struct sym_ext	*ext;
-};
-
-static struct symbol_conf symbol_conf = {
-	.priv_size	  = sizeof(struct sym_priv),
-	.try_vmlinux_path = true,
 };
 
 static const char *sym_hist_filter;
@@ -122,30 +116,32 @@ static void hist_hit(struct hist_entry *he, u64 ip)
 			h->ip[offset]);
 }
 
-static int hist_entry__add(struct addr_location *al, u64 count)
+static int perf_session__add_hist_entry(struct perf_session *self,
+					struct addr_location *al, u64 count)
 {
 	bool hit;
-	struct hist_entry *he = __hist_entry__add(al, NULL, count, &hit);
+	struct hist_entry *he = __perf_session__add_hist_entry(self, al, NULL,
+							       count, &hit);
 	if (he == NULL)
 		return -ENOMEM;
 	hist_hit(he, al->addr);
 	return 0;
 }
 
-static int process_sample_event(event_t *event)
+static int process_sample_event(event_t *event, struct perf_session *session)
 {
 	struct addr_location al;
 
 	dump_printf("(IP, %d): %d: %p\n", event->header.misc,
 		    event->ip.pid, (void *)(long)event->ip.ip);
 
-	if (event__preprocess_sample(event, &al, symbol_filter) < 0) {
+	if (event__preprocess_sample(event, session, &al, symbol_filter) < 0) {
 		fprintf(stderr, "problem processing %d event, skipping it.\n",
 			event->header.type);
 		return -1;
 	}
 
-	if (hist_entry__add(&al, 1)) {
+	if (!al.filtered && perf_session__add_hist_entry(session, &al, 1)) {
 		fprintf(stderr, "problem incrementing symbol count, "
 				"skipping event\n");
 		return -1;
@@ -429,11 +425,11 @@ static void annotate_sym(struct hist_entry *he)
 		free_source_line(he, len);
 }
 
-static void find_annotations(void)
+static void perf_session__find_annotations(struct perf_session *self)
 {
 	struct rb_node *nd;
 
-	for (nd = rb_first(&output_hists); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&self->hists); nd; nd = rb_next(nd)) {
 		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
 		struct sym_priv *priv;
 
@@ -454,7 +450,7 @@ static void find_annotations(void)
 	}
 }
 
-static struct perf_file_handler file_handler = {
+static struct perf_event_ops event_ops = {
 	.process_sample_event	= process_sample_event,
 	.process_mmap_event	= event__process_mmap,
 	.process_comm_event	= event__process_comm,
@@ -463,17 +459,14 @@ static struct perf_file_handler file_handler = {
 
 static int __cmd_annotate(void)
 {
-	struct perf_session *session = perf_session__new(input_name, O_RDONLY, force);
-	struct thread *idle;
 	int ret;
+	struct perf_session *session;
 
+	session = perf_session__new(input_name, O_RDONLY, force);
 	if (session == NULL)
 		return -ENOMEM;
 
-	idle = register_idle_thread();
-	register_perf_file_handler(&file_handler);
-
-	ret = perf_session__process_events(session, 0, &event__cwdlen, &event__cwd);
+	ret = perf_session__process_events(session, &event_ops);
 	if (ret)
 		goto out_delete;
 
@@ -483,15 +476,14 @@ static int __cmd_annotate(void)
 	}
 
 	if (verbose > 3)
-		threads__fprintf(stdout);
+		perf_session__fprintf(session, stdout);
 
 	if (verbose > 2)
 		dsos__fprintf(stdout);
 
-	collapse__resort();
-	output__resort(event__total[0]);
-
-	find_annotations();
+	perf_session__collapse_resort(session);
+	perf_session__output_resort(session, session->event_total[0]);
+	perf_session__find_annotations(session);
 out_delete:
 	perf_session__delete(session);
 
@@ -524,29 +516,17 @@ static const struct option options[] = {
 	OPT_END()
 };
 
-static void setup_sorting(void)
-{
-	char *tmp, *tok, *str = strdup(sort_order);
-
-	for (tok = strtok_r(str, ", ", &tmp);
-			tok; tok = strtok_r(NULL, ", ", &tmp)) {
-		if (sort_dimension__add(tok) < 0) {
-			error("Unknown --sort key: `%s'", tok);
-			usage_with_options(annotate_usage, options);
-		}
-	}
-
-	free(str);
-}
-
 int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 {
-	if (symbol__init(&symbol_conf) < 0)
-		return -1;
-
 	argc = parse_options(argc, argv, options, annotate_usage, 0);
 
-	setup_sorting();
+	symbol_conf.priv_size = sizeof(struct sym_priv);
+	symbol_conf.try_vmlinux_path = true;
+
+	if (symbol__init() < 0)
+		return -1;
+
+	setup_sorting(annotate_usage, options);
 
 	if (argc) {
 		/*

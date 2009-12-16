@@ -1,5 +1,7 @@
 #include "util.h"
 #include "../perf.h"
+#include "session.h"
+#include "sort.h"
 #include "string.h"
 #include "symbol.h"
 #include "thread.h"
@@ -31,18 +33,15 @@ enum dso_origin {
 static void dsos__add(struct list_head *head, struct dso *dso);
 static struct map *map__new2(u64 start, struct dso *dso, enum map_type type);
 static int dso__load_kernel_sym(struct dso *self, struct map *map,
-				struct map_groups *mg, symbol_filter_t filter);
-unsigned int symbol__priv_size;
+				struct perf_session *session, symbol_filter_t filter);
 static int vmlinux_path__nr_entries;
 static char **vmlinux_path;
 
-static struct symbol_conf symbol_conf__defaults = {
+struct symbol_conf symbol_conf = {
+	.exclude_other	  = true,
 	.use_modules	  = true,
 	.try_vmlinux_path = true,
 };
-
-static struct map_groups kmaps_mem;
-struct map_groups *kmaps = &kmaps_mem;
 
 bool dso__loaded(const struct dso *self, enum map_type type)
 {
@@ -132,13 +131,13 @@ static void map_groups__fixup_end(struct map_groups *self)
 static struct symbol *symbol__new(u64 start, u64 len, const char *name)
 {
 	size_t namelen = strlen(name) + 1;
-	struct symbol *self = zalloc(symbol__priv_size +
+	struct symbol *self = zalloc(symbol_conf.priv_size +
 				     sizeof(*self) + namelen);
 	if (self == NULL)
 		return NULL;
 
-	if (symbol__priv_size)
-		self = ((void *)self) + symbol__priv_size;
+	if (symbol_conf.priv_size)
+		self = ((void *)self) + symbol_conf.priv_size;
 
 	self->start = start;
 	self->end   = len ? start + len - 1 : start;
@@ -152,7 +151,7 @@ static struct symbol *symbol__new(u64 start, u64 len, const char *name)
 
 static void symbol__delete(struct symbol *self)
 {
-	free(((void *)self) - symbol__priv_size);
+	free(((void *)self) - symbol_conf.priv_size);
 }
 
 static size_t symbol__fprintf(struct symbol *self, FILE *fp)
@@ -456,7 +455,7 @@ out_failure:
  * the original ELF section names vmlinux have.
  */
 static int dso__split_kallsyms(struct dso *self, struct map *map,
-			       struct map_groups *mg, symbol_filter_t filter)
+			       struct perf_session *session, symbol_filter_t filter)
 {
 	struct map *curr_map = map;
 	struct symbol *pos;
@@ -473,13 +472,13 @@ static int dso__split_kallsyms(struct dso *self, struct map *map,
 
 		module = strchr(pos->name, '\t');
 		if (module) {
-			if (!mg->use_modules)
+			if (!symbol_conf.use_modules)
 				goto discard_symbol;
 
 			*module++ = '\0';
 
 			if (strcmp(self->name, module)) {
-				curr_map = map_groups__find_by_name(mg, map->type, module);
+				curr_map = map_groups__find_by_name(&session->kmaps, map->type, module);
 				if (curr_map == NULL) {
 					pr_debug("/proc/{kallsyms,modules} "
 					         "inconsistency!\n");
@@ -510,7 +509,7 @@ static int dso__split_kallsyms(struct dso *self, struct map *map,
 			}
 
 			curr_map->map_ip = curr_map->unmap_ip = identity__map_ip;
-			map_groups__insert(mg, curr_map);
+			map_groups__insert(&session->kmaps, curr_map);
 			++kernel_range;
 		}
 
@@ -531,7 +530,7 @@ discard_symbol:		rb_erase(&pos->rb_node, root);
 
 
 static int dso__load_kallsyms(struct dso *self, struct map *map,
-			      struct map_groups *mg, symbol_filter_t filter)
+			      struct perf_session *session, symbol_filter_t filter)
 {
 	if (dso__load_all_kallsyms(self, map) < 0)
 		return -1;
@@ -539,14 +538,7 @@ static int dso__load_kallsyms(struct dso *self, struct map *map,
 	symbols__fixup_end(&self->symbols[map->type]);
 	self->origin = DSO__ORIG_KERNEL;
 
-	return dso__split_kallsyms(self, map, mg, filter);
-}
-
-size_t kernel_maps__fprintf(FILE *fp)
-{
-	size_t printed = fprintf(fp, "Kernel maps:\n");
-	printed += map_groups__fprintf_maps(kmaps, fp);
-	return printed + fprintf(fp, "END kernel maps\n");
+	return dso__split_kallsyms(self, map, session, filter);
 }
 
 static int dso__load_perf_map(struct dso *self, struct map *map,
@@ -873,7 +865,7 @@ static bool elf_sec__is_a(GElf_Shdr *self, Elf_Data *secstrs, enum map_type type
 }
 
 static int dso__load_sym(struct dso *self, struct map *map,
-			 struct map_groups *mg, const char *name, int fd,
+			 struct perf_session *session, const char *name, int fd,
 			 symbol_filter_t filter, int kernel, int kmodule)
 {
 	struct map *curr_map = map;
@@ -977,7 +969,7 @@ static int dso__load_sym(struct dso *self, struct map *map,
 			snprintf(dso_name, sizeof(dso_name),
 				 "%s%s", self->short_name, section_name);
 
-			curr_map = map_groups__find_by_name(mg, map->type, dso_name);
+			curr_map = map_groups__find_by_name(&session->kmaps, map->type, dso_name);
 			if (curr_map == NULL) {
 				u64 start = sym.st_value;
 
@@ -996,7 +988,7 @@ static int dso__load_sym(struct dso *self, struct map *map,
 				curr_map->map_ip = identity__map_ip;
 				curr_map->unmap_ip = identity__map_ip;
 				curr_dso->origin = DSO__ORIG_KERNEL;
-				map_groups__insert(kmaps, curr_map);
+				map_groups__insert(&session->kmaps, curr_map);
 				dsos__add(&dsos__kernel, curr_dso);
 			} else
 				curr_dso = curr_map->dso;
@@ -1211,7 +1203,8 @@ char dso__symtab_origin(const struct dso *self)
 	return origin[self->origin];
 }
 
-int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
+int dso__load(struct dso *self, struct map *map, struct perf_session *session,
+	      symbol_filter_t filter)
 {
 	int size = PATH_MAX;
 	char *name;
@@ -1222,7 +1215,7 @@ int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
 	dso__set_loaded(self, map->type);
 
 	if (self->kernel)
-		return dso__load_kernel_sym(self, map, kmaps, filter);
+		return dso__load_kernel_sym(self, map, session, filter);
 
 	name = malloc(size);
 	if (!name)
@@ -1323,7 +1316,7 @@ struct map *map_groups__find_by_name(struct map_groups *self,
 	return NULL;
 }
 
-static int dsos__set_modules_path_dir(char *dirname)
+static int perf_session__set_modules_path_dir(struct perf_session *self, char *dirname)
 {
 	struct dirent *dent;
 	DIR *dir = opendir(dirname);
@@ -1343,7 +1336,7 @@ static int dsos__set_modules_path_dir(char *dirname)
 
 			snprintf(path, sizeof(path), "%s/%s",
 				 dirname, dent->d_name);
-			if (dsos__set_modules_path_dir(path) < 0)
+			if (perf_session__set_modules_path_dir(self, path) < 0)
 				goto failure;
 		} else {
 			char *dot = strrchr(dent->d_name, '.'),
@@ -1357,7 +1350,7 @@ static int dsos__set_modules_path_dir(char *dirname)
 				 (int)(dot - dent->d_name), dent->d_name);
 
 			strxfrchar(dso_name, '-', '_');
-			map = map_groups__find_by_name(kmaps, MAP__FUNCTION, dso_name);
+			map = map_groups__find_by_name(&self->kmaps, MAP__FUNCTION, dso_name);
 			if (map == NULL)
 				continue;
 
@@ -1377,7 +1370,7 @@ failure:
 	return -1;
 }
 
-static int dsos__set_modules_path(void)
+static int perf_session__set_modules_path(struct perf_session *self)
 {
 	struct utsname uts;
 	char modules_path[PATH_MAX];
@@ -1388,7 +1381,7 @@ static int dsos__set_modules_path(void)
 	snprintf(modules_path, sizeof(modules_path), "/lib/modules/%s/kernel",
 		 uts.release);
 
-	return dsos__set_modules_path_dir(modules_path);
+	return perf_session__set_modules_path_dir(self, modules_path);
 }
 
 /*
@@ -1410,7 +1403,7 @@ static struct map *map__new2(u64 start, struct dso *dso, enum map_type type)
 	return self;
 }
 
-static int map_groups__create_module_maps(struct map_groups *self)
+static int perf_session__create_module_maps(struct perf_session *self)
 {
 	char *line = NULL;
 	size_t n;
@@ -1467,14 +1460,14 @@ static int map_groups__create_module_maps(struct map_groups *self)
 			dso->has_build_id = true;
 
 		dso->origin = DSO__ORIG_KMODULE;
-		map_groups__insert(self, map);
+		map_groups__insert(&self->kmaps, map);
 		dsos__add(&dsos__kernel, dso);
 	}
 
 	free(line);
 	fclose(file);
 
-	return dsos__set_modules_path();
+	return perf_session__set_modules_path(self);
 
 out_delete_line:
 	free(line);
@@ -1483,7 +1476,7 @@ out_failure:
 }
 
 static int dso__load_vmlinux(struct dso *self, struct map *map,
-			     struct map_groups *mg,
+			     struct perf_session *session,
 			     const char *vmlinux, symbol_filter_t filter)
 {
 	int err = -1, fd;
@@ -1517,14 +1510,14 @@ static int dso__load_vmlinux(struct dso *self, struct map *map,
 		return -1;
 
 	dso__set_loaded(self, map->type);
-	err = dso__load_sym(self, map, mg, self->long_name, fd, filter, 1, 0);
+	err = dso__load_sym(self, map, session, self->long_name, fd, filter, 1, 0);
 	close(fd);
 
 	return err;
 }
 
 static int dso__load_kernel_sym(struct dso *self, struct map *map,
-				struct map_groups *mg, symbol_filter_t filter)
+				struct perf_session *session, symbol_filter_t filter)
 {
 	int err;
 	bool is_kallsyms;
@@ -1534,7 +1527,7 @@ static int dso__load_kernel_sym(struct dso *self, struct map *map,
 		pr_debug("Looking at the vmlinux_path (%d entries long)\n",
 			 vmlinux_path__nr_entries);
 		for (i = 0; i < vmlinux_path__nr_entries; ++i) {
-			err = dso__load_vmlinux(self, map, mg,
+			err = dso__load_vmlinux(self, map, session,
 						vmlinux_path[i], filter);
 			if (err > 0) {
 				pr_debug("Using %s for symbols\n",
@@ -1550,12 +1543,12 @@ static int dso__load_kernel_sym(struct dso *self, struct map *map,
 	if (is_kallsyms)
 		goto do_kallsyms;
 
-	err = dso__load_vmlinux(self, map, mg, self->long_name, filter);
+	err = dso__load_vmlinux(self, map, session, self->long_name, filter);
 	if (err <= 0) {
 		pr_info("The file %s cannot be used, "
 			"trying to use /proc/kallsyms...", self->long_name);
 do_kallsyms:
-		err = dso__load_kallsyms(self, map, mg, filter);
+		err = dso__load_kallsyms(self, map, session, filter);
 		if (err > 0 && !is_kallsyms)
                         dso__set_long_name(self, strdup("[kernel.kallsyms]"));
 	}
@@ -1748,32 +1741,69 @@ out_fail:
 	return -1;
 }
 
-int symbol__init(struct symbol_conf *conf)
+static int setup_list(struct strlist **list, const char *list_str,
+		      const char *list_name)
 {
-	const struct symbol_conf *pconf = conf ?: &symbol_conf__defaults;
+	if (list_str == NULL)
+		return 0;
 
+	*list = strlist__new(true, list_str);
+	if (!*list) {
+		pr_err("problems parsing %s list\n", list_name);
+		return -1;
+	}
+	return 0;
+}
+
+int symbol__init(void)
+{
 	elf_version(EV_CURRENT);
-	symbol__priv_size = pconf->priv_size;
-	if (pconf->sort_by_name)
-		symbol__priv_size += (sizeof(struct symbol_name_rb_node) -
-				      sizeof(struct symbol));
-	map_groups__init(kmaps);
+	if (symbol_conf.sort_by_name)
+		symbol_conf.priv_size += (sizeof(struct symbol_name_rb_node) -
+					  sizeof(struct symbol));
 
-	if (pconf->try_vmlinux_path && vmlinux_path__init() < 0)
+	if (symbol_conf.try_vmlinux_path && vmlinux_path__init() < 0)
 		return -1;
 
-	if (map_groups__create_kernel_maps(kmaps, pconf->vmlinux_name) < 0) {
-		vmlinux_path__exit();
+	if (symbol_conf.field_sep && *symbol_conf.field_sep == '.') {
+		pr_err("'.' is the only non valid --field-separator argument\n");
 		return -1;
 	}
 
-	kmaps->use_modules = pconf->use_modules;
-	if (pconf->use_modules && map_groups__create_module_maps(kmaps) < 0)
-		pr_debug("Failed to load list of modules in use, "
-			 "continuing...\n");
+	if (setup_list(&symbol_conf.dso_list,
+		       symbol_conf.dso_list_str, "dso") < 0)
+		return -1;
+
+	if (setup_list(&symbol_conf.comm_list,
+		       symbol_conf.comm_list_str, "comm") < 0)
+		goto out_free_dso_list;
+
+	if (setup_list(&symbol_conf.sym_list,
+		       symbol_conf.sym_list_str, "symbol") < 0)
+		goto out_free_comm_list;
+
+	return 0;
+
+out_free_dso_list:
+	strlist__delete(symbol_conf.dso_list);
+out_free_comm_list:
+	strlist__delete(symbol_conf.comm_list);
+	return -1;
+}
+
+int perf_session__create_kernel_maps(struct perf_session *self)
+{
+	if (map_groups__create_kernel_maps(&self->kmaps,
+					   symbol_conf.vmlinux_name) < 0)
+		return -1;
+
+	if (symbol_conf.use_modules &&
+	    perf_session__create_module_maps(self) < 0)
+		pr_debug("Failed to load list of modules for session %s, "
+			 "continuing...\n", self->filename);
 	/*
 	 * Now that we have all the maps created, just set the ->end of them:
 	 */
-	map_groups__fixup_end(kmaps);
+	map_groups__fixup_end(&self->kmaps);
 	return 0;
 }
