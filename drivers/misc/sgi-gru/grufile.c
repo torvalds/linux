@@ -266,8 +266,8 @@ static int gru_init_tables(unsigned long gru_base_paddr, void *gru_base_vaddr)
 	max_user_dsr_bytes = GRU_NUM_DSR_BYTES;
 	for_each_possible_blade(bid) {
 		pnode = uv_blade_to_pnode(bid);
-		nid = uv_blade_to_memory_nid(bid);
-		page = alloc_pages_exact_node(nid, GFP_KERNEL, order);
+		nid = uv_blade_to_memory_nid(bid);/* -1 if no memory on blade */
+		page = alloc_pages_node(nid, GFP_KERNEL, order);
 		if (!page)
 			goto fail;
 		gru_base[bid] = page_address(page);
