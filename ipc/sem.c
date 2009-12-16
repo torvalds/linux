@@ -445,13 +445,13 @@ again:
 		 * of the completed operation:
 		 * - if the operation modified the array, then restart from the
 		 *   head of the queue and check for threads that might be
-		 *   waiting for semaphore values to become 0.
+		 *   waiting for the new semaphore values.
 		 * - if the operation didn't modify the array, then just
 		 *   continue.
 		 */
 		alter = q->alter;
 		wake_up_sem_queue(q, error);
-		if (alter)
+		if (alter && !error)
 			goto again;
 	}
 }
