@@ -56,6 +56,9 @@ nouveau_grctx_prog_load(struct drm_device *dev)
 	char name[32];
 	int ret, i;
 
+	if (pgraph->accel_blocked)
+		return -ENODEV;
+
 	if (!pgraph->ctxprog) {
 		sprintf(name, "nouveau/nv%02x.ctxprog", chipset);
 		ret = request_firmware(&fw, name, &dev->pdev->dev);
