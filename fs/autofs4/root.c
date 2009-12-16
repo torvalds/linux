@@ -514,7 +514,7 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 {
 	struct autofs_sb_info *sbi;
 	struct autofs_info *ino;
-	struct dentry *expiring, *unhashed;
+	struct dentry *expiring, *active;
 	int oz_mode;
 
 	DPRINTK("name = %.*s",
@@ -530,9 +530,9 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 	DPRINTK("pid = %u, pgrp = %u, catatonic = %d, oz_mode = %d",
 		 current->pid, task_pgrp_nr(current), sbi->catatonic, oz_mode);
 
-	unhashed = autofs4_lookup_active(sbi, dentry->d_parent, &dentry->d_name);
-	if (unhashed) {
-		dentry = unhashed;
+	active = autofs4_lookup_active(sbi, dentry->d_parent, &dentry->d_name);
+	if (active) {
+		dentry = active;
 		ino = autofs4_dentry_ino(dentry);
 	} else {
 		/*
@@ -600,8 +600,8 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 			if (sigismember (sigset, SIGKILL) ||
 			    sigismember (sigset, SIGQUIT) ||
 			    sigismember (sigset, SIGINT)) {
-			    if (unhashed)
-				dput(unhashed);
+			    if (active)
+				dput(active);
 			    return ERR_PTR(-ERESTARTNOINTR);
 			}
 		}
@@ -633,14 +633,14 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 		else
 			dentry = ERR_PTR(-ENOENT);
 
-		if (unhashed)
-			dput(unhashed);
+		if (active)
+			dput(active);
 
 		return dentry;
 	}
 
-	if (unhashed)
-		return unhashed;
+	if (active)
+		return active;
 
 	return NULL;
 }
