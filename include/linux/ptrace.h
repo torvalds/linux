@@ -105,12 +105,7 @@ static inline int ptrace_reparented(struct task_struct *child)
 {
 	return child->real_parent != child->parent;
 }
-static inline void ptrace_link(struct task_struct *child,
-			       struct task_struct *new_parent)
-{
-	if (unlikely(child->ptrace))
-		__ptrace_link(child, new_parent);
-}
+
 static inline void ptrace_unlink(struct task_struct *child)
 {
 	if (unlikely(child->ptrace))
@@ -169,9 +164,9 @@ static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
 	INIT_LIST_HEAD(&child->ptraced);
 	child->parent = child->real_parent;
 	child->ptrace = 0;
-	if (unlikely(ptrace)) {
+	if (unlikely(ptrace) && (current->ptrace & PT_PTRACED)) {
 		child->ptrace = current->ptrace;
-		ptrace_link(child, current->parent);
+		__ptrace_link(child, current->parent);
 	}
 }
 
