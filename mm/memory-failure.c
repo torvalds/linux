@@ -350,6 +350,30 @@ static const char *action_name[] = {
 };
 
 /*
+ * XXX: It is possible that a page is isolated from LRU cache,
+ * and then kept in swap cache or failed to remove from page cache.
+ * The page count will stop it from being freed by unpoison.
+ * Stress tests should be aware of this memory leak problem.
+ */
+static int delete_from_lru_cache(struct page *p)
+{
+	if (!isolate_lru_page(p)) {
+		/*
+		 * Clear sensible page flags, so that the buddy system won't
+		 * complain when the page is unpoison-and-freed.
+		 */
+		ClearPageActive(p);
+		ClearPageUnevictable(p);
+		/*
+		 * drop the page count elevated by isolate_lru_page()
+		 */
+		page_cache_release(p);
+		return 0;
+	}
+	return -EIO;
+}
+
+/*
  * Error hit kernel page.
  * Do nothing, try to be lucky and not touch this instead. For a few cases we
  * could be more sophisticated.
@@ -392,6 +416,8 @@ static int me_pagecache_clean(struct page *p, unsigned long pfn)
 	int err;
 	int ret = FAILED;
 	struct address_space *mapping;
+
+	delete_from_lru_cache(p);
 
 	/*
 	 * For anonymous pages we're done the only reference left
@@ -522,14 +548,20 @@ static int me_swapcache_dirty(struct page *p, unsigned long pfn)
 	/* Trigger EIO in shmem: */
 	ClearPageUptodate(p);
 
-	return DELAYED;
+	if (!delete_from_lru_cache(p))
+		return DELAYED;
+	else
+		return FAILED;
 }
 
 static int me_swapcache_clean(struct page *p, unsigned long pfn)
 {
 	delete_from_swap_cache(p);
 
-	return RECOVERED;
+	if (!delete_from_lru_cache(p))
+		return RECOVERED;
+	else
+		return FAILED;
 }
 
 /*
@@ -746,7 +778,6 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 
 int __memory_failure(unsigned long pfn, int trapno, int flags)
 {
-	unsigned long lru_flag;
 	struct page_state *ps;
 	struct page *p;
 	int res;
@@ -796,13 +827,11 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 	 */
 	if (!PageLRU(p))
 		lru_add_drain_all();
-	lru_flag = p->flags & lru;
-	if (isolate_lru_page(p)) {
+	if (!PageLRU(p)) {
 		action_result(pfn, "non LRU", IGNORED);
 		put_page(p);
 		return -EBUSY;
 	}
-	page_cache_release(p);
 
 	/*
 	 * Lock the page and wait for writeback to finish.
@@ -825,7 +854,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 	/*
 	 * Torn down by someone else?
 	 */
-	if ((lru_flag & lru) && !PageSwapCache(p) && p->mapping == NULL) {
+	if (PageLRU(p) && !PageSwapCache(p) && p->mapping == NULL) {
 		action_result(pfn, "already truncated LRU", IGNORED);
 		res = 0;
 		goto out;
@@ -833,7 +862,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 
 	res = -EBUSY;
 	for (ps = error_states;; ps++) {
-		if (((p->flags | lru_flag)& ps->mask) == ps->res) {
+		if ((p->flags & ps->mask) == ps->res) {
 			res = page_action(ps, p, pfn);
 			break;
 		}
