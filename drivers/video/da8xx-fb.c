@@ -29,6 +29,7 @@
 #include <linux/interrupt.h>
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
+#include <linux/console.h>
 #include <video/da8xx-fb.h>
 
 #define DRIVER_NAME "da8xx_lcdc"
@@ -930,11 +931,35 @@ err_request_mem:
 #ifdef CONFIG_PM
 static int fb_suspend(struct platform_device *dev, pm_message_t state)
 {
-	 return -EBUSY;
+	struct fb_info *info = platform_get_drvdata(dev);
+	struct da8xx_fb_par *par = info->par;
+
+	acquire_console_sem();
+	if (par->panel_power_ctrl)
+		par->panel_power_ctrl(0);
+
+	fb_set_suspend(info, 1);
+	lcd_disable_raster();
+	clk_disable(par->lcdc_clk);
+	release_console_sem();
+
+	return 0;
 }
 static int fb_resume(struct platform_device *dev)
 {
-	 return -EBUSY;
+	struct fb_info *info = platform_get_drvdata(dev);
+	struct da8xx_fb_par *par = info->par;
+
+	acquire_console_sem();
+	if (par->panel_power_ctrl)
+		par->panel_power_ctrl(1);
+
+	clk_enable(par->lcdc_clk);
+	lcd_enable_raster();
+	fb_set_suspend(info, 0);
+	release_console_sem();
+
+	return 0;
 }
 #else
 #define fb_suspend NULL
