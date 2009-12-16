@@ -434,17 +434,45 @@ static void unlink_queue(struct sem_array *sma, struct sem_queue *q)
 		sma->complex_count--;
 }
 
-/* Go through the pending queue for the indicated semaphore
- * looking for tasks that can be completed.
+
+/**
+ * update_queue(sma, semnum): Look for tasks that can be completed.
+ * @sma: semaphore array.
+ * @semnum: semaphore that was modified.
+ *
+ * update_queue must be called after a semaphore in a semaphore array
+ * was modified. If multiple semaphore were modified, then @semnum
+ * must be set to -1.
  */
-static void update_queue (struct sem_array * sma)
+static void update_queue(struct sem_array *sma, int semnum)
 {
-	struct sem_queue *q, *tq;
+	struct sem_queue *q;
+	struct list_head *walk;
+	struct list_head *pending_list;
+	int offset;
+
+	/* if there are complex operations around, then knowing the semaphore
+	 * that was modified doesn't help us. Assume that multiple semaphores
+	 * were modified.
+	 */
+	if (sma->complex_count)
+		semnum = -1;
+
+	if (semnum == -1) {
+		pending_list = &sma->sem_pending;
+		offset = offsetof(struct sem_queue, list);
+	} else {
+		pending_list = &sma->sem_base[semnum].sem_pending;
+		offset = offsetof(struct sem_queue, simple_list);
+	}
 
 again:
-	list_for_each_entry_safe(q, tq, &sma->sem_pending, list) {
-		int error;
-		int alter;
+	walk = pending_list->next;
+	while (walk != pending_list) {
+		int error, alter;
+
+		q = (struct sem_queue *)((char *)walk - offset);
+		walk = walk->next;
 
 		error = try_atomic_semop(sma, q->sops, q->nsops,
 					 q->undo, q->pid);
@@ -769,7 +797,7 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 		}
 		sma->sem_ctime = get_seconds();
 		/* maybe some queued-up processes were waiting for this */
-		update_queue(sma);
+		update_queue(sma, -1);
 		err = 0;
 		goto out_unlock;
 	}
@@ -811,7 +839,7 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 		curr->sempid = task_tgid_vnr(current);
 		sma->sem_ctime = get_seconds();
 		/* maybe some queued-up processes were waiting for this */
-		update_queue(sma);
+		update_queue(sma, semnum);
 		err = 0;
 		goto out_unlock;
 	}
@@ -1187,7 +1215,8 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
 	error = try_atomic_semop (sma, sops, nsops, un, task_tgid_vnr(current));
 	if (error <= 0) {
 		if (alter && error == 0)
-			update_queue (sma);
+			update_queue(sma, (nsops == 1) ? sops[0].sem_num : -1);
+
 		goto out_unlock_free;
 	}
 
@@ -1388,7 +1417,7 @@ void exit_sem(struct task_struct *tsk)
 		}
 		sma->sem_otime = get_seconds();
 		/* maybe some queued-up processes were waiting for this */
-		update_queue(sma);
+		update_queue(sma, -1);
 		sem_unlock(sma);
 
 		call_rcu(&un->rcu, free_un);
