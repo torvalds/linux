@@ -401,6 +401,10 @@ extern const char gfar_driver_version[];
 #define FPR_FILER_MASK	0xFFFFFFFF
 #define MAX_FILER_IDX	0xFF
 
+/* This default RIR value directly corresponds
+ * to the 3-bit hash value generated */
+#define DEFAULT_RIR0	0x05397700
+
 /* RQFCR register bits */
 #define RQFCR_GPI		0x80000000
 #define RQFCR_HASHTBL_Q		0x00000000
