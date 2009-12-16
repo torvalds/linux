@@ -264,11 +264,9 @@ static int gru_init_tables(unsigned long gru_base_paddr, void *gru_base_vaddr)
 
 	max_user_cbrs = GRU_NUM_CB;
 	max_user_dsr_bytes = GRU_NUM_DSR_BYTES;
-	for_each_online_node(nid) {
-		bid = uv_node_to_blade_id(nid);
-		pnode = uv_node_to_pnode(nid);
-		if (bid < 0 || gru_base[bid])
-			continue;
+	for_each_possible_blade(bid) {
+		pnode = uv_blade_to_pnode(bid);
+		nid = uv_blade_to_memory_nid(bid);
 		page = alloc_pages_exact_node(nid, GFP_KERNEL, order);
 		if (!page)
 			goto fail;
@@ -298,8 +296,8 @@ static int gru_init_tables(unsigned long gru_base_paddr, void *gru_base_vaddr)
 	return 0;
 
 fail:
-	for (nid--; nid >= 0; nid--)
-		free_pages((unsigned long)gru_base[nid], order);
+	for (bid--; bid >= 0; bid--)
+		free_pages((unsigned long)gru_base[bid], order);
 	return -ENOMEM;
 }
 
