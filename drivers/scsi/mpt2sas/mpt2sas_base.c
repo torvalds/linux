@@ -1222,6 +1222,8 @@ mpt2sas_base_map_resources(struct MPT2SAS_ADAPTER *ioc)
 	u32 memap_sz;
 	u32 pio_sz;
 	int i, r = 0;
+	u64 pio_chip = 0;
+	u64 chip_phys = 0;
 
 	dinitprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s\n",
 	    ioc->name, __func__));
@@ -1255,12 +1257,13 @@ mpt2sas_base_map_resources(struct MPT2SAS_ADAPTER *ioc)
 		if (pci_resource_flags(pdev, i) & PCI_BASE_ADDRESS_SPACE_IO) {
 			if (pio_sz)
 				continue;
-			ioc->pio_chip = pci_resource_start(pdev, i);
+			pio_chip = (u64)pci_resource_start(pdev, i);
 			pio_sz = pci_resource_len(pdev, i);
 		} else {
 			if (memap_sz)
 				continue;
 			ioc->chip_phys = pci_resource_start(pdev, i);
+			chip_phys = (u64)ioc->chip_phys;
 			memap_sz = pci_resource_len(pdev, i);
 			ioc->chip = ioremap(ioc->chip_phys, memap_sz);
 			if (ioc->chip == NULL) {
@@ -1280,10 +1283,10 @@ mpt2sas_base_map_resources(struct MPT2SAS_ADAPTER *ioc)
 	printk(MPT2SAS_INFO_FMT "%s: IRQ %d\n",
 	    ioc->name,  ((ioc->msix_enable) ? "PCI-MSI-X enabled" :
 	    "IO-APIC enabled"), ioc->pci_irq);
-	printk(MPT2SAS_INFO_FMT "iomem(0x%lx), mapped(0x%p), size(%d)\n",
-	    ioc->name, ioc->chip_phys, ioc->chip, memap_sz);
-	printk(MPT2SAS_INFO_FMT "ioport(0x%lx), size(%d)\n",
-	    ioc->name, ioc->pio_chip, pio_sz);
+	printk(MPT2SAS_INFO_FMT "iomem(0x%016llx), mapped(0x%p), size(%d)\n",
+	    ioc->name, (unsigned long long)chip_phys, ioc->chip, memap_sz);
+	printk(MPT2SAS_INFO_FMT "ioport(0x%016llx), size(%d)\n",
+	    ioc->name, (unsigned long long)pio_chip, pio_sz);
 
 	return 0;
 

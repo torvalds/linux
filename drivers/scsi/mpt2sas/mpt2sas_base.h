@@ -464,7 +464,6 @@ typedef void (*MPT_ADD_SGE)(void *paddr, u32 flags_length, dma_addr_t dma_addr);
  * @pdev: pci pdev object
  * @chip: memory mapped register space
  * @chip_phys: physical addrss prior to mapping
- * @pio_chip: I/O mapped register space
  * @logging_level: see mpt2sas_debug.h
  * @fwfault_debug: debuging FW timeouts
  * @ir_firmware: IR firmware present
@@ -587,8 +586,7 @@ struct MPT2SAS_ADAPTER {
 	char		tmp_string[MPT_STRING_LENGTH];
 	struct pci_dev	*pdev;
 	Mpi2SystemInterfaceRegs_t __iomem *chip;
-	unsigned long	chip_phys;
-	unsigned long	pio_chip;
+	resource_size_t	chip_phys;
 	int		logging_level;
 	int		fwfault_debug;
 	u8		ir_firmware;
