@@ -801,7 +801,8 @@ static int gfs2_security_init(struct gfs2_inode *dip, struct gfs2_inode *ip)
 		return err;
 	}
 
-	err = gfs2_xattr_set(&ip->i_inode, GFS2_EATYPE_SECURITY, name, value, len, 0);
+	err = __gfs2_xattr_set(&ip->i_inode, name, value, len, 0,
+			       GFS2_EATYPE_SECURITY);
 	kfree(value);
 	kfree(name);
 

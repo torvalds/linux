@@ -88,7 +88,7 @@ struct file *anon_inode_getfile(const char *name,
 				void *priv, int flags)
 {
 	struct qstr this;
-	struct dentry *dentry;
+	struct path path;
 	struct file *file;
 	int error;
 
@@ -106,10 +106,11 @@ struct file *anon_inode_getfile(const char *name,
 	this.name = name;
 	this.len = strlen(name);
 	this.hash = 0;
-	dentry = d_alloc(anon_inode_mnt->mnt_sb->s_root, &this);
-	if (!dentry)
+	path.dentry = d_alloc(anon_inode_mnt->mnt_sb->s_root, &this);
+	if (!path.dentry)
 		goto err_module;
 
+	path.mnt = mntget(anon_inode_mnt);
 	/*
 	 * We know the anon_inode inode count is always greater than zero,
 	 * so we can avoid doing an igrab() and we can use an open-coded
@@ -117,14 +118,13 @@ struct file *anon_inode_getfile(const char *name,
 	 */
 	atomic_inc(&anon_inode_inode->i_count);
 
-	dentry->d_op = &anon_inodefs_dentry_operations;
+	path.dentry->d_op = &anon_inodefs_dentry_operations;
 	/* Do not publish this dentry inside the global dentry hash table */
-	dentry->d_flags &= ~DCACHE_UNHASHED;
-	d_instantiate(dentry, anon_inode_inode);
+	path.dentry->d_flags &= ~DCACHE_UNHASHED;
+	d_instantiate(path.dentry, anon_inode_inode);
 
 	error = -ENFILE;
-	file = alloc_file(anon_inode_mnt, dentry,
-			  FMODE_READ | FMODE_WRITE, fops);
+	file = alloc_file(&path, FMODE_READ | FMODE_WRITE, fops);
 	if (!file)
 		goto err_dput;
 	file->f_mapping = anon_inode_inode->i_mapping;
@@ -137,7 +137,7 @@ struct file *anon_inode_getfile(const char *name,
 	return file;
 
 err_dput:
-	dput(dentry);
+	path_put(&path);
 err_module:
 	module_put(fops->owner);
 	return ERR_PTR(error);

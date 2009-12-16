@@ -403,7 +403,7 @@ static void dst_node_cleanup(struct dst_node *n)
 
 	if (n->bdev) {
 		sync_blockdev(n->bdev);
-		blkdev_put(n->bdev, FMODE_READ|FMODE_WRITE);
+		close_bdev_exclusive(n->bdev, FMODE_READ|FMODE_WRITE);
 	}
 
 	dst_state_lock(st);
@@ -464,37 +464,6 @@ void dst_node_put(struct dst_node *n)
 }
 
 /*
- * This function finds devices major/minor numbers for given pathname.
- */
-static int dst_lookup_device(const char *path, dev_t *dev)
-{
-	int err;
-	struct nameidata nd;
-	struct inode *inode;
-
-	err = path_lookup(path, LOOKUP_FOLLOW, &nd);
-	if (err)
-		return err;
-
-	inode = nd.path.dentry->d_inode;
-	if (!inode) {
-		err = -ENOENT;
-		goto out;
-	}
-
-	if (!S_ISBLK(inode->i_mode)) {
-		err = -ENOTBLK;
-		goto out;
-	}
-
-	*dev = inode->i_rdev;
-
-out:
-	path_put(&nd.path);
-	return err;
-}
-
-/*
  * Setting up export device: lookup by the name, get its size
  * and setup listening socket, which will accept clients, which
  * will submit IO for given storage.
@@ -503,17 +472,12 @@ static int dst_setup_export(struct dst_node *n, struct dst_ctl *ctl,
 		struct dst_export_ctl *le)
 {
 	int err;
-	dev_t dev = 0; /* gcc likes to scream here */
 
 	snprintf(n->info->local, sizeof(n->info->local), "%s", le->device);
 
-	err = dst_lookup_device(le->device, &dev);
-	if (err)
-		return err;
-
-	n->bdev = open_by_devnum(dev, FMODE_READ|FMODE_WRITE);
-	if (!n->bdev)
-		return -ENODEV;
+	n->bdev = open_bdev_exclusive(le->device, FMODE_READ|FMODE_WRITE, NULL);
+	if (IS_ERR(n->bdev))
+		return PTR_ERR(n->bdev);
 
 	if (n->size != 0)
 		n->size = min_t(loff_t, n->bdev->bd_inode->i_size, n->size);
@@ -528,7 +492,7 @@ static int dst_setup_export(struct dst_node *n, struct dst_ctl *ctl,
 	return 0;
 
 err_out_cleanup:
-	blkdev_put(n->bdev, FMODE_READ|FMODE_WRITE);
+	close_bdev_exclusive(n->bdev, FMODE_READ|FMODE_WRITE);
 	n->bdev = NULL;
 
 	return err;

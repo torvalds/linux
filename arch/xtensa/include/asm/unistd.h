@@ -94,7 +94,7 @@ __SYSCALL( 35, sys_readlink, 3)
 #define __NR_mknod 				 36
 __SYSCALL( 36, sys_mknod, 3)
 #define __NR_pipe 				 37
-__SYSCALL( 37, xtensa_pipe, 1)
+__SYSCALL( 37, sys_pipe, 1)
 #define __NR_unlink 				 38
 __SYSCALL( 38, sys_unlink, 1)
 #define __NR_rmdir 				 39

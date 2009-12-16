@@ -39,7 +39,6 @@
 #include <linux/nsproxy.h>
 #include <linux/mount.h>
 #include <linux/ipc_namespace.h>
-#include <linux/ima.h>
 
 #include <asm/uaccess.h>
 
@@ -879,8 +878,8 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr)
 	if (err)
 		goto out_unlock;
 
-	path.dentry = dget(shp->shm_file->f_path.dentry);
-	path.mnt    = shp->shm_file->f_path.mnt;
+	path = shp->shm_file->f_path;
+	path_get(&path);
 	shp->shm_nattch++;
 	size = i_size_read(path.dentry->d_inode);
 	shm_unlock(shp);
@@ -890,13 +889,12 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr)
 	if (!sfd)
 		goto out_put_dentry;
 
-	file = alloc_file(path.mnt, path.dentry, f_mode,
-			is_file_hugepages(shp->shm_file) ?
+	file = alloc_file(&path, f_mode,
+			  is_file_hugepages(shp->shm_file) ?
 				&shm_file_operations_huge :
 				&shm_file_operations);
 	if (!file)
 		goto out_free;
-	ima_counts_get(file);
 
 	file->private_data = sfd;
 	file->f_mapping = shp->shm_file->f_mapping;
@@ -951,7 +949,7 @@ out_unlock:
 out_free:
 	kfree(sfd);
 out_put_dentry:
-	dput(path.dentry);
+	path_put(&path);
 	goto out_nattch;
 }
 

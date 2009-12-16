@@ -30,7 +30,6 @@ struct mmap_arg_struct;
 asmlinkage long sys32_mmap(struct mmap_arg_struct __user *);
 asmlinkage long sys32_mprotect(unsigned long, size_t, unsigned long);
 
-asmlinkage long sys32_pipe(int __user *);
 struct sigaction32;
 struct old_sigaction32;
 asmlinkage long sys32_rt_sigaction(int, struct sigaction32 __user *,
