@@ -687,6 +687,8 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	/*
 	 * Propagate the dirty bit from PTEs to struct page first, because we
 	 * need this to decide if we should kill or just drop the page.
+	 * XXX: the dirty test could be racy: set_page_dirty() may not always
+	 * be called inside page lock (it's recommended but not enforced).
 	 */
 	mapping = page_mapping(p);
 	if (!PageDirty(p) && mapping && mapping_cap_writeback_dirty(mapping)) {
