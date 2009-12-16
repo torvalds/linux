@@ -49,10 +49,12 @@ int sysctl_memory_failure_recovery __read_mostly = 1;
 
 atomic_long_t mce_bad_pages __read_mostly = ATOMIC_LONG_INIT(0);
 
+u32 hwpoison_filter_enable = 0;
 u32 hwpoison_filter_dev_major = ~0U;
 u32 hwpoison_filter_dev_minor = ~0U;
 u64 hwpoison_filter_flags_mask;
 u64 hwpoison_filter_flags_value;
+EXPORT_SYMBOL_GPL(hwpoison_filter_enable);
 EXPORT_SYMBOL_GPL(hwpoison_filter_dev_major);
 EXPORT_SYMBOL_GPL(hwpoison_filter_dev_minor);
 EXPORT_SYMBOL_GPL(hwpoison_filter_flags_mask);
@@ -145,6 +147,9 @@ static int hwpoison_filter_task(struct page *p) { return 0; }
 
 int hwpoison_filter(struct page *p)
 {
+	if (!hwpoison_filter_enable)
+		return 0;
+
 	if (hwpoison_filter_dev(p))
 		return -EINVAL;
 
