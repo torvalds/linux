@@ -8,7 +8,7 @@
 
 MKIMAGE := $(srctree)/scripts/mkuboot.sh
 
-targets := vmImage vmImage.bz2 vmImage.gz vmImage.lzma
+targets := vmImage vmImage.bin vmImage.bz2 vmImage.gz vmImage.lzma
 extra-y += vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 vmlinux.bin.lzma
 
 quiet_cmd_uimage = UIMAGE  $@
@@ -29,6 +29,9 @@ $(obj)/vmlinux.bin.bz2: $(obj)/vmlinux.bin FORCE
 $(obj)/vmlinux.bin.lzma: $(obj)/vmlinux.bin FORCE
 	$(call if_changed,lzma)
 
+$(obj)/vmImage.bin: $(obj)/vmlinux.bin
+	$(call if_changed,uimage,none)
+
 $(obj)/vmImage.bz2: $(obj)/vmlinux.bin.bz2
 	$(call if_changed,uimage,bzip2)
 
@@ -38,6 +41,7 @@ $(obj)/vmImage.gz: $(obj)/vmlinux.bin.gz
 $(obj)/vmImage.lzma: $(obj)/vmlinux.bin.lzma
 	$(call if_changed,uimage,lzma)
 
+suffix-y                      := bin
 suffix-$(CONFIG_KERNEL_GZIP)  := gz
 suffix-$(CONFIG_KERNEL_BZIP2) := bz2
 suffix-$(CONFIG_KERNEL_LZMA)  := lzma
