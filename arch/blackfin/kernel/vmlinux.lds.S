@@ -4,8 +4,6 @@
  * Licensed under the GPL-2 or later
  */
 
-#define VMLINUX_SYMBOL(_sym_) _##_sym_
-
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/mem_map.h>
 #include <asm/page.h>
