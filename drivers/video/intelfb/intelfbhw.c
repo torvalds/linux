@@ -469,6 +469,32 @@ void intelfbhw_do_blank(int blank, struct fb_info *info)
 }
 
 
+/* Check which pipe is connected to an active display plane. */
+int intelfbhw_active_pipe(const struct intelfb_hwstate *hw)
+{
+	int pipe = -1;
+
+	/* keep old default behaviour - prefer PIPE_A */
+	if (hw->disp_b_ctrl & DISPPLANE_PLANE_ENABLE) {
+		pipe = (hw->disp_b_ctrl >> DISPPLANE_SEL_PIPE_SHIFT);
+		pipe &= PIPE_MASK;
+		if (unlikely(pipe == PIPE_A))
+			return PIPE_A;
+	}
+	if (hw->disp_a_ctrl & DISPPLANE_PLANE_ENABLE) {
+		pipe = (hw->disp_a_ctrl >> DISPPLANE_SEL_PIPE_SHIFT);
+		pipe &= PIPE_MASK;
+		if (likely(pipe == PIPE_A))
+			return PIPE_A;
+	}
+	/* Impossible that no pipe is selected - return PIPE_A */
+	WARN_ON(pipe == -1);
+	if (unlikely(pipe == -1))
+		pipe = PIPE_A;
+
+	return pipe;
+}
+
 void intelfbhw_setcolreg(struct intelfb_info *dinfo, unsigned regno,
 			 unsigned red, unsigned green, unsigned blue,
 			 unsigned transp)
@@ -1019,7 +1045,7 @@ int intelfbhw_mode_to_hw(struct intelfb_info *dinfo,
 			 struct intelfb_hwstate *hw,
 			 struct fb_var_screeninfo *var)
 {
-	int pipe = PIPE_A;
+	int pipe = intelfbhw_active_pipe(hw);
 	u32 *dpll, *fp0, *fp1;
 	u32 m1, m2, n, p1, p2, clock_target, clock;
 	u32 hsync_start, hsync_end, hblank_start, hblank_end, htotal, hactive;
@@ -1032,12 +1058,6 @@ int intelfbhw_mode_to_hw(struct intelfb_info *dinfo,
 
 	/* Disable VGA */
 	hw->vgacntrl |= VGA_DISABLE;
-
-	/* Check whether pipe A or pipe B is enabled. */
-	if (hw->pipe_a_conf & PIPECONF_ENABLE)
-		pipe = PIPE_A;
-	else if (hw->pipe_b_conf & PIPECONF_ENABLE)
-		pipe = PIPE_B;
 
 	/* Set which pipe's registers will be set. */
 	if (pipe == PIPE_B) {
@@ -1262,7 +1282,6 @@ int intelfbhw_mode_to_hw(struct intelfb_info *dinfo,
 int intelfbhw_program_mode(struct intelfb_info *dinfo,
 			   const struct intelfb_hwstate *hw, int blank)
 {
-	int pipe = PIPE_A;
 	u32 tmp;
 	const u32 *dpll, *fp0, *fp1, *pipe_conf;
 	const u32 *hs, *ht, *hb, *vs, *vt, *vb, *ss;
@@ -1272,7 +1291,7 @@ int intelfbhw_program_mode(struct intelfb_info *dinfo,
 	u32 src_size_reg;
 	u32 count, tmp_val[3];
 
-	/* Assume single pipe, display plane A, analog CRT. */
+	/* Assume single pipe */
 
 #if VERBOSE > 0
 	DBG_MSG("intelfbhw_program_mode\n");
@@ -1283,15 +1302,9 @@ int intelfbhw_program_mode(struct intelfb_info *dinfo,
 	tmp |= VGA_DISABLE;
 	OUTREG(VGACNTRL, tmp);
 
-	/* Check whether pipe A or pipe B is enabled. */
-	if (hw->pipe_a_conf & PIPECONF_ENABLE)
-		pipe = PIPE_A;
-	else if (hw->pipe_b_conf & PIPECONF_ENABLE)
-		pipe = PIPE_B;
+	dinfo->pipe = intelfbhw_active_pipe(hw);
 
-	dinfo->pipe = pipe;
-
-	if (pipe == PIPE_B) {
+	if (dinfo->pipe == PIPE_B) {
 		dpll = &hw->dpll_b;
 		fp0 = &hw->fpb0;
 		fp1 = &hw->fpb1;
