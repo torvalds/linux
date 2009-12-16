@@ -1113,7 +1113,8 @@ EXPORT_SYMBOL(unpoison_memory);
 
 static struct page *new_page(struct page *p, unsigned long private, int **x)
 {
-	return alloc_pages(GFP_HIGHUSER_MOVABLE, 0);
+	int nid = page_to_nid(p);
+	return alloc_pages_exact_node(nid, GFP_HIGHUSER_MOVABLE, 0);
 }
 
 /*
