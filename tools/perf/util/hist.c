@@ -1,6 +1,7 @@
 #include "hist.h"
 #include "session.h"
 #include "sort.h"
+#include <math.h>
 
 struct callchain_param	callchain_param = {
 	.mode	= CHAIN_GRAPH_REL,
@@ -494,13 +495,13 @@ static size_t hist_entry__fprintf(struct hist_entry *self,
 		double old_percent = 0, new_percent = 0, diff;
 
 		if (total > 0)
-			old_percent = (count * 100) / total;
+			old_percent = (count * 100.0) / total;
 		if (session->events_stats.total > 0)
-			new_percent = (self->count * 100) / session->events_stats.total;
+			new_percent = (self->count * 100.0) / session->events_stats.total;
 
-		diff = old_percent - new_percent;
+		diff = new_percent - old_percent;
 
-		if ((u64)diff != 0)
+		if (fabs(diff) >= 0.01)
 			snprintf(bf, sizeof(bf), "%+4.2F%%", diff);
 		else
 			snprintf(bf, sizeof(bf), " ");
