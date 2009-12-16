@@ -807,8 +807,13 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 	 */
 	if (!(flags & MF_COUNT_INCREASED) &&
 		!get_page_unless_zero(compound_head(p))) {
-		action_result(pfn, "free or high order kernel", IGNORED);
-		return PageBuddy(compound_head(p)) ? 0 : -EBUSY;
+		if (is_free_buddy_page(p)) {
+			action_result(pfn, "free buddy", DELAYED);
+			return 0;
+		} else {
+			action_result(pfn, "high order kernel", IGNORED);
+			return -EBUSY;
+		}
 	}
 
 	/*
