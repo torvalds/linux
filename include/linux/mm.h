@@ -1339,8 +1339,9 @@ extern int __memory_failure(unsigned long pfn, int trapno, int flags);
 extern int unpoison_memory(unsigned long pfn);
 extern int sysctl_memory_failure_early_kill;
 extern int sysctl_memory_failure_recovery;
-extern void shake_page(struct page *p);
+extern void shake_page(struct page *p, int access);
 extern atomic_long_t mce_bad_pages;
+extern int soft_offline_page(struct page *page, int flags);
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */

@@ -29,7 +29,7 @@ static int hwpoison_inject(void *data, u64 val)
 		return 0;
 
 	if (!PageLRU(p))
-		shake_page(p);
+		shake_page(p, 0);
 	/*
 	 * This implies unable to support non-LRU pages.
 	 */
