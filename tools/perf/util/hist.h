@@ -21,6 +21,7 @@ void hist_entry__free(struct hist_entry *);
 
 void perf_session__output_resort(struct perf_session *self, u64 total_samples);
 void perf_session__collapse_resort(struct perf_session *self);
-size_t perf_session__fprintf_hists(struct perf_session *self, FILE *fp);
-
+size_t perf_session__fprintf_hists(struct perf_session *self,
+				   struct perf_session *pair,
+				   bool show_displacement, FILE *fp);
 #endif	/* __PERF_HIST_H */

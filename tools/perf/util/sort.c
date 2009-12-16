@@ -303,3 +303,14 @@ void setup_sorting(const char * const usagestr[], const struct option *opts)
 
 	free(str);
 }
+
+void sort_entry__setup_elide(struct sort_entry *self, struct strlist *list,
+			     const char *list_name, FILE *fp)
+{
+	if (list && strlist__nr_entries(list) == 1) {
+		if (fp != NULL)
+			fprintf(fp, "# %s: %s\n", list_name,
+				strlist__entry(list, 0)->s);
+		self->elide = true;
+	}
+}

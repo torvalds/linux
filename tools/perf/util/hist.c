@@ -454,34 +454,80 @@ static size_t hist_entry_callchain__fprintf(FILE *fp, struct hist_entry *self,
 	return ret;
 }
 
-static size_t hist_entry__fprintf(FILE *fp, struct hist_entry *self,
-				  struct perf_session *session)
+static size_t hist_entry__fprintf(struct hist_entry *self,
+				  struct perf_session *session,
+				  struct perf_session *pair_session,
+				  bool show_displacement,
+				  long displacement, FILE *fp)
 {
 	struct sort_entry *se;
+	u64 count, total;
+	const char *sep = symbol_conf.field_sep;
 	size_t ret;
 
 	if (symbol_conf.exclude_other && !self->parent)
 		return 0;
 
-	if (session->events_stats.total)
-		ret = percent_color_fprintf(fp,
-					    symbol_conf.field_sep ? "%.2f" : "   %6.2f%%",
-					(self->count * 100.0) / session->events_stats.total);
+	if (pair_session) {
+		count = self->pair ? self->pair->count : 0;
+		total = pair_session->events_stats.total;
+	} else {
+		count = self->count;
+		total = session->events_stats.total;
+	}
+
+	if (total)
+		ret = percent_color_fprintf(fp, sep ? "%.2f" : "   %6.2f%%",
+					    (count * 100.0) / total);
 	else
-		ret = fprintf(fp, symbol_conf.field_sep ? "%lld" : "%12lld ", self->count);
+		ret = fprintf(fp, sep ? "%lld" : "%12lld ", count);
 
 	if (symbol_conf.show_nr_samples) {
-		if (symbol_conf.field_sep)
-			fprintf(fp, "%c%lld", *symbol_conf.field_sep, self->count);
+		if (sep)
+			fprintf(fp, "%c%lld", *sep, count);
 		else
-			fprintf(fp, "%11lld", self->count);
+			fprintf(fp, "%11lld", count);
+	}
+
+	if (pair_session) {
+		char bf[32];
+		double old_percent = 0, new_percent = 0, diff;
+
+		if (total > 0)
+			old_percent = (count * 100) / total;
+		if (session->events_stats.total > 0)
+			new_percent = (self->count * 100) / session->events_stats.total;
+
+		diff = old_percent - new_percent;
+
+		if ((u64)diff != 0)
+			snprintf(bf, sizeof(bf), "%+4.2F%%", diff);
+		else
+			snprintf(bf, sizeof(bf), " ");
+
+		if (sep)
+			ret += fprintf(fp, "%c%s", *sep, bf);
+		else
+			ret += fprintf(fp, "%11.11s", bf);
+
+		if (show_displacement) {
+			if (displacement)
+				snprintf(bf, sizeof(bf), "%+4ld", displacement);
+			else
+				snprintf(bf, sizeof(bf), " ");
+
+			if (sep)
+				fprintf(fp, "%c%s", *sep, bf);
+			else
+				fprintf(fp, "%6.6s", bf);
+		}
 	}
 
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		if (se->elide)
 			continue;
 
-		fprintf(fp, "%s", symbol_conf.field_sep ?: "  ");
+		fprintf(fp, "%s", sep ?: "  ");
 		ret += se->print(fp, self, se->width ? *se->width : 0);
 	}
 
@@ -504,29 +550,49 @@ static size_t hist_entry__fprintf(FILE *fp, struct hist_entry *self,
 	return ret;
 }
 
-size_t perf_session__fprintf_hists(struct perf_session *self, FILE *fp)
+size_t perf_session__fprintf_hists(struct perf_session *self,
+				   struct perf_session *pair,
+				   bool show_displacement, FILE *fp)
 {
-	struct hist_entry *pos;
 	struct sort_entry *se;
 	struct rb_node *nd;
 	size_t ret = 0;
+	unsigned long position = 1;
+	long displacement = 0;
 	unsigned int width;
+	const char *sep = symbol_conf.field_sep;
 	char *col_width = symbol_conf.col_width_list_str;
 
 	init_rem_hits();
 
-	fprintf(fp, "# Overhead");
+	fprintf(fp, "# %s", pair ? "Baseline" : "Overhead");
+
 	if (symbol_conf.show_nr_samples) {
-		if (symbol_conf.field_sep)
-			fprintf(fp, "%cSamples", *symbol_conf.field_sep);
+		if (sep)
+			fprintf(fp, "%cSamples", *sep);
 		else
 			fputs("  Samples  ", fp);
 	}
+
+	if (pair) {
+		if (sep)
+			ret += fprintf(fp, "%cDelta", *sep);
+		else
+			ret += fprintf(fp, "  Delta    ");
+
+		if (show_displacement) {
+			if (sep)
+				ret += fprintf(fp, "%cDisplacement", *sep);
+			else
+				ret += fprintf(fp, " Displ");
+		}
+	}
+
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		if (se->elide)
 			continue;
-		if (symbol_conf.field_sep) {
-			fprintf(fp, "%c%s", *symbol_conf.field_sep, se->header);
+		if (sep) {
+			fprintf(fp, "%c%s", *sep, se->header);
 			continue;
 		}
 		width = strlen(se->header);
@@ -545,12 +611,17 @@ size_t perf_session__fprintf_hists(struct perf_session *self, FILE *fp)
 	}
 	fprintf(fp, "\n");
 
-	if (symbol_conf.field_sep)
+	if (sep)
 		goto print_entries;
 
 	fprintf(fp, "# ........");
 	if (symbol_conf.show_nr_samples)
 		fprintf(fp, " ..........");
+	if (pair) {
+		fprintf(fp, " ..........");
+		if (show_displacement)
+			fprintf(fp, " .....");
+	}
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		unsigned int i;
 
@@ -565,14 +636,23 @@ size_t perf_session__fprintf_hists(struct perf_session *self, FILE *fp)
 		for (i = 0; i < width; i++)
 			fprintf(fp, ".");
 	}
-	fprintf(fp, "\n");
 
-	fprintf(fp, "#\n");
+	fprintf(fp, "\n#\n");
 
 print_entries:
 	for (nd = rb_first(&self->hists); nd; nd = rb_next(nd)) {
-		pos = rb_entry(nd, struct hist_entry, rb_node);
-		ret += hist_entry__fprintf(fp, pos, self);
+		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
+
+		if (show_displacement) {
+			if (h->pair != NULL)
+				displacement = ((long)h->pair->position -
+					        (long)position);
+			else
+				displacement = 0;
+			++position;
+		}
+		ret += hist_entry__fprintf(h, self, pair, show_displacement,
+					   displacement, fp);
 	}
 
 	free(rem_sq_bracket);

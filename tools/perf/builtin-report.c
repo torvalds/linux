@@ -225,7 +225,7 @@ static int __cmd_report(void)
 	perf_session__collapse_resort(session);
 	perf_session__output_resort(session, session->events_stats.total);
 	fprintf(stdout, "# Samples: %ld\n#\n", session->events_stats.total);
-	perf_session__fprintf_hists(session, stdout);
+	perf_session__fprintf_hists(session, NULL, false, stdout);
 	if (sort_order == default_sort_order &&
 	    parent_pattern == default_parent_pattern)
 		fprintf(stdout, "#\n# (For a higher level overview, try: perf report --sort comm,dso)\n#\n");
@@ -343,16 +343,6 @@ static const struct option options[] = {
 		   "columns '.' is reserved."),
 	OPT_END()
 };
-
-static void sort_entry__setup_elide(struct sort_entry *self,
-				    struct strlist *list,
-				    const char *list_name, FILE *fp)
-{
-	if (list && strlist__nr_entries(list) == 1) {
-		fprintf(fp, "# %s: %s\n", list_name, strlist__entry(list, 0)->s);
-		self->elide = true;
-	}
-}
 
 int cmd_report(int argc, const char **argv, const char *prefix __used)
 {

@@ -16,10 +16,10 @@
 
 #include <stdlib.h>
 
-static char	   const *input_old = "perf.data.old",
-			 *input_new = "perf.data";
-static int	   force;
-static bool 	   show_percent;
+static char const *input_old = "perf.data.old",
+		  *input_new = "perf.data";
+static int  force;
+static bool show_displacement;
 
 static int perf_session__add_hist_entry(struct perf_session *self,
 					struct addr_location *al, u64 count)
@@ -162,70 +162,6 @@ static void perf_session__match_hists(struct perf_session *old_session,
 	}
 }
 
-static size_t hist_entry__fprintf_matched(struct hist_entry *self,
-					  unsigned long pos,
-					  struct perf_session *session,
-					  struct perf_session *pair_session,
-					  FILE *fp)
-{
-	u64 old_count = 0;
-	char displacement[16];
-	size_t printed;
-
-	if (self->pair != NULL) {
-		long pdiff = (long)self->pair->position - (long)pos;
-		old_count = self->pair->count;
-		if (pdiff == 0)
-			goto blank;
-		snprintf(displacement, sizeof(displacement), "%+4ld", pdiff);
-	} else {
-blank:		memset(displacement, ' ', sizeof(displacement));
-	}
-
-	printed = fprintf(fp, "%4lu %5.5s ", pos, displacement);
-
-	if (show_percent) {
-		double old_percent = 0, new_percent = 0, diff;
-
-		if (pair_session->events_stats.total > 0)
-			old_percent = (old_count * 100) / pair_session->events_stats.total;
-		if (session->events_stats.total > 0)
-			new_percent = (self->count * 100) / session->events_stats.total;
-
-		diff = old_percent - new_percent;
-		if (verbose)
-			printed += fprintf(fp, " %3.2f%% %3.2f%%", old_percent, new_percent);
-
-		if ((u64)diff != 0)
-			printed += fprintf(fp, " %+4.2F%%", diff);
-		else
-			printed += fprintf(fp, "       ");
-	} else {
-		if (verbose)
-			printed += fprintf(fp, " %9Lu %9Lu", old_count, self->count);
-		printed += fprintf(fp, " %+9Ld", (s64)self->count - (s64)old_count);
-	}
-
-	return printed + fprintf(fp, " %25.25s   %s\n",
-				 self->map->dso->name, self->sym->name);
-}
-
-static size_t perf_session__fprintf_matched_hists(struct perf_session *self,
-						  struct perf_session *pair,
-						  FILE *fp)
-{
-	struct rb_node *nd;
-	size_t printed = 0;
-	unsigned long pos = 1;
-
-	for (nd = rb_first(&self->hists); nd; nd = rb_next(nd)) {
-		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
-		printed += hist_entry__fprintf_matched(he, pos++, self, pair, fp);
-	}
-
-	return printed;
-}
-
 static int __cmd_diff(void)
 {
 	int ret, i;
@@ -244,7 +180,8 @@ static int __cmd_diff(void)
 	}
 
 	perf_session__match_hists(session[0], session[1]);
-	perf_session__fprintf_matched_hists(session[1], session[0], stdout);
+	perf_session__fprintf_hists(session[1], session[0],
+				    show_displacement, stdout);
 out_delete:
 	for (i = 0; i < 2; ++i)
 		perf_session__delete(session[i]);
@@ -258,13 +195,13 @@ static const char *const diff_usage[] = {
 static const struct option options[] = {
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
+	OPT_BOOLEAN('m', "displacement", &show_displacement,
+		    "Show position displacement relative to baseline"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
 	OPT_BOOLEAN('m', "modules", &symbol_conf.use_modules,
 		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
-	OPT_BOOLEAN('p', "percentages", &show_percent,
-		    "Don't shorten the pathnames taking into account the cwd"),
 	OPT_BOOLEAN('P', "full-paths", &event_ops.full_paths,
 		    "Don't shorten the pathnames taking into account the cwd"),
 	OPT_STRING('d', "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
@@ -273,6 +210,11 @@ static const struct option options[] = {
 		   "only consider symbols in these comms"),
 	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
 		   "only consider these symbols"),
+	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
+		   "sort by key(s): pid, comm, dso, symbol, parent"),
+	OPT_STRING('t', "field-separator", &symbol_conf.field_sep, "separator",
+		   "separator for columns, no spaces will be added between "
+		   "columns '.' is reserved."),
 	OPT_END()
 };
 
@@ -289,10 +231,16 @@ int cmd_diff(int argc, const char **argv, const char *prefix __used)
 			input_new = argv[0];
 	}
 
+	symbol_conf.exclude_other = false;
 	if (symbol__init() < 0)
 		return -1;
 
 	setup_sorting(diff_usage, options);
 	setup_pager();
+
+	sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list, "dso", NULL);
+	sort_entry__setup_elide(&sort_comm, symbol_conf.comm_list, "comm", NULL);
+	sort_entry__setup_elide(&sort_sym, symbol_conf.sym_list, "symbol", NULL);
+
 	return __cmd_diff();
 }
