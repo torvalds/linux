@@ -333,6 +333,7 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 	 */
 	if (tfh->status != TFHSTATUS_EXCEPTION) {
 		gru_flush_cache(tfh);
+		sync_core();
 		if (tfh->status != TFHSTATUS_EXCEPTION)
 			goto failnoexception;
 		STAT(tfh_stale_on_fault);
@@ -599,6 +600,7 @@ int gru_get_exception_detail(unsigned long arg)
 		cbrnum = thread_cbr_number(gts, ucbnum);
 		cbe = get_cbe_by_index(gts->ts_gru, cbrnum);
 		gru_flush_cache(cbe);	/* CBE not coherent */
+		sync_core();		/* make sure we are have current data */
 		excdet.opc = cbe->opccpy;
 		excdet.exopc = cbe->exopccpy;
 		excdet.ecause = cbe->ecause;

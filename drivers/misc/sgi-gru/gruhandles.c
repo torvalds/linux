@@ -91,9 +91,18 @@ static int wait_instruction_complete(void *h, enum mcs_op opc)
 
 int cch_allocate(struct gru_context_configuration_handle *cch)
 {
+	int ret;
+
 	cch->opc = CCHOP_ALLOCATE;
 	start_instruction(cch);
-	return wait_instruction_complete(cch, cchop_allocate);
+	ret = wait_instruction_complete(cch, cchop_allocate);
+
+	/*
+	 * Stop speculation into the GSEG being mapped by the previous ALLOCATE.
+	 * The GSEG memory does not exist until the ALLOCATE completes.
+	 */
+	sync_core();
+	return ret;
 }
 
 int cch_start(struct gru_context_configuration_handle *cch)
@@ -112,9 +121,18 @@ int cch_interrupt(struct gru_context_configuration_handle *cch)
 
 int cch_deallocate(struct gru_context_configuration_handle *cch)
 {
+	int ret;
+
 	cch->opc = CCHOP_DEALLOCATE;
 	start_instruction(cch);
-	return wait_instruction_complete(cch, cchop_deallocate);
+	ret = wait_instruction_complete(cch, cchop_deallocate);
+
+	/*
+	 * Stop speculation into the GSEG being unmapped by the previous
+	 * DEALLOCATE.
+	 */
+	sync_core();
+	return ret;
 }
 
 int cch_interrupt_sync(struct gru_context_configuration_handle

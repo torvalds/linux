@@ -499,6 +499,9 @@ static void gru_load_context_data(void *save, void *grubase, int ctxnum,
 			memset(cbe + i * GRU_HANDLE_STRIDE, 0,
 						GRU_CACHE_LINE_BYTES);
 		}
+		/* Flush CBE to hide race in context restart */
+		mb();
+		gru_flush_cache(cbe + i * GRU_HANDLE_STRIDE);
 		cb += GRU_HANDLE_STRIDE;
 	}
 
@@ -519,6 +522,12 @@ static void gru_unload_context_data(void *save, void *grubase, int ctxnum,
 	cb = gseg + GRU_CB_BASE;
 	cbe = grubase + GRU_CBE_BASE;
 	length = hweight64(dsrmap) * GRU_DSR_AU_BYTES;
+
+	/* CBEs may not be coherent. Flush them from cache */
+	for_each_cbr_in_allocation_map(i, &cbrmap, scr)
+		gru_flush_cache(cbe + i * GRU_HANDLE_STRIDE);
+	mb();		/* Let the CL flush complete */
+
 	gru_prefetch_context(gseg, cb, cbe, cbrmap, length);
 
 	for_each_cbr_in_allocation_map(i, &cbrmap, scr) {

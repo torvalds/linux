@@ -325,6 +325,7 @@ static inline void gru_flush_cache(void *p)
 static inline void gru_start_instruction(struct gru_instruction *ins, int op32)
 {
 	gru_ordered_store_int(ins, op32);
+	mb();
 	gru_flush_cache(ins);
 }
 
