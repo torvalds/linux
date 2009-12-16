@@ -871,8 +871,9 @@ static int cmos_suspend(struct device *dev, pm_message_t mesg)
 			mask = RTC_IRQMASK;
 		tmp &= ~mask;
 		CMOS_WRITE(tmp, RTC_CONTROL);
-		hpet_mask_rtc_irq_bit(mask);
 
+		/* shut down hpet emulation - we don't need it for alarm */
+		hpet_mask_rtc_irq_bit(RTC_PIE|RTC_AIE|RTC_UIE);
 		cmos_checkintr(cmos, tmp);
 	}
 	spin_unlock_irq(&rtc_lock);
