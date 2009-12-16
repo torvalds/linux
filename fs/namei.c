@@ -412,16 +412,15 @@ do_revalidate(struct dentry *dentry, struct nameidata *nd)
 }
 
 /*
- * Short-cut version of permission(), for calling by
- * path_walk(), when dcache lock is held.  Combines parts
- * of permission() and generic_permission(), and tests ONLY for
- * MAY_EXEC permission.
+ * Short-cut version of permission(), for calling on directories
+ * during pathname resolution.  Combines parts of permission()
+ * and generic_permission(), and tests ONLY for MAY_EXEC permission.
  *
  * If appropriate, check DAC only.  If not appropriate, or
- * short-cut DAC fails, then call permission() to do more
+ * short-cut DAC fails, then call ->permission() to do more
  * complete permission check.
  */
-static int exec_permission_lite(struct inode *inode)
+static int exec_permission(struct inode *inode)
 {
 	int ret;
 
@@ -807,7 +806,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		unsigned int c;
 
 		nd->flags |= LOOKUP_CONTINUE;
-		err = exec_permission_lite(inode);
+		err = exec_permission(inode);
  		if (err)
 			break;
 
@@ -1155,7 +1154,7 @@ static struct dentry *lookup_hash(struct nameidata *nd)
 {
 	int err;
 
-	err = inode_permission(nd->path.dentry->d_inode, MAY_EXEC);
+	err = exec_permission(nd->path.dentry->d_inode);
 	if (err)
 		return ERR_PTR(err);
 	return __lookup_hash(&nd->last, nd->path.dentry, nd);
@@ -1205,7 +1204,7 @@ struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 	if (err)
 		return ERR_PTR(err);
 
-	err = inode_permission(base->d_inode, MAY_EXEC);
+	err = exec_permission(base->d_inode);
 	if (err)
 		return ERR_PTR(err);
 	return __lookup_hash(&this, base, NULL);
