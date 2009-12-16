@@ -336,16 +336,16 @@ static void collect_procs(struct page *page, struct list_head *tokill)
  */
 
 enum outcome {
-	FAILED,		/* Error handling failed */
+	IGNORED,	/* Error: cannot be handled */
+	FAILED,		/* Error: handling failed */
 	DELAYED,	/* Will be handled later */
-	IGNORED,	/* Error safely ignored */
 	RECOVERED,	/* Successfully recovered */
 };
 
 static const char *action_name[] = {
+	[IGNORED] = "Ignored",
 	[FAILED] = "Failed",
 	[DELAYED] = "Delayed",
-	[IGNORED] = "Ignored",
 	[RECOVERED] = "Recovered",
 };
 
@@ -379,14 +379,6 @@ static int delete_from_lru_cache(struct page *p)
  * could be more sophisticated.
  */
 static int me_kernel(struct page *p, unsigned long pfn)
-{
-	return DELAYED;
-}
-
-/*
- * Already poisoned page.
- */
-static int me_ignore(struct page *p, unsigned long pfn)
 {
 	return IGNORED;
 }
@@ -604,7 +596,7 @@ static struct page_state {
 	char *msg;
 	int (*action)(struct page *p, unsigned long pfn);
 } error_states[] = {
-	{ reserved,	reserved,	"reserved kernel",	me_ignore },
+	{ reserved,	reserved,	"reserved kernel",	me_kernel },
 	/*
 	 * free pages are specially detected outside this table:
 	 * PG_buddy pages only make a small fraction of all free pages.
@@ -788,7 +780,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 
 	p = pfn_to_page(pfn);
 	if (TestSetPageHWPoison(p)) {
-		action_result(pfn, "already hardware poisoned", IGNORED);
+		printk(KERN_ERR "MCE %#lx: already hardware poisoned\n", pfn);
 		return 0;
 	}
 
@@ -843,7 +835,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 	 * unpoison always clear PG_hwpoison inside page lock
 	 */
 	if (!PageHWPoison(p)) {
-		action_result(pfn, "unpoisoned", IGNORED);
+		printk(KERN_ERR "MCE %#lx: just unpoisoned\n", pfn);
 		res = 0;
 		goto out;
 	}
@@ -865,7 +857,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 	 */
 	if (PageLRU(p) && !PageSwapCache(p) && p->mapping == NULL) {
 		action_result(pfn, "already truncated LRU", IGNORED);
-		res = 0;
+		res = -EBUSY;
 		goto out;
 	}
 
