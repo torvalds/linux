@@ -1513,9 +1513,6 @@ static int cfq_allow_merge(struct request_queue *q, struct request *rq,
 	struct cfq_io_context *cic;
 	struct cfq_queue *cfqq;
 
-	/* Deny merge if bio and rq don't belong to same cfq group */
-	if ((RQ_CFQQ(rq))->cfqg != cfq_get_cfqg(cfqd, 0))
-		return false;
 	/*
 	 * Disallow merge of a sync bio into an async request.
 	 */
