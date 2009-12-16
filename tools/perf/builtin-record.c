@@ -278,7 +278,7 @@ static void create_counter(int counter, int cpu, pid_t pid)
 
 	attr->mmap		= track;
 	attr->comm		= track;
-	attr->inherit		= (cpu < 0) && inherit;
+	attr->inherit		= inherit;
 	attr->disabled		= 1;
 
 try_again:
@@ -537,7 +537,7 @@ static int __cmd_record(int argc __used, const char **argv)
 	}
 
 
-	if (!system_wide || profile_cpu != -1) {
+	if ((!system_wide && !inherit) || profile_cpu != -1) {
 		open_counters(profile_cpu, target_pid);
 	} else {
 		for (i = 0; i < nr_cpus; i++)
