@@ -1,15 +1,11 @@
-/*
- * linux/include/linux/nfsd/xdr.h
- *
- * XDR types for nfsd. This is mainly a typing exercise.
- */
+/* XDR types for nfsd. This is mainly a typing exercise. */
 
 #ifndef LINUX_NFSD_H
 #define LINUX_NFSD_H
 
-#include <linux/fs.h>
 #include <linux/vfs.h>
-#include <linux/nfs.h>
+#include "nfsd.h"
+#include "nfsfh.h"
 
 struct nfsd_fhandle {
 	struct svc_fh		fh;

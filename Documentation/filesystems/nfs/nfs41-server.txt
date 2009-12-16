@@ -41,7 +41,7 @@ interoperability problems with future clients.  Known issues:
 	  conformant with the spec (for example, we don't use kerberos
 	  on the backchannel correctly).
 	- no trunking support: no clients currently take advantage of
-	  trunking, but this is a mandatory failure, and its use is
+	  trunking, but this is a mandatory feature, and its use is
 	  recommended to clients in a number of places.  (E.g. to ensure
 	  timely renewal in case an existing connection's retry timeouts
 	  have gotten too long; see section 8.3 of the draft.)
@@ -213,3 +213,10 @@ The following cases aren't supported yet:
   DESTROY_CLIENTID, DESTROY_SESSION, EXCHANGE_ID.
 * DESTROY_SESSION MUST be the final operation in the COMPOUND request.
 
+Nonstandard compound limitations:
+* No support for a sessions fore channel RPC compound that requires both a
+  ca_maxrequestsize request and a ca_maxresponsesize reply, so we may
+  fail to live up to the promise we made in CREATE_SESSION fore channel
+  negotiation.
+* No more than one IO operation (read, write, readdir) allowed per
+  compound.

@@ -1,6 +1,4 @@
 /*
- * linux/include/linux/nfsd/xdr3.h
- *
  * XDR types for NFSv3 in nfsd.
  *
  * Copyright (C) 1996-1998, Olaf Kirch <okir@monad.swb.de>
@@ -9,7 +7,7 @@
 #ifndef _LINUX_NFSD_XDR3_H
 #define _LINUX_NFSD_XDR3_H
 
-#include <linux/nfsd/xdr.h>
+#include "xdr.h"
 
 struct nfsd3_sattrargs {
 	struct svc_fh		fh;

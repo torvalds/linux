@@ -1,6 +1,4 @@
 /*
- *  linux/include/nfsd/state.h
- *
  *  Copyright (c) 2001 The Regents of the University of Michigan.
  *  All rights reserved.
  *
@@ -37,9 +35,8 @@
 #ifndef _NFSD4_STATE_H
 #define _NFSD4_STATE_H
 
-#include <linux/list.h>
-#include <linux/kref.h>
-#include <linux/sunrpc/clnt.h>
+#include <linux/nfsd/nfsfh.h>
+#include "nfsfh.h"
 
 typedef struct {
 	u32             cl_boot;
@@ -59,6 +56,13 @@ typedef struct {
 #define si_boot           si_opaque.so_boot
 #define si_stateownerid   si_opaque.so_stateownerid
 #define si_fileid         si_opaque.so_fileid
+
+#define STATEID_FMT	"(%08x/%08x/%08x/%08x)"
+#define STATEID_VAL(s) \
+	(s)->si_boot, \
+	(s)->si_stateownerid, \
+	(s)->si_fileid, \
+	(s)->si_generation
 
 struct nfsd4_cb_sequence {
 	/* args/res */

@@ -1,6 +1,4 @@
 /*
- * include/linux/nfsd/cache.h
- *
  * Request reply cache. This was heavily inspired by the
  * implementation in 4.3BSD/4.4BSD.
  *
@@ -10,8 +8,7 @@
 #ifndef NFSCACHE_H
 #define NFSCACHE_H
 
-#include <linux/in.h>
-#include <linux/uio.h>
+#include <linux/sunrpc/svc.h>
 
 /*
  * Representation of a reply cache entry.
