@@ -13,6 +13,7 @@
 #include <mach/pxa2xx_spi.h>
 #include <mach/camera.h>
 #include <mach/audio.h>
+#include <mach/hardware.h>
 #include <plat/i2c.h>
 #include <plat/pxa3xx_nand.h>
 
