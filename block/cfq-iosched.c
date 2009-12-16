@@ -208,8 +208,6 @@ struct cfq_data {
 	/* Root service tree for cfq_groups */
 	struct cfq_rb_root grp_service_tree;
 	struct cfq_group root_group;
-	/* Number of active cfq groups on group service tree */
-	int nr_groups;
 
 	/*
 	 * The priority currently being served
@@ -842,7 +840,6 @@ cfq_group_service_tree_add(struct cfq_data *cfqd, struct cfq_group *cfqg)
 
 	__cfq_group_service_tree_add(st, cfqg);
 	cfqg->on_st = true;
-	cfqd->nr_groups++;
 	st->total_weight += cfqg->weight;
 }
 
@@ -863,7 +860,6 @@ cfq_group_service_tree_del(struct cfq_data *cfqd, struct cfq_group *cfqg)
 
 	cfq_log_cfqg(cfqd, cfqg, "del_from_rr group");
 	cfqg->on_st = false;
-	cfqd->nr_groups--;
 	st->total_weight -= cfqg->weight;
 	if (!RB_EMPTY_NODE(&cfqg->rb_node))
 		cfq_rb_erase(&cfqg->rb_node, st);
