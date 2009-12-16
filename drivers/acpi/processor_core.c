@@ -353,7 +353,7 @@ static int acpi_processor_info_open_fs(struct inode *inode, struct file *file)
 			   PDE(inode)->data);
 }
 
-static int acpi_processor_add_fs(struct acpi_device *device)
+static int __cpuinit acpi_processor_add_fs(struct acpi_device *device)
 {
 	struct proc_dir_entry *entry = NULL;
 
@@ -845,7 +845,7 @@ static int __cpuinit acpi_processor_add(struct acpi_device *device)
 		goto err_power_exit;
 	}
 
-	dev_info(&device->dev, "registered as cooling_device%d\n",
+	dev_dbg(&device->dev, "registered as cooling_device%d\n",
 		 pr->cdev->id);
 
 	result = sysfs_create_link(&device->dev.kobj,
