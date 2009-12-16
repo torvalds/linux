@@ -515,12 +515,12 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 			if (csr & MUSB_TXCSR_FIFONOTEMPTY)
 				return;
 
-			if (!musb_ep->desc) {
+			request = musb_ep->desc ? next_request(musb_ep) : NULL;
+			if (!request) {
 				DBG(4, "%s idle now\n",
 					musb_ep->end_point.name);
 				return;
-			} else
-				request = next_request(musb_ep);
+			}
 		}
 
 		txstate(musb, to_musb_request(request));
