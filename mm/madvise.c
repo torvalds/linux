@@ -9,6 +9,7 @@
 #include <linux/pagemap.h>
 #include <linux/syscalls.h>
 #include <linux/mempolicy.h>
+#include <linux/page-isolation.h>
 #include <linux/hugetlb.h>
 #include <linux/sched.h>
 #include <linux/ksm.h>
@@ -222,7 +223,7 @@ static long madvise_remove(struct vm_area_struct *vma,
 /*
  * Error injection support for memory error handling.
  */
-static int madvise_hwpoison(unsigned long start, unsigned long end)
+static int madvise_hwpoison(int bhv, unsigned long start, unsigned long end)
 {
 	int ret = 0;
 
@@ -233,6 +234,14 @@ static int madvise_hwpoison(unsigned long start, unsigned long end)
 		int ret = get_user_pages_fast(start, 1, 0, &p);
 		if (ret != 1)
 			return ret;
+		if (bhv == MADV_SOFT_OFFLINE) {
+			printk(KERN_INFO "Soft offlining page %lx at %lx\n",
+				page_to_pfn(p), start);
+			ret = soft_offline_page(p, MF_COUNT_INCREASED);
+			if (ret)
+				break;
+			continue;
+		}
 		printk(KERN_INFO "Injecting memory failure for page %lx at %lx\n",
 		       page_to_pfn(p), start);
 		/* Ignore return value for now */
@@ -333,8 +342,8 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
 	size_t len;
 
 #ifdef CONFIG_MEMORY_FAILURE
-	if (behavior == MADV_HWPOISON)
-		return madvise_hwpoison(start, start+len_in);
+	if (behavior == MADV_HWPOISON || behavior == MADV_SOFT_OFFLINE)
+		return madvise_hwpoison(behavior, start, start+len_in);
 #endif
 	if (!madvise_behavior_valid(behavior))
 		return error;
