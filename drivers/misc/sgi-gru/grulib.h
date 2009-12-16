@@ -86,6 +86,7 @@ struct gru_create_context_req {
 	unsigned int		control_blocks;
 	unsigned int		maximum_thread_count;
 	unsigned int		options;
+	unsigned char		tlb_preload_count;
 };
 
 /*

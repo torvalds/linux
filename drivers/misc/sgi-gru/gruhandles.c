@@ -165,17 +165,20 @@ int tgh_invalidate(struct gru_tlb_global_handle *tgh,
 	return wait_instruction_complete(tgh, tghop_invalidate);
 }
 
-void tfh_write_only(struct gru_tlb_fault_handle *tfh,
-				  unsigned long pfn, unsigned long vaddr,
-				  int asid, int dirty, int pagesize)
+int tfh_write_only(struct gru_tlb_fault_handle *tfh,
+				  unsigned long paddr, int gaa,
+				  unsigned long vaddr, int asid, int dirty,
+				  int pagesize)
 {
 	tfh->fillasid = asid;
 	tfh->fillvaddr = vaddr;
-	tfh->pfn = pfn;
+	tfh->pfn = paddr >> GRU_PADDR_SHIFT;
+	tfh->gaa = gaa;
 	tfh->dirty = dirty;
 	tfh->pagesize = pagesize;
 	tfh->opc = TFHOP_WRITE_ONLY;
 	start_instruction(tfh);
+	return wait_instruction_complete(tfh, tfhop_write_only);
 }
 
 void tfh_write_restart(struct gru_tlb_fault_handle *tfh,

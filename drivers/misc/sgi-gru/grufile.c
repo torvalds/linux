@@ -152,6 +152,7 @@ static int gru_create_new_context(unsigned long arg)
 		vdata->vd_dsr_au_count =
 		    GRU_DS_BYTES_TO_AU(req.data_segment_bytes);
 		vdata->vd_cbr_au_count = GRU_CB_COUNT_TO_AU(req.control_blocks);
+		vdata->vd_tlb_preload_count = req.tlb_preload_count;
 		ret = 0;
 	}
 	up_write(&current->mm->mmap_sem);

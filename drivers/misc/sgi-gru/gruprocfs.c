@@ -76,6 +76,7 @@ static int statistics_show(struct seq_file *s, void *p)
 	printstat(s, check_context_retarget_intr);
 	printstat(s, check_context_unload);
 	printstat(s, tlb_dropin);
+	printstat(s, tlb_preload_page);
 	printstat(s, tlb_dropin_fail_no_asid);
 	printstat(s, tlb_dropin_fail_upm);
 	printstat(s, tlb_dropin_fail_invalid);
@@ -127,7 +128,8 @@ static int mcs_statistics_show(struct seq_file *s, void *p)
 	int op;
 	unsigned long total, count, max;
 	static char *id[] = {"cch_allocate", "cch_start", "cch_interrupt",
-		"cch_interrupt_sync", "cch_deallocate", "tgh_invalidate"};
+		"cch_interrupt_sync", "cch_deallocate", "tfh_write_only",
+		"tfh_write_restart", "tgh_invalidate"};
 
 	seq_printf(s, "%-20s%12s%12s%12s\n", "#id", "count", "aver-clks", "max-clks");
 	for (op = 0; op < mcsop_last; op++) {

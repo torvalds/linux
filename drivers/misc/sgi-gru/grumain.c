@@ -316,7 +316,8 @@ static struct gru_thread_state *gru_find_current_gts_nolock(struct gru_vma_data
  * Allocate a thread state structure.
  */
 struct gru_thread_state *gru_alloc_gts(struct vm_area_struct *vma,
-		int cbr_au_count, int dsr_au_count, int options, int tsid)
+		int cbr_au_count, int dsr_au_count,
+		unsigned char tlb_preload_count, int options, int tsid)
 {
 	struct gru_thread_state *gts;
 	struct gru_mm_struct *gms;
@@ -334,6 +335,7 @@ struct gru_thread_state *gru_alloc_gts(struct vm_area_struct *vma,
 	mutex_init(&gts->ts_ctxlock);
 	gts->ts_cbr_au_count = cbr_au_count;
 	gts->ts_dsr_au_count = dsr_au_count;
+	gts->ts_tlb_preload_count = tlb_preload_count;
 	gts->ts_user_options = options;
 	gts->ts_user_blade_id = -1;
 	gts->ts_user_chiplet_id = -1;
@@ -403,7 +405,9 @@ struct gru_thread_state *gru_alloc_thread_state(struct vm_area_struct *vma,
 	struct gru_vma_data *vdata = vma->vm_private_data;
 	struct gru_thread_state *gts, *ngts;
 
-	gts = gru_alloc_gts(vma, vdata->vd_cbr_au_count, vdata->vd_dsr_au_count,
+	gts = gru_alloc_gts(vma, vdata->vd_cbr_au_count,
+			    vdata->vd_dsr_au_count,
+			    vdata->vd_tlb_preload_count,
 			    vdata->vd_user_options, tsid);
 	if (IS_ERR(gts))
 		return gts;

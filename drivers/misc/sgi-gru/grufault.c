@@ -290,6 +290,61 @@ upm:
 
 
 /*
+ * Flush a CBE from cache. The CBE is clean in the cache. Dirty the
+ * CBE cacheline so that the line will be written back to home agent.
+ * Otherwise the line may be silently dropped. This has no impact
+ * except on performance.
+ */
+static void gru_flush_cache_cbe(struct gru_control_block_extended *cbe)
+{
+	if (unlikely(cbe)) {
+		cbe->cbrexecstatus = 0;         /* make CL dirty */
+		gru_flush_cache(cbe);
+	}
+}
+
+/*
+ * Preload the TLB with entries that may be required. Currently, preloading
+ * is implemented only for BCOPY. Preload  <tlb_preload_count> pages OR to
+ * the end of the bcopy tranfer, whichever is smaller.
+ */
+static void gru_preload_tlb(struct gru_state *gru,
+			struct gru_thread_state *gts, int atomic,
+			unsigned long fault_vaddr, int asid, int write,
+			unsigned char tlb_preload_count,
+			struct gru_tlb_fault_handle *tfh,
+			struct gru_control_block_extended *cbe)
+{
+	unsigned long vaddr = 0, gpa;
+	int ret, pageshift;
+
+	if (cbe->opccpy != OP_BCOPY)
+		return;
+
+	if (fault_vaddr == cbe->cbe_baddr0)
+		vaddr = fault_vaddr + GRU_CACHE_LINE_BYTES * cbe->cbe_src_cl - 1;
+	else if (fault_vaddr == cbe->cbe_baddr1)
+		vaddr = fault_vaddr + (1 << cbe->xtypecpy) * cbe->cbe_nelemcur - 1;
+
+	fault_vaddr &= PAGE_MASK;
+	vaddr &= PAGE_MASK;
+	vaddr = min(vaddr, fault_vaddr + tlb_preload_count * PAGE_SIZE);
+
+	while (vaddr > fault_vaddr) {
+		ret = gru_vtop(gts, vaddr, write, atomic, &gpa, &pageshift);
+		if (ret || tfh_write_only(tfh, gpa, GAA_RAM, vaddr, asid, write,
+					  GRU_PAGESIZE(pageshift)))
+			return;
+		gru_dbg(grudev,
+			"%s: gid %d, gts 0x%p, tfh 0x%p, vaddr 0x%lx, asid 0x%x, rw %d, ps %d, gpa 0x%lx\n",
+			atomic ? "atomic" : "non-atomic", gru->gs_gid, gts, tfh,
+			vaddr, asid, write, pageshift, gpa);
+		vaddr -= PAGE_SIZE;
+		STAT(tlb_preload_page);
+	}
+}
+
+/*
  * Drop a TLB entry into the GRU. The fault is described by info in an TFH.
  *	Input:
  *		cb    Address of user CBR. Null if not running in user context
@@ -303,6 +358,8 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 			  struct gru_tlb_fault_handle *tfh,
 			  struct gru_instruction_bits *cbk)
 {
+	struct gru_control_block_extended *cbe = NULL;
+	unsigned char tlb_preload_count = gts->ts_tlb_preload_count;
 	int pageshift = 0, asid, write, ret, atomic = !cbk, indexway;
 	unsigned long gpa = 0, vaddr = 0;
 
@@ -312,6 +369,14 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 	 * in the window between reading the TFH and the subsequent TLB dropin,
 	 * the dropin is ignored. This eliminates the need for additional locks.
 	 */
+
+	/*
+	 * Prefetch the CBE if doing TLB preloading
+	 */
+	if (unlikely(tlb_preload_count)) {
+		cbe = gru_tfh_to_cbe(tfh);
+		prefetchw(cbe);
+	}
 
 	/*
 	 * Error if TFH state is IDLE or FMM mode & the user issuing a UPM call.
@@ -359,6 +424,12 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 			goto failupm;
 		}
 	}
+
+	if (unlikely(cbe) && pageshift == PAGE_SHIFT) {
+		gru_preload_tlb(gts->ts_gru, gts, atomic, vaddr, asid, write, tlb_preload_count, tfh, cbe);
+		gru_flush_cache_cbe(cbe);
+	}
+
 	gru_cb_set_istatus_active(cbk);
 	tfh_write_restart(tfh, gpa, GAA_RAM, vaddr, asid, write,
 			  GRU_PAGESIZE(pageshift));
@@ -378,11 +449,13 @@ failnoasid:
 		tfh_user_polling_mode(tfh);
 	else
 		gru_flush_cache(tfh);
+	gru_flush_cache_cbe(cbe);
 	return -EAGAIN;
 
 failupm:
 	/* Atomic failure switch CBR to UPM */
 	tfh_user_polling_mode(tfh);
+	gru_flush_cache_cbe(cbe);
 	STAT(tlb_dropin_fail_upm);
 	gru_dbg(grudev, "FAILED upm tfh: 0x%p, vaddr 0x%lx\n", tfh, vaddr);
 	return 1;
@@ -390,6 +463,7 @@ failupm:
 failfmm:
 	/* FMM state on UPM call */
 	gru_flush_cache(tfh);
+	gru_flush_cache_cbe(cbe);
 	STAT(tlb_dropin_fail_fmm);
 	gru_dbg(grudev, "FAILED fmm tfh: 0x%p, state %d\n", tfh, tfh->state);
 	return 0;
@@ -397,6 +471,7 @@ failfmm:
 failnoexception:
 	/* TFH status did not show exception pending */
 	gru_flush_cache(tfh);
+	gru_flush_cache_cbe(cbe);
 	if (cbk)
 		gru_flush_cache(cbk);
 	STAT(tlb_dropin_fail_no_exception);
@@ -407,6 +482,7 @@ failnoexception:
 failidle:
 	/* TFH state was idle  - no miss pending */
 	gru_flush_cache(tfh);
+	gru_flush_cache_cbe(cbe);
 	if (cbk)
 		gru_flush_cache(cbk);
 	STAT(tlb_dropin_fail_idle);
@@ -416,6 +492,7 @@ failidle:
 failinval:
 	/* All errors (atomic & non-atomic) switch CBR to EXCEPTION state */
 	tfh_exception(tfh);
+	gru_flush_cache_cbe(cbe);
 	STAT(tlb_dropin_fail_invalid);
 	gru_dbg(grudev, "FAILED inval tfh: 0x%p, vaddr 0x%lx\n", tfh, vaddr);
 	return -EFAULT;
@@ -426,6 +503,7 @@ failactive:
 		tfh_user_polling_mode(tfh);
 	else
 		gru_flush_cache(tfh);
+	gru_flush_cache_cbe(cbe);
 	STAT(tlb_dropin_fail_range_active);
 	gru_dbg(grudev, "FAILED range active: tfh 0x%p, vaddr 0x%lx\n",
 		tfh, vaddr);
@@ -627,7 +705,7 @@ int gru_get_exception_detail(unsigned long arg)
 		excdet.exceptdet1 = cbe->idef3upd;
 		excdet.cbrstate = cbe->cbrstate;
 		excdet.cbrexecstatus = cbe->cbrexecstatus;
-		gru_flush_cache(cbe);
+		gru_flush_cache_cbe(cbe);
 		ret = 0;
 	} else {
 		ret = -EAGAIN;
@@ -770,9 +848,12 @@ int gru_set_context_option(unsigned long arg)
 		return -EFAULT;
 	gru_dbg(grudev, "op %d, gseg 0x%lx, value1 0x%lx\n", req.op, req.gseg, req.val1);
 
-	gts = gru_alloc_locked_gts(req.gseg);
-	if (IS_ERR(gts))
-		return PTR_ERR(gts);
+	gts = gru_find_lock_gts(req.gseg);
+	if (!gts) {
+		gts = gru_alloc_locked_gts(req.gseg);
+		if (IS_ERR(gts))
+			return PTR_ERR(gts);
+	}
 
 	switch (req.op) {
 	case sco_blade_chiplet:

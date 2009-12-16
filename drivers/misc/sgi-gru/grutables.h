@@ -202,6 +202,7 @@ struct gru_stats_s {
 	atomic_long_t check_context_retarget_intr;
 	atomic_long_t check_context_unload;
 	atomic_long_t tlb_dropin;
+	atomic_long_t tlb_preload_page;
 	atomic_long_t tlb_dropin_fail_no_asid;
 	atomic_long_t tlb_dropin_fail_upm;
 	atomic_long_t tlb_dropin_fail_invalid;
@@ -245,7 +246,8 @@ struct gru_stats_s {
 };
 
 enum mcs_op {cchop_allocate, cchop_start, cchop_interrupt, cchop_interrupt_sync,
-	cchop_deallocate, tghop_invalidate, mcsop_last};
+	cchop_deallocate, tfhop_write_only, tfhop_write_restart,
+	tghop_invalidate, mcsop_last};
 
 struct mcs_op_statistic {
 	atomic_long_t	count;
@@ -335,6 +337,7 @@ struct gru_vma_data {
 	long			vd_user_options;/* misc user option flags */
 	int			vd_cbr_au_count;
 	int			vd_dsr_au_count;
+	unsigned char		vd_tlb_preload_count;
 };
 
 /*
@@ -350,6 +353,7 @@ struct gru_thread_state {
 	struct gru_state	*ts_gru;	/* GRU where the context is
 						   loaded */
 	struct gru_mm_struct	*ts_gms;	/* asid & ioproc struct */
+	unsigned char		ts_tlb_preload_count; /* TLB preload pages */
 	unsigned long		ts_cbr_map;	/* map of allocated CBRs */
 	unsigned long		ts_dsr_map;	/* map of allocated DATA
 						   resources */
@@ -661,7 +665,8 @@ extern int gru_proc_init(void);
 extern void gru_proc_exit(void);
 
 extern struct gru_thread_state *gru_alloc_gts(struct vm_area_struct *vma,
-		int cbr_au_count, int dsr_au_count, int options, int tsid);
+		int cbr_au_count, int dsr_au_count,
+		unsigned char tlb_preload_count, int options, int tsid);
 extern unsigned long gru_reserve_cb_resources(struct gru_state *gru,
 		int cbr_au_count, char *cbmap);
 extern unsigned long gru_reserve_ds_resources(struct gru_state *gru,
