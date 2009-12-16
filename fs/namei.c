@@ -1444,69 +1444,52 @@ int may_open(struct path *path, int acc_mode, int flag)
 	if (error)
 		return error;
 
-	error = ima_path_check(path, acc_mode ?
-			       acc_mode & (MAY_READ | MAY_WRITE | MAY_EXEC) :
-			       ACC_MODE(flag) & (MAY_READ | MAY_WRITE),
-			       IMA_COUNT_UPDATE);
-
-	if (error)
-		return error;
 	/*
 	 * An append-only file must be opened in append mode for writing.
 	 */
 	if (IS_APPEND(inode)) {
-		error = -EPERM;
 		if  ((flag & FMODE_WRITE) && !(flag & O_APPEND))
-			goto err_out;
+			return -EPERM;
 		if (flag & O_TRUNC)
-			goto err_out;
+			return -EPERM;
 	}
 
 	/* O_NOATIME can only be set by the owner or superuser */
-	if (flag & O_NOATIME)
-		if (!is_owner_or_cap(inode)) {
-			error = -EPERM;
-			goto err_out;
-		}
+	if (flag & O_NOATIME && !is_owner_or_cap(inode))
+		return -EPERM;
 
 	/*
 	 * Ensure there are no outstanding leases on the file.
 	 */
 	error = break_lease(inode, flag);
 	if (error)
-		goto err_out;
+		return error;
 
-	if (flag & O_TRUNC) {
-		error = get_write_access(inode);
-		if (error)
-			goto err_out;
+	return ima_path_check(path, acc_mode ?
+			       acc_mode & (MAY_READ | MAY_WRITE | MAY_EXEC) :
+			       ACC_MODE(flag) & (MAY_READ | MAY_WRITE),
+			       IMA_COUNT_UPDATE);
+}
 
-		/*
-		 * Refuse to truncate files with mandatory locks held on them.
-		 */
-		error = locks_verify_locked(inode);
-		if (!error)
-			error = security_path_truncate(path, 0,
-					       ATTR_MTIME|ATTR_CTIME|ATTR_OPEN);
-		if (!error) {
-			vfs_dq_init(inode);
-
-			error = do_truncate(dentry, 0,
-					    ATTR_MTIME|ATTR_CTIME|ATTR_OPEN,
-					    NULL);
-		}
-		put_write_access(inode);
-		if (error)
-			goto err_out;
-	} else
-		if (flag & FMODE_WRITE)
-			vfs_dq_init(inode);
-
-	return 0;
-err_out:
-	ima_counts_put(path, acc_mode ?
-		       acc_mode & (MAY_READ | MAY_WRITE | MAY_EXEC) :
-		       ACC_MODE(flag) & (MAY_READ | MAY_WRITE));
+static int handle_truncate(struct path *path)
+{
+	struct inode *inode = path->dentry->d_inode;
+	int error = get_write_access(inode);
+	if (error)
+		return error;
+	/*
+	 * Refuse to truncate files with mandatory locks held on them.
+	 */
+	error = locks_verify_locked(inode);
+	if (!error)
+		error = security_path_truncate(path, 0,
+				       ATTR_MTIME|ATTR_CTIME|ATTR_OPEN);
+	if (!error) {
+		error = do_truncate(path->dentry, 0,
+				    ATTR_MTIME|ATTR_CTIME|ATTR_OPEN,
+				    NULL);
+	}
+	put_write_access(inode);
 	return error;
 }
 
@@ -1561,7 +1544,7 @@ static inline int open_to_namei_flags(int flag)
 	return flag;
 }
 
-static int open_will_write_to_fs(int flag, struct inode *inode)
+static int open_will_truncate(int flag, struct inode *inode)
 {
 	/*
 	 * We'll never write to the fs underlying
@@ -1586,7 +1569,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	struct path path, save;
 	struct dentry *dir;
 	int count = 0;
-	int will_write;
+	int will_truncate;
 	int flag = open_to_namei_flags(open_flag);
 
 	/*
@@ -1752,28 +1735,48 @@ ok:
 	 * be avoided. Taking this mnt write here
 	 * ensures that (2) can not occur.
 	 */
-	will_write = open_will_write_to_fs(flag, nd.path.dentry->d_inode);
-	if (will_write) {
+	will_truncate = open_will_truncate(flag, nd.path.dentry->d_inode);
+	if (will_truncate) {
 		error = mnt_want_write(nd.path.mnt);
 		if (error)
 			goto exit;
 	}
 	error = may_open(&nd.path, acc_mode, flag);
 	if (error) {
-		if (will_write)
+		if (will_truncate)
 			mnt_drop_write(nd.path.mnt);
 		goto exit;
 	}
 	filp = nameidata_to_filp(&nd, open_flag);
-	if (IS_ERR(filp))
+	if (IS_ERR(filp)) {
 		ima_counts_put(&nd.path,
 			       acc_mode & (MAY_READ | MAY_WRITE | MAY_EXEC));
+		if (will_truncate)
+			mnt_drop_write(nd.path.mnt);
+		if (nd.root.mnt)
+			path_put(&nd.root);
+		return filp;
+	}
+
+	if (acc_mode & MAY_WRITE)
+		vfs_dq_init(nd.path.dentry->d_inode);
+
+	if (will_truncate) {
+		error = handle_truncate(&nd.path);
+		if (error) {
+			mnt_drop_write(nd.path.mnt);
+			fput(filp);
+			if (nd.root.mnt)
+				path_put(&nd.root);
+			return ERR_PTR(error);
+		}
+	}
 	/*
 	 * It is now safe to drop the mnt write
 	 * because the filp has had a write taken
 	 * on its behalf.
 	 */
-	if (will_write)
+	if (will_truncate)
 		mnt_drop_write(nd.path.mnt);
 	if (nd.root.mnt)
 		path_put(&nd.root);
