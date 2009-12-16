@@ -60,6 +60,8 @@ void __init udbg_early_init(void)
 	udbg_init_40x_realmode();
 #elif defined(CONFIG_PPC_EARLY_DEBUG_CPM)
 	udbg_init_cpm();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_USBGECKO)
+	udbg_init_usbgecko();
 #endif
 
 #ifdef CONFIG_PPC_EARLY_DEBUG
