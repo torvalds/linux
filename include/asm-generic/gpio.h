@@ -145,6 +145,7 @@ extern int __gpio_to_irq(unsigned gpio);
 extern int gpio_export(unsigned gpio, bool direction_may_change);
 extern int gpio_export_link(struct device *dev, const char *name,
 			unsigned gpio);
+extern int gpio_sysfs_set_active_low(unsigned gpio, int value);
 extern void gpio_unexport(unsigned gpio);
 
 #endif	/* CONFIG_GPIO_SYSFS */
@@ -193,6 +194,11 @@ static inline int gpio_export(unsigned gpio, bool direction_may_change)
 
 static inline int gpio_export_link(struct device *dev, const char *name,
 				unsigned gpio)
+{
+	return -ENOSYS;
+}
+
+static inline int gpio_sysfs_set_active_low(unsigned gpio, int value)
 {
 	return -ENOSYS;
 }
