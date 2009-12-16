@@ -858,6 +858,29 @@ EXPORT_SYMBOL_GPL(gru_get_next_message);
 /* ---------------------- GRU DATA COPY FUNCTIONS ---------------------------*/
 
 /*
+ * Load a DW from a global GPA. The GPA can be a memory or MMR address.
+ */
+int gru_read_gpa(unsigned long *value, unsigned long gpa)
+{
+	void *cb;
+	void *dsr;
+	int ret, iaa;
+
+	STAT(read_gpa);
+	if (gru_get_cpu_resources(GRU_NUM_KERNEL_DSR_BYTES, &cb, &dsr))
+		return MQE_BUG_NO_RESOURCES;
+	iaa = gpa >> 62;
+	gru_vload_phys(cb, gpa, gru_get_tri(dsr), iaa, IMA);
+	ret = gru_wait(cb);
+	if (ret == CBS_IDLE)
+		*value = *(unsigned long *)dsr;
+	gru_free_cpu_resources(cb, dsr);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(gru_read_gpa);
+
+
+/*
  * Copy a block of data using the GRU resources
  */
 int gru_copy_gpa(unsigned long dest_gpa, unsigned long src_gpa,

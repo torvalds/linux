@@ -224,6 +224,7 @@ struct gru_stats_s {
 	atomic_long_t flush_tlb_gru_zero_asid;
 
 	atomic_long_t copy_gpa;
+	atomic_long_t read_gpa;
 
 	atomic_long_t mesq_receive;
 	atomic_long_t mesq_receive_none;

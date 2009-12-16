@@ -98,6 +98,7 @@ static int statistics_show(struct seq_file *s, void *p)
 	printstat(s, flush_tlb_gru_tgh);
 	printstat(s, flush_tlb_gru_zero_asid);
 	printstat(s, copy_gpa);
+	printstat(s, read_gpa);
 	printstat(s, mesq_receive);
 	printstat(s, mesq_receive_none);
 	printstat(s, mesq_send);

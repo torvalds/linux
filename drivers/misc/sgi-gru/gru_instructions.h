@@ -340,6 +340,19 @@ static inline void gru_start_instruction(struct gru_instruction *ins, int op32)
  *     	- nelem and stride are in elements
  *     	- tri0/tri1 is in bytes for the beginning of the data segment.
  */
+static inline void gru_vload_phys(void *cb, unsigned long gpa,
+		unsigned int tri0, int iaa, unsigned long hints)
+{
+	struct gru_instruction *ins = (struct gru_instruction *)cb;
+
+	ins->baddr0 = (long)gpa | ((unsigned long)iaa << 62);
+	ins->nelem = 1;
+	ins->tri0 = tri0;
+	ins->op1_stride = 1;
+	gru_start_instruction(ins, __opword(OP_VLOAD, 0, XTYPE_DW, iaa, 0,
+					CB_IMA(hints)));
+}
+
 static inline void gru_vload(void *cb, unsigned long mem_addr,
 		unsigned int tri0, unsigned char xtype, unsigned long nelem,
 		unsigned long stride, unsigned long hints)
