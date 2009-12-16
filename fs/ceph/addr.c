@@ -448,8 +448,13 @@ out:
 
 static int ceph_writepage(struct page *page, struct writeback_control *wbc)
 {
-	int err = writepage_nounlock(page, wbc);
+	int err;
+	struct inode *inode = page->mapping->host;
+	BUG_ON(!inode);
+	igrab(inode);
+	err = writepage_nounlock(page, wbc);
 	unlock_page(page);
+	iput(inode);
 	return err;
 }
 
