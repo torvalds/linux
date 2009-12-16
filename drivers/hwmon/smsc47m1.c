@@ -136,6 +136,7 @@ struct smsc47m1_data {
 
 struct smsc47m1_sio_data {
 	enum chips type;
+	u8 activate;		/* Remember initial device state */
 };
 
 
@@ -468,15 +469,36 @@ static int __init smsc47m1_find(unsigned short *addr,
 	superio_select();
 	*addr = (superio_inb(SUPERIO_REG_BASE) << 8)
 	      |  superio_inb(SUPERIO_REG_BASE + 1);
-	val = superio_inb(SUPERIO_REG_ACT);
-	if (*addr == 0 || (val & 0x01) == 0) {
-		pr_info(DRVNAME ": Device is disabled, will not use\n");
+	if (*addr == 0) {
+		pr_info(DRVNAME ": Device address not set, will not use\n");
 		superio_exit();
 		return -ENODEV;
 	}
 
+	/* Enable only if address is set (needed at least on the
+	 * Compaq Presario S4000NX) */
+	sio_data->activate = superio_inb(SUPERIO_REG_ACT);
+	if ((sio_data->activate & 0x01) == 0) {
+		pr_info(DRVNAME ": Enabling device\n");
+		superio_outb(SUPERIO_REG_ACT, sio_data->activate | 0x01);
+	}
+
 	superio_exit();
 	return 0;
+}
+
+/* Restore device to its initial state */
+static void __init smsc47m1_restore(const struct smsc47m1_sio_data *sio_data)
+{
+	if ((sio_data->activate & 0x01) == 0) {
+		superio_enter();
+		superio_select();
+
+		pr_info(DRVNAME ": Disabling device\n");
+		superio_outb(SUPERIO_REG_ACT, sio_data->activate);
+
+		superio_exit();
+	}
 }
 
 #define CHECK		1
@@ -856,6 +878,7 @@ static int __init sm_smsc47m1_init(void)
 
 exit_device:
 	platform_device_unregister(pdev);
+	smsc47m1_restore(&sio_data);
 exit:
 	return err;
 }
@@ -863,6 +886,7 @@ exit:
 static void __exit sm_smsc47m1_exit(void)
 {
 	platform_driver_unregister(&smsc47m1_driver);
+	smsc47m1_restore(pdev->dev.platform_data);
 	platform_device_unregister(pdev);
 }
 
