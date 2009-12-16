@@ -52,6 +52,7 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/raid_class.h>
 
 #include "mpt2sas_base.h"
 
@@ -132,6 +133,9 @@ struct fw_event_work {
 	u16			event;
 	void			*event_data;
 };
+
+/* raid transport support */
+static struct raid_template *mpt2sas_raid_template;
 
 /**
  * struct _scsi_io_transfer - scsi io transfer
@@ -1419,6 +1423,140 @@ _scsih_display_sata_capabilities(struct MPT2SAS_ADAPTER *ioc,
 }
 
 /**
+ * _scsih_is_raid - return boolean indicating device is raid volume
+ * @dev the device struct object
+ */
+static int
+_scsih_is_raid(struct device *dev)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+
+	return (sdev->channel == RAID_CHANNEL) ? 1 : 0;
+}
+
+/**
+ * _scsih_get_resync - get raid volume resync percent complete
+ * @dev the device struct object
+ */
+static void
+_scsih_get_resync(struct device *dev)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	struct MPT2SAS_ADAPTER *ioc = shost_priv(sdev->host);
+	static struct _raid_device *raid_device;
+	unsigned long flags;
+	Mpi2RaidVolPage0_t vol_pg0;
+	Mpi2ConfigReply_t mpi_reply;
+	u32 volume_status_flags;
+	u8 percent_complete = 0;
+
+	spin_lock_irqsave(&ioc->raid_device_lock, flags);
+	raid_device = _scsih_raid_device_find_by_id(ioc, sdev->id,
+	    sdev->channel);
+	spin_unlock_irqrestore(&ioc->raid_device_lock, flags);
+
+	if (!raid_device)
+		goto out;
+
+	if (mpt2sas_config_get_raid_volume_pg0(ioc, &mpi_reply, &vol_pg0,
+	     MPI2_RAID_VOLUME_PGAD_FORM_HANDLE, raid_device->handle,
+	     sizeof(Mpi2RaidVolPage0_t))) {
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		goto out;
+	}
+
+	volume_status_flags = le32_to_cpu(vol_pg0.VolumeStatusFlags);
+	if (volume_status_flags & MPI2_RAIDVOL0_STATUS_FLAG_RESYNC_IN_PROGRESS)
+		percent_complete = raid_device->percent_complete;
+ out:
+	raid_set_resync(mpt2sas_raid_template, dev, percent_complete);
+}
+
+/**
+ * _scsih_get_state - get raid volume level
+ * @dev the device struct object
+ */
+static void
+_scsih_get_state(struct device *dev)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	struct MPT2SAS_ADAPTER *ioc = shost_priv(sdev->host);
+	static struct _raid_device *raid_device;
+	unsigned long flags;
+	Mpi2RaidVolPage0_t vol_pg0;
+	Mpi2ConfigReply_t mpi_reply;
+	u32 volstate;
+	enum raid_state state = RAID_STATE_UNKNOWN;
+
+	spin_lock_irqsave(&ioc->raid_device_lock, flags);
+	raid_device = _scsih_raid_device_find_by_id(ioc, sdev->id,
+	    sdev->channel);
+	spin_unlock_irqrestore(&ioc->raid_device_lock, flags);
+
+	if (!raid_device)
+		goto out;
+
+	if (mpt2sas_config_get_raid_volume_pg0(ioc, &mpi_reply, &vol_pg0,
+	     MPI2_RAID_VOLUME_PGAD_FORM_HANDLE, raid_device->handle,
+	     sizeof(Mpi2RaidVolPage0_t))) {
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		goto out;
+	}
+
+	volstate = le32_to_cpu(vol_pg0.VolumeStatusFlags);
+	if (volstate & MPI2_RAIDVOL0_STATUS_FLAG_RESYNC_IN_PROGRESS) {
+		state = RAID_STATE_RESYNCING;
+		goto out;
+	}
+
+	switch (vol_pg0.VolumeState) {
+	case MPI2_RAID_VOL_STATE_OPTIMAL:
+	case MPI2_RAID_VOL_STATE_ONLINE:
+		state = RAID_STATE_ACTIVE;
+		break;
+	case  MPI2_RAID_VOL_STATE_DEGRADED:
+		state = RAID_STATE_DEGRADED;
+		break;
+	case MPI2_RAID_VOL_STATE_FAILED:
+	case MPI2_RAID_VOL_STATE_MISSING:
+		state = RAID_STATE_OFFLINE;
+		break;
+	}
+ out:
+	raid_set_state(mpt2sas_raid_template, dev, state);
+}
+
+/**
+ * _scsih_set_level - set raid level
+ * @sdev: scsi device struct
+ * @raid_device: raid_device object
+ */
+static void
+_scsih_set_level(struct scsi_device *sdev, struct _raid_device *raid_device)
+{
+	enum raid_level level = RAID_LEVEL_UNKNOWN;
+
+	switch (raid_device->volume_type) {
+	case MPI2_RAID_VOL_TYPE_RAID0:
+		level = RAID_LEVEL_0;
+		break;
+	case MPI2_RAID_VOL_TYPE_RAID10:
+		level = RAID_LEVEL_10;
+		break;
+	case MPI2_RAID_VOL_TYPE_RAID1E:
+		level = RAID_LEVEL_1E;
+		break;
+	case MPI2_RAID_VOL_TYPE_RAID1:
+		level = RAID_LEVEL_1;
+		break;
+	}
+
+	raid_set_level(mpt2sas_raid_template, &sdev->sdev_gendev, level);
+}
+
+/**
  * _scsih_get_volume_capabilities - volume capabilities
  * @ioc: per adapter object
  * @sas_device: the raid_device object
@@ -1574,6 +1712,8 @@ _scsih_slave_configure(struct scsi_device *sdev)
 		    (unsigned long long)raid_device->wwid,
 		    raid_device->num_pds, ds);
 		_scsih_change_queue_depth(sdev, qdepth, SCSI_QDEPTH_DEFAULT);
+		/* raid transport support */
+		_scsih_set_level(sdev, raid_device);
 		return 0;
 	}
 
@@ -5170,11 +5310,33 @@ static void
 _scsih_sas_ir_operation_status_event(struct MPT2SAS_ADAPTER *ioc,
     struct fw_event_work *fw_event)
 {
+	Mpi2EventDataIrOperationStatus_t *event_data = fw_event->event_data;
+	static struct _raid_device *raid_device;
+	unsigned long flags;
+	u16 handle;
+
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
 		_scsih_sas_ir_operation_status_event_debug(ioc,
-		     fw_event->event_data);
+		     event_data);
 #endif
+
+	/* code added for raid transport support */
+	if (event_data->RAIDOperation == MPI2_EVENT_IR_RAIDOP_RESYNC) {
+
+		handle = le16_to_cpu(event_data->VolDevHandle);
+
+		spin_lock_irqsave(&ioc->raid_device_lock, flags);
+		raid_device = _scsih_raid_device_find_by_handle(ioc, handle);
+		spin_unlock_irqrestore(&ioc->raid_device_lock, flags);
+
+		if (!raid_device)
+			return;
+
+		if (event_data->RAIDOperation == MPI2_EVENT_IR_RAIDOP_RESYNC)
+			raid_device->percent_complete =
+			    event_data->PercentComplete;
+	}
 }
 
 /**
@@ -6390,6 +6552,13 @@ static struct pci_driver scsih_driver = {
 #endif
 };
 
+/* raid transport support */
+static struct raid_function_template mpt2sas_raid_functions = {
+	.cookie		= &scsih_driver_template,
+	.is_raid	= _scsih_is_raid,
+	.get_resync	= _scsih_get_resync,
+	.get_state	= _scsih_get_state,
+};
 
 /**
  * _scsih_init - main entry point for this driver.
@@ -6409,6 +6578,12 @@ _scsih_init(void)
 	    sas_attach_transport(&mpt2sas_transport_functions);
 	if (!mpt2sas_transport_template)
 		return -ENODEV;
+	/* raid transport support */
+	mpt2sas_raid_template = raid_class_attach(&mpt2sas_raid_functions);
+	if (!mpt2sas_raid_template) {
+		sas_release_transport(mpt2sas_transport_template);
+		return -ENODEV;
+	}
 
 	mpt2sas_base_initialize_callback_handler();
 
@@ -6443,8 +6618,11 @@ _scsih_init(void)
 	mpt2sas_ctl_init();
 
 	error = pci_register_driver(&scsih_driver);
-	if (error)
+	if (error) {
+		/* raid transport support */
+		raid_class_release(mpt2sas_raid_template);
 		sas_release_transport(mpt2sas_transport_template);
+	}
 
 	return error;
 }
@@ -6462,7 +6640,8 @@ _scsih_exit(void)
 
 	pci_unregister_driver(&scsih_driver);
 
-	sas_release_transport(mpt2sas_transport_template);
+	mpt2sas_ctl_exit();
+
 	mpt2sas_base_release_callback_handler(scsi_io_cb_idx);
 	mpt2sas_base_release_callback_handler(tm_cb_idx);
 	mpt2sas_base_release_callback_handler(base_cb_idx);
@@ -6474,7 +6653,10 @@ _scsih_exit(void)
 	mpt2sas_base_release_callback_handler(tm_tr_cb_idx);
 	mpt2sas_base_release_callback_handler(tm_sas_control_cb_idx);
 
-	mpt2sas_ctl_exit();
+	/* raid transport support */
+	raid_class_release(mpt2sas_raid_template);
+	sas_release_transport(mpt2sas_transport_template);
+
 }
 
 module_init(_scsih_init);

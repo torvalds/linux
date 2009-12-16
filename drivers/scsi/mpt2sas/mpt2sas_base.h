@@ -323,6 +323,7 @@ struct _sas_device {
  * @device_info: bitfield provides detailed info about the hidden components
  * @num_pds: number of hidden raid components
  * @responding: used in _scsih_raid_device_mark_responding
+ * @percent_complete: resync percent complete
  */
 struct _raid_device {
 	struct list_head list;
@@ -336,6 +337,7 @@ struct _raid_device {
 	u32	device_info;
 	u8	num_pds;
 	u8	responding;
+	u8	percent_complete;
 };
 
 /**
