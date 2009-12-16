@@ -79,7 +79,7 @@ acpi_status acpi_get_id(acpi_handle handle, acpi_owner_id * ret_id)
 
 	/* Convert and validate the handle */
 
-	node = acpi_ns_map_handle_to_node(handle);
+	node = acpi_ns_validate_handle(handle);
 	if (!node) {
 		(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 		return (AE_BAD_PARAMETER);
@@ -132,7 +132,7 @@ acpi_status acpi_get_type(acpi_handle handle, acpi_object_type * ret_type)
 
 	/* Convert and validate the handle */
 
-	node = acpi_ns_map_handle_to_node(handle);
+	node = acpi_ns_validate_handle(handle);
 	if (!node) {
 		(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 		return (AE_BAD_PARAMETER);
@@ -182,7 +182,7 @@ acpi_status acpi_get_parent(acpi_handle handle, acpi_handle * ret_handle)
 
 	/* Convert and validate the handle */
 
-	node = acpi_ns_map_handle_to_node(handle);
+	node = acpi_ns_validate_handle(handle);
 	if (!node) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;
@@ -191,7 +191,7 @@ acpi_status acpi_get_parent(acpi_handle handle, acpi_handle * ret_handle)
 	/* Get the parent entry */
 
 	parent_node = acpi_ns_get_parent_node(node);
-	*ret_handle = acpi_ns_convert_entry_to_handle(parent_node);
+	*ret_handle = ACPI_CAST_PTR(acpi_handle, parent_node);
 
 	/* Return exception if parent is null */
 
@@ -251,7 +251,7 @@ acpi_get_next_object(acpi_object_type type,
 
 		/* Start search at the beginning of the specified scope */
 
-		parent_node = acpi_ns_map_handle_to_node(parent);
+		parent_node = acpi_ns_validate_handle(parent);
 		if (!parent_node) {
 			status = AE_BAD_PARAMETER;
 			goto unlock_and_exit;
@@ -260,7 +260,7 @@ acpi_get_next_object(acpi_object_type type,
 		/* Non-null handle, ignore the parent */
 		/* Convert and validate the handle */
 
-		child_node = acpi_ns_map_handle_to_node(child);
+		child_node = acpi_ns_validate_handle(child);
 		if (!child_node) {
 			status = AE_BAD_PARAMETER;
 			goto unlock_and_exit;
@@ -276,7 +276,7 @@ acpi_get_next_object(acpi_object_type type,
 	}
 
 	if (ret_handle) {
-		*ret_handle = acpi_ns_convert_entry_to_handle(node);
+		*ret_handle = ACPI_CAST_PTR(acpi_handle, node);
 	}
 
       unlock_and_exit:
