@@ -722,7 +722,7 @@ static void acpi_processor_notify(struct acpi_device *device, u32 event)
 	switch (event) {
 	case ACPI_PROCESSOR_NOTIFY_PERFORMANCE:
 		saved = pr->performance_platform_limit;
-		acpi_processor_ppc_has_changed(pr);
+		acpi_processor_ppc_has_changed(pr, 1);
 		if (saved == pr->performance_platform_limit)
 			break;
 		acpi_bus_generate_proc_event(device, event,
@@ -758,7 +758,7 @@ static int acpi_cpu_soft_notify(struct notifier_block *nfb,
 	struct acpi_processor *pr = per_cpu(processors, cpu);
 
 	if (action == CPU_ONLINE && pr) {
-		acpi_processor_ppc_has_changed(pr);
+		acpi_processor_ppc_has_changed(pr, 0);
 		acpi_processor_cst_has_changed(pr);
 		acpi_processor_tstate_has_changed(pr);
 	}
@@ -830,7 +830,7 @@ static int __cpuinit acpi_processor_add(struct acpi_device *device)
 	arch_acpi_processor_cleanup_pdc(pr);
 
 #ifdef CONFIG_CPU_FREQ
-	acpi_processor_ppc_has_changed(pr);
+	acpi_processor_ppc_has_changed(pr, 0);
 #endif
 	acpi_processor_get_throttling_info(pr);
 	acpi_processor_get_limit_info(pr);
