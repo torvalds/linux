@@ -634,7 +634,7 @@ nouveau_bo_move_flips(struct ttm_buffer_object *bo, bool evict, bool intr,
 	if (ret)
 		goto out;
 
-	ret = nouveau_bo_move_m2mf(bo, true, intr, no_wait, new_mem);
+	ret = nouveau_bo_move_m2mf(bo, evict, intr, no_wait, new_mem);
 	if (ret)
 		goto out;
 
