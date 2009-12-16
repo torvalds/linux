@@ -2266,6 +2266,8 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 	clear_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 	clear_bit(RSCN_UPDATE, &vha->dpc_flags);
 
+	qla2x00_get_data_rate(vha);
+
 	/* Determine what we need to do */
 	if (ha->current_topology == ISP_CFG_FL &&
 	    (test_bit(LOCAL_LOOP_UPDATE, &flags))) {
