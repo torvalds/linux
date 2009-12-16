@@ -154,6 +154,11 @@ nouveau_bo_placement_set(struct nouveau_bo *nvbo, uint32_t memtype)
 	nvbo->placement.busy_placement = nvbo->placements;
 	nvbo->placement.num_placement = n;
 	nvbo->placement.num_busy_placement = n;
+
+	if (nvbo->pin_refcnt) {
+		while (n--)
+			nvbo->placements[n] |= TTM_PL_FLAG_NO_EVICT;
+	}
 }
 
 int
