@@ -166,32 +166,32 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 
 		/* Turn this into a real negative dentry? */
 		if (status == -ENOENT) {
-			spin_lock(&dentry->d_lock);
-			dentry->d_flags &= ~DCACHE_AUTOFS_PENDING;
-			spin_unlock(&dentry->d_lock);
+			spin_lock(&sbi->fs_lock);
+			ino->flags &= ~AUTOFS_INF_PENDING;
+			spin_unlock(&sbi->fs_lock);
 			return status;
 		} else if (status) {
 			/* Return a negative dentry, but leave it "pending" */
 			return status;
 		}
 	/* Trigger mount for path component or follow link */
-	} else if (dentry->d_flags & DCACHE_AUTOFS_PENDING ||
+	} else if (ino->flags & AUTOFS_INF_PENDING ||
 			autofs4_need_mount(flags) ||
 			current->link_count) {
 		DPRINTK("waiting for mount name=%.*s",
 			dentry->d_name.len, dentry->d_name.name);
 
-		spin_lock(&dentry->d_lock);
-		dentry->d_flags |= DCACHE_AUTOFS_PENDING;
-		spin_unlock(&dentry->d_lock);
+		spin_lock(&sbi->fs_lock);
+		ino->flags |= AUTOFS_INF_PENDING;
+		spin_unlock(&sbi->fs_lock);
 		status = autofs4_wait(sbi, dentry, NFY_MOUNT);
 
 		DPRINTK("mount done status=%d", status);
 
 		if (status) {
-			spin_lock(&dentry->d_lock);
-			dentry->d_flags &= ~DCACHE_AUTOFS_PENDING;
-			spin_unlock(&dentry->d_lock);
+			spin_lock(&sbi->fs_lock);
+			ino->flags &= ~AUTOFS_INF_PENDING;
+			spin_unlock(&sbi->fs_lock);
 			return status;
 		}
 	}
@@ -200,9 +200,9 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 	if (ino)
 		ino->last_used = jiffies;
 
-	spin_lock(&dentry->d_lock);
-	dentry->d_flags &= ~DCACHE_AUTOFS_PENDING;
-	spin_unlock(&dentry->d_lock);
+	spin_lock(&sbi->fs_lock);
+	ino->flags &= ~AUTOFS_INF_PENDING;
+	spin_unlock(&sbi->fs_lock);
 
 	return 0;
 }
@@ -243,18 +243,23 @@ static void *autofs4_follow_link(struct dentry *dentry, struct nameidata *nd)
 
 	/* We trigger a mount for almost all flags */
 	lookup_type = autofs4_need_mount(nd->flags);
-	if (!(lookup_type || dentry->d_flags & DCACHE_AUTOFS_PENDING))
+	spin_lock(&sbi->fs_lock);
+	spin_lock(&dcache_lock);
+	if (!(lookup_type || ino->flags & AUTOFS_INF_PENDING)) {
+		spin_unlock(&dcache_lock);
+		spin_unlock(&sbi->fs_lock);
 		goto follow;
+	}
 
 	/*
 	 * If the dentry contains directories then it is an autofs
 	 * multi-mount with no root mount offset. So don't try to
 	 * mount it again.
 	 */
-	spin_lock(&dcache_lock);
-	if (dentry->d_flags & DCACHE_AUTOFS_PENDING ||
+	if (ino->flags & AUTOFS_INF_PENDING ||
 	    (!d_mountpoint(dentry) && __simple_empty(dentry))) {
 		spin_unlock(&dcache_lock);
+		spin_unlock(&sbi->fs_lock);
 
 		status = try_to_fill_dentry(dentry, 0);
 		if (status)
@@ -263,6 +268,7 @@ static void *autofs4_follow_link(struct dentry *dentry, struct nameidata *nd)
 		goto follow;
 	}
 	spin_unlock(&dcache_lock);
+	spin_unlock(&sbi->fs_lock);
 follow:
 	/*
 	 * If there is no root mount it must be an autofs
@@ -525,9 +531,10 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 		 current->pid, task_pgrp_nr(current), sbi->catatonic, oz_mode);
 
 	unhashed = autofs4_lookup_active(sbi, dentry->d_parent, &dentry->d_name);
-	if (unhashed)
+	if (unhashed) {
 		dentry = unhashed;
-	else {
+		ino = autofs4_dentry_ino(dentry);
+	} else {
 		/*
 		 * Mark the dentry incomplete but don't hash it. We do this
 		 * to serialize our inode creation operations (symlink and
@@ -569,15 +576,14 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 			 * be quite complete but the directory has been removed
 			 * so it must have been successful, so just wait for it.
 			 */
-			ino = autofs4_dentry_ino(expiring);
 			autofs4_expire_wait(expiring);
 			autofs4_del_expiring(expiring);
 			dput(expiring);
 		}
 
-		spin_lock(&dentry->d_lock);
-		dentry->d_flags |= DCACHE_AUTOFS_PENDING;
-		spin_unlock(&dentry->d_lock);
+		spin_lock(&sbi->fs_lock);
+		ino->flags |= AUTOFS_INF_PENDING;
+		spin_unlock(&sbi->fs_lock);
 		if (dentry->d_op && dentry->d_op->d_revalidate)
 			(dentry->d_op->d_revalidate)(dentry, nd);
 		mutex_lock(&dir->i_mutex);
@@ -587,7 +593,7 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 	 * If we are still pending, check if we had to handle
 	 * a signal. If so we can force a restart..
 	 */
-	if (dentry->d_flags & DCACHE_AUTOFS_PENDING) {
+	if (ino->flags & AUTOFS_INF_PENDING) {
 		/* See if we were interrupted */
 		if (signal_pending(current)) {
 			sigset_t *sigset = &current->pending.signal;
@@ -600,9 +606,9 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 			}
 		}
 		if (!oz_mode) {
-			spin_lock(&dentry->d_lock);
-			dentry->d_flags &= ~DCACHE_AUTOFS_PENDING;
-			spin_unlock(&dentry->d_lock);
+			spin_lock(&sbi->fs_lock);
+			ino->flags &= ~AUTOFS_INF_PENDING;
+			spin_unlock(&sbi->fs_lock);
 		}
 	}
 
