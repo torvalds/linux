@@ -488,6 +488,7 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 	curr->sum_exec_runtime += delta_exec;
 	schedstat_add(cfs_rq, exec_clock, delta_exec);
 	delta_exec_weighted = calc_delta_fair(delta_exec, curr);
+
 	curr->vruntime += delta_exec_weighted;
 	update_min_vruntime(cfs_rq);
 }
@@ -743,16 +744,26 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 	se->vruntime = vruntime;
 }
 
+#define ENQUEUE_WAKEUP	1
+#define ENQUEUE_MIGRATE 2
+
 static void
-enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
+enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 {
+	/*
+	 * Update the normalized vruntime before updating min_vruntime
+	 * through callig update_curr().
+	 */
+	if (!(flags & ENQUEUE_WAKEUP) || (flags & ENQUEUE_MIGRATE))
+		se->vruntime += cfs_rq->min_vruntime;
+
 	/*
 	 * Update run-time statistics of the 'current'.
 	 */
 	update_curr(cfs_rq);
 	account_entity_enqueue(cfs_rq, se);
 
-	if (wakeup) {
+	if (flags & ENQUEUE_WAKEUP) {
 		place_entity(cfs_rq, se, 0);
 		enqueue_sleeper(cfs_rq, se);
 	}
@@ -806,6 +817,14 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 		__dequeue_entity(cfs_rq, se);
 	account_entity_dequeue(cfs_rq, se);
 	update_min_vruntime(cfs_rq);
+
+	/*
+	 * Normalize the entity after updating the min_vruntime because the
+	 * update can refer to the ->curr item and we need to reflect this
+	 * movement in our normalized position.
+	 */
+	if (!sleep)
+		se->vruntime -= cfs_rq->min_vruntime;
 }
 
 /*
@@ -1016,13 +1035,19 @@ static void enqueue_task_fair(struct rq *rq, struct task_struct *p, int wakeup)
 {
 	struct cfs_rq *cfs_rq;
 	struct sched_entity *se = &p->se;
+	int flags = 0;
+
+	if (wakeup)
+		flags |= ENQUEUE_WAKEUP;
+	if (p->state == TASK_WAKING)
+		flags |= ENQUEUE_MIGRATE;
 
 	for_each_sched_entity(se) {
 		if (se->on_rq)
 			break;
 		cfs_rq = cfs_rq_of(se);
-		enqueue_entity(cfs_rq, se, wakeup);
-		wakeup = 1;
+		enqueue_entity(cfs_rq, se, flags);
+		flags = ENQUEUE_WAKEUP;
 	}
 
 	hrtick_update(rq);
@@ -1097,6 +1122,14 @@ static void yield_task_fair(struct rq *rq)
 }
 
 #ifdef CONFIG_SMP
+
+static void task_waking_fair(struct rq *rq, struct task_struct *p)
+{
+	struct sched_entity *se = &p->se;
+	struct cfs_rq *cfs_rq = cfs_rq_of(se);
+
+	se->vruntime -= cfs_rq->min_vruntime;
+}
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 /*
@@ -1943,6 +1976,8 @@ static void task_fork_fair(struct task_struct *p)
 		resched_task(rq->curr);
 	}
 
+	se->vruntime -= cfs_rq->min_vruntime;
+
 	spin_unlock_irqrestore(&rq->lock, flags);
 }
 
@@ -1996,12 +2031,13 @@ static void set_curr_task_fair(struct rq *rq)
 }
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
-static void moved_group_fair(struct task_struct *p)
+static void moved_group_fair(struct task_struct *p, int on_rq)
 {
 	struct cfs_rq *cfs_rq = task_cfs_rq(p);
 
 	update_curr(cfs_rq);
-	place_entity(cfs_rq, &p->se, 1);
+	if (!on_rq)
+		place_entity(cfs_rq, &p->se, 1);
 }
 #endif
 
@@ -2041,6 +2077,8 @@ static const struct sched_class fair_sched_class = {
 	.move_one_task		= move_one_task_fair,
 	.rq_online		= rq_online_fair,
 	.rq_offline		= rq_offline_fair,
+
+	.task_waking		= task_waking_fair,
 #endif
 
 	.set_curr_task          = set_curr_task_fair,
