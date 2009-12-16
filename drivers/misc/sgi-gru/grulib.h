@@ -125,6 +125,8 @@ struct gru_dump_chiplet_state_req {
 	int		ctxnum;
 	char		data_opt;
 	char		lock_cch;
+	char		flush_cbrs;
+	char		fill[10];
 	pid_t		pid;
 	void		*buf;
 	size_t		buflen;
