@@ -116,7 +116,7 @@ EXPORT_SYMBOL(dma_free_coherent);
 void __dma_sync(dma_addr_t addr, size_t size,
 		enum dma_data_direction dir)
 {
-	_dma_sync(addr, size, dir);
+	__dma_sync_inline(addr, size, dir);
 }
 EXPORT_SYMBOL(__dma_sync);
 
