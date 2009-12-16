@@ -28,6 +28,7 @@
 #include <asm/dpmc.h>
 #include <asm/bfin5xx_spi.h>
 #include <asm/bfin_sport.h>
+#include <asm/bfin_can.h>
 
 #define SIC_SYSIRQ(irq)	(irq - (IRQ_CORETMR + 1))
 
