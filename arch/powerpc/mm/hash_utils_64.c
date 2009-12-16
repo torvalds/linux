@@ -879,7 +879,7 @@ static inline int subpage_protection(struct mm_struct *mm, unsigned long ea)
  */
 int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 {
-	void *pgdir;
+	pgd_t *pgdir;
 	unsigned long vsid;
 	struct mm_struct *mm;
 	pte_t *ptep;
@@ -1025,7 +1025,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	else
 #endif /* CONFIG_PPC_HAS_HASH_64K */
 	{
-		int spp = subpage_protection(pgdir, ea);
+		int spp = subpage_protection(mm, ea);
 		if (access & spp)
 			rc = -2;
 		else
