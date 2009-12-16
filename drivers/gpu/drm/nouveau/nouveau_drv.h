@@ -277,8 +277,13 @@ struct nouveau_timer_engine {
 };
 
 struct nouveau_fb_engine {
+	int num_tiles;
+
 	int  (*init)(struct drm_device *dev);
 	void (*takedown)(struct drm_device *dev);
+
+	void (*set_region_tiling)(struct drm_device *dev, int i, uint32_t addr,
+				 uint32_t size, uint32_t pitch);
 };
 
 struct nouveau_fifo_engine {
@@ -332,6 +337,9 @@ struct nouveau_pgraph_engine {
 	void (*destroy_context)(struct nouveau_channel *);
 	int  (*load_context)(struct nouveau_channel *);
 	int  (*unload_context)(struct drm_device *);
+
+	void (*set_region_tiling)(struct drm_device *dev, int i, uint32_t addr,
+				  uint32_t size, uint32_t pitch);
 };
 
 struct nouveau_engine {
@@ -881,10 +889,14 @@ extern void nv04_fb_takedown(struct drm_device *);
 /* nv10_fb.c */
 extern int  nv10_fb_init(struct drm_device *);
 extern void nv10_fb_takedown(struct drm_device *);
+extern void nv10_fb_set_region_tiling(struct drm_device *, int, uint32_t,
+				      uint32_t, uint32_t);
 
 /* nv40_fb.c */
 extern int  nv40_fb_init(struct drm_device *);
 extern void nv40_fb_takedown(struct drm_device *);
+extern void nv40_fb_set_region_tiling(struct drm_device *, int, uint32_t,
+				      uint32_t, uint32_t);
 
 /* nv04_fifo.c */
 extern int  nv04_fifo_init(struct drm_device *);
@@ -945,6 +957,8 @@ extern void nv10_graph_destroy_context(struct nouveau_channel *);
 extern int  nv10_graph_load_context(struct nouveau_channel *);
 extern int  nv10_graph_unload_context(struct drm_device *);
 extern void nv10_graph_context_switch(struct drm_device *);
+extern void nv10_graph_set_region_tiling(struct drm_device *, int, uint32_t,
+					 uint32_t, uint32_t);
 
 /* nv20_graph.c */
 extern struct nouveau_pgraph_object_class nv20_graph_grclass[];
@@ -956,6 +970,8 @@ extern int  nv20_graph_unload_context(struct drm_device *);
 extern int  nv20_graph_init(struct drm_device *);
 extern void nv20_graph_takedown(struct drm_device *);
 extern int  nv30_graph_init(struct drm_device *);
+extern void nv20_graph_set_region_tiling(struct drm_device *, int, uint32_t,
+					 uint32_t, uint32_t);
 
 /* nv40_graph.c */
 extern struct nouveau_pgraph_object_class nv40_graph_grclass[];
@@ -967,6 +983,8 @@ extern void nv40_graph_destroy_context(struct nouveau_channel *);
 extern int  nv40_graph_load_context(struct nouveau_channel *);
 extern int  nv40_graph_unload_context(struct drm_device *);
 extern void nv40_grctx_init(struct nouveau_grctx *);
+extern void nv40_graph_set_region_tiling(struct drm_device *, int, uint32_t,
+					 uint32_t, uint32_t);
 
 /* nv50_graph.c */
 extern struct nouveau_pgraph_object_class nv50_graph_grclass[];
