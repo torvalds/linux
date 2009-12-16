@@ -3385,7 +3385,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 
 	/* we only need to pin inside GTT if cursor is non-phy */
 	mutex_lock(&dev->struct_mutex);
-	if (!dev_priv->cursor_needs_physical) {
+	if (!dev_priv->info->cursor_needs_physical) {
 		ret = i915_gem_object_pin(bo, PAGE_SIZE);
 		if (ret) {
 			DRM_ERROR("failed to pin cursor bo\n");
@@ -3420,7 +3420,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	I915_WRITE(base, addr);
 
 	if (intel_crtc->cursor_bo) {
-		if (dev_priv->cursor_needs_physical) {
+		if (dev_priv->info->cursor_needs_physical) {
 			if (intel_crtc->cursor_bo != bo)
 				i915_gem_detach_phys_object(dev, intel_crtc->cursor_bo);
 		} else

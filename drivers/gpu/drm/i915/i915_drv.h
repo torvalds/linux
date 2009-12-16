@@ -189,6 +189,7 @@ struct intel_device_info {
 	u8 has_rc6 : 1;
 	u8 has_pipe_cxsr : 1;
 	u8 has_hotplug : 1;
+	u8 cursor_needs_physical : 1;
 };
 
 typedef struct drm_i915_private {
@@ -252,8 +253,6 @@ typedef struct drm_i915_private {
 	struct timer_list hangcheck_timer;
 	int hangcheck_count;
 	uint32_t last_acthd;
-
-	bool cursor_needs_physical;
 
 	struct drm_mm vram;
 

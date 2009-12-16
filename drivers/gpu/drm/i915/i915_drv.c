@@ -57,7 +57,7 @@ static struct drm_driver driver;
 	.driver_data = (unsigned long) info }
 
 const static struct intel_device_info intel_i830_info = {
-	.is_i8xx = 1, .is_mobile = 1,
+	.is_i8xx = 1, .is_mobile = 1, .cursor_needs_physical = 1,
 };
 
 const static struct intel_device_info intel_845g_info = {
@@ -65,7 +65,7 @@ const static struct intel_device_info intel_845g_info = {
 };
 
 const static struct intel_device_info intel_i85x_info = {
-	.is_i8xx = 1, .is_mobile = 1,
+	.is_i8xx = 1, .is_mobile = 1, .cursor_needs_physical = 1,
 };
 
 const static struct intel_device_info intel_i865g_info = {
@@ -73,17 +73,18 @@ const static struct intel_device_info intel_i865g_info = {
 };
 
 const static struct intel_device_info intel_i915g_info = {
-	.is_i915g = 1, .is_i9xx = 1,
+	.is_i915g = 1, .is_i9xx = 1, .cursor_needs_physical = 1,
 };
 const static struct intel_device_info intel_i915gm_info = {
 	.is_i9xx = 1,  .is_mobile = 1, .has_fbc = 1,
+	.cursor_needs_physical = 1,
 };
 const static struct intel_device_info intel_i945g_info = {
-	.is_i9xx = 1, .has_hotplug = 1,
+	.is_i9xx = 1, .has_hotplug = 1, .cursor_needs_physical = 1,
 };
 const static struct intel_device_info intel_i945gm_info = {
 	.is_i945gm = 1, .is_i9xx = 1, .is_mobile = 1, .has_fbc = 1,
-	.has_hotplug = 1,
+	.has_hotplug = 1, .cursor_needs_physical = 1,
 };
 
 const static struct intel_device_info intel_i965g_info = {

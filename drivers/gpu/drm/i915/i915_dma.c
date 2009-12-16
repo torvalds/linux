@@ -1200,14 +1200,6 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	dev->mode_config.fb_base = drm_get_resource_start(dev, fb_bar) &
 		0xff000000;
 
-	if (IS_MOBILE(dev) || IS_I9XX(dev))
-		dev_priv->cursor_needs_physical = true;
-	else
-		dev_priv->cursor_needs_physical = false;
-
-	if (IS_I965G(dev) || IS_G33(dev))
-		dev_priv->cursor_needs_physical = false;
-
 	/* Basic memrange allocator for stolen space (aka vram) */
 	drm_mm_init(&dev_priv->vram, 0, prealloc_size);
 	DRM_INFO("set up %ldM of stolen space\n", prealloc_size / (1024*1024));
