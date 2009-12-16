@@ -46,13 +46,18 @@
 
 #include "devices.h"
 
+#define KZM_ARM11_IO_ADDRESS(x) (					\
+	IMX_IO_ADDRESS(x, MX31_CS4) ?:					\
+	IMX_IO_ADDRESS(x, MX31_CS5) ?:					\
+	MX31_IO_ADDRESS(x))
+
 #if defined(CONFIG_SERIAL_8250) || defined(CONFIG_SERIAL_8250_MODULE)
 /*
  * KZM-ARM11-01 has an external UART on FPGA
  */
 static struct plat_serial8250_port serial_platform_data[] = {
 	{
-		.membase	= IO_ADDRESS(KZM_ARM11_16550),
+		.membase	= KZM_ARM11_IO_ADDRESS(KZM_ARM11_16550),
 		.mapbase	= KZM_ARM11_16550,
 		.irq		= IOMUX_TO_IRQ(MX31_PIN_GPIO1_1),
 		.irqflags	= IRQ_TYPE_EDGE_RISING,
@@ -102,9 +107,9 @@ static int __init kzm_init_ext_uart(void)
 	/*
 	 * Unmask UART interrupt
 	 */
-	tmp = __raw_readb(IO_ADDRESS(KZM_ARM11_CTL1));
+	tmp = __raw_readb(KZM_ARM11_IO_ADDRESS(KZM_ARM11_CTL1));
 	tmp |= 0x2;
-	__raw_writeb(tmp, IO_ADDRESS(KZM_ARM11_CTL1));
+	__raw_writeb(tmp, KZM_ARM11_IO_ADDRESS(KZM_ARM11_CTL1));
 
 	return platform_device_register(&serial_device);
 }
