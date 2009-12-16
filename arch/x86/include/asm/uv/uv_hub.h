@@ -232,6 +232,13 @@ static inline unsigned long uv_gpa(void *v)
 	return uv_soc_phys_ram_to_gpa(__pa(v));
 }
 
+/* Top two bits indicate the requested address is in MMR space.  */
+static inline int
+uv_gpa_in_mmr_space(unsigned long gpa)
+{
+	return (gpa >> 62) == 0x3UL;
+}
+
 /* UV global physical address --> socket phys RAM */
 static inline unsigned long uv_gpa_to_soc_phys_ram(unsigned long gpa)
 {
