@@ -50,19 +50,12 @@ static void ima_inc_counts(struct ima_iint_cache *iint, fmode_t mode)
 }
 
 /*
- * Update the counts given open flags instead of fmode
- */
-static void ima_inc_counts_flags(struct ima_iint_cache *iint, int flags)
-{
-	ima_inc_counts(iint, (__force fmode_t)((flags+1) & O_ACCMODE));
-}
-
-/*
  * Decrement ima counts
  */
 static void ima_dec_counts(struct ima_iint_cache *iint, struct inode *inode,
-			   fmode_t mode)
+			   struct file *file)
 {
+	mode_t mode = file->f_mode;
 	BUG_ON(!mutex_is_locked(&iint->mutex));
 
 	iint->opencount--;
@@ -92,12 +85,6 @@ static void ima_dec_counts(struct ima_iint_cache *iint, struct inode *inode,
 	}
 }
 
-static void ima_dec_counts_flags(struct ima_iint_cache *iint,
-				 struct inode *inode, int flags)
-{
-	ima_dec_counts(iint, inode, (__force fmode_t)((flags+1) & O_ACCMODE));
-}
-
 /**
  * ima_file_free - called on __fput()
  * @file: pointer to file structure being freed
@@ -117,7 +104,7 @@ void ima_file_free(struct file *file)
 		return;
 
 	mutex_lock(&iint->mutex);
-	ima_dec_counts(iint, inode, file->f_mode);
+	ima_dec_counts(iint, inode, file);
 	mutex_unlock(&iint->mutex);
 	kref_put(&iint->refcount, iint_free);
 }
@@ -183,7 +170,7 @@ static int get_path_measurement(struct ima_iint_cache *iint, struct file *file,
  * Always return 0 and audit dentry_open failures.
  * (Return code will be based upon measurement appraisal.)
  */
-int ima_path_check(struct path *path, int mask, int update_counts)
+int ima_path_check(struct path *path, int mask)
 {
 	struct inode *inode = path->dentry->d_inode;
 	struct ima_iint_cache *iint;
@@ -197,8 +184,6 @@ int ima_path_check(struct path *path, int mask, int update_counts)
 		return 0;
 
 	mutex_lock(&iint->mutex);
-	if (update_counts)
-		ima_inc_counts_flags(iint, mask);
 
 	rc = ima_must_measure(iint, inode, MAY_READ, PATH_CHECK);
 	if (rc < 0)
@@ -266,35 +251,6 @@ out:
 	mutex_unlock(&iint->mutex);
 	kref_put(&iint->refcount, iint_free);
 	return rc;
-}
-
-/*
- * ima_counts_put - decrement file counts
- *
- * File counts are incremented in ima_path_check. On file open
- * error, such as ETXTBSY, decrement the counts to prevent
- * unnecessary imbalance messages.
- */
-void ima_counts_put(struct path *path, int mask)
-{
-	struct inode *inode = path->dentry->d_inode;
-	struct ima_iint_cache *iint;
-
-	/* The inode may already have been freed, freeing the iint
-	 * with it. Verify the inode is not NULL before dereferencing
-	 * it.
-	 */
-	if (!ima_initialized || !inode || !S_ISREG(inode->i_mode))
-		return;
-	iint = ima_iint_find_get(inode);
-	if (!iint)
-		return;
-
-	mutex_lock(&iint->mutex);
-	ima_dec_counts_flags(iint, inode, mask);
-	mutex_unlock(&iint->mutex);
-
-	kref_put(&iint->refcount, iint_free);
 }
 
 /*

@@ -1686,7 +1686,7 @@ do_last:
 			path_put(&nd.root);
 		if (!IS_ERR(filp)) {
 			error = ima_path_check(&filp->f_path, filp->f_mode &
-				       (MAY_READ | MAY_WRITE | MAY_EXEC), 0);
+				       (MAY_READ | MAY_WRITE | MAY_EXEC));
 			if (error) {
 				fput(filp);
 				filp = ERR_PTR(error);
@@ -1747,7 +1747,7 @@ ok:
 	filp = nameidata_to_filp(&nd, open_flag);
 	if (!IS_ERR(filp)) {
 		error = ima_path_check(&filp->f_path, filp->f_mode &
-			       (MAY_READ | MAY_WRITE | MAY_EXEC), 0);
+			       (MAY_READ | MAY_WRITE | MAY_EXEC));
 		if (error) {
 			fput(filp);
 			filp = ERR_PTR(error);
