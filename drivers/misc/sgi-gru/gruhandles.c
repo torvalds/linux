@@ -27,9 +27,11 @@
 #ifdef CONFIG_IA64
 #include <asm/processor.h>
 #define GRU_OPERATION_TIMEOUT	(((cycles_t) local_cpu_data->itc_freq)*10)
+#define CLKS2NSEC(c)		((c) *1000000000 / local_cpu_data->itc_freq)
 #else
 #include <asm/tsc.h>
 #define GRU_OPERATION_TIMEOUT	((cycles_t) tsc_khz*10*1000)
+#define CLKS2NSEC(c)		((c) * 1000000 / tsc_khz)
 #endif
 
 /* Extract the status field from a kernel handle */
@@ -39,10 +41,13 @@ struct mcs_op_statistic mcs_op_statistics[mcsop_last];
 
 static void update_mcs_stats(enum mcs_op op, unsigned long clks)
 {
+	unsigned long nsec;
+
+	nsec = CLKS2NSEC(clks);
 	atomic_long_inc(&mcs_op_statistics[op].count);
-	atomic_long_add(clks, &mcs_op_statistics[op].total);
-	if (mcs_op_statistics[op].max < clks)
-		mcs_op_statistics[op].max = clks;
+	atomic_long_add(nsec, &mcs_op_statistics[op].total);
+	if (mcs_op_statistics[op].max < nsec)
+		mcs_op_statistics[op].max = nsec;
 }
 
 static void start_instruction(void *h)

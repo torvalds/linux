@@ -171,7 +171,8 @@ struct gru_stats_s {
 	atomic_long_t vdata_free;
 	atomic_long_t gts_alloc;
 	atomic_long_t gts_free;
-	atomic_long_t vdata_double_alloc;
+	atomic_long_t gms_alloc;
+	atomic_long_t gms_free;
 	atomic_long_t gts_double_allocate;
 	atomic_long_t assign_context;
 	atomic_long_t assign_context_failed;
@@ -184,15 +185,15 @@ struct gru_stats_s {
 	atomic_long_t steal_kernel_context;
 	atomic_long_t steal_context_failed;
 	atomic_long_t nopfn;
-	atomic_long_t break_cow;
 	atomic_long_t asid_new;
 	atomic_long_t asid_next;
 	atomic_long_t asid_wrap;
 	atomic_long_t asid_reuse;
 	atomic_long_t intr;
+	atomic_long_t intr_cbr;
+	atomic_long_t intr_tfh;
 	atomic_long_t intr_mm_lock_failed;
 	atomic_long_t call_os;
-	atomic_long_t call_os_check_for_bug;
 	atomic_long_t call_os_wait_queue;
 	atomic_long_t user_flush_tlb;
 	atomic_long_t user_unload_context;
@@ -208,11 +209,9 @@ struct gru_stats_s {
 	atomic_long_t tlb_dropin_fail_idle;
 	atomic_long_t tlb_dropin_fail_fmm;
 	atomic_long_t tlb_dropin_fail_no_exception;
-	atomic_long_t tlb_dropin_fail_no_exception_war;
 	atomic_long_t tfh_stale_on_fault;
 	atomic_long_t mmu_invalidate_range;
 	atomic_long_t mmu_invalidate_page;
-	atomic_long_t mmu_clear_flush_young;
 	atomic_long_t flush_tlb;
 	atomic_long_t flush_tlb_gru;
 	atomic_long_t flush_tlb_gru_tgh;
@@ -231,7 +230,7 @@ struct gru_stats_s {
 	atomic_long_t mesq_send_qlimit_reached;
 	atomic_long_t mesq_send_amo_nacked;
 	atomic_long_t mesq_send_put_nacked;
-	atomic_long_t mesq_qf_not_full;
+	atomic_long_t mesq_page_overflow;
 	atomic_long_t mesq_qf_locked;
 	atomic_long_t mesq_qf_noop_not_full;
 	atomic_long_t mesq_qf_switch_head_failed;
@@ -241,6 +240,7 @@ struct gru_stats_s {
 	atomic_long_t mesq_noop_qlimit_reached;
 	atomic_long_t mesq_noop_amo_nacked;
 	atomic_long_t mesq_noop_put_nacked;
+	atomic_long_t mesq_noop_page_overflow;
 
 };
 
@@ -255,8 +255,8 @@ struct mcs_op_statistic {
 
 extern struct mcs_op_statistic mcs_op_statistics[mcsop_last];
 
-#define OPT_DPRINT	1
-#define OPT_STATS	2
+#define OPT_DPRINT		1
+#define OPT_STATS		2
 
 
 #define IRQ_GRU			110	/* Starting IRQ number for interrupts */
@@ -279,7 +279,7 @@ extern struct mcs_op_statistic mcs_op_statistics[mcsop_last];
 #define gru_dbg(dev, fmt, x...)						\
 	do {								\
 		if (gru_options & OPT_DPRINT)				\
-			dev_dbg(dev, "%s: " fmt, __func__, x);		\
+			printk(KERN_DEBUG "GRU:%d %s: " fmt, smp_processor_id(), __func__, x);\
 	} while (0)
 #else
 #define gru_dbg(x...)

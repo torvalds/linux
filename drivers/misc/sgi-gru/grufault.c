@@ -303,7 +303,7 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 			  struct gru_tlb_fault_handle *tfh,
 			  struct gru_instruction_bits *cbk)
 {
-	int pageshift = 0, asid, write, ret, atomic = !cbk;
+	int pageshift = 0, asid, write, ret, atomic = !cbk, indexway;
 	unsigned long gpa = 0, vaddr = 0;
 
 	/*
@@ -333,6 +333,7 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 	write = (tfh->cause & TFHCAUSE_TLB_MOD) != 0;
 	vaddr = tfh->missvaddr;
 	asid = tfh->missasid;
+	indexway = tfh->indexway;
 	if (asid == 0)
 		goto failnoasid;
 
@@ -361,11 +362,12 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 	gru_cb_set_istatus_active(cbk);
 	tfh_write_restart(tfh, gpa, GAA_RAM, vaddr, asid, write,
 			  GRU_PAGESIZE(pageshift));
-	STAT(tlb_dropin);
 	gru_dbg(grudev,
-		"%s: tfh 0x%p, vaddr 0x%lx, asid 0x%x, ps %d, gpa 0x%lx\n",
-		ret ? "non-atomic" : "atomic", tfh, vaddr, asid,
-		pageshift, gpa);
+		"%s: gid %d, gts 0x%p, tfh 0x%p, vaddr 0x%lx, asid 0x%x, indexway 0x%x,"
+		" rw %d, ps %d, gpa 0x%lx\n",
+		atomic ? "atomic" : "non-atomic", gts->ts_gru->gs_gid, gts, tfh, vaddr, asid,
+		indexway, write, pageshift, gpa);
+	STAT(tlb_dropin);
 	return 0;
 
 failnoasid:
@@ -460,12 +462,14 @@ static irqreturn_t gru_intr(int chiplet, int blade)
 		dmap.fault_bits[0], dmap.fault_bits[1]);
 
 	for_each_cbr_in_tfm(cbrnum, dmap.fault_bits) {
+		STAT(intr_cbr);
 		complete(gru->gs_blade->bs_async_wq);
 		gru_dbg(grudev, "gid %d, cbr_done %d, done %d\n",
 			gru->gs_gid, cbrnum, gru->gs_blade->bs_async_wq->done);
 	}
 
 	for_each_cbr_in_tfm(cbrnum, imap.fault_bits) {
+		STAT(intr_tfh);
 		tfh = get_tfh_by_index(gru, cbrnum);
 		prefetchw(tfh);	/* Helps on hdw, required for emulator */
 
@@ -551,7 +555,6 @@ int gru_handle_user_call_os(unsigned long cb)
 	int ucbnum, cbrnum, ret = -EINVAL;
 
 	STAT(call_os);
-	gru_dbg(grudev, "address 0x%lx\n", cb);
 
 	/* sanity check the cb pointer */
 	ucbnum = get_cb_number((void *)cb);
@@ -561,6 +564,7 @@ int gru_handle_user_call_os(unsigned long cb)
 	gts = gru_find_lock_gts(cb);
 	if (!gts)
 		return -EINVAL;
+	gru_dbg(grudev, "address 0x%lx, gid %d, gts 0x%p\n", cb, gts->ts_gru ? gts->ts_gru->gs_gid : -1, gts);
 
 	if (ucbnum >= gts->ts_cbr_au_count * GRU_CBR_AU_SIZE)
 		goto exit;
@@ -603,11 +607,11 @@ int gru_get_exception_detail(unsigned long arg)
 	if (copy_from_user(&excdet, (void __user *)arg, sizeof(excdet)))
 		return -EFAULT;
 
-	gru_dbg(grudev, "address 0x%lx\n", excdet.cb);
 	gts = gru_find_lock_gts(excdet.cb);
 	if (!gts)
 		return -EINVAL;
 
+	gru_dbg(grudev, "address 0x%lx, gid %d, gts 0x%p\n", excdet.cb, gts->ts_gru ? gts->ts_gru->gs_gid : -1, gts);
 	ucbnum = get_cb_number((void *)excdet.cb);
 	if (ucbnum >= gts->ts_cbr_au_count * GRU_CBR_AU_SIZE) {
 		ret = -EINVAL;

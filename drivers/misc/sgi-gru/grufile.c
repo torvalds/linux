@@ -192,7 +192,7 @@ static long gru_file_unlocked_ioctl(struct file *file, unsigned int req,
 {
 	int err = -EBADRQC;
 
-	gru_dbg(grudev, "file %p\n", file);
+	gru_dbg(grudev, "file %p, req 0x%x, 0x%lx\n", file, req, arg);
 
 	switch (req) {
 	case GRU_CREATE_CONTEXT:

@@ -370,6 +370,7 @@ struct gru_vma_data *gru_alloc_vma_data(struct vm_area_struct *vma, int tsid)
 	if (!vdata)
 		return NULL;
 
+	STAT(vdata_alloc);
 	INIT_LIST_HEAD(&vdata->vd_head);
 	spin_lock_init(&vdata->vd_lock);
 	gru_dbg(grudev, "alloc vdata %p\n", vdata);
@@ -552,7 +553,8 @@ void gru_unload_context(struct gru_thread_state *gts, int savestate)
 		zap_vma_ptes(gts->ts_vma, UGRUADDR(gts), GRU_GSEG_PAGESIZE);
 	cch = get_cch(gru->gs_gru_base_vaddr, ctxnum);
 
-	gru_dbg(grudev, "gts %p\n", gts);
+	gru_dbg(grudev, "gts %p, cbrmap 0x%lx, dsrmap 0x%lx\n",
+		gts, gts->ts_cbr_map, gts->ts_dsr_map);
 	lock_cch_handle(cch);
 	if (cch_interrupt_sync(cch))
 		BUG();
@@ -583,9 +585,7 @@ void gru_load_context(struct gru_thread_state *gts)
 	struct gru_context_configuration_handle *cch;
 	int i, err, asid, ctxnum = gts->ts_ctxnum;
 
-	gru_dbg(grudev, "gts %p\n", gts);
 	cch = get_cch(gru->gs_gru_base_vaddr, ctxnum);
-
 	lock_cch_handle(cch);
 	cch->tfm_fault_bit_enable =
 	    (gts->ts_user_options == GRU_OPT_MISS_FMM_POLL
@@ -635,6 +635,10 @@ void gru_load_context(struct gru_thread_state *gts)
 	if (cch_start(cch))
 		BUG();
 	unlock_cch_handle(cch);
+
+	gru_dbg(grudev, "gid %d, gts %p, cbrmap 0x%lx, dsrmap 0x%lx, tie %d, tis %d\n",
+		gts->ts_gru->gs_gid, gts, gts->ts_cbr_map, gts->ts_dsr_map,
+		(gts->ts_user_options == GRU_OPT_MISS_FMM_INTR), gts->ts_tlb_int_select);
 }
 
 /*
