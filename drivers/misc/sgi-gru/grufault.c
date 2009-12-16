@@ -253,7 +253,6 @@ static int atomic_pte_lookup(struct vm_area_struct *vma, unsigned long vaddr,
 	return 0;
 
 err:
-	local_irq_enable();
 	return 1;
 }
 
