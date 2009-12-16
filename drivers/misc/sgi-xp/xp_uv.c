@@ -32,6 +32,15 @@ xp_pa_uv(void *addr)
 	return uv_gpa(addr);
 }
 
+/*
+ * Convert a global physical to socket physical address.
+ */
+static unsigned long
+xp_socket_pa_uv(unsigned long gpa)
+{
+	return uv_gpa_to_soc_phys_ram(gpa);
+}
+
 static enum xp_retval
 xp_remote_memcpy_uv(unsigned long dst_gpa, const unsigned long src_gpa,
 		    size_t len)
@@ -123,6 +132,7 @@ xp_init_uv(void)
 	xp_region_size = sn_region_size;
 
 	xp_pa = xp_pa_uv;
+	xp_socket_pa = xp_socket_pa_uv;
 	xp_remote_memcpy = xp_remote_memcpy_uv;
 	xp_cpu_to_nasid = xp_cpu_to_nasid_uv;
 	xp_expand_memprotect = xp_expand_memprotect_uv;
