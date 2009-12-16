@@ -265,6 +265,7 @@ struct gru_instruction {
 #define CBE_CAUSE_PROTOCOL_STATE_DATA_ERROR	(1 << 16)
 #define CBE_CAUSE_RA_RESPONSE_DATA_ERROR	(1 << 17)
 #define CBE_CAUSE_HA_RESPONSE_DATA_ERROR	(1 << 18)
+#define CBE_CAUSE_FORCED_ERROR			(1 << 19)
 
 /* CBE cbrexecstatus bits */
 #define CBR_EXS_ABORT_OCC_BIT			0
@@ -273,13 +274,15 @@ struct gru_instruction {
 #define CBR_EXS_QUEUED_BIT			3
 #define CBR_EXS_TLB_INVAL_BIT			4
 #define CBR_EXS_EXCEPTION_BIT			5
+#define CBR_EXS_CB_INT_PENDING_BIT		6
 
 #define CBR_EXS_ABORT_OCC			(1 << CBR_EXS_ABORT_OCC_BIT)
 #define CBR_EXS_INT_OCC				(1 << CBR_EXS_INT_OCC_BIT)
 #define CBR_EXS_PENDING				(1 << CBR_EXS_PENDING_BIT)
 #define CBR_EXS_QUEUED				(1 << CBR_EXS_QUEUED_BIT)
-#define CBR_TLB_INVAL				(1 << CBR_EXS_TLB_INVAL_BIT)
+#define CBR_EXS_TLB_INVAL			(1 << CBR_EXS_TLB_INVAL_BIT)
 #define CBR_EXS_EXCEPTION			(1 << CBR_EXS_EXCEPTION_BIT)
+#define CBR_EXS_CB_INT_PENDING			(1 << CBR_EXS_CB_INT_PENDING_BIT)
 
 /*
  * Exceptions are retried for the following cases. If any OTHER bits are set
