@@ -288,7 +288,6 @@ static struct bin_attribute stk17ta8_nvram_attr = {
 
 static int __devinit stk17ta8_rtc_probe(struct platform_device *pdev)
 {
-	struct rtc_device *rtc;
 	struct resource *res;
 	unsigned int cal;
 	unsigned int flags;
@@ -338,22 +337,23 @@ static int __devinit stk17ta8_rtc_probe(struct platform_device *pdev)
 		}
 	}
 
-	rtc = rtc_device_register(pdev->name, &pdev->dev,
-				  &stk17ta8_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc)) {
-		ret = PTR_ERR(rtc);
-		goto out;
-	}
-	pdata->rtc = rtc;
 	pdata->last_jiffies = jiffies;
 	platform_set_drvdata(pdev, pdata);
-	ret = sysfs_create_bin_file(&pdev->dev.kobj, &stk17ta8_nvram_attr);
-	if (ret)
+
+	pdata->rtc = rtc_device_register(pdev->name, &pdev->dev,
+				  &stk17ta8_rtc_ops, THIS_MODULE);
+	if (IS_ERR(pdata->rtc)) {
+		ret = PTR_ERR(pdata->rtc);
 		goto out;
+	}
+
+	ret = sysfs_create_bin_file(&pdev->dev.kobj, &stk17ta8_nvram_attr);
+	if (ret) {
+		rtc_device_unregister(pdata->rtc);
+		goto out;
+	}
 	return 0;
  out:
-	if (pdata->rtc)
-		rtc_device_unregister(pdata->rtc);
 	if (pdata->irq > 0)
 		free_irq(pdata->irq, pdev);
 	if (ioaddr)

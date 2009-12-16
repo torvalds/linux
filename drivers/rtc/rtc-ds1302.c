@@ -143,7 +143,6 @@ static int ds1302_rtc_ioctl(struct device *dev, unsigned int cmd,
 #ifdef RTC_SET_CHARGE
 	case RTC_SET_CHARGE:
 	{
-		struct ds1302_rtc *rtc = dev_get_drvdata(dev);
 		int tcs_val;
 
 		if (copy_from_user(&tcs_val, (int __user *)arg, sizeof(int)))
