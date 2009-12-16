@@ -221,13 +221,21 @@ static int gru_free_kernel_contexts(void)
 static struct gru_blade_state *gru_lock_kernel_context(int blade_id)
 {
 	struct gru_blade_state *bs;
+	int bid;
 
 	STAT(lock_kernel_context);
-	bs = gru_base[blade_id];
+again:
+	bid = blade_id < 0 ? uv_numa_blade_id() : blade_id;
+	bs = gru_base[bid];
 
+	/* Handle the case where migration occured while waiting for the sema */
 	down_read(&bs->bs_kgts_sema);
+	if (blade_id < 0 && bid != uv_numa_blade_id()) {
+		up_read(&bs->bs_kgts_sema);
+		goto again;
+	}
 	if (!bs->bs_kgts || !bs->bs_kgts->ts_gru)
-		gru_load_kernel_context(bs, blade_id);
+		gru_load_kernel_context(bs, bid);
 	return bs;
 
 }
@@ -256,7 +264,7 @@ static int gru_get_cpu_resources(int dsr_bytes, void **cb, void **dsr)
 
 	BUG_ON(dsr_bytes > GRU_NUM_KERNEL_DSR_BYTES);
 	preempt_disable();
-	bs = gru_lock_kernel_context(uv_numa_blade_id());
+	bs = gru_lock_kernel_context(-1);
 	lcpu = uv_blade_processor_id();
 	*cb = bs->kernel_cb + lcpu * GRU_HANDLE_STRIDE;
 	*dsr = bs->kernel_dsr + lcpu * GRU_NUM_KERNEL_DSR_BYTES;
