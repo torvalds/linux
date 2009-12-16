@@ -163,9 +163,9 @@ static int twlreg_disable(struct regulator_dev *rdev)
 		return grp;
 
 	if (twl_class_is_4030())
-		grp &= ~P1_GRP_4030;
+		grp &= ~(P1_GRP_4030 | P2_GRP_4030 | P3_GRP_4030);
 	else
-		grp &= ~P1_GRP_6030;
+		grp &= ~(P1_GRP_6030 | P2_GRP_6030 | P3_GRP_6030);
 
 	return twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_GRP, grp);
 }
