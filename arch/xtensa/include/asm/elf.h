@@ -123,7 +123,6 @@ extern void xtensa_elf_core_copy_regs (xtensa_gregset_t *, struct pt_regs *);
 #define ELF_CLASS	ELFCLASS32
 #define ELF_ARCH	EM_XTENSA
 
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	PAGE_SIZE
 
 /*
