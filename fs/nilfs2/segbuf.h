@@ -166,13 +166,10 @@ nilfs_segbuf_add_file_buffer(struct nilfs_segment_buffer *segbuf,
 	segbuf->sb_sum.nfileblk++;
 }
 
-int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
-		       struct the_nilfs *nilfs);
-int nilfs_segbuf_wait(struct nilfs_segment_buffer *segbuf);
-
 void nilfs_clear_logs(struct list_head *logs);
 void nilfs_truncate_logs(struct list_head *logs,
 			 struct nilfs_segment_buffer *last);
+int nilfs_write_logs(struct list_head *logs, struct the_nilfs *nilfs);
 int nilfs_wait_on_logs(struct list_head *logs);
 
 static inline void nilfs_destroy_logs(struct list_head *logs)

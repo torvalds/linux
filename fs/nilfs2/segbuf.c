@@ -40,6 +40,11 @@ struct nilfs_write_info {
 };
 
 
+static int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
+			      struct the_nilfs *nilfs);
+static int nilfs_segbuf_wait(struct nilfs_segment_buffer *segbuf);
+
+
 static struct kmem_cache *nilfs_segbuf_cachep;
 
 static void nilfs_segbuf_init_once(void *obj)
@@ -300,6 +305,19 @@ void nilfs_truncate_logs(struct list_head *logs,
 		nilfs_segbuf_clear(segbuf);
 		nilfs_segbuf_free(segbuf);
 	}
+}
+
+int nilfs_write_logs(struct list_head *logs, struct the_nilfs *nilfs)
+{
+	struct nilfs_segment_buffer *segbuf;
+	int ret = 0;
+
+	list_for_each_entry(segbuf, logs, sb_list) {
+		ret = nilfs_segbuf_write(segbuf, nilfs);
+		if (ret)
+			break;
+	}
+	return ret;
 }
 
 int nilfs_wait_on_logs(struct list_head *logs)

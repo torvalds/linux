@@ -1764,14 +1764,9 @@ static int nilfs_segctor_prepare_write(struct nilfs_sc_info *sci,
 static int nilfs_segctor_write(struct nilfs_sc_info *sci,
 			       struct the_nilfs *nilfs)
 {
-	struct nilfs_segment_buffer *segbuf;
-	int ret = 0;
+	int ret;
 
-	list_for_each_entry(segbuf, &sci->sc_segbufs, sb_list) {
-		ret = nilfs_segbuf_write(segbuf, nilfs);
-		if (ret)
-			break;
-	}
+	ret = nilfs_write_logs(&sci->sc_segbufs, nilfs);
 	list_splice_tail_init(&sci->sc_segbufs, &sci->sc_write_logs);
 	return ret;
 }
