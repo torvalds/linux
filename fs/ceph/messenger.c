@@ -1531,10 +1531,6 @@ more_kvec:
 		ret = write_partial_kvec(con);
 		if (ret <= 0)
 			goto done;
-		if (ret < 0) {
-			dout("try_write write_partial_kvec err %d\n", ret);
-			goto done;
-		}
 	}
 
 	/* msg pages? */
