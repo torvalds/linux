@@ -224,7 +224,6 @@ static struct
 		enum dsi_vc_mode mode;
 		struct omap_dss_device *dssdev;
 		enum fifo_size fifo_size;
-		int dest_per;	/* destination peripheral 0-3 */
 	} vc[4];
 
 	struct mutex lock;
@@ -2020,8 +2019,7 @@ static inline void dsi_vc_write_long_header(int channel, u8 data_type,
 
 	WARN_ON(!dsi_bus_is_locked());
 
-	/*data_id = data_type | channel << 6; */
-	data_id = data_type | dsi.vc[channel].dest_per << 6;
+	data_id = data_type | channel << 6;
 
 	val = FLD_VAL(data_id, 7, 0) | FLD_VAL(len, 23, 8) |
 		FLD_VAL(ecc, 31, 24);
@@ -2127,7 +2125,7 @@ static int dsi_vc_send_short(int channel, u8 data_type, u16 data, u8 ecc)
 		return -EINVAL;
 	}
 
-	data_id = data_type | dsi.vc[channel].dest_per << 6;
+	data_id = data_type | channel << 6;
 
 	r = (data_id << 0) | (data << 8) | (ecc << 24);
 
@@ -2529,15 +2527,15 @@ static int dsi_proto_config(struct omap_dss_device *dssdev)
 	u32 r;
 	int buswidth = 0;
 
-	dsi_config_tx_fifo(DSI_FIFO_SIZE_128,
-			DSI_FIFO_SIZE_0,
-			DSI_FIFO_SIZE_0,
-			DSI_FIFO_SIZE_0);
+	dsi_config_tx_fifo(DSI_FIFO_SIZE_32,
+			DSI_FIFO_SIZE_32,
+			DSI_FIFO_SIZE_32,
+			DSI_FIFO_SIZE_32);
 
-	dsi_config_rx_fifo(DSI_FIFO_SIZE_128,
-			DSI_FIFO_SIZE_0,
-			DSI_FIFO_SIZE_0,
-			DSI_FIFO_SIZE_0);
+	dsi_config_rx_fifo(DSI_FIFO_SIZE_32,
+			DSI_FIFO_SIZE_32,
+			DSI_FIFO_SIZE_32,
+			DSI_FIFO_SIZE_32);
 
 	/* XXX what values for the timeouts? */
 	dsi_set_stop_state_counter(1000);
@@ -2575,12 +2573,9 @@ static int dsi_proto_config(struct omap_dss_device *dssdev)
 	dsi_write_reg(DSI_CTRL, r);
 
 	dsi_vc_initial_config(0);
-
-	/* set all vc targets to peripheral 0 */
-	dsi.vc[0].dest_per = 0;
-	dsi.vc[1].dest_per = 0;
-	dsi.vc[2].dest_per = 0;
-	dsi.vc[3].dest_per = 0;
+	dsi_vc_initial_config(1);
+	dsi_vc_initial_config(2);
+	dsi_vc_initial_config(3);
 
 	return 0;
 }
@@ -2846,9 +2841,6 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 	if (bytespf % packet_payload)
 		total_len += (bytespf % packet_payload) + 1;
 
-	if (0)
-		dsi_vc_print_status(1);
-
 	l = FLD_VAL(total_len, 23, 0); /* TE_SIZE */
 	dsi_write_reg(DSI_VC_TE(channel), l);
 
@@ -3014,7 +3006,7 @@ static void dsi_handle_framedone(void)
 	/* RX_FIFO_NOT_EMPTY */
 	if (REG_GET(DSI_VC_CTRL(channel), 20, 20)) {
 		DSSERR("Received error during frame transfer:\n");
-		dsi_vc_flush_receive_data(0);
+		dsi_vc_flush_receive_data(channel);
 	}
 
 #ifdef CONFIG_OMAP2_DSS_FAKE_VSYNC
@@ -3268,6 +3260,9 @@ static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
 
 	/* enable interface */
 	dsi_vc_enable(0, 1);
+	dsi_vc_enable(1, 1);
+	dsi_vc_enable(2, 1);
+	dsi_vc_enable(3, 1);
 	dsi_if_enable(1);
 	dsi_force_tx_stop_mode_io();
 
