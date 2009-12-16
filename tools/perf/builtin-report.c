@@ -224,7 +224,12 @@ static int __cmd_report(void)
 
 	perf_session__collapse_resort(session);
 	perf_session__output_resort(session, session->events_stats.total);
+	fprintf(stdout, "# Samples: %ld\n#\n", session->events_stats.total);
 	perf_session__fprintf_hists(session, stdout);
+	if (sort_order == default_sort_order &&
+	    parent_pattern == default_parent_pattern)
+		fprintf(stdout, "#\n# (For a higher level overview, try: perf report --sort comm,dso)\n#\n");
+
 	if (show_threads) {
 		bool raw_printing_style = !strcmp(pretty_printing_style, "raw");
 		perf_read_values_display(stdout, &show_threads_values,

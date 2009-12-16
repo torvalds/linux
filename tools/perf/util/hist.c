@@ -515,9 +515,6 @@ size_t perf_session__fprintf_hists(struct perf_session *self, FILE *fp)
 
 	init_rem_hits();
 
-	fprintf(fp, "# Samples: %ld\n", self->events_stats.total);
-	fprintf(fp, "#\n");
-
 	fprintf(fp, "# Overhead");
 	if (symbol_conf.show_nr_samples) {
 		if (symbol_conf.field_sep)
@@ -577,14 +574,6 @@ print_entries:
 		pos = rb_entry(nd, struct hist_entry, rb_node);
 		ret += hist_entry__fprintf(fp, pos, self);
 	}
-
-	if (sort_order == default_sort_order &&
-			parent_pattern == default_parent_pattern) {
-		fprintf(fp, "#\n");
-		fprintf(fp, "# (For a higher level overview, try: perf report --sort comm,dso)\n");
-		fprintf(fp, "#\n");
-	}
-	fprintf(fp, "\n");
 
 	free(rem_sq_bracket);
 
