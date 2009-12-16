@@ -100,6 +100,13 @@ config SPI_BUTTERFLY
 	  inexpensive battery powered microcontroller evaluation board.
 	  This same cable can be used to flash new firmware.
 
+config SPI_DAVINCI
+	tristate "SPI controller driver for DaVinci/DA8xx SoC's"
+	depends on SPI_MASTER && ARCH_DAVINCI
+	select SPI_BITBANG
+	help
+	  SPI master controller for DaVinci and DA8xx SPI modules.
+
 config SPI_GPIO
 	tristate "GPIO-based bitbanging SPI Master"
 	depends on GENERIC_GPIO
