@@ -100,12 +100,58 @@ static int hwpoison_filter_flags(struct page *p)
 		return -EINVAL;
 }
 
+/*
+ * This allows stress tests to limit test scope to a collection of tasks
+ * by putting them under some memcg. This prevents killing unrelated/important
+ * processes such as /sbin/init. Note that the target task may share clean
+ * pages with init (eg. libc text), which is harmless. If the target task
+ * share _dirty_ pages with another task B, the test scheme must make sure B
+ * is also included in the memcg. At last, due to race conditions this filter
+ * can only guarantee that the page either belongs to the memcg tasks, or is
+ * a freed page.
+ */
+#ifdef	CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+u64 hwpoison_filter_memcg;
+EXPORT_SYMBOL_GPL(hwpoison_filter_memcg);
+static int hwpoison_filter_task(struct page *p)
+{
+	struct mem_cgroup *mem;
+	struct cgroup_subsys_state *css;
+	unsigned long ino;
+
+	if (!hwpoison_filter_memcg)
+		return 0;
+
+	mem = try_get_mem_cgroup_from_page(p);
+	if (!mem)
+		return -EINVAL;
+
+	css = mem_cgroup_css(mem);
+	/* root_mem_cgroup has NULL dentries */
+	if (!css->cgroup->dentry)
+		return -EINVAL;
+
+	ino = css->cgroup->dentry->d_inode->i_ino;
+	css_put(css);
+
+	if (ino != hwpoison_filter_memcg)
+		return -EINVAL;
+
+	return 0;
+}
+#else
+static int hwpoison_filter_task(struct page *p) { return 0; }
+#endif
+
 int hwpoison_filter(struct page *p)
 {
 	if (hwpoison_filter_dev(p))
 		return -EINVAL;
 
 	if (hwpoison_filter_flags(p))
+		return -EINVAL;
+
+	if (hwpoison_filter_task(p))
 		return -EINVAL;
 
 	return 0;
