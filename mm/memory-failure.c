@@ -749,6 +749,19 @@ static struct page_state {
 	{ 0,		0,		"unknown page state",	me_unknown },
 };
 
+#undef dirty
+#undef sc
+#undef unevict
+#undef mlock
+#undef writeback
+#undef lru
+#undef swapbacked
+#undef head
+#undef tail
+#undef compound
+#undef slab
+#undef reserved
+
 static void action_result(unsigned long pfn, char *msg, int result)
 {
 	struct page *page = pfn_to_page(pfn);
