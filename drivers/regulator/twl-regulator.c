@@ -576,6 +576,9 @@ static int twlreg_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, rdev);
 
+	twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_REMAP,
+						info->remap);
+
 	/* NOTE:  many regulators support short-circuit IRQs (presentable
 	 * as REGULATOR_OVER_CURRENT notifications?) configured via:
 	 *  - SC_CONFIG
