@@ -186,7 +186,7 @@ static int sample_type_check(struct perf_session *session)
 static struct perf_event_ops event_ops = {
 	.process_sample_event	= process_sample_event,
 	.process_mmap_event	= event__process_mmap,
-	.process_comm_event	= event__process_mmap,
+	.process_comm_event	= event__process_comm,
 	.process_exit_event	= event__process_task,
 	.process_fork_event	= event__process_task,
 	.process_lost_event	= event__process_lost,
