@@ -398,6 +398,27 @@ undo:
 	return result;
 }
 
+/*
+ * Wake up a process waiting on the sem queue with a given error.
+ * The queue is invalid (may not be accessed) after the function returns.
+ */
+static void wake_up_sem_queue(struct sem_queue *q, int error)
+{
+	/*
+	 * Hold preempt off so that we don't get preempted and have the
+	 * wakee busy-wait until we're scheduled back on. We're holding
+	 * locks here so it may not strictly be needed, however if the
+	 * locks become preemptible then this prevents such a problem.
+	 */
+	preempt_disable();
+	q->status = IN_WAKEUP;
+	wake_up_process(q->sleeper);
+	/* hands-off: q can disappear immediately after writing q->status. */
+	smp_wmb();
+	q->status = error;
+	preempt_enable();
+}
+
 /* Go through the pending queue for the indicated semaphore
  * looking for tasks that can be completed.
  */
@@ -429,17 +450,7 @@ again:
 		 *   continue.
 		 */
 		alter = q->alter;
-
-		/* wake up the waiting thread */
-		q->status = IN_WAKEUP;
-
-		wake_up_process(q->sleeper);
-		/* hands-off: q will disappear immediately after
-		 * writing q->status.
-		 */
-		smp_wmb();
-		q->status = error;
-
+		wake_up_sem_queue(q, error);
 		if (alter)
 			goto again;
 	}
@@ -523,10 +534,7 @@ static void freeary(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
 	list_for_each_entry_safe(q, tq, &sma->sem_pending, list) {
 		list_del(&q->list);
 
-		q->status = IN_WAKEUP;
-		wake_up_process(q->sleeper); /* doesn't sleep */
-		smp_wmb();
-		q->status = -EIDRM;	/* hands-off q */
+		wake_up_sem_queue(q, -EIDRM);
 	}
 
 	/* Remove the semaphore set from the IDR */
