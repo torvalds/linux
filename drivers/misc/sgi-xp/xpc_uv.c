@@ -203,6 +203,7 @@ xpc_create_gru_mq_uv(unsigned int mq_size, int cpu, char *irq_name,
 	enum xp_retval xp_ret;
 	int ret;
 	int nid;
+	int nasid;
 	int pg_order;
 	struct page *page;
 	struct xpc_gru_mq_uv *mq;
@@ -258,9 +259,11 @@ xpc_create_gru_mq_uv(unsigned int mq_size, int cpu, char *irq_name,
 		goto out_5;
 	}
 
+	nasid = UV_PNODE_TO_NASID(uv_cpu_to_pnode(cpu));
+
 	mmr_value = (struct uv_IO_APIC_route_entry *)&mq->mmr_value;
 	ret = gru_create_message_queue(mq->gru_mq_desc, mq->address, mq_size,
-				       nid, mmr_value->vector, mmr_value->dest);
+				     nasid, mmr_value->vector, mmr_value->dest);
 	if (ret != 0) {
 		dev_err(xpc_part, "gru_create_message_queue() returned "
 			"error=%d\n", ret);
