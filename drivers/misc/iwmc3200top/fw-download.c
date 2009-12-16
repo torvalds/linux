@@ -50,8 +50,7 @@ static int iwmct_fw_parser_init(struct iwmct_priv *priv, const u8 *file,
 	parser->file = file;
 	parser->file_size = file_size;
 	parser->cur_pos = 0;
-	parser->buf = NULL;
-
+	parser->entry_point = 0;
 	parser->buf = kzalloc(block_size, GFP_KERNEL);
 	if (!parser->buf) {
 		LOG_ERROR(priv, FW_DOWNLOAD, "kzalloc error\n");
@@ -298,8 +297,6 @@ int iwmct_fw_load(struct iwmct_priv *priv)
 	__le32 addr;
 	int ret;
 
-	/* clear parser struct */
-	memset(&priv->parser, 0, sizeof(struct iwmct_parser));
 
 	/* get the firmware */
 	ret = request_firmware(&raw, fw_name, &priv->func->dev);
@@ -317,6 +314,7 @@ int iwmct_fw_load(struct iwmct_priv *priv)
 
 	LOG_INFO(priv, FW_DOWNLOAD, "Read firmware '%s'\n", fw_name);
 
+	/* clear parser struct */
 	ret = iwmct_fw_parser_init(priv, raw->data, raw->size, priv->trans_len);
 	if (ret < 0) {
 		LOG_ERROR(priv, FW_DOWNLOAD,
@@ -324,7 +322,6 @@ int iwmct_fw_load(struct iwmct_priv *priv)
 		goto exit;
 	}
 
-	/* checksum  */
 	if (!iwmct_checksum(priv)) {
 		LOG_ERROR(priv, FW_DOWNLOAD, "checksum error\n");
 		ret = -EINVAL;
@@ -333,23 +330,18 @@ int iwmct_fw_load(struct iwmct_priv *priv)
 
 	/* download firmware to device */
 	while (iwmct_parse_next_section(priv, &pdata, &len, &addr)) {
-		if (iwmct_download_section(priv, pdata, len, addr)) {
+		ret = iwmct_download_section(priv, pdata, len, addr);
+		if (ret) {
 			LOG_ERROR(priv, FW_DOWNLOAD,
 				  "%s download section failed\n", fw_name);
-			ret = -EIO;
 			goto exit;
 		}
 	}
 
-	iwmct_kick_fw(priv, !!(priv->barker & BARKER_DNLOAD_JUMP_MSK));
+	ret = iwmct_kick_fw(priv, !!(priv->barker & BARKER_DNLOAD_JUMP_MSK));
 
 exit:
 	kfree(priv->parser.buf);
-
-	if (raw)
-		release_firmware(raw);
-
-	raw = NULL;
-
+	release_firmware(raw);
 	return ret;
 }
