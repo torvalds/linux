@@ -1374,6 +1374,9 @@ static int select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flag
 
 	rcu_read_lock();
 	for_each_domain(cpu, tmp) {
+		if (!(tmp->flags & SD_LOAD_BALANCE))
+			continue;
+
 		/*
 		 * If power savings logic is enabled for a domain, see if we
 		 * are not overloaded, if so, don't balance wider.
