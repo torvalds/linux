@@ -83,6 +83,28 @@ static int kill_proc_ao(struct task_struct *t, unsigned long addr, int trapno,
 }
 
 /*
+ * When a unknown page type is encountered drain as many buffers as possible
+ * in the hope to turn the page into a LRU or free page, which we can handle.
+ */
+void shake_page(struct page *p)
+{
+	if (!PageSlab(p)) {
+		lru_add_drain_all();
+		if (PageLRU(p))
+			return;
+		drain_all_pages();
+		if (PageLRU(p) || is_free_buddy_page(p))
+			return;
+	}
+	/*
+	 * Could call shrink_slab here (which would also
+	 * shrink other caches). Unfortunately that might
+	 * also access the corrupted page, which could be fatal.
+	 */
+}
+EXPORT_SYMBOL_GPL(shake_page);
+
+/*
  * Kill all processes that have a poisoned page mapped and then isolate
  * the page.
  *

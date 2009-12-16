@@ -1335,6 +1335,7 @@ extern void memory_failure(unsigned long pfn, int trapno);
 extern int __memory_failure(unsigned long pfn, int trapno, int ref);
 extern int sysctl_memory_failure_early_kill;
 extern int sysctl_memory_failure_recovery;
+extern void shake_page(struct page *p);
 extern atomic_long_t mce_bad_pages;
 
 #endif /* __KERNEL__ */
