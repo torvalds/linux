@@ -103,7 +103,8 @@ hwpoison-inject module through debugfs
 
 corrupt-pfn
 
-Inject hwpoison fault at PFN echoed into this file.
+Inject hwpoison fault at PFN echoed into this file. This does
+some early filtering to avoid corrupted unintended pages in test suites.
 
 unpoison-pfn
 
