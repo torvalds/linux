@@ -618,13 +618,11 @@ static struct page_state {
 
 static void action_result(unsigned long pfn, char *msg, int result)
 {
-	struct page *page = NULL;
-	if (pfn_valid(pfn))
-		page = pfn_to_page(pfn);
+	struct page *page = pfn_to_page(pfn);
 
 	printk(KERN_ERR "MCE %#lx: %s%s page recovery: %s\n",
 		pfn,
-		page && PageDirty(page) ? "dirty " : "",
+		PageDirty(page) ? "dirty " : "",
 		msg, action_name[result]);
 }
 
@@ -750,8 +748,10 @@ int __memory_failure(unsigned long pfn, int trapno, int ref)
 		panic("Memory failure from trap %d on page %lx", trapno, pfn);
 
 	if (!pfn_valid(pfn)) {
-		action_result(pfn, "memory outside kernel control", IGNORED);
-		return -EIO;
+		printk(KERN_ERR
+		       "MCE %#lx: memory outside kernel control\n",
+		       pfn);
+		return -ENXIO;
 	}
 
 	p = pfn_to_page(pfn);
