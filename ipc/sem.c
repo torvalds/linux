@@ -624,7 +624,7 @@ static unsigned long copy_semid_to_user(void __user *buf, struct semid64_ds *in,
 static int semctl_nolock(struct ipc_namespace *ns, int semid,
 			 int cmd, int version, union semun arg)
 {
-	int err = -EINVAL;
+	int err;
 	struct sem_array *sma;
 
 	switch(cmd) {
@@ -701,7 +701,6 @@ static int semctl_nolock(struct ipc_namespace *ns, int semid,
 	default:
 		return -EINVAL;
 	}
-	return err;
 out_unlock:
 	sem_unlock(sma);
 	return err;
