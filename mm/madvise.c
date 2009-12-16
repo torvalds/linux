@@ -230,8 +230,7 @@ static int madvise_hwpoison(unsigned long start, unsigned long end)
 		return -EPERM;
 	for (; start < end; start += PAGE_SIZE) {
 		struct page *p;
-		int ret = get_user_pages(current, current->mm, start, 1,
-						0, 0, &p, NULL);
+		int ret = get_user_pages_fast(start, 1, 0, &p);
 		if (ret != 1)
 			return ret;
 		printk(KERN_INFO "Injecting memory failure for page %lx at %lx\n",
