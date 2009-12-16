@@ -50,6 +50,9 @@ extern void putback_lru_page(struct page *page);
  */
 extern void __free_pages_bootmem(struct page *page, unsigned int order);
 extern void prep_compound_page(struct page *page, unsigned long order);
+#ifdef CONFIG_MEMORY_FAILURE
+extern bool is_free_buddy_page(struct page *page);
+#endif
 
 
 /*
@@ -247,3 +250,12 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 #define ZONE_RECLAIM_SOME	0
 #define ZONE_RECLAIM_SUCCESS	1
 #endif
+
+extern int hwpoison_filter(struct page *p);
+
+extern u32 hwpoison_filter_dev_major;
+extern u32 hwpoison_filter_dev_minor;
+extern u64 hwpoison_filter_flags_mask;
+extern u64 hwpoison_filter_flags_value;
+extern u64 hwpoison_filter_memcg;
+extern u32 hwpoison_filter_enable;
