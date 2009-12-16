@@ -64,25 +64,7 @@ static struct buffer_head *qnx4_getblk(struct inode *inode, int nr,
 		result = sb_getblk(inode->i_sb, nr);
 		return result;
 	}
-	if (!create) {
-		return NULL;
-	}
-#if 0
-	tmp = qnx4_new_block(inode->i_sb);
-	if (!tmp) {
-		return NULL;
-	}
-	result = sb_getblk(inode->i_sb, tmp);
-	if (tst) {
-		qnx4_free_block(inode->i_sb, tmp);
-		brelse(result);
-		goto repeat;
-	}
-	tst = tmp;
-#endif
-	inode->i_ctime = CURRENT_TIME_SEC;
-	mark_inode_dirty(inode);
-	return result;
+	return NULL;
 }
 
 struct buffer_head *qnx4_bread(struct inode *inode, int block, int create)
@@ -113,8 +95,6 @@ static int qnx4_get_block( struct inode *inode, sector_t iblock, struct buffer_h
 	if ( phys ) {
 		// logical block is before EOF
 		map_bh(bh, inode->i_sb, phys);
-	} else if ( create ) {
-		// to be done.
 	}
 	return 0;
 }
