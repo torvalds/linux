@@ -92,6 +92,11 @@
 
 #define MX21_IRAM_BASE_ADDR		0xffffe800	/* internal ram */
 
+#define MX21_IO_ADDRESS(x) (						\
+	IMX_IO_ADDRESS(x, MX21_AIPI) ?:					\
+	IMX_IO_ADDRESS(x, MX21_SAHB1) ?:				\
+	IMX_IO_ADDRESS(x, MX21_X_MEMC))
+
 /* fixed interrupt numbers */
 #define MX21_INT_CSPI3		6
 #define MX21_INT_GPIO		8

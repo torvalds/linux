@@ -28,7 +28,7 @@
 #include <asm/clkdev.h>
 #include <asm/div64.h>
 
-#define IO_ADDR_CCM(off)	(IO_ADDRESS(MX21_CCM_BASE_ADDR) + (off))
+#define IO_ADDR_CCM(off)	(MX21_IO_ADDRESS(MX21_CCM_BASE_ADDR) + (off))
 
 /* Register offsets */
 #define CCM_CSCR		IO_ADDR_CCM(0x0)
@@ -1235,7 +1235,7 @@ int __init mx21_clocks_init(unsigned long lref, unsigned long href)
 	clk_enable(&uart_clk[0]);
 #endif
 
-	mxc_timer_init(&gpt_clk[0], IO_ADDRESS(MX21_GPT1_BASE_ADDR),
+	mxc_timer_init(&gpt_clk[0], MX21_IO_ADDRESS(MX21_GPT1_BASE_ADDR),
 			MX21_INT_GPT1);
 	return 0;
 }
