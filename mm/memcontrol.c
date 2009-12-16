@@ -1379,17 +1379,14 @@ static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
 	return container_of(css, struct mem_cgroup, css);
 }
 
-static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page *page)
+struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
 {
-	struct mem_cgroup *mem;
+	struct mem_cgroup *mem = NULL;
 	struct page_cgroup *pc;
 	unsigned short id;
 	swp_entry_t ent;
 
 	VM_BUG_ON(!PageLocked(page));
-
-	if (!PageSwapCache(page))
-		return NULL;
 
 	pc = lookup_page_cgroup(page);
 	lock_page_cgroup(pc);
@@ -1397,7 +1394,7 @@ static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page *page)
 		mem = pc->mem_cgroup;
 		if (mem && !css_tryget(&mem->css))
 			mem = NULL;
-	} else {
+	} else if (PageSwapCache(page)) {
 		ent.val = page_private(page);
 		id = lookup_swap_cgroup(ent);
 		rcu_read_lock();
@@ -1743,7 +1740,7 @@ int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
 	 */
 	if (!PageSwapCache(page))
 		goto charge_cur_mm;
-	mem = try_get_mem_cgroup_from_swapcache(page);
+	mem = try_get_mem_cgroup_from_page(page);
 	if (!mem)
 		goto charge_cur_mm;
 	*ptr = mem;
