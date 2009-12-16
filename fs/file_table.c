@@ -194,6 +194,7 @@ struct file *alloc_file(struct path *path, fmode_t mode,
 	ima_counts_get(file);
 	return file;
 }
+EXPORT_SYMBOL(alloc_file);
 
 void fput(struct file *file)
 {
