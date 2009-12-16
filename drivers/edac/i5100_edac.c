@@ -25,6 +25,8 @@
 
 /* device 16, func 1 */
 #define I5100_MC		0x40	/* Memory Control Register */
+#define 	I5100_MC_SCRBEN_MASK	(1 << 7)
+#define 	I5100_MC_SCRBDONE_MASK	(1 << 4)
 #define I5100_MS		0x44	/* Memory Status Register */
 #define I5100_SPDDATA		0x48	/* Serial Presence Detect Status Reg */
 #define I5100_SPDCMD		0x4c	/* Serial Presence Detect Command Reg */
@@ -72,9 +74,19 @@
 
 /* bit field accessors */
 
+static inline u32 i5100_mc_scrben(u32 mc)
+{
+	return mc >> 7 & 1;
+}
+
 static inline u32 i5100_mc_errdeten(u32 mc)
 {
 	return mc >> 5 & 1;
+}
+
+static inline u32 i5100_mc_scrbdone(u32 mc)
+{
+	return mc >> 4 & 1;
 }
 
 static inline u16 i5100_spddata_rdo(u16 a)
@@ -272,6 +284,7 @@ static inline u32 i5100_recmemb_ras(u32 a)
 #define I5100_MAX_DIMM_SLOTS_PER_CHAN	4
 #define I5100_MAX_RANK_INTERLEAVE	4
 #define I5100_MAX_DMIRS			5
+#define I5100_SCRUB_REFRESH_RATE	(5 * 60 * HZ)
 
 struct i5100_priv {
 	/* ranks on each dimm -- 0 maps to not present -- obtained via SPD */
@@ -318,6 +331,9 @@ struct i5100_priv {
 	struct pci_dev *mc;	/* device 16 func 1 */
 	struct pci_dev *ch0mm;	/* device 21 func 0 */
 	struct pci_dev *ch1mm;	/* device 22 func 0 */
+
+	struct delayed_work i5100_scrubbing;
+	int scrub_enable;
 };
 
 /* map a rank/chan to a slot number on the mainboard */
@@ -532,6 +548,80 @@ static void i5100_check_error(struct mem_ctl_info *mci)
 			       i5100_ferr_nf_mem_any(dw),
 			       i5100_nerr_nf_mem_any(dw2));
 	}
+}
+
+/* The i5100 chipset will scrub the entire memory once, then
+ * set a done bit. Continuous scrubbing is achieved by enqueing
+ * delayed work to a workqueue, checking every few minutes if
+ * the scrubbing has completed and if so reinitiating it.
+ */
+
+static void i5100_refresh_scrubbing(struct work_struct *work)
+{
+	struct delayed_work *i5100_scrubbing = container_of(work,
+							    struct delayed_work,
+							    work);
+	struct i5100_priv *priv = container_of(i5100_scrubbing,
+					       struct i5100_priv,
+					       i5100_scrubbing);
+	u32 dw;
+
+	pci_read_config_dword(priv->mc, I5100_MC, &dw);
+
+	if (priv->scrub_enable) {
+
+		pci_read_config_dword(priv->mc, I5100_MC, &dw);
+
+		if (i5100_mc_scrbdone(dw)) {
+			dw |= I5100_MC_SCRBEN_MASK;
+			pci_write_config_dword(priv->mc, I5100_MC, dw);
+			pci_read_config_dword(priv->mc, I5100_MC, &dw);
+		}
+
+		schedule_delayed_work(&(priv->i5100_scrubbing),
+				      I5100_SCRUB_REFRESH_RATE);
+	}
+}
+/*
+ * The bandwidth is based on experimentation, feel free to refine it.
+ */
+static int i5100_set_scrub_rate(struct mem_ctl_info *mci,
+				       u32 *bandwidth)
+{
+	struct i5100_priv *priv = mci->pvt_info;
+	u32 dw;
+
+	pci_read_config_dword(priv->mc, I5100_MC, &dw);
+	if (*bandwidth) {
+		priv->scrub_enable = 1;
+		dw |= I5100_MC_SCRBEN_MASK;
+		schedule_delayed_work(&(priv->i5100_scrubbing),
+				      I5100_SCRUB_REFRESH_RATE);
+	} else {
+		priv->scrub_enable = 0;
+		dw &= ~I5100_MC_SCRBEN_MASK;
+		cancel_delayed_work(&(priv->i5100_scrubbing));
+	}
+	pci_write_config_dword(priv->mc, I5100_MC, dw);
+
+	pci_read_config_dword(priv->mc, I5100_MC, &dw);
+
+	*bandwidth = 5900000 * i5100_mc_scrben(dw);
+
+	return 0;
+}
+
+static int i5100_get_scrub_rate(struct mem_ctl_info *mci,
+				u32 *bandwidth)
+{
+	struct i5100_priv *priv = mci->pvt_info;
+	u32 dw;
+
+	pci_read_config_dword(priv->mc, I5100_MC, &dw);
+
+	*bandwidth = 5900000 * i5100_mc_scrben(dw);
+
+	return 0;
 }
 
 static struct pci_dev *pci_get_device_func(unsigned vendor,
@@ -869,6 +959,16 @@ static int __devinit i5100_init_one(struct pci_dev *pdev,
 	priv->ch0mm = ch0mm;
 	priv->ch1mm = ch1mm;
 
+	INIT_DELAYED_WORK(&(priv->i5100_scrubbing), i5100_refresh_scrubbing);
+
+	/* If scrubbing was already enabled by the bios, start maintaining it */
+	pci_read_config_dword(pdev, I5100_MC, &dw);
+	if (i5100_mc_scrben(dw)) {
+		priv->scrub_enable = 1;
+		schedule_delayed_work(&(priv->i5100_scrubbing),
+				      I5100_SCRUB_REFRESH_RATE);
+	}
+
 	i5100_init_dimm_layout(pdev, mci);
 	i5100_init_interleaving(pdev, mci);
 
@@ -882,6 +982,8 @@ static int __devinit i5100_init_one(struct pci_dev *pdev,
 	mci->ctl_page_to_phys = NULL;
 
 	mci->edac_check = i5100_check_error;
+	mci->set_sdram_scrub_rate = i5100_set_scrub_rate;
+	mci->get_sdram_scrub_rate = i5100_get_scrub_rate;
 
 	i5100_init_csrows(mci);
 
@@ -897,12 +999,14 @@ static int __devinit i5100_init_one(struct pci_dev *pdev,
 
 	if (edac_mc_add_mc(mci)) {
 		ret = -ENODEV;
-		goto bail_mc;
+		goto bail_scrub;
 	}
 
 	return ret;
 
-bail_mc:
+bail_scrub:
+	priv->scrub_enable = 0;
+	cancel_delayed_work_sync(&(priv->i5100_scrubbing));
 	edac_mc_free(mci);
 
 bail_disable_ch1:
@@ -935,6 +1039,10 @@ static void __devexit i5100_remove_one(struct pci_dev *pdev)
 		return;
 
 	priv = mci->pvt_info;
+
+	priv->scrub_enable = 0;
+	cancel_delayed_work_sync(&(priv->i5100_scrubbing));
+
 	pci_disable_device(pdev);
 	pci_disable_device(priv->ch0mm);
 	pci_disable_device(priv->ch1mm);
