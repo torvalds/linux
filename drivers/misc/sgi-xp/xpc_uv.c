@@ -157,21 +157,23 @@ xpc_gru_mq_watchlist_alloc_uv(struct xpc_gru_mq_uv *mq)
 {
 	int ret;
 
-#if defined CONFIG_X86_64
-	ret = uv_bios_mq_watchlist_alloc(mq->mmr_blade, uv_gpa(mq->address),
-					 mq->order, &mq->mmr_offset);
-	if (ret < 0) {
-		dev_err(xpc_part, "uv_bios_mq_watchlist_alloc() failed, "
-			"ret=%d\n", ret);
-		return ret;
-	}
-#elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
-	ret = sn_mq_watchlist_alloc(mq->mmr_blade, (void *)uv_gpa(mq->address),
+#if defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
+	int mmr_pnode = uv_blade_to_pnode(mq->mmr_blade);
+
+	ret = sn_mq_watchlist_alloc(mmr_pnode, (void *)uv_gpa(mq->address),
 				    mq->order, &mq->mmr_offset);
 	if (ret < 0) {
 		dev_err(xpc_part, "sn_mq_watchlist_alloc() failed, ret=%d\n",
 			ret);
 		return -EBUSY;
+	}
+#elif defined CONFIG_X86_64
+	ret = uv_bios_mq_watchlist_alloc(uv_gpa(mq->address),
+					 mq->order, &mq->mmr_offset);
+	if (ret < 0) {
+		dev_err(xpc_part, "uv_bios_mq_watchlist_alloc() failed, "
+			"ret=%d\n", ret);
+		return ret;
 	}
 #else
 	#error not a supported configuration
@@ -185,12 +187,13 @@ static void
 xpc_gru_mq_watchlist_free_uv(struct xpc_gru_mq_uv *mq)
 {
 	int ret;
+	int mmr_pnode = uv_blade_to_pnode(mq->mmr_blade);
 
 #if defined CONFIG_X86_64
-	ret = uv_bios_mq_watchlist_free(mq->mmr_blade, mq->watchlist_num);
+	ret = uv_bios_mq_watchlist_free(mmr_pnode, mq->watchlist_num);
 	BUG_ON(ret != BIOS_STATUS_SUCCESS);
 #elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
-	ret = sn_mq_watchlist_free(mq->mmr_blade, mq->watchlist_num);
+	ret = sn_mq_watchlist_free(mmr_pnode, mq->watchlist_num);
 	BUG_ON(ret != SALRET_OK);
 #else
 	#error not a supported configuration
