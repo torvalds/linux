@@ -311,8 +311,10 @@ nouveau_bo_create_ttm_backend_entry(struct ttm_bo_device *bdev)
 	struct drm_device *dev = dev_priv->dev;
 
 	switch (dev_priv->gart_info.type) {
+#if __OS_HAS_AGP
 	case NOUVEAU_GART_AGP:
 		return ttm_agp_backend_init(bdev, dev->agp->bridge);
+#endif
 	case NOUVEAU_GART_SGDMA:
 		return nouveau_sgdma_init_ttm(dev);
 	default:

@@ -89,6 +89,7 @@ extern int radeon_testing;
 extern int radeon_connector_table;
 extern int radeon_tv;
 extern int radeon_new_pll;
+extern int radeon_audio;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
@@ -814,6 +815,14 @@ struct radeon_device {
 	struct r600_ih ih; /* r6/700 interrupt ring */
 	struct workqueue_struct *wq;
 	struct work_struct hotplug_work;
+
+	/* audio stuff */
+	struct timer_list	audio_timer;
+	int			audio_channels;
+	int			audio_rate;
+	int			audio_bits_per_sample;
+	uint8_t			audio_status_bits;
+	uint8_t			audio_category_code;
 };
 
 int radeon_device_init(struct radeon_device *rdev,
@@ -1016,6 +1025,7 @@ extern int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data);
 extern void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable);
 extern void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable);
 extern void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain);
+extern bool radeon_ttm_bo_is_radeon_bo(struct ttm_buffer_object *bo);
 
 /* r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280 */
 struct r100_mc_save {
@@ -1145,6 +1155,21 @@ extern int r600_irq_init(struct radeon_device *rdev);
 extern void r600_irq_fini(struct radeon_device *rdev);
 extern void r600_ih_ring_init(struct radeon_device *rdev, unsigned ring_size);
 extern int r600_irq_set(struct radeon_device *rdev);
+
+extern int r600_audio_init(struct radeon_device *rdev);
+extern int r600_audio_tmds_index(struct drm_encoder *encoder);
+extern void r600_audio_set_clock(struct drm_encoder *encoder, int clock);
+extern void r600_audio_fini(struct radeon_device *rdev);
+extern void r600_hdmi_init(struct drm_encoder *encoder);
+extern void r600_hdmi_enable(struct drm_encoder *encoder, int enable);
+extern void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode);
+extern int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder);
+extern void r600_hdmi_update_audio_settings(struct drm_encoder *encoder,
+					    int channels,
+					    int rate,
+					    int bps,
+					    uint8_t status_bits,
+					    uint8_t category_code);
 
 #include "radeon_object.h"
 

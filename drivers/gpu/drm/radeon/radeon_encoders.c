@@ -438,6 +438,7 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	union lvds_encoder_control args;
 	int index = 0;
+	int hdmi_detected = 0;
 	uint8_t frev, crev;
 	struct radeon_encoder_atom_dig *dig;
 	struct drm_connector *connector;
@@ -457,6 +458,9 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 
 	if (!radeon_connector->con_priv)
 		return;
+
+	if (drm_detect_hdmi_monitor(radeon_connector->edid))
+		hdmi_detected = 1;
 
 	dig_connector = radeon_connector->con_priv;
 
@@ -487,7 +491,7 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 		case 1:
 			args.v1.ucMisc = 0;
 			args.v1.ucAction = action;
-			if (drm_detect_hdmi_monitor(radeon_connector->edid))
+			if (hdmi_detected)
 				args.v1.ucMisc |= PANEL_ENCODER_MISC_HDMI_TYPE;
 			args.v1.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
 			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
@@ -512,7 +516,7 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 				if (dig->coherent_mode)
 					args.v2.ucMisc |= PANEL_ENCODER_MISC_COHERENT;
 			}
-			if (drm_detect_hdmi_monitor(radeon_connector->edid))
+			if (hdmi_detected)
 				args.v2.ucMisc |= PANEL_ENCODER_MISC_HDMI_TYPE;
 			args.v2.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
 			args.v2.ucTruncate = 0;
@@ -552,7 +556,7 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 	}
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
-
+	r600_hdmi_enable(encoder, hdmi_detected);
 }
 
 int
@@ -893,7 +897,6 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 	}
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
-
 }
 
 static void
@@ -1162,7 +1165,6 @@ atombios_set_encoder_crtc_source(struct drm_encoder *encoder)
 	}
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
-
 }
 
 static void
@@ -1265,6 +1267,8 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 		break;
 	}
 	atombios_apply_encoder_quirks(encoder, adjusted_mode);
+
+	r600_hdmi_setmode(encoder, adjusted_mode);
 }
 
 static bool
@@ -1510,4 +1514,6 @@ radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t su
 		drm_encoder_helper_add(encoder, &radeon_atom_dig_helper_funcs);
 		break;
 	}
+
+	r600_hdmi_init(encoder);
 }
