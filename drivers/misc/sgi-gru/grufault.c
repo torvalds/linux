@@ -96,7 +96,7 @@ static struct gru_thread_state *gru_alloc_locked_gts(unsigned long vaddr)
 	vma = gru_find_vma(vaddr);
 	if (vma)
 		gts = gru_alloc_thread_state(vma, TSID(vaddr, vma));
-	if (gts) {
+	if (!IS_ERR(gts)) {
 		mutex_lock(&gts->ts_ctxlock);
 		downgrade_write(&mm->mmap_sem);
 	} else {
@@ -747,8 +747,8 @@ int gru_set_context_option(unsigned long arg)
 	gru_dbg(grudev, "op %d, gseg 0x%lx, value1 0x%lx\n", req.op, req.gseg, req.val1);
 
 	gts = gru_alloc_locked_gts(req.gseg);
-	if (!gts)
-		return -EINVAL;
+	if (IS_ERR(gts))
+		return PTR_ERR(gts);
 
 	switch (req.op) {
 	case sco_blade_chiplet:

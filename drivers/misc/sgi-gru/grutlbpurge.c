@@ -299,6 +299,7 @@ struct gru_mm_struct *gru_register_mmu_notifier(void)
 {
 	struct gru_mm_struct *gms;
 	struct mmu_notifier *mn;
+	int err;
 
 	mn = mmu_find_ops(current->mm, &gru_mmuops);
 	if (mn) {
@@ -311,12 +312,17 @@ struct gru_mm_struct *gru_register_mmu_notifier(void)
 			gms->ms_notifier.ops = &gru_mmuops;
 			atomic_set(&gms->ms_refcnt, 1);
 			init_waitqueue_head(&gms->ms_wait_queue);
-			__mmu_notifier_register(&gms->ms_notifier, current->mm);
+			err = __mmu_notifier_register(&gms->ms_notifier, current->mm);
+			if (err)
+				goto error;
 		}
 	}
 	gru_dbg(grudev, "gms %p, refcnt %d\n", gms,
 		atomic_read(&gms->ms_refcnt));
 	return gms;
+error:
+	kfree(gms);
+	return ERR_PTR(err);
 }
 
 void gru_drop_mmu_notifier(struct gru_mm_struct *gms)

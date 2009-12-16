@@ -27,6 +27,7 @@
 #include <linux/sched.h>
 #include <linux/device.h>
 #include <linux/list.h>
+#include <linux/err.h>
 #include <asm/uv/uv_hub.h>
 #include "gru.h"
 #include "grutables.h"
@@ -286,7 +287,8 @@ static void gru_unload_mm_tracker(struct gru_state *gru,
 void gts_drop(struct gru_thread_state *gts)
 {
 	if (gts && atomic_dec_return(&gts->ts_refcnt) == 0) {
-		gru_drop_mmu_notifier(gts->ts_gms);
+		if (gts->ts_gms)
+			gru_drop_mmu_notifier(gts->ts_gms);
 		kfree(gts);
 		STAT(gts_free);
 	}
@@ -313,13 +315,14 @@ struct gru_thread_state *gru_alloc_gts(struct vm_area_struct *vma,
 		int cbr_au_count, int dsr_au_count, int options, int tsid)
 {
 	struct gru_thread_state *gts;
+	struct gru_mm_struct *gms;
 	int bytes;
 
 	bytes = DSR_BYTES(dsr_au_count) + CBR_BYTES(cbr_au_count);
 	bytes += sizeof(struct gru_thread_state);
 	gts = kmalloc(bytes, GFP_KERNEL);
 	if (!gts)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	STAT(gts_alloc);
 	memset(gts, 0, sizeof(struct gru_thread_state)); /* zero out header */
@@ -338,9 +341,10 @@ struct gru_thread_state *gru_alloc_gts(struct vm_area_struct *vma,
 	if (vma) {
 		gts->ts_mm = current->mm;
 		gts->ts_vma = vma;
-		gts->ts_gms = gru_register_mmu_notifier();
-		if (!gts->ts_gms)
+		gms = gru_register_mmu_notifier();
+		if (IS_ERR(gms))
 			goto err;
+		gts->ts_gms = gms;
 	}
 
 	gru_dbg(grudev, "alloc gts %p\n", gts);
@@ -348,7 +352,7 @@ struct gru_thread_state *gru_alloc_gts(struct vm_area_struct *vma,
 
 err:
 	gts_drop(gts);
-	return NULL;
+	return ERR_CAST(gms);
 }
 
 /*
@@ -396,8 +400,8 @@ struct gru_thread_state *gru_alloc_thread_state(struct vm_area_struct *vma,
 
 	gts = gru_alloc_gts(vma, vdata->vd_cbr_au_count, vdata->vd_dsr_au_count,
 			    vdata->vd_user_options, tsid);
-	if (!gts)
-		return NULL;
+	if (IS_ERR(gts))
+		return gts;
 
 	spin_lock(&vdata->vd_lock);
 	ngts = gru_find_current_gts_nolock(vdata, tsid);
