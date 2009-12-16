@@ -112,7 +112,6 @@ struct acm {
 	struct mutex mutex;
 	struct usb_cdc_line_coding line;		/* bits, stop, parity */
 	struct work_struct work;			/* work queue entry for line discipline waking up */
-	struct work_struct waker;
 	wait_queue_head_t drain_wait;			/* close processing */
 	struct tasklet_struct urb_task;                 /* rx processing */
 	spinlock_t throttle_lock;			/* synchronize throtteling and read callback */
