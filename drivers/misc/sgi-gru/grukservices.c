@@ -31,6 +31,7 @@
 #include <linux/interrupt.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
+#include <asm/io_apic.h>
 #include "gru.h"
 #include "grulib.h"
 #include "grutables.h"
@@ -566,7 +567,7 @@ int gru_create_message_queue(struct gru_message_queue_desc *mqd,
 	mqd->mq = mq;
 	mqd->mq_gpa = uv_gpa(mq);
 	mqd->qlines = qlines;
-	mqd->interrupt_pnode = UV_NASID_TO_PNODE(nasid);
+	mqd->interrupt_pnode = nasid >> 1;
 	mqd->interrupt_vector = vector;
 	mqd->interrupt_apicid = apicid;
 	return 0;
@@ -703,18 +704,6 @@ cberr:
 }
 
 /*
- * Send a cross-partition interrupt to the SSI that contains the target
- * message queue. Normally, the interrupt is automatically delivered by hardware
- * but some error conditions require explicit delivery.
- */
-static void send_message_queue_interrupt(struct gru_message_queue_desc *mqd)
-{
-	if (mqd->interrupt_vector)
-		uv_hub_send_ipi(mqd->interrupt_pnode, mqd->interrupt_apicid,
-				mqd->interrupt_vector);
-}
-
-/*
  * Handle a PUT failure. Note: if message was a 2-line message, one of the
  * lines might have successfully have been written. Before sending the
  * message, "present" must be cleared in BOTH lines to prevent the receiver
@@ -723,7 +712,8 @@ static void send_message_queue_interrupt(struct gru_message_queue_desc *mqd)
 static int send_message_put_nacked(void *cb, struct gru_message_queue_desc *mqd,
 			void *mesg, int lines)
 {
-	unsigned long m;
+	unsigned long m, *val = mesg, gpa, save;
+	int ret;
 
 	m = mqd->mq_gpa + (gru_get_amo_value_head(cb) << 6);
 	if (lines == 2) {
@@ -734,7 +724,26 @@ static int send_message_put_nacked(void *cb, struct gru_message_queue_desc *mqd,
 	gru_vstore(cb, m, gru_get_tri(mesg), XTYPE_CL, lines, 1, IMA);
 	if (gru_wait(cb) != CBS_IDLE)
 		return MQE_UNEXPECTED_CB_ERR;
-	send_message_queue_interrupt(mqd);
+
+	if (!mqd->interrupt_vector)
+		return MQE_OK;
+
+	/*
+	 * Send a cross-partition interrupt to the SSI that contains the target
+	 * message queue. Normally, the interrupt is automatically delivered by
+	 * hardware but some error conditions require explicit delivery.
+	 * Use the GRU to deliver the interrupt. Otherwise partition failures
+	 * could cause unrecovered errors.
+	 */
+	gpa = uv_global_gru_mmr_address(mqd->interrupt_pnode, UVH_IPI_INT);
+	save = *val;
+	*val = uv_hub_ipi_value(mqd->interrupt_apicid, mqd->interrupt_vector,
+				dest_Fixed);
+	gru_vstore_phys(cb, gpa, gru_get_tri(mesg), IAA_REGISTER, IMA);
+	ret = gru_wait(cb);
+	*val = save;
+	if (ret != CBS_IDLE)
+		return MQE_UNEXPECTED_CB_ERR;
 	return MQE_OK;
 }
 
