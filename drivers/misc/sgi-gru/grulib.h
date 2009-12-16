@@ -63,18 +63,9 @@
 #define THREAD_POINTER(p, th)		(p + GRU_GSEG_PAGESIZE * (th))
 #define GSEG_START(cb)			((void *)((unsigned long)(cb) & ~(GRU_GSEG_PAGESIZE - 1)))
 
-/*
- * Statictics kept on a per-GTS basis.
- */
-struct gts_statistics {
-	unsigned long	fmm_tlbdropin;
-	unsigned long	upm_tlbdropin;
-	unsigned long	context_stolen;
-};
-
 struct gru_get_gseg_statistics_req {
-	unsigned long		gseg;
-	struct gts_statistics	stats;
+	unsigned long			gseg;
+	struct gru_gseg_statistics	stats;
 };
 
 /*

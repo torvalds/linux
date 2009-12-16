@@ -438,6 +438,7 @@ static int gru_try_dropin(struct gru_state *gru,
 	}
 
 	gru_cb_set_istatus_active(cbk);
+	gts->ustats.tlbdropin++;
 	tfh_write_restart(tfh, gpa, GAA_RAM, vaddr, asid, write,
 			  GRU_PAGESIZE(pageshift));
 	gru_dbg(grudev,
@@ -580,9 +581,9 @@ static irqreturn_t gru_intr(int chiplet, int blade)
 		 * This is running in interrupt context. Trylock the mmap_sem.
 		 * If it fails, retry the fault in user context.
 		 */
+		gts->ustats.fmm_tlbmiss++;
 		if (!gts->ts_force_cch_reload &&
 					down_read_trylock(&gts->ts_mm->mmap_sem)) {
-			gts->ustats.fmm_tlbdropin++;
 			gru_try_dropin(gru, gts, tfh, NULL);
 			up_read(&gts->ts_mm->mmap_sem);
 		} else {
@@ -624,7 +625,7 @@ static int gru_user_dropin(struct gru_thread_state *gts,
 	struct gru_mm_struct *gms = gts->ts_gms;
 	int ret;
 
-	gts->ustats.upm_tlbdropin++;
+	gts->ustats.upm_tlbmiss++;
 	while (1) {
 		wait_event(gms->ms_wait_queue,
 			   atomic_read(&gms->ms_range_active) == 0);
