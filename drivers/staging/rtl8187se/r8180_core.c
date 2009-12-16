@@ -1830,7 +1830,7 @@ void rtl8180_rx(struct net_device *dev)
 			if(priv->rx_skb->len > 4)
 				skb_trim(priv->rx_skb,priv->rx_skb->len-4);
 #ifndef RX_DONT_PASS_UL
-			if(!ieee80211_rx(priv->ieee80211,
+			if(!ieee80211_rtl_rx(priv->ieee80211,
 					 priv->rx_skb, &stats)){
 #endif // RX_DONT_PASS_UL
 
@@ -1936,11 +1936,11 @@ rate)
 	if (!check_nic_enought_desc(dev, priority)){
 		DMESGW("Error: no descriptor left by previous TX (avail %d) ",
 			get_curr_tx_free_desc(dev, priority));
-		ieee80211_stop_queue(priv->ieee80211);
+		ieee80211_rtl_stop_queue(priv->ieee80211);
 	}
 	rtl8180_tx(dev, skb->data, skb->len, priority, morefrag,0,rate);
 	if (!check_nic_enought_desc(dev, priority))
-		ieee80211_stop_queue(priv->ieee80211);
+		ieee80211_rtl_stop_queue(priv->ieee80211);
 
 	spin_unlock_irqrestore(&priv->tx_lock,flags);
 }
@@ -3846,7 +3846,7 @@ static const struct net_device_ops rtl8180_netdev_ops = {
 	.ndo_set_mac_address	= r8180_set_mac_adr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= eth_change_mtu,
-	.ndo_start_xmit		= ieee80211_xmit,
+	.ndo_start_xmit		= ieee80211_rtl_xmit,
 };
 
 static int __devinit rtl8180_pci_probe(struct pci_dev *pdev,
@@ -4066,7 +4066,7 @@ void rtl8180_try_wake_queue(struct net_device *dev, int pri)
 	spin_unlock_irqrestore(&priv->tx_lock,flags);
 
 	if(enough_desc)
-		ieee80211_wake_queue(priv->ieee80211);
+		ieee80211_rtl_wake_queue(priv->ieee80211);
 }
 
 void rtl8180_tx_isr(struct net_device *dev, int pri,short error)

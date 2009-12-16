@@ -305,7 +305,7 @@ ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
 }
 
 /* SKBs are added to the ieee->tx_queue. */
-int ieee80211_xmit(struct sk_buff *skb,
+int ieee80211_rtl_xmit(struct sk_buff *skb,
 		   struct net_device *dev)
 {
 	struct ieee80211_device *ieee = netdev_priv(dev);
