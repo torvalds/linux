@@ -7155,7 +7155,7 @@ void rtl8192SU_rx_nomal(struct sk_buff* skb)
 			unicast_packet = true;
 		}
 
-		if(!ieee80211_rx(priv->ieee80211,skb, &stats)) {
+		if(!ieee80211_rtl_rx(priv->ieee80211,skb, &stats)) {
 			dev_kfree_skb_any(skb);
 		} else {
 		//	priv->stats.rxoktotal++;  //YJ,test,090108
@@ -7426,7 +7426,7 @@ static const struct net_device_ops rtl8192_netdev_ops = {
 	.ndo_set_mac_address	= r8192_set_mac_adr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= eth_change_mtu,
-	.ndo_start_xmit		= rtl8192_ieee80211_xmit,
+	.ndo_start_xmit		= rtl8192_ieee80211_rtl_xmit,
 };
 
 static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
@@ -7619,7 +7619,7 @@ void rtl8192_try_wake_queue(struct net_device *dev, int pri)
         spin_unlock_irqrestore(&priv->tx_lock,flags);
 
 	if(enough_desc)
-		ieee80211_wake_queue(priv->ieee80211);
+		ieee80211_rtl_wake_queue(priv->ieee80211);
 }
 
 void EnableHWSecurityConfig8192(struct net_device *dev)
