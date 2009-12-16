@@ -206,6 +206,12 @@ config GPIO_LANGWELL
 	help
 	  Say Y here to support Intel Moorestown platform GPIO.
 
+config GPIO_TIMBERDALE
+	bool "Support for timberdale GPIO IP"
+	depends on MFD_TIMBERDALE && GPIOLIB && HAS_IOMEM
+	---help---
+	Add support for the GPIO IP in the timberdale FPGA.
+
 comment "SPI GPIO expanders:"
 
 config GPIO_MAX7301
