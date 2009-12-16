@@ -744,8 +744,6 @@ nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 			    flags, current_cred());
 	if (IS_ERR(*filp))
 		host_err = PTR_ERR(*filp);
-	else
-		ima_counts_get(*filp);
 out_nfserr:
 	err = nfserrno(host_err);
 out:

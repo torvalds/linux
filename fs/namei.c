@@ -1461,14 +1461,7 @@ int may_open(struct path *path, int acc_mode, int flag)
 	/*
 	 * Ensure there are no outstanding leases on the file.
 	 */
-	error = break_lease(inode, flag);
-	if (error)
-		return error;
-
-	return ima_path_check(path, acc_mode ?
-			       acc_mode & (MAY_READ | MAY_WRITE | MAY_EXEC) :
-			       ACC_MODE(flag) & (MAY_READ | MAY_WRITE),
-			       IMA_COUNT_UPDATE);
+	return break_lease(inode, flag);
 }
 
 static int handle_truncate(struct path *path)
@@ -1688,13 +1681,17 @@ do_last:
 			goto exit;
 		}
 		filp = nameidata_to_filp(&nd, open_flag);
-		if (IS_ERR(filp))
-			ima_counts_put(&nd.path,
-				       acc_mode & (MAY_READ | MAY_WRITE |
-						   MAY_EXEC));
 		mnt_drop_write(nd.path.mnt);
 		if (nd.root.mnt)
 			path_put(&nd.root);
+		if (!IS_ERR(filp)) {
+			error = ima_path_check(&filp->f_path, filp->f_mode &
+				       (MAY_READ | MAY_WRITE | MAY_EXEC), 0);
+			if (error) {
+				fput(filp);
+				filp = ERR_PTR(error);
+			}
+		}
 		return filp;
 	}
 
@@ -1748,27 +1745,24 @@ ok:
 		goto exit;
 	}
 	filp = nameidata_to_filp(&nd, open_flag);
-	if (IS_ERR(filp)) {
-		ima_counts_put(&nd.path,
-			       acc_mode & (MAY_READ | MAY_WRITE | MAY_EXEC));
-		if (will_truncate)
-			mnt_drop_write(nd.path.mnt);
-		if (nd.root.mnt)
-			path_put(&nd.root);
-		return filp;
-	}
-
-	if (acc_mode & MAY_WRITE)
-		vfs_dq_init(nd.path.dentry->d_inode);
-
-	if (will_truncate) {
-		error = handle_truncate(&nd.path);
+	if (!IS_ERR(filp)) {
+		error = ima_path_check(&filp->f_path, filp->f_mode &
+			       (MAY_READ | MAY_WRITE | MAY_EXEC), 0);
 		if (error) {
-			mnt_drop_write(nd.path.mnt);
 			fput(filp);
-			if (nd.root.mnt)
-				path_put(&nd.root);
-			return ERR_PTR(error);
+			filp = ERR_PTR(error);
+		}
+	}
+	if (!IS_ERR(filp)) {
+		if (acc_mode & MAY_WRITE)
+			vfs_dq_init(nd.path.dentry->d_inode);
+
+		if (will_truncate) {
+			error = handle_truncate(&nd.path);
+			if (error) {
+				fput(filp);
+				filp = ERR_PTR(error);
+			}
 		}
 	}
 	/*
