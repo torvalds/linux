@@ -352,6 +352,8 @@ static void dump_header(gfp_t gfp_mask, int order, struct mem_cgroup *mem)
 		dump_tasks(mem);
 }
 
+#define K(x) ((x) << (PAGE_SHIFT-10))
+
 /*
  * Send SIGKILL to the selected  process irrespective of  CAP_SYS_RAW_IO
  * flag though it's unlikely that  we select a process with CAP_SYS_RAW_IO
@@ -365,15 +367,23 @@ static void __oom_kill_task(struct task_struct *p, int verbose)
 		return;
 	}
 
+	task_lock(p);
 	if (!p->mm) {
 		WARN_ON(1);
-		printk(KERN_WARNING "tried to kill an mm-less task!\n");
+		printk(KERN_WARNING "tried to kill an mm-less task %d (%s)!\n",
+			task_pid_nr(p), p->comm);
+		task_unlock(p);
 		return;
 	}
 
 	if (verbose)
-		printk(KERN_ERR "Killed process %d (%s)\n",
-				task_pid_nr(p), p->comm);
+		printk(KERN_ERR "Killed process %d (%s) "
+		       "vsz:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
+		       task_pid_nr(p), p->comm,
+		       K(p->mm->total_vm),
+		       K(get_mm_counter(p->mm, anon_rss)),
+		       K(get_mm_counter(p->mm, file_rss)));
+	task_unlock(p);
 
 	/*
 	 * We give our sacrificial lamb high priority and access to
