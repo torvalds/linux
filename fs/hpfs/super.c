@@ -119,11 +119,8 @@ unsigned hpfs_count_one_bitmap(struct super_block *s, secno secno)
 	unsigned i, count;
 	if (!(bits = hpfs_map_4sectors(s, secno, &qbh, 4))) return 0;
 	count = 0;
-	for (i = 0; i < 2048 / sizeof(unsigned); i++) {
-		unsigned b; 
-		if (!bits[i]) continue;
-		for (b = bits[i]; b; b>>=1) count += b & 1;
-	}
+	for (i = 0; i < 2048 / sizeof(unsigned); i++)
+		count += hweight32(bits[i]);
 	hpfs_brelse4(&qbh);
 	return count;
 }
