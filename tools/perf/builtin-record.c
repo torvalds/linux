@@ -402,7 +402,7 @@ static void atexit_header(void)
 	perf_header__write(&session->header, output, true);
 }
 
-static int __cmd_record(int argc, const char **argv)
+static int __cmd_record(int argc __used, const char **argv)
 {
 	int i, counter;
 	struct stat st;
@@ -410,6 +410,8 @@ static int __cmd_record(int argc, const char **argv)
 	int flags;
 	int err;
 	unsigned long waking = 0;
+	int child_ready_pipe[2], go_pipe[2];
+	char buf;
 
 	page_size = sysconf(_SC_PAGE_SIZE);
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
@@ -419,6 +421,11 @@ static int __cmd_record(int argc, const char **argv)
 	atexit(sig_atexit);
 	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);
+
+	if (pipe(child_ready_pipe) < 0 || pipe(go_pipe) < 0) {
+		perror("failed to create pipes");
+		exit(-1);
+	}
 
 	if (!stat(output_name, &st) && st.st_size) {
 		if (!force) {
@@ -476,19 +483,65 @@ static int __cmd_record(int argc, const char **argv)
 
 	atexit(atexit_header);
 
-	if (!system_wide) {
-		pid = target_pid;
-		if (pid == -1)
-			pid = getpid();
-
-		open_counters(profile_cpu, pid);
-	} else {
-		if (profile_cpu != -1) {
-			open_counters(profile_cpu, target_pid);
-		} else {
-			for (i = 0; i < nr_cpus; i++)
-				open_counters(i, target_pid);
+	if (target_pid == -1) {
+		pid = fork();
+		if (pid < 0) {
+			perror("failed to fork");
+			exit(-1);
 		}
+
+		if (!pid) {
+			close(child_ready_pipe[0]);
+			close(go_pipe[1]);
+			fcntl(go_pipe[0], F_SETFD, FD_CLOEXEC);
+
+			/*
+			 * Do a dummy execvp to get the PLT entry resolved,
+			 * so we avoid the resolver overhead on the real
+			 * execvp call.
+			 */
+			execvp("", (char **)argv);
+
+			/*
+			 * Tell the parent we're ready to go
+			 */
+			close(child_ready_pipe[1]);
+
+			/*
+			 * Wait until the parent tells us to go.
+			 */
+			if (read(go_pipe[0], &buf, 1) == -1)
+				perror("unable to read pipe");
+
+			execvp(argv[0], (char **)argv);
+
+			perror(argv[0]);
+			exit(-1);
+		}
+
+		child_pid = pid;
+
+		if (!system_wide)
+			target_pid = pid;
+
+		close(child_ready_pipe[1]);
+		close(go_pipe[0]);
+		/*
+		 * wait for child to settle
+		 */
+		if (read(child_ready_pipe[0], &buf, 1) == -1) {
+			perror("unable to read pipe");
+			exit(-1);
+		}
+		close(child_ready_pipe[0]);
+	}
+
+
+	if (!system_wide || profile_cpu != -1) {
+		open_counters(profile_cpu, target_pid);
+	} else {
+		for (i = 0; i < nr_cpus; i++)
+			open_counters(i, target_pid);
 	}
 
 	if (file_new) {
@@ -503,31 +556,6 @@ static int __cmd_record(int argc, const char **argv)
 	else
 		event__synthesize_threads(process_synthesized_event, session);
 
-	if (target_pid == -1 && argc) {
-		pid = fork();
-		if (pid < 0)
-			die("failed to fork");
-
-		if (!pid) {
-			if (execvp(argv[0], (char **)argv)) {
-				perror(argv[0]);
-				exit(-1);
-			}
-		} else {
-			/*
-			 * Wait a bit for the execv'ed child to appear
-			 * and be updated in /proc
-			 * FIXME: Do you know a less heuristical solution?
-			 */
-			usleep(1000);
-			event__synthesize_thread(pid,
-						 process_synthesized_event,
-						 session);
-		}
-
-		child_pid = pid;
-	}
-
 	if (realtime_prio) {
 		struct sched_param param;
 
@@ -537,6 +565,11 @@ static int __cmd_record(int argc, const char **argv)
 			exit(-1);
 		}
 	}
+
+	/*
+	 * Let the child rip
+	 */
+	close(go_pipe[1]);
 
 	for (;;) {
 		int hits = samples;
@@ -634,7 +667,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 
 	argc = parse_options(argc, argv, options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
-	if (!argc && target_pid == -1 && !system_wide)
+	if (!argc && target_pid == -1 && (!system_wide || profile_cpu == -1))
 		usage_with_options(record_usage, options);
 
 	symbol__init();
