@@ -1320,7 +1320,7 @@ void bfin_gpiolib_gpio_free(struct gpio_chip *chip, unsigned gpio)
 }
 
 static struct gpio_chip bfin_chip = {
-	.label			= "Blackfin-GPIOlib",
+	.label			= "BFIN-GPIO",
 	.direction_input	= bfin_gpiolib_direction_input,
 	.get			= bfin_gpiolib_get_value,
 	.direction_output	= bfin_gpiolib_direction_output,
