@@ -92,7 +92,7 @@ PR_MCE_KILL_GET
 
 Testing:
 
-madvise(MADV_POISON, ....)
+madvise(MADV_HWPOISON, ....)
 	(as root)
 	Poison a page in the process for testing
 
