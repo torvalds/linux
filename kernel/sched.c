@@ -1390,32 +1390,6 @@ static const u32 prio_to_wmult[40] = {
  /*  15 */ 119304647, 148102320, 186737708, 238609294, 286331153,
 };
 
-static void activate_task(struct rq *rq, struct task_struct *p, int wakeup);
-
-/*
- * runqueue iterator, to support SMP load-balancing between different
- * scheduling classes, without having to expose their internal data
- * structures to the load-balancing proper:
- */
-struct rq_iterator {
-	void *arg;
-	struct task_struct *(*start)(void *);
-	struct task_struct *(*next)(void *);
-};
-
-#ifdef CONFIG_SMP
-static unsigned long
-balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
-	      unsigned long max_load_move, struct sched_domain *sd,
-	      enum cpu_idle_type idle, int *all_pinned,
-	      int *this_best_prio, struct rq_iterator *iterator);
-
-static int
-iter_move_one_task(struct rq *this_rq, int this_cpu, struct rq *busiest,
-		   struct sched_domain *sd, enum cpu_idle_type idle,
-		   struct rq_iterator *iterator);
-#endif
-
 /* Time spent by the tasks of the cpu accounting group executing in ... */
 enum cpuacct_stat_index {
 	CPUACCT_STAT_USER,	/* ... user mode */

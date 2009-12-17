@@ -1851,6 +1851,24 @@ static struct task_struct *load_balance_next_fair(void *arg)
 	return __load_balance_iterator(cfs_rq, cfs_rq->balance_iterator);
 }
 
+/*
+ * runqueue iterator, to support SMP load-balancing between different
+ * scheduling classes, without having to expose their internal data
+ * structures to the load-balancing proper:
+ */
+struct rq_iterator {
+	void *arg;
+	struct task_struct *(*start)(void *);
+	struct task_struct *(*next)(void *);
+};
+
+static unsigned long
+balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
+		unsigned long max_load_move, struct sched_domain *sd,
+		enum cpu_idle_type idle, int *all_pinned,
+		int *this_best_prio, struct rq_iterator *iterator);
+
+
 static unsigned long
 __load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		unsigned long max_load_move, struct sched_domain *sd,
@@ -1929,8 +1947,20 @@ load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 #endif
 
 static int
-move_one_task_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
-		   struct sched_domain *sd, enum cpu_idle_type idle)
+iter_move_one_task(struct rq *this_rq, int this_cpu, struct rq *busiest,
+		struct sched_domain *sd, enum cpu_idle_type idle,
+		struct rq_iterator *iterator);
+
+/*
+ * move_one_task tries to move exactly one task from busiest to this_rq, as
+ * part of active balancing operations within "domain".
+ * Returns 1 if successful and 0 otherwise.
+ *
+ * Called with both runqueues locked.
+ */
+static int
+move_one_task(struct rq *this_rq, int this_cpu, struct rq *busiest,
+	      struct sched_domain *sd, enum cpu_idle_type idle)
 {
 	struct cfs_rq *busy_cfs_rq;
 	struct rq_iterator cfs_rq_iterator;
@@ -2094,16 +2124,15 @@ static int move_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		      struct sched_domain *sd, enum cpu_idle_type idle,
 		      int *all_pinned)
 {
-	const struct sched_class *class = sched_class_highest;
-	unsigned long total_load_moved = 0;
+	unsigned long total_load_moved = 0, load_moved;
 	int this_best_prio = this_rq->curr->prio;
 
 	do {
-		total_load_moved +=
-			class->load_balance(this_rq, this_cpu, busiest,
+		load_moved = load_balance_fair(this_rq, this_cpu, busiest,
 				max_load_move - total_load_moved,
 				sd, idle, all_pinned, &this_best_prio);
-		class = class->next;
+
+		total_load_moved += load_moved;
 
 #ifdef CONFIG_PREEMPT
 		/*
@@ -2114,7 +2143,7 @@ static int move_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		if (idle == CPU_NEWLY_IDLE && this_rq->nr_running)
 			break;
 #endif
-	} while (class && max_load_move > total_load_moved);
+	} while (load_moved && max_load_move > total_load_moved);
 
 	return total_load_moved > 0;
 }
@@ -2145,25 +2174,6 @@ iter_move_one_task(struct rq *this_rq, int this_cpu, struct rq *busiest,
 	return 0;
 }
 
-/*
- * move_one_task tries to move exactly one task from busiest to this_rq, as
- * part of active balancing operations within "domain".
- * Returns 1 if successful and 0 otherwise.
- *
- * Called with both runqueues locked.
- */
-static int move_one_task(struct rq *this_rq, int this_cpu, struct rq *busiest,
-			 struct sched_domain *sd, enum cpu_idle_type idle)
-{
-	const struct sched_class *class;
-
-	for_each_class(class) {
-		if (class->move_one_task(this_rq, this_cpu, busiest, sd, idle))
-			return 1;
-	}
-
-	return 0;
-}
 /********** Helpers for find_busiest_group ************************/
 /*
  * sd_lb_stats - Structure to store the statistics of a sched_domain
@@ -3873,8 +3883,6 @@ static const struct sched_class fair_sched_class = {
 #ifdef CONFIG_SMP
 	.select_task_rq		= select_task_rq_fair,
 
-	.load_balance		= load_balance_fair,
-	.move_one_task		= move_one_task_fair,
 	.rq_online		= rq_online_fair,
 	.rq_offline		= rq_offline_fair,
 

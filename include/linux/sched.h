@@ -1087,14 +1087,6 @@ struct sched_class {
 #ifdef CONFIG_SMP
 	int  (*select_task_rq)(struct task_struct *p, int sd_flag, int flags);
 
-	unsigned long (*load_balance) (struct rq *this_rq, int this_cpu,
-			struct rq *busiest, unsigned long max_load_move,
-			struct sched_domain *sd, enum cpu_idle_type idle,
-			int *all_pinned, int *this_best_prio);
-
-	int (*move_one_task) (struct rq *this_rq, int this_cpu,
-			      struct rq *busiest, struct sched_domain *sd,
-			      enum cpu_idle_type idle);
 	void (*pre_schedule) (struct rq *this_rq, struct task_struct *task);
 	void (*post_schedule) (struct rq *this_rq);
 	void (*task_waking) (struct rq *this_rq, struct task_struct *task);

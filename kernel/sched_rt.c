@@ -1481,24 +1481,6 @@ static void task_woken_rt(struct rq *rq, struct task_struct *p)
 		push_rt_tasks(rq);
 }
 
-static unsigned long
-load_balance_rt(struct rq *this_rq, int this_cpu, struct rq *busiest,
-		unsigned long max_load_move,
-		struct sched_domain *sd, enum cpu_idle_type idle,
-		int *all_pinned, int *this_best_prio)
-{
-	/* don't touch RT tasks */
-	return 0;
-}
-
-static int
-move_one_task_rt(struct rq *this_rq, int this_cpu, struct rq *busiest,
-		 struct sched_domain *sd, enum cpu_idle_type idle)
-{
-	/* don't touch RT tasks */
-	return 0;
-}
-
 static void set_cpus_allowed_rt(struct task_struct *p,
 				const struct cpumask *new_mask)
 {
@@ -1746,8 +1728,6 @@ static const struct sched_class rt_sched_class = {
 #ifdef CONFIG_SMP
 	.select_task_rq		= select_task_rq_rt,
 
-	.load_balance		= load_balance_rt,
-	.move_one_task		= move_one_task_rt,
 	.set_cpus_allowed       = set_cpus_allowed_rt,
 	.rq_online              = rq_online_rt,
 	.rq_offline             = rq_offline_rt,
