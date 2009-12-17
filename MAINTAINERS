@@ -5434,6 +5434,12 @@ F:	drivers/uwb/*
 F:	include/linux/uwb.h
 F:	include/linux/uwb/
 
+UNIFDEF
+M:	Tony Finch <dot@dotat.at>
+W:	http://dotat.at/prog/unifdef
+S:	Maintained
+F:	scripts/unifdef.c
+
 UNIFORM CDROM DRIVER
 M:	Jens Axboe <axboe@kernel.dk>
 W:	http://www.kernel.dk

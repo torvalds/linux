@@ -29,7 +29,6 @@
  * driver requests - some may support multiple options */
 
 
-#include <linux/autoconf.h>
 #include "iio.h"
 #include "ring_generic.h"
 
