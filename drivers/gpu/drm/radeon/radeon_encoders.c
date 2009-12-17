@@ -233,6 +233,8 @@ static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 		if (!ASIC_IS_AVIVO(rdev)) {
 			adjusted_mode->hdisplay = mode->hdisplay;
 			adjusted_mode->vdisplay = mode->vdisplay;
+			adjusted_mode->crtc_hdisplay = mode->hdisplay;
+			adjusted_mode->crtc_vdisplay = mode->vdisplay;
 		}
 		adjusted_mode->base.id = mode_id;
 	}
