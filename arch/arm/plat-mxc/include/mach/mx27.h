@@ -230,6 +230,7 @@
 extern int mx27_revision(void);
 #endif
 
+#ifdef IMX_NEEDS_DEPRECATED_SYMBOLS
 /* these should go away */
 #define MSHC_BASE_ADDR MX27_MSHC_BASE_ADDR
 #define GPT5_BASE_ADDR MX27_GPT5_BASE_ADDR
@@ -297,5 +298,6 @@ extern int mx27_revision(void);
 #define DMA_REQ_UART6_RX MX27_DMA_REQ_UART6_RX
 #define DMA_REQ_SDHC3 MX27_DMA_REQ_SDHC3
 #define DMA_REQ_NFC MX27_DMA_REQ_NFC
+#endif
 
 #endif /* __ASM_ARCH_MXC_MX27_H__ */
