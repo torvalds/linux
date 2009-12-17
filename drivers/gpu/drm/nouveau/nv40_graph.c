@@ -252,8 +252,9 @@ nv40_grctx_init(struct drm_device *dev)
 		memcpy(pgraph->ctxprog, fw->data, fw->size);
 
 		cp = pgraph->ctxprog;
-		if (cp->signature != 0x5043564e || cp->version != 0 ||
-		    cp->length != ((fw->size - 7) / 4)) {
+		if (le32_to_cpu(cp->signature) != 0x5043564e ||
+		    cp->version != 0 ||
+		    le16_to_cpu(cp->length) != ((fw->size - 7) / 4)) {
 			NV_ERROR(dev, "ctxprog invalid\n");
 			release_firmware(fw);
 			nv40_grctx_fini(dev);
@@ -281,8 +282,9 @@ nv40_grctx_init(struct drm_device *dev)
 		memcpy(pgraph->ctxvals, fw->data, fw->size);
 
 		cv = (void *)pgraph->ctxvals;
-		if (cv->signature != 0x5643564e || cv->version != 0 ||
-		    cv->length != ((fw->size - 9) / 8)) {
+		if (le32_to_cpu(cv->signature) != 0x5643564e ||
+		    cv->version != 0 ||
+		    le32_to_cpu(cv->length) != ((fw->size - 9) / 8)) {
 			NV_ERROR(dev, "ctxvals invalid\n");
 			release_firmware(fw);
 			nv40_grctx_fini(dev);
@@ -294,8 +296,9 @@ nv40_grctx_init(struct drm_device *dev)
 	cp = pgraph->ctxprog;
 
 	nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_INDEX, 0);
-	for (i = 0; i < cp->length; i++)
-		nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_DATA, cp->data[i]);
+	for (i = 0; i < le16_to_cpu(cp->length); i++)
+		nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_DATA,
+			le32_to_cpu(cp->data[i]));
 
 	pgraph->accel_blocked = false;
 	return 0;
@@ -329,8 +332,9 @@ nv40_grctx_vals_load(struct drm_device *dev, struct nouveau_gpuobj *ctx)
 	if (!cv)
 		return;
 
-	for (i = 0; i < cv->length; i++)
-		nv_wo32(dev, ctx, cv->data[i].offset, cv->data[i].value);
+	for (i = 0; i < le32_to_cpu(cv->length); i++)
+		nv_wo32(dev, ctx, le32_to_cpu(cv->data[i].offset),
+			le32_to_cpu(cv->data[i].value));
 }
 
 /*

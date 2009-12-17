@@ -892,6 +892,14 @@ static int rv770_startup(struct radeon_device *rdev)
 	}
 	rv770_gpu_init(rdev);
 
+	if (!rdev->r600_blit.shader_obj) {
+		r = r600_blit_init(rdev);
+		if (r) {
+			DRM_ERROR("radeon: failed blitter (%d).\n", r);
+			return r;
+		}
+	}
+
 	r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
 	if (unlikely(r != 0))
 		return r;
@@ -1050,12 +1058,6 @@ int rv770_init(struct radeon_device *rdev)
 	r = r600_pcie_gart_init(rdev);
 	if (r)
 		return r;
-
-	r = r600_blit_init(rdev);
-	if (r) {
-		DRM_ERROR("radeon: failed blitter (%d).\n", r);
-		return r;
-	}
 
 	rdev->accel_working = true;
 	r = rv770_startup(rdev);
