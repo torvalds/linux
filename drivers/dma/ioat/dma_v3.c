@@ -650,9 +650,11 @@ __ioat3_prep_pq_lock(struct dma_chan *c, enum sum_check_flags *result,
 
 	num_descs = ioat2_xferlen_to_descs(ioat, len);
 	/* we need 2x the number of descriptors to cover greater than 3
-	 * sources
+	 * sources (we need 1 extra source in the q-only continuation
+	 * case and 3 extra sources in the p+q continuation case.
 	 */
-	if (src_cnt > 3 || flags & DMA_PREP_CONTINUE) {
+	if (src_cnt + dmaf_p_disabled_continue(flags) > 3 ||
+	    (dmaf_continue(flags) && !dmaf_p_disabled_continue(flags))) {
 		with_ext = 1;
 		num_descs *= 2;
 	} else
