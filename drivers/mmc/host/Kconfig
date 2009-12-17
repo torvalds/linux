@@ -55,7 +55,7 @@ config MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER
 	  has the effect of scrambling the addresses and formats of data
 	  accessed in sizes other than the datum size.
 
-	  This is the case for the Freescale eSDHC.
+	  This is the case for the Freescale eSDHC and Nintendo Wii SDHCI.
 
 config MMC_SDHCI_PCI
 	tristate "SDHCI support on PCI bus"
@@ -100,6 +100,17 @@ config MMC_SDHCI_OF_ESDHC
 	select MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER
 	help
 	  This selects the Freescale eSDHC controller support.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_OF_HLWD
+	bool "SDHCI OF support for the Nintendo Wii SDHCI controllers"
+	depends on MMC_SDHCI_OF
+	select MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER
+	help
+	  This selects the Secure Digital Host Controller Interface (SDHCI)
+	  found in the "Hollywood" chipset of the Nintendo Wii video game
+	  console.
 
 	  If unsure, say N.
 

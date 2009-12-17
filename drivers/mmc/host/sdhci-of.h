@@ -37,5 +37,6 @@ extern void sdhci_be32bs_writew(struct sdhci_host *host, u16 val, int reg);
 extern void sdhci_be32bs_writeb(struct sdhci_host *host, u8 val, int reg);
 
 extern struct sdhci_of_data sdhci_esdhc;
+extern struct sdhci_of_data sdhci_hlwd;
 
 #endif /* __SDHCI_OF_H */

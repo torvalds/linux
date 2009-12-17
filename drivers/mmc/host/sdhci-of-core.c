@@ -196,6 +196,9 @@ static const struct of_device_id sdhci_of_match[] = {
 	{ .compatible = "fsl,mpc8536-esdhc", .data = &sdhci_esdhc, },
 	{ .compatible = "fsl,esdhc", .data = &sdhci_esdhc, },
 #endif
+#ifdef CONFIG_MMC_SDHCI_OF_HLWD
+	{ .compatible = "nintendo,hollywood-sdhci", .data = &sdhci_hlwd, },
+#endif
 	{ .compatible = "generic-sdhci", },
 	{},
 };
