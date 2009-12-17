@@ -22,6 +22,12 @@ print_context_stack(struct thread_info *tinfo,
 		    const struct stacktrace_ops *ops, void *data,
 		    unsigned long *end, int *graph);
 
+extern unsigned long
+print_context_stack_bp(struct thread_info *tinfo,
+		       unsigned long *stack, unsigned long bp,
+		       const struct stacktrace_ops *ops, void *data,
+		       unsigned long *end, int *graph);
+
 /* Generic stack tracer with callbacks */
 
 struct stacktrace_ops {
