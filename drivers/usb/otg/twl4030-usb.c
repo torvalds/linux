@@ -36,7 +36,7 @@
 #include <linux/i2c/twl.h>
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
-
+#include <linux/notifier.h>
 
 /* Register defines */
 
@@ -236,15 +236,6 @@
 #define PMBR1				0x0D
 #define GPIO_USB_4PIN_ULPI_2430C	(3 << 0)
 
-
-
-enum linkstat {
-	USB_LINK_UNKNOWN = 0,
-	USB_LINK_NONE,
-	USB_LINK_VBUS,
-	USB_LINK_ID,
-};
-
 struct twl4030_usb {
 	struct otg_transceiver	otg;
 	struct device		*dev;
@@ -347,10 +338,10 @@ twl4030_usb_clear_bits(struct twl4030_usb *twl, u8 reg, u8 bits)
 
 /*-------------------------------------------------------------------------*/
 
-static enum linkstat twl4030_usb_linkstat(struct twl4030_usb *twl)
+static enum usb_xceiv_events twl4030_usb_linkstat(struct twl4030_usb *twl)
 {
 	int	status;
-	int	linkstat = USB_LINK_UNKNOWN;
+	int	linkstat = USB_EVENT_NONE;
 
 	/*
 	 * For ID/VBUS sensing, see manual section 15.4.8 ...
@@ -368,11 +359,11 @@ static enum linkstat twl4030_usb_linkstat(struct twl4030_usb *twl)
 		dev_err(twl->dev, "USB link status err %d\n", status);
 	else if (status & (BIT(7) | BIT(2))) {
 		if (status & BIT(2))
-			linkstat = USB_LINK_ID;
+			linkstat = USB_EVENT_ID;
 		else
-			linkstat = USB_LINK_VBUS;
+			linkstat = USB_EVENT_VBUS;
 	} else
-		linkstat = USB_LINK_NONE;
+		linkstat = USB_EVENT_NONE;
 
 	dev_dbg(twl->dev, "HW_CONDITIONS 0x%02x/%d; link %d\n",
 			status, status, linkstat);
@@ -383,7 +374,7 @@ static enum linkstat twl4030_usb_linkstat(struct twl4030_usb *twl)
 
 	spin_lock_irq(&twl->lock);
 	twl->linkstat = linkstat;
-	if (linkstat == USB_LINK_ID) {
+	if (linkstat == USB_EVENT_ID) {
 		twl->otg.default_a = true;
 		twl->otg.state = OTG_STATE_A_IDLE;
 	} else {
@@ -564,7 +555,7 @@ static ssize_t twl4030_usb_vbus_show(struct device *dev,
 
 	spin_lock_irqsave(&twl->lock, flags);
 	ret = sprintf(buf, "%s\n",
-			(twl->linkstat == USB_LINK_VBUS) ? "on" : "off");
+			(twl->linkstat == USB_EVENT_VBUS) ? "on" : "off");
 	spin_unlock_irqrestore(&twl->lock, flags);
 
 	return ret;
@@ -585,8 +576,7 @@ static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 #endif
 
 	status = twl4030_usb_linkstat(twl);
-	if (status != USB_LINK_UNKNOWN) {
-
+	if (status >= 0) {
 		/* FIXME add a set_power() method so that B-devices can
 		 * configure the charger appropriately.  It's not always
 		 * correct to consume VBUS power, and how much current to
@@ -598,12 +588,13 @@ static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 		 * USB_LINK_VBUS state.  musb_hdrc won't care until it
 		 * starts to handle softconnect right.
 		 */
-		if (status == USB_LINK_NONE)
+		if (status == USB_EVENT_NONE)
 			twl4030_phy_suspend(twl, 0);
 		else
 			twl4030_phy_resume(twl);
 
-		twl4030charger_usb_en(status == USB_LINK_VBUS);
+		blocking_notifier_call_chain(&twl->otg.notifier, status,
+				twl->otg.gadget);
 	}
 	sysfs_notify(&twl->dev->kobj, NULL, "vbus");
 
@@ -692,6 +683,8 @@ static int __devinit twl4030_usb_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, twl);
 	if (device_create_file(&pdev->dev, &dev_attr_vbus))
 		dev_warn(&pdev->dev, "could not create sysfs file\n");
+
+	BLOCKING_INIT_NOTIFIER_HEAD(&twl->otg.notifier);
 
 	/* Our job is to use irqs and status from the power module
 	 * to keep the transceiver disabled when nothing's connected.
