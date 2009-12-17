@@ -59,9 +59,9 @@
  *    returns immediately.
  *
  *    When the buffer is full, the completion handler removes it from the irq
- *    queue, marks it as ready (UVC_BUF_STATE_DONE) and wakes its wait queue.
+ *    queue, marks it as done (UVC_BUF_STATE_DONE) and wakes its wait queue.
  *    At that point, any process waiting on the buffer will be woken up. If a
- *    process tries to dequeue a buffer after it has been marked ready, the
+ *    process tries to dequeue a buffer after it has been marked done, the
  *    dequeing will succeed immediately.
  *
  * 2. Buffers are queued, user is waiting on a buffer and the device gets
@@ -201,6 +201,7 @@ static void __uvc_query_buffer(struct uvc_buffer *buf,
 		break;
 	case UVC_BUF_STATE_QUEUED:
 	case UVC_BUF_STATE_ACTIVE:
+	case UVC_BUF_STATE_READY:
 		v4l2_buf->flags |= V4L2_BUF_FLAG_QUEUED;
 		break;
 	case UVC_BUF_STATE_IDLE:
@@ -295,13 +296,15 @@ static int uvc_queue_waiton(struct uvc_buffer *buf, int nonblocking)
 {
 	if (nonblocking) {
 		return (buf->state != UVC_BUF_STATE_QUEUED &&
-			buf->state != UVC_BUF_STATE_ACTIVE)
+			buf->state != UVC_BUF_STATE_ACTIVE &&
+			buf->state != UVC_BUF_STATE_READY)
 			? 0 : -EAGAIN;
 	}
 
 	return wait_event_interruptible(buf->wait,
 		buf->state != UVC_BUF_STATE_QUEUED &&
-		buf->state != UVC_BUF_STATE_ACTIVE);
+		buf->state != UVC_BUF_STATE_ACTIVE &&
+		buf->state != UVC_BUF_STATE_READY);
 }
 
 /*
@@ -348,6 +351,7 @@ int uvc_dequeue_buffer(struct uvc_video_queue *queue,
 	case UVC_BUF_STATE_IDLE:
 	case UVC_BUF_STATE_QUEUED:
 	case UVC_BUF_STATE_ACTIVE:
+	case UVC_BUF_STATE_READY:
 	default:
 		uvc_trace(UVC_TRACE_CAPTURE, "[E] Invalid buffer state %u "
 			"(driver bug?).\n", buf->state);
@@ -489,6 +493,7 @@ struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 
 	spin_lock_irqsave(&queue->irqlock, flags);
 	list_del(&buf->queue);
+	buf->state = UVC_BUF_STATE_DONE;
 	if (!list_empty(&queue->irqqueue))
 		nextbuf = list_first_entry(&queue->irqqueue, struct uvc_buffer,
 					   queue);
