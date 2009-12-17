@@ -83,7 +83,6 @@ void __init mem_init(void)
 	unsigned long codesize, reservedpages, datasize, initsize;
 	unsigned long tmp, ram = 0;
 
-	max_mapnr = max_low_pfn;
 	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
 	totalram_pages += free_all_bootmem();
 	totalram_pages -= setup_zero_page();	/* Setup zeroed pages. */
@@ -100,10 +99,6 @@ void __init mem_init(void)
 	codesize = (unsigned long) &_etext - (unsigned long) &_text;
 	datasize = (unsigned long) &_edata - (unsigned long) &_etext;
 	initsize = (unsigned long) &__init_end - (unsigned long) &__init_begin;
-
-	kclist_add(&kcore_mem, __va(0), max_low_pfn << PAGE_SHIFT);
-	kclist_add(&kcore_vmalloc, (void *) VMALLOC_START,
-			VMALLOC_END - VMALLOC_START);
 
 	printk(KERN_INFO "Memory: %luk/%luk available (%ldk kernel code, "
 			"%ldk reserved, %ldk data, %ldk init, %ldk highmem)\n",
