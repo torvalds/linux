@@ -1830,6 +1830,8 @@ shmem_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 			iput(inode);
 			return error;
 		}
+#else
+		error = 0;
 #endif
 		if (dir->i_mode & S_ISGID) {
 			inode->i_gid = dir->i_gid;
