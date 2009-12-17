@@ -395,6 +395,14 @@ static int dss_initialize_debugfs(void)
 	debugfs_create_file("clk", S_IRUGO, dss_debugfs_dir,
 			&dss_debug_dump_clocks, &dss_debug_fops);
 
+	debugfs_create_file("dispc_irq", S_IRUGO, dss_debugfs_dir,
+			&dispc_dump_irqs, &dss_debug_fops);
+
+#ifdef CONFIG_OMAP2_DSS_DSI
+	debugfs_create_file("dsi_irq", S_IRUGO, dss_debugfs_dir,
+			&dsi_dump_irqs, &dss_debug_fops);
+#endif
+
 	debugfs_create_file("dss", S_IRUGO, dss_debugfs_dir,
 			&dss_dump_regs, &dss_debug_fops);
 	debugfs_create_file("dispc", S_IRUGO, dss_debugfs_dir,

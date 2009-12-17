@@ -204,6 +204,14 @@ struct dsi_update_region {
 	struct omap_dss_device *device;
 };
 
+struct dsi_irq_stats {
+	unsigned long last_reset;
+	unsigned irq_count;
+	unsigned dsi_irqs[32];
+	unsigned vc_irqs[4][32];
+	unsigned cio_irqs[32];
+};
+
 static struct
 {
 	void __iomem	*base;
@@ -258,6 +266,11 @@ static struct
 #endif
 	int debug_read;
 	int debug_write;
+
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+	spinlock_t irq_stats_lock;
+	struct dsi_irq_stats irq_stats;
+#endif
 } dsi;
 
 #ifdef DEBUG
@@ -528,6 +541,12 @@ void dsi_irq_handler(void)
 
 	irqstatus = dsi_read_reg(DSI_IRQSTATUS);
 
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+	spin_lock(&dsi.irq_stats_lock);
+	dsi.irq_stats.irq_count++;
+	dss_collect_irq_stats(irqstatus, dsi.irq_stats.dsi_irqs);
+#endif
+
 	if (irqstatus & DSI_IRQ_ERROR_MASK) {
 		DSSERR("DSI error, irqstatus %x\n", irqstatus);
 		print_irq_status(irqstatus);
@@ -549,6 +568,10 @@ void dsi_irq_handler(void)
 
 		vcstatus = dsi_read_reg(DSI_VC_IRQSTATUS(i));
 
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+		dss_collect_irq_stats(vcstatus, dsi.irq_stats.vc_irqs[i]);
+#endif
+
 		if (vcstatus & DSI_VC_IRQ_BTA)
 			complete(&dsi.bta_completion);
 
@@ -568,6 +591,10 @@ void dsi_irq_handler(void)
 	if (irqstatus & DSI_IRQ_COMPLEXIO_ERR) {
 		ciostatus = dsi_read_reg(DSI_COMPLEXIO_IRQ_STATUS);
 
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+		dss_collect_irq_stats(ciostatus, dsi.irq_stats.cio_irqs);
+#endif
+
 		dsi_write_reg(DSI_COMPLEXIO_IRQ_STATUS, ciostatus);
 		/* flush posted write */
 		dsi_read_reg(DSI_COMPLEXIO_IRQ_STATUS);
@@ -579,6 +606,10 @@ void dsi_irq_handler(void)
 	dsi_write_reg(DSI_IRQSTATUS, irqstatus & ~DSI_IRQ_CHANNEL_MASK);
 	/* flush posted write */
 	dsi_read_reg(DSI_IRQSTATUS);
+
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+	spin_unlock(&dsi.irq_stats_lock);
+#endif
 }
 
 
@@ -1225,6 +1256,95 @@ void dsi_dump_clocks(struct seq_file *s)
 
 	enable_clocks(0);
 }
+
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+void dsi_dump_irqs(struct seq_file *s)
+{
+	unsigned long flags;
+	struct dsi_irq_stats stats;
+
+	spin_lock_irqsave(&dsi.irq_stats_lock, flags);
+
+	stats = dsi.irq_stats;
+	memset(&dsi.irq_stats, 0, sizeof(dsi.irq_stats));
+	dsi.irq_stats.last_reset = jiffies;
+
+	spin_unlock_irqrestore(&dsi.irq_stats_lock, flags);
+
+	seq_printf(s, "period %u ms\n",
+			jiffies_to_msecs(jiffies - stats.last_reset));
+
+	seq_printf(s, "irqs %d\n", stats.irq_count);
+#define PIS(x) \
+	seq_printf(s, "%-20s %10d\n", #x, stats.dsi_irqs[ffs(DSI_IRQ_##x)-1]);
+
+	seq_printf(s, "-- DSI interrupts --\n");
+	PIS(VC0);
+	PIS(VC1);
+	PIS(VC2);
+	PIS(VC3);
+	PIS(WAKEUP);
+	PIS(RESYNC);
+	PIS(PLL_LOCK);
+	PIS(PLL_UNLOCK);
+	PIS(PLL_RECALL);
+	PIS(COMPLEXIO_ERR);
+	PIS(HS_TX_TIMEOUT);
+	PIS(LP_RX_TIMEOUT);
+	PIS(TE_TRIGGER);
+	PIS(ACK_TRIGGER);
+	PIS(SYNC_LOST);
+	PIS(LDO_POWER_GOOD);
+	PIS(TA_TIMEOUT);
+#undef PIS
+
+#define PIS(x) \
+	seq_printf(s, "%-20s %10d %10d %10d %10d\n", #x, \
+			stats.vc_irqs[0][ffs(DSI_VC_IRQ_##x)-1], \
+			stats.vc_irqs[1][ffs(DSI_VC_IRQ_##x)-1], \
+			stats.vc_irqs[2][ffs(DSI_VC_IRQ_##x)-1], \
+			stats.vc_irqs[3][ffs(DSI_VC_IRQ_##x)-1]);
+
+	seq_printf(s, "-- VC interrupts --\n");
+	PIS(CS);
+	PIS(ECC_CORR);
+	PIS(PACKET_SENT);
+	PIS(FIFO_TX_OVF);
+	PIS(FIFO_RX_OVF);
+	PIS(BTA);
+	PIS(ECC_NO_CORR);
+	PIS(FIFO_TX_UDF);
+	PIS(PP_BUSY_CHANGE);
+#undef PIS
+
+#define PIS(x) \
+	seq_printf(s, "%-20s %10d\n", #x, \
+			stats.cio_irqs[ffs(DSI_CIO_IRQ_##x)-1]);
+
+	seq_printf(s, "-- CIO interrupts --\n");
+	PIS(ERRSYNCESC1);
+	PIS(ERRSYNCESC2);
+	PIS(ERRSYNCESC3);
+	PIS(ERRESC1);
+	PIS(ERRESC2);
+	PIS(ERRESC3);
+	PIS(ERRCONTROL1);
+	PIS(ERRCONTROL2);
+	PIS(ERRCONTROL3);
+	PIS(STATEULPS1);
+	PIS(STATEULPS2);
+	PIS(STATEULPS3);
+	PIS(ERRCONTENTIONLP0_1);
+	PIS(ERRCONTENTIONLP1_1);
+	PIS(ERRCONTENTIONLP0_2);
+	PIS(ERRCONTENTIONLP1_2);
+	PIS(ERRCONTENTIONLP0_3);
+	PIS(ERRCONTENTIONLP1_3);
+	PIS(ULPSACTIVENOT_ALL0);
+	PIS(ULPSACTIVENOT_ALL1);
+#undef PIS
+}
+#endif
 
 void dsi_dump_regs(struct seq_file *s)
 {
@@ -3636,6 +3756,11 @@ int dsi_init(struct platform_device *pdev)
 
 	spin_lock_init(&dsi.errors_lock);
 	dsi.errors = 0;
+
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+	spin_lock_init(&dsi.irq_stats_lock);
+	dsi.irq_stats.last_reset = jiffies;
+#endif
 
 	init_completion(&dsi.bta_completion);
 	init_completion(&dsi.update_completion);
