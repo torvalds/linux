@@ -65,7 +65,7 @@ exit:
  * In order to reduce the quantity of table resizes, it has a minimum
  * table size of IR_TAB_MIN_SIZE.
  */
-int ir_roundup_tablesize(int n_elems)
+static int ir_roundup_tablesize(int n_elems)
 {
 	size_t size;
 
@@ -81,7 +81,6 @@ int ir_roundup_tablesize(int n_elems)
 
 	return n_elems;
 }
-EXPORT_SYMBOL_GPL(ir_roundup_tablesize);
 
 /**
  * ir_copy_table() - copies a keytable, discarding the unused entries
@@ -93,7 +92,7 @@ EXPORT_SYMBOL_GPL(ir_roundup_tablesize);
  * NOTE: It shouldn't copy the lock field
  */
 
-int ir_copy_table(struct ir_scancode_table *destin,
+static int ir_copy_table(struct ir_scancode_table *destin,
 		 const struct ir_scancode_table *origin)
 {
 	int i, j = 0;
@@ -113,7 +112,6 @@ int ir_copy_table(struct ir_scancode_table *destin,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ir_copy_table);
 
 /**
  * ir_getkeycode() - get a keycode at the evdev scancode ->keycode table

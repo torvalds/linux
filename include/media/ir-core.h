@@ -61,10 +61,6 @@ struct ir_input_dev {
 u32 ir_g_keycode_from_table(struct input_dev *input_dev,
 			    u32 scancode);
 
-int ir_set_keycode_table(struct input_dev *input_dev,
-			 struct ir_scancode_table *rc_tab);
-
-int ir_roundup_tablesize(int n_elems);
 int ir_input_register(struct input_dev *dev,
 		      const struct ir_scancode_table *ir_codes,
 		      const struct ir_dev_props *props);
