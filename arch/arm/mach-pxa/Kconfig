@@ -110,6 +110,8 @@ config MACH_CM_X300
 	bool "CompuLab CM-X300 modules"
 	select PXA3xx
 	select CPU_PXA300
+	select CPU_PXA310
+	select HAVE_PWM
 
 config ARCH_GUMSTIX
 	bool "Gumstix XScale 255 boards"
@@ -240,7 +242,6 @@ config MACH_COLIBRI300
 	select PXA3xx
 	select CPU_PXA300
 	select CPU_PXA310
-	select HAVE_PWM
 
 config MACH_COLIBRI320
 	bool "Toradex Colibri PXA320"
