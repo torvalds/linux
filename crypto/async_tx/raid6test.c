@@ -214,6 +214,13 @@ static int raid6_test(void)
 		err += test(4, &tests);
 	if (NDISKS > 5)
 		err += test(5, &tests);
+	/* the 11 and 12 disk cases are special for ioatdma (p-disabled
+	 * q-continuation without extended descriptor)
+	 */
+	if (NDISKS > 12) {
+		err += test(11, &tests);
+		err += test(12, &tests);
+	}
 	err += test(NDISKS, &tests);
 
 	pr("\n");
