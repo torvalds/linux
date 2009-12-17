@@ -391,6 +391,12 @@ int radeon_asic_init(struct radeon_device *rdev)
 		/* FIXME: not supported yet */
 		return -EINVAL;
 	}
+
+	if (rdev->flags & RADEON_IS_IGP) {
+		rdev->asic->get_memory_clock = NULL;
+		rdev->asic->set_memory_clock = NULL;
+	}
+
 	return 0;
 }
 
