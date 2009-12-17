@@ -89,6 +89,18 @@ static struct platform_device da850_evm_norflash_device = {
 	.resource	= da850_evm_norflash_resource,
 };
 
+static struct davinci_pm_config da850_pm_pdata = {
+	.sleepcount = 128,
+};
+
+static struct platform_device da850_pm_device = {
+	.name           = "pm-davinci",
+	.dev = {
+		.platform_data	= &da850_pm_pdata,
+	},
+	.id             = -1,
+};
+
 /* DA850/OMAP-L138 EVM includes a 512 MByte large-page NAND flash
  * (128K blocks). It may be used instead of the (default) SPI flash
  * to boot, using TI's tools to install the secondary boot loader
@@ -708,6 +720,11 @@ static __init void da850_evm_init(void)
 	ret = da8xx_register_cpuidle();
 	if (ret)
 		pr_warning("da850_evm_init: cpuidle registration failed: %d\n",
+				ret);
+
+	ret = da850_register_pm(&da850_pm_device);
+	if (ret)
+		pr_warning("da850_evm_init: suspend registration failed: %d\n",
 				ret);
 }
 
