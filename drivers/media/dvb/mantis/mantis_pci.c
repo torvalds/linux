@@ -73,7 +73,7 @@ int __devinit mantis_pci_init(struct mantis_pci *mantis)
 		goto fail0;
 	}
 
-	err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (err != 0) {
 		dprintk(MANTIS_ERROR, 1, "ERROR: Unable to obtain 32 bit DMA <%i>", err);
 		ret = -ENOMEM;
