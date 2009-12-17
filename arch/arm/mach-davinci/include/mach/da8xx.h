@@ -20,6 +20,7 @@
 #include <mach/asp.h>
 #include <mach/mmc.h>
 #include <mach/usb.h>
+#include <mach/pm.h>
 
 extern void __iomem *da8xx_syscfg0_base;
 extern void __iomem *da8xx_syscfg1_base;
@@ -44,6 +45,7 @@ extern void __iomem *da8xx_syscfg1_base;
 
 #define DA8XX_SYSCFG1_BASE	(IO_PHYS + 0x22C000)
 #define DA8XX_SYSCFG1_VIRT(x)	(da8xx_syscfg1_base + (x))
+#define DA8XX_DEEPSLEEP_REG	0x8
 
 #define DA8XX_PSC0_BASE		0x01c10000
 #define DA8XX_PLL0_BASE		0x01c11000
@@ -52,6 +54,7 @@ extern void __iomem *da8xx_syscfg1_base;
 #define DA8XX_GPIO_BASE		0x01e26000
 #define DA8XX_PSC1_BASE		0x01e27000
 #define DA8XX_LCD_CNTRL_BASE	0x01e13000
+#define DA8XX_PLL1_BASE		0x01e1a000
 #define DA8XX_MMCSD0_BASE	0x01c40000
 #define DA8XX_AEMIF_CS2_BASE	0x60000000
 #define DA8XX_AEMIF_CS3_BASE	0x62000000
@@ -96,6 +99,7 @@ int da8xx_register_rtc(void);
 int da850_register_cpufreq(void);
 int da8xx_register_cpuidle(void);
 void __iomem * __init da8xx_get_mem_ctlr(void);
+int da850_register_pm(struct platform_device *pdev);
 
 extern struct platform_device da8xx_serial_device;
 extern struct emac_platform_data da8xx_emac_pdata;
