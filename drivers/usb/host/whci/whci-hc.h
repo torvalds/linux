@@ -172,14 +172,7 @@ struct whc_qhead {
 #define QH_INFO3_MAX_DELAY(d)    ((d) << 0)  /* maximum stream delay in 125 us units (isoc only) */
 #define QH_INFO3_INTERVAL(i)     ((i) << 16) /* segment interval in 125 us units (isoc only) */
 
-#define QH_INFO3_TX_RATE_53_3    (0 << 24)
-#define QH_INFO3_TX_RATE_80      (1 << 24)
-#define QH_INFO3_TX_RATE_106_7   (2 << 24)
-#define QH_INFO3_TX_RATE_160     (3 << 24)
-#define QH_INFO3_TX_RATE_200     (4 << 24)
-#define QH_INFO3_TX_RATE_320     (5 << 24)
-#define QH_INFO3_TX_RATE_400     (6 << 24)
-#define QH_INFO3_TX_RATE_480     (7 << 24)
+#define QH_INFO3_TX_RATE(r)      ((r) << 24) /* PHY rate (see [ECMA-368] section 10.3.1.1) */
 #define QH_INFO3_TX_PWR(p)       ((p) << 29) /* transmit power (see [WUSB] section 5.2.1.2) */
 
 #define QH_STATUS_FLOW_CTRL      (1 << 15)
@@ -267,8 +260,9 @@ struct whc_qset {
 	unsigned reset:1;
 	struct urb *pause_after_urb;
 	struct completion remove_complete;
-	int max_burst;
-	int max_seq;
+	uint16_t max_packet;
+	uint8_t max_burst;
+	uint8_t max_seq;
 };
 
 static inline void whc_qset_set_link_ptr(u64 *ptr, u64 target)

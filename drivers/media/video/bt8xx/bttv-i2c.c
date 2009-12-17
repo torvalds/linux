@@ -40,7 +40,7 @@ static int i2c_debug;
 static int i2c_hw;
 static int i2c_scan;
 module_param(i2c_debug, int, 0644);
-MODULE_PARM_DESC(i2c_hw,"configure i2c debug level");
+MODULE_PARM_DESC(i2c_debug, "configure i2c debug level");
 module_param(i2c_hw,    int, 0444);
 MODULE_PARM_DESC(i2c_hw,"force use of hardware i2c support, "
 			"instead of software bitbang");
@@ -400,7 +400,7 @@ int __devinit init_bttv_i2c(struct bttv *btv)
 		   That's why we probe 0x1a (~0x34) first. CB
 		*/
 		const unsigned short addr_list[] = {
-			0x1a, 0x18, 0x4b, 0x64, 0x30,
+			0x1a, 0x18, 0x4b, 0x64, 0x30, 0x71,
 			I2C_CLIENT_END
 		};
 

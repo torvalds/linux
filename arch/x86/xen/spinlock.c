@@ -120,14 +120,14 @@ struct xen_spinlock {
 	unsigned short spinners;	/* count of waiting cpus */
 };
 
-static int xen_spin_is_locked(struct raw_spinlock *lock)
+static int xen_spin_is_locked(struct arch_spinlock *lock)
 {
 	struct xen_spinlock *xl = (struct xen_spinlock *)lock;
 
 	return xl->lock != 0;
 }
 
-static int xen_spin_is_contended(struct raw_spinlock *lock)
+static int xen_spin_is_contended(struct arch_spinlock *lock)
 {
 	struct xen_spinlock *xl = (struct xen_spinlock *)lock;
 
@@ -136,7 +136,7 @@ static int xen_spin_is_contended(struct raw_spinlock *lock)
 	return xl->spinners != 0;
 }
 
-static int xen_spin_trylock(struct raw_spinlock *lock)
+static int xen_spin_trylock(struct arch_spinlock *lock)
 {
 	struct xen_spinlock *xl = (struct xen_spinlock *)lock;
 	u8 old = 1;
@@ -181,7 +181,7 @@ static inline void unspinning_lock(struct xen_spinlock *xl, struct xen_spinlock 
 	__get_cpu_var(lock_spinners) = prev;
 }
 
-static noinline int xen_spin_lock_slow(struct raw_spinlock *lock, bool irq_enable)
+static noinline int xen_spin_lock_slow(struct arch_spinlock *lock, bool irq_enable)
 {
 	struct xen_spinlock *xl = (struct xen_spinlock *)lock;
 	struct xen_spinlock *prev;
@@ -254,7 +254,7 @@ out:
 	return ret;
 }
 
-static inline void __xen_spin_lock(struct raw_spinlock *lock, bool irq_enable)
+static inline void __xen_spin_lock(struct arch_spinlock *lock, bool irq_enable)
 {
 	struct xen_spinlock *xl = (struct xen_spinlock *)lock;
 	unsigned timeout;
@@ -291,12 +291,12 @@ static inline void __xen_spin_lock(struct raw_spinlock *lock, bool irq_enable)
 	spin_time_accum_total(start_spin);
 }
 
-static void xen_spin_lock(struct raw_spinlock *lock)
+static void xen_spin_lock(struct arch_spinlock *lock)
 {
 	__xen_spin_lock(lock, false);
 }
 
-static void xen_spin_lock_flags(struct raw_spinlock *lock, unsigned long flags)
+static void xen_spin_lock_flags(struct arch_spinlock *lock, unsigned long flags)
 {
 	__xen_spin_lock(lock, !raw_irqs_disabled_flags(flags));
 }
@@ -317,7 +317,7 @@ static noinline void xen_spin_unlock_slow(struct xen_spinlock *xl)
 	}
 }
 
-static void xen_spin_unlock(struct raw_spinlock *lock)
+static void xen_spin_unlock(struct arch_spinlock *lock)
 {
 	struct xen_spinlock *xl = (struct xen_spinlock *)lock;
 

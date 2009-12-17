@@ -489,7 +489,7 @@ static int s3c24xx_spi_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops s3c24xx_spi_pmops = {
+static const struct dev_pm_ops s3c24xx_spi_pmops = {
 	.suspend	= s3c24xx_spi_suspend,
 	.resume		= s3c24xx_spi_resume,
 };

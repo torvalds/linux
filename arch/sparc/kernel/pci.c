@@ -1064,7 +1064,6 @@ int pci64_dma_supported(struct pci_dev *pdev, u64 device_mask)
 
 	return (device_mask & dma_addr_mask) == dma_addr_mask;
 }
-EXPORT_SYMBOL(pci_dma_supported);
 
 void pci_resource_to_user(const struct pci_dev *pdev, int bar,
 			  const struct resource *rp, resource_size_t *start,
@@ -1081,3 +1080,10 @@ void pci_resource_to_user(const struct pci_dev *pdev, int bar,
 	*start = rp->start - offset;
 	*end = rp->end - offset;
 }
+
+static int __init pcibios_init(void)
+{
+	pci_dfl_cache_line_size = 64 >> 2;
+	return 0;
+}
+subsys_initcall(pcibios_init);

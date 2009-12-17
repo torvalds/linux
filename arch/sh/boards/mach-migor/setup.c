@@ -432,23 +432,27 @@ static struct i2c_board_info migor_i2c_camera[] = {
 
 static struct ov772x_camera_info ov7725_info = {
 	.buswidth	= SOCAM_DATAWIDTH_8,
-	.link = {
-		.power		= ov7725_power,
-		.board_info	= &migor_i2c_camera[0],
-		.i2c_adapter_id	= 0,
-		.module_name	= "ov772x",
-	},
+};
+
+static struct soc_camera_link ov7725_link = {
+	.power		= ov7725_power,
+	.board_info	= &migor_i2c_camera[0],
+	.i2c_adapter_id	= 0,
+	.module_name	= "ov772x",
+	.priv		= &ov7725_info,
 };
 
 static struct tw9910_video_info tw9910_info = {
 	.buswidth	= SOCAM_DATAWIDTH_8,
 	.mpout		= TW9910_MPO_FIELD,
-	.link = {
-		.power		= tw9910_power,
-		.board_info	= &migor_i2c_camera[1],
-		.i2c_adapter_id	= 0,
-		.module_name	= "tw9910",
-	}
+};
+
+static struct soc_camera_link tw9910_link = {
+	.power		= tw9910_power,
+	.board_info	= &migor_i2c_camera[1],
+	.i2c_adapter_id	= 0,
+	.module_name	= "tw9910",
+	.priv		= &tw9910_info,
 };
 
 static struct platform_device migor_camera[] = {
@@ -456,13 +460,13 @@ static struct platform_device migor_camera[] = {
 		.name	= "soc-camera-pdrv",
 		.id	= 0,
 		.dev	= {
-			.platform_data = &ov7725_info.link,
+			.platform_data = &ov7725_link,
 		},
 	}, {
 		.name	= "soc-camera-pdrv",
 		.id	= 1,
 		.dev	= {
-			.platform_data = &tw9910_info.link,
+			.platform_data = &tw9910_link,
 		},
 	},
 };

@@ -102,7 +102,8 @@ static int pmagbbfb_setcolreg(unsigned int regno, unsigned int red,
 {
 	struct pmagbbfb_par *par = info->par;
 
-	BUG_ON(regno >= info->cmap.len);
+	if (regno >= info->cmap.len)
+		return 1;
 
 	red   >>= 8;	/* The cmap fields are 16 bits    */
 	green >>= 8;	/* wide, but the hardware colormap */

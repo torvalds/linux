@@ -121,7 +121,7 @@ intel_alloc_mchbar_resource(struct drm_device *dev)
 				     0,   pcibios_align_resource,
 				     dev_priv->bridge_dev);
 	if (ret) {
-		DRM_DEBUG("failed bus alloc: %d\n", ret);
+		DRM_DEBUG_DRIVER("failed bus alloc: %d\n", ret);
 		dev_priv->mch_res.start = 0;
 		goto out;
 	}
@@ -209,8 +209,8 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 	uint32_t swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 	bool need_disable;
 
-	if (IS_IGDNG(dev)) {
-		/* On IGDNG whatever DRAM config, GPU always do
+	if (IS_IRONLAKE(dev)) {
+		/* On Ironlake whatever DRAM config, GPU always do
 		 * same swizzling setup.
 		 */
 		swizzle_x = I915_BIT_6_SWIZZLE_9_10;

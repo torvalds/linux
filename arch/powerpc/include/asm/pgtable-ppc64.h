@@ -354,6 +354,7 @@ static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 #define pgoff_to_pte(off)	((pte_t) {((off) << PTE_RPN_SHIFT)|_PAGE_FILE})
 #define PTE_FILE_MAX_BITS	(BITS_PER_LONG - PTE_RPN_SHIFT)
 
+void pgtable_cache_add(unsigned shift, void (*ctor)(void *));
 void pgtable_cache_init(void);
 
 /*
@@ -378,7 +379,18 @@ void pgtable_cache_init(void);
 	return pt;
 }
 
-pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long address);
+#ifdef CONFIG_HUGETLB_PAGE
+pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
+				 unsigned *shift);
+#else
+static inline pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
+					       unsigned *shift)
+{
+	if (shift)
+		*shift = 0;
+	return find_linux_pte(pgdir, ea);
+}
+#endif /* !CONFIG_HUGETLB_PAGE */
 
 #endif /* __ASSEMBLY__ */
 

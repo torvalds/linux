@@ -169,6 +169,9 @@ static int r420_startup(struct radeon_device *rdev)
 {
 	int r;
 
+	/* set common regs */
+	r100_set_common_regs(rdev);
+	/* program mc */
 	r300_mc_program(rdev);
 	/* Resume clock */
 	r420_clock_resume(rdev);
@@ -186,7 +189,6 @@ static int r420_startup(struct radeon_device *rdev)
 	}
 	r420_pipes_init(rdev);
 	/* Enable IRQ */
-	rdev->irq.sw_int = true;
 	r100_irq_set(rdev);
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
@@ -229,7 +231,8 @@ int r420_resume(struct radeon_device *rdev)
 	}
 	/* Resume clock after posting */
 	r420_clock_resume(rdev);
-
+	/* Initialize surface registers */
+	radeon_surface_init(rdev);
 	return r420_startup(rdev);
 }
 
@@ -258,7 +261,7 @@ void r420_fini(struct radeon_device *rdev)
 	radeon_agp_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	radeon_fence_driver_fini(rdev);
-	radeon_object_fini(rdev);
+	radeon_bo_fini(rdev);
 	if (rdev->is_atom_bios) {
 		radeon_atombios_fini(rdev);
 	} else {
@@ -301,14 +304,9 @@ int r420_init(struct radeon_device *rdev)
 			RREG32(R_0007C0_CP_STAT));
 	}
 	/* check if cards are posted or not */
-	if (!radeon_card_posted(rdev) && rdev->bios) {
-		DRM_INFO("GPU not posted. posting now...\n");
-		if (rdev->is_atom_bios) {
-			atom_asic_init(rdev->mode_info.atom_context);
-		} else {
-			radeon_combios_asic_init(rdev->ddev);
-		}
-	}
+	if (radeon_boot_test_post_card(rdev) == false)
+		return -EINVAL;
+
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
 	/* Initialize power management */
@@ -331,10 +329,13 @@ int r420_init(struct radeon_device *rdev)
 		return r;
 	}
 	/* Memory manager */
-	r = radeon_object_init(rdev);
+	r = radeon_bo_init(rdev);
 	if (r) {
 		return r;
 	}
+	if (rdev->family == CHIP_R420)
+		r100_enable_bm(rdev);
+
 	if (rdev->flags & RADEON_IS_PCIE) {
 		r = rv370_pcie_gart_init(rdev);
 		if (r)

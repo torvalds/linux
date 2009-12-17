@@ -1051,7 +1051,7 @@ END(ia64_delay_loop)
  * intermediate precision so that we can produce a full 64-bit result.
  */
 GLOBAL_ENTRY(ia64_native_sched_clock)
-	addl r8=THIS_CPU(cpu_info) + IA64_CPUINFO_NSEC_PER_CYC_OFFSET,r0
+	addl r8=THIS_CPU(ia64_cpu_info) + IA64_CPUINFO_NSEC_PER_CYC_OFFSET,r0
 	mov.m r9=ar.itc		// fetch cycle-counter				(35 cyc)
 	;;
 	ldf8 f8=[r8]
@@ -1077,7 +1077,7 @@ sched_clock = ia64_native_sched_clock
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 GLOBAL_ENTRY(cycle_to_cputime)
 	alloc r16=ar.pfs,1,0,0,0
-	addl r8=THIS_CPU(cpu_info) + IA64_CPUINFO_NSEC_PER_CYC_OFFSET,r0
+	addl r8=THIS_CPU(ia64_cpu_info) + IA64_CPUINFO_NSEC_PER_CYC_OFFSET,r0
 	;;
 	ldf8 f8=[r8]
 	;;

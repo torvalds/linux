@@ -445,6 +445,70 @@ static int audio_get_intf_req(struct usb_function *f,
 	return len;
 }
 
+static int audio_set_endpoint_req(struct usb_function *f,
+		const struct usb_ctrlrequest *ctrl)
+{
+	struct usb_composite_dev *cdev = f->config->cdev;
+	int			value = -EOPNOTSUPP;
+	u16			ep = le16_to_cpu(ctrl->wIndex);
+	u16			len = le16_to_cpu(ctrl->wLength);
+	u16			w_value = le16_to_cpu(ctrl->wValue);
+
+	DBG(cdev, "bRequest 0x%x, w_value 0x%04x, len %d, endpoint %d\n",
+			ctrl->bRequest, w_value, len, ep);
+
+	switch (ctrl->bRequest) {
+	case UAC_SET_CUR:
+		value = 0;
+		break;
+
+	case UAC_SET_MIN:
+		break;
+
+	case UAC_SET_MAX:
+		break;
+
+	case UAC_SET_RES:
+		break;
+
+	case UAC_SET_MEM:
+		break;
+
+	default:
+		break;
+	}
+
+	return value;
+}
+
+static int audio_get_endpoint_req(struct usb_function *f,
+		const struct usb_ctrlrequest *ctrl)
+{
+	struct usb_composite_dev *cdev = f->config->cdev;
+	int value = -EOPNOTSUPP;
+	u8 ep = ((le16_to_cpu(ctrl->wIndex) >> 8) & 0xFF);
+	u16 len = le16_to_cpu(ctrl->wLength);
+	u16 w_value = le16_to_cpu(ctrl->wValue);
+
+	DBG(cdev, "bRequest 0x%x, w_value 0x%04x, len %d, endpoint %d\n",
+			ctrl->bRequest, w_value, len, ep);
+
+	switch (ctrl->bRequest) {
+	case UAC_GET_CUR:
+	case UAC_GET_MIN:
+	case UAC_GET_MAX:
+	case UAC_GET_RES:
+		value = 3;
+		break;
+	case UAC_GET_MEM:
+		break;
+	default:
+		break;
+	}
+
+	return value;
+}
+
 static int
 f_audio_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 {
@@ -455,8 +519,8 @@ f_audio_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 	u16			w_value = le16_to_cpu(ctrl->wValue);
 	u16			w_length = le16_to_cpu(ctrl->wLength);
 
-	/* composite driver infrastructure handles everything except
-	 * Audio class messages; interface activation uses set_alt().
+	/* composite driver infrastructure handles everything; interface
+	 * activation uses set_alt().
 	 */
 	switch (ctrl->bRequestType) {
 	case USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE:
@@ -465,6 +529,14 @@ f_audio_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 
 	case USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE:
 		value = audio_get_intf_req(f, ctrl);
+		break;
+
+	case USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_ENDPOINT:
+		value = audio_set_endpoint_req(f, ctrl);
+		break;
+
+	case USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_ENDPOINT:
+		value = audio_get_endpoint_req(f, ctrl);
 		break;
 
 	default:

@@ -97,6 +97,9 @@ struct mdk_rdev_s
 	atomic_t	read_errors;	/* number of consecutive read errors that
 					 * we have tried to ignore.
 					 */
+	struct timespec last_read_error;	/* monotonic time since our
+						 * last read error
+						 */
 	atomic_t	corrected_errors; /* number of corrected read errors,
 					   * for reporting to userspace and storing
 					   * in superblock.
@@ -280,17 +283,38 @@ struct mddev_s
 	unsigned int                    max_write_behind; /* 0 = sync */
 
 	struct bitmap                   *bitmap; /* the bitmap for the device */
-	struct file			*bitmap_file; /* the bitmap file */
-	long				bitmap_offset; /* offset from superblock of
-							* start of bitmap. May be
-							* negative, but not '0'
-							*/
-	long				default_bitmap_offset; /* this is the offset to use when
-								* hot-adding a bitmap.  It should
-								* eventually be settable by sysfs.
-								*/
+	struct {
+		struct file		*file; /* the bitmap file */
+		loff_t			offset; /* offset from superblock of
+						 * start of bitmap. May be
+						 * negative, but not '0'
+						 * For external metadata, offset
+						 * from start of device. 
+						 */
+		loff_t			default_offset; /* this is the offset to use when
+							 * hot-adding a bitmap.  It should
+							 * eventually be settable by sysfs.
+							 */
+		struct mutex		mutex;
+		unsigned long		chunksize;
+		unsigned long		daemon_sleep; /* how many seconds between updates? */
+		unsigned long		max_write_behind; /* write-behind mode */
+		int			external;
+	} bitmap_info;
 
+	atomic_t 			max_corr_read_errors; /* max read retries */
 	struct list_head		all_mddevs;
+
+	/* Generic barrier handling.
+	 * If there is a pending barrier request, all other
+	 * writes are blocked while the devices are flushed.
+	 * The last to finish a flush schedules a worker to
+	 * submit the barrier request (without the barrier flag),
+	 * then submit more flush requests.
+	 */
+	struct bio *barrier;
+	atomic_t flush_pending;
+	struct work_struct barrier_work;
 };
 
 
@@ -353,7 +377,7 @@ struct md_sysfs_entry {
 	ssize_t (*show)(mddev_t *, char *);
 	ssize_t (*store)(mddev_t *, const char *, size_t);
 };
-
+extern struct attribute_group md_bitmap_group;
 
 static inline char * mdname (mddev_t * mddev)
 {
@@ -431,6 +455,7 @@ extern void md_done_sync(mddev_t *mddev, int blocks, int ok);
 extern void md_error(mddev_t *mddev, mdk_rdev_t *rdev);
 
 extern int mddev_congested(mddev_t *mddev, int bits);
+extern void md_barrier_request(mddev_t *mddev, struct bio *bio);
 extern void md_super_write(mddev_t *mddev, mdk_rdev_t *rdev,
 			   sector_t sector, int size, struct page *page);
 extern void md_super_wait(mddev_t *mddev);
@@ -443,6 +468,8 @@ extern void md_wait_for_blocked_rdev(mdk_rdev_t *rdev, mddev_t *mddev);
 extern void md_set_array_sectors(mddev_t *mddev, sector_t array_sectors);
 extern int md_check_no_bitmap(mddev_t *mddev);
 extern int md_integrity_register(mddev_t *mddev);
-void md_integrity_add_rdev(mdk_rdev_t *rdev, mddev_t *mddev);
+extern void md_integrity_add_rdev(mdk_rdev_t *rdev, mddev_t *mddev);
+extern int strict_strtoul_scaled(const char *cp, unsigned long *res, int scale);
+extern void restore_bitmap_write_access(struct file *file);
 
 #endif /* _MD_MD_H */

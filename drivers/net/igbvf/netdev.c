@@ -1469,6 +1469,8 @@ static void igbvf_reset(struct igbvf_adapter *adapter)
 		memcpy(netdev->perm_addr, adapter->hw.mac.addr,
 		       netdev->addr_len);
 	}
+
+	adapter->last_reset = jiffies;
 }
 
 int igbvf_up(struct igbvf_adapter *adapter)
@@ -1812,11 +1814,15 @@ static bool igbvf_has_link(struct igbvf_adapter *adapter)
 	s32 ret_val = E1000_SUCCESS;
 	bool link_active;
 
+	/* If interface is down, stay link down */
+	if (test_bit(__IGBVF_DOWN, &adapter->state))
+		return false;
+
 	ret_val = hw->mac.ops.check_for_link(hw);
 	link_active = !hw->mac.get_link_status;
 
 	/* if check for link returns error we will need to reset */
-	if (ret_val)
+	if (ret_val && time_after(jiffies, adapter->last_reset + (10 * HZ)))
 		schedule_work(&adapter->reset_task);
 
 	return link_active;

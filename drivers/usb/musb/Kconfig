@@ -9,10 +9,9 @@ comment "Enable Host or Gadget support to see Inventra options"
 # (M)HDRC = (Multipoint) Highspeed Dual-Role Controller
 config USB_MUSB_HDRC
 	depends on (USB || USB_GADGET)
-	depends on (ARM || BLACKFIN)
-	select NOP_USB_XCEIV if ARCH_DAVINCI
+	depends on (ARM || (BF54x && !BF544) || (BF52x && !BF522 && !BF523))
+	select NOP_USB_XCEIV if (ARCH_DAVINCI || MACH_OMAP3EVM || BLACKFIN)
 	select TWL4030_USB if MACH_OMAP_3430SDP
-	select NOP_USB_XCEIV if MACH_OMAP3EVM
 	select USB_OTG_UTILS
 	tristate 'Inventra Highspeed Dual Role Controller (TI, ADI, ...)'
 	help

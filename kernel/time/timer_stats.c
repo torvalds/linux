@@ -86,7 +86,7 @@ static DEFINE_SPINLOCK(table_lock);
 /*
  * Per-CPU lookup locks for fast hash lookup:
  */
-static DEFINE_PER_CPU(spinlock_t, lookup_lock);
+static DEFINE_PER_CPU(raw_spinlock_t, tstats_lookup_lock);
 
 /*
  * Mutex to serialize state changes with show-stats activities:
@@ -238,14 +238,14 @@ void timer_stats_update_stats(void *timer, pid_t pid, void *startf,
 	/*
 	 * It doesnt matter which lock we take:
 	 */
-	spinlock_t *lock;
+	raw_spinlock_t *lock;
 	struct entry *entry, input;
 	unsigned long flags;
 
 	if (likely(!timer_stats_active))
 		return;
 
-	lock = &per_cpu(lookup_lock, raw_smp_processor_id());
+	lock = &per_cpu(tstats_lookup_lock, raw_smp_processor_id());
 
 	input.timer = timer;
 	input.start_func = startf;
@@ -253,7 +253,7 @@ void timer_stats_update_stats(void *timer, pid_t pid, void *startf,
 	input.pid = pid;
 	input.timer_flag = timer_flag;
 
-	spin_lock_irqsave(lock, flags);
+	raw_spin_lock_irqsave(lock, flags);
 	if (!timer_stats_active)
 		goto out_unlock;
 
@@ -264,7 +264,7 @@ void timer_stats_update_stats(void *timer, pid_t pid, void *startf,
 		atomic_inc(&overflow_count);
 
  out_unlock:
-	spin_unlock_irqrestore(lock, flags);
+	raw_spin_unlock_irqrestore(lock, flags);
 }
 
 static void print_name_offset(struct seq_file *m, unsigned long addr)
@@ -348,9 +348,11 @@ static void sync_access(void)
 	int cpu;
 
 	for_each_online_cpu(cpu) {
-		spin_lock_irqsave(&per_cpu(lookup_lock, cpu), flags);
+		raw_spinlock_t *lock = &per_cpu(tstats_lookup_lock, cpu);
+
+		raw_spin_lock_irqsave(lock, flags);
 		/* nothing */
-		spin_unlock_irqrestore(&per_cpu(lookup_lock, cpu), flags);
+		raw_spin_unlock_irqrestore(lock, flags);
 	}
 }
 
@@ -408,7 +410,7 @@ void __init init_timer_stats(void)
 	int cpu;
 
 	for_each_possible_cpu(cpu)
-		spin_lock_init(&per_cpu(lookup_lock, cpu));
+		raw_spin_lock_init(&per_cpu(tstats_lookup_lock, cpu));
 }
 
 static int __init init_tstats_procfs(void)

@@ -201,6 +201,11 @@ void __init footbridge_map_io(void)
 
 #ifdef CONFIG_FOOTBRIDGE_ADDIN
 
+static inline unsigned long fb_bus_sdram_offset(void)
+{
+	return *CSR_PCISDRAMBASE & 0xfffffff0;
+}
+
 /*
  * These two functions convert virtual addresses to PCI addresses and PCI
  * addresses to virtual addresses.  Note that it is only legal to use these
@@ -210,19 +215,30 @@ unsigned long __virt_to_bus(unsigned long res)
 {
 	WARN_ON(res < PAGE_OFFSET || res >= (unsigned long)high_memory);
 
-	return (res - PAGE_OFFSET) + (*CSR_PCISDRAMBASE & 0xfffffff0);
+	return res + (fb_bus_sdram_offset() - PAGE_OFFSET);
 }
 EXPORT_SYMBOL(__virt_to_bus);
 
 unsigned long __bus_to_virt(unsigned long res)
 {
-	res -= (*CSR_PCISDRAMBASE & 0xfffffff0);
-	res += PAGE_OFFSET;
+	res = res - (fb_bus_sdram_offset() - PAGE_OFFSET);
 
 	WARN_ON(res < PAGE_OFFSET || res >= (unsigned long)high_memory);
 
 	return res;
 }
 EXPORT_SYMBOL(__bus_to_virt);
+
+unsigned long __pfn_to_bus(unsigned long pfn)
+{
+	return __pfn_to_phys(pfn) + (fb_bus_sdram_offset() - PHYS_OFFSET));
+}
+EXPORT_SYMBOL(__pfn_to_bus);
+
+unsigned long __bus_to_pfn(unsigned long bus)
+{
+	return __phys_to_pfn(bus - (fb_bus_sdram_offset() - PHYS_OFFSET));
+}
+EXPORT_SYMBOL(__bus_to_pfn);
 
 #endif

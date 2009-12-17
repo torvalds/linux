@@ -18,6 +18,7 @@
 #include <linux/gpio.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
+#include <linux/mtd/onenand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
 #include <asm/sizes.h>
@@ -149,7 +150,7 @@ static struct mtd_partition nhk8815_onenand_partitions[] = {
 	}
 };
 
-static struct flash_platform_data nhk8815_onenand_data = {
+static struct onenand_platform_data nhk8815_onenand_data = {
 	.parts		= nhk8815_onenand_partitions,
 	.nr_parts	= ARRAY_SIZE(nhk8815_onenand_partitions),
 };
@@ -163,7 +164,7 @@ static struct resource nhk8815_onenand_resource[] = {
 };
 
 static struct platform_device nhk8815_onenand_device = {
-	.name		= "onenand",
+	.name		= "onenand-flash",
 	.id		= -1,
 	.dev		= {
 		.platform_data	= &nhk8815_onenand_data,
@@ -174,10 +175,10 @@ static struct platform_device nhk8815_onenand_device = {
 
 static void __init nhk8815_onenand_init(void)
 {
-#ifdef CONFIG_ONENAND
+#ifdef CONFIG_MTD_ONENAND
        /* Set up SMCS0 for OneNand */
-       writel(0x000030db, FSMC_BCR0);
-       writel(0x02100551, FSMC_BTR0);
+	writel(0x000030db, FSMC_BCR(0));
+	writel(0x02100551, FSMC_BTR(0));
 #endif
 }
 

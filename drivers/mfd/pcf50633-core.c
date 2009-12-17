@@ -290,7 +290,7 @@ out:
 
 int pcf50633_irq_mask(struct pcf50633 *pcf, int irq)
 {
-	dev_info(pcf->dev, "Masking IRQ %d\n", irq);
+	dev_dbg(pcf->dev, "Masking IRQ %d\n", irq);
 
 	return __pcf50633_irq_mask_set(pcf, irq, 1);
 }
@@ -298,7 +298,7 @@ EXPORT_SYMBOL_GPL(pcf50633_irq_mask);
 
 int pcf50633_irq_unmask(struct pcf50633 *pcf, int irq)
 {
-	dev_info(pcf->dev, "Unmasking IRQ %d\n", irq);
+	dev_dbg(pcf->dev, "Unmasking IRQ %d\n", irq);
 
 	return __pcf50633_irq_mask_set(pcf, irq, 0);
 }
@@ -344,6 +344,9 @@ static void pcf50633_irq_worker(struct work_struct *work)
 		 */
 		goto out;
 	}
+
+	/* defeat 8s death from lowsys on A5 */
+	pcf50633_reg_write(pcf, PCF50633_REG_OOCSHDWN,  0x04);
 
 	/* We immediately read the usb and adapter status. We thus make sure
 	 * only of USBINS/USBREM IRQ handlers are called */
@@ -453,7 +456,6 @@ static void
 pcf50633_client_dev_register(struct pcf50633 *pcf, const char *name,
 						struct platform_device **pdev)
 {
-	struct pcf50633_subdev_pdata *subdev_pdata;
 	int ret;
 
 	*pdev = platform_device_alloc(name, -1);
@@ -461,15 +463,6 @@ pcf50633_client_dev_register(struct pcf50633 *pcf, const char *name,
 		dev_err(pcf->dev, "Falied to allocate %s\n", name);
 		return;
 	}
-
-	subdev_pdata = kmalloc(sizeof(*subdev_pdata), GFP_KERNEL);
-	if (!subdev_pdata) {
-		dev_err(pcf->dev, "Error allocating subdev pdata\n");
-		platform_device_put(*pdev);
-	}
-
-	subdev_pdata->pcf = pcf;
-	platform_device_add_data(*pdev, subdev_pdata, sizeof(*subdev_pdata));
 
 	(*pdev)->dev.parent = pcf->dev;
 
@@ -482,13 +475,13 @@ pcf50633_client_dev_register(struct pcf50633 *pcf, const char *name,
 }
 
 #ifdef CONFIG_PM
-static int pcf50633_suspend(struct device *dev, pm_message_t state)
+static int pcf50633_suspend(struct i2c_client *client, pm_message_t state)
 {
 	struct pcf50633 *pcf;
 	int ret = 0, i;
 	u8 res[5];
 
-	pcf = dev_get_drvdata(dev);
+	pcf = i2c_get_clientdata(client);
 
 	/* Make sure our interrupt handlers are not called
 	 * henceforth */
@@ -523,12 +516,12 @@ out:
 	return ret;
 }
 
-static int pcf50633_resume(struct device *dev)
+static int pcf50633_resume(struct i2c_client *client)
 {
 	struct pcf50633 *pcf;
 	int ret;
 
-	pcf = dev_get_drvdata(dev);
+	pcf = i2c_get_clientdata(client);
 
 	/* Write the saved mask registers */
 	ret = pcf50633_write_block(pcf, PCF50633_REG_INT1M,
@@ -560,8 +553,13 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 {
 	struct pcf50633 *pcf;
 	struct pcf50633_platform_data *pdata = client->dev.platform_data;
-	int i, ret = 0;
+	int i, ret;
 	int version, variant;
+
+	if (!client->irq) {
+		dev_err(&client->dev, "Missing IRQ\n");
+		return -ENOENT;
+	}
 
 	pcf = kzalloc(sizeof(*pcf), GFP_KERNEL);
 	if (!pcf)
@@ -577,6 +575,12 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 	pcf->irq = client->irq;
 	pcf->work_queue = create_singlethread_workqueue("pcf50633");
 
+	if (!pcf->work_queue) {
+		dev_err(&client->dev, "Failed to alloc workqueue\n");
+		ret = -ENOMEM;
+		goto err_free;
+	}
+
 	INIT_WORK(&pcf->irq_work, pcf50633_irq_worker);
 
 	version = pcf50633_reg_read(pcf, 0);
@@ -584,7 +588,7 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 	if (version < 0 || variant < 0) {
 		dev_err(pcf->dev, "Unable to probe pcf50633\n");
 		ret = -ENODEV;
-		goto err;
+		goto err_destroy_workqueue;
 	}
 
 	dev_info(pcf->dev, "Probed device version %d variant %d\n",
@@ -597,6 +601,14 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 	pcf50633_reg_write(pcf, PCF50633_REG_INT3M, 0x00);
 	pcf50633_reg_write(pcf, PCF50633_REG_INT4M, 0x00);
 	pcf50633_reg_write(pcf, PCF50633_REG_INT5M, 0x00);
+
+	ret = request_irq(client->irq, pcf50633_irq,
+					IRQF_TRIGGER_LOW, "pcf50633", pcf);
+
+	if (ret) {
+		dev_err(pcf->dev, "Failed to request IRQ %d\n", ret);
+		goto err_destroy_workqueue;
+	}
 
 	/* Create sub devices */
 	pcf50633_client_dev_register(pcf, "pcf50633-input",
@@ -613,29 +625,16 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 
 		pdev = platform_device_alloc("pcf50633-regltr", i);
 		if (!pdev) {
-			dev_err(pcf->dev, "Cannot create regulator\n");
+			dev_err(pcf->dev, "Cannot create regulator %d\n", i);
 			continue;
 		}
 
 		pdev->dev.parent = pcf->dev;
-		pdev->dev.platform_data = &pdata->reg_init_data[i];
-		dev_set_drvdata(&pdev->dev, pcf);
+		platform_device_add_data(pdev, &pdata->reg_init_data[i],
+					sizeof(pdata->reg_init_data[i]));
 		pcf->regulator_pdev[i] = pdev;
 
 		platform_device_add(pdev);
-	}
-
-	if (client->irq) {
-		ret = request_irq(client->irq, pcf50633_irq,
-				IRQF_TRIGGER_LOW, "pcf50633", pcf);
-
-		if (ret) {
-			dev_err(pcf->dev, "Failed to request IRQ %d\n", ret);
-			goto err;
-		}
-	} else {
-		dev_err(pcf->dev, "No IRQ configured\n");
-		goto err;
 	}
 
 	if (enable_irq_wake(client->irq) < 0)
@@ -651,9 +650,12 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 
 	return 0;
 
-err:
+err_destroy_workqueue:
 	destroy_workqueue(pcf->work_queue);
+err_free:
+	i2c_set_clientdata(client, NULL);
 	kfree(pcf);
+
 	return ret;
 }
 
@@ -686,12 +688,12 @@ static struct i2c_device_id pcf50633_id_table[] = {
 static struct i2c_driver pcf50633_driver = {
 	.driver = {
 		.name	= "pcf50633",
-		.suspend = pcf50633_suspend,
-		.resume	= pcf50633_resume,
 	},
 	.id_table = pcf50633_id_table,
 	.probe = pcf50633_probe,
 	.remove = __devexit_p(pcf50633_remove),
+	.suspend = pcf50633_suspend,
+	.resume	= pcf50633_resume,
 };
 
 static int __init pcf50633_init(void)

@@ -732,7 +732,16 @@ struct early_res {
 	char overlap_ok;
 };
 static struct early_res early_res[MAX_EARLY_RES] __initdata = {
-	{ 0, PAGE_SIZE, "BIOS data page" },	/* BIOS data page */
+	{ 0, PAGE_SIZE, "BIOS data page", 1 },	/* BIOS data page */
+#ifdef CONFIG_X86_32
+	/*
+	 * But first pinch a few for the stack/trampoline stuff
+	 * FIXME: Don't need the extra page at 4K, but need to fix
+	 * trampoline before removing it. (see the GDT stuff)
+	 */
+	{ PAGE_SIZE, PAGE_SIZE, "EX TRAMPOLINE", 1 },
+#endif
+
 	{}
 };
 

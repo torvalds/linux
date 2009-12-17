@@ -13,7 +13,6 @@
  * option) any later version.
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/mm.h>
@@ -78,8 +77,6 @@ struct mutex vme_int;	/*
 				 * Only one VME interrupt can be
 				 * generated at a time, provide locking
 				 */
-struct mutex vme_irq;	/* Locking for VME irq callback configuration */
-
 
 static char driver_name[] = "vme_tsi148";
 
@@ -240,7 +237,6 @@ static u32 tsi148_VERR_irqhandler(void)
  */
 static u32 tsi148_IACK_irqhandler(void)
 {
-	printk("tsi148_IACK_irqhandler\n");
 	wake_up(&iack_queue);
 
 	return TSI148_LCSR_INTC_IACKC;
@@ -252,8 +248,6 @@ static u32 tsi148_IACK_irqhandler(void)
 static u32 tsi148_VIRQ_irqhandler(u32 stat)
 {
 	int vec, i, serviced = 0;
-	void (*call)(int, int, void *);
-	void *priv_data;
 
 	for (i = 7; i > 0; i--) {
 		if (stat & (1 << i)) {
@@ -266,15 +260,7 @@ static u32 tsi148_VIRQ_irqhandler(u32 stat)
 			vec = ioread8(tsi148_bridge->base +
 				TSI148_LCSR_VIACK[i] + 3);
 
-			call = tsi148_bridge->irq[i - 1].callback[vec].func;
-			priv_data =
-				tsi148_bridge->irq[i-1].callback[vec].priv_data;
-
-			if (call != NULL)
-				call(i, vec, priv_data);
-			else
-				printk("Spurilous VME interrupt, level:%x, "
-					"vector:%x\n", i, vec);
+			vme_irq_handler(tsi148_bridge, i, vec);
 
 			serviced |= (1 << i);
 		}
@@ -353,6 +339,8 @@ static int tsi148_irq_init(struct vme_bridge *bridge)
 
 	/* Initialise list for VME bus errors */
 	INIT_LIST_HEAD(&(bridge->vme_errors));
+
+	mutex_init(&(bridge->irq_mtx));
 
 	result = request_irq(pdev->irq,
 			     tsi148_irqhandler,
@@ -433,55 +421,15 @@ int tsi148_iack_received(void)
 }
 
 /*
- * Set up an VME interrupt
+ * Configure VME interrupt
  */
-int tsi148_request_irq(int level, int statid,
-	void (*callback)(int level, int vector, void *priv_data),
-        void *priv_data)
+void tsi148_irq_set(int level, int state, int sync)
 {
-	u32 tmp;
-
-	mutex_lock(&(vme_irq));
-
-	if(tsi148_bridge->irq[level - 1].callback[statid].func) {
-		mutex_unlock(&(vme_irq));
-		printk("VME Interrupt already taken\n");
-		return -EBUSY;
-	}
-
-
-	tsi148_bridge->irq[level - 1].count++;
-	tsi148_bridge->irq[level - 1].callback[statid].priv_data = priv_data;
-	tsi148_bridge->irq[level - 1].callback[statid].func = callback;
-
-	/* Enable IRQ level */
-	tmp = ioread32be(tsi148_bridge->base + TSI148_LCSR_INTEO);
-	tmp |= TSI148_LCSR_INTEO_IRQEO[level - 1];
-	iowrite32be(tmp, tsi148_bridge->base + TSI148_LCSR_INTEO);
-
-	tmp = ioread32be(tsi148_bridge->base + TSI148_LCSR_INTEN);
-	tmp |= TSI148_LCSR_INTEN_IRQEN[level - 1];
-	iowrite32be(tmp, tsi148_bridge->base + TSI148_LCSR_INTEN);
-
-	mutex_unlock(&(vme_irq));
-
-	return 0;
-}
-
-/*
- * Free VME interrupt
- */
-void tsi148_free_irq(int level, int statid)
-{
-	u32 tmp;
 	struct pci_dev *pdev;
+	u32 tmp;
 
-	mutex_lock(&(vme_irq));
-
-	tsi148_bridge->irq[level - 1].count--;
-
-	/* Disable IRQ level if no more interrupts attached at this level*/
-	if (tsi148_bridge->irq[level - 1].count == 0) {
+	/* We need to do the ordering differently for enabling and disabling */
+	if (state == 0) {
 		tmp = ioread32be(tsi148_bridge->base + TSI148_LCSR_INTEN);
 		tmp &= ~TSI148_LCSR_INTEN_IRQEN[level - 1];
 		iowrite32be(tmp, tsi148_bridge->base + TSI148_LCSR_INTEN);
@@ -490,22 +438,28 @@ void tsi148_free_irq(int level, int statid)
 		tmp &= ~TSI148_LCSR_INTEO_IRQEO[level - 1];
 		iowrite32be(tmp, tsi148_bridge->base + TSI148_LCSR_INTEO);
 
-		pdev = container_of(tsi148_bridge->parent, struct pci_dev, dev);
+		if (sync != 0) {
+			pdev = container_of(tsi148_bridge->parent,
+				struct pci_dev, dev);
 
-		synchronize_irq(pdev->irq);
+			synchronize_irq(pdev->irq);
+		}
+	} else {
+		tmp = ioread32be(tsi148_bridge->base + TSI148_LCSR_INTEO);
+		tmp |= TSI148_LCSR_INTEO_IRQEO[level - 1];
+		iowrite32be(tmp, tsi148_bridge->base + TSI148_LCSR_INTEO);
+
+		tmp = ioread32be(tsi148_bridge->base + TSI148_LCSR_INTEN);
+		tmp |= TSI148_LCSR_INTEN_IRQEN[level - 1];
+		iowrite32be(tmp, tsi148_bridge->base + TSI148_LCSR_INTEN);
 	}
-
-	tsi148_bridge->irq[level - 1].callback[statid].func = NULL;
-	tsi148_bridge->irq[level - 1].callback[statid].priv_data = NULL;
-
-	mutex_unlock(&(vme_irq));
 }
 
 /*
  * Generate a VME bus interrupt at the requested level & vector. Wait for
  * interrupt to be acked.
  */
-int tsi148_generate_irq(int level, int statid)
+int tsi148_irq_generate(int level, int statid)
 {
 	u32 tmp;
 
@@ -891,7 +845,7 @@ static int tsi148_alloc_resource(struct vme_master_resource *image,
 		image->pci_resource.start);
 
 	/* If the existing size is OK, return */
-	if (existing_size == (size - 1))
+	if ((size != 0) && (existing_size == (size - 1)))
 		return 0;
 
 	if (existing_size != 0) {
@@ -901,6 +855,11 @@ static int tsi148_alloc_resource(struct vme_master_resource *image,
 			kfree(image->pci_resource.name);
 		release_resource(&(image->pci_resource));
 		memset(&(image->pci_resource), 0, sizeof(struct resource));
+	}
+
+	/* Exit here if size is zero */
+	if (size == 0) {
+		return 0;
 	}
 
 	if (image->pci_resource.name == NULL) {
@@ -981,12 +940,13 @@ int tsi148_master_set( struct vme_master_resource *image, int enabled,
 
 	/* Verify input data */
 	if (vme_base & 0xFFFF) {
-		printk("Invalid VME Window alignment\n");
+		printk(KERN_ERR "Invalid VME Window alignment\n");
 		retval = -EINVAL;
 		goto err_window;
 	}
-	if (size < 0x10000) {
-		printk("Invalid VME Window size\n");
+
+	if ((size == 0) && (enabled != 0)) {
+		printk(KERN_ERR "Size must be non-zero for enabled windows\n");
 		retval = -EINVAL;
 		goto err_window;
 	}
@@ -994,26 +954,31 @@ int tsi148_master_set( struct vme_master_resource *image, int enabled,
 	spin_lock(&(image->lock));
 
 	/* Let's allocate the resource here rather than further up the stack as
-	 * it avoids pushing loads of bus dependant stuff up the stack
+	 * it avoids pushing loads of bus dependant stuff up the stack. If size
+	 * is zero, any existing resource will be freed.
 	 */
 	retval = tsi148_alloc_resource(image, size);
 	if (retval) {
 		spin_unlock(&(image->lock));
-		printk(KERN_ERR "Unable to allocate memory for resource "
-			"name\n");
-		retval = -ENOMEM;
+		printk(KERN_ERR "Unable to allocate memory for "
+			"resource\n");
 		goto err_res;
 	}
 
-	pci_base = (unsigned long long)image->pci_resource.start;
+	if (size == 0) {
+		pci_base = 0;
+		pci_bound = 0;
+		vme_offset = 0;
+	} else {
+		pci_base = (unsigned long long)image->pci_resource.start;
 
-
-	/*
-	 * Bound address is a valid address for the window, adjust
-	 * according to window granularity.
-	 */
-	pci_bound = pci_base + (size - 0x10000);
-	vme_offset = vme_base - pci_base;
+		/*
+		 * Bound address is a valid address for the window, adjust
+		 * according to window granularity.
+		 */
+		pci_bound = pci_base + (size - 0x10000);
+		vme_offset = vme_base - pci_base;
+	}
 
 	/* Convert 64-bit variables to 2x 32-bit variables */
 	reg_split(pci_base, &pci_base_high, &pci_base_low);
@@ -1022,19 +987,19 @@ int tsi148_master_set( struct vme_master_resource *image, int enabled,
 
 	if (pci_base_low & 0xFFFF) {
 		spin_unlock(&(image->lock));
-		printk("Invalid PCI base alignment\n");
+		printk(KERN_ERR "Invalid PCI base alignment\n");
 		retval = -EINVAL;
 		goto err_gran;
 	}
 	if (pci_bound_low & 0xFFFF) {
 		spin_unlock(&(image->lock));
-		printk("Invalid PCI bound alignment\n");
+		printk(KERN_ERR "Invalid PCI bound alignment\n");
 		retval = -EINVAL;
 		goto err_gran;
 	}
 	if (vme_offset_low & 0xFFFF) {
 		spin_unlock(&(image->lock));
-		printk("Invalid VME Offset alignment\n");
+		printk(KERN_ERR "Invalid VME Offset alignment\n");
 		retval = -EINVAL;
 		goto err_gran;
 	}
@@ -1094,7 +1059,8 @@ int tsi148_master_set( struct vme_master_resource *image, int enabled,
 		temp_ctl |= TSI148_LCSR_OTAT_TM_2eSST;
 	}
 	if (cycle & VME_2eSSTB) {
-		printk("Currently not setting Broadcast Select Registers\n");
+		printk(KERN_WARNING "Currently not setting Broadcast Select "
+			"Registers\n");
 		temp_ctl &= ~TSI148_LCSR_OTAT_TM_M;
 		temp_ctl |= TSI148_LCSR_OTAT_TM_2eSSTB;
 	}
@@ -1110,7 +1076,7 @@ int tsi148_master_set( struct vme_master_resource *image, int enabled,
 		break;
 	default:
 		spin_unlock(&(image->lock));
-		printk("Invalid data width\n");
+		printk(KERN_ERR "Invalid data width\n");
 		retval = -EINVAL;
 		goto err_dwidth;
 	}
@@ -1147,7 +1113,7 @@ int tsi148_master_set( struct vme_master_resource *image, int enabled,
 		break;
 	default:
 		spin_unlock(&(image->lock));
-		printk("Invalid address space\n");
+		printk(KERN_ERR "Invalid address space\n");
 		retval = -EINVAL;
 		goto err_aspace;
 		break;
@@ -2154,7 +2120,7 @@ int tsi148_lm_detach(struct vme_lm_resource *lm, int monitor)
 	iowrite32be(tmp, tsi148_bridge->base + TSI148_LCSR_INTEO);
 
 	iowrite32be(TSI148_LCSR_INTC_LMC[monitor],
-		 tsi148_bridge->base + TSI148_LCSR_INTEO);
+		 tsi148_bridge->base + TSI148_LCSR_INTC);
 
 	/* Detach callback */
 	lm_callback[monitor] = NULL;
@@ -2334,7 +2300,6 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	init_waitqueue_head(&dma_queue[1]);
 	init_waitqueue_head(&iack_queue);
 	mutex_init(&(vme_int));
-	mutex_init(&(vme_irq));
 	mutex_init(&(vme_rmw));
 
 	tsi148_bridge->parent = &(pdev->dev);
@@ -2482,9 +2447,8 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	tsi148_bridge->dma_list_add = tsi148_dma_list_add;
 	tsi148_bridge->dma_list_exec = tsi148_dma_list_exec;
 	tsi148_bridge->dma_list_empty = tsi148_dma_list_empty;
-	tsi148_bridge->request_irq = tsi148_request_irq;
-	tsi148_bridge->free_irq = tsi148_free_irq;
-	tsi148_bridge->generate_irq = tsi148_generate_irq;
+	tsi148_bridge->irq_set = tsi148_irq_set;
+	tsi148_bridge->irq_generate = tsi148_irq_generate;
 	tsi148_bridge->lm_set = tsi148_lm_set;
 	tsi148_bridge->lm_get = tsi148_lm_get;
 	tsi148_bridge->lm_attach = tsi148_lm_attach;
@@ -2615,13 +2579,6 @@ static void tsi148_remove(struct pci_dev *pdev)
 	if (ioread32be(tsi148_bridge->base + TSI148_LCSR_VICR) & 0x800) {
 		iowrite32be(0x8000, tsi148_bridge->base + TSI148_LCSR_VICR);
 	}
-
-	/*
-	 *  Disable and clear all interrupts.
-	 */
-	iowrite32be(0x0, tsi148_bridge->base + TSI148_LCSR_INTEO);
-	iowrite32be(0xFFFFFFFF, tsi148_bridge->base + TSI148_LCSR_INTC);
-	iowrite32be(0xFFFFFFFF, tsi148_bridge->base + TSI148_LCSR_INTEN);
 
 	/*
 	 *  Map all Interrupts to PCI INTA

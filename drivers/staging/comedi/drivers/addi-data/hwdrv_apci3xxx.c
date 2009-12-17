@@ -148,7 +148,7 @@ int i_APCI3XXX_AnalogInputConfigOperatingMode(struct comedi_device *dev,
 			/* Test the convert time value */
 	      /*******************************/
 
-			if ((dw_ReloadValue >= 0) && (dw_ReloadValue <= 65535)) {
+			if (dw_ReloadValue <= 65535) {
 				dw_TestReloadValue = dw_ReloadValue;
 
 				if (b_TimeBase == 1) {

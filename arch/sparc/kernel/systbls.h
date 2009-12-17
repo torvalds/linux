@@ -9,7 +9,6 @@
 struct new_utsname;
 
 extern asmlinkage unsigned long sys_getpagesize(void);
-extern asmlinkage unsigned long sparc_brk(unsigned long brk);
 extern asmlinkage long sparc_pipe(struct pt_regs *regs);
 extern asmlinkage long sys_ipc(unsigned int call, int first,
 			       unsigned long second,

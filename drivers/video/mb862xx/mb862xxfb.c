@@ -214,6 +214,8 @@ static int mb862xxfb_set_par(struct fb_info *fbi)
 	unsigned long reg, sc;
 
 	dev_dbg(par->dev, "%s\n", __func__);
+	if (par->type == BT_CORALP)
+		mb862xxfb_init_accel(fbi, fbi->var.xres);
 
 	if (par->pre_init)
 		return 0;
@@ -452,6 +454,18 @@ static ssize_t mb862xxfb_show_dispregs(struct device *dev,
 	for (reg = GC_DCM1; reg <= GC_L0WH_L0WW; reg += 4)
 		ptr += sprintf(ptr, "%08x = %08x\n",
 			       reg, inreg(disp, reg));
+
+	for (reg = 0x400; reg <= 0x410; reg += 4)
+		ptr += sprintf(ptr, "geo %08x = %08x\n",
+			       reg, inreg(geo, reg));
+
+	for (reg = 0x400; reg <= 0x410; reg += 4)
+		ptr += sprintf(ptr, "draw %08x = %08x\n",
+			       reg, inreg(draw, reg));
+
+	for (reg = 0x440; reg <= 0x450; reg += 4)
+		ptr += sprintf(ptr, "draw %08x = %08x\n",
+			       reg, inreg(draw, reg));
 
 	return ptr - buf;
 }

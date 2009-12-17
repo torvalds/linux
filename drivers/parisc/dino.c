@@ -354,7 +354,7 @@ static unsigned int dino_startup_irq(unsigned int irq)
 }
 
 static struct irq_chip dino_interrupt_type = {
-	.typename	= "GSC-PCI",
+	.name		= "GSC-PCI",
 	.startup	= dino_startup_irq,
 	.shutdown	= dino_disable_irq,
 	.enable		= dino_enable_irq, 

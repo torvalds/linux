@@ -236,7 +236,7 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	}
 
 	if (unlikely(ehci->debug)) {
-		if (ehci->debug && !dbgp_reset_prep())
+		if (!dbgp_reset_prep())
 			ehci->debug = NULL;
 		else
 			dbgp_external_startup();

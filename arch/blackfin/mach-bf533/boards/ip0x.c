@@ -20,6 +20,7 @@
 #endif
 #include <asm/irq.h>
 #include <asm/bfin5xx_spi.h>
+#include <asm/portmux.h>
 
 /*
  * Name the Board for the /proc/cpuinfo
@@ -107,20 +108,6 @@ static struct platform_device dm9000_device2 = {
 
 #if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
 static struct bfin5xx_spi_chip mmc_spi_chip_info = {
-/*
- * CPOL (Clock Polarity)
- *  0 - Active high SCK
- *  1 - Active low SCK
- *  CPHA (Clock Phase) Selects transfer format and operation mode
- *  0 - SCLK toggles from middle of the first data bit, slave select
- *      pins controlled by hardware.
- *  1 - SCLK toggles from beginning of first data bit, slave select
- *      pins controller by user software.
- * 	.ctl_reg = 0x1c00,		 *  CPOL=1,CPHA=1,Sandisk 1G work
- * NO NO	.ctl_reg = 0x1800,		 *  CPOL=1,CPHA=0
- * NO NO	.ctl_reg = 0x1400,		 *  CPOL=0,CPHA=1
- */
-	.ctl_reg = 0x1000,		/* CPOL=0,CPHA=0,Sandisk 1G work */
 	.enable_dma = 0,		/* if 1 - block!!! */
 	.bits_per_word = 8,
 };

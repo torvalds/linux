@@ -295,10 +295,11 @@ SYSCALL_DEFINE1(fdatasync, unsigned int, fd)
  */
 int generic_write_sync(struct file *file, loff_t pos, loff_t count)
 {
-	if (!(file->f_flags & O_SYNC) && !IS_SYNC(file->f_mapping->host))
+	if (!(file->f_flags & O_DSYNC) && !IS_SYNC(file->f_mapping->host))
 		return 0;
 	return vfs_fsync_range(file, file->f_path.dentry, pos,
-			       pos + count - 1, 1);
+			       pos + count - 1,
+			       (file->f_flags & __O_SYNC) ? 0 : 1);
 }
 EXPORT_SYMBOL(generic_write_sync);
 
@@ -452,9 +453,7 @@ int do_sync_mapping_range(struct address_space *mapping, loff_t offset,
 
 	ret = 0;
 	if (flags & SYNC_FILE_RANGE_WAIT_BEFORE) {
-		ret = wait_on_page_writeback_range(mapping,
-					offset >> PAGE_CACHE_SHIFT,
-					endbyte >> PAGE_CACHE_SHIFT);
+		ret = filemap_fdatawait_range(mapping, offset, endbyte);
 		if (ret < 0)
 			goto out;
 	}
@@ -467,9 +466,7 @@ int do_sync_mapping_range(struct address_space *mapping, loff_t offset,
 	}
 
 	if (flags & SYNC_FILE_RANGE_WAIT_AFTER) {
-		ret = wait_on_page_writeback_range(mapping,
-					offset >> PAGE_CACHE_SHIFT,
-					endbyte >> PAGE_CACHE_SHIFT);
+		ret = filemap_fdatawait_range(mapping, offset, endbyte);
 	}
 out:
 	return ret;

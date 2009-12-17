@@ -1797,7 +1797,7 @@ static const struct file_operations viafb_vt1636_proc_fops = {
 static void viafb_init_proc(struct proc_dir_entry **viafb_entry)
 {
 	*viafb_entry = proc_mkdir("viafb", NULL);
-	if (viafb_entry) {
+	if (*viafb_entry) {
 		proc_create("dvp0", 0, *viafb_entry, &viafb_dvp0_proc_fops);
 		proc_create("dvp1", 0, *viafb_entry, &viafb_dvp1_proc_fops);
 		proc_create("dfph", 0, *viafb_entry, &viafb_dfph_proc_fops);

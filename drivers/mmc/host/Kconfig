@@ -251,6 +251,14 @@ config MMC_MVSDIO
 	  To compile this driver as a module, choose M here: the
 	  module will be called mvsdio.
 
+config MMC_DAVINCI
+        tristate "TI DAVINCI Multimedia Card Interface support"
+        depends on ARCH_DAVINCI
+        help
+          This selects the TI DAVINCI Multimedia card Interface.
+          If you have an DAVINCI board with a Multimedia Card slot,
+          say Y or M here.  If unsure, say N.
+
 config MMC_SPI
 	tristate "MMC/SD/SDIO over SPI"
 	depends on SPI_MASTER && !HIGHMEM && HAS_DMA
@@ -357,3 +365,22 @@ config MMC_VIA_SDMMC
 	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say N.
+
+config SDH_BFIN
+	tristate "Blackfin Secure Digital Host support"
+	depends on MMC && ((BF54x && !BF544) || (BF51x && !BF512))
+	help
+	  If you say yes here you will get support for the Blackfin on-chip
+	  Secure Digital Host interface.  This includes support for MMC and
+	  SD cards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bfin_sdh.
+
+	  If unsure, say N.
+
+config SDH_BFIN_MISSING_CMD_PULLUP_WORKAROUND
+	bool "Blackfin EZkit Missing SDH_CMD Pull Up Resistor Workaround"
+	depends on SDH_BFIN
+	help
+	  If you say yes here SD-Cards may work on the EZkit.

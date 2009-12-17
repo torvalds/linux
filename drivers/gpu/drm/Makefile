@@ -15,7 +15,7 @@ drm-y       :=	drm_auth.o drm_bufs.o drm_cache.o \
 
 drm-$(CONFIG_COMPAT) += drm_ioc32.o
 
-drm_kms_helper-y := drm_fb_helper.o drm_crtc_helper.o
+drm_kms_helper-y := drm_fb_helper.o drm_crtc_helper.o drm_dp_i2c_helper.o
 
 obj-$(CONFIG_DRM_KMS_HELPER) += drm_kms_helper.o
 
@@ -30,4 +30,7 @@ obj-$(CONFIG_DRM_I830)	+= i830/
 obj-$(CONFIG_DRM_I915)  += i915/
 obj-$(CONFIG_DRM_SIS)   += sis/
 obj-$(CONFIG_DRM_SAVAGE)+= savage/
+obj-$(CONFIG_DRM_VMWGFX)+= vmwgfx/
 obj-$(CONFIG_DRM_VIA)	+=via/
+obj-$(CONFIG_DRM_NOUVEAU) +=nouveau/
+obj-y			+= i2c/

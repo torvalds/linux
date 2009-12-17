@@ -29,7 +29,12 @@ struct pcf50633_platform_data {
 	char **batteries;
 	int num_batteries;
 
-	int charging_restart_interval;
+	/*
+	 * Should be set accordingly to the reference resistor used, see
+	 * I_{ch(ref)} charger reference current in the pcf50633 User
+	 * Manual.
+	 */
+	int charger_reference_current_ma;
 
 	/* Callbacks */
 	void (*probe_done)(struct pcf50633 *);
@@ -38,10 +43,6 @@ struct pcf50633_platform_data {
 	void (*force_shutdown)(struct pcf50633 *);
 
 	u8 resumers[5];
-};
-
-struct pcf50633_subdev_pdata {
-	struct pcf50633 *pcf;
 };
 
 struct pcf50633_irq {
@@ -217,5 +218,9 @@ enum pcf50633_reg_int5 {
 #define PCF50633_REG_LEDCTL 0x2a
 #define PCF50633_REG_LEDDIM 0x2b
 
-#endif
+static inline struct pcf50633 *dev_to_pcf50633(struct device *dev)
+{
+	return dev_get_drvdata(dev);
+}
 
+#endif

@@ -233,7 +233,7 @@ static int pcap_ts_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops pcap_ts_pm_ops = {
+static const struct dev_pm_ops pcap_ts_pm_ops = {
 	.suspend	= pcap_ts_suspend,
 	.resume		= pcap_ts_resume,
 };

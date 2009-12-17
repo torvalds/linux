@@ -199,7 +199,6 @@ service_in_request(struct musb *musb, const struct usb_ctrlrequest *ctrlrequest)
 static void musb_g_ep0_giveback(struct musb *musb, struct usb_request *req)
 {
 	musb_g_giveback(&musb->endpoints[0].ep_in, req, 0);
-	musb->ep0_state = MUSB_EP0_STAGE_SETUP;
 }
 
 /*
@@ -258,30 +257,53 @@ __acquires(musb->lock)
 			case USB_RECIP_INTERFACE:
 				break;
 			case USB_RECIP_ENDPOINT:{
-				const u8 num = ctrlrequest->wIndex & 0x0f;
-				struct musb_ep *musb_ep;
+				const u8		epnum =
+					ctrlrequest->wIndex & 0x0f;
+				struct musb_ep		*musb_ep;
+				struct musb_hw_ep	*ep;
+				void __iomem		*regs;
+				int			is_in;
+				u16			csr;
 
-				if (num == 0
-						|| num >= MUSB_C_NUM_EPS
-						|| ctrlrequest->wValue
-							!= USB_ENDPOINT_HALT)
+				if (epnum == 0 || epnum >= MUSB_C_NUM_EPS ||
+				    ctrlrequest->wValue != USB_ENDPOINT_HALT)
 					break;
 
-				if (ctrlrequest->wIndex & USB_DIR_IN)
-					musb_ep = &musb->endpoints[num].ep_in;
+				ep = musb->endpoints + epnum;
+				regs = ep->regs;
+				is_in = ctrlrequest->wIndex & USB_DIR_IN;
+				if (is_in)
+					musb_ep = &ep->ep_in;
 				else
-					musb_ep = &musb->endpoints[num].ep_out;
+					musb_ep = &ep->ep_out;
 				if (!musb_ep->desc)
 					break;
 
-				/* REVISIT do it directly, no locking games */
-				spin_unlock(&musb->lock);
-				musb_gadget_set_halt(&musb_ep->end_point, 0);
-				spin_lock(&musb->lock);
+				handled = 1;
+				/* Ignore request if endpoint is wedged */
+				if (musb_ep->wedged)
+					break;
+
+				musb_ep_select(mbase, epnum);
+				if (is_in) {
+					csr  = musb_readw(regs, MUSB_TXCSR);
+					csr |= MUSB_TXCSR_CLRDATATOG |
+					       MUSB_TXCSR_P_WZC_BITS;
+					csr &= ~(MUSB_TXCSR_P_SENDSTALL |
+						 MUSB_TXCSR_P_SENTSTALL |
+						 MUSB_TXCSR_TXPKTRDY);
+					musb_writew(regs, MUSB_TXCSR, csr);
+				} else {
+					csr  = musb_readw(regs, MUSB_RXCSR);
+					csr |= MUSB_RXCSR_CLRDATATOG |
+					       MUSB_RXCSR_P_WZC_BITS;
+					csr &= ~(MUSB_RXCSR_P_SENDSTALL |
+						 MUSB_RXCSR_P_SENTSTALL);
+					musb_writew(regs, MUSB_RXCSR, csr);
+				}
 
 				/* select ep0 again */
 				musb_ep_select(mbase, 0);
-				handled = 1;
 				} break;
 			default:
 				/* class, vendor, etc ... delegate */
@@ -374,10 +396,8 @@ stall:
 				int			is_in;
 				u16			csr;
 
-				if (epnum == 0
-						|| epnum >= MUSB_C_NUM_EPS
-						|| ctrlrequest->wValue
-							!= USB_ENDPOINT_HALT)
+				if (epnum == 0 || epnum >= MUSB_C_NUM_EPS ||
+				    ctrlrequest->wValue	!= USB_ENDPOINT_HALT)
 					break;
 
 				ep = musb->endpoints + epnum;
@@ -392,24 +412,20 @@ stall:
 
 				musb_ep_select(mbase, epnum);
 				if (is_in) {
-					csr = musb_readw(regs,
-							MUSB_TXCSR);
+					csr = musb_readw(regs, MUSB_TXCSR);
 					if (csr & MUSB_TXCSR_FIFONOTEMPTY)
 						csr |= MUSB_TXCSR_FLUSHFIFO;
 					csr |= MUSB_TXCSR_P_SENDSTALL
 						| MUSB_TXCSR_CLRDATATOG
 						| MUSB_TXCSR_P_WZC_BITS;
-					musb_writew(regs, MUSB_TXCSR,
-							csr);
+					musb_writew(regs, MUSB_TXCSR, csr);
 				} else {
-					csr = musb_readw(regs,
-							MUSB_RXCSR);
+					csr = musb_readw(regs, MUSB_RXCSR);
 					csr |= MUSB_RXCSR_P_SENDSTALL
 						| MUSB_RXCSR_FLUSHFIFO
 						| MUSB_RXCSR_CLRDATATOG
 						| MUSB_RXCSR_P_WZC_BITS;
-					musb_writew(regs, MUSB_RXCSR,
-							csr);
+					musb_writew(regs, MUSB_RXCSR, csr);
 				}
 
 				/* select ep0 again */

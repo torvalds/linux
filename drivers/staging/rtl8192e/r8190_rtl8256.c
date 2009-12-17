@@ -629,7 +629,7 @@ SetRFPowerState8190(
 
 			default:
 					bResult = false;
-					RT_TRACE(COMP_ERR, "SetRFPowerState8190(): unknow state to set: 0x%X!!!\n", eRFPowerState);
+					RT_TRACE(COMP_ERR, "SetRFPowerState8190(): unknown state to set: 0x%X!!!\n", eRFPowerState);
 					break;
 		}
 
