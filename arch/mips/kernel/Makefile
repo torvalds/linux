@@ -2,8 +2,6 @@
 # Makefile for the Linux/MIPS kernel.
 #
 
-CPPFLAGS_vmlinux.lds := $(KBUILD_CFLAGS)
-
 extra-y		:= head.o init_task.o vmlinux.lds
 
 obj-y		+= cpu-probe.o branch.o entry.o genex.o irq.o process.o \
@@ -103,3 +101,5 @@ obj-$(CONFIG_HAVE_STD_PC_SERIAL_PORT)	+= 8250-platform.o
 obj-$(CONFIG_MIPS_CPUFREQ)	+= cpufreq/
 
 EXTRA_CFLAGS += -Werror
+
+CPPFLAGS_vmlinux.lds		:= $(KBUILD_CFLAGS)
