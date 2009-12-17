@@ -5802,22 +5802,22 @@ static int prealloc_file_range(struct inode *inode, u64 start, u64 end,
 	while (num_bytes > 0) {
 		alloc_size = min(num_bytes, root->fs_info->max_extent);
 
+		trans = btrfs_start_transaction(root, 1);
+
 		ret = btrfs_reserve_extent(trans, root, alloc_size,
 					   root->sectorsize, 0, alloc_hint,
 					   (u64)-1, &ins, 1);
 		if (ret) {
 			WARN_ON(1);
-			break;
+			goto stop_trans;
 		}
 
 		ret = btrfs_reserve_metadata_space(root, 3);
 		if (ret) {
 			btrfs_free_reserved_extent(root, ins.objectid,
 						   ins.offset);
-			break;
+			goto stop_trans;
 		}
-
-		trans = btrfs_start_transaction(root, 1);
 
 		ret = insert_reserved_file_extent(trans, inode,
 						  cur_offset, ins.objectid,
@@ -5847,6 +5847,11 @@ static int prealloc_file_range(struct inode *inode, u64 start, u64 end,
 		btrfs_unreserve_metadata_space(root, 3);
 	}
 	return ret;
+
+stop_trans:
+	btrfs_end_transaction(trans, root);
+	return ret;
+
 }
 
 static long btrfs_fallocate(struct inode *inode, int mode,
