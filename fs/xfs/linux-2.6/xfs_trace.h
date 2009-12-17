@@ -815,7 +815,7 @@ TRACE_EVENT(name, \
 	), \
 	TP_printk("dev %d:%d ino 0x%llx size 0x%llx new_size 0x%llx " \
 		  "offset 0x%llx count %zd flags %s " \
-		  "startoff 0x%llx startblock 0x%llx blockcount 0x%llx", \
+		  "startoff 0x%llx startblock %s blockcount 0x%llx", \
 		  MAJOR(__entry->dev), MINOR(__entry->dev), \
 		  __entry->ino, \
 		  __entry->size, \
@@ -824,7 +824,7 @@ TRACE_EVENT(name, \
 		  __entry->count, \
 		  __print_flags(__entry->flags, "|", BMAPI_FLAGS), \
 		  __entry->startoff, \
-		  __entry->startblock, \
+		  xfs_fmtfsblock(__entry->startblock), \
 		  __entry->blockcount) \
 )
 DEFINE_IOMAP_EVENT(xfs_iomap_enter);
@@ -1201,7 +1201,7 @@ TRACE_EVENT(name, \
 	TP_printk("dev %d:%d agno %u agbno %u minlen %u maxlen %u mod %u " \
 		  "prod %u minleft %u total %u alignment %u minalignslop %u " \
 		  "len %u type %s otype %s wasdel %d wasfromfl %d isfl %d " \
-		  "userdata %d firstblock 0x%llx", \
+		  "userdata %d firstblock %s", \
 		  MAJOR(__entry->dev), MINOR(__entry->dev), \
 		  __entry->agno, \
 		  __entry->agbno, \
@@ -1220,7 +1220,7 @@ TRACE_EVENT(name, \
 		  __entry->wasfromfl, \
 		  __entry->isfl, \
 		  __entry->userdata, \
-		  __entry->firstblock) \
+		  xfs_fmtfsblock(__entry->firstblock)) \
 )
 
 DEFINE_ALLOC_EVENT(xfs_alloc_exact_done);
