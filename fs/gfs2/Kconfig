@@ -10,7 +10,6 @@ config GFS2_FS
 	select SLOW_WORK
 	select QUOTA
 	select QUOTACTL
-	select FS_JOURNAL_INFO
 	help
 	  A cluster filesystem.
 
