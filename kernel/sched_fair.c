@@ -1814,73 +1814,6 @@ static void put_prev_task_fair(struct rq *rq, struct task_struct *prev)
  * Fair scheduling class load-balancing methods:
  */
 
-static unsigned long
-balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
-		unsigned long max_load_move, struct sched_domain *sd,
-		enum cpu_idle_type idle, int *all_pinned,
-		int *this_best_prio, struct cfs_rq *busiest_cfs_rq);
-
-
-#ifdef CONFIG_FAIR_GROUP_SCHED
-static unsigned long
-load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
-		  unsigned long max_load_move,
-		  struct sched_domain *sd, enum cpu_idle_type idle,
-		  int *all_pinned, int *this_best_prio)
-{
-	long rem_load_move = max_load_move;
-	int busiest_cpu = cpu_of(busiest);
-	struct task_group *tg;
-
-	rcu_read_lock();
-	update_h_load(busiest_cpu);
-
-	list_for_each_entry_rcu(tg, &task_groups, list) {
-		struct cfs_rq *busiest_cfs_rq = tg->cfs_rq[busiest_cpu];
-		unsigned long busiest_h_load = busiest_cfs_rq->h_load;
-		unsigned long busiest_weight = busiest_cfs_rq->load.weight;
-		u64 rem_load, moved_load;
-
-		/*
-		 * empty group
-		 */
-		if (!busiest_cfs_rq->task_weight)
-			continue;
-
-		rem_load = (u64)rem_load_move * busiest_weight;
-		rem_load = div_u64(rem_load, busiest_h_load + 1);
-
-		moved_load = balance_tasks(this_rq, this_cpu, busiest,
-				rem_load, sd, idle, all_pinned, this_best_prio,
-				busiest_cfs_rq);
-
-		if (!moved_load)
-			continue;
-
-		moved_load *= busiest_h_load;
-		moved_load = div_u64(moved_load, busiest_weight + 1);
-
-		rem_load_move -= moved_load;
-		if (rem_load_move < 0)
-			break;
-	}
-	rcu_read_unlock();
-
-	return max_load_move - rem_load_move;
-}
-#else
-static unsigned long
-load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
-		  unsigned long max_load_move,
-		  struct sched_domain *sd, enum cpu_idle_type idle,
-		  int *all_pinned, int *this_best_prio)
-{
-	return balance_tasks(this_rq, this_cpu, busiest,
-			max_load_move, sd, idle, all_pinned,
-			this_best_prio, &busiest->cfs);
-}
-#endif
-
 /*
  * pull_task - move a task from a remote runqueue to the local runqueue.
  * Both runqueues must be locked.
@@ -2041,6 +1974,66 @@ out:
 
 	return max_load_move - rem_load_move;
 }
+
+#ifdef CONFIG_FAIR_GROUP_SCHED
+static unsigned long
+load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
+		  unsigned long max_load_move,
+		  struct sched_domain *sd, enum cpu_idle_type idle,
+		  int *all_pinned, int *this_best_prio)
+{
+	long rem_load_move = max_load_move;
+	int busiest_cpu = cpu_of(busiest);
+	struct task_group *tg;
+
+	rcu_read_lock();
+	update_h_load(busiest_cpu);
+
+	list_for_each_entry_rcu(tg, &task_groups, list) {
+		struct cfs_rq *busiest_cfs_rq = tg->cfs_rq[busiest_cpu];
+		unsigned long busiest_h_load = busiest_cfs_rq->h_load;
+		unsigned long busiest_weight = busiest_cfs_rq->load.weight;
+		u64 rem_load, moved_load;
+
+		/*
+		 * empty group
+		 */
+		if (!busiest_cfs_rq->task_weight)
+			continue;
+
+		rem_load = (u64)rem_load_move * busiest_weight;
+		rem_load = div_u64(rem_load, busiest_h_load + 1);
+
+		moved_load = balance_tasks(this_rq, this_cpu, busiest,
+				rem_load, sd, idle, all_pinned, this_best_prio,
+				busiest_cfs_rq);
+
+		if (!moved_load)
+			continue;
+
+		moved_load *= busiest_h_load;
+		moved_load = div_u64(moved_load, busiest_weight + 1);
+
+		rem_load_move -= moved_load;
+		if (rem_load_move < 0)
+			break;
+	}
+	rcu_read_unlock();
+
+	return max_load_move - rem_load_move;
+}
+#else
+static unsigned long
+load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
+		  unsigned long max_load_move,
+		  struct sched_domain *sd, enum cpu_idle_type idle,
+		  int *all_pinned, int *this_best_prio)
+{
+	return balance_tasks(this_rq, this_cpu, busiest,
+			max_load_move, sd, idle, all_pinned,
+			this_best_prio, &busiest->cfs);
+}
+#endif
 
 /*
  * move_tasks tries to move up to max_load_move weighted load from busiest to
