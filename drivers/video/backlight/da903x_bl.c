@@ -95,7 +95,7 @@ static int da903x_backlight_get_brightness(struct backlight_device *bl)
 	return data->current_brightness;
 }
 
-static struct backlight_ops da903x_backlight_ops = {
+static const struct backlight_ops da903x_backlight_ops = {
 	.update_status	= da903x_backlight_update_status,
 	.get_brightness	= da903x_backlight_get_brightness,
 };
