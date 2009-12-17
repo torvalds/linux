@@ -23,8 +23,22 @@
 #include <linux/notifier.h>
 #include <asm/suspend.h>
 #include <asm/clock.h>
+#include <asm/dma-sh.h>
 #include <asm/mmzone.h>
 #include <cpu/sh7724.h>
+
+/* DMA */
+static struct sh_dmae_pdata dma_platform_data = {
+	.mode = SHDMA_DMAOR1,
+};
+
+static struct platform_device dma_device = {
+	.name	= "sh-dma-engine",
+	.id		= -1,
+	.dev	= {
+		.platform_data	= &dma_platform_data,
+	},
+};
 
 /* Serial */
 static struct plat_sci_port scif0_platform_data = {
@@ -649,6 +663,7 @@ static struct platform_device *sh7724_devices[] __initdata = {
 	&tmu3_device,
 	&tmu4_device,
 	&tmu5_device,
+	&dma_device,
 	&rtc_device,
 	&iic0_device,
 	&iic1_device,
