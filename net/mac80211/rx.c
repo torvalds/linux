@@ -361,7 +361,9 @@ static void ieee80211_parse_qos(struct ieee80211_rx_data *rx)
  * boundary. In the case of regular frames, this simply means aligning the
  * payload to a four-byte boundary (because either the IP header is directly
  * contained, or IV/RFC1042 headers that have a length divisible by four are
- * in front of it).
+ * in front of it).  If the payload data is not properly aligned and the
+ * architecture doesn't support efficient unaligned operations, mac80211
+ * will align the data.
  *
  * With A-MSDU frames, however, the payload data address must yield two modulo
  * four because there are 14-byte 802.3 headers within the A-MSDU frames that
@@ -375,25 +377,10 @@ static void ieee80211_parse_qos(struct ieee80211_rx_data *rx)
  */
 static void ieee80211_verify_alignment(struct ieee80211_rx_data *rx)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
-	int hdrlen;
-
-#ifndef CONFIG_MAC80211_DEBUG_PACKET_ALIGNMENT
-	return;
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+	WARN_ONCE((unsigned long)rx->skb->data & 1,
+		  "unaligned packet at 0x%p\n", rx->skb->data);
 #endif
-
-	if (WARN_ONCE((unsigned long)rx->skb->data & 1,
-		      "unaligned packet at 0x%p\n", rx->skb->data))
-		return;
-
-	if (!ieee80211_is_data_present(hdr->frame_control))
-		return;
-
-	hdrlen = ieee80211_hdrlen(hdr->frame_control);
-	if (rx->flags & IEEE80211_RX_AMSDU)
-		hdrlen += ETH_HLEN;
-	WARN_ONCE(((unsigned long)(rx->skb->data + hdrlen)) & 3,
-		  "unaligned IP payload at 0x%p\n", rx->skb->data + hdrlen);
 }
 
 
@@ -1510,7 +1497,7 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 	if (skb) {
 		int align __maybe_unused;
 
-#if defined(CONFIG_MAC80211_DEBUG_PACKET_ALIGNMENT) || !defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+#ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 		/*
 		 * 'align' will only take the values 0 or 2 here
 		 * since all frames are required to be aligned
