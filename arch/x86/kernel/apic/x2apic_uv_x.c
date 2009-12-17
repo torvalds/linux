@@ -5,7 +5,7 @@
  *
  * SGI UV APIC functions (note: not an Intel compatible APIC)
  *
- * Copyright (C) 2007-2008 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2007-2009 Silicon Graphics, Inc. All rights reserved.
  */
 #include <linux/cpumask.h>
 #include <linux/hardirq.h>
@@ -627,8 +627,8 @@ void __init uv_system_init(void)
 	}
 
 	uv_bios_init();
-	uv_bios_get_sn_info(0, &uv_type, &sn_partition_id,
-			    &sn_coherency_id, &sn_region_size);
+	uv_bios_get_sn_info(0, &uv_type, &sn_partition_id, &sn_coherency_id,
+			    &sn_region_size, &system_serial_number);
 	uv_rtc_init();
 
 	for_each_present_cpu(cpu) {
