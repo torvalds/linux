@@ -33,13 +33,15 @@
 #include "nouveau_hw.h"
 #include "nv17_tv.h"
 
-enum drm_connector_status nv17_tv_detect(struct drm_encoder *encoder,
-					 struct drm_connector *connector,
-					 uint32_t pin_mask)
+static enum drm_connector_status
+nv17_tv_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 {
+	struct drm_device *dev = encoder->dev;
+	struct drm_mode_config *conf = &dev->mode_config;
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
+	struct dcb_entry *dcb = tv_enc->base.dcb;
 
-	tv_enc->pin_mask = pin_mask >> 28 & 0xe;
+	tv_enc->pin_mask = nv17_dac_sample_load(encoder) >> 28 & 0xe;
 
 	switch (tv_enc->pin_mask) {
 	case 0x2:
@@ -50,7 +52,7 @@ enum drm_connector_status nv17_tv_detect(struct drm_encoder *encoder,
 		tv_enc->subconnector = DRM_MODE_SUBCONNECTOR_SVIDEO;
 		break;
 	case 0xe:
-		if (nouveau_encoder(encoder)->dcb->tvconf.has_component_output)
+		if (dcb->tvconf.has_component_output)
 			tv_enc->subconnector = DRM_MODE_SUBCONNECTOR_Component;
 		else
 			tv_enc->subconnector = DRM_MODE_SUBCONNECTOR_SCART;
@@ -61,11 +63,16 @@ enum drm_connector_status nv17_tv_detect(struct drm_encoder *encoder,
 	}
 
 	drm_connector_property_set_value(connector,
-			encoder->dev->mode_config.tv_subconnector_property,
-							tv_enc->subconnector);
+					 conf->tv_subconnector_property,
+					 tv_enc->subconnector);
 
-	return tv_enc->subconnector ? connector_status_connected :
-					connector_status_disconnected;
+	if (tv_enc->subconnector) {
+		NV_INFO(dev, "Load detected on output %c\n",
+			'@' + ffs(dcb->or));
+		return connector_status_connected;
+	} else {
+		return connector_status_disconnected;
+	}
 }
 
 static const struct {
@@ -633,7 +640,7 @@ static struct drm_encoder_helper_funcs nv17_tv_helper_funcs = {
 	.prepare = nv17_tv_prepare,
 	.commit = nv17_tv_commit,
 	.mode_set = nv17_tv_mode_set,
-	.detect = nv17_dac_detect,
+	.detect = nv17_tv_detect,
 };
 
 static struct drm_encoder_slave_funcs nv17_tv_slave_funcs = {

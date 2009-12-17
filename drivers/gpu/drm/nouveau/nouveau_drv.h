@@ -1074,8 +1074,7 @@ extern long nouveau_compat_ioctl(struct file *file, unsigned int cmd,
 
 /* nv04_dac.c */
 extern int nv04_dac_create(struct drm_device *dev, struct dcb_entry *entry);
-extern enum drm_connector_status nv17_dac_detect(struct drm_encoder *encoder,
-						 struct drm_connector *connector);
+extern uint32_t nv17_dac_sample_load(struct drm_encoder *encoder);
 extern int nv04_dac_output_offset(struct drm_encoder *encoder);
 extern void nv04_dac_update_dacclk(struct drm_encoder *encoder, bool enable);
 
@@ -1093,9 +1092,6 @@ extern int nv04_tv_create(struct drm_device *dev, struct dcb_entry *entry);
 
 /* nv17_tv.c */
 extern int nv17_tv_create(struct drm_device *dev, struct dcb_entry *entry);
-extern enum drm_connector_status nv17_tv_detect(struct drm_encoder *encoder,
-						struct drm_connector *connector,
-						uint32_t pin_mask);
 
 /* nv04_display.c */
 extern int nv04_display_create(struct drm_device *);
