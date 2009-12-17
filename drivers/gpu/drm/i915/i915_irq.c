@@ -313,6 +313,8 @@ irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 			dev_priv->mm.irq_gem_seqno = seqno;
 			trace_i915_gem_request_complete(dev, seqno);
 			DRM_WAKEUP(&dev_priv->irq_queue);
+			dev_priv->hangcheck_count = 0;
+			mod_timer(&dev_priv->hangcheck_timer, jiffies + DRM_I915_HANGCHECK_PERIOD);
 		}
 
 		if (de_iir & DE_GSE)
