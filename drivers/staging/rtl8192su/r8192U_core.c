@@ -126,6 +126,8 @@ static struct usb_device_id rtl8192_usb_id_tbl[] = {
 	{USB_DEVICE(0x2001, 0x3301)},
 	/* Zinwell */
 	{USB_DEVICE(0x5a57, 0x0290)},
+	/* Guillemot */
+	{USB_DEVICE(0x06f8, 0xe031)},
 	//92SU
 	{USB_DEVICE(0x0bda, 0x8172)},
 	{}
