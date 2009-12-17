@@ -1412,7 +1412,7 @@ static LIST_HEAD(dump_list);
 
 /**
  * kmsg_dump_register - register a kernel log dumper.
- * @dump: pointer to the kmsg_dumper structure
+ * @dumper: pointer to the kmsg_dumper structure
  *
  * Adds a kernel log dumper to the system. The dump callback in the
  * structure will be called when the kernel oopses or panics and must be
@@ -1442,7 +1442,7 @@ EXPORT_SYMBOL_GPL(kmsg_dump_register);
 
 /**
  * kmsg_dump_unregister - unregister a kmsg dumper.
- * @dump: pointer to the kmsg_dumper structure
+ * @dumper: pointer to the kmsg_dumper structure
  *
  * Removes a dump device from the system. Returns zero on success and
  * %-EINVAL otherwise.
