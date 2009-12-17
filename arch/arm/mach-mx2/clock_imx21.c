@@ -28,7 +28,7 @@
 #include <asm/clkdev.h>
 #include <asm/div64.h>
 
-#define IO_ADDR_CCM(off)	(MX21_IO_ADDRESS(MX21_CCM_BASE_ADDR) + (off))
+#define IO_ADDR_CCM(off)	(MX21_IO_ADDRESS(MX21_CCM_BASE_ADDR + (off)))
 
 /* Register offsets */
 #define CCM_CSCR		IO_ADDR_CCM(0x0)

@@ -29,7 +29,7 @@
 #include <mach/common.h>
 #include <mach/hardware.h>
 
-#define IO_ADDR_CCM(off)	(MX27_IO_ADDRESS(MX27_CCM_BASE_ADDR) + (off))
+#define IO_ADDR_CCM(off)	(MX27_IO_ADDRESS(MX27_CCM_BASE_ADDR + (off)))
 
 /* Register offsets */
 #define CCM_CSCR		IO_ADDR_CCM(0x0)
