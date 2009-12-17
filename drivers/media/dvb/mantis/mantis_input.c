@@ -118,7 +118,7 @@ int mantis_input_init(struct mantis_pci *mantis)
 	rc->name = name;
 	rc->phys = dev;
 
-	ir_input_init(rc, &rc_state, IR_TYPE_OTHER, &ir_mantis);
+	ir_input_init(rc, &rc_state, IR_TYPE_OTHER);
 
 	rc->id.bustype	= BUS_PCI;
 	rc->id.vendor	= mantis->vendor_id;
@@ -126,7 +126,7 @@ int mantis_input_init(struct mantis_pci *mantis)
 	rc->id.version	= 1;
 	rc->dev		= mantis->pdev->dev;
 
-	err = input_register_device(rc);
+	err = ir_input_register(rc, &ir_mantis);
 	if (err) {
 		dprintk(MANTIS_ERROR, 1, "IR device registration failed, ret = %d", err);
 		input_free_device(rc);
@@ -142,7 +142,7 @@ int mantis_exit(struct mantis_pci *mantis)
 {
 	struct input_dev *rc = mantis->rc;
 
-	input_unregister_device(rc);
+	ir_input_unregister(rc);
 
 	return 0;
 }
