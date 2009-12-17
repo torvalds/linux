@@ -19,13 +19,13 @@ int platform_boot_secondary(unsigned int cpu, struct task_struct *idle);
 
 void platform_secondary_init(unsigned int cpu);
 
-void platform_request_ipi(/*irq_handler_t*/ void *handler);
+void platform_request_ipi(int irq, /*irq_handler_t*/ void *handler);
 
-void platform_send_ipi(cpumask_t callmap);
+void platform_send_ipi(cpumask_t callmap, int irq);
 
-void platform_send_ipi_cpu(unsigned int cpu);
+void platform_send_ipi_cpu(unsigned int cpu, int irq);
 
-void platform_clear_ipi(unsigned int cpu);
+void platform_clear_ipi(unsigned int cpu, int irq);
 
 void bfin_local_timer_setup(void);
 
