@@ -97,7 +97,7 @@ static ssize_t store_protocol(struct device *d,
 		return -EINVAL;
 	}
 
-	if (ir_dev->props->change_protocol)
+	if (ir_dev->props && ir_dev->props->change_protocol)
 		rc = ir_dev->props->change_protocol(ir_dev->props->priv,
 						    ir_type);
 
