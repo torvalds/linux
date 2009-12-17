@@ -2517,7 +2517,10 @@ static int alc_build_controls(struct hda_codec *codec)
 	if (!kctl)
 		kctl = snd_hda_find_mixer_ctl(codec, "Input Source");
 	for (i = 0; kctl && i < kctl->count; i++) {
-		err = snd_hda_add_nids(codec, kctl, i, spec->capsrc_nids,
+		hda_nid_t *nids = spec->capsrc_nids;
+		if (!nids)
+			nids = spec->adc_nids;
+		err = snd_hda_add_nids(codec, kctl, i, nids,
 				       spec->input_mux->num_items);
 		if (err < 0)
 			return err;
