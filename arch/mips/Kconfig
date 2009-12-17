@@ -50,23 +50,6 @@ config AR7
 	  Support for the Texas Instruments AR7 System-on-a-Chip
 	  family: TNETD7100, 7200 and 7300.
 
-config BASLER_EXCITE
-	bool "Basler eXcite smart camera"
-	select CEVT_R4K
-	select CSRC_R4K
-	select DMA_COHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select IRQ_CPU_RM7K
-	select IRQ_CPU_RM9K
-	select MIPS_RM9122
-	select SYS_HAS_CPU_RM9000
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	help
-	  The eXcite is a smart camera platform manufactured by
-	  Basler Vision Technologies AG.
-
 config BCM47XX
 	bool "BCM47XX based boards"
 	select CEVT_R4K
@@ -701,7 +684,6 @@ config CAVIUM_OCTEON_REFERENCE_BOARD
 endchoice
 
 source "arch/mips/alchemy/Kconfig"
-source "arch/mips/basler/excite/Kconfig"
 source "arch/mips/bcm63xx/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/lasat/Kconfig"

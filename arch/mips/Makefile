@@ -369,13 +369,6 @@ cflags-$(CONFIG_PMC_YOSEMITE)	+= -I$(srctree)/arch/mips/include/asm/mach-yosemit
 load-$(CONFIG_PMC_YOSEMITE)	+= 0xffffffff80100000
 
 #
-# Basler eXcite
-#
-core-$(CONFIG_BASLER_EXCITE)	+= arch/mips/basler/excite/
-cflags-$(CONFIG_BASLER_EXCITE)	+= -I$(srctree)/arch/mips/include/asm/mach-excite
-load-$(CONFIG_BASLER_EXCITE)	+= 0x80100000
-
-#
 # LASAT platforms
 #
 core-$(CONFIG_LASAT)		+= arch/mips/lasat/
