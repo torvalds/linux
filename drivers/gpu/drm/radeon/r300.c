@@ -992,6 +992,18 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		}
 		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
 		break;
+	case 0x4e0c:
+		/* RB3D_COLOR_CHANNEL_MASK */
+		track->color_channel_mask = idx_value;
+		break;
+	case 0x4d1c:
+		/* ZB_BW_CNTL */
+		track->fastfill = !!(idx_value & (1 << 2));
+		break;
+	case 0x4e04:
+		/* RB3D_BLENDCNTL */
+		track->blend_read_enable = !!(idx_value & (1 << 2));
+		break;
 	case 0x4be8:
 		/* valid register only on RV530 */
 		if (p->rdev->family == CHIP_RV530)
