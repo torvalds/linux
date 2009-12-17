@@ -166,26 +166,8 @@ static unsigned long __init init_initrd(void)
 	 * already set up initrd_start and initrd_end. In these cases
 	 * perfom sanity checks and use them if all looks good.
 	 */
-	if (!initrd_start || initrd_end <= initrd_start) {
-#ifdef CONFIG_PROBE_INITRD_HEADER
-		u32 *initrd_header;
-
-		/*
-		 * See if initrd has been added to the kernel image by
-		 * arch/mips/boot/addinitrd.c. In that case a header is
-		 * prepended to initrd and is made up by 8 bytes. The first
-		 * word is a magic number and the second one is the size of
-		 * initrd.  Initrd start must be page aligned in any cases.
-		 */
-		initrd_header = __va(PAGE_ALIGN(__pa_symbol(&_end) + 8)) - 8;
-		if (initrd_header[0] != 0x494E5244)
-			goto disable;
-		initrd_start = (unsigned long)(initrd_header + 2);
-		initrd_end = initrd_start + initrd_header[1];
-#else
+	if (!initrd_start || initrd_end <= initrd_start)
 		goto disable;
-#endif
-	}
 
 	if (initrd_start & ~PAGE_MASK) {
 		pr_err("initrd start must be page aligned\n");
