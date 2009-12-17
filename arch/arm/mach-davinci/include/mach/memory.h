@@ -33,6 +33,7 @@
 
 #define DDR2_SDRCR_OFFSET	0xc
 #define DDR2_SRPD_BIT		BIT(23)
+#define DDR2_MCLKSTOPEN_BIT	BIT(30)
 #define DDR2_LPMODEN_BIT	BIT(31)
 
 /*
