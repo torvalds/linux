@@ -135,8 +135,8 @@ MODULE_PARM_DESC(fourth_id_byte, "The fourth byte returned by NAND Flash 'read I
 MODULE_PARM_DESC(access_delay,   "Initial page access delay (microseconds)");
 MODULE_PARM_DESC(programm_delay, "Page programm delay (microseconds");
 MODULE_PARM_DESC(erase_delay,    "Sector erase delay (milliseconds)");
-MODULE_PARM_DESC(output_cycle,   "Word output (from flash) time (nanodeconds)");
-MODULE_PARM_DESC(input_cycle,    "Word input (to flash) time (nanodeconds)");
+MODULE_PARM_DESC(output_cycle,   "Word output (from flash) time (nanoseconds)");
+MODULE_PARM_DESC(input_cycle,    "Word input (to flash) time (nanoseconds)");
 MODULE_PARM_DESC(bus_width,      "Chip's bus width (8- or 16-bit)");
 MODULE_PARM_DESC(do_delays,      "Simulate NAND delays using busy-waits if not zero");
 MODULE_PARM_DESC(log,            "Perform logging if not zero");
