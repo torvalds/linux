@@ -2065,6 +2065,10 @@ static int move_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		 */
 		if (idle == CPU_NEWLY_IDLE && this_rq->nr_running)
 			break;
+
+		if (raw_spin_is_contended(&this_rq->lock) ||
+				raw_spin_is_contended(&busiest->lock))
+			break;
 #endif
 	} while (load_moved && max_load_move > total_load_moved);
 
