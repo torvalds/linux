@@ -4805,16 +4805,14 @@ static void nfs4_init_channel_attrs(struct nfs41_create_session_args *args)
 	args->fc_attrs.headerpadsz = 0;
 	args->fc_attrs.max_rqst_sz = mxrqst_sz;
 	args->fc_attrs.max_resp_sz = mxresp_sz;
-	args->fc_attrs.max_resp_sz_cached = mxresp_sz;
 	args->fc_attrs.max_ops = NFS4_MAX_OPS;
 	args->fc_attrs.max_reqs = session->clp->cl_rpcclient->cl_xprt->max_reqs;
 
 	dprintk("%s: Fore Channel : max_rqst_sz=%u max_resp_sz=%u "
-		"max_resp_sz_cached=%u max_ops=%u max_reqs=%u\n",
+		"max_ops=%u max_reqs=%u\n",
 		__func__,
 		args->fc_attrs.max_rqst_sz, args->fc_attrs.max_resp_sz,
-		args->fc_attrs.max_resp_sz_cached, args->fc_attrs.max_ops,
-		args->fc_attrs.max_reqs);
+		args->fc_attrs.max_ops, args->fc_attrs.max_reqs);
 
 	/* Back channel attributes */
 	args->bc_attrs.headerpadsz = 0;
