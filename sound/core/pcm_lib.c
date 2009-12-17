@@ -126,15 +126,22 @@ void snd_pcm_playback_silence(struct snd_pcm_substream *substream, snd_pcm_ufram
 	}
 }
 
+#define XRUN_DEBUG_BASIC	(1<<0)
+#define XRUN_DEBUG_STACK	(1<<1)	/* dump also stack */
+#define XRUN_DEBUG_JIFFIESCHECK	(1<<2)	/* do jiffies check */
+#define XRUN_DEBUG_PERIODUPDATE	(1<<3)	/* full period update info */
+#define XRUN_DEBUG_HWPTRUPDATE	(1<<4)	/* full hwptr update info */
+
 #ifdef CONFIG_SND_PCM_XRUN_DEBUG
-#define xrun_debug(substream, mask)	((substream)->pstr->xrun_debug & (mask))
+#define xrun_debug(substream, mask) \
+			((substream)->pstr->xrun_debug & (mask))
 #else
 #define xrun_debug(substream, mask)	0
 #endif
 
-#define dump_stack_on_xrun(substream) do {		\
-		if (xrun_debug(substream, 2))		\
-			dump_stack();			\
+#define dump_stack_on_xrun(substream) do {			\
+		if (xrun_debug(substream, XRUN_DEBUG_STACK))	\
+			dump_stack();				\
 	} while (0)
 
 static void pcm_debug_name(struct snd_pcm_substream *substream,
@@ -154,7 +161,7 @@ static void xrun(struct snd_pcm_substream *substream)
 	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE)
 		snd_pcm_gettime(runtime, (struct timespec *)&runtime->status->tstamp);
 	snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
-	if (xrun_debug(substream, 1)) {
+	if (xrun_debug(substream, XRUN_DEBUG_BASIC)) {
 		char name[16];
 		pcm_debug_name(substream, name, sizeof(name));
 		snd_printd(KERN_DEBUG "XRUN: %s\n", name);
@@ -215,7 +222,7 @@ static int snd_pcm_update_hw_ptr_post(struct snd_pcm_substream *substream,
 
 #define hw_ptr_error(substream, fmt, args...)				\
 	do {								\
-		if (xrun_debug(substream, 1)) {				\
+		if (xrun_debug(substream, XRUN_DEBUG_BASIC)) {		\
 			if (printk_ratelimit()) {			\
 				snd_printd("PCM: " fmt, ##args);	\
 			}						\
@@ -237,7 +244,7 @@ static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 		xrun(substream);
 		return -EPIPE;
 	}
-	if (xrun_debug(substream, 8)) {
+	if (xrun_debug(substream, XRUN_DEBUG_PERIODUPDATE)) {
 		char name[16];
 		pcm_debug_name(substream, name, sizeof(name));
 		snd_printd("period_update: %s: pos=0x%x/0x%x/0x%x, "
@@ -290,7 +297,7 @@ static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 	}
 
 	/* Do jiffies check only in xrun_debug mode */
-	if (!xrun_debug(substream, 4))
+	if (!xrun_debug(substream, XRUN_DEBUG_JIFFIESCHECK))
 		goto no_jiffies_check;
 
 	/* Skip the jiffies check for hardwares with BATCH flag.
@@ -369,7 +376,7 @@ int snd_pcm_update_hw_ptr(struct snd_pcm_substream *substream)
 		xrun(substream);
 		return -EPIPE;
 	}
-	if (xrun_debug(substream, 16)) {
+	if (xrun_debug(substream, XRUN_DEBUG_HWPTRUPDATE)) {
 		char name[16];
 		pcm_debug_name(substream, name, sizeof(name));
 		snd_printd("hw_update: %s: pos=0x%x/0x%x/0x%x, "
@@ -403,7 +410,7 @@ int snd_pcm_update_hw_ptr(struct snd_pcm_substream *substream)
 		new_hw_ptr = hw_base + pos;
 	}
 	/* Do jiffies check only in xrun_debug mode */
-	if (!xrun_debug(substream, 4))
+	if (!xrun_debug(substream, XRUN_DEBUG_JIFFIESCHECK))
 		goto no_jiffies_check;
 	if (delta < runtime->delay)
 		goto no_jiffies_check;
