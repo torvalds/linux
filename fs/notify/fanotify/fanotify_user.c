@@ -310,22 +310,33 @@ static __u32 fanotify_mark_remove_from_mask(struct fsnotify_mark *fsn_mark, __u3
 	return mask & oldmask;
 }
 
-static int fanotify_remove_mark(struct fsnotify_group *group, struct inode *inode,
-				struct vfsmount *mnt, __u32 mask)
+static int fanotify_remove_vfsmount_mark(struct fsnotify_group *group,
+					 struct vfsmount *mnt, __u32 mask)
 {
 	struct fsnotify_mark *fsn_mark = NULL;
 	__u32 removed;
 
-	BUG_ON(inode && mnt);
-	BUG_ON(!inode && !mnt);
+	fsn_mark = fsnotify_find_vfsmount_mark(group, mnt);
+	if (!fsn_mark)
+		return -ENOENT;
 
-	if (inode)
-		fsn_mark = fsnotify_find_inode_mark(group, inode);
-	else if (mnt)
-		fsn_mark = fsnotify_find_vfsmount_mark(group, mnt);
-	else
-		BUG();
+	removed = fanotify_mark_remove_from_mask(fsn_mark, mask);
+	fsnotify_put_mark(fsn_mark);
+	if (removed & group->mask)
+		fsnotify_recalc_group_mask(group);
+	if (removed & mnt->mnt_fsnotify_mask)
+		fsnotify_recalc_vfsmount_mask(mnt);
 
+	return 0;
+}
+
+static int fanotify_remove_inode_mark(struct fsnotify_group *group,
+				      struct inode *inode, __u32 mask)
+{
+	struct fsnotify_mark *fsn_mark = NULL;
+	__u32 removed;
+
+	fsn_mark = fsnotify_find_inode_mark(group, inode);
 	if (!fsn_mark)
 		return -ENOENT;
 
@@ -335,13 +346,8 @@ static int fanotify_remove_mark(struct fsnotify_group *group, struct inode *inod
 
 	if (removed & group->mask)
 		fsnotify_recalc_group_mask(group);
-	if (inode) {
-		if (removed & inode->i_fsnotify_mask)
-			fsnotify_recalc_inode_mask(inode);
-	} else if (mnt) {
-		if (removed & mnt->mnt_fsnotify_mask)
-			fsnotify_recalc_vfsmount_mask(mnt);
-	}
+	if (removed & inode->i_fsnotify_mask)
+		fsnotify_recalc_inode_mask(inode);
 
 	return 0;
 }
@@ -531,7 +537,10 @@ SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
 			ret = fanotify_add_inode_mark(group, inode, mask);
 		break;
 	case FAN_MARK_REMOVE:
-		ret = fanotify_remove_mark(group, inode, mnt, mask);
+		if (flags & FAN_MARK_MOUNT)
+			ret = fanotify_remove_vfsmount_mark(group, mnt, mask);
+		else
+			ret = fanotify_remove_inode_mark(group, inode, mask);
 		break;
 	default:
 		ret = -EINVAL;
