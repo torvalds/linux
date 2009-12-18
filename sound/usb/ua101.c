@@ -19,7 +19,6 @@
 #include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/usb/audio.h>
-#include <linux/vmalloc.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>
@@ -144,42 +143,6 @@ static struct usb_driver ua101_driver;
 
 static void abort_alsa_playback(struct ua101 *ua);
 static void abort_alsa_capture(struct ua101 *ua);
-
-/* allocate virtual buffer; may be called more than once */
-static int snd_pcm_alloc_vmalloc_buffer(struct snd_pcm_substream *subs,
-					size_t size)
-{
-	struct snd_pcm_runtime *runtime = subs->runtime;
-
-	if (runtime->dma_area) {
-		if (runtime->dma_bytes >= size)
-			return 0; /* already large enough */
-		vfree(runtime->dma_area);
-	}
-	runtime->dma_area = vmalloc_user(size);
-	if (!runtime->dma_area)
-		return -ENOMEM;
-	runtime->dma_bytes = size;
-	return 0;
-}
-
-/* free virtual buffer; may be called more than once */
-static int snd_pcm_free_vmalloc_buffer(struct snd_pcm_substream *subs)
-{
-	struct snd_pcm_runtime *runtime = subs->runtime;
-
-	vfree(runtime->dma_area);
-	runtime->dma_area = NULL;
-	return 0;
-}
-
-/* get the physical page pointer at the given offset */
-static struct page *snd_pcm_get_vmalloc_page(struct snd_pcm_substream *subs,
-					     unsigned long offset)
-{
-	void *pageptr = subs->runtime->dma_area + offset;
-	return vmalloc_to_page(pageptr);
-}
 
 static const char *usb_error_string(int err)
 {
@@ -791,8 +754,8 @@ static int capture_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (err < 0)
 		return err;
 
-	return snd_pcm_alloc_vmalloc_buffer(substream,
-					    params_buffer_bytes(hw_params));
+	return snd_pcm_lib_alloc_vmalloc_buffer(substream,
+						params_buffer_bytes(hw_params));
 }
 
 static int playback_pcm_hw_params(struct snd_pcm_substream *substream,
@@ -809,14 +772,13 @@ static int playback_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (err < 0)
 		return err;
 
-	return snd_pcm_alloc_vmalloc_buffer(substream,
-					    params_buffer_bytes(hw_params));
+	return snd_pcm_lib_alloc_vmalloc_buffer(substream,
+						params_buffer_bytes(hw_params));
 }
 
 static int ua101_pcm_hw_free(struct snd_pcm_substream *substream)
 {
-	snd_pcm_free_vmalloc_buffer(substream);
-	return 0;
+	return snd_pcm_lib_free_vmalloc_buffer(substream);
 }
 
 static int capture_pcm_prepare(struct snd_pcm_substream *substream)
@@ -948,7 +910,7 @@ static struct snd_pcm_ops capture_pcm_ops = {
 	.prepare = capture_pcm_prepare,
 	.trigger = capture_pcm_trigger,
 	.pointer = capture_pcm_pointer,
-	.page = snd_pcm_get_vmalloc_page,
+	.page = snd_pcm_lib_get_vmalloc_page,
 };
 
 static struct snd_pcm_ops playback_pcm_ops = {
@@ -960,7 +922,7 @@ static struct snd_pcm_ops playback_pcm_ops = {
 	.prepare = playback_pcm_prepare,
 	.trigger = playback_pcm_trigger,
 	.pointer = playback_pcm_pointer,
-	.page = snd_pcm_get_vmalloc_page,
+	.page = snd_pcm_lib_get_vmalloc_page,
 };
 
 static const struct uac_format_type_i_discrete_descriptor *
