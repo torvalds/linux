@@ -44,7 +44,6 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/usb.h>
-#include <linux/vmalloc.h>
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
 #include <sound/core.h>
@@ -735,41 +734,6 @@ static void snd_complete_sync_urb(struct urb *urb)
 }
 
 
-/* get the physical page pointer at the given offset */
-static struct page *snd_pcm_get_vmalloc_page(struct snd_pcm_substream *subs,
-					     unsigned long offset)
-{
-	void *pageptr = subs->runtime->dma_area + offset;
-	return vmalloc_to_page(pageptr);
-}
-
-/* allocate virtual buffer; may be called more than once */
-static int snd_pcm_alloc_vmalloc_buffer(struct snd_pcm_substream *subs, size_t size)
-{
-	struct snd_pcm_runtime *runtime = subs->runtime;
-	if (runtime->dma_area) {
-		if (runtime->dma_bytes >= size)
-			return 0; /* already large enough */
-		vfree(runtime->dma_area);
-	}
-	runtime->dma_area = vmalloc_user(size);
-	if (!runtime->dma_area)
-		return -ENOMEM;
-	runtime->dma_bytes = size;
-	return 0;
-}
-
-/* free virtual buffer; may be called more than once */
-static int snd_pcm_free_vmalloc_buffer(struct snd_pcm_substream *subs)
-{
-	struct snd_pcm_runtime *runtime = subs->runtime;
-
-	vfree(runtime->dma_area);
-	runtime->dma_area = NULL;
-	return 0;
-}
-
-
 /*
  * unlink active urbs.
  */
@@ -1449,8 +1413,8 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 	unsigned int channels, rate, format;
 	int ret, changed;
 
-	ret = snd_pcm_alloc_vmalloc_buffer(substream,
-					   params_buffer_bytes(hw_params));
+	ret = snd_pcm_lib_alloc_vmalloc_buffer(substream,
+					       params_buffer_bytes(hw_params));
 	if (ret < 0)
 		return ret;
 
@@ -1507,7 +1471,7 @@ static int snd_usb_hw_free(struct snd_pcm_substream *substream)
 	subs->period_bytes = 0;
 	if (!subs->stream->chip->shutdown)
 		release_substream_urbs(subs, 0);
-	return snd_pcm_free_vmalloc_buffer(substream);
+	return snd_pcm_lib_free_vmalloc_buffer(substream);
 }
 
 /*
@@ -1973,7 +1937,7 @@ static struct snd_pcm_ops snd_usb_playback_ops = {
 	.prepare =	snd_usb_pcm_prepare,
 	.trigger =	snd_usb_pcm_playback_trigger,
 	.pointer =	snd_usb_pcm_pointer,
-	.page =		snd_pcm_get_vmalloc_page,
+	.page =		snd_pcm_lib_get_vmalloc_page,
 };
 
 static struct snd_pcm_ops snd_usb_capture_ops = {
@@ -1985,7 +1949,7 @@ static struct snd_pcm_ops snd_usb_capture_ops = {
 	.prepare =	snd_usb_pcm_prepare,
 	.trigger =	snd_usb_pcm_capture_trigger,
 	.pointer =	snd_usb_pcm_pointer,
-	.page =		snd_pcm_get_vmalloc_page,
+	.page =		snd_pcm_lib_get_vmalloc_page,
 };
 
 
