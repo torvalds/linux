@@ -136,7 +136,7 @@ typedef struct _RadioOff
 } RadioOff, *psRadioOff;
 
 //===========================================================================
-typedef struct LOCAL_PARA
+struct wb_local_para
 {
 	u8			PermanentAddress[ MAC_ADDR_LENGTH + 2 ]; 	// read from EPROM, manufacture set for each NetCard
     u8    		ThisMacAddress[ MAC_ADDR_LENGTH + 2 ];			// the driver will use actually.
@@ -274,6 +274,6 @@ typedef struct LOCAL_PARA
 	u16		IE_Append_size;
 	u16		reserved_7;
 
-} WB_LOCALDESCRIPT, *PWB_LOCALDESCRIPT;
+};
 
 #endif
