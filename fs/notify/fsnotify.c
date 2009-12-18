@@ -140,6 +140,33 @@ void __fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask)
 }
 EXPORT_SYMBOL_GPL(__fsnotify_parent);
 
+void __fsnotify_flush_ignored_mask(struct inode *inode, void *data, int data_is)
+{
+	struct fsnotify_mark *mark;
+	struct hlist_node *node;
+
+	if (!hlist_empty(&inode->i_fsnotify_marks)) {
+		spin_lock(&inode->i_lock);
+		hlist_for_each_entry(mark, node, &inode->i_fsnotify_marks, i.i_list) {
+			mark->ignored_mask = 0;
+		}
+		spin_unlock(&inode->i_lock);
+	}
+
+	if (data_is == FSNOTIFY_EVENT_PATH) {
+		struct vfsmount *mnt;
+
+		mnt = ((struct path *)data)->mnt;
+		if (mnt && !hlist_empty(&mnt->mnt_fsnotify_marks)) {
+			spin_lock(&mnt->mnt_root->d_lock);
+			hlist_for_each_entry(mark, node, &mnt->mnt_fsnotify_marks, m.m_list) {
+				mark->ignored_mask = 0;
+			}
+			spin_unlock(&mnt->mnt_root->d_lock);
+		}
+	}
+}
+
 static void send_to_group(struct fsnotify_group *group, struct inode *to_tell,
 			  struct vfsmount *mnt, __u32 mask, void *data,
 			  int data_is, u32 cookie, const char *file_name,
@@ -170,6 +197,7 @@ static bool needed_by_vfsmount(__u32 test_mask, struct vfsmount *mnt)
 
 	return (test_mask & mnt->mnt_fsnotify_mask);
 }
+
 /*
  * This is the main call to fsnotify.  The VFS calls into hook specific functions
  * in linux/fsnotify.h.  Those functions then in turn call here.  Here will call
@@ -190,6 +218,9 @@ void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is, const 
 	    list_empty(&fsnotify_vfsmount_groups))
                 return;
  
+	if (mask & FS_MODIFY)
+		__fsnotify_flush_ignored_mask(to_tell, data, data_is);
+
 	/* if none of the directed listeners or vfsmount listeners care */
 	if (!(test_mask & fsnotify_inode_mask) &&
 	    !(test_mask & fsnotify_vfsmount_mask))
