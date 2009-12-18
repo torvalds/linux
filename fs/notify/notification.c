@@ -314,25 +314,14 @@ void fsnotify_flush_notify(struct fsnotify_group *group)
 
 static void initialize_event(struct fsnotify_event *event)
 {
-	event->holder.event = NULL;
 	INIT_LIST_HEAD(&event->holder.event_list);
 	atomic_set(&event->refcnt, 1);
 
 	spin_lock_init(&event->lock);
 
-	event->path.dentry = NULL;
-	event->path.mnt = NULL;
-	event->inode = NULL;
 	event->data_type = FSNOTIFY_EVENT_NONE;
 
 	INIT_LIST_HEAD(&event->private_data_list);
-
-	event->to_tell = NULL;
-
-	event->file_name = NULL;
-	event->name_len = 0;
-
-	event->sync_cookie = 0;
 }
 
 /*
@@ -353,7 +342,7 @@ struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask, 
 {
 	struct fsnotify_event *event;
 
-	event = kmem_cache_alloc(fsnotify_event_cachep, gfp);
+	event = kmem_cache_zalloc(fsnotify_event_cachep, gfp);
 	if (!event)
 		return NULL;
 
