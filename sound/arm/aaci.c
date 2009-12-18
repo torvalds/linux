@@ -366,6 +366,10 @@ static int __aaci_pcm_open(struct aaci *aaci,
 	runtime->hw.rates = aacirun->pcm->rates;
 	snd_pcm_limit_hw_rates(runtime);
 
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
+	    aacirun->pcm->r[1].slots)
+		snd_ac97_pcm_double_rate_rules(runtime);
+
 	/*
 	 * FIXME: ALSA specifies fifo_size in bytes.  If we're in normal
 	 * mode, each 32-bit word contains one sample.  If we're in
@@ -439,9 +443,12 @@ static int aaci_pcm_hw_params(struct snd_pcm_substream *substream,
 	err = snd_pcm_lib_malloc_pages(substream,
 				       params_buffer_bytes(params));
 	if (err >= 0) {
-		err = snd_ac97_pcm_open(aacirun->pcm, params_rate(params),
+		unsigned int rate = params_rate(params);
+		int dbl = rate > 48000;
+
+		err = snd_ac97_pcm_open(aacirun->pcm, rate,
 					params_channels(params),
-					aacirun->pcm->r[0].slots);
+					aacirun->pcm->r[dbl].slots);
 
 		aacirun->pcm_open = err == 0;
 		aacirun->cr = CR_FEN | CR_COMPACT | CR_SZ16;
@@ -807,6 +814,12 @@ static struct ac97_pcm ac97_defs[] __devinitdata = {
 					  (1 << AC97_SLOT_PCM_SLEFT) |
 					  (1 << AC97_SLOT_PCM_SRIGHT) |
 					  (1 << AC97_SLOT_LFE),
+			},
+			[1] = {
+				.slots	= (1 << AC97_SLOT_PCM_LEFT) |
+					  (1 << AC97_SLOT_PCM_RIGHT) |
+					  (1 << AC97_SLOT_PCM_LEFT_0) |
+					  (1 << AC97_SLOT_PCM_RIGHT_0),
 			},
 		},
 	},
