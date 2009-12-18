@@ -2,6 +2,7 @@
 #include <linux/fsnotify_backend.h>
 #include <linux/init.h>
 #include <linux/kernel.h> /* UINT_MAX */
+#include <linux/mount.h>
 #include <linux/types.h>
 
 #include "fanotify.h"
@@ -99,24 +100,35 @@ static int fanotify_handle_event(struct fsnotify_group *group, struct fsnotify_e
 	return ret;
 }
 
-static bool fanotify_should_send_event(struct fsnotify_group *group, struct inode *inode,
-				       struct vfsmount *mnt, __u32 mask, void *data,
-				       int data_type)
+static bool should_send_vfsmount_event(struct fsnotify_group *group, struct vfsmount *mnt,
+				       __u32 mask)
 {
 	struct fsnotify_mark *fsn_mark;
 	bool send;
 
-	pr_debug("%s: group=%p inode=%p mask=%x data=%p data_type=%d\n",
-		 __func__, group, inode, mask, data, data_type);
+	pr_debug("%s: group=%p vfsmount=%p mask=%x\n",
+		 __func__, group, mnt, mask);
 
-	/* sorry, fanotify only gives a damn about files and dirs */
-	if (!S_ISREG(inode->i_mode) &&
-	    !S_ISDIR(inode->i_mode))
+	fsn_mark = fsnotify_find_vfsmount_mark(group, mnt);
+	if (!fsn_mark)
 		return false;
 
-	/* if we don't have enough info to send an event to userspace say no */
-	if (data_type != FSNOTIFY_EVENT_PATH)
-		return false;
+	send = (mask & fsn_mark->mask);
+
+	/* find took a reference */
+	fsnotify_put_mark(fsn_mark);
+
+	return send;
+}
+
+static bool should_send_inode_event(struct fsnotify_group *group, struct inode *inode,
+				    __u32 mask)
+{
+	struct fsnotify_mark *fsn_mark;
+	bool send;
+
+	pr_debug("%s: group=%p inode=%p mask=%x\n",
+		 __func__, group, inode, mask);
 
 	fsn_mark = fsnotify_find_inode_mark(group, inode);
 	if (!fsn_mark)
@@ -140,6 +152,28 @@ static bool fanotify_should_send_event(struct fsnotify_group *group, struct inod
 	fsnotify_put_mark(fsn_mark);
 
 	return send;
+}
+
+static bool fanotify_should_send_event(struct fsnotify_group *group, struct inode *to_tell,
+				       struct vfsmount *mnt, __u32 mask, void *data,
+				       int data_type)
+{
+	pr_debug("%s: group=%p to_tell=%p mnt=%p mask=%x data=%p data_type=%d\n",
+		 __func__, group, to_tell, mnt, mask, data, data_type);
+
+	/* sorry, fanotify only gives a damn about files and dirs */
+	if (!S_ISREG(to_tell->i_mode) &&
+	    !S_ISDIR(to_tell->i_mode))
+		return false;
+
+	/* if we don't have enough info to send an event to userspace say no */
+	if (data_type != FSNOTIFY_EVENT_PATH)
+		return false;
+
+	if (mnt)
+		return should_send_vfsmount_event(group, mnt, mask);
+	else
+		return should_send_inode_event(group, to_tell, mask);
 }
 
 const struct fsnotify_ops fanotify_fsnotify_ops = {
