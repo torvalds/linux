@@ -972,6 +972,7 @@ static int bfin_spi_setup(struct spi_device *spi)
 	struct bfin5xx_spi_chip *chip_info;
 	struct slave_data *chip = NULL;
 	struct master_data *drv_data = spi_master_get_devdata(spi->master);
+	u16 bfin_ctl_reg;
 	int ret = -EINVAL;
 
 	/* Only alloc (or use chip_info) on first setup */
@@ -989,6 +990,10 @@ static int bfin_spi_setup(struct spi_device *spi)
 		chip_info = spi->controller_data;
 	}
 
+	/* Let people set non-standard bits directly */
+	bfin_ctl_reg = BIT_CTL_OPENDRAIN | BIT_CTL_EMISO |
+		BIT_CTL_PSSE | BIT_CTL_GM | BIT_CTL_SZ;
+
 	/* chip_info isn't always needed */
 	if (chip_info) {
 		/* Make sure people stop trying to set fields via ctl_reg
@@ -997,13 +1002,11 @@ static int bfin_spi_setup(struct spi_device *spi)
 		 * Not sure if a user actually needs/uses any of these,
 		 * but let's assume (for now) they do.
 		 */
-		if (chip_info->ctl_reg & ~(BIT_CTL_OPENDRAIN | BIT_CTL_EMISO | \
-		                           BIT_CTL_PSSE | BIT_CTL_GM | BIT_CTL_SZ)) {
+		if (chip_info->ctl_reg & ~bfin_ctl_reg) {
 			dev_err(&spi->dev, "do not set bits in ctl_reg "
 				"that the SPI framework manages\n");
 			goto error;
 		}
-
 		chip->enable_dma = chip_info->enable_dma != 0
 		    && drv_data->master_info->enable_dma;
 		chip->ctl_reg = chip_info->ctl_reg;
@@ -1011,6 +1014,9 @@ static int bfin_spi_setup(struct spi_device *spi)
 		chip->idle_tx_val = chip_info->idle_tx_val;
 		chip->pio_interrupt = chip_info->pio_interrupt;
 		spi->bits_per_word = chip_info->bits_per_word;
+	} else {
+		/* force a default base state */
+		chip->ctl_reg &= bfin_ctl_reg;
 	}
 
 	if (spi->bits_per_word != 8 && spi->bits_per_word != 16) {
