@@ -34,6 +34,25 @@ static inline void fsnotify_parent(struct path *path, struct dentry *dentry, __u
 	__fsnotify_parent(path, dentry, mask);
 }
 
+/* simple call site for access decisions */
+static inline int fsnotify_perm(struct file *file, int mask)
+{
+	struct path *path = &file->f_path;
+	struct inode *inode = path->dentry->d_inode;
+	__u32 fsnotify_mask;
+
+	if (file->f_mode & FMODE_NONOTIFY)
+		return 0;
+	if (!(mask & (MAY_READ | MAY_OPEN)))
+		return 0;
+	if (mask & MAY_READ)
+		fsnotify_mask = FS_ACCESS_PERM;
+	if (mask & MAY_OPEN)
+		fsnotify_mask = FS_OPEN_PERM;
+
+	return fsnotify(inode, fsnotify_mask, path, FSNOTIFY_EVENT_PATH, NULL, 0);
+}
+
 /*
  * fsnotify_d_move - dentry has been moved
  * Called with dcache_lock and dentry->d_lock held.

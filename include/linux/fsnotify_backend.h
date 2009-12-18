@@ -41,6 +41,9 @@
 #define FS_Q_OVERFLOW		0x00004000	/* Event queued overflowed */
 #define FS_IN_IGNORED		0x00008000	/* last inotify event here */
 
+#define FS_OPEN_PERM		0x00010000	/* open event in an permission hook */
+#define FS_ACCESS_PERM		0x00020000	/* access event in a permissions hook */
+
 #define FS_IN_ISDIR		0x40000000	/* event occurred against dir */
 #define FS_IN_ONESHOT		0x80000000	/* only send event once */
 
@@ -282,8 +285,8 @@ struct fsnotify_mark {
 /* called from the vfs helpers */
 
 /* main fsnotify call to send events */
-extern void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
-		     const unsigned char *name, u32 cookie);
+extern int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
+		    const unsigned char *name, u32 cookie);
 extern void __fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask);
 extern void __fsnotify_inode_delete(struct inode *inode);
 extern void __fsnotify_vfsmount_delete(struct vfsmount *mnt);
@@ -413,9 +416,11 @@ extern int fsnotify_replace_event(struct fsnotify_event_holder *old_holder,
 
 #else
 
-static inline void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
-			    const unsigned char *name, u32 cookie)
-{}
+static inline int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
+			   const unsigned char *name, u32 cookie)
+{
+	return 0;
+}
 
 static inline void __fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask)
 {}

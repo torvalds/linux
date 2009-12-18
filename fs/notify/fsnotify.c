@@ -169,27 +169,22 @@ void __fsnotify_flush_ignored_mask(struct inode *inode, void *data, int data_is)
 	}
 }
 
-static void send_to_group(struct fsnotify_group *group, struct inode *to_tell,
-			  struct vfsmount *mnt, __u32 mask, void *data,
-			  int data_is, u32 cookie, const unsigned char *file_name,
-			  struct fsnotify_event **event)
+static int send_to_group(struct fsnotify_group *group, struct inode *to_tell,
+			 struct vfsmount *mnt, __u32 mask, void *data,
+			 int data_is, u32 cookie, const unsigned char *file_name,
+			 struct fsnotify_event **event)
 {
 	if (!group->ops->should_send_event(group, to_tell, mnt, mask,
 					   data, data_is))
-		return;
+		return 0;
 	if (!*event) {
 		*event = fsnotify_create_event(to_tell, mask, data,
 						data_is, file_name,
 						cookie, GFP_KERNEL);
-		/*
-		 * shit, we OOM'd and now we can't tell, maybe
-		 * someday someone else will want to do something
-		 * here
-		 */
 		if (!*event)
-			return;
+			return -ENOMEM;
 	}
-	group->ops->handle_event(group, *event);
+	return group->ops->handle_event(group, *event);
 }
 
 static bool needed_by_vfsmount(__u32 test_mask, struct vfsmount *mnt)
@@ -206,20 +201,20 @@ static bool needed_by_vfsmount(__u32 test_mask, struct vfsmount *mnt)
  * out to all of the registered fsnotify_group.  Those groups can then use the
  * notification event in whatever means they feel necessary.
  */
-void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
-	      const unsigned char *file_name, u32 cookie)
+int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
+	     const unsigned char *file_name, u32 cookie)
 {
 	struct fsnotify_group *group;
 	struct fsnotify_event *event = NULL;
 	struct vfsmount *mnt = NULL;
-	int idx;
+	int idx, ret = 0;
 	/* global tests shouldn't care about events on child only the specific event */
 	__u32 test_mask = (mask & ~FS_EVENT_ON_CHILD);
 
 	/* if no fsnotify listeners, nothing to do */
 	if (list_empty(&fsnotify_inode_groups) &&
 	    list_empty(&fsnotify_vfsmount_groups))
-                return;
+		return 0;
  
 	if (mask & FS_MODIFY)
 		__fsnotify_flush_ignored_mask(to_tell, data, data_is);
@@ -227,7 +222,7 @@ void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 	/* if none of the directed listeners or vfsmount listeners care */
 	if (!(test_mask & fsnotify_inode_mask) &&
 	    !(test_mask & fsnotify_vfsmount_mask))
-                return;
+		return 0;
  
 	if (data_is == FSNOTIFY_EVENT_PATH)
 		mnt = ((struct path *)data)->mnt;
@@ -236,7 +231,7 @@ void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 	 * listeners list cares, nothing to do */
 	if (!(test_mask & to_tell->i_fsnotify_mask) &&
 	    !needed_by_vfsmount(test_mask, mnt))
-                return;
+		return 0;
 
 	/*
 	 * SRCU!!  the groups list is very very much read only and the path is
@@ -248,20 +243,24 @@ void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 	if (test_mask & to_tell->i_fsnotify_mask) {
 		list_for_each_entry_rcu(group, &fsnotify_inode_groups, inode_group_list) {
 			if (test_mask & group->mask) {
-				send_to_group(group, to_tell, NULL, mask, data, data_is,
-					      cookie, file_name, &event);
+				ret = send_to_group(group, to_tell, NULL, mask, data, data_is,
+						    cookie, file_name, &event);
+				if (ret)
+					goto out;
 			}
 		}
 	}
 	if (needed_by_vfsmount(test_mask, mnt)) {
 		list_for_each_entry_rcu(group, &fsnotify_vfsmount_groups, vfsmount_group_list) {
 			if (test_mask & group->mask) {
-				send_to_group(group, to_tell, mnt, mask, data, data_is,
-					      cookie, file_name, &event);
+				ret = send_to_group(group, to_tell, mnt, mask, data, data_is,
+						    cookie, file_name, &event);
+				if (ret)
+					goto out;
 			}
 		}
 	}
-
+out:
 	srcu_read_unlock(&fsnotify_grp_srcu, idx);
 	/*
 	 * fsnotify_create_event() took a reference so the event can't be cleaned
@@ -269,6 +268,8 @@ void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 	 */
 	if (event)
 		fsnotify_put_event(event);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(fsnotify);
 
