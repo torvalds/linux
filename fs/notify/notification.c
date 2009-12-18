@@ -287,6 +287,62 @@ static void initialize_event(struct fsnotify_event *event)
 	INIT_LIST_HEAD(&event->private_data_list);
 }
 
+/*
+ * Caller damn well better be holding whatever mutex is protecting the
+ * old_holder->event_list.
+ */
+int fsnotify_replace_event(struct fsnotify_event_holder *old_holder,
+			   struct fsnotify_event *new_event)
+{
+	struct fsnotify_event *old_event = old_holder->event;
+	struct fsnotify_event_holder *new_holder = NULL;
+
+	/*
+	 * There is one fsnotify_event_holder embedded inside each fsnotify_event.
+	 * Check if we expect to be able to use that holder.  If not alloc a new
+	 * holder.
+	 * For the overflow event it's possible that something will use the in
+	 * event holder before we get the lock so we may need to jump back and
+	 * alloc a new holder, this can't happen for most events...
+	 */
+	if (!list_empty(&new_event->holder.event_list)) {
+alloc_holder:
+		new_holder = fsnotify_alloc_event_holder();
+		if (!new_holder)
+			return -ENOMEM;
+	}
+
+	spin_lock(&old_event->lock);
+	spin_lock(&new_event->lock);
+
+	if (list_empty(&new_event->holder.event_list)) {
+		if (unlikely(new_holder))
+			fsnotify_destroy_event_holder(new_holder);
+		new_holder = &new_event->holder;
+	} else if (unlikely(!new_holder)) {
+		/* between the time we checked above and got the lock the in
+		 * event holder was used, go back and get a new one */
+		spin_unlock(&new_event->lock);
+		spin_unlock(&old_event->lock);
+		goto alloc_holder;
+	}
+
+	new_holder->event = new_event;
+	list_replace_init(&old_holder->event_list, &new_holder->event_list);
+
+	spin_unlock(&new_event->lock);
+	spin_unlock(&old_event->lock);
+
+	/* event == holder means we are referenced through the in event holder */
+	if (old_holder != &old_event->holder)
+		fsnotify_destroy_event_holder(old_holder);
+
+	fsnotify_get_event(new_event); /* on the list take reference */
+	fsnotify_put_event(old_event); /* off the list, drop reference */
+
+	return 0;
+}
+
 struct fsnotify_event *fsnotify_clone_event(struct fsnotify_event *old_event)
 {
 	struct fsnotify_event *event;
