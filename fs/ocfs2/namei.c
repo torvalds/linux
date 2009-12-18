@@ -2136,6 +2136,7 @@ int ocfs2_create_inode_in_orphan(struct inode *dir,
 	if (status < 0)
 		mlog_errno(status);
 
+	insert_inode_hash(inode);
 leave:
 	if (status < 0 && did_quota_inode)
 		vfs_dq_free_inode(inode);
@@ -2284,7 +2285,6 @@ int ocfs2_mv_orphaned_inode_to_new(struct inode *dir,
 		goto out_commit;
 	}
 
-	insert_inode_hash(inode);
 	dentry->d_op = &ocfs2_dentry_ops;
 	d_instantiate(dentry, inode);
 	status = 0;
