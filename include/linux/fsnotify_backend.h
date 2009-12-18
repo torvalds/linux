@@ -95,10 +95,10 @@ struct fsnotify_ops {
 struct fsnotify_group {
 	/*
 	 * global list of all groups receiving events from fsnotify.
-	 * anchored by fsnotify_groups and protected by either fsnotify_grp_mutex
+	 * anchored by fsnotify_inode_groups and protected by either fsnotify_grp_mutex
 	 * or fsnotify_grp_srcu depending on write vs read.
 	 */
-	struct list_head group_list;
+	struct list_head inode_group_list;
 
 	/*
 	 * Defines all of the event types in which this group is interested.
@@ -136,7 +136,7 @@ struct fsnotify_group {
 	struct list_head mark_entries;	/* all inode mark entries for this group */
 
 	/* prevents double list_del of group_list.  protected by global fsnotify_grp_mutex */
-	bool on_group_list;
+	bool on_inode_group_list;
 
 	/* groups can define private fields here or use the void *private */
 	union {

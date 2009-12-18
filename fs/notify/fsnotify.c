@@ -148,10 +148,10 @@ void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is, const 
 	/* global tests shouldn't care about events on child only the specific event */
 	__u32 test_mask = (mask & ~FS_EVENT_ON_CHILD);
 
-	if (list_empty(&fsnotify_groups))
+	if (list_empty(&fsnotify_inode_groups))
 		return;
 
-	if (!(test_mask & fsnotify_mask))
+	if (!(test_mask & fsnotify_inode_mask))
 		return;
 
 	if (!(test_mask & to_tell->i_fsnotify_mask))
@@ -162,7 +162,7 @@ void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is, const 
 	 * anything other than walk the list so it's crazy to pre-allocate.
 	 */
 	idx = srcu_read_lock(&fsnotify_grp_srcu);
-	list_for_each_entry_rcu(group, &fsnotify_groups, group_list) {
+	list_for_each_entry_rcu(group, &fsnotify_inode_groups, inode_group_list) {
 		if (test_mask & group->mask) {
 			if (!group->ops->should_send_event(group, to_tell, mask,
 							   data, data_is))

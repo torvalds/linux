@@ -33,9 +33,9 @@ static DEFINE_MUTEX(fsnotify_grp_mutex);
 /* protects reads while running the fsnotify_groups list */
 struct srcu_struct fsnotify_grp_srcu;
 /* all groups registered to receive filesystem notifications */
-LIST_HEAD(fsnotify_groups);
+LIST_HEAD(fsnotify_inode_groups);
 /* bitwise OR of all events (FS_*) interesting to some group on this system */
-__u32 fsnotify_mask;
+__u32 fsnotify_inode_mask;
 
 /*
  * When a new group registers or changes it's set of interesting events
@@ -48,10 +48,10 @@ void fsnotify_recalc_global_mask(void)
 	int idx;
 
 	idx = srcu_read_lock(&fsnotify_grp_srcu);
-	list_for_each_entry_rcu(group, &fsnotify_groups, group_list)
+	list_for_each_entry_rcu(group, &fsnotify_inode_groups, inode_group_list)
 		mask |= group->mask;
 	srcu_read_unlock(&fsnotify_grp_srcu, idx);
-	fsnotify_mask = mask;
+	fsnotify_inode_mask = mask;
 }
 
 /*
@@ -75,6 +75,17 @@ void fsnotify_recalc_group_mask(struct fsnotify_group *group)
 
 	if (old_mask != mask)
 		fsnotify_recalc_global_mask();
+}
+
+static void fsnotify_add_group(struct fsnotify_group *group)
+{
+	BUG_ON(!mutex_is_locked(&fsnotify_grp_mutex));
+
+	group->on_inode_group_list = 1;
+	/* being on the fsnotify_groups list holds one num_marks */
+	atomic_inc(&group->num_marks);
+
+	list_add_tail_rcu(&group->inode_group_list, &fsnotify_inode_groups);
 }
 
 /*
@@ -118,9 +129,9 @@ static void __fsnotify_evict_group(struct fsnotify_group *group)
 {
 	BUG_ON(!mutex_is_locked(&fsnotify_grp_mutex));
 
-	if (group->on_group_list)
-		list_del_rcu(&group->group_list);
-	group->on_group_list = 0;
+	if (group->on_inode_group_list)
+		list_del_rcu(&group->inode_group_list);
+	group->on_inode_group_list = 0;
 }
 
 /*
@@ -186,10 +197,7 @@ struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *ops)
 
 	mutex_lock(&fsnotify_grp_mutex);
 
-	list_add_rcu(&group->group_list, &fsnotify_groups);
-	group->on_group_list = 1;
-	/* being on the fsnotify_groups list holds one num_marks */
-	atomic_inc(&group->num_marks);
+	fsnotify_add_group(group);
 
 	mutex_unlock(&fsnotify_grp_mutex);
 

@@ -8,10 +8,10 @@
 
 /* protects reads of fsnotify_groups */
 extern struct srcu_struct fsnotify_grp_srcu;
-/* all groups which receive fsnotify events */
-extern struct list_head fsnotify_groups;
-/* all bitwise OR of all event types (FS_*) for all fsnotify_groups */
-extern __u32 fsnotify_mask;
+/* all groups which receive inode fsnotify events */
+extern struct list_head fsnotify_inode_groups;
+/* all bitwise OR of all event types (FS_*) for all fsnotify_inode_groups */
+extern __u32 fsnotify_inode_mask;
 
 /* destroy all events sitting in this groups notification queue */
 extern void fsnotify_flush_notify(struct fsnotify_group *group);
