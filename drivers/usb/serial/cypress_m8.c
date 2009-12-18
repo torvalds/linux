@@ -70,11 +70,7 @@
 #include "cypress_m8.h"
 
 
-#ifdef CONFIG_USB_SERIAL_DEBUG
-	static int debug = 1;
-#else
-	static int debug;
-#endif
+static int debug;
 static int stats;
 static int interval;
 
