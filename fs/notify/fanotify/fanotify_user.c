@@ -430,20 +430,6 @@ static int fanotify_add_inode_mark(struct fsnotify_group *group,
 	return 0;
 }
 
-static bool fanotify_mark_validate_input(int flags,
-					 __u32 mask)
-{
-	pr_debug("%s: flags=%x mask=%x\n", __func__, flags, mask);
-
-	/* are flags valid of this operation? */
-	if (!fanotify_mark_flags_valid(flags))
-		return false;
-	/* is the mask valid? */
-	if (!fanotify_mask_valid(mask))
-		return false;
-	return true;
-}
-
 /* fanotify syscalls */
 SYSCALL_DEFINE3(fanotify_init, unsigned int, flags, unsigned int, event_f_flags,
 		unsigned int, priority)
@@ -505,7 +491,16 @@ SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
 	if (mask & ((__u64)0xffffffff << 32))
 		return -EINVAL;
 
-	if (!fanotify_mark_validate_input(flags, mask))
+	if (flags & ~FAN_ALL_MARK_FLAGS)
+		return -EINVAL;
+	switch (flags & (FAN_MARK_ADD | FAN_MARK_REMOVE)) {
+	case FAN_MARK_ADD:
+	case FAN_MARK_REMOVE:
+		break;
+	default:
+		return -EINVAL;
+	}
+	if (mask & ~(FAN_ALL_EVENTS | FAN_EVENT_ON_CHILD))
 		return -EINVAL;
 
 	filp = fget_light(fanotify_fd, &fput_needed);

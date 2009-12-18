@@ -47,13 +47,6 @@
 			FAN_CLOSE |\
 			FAN_OPEN)
 
-/*
- * All legal FAN bits userspace can request (although possibly not all
- * at the same time.
- */
-#define FAN_ALL_INCOMING_EVENTS	(FAN_ALL_EVENTS |\
-				 FAN_EVENT_ON_CHILD)
-
 #define FAN_ALL_OUTGOING_EVENTS	(FAN_ALL_EVENTS |\
 				 FAN_Q_OVERFLOW)
 
