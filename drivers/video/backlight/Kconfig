@@ -212,6 +212,13 @@ config BACKLIGHT_DA903X
 	  If you have a LCD backlight connected to the WLED output of DA9030
 	  or DA9034 WLED output, say Y here to enable this driver.
 
+config BACKLIGHT_MAX8925
+	tristate "Backlight driver for MAX8925"
+	depends on BACKLIGHT_CLASS_DEVICE && MFD_MAX8925
+	help
+	  If you have a LCD backlight connected to the WLED output of MAX8925
+	  WLED output, say Y here to enable this driver.
+
 config BACKLIGHT_MBP_NVIDIA
        tristate "MacBook Pro Nvidia Backlight Driver"
        depends on BACKLIGHT_CLASS_DEVICE && X86
