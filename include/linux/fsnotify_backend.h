@@ -84,7 +84,8 @@ struct fsnotify_event_private_data;
  *		valid group and inode to use to clean up.
  */
 struct fsnotify_ops {
-	bool (*should_send_event)(struct fsnotify_group *group, struct inode *inode, __u32 mask);
+	bool (*should_send_event)(struct fsnotify_group *group, struct inode *inode,
+				  __u32 mask, int data_type);
 	int (*handle_event)(struct fsnotify_group *group, struct fsnotify_event *event);
 	void (*free_group_priv)(struct fsnotify_group *group);
 	void (*freeing_mark)(struct fsnotify_mark_entry *entry, struct fsnotify_group *group);

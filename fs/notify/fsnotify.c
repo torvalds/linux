@@ -157,7 +157,7 @@ void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is, const 
 	idx = srcu_read_lock(&fsnotify_grp_srcu);
 	list_for_each_entry_rcu(group, &fsnotify_groups, group_list) {
 		if (test_mask & group->mask) {
-			if (!group->ops->should_send_event(group, to_tell, mask))
+			if (!group->ops->should_send_event(group, to_tell, mask, data_is))
 				continue;
 			if (!event) {
 				event = fsnotify_create_event(to_tell, mask, data,

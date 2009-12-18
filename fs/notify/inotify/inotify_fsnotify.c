@@ -86,7 +86,8 @@ static void inotify_freeing_mark(struct fsnotify_mark_entry *entry, struct fsnot
 	inotify_ignored_and_remove_idr(entry, group);
 }
 
-static bool inotify_should_send_event(struct fsnotify_group *group, struct inode *inode, __u32 mask)
+static bool inotify_should_send_event(struct fsnotify_group *group, struct inode *inode,
+				      __u32 mask, int data_type)
 {
 	struct fsnotify_mark_entry *entry;
 	bool send;

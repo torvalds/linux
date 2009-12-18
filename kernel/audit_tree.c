@@ -919,7 +919,8 @@ static void audit_tree_freeing_mark(struct fsnotify_mark_entry *entry, struct fs
 	fsnotify_put_mark(entry);
 }
 
-static bool audit_tree_send_event(struct fsnotify_group *group, struct inode *inode, __u32 mask)
+static bool audit_tree_send_event(struct fsnotify_group *group, struct inode *inode,
+				  __u32 mask, int data_type)
 {
 	return 0;
 }
