@@ -267,6 +267,9 @@ struct fsnotify_mark_entry {
 		struct fsnotify_vfsmount_mark m;
 	};
 	struct list_head free_g_list;	/* tmp list used when freeing this mark */
+#define FSNOTIFY_MARK_FLAG_INODE	0x01
+#define FSNOTIFY_MARK_FLAG_VFSMOUNT	0x02
+	unsigned int flags;		/* vfsmount or inode mark? */
 	void (*free_mark)(struct fsnotify_mark_entry *entry); /* called on final put+free */
 };
 
