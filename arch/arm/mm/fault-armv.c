@@ -36,27 +36,11 @@ static unsigned long shared_pte_mask = L_PTE_MT_BUFFERABLE;
  * Therefore those configurations which might call adjust_pte (those
  * without CONFIG_CPU_CACHE_VIPT) cannot support split page_table_lock.
  */
-static int adjust_pte(struct vm_area_struct *vma, unsigned long address)
+static int do_adjust_pte(struct vm_area_struct *vma, unsigned long address,
+	pte_t *ptep)
 {
-	pgd_t *pgd;
-	pmd_t *pmd;
-	pte_t *pte, entry;
+	pte_t entry = *ptep;
 	int ret;
-
-	pgd = pgd_offset(vma->vm_mm, address);
-	if (pgd_none(*pgd))
-		goto no_pgd;
-	if (pgd_bad(*pgd))
-		goto bad_pgd;
-
-	pmd = pmd_offset(pgd, address);
-	if (pmd_none(*pmd))
-		goto no_pmd;
-	if (pmd_bad(*pmd))
-		goto bad_pmd;
-
-	pte = pte_offset_map(pmd, address);
-	entry = *pte;
 
 	/*
 	 * If this page is present, it's actually being shared.
@@ -74,10 +58,38 @@ static int adjust_pte(struct vm_area_struct *vma, unsigned long address)
 				  (pfn << PAGE_SHIFT) + PAGE_SIZE);
 		pte_val(entry) &= ~L_PTE_MT_MASK;
 		pte_val(entry) |= shared_pte_mask;
-		set_pte_at(vma->vm_mm, address, pte, entry);
+		set_pte_at(vma->vm_mm, address, ptep, entry);
 		flush_tlb_page(vma, address);
 	}
+
+	return ret;
+}
+
+static int adjust_pte(struct vm_area_struct *vma, unsigned long address)
+{
+	pgd_t *pgd;
+	pmd_t *pmd;
+	pte_t *pte;
+	int ret;
+
+	pgd = pgd_offset(vma->vm_mm, address);
+	if (pgd_none(*pgd))
+		goto no_pgd;
+	if (pgd_bad(*pgd))
+		goto bad_pgd;
+
+	pmd = pmd_offset(pgd, address);
+	if (pmd_none(*pmd))
+		goto no_pmd;
+	if (pmd_bad(*pmd))
+		goto bad_pmd;
+
+	pte = pte_offset_map(pmd, address);
+
+	ret = do_adjust_pte(vma, address, pte);
+
 	pte_unmap(pte);
+
 	return ret;
 
 bad_pgd:
