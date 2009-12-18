@@ -92,6 +92,7 @@ void cpu_idle(void)
 			check_pgt_cache();
 			rmb();
 
+			set_bl_bit();
 			local_irq_disable();
 			/* Don't trace irqs off for idle */
 			stop_critical_timings();
@@ -102,6 +103,7 @@ void cpu_idle(void)
 			 */
 			WARN_ON(irqs_disabled());
 			start_critical_timings();
+			clear_bl_bit();
 		}
 
 		tick_nohz_restart_sched_tick();
