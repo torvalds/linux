@@ -705,8 +705,8 @@ static const struct ad7879_platform_data bfin_ad7879_ts_info = {
 	.median			= 2,	/* do 8 measurements */
 	.averaging 		= 1,	/* take the average of 4 middle samples */
 	.pen_down_acc_interval 	= 255,	/* 9.4 ms */
-	.gpio_output		= 1,	/* configure AUX/VBAT/GPIO as GPIO output */
-	.gpio_default 		= 1,	/* During initialization set GPIO = HIGH */
+	.gpio_export		= 1,	/* Export GPIO to gpiolib */
+	.gpio_base		= -1,	/* Dynamic allocation */
 };
 #endif
 
