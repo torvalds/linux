@@ -89,10 +89,27 @@ void fsnotify_recalc_group_mask(struct fsnotify_group *group)
 
 void fsnotify_add_vfsmount_group(struct fsnotify_group *group)
 {
+	struct fsnotify_group *group_iter;
+	unsigned int priority = group->priority;
+
 	mutex_lock(&fsnotify_grp_mutex);
 
-	if (!group->on_vfsmount_group_list)
+	if (!group->on_vfsmount_group_list) {
+		list_for_each_entry(group_iter, &fsnotify_vfsmount_groups,
+				    vfsmount_group_list) {
+			/* insert in front of this one? */
+			if (priority < group_iter->priority) {
+				/* list_add_tail() insert in front of group_iter */
+				list_add_tail_rcu(&group->inode_group_list,
+						  &group_iter->inode_group_list);
+				goto out;
+			}
+		}
+
+		/* apparently we need to be the last entry */
 		list_add_tail_rcu(&group->vfsmount_group_list, &fsnotify_vfsmount_groups);
+	}
+out:
 	group->on_vfsmount_group_list = 1;
 
 	mutex_unlock(&fsnotify_grp_mutex);
@@ -100,10 +117,27 @@ void fsnotify_add_vfsmount_group(struct fsnotify_group *group)
 
 void fsnotify_add_inode_group(struct fsnotify_group *group)
 {
+	struct fsnotify_group *group_iter;
+	unsigned int priority = group->priority;
+
 	mutex_lock(&fsnotify_grp_mutex);
 
-	if (!group->on_inode_group_list)
+	/* add to global group list, priority 0 first, UINT_MAX last */
+	if (!group->on_inode_group_list) {
+		list_for_each_entry(group_iter, &fsnotify_inode_groups,
+				    inode_group_list) {
+			if (priority < group_iter->priority) {
+				/* list_add_tail() insert in front of group_iter */
+				list_add_tail_rcu(&group->inode_group_list,
+						  &group_iter->inode_group_list);
+				goto out;
+			}
+		}
+
+		/* apparently we need to be the last entry */
 		list_add_tail_rcu(&group->inode_group_list, &fsnotify_inode_groups);
+	}
+out:
 	group->on_inode_group_list = 1;
 
 	mutex_unlock(&fsnotify_grp_mutex);
@@ -225,6 +259,8 @@ struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *ops)
 
 	spin_lock_init(&group->mark_lock);
 	INIT_LIST_HEAD(&group->marks_list);
+
+	group->priority = UINT_MAX;
 
 	group->ops = ops;
 

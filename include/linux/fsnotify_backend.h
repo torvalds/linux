@@ -140,6 +140,7 @@ struct fsnotify_group {
 					 * a group */
 	struct list_head marks_list;	/* all inode marks for this group */
 
+	unsigned int priority;		/* order of this group compared to others */
 	/* prevents double list_del of group_list.  protected by global fsnotify_grp_mutex */
 	bool on_inode_group_list;
 	bool on_vfsmount_group_list;

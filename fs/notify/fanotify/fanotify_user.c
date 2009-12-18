@@ -463,8 +463,6 @@ SYSCALL_DEFINE3(fanotify_init, unsigned int, flags, unsigned int, event_f_flags,
 
 	if (event_f_flags)
 		return -EINVAL;
-	if (priority)
-		return -EINVAL;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
@@ -482,6 +480,8 @@ SYSCALL_DEFINE3(fanotify_init, unsigned int, flags, unsigned int, event_f_flags,
 	group = fsnotify_alloc_group(&fanotify_fsnotify_ops);
 	if (IS_ERR(group))
 		return PTR_ERR(group);
+
+	group->priority = priority;
 
 	fd = anon_inode_getfd("[fanotify]", &fanotify_fops, group, f_flags);
 	if (fd < 0)
