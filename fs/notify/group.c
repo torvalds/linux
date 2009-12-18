@@ -207,7 +207,7 @@ struct fsnotify_group *fsnotify_obtain_group(unsigned int group_num, __u32 mask,
 	struct fsnotify_group *group, *tgroup;
 
 	/* very low use, simpler locking if we just always alloc */
-	group = kmalloc(sizeof(struct fsnotify_group), GFP_KERNEL);
+	group = kzalloc(sizeof(struct fsnotify_group), GFP_KERNEL);
 	if (!group)
 		return ERR_PTR(-ENOMEM);
 
