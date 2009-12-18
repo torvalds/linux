@@ -566,9 +566,7 @@ static int inotify_update_existing_watch(struct fsnotify_group *group,
 	if (unlikely(!mask))
 		return -EINVAL;
 
-	spin_lock(&inode->i_lock);
 	fsn_mark = fsnotify_find_mark(group, inode);
-	spin_unlock(&inode->i_lock);
 	if (!fsn_mark)
 		return -ENOENT;
 

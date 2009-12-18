@@ -261,12 +261,8 @@ void fsnotify_clear_marks_by_inode(struct inode *inode)
 	}
 }
 
-/*
- * given a group and inode, find the mark associated with that combination.
- * if found take a reference to that mark and return it, else return NULL
- */
-struct fsnotify_mark *fsnotify_find_mark(struct fsnotify_group *group,
-					 struct inode *inode)
+static struct fsnotify_mark *fsnotify_find_mark_locked(struct fsnotify_group *group,
+						       struct inode *inode)
 {
 	struct fsnotify_mark *mark;
 	struct hlist_node *pos;
@@ -280,6 +276,22 @@ struct fsnotify_mark *fsnotify_find_mark(struct fsnotify_group *group,
 		}
 	}
 	return NULL;
+}
+
+/*
+ * given a group and inode, find the mark associated with that combination.
+ * if found take a reference to that mark and return it, else return NULL
+ */
+struct fsnotify_mark *fsnotify_find_mark(struct fsnotify_group *group,
+					 struct inode *inode)
+{
+	struct fsnotify_mark *mark;
+
+	spin_lock(&inode->i_lock);
+	mark = fsnotify_find_mark_locked(group, inode);
+	spin_unlock(&inode->i_lock);
+
+	return mark;
 }
 
 void fsnotify_duplicate_mark(struct fsnotify_mark *new, struct fsnotify_mark *old)
@@ -349,7 +361,7 @@ int fsnotify_add_mark(struct fsnotify_mark *mark,
 	spin_lock(&inode->i_lock);
 
 	if (!allow_dups)
-		lmark = fsnotify_find_mark(group, inode);
+		lmark = fsnotify_find_mark_locked(group, inode);
 	if (!lmark) {
 		mark->group = group;
 		mark->i.inode = inode;

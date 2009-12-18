@@ -97,9 +97,7 @@ static int inotify_handle_event(struct fsnotify_group *group, struct fsnotify_ev
 
 	to_tell = event->to_tell;
 
-	spin_lock(&to_tell->i_lock);
 	fsn_mark = fsnotify_find_mark(group, to_tell);
-	spin_unlock(&to_tell->i_lock);
 	/* race with watch removal?  We already passes should_send */
 	if (unlikely(!fsn_mark))
 		return 0;
@@ -147,9 +145,7 @@ static bool inotify_should_send_event(struct fsnotify_group *group, struct inode
 	struct fsnotify_mark *fsn_mark;
 	bool send;
 
-	spin_lock(&inode->i_lock);
 	fsn_mark = fsnotify_find_mark(group, inode);
-	spin_unlock(&inode->i_lock);
 	if (!fsn_mark)
 		return false;
 

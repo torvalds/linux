@@ -360,9 +360,7 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 	struct node *p;
 	int n;
 
-	spin_lock(&inode->i_lock);
 	old_entry = fsnotify_find_mark(audit_tree_group, inode);
-	spin_unlock(&inode->i_lock);
 	if (!old_entry)
 		return create_chunk(inode, tree);
 

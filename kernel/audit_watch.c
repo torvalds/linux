@@ -101,10 +101,7 @@ static inline struct audit_parent *audit_find_parent(struct inode *inode)
 	struct audit_parent *parent = NULL;
 	struct fsnotify_mark *entry;
 
-	spin_lock(&inode->i_lock);
 	entry = fsnotify_find_mark(audit_watch_group, inode);
-	spin_unlock(&inode->i_lock);
-
 	if (entry)
 		parent = container_of(entry, struct audit_parent, mark);
 
@@ -520,9 +517,7 @@ static bool audit_watch_should_send_event(struct fsnotify_group *group, struct i
 	struct fsnotify_mark *entry;
 	bool send;
 
-	spin_lock(&inode->i_lock);
 	entry = fsnotify_find_mark(group, inode);
-	spin_unlock(&inode->i_lock);
 	if (!entry)
 		return false;
 

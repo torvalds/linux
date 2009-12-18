@@ -95,11 +95,7 @@ static int dnotify_handle_event(struct fsnotify_group *group,
 
 	to_tell = event->to_tell;
 
-	spin_lock(&to_tell->i_lock);
 	fsn_mark = fsnotify_find_mark(group, to_tell);
-	spin_unlock(&to_tell->i_lock);
-
-	/* unlikely since we alreay passed dnotify_should_send_event() */
 	if (unlikely(!fsn_mark))
 		return 0;
 	dn_mark = container_of(fsn_mark, struct dnotify_mark, fsn_mark);
@@ -147,11 +143,7 @@ static bool dnotify_should_send_event(struct fsnotify_group *group,
 	if (!S_ISDIR(inode->i_mode))
 		return false;
 
-	spin_lock(&inode->i_lock);
 	fsn_mark = fsnotify_find_mark(group, inode);
-	spin_unlock(&inode->i_lock);
-
-	/* no mark means no dnotify watch */
 	if (!fsn_mark)
 		return false;
 
@@ -201,9 +193,7 @@ void dnotify_flush(struct file *filp, fl_owner_t id)
 	if (!S_ISDIR(inode->i_mode))
 		return;
 
-	spin_lock(&inode->i_lock);
 	fsn_mark = fsnotify_find_mark(dnotify_group, inode);
-	spin_unlock(&inode->i_lock);
 	if (!fsn_mark)
 		return;
 	dn_mark = container_of(fsn_mark, struct dnotify_mark, fsn_mark);
@@ -356,9 +346,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 	mutex_lock(&dnotify_mark_mutex);
 
 	/* add the new_fsn_mark or find an old one. */
-	spin_lock(&inode->i_lock);
 	fsn_mark = fsnotify_find_mark(dnotify_group, inode);
-	spin_unlock(&inode->i_lock);
 	if (fsn_mark) {
 		dn_mark = container_of(fsn_mark, struct dnotify_mark, fsn_mark);
 		spin_lock(&fsn_mark->lock);
