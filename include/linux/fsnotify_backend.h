@@ -384,6 +384,12 @@ extern int fsnotify_add_mark(struct fsnotify_mark *mark, struct fsnotify_group *
 			     struct inode *inode, struct vfsmount *mnt, int allow_dups);
 /* given a mark, flag it to be freed when all references are dropped */
 extern void fsnotify_destroy_mark(struct fsnotify_mark *mark);
+/* run all the marks in a group, and clear all of the vfsmount marks */
+extern void fsnotify_clear_vfsmount_marks_by_group(struct fsnotify_group *group);
+/* run all the marks in a group, and clear all of the inode marks */
+extern void fsnotify_clear_inode_marks_by_group(struct fsnotify_group *group);
+/* run all the marks in a group, and clear all of the marks where mark->flags & flags is true*/
+extern void fsnotify_clear_marks_by_group_flags(struct fsnotify_group *group, unsigned int flags);
 /* run all the marks in a group, and flag them to be freed */
 extern void fsnotify_clear_marks_by_group(struct fsnotify_group *group);
 extern void fsnotify_get_mark(struct fsnotify_mark *mark);

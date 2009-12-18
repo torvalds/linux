@@ -270,18 +270,21 @@ err:
 }
 
 /*
- * Given a group, destroy all of the marks associated with that group.
+ * clear any marks in a group in which mark->flags & flags is true
  */
-void fsnotify_clear_marks_by_group(struct fsnotify_group *group)
+void fsnotify_clear_marks_by_group_flags(struct fsnotify_group *group,
+					 unsigned int flags)
 {
 	struct fsnotify_mark *lmark, *mark;
 	LIST_HEAD(free_list);
 
 	spin_lock(&group->mark_lock);
 	list_for_each_entry_safe(mark, lmark, &group->marks_list, g_list) {
-		list_add(&mark->free_g_list, &free_list);
-		list_del_init(&mark->g_list);
-		fsnotify_get_mark(mark);
+		if (mark->flags & flags) {
+			list_add(&mark->free_g_list, &free_list);
+			list_del_init(&mark->g_list);
+			fsnotify_get_mark(mark);
+		}
 	}
 	spin_unlock(&group->mark_lock);
 
@@ -289,6 +292,14 @@ void fsnotify_clear_marks_by_group(struct fsnotify_group *group)
 		fsnotify_destroy_mark(mark);
 		fsnotify_put_mark(mark);
 	}
+}
+
+/*
+ * Given a group, destroy all of the marks associated with that group.
+ */
+void fsnotify_clear_marks_by_group(struct fsnotify_group *group)
+{
+	fsnotify_clear_marks_by_group_flags(group, (unsigned int)-1);
 }
 
 void fsnotify_duplicate_mark(struct fsnotify_mark *new, struct fsnotify_mark *old)

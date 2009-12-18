@@ -514,9 +514,10 @@ SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
 
 	if (flags & ~FAN_ALL_MARK_FLAGS)
 		return -EINVAL;
-	switch (flags & (FAN_MARK_ADD | FAN_MARK_REMOVE)) {
+	switch (flags & (FAN_MARK_ADD | FAN_MARK_REMOVE | FAN_MARK_FLUSH)) {
 	case FAN_MARK_ADD:
 	case FAN_MARK_REMOVE:
+	case FAN_MARK_FLUSH:
 		break;
 	default:
 		return -EINVAL;
@@ -545,7 +546,7 @@ SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
 	group = filp->private_data;
 
 	/* create/update an inode mark */
-	switch (flags & (FAN_MARK_ADD | FAN_MARK_REMOVE)) {
+	switch (flags & (FAN_MARK_ADD | FAN_MARK_REMOVE | FAN_MARK_FLUSH)) {
 	case FAN_MARK_ADD:
 		if (flags & FAN_MARK_MOUNT)
 			ret = fanotify_add_vfsmount_mark(group, mnt, mask, flags);
@@ -557,6 +558,13 @@ SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
 			ret = fanotify_remove_vfsmount_mark(group, mnt, mask, flags);
 		else
 			ret = fanotify_remove_inode_mark(group, inode, mask, flags);
+		break;
+	case FAN_MARK_FLUSH:
+		if (flags & FAN_MARK_MOUNT)
+			fsnotify_clear_vfsmount_marks_by_group(group);
+		else
+			fsnotify_clear_inode_marks_by_group(group);
+		fsnotify_recalc_group_mask(group);
 		break;
 	default:
 		ret = -EINVAL;

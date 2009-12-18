@@ -51,6 +51,11 @@ void fsnotify_clear_marks_by_mount(struct vfsmount *mnt)
 	}
 }
 
+void fsnotify_clear_vfsmount_marks_by_group(struct fsnotify_group *group)
+{
+	fsnotify_clear_marks_by_group_flags(group, FSNOTIFY_MARK_FLAG_VFSMOUNT);
+}
+
 /*
  * Recalculate the mask of events relevant to a given vfsmount locked.
  */
