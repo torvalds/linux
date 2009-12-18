@@ -46,6 +46,16 @@ static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 			if (test_event->mask == event->mask)
 				goto out;
 
+			/*
+			 * if the refcnt == 1 this is the only queue
+			 * for this event and so we can update the mask
+			 * in place.
+			 */
+			if (atomic_read(&test_event->refcnt) == 1) {
+				test_event->mask |= event->mask;
+				goto out;
+			}
+
 			/* can't allocate memory, merge was no possible */
 			new_event = fsnotify_clone_event(test_event);
 			if (unlikely(!new_event)) {
