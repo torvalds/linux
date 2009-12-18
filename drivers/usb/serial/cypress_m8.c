@@ -73,6 +73,7 @@
 static int debug;
 static int stats;
 static int interval;
+static int unstable_bauds;
 
 /*
  * Version Information
@@ -290,6 +291,9 @@ static int analyze_baud_rate(struct usb_serial_port *port, speed_t new_rate)
 {
 	struct cypress_private *priv;
 	priv = usb_get_serial_port_data(port);
+
+	if (unstable_bauds)
+		return new_rate;
 
 	/*
 	 * The general purpose firmware for the Cypress M8 allows for
@@ -1643,3 +1647,5 @@ module_param(stats, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(stats, "Enable statistics or not");
 module_param(interval, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(interval, "Overrides interrupt interval");
+module_param(unstable_bauds, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(unstable_bauds, "Allow unstable baud rates");
