@@ -345,7 +345,7 @@ extern struct fsnotify_mark_entry *fsnotify_find_mark_entry(struct fsnotify_grou
 /* copy the values from old into new */
 extern void fsnotify_duplicate_mark(struct fsnotify_mark_entry *new, struct fsnotify_mark_entry *old);
 /* attach the mark to both the group and the inode */
-extern int fsnotify_add_mark(struct fsnotify_mark_entry *entry, struct fsnotify_group *group, struct inode *inode);
+extern int fsnotify_add_mark(struct fsnotify_mark_entry *entry, struct fsnotify_group *group, struct inode *inode, int allow_dups);
 /* given a mark, flag it to be freed when all references are dropped */
 extern void fsnotify_destroy_mark_by_entry(struct fsnotify_mark_entry *entry);
 /* run all the marks in a group, and flag them to be freed */

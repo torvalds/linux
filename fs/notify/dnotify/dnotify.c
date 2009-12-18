@@ -362,7 +362,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 		dnentry = container_of(entry, struct dnotify_mark_entry, fsn_entry);
 		spin_lock(&entry->lock);
 	} else {
-		fsnotify_add_mark(new_entry, dnotify_group, inode);
+		fsnotify_add_mark(new_entry, dnotify_group, inode, 0);
 		spin_lock(&new_entry->lock);
 		entry = new_entry;
 		dnentry = new_dnentry;
