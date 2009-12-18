@@ -1093,14 +1093,10 @@ static int32_t s5k3e2fx_move_focus(int direction, int32_t num_steps)
 
 	actual_step = step_direction * (int16_t)num_steps;
 	pos_offset = init_code + s5k3e2fx_ctrl->curr_lens_pos;
-	gain = actual_step * 0x400 / 5;
+	gain = ((actual_step << 10) / 5) >> 10;
 
-	for (i = 0; i <= 4; i++) {
-		if (actual_step >= 0)
-			s_move[i] = ((((i+1)*gain+0x200) - (i*gain+0x200))/0x400);
-		else
-			s_move[i] = ((((i+1)*gain-0x200) - (i*gain-0x200))/0x400);
-	}
+	for (i = 0; i <= 4; i++)
+		s_move[i] = gain;
 
 	/* Ring Damping Code */
 	for (i = 0; i <= 4; i++) {
