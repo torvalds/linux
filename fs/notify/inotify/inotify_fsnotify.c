@@ -32,6 +32,60 @@
 
 #include "inotify.h"
 
+/*
+ * Check if 2 events contain the same information.  We do not compare private data
+ * but at this moment that isn't a problem for any know fsnotify listeners.
+ */
+static bool event_compare(struct fsnotify_event *old, struct fsnotify_event *new)
+{
+	if ((old->mask == new->mask) &&
+	    (old->to_tell == new->to_tell) &&
+	    (old->data_type == new->data_type) &&
+	    (old->name_len == new->name_len)) {
+		switch (old->data_type) {
+		case (FSNOTIFY_EVENT_INODE):
+			/* remember, after old was put on the wait_q we aren't
+			 * allowed to look at the inode any more, only thing
+			 * left to check was if the file_name is the same */
+			if (!old->name_len ||
+			    !strcmp(old->file_name, new->file_name))
+				return true;
+			break;
+		case (FSNOTIFY_EVENT_PATH):
+			if ((old->path.mnt == new->path.mnt) &&
+			    (old->path.dentry == new->path.dentry))
+				return true;
+			break;
+		case (FSNOTIFY_EVENT_NONE):
+			if (old->mask & FS_Q_OVERFLOW)
+				return true;
+			else if (old->mask & FS_IN_IGNORED)
+				return false;
+			return true;
+		};
+	}
+	return false;
+}
+
+static int inotify_merge(struct list_head *list, struct fsnotify_event *event)
+{
+	struct fsnotify_event_holder *last_holder;
+	struct fsnotify_event *last_event;
+	int ret = 0;
+
+	/* and the list better be locked by something too */
+	spin_lock(&event->lock);
+
+	last_holder = list_entry(list->prev, struct fsnotify_event_holder, event_list);
+	last_event = last_holder->event;
+	if (event_compare(last_event, event))
+		ret = -EEXIST;
+
+	spin_unlock(&event->lock);
+
+	return ret;
+}
+
 static int inotify_handle_event(struct fsnotify_group *group, struct fsnotify_event *event)
 {
 	struct fsnotify_mark_entry *entry;
@@ -62,7 +116,7 @@ static int inotify_handle_event(struct fsnotify_group *group, struct fsnotify_ev
 	fsn_event_priv->group = group;
 	event_priv->wd = wd;
 
-	ret = fsnotify_add_notify_event(group, event, fsn_event_priv);
+	ret = fsnotify_add_notify_event(group, event, fsn_event_priv, inotify_merge);
 	if (ret) {
 		inotify_free_event_priv(fsn_event_priv);
 		/* EEXIST says we tail matched, EOVERFLOW isn't something
