@@ -18,6 +18,13 @@
 extern const struct fsnotify_ops fanotify_fsnotify_ops;
 
 static struct kmem_cache *fanotify_mark_cache __read_mostly;
+static struct kmem_cache *fanotify_response_event_cache __read_mostly;
+
+struct fanotify_response_event {
+	struct list_head list;
+	__s32 fd;
+	struct fsnotify_event *event;
+};
 
 /*
  * Get an fsnotify notification event if one exists and is small
@@ -110,23 +117,152 @@ static ssize_t fill_event_metadata(struct fsnotify_group *group,
 	return metadata->fd;
 }
 
+#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+static struct fanotify_response_event *dequeue_re(struct fsnotify_group *group,
+						  __s32 fd)
+{
+	struct fanotify_response_event *re, *return_re = NULL;
+
+	mutex_lock(&group->fanotify_data.access_mutex);
+	list_for_each_entry(re, &group->fanotify_data.access_list, list) {
+		if (re->fd != fd)
+			continue;
+
+		list_del_init(&re->list);
+		return_re = re;
+		break;
+	}
+	mutex_unlock(&group->fanotify_data.access_mutex);
+
+	pr_debug("%s: found return_re=%p\n", __func__, return_re);
+
+	return return_re;
+}
+
+static int process_access_response(struct fsnotify_group *group,
+				   struct fanotify_response *response_struct)
+{
+	struct fanotify_response_event *re;
+	__s32 fd = response_struct->fd;
+	__u32 response = response_struct->response;
+
+	pr_debug("%s: group=%p fd=%d response=%d\n", __func__, group,
+		 fd, response);
+	/*
+	 * make sure the response is valid, if invalid we do nothing and either
+	 * userspace can send a valid responce or we will clean it up after the
+	 * timeout
+	 */
+	switch (response) {
+	case FAN_ALLOW:
+	case FAN_DENY:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (fd < 0)
+		return -EINVAL;
+
+	re = dequeue_re(group, fd);
+	if (!re)
+		return -ENOENT;
+
+	re->event->response = response;
+
+	wake_up(&group->fanotify_data.access_waitq);
+
+	kmem_cache_free(fanotify_response_event_cache, re);
+
+	return 0;
+}
+
+static int prepare_for_access_response(struct fsnotify_group *group,
+				       struct fsnotify_event *event,
+				       __s32 fd)
+{
+	struct fanotify_response_event *re;
+
+	if (!(event->mask & FAN_ALL_PERM_EVENTS))
+		return 0;
+
+	re = kmem_cache_alloc(fanotify_response_event_cache, GFP_KERNEL);
+	if (!re)
+		return -ENOMEM;
+
+	re->event = event;
+	re->fd = fd;
+
+	mutex_lock(&group->fanotify_data.access_mutex);
+	list_add_tail(&re->list, &group->fanotify_data.access_list);
+	mutex_unlock(&group->fanotify_data.access_mutex);
+
+	return 0;
+}
+
+static void remove_access_response(struct fsnotify_group *group,
+				   struct fsnotify_event *event,
+				   __s32 fd)
+{
+	struct fanotify_response_event *re;
+
+	if (!(event->mask & FAN_ALL_PERM_EVENTS))
+		return;
+
+	re = dequeue_re(group, fd);
+	if (!re)
+		return;
+
+	BUG_ON(re->event != event);
+
+	kmem_cache_free(fanotify_response_event_cache, re);
+
+	return;
+}
+#else
+static int prepare_for_access_response(struct fsnotify_group *group,
+				       struct fsnotify_event *event,
+				       __s32 fd)
+{
+	return 0;
+}
+
+static void remove_access_response(struct fsnotify_group *group,
+				   struct fsnotify_event *event,
+				   __s32 fd)
+{
+	return 0;
+}
+#endif
+
 static ssize_t copy_event_to_user(struct fsnotify_group *group,
 				  struct fsnotify_event *event,
 				  char __user *buf)
 {
 	struct fanotify_event_metadata fanotify_event_metadata;
-	int ret;
+	int fd, ret;
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
-	ret = fill_event_metadata(group, &fanotify_event_metadata, event);
-	if (ret < 0)
-		return ret;
+	fd = fill_event_metadata(group, &fanotify_event_metadata, event);
+	if (fd < 0)
+		return fd;
 
+	ret = prepare_for_access_response(group, event, fd);
+	if (ret)
+		goto out_close_fd;
+
+	ret = -EFAULT;
 	if (copy_to_user(buf, &fanotify_event_metadata, FAN_EVENT_METADATA_LEN))
-		return -EFAULT;
+		goto out_kill_access_response;
 
 	return FAN_EVENT_METADATA_LEN;
+
+out_kill_access_response:
+	remove_access_response(group, event, fd);
+out_close_fd:
+	sys_close(fd);
+	return ret;
 }
 
 /* intofiy userspace file descriptor functions */
@@ -197,6 +333,33 @@ static ssize_t fanotify_read(struct file *file, char __user *buf,
 	return ret;
 }
 
+static ssize_t fanotify_write(struct file *file, const char __user *buf, size_t count, loff_t *pos)
+{
+#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+	struct fanotify_response response = { .fd = -1, .response = -1 };
+	struct fsnotify_group *group;
+	int ret;
+
+	group = file->private_data;
+
+	if (count > sizeof(response))
+		count = sizeof(response);
+
+	pr_debug("%s: group=%p count=%zu\n", __func__, group, count);
+
+	if (copy_from_user(&response, buf, count))
+		return -EFAULT;
+
+	ret = process_access_response(group, &response);
+	if (ret < 0)
+		count = ret;
+
+	return count;
+#else
+	return -EINVAL;
+#endif
+}
+
 static int fanotify_release(struct inode *ignored, struct file *file)
 {
 	struct fsnotify_group *group = file->private_data;
@@ -237,6 +400,7 @@ static long fanotify_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 static const struct file_operations fanotify_fops = {
 	.poll		= fanotify_poll,
 	.read		= fanotify_read,
+	.write		= fanotify_write,
 	.fasync		= NULL,
 	.release	= fanotify_release,
 	.unlocked_ioctl	= fanotify_ioctl,
@@ -470,7 +634,7 @@ SYSCALL_DEFINE3(fanotify_init, unsigned int, flags, unsigned int, event_f_flags,
 	if (flags & ~FAN_ALL_INIT_FLAGS)
 		return -EINVAL;
 
-	f_flags = (O_RDONLY | FMODE_NONOTIFY);
+	f_flags = O_RDWR | FMODE_NONOTIFY;
 	if (flags & FAN_CLOEXEC)
 		f_flags |= O_CLOEXEC;
 	if (flags & FAN_NONBLOCK)
@@ -527,7 +691,11 @@ SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
 	default:
 		return -EINVAL;
 	}
+#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+	if (mask & ~(FAN_ALL_EVENTS | FAN_ALL_PERM_EVENTS | FAN_EVENT_ON_CHILD))
+#else
 	if (mask & ~(FAN_ALL_EVENTS | FAN_EVENT_ON_CHILD))
+#endif
 		return -EINVAL;
 
 	filp = fget_light(fanotify_fd, &fput_needed);
@@ -600,6 +768,8 @@ SYSCALL_ALIAS(sys_fanotify_mark, SyS_fanotify_mark);
 static int __init fanotify_user_setup(void)
 {
 	fanotify_mark_cache = KMEM_CACHE(fsnotify_mark, SLAB_PANIC);
+	fanotify_response_event_cache = KMEM_CACHE(fanotify_response_event,
+						   SLAB_PANIC);
 
 	return 0;
 }
