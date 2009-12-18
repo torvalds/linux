@@ -168,7 +168,7 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark)
 	 * is just a lazy update (and could be a perf win...)
 	 */
 
-	if (inode)
+	if (inode && (mark->flags & FSNOTIFY_MARK_FLAG_OBJECT_PINNED))
 		iput(inode);
 
 	/*
@@ -179,6 +179,17 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark)
 	if (unlikely(atomic_dec_and_test(&group->num_marks)))
 		fsnotify_final_destroy_group(group);
 }
+
+void fsnotify_set_mark_mask_locked(struct fsnotify_mark *mark, __u32 mask)
+{
+	assert_spin_locked(&mark->lock);
+
+	mark->mask = mask;
+
+	if (mark->flags & FSNOTIFY_MARK_FLAG_INODE)
+		fsnotify_set_inode_mark_mask_locked(mark, mask);
+}
+
 
 /*
  * Attach an initialized mark to a given group and fs object.
@@ -230,6 +241,10 @@ int fsnotify_add_mark(struct fsnotify_mark *mark,
 	}
 
 	spin_unlock(&group->mark_lock);
+
+	/* this will pin the object if appropriate */
+	fsnotify_set_mark_mask_locked(mark, mark->mask);
+
 	spin_unlock(&mark->lock);
 
 	if (inode)

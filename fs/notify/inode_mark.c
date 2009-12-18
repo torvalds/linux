@@ -141,7 +141,32 @@ struct fsnotify_mark *fsnotify_find_inode_mark(struct fsnotify_group *group,
 }
 
 /*
- * Attach an initialized mark mark to a given group and inode.
+ * If we are setting a mark mask on an inode mark we should pin the inode
+ * in memory.
+ */
+void fsnotify_set_inode_mark_mask_locked(struct fsnotify_mark *mark,
+					 __u32 mask)
+{
+	struct inode *inode;
+
+	assert_spin_locked(&mark->lock);
+
+	if (mask &&
+	    mark->i.inode &&
+	    !(mark->flags & FSNOTIFY_MARK_FLAG_OBJECT_PINNED)) {
+		mark->flags |= FSNOTIFY_MARK_FLAG_OBJECT_PINNED;
+		inode = igrab(mark->i.inode);
+		/*
+		 * we shouldn't be able to get here if the inode wasn't
+		 * already safely held in memory.  But bug in case it
+		 * ever is wrong.
+		 */
+		BUG_ON(!inode);
+	}
+}
+
+/*
+ * Attach an initialized mark to a given group and inode.
  * These marks may be used for the fsnotify backend to determine which
  * event types should be delivered to which group and for which inodes.
  */
@@ -151,10 +176,6 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 {
 	struct fsnotify_mark *lmark = NULL;
 	int ret = 0;
-
-	inode = igrab(inode);
-	if (unlikely(!inode))
-		return -EINVAL;
 
 	mark->flags = FSNOTIFY_MARK_FLAG_INODE;
 
@@ -175,10 +196,8 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 
 	spin_unlock(&inode->i_lock);
 
-	if (lmark) {
+	if (lmark)
 		ret = -EEXIST;
-		iput(inode);
-	}
 
 	return ret;
 }

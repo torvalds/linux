@@ -20,6 +20,8 @@ extern __u32 fsnotify_vfsmount_mask;
 /* destroy all events sitting in this groups notification queue */
 extern void fsnotify_flush_notify(struct fsnotify_group *group);
 
+extern void fsnotify_set_inode_mark_mask_locked(struct fsnotify_mark *fsn_mark,
+						__u32 mask);
 /* add a mark to an inode */
 extern int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 				   struct fsnotify_group *group, struct inode *inode,

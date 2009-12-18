@@ -302,7 +302,7 @@ static __u32 fanotify_mark_remove_from_mask(struct fsnotify_mark *fsn_mark, __u3
 
 	spin_lock(&fsn_mark->lock);
 	oldmask = fsn_mark->mask;
-	fsn_mark->mask = oldmask & ~mask;
+	fsnotify_set_mark_mask_locked(fsn_mark, (oldmask & ~mask));
 	spin_unlock(&fsn_mark->lock);
 
 	if (!(oldmask & ~mask))
@@ -359,7 +359,7 @@ static __u32 fanotify_mark_add_to_mask(struct fsnotify_mark *fsn_mark, __u32 mas
 
 	spin_lock(&fsn_mark->lock);
 	oldmask = fsn_mark->mask;
-	fsn_mark->mask = oldmask | mask;
+	fsnotify_set_mark_mask_locked(fsn_mark, (oldmask | mask));
 	spin_unlock(&fsn_mark->lock);
 
 	return mask & ~oldmask;

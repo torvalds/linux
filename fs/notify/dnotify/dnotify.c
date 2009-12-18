@@ -65,7 +65,7 @@ static void dnotify_recalc_inode_mask(struct fsnotify_mark *fsn_mark)
 	new_mask = 0;
 	for (dn = dn_mark->dn; dn != NULL; dn = dn->dn_next)
 		new_mask |= (dn->dn_mask & ~FS_DN_MULTISHOT);
-	fsn_mark->mask = new_mask;
+	fsnotify_set_mark_mask_locked(fsn_mark, new_mask);
 
 	if (old_mask == new_mask)
 		return;
