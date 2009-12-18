@@ -424,27 +424,6 @@ static int fanotify_add_inode_mark(struct fsnotify_group *group,
 	return 0;
 }
 
-static int fanotify_add_mark(struct fsnotify_group *group, struct inode *inode,
-			     struct vfsmount *mnt, __u32 mask)
-{
-	int ret;
-
-	pr_debug("%s: group=%p inode=%p mnt=%p mask=%x\n",
-		 __func__, group, inode, mnt, mask);
-
-	BUG_ON(inode && mnt);
-	BUG_ON(!inode && !mnt);
-
-	if (inode)
-		ret = fanotify_add_inode_mark(group, inode, mask);
-	else if (mnt)
-		ret = fanotify_add_vfsmount_mark(group, mnt, mask);
-	else
-		BUG();
-
-	return ret;
-}
-
 static bool fanotify_mark_validate_input(int flags,
 					 __u32 mask)
 {
@@ -542,7 +521,7 @@ SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
 	/* create/update an inode mark */
 	switch (flags & (FAN_MARK_ADD | FAN_MARK_REMOVE)) {
 	case FAN_MARK_ADD:
-		ret = fanotify_add_mark(group, inode, NULL, mask);
+		ret = fanotify_add_inode_mark(group, inode, mask);
 		break;
 	case FAN_MARK_REMOVE:
 		ret = fanotify_remove_mark(group, inode, NULL, mask);
