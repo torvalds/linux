@@ -560,8 +560,7 @@ static void bfin_spi_pump_transfers(unsigned long data)
 	struct spi_transfer *previous = NULL;
 	struct slave_data *chip = NULL;
 	unsigned int bits_per_word;
-	u8 width;
-	u16 cr, dma_width, dma_config;
+	u16 cr, cr_width, dma_width, dma_config;
 	u32 tranf_success = 1;
 	u8 full_duplex = 0;
 
@@ -642,22 +641,19 @@ static void bfin_spi_pump_transfers(unsigned long data)
 	bits_per_word = transfer->bits_per_word ? : message->spi->bits_per_word;
 	if (bits_per_word == 8) {
 		drv_data->n_bytes = 1;
-		width = CFG_SPI_WORDSIZE8;
+		drv_data->len = transfer->len;
+		cr_width = 0;
 		drv_data->ops = &bfin_transfer_ops_u8;
 	} else {
 		drv_data->n_bytes = 2;
-		width = CFG_SPI_WORDSIZE16;
+		drv_data->len = (transfer->len) >> 1;
+		cr_width = BIT_CTL_WORDSIZE;
 		drv_data->ops = &bfin_transfer_ops_u16;
 	}
-	cr = (read_CTRL(drv_data) & (~BIT_CTL_TIMOD));
-	cr |= (width << 8);
+	cr = read_CTRL(drv_data) & ~(BIT_CTL_TIMOD | BIT_CTL_WORDSIZE);
+	cr |= cr_width;
 	write_CTRL(drv_data, cr);
 
-	if (width == CFG_SPI_WORDSIZE16) {
-		drv_data->len = (transfer->len) >> 1;
-	} else {
-		drv_data->len = transfer->len;
-	}
 	dev_dbg(&drv_data->pdev->dev,
 		"transfer: drv_data->ops is %p, chip->ops is %p, u8_ops is %p\n",
 		drv_data->ops, chip->ops, &bfin_transfer_ops_u8);
@@ -672,13 +668,12 @@ static void bfin_spi_pump_transfers(unsigned long data)
 		write_BAUD(drv_data, chip->baud);
 
 	write_STAT(drv_data, BIT_STAT_CLR);
-	cr = (read_CTRL(drv_data) & (~BIT_CTL_TIMOD));
 	if (drv_data->cs_change)
 		bfin_spi_cs_active(drv_data, chip);
 
 	dev_dbg(&drv_data->pdev->dev,
 		"now pumping a transfer: width is %d, len is %d\n",
-		width, transfer->len);
+		cr_width, transfer->len);
 
 	/*
 	 * Try to map dma buffer and do a dma transfer.  If successful use,
@@ -697,7 +692,7 @@ static void bfin_spi_pump_transfers(unsigned long data)
 		/* config dma channel */
 		dev_dbg(&drv_data->pdev->dev, "doing dma transfer\n");
 		set_dma_x_count(drv_data->dma_channel, drv_data->len);
-		if (width == CFG_SPI_WORDSIZE16) {
+		if (cr_width == BIT_CTL_WORDSIZE) {
 			set_dma_x_modify(drv_data->dma_channel, 2);
 			dma_width = WDSIZE_16;
 		} else {
@@ -786,10 +781,16 @@ static void bfin_spi_pump_transfers(unsigned long data)
 		return;
 	}
 
+	/*
+	 * We always use SPI_WRITE mode (transfer starts with TDBR write).
+	 * SPI_READ mode (transfer starts with RDBR read) seems to have
+	 * problems with setting up the output value in TDBR prior to the
+	 * start of the transfer.
+	 */
+	write_CTRL(drv_data, cr | BIT_CTL_TXMOD);
+
 	if (chip->pio_interrupt) {
-		/* use write mode. spi irq should have been disabled */
-		cr = (read_CTRL(drv_data) & (~BIT_CTL_TIMOD));
-		write_CTRL(drv_data, (cr | CFG_SPI_WRITE));
+		/* SPI irq should have been disabled by now */
 
 		/* discard old RX data and clear RXS */
 		bfin_spi_dummy_read(drv_data);
@@ -812,11 +813,6 @@ static void bfin_spi_pump_transfers(unsigned long data)
 
 	/* IO mode */
 	dev_dbg(&drv_data->pdev->dev, "doing IO transfer\n");
-
-	/* we always use SPI_WRITE mode. SPI_READ mode
-	   seems to have problems with setting up the
-	   output value in TDBR prior to the transfer. */
-	write_CTRL(drv_data, (cr | CFG_SPI_WRITE));
 
 	if (full_duplex) {
 		/* full duplex mode */
