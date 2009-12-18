@@ -115,15 +115,11 @@ void fsnotify_put_mark(struct fsnotify_mark *mark)
 void fsnotify_destroy_mark(struct fsnotify_mark *mark)
 {
 	struct fsnotify_group *group;
-	struct inode *inode;
+	struct inode *inode = NULL;
 
 	spin_lock(&mark->lock);
 
 	group = mark->group;
-	inode = mark->i.inode;
-
-	BUG_ON(group && !inode);
-	BUG_ON(!group && inode);
 
 	/* if !group something else already marked this to die */
 	if (!group) {
@@ -136,8 +132,11 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark)
 
 	spin_lock(&group->mark_lock);
 
-	if (mark->flags & FSNOTIFY_MARK_FLAG_INODE)
+	if (mark->flags & FSNOTIFY_MARK_FLAG_INODE) {
 		fsnotify_destroy_inode_mark(mark);
+		inode = mark->i.inode;
+	} else if (mark->flags & FSNOTIFY_MARK_FLAG_VFSMOUNT)
+		fsnotify_destroy_vfsmount_mark(mark);
 	else
 		BUG();
 
@@ -169,8 +168,8 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark)
 	 * is just a lazy update (and could be a perf win...)
 	 */
 
-
-	iput(inode);
+	if (inode)
+		iput(inode);
 
 	/*
 	 * it's possible that this group tried to destroy itself, but this
@@ -192,7 +191,6 @@ int fsnotify_add_mark(struct fsnotify_mark *mark,
 {
 	int ret = 0;
 
-	BUG_ON(mnt);
 	BUG_ON(inode && mnt);
 	BUG_ON(!inode && !mnt);
 
@@ -221,6 +219,10 @@ int fsnotify_add_mark(struct fsnotify_mark *mark,
 
 	if (inode) {
 		ret = fsnotify_add_inode_mark(mark, group, inode, allow_dups);
+		if (ret)
+			goto err;
+	} else if (mnt) {
+		ret = fsnotify_add_vfsmount_mark(mark, group, mnt, allow_dups);
 		if (ret)
 			goto err;
 	} else {

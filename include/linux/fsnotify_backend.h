@@ -360,6 +360,8 @@ extern struct fsnotify_event *fsnotify_remove_notify_event(struct fsnotify_group
 
 /* functions used to manipulate the marks attached to inodes */
 
+/* run all marks associated with a vfsmount and update mnt->mnt_fsnotify_mask */
+extern void fsnotify_recalc_vfsmount_mask(struct vfsmount *mnt);
 /* run all marks associated with an inode and update inode->i_fsnotify_mask */
 extern void fsnotify_recalc_inode_mask(struct inode *inode);
 extern void fsnotify_init_mark(struct fsnotify_mark *mark, void (*free_mark)(struct fsnotify_mark *mark));

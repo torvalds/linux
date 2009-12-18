@@ -24,6 +24,10 @@ extern void fsnotify_flush_notify(struct fsnotify_group *group);
 extern int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 				   struct fsnotify_group *group, struct inode *inode,
 				   int allow_dups);
+/* add a mark to a vfsmount */
+extern int fsnotify_add_vfsmount_mark(struct fsnotify_mark *mark,
+				      struct fsnotify_group *group, struct vfsmount *mnt,
+				      int allow_dups);
 
 /* add a group to the inode group list */
 extern void fsnotify_add_inode_group(struct fsnotify_group *group);
@@ -32,6 +36,8 @@ extern void fsnotify_add_vfsmount_group(struct fsnotify_group *group);
 /* final kfree of a group */
 extern void fsnotify_final_destroy_group(struct fsnotify_group *group);
 
+/* vfsmount specific destruction of a mark */
+extern void fsnotify_destroy_vfsmount_mark(struct fsnotify_mark *mark);
 /* inode specific destruction of a mark */
 extern void fsnotify_destroy_inode_mark(struct fsnotify_mark *mark);
 /* run the list of all marks associated with inode and flag them to be freed */
