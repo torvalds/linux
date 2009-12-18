@@ -56,7 +56,7 @@ struct audit_watch {
 
 struct audit_parent {
 	struct list_head	watches; /* anchor for audit_watch->wlist */
-	struct fsnotify_mark_entry mark; /* fsnotify mark on the inode */
+	struct fsnotify_mark mark; /* fsnotify mark on the inode */
 };
 
 /* fsnotify handle. */
@@ -72,7 +72,7 @@ static void audit_free_parent(struct audit_parent *parent)
 	kfree(parent);
 }
 
-static void audit_watch_free_mark(struct fsnotify_mark_entry *entry)
+static void audit_watch_free_mark(struct fsnotify_mark *entry)
 {
 	struct audit_parent *parent;
 
@@ -99,7 +99,7 @@ static void audit_put_parent(struct audit_parent *parent)
 static inline struct audit_parent *audit_find_parent(struct inode *inode)
 {
 	struct audit_parent *parent = NULL;
-	struct fsnotify_mark_entry *entry;
+	struct fsnotify_mark *entry;
 
 	spin_lock(&inode->i_lock);
 	entry = fsnotify_find_mark_entry(audit_watch_group, inode);
@@ -517,7 +517,7 @@ static bool audit_watch_should_send_event(struct fsnotify_group *group, struct i
 					  struct vfsmount *mnt, __u32 mask, void *data,
 					  int data_type)
 {
-	struct fsnotify_mark_entry *entry;
+	struct fsnotify_mark *entry;
 	bool send;
 
 	spin_lock(&inode->i_lock);

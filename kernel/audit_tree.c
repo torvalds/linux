@@ -22,7 +22,7 @@ struct audit_tree {
 
 struct audit_chunk {
 	struct list_head hash;
-	struct fsnotify_mark_entry mark;
+	struct fsnotify_mark mark;
 	struct list_head trees;		/* with root here */
 	int dead;
 	int count;
@@ -134,7 +134,7 @@ static void __put_chunk(struct rcu_head *rcu)
 	audit_put_chunk(chunk);
 }
 
-static void audit_tree_destroy_watch(struct fsnotify_mark_entry *entry)
+static void audit_tree_destroy_watch(struct fsnotify_mark *entry)
 {
 	struct audit_chunk *chunk = container_of(entry, struct audit_chunk, mark);
 	call_rcu(&chunk->head, __put_chunk);
@@ -176,7 +176,7 @@ static inline struct list_head *chunk_hash(const struct inode *inode)
 /* hash_lock & entry->lock is held by caller */
 static void insert_hash(struct audit_chunk *chunk)
 {
-	struct fsnotify_mark_entry *entry = &chunk->mark;
+	struct fsnotify_mark *entry = &chunk->mark;
 	struct list_head *list;
 
 	if (!entry->i.inode)
@@ -222,7 +222,7 @@ static struct audit_chunk *find_chunk(struct node *p)
 static void untag_chunk(struct node *p)
 {
 	struct audit_chunk *chunk = find_chunk(p);
-	struct fsnotify_mark_entry *entry = &chunk->mark;
+	struct fsnotify_mark *entry = &chunk->mark;
 	struct audit_chunk *new;
 	struct audit_tree *owner;
 	int size = chunk->count - 1;
@@ -316,7 +316,7 @@ out:
 
 static int create_chunk(struct inode *inode, struct audit_tree *tree)
 {
-	struct fsnotify_mark_entry *entry;
+	struct fsnotify_mark *entry;
 	struct audit_chunk *chunk = alloc_chunk(1);
 	if (!chunk)
 		return -ENOMEM;
@@ -354,7 +354,7 @@ static int create_chunk(struct inode *inode, struct audit_tree *tree)
 /* the first tagged inode becomes root of tree */
 static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 {
-	struct fsnotify_mark_entry *old_entry, *chunk_entry;
+	struct fsnotify_mark *old_entry, *chunk_entry;
 	struct audit_tree *owner;
 	struct audit_chunk *chunk, *old;
 	struct node *p;
@@ -911,7 +911,7 @@ static int audit_tree_handle_event(struct fsnotify_group *group, struct fsnotify
 	return -EOPNOTSUPP;
 }
 
-static void audit_tree_freeing_mark(struct fsnotify_mark_entry *entry, struct fsnotify_group *group)
+static void audit_tree_freeing_mark(struct fsnotify_mark *entry, struct fsnotify_group *group)
 {
 	struct audit_chunk *chunk = container_of(entry, struct audit_chunk, mark);
 

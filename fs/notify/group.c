@@ -74,10 +74,10 @@ void fsnotify_recalc_group_mask(struct fsnotify_group *group)
 {
 	__u32 mask = 0;
 	__u32 old_mask = group->mask;
-	struct fsnotify_mark_entry *entry;
+	struct fsnotify_mark *entry;
 
 	spin_lock(&group->mark_lock);
-	list_for_each_entry(entry, &group->mark_entries, g_list)
+	list_for_each_entry(entry, &group->marks_list, g_list)
 		mask |= entry->mask;
 	spin_unlock(&group->mark_lock);
 
@@ -133,7 +133,7 @@ void fsnotify_final_destroy_group(struct fsnotify_group *group)
  */
 static void fsnotify_destroy_group(struct fsnotify_group *group)
 {
-	/* clear all inode mark entries for this group */
+	/* clear all inode marks for this group */
 	fsnotify_clear_marks_by_group(group);
 
 	/* past the point of no return, matches the initial value of 1 */
@@ -224,7 +224,7 @@ struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *ops)
 	INIT_LIST_HEAD(&group->vfsmount_group_list);
 
 	spin_lock_init(&group->mark_lock);
-	INIT_LIST_HEAD(&group->mark_entries);
+	INIT_LIST_HEAD(&group->marks_list);
 
 	group->ops = ops;
 

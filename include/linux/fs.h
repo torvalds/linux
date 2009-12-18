@@ -768,7 +768,7 @@ struct inode {
 
 #ifdef CONFIG_FSNOTIFY
 	__u32			i_fsnotify_mask; /* all events this inode cares about */
-	struct hlist_head	i_fsnotify_mark_entries; /* fsnotify mark entries */
+	struct hlist_head	i_fsnotify_marks;
 #endif
 
 	unsigned long		i_state;

@@ -19,10 +19,10 @@
  * fsnotify_d_instantiate - instantiate a dentry for inode
  * Called with dcache_lock held.
  */
-static inline void fsnotify_d_instantiate(struct dentry *entry,
-						struct inode *inode)
+static inline void fsnotify_d_instantiate(struct dentry *dentry,
+					  struct inode *inode)
 {
-	__fsnotify_d_instantiate(entry, inode);
+	__fsnotify_d_instantiate(dentry, inode);
 }
 
 /* Notify this dentry's parent about a child's events. */
@@ -35,16 +35,16 @@ static inline void fsnotify_parent(struct path *path, struct dentry *dentry, __u
 }
 
 /*
- * fsnotify_d_move - entry has been moved
- * Called with dcache_lock and entry->d_lock held.
+ * fsnotify_d_move - dentry has been moved
+ * Called with dcache_lock and dentry->d_lock held.
  */
-static inline void fsnotify_d_move(struct dentry *entry)
+static inline void fsnotify_d_move(struct dentry *dentry)
 {
 	/*
-	 * On move we need to update entry->d_flags to indicate if the new parent
-	 * cares about events from this entry.
+	 * On move we need to update dentry->d_flags to indicate if the new parent
+	 * cares about events from this dentry.
 	 */
-	__fsnotify_update_dcache_flags(entry);
+	__fsnotify_update_dcache_flags(dentry);
 }
 
 /*

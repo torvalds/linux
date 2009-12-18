@@ -38,12 +38,12 @@
  * that lock to dereference either of these things (they could be NULL even with
  * the lock)
  *
- * group->mark_lock protects the mark_entries list anchored inside a given group
+ * group->mark_lock protects the marks_list anchored inside a given group
  * and each entry is hooked via the g_list.  It also sorta protects the
  * free_g_list, which when used is anchored by a private list on the stack of the
  * task which held the group->mark_lock.
  *
- * inode->i_lock protects the i_fsnotify_mark_entries list anchored inside a
+ * inode->i_lock protects the i_fsnotify_marks list anchored inside a
  * given inode and each entry is hooked via the i_list. (and sorta the
  * free_i_list)
  *
@@ -61,7 +61,7 @@
  *   need to be cleaned up. (fsnotify_clear_marks_by_group)
  *
  * Worst case we are given an inode and need to clean up all the marks on that
- * inode.  We take i_lock and walk the i_fsnotify_mark_entries safely.  For each
+ * inode.  We take i_lock and walk the i_fsnotify_marks safely.  For each
  * mark on the list we take a reference (so the mark can't disappear under us).
  * We remove that mark form the inode's list of marks and we add this mark to a
  * private list anchored on the stack using i_free_list;  At this point we no
@@ -95,12 +95,12 @@
 #include <linux/fsnotify_backend.h>
 #include "fsnotify.h"
 
-void fsnotify_get_mark(struct fsnotify_mark_entry *entry)
+void fsnotify_get_mark(struct fsnotify_mark *entry)
 {
 	atomic_inc(&entry->refcnt);
 }
 
-void fsnotify_put_mark(struct fsnotify_mark_entry *entry)
+void fsnotify_put_mark(struct fsnotify_mark *entry)
 {
 	if (atomic_dec_and_test(&entry->refcnt))
 		entry->free_mark(entry);
@@ -111,13 +111,13 @@ void fsnotify_put_mark(struct fsnotify_mark_entry *entry)
  */
 static void fsnotify_recalc_inode_mask_locked(struct inode *inode)
 {
-	struct fsnotify_mark_entry *entry;
+	struct fsnotify_mark *entry;
 	struct hlist_node *pos;
 	__u32 new_mask = 0;
 
 	assert_spin_locked(&inode->i_lock);
 
-	hlist_for_each_entry(entry, pos, &inode->i_fsnotify_mark_entries, i.i_list)
+	hlist_for_each_entry(entry, pos, &inode->i_fsnotify_marks, i.i_list)
 		new_mask |= entry->mask;
 	inode->i_fsnotify_mask = new_mask;
 }
@@ -140,7 +140,7 @@ void fsnotify_recalc_inode_mask(struct inode *inode)
  * The caller had better be holding a reference to this mark so we don't actually
  * do the final put under the entry->lock
  */
-void fsnotify_destroy_mark_by_entry(struct fsnotify_mark_entry *entry)
+void fsnotify_destroy_mark_by_entry(struct fsnotify_mark *entry)
 {
 	struct fsnotify_group *group;
 	struct inode *inode;
@@ -174,7 +174,7 @@ void fsnotify_destroy_mark_by_entry(struct fsnotify_mark_entry *entry)
 	fsnotify_put_mark(entry); /* for i_list and g_list */
 
 	/*
-	 * this mark is now off the inode->i_fsnotify_mark_entries list and we
+	 * this mark is now off the inode->i_fsnotify_marks list and we
 	 * hold the inode->i_lock, so this is the perfect time to update the
 	 * inode->i_fsnotify_mask
 	 */
@@ -221,11 +221,11 @@ void fsnotify_destroy_mark_by_entry(struct fsnotify_mark_entry *entry)
  */
 void fsnotify_clear_marks_by_group(struct fsnotify_group *group)
 {
-	struct fsnotify_mark_entry *lentry, *entry;
+	struct fsnotify_mark *lentry, *entry;
 	LIST_HEAD(free_list);
 
 	spin_lock(&group->mark_lock);
-	list_for_each_entry_safe(entry, lentry, &group->mark_entries, g_list) {
+	list_for_each_entry_safe(entry, lentry, &group->marks_list, g_list) {
 		list_add(&entry->free_g_list, &free_list);
 		list_del_init(&entry->g_list);
 		fsnotify_get_mark(entry);
@@ -243,12 +243,12 @@ void fsnotify_clear_marks_by_group(struct fsnotify_group *group)
  */
 void fsnotify_clear_marks_by_inode(struct inode *inode)
 {
-	struct fsnotify_mark_entry *entry, *lentry;
+	struct fsnotify_mark *entry, *lentry;
 	struct hlist_node *pos, *n;
 	LIST_HEAD(free_list);
 
 	spin_lock(&inode->i_lock);
-	hlist_for_each_entry_safe(entry, pos, n, &inode->i_fsnotify_mark_entries, i.i_list) {
+	hlist_for_each_entry_safe(entry, pos, n, &inode->i_fsnotify_marks, i.i_list) {
 		list_add(&entry->i.free_i_list, &free_list);
 		hlist_del_init(&entry->i.i_list);
 		fsnotify_get_mark(entry);
@@ -265,15 +265,15 @@ void fsnotify_clear_marks_by_inode(struct inode *inode)
  * given a group and inode, find the mark associated with that combination.
  * if found take a reference to that mark and return it, else return NULL
  */
-struct fsnotify_mark_entry *fsnotify_find_mark_entry(struct fsnotify_group *group,
-						     struct inode *inode)
+struct fsnotify_mark *fsnotify_find_mark_entry(struct fsnotify_group *group,
+					       struct inode *inode)
 {
-	struct fsnotify_mark_entry *entry;
+	struct fsnotify_mark *entry;
 	struct hlist_node *pos;
 
 	assert_spin_locked(&inode->i_lock);
 
-	hlist_for_each_entry(entry, pos, &inode->i_fsnotify_mark_entries, i.i_list) {
+	hlist_for_each_entry(entry, pos, &inode->i_fsnotify_marks, i.i_list) {
 		if (entry->group == group) {
 			fsnotify_get_mark(entry);
 			return entry;
@@ -282,7 +282,7 @@ struct fsnotify_mark_entry *fsnotify_find_mark_entry(struct fsnotify_group *grou
 	return NULL;
 }
 
-void fsnotify_duplicate_mark(struct fsnotify_mark_entry *new, struct fsnotify_mark_entry *old)
+void fsnotify_duplicate_mark(struct fsnotify_mark *new, struct fsnotify_mark *old)
 {
 	assert_spin_locked(&old->lock);
 	new->i.inode = old->i.inode;
@@ -294,8 +294,8 @@ void fsnotify_duplicate_mark(struct fsnotify_mark_entry *new, struct fsnotify_ma
 /*
  * Nothing fancy, just initialize lists and locks and counters.
  */
-void fsnotify_init_mark(struct fsnotify_mark_entry *entry,
-			void (*free_mark)(struct fsnotify_mark_entry *entry))
+void fsnotify_init_mark(struct fsnotify_mark *entry,
+			void (*free_mark)(struct fsnotify_mark *entry))
 {
 	spin_lock_init(&entry->lock);
 	atomic_set(&entry->refcnt, 1);
@@ -311,11 +311,11 @@ void fsnotify_init_mark(struct fsnotify_mark_entry *entry,
  * These marks may be used for the fsnotify backend to determine which
  * event types should be delivered to which group and for which inodes.
  */
-int fsnotify_add_mark(struct fsnotify_mark_entry *entry,
+int fsnotify_add_mark(struct fsnotify_mark *entry,
 		      struct fsnotify_group *group, struct inode *inode,
 		      int allow_dups)
 {
-	struct fsnotify_mark_entry *lentry = NULL;
+	struct fsnotify_mark *lentry = NULL;
 	int ret = 0;
 
 	inode = igrab(inode);
@@ -354,8 +354,8 @@ int fsnotify_add_mark(struct fsnotify_mark_entry *entry,
 		entry->group = group;
 		entry->i.inode = inode;
 
-		hlist_add_head(&entry->i.i_list, &inode->i_fsnotify_mark_entries);
-		list_add(&entry->g_list, &group->mark_entries);
+		hlist_add_head(&entry->i.i_list, &inode->i_fsnotify_marks);
+		list_add(&entry->g_list, &group->marks_list);
 
 		fsnotify_get_mark(entry); /* for i_list and g_list */
 

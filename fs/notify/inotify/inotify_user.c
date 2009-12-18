@@ -386,7 +386,7 @@ static struct inotify_inode_mark_entry *inotify_idr_find_locked(struct fsnotify_
 
 	ientry = idr_find(idr, wd);
 	if (ientry) {
-		struct fsnotify_mark_entry *fsn_entry = &ientry->fsn_entry;
+		struct fsnotify_mark *fsn_entry = &ientry->fsn_entry;
 
 		fsnotify_get_mark(fsn_entry);
 		/* One ref for being in the idr, one ref we just took */
@@ -499,7 +499,7 @@ out:
 /*
  * Send IN_IGNORED for this wd, remove this wd from the idr.
  */
-void inotify_ignored_and_remove_idr(struct fsnotify_mark_entry *entry,
+void inotify_ignored_and_remove_idr(struct fsnotify_mark *entry,
 				    struct fsnotify_group *group)
 {
 	struct inotify_inode_mark_entry *ientry;
@@ -541,7 +541,7 @@ skip_send_ignore:
 }
 
 /* ding dong the mark is dead */
-static void inotify_free_mark(struct fsnotify_mark_entry *entry)
+static void inotify_free_mark(struct fsnotify_mark *entry)
 {
 	struct inotify_inode_mark_entry *ientry;
 
@@ -554,7 +554,7 @@ static int inotify_update_existing_watch(struct fsnotify_group *group,
 					 struct inode *inode,
 					 u32 arg)
 {
-	struct fsnotify_mark_entry *entry;
+	struct fsnotify_mark *entry;
 	struct inotify_inode_mark_entry *ientry;
 	__u32 old_mask, new_mask;
 	__u32 mask;

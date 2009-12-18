@@ -34,12 +34,12 @@ static struct fsnotify_group *dnotify_group __read_mostly;
 static DEFINE_MUTEX(dnotify_mark_mutex);
 
 /*
- * dnotify will attach one of these to each inode (i_fsnotify_mark_entries) which
+ * dnotify will attach one of these to each inode (i_fsnotify_marks) which
  * is being watched by dnotify.  If multiple userspace applications are watching
  * the same directory with dnotify their information is chained in dn
  */
 struct dnotify_mark_entry {
-	struct fsnotify_mark_entry fsn_entry;
+	struct fsnotify_mark fsn_entry;
 	struct dnotify_struct *dn;
 };
 
@@ -51,7 +51,7 @@ struct dnotify_mark_entry {
  * it calls the fsnotify function so it can update the set of all events relevant
  * to this inode.
  */
-static void dnotify_recalc_inode_mask(struct fsnotify_mark_entry *entry)
+static void dnotify_recalc_inode_mask(struct fsnotify_mark *entry)
 {
 	__u32 new_mask, old_mask;
 	struct dnotify_struct *dn;
@@ -85,7 +85,7 @@ static void dnotify_recalc_inode_mask(struct fsnotify_mark_entry *entry)
 static int dnotify_handle_event(struct fsnotify_group *group,
 				struct fsnotify_event *event)
 {
-	struct fsnotify_mark_entry *entry = NULL;
+	struct fsnotify_mark *entry = NULL;
 	struct dnotify_mark_entry *dnentry;
 	struct inode *to_tell;
 	struct dnotify_struct *dn;
@@ -136,7 +136,7 @@ static bool dnotify_should_send_event(struct fsnotify_group *group,
 				      struct inode *inode, struct vfsmount *mnt,
 				      __u32 mask, void *data, int data_type)
 {
-	struct fsnotify_mark_entry *entry;
+	struct fsnotify_mark *entry;
 	bool send;
 
 	/* !dir_notify_enable should never get here, don't waste time checking
@@ -163,7 +163,7 @@ static bool dnotify_should_send_event(struct fsnotify_group *group,
 	return send;
 }
 
-static void dnotify_free_mark(struct fsnotify_mark_entry *entry)
+static void dnotify_free_mark(struct fsnotify_mark *entry)
 {
 	struct dnotify_mark_entry *dnentry = container_of(entry,
 							  struct dnotify_mark_entry,
@@ -184,14 +184,14 @@ static struct fsnotify_ops dnotify_fsnotify_ops = {
 
 /*
  * Called every time a file is closed.  Looks first for a dnotify mark on the
- * inode.  If one is found run all of the ->dn entries attached to that
+ * inode.  If one is found run all of the ->dn structures attached to that
  * mark for one relevant to this process closing the file and remove that
  * dnotify_struct.  If that was the last dnotify_struct also remove the
- * fsnotify_mark_entry.
+ * fsnotify_mark.
  */
 void dnotify_flush(struct file *filp, fl_owner_t id)
 {
-	struct fsnotify_mark_entry *entry;
+	struct fsnotify_mark *entry;
 	struct dnotify_mark_entry *dnentry;
 	struct dnotify_struct *dn;
 	struct dnotify_struct **prev;
@@ -260,7 +260,7 @@ static __u32 convert_arg(unsigned long arg)
 
 /*
  * If multiple processes watch the same inode with dnotify there is only one
- * dnotify mark in inode->i_fsnotify_mark_entries but we chain a dnotify_struct
+ * dnotify mark in inode->i_fsnotify_marks but we chain a dnotify_struct
  * onto that mark.  This function either attaches the new dnotify_struct onto
  * that list, or it |= the mask onto an existing dnofiy_struct.
  */
@@ -298,7 +298,7 @@ static int attach_dn(struct dnotify_struct *dn, struct dnotify_mark_entry *dnent
 int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 {
 	struct dnotify_mark_entry *new_dnentry, *dnentry;
-	struct fsnotify_mark_entry *new_entry, *entry;
+	struct fsnotify_mark *new_entry, *entry;
 	struct dnotify_struct *dn;
 	struct inode *inode;
 	fl_owner_t id = current->files;
@@ -378,7 +378,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 	/* if (f != filp) means that we lost a race and another task/thread
 	 * actually closed the fd we are still playing with before we grabbed
 	 * the dnotify_mark_mutex and entry->lock.  Since closing the fd is the
-	 * only time we clean up the mark entries we need to get our mark off
+	 * only time we clean up the marks we need to get our mark off
 	 * the list. */
 	if (f != filp) {
 		/* if we added ourselves, shoot ourselves, it's possible that
