@@ -1574,6 +1574,7 @@ static int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
 	cpuid_fix_nx_cap(vcpu);
 	r = 0;
 	kvm_apic_set_version(vcpu);
+	kvm_x86_ops->cpuid_update(vcpu);
 
 out_free:
 	vfree(cpuid_entries);
@@ -1596,6 +1597,7 @@ static int kvm_vcpu_ioctl_set_cpuid2(struct kvm_vcpu *vcpu,
 		goto out;
 	vcpu->arch.cpuid_nent = cpuid->nent;
 	kvm_apic_set_version(vcpu);
+	kvm_x86_ops->cpuid_update(vcpu);
 	return 0;
 
 out:
@@ -3733,6 +3735,7 @@ struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
 	}
 	return best;
 }
+EXPORT_SYMBOL_GPL(kvm_find_cpuid_entry);
 
 int cpuid_maxphyaddr(struct kvm_vcpu *vcpu)
 {
