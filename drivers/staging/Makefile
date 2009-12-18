@@ -53,3 +53,4 @@ obj-$(CONFIG_WAVELAN)		+= wavelan/
 obj-$(CONFIG_PCMCIA_WAVELAN)	+= wavelan/
 obj-$(CONFIG_PCMCIA_NETWAVE)	+= netwave/
 obj-$(CONFIG_FB_SM7XX)		+= sm7xx/
+obj-$(CONFIG_DT3155)		+= dt3155/
