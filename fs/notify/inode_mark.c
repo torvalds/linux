@@ -328,6 +328,13 @@ int fsnotify_add_mark(struct fsnotify_mark_entry *entry,
 	 */
 	if (unlikely(list_empty(&group->inode_group_list)))
 		fsnotify_add_inode_group(group);
+	/*
+	 * XXX This is where we could also do the fsnotify_add_vfsmount_group
+	 * if we are setting and vfsmount mark....
+
+	if (unlikely(list_empty(&group->vfsmount_group_list)))
+		fsnotify_add_vfsmount_group(group);
+	 */
 
 	/*
 	 * LOCKING ORDER!!!!
