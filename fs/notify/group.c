@@ -74,11 +74,11 @@ void fsnotify_recalc_group_mask(struct fsnotify_group *group)
 {
 	__u32 mask = 0;
 	__u32 old_mask = group->mask;
-	struct fsnotify_mark *entry;
+	struct fsnotify_mark *mark;
 
 	spin_lock(&group->mark_lock);
-	list_for_each_entry(entry, &group->marks_list, g_list)
-		mask |= entry->mask;
+	list_for_each_entry(mark, &group->marks_list, g_list)
+		mask |= mark->mask;
 	spin_unlock(&group->mark_lock);
 
 	group->mask = mask;
