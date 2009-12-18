@@ -58,9 +58,12 @@
 				   FS_MOVED_FROM | FS_MOVED_TO | FS_CREATE |\
 				   FS_DELETE)
 
+#define FS_MOVE			(FS_MOVED_FROM | FS_MOVED_TO)
+
 /* listeners that hard code group numbers near the top */
 #define DNOTIFY_GROUP_NUM	UINT_MAX
-#define INOTIFY_GROUP_NUM	(DNOTIFY_GROUP_NUM-1)
+#define AUDIT_WATCH_GROUP_NUM  (DNOTIFY_GROUP_NUM-1)
+#define INOTIFY_GROUP_NUM      (AUDIT_WATCH_GROUP_NUM-1)
 
 struct fsnotify_group;
 struct fsnotify_event;
