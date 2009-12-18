@@ -375,6 +375,8 @@ static __u32 fanotify_mark_add_to_mask(struct fsnotify_mark *fsn_mark,
 	} else {
 		oldmask = fsn_mark->ignored_mask;
 		fsnotify_set_mark_ignored_mask_locked(fsn_mark, (oldmask | mask));
+		if (flags & FAN_MARK_IGNORED_SURV_MODIFY)
+			fsn_mark->flags |= FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY;
 	}
 	spin_unlock(&fsn_mark->lock);
 
