@@ -51,12 +51,12 @@ struct audit_watch {
 	unsigned long		ino;	/* associated inode number */
 	struct audit_parent	*parent; /* associated parent */
 	struct list_head	wlist;	/* entry in parent->watches list */
-	struct list_head	rules;	/* associated rules */
+	struct list_head	rules;	/* anchor for krule->rlist */
 };
 
 struct audit_parent {
-	struct list_head	ilist;	/* entry in inotify registration list */
-	struct list_head	watches; /* associated watches */
+	struct list_head	ilist;	/* tmp list used to free parents */
+	struct list_head	watches; /* anchor for audit_watch->wlist */
 	struct inotify_watch	wdata;	/* inotify watch data */
 	unsigned		flags;	/* status flags */
 };
@@ -78,13 +78,18 @@ struct inotify_handle *audit_ih;
 /* Inotify events we care about. */
 #define AUDIT_IN_WATCH IN_MOVE|IN_CREATE|IN_DELETE|IN_DELETE_SELF|IN_MOVE_SELF
 
-static void audit_free_parent(struct inotify_watch *i_watch)
+static void audit_free_parent(struct audit_parent *parent)
+{
+	WARN_ON(!list_empty(&parent->watches));
+	kfree(parent);
+}
+
+static void audit_destroy_watch(struct inotify_watch *i_watch)
 {
 	struct audit_parent *parent;
 
 	parent = container_of(i_watch, struct audit_parent, wdata);
-	WARN_ON(!list_empty(&parent->watches));
-	kfree(parent);
+	audit_free_parent(parent);
 }
 
 void audit_get_watch(struct audit_watch *watch)
@@ -115,19 +120,11 @@ char *audit_watch_path(struct audit_watch *watch)
 	return watch->path;
 }
 
-struct list_head *audit_watch_rules(struct audit_watch *watch)
+int audit_watch_compare(struct audit_watch *watch, unsigned long ino, dev_t dev)
 {
-	return &watch->rules;
-}
-
-unsigned long audit_watch_inode(struct audit_watch *watch)
-{
-	return watch->ino;
-}
-
-dev_t audit_watch_dev(struct audit_watch *watch)
-{
-	return watch->dev;
+	return (watch->ino != (unsigned long)-1) &&
+		(watch->ino == ino) &&
+		(watch->dev == dev);
 }
 
 /* Initialize a parent watch entry. */
@@ -149,7 +146,7 @@ static struct audit_parent *audit_init_parent(struct nameidata *ndp)
 	wd = inotify_add_watch(audit_ih, &parent->wdata,
 			       ndp->path.dentry->d_inode, AUDIT_IN_WATCH);
 	if (wd < 0) {
-		audit_free_parent(&parent->wdata);
+		audit_free_parent(parent);
 		return ERR_PTR(wd);
 	}
 
@@ -251,15 +248,19 @@ static void audit_update_watch(struct audit_parent *parent,
 	struct audit_entry *oentry, *nentry;
 
 	mutex_lock(&audit_filter_mutex);
+	/* Run all of the watches on this parent looking for the one that
+	 * matches the given dname */
 	list_for_each_entry_safe(owatch, nextw, &parent->watches, wlist) {
 		if (audit_compare_dname_path(dname, owatch->path, NULL))
 			continue;
 
 		/* If the update involves invalidating rules, do the inode-based
 		 * filtering now, so we don't omit records. */
-		if (invalidating && current->audit_context)
+		if (invalidating && !audit_dummy_context())
 			audit_filter_inodes(current, current->audit_context);
 
+		/* updating ino will likely change which audit_hash_list we
+		 * are on so we need a new watch for the new list */
 		nwatch = audit_dupe_watch(owatch);
 		if (IS_ERR(nwatch)) {
 			mutex_unlock(&audit_filter_mutex);
@@ -275,12 +276,21 @@ static void audit_update_watch(struct audit_parent *parent,
 			list_del(&oentry->rule.rlist);
 			list_del_rcu(&oentry->list);
 
-			nentry = audit_dupe_rule(&oentry->rule, nwatch);
+			nentry = audit_dupe_rule(&oentry->rule);
 			if (IS_ERR(nentry)) {
 				list_del(&oentry->rule.list);
 				audit_panic("error updating watch, removing");
 			} else {
 				int h = audit_hash_ino((u32)ino);
+
+				/*
+				 * nentry->rule.watch == oentry->rule.watch so
+				 * we must drop that reference and set it to our
+				 * new watch.
+				 */
+				audit_put_watch(nentry->rule.watch);
+				audit_get_watch(nwatch);
+				nentry->rule.watch = nwatch;
 				list_add(&nentry->rule.rlist, &nwatch->rules);
 				list_add_rcu(&nentry->list, &audit_inode_hash[h]);
 				list_replace(&oentry->rule.list,
@@ -329,14 +339,14 @@ static void audit_remove_parent_watches(struct audit_parent *parent)
 
 /* Unregister inotify watches for parents on in_list.
  * Generates an IN_IGNORED event. */
-void audit_inotify_unregister(struct list_head *in_list)
+void audit_watch_inotify_unregister(struct list_head *in_list)
 {
 	struct audit_parent *p, *n;
 
 	list_for_each_entry_safe(p, n, in_list, ilist) {
 		list_del(&p->ilist);
 		inotify_rm_watch(audit_ih, &p->wdata);
-		/* the unpin matching the pin in audit_do_del_rule() */
+		/* the unpin matching the pin in audit_remove_watch_rule() */
 		unpin_inotify_watch(&p->wdata);
 	}
 }
@@ -423,13 +433,13 @@ static void audit_add_to_parent(struct audit_krule *krule,
 
 /* Find a matching watch entry, or add this one.
  * Caller must hold audit_filter_mutex. */
-int audit_add_watch(struct audit_krule *krule)
+int audit_add_watch(struct audit_krule *krule, struct list_head **list)
 {
 	struct audit_watch *watch = krule->watch;
 	struct inotify_watch *i_watch;
 	struct audit_parent *parent;
 	struct nameidata *ndp = NULL, *ndw = NULL;
-	int ret = 0;
+	int h, ret = 0;
 
 	mutex_unlock(&audit_filter_mutex);
 
@@ -475,6 +485,8 @@ int audit_add_watch(struct audit_krule *krule)
 	/* match get in audit_init_parent or inotify_find_watch */
 	put_inotify_watch(&parent->wdata);
 
+	h = audit_hash_ino((u32)watch->ino);
+	*list = &audit_inode_hash[h];
 error:
 	audit_put_nd(ndp, ndw);		/* NULL args OK */
 	return ret;
@@ -514,8 +526,7 @@ static void audit_handle_ievent(struct inotify_watch *i_watch, u32 wd, u32 mask,
 	parent = container_of(i_watch, struct audit_parent, wdata);
 
 	if (mask & (IN_CREATE|IN_MOVED_TO) && inode)
-		audit_update_watch(parent, dname, inode->i_sb->s_dev,
-				   inode->i_ino, 0);
+		audit_update_watch(parent, dname, inode->i_sb->s_dev, inode->i_ino, 0);
 	else if (mask & (IN_DELETE|IN_MOVED_FROM))
 		audit_update_watch(parent, dname, (dev_t)-1, (unsigned long)-1, 1);
 	/* inotify automatically removes the watch and sends IN_IGNORED */
@@ -531,7 +542,7 @@ static void audit_handle_ievent(struct inotify_watch *i_watch, u32 wd, u32 mask,
 
 static const struct inotify_operations audit_inotify_ops = {
 	.handle_event   = audit_handle_ievent,
-	.destroy_watch  = audit_free_parent,
+	.destroy_watch  = audit_destroy_watch,
 };
 
 static int __init audit_watch_init(void)

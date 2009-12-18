@@ -104,20 +104,15 @@ extern void audit_free_rule_rcu(struct rcu_head *);
 extern struct list_head audit_filter_list[];
 
 /* audit watch functions */
-extern unsigned long audit_watch_inode(struct audit_watch *watch);
-extern dev_t audit_watch_dev(struct audit_watch *watch);
 extern void audit_put_watch(struct audit_watch *watch);
 extern void audit_get_watch(struct audit_watch *watch);
 extern int audit_to_watch(struct audit_krule *krule, char *path, int len, u32 op);
-extern int audit_add_watch(struct audit_krule *krule);
-extern void audit_remove_watch(struct audit_watch *watch);
+extern int audit_add_watch(struct audit_krule *krule, struct list_head **list);
 extern void audit_remove_watch_rule(struct audit_krule *krule, struct list_head *list);
-extern void audit_inotify_unregister(struct list_head *in_list);
+extern void audit_watch_inotify_unregister(struct list_head *in_list);
 extern char *audit_watch_path(struct audit_watch *watch);
-extern struct list_head *audit_watch_rules(struct audit_watch *watch);
-
-extern struct audit_entry *audit_dupe_rule(struct audit_krule *old,
-					   struct audit_watch *watch);
+extern int audit_watch_compare(struct audit_watch *watch, unsigned long ino, dev_t dev);
+extern struct audit_entry *audit_dupe_rule(struct audit_krule *old);
 
 #ifdef CONFIG_AUDIT_TREE
 extern struct audit_chunk *audit_tree_lookup(const struct inode *);
