@@ -110,13 +110,6 @@
 // 20061108 WPS IE buffer
 #define MAX_IE_APPEND_SIZE					256 + 4 // Due to [E id][Length][OUI][Data] may 257 bytes
 
-typedef struct _EVENTLOG
-{
-	u16		Count;			//Total count from start
-	u16		index;			//Buffer index, 0 ~ 63
-	u32		EventValue[64];	//BYTE 3~2 : count, BYTE 1 : Event, BYTE 0 : reason
-} Event_Log, *pEvent_Log;
-
 typedef struct _ChanInfo
 {
 	u8		band;
@@ -263,8 +256,6 @@ struct wb_local_para
     u32	      bWepKeyError;
     u32         bToSelfPacketReceived;
     u32         WepKeyDetectTimerCount;
-
-	Event_Log	EventLog;
 
 	u16		SignalLostTh;
 	u16		SignalRoamTh;
