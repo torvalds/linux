@@ -307,7 +307,6 @@ config TASK_IO_ACCOUNTING
 config AUDIT
 	bool "Auditing support"
 	depends on NET
-	select FSNOTIFY
 	help
 	  Enable auditing infrastructure that can be used with another
 	  kernel subsystem, such as SELinux (which requires this for
@@ -322,6 +321,11 @@ config AUDITSYSCALL
 	  Enable low-overhead system-call auditing infrastructure that
 	  can be used independently or with another kernel subsystem,
 	  such as SELinux.
+
+config AUDIT_WATCH
+	def_bool y
+	depends on AUDITSYSCALL
+	select FSNOTIFY
 
 config AUDIT_TREE
 	def_bool y
