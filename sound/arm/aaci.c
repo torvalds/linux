@@ -444,6 +444,11 @@ static int aaci_pcm_hw_params(struct snd_pcm_substream *substream,
 					aacirun->pcm->r[0].slots);
 
 		aacirun->pcm_open = err == 0;
+		aacirun->cr = CR_FEN | CR_COMPACT | CR_SZ16;
+		aacirun->fifosz = aaci->fifosize * 4;
+
+		if (aacirun->cr & CR_COMPACT)
+			aacirun->fifosz >>= 1;
 	}
 
 	return err;
@@ -554,14 +559,9 @@ static int aaci_pcm_playback_hw_params(struct snd_pcm_substream *substream,
 	 * Enable FIFO, compact mode, 16 bits per sample.
 	 * FIXME: double rate slots?
 	 */
-	if (ret >= 0) {
-		aacirun->cr = CR_FEN | CR_COMPACT | CR_SZ16;
+	if (ret >= 0)
 		aacirun->cr |= channels_to_txmask[channels];
 
-		aacirun->fifosz	= aaci->fifosize * 4;
-		if (aacirun->cr & CR_COMPACT)
-			aacirun->fifosz >>= 1;
-	}
 	return ret;
 }
 
@@ -648,18 +648,10 @@ static int aaci_pcm_capture_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	ret = aaci_pcm_hw_params(substream, aacirun, params);
-
-	if (ret >= 0) {
-		aacirun->cr = CR_FEN | CR_COMPACT | CR_SZ16;
-
+	if (ret >= 0)
 		/* Line in record: slot 3 and 4 */
 		aacirun->cr |= CR_SL3 | CR_SL4;
 
-		aacirun->fifosz = aaci->fifosize * 4;
-
-		if (aacirun->cr & CR_COMPACT)
-			aacirun->fifosz >>= 1;
-	}
 	return ret;
 }
 
