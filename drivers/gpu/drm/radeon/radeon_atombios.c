@@ -745,8 +745,7 @@ bool radeon_get_atom_connector_info_from_supported_devices_table(struct
 		else
 			radeon_add_legacy_encoder(dev,
 						  radeon_get_encoder_id(dev,
-									(1 <<
-									 i),
+									(1 << i),
 									dac),
 						  (1 << i));
 	}
@@ -758,32 +757,30 @@ bool radeon_get_atom_connector_info_from_supported_devices_table(struct
 				if (bios_connectors[j].valid && (i != j)) {
 					if (bios_connectors[i].line_mux ==
 					    bios_connectors[j].line_mux) {
-						if (((bios_connectors[i].
-						      devices &
-						      (ATOM_DEVICE_DFP_SUPPORT))
-						     && (bios_connectors[j].
-							 devices &
-							 (ATOM_DEVICE_CRT_SUPPORT)))
-						    ||
-						    ((bios_connectors[j].
-						      devices &
-						      (ATOM_DEVICE_DFP_SUPPORT))
-						     && (bios_connectors[i].
-							 devices &
-							 (ATOM_DEVICE_CRT_SUPPORT)))) {
-							bios_connectors[i].
-							    devices |=
-							    bios_connectors[j].
-							    devices;
-							bios_connectors[i].
-							    connector_type =
-							    DRM_MODE_CONNECTOR_DVII;
-							if (bios_connectors[j].devices &
-							    (ATOM_DEVICE_DFP_SUPPORT))
+						/* make sure not to combine LVDS */
+						if (bios_connectors[i].devices & (ATOM_DEVICE_LCD_SUPPORT)) {
+							bios_connectors[i].line_mux = 53;
+							bios_connectors[i].ddc_bus.valid = false;
+							continue;
+						}
+						if (bios_connectors[j].devices & (ATOM_DEVICE_LCD_SUPPORT)) {
+							bios_connectors[j].line_mux = 53;
+							bios_connectors[j].ddc_bus.valid = false;
+							continue;
+						}
+						/* combine analog and digital for DVI-I */
+						if (((bios_connectors[i].devices & (ATOM_DEVICE_DFP_SUPPORT)) &&
+						     (bios_connectors[j].devices & (ATOM_DEVICE_CRT_SUPPORT))) ||
+						    ((bios_connectors[j].devices & (ATOM_DEVICE_DFP_SUPPORT)) &&
+						     (bios_connectors[i].devices & (ATOM_DEVICE_CRT_SUPPORT)))) {
+							bios_connectors[i].devices |=
+								bios_connectors[j].devices;
+							bios_connectors[i].connector_type =
+								DRM_MODE_CONNECTOR_DVII;
+							if (bios_connectors[j].devices & (ATOM_DEVICE_DFP_SUPPORT))
 								bios_connectors[i].hpd =
 									bios_connectors[j].hpd;
-							bios_connectors[j].
-							    valid = false;
+							bios_connectors[j].valid = false;
 						}
 					}
 				}
