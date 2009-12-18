@@ -94,21 +94,6 @@ config CFG80211_DEBUGFS
 
 	  If unsure, say N.
 
-config WIRELESS_OLD_REGULATORY
-	bool "Old wireless static regulatory definitions"
-	default n
-	depends on CFG80211
-	---help---
-	  This option enables the old static regulatory information
-	  and uses it within the new framework. This option is available
-	  for historical reasons and it is advised to leave it off.
-
-	  For details see:
-
-	  http://wireless.kernel.org/en/developers/Regulatory
-
-	  Say N and if you say Y, please tell us why. The default is N.
-
 config CFG80211_INTERNAL_REGDB
 	bool "use statically compiled regulatory rules database" if EMBEDDED
 	default n
