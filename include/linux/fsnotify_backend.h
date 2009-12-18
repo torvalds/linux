@@ -266,6 +266,7 @@ struct fsnotify_mark {
 		struct fsnotify_inode_mark i;
 		struct fsnotify_vfsmount_mark m;
 	};
+	__u32 ignored_mask;		/* events types to ignore */
 	struct list_head free_g_list;	/* tmp list used when freeing this mark */
 #define FSNOTIFY_MARK_FLAG_INODE		0x01
 #define FSNOTIFY_MARK_FLAG_VFSMOUNT		0x02
@@ -373,6 +374,8 @@ extern struct fsnotify_mark *fsnotify_find_inode_mark(struct fsnotify_group *gro
 extern struct fsnotify_mark *fsnotify_find_vfsmount_mark(struct fsnotify_group *group, struct vfsmount *mnt);
 /* copy the values from old into new */
 extern void fsnotify_duplicate_mark(struct fsnotify_mark *new, struct fsnotify_mark *old);
+/* set the ignored_mask of a mark */
+extern void fsnotify_set_mark_ignored_mask_locked(struct fsnotify_mark *mark, __u32 mask);
 /* set the mask of a mark (might pin the object into memory */
 extern void fsnotify_set_mark_mask_locked(struct fsnotify_mark *mark, __u32 mask);
 /* attach the mark to both the group and the inode */

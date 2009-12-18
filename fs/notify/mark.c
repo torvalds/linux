@@ -190,6 +190,12 @@ void fsnotify_set_mark_mask_locked(struct fsnotify_mark *mark, __u32 mask)
 		fsnotify_set_inode_mark_mask_locked(mark, mask);
 }
 
+void fsnotify_set_mark_ignored_mask_locked(struct fsnotify_mark *mark, __u32 mask)
+{
+	assert_spin_locked(&mark->lock);
+
+	mark->ignored_mask = mask;
+}
 
 /*
  * Attach an initialized mark to a given group and fs object.
