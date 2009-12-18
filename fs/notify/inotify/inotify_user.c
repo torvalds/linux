@@ -695,7 +695,7 @@ static struct fsnotify_group *inotify_new_group(struct user_struct *user, unsign
 {
 	struct fsnotify_group *group;
 
-	group = fsnotify_alloc_group(0, &inotify_fsnotify_ops);
+	group = fsnotify_alloc_group(&inotify_fsnotify_ops);
 	if (IS_ERR(group))
 		return group;
 
