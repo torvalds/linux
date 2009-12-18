@@ -323,6 +323,13 @@ int fsnotify_add_mark(struct fsnotify_mark_entry *entry,
 		return -EINVAL;
 
 	/*
+	 * if this group isn't being testing for inode type events we need
+	 * to start testing
+	 */
+	if (unlikely(list_empty(&group->inode_group_list)))
+		fsnotify_add_inode_group(group);
+
+	/*
 	 * LOCKING ORDER!!!!
 	 * entry->lock
 	 * group->mark_lock

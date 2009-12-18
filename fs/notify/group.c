@@ -77,12 +77,15 @@ void fsnotify_recalc_group_mask(struct fsnotify_group *group)
 		fsnotify_recalc_global_mask();
 }
 
-static void fsnotify_add_group(struct fsnotify_group *group)
+void fsnotify_add_inode_group(struct fsnotify_group *group)
 {
-	BUG_ON(!mutex_is_locked(&fsnotify_grp_mutex));
+	mutex_lock(&fsnotify_grp_mutex);
 
+	if (!group->on_inode_group_list)
+		list_add_tail_rcu(&group->inode_group_list, &fsnotify_inode_groups);
 	group->on_inode_group_list = 1;
-	list_add_tail_rcu(&group->inode_group_list, &fsnotify_inode_groups);
+
+	mutex_unlock(&fsnotify_grp_mutex);
 }
 
 /*
@@ -188,22 +191,17 @@ struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *ops)
 	 */
 	atomic_set(&group->num_marks, 1);
 
-
 	mutex_init(&group->notification_mutex);
 	INIT_LIST_HEAD(&group->notification_list);
 	init_waitqueue_head(&group->notification_waitq);
 	group->max_events = UINT_MAX;
 
+	INIT_LIST_HEAD(&group->inode_group_list);
+
 	spin_lock_init(&group->mark_lock);
 	INIT_LIST_HEAD(&group->mark_entries);
 
 	group->ops = ops;
-
-	mutex_lock(&fsnotify_grp_mutex);
-
-	fsnotify_add_group(group);
-
-	mutex_unlock(&fsnotify_grp_mutex);
 
 	return group;
 }
