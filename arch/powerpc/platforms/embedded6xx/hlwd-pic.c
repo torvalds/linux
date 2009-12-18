@@ -132,9 +132,9 @@ static void hlwd_pic_irq_cascade(unsigned int cascade_virq,
 	struct irq_host *irq_host = get_irq_data(cascade_virq);
 	unsigned int virq;
 
-	spin_lock(&desc->lock);
+	raw_spin_lock(&desc->lock);
 	desc->chip->mask(cascade_virq); /* IRQ_LEVEL */
-	spin_unlock(&desc->lock);
+	raw_spin_unlock(&desc->lock);
 
 	virq = __hlwd_pic_get_irq(irq_host);
 	if (virq != NO_IRQ)
@@ -142,11 +142,11 @@ static void hlwd_pic_irq_cascade(unsigned int cascade_virq,
 	else
 		pr_err("spurious interrupt!\n");
 
-	spin_lock(&desc->lock);
+	raw_spin_lock(&desc->lock);
 	desc->chip->ack(cascade_virq); /* IRQ_LEVEL */
 	if (!(desc->status & IRQ_DISABLED) && desc->chip->unmask)
 		desc->chip->unmask(cascade_virq);
-	spin_unlock(&desc->lock);
+	raw_spin_unlock(&desc->lock);
 }
 
 /*
