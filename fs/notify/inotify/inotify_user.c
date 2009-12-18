@@ -358,7 +358,7 @@ static int inotify_find_inode(const char __user *dirname, struct path *path, uns
 }
 
 static int inotify_add_to_idr(struct idr *idr, spinlock_t *idr_lock,
-			      int last_wd,
+			      int *last_wd,
 			      struct inotify_inode_mark_entry *ientry)
 {
 	int ret;
@@ -368,11 +368,13 @@ static int inotify_add_to_idr(struct idr *idr, spinlock_t *idr_lock,
 			return -ENOMEM;
 
 		spin_lock(idr_lock);
-		ret = idr_get_new_above(idr, ientry, last_wd + 1,
+		ret = idr_get_new_above(idr, ientry, *last_wd + 1,
 					&ientry->wd);
 		/* we added the mark to the idr, take a reference */
-		if (!ret)
+		if (!ret) {
 			fsnotify_get_mark(&ientry->fsn_entry);
+			*last_wd = ientry->wd;
+		}
 		spin_unlock(idr_lock);
 	} while (ret == -EAGAIN);
 
@@ -647,7 +649,7 @@ static int inotify_new_watch(struct fsnotify_group *group,
 	if (atomic_read(&group->inotify_data.user->inotify_watches) >= inotify_max_user_watches)
 		goto out_err;
 
-	ret = inotify_add_to_idr(idr, idr_lock, group->inotify_data.last_wd,
+	ret = inotify_add_to_idr(idr, idr_lock, &group->inotify_data.last_wd,
 				 tmp_ientry);
 	if (ret)
 		goto out_err;
@@ -659,9 +661,6 @@ static int inotify_new_watch(struct fsnotify_group *group,
 		inotify_remove_from_idr(group, tmp_ientry);
 		goto out_err;
 	}
-
-	/* update the idr hint, who cares about races, it's just a hint */
-	group->inotify_data.last_wd = tmp_ientry->wd;
 
 	/* increment the number of watches the user has */
 	atomic_inc(&group->inotify_data.user->inotify_watches);
