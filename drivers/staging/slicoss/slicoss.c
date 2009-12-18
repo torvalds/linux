@@ -2531,6 +2531,9 @@ static int slic_mac_set_address(struct net_device *dev, void *ptr)
 	if (!adapter)
 		return -EBUSY;
 
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EINVAL;
+
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	memcpy(adapter->currmacaddr, addr->sa_data, dev->addr_len);
 
