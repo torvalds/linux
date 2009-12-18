@@ -3971,10 +3971,8 @@ static void slic_debug_adapter_create(struct adapter *adapter)
 
 static void slic_debug_adapter_destroy(struct adapter *adapter)
 {
-	if (adapter->debugfs_entry) {
-		debugfs_remove(adapter->debugfs_entry);
-		adapter->debugfs_entry = NULL;
-	}
+	debugfs_remove(adapter->debugfs_entry);
+	adapter->debugfs_entry = NULL;
 }
 
 static void slic_debug_card_create(struct sliccard *card)
