@@ -1893,6 +1893,8 @@ static int wm8904_set_fll(struct snd_soc_dai *dai, int fll_id, int source,
 	    Fout == wm8904->fll_fout)
 		return 0;
 
+	clock2 = snd_soc_read(codec, WM8904_CLOCK_RATES_2);
+
 	if (Fout == 0) {
 		dev_dbg(codec->dev, "FLL disabled\n");
 
@@ -1936,7 +1938,6 @@ static int wm8904_set_fll(struct snd_soc_dai *dai, int fll_id, int source,
 
 	/* Save current state then disable the FLL and SYSCLK to avoid
 	 * misclocking */
-	clock2 = snd_soc_read(codec, WM8904_CLOCK_RATES_2);
 	fll1 = snd_soc_read(codec, WM8904_FLL_CONTROL_1);
 	snd_soc_update_bits(codec, WM8904_CLOCK_RATES_2,
 			    WM8904_CLK_SYS_ENA, 0);
