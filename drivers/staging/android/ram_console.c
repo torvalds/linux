@@ -412,7 +412,7 @@ static int __init ram_console_late_init(void)
 #ifdef CONFIG_ANDROID_RAM_CONSOLE_EARLY_INIT
 console_initcall(ram_console_early_init);
 #else
-module_init(ram_console_module_init);
+postcore_initcall(ram_console_module_init);
 #endif
 late_initcall(ram_console_late_init);
 
