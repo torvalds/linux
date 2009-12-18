@@ -813,9 +813,13 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_PAGEFLIPPING:
 		value = 1;
 		break;
+	case I915_PARAM_HAS_EXECBUF2:
+		/* depends on GEM */
+		value = dev_priv->has_gem;
+		break;
 	default:
 		DRM_DEBUG_DRIVER("Unknown parameter %d\n",
-					param->param);
+				 param->param);
 		return -EINVAL;
 	}
 
@@ -1646,6 +1650,7 @@ struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_I915_HWS_ADDR, i915_set_status_page, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_I915_GEM_INIT, i915_gem_init_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_I915_GEM_EXECBUFFER, i915_gem_execbuffer, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_I915_GEM_EXECBUFFER2, i915_gem_execbuffer2, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_I915_GEM_PIN, i915_gem_pin_ioctl, DRM_AUTH|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_I915_GEM_UNPIN, i915_gem_unpin_ioctl, DRM_AUTH|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_I915_GEM_BUSY, i915_gem_busy_ioctl, DRM_AUTH),
