@@ -363,6 +363,9 @@ extern struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32
 						    void *data, int data_is, const char *name,
 						    u32 cookie, gfp_t gfp);
 
+/* fanotify likes to change events after they are on lists... */
+extern struct fsnotify_event *fsnotify_clone_event(struct fsnotify_event *old_event);
+
 #else
 
 static inline void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,

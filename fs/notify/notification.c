@@ -284,9 +284,31 @@ static void initialize_event(struct fsnotify_event *event)
 
 	spin_lock_init(&event->lock);
 
-	event->data_type = FSNOTIFY_EVENT_NONE;
-
 	INIT_LIST_HEAD(&event->private_data_list);
+}
+
+struct fsnotify_event *fsnotify_clone_event(struct fsnotify_event *old_event)
+{
+	struct fsnotify_event *event;
+
+	event = kmem_cache_alloc(fsnotify_event_cachep, GFP_KERNEL);
+	if (!event)
+		return NULL;
+
+	memcpy(event, old_event, sizeof(*event));
+	initialize_event(event);
+
+	if (event->name_len) {
+		event->file_name = kstrdup(old_event->file_name, GFP_KERNEL);
+		if (!event->file_name) {
+			kmem_cache_free(fsnotify_event_cachep, event);
+			return NULL;
+		}
+	}
+	if (event->data_type == FSNOTIFY_EVENT_PATH)
+		path_get(&event->path);
+
+	return event;
 }
 
 /*
@@ -324,6 +346,7 @@ struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask, 
 
 	event->sync_cookie = cookie;
 	event->to_tell = to_tell;
+	event->data_type = data_type;
 
 	switch (data_type) {
 	case FSNOTIFY_EVENT_FILE: {
@@ -340,12 +363,10 @@ struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask, 
 		event->path.dentry = path->dentry;
 		event->path.mnt = path->mnt;
 		path_get(&event->path);
-		event->data_type = FSNOTIFY_EVENT_PATH;
 		break;
 	}
 	case FSNOTIFY_EVENT_INODE:
 		event->inode = data;
-		event->data_type = FSNOTIFY_EVENT_INODE;
 		break;
 	case FSNOTIFY_EVENT_NONE:
 		event->inode = NULL;
