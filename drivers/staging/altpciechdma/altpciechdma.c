@@ -894,7 +894,7 @@ static int __devinit probe(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 	/* remember which irq we allocated */
 	ape->irq_line = (int)irq_line;
-	printk(KERN_DEBUG "Succesfully requested IRQ #%d with dev_id 0x%p\n", irq_line, ape);
+	printk(KERN_DEBUG "Successfully requested IRQ #%d with dev_id 0x%p\n", irq_line, ape);
 #endif
 	/* show BARs */
 	scan_bars(ape, dev);
