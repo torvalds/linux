@@ -101,7 +101,7 @@ static inline struct audit_parent *audit_find_parent(struct inode *inode)
 	struct audit_parent *parent = NULL;
 	struct fsnotify_mark *entry;
 
-	entry = fsnotify_find_mark(audit_watch_group, inode);
+	entry = fsnotify_find_inode_mark(audit_watch_group, inode);
 	if (entry)
 		parent = container_of(entry, struct audit_parent, mark);
 
@@ -158,7 +158,7 @@ static struct audit_parent *audit_init_parent(struct nameidata *ndp)
 
 	fsnotify_init_mark(&parent->mark, audit_watch_free_mark);
 	parent->mark.mask = AUDIT_FS_WATCH;
-	ret = fsnotify_add_mark(&parent->mark, audit_watch_group, inode, 0);
+	ret = fsnotify_add_mark(&parent->mark, audit_watch_group, inode, NULL, 0);
 	if (ret < 0) {
 		audit_free_parent(parent);
 		return ERR_PTR(ret);
@@ -517,7 +517,7 @@ static bool audit_watch_should_send_event(struct fsnotify_group *group, struct i
 	struct fsnotify_mark *entry;
 	bool send;
 
-	entry = fsnotify_find_mark(group, inode);
+	entry = fsnotify_find_inode_mark(group, inode);
 	if (!entry)
 		return false;
 

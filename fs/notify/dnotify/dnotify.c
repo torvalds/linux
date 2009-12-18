@@ -95,7 +95,7 @@ static int dnotify_handle_event(struct fsnotify_group *group,
 
 	to_tell = event->to_tell;
 
-	fsn_mark = fsnotify_find_mark(group, to_tell);
+	fsn_mark = fsnotify_find_inode_mark(group, to_tell);
 	if (unlikely(!fsn_mark))
 		return 0;
 	dn_mark = container_of(fsn_mark, struct dnotify_mark, fsn_mark);
@@ -143,14 +143,14 @@ static bool dnotify_should_send_event(struct fsnotify_group *group,
 	if (!S_ISDIR(inode->i_mode))
 		return false;
 
-	fsn_mark = fsnotify_find_mark(group, inode);
+	fsn_mark = fsnotify_find_inode_mark(group, inode);
 	if (!fsn_mark)
 		return false;
 
 	mask = (mask & ~FS_EVENT_ON_CHILD);
 	send = (mask & fsn_mark->mask);
 
-	fsnotify_put_mark(fsn_mark); /* matches fsnotify_find_mark */
+	fsnotify_put_mark(fsn_mark); /* matches fsnotify_find_inode_mark */
 
 	return send;
 }
@@ -193,7 +193,7 @@ void dnotify_flush(struct file *filp, fl_owner_t id)
 	if (!S_ISDIR(inode->i_mode))
 		return;
 
-	fsn_mark = fsnotify_find_mark(dnotify_group, inode);
+	fsn_mark = fsnotify_find_inode_mark(dnotify_group, inode);
 	if (!fsn_mark)
 		return;
 	dn_mark = container_of(fsn_mark, struct dnotify_mark, fsn_mark);
@@ -346,12 +346,12 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 	mutex_lock(&dnotify_mark_mutex);
 
 	/* add the new_fsn_mark or find an old one. */
-	fsn_mark = fsnotify_find_mark(dnotify_group, inode);
+	fsn_mark = fsnotify_find_inode_mark(dnotify_group, inode);
 	if (fsn_mark) {
 		dn_mark = container_of(fsn_mark, struct dnotify_mark, fsn_mark);
 		spin_lock(&fsn_mark->lock);
 	} else {
-		fsnotify_add_mark(new_fsn_mark, dnotify_group, inode, 0);
+		fsnotify_add_mark(new_fsn_mark, dnotify_group, inode, NULL, 0);
 		spin_lock(&new_fsn_mark->lock);
 		fsn_mark = new_fsn_mark;
 		dn_mark = new_dn_mark;

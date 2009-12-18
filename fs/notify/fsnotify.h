@@ -20,6 +20,11 @@ extern __u32 fsnotify_vfsmount_mask;
 /* destroy all events sitting in this groups notification queue */
 extern void fsnotify_flush_notify(struct fsnotify_group *group);
 
+/* add a mark to an inode */
+extern int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
+				   struct fsnotify_group *group, struct inode *inode,
+				   int allow_dups);
+
 /* add a group to the inode group list */
 extern void fsnotify_add_inode_group(struct fsnotify_group *group);
 /* add a group to the vfsmount group list */
@@ -27,6 +32,8 @@ extern void fsnotify_add_vfsmount_group(struct fsnotify_group *group);
 /* final kfree of a group */
 extern void fsnotify_final_destroy_group(struct fsnotify_group *group);
 
+/* inode specific destruction of a mark */
+extern void fsnotify_destroy_inode_mark(struct fsnotify_mark *mark);
 /* run the list of all marks associated with inode and flag them to be freed */
 extern void fsnotify_clear_marks_by_inode(struct inode *inode);
 /*

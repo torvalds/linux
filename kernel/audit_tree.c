@@ -259,7 +259,7 @@ static void untag_chunk(struct node *p)
 	if (!new)
 		goto Fallback;
 	fsnotify_duplicate_mark(&new->mark, entry);
-	if (fsnotify_add_mark(&new->mark, new->mark.group, new->mark.i.inode, 1)) {
+	if (fsnotify_add_mark(&new->mark, new->mark.group, new->mark.i.inode, NULL, 1)) {
 		free_chunk(new);
 		goto Fallback;
 	}
@@ -322,7 +322,7 @@ static int create_chunk(struct inode *inode, struct audit_tree *tree)
 		return -ENOMEM;
 
 	entry = &chunk->mark;
-	if (fsnotify_add_mark(entry, audit_tree_group, inode, 0)) {
+	if (fsnotify_add_mark(entry, audit_tree_group, inode, NULL, 0)) {
 		free_chunk(chunk);
 		return -ENOSPC;
 	}
@@ -360,7 +360,7 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 	struct node *p;
 	int n;
 
-	old_entry = fsnotify_find_mark(audit_tree_group, inode);
+	old_entry = fsnotify_find_inode_mark(audit_tree_group, inode);
 	if (!old_entry)
 		return create_chunk(inode, tree);
 
@@ -395,7 +395,7 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 	}
 
 	fsnotify_duplicate_mark(chunk_entry, old_entry);
-	if (fsnotify_add_mark(chunk_entry, chunk_entry->group, chunk_entry->i.inode, 1)) {
+	if (fsnotify_add_mark(chunk_entry, chunk_entry->group, chunk_entry->i.inode, NULL, 1)) {
 		spin_unlock(&old_entry->lock);
 		free_chunk(chunk);
 		fsnotify_put_mark(old_entry);

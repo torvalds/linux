@@ -305,7 +305,7 @@ static int fanotify_remove_mark(struct fsnotify_group *group,
 	pr_debug("%s: group=%p inode=%p mask=%x\n", __func__,
 		 group, inode, mask);
 
-	fsn_mark = fsnotify_find_mark(group, inode);
+	fsn_mark = fsnotify_find_inode_mark(group, inode);
 	if (!fsn_mark)
 		return -ENOENT;
 
@@ -321,7 +321,7 @@ static int fanotify_remove_mark(struct fsnotify_group *group,
 
 	fsnotify_recalc_group_mask(group);
 
-	/* matches the fsnotify_find_mark() */
+	/* matches the fsnotify_find_inode_mark() */
 	fsnotify_put_mark(fsn_mark);
 
 	return 0;
@@ -338,7 +338,7 @@ static int fanotify_add_mark(struct fsnotify_group *group,
 	pr_debug("%s: group=%p inode=%p mask=%x\n", __func__,
 		 group, inode, mask);
 
-	fsn_mark = fsnotify_find_mark(group, inode);
+	fsn_mark = fsnotify_find_inode_mark(group, inode);
 	if (!fsn_mark) {
 		struct fsnotify_mark *new_fsn_mark;
 
@@ -348,7 +348,7 @@ static int fanotify_add_mark(struct fsnotify_group *group,
 			goto out;
 
 		fsnotify_init_mark(new_fsn_mark, fanotify_free_mark);
-		ret = fsnotify_add_mark(new_fsn_mark, group, inode, 0);
+		ret = fsnotify_add_mark(new_fsn_mark, group, inode, NULL, 0);
 		if (ret) {
 			fanotify_free_mark(new_fsn_mark);
 			goto out;

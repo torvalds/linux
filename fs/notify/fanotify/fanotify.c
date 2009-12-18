@@ -118,7 +118,7 @@ static bool fanotify_should_send_event(struct fsnotify_group *group, struct inod
 	if (data_type != FSNOTIFY_EVENT_PATH)
 		return false;
 
-	fsn_mark = fsnotify_find_mark(group, inode);
+	fsn_mark = fsnotify_find_inode_mark(group, inode);
 	if (!fsn_mark)
 		return false;
 
