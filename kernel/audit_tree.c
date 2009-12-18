@@ -179,9 +179,9 @@ static void insert_hash(struct audit_chunk *chunk)
 	struct fsnotify_mark_entry *entry = &chunk->mark;
 	struct list_head *list;
 
-	if (!entry->inode)
+	if (!entry->i.inode)
 		return;
-	list = chunk_hash(entry->inode);
+	list = chunk_hash(entry->i.inode);
 	list_add_rcu(&chunk->hash, list);
 }
 
@@ -193,7 +193,7 @@ struct audit_chunk *audit_tree_lookup(const struct inode *inode)
 
 	list_for_each_entry_rcu(p, list, hash) {
 		/* mark.inode may have gone NULL, but who cares? */
-		if (p->mark.inode == inode) {
+		if (p->mark.i.inode == inode) {
 			atomic_long_inc(&p->refs);
 			return p;
 		}
@@ -233,7 +233,7 @@ static void untag_chunk(struct node *p)
 	spin_unlock(&hash_lock);
 
 	spin_lock(&entry->lock);
-	if (chunk->dead || !entry->inode) {
+	if (chunk->dead || !entry->i.inode) {
 		spin_unlock(&entry->lock);
 		goto out;
 	}
@@ -259,7 +259,7 @@ static void untag_chunk(struct node *p)
 	if (!new)
 		goto Fallback;
 	fsnotify_duplicate_mark(&new->mark, entry);
-	if (fsnotify_add_mark(&new->mark, new->mark.group, new->mark.inode, 1)) {
+	if (fsnotify_add_mark(&new->mark, new->mark.group, new->mark.i.inode, 1)) {
 		free_chunk(new);
 		goto Fallback;
 	}
@@ -388,7 +388,7 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 	chunk_entry = &chunk->mark;
 
 	spin_lock(&old_entry->lock);
-	if (!old_entry->inode) {
+	if (!old_entry->i.inode) {
 		/* old_entry is being shot, lets just lie */
 		spin_unlock(&old_entry->lock);
 		fsnotify_put_mark(old_entry);
@@ -397,7 +397,7 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 	}
 
 	fsnotify_duplicate_mark(chunk_entry, old_entry);
-	if (fsnotify_add_mark(chunk_entry, chunk_entry->group, chunk_entry->inode, 1)) {
+	if (fsnotify_add_mark(chunk_entry, chunk_entry->group, chunk_entry->i.inode, 1)) {
 		spin_unlock(&old_entry->lock);
 		free_chunk(chunk);
 		fsnotify_put_mark(old_entry);
@@ -605,7 +605,7 @@ void audit_trim_trees(void)
 		list_for_each_entry(node, &tree->chunks, list) {
 			struct audit_chunk *chunk = find_chunk(node);
 			/* this could be NULL if the watch is dieing else where... */
-			struct inode *inode = chunk->mark.inode;
+			struct inode *inode = chunk->mark.i.inode;
 			node->index |= 1U<<31;
 			if (iterate_mounts(compare_root, inode, root_mnt))
 				node->index &= ~(1U<<31);

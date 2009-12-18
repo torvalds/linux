@@ -193,7 +193,7 @@ static int idr_callback(int id, void *p, void *data)
 	 */
 	if (entry)
 		printk(KERN_WARNING "entry->group=%p inode=%p wd=%d\n",
-			entry->group, entry->inode, ientry->wd);
+			entry->group, entry->i.inode, ientry->wd);
 	return 0;
 }
 

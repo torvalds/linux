@@ -70,8 +70,8 @@ static void dnotify_recalc_inode_mask(struct fsnotify_mark_entry *entry)
 	if (old_mask == new_mask)
 		return;
 
-	if (entry->inode)
-		fsnotify_recalc_inode_mask(entry->inode);
+	if (entry->i.inode)
+		fsnotify_recalc_inode_mask(entry->i.inode);
 }
 
 /*

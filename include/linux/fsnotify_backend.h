@@ -227,6 +227,15 @@ struct fsnotify_event {
 };
 
 /*
+ * Inode specific fields in an fsnotify_mark_entry
+ */
+struct fsnotify_inode_mark {
+	struct inode *inode;		/* inode this entry is associated with */
+	struct hlist_node i_list;	/* list of mark_entries by inode->i_fsnotify_mark_entries */
+	struct list_head free_i_list;	/* tmp list used when freeing this mark */
+};
+
+/*
  * a mark is simply an entry attached to an in core inode which allows an
  * fsnotify listener to indicate they are either no longer interested in events
  * of a type matching mask or only interested in those events.
@@ -241,12 +250,12 @@ struct fsnotify_mark_entry {
 	/* we hold ref for each i_list and g_list.  also one ref for each 'thing'
 	 * in kernel that found and may be using this mark. */
 	atomic_t refcnt;		/* active things looking at this mark */
-	struct inode *inode;		/* inode this entry is associated with */
 	struct fsnotify_group *group;	/* group this mark entry is for */
-	struct hlist_node i_list;	/* list of mark_entries by inode->i_fsnotify_mark_entries */
 	struct list_head g_list;	/* list of mark_entries by group->i_fsnotify_mark_entries */
-	spinlock_t lock;		/* protect group, inode, and killme */
-	struct list_head free_i_list;	/* tmp list used when freeing this mark */
+	spinlock_t lock;		/* protect group and inode */
+	union {
+		struct fsnotify_inode_mark i;
+	};
 	struct list_head free_g_list;	/* tmp list used when freeing this mark */
 	void (*free_mark)(struct fsnotify_mark_entry *entry); /* called on final put+free */
 };

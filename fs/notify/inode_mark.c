@@ -117,7 +117,7 @@ static void fsnotify_recalc_inode_mask_locked(struct inode *inode)
 
 	assert_spin_locked(&inode->i_lock);
 
-	hlist_for_each_entry(entry, pos, &inode->i_fsnotify_mark_entries, i_list)
+	hlist_for_each_entry(entry, pos, &inode->i_fsnotify_mark_entries, i.i_list)
 		new_mask |= entry->mask;
 	inode->i_fsnotify_mask = new_mask;
 }
@@ -148,7 +148,7 @@ void fsnotify_destroy_mark_by_entry(struct fsnotify_mark_entry *entry)
 	spin_lock(&entry->lock);
 
 	group = entry->group;
-	inode = entry->inode;
+	inode = entry->i.inode;
 
 	BUG_ON(group && !inode);
 	BUG_ON(!group && inode);
@@ -165,8 +165,8 @@ void fsnotify_destroy_mark_by_entry(struct fsnotify_mark_entry *entry)
 	spin_lock(&group->mark_lock);
 	spin_lock(&inode->i_lock);
 
-	hlist_del_init(&entry->i_list);
-	entry->inode = NULL;
+	hlist_del_init(&entry->i.i_list);
+	entry->i.inode = NULL;
 
 	list_del_init(&entry->g_list);
 	entry->group = NULL;
@@ -248,14 +248,14 @@ void fsnotify_clear_marks_by_inode(struct inode *inode)
 	LIST_HEAD(free_list);
 
 	spin_lock(&inode->i_lock);
-	hlist_for_each_entry_safe(entry, pos, n, &inode->i_fsnotify_mark_entries, i_list) {
-		list_add(&entry->free_i_list, &free_list);
-		hlist_del_init(&entry->i_list);
+	hlist_for_each_entry_safe(entry, pos, n, &inode->i_fsnotify_mark_entries, i.i_list) {
+		list_add(&entry->i.free_i_list, &free_list);
+		hlist_del_init(&entry->i.i_list);
 		fsnotify_get_mark(entry);
 	}
 	spin_unlock(&inode->i_lock);
 
-	list_for_each_entry_safe(entry, lentry, &free_list, free_i_list) {
+	list_for_each_entry_safe(entry, lentry, &free_list, i.free_i_list) {
 		fsnotify_destroy_mark_by_entry(entry);
 		fsnotify_put_mark(entry);
 	}
@@ -273,7 +273,7 @@ struct fsnotify_mark_entry *fsnotify_find_mark_entry(struct fsnotify_group *grou
 
 	assert_spin_locked(&inode->i_lock);
 
-	hlist_for_each_entry(entry, pos, &inode->i_fsnotify_mark_entries, i_list) {
+	hlist_for_each_entry(entry, pos, &inode->i_fsnotify_mark_entries, i.i_list) {
 		if (entry->group == group) {
 			fsnotify_get_mark(entry);
 			return entry;
@@ -285,7 +285,7 @@ struct fsnotify_mark_entry *fsnotify_find_mark_entry(struct fsnotify_group *grou
 void fsnotify_duplicate_mark(struct fsnotify_mark_entry *new, struct fsnotify_mark_entry *old)
 {
 	assert_spin_locked(&old->lock);
-	new->inode = old->inode;
+	new->i.inode = old->i.inode;
 	new->group = old->group;
 	new->mask = old->mask;
 	new->free_mark = old->free_mark;
@@ -299,10 +299,10 @@ void fsnotify_init_mark(struct fsnotify_mark_entry *entry,
 {
 	spin_lock_init(&entry->lock);
 	atomic_set(&entry->refcnt, 1);
-	INIT_HLIST_NODE(&entry->i_list);
+	INIT_HLIST_NODE(&entry->i.i_list);
 	entry->group = NULL;
 	entry->mask = 0;
-	entry->inode = NULL;
+	entry->i.inode = NULL;
 	entry->free_mark = free_mark;
 }
 
@@ -350,9 +350,9 @@ int fsnotify_add_mark(struct fsnotify_mark_entry *entry,
 		lentry = fsnotify_find_mark_entry(group, inode);
 	if (!lentry) {
 		entry->group = group;
-		entry->inode = inode;
+		entry->i.inode = inode;
 
-		hlist_add_head(&entry->i_list, &inode->i_fsnotify_mark_entries);
+		hlist_add_head(&entry->i.i_list, &inode->i_fsnotify_mark_entries);
 		list_add(&entry->g_list, &group->mark_entries);
 
 		fsnotify_get_mark(entry); /* for i_list and g_list */
