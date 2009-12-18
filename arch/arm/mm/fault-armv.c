@@ -37,7 +37,7 @@ static unsigned long shared_pte_mask = L_PTE_MT_BUFFERABLE;
  * without CONFIG_CPU_CACHE_VIPT) cannot support split page_table_lock.
  */
 static int do_adjust_pte(struct vm_area_struct *vma, unsigned long address,
-	pte_t *ptep)
+	unsigned long pfn, pte_t *ptep)
 {
 	pte_t entry = *ptep;
 	int ret;
@@ -52,7 +52,6 @@ static int do_adjust_pte(struct vm_area_struct *vma, unsigned long address,
 	 * fault (ie, is old), we can safely ignore any issues.
 	 */
 	if (ret && (pte_val(entry) & L_PTE_MT_MASK) != shared_pte_mask) {
-		unsigned long pfn = pte_pfn(entry);
 		flush_cache_page(vma, address, pfn);
 		outer_flush_range((pfn << PAGE_SHIFT),
 				  (pfn << PAGE_SHIFT) + PAGE_SIZE);
@@ -65,7 +64,8 @@ static int do_adjust_pte(struct vm_area_struct *vma, unsigned long address,
 	return ret;
 }
 
-static int adjust_pte(struct vm_area_struct *vma, unsigned long address)
+static int adjust_pte(struct vm_area_struct *vma, unsigned long address,
+	unsigned long pfn)
 {
 	spinlock_t *ptl;
 	pgd_t *pgd;
@@ -90,7 +90,7 @@ static int adjust_pte(struct vm_area_struct *vma, unsigned long address)
 	pte = pte_offset_map_nested(pmd, address);
 	spin_lock(ptl);
 
-	ret = do_adjust_pte(vma, address, pte);
+	ret = do_adjust_pte(vma, address, pfn, pte);
 
 	spin_unlock(ptl);
 	pte_unmap_nested(pte);
@@ -127,11 +127,11 @@ make_coherent(struct address_space *mapping, struct vm_area_struct *vma, unsigne
 		if (!(mpnt->vm_flags & VM_MAYSHARE))
 			continue;
 		offset = (pgoff - mpnt->vm_pgoff) << PAGE_SHIFT;
-		aliases += adjust_pte(mpnt, mpnt->vm_start + offset);
+		aliases += adjust_pte(mpnt, mpnt->vm_start + offset, pfn);
 	}
 	flush_dcache_mmap_unlock(mapping);
 	if (aliases)
-		adjust_pte(vma, addr);
+		adjust_pte(vma, addr, pfn);
 	else
 		flush_cache_page(vma, addr, pfn);
 }
