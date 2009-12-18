@@ -131,8 +131,10 @@ gss_import_sec_context_kerberos(const void *p,
 	struct	krb5_ctx *ctx;
 	int tmp;
 
-	if (!(ctx = kzalloc(sizeof(*ctx), GFP_NOFS)))
+	if (!(ctx = kzalloc(sizeof(*ctx), GFP_NOFS))) {
+		p = ERR_PTR(-ENOMEM);
 		goto out_err;
+	}
 
 	p = simple_get_bytes(p, end, &ctx->initiate, sizeof(ctx->initiate));
 	if (IS_ERR(p))
