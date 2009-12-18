@@ -1,3 +1,4 @@
+#include <linux/fanotify.h>
 #include <linux/fcntl.h>
 #include <linux/file.h>
 #include <linux/fs.h>
@@ -14,7 +15,7 @@
 
 #include <asm/ioctls.h>
 
-#include "fanotify.h"
+extern const struct fsnotify_ops fanotify_fsnotify_ops;
 
 static struct kmem_cache *fanotify_mark_cache __read_mostly;
 
@@ -102,7 +103,7 @@ static ssize_t fill_event_metadata(struct fsnotify_group *group,
 
 	metadata->event_len = FAN_EVENT_METADATA_LEN;
 	metadata->vers = FANOTIFY_METADATA_VERSION;
-	metadata->mask = fanotify_outgoing_mask(event->mask);
+	metadata->mask = event->mask & FAN_ALL_OUTGOING_EVENTS;
 	metadata->pid = pid_vnr(event->tgid);
 	metadata->fd = create_fd(group, event);
 

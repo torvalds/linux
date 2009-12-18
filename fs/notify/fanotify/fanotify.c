@@ -1,11 +1,10 @@
+#include <linux/fanotify.h>
 #include <linux/fdtable.h>
 #include <linux/fsnotify_backend.h>
 #include <linux/init.h>
 #include <linux/kernel.h> /* UINT_MAX */
 #include <linux/mount.h>
 #include <linux/types.h>
-
-#include "fanotify.h"
 
 static bool should_merge(struct fsnotify_event *old, struct fsnotify_event *new)
 {
