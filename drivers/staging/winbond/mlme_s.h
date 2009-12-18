@@ -165,14 +165,6 @@ typedef struct _AUTHREQ {
 
 } MLME_AUTHREQ_PARA, *psMLME_AUTHREQ_PARA;
 
-struct _Reason_Code {
-
-	u8	peerMACaddr[MAC_ADDR_LENGTH];
-	u16	wReasonCode;
-};
-typedef struct _Reason_Code MLME_DEAUTHREQ_PARA, *psMLME_DEAUTHREQ_PARA;
-typedef struct _Reason_Code MLME_DISASSOCREQ_PARA, *psMLME_DISASSOCREQ_PARA;
-
 typedef struct _ASSOCREQ {
   u8       PeerSTAAddr[MAC_ADDR_LENGTH];
   u16       CapabilityInfo;
