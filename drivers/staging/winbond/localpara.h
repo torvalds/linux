@@ -116,12 +116,6 @@ struct chan_info
 	u8		ChanNo;
 };
 
-typedef struct _CHAN_LIST
-{
-	u16				Count;
-	struct chan_info		Channel[50]; // 100B
-} CHAN_LIST, *psCHAN_LIST;
-
 struct radio_off
 {
 	u8			boHwRadioOff;
@@ -250,7 +244,6 @@ struct wb_local_para
 	u8		reserved_5[2];		//It may not be used after considering RF type,
 									//region and modulation type.
 
-	CHAN_LIST	sSupportChanList;	// 86B. It will be obtained according to RF type and region
 	u8		reserved_6[2];		//two variables are for wep key error detection added by ws 02/02/04
 
     u32	      bWepKeyError;
