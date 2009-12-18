@@ -219,14 +219,6 @@ static void __init console_config(void)
 	if (strstr(prom_getcmdline(), "console="))
 		return;
 
-#ifdef CONFIG_KGDB
-	if (!strstr(prom_getcmdline(), "nokgdb")) {
-		strcat(prom_getcmdline(), " console=kgdb");
-		kgdb_enabled = 1;
-		return;
-	}
-#endif
-
 	s = prom_getenv("modetty0");
 	if (s) {
 		baud = simple_strtoul(s, &p, 10);
