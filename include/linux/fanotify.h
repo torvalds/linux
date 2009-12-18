@@ -30,12 +30,14 @@
 #define FAN_MARK_DONT_FOLLOW	0x00000004
 #define FAN_MARK_ONLYDIR	0x00000008
 #define FAN_MARK_MOUNT		0x00000010
+#define FAN_MARK_IGNORED_MASK	0x00000020
 
 #define FAN_ALL_MARK_FLAGS	(FAN_MARK_ADD |\
 				 FAN_MARK_REMOVE |\
 				 FAN_MARK_DONT_FOLLOW |\
 				 FAN_MARK_ONLYDIR |\
-				 FAN_MARK_MOUNT)
+				 FAN_MARK_MOUNT |\
+				 FAN_MARK_IGNORED_MASK)
 
 /*
  * All of the events - we build the list by hand so that we can add flags in

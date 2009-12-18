@@ -296,13 +296,20 @@ out:
 	return ret;
 }
 
-static __u32 fanotify_mark_remove_from_mask(struct fsnotify_mark *fsn_mark, __u32 mask)
+static __u32 fanotify_mark_remove_from_mask(struct fsnotify_mark *fsn_mark,
+					    __u32 mask,
+					    unsigned int flags)
 {
 	__u32 oldmask;
 
 	spin_lock(&fsn_mark->lock);
-	oldmask = fsn_mark->mask;
-	fsnotify_set_mark_mask_locked(fsn_mark, (oldmask & ~mask));
+	if (!(flags & FAN_MARK_IGNORED_MASK)) {
+		oldmask = fsn_mark->mask;
+		fsnotify_set_mark_mask_locked(fsn_mark, (oldmask & ~mask));
+	} else {
+		oldmask = fsn_mark->ignored_mask;
+		fsnotify_set_mark_ignored_mask_locked(fsn_mark, (oldmask & ~mask));
+	}
 	spin_unlock(&fsn_mark->lock);
 
 	if (!(oldmask & ~mask))
@@ -312,7 +319,8 @@ static __u32 fanotify_mark_remove_from_mask(struct fsnotify_mark *fsn_mark, __u3
 }
 
 static int fanotify_remove_vfsmount_mark(struct fsnotify_group *group,
-					 struct vfsmount *mnt, __u32 mask)
+					 struct vfsmount *mnt, __u32 mask,
+					 unsigned int flags)
 {
 	struct fsnotify_mark *fsn_mark = NULL;
 	__u32 removed;
@@ -321,7 +329,7 @@ static int fanotify_remove_vfsmount_mark(struct fsnotify_group *group,
 	if (!fsn_mark)
 		return -ENOENT;
 
-	removed = fanotify_mark_remove_from_mask(fsn_mark, mask);
+	removed = fanotify_mark_remove_from_mask(fsn_mark, mask, flags);
 	fsnotify_put_mark(fsn_mark);
 	if (removed & group->mask)
 		fsnotify_recalc_group_mask(group);
@@ -332,7 +340,8 @@ static int fanotify_remove_vfsmount_mark(struct fsnotify_group *group,
 }
 
 static int fanotify_remove_inode_mark(struct fsnotify_group *group,
-				      struct inode *inode, __u32 mask)
+				      struct inode *inode, __u32 mask,
+				      unsigned int flags)
 {
 	struct fsnotify_mark *fsn_mark = NULL;
 	__u32 removed;
@@ -341,7 +350,7 @@ static int fanotify_remove_inode_mark(struct fsnotify_group *group,
 	if (!fsn_mark)
 		return -ENOENT;
 
-	removed = fanotify_mark_remove_from_mask(fsn_mark, mask);
+	removed = fanotify_mark_remove_from_mask(fsn_mark, mask, flags);
 	/* matches the fsnotify_find_inode_mark() */
 	fsnotify_put_mark(fsn_mark);
 
@@ -353,20 +362,28 @@ static int fanotify_remove_inode_mark(struct fsnotify_group *group,
 	return 0;
 }
 
-static __u32 fanotify_mark_add_to_mask(struct fsnotify_mark *fsn_mark, __u32 mask)
+static __u32 fanotify_mark_add_to_mask(struct fsnotify_mark *fsn_mark,
+				       __u32 mask,
+				       unsigned int flags)
 {
 	__u32 oldmask;
 
 	spin_lock(&fsn_mark->lock);
-	oldmask = fsn_mark->mask;
-	fsnotify_set_mark_mask_locked(fsn_mark, (oldmask | mask));
+	if (!(flags & FAN_MARK_IGNORED_MASK)) {
+		oldmask = fsn_mark->mask;
+		fsnotify_set_mark_mask_locked(fsn_mark, (oldmask | mask));
+	} else {
+		oldmask = fsn_mark->ignored_mask;
+		fsnotify_set_mark_ignored_mask_locked(fsn_mark, (oldmask | mask));
+	}
 	spin_unlock(&fsn_mark->lock);
 
 	return mask & ~oldmask;
 }
 
 static int fanotify_add_vfsmount_mark(struct fsnotify_group *group,
-				      struct vfsmount *mnt, __u32 mask)
+				      struct vfsmount *mnt, __u32 mask,
+				      unsigned int flags)
 {
 	struct fsnotify_mark *fsn_mark;
 	__u32 added;
@@ -386,7 +403,7 @@ static int fanotify_add_vfsmount_mark(struct fsnotify_group *group,
 			return ret;
 		}
 	}
-	added = fanotify_mark_add_to_mask(fsn_mark, mask);
+	added = fanotify_mark_add_to_mask(fsn_mark, mask, flags);
 	fsnotify_put_mark(fsn_mark);
 	if (added) {
 		if (added & ~group->mask)
@@ -398,7 +415,8 @@ static int fanotify_add_vfsmount_mark(struct fsnotify_group *group,
 }
 
 static int fanotify_add_inode_mark(struct fsnotify_group *group,
-				   struct inode *inode, __u32 mask)
+				   struct inode *inode, __u32 mask,
+				   unsigned int flags)
 {
 	struct fsnotify_mark *fsn_mark;
 	__u32 added;
@@ -420,7 +438,7 @@ static int fanotify_add_inode_mark(struct fsnotify_group *group,
 			return ret;
 		}
 	}
-	added = fanotify_mark_add_to_mask(fsn_mark, mask);
+	added = fanotify_mark_add_to_mask(fsn_mark, mask, flags);
 	fsnotify_put_mark(fsn_mark);
 	if (added) {
 		if (added & ~group->mask)
@@ -528,15 +546,15 @@ SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
 	switch (flags & (FAN_MARK_ADD | FAN_MARK_REMOVE)) {
 	case FAN_MARK_ADD:
 		if (flags & FAN_MARK_MOUNT)
-			ret = fanotify_add_vfsmount_mark(group, mnt, mask);
+			ret = fanotify_add_vfsmount_mark(group, mnt, mask, flags);
 		else
-			ret = fanotify_add_inode_mark(group, inode, mask);
+			ret = fanotify_add_inode_mark(group, inode, mask, flags);
 		break;
 	case FAN_MARK_REMOVE:
 		if (flags & FAN_MARK_MOUNT)
-			ret = fanotify_remove_vfsmount_mark(group, mnt, mask);
+			ret = fanotify_remove_vfsmount_mark(group, mnt, mask, flags);
 		else
-			ret = fanotify_remove_inode_mark(group, inode, mask);
+			ret = fanotify_remove_inode_mark(group, inode, mask, flags);
 		break;
 	default:
 		ret = -EINVAL;
