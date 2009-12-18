@@ -67,6 +67,7 @@ static int do_adjust_pte(struct vm_area_struct *vma, unsigned long address,
 
 static int adjust_pte(struct vm_area_struct *vma, unsigned long address)
 {
+	spinlock_t *ptl;
 	pgd_t *pgd;
 	pmd_t *pmd;
 	pte_t *pte;
@@ -80,11 +81,19 @@ static int adjust_pte(struct vm_area_struct *vma, unsigned long address)
 	if (pmd_none_or_clear_bad(pmd))
 		return 0;
 
-	pte = pte_offset_map(pmd, address);
+	/*
+	 * This is called while another page table is mapped, so we
+	 * must use the nested version.  This also means we need to
+	 * open-code the spin-locking.
+	 */
+	ptl = pte_lockptr(vma->vm_mm, pmd);
+	pte = pte_offset_map_nested(pmd, address);
+	spin_lock(ptl);
 
 	ret = do_adjust_pte(vma, address, pte);
 
-	pte_unmap(pte);
+	spin_unlock(ptl);
+	pte_unmap_nested(pte);
 
 	return ret;
 }
