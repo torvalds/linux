@@ -889,7 +889,7 @@ long do_sys_open(int dfd, const char __user *filename, int flags, int mode)
 				put_unused_fd(fd);
 				fd = PTR_ERR(f);
 			} else {
-				fsnotify_open(f->f_path.dentry);
+				fsnotify_open(f);
 				fd_install(fd, f);
 			}
 		}
