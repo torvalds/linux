@@ -89,10 +89,18 @@ struct file *anon_inode_getfile(const char *name,
 	struct qstr this;
 	struct path path;
 	struct file *file;
+	fmode_t mode;
 	int error;
 
 	if (IS_ERR(anon_inode_inode))
 		return ERR_PTR(-ENODEV);
+
+	switch (flags & O_ACCMODE) {
+	case O_RDONLY: mode = FMODE_READ;		break;
+	case O_WRONLY: mode = FMODE_WRITE;		break;
+	case O_RDWR:   mode = FMODE_READ | FMODE_WRITE;	break;
+	default:       return ERR_PTR(-EINVAL);
+	}
 
 	if (fops->owner && !try_module_get(fops->owner))
 		return ERR_PTR(-ENOENT);
@@ -121,13 +129,13 @@ struct file *anon_inode_getfile(const char *name,
 	d_instantiate(path.dentry, anon_inode_inode);
 
 	error = -ENFILE;
-	file = alloc_file(&path, FMODE_READ | FMODE_WRITE, fops);
+	file = alloc_file(&path, mode, fops);
 	if (!file)
 		goto err_dput;
 	file->f_mapping = anon_inode_inode->i_mapping;
 
 	file->f_pos = 0;
-	file->f_flags = O_RDWR | (flags & O_NONBLOCK);
+	file->f_flags = flags & (O_ACCMODE | O_NONBLOCK);
 	file->f_version = 0;
 	file->private_data = priv;
 
