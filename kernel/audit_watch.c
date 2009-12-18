@@ -58,22 +58,10 @@ struct audit_parent {
 	struct list_head	ilist;	/* tmp list used to free parents */
 	struct list_head	watches; /* anchor for audit_watch->wlist */
 	struct fsnotify_mark_entry mark; /* fsnotify mark on the inode */
-	unsigned		flags;	/* status flags */
 };
 
 /* fsnotify handle. */
 struct fsnotify_group *audit_watch_group;
-
-/*
- * audit_parent status flags:
- *
- * AUDIT_PARENT_INVALID - set anytime rules/watches are auto-removed due to
- * a filesystem event to ensure we're adding audit watches to a valid parent.
- * Technically not needed for FS_DELETE_SELF or FS_UNMOUNT events, as we cannot
- * receive them while we have nameidata, but must be used for FS_MOVE_SELF which
- * we can receive while holding nameidata.
- */
-#define AUDIT_PARENT_INVALID	0x001
 
 /* fsnotify events we care about. */
 #define AUDIT_FS_WATCH (FS_MOVE | FS_CREATE | FS_DELETE | FS_DELETE_SELF |\
@@ -171,12 +159,9 @@ static struct audit_parent *audit_init_parent(struct nameidata *ndp)
 		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&parent->watches);
-	parent->flags = 0;
 
 	fsnotify_init_mark(&parent->mark, audit_watch_free_mark);
 	parent->mark.mask = AUDIT_FS_WATCH;
-	/* grab a ref so fsnotify mark hangs around until we take audit_filter_mutex */
-	audit_get_parent(parent);
 	ret = fsnotify_add_mark(&parent->mark, audit_watch_group, inode);
 	if (ret < 0) {
 		audit_free_parent(parent);
@@ -355,7 +340,6 @@ static void audit_remove_parent_watches(struct audit_parent *parent)
 	struct audit_entry *e;
 
 	mutex_lock(&audit_filter_mutex);
-	parent->flags |= AUDIT_PARENT_INVALID;
 	list_for_each_entry_safe(w, nextw, &parent->watches, wlist) {
 		list_for_each_entry_safe(r, nextr, &w->rules, rlist) {
 			e = container_of(r, struct audit_entry, rule);
@@ -487,35 +471,25 @@ int audit_add_watch(struct audit_krule *krule, struct list_head **list)
 		goto error;
 	}
 
+	mutex_lock(&audit_filter_mutex);
+
 	/* update watch filter fields */
 	if (ndw) {
 		watch->dev = ndw->path.dentry->d_inode->i_sb->s_dev;
 		watch->ino = ndw->path.dentry->d_inode->i_ino;
 	}
 
-	/* The audit_filter_mutex must not be held during inotify calls because
-	 * we hold it during inotify event callback processing.  If an existing
-	 * inotify watch is found, inotify_find_watch() grabs a reference before
-	 * returning.
-	 */
+	/* either find an old parent or attach a new one */
 	parent = audit_find_parent(ndp->path.dentry->d_inode);
 	if (!parent) {
 		parent = audit_init_parent(ndp);
 		if (IS_ERR(parent)) {
-			/* caller expects mutex locked */
-			mutex_lock(&audit_filter_mutex);
 			ret = PTR_ERR(parent);
 			goto error;
 		}
 	}
 
-	mutex_lock(&audit_filter_mutex);
-
-	/* parent was moved before we took audit_filter_mutex */
-	if (parent->flags & AUDIT_PARENT_INVALID)
-		ret = -ENOENT;
-	else
-		audit_add_to_parent(krule, parent);
+	audit_add_to_parent(krule, parent);
 
 	/* match get in audit_find_parent or audit_init_parent */
 	audit_put_parent(parent);
@@ -613,20 +587,11 @@ static int audit_watch_handle_event(struct fsnotify_group *group, struct fsnotif
 	return 0;
 }
 
-static void audit_watch_freeing_mark(struct fsnotify_mark_entry *entry, struct fsnotify_group *group)
-{
-	struct audit_parent *parent;
-
-	parent = container_of(entry, struct audit_parent, mark);
-	/* taken from audit_handle_ievent & FS_IGNORED please figure out what I match... */
-	audit_put_parent(parent);
-}
-
 static const struct fsnotify_ops audit_watch_fsnotify_ops = {
 	.should_send_event = 	audit_watch_should_send_event,
 	.handle_event = 	audit_watch_handle_event,
 	.free_group_priv = 	NULL,
-	.freeing_mark = 	audit_watch_freeing_mark,
+	.freeing_mark = 	NULL,
 	.free_event_priv = 	NULL,
 };
 
