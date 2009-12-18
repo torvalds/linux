@@ -96,6 +96,14 @@ static inline void fsnotify_inode_delete(struct inode *inode)
 }
 
 /*
+ * fsnotify_vfsmount_delete - a vfsmount is being destroyed, clean up is needed
+ */
+static inline void fsnotify_vfsmount_delete(struct vfsmount *mnt)
+{
+	__fsnotify_vfsmount_delete(mnt);
+}
+
+/*
  * fsnotify_nameremove - a filename was removed from a directory
  */
 static inline void fsnotify_nameremove(struct dentry *dentry, int isdir)

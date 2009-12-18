@@ -282,6 +282,7 @@ extern void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 		     const char *name, u32 cookie);
 extern void __fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask);
 extern void __fsnotify_inode_delete(struct inode *inode);
+extern void __fsnotify_vfsmount_delete(struct vfsmount *mnt);
 extern u32 fsnotify_get_cookie(void);
 
 static inline int fsnotify_inode_watches_children(struct inode *inode)
@@ -400,6 +401,9 @@ static inline void __fsnotify_parent(struct path *path, struct dentry *dentry, _
 {}
 
 static inline void __fsnotify_inode_delete(struct inode *inode)
+{}
+
+static inline void __fsnotify_vfsmount_delete(struct vfsmount *mnt)
 {}
 
 static inline void __fsnotify_update_dcache_flags(struct dentry *dentry)

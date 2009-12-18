@@ -36,6 +36,11 @@ void __fsnotify_inode_delete(struct inode *inode)
 }
 EXPORT_SYMBOL_GPL(__fsnotify_inode_delete);
 
+void __fsnotify_vfsmount_delete(struct vfsmount *mnt)
+{
+	fsnotify_clear_marks_by_mount(mnt);
+}
+
 /*
  * Given an inode, first check if we care what happens to our children.  Inotify
  * and dnotify both tell their parents about events.  If we care about any event

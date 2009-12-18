@@ -614,6 +614,7 @@ static inline void __mntput(struct vfsmount *mnt)
 	 * provides barriers, so count_mnt_writers() below is safe.  AV
 	 */
 	WARN_ON(count_mnt_writers(mnt));
+	fsnotify_vfsmount_delete(mnt);
 	dput(mnt->mnt_root);
 	free_vfsmnt(mnt);
 	deactivate_super(sb);
