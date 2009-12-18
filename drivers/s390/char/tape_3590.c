@@ -9,6 +9,7 @@
  */
 
 #define KMSG_COMPONENT "tape_3590"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/module.h>
 #include <linux/init.h>
