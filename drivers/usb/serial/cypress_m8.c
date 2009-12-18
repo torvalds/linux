@@ -352,15 +352,12 @@ static int cypress_serial_control(struct tty_struct *tty,
 
 	switch (cypress_request_type) {
 	case CYPRESS_SET_CONFIG:
-		new_baudrate = priv->baud_rate;
 		/* 0 means 'Hang up' so doesn't change the true bit rate */
-		if (baud_rate == 0)
-			new_baudrate = priv->baud_rate;
-		/* Change of speed ? */
-		else if (baud_rate != priv->baud_rate) {
+		new_baudrate = priv->baud_rate;
+		if (baud_rate && baud_rate != priv->baud_rate) {
 			dbg("%s - baud rate is changing", __func__);
 			retval = analyze_baud_rate(port, baud_rate);
-			if (retval >=  0) {
+			if (retval >= 0) {
 				new_baudrate = retval;
 				dbg("%s - New baud rate set to %d",
 				    __func__, new_baudrate);
