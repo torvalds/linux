@@ -253,7 +253,7 @@ int __devinit mantis_i2c_init(struct mantis_pci *mantis)
 }
 EXPORT_SYMBOL_GPL(mantis_i2c_init);
 
-int __devexit mantis_i2c_exit(struct mantis_pci *mantis)
+int mantis_i2c_exit(struct mantis_pci *mantis)
 {
 	u32 intmask;
 

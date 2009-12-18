@@ -155,7 +155,7 @@ fail0:
 }
 EXPORT_SYMBOL_GPL(mantis_pci_init);
 
-void __devexit mantis_pci_exit(struct mantis_pci *mantis)
+void mantis_pci_exit(struct mantis_pci *mantis)
 {
 	struct pci_dev *pdev = mantis->pdev;
 
