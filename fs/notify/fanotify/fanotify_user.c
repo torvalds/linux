@@ -485,7 +485,8 @@ SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
 			      __u64 mask, int dfd,
 			      const char  __user * pathname)
 {
-	struct inode *inode;
+	struct inode *inode = NULL;
+	struct vfsmount *mnt = NULL;
 	struct fsnotify_group *group;
 	struct file *filp;
 	struct path path;
@@ -515,16 +516,22 @@ SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
 		goto fput_and_out;
 
 	/* inode held in place by reference to path; group by fget on fd */
-	inode = path.dentry->d_inode;
+	if (!(flags & FAN_MARK_ON_VFSMOUNT))
+		inode = path.dentry->d_inode;
+	else
+		mnt = path.mnt;
 	group = filp->private_data;
 
 	/* create/update an inode mark */
 	switch (flags & (FAN_MARK_ADD | FAN_MARK_REMOVE)) {
 	case FAN_MARK_ADD:
-		ret = fanotify_add_inode_mark(group, inode, mask);
+		if (flags & FAN_MARK_ON_VFSMOUNT)
+			ret = fanotify_add_vfsmount_mark(group, mnt, mask);
+		else
+			ret = fanotify_add_inode_mark(group, inode, mask);
 		break;
 	case FAN_MARK_REMOVE:
-		ret = fanotify_remove_mark(group, inode, NULL, mask);
+		ret = fanotify_remove_mark(group, inode, mnt, mask);
 		break;
 	default:
 		ret = -EINVAL;

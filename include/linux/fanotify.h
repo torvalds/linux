@@ -29,11 +29,13 @@
 #define FAN_MARK_REMOVE		0x00000002
 #define FAN_MARK_DONT_FOLLOW	0x00000004
 #define FAN_MARK_ONLYDIR	0x00000008
+#define FAN_MARK_ON_VFSMOUNT	0x00000010
 
 #define FAN_ALL_MARK_FLAGS	(FAN_MARK_ADD |\
 				 FAN_MARK_REMOVE |\
 				 FAN_MARK_DONT_FOLLOW |\
-				 FAN_MARK_ONLYDIR)
+				 FAN_MARK_ONLYDIR |\
+				 FAN_MARK_ON_VFSMOUNT)
 
 /*
  * All of the events - we build the list by hand so that we can add flags in
