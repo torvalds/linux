@@ -56,7 +56,7 @@ static struct kmem_cache *fsnotify_event_holder_cachep;
  * it is needed.  It's refcnt is set 1 at kernel init time and will never
  * get set to 0 so it will never get 'freed'
  */
-static struct fsnotify_event q_overflow_event;
+static struct fsnotify_event *q_overflow_event;
 static atomic_t fsnotify_sync_cookie = ATOMIC_INIT(0);
 
 /**
@@ -195,7 +195,7 @@ alloc_holder:
 	mutex_lock(&group->notification_mutex);
 
 	if (group->q_len >= group->max_events) {
-		event = &q_overflow_event;
+		event = q_overflow_event;
 		ret = -EOVERFLOW;
 		/* sorry, no private data on the overflow event */
 		priv = NULL;
@@ -412,8 +412,11 @@ __init int fsnotify_notification_init(void)
 	fsnotify_event_cachep = KMEM_CACHE(fsnotify_event, SLAB_PANIC);
 	fsnotify_event_holder_cachep = KMEM_CACHE(fsnotify_event_holder, SLAB_PANIC);
 
-	initialize_event(&q_overflow_event);
-	q_overflow_event.mask = FS_Q_OVERFLOW;
+	q_overflow_event = fsnotify_create_event(NULL, FS_Q_OVERFLOW, NULL,
+						 FSNOTIFY_EVENT_NONE, NULL, 0,
+						 GFP_KERNEL);
+	if (!q_overflow_event)
+		panic("unable to allocate fsnotify q_overflow_event\n");
 
 	return 0;
 }
