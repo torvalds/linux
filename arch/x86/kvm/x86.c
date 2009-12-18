@@ -93,16 +93,16 @@ module_param_named(ignore_msrs, ignore_msrs, bool, S_IRUGO | S_IWUSR);
 
 struct kvm_shared_msrs_global {
 	int nr;
-	struct kvm_shared_msr {
-		u32 msr;
-		u64 value;
-	} msrs[KVM_NR_SHARED_MSRS];
+	u32 msrs[KVM_NR_SHARED_MSRS];
 };
 
 struct kvm_shared_msrs {
 	struct user_return_notifier urn;
 	bool registered;
-	u64 current_value[KVM_NR_SHARED_MSRS];
+	struct kvm_shared_msr_values {
+		u64 host;
+		u64 curr;
+	} values[KVM_NR_SHARED_MSRS];
 };
 
 static struct kvm_shared_msrs_global __read_mostly shared_msrs_global;
@@ -147,53 +147,64 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 static void kvm_on_user_return(struct user_return_notifier *urn)
 {
 	unsigned slot;
-	struct kvm_shared_msr *global;
 	struct kvm_shared_msrs *locals
 		= container_of(urn, struct kvm_shared_msrs, urn);
+	struct kvm_shared_msr_values *values;
 
 	for (slot = 0; slot < shared_msrs_global.nr; ++slot) {
-		global = &shared_msrs_global.msrs[slot];
-		if (global->value != locals->current_value[slot]) {
-			wrmsrl(global->msr, global->value);
-			locals->current_value[slot] = global->value;
+		values = &locals->values[slot];
+		if (values->host != values->curr) {
+			wrmsrl(shared_msrs_global.msrs[slot], values->host);
+			values->curr = values->host;
 		}
 	}
 	locals->registered = false;
 	user_return_notifier_unregister(urn);
 }
 
-void kvm_define_shared_msr(unsigned slot, u32 msr)
+static void shared_msr_update(unsigned slot, u32 msr)
 {
-	int cpu;
+	struct kvm_shared_msrs *smsr;
 	u64 value;
 
+	smsr = &__get_cpu_var(shared_msrs);
+	/* only read, and nobody should modify it at this time,
+	 * so don't need lock */
+	if (slot >= shared_msrs_global.nr) {
+		printk(KERN_ERR "kvm: invalid MSR slot!");
+		return;
+	}
+	rdmsrl_safe(msr, &value);
+	smsr->values[slot].host = value;
+	smsr->values[slot].curr = value;
+}
+
+void kvm_define_shared_msr(unsigned slot, u32 msr)
+{
 	if (slot >= shared_msrs_global.nr)
 		shared_msrs_global.nr = slot + 1;
-	shared_msrs_global.msrs[slot].msr = msr;
-	rdmsrl_safe(msr, &value);
-	shared_msrs_global.msrs[slot].value = value;
-	for_each_online_cpu(cpu)
-		per_cpu(shared_msrs, cpu).current_value[slot] = value;
+	shared_msrs_global.msrs[slot] = msr;
+	/* we need ensured the shared_msr_global have been updated */
+	smp_wmb();
 }
 EXPORT_SYMBOL_GPL(kvm_define_shared_msr);
 
 static void kvm_shared_msr_cpu_online(void)
 {
 	unsigned i;
-	struct kvm_shared_msrs *locals = &__get_cpu_var(shared_msrs);
 
 	for (i = 0; i < shared_msrs_global.nr; ++i)
-		locals->current_value[i] = shared_msrs_global.msrs[i].value;
+		shared_msr_update(i, shared_msrs_global.msrs[i]);
 }
 
 void kvm_set_shared_msr(unsigned slot, u64 value, u64 mask)
 {
 	struct kvm_shared_msrs *smsr = &__get_cpu_var(shared_msrs);
 
-	if (((value ^ smsr->current_value[slot]) & mask) == 0)
+	if (((value ^ smsr->values[slot].curr) & mask) == 0)
 		return;
-	smsr->current_value[slot] = value;
-	wrmsrl(shared_msrs_global.msrs[slot].msr, value);
+	smsr->values[slot].curr = value;
+	wrmsrl(shared_msrs_global.msrs[slot], value);
 	if (!smsr->registered) {
 		smsr->urn.on_user_return = kvm_on_user_return;
 		user_return_notifier_register(&smsr->urn);
