@@ -193,8 +193,6 @@ s8 sme_get_cwmin_value(void *pcore_data, u8 *cwmin);
 s8 sme_get_cwmax_value(void *pcore_data, u16 *cwmax);
 s8 sme_get_ms_radio_mode(void *pcore_data, u8 * pMsRadioOff);
 s8 sme_set_ms_radio_mode(void *pcore_data, u8 boMsRadioOff);
-s8 sme_get_radio_mode(void *pcore_data, psRadioOff pRadioOffData);
-s8 sme_set_radio_mode(void *pcore_data, RadioOff RadioOffData);
 
 void sme_get_tx_power_level(void *pcore_data, u32 *TxPower);
 u8 sme_set_tx_power_level(void *pcore_data, u32 TxPower);

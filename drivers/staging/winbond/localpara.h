@@ -129,11 +129,11 @@ typedef struct _CHAN_LIST
 	ChanInfo		Channel[50]; // 100B
 } CHAN_LIST, *psCHAN_LIST;
 
-typedef struct _RadioOff
+struct radio_off
 {
 	u8			boHwRadioOff;
 	u8			boSwRadioOff;
-} RadioOff, *psRadioOff;
+};
 
 //===========================================================================
 struct wb_local_para
@@ -186,7 +186,7 @@ struct wb_local_para
     u16			ListenInterval;     	// The listen interval when SME invoking MLME_
             	                    	// (Re)Associate_Request().
 
-	RadioOff		RadioOffStatus;
+	struct radio_off		RadioOffStatus;
 	u8			Reserved0[2];
 
 	u8			boMsRadioOff;			// Ndis demands to be true when set Disassoc. OID and be false when set SSID OID.
