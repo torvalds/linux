@@ -29,6 +29,7 @@
 #include <linux/falloc.h>
 #include <linux/fs_struct.h>
 #include <linux/ima.h>
+#include <linux/dnotify.h>
 
 #include "internal.h"
 
