@@ -284,11 +284,8 @@ void fsnotify_duplicate_mark(struct fsnotify_mark *new, struct fsnotify_mark *ol
 void fsnotify_init_mark(struct fsnotify_mark *mark,
 			void (*free_mark)(struct fsnotify_mark *mark))
 {
+	memset(mark, 0, sizeof(*mark));
 	spin_lock_init(&mark->lock);
 	atomic_set(&mark->refcnt, 1);
-	INIT_HLIST_NODE(&mark->i.i_list);
-	mark->group = NULL;
-	mark->mask = 0;
-	mark->i.inode = NULL;
 	mark->free_mark = free_mark;
 }
