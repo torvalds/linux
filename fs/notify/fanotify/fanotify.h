@@ -30,3 +30,8 @@ static inline bool fanotify_mask_valid(__u32 mask)
 		return false;
 	return true;
 }
+
+static inline __u32 fanotify_outgoing_mask(__u32 mask)
+{
+	return mask & FAN_ALL_OUTGOING_EVENTS;
+}

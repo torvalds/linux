@@ -4,14 +4,201 @@
 #include <linux/anon_inodes.h>
 #include <linux/fsnotify_backend.h>
 #include <linux/init.h>
+#include <linux/mount.h>
 #include <linux/namei.h>
+#include <linux/poll.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/types.h>
+#include <linux/uaccess.h>
+
+#include <asm/ioctls.h>
 
 #include "fanotify.h"
 
 static struct kmem_cache *fanotify_mark_cache __read_mostly;
+
+/*
+ * Get an fsnotify notification event if one exists and is small
+ * enough to fit in "count". Return an error pointer if the count
+ * is not large enough.
+ *
+ * Called with the group->notification_mutex held.
+ */
+static struct fsnotify_event *get_one_event(struct fsnotify_group *group,
+					    size_t count)
+{
+	BUG_ON(!mutex_is_locked(&group->notification_mutex));
+
+	pr_debug("%s: group=%p count=%zd\n", __func__, group, count);
+
+	if (fsnotify_notify_queue_is_empty(group))
+		return NULL;
+
+	if (FAN_EVENT_METADATA_LEN > count)
+		return ERR_PTR(-EINVAL);
+
+	/* held the notification_mutex the whole time, so this is the
+	 * same event we peeked above */
+	return fsnotify_remove_notify_event(group);
+}
+
+static int create_and_fill_fd(struct fsnotify_group *group,
+			      struct fanotify_event_metadata *metadata,
+			      struct fsnotify_event *event)
+{
+	int client_fd;
+	struct dentry *dentry;
+	struct vfsmount *mnt;
+	struct file *new_file;
+
+	pr_debug("%s: group=%p metadata=%p event=%p\n", __func__, group,
+		 metadata, event);
+
+	client_fd = get_unused_fd();
+	if (client_fd < 0)
+		return client_fd;
+
+	if (event->data_type != FSNOTIFY_EVENT_PATH) {
+		WARN_ON(1);
+		put_unused_fd(client_fd);
+		return -EINVAL;
+	}
+
+	/*
+	 * we need a new file handle for the userspace program so it can read even if it was
+	 * originally opened O_WRONLY.
+	 */
+	dentry = dget(event->path.dentry);
+	mnt = mntget(event->path.mnt);
+	/* it's possible this event was an overflow event.  in that case dentry and mnt
+	 * are NULL;  That's fine, just don't call dentry open */
+	if (dentry && mnt)
+		new_file = dentry_open(dentry, mnt,
+				       O_RDONLY | O_LARGEFILE | FMODE_NONOTIFY,
+				       current_cred());
+	else
+		new_file = ERR_PTR(-EOVERFLOW);
+	if (IS_ERR(new_file)) {
+		/*
+		 * we still send an event even if we can't open the file.  this
+		 * can happen when say tasks are gone and we try to open their
+		 * /proc files or we try to open a WRONLY file like in sysfs
+		 * we just send the errno to userspace since there isn't much
+		 * else we can do.
+		 */
+		put_unused_fd(client_fd);
+		client_fd = PTR_ERR(new_file);
+	} else {
+		fd_install(client_fd, new_file);
+	}
+
+	metadata->fd = client_fd;
+
+	return 0;
+}
+
+static ssize_t fill_event_metadata(struct fsnotify_group *group,
+				   struct fanotify_event_metadata *metadata,
+				   struct fsnotify_event *event)
+{
+	pr_debug("%s: group=%p metadata=%p event=%p\n", __func__,
+		 group, metadata, event);
+
+	metadata->event_len = FAN_EVENT_METADATA_LEN;
+	metadata->vers = FANOTIFY_METADATA_VERSION;
+	metadata->mask = fanotify_outgoing_mask(event->mask);
+
+	return create_and_fill_fd(group, metadata, event);
+
+}
+
+static ssize_t copy_event_to_user(struct fsnotify_group *group,
+				  struct fsnotify_event *event,
+				  char __user *buf)
+{
+	struct fanotify_event_metadata fanotify_event_metadata;
+	int ret;
+
+	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
+
+	ret = fill_event_metadata(group, &fanotify_event_metadata, event);
+	if (ret)
+		return ret;
+
+	if (copy_to_user(buf, &fanotify_event_metadata, FAN_EVENT_METADATA_LEN))
+		return -EFAULT;
+
+	return FAN_EVENT_METADATA_LEN;
+}
+
+/* intofiy userspace file descriptor functions */
+static unsigned int fanotify_poll(struct file *file, poll_table *wait)
+{
+	struct fsnotify_group *group = file->private_data;
+	int ret = 0;
+
+	poll_wait(file, &group->notification_waitq, wait);
+	mutex_lock(&group->notification_mutex);
+	if (!fsnotify_notify_queue_is_empty(group))
+		ret = POLLIN | POLLRDNORM;
+	mutex_unlock(&group->notification_mutex);
+
+	return ret;
+}
+
+static ssize_t fanotify_read(struct file *file, char __user *buf,
+			     size_t count, loff_t *pos)
+{
+	struct fsnotify_group *group;
+	struct fsnotify_event *kevent;
+	char __user *start;
+	int ret;
+	DEFINE_WAIT(wait);
+
+	start = buf;
+	group = file->private_data;
+
+	pr_debug("%s: group=%p\n", __func__, group);
+
+	while (1) {
+		prepare_to_wait(&group->notification_waitq, &wait, TASK_INTERRUPTIBLE);
+
+		mutex_lock(&group->notification_mutex);
+		kevent = get_one_event(group, count);
+		mutex_unlock(&group->notification_mutex);
+
+		if (kevent) {
+			ret = PTR_ERR(kevent);
+			if (IS_ERR(kevent))
+				break;
+			ret = copy_event_to_user(group, kevent, buf);
+			fsnotify_put_event(kevent);
+			if (ret < 0)
+				break;
+			buf += ret;
+			count -= ret;
+			continue;
+		}
+
+		ret = -EAGAIN;
+		if (file->f_flags & O_NONBLOCK)
+			break;
+		ret = -EINTR;
+		if (signal_pending(current))
+			break;
+
+		if (start != buf)
+			break;
+
+		schedule();
+	}
+
+	finish_wait(&group->notification_waitq, &wait);
+	if (start != buf && ret != -EFAULT)
+		ret = buf - start;
+	return ret;
+}
 
 static int fanotify_release(struct inode *ignored, struct file *file)
 {
@@ -25,13 +212,38 @@ static int fanotify_release(struct inode *ignored, struct file *file)
 	return 0;
 }
 
+static long fanotify_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct fsnotify_group *group;
+	struct fsnotify_event_holder *holder;
+	void __user *p;
+	int ret = -ENOTTY;
+	size_t send_len = 0;
+
+	group = file->private_data;
+
+	p = (void __user *) arg;
+
+	switch (cmd) {
+	case FIONREAD:
+		mutex_lock(&group->notification_mutex);
+		list_for_each_entry(holder, &group->notification_list, event_list)
+			send_len += FAN_EVENT_METADATA_LEN;
+		mutex_unlock(&group->notification_mutex);
+		ret = put_user(send_len, (int __user *) p);
+		break;
+	}
+
+	return ret;
+}
+
 static const struct file_operations fanotify_fops = {
-	.poll		= NULL,
-	.read		= NULL,
+	.poll		= fanotify_poll,
+	.read		= fanotify_read,
 	.fasync		= NULL,
 	.release	= fanotify_release,
-	.unlocked_ioctl	= NULL,
-	.compat_ioctl	= NULL,
+	.unlocked_ioctl	= fanotify_ioctl,
+	.compat_ioctl	= fanotify_ioctl,
 };
 
 static void fanotify_free_mark(struct fsnotify_mark *fsn_mark)

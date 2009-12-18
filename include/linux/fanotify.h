@@ -51,6 +51,30 @@
  */
 #define FAN_ALL_INCOMING_EVENTS	(FAN_ALL_EVENTS |\
 				 FAN_EVENT_ON_CHILD)
+
+#define FAN_ALL_OUTGOING_EVENTS	(FAN_ALL_EVENTS |\
+				 FAN_Q_OVERFLOW)
+
+#define FANOTIFY_METADATA_VERSION	1
+
+struct fanotify_event_metadata {
+	__u32 event_len;
+	__u32 vers;
+	__s32 fd;
+	__u64 mask;
+} __attribute__ ((packed));
+
+/* Helper functions to deal with fanotify_event_metadata buffers */
+#define FAN_EVENT_METADATA_LEN (sizeof(struct fanotify_event_metadata))
+
+#define FAN_EVENT_NEXT(meta, len) ((len) -= (meta)->event_len, \
+				   (struct fanotify_event_metadata*)(((char *)(meta)) + \
+				   (meta)->event_len))
+
+#define FAN_EVENT_OK(meta, len)	((long)(len) >= (long)FAN_EVENT_METADATA_LEN && \
+				(long)(meta)->event_len >= (long)FAN_EVENT_METADATA_LEN && \
+				(long)(meta)->event_len <= (long)(len))
+
 #ifdef __KERNEL__
 
 #endif /* __KERNEL__ */
