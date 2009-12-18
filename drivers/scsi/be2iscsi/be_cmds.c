@@ -135,11 +135,15 @@ int beiscsi_process_mcc(struct beiscsi_hba *phba)
 	while ((compl = be_mcc_compl_get(phba))) {
 		if (compl->flags & CQE_FLAGS_ASYNC_MASK) {
 			/* Interpret flags as an async trailer */
-			BUG_ON(!is_link_state_evt(compl->flags));
+			if (is_link_state_evt(compl->flags))
+				/* Interpret compl as a async link evt */
+				beiscsi_async_link_state_process(phba,
+				   (struct be_async_event_link_state *) compl);
+			else
+				SE_DEBUG(DBG_LVL_1,
+					 " Unsupported Async Event, flags"
+					 " = 0x%08x \n", compl->flags);
 
-			/* Interpret compl as a async link evt */
-			beiscsi_async_link_state_process(phba,
-				(struct be_async_event_link_state *) compl);
 		} else if (compl->flags & CQE_FLAGS_COMPLETED_MASK) {
 				status = be_mcc_compl_process(ctrl, compl);
 				atomic_dec(&phba->ctrl.mcc_obj.q.used);
