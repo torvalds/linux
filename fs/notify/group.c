@@ -82,9 +82,6 @@ static void fsnotify_add_group(struct fsnotify_group *group)
 	BUG_ON(!mutex_is_locked(&fsnotify_grp_mutex));
 
 	group->on_inode_group_list = 1;
-	/* being on the fsnotify_groups list holds one num_marks */
-	atomic_inc(&group->num_marks);
-
 	list_add_tail_rcu(&group->inode_group_list, &fsnotify_inode_groups);
 }
 
@@ -183,7 +180,14 @@ struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *ops)
 	if (!group)
 		return ERR_PTR(-ENOMEM);
 
+	/* set to 0 when there a no external references to this group */
 	atomic_set(&group->refcnt, 1);
+	/*
+	 * hits 0 when there are no external references AND no marks for
+	 * this group
+	 */
+	atomic_set(&group->num_marks, 1);
+
 
 	mutex_init(&group->notification_mutex);
 	INIT_LIST_HEAD(&group->notification_list);
