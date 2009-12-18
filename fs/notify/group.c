@@ -178,17 +178,14 @@ struct fsnotify_group *fsnotify_obtain_group(__u32 mask,
 
 	atomic_set(&group->refcnt, 1);
 
-	group->on_group_list = 0;
 	group->mask = mask;
 
 	mutex_init(&group->notification_mutex);
 	INIT_LIST_HEAD(&group->notification_list);
 	init_waitqueue_head(&group->notification_waitq);
-	group->q_len = 0;
 	group->max_events = UINT_MAX;
 
 	spin_lock_init(&group->mark_lock);
-	atomic_set(&group->num_marks, 0);
 	INIT_LIST_HEAD(&group->mark_entries);
 
 	group->ops = ops;
