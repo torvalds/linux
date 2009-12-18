@@ -88,8 +88,8 @@ static int inotify_merge(struct list_head *list, struct fsnotify_event *event)
 
 static int inotify_handle_event(struct fsnotify_group *group, struct fsnotify_event *event)
 {
-	struct fsnotify_mark *entry;
-	struct inotify_inode_mark_entry *ientry;
+	struct fsnotify_mark *fsn_mark;
+	struct inotify_inode_mark *i_mark;
 	struct inode *to_tell;
 	struct inotify_event_private_data *event_priv;
 	struct fsnotify_event_private_data *fsn_event_priv;
@@ -98,14 +98,14 @@ static int inotify_handle_event(struct fsnotify_group *group, struct fsnotify_ev
 	to_tell = event->to_tell;
 
 	spin_lock(&to_tell->i_lock);
-	entry = fsnotify_find_mark(group, to_tell);
+	fsn_mark = fsnotify_find_mark(group, to_tell);
 	spin_unlock(&to_tell->i_lock);
 	/* race with watch removal?  We already passes should_send */
-	if (unlikely(!entry))
+	if (unlikely(!fsn_mark))
 		return 0;
-	ientry = container_of(entry, struct inotify_inode_mark_entry,
-			      fsn_entry);
-	wd = ientry->wd;
+	i_mark = container_of(fsn_mark, struct inotify_inode_mark,
+			      fsn_mark);
+	wd = i_mark->wd;
 
 	event_priv = kmem_cache_alloc(event_priv_cachep, GFP_KERNEL);
 	if (unlikely(!event_priv))
@@ -127,37 +127,37 @@ static int inotify_handle_event(struct fsnotify_group *group, struct fsnotify_ev
 	}
 
 	/*
-	 * If we hold the entry until after the event is on the queue
+	 * If we hold the fsn_mark until after the event is on the queue
 	 * IN_IGNORED won't be able to pass this event in the queue
 	 */
-	fsnotify_put_mark(entry);
+	fsnotify_put_mark(fsn_mark);
 
 	return ret;
 }
 
-static void inotify_freeing_mark(struct fsnotify_mark *entry, struct fsnotify_group *group)
+static void inotify_freeing_mark(struct fsnotify_mark *fsn_mark, struct fsnotify_group *group)
 {
-	inotify_ignored_and_remove_idr(entry, group);
+	inotify_ignored_and_remove_idr(fsn_mark, group);
 }
 
 static bool inotify_should_send_event(struct fsnotify_group *group, struct inode *inode,
 				      struct vfsmount *mnt, __u32 mask, void *data,
 				      int data_type)
 {
-	struct fsnotify_mark *entry;
+	struct fsnotify_mark *fsn_mark;
 	bool send;
 
 	spin_lock(&inode->i_lock);
-	entry = fsnotify_find_mark(group, inode);
+	fsn_mark = fsnotify_find_mark(group, inode);
 	spin_unlock(&inode->i_lock);
-	if (!entry)
+	if (!fsn_mark)
 		return false;
 
 	mask = (mask & ~FS_EVENT_ON_CHILD);
-	send = (entry->mask & mask);
+	send = (fsn_mark->mask & mask);
 
 	/* find took a reference */
-	fsnotify_put_mark(entry);
+	fsnotify_put_mark(fsn_mark);
 
 	return send;
 }
@@ -171,18 +171,18 @@ static bool inotify_should_send_event(struct fsnotify_group *group, struct inode
  */
 static int idr_callback(int id, void *p, void *data)
 {
-	struct fsnotify_mark *entry;
-	struct inotify_inode_mark_entry *ientry;
+	struct fsnotify_mark *fsn_mark;
+	struct inotify_inode_mark *i_mark;
 	static bool warned = false;
 
 	if (warned)
 		return 0;
 
 	warned = true;
-	entry = p;
-	ientry = container_of(entry, struct inotify_inode_mark_entry, fsn_entry);
+	fsn_mark = p;
+	i_mark = container_of(fsn_mark, struct inotify_inode_mark, fsn_mark);
 
-	WARN(1, "inotify closing but id=%d for entry=%p in group=%p still in "
+	WARN(1, "inotify closing but id=%d for fsn_mark=%p in group=%p still in "
 		"idr.  Probably leaking memory\n", id, p, data);
 
 	/*
@@ -191,9 +191,9 @@ static int idr_callback(int id, void *p, void *data)
 	 * out why we got here and the panic is no worse than the original
 	 * BUG() that was here.
 	 */
-	if (entry)
-		printk(KERN_WARNING "entry->group=%p inode=%p wd=%d\n",
-			entry->group, entry->i.inode, ientry->wd);
+	if (fsn_mark)
+		printk(KERN_WARNING "fsn_mark->group=%p inode=%p wd=%d\n",
+			fsn_mark->group, fsn_mark->i.inode, i_mark->wd);
 	return 0;
 }
 
