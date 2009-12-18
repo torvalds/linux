@@ -2399,14 +2399,12 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	for (i = 0; i < NR_VMX_MSR; ++i) {
 		u32 index = vmx_msr_index[i];
 		u32 data_low, data_high;
-		u64 data;
 		int j = vmx->nmsrs;
 
 		if (rdmsr_safe(index, &data_low, &data_high) < 0)
 			continue;
 		if (wrmsr_safe(index, data_low, data_high) < 0)
 			continue;
-		data = data_low | ((u64)data_high << 32);
 		vmx->guest_msrs[j].index = i;
 		vmx->guest_msrs[j].data = 0;
 		vmx->guest_msrs[j].mask = -1ull;
