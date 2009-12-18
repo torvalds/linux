@@ -292,7 +292,7 @@ static void slic_init_adapter(struct net_device *netdev,
 {
 	ushort index;
 	struct slic_handle *pslic_handle;
-	struct adapter *adapter = (struct adapter *)netdev_priv(netdev);
+	struct adapter *adapter = netdev_priv(netdev);
 
 /*	adapter->pcidev = pcidev;*/
 	adapter->vendid = pci_tbl_entry->vendor;
@@ -484,7 +484,7 @@ err_out_disable_pci:
 
 static int slic_entry_open(struct net_device *dev)
 {
-	struct adapter *adapter = (struct adapter *) netdev_priv(dev);
+	struct adapter *adapter = netdev_priv(dev);
 	struct sliccard *card = adapter->card;
 	u32 locked = 0;
 	int status;
@@ -534,7 +534,7 @@ static void __devexit slic_entry_remove(struct pci_dev *pcidev)
 	struct net_device *dev = pci_get_drvdata(pcidev);
 	u32 mmio_start = 0;
 	uint mmio_len = 0;
-	struct adapter *adapter = (struct adapter *) netdev_priv(dev);
+	struct adapter *adapter = netdev_priv(dev);
 	struct sliccard *card;
 	struct mcast_address *mcaddr, *mlist;
 
@@ -581,7 +581,7 @@ static void __devexit slic_entry_remove(struct pci_dev *pcidev)
 
 static int slic_entry_halt(struct net_device *dev)
 {
-	struct adapter *adapter = (struct adapter *)netdev_priv(dev);
+	struct adapter *adapter = netdev_priv(dev);
 	struct sliccard *card = adapter->card;
 	__iomem struct slic_regs *slic_regs = adapter->slic_regs;
 
@@ -624,7 +624,7 @@ static int slic_entry_halt(struct net_device *dev)
 
 static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	struct adapter *adapter = (struct adapter *)netdev_priv(dev);
+	struct adapter *adapter = netdev_priv(dev);
 	struct ethtool_cmd edata;
 	struct ethtool_cmd ecmd;
 	u32 data[7];
@@ -787,7 +787,7 @@ static void slic_xmit_build_request(struct adapter *adapter,
 static netdev_tx_t slic_xmit_start(struct sk_buff *skb, struct net_device *dev)
 {
 	struct sliccard *card;
-	struct adapter *adapter = (struct adapter *)netdev_priv(dev);
+	struct adapter *adapter = netdev_priv(dev);
 	struct slic_hostcmd *hcmd = NULL;
 	u32 status = 0;
 	u32 skbtype = NORMAL_ETHFRAME;
@@ -1071,7 +1071,7 @@ static void slic_xmit_complete(struct adapter *adapter)
 static irqreturn_t slic_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
-	struct adapter *adapter = (struct adapter *)netdev_priv(dev);
+	struct adapter *adapter = netdev_priv(dev);
 	u32 isr;
 
 	if ((adapter->pshmem) && (adapter->pshmem->isr)) {
@@ -1229,7 +1229,7 @@ static void slic_init_cleanup(struct adapter *adapter)
 
 static struct net_device_stats *slic_get_stats(struct net_device *dev)
 {
-	struct adapter *adapter = (struct adapter *)netdev_priv(dev);
+	struct adapter *adapter = netdev_priv(dev);
 	struct net_device_stats *stats;
 
 	ASSERT(adapter);
@@ -1360,7 +1360,7 @@ static void slic_mcast_set_bit(struct adapter *adapter, char *address)
 
 static void slic_mcast_set_list(struct net_device *dev)
 {
-	struct adapter *adapter = (struct adapter *)netdev_priv(dev);
+	struct adapter *adapter = netdev_priv(dev);
 	int status = STATUS_SUCCESS;
 	int i;
 	char *addresses;
@@ -2523,7 +2523,7 @@ static bool slic_mac_filter(struct adapter *adapter,
 
 static int slic_mac_set_address(struct net_device *dev, void *ptr)
 {
-	struct adapter *adapter = (struct adapter *)netdev_priv(dev);
+	struct adapter *adapter = netdev_priv(dev);
 	struct sockaddr *addr = ptr;
 
 	if (netif_running(dev))
