@@ -1503,6 +1503,23 @@ static int wm8904_hw_params(struct snd_pcm_substream *substream,
 		wm8904->bclk = snd_soc_params_to_bclk(params);
 	}
 
+	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_S16_LE:
+		break;
+	case SNDRV_PCM_FORMAT_S20_3LE:
+		aif1 |= 0x40;
+		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
+		aif1 |= 0x80;
+		break;
+	case SNDRV_PCM_FORMAT_S32_LE:
+		aif1 |= 0xc0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+
 	dev_dbg(codec->dev, "Target BCLK is %dHz\n", wm8904->bclk);
 
 	ret = wm8904_configure_clocking(codec);
