@@ -342,6 +342,8 @@ extern void fsnotify_recalc_inode_mask(struct inode *inode);
 extern void fsnotify_init_mark(struct fsnotify_mark_entry *entry, void (*free_mark)(struct fsnotify_mark_entry *entry));
 /* find (and take a reference) to a mark associated with group and inode */
 extern struct fsnotify_mark_entry *fsnotify_find_mark_entry(struct fsnotify_group *group, struct inode *inode);
+/* copy the values from old into new */
+extern void fsnotify_duplicate_mark(struct fsnotify_mark_entry *new, struct fsnotify_mark_entry *old);
 /* attach the mark to both the group and the inode */
 extern int fsnotify_add_mark(struct fsnotify_mark_entry *entry, struct fsnotify_group *group, struct inode *inode);
 /* given a mark, flag it to be freed when all references are dropped */

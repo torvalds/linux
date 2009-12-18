@@ -282,12 +282,20 @@ struct fsnotify_mark_entry *fsnotify_find_mark_entry(struct fsnotify_group *grou
 	return NULL;
 }
 
+void fsnotify_duplicate_mark(struct fsnotify_mark_entry *new, struct fsnotify_mark_entry *old)
+{
+	assert_spin_locked(&old->lock);
+	new->inode = old->inode;
+	new->group = old->group;
+	new->mask = old->mask;
+	new->free_mark = old->free_mark;
+}
+
 /*
  * Nothing fancy, just initialize lists and locks and counters.
  */
 void fsnotify_init_mark(struct fsnotify_mark_entry *entry,
 			void (*free_mark)(struct fsnotify_mark_entry *entry))
-
 {
 	spin_lock_init(&entry->lock);
 	atomic_set(&entry->refcnt, 1);
