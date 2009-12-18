@@ -516,7 +516,7 @@ SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
 		goto fput_and_out;
 
 	/* inode held in place by reference to path; group by fget on fd */
-	if (!(flags & FAN_MARK_ON_VFSMOUNT))
+	if (!(flags & FAN_MARK_MOUNT))
 		inode = path.dentry->d_inode;
 	else
 		mnt = path.mnt;
@@ -525,7 +525,7 @@ SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
 	/* create/update an inode mark */
 	switch (flags & (FAN_MARK_ADD | FAN_MARK_REMOVE)) {
 	case FAN_MARK_ADD:
-		if (flags & FAN_MARK_ON_VFSMOUNT)
+		if (flags & FAN_MARK_MOUNT)
 			ret = fanotify_add_vfsmount_mark(group, mnt, mask);
 		else
 			ret = fanotify_add_inode_mark(group, inode, mask);
