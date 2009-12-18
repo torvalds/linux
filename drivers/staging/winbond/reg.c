@@ -1823,12 +1823,12 @@ BBProcessor_initial(  struct hw_data * pHwData )
 		reg->SQ3_filter[i] = 0x2f; // half of Bit 0 ~ 6
 }
 
-void set_tx_power_per_channel_max2829(  struct hw_data * pHwData,  ChanInfo Channel)
+void set_tx_power_per_channel_max2829(  struct hw_data * pHwData,  struct chan_info Channel)
 {
 	RFSynthesizer_SetPowerIndex( pHwData, 100 ); // 20060620.1 Modify
 }
 
-void set_tx_power_per_channel_al2230(  struct hw_data * pHwData,  ChanInfo Channel )
+void set_tx_power_per_channel_al2230(  struct hw_data * pHwData,  struct chan_info Channel )
 {
 	u8	index = 100;
 
@@ -1838,7 +1838,7 @@ void set_tx_power_per_channel_al2230(  struct hw_data * pHwData,  ChanInfo Chann
 	RFSynthesizer_SetPowerIndex( pHwData, index );
 }
 
-void set_tx_power_per_channel_al7230(  struct hw_data * pHwData,  ChanInfo Channel)
+void set_tx_power_per_channel_al7230(  struct hw_data * pHwData,  struct chan_info Channel)
 {
 	u8	i, index = 100;
 
@@ -1868,7 +1868,7 @@ void set_tx_power_per_channel_al7230(  struct hw_data * pHwData,  ChanInfo Chann
 	RFSynthesizer_SetPowerIndex( pHwData, index );
 }
 
-void set_tx_power_per_channel_wb242(  struct hw_data * pHwData,  ChanInfo Channel)
+void set_tx_power_per_channel_wb242(  struct hw_data * pHwData,  struct chan_info Channel)
 {
 	u8	index = 100;
 
@@ -1901,7 +1901,7 @@ void set_tx_power_per_channel_wb242(  struct hw_data * pHwData,  ChanInfo Channe
 //   None.
 //=============================================================================================================
 void
-RFSynthesizer_SwitchingChannel(  struct hw_data * pHwData,  ChanInfo Channel )
+RFSynthesizer_SwitchingChannel(  struct hw_data * pHwData,  struct chan_info Channel )
 {
 	struct wb35_reg *reg = &pHwData->reg;
 	u32	pltmp[16]; // The 16 is the maximum capability of hardware

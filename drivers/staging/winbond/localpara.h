@@ -110,16 +110,16 @@
 // 20061108 WPS IE buffer
 #define MAX_IE_APPEND_SIZE					256 + 4 // Due to [E id][Length][OUI][Data] may 257 bytes
 
-typedef struct _ChanInfo
+struct chan_info
 {
 	u8		band;
 	u8		ChanNo;
-} ChanInfo, *pChanInfo;
+};
 
 typedef struct _CHAN_LIST
 {
 	u16				Count;
-	ChanInfo		Channel[50]; // 100B
+	struct chan_info		Channel[50]; // 100B
 } CHAN_LIST, *psCHAN_LIST;
 
 struct radio_off
@@ -189,7 +189,7 @@ struct wb_local_para
 	u8			RoamStatus;
 	u8			reserved7[3];
 
-	ChanInfo	CurrentChan;			//Current channel no. and channel band. It may be changed by scanning.
+	struct chan_info	CurrentChan;			//Current channel no. and channel band. It may be changed by scanning.
 	u8			boHandover;				// Roaming, Hnadover to other AP.
 	u8			boCCAbusy;
 
@@ -246,7 +246,7 @@ struct wb_local_para
     u32	   		_dot11WEPUndecryptableCount;
     u32	   		_dot11FrameDuplicateCount;
 
-	ChanInfo	IbssChanSetting;	// 2B. Start IBSS Channel setting by registry or WWU.
+	struct chan_info	IbssChanSetting;	// 2B. Start IBSS Channel setting by registry or WWU.
 	u8		reserved_5[2];		//It may not be used after considering RF type,
 									//region and modulation type.
 
