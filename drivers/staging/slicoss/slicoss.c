@@ -366,6 +366,7 @@ static int __devinit slic_entry_probe(struct pci_dev *pcidev,
 	ulong mmio_start = 0;
 	ulong mmio_len = 0;
 	struct sliccard *card = NULL;
+	int pci_using_dac = 0;
 
 	slic_global.dynamic_intagg = dynamic_intagg;
 
@@ -379,16 +380,26 @@ static int __devinit slic_entry_probe(struct pci_dev *pcidev,
 		printk(KERN_DEBUG "%s\n", slic_proc_version);
 	}
 
-	err = pci_set_dma_mask(pcidev, DMA_BIT_MASK(64));
-	if (err) {
-		err = pci_set_dma_mask(pcidev, DMA_BIT_MASK(32));
-		if (err)
+	if (!pci_set_dma_mask(pcidev, DMA_BIT_MASK(64))) {
+		pci_using_dac = 1;
+		if (pci_set_consistent_dma_mask(pcidev, DMA_BIT_MASK(64))) {
+			dev_err(&pcidev->dev, "unable to obtain 64-bit DMA for "
+					"consistent allocations\n");
 			goto err_out_disable_pci;
+		}
+	} else if (pci_set_dma_mask(pcidev, DMA_BIT_MASK(32))) {
+		pci_using_dac = 0;
+		pci_set_consistent_dma_mask(pcidev, DMA_BIT_MASK(32));
+	} else {
+		dev_err(&pcidev->dev, "no usable DMA configuration\n");
+		goto err_out_disable_pci;
 	}
 
 	err = pci_request_regions(pcidev, DRV_NAME);
-	if (err)
+	if (err) {
+		dev_err(&pcidev->dev, "can't obtain PCI resources\n");
 		goto err_out_disable_pci;
+	}
 
 	pci_set_master(pcidev);
 
@@ -404,6 +415,8 @@ static int __devinit slic_entry_probe(struct pci_dev *pcidev,
 	adapter = netdev_priv(netdev);
 	adapter->netdev = netdev;
 	adapter->pcidev = pcidev;
+	if (pci_using_dac)
+		netdev->features |= NETIF_F_HIGHDMA;
 
 	mmio_start = pci_resource_start(pcidev, 0);
 	mmio_len = pci_resource_len(pcidev, 0);
