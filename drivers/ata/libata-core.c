@@ -2232,7 +2232,7 @@ retry:
 		 * Some drives were very specific about that exact sequence.
 		 *
 		 * Note that ATA4 says lba is mandatory so the second check
-		 * shoud never trigger.
+		 * should never trigger.
 		 */
 		if (ata_id_major_version(id) < 4 || !ata_id_has_lba(id)) {
 			err_mask = ata_dev_init_params(dev, id[3], id[6]);

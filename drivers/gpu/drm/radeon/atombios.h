@@ -2275,7 +2275,7 @@ typedef struct _ATOM_LCD_RTS_RECORD {
 	UCHAR ucRTSValue;
 } ATOM_LCD_RTS_RECORD;
 
-/* !! If the record below exits, it shoud always be the first record for easy use in command table!!! */
+/* !! If the record below exits, it should always be the first record for easy use in command table!!! */
 typedef struct _ATOM_LCD_MODE_CONTROL_CAP {
 	UCHAR ucRecordType;
 	USHORT usLCDCap;
