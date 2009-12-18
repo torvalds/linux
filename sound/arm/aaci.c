@@ -438,18 +438,14 @@ static int aaci_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	err = snd_pcm_lib_malloc_pages(substream,
 				       params_buffer_bytes(params));
-	if (err < 0)
-		goto out;
+	if (err >= 0) {
+		err = snd_ac97_pcm_open(aacirun->pcm, params_rate(params),
+					params_channels(params),
+					aacirun->pcm->r[0].slots);
 
-	err = snd_ac97_pcm_open(aacirun->pcm, params_rate(params),
-				params_channels(params),
-				aacirun->pcm->r[0].slots);
-	if (err)
-		goto out;
+		aacirun->pcm_open = err == 0;
+	}
 
-	aacirun->pcm_open = 1;
-
- out:
 	return err;
 }
 
@@ -458,7 +454,7 @@ static int aaci_pcm_prepare(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aaci_runtime *aacirun = runtime->private_data;
 
-	aacirun->start	= (void *)runtime->dma_area;
+	aacirun->start	= runtime->dma_area;
 	aacirun->end	= aacirun->start + snd_pcm_lib_buffer_bytes(substream);
 	aacirun->ptr	= aacirun->start;
 	aacirun->period	=
