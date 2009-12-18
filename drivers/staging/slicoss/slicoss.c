@@ -101,7 +101,7 @@ static struct net_device_stats *slic_get_stats(struct net_device *dev);
 static int slic_entry_open(struct net_device *dev);
 static int slic_entry_halt(struct net_device *dev);
 static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-static int slic_xmit_start(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t slic_xmit_start(struct sk_buff *skb, struct net_device *dev);
 static void slic_xmit_fail(struct adapter *adapter, struct sk_buff *skb,
 			   void *cmd, u32 skbtype, u32 status);
 static void slic_config_pci(struct pci_dev *pcidev);
@@ -784,7 +784,7 @@ static void slic_xmit_build_request(struct adapter *adapter,
 
 #define NORMAL_ETHFRAME     0
 
-static int slic_xmit_start(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t slic_xmit_start(struct sk_buff *skb, struct net_device *dev)
 {
 	struct sliccard *card;
 	struct adapter *adapter = (struct adapter *)netdev_priv(dev);
