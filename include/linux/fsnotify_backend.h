@@ -236,6 +236,15 @@ struct fsnotify_inode_mark {
 };
 
 /*
+ * Mount point specific fields in an fsnotify_mark_entry
+ */
+struct fsnotify_vfsmount_mark {
+	struct vfsmount *mnt;		/* inode this entry is associated with */
+	struct hlist_node m_list;	/* list of mark_entries by inode->i_fsnotify_mark_entries */
+	struct list_head free_m_list;	/* tmp list used when freeing this mark */
+};
+
+/*
  * a mark is simply an entry attached to an in core inode which allows an
  * fsnotify listener to indicate they are either no longer interested in events
  * of a type matching mask or only interested in those events.
@@ -255,6 +264,7 @@ struct fsnotify_mark_entry {
 	spinlock_t lock;		/* protect group and inode */
 	union {
 		struct fsnotify_inode_mark i;
+		struct fsnotify_vfsmount_mark m;
 	};
 	struct list_head free_g_list;	/* tmp list used when freeing this mark */
 	void (*free_mark)(struct fsnotify_mark_entry *entry); /* called on final put+free */
