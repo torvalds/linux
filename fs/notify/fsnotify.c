@@ -79,15 +79,15 @@ void __fsnotify_update_child_dentry_flags(struct inode *inode)
 }
 
 /* Notify this dentry's parent about a child's events. */
-void __fsnotify_parent(struct file *file, struct dentry *dentry, __u32 mask)
+void __fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask)
 {
 	struct dentry *parent;
 	struct inode *p_inode;
 	bool send = false;
 	bool should_update_children = false;
 
-	if (file)
-		dentry = file->f_path.dentry;
+	if (!dentry)
+		dentry = path->dentry;
 
 	if (!(dentry->d_flags & DCACHE_FSNOTIFY_PARENT_WATCHED))
 		return;
@@ -119,8 +119,8 @@ void __fsnotify_parent(struct file *file, struct dentry *dentry, __u32 mask)
 		 * specifies these are events which came from a child. */
 		mask |= FS_EVENT_ON_CHILD;
 
-		if (file)
-			fsnotify(p_inode, mask, file, FSNOTIFY_EVENT_FILE,
+		if (path)
+			fsnotify(p_inode, mask, path, FSNOTIFY_EVENT_PATH,
 				 dentry->d_name.name, 0);
 		else
 			fsnotify(p_inode, mask, dentry->d_inode, FSNOTIFY_EVENT_INODE,
@@ -194,8 +194,6 @@ void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is, const 
  
 	if (data_is == FSNOTIFY_EVENT_PATH)
 		mnt = ((struct path *)data)->mnt;
-	else if (data_is == FSNOTIFY_EVENT_FILE)
-		mnt = ((struct file *)data)->f_path.mnt;
 
 	/* if this inode's directed listeners don't care and nothing on the vfsmount
 	 * listeners list cares, nothing to do */

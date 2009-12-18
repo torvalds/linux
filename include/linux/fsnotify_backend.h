@@ -214,7 +214,6 @@ struct fsnotify_event {
 #define FSNOTIFY_EVENT_NONE	0
 #define FSNOTIFY_EVENT_PATH	1
 #define FSNOTIFY_EVENT_INODE	2
-#define FSNOTIFY_EVENT_FILE	3
 	int data_type;		/* which of the above union we have */
 	atomic_t refcnt;	/* how many groups still are using/need to send this event */
 	__u32 mask;		/* the type of access, bitwise OR for FS_* event types */
@@ -280,7 +279,7 @@ struct fsnotify_mark_entry {
 /* main fsnotify call to send events */
 extern void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 		     const char *name, u32 cookie);
-extern void __fsnotify_parent(struct file *file, struct dentry *dentry, __u32 mask);
+extern void __fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask);
 extern void __fsnotify_inode_delete(struct inode *inode);
 extern u32 fsnotify_get_cookie(void);
 
@@ -393,7 +392,7 @@ static inline void fsnotify(struct inode *to_tell, __u32 mask, void *data, int d
 			    const char *name, u32 cookie)
 {}
 
-static inline void __fsnotify_parent(struct file *file, struct dentry *dentry, __u32 mask)
+static inline void __fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask)
 {}
 
 static inline void __fsnotify_inode_delete(struct inode *inode)

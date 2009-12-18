@@ -390,15 +390,6 @@ struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask, 
 	event->data_type = data_type;
 
 	switch (data_type) {
-	case FSNOTIFY_EVENT_FILE: {
-		struct file *file = data;
-		struct path *path = &file->f_path;
-		event->path.dentry = path->dentry;
-		event->path.mnt = path->mnt;
-		path_get(&event->path);
-		event->data_type = FSNOTIFY_EVENT_PATH;
-		break;
-	}
 	case FSNOTIFY_EVENT_PATH: {
 		struct path *path = data;
 		event->path.dentry = path->dentry;
