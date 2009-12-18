@@ -26,9 +26,14 @@ static inline void fsnotify_d_instantiate(struct dentry *entry,
 }
 
 /* Notify this dentry's parent about a child's events. */
-static inline void fsnotify_parent(struct dentry *dentry, __u32 mask)
+static inline void fsnotify_parent(struct file *file, struct dentry *dentry, __u32 mask)
 {
-	__fsnotify_parent(dentry, mask);
+	BUG_ON(file && dentry);
+
+	if (file)
+		dentry = file->f_path.dentry;
+
+	__fsnotify_parent(file, dentry, mask);
 }
 
 /*
@@ -102,7 +107,7 @@ static inline void fsnotify_nameremove(struct dentry *dentry, int isdir)
 	if (isdir)
 		mask |= FS_IN_ISDIR;
 
-	fsnotify_parent(dentry, mask);
+	fsnotify_parent(NULL, dentry, mask);
 }
 
 /*
@@ -155,14 +160,13 @@ static inline void fsnotify_mkdir(struct inode *inode, struct dentry *dentry)
  */
 static inline void fsnotify_access(struct file *file)
 {
-	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	__u32 mask = FS_ACCESS;
 
 	if (S_ISDIR(inode->i_mode))
 		mask |= FS_IN_ISDIR;
 
-	fsnotify_parent(dentry, mask);
+	fsnotify_parent(file, NULL, mask);
 	fsnotify(inode, mask, file, FSNOTIFY_EVENT_FILE, NULL, 0);
 }
 
@@ -171,14 +175,13 @@ static inline void fsnotify_access(struct file *file)
  */
 static inline void fsnotify_modify(struct file *file)
 {
-	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	__u32 mask = FS_MODIFY;
 
 	if (S_ISDIR(inode->i_mode))
 		mask |= FS_IN_ISDIR;
 
-	fsnotify_parent(dentry, mask);
+	fsnotify_parent(file, NULL, mask);
 	fsnotify(inode, mask, file, FSNOTIFY_EVENT_FILE, NULL, 0);
 }
 
@@ -187,14 +190,13 @@ static inline void fsnotify_modify(struct file *file)
  */
 static inline void fsnotify_open(struct file *file)
 {
-	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	__u32 mask = FS_OPEN;
 
 	if (S_ISDIR(inode->i_mode))
 		mask |= FS_IN_ISDIR;
 
-	fsnotify_parent(dentry, mask);
+	fsnotify_parent(file, NULL, mask);
 	fsnotify(inode, mask, file, FSNOTIFY_EVENT_FILE, NULL, 0);
 }
 
@@ -203,15 +205,14 @@ static inline void fsnotify_open(struct file *file)
  */
 static inline void fsnotify_close(struct file *file)
 {
-	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	fmode_t mode = file->f_mode;
 	__u32 mask = (mode & FMODE_WRITE) ? FS_CLOSE_WRITE : FS_CLOSE_NOWRITE;
 
 	if (S_ISDIR(inode->i_mode))
 		mask |= FS_IN_ISDIR;
 
-	fsnotify_parent(dentry, mask);
+	fsnotify_parent(file, NULL, mask);
 	fsnotify(inode, mask, file, FSNOTIFY_EVENT_FILE, NULL, 0);
 }
 
@@ -226,7 +227,7 @@ static inline void fsnotify_xattr(struct dentry *dentry)
 	if (S_ISDIR(inode->i_mode))
 		mask |= FS_IN_ISDIR;
 
-	fsnotify_parent(dentry, mask);
+	fsnotify_parent(NULL, dentry, mask);
 	fsnotify(inode, mask, inode, FSNOTIFY_EVENT_INODE, NULL, 0);
 }
 
@@ -260,7 +261,8 @@ static inline void fsnotify_change(struct dentry *dentry, unsigned int ia_valid)
 	if (mask) {
 		if (S_ISDIR(inode->i_mode))
 			mask |= FS_IN_ISDIR;
-		fsnotify_parent(dentry, mask);
+
+		fsnotify_parent(NULL, dentry, mask);
 		fsnotify(inode, mask, inode, FSNOTIFY_EVENT_INODE, NULL, 0);
 	}
 }
@@ -283,7 +285,7 @@ static inline void fsnotify_oldname_free(const char *old_name)
 	kfree(old_name);
 }
 
-#else	/* CONFIG_INOTIFY || CONFIG_FSNOTIFY */
+#else	/* CONFIG_FSNOTIFY */
 
 static inline const char *fsnotify_oldname_init(const char *name)
 {
@@ -294,6 +296,6 @@ static inline void fsnotify_oldname_free(const char *old_name)
 {
 }
 
-#endif	/* ! CONFIG_INOTIFY */
+#endif	/*  CONFIG_FSNOTIFY */
 
 #endif	/* _LINUX_FS_NOTIFY_H */
