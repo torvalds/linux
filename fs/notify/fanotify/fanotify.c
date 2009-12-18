@@ -27,6 +27,7 @@ static bool should_merge(struct fsnotify_event *old, struct fsnotify_event *new)
 	return false;
 }
 
+/* Note, if we return an event in *arg that a reference is being held... */
 static int fanotify_merge(struct list_head *list,
 			  struct fsnotify_event *event,
 			  void **arg)
@@ -34,17 +35,22 @@ static int fanotify_merge(struct list_head *list,
 	struct fsnotify_event_holder *test_holder;
 	struct fsnotify_event *test_event;
 	struct fsnotify_event *new_event;
+	struct fsnotify_event **return_event = (struct fsnotify_event **)arg;
 	int ret = 0;
 
 	pr_debug("%s: list=%p event=%p\n", __func__, list, event);
+
+	*return_event = NULL;
 
 	/* and the list better be locked by something too! */
 
 	list_for_each_entry_reverse(test_holder, list, event_list) {
 		test_event = test_holder->event;
 		if (should_merge(test_event, event)) {
-			ret = -EEXIST;
+			fsnotify_get_event(test_event);
+			*return_event = test_event;
 
+			ret = -EEXIST;
 			/* if they are exactly the same we are done */
 			if (test_event->mask == event->mask)
 				goto out;
@@ -66,11 +72,14 @@ static int fanotify_merge(struct list_head *list,
 				goto out;
 			}
 
+			/* we didn't return the test_event, so drop that ref */
+			fsnotify_put_event(test_event);
+			/* the reference we return on new_event is from clone */
+			*return_event = new_event;
+
 			/* build new event and replace it on the list */
 			new_event->mask = (test_event->mask | event->mask);
 			fsnotify_replace_event(test_holder, new_event);
-			/* match ref from fsnotify_clone_event() */
-			fsnotify_put_event(new_event);
 
 			break;
 		}
@@ -82,7 +91,7 @@ out:
 static int fanotify_handle_event(struct fsnotify_group *group, struct fsnotify_event *event)
 {
 	int ret;
-
+	struct fsnotify_event *used_event;
 
 	BUILD_BUG_ON(FAN_ACCESS != FS_ACCESS);
 	BUILD_BUG_ON(FAN_MODIFY != FS_MODIFY);
@@ -94,10 +103,12 @@ static int fanotify_handle_event(struct fsnotify_group *group, struct fsnotify_e
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
-	ret = fsnotify_add_notify_event(group, event, NULL, fanotify_merge, NULL);
+	ret = fsnotify_add_notify_event(group, event, NULL, fanotify_merge, (void **)&used_event);
 	/* -EEXIST means this event was merged with another, not that it was an error */
 	if (ret == -EEXIST)
 		ret = 0;
+	if (used_event)
+		fsnotify_put_event(used_event);
 	return ret;
 }
 
