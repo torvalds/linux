@@ -134,7 +134,7 @@ static int dnotify_handle_event(struct fsnotify_group *group,
  */
 static bool dnotify_should_send_event(struct fsnotify_group *group,
 				      struct inode *inode, __u32 mask,
-				      int data_type)
+				      void *data, int data_type)
 {
 	struct fsnotify_mark_entry *entry;
 	bool send;

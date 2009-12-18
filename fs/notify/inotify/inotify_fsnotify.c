@@ -87,7 +87,7 @@ static void inotify_freeing_mark(struct fsnotify_mark_entry *entry, struct fsnot
 }
 
 static bool inotify_should_send_event(struct fsnotify_group *group, struct inode *inode,
-				      __u32 mask, int data_type)
+				      __u32 mask, void *data, int data_type)
 {
 	struct fsnotify_mark_entry *entry;
 	bool send;
