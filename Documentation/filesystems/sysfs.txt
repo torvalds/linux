@@ -358,7 +358,7 @@ DRIVER_ATTR(_name, _mode, _show, _store)
 
 Creation/Removal:
 
-int driver_create_file(struct device_driver *, struct driver_attribute *);
-void driver_remove_file(struct device_driver *, struct driver_attribute *);
+int driver_create_file(struct device_driver *, const struct driver_attribute *);
+void driver_remove_file(struct device_driver *, const struct driver_attribute *);
 
 

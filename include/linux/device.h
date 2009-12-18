@@ -166,9 +166,9 @@ struct driver_attribute driver_attr_##_name =		\
 	__ATTR(_name, _mode, _show, _store)
 
 extern int __must_check driver_create_file(struct device_driver *driver,
-					   struct driver_attribute *attr);
+					const struct driver_attribute *attr);
 extern void driver_remove_file(struct device_driver *driver,
-			       struct driver_attribute *attr);
+			       const struct driver_attribute *attr);
 
 extern int __must_check driver_add_kobj(struct device_driver *drv,
 					struct kobject *kobj,
