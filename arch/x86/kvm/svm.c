@@ -2914,6 +2914,11 @@ static bool svm_gb_page_enable(void)
 	return true;
 }
 
+static bool svm_rdtscp_supported(void)
+{
+	return false;
+}
+
 static struct kvm_x86_ops svm_x86_ops = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -2982,6 +2987,8 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.gb_page_enable = svm_gb_page_enable,
 
 	.cpuid_update = svm_cpuid_update,
+
+	.rdtscp_supported = svm_rdtscp_supported,
 };
 
 static int __init svm_init(void)

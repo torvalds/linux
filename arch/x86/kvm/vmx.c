@@ -151,6 +151,8 @@ struct vcpu_vmx {
 	ktime_t entry_time;
 	s64 vnmi_blocked_time;
 	u32 exit_reason;
+
+	bool rdtscp_enabled;
 };
 
 static inline struct vcpu_vmx *to_vmx(struct kvm_vcpu *vcpu)
@@ -225,7 +227,7 @@ static const u32 vmx_msr_index[] = {
 #ifdef CONFIG_X86_64
 	MSR_SYSCALL_MASK, MSR_LSTAR, MSR_CSTAR,
 #endif
-	MSR_EFER, MSR_K6_STAR,
+	MSR_EFER, MSR_TSC_AUX, MSR_K6_STAR,
 };
 #define NR_VMX_MSR ARRAY_SIZE(vmx_msr_index)
 
@@ -360,6 +362,12 @@ static inline int cpu_has_vmx_vpid(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_ENABLE_VPID;
+}
+
+static inline int cpu_has_vmx_rdtscp(void)
+{
+	return vmcs_config.cpu_based_2nd_exec_ctrl &
+		SECONDARY_EXEC_RDTSCP;
 }
 
 static inline int cpu_has_virtual_nmis(void)
@@ -893,6 +901,11 @@ static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, intr_info);
 }
 
+static bool vmx_rdtscp_supported(void)
+{
+	return cpu_has_vmx_rdtscp();
+}
+
 /*
  * Swap MSR entry in host/guest MSR entry array.
  */
@@ -927,6 +940,9 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 			move_msr_up(vmx, index, save_nmsrs++);
 		index = __find_msr_index(vmx, MSR_CSTAR);
 		if (index >= 0)
+			move_msr_up(vmx, index, save_nmsrs++);
+		index = __find_msr_index(vmx, MSR_TSC_AUX);
+		if (index >= 0 && vmx->rdtscp_enabled)
 			move_msr_up(vmx, index, save_nmsrs++);
 		/*
 		 * MSR_K6_STAR is only needed on long mode guests, and only
@@ -1017,6 +1033,10 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 	case MSR_IA32_SYSENTER_ESP:
 		data = vmcs_readl(GUEST_SYSENTER_ESP);
 		break;
+	case MSR_TSC_AUX:
+		if (!to_vmx(vcpu)->rdtscp_enabled)
+			return 1;
+		/* Otherwise falls through */
 	default:
 		vmx_load_host_state(to_vmx(vcpu));
 		msr = find_msr_entry(to_vmx(vcpu), msr_index);
@@ -1080,7 +1100,15 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 			vcpu->arch.pat = data;
 			break;
 		}
-		/* Otherwise falls through to kvm_set_msr_common */
+		ret = kvm_set_msr_common(vcpu, msr_index, data);
+		break;
+	case MSR_TSC_AUX:
+		if (!vmx->rdtscp_enabled)
+			return 1;
+		/* Check reserved bit, higher 32 bits should be zero */
+		if ((data >> 32) != 0)
+			return 1;
+		/* Otherwise falls through */
 	default:
 		msr = find_msr_entry(vmx, msr_index);
 		if (msr) {
@@ -1260,7 +1288,8 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 			SECONDARY_EXEC_ENABLE_VPID |
 			SECONDARY_EXEC_ENABLE_EPT |
 			SECONDARY_EXEC_UNRESTRICTED_GUEST |
-			SECONDARY_EXEC_PAUSE_LOOP_EXITING;
+			SECONDARY_EXEC_PAUSE_LOOP_EXITING |
+			SECONDARY_EXEC_RDTSCP;
 		if (adjust_vmx_controls(min2, opt2,
 					MSR_IA32_VMX_PROCBASED_CTLS2,
 					&_cpu_based_2nd_exec_control) < 0)
@@ -3988,8 +4017,31 @@ static bool vmx_gb_page_enable(void)
 	return false;
 }
 
+static inline u32 bit(int bitno)
+{
+	return 1 << (bitno & 31);
+}
+
 static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 {
+	struct kvm_cpuid_entry2 *best;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	u32 exec_control;
+
+	vmx->rdtscp_enabled = false;
+	if (vmx_rdtscp_supported()) {
+		exec_control = vmcs_read32(SECONDARY_VM_EXEC_CONTROL);
+		if (exec_control & SECONDARY_EXEC_RDTSCP) {
+			best = kvm_find_cpuid_entry(vcpu, 0x80000001, 0);
+			if (best && (best->edx & bit(X86_FEATURE_RDTSCP)))
+				vmx->rdtscp_enabled = true;
+			else {
+				exec_control &= ~SECONDARY_EXEC_RDTSCP;
+				vmcs_write32(SECONDARY_VM_EXEC_CONTROL,
+						exec_control);
+			}
+		}
+	}
 }
 
 static struct kvm_x86_ops vmx_x86_ops = {
@@ -4058,6 +4110,8 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.gb_page_enable = vmx_gb_page_enable,
 
 	.cpuid_update = vmx_cpuid_update,
+
+	.rdtscp_supported = vmx_rdtscp_supported,
 };
 
 static int __init vmx_init(void)
