@@ -59,6 +59,7 @@
 #include <asm/page.h>
 #include <asm/init.h>
 #include <asm/pat.h>
+#include <asm/smp.h>
 
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
@@ -1231,7 +1232,7 @@ static void xen_flush_tlb_others(const struct cpumask *cpus,
 {
 	struct {
 		struct mmuext_op op;
-		DECLARE_BITMAP(mask, NR_CPUS);
+		DECLARE_BITMAP(mask, num_processors);
 	} *args;
 	struct multicall_space mcs;
 
