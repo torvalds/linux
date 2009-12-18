@@ -56,7 +56,11 @@ struct vfsmount {
 	struct list_head mnt_mounts;	/* list of children, anchored here */
 	struct list_head mnt_child;	/* and going through their mnt_child */
 	int mnt_flags;
-	/* 4 bytes hole on 64bits arches */
+	/* 4 bytes hole on 64bits arches without fsnotify */
+#ifdef CONFIG_FSNOTIFY
+	__u32 mnt_fsnotify_mask;
+	struct hlist_head mnt_fsnotify_marks;
+#endif
 	const char *mnt_devname;	/* Name of device e.g. /dev/dsk/hda1 */
 	struct list_head mnt_list;
 	struct list_head mnt_expire;	/* link in fs-specific expiry list */

@@ -163,9 +163,7 @@ static bool needed_by_vfsmount(__u32 test_mask, struct vfsmount *mnt)
 	if (!mnt)
 		return false;
 
-	/* hook in this when mnt->mnt_fsnotify_mask is defined */
-	/* return (test_mask & path->mnt->mnt_fsnotify_mask); */
-	return false;
+	return (test_mask & mnt->mnt_fsnotify_mask);
 }
 /*
  * This is the main call to fsnotify.  The VFS calls into hook specific functions
