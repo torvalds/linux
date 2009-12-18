@@ -390,6 +390,19 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 #include <asm-generic/pgtable.h>
 
 /*
+ * uncached accelerated TLB map for video memory access
+ */
+#ifdef CONFIG_CPU_SUPPORTS_UNCACHED_ACCELERATED
+#define __HAVE_PHYS_MEM_ACCESS_PROT
+
+struct file;
+pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
+		unsigned long size, pgprot_t vma_prot);
+int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
+		unsigned long size, pgprot_t *vma_prot);
+#endif
+
+/*
  * We provide our own get_unmapped area to cope with the virtual aliasing
  * constraints placed on us by the cache architecture.
  */
