@@ -295,64 +295,6 @@ out:
 	return ret;
 }
 
-static void fanotify_update_object_mask(struct fsnotify_group *group,
-					struct inode *inode,
-					struct vfsmount *mnt,
-					struct fsnotify_mark *fsn_mark,
-					unsigned int flags,
-					__u32 mask)
-{
-	__u32 old_mask, new_mask;
-
-	pr_debug("%s: group=%p inode=%p mnt=%p fsn_mark=%p flags=%x mask=%x\n",
-		 __func__, group, inode, mnt, fsn_mark, flags, mask);
-
-	spin_lock(&fsn_mark->lock);
-	old_mask = fsn_mark->mask;
-	if (flags & FAN_MARK_ADD)
-		fsn_mark->mask |= mask;
-	else if (flags & FAN_MARK_REMOVE)
-		fsn_mark->mask &= ~mask;
-	else
-		BUG();
-	new_mask = fsn_mark->mask;
-	spin_unlock(&fsn_mark->lock);
-
-	if (!new_mask)
-		fsnotify_destroy_mark(fsn_mark);
-
-	/* we made changes to a mask, update the group mask and the object mask
-	 * so things happen quickly. */
-	if (old_mask != new_mask) {
-		__u32 dropped, do_object, do_group;
-
-		/* more bits in old than in new? */
-		dropped = (old_mask & ~new_mask);
-		/* more bits in this fsn_mark than the group? */
-		do_group = (new_mask & ~group->mask);
-
-		if (inode) {
-			/* more bits in this fsn_mark than the object's mask? */
-			do_object = (new_mask & ~inode->i_fsnotify_mask);
-			/* update the object with this new fsn_mark */
-			if (dropped || do_object)
-				fsnotify_recalc_inode_mask(inode);
-		} else if (mnt) {
-			/* more bits in this fsn_mark than the object's mask? */
-			do_object = (new_mask & ~mnt->mnt_fsnotify_mask);
-			/* update the object with this new fsn_mark */
-			if (dropped || do_object)
-				fsnotify_recalc_vfsmount_mask(mnt);
-		} else {
-			BUG();
-		}
-
-		/* update the group mask with the new mask */
-		if (dropped || do_group)
-			fsnotify_recalc_group_mask(group);
-	}
-}
-
 static __u32 fanotify_mark_remove_from_mask(struct fsnotify_mark *fsn_mark, __u32 mask)
 {
 	__u32 oldmask;
@@ -404,88 +346,102 @@ static int fanotify_remove_mark(struct fsnotify_group *group, struct inode *inod
 	return 0;
 }
 
+static __u32 fanotify_mark_add_to_mask(struct fsnotify_mark *fsn_mark, __u32 mask)
+{
+	__u32 oldmask;
+
+	spin_lock(&fsn_mark->lock);
+	oldmask = fsn_mark->mask;
+	fsn_mark->mask = oldmask | mask;
+	spin_unlock(&fsn_mark->lock);
+
+	return mask & ~oldmask;
+}
+
 static struct fsnotify_mark *fanotify_add_vfsmount_mark(struct fsnotify_group *group,
-							struct vfsmount *mnt)
+							struct vfsmount *mnt, __u32 mask)
 {
 	struct fsnotify_mark *fsn_mark;
+	__u32 added;
 
 	fsn_mark = fsnotify_find_vfsmount_mark(group, mnt);
 	if (!fsn_mark) {
-		struct fsnotify_mark *new_fsn_mark;
 		int ret;
 
-		fsn_mark = ERR_PTR(-ENOMEM);
-		new_fsn_mark = kmem_cache_alloc(fanotify_mark_cache, GFP_KERNEL);
-		if (!new_fsn_mark)
-			goto out;
+		fsn_mark = kmem_cache_alloc(fanotify_mark_cache, GFP_KERNEL);
+		if (!fsn_mark)
+			return ERR_PTR(-ENOMEM);
 
-		fsnotify_init_mark(new_fsn_mark, fanotify_free_mark);
-		ret = fsnotify_add_mark(new_fsn_mark, group, NULL, mnt, 0);
+		fsnotify_init_mark(fsn_mark, fanotify_free_mark);
+		ret = fsnotify_add_mark(fsn_mark, group, NULL, mnt, 0);
 		if (ret) {
-			fsn_mark = ERR_PTR(ret);
-			fanotify_free_mark(new_fsn_mark);
-			goto out;
+			fanotify_free_mark(fsn_mark);
+			return ERR_PTR(ret);
 		}
-
-		fsn_mark = new_fsn_mark;
 	}
-out:
+	added = fanotify_mark_add_to_mask(fsn_mark, mask);
+	if (added) {
+		if (added & ~group->mask)
+			fsnotify_recalc_group_mask(group);
+		if (added & ~mnt->mnt_fsnotify_mask)
+			fsnotify_recalc_vfsmount_mask(mnt);
+	}
 	return fsn_mark;
 }
 
 static struct fsnotify_mark *fanotify_add_inode_mark(struct fsnotify_group *group,
-						     struct inode *inode)
+						     struct inode *inode, __u32 mask)
 {
 	struct fsnotify_mark *fsn_mark;
+	__u32 added;
 
 	pr_debug("%s: group=%p inode=%p\n", __func__, group, inode);
 
 	fsn_mark = fsnotify_find_inode_mark(group, inode);
 	if (!fsn_mark) {
-		struct fsnotify_mark *new_fsn_mark;
 		int ret;
 
-		fsn_mark = ERR_PTR(-ENOMEM);
-		new_fsn_mark = kmem_cache_alloc(fanotify_mark_cache, GFP_KERNEL);
-		if (!new_fsn_mark)
-			goto out;
+		fsn_mark = kmem_cache_alloc(fanotify_mark_cache, GFP_KERNEL);
+		if (!fsn_mark)
+			return ERR_PTR(-ENOMEM);
 
-		fsnotify_init_mark(new_fsn_mark, fanotify_free_mark);
-		ret = fsnotify_add_mark(new_fsn_mark, group, inode, NULL, 0);
+		fsnotify_init_mark(fsn_mark, fanotify_free_mark);
+		ret = fsnotify_add_mark(fsn_mark, group, inode, NULL, 0);
 		if (ret) {
-			fsn_mark = ERR_PTR(ret);
-			fanotify_free_mark(new_fsn_mark);
-			goto out;
+			fanotify_free_mark(fsn_mark);
+			return ERR_PTR(ret);
 		}
-
-		fsn_mark = new_fsn_mark;
 	}
-out:
+	added = fanotify_mark_add_to_mask(fsn_mark, mask);
+	if (added) {
+		if (added & ~group->mask)
+			fsnotify_recalc_group_mask(group);
+		if (added & ~inode->i_fsnotify_mask)
+			fsnotify_recalc_inode_mask(inode);
+	}
 	return fsn_mark;
 }
 
 static int fanotify_add_mark(struct fsnotify_group *group, struct inode *inode,
-			     struct vfsmount *mnt, unsigned int flags, __u32 mask)
+			     struct vfsmount *mnt, __u32 mask)
 {
 	struct fsnotify_mark *fsn_mark;
 
-	pr_debug("%s: group=%p inode=%p mnt=%p flags=%x mask=%x\n",
-		 __func__, group, inode, mnt, flags, mask);
+	pr_debug("%s: group=%p inode=%p mnt=%p mask=%x\n",
+		 __func__, group, inode, mnt, mask);
 
 	BUG_ON(inode && mnt);
 	BUG_ON(!inode && !mnt);
 
 	if (inode)
-		fsn_mark = fanotify_add_inode_mark(group, inode);
+		fsn_mark = fanotify_add_inode_mark(group, inode, mask);
 	else if (mnt)
-		fsn_mark = fanotify_add_vfsmount_mark(group, mnt);
+		fsn_mark = fanotify_add_vfsmount_mark(group, mnt, mask);
 	else
 		BUG();
 
 	if (IS_ERR(fsn_mark))
 		goto out;
-
-	fanotify_update_object_mask(group, inode, mnt, fsn_mark, flags, mask);
 
 	/* match the init or the find.... */
 	fsnotify_put_mark(fsn_mark);
@@ -590,7 +546,7 @@ SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
 	/* create/update an inode mark */
 	switch (flags & (FAN_MARK_ADD | FAN_MARK_REMOVE)) {
 	case FAN_MARK_ADD:
-		ret = fanotify_add_mark(group, inode, NULL, flags, mask);
+		ret = fanotify_add_mark(group, inode, NULL, mask);
 		break;
 	case FAN_MARK_REMOVE:
 		ret = fanotify_remove_mark(group, inode, NULL, mask);
