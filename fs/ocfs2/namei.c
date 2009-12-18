@@ -2108,6 +2108,7 @@ int ocfs2_create_inode_in_orphan(struct inode *dir,
 	}
 	did_quota_inode = 1;
 
+	inode->i_nlink = 0;
 	/* do the real work now. */
 	status = ocfs2_mknod_locked(osb, dir, inode,
 				    0, &new_di_bh, parent_di_bh, handle,
@@ -2268,6 +2269,8 @@ int ocfs2_mv_orphaned_inode_to_new(struct inode *dir,
 	di = (struct ocfs2_dinode *)di_bh->b_data;
 	le32_add_cpu(&di->i_flags, -OCFS2_ORPHANED_FL);
 	di->i_orphaned_slot = 0;
+	inode->i_nlink = 1;
+	ocfs2_set_links_count(di, inode->i_nlink);
 	ocfs2_journal_dirty(handle, di_bh);
 
 	status = ocfs2_add_entry(handle, dentry, inode,
