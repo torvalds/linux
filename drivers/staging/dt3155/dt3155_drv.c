@@ -76,6 +76,7 @@ MODULE_LICENSE("GPL");
 #include <linux/pci.h>
 #include <linux/types.h>
 #include <linux/poll.h>
+#include <linux/sched.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
