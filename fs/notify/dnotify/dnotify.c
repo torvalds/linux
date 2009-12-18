@@ -433,7 +433,7 @@ static int __init dnotify_init(void)
 	dnotify_struct_cache = KMEM_CACHE(dnotify_struct, SLAB_PANIC);
 	dnotify_mark_entry_cache = KMEM_CACHE(dnotify_mark_entry, SLAB_PANIC);
 
-	dnotify_group = fsnotify_obtain_group(0, &dnotify_fsnotify_ops);
+	dnotify_group = fsnotify_alloc_group(0, &dnotify_fsnotify_ops);
 	if (IS_ERR(dnotify_group))
 		panic("unable to allocate fsnotify group for dnotify\n");
 	return 0;

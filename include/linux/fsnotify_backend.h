@@ -305,11 +305,11 @@ static inline void __fsnotify_d_instantiate(struct dentry *dentry, struct inode 
 /* must call when a group changes its ->mask */
 extern void fsnotify_recalc_global_mask(void);
 /* get a reference to an existing or create a new group */
-extern struct fsnotify_group *fsnotify_obtain_group(__u32 mask,
+extern struct fsnotify_group *fsnotify_alloc_group(__u32 mask,
 						    const struct fsnotify_ops *ops);
 /* run all marks associated with this group and update group->mask */
 extern void fsnotify_recalc_group_mask(struct fsnotify_group *group);
-/* drop reference on a group from fsnotify_obtain_group */
+/* drop reference on a group from fsnotify_alloc_group */
 extern void fsnotify_put_group(struct fsnotify_group *group);
 
 /* take a reference to an event */

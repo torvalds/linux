@@ -162,16 +162,13 @@ void fsnotify_put_group(struct fsnotify_group *group)
 }
 
 /*
- * Either finds an existing group which matches the group_num, mask, and ops or
- * creates a new group and adds it to the global group list.  In either case we
- * take a reference for the group returned.
+ * Create a new fsnotify_group and hold a reference for the group returned.
  */
-struct fsnotify_group *fsnotify_obtain_group(__u32 mask,
-					     const struct fsnotify_ops *ops)
+struct fsnotify_group *fsnotify_alloc_group(__u32 mask,
+					    const struct fsnotify_ops *ops)
 {
 	struct fsnotify_group *group;
 
-	/* very low use, simpler locking if we just always alloc */
 	group = kzalloc(sizeof(struct fsnotify_group), GFP_KERNEL);
 	if (!group)
 		return ERR_PTR(-ENOMEM);
@@ -192,7 +189,6 @@ struct fsnotify_group *fsnotify_obtain_group(__u32 mask,
 
 	mutex_lock(&fsnotify_grp_mutex);
 
-	/* group not found, add a new one */
 	list_add_rcu(&group->group_list, &fsnotify_groups);
 	group->on_group_list = 1;
 	/* being on the fsnotify_groups list holds one num_marks */
