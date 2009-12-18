@@ -70,3 +70,9 @@ out_put_group:
 	fsnotify_put_group(group);
 	return fd;
 }
+
+SYSCALL_DEFINE5(fanotify_mark, int, fanotify_fd, unsigned int, flags,
+		__u64, mask, int, dfd, const char  __user *, pathname)
+{
+	return -ENOSYS;
+}

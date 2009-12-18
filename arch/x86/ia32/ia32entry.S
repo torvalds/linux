@@ -843,4 +843,5 @@ ia32_sys_call_table:
 	.quad sys_perf_event_open
 	.quad compat_sys_recvmmsg
 	.quad sys_fanotify_init
+	.quad sys32_fanotify_mark
 ia32_syscall_end:
