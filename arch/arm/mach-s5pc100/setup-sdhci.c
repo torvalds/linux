@@ -28,8 +28,8 @@
 char *s5pc100_hsmmc_clksrcs[4] = {
 	[0] = "hsmmc",
 	[1] = "hsmmc",
-	/* [2] = "mmc_bus", not yet succesfuuly used yet */
-	/* [3] = "48m", - note not succesfully used yet */
+	/* [2] = "mmc_bus", not yet successfully used yet */
+	/* [3] = "48m", - note not successfully used yet */
 };
 
 
