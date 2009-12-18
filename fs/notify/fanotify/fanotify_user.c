@@ -103,6 +103,7 @@ static ssize_t fill_event_metadata(struct fsnotify_group *group,
 	metadata->event_len = FAN_EVENT_METADATA_LEN;
 	metadata->vers = FANOTIFY_METADATA_VERSION;
 	metadata->mask = fanotify_outgoing_mask(event->mask);
+	metadata->pid = pid_vnr(event->tgid);
 	metadata->fd = create_fd(group, event);
 
 	return metadata->fd;

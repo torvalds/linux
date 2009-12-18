@@ -221,6 +221,7 @@ struct fsnotify_event {
 	u32 sync_cookie;	/* used to corrolate events, namely inotify mv events */
 	char *file_name;
 	size_t name_len;
+	struct pid *tgid;
 
 	struct list_head private_data_list;	/* groups can store private data here */
 };

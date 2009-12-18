@@ -10,8 +10,9 @@ static bool should_merge(struct fsnotify_event *old, struct fsnotify_event *new)
 {
 	pr_debug("%s: old=%p new=%p\n", __func__, old, new);
 
-	if ((old->to_tell == new->to_tell) &&
-	    (old->data_type == new->data_type)) {
+	if (old->to_tell == new->to_tell &&
+	    old->data_type == new->data_type &&
+	    old->tgid == new->tgid) {
 		switch (old->data_type) {
 		case (FSNOTIFY_EVENT_PATH):
 			if ((old->path.mnt == new->path.mnt) &&

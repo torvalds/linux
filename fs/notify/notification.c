@@ -93,6 +93,7 @@ void fsnotify_put_event(struct fsnotify_event *event)
 		BUG_ON(!list_empty(&event->private_data_list));
 
 		kfree(event->file_name);
+		put_pid(event->tgid);
 		kmem_cache_free(fsnotify_event_cachep, event);
 	}
 }
@@ -346,6 +347,7 @@ struct fsnotify_event *fsnotify_clone_event(struct fsnotify_event *old_event)
 			return NULL;
 		}
 	}
+	event->tgid = get_pid(old_event->tgid);
 	if (event->data_type == FSNOTIFY_EVENT_PATH)
 		path_get(&event->path);
 
@@ -385,6 +387,7 @@ struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask, 
 		event->name_len = strlen(event->file_name);
 	}
 
+	event->tgid = get_pid(task_tgid(current));
 	event->sync_cookie = cookie;
 	event->to_tell = to_tell;
 	event->data_type = data_type;

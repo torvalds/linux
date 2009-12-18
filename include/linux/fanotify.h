@@ -62,6 +62,7 @@ struct fanotify_event_metadata {
 	__u32 vers;
 	__s32 fd;
 	__u64 mask;
+	__s64 pid;
 } __attribute__ ((packed));
 
 /* Helper functions to deal with fanotify_event_metadata buffers */
