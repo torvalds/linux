@@ -31,11 +31,6 @@
  */
 #define prom_argv(index) ((char *)(long)_prom_argv[(index)])
 
-char * __init prom_getcmdline(void)
-{
-	return &(arcs_cmdline[0]);
-}
-
 void  __init prom_init_cmdline(void)
 {
 	int len;
