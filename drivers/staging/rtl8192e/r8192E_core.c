@@ -2313,7 +2313,7 @@ static void rtl8192_SetWirelessMode(struct net_device* dev, u8 wireless_mode)
 			wireless_mode = WIRELESS_MODE_B;
 		}
 	}
-#ifdef TO_DO_LIST //// TODO: this function doesn't work well at this time, we shoud wait for FPGA
+#ifdef TO_DO_LIST //// TODO: this function doesn't work well at this time, we should wait for FPGA
 	ActUpdateChannelAccessSetting( pAdapter, pHalData->CurrentWirelessMode, &pAdapter->MgntInfo.Info8185.ChannelAccessSetting );
 #endif
 	priv->ieee80211->mode = wireless_mode;
@@ -6520,7 +6520,7 @@ void rtl8192_cancel_deferred_work(struct r8192_priv* priv)
 	/* call cancel_work_sync instead of cancel_delayed_work if and only if Linux_version_code
          * is  or is newer than 2.6.20 and work structure is defined to be struct work_struct.
          * Otherwise call cancel_delayed_work is enough.
-         * FIXME (2.6.20 shoud 2.6.22, work_struct shoud not cancel)
+         * FIXME (2.6.20 should 2.6.22, work_struct should not cancel)
          * */
 	cancel_delayed_work(&priv->watch_dog_wq);
 	cancel_delayed_work(&priv->update_beacon_wq);

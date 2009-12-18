@@ -42,7 +42,7 @@ static u8 DLINK_ATHEROS[3] = {0x00, 0x1c, 0xf0};
 static u8 CISCO_BROADCOM[3] = {0x00, 0x17, 0x94};
 static u8 LINKSYS_MARVELL_4400N[3] = {0x00, 0x14, 0xa4};
 
-// 2008/04/01 MH For Cisco G mode RX TP We need to change FW duration. Shoud we put the
+// 2008/04/01 MH For Cisco G mode RX TP We need to change FW duration. Should we put the
 // code in other place??
 //static u8 WIFI_CISCO_G_AP[3] = {0x00, 0x40, 0x96};
 /********************************************************************************************************************
