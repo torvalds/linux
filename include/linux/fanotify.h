@@ -18,10 +18,23 @@
 /* helper events */
 #define FAN_CLOSE		(FAN_CLOSE_WRITE | FAN_CLOSE_NOWRITE) /* close */
 
+/* flags used for fanotify_init() */
 #define FAN_CLOEXEC		0x00000001
 #define FAN_NONBLOCK		0x00000002
 
 #define FAN_ALL_INIT_FLAGS	(FAN_CLOEXEC | FAN_NONBLOCK)
+
+/* flags used for fanotify_modify_mark() */
+#define FAN_MARK_ADD		0x00000001
+#define FAN_MARK_REMOVE		0x00000002
+#define FAN_MARK_DONT_FOLLOW	0x00000004
+#define FAN_MARK_ONLYDIR	0x00000008
+
+#define FAN_ALL_MARK_FLAGS	(FAN_MARK_ADD |\
+				 FAN_MARK_REMOVE |\
+				 FAN_MARK_DONT_FOLLOW |\
+				 FAN_MARK_ONLYDIR)
+
 /*
  * All of the events - we build the list by hand so that we can add flags in
  * the future and not break backward compatibility.  Apps will get only the
