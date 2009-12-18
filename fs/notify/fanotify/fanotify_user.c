@@ -468,26 +468,6 @@ out:
 	return PTR_ERR(fsn_mark);
 }
 
-static int fanotify_update_mark(struct fsnotify_group *group,
-				struct inode *inode, struct vfsmount *mnt,
-				int flags, __u32 mask)
-{
-	pr_debug("%s: group=%p inode=%p mnt=%p flags=%x mask=%x\n",
-		 __func__, group, inode, mnt, flags, mask);
-
-	BUG_ON(inode && mnt);
-	BUG_ON(!inode && !mnt);
-
-	if (flags & FAN_MARK_ADD)
-		fanotify_add_mark(group, inode, mnt, flags, mask);
-	else if (flags & FAN_MARK_REMOVE)
-		fanotify_remove_mark(group, inode, mnt, flags, mask);
-	else
-		BUG();
-
-	return 0;
-}
-
 static bool fanotify_mark_validate_input(int flags,
 					 __u32 mask)
 {
@@ -583,7 +563,16 @@ SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
 	group = filp->private_data;
 
 	/* create/update an inode mark */
-	ret = fanotify_update_mark(group, inode, NULL, flags, mask);
+	switch (flags & (FAN_MARK_ADD | FAN_MARK_REMOVE)) {
+	case FAN_MARK_ADD:
+		ret = fanotify_add_mark(group, inode, NULL, flags, mask);
+		break;
+	case FAN_MARK_REMOVE:
+		ret = fanotify_remove_mark(group, inode, NULL, flags, mask);
+		break;
+	default:
+		ret = -EINVAL;
+	}
 
 	path_put(&path);
 fput_and_out:
