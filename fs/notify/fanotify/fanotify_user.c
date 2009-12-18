@@ -43,17 +43,14 @@ static struct fsnotify_event *get_one_event(struct fsnotify_group *group,
 	return fsnotify_remove_notify_event(group);
 }
 
-static int create_and_fill_fd(struct fsnotify_group *group,
-			      struct fanotify_event_metadata *metadata,
-			      struct fsnotify_event *event)
+static int create_fd(struct fsnotify_group *group, struct fsnotify_event *event)
 {
 	int client_fd;
 	struct dentry *dentry;
 	struct vfsmount *mnt;
 	struct file *new_file;
 
-	pr_debug("%s: group=%p metadata=%p event=%p\n", __func__, group,
-		 metadata, event);
+	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
 	client_fd = get_unused_fd();
 	if (client_fd < 0)
@@ -93,9 +90,7 @@ static int create_and_fill_fd(struct fsnotify_group *group,
 		fd_install(client_fd, new_file);
 	}
 
-	metadata->fd = client_fd;
-
-	return 0;
+	return client_fd;
 }
 
 static ssize_t fill_event_metadata(struct fsnotify_group *group,
@@ -108,9 +103,9 @@ static ssize_t fill_event_metadata(struct fsnotify_group *group,
 	metadata->event_len = FAN_EVENT_METADATA_LEN;
 	metadata->vers = FANOTIFY_METADATA_VERSION;
 	metadata->mask = fanotify_outgoing_mask(event->mask);
+	metadata->fd = create_fd(group, event);
 
-	return create_and_fill_fd(group, metadata, event);
-
+	return metadata->fd;
 }
 
 static ssize_t copy_event_to_user(struct fsnotify_group *group,
@@ -123,7 +118,7 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
 	ret = fill_event_metadata(group, &fanotify_event_metadata, event);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	if (copy_to_user(buf, &fanotify_event_metadata, FAN_EVENT_METADATA_LEN))
