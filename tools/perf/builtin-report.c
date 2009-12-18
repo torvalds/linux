@@ -224,7 +224,7 @@ static int __cmd_report(void)
 
 	perf_session__collapse_resort(session);
 	perf_session__output_resort(session, session->events_stats.total);
-	fprintf(stdout, "# Samples: %ld\n#\n", session->events_stats.total);
+	fprintf(stdout, "# Samples: %Ld\n#\n", session->events_stats.total);
 	perf_session__fprintf_hists(session, NULL, false, stdout);
 	if (sort_order == default_sort_order &&
 	    parent_pattern == default_parent_pattern)
