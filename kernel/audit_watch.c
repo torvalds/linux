@@ -55,7 +55,6 @@ struct audit_watch {
 };
 
 struct audit_parent {
-	struct list_head	ilist;	/* tmp list used to free parents */
 	struct list_head	watches; /* anchor for audit_watch->wlist */
 	struct fsnotify_mark_entry mark; /* fsnotify mark on the inode */
 };
@@ -356,20 +355,6 @@ static void audit_remove_parent_watches(struct audit_parent *parent)
 	fsnotify_destroy_mark_by_entry(&parent->mark);
 }
 
-/* Unregister inotify watches for parents on in_list.
- * Generates an FS_IGNORED event. */
-void audit_watch_inotify_unregister(struct list_head *in_list)
-{
-	struct audit_parent *p, *n;
-
-	list_for_each_entry_safe(p, n, in_list, ilist) {
-		list_del(&p->ilist);
-		fsnotify_destroy_mark_by_entry(&p->mark);
-		/* matches the get in audit_remove_watch_rule() */
-		audit_put_parent(p);
-	}
-}
-
 /* Get path information necessary for adding watches. */
 static int audit_get_nd(char *path, struct nameidata **ndp, struct nameidata **ndw)
 {
@@ -502,7 +487,7 @@ error:
 
 }
 
-void audit_remove_watch_rule(struct audit_krule *krule, struct list_head *list)
+void audit_remove_watch_rule(struct audit_krule *krule)
 {
 	struct audit_watch *watch = krule->watch;
 	struct audit_parent *parent = watch->parent;
@@ -513,15 +498,9 @@ void audit_remove_watch_rule(struct audit_krule *krule, struct list_head *list)
 		audit_remove_watch(watch);
 
 		if (list_empty(&parent->watches)) {
-			/* Put parent on the un-registration list.
-			 * Grab a reference before releasing
-			 * audit_filter_mutex, to be released in
-			 * audit_watch_inotify_unregister().
-			 * If filesystem is going away, just leave
-			 * the sucker alone, eviction will take
-			 * care of it. */
 			audit_get_parent(parent);
-			list_add(&parent->ilist, list);
+			fsnotify_destroy_mark_by_entry(&parent->mark);
+			audit_put_parent(parent);
 		}
 	}
 }
