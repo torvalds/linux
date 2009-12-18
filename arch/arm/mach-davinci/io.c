@@ -24,7 +24,7 @@ void __iomem *davinci_ioremap(unsigned long p, size_t size, unsigned int type)
 	if (BETWEEN(p, IO_PHYS, IO_SIZE))
 		return XLATE(p, IO_PHYS, IO_VIRT);
 
-	return __arm_ioremap(p, size, type);
+	return __arm_ioremap_caller(p, size, type, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(davinci_ioremap);
 
