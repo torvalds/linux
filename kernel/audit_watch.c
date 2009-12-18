@@ -167,6 +167,8 @@ static struct audit_parent *audit_init_parent(struct nameidata *ndp)
 		return ERR_PTR(ret);
 	}
 
+	fsnotify_recalc_group_mask(audit_watch_group);
+
 	return parent;
 }
 
@@ -353,6 +355,9 @@ static void audit_remove_parent_watches(struct audit_parent *parent)
 	mutex_unlock(&audit_filter_mutex);
 
 	fsnotify_destroy_mark_by_entry(&parent->mark);
+
+	fsnotify_recalc_group_mask(audit_watch_group);
+
 }
 
 /* Get path information necessary for adding watches. */
@@ -503,6 +508,9 @@ void audit_remove_watch_rule(struct audit_krule *krule)
 			audit_put_parent(parent);
 		}
 	}
+
+	fsnotify_recalc_group_mask(audit_watch_group);
+
 }
 
 static bool audit_watch_should_send_event(struct fsnotify_group *group, struct inode *inode,
@@ -577,8 +585,7 @@ static const struct fsnotify_ops audit_watch_fsnotify_ops = {
 
 static int __init audit_watch_init(void)
 {
-	audit_watch_group = fsnotify_alloc_group(AUDIT_FS_WATCH,
-						 &audit_watch_fsnotify_ops);
+	audit_watch_group = fsnotify_alloc_group(0, &audit_watch_fsnotify_ops);
 	if (IS_ERR(audit_watch_group)) {
 		audit_watch_group = NULL;
 		audit_panic("cannot create audit fsnotify group");
