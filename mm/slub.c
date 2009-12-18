@@ -242,15 +242,6 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
 #endif
 }
 
-static inline struct kmem_cache_cpu *get_cpu_slab(struct kmem_cache *s, int cpu)
-{
-#ifdef CONFIG_SMP
-	return s->cpu_slab[cpu];
-#else
-	return &s->cpu_slab;
-#endif
-}
-
 /* Verify that a pointer has an address that is valid within a slab page */
 static inline int check_valid_pointer(struct kmem_cache *s,
 				struct page *page, const void *object)
@@ -1124,7 +1115,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 		if (!page)
 			return NULL;
 
-		stat(get_cpu_slab(s, raw_smp_processor_id()), ORDER_FALLBACK);
+		stat(this_cpu_ptr(s->cpu_slab), ORDER_FALLBACK);
 	}
 
 	if (kmemcheck_enabled
@@ -1422,7 +1413,7 @@ static struct page *get_partial(struct kmem_cache *s, gfp_t flags, int node)
 static void unfreeze_slab(struct kmem_cache *s, struct page *page, int tail)
 {
 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
-	struct kmem_cache_cpu *c = get_cpu_slab(s, smp_processor_id());
+	struct kmem_cache_cpu *c = this_cpu_ptr(s->cpu_slab);
 
 	__ClearPageSlubFrozen(page);
 	if (page->inuse) {
@@ -1454,7 +1445,7 @@ static void unfreeze_slab(struct kmem_cache *s, struct page *page, int tail)
 			slab_unlock(page);
 		} else {
 			slab_unlock(page);
-			stat(get_cpu_slab(s, raw_smp_processor_id()), FREE_SLAB);
+			stat(__this_cpu_ptr(s->cpu_slab), FREE_SLAB);
 			discard_slab(s, page);
 		}
 	}
@@ -1507,7 +1498,7 @@ static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
  */
 static inline void __flush_cpu_slab(struct kmem_cache *s, int cpu)
 {
-	struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
+	struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu_slab, cpu);
 
 	if (likely(c && c->page))
 		flush_slab(s, c);
@@ -1673,7 +1664,7 @@ new_slab:
 		local_irq_disable();
 
 	if (new) {
-		c = get_cpu_slab(s, smp_processor_id());
+		c = __this_cpu_ptr(s->cpu_slab);
 		stat(c, ALLOC_SLAB);
 		if (c->page)
 			flush_slab(s, c);
@@ -1711,7 +1702,7 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
 	void **object;
 	struct kmem_cache_cpu *c;
 	unsigned long flags;
-	unsigned int objsize;
+	unsigned long objsize;
 
 	gfpflags &= gfp_allowed_mask;
 
@@ -1722,14 +1713,14 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
 		return NULL;
 
 	local_irq_save(flags);
-	c = get_cpu_slab(s, smp_processor_id());
+	c = __this_cpu_ptr(s->cpu_slab);
+	object = c->freelist;
 	objsize = c->objsize;
-	if (unlikely(!c->freelist || !node_match(c, node)))
+	if (unlikely(!object || !node_match(c, node)))
 
 		object = __slab_alloc(s, gfpflags, node, addr, c);
 
 	else {
-		object = c->freelist;
 		c->freelist = object[c->offset];
 		stat(c, ALLOC_FASTPATH);
 	}
@@ -1800,7 +1791,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
 	void **object = (void *)x;
 	struct kmem_cache_cpu *c;
 
-	c = get_cpu_slab(s, raw_smp_processor_id());
+	c = __this_cpu_ptr(s->cpu_slab);
 	stat(c, FREE_SLOWPATH);
 	slab_lock(page);
 
@@ -1872,7 +1863,7 @@ static __always_inline void slab_free(struct kmem_cache *s,
 
 	kmemleak_free_recursive(x, s->flags);
 	local_irq_save(flags);
-	c = get_cpu_slab(s, smp_processor_id());
+	c = __this_cpu_ptr(s->cpu_slab);
 	kmemcheck_slab_free(s, object, c->objsize);
 	debug_check_no_locks_freed(object, c->objsize);
 	if (!(s->flags & SLAB_DEBUG_OBJECTS))
@@ -2095,130 +2086,28 @@ init_kmem_cache_node(struct kmem_cache_node *n, struct kmem_cache *s)
 #endif
 }
 
-#ifdef CONFIG_SMP
-/*
- * Per cpu array for per cpu structures.
- *
- * The per cpu array places all kmem_cache_cpu structures from one processor
- * close together meaning that it becomes possible that multiple per cpu
- * structures are contained in one cacheline. This may be particularly
- * beneficial for the kmalloc caches.
- *
- * A desktop system typically has around 60-80 slabs. With 100 here we are
- * likely able to get per cpu structures for all caches from the array defined
- * here. We must be able to cover all kmalloc caches during bootstrap.
- *
- * If the per cpu array is exhausted then fall back to kmalloc
- * of individual cachelines. No sharing is possible then.
- */
-#define NR_KMEM_CACHE_CPU 100
-
-static DEFINE_PER_CPU(struct kmem_cache_cpu [NR_KMEM_CACHE_CPU],
-		      kmem_cache_cpu);
-
-static DEFINE_PER_CPU(struct kmem_cache_cpu *, kmem_cache_cpu_free);
-static DECLARE_BITMAP(kmem_cach_cpu_free_init_once, CONFIG_NR_CPUS);
-
-static struct kmem_cache_cpu *alloc_kmem_cache_cpu(struct kmem_cache *s,
-							int cpu, gfp_t flags)
-{
-	struct kmem_cache_cpu *c = per_cpu(kmem_cache_cpu_free, cpu);
-
-	if (c)
-		per_cpu(kmem_cache_cpu_free, cpu) =
-				(void *)c->freelist;
-	else {
-		/* Table overflow: So allocate ourselves */
-		c = kmalloc_node(
-			ALIGN(sizeof(struct kmem_cache_cpu), cache_line_size()),
-			flags, cpu_to_node(cpu));
-		if (!c)
-			return NULL;
-	}
-
-	init_kmem_cache_cpu(s, c);
-	return c;
-}
-
-static void free_kmem_cache_cpu(struct kmem_cache_cpu *c, int cpu)
-{
-	if (c < per_cpu(kmem_cache_cpu, cpu) ||
-			c >= per_cpu(kmem_cache_cpu, cpu) + NR_KMEM_CACHE_CPU) {
-		kfree(c);
-		return;
-	}
-	c->freelist = (void *)per_cpu(kmem_cache_cpu_free, cpu);
-	per_cpu(kmem_cache_cpu_free, cpu) = c;
-}
-
-static void free_kmem_cache_cpus(struct kmem_cache *s)
-{
-	int cpu;
-
-	for_each_online_cpu(cpu) {
-		struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
-
-		if (c) {
-			s->cpu_slab[cpu] = NULL;
-			free_kmem_cache_cpu(c, cpu);
-		}
-	}
-}
-
-static int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
-{
-	int cpu;
-
-	for_each_online_cpu(cpu) {
-		struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
-
-		if (c)
-			continue;
-
-		c = alloc_kmem_cache_cpu(s, cpu, flags);
-		if (!c) {
-			free_kmem_cache_cpus(s);
-			return 0;
-		}
-		s->cpu_slab[cpu] = c;
-	}
-	return 1;
-}
-
-/*
- * Initialize the per cpu array.
- */
-static void init_alloc_cpu_cpu(int cpu)
-{
-	int i;
-
-	if (cpumask_test_cpu(cpu, to_cpumask(kmem_cach_cpu_free_init_once)))
-		return;
-
-	for (i = NR_KMEM_CACHE_CPU - 1; i >= 0; i--)
-		free_kmem_cache_cpu(&per_cpu(kmem_cache_cpu, cpu)[i], cpu);
-
-	cpumask_set_cpu(cpu, to_cpumask(kmem_cach_cpu_free_init_once));
-}
-
-static void __init init_alloc_cpu(void)
-{
-	int cpu;
-
-	for_each_online_cpu(cpu)
-		init_alloc_cpu_cpu(cpu);
-  }
-
-#else
-static inline void free_kmem_cache_cpus(struct kmem_cache *s) {}
-static inline void init_alloc_cpu(void) {}
+static DEFINE_PER_CPU(struct kmem_cache_cpu, kmalloc_percpu[SLUB_PAGE_SHIFT]);
 
 static inline int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
 {
-	init_kmem_cache_cpu(s, &s->cpu_slab);
+	int cpu;
+
+	if (s < kmalloc_caches + SLUB_PAGE_SHIFT && s >= kmalloc_caches)
+		/*
+		 * Boot time creation of the kmalloc array. Use static per cpu data
+		 * since the per cpu allocator is not available yet.
+		 */
+		s->cpu_slab = per_cpu_var(kmalloc_percpu) + (s - kmalloc_caches);
+	else
+		s->cpu_slab =  alloc_percpu(struct kmem_cache_cpu);
+
+	if (!s->cpu_slab)
+		return 0;
+
+	for_each_possible_cpu(cpu)
+		init_kmem_cache_cpu(s, per_cpu_ptr(s->cpu_slab, cpu));
 	return 1;
 }
-#endif
 
 #ifdef CONFIG_NUMA
 /*
@@ -2609,9 +2498,8 @@ static inline int kmem_cache_close(struct kmem_cache *s)
 	int node;
 
 	flush_all(s);
-
+	free_percpu(s->cpu_slab);
 	/* Attempt to free all objects */
-	free_kmem_cache_cpus(s);
 	for_each_node_state(node, N_NORMAL_MEMORY) {
 		struct kmem_cache_node *n = get_node(s, node);
 
@@ -2760,7 +2648,19 @@ static noinline struct kmem_cache *dma_kmalloc_cache(int index, gfp_t flags)
 	realsize = kmalloc_caches[index].objsize;
 	text = kasprintf(flags & ~SLUB_DMA, "kmalloc_dma-%d",
 			 (unsigned int)realsize);
-	s = kmalloc(kmem_size, flags & ~SLUB_DMA);
+
+	if (flags & __GFP_WAIT)
+		s = kmalloc(kmem_size, flags & ~SLUB_DMA);
+	else {
+		int i;
+
+		s = NULL;
+		for (i = 0; i < SLUB_PAGE_SHIFT; i++)
+			if (kmalloc_caches[i].size) {
+				s = kmalloc_caches + i;
+				break;
+			}
+	}
 
 	/*
 	 * Must defer sysfs creation to a workqueue because we don't know
@@ -3176,8 +3076,6 @@ void __init kmem_cache_init(void)
 	int i;
 	int caches = 0;
 
-	init_alloc_cpu();
-
 #ifdef CONFIG_NUMA
 	/*
 	 * Must first have the slab cache available for the allocations of the
@@ -3261,8 +3159,10 @@ void __init kmem_cache_init(void)
 
 #ifdef CONFIG_SMP
 	register_cpu_notifier(&slab_notifier);
-	kmem_size = offsetof(struct kmem_cache, cpu_slab) +
-				nr_cpu_ids * sizeof(struct kmem_cache_cpu *);
+#endif
+#ifdef CONFIG_NUMA
+	kmem_size = offsetof(struct kmem_cache, node) +
+				nr_node_ids * sizeof(struct kmem_cache_node *);
 #else
 	kmem_size = sizeof(struct kmem_cache);
 #endif
@@ -3365,7 +3265,7 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 		 * per cpu structures
 		 */
 		for_each_online_cpu(cpu)
-			get_cpu_slab(s, cpu)->objsize = s->objsize;
+			per_cpu_ptr(s->cpu_slab, cpu)->objsize = s->objsize;
 
 		s->inuse = max_t(int, s->inuse, ALIGN(size, sizeof(void *)));
 		up_write(&slub_lock);
@@ -3422,11 +3322,9 @@ static int __cpuinit slab_cpuup_callback(struct notifier_block *nfb,
 	switch (action) {
 	case CPU_UP_PREPARE:
 	case CPU_UP_PREPARE_FROZEN:
-		init_alloc_cpu_cpu(cpu);
 		down_read(&slub_lock);
 		list_for_each_entry(s, &slab_caches, list)
-			s->cpu_slab[cpu] = alloc_kmem_cache_cpu(s, cpu,
-							GFP_KERNEL);
+			init_kmem_cache_cpu(s, per_cpu_ptr(s->cpu_slab, cpu));
 		up_read(&slub_lock);
 		break;
 
@@ -3436,13 +3334,9 @@ static int __cpuinit slab_cpuup_callback(struct notifier_block *nfb,
 	case CPU_DEAD_FROZEN:
 		down_read(&slub_lock);
 		list_for_each_entry(s, &slab_caches, list) {
-			struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
-
 			local_irq_save(flags);
 			__flush_cpu_slab(s, cpu);
 			local_irq_restore(flags);
-			free_kmem_cache_cpu(c, cpu);
-			s->cpu_slab[cpu] = NULL;
 		}
 		up_read(&slub_lock);
 		break;
@@ -3928,7 +3822,7 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
 		int cpu;
 
 		for_each_possible_cpu(cpu) {
-			struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
+			struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu_slab, cpu);
 
 			if (!c || c->node < 0)
 				continue;
@@ -4353,7 +4247,7 @@ static int show_stat(struct kmem_cache *s, char *buf, enum stat_item si)
 		return -ENOMEM;
 
 	for_each_online_cpu(cpu) {
-		unsigned x = get_cpu_slab(s, cpu)->stat[si];
+		unsigned x = per_cpu_ptr(s->cpu_slab, cpu)->stat[si];
 
 		data[cpu] = x;
 		sum += x;
@@ -4376,7 +4270,7 @@ static void clear_stat(struct kmem_cache *s, enum stat_item si)
 	int cpu;
 
 	for_each_online_cpu(cpu)
-		get_cpu_slab(s, cpu)->stat[si] = 0;
+		per_cpu_ptr(s->cpu_slab, cpu)->stat[si] = 0;
 }
 
 #define STAT_ATTR(si, text) 					\
