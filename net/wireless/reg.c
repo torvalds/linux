@@ -40,6 +40,7 @@
 #include <net/cfg80211.h>
 #include "core.h"
 #include "reg.h"
+#include "regdb.h"
 #include "nl80211.h"
 
 /* Receipt of information from last regulatory request */
@@ -360,6 +361,98 @@ static bool country_ie_integrity_changes(u32 checksum)
 	return false;
 }
 
+static int reg_copy_regd(const struct ieee80211_regdomain **dst_regd,
+			 const struct ieee80211_regdomain *src_regd)
+{
+	struct ieee80211_regdomain *regd;
+	int size_of_regd = 0;
+	unsigned int i;
+
+	size_of_regd = sizeof(struct ieee80211_regdomain) +
+	  ((src_regd->n_reg_rules + 1) * sizeof(struct ieee80211_reg_rule));
+
+	regd = kzalloc(size_of_regd, GFP_KERNEL);
+	if (!regd)
+		return -ENOMEM;
+
+	memcpy(regd, src_regd, sizeof(struct ieee80211_regdomain));
+
+	for (i = 0; i < src_regd->n_reg_rules; i++)
+		memcpy(&regd->reg_rules[i], &src_regd->reg_rules[i],
+			sizeof(struct ieee80211_reg_rule));
+
+	*dst_regd = regd;
+	return 0;
+}
+
+#ifdef CONFIG_CFG80211_INTERNAL_REGDB
+struct reg_regdb_search_request {
+	char alpha2[2];
+	struct list_head list;
+};
+
+static LIST_HEAD(reg_regdb_search_list);
+static DEFINE_SPINLOCK(reg_regdb_search_lock);
+
+static void reg_regdb_search(struct work_struct *work)
+{
+	struct reg_regdb_search_request *request;
+	const struct ieee80211_regdomain *curdom, *regdom;
+	int i, r;
+
+	spin_lock(&reg_regdb_search_lock);
+	while (!list_empty(&reg_regdb_search_list)) {
+		request = list_first_entry(&reg_regdb_search_list,
+					   struct reg_regdb_search_request,
+					   list);
+		list_del(&request->list);
+
+		for (i=0; i<reg_regdb_size; i++) {
+			curdom = reg_regdb[i];
+
+			if (!memcmp(request->alpha2, curdom->alpha2, 2)) {
+				r = reg_copy_regd(&regdom, curdom);
+				if (r)
+					break;
+				spin_unlock(&reg_regdb_search_lock);
+				mutex_lock(&cfg80211_mutex);
+				set_regdom(regdom);
+				mutex_unlock(&cfg80211_mutex);
+				spin_lock(&reg_regdb_search_lock);
+				break;
+			}
+		}
+
+		kfree(request);
+	}
+	spin_unlock(&reg_regdb_search_lock);
+}
+
+static DECLARE_WORK(reg_regdb_work, reg_regdb_search);
+
+static void reg_regdb_query(const char *alpha2)
+{
+	struct reg_regdb_search_request *request;
+
+	if (!alpha2)
+		return;
+
+	request = kzalloc(sizeof(struct reg_regdb_search_request), GFP_KERNEL);
+	if (!request)
+		return;
+
+	memcpy(request->alpha2, alpha2, 2);
+
+	spin_lock(&reg_regdb_search_lock);
+	list_add_tail(&request->list, &reg_regdb_search_list);
+	spin_unlock(&reg_regdb_search_lock);
+
+	schedule_work(&reg_regdb_work);
+}
+#else
+static inline void reg_regdb_query(const char *alpha2) {}
+#endif /* CONFIG_CFG80211_INTERNAL_REGDB */
+
 /*
  * This lets us keep regulatory code which is updated on a regulatory
  * basis in userspace.
@@ -378,6 +471,9 @@ static int call_crda(const char *alpha2)
 	else
 		printk(KERN_INFO "cfg80211: Calling CRDA to update world "
 			"regulatory domain\n");
+
+	/* query internal regulatory database (if it exists) */
+	reg_regdb_query(alpha2);
 
 	country_env[8] = alpha2[0];
 	country_env[9] = alpha2[1];
@@ -1366,30 +1462,6 @@ void wiphy_apply_custom_regulatory(struct wiphy *wiphy,
 	WARN_ON(!bands_set);
 }
 EXPORT_SYMBOL(wiphy_apply_custom_regulatory);
-
-static int reg_copy_regd(const struct ieee80211_regdomain **dst_regd,
-			 const struct ieee80211_regdomain *src_regd)
-{
-	struct ieee80211_regdomain *regd;
-	int size_of_regd = 0;
-	unsigned int i;
-
-	size_of_regd = sizeof(struct ieee80211_regdomain) +
-	  ((src_regd->n_reg_rules + 1) * sizeof(struct ieee80211_reg_rule));
-
-	regd = kzalloc(size_of_regd, GFP_KERNEL);
-	if (!regd)
-		return -ENOMEM;
-
-	memcpy(regd, src_regd, sizeof(struct ieee80211_regdomain));
-
-	for (i = 0; i < src_regd->n_reg_rules; i++)
-		memcpy(&regd->reg_rules[i], &src_regd->reg_rules[i],
-			sizeof(struct ieee80211_reg_rule));
-
-	*dst_regd = regd;
-	return 0;
-}
 
 /*
  * Return value which can be used by ignore_request() to indicate
