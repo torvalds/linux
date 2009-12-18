@@ -1230,21 +1230,20 @@ static void slic_init_cleanup(struct adapter *adapter)
 static struct net_device_stats *slic_get_stats(struct net_device *dev)
 {
 	struct adapter *adapter = netdev_priv(dev);
-	struct net_device_stats *stats;
 
 	ASSERT(adapter);
-	stats = &adapter->stats;
-	stats->collisions = adapter->slic_stats.iface.xmit_collisions;
-	stats->rx_errors = adapter->slic_stats.iface.rcv_errors;
-	stats->tx_errors = adapter->slic_stats.iface.xmt_errors;
-	stats->rx_missed_errors = adapter->slic_stats.iface.rcv_discards;
-	stats->tx_heartbeat_errors = 0;
-	stats->tx_aborted_errors = 0;
-	stats->tx_window_errors = 0;
-	stats->tx_fifo_errors = 0;
-	stats->rx_frame_errors = 0;
-	stats->rx_length_errors = 0;
-	return &adapter->stats;
+	dev->stats.collisions = adapter->slic_stats.iface.xmit_collisions;
+	dev->stats.rx_errors = adapter->slic_stats.iface.rcv_errors;
+	dev->stats.tx_errors = adapter->slic_stats.iface.xmt_errors;
+	dev->stats.rx_missed_errors = adapter->slic_stats.iface.rcv_discards;
+	dev->stats.tx_heartbeat_errors = 0;
+	dev->stats.tx_aborted_errors = 0;
+	dev->stats.tx_window_errors = 0;
+	dev->stats.tx_fifo_errors = 0;
+	dev->stats.rx_frame_errors = 0;
+	dev->stats.rx_length_errors = 0;
+
+	return &dev->stats;
 }
 
 /*
