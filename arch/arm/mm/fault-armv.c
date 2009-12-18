@@ -149,9 +149,10 @@ make_coherent(struct address_space *mapping, struct vm_area_struct *vma, unsigne
  *
  * Note that the pte lock will be held.
  */
-void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
+void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr,
+	pte_t *ptep)
 {
-	unsigned long pfn = pte_pfn(pte);
+	unsigned long pfn = pte_pfn(*ptep);
 	struct address_space *mapping;
 	struct page *page;
 

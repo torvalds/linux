@@ -371,7 +371,7 @@ handle_tlbmiss(struct pt_regs *regs, unsigned long writeaccess,
 		local_flush_tlb_one(get_asid(), address & PAGE_MASK);
 #endif
 
-	update_mmu_cache(NULL, address, entry);
+	update_mmu_cache(NULL, address, pte);
 
 	return 0;
 }
