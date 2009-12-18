@@ -137,7 +137,7 @@ static void int_to_ext_kekl(struct tape3592_kekl *in,
 		out->type_on_tape = TAPE390_KEKL_TYPE_LABEL;
 	memcpy(out->label, in->label, sizeof(in->label));
 	EBCASC(out->label, sizeof(in->label));
-	strstrip(out->label);
+	strim(out->label);
 }
 
 static void int_to_ext_kekl_pair(struct tape3592_kekl_pair *in,
