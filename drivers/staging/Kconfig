@@ -87,8 +87,6 @@ source "drivers/staging/frontier/Kconfig"
 
 source "drivers/staging/dream/Kconfig"
 
-source "drivers/staging/dst/Kconfig"
-
 source "drivers/staging/pohmelfs/Kconfig"
 
 source "drivers/staging/b3dfg/Kconfig"
