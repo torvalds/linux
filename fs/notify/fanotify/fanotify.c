@@ -27,7 +27,9 @@ static bool should_merge(struct fsnotify_event *old, struct fsnotify_event *new)
 	return false;
 }
 
-static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
+static int fanotify_merge(struct list_head *list,
+			  struct fsnotify_event *event,
+			  void **arg)
 {
 	struct fsnotify_event_holder *test_holder;
 	struct fsnotify_event *test_event;
@@ -92,7 +94,7 @@ static int fanotify_handle_event(struct fsnotify_group *group, struct fsnotify_e
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
-	ret = fsnotify_add_notify_event(group, event, NULL, fanotify_merge);
+	ret = fsnotify_add_notify_event(group, event, NULL, fanotify_merge, NULL);
 	/* -EEXIST means this event was merged with another, not that it was an error */
 	if (ret == -EEXIST)
 		ret = 0;

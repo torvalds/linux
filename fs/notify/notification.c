@@ -137,7 +137,10 @@ struct fsnotify_event_private_data *fsnotify_remove_priv_from_event(struct fsnot
  */
 int fsnotify_add_notify_event(struct fsnotify_group *group, struct fsnotify_event *event,
 			      struct fsnotify_event_private_data *priv,
-			      int (*merge)(struct list_head *, struct fsnotify_event *))
+			      int (*merge)(struct list_head *,
+					   struct fsnotify_event *,
+					   void **arg),
+			      void **arg)
 {
 	struct fsnotify_event_holder *holder = NULL;
 	struct list_head *list = &group->notification_list;
@@ -170,7 +173,7 @@ alloc_holder:
 	if (!list_empty(list) && merge) {
 		int ret;
 
-		ret = merge(list, event);
+		ret = merge(list, event, arg);
 		if (ret) {
 			mutex_unlock(&group->notification_mutex);
 			if (holder != &event->holder)

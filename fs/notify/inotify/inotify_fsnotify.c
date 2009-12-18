@@ -67,7 +67,9 @@ static bool event_compare(struct fsnotify_event *old, struct fsnotify_event *new
 	return false;
 }
 
-static int inotify_merge(struct list_head *list, struct fsnotify_event *event)
+static int inotify_merge(struct list_head *list,
+			 struct fsnotify_event *event,
+			 void **arg)
 {
 	struct fsnotify_event_holder *last_holder;
 	struct fsnotify_event *last_event;
@@ -114,7 +116,7 @@ static int inotify_handle_event(struct fsnotify_group *group, struct fsnotify_ev
 	fsn_event_priv->group = group;
 	event_priv->wd = wd;
 
-	ret = fsnotify_add_notify_event(group, event, fsn_event_priv, inotify_merge);
+	ret = fsnotify_add_notify_event(group, event, fsn_event_priv, inotify_merge, NULL);
 	if (ret) {
 		inotify_free_event_priv(fsn_event_priv);
 		/* EEXIST says we tail matched, EOVERFLOW isn't something
