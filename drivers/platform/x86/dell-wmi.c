@@ -325,37 +325,34 @@ static int __init dell_wmi_init(void)
 	int err;
 
 	if (wmi_has_guid(DELL_EVENT_GUID)) {
-
-		dmi_walk(find_hk_type, NULL);
-
-		err = dell_wmi_input_setup();
-
-		if (err)
-			return err;
-
-		err = wmi_install_notify_handler(DELL_EVENT_GUID,
-						 dell_wmi_notify, NULL);
-		if (err) {
-			input_unregister_device(dell_wmi_input_dev);
-			printk(KERN_ERR "dell-wmi: Unable to register"
-			       " notify handler - %d\n", err);
-			return err;
-		}
-
-		acpi_video = acpi_video_backlight_support();
-
-	} else
 		printk(KERN_WARNING "dell-wmi: No known WMI GUID found\n");
+		return -ENODEV;
+	}
+
+	dmi_walk(find_hk_type, NULL);
+	acpi_video = acpi_video_backlight_support();
+
+	err = dell_wmi_input_setup();
+	if (err)
+		return err;
+
+	err = wmi_install_notify_handler(DELL_EVENT_GUID,
+					 dell_wmi_notify, NULL);
+	if (err) {
+		input_unregister_device(dell_wmi_input_dev);
+		printk(KERN_ERR
+			"dell-wmi: Unable to register notify handler - %d\n",
+			err);
+		return err;
+	}
 
 	return 0;
 }
 
 static void __exit dell_wmi_exit(void)
 {
-	if (wmi_has_guid(DELL_EVENT_GUID)) {
-		wmi_remove_notify_handler(DELL_EVENT_GUID);
-		input_unregister_device(dell_wmi_input_dev);
-	}
+	wmi_remove_notify_handler(DELL_EVENT_GUID);
+	input_unregister_device(dell_wmi_input_dev);
 }
 
 module_init(dell_wmi_init);
