@@ -6,6 +6,45 @@
 
 #include "fanotify.h"
 
+static bool should_merge(struct fsnotify_event *old, struct fsnotify_event *new)
+{
+	pr_debug("%s: old=%p new=%p\n", __func__, old, new);
+
+	if ((old->mask == new->mask) &&
+	    (old->to_tell == new->to_tell) &&
+	    (old->data_type == new->data_type)) {
+		switch (old->data_type) {
+		case (FSNOTIFY_EVENT_PATH):
+			if ((old->path.mnt == new->path.mnt) &&
+			    (old->path.dentry == new->path.dentry))
+				return true;
+		case (FSNOTIFY_EVENT_NONE):
+			return true;
+		default:
+			BUG();
+		};
+	}
+	return false;
+}
+
+static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
+{
+	struct fsnotify_event_holder *holder;
+	struct fsnotify_event *test_event;
+
+	pr_debug("%s: list=%p event=%p\n", __func__, list, event);
+
+	/* and the list better be locked by something too! */
+
+	list_for_each_entry_reverse(holder, list, event_list) {
+		test_event = holder->event;
+		if (should_merge(test_event, event))
+			return -EEXIST;
+	}
+
+	return 0;
+}
+
 static int fanotify_handle_event(struct fsnotify_group *group, struct fsnotify_event *event)
 {
 	int ret;
@@ -21,8 +60,10 @@ static int fanotify_handle_event(struct fsnotify_group *group, struct fsnotify_e
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
-	ret = fsnotify_add_notify_event(group, event, NULL, NULL);
-
+	ret = fsnotify_add_notify_event(group, event, NULL, fanotify_merge);
+	/* -EEXIST means this event was merged with another, not that it was an error */
+	if (ret == -EEXIST)
+		ret = 0;
 	return ret;
 }
 
