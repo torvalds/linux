@@ -10,8 +10,7 @@ static bool should_merge(struct fsnotify_event *old, struct fsnotify_event *new)
 {
 	pr_debug("%s: old=%p new=%p\n", __func__, old, new);
 
-	if ((old->mask == new->mask) &&
-	    (old->to_tell == new->to_tell) &&
+	if ((old->to_tell == new->to_tell) &&
 	    (old->data_type == new->data_type)) {
 		switch (old->data_type) {
 		case (FSNOTIFY_EVENT_PATH):
@@ -29,20 +28,42 @@ static bool should_merge(struct fsnotify_event *old, struct fsnotify_event *new)
 
 static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 {
-	struct fsnotify_event_holder *holder;
+	struct fsnotify_event_holder *test_holder;
 	struct fsnotify_event *test_event;
+	struct fsnotify_event *new_event;
+	int ret = 0;
 
 	pr_debug("%s: list=%p event=%p\n", __func__, list, event);
 
 	/* and the list better be locked by something too! */
 
-	list_for_each_entry_reverse(holder, list, event_list) {
-		test_event = holder->event;
-		if (should_merge(test_event, event))
-			return -EEXIST;
-	}
+	list_for_each_entry_reverse(test_holder, list, event_list) {
+		test_event = test_holder->event;
+		if (should_merge(test_event, event)) {
+			ret = -EEXIST;
 
-	return 0;
+			/* if they are exactly the same we are done */
+			if (test_event->mask == event->mask)
+				goto out;
+
+			/* can't allocate memory, merge was no possible */
+			new_event = fsnotify_clone_event(test_event);
+			if (unlikely(!new_event)) {
+				ret = 0;
+				goto out;
+			}
+
+			/* build new event and replace it on the list */
+			new_event->mask = (test_event->mask | event->mask);
+			fsnotify_replace_event(test_holder, new_event);
+			/* match ref from fsnotify_clone_event() */
+			fsnotify_put_event(new_event);
+
+			break;
+		}
+	}
+out:
+	return ret;
 }
 
 static int fanotify_handle_event(struct fsnotify_group *group, struct fsnotify_event *event)
