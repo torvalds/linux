@@ -271,6 +271,7 @@ struct fsnotify_mark {
 #define FSNOTIFY_MARK_FLAG_INODE		0x01
 #define FSNOTIFY_MARK_FLAG_VFSMOUNT		0x02
 #define FSNOTIFY_MARK_FLAG_OBJECT_PINNED	0x04
+#define FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY	0x08
 	unsigned int flags;		/* vfsmount or inode mark? */
 	void (*free_mark)(struct fsnotify_mark *mark); /* called on final put+free */
 };

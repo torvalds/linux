@@ -148,7 +148,8 @@ void __fsnotify_flush_ignored_mask(struct inode *inode, void *data, int data_is)
 	if (!hlist_empty(&inode->i_fsnotify_marks)) {
 		spin_lock(&inode->i_lock);
 		hlist_for_each_entry(mark, node, &inode->i_fsnotify_marks, i.i_list) {
-			mark->ignored_mask = 0;
+			if (!(mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY))
+				mark->ignored_mask = 0;
 		}
 		spin_unlock(&inode->i_lock);
 	}
@@ -160,7 +161,8 @@ void __fsnotify_flush_ignored_mask(struct inode *inode, void *data, int data_is)
 		if (mnt && !hlist_empty(&mnt->mnt_fsnotify_marks)) {
 			spin_lock(&mnt->mnt_root->d_lock);
 			hlist_for_each_entry(mark, node, &mnt->mnt_fsnotify_marks, m.m_list) {
-				mark->ignored_mask = 0;
+				if (!(mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY))
+					mark->ignored_mask = 0;
 			}
 			spin_unlock(&mnt->mnt_root->d_lock);
 		}
