@@ -60,12 +60,6 @@
 
 #define FS_MOVE			(FS_MOVED_FROM | FS_MOVED_TO)
 
-/* listeners that hard code group numbers near the top */
-#define DNOTIFY_GROUP_NUM	UINT_MAX
-#define AUDIT_WATCH_GROUP_NUM	(DNOTIFY_GROUP_NUM-1)
-#define AUDIT_TREE_GROUP_NUM	(AUDIT_WATCH_GROUP_NUM-1)
-#define INOTIFY_GROUP_NUM	(AUDIT_TREE_GROUP_NUM-1)
-
 struct fsnotify_group;
 struct fsnotify_event;
 struct fsnotify_mark_entry;
@@ -124,7 +118,6 @@ struct fsnotify_group {
 	 * closed.
 	 */
 	atomic_t refcnt;		/* things with interest in this group */
-	unsigned int group_num;		/* simply prevents accidental group collision */
 
 	const struct fsnotify_ops *ops;	/* how this group handles things */
 
@@ -312,8 +305,7 @@ static inline void __fsnotify_d_instantiate(struct dentry *dentry, struct inode 
 /* must call when a group changes its ->mask */
 extern void fsnotify_recalc_global_mask(void);
 /* get a reference to an existing or create a new group */
-extern struct fsnotify_group *fsnotify_obtain_group(unsigned int group_num,
-						    __u32 mask,
+extern struct fsnotify_group *fsnotify_obtain_group(__u32 mask,
 						    const struct fsnotify_ops *ops);
 /* run all marks associated with this group and update group->mask */
 extern void fsnotify_recalc_group_mask(struct fsnotify_group *group);

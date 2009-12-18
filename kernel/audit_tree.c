@@ -937,8 +937,7 @@ static int __init audit_tree_init(void)
 {
 	int i;
 
-	audit_tree_group = fsnotify_obtain_group(AUDIT_TREE_GROUP_NUM,
-						 0, &audit_tree_ops);
+	audit_tree_group = fsnotify_obtain_group(0, &audit_tree_ops);
 	if (IS_ERR(audit_tree_group))
 		audit_panic("cannot initialize fsnotify group for rectree watches");
 
