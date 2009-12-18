@@ -584,4 +584,4 @@ static int __init audit_watch_init(void)
 	}
 	return 0;
 }
-subsys_initcall(audit_watch_init);
+device_initcall(audit_watch_init);
