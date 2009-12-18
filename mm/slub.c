@@ -2092,7 +2092,7 @@ static inline int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
 {
 	int cpu;
 
-	if (s < kmalloc_caches + SLUB_PAGE_SHIFT && s >= kmalloc_caches)
+	if (s < kmalloc_caches + KMALLOC_CACHES && s >= kmalloc_caches)
 		/*
 		 * Boot time creation of the kmalloc array. Use static per cpu data
 		 * since the per cpu allocator is not available yet.
@@ -2539,7 +2539,7 @@ EXPORT_SYMBOL(kmem_cache_destroy);
  *		Kmalloc subsystem
  *******************************************************************/
 
-struct kmem_cache kmalloc_caches[SLUB_PAGE_SHIFT] __cacheline_aligned;
+struct kmem_cache kmalloc_caches[KMALLOC_CACHES] __cacheline_aligned;
 EXPORT_SYMBOL(kmalloc_caches);
 
 static int __init setup_slub_min_order(char *str)
@@ -2629,6 +2629,7 @@ static noinline struct kmem_cache *dma_kmalloc_cache(int index, gfp_t flags)
 	char *text;
 	size_t realsize;
 	unsigned long slabflags;
+	int i;
 
 	s = kmalloc_caches_dma[index];
 	if (s)
@@ -2649,18 +2650,13 @@ static noinline struct kmem_cache *dma_kmalloc_cache(int index, gfp_t flags)
 	text = kasprintf(flags & ~SLUB_DMA, "kmalloc_dma-%d",
 			 (unsigned int)realsize);
 
-	if (flags & __GFP_WAIT)
-		s = kmalloc(kmem_size, flags & ~SLUB_DMA);
-	else {
-		int i;
+	s = NULL;
+	for (i = 0; i < KMALLOC_CACHES; i++)
+		if (!kmalloc_caches[i].size)
+			break;
 
-		s = NULL;
-		for (i = 0; i < SLUB_PAGE_SHIFT; i++)
-			if (kmalloc_caches[i].size) {
-				s = kmalloc_caches + i;
-				break;
-			}
-	}
+	BUG_ON(i >= KMALLOC_CACHES);
+	s = kmalloc_caches + i;
 
 	/*
 	 * Must defer sysfs creation to a workqueue because we don't know
@@ -2674,7 +2670,7 @@ static noinline struct kmem_cache *dma_kmalloc_cache(int index, gfp_t flags)
 
 	if (!s || !text || !kmem_cache_open(s, flags, text,
 			realsize, ARCH_KMALLOC_MINALIGN, slabflags, NULL)) {
-		kfree(s);
+		s->size = 0;
 		kfree(text);
 		goto unlock_out;
 	}

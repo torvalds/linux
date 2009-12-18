@@ -131,11 +131,21 @@ struct kmem_cache {
 
 #define SLUB_PAGE_SHIFT (PAGE_SHIFT + 2)
 
+#ifdef CONFIG_ZONE_DMA
+#define SLUB_DMA __GFP_DMA
+/* Reserve extra caches for potential DMA use */
+#define KMALLOC_CACHES (2 * SLUB_PAGE_SHIFT - 6)
+#else
+/* Disable DMA functionality */
+#define SLUB_DMA (__force gfp_t)0
+#define KMALLOC_CACHES SLUB_PAGE_SHIFT
+#endif
+
 /*
  * We keep the general caches in an array of slab caches that are used for
  * 2^x bytes of allocations.
  */
-extern struct kmem_cache kmalloc_caches[SLUB_PAGE_SHIFT];
+extern struct kmem_cache kmalloc_caches[KMALLOC_CACHES];
 
 /*
  * Sorry that the following has to be that ugly but some versions of GCC
@@ -202,13 +212,6 @@ static __always_inline struct kmem_cache *kmalloc_slab(size_t size)
 
 	return &kmalloc_caches[index];
 }
-
-#ifdef CONFIG_ZONE_DMA
-#define SLUB_DMA __GFP_DMA
-#else
-/* Disable DMA functionality */
-#define SLUB_DMA (__force gfp_t)0
-#endif
 
 void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
 void *__kmalloc(size_t size, gfp_t flags);
