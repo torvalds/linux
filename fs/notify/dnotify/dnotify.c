@@ -133,8 +133,8 @@ static int dnotify_handle_event(struct fsnotify_group *group,
  * userspace notification for that pair.
  */
 static bool dnotify_should_send_event(struct fsnotify_group *group,
-				      struct inode *inode, __u32 mask,
-				      void *data, int data_type)
+				      struct inode *inode, struct vfsmount *mnt,
+				      __u32 mask, void *data, int data_type)
 {
 	struct fsnotify_mark_entry *entry;
 	bool send;
