@@ -1171,7 +1171,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 						      1);
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.tv_std_property,
-						      1);
+						      radeon_atombios_get_tv_info(rdev));
 		}
 		break;
 	case DRM_MODE_CONNECTOR_LVDS:
@@ -1315,7 +1315,7 @@ radeon_add_legacy_connector(struct drm_device *dev,
 						      1);
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.tv_std_property,
-						      1);
+						      radeon_combios_get_tv_info(rdev));
 		}
 		break;
 	case DRM_MODE_CONNECTOR_LVDS:
