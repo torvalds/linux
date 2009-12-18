@@ -59,6 +59,7 @@ struct ceph_mount_args {
 	int wsize;
 	int rsize;            /* max readahead */
 	int max_readdir;      /* max readdir size */
+	int congestion_kb;      /* max readdir size */
 	int osd_timeout;
 	char *snapdir_name;   /* default ".snap" */
 	char *name;
@@ -136,6 +137,7 @@ struct ceph_client {
 	struct workqueue_struct *wb_wq;
 	struct workqueue_struct *pg_inv_wq;
 	struct workqueue_struct *trunc_wq;
+	atomic_long_t writeback_count;
 
 	struct backing_dev_info backing_dev_info;
 
@@ -143,6 +145,7 @@ struct ceph_client {
 	struct dentry *debugfs_monmap;
 	struct dentry *debugfs_mdsmap, *debugfs_osdmap;
 	struct dentry *debugfs_dir, *debugfs_dentry_lru, *debugfs_caps;
+	struct dentry *debugfs_congestion_kb;
 	struct dentry *debugfs_bdi;
 #endif
 };

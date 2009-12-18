@@ -320,6 +320,30 @@ DEFINE_SHOW_FUNC(osdc_show)
 DEFINE_SHOW_FUNC(dentry_lru_show)
 DEFINE_SHOW_FUNC(caps_show)
 
+static int congestion_kb_set(void *data, u64 val)
+{
+	struct ceph_client *client = (struct ceph_client *)data;
+
+	if (client)
+		client->mount_args->congestion_kb = (int)val;
+
+	return 0;
+}
+
+static int congestion_kb_get(void *data, u64 *val)
+{
+	struct ceph_client *client = (struct ceph_client *)data;
+
+	if (client)
+		*val = (u64)client->mount_args->congestion_kb;
+
+	return 0;
+}
+
+
+DEFINE_SIMPLE_ATTRIBUTE(congestion_kb_fops, congestion_kb_get,
+			congestion_kb_set, "%llu\n");
+
 int __init ceph_debugfs_init(void)
 {
 	ceph_debugfs_dir = debugfs_create_dir("ceph", NULL);
@@ -409,6 +433,14 @@ int ceph_debugfs_client_init(struct ceph_client *client)
 	if (!client->debugfs_caps)
 		goto out;
 
+	client->debugfs_congestion_kb = debugfs_create_file("writeback_congestion_kb",
+						   0600,
+						   client->debugfs_dir,
+						   client,
+						   &congestion_kb_fops);
+	if (!client->debugfs_congestion_kb)
+		goto out;
+
 	sprintf(name, "../../bdi/%s", dev_name(client->sb->s_bdi->dev));
 	client->debugfs_bdi = debugfs_create_symlink("bdi", client->debugfs_dir,
 						     name);
@@ -431,6 +463,7 @@ void ceph_debugfs_client_cleanup(struct ceph_client *client)
 	debugfs_remove(client->osdc.debugfs_file);
 	debugfs_remove(client->mdsc.debugfs_file);
 	debugfs_remove(client->monc.debugfs_file);
+	debugfs_remove(client->debugfs_congestion_kb);
 	debugfs_remove(client->debugfs_dir);
 }
 

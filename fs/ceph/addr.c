@@ -47,6 +47,12 @@
  * accounting is preserved.
  */
 
+#define CONGESTION_ON_THRESH(congestion_kb) (congestion_kb >> (PAGE_SHIFT-10))
+#define CONGESTION_OFF_THRESH(congestion_kb)				\
+	(CONGESTION_ON_THRESH(congestion_kb) -				\
+	 (CONGESTION_ON_THRESH(congestion_kb) >> 2))
+
+
 
 /*
  * Dirty a page.  Optimistically adjust accounting, on the assumption
@@ -377,6 +383,7 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 {
 	struct inode *inode;
 	struct ceph_inode_info *ci;
+	struct ceph_client *client;
 	struct ceph_osd_client *osdc;
 	loff_t page_off = page->index << PAGE_CACHE_SHIFT;
 	int len = PAGE_CACHE_SIZE;
@@ -384,6 +391,7 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	int err = 0;
 	struct ceph_snap_context *snapc;
 	u64 snap_size = 0;
+	long writeback_stat;
 
 	dout("writepage %p idx %lu\n", page, page->index);
 
@@ -393,7 +401,8 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	}
 	inode = page->mapping->host;
 	ci = ceph_inode(inode);
-	osdc = &ceph_inode_to_client(inode)->osdc;
+	client = ceph_inode_to_client(inode);
+	osdc = &client->osdc;
 
 	/* verify this is a writeable snap context */
 	snapc = (void *)page->private;
@@ -419,6 +428,11 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 
 	dout("writepage %p page %p index %lu on %llu~%u\n",
 	     inode, page, page->index, page_off, len);
+
+	writeback_stat = atomic_long_inc_return(&client->writeback_count);
+	if (writeback_stat >
+	    CONGESTION_ON_THRESH(client->mount_args->congestion_kb))
+		set_bdi_congested(&client->backing_dev_info, BLK_RW_ASYNC);
 
 	set_page_writeback(page);
 	err = ceph_osdc_writepages(osdc, ceph_vino(inode),
@@ -499,6 +513,8 @@ static void writepages_finish(struct ceph_osd_request *req,
 	struct writeback_control *wbc = req->r_wbc;
 	__s32 rc = -EIO;
 	u64 bytes = 0;
+	struct ceph_client *client = ceph_inode_to_client(inode);
+	long writeback_stat;
 
 	/* parse reply */
 	replyhead = msg->front.iov_base;
@@ -523,6 +539,13 @@ static void writepages_finish(struct ceph_osd_request *req,
 		page = req->r_pages[i];
 		BUG_ON(!page);
 		WARN_ON(!PageUptodate(page));
+
+		writeback_stat =
+			atomic_long_dec_return(&client->writeback_count);
+		if (writeback_stat <
+		    CONGESTION_OFF_THRESH(client->mount_args->congestion_kb))
+			clear_bdi_congested(&client->backing_dev_info,
+					    BLK_RW_ASYNC);
 
 		if (i >= wrote) {
 			dout("inode %p skipping page %p\n", inode, page);
@@ -666,6 +689,7 @@ retry:
 		u64 offset, len;
 		struct ceph_osd_request_head *reqhead;
 		struct ceph_osd_op *op;
+		long writeback_stat;
 
 		next = 0;
 		locked_pages = 0;
@@ -773,6 +797,12 @@ get_more_pages:
 				first = i;
 			dout("%p will write page %p idx %lu\n",
 			     inode, page, page->index);
+
+			writeback_stat = atomic_long_inc_return(&client->writeback_count);
+			if (writeback_stat > CONGESTION_ON_THRESH(client->mount_args->congestion_kb)) {
+				set_bdi_congested(&client->backing_dev_info, BLK_RW_ASYNC);
+			}
+
 			set_page_writeback(page);
 			req->r_pages[locked_pages] = page;
 			locked_pages++;
@@ -998,7 +1028,8 @@ static int ceph_write_end(struct file *file, struct address_space *mapping,
 			  struct page *page, void *fsdata)
 {
 	struct inode *inode = file->f_dentry->d_inode;
-	struct ceph_mds_client *mdsc = &ceph_inode_to_client(inode)->mdsc;
+	struct ceph_client *client = ceph_inode_to_client(inode);
+	struct ceph_mds_client *mdsc = &client->mdsc;
 	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
 	int check_cap = 0;
 

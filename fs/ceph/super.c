@@ -150,6 +150,35 @@ static void ceph_inode_init_once(void *foo)
 	inode_init_once(&ci->vfs_inode);
 }
 
+static int default_congestion_kb(void)
+{
+	int congestion_kb;
+
+	/*
+	 * Copied from NFS
+	 *
+	 * congestion size, scale with available memory.
+	 *
+	 *  64MB:    8192k
+	 * 128MB:   11585k
+	 * 256MB:   16384k
+	 * 512MB:   23170k
+	 *   1GB:   32768k
+	 *   2GB:   46340k
+	 *   4GB:   65536k
+	 *   8GB:   92681k
+	 *  16GB:  131072k
+	 *
+	 * This allows larger machines to have larger/more transfers.
+	 * Limit the default to 256M
+	 */
+	congestion_kb = (16*int_sqrt(totalram_pages)) << (PAGE_SHIFT-10);
+	if (congestion_kb > 256*1024)
+		congestion_kb = 256*1024;
+
+	return congestion_kb;
+}
+
 static int __init init_caches(void)
 {
 	ceph_inode_cachep = kmem_cache_create("ceph_inode_info",
@@ -267,6 +296,7 @@ enum {
 	Opt_caps_wanted_delay_min,
 	Opt_caps_wanted_delay_max,
 	Opt_readdir_max_entries,
+	Opt_congestion_kb,
 	Opt_last_int,
 	/* int args above */
 	Opt_snapdirname,
@@ -295,6 +325,7 @@ static match_table_t arg_tokens = {
 	{Opt_caps_wanted_delay_min, "caps_wanted_delay_min=%d"},
 	{Opt_caps_wanted_delay_max, "caps_wanted_delay_max=%d"},
 	{Opt_readdir_max_entries, "readdir_max_entries=%d"},
+	{Opt_congestion_kb, "write_congestion_kb=%d"},
 	/* int args above */
 	{Opt_snapdirname, "snapdirname=%s"},
 	{Opt_name, "name=%s"},
@@ -342,6 +373,7 @@ static struct ceph_mount_args *parse_mount_args(int flags, char *options,
 	args->snapdir_name = kstrdup(CEPH_SNAPDIRNAME_DEFAULT, GFP_KERNEL);
 	args->cap_release_safety = CEPH_CAPS_PER_RELEASE * 4;
 	args->max_readdir = 1024;
+	args->congestion_kb = default_congestion_kb();
 
 	/* ip1[:port1][,ip2[:port2]...]:/subdir/in/fs */
 	err = -EINVAL;
@@ -445,6 +477,9 @@ static struct ceph_mount_args *parse_mount_args(int flags, char *options,
 		case Opt_readdir_max_entries:
 			args->max_readdir = intval;
 			break;
+		case Opt_congestion_kb:
+			args->congestion_kb = intval;
+			break;
 
 		case Opt_noshare:
 			args->flags |= CEPH_OPT_NOSHARE;
@@ -516,6 +551,7 @@ static struct ceph_client *ceph_create_client(struct ceph_mount_args *args)
 	client->msgr = NULL;
 
 	client->mount_err = 0;
+	atomic_long_set(&client->writeback_count, 0);
 
 	err = bdi_init(&client->backing_dev_info);
 	if (err < 0)
