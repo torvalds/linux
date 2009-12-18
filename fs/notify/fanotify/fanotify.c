@@ -2,9 +2,12 @@
 #include <linux/fdtable.h>
 #include <linux/fsnotify_backend.h>
 #include <linux/init.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h> /* UINT_MAX */
 #include <linux/mount.h>
+#include <linux/sched.h>
 #include <linux/types.h>
+#include <linux/wait.h>
 
 static bool should_merge(struct fsnotify_event *old, struct fsnotify_event *new)
 {
@@ -88,10 +91,37 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+static int fanotify_get_response_from_access(struct fsnotify_group *group,
+					     struct fsnotify_event *event)
+{
+	int ret;
+
+	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
+
+	wait_event(group->fanotify_data.access_waitq, event->response);
+
+	/* userspace responded, convert to something usable */
+	spin_lock(&event->lock);
+	switch (event->response) {
+	case FAN_ALLOW:
+		ret = 0;
+		break;
+	case FAN_DENY:
+	default:
+		ret = -EPERM;
+	}
+	event->response = 0;
+	spin_unlock(&event->lock);
+
+	return ret;
+}
+#endif
+
 static int fanotify_handle_event(struct fsnotify_group *group, struct fsnotify_event *event)
 {
 	int ret;
-	struct fsnotify_event *used_event;
+	struct fsnotify_event *notify_event = NULL;
 
 	BUILD_BUG_ON(FAN_ACCESS != FS_ACCESS);
 	BUILD_BUG_ON(FAN_MODIFY != FS_MODIFY);
@@ -100,15 +130,31 @@ static int fanotify_handle_event(struct fsnotify_group *group, struct fsnotify_e
 	BUILD_BUG_ON(FAN_OPEN != FS_OPEN);
 	BUILD_BUG_ON(FAN_EVENT_ON_CHILD != FS_EVENT_ON_CHILD);
 	BUILD_BUG_ON(FAN_Q_OVERFLOW != FS_Q_OVERFLOW);
+	BUILD_BUG_ON(FAN_OPEN_PERM != FS_OPEN_PERM);
+	BUILD_BUG_ON(FAN_ACCESS_PERM != FS_ACCESS_PERM);
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
-	ret = fsnotify_add_notify_event(group, event, NULL, fanotify_merge, (void **)&used_event);
+	ret = fsnotify_add_notify_event(group, event, NULL, fanotify_merge,
+					(void **)&notify_event);
 	/* -EEXIST means this event was merged with another, not that it was an error */
 	if (ret == -EEXIST)
 		ret = 0;
-	if (used_event)
-		fsnotify_put_event(used_event);
+	if (ret)
+		goto out;
+
+#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+	if (event->mask & FAN_ALL_PERM_EVENTS) {
+		/* if we merged we need to wait on the new event */
+		if (notify_event)
+			event = notify_event;
+		ret = fanotify_get_response_from_access(group, event);
+	}
+#endif
+
+out:
+	if (notify_event)
+		fsnotify_put_event(notify_event);
 	return ret;
 }
 

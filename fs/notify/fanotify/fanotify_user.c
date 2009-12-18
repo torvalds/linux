@@ -482,6 +482,11 @@ SYSCALL_DEFINE3(fanotify_init, unsigned int, flags, unsigned int, event_f_flags,
 		return PTR_ERR(group);
 
 	group->priority = priority;
+#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+	mutex_init(&group->fanotify_data.access_mutex);
+	init_waitqueue_head(&group->fanotify_data.access_waitq);
+	INIT_LIST_HEAD(&group->fanotify_data.access_list);
+#endif
 
 	fd = anon_inode_getfd("[fanotify]", &fanotify_fops, group, f_flags);
 	if (fd < 0)

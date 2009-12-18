@@ -160,6 +160,14 @@ struct fsnotify_group {
 			struct user_struct      *user;
 		} inotify_data;
 #endif
+#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+		struct fanotify_group_private_data {
+			/* allows a group to block waiting for a userspace response */
+			struct mutex access_mutex;
+			struct list_head access_list;
+			wait_queue_head_t access_waitq;
+		} fanotify_data;
+#endif
 	};
 };
 
@@ -226,6 +234,10 @@ struct fsnotify_event {
 	const unsigned char *file_name;
 	size_t name_len;
 	struct pid *tgid;
+
+#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+	__u32 response;	/* userspace answer to question */
+#endif /* CONFIG_FANOTIFY_ACCESS_PERMISSIONS */
 
 	struct list_head private_data_list;	/* groups can store private data here */
 };

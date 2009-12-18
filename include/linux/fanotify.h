@@ -15,6 +15,9 @@
 /* FIXME currently Q's have no limit.... */
 #define FAN_Q_OVERFLOW		0x00004000	/* Event queued overflowed */
 
+#define FAN_OPEN_PERM		0x00010000	/* File open in perm check */
+#define FAN_ACCESS_PERM		0x00020000	/* File accessed in perm check */
+
 /* helper events */
 #define FAN_CLOSE		(FAN_CLOSE_WRITE | FAN_CLOSE_NOWRITE) /* close */
 
@@ -52,7 +55,14 @@
 			FAN_CLOSE |\
 			FAN_OPEN)
 
+/*
+ * All events which require a permission response from userspace
+ */
+#define FAN_ALL_PERM_EVENTS (FAN_OPEN_PERM |\
+			     FAN_ACCESS_PERM)
+
 #define FAN_ALL_OUTGOING_EVENTS	(FAN_ALL_EVENTS |\
+				 FAN_ALL_PERM_EVENTS |\
 				 FAN_Q_OVERFLOW)
 
 #define FANOTIFY_METADATA_VERSION	1
@@ -64,6 +74,10 @@ struct fanotify_event_metadata {
 	__u64 mask;
 	__s64 pid;
 } __attribute__ ((packed));
+
+/* Legit userspace responses to a _PERM event */
+#define FAN_ALLOW	0x01
+#define FAN_DENY	0x02
 
 /* Helper functions to deal with fanotify_event_metadata buffers */
 #define FAN_EVENT_METADATA_LEN (sizeof(struct fanotify_event_metadata))
@@ -78,5 +92,9 @@ struct fanotify_event_metadata {
 
 #ifdef __KERNEL__
 
+struct fanotify_wait {
+	struct fsnotify_event *event;
+	__s32 fd;
+};
 #endif /* __KERNEL__ */
 #endif /* _LINUX_FANOTIFY_H */
