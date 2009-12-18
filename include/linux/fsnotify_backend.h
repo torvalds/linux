@@ -363,13 +363,13 @@ extern struct fsnotify_event *fsnotify_remove_notify_event(struct fsnotify_group
 extern void fsnotify_recalc_inode_mask(struct inode *inode);
 extern void fsnotify_init_mark(struct fsnotify_mark *entry, void (*free_mark)(struct fsnotify_mark *entry));
 /* find (and take a reference) to a mark associated with group and inode */
-extern struct fsnotify_mark *fsnotify_find_mark_entry(struct fsnotify_group *group, struct inode *inode);
+extern struct fsnotify_mark *fsnotify_find_mark(struct fsnotify_group *group, struct inode *inode);
 /* copy the values from old into new */
 extern void fsnotify_duplicate_mark(struct fsnotify_mark *new, struct fsnotify_mark *old);
 /* attach the mark to both the group and the inode */
 extern int fsnotify_add_mark(struct fsnotify_mark *entry, struct fsnotify_group *group, struct inode *inode, int allow_dups);
 /* given a mark, flag it to be freed when all references are dropped */
-extern void fsnotify_destroy_mark_by_entry(struct fsnotify_mark *entry);
+extern void fsnotify_destroy_mark(struct fsnotify_mark *entry);
 /* run all the marks in a group, and flag them to be freed */
 extern void fsnotify_clear_marks_by_group(struct fsnotify_group *group);
 extern void fsnotify_get_mark(struct fsnotify_mark *entry);

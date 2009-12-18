@@ -567,7 +567,7 @@ static int inotify_update_existing_watch(struct fsnotify_group *group,
 		return -EINVAL;
 
 	spin_lock(&inode->i_lock);
-	entry = fsnotify_find_mark_entry(group, inode);
+	entry = fsnotify_find_mark(group, inode);
 	spin_unlock(&inode->i_lock);
 	if (!entry)
 		return -ENOENT;
@@ -607,7 +607,7 @@ static int inotify_update_existing_watch(struct fsnotify_group *group,
 	/* return the wd */
 	ret = ientry->wd;
 
-	/* match the get from fsnotify_find_mark_entry() */
+	/* match the get from fsnotify_find_mark() */
 	fsnotify_put_mark(entry);
 
 	return ret;
@@ -823,7 +823,7 @@ SYSCALL_DEFINE2(inotify_rm_watch, int, fd, __s32, wd)
 
 	ret = 0;
 
-	fsnotify_destroy_mark_by_entry(&ientry->fsn_entry);
+	fsnotify_destroy_mark(&ientry->fsn_entry);
 
 	/* match ref taken by inotify_idr_find */
 	fsnotify_put_mark(&ientry->fsn_entry);

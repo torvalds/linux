@@ -96,7 +96,7 @@ static int dnotify_handle_event(struct fsnotify_group *group,
 	to_tell = event->to_tell;
 
 	spin_lock(&to_tell->i_lock);
-	entry = fsnotify_find_mark_entry(group, to_tell);
+	entry = fsnotify_find_mark(group, to_tell);
 	spin_unlock(&to_tell->i_lock);
 
 	/* unlikely since we alreay passed dnotify_should_send_event() */
@@ -148,7 +148,7 @@ static bool dnotify_should_send_event(struct fsnotify_group *group,
 		return false;
 
 	spin_lock(&inode->i_lock);
-	entry = fsnotify_find_mark_entry(group, inode);
+	entry = fsnotify_find_mark(group, inode);
 	spin_unlock(&inode->i_lock);
 
 	/* no mark means no dnotify watch */
@@ -158,7 +158,7 @@ static bool dnotify_should_send_event(struct fsnotify_group *group,
 	mask = (mask & ~FS_EVENT_ON_CHILD);
 	send = (mask & entry->mask);
 
-	fsnotify_put_mark(entry); /* matches fsnotify_find_mark_entry */
+	fsnotify_put_mark(entry); /* matches fsnotify_find_mark */
 
 	return send;
 }
@@ -202,7 +202,7 @@ void dnotify_flush(struct file *filp, fl_owner_t id)
 		return;
 
 	spin_lock(&inode->i_lock);
-	entry = fsnotify_find_mark_entry(dnotify_group, inode);
+	entry = fsnotify_find_mark(dnotify_group, inode);
 	spin_unlock(&inode->i_lock);
 	if (!entry)
 		return;
@@ -226,7 +226,7 @@ void dnotify_flush(struct file *filp, fl_owner_t id)
 
 	/* nothing else could have found us thanks to the dnotify_mark_mutex */
 	if (dnentry->dn == NULL)
-		fsnotify_destroy_mark_by_entry(entry);
+		fsnotify_destroy_mark(entry);
 
 	fsnotify_recalc_group_mask(dnotify_group);
 
@@ -357,7 +357,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 
 	/* add the new_entry or find an old one. */
 	spin_lock(&inode->i_lock);
-	entry = fsnotify_find_mark_entry(dnotify_group, inode);
+	entry = fsnotify_find_mark(dnotify_group, inode);
 	spin_unlock(&inode->i_lock);
 	if (entry) {
 		dnentry = container_of(entry, struct dnotify_mark_entry, fsn_entry);
@@ -414,7 +414,7 @@ out:
 	spin_unlock(&entry->lock);
 
 	if (destroy)
-		fsnotify_destroy_mark_by_entry(entry);
+		fsnotify_destroy_mark(entry);
 
 	fsnotify_recalc_group_mask(dnotify_group);
 

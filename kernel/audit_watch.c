@@ -102,7 +102,7 @@ static inline struct audit_parent *audit_find_parent(struct inode *inode)
 	struct fsnotify_mark *entry;
 
 	spin_lock(&inode->i_lock);
-	entry = fsnotify_find_mark_entry(audit_watch_group, inode);
+	entry = fsnotify_find_mark(audit_watch_group, inode);
 	spin_unlock(&inode->i_lock);
 
 	if (entry)
@@ -354,7 +354,7 @@ static void audit_remove_parent_watches(struct audit_parent *parent)
 	}
 	mutex_unlock(&audit_filter_mutex);
 
-	fsnotify_destroy_mark_by_entry(&parent->mark);
+	fsnotify_destroy_mark(&parent->mark);
 
 	fsnotify_recalc_group_mask(audit_watch_group);
 
@@ -504,7 +504,7 @@ void audit_remove_watch_rule(struct audit_krule *krule)
 
 		if (list_empty(&parent->watches)) {
 			audit_get_parent(parent);
-			fsnotify_destroy_mark_by_entry(&parent->mark);
+			fsnotify_destroy_mark(&parent->mark);
 			audit_put_parent(parent);
 		}
 	}
@@ -521,7 +521,7 @@ static bool audit_watch_should_send_event(struct fsnotify_group *group, struct i
 	bool send;
 
 	spin_lock(&inode->i_lock);
-	entry = fsnotify_find_mark_entry(group, inode);
+	entry = fsnotify_find_mark(group, inode);
 	spin_unlock(&inode->i_lock);
 	if (!entry)
 		return false;

@@ -56,7 +56,7 @@
  * - The inode is unlinked for the last time.  (fsnotify_inode_remove)
  * - The inode is being evicted from cache. (fsnotify_inode_delete)
  * - The fs the inode is on is unmounted.  (fsnotify_inode_delete/fsnotify_unmount_inodes)
- * - Something explicitly requests that it be removed.  (fsnotify_destroy_mark_by_entry)
+ * - Something explicitly requests that it be removed.  (fsnotify_destroy_mark)
  * - The fsnotify_group associated with the mark is going away and all such marks
  *   need to be cleaned up. (fsnotify_clear_marks_by_group)
  *
@@ -140,7 +140,7 @@ void fsnotify_recalc_inode_mask(struct inode *inode)
  * The caller had better be holding a reference to this mark so we don't actually
  * do the final put under the entry->lock
  */
-void fsnotify_destroy_mark_by_entry(struct fsnotify_mark *entry)
+void fsnotify_destroy_mark(struct fsnotify_mark *entry)
 {
 	struct fsnotify_group *group;
 	struct inode *inode;
@@ -233,7 +233,7 @@ void fsnotify_clear_marks_by_group(struct fsnotify_group *group)
 	spin_unlock(&group->mark_lock);
 
 	list_for_each_entry_safe(entry, lentry, &free_list, free_g_list) {
-		fsnotify_destroy_mark_by_entry(entry);
+		fsnotify_destroy_mark(entry);
 		fsnotify_put_mark(entry);
 	}
 }
@@ -256,7 +256,7 @@ void fsnotify_clear_marks_by_inode(struct inode *inode)
 	spin_unlock(&inode->i_lock);
 
 	list_for_each_entry_safe(entry, lentry, &free_list, i.free_i_list) {
-		fsnotify_destroy_mark_by_entry(entry);
+		fsnotify_destroy_mark(entry);
 		fsnotify_put_mark(entry);
 	}
 }
@@ -265,8 +265,8 @@ void fsnotify_clear_marks_by_inode(struct inode *inode)
  * given a group and inode, find the mark associated with that combination.
  * if found take a reference to that mark and return it, else return NULL
  */
-struct fsnotify_mark *fsnotify_find_mark_entry(struct fsnotify_group *group,
-					       struct inode *inode)
+struct fsnotify_mark *fsnotify_find_mark(struct fsnotify_group *group,
+					 struct inode *inode)
 {
 	struct fsnotify_mark *entry;
 	struct hlist_node *pos;
@@ -349,7 +349,7 @@ int fsnotify_add_mark(struct fsnotify_mark *entry,
 	spin_lock(&inode->i_lock);
 
 	if (!allow_dups)
-		lentry = fsnotify_find_mark_entry(group, inode);
+		lentry = fsnotify_find_mark(group, inode);
 	if (!lentry) {
 		entry->group = group;
 		entry->i.inode = inode;
