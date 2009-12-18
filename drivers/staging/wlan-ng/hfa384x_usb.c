@@ -52,7 +52,7 @@
 * around the register accesses.  The next higher level represents C-callable
 * prism2 API functions that match the Intersil documentation as closely
 * as is reasonable.  The next higher layer implements common sequences
-* of invokations of the API layer (e.g. write to bap, followed by cmd).
+* of invocations of the API layer (e.g. write to bap, followed by cmd).
 *
 * Common sequences:
 * hfa384x_drvr_xxx	Highest level abstractions provided by the
