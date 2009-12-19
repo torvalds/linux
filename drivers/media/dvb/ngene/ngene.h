@@ -25,8 +25,6 @@
 #define _NGENE_H_
 
 #define ONE_ADAPTER
-#define NGENE_COMMAND_API
-/*#define NGENE_V4L*/
 
 #include <linux/types.h>
 #include <linux/sched.h>
@@ -34,35 +32,14 @@
 #include <linux/i2c.h>
 #include <asm/dma.h>
 #include <asm/scatterlist.h>
-#include <sound/driver.h>
-#include <sound/core.h>
-#include <sound/initval.h>
-#include <sound/control.h>
-#include <sound/pcm.h>
-#include <sound/pcm_params.h>
 
 #include <linux/dvb/frontend.h>
-#include <linux/dvb/ca.h>
-#include <linux/dvb/video.h>
-#include <linux/dvb/audio.h>
 
 #include "dmxdev.h"
 #include "dvbdev.h"
 #include "dvb_demux.h"
 #include "dvb_frontend.h"
 #include "dvb_ringbuffer.h"
-#include "drxd.h"
-#include "drxh.h"
-#include "xc3028.h"
-#include "stb0899.h"
-#include "stv0900.h"
-#include "mt2060.h"
-
-#ifdef NGENE_V4L
-#include <media/v4l2-dev.h>
-#include <media/videobuf-core.h>
-#include <linux/videodev.h>
-#endif
 
 #define NGENE_VID       0x18c3
 #define NGENE_PID       0x0720
@@ -675,9 +652,6 @@ struct ngene_channel {
 #ifndef ONE_ADAPTER
 	struct dvb_adapter    dvb_adapter;
 #endif
-	struct dvb_device    *command_dev;
-	struct dvb_device    *audio_dev;
-	struct dvb_device    *video_dev;
 	struct tasklet_struct demux_tasklet;
 
 	struct SBufferHeader *nextBuffer;
@@ -715,7 +689,6 @@ struct ngene_channel {
 	struct mychip        *mychip;
 	struct snd_card      *soundcard;
 	u8                   *evenbuffer;
-	u8                   *soundbuffer;
 	u8                    dma_on;
 	int                   soundstreamon;
 	int                   audiomute;
@@ -887,8 +860,6 @@ struct ngene_info {
 	u8    lnb[4];
 	int   i2c_access;
 	u8    ntsc;
-	u8    exp;
-	u8    exp_init;
 	u8    tsf[4];
 	u8    i2s[4];
 
