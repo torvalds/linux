@@ -1506,36 +1506,36 @@ static int set_cmatrix(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 hue_coord, hue_index = 180 + sd->hue;
 	u8 cmatrix[21];
-	memset(cmatrix, 0, 21);
 
+	memset(cmatrix, 0, sizeof cmatrix);
 	cmatrix[2] = (sd->contrast * 0x25 / 0x100) + 0x26;
 	cmatrix[0] = 0x13 + (cmatrix[2] - 0x26) * 0x13 / 0x25;
 	cmatrix[4] = 0x07 + (cmatrix[2] - 0x26) * 0x07 / 0x25;
 	cmatrix[18] = sd->brightness - 0x80;
 
 	hue_coord = (hsv_red_x[hue_index] * sd->saturation) >> 8;
-	cmatrix[6] = (unsigned char)(hue_coord & 0xff);
-	cmatrix[7] = (unsigned char)((hue_coord >> 8) & 0x0f);
+	cmatrix[6] = hue_coord;
+	cmatrix[7] = (hue_coord >> 8) & 0x0f;
 
 	hue_coord = (hsv_red_y[hue_index] * sd->saturation) >> 8;
-	cmatrix[8] = (unsigned char)(hue_coord & 0xff);
-	cmatrix[9] = (unsigned char)((hue_coord >> 8) & 0x0f);
+	cmatrix[8] = hue_coord;
+	cmatrix[9] = (hue_coord >> 8) & 0x0f;
 
 	hue_coord = (hsv_green_x[hue_index] * sd->saturation) >> 8;
-	cmatrix[10] = (unsigned char)(hue_coord & 0xff);
-	cmatrix[11] = (unsigned char)((hue_coord >> 8) & 0x0f);
+	cmatrix[10] = hue_coord;
+	cmatrix[11] = (hue_coord >> 8) & 0x0f;
 
 	hue_coord = (hsv_green_y[hue_index] * sd->saturation) >> 8;
-	cmatrix[12] = (unsigned char)(hue_coord & 0xff);
-	cmatrix[13] = (unsigned char)((hue_coord >> 8) & 0x0f);
+	cmatrix[12] = hue_coord;
+	cmatrix[13] = (hue_coord >> 8) & 0x0f;
 
 	hue_coord = (hsv_blue_x[hue_index] * sd->saturation) >> 8;
-	cmatrix[14] = (unsigned char)(hue_coord & 0xff);
-	cmatrix[15] = (unsigned char)((hue_coord >> 8) & 0x0f);
+	cmatrix[14] = hue_coord;
+	cmatrix[15] = (hue_coord >> 8) & 0x0f;
 
 	hue_coord = (hsv_blue_y[hue_index] * sd->saturation) >> 8;
-	cmatrix[16] = (unsigned char)(hue_coord & 0xff);
-	cmatrix[17] = (unsigned char)((hue_coord >> 8) & 0x0f);
+	cmatrix[16] = hue_coord;
+	cmatrix[17] = (hue_coord >> 8) & 0x0f;
 
 	return reg_w(gspca_dev, 0x10e1, cmatrix, 21);
 }
@@ -2015,6 +2015,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	default:
 		cam->cam_mode = vga_mode;
 		cam->nmodes = ARRAY_SIZE(vga_mode);
+		break;
 	}
 
 	sd->old_step = 0;
@@ -2319,7 +2320,7 @@ static void do_autogain(struct gspca_dev *gspca_dev, u16 avg_lum)
 		}
 	}
 	if (avg_lum > MAX_AVG_LUM) {
-		if (sd->gain >= 1) {
+		if (sd->gain > 0) {
 			sd->gain--;
 			set_gain(gspca_dev);
 		}
@@ -2347,7 +2348,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int avg_lum;
-	static unsigned char frame_header[] =
+	static u8 frame_header[] =
 		{0xff, 0xff, 0x00, 0xc4, 0xc4, 0x96};
 	if (len == 64 && memcmp(data, frame_header, 6) == 0) {
 		avg_lum = ((data[35] >> 2) & 3) |
