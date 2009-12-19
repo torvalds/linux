@@ -277,7 +277,7 @@ static void untag_chunk(struct node *p)
 		owner->root = NULL;
 	}
 
-	for (i = j = 0; i < size; i++, j++) {
+	for (i = j = 0; j <= size; i++, j++) {
 		struct audit_tree *s;
 		if (&chunk->owners[j] == p) {
 			list_del_init(&p->list);
@@ -290,7 +290,7 @@ static void untag_chunk(struct node *p)
 		if (!s) /* result of earlier fallback */
 			continue;
 		get_tree(s);
-		list_replace_init(&chunk->owners[i].list, &new->owners[j].list);
+		list_replace_init(&chunk->owners[j].list, &new->owners[i].list);
 	}
 
 	list_replace_rcu(&chunk->hash, &new->hash);
