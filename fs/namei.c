@@ -37,8 +37,6 @@
 
 #include "internal.h"
 
-#define ACC_MODE(x) ("\000\004\002\006"[(x)&O_ACCMODE])
-
 /* [Feb-1997 T. Schoebel-Theuer]
  * Fundamental changes in the pathname lookup mechanisms (namei)
  * were necessary because of omirr.  The reason is that omirr needs

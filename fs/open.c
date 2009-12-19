@@ -828,7 +828,7 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 	struct inode *inode;
 	int error;
 
-	f->f_mode = (__force fmode_t)((f->f_flags+1) & O_ACCMODE) | FMODE_LSEEK |
+	f->f_mode = OPEN_FMODE(f->f_flags) | FMODE_LSEEK |
 				FMODE_PREAD | FMODE_PWRITE;
 	inode = dentry->d_inode;
 	if (f->f_mode & FMODE_WRITE) {
