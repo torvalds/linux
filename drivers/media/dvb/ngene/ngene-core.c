@@ -44,6 +44,10 @@
 
 #include "ngene.h"
 
+#include "stv6110x.h"
+#include "stv090x.h"
+#include "lnbh24.h"
+
 #ifdef NGENE_COMMAND_API
 #include "ngene-ioctls.h"
 #endif
@@ -2371,6 +2375,60 @@ fail:
 /* Demod/tuner attachment ***************************************************/
 /****************************************************************************/
 
+static int tuner_attach_stv6110(struct ngene_channel *chan)
+{
+	struct stv090x_config *feconf = (struct stv090x_config *)
+		chan->dev->card_info->fe_config[chan->number];
+	struct stv6110x_config *tunerconf = (struct stv6110x_config *)
+		chan->dev->card_info->tuner_config[chan->number];
+	struct stv6110x_devctl *ctl;
+
+	ctl = dvb_attach(stv6110x_attach, chan->fe, tunerconf,
+			 &chan->i2c_adapter);
+	if (ctl == NULL) {
+		printk(KERN_ERR	DEVICE_NAME ": No STV6110X found!\n");
+		return -ENODEV;
+	}
+
+	feconf->tuner_init          = ctl->tuner_init;
+	feconf->tuner_set_mode      = ctl->tuner_set_mode;
+	feconf->tuner_set_frequency = ctl->tuner_set_frequency;
+	feconf->tuner_get_frequency = ctl->tuner_get_frequency;
+	feconf->tuner_set_bandwidth = ctl->tuner_set_bandwidth;
+	feconf->tuner_get_bandwidth = ctl->tuner_get_bandwidth;
+	feconf->tuner_set_bbgain    = ctl->tuner_set_bbgain;
+	feconf->tuner_get_bbgain    = ctl->tuner_get_bbgain;
+	feconf->tuner_set_refclk    = ctl->tuner_set_refclk;
+	feconf->tuner_get_status    = ctl->tuner_get_status;
+
+	return 0;
+}
+
+
+static int demod_attach_stv0900(struct ngene_channel *chan)
+{
+	struct stv090x_config *feconf = (struct stv090x_config *)
+		chan->dev->card_info->fe_config[chan->number];
+
+	chan->fe = dvb_attach(stv090x_attach,
+			feconf,
+			&chan->i2c_adapter,
+			chan->number == 0 ? STV090x_DEMODULATOR_0 :
+					    STV090x_DEMODULATOR_1);
+	if (chan->fe == NULL) {
+		printk(KERN_ERR	DEVICE_NAME ": No STV0900 found!\n");
+		return -ENODEV;
+	}
+
+	if (!dvb_attach(lnbh24_attach, chan->fe, &chan->i2c_adapter, 0,
+			0, chan->dev->card_info->lnb[chan->number])) {
+		printk(KERN_ERR DEVICE_NAME ": No LNBH24 found!\n");
+		dvb_frontend_detach(chan->fe);
+		return -ENODEV;
+	}
+
+	return 0;
+}
 
 /****************************************************************************/
 /****************************************************************************/
@@ -2573,6 +2631,59 @@ fail1:
 /* Card configs *************************************************************/
 /****************************************************************************/
 
+static struct stv090x_config fe_mps2 = {
+	.device         = STV0900,
+	.demod_mode     = STV090x_DUAL,
+	.clk_mode       = STV090x_CLK_EXT,
+
+	.xtal           = 27000000,
+	.address        = 0x68,
+//	.ref_clk        = 27000000,
+
+	.ts1_mode       = STV090x_TSMODE_SERIAL_PUNCTURED,
+	.ts2_mode       = STV090x_TSMODE_SERIAL_PUNCTURED,
+
+	.repeater_level = STV090x_RPTLEVEL_16,
+
+	.diseqc_envelope_mode = true,
+
+	.tuner_init           = NULL,
+	.tuner_set_mode       = NULL,
+	.tuner_set_frequency  = NULL,
+	.tuner_get_frequency  = NULL,
+	.tuner_set_bandwidth  = NULL,
+	.tuner_get_bandwidth  = NULL,
+	.tuner_set_bbgain     = NULL,
+	.tuner_get_bbgain     = NULL,
+	.tuner_set_refclk     = NULL,
+	.tuner_get_status     = NULL,
+};
+
+static struct stv6110x_config tuner_mps2_0 = {
+	.addr	= 0x60,
+	.refclk	= 27000000,
+};
+
+static struct stv6110x_config tuner_mps2_1 = {
+	.addr	= 0x63,
+	.refclk	= 27000000,
+};
+
+static struct ngene_info ngene_info_mps2 = {
+	.type		= NGENE_SIDEWINDER,
+	.name		= "Media-Pointer MP-S2/CineS2 DVB-S2 Twin Tuner",
+	.io_type	= {NGENE_IO_TSIN, NGENE_IO_TSIN},
+	.demod_attach	= {demod_attach_stv0900, demod_attach_stv0900},
+	.tuner_attach	= {tuner_attach_stv6110, tuner_attach_stv6110},
+	.fe_config	= {&fe_mps2, &fe_mps2},
+	.tuner_config	= {&tuner_mps2_0, &tuner_mps2_1},
+	.lnb		= {0x0b, 0x08},
+	.tsf		= {3, 3},
+	.fw_version	= 17,
+};
+
+/****************************************************************************/
+
 
 
 /****************************************************************************/
@@ -2587,8 +2698,12 @@ fail1:
 /****************************************************************************/
 
 static const struct pci_device_id ngene_id_tbl[] __devinitdata = {
+	NGENE_ID(0x18c3, 0xabc3, ngene_info_mps2),
+	NGENE_ID(0x18c3, 0xabc4, ngene_info_mps2),
+	NGENE_ID(0x18c3, 0xdb01, ngene_info_mps2),
 	{0}
 };
+MODULE_DEVICE_TABLE(pci, ngene_id_tbl);
 
 /****************************************************************************/
 /* Init/Exit ****************************************************************/
