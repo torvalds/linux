@@ -2272,7 +2272,7 @@ static int emac_mii_reset(struct mii_bus *bus)
 	unsigned int clk_div;
 	int mdio_bus_freq = emac_bus_frequency;
 
-	if (mdio_max_freq & mdio_bus_freq)
+	if (mdio_max_freq && mdio_bus_freq)
 		clk_div = ((mdio_bus_freq / mdio_max_freq) - 1);
 	else
 		clk_div = 0xFF;
