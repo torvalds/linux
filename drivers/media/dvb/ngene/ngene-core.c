@@ -48,17 +48,6 @@
 #include "ngene-ioctls.h"
 #endif
 
-/* #define FW_INC 1 */
-#ifdef FW_INC
-#include "ngene_fw_15.h"
-#include "ngene_fw_16.h"
-#include "ngene_fw_17.h"
-
-static int load_firmware;
-module_param(load_firmware, int, 0444);
-MODULE_PARM_DESC(load_firmware, "Try to load firmware from file.");
-#endif
-
 static int copy_eeprom;
 module_param(copy_eeprom, int, 0444);
 MODULE_PARM_DESC(copy_eeprom, "Copy eeprom.");
@@ -2238,43 +2227,39 @@ static int ngene_load_firm(struct ngene *dev)
 	default:
 	case 15:
 		version = 15;
+		size = 23466;
 		fw_name = "ngene_15.fw";
 		break;
 	case 16:
+		size = 23498;
 		fw_name = "ngene_16.fw";
 		break;
 	case 17:
+		size = 24446;
 		fw_name = "ngene_17.fw";
 		break;
 	}
-#ifdef FW_INC
-	if (load_firmware &&
-	    request_firmware(&fw, fw_name, &dev->pci_dev->dev) >= 0) {
-		printk(KERN_INFO DEVICE_NAME
-		       ": Loading firmware file %s.\n", fw_name);
-		size = fw->size;
-		ngene_fw = fw->data;
-	} else
-		printk(KERN_INFO DEVICE_NAME
-		       ": Loading built-in firmware version %d.\n", version);
-	err = ngene_command_load_firmware(dev, ngene_fw, size);
 
-	if (fw)
-		release_firmware(fw);
-#else
 	if (request_firmware(&fw, fw_name, &dev->pci_dev->dev) < 0) {
 		printk(KERN_ERR DEVICE_NAME
-			": Could not load firmware file %s. \n", fw_name);
+			": Could not load firmware file %s.\n", fw_name);
 		printk(KERN_INFO DEVICE_NAME
 			": Copy %s to your hotplug directory!\n", fw_name);
 		return -1;
 	}
-	printk(KERN_INFO DEVICE_NAME ": Loading firmware file %s.\n", fw_name);
-	size = fw->size;
-	ngene_fw = (u8 *) fw->data;
-	err = ngene_command_load_firmware(dev, ngene_fw, size);
+	if (size != fw->size) {
+		printk(KERN_ERR DEVICE_NAME
+			": Firmware %s has invalid size!", fw_name);
+		err = -1;
+	} else {
+		printk(KERN_INFO DEVICE_NAME
+			": Loading firmware file %s.\n", fw_name);
+		ngene_fw = (u8 *) fw->data;
+		err = ngene_command_load_firmware(dev, ngene_fw, size);
+	}
+
 	release_firmware(fw);
-#endif
+
 	return err;
 }
 
