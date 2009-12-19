@@ -10621,6 +10621,13 @@ static struct hda_verb alc262_lenovo_3000_unsol_verbs[] = {
 	{}
 };
 
+static struct hda_verb alc262_lenovo_3000_init_verbs[] = {
+	/* Front Mic pin: input vref at 50% */
+	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF50},
+	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	{}
+};
+
 static struct hda_input_mux alc262_fujitsu_capture_source = {
 	.num_items = 3,
 	.items = {
@@ -11688,7 +11695,8 @@ static struct alc_config_preset alc262_presets[] = {
 	[ALC262_LENOVO_3000] = {
 		.mixers = { alc262_lenovo_3000_mixer },
 		.init_verbs = { alc262_init_verbs, alc262_EAPD_verbs,
-				alc262_lenovo_3000_unsol_verbs },
+				alc262_lenovo_3000_unsol_verbs,
+				alc262_lenovo_3000_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc262_dac_nids),
 		.dac_nids = alc262_dac_nids,
 		.hp_nid = 0x03,
