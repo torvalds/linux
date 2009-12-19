@@ -16,6 +16,13 @@ NAME = Man-Eating Seals of Antiquity
 # o  print "Entering directory ...";
 MAKEFLAGS += -rR --no-print-directory
 
+# Avoid funny character set dependencies
+unexport LC_ALL
+LC_CTYPE=C
+LC_COLLATE=C
+LC_NUMERIC=C
+export LC_CTYPE LC_COLLATE LC_NUMERIC
+
 # We are using a recursive build, so we need to do a little thinking
 # to get the ordering right.
 #
