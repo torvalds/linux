@@ -92,23 +92,18 @@ static void setup_cpunode_map(void)
 	if (!dir1)
 		return;
 
-	while (true) {
-		dent1 = readdir(dir1);
-		if (!dent1)
-			break;
-
-		if (sscanf(dent1->d_name, "node%u", &mem) < 1)
+	while ((dent1 = readdir(dir1)) != NULL) {
+		if (dent1->d_type != DT_DIR ||
+		    sscanf(dent1->d_name, "node%u", &mem) < 1)
 			continue;
 
 		snprintf(buf, PATH_MAX, "%s/%s", PATH_SYS_NODE, dent1->d_name);
 		dir2 = opendir(buf);
 		if (!dir2)
 			continue;
-		while (true) {
-			dent2 = readdir(dir2);
-			if (!dent2)
-				break;
-			if (sscanf(dent2->d_name, "cpu%u", &cpu) < 1)
+		while ((dent2 = readdir(dir2)) != NULL) {
+			if (dent2->d_type != DT_LNK ||
+			    sscanf(dent2->d_name, "cpu%u", &cpu) < 1)
 				continue;
 			cpunode_map[cpu] = mem;
 		}
