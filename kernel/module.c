@@ -1010,6 +1010,12 @@ static const struct kernel_symbol *resolve_symbol(Elf_Shdr *sechdrs,
  * J. Corbet <corbet@lwn.net>
  */
 #if defined(CONFIG_KALLSYMS) && defined(CONFIG_SYSFS)
+
+static inline bool sect_empty(const Elf_Shdr *sect)
+{
+	return !(sect->sh_flags & SHF_ALLOC) || sect->sh_size == 0;
+}
+
 struct module_sect_attr
 {
 	struct module_attribute mattr;
@@ -1051,8 +1057,7 @@ static void add_sect_attrs(struct module *mod, unsigned int nsect,
 
 	/* Count loaded sections and allocate structures */
 	for (i = 0; i < nsect; i++)
-		if (sechdrs[i].sh_flags & SHF_ALLOC
-		    && sechdrs[i].sh_size)
+		if (!sect_empty(&sechdrs[i]))
 			nloaded++;
 	size[0] = ALIGN(sizeof(*sect_attrs)
 			+ nloaded * sizeof(sect_attrs->attrs[0]),
@@ -1070,9 +1075,7 @@ static void add_sect_attrs(struct module *mod, unsigned int nsect,
 	sattr = &sect_attrs->attrs[0];
 	gattr = &sect_attrs->grp.attrs[0];
 	for (i = 0; i < nsect; i++) {
-		if (! (sechdrs[i].sh_flags & SHF_ALLOC))
-			continue;
-		if (!sechdrs[i].sh_size)
+		if (sect_empty(&sechdrs[i]))
 			continue;
 		sattr->address = sechdrs[i].sh_addr;
 		sattr->name = kstrdup(secstrings + sechdrs[i].sh_name,
@@ -1156,7 +1159,7 @@ static void add_notes_attrs(struct module *mod, unsigned int nsect,
 	/* Count notes sections and allocate structures.  */
 	notes = 0;
 	for (i = 0; i < nsect; i++)
-		if ((sechdrs[i].sh_flags & SHF_ALLOC) &&
+		if (!sect_empty(&sechdrs[i]) &&
 		    (sechdrs[i].sh_type == SHT_NOTE))
 			++notes;
 
@@ -1172,7 +1175,7 @@ static void add_notes_attrs(struct module *mod, unsigned int nsect,
 	notes_attrs->notes = notes;
 	nattr = &notes_attrs->attrs[0];
 	for (loaded = i = 0; i < nsect; ++i) {
-		if (!(sechdrs[i].sh_flags & SHF_ALLOC))
+		if (sect_empty(&sechdrs[i]))
 			continue;
 		if (sechdrs[i].sh_type == SHT_NOTE) {
 			nattr->attr.name = mod->sect_attrs->attrs[loaded].name;
