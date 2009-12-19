@@ -12857,7 +12857,7 @@ static int patch_alc268(struct hda_codec *codec)
 	int board_config;
 	int i, has_beep, err;
 
-	spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 
