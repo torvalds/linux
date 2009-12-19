@@ -124,7 +124,7 @@ static int hpyfs_vm_create_guest(struct super_block *sb,
 	/* guest dir */
 	memcpy(guest_name, data->guest_name, NAME_LEN);
 	EBCASC(guest_name, NAME_LEN);
-	strstrip(guest_name);
+	strim(guest_name);
 	guest_dir = hypfs_mkdir(sb, systems_dir, guest_name);
 	if (IS_ERR(guest_dir))
 		return PTR_ERR(guest_dir);
