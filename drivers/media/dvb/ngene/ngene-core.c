@@ -56,10 +56,6 @@ static int copy_eeprom;
 module_param(copy_eeprom, int, 0444);
 MODULE_PARM_DESC(copy_eeprom, "Copy eeprom.");
 
-static int ngene_fw_debug;
-module_param(ngene_fw_debug, int, 0444);
-MODULE_PARM_DESC(ngene_fw_debug, "Debug firmware.");
-
 static int debug;
 module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "Print debugging information.");
@@ -435,7 +431,6 @@ static int ngene_command_load_firmware(struct ngene *dev,
 			cleft - FIRSTCHUNK);
 		cleft = FIRSTCHUNK;
 	}
-	ngene_fw[FW_DEBUG_DEFAULT - PROGRAM_SRAM] = ngene_fw_debug;
 	ngcpyto(DATA_FIFO_AREA, ngene_fw, cleft);
 
 	memset(&com, 0, sizeof(struct ngene_command));
