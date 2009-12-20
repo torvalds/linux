@@ -40,6 +40,9 @@ static void acpi_set_pdc_bits(u32 *buf)
 
 	/* Enable coordination with firmware's _TSD info */
 	buf[2] = ACPI_PDC_SMP_T_SWCOORD;
+
+	/* Twiddle arch-specific bits needed for _PDC */
+	arch_acpi_set_pdc_bits(buf);
 }
 
 static void acpi_processor_init_pdc(struct acpi_processor *pr)
@@ -80,9 +83,6 @@ static void acpi_processor_init_pdc(struct acpi_processor *pr)
 	obj_list->count = 1;
 	obj_list->pointer = obj;
 	pr->pdc = obj_list;
-
-	/* Now let the arch do the bit-twiddling to buf[] */
-	arch_acpi_processor_init_pdc(pr);
 
 	return;
 }

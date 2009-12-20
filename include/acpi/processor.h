@@ -257,7 +257,6 @@ int acpi_processor_notify_smm(struct module *calling_module);
 DECLARE_PER_CPU(struct acpi_processor *, processors);
 extern struct acpi_processor_errata errata;
 
-void arch_acpi_processor_init_pdc(struct acpi_processor *pr);
 void arch_acpi_processor_cleanup_pdc(struct acpi_processor *pr);
 
 #ifdef ARCH_HAS_POWER_INIT
