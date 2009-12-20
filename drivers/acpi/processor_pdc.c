@@ -33,6 +33,49 @@ static struct dmi_system_id __cpuinitdata processor_idle_dmi_table[] = {
 	{},
 };
 
+static void acpi_processor_init_pdc(struct acpi_processor *pr)
+{
+	struct acpi_object_list *obj_list;
+	union acpi_object *obj;
+	u32 *buf;
+
+	pr->pdc = NULL;
+
+	/* allocate and initialize pdc. It will be used later. */
+	obj_list = kmalloc(sizeof(struct acpi_object_list), GFP_KERNEL);
+	if (!obj_list) {
+		printk(KERN_ERR "Memory allocation error\n");
+		return;
+	}
+
+	obj = kmalloc(sizeof(union acpi_object), GFP_KERNEL);
+	if (!obj) {
+		printk(KERN_ERR "Memory allocation error\n");
+		kfree(obj_list);
+		return;
+	}
+
+	buf = kmalloc(12, GFP_KERNEL);
+	if (!buf) {
+		printk(KERN_ERR "Memory allocation error\n");
+		kfree(obj);
+		kfree(obj_list);
+		return;
+	}
+
+	obj->type = ACPI_TYPE_BUFFER;
+	obj->buffer.length = 12;
+	obj->buffer.pointer = (u8 *) buf;
+	obj_list->count = 1;
+	obj_list->pointer = obj;
+	pr->pdc = obj_list;
+
+	/* Now let the arch do the bit-twiddling to buf[] */
+	arch_acpi_processor_init_pdc(pr);
+
+	return;
+}
+
 /*
  * _PDC is required for a BIOS-OS handshake for most of the newer
  * ACPI processor features.
@@ -72,7 +115,7 @@ void acpi_processor_set_pdc(struct acpi_processor *pr)
 	if (arch_has_acpi_pdc() == false)
 		return;
 
-	arch_acpi_processor_init_pdc(pr);
+	acpi_processor_init_pdc(pr);
 	acpi_processor_eval_pdc(pr);
 	arch_acpi_processor_cleanup_pdc(pr);
 }
