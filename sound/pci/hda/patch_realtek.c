@@ -337,6 +337,9 @@ struct alc_spec {
 	/* hooks */
 	void (*init_hook)(struct hda_codec *codec);
 	void (*unsol_event)(struct hda_codec *codec, unsigned int res);
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	void (*power_hook)(struct hda_codec *codec, int power);
+#endif
 
 	/* for pin sensing */
 	unsigned int sense_updated: 1;
@@ -388,6 +391,7 @@ struct alc_config_preset {
 	void (*init_hook)(struct hda_codec *);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	struct hda_amp_list *loopbacks;
+	void (*power_hook)(struct hda_codec *codec, int power);
 #endif
 };
 
@@ -900,6 +904,7 @@ static void setup_preset(struct hda_codec *codec,
 	spec->unsol_event = preset->unsol_event;
 	spec->init_hook = preset->init_hook;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
+	spec->power_hook = preset->power_hook;
 	spec->loopback.amplist = preset->loopbacks;
 #endif
 
@@ -1825,6 +1830,16 @@ static void alc889_acer_aspire_8930g_setup(struct hda_codec *codec)
 	spec->autocfg.speaker_pins[1] = 0x16;
 	spec->autocfg.speaker_pins[2] = 0x1b;
 }
+
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+static void alc889_power_eapd(struct hda_codec *codec, int power)
+{
+	snd_hda_codec_write(codec, 0x14, 0,
+			    AC_VERB_SET_EAPD_BTLENABLE, power ? 2 : 0);
+	snd_hda_codec_write(codec, 0x15, 0,
+			    AC_VERB_SET_EAPD_BTLENABLE, power ? 2 : 0);
+}
+#endif
 
 /*
  * ALC880 3-stack model
@@ -3619,12 +3634,29 @@ static void alc_free(struct hda_codec *codec)
 	snd_hda_detach_beep_device(codec);
 }
 
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+static int alc_suspend(struct hda_codec *codec, pm_message_t state)
+{
+	struct alc_spec *spec = codec->spec;
+	if (spec && spec->power_hook)
+		spec->power_hook(codec, 0);
+	return 0;
+}
+#endif
+
 #ifdef SND_HDA_NEEDS_RESUME
 static int alc_resume(struct hda_codec *codec)
 {
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	struct alc_spec *spec = codec->spec;
+#endif
 	codec->patch_ops.init(codec);
 	snd_hda_codec_resume_amp(codec);
 	snd_hda_codec_resume_cache(codec);
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	if (spec && spec->power_hook)
+		spec->power_hook(codec, 1);
+#endif
 	return 0;
 }
 #endif
@@ -3641,6 +3673,7 @@ static struct hda_codec_ops alc_patch_ops = {
 	.resume = alc_resume,
 #endif
 #ifdef CONFIG_SND_HDA_POWER_SAVE
+	.suspend = alc_suspend,
 	.check_power_status = alc_check_power_status,
 #endif
 };
@@ -9420,6 +9453,9 @@ static struct alc_config_preset alc882_presets[] = {
 		.unsol_event = alc_automute_amp_unsol_event,
 		.setup = alc889_acer_aspire_8930g_setup,
 		.init_hook = alc_automute_amp,
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+		.power_hook = alc889_power_eapd,
+#endif
 	},
 	[ALC888_ACER_ASPIRE_7730G] = {
 		.mixers = { alc883_3ST_6ch_mixer,
