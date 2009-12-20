@@ -20,6 +20,7 @@ config KVM
 	bool
 	select PREEMPT_NOTIFIERS
 	select ANON_INODES
+	select KVM_MMIO
 
 config KVM_BOOK3S_64_HANDLER
 	bool
