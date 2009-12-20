@@ -1,3 +1,6 @@
+#ifndef __KVM_COALESCED_MMIO_H__
+#define __KVM_COALESCED_MMIO_H__
+
 /*
  * KVM coalesced MMIO
  *
@@ -22,3 +25,5 @@ int kvm_vm_ioctl_register_coalesced_mmio(struct kvm *kvm,
                                        struct kvm_coalesced_mmio_zone *zone);
 int kvm_vm_ioctl_unregister_coalesced_mmio(struct kvm *kvm,
                                          struct kvm_coalesced_mmio_zone *zone);
+
+#endif
