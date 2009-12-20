@@ -1,4 +1,5 @@
 obj-$(CONFIG_USB_GSPCA)          += gspca_main.o
+obj-$(CONFIG_USB_GSPCA_BENQ)     += gspca_benq.o
 obj-$(CONFIG_USB_GSPCA_CONEX)    += gspca_conex.o
 obj-$(CONFIG_USB_GSPCA_ETOMS)    += gspca_etoms.o
 obj-$(CONFIG_USB_GSPCA_FINEPIX)  += gspca_finepix.o
@@ -30,6 +31,7 @@ obj-$(CONFIG_USB_GSPCA_VC032X)   += gspca_vc032x.o
 obj-$(CONFIG_USB_GSPCA_ZC3XX)    += gspca_zc3xx.o
 
 gspca_main-objs     := gspca.o
+gspca_benq-objs     := benq.o
 gspca_conex-objs    := conex.o
 gspca_etoms-objs    := etoms.o
 gspca_finepix-objs  := finepix.o

@@ -21,6 +21,15 @@ source "drivers/media/video/gspca/m5602/Kconfig"
 source "drivers/media/video/gspca/stv06xx/Kconfig"
 source "drivers/media/video/gspca/gl860/Kconfig"
 
+config USB_GSPCA_BENQ
+	tristate "Benq USB Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for the Benq DC E300 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_benq.
+
 config USB_GSPCA_CONEX
 	tristate "Conexant Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA

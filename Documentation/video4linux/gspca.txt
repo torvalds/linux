@@ -109,6 +109,7 @@ sunplus		04a5:3003	Benq DC 1300
 sunplus		04a5:3008	Benq DC 1500
 sunplus		04a5:300a	Benq DC 3410
 spca500		04a5:300c	Benq DC 1016
+benq		04a5:3035	Benq DC E300
 finepix		04cb:0104	Fujifilm FinePix 4800
 finepix		04cb:0109	Fujifilm FinePix A202
 finepix		04cb:010b	Fujifilm FinePix A203
