@@ -125,7 +125,7 @@ acpi_processor_eval_pdc(acpi_handle handle, struct acpi_object_list *pdc_in)
 	return status;
 }
 
-void acpi_processor_set_pdc(struct acpi_processor *pr)
+void acpi_processor_set_pdc(acpi_handle handle)
 {
 	struct acpi_object_list *obj_list;
 
@@ -136,7 +136,7 @@ void acpi_processor_set_pdc(struct acpi_processor *pr)
 	if (!obj_list)
 		return;
 
-	acpi_processor_eval_pdc(pr->handle, obj_list);
+	acpi_processor_eval_pdc(handle, obj_list);
 
 	kfree(obj_list->pointer->buffer.pointer);
 	kfree(obj_list->pointer);
@@ -147,19 +147,7 @@ EXPORT_SYMBOL_GPL(acpi_processor_set_pdc);
 static acpi_status
 early_init_pdc(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
-	struct acpi_processor pr;
-
-	pr.handle = handle;
-
-	/* x86 implementation looks at pr.id to determine some
-	 * CPU capabilites. We can just hard code to 0 since we're
-	 * assuming the CPUs in the system are homogenous and all
-	 * have the same capabilities.
-	 */
-	pr.id = 0;
-
-	acpi_processor_set_pdc(&pr);
-
+	acpi_processor_set_pdc(handle);
 	return AE_OK;
 }
 

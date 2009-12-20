@@ -323,7 +323,7 @@ static inline int acpi_processor_get_bios_limit(int cpu, unsigned int *limit)
 #endif				/* CONFIG_CPU_FREQ */
 
 /* in processor_pdc.c */
-void acpi_processor_set_pdc(struct acpi_processor *pr);
+void acpi_processor_set_pdc(acpi_handle handle);
 
 /* in processor_throttling.c */
 int acpi_processor_tstate_has_changed(struct acpi_processor *pr);
