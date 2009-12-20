@@ -2435,7 +2435,8 @@ static int init_channel(struct ngene_channel *chan)
 #else
 		ret = dvb_register_adapter(&chan->dvb_adapter, "nGene",
 					   THIS_MODULE,
-					   &chan->dev->pci_dev->dev);
+					   &chan->dev->pci_dev->dev,
+					   adapter_nr);
 		if (ret < 0)
 			return ret;
 		adapter = &chan->dvb_adapter;

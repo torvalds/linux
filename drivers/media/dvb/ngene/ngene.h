@@ -24,7 +24,7 @@
 #ifndef _NGENE_H_
 #define _NGENE_H_
 
-#define ONE_ADAPTER
+/*#define ONE_ADAPTER*/
 
 #include <linux/types.h>
 #include <linux/sched.h>
@@ -794,38 +794,6 @@ struct ngene {
 	int prev_cmd;
 };
 
-struct channel_info {
-	int   io_type;
-#define NGENE_IO_NONE    0
-#define NGENE_IO_TV      1
-#define NGENE_IO_HDTV    2
-#define NGENE_IO_TSIN    4
-#define NGENE_IO_TSOUT   8
-#define NGENE_IO_AIN     16
-
-	void *fe_config;
-	void *tuner_config;
-
-	int (*demod_attach)(struct ngene_channel *);
-	int   demod_type;
-#define NGENE_DEMOD_NONE    0
-#define NGENE_DEMOD_DRXD    1
-#define NGENE_DEMOD_STB0899 2
-#define NGENE_DEMOD_DRXH    3
-
-	int (*tuner_attach)(struct ngene_channel *);
-	int   tuner_type;
-#define NGENE_TUNER_NONE    0
-#define NGENE_TUNER_MT2060  1
-
-	u8    demod;
-	u8    tuner;
-	u8    lnb;
-	u8    demoda;
-	u8    avf;
-	u8    msp;
-};
-
 struct ngene_info {
 	int   type;
 #define NGENE_APP        0
@@ -906,12 +874,7 @@ int ngene_command_imem_read(struct ngene *dev, u8 adr, u8 *data, int type);
 int ngene_command_imem_write(struct ngene *dev, u8 adr, u8 data, int type);
 int ngene_stream_control(struct ngene *dev, u8 stream, u8 control, u8 mode,
 			 u16 lines, u16 bpl, u16 vblines, u16 vbibpl);
-int ngene_v4l2_init(struct ngene_channel *chan);
-void ngene_v4l2_remove(struct ngene_channel *chan);
-int ngene_snd_exit(struct ngene_channel *chan);
-int ngene_snd_init(struct ngene_channel *chan);
 
-struct i2c_client *avf4910a_attach(struct i2c_adapter *adap, int addr);
 
 #endif
 
