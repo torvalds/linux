@@ -125,16 +125,6 @@ acpi_processor_eval_pdc(acpi_handle handle, struct acpi_object_list *pdc_in)
 	return status;
 }
 
-static void acpi_processor_cleanup_pdc(struct acpi_processor *pr)
-{
-	if (pr->pdc) {
-		kfree(pr->pdc->pointer->buffer.pointer);
-		kfree(pr->pdc->pointer);
-		kfree(pr->pdc);
-		pr->pdc = NULL;
-	}
-}
-
 void acpi_processor_set_pdc(struct acpi_processor *pr)
 {
 	struct acpi_object_list *obj_list;
@@ -147,7 +137,10 @@ void acpi_processor_set_pdc(struct acpi_processor *pr)
 		return;
 
 	acpi_processor_eval_pdc(pr->handle, obj_list);
-	acpi_processor_cleanup_pdc(pr);
+
+	kfree(obj_list->pointer->buffer.pointer);
+	kfree(obj_list->pointer);
+	kfree(obj_list);
 }
 EXPORT_SYMBOL_GPL(acpi_processor_set_pdc);
 
