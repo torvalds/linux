@@ -374,17 +374,16 @@ static struct kvm *kvm_create_vm(void)
 #endif
 
 #if defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER)
-	{
-		kvm->mmu_notifier.ops = &kvm_mmu_notifier_ops;
-		r = mmu_notifier_register(&kvm->mmu_notifier, current->mm);
-		if (r) {
+	kvm->mmu_notifier.ops = &kvm_mmu_notifier_ops;
+	r = mmu_notifier_register(&kvm->mmu_notifier, current->mm);
+#endif
+
+	if (r) {
 #ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
-			put_page(page);
+		put_page(page);
 #endif
-			goto out_err;
-		}
+		goto out_err;
 	}
-#endif
 
 	kvm->mm = current->mm;
 	atomic_inc(&kvm->mm->mm_count);
@@ -406,11 +405,8 @@ static struct kvm *kvm_create_vm(void)
 out:
 	return kvm;
 
-#if defined(KVM_COALESCED_MMIO_PAGE_OFFSET) || \
-    (defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER))
 out_err:
 	hardware_disable_all();
-#endif
 out_err_nodisable:
 	kfree(kvm);
 	return ERR_PTR(r);
