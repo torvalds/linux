@@ -262,6 +262,8 @@ struct snd_pcm_hw_constraint_list {
 	unsigned int mask;
 };
 
+struct snd_pcm_hwptr_log;
+
 struct snd_pcm_runtime {
 	/* -- Status -- */
 	struct snd_pcm_substream *trigger_master;
@@ -339,6 +341,10 @@ struct snd_pcm_runtime {
 #if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
 	/* -- OSS things -- */
 	struct snd_pcm_oss_runtime oss;
+#endif
+
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
+	struct snd_pcm_hwptr_log *hwptr_log;
 #endif
 };
 
