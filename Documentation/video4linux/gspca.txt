@@ -304,6 +304,7 @@ sonixj		0c45:613b	Surfer SN-206
 sonixj		0c45:613c	Sonix Pccam168
 sonixj		0c45:6143	Sonix Pccam168
 sonixj		0c45:6148	Digitus DA-70811/ZSMC USB PC Camera ZS211/Microdia
+sonixj		0c45:614a	Frontech E-Ccam (JIL-2225)
 sn9c20x		0c45:6240	PC Camera (SN9C201 + MT9M001)
 sn9c20x		0c45:6242	PC Camera (SN9C201 + MT9M111)
 sn9c20x		0c45:6248	PC Camera (SN9C201 + OV9655)
