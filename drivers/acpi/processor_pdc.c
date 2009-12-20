@@ -33,6 +33,15 @@ static struct dmi_system_id __cpuinitdata processor_idle_dmi_table[] = {
 	{},
 };
 
+static void acpi_set_pdc_bits(u32 *buf)
+{
+	buf[0] = ACPI_PDC_REVISION_ID;
+	buf[1] = 1;
+
+	/* Enable coordination with firmware's _TSD info */
+	buf[2] = ACPI_PDC_SMP_T_SWCOORD;
+}
+
 static void acpi_processor_init_pdc(struct acpi_processor *pr)
 {
 	struct acpi_object_list *obj_list;
@@ -62,6 +71,8 @@ static void acpi_processor_init_pdc(struct acpi_processor *pr)
 		kfree(obj_list);
 		return;
 	}
+
+	acpi_set_pdc_bits(buf);
 
 	obj->type = ACPI_TYPE_BUFFER;
 	obj->buffer.length = 12;
