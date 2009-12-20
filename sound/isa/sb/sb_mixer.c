@@ -779,6 +779,7 @@ int snd_sbmixer_new(struct snd_sb *chip)
 			return err;
 		break;
 	case SB_HW_PRO:
+	case SB_HW_JAZZ16:
 		if ((err = snd_sbmixer_init(chip,
 					    snd_sbpro_controls,
 					    ARRAY_SIZE(snd_sbpro_controls),
@@ -929,6 +930,7 @@ void snd_sbmixer_suspend(struct snd_sb *chip)
 		save_mixer(chip, sb20_saved_regs, ARRAY_SIZE(sb20_saved_regs));
 		break;
 	case SB_HW_PRO:
+	case SB_HW_JAZZ16:
 		save_mixer(chip, sbpro_saved_regs, ARRAY_SIZE(sbpro_saved_regs));
 		break;
 	case SB_HW_16:
@@ -955,6 +957,7 @@ void snd_sbmixer_resume(struct snd_sb *chip)
 		restore_mixer(chip, sb20_saved_regs, ARRAY_SIZE(sb20_saved_regs));
 		break;
 	case SB_HW_PRO:
+	case SB_HW_JAZZ16:
 		restore_mixer(chip, sbpro_saved_regs, ARRAY_SIZE(sbpro_saved_regs));
 		break;
 	case SB_HW_16:

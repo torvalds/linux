@@ -12,6 +12,7 @@ snd-sb16-objs := sb16.o
 snd-sbawe-objs := sbawe.o emu8000.o
 snd-emu8000-synth-objs := emu8000_synth.o emu8000_callback.o emu8000_patch.o emu8000_pcm.o
 snd-es968-objs := es968.o
+snd-jazz16-objs := jazz16.o
 
 # Toplevel Module Dependency
 obj-$(CONFIG_SND_SB_COMMON) += snd-sb-common.o
@@ -21,6 +22,7 @@ obj-$(CONFIG_SND_SB8) += snd-sb8.o
 obj-$(CONFIG_SND_SB16) += snd-sb16.o
 obj-$(CONFIG_SND_SBAWE) += snd-sbawe.o
 obj-$(CONFIG_SND_ES968) += snd-es968.o
+obj-$(CONFIG_SND_JAZZ16) += snd-jazz16.o
 ifeq ($(CONFIG_SND_SB16_CSP),y)
   obj-$(CONFIG_SND_SB16) += snd-sb16-csp.o
   obj-$(CONFIG_SND_SBAWE) += snd-sb16-csp.o
