@@ -198,6 +198,7 @@ struct ov7670_info {
 	struct ov7670_format_struct *fmt;  /* Current format */
 	unsigned char sat;		/* Saturation value */
 	int hue;			/* Hue value */
+	u8 clkrc;			/* Clock divider value */
 };
 
 static inline struct ov7670_info *to_state(struct v4l2_subdev *sd)
@@ -744,21 +745,11 @@ static int ov7670_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 	struct ov7670_format_struct *ovfmt;
 	struct ov7670_win_size *wsize;
 	struct ov7670_info *info = to_state(sd);
-	unsigned char com7, clkrc = 0;
+	unsigned char com7;
 
 	ret = ov7670_try_fmt_internal(sd, fmt, &ovfmt, &wsize);
 	if (ret)
 		return ret;
-	/*
-	 * HACK: if we're running rgb565 we need to grab then rewrite
-	 * CLKRC.  If we're *not*, however, then rewriting clkrc hoses
-	 * the colors.
-	 */
-	if (fmt->fmt.pix.pixelformat == V4L2_PIX_FMT_RGB565) {
-		ret = ov7670_read(sd, REG_CLKRC, &clkrc);
-		if (ret)
-			return ret;
-	}
 	/*
 	 * COM7 is a pain in the ass, it doesn't like to be read then
 	 * quickly written afterward.  But we have everything we need
@@ -779,8 +770,14 @@ static int ov7670_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 		ret = ov7670_write_array(sd, wsize->regs);
 	info->fmt = ovfmt;
 
+	/*
+	 * If we're running RGB565, we must rewrite clkrc after setting
+	 * the other parameters or the image looks poor.  If we're *not*
+	 * doing RGB565, we must not rewrite clkrc or the image looks
+	 * *really* poor.
+	 */
 	if (fmt->fmt.pix.pixelformat == V4L2_PIX_FMT_RGB565 && ret == 0)
-		ret = ov7670_write(sd, REG_CLKRC, clkrc);
+		ret = ov7670_write(sd, REG_CLKRC, info->clkrc);
 	return ret;
 }
 
@@ -791,20 +788,17 @@ static int ov7670_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 static int ov7670_g_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
 {
 	struct v4l2_captureparm *cp = &parms->parm.capture;
-	unsigned char clkrc;
-	int ret;
+	struct ov7670_info *info = to_state(sd);
 
 	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	ret = ov7670_read(sd, REG_CLKRC, &clkrc);
-	if (ret < 0)
-		return ret;
+
 	memset(cp, 0, sizeof(struct v4l2_captureparm));
 	cp->capability = V4L2_CAP_TIMEPERFRAME;
 	cp->timeperframe.numerator = 1;
 	cp->timeperframe.denominator = OV7670_FRAME_RATE;
-	if ((clkrc & CLK_EXT) == 0 && (clkrc & CLK_SCALE) > 1)
-		cp->timeperframe.denominator /= (clkrc & CLK_SCALE);
+	if ((info->clkrc & CLK_EXT) == 0 && (info->clkrc & CLK_SCALE) > 1)
+		cp->timeperframe.denominator /= (info->clkrc & CLK_SCALE);
 	return 0;
 }
 
@@ -812,6 +806,7 @@ static int ov7670_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
 {
 	struct v4l2_captureparm *cp = &parms->parm.capture;
 	struct v4l2_fract *tpf = &cp->timeperframe;
+	struct ov7670_info *info = to_state(sd);
 	unsigned char clkrc;
 	int ret, div;
 
@@ -819,12 +814,7 @@ static int ov7670_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
 		return -EINVAL;
 	if (cp->extendedmode != 0)
 		return -EINVAL;
-	/*
-	 * CLKRC has a reserved bit, so let's preserve it.
-	 */
-	ret = ov7670_read(sd, REG_CLKRC, &clkrc);
-	if (ret < 0)
-		return ret;
+
 	if (tpf->numerator == 0 || tpf->denominator == 0)
 		div = 1;  /* Reset to full rate */
 	else
@@ -833,10 +823,10 @@ static int ov7670_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
 		div = 1;
 	else if (div > CLK_SCALE)
 		div = CLK_SCALE;
-	clkrc = (clkrc & 0x80) | div;
+	info->clkrc = (info->clkrc & 0x80) | div;
 	tpf->numerator = 1;
 	tpf->denominator = OV7670_FRAME_RATE/div;
-	return ov7670_write(sd, REG_CLKRC, clkrc);
+	return ov7670_write(sd, REG_CLKRC, info->clkrc);
 }
 
 
@@ -1268,6 +1258,7 @@ static int ov7670_probe(struct i2c_client *client,
 
 	info->fmt = &ov7670_formats[0];
 	info->sat = 128;	/* Review this */
+	info->clkrc = 1;	/* 30fps */
 
 	return 0;
 }
