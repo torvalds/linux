@@ -638,6 +638,7 @@ static void show_help(struct menu *menu)
 {
 	struct gstr help = str_new();
 
+	help.max_width = getmaxx(stdscr) - 10;
 	menu_get_ext_help(menu, &help);
 
 	show_helptext(_(menu_get_prompt(menu)), str_get(&help));
