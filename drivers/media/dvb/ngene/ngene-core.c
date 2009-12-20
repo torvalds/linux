@@ -2445,7 +2445,7 @@ static void release_channel(struct ngene_channel *chan)
 #endif
 		if (chan->fe) {
 			dvb_unregister_frontend(chan->fe);
-			/*dvb_frontend_detach(chan->fe); */
+			dvb_frontend_detach(chan->fe);
 			chan->fe = 0;
 		}
 		dvbdemux->dmx.close(&dvbdemux->dmx);
@@ -2577,8 +2577,10 @@ static int __devinit ngene_probe(struct pci_dev *pci_dev,
 		return -ENODEV;
 
 	dev = vmalloc(sizeof(struct ngene));
-	if (dev == NULL)
-		return -ENOMEM;
+	if (dev == NULL) {
+		stat = -ENOMEM;
+		goto fail0;
+	}
 	memset(dev, 0, sizeof(struct ngene));
 
 	dev->pci_dev = pci_dev;
@@ -2618,6 +2620,8 @@ fail2:
 	ngene_stop(dev);
 fail1:
 	ngene_release_buffers(dev);
+fail0:
+	pci_disable_device(pci_dev);
 	pci_set_drvdata(pci_dev, 0);
 	return stat;
 }
@@ -2743,7 +2747,7 @@ static struct pci_driver ngene_pci_driver = {
 	.name        = "ngene",
 	.id_table    = ngene_id_tbl,
 	.probe       = ngene_probe,
-	.remove      = ngene_remove,
+	.remove      = __devexit_p(ngene_remove),
 	.err_handler = &ngene_errors,
 };
 
