@@ -51,9 +51,7 @@
 #include <asm/pgtable.h>
 #include <asm-generic/bitops/le.h>
 
-#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
 #include "coalesced_mmio.h"
-#endif
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/kvm.h>
@@ -468,10 +466,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	kvm_free_irq_routing(kvm);
 	kvm_io_bus_destroy(&kvm->pio_bus);
 	kvm_io_bus_destroy(&kvm->mmio_bus);
-#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
-	if (kvm->coalesced_mmio_ring != NULL)
-		free_page((unsigned long)kvm->coalesced_mmio_ring);
-#endif
+	kvm_coalesced_mmio_free(kvm);
 #if defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER)
 	mmu_notifier_unregister(&kvm->mmu_notifier, kvm->mm);
 #else
