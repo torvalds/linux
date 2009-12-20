@@ -1,3 +1,12 @@
+/*
+ * Copyright (C) 2005 Intel Corporation
+ * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
+ *
+ *	Alex Chiang <achiang@hp.com>
+ *	- Unified x86/ia64 implementations
+ *	Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
+ *	- Added _PDC for platforms with Intel CPUs
+ */
 #include <linux/dmi.h>
 
 #include <acpi/acpi_drivers.h>
@@ -121,6 +130,16 @@ static int acpi_processor_eval_pdc(struct acpi_processor *pr)
 	return status;
 }
 
+static void acpi_processor_cleanup_pdc(struct acpi_processor *pr)
+{
+	if (pr->pdc) {
+		kfree(pr->pdc->pointer->buffer.pointer);
+		kfree(pr->pdc->pointer);
+		kfree(pr->pdc);
+		pr->pdc = NULL;
+	}
+}
+
 void acpi_processor_set_pdc(struct acpi_processor *pr)
 {
 	if (arch_has_acpi_pdc() == false)
@@ -128,7 +147,7 @@ void acpi_processor_set_pdc(struct acpi_processor *pr)
 
 	acpi_processor_init_pdc(pr);
 	acpi_processor_eval_pdc(pr);
-	arch_acpi_processor_cleanup_pdc(pr);
+	acpi_processor_cleanup_pdc(pr);
 }
 EXPORT_SYMBOL_GPL(acpi_processor_set_pdc);
 
