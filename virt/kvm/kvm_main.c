@@ -341,6 +341,20 @@ static const struct mmu_notifier_ops kvm_mmu_notifier_ops = {
 	.change_pte		= kvm_mmu_notifier_change_pte,
 	.release		= kvm_mmu_notifier_release,
 };
+
+static int kvm_init_mmu_notifier(struct kvm *kvm)
+{
+	kvm->mmu_notifier.ops = &kvm_mmu_notifier_ops;
+	return mmu_notifier_register(&kvm->mmu_notifier, current->mm);
+}
+
+#else  /* !(CONFIG_MMU_NOTIFIER && KVM_ARCH_WANT_MMU_NOTIFIER) */
+
+static int kvm_init_mmu_notifier(struct kvm *kvm)
+{
+	return 0;
+}
+
 #endif /* CONFIG_MMU_NOTIFIER && KVM_ARCH_WANT_MMU_NOTIFIER */
 
 static struct kvm *kvm_create_vm(void)
@@ -373,11 +387,7 @@ static struct kvm *kvm_create_vm(void)
 			(struct kvm_coalesced_mmio_ring *)page_address(page);
 #endif
 
-#if defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER)
-	kvm->mmu_notifier.ops = &kvm_mmu_notifier_ops;
-	r = mmu_notifier_register(&kvm->mmu_notifier, current->mm);
-#endif
-
+	r = kvm_init_mmu_notifier(kvm);
 	if (r) {
 #ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
 		put_page(page);
