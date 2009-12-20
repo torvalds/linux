@@ -6672,8 +6672,21 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			}
 			break;
 		case 0:
-			PDEBUG(D_PROBE, "Find Sensor HV7131B");
-			sd->sensor = SENSOR_HV7131B;
+			/* check the sensor type */
+			sensor = i2c_read(gspca_dev, 0x00);
+			PDEBUG(D_PROBE, "Sensor hv7131 type %d", sensor);
+			switch (sensor) {
+			case 0:			/* hv7131b */
+			case 1:			/* hv7131e */
+				PDEBUG(D_PROBE, "Find Sensor HV7131B");
+				sd->sensor = SENSOR_HV7131B;
+				break;
+			default:
+/*			case 2:			 * hv7131r */
+				PDEBUG(D_PROBE, "Find Sensor HV7131R(c)");
+				sd->sensor = SENSOR_HV7131C;
+				break;
+			}
 			break;
 		case 0x02:
 			PDEBUG(D_PROBE, "Sensor TAS5130C");
