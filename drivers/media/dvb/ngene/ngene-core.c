@@ -331,7 +331,6 @@ static int ngene_command_mutex(struct ngene *dev, struct ngene_command *com)
 		dev->BootFirmware = 0;
 
 	dev->prev_cmd = com->cmd.hdr.Opcode;
-	msleep(10);
 
 	if (!com->out_len)
 		return 0;
