@@ -728,9 +728,11 @@ int ngene_command_stream_control(struct ngene *dev, u8 stream, u8 control,
 	com.in_len = sizeof(struct FW_STREAM_CONTROL);
 	com.out_len = 0;
 
-	printk(KERN_INFO DEVICE_NAME ": Stream=%02x, Control=%02x, Mode=%02x\n",
-	       com.cmd.StreamControl.Stream, com.cmd.StreamControl.Control,
-	       com.cmd.StreamControl.Mode);
+	dprintk(KERN_INFO DEVICE_NAME
+		": Stream=%02x, Control=%02x, Mode=%02x\n",
+		com.cmd.StreamControl.Stream, com.cmd.StreamControl.Control,
+		com.cmd.StreamControl.Mode);
+
 	chan->Mode = mode;
 
 	if (!(control & 0x80)) {
@@ -1042,7 +1044,7 @@ static int i2c_write_eeprom(struct i2c_adapter *adapter,
 			      .len = sizeof(m)};
 
 	if (i2c_transfer(adapter, &msg, 1) != 1) {
-		dprintk(KERN_DEBUG DEVICE_NAME ": Error writing EEPROM!\n");
+		dprintk(KERN_ERR DEVICE_NAME ": Error writing EEPROM!\n");
 		return -EIO;
 	}
 	return 0;
@@ -1058,7 +1060,7 @@ static int i2c_read_eeprom(struct i2c_adapter *adapter,
 				   .buf = data, .len = len} };
 
 	if (i2c_transfer(adapter, msgs, 2) != 2) {
-		dprintk(KERN_DEBUG DEVICE_NAME ": Error reading EEPROM\n");
+		dprintk(KERN_ERR DEVICE_NAME ": Error reading EEPROM\n");
 		return -EIO;
 	}
 	return 0;
@@ -2331,7 +2333,7 @@ static int ngene_start(struct ngene *dev)
 			bconf = hdtv_config;
 			ngene_reset_decypher(dev);
 		}
-		printk(KERN_INFO DEVICE_NAME ": FW 17 buffer config\n");
+		dprintk(KERN_DEBUG DEVICE_NAME ": FW 17 buffer config\n");
 		stat = ngene_command_config_free_buf(dev, bconf);
 	} else {
 		int bconf = BUFFER_CONFIG_4422;
