@@ -1013,7 +1013,7 @@ struct lpfc_mbx_wq_destroy {
 };
 
 #define LPFC_HDR_BUF_SIZE 128
-#define LPFC_DATA_BUF_SIZE 4096
+#define LPFC_DATA_BUF_SIZE 2048
 struct rq_context {
 	uint32_t word0;
 #define lpfc_rq_context_rq_size_SHIFT	16
