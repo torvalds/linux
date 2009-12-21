@@ -125,6 +125,16 @@ static inline void kfifo_reset(struct kfifo *fifo)
 }
 
 /**
+ * kfifo_reset_out - skip FIFO contents
+ * @fifo: the fifo to be emptied.
+ */
+static inline void kfifo_reset_out(struct kfifo *fifo)
+{
+	smp_mb();
+	fifo->out = fifo->in;
+}
+
+/**
  * kfifo_size - returns the size of the fifo in bytes
  * @fifo: the fifo to be used.
  */
@@ -229,6 +239,43 @@ static inline __must_check unsigned int kfifo_out_locked(struct kfifo *fifo,
 	spin_unlock_irqrestore(lock, flags);
 
 	return ret;
+}
+
+extern void kfifo_skip(struct kfifo *fifo, unsigned int len);
+
+extern __must_check unsigned int kfifo_from_user(struct kfifo *fifo,
+	const void __user *from, unsigned int n);
+
+extern __must_check unsigned int kfifo_to_user(struct kfifo *fifo,
+	void __user *to, unsigned int n);
+
+/**
+ * __kfifo_add_out internal helper function for updating the out offset
+ */
+static inline void __kfifo_add_out(struct kfifo *fifo,
+				unsigned int off)
+{
+	smp_mb();
+	fifo->out += off;
+}
+
+/**
+ * __kfifo_add_in internal helper function for updating the in offset
+ */
+static inline void __kfifo_add_in(struct kfifo *fifo,
+				unsigned int off)
+{
+	smp_wmb();
+	fifo->in += off;
+}
+
+/**
+ * __kfifo_off internal helper function for calculating the index of a
+ * given offeset
+ */
+static inline unsigned int __kfifo_off(struct kfifo *fifo, unsigned int off)
+{
+	return off & (fifo->size - 1);
 }
 
 #endif
