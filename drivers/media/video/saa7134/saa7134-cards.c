@@ -4160,7 +4160,7 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = LINE2,
 		},
 	},
-	[SAA7134_BOARD_BEHOLD_505RDS] = {
+	[SAA7134_BOARD_BEHOLD_505RDS_MK5] = {
 		/*       Beholder Intl. Ltd. 2008      */
 		/*Dmitry Belimov <d.belimov@gmail.com> */
 		.name           = "Beholder BeholdTV 505 RDS",
@@ -5320,6 +5320,41 @@ struct saa7134_board saa7134_boards[] = {
 			.vmux = 8,
 		} },
 	},
+	[SAA7134_BOARD_BEHOLD_505RDS_MK3] = {
+		/*       Beholder Intl. Ltd. 2008      */
+		/*Dmitry Belimov <d.belimov@gmail.com> */
+		.name           = "Beholder BeholdTV 505 RDS",
+		.audio_clock    = 0x00200000,
+		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.rds_addr 	= 0x10,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.gpiomask       = 0x00008000,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 3,
+			.amux = LINE2,
+			.tv   = 1,
+		}, {
+			.name = name_comp1,
+			.vmux = 1,
+			.amux = LINE1,
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE1,
+		} },
+		.mute = {
+			.name = name_mute,
+			.amux = LINE1,
+		},
+		.radio = {
+			.name = name_radio,
+			.amux = LINE2,
+		},
+	},
 
 };
 
@@ -6235,7 +6270,13 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
 		.subvendor    = 0x0000,
 		.subdevice    = 0x505B,
-		.driver_data  = SAA7134_BOARD_BEHOLD_505RDS,
+		.driver_data  = SAA7134_BOARD_BEHOLD_505RDS_MK5,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
+		.subvendor    = 0x0000,
+		.subdevice    = 0x5051,
+		.driver_data  = SAA7134_BOARD_BEHOLD_505RDS_MK3,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
@@ -6792,7 +6833,8 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_BEHOLD_407FM:
 	case SAA7134_BOARD_BEHOLD_409:
 	case SAA7134_BOARD_BEHOLD_505FM:
-	case SAA7134_BOARD_BEHOLD_505RDS:
+	case SAA7134_BOARD_BEHOLD_505RDS_MK5:
+	case SAA7134_BOARD_BEHOLD_505RDS_MK3:
 	case SAA7134_BOARD_BEHOLD_507_9FM:
 	case SAA7134_BOARD_BEHOLD_507RDS_MK3:
 	case SAA7134_BOARD_BEHOLD_507RDS_MK5:
