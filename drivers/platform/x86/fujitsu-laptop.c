@@ -825,7 +825,7 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 	/* kfifo */
 	spin_lock_init(&fujitsu_hotkey->fifo_lock);
 	error = kfifo_alloc(&fujitsu_hotkey->fifo, RINGBUFFERSIZE * sizeof(int),
-			GFP_KERNEL, &fujitsu_hotkey->fifo_lock);
+			GFP_KERNEL);
 	if (error) {
 		printk(KERN_ERR "kfifo_alloc failed\n");
 		goto err_stop;
@@ -1006,9 +1006,10 @@ static void acpi_fujitsu_hotkey_notify(struct acpi_device *device, u32 event)
 				vdbg_printk(FUJLAPTOP_DBG_TRACE,
 					"Push keycode into ringbuffer [%d]\n",
 					keycode);
-				status = kfifo_put(&fujitsu_hotkey->fifo,
+				status = kfifo_put_locked(&fujitsu_hotkey->fifo,
 						   (unsigned char *)&keycode,
-						   sizeof(keycode));
+						   sizeof(keycode),
+						   &fujitsu_hotkey->fifo_lock);
 				if (status != sizeof(keycode)) {
 					vdbg_printk(FUJLAPTOP_DBG_WARN,
 					    "Could not push keycode [0x%x]\n",
@@ -1019,11 +1020,12 @@ static void acpi_fujitsu_hotkey_notify(struct acpi_device *device, u32 event)
 				}
 			} else if (keycode == 0) {
 				while ((status =
-					kfifo_get
-					(&fujitsu_hotkey->fifo, (unsigned char *)
-					 &keycode_r,
-					 sizeof
-					 (keycode_r))) == sizeof(keycode_r)) {
+					kfifo_get_locked(
+					 &fujitsu_hotkey->fifo,
+					 (unsigned char *) &keycode_r,
+					 sizeof(keycode_r),
+					 &fujitsu_hotkey->fifo_lock))
+					 == sizeof(keycode_r)) {
 					input_report_key(input, keycode_r, 0);
 					input_sync(input);
 					vdbg_printk(FUJLAPTOP_DBG_TRACE,

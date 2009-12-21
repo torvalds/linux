@@ -67,7 +67,7 @@ static void printl(const char *fmt, ...)
 	len += vscnprintf(tbuf+len, sizeof(tbuf)-len, fmt, args);
 	va_end(args);
 
-	kfifo_put(&dccpw.fifo, tbuf, len);
+	kfifo_put_locked(&dccpw.fifo, tbuf, len, &dccpw.lock);
 	wake_up(&dccpw.wait);
 }
 
@@ -135,7 +135,7 @@ static ssize_t dccpprobe_read(struct file *file, char __user *buf,
 	if (error)
 		goto out_free;
 
-	cnt = kfifo_get(&dccpw.fifo, tbuf, len);
+	cnt = kfifo_get_locked(&dccpw.fifo, tbuf, len, &dccpw.lock);
 	error = copy_to_user(buf, tbuf, cnt) ? -EFAULT : 0;
 
 out_free:
@@ -156,7 +156,7 @@ static __init int dccpprobe_init(void)
 
 	init_waitqueue_head(&dccpw.wait);
 	spin_lock_init(&dccpw.lock);
-	if (kfifo_alloc(&dccpw.fifo, bufsize, GFP_KERNEL, &dccpw.lock))
+	if (kfifo_alloc(&dccpw.fifo, bufsize, GFP_KERNEL))
 		return ret;
 	if (!proc_net_fops_create(&init_net, procname, S_IRUSR, &dccpprobe_fops))
 		goto err0;

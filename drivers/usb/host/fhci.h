@@ -495,7 +495,7 @@ static inline struct usb_hcd *fhci_to_hcd(struct fhci_hcd *fhci)
 /* fifo of pointers */
 static inline int cq_new(struct kfifo *fifo, int size)
 {
-	return kfifo_alloc(fifo, size * sizeof(void *), GFP_KERNEL, NULL);
+	return kfifo_alloc(fifo, size * sizeof(void *), GFP_KERNEL);
 }
 
 static inline void cq_delete(struct kfifo *kfifo)

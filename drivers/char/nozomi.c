@@ -686,7 +686,7 @@ static int nozomi_read_config_table(struct nozomi *dc)
 
 		for (i = PORT_MDM; i < MAX_PORT; i++) {
 			kfifo_alloc(&dc->port[i].fifo_ul,
-				FIFO_BUFFER_SIZE_UL, GFP_ATOMIC, NULL);
+				FIFO_BUFFER_SIZE_UL, GFP_ATOMIC);
 			memset(&dc->port[i].ctrl_dl, 0, sizeof(struct ctrl_dl));
 			memset(&dc->port[i].ctrl_ul, 0, sizeof(struct ctrl_ul));
 		}

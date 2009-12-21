@@ -300,8 +300,9 @@ static void do_sony_laptop_release_key(struct work_struct *work)
 {
 	struct sony_laptop_keypress kp;
 
-	while (kfifo_get(&sony_laptop_input.fifo, (unsigned char *)&kp,
-			 sizeof(kp)) == sizeof(kp)) {
+	while (kfifo_get_locked(&sony_laptop_input.fifo, (unsigned char *)&kp,
+			sizeof(kp), &sony_laptop_input.fifo_lock)
+			== sizeof(kp)) {
 		msleep(10);
 		input_report_key(kp.dev, kp.key, 0);
 		input_sync(kp.dev);
@@ -362,8 +363,9 @@ static void sony_laptop_report_input_event(u8 event)
 		/* we emit the scancode so we can always remap the key */
 		input_event(kp.dev, EV_MSC, MSC_SCAN, event);
 		input_sync(kp.dev);
-		kfifo_put(&sony_laptop_input.fifo,
-			  (unsigned char *)&kp, sizeof(kp));
+		kfifo_put_locked(&sony_laptop_input.fifo,
+			  (unsigned char *)&kp, sizeof(kp),
+			  &sony_laptop_input.fifo_lock);
 
 		if (!work_pending(&sony_laptop_release_key_work))
 			queue_work(sony_laptop_input.wq,
@@ -386,8 +388,7 @@ static int sony_laptop_setup_input(struct acpi_device *acpi_device)
 	/* kfifo */
 	spin_lock_init(&sony_laptop_input.fifo_lock);
 	error =
-	 kfifo_alloc(&sony_laptop_input.fifo, SONY_LAPTOP_BUF_SIZE, GFP_KERNEL,
-			    &sony_laptop_input.fifo_lock);
+	 kfifo_alloc(&sony_laptop_input.fifo, SONY_LAPTOP_BUF_SIZE, GFP_KERNEL);
 	if (error) {
 		printk(KERN_ERR DRV_PFX "kfifo_alloc failed\n");
 		goto err_dec_users;
@@ -2129,7 +2130,8 @@ static ssize_t sonypi_misc_read(struct file *file, char __user *buf,
 		return ret;
 
 	while (ret < count &&
-	       (kfifo_get(&sonypi_compat.fifo, &c, sizeof(c)) == sizeof(c))) {
+	       (kfifo_get_locked(&sonypi_compat.fifo, &c, sizeof(c),
+			  &sonypi_compat.fifo_lock) == sizeof(c))) {
 		if (put_user(c, buf++))
 			return -EFAULT;
 		ret++;
@@ -2308,7 +2310,8 @@ static struct miscdevice sonypi_misc_device = {
 
 static void sonypi_compat_report_event(u8 event)
 {
-	kfifo_put(&sonypi_compat.fifo, (unsigned char *)&event, sizeof(event));
+	kfifo_put_locked(&sonypi_compat.fifo, (unsigned char *)&event,
+			sizeof(event), &sonypi_compat.fifo_lock);
 	kill_fasync(&sonypi_compat.fifo_async, SIGIO, POLL_IN);
 	wake_up_interruptible(&sonypi_compat.fifo_proc_list);
 }
@@ -2319,8 +2322,7 @@ static int sonypi_compat_init(void)
 
 	spin_lock_init(&sonypi_compat.fifo_lock);
 	error =
-	 kfifo_alloc(&sonypi_compat.fifo, SONY_LAPTOP_BUF_SIZE, GFP_KERNEL,
-					 &sonypi_compat.fifo_lock);
+	 kfifo_alloc(&sonypi_compat.fifo, SONY_LAPTOP_BUF_SIZE, GFP_KERNEL);
 	if (error) {
 		printk(KERN_ERR DRV_PFX "kfifo_alloc failed\n");
 		return error;

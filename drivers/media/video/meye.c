@@ -800,8 +800,8 @@ again:
 		return IRQ_HANDLED;
 
 	if (meye.mchip_mode == MCHIP_HIC_MODE_CONT_OUT) {
-		if (kfifo_get(&meye.grabq, (unsigned char *)&reqnr,
-			      sizeof(int)) != sizeof(int)) {
+		if (kfifo_get_locked(&meye.grabq, (unsigned char *)&reqnr,
+			      sizeof(int), &meye.grabq_lock) != sizeof(int)) {
 			mchip_free_frame();
 			return IRQ_HANDLED;
 		}
@@ -811,7 +811,8 @@ again:
 		meye.grab_buffer[reqnr].state = MEYE_BUF_DONE;
 		do_gettimeofday(&meye.grab_buffer[reqnr].timestamp);
 		meye.grab_buffer[reqnr].sequence = sequence++;
-		kfifo_put(&meye.doneq, (unsigned char *)&reqnr, sizeof(int));
+		kfifo_put_locked(&meye.doneq, (unsigned char *)&reqnr,
+				sizeof(int), &meye.doneq_lock);
 		wake_up_interruptible(&meye.proc_list);
 	} else {
 		int size;
@@ -820,8 +821,8 @@ again:
 			mchip_free_frame();
 			goto again;
 		}
-		if (kfifo_get(&meye.grabq, (unsigned char *)&reqnr,
-			      sizeof(int)) != sizeof(int)) {
+		if (kfifo_get_locked(&meye.grabq, (unsigned char *)&reqnr,
+			      sizeof(int), &meye.grabq_lock) != sizeof(int)) {
 			mchip_free_frame();
 			goto again;
 		}
@@ -831,7 +832,8 @@ again:
 		meye.grab_buffer[reqnr].state = MEYE_BUF_DONE;
 		do_gettimeofday(&meye.grab_buffer[reqnr].timestamp);
 		meye.grab_buffer[reqnr].sequence = sequence++;
-		kfifo_put(&meye.doneq, (unsigned char *)&reqnr, sizeof(int));
+		kfifo_put_locked(&meye.doneq, (unsigned char *)&reqnr,
+				sizeof(int), &meye.doneq_lock);
 		wake_up_interruptible(&meye.proc_list);
 	}
 	mchip_free_frame();
@@ -933,7 +935,8 @@ static int meyeioc_qbuf_capt(int *nb)
 		mchip_cont_compression_start();
 
 	meye.grab_buffer[*nb].state = MEYE_BUF_USING;
-	kfifo_put(&meye.grabq, (unsigned char *)nb, sizeof(int));
+	kfifo_put_locked(&meye.grabq, (unsigned char *)nb, sizeof(int),
+			 &meye.grabq_lock);
 	mutex_unlock(&meye.lock);
 
 	return 0;
@@ -965,7 +968,8 @@ static int meyeioc_sync(struct file *file, void *fh, int *i)
 		/* fall through */
 	case MEYE_BUF_DONE:
 		meye.grab_buffer[*i].state = MEYE_BUF_UNUSED;
-		kfifo_get(&meye.doneq, (unsigned char *)&unused, sizeof(int));
+		kfifo_get_locked(&meye.doneq, (unsigned char *)&unused,
+				sizeof(int), &meye.doneq_lock);
 	}
 	*i = meye.grab_buffer[*i].size;
 	mutex_unlock(&meye.lock);
@@ -1452,7 +1456,8 @@ static int vidioc_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	buf->flags |= V4L2_BUF_FLAG_QUEUED;
 	buf->flags &= ~V4L2_BUF_FLAG_DONE;
 	meye.grab_buffer[buf->index].state = MEYE_BUF_USING;
-	kfifo_put(&meye.grabq, (unsigned char *)&buf->index, sizeof(int));
+	kfifo_put_locked(&meye.grabq, (unsigned char *)&buf->index,
+			sizeof(int), &meye.grabq_lock);
 	mutex_unlock(&meye.lock);
 
 	return 0;
@@ -1478,8 +1483,8 @@ static int vidioc_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 		return -EINTR;
 	}
 
-	if (!kfifo_get(&meye.doneq, (unsigned char *)&reqnr,
-		       sizeof(int))) {
+	if (!kfifo_get_locked(&meye.doneq, (unsigned char *)&reqnr,
+		       sizeof(int), &meye.doneq_lock)) {
 		mutex_unlock(&meye.lock);
 		return -EBUSY;
 	}
@@ -1745,14 +1750,14 @@ static int __devinit meye_probe(struct pci_dev *pcidev,
 	}
 
 	spin_lock_init(&meye.grabq_lock);
-	if (kfifo_alloc(&meye.grabq, sizeof(int) * MEYE_MAX_BUFNBRS, GFP_KERNEL,
-				 &meye.grabq_lock)) {
+	if (kfifo_alloc(&meye.grabq, sizeof(int) * MEYE_MAX_BUFNBRS,
+				GFP_KERNEL)) {
 		printk(KERN_ERR "meye: fifo allocation failed\n");
 		goto outkfifoalloc1;
 	}
 	spin_lock_init(&meye.doneq_lock);
-	if (kfifo_alloc(&meye.doneq, sizeof(int) * MEYE_MAX_BUFNBRS, GFP_KERNEL,
-				 &meye.doneq_lock)) {
+	if (kfifo_alloc(&meye.doneq, sizeof(int) * MEYE_MAX_BUFNBRS,
+				GFP_KERNEL)) {
 		printk(KERN_ERR "meye: fifo allocation failed\n");
 		goto outkfifoalloc2;
 	}

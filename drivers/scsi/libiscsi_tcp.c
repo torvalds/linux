@@ -1128,7 +1128,7 @@ int iscsi_tcp_r2tpool_alloc(struct iscsi_session *session)
 
 		/* R2T xmit queue */
 		if (kfifo_alloc(&tcp_task->r2tqueue,
-		      session->max_r2t * 4 * sizeof(void*), GFP_KERNEL, NULL)) {
+		      session->max_r2t * 4 * sizeof(void*), GFP_KERNEL)) {
 			iscsi_pool_free(&tcp_task->r2tpool);
 			goto r2t_alloc_fail;
 		}

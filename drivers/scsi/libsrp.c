@@ -58,8 +58,7 @@ static int srp_iu_pool_alloc(struct srp_queue *q, size_t max,
 		goto free_pool;
 
 	spin_lock_init(&q->lock);
-	kfifo_init(&q->queue, (void *) q->pool, max * sizeof(void *),
-			      &q->lock);
+	kfifo_init(&q->queue, (void *) q->pool, max * sizeof(void *));
 
 	for (i = 0, iue = q->items; i < max; i++) {
 		__kfifo_put(&q->queue, (void *) &iue, sizeof(void *));
@@ -164,7 +163,8 @@ struct iu_entry *srp_iu_get(struct srp_target *target)
 {
 	struct iu_entry *iue = NULL;
 
-	kfifo_get(&target->iu_queue.queue, (void *) &iue, sizeof(void *));
+	kfifo_get_locked(&target->iu_queue.queue, (void *) &iue,
+			sizeof(void *), &target->iu_queue.lock);
 	if (!iue)
 		return iue;
 	iue->target = target;
@@ -176,7 +176,8 @@ EXPORT_SYMBOL_GPL(srp_iu_get);
 
 void srp_iu_put(struct iu_entry *iue)
 {
-	kfifo_put(&iue->target->iu_queue.queue, (void *) &iue, sizeof(void *));
+	kfifo_put_locked(&iue->target->iu_queue.queue, (void *) &iue,
+			sizeof(void *), &iue->target->iu_queue.lock);
 }
 EXPORT_SYMBOL_GPL(srp_iu_put);
 

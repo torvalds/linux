@@ -55,7 +55,7 @@ static int __cxio_init_resource_fifo(struct kfifo *fifo,
 	u32 rarray[16];
 	spin_lock_init(fifo_lock);
 
-	if (kfifo_alloc(fifo, nr * sizeof(u32), GFP_KERNEL, fifo_lock))
+	if (kfifo_alloc(fifo, nr * sizeof(u32), GFP_KERNEL))
 		return -ENOMEM;
 
 	for (i = 0; i < skip_low + skip_high; i++)
@@ -86,7 +86,8 @@ static int __cxio_init_resource_fifo(struct kfifo *fifo,
 			__kfifo_put(fifo, (unsigned char *) &i, sizeof(u32));
 
 	for (i = 0; i < skip_low + skip_high; i++)
-		kfifo_get(fifo, (unsigned char *) &entry, sizeof(u32));
+		kfifo_get_locked(fifo, (unsigned char *) &entry,
+				sizeof(u32), fifo_lock);
 	return 0;
 }
 
@@ -113,8 +114,7 @@ static int cxio_init_qpid_fifo(struct cxio_rdev *rdev_p)
 	spin_lock_init(&rdev_p->rscp->qpid_fifo_lock);
 
 	if (kfifo_alloc(&rdev_p->rscp->qpid_fifo, T3_MAX_NUM_QP * sizeof(u32),
-					      GFP_KERNEL,
-					      &rdev_p->rscp->qpid_fifo_lock))
+					      GFP_KERNEL))
 		return -ENOMEM;
 
 	for (i = 16; i < T3_MAX_NUM_QP; i++)
@@ -177,33 +177,37 @@ tpt_err:
 /*
  * returns 0 if no resource available
  */
-static u32 cxio_hal_get_resource(struct kfifo *fifo)
+static u32 cxio_hal_get_resource(struct kfifo *fifo, spinlock_t * lock)
 {
 	u32 entry;
-	if (kfifo_get(fifo, (unsigned char *) &entry, sizeof(u32)))
+	if (kfifo_get_locked(fifo, (unsigned char *) &entry, sizeof(u32), lock))
 		return entry;
 	else
 		return 0;	/* fifo emptry */
 }
 
-static void cxio_hal_put_resource(struct kfifo *fifo, u32 entry)
+static void cxio_hal_put_resource(struct kfifo *fifo, spinlock_t * lock,
+		u32 entry)
 {
-	BUG_ON(kfifo_put(fifo, (unsigned char *) &entry, sizeof(u32)) == 0);
+	BUG_ON(
+	kfifo_put_locked(fifo, (unsigned char *) &entry, sizeof(u32), lock)
+	== 0);
 }
 
 u32 cxio_hal_get_stag(struct cxio_hal_resource *rscp)
 {
-	return cxio_hal_get_resource(&rscp->tpt_fifo);
+	return cxio_hal_get_resource(&rscp->tpt_fifo, &rscp->tpt_fifo_lock);
 }
 
 void cxio_hal_put_stag(struct cxio_hal_resource *rscp, u32 stag)
 {
-	cxio_hal_put_resource(&rscp->tpt_fifo, stag);
+	cxio_hal_put_resource(&rscp->tpt_fifo, &rscp->tpt_fifo_lock, stag);
 }
 
 u32 cxio_hal_get_qpid(struct cxio_hal_resource *rscp)
 {
-	u32 qpid = cxio_hal_get_resource(&rscp->qpid_fifo);
+	u32 qpid = cxio_hal_get_resource(&rscp->qpid_fifo,
+			&rscp->qpid_fifo_lock);
 	PDBG("%s qpid 0x%x\n", __func__, qpid);
 	return qpid;
 }
@@ -211,27 +215,27 @@ u32 cxio_hal_get_qpid(struct cxio_hal_resource *rscp)
 void cxio_hal_put_qpid(struct cxio_hal_resource *rscp, u32 qpid)
 {
 	PDBG("%s qpid 0x%x\n", __func__, qpid);
-	cxio_hal_put_resource(&rscp->qpid_fifo, qpid);
+	cxio_hal_put_resource(&rscp->qpid_fifo, &rscp->qpid_fifo_lock, qpid);
 }
 
 u32 cxio_hal_get_cqid(struct cxio_hal_resource *rscp)
 {
-	return cxio_hal_get_resource(&rscp->cqid_fifo);
+	return cxio_hal_get_resource(&rscp->cqid_fifo, &rscp->cqid_fifo_lock);
 }
 
 void cxio_hal_put_cqid(struct cxio_hal_resource *rscp, u32 cqid)
 {
-	cxio_hal_put_resource(&rscp->cqid_fifo, cqid);
+	cxio_hal_put_resource(&rscp->cqid_fifo, &rscp->cqid_fifo_lock, cqid);
 }
 
 u32 cxio_hal_get_pdid(struct cxio_hal_resource *rscp)
 {
-	return cxio_hal_get_resource(&rscp->pdid_fifo);
+	return cxio_hal_get_resource(&rscp->pdid_fifo, &rscp->pdid_fifo_lock);
 }
 
 void cxio_hal_put_pdid(struct cxio_hal_resource *rscp, u32 pdid)
 {
-	cxio_hal_put_resource(&rscp->pdid_fifo, pdid);
+	cxio_hal_put_resource(&rscp->pdid_fifo, &rscp->pdid_fifo_lock, pdid);
 }
 
 void cxio_hal_destroy_resource(struct cxio_hal_resource *rscp)
