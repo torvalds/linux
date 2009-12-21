@@ -92,7 +92,7 @@ static int snd_cx18_mixer_tv_vol_info(struct snd_kcontrol *kcontrol,
 	uinfo->count = 1;
 	/* We're already translating values, just keep this control in dB */
 	uinfo->value.integer.min  = -96;
-	uinfo->value.integer.max  =  +8;
+	uinfo->value.integer.max  =   8;
 	uinfo->value.integer.step =   1;
 	return 0;
 }
