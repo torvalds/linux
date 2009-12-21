@@ -783,6 +783,36 @@ static struct attribute_group port_attribute_group = {
 	.attrs = port_sysfs_entries,
 };
 
+/* Remove all port-specific data. */
+static int remove_port(struct port *port)
+{
+	spin_lock_irq(&port->portdev->ports_lock);
+	list_del(&port->list);
+	spin_unlock_irq(&port->portdev->ports_lock);
+
+	if (is_console_port(port)) {
+		spin_lock_irq(&pdrvdata_lock);
+		list_del(&port->cons.list);
+		spin_unlock_irq(&pdrvdata_lock);
+		hvc_remove(port->cons.hvc);
+	}
+	if (port->guest_connected)
+		send_control_msg(port, VIRTIO_CONSOLE_PORT_OPEN, 0);
+
+	while (port->in_vq->vq_ops->detach_unused_buf(port->in_vq))
+		;
+
+	sysfs_remove_group(&port->dev->kobj, &port_attribute_group);
+	device_destroy(pdrvdata.class, port->dev->devt);
+	cdev_del(&port->cdev);
+
+	discard_port_data(port);
+	kfree(port->name);
+
+	kfree(port);
+	return 0;
+}
+
 /* Any private messages that the Host and Guest want to share */
 static void handle_control_message(struct ports_device *portdev,
 				   struct port_buffer *buf)
@@ -853,6 +883,32 @@ static void handle_control_message(struct ports_device *portdev,
 				"Error %d creating sysfs device attributes\n",
 				err);
 
+		break;
+	case VIRTIO_CONSOLE_PORT_REMOVE:
+		/*
+		 * Hot unplug the port.  We don't decrement nr_ports
+		 * since we don't want to deal with extra complexities
+		 * of using the lowest-available port id: We can just
+		 * pick up the nr_ports number as the id and not have
+		 * userspace send it to us.  This helps us in two
+		 * ways:
+		 *
+		 * - We don't need to have a 'port_id' field in the
+		 *   config space when a port is hot-added.  This is a
+		 *   good thing as we might queue up multiple hotplug
+		 *   requests issued in our workqueue.
+		 *
+		 * - Another way to deal with this would have been to
+		 *   use a bitmap of the active ports and select the
+		 *   lowest non-active port from that map.  That
+		 *   bloats the already tight config space and we
+		 *   would end up artificially limiting the
+		 *   max. number of ports to sizeof(bitmap).  Right
+		 *   now we can support 2^32 ports (as the port id is
+		 *   stored in a u32 type).
+		 *
+		 */
+		remove_port(port);
 		break;
 	}
 }
@@ -1078,12 +1134,17 @@ static void config_work_handler(struct work_struct *work)
 		/*
 		 * Port 0 got hot-added.  Since we already did all the
 		 * other initialisation for it, just tell the Host
-		 * that the port is ready.
+		 * that the port is ready if we find the port.  In
+		 * case the port was hot-removed earlier, we call
+		 * add_port to add the port.
 		 */
 		struct port *port;
 
 		port = find_port_by_id(portdev, 0);
-		send_control_msg(port, VIRTIO_CONSOLE_PORT_READY, 1);
+		if (!port)
+			add_port(portdev, 0);
+		else
+			send_control_msg(port, VIRTIO_CONSOLE_PORT_READY, 1);
 		return;
 	}
 	if (virtconconf.nr_ports > portdev->config.max_nr_ports) {
