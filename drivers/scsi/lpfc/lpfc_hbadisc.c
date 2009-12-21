@@ -1555,10 +1555,16 @@ lpfc_mbx_cmpl_read_fcf_record(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	 * to book keeping the FCFIs can be used.
 	 */
 	if (shdr_status || shdr_add_status) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"2521 READ_FCF_RECORD mailbox failed "
-				"with status x%x add_status x%x, mbx\n",
-				shdr_status, shdr_add_status);
+		if (shdr_status == STATUS_FCF_TABLE_EMPTY) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"2726 READ_FCF_RECORD Indicates empty "
+					"FCF table.\n");
+		} else {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"2521 READ_FCF_RECORD mailbox failed "
+					"with status x%x add_status x%x, mbx\n",
+					shdr_status, shdr_add_status);
+		}
 		goto out;
 	}
 	/* Interpreting the returned information of FCF records */

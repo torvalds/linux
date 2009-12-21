@@ -1371,6 +1371,7 @@ struct lpfc_mbx_query_fw_cfg {
 #define STATUS_ERROR_ACITMAIN				0x2a
 #define STATUS_REBOOT_REQUIRED				0x2c
 #define STATUS_FCF_IN_USE				0x3a
+#define STATUS_FCF_TABLE_EMPTY				0x43
 
 struct lpfc_mbx_sli4_config {
 	struct mbox_header header;

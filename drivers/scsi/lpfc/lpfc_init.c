@@ -7507,6 +7507,9 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 			error = -ENODEV;
 			goto out_free_sysfs_attr;
 		}
+		/* Default to single FCP EQ for non-MSI-X */
+		if (phba->intr_type != MSIX)
+			phba->cfg_fcp_eq_count = 1;
 		/* Set up SLI-4 HBA */
 		if (lpfc_sli4_hba_setup(phba)) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,

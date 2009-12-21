@@ -1383,7 +1383,7 @@ lpfc_sli_hbq_to_firmware_s4(struct lpfc_hba *phba, uint32_t hbqno,
 /* HBQ for ELS and CT traffic. */
 static struct lpfc_hbq_init lpfc_els_hbq = {
 	.rn = 1,
-	.entry_count = 200,
+	.entry_count = 256,
 	.mask_count = 0,
 	.profile = 0,
 	.ring_mask = (1 << LPFC_ELS_RING),
@@ -1482,8 +1482,11 @@ err:
 int
 lpfc_sli_hbqbuf_add_hbqs(struct lpfc_hba *phba, uint32_t qno)
 {
-	return(lpfc_sli_hbqbuf_fill_hbqs(phba, qno,
-					 lpfc_hbq_defs[qno]->add_count));
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		return 0;
+	else
+		return lpfc_sli_hbqbuf_fill_hbqs(phba, qno,
+					 lpfc_hbq_defs[qno]->add_count);
 }
 
 /**
@@ -1498,8 +1501,12 @@ lpfc_sli_hbqbuf_add_hbqs(struct lpfc_hba *phba, uint32_t qno)
 static int
 lpfc_sli_hbqbuf_init_hbqs(struct lpfc_hba *phba, uint32_t qno)
 {
-	return(lpfc_sli_hbqbuf_fill_hbqs(phba, qno,
-					 lpfc_hbq_defs[qno]->init_count));
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		return lpfc_sli_hbqbuf_fill_hbqs(phba, qno,
+					 lpfc_hbq_defs[qno]->entry_count);
+	else
+		return lpfc_sli_hbqbuf_fill_hbqs(phba, qno,
+					 lpfc_hbq_defs[qno]->init_count);
 }
 
 /**
@@ -4110,6 +4117,7 @@ lpfc_sli4_read_rev(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	if (rc) {
 		dma_free_coherent(&phba->pcidev->dev, dma_size,
 				  dmabuf->virt, dmabuf->phys);
+		kfree(dmabuf);
 		return -EIO;
 	}
 
@@ -11409,14 +11417,9 @@ lpfc_sli4_handle_received_buffer(struct lpfc_hba *phba,
 		return;
 	}
 	/* If not last frame in sequence continue processing frames. */
-	if (!lpfc_seq_complete(seq_dmabuf)) {
-		/*
-		 * When saving off frames post a new one and mark this
-		 * frame to be freed when it is finished.
-		 **/
-		lpfc_sli_hbqbuf_fill_hbqs(phba, LPFC_ELS_HBQ, 1);
+	if (!lpfc_seq_complete(seq_dmabuf))
 		return;
-	}
+
 	/* Send the complete sequence to the upper layer protocol */
 	lpfc_sli4_send_seq_to_ulp(vport, seq_dmabuf);
 }
