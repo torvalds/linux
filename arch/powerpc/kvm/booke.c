@@ -97,6 +97,11 @@ int kvmppc_core_pending_dec(struct kvm_vcpu *vcpu)
 	return test_bit(BOOKE_IRQPRIO_DECREMENTER, &vcpu->arch.pending_exceptions);
 }
 
+void kvmppc_core_dequeue_dec(struct kvm_vcpu *vcpu)
+{
+	clear_bit(BOOKE_IRQPRIO_DECREMENTER, &vcpu->arch.pending_exceptions);
+}
+
 void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
                                 struct kvm_interrupt *irq)
 {

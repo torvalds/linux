@@ -151,6 +151,13 @@ static int kvmppc_book3s_vec2irqprio(unsigned int vec)
 	return prio;
 }
 
+static void kvmppc_book3s_dequeue_irqprio(struct kvm_vcpu *vcpu,
+					  unsigned int vec)
+{
+	clear_bit(kvmppc_book3s_vec2irqprio(vec),
+		  &vcpu->arch.pending_exceptions);
+}
+
 void kvmppc_book3s_queue_irqprio(struct kvm_vcpu *vcpu, unsigned int vec)
 {
 	vcpu->stat.queue_intr++;
@@ -176,6 +183,11 @@ void kvmppc_core_queue_dec(struct kvm_vcpu *vcpu)
 int kvmppc_core_pending_dec(struct kvm_vcpu *vcpu)
 {
 	return test_bit(BOOK3S_INTERRUPT_DECREMENTER >> 7, &vcpu->arch.pending_exceptions);
+}
+
+void kvmppc_core_dequeue_dec(struct kvm_vcpu *vcpu)
+{
+	kvmppc_book3s_dequeue_irqprio(vcpu, BOOK3S_INTERRUPT_DECREMENTER);
 }
 
 void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
@@ -275,7 +287,9 @@ void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu)
 #endif
 	priority = __ffs(*pending);
 	while (priority <= (sizeof(unsigned int) * 8)) {
-		if (kvmppc_book3s_irqprio_deliver(vcpu, priority)) {
+		if (kvmppc_book3s_irqprio_deliver(vcpu, priority) &&
+		    (priority != BOOK3S_IRQPRIO_DECREMENTER)) {
+			/* DEC interrupts get cleared by mtdec */
 			clear_bit(priority, &vcpu->arch.pending_exceptions);
 			break;
 		}

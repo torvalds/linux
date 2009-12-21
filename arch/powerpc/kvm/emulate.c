@@ -83,6 +83,9 @@ void kvmppc_emulate_dec(struct kvm_vcpu *vcpu)
 
 	pr_debug("mtDEC: %x\n", vcpu->arch.dec);
 #ifdef CONFIG_PPC64
+	/* mtdec lowers the interrupt line when positive. */
+	kvmppc_core_dequeue_dec(vcpu);
+
 	/* POWER4+ triggers a dec interrupt if the value is < 0 */
 	if (vcpu->arch.dec & 0x80000000) {
 		hrtimer_try_to_cancel(&vcpu->arch.dec_timer);
