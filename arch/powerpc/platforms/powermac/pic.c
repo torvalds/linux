@@ -152,12 +152,12 @@ static unsigned int pmac_startup_irq(unsigned int virq)
         unsigned long bit = 1UL << (src & 0x1f);
         int i = src >> 5;
 
-  	spin_lock_irqsave(&pmac_pic_lock, flags);
-	if ((irq_desc[virq].status & IRQ_LEVEL) == 0)
+	spin_lock_irqsave(&pmac_pic_lock, flags);
+	if ((irq_to_desc(virq)->status & IRQ_LEVEL) == 0)
 		out_le32(&pmac_irq_hw[i]->ack, bit);
         __set_bit(src, ppc_cached_irq_mask);
         __pmac_set_irq_mask(src, 0);
-  	spin_unlock_irqrestore(&pmac_pic_lock, flags);
+	spin_unlock_irqrestore(&pmac_pic_lock, flags);
 
 	return 0;
 }
@@ -195,7 +195,7 @@ static int pmac_retrigger(unsigned int virq)
 }
 
 static struct irq_chip pmac_pic = {
-	.typename	= " PMAC-PIC ",
+	.name		= " PMAC-PIC ",
 	.startup	= pmac_startup_irq,
 	.mask		= pmac_mask_irq,
 	.ack		= pmac_ack_irq,
@@ -285,7 +285,7 @@ static int pmac_pic_host_match(struct irq_host *h, struct device_node *node)
 static int pmac_pic_host_map(struct irq_host *h, unsigned int virq,
 			     irq_hw_number_t hw)
 {
-	struct irq_desc *desc = get_irq_desc(virq);
+	struct irq_desc *desc = irq_to_desc(virq);
 	int level;
 
 	if (hw >= max_irqs)
@@ -303,7 +303,7 @@ static int pmac_pic_host_map(struct irq_host *h, unsigned int virq,
 }
 
 static int pmac_pic_host_xlate(struct irq_host *h, struct device_node *ct,
-			       u32 *intspec, unsigned int intsize,
+			       const u32 *intspec, unsigned int intsize,
 			       irq_hw_number_t *out_hwirq,
 			       unsigned int *out_flags)
 

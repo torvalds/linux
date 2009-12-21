@@ -589,7 +589,7 @@ static int cxio_hal_destroy_ctrl_qp(struct cxio_rdev *rdev_p)
 
 /* write len bytes of data into addr (32B aligned address)
  * If data is NULL, clear len byte of memory to zero.
- * caller aquires the ctrl_qp lock before the call
+ * caller acquires the ctrl_qp lock before the call
  */
 static int cxio_hal_ctrl_qp_write_mem(struct cxio_rdev *rdev_p, u32 addr,
 				      u32 len, void *data)

@@ -176,7 +176,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	}
 
 	if (i < NR_IRQS) {
-		spin_lock_irqsave(&irq_desc[i].lock, flags);
+		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
 		action = irq_desc[i].action;
 		if (!action)
 			goto skip;
@@ -187,7 +187,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
 #endif
-		seq_printf(p, " %9s", irq_desc[i].chip->typename);
+		seq_printf(p, " %9s", irq_desc[i].chip->name);
 		seq_printf(p, "  %s", action->name);
 
 		for (action=action->next; action; action = action->next)
@@ -195,7 +195,7 @@ int show_interrupts(struct seq_file *p, void *v)
 
 		seq_putc(p, '\n');
 skip:
-		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
 	} else if (i == NR_IRQS) {
 		seq_printf(p, "NMI: ");
 		for_each_online_cpu(j)
@@ -484,7 +484,7 @@ static void sun4v_virq_eoi(unsigned int virt_irq)
 }
 
 static struct irq_chip sun4u_irq = {
-	.typename	= "sun4u",
+	.name		= "sun4u",
 	.enable		= sun4u_irq_enable,
 	.disable	= sun4u_irq_disable,
 	.eoi		= sun4u_irq_eoi,
@@ -492,7 +492,7 @@ static struct irq_chip sun4u_irq = {
 };
 
 static struct irq_chip sun4v_irq = {
-	.typename	= "sun4v",
+	.name		= "sun4v",
 	.enable		= sun4v_irq_enable,
 	.disable	= sun4v_irq_disable,
 	.eoi		= sun4v_irq_eoi,
@@ -500,7 +500,7 @@ static struct irq_chip sun4v_irq = {
 };
 
 static struct irq_chip sun4v_virq = {
-	.typename	= "vsun4v",
+	.name		= "vsun4v",
 	.enable		= sun4v_virq_enable,
 	.disable	= sun4v_virq_disable,
 	.eoi		= sun4v_virq_eoi,
@@ -785,14 +785,14 @@ void fixup_irqs(void)
 	for (irq = 0; irq < NR_IRQS; irq++) {
 		unsigned long flags;
 
-		spin_lock_irqsave(&irq_desc[irq].lock, flags);
+		raw_spin_lock_irqsave(&irq_desc[irq].lock, flags);
 		if (irq_desc[irq].action &&
 		    !(irq_desc[irq].status & IRQ_PER_CPU)) {
 			if (irq_desc[irq].chip->set_affinity)
 				irq_desc[irq].chip->set_affinity(irq,
 					irq_desc[irq].affinity);
 		}
-		spin_unlock_irqrestore(&irq_desc[irq].lock, flags);
+		raw_spin_unlock_irqrestore(&irq_desc[irq].lock, flags);
 	}
 
 	tick_ops->disable_irq();

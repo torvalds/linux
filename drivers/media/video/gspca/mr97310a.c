@@ -1,22 +1,29 @@
 /*
  * Mars MR97310A library
  *
+ * The original mr97310a driver, which supported the Aiptek Pencam VGA+, is
  * Copyright (C) 2009 Kyle Guinn <elyk03@gmail.com>
  *
  * Support for the MR97310A cameras in addition to the Aiptek Pencam VGA+
  * and for the routines for detecting and classifying these various cameras,
+ * is Copyright (C) 2009 Theodore Kilgore <kilgota@auburn.edu>
  *
+ * Support for the control settings for the CIF cameras is
+ * Copyright (C) 2009 Hans de Goede <hdgoede@redhat.com> and
+ * Thomas Kaiser <thomas@kaiser-linux.li>
+ *
+ * Support for the control settings for the VGA cameras is
  * Copyright (C) 2009 Theodore Kilgore <kilgota@auburn.edu>
  *
- * Acknowledgements:
+ * Several previously unsupported cameras are owned and have been tested by
+ * Hans de Goede <hdgoede@redhat.com> and
+ * Thomas Kaiser <thomas@kaiser-linux.li> and
+ * Theodore Kilgore <kilgota@auburn.edu> and
+ * Edmond Rodriguez <erodrig_97@yahoo.com> and
+ * Aurelien Jacobs <aurel@gnuage.org>
  *
  * The MR97311A support in gspca/mars.c has been helpful in understanding some
  * of the registers in these cameras.
- *
- * Hans de Goede <hdgoede@redhat.com> and
- * Thomas Kaiser <thomas@kaiser-linux.li>
- * have assisted with their experience. Each of them has also helped by
- * testing a previously unsupported camera.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,11 +47,9 @@
 #define CAM_TYPE_CIF			0
 #define CAM_TYPE_VGA			1
 
-#define MR97310A_BRIGHTNESS_MIN		-254
-#define MR97310A_BRIGHTNESS_MAX		255
 #define MR97310A_BRIGHTNESS_DEFAULT	0
 
-#define MR97310A_EXPOSURE_MIN		300
+#define MR97310A_EXPOSURE_MIN		0
 #define MR97310A_EXPOSURE_MAX		4095
 #define MR97310A_EXPOSURE_DEFAULT	1000
 
@@ -52,13 +57,17 @@
 #define MR97310A_GAIN_MAX		31
 #define MR97310A_GAIN_DEFAULT		25
 
+#define MR97310A_MIN_CLOCKDIV_MIN	3
+#define MR97310A_MIN_CLOCKDIV_MAX	8
+#define MR97310A_MIN_CLOCKDIV_DEFAULT	3
+
 MODULE_AUTHOR("Kyle Guinn <elyk03@gmail.com>,"
 	      "Theodore Kilgore <kilgota@auburn.edu>");
 MODULE_DESCRIPTION("GSPCA/Mars-Semi MR97310A USB Camera Driver");
 MODULE_LICENSE("GPL");
 
 /* global parameters */
-int force_sensor_type = -1;
+static int force_sensor_type = -1;
 module_param(force_sensor_type, int, 0644);
 MODULE_PARM_DESC(force_sensor_type, "Force sensor type (-1 (auto), 0 or 1)");
 
@@ -69,10 +78,12 @@ struct sd {
 	u8 cam_type;	/* 0 is CIF and 1 is VGA */
 	u8 sensor_type;	/* We use 0 and 1 here, too. */
 	u8 do_lcd_stop;
+	u8 adj_colors;
 
 	int brightness;
 	u16 exposure;
 	u8 gain;
+	u8 min_clockdiv;
 };
 
 struct sensor_w_data {
@@ -82,26 +93,31 @@ struct sensor_w_data {
 	int len;
 };
 
+static void sd_stopN(struct gspca_dev *gspca_dev);
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setmin_clockdiv(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getmin_clockdiv(struct gspca_dev *gspca_dev, __s32 *val);
 static void setbrightness(struct gspca_dev *gspca_dev);
 static void setexposure(struct gspca_dev *gspca_dev);
 static void setgain(struct gspca_dev *gspca_dev);
 
 /* V4L2 controls supported by the driver */
 static struct ctrl sd_ctrls[] = {
+/* Separate brightness control description for Argus QuickClix as it has
+   different limits from the other mr97310a cameras */
 	{
-#define BRIGHTNESS_IDX 0
+#define NORM_BRIGHTNESS_IDX 0
 		{
 			.id = V4L2_CID_BRIGHTNESS,
 			.type = V4L2_CTRL_TYPE_INTEGER,
 			.name = "Brightness",
-			.minimum = MR97310A_BRIGHTNESS_MIN,
-			.maximum = MR97310A_BRIGHTNESS_MAX,
+			.minimum = -254,
+			.maximum = 255,
 			.step = 1,
 			.default_value = MR97310A_BRIGHTNESS_DEFAULT,
 			.flags = 0,
@@ -110,7 +126,22 @@ static struct ctrl sd_ctrls[] = {
 		.get = sd_getbrightness,
 	},
 	{
-#define EXPOSURE_IDX 1
+#define ARGUS_QC_BRIGHTNESS_IDX 1
+		{
+			.id = V4L2_CID_BRIGHTNESS,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+			.name = "Brightness",
+			.minimum = 0,
+			.maximum = 15,
+			.step = 1,
+			.default_value = MR97310A_BRIGHTNESS_DEFAULT,
+			.flags = 0,
+		},
+		.set = sd_setbrightness,
+		.get = sd_getbrightness,
+	},
+	{
+#define EXPOSURE_IDX 2
 		{
 			.id = V4L2_CID_EXPOSURE,
 			.type = V4L2_CTRL_TYPE_INTEGER,
@@ -125,7 +156,7 @@ static struct ctrl sd_ctrls[] = {
 		.get = sd_getexposure,
 	},
 	{
-#define GAIN_IDX 2
+#define GAIN_IDX 3
 		{
 			.id = V4L2_CID_GAIN,
 			.type = V4L2_CTRL_TYPE_INTEGER,
@@ -138,6 +169,21 @@ static struct ctrl sd_ctrls[] = {
 		},
 		.set = sd_setgain,
 		.get = sd_getgain,
+	},
+	{
+#define MIN_CLOCKDIV_IDX 4
+		{
+			.id = V4L2_CID_PRIVATE_BASE,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+			.name = "Minimum Clock Divider",
+			.minimum = MR97310A_MIN_CLOCKDIV_MIN,
+			.maximum = MR97310A_MIN_CLOCKDIV_MAX,
+			.step = 1,
+			.default_value = MR97310A_MIN_CLOCKDIV_DEFAULT,
+			.flags = 0,
+		},
+		.set = sd_setmin_clockdiv,
+		.get = sd_getmin_clockdiv,
 	},
 };
 
@@ -230,12 +276,17 @@ static int sensor_write1(struct gspca_dev *gspca_dev, u8 reg, u8 data)
 	int rc;
 
 	buf = data;
-	rc = sensor_write_reg(gspca_dev, reg, 0x01, &buf, 1);
+	if (sd->cam_type == CAM_TYPE_CIF) {
+		rc = sensor_write_reg(gspca_dev, reg, 0x01, &buf, 1);
+		confirm_reg = sd->sensor_type ? 0x13 : 0x11;
+	} else {
+		rc = sensor_write_reg(gspca_dev, reg, 0x00, &buf, 1);
+		confirm_reg = 0x11;
+	}
 	if (rc < 0)
 		return rc;
 
 	buf = 0x01;
-	confirm_reg = sd->sensor_type ? 0x13 : 0x11;
 	rc = sensor_write_reg(gspca_dev, confirm_reg, 0x00, &buf, 1);
 	if (rc < 0)
 		return rc;
@@ -243,18 +294,26 @@ static int sensor_write1(struct gspca_dev *gspca_dev, u8 reg, u8 data)
 	return 0;
 }
 
-static int cam_get_response16(struct gspca_dev *gspca_dev)
+static int cam_get_response16(struct gspca_dev *gspca_dev, u8 reg, int verbose)
 {
-	__u8 *data = gspca_dev->usb_buf;
 	int err_code;
 
-	data[0] = 0x21;
+	gspca_dev->usb_buf[0] = reg;
 	err_code = mr_write(gspca_dev, 1);
 	if (err_code < 0)
 		return err_code;
 
 	err_code = mr_read(gspca_dev, 16);
-	return err_code;
+	if (err_code < 0)
+		return err_code;
+
+	if (verbose)
+		PDEBUG(D_PROBE, "Register: %02x reads %02x%02x%02x", reg,
+		       gspca_dev->usb_buf[0],
+		       gspca_dev->usb_buf[1],
+		       gspca_dev->usb_buf[2]);
+
+	return 0;
 }
 
 static int zero_the_pointer(struct gspca_dev *gspca_dev)
@@ -264,7 +323,7 @@ static int zero_the_pointer(struct gspca_dev *gspca_dev)
 	u8 status = 0;
 	int tries = 0;
 
-	err_code = cam_get_response16(gspca_dev);
+	err_code = cam_get_response16(gspca_dev, 0x21, 0);
 	if (err_code < 0)
 		return err_code;
 
@@ -275,7 +334,7 @@ static int zero_the_pointer(struct gspca_dev *gspca_dev)
 	if (err_code < 0)
 		return err_code;
 
-	err_code = cam_get_response16(gspca_dev);
+	err_code = cam_get_response16(gspca_dev, 0x21, 0);
 	if (err_code < 0)
 		return err_code;
 
@@ -285,7 +344,7 @@ static int zero_the_pointer(struct gspca_dev *gspca_dev)
 	if (err_code < 0)
 		return err_code;
 
-	err_code = cam_get_response16(gspca_dev);
+	err_code = cam_get_response16(gspca_dev, 0x21, 0);
 	if (err_code < 0)
 		return err_code;
 
@@ -295,7 +354,7 @@ static int zero_the_pointer(struct gspca_dev *gspca_dev)
 	if (err_code < 0)
 		return err_code;
 
-	err_code = cam_get_response16(gspca_dev);
+	err_code = cam_get_response16(gspca_dev, 0x21, 0);
 	if (err_code < 0)
 		return err_code;
 
@@ -306,7 +365,7 @@ static int zero_the_pointer(struct gspca_dev *gspca_dev)
 		return err_code;
 
 	while (status != 0x0a && tries < 256) {
-		err_code = cam_get_response16(gspca_dev);
+		err_code = cam_get_response16(gspca_dev, 0x21, 0);
 		status = data[0];
 		tries++;
 		if (err_code < 0)
@@ -323,7 +382,7 @@ static int zero_the_pointer(struct gspca_dev *gspca_dev)
 		if (err_code < 0)
 			return err_code;
 
-		err_code = cam_get_response16(gspca_dev);
+		err_code = cam_get_response16(gspca_dev, 0x21, 0);
 		status = data[0];
 		tries++;
 		if (err_code < 0)
@@ -342,89 +401,202 @@ static int zero_the_pointer(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-static u8 get_sensor_id(struct gspca_dev *gspca_dev)
+static int stream_start(struct gspca_dev *gspca_dev)
 {
-	int err_code;
-
-	gspca_dev->usb_buf[0] = 0x1e;
-	err_code = mr_write(gspca_dev, 1);
-	if (err_code < 0)
-		return err_code;
-
-	err_code = mr_read(gspca_dev, 16);
-	if (err_code < 0)
-		return err_code;
-
-	PDEBUG(D_PROBE, "Byte zero reported is %01x", gspca_dev->usb_buf[0]);
-
-	return gspca_dev->usb_buf[0];
+	gspca_dev->usb_buf[0] = 0x01;
+	gspca_dev->usb_buf[1] = 0x01;
+	return mr_write(gspca_dev, 2);
 }
 
-/* this function is called at probe time */
+static void stream_stop(struct gspca_dev *gspca_dev)
+{
+	gspca_dev->usb_buf[0] = 0x01;
+	gspca_dev->usb_buf[1] = 0x00;
+	if (mr_write(gspca_dev, 2) < 0)
+		PDEBUG(D_ERR, "Stream Stop failed");
+}
+
+static void lcd_stop(struct gspca_dev *gspca_dev)
+{
+	gspca_dev->usb_buf[0] = 0x19;
+	gspca_dev->usb_buf[1] = 0x54;
+	if (mr_write(gspca_dev, 2) < 0)
+		PDEBUG(D_ERR, "LCD Stop failed");
+}
+
+static int isoc_enable(struct gspca_dev *gspca_dev)
+{
+	gspca_dev->usb_buf[0] = 0x00;
+	gspca_dev->usb_buf[1] = 0x4d;  /* ISOC transfering enable... */
+	return mr_write(gspca_dev, 2);
+}
+
+/* This function is called at probe time */
 static int sd_config(struct gspca_dev *gspca_dev,
 		     const struct usb_device_id *id)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
-	__u8 *data = gspca_dev->usb_buf;
 	int err_code;
 
 	cam = &gspca_dev->cam;
 	cam->cam_mode = vga_mode;
 	cam->nmodes = ARRAY_SIZE(vga_mode);
+	sd->do_lcd_stop = 0;
 
-	if (id->idProduct == 0x010e) {
+	/* Several of the supported CIF cameras share the same USB ID but
+	 * require different initializations and different control settings.
+	 * The same is true of the VGA cameras. Therefore, we are forced
+	 * to start the initialization process in order to determine which
+	 * camera is present. Some of the supported cameras require the
+	 * memory pointer to be set to 0 as the very first item of business
+	 * or else they will not stream. So we do that immediately.
+	 */
+	err_code = zero_the_pointer(gspca_dev);
+	if (err_code < 0)
+		return err_code;
+
+	err_code = stream_start(gspca_dev);
+	if (err_code < 0)
+		return err_code;
+
+	if (id->idProduct == 0x0110 || id->idProduct == 0x010e) {
 		sd->cam_type = CAM_TYPE_CIF;
 		cam->nmodes--;
+		err_code = cam_get_response16(gspca_dev, 0x06, 1);
+		if (err_code < 0)
+			return err_code;
+		/*
+		 * All but one of the known CIF cameras share the same USB ID,
+		 * but two different init routines are in use, and the control
+		 * settings are different, too. We need to detect which camera
+		 * of the two known varieties is connected!
+		 *
+		 * A list of known CIF cameras follows. They all report either
+		 * 0002 for type 0 or 0003 for type 1.
+		 * If you have another to report, please do
+		 *
+		 * Name		sd->sensor_type		reported by
+		 *
+		 * Sakar Spy-shot	0		T. Kilgore
+		 * Innovage		0		T. Kilgore
+		 * Vivitar Mini		0		H. De Goede
+		 * Vivitar Mini		0		E. Rodriguez
+		 * Vivitar Mini		1		T. Kilgore
+		 * Elta-Media 8212dc	1		T. Kaiser
+		 * Philips dig. keych.	1		T. Kilgore
+		 * Trust Spyc@m 100	1		A. Jacobs
+		 */
+		switch (gspca_dev->usb_buf[1]) {
+		case 2:
+			sd->sensor_type = 0;
+			break;
+		case 3:
+			sd->sensor_type = 1;
+			break;
+		default:
+			PDEBUG(D_ERR, "Unknown CIF Sensor id : %02x",
+			       gspca_dev->usb_buf[1]);
+			return -ENODEV;
+		}
+		PDEBUG(D_PROBE, "MR97310A CIF camera detected, sensor: %d",
+		       sd->sensor_type);
+	} else {
+		sd->cam_type = CAM_TYPE_VGA;
 
-		data[0] = 0x01;
-		data[1] = 0x01;
-		err_code = mr_write(gspca_dev, 2);
+		err_code = cam_get_response16(gspca_dev, 0x07, 1);
 		if (err_code < 0)
 			return err_code;
 
-		msleep(200);
-		data[0] = get_sensor_id(gspca_dev);
 		/*
-		 * Known CIF cameras. If you have another to report, please do
+		 * Here is a table of the responses to the previous command
+		 * from the known MR97310A VGA cameras.
 		 *
-		 * Name			byte just read		sd->sensor_type
-		 *					reported by
-		 * Sakar Spy-shot	0x28		T. Kilgore	0
-		 * Innovage		0xf5 (unstable)	T. Kilgore	0
-		 * Vivitar Mini		0x53		H. De Goede	0
-		 * Vivitar Mini		0x04 / 0x24	E. Rodriguez	0
-		 * Vivitar Mini		0x08		T. Kilgore	1
-		 * Elta-Media 8212dc	0x23		T. Kaiser	1
-		 * Philips dig. keych.	0x37		T. Kilgore	1
+		 * Name			gspca_dev->usb_buf[]	sd->sensor_type
+		 *				sd->do_lcd_stop
+		 * Aiptek Pencam VGA+	0300		0		1
+		 * ION digital		0350		0		1
+		 * Argus DC-1620	0450		1		0
+		 * Argus QuickClix	0420		1		1
+		 *
+		 * Based upon these results, we assume default settings
+		 * and then correct as necessary, as follows.
+		 *
 		 */
-		if ((data[0] & 0x78) == 8 ||
-		    ((data[0] & 0x2) == 0x2 && data[0] != 0x53))
-			sd->sensor_type = 1;
-		else
-			sd->sensor_type = 0;
 
-		PDEBUG(D_PROBE, "MR97310A CIF camera detected, sensor: %d",
-		       sd->sensor_type);
-
-		if (force_sensor_type != -1) {
-			sd->sensor_type = !! force_sensor_type;
-			PDEBUG(D_PROBE, "Forcing sensor type to: %d",
-			       sd->sensor_type);
+		sd->sensor_type = 1;
+		sd->do_lcd_stop = 0;
+		sd->adj_colors = 0;
+		if ((gspca_dev->usb_buf[0] != 0x03) &&
+					(gspca_dev->usb_buf[0] != 0x04)) {
+			PDEBUG(D_ERR, "Unknown VGA Sensor id Byte 0: %02x",
+					gspca_dev->usb_buf[1]);
+			PDEBUG(D_ERR, "Defaults assumed, may not work");
+			PDEBUG(D_ERR, "Please report this");
 		}
+		/* Sakar Digital color needs to be adjusted. */
+		if ((gspca_dev->usb_buf[0] == 0x03) &&
+					(gspca_dev->usb_buf[1] == 0x50))
+			sd->adj_colors = 1;
+		if (gspca_dev->usb_buf[0] == 0x04) {
+			sd->do_lcd_stop = 1;
+			switch (gspca_dev->usb_buf[1]) {
+			case 0x50:
+				sd->sensor_type = 0;
+				PDEBUG(D_PROBE, "sensor_type corrected to 0");
+				break;
+			case 0x20:
+				/* Nothing to do here. */
+				break;
+			default:
+				PDEBUG(D_ERR,
+					"Unknown VGA Sensor id Byte 1: %02x",
+					gspca_dev->usb_buf[1]);
+				PDEBUG(D_ERR,
+					"Defaults assumed, may not work");
+				PDEBUG(D_ERR, "Please report this");
+			}
+		}
+		PDEBUG(D_PROBE, "MR97310A VGA camera detected, sensor: %d",
+		       sd->sensor_type);
+	}
+	/* Stop streaming as we've started it to probe the sensor type. */
+	sd_stopN(gspca_dev);
 
+	if (force_sensor_type != -1) {
+		sd->sensor_type = !!force_sensor_type;
+		PDEBUG(D_PROBE, "Forcing sensor type to: %d",
+		       sd->sensor_type);
+	}
+
+	/* Setup controls depending on camera type */
+	if (sd->cam_type == CAM_TYPE_CIF) {
+		/* No brightness for sensor_type 0 */
 		if (sd->sensor_type == 0)
-			gspca_dev->ctrl_dis = (1 << BRIGHTNESS_IDX);
+			gspca_dev->ctrl_dis = (1 << NORM_BRIGHTNESS_IDX) |
+					      (1 << ARGUS_QC_BRIGHTNESS_IDX);
+		else
+			gspca_dev->ctrl_dis = (1 << ARGUS_QC_BRIGHTNESS_IDX) |
+					      (1 << MIN_CLOCKDIV_IDX);
 	} else {
-		sd->cam_type = CAM_TYPE_VGA;
-		PDEBUG(D_PROBE, "MR97310A VGA camera detected");
-		gspca_dev->ctrl_dis = (1 << BRIGHTNESS_IDX) |
-				      (1 << EXPOSURE_IDX) | (1 << GAIN_IDX);
+		/* All controls need to be disabled if VGA sensor_type is 0 */
+		if (sd->sensor_type == 0)
+			gspca_dev->ctrl_dis = (1 << NORM_BRIGHTNESS_IDX) |
+					      (1 << ARGUS_QC_BRIGHTNESS_IDX) |
+					      (1 << EXPOSURE_IDX) |
+					      (1 << GAIN_IDX) |
+					      (1 << MIN_CLOCKDIV_IDX);
+		else if (sd->do_lcd_stop)
+			/* Argus QuickClix has different brightness limits */
+			gspca_dev->ctrl_dis = (1 << NORM_BRIGHTNESS_IDX);
+		else
+			gspca_dev->ctrl_dis = (1 << ARGUS_QC_BRIGHTNESS_IDX);
 	}
 
 	sd->brightness = MR97310A_BRIGHTNESS_DEFAULT;
 	sd->exposure = MR97310A_EXPOSURE_DEFAULT;
 	sd->gain = MR97310A_GAIN_DEFAULT;
+	sd->min_clockdiv = MR97310A_MIN_CLOCKDIV_DEFAULT;
 
 	return 0;
 }
@@ -455,11 +627,6 @@ static int start_cif_cam(struct gspca_dev *gspca_dev)
 	};
 
 	/* Note: Some of the above descriptions guessed from MR97113A driver */
-	data[0] = 0x01;
-	data[1] = 0x01;
-	err_code = mr_write(gspca_dev, 2);
-	if (err_code < 0)
-		return err_code;
 
 	memcpy(data, startup_string, 11);
 	if (sd->sensor_type)
@@ -533,22 +700,7 @@ static int start_cif_cam(struct gspca_dev *gspca_dev)
 		err_code = sensor_write_regs(gspca_dev, cif_sensor1_init_data,
 					 ARRAY_SIZE(cif_sensor1_init_data));
 	}
-	if (err_code < 0)
-		return err_code;
-
-	setbrightness(gspca_dev);
-	setexposure(gspca_dev);
-	setgain(gspca_dev);
-
-	msleep(200);
-
-	data[0] = 0x00;
-	data[1] = 0x4d;  /* ISOC transfering enable... */
-	err_code = mr_write(gspca_dev, 2);
-	if (err_code < 0)
-		return err_code;
-
-	return 0;
+	return err_code;
 }
 
 static int start_vga_cam(struct gspca_dev *gspca_dev)
@@ -558,84 +710,8 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 	int err_code;
 	const __u8 startup_string[] = {0x00, 0x0d, 0x01, 0x00, 0x00, 0x2b,
 				       0x00, 0x00, 0x00, 0x50, 0xc0};
-
 	/* What some of these mean is explained in start_cif_cam(), above */
-	sd->sof_read = 0;
 
-	/*
-	 * We have to know which camera we have, because the register writes
-	 * depend upon the camera. This test, run before we actually enter
-	 * the initialization routine, distinguishes most of the cameras, If
-	 * needed, another routine is done later, too.
-	 */
-	memset(data, 0, 16);
-	data[0] = 0x20;
-	err_code = mr_write(gspca_dev, 1);
-	if (err_code < 0)
-		return err_code;
-
-	err_code = mr_read(gspca_dev, 16);
-	if (err_code < 0)
-		return err_code;
-
-	PDEBUG(D_PROBE, "Byte reported is %02x", data[0]);
-
-	msleep(200);
-	/*
-	 * Known VGA cameras. If you have another to report, please do
-	 *
-	 * Name			byte just read		sd->sensor_type
-	 *				sd->do_lcd_stop
-	 * Aiptek Pencam VGA+	0x31		0	1
-	 * ION digital		0x31		0	1
-	 * Argus DC-1620	0x30		1	0
-	 * Argus QuickClix	0x30		1	1 (not caught here)
-	 */
-	sd->sensor_type = data[0] & 1;
-	sd->do_lcd_stop = (~data[0]) & 1;
-
-
-
-	/* Streaming setup begins here. */
-
-
-	data[0] = 0x01;
-	data[1] = 0x01;
-	err_code = mr_write(gspca_dev, 2);
-	if (err_code < 0)
-		return err_code;
-
-	/*
-	 * A second test can now resolve any remaining ambiguity in the
-	 * identification of the camera type,
-	 */
-	if (!sd->sensor_type) {
-		data[0] = get_sensor_id(gspca_dev);
-		if (data[0] == 0x7f) {
-			sd->sensor_type = 1;
-			PDEBUG(D_PROBE, "sensor_type corrected to 1");
-		}
-		msleep(200);
-	}
-
-	if (force_sensor_type != -1) {
-		sd->sensor_type = !! force_sensor_type;
-		PDEBUG(D_PROBE, "Forcing sensor type to: %d",
-		       sd->sensor_type);
-	}
-
-	/*
-	 * Known VGA cameras.
-	 * This test is only run if the previous test returned 0x30, but
-	 * here is the information for all others, too, just for reference.
-	 *
-	 * Name			byte just read		sd->sensor_type
-	 *
-	 * Aiptek Pencam VGA+	0xfb	(this test not run)	1
-	 * ION digital		0xbd	(this test not run)	1
-	 * Argus DC-1620	0xe5	(no change)		0
-	 * Argus QuickClix	0x7f	(reclassified)		1
-	 */
 	memcpy(data, startup_string, 11);
 	if (!sd->sensor_type) {
 		data[5]  = 0x00;
@@ -689,29 +765,44 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 		err_code = sensor_write_regs(gspca_dev, vga_sensor0_init_data,
 					 ARRAY_SIZE(vga_sensor0_init_data));
 	} else {	/* sd->sensor_type = 1 */
-		const struct sensor_w_data vga_sensor1_init_data[] = {
+		const struct sensor_w_data color_adj[] = {
 			{0x02, 0x00, {0x06, 0x59, 0x0c, 0x16, 0x00,
-				0x07, 0x00, 0x01}, 8},
+				/* adjusted blue, green, red gain correct
+				   too much blue from the Sakar Digital */
+				0x05, 0x01, 0x04}, 8}
+		};
+
+		const struct sensor_w_data color_no_adj[] = {
+			{0x02, 0x00, {0x06, 0x59, 0x0c, 0x16, 0x00,
+				/* default blue, green, red gain settings */
+				0x07, 0x00, 0x01}, 8}
+		};
+
+		const struct sensor_w_data vga_sensor1_init_data[] = {
 			{0x11, 0x04, {0x01}, 1},
-			/*{0x0a, 0x00, {0x00, 0x01, 0x00, 0x00, 0x01, */
-			{0x0a, 0x00, {0x01, 0x06, 0x00, 0x00, 0x01,
+			{0x0a, 0x00, {0x00, 0x01, 0x00, 0x00, 0x01,
+			/* These settings may be better for some cameras */
+			/* {0x0a, 0x00, {0x01, 0x06, 0x00, 0x00, 0x01, */
 				0x00, 0x0a}, 7},
 			{0x11, 0x04, {0x01}, 1},
 			{0x12, 0x00, {0x00, 0x63, 0x00, 0x70, 0x00, 0x00}, 6},
 			{0x11, 0x04, {0x01}, 1},
 			{0, 0, {0}, 0}
 		};
+
+		if (sd->adj_colors)
+			err_code = sensor_write_regs(gspca_dev, color_adj,
+					 ARRAY_SIZE(color_adj));
+		else
+			err_code = sensor_write_regs(gspca_dev, color_no_adj,
+					 ARRAY_SIZE(color_no_adj));
+
+		if (err_code < 0)
+			return err_code;
+
 		err_code = sensor_write_regs(gspca_dev, vga_sensor1_init_data,
 					 ARRAY_SIZE(vga_sensor1_init_data));
 	}
-	if (err_code < 0)
-		return err_code;
-
-	msleep(200);
-	data[0] = 0x00;
-	data[1] = 0x4d;  /* ISOC transfering enable... */
-	err_code = mr_write(gspca_dev, 2);
-
 	return err_code;
 }
 
@@ -719,96 +810,119 @@ static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int err_code;
-	struct cam *cam;
 
-	cam = &gspca_dev->cam;
 	sd->sof_read = 0;
-	/*
-	 * Some of the supported cameras require the memory pointer to be
-	 * set to 0, or else they will not stream.
-	 */
-	zero_the_pointer(gspca_dev);
-	msleep(200);
+
+	/* Some of the VGA cameras require the memory pointer
+	 * to be set to 0 again. We have been forced to start the
+	 * stream in sd_config() to detect the hardware, and closed it.
+	 * Thus, we need here to do a completely fresh and clean start. */
+	err_code = zero_the_pointer(gspca_dev);
+	if (err_code < 0)
+		return err_code;
+
+	err_code = stream_start(gspca_dev);
+	if (err_code < 0)
+		return err_code;
+
 	if (sd->cam_type == CAM_TYPE_CIF) {
 		err_code = start_cif_cam(gspca_dev);
 	} else {
 		err_code = start_vga_cam(gspca_dev);
 	}
-	return err_code;
+	if (err_code < 0)
+		return err_code;
+
+	setbrightness(gspca_dev);
+	setexposure(gspca_dev);
+	setgain(gspca_dev);
+
+	return isoc_enable(gspca_dev);
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int result;
 
-	gspca_dev->usb_buf[0] = 1;
-	gspca_dev->usb_buf[1] = 0;
-	result = mr_write(gspca_dev, 2);
-	if (result < 0)
-		PDEBUG(D_ERR, "Camera Stop failed");
-
+	stream_stop(gspca_dev);
 	/* Not all the cams need this, but even if not, probably a good idea */
 	zero_the_pointer(gspca_dev);
-	if (sd->do_lcd_stop) {
-		gspca_dev->usb_buf[0] = 0x19;
-		gspca_dev->usb_buf[1] = 0x54;
-		result = mr_write(gspca_dev, 2);
-		if (result < 0)
-			PDEBUG(D_ERR, "Camera Stop failed");
-	}
+	if (sd->do_lcd_stop)
+		lcd_stop(gspca_dev);
 }
 
 static void setbrightness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 val;
-
-	if (gspca_dev->ctrl_dis & (1 << BRIGHTNESS_IDX))
+	u8 sign_reg = 7;  /* This reg and the next one used on CIF cams. */
+	u8 value_reg = 8; /* VGA cams seem to use regs 0x0b and 0x0c */
+	const u8 quick_clix_table[] =
+	/*	  0  1  2   3  4  5  6  7  8  9  10  11  12  13  14  15 */
+		{ 0, 4, 8, 12, 1, 2, 3, 5, 6, 9,  7, 10, 13, 11, 14, 15};
+	/*
+	 * This control is disabled for CIF type 1 and VGA type 0 cameras.
+	 * It does not quite act linearly for the Argus QuickClix camera,
+	 * but it does control brightness. The values are 0 - 15 only, and
+	 * the table above makes them act consecutively.
+	 */
+	if ((gspca_dev->ctrl_dis & (1 << NORM_BRIGHTNESS_IDX)) &&
+	    (gspca_dev->ctrl_dis & (1 << ARGUS_QC_BRIGHTNESS_IDX)))
 		return;
 
-	/* Note register 7 is also seen as 0x8x or 0xCx in dumps */
+	if (sd->cam_type == CAM_TYPE_VGA) {
+		sign_reg += 4;
+		value_reg += 4;
+	}
+
+	/* Note register 7 is also seen as 0x8x or 0xCx in some dumps */
 	if (sd->brightness > 0) {
-		sensor_write1(gspca_dev, 7, 0x00);
+		sensor_write1(gspca_dev, sign_reg, 0x00);
 		val = sd->brightness;
 	} else {
-		sensor_write1(gspca_dev, 7, 0x01);
-		val = 257 - sd->brightness;
+		sensor_write1(gspca_dev, sign_reg, 0x01);
+		val = (257 - sd->brightness);
 	}
-	sensor_write1(gspca_dev, 8, val);
+	/* Use lookup table for funky Argus QuickClix brightness */
+	if (sd->do_lcd_stop)
+		val = quick_clix_table[val];
+
+	sensor_write1(gspca_dev, value_reg, val);
 }
 
 static void setexposure(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	u8 val;
+	int exposure;
+	u8 buf[2];
 
 	if (gspca_dev->ctrl_dis & (1 << EXPOSURE_IDX))
 		return;
 
-	if (sd->sensor_type) {
-		val = sd->exposure >> 4;
-		sensor_write1(gspca_dev, 3, val);
-		val = sd->exposure & 0xf;
-		sensor_write1(gspca_dev, 4, val);
+	if (sd->cam_type == CAM_TYPE_CIF && sd->sensor_type == 1) {
+		/* This cam does not like exposure settings < 300,
+		   so scale 0 - 4095 to 300 - 4095 */
+		exposure = (sd->exposure * 9267) / 10000 + 300;
+		sensor_write1(gspca_dev, 3, exposure >> 4);
+		sensor_write1(gspca_dev, 4, exposure & 0x0f);
 	} else {
-		u8 clockdiv;
-		int exposure;
-
 		/* We have both a clock divider and an exposure register.
 		   We first calculate the clock divider, as that determines
-		   the maximum exposure and then we calculayte the exposure
+		   the maximum exposure and then we calculate the exposure
 		   register setting (which goes from 0 - 511).
 
 		   Note our 0 - 4095 exposure is mapped to 0 - 511
 		   milliseconds exposure time */
-		clockdiv = (60 * sd->exposure + 7999) / 8000;
+		u8 clockdiv = (60 * sd->exposure + 7999) / 8000;
 
 		/* Limit framerate to not exceed usb bandwidth */
-		if (clockdiv < 3 && gspca_dev->width >= 320)
-			clockdiv = 3;
+		if (clockdiv < sd->min_clockdiv && gspca_dev->width >= 320)
+			clockdiv = sd->min_clockdiv;
 		else if (clockdiv < 2)
 			clockdiv = 2;
+
+		if (sd->cam_type == CAM_TYPE_VGA && clockdiv < 4)
+			clockdiv = 4;
 
 		/* Frame exposure time in ms = 1000 * clockdiv / 60 ->
 		exposure = (sd->exposure / 8) * 511 / (1000 * clockdiv / 60) */
@@ -819,9 +933,10 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		/* exposure register value is reversed! */
 		exposure = 511 - exposure;
 
+		buf[0] = exposure & 0xff;
+		buf[1] = exposure >> 8;
+		sensor_write_reg(gspca_dev, 0x0e, 0, buf, 2);
 		sensor_write1(gspca_dev, 0x02, clockdiv);
-		sensor_write1(gspca_dev, 0x0e, exposure & 0xff);
-		sensor_write1(gspca_dev, 0x0f, exposure >> 8);
 	}
 }
 
@@ -832,7 +947,7 @@ static void setgain(struct gspca_dev *gspca_dev)
 	if (gspca_dev->ctrl_dis & (1 << GAIN_IDX))
 		return;
 
-	if (sd->sensor_type) {
+	if (sd->cam_type == CAM_TYPE_CIF && sd->sensor_type == 1) {
 		sensor_write1(gspca_dev, 0x0e, sd->gain);
 	} else {
 		sensor_write1(gspca_dev, 0x10, sd->gain);
@@ -893,17 +1008,35 @@ static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
+static int sd_setmin_clockdiv(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->min_clockdiv = val;
+	if (gspca_dev->streaming)
+		setexposure(gspca_dev);
+	return 0;
+}
+
+static int sd_getmin_clockdiv(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->min_clockdiv;
+	return 0;
+}
+
 /* Include pac common sof detection functions */
 #include "pac_common.h"
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,    /* target */
-			__u8 *data,                   /* isoc packet */
-			int len)                      /* iso packet length */
+			u8 *data,		/* isoc packet */
+			int len)		/* iso packet length */
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	unsigned char *sof;
 
-	sof = pac_find_sof(gspca_dev, data, len);
+	sof = pac_find_sof(&sd->sof_read, data, len);
 	if (sof) {
 		int n;
 
@@ -913,15 +1046,15 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			n -= sizeof pac_sof_marker;
 		else
 			n = 0;
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
+		gspca_frame_add(gspca_dev, LAST_PACKET,
 					data, n);
 		/* Start next frame. */
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+		gspca_frame_add(gspca_dev, FIRST_PACKET,
 			pac_sof_marker, sizeof pac_sof_marker);
 		len -= sof - data;
 		data = sof;
 	}
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 /* sub-driver description */
@@ -938,6 +1071,7 @@ static const struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 static const __devinitdata struct usb_device_id device_table[] = {
+	{USB_DEVICE(0x08ca, 0x0110)},	/* Trust Spyc@m 100 */
 	{USB_DEVICE(0x08ca, 0x0111)},	/* Aiptek Pencam VGA+ */
 	{USB_DEVICE(0x093a, 0x010f)},	/* All other known MR97310A VGA cams */
 	{USB_DEVICE(0x093a, 0x010e)},	/* All known MR97310A CIF cams */

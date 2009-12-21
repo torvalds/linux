@@ -24,6 +24,7 @@
 #include <linux/compat.h>
 #include <linux/mutex.h>
 #include <linux/ctype.h>
+#include <linux/string.h>
 #include <linux/firmware.h>
 #include <sound/core.h>
 #include "hda_codec.h"
@@ -153,6 +154,44 @@ int /*__devinit*/ snd_hda_create_hwdep(struct hda_codec *codec)
 
 	return 0;
 }
+
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+static ssize_t power_on_acct_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
+	struct hda_codec *codec = hwdep->private_data;
+	snd_hda_update_power_acct(codec);
+	return sprintf(buf, "%u\n", jiffies_to_msecs(codec->power_on_acct));
+}
+
+static ssize_t power_off_acct_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
+	struct hda_codec *codec = hwdep->private_data;
+	snd_hda_update_power_acct(codec);
+	return sprintf(buf, "%u\n", jiffies_to_msecs(codec->power_off_acct));
+}
+
+static struct device_attribute power_attrs[] = {
+	__ATTR_RO(power_on_acct),
+	__ATTR_RO(power_off_acct),
+};
+
+int snd_hda_hwdep_add_power_sysfs(struct hda_codec *codec)
+{
+	struct snd_hwdep *hwdep = codec->hwdep;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(power_attrs); i++)
+		snd_add_device_sysfs_file(SNDRV_DEVICE_TYPE_HWDEP, hwdep->card,
+					  hwdep->device, &power_attrs[i]);
+	return 0;
+}
+#endif /* CONFIG_SND_HDA_POWER_SAVE */
 
 #ifdef CONFIG_SND_HDA_RECONFIG
 
@@ -390,8 +429,7 @@ static int parse_hints(struct hda_codec *codec, const char *buf)
 	char *key, *val;
 	struct hda_hint *hint;
 
-	while (isspace(*buf))
-		buf++;
+	buf = skip_spaces(buf);
 	if (!*buf || *buf == '#' || *buf == '\n')
 		return 0;
 	if (*buf == '=')
@@ -406,8 +444,7 @@ static int parse_hints(struct hda_codec *codec, const char *buf)
 		return -EINVAL;
 	}
 	*val++ = 0;
-	while (isspace(*val))
-		val++;
+	val = skip_spaces(val);
 	remove_trail_spaces(key);
 	remove_trail_spaces(val);
 	hint = get_hint(codec, key);

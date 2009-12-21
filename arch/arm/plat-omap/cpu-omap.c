@@ -23,7 +23,7 @@
 #include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <mach/clock.h>
+#include <plat/clock.h>
 #include <asm/system.h>
 
 #define VERY_HI_RATE	900000000

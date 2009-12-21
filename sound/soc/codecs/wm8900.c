@@ -199,7 +199,7 @@ static void wm8900_reset(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM8900_REG_RESET, 0);
 
 	memcpy(codec->reg_cache, wm8900_reg_defaults,
-	       sizeof(codec->reg_cache));
+	       sizeof(wm8900_reg_defaults));
 }
 
 static int wm8900_hp_event(struct snd_soc_dapm_widget *w,
@@ -618,8 +618,6 @@ static int wm8900_add_widgets(struct snd_soc_codec *codec)
 
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_new_widgets(codec);
-
 	return 0;
 }
 
@@ -814,8 +812,8 @@ reenable:
 	return 0;
 }
 
-static int wm8900_set_dai_pll(struct snd_soc_dai *codec_dai,
-		int pll_id, unsigned int freq_in, unsigned int freq_out)
+static int wm8900_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
+		int source, unsigned int freq_in, unsigned int freq_out)
 {
 	return wm8900_set_fll(codec_dai->codec, pll_id, freq_in, freq_out);
 }
@@ -1312,21 +1310,6 @@ static __devexit int wm8900_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8900_i2c_suspend(struct i2c_client *client, pm_message_t msg)
-{
-	return snd_soc_suspend_device(&client->dev);
-}
-
-static int wm8900_i2c_resume(struct i2c_client *client)
-{
-	return snd_soc_resume_device(&client->dev);
-}
-#else
-#define wm8900_i2c_suspend NULL
-#define wm8900_i2c_resume NULL
-#endif
-
 static const struct i2c_device_id wm8900_i2c_id[] = {
 	{ "wm8900", 0 },
 	{ }
@@ -1340,8 +1323,6 @@ static struct i2c_driver wm8900_i2c_driver = {
 	},
 	.probe = wm8900_i2c_probe,
 	.remove = __devexit_p(wm8900_i2c_remove),
-	.suspend = wm8900_i2c_suspend,
-	.resume = wm8900_i2c_resume,
 	.id_table = wm8900_i2c_id,
 };
 
@@ -1370,17 +1351,6 @@ static int wm8900_probe(struct platform_device *pdev)
 				ARRAY_SIZE(wm8900_snd_controls));
 	wm8900_add_widgets(codec);
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to register card\n");
-		goto card_err;
-	}
-
-	return ret;
-
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 pcm_err:
 	return ret;
 }

@@ -36,12 +36,12 @@ BFA_TRC_FILE(FCS, FABRIC);
 #define BFA_FCS_FABRIC_RETRY_DELAY	(2000)	/* Milliseconds */
 #define BFA_FCS_FABRIC_CLEANUP_DELAY	(10000)	/* Milliseconds */
 
-#define bfa_fcs_fabric_set_opertype(__fabric) do {          \
-    if (bfa_pport_get_topology((__fabric)->fcs->bfa)    \
-				== BFA_PPORT_TOPOLOGY_P2P)   \
-	    (__fabric)->oper_type = BFA_PPORT_TYPE_NPORT;       \
-    else                                                    \
-	    (__fabric)->oper_type = BFA_PPORT_TYPE_NLPORT;      \
+#define bfa_fcs_fabric_set_opertype(__fabric) do {             \
+	if (bfa_pport_get_topology((__fabric)->fcs->bfa)       \
+				== BFA_PPORT_TOPOLOGY_P2P)     \
+		(__fabric)->oper_type = BFA_PPORT_TYPE_NPORT;  \
+	else                                                   \
+		(__fabric)->oper_type = BFA_PPORT_TYPE_NLPORT; \
 } while (0)
 
 /*
@@ -887,7 +887,7 @@ bfa_fcs_fabric_modsusp(struct bfa_fcs_s *fcs)
 bfa_boolean_t
 bfa_fcs_fabric_is_loopback(struct bfa_fcs_fabric_s *fabric)
 {
-	return (bfa_sm_cmp_state(fabric, bfa_fcs_fabric_sm_loopback));
+	return bfa_sm_cmp_state(fabric, bfa_fcs_fabric_sm_loopback);
 }
 
 enum bfa_pport_type
@@ -974,7 +974,7 @@ bfa_fcs_fabric_port_delete_comp(struct bfa_fcs_fabric_s *fabric)
 int
 bfa_fcs_fabric_is_online(struct bfa_fcs_fabric_s *fabric)
 {
-	return (bfa_sm_cmp_state(fabric, bfa_fcs_fabric_sm_online));
+	return bfa_sm_cmp_state(fabric, bfa_fcs_fabric_sm_online);
 }
 
 
@@ -1015,7 +1015,7 @@ bfa_fcs_fabric_vport_lookup(struct bfa_fcs_fabric_s *fabric, wwn_t pwwn)
 u16
 bfa_fcs_fabric_vport_count(struct bfa_fcs_fabric_s *fabric)
 {
-	return (fabric->num_vports);
+	return fabric->num_vports;
 }
 
 /**

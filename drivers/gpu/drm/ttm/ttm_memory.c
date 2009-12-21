@@ -274,15 +274,16 @@ static int ttm_mem_init_kernel_zone(struct ttm_mem_global *glob,
 static int ttm_mem_init_highmem_zone(struct ttm_mem_global *glob,
 				     const struct sysinfo *si)
 {
-	struct ttm_mem_zone *zone = kzalloc(sizeof(*zone), GFP_KERNEL);
+	struct ttm_mem_zone *zone;
 	uint64_t mem;
 	int ret;
 
-	if (unlikely(!zone))
-		return -ENOMEM;
-
 	if (si->totalhigh == 0)
 		return 0;
+
+	zone = kzalloc(sizeof(*zone), GFP_KERNEL);
+	if (unlikely(!zone))
+		return -ENOMEM;
 
 	mem = si->totalram;
 	mem *= si->mem_unit;
@@ -322,8 +323,10 @@ static int ttm_mem_init_dma32_zone(struct ttm_mem_global *glob,
 	 * No special dma32 zone needed.
 	 */
 
-	if (mem <= ((uint64_t) 1ULL << 32))
+	if (mem <= ((uint64_t) 1ULL << 32)) {
+		kfree(zone);
 		return 0;
+	}
 
 	/*
 	 * Limit max dma32 memory to 4GB for now
@@ -460,6 +463,7 @@ void ttm_mem_global_free(struct ttm_mem_global *glob,
 {
 	return ttm_mem_global_free_zone(glob, NULL, amount);
 }
+EXPORT_SYMBOL(ttm_mem_global_free);
 
 static int ttm_mem_global_reserve(struct ttm_mem_global *glob,
 				  struct ttm_mem_zone *single_zone,
@@ -533,6 +537,7 @@ int ttm_mem_global_alloc(struct ttm_mem_global *glob, uint64_t memory,
 	return ttm_mem_global_alloc_zone(glob, NULL, memory, no_wait,
 					 interruptible);
 }
+EXPORT_SYMBOL(ttm_mem_global_alloc);
 
 int ttm_mem_global_alloc_page(struct ttm_mem_global *glob,
 			      struct page *page,
@@ -588,3 +593,4 @@ size_t ttm_round_pot(size_t size)
 	}
 	return 0;
 }
+EXPORT_SYMBOL(ttm_round_pot);

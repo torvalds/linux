@@ -153,35 +153,24 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct net_device *rcv = NULL;
 	struct veth_priv *priv, *rcv_priv;
 	struct veth_net_stats *stats, *rcv_stats;
-	int length, cpu;
-
-	skb_orphan(skb);
+	int length;
 
 	priv = netdev_priv(dev);
 	rcv = priv->peer;
 	rcv_priv = netdev_priv(rcv);
 
-	cpu = smp_processor_id();
-	stats = per_cpu_ptr(priv->stats, cpu);
-	rcv_stats = per_cpu_ptr(rcv_priv->stats, cpu);
+	stats = this_cpu_ptr(priv->stats);
+	rcv_stats = this_cpu_ptr(rcv_priv->stats);
 
 	if (!(rcv->flags & IFF_UP))
 		goto tx_drop;
 
-	if (skb->len > (rcv->mtu + MTU_PAD))
-		goto rx_drop;
-
-        skb->tstamp.tv64 = 0;
-	skb->pkt_type = PACKET_HOST;
-	skb->protocol = eth_type_trans(skb, rcv);
 	if (dev->features & NETIF_F_NO_CSUM)
 		skb->ip_summed = rcv_priv->ip_summed;
 
-	skb->mark = 0;
-	secpath_reset(skb);
-	nf_reset(skb);
-
-	length = skb->len;
+	length = skb->len + ETH_HLEN;
+	if (dev_forward_skb(rcv, skb) != NET_RX_SUCCESS)
+		goto rx_drop;
 
 	stats->tx_bytes += length;
 	stats->tx_packets++;
@@ -189,7 +178,6 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	rcv_stats->rx_bytes += length;
 	rcv_stats->rx_packets++;
 
-	netif_rx(skb);
 	return NETDEV_TX_OK;
 
 tx_drop:
@@ -337,7 +325,7 @@ static int veth_validate(struct nlattr *tb[], struct nlattr *data[])
 
 static struct rtnl_link_ops veth_link_ops;
 
-static int veth_newlink(struct net_device *dev,
+static int veth_newlink(struct net *src_net, struct net_device *dev,
 			 struct nlattr *tb[], struct nlattr *data[])
 {
 	int err;
@@ -345,6 +333,7 @@ static int veth_newlink(struct net_device *dev,
 	struct veth_priv *priv;
 	char ifname[IFNAMSIZ];
 	struct nlattr *peer_tb[IFLA_MAX + 1], **tbp;
+	struct net *net;
 
 	/*
 	 * create and register peer first
@@ -377,14 +366,22 @@ static int veth_newlink(struct net_device *dev,
 	else
 		snprintf(ifname, IFNAMSIZ, DRV_NAME "%%d");
 
-	peer = rtnl_create_link(dev_net(dev), ifname, &veth_link_ops, tbp);
-	if (IS_ERR(peer))
+	net = rtnl_link_get_net(src_net, tbp);
+	if (IS_ERR(net))
+		return PTR_ERR(net);
+
+	peer = rtnl_create_link(src_net, net, ifname, &veth_link_ops, tbp);
+	if (IS_ERR(peer)) {
+		put_net(net);
 		return PTR_ERR(peer);
+	}
 
 	if (tbp[IFLA_ADDRESS] == NULL)
 		random_ether_addr(peer->dev_addr);
 
 	err = register_netdevice(peer);
+	put_net(net);
+	net = NULL;
 	if (err < 0)
 		goto err_register_peer;
 
@@ -439,7 +436,7 @@ err_register_peer:
 	return err;
 }
 
-static void veth_dellink(struct net_device *dev)
+static void veth_dellink(struct net_device *dev, struct list_head *head)
 {
 	struct veth_priv *priv;
 	struct net_device *peer;
@@ -447,8 +444,8 @@ static void veth_dellink(struct net_device *dev)
 	priv = netdev_priv(dev);
 	peer = priv->peer;
 
-	unregister_netdevice(dev);
-	unregister_netdevice(peer);
+	unregister_netdevice_queue(dev, head);
+	unregister_netdevice_queue(peer, head);
 }
 
 static const struct nla_policy veth_policy[VETH_INFO_MAX + 1];

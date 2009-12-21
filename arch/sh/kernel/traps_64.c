@@ -600,7 +600,7 @@ static int misaligned_fpu_load(struct pt_regs *regs,
 		   indexed by register number. */
 		if (last_task_used_math == current) {
 			enable_fpu();
-			save_fpu(current, regs);
+			save_fpu(current);
 			disable_fpu();
 			last_task_used_math = NULL;
 			regs->sr |= SR_FD;
@@ -673,7 +673,7 @@ static int misaligned_fpu_store(struct pt_regs *regs,
 		   indexed by register number. */
 		if (last_task_used_math == current) {
 			enable_fpu();
-			save_fpu(current, regs);
+			save_fpu(current);
 			disable_fpu();
 			last_task_used_math = NULL;
 			regs->sr |= SR_FD;
@@ -877,44 +877,39 @@ static int misaligned_fixup(struct pt_regs *regs)
 
 static ctl_table unaligned_table[] = {
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "kernel_reports",
 		.data		= &kernel_mode_unaligned_fixup_count,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "user_reports",
 		.data		= &user_mode_unaligned_fixup_count,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "user_enable",
 		.data		= &user_mode_unaligned_fixup_enable,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec},
+		.proc_handler	= proc_dointvec},
 	{}
 };
 
 static ctl_table unaligned_root[] = {
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "unaligned_fixup",
 		.mode		= 0555,
-		unaligned_table
+		.child		= unaligned_table
 	},
 	{}
 };
 
 static ctl_table sh64_root[] = {
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "sh64",
 		.mode		= 0555,
 		.child		= unaligned_root

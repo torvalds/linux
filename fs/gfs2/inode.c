@@ -125,7 +125,7 @@ static struct inode *gfs2_iget_skip(struct super_block *sb,
  * directory entry when gfs2_inode_lookup() is invoked. Part of the code
  * segment inside gfs2_inode_lookup code needs to get moved around.
  *
- * Clean up I_LOCK and I_NEW as well.
+ * Clears I_NEW as well.
  **/
 
 void gfs2_set_iop(struct inode *inode)
@@ -801,7 +801,8 @@ static int gfs2_security_init(struct gfs2_inode *dip, struct gfs2_inode *ip)
 		return err;
 	}
 
-	err = gfs2_xattr_set(&ip->i_inode, GFS2_EATYPE_SECURITY, name, value, len, 0);
+	err = __gfs2_xattr_set(&ip->i_inode, name, value, len, 0,
+			       GFS2_EATYPE_SECURITY);
 	kfree(value);
 	kfree(name);
 

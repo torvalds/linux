@@ -14,9 +14,12 @@ extern void flush_cache_sigtramp(unsigned long addr);
 extern void flush_icache_all(void);
 extern void flush_icache_range(unsigned long start, unsigned long end);
 extern void flush_dcache_range(unsigned long start, unsigned long end);
+extern void flush_dcache_page(struct page *page);
+
+#define PG_dcache_dirty         PG_arch_1
 
 #define flush_cache_dup_mm(mm)			do {} while (0)
-#define flush_dcache_page(page)			do {} while (0)
+#define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 0
 #define flush_dcache_mmap_lock(mapping)		do {} while (0)
 #define flush_dcache_mmap_unlock(mapping)	do {} while (0)
 #define flush_cache_vmap(start, end)		do {} while (0)

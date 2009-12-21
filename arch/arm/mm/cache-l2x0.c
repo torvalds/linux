@@ -28,69 +28,120 @@
 static void __iomem *l2x0_base;
 static DEFINE_SPINLOCK(l2x0_lock);
 
-static inline void sync_writel(unsigned long val, unsigned long reg,
-			       unsigned long complete_mask)
+static inline void cache_wait(void __iomem *reg, unsigned long mask)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&l2x0_lock, flags);
-	writel(val, l2x0_base + reg);
 	/* wait for the operation to complete */
-	while (readl(l2x0_base + reg) & complete_mask)
+	while (readl(reg) & mask)
 		;
-	spin_unlock_irqrestore(&l2x0_lock, flags);
 }
 
 static inline void cache_sync(void)
 {
-	sync_writel(0, L2X0_CACHE_SYNC, 1);
+	void __iomem *base = l2x0_base;
+	writel(0, base + L2X0_CACHE_SYNC);
+	cache_wait(base + L2X0_CACHE_SYNC, 1);
 }
 
 static inline void l2x0_inv_all(void)
 {
+	unsigned long flags;
+
 	/* invalidate all ways */
-	sync_writel(0xff, L2X0_INV_WAY, 0xff);
+	spin_lock_irqsave(&l2x0_lock, flags);
+	writel(0xff, l2x0_base + L2X0_INV_WAY);
+	cache_wait(l2x0_base + L2X0_INV_WAY, 0xff);
 	cache_sync();
+	spin_unlock_irqrestore(&l2x0_lock, flags);
 }
 
 static void l2x0_inv_range(unsigned long start, unsigned long end)
 {
-	unsigned long addr;
+	void __iomem *base = l2x0_base;
+	unsigned long flags;
 
+	spin_lock_irqsave(&l2x0_lock, flags);
 	if (start & (CACHE_LINE_SIZE - 1)) {
 		start &= ~(CACHE_LINE_SIZE - 1);
-		sync_writel(start, L2X0_CLEAN_INV_LINE_PA, 1);
+		cache_wait(base + L2X0_CLEAN_INV_LINE_PA, 1);
+		writel(start, base + L2X0_CLEAN_INV_LINE_PA);
 		start += CACHE_LINE_SIZE;
 	}
 
 	if (end & (CACHE_LINE_SIZE - 1)) {
 		end &= ~(CACHE_LINE_SIZE - 1);
-		sync_writel(end, L2X0_CLEAN_INV_LINE_PA, 1);
+		cache_wait(base + L2X0_CLEAN_INV_LINE_PA, 1);
+		writel(end, base + L2X0_CLEAN_INV_LINE_PA);
 	}
 
-	for (addr = start; addr < end; addr += CACHE_LINE_SIZE)
-		sync_writel(addr, L2X0_INV_LINE_PA, 1);
+	while (start < end) {
+		unsigned long blk_end = start + min(end - start, 4096UL);
+
+		while (start < blk_end) {
+			cache_wait(base + L2X0_INV_LINE_PA, 1);
+			writel(start, base + L2X0_INV_LINE_PA);
+			start += CACHE_LINE_SIZE;
+		}
+
+		if (blk_end < end) {
+			spin_unlock_irqrestore(&l2x0_lock, flags);
+			spin_lock_irqsave(&l2x0_lock, flags);
+		}
+	}
+	cache_wait(base + L2X0_INV_LINE_PA, 1);
 	cache_sync();
+	spin_unlock_irqrestore(&l2x0_lock, flags);
 }
 
 static void l2x0_clean_range(unsigned long start, unsigned long end)
 {
-	unsigned long addr;
+	void __iomem *base = l2x0_base;
+	unsigned long flags;
 
+	spin_lock_irqsave(&l2x0_lock, flags);
 	start &= ~(CACHE_LINE_SIZE - 1);
-	for (addr = start; addr < end; addr += CACHE_LINE_SIZE)
-		sync_writel(addr, L2X0_CLEAN_LINE_PA, 1);
+	while (start < end) {
+		unsigned long blk_end = start + min(end - start, 4096UL);
+
+		while (start < blk_end) {
+			cache_wait(base + L2X0_CLEAN_LINE_PA, 1);
+			writel(start, base + L2X0_CLEAN_LINE_PA);
+			start += CACHE_LINE_SIZE;
+		}
+
+		if (blk_end < end) {
+			spin_unlock_irqrestore(&l2x0_lock, flags);
+			spin_lock_irqsave(&l2x0_lock, flags);
+		}
+	}
+	cache_wait(base + L2X0_CLEAN_LINE_PA, 1);
 	cache_sync();
+	spin_unlock_irqrestore(&l2x0_lock, flags);
 }
 
 static void l2x0_flush_range(unsigned long start, unsigned long end)
 {
-	unsigned long addr;
+	void __iomem *base = l2x0_base;
+	unsigned long flags;
 
+	spin_lock_irqsave(&l2x0_lock, flags);
 	start &= ~(CACHE_LINE_SIZE - 1);
-	for (addr = start; addr < end; addr += CACHE_LINE_SIZE)
-		sync_writel(addr, L2X0_CLEAN_INV_LINE_PA, 1);
+	while (start < end) {
+		unsigned long blk_end = start + min(end - start, 4096UL);
+
+		while (start < blk_end) {
+			cache_wait(base + L2X0_CLEAN_INV_LINE_PA, 1);
+			writel(start, base + L2X0_CLEAN_INV_LINE_PA);
+			start += CACHE_LINE_SIZE;
+		}
+
+		if (blk_end < end) {
+			spin_unlock_irqrestore(&l2x0_lock, flags);
+			spin_lock_irqsave(&l2x0_lock, flags);
+		}
+	}
+	cache_wait(base + L2X0_CLEAN_INV_LINE_PA, 1);
 	cache_sync();
+	spin_unlock_irqrestore(&l2x0_lock, flags);
 }
 
 void __init l2x0_init(void __iomem *base, __u32 aux_val, __u32 aux_mask)
@@ -99,18 +150,25 @@ void __init l2x0_init(void __iomem *base, __u32 aux_val, __u32 aux_mask)
 
 	l2x0_base = base;
 
-	/* disable L2X0 */
-	writel(0, l2x0_base + L2X0_CTRL);
+	/*
+	 * Check if l2x0 controller is already enabled.
+	 * If you are booting from non-secure mode
+	 * accessing the below registers will fault.
+	 */
+	if (!(readl(l2x0_base + L2X0_CTRL) & 1)) {
 
-	aux = readl(l2x0_base + L2X0_AUX_CTRL);
-	aux &= aux_mask;
-	aux |= aux_val;
-	writel(aux, l2x0_base + L2X0_AUX_CTRL);
+		/* l2x0 controller is disabled */
 
-	l2x0_inv_all();
+		aux = readl(l2x0_base + L2X0_AUX_CTRL);
+		aux &= aux_mask;
+		aux |= aux_val;
+		writel(aux, l2x0_base + L2X0_AUX_CTRL);
 
-	/* enable L2X0 */
-	writel(1, l2x0_base + L2X0_CTRL);
+		l2x0_inv_all();
+
+		/* enable L2X0 */
+		writel(1, l2x0_base + L2X0_CTRL);
+	}
 
 	outer_cache.inv_range = l2x0_inv_range;
 	outer_cache.clean_range = l2x0_clean_range;

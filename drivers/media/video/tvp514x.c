@@ -272,7 +272,7 @@ static int tvp514x_read_reg(struct v4l2_subdev *sd, u8 reg)
 read_again:
 
 	err = i2c_smbus_read_byte_data(client, reg);
-	if (err == -1) {
+	if (err < 0) {
 		if (retry <= I2C_RETRY_COUNT) {
 			v4l2_warn(sd, "Read: retry ... %d\n", retry);
 			retry++;

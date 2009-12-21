@@ -190,19 +190,37 @@ config ARCH_MEMORY_PROBE
 	depends on MEMORY_HOTPLUG
 
 choice
+	prompt "Page table layout"
+	default PGTABLE_LEVELS_3 if X2TLB
+	default PGTABLE_LEVELS_2
+
+config PGTABLE_LEVELS_2
+       bool "2 Levels"
+       help
+         This is the default page table layout for all SuperH CPUs.
+
+config PGTABLE_LEVELS_3
+       bool "3 Levels"
+       depends on X2TLB
+       help
+         This enables a 3 level page table structure.
+
+endchoice
+
+choice
 	prompt "Kernel page size"
 	default PAGE_SIZE_8KB if X2TLB
 	default PAGE_SIZE_4KB
 
 config PAGE_SIZE_4KB
 	bool "4kB"
-	depends on !MMU || !X2TLB
+	depends on !MMU || !X2TLB || PGTABLE_LEVELS_3
 	help
 	  This is the default page size used by all SuperH CPUs.
 
 config PAGE_SIZE_8KB
 	bool "8kB"
-	depends on !MMU || X2TLB
+	depends on !MMU || X2TLB && !PGTABLE_LEVELS_3
 	help
 	  This enables 8kB pages as supported by SH-X2 and later MMUs.
 
@@ -214,7 +232,7 @@ config PAGE_SIZE_16KB
 
 config PAGE_SIZE_64KB
 	bool "64kB"
-	depends on !MMU || CPU_SH4 || CPU_SH5
+	depends on !MMU || CPU_SH4 && !PGTABLE_LEVELS_3 || CPU_SH5
 	help
 	  This enables support for 64kB pages, possible on all SH-4
 	  CPUs and later.

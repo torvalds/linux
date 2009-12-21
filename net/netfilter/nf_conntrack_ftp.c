@@ -243,8 +243,8 @@ static int try_epsv_response(const char *data, size_t dlen,
 	/* Three delimiters. */
 	if (dlen <= 3) return 0;
 	delim = data[0];
-	if (isdigit(delim) || delim < 33 || delim > 126
-	    || data[1] != delim || data[2] != delim)
+	if (isdigit(delim) || delim < 33 || delim > 126 ||
+	    data[1] != delim || data[2] != delim)
 		return 0;
 
 	return get_port(data, 3, dlen, delim, &cmd->u.tcp.port);
@@ -366,8 +366,8 @@ static int help(struct sk_buff *skb,
 	typeof(nf_nat_ftp_hook) nf_nat_ftp;
 
 	/* Until there's been traffic both ways, don't look in packets. */
-	if (ctinfo != IP_CT_ESTABLISHED
-	    && ctinfo != IP_CT_ESTABLISHED+IP_CT_IS_REPLY) {
+	if (ctinfo != IP_CT_ESTABLISHED &&
+	    ctinfo != IP_CT_ESTABLISHED + IP_CT_IS_REPLY) {
 		pr_debug("ftp: Conntrackinfo = %u\n", ctinfo);
 		return NF_ACCEPT;
 	}

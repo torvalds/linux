@@ -18,7 +18,7 @@
 atomic_t irq_err_count;
 
 /* Function pointer for generic interrupt vector handling */
-void (*generic_interrupt_extension)(void) = NULL;
+void (*x86_platform_ipi_callback)(void) = NULL;
 
 /*
  * 'what should we do if we get a hw irq event on an illegal vector'.
@@ -72,10 +72,10 @@ static int show_other_interrupts(struct seq_file *p, int prec)
 		seq_printf(p, "%10u ", irq_stats(j)->apic_pending_irqs);
 	seq_printf(p, "  Performance pending work\n");
 #endif
-	if (generic_interrupt_extension) {
+	if (x86_platform_ipi_callback) {
 		seq_printf(p, "%*s: ", prec, "PLT");
 		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", irq_stats(j)->generic_irqs);
+			seq_printf(p, "%10u ", irq_stats(j)->x86_platform_ipis);
 		seq_printf(p, "  Platform interrupts\n");
 	}
 #ifdef CONFIG_SMP
@@ -149,7 +149,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	if (!desc)
 		return 0;
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	for_each_online_cpu(j)
 		any_count |= kstat_irqs_cpu(i, j);
 	action = desc->action;
@@ -170,7 +170,7 @@ int show_interrupts(struct seq_file *p, void *v)
 
 	seq_putc(p, '\n');
 out:
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	return 0;
 }
 
@@ -187,8 +187,8 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 	sum += irq_stats(cpu)->apic_perf_irqs;
 	sum += irq_stats(cpu)->apic_pending_irqs;
 #endif
-	if (generic_interrupt_extension)
-		sum += irq_stats(cpu)->generic_irqs;
+	if (x86_platform_ipi_callback)
+		sum += irq_stats(cpu)->x86_platform_ipis;
 #ifdef CONFIG_SMP
 	sum += irq_stats(cpu)->irq_resched_count;
 	sum += irq_stats(cpu)->irq_call_count;
@@ -251,9 +251,9 @@ unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 }
 
 /*
- * Handler for GENERIC_INTERRUPT_VECTOR.
+ * Handler for X86_PLATFORM_IPI_VECTOR.
  */
-void smp_generic_interrupt(struct pt_regs *regs)
+void smp_x86_platform_ipi(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
@@ -263,10 +263,10 @@ void smp_generic_interrupt(struct pt_regs *regs)
 
 	irq_enter();
 
-	inc_irq_stat(generic_irqs);
+	inc_irq_stat(x86_platform_ipis);
 
-	if (generic_interrupt_extension)
-		generic_interrupt_extension();
+	if (x86_platform_ipi_callback)
+		x86_platform_ipi_callback();
 
 	irq_exit();
 
@@ -294,12 +294,12 @@ void fixup_irqs(void)
 			continue;
 
 		/* interrupt's are disabled at this point */
-		spin_lock(&desc->lock);
+		raw_spin_lock(&desc->lock);
 
 		affinity = desc->affinity;
 		if (!irq_has_action(irq) ||
 		    cpumask_equal(affinity, cpu_online_mask)) {
-			spin_unlock(&desc->lock);
+			raw_spin_unlock(&desc->lock);
 			continue;
 		}
 
@@ -326,7 +326,7 @@ void fixup_irqs(void)
 		if (!(desc->status & IRQ_MOVE_PCNTXT) && desc->chip->unmask)
 			desc->chip->unmask(irq);
 
-		spin_unlock(&desc->lock);
+		raw_spin_unlock(&desc->lock);
 
 		if (break_affinity && set_affinity)
 			printk("Broke affinity for irq %i\n", irq);
@@ -356,10 +356,10 @@ void fixup_irqs(void)
 			irq = __get_cpu_var(vector_irq)[vector];
 
 			desc = irq_to_desc(irq);
-			spin_lock(&desc->lock);
+			raw_spin_lock(&desc->lock);
 			if (desc->chip->retrigger)
 				desc->chip->retrigger(irq);
-			spin_unlock(&desc->lock);
+			raw_spin_unlock(&desc->lock);
 		}
 	}
 }

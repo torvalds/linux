@@ -63,4 +63,5 @@
 #define SO_PROTOCOL		38
 #define SO_DOMAIN		39
 
+#define SO_RXQ_OVFL             40
 #endif /* __ASM_GENERIC_SOCKET_H */

@@ -101,21 +101,17 @@ s64 uv_bios_get_sn_info(int fc, int *uvtype, long *partid, long *coher,
 }
 
 int
-uv_bios_mq_watchlist_alloc(int blade, unsigned long addr, unsigned int mq_size,
+uv_bios_mq_watchlist_alloc(unsigned long addr, unsigned int mq_size,
 			   unsigned long *intr_mmr_offset)
 {
-	union uv_watchlist_u size_blade;
 	u64 watchlist;
 	s64 ret;
-
-	size_blade.size = mq_size;
-	size_blade.blade = blade;
 
 	/*
 	 * bios returns watchlist number or negative error number.
 	 */
 	ret = (int)uv_bios_call_irqsave(UV_BIOS_WATCHLIST_ALLOC, addr,
-			size_blade.val, (u64)intr_mmr_offset,
+			mq_size, (u64)intr_mmr_offset,
 			(u64)&watchlist, 0);
 	if (ret < BIOS_STATUS_SUCCESS)
 		return ret;

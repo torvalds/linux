@@ -53,6 +53,9 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
 	if (!pud_present(*pud_k))
 		return NULL;
 
+	if (!pud_present(*pud))
+	    set_pud(pud, *pud_k);
+
 	pmd = pmd_offset(pud, address);
 	pmd_k = pmd_offset(pud_k, address);
 	if (!pmd_present(*pmd_k))

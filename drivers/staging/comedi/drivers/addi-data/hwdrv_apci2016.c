@@ -117,7 +117,7 @@ int i_APCI2016_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subde
 	unsigned int ui_NoOfChannel;
 	unsigned int ui_Temp, ui_Temp1;
 	ui_NoOfChannel = CR_CHAN(insn->chanspec);
-	if ((ui_NoOfChannel < 0) || (ui_NoOfChannel > 15)) {
+	if (ui_NoOfChannel > 15) {
 		comedi_error(dev,
 			"Invalid Channel Numbers !!!, Channel Numbers must be between 0 and 15\n");
 		return -EINVAL;
@@ -272,7 +272,7 @@ int i_APCI2016_BitsDigitalOutput(struct comedi_device *dev, struct comedi_subdev
 	unsigned int ui_Temp;
 	unsigned int ui_NoOfChannel;
 	ui_NoOfChannel = CR_CHAN(insn->chanspec);
-	if ((ui_NoOfChannel < 0) || (ui_NoOfChannel > 15)) {
+	if (ui_NoOfChannel > 15) {
 		comedi_error(dev,
 			"Invalid Channel Numbers !!!, Channel Numbers must be between 0 and 15\n");
 		return -EINVAL;

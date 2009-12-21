@@ -142,6 +142,8 @@ struct ccw1;
 extern int ccw_device_set_options_mask(struct ccw_device *, unsigned long);
 extern int ccw_device_set_options(struct ccw_device *, unsigned long);
 extern void ccw_device_clear_options(struct ccw_device *, unsigned long);
+int ccw_device_is_pathgroup(struct ccw_device *cdev);
+int ccw_device_is_multipath(struct ccw_device *cdev);
 
 /* Allow for i/o completion notification after primary interrupt status. */
 #define CCWDEV_EARLY_NOTIFICATION	0x0001
@@ -151,6 +153,8 @@ extern void ccw_device_clear_options(struct ccw_device *, unsigned long);
 #define CCWDEV_DO_PATHGROUP             0x0004
 /* Allow forced onlining of boxed devices. */
 #define CCWDEV_ALLOW_FORCE              0x0008
+/* Try to use multipath mode. */
+#define CCWDEV_DO_MULTIPATH		0x0010
 
 extern int ccw_device_start(struct ccw_device *, struct ccw1 *,
 			    unsigned long, __u8, unsigned long);

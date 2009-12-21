@@ -1681,7 +1681,6 @@ static struct video_device meye_template = {
 	.fops		= &meye_fops,
 	.ioctl_ops 	= &meye_ioctl_ops,
 	.release	= video_device_release,
-	.minor		= -1,
 };
 
 #ifdef CONFIG_PM

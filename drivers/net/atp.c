@@ -437,7 +437,7 @@ static int net_open(struct net_device *dev)
 	/* The interrupt line is turned off (tri-stated) when the device isn't in
 	   use.  That's especially important for "attached" interfaces where the
 	   port or interrupt may be shared. */
-	ret = request_irq(dev->irq, &atp_interrupt, 0, dev->name, dev);
+	ret = request_irq(dev->irq, atp_interrupt, 0, dev->name, dev);
 	if (ret)
 		return ret;
 
@@ -673,8 +673,8 @@ static irqreturn_t atp_interrupt(int irq, void *dev_instance)
 				netif_wake_queue(dev);	/* Inform upper layers. */
 			}
 			num_tx_since_rx++;
-		} else if (num_tx_since_rx > 8
-				   && time_after(jiffies, dev->last_rx + HZ)) {
+		} else if (num_tx_since_rx > 8 &&
+			   time_after(jiffies, dev->last_rx + HZ)) {
 			if (net_debug > 2)
 				printk(KERN_DEBUG "%s: Missed packet? No Rx after %d Tx and "
 					   "%ld jiffies status %02x  CMR1 %02x.\n", dev->name,

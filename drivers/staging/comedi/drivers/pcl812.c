@@ -51,7 +51,7 @@ Options for PCL-812:
         5=A/D input range is +/-0.3125V
   [5] - 0=D/A outputs 0-5V  (internal reference -5V)
         1=D/A outputs 0-10V (internal reference -10V)
-        2=D/A outputs unknow (external reference)
+        2=D/A outputs unknown (external reference)
 
 Options for PCL-812PG, ACL-8112PG:
   [0] - IO Base
@@ -63,7 +63,7 @@ Options for PCL-812PG, ACL-8112PG:
         1=A/D have max +/-10V input
   [5] - 0=D/A outputs 0-5V  (internal reference -5V)
         1=D/A outputs 0-10V (internal reference -10V)
-        2=D/A outputs unknow (external reference)
+        2=D/A outputs unknown (external reference)
 
 Options for ACL-8112DG/HG, A-822PGL/PGH, A-823PGL/PGH, ACL-8216, A-826PG:
   [0] - IO Base
@@ -75,7 +75,7 @@ Options for ACL-8112DG/HG, A-822PGL/PGH, A-823PGL/PGH, ACL-8216, A-826PG:
         1=A/D channels are DIFF
   [5] - 0=D/A outputs 0-5V  (internal reference -5V)
         1=D/A outputs 0-10V (internal reference -10V)
-        2=D/A outputs unknow (external reference)
+        2=D/A outputs unknown (external reference)
 
 Options for A-821PGL/PGH:
   [0] - IO Base

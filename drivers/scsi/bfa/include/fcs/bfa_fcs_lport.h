@@ -125,12 +125,12 @@ union bfa_fcs_port_topo_u {
 struct bfa_fcs_port_s {
 	struct list_head         qe;	/*  used by port/vport */
 	bfa_sm_t               sm;	/*  state machine */
-	struct bfa_fcs_fabric_s *fabric;	/*  parent fabric */
-	struct bfa_port_cfg_s  port_cfg;	/*  port configuration */
+	struct bfa_fcs_fabric_s *fabric;/*  parent fabric */
+	struct bfa_port_cfg_s  port_cfg;/*  port configuration */
 	struct bfa_timer_s link_timer;	/*  timer for link offline */
-	u32        pid : 24;	/*  FC address */
-	u8         lp_tag;		/*  lport tag */
-	u16        num_rports;	/*  Num of r-ports */
+	u32 pid:24;	/*  FC address */
+	u8  lp_tag;	/*  lport tag */
+	u16 num_rports;	/*  Num of r-ports */
 	struct list_head rport_q;	/*  queue of discovered r-ports */
 	struct bfa_fcs_s *fcs;	/*  FCS instance */
 	union bfa_fcs_port_topo_u port_topo;	/*  fabric/loop/n2n details */
@@ -188,13 +188,14 @@ bfa_fcs_port_get_drvport(struct bfa_fcs_port_s *port)
 }
 
 
-#define bfa_fcs_port_get_opertype(_lport)	(_lport)->fabric->oper_type
+#define bfa_fcs_port_get_opertype(_lport)	((_lport)->fabric->oper_type)
 
 
-#define bfa_fcs_port_get_fabric_name(_lport)	(_lport)->fabric->fabric_name
+#define bfa_fcs_port_get_fabric_name(_lport)	((_lport)->fabric->fabric_name)
 
 
-#define bfa_fcs_port_get_fabric_ipaddr(_lport)	(_lport)->fabric->fabric_ip_addr
+#define bfa_fcs_port_get_fabric_ipaddr(_lport) \
+		((_lport)->fabric->fabric_ip_addr)
 
 /**
  * bfa fcs port public functions

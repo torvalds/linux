@@ -24,6 +24,8 @@
 * Protocol Control Unit Functions *
 \*********************************/
 
+#include <asm/unaligned.h>
+
 #include "ath5k.h"
 #include "reg.h"
 #include "debug.h"
@@ -44,6 +46,7 @@
  */
 int ath5k_hw_set_opmode(struct ath5k_hw *ah)
 {
+	struct ath_common *common = ath5k_hw_common(ah);
 	u32 pcu_reg, beacon_reg, low_id, high_id;
 
 
@@ -95,8 +98,8 @@ int ath5k_hw_set_opmode(struct ath5k_hw *ah)
 	/*
 	 * Set PCU registers
 	 */
-	low_id = AR5K_LOW_ID(ah->ah_sta_id);
-	high_id = AR5K_HIGH_ID(ah->ah_sta_id);
+	low_id = get_unaligned_le32(common->macaddr);
+	high_id = get_unaligned_le16(common->macaddr + 4);
 	ath5k_hw_reg_write(ah, low_id, AR5K_STA_ID0);
 	ath5k_hw_reg_write(ah, pcu_reg | high_id, AR5K_STA_ID1);
 
@@ -238,28 +241,6 @@ int ath5k_hw_set_cts_timeout(struct ath5k_hw *ah, unsigned int timeout)
 	return 0;
 }
 
-
-/****************\
-* BSSID handling *
-\****************/
-
-/**
- * ath5k_hw_get_lladdr - Get station id
- *
- * @ah: The &struct ath5k_hw
- * @mac: The card's mac address
- *
- * Initialize ah->ah_sta_id using the mac address provided
- * (just a memcpy).
- *
- * TODO: Remove it once we merge ath5k_softc and ath5k_hw
- */
-void ath5k_hw_get_lladdr(struct ath5k_hw *ah, u8 *mac)
-{
-	ATH5K_TRACE(ah->ah_sc);
-	memcpy(mac, ah->ah_sta_id, ETH_ALEN);
-}
-
 /**
  * ath5k_hw_set_lladdr - Set station id
  *
@@ -270,17 +251,18 @@ void ath5k_hw_get_lladdr(struct ath5k_hw *ah, u8 *mac)
  */
 int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac)
 {
+	struct ath_common *common = ath5k_hw_common(ah);
 	u32 low_id, high_id;
 	u32 pcu_reg;
 
 	ATH5K_TRACE(ah->ah_sc);
 	/* Set new station ID */
-	memcpy(ah->ah_sta_id, mac, ETH_ALEN);
+	memcpy(common->macaddr, mac, ETH_ALEN);
 
 	pcu_reg = ath5k_hw_reg_read(ah, AR5K_STA_ID1) & 0xffff0000;
 
-	low_id = AR5K_LOW_ID(mac);
-	high_id = AR5K_HIGH_ID(mac);
+	low_id = get_unaligned_le32(mac);
+	high_id = get_unaligned_le16(mac + 4);
 
 	ath5k_hw_reg_write(ah, low_id, AR5K_STA_ID0);
 	ath5k_hw_reg_write(ah, pcu_reg | high_id, AR5K_STA_ID1);
@@ -297,158 +279,50 @@ int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac)
  *
  * Sets the BSSID which trigers the "SME Join" operation
  */
-void ath5k_hw_set_associd(struct ath5k_hw *ah, const u8 *bssid, u16 assoc_id)
+void ath5k_hw_set_associd(struct ath5k_hw *ah)
 {
-	u32 low_id, high_id;
+	struct ath_common *common = ath5k_hw_common(ah);
 	u16 tim_offset = 0;
 
 	/*
 	 * Set simple BSSID mask on 5212
 	 */
-	if (ah->ah_version == AR5K_AR5212) {
-		ath5k_hw_reg_write(ah, AR5K_LOW_ID(ah->ah_bssid_mask),
-							AR5K_BSS_IDM0);
-		ath5k_hw_reg_write(ah, AR5K_HIGH_ID(ah->ah_bssid_mask),
-							AR5K_BSS_IDM1);
-	}
+	if (ah->ah_version == AR5K_AR5212)
+		ath_hw_setbssidmask(common);
 
 	/*
 	 * Set BSSID which triggers the "SME Join" operation
 	 */
-	low_id = AR5K_LOW_ID(bssid);
-	high_id = AR5K_HIGH_ID(bssid);
-	ath5k_hw_reg_write(ah, low_id, AR5K_BSS_ID0);
-	ath5k_hw_reg_write(ah, high_id | ((assoc_id & 0x3fff) <<
-				AR5K_BSS_ID1_AID_S), AR5K_BSS_ID1);
+	ath5k_hw_reg_write(ah,
+			   get_unaligned_le32(common->curbssid),
+			   AR5K_BSS_ID0);
+	ath5k_hw_reg_write(ah,
+			   get_unaligned_le16(common->curbssid + 4) |
+			   ((common->curaid & 0x3fff) << AR5K_BSS_ID1_AID_S),
+			   AR5K_BSS_ID1);
 
-	if (assoc_id == 0) {
+	if (common->curaid == 0) {
 		ath5k_hw_disable_pspoll(ah);
 		return;
 	}
 
 	AR5K_REG_WRITE_BITS(ah, AR5K_BEACON, AR5K_BEACON_TIM,
-			tim_offset ? tim_offset + 4 : 0);
+			    tim_offset ? tim_offset + 4 : 0);
 
 	ath5k_hw_enable_pspoll(ah, NULL, 0);
 }
 
-/**
- * ath5k_hw_set_bssid_mask - filter out bssids we listen
- *
- * @ah: the &struct ath5k_hw
- * @mask: the bssid_mask, a u8 array of size ETH_ALEN
- *
- * BSSID masking is a method used by AR5212 and newer hardware to inform PCU
- * which bits of the interface's MAC address should be looked at when trying
- * to decide which packets to ACK. In station mode and AP mode with a single
- * BSS every bit matters since we lock to only one BSS. In AP mode with
- * multiple BSSes (virtual interfaces) not every bit matters because hw must
- * accept frames for all BSSes and so we tweak some bits of our mac address
- * in order to have multiple BSSes.
- *
- * NOTE: This is a simple filter and does *not* filter out all
- * relevant frames. Some frames that are not for us might get ACKed from us
- * by PCU because they just match the mask.
- *
- * When handling multiple BSSes you can get the BSSID mask by computing the
- * set of  ~ ( MAC XOR BSSID ) for all bssids we handle.
- *
- * When you do this you are essentially computing the common bits of all your
- * BSSes. Later it is assumed the harware will "and" (&) the BSSID mask with
- * the MAC address to obtain the relevant bits and compare the result with
- * (frame's BSSID & mask) to see if they match.
- */
-/*
- * Simple example: on your card you have have two BSSes you have created with
- * BSSID-01 and BSSID-02. Lets assume BSSID-01 will not use the MAC address.
- * There is another BSSID-03 but you are not part of it. For simplicity's sake,
- * assuming only 4 bits for a mac address and for BSSIDs you can then have:
- *
- *                  \
- * MAC:                0001 |
- * BSSID-01:   0100 | --> Belongs to us
- * BSSID-02:   1001 |
- *                  /
- * -------------------
- * BSSID-03:   0110  | --> External
- * -------------------
- *
- * Our bssid_mask would then be:
- *
- *             On loop iteration for BSSID-01:
- *             ~(0001 ^ 0100)  -> ~(0101)
- *                             ->   1010
- *             bssid_mask      =    1010
- *
- *             On loop iteration for BSSID-02:
- *             bssid_mask &= ~(0001   ^   1001)
- *             bssid_mask =   (1010)  & ~(0001 ^ 1001)
- *             bssid_mask =   (1010)  & ~(1001)
- *             bssid_mask =   (1010)  &  (0110)
- *             bssid_mask =   0010
- *
- * A bssid_mask of 0010 means "only pay attention to the second least
- * significant bit". This is because its the only bit common
- * amongst the MAC and all BSSIDs we support. To findout what the real
- * common bit is we can simply "&" the bssid_mask now with any BSSID we have
- * or our MAC address (we assume the hardware uses the MAC address).
- *
- * Now, suppose there's an incoming frame for BSSID-03:
- *
- * IFRAME-01:  0110
- *
- * An easy eye-inspeciton of this already should tell you that this frame
- * will not pass our check. This is beacuse the bssid_mask tells the
- * hardware to only look at the second least significant bit and the
- * common bit amongst the MAC and BSSIDs is 0, this frame has the 2nd LSB
- * as 1, which does not match 0.
- *
- * So with IFRAME-01 we *assume* the hardware will do:
- *
- *     allow = (IFRAME-01 & bssid_mask) == (bssid_mask & MAC) ? 1 : 0;
- *  --> allow = (0110 & 0010) == (0010 & 0001) ? 1 : 0;
- *  --> allow = (0010) == 0000 ? 1 : 0;
- *  --> allow = 0
- *
- *  Lets now test a frame that should work:
- *
- * IFRAME-02:  0001 (we should allow)
- *
- *     allow = (0001 & 1010) == 1010
- *
- *     allow = (IFRAME-02 & bssid_mask) == (bssid_mask & MAC) ? 1 : 0;
- *  --> allow = (0001 & 0010) ==  (0010 & 0001) ? 1 :0;
- *  --> allow = (0010) == (0010)
- *  --> allow = 1
- *
- * Other examples:
- *
- * IFRAME-03:  0100 --> allowed
- * IFRAME-04:  1001 --> allowed
- * IFRAME-05:  1101 --> allowed but its not for us!!!
- *
- */
-int ath5k_hw_set_bssid_mask(struct ath5k_hw *ah, const u8 *mask)
+void ath5k_hw_set_bssid_mask(struct ath5k_hw *ah, const u8 *mask)
 {
-	u32 low_id, high_id;
+	struct ath_common *common = ath5k_hw_common(ah);
 	ATH5K_TRACE(ah->ah_sc);
 
 	/* Cache bssid mask so that we can restore it
 	 * on reset */
-	memcpy(ah->ah_bssid_mask, mask, ETH_ALEN);
-	if (ah->ah_version == AR5K_AR5212) {
-		low_id = AR5K_LOW_ID(mask);
-		high_id = AR5K_HIGH_ID(mask);
-
-		ath5k_hw_reg_write(ah, low_id, AR5K_BSS_IDM0);
-		ath5k_hw_reg_write(ah, high_id, AR5K_BSS_IDM1);
-
-		return 0;
-	}
-
-	return -EIO;
+	memcpy(common->bssidmask, mask, ETH_ALEN);
+	if (ah->ah_version == AR5K_AR5212)
+		ath_hw_setbssidmask(common);
 }
-
 
 /************\
 * RX Control *
@@ -1157,14 +1031,17 @@ int ath5k_hw_set_key_lladdr(struct ath5k_hw *ah, u16 entry, const u8 *mac)
 	 /* Invalid entry (key table overflow) */
 	AR5K_ASSERT_ENTRY(entry, AR5K_KEYTABLE_SIZE);
 
-	/* MAC may be NULL if it's a broadcast key. In this case no need to
-	 * to compute AR5K_LOW_ID and AR5K_HIGH_ID as we already know it. */
+	/*
+	 * MAC may be NULL if it's a broadcast key. In this case no need to
+	 * to compute get_unaligned_le32 and get_unaligned_le16 as we
+	 * already know it.
+	 */
 	if (!mac) {
 		low_id = 0xffffffff;
 		high_id = 0xffff | AR5K_KEYTABLE_VALID;
 	} else {
-		low_id = AR5K_LOW_ID(mac);
-		high_id = AR5K_HIGH_ID(mac) | AR5K_KEYTABLE_VALID;
+		low_id = get_unaligned_le32(mac);
+		high_id = get_unaligned_le16(mac + 4) | AR5K_KEYTABLE_VALID;
 	}
 
 	ath5k_hw_reg_write(ah, low_id, AR5K_KEYTABLE_MAC0(entry));

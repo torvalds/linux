@@ -73,7 +73,8 @@ static const char *_osd_ver_desc(struct osd_request *or)
 
 #define ATTR_DEF_RI(id, len) ATTR_DEF(OSD_APAGE_ROOT_INFORMATION, id, len)
 
-static int _osd_print_system_info(struct osd_dev *od, void *caps)
+static int _osd_get_print_system_info(struct osd_dev *od,
+	void *caps, struct osd_dev_info *odi)
 {
 	struct osd_request *or;
 	struct osd_attr get_attrs[] = {
@@ -137,8 +138,12 @@ static int _osd_print_system_info(struct osd_dev *od, void *caps)
 	OSD_INFO("PRODUCT_SERIAL_NUMBER  [%s]\n",
 		(char *)pFirst);
 
-	pFirst = get_attrs[a].val_ptr;
-	OSD_INFO("OSD_NAME               [%s]\n", (char *)pFirst);
+	odi->osdname_len = get_attrs[a].len;
+	/* Avoid NULL for memcmp optimization 0-length is good enough */
+	odi->osdname = kzalloc(odi->osdname_len + 1, GFP_KERNEL);
+	if (odi->osdname_len)
+		memcpy(odi->osdname, get_attrs[a].val_ptr, odi->osdname_len);
+	OSD_INFO("OSD_NAME               [%s]\n", odi->osdname);
 	a++;
 
 	pFirst = get_attrs[a++].val_ptr;
@@ -171,6 +176,14 @@ static int _osd_print_system_info(struct osd_dev *od, void *caps)
 				   sid_dump, sizeof(sid_dump), true);
 		OSD_INFO("OSD_SYSTEM_ID(%d)\n"
 			 "        [%s]\n", len, sid_dump);
+
+		if (unlikely(len > sizeof(odi->systemid))) {
+			OSD_ERR("OSD Target error: OSD_SYSTEM_ID too long(%d). "
+				"device idetification might not work\n", len);
+			len = sizeof(odi->systemid);
+		}
+		odi->systemid_len = len;
+		memcpy(odi->systemid, get_attrs[a].val_ptr, len);
 		a++;
 	}
 out:
@@ -178,16 +191,17 @@ out:
 	return ret;
 }
 
-int osd_auto_detect_ver(struct osd_dev *od, void *caps)
+int osd_auto_detect_ver(struct osd_dev *od,
+	void *caps, struct osd_dev_info *odi)
 {
 	int ret;
 
 	/* Auto-detect the osd version */
-	ret = _osd_print_system_info(od, caps);
+	ret = _osd_get_print_system_info(od, caps, odi);
 	if (ret) {
 		osd_dev_set_ver(od, OSD_VER1);
 		OSD_DEBUG("converting to OSD1\n");
-		ret = _osd_print_system_info(od, caps);
+		ret = _osd_get_print_system_info(od, caps, odi);
 	}
 
 	return ret;
@@ -418,30 +432,23 @@ static void _osd_free_seg(struct osd_request *or __unused,
 	seg->alloc_size = 0;
 }
 
-static void _put_request(struct request *rq , bool is_async)
+static void _put_request(struct request *rq)
 {
-	if (is_async) {
-		WARN_ON(rq->bio);
-		__blk_put_request(rq->q, rq);
-	} else {
-		/*
-		 * If osd_finalize_request() was called but the request was not
-		 * executed through the block layer, then we must release BIOs.
-		 * TODO: Keep error code in or->async_error. Need to audit all
-		 *       code paths.
-		 */
-		if (unlikely(rq->bio))
-			blk_end_request(rq, -ENOMEM, blk_rq_bytes(rq));
-		else
-			blk_put_request(rq);
-	}
+	/*
+	 * If osd_finalize_request() was called but the request was not
+	 * executed through the block layer, then we must release BIOs.
+	 * TODO: Keep error code in or->async_error. Need to audit all
+	 *       code paths.
+	 */
+	if (unlikely(rq->bio))
+		blk_end_request(rq, -ENOMEM, blk_rq_bytes(rq));
+	else
+		blk_put_request(rq);
 }
 
 void osd_end_request(struct osd_request *or)
 {
 	struct request *rq = or->request;
-	/* IMPORTANT: make sure this agrees with osd_execute_request_async */
-	bool is_async = (or->request->end_io_data == or);
 
 	_osd_free_seg(or, &or->set_attr);
 	_osd_free_seg(or, &or->enc_get_attr);
@@ -449,19 +456,34 @@ void osd_end_request(struct osd_request *or)
 
 	if (rq) {
 		if (rq->next_rq) {
-			_put_request(rq->next_rq, is_async);
+			_put_request(rq->next_rq);
 			rq->next_rq = NULL;
 		}
 
-		_put_request(rq, is_async);
+		_put_request(rq);
 	}
 	_osd_request_free(or);
 }
 EXPORT_SYMBOL(osd_end_request);
 
+static void _set_error_resid(struct osd_request *or, struct request *req,
+			     int error)
+{
+	or->async_error = error;
+	or->req_errors = req->errors ? : error;
+	or->sense_len = req->sense_len;
+	if (or->out.req)
+		or->out.residual = or->out.req->resid_len;
+	if (or->in.req)
+		or->in.residual = or->in.req->resid_len;
+}
+
 int osd_execute_request(struct osd_request *or)
 {
-	return blk_execute_rq(or->request->q, NULL, or->request, 0);
+	int error = blk_execute_rq(or->request->q, NULL, or->request, 0);
+
+	_set_error_resid(or, or->request, error);
+	return error;
 }
 EXPORT_SYMBOL(osd_execute_request);
 
@@ -469,10 +491,16 @@ static void osd_request_async_done(struct request *req, int error)
 {
 	struct osd_request *or = req->end_io_data;
 
-	or->async_error = error;
+	_set_error_resid(or, req, error);
+	if (req->next_rq) {
+		__blk_put_request(req->q, req->next_rq);
+		req->next_rq = NULL;
+	}
 
-	if (error)
-		OSD_DEBUG("osd_request_async_done error recieved %d\n", error);
+	__blk_put_request(req->q, req);
+	or->request = NULL;
+	or->in.req = NULL;
+	or->out.req = NULL;
 
 	if (or->async_done)
 		or->async_done(or, or->async_private);
@@ -1153,6 +1181,7 @@ int osd_req_decode_get_attr_list(struct osd_request *or,
 				"c=%d r=%d n=%d\n",
 				cur_bytes, returned_bytes, n);
 			oa->val_ptr = NULL;
+			cur_bytes = returned_bytes; /* break the caller loop */
 			break;
 		}
 
@@ -1436,6 +1465,15 @@ int osd_finalize_request(struct osd_request *or,
 }
 EXPORT_SYMBOL(osd_finalize_request);
 
+static bool _is_osd_security_code(int code)
+{
+	return	(code == osd_security_audit_value_frozen) ||
+		(code == osd_security_working_key_frozen) ||
+		(code == osd_nonce_not_unique) ||
+		(code == osd_nonce_timestamp_out_of_range) ||
+		(code == osd_invalid_dataout_buffer_integrity_check_value);
+}
+
 #define OSD_SENSE_PRINT1(fmt, a...) \
 	do { \
 		if (__cur_sense_need_output) \
@@ -1458,27 +1496,29 @@ int osd_req_decode_sense_full(struct osd_request *or,
 #else
 	bool __cur_sense_need_output = !silent;
 #endif
+	int ret;
 
-	if (!or->request->errors)
+	if (likely(!or->req_errors))
 		return 0;
 
-	ssdb = or->request->sense;
-	sense_len = or->request->sense_len;
+	osi = osi ? : &local_osi;
+	memset(osi, 0, sizeof(*osi));
+
+	ssdb = (typeof(ssdb))or->sense;
+	sense_len = or->sense_len;
 	if ((sense_len < (int)sizeof(*ssdb) || !ssdb->sense_key)) {
 		OSD_ERR("Block-layer returned error(0x%x) but "
 			"sense_len(%u) || key(%d) is empty\n",
-			or->request->errors, sense_len, ssdb->sense_key);
-		return -EIO;
+			or->req_errors, sense_len, ssdb->sense_key);
+		goto analyze;
 	}
 
 	if ((ssdb->response_code != 0x72) && (ssdb->response_code != 0x73)) {
 		OSD_ERR("Unrecognized scsi sense: rcode=%x length=%d\n",
 			ssdb->response_code, sense_len);
-		return -EIO;
+		goto analyze;
 	}
 
-	osi = osi ? : &local_osi;
-	memset(osi, 0, sizeof(*osi));
 	osi->key = ssdb->sense_key;
 	osi->additional_code = be16_to_cpu(ssdb->additional_sense_code);
 	original_sense_len = ssdb->additional_sense_length + 8;
@@ -1488,9 +1528,10 @@ int osd_req_decode_sense_full(struct osd_request *or,
 		__cur_sense_need_output = (osi->key > scsi_sk_recovered_error);
 #endif
 	OSD_SENSE_PRINT1("Main Sense information key=0x%x length(%d, %d) "
-			"additional_code=0x%x\n",
+			"additional_code=0x%x async_error=%d errors=0x%x\n",
 			osi->key, original_sense_len, sense_len,
-			osi->additional_code);
+			osi->additional_code, or->async_error,
+			or->req_errors);
 
 	if (original_sense_len < sense_len)
 		sense_len = original_sense_len;
@@ -1569,15 +1610,14 @@ int osd_req_decode_sense_full(struct osd_request *or,
 		{
 			struct osd_sense_attributes_data_descriptor
 				*osadd = cur_descriptor;
-			int len = min(cur_len, sense_len);
-			int i = 0;
+			unsigned len = min(cur_len, sense_len);
 			struct osd_sense_attr *pattr = osadd->sense_attrs;
 
-			while (len < 0) {
+			while (len >= sizeof(*pattr)) {
 				u32 attr_page = be32_to_cpu(pattr->attr_page);
 				u32 attr_id = be32_to_cpu(pattr->attr_id);
 
-				if (i++ == 0) {
+				if (!osi->attr.attr_page) {
 					osi->attr.attr_page = attr_page;
 					osi->attr.attr_id = attr_id;
 				}
@@ -1588,6 +1628,8 @@ int osd_req_decode_sense_full(struct osd_request *or,
 					bad_attr_list++;
 					max_attr--;
 				}
+
+				len -= sizeof(*pattr);
 				OSD_SENSE_PRINT2(
 					"osd_sense_attribute_identification"
 					"attr_page=0x%x attr_id=0x%x\n",
@@ -1621,7 +1663,50 @@ int osd_req_decode_sense_full(struct osd_request *or,
 		cur_descriptor += cur_len;
 	}
 
-	return (osi->key > scsi_sk_recovered_error) ? -EIO : 0;
+analyze:
+	if (!osi->key) {
+		/* scsi sense is Empty, the request was never issued to target
+		 * linux return code might tell us what happened.
+		 */
+		if (or->async_error == -ENOMEM)
+			osi->osd_err_pri = OSD_ERR_PRI_RESOURCE;
+		else
+			osi->osd_err_pri = OSD_ERR_PRI_UNREACHABLE;
+		ret = or->async_error;
+	} else if (osi->key <= scsi_sk_recovered_error) {
+		osi->osd_err_pri = 0;
+		ret = 0;
+	} else if (osi->additional_code == scsi_invalid_field_in_cdb) {
+		if (osi->cdb_field_offset == OSD_CFO_STARTING_BYTE) {
+			osi->osd_err_pri = OSD_ERR_PRI_CLEAR_PAGES;
+			ret = -EFAULT; /* caller should recover from this */
+		} else if (osi->cdb_field_offset == OSD_CFO_OBJECT_ID) {
+			osi->osd_err_pri = OSD_ERR_PRI_NOT_FOUND;
+			ret = -ENOENT;
+		} else if (osi->cdb_field_offset == OSD_CFO_PERMISSIONS) {
+			osi->osd_err_pri = OSD_ERR_PRI_NO_ACCESS;
+			ret = -EACCES;
+		} else {
+			osi->osd_err_pri = OSD_ERR_PRI_BAD_CRED;
+			ret = -EINVAL;
+		}
+	} else if (osi->additional_code == osd_quota_error) {
+		osi->osd_err_pri = OSD_ERR_PRI_NO_SPACE;
+		ret = -ENOSPC;
+	} else if (_is_osd_security_code(osi->additional_code)) {
+		osi->osd_err_pri = OSD_ERR_PRI_BAD_CRED;
+		ret = -EINVAL;
+	} else {
+		osi->osd_err_pri = OSD_ERR_PRI_EIO;
+		ret = -EIO;
+	}
+
+	if (!or->out.residual)
+		or->out.residual = or->out.total_bytes;
+	if (!or->in.residual)
+		or->in.residual = or->in.total_bytes;
+
+	return ret;
 }
 EXPORT_SYMBOL(osd_req_decode_sense_full);
 

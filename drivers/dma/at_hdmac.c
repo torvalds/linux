@@ -99,7 +99,7 @@ static struct at_desc *atc_alloc_descriptor(struct dma_chan *chan,
 }
 
 /**
- * atc_desc_get - get a unsused descriptor from free_list
+ * atc_desc_get - get an unused descriptor from free_list
  * @atchan: channel we want a new descriptor for
  */
 static struct at_desc *atc_desc_get(struct at_dma_chan *atchan)
@@ -1188,7 +1188,7 @@ static int at_dma_resume_noirq(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops at_dma_dev_pm_ops = {
+static const struct dev_pm_ops at_dma_dev_pm_ops = {
 	.suspend_noirq = at_dma_suspend_noirq,
 	.resume_noirq = at_dma_resume_noirq,
 };

@@ -155,9 +155,6 @@ struct mmap_arg_struct {
 asmlinkage long sys32_mmap(struct mmap_arg_struct __user *arg)
 {
 	struct mmap_arg_struct a;
-	struct file *file = NULL;
-	unsigned long retval;
-	struct mm_struct *mm ;
 
 	if (copy_from_user(&a, arg, sizeof(a)))
 		return -EFAULT;
@@ -165,22 +162,8 @@ asmlinkage long sys32_mmap(struct mmap_arg_struct __user *arg)
 	if (a.offset & ~PAGE_MASK)
 		return -EINVAL;
 
-	if (!(a.flags & MAP_ANONYMOUS)) {
-		file = fget(a.fd);
-		if (!file)
-			return -EBADF;
-	}
-
-	mm = current->mm;
-	down_write(&mm->mmap_sem);
-	retval = do_mmap_pgoff(file, a.addr, a.len, a.prot, a.flags,
+	return sys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd,
 			       a.offset>>PAGE_SHIFT);
-	if (file)
-		fput(file);
-
-	up_write(&mm->mmap_sem);
-
-	return retval;
 }
 
 asmlinkage long sys32_mprotect(unsigned long start, size_t len,
@@ -434,62 +417,6 @@ asmlinkage long sys32_rt_sigqueueinfo(int pid, int sig,
 	return ret;
 }
 
-#ifdef CONFIG_SYSCTL_SYSCALL
-struct sysctl_ia32 {
-	unsigned int	name;
-	int		nlen;
-	unsigned int	oldval;
-	unsigned int	oldlenp;
-	unsigned int	newval;
-	unsigned int	newlen;
-	unsigned int	__unused[4];
-};
-
-
-asmlinkage long sys32_sysctl(struct sysctl_ia32 __user *args32)
-{
-	struct sysctl_ia32 a32;
-	mm_segment_t old_fs = get_fs();
-	void __user *oldvalp, *newvalp;
-	size_t oldlen;
-	int __user *namep;
-	long ret;
-
-	if (copy_from_user(&a32, args32, sizeof(a32)))
-		return -EFAULT;
-
-	/*
-	 * We need to pre-validate these because we have to disable
-	 * address checking before calling do_sysctl() because of
-	 * OLDLEN but we can't run the risk of the user specifying bad
-	 * addresses here.  Well, since we're dealing with 32 bit
-	 * addresses, we KNOW that access_ok() will always succeed, so
-	 * this is an expensive NOP, but so what...
-	 */
-	namep = compat_ptr(a32.name);
-	oldvalp = compat_ptr(a32.oldval);
-	newvalp =  compat_ptr(a32.newval);
-
-	if ((oldvalp && get_user(oldlen, (int __user *)compat_ptr(a32.oldlenp)))
-	    || !access_ok(VERIFY_WRITE, namep, 0)
-	    || !access_ok(VERIFY_WRITE, oldvalp, 0)
-	    || !access_ok(VERIFY_WRITE, newvalp, 0))
-		return -EFAULT;
-
-	set_fs(KERNEL_DS);
-	lock_kernel();
-	ret = do_sysctl(namep, a32.nlen, oldvalp, (size_t __user *)&oldlen,
-			newvalp, (size_t) a32.newlen);
-	unlock_kernel();
-	set_fs(old_fs);
-
-	if (oldvalp && put_user(oldlen, (int __user *)compat_ptr(a32.oldlenp)))
-		return -EFAULT;
-
-	return ret;
-}
-#endif
-
 /* warning: next two assume little endian */
 asmlinkage long sys32_pread(unsigned int fd, char __user *ubuf, u32 count,
 			    u32 poslo, u32 poshi)
@@ -537,30 +464,6 @@ asmlinkage long sys32_sendfile(int out_fd, int in_fd,
 	if (offset && put_user(of, offset))
 		return -EFAULT;
 	return ret;
-}
-
-asmlinkage long sys32_mmap2(unsigned long addr, unsigned long len,
-			    unsigned long prot, unsigned long flags,
-			    unsigned long fd, unsigned long pgoff)
-{
-	struct mm_struct *mm = current->mm;
-	unsigned long error;
-	struct file *file = NULL;
-
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file)
-			return -EBADF;
-	}
-
-	down_write(&mm->mmap_sem);
-	error = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-	up_write(&mm->mmap_sem);
-
-	if (file)
-		fput(file);
-	return error;
 }
 
 asmlinkage long sys32_olduname(struct oldold_utsname __user *name)

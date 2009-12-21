@@ -46,8 +46,6 @@
 
 extern void ctrl_alt_del(void);
 
-#define to_handle_h(n) container_of(n, struct input_handle, h_node)
-
 /*
  * Exported functions/variables
  */
@@ -132,6 +130,7 @@ int shift_state = 0;
  */
 
 static struct input_handler kbd_handler;
+static DEFINE_SPINLOCK(kbd_event_lock);
 static unsigned long key_down[BITS_TO_LONGS(KEY_CNT)];	/* keyboard key bitmap */
 static unsigned char shift_down[NR_SHIFT];		/* shift state counters.. */
 static int dead_key_next;
@@ -190,78 +189,89 @@ EXPORT_SYMBOL_GPL(unregister_keyboard_notifier);
  *  etc.). So this means that scancodes for the extra function keys won't
  *  be valid for the first event device, but will be for the second.
  */
+
+struct getset_keycode_data {
+	unsigned int scancode;
+	unsigned int keycode;
+	int error;
+};
+
+static int getkeycode_helper(struct input_handle *handle, void *data)
+{
+	struct getset_keycode_data *d = data;
+
+	d->error = input_get_keycode(handle->dev, d->scancode, &d->keycode);
+
+	return d->error == 0; /* stop as soon as we successfully get one */
+}
+
 int getkeycode(unsigned int scancode)
 {
-	struct input_handle *handle;
-	int keycode;
-	int error = -ENODEV;
+	struct getset_keycode_data d = { scancode, 0, -ENODEV };
 
-	list_for_each_entry(handle, &kbd_handler.h_list, h_node) {
-		error = input_get_keycode(handle->dev, scancode, &keycode);
-		if (!error)
-			return keycode;
-	}
+	input_handler_for_each_handle(&kbd_handler, &d, getkeycode_helper);
 
-	return error;
+	return d.error ?: d.keycode;
+}
+
+static int setkeycode_helper(struct input_handle *handle, void *data)
+{
+	struct getset_keycode_data *d = data;
+
+	d->error = input_set_keycode(handle->dev, d->scancode, d->keycode);
+
+	return d->error == 0; /* stop as soon as we successfully set one */
 }
 
 int setkeycode(unsigned int scancode, unsigned int keycode)
 {
-	struct input_handle *handle;
-	int error = -ENODEV;
+	struct getset_keycode_data d = { scancode, keycode, -ENODEV };
 
-	list_for_each_entry(handle, &kbd_handler.h_list, h_node) {
-		error = input_set_keycode(handle->dev, scancode, keycode);
-		if (!error)
-			break;
-	}
+	input_handler_for_each_handle(&kbd_handler, &d, setkeycode_helper);
 
-	return error;
+	return d.error;
 }
 
 /*
- * Making beeps and bells.
+ * Making beeps and bells. Note that we prefer beeps to bells, but when
+ * shutting the sound off we do both.
  */
+
+static int kd_sound_helper(struct input_handle *handle, void *data)
+{
+	unsigned int *hz = data;
+	struct input_dev *dev = handle->dev;
+
+	if (test_bit(EV_SND, dev->evbit)) {
+		if (test_bit(SND_TONE, dev->sndbit)) {
+			input_inject_event(handle, EV_SND, SND_TONE, *hz);
+			if (*hz)
+				return 0;
+		}
+		if (test_bit(SND_BELL, dev->sndbit))
+			input_inject_event(handle, EV_SND, SND_BELL, *hz ? 1 : 0);
+	}
+
+	return 0;
+}
+
 static void kd_nosound(unsigned long ignored)
 {
-	struct input_handle *handle;
+	static unsigned int zero;
 
-	list_for_each_entry(handle, &kbd_handler.h_list, h_node) {
-		if (test_bit(EV_SND, handle->dev->evbit)) {
-			if (test_bit(SND_TONE, handle->dev->sndbit))
-				input_inject_event(handle, EV_SND, SND_TONE, 0);
-			if (test_bit(SND_BELL, handle->dev->sndbit))
-				input_inject_event(handle, EV_SND, SND_BELL, 0);
-		}
-	}
+	input_handler_for_each_handle(&kbd_handler, &zero, kd_sound_helper);
 }
 
 static DEFINE_TIMER(kd_mksound_timer, kd_nosound, 0, 0);
 
 void kd_mksound(unsigned int hz, unsigned int ticks)
 {
-	struct list_head *node;
+	del_timer_sync(&kd_mksound_timer);
 
-	del_timer(&kd_mksound_timer);
+	input_handler_for_each_handle(&kbd_handler, &hz, kd_sound_helper);
 
-	if (hz) {
-		list_for_each_prev(node, &kbd_handler.h_list) {
-			struct input_handle *handle = to_handle_h(node);
-			if (test_bit(EV_SND, handle->dev->evbit)) {
-				if (test_bit(SND_TONE, handle->dev->sndbit)) {
-					input_inject_event(handle, EV_SND, SND_TONE, hz);
-					break;
-				}
-				if (test_bit(SND_BELL, handle->dev->sndbit)) {
-					input_inject_event(handle, EV_SND, SND_BELL, 1);
-					break;
-				}
-			}
-		}
-		if (ticks)
-			mod_timer(&kd_mksound_timer, jiffies + ticks);
-	} else
-		kd_nosound(0);
+	if (hz && ticks)
+		mod_timer(&kd_mksound_timer, jiffies + ticks);
 }
 EXPORT_SYMBOL(kd_mksound);
 
@@ -269,27 +279,34 @@ EXPORT_SYMBOL(kd_mksound);
  * Setting the keyboard rate.
  */
 
+static int kbd_rate_helper(struct input_handle *handle, void *data)
+{
+	struct input_dev *dev = handle->dev;
+	struct kbd_repeat *rep = data;
+
+	if (test_bit(EV_REP, dev->evbit)) {
+
+		if (rep[0].delay > 0)
+			input_inject_event(handle,
+					   EV_REP, REP_DELAY, rep[0].delay);
+		if (rep[0].period > 0)
+			input_inject_event(handle,
+					   EV_REP, REP_PERIOD, rep[0].period);
+
+		rep[1].delay = dev->rep[REP_DELAY];
+		rep[1].period = dev->rep[REP_PERIOD];
+	}
+
+	return 0;
+}
+
 int kbd_rate(struct kbd_repeat *rep)
 {
-	struct list_head *node;
-	unsigned int d = 0;
-	unsigned int p = 0;
+	struct kbd_repeat data[2] = { *rep };
 
-	list_for_each(node, &kbd_handler.h_list) {
-		struct input_handle *handle = to_handle_h(node);
-		struct input_dev *dev = handle->dev;
+	input_handler_for_each_handle(&kbd_handler, data, kbd_rate_helper);
+	*rep = data[1];	/* Copy currently used settings */
 
-		if (test_bit(EV_REP, dev->evbit)) {
-			if (rep->delay > 0)
-				input_inject_event(handle, EV_REP, REP_DELAY, rep->delay);
-			if (rep->period > 0)
-				input_inject_event(handle, EV_REP, REP_PERIOD, rep->period);
-			d = dev->rep[REP_DELAY];
-			p = dev->rep[REP_PERIOD];
-		}
-	}
-	rep->delay  = d;
-	rep->period = p;
 	return 0;
 }
 
@@ -997,36 +1014,36 @@ static inline unsigned char getleds(void)
 	return leds;
 }
 
-/*
- * This routine is the bottom half of the keyboard interrupt
- * routine, and runs with all interrupts enabled. It does
- * console changing, led setting and copy_to_cooked, which can
- * take a reasonably long time.
- *
- * Aside from timing (which isn't really that important for
- * keyboard interrupts as they happen often), using the software
- * interrupt routines for this thing allows us to easily mask
- * this when we don't want any of the above to happen.
- * This allows for easy and efficient race-condition prevention
- * for kbd_start => input_inject_event(dev, EV_LED, ...) => ...
- */
+static int kbd_update_leds_helper(struct input_handle *handle, void *data)
+{
+	unsigned char leds = *(unsigned char *)data;
 
+	if (test_bit(EV_LED, handle->dev->evbit)) {
+		input_inject_event(handle, EV_LED, LED_SCROLLL, !!(leds & 0x01));
+		input_inject_event(handle, EV_LED, LED_NUML,    !!(leds & 0x02));
+		input_inject_event(handle, EV_LED, LED_CAPSL,   !!(leds & 0x04));
+		input_inject_event(handle, EV_SYN, SYN_REPORT, 0);
+	}
+
+	return 0;
+}
+
+/*
+ * This is the tasklet that updates LED state on all keyboards
+ * attached to the box. The reason we use tasklet is that we
+ * need to handle the scenario when keyboard handler is not
+ * registered yet but we already getting updates form VT to
+ * update led state.
+ */
 static void kbd_bh(unsigned long dummy)
 {
-	struct list_head *node;
 	unsigned char leds = getleds();
 
 	if (leds != ledstate) {
-		list_for_each(node, &kbd_handler.h_list) {
-			struct input_handle *handle = to_handle_h(node);
-			input_inject_event(handle, EV_LED, LED_SCROLLL, !!(leds & 0x01));
-			input_inject_event(handle, EV_LED, LED_NUML,    !!(leds & 0x02));
-			input_inject_event(handle, EV_LED, LED_CAPSL,   !!(leds & 0x04));
-			input_inject_event(handle, EV_SYN, SYN_REPORT, 0);
-		}
+		input_handler_for_each_handle(&kbd_handler, &leds,
+					      kbd_update_leds_helper);
+		ledstate = leds;
 	}
-
-	ledstate = leds;
 }
 
 DECLARE_TASKLET_DISABLED(keyboard_tasklet, kbd_bh, 0);
@@ -1136,7 +1153,7 @@ static int emulate_raw(struct vc_data *vc, unsigned int keycode, unsigned char u
 static void kbd_rawcode(unsigned char data)
 {
 	struct vc_data *vc = vc_cons[fg_console].d;
-	kbd = kbd_table + fg_console;
+	kbd = kbd_table + vc->vc_num;
 	if (kbd->kbdmode == VC_RAW)
 		put_queue(vc, data);
 }
@@ -1157,7 +1174,7 @@ static void kbd_keycode(unsigned int keycode, int down, int hw_raw)
 		tty->driver_data = vc;
 	}
 
-	kbd = kbd_table + fg_console;
+	kbd = kbd_table + vc->vc_num;
 
 	if (keycode == KEY_LEFTALT || keycode == KEY_RIGHTALT)
 		sysrq_alt = down ? keycode : 0;
@@ -1296,10 +1313,16 @@ static void kbd_keycode(unsigned int keycode, int down, int hw_raw)
 static void kbd_event(struct input_handle *handle, unsigned int event_type,
 		      unsigned int event_code, int value)
 {
+	/* We are called with interrupts disabled, just take the lock */
+	spin_lock(&kbd_event_lock);
+
 	if (event_type == EV_MSC && event_code == MSC_RAW && HW_RAW(handle->dev))
 		kbd_rawcode(value);
 	if (event_type == EV_KEY)
 		kbd_keycode(event_code, value, HW_RAW(handle->dev));
+
+	spin_unlock(&kbd_event_lock);
+
 	tasklet_schedule(&keyboard_tasklet);
 	do_poke_blanked_console = 1;
 	schedule_console_callback();
@@ -1363,15 +1386,11 @@ static void kbd_disconnect(struct input_handle *handle)
  */
 static void kbd_start(struct input_handle *handle)
 {
-	unsigned char leds = ledstate;
-
 	tasklet_disable(&keyboard_tasklet);
-	if (leds != 0xff) {
-		input_inject_event(handle, EV_LED, LED_SCROLLL, !!(leds & 0x01));
-		input_inject_event(handle, EV_LED, LED_NUML,    !!(leds & 0x02));
-		input_inject_event(handle, EV_LED, LED_CAPSL,   !!(leds & 0x04));
-		input_inject_event(handle, EV_SYN, SYN_REPORT, 0);
-	}
+
+	if (ledstate != 0xff)
+		kbd_update_leds_helper(handle, &ledstate);
+
 	tasklet_enable(&keyboard_tasklet);
 }
 

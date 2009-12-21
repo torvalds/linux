@@ -146,13 +146,9 @@ void put_nilfs(struct the_nilfs *nilfs)
 
 	might_sleep();
 	if (nilfs_loaded(nilfs)) {
-		nilfs_mdt_clear(nilfs->ns_sufile);
 		nilfs_mdt_destroy(nilfs->ns_sufile);
-		nilfs_mdt_clear(nilfs->ns_cpfile);
 		nilfs_mdt_destroy(nilfs->ns_cpfile);
-		nilfs_mdt_clear(nilfs->ns_dat);
 		nilfs_mdt_destroy(nilfs->ns_dat);
-		/* XXX: how and when to clear nilfs->ns_gc_dat? */
 		nilfs_mdt_destroy(nilfs->ns_gc_dat);
 	}
 	if (nilfs_init(nilfs)) {
@@ -166,7 +162,6 @@ void put_nilfs(struct the_nilfs *nilfs)
 static int nilfs_load_super_root(struct the_nilfs *nilfs,
 				 struct nilfs_sb_info *sbi, sector_t sr_block)
 {
-	static struct lock_class_key dat_lock_key;
 	struct buffer_head *bh_sr;
 	struct nilfs_super_root *raw_sr;
 	struct nilfs_super_block **sbp = nilfs->ns_sbp;
@@ -187,51 +182,36 @@ static int nilfs_load_super_root(struct the_nilfs *nilfs,
 	inode_size = nilfs->ns_inode_size;
 
 	err = -ENOMEM;
-	nilfs->ns_dat = nilfs_mdt_new(nilfs, NULL, NILFS_DAT_INO);
+	nilfs->ns_dat = nilfs_dat_new(nilfs, dat_entry_size);
 	if (unlikely(!nilfs->ns_dat))
 		goto failed;
 
-	nilfs->ns_gc_dat = nilfs_mdt_new(nilfs, NULL, NILFS_DAT_INO);
+	nilfs->ns_gc_dat = nilfs_dat_new(nilfs, dat_entry_size);
 	if (unlikely(!nilfs->ns_gc_dat))
 		goto failed_dat;
 
-	nilfs->ns_cpfile = nilfs_mdt_new(nilfs, NULL, NILFS_CPFILE_INO);
+	nilfs->ns_cpfile = nilfs_cpfile_new(nilfs, checkpoint_size);
 	if (unlikely(!nilfs->ns_cpfile))
 		goto failed_gc_dat;
 
-	nilfs->ns_sufile = nilfs_mdt_new(nilfs, NULL, NILFS_SUFILE_INO);
+	nilfs->ns_sufile = nilfs_sufile_new(nilfs, segment_usage_size);
 	if (unlikely(!nilfs->ns_sufile))
 		goto failed_cpfile;
 
-	err = nilfs_palloc_init_blockgroup(nilfs->ns_dat, dat_entry_size);
-	if (unlikely(err))
-		goto failed_sufile;
-
-	err = nilfs_palloc_init_blockgroup(nilfs->ns_gc_dat, dat_entry_size);
-	if (unlikely(err))
-		goto failed_sufile;
-
-	lockdep_set_class(&NILFS_MDT(nilfs->ns_dat)->mi_sem, &dat_lock_key);
-	lockdep_set_class(&NILFS_MDT(nilfs->ns_gc_dat)->mi_sem, &dat_lock_key);
-
 	nilfs_mdt_set_shadow(nilfs->ns_dat, nilfs->ns_gc_dat);
-	nilfs_mdt_set_entry_size(nilfs->ns_cpfile, checkpoint_size,
-				 sizeof(struct nilfs_cpfile_header));
-	nilfs_mdt_set_entry_size(nilfs->ns_sufile, segment_usage_size,
-				 sizeof(struct nilfs_sufile_header));
 
-	err = nilfs_mdt_read_inode_direct(
-		nilfs->ns_dat, bh_sr, NILFS_SR_DAT_OFFSET(inode_size));
+	err = nilfs_dat_read(nilfs->ns_dat, (void *)bh_sr->b_data +
+			     NILFS_SR_DAT_OFFSET(inode_size));
 	if (unlikely(err))
 		goto failed_sufile;
 
-	err = nilfs_mdt_read_inode_direct(
-		nilfs->ns_cpfile, bh_sr, NILFS_SR_CPFILE_OFFSET(inode_size));
+	err = nilfs_cpfile_read(nilfs->ns_cpfile, (void *)bh_sr->b_data +
+				NILFS_SR_CPFILE_OFFSET(inode_size));
 	if (unlikely(err))
 		goto failed_sufile;
 
-	err = nilfs_mdt_read_inode_direct(
-		nilfs->ns_sufile, bh_sr, NILFS_SR_SUFILE_OFFSET(inode_size));
+	err = nilfs_sufile_read(nilfs->ns_sufile, (void *)bh_sr->b_data +
+				NILFS_SR_SUFILE_OFFSET(inode_size));
 	if (unlikely(err))
 		goto failed_sufile;
 
@@ -281,28 +261,29 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 	struct nilfs_recovery_info ri;
 	unsigned int s_flags = sbi->s_super->s_flags;
 	int really_read_only = bdev_read_only(nilfs->ns_bdev);
-	unsigned valid_fs;
-	int err = 0;
+	int valid_fs = nilfs_valid_fs(nilfs);
+	int err;
+
+	if (nilfs_loaded(nilfs)) {
+		if (valid_fs ||
+		    ((s_flags & MS_RDONLY) && nilfs_test_opt(sbi, NORECOVERY)))
+			return 0;
+		printk(KERN_ERR "NILFS: the filesystem is in an incomplete "
+		       "recovery state.\n");
+		return -EINVAL;
+	}
+
+	if (!valid_fs) {
+		printk(KERN_WARNING "NILFS warning: mounting unchecked fs\n");
+		if (s_flags & MS_RDONLY) {
+			printk(KERN_INFO "NILFS: INFO: recovery "
+			       "required for readonly filesystem.\n");
+			printk(KERN_INFO "NILFS: write access will "
+			       "be enabled during recovery.\n");
+		}
+	}
 
 	nilfs_init_recovery_info(&ri);
-
-	down_write(&nilfs->ns_sem);
-	valid_fs = (nilfs->ns_mount_state & NILFS_VALID_FS);
-	up_write(&nilfs->ns_sem);
-
-	if (!valid_fs && (s_flags & MS_RDONLY)) {
-		printk(KERN_INFO "NILFS: INFO: recovery "
-		       "required for readonly filesystem.\n");
-		if (really_read_only) {
-			printk(KERN_ERR "NILFS: write access "
-			       "unavailable, cannot proceed.\n");
-			err = -EROFS;
-			goto failed;
-		}
-		printk(KERN_INFO "NILFS: write access will "
-		       "be enabled during recovery.\n");
-		sbi->s_super->s_flags &= ~MS_RDONLY;
-	}
 
 	err = nilfs_search_super_root(nilfs, sbi, &ri);
 	if (unlikely(err)) {
@@ -316,19 +297,56 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 		goto failed;
 	}
 
-	if (!valid_fs) {
-		err = nilfs_recover_logical_segments(nilfs, sbi, &ri);
-		if (unlikely(err)) {
-			nilfs_mdt_destroy(nilfs->ns_cpfile);
-			nilfs_mdt_destroy(nilfs->ns_sufile);
-			nilfs_mdt_destroy(nilfs->ns_dat);
-			goto failed;
+	if (valid_fs)
+		goto skip_recovery;
+
+	if (s_flags & MS_RDONLY) {
+		if (nilfs_test_opt(sbi, NORECOVERY)) {
+			printk(KERN_INFO "NILFS: norecovery option specified. "
+			       "skipping roll-forward recovery\n");
+			goto skip_recovery;
 		}
-		if (ri.ri_need_recovery == NILFS_RECOVERY_SR_UPDATED)
-			sbi->s_super->s_dirt = 1;
+		if (really_read_only) {
+			printk(KERN_ERR "NILFS: write access "
+			       "unavailable, cannot proceed.\n");
+			err = -EROFS;
+			goto failed_unload;
+		}
+		sbi->s_super->s_flags &= ~MS_RDONLY;
+	} else if (nilfs_test_opt(sbi, NORECOVERY)) {
+		printk(KERN_ERR "NILFS: recovery cancelled because norecovery "
+		       "option was specified for a read/write mount\n");
+		err = -EINVAL;
+		goto failed_unload;
 	}
 
+	err = nilfs_recover_logical_segments(nilfs, sbi, &ri);
+	if (err)
+		goto failed_unload;
+
+	down_write(&nilfs->ns_sem);
+	nilfs->ns_mount_state |= NILFS_VALID_FS;
+	nilfs->ns_sbp[0]->s_state = cpu_to_le16(nilfs->ns_mount_state);
+	err = nilfs_commit_super(sbi, 1);
+	up_write(&nilfs->ns_sem);
+
+	if (err) {
+		printk(KERN_ERR "NILFS: failed to update super block. "
+		       "recovery unfinished.\n");
+		goto failed_unload;
+	}
+	printk(KERN_INFO "NILFS: recovery complete.\n");
+
+ skip_recovery:
 	set_nilfs_loaded(nilfs);
+	nilfs_clear_recovery_info(&ri);
+	sbi->s_super->s_flags = s_flags;
+	return 0;
+
+ failed_unload:
+	nilfs_mdt_destroy(nilfs->ns_cpfile);
+	nilfs_mdt_destroy(nilfs->ns_sufile);
+	nilfs_mdt_destroy(nilfs->ns_dat);
 
  failed:
 	nilfs_clear_recovery_info(&ri);
@@ -632,30 +650,23 @@ int nilfs_count_free_blocks(struct the_nilfs *nilfs, sector_t *nblocks)
 {
 	struct inode *dat = nilfs_dat_inode(nilfs);
 	unsigned long ncleansegs;
-	int err;
 
 	down_read(&NILFS_MDT(dat)->mi_sem);	/* XXX */
-	err = nilfs_sufile_get_ncleansegs(nilfs->ns_sufile, &ncleansegs);
+	ncleansegs = nilfs_sufile_get_ncleansegs(nilfs->ns_sufile);
 	up_read(&NILFS_MDT(dat)->mi_sem);	/* XXX */
-	if (likely(!err))
-		*nblocks = (sector_t)ncleansegs * nilfs->ns_blocks_per_segment;
-	return err;
+	*nblocks = (sector_t)ncleansegs * nilfs->ns_blocks_per_segment;
+	return 0;
 }
 
 int nilfs_near_disk_full(struct the_nilfs *nilfs)
 {
-	struct inode *sufile = nilfs->ns_sufile;
 	unsigned long ncleansegs, nincsegs;
-	int ret;
 
-	ret = nilfs_sufile_get_ncleansegs(sufile, &ncleansegs);
-	if (likely(!ret)) {
-		nincsegs = atomic_read(&nilfs->ns_ndirtyblks) /
-			nilfs->ns_blocks_per_segment + 1;
-		if (ncleansegs <= nilfs->ns_nrsvsegs + nincsegs)
-			ret++;
-	}
-	return ret;
+	ncleansegs = nilfs_sufile_get_ncleansegs(nilfs->ns_sufile);
+	nincsegs = atomic_read(&nilfs->ns_ndirtyblks) /
+		nilfs->ns_blocks_per_segment + 1;
+
+	return ncleansegs <= nilfs->ns_nrsvsegs + nincsegs;
 }
 
 /**

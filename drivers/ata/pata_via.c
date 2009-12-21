@@ -303,14 +303,21 @@ static void via_do_set_mode(struct ata_port *ap, struct ata_device *adev, int mo
 	}
 
 	/* Set UDMA unless device is not UDMA capable */
-	if (udma_type && t.udma) {
-		u8 cable80_status;
+	if (udma_type) {
+		u8 udma_etc;
 
-		/* Get 80-wire cable detection bit */
-		pci_read_config_byte(pdev, 0x50 + offset, &cable80_status);
-		cable80_status &= 0x10;
+		pci_read_config_byte(pdev, 0x50 + offset, &udma_etc);
 
-		pci_write_config_byte(pdev, 0x50 + offset, ut | cable80_status);
+		/* clear transfer mode bit */
+		udma_etc &= ~0x20;
+
+		if (t.udma) {
+			/* preserve 80-wire cable detection bit */
+			udma_etc &= 0x10;
+			udma_etc |= ut;
+		}
+
+		pci_write_config_byte(pdev, 0x50 + offset, udma_etc);
 	}
 }
 
@@ -334,6 +341,32 @@ static void via_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	static u8 udma[5] = { 0, 33, 66, 100, 133 };
 
 	via_do_set_mode(ap, adev, adev->dma_mode, tclock[mode], set_ast, udma[mode]);
+}
+
+/**
+ *	via_mode_filter		-	filter buggy device/mode pairs
+ *	@dev: ATA device
+ *	@mask: Mode bitmask
+ *
+ *	We need to apply some minimal filtering for old controllers and at least
+ *	one breed of Transcend SSD. Return the updated mask.
+ */
+
+static unsigned long via_mode_filter(struct ata_device *dev, unsigned long mask)
+{
+	struct ata_host *host = dev->link->ap->host;
+	const struct via_isa_bridge *config = host->private_data;
+	unsigned char model_num[ATA_ID_PROD_LEN + 1];
+
+	if (config->id == PCI_DEVICE_ID_VIA_82C586_0) {
+		ata_id_c_string(dev->id, model_num, ATA_ID_PROD, sizeof(model_num));
+		if (strcmp(model_num, "TS64GSSD25-M") == 0) {
+			ata_dev_printk(dev, KERN_WARNING,
+	"disabling UDMA mode due to reported lockups with this device.\n");
+			mask &= ~ ATA_MASK_UDMA;
+		}
+	}
+	return ata_bmdma_mode_filter(dev, mask);
 }
 
 /**
@@ -427,6 +460,7 @@ static struct ata_port_operations via_port_ops = {
 	.prereset	= via_pre_reset,
 	.sff_tf_load	= via_tf_load,
 	.port_start	= via_port_start,
+	.mode_filter	= via_mode_filter,
 };
 
 static struct ata_port_operations via_port_ops_noirq = {
@@ -526,7 +560,7 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops = &via_port_ops
 	};
 	const struct ata_port_info *ppi[] = { NULL, NULL };
-	struct pci_dev *isa = NULL;
+	struct pci_dev *isa;
 	const struct via_isa_bridge *config;
 	static int printed_version;
 	u8 enable;
@@ -551,14 +585,12 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		if ((isa = pci_get_device(PCI_VENDOR_ID_VIA +
 			!!(config->flags & VIA_BAD_ID),
 			config->id, NULL))) {
-
-			if (isa->revision >= config->rev_min &&
-			    isa->revision <= config->rev_max)
-				break;
+			u8 rev = isa->revision;
 			pci_dev_put(isa);
-		}
 
-	pci_dev_put(isa);
+			if (rev >= config->rev_min && rev <= config->rev_max)
+				break;
+		}
 
 	if (!(config->flags & VIA_NO_ENABLES)) {
 		/* 0x40 low bits indicate enabled channels */

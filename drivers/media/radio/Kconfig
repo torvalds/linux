@@ -195,14 +195,30 @@ config RADIO_MAESTRO
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-maestro.
 
+config RADIO_MIROPCM20
+	tristate "miroSOUND PCM20 radio"
+	depends on ISA && VIDEO_V4L2 && SND
+	select SND_ISA
+	select SND_MIRO
+	---help---
+	  Choose Y here if you have this FM radio card. You also need to enable
+	  the ALSA sound system. This choice automatically selects the ALSA
+	  sound card driver "Miro miroSOUND PCM1pro/PCM12/PCM20radio" as this
+	  is required for the radio-miropcm20.
+
+	  In order to control your radio card, you will need to use programs
+	  that are compatible with the Video For Linux API.  Information on
+	  this API and pointers to "v4l" programs may be found at
+	  <file:Documentation/video4linux/API.html>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called radio-miropcm20.
+
 config RADIO_SF16FMI
-	tristate "SF16FMI Radio"
+	tristate "SF16-FMI/SF16-FMP Radio"
 	depends on ISA && VIDEO_V4L2
 	---help---
-	  Choose Y here if you have one of these FM radio cards.  If you
-	  compile the driver into the kernel and your card is not PnP one, you
-	  have to add "sf16fm=<io>" to the kernel command line (I/O address is
-	  0x284 or 0x384).
+	  Choose Y here if you have one of these FM radio cards.
 
 	  In order to control your radio card, you will need to use programs
 	  that are compatible with the Video For Linux API.  Information on
@@ -400,5 +416,17 @@ config RADIO_TEA5764_XTAL
 	help
 	  Say Y here if TEA5764 have a 32768 Hz crystal in circuit, say N
 	  here if TEA5764 reference frequency is connected in FREQIN.
+
+config RADIO_TEF6862
+	tristate "TEF6862 Car Radio Enhanced Selectivity Tuner"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  Say Y here if you want to use the TEF6862 Car Radio Enhanced
+	  Selectivity Tuner, found for instance on the Russellville development
+	  board. On the russellville the device is connected to internal
+	  timberdale I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called TEF6862.
 
 endif # RADIO_ADAPTERS

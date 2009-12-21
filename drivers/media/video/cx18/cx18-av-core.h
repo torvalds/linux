@@ -294,7 +294,7 @@ struct cx18_av_state {
 #define CXADEC_QAM_CONST_DEC       0x924
 #define CXADEC_QAM_ROTATOR_FREQ    0x948
 
-/* Bit defintions / settings used in Mako Audio */
+/* Bit definitions / settings used in Mako Audio */
 #define CXADEC_PREF_MODE_MONO_LANGA        0
 #define CXADEC_PREF_MODE_MONO_LANGB        1
 #define CXADEC_PREF_MODE_MONO_LANGC        2

@@ -385,9 +385,9 @@ PrintRegisters(struct net_device *dev)
 	    printk("\n");
 	}
 	for (page=0x40 ; page <= 0x5f; page++) {
-	    if (page == 0x43 || (page >= 0x46 && page <= 0x4f)
-		|| (page >= 0x51 && page <=0x5e))
-		continue;
+		if (page == 0x43 || (page >= 0x46 && page <= 0x4f) ||
+		    (page >= 0x51 && page <=0x5e))
+			continue;
 	    printk(KDBG_XIRC "Register page %2x: ", page);
 	    SelectPage(page);
 	    for (i = 8; i < 16; i++)
@@ -841,7 +841,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	    link->conf.Attributes |= CONF_ENABLE_SPKR;
 	    link->conf.Status |= CCSR_AUDIO_ENA;
 	}
-	link->irq.Attributes |= IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED ;
+	link->irq.Attributes |= IRQ_TYPE_DYNAMIC_SHARING;
 	link->io.NumPorts2 = 8;
 	link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
 	if (local->dingo) {

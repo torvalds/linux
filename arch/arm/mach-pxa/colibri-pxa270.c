@@ -130,6 +130,9 @@ static struct platform_device *colibri_pxa270_devices[] __initdata = {
 static void __init colibri_pxa270_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa270_pin_config));
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
 	platform_add_devices(ARRAY_AND_SIZE(colibri_pxa270_devices));
 }
 

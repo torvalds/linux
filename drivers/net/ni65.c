@@ -294,7 +294,7 @@ static void ni65_set_performance(struct priv *p)
 static int ni65_open(struct net_device *dev)
 {
 	struct priv *p = dev->ml_priv;
-	int irqval = request_irq(dev->irq, &ni65_interrupt,0,
+	int irqval = request_irq(dev->irq, ni65_interrupt,0,
                         cards[p->cardno].cardname,dev);
 	if (irqval) {
 		printk(KERN_ERR "%s: unable to get IRQ %d (irqval=%d).\n",

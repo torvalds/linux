@@ -34,15 +34,18 @@ enum {
 int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct nfs_openres *res);
 void nfs_inode_reclaim_delegation(struct inode *inode, struct rpc_cred *cred, struct nfs_openres *res);
 int nfs_inode_return_delegation(struct inode *inode);
-int nfs_async_inode_return_delegation(struct inode *inode, const nfs4_stateid *stateid);
+int nfs_async_inode_return_delegation(struct inode *inode, const nfs4_stateid *stateid,
+				      int (*validate_stateid)(struct nfs_delegation *delegation,
+							      const nfs4_stateid *stateid));
 void nfs_inode_return_delegation_noreclaim(struct inode *inode);
 
 struct inode *nfs_delegation_find_inode(struct nfs_client *clp, const struct nfs_fh *fhandle);
 void nfs_super_return_all_delegations(struct super_block *sb);
 void nfs_expire_all_delegations(struct nfs_client *clp);
+void nfs_expire_all_delegation_types(struct nfs_client *clp, fmode_t flags);
 void nfs_expire_unreferenced_delegations(struct nfs_client *clp);
 void nfs_handle_cb_pathdown(struct nfs_client *clp);
-void nfs_client_return_marked_delegations(struct nfs_client *clp);
+int nfs_client_return_marked_delegations(struct nfs_client *clp);
 
 void nfs_delegation_mark_reclaim(struct nfs_client *clp);
 void nfs_delegation_reap_unclaimed(struct nfs_client *clp);

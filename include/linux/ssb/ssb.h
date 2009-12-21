@@ -269,7 +269,8 @@ struct ssb_bus {
 
 	const struct ssb_bus_ops *ops;
 
-	/* The core in the basic address register window. (PCI bus only) */
+	/* The core currently mapped into the MMIO window.
+	 * Not valid on all host-buses. So don't use outside of SSB. */
 	struct ssb_device *mapped_device;
 	union {
 		/* Currently mapped PCMCIA segment. (bustype == SSB_BUSTYPE_PCMCIA only) */
@@ -281,14 +282,17 @@ struct ssb_bus {
 	 * On PCMCIA-host busses this is used to protect the whole MMIO access. */
 	spinlock_t bar_lock;
 
-	/* The bus this backplane is running on. */
+	/* The host-bus this backplane is running on. */
 	enum ssb_bustype bustype;
-	/* Pointer to the PCI bus (only valid if bustype == SSB_BUSTYPE_PCI). */
-	struct pci_dev *host_pci;
-	/* Pointer to the PCMCIA device (only if bustype == SSB_BUSTYPE_PCMCIA). */
-	struct pcmcia_device *host_pcmcia;
-	/* Pointer to the SDIO device (only if bustype == SSB_BUSTYPE_SDIO). */
-	struct sdio_func *host_sdio;
+	/* Pointers to the host-bus. Check bustype before using any of these pointers. */
+	union {
+		/* Pointer to the PCI bus (only valid if bustype == SSB_BUSTYPE_PCI). */
+		struct pci_dev *host_pci;
+		/* Pointer to the PCMCIA device (only if bustype == SSB_BUSTYPE_PCMCIA). */
+		struct pcmcia_device *host_pcmcia;
+		/* Pointer to the SDIO device (only if bustype == SSB_BUSTYPE_SDIO). */
+		struct sdio_func *host_sdio;
+	};
 
 	/* See enum ssb_quirks */
 	unsigned int quirks;

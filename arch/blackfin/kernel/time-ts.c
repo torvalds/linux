@@ -22,8 +22,6 @@
 #include <asm/time.h>
 #include <asm/gptimers.h>
 
-#if defined(CONFIG_CYCLES_CLOCKSOURCE)
-
 /* Accelerators for sched_clock()
  * convert from cycles(64bits) => nanoseconds (64bits)
  *  basic equation:
@@ -46,20 +44,11 @@
  *			-johnstul@us.ibm.com "math is hard, lets go shopping!"
  */
 
-static unsigned long cyc2ns_scale;
 #define CYC2NS_SCALE_FACTOR 10 /* 2^10, carefully chosen */
 
-static inline void set_cyc2ns_scale(unsigned long cpu_khz)
-{
-	cyc2ns_scale = (1000000 << CYC2NS_SCALE_FACTOR) / cpu_khz;
-}
+#if defined(CONFIG_CYCLES_CLOCKSOURCE)
 
-static inline unsigned long long cycles_2_ns(cycle_t cyc)
-{
-	return (cyc * cyc2ns_scale) >> CYC2NS_SCALE_FACTOR;
-}
-
-static cycle_t bfin_read_cycles(struct clocksource *cs)
+static notrace cycle_t bfin_read_cycles(struct clocksource *cs)
 {
 	return __bfin_cycles_off + (get_cycles() << __bfin_cycles_mod);
 }
@@ -69,19 +58,18 @@ static struct clocksource bfin_cs_cycles = {
 	.rating		= 400,
 	.read		= bfin_read_cycles,
 	.mask		= CLOCKSOURCE_MASK(64),
-	.shift		= 22,
+	.shift		= CYC2NS_SCALE_FACTOR,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-unsigned long long sched_clock(void)
+static inline unsigned long long bfin_cs_cycles_sched_clock(void)
 {
-	return cycles_2_ns(bfin_read_cycles(&bfin_cs_cycles));
+	return clocksource_cyc2ns(bfin_read_cycles(&bfin_cs_cycles),
+		bfin_cs_cycles.mult, bfin_cs_cycles.shift);
 }
 
 static int __init bfin_cs_cycles_init(void)
 {
-	set_cyc2ns_scale(get_cclk() / 1000);
-
 	bfin_cs_cycles.mult = \
 		clocksource_hz2mult(get_cclk(), bfin_cs_cycles.shift);
 
@@ -108,7 +96,7 @@ void __init setup_gptimer0(void)
 	enable_gptimers(TIMER0bit);
 }
 
-static cycle_t bfin_read_gptimer0(void)
+static cycle_t bfin_read_gptimer0(struct clocksource *cs)
 {
 	return bfin_read_TIMER0_COUNTER();
 }
@@ -118,9 +106,15 @@ static struct clocksource bfin_cs_gptimer0 = {
 	.rating		= 350,
 	.read		= bfin_read_gptimer0,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift		= 22,
+	.shift		= CYC2NS_SCALE_FACTOR,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
+
+static inline unsigned long long bfin_cs_gptimer0_sched_clock(void)
+{
+	return clocksource_cyc2ns(bfin_read_TIMER0_COUNTER(),
+		bfin_cs_gptimer0.mult, bfin_cs_gptimer0.shift);
+}
 
 static int __init bfin_cs_gptimer0_init(void)
 {
@@ -136,6 +130,19 @@ static int __init bfin_cs_gptimer0_init(void)
 }
 #else
 # define bfin_cs_gptimer0_init()
+#endif
+
+
+#if defined(CONFIG_GPTMR0_CLOCKSOURCE) || defined(CONFIG_CYCLES_CLOCKSOURCE)
+/* prefer to use cycles since it has higher rating */
+notrace unsigned long long sched_clock(void)
+{
+#if defined(CONFIG_CYCLES_CLOCKSOURCE)
+	return bfin_cs_cycles_sched_clock();
+#else
+	return bfin_cs_gptimer0_sched_clock();
+#endif
+}
 #endif
 
 #ifdef CONFIG_CORE_TIMER_IRQ_L1

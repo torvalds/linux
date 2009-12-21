@@ -651,8 +651,8 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("mxc-ehci.1", "usb_ahb", usb_clk1)
 	_REGISTER_CLOCK("mxc-ehci.2", "usb", usb_clk)
 	_REGISTER_CLOCK("mxc-ehci.2", "usb_ahb", usb_clk1)
-	_REGISTER_CLOCK(NULL, "ssi1", ssi1_clk)
-	_REGISTER_CLOCK(NULL, "ssi2", ssi2_clk)
+	_REGISTER_CLOCK("imx-ssi.0", NULL, ssi1_clk)
+	_REGISTER_CLOCK("imx-ssi.1", NULL, ssi2_clk)
 	_REGISTER_CLOCK("mxc_nand.0", NULL, nfc_clk)
 	_REGISTER_CLOCK(NULL, "vpu", vpu_clk)
 	_REGISTER_CLOCK(NULL, "dma", dma_clk)
@@ -751,7 +751,7 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk_enable(&emi_clk);
 	clk_enable(&iim_clk);
 
-#ifdef CONFIG_DEBUG_LL_CONSOLE
+#if defined(CONFIG_DEBUG_LL) && !defined(CONFIG_DEBUG_ICEDCC)
 	clk_enable(&uart1_clk);
 #endif
 

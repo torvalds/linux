@@ -171,12 +171,21 @@
 #define IRQ_SDMIRQ		S5PC1XX_IRQ_VIC2(30)
 #define IRQ_SDMFIQ		S5PC1XX_IRQ_VIC2(31)
 
+/* External interrupt */
 #define S3C_IRQ_EINT_BASE	(IRQ_SDMFIQ + 1)
 
-#define S3C_EINT(x)		((x) + S3C_IRQ_EINT_BASE)
-#define IRQ_EINT(x)		S3C_EINT(x)
+#define S3C_EINT(x)		(S3C_IRQ_EINT_BASE + (x - 16))
+#define IRQ_EINT(x)		(x < 16 ? IRQ_EINT0 + x : S3C_EINT(x))
+#define IRQ_EINT_BIT(x)		(x < IRQ_EINT16_31 ? x - IRQ_EINT0 : x - S3C_EINT(0))
 
-#define NR_IRQS 		(IRQ_EINT(31)+1)
+/* GPIO interrupt */
+#define S3C_IRQ_GPIO_BASE	(IRQ_EINT(31) + 1)
+#define S3C_IRQ_GPIO(x)		(S3C_IRQ_GPIO_BASE + (x))
+
+/*
+ * Until MP04 Groups -> 40 (exactly 39) Groups * 8 ~= 320 GPIOs
+ */
+#define NR_IRQS			(S3C_IRQ_GPIO(320) + 1)
 
 #endif /* __ASM_PLAT_S5PC1XX_IRQS_H */
 

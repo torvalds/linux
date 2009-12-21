@@ -1,6 +1,6 @@
 /* linux/arch/arm/plat-s3c/dev-i2c1.c
  *
- * Copyright 2008,2009 Simtec Electronics
+ * Copyright 2008-2009 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *	http://armlinux.simtec.co.uk/
  *

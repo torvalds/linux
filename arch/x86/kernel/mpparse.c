@@ -667,36 +667,18 @@ void __init default_get_smp_config(unsigned int early)
 	 */
 }
 
-static void __init smp_reserve_bootmem(struct mpf_intel *mpf)
+static void __init smp_reserve_memory(struct mpf_intel *mpf)
 {
 	unsigned long size = get_mpc_size(mpf->physptr);
-#ifdef CONFIG_X86_32
-	/*
-	 * We cannot access to MPC table to compute table size yet,
-	 * as only few megabytes from the bottom is mapped now.
-	 * PC-9800's MPC table places on the very last of physical
-	 * memory; so that simply reserving PAGE_SIZE from mpf->physptr
-	 * yields BUG() in reserve_bootmem.
-	 * also need to make sure physptr is below than max_low_pfn
-	 * we don't need reserve the area above max_low_pfn
-	 */
-	unsigned long end = max_low_pfn * PAGE_SIZE;
 
-	if (mpf->physptr < end) {
-		if (mpf->physptr + size > end)
-			size = end - mpf->physptr;
-		reserve_bootmem_generic(mpf->physptr, size, BOOTMEM_DEFAULT);
-	}
-#else
-	reserve_bootmem_generic(mpf->physptr, size, BOOTMEM_DEFAULT);
-#endif
+	reserve_early(mpf->physptr, mpf->physptr+size, "MP-table mpc");
 }
 
-static int __init smp_scan_config(unsigned long base, unsigned long length,
-				  unsigned reserve)
+static int __init smp_scan_config(unsigned long base, unsigned long length)
 {
 	unsigned int *bp = phys_to_virt(base);
 	struct mpf_intel *mpf;
+	unsigned long mem;
 
 	apic_printk(APIC_VERBOSE, "Scan SMP from %p for %ld bytes.\n",
 			bp, length);
@@ -717,12 +699,10 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 			printk(KERN_INFO "found SMP MP-table at [%p] %llx\n",
 			       mpf, (u64)virt_to_phys(mpf));
 
-			if (!reserve)
-				return 1;
-			reserve_bootmem_generic(virt_to_phys(mpf), sizeof(*mpf),
-						BOOTMEM_DEFAULT);
+			mem = virt_to_phys(mpf);
+			reserve_early(mem, mem + sizeof(*mpf), "MP-table mpf");
 			if (mpf->physptr)
-				smp_reserve_bootmem(mpf);
+				smp_reserve_memory(mpf);
 
 			return 1;
 		}
@@ -732,7 +712,7 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 	return 0;
 }
 
-void __init default_find_smp_config(unsigned int reserve)
+void __init default_find_smp_config(void)
 {
 	unsigned int address;
 
@@ -744,9 +724,9 @@ void __init default_find_smp_config(unsigned int reserve)
 	 * 2) Scan the top 1K of base RAM
 	 * 3) Scan the 64K of bios
 	 */
-	if (smp_scan_config(0x0, 0x400, reserve) ||
-	    smp_scan_config(639 * 0x400, 0x400, reserve) ||
-	    smp_scan_config(0xF0000, 0x10000, reserve))
+	if (smp_scan_config(0x0, 0x400) ||
+	    smp_scan_config(639 * 0x400, 0x400) ||
+	    smp_scan_config(0xF0000, 0x10000))
 		return;
 	/*
 	 * If it is an SMP machine we should know now, unless the
@@ -767,7 +747,7 @@ void __init default_find_smp_config(unsigned int reserve)
 
 	address = get_bios_ebda();
 	if (address)
-		smp_scan_config(address, 0x400, reserve);
+		smp_scan_config(address, 0x400);
 }
 
 #ifdef CONFIG_X86_IO_APIC
@@ -965,9 +945,6 @@ void __init early_reserve_e820_mpc_new(void)
 {
 	if (enable_update_mptable && alloc_mptable) {
 		u64 startt = 0;
-#ifdef CONFIG_X86_TRAMPOLINE
-		startt = TRAMPOLINE_BASE;
-#endif
 		mpc_new_phys = early_reserve_e820(startt, mpc_new_length, 4);
 	}
 }

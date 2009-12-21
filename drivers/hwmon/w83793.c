@@ -41,7 +41,6 @@ static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 						I2C_CLIENT_END };
 
 /* Insmod parameters */
-I2C_CLIENT_INSMOD_1(w83793);
 
 static unsigned short force_subclients[4];
 module_param_array(force_subclients, short, NULL, 0);
@@ -230,7 +229,7 @@ static u8 w83793_read_value(struct i2c_client *client, u16 reg);
 static int w83793_write_value(struct i2c_client *client, u16 reg, u8 value);
 static int w83793_probe(struct i2c_client *client,
 			const struct i2c_device_id *id);
-static int w83793_detect(struct i2c_client *client, int kind,
+static int w83793_detect(struct i2c_client *client,
 			 struct i2c_board_info *info);
 static int w83793_remove(struct i2c_client *client);
 static void w83793_init_client(struct i2c_client *client);
@@ -238,7 +237,7 @@ static void w83793_update_nonvolatile(struct device *dev);
 static struct w83793_data *w83793_update_device(struct device *dev);
 
 static const struct i2c_device_id w83793_id[] = {
-	{ "w83793", w83793 },
+	{ "w83793", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, w83793_id);
@@ -252,7 +251,7 @@ static struct i2c_driver w83793_driver = {
 	.remove		= w83793_remove,
 	.id_table	= w83793_id,
 	.detect		= w83793_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static ssize_t
@@ -1161,10 +1160,10 @@ ERROR_SC_0:
 }
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int w83793_detect(struct i2c_client *client, int kind,
+static int w83793_detect(struct i2c_client *client,
 			 struct i2c_board_info *info)
 {
-	u8 tmp, bank;
+	u8 tmp, bank, chip_id;
 	struct i2c_adapter *adapter = client->adapter;
 	unsigned short address = client->addr;
 
@@ -1174,43 +1173,26 @@ static int w83793_detect(struct i2c_client *client, int kind,
 
 	bank = i2c_smbus_read_byte_data(client, W83793_REG_BANKSEL);
 
-	if (kind < 0) {
-		tmp = bank & 0x80 ? 0x5c : 0xa3;
-		/* Check Winbond vendor ID */
-		if (tmp != i2c_smbus_read_byte_data(client,
-							W83793_REG_VENDORID)) {
-			pr_debug("w83793: Detection failed at check "
-				 "vendor id\n");
-			return -ENODEV;
-		}
-
-		/* If Winbond chip, address of chip and W83793_REG_I2C_ADDR
-		   should match */
-		if ((bank & 0x07) == 0
-		 && i2c_smbus_read_byte_data(client, W83793_REG_I2C_ADDR) !=
-		    (address << 1)) {
-			pr_debug("w83793: Detection failed at check "
-				 "i2c addr\n");
-			return -ENODEV;
-		}
-
+	tmp = bank & 0x80 ? 0x5c : 0xa3;
+	/* Check Winbond vendor ID */
+	if (tmp != i2c_smbus_read_byte_data(client, W83793_REG_VENDORID)) {
+		pr_debug("w83793: Detection failed at check vendor id\n");
+		return -ENODEV;
 	}
 
-	/* We have either had a force parameter, or we have already detected the
-	   Winbond. Determine the chip type now */
-
-	if (kind <= 0) {
-		if (0x7b == i2c_smbus_read_byte_data(client,
-						     W83793_REG_CHIPID)) {
-			kind = w83793;
-		} else {
-			if (kind == 0)
-				dev_warn(&adapter->dev, "w83793: Ignoring "
-					 "'force' parameter for unknown chip "
-					 "at address 0x%02x\n", address);
-			return -ENODEV;
-		}
+	/* If Winbond chip, address of chip and W83793_REG_I2C_ADDR
+	   should match */
+	if ((bank & 0x07) == 0
+	 && i2c_smbus_read_byte_data(client, W83793_REG_I2C_ADDR) !=
+	    (address << 1)) {
+		pr_debug("w83793: Detection failed at check i2c addr\n");
+		return -ENODEV;
 	}
+
+	/* Determine the chip type now */
+	chip_id = i2c_smbus_read_byte_data(client, W83793_REG_CHIPID);
+	if (chip_id != 0x7b)
+		return -ENODEV;
 
 	strlcpy(info->type, "w83793", I2C_NAME_SIZE);
 

@@ -908,7 +908,7 @@ static int __init asic3_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int asic3_remove(struct platform_device *pdev)
+static int __devexit asic3_remove(struct platform_device *pdev)
 {
 	int ret;
 	struct asic3 *asic = platform_get_drvdata(pdev);

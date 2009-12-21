@@ -454,7 +454,7 @@ static int mhz_mfc_config(struct pcmcia_device *link)
     link->conf.Attributes |= CONF_ENABLE_SPKR;
     link->conf.Status = CCSR_AUDIO_ENA;
     link->irq.Attributes =
-	IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
+	IRQ_TYPE_DYNAMIC_SHARING;
     link->io.IOAddrLines = 16;
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
     link->io.NumPorts2 = 8;
@@ -480,10 +480,10 @@ static int mhz_mfc_config(struct pcmcia_device *link)
 	mem.CardOffset = link->conf.ConfigBase;
     i = pcmcia_map_mem_page(link, link->win, &mem);
 
-    if ((i == 0)
-	&& (smc->manfid == MANFID_MEGAHERTZ)
-	&& (smc->cardid == PRODID_MEGAHERTZ_EM3288))
-	mhz_3288_power(link);
+    if ((i == 0) &&
+	(smc->manfid == MANFID_MEGAHERTZ) &&
+	(smc->cardid == PRODID_MEGAHERTZ_EM3288))
+	    mhz_3288_power(link);
 
     return 0;
 }

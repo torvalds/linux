@@ -1509,7 +1509,7 @@ static u8 start_scsi(struct AdapterCtlBlk* acb, struct DeviceCtlBlk* dcb,
 		 * Try anyway?
 		 *
 		 * We could, BUT: Sometimes the TRM_S1040 misses to produce a Selection
-		 * Timeout, a Disconnect or a Reselction IRQ, so we would be screwed!
+		 * Timeout, a Disconnect or a Reselection IRQ, so we would be screwed!
 		 * (This is likely to be a bug in the hardware. Obviously, most people
 		 *  only have one initiator per SCSI bus.)
 		 * Instead let this fail and have the timer make sure the command is 

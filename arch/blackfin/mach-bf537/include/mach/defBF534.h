@@ -934,7 +934,7 @@
 #define HMDMA0_CONTROL		0xFFC03300	/* Handshake MDMA0 Control Register                                     */
 #define HMDMA0_ECINIT		0xFFC03304	/* HMDMA0 Initial Edge Count Register                           */
 #define HMDMA0_BCINIT		0xFFC03308	/* HMDMA0 Initial Block Count Register                          */
-#define HMDMA0_ECURGENT		0xFFC0330C	/* HMDMA0 Urgent Edge Count Threshhold Register         */
+#define HMDMA0_ECURGENT		0xFFC0330C	/* HMDMA0 Urgent Edge Count Threshold Register         */
 #define HMDMA0_ECOVERFLOW	0xFFC03310	/* HMDMA0 Edge Count Overflow Interrupt Register        */
 #define HMDMA0_ECOUNT		0xFFC03314	/* HMDMA0 Current Edge Count Register                           */
 #define HMDMA0_BCOUNT		0xFFC03318	/* HMDMA0 Current Block Count Register                          */
@@ -942,7 +942,7 @@
 #define HMDMA1_CONTROL		0xFFC03340	/* Handshake MDMA1 Control Register                                     */
 #define HMDMA1_ECINIT		0xFFC03344	/* HMDMA1 Initial Edge Count Register                           */
 #define HMDMA1_BCINIT		0xFFC03348	/* HMDMA1 Initial Block Count Register                          */
-#define HMDMA1_ECURGENT		0xFFC0334C	/* HMDMA1 Urgent Edge Count Threshhold Register         */
+#define HMDMA1_ECURGENT		0xFFC0334C	/* HMDMA1 Urgent Edge Count Threshold Register         */
 #define HMDMA1_ECOVERFLOW	0xFFC03350	/* HMDMA1 Edge Count Overflow Interrupt Register        */
 #define HMDMA1_ECOUNT		0xFFC03354	/* HMDMA1 Current Edge Count Register                           */
 #define HMDMA1_BCOUNT		0xFFC03358	/* HMDMA1 Current Block Count Register                          */
@@ -958,67 +958,6 @@
 **				modifier UNLESS the lower order bits are saved and ORed back in when
 **				the macro is used.
 *************************************************************************************/
-/*
-** ********************* PLL AND RESET MASKS ****************************************/
-/* PLL_CTL Masks																	*/
-#define DF				0x0001	/* 0: PLL = CLKIN, 1: PLL = CLKIN/2                                     */
-#define PLL_OFF			0x0002	/* PLL Not Powered                                                                      */
-#define STOPCK			0x0008	/* Core Clock Off                                                                       */
-#define PDWN			0x0020	/* Enter Deep Sleep Mode                                                        */
-#define	IN_DELAY		0x0040	/* Add 200ps Delay To EBIU Input Latches                        */
-#define	OUT_DELAY		0x0080	/* Add 200ps Delay To EBIU Output Signals                       */
-#define BYPASS			0x0100	/* Bypass the PLL                                                                       */
-#define	MSEL			0x7E00	/* Multiplier Select For CCLK/VCO Factors                       */
-/* PLL_CTL Macros (Only Use With Logic OR While Setting Lower Order Bits)			*/
-#define	SET_MSEL(x)		(((x)&0x3F) << 0x9)	/* Set MSEL = 0-63 --> VCO = CLKIN*MSEL         */
-
-/* PLL_DIV Masks														*/
-#define SSEL			0x000F	/* System Select                                                */
-#define	CSEL			0x0030	/* Core Select                                                  */
-#define CSEL_DIV1		0x0000	/*              CCLK = VCO / 1                                  */
-#define CSEL_DIV2		0x0010	/*              CCLK = VCO / 2                                  */
-#define	CSEL_DIV4		0x0020	/*              CCLK = VCO / 4                                  */
-#define	CSEL_DIV8		0x0030	/*              CCLK = VCO / 8                                  */
-/* PLL_DIV Macros														*/
-#define SET_SSEL(x)		((x)&0xF)	/* Set SSEL = 0-15 --> SCLK = VCO/SSEL  */
-
-/* VR_CTL Masks																	*/
-#define	FREQ			0x0003	/* Switching Oscillator Frequency For Regulator */
-#define	HIBERNATE		0x0000	/*              Powerdown/Bypass On-Board Regulation    */
-#define	FREQ_333		0x0001	/*              Switching Frequency Is 333 kHz                  */
-#define	FREQ_667		0x0002	/*              Switching Frequency Is 667 kHz                  */
-#define	FREQ_1000		0x0003	/*              Switching Frequency Is 1 MHz                    */
-
-#define GAIN			0x000C	/* Voltage Level Gain   */
-#define	GAIN_5			0x0000	/*              GAIN = 5                */
-#define	GAIN_10			0x0004	/*              GAIN = 10               */
-#define	GAIN_20			0x0008	/*              GAIN = 20               */
-#define	GAIN_50			0x000C	/*              GAIN = 50               */
-
-#define	VLEV			0x00F0	/* Internal Voltage Level                                       */
-#define	VLEV_085 		0x0060	/*              VLEV = 0.85 V (-5% - +10% Accuracy)     */
-#define	VLEV_090		0x0070	/*              VLEV = 0.90 V (-5% - +10% Accuracy)     */
-#define	VLEV_095		0x0080	/*              VLEV = 0.95 V (-5% - +10% Accuracy)     */
-#define	VLEV_100		0x0090	/*              VLEV = 1.00 V (-5% - +10% Accuracy)     */
-#define	VLEV_105		0x00A0	/*              VLEV = 1.05 V (-5% - +10% Accuracy)     */
-#define	VLEV_110		0x00B0	/*              VLEV = 1.10 V (-5% - +10% Accuracy)     */
-#define	VLEV_115		0x00C0	/*              VLEV = 1.15 V (-5% - +10% Accuracy)     */
-#define	VLEV_120		0x00D0	/*              VLEV = 1.20 V (-5% - +10% Accuracy)     */
-#define	VLEV_125		0x00E0	/*              VLEV = 1.25 V (-5% - +10% Accuracy)     */
-#define	VLEV_130		0x00F0	/*              VLEV = 1.30 V (-5% - +10% Accuracy)     */
-
-#define	WAKE			0x0100	/* Enable RTC/Reset Wakeup From Hibernate       */
-#define	CANWE			0x0200	/* Enable CAN Wakeup From Hibernate			*/
-#define	PHYWE			0x0400	/* Enable PHY Wakeup From Hibernate			*/
-#define	CLKBUFOE		0x4000	/* CLKIN Buffer Output Enable */
-#define	PHYCLKOE		CLKBUFOE	/* Alternative legacy name for the above */
-#define	SCKELOW		0x8000	/* Enable Drive CKE Low During Reset		*/
-
-/* PLL_STAT Masks																	*/
-#define ACTIVE_PLLENABLED	0x0001	/* Processor In Active Mode With PLL Enabled    */
-#define	FULL_ON				0x0002	/* Processor In Full On Mode                                    */
-#define ACTIVE_PLLDISABLED	0x0004	/* Processor In Active Mode With PLL Disabled   */
-#define	PLL_LOCKED			0x0020	/* PLL_LOCKCNT Has Been Reached                                 */
 
 /* CHIPID Masks */
 #define CHIPID_VERSION         0xF0000000
@@ -1645,34 +1584,6 @@
 #define BGSTAT			0x0020	/* Bus Grant Status                                             */
 
 /* **************************  DMA CONTROLLER MASKS  ********************************/
-/* DMAx_CONFIG, MDMA_yy_CONFIG Masks												*/
-#define DMAEN			0x0001	/* DMA Channel Enable                                                   */
-#define WNR				0x0002	/* Channel Direction (W/R*)                                             */
-#define WDSIZE_8		0x0000	/* Transfer Word Size = 8                                               */
-#define WDSIZE_16		0x0004	/* Transfer Word Size = 16                                              */
-#define WDSIZE_32		0x0008	/* Transfer Word Size = 32                                              */
-#define DMA2D			0x0010	/* DMA Mode (2D/1D*)                                                    */
-#define RESTART			0x0020	/* DMA Buffer Clear                                                             */
-#define DI_SEL			0x0040	/* Data Interrupt Timing Select                                 */
-#define DI_EN			0x0080	/* Data Interrupt Enable                                                */
-#define NDSIZE_0		0x0000	/* Next Descriptor Size = 0 (Stop/Autobuffer)   */
-#define NDSIZE_1		0x0100	/* Next Descriptor Size = 1                                             */
-#define NDSIZE_2		0x0200	/* Next Descriptor Size = 2                                             */
-#define NDSIZE_3		0x0300	/* Next Descriptor Size = 3                                             */
-#define NDSIZE_4		0x0400	/* Next Descriptor Size = 4                                             */
-#define NDSIZE_5		0x0500	/* Next Descriptor Size = 5                                             */
-#define NDSIZE_6		0x0600	/* Next Descriptor Size = 6                                             */
-#define NDSIZE_7		0x0700	/* Next Descriptor Size = 7                                             */
-#define NDSIZE_8		0x0800	/* Next Descriptor Size = 8                                             */
-#define NDSIZE_9		0x0900	/* Next Descriptor Size = 9                                             */
-#define NDSIZE	        	0x0900	/* Next Descriptor Size */
-
-#define DMAFLOW	        	0x7000	/* Flow Control */
-#define DMAFLOW_STOP		0x0000	/* Stop Mode */
-#define DMAFLOW_AUTO		0x1000	/* Autobuffer Mode */
-#define DMAFLOW_ARRAY		0x4000	/* Descriptor Array Mode */
-#define DMAFLOW_SMALL		0x6000	/* Small Model Descriptor List Mode */
-#define DMAFLOW_LARGE		0x7000	/* Large Model Descriptor List Mode */
 
 /* DMAx_PERIPHERAL_MAP, MDMA_yy_PERIPHERAL_MAP Masks								*/
 #define CTYPE			0x0040	/* DMA Channel Type Indicator (Memory/Peripheral*)      */
@@ -1689,12 +1600,6 @@
 #define PMAP_UART0TX	0x9000	/*              UART0 Port Transmit DMA                                         */
 #define	PMAP_UART1RX	0xA000	/*              UART1 Port Receive DMA                                          */
 #define	PMAP_UART1TX	0xB000	/*              UART1 Port Transmit DMA                                         */
-
-/* DMAx_IRQ_STATUS, MDMA_yy_IRQ_STATUS Masks						*/
-#define DMA_DONE		0x0001	/* DMA Completion Interrupt Status      */
-#define DMA_ERR			0x0002	/* DMA Error Interrupt Status           */
-#define DFETCH			0x0004	/* DMA Descriptor Fetch Indicator       */
-#define DMA_RUN			0x0008	/* DMA Channel Running Indicator        */
 
 /*  ************  PARALLEL PERIPHERAL INTERFACE (PPI) MASKS *************/
 /*  PPI_CONTROL Masks													*/

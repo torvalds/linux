@@ -58,6 +58,14 @@ static int da_command_code;
 static int da_num_tokens;
 static struct calling_interface_token *da_tokens;
 
+static struct platform_driver platform_driver = {
+	.driver = {
+		.name = "dell-laptop",
+		.owner = THIS_MODULE,
+	}
+};
+
+static struct platform_device *platform_device;
 static struct backlight_device *dell_backlight_device;
 static struct rfkill *wifi_rfkill;
 static struct rfkill *bluetooth_rfkill;
@@ -74,7 +82,7 @@ static const struct dmi_system_id __initdata dell_device_table[] = {
 	{ }
 };
 
-static void parse_da_table(const struct dmi_header *dm)
+static void __init parse_da_table(const struct dmi_header *dm)
 {
 	/* Final token is a terminator, so we don't want to copy it */
 	int tokens = (dm->length-11)/sizeof(struct calling_interface_token)-1;
@@ -103,7 +111,7 @@ static void parse_da_table(const struct dmi_header *dm)
 	da_num_tokens += tokens;
 }
 
-static void find_tokens(const struct dmi_header *dm, void *dummy)
+static void __init find_tokens(const struct dmi_header *dm, void *dummy)
 {
 	switch (dm->type) {
 	case 0xd4: /* Indexed IO */
@@ -197,8 +205,8 @@ static void dell_rfkill_query(struct rfkill *rfkill, void *data)
 	dell_send_request(&buffer, 17, 11);
 	status = buffer.output[1];
 
-	if (status & BIT(bit))
-		rfkill_set_hw_state(rfkill, !!(status & BIT(16)));
+	rfkill_set_sw_state(rfkill, !!(status & BIT(bit)));
+	rfkill_set_hw_state(rfkill, !(status & BIT(16)));
 }
 
 static const struct rfkill_ops dell_rfkill_ops = {
@@ -206,7 +214,7 @@ static const struct rfkill_ops dell_rfkill_ops = {
 	.query = dell_rfkill_query,
 };
 
-static int dell_setup_rfkill(void)
+static int __init dell_setup_rfkill(void)
 {
 	struct calling_interface_buffer buffer;
 	int status;
@@ -217,7 +225,8 @@ static int dell_setup_rfkill(void)
 	status = buffer.output[1];
 
 	if ((status & (1<<2|1<<8)) == (1<<2|1<<8)) {
-		wifi_rfkill = rfkill_alloc("dell-wifi", NULL, RFKILL_TYPE_WLAN,
+		wifi_rfkill = rfkill_alloc("dell-wifi", &platform_device->dev,
+					   RFKILL_TYPE_WLAN,
 					   &dell_rfkill_ops, (void *) 1);
 		if (!wifi_rfkill) {
 			ret = -ENOMEM;
@@ -229,7 +238,8 @@ static int dell_setup_rfkill(void)
 	}
 
 	if ((status & (1<<3|1<<9)) == (1<<3|1<<9)) {
-		bluetooth_rfkill = rfkill_alloc("dell-bluetooth", NULL,
+		bluetooth_rfkill = rfkill_alloc("dell-bluetooth",
+						&platform_device->dev,
 						RFKILL_TYPE_BLUETOOTH,
 						&dell_rfkill_ops, (void *) 2);
 		if (!bluetooth_rfkill) {
@@ -242,7 +252,9 @@ static int dell_setup_rfkill(void)
 	}
 
 	if ((status & (1<<4|1<<10)) == (1<<4|1<<10)) {
-		wwan_rfkill = rfkill_alloc("dell-wwan", NULL, RFKILL_TYPE_WWAN,
+		wwan_rfkill = rfkill_alloc("dell-wwan",
+					   &platform_device->dev,
+					   RFKILL_TYPE_WWAN,
 					   &dell_rfkill_ops, (void *) 3);
 		if (!wwan_rfkill) {
 			ret = -ENOMEM;
@@ -266,6 +278,22 @@ err_wifi:
 	rfkill_destroy(wifi_rfkill);
 
 	return ret;
+}
+
+static void dell_cleanup_rfkill(void)
+{
+	if (wifi_rfkill) {
+		rfkill_unregister(wifi_rfkill);
+		rfkill_destroy(wifi_rfkill);
+	}
+	if (bluetooth_rfkill) {
+		rfkill_unregister(bluetooth_rfkill);
+		rfkill_destroy(bluetooth_rfkill);
+	}
+	if (wwan_rfkill) {
+		rfkill_unregister(wwan_rfkill);
+		rfkill_destroy(wwan_rfkill);
+	}
 }
 
 static int dell_send_intensity(struct backlight_device *bd)
@@ -326,11 +354,23 @@ static int __init dell_init(void)
 		return -ENODEV;
 	}
 
+	ret = platform_driver_register(&platform_driver);
+	if (ret)
+		goto fail_platform_driver;
+	platform_device = platform_device_alloc("dell-laptop", -1);
+	if (!platform_device) {
+		ret = -ENOMEM;
+		goto fail_platform_device1;
+	}
+	ret = platform_device_add(platform_device);
+	if (ret)
+		goto fail_platform_device2;
+
 	ret = dell_setup_rfkill();
 
 	if (ret) {
 		printk(KERN_WARNING "dell-laptop: Unable to setup rfkill\n");
-		goto out;
+		goto fail_rfkill;
 	}
 
 #ifdef CONFIG_ACPI
@@ -352,13 +392,13 @@ static int __init dell_init(void)
 	if (max_intensity) {
 		dell_backlight_device = backlight_device_register(
 			"dell_backlight",
-			NULL, NULL,
+			&platform_device->dev, NULL,
 			&dell_ops);
 
 		if (IS_ERR(dell_backlight_device)) {
 			ret = PTR_ERR(dell_backlight_device);
 			dell_backlight_device = NULL;
-			goto out;
+			goto fail_backlight;
 		}
 
 		dell_backlight_device->props.max_brightness = max_intensity;
@@ -368,13 +408,16 @@ static int __init dell_init(void)
 	}
 
 	return 0;
-out:
-	if (wifi_rfkill)
-		rfkill_unregister(wifi_rfkill);
-	if (bluetooth_rfkill)
-		rfkill_unregister(bluetooth_rfkill);
-	if (wwan_rfkill)
-		rfkill_unregister(wwan_rfkill);
+
+fail_backlight:
+	dell_cleanup_rfkill();
+fail_rfkill:
+	platform_device_del(platform_device);
+fail_platform_device2:
+	platform_device_put(platform_device);
+fail_platform_device1:
+	platform_driver_unregister(&platform_driver);
+fail_platform_driver:
 	kfree(da_tokens);
 	return ret;
 }
@@ -382,12 +425,7 @@ out:
 static void __exit dell_exit(void)
 {
 	backlight_device_unregister(dell_backlight_device);
-	if (wifi_rfkill)
-		rfkill_unregister(wifi_rfkill);
-	if (bluetooth_rfkill)
-		rfkill_unregister(bluetooth_rfkill);
-	if (wwan_rfkill)
-		rfkill_unregister(wwan_rfkill);
+	dell_cleanup_rfkill();
 }
 
 module_init(dell_init);

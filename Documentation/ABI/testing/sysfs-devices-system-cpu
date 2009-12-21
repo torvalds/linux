@@ -62,6 +62,35 @@ Description:	CPU topology files that describe kernel limits related to
 		See Documentation/cputopology.txt for more information.
 
 
+What:		/sys/devices/system/cpu/probe
+		/sys/devices/system/cpu/release
+Date:		November 2009
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:	Dynamic addition and removal of CPU's.  This is not hotplug
+		removal, this is meant complete removal/addition of the CPU
+		from the system.
+
+		probe: writes to this file will dynamically add a CPU to the
+		system.  Information written to the file to add CPU's is
+		architecture specific.
+
+		release: writes to this file dynamically remove a CPU from
+		the system.  Information writtento the file to remove CPU's
+		is architecture specific.
+
+What:		/sys/devices/system/cpu/cpu#/node
+Date:		October 2009
+Contact:	Linux memory management mailing list <linux-mm@kvack.org>
+Description:	Discover NUMA node a CPU belongs to
+
+		When CONFIG_NUMA is enabled, a symbolic link that points
+		to the corresponding NUMA node directory.
+
+		For example, the following symlink is created for cpu42
+		in NUMA node 2:
+
+		/sys/devices/system/cpu/cpu42/node2 -> ../../node/node2
+
 
 What:		/sys/devices/system/cpu/cpu#/node
 Date:		October 2009
@@ -134,6 +163,24 @@ Description:	Discover cpuidle policy and mechanism
 		current_governor_ro: displays current idle policy
 
 		See files in Documentation/cpuidle/ for more information.
+
+
+What:		/sys/devices/system/cpu/cpu#/cpufreq/*
+Date:		pre-git history
+Contact:	cpufreq@vger.kernel.org
+Description:	Discover and change clock speed of CPUs
+
+		Clock scaling allows you to change the clock speed of the
+		CPUs on the fly. This is a nice method to save battery
+		power, because the lower the clock speed, the less power
+		the CPU consumes.
+
+		There are many knobs to tweak in this directory.
+
+		See files in Documentation/cpu-freq/ for more information.
+
+		In particular, read Documentation/cpu-freq/user-guide.txt
+		to learn how to control the knobs.
 
 
 What:      /sys/devices/system/cpu/cpu*/cache/index*/cache_disable_X

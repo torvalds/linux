@@ -329,7 +329,7 @@ static int iwm_tx_build_packet(struct iwm_priv *iwm, struct sk_buff *skb,
 
 	memcpy(buf + sizeof(*hdr), skb->data, skb->len);
 
-	return 0;
+	return umac_cmd.seq_num;
 }
 
 static int iwm_tx_send_concat_packets(struct iwm_priv *iwm,
@@ -354,16 +354,15 @@ static int iwm_tx_send_concat_packets(struct iwm_priv *iwm,
 	return ret;
 }
 
-#define CONFIG_IWM_TX_CONCATENATED 1
-
 void iwm_tx_worker(struct work_struct *work)
 {
 	struct iwm_priv *iwm;
 	struct iwm_tx_info *tx_info = NULL;
 	struct sk_buff *skb;
-	int cmdlen, ret;
 	struct iwm_tx_queue *txq;
-	int pool_id;
+	struct iwm_sta_info *sta_info;
+	struct iwm_tid_info *tid_info;
+	int cmdlen, ret, pool_id;
 
 	txq = container_of(work, struct iwm_tx_queue, worker);
 	iwm = container_of(txq, struct iwm_priv, txq[txq->id]);
@@ -373,18 +372,45 @@ void iwm_tx_worker(struct work_struct *work)
 	while (!test_bit(pool_id, &iwm->tx_credit.full_pools_map) &&
 	       !skb_queue_empty(&txq->queue)) {
 
+		spin_lock_bh(&txq->lock);
 		skb = skb_dequeue(&txq->queue);
+		spin_unlock_bh(&txq->lock);
+
 		tx_info = skb_to_tx_info(skb);
+		sta_info = &iwm->sta_table[tx_info->sta];
+		if (!sta_info->valid) {
+			IWM_ERR(iwm, "Trying to send a frame to unknown STA\n");
+			kfree_skb(skb);
+			continue;
+		}
+
+		tid_info = &sta_info->tid_info[tx_info->tid];
+
+		mutex_lock(&tid_info->mutex);
+
+		/*
+		 * If the RAxTID is stopped, we queue the skb to the stopped
+		 * queue.
+		 * Whenever we'll get a UMAC notification to resume the tx flow
+		 * for this RAxTID, we'll merge back the stopped queue into the
+		 * regular queue. See iwm_ntf_stop_resume_tx() from rx.c.
+		 */
+		if (tid_info->stopped) {
+			IWM_DBG_TX(iwm, DBG, "%dx%d stopped\n",
+				   tx_info->sta, tx_info->tid);
+			spin_lock_bh(&txq->lock);
+			skb_queue_tail(&txq->stopped_queue, skb);
+			spin_unlock_bh(&txq->lock);
+
+			mutex_unlock(&tid_info->mutex);
+			continue;
+		}
+
 		cmdlen = IWM_UDMA_HDR_LEN + skb->len;
 
 		IWM_DBG_TX(iwm, DBG, "Tx frame on queue %d: skb: 0x%p, sta: "
 			   "%d, color: %d\n", txq->id, skb, tx_info->sta,
 			   tx_info->color);
-
-#if !CONFIG_IWM_TX_CONCATENATED
-		/* temporarily keep this to comparing the performance */
-		ret = iwm_send_packet(iwm, skb, pool_id);
-#else
 
 		if (txq->concat_count + cmdlen > IWM_HAL_CONCATENATE_BUF_SIZE)
 			iwm_tx_send_concat_packets(iwm, txq);
@@ -393,14 +419,21 @@ void iwm_tx_worker(struct work_struct *work)
 		if (ret) {
 			IWM_DBG_TX(iwm, DBG, "not enough tx_credit for queue "
 				   "%d, Tx worker stopped\n", txq->id);
+			spin_lock_bh(&txq->lock);
 			skb_queue_head(&txq->queue, skb);
+			spin_unlock_bh(&txq->lock);
+
+			mutex_unlock(&tid_info->mutex);
 			break;
 		}
 
 		txq->concat_ptr = txq->concat_buf + txq->concat_count;
-		iwm_tx_build_packet(iwm, skb, pool_id, txq->concat_ptr);
+		tid_info->last_seq_num =
+			iwm_tx_build_packet(iwm, skb, pool_id, txq->concat_ptr);
 		txq->concat_count += ALIGN(cmdlen, 16);
-#endif
+
+		mutex_unlock(&tid_info->mutex);
+
 		kfree_skb(skb);
 	}
 
@@ -419,13 +452,13 @@ int iwm_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	struct iwm_priv *iwm = ndev_to_iwm(netdev);
 	struct net_device *ndev = iwm_to_ndev(iwm);
 	struct wireless_dev *wdev = iwm_to_wdev(iwm);
-	u8 *dst_addr;
 	struct iwm_tx_info *tx_info;
 	struct iwm_tx_queue *txq;
 	struct iwm_sta_info *sta_info;
-	u8 sta_id;
+	u8 *dst_addr, sta_id;
 	u16 queue;
 	int ret;
+
 
 	if (!test_bit(IWM_STATUS_ASSOCIATED, &iwm->status)) {
 		IWM_DBG_TX(iwm, DBG, "LINK: stop netif_all_queues: "
@@ -440,7 +473,8 @@ int iwm_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	txq = &iwm->txq[queue];
 
 	/* No free space for Tx, tx_worker is too slow */
-	if (skb_queue_len(&txq->queue) > IWM_TX_LIST_SIZE) {
+	if ((skb_queue_len(&txq->queue) > IWM_TX_LIST_SIZE) ||
+	    (skb_queue_len(&txq->stopped_queue) > IWM_TX_LIST_SIZE)) {
 		IWM_DBG_TX(iwm, DBG, "LINK: stop netif_subqueue[%d]\n", queue);
 		netif_stop_subqueue(netdev, queue);
 		return NETDEV_TX_BUSY;
@@ -477,7 +511,9 @@ int iwm_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	else
 		tx_info->tid = IWM_UMAC_MGMT_TID;
 
+	spin_lock_bh(&iwm->txq[queue].lock);
 	skb_queue_tail(&iwm->txq[queue].queue, skb);
+	spin_unlock_bh(&iwm->txq[queue].lock);
 
 	queue_work(iwm->txq[queue].wq, &iwm->txq[queue].worker);
 

@@ -425,6 +425,7 @@ static int genius_detect(struct psmouse *psmouse, bool set_properties)
 		return -1;
 
 	if (set_properties) {
+		__set_bit(BTN_MIDDLE, psmouse->dev->keybit);
 		__set_bit(BTN_EXTRA, psmouse->dev->keybit);
 		__set_bit(BTN_SIDE, psmouse->dev->keybit);
 		__set_bit(REL_WHEEL, psmouse->dev->relbit);
@@ -460,8 +461,10 @@ static int intellimouse_detect(struct psmouse *psmouse, bool set_properties)
 		__set_bit(BTN_MIDDLE, psmouse->dev->keybit);
 		__set_bit(REL_WHEEL, psmouse->dev->relbit);
 
-		if (!psmouse->vendor) psmouse->vendor = "Generic";
-		if (!psmouse->name) psmouse->name = "Wheel Mouse";
+		if (!psmouse->vendor)
+			psmouse->vendor = "Generic";
+		if (!psmouse->name)
+			psmouse->name = "Wheel Mouse";
 		psmouse->pktsize = 4;
 	}
 
@@ -504,8 +507,10 @@ static int im_explorer_detect(struct psmouse *psmouse, bool set_properties)
 		__set_bit(BTN_SIDE, psmouse->dev->keybit);
 		__set_bit(BTN_EXTRA, psmouse->dev->keybit);
 
-		if (!psmouse->vendor) psmouse->vendor = "Generic";
-		if (!psmouse->name) psmouse->name = "Explorer Mouse";
+		if (!psmouse->vendor)
+			psmouse->vendor = "Generic";
+		if (!psmouse->name)
+			psmouse->name = "Explorer Mouse";
 		psmouse->pktsize = 4;
 	}
 
@@ -536,6 +541,7 @@ static int thinking_detect(struct psmouse *psmouse, bool set_properties)
 		return -1;
 
 	if (set_properties) {
+		__set_bit(BTN_MIDDLE, psmouse->dev->keybit);
 		__set_bit(BTN_EXTRA, psmouse->dev->keybit);
 
 		psmouse->vendor = "Kensington";
@@ -551,8 +557,16 @@ static int thinking_detect(struct psmouse *psmouse, bool set_properties)
 static int ps2bare_detect(struct psmouse *psmouse, bool set_properties)
 {
 	if (set_properties) {
-		if (!psmouse->vendor) psmouse->vendor = "Generic";
-		if (!psmouse->name) psmouse->name = "Mouse";
+		if (!psmouse->vendor)
+			psmouse->vendor = "Generic";
+		if (!psmouse->name)
+			psmouse->name = "Mouse";
+
+/*
+ * We have no way of figuring true number of buttons so let's
+ * assume that the device has 3.
+ */
+		__set_bit(BTN_MIDDLE, psmouse->dev->keybit);
 	}
 
 	return 0;
@@ -567,6 +581,8 @@ static int cortron_detect(struct psmouse *psmouse, bool set_properties)
 	if (set_properties) {
 		psmouse->vendor = "Cortron";
 		psmouse->name = "PS/2 Trackball";
+
+		__set_bit(BTN_MIDDLE, psmouse->dev->keybit);
 		__set_bit(BTN_SIDE, psmouse->dev->keybit);
 	}
 
@@ -1184,15 +1200,16 @@ static void psmouse_disconnect(struct serio *serio)
 	mutex_unlock(&psmouse_mutex);
 }
 
-static int psmouse_switch_protocol(struct psmouse *psmouse, const struct psmouse_protocol *proto)
+static int psmouse_switch_protocol(struct psmouse *psmouse,
+				   const struct psmouse_protocol *proto)
 {
 	struct input_dev *input_dev = psmouse->dev;
 
 	input_dev->dev.parent = &psmouse->ps2dev.serio->dev;
 
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL);
-	input_dev->keybit[BIT_WORD(BTN_MOUSE)] = BIT_MASK(BTN_LEFT) |
-		BIT_MASK(BTN_MIDDLE) | BIT_MASK(BTN_RIGHT);
+	input_dev->keybit[BIT_WORD(BTN_MOUSE)] =
+				BIT_MASK(BTN_LEFT) | BIT_MASK(BTN_RIGHT);
 	input_dev->relbit[0] = BIT_MASK(REL_X) | BIT_MASK(REL_Y);
 
 	psmouse->set_rate = psmouse_set_rate;
@@ -1209,8 +1226,7 @@ static int psmouse_switch_protocol(struct psmouse *psmouse, const struct psmouse
 			return -1;
 
 		psmouse->type = proto->type;
-	}
-	else
+	} else
 		psmouse->type = psmouse_extensions(psmouse,
 						   psmouse_max_proto, true);
 
@@ -1679,6 +1695,9 @@ static int psmouse_get_maxproto(char *buffer, struct kernel_param *kp)
 static int __init psmouse_init(void)
 {
 	int err;
+
+	lifebook_module_init();
+	synaptics_module_init();
 
 	kpsmoused_wq = create_singlethread_workqueue("kpsmoused");
 	if (!kpsmoused_wq) {

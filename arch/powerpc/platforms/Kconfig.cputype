@@ -28,8 +28,6 @@ config PPC_BOOK3S_32
 config PPC_85xx
 	bool "Freescale 85xx"
 	select E500
-	select FSL_SOC
-	select MPC85xx
 
 config PPC_8xx
 	bool "Freescale 8xx"
@@ -138,6 +136,14 @@ config PPC_FPU
 	bool
 	default y if PPC64
 
+config FSL_EMB_PERFMON
+	bool "Freescale Embedded Perfmon"
+	depends on E500 || PPC_83xx
+	help
+	  This is the Performance Monitor support found on the e500 core
+	  and some e300 cores (c3 and c4).  Select this only if your
+	  core supports the Embedded Performance Monitor APU
+
 config 4xx
 	bool
 	depends on 40x || 44x
@@ -153,13 +159,6 @@ config FSL_BOOKE
 	depends on E200 || E500
 	default y
 
-config FSL_EMB_PERFMON
-	bool "Freescale Embedded Perfmon"
-	depends on E500 || PPC_83xx
-	help
-	  This is the Performance Monitor support found on the e500 core
-	  and some e300 cores (c3 and c4).  Select this only if your
-	  core supports the Embedded Performance Monitor APU
 
 config PTE_64BIT
 	bool
@@ -312,7 +311,7 @@ config NR_CPUS
 
 config NOT_COHERENT_CACHE
 	bool
-	depends on 4xx || 8xx || E200 || PPC_MPC512x
+	depends on 4xx || 8xx || E200 || PPC_MPC512x || GAMECUBE_COMMON
 	default y
 
 config CHECK_CACHE_COHERENCY

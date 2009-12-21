@@ -46,8 +46,8 @@ svc_authenticate(struct svc_rqst *rqstp, __be32 *authp)
 	dprintk("svc: svc_authenticate (%d)\n", flavor);
 
 	spin_lock(&authtab_lock);
-	if (flavor >= RPC_AUTH_MAXFLAVOR || !(aops = authtab[flavor])
-			|| !try_module_get(aops->owner)) {
+	if (flavor >= RPC_AUTH_MAXFLAVOR || !(aops = authtab[flavor]) ||
+	    !try_module_get(aops->owner)) {
 		spin_unlock(&authtab_lock);
 		*authp = rpc_autherr_badcred;
 		return SVC_DENIED;

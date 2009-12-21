@@ -1,25 +1,5 @@
 #include "qlge.h"
 
-static void ql_display_mb_sts(struct ql_adapter *qdev,
-						struct mbox_params *mbcp)
-{
-	int i;
-	static char *err_sts[] = {
-		"Command Complete",
-		"Command Not Supported",
-		"Host Interface Error",
-		"Checksum Error",
-		"Unused Completion Status",
-		"Test Failed",
-		"Command Parameter Error"};
-
-	QPRINTK(qdev, DRV, DEBUG, "%s.\n",
-		err_sts[mbcp->mbox_out[0] & 0x0000000f]);
-	for (i = 0; i < mbcp->out_count; i++)
-		QPRINTK(qdev, DRV, DEBUG, "mbox_out[%d] = 0x%.08x.\n",
-				i, mbcp->mbox_out[i]);
-}
-
 int ql_read_mpi_reg(struct ql_adapter *qdev, u32 reg, u32 *data)
 {
 	int status;
@@ -317,6 +297,7 @@ static void ql_init_fw_done(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	} else {
 		QPRINTK(qdev, DRV, ERR, "Firmware Revision  = 0x%.08x.\n",
 			mbcp->mbox_out[1]);
+		qdev->fw_rev_id = mbcp->mbox_out[1];
 		status = ql_cam_route_initialize(qdev);
 		if (status)
 			QPRINTK(qdev, IFUP, ERR,
@@ -446,6 +427,9 @@ static int ql_mpi_handler(struct ql_adapter *qdev, struct mbox_params *mbcp)
 		ql_aen_lost(qdev, mbcp);
 		break;
 
+	case AEN_DCBX_CHG:
+		/* Need to support AEN 8110 */
+		break;
 	default:
 		QPRINTK(qdev, DRV, ERR,
 			"Unsupported AE %.08x.\n", mbcp->mbox_out[0]);
@@ -537,7 +521,6 @@ done:
 					MB_CMD_STS_GOOD) &&
 		((mbcp->mbox_out[0] & 0x0000f000) !=
 					MB_CMD_STS_INTRMDT)) {
-		ql_display_mb_sts(qdev, mbcp);
 		status = -EIO;
 	}
 end:
@@ -655,7 +638,7 @@ int ql_mb_idc_ack(struct ql_adapter *qdev)
  * for the current port.
  * Most likely will block.
  */
-static int ql_mb_set_port_cfg(struct ql_adapter *qdev)
+int ql_mb_set_port_cfg(struct ql_adapter *qdev)
 {
 	struct mbox_params mbc;
 	struct mbox_params *mbcp = &mbc;
@@ -690,7 +673,7 @@ static int ql_mb_set_port_cfg(struct ql_adapter *qdev)
  * for the current port.
  * Most likely will block.
  */
-static int ql_mb_get_port_cfg(struct ql_adapter *qdev)
+int ql_mb_get_port_cfg(struct ql_adapter *qdev)
 {
 	struct mbox_params mbc;
 	struct mbox_params *mbcp = &mbc;
@@ -716,6 +699,76 @@ static int ql_mb_get_port_cfg(struct ql_adapter *qdev)
 			"Passed Get Port Configuration.\n");
 		qdev->link_config = mbcp->mbox_out[1];
 		qdev->max_frame_size = mbcp->mbox_out[2];
+	}
+	return status;
+}
+
+int ql_mb_wol_mode(struct ql_adapter *qdev, u32 wol)
+{
+	struct mbox_params mbc;
+	struct mbox_params *mbcp = &mbc;
+	int status;
+
+	memset(mbcp, 0, sizeof(struct mbox_params));
+
+	mbcp->in_count = 2;
+	mbcp->out_count = 1;
+
+	mbcp->mbox_in[0] = MB_CMD_SET_WOL_MODE;
+	mbcp->mbox_in[1] = wol;
+
+
+	status = ql_mailbox_command(qdev, mbcp);
+	if (status)
+		return status;
+
+	if (mbcp->mbox_out[0] != MB_CMD_STS_GOOD) {
+		QPRINTK(qdev, DRV, ERR,
+			"Failed to set WOL mode.\n");
+		status = -EIO;
+	}
+	return status;
+}
+
+int ql_mb_wol_set_magic(struct ql_adapter *qdev, u32 enable_wol)
+{
+	struct mbox_params mbc;
+	struct mbox_params *mbcp = &mbc;
+	int status;
+	u8 *addr = qdev->ndev->dev_addr;
+
+	memset(mbcp, 0, sizeof(struct mbox_params));
+
+	mbcp->in_count = 8;
+	mbcp->out_count = 1;
+
+	mbcp->mbox_in[0] = MB_CMD_SET_WOL_MAGIC;
+	if (enable_wol) {
+		mbcp->mbox_in[1] = (u32)addr[0];
+		mbcp->mbox_in[2] = (u32)addr[1];
+		mbcp->mbox_in[3] = (u32)addr[2];
+		mbcp->mbox_in[4] = (u32)addr[3];
+		mbcp->mbox_in[5] = (u32)addr[4];
+		mbcp->mbox_in[6] = (u32)addr[5];
+		mbcp->mbox_in[7] = 0;
+	} else {
+		mbcp->mbox_in[1] = 0;
+		mbcp->mbox_in[2] = 1;
+		mbcp->mbox_in[3] = 1;
+		mbcp->mbox_in[4] = 1;
+		mbcp->mbox_in[5] = 1;
+		mbcp->mbox_in[6] = 1;
+		mbcp->mbox_in[7] = 0;
+	}
+
+	status = ql_mailbox_command(qdev, mbcp);
+	if (status)
+		return status;
+
+	if (mbcp->mbox_out[0] != MB_CMD_STS_GOOD) {
+		QPRINTK(qdev, DRV, ERR,
+			"Failed to set WOL mode.\n");
+		status = -EIO;
 	}
 	return status;
 }
@@ -765,6 +818,61 @@ static int ql_idc_wait(struct ql_adapter *qdev)
 			break;
 		}
 	} while (wait_time);
+
+	return status;
+}
+
+int ql_mb_set_led_cfg(struct ql_adapter *qdev, u32 led_config)
+{
+	struct mbox_params mbc;
+	struct mbox_params *mbcp = &mbc;
+	int status;
+
+	memset(mbcp, 0, sizeof(struct mbox_params));
+
+	mbcp->in_count = 2;
+	mbcp->out_count = 1;
+
+	mbcp->mbox_in[0] = MB_CMD_SET_LED_CFG;
+	mbcp->mbox_in[1] = led_config;
+
+
+	status = ql_mailbox_command(qdev, mbcp);
+	if (status)
+		return status;
+
+	if (mbcp->mbox_out[0] != MB_CMD_STS_GOOD) {
+		QPRINTK(qdev, DRV, ERR,
+			"Failed to set LED Configuration.\n");
+		status = -EIO;
+	}
+
+	return status;
+}
+
+int ql_mb_get_led_cfg(struct ql_adapter *qdev)
+{
+	struct mbox_params mbc;
+	struct mbox_params *mbcp = &mbc;
+	int status;
+
+	memset(mbcp, 0, sizeof(struct mbox_params));
+
+	mbcp->in_count = 1;
+	mbcp->out_count = 2;
+
+	mbcp->mbox_in[0] = MB_CMD_GET_LED_CFG;
+
+	status = ql_mailbox_command(qdev, mbcp);
+	if (status)
+		return status;
+
+	if (mbcp->mbox_out[0] != MB_CMD_STS_GOOD) {
+		QPRINTK(qdev, DRV, ERR,
+			"Failed to get LED Configuration.\n");
+		status = -EIO;
+	} else
+		qdev->led_config = mbcp->mbox_out[1];
 
 	return status;
 }
@@ -930,8 +1038,11 @@ void ql_mpi_idc_work(struct work_struct *work)
 	int status;
 	struct mbox_params *mbcp = &qdev->idc_mbc;
 	u32 aen;
+	int timeout;
 
+	rtnl_lock();
 	aen = mbcp->mbox_out[1] >> 16;
+	timeout = (mbcp->mbox_out[1] >> 8) & 0xf;
 
 	switch (aen) {
 	default:
@@ -939,22 +1050,61 @@ void ql_mpi_idc_work(struct work_struct *work)
 			"Bug: Unhandled IDC action.\n");
 		break;
 	case MB_CMD_PORT_RESET:
-	case MB_CMD_SET_PORT_CFG:
 	case MB_CMD_STOP_FW:
 		ql_link_off(qdev);
+	case MB_CMD_SET_PORT_CFG:
 		/* Signal the resulting link up AEN
 		 * that the frame routing and mac addr
 		 * needs to be set.
 		 * */
 		set_bit(QL_CAM_RT_SET, &qdev->flags);
-		rtnl_lock();
-		status = ql_mb_idc_ack(qdev);
-		rtnl_unlock();
-		if (status) {
-			QPRINTK(qdev, DRV, ERR,
-			"Bug: No pending IDC!\n");
+		/* Do ACK if required */
+		if (timeout) {
+			status = ql_mb_idc_ack(qdev);
+			if (status)
+				QPRINTK(qdev, DRV, ERR,
+					"Bug: No pending IDC!\n");
+		} else {
+			QPRINTK(qdev, DRV, DEBUG,
+				    "IDC ACK not required\n");
+			status = 0; /* success */
 		}
+		break;
+
+	/* These sub-commands issued by another (FCoE)
+	 * function are requesting to do an operation
+	 * on the shared resource (MPI environment).
+	 * We currently don't issue these so we just
+	 * ACK the request.
+	 */
+	case MB_CMD_IOP_RESTART_MPI:
+	case MB_CMD_IOP_PREP_LINK_DOWN:
+		/* Drop the link, reload the routing
+		 * table when link comes up.
+		 */
+		ql_link_off(qdev);
+		set_bit(QL_CAM_RT_SET, &qdev->flags);
+		/* Fall through. */
+	case MB_CMD_IOP_DVR_START:
+	case MB_CMD_IOP_FLASH_ACC:
+	case MB_CMD_IOP_CORE_DUMP_MPI:
+	case MB_CMD_IOP_PREP_UPDATE_MPI:
+	case MB_CMD_IOP_COMP_UPDATE_MPI:
+	case MB_CMD_IOP_NONE:	/*  an IDC without params */
+		/* Do ACK if required */
+		if (timeout) {
+			status = ql_mb_idc_ack(qdev);
+			if (status)
+				QPRINTK(qdev, DRV, ERR,
+				    "Bug: No pending IDC!\n");
+		} else {
+			QPRINTK(qdev, DRV, DEBUG,
+			    "IDC ACK not required\n");
+			status = 0; /* success */
+		}
+		break;
 	}
+	rtnl_unlock();
 }
 
 void ql_mpi_work(struct work_struct *work)

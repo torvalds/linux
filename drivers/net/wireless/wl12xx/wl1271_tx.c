@@ -33,8 +33,7 @@
 static int wl1271_tx_id(struct wl1271 *wl, struct sk_buff *skb)
 {
 	int i;
-
-	for (i = 0; i < FW_TX_CMPLT_BLOCK_SIZE; i++)
+	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)
 		if (wl->tx_frames[i] == NULL) {
 			wl->tx_frames[i] = skb;
 			return i;
@@ -58,8 +57,8 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra)
 	/* approximate the number of blocks required for this packet
 	   in the firmware */
 	/* FIXME: try to figure out what is done here and make it cleaner */
-	total_blocks = (skb->len) >> TX_HW_BLOCK_SHIFT_DIV;
-	excluded = (total_blocks << 2) + (skb->len & 0xff) + 34;
+	total_blocks = (total_len + 20) >> TX_HW_BLOCK_SHIFT_DIV;
+	excluded = (total_blocks << 2) + ((total_len + 20) & 0xff) + 34;
 	total_blocks += (excluded > 252) ? 2 : 1;
 	total_blocks += TX_HW_BLOCK_SPARE;
 
@@ -89,15 +88,25 @@ static int wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 {
 	struct wl1271_tx_hw_descr *desc;
 	int pad;
+	u16 tx_attr;
 
 	desc = (struct wl1271_tx_hw_descr *) skb->data;
 
+	/* relocate space for security header */
+	if (extra) {
+		void *framestart = skb->data + sizeof(*desc);
+		u16 fc = *(u16 *)(framestart + extra);
+		int hdrlen = ieee80211_hdrlen(cpu_to_le16(fc));
+		memmove(framestart, framestart + extra, hdrlen);
+	}
+
 	/* configure packet life time */
-	desc->start_time = jiffies_to_usecs(jiffies) - wl->time_offset;
-	desc->life_time = TX_HW_MGMT_PKT_LIFETIME_TU;
+	desc->start_time = cpu_to_le32(jiffies_to_usecs(jiffies) -
+				       wl->time_offset);
+	desc->life_time = cpu_to_le16(TX_HW_MGMT_PKT_LIFETIME_TU);
 
 	/* configure the tx attributes */
-	desc->tx_attr = wl->session_counter << TX_HW_ATTR_OFST_SESSION_COUNTER;
+	tx_attr = wl->session_counter << TX_HW_ATTR_OFST_SESSION_COUNTER;
 	/* FIXME: do we know the packet priority? can we identify mgmt
 	   packets, and use max prio for them at least? */
 	desc->tid = 0;
@@ -106,11 +115,13 @@ static int wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 
 	/* align the length (and store in terms of words) */
 	pad = WL1271_TX_ALIGN(skb->len);
-	desc->length = pad >> 2;
+	desc->length = cpu_to_le16(pad >> 2);
 
 	/* calculate number of padding bytes */
 	pad = pad - skb->len;
-	desc->tx_attr |= pad << TX_HW_ATTR_OFST_LAST_WORD_PAD;
+	tx_attr |= pad << TX_HW_ATTR_OFST_LAST_WORD_PAD;
+
+	desc->tx_attr = cpu_to_le16(tx_attr);
 
 	wl1271_debug(DEBUG_TX, "tx_fill_hdr: pad: %d", pad);
 	return 0;
@@ -147,11 +158,11 @@ static int wl1271_tx_send_packet(struct wl1271 *wl, struct sk_buff *skb,
 	len = WL1271_TX_ALIGN(skb->len);
 
 	/* perform a fixed address block write with the packet */
-	wl1271_spi_reg_write(wl, WL1271_SLV_MEM_DATA, skb->data, len, true);
+	wl1271_spi_write(wl, WL1271_SLV_MEM_DATA, skb->data, len, true);
 
 	/* write packet new counter into the write access register */
 	wl->tx_packets_count++;
-	wl1271_reg_write32(wl, WL1271_HOST_WR_ACCESS, wl->tx_packets_count);
+	wl1271_spi_write32(wl, WL1271_HOST_WR_ACCESS, wl->tx_packets_count);
 
 	desc = (struct wl1271_tx_hw_descr *) skb->data;
 	wl1271_debug(DEBUG_TX, "tx id %u skb 0x%p payload %u (%u words)",
@@ -254,14 +265,13 @@ out:
 static void wl1271_tx_complete_packet(struct wl1271 *wl,
 				      struct wl1271_tx_hw_res_descr *result)
 {
-
 	struct ieee80211_tx_info *info;
 	struct sk_buff *skb;
-	u32 header_len;
+	u16 seq;
 	int id = result->id;
 
 	/* check for id legality */
-	if (id >= TX_HW_RESULT_QUEUE_LEN || wl->tx_frames[id] == NULL) {
+	if (id >= ACX_TX_DESCRIPTORS || wl->tx_frames[id] == NULL) {
 		wl1271_warning("TX result illegal id: %d", id);
 		return;
 	}
@@ -284,21 +294,31 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 	/* info->status.retry_count = result->ack_failures; */
 	wl->stats.retry_count += result->ack_failures;
 
-	/* get header len */
+	/* update security sequence number */
+	seq = wl->tx_security_seq_16 +
+		(result->lsb_security_sequence_number -
+		 wl->tx_security_last_seq);
+	wl->tx_security_last_seq = result->lsb_security_sequence_number;
+
+	if (seq < wl->tx_security_seq_16)
+		wl->tx_security_seq_32++;
+	wl->tx_security_seq_16 = seq;
+
+	/* remove private header from packet */
+	skb_pull(skb, sizeof(struct wl1271_tx_hw_descr));
+
+	/* remove TKIP header space if present */
 	if (info->control.hw_key &&
-	    info->control.hw_key->alg == ALG_TKIP)
-		header_len = WL1271_TKIP_IV_SPACE +
-			sizeof(struct wl1271_tx_hw_descr);
-	else
-		header_len = sizeof(struct wl1271_tx_hw_descr);
+	    info->control.hw_key->alg == ALG_TKIP) {
+		int hdrlen = ieee80211_get_hdrlen_from_skb(skb);
+		memmove(skb->data + WL1271_TKIP_IV_SPACE, skb->data, hdrlen);
+		skb_pull(skb, WL1271_TKIP_IV_SPACE);
+	}
 
 	wl1271_debug(DEBUG_TX, "tx status id %u skb 0x%p failures %u rate 0x%x"
 		     " status 0x%x",
 		     result->id, skb, result->ack_failures,
 		     result->rate_class_index, result->status);
-
-	/* remove private header from packet */
-	skb_pull(skb, header_len);
 
 	/* return the packet to the stack */
 	ieee80211_tx_status(wl->hw, skb);
@@ -315,8 +335,8 @@ void wl1271_tx_complete(struct wl1271 *wl, u32 count)
 	wl1271_debug(DEBUG_TX, "tx_complete received, packets: %d", count);
 
 	/* read the tx results from the chipset */
-	wl1271_spi_mem_read(wl, memmap->tx_result,
-			    wl->tx_res_if, sizeof(*wl->tx_res_if));
+	wl1271_spi_read(wl, le32_to_cpu(memmap->tx_result),
+			wl->tx_res_if, sizeof(*wl->tx_res_if), false);
 
 	/* verify that the result buffer is not getting overrun */
 	if (count > TX_HW_RESULT_QUEUE_LEN) {
@@ -337,10 +357,10 @@ void wl1271_tx_complete(struct wl1271 *wl, u32 count)
 	}
 
 	/* write host counter to chipset (to ack) */
-	wl1271_mem_write32(wl, memmap->tx_result +
+	wl1271_spi_write32(wl, le32_to_cpu(memmap->tx_result) +
 			   offsetof(struct wl1271_tx_hw_res_if,
 				    tx_result_host_counter),
-			   wl->tx_res_if->tx_result_fw_counter);
+			   le32_to_cpu(wl->tx_res_if->tx_result_fw_counter));
 }
 
 /* caller must hold wl->mutex */
@@ -364,7 +384,7 @@ void wl1271_tx_flush(struct wl1271 *wl)
 		ieee80211_tx_status(wl->hw, skb);
 	}
 
-	for (i = 0; i < FW_TX_CMPLT_BLOCK_SIZE; i++)
+	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)
 		if (wl->tx_frames[i] != NULL) {
 			skb = wl->tx_frames[i];
 			info = IEEE80211_SKB_CB(skb);

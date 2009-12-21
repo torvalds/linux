@@ -192,7 +192,6 @@ struct au0828_dev {
 	struct au0828_dvb		dvb;
 
 	/* Analog */
-	struct list_head au0828list;
 	struct v4l2_device v4l2_dev;
 	int users;
 	unsigned int stream_on:1;	/* Locks streams */

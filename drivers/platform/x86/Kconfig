@@ -334,6 +334,8 @@ config EEEPC_LAPTOP
 	depends on HOTPLUG_PCI
 	select BACKLIGHT_CLASS_DEVICE
 	select HWMON
+	select LEDS_CLASS
+	select NEW_LEDS
 	---help---
 	  This driver supports the Fn-Fx keys on Eee PC laptops.
 
@@ -364,6 +366,18 @@ config ACPI_WMI
 
 	  It is safe to enable this driver even if your DSDT doesn't define
 	  any ACPI-WMI devices.
+
+config MSI_WMI
+	tristate "MSI WMI extras"
+	depends on ACPI_WMI
+	depends on INPUT
+	depends on BACKLIGHT_CLASS_DEVICE
+	select INPUT_SPARSEKMAP
+	help
+	 Say Y here if you want to support WMI-based hotkeys on MSI laptops.
+
+	 To compile this driver as a module, choose M here: the module will
+	 be called msi-wmi.
 
 config ACPI_ASUS
 	tristate "ASUS/Medion Laptop Extras (DEPRECATED)"
@@ -435,4 +449,19 @@ config ACPI_TOSHIBA
 
 	  If you have a legacy free Toshiba laptop (such as the Libretto L1
 	  series), say Y.
+
+config TOSHIBA_BT_RFKILL
+	tristate "Toshiba Bluetooth RFKill switch support"
+	depends on ACPI
+	---help---
+	  This driver adds support for Bluetooth events for the RFKill
+	  switch on modern Toshiba laptops with full ACPI support and
+	  an RFKill switch.
+
+	  This driver handles RFKill events for the TOS6205 Bluetooth,
+	  and re-enables it when the switch is set back to the 'on'
+	  position.
+
+	  If you have a modern Toshiba laptop with a Bluetooth and an
+	  RFKill switch (such as the Portege R500), say Y.
 endif # X86_PLATFORM_DEVICES

@@ -624,6 +624,7 @@ struct nic {
 	u16 eeprom_wc;
 	__le16 eeprom[256];
 	spinlock_t mdio_lock;
+	const struct firmware *fw;
 };
 
 static inline void e100_write_flush(struct nic *nic)
@@ -1225,9 +1226,9 @@ static void e100_configure(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 static const struct firmware *e100_request_firmware(struct nic *nic)
 {
 	const char *fw_name;
-	const struct firmware *fw;
+	const struct firmware *fw = nic->fw;
 	u8 timer, bundle, min_size;
-	int err;
+	int err = 0;
 
 	/* do not load u-code for ICH devices */
 	if (nic->flags & ich)
@@ -1243,12 +1244,20 @@ static const struct firmware *e100_request_firmware(struct nic *nic)
 	else /* No ucode on other devices */
 		return NULL;
 
-	err = request_firmware(&fw, fw_name, &nic->pdev->dev);
+	/* If the firmware has not previously been loaded, request a pointer
+	 * to it. If it was previously loaded, we are reinitializing the
+	 * adapter, possibly in a resume from hibernate, in which case
+	 * request_firmware() cannot be used.
+	 */
+	if (!fw)
+		err = request_firmware(&fw, fw_name, &nic->pdev->dev);
+
 	if (err) {
 		DPRINTK(PROBE, ERR, "Failed to load firmware \"%s\": %d\n",
 			fw_name, err);
 		return ERR_PTR(err);
 	}
+
 	/* Firmware should be precisely UCODE_SIZE (words) plus three bytes
 	   indicating the offsets for BUNDLESMALL, BUNDLEMAX, INTDELAY */
 	if (fw->size != UCODE_SIZE * 4 + 3) {
@@ -1271,7 +1280,10 @@ static const struct firmware *e100_request_firmware(struct nic *nic)
 		release_firmware(fw);
 		return ERR_PTR(-EINVAL);
 	}
-	/* OK, firmware is validated and ready to use... */
+
+	/* OK, firmware is validated and ready to use. Save a pointer
+	 * to it in the nic */
+	nic->fw = fw;
 	return fw;
 }
 
@@ -1852,11 +1864,10 @@ static inline void e100_start_receiver(struct nic *nic, struct rx *rx)
 #define RFD_BUF_LEN (sizeof(struct rfd) + VLAN_ETH_FRAME_LEN)
 static int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
 {
-	if (!(rx->skb = netdev_alloc_skb(nic->netdev, RFD_BUF_LEN + NET_IP_ALIGN)))
+	if (!(rx->skb = netdev_alloc_skb_ip_align(nic->netdev, RFD_BUF_LEN)))
 		return -ENOMEM;
 
-	/* Align, init, and map the RFD. */
-	skb_reserve(rx->skb, NET_IP_ALIGN);
+	/* Init, and map the RFD. */
 	skb_copy_to_linear_data(rx->skb, &nic->blank_rfd, sizeof(struct rfd));
 	rx->dma_addr = pci_map_single(nic->pdev, rx->skb->data,
 		RFD_BUF_LEN, PCI_DMA_BIDIRECTIONAL);

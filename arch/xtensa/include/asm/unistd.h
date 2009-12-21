@@ -94,7 +94,7 @@ __SYSCALL( 35, sys_readlink, 3)
 #define __NR_mknod 				 36
 __SYSCALL( 36, sys_mknod, 3)
 #define __NR_pipe 				 37
-__SYSCALL( 37, xtensa_pipe, 1)
+__SYSCALL( 37, sys_pipe, 1)
 #define __NR_unlink 				 38
 __SYSCALL( 38, sys_unlink, 1)
 #define __NR_rmdir 				 39
@@ -189,7 +189,7 @@ __SYSCALL( 79, sys_fremovexattr, 2)
 /* File Map / Shared Memory Operations */
 
 #define __NR_mmap2 				 80
-__SYSCALL( 80, xtensa_mmap2, 6)
+__SYSCALL( 80, sys_mmap_pgoff, 6)
 #define __NR_munmap 				 81
 __SYSCALL( 81, sys_munmap, 2)
 #define __NR_mprotect 				 82
@@ -681,8 +681,10 @@ __SYSCALL(304, sys_signalfd, 3)
 __SYSCALL(305, sys_ni_syscall, 0)
 #define __NR_eventfd				306
 __SYSCALL(306, sys_eventfd, 1)
+#define __NR_recvmmsg				307
+__SYSCALL(307, sys_recvmmsg, 5)
 
-#define __NR_syscall_count			307
+#define __NR_syscall_count			308
 
 /*
  * sysxtensa syscall handler

@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
-#include <linux/smp_lock.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -283,7 +282,6 @@ static int mon_open(struct inode *inode, struct file *filp)
 	/*
 	 * only one user allowed
 	 */
-	lock_kernel();
 	rc = -EBUSY;
 	if (test_and_set_bit(MON_IN_USE, &mon_in_use))
 		goto out;
@@ -321,7 +319,6 @@ static int mon_open(struct inode *inode, struct file *filp)
 	}
 	filp->private_data = monpriv;
 	dev_set_drvdata(monreader_device, monpriv);
-	unlock_kernel();
 	return nonseekable_open(inode, filp);
 
 out_path:
@@ -331,7 +328,6 @@ out_priv:
 out_use:
 	clear_bit(MON_IN_USE, &mon_in_use);
 out:
-	unlock_kernel();
 	return rc;
 }
 
@@ -533,7 +529,7 @@ static int monreader_restore(struct device *dev)
 	return monreader_thaw(dev);
 }
 
-static struct dev_pm_ops monreader_pm_ops = {
+static const struct dev_pm_ops monreader_pm_ops = {
 	.freeze  = monreader_freeze,
 	.thaw	 = monreader_thaw,
 	.restore = monreader_restore,
@@ -607,6 +603,10 @@ static int __init mon_init(void)
 	}
 	dcss_mkname(mon_dcss_name, &user_data_connect[8]);
 
+	/*
+	 * misc_register() has to be the last action in module_init(), because
+	 * file operations will be available right after this.
+	 */
 	rc = misc_register(&mon_dev);
 	if (rc < 0 )
 		goto out;

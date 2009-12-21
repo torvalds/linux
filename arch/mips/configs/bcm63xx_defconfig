@@ -9,7 +9,6 @@ CONFIG_MIPS=y
 # Machine selection
 #
 # CONFIG_MACH_ALCHEMY is not set
-# CONFIG_BASLER_EXCITE is not set
 # CONFIG_BCM47XX is not set
 CONFIG_BCM63XX=y
 # CONFIG_MIPS_COBALT is not set
@@ -942,7 +941,9 @@ CONFIG_TRACING_SUPPORT=y
 # CONFIG_BLK_DEV_IO_TRACE is not set
 # CONFIG_SAMPLES is not set
 CONFIG_HAVE_ARCH_KGDB=y
+CONFIG_CMDLINE_BOOL=y
 CONFIG_CMDLINE="console=ttyS0,115200"
+# CONFIG_CMDLINE_OVERRIDE is not set
 
 #
 # Security options

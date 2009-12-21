@@ -256,8 +256,9 @@ static int tda18271c2_rf_tracking_filters_correction(struct dvb_frontend *fe,
 	struct tda18271_priv *priv = fe->tuner_priv;
 	struct tda18271_rf_tracking_filter_cal *map = priv->rf_cal_state;
 	unsigned char *regs = priv->tda18271_regs;
-	int tm_current, rfcal_comp, approx, i, ret;
-	u8 dc_over_dt, rf_tab;
+	int i, ret;
+	u8 tm_current, dc_over_dt, rf_tab;
+	s32 rfcal_comp, approx;
 
 	/* power up */
 	ret = tda18271_set_standby_mode(fe, 0, 0, 0);
@@ -277,11 +278,11 @@ static int tda18271c2_rf_tracking_filters_correction(struct dvb_frontend *fe,
 		return i;
 
 	if ((0 == map[i].rf3) || (freq / 1000 < map[i].rf2)) {
-		approx = map[i].rf_a1 *
-			(freq / 1000 - map[i].rf1) + map[i].rf_b1 + rf_tab;
+		approx = map[i].rf_a1 * (s32)(freq / 1000 - map[i].rf1) +
+			map[i].rf_b1 + rf_tab;
 	} else {
-		approx = map[i].rf_a2 *
-			(freq / 1000 - map[i].rf2) + map[i].rf_b2 + rf_tab;
+		approx = map[i].rf_a2 * (s32)(freq / 1000 - map[i].rf2) +
+			map[i].rf_b2 + rf_tab;
 	}
 
 	if (approx < 0)
@@ -292,9 +293,9 @@ static int tda18271c2_rf_tracking_filters_correction(struct dvb_frontend *fe,
 	tda18271_lookup_map(fe, RF_CAL_DC_OVER_DT, &freq, &dc_over_dt);
 
 	/* calculate temperature compensation */
-	rfcal_comp = dc_over_dt * (tm_current - priv->tm_rfcal) / 1000;
+	rfcal_comp = dc_over_dt * (s32)(tm_current - priv->tm_rfcal) / 1000;
 
-	regs[R_EB14] = approx + rfcal_comp;
+	regs[R_EB14] = (unsigned char)(approx + rfcal_comp);
 	ret = tda18271_write_regs(fe, R_EB14, 1);
 fail:
 	return ret;
@@ -572,6 +573,7 @@ static int tda18271_rf_tracking_filters_init(struct dvb_frontend *fe, u32 freq)
 	struct tda18271_rf_tracking_filter_cal *map = priv->rf_cal_state;
 	unsigned char *regs = priv->tda18271_regs;
 	int bcal, rf, i;
+	s32 divisor, dividend;
 #define RF1 0
 #define RF2 1
 #define RF3 2
@@ -610,20 +612,22 @@ static int tda18271_rf_tracking_filters_init(struct dvb_frontend *fe, u32 freq)
 		switch (rf) {
 		case RF1:
 			map[i].rf_a1 = 0;
-			map[i].rf_b1 = prog_cal[RF1] - prog_tab[RF1];
+			map[i].rf_b1 = (s32)(prog_cal[RF1] - prog_tab[RF1]);
 			map[i].rf1   = rf_freq[RF1] / 1000;
 			break;
 		case RF2:
-			map[i].rf_a1 = (prog_cal[RF2] - prog_tab[RF2] -
-					prog_cal[RF1] + prog_tab[RF1]) /
-				(s32)((rf_freq[RF2] - rf_freq[RF1]) / 1000);
+			dividend = (s32)(prog_cal[RF2] - prog_tab[RF2]) -
+				   (s32)(prog_cal[RF1] + prog_tab[RF1]);
+			divisor = (s32)(rf_freq[RF2] - rf_freq[RF1]) / 1000;
+			map[i].rf_a1 = (dividend / divisor);
 			map[i].rf2   = rf_freq[RF2] / 1000;
 			break;
 		case RF3:
-			map[i].rf_a2 = (prog_cal[RF3] - prog_tab[RF3] -
-					prog_cal[RF2] + prog_tab[RF2]) /
-				(s32)((rf_freq[RF3] - rf_freq[RF2]) / 1000);
-			map[i].rf_b2 = prog_cal[RF2] - prog_tab[RF2];
+			dividend = (s32)(prog_cal[RF3] - prog_tab[RF3]) -
+				   (s32)(prog_cal[RF2] + prog_tab[RF2]);
+			divisor = (s32)(rf_freq[RF3] - rf_freq[RF2]) / 1000;
+			map[i].rf_a2 = (dividend / divisor);
+			map[i].rf_b2 = (s32)(prog_cal[RF2] - prog_tab[RF2]);
 			map[i].rf3   = rf_freq[RF3] / 1000;
 			break;
 		default:
@@ -1181,6 +1185,48 @@ static int tda18271_get_id(struct dvb_frontend *fe)
 	return ret;
 }
 
+static int tda18271_setup_configuration(struct dvb_frontend *fe,
+					struct tda18271_config *cfg)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+
+	priv->gate = (cfg) ? cfg->gate : TDA18271_GATE_AUTO;
+	priv->role = (cfg) ? cfg->role : TDA18271_MASTER;
+	priv->config = (cfg) ? cfg->config : 0;
+	priv->small_i2c = (cfg) ?
+		cfg->small_i2c : TDA18271_39_BYTE_CHUNK_INIT;
+	priv->output_opt = (cfg) ?
+		cfg->output_opt : TDA18271_OUTPUT_LT_XT_ON;
+
+	return 0;
+}
+
+static inline int tda18271_need_cal_on_startup(struct tda18271_config *cfg)
+{
+	/* tda18271_cal_on_startup == -1 when cal module option is unset */
+	return ((tda18271_cal_on_startup == -1) ?
+		/* honor configuration setting */
+		((cfg) && (cfg->rf_cal_on_startup)) :
+		/* module option overrides configuration setting */
+		(tda18271_cal_on_startup)) ? 1 : 0;
+}
+
+static int tda18271_set_config(struct dvb_frontend *fe, void *priv_cfg)
+{
+	struct tda18271_config *cfg = (struct tda18271_config *) priv_cfg;
+
+	tda18271_setup_configuration(fe, cfg);
+
+	if (tda18271_need_cal_on_startup(cfg))
+		tda18271_init(fe);
+
+	/* override default std map with values in config struct */
+	if ((cfg) && (cfg->std_map))
+		tda18271_update_std_map(fe, cfg->std_map);
+
+	return 0;
+}
+
 static struct dvb_tuner_ops tda18271_tuner_ops = {
 	.info = {
 		.name = "NXP TDA18271HD",
@@ -1193,6 +1239,7 @@ static struct dvb_tuner_ops tda18271_tuner_ops = {
 	.set_params        = tda18271_set_params,
 	.set_analog_params = tda18271_set_analog_params,
 	.release           = tda18271_release,
+	.set_config        = tda18271_set_config,
 	.get_frequency     = tda18271_get_frequency,
 	.get_bandwidth     = tda18271_get_bandwidth,
 };
@@ -1213,32 +1260,13 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 	case 0:
 		goto fail;
 	case 1:
-	{
 		/* new tuner instance */
-		int rf_cal_on_startup;
+		fe->tuner_priv = priv;
 
-		priv->gate = (cfg) ? cfg->gate : TDA18271_GATE_AUTO;
-		priv->role = (cfg) ? cfg->role : TDA18271_MASTER;
-		priv->config = (cfg) ? cfg->config : 0;
-		priv->small_i2c = (cfg) ? cfg->small_i2c : 0;
-		priv->output_opt = (cfg) ?
-			cfg->output_opt : TDA18271_OUTPUT_LT_XT_ON;
-
-		/* tda18271_cal_on_startup == -1 when cal
-		 * module option is unset */
-		if (tda18271_cal_on_startup == -1) {
-			/* honor attach-time configuration */
-			rf_cal_on_startup =
-				((cfg) && (cfg->rf_cal_on_startup)) ? 1 : 0;
-		} else {
-			/* module option overrides attach configuration */
-			rf_cal_on_startup = tda18271_cal_on_startup;
-		}
+		tda18271_setup_configuration(fe, cfg);
 
 		priv->cal_initialized = false;
 		mutex_init(&priv->lock);
-
-		fe->tuner_priv = priv;
 
 		if (tda_fail(tda18271_get_id(fe)))
 			goto fail;
@@ -1249,12 +1277,12 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 		mutex_lock(&priv->lock);
 		tda18271_init_regs(fe);
 
-		if ((rf_cal_on_startup) && (priv->id == TDA18271HDC2))
+		if ((tda18271_need_cal_on_startup(cfg)) &&
+		    (priv->id == TDA18271HDC2))
 			tda18271c2_rf_cal_init(fe);
 
 		mutex_unlock(&priv->lock);
 		break;
-	}
 	default:
 		/* existing tuner instance */
 		fe->tuner_priv = priv;
@@ -1271,7 +1299,11 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 				priv->small_i2c = cfg->small_i2c;
 			if (cfg->output_opt)
 				priv->output_opt = cfg->output_opt;
+			if (cfg->std_map)
+				tda18271_update_std_map(fe, cfg->std_map);
 		}
+		if (tda18271_need_cal_on_startup(cfg))
+			tda18271_init(fe);
 		break;
 	}
 
@@ -1298,7 +1330,7 @@ EXPORT_SYMBOL_GPL(tda18271_attach);
 MODULE_DESCRIPTION("NXP TDA18271HD analog / digital tuner driver");
 MODULE_AUTHOR("Michael Krufky <mkrufky@linuxtv.org>");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("0.3");
+MODULE_VERSION("0.4");
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

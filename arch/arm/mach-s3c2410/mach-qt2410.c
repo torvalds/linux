@@ -258,7 +258,7 @@ static struct platform_device *qt2410_devices[] __initdata = {
 	&qt2410_led,
 };
 
-static struct mtd_partition qt2410_nand_part[] = {
+static struct mtd_partition __initdata qt2410_nand_part[] = {
 	[0] = {
 		.name	= "U-Boot",
 		.size	= 0x30000,
@@ -286,7 +286,7 @@ static struct mtd_partition qt2410_nand_part[] = {
 	},
 };
 
-static struct s3c2410_nand_set qt2410_nand_sets[] = {
+static struct s3c2410_nand_set __initdata qt2410_nand_sets[] = {
 	[0] = {
 		.name		= "NAND",
 		.nr_chips	= 1,
@@ -299,7 +299,7 @@ static struct s3c2410_nand_set qt2410_nand_sets[] = {
  * chips and beyond.
  */
 
-static struct s3c2410_platform_nand qt2410_nand_info = {
+static struct s3c2410_platform_nand __initdata qt2410_nand_info = {
 	.tacls		= 20,
 	.twrph0		= 60,
 	.twrph1		= 20,
@@ -331,7 +331,7 @@ static void __init qt2410_map_io(void)
 
 static void __init qt2410_machine_init(void)
 {
-	s3c_device_nand.dev.platform_data = &qt2410_nand_info;
+	s3c_nand_set_platdata(&qt2410_nand_info);
 
 	switch (tft_type) {
 	case 'p': /* production */

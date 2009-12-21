@@ -356,18 +356,7 @@ static int aic26_probe(struct platform_device *pdev)
 			ARRAY_SIZE(aic26_snd_controls));
 	WARN_ON(err < 0);
 
-	/* CODEC is setup, we can register the card now */
-	dev_dbg(&pdev->dev, "Registering card\n");
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "aic26: failed to register card\n");
-		goto card_err;
-	}
 	return 0;
-
- card_err:
-	snd_soc_free_pcms(socdev);
-	return ret;
 }
 
 static int aic26_remove(struct platform_device *pdev)

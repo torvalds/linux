@@ -1,6 +1,6 @@
 /* arch/arm/mach-s3c2410/include/mach/bast-cpld.h
  *
- * Copyright (c) 2003,2004 Simtec Electronics
+ * Copyright (c) 2003-2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * BAST - CPLD control constants

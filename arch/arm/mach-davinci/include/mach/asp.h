@@ -11,6 +11,9 @@
 #define DAVINCI_ASP0_BASE	0x01E02000
 #define DAVINCI_ASP1_BASE	0x01E04000
 
+/* Bases of dm365 register banks */
+#define DAVINCI_DM365_ASP0_BASE	0x01D02000
+
 /* Bases of dm646x register banks */
 #define	DAVINCI_DM646X_MCASP0_REG_BASE		0x01D01000
 #define DAVINCI_DM646X_MCASP1_REG_BASE		0x01D01800
@@ -51,6 +54,14 @@ struct snd_platform_data {
 	u32 rx_dma_offset;
 	enum dma_event_q eventq_no;	/* event queue number */
 	unsigned int codec_fmt;
+	/*
+	 * Allowing this is more efficient and eliminates left and right swaps
+	 * caused by underruns, but will swap the left and right channels
+	 * when compared to previous behavior.
+	 */
+	unsigned enable_channel_combine:1;
+	unsigned sram_size_playback;
+	unsigned sram_size_capture;
 
 	/* McASP specific fields */
 	int tdm_slots;

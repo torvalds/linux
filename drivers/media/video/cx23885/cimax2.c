@@ -53,6 +53,8 @@
 #define NETUP_CI_CTL		0x04
 #define NETUP_CI_RD		1
 
+#define NETUP_IRQ_DETAM 	0x1
+#define NETUP_IRQ_IRQAM		0x4
 
 static unsigned int ci_dbg;
 module_param(ci_dbg, int, 0644);
@@ -73,6 +75,9 @@ struct netup_ci_state {
 	int status;
 	struct work_struct work;
 	void *priv;
+	u8 current_irq_mode;
+	int current_ci_flag;
+	unsigned long next_status_checked_time;
 };
 
 
@@ -169,24 +174,26 @@ int netup_ci_op_cam(struct dvb_ca_en50221 *en50221, int slot,
 	if (0 != slot)
 		return -EINVAL;
 
-	ret = netup_read_i2c(state->i2c_adap, state->ci_i2c_addr,
-							0, &store, 1);
-	if (ret != 0)
-		return ret;
+	if (state->current_ci_flag != flag) {
+		ret = netup_read_i2c(state->i2c_adap, state->ci_i2c_addr,
+				0, &store, 1);
+		if (ret != 0)
+			return ret;
 
-	store &= ~0x0c;
-	store |= flag;
+		store &= ~0x0c;
+		store |= flag;
 
-	ret = netup_write_i2c(state->i2c_adap, state->ci_i2c_addr,
-							0, &store, 1);
-	if (ret != 0)
-		return ret;
+		ret = netup_write_i2c(state->i2c_adap, state->ci_i2c_addr,
+				0, &store, 1);
+		if (ret != 0)
+			return ret;
+	};
+	state->current_ci_flag = flag;
 
 	mutex_lock(&dev->gpio_lock);
 
 	/* write addr */
 	cx_write(MC417_OEN, NETUP_EN_ALL);
-	msleep(2);
 	cx_write(MC417_RWD, NETUP_CTRL_OFF |
 				NETUP_ADLO | (0xff & addr));
 	cx_clear(MC417_RWD, NETUP_ADLO);
@@ -196,7 +203,6 @@ int netup_ci_op_cam(struct dvb_ca_en50221 *en50221, int slot,
 
 	if (read) { /* data in */
 		cx_write(MC417_OEN, NETUP_EN_ALL | NETUP_DATA);
-		msleep(2);
 	} else /* data out */
 		cx_write(MC417_RWD, NETUP_CTRL_OFF | data);
 
@@ -213,8 +219,8 @@ int netup_ci_op_cam(struct dvb_ca_en50221 *en50221, int slot,
 		if (mem < 0)
 			return -EREMOTEIO;
 
-	ci_dbg_print("%s: %s: addr=[0x%02x], %s=%x\n", __func__,
-			(read) ? "read" : "write", addr,
+	ci_dbg_print("%s: %s: chipaddr=[0x%x] addr=[0x%02x], %s=%x\n", __func__,
+			(read) ? "read" : "write", state->ci_i2c_addr, addr,
 			(flag == NETUP_CI_CTL) ? "ctl" : "mem",
 			(read) ? mem : data);
 
@@ -283,13 +289,38 @@ int netup_ci_slot_shutdown(struct dvb_ca_en50221 *en50221, int slot)
 	return 0;
 }
 
+int netup_ci_set_irq(struct dvb_ca_en50221 *en50221, u8 irq_mode)
+{
+	struct netup_ci_state *state = en50221->data;
+	int ret;
+
+	if (irq_mode == state->current_irq_mode)
+		return 0;
+
+	ci_dbg_print("%s: chipaddr=[0x%x] setting ci IRQ to [0x%x] \n",
+			__func__, state->ci_i2c_addr, irq_mode);
+	ret = netup_write_i2c(state->i2c_adap, state->ci_i2c_addr,
+							0x1b, &irq_mode, 1);
+
+	if (ret != 0)
+		return ret;
+
+	state->current_irq_mode = irq_mode;
+
+	return 0;
+}
+
 int netup_ci_slot_ts_ctl(struct dvb_ca_en50221 *en50221, int slot)
 {
 	struct netup_ci_state *state = en50221->data;
-	u8 buf = 0x60;
+	u8 buf;
 
 	if (0 != slot)
 		return -EINVAL;
+
+	netup_read_i2c(state->i2c_adap, state->ci_i2c_addr,
+			0, &buf, 1);
+	buf |= 0x60;
 
 	return netup_write_i2c(state->i2c_adap, state->ci_i2c_addr,
 							0, &buf, 1);
@@ -303,21 +334,35 @@ static void netup_read_ci_status(struct work_struct *work)
 	u8 buf[33];
 	int ret;
 
-	ret = netup_read_i2c(state->i2c_adap, state->ci_i2c_addr,
-							0, &buf[0], 33);
+	/* CAM module IRQ processing. fast operation */
+	dvb_ca_en50221_frda_irq(&state->ca, 0);
 
-	if (ret != 0)
-		return;
+	/* CAM module INSERT/REMOVE processing. slow operation because of i2c
+	 * transfers */
+	if (time_after(jiffies, state->next_status_checked_time)
+			|| !state->status) {
+		ret = netup_read_i2c(state->i2c_adap, state->ci_i2c_addr,
+				0, &buf[0], 33);
 
-	ci_dbg_print("%s: Slot Status Addr=[0x%04x], Reg=[0x%02x], data=%02x, "
-		"TS config = %02x\n", __func__, state->ci_i2c_addr, 0, buf[0],
-		buf[32]);
+		state->next_status_checked_time = jiffies
+			+ msecs_to_jiffies(1000);
 
-	if (buf[0] & 1)
-		state->status = DVB_CA_EN50221_POLL_CAM_PRESENT |
-			DVB_CA_EN50221_POLL_CAM_READY;
-	else
-		state->status = 0;
+		if (ret != 0)
+			return;
+
+		ci_dbg_print("%s: Slot Status Addr=[0x%04x], "
+				"Reg=[0x%02x], data=%02x, "
+				"TS config = %02x\n", __func__,
+				state->ci_i2c_addr, 0, buf[0],
+				buf[0]);
+
+
+		if (buf[0] & 1)
+			state->status = DVB_CA_EN50221_POLL_CAM_PRESENT |
+				DVB_CA_EN50221_POLL_CAM_READY;
+		else
+			state->status = 0;
+	};
 }
 
 /* CI irq handler */
@@ -346,6 +391,9 @@ int netup_poll_ci_slot_status(struct dvb_ca_en50221 *en50221, int slot, int open
 
 	if (0 != slot)
 		return -EINVAL;
+
+	netup_ci_set_irq(en50221, open ? (NETUP_IRQ_DETAM | NETUP_IRQ_IRQAM)
+			: NETUP_IRQ_DETAM);
 
 	return state->status;
 }
@@ -381,8 +429,8 @@ int netup_ci_init(struct cx23885_tsport *port)
 		0x01, /* power on (use it like store place) */
 		0x00, /* RFU */
 		0x00, /* int status read only */
-		0x01, /* all int unmasked */
-		0x04, /* int config */
+		NETUP_IRQ_IRQAM | NETUP_IRQ_DETAM, /* DETAM, IRQAM unmasked */
+		0x05, /* EXTINT=active-high, INT=push-pull */
 		0x00, /* USCG1 */
 		0x04, /* ack active low */
 		0x00, /* LOCK = 0 */
@@ -422,6 +470,7 @@ int netup_ci_init(struct cx23885_tsport *port)
 	state->ca.poll_slot_status = netup_poll_ci_slot_status;
 	state->ca.data = state;
 	state->priv = port;
+	state->current_irq_mode = NETUP_IRQ_IRQAM | NETUP_IRQ_DETAM;
 
 	ret = netup_write_i2c(state->i2c_adap, state->ci_i2c_addr,
 						0, &cimax_init[0], 34);

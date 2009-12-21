@@ -470,7 +470,7 @@ static unsigned int wm831x_aldo_get_mode(struct regulator_dev *rdev)
 	struct wm831x_ldo *ldo = rdev_get_drvdata(rdev);
 	struct wm831x *wm831x = ldo->wm831x;
 	int on_reg = ldo->base + WM831X_LDO_ON_CONTROL;
-	unsigned int ret;
+	int ret;
 
 	ret = wm831x_reg_read(wm831x, on_reg);
 	if (ret < 0)

@@ -35,7 +35,7 @@
 #define BFA_FCPIM_PATHTOV_MAX	(90 * 1000)	/* in millisecs */
 
 #define bfa_fcpim_stats(__fcpim, __stats)   \
-    (__fcpim)->stats.__stats ++
+    ((__fcpim)->stats.__stats++)
 
 struct bfa_fcpim_mod_s {
 	struct bfa_s 	*bfa;
@@ -143,7 +143,7 @@ struct bfa_itnim_s {
 	struct bfa_itnim_hal_stats_s	stats;
 };
 
-#define bfa_itnim_is_online(_itnim) (_itnim)->is_online
+#define bfa_itnim_is_online(_itnim) ((_itnim)->is_online)
 #define BFA_FCPIM_MOD(_hal) (&(_hal)->modules.fcpim_mod)
 #define BFA_IOIM_FROM_TAG(_fcpim, _iotag)	\
 	(&fcpim->ioim_arr[_iotag])

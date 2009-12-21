@@ -55,7 +55,7 @@ static const struct be_ethtool_stat et_stats[] = {
 	{DRVSTAT_INFO(be_tx_stops)},
 	{DRVSTAT_INFO(be_fwd_reqs)},
 	{DRVSTAT_INFO(be_tx_wrbs)},
-	{DRVSTAT_INFO(be_polls)},
+	{DRVSTAT_INFO(be_rx_polls)},
 	{DRVSTAT_INFO(be_tx_events)},
 	{DRVSTAT_INFO(be_rx_events)},
 	{DRVSTAT_INFO(be_tx_compl)},
@@ -106,6 +106,18 @@ static const struct be_ethtool_stat et_stats[] = {
 	{ERXSTAT_INFO(rx_drops_no_fragments)},
 };
 #define ETHTOOL_STATS_NUM ARRAY_SIZE(et_stats)
+
+static const char et_self_tests[][ETH_GSTRING_LEN] = {
+	"MAC Loopback test",
+	"PHY Loopback test",
+	"External Loopback test",
+	"DDR DMA test"
+};
+
+#define ETHTOOL_TESTS_NUM ARRAY_SIZE(et_self_tests)
+#define BE_MAC_LOOPBACK 0x0
+#define BE_PHY_LOOPBACK 0x1
+#define BE_ONE_PORT_EXT_LOOPBACK 0x2
 
 static void
 be_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
@@ -234,7 +246,7 @@ be_get_ethtool_stats(struct net_device *netdev,
 	struct be_rxf_stats *rxf_stats = &hw_stats->rxf;
 	struct be_port_rxf_stats *port_stats =
 			&rxf_stats->port[adapter->port_num];
-	struct net_device_stats *net_stats = &adapter->stats.net_stats;
+	struct net_device_stats *net_stats = &netdev->stats;
 	struct be_erx_stats *erx_stats = &hw_stats->erx;
 	void *p = NULL;
 	int i;
@@ -278,19 +290,78 @@ be_get_stat_strings(struct net_device *netdev, uint32_t stringset,
 			data += ETH_GSTRING_LEN;
 		}
 		break;
+	case ETH_SS_TEST:
+		for (i = 0; i < ETHTOOL_TESTS_NUM; i++) {
+			memcpy(data, et_self_tests[i], ETH_GSTRING_LEN);
+			data += ETH_GSTRING_LEN;
+		}
+		break;
 	}
 }
 
-static int be_get_stats_count(struct net_device *netdev)
+static int be_get_sset_count(struct net_device *netdev, int stringset)
 {
-	return ETHTOOL_STATS_NUM;
+	switch (stringset) {
+	case ETH_SS_TEST:
+		return ETHTOOL_TESTS_NUM;
+	case ETH_SS_STATS:
+		return ETHTOOL_STATS_NUM;
+	default:
+		return -EINVAL;
+	}
 }
 
 static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 {
-	ecmd->speed = SPEED_10000;
+	struct be_adapter *adapter = netdev_priv(netdev);
+	u8 mac_speed = 0, connector = 0;
+	u16 link_speed = 0;
+	bool link_up = false;
+	int status;
+
+	if (adapter->link_speed < 0) {
+		status = be_cmd_link_status_query(adapter, &link_up,
+						&mac_speed, &link_speed);
+
+		/* link_speed is in units of 10 Mbps */
+		if (link_speed) {
+			ecmd->speed = link_speed*10;
+		} else {
+			switch (mac_speed) {
+			case PHY_LINK_SPEED_1GBPS:
+				ecmd->speed = SPEED_1000;
+				break;
+			case PHY_LINK_SPEED_10GBPS:
+				ecmd->speed = SPEED_10000;
+				break;
+			}
+		}
+
+		status = be_cmd_read_port_type(adapter, adapter->port_num,
+						&connector);
+		switch (connector) {
+		case 7:
+			ecmd->port = PORT_FIBRE;
+			break;
+		default:
+			ecmd->port = PORT_TP;
+			break;
+		}
+
+		/* Save for future use */
+		adapter->link_speed = ecmd->speed;
+		adapter->port_type = ecmd->port;
+	} else {
+		ecmd->speed = adapter->link_speed;
+		ecmd->port = adapter->port_type;
+	}
+
 	ecmd->duplex = DUPLEX_FULL;
 	ecmd->autoneg = AUTONEG_DISABLE;
+	ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_TP);
+	ecmd->phy_address = adapter->port_num;
+	ecmd->transceiver = XCVR_INTERNAL;
+
 	return 0;
 }
 
@@ -335,6 +406,123 @@ be_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 }
 
 static int
+be_phys_id(struct net_device *netdev, u32 data)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	int status;
+	u32 cur;
+
+	be_cmd_get_beacon_state(adapter, adapter->port_num, &cur);
+
+	if (cur == BEACON_STATE_ENABLED)
+		return 0;
+
+	if (data < 2)
+		data = 2;
+
+	status = be_cmd_set_beacon_state(adapter, adapter->port_num, 0, 0,
+			BEACON_STATE_ENABLED);
+	set_current_state(TASK_INTERRUPTIBLE);
+	schedule_timeout(data*HZ);
+
+	status = be_cmd_set_beacon_state(adapter, adapter->port_num, 0, 0,
+			BEACON_STATE_DISABLED);
+
+	return status;
+}
+
+static void
+be_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	wol->supported = WAKE_MAGIC;
+	if (adapter->wol)
+		wol->wolopts = WAKE_MAGIC;
+	else
+		wol->wolopts = 0;
+	memset(&wol->sopass, 0, sizeof(wol->sopass));
+	return;
+}
+
+static int
+be_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	if (wol->wolopts & ~WAKE_MAGIC)
+		return -EINVAL;
+
+	if (wol->wolopts & WAKE_MAGIC)
+		adapter->wol = true;
+	else
+		adapter->wol = false;
+
+	return 0;
+}
+
+static int
+be_test_ddr_dma(struct be_adapter *adapter)
+{
+	int ret, i;
+	struct be_dma_mem ddrdma_cmd;
+	u64 pattern[2] = {0x5a5a5a5a5a5a5a5a, 0xa5a5a5a5a5a5a5a5};
+
+	ddrdma_cmd.size = sizeof(struct be_cmd_req_ddrdma_test);
+	ddrdma_cmd.va = pci_alloc_consistent(adapter->pdev, ddrdma_cmd.size,
+					&ddrdma_cmd.dma);
+	if (!ddrdma_cmd.va) {
+		dev_err(&adapter->pdev->dev, "Memory allocation failure \n");
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < 2; i++) {
+		ret = be_cmd_ddr_dma_test(adapter, pattern[i],
+					4096, &ddrdma_cmd);
+		if (ret != 0)
+			goto err;
+	}
+
+err:
+	pci_free_consistent(adapter->pdev, ddrdma_cmd.size,
+			ddrdma_cmd.va, ddrdma_cmd.dma);
+	return ret;
+}
+
+static void
+be_self_test(struct net_device *netdev, struct ethtool_test *test, u64 *data)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	memset(data, 0, sizeof(u64) * ETHTOOL_TESTS_NUM);
+
+	if (test->flags & ETH_TEST_FL_OFFLINE) {
+		data[0] = be_cmd_loopback_test(adapter, adapter->port_num,
+						BE_MAC_LOOPBACK, 1500,
+						2, 0xabc);
+		if (data[0] != 0)
+			test->flags |= ETH_TEST_FL_FAILED;
+
+		data[1] = be_cmd_loopback_test(adapter, adapter->port_num,
+						BE_PHY_LOOPBACK, 1500,
+						2, 0xabc);
+		if (data[1] != 0)
+			test->flags |= ETH_TEST_FL_FAILED;
+
+		data[2] = be_cmd_loopback_test(adapter, adapter->port_num,
+						BE_ONE_PORT_EXT_LOOPBACK,
+						1500, 2, 0xabc);
+		if (data[2] != 0)
+			test->flags |= ETH_TEST_FL_FAILED;
+
+		data[3] = be_test_ddr_dma(adapter);
+		if (data[3] != 0)
+			test->flags |= ETH_TEST_FL_FAILED;
+	}
+
+}
+
+static int
 be_do_flash(struct net_device *netdev, struct ethtool_flash *efl)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
@@ -351,6 +539,8 @@ be_do_flash(struct net_device *netdev, struct ethtool_flash *efl)
 const struct ethtool_ops be_ethtool_ops = {
 	.get_settings = be_get_settings,
 	.get_drvinfo = be_get_drvinfo,
+	.get_wol = be_get_wol,
+	.set_wol = be_set_wol,
 	.get_link = ethtool_op_get_link,
 	.get_coalesce = be_get_coalesce,
 	.set_coalesce = be_set_coalesce,
@@ -366,7 +556,9 @@ const struct ethtool_ops be_ethtool_ops = {
 	.get_tso = ethtool_op_get_tso,
 	.set_tso = ethtool_op_set_tso,
 	.get_strings = be_get_stat_strings,
-	.get_stats_count = be_get_stats_count,
+	.phys_id = be_phys_id,
+	.get_sset_count = be_get_sset_count,
 	.get_ethtool_stats = be_get_ethtool_stats,
 	.flash_device = be_do_flash,
+	.self_test = be_self_test,
 };

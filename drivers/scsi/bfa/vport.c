@@ -31,13 +31,13 @@
 
 BFA_TRC_FILE(FCS, VPORT);
 
-#define __vport_fcs(__vp)       (__vp)->lport.fcs
-#define __vport_pwwn(__vp)      (__vp)->lport.port_cfg.pwwn
-#define __vport_nwwn(__vp)      (__vp)->lport.port_cfg.nwwn
-#define __vport_bfa(__vp)       (__vp)->lport.fcs->bfa
-#define __vport_fcid(__vp)      (__vp)->lport.pid
-#define __vport_fabric(__vp)    (__vp)->lport.fabric
-#define __vport_vfid(__vp)      (__vp)->lport.fabric->vf_id
+#define __vport_fcs(__vp)       ((__vp)->lport.fcs)
+#define __vport_pwwn(__vp)      ((__vp)->lport.port_cfg.pwwn)
+#define __vport_nwwn(__vp)      ((__vp)->lport.port_cfg.nwwn)
+#define __vport_bfa(__vp)       ((__vp)->lport.fcs->bfa)
+#define __vport_fcid(__vp)      ((__vp)->lport.pid)
+#define __vport_fabric(__vp)    ((__vp)->lport.fabric)
+#define __vport_vfid(__vp)      ((__vp)->lport.fabric->vf_id)
 
 #define BFA_FCS_VPORT_MAX_RETRIES  5
 /*
@@ -641,9 +641,9 @@ bfa_fcs_vport_get_max(struct bfa_fcs_s *fcs)
 	bfa_get_attr(fcs->bfa, &ioc_attr);
 
 	if (ioc_attr.pci_attr.device_id == BFA_PCI_DEVICE_ID_CT)
-		return (BFA_FCS_MAX_VPORTS_SUPP_CT);
+		return BFA_FCS_MAX_VPORTS_SUPP_CT;
 	else
-		return (BFA_FCS_MAX_VPORTS_SUPP_CB);
+		return BFA_FCS_MAX_VPORTS_SUPP_CB;
 }
 
 
@@ -675,7 +675,7 @@ bfa_fcs_vport_create(struct bfa_fcs_vport_s *vport, struct bfa_fcs_s *fcs,
 		     struct bfad_vport_s *vport_drv)
 {
 	if (vport_cfg->pwwn == 0)
-		return (BFA_STATUS_INVALID_WWN);
+		return BFA_STATUS_INVALID_WWN;
 
 	if (bfa_fcs_port_get_pwwn(&fcs->fabric.bport) == vport_cfg->pwwn)
 		return BFA_STATUS_VPORT_WWN_BP;

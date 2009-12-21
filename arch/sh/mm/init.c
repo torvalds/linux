@@ -120,7 +120,13 @@ void __init page_table_range_init(unsigned long start, unsigned long end,
 	for ( ; (i < PTRS_PER_PGD) && (vaddr != end); pgd++, i++) {
 		pud = (pud_t *)pgd;
 		for ( ; (j < PTRS_PER_PUD) && (vaddr != end); pud++, j++) {
+#ifdef __PAGETABLE_PMD_FOLDED
 			pmd = (pmd_t *)pud;
+#else
+			pmd = (pmd_t *)alloc_bootmem_low_pages(PAGE_SIZE);
+			pud_populate(&init_mm, pud, pmd);
+			pmd += k;
+#endif
 			for (; (k < PTRS_PER_PMD) && (vaddr != end); pmd++, k++) {
 				if (pmd_none(*pmd)) {
 					pte = (pte_t *) alloc_bootmem_low_pages(PAGE_SIZE);

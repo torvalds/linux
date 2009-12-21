@@ -27,6 +27,7 @@ config ARCH_OMAP4
 	bool "TI OMAP4"
 	select CPU_V7
 	select ARM_GIC
+	select COMMON_CLKDEV
 
 endchoice
 
@@ -42,28 +43,6 @@ config OMAP_DEBUG_LEDS
 	depends on OMAP_DEBUG_DEVICES
 	default y if LEDS || LEDS_OMAP_DEBUG
 
-config OMAP_DEBUG_POWERDOMAIN
-	bool "Emit debug messages from powerdomain layer"
-	depends on ARCH_OMAP2 || ARCH_OMAP3
-	help
-	  Say Y here if you want to compile in powerdomain layer
-	  debugging messages for OMAP2/3.   These messages can
-	  provide more detail as to why some powerdomain calls
-	  may be failing, and will also emit a descriptive message
-	  for every powerdomain register write.  However, the
-	  extra detail costs some memory.
-
-config OMAP_DEBUG_CLOCKDOMAIN
-	bool "Emit debug messages from clockdomain layer"
-	depends on ARCH_OMAP2 || ARCH_OMAP3
-	help
-	  Say Y here if you want to compile in clockdomain layer
-	  debugging messages for OMAP2/3.   These messages can
-	  provide more detail as to why some clockdomain calls
-	  may be failing, and will also emit a descriptive message
-	  for every clockdomain register write.  However, the
-	  extra detail costs some memory.
-
 config OMAP_RESET_CLOCKS
 	bool "Reset unused clocks during boot"
 	depends on ARCH_OMAP
@@ -78,28 +57,28 @@ config OMAP_RESET_CLOCKS
 
 config OMAP_MUX
 	bool "OMAP multiplexing support"
-        depends on ARCH_OMAP
+	depends on ARCH_OMAP
 	default y
-        help
-          Pin multiplexing support for OMAP boards. If your bootloader
-          sets the multiplexing correctly, say N. Otherwise, or if unsure,
-          say Y.
+	help
+	  Pin multiplexing support for OMAP boards. If your bootloader
+	  sets the multiplexing correctly, say N. Otherwise, or if unsure,
+	  say Y.
 
 config OMAP_MUX_DEBUG
 	bool "Multiplexing debug output"
-        depends on OMAP_MUX
-        help
-          Makes the multiplexing functions print out a lot of debug info.
-          This is useful if you want to find out the correct values of the
-          multiplexing registers.
+	depends on OMAP_MUX
+	help
+	  Makes the multiplexing functions print out a lot of debug info.
+	  This is useful if you want to find out the correct values of the
+	  multiplexing registers.
 
 config OMAP_MUX_WARNINGS
 	bool "Warn about pins the bootloader didn't set up"
-        depends on OMAP_MUX
-        default y
-        help
+	depends on OMAP_MUX
+	default y
+	help
 	  Choose Y here to warn whenever driver initialization logic needs
-	  to change the pin multiplexing setup.  When there are no warnings
+	  to change the pin multiplexing setup.	 When there are no warnings
 	  printed, it's safe to deselect OMAP_MUX for your product.
 
 config OMAP_MCBSP
@@ -125,7 +104,7 @@ config OMAP_IOMMU_DEBUG
 	tristate
 
 choice
-        prompt "System timer"
+	prompt "System timer"
 	default OMAP_MPU_TIMER
 
 config OMAP_MPU_TIMER
@@ -148,11 +127,11 @@ config OMAP_32K_TIMER
 endchoice
 
 config OMAP_32K_TIMER_HZ
-       int "Kernel internal timer frequency for 32KHz timer"
-       range 32 1024
-       depends on OMAP_32K_TIMER
-       default "128"
-       help
+	int "Kernel internal timer frequency for 32KHz timer"
+	range 32 1024
+	depends on OMAP_32K_TIMER
+	default "128"
+	help
 	  Kernel internal timer frequency should be a divisor of 32768,
 	  such as 64 or 128.
 
@@ -165,7 +144,7 @@ config OMAP_DM_TIMER
 choice
 	prompt "Low-level debug console UART"
 	depends on ARCH_OMAP
-	default OMAP_LL_DEBUG_UART1
+	default OMAP_LL_DEBUG_NONE
 
 config OMAP_LL_DEBUG_UART1
 	bool "UART1"
@@ -175,6 +154,9 @@ config OMAP_LL_DEBUG_UART2
 
 config OMAP_LL_DEBUG_UART3
 	bool "UART3"
+
+config OMAP_LL_DEBUG_NONE
+	bool "None"
 
 endchoice
 

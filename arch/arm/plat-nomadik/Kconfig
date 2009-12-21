@@ -1,0 +1,22 @@
+# We keep common IP's here for Nomadik and other similar
+# familiy of processors from ST-Ericsson. At the moment we have
+# just MTU, others to follow soon.
+
+config PLAT_NOMADIK
+	bool
+	depends on ARCH_NOMADIK || ARCH_U8500
+	default y
+	help
+	  Common platform code for Nomadik and other ST-Ericsson
+	  platforms.
+
+if PLAT_NOMADIK
+
+config HAS_MTU
+	bool
+	help
+	  Support for Multi Timer Unit. MTU provides access
+	  to multiple interrupt generating programmable
+	  32-bit free running decrementing counters.
+
+endif
