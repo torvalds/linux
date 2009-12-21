@@ -1,6 +1,7 @@
 /*
- * A simple kernel FIFO implementation.
+ * A generic kernel FIFO implementation.
  *
+ * Copyright (C) 2009 Stefani Seibold <stefani@seibold.net>
  * Copyright (C) 2004 Stelian Pop <stelian@popies.net>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -26,49 +27,51 @@
 #include <linux/kfifo.h>
 #include <linux/log2.h>
 
+static void _kfifo_init(struct kfifo *fifo, unsigned char *buffer,
+		unsigned int size, spinlock_t *lock)
+{
+	fifo->buffer = buffer;
+	fifo->size = size;
+	fifo->lock = lock;
+
+	kfifo_reset(fifo);
+}
+
 /**
- * kfifo_init - allocates a new FIFO using a preallocated buffer
+ * kfifo_init - initialize a FIFO using a preallocated buffer
+ * @fifo: the fifo to assign the buffer
  * @buffer: the preallocated buffer to be used.
  * @size: the size of the internal buffer, this have to be a power of 2.
- * @gfp_mask: get_free_pages mask, passed to kmalloc()
  * @lock: the lock to be used to protect the fifo buffer
  *
- * Do NOT pass the kfifo to kfifo_free() after use! Simply free the
- * &struct kfifo with kfree().
  */
-struct kfifo *kfifo_init(unsigned char *buffer, unsigned int size,
-			 gfp_t gfp_mask, spinlock_t *lock)
+void kfifo_init(struct kfifo *fifo, unsigned char *buffer, unsigned int size,
+			spinlock_t *lock)
 {
-	struct kfifo *fifo;
-
 	/* size must be a power of 2 */
 	BUG_ON(!is_power_of_2(size));
 
-	fifo = kmalloc(sizeof(struct kfifo), gfp_mask);
-	if (!fifo)
-		return ERR_PTR(-ENOMEM);
-
-	fifo->buffer = buffer;
-	fifo->size = size;
-	fifo->in = fifo->out = 0;
-	fifo->lock = lock;
-
-	return fifo;
+	_kfifo_init(fifo, buffer, size, lock);
 }
 EXPORT_SYMBOL(kfifo_init);
 
 /**
- * kfifo_alloc - allocates a new FIFO and its internal buffer
- * @size: the size of the internal buffer to be allocated.
+ * kfifo_alloc - allocates a new FIFO internal buffer
+ * @fifo: the fifo to assign then new buffer
+ * @size: the size of the buffer to be allocated, this have to be a power of 2.
  * @gfp_mask: get_free_pages mask, passed to kmalloc()
  * @lock: the lock to be used to protect the fifo buffer
  *
+ * This function dynamically allocates a new fifo internal buffer
+ *
  * The size will be rounded-up to a power of 2.
+ * The buffer will be release with kfifo_free().
+ * Return 0 if no error, otherwise the an error code
  */
-struct kfifo *kfifo_alloc(unsigned int size, gfp_t gfp_mask, spinlock_t *lock)
+int kfifo_alloc(struct kfifo *fifo, unsigned int size, gfp_t gfp_mask,
+			spinlock_t *lock)
 {
 	unsigned char *buffer;
-	struct kfifo *ret;
 
 	/*
 	 * round up to the next power of 2, since our 'let the indices
@@ -80,26 +83,24 @@ struct kfifo *kfifo_alloc(unsigned int size, gfp_t gfp_mask, spinlock_t *lock)
 	}
 
 	buffer = kmalloc(size, gfp_mask);
-	if (!buffer)
-		return ERR_PTR(-ENOMEM);
+	if (!buffer) {
+		_kfifo_init(fifo, 0, 0, NULL);
+		return -ENOMEM;
+	}
 
-	ret = kfifo_init(buffer, size, gfp_mask, lock);
+	_kfifo_init(fifo, buffer, size, lock);
 
-	if (IS_ERR(ret))
-		kfree(buffer);
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(kfifo_alloc);
 
 /**
- * kfifo_free - frees the FIFO
+ * kfifo_free - frees the FIFO internal buffer
  * @fifo: the fifo to be freed.
  */
 void kfifo_free(struct kfifo *fifo)
 {
 	kfree(fifo->buffer);
-	kfree(fifo);
 }
 EXPORT_SYMBOL(kfifo_free);
 

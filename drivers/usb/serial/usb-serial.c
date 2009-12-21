@@ -939,9 +939,8 @@ int usb_serial_probe(struct usb_interface *interface,
 			dev_err(&interface->dev, "No free urbs available\n");
 			goto probe_error;
 		}
-		port->write_fifo = kfifo_alloc(PAGE_SIZE, GFP_KERNEL,
-			&port->lock);
-		if (IS_ERR(port->write_fifo))
+		if (kfifo_alloc(&port->write_fifo, PAGE_SIZE, GFP_KERNEL,
+			&port->lock))
 			goto probe_error;
 		buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
 		port->bulk_out_size = buffer_size;

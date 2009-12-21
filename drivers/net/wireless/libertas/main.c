@@ -459,7 +459,7 @@ static int lbs_thread(void *data)
 		else if (!list_empty(&priv->cmdpendingq) &&
 					!(priv->wakeup_dev_required))
 			shouldsleep = 0;	/* We have a command to send */
-		else if (__kfifo_len(priv->event_fifo))
+		else if (__kfifo_len(&priv->event_fifo))
 			shouldsleep = 0;	/* We have an event to process */
 		else
 			shouldsleep = 1;	/* No command */
@@ -511,9 +511,9 @@ static int lbs_thread(void *data)
 
 		/* Process hardware events, e.g. card removed, link lost */
 		spin_lock_irq(&priv->driver_lock);
-		while (__kfifo_len(priv->event_fifo)) {
+		while (__kfifo_len(&priv->event_fifo)) {
 			u32 event;
-			__kfifo_get(priv->event_fifo, (unsigned char *) &event,
+			__kfifo_get(&priv->event_fifo, (unsigned char *) &event,
 				sizeof(event));
 			spin_unlock_irq(&priv->driver_lock);
 			lbs_process_event(priv, event);
@@ -883,10 +883,9 @@ static int lbs_init_adapter(struct lbs_private *priv)
 	priv->resp_len[0] = priv->resp_len[1] = 0;
 
 	/* Create the event FIFO */
-	priv->event_fifo = kfifo_alloc(sizeof(u32) * 16, GFP_KERNEL, NULL);
-	if (IS_ERR(priv->event_fifo)) {
+	ret = kfifo_alloc(&priv->event_fifo, sizeof(u32) * 16, GFP_KERNEL, NULL);
+	if (ret) {
 		lbs_pr_err("Out of memory allocating event FIFO buffer\n");
-		ret = -ENOMEM;
 		goto out;
 	}
 
@@ -901,8 +900,7 @@ static void lbs_free_adapter(struct lbs_private *priv)
 	lbs_deb_enter(LBS_DEB_MAIN);
 
 	lbs_free_cmd_buffer(priv);
-	if (priv->event_fifo)
-		kfifo_free(priv->event_fifo);
+	kfifo_free(&priv->event_fifo);
 	del_timer(&priv->command_timer);
 	del_timer(&priv->auto_deepsleep_timer);
 	kfree(priv->networks);
@@ -1177,7 +1175,7 @@ void lbs_queue_event(struct lbs_private *priv, u32 event)
 	if (priv->psstate == PS_STATE_SLEEP)
 		priv->psstate = PS_STATE_AWAKE;
 
-	__kfifo_put(priv->event_fifo, (unsigned char *) &event, sizeof(u32));
+	__kfifo_put(&priv->event_fifo, (unsigned char *) &event, sizeof(u32));
 
 	wake_up_interruptible(&priv->waitq);
 

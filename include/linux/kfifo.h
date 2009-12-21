@@ -1,6 +1,7 @@
 /*
- * A simple kernel FIFO implementation.
+ * A generic kernel FIFO implementation.
  *
+ * Copyright (C) 2009 Stefani Seibold <stefani@seibold.net>
  * Copyright (C) 2004 Stelian Pop <stelian@popies.net>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -32,10 +33,10 @@ struct kfifo {
 	spinlock_t *lock;	/* protects concurrent modifications */
 };
 
-extern struct kfifo *kfifo_init(unsigned char *buffer, unsigned int size,
-				gfp_t gfp_mask, spinlock_t *lock);
-extern struct kfifo *kfifo_alloc(unsigned int size, gfp_t gfp_mask,
-				 spinlock_t *lock);
+extern void kfifo_init(struct kfifo *fifo, unsigned char *buffer,
+			unsigned int size, spinlock_t *lock);
+extern __must_check int kfifo_alloc(struct kfifo *fifo, unsigned int size,
+			gfp_t gfp_mask, spinlock_t *lock);
 extern void kfifo_free(struct kfifo *fifo);
 extern unsigned int __kfifo_put(struct kfifo *fifo,
 				const unsigned char *buffer, unsigned int len);

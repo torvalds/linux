@@ -303,9 +303,9 @@ struct meye {
 	struct meye_grab_buffer grab_buffer[MEYE_MAX_BUFNBRS];
 	int vma_use_count[MEYE_MAX_BUFNBRS]; /* mmap count */
 	struct mutex lock;		/* mutex for open/mmap... */
-	struct kfifo *grabq;		/* queue for buffers to be grabbed */
+	struct kfifo grabq;		/* queue for buffers to be grabbed */
 	spinlock_t grabq_lock;		/* lock protecting the queue */
-	struct kfifo *doneq;		/* queue for grabbed buffers */
+	struct kfifo doneq;		/* queue for grabbed buffers */
 	spinlock_t doneq_lock;		/* lock protecting the queue */
 	wait_queue_head_t proc_list;	/* wait queue */
 	struct video_device *video_dev;	/* video device parameters */

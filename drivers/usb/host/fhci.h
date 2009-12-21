@@ -423,9 +423,9 @@ struct endpoint {
 	struct usb_td __iomem *td_base; /* first TD in the ring */
 	struct usb_td __iomem *conf_td; /* next TD for confirm after transac */
 	struct usb_td __iomem *empty_td;/* next TD for new transaction req. */
-	struct kfifo *empty_frame_Q;  /* Empty frames list to use */
-	struct kfifo *conf_frame_Q;   /* frames passed to TDs,waiting for tx */
-	struct kfifo *dummy_packets_Q;/* dummy packets for the CRC overun */
+	struct kfifo empty_frame_Q;  /* Empty frames list to use */
+	struct kfifo conf_frame_Q;   /* frames passed to TDs,waiting for tx */
+	struct kfifo dummy_packets_Q;/* dummy packets for the CRC overun */
 
 	bool already_pushed_dummy_bd;
 };
@@ -493,9 +493,9 @@ static inline struct usb_hcd *fhci_to_hcd(struct fhci_hcd *fhci)
 }
 
 /* fifo of pointers */
-static inline struct kfifo *cq_new(int size)
+static inline int cq_new(struct kfifo *fifo, int size)
 {
-	return kfifo_alloc(size * sizeof(void *), GFP_KERNEL, NULL);
+	return kfifo_alloc(fifo, size * sizeof(void *), GFP_KERNEL, NULL);
 }
 
 static inline void cq_delete(struct kfifo *kfifo)
