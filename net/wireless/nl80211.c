@@ -69,6 +69,7 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_WIPHY_RETRY_LONG] = { .type = NLA_U8 },
 	[NL80211_ATTR_WIPHY_FRAG_THRESHOLD] = { .type = NLA_U32 },
 	[NL80211_ATTR_WIPHY_RTS_THRESHOLD] = { .type = NLA_U32 },
+	[NL80211_ATTR_WIPHY_COVERAGE_CLASS] = { .type = NLA_U8 },
 
 	[NL80211_ATTR_IFTYPE] = { .type = NLA_U32 },
 	[NL80211_ATTR_IFINDEX] = { .type = NLA_U32 },
@@ -444,6 +445,8 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 		    dev->wiphy.frag_threshold);
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_RTS_THRESHOLD,
 		    dev->wiphy.rts_threshold);
+	NLA_PUT_U8(msg, NL80211_ATTR_WIPHY_COVERAGE_CLASS,
+		    dev->wiphy.coverage_class);
 
 	NLA_PUT_U8(msg, NL80211_ATTR_MAX_NUM_SCAN_SSIDS,
 		   dev->wiphy.max_scan_ssids);
@@ -684,6 +687,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 	u32 changed;
 	u8 retry_short = 0, retry_long = 0;
 	u32 frag_threshold = 0, rts_threshold = 0;
+	u8 coverage_class = 0;
 
 	rtnl_lock();
 
@@ -806,9 +810,16 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		changed |= WIPHY_PARAM_RTS_THRESHOLD;
 	}
 
+	if (info->attrs[NL80211_ATTR_WIPHY_COVERAGE_CLASS]) {
+		coverage_class = nla_get_u8(
+			info->attrs[NL80211_ATTR_WIPHY_COVERAGE_CLASS]);
+		changed |= WIPHY_PARAM_COVERAGE_CLASS;
+	}
+
 	if (changed) {
 		u8 old_retry_short, old_retry_long;
 		u32 old_frag_threshold, old_rts_threshold;
+		u8 old_coverage_class;
 
 		if (!rdev->ops->set_wiphy_params) {
 			result = -EOPNOTSUPP;
@@ -819,6 +830,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		old_retry_long = rdev->wiphy.retry_long;
 		old_frag_threshold = rdev->wiphy.frag_threshold;
 		old_rts_threshold = rdev->wiphy.rts_threshold;
+		old_coverage_class = rdev->wiphy.coverage_class;
 
 		if (changed & WIPHY_PARAM_RETRY_SHORT)
 			rdev->wiphy.retry_short = retry_short;
@@ -828,6 +840,8 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 			rdev->wiphy.frag_threshold = frag_threshold;
 		if (changed & WIPHY_PARAM_RTS_THRESHOLD)
 			rdev->wiphy.rts_threshold = rts_threshold;
+		if (changed & WIPHY_PARAM_COVERAGE_CLASS)
+			rdev->wiphy.coverage_class = coverage_class;
 
 		result = rdev->ops->set_wiphy_params(&rdev->wiphy, changed);
 		if (result) {
@@ -835,6 +849,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 			rdev->wiphy.retry_long = old_retry_long;
 			rdev->wiphy.frag_threshold = old_frag_threshold;
 			rdev->wiphy.rts_threshold = old_rts_threshold;
+			rdev->wiphy.coverage_class = old_coverage_class;
 		}
 	}
 

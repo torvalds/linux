@@ -402,6 +402,7 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	rdev->wiphy.retry_long = 4;
 	rdev->wiphy.frag_threshold = (u32) -1;
 	rdev->wiphy.rts_threshold = (u32) -1;
+	rdev->wiphy.coverage_class = 0;
 
 	return &rdev->wiphy;
 }

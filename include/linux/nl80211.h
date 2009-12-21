@@ -430,6 +430,8 @@ enum nl80211_commands {
  * @NL80211_ATTR_WIPHY_RTS_THRESHOLD: RTS threshold (TX frames with length
  *	larger than or equal to this use RTS/CTS handshake); allowed range:
  *	0..65536, disable with (u32)-1; dot11RTSThreshold; u32
+ * @NL80211_ATTR_WIPHY_COVERAGE_CLASS: Coverage Class as defined by IEEE 802.11
+ *	section 7.3.2.9; dot11CoverageClass; u8
  *
  * @NL80211_ATTR_IFINDEX: network interface index of the device to operate on
  * @NL80211_ATTR_IFNAME: network interface name
@@ -778,6 +780,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_DURATION,
 
 	NL80211_ATTR_COOKIE,
+
+	NL80211_ATTR_WIPHY_COVERAGE_CLASS,
 
 	/* add attributes here, update the policy in nl80211.c */
 
