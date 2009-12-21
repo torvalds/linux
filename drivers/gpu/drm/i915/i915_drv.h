@@ -307,8 +307,6 @@ typedef struct drm_i915_private {
 	u32 saveDSPACNTR;
 	u32 saveDSPBCNTR;
 	u32 saveDSPARB;
-	u32 saveRENDERSTANDBY;
-	u32 savePWRCTXA;
 	u32 saveHWS;
 	u32 savePIPEACONF;
 	u32 savePIPEBCONF;

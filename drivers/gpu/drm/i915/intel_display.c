@@ -4593,7 +4593,7 @@ void intel_init_clock_gating(struct drm_device *dev)
 	 * GPU can automatically power down the render unit if given a page
 	 * to save state.
 	 */
-	if (I915_HAS_RC6(dev)) {
+	if (I915_HAS_RC6(dev) && drm_core_check_feature(dev, DRIVER_MODESET)) {
 		struct drm_gem_object *pwrctx;
 		struct drm_i915_gem_object *obj_priv;
 		int ret;
