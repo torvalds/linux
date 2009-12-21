@@ -302,8 +302,7 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp,
 		return ret;
 	}
 
-	if (bp->callback)
-		ret = arch_store_info(bp);
+	ret = arch_store_info(bp);
 
 	if (ret < 0)
 		return ret;
@@ -368,7 +367,7 @@ static int __kprobes hw_breakpoint_handler(struct die_args *args)
 			break;
 		}
 
-		(bp->callback)(bp, args->regs);
+		perf_bp_event(bp, args->regs);
 
 		rcu_read_unlock();
 	}
