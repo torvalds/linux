@@ -37,11 +37,13 @@
 #include "cx18-fileops.h"
 #include "cx18-alsa.h"
 
-extern int cx18_alsa_debug;
+static unsigned int pcm_debug;
+module_param(pcm_debug, int, 0644);
+MODULE_PARM_DESC(pcm_debug, "enable debug messages for pcm");
 
 #define dprintk(fmt, arg...) do {					\
-	    if (cx18_alsa_debug)					\
-		printk(KERN_INFO "cx18-alsa %s: " fmt,			\
+	    if (pcm_debug)						\
+		printk(KERN_INFO "cx18-alsa-pcm %s: " fmt,		\
 				  __func__, ##arg); 			\
 	} while (0)
 
