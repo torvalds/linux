@@ -358,7 +358,8 @@ fail:
  * Give out the data that's requested from the buffer that we have
  * queued up.
  */
-static ssize_t fill_readbuf(struct port *port, char *out_buf, size_t out_count)
+static ssize_t fill_readbuf(struct port *port, char *out_buf, size_t out_count,
+			    bool to_user)
 {
 	struct port_buffer *buf;
 	unsigned long flags;
@@ -367,12 +368,18 @@ static ssize_t fill_readbuf(struct port *port, char *out_buf, size_t out_count)
 		return 0;
 
 	buf = port->inbuf;
-	if (out_count > buf->len - buf->offset)
-		out_count = buf->len - buf->offset;
+	out_count = min(out_count, buf->len - buf->offset);
 
-	memcpy(out_buf, buf->buf + buf->offset, out_count);
+	if (to_user) {
+		ssize_t ret;
 
-	/* Return the number of bytes actually copied */
+		ret = copy_to_user(out_buf, buf->buf + buf->offset, out_count);
+		if (ret)
+			return -EFAULT;
+	} else {
+		memcpy(out_buf, buf->buf + buf->offset, out_count);
+	}
+
 	buf->offset += out_count;
 
 	if (buf->offset == buf->len) {
@@ -388,6 +395,7 @@ static ssize_t fill_readbuf(struct port *port, char *out_buf, size_t out_count)
 
 		spin_unlock_irqrestore(&port->inbuf_lock, flags);
 	}
+	/* Return the number of bytes actually copied */
 	return out_count;
 }
 
@@ -431,7 +439,7 @@ static int get_chars(u32 vtermno, char *buf, int count)
 	/* If we don't have an input queue yet, we can't get input. */
 	BUG_ON(!port->in_vq);
 
-	return fill_readbuf(port, buf, count);
+	return fill_readbuf(port, buf, count, false);
 }
 
 static void resize_console(struct port *port)
