@@ -2349,7 +2349,7 @@ static void amd64_read_mc_registers(struct amd64_pvt *pvt)
 	amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCLR_0, &pvt->dclr0);
 	amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCHR_0, &pvt->dchr0);
 
-	if (!dct_ganging_enabled(pvt)) {
+	if (!dct_ganging_enabled(pvt) && boot_cpu_data.x86 >= 0x10) {
 		amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCLR_1, &pvt->dclr1);
 		amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCHR_1, &pvt->dchr1);
 	}
