@@ -249,13 +249,15 @@ void atombios_crtc_dpms(struct drm_crtc *crtc, int mode)
 		if (ASIC_IS_DCE3(rdev))
 			atombios_enable_crtc_memreq(crtc, 1);
 		atombios_blank_crtc(crtc, 0);
-		drm_vblank_post_modeset(dev, radeon_crtc->crtc_id);
+		if (rdev->family < CHIP_R600)
+			drm_vblank_post_modeset(dev, radeon_crtc->crtc_id);
 		radeon_crtc_load_lut(crtc);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		drm_vblank_pre_modeset(dev, radeon_crtc->crtc_id);
+		if (rdev->family < CHIP_R600)
+			drm_vblank_pre_modeset(dev, radeon_crtc->crtc_id);
 		atombios_blank_crtc(crtc, 1);
 		if (ASIC_IS_DCE3(rdev))
 			atombios_enable_crtc_memreq(crtc, 0);
