@@ -125,11 +125,10 @@ void kvmppc_inject_interrupt(struct kvm_vcpu *vcpu, int vec, u64 flags)
 	vcpu->arch.mmu.reset_msr(vcpu);
 }
 
-void kvmppc_book3s_queue_irqprio(struct kvm_vcpu *vcpu, unsigned int vec)
+static int kvmppc_book3s_vec2irqprio(unsigned int vec)
 {
 	unsigned int prio;
 
-	vcpu->stat.queue_intr++;
 	switch (vec) {
 	case 0x100: prio = BOOK3S_IRQPRIO_SYSTEM_RESET;		break;
 	case 0x200: prio = BOOK3S_IRQPRIO_MACHINE_CHECK;	break;
@@ -149,7 +148,15 @@ void kvmppc_book3s_queue_irqprio(struct kvm_vcpu *vcpu, unsigned int vec)
 	default:    prio = BOOK3S_IRQPRIO_MAX;			break;
 	}
 
-	set_bit(prio, &vcpu->arch.pending_exceptions);
+	return prio;
+}
+
+void kvmppc_book3s_queue_irqprio(struct kvm_vcpu *vcpu, unsigned int vec)
+{
+	vcpu->stat.queue_intr++;
+
+	set_bit(kvmppc_book3s_vec2irqprio(vec),
+		&vcpu->arch.pending_exceptions);
 #ifdef EXIT_DEBUG
 	printk(KERN_INFO "Queueing interrupt %x\n", vec);
 #endif
