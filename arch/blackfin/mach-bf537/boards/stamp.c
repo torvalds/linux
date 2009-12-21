@@ -208,8 +208,8 @@ static struct resource sl811_hcd_resources[] = {
 		.end = 0x20340004,
 		.flags = IORESOURCE_MEM,
 	}, {
-		.start = CONFIG_USB_SL811_BFIN_IRQ,
-		.end = CONFIG_USB_SL811_BFIN_IRQ,
+		.start = IRQ_PF4,
+		.end = IRQ_PF4,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	},
 };
