@@ -514,8 +514,10 @@ static int lbs_thread(void *data)
 		while (kfifo_len(&priv->event_fifo)) {
 			u32 event;
 
-			kfifo_out(&priv->event_fifo, (unsigned char *) &event,
-				sizeof(event));
+			if (kfifo_out(&priv->event_fifo,
+				(unsigned char *) &event, sizeof(event)) !=
+				sizeof(event))
+					break;
 			spin_unlock_irq(&priv->driver_lock);
 			lbs_process_event(priv, event);
 			spin_lock_irq(&priv->driver_lock);

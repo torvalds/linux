@@ -56,7 +56,7 @@ extern void kfifo_init(struct kfifo *fifo, unsigned char *buffer,
 extern __must_check int kfifo_alloc(struct kfifo *fifo, unsigned int size,
 			gfp_t gfp_mask);
 extern void kfifo_free(struct kfifo *fifo);
-extern __must_check unsigned int kfifo_in(struct kfifo *fifo,
+extern unsigned int kfifo_in(struct kfifo *fifo,
 				const unsigned char *from, unsigned int len);
 extern __must_check unsigned int kfifo_out(struct kfifo *fifo,
 				unsigned char *to, unsigned int len);
@@ -94,7 +94,7 @@ static inline unsigned int kfifo_len(struct kfifo *fifo)
  * the FIFO depending on the free space, and returns the number of
  * bytes copied.
  */
-static inline __must_check unsigned int kfifo_in_locked(struct kfifo *fifo,
+static inline unsigned int kfifo_in_locked(struct kfifo *fifo,
 		const unsigned char *from, unsigned int n, spinlock_t *lock)
 {
 	unsigned long flags;

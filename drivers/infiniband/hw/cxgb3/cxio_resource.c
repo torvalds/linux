@@ -86,8 +86,9 @@ static int __cxio_init_resource_fifo(struct kfifo *fifo,
 			kfifo_in(fifo, (unsigned char *) &i, sizeof(u32));
 
 	for (i = 0; i < skip_low + skip_high; i++)
-		kfifo_out_locked(fifo, (unsigned char *) &entry,
-				sizeof(u32), fifo_lock);
+		if (kfifo_out_locked(fifo, (unsigned char *) &entry,
+				sizeof(u32), fifo_lock) != sizeof(u32))
+					break;
 	return 0;
 }
 

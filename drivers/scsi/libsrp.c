@@ -163,8 +163,11 @@ struct iu_entry *srp_iu_get(struct srp_target *target)
 {
 	struct iu_entry *iue = NULL;
 
-	kfifo_out_locked(&target->iu_queue.queue, (void *) &iue,
-			sizeof(void *), &target->iu_queue.lock);
+	if (kfifo_out_locked(&target->iu_queue.queue, (void *) &iue,
+		sizeof(void *), &target->iu_queue.lock) != sizeof(void *)) {
+			WARN_ONCE(1, "unexpected fifo state");
+			return NULL;
+	}
 	if (!iue)
 		return iue;
 	iue->target = target;
