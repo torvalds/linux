@@ -85,9 +85,9 @@ static int snd_cx18_pcm_capture_open(struct snd_pcm_substream *substream)
 
 	/* Allocate memory */
 	item = kmalloc(sizeof(struct cx18_open_id), GFP_KERNEL);
-	if (NULL == item) {
+	if (NULL == item)
 		return -ENOMEM;
-	}
+
 	item->cx = cx;
 	item->type = s->type;
 	item->open_id = cx->open_id++;
@@ -223,7 +223,6 @@ snd_pcm_uframes_t snd_cx18_pcm_pointer(struct snd_pcm_substream *substream)
 	return hwptr_done;
 }
 
-
 static struct page *snd_pcm_get_vmalloc_page(struct snd_pcm_substream *subs,
 					     unsigned long offset)
 {
@@ -341,7 +340,8 @@ int snd_cx18_pcm_create(struct snd_cx18_card *cxsc)
 
 	spin_lock_init(&cxsc->slock);
 
-	snd_pcm_set_ops(sp, SNDRV_PCM_STREAM_CAPTURE, &snd_cx18_pcm_capture_ops);
+	snd_pcm_set_ops(sp, SNDRV_PCM_STREAM_CAPTURE,
+			&snd_cx18_pcm_capture_ops);
 	sp->info_flags = 0;
 	sp->private_data = cxsc;
 	strlcpy(sp->name, cx->card_name, sizeof(sp->name));
