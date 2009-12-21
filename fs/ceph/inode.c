@@ -939,6 +939,10 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 			     req->r_old_dentry->d_name.len,
 			     req->r_old_dentry->d_name.name,
 			     dn, dn->d_name.len, dn->d_name.name);
+			/* ensure target dentry is invalidated, despite
+			   rehashing bug in vfs_rename_dir */
+			dn->d_time = jiffies;
+			ceph_dentry(dn)->lease_shared_gen = 0;
 			/* take overwritten dentry's readdir offset */
 			ceph_dentry(req->r_old_dentry)->offset =
 				ceph_dentry(dn)->offset;
