@@ -34,12 +34,6 @@
 /* #define EXIT_DEBUG */
 /* #define EXIT_DEBUG_SIMPLE */
 
-/* Without AGGRESSIVE_DEC we only fire off a DEC interrupt when DEC turns 0.
- * When set, we retrigger a DEC interrupt after that if DEC <= 0.
- * PPC32 Linux runs faster without AGGRESSIVE_DEC, PPC64 Linux requires it. */
-
-/* #define AGGRESSIVE_DEC */
-
 struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "exits",       VCPU_STAT(sum_exits) },
 	{ "mmio",        VCPU_STAT(mmio_exits) },
@@ -81,7 +75,7 @@ void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu)
 	to_book3s(vcpu)->slb_shadow_max = get_paca()->kvm_slb_max;
 }
 
-#if defined(AGGRESSIVE_DEC) || defined(EXIT_DEBUG)
+#if defined(EXIT_DEBUG)
 static u32 kvmppc_get_dec(struct kvm_vcpu *vcpu)
 {
 	u64 jd = mftb() - vcpu->arch.dec_jiffies;
@@ -272,14 +266,6 @@ void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu)
 {
 	unsigned long *pending = &vcpu->arch.pending_exceptions;
 	unsigned int priority;
-
-	/* XXX be more clever here - no need to mftb() on every entry */
-	/* Issue DEC again if it's still active */
-#ifdef AGGRESSIVE_DEC
-	if (vcpu->arch.msr & MSR_EE)
-		if (kvmppc_get_dec(vcpu) & 0x80000000)
-			kvmppc_core_queue_dec(vcpu);
-#endif
 
 #ifdef EXIT_DEBUG
 	if (vcpu->arch.pending_exceptions)
