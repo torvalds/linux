@@ -7226,8 +7226,6 @@ lpfc_prep_dev_for_perm_failure(struct lpfc_hba *phba)
 {
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			"2711 PCI channel permanent disable for failure\n");
-	/* Block all SCSI devices' I/Os on the host */
-	lpfc_scsi_dev_block(phba);
 	/* Clean up all driver's outstanding SCSI I/Os */
 	lpfc_sli_flush_fcp_rings(phba);
 }
@@ -7255,6 +7253,9 @@ lpfc_io_error_detected_s3(struct pci_dev *pdev, pci_channel_state_t state)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
+
+	/* Block all SCSI devices' I/Os on the host */
+	lpfc_scsi_dev_block(phba);
 
 	switch (state) {
 	case pci_channel_io_normal:

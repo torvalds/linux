@@ -747,6 +747,10 @@ lpfc_linkdown(struct lpfc_hba *phba)
 
 	if (phba->link_state == LPFC_LINK_DOWN)
 		return 0;
+
+	/* Block all SCSI stack I/Os */
+	lpfc_scsi_dev_block(phba);
+
 	spin_lock_irq(&phba->hbalock);
 	phba->fcf.fcf_flag &= ~(FCF_AVAILABLE | FCF_DISCOVERED);
 	if (phba->link_state > LPFC_LINK_DOWN) {
