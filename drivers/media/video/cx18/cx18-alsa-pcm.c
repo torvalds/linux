@@ -47,10 +47,6 @@ MODULE_PARM_DESC(pcm_debug, "enable debug messages for pcm");
 				  __func__, ##arg); 			\
 	} while (0)
 
-/* Forward Declaration */
-void cx18_alsa_announce_pcm_data(struct snd_cx18_card *cxsc, u8 *pcm_data,
-				 size_t num_bytes);
-
 static struct snd_pcm_hardware snd_cx18_hw_capture = {
 	.info = SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		SNDRV_PCM_INFO_MMAP           |
@@ -71,6 +67,82 @@ static struct snd_pcm_hardware snd_cx18_hw_capture = {
 	.periods_min = 2,
 	.periods_max = 98,		/* 12544, */
 };
+
+void cx18_alsa_announce_pcm_data(struct snd_cx18_card *cxsc, u8 *pcm_data,
+				 size_t num_bytes)
+{
+	struct snd_pcm_substream *substream;
+	struct snd_pcm_runtime *runtime;
+	unsigned int oldptr;
+	unsigned int stride;
+	int period_elapsed = 0;
+	int length;
+
+	dprintk("cx18 alsa announce ptr=%p data=%p num_bytes=%d\n", cxsc,
+		pcm_data, num_bytes);
+
+	substream = cxsc->capture_pcm_substream;
+	if (substream == NULL) {
+		dprintk("substream was NULL\n");
+		return;
+	}
+
+	runtime = substream->runtime;
+	if (runtime == NULL) {
+		dprintk("runtime was NULL\n");
+		return;
+	}
+
+	stride = runtime->frame_bits >> 3;
+	if (stride == 0) {
+		dprintk("stride is zero\n");
+		return;
+	}
+
+	length = num_bytes / stride;
+	if (length == 0) {
+		dprintk("%s: length was zero\n", __func__);
+		return;
+	}
+
+	if (runtime->dma_area == NULL) {
+		dprintk("dma area was NULL - ignoring\n");
+		return;
+	}
+
+	oldptr = cxsc->hwptr_done_capture;
+	if (oldptr + length >= runtime->buffer_size) {
+		unsigned int cnt =
+			runtime->buffer_size - oldptr;
+		memcpy(runtime->dma_area + oldptr * stride, pcm_data,
+		       cnt * stride);
+		memcpy(runtime->dma_area, pcm_data + cnt * stride,
+		       length * stride - cnt * stride);
+	} else {
+		memcpy(runtime->dma_area + oldptr * stride, pcm_data,
+		       length * stride);
+	}
+	snd_pcm_stream_lock(substream);
+
+	cxsc->hwptr_done_capture += length;
+	if (cxsc->hwptr_done_capture >=
+	    runtime->buffer_size)
+		cxsc->hwptr_done_capture -=
+			runtime->buffer_size;
+
+	cxsc->capture_transfer_done += length;
+	if (cxsc->capture_transfer_done >=
+	    runtime->period_size) {
+		cxsc->capture_transfer_done -=
+			runtime->period_size;
+		period_elapsed = 1;
+	}
+
+	snd_pcm_stream_unlock(substream);
+
+	if (period_elapsed)
+		snd_pcm_period_elapsed(substream);
+}
 
 static int snd_cx18_pcm_capture_open(struct snd_pcm_substream *substream)
 {
@@ -244,82 +316,6 @@ static struct snd_pcm_ops snd_cx18_pcm_capture_ops = {
 	.pointer	= snd_cx18_pcm_pointer,
 	.page		= snd_pcm_get_vmalloc_page,
 };
-
-void cx18_alsa_announce_pcm_data(struct snd_cx18_card *cxsc, u8 *pcm_data,
-				 size_t num_bytes)
-{
-	struct snd_pcm_substream *substream;
-	struct snd_pcm_runtime *runtime;
-	unsigned int oldptr;
-	unsigned int stride;
-	int period_elapsed = 0;
-	int length;
-
-	dprintk("cx18 alsa announce ptr=%p data=%p num_bytes=%d\n", cxsc,
-		pcm_data, num_bytes);
-
-	substream = cxsc->capture_pcm_substream;
-	if (substream == NULL) {
-		dprintk("substream was NULL\n");
-		return;
-	}
-
-	runtime = substream->runtime;
-	if (runtime == NULL) {
-		dprintk("runtime was NULL\n");
-		return;
-	}
-
-	stride = runtime->frame_bits >> 3;
-	if (stride == 0) {
-		dprintk("stride is zero\n");
-		return;
-	}
-
-	length = num_bytes / stride;
-	if (length == 0) {
-		dprintk("%s: length was zero\n", __func__);
-		return;
-	}
-
-	if (runtime->dma_area == NULL) {
-		dprintk("dma area was NULL - ignoring\n");
-		return;
-	}
-
-	oldptr = cxsc->hwptr_done_capture;
-	if (oldptr + length >= runtime->buffer_size) {
-		unsigned int cnt =
-			runtime->buffer_size - oldptr;
-		memcpy(runtime->dma_area + oldptr * stride, pcm_data,
-		       cnt * stride);
-		memcpy(runtime->dma_area, pcm_data + cnt * stride,
-		       length * stride - cnt * stride);
-	} else {
-		memcpy(runtime->dma_area + oldptr * stride, pcm_data,
-		       length * stride);
-	}
-	snd_pcm_stream_lock(substream);
-
-	cxsc->hwptr_done_capture += length;
-	if (cxsc->hwptr_done_capture >=
-	    runtime->buffer_size)
-		cxsc->hwptr_done_capture -=
-			runtime->buffer_size;
-
-	cxsc->capture_transfer_done += length;
-	if (cxsc->capture_transfer_done >=
-	    runtime->period_size) {
-		cxsc->capture_transfer_done -=
-			runtime->period_size;
-		period_elapsed = 1;
-	}
-
-	snd_pcm_stream_unlock(substream);
-
-	if (period_elapsed)
-		snd_pcm_period_elapsed(substream);
-}
 
 int snd_cx18_pcm_create(struct snd_cx18_card *cxsc)
 {
