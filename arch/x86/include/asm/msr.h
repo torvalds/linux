@@ -27,6 +27,18 @@ struct msr {
 	};
 };
 
+struct msr_info {
+	u32 msr_no;
+	struct msr reg;
+	struct msr *msrs;
+	int err;
+};
+
+struct msr_regs_info {
+	u32 *regs;
+	int err;
+};
+
 static inline unsigned long long native_read_tscp(unsigned int *aux)
 {
 	unsigned long low, high;
@@ -240,9 +252,9 @@ do {                                                            \
 #define checking_wrmsrl(msr, val) wrmsr_safe((msr), (u32)(val),		\
 					     (u32)((val) >> 32))
 
-#define write_tsc(val1, val2) wrmsr(0x10, (val1), (val2))
+#define write_tsc(val1, val2) wrmsr(MSR_IA32_TSC, (val1), (val2))
 
-#define write_rdtscp_aux(val) wrmsr(0xc0000103, (val), 0)
+#define write_rdtscp_aux(val) wrmsr(MSR_TSC_AUX, (val), 0)
 
 struct msr *msrs_alloc(void);
 void msrs_free(struct msr *msrs);

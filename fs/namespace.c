@@ -2068,7 +2068,7 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
  * create_mnt_ns - creates a private namespace and adds a root filesystem
  * @mnt: pointer to the new root filesystem mountpoint
  */
-static struct mnt_namespace *create_mnt_ns(struct vfsmount *mnt)
+struct mnt_namespace *create_mnt_ns(struct vfsmount *mnt)
 {
 	struct mnt_namespace *new_ns;
 
@@ -2080,6 +2080,7 @@ static struct mnt_namespace *create_mnt_ns(struct vfsmount *mnt)
 	}
 	return new_ns;
 }
+EXPORT_SYMBOL(create_mnt_ns);
 
 SYSCALL_DEFINE5(mount, char __user *, dev_name, char __user *, dir_name,
 		char __user *, type, unsigned long, flags, void __user *, data)

@@ -101,7 +101,11 @@ esac
 #
 (
 	cd "${tmpdir}"
-	tar cf - . | ${compress} > "${tarball}${file_ext}"
+	opts=
+	if tar --owner=root --group=root --help >/dev/null 2>&1; then
+		opts="--owner=root --group=root"
+	fi
+	tar cf - . $opts | ${compress} > "${tarball}${file_ext}"
 )
 
 echo "Tarball successfully created in ${tarball}${file_ext}"

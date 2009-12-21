@@ -29,13 +29,8 @@
 #define PCI_ACCESS_READ  0
 #define PCI_ACCESS_WRITE 1
 
-#ifdef CONFIG_LEMOTE_FULOONG2E
-#define CFG_SPACE_REG(offset) (void *)CKSEG1ADDR(BONITO_PCICFG_BASE | (offset))
-#define ID_SEL_BEGIN 11
-#else
 #define CFG_SPACE_REG(offset) (void *)CKSEG1ADDR(_pcictrl_bonito_pcicfg + (offset))
 #define ID_SEL_BEGIN 10
-#endif
 #define MAX_DEV_NUM (31 - ID_SEL_BEGIN)
 
 
@@ -77,10 +72,8 @@ static int bonito64_pcibios_config_access(unsigned char access_type,
 	addrp = CFG_SPACE_REG(addr & 0xffff);
 	if (access_type == PCI_ACCESS_WRITE) {
 		writel(cpu_to_le32(*data), addrp);
-#ifndef CONFIG_LEMOTE_FULOONG2E
 		/* Wait till done */
 		while (BONITO_PCIMSTAT & 0xF);
-#endif
 	} else {
 		*data = le32_to_cpu(readl(addrp));
 	}

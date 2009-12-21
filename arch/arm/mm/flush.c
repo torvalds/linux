@@ -131,7 +131,7 @@ void __flush_dcache_page(struct address_space *mapping, struct page *page)
 	 */
 	if (addr)
 #endif
-		__cpuc_flush_dcache_page(addr);
+		__cpuc_flush_dcache_area(addr, PAGE_SIZE);
 
 	/*
 	 * If this is a page cache page, and we have an aliasing VIPT cache,
@@ -258,5 +258,5 @@ void __flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned l
 	 * in this mapping of the page.  FIXME: this is overkill
 	 * since we actually ask for a write-back and invalidate.
 	 */
-	__cpuc_flush_dcache_page(page_address(page));
+	__cpuc_flush_dcache_area(page_address(page), PAGE_SIZE);
 }

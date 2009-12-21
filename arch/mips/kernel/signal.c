@@ -35,6 +35,15 @@
 
 #include "signal-common.h"
 
+static int (*save_fp_context)(struct sigcontext __user *sc);
+static int (*restore_fp_context)(struct sigcontext __user *sc);
+
+extern asmlinkage int _save_fp_context(struct sigcontext __user *sc);
+extern asmlinkage int _restore_fp_context(struct sigcontext __user *sc);
+
+extern asmlinkage int fpu_emulator_save_context(struct sigcontext __user *sc);
+extern asmlinkage int fpu_emulator_restore_context(struct sigcontext __user *sc);
+
 /*
  * Horribly complicated - with the bloody RM9000 workarounds enabled
  * the signal trampolines is moving to the end of the structure so we can
@@ -709,3 +718,40 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, void *unused,
 			key_replace_session_keyring();
 	}
 }
+
+#ifdef CONFIG_SMP
+static int smp_save_fp_context(struct sigcontext __user *sc)
+{
+	return raw_cpu_has_fpu
+	       ? _save_fp_context(sc)
+	       : fpu_emulator_save_context(sc);
+}
+
+static int smp_restore_fp_context(struct sigcontext __user *sc)
+{
+	return raw_cpu_has_fpu
+	       ? _restore_fp_context(sc)
+	       : fpu_emulator_restore_context(sc);
+}
+#endif
+
+static int signal_setup(void)
+{
+#ifdef CONFIG_SMP
+	/* For now just do the cpu_has_fpu check when the functions are invoked */
+	save_fp_context = smp_save_fp_context;
+	restore_fp_context = smp_restore_fp_context;
+#else
+	if (cpu_has_fpu) {
+		save_fp_context = _save_fp_context;
+		restore_fp_context = _restore_fp_context;
+	} else {
+		save_fp_context = fpu_emulator_save_context;
+		restore_fp_context = fpu_emulator_restore_context;
+	}
+#endif
+
+	return 0;
+}
+
+arch_initcall(signal_setup);

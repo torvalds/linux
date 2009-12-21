@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #ifndef __GENERATING_BOUNDS_H
 #include <linux/mm_types.h>
-#include <linux/bounds.h>
+#include <generated/bounds.h>
 #endif /* !__GENERATING_BOUNDS_H */
 
 /*
