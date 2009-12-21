@@ -607,7 +607,7 @@ static void dpm_complete(pm_message_t state)
 			mutex_unlock(&dpm_list_mtx);
 
 			device_complete(dev, state);
-			pm_runtime_put_noidle(dev);
+			pm_runtime_put_sync(dev);
 
 			mutex_lock(&dpm_list_mtx);
 		}
@@ -880,7 +880,7 @@ static int dpm_prepare(pm_message_t state)
 		pm_runtime_get_noresume(dev);
 		if (pm_runtime_barrier(dev) && device_may_wakeup(dev)) {
 			/* Wake-up requested during system sleep transition. */
-			pm_runtime_put_noidle(dev);
+			pm_runtime_put_sync(dev);
 			error = -EBUSY;
 		} else {
 			error = device_prepare(dev, state);
