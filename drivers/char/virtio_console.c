@@ -316,6 +316,31 @@ static int add_inbuf(struct virtqueue *vq, struct port_buffer *buf)
 	return ret;
 }
 
+/* Discard any unread data this port has. Callers lockers. */
+static void discard_port_data(struct port *port)
+{
+	struct port_buffer *buf;
+	struct virtqueue *vq;
+	unsigned int len;
+
+	vq = port->in_vq;
+	if (port->inbuf)
+		buf = port->inbuf;
+	else
+		buf = vq->vq_ops->get_buf(vq, &len);
+
+	if (!buf)
+		return;
+
+	if (add_inbuf(vq, buf) < 0) {
+		buf->len = buf->offset = 0;
+		dev_warn(port->dev, "Error adding buffer back to vq\n");
+		return;
+	}
+
+	port->inbuf = NULL;
+}
+
 static bool port_has_data(struct port *port)
 {
 	unsigned long flags;
@@ -534,7 +559,12 @@ static int port_fops_release(struct inode *inode, struct file *filp)
 	/* Notify host of port being closed */
 	send_control_msg(port, VIRTIO_CONSOLE_PORT_OPEN, 0);
 
+	spin_lock_irq(&port->inbuf_lock);
 	port->guest_connected = false;
+
+	discard_port_data(port);
+
+	spin_unlock_irq(&port->inbuf_lock);
 
 	return 0;
 }
@@ -871,6 +901,16 @@ static void in_intr(struct virtqueue *vq)
 
 	spin_lock_irqsave(&port->inbuf_lock, flags);
 	port->inbuf = get_inbuf(port);
+
+	/*
+	 * Don't queue up data when port is closed.  This condition
+	 * can be reached when a console port is not yet connected (no
+	 * tty is spawned) and the host sends out data to console
+	 * ports.  For generic serial ports, the host won't
+	 * (shouldn't) send data till the guest is connected.
+	 */
+	if (!port->guest_connected)
+		discard_port_data(port);
 
 	spin_unlock_irqrestore(&port->inbuf_lock, flags);
 
