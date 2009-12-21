@@ -745,10 +745,13 @@ int snd_interval_ratnum(struct snd_interval *i,
 			unsigned int rats_count, struct snd_ratnum *rats,
 			unsigned int *nump, unsigned int *denp)
 {
-	unsigned int best_num, best_diff, best_den;
+	unsigned int best_num, best_den;
+	int best_diff;
 	unsigned int k;
 	struct snd_interval t;
 	int err;
+	unsigned int result_num, result_den;
+	int result_diff;
 
 	best_num = best_den = best_diff = 0;
 	for (k = 0; k < rats_count; ++k) {
@@ -770,6 +773,8 @@ int snd_interval_ratnum(struct snd_interval *i,
 				den -= r;
 		}
 		diff = num - q * den;
+		if (diff < 0)
+			diff = -diff;
 		if (best_num == 0 ||
 		    diff * best_den < best_diff * den) {
 			best_diff = diff;
@@ -784,6 +789,9 @@ int snd_interval_ratnum(struct snd_interval *i,
 	t.min = div_down(best_num, best_den);
 	t.openmin = !!(best_num % best_den);
 	
+	result_num = best_num;
+	result_diff = best_diff;
+	result_den = best_den;
 	best_num = best_den = best_diff = 0;
 	for (k = 0; k < rats_count; ++k) {
 		unsigned int num = rats[k].num;
@@ -806,6 +814,8 @@ int snd_interval_ratnum(struct snd_interval *i,
 				den += rats[k].den_step - r;
 		}
 		diff = q * den - num;
+		if (diff < 0)
+			diff = -diff;
 		if (best_num == 0 ||
 		    diff * best_den < best_diff * den) {
 			best_diff = diff;
@@ -825,10 +835,14 @@ int snd_interval_ratnum(struct snd_interval *i,
 		return err;
 
 	if (snd_interval_single(i)) {
+		if (best_diff * result_den < result_diff * best_den) {
+			result_num = best_num;
+			result_den = best_den;
+		}
 		if (nump)
-			*nump = best_num;
+			*nump = result_num;
 		if (denp)
-			*denp = best_den;
+			*denp = result_den;
 	}
 	return err;
 }
