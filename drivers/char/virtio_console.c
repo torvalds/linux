@@ -16,6 +16,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#include <linux/cdev.h>
+#include <linux/device.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/list.h>
@@ -34,6 +36,12 @@
  * across multiple devices and multiple ports per device.
  */
 struct ports_driver_data {
+	/* Used for registering chardevs */
+	struct class *class;
+
+	/* Number of devices this driver is handling */
+	unsigned int index;
+
 	/*
 	 * This is used to keep track of the number of hvc consoles
 	 * spawned by this driver.  This number is given as the first
@@ -116,6 +124,12 @@ struct ports_device {
 
 	/* Array of per-port IO virtqueues */
 	struct virtqueue **in_vqs, **out_vqs;
+
+	/* Used for numbering devices for sysfs and debugfs */
+	unsigned int drv_index;
+
+	/* Major number for this device.  Ports will be created as minors. */
+	int chr_major;
 };
 
 /* This struct holds the per-port data */
@@ -144,6 +158,10 @@ struct port {
 	 * hooked up to an hvc console
 	 */
 	struct console cons;
+
+	/* Each port associates with a separate char device */
+	struct cdev cdev;
+	struct device *dev;
 
 	/* The 'id' to identify the port with the Host */
 	u32 id;
@@ -391,7 +409,7 @@ static ssize_t fill_readbuf(struct port *port, char *out_buf, size_t out_count,
 		port->inbuf = NULL;
 
 		if (add_inbuf(port->in_vq, buf) < 0)
-			dev_warn(&port->portdev->vdev->dev, "failed add_buf\n");
+			dev_warn(port->dev, "failed add_buf\n");
 
 		spin_unlock_irqrestore(&port->inbuf_lock, flags);
 	}
@@ -664,6 +682,7 @@ static int add_port(struct ports_device *portdev, u32 id)
 {
 	struct port *port;
 	struct port_buffer *inbuf;
+	dev_t devt;
 	int err;
 
 	port = kmalloc(sizeof(*port), GFP_KERNEL);
@@ -681,12 +700,32 @@ static int add_port(struct ports_device *portdev, u32 id)
 	port->in_vq = portdev->in_vqs[port->id];
 	port->out_vq = portdev->out_vqs[port->id];
 
+	cdev_init(&port->cdev, NULL);
+
+	devt = MKDEV(portdev->chr_major, id);
+	err = cdev_add(&port->cdev, devt, 1);
+	if (err < 0) {
+		dev_err(&port->portdev->vdev->dev,
+			"Error %d adding cdev for port %u\n", err, id);
+		goto free_port;
+	}
+	port->dev = device_create(pdrvdata.class, &port->portdev->vdev->dev,
+				  devt, port, "vport%up%u",
+				  port->portdev->drv_index, id);
+	if (IS_ERR(port->dev)) {
+		err = PTR_ERR(port->dev);
+		dev_err(&port->portdev->vdev->dev,
+			"Error %d creating device for port %u\n",
+			err, id);
+		goto free_cdev;
+	}
+
 	spin_lock_init(&port->inbuf_lock);
 
 	inbuf = alloc_buf(PAGE_SIZE);
 	if (!inbuf) {
 		err = -ENOMEM;
-		goto free_port;
+		goto free_device;
 	}
 
 	/* Register the input buffer the first time. */
@@ -716,6 +755,10 @@ static int add_port(struct ports_device *portdev, u32 id)
 
 free_inbuf:
 	free_buf(inbuf);
+free_device:
+	device_destroy(pdrvdata.class, port->dev->devt);
+free_cdev:
+	cdev_del(&port->cdev);
 free_port:
 	kfree(port);
 fail:
@@ -828,6 +871,10 @@ fail:
 	return err;
 }
 
+static const struct file_operations portdev_fops = {
+	.owner = THIS_MODULE,
+};
+
 /*
  * Once we're further in boot, we get probed like any other virtio
  * device.
@@ -852,6 +899,20 @@ static int __devinit virtcons_probe(struct virtio_device *vdev)
 	/* Attach this portdev to this virtio_device, and vice-versa. */
 	portdev->vdev = vdev;
 	vdev->priv = portdev;
+
+	spin_lock_irq(&pdrvdata_lock);
+	portdev->drv_index = pdrvdata.index++;
+	spin_unlock_irq(&pdrvdata_lock);
+
+	portdev->chr_major = register_chrdev(0, "virtio-portsdev",
+					     &portdev_fops);
+	if (portdev->chr_major < 0) {
+		dev_err(&vdev->dev,
+			"Error %d registering chrdev for device %u\n",
+			portdev->chr_major, portdev->drv_index);
+		err = portdev->chr_major;
+		goto free;
+	}
 
 	multiport = false;
 	portdev->config.nr_ports = 1;
@@ -885,7 +946,7 @@ static int __devinit virtcons_probe(struct virtio_device *vdev)
 	err = init_vqs(portdev);
 	if (err < 0) {
 		dev_err(&vdev->dev, "Error %d initializing vqs\n", err);
-		goto free;
+		goto free_chrdev;
 	}
 
 	spin_lock_init(&portdev->ports_lock);
@@ -905,10 +966,8 @@ static int __devinit virtcons_probe(struct virtio_device *vdev)
 	early_put_chars = NULL;
 	return 0;
 
-free_vqs:
-	vdev->config->del_vqs(vdev);
-	kfree(portdev->in_vqs);
-	kfree(portdev->out_vqs);
+free_chrdev:
+	unregister_chrdev(portdev->chr_major, "virtio-portsdev");
 free:
 	kfree(portdev);
 fail:
@@ -937,6 +996,14 @@ static struct virtio_driver virtio_console = {
 
 static int __init init(void)
 {
+	int err;
+
+	pdrvdata.class = class_create(THIS_MODULE, "virtio-ports");
+	if (IS_ERR(pdrvdata.class)) {
+		err = PTR_ERR(pdrvdata.class);
+		pr_err("Error %d creating virtio-ports class\n", err);
+		return err;
+	}
 	INIT_LIST_HEAD(&pdrvdata.consoles);
 
 	return register_virtio_driver(&virtio_console);
