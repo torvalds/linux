@@ -19,6 +19,25 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
+
+/*
+ * Howto porting drivers to the new generic fifo API:
+ *
+ * - Modify the declaration of the "struct kfifo *" object into a
+ *   in-place "struct kfifo" object
+ * - Init the in-place object with kfifo_alloc() or kfifo_init()
+ *   Note: The address of the in-place "struct kfifo" object must be
+ *   passed as the first argument to this functions
+ * - Replace the use of __kfifo_put into kfifo_in and __kfifo_get
+ *   into kfifo_out
+ * - Replace the use of kfifo_put into kfifo_in_locked and kfifo_get
+ *   into kfifo_out_locked
+ *   Note: the spinlock pointer formerly passed to kfifo_init/kfifo_alloc
+ *   must be passed now to the kfifo_in_locked and kfifo_out_locked
+ *   as the last parameter.
+ * - All formerly name __kfifo_* functions has been renamed into kfifo_*
+ */
+
 #ifndef _LINUX_KFIFO_H
 #define _LINUX_KFIFO_H
 
@@ -37,10 +56,10 @@ extern void kfifo_init(struct kfifo *fifo, unsigned char *buffer,
 extern __must_check int kfifo_alloc(struct kfifo *fifo, unsigned int size,
 			gfp_t gfp_mask);
 extern void kfifo_free(struct kfifo *fifo);
-extern unsigned int kfifo_put(struct kfifo *fifo,
-				const unsigned char *buffer, unsigned int len);
-extern unsigned int kfifo_get(struct kfifo *fifo,
-				unsigned char *buffer, unsigned int len);
+extern __must_check unsigned int kfifo_in(struct kfifo *fifo,
+				const unsigned char *from, unsigned int len);
+extern __must_check unsigned int kfifo_out(struct kfifo *fifo,
+				unsigned char *to, unsigned int len);
 
 /**
  * kfifo_reset - removes the entire FIFO contents
@@ -65,7 +84,7 @@ static inline unsigned int kfifo_len(struct kfifo *fifo)
 }
 
 /**
- * kfifo_put_locked - puts some data into the FIFO using a spinlock for locking
+ * kfifo_in_locked - puts some data into the FIFO using a spinlock for locking
  * @fifo: the fifo to be used.
  * @from: the data to be added.
  * @n: the length of the data to be added.
@@ -75,7 +94,7 @@ static inline unsigned int kfifo_len(struct kfifo *fifo)
  * the FIFO depending on the free space, and returns the number of
  * bytes copied.
  */
-static inline __must_check unsigned int kfifo_put_locked(struct kfifo *fifo,
+static inline __must_check unsigned int kfifo_in_locked(struct kfifo *fifo,
 		const unsigned char *from, unsigned int n, spinlock_t *lock)
 {
 	unsigned long flags;
@@ -83,7 +102,7 @@ static inline __must_check unsigned int kfifo_put_locked(struct kfifo *fifo,
 
 	spin_lock_irqsave(lock, flags);
 
-	ret = kfifo_put(fifo, from, n);
+	ret = kfifo_in(fifo, from, n);
 
 	spin_unlock_irqrestore(lock, flags);
 
@@ -91,7 +110,7 @@ static inline __must_check unsigned int kfifo_put_locked(struct kfifo *fifo,
 }
 
 /**
- * kfifo_get_locked - gets some data from the FIFO using a spinlock for locking
+ * kfifo_out_locked - gets some data from the FIFO using a spinlock for locking
  * @fifo: the fifo to be used.
  * @to: where the data must be copied.
  * @n: the size of the destination buffer.
@@ -100,7 +119,7 @@ static inline __must_check unsigned int kfifo_put_locked(struct kfifo *fifo,
  * This function copies at most @len bytes from the FIFO into the
  * @to buffer and returns the number of copied bytes.
  */
-static inline __must_check unsigned int kfifo_get_locked(struct kfifo *fifo,
+static inline __must_check unsigned int kfifo_out_locked(struct kfifo *fifo,
 	unsigned char *to, unsigned int n, spinlock_t *lock)
 {
 	unsigned long flags;
@@ -108,7 +127,7 @@ static inline __must_check unsigned int kfifo_get_locked(struct kfifo *fifo,
 
 	spin_lock_irqsave(lock, flags);
 
-	ret = kfifo_get(fifo, to, n);
+	ret = kfifo_out(fifo, to, n);
 
 	/*
 	 * optimization: if the FIFO is empty, set the indices to 0

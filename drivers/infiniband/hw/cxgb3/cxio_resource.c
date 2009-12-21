@@ -59,7 +59,7 @@ static int __cxio_init_resource_fifo(struct kfifo *fifo,
 		return -ENOMEM;
 
 	for (i = 0; i < skip_low + skip_high; i++)
-		kfifo_put(fifo, (unsigned char *) &entry, sizeof(u32));
+		kfifo_in(fifo, (unsigned char *) &entry, sizeof(u32));
 	if (random) {
 		j = 0;
 		random_bytes = random32();
@@ -71,22 +71,22 @@ static int __cxio_init_resource_fifo(struct kfifo *fifo,
 				random_bytes = random32();
 			}
 			idx = (random_bytes >> (j * 2)) & 0xF;
-			kfifo_put(fifo,
+			kfifo_in(fifo,
 				(unsigned char *) &rarray[idx],
 				sizeof(u32));
 			rarray[idx] = i;
 			j++;
 		}
 		for (i = 0; i < RANDOM_SIZE; i++)
-			kfifo_put(fifo,
+			kfifo_in(fifo,
 				(unsigned char *) &rarray[i],
 				sizeof(u32));
 	} else
 		for (i = skip_low; i < nr - skip_high; i++)
-			kfifo_put(fifo, (unsigned char *) &i, sizeof(u32));
+			kfifo_in(fifo, (unsigned char *) &i, sizeof(u32));
 
 	for (i = 0; i < skip_low + skip_high; i++)
-		kfifo_get_locked(fifo, (unsigned char *) &entry,
+		kfifo_out_locked(fifo, (unsigned char *) &entry,
 				sizeof(u32), fifo_lock);
 	return 0;
 }
@@ -119,7 +119,7 @@ static int cxio_init_qpid_fifo(struct cxio_rdev *rdev_p)
 
 	for (i = 16; i < T3_MAX_NUM_QP; i++)
 		if (!(i & rdev_p->qpmask))
-			kfifo_put(&rdev_p->rscp->qpid_fifo,
+			kfifo_in(&rdev_p->rscp->qpid_fifo,
 				    (unsigned char *) &i, sizeof(u32));
 	return 0;
 }
@@ -180,7 +180,7 @@ tpt_err:
 static u32 cxio_hal_get_resource(struct kfifo *fifo, spinlock_t * lock)
 {
 	u32 entry;
-	if (kfifo_get_locked(fifo, (unsigned char *) &entry, sizeof(u32), lock))
+	if (kfifo_out_locked(fifo, (unsigned char *) &entry, sizeof(u32), lock))
 		return entry;
 	else
 		return 0;	/* fifo emptry */
@@ -190,7 +190,7 @@ static void cxio_hal_put_resource(struct kfifo *fifo, spinlock_t * lock,
 		u32 entry)
 {
 	BUG_ON(
-	kfifo_put_locked(fifo, (unsigned char *) &entry, sizeof(u32), lock)
+	kfifo_in_locked(fifo, (unsigned char *) &entry, sizeof(u32), lock)
 	== 0);
 }
 

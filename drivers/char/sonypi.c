@@ -777,7 +777,7 @@ static void input_keyrelease(struct work_struct *work)
 {
 	struct sonypi_keypress kp;
 
-	while (kfifo_get_locked(&sonypi_device.input_fifo, (unsigned char *)&kp,
+	while (kfifo_out_locked(&sonypi_device.input_fifo, (unsigned char *)&kp,
 			 sizeof(kp), &sonypi_device.input_fifo_lock)
 			== sizeof(kp)) {
 		msleep(10);
@@ -828,7 +828,7 @@ static void sonypi_report_input_event(u8 event)
 	if (kp.dev) {
 		input_report_key(kp.dev, kp.key, 1);
 		input_sync(kp.dev);
-		kfifo_put_locked(&sonypi_device.input_fifo,
+		kfifo_in_locked(&sonypi_device.input_fifo,
 			(unsigned char *)&kp, sizeof(kp),
 			&sonypi_device.input_fifo_lock);
 		schedule_work(&sonypi_device.input_work);
@@ -882,7 +882,7 @@ found:
 		acpi_bus_generate_proc_event(sonypi_acpi_device, 1, event);
 #endif
 
-	kfifo_put_locked(&sonypi_device.fifo, (unsigned char *)&event,
+	kfifo_in_locked(&sonypi_device.fifo, (unsigned char *)&event,
 			sizeof(event), &sonypi_device.fifo_lock);
 	kill_fasync(&sonypi_device.fifo_async, SIGIO, POLL_IN);
 	wake_up_interruptible(&sonypi_device.fifo_proc_list);
@@ -932,7 +932,7 @@ static ssize_t sonypi_misc_read(struct file *file, char __user *buf,
 		return ret;
 
 	while (ret < count &&
-	       (kfifo_get_locked(&sonypi_device.fifo, &c, sizeof(c),
+	       (kfifo_out_locked(&sonypi_device.fifo, &c, sizeof(c),
 				 &sonypi_device.fifo_lock) == sizeof(c))) {
 		if (put_user(c, buf++))
 			return -EFAULT;

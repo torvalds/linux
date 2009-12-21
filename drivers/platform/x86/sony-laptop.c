@@ -300,7 +300,7 @@ static void do_sony_laptop_release_key(struct work_struct *work)
 {
 	struct sony_laptop_keypress kp;
 
-	while (kfifo_get_locked(&sony_laptop_input.fifo, (unsigned char *)&kp,
+	while (kfifo_out_locked(&sony_laptop_input.fifo, (unsigned char *)&kp,
 			sizeof(kp), &sony_laptop_input.fifo_lock)
 			== sizeof(kp)) {
 		msleep(10);
@@ -363,7 +363,7 @@ static void sony_laptop_report_input_event(u8 event)
 		/* we emit the scancode so we can always remap the key */
 		input_event(kp.dev, EV_MSC, MSC_SCAN, event);
 		input_sync(kp.dev);
-		kfifo_put_locked(&sony_laptop_input.fifo,
+		kfifo_in_locked(&sony_laptop_input.fifo,
 			  (unsigned char *)&kp, sizeof(kp),
 			  &sony_laptop_input.fifo_lock);
 
@@ -2130,7 +2130,7 @@ static ssize_t sonypi_misc_read(struct file *file, char __user *buf,
 		return ret;
 
 	while (ret < count &&
-	       (kfifo_get_locked(&sonypi_compat.fifo, &c, sizeof(c),
+	       (kfifo_out_locked(&sonypi_compat.fifo, &c, sizeof(c),
 			  &sonypi_compat.fifo_lock) == sizeof(c))) {
 		if (put_user(c, buf++))
 			return -EFAULT;
@@ -2310,7 +2310,7 @@ static struct miscdevice sonypi_misc_device = {
 
 static void sonypi_compat_report_event(u8 event)
 {
-	kfifo_put_locked(&sonypi_compat.fifo, (unsigned char *)&event,
+	kfifo_in_locked(&sonypi_compat.fifo, (unsigned char *)&event,
 			sizeof(event), &sonypi_compat.fifo_lock);
 	kill_fasync(&sonypi_compat.fifo_async, SIGIO, POLL_IN);
 	wake_up_interruptible(&sonypi_compat.fifo_proc_list);

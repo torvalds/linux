@@ -800,7 +800,7 @@ again:
 		return IRQ_HANDLED;
 
 	if (meye.mchip_mode == MCHIP_HIC_MODE_CONT_OUT) {
-		if (kfifo_get_locked(&meye.grabq, (unsigned char *)&reqnr,
+		if (kfifo_out_locked(&meye.grabq, (unsigned char *)&reqnr,
 			      sizeof(int), &meye.grabq_lock) != sizeof(int)) {
 			mchip_free_frame();
 			return IRQ_HANDLED;
@@ -811,7 +811,7 @@ again:
 		meye.grab_buffer[reqnr].state = MEYE_BUF_DONE;
 		do_gettimeofday(&meye.grab_buffer[reqnr].timestamp);
 		meye.grab_buffer[reqnr].sequence = sequence++;
-		kfifo_put_locked(&meye.doneq, (unsigned char *)&reqnr,
+		kfifo_in_locked(&meye.doneq, (unsigned char *)&reqnr,
 				sizeof(int), &meye.doneq_lock);
 		wake_up_interruptible(&meye.proc_list);
 	} else {
@@ -821,7 +821,7 @@ again:
 			mchip_free_frame();
 			goto again;
 		}
-		if (kfifo_get_locked(&meye.grabq, (unsigned char *)&reqnr,
+		if (kfifo_out_locked(&meye.grabq, (unsigned char *)&reqnr,
 			      sizeof(int), &meye.grabq_lock) != sizeof(int)) {
 			mchip_free_frame();
 			goto again;
@@ -832,7 +832,7 @@ again:
 		meye.grab_buffer[reqnr].state = MEYE_BUF_DONE;
 		do_gettimeofday(&meye.grab_buffer[reqnr].timestamp);
 		meye.grab_buffer[reqnr].sequence = sequence++;
-		kfifo_put_locked(&meye.doneq, (unsigned char *)&reqnr,
+		kfifo_in_locked(&meye.doneq, (unsigned char *)&reqnr,
 				sizeof(int), &meye.doneq_lock);
 		wake_up_interruptible(&meye.proc_list);
 	}
@@ -935,7 +935,7 @@ static int meyeioc_qbuf_capt(int *nb)
 		mchip_cont_compression_start();
 
 	meye.grab_buffer[*nb].state = MEYE_BUF_USING;
-	kfifo_put_locked(&meye.grabq, (unsigned char *)nb, sizeof(int),
+	kfifo_in_locked(&meye.grabq, (unsigned char *)nb, sizeof(int),
 			 &meye.grabq_lock);
 	mutex_unlock(&meye.lock);
 
@@ -968,7 +968,7 @@ static int meyeioc_sync(struct file *file, void *fh, int *i)
 		/* fall through */
 	case MEYE_BUF_DONE:
 		meye.grab_buffer[*i].state = MEYE_BUF_UNUSED;
-		kfifo_get_locked(&meye.doneq, (unsigned char *)&unused,
+		kfifo_out_locked(&meye.doneq, (unsigned char *)&unused,
 				sizeof(int), &meye.doneq_lock);
 	}
 	*i = meye.grab_buffer[*i].size;
@@ -1456,7 +1456,7 @@ static int vidioc_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	buf->flags |= V4L2_BUF_FLAG_QUEUED;
 	buf->flags &= ~V4L2_BUF_FLAG_DONE;
 	meye.grab_buffer[buf->index].state = MEYE_BUF_USING;
-	kfifo_put_locked(&meye.grabq, (unsigned char *)&buf->index,
+	kfifo_in_locked(&meye.grabq, (unsigned char *)&buf->index,
 			sizeof(int), &meye.grabq_lock);
 	mutex_unlock(&meye.lock);
 
@@ -1483,7 +1483,7 @@ static int vidioc_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 		return -EINTR;
 	}
 
-	if (!kfifo_get_locked(&meye.doneq, (unsigned char *)&reqnr,
+	if (!kfifo_out_locked(&meye.doneq, (unsigned char *)&reqnr,
 		       sizeof(int), &meye.doneq_lock)) {
 		mutex_unlock(&meye.lock);
 		return -EBUSY;

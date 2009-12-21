@@ -510,14 +510,14 @@ static inline unsigned int cq_howmany(struct kfifo *kfifo)
 
 static inline int cq_put(struct kfifo *kfifo, void *p)
 {
-	return kfifo_put(kfifo, (void *)&p, sizeof(p));
+	return kfifo_in(kfifo, (void *)&p, sizeof(p));
 }
 
 static inline void *cq_get(struct kfifo *kfifo)
 {
 	void *p = NULL;
 
-	kfifo_get(kfifo, (void *)&p, sizeof(p));
+	kfifo_out(kfifo, (void *)&p, sizeof(p));
 	return p;
 }
 

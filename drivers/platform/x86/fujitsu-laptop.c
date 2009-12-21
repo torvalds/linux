@@ -1006,7 +1006,7 @@ static void acpi_fujitsu_hotkey_notify(struct acpi_device *device, u32 event)
 				vdbg_printk(FUJLAPTOP_DBG_TRACE,
 					"Push keycode into ringbuffer [%d]\n",
 					keycode);
-				status = kfifo_put_locked(&fujitsu_hotkey->fifo,
+				status = kfifo_in_locked(&fujitsu_hotkey->fifo,
 						   (unsigned char *)&keycode,
 						   sizeof(keycode),
 						   &fujitsu_hotkey->fifo_lock);
@@ -1020,7 +1020,7 @@ static void acpi_fujitsu_hotkey_notify(struct acpi_device *device, u32 event)
 				}
 			} else if (keycode == 0) {
 				while ((status =
-					kfifo_get_locked(
+					kfifo_out_locked(
 					 &fujitsu_hotkey->fifo,
 					 (unsigned char *) &keycode_r,
 					 sizeof(keycode_r),

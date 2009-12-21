@@ -513,7 +513,8 @@ static int lbs_thread(void *data)
 		spin_lock_irq(&priv->driver_lock);
 		while (kfifo_len(&priv->event_fifo)) {
 			u32 event;
-			kfifo_get(&priv->event_fifo, (unsigned char *) &event,
+
+			kfifo_out(&priv->event_fifo, (unsigned char *) &event,
 				sizeof(event));
 			spin_unlock_irq(&priv->driver_lock);
 			lbs_process_event(priv, event);
@@ -1175,7 +1176,7 @@ void lbs_queue_event(struct lbs_private *priv, u32 event)
 	if (priv->psstate == PS_STATE_SLEEP)
 		priv->psstate = PS_STATE_AWAKE;
 
-	kfifo_put(&priv->event_fifo, (unsigned char *) &event, sizeof(u32));
+	kfifo_in(&priv->event_fifo, (unsigned char *) &event, sizeof(u32));
 
 	wake_up_interruptible(&priv->waitq);
 

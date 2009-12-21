@@ -798,7 +798,7 @@ static int send_data(enum port_type index, struct nozomi *dc)
 	struct tty_struct *tty = tty_port_tty_get(&port->port);
 
 	/* Get data from tty and place in buf for now */
-	size = kfifo_get(&port->fifo_ul, dc->send_buf,
+	size = kfifo_out(&port->fifo_ul, dc->send_buf,
 			   ul_size < SEND_BUF_MAX ? ul_size : SEND_BUF_MAX);
 
 	if (size == 0) {
@@ -1672,7 +1672,7 @@ static int ntty_write(struct tty_struct *tty, const unsigned char *buffer,
 		goto exit;
 	}
 
-	rval = kfifo_put(&port->fifo_ul, (unsigned char *)buffer, count);
+	rval = kfifo_in(&port->fifo_ul, (unsigned char *)buffer, count);
 
 	/* notify card */
 	if (unlikely(dc == NULL)) {

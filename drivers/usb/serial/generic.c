@@ -285,7 +285,7 @@ static int usb_serial_generic_write_start(struct usb_serial_port *port)
 		return 0;
 
 	data = port->write_urb->transfer_buffer;
-	count = kfifo_get_locked(port->write_fifo, data, port->bulk_out_size, &port->lock);
+	count = kfifo_out_locked(port->write_fifo, data, port->bulk_out_size, &port->lock);
 	usb_serial_debug_data(debug, &port->dev, __func__, count, data);
 
 	/* set up our urb */
@@ -345,7 +345,7 @@ int usb_serial_generic_write(struct tty_struct *tty,
 		return usb_serial_multi_urb_write(tty, port,
 						  buf, count);
 
-	count = kfifo_put_locked(port->write_fifo, buf, count, &port->lock);
+	count = kfifo_in_locked(port->write_fifo, buf, count, &port->lock);
 	result = usb_serial_generic_write_start(port);
 
 	if (result >= 0)
