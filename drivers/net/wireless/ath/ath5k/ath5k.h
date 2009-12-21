@@ -1231,6 +1231,10 @@ extern int ath5k_hw_set_ack_timeout(struct ath5k_hw *ah, unsigned int timeout);
 extern unsigned int ath5k_hw_get_ack_timeout(struct ath5k_hw *ah);
 extern int ath5k_hw_set_cts_timeout(struct ath5k_hw *ah, unsigned int timeout);
 extern unsigned int ath5k_hw_get_cts_timeout(struct ath5k_hw *ah);
+/* Clock rate related functions */
+unsigned int ath5k_hw_htoclock(struct ath5k_hw *ah, unsigned int usec);
+unsigned int ath5k_hw_clocktoh(struct ath5k_hw *ah, unsigned int clock);
+unsigned int ath5k_hw_get_clockrate(struct ath5k_hw *ah);
 /* Key table (WEP) functions */
 extern int ath5k_hw_reset_key(struct ath5k_hw *ah, u16 entry);
 extern int ath5k_hw_is_key_valid(struct ath5k_hw *ah, u16 entry);
@@ -1309,24 +1313,6 @@ extern int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower);
 /*
  * Functions used internaly
  */
-
-/*
- * Translate usec to hw clock units
- * TODO: Half/quarter rate
- */
-static inline unsigned int ath5k_hw_htoclock(unsigned int usec, bool turbo)
-{
-	return turbo ? (usec * 80) : (usec * 40);
-}
-
-/*
- * Translate hw clock units to usec
- * TODO: Half/quarter rate
- */
-static inline unsigned int ath5k_hw_clocktoh(unsigned int clock, bool turbo)
-{
-	return turbo ? (clock / 80) : (clock / 40);
-}
 
 static inline struct ath_common *ath5k_hw_common(struct ath5k_hw *ah)
 {

@@ -187,8 +187,8 @@ unsigned int ath5k_hw_get_ack_timeout(struct ath5k_hw *ah)
 {
 	ATH5K_TRACE(ah->ah_sc);
 
-	return ath5k_hw_clocktoh(AR5K_REG_MS(ath5k_hw_reg_read(ah,
-			AR5K_TIME_OUT), AR5K_TIME_OUT_ACK), ah->ah_turbo);
+	return ath5k_hw_clocktoh(ah, AR5K_REG_MS(ath5k_hw_reg_read(ah,
+			AR5K_TIME_OUT), AR5K_TIME_OUT_ACK));
 }
 
 /**
@@ -200,12 +200,12 @@ unsigned int ath5k_hw_get_ack_timeout(struct ath5k_hw *ah)
 int ath5k_hw_set_ack_timeout(struct ath5k_hw *ah, unsigned int timeout)
 {
 	ATH5K_TRACE(ah->ah_sc);
-	if (ath5k_hw_clocktoh(AR5K_REG_MS(0xffffffff, AR5K_TIME_OUT_ACK),
-			ah->ah_turbo) <= timeout)
+	if (ath5k_hw_clocktoh(ah, AR5K_REG_MS(0xffffffff, AR5K_TIME_OUT_ACK))
+			<= timeout)
 		return -EINVAL;
 
 	AR5K_REG_WRITE_BITS(ah, AR5K_TIME_OUT, AR5K_TIME_OUT_ACK,
-		ath5k_hw_htoclock(timeout, ah->ah_turbo));
+		ath5k_hw_htoclock(ah, timeout));
 
 	return 0;
 }
@@ -218,8 +218,8 @@ int ath5k_hw_set_ack_timeout(struct ath5k_hw *ah, unsigned int timeout)
 unsigned int ath5k_hw_get_cts_timeout(struct ath5k_hw *ah)
 {
 	ATH5K_TRACE(ah->ah_sc);
-	return ath5k_hw_clocktoh(AR5K_REG_MS(ath5k_hw_reg_read(ah,
-			AR5K_TIME_OUT), AR5K_TIME_OUT_CTS), ah->ah_turbo);
+	return ath5k_hw_clocktoh(ah, AR5K_REG_MS(ath5k_hw_reg_read(ah,
+			AR5K_TIME_OUT), AR5K_TIME_OUT_CTS));
 }
 
 /**
@@ -231,14 +231,58 @@ unsigned int ath5k_hw_get_cts_timeout(struct ath5k_hw *ah)
 int ath5k_hw_set_cts_timeout(struct ath5k_hw *ah, unsigned int timeout)
 {
 	ATH5K_TRACE(ah->ah_sc);
-	if (ath5k_hw_clocktoh(AR5K_REG_MS(0xffffffff, AR5K_TIME_OUT_CTS),
-			ah->ah_turbo) <= timeout)
+	if (ath5k_hw_clocktoh(ah, AR5K_REG_MS(0xffffffff, AR5K_TIME_OUT_CTS))
+			<= timeout)
 		return -EINVAL;
 
 	AR5K_REG_WRITE_BITS(ah, AR5K_TIME_OUT, AR5K_TIME_OUT_CTS,
-			ath5k_hw_htoclock(timeout, ah->ah_turbo));
+			ath5k_hw_htoclock(ah, timeout));
 
 	return 0;
+}
+
+/**
+ * ath5k_hw_htoclock - Translate usec to hw clock units
+ *
+ * @ah: The &struct ath5k_hw
+ * @usec: value in microseconds
+ */
+unsigned int ath5k_hw_htoclock(struct ath5k_hw *ah, unsigned int usec)
+{
+	return usec * ath5k_hw_get_clockrate(ah);
+}
+
+/**
+ * ath5k_hw_clocktoh - Translate hw clock units to usec
+ * @clock: value in hw clock units
+ */
+unsigned int ath5k_hw_clocktoh(struct ath5k_hw *ah, unsigned int clock)
+{
+	return clock / ath5k_hw_get_clockrate(ah);
+}
+
+/**
+ * ath5k_hw_get_clockrate - Get the clock rate for current mode
+ *
+ * @ah: The &struct ath5k_hw
+ */
+unsigned int ath5k_hw_get_clockrate(struct ath5k_hw *ah)
+{
+	struct ieee80211_channel *channel = ah->ah_current_channel;
+	int clock;
+
+	if (channel->hw_value & CHANNEL_5GHZ)
+		clock = 40; /* 802.11a */
+	else if (channel->hw_value & CHANNEL_CCK)
+		clock = 22; /* 802.11b */
+	else
+		clock = 44; /* 802.11g */
+
+	/* Clock rate in turbo modes is twice the normal rate */
+	if (channel->hw_value & CHANNEL_TURBO)
+		clock *= 2;
+
+	return clock;
 }
 
 /**

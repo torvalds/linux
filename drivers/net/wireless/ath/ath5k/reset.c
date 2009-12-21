@@ -60,12 +60,11 @@ static inline int ath5k_hw_write_ofdm_timings(struct ath5k_hw *ah,
 		!(channel->hw_value & CHANNEL_OFDM));
 
 	/* Get coefficient
-	 * ALGO: coef = (5 * clock * carrier_freq) / 2)
+	 * ALGO: coef = (5 * clock / carrier_freq) / 2
 	 * we scale coef by shifting clock value by 24 for
 	 * better precision since we use integers */
 	/* TODO: Half/quarter rate */
-	clock =  ath5k_hw_htoclock(1, channel->hw_value & CHANNEL_TURBO);
-
+	clock =  (channel->hw_value & CHANNEL_TURBO) ? 80 : 40;
 	coef_scaled = ((5 * (clock << 24)) / 2) / channel->center_freq;
 
 	/* Get exponent

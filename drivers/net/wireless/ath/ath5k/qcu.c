@@ -529,7 +529,7 @@ unsigned int ath5k_hw_get_slot_time(struct ath5k_hw *ah)
 	else
 		slot_time_clock = ath5k_hw_reg_read(ah, AR5K_DCU_GBL_IFS_SLOT);
 
-	return ath5k_hw_clocktoh(slot_time_clock & 0xffff, ah->ah_turbo);
+	return ath5k_hw_clocktoh(ah, slot_time_clock & 0xffff);
 }
 
 /*
@@ -537,7 +537,7 @@ unsigned int ath5k_hw_get_slot_time(struct ath5k_hw *ah)
  */
 int ath5k_hw_set_slot_time(struct ath5k_hw *ah, unsigned int slot_time)
 {
-	u32 slot_time_clock = ath5k_hw_htoclock(slot_time, ah->ah_turbo);
+	u32 slot_time_clock = ath5k_hw_htoclock(ah, slot_time);
 
 	ATH5K_TRACE(ah->ah_sc);
 
