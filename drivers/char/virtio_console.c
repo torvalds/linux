@@ -170,6 +170,9 @@ struct port {
 	/* A waitqueue for poll() or blocking read operations */
 	wait_queue_head_t waitqueue;
 
+	/* The 'name' of the port that we expose via sysfs properties */
+	char *name;
+
 	/* The 'id' to identify the port with the Host */
 	u32 id;
 
@@ -732,12 +735,36 @@ int init_port_console(struct port *port)
 	return 0;
 }
 
+static ssize_t show_port_name(struct device *dev,
+			      struct device_attribute *attr, char *buffer)
+{
+	struct port *port;
+
+	port = dev_get_drvdata(dev);
+
+	return sprintf(buffer, "%s\n", port->name);
+}
+
+static DEVICE_ATTR(name, S_IRUGO, show_port_name, NULL);
+
+static struct attribute *port_sysfs_entries[] = {
+	&dev_attr_name.attr,
+	NULL
+};
+
+static struct attribute_group port_attribute_group = {
+	.name = NULL,		/* put in device directory */
+	.attrs = port_sysfs_entries,
+};
+
 /* Any private messages that the Host and Guest want to share */
 static void handle_control_message(struct ports_device *portdev,
 				   struct port_buffer *buf)
 {
 	struct virtio_console_control *cpkt;
 	struct port *port;
+	size_t name_size;
+	int err;
 
 	cpkt = (struct virtio_console_control *)(buf->buf + buf->offset);
 
@@ -771,6 +798,35 @@ static void handle_control_message(struct ports_device *portdev,
 	case VIRTIO_CONSOLE_PORT_OPEN:
 		port->host_connected = cpkt->value;
 		wake_up_interruptible(&port->waitqueue);
+		break;
+	case VIRTIO_CONSOLE_PORT_NAME:
+		/*
+		 * Skip the size of the header and the cpkt to get the size
+		 * of the name that was sent
+		 */
+		name_size = buf->len - buf->offset - sizeof(*cpkt) + 1;
+
+		port->name = kmalloc(name_size, GFP_KERNEL);
+		if (!port->name) {
+			dev_err(port->dev,
+				"Not enough space to store port name\n");
+			break;
+		}
+		strncpy(port->name, buf->buf + buf->offset + sizeof(*cpkt),
+			name_size - 1);
+		port->name[name_size - 1] = 0;
+
+		/*
+		 * Since we only have one sysfs attribute, 'name',
+		 * create it only if we have a name for the port.
+		 */
+		err = sysfs_create_group(&port->dev->kobj,
+					 &port_attribute_group);
+		if (err)
+			dev_err(port->dev,
+				"Error %d creating sysfs device attributes\n",
+				err);
+
 		break;
 	}
 }
@@ -869,6 +925,7 @@ static int add_port(struct ports_device *portdev, u32 id)
 	port->portdev = portdev;
 	port->id = id;
 
+	port->name = NULL;
 	port->inbuf = NULL;
 	port->cons.hvc = NULL;
 
