@@ -910,6 +910,7 @@ void ceph_osdc_handle_map(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 				err = PTR_ERR(newmap);
 				goto bad;
 			}
+			BUG_ON(!newmap);
 			if (newmap != osdc->osdmap) {
 				ceph_osdmap_destroy(osdc->osdmap);
 				osdc->osdmap = newmap;
@@ -946,6 +947,7 @@ void ceph_osdc_handle_map(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 				err = PTR_ERR(newmap);
 				goto bad;
 			}
+			BUG_ON(!newmap);
 			oldmap = osdc->osdmap;
 			osdc->osdmap = newmap;
 			if (oldmap)
