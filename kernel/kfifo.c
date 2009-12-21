@@ -100,7 +100,7 @@ void kfifo_free(struct kfifo *fifo)
 EXPORT_SYMBOL(kfifo_free);
 
 /**
- * __kfifo_put - puts some data into the FIFO, no locking version
+ * kfifo_put - puts some data into the FIFO, no locking version
  * @fifo: the fifo to be used.
  * @buffer: the data to be added.
  * @len: the length of the data to be added.
@@ -112,7 +112,7 @@ EXPORT_SYMBOL(kfifo_free);
  * Note that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these functions.
  */
-unsigned int __kfifo_put(struct kfifo *fifo,
+unsigned int kfifo_put(struct kfifo *fifo,
 			const unsigned char *buffer, unsigned int len)
 {
 	unsigned int l;
@@ -144,10 +144,10 @@ unsigned int __kfifo_put(struct kfifo *fifo,
 
 	return len;
 }
-EXPORT_SYMBOL(__kfifo_put);
+EXPORT_SYMBOL(kfifo_put);
 
 /**
- * __kfifo_get - gets some data from the FIFO, no locking version
+ * kfifo_get - gets some data from the FIFO, no locking version
  * @fifo: the fifo to be used.
  * @buffer: where the data must be copied.
  * @len: the size of the destination buffer.
@@ -158,7 +158,7 @@ EXPORT_SYMBOL(__kfifo_put);
  * Note that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these functions.
  */
-unsigned int __kfifo_get(struct kfifo *fifo,
+unsigned int kfifo_get(struct kfifo *fifo,
 			 unsigned char *buffer, unsigned int len)
 {
 	unsigned int l;
@@ -190,4 +190,4 @@ unsigned int __kfifo_get(struct kfifo *fifo,
 
 	return len;
 }
-EXPORT_SYMBOL(__kfifo_get);
+EXPORT_SYMBOL(kfifo_get);

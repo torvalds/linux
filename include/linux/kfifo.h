@@ -37,19 +37,10 @@ extern void kfifo_init(struct kfifo *fifo, unsigned char *buffer,
 extern __must_check int kfifo_alloc(struct kfifo *fifo, unsigned int size,
 			gfp_t gfp_mask);
 extern void kfifo_free(struct kfifo *fifo);
-extern unsigned int __kfifo_put(struct kfifo *fifo,
+extern unsigned int kfifo_put(struct kfifo *fifo,
 				const unsigned char *buffer, unsigned int len);
-extern unsigned int __kfifo_get(struct kfifo *fifo,
+extern unsigned int kfifo_get(struct kfifo *fifo,
 				unsigned char *buffer, unsigned int len);
-
-/**
- * __kfifo_reset - removes the entire FIFO contents, no locking version
- * @fifo: the fifo to be emptied.
- */
-static inline void __kfifo_reset(struct kfifo *fifo)
-{
-	fifo->in = fifo->out = 0;
-}
 
 /**
  * kfifo_reset - removes the entire FIFO contents
@@ -57,14 +48,14 @@ static inline void __kfifo_reset(struct kfifo *fifo)
  */
 static inline void kfifo_reset(struct kfifo *fifo)
 {
-	__kfifo_reset(fifo);
+	fifo->in = fifo->out = 0;
 }
 
 /**
- * __kfifo_len - returns the number of bytes available in the FIFO
+ * kfifo_len - returns the number of used bytes in the FIFO
  * @fifo: the fifo to be used.
  */
-static inline unsigned int __kfifo_len(struct kfifo *fifo)
+static inline unsigned int kfifo_len(struct kfifo *fifo)
 {
 	register unsigned int	out;
 
@@ -92,7 +83,7 @@ static inline __must_check unsigned int kfifo_put_locked(struct kfifo *fifo,
 
 	spin_lock_irqsave(lock, flags);
 
-	ret = __kfifo_put(fifo, from, n);
+	ret = kfifo_put(fifo, from, n);
 
 	spin_unlock_irqrestore(lock, flags);
 
@@ -117,7 +108,7 @@ static inline __must_check unsigned int kfifo_get_locked(struct kfifo *fifo,
 
 	spin_lock_irqsave(lock, flags);
 
-	ret = __kfifo_get(fifo, to, n);
+	ret = kfifo_get(fifo, to, n);
 
 	/*
 	 * optimization: if the FIFO is empty, set the indices to 0
@@ -129,15 +120,6 @@ static inline __must_check unsigned int kfifo_get_locked(struct kfifo *fifo,
 	spin_unlock_irqrestore(lock, flags);
 
 	return ret;
-}
-
-/**
- * kfifo_len - returns the number of bytes available in the FIFO
- * @fifo: the fifo to be used.
- */
-static inline unsigned int kfifo_len(struct kfifo *fifo)
-{
-	return __kfifo_len(fifo);
 }
 
 #endif

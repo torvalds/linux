@@ -505,19 +505,19 @@ static inline void cq_delete(struct kfifo *kfifo)
 
 static inline unsigned int cq_howmany(struct kfifo *kfifo)
 {
-	return __kfifo_len(kfifo) / sizeof(void *);
+	return kfifo_len(kfifo) / sizeof(void *);
 }
 
 static inline int cq_put(struct kfifo *kfifo, void *p)
 {
-	return __kfifo_put(kfifo, (void *)&p, sizeof(p));
+	return kfifo_put(kfifo, (void *)&p, sizeof(p));
 }
 
 static inline void *cq_get(struct kfifo *kfifo)
 {
 	void *p = NULL;
 
-	__kfifo_get(kfifo, (void *)&p, sizeof(p));
+	kfifo_get(kfifo, (void *)&p, sizeof(p));
 	return p;
 }
 

@@ -131,7 +131,7 @@ static ssize_t dccpprobe_read(struct file *file, char __user *buf,
 		return -ENOMEM;
 
 	error = wait_event_interruptible(dccpw.wait,
-					 __kfifo_len(&dccpw.fifo) != 0);
+					 kfifo_len(&dccpw.fifo) != 0);
 	if (error)
 		goto out_free;
 

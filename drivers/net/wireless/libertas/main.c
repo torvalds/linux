@@ -459,7 +459,7 @@ static int lbs_thread(void *data)
 		else if (!list_empty(&priv->cmdpendingq) &&
 					!(priv->wakeup_dev_required))
 			shouldsleep = 0;	/* We have a command to send */
-		else if (__kfifo_len(&priv->event_fifo))
+		else if (kfifo_len(&priv->event_fifo))
 			shouldsleep = 0;	/* We have an event to process */
 		else
 			shouldsleep = 1;	/* No command */
@@ -511,9 +511,9 @@ static int lbs_thread(void *data)
 
 		/* Process hardware events, e.g. card removed, link lost */
 		spin_lock_irq(&priv->driver_lock);
-		while (__kfifo_len(&priv->event_fifo)) {
+		while (kfifo_len(&priv->event_fifo)) {
 			u32 event;
-			__kfifo_get(&priv->event_fifo, (unsigned char *) &event,
+			kfifo_get(&priv->event_fifo, (unsigned char *) &event,
 				sizeof(event));
 			spin_unlock_irq(&priv->driver_lock);
 			lbs_process_event(priv, event);
@@ -1175,7 +1175,7 @@ void lbs_queue_event(struct lbs_private *priv, u32 event)
 	if (priv->psstate == PS_STATE_SLEEP)
 		priv->psstate = PS_STATE_AWAKE;
 
-	__kfifo_put(&priv->event_fifo, (unsigned char *) &event, sizeof(u32));
+	kfifo_put(&priv->event_fifo, (unsigned char *) &event, sizeof(u32));
 
 	wake_up_interruptible(&priv->waitq);
 

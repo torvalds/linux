@@ -2107,7 +2107,7 @@ static int sonypi_misc_open(struct inode *inode, struct file *file)
 	spin_lock_irqsave(&sonypi_compat.fifo_lock, flags);
 
 	if (atomic_inc_return(&sonypi_compat.open_count) == 1)
-		__kfifo_reset(&sonypi_compat.fifo);
+		kfifo_reset(&sonypi_compat.fifo);
 
 	spin_unlock_irqrestore(&sonypi_compat.fifo_lock, flags);
 

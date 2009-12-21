@@ -276,7 +276,7 @@ static int usb_serial_generic_write_start(struct usb_serial_port *port)
 	if (port->write_urb_busy)
 		start_io = false;
 	else {
-		start_io = (__kfifo_len(port->write_fifo) != 0);
+		start_io = (kfifo_len(port->write_fifo) != 0);
 		port->write_urb_busy = start_io;
 	}
 	spin_unlock_irqrestore(&port->lock, flags);
@@ -370,7 +370,7 @@ int usb_serial_generic_write_room(struct tty_struct *tty)
 				(serial->type->max_in_flight_urbs -
 				 port->urbs_in_flight);
 	} else if (serial->num_bulk_out)
-		room = port->write_fifo->size - __kfifo_len(port->write_fifo);
+		room = port->write_fifo->size - kfifo_len(port->write_fifo);
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	dbg("%s - returns %d", __func__, room);

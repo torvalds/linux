@@ -61,7 +61,7 @@ static int srp_iu_pool_alloc(struct srp_queue *q, size_t max,
 	kfifo_init(&q->queue, (void *) q->pool, max * sizeof(void *));
 
 	for (i = 0, iue = q->items; i < max; i++) {
-		__kfifo_put(&q->queue, (void *) &iue, sizeof(void *));
+		kfifo_put(&q->queue, (void *) &iue, sizeof(void *));
 		iue->sbuf = ring[i];
 		iue++;
 	}

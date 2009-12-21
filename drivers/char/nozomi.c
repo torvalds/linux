@@ -798,7 +798,7 @@ static int send_data(enum port_type index, struct nozomi *dc)
 	struct tty_struct *tty = tty_port_tty_get(&port->port);
 
 	/* Get data from tty and place in buf for now */
-	size = __kfifo_get(&port->fifo_ul, dc->send_buf,
+	size = kfifo_get(&port->fifo_ul, dc->send_buf,
 			   ul_size < SEND_BUF_MAX ? ul_size : SEND_BUF_MAX);
 
 	if (size == 0) {
@@ -988,11 +988,11 @@ static int receive_flow_control(struct nozomi *dc)
 
 	} else if (old_ctrl.CTS == 0 && ctrl_dl.CTS == 1) {
 
-		if (__kfifo_len(&dc->port[port].fifo_ul)) {
+		if (kfifo_len(&dc->port[port].fifo_ul)) {
 			DBG1("Enable interrupt (0x%04X) on port: %d",
 				enable_ier, port);
 			DBG1("Data in buffer [%d], enable transmit! ",
-				__kfifo_len(&dc->port[port].fifo_ul));
+				kfifo_len(&dc->port[port].fifo_ul));
 			enable_transmit_ul(port, dc);
 		} else {
 			DBG1("No data in buffer...");
@@ -1672,7 +1672,7 @@ static int ntty_write(struct tty_struct *tty, const unsigned char *buffer,
 		goto exit;
 	}
 
-	rval = __kfifo_put(&port->fifo_ul, (unsigned char *)buffer, count);
+	rval = kfifo_put(&port->fifo_ul, (unsigned char *)buffer, count);
 
 	/* notify card */
 	if (unlikely(dc == NULL)) {
@@ -1720,7 +1720,7 @@ static int ntty_write_room(struct tty_struct *tty)
 	if (!port->port.count)
 		goto exit;
 
-	room = port->fifo_ul.size - __kfifo_len(&port->fifo_ul);
+	room = port->fifo_ul.size - kfifo_len(&port->fifo_ul);
 
 exit:
 	mutex_unlock(&port->tty_sem);
@@ -1877,7 +1877,7 @@ static s32 ntty_chars_in_buffer(struct tty_struct *tty)
 		goto exit_in_buffer;
 	}
 
-	rval = __kfifo_len(&port->fifo_ul);
+	rval = kfifo_len(&port->fifo_ul);
 
 exit_in_buffer:
 	return rval;
