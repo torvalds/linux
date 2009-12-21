@@ -40,6 +40,7 @@
 #include <linux/idr.h>
 #include <linux/interrupt.h>
 #include <linux/rbtree.h>
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
@@ -362,7 +363,9 @@ static void destroy_cm_id(struct iw_cm_id *cm_id)
 		 * In either case, must tell the provider to reject.
 		 */
 		cm_id_priv->state = IW_CM_STATE_DESTROYING;
+		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 		cm_id->device->iwcm->reject(cm_id, NULL, 0);
+		spin_lock_irqsave(&cm_id_priv->lock, flags);
 		break;
 	case IW_CM_STATE_CONN_SENT:
 	case IW_CM_STATE_DESTROYING:

@@ -930,13 +930,39 @@ xfs_fs_alloc_inode(
  */
 STATIC void
 xfs_fs_destroy_inode(
-	struct inode	*inode)
+	struct inode		*inode)
 {
-	xfs_inode_t		*ip = XFS_I(inode);
+	struct xfs_inode	*ip = XFS_I(inode);
+
+	xfs_itrace_entry(ip);
 
 	XFS_STATS_INC(vn_reclaim);
-	if (xfs_reclaim(ip))
-		panic("%s: cannot reclaim 0x%p\n", __func__, inode);
+
+	/* bad inode, get out here ASAP */
+	if (is_bad_inode(inode))
+		goto out_reclaim;
+
+	xfs_ioend_wait(ip);
+
+	ASSERT(XFS_FORCED_SHUTDOWN(ip->i_mount) || ip->i_delayed_blks == 0);
+
+	/*
+	 * We should never get here with one of the reclaim flags already set.
+	 */
+	ASSERT_ALWAYS(!xfs_iflags_test(ip, XFS_IRECLAIMABLE));
+	ASSERT_ALWAYS(!xfs_iflags_test(ip, XFS_IRECLAIM));
+
+	/*
+	 * If we have nothing to flush with this inode then complete the
+	 * teardown now, otherwise delay the flush operation.
+	 */
+	if (!xfs_inode_clean(ip)) {
+		xfs_inode_set_reclaim_tag(ip);
+		return;
+	}
+
+out_reclaim:
+	xfs_ireclaim(ip);
 }
 
 /*
@@ -973,7 +999,28 @@ xfs_fs_inode_init_once(
 
 	mrlock_init(&ip->i_lock, MRLOCK_ALLOW_EQUAL_PRI|MRLOCK_BARRIER,
 		     "xfsino", ip->i_ino);
-	mrlock_init(&ip->i_iolock, MRLOCK_BARRIER, "xfsio", ip->i_ino);
+}
+
+/*
+ * Dirty the XFS inode when mark_inode_dirty_sync() is called so that
+ * we catch unlogged VFS level updates to the inode. Care must be taken
+ * here - the transaction code calls mark_inode_dirty_sync() to mark the
+ * VFS inode dirty in a transaction and clears the i_update_core field;
+ * it must clear the field after calling mark_inode_dirty_sync() to
+ * correctly indicate that the dirty state has been propagated into the
+ * inode log item.
+ *
+ * We need the barrier() to maintain correct ordering between unlogged
+ * updates and the transaction commit code that clears the i_update_core
+ * field. This requires all updates to be completed before marking the
+ * inode dirty.
+ */
+STATIC void
+xfs_fs_dirty_inode(
+	struct inode	*inode)
+{
+	barrier();
+	XFS_I(inode)->i_update_core = 1;
 }
 
 /*
@@ -1053,6 +1100,20 @@ xfs_fs_clear_inode(
 	XFS_STATS_INC(vn_remove);
 	XFS_STATS_DEC(vn_active);
 
+	/*
+	 * The iolock is used by the file system to coordinate reads,
+	 * writes, and block truncates.  Up to this point the lock
+	 * protected concurrent accesses by users of the inode.  But
+	 * from here forward we're doing some final processing of the
+	 * inode because we're done with it, and although we reuse the
+	 * iolock for protection it is really a distinct lock class
+	 * (in the lockdep sense) from before.  To keep lockdep happy
+	 * (and basically indicate what we are doing), we explicitly
+	 * re-init the iolock here.
+	 */
+	ASSERT(!rwsem_is_locked(&ip->i_iolock.mr_lock));
+	mrlock_init(&ip->i_iolock, MRLOCK_BARRIER, "xfsio", ip->i_ino);
+
 	xfs_inactive(ip);
 }
 
@@ -1070,8 +1131,6 @@ xfs_fs_put_super(
 	struct super_block	*sb)
 {
 	struct xfs_mount	*mp = XFS_M(sb);
-	struct xfs_inode	*rip = mp->m_rootip;
-	int			unmount_event_flags = 0;
 
 	xfs_syncd_stop(mp);
 
@@ -1087,20 +1146,7 @@ xfs_fs_put_super(
 		xfs_sync_attr(mp, 0);
 	}
 
-#ifdef HAVE_DMAPI
-	if (mp->m_flags & XFS_MOUNT_DMAPI) {
-		unmount_event_flags =
-			(mp->m_dmevmask & (1 << DM_EVENT_UNMOUNT)) ?
-				0 : DM_FLAGS_UNWANTED;
-		/*
-		 * Ignore error from dmapi here, first unmount is not allowed
-		 * to fail anyway, and second we wouldn't want to fail a
-		 * unmount because of dmapi.
-		 */
-		XFS_SEND_PREUNMOUNT(mp, rip, DM_RIGHT_NULL, rip, DM_RIGHT_NULL,
-				NULL, NULL, 0, 0, unmount_event_flags);
-	}
-#endif
+	XFS_SEND_PREUNMOUNT(mp);
 
 	/*
 	 * Blow away any referenced inode in the filestreams cache.
@@ -1111,10 +1157,7 @@ xfs_fs_put_super(
 
 	XFS_bflush(mp->m_ddev_targp);
 
-	if (mp->m_flags & XFS_MOUNT_DMAPI) {
-		XFS_SEND_UNMOUNT(mp, rip, DM_RIGHT_NULL, 0, 0,
-				unmount_event_flags);
-	}
+	XFS_SEND_UNMOUNT(mp);
 
 	xfs_unmountfs(mp);
 	xfs_freesb(mp);
@@ -1126,7 +1169,7 @@ xfs_fs_put_super(
 }
 
 STATIC int
-xfs_fs_sync_super(
+xfs_fs_sync_fs(
 	struct super_block	*sb,
 	int			wait)
 {
@@ -1134,23 +1177,23 @@ xfs_fs_sync_super(
 	int			error;
 
 	/*
-	 * Treat a sync operation like a freeze.  This is to work
-	 * around a race in sync_inodes() which works in two phases
-	 * - an asynchronous flush, which can write out an inode
-	 * without waiting for file size updates to complete, and a
-	 * synchronous flush, which wont do anything because the
-	 * async flush removed the inode's dirty flag.  Also
-	 * sync_inodes() will not see any files that just have
-	 * outstanding transactions to be flushed because we don't
-	 * dirty the Linux inode until after the transaction I/O
-	 * completes.
+	 * Not much we can do for the first async pass.  Writing out the
+	 * superblock would be counter-productive as we are going to redirty
+	 * when writing out other data and metadata (and writing out a single
+	 * block is quite fast anyway).
+	 *
+	 * Try to asynchronously kick off quota syncing at least.
 	 */
-	if (wait || unlikely(sb->s_frozen == SB_FREEZE_WRITE))
-		error = xfs_quiesce_data(mp);
-	else
-		error = xfs_sync_fsdata(mp, 0);
+	if (!wait) {
+		xfs_qm_sync(mp, SYNC_TRYLOCK);
+		return 0;
+	}
 
-	if (unlikely(laptop_mode)) {
+	error = xfs_quiesce_data(mp);
+	if (error)
+		return -error;
+
+	if (laptop_mode) {
 		int	prev_sync_seq = mp->m_sync_seq;
 
 		/*
@@ -1169,7 +1212,7 @@ xfs_fs_sync_super(
 				mp->m_sync_seq != prev_sync_seq);
 	}
 
-	return -error;
+	return 0;
 }
 
 STATIC int
@@ -1539,10 +1582,11 @@ xfs_fs_get_sb(
 static const struct super_operations xfs_super_operations = {
 	.alloc_inode		= xfs_fs_alloc_inode,
 	.destroy_inode		= xfs_fs_destroy_inode,
+	.dirty_inode		= xfs_fs_dirty_inode,
 	.write_inode		= xfs_fs_write_inode,
 	.clear_inode		= xfs_fs_clear_inode,
 	.put_super		= xfs_fs_put_super,
-	.sync_fs		= xfs_fs_sync_super,
+	.sync_fs		= xfs_fs_sync_fs,
 	.freeze_fs		= xfs_fs_freeze,
 	.statfs			= xfs_fs_statfs,
 	.remount_fs		= xfs_fs_remount,

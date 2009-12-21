@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/input.h>
+#include <linux/input/matrix_keypad.h>
 #include <linux/gpio_keys.h>
 #include <linux/workqueue.h>
 #include <linux/err.h>
@@ -32,17 +33,17 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/mcspi.h>
+#include <plat/mcspi.h>
 #include <mach/gpio.h>
-#include <mach/board.h>
-#include <mach/common.h>
-#include <mach/gpmc.h>
+#include <plat/board.h>
+#include <plat/common.h>
+#include <plat/gpmc.h>
 
 #include <asm/delay.h>
-#include <mach/control.h>
-#include <mach/usb.h>
-#include <mach/keypad.h>
+#include <plat/control.h>
+#include <plat/usb.h>
 
+#include "mux.h"
 #include "mmc-twl4030.h"
 
 #define LDP_SMSC911X_CS		1
@@ -374,8 +375,17 @@ static struct platform_device *ldp_devices[] __initdata = {
 	&ldp_gpio_keys_device,
 };
 
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define board_mux	NULL
+#endif
+
 static void __init omap_ldp_init(void)
 {
+	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap_i2c_init();
 	platform_add_devices(ldp_devices, ARRAY_SIZE(ldp_devices));
 	ts_gpio = 54;
@@ -399,7 +409,7 @@ static void __init omap_ldp_map_io(void)
 
 MACHINE_START(OMAP_LDP, "OMAP LDP board")
 	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
+	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap_ldp_map_io,
 	.init_irq	= omap_ldp_init_irq,

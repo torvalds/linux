@@ -144,7 +144,7 @@ static struct s3c2410_udc_mach_info mini2440_udc_cfg __initdata = {
 	.type		= (S3C2410_LCDCON1_TFT16BPP |\
 			   S3C2410_LCDCON1_TFT)
 
-struct s3c2410fb_display mini2440_lcd_cfg[] __initdata = {
+static struct s3c2410fb_display mini2440_lcd_cfg[] __initdata = {
 	[0] = {	/* mini2440 + 3.5" TFT + touchscreen */
 		_LCD_DECLARE(
 			7,			/* The 3.5 is quite fast */
@@ -191,7 +191,7 @@ struct s3c2410fb_display mini2440_lcd_cfg[] __initdata = {
 #define S3C2410_GPCCON_MASK(x)	(3 << ((x) * 2))
 #define S3C2410_GPDCON_MASK(x)	(3 << ((x) * 2))
 
-struct s3c2410fb_mach_info mini2440_fb_info __initdata = {
+static struct s3c2410fb_mach_info mini2440_fb_info __initdata = {
 	.displays	 = &mini2440_lcd_cfg[0], /* not constant! see init */
 	.num_displays	 = 1,
 	.default_display = 0,
@@ -532,7 +532,6 @@ static void __init mini2440_map_io(void)
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(mini2440_uartcfgs, ARRAY_SIZE(mini2440_uartcfgs));
 
-	s3c_device_nand.dev.platform_data = &mini2440_nand_info;
 	s3c_device_sdi.dev.platform_data = &mini2440_mmc_cfg;
 }
 
@@ -677,8 +676,11 @@ static void __init mini2440_init(void)
 		printk("\n");
 		s3c24xx_fb_set_platdata(&mini2440_fb_info);
 	}
+
 	s3c24xx_udc_set_platdata(&mini2440_udc_cfg);
+	s3c_nand_set_platdata(&mini2440_nand_info);
 	s3c_i2c0_set_platdata(NULL);
+
 	i2c_register_board_info(0, mini2440_i2c_devs,
 				ARRAY_SIZE(mini2440_i2c_devs));
 

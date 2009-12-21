@@ -23,7 +23,6 @@
 #include <asm/io.h>
 #include <linux/list.h>
 #include <linux/ioport.h>
-#include <linux/mm.h>
 #include <linux/memory.h>
 #include <asm/sections.h>
 

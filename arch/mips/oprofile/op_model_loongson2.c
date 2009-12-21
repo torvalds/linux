@@ -22,7 +22,7 @@
  * otherwise, the oprofile tool will not recognize this and complain about
  * "cpu_type 'unset' is not valid".
  */
-#define LOONGSON2_CPU_TYPE	"mips/godson2"
+#define LOONGSON2_CPU_TYPE	"mips/loongson2"
 
 #define LOONGSON2_COUNTER1_EVENT(event)	((event & 0x0f) << 5)
 #define LOONGSON2_COUNTER2_EVENT(event)	((event & 0x0f) << 9)

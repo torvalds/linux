@@ -11,6 +11,7 @@
  *
  */
 
+#include <linux/cred.h>
 #include <linux/module.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>

@@ -6,7 +6,7 @@
  *          Title:  MPI IOC, Port, Event, FW Download, and FW Upload messages
  *  Creation Date:  October 11, 2006
  *
- *  mpi2_ioc.h Version:  02.00.10
+ *  mpi2_ioc.h Version:  02.00.12
  *
  *  Version History
  *  ---------------
@@ -79,6 +79,14 @@
  *                      Added MPI2_EVENT_SAS_DEV_STAT_RC_SATA_INIT_FAILURE
  *                      define.
  *                      Removed MPI2_EVENT_SAS_DISC_DS_SATA_INIT_FAILURE define.
+ *  05-06-09  02.00.11  Added MPI2_IOCFACTS_CAPABILITY_RAID_ACCELERATOR define.
+ *                      Added MPI2_IOCFACTS_CAPABILITY_MSI_X_INDEX define.
+ *                      Added two new reason codes for SAS Device Status Change
+ *                      Event.
+ *                      Added new event: SAS PHY Counter.
+ *  07-30-09  02.00.12  Added GPIO Interrupt event define and structure.
+ *                      Added MPI2_IOCFACTS_CAPABILITY_EXTENDED_BUFFER define.
+ *                      Added new product id family for 2208.
  *  --------------------------------------------------------------------------
  */
 
@@ -261,12 +269,15 @@ typedef struct _MPI2_IOC_FACTS_REPLY
 /* ProductID field uses MPI2_FW_HEADER_PID_ */
 
 /* IOCCapabilities */
+#define MPI2_IOCFACTS_CAPABILITY_MSI_X_INDEX            (0x00008000)
+#define MPI2_IOCFACTS_CAPABILITY_RAID_ACCELERATOR       (0x00004000)
 #define MPI2_IOCFACTS_CAPABILITY_EVENT_REPLAY           (0x00002000)
 #define MPI2_IOCFACTS_CAPABILITY_INTEGRATED_RAID        (0x00001000)
 #define MPI2_IOCFACTS_CAPABILITY_TLR                    (0x00000800)
 #define MPI2_IOCFACTS_CAPABILITY_MULTICAST              (0x00000100)
 #define MPI2_IOCFACTS_CAPABILITY_BIDIRECTIONAL_TARGET   (0x00000080)
 #define MPI2_IOCFACTS_CAPABILITY_EEDP                   (0x00000040)
+#define MPI2_IOCFACTS_CAPABILITY_EXTENDED_BUFFER        (0x00000020)
 #define MPI2_IOCFACTS_CAPABILITY_SNAPSHOT_BUFFER        (0x00000010)
 #define MPI2_IOCFACTS_CAPABILITY_DIAG_TRACE_BUFFER      (0x00000008)
 #define MPI2_IOCFACTS_CAPABILITY_TASK_SET_FULL_HANDLING (0x00000004)
@@ -440,6 +451,8 @@ typedef struct _MPI2_EVENT_NOTIFICATION_REPLY
 #define MPI2_EVENT_IR_PHYSICAL_DISK                 (0x001F)
 #define MPI2_EVENT_IR_CONFIGURATION_CHANGE_LIST     (0x0020)
 #define MPI2_EVENT_LOG_ENTRY_ADDED                  (0x0021)
+#define MPI2_EVENT_SAS_PHY_COUNTER                  (0x0022)
+#define MPI2_EVENT_GPIO_INTERRUPT                   (0x0023)
 
 
 /* Log Entry Added Event data */
@@ -460,6 +473,16 @@ typedef struct _MPI2_EVENT_DATA_LOG_ENTRY_ADDED
 } MPI2_EVENT_DATA_LOG_ENTRY_ADDED,
   MPI2_POINTER PTR_MPI2_EVENT_DATA_LOG_ENTRY_ADDED,
   Mpi2EventDataLogEntryAdded_t, MPI2_POINTER pMpi2EventDataLogEntryAdded_t;
+
+/* GPIO Interrupt Event data */
+
+typedef struct _MPI2_EVENT_DATA_GPIO_INTERRUPT {
+    U8          GPIONum;                            /* 0x00 */
+    U8          Reserved1;                          /* 0x01 */
+    U16         Reserved2;                          /* 0x02 */
+} MPI2_EVENT_DATA_GPIO_INTERRUPT,
+  MPI2_POINTER PTR_MPI2_EVENT_DATA_GPIO_INTERRUPT,
+  Mpi2EventDataGpioInterrupt_t, MPI2_POINTER pMpi2EventDataGpioInterrupt_t;
 
 /* Hard Reset Received Event data */
 
@@ -502,17 +525,19 @@ typedef struct _MPI2_EVENT_DATA_SAS_DEVICE_STATUS_CHANGE
   MPI2_POINTER pMpi2EventDataSasDeviceStatusChange_t;
 
 /* SAS Device Status Change Event data ReasonCode values */
-#define MPI2_EVENT_SAS_DEV_STAT_RC_SMART_DATA               (0x05)
-#define MPI2_EVENT_SAS_DEV_STAT_RC_UNSUPPORTED              (0x07)
-#define MPI2_EVENT_SAS_DEV_STAT_RC_INTERNAL_DEVICE_RESET    (0x08)
-#define MPI2_EVENT_SAS_DEV_STAT_RC_TASK_ABORT_INTERNAL      (0x09)
-#define MPI2_EVENT_SAS_DEV_STAT_RC_ABORT_TASK_SET_INTERNAL  (0x0A)
-#define MPI2_EVENT_SAS_DEV_STAT_RC_CLEAR_TASK_SET_INTERNAL  (0x0B)
-#define MPI2_EVENT_SAS_DEV_STAT_RC_QUERY_TASK_INTERNAL      (0x0C)
-#define MPI2_EVENT_SAS_DEV_STAT_RC_ASYNC_NOTIFICATION       (0x0D)
-#define MPI2_EVENT_SAS_DEV_STAT_RC_CMP_INTERNAL_DEV_RESET   (0x0E)
-#define MPI2_EVENT_SAS_DEV_STAT_RC_CMP_TASK_ABORT_INTERNAL  (0x0F)
-#define MPI2_EVENT_SAS_DEV_STAT_RC_SATA_INIT_FAILURE        (0x10)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_SMART_DATA                           (0x05)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_UNSUPPORTED                          (0x07)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_INTERNAL_DEVICE_RESET                (0x08)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_TASK_ABORT_INTERNAL                  (0x09)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_ABORT_TASK_SET_INTERNAL              (0x0A)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_CLEAR_TASK_SET_INTERNAL              (0x0B)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_QUERY_TASK_INTERNAL                  (0x0C)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_ASYNC_NOTIFICATION                   (0x0D)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_CMP_INTERNAL_DEV_RESET               (0x0E)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_CMP_TASK_ABORT_INTERNAL              (0x0F)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_SATA_INIT_FAILURE                    (0x10)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_EXPANDER_REDUCED_FUNCTIONALITY       (0x11)
+#define MPI2_EVENT_SAS_DEV_STAT_RC_CMP_EXPANDER_REDUCED_FUNCTIONALITY   (0x12)
 
 
 /* Integrated RAID Operation Status Event data */
@@ -822,6 +847,37 @@ typedef struct _MPI2_EVENT_DATA_SAS_ENCL_DEV_STATUS_CHANGE
 #define MPI2_EVENT_SAS_ENCL_RC_NOT_RESPONDING       (0x02)
 
 
+/* SAS PHY Counter Event data */
+
+typedef struct _MPI2_EVENT_DATA_SAS_PHY_COUNTER {
+    U64         TimeStamp;          /* 0x00 */
+    U32         Reserved1;          /* 0x08 */
+    U8          PhyEventCode;       /* 0x0C */
+    U8          PhyNum;             /* 0x0D */
+    U16         Reserved2;          /* 0x0E */
+    U32         PhyEventInfo;       /* 0x10 */
+    U8          CounterType;        /* 0x14 */
+    U8          ThresholdWindow;    /* 0x15 */
+    U8          TimeUnits;          /* 0x16 */
+    U8          Reserved3;          /* 0x17 */
+    U32         EventThreshold;     /* 0x18 */
+    U16         ThresholdFlags;     /* 0x1C */
+    U16         Reserved4;          /* 0x1E */
+} MPI2_EVENT_DATA_SAS_PHY_COUNTER,
+  MPI2_POINTER PTR_MPI2_EVENT_DATA_SAS_PHY_COUNTER,
+  Mpi2EventDataSasPhyCounter_t, MPI2_POINTER pMpi2EventDataSasPhyCounter_t;
+
+/* use MPI2_SASPHY3_EVENT_CODE_ values from mpi2_cnfg.h for the
+ * PhyEventCode field
+ * use MPI2_SASPHY3_COUNTER_TYPE_ values from mpi2_cnfg.h for the
+ * CounterType field
+ * use MPI2_SASPHY3_TIME_UNITS_ values from mpi2_cnfg.h for the
+ * TimeUnits field
+ * use MPI2_SASPHY3_TFLAGS_ values from mpi2_cnfg.h for the
+ * ThresholdFlags field
+ * */
+
+
 /****************************************************************************
 *  EventAck message
 ****************************************************************************/
@@ -1076,6 +1132,7 @@ typedef struct _MPI2_FW_IMAGE_HEADER
 #define MPI2_FW_HEADER_PID_FAMILY_MASK          (0x00FF)
 /* SAS */
 #define MPI2_FW_HEADER_PID_FAMILY_2108_SAS      (0x0010)
+#define MPI2_FW_HEADER_PID_FAMILY_2208_SAS      (0x0011)
 
 /* use MPI2_IOCFACTS_PROTOCOL_ defines for ProtocolFlags field */
 

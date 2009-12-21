@@ -598,11 +598,6 @@ static int s2255_got_frame(struct s2255_dev *dev, int chn, int jpgsize)
 	buf = list_entry(dma_q->active.next,
 			 struct s2255_buffer, vb.queue);
 
-	if (!waitqueue_active(&buf->vb.done)) {
-		/* no one active */
-		rc = -1;
-		goto unlock;
-	}
 	list_del(&buf->vb.queue);
 	do_gettimeofday(&buf->vb.ts);
 	dprintk(100, "[%p/%d] wakeup\n", buf, buf->vb.i);
@@ -1963,7 +1958,7 @@ static int save_frame(struct s2255_dev *dev, struct s2255_pipeinfo *pipe_info)
 				if (pdword[1] >= MAX_CHANNELS)
 					break;
 				cc = G_chnmap[pdword[1]];
-				if (!(cc >= 0 && cc < MAX_CHANNELS))
+				if (cc >= MAX_CHANNELS)
 					break;
 				switch (pdword[2]) {
 				case S2255_RESPONSE_SETMODE:
@@ -1985,7 +1980,7 @@ static int save_frame(struct s2255_dev *dev, struct s2255_pipeinfo *pipe_info)
 					wake_up(&dev->fw_data->wait_fw);
 					break;
 				default:
-					printk(KERN_INFO "s2255 unknwn resp\n");
+					printk(KERN_INFO "s2255 unknown resp\n");
 				}
 			default:
 				pdata++;

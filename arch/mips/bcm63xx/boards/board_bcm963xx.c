@@ -24,7 +24,6 @@
 #include <bcm63xx_dev_enet.h>
 #include <bcm63xx_dev_dsp.h>
 #include <bcm63xx_dev_pcmcia.h>
-#include <bcm63xx_dev_uart.h>
 #include <board_bcm963xx.h>
 
 #define PFX	"board_bcm963xx: "
@@ -793,8 +792,6 @@ static struct platform_device bcm63xx_gpio_leds = {
 int __init board_register_devices(void)
 {
 	u32 val;
-
-	bcm63xx_uart_register();
 
 	if (board.has_pccard)
 		bcm63xx_pcmcia_register();

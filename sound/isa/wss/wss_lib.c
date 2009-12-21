@@ -1682,7 +1682,7 @@ static void snd_wss_resume(struct snd_wss *chip)
 }
 #endif /* CONFIG_PM */
 
-int snd_wss_free(struct snd_wss *chip)
+static int snd_wss_free(struct snd_wss *chip)
 {
 	release_and_free_resource(chip->res_port);
 	release_and_free_resource(chip->res_cport);
@@ -1705,7 +1705,6 @@ int snd_wss_free(struct snd_wss *chip)
 	kfree(chip);
 	return 0;
 }
-EXPORT_SYMBOL(snd_wss_free);
 
 static int snd_wss_dev_free(struct snd_device *device)
 {
@@ -2225,7 +2224,7 @@ WSS_DOUBLE_TLV("Capture Volume", 0, CS4231_LEFT_INPUT, CS4231_RIGHT_INPUT,
 	.get = snd_wss_get_mux,
 	.put = snd_wss_put_mux,
 },
-WSS_DOUBLE("Mic Boost", 0,
+WSS_DOUBLE("Mic Boost (+20dB)", 0,
 		CS4231_LEFT_INPUT, CS4231_RIGHT_INPUT, 5, 5, 1, 0),
 WSS_SINGLE("Loopback Capture Switch", 0,
 		CS4231_LOOPBACK, 0, 1, 0),
@@ -2236,14 +2235,14 @@ WSS_DOUBLE("Line Playback Switch", 0,
 WSS_DOUBLE_TLV("Line Playback Volume", 0,
 		CS4231_LEFT_LINE_IN, CS4231_RIGHT_LINE_IN, 0, 0, 31, 1,
 		db_scale_5bit_12db_max),
-WSS_SINGLE("Mono Playback Switch", 0,
+WSS_SINGLE("Beep Playback Switch", 0,
 		CS4231_MONO_CTRL, 7, 1, 1),
-WSS_SINGLE_TLV("Mono Playback Volume", 0,
+WSS_SINGLE_TLV("Beep Playback Volume", 0,
 		CS4231_MONO_CTRL, 0, 15, 1,
 		db_scale_4bit),
 WSS_SINGLE("Mono Output Playback Switch", 0,
 		CS4231_MONO_CTRL, 6, 1, 1),
-WSS_SINGLE("Mono Output Playback Bypass", 0,
+WSS_SINGLE("Beep Bypass Playback Switch", 0,
 		CS4231_MONO_CTRL, 5, 1, 0),
 };
 

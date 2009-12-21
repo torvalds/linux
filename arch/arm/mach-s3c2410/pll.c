@@ -1,6 +1,6 @@
 /* arch/arm/mach-s3c2410/pll.c
  *
- * Copyright (c) 2006,2007 Simtec Electronics
+ * Copyright (c) 2006-2007 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *	Vincent Sanders <vince@arm.linux.org.uk>

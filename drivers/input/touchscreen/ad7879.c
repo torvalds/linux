@@ -645,7 +645,7 @@ static int __devinit ad7879_probe(struct spi_device *spi)
 		kfree(ts);
 	}
 
-	return 0;
+	return error;
 }
 
 static int __devexit ad7879_remove(struct spi_device *spi)
@@ -732,7 +732,7 @@ static int __devinit ad7879_probe(struct i2c_client *client,
 		kfree(ts);
 	}
 
-	return 0;
+	return error;
 }
 
 static int __devexit ad7879_remove(struct i2c_client *client)

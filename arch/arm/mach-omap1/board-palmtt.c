@@ -29,16 +29,16 @@
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
-#include <mach/led.h>
+#include <plat/led.h>
 #include <mach/gpio.h>
-#include <mach/mux.h>
-#include <mach/usb.h>
-#include <mach/dma.h>
-#include <mach/tc.h>
-#include <mach/board.h>
-#include <mach/irda.h>
-#include <mach/keypad.h>
-#include <mach/common.h>
+#include <plat/mux.h>
+#include <plat/usb.h>
+#include <plat/dma.h>
+#include <plat/tc.h>
+#include <plat/board.h>
+#include <plat/irda.h>
+#include <plat/keypad.h>
+#include <plat/common.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
@@ -289,6 +289,14 @@ static void __init omap_mpu_wdt_mode(int mode) {
 
 static void __init omap_palmtt_init(void)
 {
+	/* mux pins for uarts */
+	omap_cfg_reg(UART1_TX);
+	omap_cfg_reg(UART1_RTS);
+	omap_cfg_reg(UART2_TX);
+	omap_cfg_reg(UART2_RTS);
+	omap_cfg_reg(UART3_TX);
+	omap_cfg_reg(UART3_RX);
+
 	omap_mpu_wdt_mode(0);
 
 	omap_board_config = palmtt_config;

@@ -18,13 +18,16 @@
 #include <linux/delay.h>
 #include <linux/usb/r8a66597.h>
 #include <linux/i2c.h>
+#include <linux/i2c/tsc2007.h>
 #include <linux/input.h>
+#include <linux/input/sh_keysc.h>
+#include <linux/mfd/sh_mobile_sdhi.h>
 #include <video/sh_mobile_lcdc.h>
 #include <media/sh_mobile_ceu.h>
 #include <asm/heartbeat.h>
 #include <asm/sh_eth.h>
-#include <asm/sh_keysc.h>
 #include <asm/clock.h>
+#include <asm/suspend.h>
 #include <cpu/sh7724.h>
 
 /*
@@ -36,6 +39,20 @@
  *  0x0400_0000  Internal I/O     16/32bit
  *  0x0800_0000  DRAM             32bit
  *  0x1800_0000  MFI              16bit
+ */
+
+/* SWITCH
+ *------------------------------
+ * DS2[1] = FlashROM write protect  ON     : write protect
+ *                                  OFF    : No write protect
+ * DS2[2] = RMII / TS, SCIF         ON     : RMII
+ *                                  OFF    : TS, SCIF3
+ * DS2[3] = Camera / Video          ON     : Camera
+ *                                  OFF    : NTSC/PAL (IN)
+ * DS2[5] = NTSC_OUT Clock          ON     : On board OSC
+ *                                  OFF    : SH7724 DV_CLK
+ * DS2[6-7] = MMC / SD              ON-OFF : SD
+ *                                  OFF-ON : MMC
  */
 
 /* Heartbeat */
@@ -70,7 +87,7 @@ static struct mtd_partition nor_flash_partitions[] = {
 		.name = "boot loader",
 		.offset = 0,
 		.size = (5 * 1024 * 1024),
-		.mask_flags = MTD_CAP_ROM,
+		.mask_flags = MTD_WRITEABLE,  /* force read-only */
 	}, {
 		.name = "free-area",
 		.offset = MTDPART_OFS_APPEND,
@@ -132,6 +149,9 @@ static struct platform_device sh_eth_device = {
 	},
 	.num_resources = ARRAY_SIZE(sh_eth_resources),
 	.resource = sh_eth_resources,
+	.archdata = {
+		.hwblk_id = HWBLK_ETHER,
+	},
 };
 
 /* USB0 host */
@@ -170,30 +190,18 @@ static struct platform_device usb0_host_device = {
 	.resource	= usb0_host_resources,
 };
 
-/*
- * USB1
- *
- * CN5 can use both host/function,
- * and we can determine it by checking PTB[3]
- *
- * This time only USB1 host is supported.
- */
+/* USB1 host/function */
 void usb1_port_power(int port, int power)
 {
-	if (!gpio_get_value(GPIO_PTB3)) {
-		printk(KERN_ERR "USB1 function is not supported\n");
-		return;
-	}
-
 	gpio_set_value(GPIO_PTB5, power);
 }
 
-static struct r8a66597_platdata usb1_host_data = {
+static struct r8a66597_platdata usb1_common_data = {
 	.on_chip = 1,
 	.port_power = usb1_port_power,
 };
 
-static struct resource usb1_host_resources[] = {
+static struct resource usb1_common_resources[] = {
 	[0] = {
 		.start	= 0xa4d90000,
 		.end	= 0xa4d90124 - 1,
@@ -206,16 +214,16 @@ static struct resource usb1_host_resources[] = {
 	},
 };
 
-static struct platform_device usb1_host_device = {
-	.name		= "r8a66597_hcd",
+static struct platform_device usb1_common_device = {
+	/* .name will be added in arch_setup */
 	.id		= 1,
 	.dev = {
 		.dma_mask		= NULL,         /*  not use dma */
 		.coherent_dma_mask	= 0xffffffff,
-		.platform_data		= &usb1_host_data,
+		.platform_data		= &usb1_common_data,
 	},
-	.num_resources	= ARRAY_SIZE(usb1_host_resources),
-	.resource	= usb1_host_resources,
+	.num_resources	= ARRAY_SIZE(usb1_common_resources),
+	.resource	= usb1_common_resources,
 };
 
 /* LCDC */
@@ -376,16 +384,127 @@ static struct platform_device keysc_device = {
 	},
 };
 
+/* TouchScreen */
+#define IRQ0 32
+static int ts_get_pendown_state(void)
+{
+	int val = 0;
+	gpio_free(GPIO_FN_INTC_IRQ0);
+	gpio_request(GPIO_PTZ0, NULL);
+	gpio_direction_input(GPIO_PTZ0);
+
+	val = gpio_get_value(GPIO_PTZ0);
+
+	gpio_free(GPIO_PTZ0);
+	gpio_request(GPIO_FN_INTC_IRQ0, NULL);
+
+	return val ? 0 : 1;
+}
+
+static int ts_init(void)
+{
+	gpio_request(GPIO_FN_INTC_IRQ0, NULL);
+	return 0;
+}
+
+struct tsc2007_platform_data tsc2007_info = {
+	.model			= 2007,
+	.x_plate_ohms		= 180,
+	.get_pendown_state	= ts_get_pendown_state,
+	.init_platform_hw	= ts_init,
+};
+
+static struct i2c_board_info ts_i2c_clients = {
+	I2C_BOARD_INFO("tsc2007", 0x48),
+	.type		= "tsc2007",
+	.platform_data	= &tsc2007_info,
+	.irq		= IRQ0,
+};
+
+/* SHDI0 */
+static void sdhi0_set_pwr(struct platform_device *pdev, int state)
+{
+	gpio_set_value(GPIO_PTB6, state);
+}
+
+static struct sh_mobile_sdhi_info sdhi0_info = {
+	.set_pwr = sdhi0_set_pwr,
+};
+
+static struct resource sdhi0_resources[] = {
+	[0] = {
+		.name	= "SDHI0",
+		.start  = 0x04ce0000,
+		.end    = 0x04ce01ff,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 101,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sdhi0_device = {
+	.name           = "sh_mobile_sdhi",
+	.num_resources  = ARRAY_SIZE(sdhi0_resources),
+	.resource       = sdhi0_resources,
+	.id             = 0,
+	.dev	= {
+		.platform_data	= &sdhi0_info,
+	},
+	.archdata = {
+		.hwblk_id = HWBLK_SDHI0,
+	},
+};
+
+/* SHDI1 */
+static void sdhi1_set_pwr(struct platform_device *pdev, int state)
+{
+	gpio_set_value(GPIO_PTB7, state);
+}
+
+static struct sh_mobile_sdhi_info sdhi1_info = {
+	.set_pwr = sdhi1_set_pwr,
+};
+
+static struct resource sdhi1_resources[] = {
+	[0] = {
+		.name	= "SDHI1",
+		.start  = 0x04cf0000,
+		.end    = 0x04cf01ff,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 24,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sdhi1_device = {
+	.name           = "sh_mobile_sdhi",
+	.num_resources  = ARRAY_SIZE(sdhi1_resources),
+	.resource       = sdhi1_resources,
+	.id             = 1,
+	.dev	= {
+		.platform_data	= &sdhi1_info,
+	},
+	.archdata = {
+		.hwblk_id = HWBLK_SDHI1,
+	},
+};
+
 static struct platform_device *ecovec_devices[] __initdata = {
 	&heartbeat_device,
 	&nor_flash_device,
 	&sh_eth_device,
 	&usb0_host_device,
-	&usb1_host_device, /* USB1 host support */
+	&usb1_common_device,
 	&lcdc_device,
 	&ceu0_device,
 	&ceu1_device,
 	&keysc_device,
+	&sdhi0_device,
+	&sdhi1_device,
 };
 
 #define EEPROM_ADDR 0x50
@@ -414,12 +533,9 @@ static u8 mac_read(struct i2c_adapter *a, u8 command)
 	return buf;
 }
 
-#define MAC_LEN 6
-static void __init sh_eth_init(void)
+static void __init sh_eth_init(struct sh_eth_plat_data *pd)
 {
 	struct i2c_adapter *a = i2c_get_adapter(1);
-	struct clk *eth_clk;
-	u8 mac[MAC_LEN];
 	int i;
 
 	if (!a) {
@@ -427,39 +543,35 @@ static void __init sh_eth_init(void)
 		return;
 	}
 
-	eth_clk = clk_get(NULL, "eth0");
-	if (!eth_clk) {
-		pr_err("can not get eth0 clk\n");
-		return;
-	}
-
 	/* read MAC address frome EEPROM */
-	for (i = 0; i < MAC_LEN; i++) {
-		mac[i] = mac_read(a, 0x10 + i);
+	for (i = 0; i < sizeof(pd->mac_addr); i++) {
+		pd->mac_addr[i] = mac_read(a, 0x10 + i);
 		msleep(10);
 	}
-
-	/* clock enable */
-	clk_enable(eth_clk);
-
-	/* reset sh-eth */
-	ctrl_outl(0x1, SH_ETH_ADDR + 0x0);
-
-	/* set MAC addr */
-	ctrl_outl((mac[0] << 24) |
-		  (mac[1] << 16) |
-		  (mac[2] <<  8) |
-		  (mac[3] <<  0), SH_ETH_MAHR);
-	ctrl_outl((mac[4] <<  8) |
-		  (mac[5] <<  0), SH_ETH_MALR);
-
-	clk_put(eth_clk);
 }
 
 #define PORT_HIZA 0xA4050158
 #define IODRIVEA  0xA405018A
+
+extern char ecovec24_sdram_enter_start;
+extern char ecovec24_sdram_enter_end;
+extern char ecovec24_sdram_leave_start;
+extern char ecovec24_sdram_leave_end;
+
 static int __init arch_setup(void)
 {
+	/* register board specific self-refresh code */
+	sh_mobile_register_self_refresh(SUSP_SH_STANDBY | SUSP_SH_SF,
+					&ecovec24_sdram_enter_start,
+					&ecovec24_sdram_enter_end,
+					&ecovec24_sdram_leave_start,
+					&ecovec24_sdram_leave_end);
+
+	/* enable STATUS0, STATUS2 and PDSTATUS */
+	gpio_request(GPIO_FN_STATUS0, NULL);
+	gpio_request(GPIO_FN_STATUS2, NULL);
+	gpio_request(GPIO_FN_PDSTATUS, NULL);
+
 	/* enable SCIFA0 */
 	gpio_request(GPIO_FN_SCIF0_TXD, NULL);
 	gpio_request(GPIO_FN_SCIF0_RXD, NULL);
@@ -504,6 +616,14 @@ static int __init arch_setup(void)
 	ctrl_outw(0x0600, 0xa40501d4);
 	ctrl_outw(0x0600, 0xa4050192);
 
+	if (gpio_get_value(GPIO_PTB3)) {
+		printk(KERN_INFO "USB1 function is selected\n");
+		usb1_common_device.name = "r8a66597_udc";
+	} else {
+		printk(KERN_INFO "USB1 host is selected\n");
+		usb1_common_device.name = "r8a66597_hcd";
+	}
+
 	/* enable LCDC */
 	gpio_request(GPIO_FN_LCDD23,   NULL);
 	gpio_request(GPIO_FN_LCDD22,   NULL);
@@ -546,8 +666,8 @@ static int __init arch_setup(void)
 	gpio_direction_output(GPIO_PTR1, 0);
 	gpio_direction_output(GPIO_PTA2, 0);
 
-	/* I/O buffer drive ability is low */
-	ctrl_outw((ctrl_inw(IODRIVEA) & ~0x00c0) | 0x0040 , IODRIVEA);
+	/* I/O buffer drive ability is high */
+	ctrl_outw((ctrl_inw(IODRIVEA) & ~0x00c0) | 0x0080 , IODRIVEA);
 
 	if (gpio_get_value(GPIO_PTE6)) {
 		/* DVI */
@@ -590,6 +710,10 @@ static int __init arch_setup(void)
 		 */
 		gpio_request(GPIO_PTF4, NULL);
 		gpio_direction_output(GPIO_PTF4, 1);
+
+		/* enable TouchScreen */
+		i2c_register_board_info(0, &ts_i2c_clients, 1);
+		set_irq_type(IRQ0, IRQ_TYPE_LEVEL_LOW);
 	}
 
 	/* enable CEU0 */
@@ -649,6 +773,33 @@ static int __init arch_setup(void)
 	gpio_direction_input(GPIO_PTR5);
 	gpio_direction_input(GPIO_PTR6);
 
+	/* enable SDHI0 (needs DS2.4 set to ON) */
+	gpio_request(GPIO_FN_SDHI0CD,  NULL);
+	gpio_request(GPIO_FN_SDHI0WP,  NULL);
+	gpio_request(GPIO_FN_SDHI0CMD, NULL);
+	gpio_request(GPIO_FN_SDHI0CLK, NULL);
+	gpio_request(GPIO_FN_SDHI0D3,  NULL);
+	gpio_request(GPIO_FN_SDHI0D2,  NULL);
+	gpio_request(GPIO_FN_SDHI0D1,  NULL);
+	gpio_request(GPIO_FN_SDHI0D0,  NULL);
+	gpio_request(GPIO_PTB6, NULL);
+	gpio_direction_output(GPIO_PTB6, 0);
+
+	/* enable SDHI1 (needs DS2.6,7 set to ON,OFF) */
+	gpio_request(GPIO_FN_SDHI1CD,  NULL);
+	gpio_request(GPIO_FN_SDHI1WP,  NULL);
+	gpio_request(GPIO_FN_SDHI1CMD, NULL);
+	gpio_request(GPIO_FN_SDHI1CLK, NULL);
+	gpio_request(GPIO_FN_SDHI1D3,  NULL);
+	gpio_request(GPIO_FN_SDHI1D2,  NULL);
+	gpio_request(GPIO_FN_SDHI1D1,  NULL);
+	gpio_request(GPIO_FN_SDHI1D0,  NULL);
+	gpio_request(GPIO_PTB7, NULL);
+	gpio_direction_output(GPIO_PTB7, 0);
+
+	/* I/O buffer drive ability is high for SDHI1 */
+	ctrl_outw((ctrl_inw(IODRIVEA) & ~0x3000) | 0x2000 , IODRIVEA);
+
 	/* enable I2C device */
 	i2c_register_board_info(1, i2c1_devices,
 				ARRAY_SIZE(i2c1_devices));
@@ -660,11 +811,10 @@ arch_initcall(arch_setup);
 
 static int __init devices_setup(void)
 {
-	sh_eth_init();
+	sh_eth_init(&sh_eth_plat);
 	return 0;
 }
 device_initcall(devices_setup);
-
 
 static struct sh_machine_vector mv_ecovec __initmv = {
 	.mv_name	= "R0P7724 (EcoVec)",

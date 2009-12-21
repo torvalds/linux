@@ -76,7 +76,7 @@ static struct s3c2410_uartcfg vstms_uartcfgs[] __initdata = {
 	}
 };
 
-static struct mtd_partition vstms_nand_part[] = {
+static struct mtd_partition __initdata vstms_nand_part[] = {
 	[0] = {
 		.name	= "Boot Agent",
 		.size	= 0x7C000,
@@ -99,7 +99,7 @@ static struct mtd_partition vstms_nand_part[] = {
 	},
 };
 
-static struct s3c2410_nand_set vstms_nand_sets[] = {
+static struct s3c2410_nand_set __initdata vstms_nand_sets[] = {
 	[0] = {
 		.name		= "NAND",
 		.nr_chips	= 1,
@@ -112,7 +112,7 @@ static struct s3c2410_nand_set vstms_nand_sets[] = {
  * chips and beyond.
 */
 
-static struct s3c2410_platform_nand vstms_nand_info = {
+static struct s3c2410_platform_nand __initdata vstms_nand_info = {
 	.tacls		= 20,
 	.twrph0		= 60,
 	.twrph1		= 20,
@@ -143,8 +143,6 @@ static void __init vstms_fixup(struct machine_desc *desc,
 
 static void __init vstms_map_io(void)
 {
-	s3c_device_nand.dev.platform_data = &vstms_nand_info;
-
 	s3c24xx_init_io(vstms_iodesc, ARRAY_SIZE(vstms_iodesc));
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(vstms_uartcfgs, ARRAY_SIZE(vstms_uartcfgs));
@@ -153,6 +151,8 @@ static void __init vstms_map_io(void)
 static void __init vstms_init(void)
 {
 	s3c_i2c0_set_platdata(NULL);
+	s3c_nand_set_platdata(&vstms_nand_info);
+
 	platform_add_devices(vstms_devices, ARRAY_SIZE(vstms_devices));
 }
 

@@ -1,3 +1,4 @@
+
 /*
  * mac80211 debugfs for wireless PHYs
  *
@@ -38,16 +39,10 @@ static const struct file_operations name## _ops = {			\
 };
 
 #define DEBUGFS_ADD(name)						\
-	local->debugfs.name = debugfs_create_file(#name, 0400, phyd,	\
-						  local, &name## _ops);
+	debugfs_create_file(#name, 0400, phyd, local, &name## _ops);
 
 #define DEBUGFS_ADD_MODE(name, mode)					\
-	local->debugfs.name = debugfs_create_file(#name, mode, phyd,	\
-						  local, &name## _ops);
-
-#define DEBUGFS_DEL(name)						\
-	debugfs_remove(local->debugfs.name);				\
-	local->debugfs.name = NULL;
+	debugfs_create_file(#name, mode, phyd, local, &name## _ops);
 
 
 DEBUGFS_READONLY_FILE(frequency, 20, "%d",
@@ -57,7 +52,7 @@ DEBUGFS_READONLY_FILE(total_ps_buffered, 20, "%d",
 DEBUGFS_READONLY_FILE(wep_iv, 20, "%#08x",
 		      local->wep_iv & 0xffffff);
 DEBUGFS_READONLY_FILE(rate_ctrl_alg, 100, "%s",
-		      local->rate_ctrl ? local->rate_ctrl->ops->name : "<unset>");
+	local->rate_ctrl ? local->rate_ctrl->ops->name : "hw/driver");
 
 static ssize_t tsf_read(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
@@ -233,12 +228,7 @@ static const struct file_operations stats_ ##name## _ops = {		\
 };
 
 #define DEBUGFS_STATS_ADD(name)						\
-	local->debugfs.stats.name = debugfs_create_file(#name, 0400, statsd,\
-		local, &stats_ ##name## _ops);
-
-#define DEBUGFS_STATS_DEL(name)						\
-	debugfs_remove(local->debugfs.stats.name);			\
-	local->debugfs.stats.name = NULL;
+	debugfs_create_file(#name, 0400, statsd, local, &stats_ ##name## _ops);
 
 DEBUGFS_STATS_FILE(transmitted_fragment_count, 20, "%u",
 		   local->dot11TransmittedFragmentCount);
@@ -326,7 +316,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_ADD(noack);
 
 	statsd = debugfs_create_dir("statistics", phyd);
-	local->debugfs.statistics = statsd;
 
 	/* if the dir failed, don't put all the other things into the root! */
 	if (!statsd)
@@ -366,58 +355,4 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_STATS_ADD(dot11RTSFailureCount);
 	DEBUGFS_STATS_ADD(dot11FCSErrorCount);
 	DEBUGFS_STATS_ADD(dot11RTSSuccessCount);
-}
-
-void debugfs_hw_del(struct ieee80211_local *local)
-{
-	DEBUGFS_DEL(frequency);
-	DEBUGFS_DEL(total_ps_buffered);
-	DEBUGFS_DEL(wep_iv);
-	DEBUGFS_DEL(tsf);
-	DEBUGFS_DEL(queues);
-	DEBUGFS_DEL(reset);
-	DEBUGFS_DEL(noack);
-
-	DEBUGFS_STATS_DEL(transmitted_fragment_count);
-	DEBUGFS_STATS_DEL(multicast_transmitted_frame_count);
-	DEBUGFS_STATS_DEL(failed_count);
-	DEBUGFS_STATS_DEL(retry_count);
-	DEBUGFS_STATS_DEL(multiple_retry_count);
-	DEBUGFS_STATS_DEL(frame_duplicate_count);
-	DEBUGFS_STATS_DEL(received_fragment_count);
-	DEBUGFS_STATS_DEL(multicast_received_frame_count);
-	DEBUGFS_STATS_DEL(transmitted_frame_count);
-	DEBUGFS_STATS_DEL(num_scans);
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
-	DEBUGFS_STATS_DEL(tx_handlers_drop);
-	DEBUGFS_STATS_DEL(tx_handlers_queued);
-	DEBUGFS_STATS_DEL(tx_handlers_drop_unencrypted);
-	DEBUGFS_STATS_DEL(tx_handlers_drop_fragment);
-	DEBUGFS_STATS_DEL(tx_handlers_drop_wep);
-	DEBUGFS_STATS_DEL(tx_handlers_drop_not_assoc);
-	DEBUGFS_STATS_DEL(tx_handlers_drop_unauth_port);
-	DEBUGFS_STATS_DEL(rx_handlers_drop);
-	DEBUGFS_STATS_DEL(rx_handlers_queued);
-	DEBUGFS_STATS_DEL(rx_handlers_drop_nullfunc);
-	DEBUGFS_STATS_DEL(rx_handlers_drop_defrag);
-	DEBUGFS_STATS_DEL(rx_handlers_drop_short);
-	DEBUGFS_STATS_DEL(rx_handlers_drop_passive_scan);
-	DEBUGFS_STATS_DEL(tx_expand_skb_head);
-	DEBUGFS_STATS_DEL(tx_expand_skb_head_cloned);
-	DEBUGFS_STATS_DEL(rx_expand_skb_head);
-	DEBUGFS_STATS_DEL(rx_expand_skb_head2);
-	DEBUGFS_STATS_DEL(rx_handlers_fragments);
-	DEBUGFS_STATS_DEL(tx_status_drop);
-#endif
-	DEBUGFS_STATS_DEL(dot11ACKFailureCount);
-	DEBUGFS_STATS_DEL(dot11RTSFailureCount);
-	DEBUGFS_STATS_DEL(dot11FCSErrorCount);
-	DEBUGFS_STATS_DEL(dot11RTSSuccessCount);
-
-	debugfs_remove(local->debugfs.statistics);
-	local->debugfs.statistics = NULL;
-	debugfs_remove(local->debugfs.stations);
-	local->debugfs.stations = NULL;
-	debugfs_remove(local->debugfs.keys);
-	local->debugfs.keys = NULL;
 }

@@ -221,6 +221,7 @@ static struct of_device_id fs_enet_mdio_bb_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, fs_enet_mdio_bb_match);
 
 static struct of_platform_driver fs_enet_bb_mdio_driver = {
 	.name = "fsl-bb-mdio",

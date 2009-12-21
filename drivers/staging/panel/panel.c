@@ -2071,11 +2071,15 @@ static void panel_detach(struct parport *port)
 		return;
 	}
 
-	if (keypad_enabled && keypad_initialized)
+	if (keypad_enabled && keypad_initialized) {
 		misc_deregister(&keypad_dev);
+		keypad_initialized = 0;
+	}
 
-	if (lcd_enabled && lcd_initialized)
+	if (lcd_enabled && lcd_initialized) {
 		misc_deregister(&lcd_dev);
+		lcd_initialized = 0;
+	}
 
 	parport_release(pprt);
 	parport_unregister_device(pprt);
@@ -2211,13 +2215,16 @@ static void __exit panel_cleanup_module(void)
 		del_timer(&scan_timer);
 
 	if (pprt != NULL) {
-		if (keypad_enabled)
+		if (keypad_enabled) {
 			misc_deregister(&keypad_dev);
+			keypad_initialized = 0;
+		}
 
 		if (lcd_enabled) {
 			panel_lcd_print("\x0cLCD driver " PANEL_VERSION
 					"\nunloaded.\x1b[Lc\x1b[Lb\x1b[L-");
 			misc_deregister(&lcd_dev);
+			lcd_initialized = 0;
 		}
 
 		/* TODO: free all input signals */

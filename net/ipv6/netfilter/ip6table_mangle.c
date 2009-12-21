@@ -102,8 +102,8 @@ ip6t_local_out_hook(unsigned int hook,
 
 #if 0
 	/* root is playing with raw sockets. */
-	if (skb->len < sizeof(struct iphdr)
-	    || ip_hdrlen(skb) < sizeof(struct iphdr)) {
+	if (skb->len < sizeof(struct iphdr) ||
+	    ip_hdrlen(skb) < sizeof(struct iphdr)) {
 		if (net_ratelimit())
 			printk("ip6t_hook: happy cracking.\n");
 		return NF_ACCEPT;
@@ -122,11 +122,11 @@ ip6t_local_out_hook(unsigned int hook,
 	ret = ip6t_do_table(skb, hook, in, out,
 			    dev_net(out)->ipv6.ip6table_mangle);
 
-	if (ret != NF_DROP && ret != NF_STOLEN
-		&& (memcmp(&ipv6_hdr(skb)->saddr, &saddr, sizeof(saddr))
-		    || memcmp(&ipv6_hdr(skb)->daddr, &daddr, sizeof(daddr))
-		    || skb->mark != mark
-		    || ipv6_hdr(skb)->hop_limit != hop_limit))
+	if (ret != NF_DROP && ret != NF_STOLEN &&
+	    (memcmp(&ipv6_hdr(skb)->saddr, &saddr, sizeof(saddr)) ||
+	     memcmp(&ipv6_hdr(skb)->daddr, &daddr, sizeof(daddr)) ||
+	     skb->mark != mark ||
+	     ipv6_hdr(skb)->hop_limit != hop_limit))
 		return ip6_route_me_harder(skb) == 0 ? ret : NF_DROP;
 
 	return ret;

@@ -175,18 +175,18 @@ static unsigned int wm831x_gp_ldo_get_mode(struct regulator_dev *rdev)
 	struct wm831x *wm831x = ldo->wm831x;
 	int ctrl_reg = ldo->base + WM831X_LDO_CONTROL;
 	int on_reg = ldo->base + WM831X_LDO_ON_CONTROL;
-	unsigned int ret;
+	int ret;
 
 	ret = wm831x_reg_read(wm831x, on_reg);
 	if (ret < 0)
-		return 0;
+		return ret;
 
 	if (!(ret & WM831X_LDO1_ON_MODE))
 		return REGULATOR_MODE_NORMAL;
 
 	ret = wm831x_reg_read(wm831x, ctrl_reg);
 	if (ret < 0)
-		return 0;
+		return ret;
 
 	if (ret & WM831X_LDO1_LP_MODE)
 		return REGULATOR_MODE_STANDBY;

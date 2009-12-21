@@ -201,18 +201,17 @@ int vlan_proc_rem_dev(struct net_device *vlandev)
 
 /* start read of /proc/net/vlan/config */
 static void *vlan_seq_start(struct seq_file *seq, loff_t *pos)
-	__acquires(dev_base_lock)
+	__acquires(rcu)
 {
 	struct net_device *dev;
 	struct net *net = seq_file_net(seq);
 	loff_t i = 1;
 
-	read_lock(&dev_base_lock);
-
+	rcu_read_lock();
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
-	for_each_netdev(net, dev) {
+	for_each_netdev_rcu(net, dev) {
 		if (!is_vlan_dev(dev))
 			continue;
 
@@ -234,7 +233,7 @@ static void *vlan_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	if (v == SEQ_START_TOKEN)
 		dev = net_device_entry(&net->dev_base_head);
 
-	for_each_netdev_continue(net, dev) {
+	for_each_netdev_continue_rcu(net, dev) {
 		if (!is_vlan_dev(dev))
 			continue;
 
@@ -245,9 +244,9 @@ static void *vlan_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void vlan_seq_stop(struct seq_file *seq, void *v)
-	__releases(dev_base_lock)
+	__releases(rcu)
 {
-	read_unlock(&dev_base_lock);
+	rcu_read_unlock();
 }
 
 static int vlan_seq_show(struct seq_file *seq, void *v)

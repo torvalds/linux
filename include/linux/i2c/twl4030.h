@@ -349,11 +349,11 @@ struct twl4030_madc_platform_data {
 	int		irq_line;
 };
 
-/* Boards have uniqe mappings of {col, row} --> keycode.
- * Column and row are 4 bits, but range only from 0..7.
+/* Boards have uniqe mappings of {row, col} --> keycode.
+ * Column and row are 8 bits each, but range only from 0..7.
  * a PERSISTENT_KEY is "always on" and never reported.
  */
-#define PERSISTENT_KEY(c, r)	KEY((c), (r), KEY_RESERVED)
+#define PERSISTENT_KEY(r, c)	KEY((r), (c), KEY_RESERVED)
 
 struct twl4030_keypad_data {
 	const struct matrix_keymap_data *keymap_data;
@@ -401,6 +401,24 @@ struct twl4030_power_data {
 
 extern void twl4030_power_init(struct twl4030_power_data *triton2_scripts);
 
+struct twl4030_codec_audio_data {
+	unsigned int	audio_mclk;
+	unsigned int ramp_delay_value;
+	unsigned int hs_extmute:1;
+	void (*set_hs_extmute)(int mute);
+};
+
+struct twl4030_codec_vibra_data {
+	unsigned int	audio_mclk;
+	unsigned int	coexist;
+};
+
+struct twl4030_codec_data {
+	unsigned int	audio_mclk;
+	struct twl4030_codec_audio_data		*audio;
+	struct twl4030_codec_vibra_data		*vibra;
+};
+
 struct twl4030_platform_data {
 	unsigned				irq_base, irq_end;
 	struct twl4030_bci_platform_data	*bci;
@@ -409,6 +427,7 @@ struct twl4030_platform_data {
 	struct twl4030_keypad_data		*keypad;
 	struct twl4030_usb_data			*usb;
 	struct twl4030_power_data		*power;
+	struct twl4030_codec_data		*codec;
 
 	/* LDO regulators */
 	struct regulator_init_data		*vdac;

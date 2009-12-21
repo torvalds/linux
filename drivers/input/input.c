@@ -782,10 +782,29 @@ static unsigned int input_proc_devices_poll(struct file *file, poll_table *wait)
 	return 0;
 }
 
+union input_seq_state {
+	struct {
+		unsigned short pos;
+		bool mutex_acquired;
+	};
+	void *p;
+};
+
 static void *input_devices_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	if (mutex_lock_interruptible(&input_mutex))
-		return NULL;
+	union input_seq_state *state = (union input_seq_state *)&seq->private;
+	int error;
+
+	/* We need to fit into seq->private pointer */
+	BUILD_BUG_ON(sizeof(union input_seq_state) != sizeof(seq->private));
+
+	error = mutex_lock_interruptible(&input_mutex);
+	if (error) {
+		state->mutex_acquired = false;
+		return ERR_PTR(error);
+	}
+
+	state->mutex_acquired = true;
 
 	return seq_list_start(&input_dev_list, *pos);
 }
@@ -795,9 +814,12 @@ static void *input_devices_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	return seq_list_next(v, &input_dev_list, pos);
 }
 
-static void input_devices_seq_stop(struct seq_file *seq, void *v)
+static void input_seq_stop(struct seq_file *seq, void *v)
 {
-	mutex_unlock(&input_mutex);
+	union input_seq_state *state = (union input_seq_state *)&seq->private;
+
+	if (state->mutex_acquired)
+		mutex_unlock(&input_mutex);
 }
 
 static void input_seq_print_bitmap(struct seq_file *seq, const char *name,
@@ -861,7 +883,7 @@ static int input_devices_seq_show(struct seq_file *seq, void *v)
 static const struct seq_operations input_devices_seq_ops = {
 	.start	= input_devices_seq_start,
 	.next	= input_devices_seq_next,
-	.stop	= input_devices_seq_stop,
+	.stop	= input_seq_stop,
 	.show	= input_devices_seq_show,
 };
 
@@ -881,40 +903,49 @@ static const struct file_operations input_devices_fileops = {
 
 static void *input_handlers_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	if (mutex_lock_interruptible(&input_mutex))
-		return NULL;
+	union input_seq_state *state = (union input_seq_state *)&seq->private;
+	int error;
 
-	seq->private = (void *)(unsigned long)*pos;
+	/* We need to fit into seq->private pointer */
+	BUILD_BUG_ON(sizeof(union input_seq_state) != sizeof(seq->private));
+
+	error = mutex_lock_interruptible(&input_mutex);
+	if (error) {
+		state->mutex_acquired = false;
+		return ERR_PTR(error);
+	}
+
+	state->mutex_acquired = true;
+	state->pos = *pos;
+
 	return seq_list_start(&input_handler_list, *pos);
 }
 
 static void *input_handlers_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	seq->private = (void *)(unsigned long)(*pos + 1);
-	return seq_list_next(v, &input_handler_list, pos);
-}
+	union input_seq_state *state = (union input_seq_state *)&seq->private;
 
-static void input_handlers_seq_stop(struct seq_file *seq, void *v)
-{
-	mutex_unlock(&input_mutex);
+	state->pos = *pos + 1;
+	return seq_list_next(v, &input_handler_list, pos);
 }
 
 static int input_handlers_seq_show(struct seq_file *seq, void *v)
 {
 	struct input_handler *handler = container_of(v, struct input_handler, node);
+	union input_seq_state *state = (union input_seq_state *)&seq->private;
 
-	seq_printf(seq, "N: Number=%ld Name=%s",
-		   (unsigned long)seq->private, handler->name);
+	seq_printf(seq, "N: Number=%u Name=%s", state->pos, handler->name);
 	if (handler->fops)
 		seq_printf(seq, " Minor=%d", handler->minor);
 	seq_putc(seq, '\n');
 
 	return 0;
 }
+
 static const struct seq_operations input_handlers_seq_ops = {
 	.start	= input_handlers_seq_start,
 	.next	= input_handlers_seq_next,
-	.stop	= input_handlers_seq_stop,
+	.stop	= input_seq_stop,
 	.show	= input_handlers_seq_show,
 };
 
@@ -1261,17 +1292,24 @@ static int input_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 	return 0;
 }
 
-#define INPUT_DO_TOGGLE(dev, type, bits, on)			\
-	do {							\
-		int i;						\
-		if (!test_bit(EV_##type, dev->evbit))		\
-			break;					\
-		for (i = 0; i < type##_MAX; i++) {		\
-			if (!test_bit(i, dev->bits##bit) ||	\
-			    !test_bit(i, dev->bits))		\
-				continue;			\
-			dev->event(dev, EV_##type, i, on);	\
-		}						\
+#define INPUT_DO_TOGGLE(dev, type, bits, on)				\
+	do {								\
+		int i;							\
+		bool active;						\
+									\
+		if (!test_bit(EV_##type, dev->evbit))			\
+			break;						\
+									\
+		for (i = 0; i < type##_MAX; i++) {			\
+			if (!test_bit(i, dev->bits##bit))		\
+				continue;				\
+									\
+			active = test_bit(i, dev->bits);		\
+			if (!active && !on)				\
+				continue;				\
+									\
+			dev->event(dev, EV_##type, i, on ? active : 0);	\
+		}							\
 	} while (0)
 
 #ifdef CONFIG_PM
@@ -1620,6 +1658,38 @@ void input_unregister_handler(struct input_handler *handler)
 EXPORT_SYMBOL(input_unregister_handler);
 
 /**
+ * input_handler_for_each_handle - handle iterator
+ * @handler: input handler to iterate
+ * @data: data for the callback
+ * @fn: function to be called for each handle
+ *
+ * Iterate over @bus's list of devices, and call @fn for each, passing
+ * it @data and stop when @fn returns a non-zero value. The function is
+ * using RCU to traverse the list and therefore may be usind in atonic
+ * contexts. The @fn callback is invoked from RCU critical section and
+ * thus must not sleep.
+ */
+int input_handler_for_each_handle(struct input_handler *handler, void *data,
+				  int (*fn)(struct input_handle *, void *))
+{
+	struct input_handle *handle;
+	int retval = 0;
+
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(handle, &handler->h_list, h_node) {
+		retval = fn(handle, data);
+		if (retval)
+			break;
+	}
+
+	rcu_read_unlock();
+
+	return retval;
+}
+EXPORT_SYMBOL(input_handler_for_each_handle);
+
+/**
  * input_register_handle - register a new input handle
  * @handle: handle to register
  *
@@ -1652,7 +1722,7 @@ int input_register_handle(struct input_handle *handle)
 	 * we can't be racing with input_unregister_handle()
 	 * and so separate lock is not needed here.
 	 */
-	list_add_tail(&handle->h_node, &handler->h_list);
+	list_add_tail_rcu(&handle->h_node, &handler->h_list);
 
 	if (handler->start)
 		handler->start(handle);
@@ -1675,7 +1745,7 @@ void input_unregister_handle(struct input_handle *handle)
 {
 	struct input_dev *dev = handle->dev;
 
-	list_del_init(&handle->h_node);
+	list_del_rcu(&handle->h_node);
 
 	/*
 	 * Take dev->mutex to prevent race with input_release_device().
@@ -1683,6 +1753,7 @@ void input_unregister_handle(struct input_handle *handle)
 	mutex_lock(&dev->mutex);
 	list_del_rcu(&handle->d_node);
 	mutex_unlock(&dev->mutex);
+
 	synchronize_rcu();
 }
 EXPORT_SYMBOL(input_unregister_handle);

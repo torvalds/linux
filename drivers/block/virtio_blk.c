@@ -3,7 +3,6 @@
 #include <linux/blkdev.h>
 #include <linux/hdreg.h>
 #include <linux/virtio.h>
-#include <linux/virtio_ids.h>
 #include <linux/virtio_blk.h>
 #include <linux/scatterlist.h>
 
@@ -183,34 +182,6 @@ static void do_virtblk_request(struct request_queue *q)
 		vblk->vq->vq_ops->kick(vblk->vq);
 }
 
-/* return ATA identify data
- */
-static int virtblk_identify(struct gendisk *disk, void *argp)
-{
-	struct virtio_blk *vblk = disk->private_data;
-	void *opaque;
-	int err = -ENOMEM;
-
-	opaque = kmalloc(VIRTIO_BLK_ID_BYTES, GFP_KERNEL);
-	if (!opaque)
-		goto out;
-
-	err = virtio_config_buf(vblk->vdev, VIRTIO_BLK_F_IDENTIFY,
-		offsetof(struct virtio_blk_config, identify), opaque,
-		VIRTIO_BLK_ID_BYTES);
-
-	if (err)
-		goto out_kfree;
-
-	if (copy_to_user(argp, opaque, VIRTIO_BLK_ID_BYTES))
-		err = -EFAULT;
-
-out_kfree:
-	kfree(opaque);
-out:
-	return err;
-}
-
 static void virtblk_prepare_flush(struct request_queue *q, struct request *req)
 {
 	req->cmd_type = REQ_TYPE_LINUX_BLOCK;
@@ -222,10 +193,6 @@ static int virtblk_ioctl(struct block_device *bdev, fmode_t mode,
 {
 	struct gendisk *disk = bdev->bd_disk;
 	struct virtio_blk *vblk = disk->private_data;
-	void __user *argp = (void __user *)data;
-
-	if (cmd == HDIO_GET_IDENTITY)
-		return virtblk_identify(disk, argp);
 
 	/*
 	 * Only allow the generic SCSI ioctls if the host can support it.
@@ -233,7 +200,8 @@ static int virtblk_ioctl(struct block_device *bdev, fmode_t mode,
 	if (!virtio_has_feature(vblk->vdev, VIRTIO_BLK_F_SCSI))
 		return -ENOTTY;
 
-	return scsi_cmd_ioctl(disk->queue, disk, mode, cmd, argp);
+	return scsi_cmd_ioctl(disk->queue, disk, mode, cmd,
+			      (void __user *)data);
 }
 
 /* We provide getgeo only to please some old bootloader/partitioning tools */
@@ -332,7 +300,6 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 	}
 
 	vblk->disk->queue->queuedata = vblk;
-	queue_flag_set_unlocked(QUEUE_FLAG_VIRT, vblk->disk->queue);
 
 	if (index < 26) {
 		sprintf(vblk->disk->disk_name, "vd%c", 'a' + index % 26);
@@ -445,7 +412,7 @@ static struct virtio_device_id id_table[] = {
 static unsigned int features[] = {
 	VIRTIO_BLK_F_BARRIER, VIRTIO_BLK_F_SEG_MAX, VIRTIO_BLK_F_SIZE_MAX,
 	VIRTIO_BLK_F_GEOMETRY, VIRTIO_BLK_F_RO, VIRTIO_BLK_F_BLK_SIZE,
-	VIRTIO_BLK_F_SCSI, VIRTIO_BLK_F_IDENTIFY, VIRTIO_BLK_F_FLUSH
+	VIRTIO_BLK_F_SCSI, VIRTIO_BLK_F_FLUSH
 };
 
 /*

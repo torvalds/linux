@@ -833,12 +833,15 @@ static void early_alloc(struct early_log *log)
 	 */
 	rcu_read_lock();
 	object = create_object((unsigned long)log->ptr, log->size,
-			       log->min_count, GFP_KERNEL);
+			       log->min_count, GFP_ATOMIC);
+	if (!object)
+		goto out;
 	spin_lock_irqsave(&object->lock, flags);
 	for (i = 0; i < log->trace_len; i++)
 		object->trace[i] = log->trace[i];
 	object->trace_len = log->trace_len;
 	spin_unlock_irqrestore(&object->lock, flags);
+out:
 	rcu_read_unlock();
 }
 
@@ -1047,8 +1050,8 @@ static void scan_object(struct kmemleak_object *object)
 	unsigned long flags;
 
 	/*
-	 * Once the object->lock is aquired, the corresponding memory block
-	 * cannot be freed (the same lock is aquired in delete_object).
+	 * Once the object->lock is acquired, the corresponding memory block
+	 * cannot be freed (the same lock is acquired in delete_object).
 	 */
 	spin_lock_irqsave(&object->lock, flags);
 	if (object->flags & OBJECT_NO_SCAN)

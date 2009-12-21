@@ -43,6 +43,9 @@
 #define NR_SG	1
 #define CLKRT_OFF	(~0)
 
+#define mmc_has_26MHz()		(cpu_is_pxa300() || cpu_is_pxa310() \
+				|| cpu_is_pxa935())
+
 struct pxamci_host {
 	struct mmc_host		*mmc;
 	spinlock_t		lock;
@@ -457,7 +460,7 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			clk_enable(host->clk);
 
 		if (ios->clock == 26000000) {
-			/* to support 26MHz on pxa300/pxa310 */
+			/* to support 26MHz */
 			host->clkrt = 7;
 		} else {
 			/* to handle (19.5MHz, 26MHz) */
@@ -608,8 +611,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	 * Calculate minimum clock rate, rounding up.
 	 */
 	mmc->f_min = (host->clkrate + 63) / 64;
-	mmc->f_max = (cpu_is_pxa300() || cpu_is_pxa310()) ? 26000000
-							  : host->clkrate;
+	mmc->f_max = (mmc_has_26MHz()) ? 26000000 : host->clkrate;
 
 	pxamci_init_ocr(host);
 
@@ -618,7 +620,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	if (!cpu_is_pxa25x()) {
 		mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ;
 		host->cmdat |= CMDAT_SDIO_INT_EN;
-		if (cpu_is_pxa300() || cpu_is_pxa310())
+		if (mmc_has_26MHz())
 			mmc->caps |= MMC_CAP_MMC_HIGHSPEED |
 				     MMC_CAP_SD_HIGHSPEED;
 	}
@@ -693,7 +695,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	if (gpio_is_valid(gpio_ro)) {
 		ret = gpio_request(gpio_ro, "mmc card read only");
 		if (ret) {
-			dev_err(&pdev->dev, "Failed requesting gpio_ro %d\n", gpio_power);
+			dev_err(&pdev->dev, "Failed requesting gpio_ro %d\n", gpio_ro);
 			goto err_gpio_ro;
 		}
 		gpio_direction_input(gpio_ro);
@@ -701,7 +703,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	if (gpio_is_valid(gpio_cd)) {
 		ret = gpio_request(gpio_cd, "mmc card detect");
 		if (ret) {
-			dev_err(&pdev->dev, "Failed requesting gpio_cd %d\n", gpio_power);
+			dev_err(&pdev->dev, "Failed requesting gpio_cd %d\n", gpio_cd);
 			goto err_gpio_cd;
 		}
 		gpio_direction_input(gpio_cd);
@@ -760,6 +762,8 @@ static int pxamci_remove(struct platform_device *pdev)
 	if (mmc) {
 		struct pxamci_host *host = mmc_priv(mmc);
 
+		mmc_remove_host(mmc);
+
 		if (host->pdata) {
 			gpio_cd = host->pdata->gpio_card_detect;
 			gpio_ro = host->pdata->gpio_card_ro;
@@ -778,8 +782,6 @@ static int pxamci_remove(struct platform_device *pdev)
 
 		if (host->pdata && host->pdata->exit)
 			host->pdata->exit(&pdev->dev, mmc);
-
-		mmc_remove_host(mmc);
 
 		pxamci_stop_clock(host);
 		writel(TXFIFO_WR_REQ|RXFIFO_RD_REQ|CLK_IS_OFF|STOP_CMD|

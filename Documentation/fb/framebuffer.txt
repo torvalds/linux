@@ -312,10 +312,8 @@ and to the following documentation:
 8. Mailing list
 ---------------
 
-There are several frame buffer device related mailing lists at SourceForge:
-  - linux-fbdev-announce@lists.sourceforge.net, for announcements,
-  - linux-fbdev-user@lists.sourceforge.net, for generic user support,
-  - linux-fbdev-devel@lists.sourceforge.net, for project developers.
+There is a frame buffer device related mailing list at kernel.org:
+linux-fbdev@vger.kernel.org.
 
 Point your web browser to http://sourceforge.net/projects/linux-fbdev/ for
 subscription information and archive browsing.

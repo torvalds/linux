@@ -159,6 +159,8 @@ static inline int cookie_check(struct sk_buff *skb, __u32 cookie)
 
 struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 {
+	struct tcp_options_received tcp_opt;
+	u8 *hash_location;
 	struct inet_request_sock *ireq;
 	struct inet6_request_sock *ireq6;
 	struct tcp_request_sock *treq;
@@ -171,7 +173,6 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	int mss;
 	struct dst_entry *dst;
 	__u8 rcv_wscale;
-	struct tcp_options_received tcp_opt;
 
 	if (!sysctl_tcp_syncookies || !th->ack)
 		goto out;
@@ -183,13 +184,6 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	}
 
 	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_SYNCOOKIESRECV);
-
-	/* check for timestamp cookie support */
-	memset(&tcp_opt, 0, sizeof(tcp_opt));
-	tcp_parse_options(skb, &tcp_opt, 0);
-
-	if (tcp_opt.saw_tstamp)
-		cookie_check_timestamp(&tcp_opt);
 
 	ret = NULL;
 	req = inet6_reqsk_alloc(&tcp6_request_sock_ops);
@@ -224,12 +218,6 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	req->expires = 0UL;
 	req->retrans = 0;
 	ireq->ecn_ok		= 0;
-	ireq->snd_wscale	= tcp_opt.snd_wscale;
-	ireq->rcv_wscale	= tcp_opt.rcv_wscale;
-	ireq->sack_ok		= tcp_opt.sack_ok;
-	ireq->wscale_ok		= tcp_opt.wscale_ok;
-	ireq->tstamp_ok		= tcp_opt.saw_tstamp;
-	req->ts_recent		= tcp_opt.saw_tstamp ? tcp_opt.rcv_tsval : 0;
 	treq->rcv_isn = ntohl(th->seq) - 1;
 	treq->snt_isn = cookie;
 
@@ -252,8 +240,9 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 		}
 		ipv6_addr_copy(&fl.fl6_src, &ireq6->loc_addr);
 		fl.oif = sk->sk_bound_dev_if;
+		fl.mark = sk->sk_mark;
 		fl.fl_ip_dport = inet_rsk(req)->rmt_port;
-		fl.fl_ip_sport = inet_sk(sk)->sport;
+		fl.fl_ip_sport = inet_sk(sk)->inet_sport;
 		security_req_classify_flow(req, &fl);
 		if (ip6_dst_lookup(sk, &dst, &fl))
 			goto out_free;
@@ -263,6 +252,21 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 		if ((xfrm_lookup(sock_net(sk), &dst, &fl, sk, 0)) < 0)
 			goto out_free;
 	}
+
+	/* check for timestamp cookie support */
+	memset(&tcp_opt, 0, sizeof(tcp_opt));
+	tcp_parse_options(skb, &tcp_opt, &hash_location, 0, dst);
+
+	if (tcp_opt.saw_tstamp)
+		cookie_check_timestamp(&tcp_opt);
+
+	req->ts_recent          = tcp_opt.saw_tstamp ? tcp_opt.rcv_tsval : 0;
+
+	ireq->snd_wscale        = tcp_opt.snd_wscale;
+	ireq->rcv_wscale        = tcp_opt.rcv_wscale;
+	ireq->sack_ok           = tcp_opt.sack_ok;
+	ireq->wscale_ok         = tcp_opt.wscale_ok;
+	ireq->tstamp_ok         = tcp_opt.saw_tstamp;
 
 	req->window_clamp = tp->window_clamp ? :dst_metric(dst, RTAX_WINDOW);
 	tcp_select_initial_window(tcp_full_space(sk), req->mss,

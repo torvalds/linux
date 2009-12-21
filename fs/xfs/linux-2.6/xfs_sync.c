@@ -309,11 +309,15 @@ xfs_sync_attr(
 STATIC int
 xfs_commit_dummy_trans(
 	struct xfs_mount	*mp,
-	uint			log_flags)
+	uint			flags)
 {
 	struct xfs_inode	*ip = mp->m_rootip;
 	struct xfs_trans	*tp;
 	int			error;
+	int			log_flags = XFS_LOG_FORCE;
+
+	if (flags & SYNC_WAIT)
+		log_flags |= XFS_LOG_SYNC;
 
 	/*
 	 * Put a dummy transaction in the log to tell recovery
@@ -331,13 +335,12 @@ xfs_commit_dummy_trans(
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 	xfs_trans_ihold(tp, ip);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-	/* XXX(hch): ignoring the error here.. */
 	error = xfs_trans_commit(tp, 0);
-
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 
+	/* the log force ensures this transaction is pushed to disk */
 	xfs_log_force(mp, 0, log_flags);
-	return 0;
+	return error;
 }
 
 int
@@ -385,7 +388,20 @@ xfs_sync_fsdata(
 	else
 		XFS_BUF_ASYNC(bp);
 
-	return xfs_bwrite(mp, bp);
+	error = xfs_bwrite(mp, bp);
+	if (error)
+		return error;
+
+	/*
+	 * If this is a data integrity sync make sure all pending buffers
+	 * are flushed out for the log coverage check below.
+	 */
+	if (flags & SYNC_WAIT)
+		xfs_flush_buftarg(mp->m_ddev_targp, 1);
+
+	if (xfs_log_need_covered(mp))
+		error = xfs_commit_dummy_trans(mp, flags);
+	return error;
 
  out_brelse:
 	xfs_buf_relse(bp);
@@ -419,14 +435,16 @@ xfs_quiesce_data(
 	/* push non-blocking */
 	xfs_sync_data(mp, 0);
 	xfs_qm_sync(mp, SYNC_TRYLOCK);
-	xfs_filestream_flush(mp);
 
-	/* push and block */
+	/* push and block till complete */
 	xfs_sync_data(mp, SYNC_WAIT);
 	xfs_qm_sync(mp, SYNC_WAIT);
 
+	/* drop inode references pinned by filestreams */
+	xfs_filestream_flush(mp);
+
 	/* write superblock and hoover up shutdown errors */
-	error = xfs_sync_fsdata(mp, 0);
+	error = xfs_sync_fsdata(mp, SYNC_WAIT);
 
 	/* flush data-only devices */
 	if (mp->m_rtdev_targp)
@@ -570,8 +588,6 @@ xfs_sync_worker(
 		/* dgc: errors ignored here */
 		error = xfs_qm_sync(mp, SYNC_TRYLOCK);
 		error = xfs_sync_fsdata(mp, SYNC_TRYLOCK);
-		if (xfs_log_need_covered(mp))
-			error = xfs_commit_dummy_trans(mp, XFS_LOG_FORCE);
 	}
 	mp->m_sync_seq++;
 	wake_up(&mp->m_wait_single_sync_task);
@@ -647,10 +663,9 @@ xfs_syncd_stop(
 	kthread_stop(mp->m_sync_task);
 }
 
-int
+STATIC int
 xfs_reclaim_inode(
 	xfs_inode_t	*ip,
-	int		locked,
 	int		sync_mode)
 {
 	xfs_perag_t	*pag = xfs_get_perag(ip->i_mount, ip->i_ino);
@@ -666,10 +681,6 @@ xfs_reclaim_inode(
 	    !__xfs_iflags_test(ip, XFS_IRECLAIMABLE)) {
 		spin_unlock(&ip->i_flags_lock);
 		write_unlock(&pag->pag_ici_lock);
-		if (locked) {
-			xfs_ifunlock(ip);
-			xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		}
 		return -EAGAIN;
 	}
 	__xfs_iflags_set(ip, XFS_IRECLAIM);
@@ -688,10 +699,8 @@ xfs_reclaim_inode(
 	 * We get the flush lock regardless, though, just to make sure
 	 * we don't free it while it is being flushed.
 	 */
-	if (!locked) {
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		xfs_iflock(ip);
-	}
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	xfs_iflock(ip);
 
 	/*
 	 * In the case of a forced shutdown we rely on xfs_iflush() to
@@ -762,7 +771,7 @@ xfs_reclaim_inode_now(
 	}
 	read_unlock(&pag->pag_ici_lock);
 
-	return xfs_reclaim_inode(ip, 0, flags);
+	return xfs_reclaim_inode(ip, flags);
 }
 
 int

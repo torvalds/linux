@@ -122,8 +122,8 @@ struct wl12xx_null_data_template {
 } __attribute__ ((packed));
 
 struct wl12xx_ps_poll_template {
-	u16 fc;
-	u16 aid;
+	__le16 fc;
+	__le16 aid;
 	u8 bssid[ETH_ALEN];
 	u8 ta[ETH_ALEN];
 } __attribute__ ((packed));

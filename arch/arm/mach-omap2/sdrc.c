@@ -23,13 +23,13 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <mach/common.h>
-#include <mach/clock.h>
-#include <mach/sram.h>
+#include <plat/common.h>
+#include <plat/clock.h>
+#include <plat/sram.h>
 
 #include "prm.h"
 
-#include <mach/sdrc.h>
+#include <plat/sdrc.h>
 #include "sdrc.h"
 
 static struct omap_sdrc_params *sdrc_init_params_cs0, *sdrc_init_params_cs1;
@@ -37,10 +37,36 @@ static struct omap_sdrc_params *sdrc_init_params_cs0, *sdrc_init_params_cs1;
 void __iomem *omap2_sdrc_base;
 void __iomem *omap2_sms_base;
 
+struct omap2_sms_regs {
+	u32	sms_sysconfig;
+};
+
+static struct omap2_sms_regs sms_context;
+
 /* SDRC_POWER register bits */
 #define SDRC_POWER_EXTCLKDIS_SHIFT		3
 #define SDRC_POWER_PWDENA_SHIFT			2
 #define SDRC_POWER_PAGEPOLICY_SHIFT		0
+
+/**
+ * omap2_sms_save_context - Save SMS registers
+ *
+ * Save SMS registers that need to be restored after off mode.
+ */
+void omap2_sms_save_context(void)
+{
+	sms_context.sms_sysconfig = sms_read_reg(SMS_SYSCONFIG);
+}
+
+/**
+ * omap2_sms_restore_context - Restore SMS registers
+ *
+ * Restore SMS registers that need to be Restored after off mode.
+ */
+void omap2_sms_restore_context(void)
+{
+	sms_write_reg(sms_context.sms_sysconfig, SMS_SYSCONFIG);
+}
 
 /**
  * omap2_sdrc_get_params - return SDRC register values for a given clock rate
@@ -132,4 +158,21 @@ void __init omap2_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 	l = (1 << SDRC_POWER_EXTCLKDIS_SHIFT) |
 		(1 << SDRC_POWER_PAGEPOLICY_SHIFT);
 	sdrc_write_reg(l, SDRC_POWER);
+	omap2_sms_save_context();
 }
+
+void omap2_sms_write_rot_control(u32 val, unsigned ctx)
+{
+	sms_write_reg(val, SMS_ROT_CONTROL(ctx));
+}
+
+void omap2_sms_write_rot_size(u32 val, unsigned ctx)
+{
+	sms_write_reg(val, SMS_ROT_SIZE(ctx));
+}
+
+void omap2_sms_write_rot_physical_ba(u32 val, unsigned ctx)
+{
+	sms_write_reg(val, SMS_ROT_PHYSICAL_BA(ctx));
+}
+

@@ -98,6 +98,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
@@ -992,8 +993,8 @@ static void hp100_mmuinit(struct net_device *dev)
 	if (lp->mode == 1) {	/* only needed for Busmaster */
 		int xmit_stop, recv_stop;
 
-		if ((lp->chip == HP100_CHIPID_RAINIER)
-		    || (lp->chip == HP100_CHIPID_SHASTA)) {
+		if ((lp->chip == HP100_CHIPID_RAINIER) ||
+		    (lp->chip == HP100_CHIPID_SHASTA)) {
 			int pdl_stop;
 
 			/*

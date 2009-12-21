@@ -1279,28 +1279,6 @@ struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 	return __lookup_hash(&this, base, NULL);
 }
 
-/**
- * lookup_one_noperm - bad hack for sysfs
- * @name:	pathname component to lookup
- * @base:	base directory to lookup from
- *
- * This is a variant of lookup_one_len that doesn't perform any permission
- * checks.   It's a horrible hack to work around the braindead sysfs
- * architecture and should not be used anywhere else.
- *
- * DON'T USE THIS FUNCTION EVER, thanks.
- */
-struct dentry *lookup_one_noperm(const char *name, struct dentry *base)
-{
-	int err;
-	struct qstr this;
-
-	err = __lookup_one_len(name, &this, base, strlen(name));
-	if (err)
-		return ERR_PTR(err);
-	return __lookup_hash(&this, base, NULL);
-}
-
 int user_path_at(int dfd, const char __user *name, unsigned flags,
 		 struct path *path)
 {
@@ -1677,6 +1655,15 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	int count = 0;
 	int will_write;
 	int flag = open_to_namei_flags(open_flag);
+
+	/*
+	 * O_SYNC is implemented as __O_SYNC|O_DSYNC.  As many places only
+	 * check for O_DSYNC if the need any syncing at all we enforce it's
+	 * always set instead of having to deal with possibly weird behaviour
+	 * for malicious applications setting only __O_SYNC.
+	 */
+	if (open_flag & __O_SYNC)
+		open_flag |= O_DSYNC;
 
 	if (!acc_mode)
 		acc_mode = MAY_OPEN | ACC_MODE(flag);

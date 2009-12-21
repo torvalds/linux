@@ -42,6 +42,8 @@ SECTIONS
   _etext = .;			/* End of text section */
 
   EXCEPTION_TABLE(16)
+  NOTES
+
   RODATA
   RW_DATA_SECTION(32, PAGE_SIZE, THREAD_SIZE)
   _edata = .;			/* End of data section */

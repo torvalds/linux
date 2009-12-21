@@ -218,6 +218,9 @@ void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *))
 
 static void stop_this_cpu(void *dummy)
 {
+	/* Remove this CPU */
+	set_cpu_online(smp_processor_id(), false);
+
 	local_irq_disable();
 	while (1)
 		;

@@ -17,6 +17,7 @@
 
 #include <linux/irq.h>
 #include <linux/interrupt.h>
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
@@ -805,7 +806,7 @@ unsigned long send_IPI_mask_phys(cpumask_t physid_mask, int ipi_num,
 
 	if (mask & ~physids_coerce(phys_cpu_present_map))
 		BUG();
-	if (ipi_num >= NR_IPIS)
+	if (ipi_num >= NR_IPIS || ipi_num < 0)
 		BUG();
 
 	mask <<= IPI_SHIFT;

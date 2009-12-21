@@ -86,8 +86,18 @@ static int zfcp_cfdc_copy_to_user(void __user  *user_buffer,
 static struct zfcp_adapter *zfcp_cfdc_get_adapter(u32 devno)
 {
 	char busid[9];
+	struct ccw_device *cdev;
+	struct zfcp_adapter *adapter;
+
 	snprintf(busid, sizeof(busid), "0.0.%04x", devno);
-	return zfcp_get_adapter_by_busid(busid);
+	cdev = get_ccwdev_by_busid(&zfcp_ccw_driver, busid);
+	if (!cdev)
+		return NULL;
+
+	adapter = zfcp_ccw_adapter_by_cdev(cdev);
+
+	put_device(&cdev->dev);
+	return adapter;
 }
 
 static int zfcp_cfdc_set_fsf(struct zfcp_fsf_cfdc *fsf_cfdc, int command)
@@ -197,7 +207,6 @@ static long zfcp_cfdc_dev_ioctl(struct file *file, unsigned int command,
 		retval = -ENXIO;
 		goto free_buffer;
 	}
-	zfcp_adapter_get(adapter);
 
 	retval = zfcp_cfdc_sg_setup(data->command, fsf_cfdc->sg,
 				    data_user->control_file);
@@ -230,7 +239,7 @@ static long zfcp_cfdc_dev_ioctl(struct file *file, unsigned int command,
  free_sg:
 	zfcp_sg_free_table(fsf_cfdc->sg, ZFCP_CFDC_PAGES);
  adapter_put:
-	zfcp_adapter_put(adapter);
+	zfcp_ccw_adapter_put(adapter);
  free_buffer:
 	kfree(data);
  no_mem_sense:

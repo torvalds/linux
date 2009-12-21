@@ -77,17 +77,6 @@
 #include <pcmcia/ds.h>
 #include <pcmcia/ciscode.h>
 
-/* ================================================================== */
-
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-module_param(pc_debug, int, 0);
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
-"sym53c500_cs.c 0.9c 2004/10/27 (Bob Tracy)";
-#else
-#define DEBUG(n, args...)
-#endif
 
 /* ================================================================== */
 
@@ -525,7 +514,7 @@ SYM53C500_release(struct pcmcia_device *link)
 	struct scsi_info_t *info = link->priv;
 	struct Scsi_Host *shost = info->host;
 
-	DEBUG(0, "SYM53C500_release(0x%p)\n", link);
+	dev_dbg(&link->dev, "SYM53C500_release\n");
 
 	/*
 	*  Do this before releasing/freeing resources.
@@ -697,9 +686,6 @@ static struct scsi_host_template sym53c500_driver_template = {
      .shost_attrs		= SYM53C500_shost_attrs
 };
 
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
-
 static int SYM53C500_config_check(struct pcmcia_device *p_dev,
 				  cistpl_cftable_entry_t *cfg,
 				  cistpl_cftable_entry_t *dflt,
@@ -719,24 +705,27 @@ static int
 SYM53C500_config(struct pcmcia_device *link)
 {
 	struct scsi_info_t *info = link->priv;
-	int last_ret, last_fn;
+	int ret;
 	int irq_level, port_base;
 	struct Scsi_Host *host;
 	struct scsi_host_template *tpnt = &sym53c500_driver_template;
 	struct sym53c500_data *data;
 
-	DEBUG(0, "SYM53C500_config(0x%p)\n", link);
+	dev_dbg(&link->dev, "SYM53C500_config\n");
 
 	info->manf_id = link->manf_id;
 
-	last_ret = pcmcia_loop_config(link, SYM53C500_config_check, NULL);
-	if (last_ret) {
-		cs_error(link, RequestIO, last_ret);
+	ret = pcmcia_loop_config(link, SYM53C500_config_check, NULL);
+	if (ret)
 		goto failed;
-	}
 
-	CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
-	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
+	ret = pcmcia_request_irq(link, &link->irq);
+	if (ret)
+		goto failed;
+
+	ret = pcmcia_request_configuration(link, &link->conf);
+	if (ret)
+		goto failed;
 
 	/*
 	*  That's the trouble with copying liberally from another driver.
@@ -824,8 +813,6 @@ err_release:
 	printk(KERN_INFO "sym53c500_cs: no SCSI devices found\n");
 	return -ENODEV;
 
-cs_failed:
-	cs_error(link, last_fn, last_ret);
 failed:
 	SYM53C500_release(link);
 	return -ENODEV;
@@ -855,7 +842,7 @@ static int sym53c500_resume(struct pcmcia_device *link)
 static void
 SYM53C500_detach(struct pcmcia_device *link)
 {
-	DEBUG(0, "SYM53C500_detach(0x%p)\n", link);
+	dev_dbg(&link->dev, "SYM53C500_detach\n");
 
 	SYM53C500_release(link);
 
@@ -868,7 +855,7 @@ SYM53C500_probe(struct pcmcia_device *link)
 {
 	struct scsi_info_t *info;
 
-	DEBUG(0, "SYM53C500_attach()\n");
+	dev_dbg(&link->dev, "SYM53C500_attach()\n");
 
 	/* Create new SCSI device */
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
@@ -880,7 +867,6 @@ SYM53C500_probe(struct pcmcia_device *link)
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
 	link->io.IOAddrLines = 10;
 	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 

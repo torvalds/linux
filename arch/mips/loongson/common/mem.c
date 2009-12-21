@@ -26,7 +26,7 @@ void __init prom_init_memory(void)
 /* override of arch/mips/mm/cache.c: __uncached_access */
 int __uncached_access(struct file *file, unsigned long addr)
 {
-	if (file->f_flags & O_SYNC)
+	if (file->f_flags & O_DSYNC)
 		return 1;
 
 	return addr >= __pa(high_memory) ||

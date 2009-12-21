@@ -10,9 +10,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#ifdef CONFIG_OMAP_DEBUG_POWERDOMAIN
-# define DEBUG
-#endif
+#undef DEBUG
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -31,9 +29,9 @@
 #include "prm.h"
 #include "prm-regbits-34xx.h"
 
-#include <mach/cpu.h>
-#include <mach/powerdomain.h>
-#include <mach/clockdomain.h>
+#include <plat/cpu.h>
+#include <plat/powerdomain.h>
+#include <plat/clockdomain.h>
 
 #include "pm.h"
 
@@ -160,7 +158,7 @@ static __init void _pwrdm_setup(struct powerdomain *pwrdm)
 {
 	int i;
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < PWRDM_MAX_PWRSTS; i++)
 		pwrdm->state_counter[i] = 0;
 
 	pwrdm_wait_transition(pwrdm);
@@ -273,35 +271,50 @@ struct powerdomain *pwrdm_lookup(const char *name)
 }
 
 /**
- * pwrdm_for_each - call function on each registered clockdomain
+ * pwrdm_for_each_nolock - call function on each registered clockdomain
  * @fn: callback function *
  *
  * Call the supplied function for each registered powerdomain.  The
  * callback function can return anything but 0 to bail out early from
- * the iterator.  The callback function is called with the pwrdm_rwlock
- * held for reading, so no powerdomain structure manipulation
- * functions should be called from the callback, although hardware
- * powerdomain control functions are fine.  Returns the last return
- * value of the callback function, which should be 0 for success or
- * anything else to indicate failure; or -EINVAL if the function
- * pointer is null.
+ * the iterator.  Returns the last return value of the callback function, which
+ * should be 0 for success or anything else to indicate failure; or -EINVAL if
+ * the function pointer is null.
  */
-int pwrdm_for_each(int (*fn)(struct powerdomain *pwrdm, void *user),
-			void *user)
+int pwrdm_for_each_nolock(int (*fn)(struct powerdomain *pwrdm, void *user),
+				void *user)
 {
 	struct powerdomain *temp_pwrdm;
-	unsigned long flags;
 	int ret = 0;
 
 	if (!fn)
 		return -EINVAL;
 
-	read_lock_irqsave(&pwrdm_rwlock, flags);
 	list_for_each_entry(temp_pwrdm, &pwrdm_list, node) {
 		ret = (*fn)(temp_pwrdm, user);
 		if (ret)
 			break;
 	}
+
+	return ret;
+}
+
+/**
+ * pwrdm_for_each - call function on each registered clockdomain
+ * @fn: callback function *
+ *
+ * This function is the same as 'pwrdm_for_each_nolock()', but keeps the
+ * &pwrdm_rwlock locked for reading, so no powerdomain structure manipulation
+ * functions should be called from the callback, although hardware powerdomain
+ * control functions are fine.
+ */
+int pwrdm_for_each(int (*fn)(struct powerdomain *pwrdm, void *user),
+			void *user)
+{
+	unsigned long flags;
+	int ret;
+
+	read_lock_irqsave(&pwrdm_rwlock, flags);
+	ret = pwrdm_for_each_nolock(fn, user);
 	read_unlock_irqrestore(&pwrdm_rwlock, flags);
 
 	return ret;
@@ -465,7 +478,7 @@ int pwrdm_add_wkdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2)
 	if (IS_ERR(p)) {
 		pr_debug("powerdomain: hardware cannot set/clear wake up of "
 			 "%s when %s wakes up\n", pwrdm1->name, pwrdm2->name);
-		return IS_ERR(p);
+		return PTR_ERR(p);
 	}
 
 	pr_debug("powerdomain: hardware will wake up %s when %s wakes up\n",
@@ -498,7 +511,7 @@ int pwrdm_del_wkdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2)
 	if (IS_ERR(p)) {
 		pr_debug("powerdomain: hardware cannot set/clear wake up of "
 			 "%s when %s wakes up\n", pwrdm1->name, pwrdm2->name);
-		return IS_ERR(p);
+		return PTR_ERR(p);
 	}
 
 	pr_debug("powerdomain: hardware will no longer wake up %s after %s "
@@ -535,7 +548,7 @@ int pwrdm_read_wkdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2)
 	if (IS_ERR(p)) {
 		pr_debug("powerdomain: hardware cannot set/clear wake up of "
 			 "%s when %s wakes up\n", pwrdm1->name, pwrdm2->name);
-		return IS_ERR(p);
+		return PTR_ERR(p);
 	}
 
 	return prm_read_mod_bits_shift(pwrdm1->prcm_offs, PM_WKDEP,
@@ -558,10 +571,10 @@ int pwrdm_add_sleepdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2)
 {
 	struct powerdomain *p;
 
-	if (!pwrdm1)
+	if (!cpu_is_omap34xx())
 		return -EINVAL;
 
-	if (!cpu_is_omap34xx())
+	if (!pwrdm1)
 		return -EINVAL;
 
 	p = _pwrdm_deps_lookup(pwrdm2, pwrdm1->sleepdep_srcs);
@@ -569,7 +582,7 @@ int pwrdm_add_sleepdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2)
 		pr_debug("powerdomain: hardware cannot set/clear sleep "
 			 "dependency affecting %s from %s\n", pwrdm1->name,
 			 pwrdm2->name);
-		return IS_ERR(p);
+		return PTR_ERR(p);
 	}
 
 	pr_debug("powerdomain: will prevent %s from sleeping if %s is active\n",
@@ -597,10 +610,10 @@ int pwrdm_del_sleepdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2)
 {
 	struct powerdomain *p;
 
-	if (!pwrdm1)
+	if (!cpu_is_omap34xx())
 		return -EINVAL;
 
-	if (!cpu_is_omap34xx())
+	if (!pwrdm1)
 		return -EINVAL;
 
 	p = _pwrdm_deps_lookup(pwrdm2, pwrdm1->sleepdep_srcs);
@@ -608,7 +621,7 @@ int pwrdm_del_sleepdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2)
 		pr_debug("powerdomain: hardware cannot set/clear sleep "
 			 "dependency affecting %s from %s\n", pwrdm1->name,
 			 pwrdm2->name);
-		return IS_ERR(p);
+		return PTR_ERR(p);
 	}
 
 	pr_debug("powerdomain: will no longer prevent %s from sleeping if "
@@ -640,10 +653,10 @@ int pwrdm_read_sleepdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2)
 {
 	struct powerdomain *p;
 
-	if (!pwrdm1)
+	if (!cpu_is_omap34xx())
 		return -EINVAL;
 
-	if (!cpu_is_omap34xx())
+	if (!pwrdm1)
 		return -EINVAL;
 
 	p = _pwrdm_deps_lookup(pwrdm2, pwrdm1->sleepdep_srcs);
@@ -651,7 +664,7 @@ int pwrdm_read_sleepdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2)
 		pr_debug("powerdomain: hardware cannot set/clear sleep "
 			 "dependency affecting %s from %s\n", pwrdm1->name,
 			 pwrdm2->name);
-		return IS_ERR(p);
+		return PTR_ERR(p);
 	}
 
 	return prm_read_mod_bits_shift(pwrdm1->prcm_offs, OMAP3430_CM_SLEEPDEP,
@@ -970,6 +983,9 @@ int pwrdm_read_mem_pwrst(struct powerdomain *pwrdm, u8 bank)
 	if (pwrdm->banks < (bank + 1))
 		return -EEXIST;
 
+	if (pwrdm->flags & PWRDM_HAS_MPU_QUIRK)
+		bank = 1;
+
 	/*
 	 * The register bit names below may not correspond to the
 	 * actual names of the bits in each powerdomain's register,
@@ -1016,6 +1032,9 @@ int pwrdm_read_prev_mem_pwrst(struct powerdomain *pwrdm, u8 bank)
 
 	if (pwrdm->banks < (bank + 1))
 		return -EEXIST;
+
+	if (pwrdm->flags & PWRDM_HAS_MPU_QUIRK)
+		bank = 1;
 
 	/*
 	 * The register bit names below may not correspond to the

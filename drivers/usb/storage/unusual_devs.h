@@ -818,6 +818,13 @@ UNUSUAL_DEV( 0x066f, 0x8000, 0x0001, 0x0001,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
+/* Reported by Daniel Kukula <daniel.kuku@gmail.com> */
+UNUSUAL_DEV( 0x067b, 0x1063, 0x0100, 0x0100,
+		"Prolific Technology, Inc.",
+		"Prolific Storage Gadget",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_BAD_SENSE ),
+
 /* Reported by Rogerio Brito <rbrito@ime.usp.br> */
 UNUSUAL_DEV( 0x067b, 0x2317, 0x0001, 0x001,
 		"Prolific Technology, Inc.",
@@ -1822,6 +1829,13 @@ UNUSUAL_DEV(  0x4102, 0x1020, 0x0100,  0x0100,
 		"MP3 T10",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
+
+/* Reported by Sergey Pinaev <dfo@antex.ru> */
+UNUSUAL_DEV(  0x4102, 0x1059, 0x0000,  0x0000,
+               "iRiver",
+               "P7K",
+               US_SC_DEVICE, US_PR_DEVICE, NULL,
+               US_FL_MAX_SECTORS_64 ),
 
 /*
  * David Härdeman <david@2gen.com>

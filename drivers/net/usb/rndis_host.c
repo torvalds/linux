@@ -114,8 +114,8 @@ int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf, int buflen)
 	 */
 
 	/* Issue the request; xid is unique, don't bother byteswapping it */
-	if (likely(buf->msg_type != RNDIS_MSG_HALT
-			&& buf->msg_type != RNDIS_MSG_RESET)) {
+	if (likely(buf->msg_type != RNDIS_MSG_HALT &&
+		   buf->msg_type != RNDIS_MSG_RESET)) {
 		xid = dev->xid++;
 		if (!xid)
 			xid = dev->xid++;
@@ -362,12 +362,12 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 			retval = -EINVAL;
 			goto halt_fail_and_release;
 		}
-		dev->hard_mtu = tmp;
-		net->mtu = dev->hard_mtu - net->hard_header_len;
 		dev_warn(&intf->dev,
 			 "dev can't take %u byte packets (max %u), "
 			 "adjusting MTU to %u\n",
-			 dev->hard_mtu, tmp, net->mtu);
+			 dev->hard_mtu, tmp, tmp - net->hard_header_len);
+		dev->hard_mtu = tmp;
+		net->mtu = dev->hard_mtu - net->hard_header_len;
 	}
 
 	/* REVISIT:  peripheral "alignment" request is ignored ... */
@@ -418,6 +418,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 		goto halt_fail_and_release;
 	}
 	memcpy(net->dev_addr, bp, ETH_ALEN);
+	memcpy(net->perm_addr, bp, ETH_ALEN);
 
 	/* set a nonzero filter to enable data transfers */
 	memset(u.set, 0, sizeof *u.set);
@@ -492,9 +493,9 @@ int rndis_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		data_len = le32_to_cpu(hdr->data_len);
 
 		/* don't choke if we see oob, per-packet data, etc */
-		if (unlikely(hdr->msg_type != RNDIS_MSG_PACKET
-				|| skb->len < msg_len
-				|| (data_offset + data_len + 8) > msg_len)) {
+		if (unlikely(hdr->msg_type != RNDIS_MSG_PACKET ||
+			     skb->len < msg_len ||
+			     (data_offset + data_len + 8) > msg_len)) {
 			dev->net->stats.rx_frame_errors++;
 			devdbg(dev, "bad rndis message %d/%d/%d/%d, len %d",
 				le32_to_cpu(hdr->msg_type),

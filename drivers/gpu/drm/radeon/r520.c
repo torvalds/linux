@@ -185,8 +185,7 @@ static int r520_startup(struct radeon_device *rdev)
 			return r;
 	}
 	/* Enable IRQ */
-	rdev->irq.sw_int = true;
-	r100_irq_set(rdev);
+	rs600_irq_set(rdev);
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
 	if (r) {
@@ -221,6 +220,8 @@ int r520_resume(struct radeon_device *rdev)
 	atom_asic_init(rdev->mode_info.atom_context);
 	/* Resume clock after posting */
 	rv515_clock_startup(rdev);
+	/* Initialize surface registers */
+	radeon_surface_init(rdev);
 	return r520_startup(rdev);
 }
 
@@ -228,7 +229,6 @@ int r520_init(struct radeon_device *rdev)
 {
 	int r;
 
-	rdev->new_init_path = true;
 	/* Initialize scratch registers */
 	radeon_scratch_init(rdev);
 	/* Initialize surface registers */
@@ -255,12 +255,17 @@ int r520_init(struct radeon_device *rdev)
 			RREG32(R_0007C0_CP_STAT));
 	}
 	/* check if cards are posted or not */
+	if (radeon_boot_test_post_card(rdev) == false)
+		return -EINVAL;
+
 	if (!radeon_card_posted(rdev) && rdev->bios) {
 		DRM_INFO("GPU not posted. posting now...\n");
 		atom_asic_init(rdev->mode_info.atom_context);
 	}
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
+	/* Initialize power management */
+	radeon_pm_init(rdev);
 	/* Get vram informations */
 	r520_vram_info(rdev);
 	/* Initialize memory controller (also test AGP) */
@@ -276,7 +281,7 @@ int r520_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	/* Memory manager */
-	r = radeon_object_init(rdev);
+	r = radeon_bo_init(rdev);
 	if (r)
 		return r;
 	r = rv370_pcie_gart_init(rdev);

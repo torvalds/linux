@@ -164,16 +164,14 @@ static const char emac_version_string[] = "TI DaVinci EMAC Linux v6.1";
 # define EMAC_MBP_MCASTCHAN(ch)		((ch) & 0x7)
 
 /* EMAC mac_control register */
-#define EMAC_MACCONTROL_TXPTYPE		(0x200)
-#define EMAC_MACCONTROL_TXPACEEN	(0x40)
-#define EMAC_MACCONTROL_MIIEN		(0x20)
-#define EMAC_MACCONTROL_GIGABITEN	(0x80)
-#define EMAC_MACCONTROL_GIGABITEN_SHIFT (7)
-#define EMAC_MACCONTROL_FULLDUPLEXEN	(0x1)
+#define EMAC_MACCONTROL_TXPTYPE		BIT(9)
+#define EMAC_MACCONTROL_TXPACEEN	BIT(6)
+#define EMAC_MACCONTROL_GMIIEN		BIT(5)
+#define EMAC_MACCONTROL_GIGABITEN	BIT(7)
+#define EMAC_MACCONTROL_FULLDUPLEXEN	BIT(0)
 #define EMAC_MACCONTROL_RMIISPEED_MASK	BIT(15)
 
 /* GIGABIT MODE related bits */
-#define EMAC_DM646X_MACCONTORL_GMIIEN	BIT(5)
 #define EMAC_DM646X_MACCONTORL_GIG	BIT(7)
 #define EMAC_DM646X_MACCONTORL_GIGFORCE	BIT(17)
 
@@ -192,17 +190,16 @@ static const char emac_version_string[] = "TI DaVinci EMAC Linux v6.1";
 #define EMAC_RX_BUFFER_OFFSET_MASK	(0xFFFF)
 
 /* MAC_IN_VECTOR (0x180) register bit fields */
-#define EMAC_DM644X_MAC_IN_VECTOR_HOST_INT	      (0x20000)
-#define EMAC_DM644X_MAC_IN_VECTOR_STATPEND_INT	      (0x10000)
-#define EMAC_DM644X_MAC_IN_VECTOR_RX_INT_VEC	      (0x0100)
-#define EMAC_DM644X_MAC_IN_VECTOR_TX_INT_VEC	      (0x01)
+#define EMAC_DM644X_MAC_IN_VECTOR_HOST_INT	BIT(17)
+#define EMAC_DM644X_MAC_IN_VECTOR_STATPEND_INT	BIT(16)
+#define EMAC_DM644X_MAC_IN_VECTOR_RX_INT_VEC	BIT(8)
+#define EMAC_DM644X_MAC_IN_VECTOR_TX_INT_VEC	BIT(0)
 
 /** NOTE:: For DM646x the IN_VECTOR has changed */
 #define EMAC_DM646X_MAC_IN_VECTOR_RX_INT_VEC	BIT(EMAC_DEF_RX_CH)
 #define EMAC_DM646X_MAC_IN_VECTOR_TX_INT_VEC	BIT(16 + EMAC_DEF_TX_CH)
 #define EMAC_DM646X_MAC_IN_VECTOR_HOST_INT	BIT(26)
 #define EMAC_DM646X_MAC_IN_VECTOR_STATPEND_INT	BIT(27)
-
 
 /* CPPI bit positions */
 #define EMAC_CPPI_SOP_BIT		BIT(31)
@@ -332,6 +329,9 @@ static const char emac_version_string[] = "TI DaVinci EMAC Linux v6.1";
 /* EMAC EOI codes for C0 */
 #define EMAC_DM646X_MAC_EOI_C0_RXEN	(0x01)
 #define EMAC_DM646X_MAC_EOI_C0_TXEN	(0x02)
+
+/* EMAC Stats Clear Mask */
+#define EMAC_STATS_CLR_MASK    (0xFFFFFFFF)
 
 /** net_buf_obj: EMAC network bufferdata structure
  *
@@ -747,8 +747,7 @@ static void emac_update_phystatus(struct emac_priv *priv)
 
 	if (priv->speed == SPEED_1000 && (priv->version == EMAC_VERSION_2)) {
 		mac_control = emac_read(EMAC_MACCONTROL);
-		mac_control |= (EMAC_DM646X_MACCONTORL_GMIIEN |
-				EMAC_DM646X_MACCONTORL_GIG |
+		mac_control |= (EMAC_DM646X_MACCONTORL_GIG |
 				EMAC_DM646X_MACCONTORL_GIGFORCE);
 	} else {
 		/* Clear the GIG bit and GIGFORCE bit */
@@ -2105,7 +2104,7 @@ static int emac_hw_enable(struct emac_priv *priv)
 
 	/* Enable MII */
 	val = emac_read(EMAC_MACCONTROL);
-	val |= (EMAC_MACCONTROL_MIIEN);
+	val |= (EMAC_MACCONTROL_GMIIEN);
 	emac_write(EMAC_MACCONTROL, val);
 
 	/* Enable NAPI and interrupts */
@@ -2136,9 +2135,6 @@ static int emac_poll(struct napi_struct *napi, int budget)
 	struct device *emac_dev = &ndev->dev;
 	u32 status = 0;
 	u32 num_pkts = 0;
-
-	if (!netif_running(ndev))
-		return 0;
 
 	/* Check interrupt vectors and call packet processing */
 	status = emac_read(EMAC_MACINVECTOR);
@@ -2218,7 +2214,7 @@ void emac_poll_controller(struct net_device *ndev)
 	struct emac_priv *priv = netdev_priv(ndev);
 
 	emac_int_disable(priv);
-	emac_irq(ndev->irq, priv);
+	emac_irq(ndev->irq, ndev);
 	emac_int_enable(priv);
 }
 #endif
@@ -2548,40 +2544,49 @@ static int emac_dev_stop(struct net_device *ndev)
 static struct net_device_stats *emac_dev_getnetstats(struct net_device *ndev)
 {
 	struct emac_priv *priv = netdev_priv(ndev);
+	u32 mac_control;
+	u32 stats_clear_mask;
 
 	/* update emac hardware stats and reset the registers*/
 
+	mac_control = emac_read(EMAC_MACCONTROL);
+
+	if (mac_control & EMAC_MACCONTROL_GMIIEN)
+		stats_clear_mask = EMAC_STATS_CLR_MASK;
+	else
+		stats_clear_mask = 0;
+
 	priv->net_dev_stats.multicast += emac_read(EMAC_RXMCASTFRAMES);
-	emac_write(EMAC_RXMCASTFRAMES, EMAC_ALL_MULTI_REG_VALUE);
+	emac_write(EMAC_RXMCASTFRAMES, stats_clear_mask);
 
 	priv->net_dev_stats.collisions += (emac_read(EMAC_TXCOLLISION) +
 					   emac_read(EMAC_TXSINGLECOLL) +
 					   emac_read(EMAC_TXMULTICOLL));
-	emac_write(EMAC_TXCOLLISION, EMAC_ALL_MULTI_REG_VALUE);
-	emac_write(EMAC_TXSINGLECOLL, EMAC_ALL_MULTI_REG_VALUE);
-	emac_write(EMAC_TXMULTICOLL, EMAC_ALL_MULTI_REG_VALUE);
+	emac_write(EMAC_TXCOLLISION, stats_clear_mask);
+	emac_write(EMAC_TXSINGLECOLL, stats_clear_mask);
+	emac_write(EMAC_TXMULTICOLL, stats_clear_mask);
 
 	priv->net_dev_stats.rx_length_errors += (emac_read(EMAC_RXOVERSIZED) +
 						emac_read(EMAC_RXJABBER) +
 						emac_read(EMAC_RXUNDERSIZED));
-	emac_write(EMAC_RXOVERSIZED, EMAC_ALL_MULTI_REG_VALUE);
-	emac_write(EMAC_RXJABBER, EMAC_ALL_MULTI_REG_VALUE);
-	emac_write(EMAC_RXUNDERSIZED, EMAC_ALL_MULTI_REG_VALUE);
+	emac_write(EMAC_RXOVERSIZED, stats_clear_mask);
+	emac_write(EMAC_RXJABBER, stats_clear_mask);
+	emac_write(EMAC_RXUNDERSIZED, stats_clear_mask);
 
 	priv->net_dev_stats.rx_over_errors += (emac_read(EMAC_RXSOFOVERRUNS) +
 					       emac_read(EMAC_RXMOFOVERRUNS));
-	emac_write(EMAC_RXSOFOVERRUNS, EMAC_ALL_MULTI_REG_VALUE);
-	emac_write(EMAC_RXMOFOVERRUNS, EMAC_ALL_MULTI_REG_VALUE);
+	emac_write(EMAC_RXSOFOVERRUNS, stats_clear_mask);
+	emac_write(EMAC_RXMOFOVERRUNS, stats_clear_mask);
 
 	priv->net_dev_stats.rx_fifo_errors += emac_read(EMAC_RXDMAOVERRUNS);
-	emac_write(EMAC_RXDMAOVERRUNS, EMAC_ALL_MULTI_REG_VALUE);
+	emac_write(EMAC_RXDMAOVERRUNS, stats_clear_mask);
 
 	priv->net_dev_stats.tx_carrier_errors +=
 		emac_read(EMAC_TXCARRIERSENSE);
-	emac_write(EMAC_TXCARRIERSENSE, EMAC_ALL_MULTI_REG_VALUE);
+	emac_write(EMAC_TXCARRIERSENSE, stats_clear_mask);
 
 	priv->net_dev_stats.tx_fifo_errors = emac_read(EMAC_TXUNDERRUN);
-	emac_write(EMAC_TXUNDERRUN, EMAC_ALL_MULTI_REG_VALUE);
+	emac_write(EMAC_TXUNDERRUN, stats_clear_mask);
 
 	return &priv->net_dev_stats;
 }
@@ -2798,11 +2803,33 @@ static int __devexit davinci_emac_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static
+int davinci_emac_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+
+	if (netif_running(dev))
+		emac_dev_stop(dev);
+
+	clk_disable(emac_clk);
+
+	return 0;
+}
+
+static int davinci_emac_resume(struct platform_device *pdev)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+
+	clk_enable(emac_clk);
+
+	if (netif_running(dev))
+		emac_dev_open(dev);
+
+	return 0;
+}
+
 /**
  * davinci_emac_driver: EMAC platform driver structure
- *
- * We implement only probe and remove functions - suspend/resume and
- * others not supported by this module
  */
 static struct platform_driver davinci_emac_driver = {
 	.driver = {
@@ -2811,6 +2838,8 @@ static struct platform_driver davinci_emac_driver = {
 	},
 	.probe = davinci_emac_probe,
 	.remove = __devexit_p(davinci_emac_remove),
+	.suspend = davinci_emac_suspend,
+	.resume = davinci_emac_resume,
 };
 
 /**

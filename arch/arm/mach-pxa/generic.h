@@ -67,3 +67,8 @@ extern struct sysdev_class pxa_irq_sysclass;
 extern struct sysdev_class pxa_gpio_sysclass;
 extern struct sysdev_class pxa2xx_mfp_sysclass;
 extern struct sysdev_class pxa3xx_mfp_sysclass;
+
+void __init pxa_set_ffuart_info(void *info);
+void __init pxa_set_btuart_info(void *info);
+void __init pxa_set_stuart_info(void *info);
+void __init pxa_set_hwuart_info(void *info);

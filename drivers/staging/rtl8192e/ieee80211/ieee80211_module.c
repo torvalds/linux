@@ -164,7 +164,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
  	ieee->privacy_invoked = 0;
  	ieee->ieee802_1x = 1;
 	ieee->raw_tx = 0;
-	//ieee->hwsec_support = 1; //defalt support hw security. //use module_param instead.
+	//ieee->hwsec_support = 1; //default support hw security. //use module_param instead.
 	ieee->hwsec_active = 0; //disable hwsec, switch it on when necessary.
 
 	ieee80211_softmac_init(ieee);
@@ -242,14 +242,8 @@ void free_ieee80211(struct net_device *dev)
 	for (i = 0; i < WEP_KEYS; i++) {
 		struct ieee80211_crypt_data *crypt = ieee->crypt[i];
 		if (crypt) {
-			if (crypt->ops) {
+			if (crypt->ops)
 				crypt->ops->deinit(crypt->priv);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-				module_put(crypt->ops->owner);
-#else
-				__MOD_DEC_USE_COUNT(crypt->ops->owner);
-#endif
-			}
 			kfree(crypt);
 			ieee->crypt[i] = NULL;
 		}

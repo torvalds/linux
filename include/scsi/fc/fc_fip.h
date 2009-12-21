@@ -214,9 +214,19 @@ struct fip_vn_desc {
  */
 struct fip_fka_desc {
 	struct fip_desc fd_desc;
-	__u8		fd_resvd[2];
+	__u8		fd_resvd;
+	__u8		fd_flags;	/* bit0 is fka disable flag */
 	__be32		fd_fka_period;	/* adv./keep-alive period in mS */
 } __attribute__((packed));
+
+/*
+ * flags for fip_fka_desc.fd_flags
+ */
+enum fip_fka_flags {
+	FIP_FKA_ADV_D =	0x01,		/* no need for FKA from ENode */
+};
+
+/* FIP_DT_FKA flags */
 
 /*
  * FIP_DT_VENDOR descriptor.

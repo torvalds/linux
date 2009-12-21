@@ -975,7 +975,7 @@ config ENC28J60_WRITEVERIFY
 
 config ETHOC
 	tristate "OpenCores 10/100 Mbps Ethernet MAC support"
-	depends on NET_ETHERNET && HAS_IOMEM
+	depends on NET_ETHERNET && HAS_IOMEM && HAS_DMA
 	select MII
 	select PHYLIB
 	select CRC32
@@ -1001,7 +1001,7 @@ config SMC911X
 
 config SMSC911X
 	tristate "SMSC LAN911x/LAN921x families embedded ethernet support"
-	depends on ARM || SUPERH || BLACKFIN
+	depends on ARM || SUPERH || BLACKFIN || MIPS
 	select CRC32
 	select MII
 	select PHYLIB
@@ -1741,6 +1741,7 @@ config KS8851
 config KS8851_MLL
 	tristate "Micrel KS8851 MLL"
 	depends on HAS_IOMEM
+	select MII
 	help
 	  This platform driver is for Micrel KS8851 Address/data bus
 	  multiplexed network chip.
@@ -2482,6 +2483,8 @@ config S6GMAC
 	  To compile this driver as a module, choose M here. The module
 	  will be called s6gmac.
 
+source "drivers/net/stmmac/Kconfig"
+
 endif # NETDEV_1000
 
 #
@@ -2693,6 +2696,7 @@ config NETXEN_NIC
 config NIU
 	tristate "Sun Neptune 10Gbit Ethernet support"
 	depends on PCI
+	select CRC32
 	help
 	  This enables support for cards based upon Sun's
 	  Neptune chipset.
@@ -3229,5 +3233,13 @@ config VIRTIO_NET
 	---help---
 	  This is the virtual network driver for virtio.  It can be used with
           lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.
+
+config VMXNET3
+       tristate "VMware VMXNET3 ethernet driver"
+       depends on PCI && INET
+       help
+         This driver supports VMware's vmxnet3 virtual ethernet NIC.
+         To compile this driver as a module, choose M here: the
+         module will be called vmxnet3.
 
 endif # NETDEVICES

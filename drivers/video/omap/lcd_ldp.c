@@ -27,9 +27,10 @@
 #include <linux/i2c/twl4030.h>
 
 #include <mach/gpio.h>
-#include <mach/mux.h>
-#include <mach/omapfb.h>
+#include <plat/mux.h>
 #include <asm/mach-types.h>
+
+#include "omapfb.h"
 
 #define LCD_PANEL_BACKLIGHT_GPIO	(15 + OMAP_MAX_GPIO_LINES)
 #define LCD_PANEL_ENABLE_GPIO		(7 + OMAP_MAX_GPIO_LINES)

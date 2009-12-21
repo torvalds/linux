@@ -25,7 +25,7 @@
 #define KS8695_SEC1		(0x04)		/* Switch Engine Control 1 */
 #define KS8695_SEC2		(0x08)		/* Switch Engine Control 2 */
 
-#define KS8695_P(x)_C(z)	(0xc0 + (((x)-1)*3 + ((z)-1))*4)	/* Port Configuration Registers */
+#define KS8695_SEPXCZ(x,z)	(0x0c + (((x)-1)*3 + ((z)-1))*4)	/* Port Configuration Registers */
 
 #define KS8695_SEP12AN		(0x48)		/* Port 1 & 2 Auto-Negotiation */
 #define KS8695_SEP34AN		(0x4c)		/* Port 3 & 4 Auto-Negotiation */

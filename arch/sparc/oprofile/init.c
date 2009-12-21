@@ -11,6 +11,7 @@
 #include <linux/oprofile.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/param.h>	/* for HZ */
  
 #ifdef CONFIG_SPARC64
 #include <linux/notifier.h>

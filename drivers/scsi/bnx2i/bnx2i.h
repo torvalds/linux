@@ -100,6 +100,8 @@
 #define CTX_OFFSET 			0x10000
 #define MAX_CID_CNT			0x4000
 
+#define BNX2I_570X_PAGE_SIZE_DEFAULT	4096
+
 /* 5709 context registers */
 #define BNX2_MQ_CONFIG2			0x00003d00
 #define BNX2_MQ_CONFIG2_CONT_SZ		(0x7L<<4)
@@ -230,7 +232,6 @@ struct bnx2i_conn {
 	struct iscsi_cls_conn *cls_conn;
 	struct bnx2i_hba *hba;
 	struct completion cmd_cleanup_cmpl;
-	int is_bound;
 
 	u32 iscsi_conn_cid;
 #define BNX2I_CID_RESERVED	0x5AFF

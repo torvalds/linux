@@ -178,7 +178,7 @@ static void msp430_ir_interrupt(unsigned long data)
 	if (budget_ci->ir.last_raw != raw || !timer_pending(&budget_ci->ir.timer_keyup)) {
 		ir_input_nokey(dev, &budget_ci->ir.state);
 		ir_input_keydown(dev, &budget_ci->ir.state,
-				 budget_ci->ir.ir_key, raw);
+				 budget_ci->ir.ir_key);
 		budget_ci->ir.last_raw = raw;
 	}
 
@@ -224,8 +224,10 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	case 0x1011:
 	case 0x1012:
 		/* The hauppauge keymap is a superset of these remotes */
-		ir_input_init(input_dev, &budget_ci->ir.state,
+		error = ir_input_init(input_dev, &budget_ci->ir.state,
 			      IR_TYPE_RC5, &ir_codes_hauppauge_new_table);
+		if (error < 0)
+			goto out2;
 
 		if (rc5_device < 0)
 			budget_ci->ir.rc5_device = 0x1f;
@@ -236,8 +238,10 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	case 0x1017:
 	case 0x101a:
 		/* for the Technotrend 1500 bundled remote */
-		ir_input_init(input_dev, &budget_ci->ir.state,
+		error = ir_input_init(input_dev, &budget_ci->ir.state,
 			      IR_TYPE_RC5, &ir_codes_tt_1500_table);
+		if (error < 0)
+			goto out2;
 
 		if (rc5_device < 0)
 			budget_ci->ir.rc5_device = IR_DEVICE_ANY;
@@ -246,8 +250,10 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 		break;
 	default:
 		/* unknown remote */
-		ir_input_init(input_dev, &budget_ci->ir.state,
+		error = ir_input_init(input_dev, &budget_ci->ir.state,
 			      IR_TYPE_RC5, &ir_codes_budget_ci_old_table);
+		if (error < 0)
+			goto out2;
 
 		if (rc5_device < 0)
 			budget_ci->ir.rc5_device = IR_DEVICE_ANY;
@@ -280,6 +286,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	return 0;
 
 out2:
+	ir_input_free(input_dev);
 	input_free_device(input_dev);
 out1:
 	return error;
@@ -297,6 +304,7 @@ static void msp430_ir_deinit(struct budget_ci *budget_ci)
 	del_timer_sync(&dev->timer);
 	ir_input_nokey(dev, &budget_ci->ir.state);
 
+	ir_input_free(dev);
 	input_unregister_device(dev);
 }
 
@@ -1248,7 +1256,7 @@ static const struct stb0899_s1_reg tt3200_stb0899_s1_init_3[] = {
 	{ STB0899_TSCFGH        	, 0x0c },
 	{ STB0899_TSCFGM        	, 0x00 },
 	{ STB0899_TSCFGL        	, 0x0c },
-	{ STB0899_TSOUT			, 0x0d }, /* 0x0d for CAM */
+	{ STB0899_TSOUT			, 0x4d }, /* 0x0d for CAM */
 	{ STB0899_RSSYNCDEL     	, 0x00 },
 	{ STB0899_TSINHDELH     	, 0x02 },
 	{ STB0899_TSINHDELM		, 0x00 },

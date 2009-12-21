@@ -76,8 +76,6 @@
 #define FIFO_SIZE  4096
 #define FIFO_EXTRA_SPACE            1024
 
-#define MIN(x, y)  ((x) < (y) ? (x) : (y))
-
 #if BITS_PER_LONG == 64
 #    define H32_64(x)  (u32) ((u64)(x) >> 32)
 #    define L32_64(x)  (u32) ((u64)(x) & 0xffffffff)

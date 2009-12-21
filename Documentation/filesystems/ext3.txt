@@ -32,8 +32,8 @@ journal_dev=devnum	When the external journal device's major/minor numbers
 			identified through its new major/minor numbers encoded
 			in devnum.
 
-noload			Don't load the journal on mounting. Note that this forces
-			mount of inconsistent filesystem, which can lead to
+norecovery		Don't load the journal on mounting. Note that this forces
+noload			mount of inconsistent filesystem, which can lead to
 			various problems.
 
 data=journal		All data are committed into the journal prior to being
@@ -123,10 +123,18 @@ resuid=n		The user ID which may use the reserved blocks.
 
 sb=n			Use alternate superblock at this location.
 
-quota
-noquota
-grpquota
-usrquota
+quota			These options are ignored by the filesystem. They
+noquota			are used only by quota tools to recognize volumes
+grpquota		where quota should be turned on. See documentation
+usrquota		in the quota-tools package for more details
+			(http://sourceforge.net/projects/linuxquota).
+
+jqfmt=<quota type>	These options tell filesystem details about quota
+usrjquota=<file>	so that quota information can be properly updated
+grpjquota=<file>	during journal replay. They replace the above
+			quota options. See documentation in the quota-tools
+			package for more details
+			(http://sourceforge.net/projects/linuxquota).
 
 bh		(*)	ext3 associates buffer heads to data pages to
 nobh			(a) cache disk block mapping information

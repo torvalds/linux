@@ -12,75 +12,185 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
+#include <linux/input/matrix_keypad.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/wl12xx.h>
 #include <linux/i2c.h>
 #include <linux/i2c/twl4030.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/regulator/machine.h>
 #include <linux/gpio.h>
+#include <linux/gpio_keys.h>
 #include <linux/mmc/host.h>
 
-#include <mach/mcspi.h>
-#include <mach/mux.h>
-#include <mach/board.h>
-#include <mach/common.h>
-#include <mach/dma.h>
-#include <mach/gpmc.h>
-#include <mach/keypad.h>
-#include <mach/onenand.h>
-#include <mach/gpmc-smc91x.h>
+#include <plat/mcspi.h>
+#include <plat/mux.h>
+#include <plat/board.h>
+#include <plat/common.h>
+#include <plat/dma.h>
+#include <plat/gpmc.h>
+#include <plat/onenand.h>
+#include <plat/gpmc-smc91x.h>
 
+#include "mux.h"
 #include "mmc-twl4030.h"
 
 #define SYSTEM_REV_B_USES_VAUX3	0x1699
 #define SYSTEM_REV_S_USES_VAUX3 0x8
 
+#define RX51_WL1251_POWER_GPIO		87
+#define RX51_WL1251_IRQ_GPIO		42
+
+/* list all spi devices here */
+enum {
+	RX51_SPI_WL1251,
+};
+
+static struct wl12xx_platform_data wl1251_pdata;
+
+static struct omap2_mcspi_device_config wl1251_mcspi_config = {
+	.turbo_mode	= 0,
+	.single_channel	= 1,
+};
+
+static struct spi_board_info rx51_peripherals_spi_board_info[] __initdata = {
+	[RX51_SPI_WL1251] = {
+		.modalias		= "wl1251",
+		.bus_num		= 4,
+		.chip_select		= 0,
+		.max_speed_hz   	= 48000000,
+		.mode                   = SPI_MODE_3,
+		.controller_data	= &wl1251_mcspi_config,
+		.platform_data		= &wl1251_pdata,
+	},
+};
+
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+
+#define RX51_GPIO_CAMERA_LENS_COVER	110
+#define RX51_GPIO_CAMERA_FOCUS		68
+#define RX51_GPIO_CAMERA_CAPTURE	69
+#define RX51_GPIO_KEYPAD_SLIDE		71
+#define RX51_GPIO_LOCK_BUTTON		113
+#define RX51_GPIO_PROXIMITY		89
+
+#define RX51_GPIO_DEBOUNCE_TIMEOUT	10
+
+static struct gpio_keys_button rx51_gpio_keys[] = {
+	{
+		.desc			= "Camera Lens Cover",
+		.type			= EV_SW,
+		.code			= SW_CAMERA_LENS_COVER,
+		.gpio			= RX51_GPIO_CAMERA_LENS_COVER,
+		.active_low		= 1,
+		.debounce_interval	= RX51_GPIO_DEBOUNCE_TIMEOUT,
+	}, {
+		.desc			= "Camera Focus",
+		.type			= EV_KEY,
+		.code			= KEY_CAMERA_FOCUS,
+		.gpio			= RX51_GPIO_CAMERA_FOCUS,
+		.active_low		= 1,
+		.debounce_interval	= RX51_GPIO_DEBOUNCE_TIMEOUT,
+	}, {
+		.desc			= "Camera Capture",
+		.type			= EV_KEY,
+		.code			= KEY_CAMERA,
+		.gpio			= RX51_GPIO_CAMERA_CAPTURE,
+		.active_low		= 1,
+		.debounce_interval	= RX51_GPIO_DEBOUNCE_TIMEOUT,
+	}, {
+		.desc			= "Lock Button",
+		.type			= EV_KEY,
+		.code			= KEY_SCREENLOCK,
+		.gpio			= RX51_GPIO_LOCK_BUTTON,
+		.active_low		= 1,
+		.debounce_interval	= RX51_GPIO_DEBOUNCE_TIMEOUT,
+	}, {
+		.desc			= "Keypad Slide",
+		.type			= EV_SW,
+		.code			= SW_KEYPAD_SLIDE,
+		.gpio			= RX51_GPIO_KEYPAD_SLIDE,
+		.active_low		= 1,
+		.debounce_interval	= RX51_GPIO_DEBOUNCE_TIMEOUT,
+	}, {
+		.desc			= "Proximity Sensor",
+		.type			= EV_SW,
+		.code			= SW_FRONT_PROXIMITY,
+		.gpio			= RX51_GPIO_PROXIMITY,
+		.active_low		= 0,
+		.debounce_interval	= RX51_GPIO_DEBOUNCE_TIMEOUT,
+	}
+};
+
+static struct gpio_keys_platform_data rx51_gpio_keys_data = {
+	.buttons	= rx51_gpio_keys,
+	.nbuttons	= ARRAY_SIZE(rx51_gpio_keys),
+};
+
+static struct platform_device rx51_gpio_keys_device = {
+	.name	= "gpio-keys",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &rx51_gpio_keys_data,
+	},
+};
+
+static void __init rx51_add_gpio_keys(void)
+{
+	platform_device_register(&rx51_gpio_keys_device);
+}
+#else
+static void __init rx51_add_gpio_keys(void)
+{
+}
+#endif /* CONFIG_KEYBOARD_GPIO || CONFIG_KEYBOARD_GPIO_MODULE */
+
 static int board_keymap[] = {
 	KEY(0, 0, KEY_Q),
-	KEY(0, 1, KEY_W),
-	KEY(0, 2, KEY_E),
-	KEY(0, 3, KEY_R),
-	KEY(0, 4, KEY_T),
-	KEY(0, 5, KEY_Y),
-	KEY(0, 6, KEY_U),
-	KEY(0, 7, KEY_I),
-	KEY(1, 0, KEY_O),
+	KEY(0, 1, KEY_O),
+	KEY(0, 2, KEY_P),
+	KEY(0, 3, KEY_COMMA),
+	KEY(0, 4, KEY_BACKSPACE),
+	KEY(0, 6, KEY_A),
+	KEY(0, 7, KEY_S),
+	KEY(1, 0, KEY_W),
 	KEY(1, 1, KEY_D),
-	KEY(1, 2, KEY_DOT),
-	KEY(1, 3, KEY_V),
-	KEY(1, 4, KEY_DOWN),
-	KEY(2, 0, KEY_P),
-	KEY(2, 1, KEY_F),
+	KEY(1, 2, KEY_F),
+	KEY(1, 3, KEY_G),
+	KEY(1, 4, KEY_H),
+	KEY(1, 5, KEY_J),
+	KEY(1, 6, KEY_K),
+	KEY(1, 7, KEY_L),
+	KEY(2, 0, KEY_E),
+	KEY(2, 1, KEY_DOT),
 	KEY(2, 2, KEY_UP),
-	KEY(2, 3, KEY_B),
-	KEY(2, 4, KEY_RIGHT),
-	KEY(3, 0, KEY_COMMA),
-	KEY(3, 1, KEY_G),
-	KEY(3, 2, KEY_ENTER),
+	KEY(2, 3, KEY_ENTER),
+	KEY(2, 5, KEY_Z),
+	KEY(2, 6, KEY_X),
+	KEY(2, 7, KEY_C),
+	KEY(3, 0, KEY_R),
+	KEY(3, 1, KEY_V),
+	KEY(3, 2, KEY_B),
 	KEY(3, 3, KEY_N),
-	KEY(4, 0, KEY_BACKSPACE),
-	KEY(4, 1, KEY_H),
-	KEY(4, 3, KEY_M),
+	KEY(3, 4, KEY_M),
+	KEY(3, 5, KEY_SPACE),
+	KEY(3, 6, KEY_SPACE),
+	KEY(3, 7, KEY_LEFT),
+	KEY(4, 0, KEY_T),
+	KEY(4, 1, KEY_DOWN),
+	KEY(4, 2, KEY_RIGHT),
 	KEY(4, 4, KEY_LEFTCTRL),
-	KEY(5, 1, KEY_J),
-	KEY(5, 2, KEY_Z),
-	KEY(5, 3, KEY_SPACE),
-	KEY(5, 4, KEY_LEFTSHIFT),
-	KEY(6, 0, KEY_A),
-	KEY(6, 1, KEY_K),
-	KEY(6, 2, KEY_X),
-	KEY(6, 3, KEY_SPACE),
-	KEY(6, 4, KEY_FN),
-	KEY(7, 0, KEY_S),
-	KEY(7, 1, KEY_L),
-	KEY(7, 2, KEY_C),
-	KEY(7, 3, KEY_LEFT),
-	KEY(0xff, 0, KEY_F6),
-	KEY(0xff, 1, KEY_F7),
-	KEY(0xff, 2, KEY_F8),
-	KEY(0xff, 4, KEY_F9),
-	KEY(0xff, 5, KEY_F10),
+	KEY(4, 5, KEY_RIGHTALT),
+	KEY(4, 6, KEY_LEFTSHIFT),
+	KEY(5, 0, KEY_Y),
+	KEY(6, 0, KEY_U),
+	KEY(7, 0, KEY_I),
+	KEY(7, 1, KEY_F7),
+	KEY(7, 2, KEY_F8),
+	KEY(0xff, 2, KEY_F9),
+	KEY(0xff, 4, KEY_F10),
+	KEY(0xff, 5, KEY_F11),
 };
 
 static struct matrix_keymap_data board_map_data = {
@@ -444,7 +554,7 @@ static int __init rx51_i2c_init(void)
 		rx51_twldata.vaux3 = &rx51_vaux3_cam;
 		rx51_twldata.vmmc2 = &rx51_vmmc2;
 	}
-	omap_register_i2c_bus(1, 2600, rx51_peripherals_i2c_board_info_1,
+	omap_register_i2c_bus(1, 2200, rx51_peripherals_i2c_board_info_1,
 			ARRAY_SIZE(rx51_peripherals_i2c_board_info_1));
 	omap_register_i2c_bus(2, 100, NULL, 0);
 	omap_register_i2c_bus(3, 400, NULL, 0);
@@ -521,9 +631,9 @@ static struct omap_smc91x_platform_data board_smc91x_data = {
 
 static void __init board_smc91x_init(void)
 {
-	omap_cfg_reg(U8_34XX_GPIO54_DOWN);
-	omap_cfg_reg(G25_34XX_GPIO86_OUT);
-	omap_cfg_reg(H19_34XX_GPIO164_OUT);
+	omap_mux_init_gpio(54, OMAP_PIN_INPUT_PULLDOWN);
+	omap_mux_init_gpio(86, OMAP_PIN_OUTPUT);
+	omap_mux_init_gpio(164, OMAP_PIN_OUTPUT);
 
 	gpmc_smc91x_init(&board_smc91x_data);
 }
@@ -536,10 +646,64 @@ static inline void board_smc91x_init(void)
 
 #endif
 
+static void rx51_wl1251_set_power(bool enable)
+{
+	gpio_set_value(RX51_WL1251_POWER_GPIO, enable);
+}
+
+static void __init rx51_init_wl1251(void)
+{
+	int irq, ret;
+
+	ret = gpio_request(RX51_WL1251_POWER_GPIO, "wl1251 power");
+	if (ret < 0)
+		goto error;
+
+	ret = gpio_direction_output(RX51_WL1251_POWER_GPIO, 0);
+	if (ret < 0)
+		goto err_power;
+
+	ret = gpio_request(RX51_WL1251_IRQ_GPIO, "wl1251 irq");
+	if (ret < 0)
+		goto err_power;
+
+	ret = gpio_direction_input(RX51_WL1251_IRQ_GPIO);
+	if (ret < 0)
+		goto err_irq;
+
+	irq = gpio_to_irq(RX51_WL1251_IRQ_GPIO);
+	if (irq < 0)
+		goto err_irq;
+
+	wl1251_pdata.set_power = rx51_wl1251_set_power;
+	rx51_peripherals_spi_board_info[RX51_SPI_WL1251].irq = irq;
+
+	return;
+
+err_irq:
+	gpio_free(RX51_WL1251_IRQ_GPIO);
+
+err_power:
+	gpio_free(RX51_WL1251_POWER_GPIO);
+
+error:
+	printk(KERN_ERR "wl1251 board initialisation failed\n");
+	wl1251_pdata.set_power = NULL;
+
+	/*
+	 * Now rx51_peripherals_spi_board_info[1].irq is zero and
+	 * set_power is null, and wl1251_probe() will fail.
+	 */
+}
+
 void __init rx51_peripherals_init(void)
 {
 	rx51_i2c_init();
 	board_onenand_init();
 	board_smc91x_init();
+	rx51_add_gpio_keys();
+	rx51_init_wl1251();
+	spi_register_board_info(rx51_peripherals_spi_board_info,
+				ARRAY_SIZE(rx51_peripherals_spi_board_info));
 }
 

@@ -691,13 +691,11 @@ static int gl520_detect(struct i2c_client *client, int kind,
 		return -ENODEV;
 
 	/* Determine the chip type. */
-	if (kind < 0) {
-		if ((gl520_read_value(client, GL520_REG_CHIP_ID) != 0x20) ||
-		    ((gl520_read_value(client, GL520_REG_REVISION) & 0x7f) != 0x00) ||
-		    ((gl520_read_value(client, GL520_REG_CONF) & 0x80) != 0x00)) {
-			dev_dbg(&client->dev, "Unknown chip type, skipping\n");
-			return -ENODEV;
-		}
+	if ((gl520_read_value(client, GL520_REG_CHIP_ID) != 0x20) ||
+	    ((gl520_read_value(client, GL520_REG_REVISION) & 0x7f) != 0x00) ||
+	    ((gl520_read_value(client, GL520_REG_CONF) & 0x80) != 0x00)) {
+		dev_dbg(&client->dev, "Unknown chip type, skipping\n");
+		return -ENODEV;
 	}
 
 	strlcpy(info->type, "gl520sm", I2C_NAME_SIZE);

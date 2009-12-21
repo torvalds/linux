@@ -84,6 +84,9 @@ static struct platform_device *devices[] __initdata = {
 static void __init mp900c_init(void)
 {
 	printk(KERN_INFO "MobilePro 900/C machine init\n");
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 

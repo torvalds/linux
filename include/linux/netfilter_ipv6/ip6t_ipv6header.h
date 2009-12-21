@@ -8,8 +8,7 @@ on whether they contain certain headers */
 #ifndef __IPV6HEADER_H
 #define __IPV6HEADER_H
 
-struct ip6t_ipv6header_info
-{
+struct ip6t_ipv6header_info {
 	u_int8_t matchflags;
 	u_int8_t invflags;
 	u_int8_t modeflag;

@@ -770,7 +770,7 @@ static struct notifier_block acpi_cpu_notifier =
 	    .notifier_call = acpi_cpu_soft_notify,
 };
 
-static int acpi_processor_add(struct acpi_device *device)
+static int __cpuinit acpi_processor_add(struct acpi_device *device)
 {
 	struct acpi_processor *pr = NULL;
 	int result = 0;
@@ -1102,7 +1102,7 @@ void acpi_processor_install_hotplug_notify(void)
 	acpi_walk_namespace(ACPI_TYPE_PROCESSOR,
 			    ACPI_ROOT_OBJECT,
 			    ACPI_UINT32_MAX,
-			    processor_walk_namespace_cb, &action, NULL);
+			    processor_walk_namespace_cb, NULL, &action, NULL);
 #endif
 	register_hotcpu_notifier(&acpi_cpu_notifier);
 }
@@ -1115,7 +1115,7 @@ void acpi_processor_uninstall_hotplug_notify(void)
 	acpi_walk_namespace(ACPI_TYPE_PROCESSOR,
 			    ACPI_ROOT_OBJECT,
 			    ACPI_UINT32_MAX,
-			    processor_walk_namespace_cb, &action, NULL);
+			    processor_walk_namespace_cb, NULL, &action, NULL);
 #endif
 	unregister_hotcpu_notifier(&acpi_cpu_notifier);
 }

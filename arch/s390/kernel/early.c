@@ -55,6 +55,7 @@ static void __init reset_tod_clock(void)
 		disabled_wait(0);
 
 	sched_clock_base_cc = TOD_UNIX_EPOCH;
+	S390_lowcore.last_update_clock = sched_clock_base_cc;
 }
 
 #ifdef CONFIG_SHARED_KERNEL
@@ -166,6 +167,14 @@ static noinline __init void create_kernel_nss(void)
 		kernel_nss_name[0] = '\0';
 		return;
 	}
+
+	/* re-initialize cputime accounting. */
+	sched_clock_base_cc = get_clock();
+	S390_lowcore.last_update_clock = sched_clock_base_cc;
+	S390_lowcore.last_update_timer = 0x7fffffffffffffffULL;
+	S390_lowcore.user_timer = 0;
+	S390_lowcore.system_timer = 0;
+	asm volatile("SPT 0(%0)" : : "a" (&S390_lowcore.last_update_timer));
 
 	/* re-setup boot command line with new ipl vm parms */
 	ipl_update_parameters();

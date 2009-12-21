@@ -625,7 +625,6 @@ static int wm9713_add_widgets(struct snd_soc_codec *codec)
 
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_new_widgets(codec);
 	return 0;
 }
 
@@ -800,8 +799,8 @@ static int wm9713_set_pll(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int wm9713_set_dai_pll(struct snd_soc_dai *codec_dai,
-		int pll_id, unsigned int freq_in, unsigned int freq_out)
+static int wm9713_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
+		int source, unsigned int freq_in, unsigned int freq_out)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	return wm9713_set_pll(codec, pll_id, freq_in, freq_out);
@@ -1247,14 +1246,11 @@ static int wm9713_soc_probe(struct platform_device *pdev)
 	snd_soc_add_controls(codec, wm9713_snd_ac97_controls,
 				ARRAY_SIZE(wm9713_snd_ac97_controls));
 	wm9713_add_widgets(codec);
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0)
-		goto reset_err;
+
 	return 0;
 
 reset_err:
 	snd_soc_free_pcms(socdev);
-
 pcm_err:
 	snd_soc_free_ac97_codec(codec);
 

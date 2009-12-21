@@ -1595,10 +1595,9 @@ static void stop_run(struct shutdown_trigger *trigger)
 {
 	if (strcmp(trigger->name, ON_PANIC_STR) == 0)
 		disabled_wait((unsigned long) __builtin_return_address(0));
-	else {
-		signal_processor(smp_processor_id(), sigp_stop);
-		for (;;);
-	}
+	while (signal_processor(smp_processor_id(), sigp_stop) == sigp_busy)
+		cpu_relax();
+	for (;;);
 }
 
 static struct shutdown_action stop_action = {SHUTDOWN_ACTION_STOP_STR,

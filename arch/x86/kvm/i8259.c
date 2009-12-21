@@ -38,7 +38,15 @@ static void pic_clear_isr(struct kvm_kpic_state *s, int irq)
 	s->isr_ack |= (1 << irq);
 	if (s != &s->pics_state->pics[0])
 		irq += 8;
+	/*
+	 * We are dropping lock while calling ack notifiers since ack
+	 * notifier callbacks for assigned devices call into PIC recursively.
+	 * Other interrupt may be delivered to PIC while lock is dropped but
+	 * it should be safe since PIC state is already updated at this stage.
+	 */
+	spin_unlock(&s->pics_state->lock);
 	kvm_notify_acked_irq(s->pics_state->kvm, SELECT_PIC(irq), irq);
+	spin_lock(&s->pics_state->lock);
 }
 
 void kvm_pic_clear_isr_ack(struct kvm *kvm)
@@ -176,16 +184,18 @@ int kvm_pic_set_irq(void *opaque, int irq, int level)
 static inline void pic_intack(struct kvm_kpic_state *s, int irq)
 {
 	s->isr |= 1 << irq;
-	if (s->auto_eoi) {
-		if (s->rotate_on_auto_eoi)
-			s->priority_add = (irq + 1) & 7;
-		pic_clear_isr(s, irq);
-	}
 	/*
 	 * We don't clear a level sensitive interrupt here
 	 */
 	if (!(s->elcr & (1 << irq)))
 		s->irr &= ~(1 << irq);
+
+	if (s->auto_eoi) {
+		if (s->rotate_on_auto_eoi)
+			s->priority_add = (irq + 1) & 7;
+		pic_clear_isr(s, irq);
+	}
+
 }
 
 int kvm_pic_read_irq(struct kvm *kvm)
@@ -225,22 +235,11 @@ int kvm_pic_read_irq(struct kvm *kvm)
 
 void kvm_pic_reset(struct kvm_kpic_state *s)
 {
-	int irq, irqbase, n;
+	int irq;
 	struct kvm *kvm = s->pics_state->irq_request_opaque;
 	struct kvm_vcpu *vcpu0 = kvm->bsp_vcpu;
+	u8 irr = s->irr, isr = s->imr;
 
-	if (s == &s->pics_state->pics[0])
-		irqbase = 0;
-	else
-		irqbase = 8;
-
-	for (irq = 0; irq < PIC_NUM_PINS/2; irq++) {
-		if (vcpu0 && kvm_apic_accept_pic_intr(vcpu0))
-			if (s->irr & (1 << irq) || s->isr & (1 << irq)) {
-				n = irq + irqbase;
-				kvm_notify_acked_irq(kvm, SELECT_PIC(n), n);
-			}
-	}
 	s->last_irr = 0;
 	s->irr = 0;
 	s->imr = 0;
@@ -256,6 +255,13 @@ void kvm_pic_reset(struct kvm_kpic_state *s)
 	s->rotate_on_auto_eoi = 0;
 	s->special_fully_nested_mode = 0;
 	s->init4 = 0;
+
+	for (irq = 0; irq < PIC_NUM_PINS/2; irq++) {
+		if (vcpu0 && kvm_apic_accept_pic_intr(vcpu0))
+			if (irr & (1 << irq) || isr & (1 << irq)) {
+				pic_clear_isr(s, irq);
+			}
+	}
 }
 
 static void pic_ioport_write(void *opaque, u32 addr, u32 val)
@@ -298,9 +304,9 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 				priority = get_priority(s, s->isr);
 				if (priority != 8) {
 					irq = (priority + s->priority_add) & 7;
-					pic_clear_isr(s, irq);
 					if (cmd == 5)
 						s->priority_add = (irq + 1) & 7;
+					pic_clear_isr(s, irq);
 					pic_update_irq(s->pics_state);
 				}
 				break;

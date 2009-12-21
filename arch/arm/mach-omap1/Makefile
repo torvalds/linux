@@ -3,7 +3,8 @@
 #
 
 # Common support
-obj-y := io.o id.o sram.o clock.o irq.o mux.o serial.o devices.o
+obj-y := io.o id.o sram.o irq.o mux.o serial.o devices.o
+obj-y += clock.o clock_data.o opp_data.o
 
 obj-$(CONFIG_OMAP_MCBSP) += mcbsp.o
 
@@ -16,6 +17,9 @@ obj-$(CONFIG_PM) += pm.o sleep.o
 # DSP
 obj-$(CONFIG_OMAP_MBOX_FWK)	+= mailbox_mach.o
 mailbox_mach-objs		:= mailbox.o
+
+i2c-omap-$(CONFIG_I2C_OMAP)		:= i2c.o
+obj-y					+= $(i2c-omap-m) $(i2c-omap-y)
 
 led-y := leds.o
 
@@ -34,6 +38,7 @@ obj-$(CONFIG_MACH_OMAP_PALMTT)		+= board-palmtt.o
 obj-$(CONFIG_MACH_NOKIA770)		+= board-nokia770.o
 obj-$(CONFIG_MACH_AMS_DELTA)		+= board-ams-delta.o
 obj-$(CONFIG_MACH_SX1)			+= board-sx1.o board-sx1-mmc.o
+obj-$(CONFIG_MACH_HERALD)		+= board-htcherald.o
 
 ifeq ($(CONFIG_ARCH_OMAP15XX),y)
 # Innovator-1510 FPGA
@@ -47,3 +52,7 @@ led-$(CONFIG_MACH_OMAP_INNOVATOR)	+= leds-innovator.o
 led-$(CONFIG_MACH_OMAP_PERSEUS2)	+= leds-h2p2-debug.o
 led-$(CONFIG_MACH_OMAP_OSK)		+= leds-osk.o
 obj-$(CONFIG_LEDS)			+= $(led-y)
+
+ifneq ($(CONFIG_FB_OMAP),)
+obj-y += lcd_dma.o
+endif

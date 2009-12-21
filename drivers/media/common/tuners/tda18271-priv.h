@@ -80,10 +80,10 @@ struct tda18271_rf_tracking_filter_cal {
 	u32 rf1;
 	u32 rf2;
 	u32 rf3;
-	int rf_a1;
-	int rf_b1;
-	int rf_a2;
-	int rf_b2;
+	s32 rf_a1;
+	s32 rf_b1;
+	s32 rf_a2;
+	s32 rf_b2;
 };
 
 enum tda18271_pll {
@@ -109,11 +109,12 @@ struct tda18271_priv {
 	enum tda18271_i2c_gate gate;
 	enum tda18271_ver id;
 	enum tda18271_output_options output_opt;
+	enum tda18271_small_i2c small_i2c;
 
 	unsigned int config; /* interface to saa713x / tda829x */
-	unsigned int tm_rfcal;
 	unsigned int cal_initialized:1;
-	unsigned int small_i2c:1;
+
+	u8 tm_rfcal;
 
 	struct tda18271_map_layout *maps;
 	struct tda18271_std_map std;
@@ -135,27 +136,37 @@ extern int tda18271_debug;
 #define DBG_ADV  8
 #define DBG_CAL  16
 
-#define tda_printk(kern, fmt, arg...) \
-	printk(kern "%s: " fmt, __func__, ##arg)
+#define tda_printk(st, kern, fmt, arg...) do {\
+	if (st) { \
+		struct tda18271_priv *state = st; \
+		printk(kern "%s: [%d-%04x|%s] " fmt, __func__, \
+			i2c_adapter_id(state->i2c_props.adap), \
+			state->i2c_props.addr, \
+			(state->role == TDA18271_MASTER) \
+			? "M" : "S", ##arg); \
+	} else \
+		printk(kern "%s: " fmt, __func__, ##arg); \
+} while (0)
 
-#define tda_dprintk(lvl, fmt, arg...) do {\
+#define tda_dprintk(st, lvl, fmt, arg...) do {\
 	if (tda18271_debug & lvl) \
-		tda_printk(KERN_DEBUG, fmt, ##arg); } while (0)
+		tda_printk(st, KERN_DEBUG, fmt, ##arg); } while (0)
 
 #define tda_info(fmt, arg...)     printk(KERN_INFO     fmt, ##arg)
-#define tda_warn(fmt, arg...) tda_printk(KERN_WARNING, fmt, ##arg)
-#define tda_err(fmt, arg...)  tda_printk(KERN_ERR,     fmt, ##arg)
-#define tda_dbg(fmt, arg...)  tda_dprintk(DBG_INFO,    fmt, ##arg)
-#define tda_map(fmt, arg...)  tda_dprintk(DBG_MAP,     fmt, ##arg)
-#define tda_reg(fmt, arg...)  tda_dprintk(DBG_REG,     fmt, ##arg)
-#define tda_cal(fmt, arg...)  tda_dprintk(DBG_CAL,     fmt, ##arg)
+#define tda_warn(fmt, arg...) tda_printk(priv, KERN_WARNING, fmt, ##arg)
+#define tda_err(fmt, arg...)  tda_printk(priv, KERN_ERR,     fmt, ##arg)
+#define tda_dbg(fmt, arg...)  tda_dprintk(priv, DBG_INFO,    fmt, ##arg)
+#define tda_map(fmt, arg...)  tda_dprintk(priv, DBG_MAP,     fmt, ##arg)
+#define tda_reg(fmt, arg...)  tda_dprintk(priv, DBG_REG,     fmt, ##arg)
+#define tda_cal(fmt, arg...)  tda_dprintk(priv, DBG_CAL,     fmt, ##arg)
 
 #define tda_fail(ret)							     \
 ({									     \
 	int __ret;							     \
 	__ret = (ret < 0);						     \
 	if (__ret)							     \
-		tda_printk(KERN_ERR, "error %d on line %d\n", ret, __LINE__);\
+		tda_printk(priv, KERN_ERR,				     \
+			   "error %d on line %d\n", ret, __LINE__);	     \
 	__ret;								     \
 })
 

@@ -445,9 +445,9 @@ static int olympic_open(struct net_device *dev)
 
 	olympic_init(dev);
 
-	if(request_irq(dev->irq, &olympic_interrupt, IRQF_SHARED , "olympic", dev)) {
+	if (request_irq(dev->irq, olympic_interrupt, IRQF_SHARED , "olympic",
+			dev))
 		return -EAGAIN;
-	}
 
 #if OLYMPIC_DEBUG
 	printk("BMCTL: %x\n",readl(olympic_mmio+BMCTL_SUM));

@@ -1,3 +1,9 @@
+/*
+ * Copyright 2004-2008 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
+ */
+
 #ifndef _BLACKFIN_STRING_H_
 #define _BLACKFIN_STRING_H_
 

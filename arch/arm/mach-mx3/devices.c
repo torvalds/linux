@@ -459,7 +459,7 @@ struct platform_device mxc_usbh2 = {
  * SPI master controller
  * 3 channels
  */
-static struct resource imx_spi_0_resources[] = {
+static struct resource mxc_spi_0_resources[] = {
 	{
 	       .start = CSPI1_BASE_ADDR,
 	       .end = CSPI1_BASE_ADDR + SZ_4K - 1,
@@ -471,7 +471,7 @@ static struct resource imx_spi_0_resources[] = {
 	},
 };
 
-static struct resource imx_spi_1_resources[] = {
+static struct resource mxc_spi_1_resources[] = {
 	{
 		.start = CSPI2_BASE_ADDR,
 		.end = CSPI2_BASE_ADDR + SZ_4K - 1,
@@ -483,7 +483,7 @@ static struct resource imx_spi_1_resources[] = {
 	},
 };
 
-static struct resource imx_spi_2_resources[] = {
+static struct resource mxc_spi_2_resources[] = {
 	{
 		.start = CSPI3_BASE_ADDR,
 		.end = CSPI3_BASE_ADDR + SZ_4K - 1,
@@ -495,25 +495,25 @@ static struct resource imx_spi_2_resources[] = {
 	},
 };
 
-struct platform_device imx_spi_device0 = {
+struct platform_device mxc_spi_device0 = {
 	.name = "spi_imx",
 	.id = 0,
-	.num_resources = ARRAY_SIZE(imx_spi_0_resources),
-	.resource = imx_spi_0_resources,
+	.num_resources = ARRAY_SIZE(mxc_spi_0_resources),
+	.resource = mxc_spi_0_resources,
 };
 
-struct platform_device imx_spi_device1 = {
+struct platform_device mxc_spi_device1 = {
 	.name = "spi_imx",
 	.id = 1,
-	.num_resources = ARRAY_SIZE(imx_spi_1_resources),
-	.resource = imx_spi_1_resources,
+	.num_resources = ARRAY_SIZE(mxc_spi_1_resources),
+	.resource = mxc_spi_1_resources,
 };
 
-struct platform_device imx_spi_device2 = {
+struct platform_device mxc_spi_device2 = {
 	.name = "spi_imx",
 	.id = 2,
-	.num_resources = ARRAY_SIZE(imx_spi_2_resources),
-	.resource = imx_spi_2_resources,
+	.num_resources = ARRAY_SIZE(mxc_spi_2_resources),
+	.resource = mxc_spi_2_resources,
 };
 
 #ifdef CONFIG_ARCH_MX35
@@ -537,6 +537,44 @@ struct platform_device mxc_fec_device = {
 };
 #endif
 
+static struct resource imx_ssi_resources0[] = {
+	{
+		.start	= SSI1_BASE_ADDR,
+		.end	= SSI1_BASE_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= MX31_INT_SSI1,
+		.end	= MX31_INT_SSI1,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct resource imx_ssi_resources1[] = {
+	{
+		.start	= SSI2_BASE_ADDR,
+		.end	= SSI2_BASE_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM
+	}, {
+		.start	= MX31_INT_SSI2,
+		.end	= MX31_INT_SSI2,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device imx_ssi_device0 = {
+	.name = "imx-ssi",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(imx_ssi_resources0),
+	.resource = imx_ssi_resources0,
+};
+
+struct platform_device imx_ssi_device1 = {
+	.name = "imx-ssi",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(imx_ssi_resources1),
+	.resource = imx_ssi_resources1,
+};
+
 static int mx3_devices_init(void)
 {
 	if (cpu_is_mx31()) {
@@ -546,7 +584,7 @@ static int mx3_devices_init(void)
 	}
 	if (cpu_is_mx35()) {
 		mxc_nand_resources[0].start = MX35_NFC_BASE_ADDR;
-		mxc_nand_resources[0].end = MX35_NFC_BASE_ADDR + 0xfff;
+		mxc_nand_resources[0].end = MX35_NFC_BASE_ADDR + 0x1fff;
 		otg_resources[0].start = MX35_OTG_BASE_ADDR;
 		otg_resources[0].end = MX35_OTG_BASE_ADDR + 0x1ff;
 		otg_resources[1].start = MXC_INT_USBOTG;
@@ -555,6 +593,10 @@ static int mx3_devices_init(void)
 		mxc_usbh1_resources[0].end = MX35_OTG_BASE_ADDR + 0x5ff;
 		mxc_usbh1_resources[1].start = MXC_INT_USBHS;
 		mxc_usbh1_resources[1].end = MXC_INT_USBHS;
+		imx_ssi_resources0[1].start = MX35_INT_SSI1;
+		imx_ssi_resources0[1].end = MX35_INT_SSI1;
+		imx_ssi_resources1[1].start = MX35_INT_SSI2;
+		imx_ssi_resources1[1].end = MX35_INT_SSI2;
 	}
 
 	return 0;

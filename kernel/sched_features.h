@@ -54,11 +54,6 @@ SCHED_FEAT(WAKEUP_SYNC, 0)
 SCHED_FEAT(WAKEUP_OVERLAP, 0)
 
 /*
- * Wakeup preemption towards tasks that run short
- */
-SCHED_FEAT(WAKEUP_RUNNING, 0)
-
-/*
  * Use the SYNC wakeup hint, pipes and the likes use this to indicate
  * the remote end is likely to consume the data we just wrote, and
  * therefore has cache benefit from being placed on the same cpu, see

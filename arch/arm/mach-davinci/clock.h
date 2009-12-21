@@ -22,6 +22,10 @@
 /* PLL/Reset register offsets */
 #define PLLCTL          0x100
 #define PLLCTL_PLLEN    BIT(0)
+#define PLLCTL_PLLPWRDN	BIT(1)
+#define PLLCTL_PLLRST	BIT(3)
+#define PLLCTL_PLLDIS	BIT(4)
+#define PLLCTL_PLLENSRC	BIT(5)
 #define PLLCTL_CLKMODE  BIT(8)
 
 #define PLLM		0x110
@@ -65,15 +69,20 @@ struct clk {
 	const char		*name;
 	unsigned long		rate;
 	u8			usecount;
-	u8			flags;
 	u8			lpsc;
-	u8			psc_ctlr;
+	u8			gpsc;
+	u32			flags;
 	struct clk              *parent;
+	struct list_head	children; 	/* list of children */
+	struct list_head	childnode;	/* parent's child list node */
 	struct pll_data         *pll_data;
 	u32                     div_reg;
+	unsigned long (*recalc) (struct clk *);
+	int (*set_rate) (struct clk *clk, unsigned long rate);
+	int (*round_rate) (struct clk *clk, unsigned long rate);
 };
 
-/* Clock flags */
+/* Clock flags: SoC-specific flags start at BIT(16) */
 #define ALWAYS_ENABLED		BIT(1)
 #define CLK_PSC                 BIT(2)
 #define PSC_DSP                 BIT(3) /* PSC uses DSP domain, not ARM */
@@ -94,6 +103,8 @@ struct davinci_clk {
 	}
 
 int davinci_clk_init(struct davinci_clk *clocks);
+int davinci_set_pllrate(struct pll_data *pll, unsigned int prediv,
+				unsigned int mult, unsigned int postdiv);
 
 extern struct platform_device davinci_wdt_device;
 

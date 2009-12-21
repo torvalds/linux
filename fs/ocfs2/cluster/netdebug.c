@@ -294,10 +294,10 @@ static int sc_seq_show(struct seq_file *seq, void *v)
 		if (sc->sc_sock) {
 			inet = inet_sk(sc->sc_sock->sk);
 			/* the stack's structs aren't sparse endian clean */
-			saddr = (__force __be32)inet->saddr;
-			daddr = (__force __be32)inet->daddr;
-			sport = (__force __be16)inet->sport;
-			dport = (__force __be16)inet->dport;
+			saddr = (__force __be32)inet->inet_saddr;
+			daddr = (__force __be32)inet->inet_daddr;
+			sport = (__force __be16)inet->inet_sport;
+			dport = (__force __be16)inet->inet_dport;
 		}
 
 		/* XXX sigh, inet-> doesn't have sparse annotation so any

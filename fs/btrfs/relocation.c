@@ -3518,7 +3518,7 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 	BUG_ON(!rc->block_group);
 
 	btrfs_init_workers(&rc->workers, "relocate",
-			   fs_info->thread_pool_size);
+			   fs_info->thread_pool_size, NULL);
 
 	rc->extent_root = extent_root;
 	btrfs_prepare_block_group_relocation(extent_root, rc->block_group);
@@ -3701,7 +3701,7 @@ int btrfs_recover_relocation(struct btrfs_root *root)
 	mapping_tree_init(&rc->reloc_root_tree);
 	INIT_LIST_HEAD(&rc->reloc_roots);
 	btrfs_init_workers(&rc->workers, "relocate",
-			   root->fs_info->thread_pool_size);
+			   root->fs_info->thread_pool_size, NULL);
 	rc->extent_root = root->fs_info->extent_root;
 
 	set_reloc_control(rc);

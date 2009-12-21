@@ -52,6 +52,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
+#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/errno.h>
@@ -1015,7 +1016,7 @@ sis900_open(struct net_device *net_dev)
 	/* Equalizer workaround Rule */
 	sis630_set_eq(net_dev, sis_priv->chipset_rev);
 
-	ret = request_irq(net_dev->irq, &sis900_interrupt, IRQF_SHARED,
+	ret = request_irq(net_dev->irq, sis900_interrupt, IRQF_SHARED,
 						net_dev->name, net_dev);
 	if (ret)
 		return ret;
@@ -1759,7 +1760,7 @@ static int sis900_rx(struct net_device *net_dev)
 				sis_priv->rx_ring[entry].bufptr, RX_BUF_SIZE,
 				PCI_DMA_FROMDEVICE);
 
-			/* refill the Rx buffer, what if there is not enought
+			/* refill the Rx buffer, what if there is not enough
 			 * memory for new socket buffer ?? */
 			if ((skb = dev_alloc_skb(RX_BUF_SIZE)) == NULL) {
 				/*
@@ -1774,7 +1775,7 @@ static int sis900_rx(struct net_device *net_dev)
 			}
 
 			/* This situation should never happen, but due to
-			   some unknow bugs, it is possible that
+			   some unknown bugs, it is possible that
 			   we are working on NULL sk_buff :-( */
 			if (sis_priv->rx_skbuff[entry] == NULL) {
 				if (netif_msg_rx_err(sis_priv))

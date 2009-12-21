@@ -1,0 +1,135 @@
+				Block IO Controller
+				===================
+Overview
+========
+cgroup subsys "blkio" implements the block io controller. There seems to be
+a need of various kinds of IO control policies (like proportional BW, max BW)
+both at leaf nodes as well as at intermediate nodes in a storage hierarchy.
+Plan is to use the same cgroup based management interface for blkio controller
+and based on user options switch IO policies in the background.
+
+In the first phase, this patchset implements proportional weight time based
+division of disk policy. It is implemented in CFQ. Hence this policy takes
+effect only on leaf nodes when CFQ is being used.
+
+HOWTO
+=====
+You can do a very simple testing of running two dd threads in two different
+cgroups. Here is what you can do.
+
+- Enable group scheduling in CFQ
+	CONFIG_CFQ_GROUP_IOSCHED=y
+
+- Compile and boot into kernel and mount IO controller (blkio).
+
+	mount -t cgroup -o blkio none /cgroup
+
+- Create two cgroups
+	mkdir -p /cgroup/test1/ /cgroup/test2
+
+- Set weights of group test1 and test2
+	echo 1000 > /cgroup/test1/blkio.weight
+	echo 500 > /cgroup/test2/blkio.weight
+
+- Create two same size files (say 512MB each) on same disk (file1, file2) and
+  launch two dd threads in different cgroup to read those files.
+
+	sync
+	echo 3 > /proc/sys/vm/drop_caches
+
+	dd if=/mnt/sdb/zerofile1 of=/dev/null &
+	echo $! > /cgroup/test1/tasks
+	cat /cgroup/test1/tasks
+
+	dd if=/mnt/sdb/zerofile2 of=/dev/null &
+	echo $! > /cgroup/test2/tasks
+	cat /cgroup/test2/tasks
+
+- At macro level, first dd should finish first. To get more precise data, keep
+  on looking at (with the help of script), at blkio.disk_time and
+  blkio.disk_sectors files of both test1 and test2 groups. This will tell how
+  much disk time (in milli seconds), each group got and how many secotors each
+  group dispatched to the disk. We provide fairness in terms of disk time, so
+  ideally io.disk_time of cgroups should be in proportion to the weight.
+
+Various user visible config options
+===================================
+CONFIG_CFQ_GROUP_IOSCHED
+	- Enables group scheduling in CFQ. Currently only 1 level of group
+	  creation is allowed.
+
+CONFIG_DEBUG_CFQ_IOSCHED
+	- Enables some debugging messages in blktrace. Also creates extra
+	  cgroup file blkio.dequeue.
+
+Config options selected automatically
+=====================================
+These config options are not user visible and are selected/deselected
+automatically based on IO scheduler configuration.
+
+CONFIG_BLK_CGROUP
+	- Block IO controller. Selected by CONFIG_CFQ_GROUP_IOSCHED.
+
+CONFIG_DEBUG_BLK_CGROUP
+	- Debug help. Selected by CONFIG_DEBUG_CFQ_IOSCHED.
+
+Details of cgroup files
+=======================
+- blkio.weight
+	- Specifies per cgroup weight.
+
+	  Currently allowed range of weights is from 100 to 1000.
+
+- blkio.time
+	- disk time allocated to cgroup per device in milliseconds. First
+	  two fields specify the major and minor number of the device and
+	  third field specifies the disk time allocated to group in
+	  milliseconds.
+
+- blkio.sectors
+	- number of sectors transferred to/from disk by the group. First
+	  two fields specify the major and minor number of the device and
+	  third field specifies the number of sectors transferred by the
+	  group to/from the device.
+
+- blkio.dequeue
+	- Debugging aid only enabled if CONFIG_DEBUG_CFQ_IOSCHED=y. This
+	  gives the statistics about how many a times a group was dequeued
+	  from service tree of the device. First two fields specify the major
+	  and minor number of the device and third field specifies the number
+	  of times a group was dequeued from a particular device.
+
+CFQ sysfs tunable
+=================
+/sys/block/<disk>/queue/iosched/group_isolation
+
+If group_isolation=1, it provides stronger isolation between groups at the
+expense of throughput. By default group_isolation is 0. In general that
+means that if group_isolation=0, expect fairness for sequential workload
+only. Set group_isolation=1 to see fairness for random IO workload also.
+
+Generally CFQ will put random seeky workload in sync-noidle category. CFQ
+will disable idling on these queues and it does a collective idling on group
+of such queues. Generally these are slow moving queues and if there is a
+sync-noidle service tree in each group, that group gets exclusive access to
+disk for certain period. That means it will bring the throughput down if
+group does not have enough IO to drive deeper queue depths and utilize disk
+capacity to the fullest in the slice allocated to it. But the flip side is
+that even a random reader should get better latencies and overall throughput
+if there are lots of sequential readers/sync-idle workload running in the
+system.
+
+If group_isolation=0, then CFQ automatically moves all the random seeky queues
+in the root group. That means there will be no service differentiation for
+that kind of workload. This leads to better throughput as we do collective
+idling on root sync-noidle tree.
+
+By default one should run with group_isolation=0. If that is not sufficient
+and one wants stronger isolation between groups, then set group_isolation=1
+but this will come at cost of reduced throughput.
+
+What works
+==========
+- Currently only sync IO queues are support. All the buffered writes are
+  still system wide and not per group. Hence we will not see service
+  differentiation between buffered writes between groups.

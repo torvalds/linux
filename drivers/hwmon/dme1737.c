@@ -572,7 +572,7 @@ static struct dme1737_data *dme1737_update_device(struct device *dev)
 
 	/* Sample register contents every 1 sec */
 	if (time_after(jiffies, data->last_update + HZ) || !data->valid) {
-		if (data->type != sch5027) {
+		if (data->type == dme1737) {
 			data->vid = dme1737_read(data, DME1737_REG_VID) &
 				0x3f;
 		}
@@ -1621,14 +1621,23 @@ static struct attribute *dme1737_misc_attr[] = {
 	&sensor_dev_attr_zone1_auto_point1_temp_hyst.dev_attr.attr,
 	&sensor_dev_attr_zone2_auto_point1_temp_hyst.dev_attr.attr,
 	&sensor_dev_attr_zone3_auto_point1_temp_hyst.dev_attr.attr,
-	/* Misc */
-	&dev_attr_vrm.attr,
-	&dev_attr_cpu0_vid.attr,
 	NULL
 };
 
 static const struct attribute_group dme1737_misc_group = {
 	.attrs = dme1737_misc_attr,
+};
+
+/* The following struct holds VID-related attributes. Their creation
+   depends on the chip type which is determined during module load. */
+static struct attribute *dme1737_vid_attr[] = {
+	&dev_attr_vrm.attr,
+	&dev_attr_cpu0_vid.attr,
+	NULL
+};
+
+static const struct attribute_group dme1737_vid_group = {
+	.attrs = dme1737_vid_attr,
 };
 
 /* The following structs hold the PWM attributes, some of which are optional.
@@ -1902,6 +1911,9 @@ static void dme1737_remove_files(struct device *dev)
 	if (data->type != sch5027) {
 		sysfs_remove_group(&dev->kobj, &dme1737_misc_group);
 	}
+	if (data->type == dme1737) {
+		sysfs_remove_group(&dev->kobj, &dme1737_vid_group);
+	}
 
 	sysfs_remove_group(&dev->kobj, &dme1737_group);
 
@@ -1930,6 +1942,13 @@ static int dme1737_create_files(struct device *dev)
 	if ((data->type != sch5027) &&
 	    (err = sysfs_create_group(&dev->kobj,
 				      &dme1737_misc_group))) {
+		goto exit_remove;
+	}
+
+	/* Create VID-related sysfs attributes */
+	if ((data->type == dme1737) &&
+	    (err = sysfs_create_group(&dev->kobj,
+				      &dme1737_vid_group))) {
 		goto exit_remove;
 	}
 
@@ -2127,7 +2146,7 @@ static int dme1737_init_device(struct device *dev)
 	data->pwm_acz[2] = 4;	/* pwm3 -> zone3 */
 
 	/* Set VRM */
-	if (data->type != sch5027) {
+	if (data->type == dme1737) {
 		data->vrm = vid_which_vrm();
 	}
 
@@ -2201,33 +2220,23 @@ static int dme1737_i2c_detect(struct i2c_client *client, int kind,
 		return -ENODEV;
 	}
 
-	/* A negative kind means that the driver was loaded with no force
-	 * parameter (default), so we must identify the chip. */
-	if (kind < 0) {
-		company = i2c_smbus_read_byte_data(client, DME1737_REG_COMPANY);
-		verstep = i2c_smbus_read_byte_data(client, DME1737_REG_VERSTEP);
+	company = i2c_smbus_read_byte_data(client, DME1737_REG_COMPANY);
+	verstep = i2c_smbus_read_byte_data(client, DME1737_REG_VERSTEP);
 
-		if (company == DME1737_COMPANY_SMSC &&
-		    (verstep & DME1737_VERSTEP_MASK) == DME1737_VERSTEP) {
-			kind = dme1737;
-		} else if (company == DME1737_COMPANY_SMSC &&
-			   verstep == SCH5027_VERSTEP) {
-			kind = sch5027;
-		} else {
-			return -ENODEV;
-		}
-	}
-
-	if (kind == sch5027) {
+	if (company == DME1737_COMPANY_SMSC &&
+	    verstep == SCH5027_VERSTEP) {
 		name = "sch5027";
-	} else {
-		kind = dme1737;
+
+	} else if (company == DME1737_COMPANY_SMSC &&
+		   (verstep & DME1737_VERSTEP_MASK) == DME1737_VERSTEP) {
 		name = "dme1737";
+	} else {
+		return -ENODEV;
 	}
 
 	dev_info(dev, "Found a %s chip at 0x%02x (rev 0x%02x).\n",
-		 kind == sch5027 ? "SCH5027" : "DME1737", client->addr,
-		 verstep);
+		 verstep == SCH5027_VERSTEP ? "SCH5027" : "DME1737",
+		 client->addr, verstep);
 	strlcpy(info->type, name, I2C_NAME_SIZE);
 
 	return 0;

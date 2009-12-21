@@ -1,5 +1,3 @@
-# drivers/mtd/chips/Kconfig
-
 menu "LPDDR flash memory drivers"
 	depends on MTD!=n
 
@@ -20,4 +18,3 @@ config MTD_QINFO_PROBE
 	    families of devices. This serves similar purpose of CFI on legacy
 	    Flash products
 endmenu
-

@@ -265,7 +265,7 @@ static void flush_dcache(unsigned long pfn)
 	struct page *page;
 
 	page = pfn_to_page(pfn);
-	if (page && page_mapping(page)) {
+	if (page) {
 		unsigned long pg_flags;
 
 		pg_flags = page->flags;

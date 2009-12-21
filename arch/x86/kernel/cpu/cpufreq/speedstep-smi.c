@@ -35,7 +35,7 @@ static int smi_cmd;
 static unsigned int smi_sig;
 
 /* info about the processor */
-static unsigned int speedstep_processor;
+static enum speedstep_processor speedstep_processor;
 
 /*
  * There are only two frequency states for each processor. Values
