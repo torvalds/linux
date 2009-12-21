@@ -278,4 +278,334 @@ static inline unsigned int __kfifo_off(struct kfifo *fifo, unsigned int off)
 	return off & (fifo->size - 1);
 }
 
+/**
+ * __kfifo_peek_n internal helper function for determinate the length of
+ * the next record in the fifo
+ */
+static inline unsigned int __kfifo_peek_n(struct kfifo *fifo,
+				unsigned int recsize)
+{
+#define __KFIFO_GET(fifo, off, shift) \
+	((fifo)->buffer[__kfifo_off((fifo), (fifo)->out+(off))] << (shift))
+
+	unsigned int l;
+
+	l = __KFIFO_GET(fifo, 0, 0);
+
+	if (--recsize)
+		l |= __KFIFO_GET(fifo, 1, 8);
+
+	return l;
+#undef	__KFIFO_GET
+}
+
+/**
+ * __kfifo_poke_n internal helper function for storing the length of
+ * the next record into the fifo
+ */
+static inline void __kfifo_poke_n(struct kfifo *fifo,
+			unsigned int recsize, unsigned int n)
+{
+#define __KFIFO_PUT(fifo, off, val, shift) \
+		( \
+		(fifo)->buffer[__kfifo_off((fifo), (fifo)->in+(off))] = \
+		(unsigned char)((val) >> (shift)) \
+		)
+
+	__KFIFO_PUT(fifo, 0, n, 0);
+
+	if (--recsize)
+		__KFIFO_PUT(fifo, 1, n, 8);
+#undef	__KFIFO_PUT
+}
+
+/**
+ * __kfifo_in_... internal functions for put date into the fifo
+ * do not call it directly, use kfifo_in_rec() instead
+ */
+extern unsigned int __kfifo_in_n(struct kfifo *fifo,
+	const void *from, unsigned int n, unsigned int recsize);
+
+extern unsigned int __kfifo_in_generic(struct kfifo *fifo,
+	const void *from, unsigned int n, unsigned int recsize);
+
+static inline unsigned int __kfifo_in_rec(struct kfifo *fifo,
+	const void *from, unsigned int n, unsigned int recsize)
+{
+	unsigned int ret;
+
+	ret = __kfifo_in_n(fifo, from, n, recsize);
+
+	if (likely(ret == 0)) {
+		if (recsize)
+			__kfifo_poke_n(fifo, recsize, n);
+		__kfifo_add_in(fifo, n + recsize);
+	}
+	return ret;
+}
+
+/**
+ * kfifo_in_rec - puts some record data into the FIFO
+ * @fifo: the fifo to be used.
+ * @from: the data to be added.
+ * @n: the length of the data to be added.
+ * @recsize: size of record field
+ *
+ * This function copies @n bytes from the @from into the FIFO and returns
+ * the number of bytes which cannot be copied.
+ * A returned value greater than the @n value means that the record doesn't
+ * fit into the buffer.
+ *
+ * Note that with only one concurrent reader and one concurrent
+ * writer, you don't need extra locking to use these functions.
+ */
+static inline __must_check unsigned int kfifo_in_rec(struct kfifo *fifo,
+	void *from, unsigned int n, unsigned int recsize)
+{
+	if (!__builtin_constant_p(recsize))
+		return __kfifo_in_generic(fifo, from, n, recsize);
+	return __kfifo_in_rec(fifo, from, n, recsize);
+}
+
+/**
+ * __kfifo_out_... internal functions for get date from the fifo
+ * do not call it directly, use kfifo_out_rec() instead
+ */
+extern unsigned int __kfifo_out_n(struct kfifo *fifo,
+	void *to, unsigned int reclen, unsigned int recsize);
+
+extern unsigned int __kfifo_out_generic(struct kfifo *fifo,
+	void *to, unsigned int n,
+	unsigned int recsize, unsigned int *total);
+
+static inline unsigned int __kfifo_out_rec(struct kfifo *fifo,
+	void *to, unsigned int n, unsigned int recsize,
+	unsigned int *total)
+{
+	unsigned int l;
+
+	if (!recsize) {
+		l = n;
+		if (total)
+			*total = l;
+	} else {
+		l = __kfifo_peek_n(fifo, recsize);
+		if (total)
+			*total = l;
+		if (n < l)
+			return l;
+	}
+
+	return __kfifo_out_n(fifo, to, l, recsize);
+}
+
+/**
+ * kfifo_out_rec - gets some record data from the FIFO
+ * @fifo: the fifo to be used.
+ * @to: where the data must be copied.
+ * @n: the size of the destination buffer.
+ * @recsize: size of record field
+ * @total: pointer where the total number of to copied bytes should stored
+ *
+ * This function copies at most @n bytes from the FIFO to @to and returns the
+ * number of bytes which cannot be copied.
+ * A returned value greater than the @n value means that the record doesn't
+ * fit into the @to buffer.
+ *
+ * Note that with only one concurrent reader and one concurrent
+ * writer, you don't need extra locking to use these functions.
+ */
+static inline __must_check unsigned int kfifo_out_rec(struct kfifo *fifo,
+	void *to, unsigned int n, unsigned int recsize,
+	unsigned int *total)
+
+{
+	if (!__builtin_constant_p(recsize))
+		return __kfifo_out_generic(fifo, to, n, recsize, total);
+	return __kfifo_out_rec(fifo, to, n, recsize, total);
+}
+
+/**
+ * __kfifo_from_user_... internal functions for transfer from user space into
+ * the fifo. do not call it directly, use kfifo_from_user_rec() instead
+ */
+extern unsigned int __kfifo_from_user_n(struct kfifo *fifo,
+	const void __user *from, unsigned int n, unsigned int recsize);
+
+extern unsigned int __kfifo_from_user_generic(struct kfifo *fifo,
+	const void __user *from, unsigned int n, unsigned int recsize);
+
+static inline unsigned int __kfifo_from_user_rec(struct kfifo *fifo,
+	const void __user *from, unsigned int n, unsigned int recsize)
+{
+	unsigned int ret;
+
+	ret = __kfifo_from_user_n(fifo, from, n, recsize);
+
+	if (likely(ret == 0)) {
+		if (recsize)
+			__kfifo_poke_n(fifo, recsize, n);
+		__kfifo_add_in(fifo, n + recsize);
+	}
+	return ret;
+}
+
+/**
+ * kfifo_from_user_rec - puts some data from user space into the FIFO
+ * @fifo: the fifo to be used.
+ * @from: pointer to the data to be added.
+ * @n: the length of the data to be added.
+ * @recsize: size of record field
+ *
+ * This function copies @n bytes from the @from into the
+ * FIFO and returns the number of bytes which cannot be copied.
+ *
+ * If the returned value is equal or less the @n value, the copy_from_user()
+ * functions has failed. Otherwise the record doesn't fit into the buffer.
+ *
+ * Note that with only one concurrent reader and one concurrent
+ * writer, you don't need extra locking to use these functions.
+ */
+static inline __must_check unsigned int kfifo_from_user_rec(struct kfifo *fifo,
+	const void __user *from, unsigned int n, unsigned int recsize)
+{
+	if (!__builtin_constant_p(recsize))
+		return __kfifo_from_user_generic(fifo, from, n, recsize);
+	return __kfifo_from_user_rec(fifo, from, n, recsize);
+}
+
+/**
+ * __kfifo_to_user_... internal functions for transfer fifo data into user space
+ * do not call it directly, use kfifo_to_user_rec() instead
+ */
+extern unsigned int __kfifo_to_user_n(struct kfifo *fifo,
+	void __user *to, unsigned int n, unsigned int reclen,
+	unsigned int recsize);
+
+extern unsigned int __kfifo_to_user_generic(struct kfifo *fifo,
+	void __user *to, unsigned int n, unsigned int recsize,
+	unsigned int *total);
+
+static inline unsigned int __kfifo_to_user_rec(struct kfifo *fifo,
+	void __user *to, unsigned int n,
+	unsigned int recsize, unsigned int *total)
+{
+	unsigned int l;
+
+	if (!recsize) {
+		l = n;
+		if (total)
+			*total = l;
+	} else {
+		l = __kfifo_peek_n(fifo, recsize);
+		if (total)
+			*total = l;
+		if (n < l)
+			return l;
+	}
+
+	return __kfifo_to_user_n(fifo, to, n, l, recsize);
+}
+
+/**
+ * kfifo_to_user_rec - gets data from the FIFO and write it to user space
+ * @fifo: the fifo to be used.
+ * @to: where the data must be copied.
+ * @n: the size of the destination buffer.
+ * @recsize: size of record field
+ * @total: pointer where the total number of to copied bytes should stored
+ *
+ * This function copies at most @n bytes from the FIFO to the @to.
+ * In case of an error, the function returns the number of bytes which cannot
+ * be copied.
+ * If the returned value is equal or less the @n value, the copy_to_user()
+ * functions has failed. Otherwise the record doesn't fit into the @to buffer.
+ *
+ * Note that with only one concurrent reader and one concurrent
+ * writer, you don't need extra locking to use these functions.
+ */
+static inline __must_check unsigned int kfifo_to_user_rec(struct kfifo *fifo,
+		void __user *to, unsigned int n, unsigned int recsize,
+		unsigned int *total)
+{
+	if (!__builtin_constant_p(recsize))
+		return __kfifo_to_user_generic(fifo, to, n, recsize, total);
+	return __kfifo_to_user_rec(fifo, to, n, recsize, total);
+}
+
+/**
+ * __kfifo_peek_... internal functions for peek into the next fifo record
+ * do not call it directly, use kfifo_peek_rec() instead
+ */
+extern unsigned int __kfifo_peek_generic(struct kfifo *fifo,
+				unsigned int recsize);
+
+/**
+ * kfifo_peek_rec - gets the size of the next FIFO record data
+ * @fifo: the fifo to be used.
+ * @recsize: size of record field
+ *
+ * This function returns the size of the next FIFO record in number of bytes
+ */
+static inline __must_check unsigned int kfifo_peek_rec(struct kfifo *fifo,
+	unsigned int recsize)
+{
+	if (!__builtin_constant_p(recsize))
+		return __kfifo_peek_generic(fifo, recsize);
+	if (!recsize)
+		return kfifo_len(fifo);
+	return __kfifo_peek_n(fifo, recsize);
+}
+
+/**
+ * __kfifo_skip_... internal functions for skip the next fifo record
+ * do not call it directly, use kfifo_skip_rec() instead
+ */
+extern void __kfifo_skip_generic(struct kfifo *fifo, unsigned int recsize);
+
+static inline void __kfifo_skip_rec(struct kfifo *fifo,
+	unsigned int recsize)
+{
+	unsigned int l;
+
+	if (recsize) {
+		l = __kfifo_peek_n(fifo, recsize);
+
+		if (l + recsize <= kfifo_len(fifo)) {
+			__kfifo_add_out(fifo, l + recsize);
+			return;
+		}
+	}
+	kfifo_reset_out(fifo);
+}
+
+/**
+ * kfifo_skip_rec - skip the next fifo out record
+ * @fifo: the fifo to be used.
+ * @recsize: size of record field
+ *
+ * This function skips the next FIFO record
+ */
+static inline void kfifo_skip_rec(struct kfifo *fifo,
+	unsigned int recsize)
+{
+	if (!__builtin_constant_p(recsize))
+		__kfifo_skip_generic(fifo, recsize);
+	else
+		__kfifo_skip_rec(fifo, recsize);
+}
+
+/**
+ * kfifo_avail_rec - returns the number of bytes available in a record FIFO
+ * @fifo: the fifo to be used.
+ * @recsize: size of record field
+ */
+static inline __must_check unsigned int kfifo_avail_rec(struct kfifo *fifo,
+	unsigned int recsize)
+{
+	unsigned int l = kfifo_size(fifo) - kfifo_len(fifo);
+
+	return (l > recsize) ? l - recsize : 0;
+}
+
 #endif

@@ -115,6 +115,113 @@ void kfifo_skip(struct kfifo *fifo, unsigned int len)
 }
 EXPORT_SYMBOL(kfifo_skip);
 
+static inline void __kfifo_in_data(struct kfifo *fifo,
+		const void *from, unsigned int len, unsigned int off)
+{
+	unsigned int l;
+
+	/*
+	 * Ensure that we sample the fifo->out index -before- we
+	 * start putting bytes into the kfifo.
+	 */
+
+	smp_mb();
+
+	off = __kfifo_off(fifo, fifo->in + off);
+
+	/* first put the data starting from fifo->in to buffer end */
+	l = min(len, fifo->size - off);
+	memcpy(fifo->buffer + off, from, l);
+
+	/* then put the rest (if any) at the beginning of the buffer */
+	memcpy(fifo->buffer, from + l, len - l);
+}
+
+static inline void __kfifo_out_data(struct kfifo *fifo,
+		void *to, unsigned int len, unsigned int off)
+{
+	unsigned int l;
+
+	/*
+	 * Ensure that we sample the fifo->in index -before- we
+	 * start removing bytes from the kfifo.
+	 */
+
+	smp_rmb();
+
+	off = __kfifo_off(fifo, fifo->out + off);
+
+	/* first get the data from fifo->out until the end of the buffer */
+	l = min(len, fifo->size - off);
+	memcpy(to, fifo->buffer + off, l);
+
+	/* then get the rest (if any) from the beginning of the buffer */
+	memcpy(to + l, fifo->buffer, len - l);
+}
+
+static inline unsigned int __kfifo_from_user_data(struct kfifo *fifo,
+	 const void __user *from, unsigned int len, unsigned int off)
+{
+	unsigned int l;
+	int ret;
+
+	/*
+	 * Ensure that we sample the fifo->out index -before- we
+	 * start putting bytes into the kfifo.
+	 */
+
+	smp_mb();
+
+	off = __kfifo_off(fifo, fifo->in + off);
+
+	/* first put the data starting from fifo->in to buffer end */
+	l = min(len, fifo->size - off);
+	ret = copy_from_user(fifo->buffer + off, from, l);
+
+	if (unlikely(ret))
+		return ret + len - l;
+
+	/* then put the rest (if any) at the beginning of the buffer */
+	return copy_from_user(fifo->buffer, from + l, len - l);
+}
+
+static inline unsigned int __kfifo_to_user_data(struct kfifo *fifo,
+		void __user *to, unsigned int len, unsigned int off)
+{
+	unsigned int l;
+	int ret;
+
+	/*
+	 * Ensure that we sample the fifo->in index -before- we
+	 * start removing bytes from the kfifo.
+	 */
+
+	smp_rmb();
+
+	off = __kfifo_off(fifo, fifo->out + off);
+
+	/* first get the data from fifo->out until the end of the buffer */
+	l = min(len, fifo->size - off);
+	ret = copy_to_user(to, fifo->buffer + off, l);
+
+	if (unlikely(ret))
+		return ret + len - l;
+
+	/* then get the rest (if any) from the beginning of the buffer */
+	return copy_to_user(to + l, fifo->buffer, len - l);
+}
+
+unsigned int __kfifo_in_n(struct kfifo *fifo,
+	const void *from, unsigned int len, unsigned int recsize)
+{
+	if (kfifo_avail(fifo) < len + recsize)
+		return len + 1;
+
+	__kfifo_in_data(fifo, from, len, recsize);
+	return 0;
+}
+EXPORT_SYMBOL(__kfifo_in_n);
+
 /**
  * kfifo_in - puts some data into the FIFO
  * @fifo: the fifo to be used.
@@ -128,35 +235,35 @@ EXPORT_SYMBOL(kfifo_skip);
  * Note that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these functions.
  */
-unsigned int kfifo_in(struct kfifo *fifo,
-			const unsigned char *from, unsigned int len)
+unsigned int kfifo_in(struct kfifo *fifo, const unsigned char *from,
+				unsigned int len)
 {
-	unsigned int off;
-	unsigned int l;
+	len = min(kfifo_avail(fifo), len);
 
-	len = min(len, fifo->size - fifo->in + fifo->out);
-
-	/*
-	 * Ensure that we sample the fifo->out index -before- we
-	 * start putting bytes into the kfifo.
-	 */
-
-	smp_mb();
-
-	off = __kfifo_off(fifo, fifo->in);
-
-	/* first put the data starting from fifo->in to buffer end */
-	l = min(len, fifo->size - off);
-	memcpy(fifo->buffer + off, from, l);
-
-	/* then put the rest (if any) at the beginning of the buffer */
-	memcpy(fifo->buffer, from + l, len - l);
-
+	__kfifo_in_data(fifo, from, len, 0);
 	__kfifo_add_in(fifo, len);
-
 	return len;
 }
 EXPORT_SYMBOL(kfifo_in);
+
+unsigned int __kfifo_in_generic(struct kfifo *fifo,
+	const void *from, unsigned int len, unsigned int recsize)
+{
+	return __kfifo_in_rec(fifo, from, len, recsize);
+}
+EXPORT_SYMBOL(__kfifo_in_generic);
+
+unsigned int __kfifo_out_n(struct kfifo *fifo,
+	void *to, unsigned int len, unsigned int recsize)
+{
+	if (kfifo_len(fifo) < len + recsize)
+		return len;
+
+	__kfifo_out_data(fifo, to, len, recsize);
+	__kfifo_add_out(fifo, len + recsize);
+	return 0;
+}
+EXPORT_SYMBOL(__kfifo_out_n);
 
 /**
  * kfifo_out - gets some data from the FIFO
@@ -170,35 +277,34 @@ EXPORT_SYMBOL(kfifo_in);
  * Note that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these functions.
  */
-unsigned int kfifo_out(struct kfifo *fifo,
-			 unsigned char *to, unsigned int len)
+unsigned int kfifo_out(struct kfifo *fifo, unsigned char *to, unsigned int len)
 {
-	unsigned int off;
-	unsigned int l;
+	len = min(kfifo_len(fifo), len);
 
-	len = min(len, fifo->in - fifo->out);
-
-	/*
-	 * Ensure that we sample the fifo->in index -before- we
-	 * start removing bytes from the kfifo.
-	 */
-
-	smp_rmb();
-
-	off = __kfifo_off(fifo, fifo->out);
-
-	/* first get the data from fifo->out until the end of the buffer */
-	l = min(len, fifo->size - off);
-	memcpy(to, fifo->buffer + off, l);
-
-	/* then get the rest (if any) from the beginning of the buffer */
-	memcpy(to + l, fifo->buffer, len - l);
-
+	__kfifo_out_data(fifo, to, len, 0);
 	__kfifo_add_out(fifo, len);
 
 	return len;
 }
 EXPORT_SYMBOL(kfifo_out);
+
+unsigned int __kfifo_out_generic(struct kfifo *fifo,
+	void *to, unsigned int len, unsigned int recsize,
+	unsigned int *total)
+{
+	return __kfifo_out_rec(fifo, to, len, recsize, total);
+}
+EXPORT_SYMBOL(__kfifo_out_generic);
+
+unsigned int __kfifo_from_user_n(struct kfifo *fifo,
+	const void __user *from, unsigned int len, unsigned int recsize)
+{
+	if (kfifo_avail(fifo) < len + recsize)
+		return len + 1;
+
+	return __kfifo_from_user_data(fifo, from, len, recsize);
+}
+EXPORT_SYMBOL(__kfifo_from_user_n);
 
 /**
  * kfifo_from_user - puts some data from user space into the FIFO
@@ -215,39 +321,37 @@ EXPORT_SYMBOL(kfifo_out);
 unsigned int kfifo_from_user(struct kfifo *fifo,
 	const void __user *from, unsigned int len)
 {
-	unsigned int off;
-	unsigned int l;
-	int ret;
-
-	len = min(len, fifo->size - fifo->in + fifo->out);
-
-	/*
-	 * Ensure that we sample the fifo->out index -before- we
-	 * start putting bytes into the kfifo.
-	 */
-
-	smp_mb();
-
-	off = __kfifo_off(fifo, fifo->in);
-
-	/* first put the data starting from fifo->in to buffer end */
-	l = min(len, fifo->size - off);
-	ret = copy_from_user(fifo->buffer + off, from, l);
-
-	if (unlikely(ret))
-		return l - ret;
-
-	/* then put the rest (if any) at the beginning of the buffer */
-	ret = copy_from_user(fifo->buffer, from + l, len - l);
-
-	if (unlikely(ret))
-		return len - ret;
-
+	len = min(kfifo_avail(fifo), len);
+	len -= __kfifo_from_user_data(fifo, from, len, 0);
 	__kfifo_add_in(fifo, len);
-
 	return len;
 }
 EXPORT_SYMBOL(kfifo_from_user);
+
+unsigned int __kfifo_from_user_generic(struct kfifo *fifo,
+	const void __user *from, unsigned int len, unsigned int recsize)
+{
+	return __kfifo_from_user_rec(fifo, from, len, recsize);
+}
+EXPORT_SYMBOL(__kfifo_from_user_generic);
+
+unsigned int __kfifo_to_user_n(struct kfifo *fifo,
+	void __user *to, unsigned int len, unsigned int reclen,
+	unsigned int recsize)
+{
+	unsigned int ret;
+
+	if (kfifo_len(fifo) < reclen + recsize)
+		return len;
+
+	ret = __kfifo_to_user_data(fifo, to, reclen, recsize);
+
+	if (likely(ret == 0))
+		__kfifo_add_out(fifo, reclen + recsize);
+
+	return ret;
+}
+EXPORT_SYMBOL(__kfifo_to_user_n);
 
 /**
  * kfifo_to_user - gets data from the FIFO and write it to user space
@@ -264,37 +368,33 @@ EXPORT_SYMBOL(kfifo_from_user);
 unsigned int kfifo_to_user(struct kfifo *fifo,
 	void __user *to, unsigned int len)
 {
-	unsigned int off;
-	unsigned int l;
-	int ret;
-
-	len = min(len, fifo->in - fifo->out);
-
-	/*
-	 * Ensure that we sample the fifo->in index -before- we
-	 * start removing bytes from the kfifo.
-	 */
-
-	smp_rmb();
-
-	off = __kfifo_off(fifo, fifo->out);
-
-	/* first get the data from fifo->out until the end of the buffer */
-	l = min(len, fifo->size - off);
-	ret = copy_to_user(to, fifo->buffer + off, l);
-
-	if (unlikely(ret))
-		return l - ret;
-
-	/* then get the rest (if any) from the beginning of the buffer */
-	ret = copy_to_user(to + l, fifo->buffer, len - l);
-
-	if (unlikely(ret))
-		return len - ret;
-
+	len = min(kfifo_len(fifo), len);
+	len -= __kfifo_to_user_data(fifo, to, len, 0);
 	__kfifo_add_out(fifo, len);
-
 	return len;
 }
 EXPORT_SYMBOL(kfifo_to_user);
+
+unsigned int __kfifo_to_user_generic(struct kfifo *fifo,
+	void __user *to, unsigned int len, unsigned int recsize,
+	unsigned int *total)
+{
+	return __kfifo_to_user_rec(fifo, to, len, recsize, total);
+}
+EXPORT_SYMBOL(__kfifo_to_user_generic);
+
+unsigned int __kfifo_peek_generic(struct kfifo *fifo, unsigned int recsize)
+{
+	if (recsize == 0)
+		return kfifo_avail(fifo);
+
+	return __kfifo_peek_n(fifo, recsize);
+}
+EXPORT_SYMBOL(__kfifo_peek_generic);
+
+void __kfifo_skip_generic(struct kfifo *fifo, unsigned int recsize)
+{
+	__kfifo_skip_rec(fifo, recsize);
+}
+EXPORT_SYMBOL(__kfifo_skip_generic);
 
