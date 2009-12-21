@@ -16,7 +16,6 @@
 #include <linux/i2c.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <linux/usb/sl811.h>
 #include <linux/usb/musb.h>
 #include <linux/leds.h>
 #include <linux/input.h>
@@ -356,50 +355,6 @@ static struct platform_device dm9000_device = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(dm9000_resources),
 	.resource	= dm9000_resources,
-};
-#endif
-
-#if defined(CONFIG_USB_SL811_HCD) || defined(CONFIG_USB_SL811_HCD_MODULE)
-static struct resource sl811_hcd_resources[] = {
-	{
-		.start = 0x20340000,
-		.end = 0x20340000,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = 0x20340004,
-		.end = 0x20340004,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = CONFIG_USB_SL811_BFIN_IRQ,
-		.end = CONFIG_USB_SL811_BFIN_IRQ,
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	},
-};
-
-#if defined(CONFIG_USB_SL811_BFIN_USE_VBUS)
-void sl811_port_power(struct device *dev, int is_on)
-{
-	gpio_request(CONFIG_USB_SL811_BFIN_GPIO_VBUS, "usb:SL811_VBUS");
-	gpio_direction_output(CONFIG_USB_SL811_BFIN_GPIO_VBUS, is_on);
-}
-#endif
-
-static struct sl811_platform_data sl811_priv = {
-	.potpg = 10,
-	.power = 250,       /* == 500mA */
-#if defined(CONFIG_USB_SL811_BFIN_USE_VBUS)
-	.port_power = &sl811_port_power,
-#endif
-};
-
-static struct platform_device sl811_hcd_device = {
-	.name = "sl811-hcd",
-	.id = 0,
-	.dev = {
-		.platform_data = &sl811_priv,
-	},
-	.num_resources = ARRAY_SIZE(sl811_hcd_resources),
-	.resource = sl811_hcd_resources,
 };
 #endif
 
@@ -1111,10 +1066,6 @@ static struct platform_device *stamp_devices[] __initdata = {
 
 #if defined(CONFIG_RTC_DRV_BFIN) || defined(CONFIG_RTC_DRV_BFIN_MODULE)
 	&rtc_device,
-#endif
-
-#if defined(CONFIG_USB_SL811_HCD) || defined(CONFIG_USB_SL811_HCD_MODULE)
-	&sl811_hcd_device,
 #endif
 
 #if defined(CONFIG_USB_ISP1760_HCD) || defined(CONFIG_USB_ISP1760_HCD_MODULE)
