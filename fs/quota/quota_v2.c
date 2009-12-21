@@ -97,8 +97,11 @@ static int v2_read_file_info(struct super_block *sb, int type)
 	unsigned int version;
 
 	if (!v2_read_header(sb, type, &dqhead))
-		return 0;
+		return -1;
 	version = le32_to_cpu(dqhead.dqh_version);
+	if ((info->dqi_fmt_id == QFMT_VFS_V0 && version != 0) ||
+	    (info->dqi_fmt_id == QFMT_VFS_V1 && version != 1))
+		return -1;
 
 	size = sb->s_op->quota_read(sb, type, (char *)&dinfo,
 	       sizeof(struct v2_disk_dqinfo), V2_DQINFOOFF);
