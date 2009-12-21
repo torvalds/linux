@@ -134,6 +134,7 @@ static int p80211wext_dorequest(wlandevice_t *wlandev, u32 did, u32 data)
 	int result;
 
 	msg.msgcode = DIDmsg_dot11req_mibset;
+	memset(&mibitem, 0, sizeof(mibitem));
 	mibitem.did = did;
 	mibitem.data = data;
 	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
@@ -269,6 +270,7 @@ static int p80211wext_giwfreq(netdevice_t *dev,
 	int err = 0;
 
 	msg.msgcode = DIDmsg_dot11req_mibget;
+	memset(&mibitem, 0, sizeof(mibitem));
 	mibitem.did = DIDmib_dot11phy_dot11PhyDSSSTable_dot11CurrentChannel;
 	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
 	result = p80211req_dorequest(wlandev, (u8 *) & msg);
@@ -309,6 +311,7 @@ static int p80211wext_siwfreq(netdevice_t *dev,
 	}
 
 	msg.msgcode = DIDmsg_dot11req_mibset;
+	memset(&mibitem, 0, sizeof(mibitem));
 	mibitem.did = DIDmib_dot11phy_dot11PhyDSSSTable_dot11CurrentChannel;
 	mibitem.status = P80211ENUM_msgitem_status_data_ok;
 
@@ -396,6 +399,7 @@ static int p80211wext_siwmode(netdevice_t *dev,
 
 	/* Set Operation mode to the PORT TYPE RID */
 	msg.msgcode = DIDmsg_dot11req_mibset;
+	memset(&mibitem, 0, sizeof(mibitem));
 	mibitem.did = DIDmib_p2_p2Static_p2CnfPortType;
 	mibitem.data = (*mode == IW_MODE_ADHOC) ? 0 : 1;
 	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
@@ -771,6 +775,7 @@ static int p80211wext_giwrate(netdevice_t *dev,
 	int err = 0;
 
 	msg.msgcode = DIDmsg_dot11req_mibget;
+	memset(&mibitem, 0, sizeof(mibitem));
 	mibitem.did = DIDmib_p2_p2MAC_p2CurrentTxRate;
 	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
 	result = p80211req_dorequest(wlandev, (u8 *) & msg);
@@ -822,6 +827,7 @@ static int p80211wext_giwrts(netdevice_t *dev,
 	int err = 0;
 
 	msg.msgcode = DIDmsg_dot11req_mibget;
+	memset(&mibitem, 0, sizeof(mibitem));
 	mibitem.did = DIDmib_dot11mac_dot11OperationTable_dot11RTSThreshold;
 	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
 	result = p80211req_dorequest(wlandev, (u8 *) & msg);
@@ -857,6 +863,7 @@ static int p80211wext_siwrts(netdevice_t *dev,
 	}
 
 	msg.msgcode = DIDmsg_dot11req_mibget;
+	memset(&mibitem, 0, sizeof(mibitem));
 	mibitem.did = DIDmib_dot11mac_dot11OperationTable_dot11RTSThreshold;
 	if (rts->disabled)
 		mibitem.data = 2347;
@@ -886,6 +893,7 @@ static int p80211wext_giwfrag(netdevice_t *dev,
 	int err = 0;
 
 	msg.msgcode = DIDmsg_dot11req_mibget;
+	memset(&mibitem, 0, sizeof(mibitem));
 	mibitem.did =
 	    DIDmib_dot11mac_dot11OperationTable_dot11FragmentationThreshold;
 	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
@@ -922,6 +930,7 @@ static int p80211wext_siwfrag(netdevice_t *dev,
 	}
 
 	msg.msgcode = DIDmsg_dot11req_mibset;
+	memset(&mibitem, 0, sizeof(mibitem));
 	mibitem.did =
 	    DIDmib_dot11mac_dot11OperationTable_dot11FragmentationThreshold;
 
@@ -962,6 +971,7 @@ static int p80211wext_giwretry(netdevice_t *dev,
 	u16 shortretry, longretry, lifetime;
 
 	msg.msgcode = DIDmsg_dot11req_mibget;
+	memset(&mibitem, 0, sizeof(mibitem));
 	mibitem.did = DIDmib_dot11mac_dot11OperationTable_dot11ShortRetryLimit;
 
 	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
@@ -1036,6 +1046,8 @@ static int p80211wext_siwretry(netdevice_t *dev,
 	p80211msg_dot11req_mibset_t msg;
 	int result;
 	int err = 0;
+
+	memset(&mibitem, 0, sizeof(mibitem));
 
 	if (!wlan_wext_write) {
 		err = (-EOPNOTSUPP);
@@ -1114,6 +1126,7 @@ static int p80211wext_siwtxpow(netdevice_t *dev,
 	}
 
 	msg.msgcode = DIDmsg_dot11req_mibset;
+	memset(&mibitem, 0, sizeof(mibitem));
 	mibitem.did =
 	    DIDmib_dot11phy_dot11PhyTxPowerTable_dot11CurrentTxPowerLevel;
 	if (rrq->fixed == 0)
@@ -1143,6 +1156,8 @@ static int p80211wext_giwtxpow(netdevice_t *dev,
 	int err = 0;
 
 	msg.msgcode = DIDmsg_dot11req_mibget;
+
+	memset(&mibitem, 0, sizeof(mibitem));
 	mibitem.did =
 	    DIDmib_dot11phy_dot11PhyTxPowerTable_dot11CurrentTxPowerLevel;
 
