@@ -1249,7 +1249,7 @@ static int kretprobe_event_show_format(struct ftrace_event_call *call,
 					 ", REC->" FIELD_STRING_RETIP);
 }
 
-#ifdef CONFIG_EVENT_PROFILE
+#ifdef CONFIG_PERF_EVENTS
 
 /* Kprobe profile handler */
 static __kprobes int kprobe_profile_func(struct kprobe *kp,
@@ -1407,7 +1407,7 @@ static void probe_profile_disable(struct ftrace_event_call *call)
 			disable_kprobe(&tp->rp.kp);
 	}
 }
-#endif	/* CONFIG_EVENT_PROFILE */
+#endif	/* CONFIG_PERF_EVENTS */
 
 
 static __kprobes
@@ -1417,10 +1417,10 @@ int kprobe_dispatcher(struct kprobe *kp, struct pt_regs *regs)
 
 	if (tp->flags & TP_FLAG_TRACE)
 		kprobe_trace_func(kp, regs);
-#ifdef CONFIG_EVENT_PROFILE
+#ifdef CONFIG_PERF_EVENTS
 	if (tp->flags & TP_FLAG_PROFILE)
 		kprobe_profile_func(kp, regs);
-#endif	/* CONFIG_EVENT_PROFILE */
+#endif
 	return 0;	/* We don't tweek kernel, so just return 0 */
 }
 
@@ -1431,10 +1431,10 @@ int kretprobe_dispatcher(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	if (tp->flags & TP_FLAG_TRACE)
 		kretprobe_trace_func(ri, regs);
-#ifdef CONFIG_EVENT_PROFILE
+#ifdef CONFIG_PERF_EVENTS
 	if (tp->flags & TP_FLAG_PROFILE)
 		kretprobe_profile_func(ri, regs);
-#endif	/* CONFIG_EVENT_PROFILE */
+#endif
 	return 0;	/* We don't tweek kernel, so just return 0 */
 }
 
@@ -1463,7 +1463,7 @@ static int register_probe_event(struct trace_probe *tp)
 	call->regfunc = probe_event_enable;
 	call->unregfunc = probe_event_disable;
 
-#ifdef CONFIG_EVENT_PROFILE
+#ifdef CONFIG_PERF_EVENTS
 	call->profile_enable = probe_profile_enable;
 	call->profile_disable = probe_profile_disable;
 #endif

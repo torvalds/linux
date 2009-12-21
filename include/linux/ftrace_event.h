@@ -188,7 +188,7 @@ do {									\
 		__trace_printk(ip, fmt, ##args);			\
 } while (0)
 
-#ifdef CONFIG_EVENT_PROFILE
+#ifdef CONFIG_PERF_EVENTS
 struct perf_event;
 extern int ftrace_profile_enable(int event_id);
 extern void ftrace_profile_disable(int event_id);

@@ -498,7 +498,7 @@ static inline int ftrace_get_offsets_##call(				\
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
-#ifdef CONFIG_EVENT_PROFILE
+#ifdef CONFIG_PERF_EVENTS
 
 /*
  * Generate the functions needed for tracepoint perf_event support.
@@ -541,7 +541,7 @@ static void ftrace_profile_disable_##name(struct ftrace_event_call *unused)\
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
-#endif
+#endif /* CONFIG_PERF_EVENTS */
 
 /*
  * Stage 4 of the trace events.
@@ -626,7 +626,7 @@ static void ftrace_profile_disable_##name(struct ftrace_event_call *unused)\
  *
  */
 
-#ifdef CONFIG_EVENT_PROFILE
+#ifdef CONFIG_PERF_EVENTS
 
 #define _TRACE_PROFILE_INIT(call)					\
 	.profile_enable = ftrace_profile_enable_##call,			\
@@ -634,7 +634,7 @@ static void ftrace_profile_disable_##name(struct ftrace_event_call *unused)\
 
 #else
 #define _TRACE_PROFILE_INIT(call)
-#endif
+#endif /* CONFIG_PERF_EVENTS */
 
 #undef __entry
 #define __entry entry
@@ -834,7 +834,7 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
  * }
  */
 
-#ifdef CONFIG_EVENT_PROFILE
+#ifdef CONFIG_PERF_EVENTS
 
 #undef __perf_addr
 #define __perf_addr(a) __addr = (a)
@@ -926,7 +926,7 @@ static void ftrace_profile_##call(proto)			\
 	DEFINE_EVENT(template, name, PARAMS(proto), PARAMS(args))
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
-#endif /* CONFIG_EVENT_PROFILE */
+#endif /* CONFIG_PERF_EVENTS */
 
 #undef _TRACE_PROFILE_INIT
 

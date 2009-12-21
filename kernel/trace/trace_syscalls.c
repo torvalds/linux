@@ -421,7 +421,7 @@ int __init init_ftrace_syscalls(void)
 }
 core_initcall(init_ftrace_syscalls);
 
-#ifdef CONFIG_EVENT_PROFILE
+#ifdef CONFIG_PERF_EVENTS
 
 static DECLARE_BITMAP(enabled_prof_enter_syscalls, NR_syscalls);
 static DECLARE_BITMAP(enabled_prof_exit_syscalls, NR_syscalls);
@@ -626,6 +626,5 @@ void prof_sysexit_disable(struct ftrace_event_call *call)
 	mutex_unlock(&syscall_trace_lock);
 }
 
-#endif
-
+#endif /* CONFIG_PERF_EVENTS */
 
