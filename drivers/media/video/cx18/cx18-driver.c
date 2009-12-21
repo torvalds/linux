@@ -238,7 +238,8 @@ MODULE_PARM_DESC(enc_pcm_bufs,
 		 "Number of encoder PCM buffers\n"
 		 "\t\t\tDefault is computed from other enc_pcm_* parameters");
 
-MODULE_PARM_DESC(cx18_first_minor, "Set device node number assigned to first card");
+MODULE_PARM_DESC(cx18_first_minor,
+		 "Set device node number assigned to first card");
 
 MODULE_AUTHOR("Hans Verkuil");
 MODULE_DESCRIPTION("CX23418 driver");
@@ -1252,7 +1253,7 @@ static void cx18_remove(struct pci_dev *pci_dev)
 #if defined(CONFIG_MODULES) && defined(MODULE)
 static void request_module_async(struct work_struct *work)
 {
-	struct cx18 *dev=container_of(work, struct cx18, request_module_wk);
+	struct cx18 *dev = container_of(work, struct cx18, request_module_wk);
 
 	/* Make sure cx18-alsa module is loaded */
 	request_module("cx18-alsa");
@@ -1281,7 +1282,8 @@ static struct pci_driver cx18_pci_driver = {
 
 static int __init module_start(void)
 {
-	printk(KERN_INFO "cx18:  Start initialization, version %s\n", CX18_VERSION);
+	printk(KERN_INFO "cx18:  Start initialization, version %s\n",
+	       CX18_VERSION);
 
 	/* Validate parameters */
 	if (cx18_first_minor < 0 || cx18_first_minor >= CX18_MAX_CARDS) {
