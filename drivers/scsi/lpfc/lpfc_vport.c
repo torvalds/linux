@@ -700,7 +700,7 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 			}
 			spin_unlock_irq(&phba->ndlp_lock);
 		}
-		if (vport->vpi_state != LPFC_VPI_REGISTERED)
+		if (!(vport->vpi_state & LPFC_VPI_REGISTERED))
 			goto skip_logo;
 		vport->unreg_vpi_cmpl = VPORT_INVAL;
 		timeout = msecs_to_jiffies(phba->fc_ratov * 2000);
