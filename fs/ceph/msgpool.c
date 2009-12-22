@@ -140,7 +140,7 @@ struct ceph_msg *ceph_msgpool_get(struct ceph_msgpool *pool, int front_len)
 			return msg;
 		}
 		pr_err("msgpool_get %p now %d/%d, %s\n", pool, pool->num,
-		       pool->min, pool->blocking ? "waiting" : "failing");
+		       pool->min, pool->blocking ? "waiting" : "may fail");
 		spin_unlock(&pool->lock);
 
 		if (!pool->blocking) {
@@ -151,6 +151,7 @@ struct ceph_msg *ceph_msgpool_get(struct ceph_msgpool *pool, int front_len)
 			if (!IS_ERR(msg))
 				return msg;
 
+			pr_err("msgpool_get %p empty + alloc failed\n", pool);
 			return ERR_PTR(-ENOMEM);
 		}
 
