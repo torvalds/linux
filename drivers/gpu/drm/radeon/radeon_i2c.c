@@ -59,7 +59,7 @@ bool radeon_ddc_probe(struct radeon_connector *radeon_connector)
 }
 
 
-void radeon_i2c_do_lock(struct radeon_i2c_chan *i2c, int lock_state)
+static void radeon_i2c_do_lock(struct radeon_i2c_chan *i2c, int lock_state)
 {
 	struct radeon_device *rdev = i2c->dev->dev_private;
 	struct radeon_i2c_bus_rec *rec = &i2c->rec;
@@ -168,6 +168,32 @@ static void set_data(void *i2c_priv, int data)
 	WREG32(rec->en_data_reg, val);
 }
 
+static int radeon_i2c_xfer(struct i2c_adapter *i2c_adap,
+			   struct i2c_msg *msgs, int num)
+{
+	struct radeon_i2c_chan *i2c = i2c_get_adapdata(i2c_adap);
+	int ret;
+
+	radeon_i2c_do_lock(i2c, 1);
+	if (i2c_transfer(&i2c->algo.radeon.bit_adapter, msgs, num) == num)
+		ret = num;
+	else
+		ret = -1;
+	radeon_i2c_do_lock(i2c, 0);
+
+	return ret;
+}
+
+static u32 radeon_i2c_func(struct i2c_adapter *adap)
+{
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
+}
+
+static const struct i2c_algorithm radeon_i2c_algo = {
+	.master_xfer = radeon_i2c_xfer,
+	.functionality = radeon_i2c_func,
+};
+
 struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 					  struct radeon_i2c_bus_rec *rec,
 					  const char *name)
@@ -179,21 +205,34 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 	if (i2c == NULL)
 		return NULL;
 
-	i2c->adapter.owner = THIS_MODULE;
 	i2c->dev = dev;
-	i2c_set_adapdata(&i2c->adapter, i2c);
-	i2c->adapter.algo_data = &i2c->algo.bit;
-	i2c->algo.bit.setsda = set_data;
-	i2c->algo.bit.setscl = set_clock;
-	i2c->algo.bit.getsda = get_data;
-	i2c->algo.bit.getscl = get_clock;
-	i2c->algo.bit.udelay = 20;
+	i2c->rec = *rec;
+	/* set the internal bit adapter */
+	i2c->algo.radeon.bit_adapter.owner = THIS_MODULE;
+	i2c_set_adapdata(&i2c->algo.radeon.bit_adapter, i2c);
+	sprintf(i2c->algo.radeon.bit_adapter.name, "Radeon internal i2c bit bus %s", name);
+	i2c->algo.radeon.bit_adapter.algo_data = &i2c->algo.radeon.bit_data;
+	i2c->algo.radeon.bit_data.setsda = set_data;
+	i2c->algo.radeon.bit_data.setscl = set_clock;
+	i2c->algo.radeon.bit_data.getsda = get_data;
+	i2c->algo.radeon.bit_data.getscl = get_clock;
+	i2c->algo.radeon.bit_data.udelay = 20;
 	/* vesa says 2.2 ms is enough, 1 jiffy doesn't seem to always
 	 * make this, 2 jiffies is a lot more reliable */
-	i2c->algo.bit.timeout = 2;
-	i2c->algo.bit.data = i2c;
-	i2c->rec = *rec;
-	ret = i2c_bit_add_bus(&i2c->adapter);
+	i2c->algo.radeon.bit_data.timeout = 2;
+	i2c->algo.radeon.bit_data.data = i2c;
+	ret = i2c_bit_add_bus(&i2c->algo.radeon.bit_adapter);
+	if (ret) {
+		DRM_INFO("Failed to register internal bit i2c %s\n", name);
+		goto out_free;
+	}
+	/* set the radeon i2c adapter */
+	i2c->adapter.owner = THIS_MODULE;
+	i2c_set_adapdata(&i2c->adapter, i2c);
+	sprintf(i2c->adapter.name, "Radeon i2c %s", name);
+	i2c->adapter.algo_data = &i2c->algo.radeon;
+	i2c->adapter.algo = &radeon_i2c_algo;
+	ret = i2c_add_adapter(&i2c->adapter);
 	if (ret) {
 		DRM_INFO("Failed to register i2c %s\n", name);
 		goto out_free;
@@ -237,8 +276,16 @@ out_free:
 
 }
 
-
 void radeon_i2c_destroy(struct radeon_i2c_chan *i2c)
+{
+	if (!i2c)
+		return;
+	i2c_del_adapter(&i2c->algo.radeon.bit_adapter);
+	i2c_del_adapter(&i2c->adapter);
+	kfree(i2c);
+}
+
+void radeon_i2c_destroy_dp(struct radeon_i2c_chan *i2c)
 {
 	if (!i2c)
 		return;
@@ -252,10 +299,10 @@ struct drm_encoder *radeon_best_encoder(struct drm_connector *connector)
 	return NULL;
 }
 
-void radeon_i2c_sw_get_byte(struct radeon_i2c_chan *i2c_bus,
-			    u8 slave_addr,
-			    u8 addr,
-			    u8 *val)
+void radeon_i2c_get_byte(struct radeon_i2c_chan *i2c_bus,
+			 u8 slave_addr,
+			 u8 addr,
+			 u8 *val)
 {
 	u8 out_buf[2];
 	u8 in_buf[2];
@@ -286,10 +333,10 @@ void radeon_i2c_sw_get_byte(struct radeon_i2c_chan *i2c_bus,
 	}
 }
 
-void radeon_i2c_sw_put_byte(struct radeon_i2c_chan *i2c_bus,
-			    u8 slave_addr,
-			    u8 addr,
-			    u8 val)
+void radeon_i2c_put_byte(struct radeon_i2c_chan *i2c_bus,
+			 u8 slave_addr,
+			 u8 addr,
+			 u8 val)
 {
 	uint8_t out_buf[2];
 	struct i2c_msg msg = {

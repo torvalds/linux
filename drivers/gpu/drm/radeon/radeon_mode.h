@@ -159,12 +159,17 @@ struct radeon_pll {
 	uint32_t id;
 };
 
+struct i2c_algo_radeon_data {
+	struct i2c_adapter bit_adapter;
+	struct i2c_algo_bit_data bit_data;
+};
+
 struct radeon_i2c_chan {
 	struct i2c_adapter adapter;
 	struct drm_device *dev;
 	union {
 		struct i2c_algo_dp_aux_data dp;
-		struct i2c_algo_bit_data bit;
+		struct i2c_algo_radeon_data radeon;
 	} algo;
 	struct radeon_i2c_bus_rec rec;
 };
@@ -411,14 +416,15 @@ extern struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 						 struct radeon_i2c_bus_rec *rec,
 						 const char *name);
 extern void radeon_i2c_destroy(struct radeon_i2c_chan *i2c);
-extern void radeon_i2c_sw_get_byte(struct radeon_i2c_chan *i2c_bus,
-				   u8 slave_addr,
-				   u8 addr,
-				   u8 *val);
-extern void radeon_i2c_sw_put_byte(struct radeon_i2c_chan *i2c,
-				   u8 slave_addr,
-				   u8 addr,
-				   u8 val);
+extern void radeon_i2c_destroy_dp(struct radeon_i2c_chan *i2c);
+extern void radeon_i2c_get_byte(struct radeon_i2c_chan *i2c_bus,
+				u8 slave_addr,
+				u8 addr,
+				u8 *val);
+extern void radeon_i2c_put_byte(struct radeon_i2c_chan *i2c,
+				u8 slave_addr,
+				u8 addr,
+				u8 val);
 extern bool radeon_ddc_probe(struct radeon_connector *radeon_connector);
 extern int radeon_ddc_get_modes(struct radeon_connector *radeon_connector);
 
@@ -531,7 +537,6 @@ void radeon_atombios_init_crtc(struct drm_device *dev,
 			       struct radeon_crtc *radeon_crtc);
 void radeon_legacy_init_crtc(struct drm_device *dev,
 			     struct radeon_crtc *radeon_crtc);
-extern void radeon_i2c_do_lock(struct radeon_i2c_chan *i2c, int lock_state);
 
 void radeon_get_clock_info(struct drm_device *dev);
 

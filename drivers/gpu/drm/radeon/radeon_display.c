@@ -364,9 +364,7 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 	if (!radeon_connector->ddc_bus)
 		return -1;
 	if (!radeon_connector->edid) {
-		radeon_i2c_do_lock(radeon_connector->ddc_bus, 1);
 		radeon_connector->edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
-		radeon_i2c_do_lock(radeon_connector->ddc_bus, 0);
 	}
 
 	if (radeon_connector->edid) {
@@ -386,9 +384,7 @@ static int radeon_ddc_dump(struct drm_connector *connector)
 
 	if (!radeon_connector->ddc_bus)
 		return -1;
-	radeon_i2c_do_lock(radeon_connector->ddc_bus, 1);
 	edid = drm_get_edid(connector, &radeon_connector->ddc_bus->adapter);
-	radeon_i2c_do_lock(radeon_connector->ddc_bus, 0);
 	if (edid) {
 		kfree(edid);
 	}

@@ -2289,23 +2289,21 @@ void radeon_external_tmds_setup(struct drm_encoder *encoder)
 	switch (tmds->dvo_chip) {
 	case DVO_SIL164:
 		/* sil 164 */
-		radeon_i2c_do_lock(tmds->i2c_bus, 1);
-		radeon_i2c_sw_put_byte(tmds->i2c_bus,
-				       tmds->slave_addr,
-				       0x08, 0x30);
-		radeon_i2c_sw_put_byte(tmds->i2c_bus,
+		radeon_i2c_put_byte(tmds->i2c_bus,
+				    tmds->slave_addr,
+				    0x08, 0x30);
+		radeon_i2c_put_byte(tmds->i2c_bus,
 				       tmds->slave_addr,
 				       0x09, 0x00);
-		radeon_i2c_sw_put_byte(tmds->i2c_bus,
-				       tmds->slave_addr,
-				       0x0a, 0x90);
-		radeon_i2c_sw_put_byte(tmds->i2c_bus,
-				       tmds->slave_addr,
-				       0x0c, 0x89);
-		radeon_i2c_sw_put_byte(tmds->i2c_bus,
+		radeon_i2c_put_byte(tmds->i2c_bus,
+				    tmds->slave_addr,
+				    0x0a, 0x90);
+		radeon_i2c_put_byte(tmds->i2c_bus,
+				    tmds->slave_addr,
+				    0x0c, 0x89);
+		radeon_i2c_put_byte(tmds->i2c_bus,
 				       tmds->slave_addr,
 				       0x08, 0x3b);
-		radeon_i2c_do_lock(tmds->i2c_bus, 0);
 		break;
 	case DVO_SIL1178:
 		/* sil 1178 - untested */
@@ -2390,11 +2388,9 @@ bool radeon_combios_external_tmds_setup(struct drm_encoder *encoder)
 						index++;
 						val = RBIOS8(index);
 						index++;
-						radeon_i2c_do_lock(tmds->i2c_bus, 1);
-						radeon_i2c_sw_put_byte(tmds->i2c_bus,
-								       slave_addr,
-								       reg, val);
-						radeon_i2c_do_lock(tmds->i2c_bus, 0);
+						radeon_i2c_put_byte(tmds->i2c_bus,
+								    slave_addr,
+								    reg, val);
 						break;
 					default:
 						DRM_ERROR("Unknown id %d\n", id >> 13);
@@ -2447,11 +2443,9 @@ bool radeon_combios_external_tmds_setup(struct drm_encoder *encoder)
 					reg = id & 0x1fff;
 					val = RBIOS8(index);
 					index += 1;
-					radeon_i2c_do_lock(tmds->i2c_bus, 1);
-					radeon_i2c_sw_put_byte(tmds->i2c_bus,
-							       tmds->slave_addr,
-							       reg, val);
-					radeon_i2c_do_lock(tmds->i2c_bus, 0);
+					radeon_i2c_put_byte(tmds->i2c_bus,
+							    tmds->slave_addr,
+							    reg, val);
 					break;
 				default:
 					DRM_ERROR("Unknown id %d\n", id >> 13);
