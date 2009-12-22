@@ -52,8 +52,8 @@
 #define CONFIG_RT2800PCI_PCI
 #endif
 
-#ifdef CONFIG_RT2800PCI_WISOC_MODULE
-#define CONFIG_RT2800PCI_WISOC
+#ifdef CONFIG_RT2800PCI_SOC_MODULE
+#define CONFIG_RT2800PCI_SOC
 #endif
 
 /*
@@ -87,7 +87,7 @@ static void rt2800pci_mcu_status(struct rt2x00_dev *rt2x00dev, const u8 token)
 	rt2800_register_write(rt2x00dev, H2M_MAILBOX_CID, ~0);
 }
 
-#ifdef CONFIG_RT2800PCI_WISOC
+#ifdef CONFIG_RT2800PCI_SOC
 static void rt2800pci_read_eeprom_soc(struct rt2x00_dev *rt2x00dev)
 {
 	u32 *base_addr = (u32 *) KSEG1ADDR(0x1F040000); /* XXX for RT3052 */
@@ -98,7 +98,7 @@ static void rt2800pci_read_eeprom_soc(struct rt2x00_dev *rt2x00dev)
 static inline void rt2800pci_read_eeprom_soc(struct rt2x00_dev *rt2x00dev)
 {
 }
-#endif /* CONFIG_RT2800PCI_WISOC */
+#endif /* CONFIG_RT2800PCI_SOC */
 
 #ifdef CONFIG_RT2800PCI_PCI
 static void rt2800pci_eepromregister_read(struct eeprom_93cx6 *eeprom)
@@ -1251,7 +1251,7 @@ MODULE_DEVICE_TABLE(pci, rt2800pci_device_table);
 #endif /* CONFIG_RT2800PCI_PCI */
 MODULE_LICENSE("GPL");
 
-#ifdef CONFIG_RT2800PCI_WISOC
+#ifdef CONFIG_RT2800PCI_SOC
 #if defined(CONFIG_RALINK_RT288X)
 __rt2x00soc_probe(RT2880, &rt2800pci_ops);
 #elif defined(CONFIG_RALINK_RT305X)
@@ -1269,7 +1269,7 @@ static struct platform_driver rt2800soc_driver = {
 	.suspend	= rt2x00soc_suspend,
 	.resume		= rt2x00soc_resume,
 };
-#endif /* CONFIG_RT2800PCI_WISOC */
+#endif /* CONFIG_RT2800PCI_SOC */
 
 #ifdef CONFIG_RT2800PCI_PCI
 static struct pci_driver rt2800pci_driver = {
@@ -1286,7 +1286,7 @@ static int __init rt2800pci_init(void)
 {
 	int ret = 0;
 
-#ifdef CONFIG_RT2800PCI_WISOC
+#ifdef CONFIG_RT2800PCI_SOC
 	ret = platform_driver_register(&rt2800soc_driver);
 	if (ret)
 		return ret;
@@ -1294,7 +1294,7 @@ static int __init rt2800pci_init(void)
 #ifdef CONFIG_RT2800PCI_PCI
 	ret = pci_register_driver(&rt2800pci_driver);
 	if (ret) {
-#ifdef CONFIG_RT2800PCI_WISOC
+#ifdef CONFIG_RT2800PCI_SOC
 		platform_driver_unregister(&rt2800soc_driver);
 #endif
 		return ret;
@@ -1309,7 +1309,7 @@ static void __exit rt2800pci_exit(void)
 #ifdef CONFIG_RT2800PCI_PCI
 	pci_unregister_driver(&rt2800pci_driver);
 #endif
-#ifdef CONFIG_RT2800PCI_WISOC
+#ifdef CONFIG_RT2800PCI_SOC
 	platform_driver_unregister(&rt2800soc_driver);
 #endif
 }
