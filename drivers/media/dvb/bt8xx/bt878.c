@@ -582,7 +582,7 @@ static int bt878_pci_driver_registered;
 /* Module management functions */
 /*******************************/
 
-static int bt878_init_module(void)
+static int __init bt878_init_module(void)
 {
 	bt878_num = 0;
 	bt878_pci_driver_registered = 0;
@@ -600,7 +600,7 @@ static int bt878_init_module(void)
 	return pci_register_driver(&bt878_pci_driver);
 }
 
-static void bt878_cleanup_module(void)
+static void __exit bt878_cleanup_module(void)
 {
 	if (bt878_pci_driver_registered) {
 		bt878_pci_driver_registered = 0;
