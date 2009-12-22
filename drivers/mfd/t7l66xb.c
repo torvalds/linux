@@ -403,12 +403,12 @@ static int t7l66xb_probe(struct platform_device *dev)
 err_ioremap:
 	release_resource(&t7l66xb->rscr);
 err_request_scr:
-	kfree(t7l66xb);
 	clk_put(t7l66xb->clk48m);
 err_clk48m_get:
 	clk_put(t7l66xb->clk32k);
 err_clk32k_get:
 err_noirq:
+	kfree(t7l66xb);
 	return ret;
 }
 
