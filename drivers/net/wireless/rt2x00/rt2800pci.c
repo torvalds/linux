@@ -1121,8 +1121,7 @@ static int rt2800pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * This device requires firmware.
 	 */
-	if (!rt2x00_rt(&rt2x00dev->chip, RT2880) &&
-	    !rt2x00_rt(&rt2x00dev->chip, RT3052))
+	if (!rt2x00_rt(rt2x00dev, RT2880) && !rt2x00_rt(rt2x00dev, RT3052))
 		__set_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_DMA, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_L2PAD, &rt2x00dev->flags);
