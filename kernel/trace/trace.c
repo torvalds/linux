@@ -3949,7 +3949,7 @@ trace_options_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	if (!!(topt->flags->val & topt->opt->bit) != val) {
 		mutex_lock(&trace_types_lock);
 		ret = __set_tracer_option(current_trace, topt->flags,
-					  topt->opt, val);
+					  topt->opt, !val);
 		mutex_unlock(&trace_types_lock);
 		if (ret)
 			return ret;
