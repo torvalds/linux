@@ -17,6 +17,7 @@
 enum kmsg_dump_reason {
 	KMSG_DUMP_OOPS,
 	KMSG_DUMP_PANIC,
+	KMSG_DUMP_KEXEC,
 };
 
 /**

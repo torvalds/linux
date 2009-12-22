@@ -322,7 +322,7 @@ static void mtdoops_do_dump(struct kmsg_dumper *dumper,
 	memcpy(dst + l1_cpy, s2 + s2_start, l2_cpy);
 
 	/* Panics must be written immediately */
-	if (reason == KMSG_DUMP_PANIC) {
+	if (reason != KMSG_DUMP_OOPS) {
 		if (!cxt->mtd->panic_write)
 			printk(KERN_ERR "mtdoops: Cannot write from panic without panic_write\n");
 		else
