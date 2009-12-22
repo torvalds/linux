@@ -23,6 +23,6 @@
  */
 
 void allocator_free_dma(unsigned long address);
-unsigned long allocator_allocate_dma (unsigned long kilobytes, int priority);
+unsigned long allocator_allocate_dma(unsigned long kilobytes, int priority);
 int allocator_init(u_long *);
 void allocator_cleanup(void);
