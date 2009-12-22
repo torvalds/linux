@@ -922,14 +922,14 @@ static int send_cap_msg(struct ceph_mds_session *session,
 	if (IS_ERR(msg))
 		return PTR_ERR(msg);
 
-	fc = msg->front.iov_base;
+	msg->hdr.tid = cpu_to_le64(flush_tid);
 
+	fc = msg->front.iov_base;
 	memset(fc, 0, sizeof(*fc));
 
 	fc->cap_id = cpu_to_le64(cid);
 	fc->op = cpu_to_le32(op);
 	fc->seq = cpu_to_le32(seq);
-	fc->client_tid = cpu_to_le64(flush_tid);
 	fc->issue_seq = cpu_to_le32(issue_seq);
 	fc->migrate_seq = cpu_to_le32(mseq);
 	fc->caps = cpu_to_le32(caps);
@@ -2329,7 +2329,7 @@ restart:
  * Handle FLUSH_ACK from MDS, indicating that metadata we sent to the
  * MDS has been safely committed.
  */
-static void handle_cap_flush_ack(struct inode *inode,
+static void handle_cap_flush_ack(struct inode *inode, u64 flush_tid,
 				 struct ceph_mds_caps *m,
 				 struct ceph_mds_session *session,
 				 struct ceph_cap *cap)
@@ -2340,7 +2340,6 @@ static void handle_cap_flush_ack(struct inode *inode,
 	unsigned seq = le32_to_cpu(m->seq);
 	int dirty = le32_to_cpu(m->dirty);
 	int cleaned = 0;
-	u64 flush_tid = le64_to_cpu(m->client_tid);
 	int drop = 0;
 	int i;
 
@@ -2396,13 +2395,12 @@ out:
  *
  * Caller hold s_mutex.
  */
-static void handle_cap_flushsnap_ack(struct inode *inode,
+static void handle_cap_flushsnap_ack(struct inode *inode, u64 flush_tid,
 				     struct ceph_mds_caps *m,
 				     struct ceph_mds_session *session)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	u64 follows = le64_to_cpu(m->snap_follows);
-	u64 flush_tid = le64_to_cpu(m->client_tid);
 	struct ceph_cap_snap *capsnap;
 	int drop = 0;
 
@@ -2587,12 +2585,14 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	struct ceph_vino vino;
 	u64 cap_id;
 	u64 size, max_size;
+	u64 tid;
 	int check_caps = 0;
 	int r;
 
 	dout("handle_caps from mds%d\n", mds);
 
 	/* decode */
+	tid = le64_to_cpu(msg->hdr.tid);
 	if (msg->front.iov_len < sizeof(*h))
 		goto bad;
 	h = msg->front.iov_base;
@@ -2621,7 +2621,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	/* these will work even if we don't have a cap yet */
 	switch (op) {
 	case CEPH_CAP_OP_FLUSHSNAP_ACK:
-		handle_cap_flushsnap_ack(inode, h, session);
+		handle_cap_flushsnap_ack(inode, tid, h, session);
 		goto done;
 
 	case CEPH_CAP_OP_EXPORT:
@@ -2662,7 +2662,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 		break;
 
 	case CEPH_CAP_OP_FLUSH_ACK:
-		handle_cap_flush_ack(inode, h, session, cap);
+		handle_cap_flush_ack(inode, tid, h, session, cap);
 		break;
 
 	case CEPH_CAP_OP_TRUNC:

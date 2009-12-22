@@ -35,7 +35,7 @@
  * internal cluster protocols separately from the public,
  * client-facing protocol.
  */
-#define CEPH_OSD_PROTOCOL     7 /* cluster internal */
+#define CEPH_OSD_PROTOCOL     8 /* cluster internal */
 #define CEPH_MDS_PROTOCOL     9 /* cluster internal */
 #define CEPH_MON_PROTOCOL     5 /* cluster internal */
 #define CEPH_OSDC_PROTOCOL   22 /* server/client */
@@ -136,7 +136,6 @@ struct ceph_mon_request_header {
 struct ceph_mon_statfs {
 	struct ceph_mon_request_header monhdr;
 	struct ceph_fsid fsid;
-	__le64 tid;
 } __attribute__ ((packed));
 
 struct ceph_statfs {
@@ -146,7 +145,6 @@ struct ceph_statfs {
 
 struct ceph_mon_statfs_reply {
 	struct ceph_fsid fsid;
-	__le64 tid;
 	__le64 version;
 	struct ceph_statfs st;
 } __attribute__ ((packed));
@@ -333,7 +331,7 @@ union ceph_mds_request_args {
 #define CEPH_MDS_FLAG_WANT_DENTRY   2  /* want dentry in reply */
 
 struct ceph_mds_request_head {
-	__le64 tid, oldest_client_tid;
+	__le64 oldest_client_tid;
 	__le32 mdsmap_epoch;           /* on client */
 	__le32 flags;                  /* CEPH_MDS_FLAG_* */
 	__u8 num_retry, num_fwd;       /* count retry, fwd attempts */
@@ -356,7 +354,6 @@ struct ceph_mds_request_release {
 
 /* client reply */
 struct ceph_mds_reply_head {
-	__le64 tid;
 	__le32 op;
 	__le32 result;
 	__le32 mdsmap_epoch;
@@ -542,7 +539,6 @@ struct ceph_mds_caps {
 	__le32 migrate_seq;
 	__le64 snap_follows;
 	__le32 snap_trace_len;
-	__le64 client_tid;          /* for FLUSH(SNAP) -> FLUSH(SNAP)_ACK */
 
 	/* authlock */
 	__le32 uid, gid, mode;

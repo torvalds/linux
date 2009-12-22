@@ -439,11 +439,9 @@ static struct ceph_osd *__lookup_osd(struct ceph_osd_client *osdc, int o)
 static void register_request(struct ceph_osd_client *osdc,
 			     struct ceph_osd_request *req)
 {
-	struct ceph_osd_request_head *head = req->r_request->front.iov_base;
-
 	mutex_lock(&osdc->request_mutex);
 	req->r_tid = ++osdc->last_tid;
-	head->tid = cpu_to_le64(req->r_tid);
+	req->r_request->hdr.tid = cpu_to_le64(req->r_tid);
 
 	dout("register_request %p tid %lld\n", req, req->r_tid);
 	__insert_request(osdc, req);
@@ -702,9 +700,9 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg,
 	u64 tid;
 	int numops, object_len, flags;
 
+	tid = le64_to_cpu(msg->hdr.tid);
 	if (msg->front.iov_len < sizeof(*rhead))
 		goto bad;
-	tid = le64_to_cpu(rhead->tid);
 	numops = le32_to_cpu(rhead->num_ops);
 	object_len = le32_to_cpu(rhead->object_len);
 	if (msg->front.iov_len != sizeof(*rhead) + object_len +
@@ -1002,7 +1000,6 @@ static int prepare_pages(struct ceph_connection *con, struct ceph_msg *m,
 {
 	struct ceph_osd *osd = con->private;
 	struct ceph_osd_client *osdc;
-	struct ceph_osd_reply_head *rhead = m->front.iov_base;
 	struct ceph_osd_request *req;
 	u64 tid;
 	int ret = -1;
@@ -1016,7 +1013,7 @@ static int prepare_pages(struct ceph_connection *con, struct ceph_msg *m,
 	if (unlikely(type != CEPH_MSG_OSD_OPREPLY))
 		return -1;  /* hmm! */
 
-	tid = le64_to_cpu(rhead->tid);
+	tid = le64_to_cpu(m->hdr.tid);
 	mutex_lock(&osdc->request_mutex);
 	req = __lookup_request(osdc, tid);
 	if (!req) {

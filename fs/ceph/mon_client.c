@@ -349,7 +349,7 @@ static void handle_statfs_reply(struct ceph_mon_client *monc,
 
 	if (msg->front.iov_len != sizeof(*reply))
 		goto bad;
-	tid = le64_to_cpu(reply->tid);
+	tid = le64_to_cpu(msg->hdr.tid);
 	dout("handle_statfs_reply %p tid %llu\n", msg, tid);
 
 	mutex_lock(&monc->mutex);
@@ -382,12 +382,12 @@ static int send_statfs(struct ceph_mon_client *monc,
 	if (IS_ERR(msg))
 		return PTR_ERR(msg);
 	req->request = msg;
+	msg->hdr.tid = cpu_to_le64(req->tid);
 	h = msg->front.iov_base;
 	h->monhdr.have_version = 0;
 	h->monhdr.session_mon = cpu_to_le16(-1);
 	h->monhdr.session_mon_tid = 0;
 	h->fsid = monc->monmap->fsid;
-	h->tid = cpu_to_le64(req->tid);
 	ceph_con_send(monc->con, msg);
 	return 0;
 }

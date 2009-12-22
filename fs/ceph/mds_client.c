@@ -1339,6 +1339,8 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	if (IS_ERR(msg))
 		goto out_free2;
 
+	msg->hdr.tid = cpu_to_le64(req->r_tid);
+
 	head = msg->front.iov_base;
 	p = msg->front.iov_base + sizeof(*head);
 	end = msg->front.iov_base + msg->front.iov_len;
@@ -1431,7 +1433,6 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 	req->r_request = msg;
 
 	rhead = msg->front.iov_base;
-	rhead->tid = cpu_to_le64(req->r_tid);
 	rhead->oldest_client_tid = cpu_to_le64(__get_oldest_tid(mdsc));
 	if (req->r_got_unsafe)
 		flags |= CEPH_MDS_FLAG_REPLAY;
@@ -1664,7 +1665,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	}
 
 	/* get request, session */
-	tid = le64_to_cpu(head->tid);
+	tid = le64_to_cpu(msg->hdr.tid);
 	mutex_lock(&mdsc->mutex);
 	req = __lookup_request(mdsc, tid);
 	if (!req) {

@@ -331,7 +331,6 @@ struct ceph_osd_op {
  * ceph_osd_op object operations.
  */
 struct ceph_osd_request_head {
-	__le64 tid;                        /* transaction id */
 	__le32 client_inc;                 /* client incarnation */
 	struct ceph_object_layout layout;  /* pgid */
 	__le32 osdmap_epoch;               /* client's osdmap epoch */
@@ -352,7 +351,6 @@ struct ceph_osd_request_head {
 } __attribute__ ((packed));
 
 struct ceph_osd_reply_head {
-	__le64 tid;                       /* transaction id */
 	__le32 client_inc;                /* client incarnation */
 	__le32 flags;
 	struct ceph_object_layout layout;
