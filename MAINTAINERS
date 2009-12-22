@@ -1470,6 +1470,12 @@ L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/fnic/
 
+CMPC ACPI DRIVER
+M:	Thadeu Lima de Souza Cascardo <cascardo@holoscopio.com>
+M:	Daniel Oliveira Nascimento <don@syst.com.br>
+S:	Supported
+F:	drivers/platform/x86/classmate-laptop.c
+
 CODA FILE SYSTEM
 M:	Jan Harkes <jaharkes@cs.cmu.edu>
 M:	coda@cs.cmu.edu

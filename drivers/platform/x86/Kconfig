@@ -464,4 +464,16 @@ config TOSHIBA_BT_RFKILL
 
 	  If you have a modern Toshiba laptop with a Bluetooth and an
 	  RFKill switch (such as the Portege R500), say Y.
+
+config ACPI_CMPC
+	tristate "CMPC Laptop Extras"
+	depends on X86 && ACPI
+	select INPUT
+	select BACKLIGHT_CLASS_DEVICE
+	default n
+	help
+	  Support for Intel Classmate PC ACPI devices, including some
+	  keys as input device, backlight device, tablet and accelerometer
+	  devices.
+
 endif # X86_PLATFORM_DEVICES
