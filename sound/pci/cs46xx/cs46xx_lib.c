@@ -3597,7 +3597,7 @@ static struct cs_card_type __devinitdata cards[] = {
 #ifdef CONFIG_PM
 static unsigned int saved_regs[] = {
 	BA0_ACOSV,
-	BA0_ASER_FADDR,
+	/*BA0_ASER_FADDR,*/
 	BA0_ASER_MASTER,
 	BA1_PVOL,
 	BA1_CVOL,
