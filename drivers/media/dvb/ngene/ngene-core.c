@@ -2466,7 +2466,7 @@ static void release_channel(struct ngene_channel *chan)
 static int init_channel(struct ngene_channel *chan)
 {
 	int ret = 0, nr = chan->number;
-	struct dvb_adapter *adapter = 0;
+	struct dvb_adapter *adapter = NULL;
 	struct dvb_demux *dvbdemux = &chan->demux;
 	struct ngene *dev = chan->dev;
 	struct ngene_info *ni = dev->card_info;
