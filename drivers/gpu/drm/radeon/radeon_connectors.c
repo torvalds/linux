@@ -208,6 +208,18 @@ static struct drm_display_mode *radeon_fp_native_mode(struct drm_encoder *encode
 		drm_mode_set_name(mode);
 
 		DRM_DEBUG("Adding native panel mode %s\n", mode->name);
+	} else if (native_mode->hdisplay != 0 &&
+		   native_mode->vdisplay != 0) {
+		/* mac laptops without an edid */
+		/* Note that this is not necessarily the exact panel mode,
+		 * but an approximation based on the cvt formula.  For these
+		 * systems we should ideally read the mode info out of the
+		 * registers or add a mode table, but this works and is much
+		 * simpler.
+		 */
+		mode = drm_cvt_mode(dev, native_mode->hdisplay, native_mode->vdisplay, 60, true, false, false);
+		mode->type = DRM_MODE_TYPE_PREFERRED | DRM_MODE_TYPE_DRIVER;
+		DRM_DEBUG("Adding cvt approximation of native panel mode %s\n", mode->name);
 	}
 	return mode;
 }
