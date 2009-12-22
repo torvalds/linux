@@ -746,6 +746,8 @@ void musb_g_rx(struct musb *musb, u8 epnum)
 	musb_ep_select(mbase, epnum);
 
 	request = next_request(musb_ep);
+	if (!request)
+		return;
 
 	csr = musb_readw(epio, MUSB_RXCSR);
 	dma = is_dma_capable() ? musb_ep->dma : NULL;
