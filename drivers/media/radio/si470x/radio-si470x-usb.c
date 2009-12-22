@@ -590,8 +590,9 @@ int si470x_fops_release(struct file *file)
 			video_unregister_device(radio->videodev);
 			kfree(radio->int_in_buffer);
 			kfree(radio->buffer);
+			mutex_unlock(&radio->disconnect_lock);
 			kfree(radio);
-			goto unlock;
+			goto done;
 		}
 
 		/* cancel read processes */
@@ -601,7 +602,6 @@ int si470x_fops_release(struct file *file)
 		retval = si470x_stop(radio);
 		usb_autopm_put_interface(radio->intf);
 	}
-unlock:
 	mutex_unlock(&radio->disconnect_lock);
 done:
 	return retval;
