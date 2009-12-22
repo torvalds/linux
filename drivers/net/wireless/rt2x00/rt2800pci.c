@@ -48,14 +48,6 @@
 #include "rt2800.h"
 #include "rt2800pci.h"
 
-#ifdef CONFIG_RT2800PCI_PCI_MODULE
-#define CONFIG_RT2800PCI_PCI
-#endif
-
-#ifdef CONFIG_RT2800PCI_SOC_MODULE
-#define CONFIG_RT2800PCI_SOC
-#endif
-
 /*
  * Allow hardware encryption to be disabled.
  */
