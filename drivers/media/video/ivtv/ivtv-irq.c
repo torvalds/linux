@@ -940,9 +940,10 @@ irqreturn_t ivtv_irq_handler(int irq, void *dev_id)
 				ivtv_dma_enc_start(s);
 			break;
 		}
-		if (i == IVTV_MAX_STREAMS && test_and_clear_bit(IVTV_F_I_UDMA_PENDING, &itv->i_flags)) {
+
+		if (i == IVTV_MAX_STREAMS &&
+		    test_bit(IVTV_F_I_UDMA_PENDING, &itv->i_flags))
 			ivtv_udma_start(itv);
-		}
 	}
 
 	if ((combo & IVTV_IRQ_DMA) && !test_bit(IVTV_F_I_PIO, &itv->i_flags)) {
