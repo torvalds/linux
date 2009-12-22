@@ -642,6 +642,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	if (rdev->family >= CHIP_R600)
 		spin_lock_init(&rdev->ih.lock);
 	mutex_init(&rdev->gem.mutex);
+	mutex_init(&rdev->pm.mutex);
 	rwlock_init(&rdev->fence_drv.lock);
 	INIT_LIST_HEAD(&rdev->gem.objects);
 

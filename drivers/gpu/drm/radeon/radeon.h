@@ -89,6 +89,7 @@ extern int radeon_testing;
 extern int radeon_connector_table;
 extern int radeon_tv;
 extern int radeon_new_pll;
+extern int radeon_dynpm;
 extern int radeon_audio;
 
 /*
@@ -148,6 +149,7 @@ struct radeon_clock {
  * Power management
  */
 int radeon_pm_init(struct radeon_device *rdev);
+void radeon_pm_compute_clocks(struct radeon_device *rdev);
 
 /*
  * Fences.
@@ -569,7 +571,33 @@ struct radeon_wb {
  * Equation between gpu/memory clock and available bandwidth is hw dependent
  * (type of memory, bus size, efficiency, ...)
  */
+enum radeon_pm_state {
+	PM_STATE_DISABLED,
+	PM_STATE_MINIMUM,
+	PM_STATE_PAUSED,
+	PM_STATE_ACTIVE
+};
+enum radeon_pm_action {
+	PM_ACTION_NONE,
+	PM_ACTION_MINIMUM,
+	PM_ACTION_DOWNCLOCK,
+	PM_ACTION_UPCLOCK
+};
 struct radeon_pm {
+	struct mutex		mutex;
+	struct work_struct	reclock_work;
+	struct delayed_work	idle_work;
+	enum radeon_pm_state	state;
+	enum radeon_pm_action	planned_action;
+	unsigned long		action_timeout;
+	bool 			downclocked;
+	bool			vblank_callback;
+	int			active_crtcs;
+	int			req_vblank;
+	uint32_t		min_gpu_engine_clock;
+	uint32_t		min_gpu_memory_clock;
+	uint32_t		min_mode_engine_clock;
+	uint32_t		min_mode_memory_clock;
 	fixed20_12		max_bandwidth;
 	fixed20_12		igp_sideport_mclk;
 	fixed20_12		igp_system_mclk;
