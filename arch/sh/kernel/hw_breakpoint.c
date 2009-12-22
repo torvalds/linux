@@ -398,7 +398,16 @@ BUILD_TRAP_HANDLER(breakpoint)
 int __kprobes hw_breakpoint_exceptions_notify(struct notifier_block *unused,
 				    unsigned long val, void *data)
 {
+	struct die_args *args = data;
+
 	if (val != DIE_BREAKPOINT)
+		return NOTIFY_DONE;
+
+	/*
+	 * If the breakpoint hasn't been triggered by the UBC, it's
+	 * probably from a debugger, so don't do anything more here.
+	 */
+	if (args->trapnr != 0x1e0)
 		return NOTIFY_DONE;
 
 	return hw_breakpoint_handler(data);
