@@ -1279,7 +1279,7 @@ static int serial_imx_probe(struct platform_device *pdev)
 		sport->use_irda = 1;
 #endif
 
-	if (pdata->init) {
+	if (pdata && pdata->init) {
 		ret = pdata->init(pdev);
 		if (ret)
 			goto clkput;
@@ -1292,7 +1292,7 @@ static int serial_imx_probe(struct platform_device *pdev)
 
 	return 0;
 deinit:
-	if (pdata->exit)
+	if (pdata && pdata->exit)
 		pdata->exit(pdev);
 clkput:
 	clk_put(sport->clk);
@@ -1321,7 +1321,7 @@ static int serial_imx_remove(struct platform_device *pdev)
 
 	clk_disable(sport->clk);
 
-	if (pdata->exit)
+	if (pdata && pdata->exit)
 		pdata->exit(pdev);
 
 	iounmap(sport->port.membase);
