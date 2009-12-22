@@ -1071,8 +1071,9 @@ int ceph_osdc_wait_request(struct ceph_osd_client *osdc,
 	if (rc < 0) {
 		mutex_lock(&osdc->request_mutex);
 		__cancel_request(req);
+		__unregister_request(osdc, req);
 		mutex_unlock(&osdc->request_mutex);
-		dout("wait_request tid %llu timed out\n", req->r_tid);
+		dout("wait_request tid %llu canceled/timed out\n", req->r_tid);
 		return rc;
 	}
 
