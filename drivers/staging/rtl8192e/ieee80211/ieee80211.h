@@ -180,6 +180,8 @@ typedef struct cb_desc {
         u8 DrvAggrNum;
 	u16 pkt_size;
         u8 reserved12;
+
+	u8 bdhcp;
 }cb_desc, *pcb_desc;
 
 /*--------------------------Define -------------------------------------------*/
@@ -740,6 +742,8 @@ struct ieee80211_snap_hdr {
 #define WLAN_FC_GET_VERS(fc) ((fc) & IEEE80211_FCTL_VERS)
 #define WLAN_FC_GET_TYPE(fc) ((fc) & IEEE80211_FCTL_FTYPE)
 #define WLAN_FC_GET_STYPE(fc) ((fc) & IEEE80211_FCTL_STYPE)
+#define WLAN_FC_MORE_DATA(fc) ((fc) & IEEE80211_FCTL_MOREDATA)
+
 
 #define WLAN_FC_GET_FRAMETYPE(fc) ((fc) & IEEE80211_FCTL_FRAMETYPE)
 #define WLAN_GET_SEQ_FRAG(seq) ((seq) & IEEE80211_SCTL_FRAG)
@@ -1052,7 +1056,7 @@ struct ieee80211_device;
 #define SEC_ALG_NONE            0
 #define SEC_ALG_WEP             1
 #define SEC_ALG_TKIP            2
-#define SEC_ALG_CCMP            3
+#define SEC_ALG_CCMP            4
 
 #define WEP_KEYS 		4
 #define WEP_KEY_LEN		13
@@ -1121,6 +1125,14 @@ enum ieee80211_mfie {
 /* Minimal header; can be used for passing 802.11 frames with sufficient
  * information to determine what type of underlying data type is actually
  * stored in the data. */
+ struct ieee80211_pspoll_hdr {
+        __le16 frame_ctl;
+        __le16 aid;
+	u8 bssid[ETH_ALEN];
+        u8 ta[ETH_ALEN];
+        //u8 payload[0];
+} __attribute__ ((packed));
+
 struct ieee80211_hdr {
         __le16 frame_ctl;
         __le16 duration_id;
@@ -1657,6 +1669,7 @@ struct ieee80211_network {
 	bool ralink_cap_exist;
 	bool atheros_cap_exist;
 	bool cisco_cap_exist;
+	bool marvell_cap_exist;
 	bool unknown_cap_exist;
 //	u8	berp_info;
 	bool	berp_info_valid;
@@ -1862,6 +1875,19 @@ typedef struct _RT_POWER_SAVE_CONTROL
 	// Leisre Poswer Save : Disable RF if connected but traffic is not busy
 	//
 	bool				bLeisurePs;
+	u32				PowerProfile;
+	u8				LpsIdleCount;
+	u8				RegMaxLPSAwakeIntvl;
+	u8				LPSAwakeIntvl;
+
+	u32				CurPsLevel;
+	u32				RegRfPsLevel;
+
+	bool				bFwCtrlLPS;
+	u8				FWCtrlPSMode;
+
+	bool				LinkReqInIPSRFOffPgs;
+	bool				BufConnectinfoBefore;
 
 }RT_POWER_SAVE_CONTROL,*PRT_POWER_SAVE_CONTROL;
 
@@ -1902,13 +1928,120 @@ typedef struct _RT_LINK_DETECT_T{
 
 	u32				NumTxOkInPeriod;
 	u32				NumRxOkInPeriod;
+	u32				NumRxUnicastOkInPeriod;
 	bool				bBusyTraffic;
 }RT_LINK_DETECT_T, *PRT_LINK_DETECT_T;
 
+//added by amy 090330
+typedef enum _HW_VARIABLES{
+	HW_VAR_ETHER_ADDR,
+	HW_VAR_MULTICAST_REG,
+	HW_VAR_BASIC_RATE,
+	HW_VAR_BSSID,
+	HW_VAR_MEDIA_STATUS,
+	HW_VAR_SECURITY_CONF,
+	HW_VAR_BEACON_INTERVAL,
+	HW_VAR_ATIM_WINDOW,
+	HW_VAR_LISTEN_INTERVAL,
+	HW_VAR_CS_COUNTER,
+	HW_VAR_DEFAULTKEY0,
+	HW_VAR_DEFAULTKEY1,
+	HW_VAR_DEFAULTKEY2,
+	HW_VAR_DEFAULTKEY3,
+	HW_VAR_SIFS,
+	HW_VAR_DIFS,
+	HW_VAR_EIFS,
+	HW_VAR_SLOT_TIME,
+	HW_VAR_ACK_PREAMBLE,
+	HW_VAR_CW_CONFIG,
+	HW_VAR_CW_VALUES,
+	HW_VAR_RATE_FALLBACK_CONTROL,
+	HW_VAR_CONTENTION_WINDOW,
+	HW_VAR_RETRY_COUNT,
+	HW_VAR_TR_SWITCH,
+	HW_VAR_COMMAND,			// For Command Register, Annie, 2006-04-07.
+	HW_VAR_WPA_CONFIG,		//2004/08/23, kcwu, for 8187 Security config
+	HW_VAR_AMPDU_MIN_SPACE,	// The spacing between sub-frame. Roger, 2008.07.04.
+	HW_VAR_SHORTGI_DENSITY,	// The density for shortGI. Roger, 2008.07.04.
+	HW_VAR_AMPDU_FACTOR,
+	HW_VAR_MCS_RATE_AVAILABLE,
+	HW_VAR_AC_PARAM,			// For AC Parameters, 2005.12.01, by rcnjko.
+	HW_VAR_ACM_CTRL,			// For ACM Control, Annie, 2005-12-13.
+	HW_VAR_DIS_Req_Qsize,		// For DIS_Reg_Qsize, Joseph
+	HW_VAR_CCX_CHNL_LOAD,		// For CCX 2 channel load request, 2006.05.04.
+	HW_VAR_CCX_NOISE_HISTOGRAM,	// For CCX 2 noise histogram request, 2006.05.04.
+	HW_VAR_CCX_CLM_NHM,			// For CCX 2 parallel channel load request and noise histogram request, 2006.05.12.
+	HW_VAR_TxOPLimit,				// For turbo mode related settings, added by Roger, 2006.12.07
+	HW_VAR_TURBO_MODE,			// For turbo mode related settings, added by Roger, 2006.12.15.
+	HW_VAR_RF_STATE, 			// For change or query RF power state, 061214, rcnjko.
+	HW_VAR_RF_OFF_BY_HW,		// For UI to query if external HW signal disable RF, 061229, rcnjko.
+	HW_VAR_BUS_SPEED, 		// In unit of bps. 2006.07.03, by rcnjko.
+        HW_VAR_SET_DEV_POWER,	// Set to low power, added by LanHsin, 2007.
+
+	//1!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	//1Attention Please!!!<11n or 8190 specific code should be put below this line>
+	//1!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	HW_VAR_RCR,				//for RCR, David 2006,05,11
+	HW_VAR_RATR_0,
+	HW_VAR_RRSR,
+	HW_VAR_CPU_RST,
+	HW_VAR_CECHK_BSSID,
+        HW_VAR_LBK_MODE,			// Set lookback mode, 2008.06.11. added by Roger.
+	// Set HW related setting for 11N AES bug.
+	HW_VAR_AES_11N_FIX,
+	// Set Usb Rx Aggregation
+	HW_VAR_USB_RX_AGGR,
+	HW_VAR_USER_CONTROL_TURBO_MODE,
+	HW_VAR_RETRY_LIMIT,
+#ifndef _RTL8192_EXT_PATCH_
+	HW_VAR_INIT_TX_RATE,  //Get Current Tx rate register. 2008.12.10. Added by tynli
+#endif
+	HW_VAR_TX_RATE_REG,  //Get Current Tx rate register. 2008.12.10. Added by tynli
+	HW_VAR_EFUSE_USAGE, //Get current EFUSE utilization. 2008.12.19. Added by Roger.
+	HW_VAR_EFUSE_BYTES,
+	HW_VAR_AUTOLOAD_STATUS, //Get current autoload status, 0: autoload success, 1: autoload fail. 2008.12.19. Added by Roger.
+	HW_VAR_RF_2R_DISABLE, // 2R disable
+	HW_VAR_SET_RPWM,
+	HW_VAR_H2C_FW_PWRMODE, // For setting FW related H2C cmd structure. by tynli. 2009.2.18
+	HW_VAR_H2C_FW_JOINBSSRPT, // For setting FW related H2C cmd structure. by tynli. 2009.2.18
+	HW_VAR_1X1_RECV_COMBINE,	// For 1T2R but only 1SS, Add by hpfan 2009.04.16 hpfan
+	HW_VAR_STOP_SEND_BEACON,
+	HW_VAR_TSF_TIMER,			// Read from TSF register to get the current TSF timer, by Bruce, 2009-07-22.
+	HW_VAR_IO_CMD,
+	HW_VAR_HANDLE_FW_C2H,		//Added by tynli. For handling FW C2H command. 2009.10.07.
+	HW_VAR_DL_FW_RSVD_PAGE, 		//Added by tynli. Download the packets that FW will use to RSVD page. 2009.10.14.
+	HW_VAR_AID,				//Added by tynli.
+	HW_VAR_HW_SEQ_ENABLE,		//Added by tynli. 2009.10.20.
+	HW_VAR_UPDATE_TSF,			//Added by tynli. 2009.10.22. For Hw count TBTT time.
+	HW_VAR_BCN_VALID,				//Added by tynli.
+	HW_VAR_FWLPS_RF_ON			//Added by tynli. 2009.11.09. For checking if Fw finishs RF on sequence.
+}HW_VARIABLES;
+
+#define RT_CHECK_FOR_HANG_PERIOD 2
 
 struct ieee80211_device {
 	struct net_device *dev;
         struct ieee80211_security sec;
+
+	bool	need_sw_enc;
+#ifdef ENABLE_LPS
+	bool bAwakePktSent;
+	u8  LPSDelayCnt;
+	bool bIsAggregateFrame;
+	bool polling;
+	void (*LeisurePSLeave)(struct net_device *dev);
+#endif
+
+#ifdef ENABLE_IPS
+	bool proto_stoppping;
+	bool wx_set_enc;
+	struct semaphore ips_sem;
+	struct work_struct ips_leave_wq;
+        void (*ieee80211_ips_leave_wq) (struct net_device *dev);
+        void (*ieee80211_ips_leave)(struct net_device *dev);
+#endif
+	void (*SetHwRegHandler)(struct net_device *dev,u8 variable,u8* val);
+	u8   (*rtllib_ap_sec_type)(struct ieee80211_device *ieee);
 
 	//hw security related
 //	u8 hwsec_support; //support?
@@ -2316,7 +2449,7 @@ struct ieee80211_device {
 	 * stop_send_bacons is NOT guaranteed to be called only
 	 * after start_send_beacons.
 	 */
-	void (*start_send_beacons) (struct net_device *dev,u16 tx_rate);
+	void (*start_send_beacons) (struct net_device *dev);
 	void (*stop_send_beacons) (struct net_device *dev);
 
 	/* power save mode related */
@@ -2369,6 +2502,19 @@ struct ieee80211_device {
 	 * allocated beyond this structure by alloc_ieee80211 */
 	u8 priv[0];
 };
+
+#define	RT_RF_OFF_LEVL_ASPM			BIT0	// PCI ASPM
+#define	RT_RF_OFF_LEVL_CLK_REQ		BIT1	// PCI clock request
+#define	RT_RF_OFF_LEVL_PCI_D3			BIT2	// PCI D3 mode
+#define	RT_RF_OFF_LEVL_HALT_NIC		BIT3	// NIC halt, re-initialize hw parameters
+#define	RT_RF_OFF_LEVL_FREE_FW		BIT4	// FW free, re-download the FW
+#define	RT_RF_OFF_LEVL_FW_32K		BIT5	// FW in 32k
+#define	RT_RF_PS_LEVEL_ALWAYS_ASPM	BIT6	// Always enable ASPM and Clock Req in initialization.
+#define	RT_RF_LPS_DISALBE_2R			BIT30	// When LPS is on, disable 2R if no packet is received or transmittd.
+#define	RT_RF_LPS_LEVEL_ASPM			BIT31	// LPS with ASPM
+#define	RT_IN_PS_LEVEL(pPSC, _PS_FLAG)	((pPSC->CurPsLevel & _PS_FLAG) ? true : false)
+#define	RT_CLEAR_PS_LEVEL(pPSC, _PS_FLAG)	(pPSC->CurPsLevel &= (~(_PS_FLAG)))
+#define	RT_SET_PS_LEVEL(pPSC, _PS_FLAG)	(pPSC->CurPsLevel |= _PS_FLAG)
 
 #define IEEE_A            (1<<0)
 #define IEEE_B            (1<<1)
@@ -2606,9 +2752,9 @@ extern void ieee80211_stop_scan(struct ieee80211_device *ieee);
 extern void ieee80211_start_scan_syncro(struct ieee80211_device *ieee);
 extern void ieee80211_check_all_nets(struct ieee80211_device *ieee);
 extern void ieee80211_start_protocol(struct ieee80211_device *ieee);
-extern void ieee80211_stop_protocol(struct ieee80211_device *ieee);
+extern void ieee80211_stop_protocol(struct ieee80211_device *ieee,u8 shutdown);
 extern void ieee80211_softmac_start_protocol(struct ieee80211_device *ieee);
-extern void ieee80211_softmac_stop_protocol(struct ieee80211_device *ieee);
+extern void ieee80211_softmac_stop_protocol(struct ieee80211_device *ieee,u8 shutdown);
 extern void ieee80211_reset_queue(struct ieee80211_device *ieee);
 extern void ieee80211_rtl_wake_queue(struct ieee80211_device *ieee);
 extern void ieee80211_rtl_stop_queue(struct ieee80211_device *ieee);
@@ -2795,5 +2941,7 @@ extern int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 		struct ieee80211_rx_stats *stats);
 
 void ieee80211_indicate_packets(struct ieee80211_device *ieee, struct ieee80211_rxb** prxbIndicateArray,u8  index);
+void ieee80211_sta_ps_send_null_frame(struct ieee80211_device *ieee, short pwr);
+void ieee80211_sta_ps_send_pspoll_frame(struct ieee80211_device *ieee);
 #define RT_ASOC_RETRY_LIMIT	5
 #endif /* IEEE80211_H */

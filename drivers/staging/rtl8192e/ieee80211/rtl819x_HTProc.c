@@ -32,7 +32,7 @@ u16 MCS_DATA_RATE[2][2][77] =
 static u8 UNKNOWN_BORADCOM[3] = {0x00, 0x14, 0xbf};
 static u8 LINKSYSWRT330_LINKSYSWRT300_BROADCOM[3] = {0x00, 0x1a, 0x70};
 static u8 LINKSYSWRT350_LINKSYSWRT150_BROADCOM[3] = {0x00, 0x1d, 0x7e};
-static u8 NETGEAR834Bv2_BROADCOM[3] = {0x00, 0x1b, 0x2f};
+//static u8 NETGEAR834Bv2_BROADCOM[3] = {0x00, 0x1b, 0x2f};
 static u8 BELKINF5D8233V1_RALINK[3] = {0x00, 0x17, 0x3f};	//cosa 03202008
 static u8 BELKINF5D82334V3_RALINK[3] = {0x00, 0x1c, 0xdf};
 static u8 PCI_RALINK[3] = {0x00, 0x90, 0xcc};
@@ -40,6 +40,7 @@ static u8 EDIMAX_RALINK[3] = {0x00, 0x0e, 0x2e};
 static u8 AIRLINK_RALINK[3] = {0x00, 0x18, 0x02};
 static u8 DLINK_ATHEROS[3] = {0x00, 0x1c, 0xf0};
 static u8 CISCO_BROADCOM[3] = {0x00, 0x17, 0x94};
+static u8 LINKSYS_MARVELL_4400N[3] = {0x00, 0x14, 0xa4};
 
 // 2008/04/01 MH For Cisco G mode RX TP We need to change FW duration. Shoud we put the
 // code in other place??
@@ -349,12 +350,12 @@ bool IsHTHalfNmodeAPs(struct ieee80211_device* ieee)
 	bool			retValue = false;
 	struct ieee80211_network* net = &ieee->current_network;
 #if 0
-	if(pMgntInfo->bHalfNMode == false)
+	if(ieee->bHalfNMode == false)
 		retValue = false;
 	else
 #endif
 	if((memcmp(net->bssid, BELKINF5D8233V1_RALINK, 3)==0) ||
-		     (memcmp(net->bssid, BELKINF5D82334V3_RALINK, 3)==0) ||
+	   	     (memcmp(net->bssid, BELKINF5D82334V3_RALINK, 3)==0) ||
 		     (memcmp(net->bssid, PCI_RALINK, 3)==0) ||
 		     (memcmp(net->bssid, EDIMAX_RALINK, 3)==0) ||
 		     (memcmp(net->bssid, AIRLINK_RALINK, 3)==0) ||
@@ -363,7 +364,7 @@ bool IsHTHalfNmodeAPs(struct ieee80211_device* ieee)
 	else if((memcmp(net->bssid, UNKNOWN_BORADCOM, 3)==0) ||
     		    (memcmp(net->bssid, LINKSYSWRT330_LINKSYSWRT300_BROADCOM, 3)==0)||
     		    (memcmp(net->bssid, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3)==0)||
-    		    (memcmp(net->bssid, NETGEAR834Bv2_BROADCOM, 3)==0) ||
+    		    //(memcmp(net->bssid, NETGEAR834Bv2_BROADCOM, 3)==0) ||
     		    (net->broadcom_cap_exist))
     		  retValue = true;
 	else if(net->bssht.bdRT2RTAggregation)
@@ -387,13 +388,15 @@ void HTIOTPeerDetermine(struct ieee80211_device* ieee)
 	struct ieee80211_network* net = &ieee->current_network;
 	if(net->bssht.bdRT2RTAggregation)
 		pHTInfo->IOTPeer = HT_IOT_PEER_REALTEK;
-	else if(net->broadcom_cap_exist)
+	else if(net->broadcom_cap_exist){
 		pHTInfo->IOTPeer = HT_IOT_PEER_BROADCOM;
+	}
 	else if((memcmp(net->bssid, UNKNOWN_BORADCOM, 3)==0) ||
 			(memcmp(net->bssid, LINKSYSWRT330_LINKSYSWRT300_BROADCOM, 3)==0)||
-			(memcmp(net->bssid, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3)==0)||
-			(memcmp(net->bssid, NETGEAR834Bv2_BROADCOM, 3)==0) )
+			(memcmp(net->bssid, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3)==0)){//||
+			//(memcmp(net->bssid, NETGEAR834Bv2_BROADCOM, 3)==0) ){
 		pHTInfo->IOTPeer = HT_IOT_PEER_BROADCOM;
+	}
 	else if((memcmp(net->bssid, BELKINF5D8233V1_RALINK, 3)==0) ||
 			(memcmp(net->bssid, BELKINF5D82334V3_RALINK, 3)==0) ||
 			(memcmp(net->bssid, PCI_RALINK, 3)==0) ||
@@ -405,6 +408,10 @@ void HTIOTPeerDetermine(struct ieee80211_device* ieee)
 		pHTInfo->IOTPeer = HT_IOT_PEER_ATHEROS;
 	else if(memcmp(net->bssid, CISCO_BROADCOM, 3)==0)
 		pHTInfo->IOTPeer = HT_IOT_PEER_CISCO;
+        else if ((memcmp(net->bssid, LINKSYS_MARVELL_4400N, 3) == 0) ||
+			net->marvell_cap_exist){
+		pHTInfo->IOTPeer = HT_IOT_PEER_MARVELL;
+	}
 	else
 		pHTInfo->IOTPeer = HT_IOT_PEER_UNKNOWN;
 
@@ -441,6 +448,18 @@ u8 HTIOTActIsDisableMCS14(struct ieee80211_device* ieee, u8* PeerMacAddr)
 #endif
 	return ret;
  }
+
+u8 HTIOTActIsForcedCTS2Self(struct ieee80211_device *ieee, struct ieee80211_network *network)
+{
+        u8      retValue = 0;
+        //if(network->marvell_cap_exist)
+        if(ieee->pHTInfo->IOTPeer == HT_IOT_PEER_MARVELL)
+        {
+                retValue = 1;
+        }
+
+        return retValue;
+}
 
 
 /**
@@ -575,6 +594,23 @@ u8 HTIOTActIsCCDFsync(u8* PeerMacAddr)
 		retValue = 1;
 	}
 
+	return retValue;
+}
+
+//
+//  Send null data for to tell AP that we are awake.
+//
+bool
+HTIOTActIsNullDataPowerSaving(struct ieee80211_device* ieee,struct ieee80211_network *network)
+{
+	bool	retValue = false;
+
+	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
+	{
+		if(pHTInfo->IOTPeer == HT_IOT_PEER_BROADCOM) // ||(pBssDesc->Vender == HT_IOT_PEER_ATHEROS && pBssDesc->SubTypeOfVender == HT_IOT_PEER_ATHEROS_DIR635))
+			return true;
+
+	}
 	return retValue;
 }
 
@@ -1071,6 +1107,13 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 	// Config and configure A-MSDU setting
 	//
 	pHTInfo->bCurrent_AMSDU_Support = pHTInfo->bAMSDU_Support;
+        if (ieee->rtllib_ap_sec_type &&
+           (ieee->rtllib_ap_sec_type(ieee)&(SEC_ALG_WEP|SEC_ALG_TKIP))){
+                if( (pHTInfo->IOTPeer== HT_IOT_PEER_ATHEROS) ||
+                                (pHTInfo->IOTPeer == HT_IOT_PEER_UNKNOWN) )
+                        pHTInfo->bCurrentAMPDUEnable = false;
+        }
+
 
 	nMaxAMSDUSize = (pPeerHTCap->MaxAMSDUSize==0)?3839:7935;
 
@@ -1515,6 +1558,9 @@ void HTResetSelfAndSavePeerSetting(struct ieee80211_device* ieee, 	struct ieee80
 		bIOTAction = HTIOTActIsDisableMCS14(ieee, pNetwork->bssid);
 		if(bIOTAction)
 			pHTInfo->IOTAction |= HT_IOT_ACT_DISABLE_MCS14;
+		bIOTAction = HTIOTActIsForcedCTS2Self(ieee, pNetwork);
+		if(bIOTAction)
+			pHTInfo->IOTAction |= HT_IOT_ACT_FORCED_CTS2SELF;
 
 		bIOTAction = HTIOTActIsDisableMCS15(ieee);
 		if(bIOTAction)
@@ -1537,6 +1583,9 @@ void HTResetSelfAndSavePeerSetting(struct ieee80211_device* ieee, 	struct ieee80
 		if(bIOTAction)
 			pHTInfo->IOTAction |= HT_IOT_ACT_CDD_FSYNC;
 
+		bIOTAction = HTIOTActIsNullDataPowerSaving(ieee, pNetwork);
+		if(bIOTAction)
+			pHTInfo->IOTAction |= HT_IOT_ACT_NULL_DATA_POWER_SAVING;
 
 	}
 	else

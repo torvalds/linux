@@ -312,6 +312,17 @@ static int ieee80211_is_eapol_frame(struct ieee80211_device *ieee,
 	if (skb->len < 24)
 		return 0;
 
+#if 1
+        if (ieee->hwsec_active)
+        {
+                cb_desc *tcb_desc = (cb_desc *)(skb->cb+ MAX_DEV_ADDR_SIZE);
+                tcb_desc->bHwSec = 1;
+
+                if(ieee->need_sw_enc)
+                        tcb_desc->bHwSec = 0;
+        }
+#endif
+
 	hdr = (struct ieee80211_hdr_4addr *) skb->data;
 	fc = le16_to_cpu(hdr->frame_ctl);
 
@@ -406,6 +417,10 @@ ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device* ieee, struct sk_buff *s
 	{
 		cb_desc *tcb_desc = (cb_desc *)(skb->cb+ MAX_DEV_ADDR_SIZE);
 		tcb_desc->bHwSec = 1;
+
+                if(ieee->need_sw_enc)
+                        tcb_desc->bHwSec = 0;
+
 	}
 
 	hdr = (struct ieee80211_hdr_4addr *) skb->data;
@@ -799,7 +814,7 @@ void RxReorderIndicatePacket( struct ieee80211_device *ieee,
 #endif
 }
 
-u8 parse_subframe(struct sk_buff *skb,
+u8 parse_subframe(struct ieee80211_device* ieee,struct sk_buff *skb,
                   struct ieee80211_rx_stats *rx_stats,
 		  struct ieee80211_rxb *rxb,u8* src,u8* dst)
 {
@@ -839,6 +854,7 @@ u8 parse_subframe(struct sk_buff *skb,
 	}
 
 	skb_pull(skb, LLCOffset);
+	ieee->bIsAggregateFrame = bIsAggregateFrame;//added by amy for Leisure PS
 
 	if(!bIsAggregateFrame) {
 		rxb->nr_subframes = 1;
@@ -940,6 +956,7 @@ int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	u8	TID = 0;
 	u16	SeqNum = 0;
 	PRX_TS_RECORD pTS = NULL;
+	bool unicast_packet = false;
 	//bool bIsAggregateFrame = false;
 	//added by amy for reorder
 #ifdef NOT_YET
@@ -1215,6 +1232,24 @@ int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
         if (memcmp(bssid, ieee->current_network.bssid, ETH_ALEN))
                 goto rx_dropped;
 
+#ifdef ENABLE_LPS
+	if ((ieee->iw_mode == IW_MODE_INFRA)  && (ieee->sta_sleep == 1)
+		&& (ieee->polling)) {
+		if (WLAN_FC_MORE_DATA(fc)) {
+			/* more data bit is set, let's request a new frame from the AP */
+			ieee80211_sta_ps_send_pspoll_frame(ieee);
+		} else {
+			ieee->polling =  false;
+		}
+	}
+#endif
+
+	ieee->need_sw_enc = 0;
+
+        if((!rx_stats->Decrypted)){
+                ieee->need_sw_enc = 1;
+        }
+
 	/* skb: hdr + (possibly fragmented, possibly encrypted) payload */
 
 	if (ieee->host_decrypt && (fc & IEEE80211_FCTL_WEP) &&
@@ -1296,6 +1331,9 @@ int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	ieee->LinkDetectInfo.NumRxOkInPeriod++;
 
 	hdr = (struct ieee80211_hdr_4addr *) skb->data;
+	if((!is_multicast_ether_addr(hdr->addr1)) && (!is_broadcast_ether_addr(hdr->addr1)))
+		unicast_packet = true;
+
 	if (crypt && !(fc & IEEE80211_FCTL_WEP) && !ieee->open_wep) {
 		if (/*ieee->ieee802_1x &&*/
 		    ieee80211_is_eapol_frame(ieee, skb, hdrlen)) {
@@ -1367,7 +1405,7 @@ int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	}
 	/* to parse amsdu packets */
 	/* qos data packets & reserved bit is 1 */
-	if(parse_subframe(skb,rx_stats,rxb,src,dst) == 0) {
+	if(parse_subframe(ieee, skb,rx_stats,rxb,src,dst) == 0) {
 		/* only to free rxb, and not submit the packets to upper layer */
 		for(i =0; i < rxb->nr_subframes; i++) {
 			dev_kfree_skb(rxb->subframes[i]);
@@ -1376,6 +1414,32 @@ int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		rxb = NULL;
 		goto rx_dropped;
 	}
+
+#ifdef ENABLE_LPS
+		if(unicast_packet)
+		{
+			if (type == IEEE80211_FTYPE_DATA)
+			{
+
+				if(ieee->bIsAggregateFrame)
+					ieee->LinkDetectInfo.NumRxUnicastOkInPeriod+=rxb->nr_subframes;
+				else
+					ieee->LinkDetectInfo.NumRxUnicastOkInPeriod++;
+
+				// 2009.03.03 Leave DC mode immediately when detect high traffic
+				// DbgPrint("ending Seq %d\n", Frame_SeqNum(pduOS));
+				if((ieee->state == IEEE80211_LINKED) /*&& !MgntInitAdapterInProgress(pMgntInfo)*/)
+				{
+					if(	((ieee->LinkDetectInfo.NumRxUnicastOkInPeriod +ieee->LinkDetectInfo.NumTxOkInPeriod) > 8 ) ||
+						(ieee->LinkDetectInfo.NumRxUnicastOkInPeriod > 2) )
+					{
+						if(ieee->LeisurePSLeave)
+							ieee->LeisurePSLeave(dev);
+					}
+				}
+			}
+		}
+#endif
 
 	ieee->last_rx_ps_time = jiffies;
 //added by amy for reorder
@@ -2013,11 +2077,21 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 				info_element->data[1] == 0x13 &&
 				info_element->data[2] == 0x74))
 			{
-				printk("========>%s(): athros AP is exist\n",__FUNCTION__);
+				//printk("========>%s(): athros AP is exist\n",__FUNCTION__);
 				network->atheros_cap_exist = true;
 			}
 			else
 				network->atheros_cap_exist = false;
+
+			if ((info_element->len >= 3 &&
+						info_element->data[0] == 0x00 &&
+						info_element->data[1] == 0x50 &&
+						info_element->data[2] == 0x43) )
+			{
+				network->marvell_cap_exist = true;
+				//printk("========>%s(): marvel AP is exist\n",__FUNCTION__);
+			}
+
 
 			if(info_element->len >= 3 &&
 				info_element->data[0] == 0x00 &&
@@ -2219,7 +2293,8 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 	}
 
 	if(!network->atheros_cap_exist && !network->broadcom_cap_exist &&
-		!network->cisco_cap_exist && !network->ralink_cap_exist && !network->bssht.bdRT2RTAggregation)
+		!network->cisco_cap_exist && !network->ralink_cap_exist && !network->bssht.bdRT2RTAggregation &&
+		!network->marvell_cap_exist)
 	{
 		network->unknown_cap_exist = true;
 	}
@@ -2333,6 +2408,7 @@ static inline int ieee80211_network_init(
         network->broadcom_cap_exist = false;
 	network->ralink_cap_exist = false;
 	network->atheros_cap_exist = false;
+	network->marvell_cap_exist = false;
 	network->cisco_cap_exist = false;
 	network->unknown_cap_exist = false;
 #ifdef THOMAS_TURBO
@@ -2463,6 +2539,7 @@ static inline void update_network(struct ieee80211_network *dst,
 	dst->broadcom_cap_exist = src->broadcom_cap_exist;
 	dst->ralink_cap_exist = src->ralink_cap_exist;
 	dst->atheros_cap_exist = src->atheros_cap_exist;
+	dst->marvell_cap_exist = src->marvell_cap_exist;
 	dst->cisco_cap_exist = src->cisco_cap_exist;
 	dst->unknown_cap_exist = src->unknown_cap_exist;
 	memcpy(dst->wpa_ie, src->wpa_ie, src->wpa_ie_len);
@@ -2761,12 +2838,14 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 		      struct ieee80211_hdr_4addr *header,
 		      struct ieee80211_rx_stats *stats)
 {
+#if 0
 	if(ieee->sta_sleep || (ieee->ps != IEEE80211_PS_DISABLED &&
 				ieee->iw_mode == IW_MODE_INFRA &&
 				ieee->state == IEEE80211_LINKED))
 	{
 		tasklet_schedule(&ieee->ps_task);
 	}
+#endif
 
 	if(WLAN_FC_GET_STYPE(header->frame_ctl) != IEEE80211_STYPE_PROBE_RESP &&
 		WLAN_FC_GET_STYPE(header->frame_ctl) != IEEE80211_STYPE_BEACON)
@@ -2780,6 +2859,15 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 		IEEE80211_DEBUG_SCAN("Beacon\n");
 		ieee80211_process_probe_response(
 			ieee, (struct ieee80211_probe_response *)header, stats);
+
+		//printk("----------->%s()\n", __func__);
+		if(ieee->sta_sleep || (ieee->ps != IEEE80211_PS_DISABLED &&
+					ieee->iw_mode == IW_MODE_INFRA &&
+					ieee->state == IEEE80211_LINKED))
+		{
+			tasklet_schedule(&ieee->ps_task);
+		}
+
 		break;
 
 	case IEEE80211_STYPE_PROBE_RESP:

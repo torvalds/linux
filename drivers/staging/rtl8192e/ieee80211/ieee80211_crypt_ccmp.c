@@ -361,9 +361,9 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	if (memcmp(pn, key->rx_pn, CCMP_PN_LEN) <= 0) {
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "CCMP: replay detected: STA=%pM"
-			       " previous PN %pm received PN %pm\n",
-			       hdr->addr2, key->rx_pn, pn);
+			//printk(KERN_DEBUG "CCMP: replay detected: STA=%pM"
+			//       " previous PN %pm received PN %pm\n",
+			//       hdr->addr2, key->rx_pn, pn);
 		}
 		key->dot11RSNAStatsCCMPReplays++;
 		return -4;

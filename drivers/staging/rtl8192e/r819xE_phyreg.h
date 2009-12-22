@@ -38,6 +38,8 @@
 #define	MCS_TXAGC				0x340	// MCS AGC
 #define	CCK_TXAGC				0x348	// CCK AGC
 
+#define	MacBlkCtrl				0x403					// Mac block on/off control register
+
 //page8
 #define rFPGA0_RFMOD              		0x800  //RF mode & CCK TxSC
 #define rFPGA0_TxInfo             		0x804
@@ -874,5 +876,6 @@
 #define 	bRTL8256TxBBOPBias       0x400
 #define 	rRTL8256TxBBBW             19
 #define 	bRTL8256TxBBBW            	0x18
+
 
 #endif	//__INC_HAL8190PCIPHYREG_H
