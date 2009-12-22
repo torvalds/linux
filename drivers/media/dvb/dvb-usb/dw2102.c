@@ -470,12 +470,13 @@ static int s6x0_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 								int num)
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
-	struct usb_device *udev = d->udev;
+	struct usb_device *udev;
 	int ret = 0;
 	int len, i, j;
 
 	if (!d)
 		return -ENODEV;
+	udev = d->udev;
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
