@@ -155,8 +155,9 @@ struct ceph_connection {
 	void *auth_reply_buf;   /* where to put the authorizer reply */
 	int auth_reply_buf_len;
 
+	struct mutex mutex;
+
 	/* out queue */
-	struct mutex out_mutex;
 	struct list_head out_queue;
 	struct list_head out_sent;   /* sending or sent but unacked */
 	u64 out_seq;		     /* last message queued for send */
