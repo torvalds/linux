@@ -45,9 +45,6 @@ config ZONE_DMA
 config GENERIC_FIND_NEXT_BIT
 	def_bool y
 
-config GENERIC_HWEIGHT
-	def_bool y
-
 config GENERIC_HARDIRQS
 	def_bool y
 

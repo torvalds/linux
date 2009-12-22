@@ -7,22 +7,41 @@
 #ifndef _BLACKFIN_BITOPS_H
 #define _BLACKFIN_BITOPS_H
 
-#ifndef CONFIG_SMP
-# include <asm-generic/bitops.h>
-#else
+#include <linux/compiler.h>
+
+#include <asm-generic/bitops/__ffs.h>
+#include <asm-generic/bitops/ffz.h>
+#include <asm-generic/bitops/fls.h>
+#include <asm-generic/bitops/__fls.h>
+#include <asm-generic/bitops/fls64.h>
+#include <asm-generic/bitops/find.h>
 
 #ifndef _LINUX_BITOPS_H
 #error only <linux/bitops.h> can be included directly
 #endif
 
-#include <linux/compiler.h>
-#include <asm/byteorder.h>	/* swab32 */
-
-#include <asm-generic/bitops/ffs.h>
-#include <asm-generic/bitops/__ffs.h>
 #include <asm-generic/bitops/sched.h>
-#include <asm-generic/bitops/ffz.h>
+#include <asm-generic/bitops/ffs.h>
+#include <asm-generic/bitops/lock.h>
+#include <asm-generic/bitops/ext2-non-atomic.h>
+#include <asm-generic/bitops/ext2-atomic.h>
+#include <asm-generic/bitops/minix.h>
 
+#ifndef CONFIG_SMP
+#include <linux/irqflags.h>
+
+/*
+ * clear_bit may not imply a memory barrier
+ */
+#ifndef smp_mb__before_clear_bit
+#define smp_mb__before_clear_bit()	smp_mb()
+#define smp_mb__after_clear_bit()	smp_mb()
+#endif
+#include <asm-generic/bitops/atomic.h>
+#include <asm-generic/bitops/non-atomic.h>
+#else
+
+#include <asm/byteorder.h>	/* swab32 */
 #include <linux/linkage.h>
 
 asmlinkage int __raw_bit_set_asm(volatile unsigned long *addr, int nr);
@@ -89,19 +108,36 @@ static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
 
 #include <asm-generic/bitops/non-atomic.h>
 
-#include <asm-generic/bitops/find.h>
-#include <asm-generic/bitops/hweight.h>
-#include <asm-generic/bitops/lock.h>
-
-#include <asm-generic/bitops/ext2-atomic.h>
-#include <asm-generic/bitops/ext2-non-atomic.h>
-
-#include <asm-generic/bitops/minix.h>
-
-#include <asm-generic/bitops/fls.h>
-#include <asm-generic/bitops/__fls.h>
-#include <asm-generic/bitops/fls64.h>
-
 #endif /* CONFIG_SMP */
+
+/*
+ * hweightN: returns the hamming weight (i.e. the number
+ * of bits set) of a N-bit word
+ */
+
+static inline unsigned int hweight32(unsigned int w)
+{
+	unsigned int res;
+
+	__asm__ ("%0.l = ONES %0;"
+		"%0 = %0.l (Z);"
+		: "=d" (res) : "d" (w));
+	return res;
+}
+
+static inline unsigned int hweight64(__u64 w)
+{
+	return hweight32((unsigned int)(w >> 32)) + hweight32((unsigned int)w);
+}
+
+static inline unsigned int hweight16(unsigned int w)
+{
+	return hweight32(w & 0xffff);
+}
+
+static inline unsigned int hweight8(unsigned int w)
+{
+	return hweight32(w & 0xff);
+}
 
 #endif				/* _BLACKFIN_BITOPS_H */
