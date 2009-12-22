@@ -82,8 +82,6 @@ static const struct ieee80211_channel rtl818x_channels[] = {
 };
 
 
-
-
 void rtl8180_write_phy(struct ieee80211_hw *dev, u8 addr, u32 data)
 {
 	struct rtl8180_priv *priv = dev->priv;
@@ -615,7 +613,6 @@ static int rtl8180_start(struct ieee80211_hw *dev)
 	reg |= RTL818X_CMD_TX_ENABLE;
 	rtl818x_iowrite8(priv, &priv->map->CMD, reg);
 
-	priv->mode = NL80211_IFTYPE_MONITOR;
 	return 0;
 
  err_free_rings:
@@ -632,8 +629,6 @@ static void rtl8180_stop(struct ieee80211_hw *dev)
 	struct rtl8180_priv *priv = dev->priv;
 	u8 reg;
 	int i;
-
-	priv->mode = NL80211_IFTYPE_UNSPECIFIED;
 
 	rtl818x_iowrite16(priv, &priv->map->INT_MASK, 0);
 
@@ -661,12 +656,14 @@ static int rtl8180_add_interface(struct ieee80211_hw *dev,
 {
 	struct rtl8180_priv *priv = dev->priv;
 
-	if (priv->mode != NL80211_IFTYPE_MONITOR)
-		return -EOPNOTSUPP;
+	/*
+	 * We only support one active interface at a time.
+	 */
+	if (priv->vif)
+		return -EBUSY;
 
 	switch (conf->type) {
 	case NL80211_IFTYPE_STATION:
-		priv->mode = conf->type;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -688,7 +685,6 @@ static void rtl8180_remove_interface(struct ieee80211_hw *dev,
 				     struct ieee80211_if_init_conf *conf)
 {
 	struct rtl8180_priv *priv = dev->priv;
-	priv->mode = NL80211_IFTYPE_MONITOR;
 	priv->vif = NULL;
 }
 

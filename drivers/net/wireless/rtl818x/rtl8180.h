@@ -60,7 +60,6 @@ struct rtl8180_priv {
 	struct rtl818x_csr __iomem *map;
 	const struct rtl818x_rf_ops *rf;
 	struct ieee80211_vif *vif;
-	int mode;
 
 	/* rtl8180 driver specific */
 	spinlock_t lock;
