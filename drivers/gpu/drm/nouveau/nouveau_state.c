@@ -722,8 +722,8 @@ static void nouveau_close(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
-	/* In the case of an error dev_priv may not be be allocated yet */
-	if (dev_priv && dev_priv->card_type)
+	/* In the case of an error dev_priv may not be allocated yet */
+	if (dev_priv)
 		nouveau_card_takedown(dev);
 }
 
