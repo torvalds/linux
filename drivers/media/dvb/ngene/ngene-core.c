@@ -77,18 +77,6 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 				   (dev->iomem + (adr)), (count))
 
 /****************************************************************************/
-/* Functions with missing kernel exports ************************************/
-/****************************************************************************/
-
-/* yeah, let's throw out all exports which are not used in kernel ... */
-
-void my_dvb_ringbuffer_flush(struct dvb_ringbuffer *rbuf)
-{
-	rbuf->pread = rbuf->pwrite;
-	rbuf->error = 0;
-}
-
-/****************************************************************************/
 /* nGene interrupt handler **************************************************/
 /****************************************************************************/
 
@@ -1518,7 +1506,7 @@ static void set_transfer(struct ngene_channel *chan, int state)
 
 		/* printk(KERN_INFO DEVICE_NAME ": lock=%08x\n",
 			  ngreadl(0x9310)); */
-		my_dvb_ringbuffer_flush(&dev->tsout_rbuf);
+		dvb_ringbuffer_flush(&dev->tsout_rbuf);
 		control = 0x80;
 		if (chan->mode & (NGENE_IO_TSIN | NGENE_IO_TSOUT)) {
 			chan->Capture1Length = 512 * 188;
@@ -1549,7 +1537,7 @@ static void set_transfer(struct ngene_channel *chan, int state)
 	if (!state) {
 		spin_lock_irq(&chan->state_lock);
 		chan->pBufferExchange = 0;
-		my_dvb_ringbuffer_flush(&dev->tsout_rbuf);
+		dvb_ringbuffer_flush(&dev->tsout_rbuf);
 		spin_unlock_irq(&chan->state_lock);
 	}
 }
