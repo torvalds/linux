@@ -19,6 +19,7 @@ ifdef CONFIG_LOGIRUMBLEPAD2_FF
 	hid-logitech-objs	+= hid-lg2ff.o
 endif
 
+obj-$(CONFIG_HID_3M_PCT)	+= hid-3m-pct.o
 obj-$(CONFIG_HID_A4TECH)	+= hid-a4tech.o
 obj-$(CONFIG_HID_APPLE)		+= hid-apple.o
 obj-$(CONFIG_HID_BELKIN)	+= hid-belkin.o
