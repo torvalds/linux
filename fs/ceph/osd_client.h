@@ -43,11 +43,13 @@ struct ceph_osd_request {
 	struct list_head r_osd_item;
 	struct ceph_osd *r_osd;
 
+	struct ceph_connection *r_con_filling_pages;
+
 	struct ceph_msg  *r_request, *r_reply;
 	int               r_result;
 	int               r_flags;     /* any additional flags for the osd */
 	u32               r_sent;      /* >0 if r_request is sending/sent */
-	int r_prepared_pages, r_got_reply;
+	int               r_got_reply;
 	int		  r_num_prealloc_reply;
 
 	struct ceph_osd_client *r_osdc;
