@@ -3518,7 +3518,6 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 	struct l2cap_pinfo *pi;
 	u16 control, len;
 	u8 tx_seq;
-	int err;
 
 	sk = l2cap_get_chan_by_scid(&conn->chan_list, cid);
 	if (!sk) {
@@ -3570,13 +3569,11 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 			goto drop;
 
 		if (__is_iframe(control))
-			err = l2cap_data_channel_iframe(sk, control, skb);
+			l2cap_data_channel_iframe(sk, control, skb);
 		else
-			err = l2cap_data_channel_sframe(sk, control, skb);
+			l2cap_data_channel_sframe(sk, control, skb);
 
-		if (!err)
-			goto done;
-		break;
+		goto done;
 
 	case L2CAP_MODE_STREAMING:
 		control = get_unaligned_le16(skb->data);
@@ -3602,7 +3599,7 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 		else
 			pi->expected_tx_seq = tx_seq + 1;
 
-		err = l2cap_sar_reassembly_sdu(sk, skb, control);
+		l2cap_sar_reassembly_sdu(sk, skb, control);
 
 		goto done;
 
