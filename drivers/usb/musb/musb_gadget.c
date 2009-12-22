@@ -319,7 +319,7 @@ static void txstate(struct musb *musb, struct musb_request *req)
 			use_dma = use_dma && c->channel_program(
 					musb_ep->dma, musb_ep->packet_sz,
 					musb_ep->dma->desired_mode,
-					request->dma, request_size);
+					request->dma + request->actual, request_size);
 			if (use_dma) {
 				if (musb_ep->dma->desired_mode == 0) {
 					/*
