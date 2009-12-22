@@ -52,7 +52,7 @@
  */
 #undef START_IN_KERNEL_MODE
 
-#define DRV_VER "0.5.21"
+#define DRV_VER "0.5.22"
 
 /*
  * According to the Atom N270 datasheet,
@@ -165,12 +165,9 @@ static const struct bios_settings_t bios_tbl[] = {
 	/* Gateway */
 	{"Gateway", "AOA110", "v0.3103", 0x55, 0x58, {0x21, 0x21, 0x00} },
 	{"Gateway", "AOA150", "v0.3103", 0x55, 0x58, {0x20, 0x20, 0x00} },
-	{"Gateway         ", "LT31            ", "v1.3103 ", 0x55, 0x58,
-		{0x10, 0x0f, 0x00} },
-	{"Gateway         ", "LT31            ", "v1.3201 ", 0x55, 0x58,
-		{0x10, 0x0f, 0x00} },
-	{"Gateway         ", "LT31            ", "v1.3302 ", 0x55, 0x58,
-		{0x10, 0x0f, 0x00} },
+	{"Gateway", "LT31", "v1.3103", 0x55, 0x58, {0x10, 0x0f, 0x00} },
+	{"Gateway", "LT31", "v1.3201", 0x55, 0x58, {0x10, 0x0f, 0x00} },
+	{"Gateway", "LT31", "v1.3302", 0x55, 0x58, {0x10, 0x0f, 0x00} },
 	/* Packard Bell */
 	{"Packard Bell", "DOA150", "v0.3104", 0x55, 0x58, {0x21, 0x21, 0x00} },
 	{"Packard Bell", "DOA150", "v0.3105", 0x55, 0x58, {0x20, 0x20, 0x00} },
@@ -495,13 +492,26 @@ static struct platform_driver acerhdf_driver = {
 	.remove = acerhdf_remove,
 };
 
+/* checks if str begins with start */
+static int str_starts_with(const char *str, const char *start)
+{
+	unsigned long str_len = 0, start_len = 0;
+
+	str_len = strlen(str);
+	start_len = strlen(start);
+
+	if (str_len >= start_len &&
+			!strncmp(str, start, start_len))
+		return 1;
+
+	return 0;
+}
 
 /* check hardware */
 static int acerhdf_check_hardware(void)
 {
 	char const *vendor, *version, *product;
-	int i;
-	unsigned long prod_len = 0;
+	const struct bios_settings_t *bt = NULL;
 
 	/* get BIOS data */
 	vendor  = dmi_get_system_info(DMI_SYS_VENDOR);
@@ -523,20 +533,20 @@ static int acerhdf_check_hardware(void)
 		kernelmode = 0;
 	}
 
-	prod_len = strlen(product);
-
 	if (verbose)
 		pr_info("BIOS info: %s %s, product: %s\n",
 			vendor, version, product);
 
 	/* search BIOS version and vendor in BIOS settings table */
-	for (i = 0; bios_tbl[i].version[0]; i++) {
-		if (strlen(bios_tbl[i].product) >= prod_len &&
-		    !strncmp(bios_tbl[i].product, product,
-			   strlen(bios_tbl[i].product)) &&
-		    !strcmp(bios_tbl[i].vendor, vendor) &&
-		    !strcmp(bios_tbl[i].version, version)) {
-			bios_cfg = &bios_tbl[i];
+	for (bt = bios_tbl; bt->vendor[0]; bt++) {
+		/*
+		 * check if actual hardware BIOS vendor, product and version
+		 * IDs start with the strings of BIOS table entry
+		 */
+		if (str_starts_with(vendor, bt->vendor) &&
+				str_starts_with(product, bt->product) &&
+				str_starts_with(version, bt->version)) {
+			bios_cfg = bt;
 			break;
 		}
 	}
