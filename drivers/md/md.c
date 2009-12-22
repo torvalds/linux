@@ -4436,6 +4436,7 @@ static int do_md_run(mddev_t * mddev)
 		if (spares && mddev->pers->sync_request) {
 			mddev->recovery = 0;
 			set_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
+			set_bit(MD_RECOVERY_RECOVER, &mddev->recovery);
 			mddev->sync_thread = md_register_thread(md_do_sync,
 								mddev,
 								"resync");
