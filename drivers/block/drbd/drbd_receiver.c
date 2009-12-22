@@ -2870,7 +2870,7 @@ static int receive_sizes(struct drbd_conf *mdev, struct p_header *h)
 
 		/* Never shrink a device with usable data during connect.
 		   But allow online shrinking if we are connected. */
-		if (drbd_new_dev_size(mdev, mdev->ldev) <
+		if (drbd_new_dev_size(mdev, mdev->ldev, 0) <
 		   drbd_get_capacity(mdev->this_bdev) &&
 		   mdev->state.disk >= D_OUTDATED &&
 		   mdev->state.conn < C_CONNECTED) {
@@ -2885,7 +2885,7 @@ static int receive_sizes(struct drbd_conf *mdev, struct p_header *h)
 #undef min_not_zero
 
 	if (get_ldev(mdev)) {
-		dd = drbd_determin_dev_size(mdev);
+	  dd = drbd_determin_dev_size(mdev, 0);
 		put_ldev(mdev);
 		if (dd == dev_size_error)
 			return FALSE;
