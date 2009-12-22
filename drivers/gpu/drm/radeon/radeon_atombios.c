@@ -1593,10 +1593,6 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 					 le16_to_cpu(power_info->info_4.usNonClockInfoArrayOffset) +
 					 (power_state->ucNonClockStateIndex *
 					  power_info->info_4.ucNonClockSize));
-				misc = le32_to_cpu(non_clock_info->ulCapsAndSettings);
-				rdev->pm.power_state[state_index].non_clock_info.pcie_lanes =
-					((misc & ATOM_PPLIB_PCIE_LINK_WIDTH_MASK) >>
-					 ATOM_PPLIB_PCIE_LINK_WIDTH_SHIFT) + 1;
 				for (j = 0; j < (power_info->info_4.ucStateEntrySize - 1); j++) {
 					if (rdev->flags & RADEON_IS_IGP) {
 						struct _ATOM_PPLIB_RS780_CLOCK_INFO *clock_info =
@@ -1654,7 +1650,11 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 				}
 				rdev->pm.power_state[state_index].num_clock_modes = mode_index;
 				if (mode_index) {
+					misc = le32_to_cpu(non_clock_info->ulCapsAndSettings);
 					misc2 = le16_to_cpu(non_clock_info->usClassification);
+					rdev->pm.power_state[state_index].non_clock_info.pcie_lanes =
+						((misc & ATOM_PPLIB_PCIE_LINK_WIDTH_MASK) >>
+						ATOM_PPLIB_PCIE_LINK_WIDTH_SHIFT) + 1;
 					if (misc2 & ATOM_PPLIB_CLASSIFICATION_BOOT) {
 						rdev->pm.default_power_state = &rdev->pm.power_state[state_index];
 						rdev->pm.current_power_state = &rdev->pm.power_state[state_index];
