@@ -760,7 +760,8 @@ static int pci_netmos_init(struct pci_dev *dev)
 	/* subdevice 0x00PS means <P> parallel, <S> serial */
 	unsigned int num_serial = dev->subsystem_device & 0xf;
 
-	if (dev->device == PCI_DEVICE_ID_NETMOS_9901)
+	if ((dev->device == PCI_DEVICE_ID_NETMOS_9901) ||
+		(dev->device == PCI_DEVICE_ID_NETMOS_9865))
 		return 0;
 	if (dev->subsystem_vendor == PCI_VENDOR_ID_IBM &&
 			dev->subsystem_device == 0x0299)
@@ -1479,6 +1480,7 @@ enum pci_board_num_t {
 
 	pbn_b0_bt_1_115200,
 	pbn_b0_bt_2_115200,
+	pbn_b0_bt_4_115200,
 	pbn_b0_bt_8_115200,
 
 	pbn_b0_bt_1_460800,
@@ -1700,6 +1702,12 @@ static struct pciserial_board pci_boards[] __devinitdata = {
 	[pbn_b0_bt_2_115200] = {
 		.flags		= FL_BASE0|FL_BASE_BARS,
 		.num_ports	= 2,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
+	},
+	[pbn_b0_bt_4_115200] = {
+		.flags		= FL_BASE0|FL_BASE_BARS,
+		.num_ports	= 4,
 		.base_baud	= 115200,
 		.uart_offset	= 8,
 	},
@@ -3647,6 +3655,18 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9901,
 		0xA000, 0x1000,
 		0, 0, pbn_b0_1_115200 },
+
+	/*
+	 * Best Connectivity PCI Multi I/O cards
+	 */
+
+	{	PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9865,
+		0xA000, 0x1000,
+		0, 0, pbn_b0_1_115200 },
+
+	{	PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9865,
+		0xA000, 0x3004,
+		0, 0, pbn_b0_bt_4_115200 },
 
 	/*
 	 * These entries match devices with class COMMUNICATION_SERIAL,
