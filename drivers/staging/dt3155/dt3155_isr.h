@@ -1,7 +1,7 @@
 /*
 
 Copyright 1996,2002 Gregory D. Hager, Alfred A. Rizzi, Noah J. Cowan,
-                    Jason Lapenta, Scott Smedley
+		    Jason Lapenta, Scott Smedley
 
 This file is part of the DT3155 Device Driver.
 
@@ -33,8 +33,8 @@ MA 02111-1307 USA
 
 */
 
-#ifndef  DT3155_ISR_H
-#define  DT3155_ISR_H
+#ifndef DT3155_ISR_H
+#define DT3155_ISR_H
 
 extern struct dt3155_fbuffer_s *dt3155_fbuffer[MAXBOARDS];
 
@@ -62,16 +62,16 @@ int dt3155_flush(int minor);
  * Simple array based que struct
  **********************************/
 
-bool are_empty_buffers( int minor );
-void push_empty( int index, int minor );
+bool are_empty_buffers(int minor);
+void push_empty(int index, int minor);
 
-int  pop_empty( int minor );
+int  pop_empty(int minor);
 
-bool is_ready_buf_empty( int minor );
-bool is_ready_buf_full( int minor );
+bool is_ready_buf_empty(int minor);
+bool is_ready_buf_full(int minor);
 
-void push_ready( int minor, int index );
-int  pop_ready( int minor );
+void push_ready(int minor, int index);
+int  pop_ready(int minor);
 
 
 #endif

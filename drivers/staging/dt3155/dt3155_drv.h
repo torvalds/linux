@@ -1,7 +1,7 @@
 /*
 
 Copyright 1996,2002 Gregory D. Hager, Alfred A. Rizzi, Noah J. Cowan,
-                    Scott Smedley
+		    Scott Smedley
 
 This file is part of the DT3155 Device Driver.
 
@@ -25,7 +25,7 @@ MA 02111-1307 USA
 #define DT3155_DRV_INC
 
 /* kernel logical address of the frame grabbers */
-extern u_char *dt3155_lbase[ MAXBOARDS ];
+extern u_char *dt3155_lbase[MAXBOARDS];
 
 /* kernel logical address of ram buffer */
 extern u_char *dt3155_bbase;
@@ -35,7 +35,7 @@ extern u_char *dt3155_bbase;
 
 #include <linux/version.h>	/* need access to LINUX_VERSION_CODE */
 /* wait queue for reads */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,1)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 3, 1)
 extern wait_queue_head_t dt3155_read_wait_queue[MAXBOARDS];
 #else
 extern struct wait_queue *dt3155_read_wait_queue[MAXBOARDS];

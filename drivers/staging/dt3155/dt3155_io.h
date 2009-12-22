@@ -1,7 +1,7 @@
 /*
 
 Copyright 1996,2002 Gregory D. Hager, Alfred A. Rizzi, Noah J. Cowan,
-                    Jason Lapenta, Scott Smedley
+		    Jason Lapenta, Scott Smedley
 
 This file is part of the DT3155 Device Driver.
 
@@ -36,8 +36,8 @@ MA 02111-1307 USA
 
 /* macros to access registers */
 
-#define   WriteMReg(Address, Data)        * ((u_long *) (Address)) = Data
-#define   ReadMReg(Address, Data)         Data = * ((u_long *) (Address))
+#define WriteMReg(Address, Data)	(*((u_long *)(Address)) = Data)
+#define ReadMReg(Address, Data)		(Data = *((u_long *)(Address)))
 
 /***************** 32 bit register globals  **************/
 
@@ -240,12 +240,11 @@ typedef union iic_csr2_tag {
  * dma_upper_lmt_tag
  */
 typedef union dma_upper_lmt_tag   {
-  u_long   reg;
-  struct
-  {
-    u_long   DMA_UPPER_LMT_VAL       :   24;
-    u_long                           :   8;
-  } fld;
+	u_long reg;
+	struct {
+		u_long DMA_UPPER_LMT_VAL:24;
+		u_long :8;
+	} fld;
 } DMA_UPPER_LMT_R;
 
 
@@ -253,12 +252,12 @@ typedef union dma_upper_lmt_tag   {
  * Global declarations of local copies
  * of boards' 32 bit registers
  ***************************************/
-extern u_long            even_dma_start_r;   /*  bit 0 should always be 0 */
-extern u_long            odd_dma_start_r;    /*               .. */
-extern u_long            even_dma_stride_r;  /*  bits 0&1 should always be 0 */
-extern u_long            odd_dma_stride_r;   /*               .. */
-extern u_long            even_pixel_fmt_r;
-extern u_long            odd_pixel_fmt_r;
+extern u_long even_dma_start_r;   /*  bit 0 should always be 0 */
+extern u_long odd_dma_start_r;    /*               .. */
+extern u_long even_dma_stride_r;  /*  bits 0&1 should always be 0 */
+extern u_long odd_dma_stride_r;   /*               .. */
+extern u_long even_pixel_fmt_r;
+extern u_long odd_pixel_fmt_r;
 
 extern FIFO_TRIGGER_R      fifo_trigger_r;
 extern XFER_MODE_R         xfer_mode_r;
@@ -266,8 +265,8 @@ extern CSR1_R              csr1_r;
 extern RETRY_WAIT_CNT_R    retry_wait_cnt_r;
 extern INT_CSR_R           int_csr_r;
 
-extern u_long              even_fld_mask_r;
-extern u_long              odd_fld_mask_r;
+extern u_long even_fld_mask_r;
+extern u_long odd_fld_mask_r;
 
 extern MASK_LENGTH_R       mask_length_r;
 extern FIFO_FLAG_CNT_R     fifo_flag_cnt_r;
@@ -301,28 +300,26 @@ extern DMA_UPPER_LMT_R     odd_dma_upper_lmt_r;
 /******** Assignments and Typedefs for 8 bit I2C Registers********************/
 
 typedef union i2c_csr2_tag {
-  u_char   reg;
-  struct
-  {
-    u_char    CHROM_FIL         :   1;
-    u_char    SYNC_SNTL         :   1;
-    u_char    HZ50              :   1;
-    u_char    SYNC_PRESENT      :   1;
-    u_char    BUSY_EVE          :   1;
-    u_char    BUSY_ODD          :   1;
-    u_char    DISP_PASS         :   1;
-  } fld;
+	u_char reg;
+	struct {
+		u_char CHROM_FIL:1;
+		u_char SYNC_SNTL:1;
+		u_char HZ50:1;
+		u_char SYNC_PRESENT:1;
+		u_char BUSY_EVE:1;
+		u_char BUSY_ODD:1;
+		u_char DISP_PASS:1;
+	} fld;
 } I2C_CSR2;
 
 typedef union i2c_even_csr_tag {
-  u_char    reg;
-  struct
-  {
-    u_char    DONE_EVE       :   1;
-    u_char    SNGL_EVE       :   1;
-    u_char    ERROR_EVE      :   1;
-    u_char                   :   5;
-  } fld;
+	u_char    reg;
+	struct {
+		u_char DONE_EVE:1;
+		u_char SNGL_EVE:1;
+		u_char ERROR_EVE:1;
+		u_char :5;
+	} fld;
 } I2C_EVEN_CSR;
 
 typedef union i2c_odd_csr_tag {
@@ -394,7 +391,7 @@ extern u_char                 i2c_pm_lut_data;
 
 /* access 8-bit IIC registers */
 
-extern int ReadI2C (u_char * lpReg, u_short wIregIndex, u_char * byVal);
-extern int WriteI2C (u_char * lpReg, u_short wIregIndex, u_char byVal);
+extern int ReadI2C(u_char *lpReg, u_short wIregIndex, u_char *byVal);
+extern int WriteI2C(u_char *lpReg, u_short wIregIndex, u_char byVal);
 
 #endif
