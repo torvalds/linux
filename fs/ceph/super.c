@@ -942,7 +942,8 @@ static void ceph_kill_sb(struct super_block *s)
 	dout("kill_sb %p\n", s);
 	ceph_mdsc_pre_umount(&client->mdsc);
 	kill_anon_super(s);    /* will call put_super after sb is r/o */
-	bdi_unregister(&client->backing_dev_info);
+	if (s->s_bdi == &client->backing_dev_info)
+		bdi_unregister(&client->backing_dev_info);
 	bdi_destroy(&client->backing_dev_info);
 	ceph_destroy_client(client);
 }
