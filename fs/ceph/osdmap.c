@@ -538,7 +538,6 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 					     struct ceph_osdmap *map,
 					     struct ceph_messenger *msgr)
 {
-	struct ceph_osdmap *newmap = map;
 	struct crush_map *newcrush = NULL;
 	struct ceph_fsid fsid;
 	u32 epoch = 0;
@@ -701,7 +700,7 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 			}
 			pg->pgid = pgid;
 			pg->len = pglen;
-			for (j = 0; j < len; j++)
+			for (j = 0; j < pglen; j++)
 				pg->osds[j] = ceph_decode_32(p);
 			err = __insert_pg_mapping(pg, &map->pg_temp);
 			if (err)
