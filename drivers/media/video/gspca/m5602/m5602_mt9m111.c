@@ -48,7 +48,7 @@ static struct v4l2_pix_format mt9m111_modes[] = {
 	}
 };
 
-const static struct ctrl mt9m111_ctrls[] = {
+static const struct ctrl mt9m111_ctrls[] = {
 #define VFLIP_IDX 0
 	{
 		{
