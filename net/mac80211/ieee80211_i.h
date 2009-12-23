@@ -786,7 +786,7 @@ struct ieee80211_local {
 	unsigned int wmm_acm; /* bit field of ACM bits (BIT(802.1D tag)) */
 
 	bool pspolling;
-	bool scan_ps_enabled;
+	bool offchannel_ps_enabled;
 	/*
 	 * PS can only be enabled when we have exactly one managed
 	 * interface (and monitors) in PS, this then points there.
@@ -980,6 +980,12 @@ ieee80211_rx_bss_get(struct ieee80211_local *local, u8 *bssid, int freq,
 		     u8 *ssid, u8 ssid_len);
 void ieee80211_rx_bss_put(struct ieee80211_local *local,
 			  struct ieee80211_bss *bss);
+
+/* off-channel helpers */
+void ieee80211_offchannel_stop_beaconing(struct ieee80211_local *local);
+void ieee80211_offchannel_stop_station(struct ieee80211_local *local);
+void ieee80211_offchannel_return(struct ieee80211_local *local,
+				 bool enable_beaconing);
 
 /* interface handling */
 int ieee80211_iface_init(void);
