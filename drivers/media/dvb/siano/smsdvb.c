@@ -478,8 +478,9 @@ static int smsdvb_get_tune_settings(struct dvb_frontend *fe,
 }
 
 static int smsdvb_dvbt_set_frontend(struct dvb_frontend *fe,
-				    struct dvb_frontend_parameters *fep)
+				    struct dvb_frontend_parameters *p)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct smsdvb_client_t *client =
 		container_of(fe, struct smsdvb_client_t, frontend);
 
@@ -499,18 +500,26 @@ static int smsdvb_dvbt_set_frontend(struct dvb_frontend *fe,
 	Msg.Msg.msgFlags = 0;
 	Msg.Msg.msgType = MSG_SMS_RF_TUNE_REQ;
 	Msg.Msg.msgLength = sizeof(Msg);
-	Msg.Data[0] = fep->frequency;
+	Msg.Data[0] = c->frequency;
 	Msg.Data[2] = 12000000;
 
-	sms_debug("freq %d band %d",
-		  fep->frequency, fep->u.ofdm.bandwidth);
+	sms_info("%s: freq %d band %d", __func__, c->frequency,
+		 c->bandwidth_hz);
 
-	switch (fep->u.ofdm.bandwidth) {
-	case BANDWIDTH_8_MHZ: Msg.Data[1] = BW_8_MHZ; break;
-	case BANDWIDTH_7_MHZ: Msg.Data[1] = BW_7_MHZ; break;
-	case BANDWIDTH_6_MHZ: Msg.Data[1] = BW_6_MHZ; break;
-	case BANDWIDTH_AUTO: return -EOPNOTSUPP;
-	default: return -EINVAL;
+	switch (c->bandwidth_hz / 1000) {
+	case 8:
+		Msg.Data[1] = BW_8_MHZ;
+		break;
+	case 7:
+		Msg.Data[1] = BW_7_MHZ;
+		break;
+	case 6:
+		Msg.Data[1] = BW_6_MHZ;
+		break;
+	case 0:
+		return -EOPNOTSUPP;
+	default:
+		return -EINVAL;
 	}
 	/* Disable LNA, if any. An error is returned if no LNA is present */
 	ret = sms_board_lna_control(client->coredev, 0);
@@ -535,9 +544,9 @@ static int smsdvb_dvbt_set_frontend(struct dvb_frontend *fe,
 }
 
 static int smsdvb_isdbt_set_frontend(struct dvb_frontend *fe,
-				     struct dvb_frontend_parameters *fep,
-				     u32 SegmentNumber)
+				     struct dvb_frontend_parameters *p)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct smsdvb_client_t *client =
 		container_of(fe, struct smsdvb_client_t, frontend);
 
@@ -551,28 +560,47 @@ static int smsdvb_isdbt_set_frontend(struct dvb_frontend *fe,
 	Msg.Msg.msgFlags  = 0;
 	Msg.Msg.msgType   = MSG_SMS_ISDBT_TUNE_REQ;
 	Msg.Msg.msgLength = sizeof(Msg);
-	Msg.Data[0] = fep->frequency;
-	Msg.Data[2] = 12000000;
-	Msg.Data[3] = SegmentNumber;
 
-	sms_debug("freq %d band %d seg %d\n",
-		  fep->frequency, fep->u.ofdm.bandwidth, SegmentNumber);
+	if (c->isdbt_sb_segment_idx == -1)
+		c->isdbt_sb_segment_idx = 0;
 
-	switch (fep->u.ofdm.bandwidth) {
-	case BANDWIDTH_8_MHZ:
+	switch (c->isdbt_sb_segment_count) {
+	case 3:
 		Msg.Data[1] = BW_ISDBT_3SEG;
 		break;
-	case BANDWIDTH_7_MHZ:
-		Msg.Data[1] = BW_ISDBT_3SEG;
-		break;
-	case BANDWIDTH_6_MHZ:
+	case 1:
 		Msg.Data[1] = BW_ISDBT_1SEG;
 		break;
-	case BANDWIDTH_AUTO:
-		return -EOPNOTSUPP;
+	case 0:	/* AUTO */
+		switch (c->bandwidth_hz / 1000) {
+		case 8:
+		case 7:
+			c->isdbt_sb_segment_count = 3;
+			Msg.Data[1] = BW_ISDBT_3SEG;
+			break;
+		case 6:
+			c->isdbt_sb_segment_count = 1;
+			Msg.Data[1] = BW_ISDBT_1SEG;
+			break;
+		default: /* Assumes 6 MHZ bw */
+			c->isdbt_sb_segment_count = 1;
+			c->bandwidth_hz = 6000;
+			Msg.Data[1] = BW_ISDBT_1SEG;
+			break;
+		}
+		break;
 	default:
+		sms_info("Segment count %d not supported", c->isdbt_sb_segment_count);
 		return -EINVAL;
 	}
+
+	Msg.Data[0] = c->frequency;
+	Msg.Data[2] = 12000000;
+	Msg.Data[3] = c->isdbt_sb_segment_idx;
+
+	sms_info("%s: freq %d segwidth %d segindex %d\n", __func__,
+		 c->frequency, c->isdbt_sb_segment_count,
+		 c->isdbt_sb_segment_idx);
 
 	return smsdvb_sendrequest_and_wait(client, &Msg, sizeof(Msg),
 					   &client->tune_done);
@@ -591,13 +619,7 @@ static int smsdvb_set_frontend(struct dvb_frontend *fe,
 		return smsdvb_dvbt_set_frontend(fe, fep);
 	case DEVICE_MODE_ISDBT:
 	case DEVICE_MODE_ISDBT_BDA:
-	{
-		u32 segmentnum;
-		/* XXX: hack - use 4 lower bits in frequency for segment num */
-		segmentnum = fep->frequency & 0x0000000f;
-		fep->frequency &= ~0x0000000f;
-		return smsdvb_isdbt_set_frontend(fe, fep, segmentnum);
-	}
+		return smsdvb_isdbt_set_frontend(fe, fep);
 	default:
 		return -EINVAL;
 	}
