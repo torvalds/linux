@@ -678,6 +678,7 @@ struct radeon_asic {
 	void (*set_engine_clock)(struct radeon_device *rdev, uint32_t eng_clock);
 	uint32_t (*get_memory_clock)(struct radeon_device *rdev);
 	void (*set_memory_clock)(struct radeon_device *rdev, uint32_t mem_clock);
+	int (*get_pcie_lanes)(struct radeon_device *rdev);
 	void (*set_pcie_lanes)(struct radeon_device *rdev, int lanes);
 	void (*set_clock_gating)(struct radeon_device *rdev, int enable);
 	int (*set_surface_reg)(struct radeon_device *rdev, int reg,
@@ -1044,6 +1045,7 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_set_engine_clock(rdev, e) (rdev)->asic->set_engine_clock((rdev), (e))
 #define radeon_get_memory_clock(rdev) (rdev)->asic->get_memory_clock((rdev))
 #define radeon_set_memory_clock(rdev, e) (rdev)->asic->set_memory_clock((rdev), (e))
+#define radeon_get_pcie_lanes(rdev) (rdev)->asic->get_pcie_lanes((rdev))
 #define radeon_set_pcie_lanes(rdev, l) (rdev)->asic->set_pcie_lanes((rdev), (l))
 #define radeon_set_clock_gating(rdev, e) (rdev)->asic->set_clock_gating((rdev), (e))
 #define radeon_set_surface_reg(rdev, r, f, p, o, s) ((rdev)->asic->set_surface_reg((rdev), (r), (f), (p), (o), (s)))

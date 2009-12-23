@@ -580,6 +580,37 @@ void rv370_set_pcie_lanes(struct radeon_device *rdev, int lanes)
 
 }
 
+int rv370_get_pcie_lanes(struct radeon_device *rdev)
+{
+	u32 link_width_cntl;
+
+	if (rdev->flags & RADEON_IS_IGP)
+		return 0;
+
+	if (!(rdev->flags & RADEON_IS_PCIE))
+		return 0;
+
+	/* FIXME wait for idle */
+
+	link_width_cntl = RREG32_PCIE(RADEON_PCIE_LC_LINK_WIDTH_CNTL);
+
+	switch ((link_width_cntl & RADEON_PCIE_LC_LINK_WIDTH_RD_MASK) >> RADEON_PCIE_LC_LINK_WIDTH_RD_SHIFT) {
+	case RADEON_PCIE_LC_LINK_WIDTH_X0:
+		return 0;
+	case RADEON_PCIE_LC_LINK_WIDTH_X1:
+		return 1;
+	case RADEON_PCIE_LC_LINK_WIDTH_X2:
+		return 2;
+	case RADEON_PCIE_LC_LINK_WIDTH_X4:
+		return 4;
+	case RADEON_PCIE_LC_LINK_WIDTH_X8:
+		return 8;
+	case RADEON_PCIE_LC_LINK_WIDTH_X16:
+	default:
+		return 16;
+	}
+}
+
 #if defined(CONFIG_DEBUG_FS)
 static int rv370_debugfs_pcie_gart_info(struct seq_file *m, void *data)
 {
