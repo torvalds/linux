@@ -340,28 +340,50 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 		status = be_cmd_read_port_type(adapter, adapter->port_num,
 						&connector);
-		switch (connector) {
-		case 7:
-			ecmd->port = PORT_FIBRE;
-			break;
-		default:
-			ecmd->port = PORT_TP;
-			break;
+		if (!status) {
+			switch (connector) {
+			case 7:
+				ecmd->port = PORT_FIBRE;
+				ecmd->transceiver = XCVR_EXTERNAL;
+				break;
+			case 0:
+				ecmd->port = PORT_TP;
+				ecmd->transceiver = XCVR_EXTERNAL;
+				break;
+			default:
+				ecmd->port = PORT_TP;
+				ecmd->transceiver = XCVR_INTERNAL;
+				break;
+			}
+		} else {
+			ecmd->port = PORT_AUI;
+			ecmd->transceiver = XCVR_INTERNAL;
 		}
 
 		/* Save for future use */
 		adapter->link_speed = ecmd->speed;
 		adapter->port_type = ecmd->port;
+		adapter->transceiver = ecmd->transceiver;
 	} else {
 		ecmd->speed = adapter->link_speed;
 		ecmd->port = adapter->port_type;
+		ecmd->transceiver = adapter->transceiver;
 	}
 
 	ecmd->duplex = DUPLEX_FULL;
 	ecmd->autoneg = AUTONEG_DISABLE;
-	ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_TP);
 	ecmd->phy_address = adapter->port_num;
-	ecmd->transceiver = XCVR_INTERNAL;
+	switch (ecmd->port) {
+	case PORT_FIBRE:
+		ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
+		break;
+	case PORT_TP:
+		ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_TP);
+		break;
+	case PORT_AUI:
+		ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_AUI);
+		break;
+	}
 
 	return 0;
 }
