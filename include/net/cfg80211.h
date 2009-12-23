@@ -2195,4 +2195,16 @@ void cfg80211_remain_on_channel_expired(struct net_device *dev,
 					enum nl80211_channel_type channel_type,
 					gfp_t gfp);
 
+
+/**
+ * cfg80211_new_sta - notify userspace about station
+ *
+ * @dev: the netdev
+ * @mac_addr: the station's address
+ * @sinfo: the station information
+ * @gfp: allocation flags
+ */
+void cfg80211_new_sta(struct net_device *dev, const u8 *mac_addr,
+		      struct station_info *sinfo, gfp_t gfp);
+
 #endif /* __NET_CFG80211_H */

@@ -70,4 +70,8 @@ void nl80211_send_remain_on_channel_cancel(
 	u64 cookie, struct ieee80211_channel *chan,
 	enum nl80211_channel_type channel_type, gfp_t gfp);
 
+void nl80211_send_sta_event(struct cfg80211_registered_device *rdev,
+			    struct net_device *dev, const u8 *mac_addr,
+			    struct station_info *sinfo, gfp_t gfp);
+
 #endif /* __NET_WIRELESS_NL80211_H */

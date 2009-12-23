@@ -707,3 +707,13 @@ void cfg80211_remain_on_channel_expired(struct net_device *dev,
 					      channel_type, gfp);
 }
 EXPORT_SYMBOL(cfg80211_remain_on_channel_expired);
+
+void cfg80211_new_sta(struct net_device *dev, const u8 *mac_addr,
+		      struct station_info *sinfo, gfp_t gfp)
+{
+	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
+	nl80211_send_sta_event(rdev, dev, mac_addr, sinfo, gfp);
+}
+EXPORT_SYMBOL(cfg80211_new_sta);
