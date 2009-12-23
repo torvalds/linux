@@ -582,43 +582,6 @@ static int ar9170_usb_upload(struct ar9170_usb *aru, const void *data,
 	return 0;
 }
 
-static int ar9170_usb_request_firmware(struct ar9170_usb *aru)
-{
-	int err = 0;
-
-	err = request_firmware(&aru->firmware, "ar9170.fw",
-			       &aru->udev->dev);
-	if (!err) {
-		aru->init_values = NULL;
-		return 0;
-	}
-
-	if (aru->req_one_stage_fw) {
-		dev_err(&aru->udev->dev, "ar9170.fw firmware file "
-			"not found and is required for this device\n");
-		return -EINVAL;
-	}
-
-	dev_err(&aru->udev->dev, "ar9170.fw firmware file "
-		"not found, trying old firmware...\n");
-
-	err = request_firmware(&aru->init_values, "ar9170-1.fw",
-			       &aru->udev->dev);
-	if (err) {
-		dev_err(&aru->udev->dev, "file with init values not found.\n");
-		return err;
-	}
-
-	err = request_firmware(&aru->firmware, "ar9170-2.fw", &aru->udev->dev);
-	if (err) {
-		release_firmware(aru->init_values);
-		dev_err(&aru->udev->dev, "firmware file not found.\n");
-		return err;
-	}
-
-	return err;
-}
-
 static int ar9170_usb_reset(struct ar9170_usb *aru)
 {
 	int ret, lock = (aru->intf->condition != USB_INTERFACE_BINDING);
@@ -757,6 +720,103 @@ err_out:
 	return err;
 }
 
+static void ar9170_usb_firmware_failed(struct ar9170_usb *aru)
+{
+	struct device *parent = aru->udev->dev.parent;
+
+	/* unbind anything failed */
+	if (parent)
+		down(&parent->sem);
+	device_release_driver(&aru->udev->dev);
+	if (parent)
+		up(&parent->sem);
+}
+
+static void ar9170_usb_firmware_finish(const struct firmware *fw, void *context)
+{
+	struct ar9170_usb *aru = context;
+	int err;
+
+	aru->firmware = fw;
+
+	if (!fw) {
+		dev_err(&aru->udev->dev, "firmware file not found.\n");
+		goto err_freefw;
+	}
+
+	err = ar9170_usb_init_device(aru);
+	if (err)
+		goto err_freefw;
+
+	err = ar9170_usb_open(&aru->common);
+	if (err)
+		goto err_unrx;
+
+	err = ar9170_register(&aru->common, &aru->udev->dev);
+
+	ar9170_usb_stop(&aru->common);
+	if (err)
+		goto err_unrx;
+
+	return;
+
+ err_unrx:
+	ar9170_usb_cancel_urbs(aru);
+
+ err_freefw:
+	ar9170_usb_firmware_failed(aru);
+}
+
+static void ar9170_usb_firmware_inits(const struct firmware *fw,
+				      void *context)
+{
+	struct ar9170_usb *aru = context;
+	int err;
+
+	if (!fw) {
+		dev_err(&aru->udev->dev, "file with init values not found.\n");
+		ar9170_usb_firmware_failed(aru);
+		return;
+	}
+
+	aru->init_values = fw;
+
+	/* ok so we have the init values -- get code for two-stage */
+
+	err = request_firmware_nowait(THIS_MODULE, 1, "ar9170-2.fw",
+				      &aru->udev->dev, GFP_KERNEL, aru,
+				      ar9170_usb_firmware_finish);
+	if (err)
+		ar9170_usb_firmware_failed(aru);
+}
+
+static void ar9170_usb_firmware_step2(const struct firmware *fw, void *context)
+{
+	struct ar9170_usb *aru = context;
+	int err;
+
+	if (fw) {
+		ar9170_usb_firmware_finish(fw, context);
+		return;
+	}
+
+	if (aru->req_one_stage_fw) {
+		dev_err(&aru->udev->dev, "ar9170.fw firmware file "
+			"not found and is required for this device\n");
+		ar9170_usb_firmware_failed(aru);
+		return;
+	}
+
+	dev_err(&aru->udev->dev, "ar9170.fw firmware file "
+		"not found, trying old firmware...\n");
+
+	err = request_firmware_nowait(THIS_MODULE, 1, "ar9170-1.fw",
+				      &aru->udev->dev, GFP_KERNEL, aru,
+				      ar9170_usb_firmware_inits);
+	if (err)
+		ar9170_usb_firmware_failed(aru);
+}
+
 static bool ar9170_requires_one_stage(const struct usb_device_id *id)
 {
 	if (!id->driver_info)
@@ -814,33 +874,9 @@ static int ar9170_usb_probe(struct usb_interface *intf,
 	if (err)
 		goto err_freehw;
 
-	err = ar9170_usb_request_firmware(aru);
-	if (err)
-		goto err_freehw;
-
-	err = ar9170_usb_init_device(aru);
-	if (err)
-		goto err_freefw;
-
-	err = ar9170_usb_open(ar);
-	if (err)
-		goto err_unrx;
-
-	err = ar9170_register(ar, &udev->dev);
-
-	ar9170_usb_stop(ar);
-	if (err)
-		goto err_unrx;
-
-	return 0;
-
-err_unrx:
-	ar9170_usb_cancel_urbs(aru);
-
-err_freefw:
-	release_firmware(aru->init_values);
-	release_firmware(aru->firmware);
-
+	return request_firmware_nowait(THIS_MODULE, 1, "ar9170.fw",
+				       &aru->udev->dev, GFP_KERNEL, aru,
+				       ar9170_usb_firmware_step2);
 err_freehw:
 	usb_set_intfdata(intf, NULL);
 	usb_put_dev(udev);
@@ -860,12 +896,12 @@ static void ar9170_usb_disconnect(struct usb_interface *intf)
 	ar9170_unregister(&aru->common);
 	ar9170_usb_cancel_urbs(aru);
 
-	release_firmware(aru->init_values);
-	release_firmware(aru->firmware);
-
 	usb_put_dev(aru->udev);
 	usb_set_intfdata(intf, NULL);
 	ieee80211_free_hw(aru->common.hw);
+
+	release_firmware(aru->init_values);
+	release_firmware(aru->firmware);
 }
 
 #ifdef CONFIG_PM
