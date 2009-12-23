@@ -253,7 +253,12 @@ int kvm_set_memory_region(struct kvm *kvm,
 int __kvm_set_memory_region(struct kvm *kvm,
 			    struct kvm_userspace_memory_region *mem,
 			    int user_alloc);
-int kvm_arch_set_memory_region(struct kvm *kvm,
+int kvm_arch_prepare_memory_region(struct kvm *kvm,
+				struct kvm_memory_slot *memslot,
+				struct kvm_memory_slot old,
+				struct kvm_userspace_memory_region *mem,
+				int user_alloc);
+void kvm_arch_commit_memory_region(struct kvm *kvm,
 				struct kvm_userspace_memory_region *mem,
 				struct kvm_memory_slot old,
 				int user_alloc);

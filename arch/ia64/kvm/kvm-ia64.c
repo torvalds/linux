@@ -1578,15 +1578,15 @@ out:
 	return r;
 }
 
-int kvm_arch_set_memory_region(struct kvm *kvm,
-		struct kvm_userspace_memory_region *mem,
+int kvm_arch_prepare_memory_region(struct kvm *kvm,
+		struct kvm_memory_slot *memslot,
 		struct kvm_memory_slot old,
+		struct kvm_userspace_memory_region *mem,
 		int user_alloc)
 {
 	unsigned long i;
 	unsigned long pfn;
-	int npages = mem->memory_size >> PAGE_SHIFT;
-	struct kvm_memory_slot *memslot = &kvm->memslots[mem->slot];
+	int npages = memslot->npages;
 	unsigned long base_gfn = memslot->base_gfn;
 
 	if (base_gfn + npages > (KVM_MAX_MEM_SIZE >> PAGE_SHIFT))
@@ -1608,6 +1608,14 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 	}
 
 	return 0;
+}
+
+void kvm_arch_commit_memory_region(struct kvm *kvm,
+		struct kvm_userspace_memory_region *mem,
+		struct kvm_memory_slot old,
+		int user_alloc)
+{
+	return;
 }
 
 void kvm_arch_flush_shadow(struct kvm *kvm)

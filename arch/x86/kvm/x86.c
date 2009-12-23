@@ -5228,13 +5228,13 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kfree(kvm);
 }
 
-int kvm_arch_set_memory_region(struct kvm *kvm,
-				struct kvm_userspace_memory_region *mem,
+int kvm_arch_prepare_memory_region(struct kvm *kvm,
+				struct kvm_memory_slot *memslot,
 				struct kvm_memory_slot old,
+				struct kvm_userspace_memory_region *mem,
 				int user_alloc)
 {
-	int npages = mem->memory_size >> PAGE_SHIFT;
-	struct kvm_memory_slot *memslot = &kvm->memslots->memslots[mem->slot];
+	int npages = memslot->npages;
 
 	/*To keep backward compatibility with older userspace,
 	 *x86 needs to hanlde !user_alloc case.
@@ -5254,24 +5254,33 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 			if (IS_ERR((void *)userspace_addr))
 				return PTR_ERR((void *)userspace_addr);
 
-			/* set userspace_addr atomically for kvm_hva_to_rmapp */
-			spin_lock(&kvm->mmu_lock);
 			memslot->userspace_addr = userspace_addr;
-			spin_unlock(&kvm->mmu_lock);
-		} else {
-			if (!old.user_alloc && old.rmap) {
-				int ret;
-
-				down_write(&current->mm->mmap_sem);
-				ret = do_munmap(current->mm, old.userspace_addr,
-						old.npages * PAGE_SIZE);
-				up_write(&current->mm->mmap_sem);
-				if (ret < 0)
-					printk(KERN_WARNING
-				       "kvm_vm_ioctl_set_memory_region: "
-				       "failed to munmap memory\n");
-			}
 		}
+	}
+
+
+	return 0;
+}
+
+void kvm_arch_commit_memory_region(struct kvm *kvm,
+				struct kvm_userspace_memory_region *mem,
+				struct kvm_memory_slot old,
+				int user_alloc)
+{
+
+	int npages = mem->memory_size >> PAGE_SHIFT;
+
+	if (!user_alloc && !old.user_alloc && old.rmap && !npages) {
+		int ret;
+
+		down_write(&current->mm->mmap_sem);
+		ret = do_munmap(current->mm, old.userspace_addr,
+				old.npages * PAGE_SIZE);
+		up_write(&current->mm->mmap_sem);
+		if (ret < 0)
+			printk(KERN_WARNING
+			       "kvm_vm_ioctl_set_memory_region: "
+			       "failed to munmap memory\n");
 	}
 
 	spin_lock(&kvm->mmu_lock);
@@ -5282,8 +5291,6 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 
 	kvm_mmu_slot_remove_write_access(kvm, mem->slot);
 	spin_unlock(&kvm->mmu_lock);
-
-	return 0;
 }
 
 void kvm_arch_flush_shadow(struct kvm *kvm)

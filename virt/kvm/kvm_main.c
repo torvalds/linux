@@ -663,6 +663,10 @@ skip_lpage:
 	if (!npages)
 		kvm_arch_flush_shadow(kvm);
 
+	r = kvm_arch_prepare_memory_region(kvm, &new, old, mem, user_alloc);
+	if (r)
+		goto out_free;
+
 	spin_lock(&kvm->mmu_lock);
 	if (mem->slot >= kvm->memslots->nmemslots)
 		kvm->memslots->nmemslots = mem->slot + 1;
@@ -670,13 +674,7 @@ skip_lpage:
 	*memslot = new;
 	spin_unlock(&kvm->mmu_lock);
 
-	r = kvm_arch_set_memory_region(kvm, mem, old, user_alloc);
-	if (r) {
-		spin_lock(&kvm->mmu_lock);
-		*memslot = old;
-		spin_unlock(&kvm->mmu_lock);
-		goto out_free;
-	}
+	kvm_arch_commit_memory_region(kvm, mem, old, user_alloc);
 
 	kvm_free_physmem_slot(&old, npages ? &new : NULL);
 	/* Slot deletion case: we have to update the current slot */
