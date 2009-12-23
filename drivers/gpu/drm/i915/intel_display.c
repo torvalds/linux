@@ -2448,7 +2448,7 @@ static void pineview_enable_cxsr(struct drm_device *dev, unsigned long clock,
  * A value of 5us seems to be a good balance; safe for very low end
  * platforms but not overly aggressive on lower latency configs.
  */
-const static int latency_ns = 5000;
+static const int latency_ns = 5000;
 
 static int i9xx_get_fifo_size(struct drm_device *dev, int plane)
 {
@@ -2559,7 +2559,7 @@ static void g4x_update_wm(struct drm_device *dev,  int planea_clock,
 	/* Calc sr entries for one plane configs */
 	if (sr_hdisplay && (!planea_clock || !planeb_clock)) {
 		/* self-refresh has much higher latency */
-		const static int sr_latency_ns = 12000;
+		static const int sr_latency_ns = 12000;
 
 		sr_clock = planea_clock ? planea_clock : planeb_clock;
 		line_time_us = ((sr_hdisplay * 1000) / sr_clock);
@@ -2598,7 +2598,7 @@ static void i965_update_wm(struct drm_device *dev, int planea_clock,
 	/* Calc sr entries for one plane configs */
 	if (sr_hdisplay && (!planea_clock || !planeb_clock)) {
 		/* self-refresh has much higher latency */
-		const static int sr_latency_ns = 12000;
+		static const int sr_latency_ns = 12000;
 
 		sr_clock = planea_clock ? planea_clock : planeb_clock;
 		line_time_us = ((sr_hdisplay * 1000) / sr_clock);
@@ -2667,7 +2667,7 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 	if (HAS_FW_BLC(dev) && sr_hdisplay &&
 	    (!planea_clock || !planeb_clock)) {
 		/* self-refresh has much higher latency */
-		const static int sr_latency_ns = 6000;
+		static const int sr_latency_ns = 6000;
 
 		sr_clock = planea_clock ? planea_clock : planeb_clock;
 		line_time_us = ((sr_hdisplay * 1000) / sr_clock);
