@@ -63,11 +63,16 @@ struct qt202x_phy_data {
 #define QT2022C2_MAX_RESET_TIME 500
 #define QT2022C2_RESET_WAIT 10
 
+#define QT2025C_MAX_HEARTB_TIME (5 * HZ)
+#define QT2025C_HEARTB_WAIT 100
+#define QT2025C_MAX_FWSTART_TIME (25 * HZ / 10)
+#define QT2025C_FWSTART_WAIT 100
+
 #define BUG17190_INTERVAL (2 * HZ)
 
-static int qt2025c_wait_reset(struct efx_nic *efx)
+static int qt2025c_wait_heartbeat(struct efx_nic *efx)
 {
-	unsigned long timeout = jiffies + 10 * HZ;
+	unsigned long timeout = jiffies + QT2025C_MAX_HEARTB_TIME;
 	int reg, old_counter = 0;
 
 	/* Wait for firmware heartbeat to start */
@@ -84,8 +89,16 @@ static int qt2025c_wait_reset(struct efx_nic *efx)
 			break;
 		if (time_after(jiffies, timeout))
 			return -ETIMEDOUT;
-		msleep(10);
+		msleep(QT2025C_HEARTB_WAIT);
 	}
+
+	return 0;
+}
+
+static int qt2025c_wait_fw_status_good(struct efx_nic *efx)
+{
+	unsigned long timeout = jiffies + QT2025C_MAX_FWSTART_TIME;
+	int reg;
 
 	/* Wait for firmware status to look good */
 	for (;;) {
@@ -98,10 +111,42 @@ static int qt2025c_wait_reset(struct efx_nic *efx)
 			break;
 		if (time_after(jiffies, timeout))
 			return -ETIMEDOUT;
-		msleep(100);
+		msleep(QT2025C_FWSTART_WAIT);
 	}
 
 	return 0;
+}
+
+static void qt2025c_restart_firmware(struct efx_nic *efx)
+{
+	/* Restart microcontroller execution of firmware from RAM */
+	efx_mdio_write(efx, 3, 0xe854, 0x00c0);
+	efx_mdio_write(efx, 3, 0xe854, 0x0040);
+	msleep(50);
+}
+
+static int qt2025c_wait_reset(struct efx_nic *efx)
+{
+	int rc;
+
+	rc = qt2025c_wait_heartbeat(efx);
+	if (rc != 0)
+		return rc;
+
+	rc = qt2025c_wait_fw_status_good(efx);
+	if (rc == -ETIMEDOUT) {
+		/* Bug 17689: occasionally heartbeat starts but firmware status
+		 * code never progresses beyond 0x00.  Try again, once, after
+		 * restarting execution of the firmware image. */
+		EFX_LOG(efx, "bashing QT2025C microcontroller\n");
+		qt2025c_restart_firmware(efx);
+		rc = qt2025c_wait_heartbeat(efx);
+		if (rc != 0)
+			return rc;
+		rc = qt2025c_wait_fw_status_good(efx);
+	}
+
+	return rc;
 }
 
 static void qt2025c_firmware_id(struct efx_nic *efx)
@@ -229,10 +274,8 @@ static int qt2025c_select_phy_mode(struct efx_nic *efx)
 	efx_mdio_write(efx, 1, 0xc300, 0x0002);
 	msleep(20);
 
-	/* Restart microcontroller execution from RAM */
-	efx_mdio_write(efx, 3, 0xe854, 0x00c0);
-	efx_mdio_write(efx, 3, 0xe854, 0x0040);
-	msleep(50);
+	/* Restart microcontroller execution of firmware from RAM */
+	qt2025c_restart_firmware(efx);
 
 	/* Wait for the microcontroller to be ready again */
 	rc = qt2025c_wait_reset(efx);
