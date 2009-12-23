@@ -58,7 +58,7 @@ nouveau_fbcon_sync(struct fb_info *info)
 	struct nouveau_channel *chan = dev_priv->channel;
 	int ret, i;
 
-	if (!chan->accel_done ||
+	if (!chan || !chan->accel_done ||
 	    info->state != FBINFO_STATE_RUNNING ||
 	    info->flags & FBINFO_HWACCEL_DISABLED)
 		return 0;
@@ -318,14 +318,16 @@ nouveau_fbcon_create(struct drm_device *dev, uint32_t fb_width,
 	par->nouveau_fb = nouveau_fb;
 	par->dev = dev;
 
-	switch (dev_priv->card_type) {
-	case NV_50:
-		nv50_fbcon_accel_init(info);
-		break;
-	default:
-		nv04_fbcon_accel_init(info);
-		break;
-	};
+	if (dev_priv->channel) {
+		switch (dev_priv->card_type) {
+		case NV_50:
+			nv50_fbcon_accel_init(info);
+			break;
+		default:
+			nv04_fbcon_accel_init(info);
+			break;
+		};
+	}
 
 	nouveau_fbcon_zfill(dev);
 
@@ -347,7 +349,7 @@ out:
 int
 nouveau_fbcon_probe(struct drm_device *dev)
 {
-	NV_DEBUG(dev, "\n");
+	NV_DEBUG_KMS(dev, "\n");
 
 	return drm_fb_helper_single_fb_probe(dev, 32, nouveau_fbcon_create);
 }

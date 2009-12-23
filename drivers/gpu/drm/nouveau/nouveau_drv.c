@@ -35,6 +35,10 @@
 
 #include "drm_pciids.h"
 
+MODULE_PARM_DESC(ctxfw, "Use external firmware blob for grctx init (NV40)");
+int nouveau_ctxfw = 0;
+module_param_named(ctxfw, nouveau_ctxfw, int, 0400);
+
 MODULE_PARM_DESC(noagp, "Disable AGP");
 int nouveau_noagp;
 module_param_named(noagp, nouveau_noagp, int, 0400);
@@ -273,7 +277,7 @@ nouveau_pci_resume(struct pci_dev *pdev)
 
 		for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
 			chan = dev_priv->fifos[i];
-			if (!chan)
+			if (!chan || !chan->pushbuf_bo)
 				continue;
 
 			for (j = 0; j < NOUVEAU_DMA_SKIPS; j++)

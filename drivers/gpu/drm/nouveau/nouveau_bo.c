@@ -154,6 +154,11 @@ nouveau_bo_placement_set(struct nouveau_bo *nvbo, uint32_t memtype)
 	nvbo->placement.busy_placement = nvbo->placements;
 	nvbo->placement.num_placement = n;
 	nvbo->placement.num_busy_placement = n;
+
+	if (nvbo->pin_refcnt) {
+		while (n--)
+			nvbo->placements[n] |= TTM_PL_FLAG_NO_EVICT;
+	}
 }
 
 int
@@ -400,10 +405,16 @@ nouveau_bo_evict_flags(struct ttm_buffer_object *bo, struct ttm_placement *pl)
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 
 	switch (bo->mem.mem_type) {
+	case TTM_PL_VRAM:
+		nouveau_bo_placement_set(nvbo, TTM_PL_FLAG_TT |
+					 TTM_PL_FLAG_SYSTEM);
+		break;
 	default:
 		nouveau_bo_placement_set(nvbo, TTM_PL_FLAG_SYSTEM);
 		break;
 	}
+
+	*pl = nvbo->placement;
 }
 
 
@@ -455,11 +466,8 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, int no_wait,
 	int ret;
 
 	chan = nvbo->channel;
-	if (!chan || nvbo->tile_flags || nvbo->no_vm) {
+	if (!chan || nvbo->tile_flags || nvbo->no_vm)
 		chan = dev_priv->channel;
-		if (!chan)
-			return -EINVAL;
-	}
 
 	src_offset = old_mem->mm_node->start << PAGE_SHIFT;
 	dst_offset = new_mem->mm_node->start << PAGE_SHIFT;
@@ -625,7 +633,8 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 			return ret;
 	}
 
-	if (dev_priv->init_state != NOUVEAU_CARD_INIT_DONE)
+	if (dev_priv->init_state != NOUVEAU_CARD_INIT_DONE ||
+	    !dev_priv->channel)
 		return ttm_bo_move_memcpy(bo, evict, no_wait, new_mem);
 
 	if (old_mem->mem_type == TTM_PL_SYSTEM && !bo->ttm) {
