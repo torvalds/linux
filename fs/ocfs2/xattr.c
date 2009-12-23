@@ -6062,7 +6062,7 @@ static int ocfs2_value_metas_in_xattr_header(struct super_block *sb,
 		 * to the extent block, so just calculate a maximum record num.
 		 */
 		if (!xv->xr_list.l_tree_depth)
-			*num_recs += xv->xr_list.l_next_free_rec;
+			*num_recs += le16_to_cpu(xv->xr_list.l_next_free_rec);
 		else
 			*num_recs += ocfs2_clusters_for_bytes(sb,
 							      XATTR_SIZE_MAX);
