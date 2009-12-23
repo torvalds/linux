@@ -29,16 +29,19 @@ struct ieee80211_bss *
 ieee80211_rx_bss_get(struct ieee80211_local *local, u8 *bssid, int freq,
 		     u8 *ssid, u8 ssid_len)
 {
-	return (void *)cfg80211_get_bss(local->hw.wiphy,
-					ieee80211_get_channel(local->hw.wiphy,
-							      freq),
-					bssid, ssid, ssid_len,
-					0, 0);
+	struct cfg80211_bss *cbss;
+
+	cbss = cfg80211_get_bss(local->hw.wiphy,
+				ieee80211_get_channel(local->hw.wiphy, freq),
+				bssid, ssid, ssid_len, 0, 0);
+	if (!cbss)
+		return NULL;
+	return (void *)cbss->priv;
 }
 
 static void ieee80211_rx_bss_free(struct cfg80211_bss *cbss)
 {
-	struct ieee80211_bss *bss = (void *)cbss;
+	struct ieee80211_bss *bss = (void *)cbss->priv;
 
 	kfree(bss_mesh_id(bss));
 	kfree(bss_mesh_cfg(bss));
@@ -47,7 +50,9 @@ static void ieee80211_rx_bss_free(struct cfg80211_bss *cbss)
 void ieee80211_rx_bss_put(struct ieee80211_local *local,
 			  struct ieee80211_bss *bss)
 {
-	cfg80211_put_bss((struct cfg80211_bss *)bss);
+	if (!bss)
+		return;
+	cfg80211_put_bss(container_of((void *)bss, struct cfg80211_bss, priv));
 }
 
 struct ieee80211_bss *
@@ -59,6 +64,7 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 			  struct ieee80211_channel *channel,
 			  bool beacon)
 {
+	struct cfg80211_bss *cbss;
 	struct ieee80211_bss *bss;
 	int clen;
 	s32 signal = 0;
@@ -68,13 +74,14 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	else if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)
 		signal = (rx_status->signal * 100) / local->hw.max_signal;
 
-	bss = (void *)cfg80211_inform_bss_frame(local->hw.wiphy, channel,
-						mgmt, len, signal, GFP_ATOMIC);
+	cbss = cfg80211_inform_bss_frame(local->hw.wiphy, channel,
+					 mgmt, len, signal, GFP_ATOMIC);
 
-	if (!bss)
+	if (!cbss)
 		return NULL;
 
-	bss->cbss.free_priv = ieee80211_rx_bss_free;
+	cbss->free_priv = ieee80211_rx_bss_free;
+	bss = (void *)cbss->priv;
 
 	/* save the ERP value so that it is available at association time */
 	if (elems->erp_info && elems->erp_info_len >= 1) {

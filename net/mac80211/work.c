@@ -517,8 +517,7 @@ ieee80211_associate(struct ieee80211_work *wk)
 		 * bss struct for that AP.
 		 */
 		if (wk->assoc.bss)
-			cfg80211_unlink_bss(local->hw.wiphy,
-					    &wk->assoc.bss->cbss);
+			cfg80211_unlink_bss(local->hw.wiphy, wk->assoc.bss);
 
 		/*
 		 * We might have a pending scan which had no chance to run yet

@@ -71,9 +71,6 @@ struct ieee80211_fragment_entry {
 
 
 struct ieee80211_bss {
-	/* Yes, this is a hack */
-	struct cfg80211_bss cbss;
-
 	/* don't want to look up all the time */
 	size_t ssid_len;
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
@@ -274,7 +271,7 @@ struct ieee80211_work {
 			bool privacy;
 		} probe_auth;
 		struct {
-			struct ieee80211_bss *bss;
+			struct cfg80211_bss *bss;
 			const u8 *supp_rates;
 			const u8 *ht_information_ie;
 			enum ieee80211_smps_mode smps;
@@ -317,7 +314,7 @@ struct ieee80211_if_managed {
 	int probe_send_count;
 
 	struct mutex mtx;
-	struct ieee80211_bss *associated;
+	struct cfg80211_bss *associated;
 
 	u8 bssid[ETH_ALEN];
 

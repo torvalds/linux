@@ -1343,7 +1343,7 @@ int __ieee80211_request_smps(struct ieee80211_sub_if_data *sdata,
 		return 0;
 	}
 
-	ap = sdata->u.mgd.associated->cbss.bssid;
+	ap = sdata->u.mgd.associated->bssid;
 
 	if (smps_mode == IEEE80211_SMPS_AUTOMATIC) {
 		if (sdata->u.mgd.powersave)
