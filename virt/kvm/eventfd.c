@@ -463,7 +463,7 @@ static int
 kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 {
 	int                       pio = args->flags & KVM_IOEVENTFD_FLAG_PIO;
-	struct kvm_io_bus        *bus = pio ? &kvm->pio_bus : &kvm->mmio_bus;
+	enum kvm_bus              bus_idx = pio ? KVM_PIO_BUS : KVM_MMIO_BUS;
 	struct _ioeventfd        *p;
 	struct eventfd_ctx       *eventfd;
 	int                       ret;
@@ -518,7 +518,7 @@ kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 
 	kvm_iodevice_init(&p->dev, &ioeventfd_ops);
 
-	ret = __kvm_io_bus_register_dev(bus, &p->dev);
+	ret = kvm_io_bus_register_dev(kvm, bus_idx, &p->dev);
 	if (ret < 0)
 		goto unlock_fail;
 
@@ -542,7 +542,7 @@ static int
 kvm_deassign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 {
 	int                       pio = args->flags & KVM_IOEVENTFD_FLAG_PIO;
-	struct kvm_io_bus        *bus = pio ? &kvm->pio_bus : &kvm->mmio_bus;
+	enum kvm_bus              bus_idx = pio ? KVM_PIO_BUS : KVM_MMIO_BUS;
 	struct _ioeventfd        *p, *tmp;
 	struct eventfd_ctx       *eventfd;
 	int                       ret = -ENOENT;
@@ -565,7 +565,7 @@ kvm_deassign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 		if (!p->wildcard && p->datamatch != args->datamatch)
 			continue;
 
-		__kvm_io_bus_unregister_dev(bus, &p->dev);
+		kvm_io_bus_unregister_dev(kvm, bus_idx, &p->dev);
 		ioeventfd_release(p);
 		ret = 0;
 		break;

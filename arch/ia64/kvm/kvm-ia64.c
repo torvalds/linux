@@ -241,10 +241,10 @@ static int handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 0;
 mmio:
 	if (p->dir)
-		r = kvm_io_bus_read(&vcpu->kvm->mmio_bus, p->addr,
+		r = kvm_io_bus_read(vcpu->kvm, KVM_MMIO_BUS, p->addr,
 				    p->size, &p->data);
 	else
-		r = kvm_io_bus_write(&vcpu->kvm->mmio_bus, p->addr,
+		r = kvm_io_bus_write(vcpu->kvm, KVM_MMIO_BUS, p->addr,
 				     p->size, &p->data);
 	if (r)
 		printk(KERN_ERR"kvm: No iodevice found! addr:%lx\n", p->addr);

@@ -57,20 +57,20 @@ struct kvm_io_bus {
 	struct kvm_io_device *devs[NR_IOBUS_DEVS];
 };
 
-void kvm_io_bus_init(struct kvm_io_bus *bus);
-void kvm_io_bus_destroy(struct kvm_io_bus *bus);
-int kvm_io_bus_write(struct kvm_io_bus *bus, gpa_t addr, int len,
-		     const void *val);
-int kvm_io_bus_read(struct kvm_io_bus *bus, gpa_t addr, int len,
+enum kvm_bus {
+	KVM_MMIO_BUS,
+	KVM_PIO_BUS,
+	KVM_NR_BUSES
+};
+
+int kvm_io_bus_write(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
+		     int len, const void *val);
+int kvm_io_bus_read(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr, int len,
 		    void *val);
-int __kvm_io_bus_register_dev(struct kvm_io_bus *bus,
-			       struct kvm_io_device *dev);
-int kvm_io_bus_register_dev(struct kvm *kvm, struct kvm_io_bus *bus,
+int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx,
 			    struct kvm_io_device *dev);
-void __kvm_io_bus_unregister_dev(struct kvm_io_bus *bus,
-				 struct kvm_io_device *dev);
-void kvm_io_bus_unregister_dev(struct kvm *kvm, struct kvm_io_bus *bus,
-			       struct kvm_io_device *dev);
+int kvm_io_bus_unregister_dev(struct kvm *kvm, enum kvm_bus bus_idx,
+			      struct kvm_io_device *dev);
 
 struct kvm_vcpu {
 	struct kvm *kvm;
@@ -171,8 +171,7 @@ struct kvm {
 	atomic_t online_vcpus;
 	struct list_head vm_list;
 	struct mutex lock;
-	struct kvm_io_bus mmio_bus;
-	struct kvm_io_bus pio_bus;
+	struct kvm_io_bus *buses[KVM_NR_BUSES];
 #ifdef CONFIG_HAVE_KVM_EVENTFD
 	struct {
 		spinlock_t        lock;

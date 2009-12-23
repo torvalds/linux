@@ -110,7 +110,9 @@ int kvm_coalesced_mmio_init(struct kvm *kvm)
 	dev->kvm = kvm;
 	kvm->coalesced_mmio_dev = dev;
 
-	ret = kvm_io_bus_register_dev(kvm, &kvm->mmio_bus, &dev->dev);
+	down_write(&kvm->slots_lock);
+	ret = kvm_io_bus_register_dev(kvm, KVM_MMIO_BUS, &dev->dev);
+	up_write(&kvm->slots_lock);
 	if (ret < 0)
 		goto out_free_dev;
 

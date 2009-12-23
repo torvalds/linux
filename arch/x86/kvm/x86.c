@@ -2851,7 +2851,7 @@ static int vcpu_mmio_write(struct kvm_vcpu *vcpu, gpa_t addr, int len,
 	    !kvm_iodevice_write(&vcpu->arch.apic->dev, addr, len, v))
 		return 0;
 
-	return kvm_io_bus_write(&vcpu->kvm->mmio_bus, addr, len, v);
+	return kvm_io_bus_write(vcpu->kvm, KVM_MMIO_BUS, addr, len, v);
 }
 
 static int vcpu_mmio_read(struct kvm_vcpu *vcpu, gpa_t addr, int len, void *v)
@@ -2860,7 +2860,7 @@ static int vcpu_mmio_read(struct kvm_vcpu *vcpu, gpa_t addr, int len, void *v)
 	    !kvm_iodevice_read(&vcpu->arch.apic->dev, addr, len, v))
 		return 0;
 
-	return kvm_io_bus_read(&vcpu->kvm->mmio_bus, addr, len, v);
+	return kvm_io_bus_read(vcpu->kvm, KVM_MMIO_BUS, addr, len, v);
 }
 
 static int kvm_read_guest_virt(gva_t addr, void *val, unsigned int bytes,
@@ -3345,11 +3345,12 @@ static int kernel_pio(struct kvm_vcpu *vcpu, void *pd)
 	int r;
 
 	if (vcpu->arch.pio.in)
-		r = kvm_io_bus_read(&vcpu->kvm->pio_bus, vcpu->arch.pio.port,
+		r = kvm_io_bus_read(vcpu->kvm, KVM_PIO_BUS, vcpu->arch.pio.port,
 				    vcpu->arch.pio.size, pd);
 	else
-		r = kvm_io_bus_write(&vcpu->kvm->pio_bus, vcpu->arch.pio.port,
-				     vcpu->arch.pio.size, pd);
+		r = kvm_io_bus_write(vcpu->kvm, KVM_PIO_BUS,
+				     vcpu->arch.pio.port, vcpu->arch.pio.size,
+				     pd);
 	return r;
 }
 
@@ -3360,7 +3361,7 @@ static int pio_string_write(struct kvm_vcpu *vcpu)
 	int i, r = 0;
 
 	for (i = 0; i < io->cur_count; i++) {
-		if (kvm_io_bus_write(&vcpu->kvm->pio_bus,
+		if (kvm_io_bus_write(vcpu->kvm, KVM_PIO_BUS,
 				     io->port, io->size, pd)) {
 			r = -EOPNOTSUPP;
 			break;
