@@ -771,6 +771,7 @@ static void enic_set_multicast_list(struct net_device *netdev)
 	int promisc = (netdev->flags & IFF_PROMISC) ? 1 : 0;
 	int allmulti = (netdev->flags & IFF_ALLMULTI) ||
 	    (netdev->mc_count > ENIC_MULTICAST_PERFECT_FILTERS);
+	unsigned int flags = netdev->flags | (allmulti ? IFF_ALLMULTI : 0);
 	u8 mc_addr[ENIC_MULTICAST_PERFECT_FILTERS][ETH_ALEN];
 	unsigned int mc_count = netdev->mc_count;
 	unsigned int i, j;
@@ -780,8 +781,11 @@ static void enic_set_multicast_list(struct net_device *netdev)
 
 	spin_lock(&enic->devcmd_lock);
 
-	vnic_dev_packet_filter(enic->vdev, directed,
-		multicast, broadcast, promisc, allmulti);
+	if (enic->flags != flags) {
+		enic->flags = flags;
+		vnic_dev_packet_filter(enic->vdev, directed,
+			multicast, broadcast, promisc, allmulti);
+	}
 
 	/* Is there an easier way?  Trying to minimize to
 	 * calls to add/del multicast addrs.  We keep the

@@ -89,6 +89,7 @@ struct enic {
 	spinlock_t devcmd_lock;
 	u8 mac_addr[ETH_ALEN];
 	u8 mc_addr[ENIC_MULTICAST_PERFECT_FILTERS][ETH_ALEN];
+	unsigned int flags;
 	unsigned int mc_count;
 	int csum_rx_enabled;
 	u32 port_mtu;
