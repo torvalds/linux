@@ -835,20 +835,13 @@ unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
 }
 EXPORT_SYMBOL_GPL(gfn_to_hva);
 
-pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
+static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr)
 {
 	struct page *page[1];
-	unsigned long addr;
 	int npages;
 	pfn_t pfn;
 
 	might_sleep();
-
-	addr = gfn_to_hva(kvm, gfn);
-	if (kvm_is_error_hva(addr)) {
-		get_page(bad_page);
-		return page_to_pfn(bad_page);
-	}
 
 	npages = get_user_pages_fast(addr, 1, 1, page);
 
@@ -874,7 +867,31 @@ pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
 	return pfn;
 }
 
+pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
+{
+	unsigned long addr;
+
+	addr = gfn_to_hva(kvm, gfn);
+	if (kvm_is_error_hva(addr)) {
+		get_page(bad_page);
+		return page_to_pfn(bad_page);
+	}
+
+	return hva_to_pfn(kvm, addr);
+}
 EXPORT_SYMBOL_GPL(gfn_to_pfn);
+
+static unsigned long gfn_to_hva_memslot(struct kvm_memory_slot *slot, gfn_t gfn)
+{
+	return (slot->userspace_addr + (gfn - slot->base_gfn) * PAGE_SIZE);
+}
+
+pfn_t gfn_to_pfn_memslot(struct kvm *kvm,
+			 struct kvm_memory_slot *slot, gfn_t gfn)
+{
+	unsigned long addr = gfn_to_hva_memslot(slot, gfn);
+	return hva_to_pfn(kvm, addr);
+}
 
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
 {
