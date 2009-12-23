@@ -106,9 +106,13 @@ void ieee80211_offchannel_stop_beaconing(struct ieee80211_local *local)
 		/*
 		 * only handle non-STA interfaces here, STA interfaces
 		 * are handled in ieee80211_offchannel_stop_station(),
-		 * e.g., from the background scan state machine
+		 * e.g., from the background scan state machine.
+		 *
+		 * In addition, do not stop monitor interface to allow it to be
+		 * used from user space controlled off-channel operations.
 		 */
-		if (sdata->vif.type != NL80211_IFTYPE_STATION)
+		if (sdata->vif.type != NL80211_IFTYPE_STATION &&
+		    sdata->vif.type != NL80211_IFTYPE_MONITOR)
 			netif_stop_queue(sdata->dev);
 	}
 	mutex_unlock(&local->iflist_mtx);

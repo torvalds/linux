@@ -857,6 +857,9 @@ static void ieee80211_mgd_probe_ap(struct ieee80211_sub_if_data *sdata,
 	if (sdata->local->scanning)
 		return;
 
+	if (sdata->local->tmp_channel)
+		return;
+
 	mutex_lock(&ifmgd->mtx);
 
 	if (!ifmgd->associated)

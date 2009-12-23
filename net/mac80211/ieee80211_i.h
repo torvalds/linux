@@ -225,9 +225,11 @@ struct mesh_preq_queue {
 };
 
 enum ieee80211_work_type {
+	IEEE80211_WORK_ABORT,
 	IEEE80211_WORK_DIRECT_PROBE,
 	IEEE80211_WORK_AUTH,
 	IEEE80211_WORK_ASSOC,
+	IEEE80211_WORK_REMAIN_ON_CHANNEL,
 };
 
 /**
@@ -283,6 +285,9 @@ struct ieee80211_work {
 			u8 supp_rates_len;
 			bool wmm_used, use_11n;
 		} assoc;
+		struct {
+			unsigned long timeout;
+		} remain;
 	};
 
 	int ie_len;
@@ -729,6 +734,10 @@ struct ieee80211_local {
 	enum nl80211_channel_type oper_channel_type;
 	struct ieee80211_channel *oper_channel, *csa_channel;
 
+	/* Temporary remain-on-channel for off-channel operations */
+	struct ieee80211_channel *tmp_channel;
+	enum nl80211_channel_type tmp_channel_type;
+
 	/* SNMP counters */
 	/* dot11CountersTable */
 	u32 dot11TransmittedFragmentCount;
@@ -1162,6 +1171,12 @@ void free_work(struct ieee80211_work *wk);
 void ieee80211_work_purge(struct ieee80211_sub_if_data *sdata);
 ieee80211_rx_result ieee80211_work_rx_mgmt(struct ieee80211_sub_if_data *sdata,
 					   struct sk_buff *skb);
+int ieee80211_wk_remain_on_channel(struct ieee80211_sub_if_data *sdata,
+				   struct ieee80211_channel *chan,
+				   enum nl80211_channel_type channel_type,
+				   unsigned int duration, u64 *cookie);
+int ieee80211_wk_cancel_remain_on_channel(
+	struct ieee80211_sub_if_data *sdata, u64 cookie);
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline
