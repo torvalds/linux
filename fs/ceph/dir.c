@@ -1135,9 +1135,9 @@ void ceph_dentry_lru_add(struct dentry *dn)
 {
 	struct ceph_dentry_info *di = ceph_dentry(dn);
 	struct ceph_mds_client *mdsc;
-	dout("dentry_lru_add %p %p\t%.*s\n",
-			di, dn, dn->d_name.len, dn->d_name.name);
 
+	dout("dentry_lru_add %p %p '%.*s'\n", di, dn,
+	     dn->d_name.len, dn->d_name.name);
 	if (di) {
 		mdsc = &ceph_client(dn->d_sb)->mdsc;
 		spin_lock(&mdsc->dentry_lru_lock);
@@ -1151,9 +1151,9 @@ void ceph_dentry_lru_touch(struct dentry *dn)
 {
 	struct ceph_dentry_info *di = ceph_dentry(dn);
 	struct ceph_mds_client *mdsc;
-	dout("dentry_lru_touch %p %p\t%.*s\n",
-			di, dn, dn->d_name.len, dn->d_name.name);
 
+	dout("dentry_lru_touch %p %p '%.*s'\n", di, dn,
+	     dn->d_name.len, dn->d_name.name);
 	if (di) {
 		mdsc = &ceph_client(dn->d_sb)->mdsc;
 		spin_lock(&mdsc->dentry_lru_lock);
@@ -1167,8 +1167,8 @@ void ceph_dentry_lru_del(struct dentry *dn)
 	struct ceph_dentry_info *di = ceph_dentry(dn);
 	struct ceph_mds_client *mdsc;
 
-	dout("dentry_lru_del %p %p\t%.*s\n",
-			di, dn, dn->d_name.len, dn->d_name.name);
+	dout("dentry_lru_del %p %p '%.*s'\n", di, dn,
+	     dn->d_name.len, dn->d_name.name);
 	if (di) {
 		mdsc = &ceph_client(dn->d_sb)->mdsc;
 		spin_lock(&mdsc->dentry_lru_lock);

@@ -50,6 +50,12 @@
 #define CEPH_MAX_MON   31
 
 
+/*
+ * feature bits
+ */
+#define CEPH_FEATURE_SUPPORTED  0
+#define CEPH_FEATURE_REQUIRED   0
+
 
 /*
  * ceph_file_layout - describe data layout for a file/inode

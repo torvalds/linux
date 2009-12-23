@@ -21,7 +21,7 @@
  * whenever the wire protocol changes.  try to keep this string length
  * constant.
  */
-#define CEPH_BANNER "ceph v025"
+#define CEPH_BANNER "ceph v026"
 #define CEPH_BANNER_MAX_LEN 30
 
 
@@ -100,12 +100,14 @@ struct ceph_entity_inst {
 #define CEPH_MSGR_TAG_KEEPALIVE     9  /* just a keepalive byte! */
 #define CEPH_MSGR_TAG_BADPROTOVER  10  /* bad protocol version */
 #define CEPH_MSGR_TAG_BADAUTHORIZER 11 /* bad authorizer */
+#define CEPH_MSGR_TAG_FEATURES      12 /* insufficient features */
 
 
 /*
  * connection negotiation
  */
 struct ceph_msg_connect {
+	__le64 features;     /* supported feature bits */
 	__le32 host_type;    /* CEPH_ENTITY_TYPE_* */
 	__le32 global_seq;   /* count connections initiated by this host */
 	__le32 connect_seq;  /* count connections initiated in this session */
@@ -117,6 +119,7 @@ struct ceph_msg_connect {
 
 struct ceph_msg_connect_reply {
 	__u8 tag;
+	__le64 features;     /* feature bits for this session */
 	__le32 global_seq;
 	__le32 connect_seq;
 	__le32 protocol_version;

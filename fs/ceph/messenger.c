@@ -631,6 +631,7 @@ static void prepare_write_connect(struct ceph_messenger *msgr,
 	dout("prepare_write_connect %p cseq=%d gseq=%d proto=%d\n", con,
 	     con->connect_seq, global_seq, proto);
 
+	con->out_connect.features = CEPH_FEATURE_SUPPORTED;
 	con->out_connect.host_type = cpu_to_le32(CEPH_ENTITY_TYPE_CLIENT);
 	con->out_connect.connect_seq = cpu_to_le32(con->connect_seq);
 	con->out_connect.global_seq = cpu_to_le32(global_seq);
@@ -1080,15 +1081,37 @@ static int process_banner(struct ceph_connection *con)
 	return 0;
 }
 
+static void fail_protocol(struct ceph_connection *con)
+{
+	reset_connection(con);
+	set_bit(CLOSED, &con->state);  /* in case there's queued work */
+
+	mutex_unlock(&con->mutex);
+	if (con->ops->bad_proto)
+		con->ops->bad_proto(con);
+	mutex_lock(&con->mutex);
+}
+
 static int process_connect(struct ceph_connection *con)
 {
+	u64 sup_feat = CEPH_FEATURE_SUPPORTED;
+	u64 req_feat = CEPH_FEATURE_REQUIRED;
+	u64 server_feat = le64_to_cpu(con->in_reply.features);
+
 	dout("process_connect on %p tag %d\n", con, (int)con->in_tag);
 
 	switch (con->in_reply.tag) {
+	case CEPH_MSGR_TAG_FEATURES:
+		pr_err("%s%lld %s feature set mismatch,"
+		       " my %llx < server's %llx, missing %llx\n",
+		       ENTITY_NAME(con->peer_name),
+		       pr_addr(&con->peer_addr.in_addr),
+		       sup_feat, server_feat, server_feat & ~sup_feat);
+		con->error_msg = "missing required protocol features";
+		fail_protocol(con);
+		return -1;
+
 	case CEPH_MSGR_TAG_BADPROTOVER:
-		dout("process_connect got BADPROTOVER my %d != their %d\n",
-		     le32_to_cpu(con->out_connect.protocol_version),
-		     le32_to_cpu(con->in_reply.protocol_version));
 		pr_err("%s%lld %s protocol version mismatch,"
 		       " my %d != server's %d\n",
 		       ENTITY_NAME(con->peer_name),
@@ -1096,13 +1119,7 @@ static int process_connect(struct ceph_connection *con)
 		       le32_to_cpu(con->out_connect.protocol_version),
 		       le32_to_cpu(con->in_reply.protocol_version));
 		con->error_msg = "protocol version mismatch";
-		reset_connection(con);
-		set_bit(CLOSED, &con->state);  /* in case there's queued work */
-
-		mutex_unlock(&con->mutex);
-		if (con->ops->bad_proto)
-			con->ops->bad_proto(con);
-		mutex_lock(&con->mutex);
+		fail_protocol(con);
 		return -1;
 
 	case CEPH_MSGR_TAG_BADAUTHORIZER:
@@ -1173,6 +1190,16 @@ static int process_connect(struct ceph_connection *con)
 		break;
 
 	case CEPH_MSGR_TAG_READY:
+		if (req_feat & ~server_feat) {
+			pr_err("%s%lld %s protocol feature mismatch,"
+			       " my required %llx > server's %llx, need %llx\n",
+			       ENTITY_NAME(con->peer_name),
+			       pr_addr(&con->peer_addr.in_addr),
+			       req_feat, server_feat, req_feat & ~server_feat);
+			con->error_msg = "missing required protocol features";
+			fail_protocol(con);
+			return -1;
+		}
 		clear_bit(CONNECTING, &con->state);
 		con->peer_global_seq = le32_to_cpu(con->in_reply.global_seq);
 		con->connect_seq++;
