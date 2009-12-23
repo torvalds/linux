@@ -52,10 +52,14 @@ void falcon_qt202x_set_led(struct efx_nic *p, int led, int mode)
 
 struct qt202x_phy_data {
 	enum efx_phy_mode phy_mode;
+	bool bug17190_in_bad_state;
+	unsigned long bug17190_timer;
 };
 
 #define QT2022C2_MAX_RESET_TIME 500
 #define QT2022C2_RESET_WAIT 10
+
+#define BUG17190_INTERVAL (2 * HZ)
 
 static int qt2025c_wait_reset(struct efx_nic *efx)
 {
@@ -94,6 +98,39 @@ static int qt2025c_wait_reset(struct efx_nic *efx)
 	}
 
 	return 0;
+}
+
+static void qt2025c_bug17190_workaround(struct efx_nic *efx)
+{
+	struct qt202x_phy_data *phy_data = efx->phy_data;
+
+	/* The PHY can get stuck in a state where it reports PHY_XS and PMA/PMD
+	 * layers up, but PCS down (no block_lock).  If we notice this state
+	 * persisting for a couple of seconds, we switch PMA/PMD loopback
+	 * briefly on and then off again, which is normally sufficient to
+	 * recover it.
+	 */
+	if (efx->link_state.up ||
+	    !efx_mdio_links_ok(efx, MDIO_DEVS_PMAPMD | MDIO_DEVS_PHYXS)) {
+		phy_data->bug17190_in_bad_state = false;
+		return;
+	}
+
+	if (!phy_data->bug17190_in_bad_state) {
+		phy_data->bug17190_in_bad_state = true;
+		phy_data->bug17190_timer = jiffies + BUG17190_INTERVAL;
+		return;
+	}
+
+	if (time_after_eq(jiffies, phy_data->bug17190_timer)) {
+		EFX_LOG(efx, "bashing QT2025C PMA/PMD\n");
+		efx_mdio_set_flag(efx, MDIO_MMD_PMAPMD, MDIO_CTRL1,
+				  MDIO_PMA_CTRL1_LOOPBACK, true);
+		msleep(100);
+		efx_mdio_set_flag(efx, MDIO_MMD_PMAPMD, MDIO_CTRL1,
+				  MDIO_PMA_CTRL1_LOOPBACK, false);
+		phy_data->bug17190_timer = jiffies + BUG17190_INTERVAL;
+	}
 }
 
 static int qt202x_reset_phy(struct efx_nic *efx)
@@ -144,6 +181,8 @@ static int qt202x_phy_probe(struct efx_nic *efx)
 		return -ENOMEM;
 	efx->phy_data = phy_data;
 	phy_data->phy_mode = efx->phy_mode;
+	phy_data->bug17190_in_bad_state = false;
+	phy_data->bug17190_timer = 0;
 
 	efx->mdio.mmds = QT202X_REQUIRED_DEVS;
 	efx->mdio.mode_support = MDIO_SUPPORTS_C45 | MDIO_EMULATE_C22;
@@ -183,6 +222,9 @@ static bool qt202x_phy_poll(struct efx_nic *efx)
 	efx->link_state.speed = 10000;
 	efx->link_state.fd = true;
 	efx->link_state.fc = efx->wanted_fc;
+
+	if (efx->phy_type == PHY_TYPE_QT2025C)
+		qt2025c_bug17190_workaround(efx);
 
 	return efx->link_state.up != was_up;
 }
