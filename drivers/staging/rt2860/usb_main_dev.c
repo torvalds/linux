@@ -216,10 +216,6 @@ static int rt2870_suspend(struct usb_interface *intf, pm_message_t state);
 static int rt2870_resume(struct usb_interface *intf);
 #endif /* CONFIG_PM // */
 
-static int rtusb_probe(struct usb_interface *intf,
-		       const struct usb_device_id *id);
-static void rtusb_disconnect(struct usb_interface *intf);
-
 static BOOLEAN USBDevConfigInit(IN struct usb_device *dev,
 				IN struct usb_interface *intf,
 				struct rt_rtmp_adapter *pAd)
