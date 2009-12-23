@@ -33,6 +33,7 @@
  */
 uint32_t radeon_legacy_get_engine_clock(struct radeon_device *rdev);
 void radeon_legacy_set_engine_clock(struct radeon_device *rdev, uint32_t eng_clock);
+uint32_t radeon_legacy_get_memory_clock(struct radeon_device *rdev);
 void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable);
 
 uint32_t radeon_atom_get_engine_clock(struct radeon_device *rdev);
@@ -106,7 +107,7 @@ static struct radeon_asic r100_asic = {
 	.copy = &r100_copy_blit,
 	.get_engine_clock = &radeon_legacy_get_engine_clock,
 	.set_engine_clock = &radeon_legacy_set_engine_clock,
-	.get_memory_clock = NULL,
+	.get_memory_clock = &radeon_legacy_get_memory_clock,
 	.set_memory_clock = NULL,
 	.set_pcie_lanes = NULL,
 	.set_clock_gating = &radeon_legacy_set_clock_gating,
@@ -166,7 +167,7 @@ static struct radeon_asic r300_asic = {
 	.copy = &r100_copy_blit,
 	.get_engine_clock = &radeon_legacy_get_engine_clock,
 	.set_engine_clock = &radeon_legacy_set_engine_clock,
-	.get_memory_clock = NULL,
+	.get_memory_clock = &radeon_legacy_get_memory_clock,
 	.set_memory_clock = NULL,
 	.set_pcie_lanes = &rv370_set_pcie_lanes,
 	.set_clock_gating = &radeon_legacy_set_clock_gating,
@@ -259,7 +260,7 @@ static struct radeon_asic rs400_asic = {
 	.copy = &r100_copy_blit,
 	.get_engine_clock = &radeon_legacy_get_engine_clock,
 	.set_engine_clock = &radeon_legacy_set_engine_clock,
-	.get_memory_clock = NULL,
+	.get_memory_clock = &radeon_legacy_get_memory_clock,
 	.set_memory_clock = NULL,
 	.set_pcie_lanes = NULL,
 	.set_clock_gating = &radeon_legacy_set_clock_gating,
