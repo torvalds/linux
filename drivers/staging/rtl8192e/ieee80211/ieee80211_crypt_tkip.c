@@ -1012,7 +1012,7 @@ int __init ieee80211_crypto_tkip_init(void)
 }
 
 
-void __exit ieee80211_crypto_tkip_exit(void)
+void ieee80211_crypto_tkip_exit(void)
 {
 	ieee80211_unregister_crypto_ops(&ieee80211_crypt_tkip);
 }
