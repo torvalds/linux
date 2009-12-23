@@ -88,6 +88,7 @@ enum radeon_tv_std {
 	TV_STD_SCART_PAL,
 	TV_STD_SECAM,
 	TV_STD_PAL_CN,
+	TV_STD_PAL_N,
 };
 
 /* radeon gpio-based i2c
@@ -394,6 +395,11 @@ struct radeon_framebuffer {
 	struct drm_framebuffer base;
 	struct drm_gem_object *obj;
 };
+
+extern enum radeon_tv_std
+radeon_combios_get_tv_info(struct radeon_device *rdev);
+extern enum radeon_tv_std
+radeon_atombios_get_tv_info(struct radeon_device *rdev);
 
 extern void radeon_connector_hotplug(struct drm_connector *connector);
 extern bool radeon_dp_needs_link_train(struct radeon_connector *radeon_connector);

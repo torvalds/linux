@@ -427,11 +427,6 @@ void ch7006_state_load(struct i2c_client *client,
 	ch7006_load_reg(client, state, CH7006_SUBC_INC7);
 	ch7006_load_reg(client, state, CH7006_PLL_CONTROL);
 	ch7006_load_reg(client, state, CH7006_CALC_SUBC_INC0);
-
-	/* I don't know what this is for, but otherwise I get no
-	 * signal.
-	 */
-	ch7006_write(client, 0x3d, 0x0);
 }
 
 void ch7006_state_save(struct i2c_client *client,
