@@ -372,9 +372,9 @@ int kvm_ioapic_init(struct kvm *kvm)
 	kvm_ioapic_reset(ioapic);
 	kvm_iodevice_init(&ioapic->dev, &ioapic_mmio_ops);
 	ioapic->kvm = kvm;
-	down_write(&kvm->slots_lock);
+	mutex_lock(&kvm->slots_lock);
 	ret = kvm_io_bus_register_dev(kvm, KVM_MMIO_BUS, &ioapic->dev);
-	up_write(&kvm->slots_lock);
+	mutex_unlock(&kvm->slots_lock);
 	if (ret < 0)
 		kfree(ioapic);
 

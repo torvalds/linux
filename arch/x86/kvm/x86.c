@@ -2208,14 +2208,14 @@ static int kvm_vm_ioctl_set_nr_mmu_pages(struct kvm *kvm,
 	if (kvm_nr_mmu_pages < KVM_MIN_ALLOC_MMU_PAGES)
 		return -EINVAL;
 
-	down_write(&kvm->slots_lock);
+	mutex_lock(&kvm->slots_lock);
 	spin_lock(&kvm->mmu_lock);
 
 	kvm_mmu_change_mmu_pages(kvm, kvm_nr_mmu_pages);
 	kvm->arch.n_requested_mmu_pages = kvm_nr_mmu_pages;
 
 	spin_unlock(&kvm->mmu_lock);
-	up_write(&kvm->slots_lock);
+	mutex_unlock(&kvm->slots_lock);
 	return 0;
 }
 
@@ -2292,7 +2292,7 @@ static int kvm_vm_ioctl_set_memory_alias(struct kvm *kvm,
 	if (!aliases)
 		goto out;
 
-	down_write(&kvm->slots_lock);
+	mutex_lock(&kvm->slots_lock);
 
 	/* invalidate any gfn reference in case of deletion/shrinking */
 	memcpy(aliases, kvm->arch.aliases, sizeof(struct kvm_mem_aliases));
@@ -2328,7 +2328,7 @@ static int kvm_vm_ioctl_set_memory_alias(struct kvm *kvm,
 	r = 0;
 
 out_unlock:
-	up_write(&kvm->slots_lock);
+	mutex_unlock(&kvm->slots_lock);
 out:
 	return r;
 }
@@ -2462,7 +2462,7 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 	unsigned long is_dirty = 0;
 	unsigned long *dirty_bitmap = NULL;
 
-	down_write(&kvm->slots_lock);
+	mutex_lock(&kvm->slots_lock);
 
 	r = -EINVAL;
 	if (log->slot >= KVM_MEMORY_SLOTS)
@@ -2512,7 +2512,7 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 out_free:
 	vfree(dirty_bitmap);
 out:
-	up_write(&kvm->slots_lock);
+	mutex_unlock(&kvm->slots_lock);
 	return r;
 }
 
@@ -2625,7 +2625,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 				   sizeof(struct kvm_pit_config)))
 			goto out;
 	create_pit:
-		down_write(&kvm->slots_lock);
+		mutex_lock(&kvm->slots_lock);
 		r = -EEXIST;
 		if (kvm->arch.vpit)
 			goto create_pit_unlock;
@@ -2634,7 +2634,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		if (kvm->arch.vpit)
 			r = 0;
 	create_pit_unlock:
-		up_write(&kvm->slots_lock);
+		mutex_unlock(&kvm->slots_lock);
 		break;
 	case KVM_IRQ_LINE_STATUS:
 	case KVM_IRQ_LINE: {

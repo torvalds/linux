@@ -508,7 +508,7 @@ kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 	else
 		p->wildcard = true;
 
-	down_write(&kvm->slots_lock);
+	mutex_lock(&kvm->slots_lock);
 
 	/* Verify that there isnt a match already */
 	if (ioeventfd_check_collision(kvm, p)) {
@@ -524,12 +524,12 @@ kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 
 	list_add_tail(&p->list, &kvm->ioeventfds);
 
-	up_write(&kvm->slots_lock);
+	mutex_unlock(&kvm->slots_lock);
 
 	return 0;
 
 unlock_fail:
-	up_write(&kvm->slots_lock);
+	mutex_unlock(&kvm->slots_lock);
 
 fail:
 	kfree(p);
@@ -551,7 +551,7 @@ kvm_deassign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 	if (IS_ERR(eventfd))
 		return PTR_ERR(eventfd);
 
-	down_write(&kvm->slots_lock);
+	mutex_lock(&kvm->slots_lock);
 
 	list_for_each_entry_safe(p, tmp, &kvm->ioeventfds, list) {
 		bool wildcard = !(args->flags & KVM_IOEVENTFD_FLAG_DATAMATCH);
@@ -571,7 +571,7 @@ kvm_deassign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 		break;
 	}
 
-	up_write(&kvm->slots_lock);
+	mutex_unlock(&kvm->slots_lock);
 
 	eventfd_ctx_put(eventfd);
 

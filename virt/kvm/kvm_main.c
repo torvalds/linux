@@ -429,7 +429,7 @@ static struct kvm *kvm_create_vm(void)
 	kvm_eventfd_init(kvm);
 	mutex_init(&kvm->lock);
 	mutex_init(&kvm->irq_lock);
-	init_rwsem(&kvm->slots_lock);
+	mutex_init(&kvm->slots_lock);
 	atomic_set(&kvm->users_count, 1);
 	spin_lock(&kvm_lock);
 	list_add(&kvm->vm_list, &vm_list);
@@ -763,9 +763,9 @@ int kvm_set_memory_region(struct kvm *kvm,
 {
 	int r;
 
-	down_write(&kvm->slots_lock);
+	mutex_lock(&kvm->slots_lock);
 	r = __kvm_set_memory_region(kvm, mem, user_alloc);
-	up_write(&kvm->slots_lock);
+	mutex_unlock(&kvm->slots_lock);
 	return r;
 }
 EXPORT_SYMBOL_GPL(kvm_set_memory_region);
@@ -1997,7 +1997,7 @@ int kvm_io_bus_read(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 	return -EOPNOTSUPP;
 }
 
-/* Caller must have write lock on slots_lock. */
+/* Caller must hold slots_lock. */
 int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx,
 			    struct kvm_io_device *dev)
 {
@@ -2019,7 +2019,7 @@ int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx,
 	return 0;
 }
 
-/* Caller must have write lock on slots_lock. */
+/* Caller must hold slots_lock. */
 int kvm_io_bus_unregister_dev(struct kvm *kvm, enum kvm_bus bus_idx,
 			      struct kvm_io_device *dev)
 {

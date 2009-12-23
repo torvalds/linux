@@ -161,7 +161,7 @@ struct kvm_memslots {
 struct kvm {
 	spinlock_t mmu_lock;
 	spinlock_t requests_lock;
-	struct rw_semaphore slots_lock;
+	struct mutex slots_lock;
 	struct mm_struct *mm; /* userspace tied to this vm */
 	struct kvm_memslots *memslots;
 	struct srcu_struct srcu;

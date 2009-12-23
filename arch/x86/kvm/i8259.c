@@ -533,9 +533,9 @@ struct kvm_pic *kvm_create_pic(struct kvm *kvm)
 	 * Initialize PIO device
 	 */
 	kvm_iodevice_init(&s->dev, &picdev_ops);
-	down_write(&kvm->slots_lock);
+	mutex_lock(&kvm->slots_lock);
 	ret = kvm_io_bus_register_dev(kvm, KVM_PIO_BUS, &s->dev);
-	up_write(&kvm->slots_lock);
+	mutex_unlock(&kvm->slots_lock);
 	if (ret < 0) {
 		kfree(s);
 		return NULL;
