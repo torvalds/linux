@@ -69,8 +69,8 @@ struct kfifo {
  * @name: name of the declared kfifo datatype
  * @size: size of the fifo buffer
  *
- * Note: the macro can be used inside struct or union declaration
- * Note: the macro creates two objects:
+ * Note1: the macro can be used inside struct or union declaration
+ * Note2: the macro creates two objects:
  *  A kfifo object with the given name and a buffer for the kfifo
  *  object named name##kfifo_buffer
  */
@@ -83,7 +83,6 @@ union { \
 /**
  * INIT_KFIFO - Initialize a kfifo declared by DECLARED_KFIFO
  * @name: name of the declared kfifo datatype
- * @size: size of the fifo buffer
  */
 #define INIT_KFIFO(name) \
 	name = __kfifo_initializer(sizeof(name##kfifo_buffer) - \
@@ -94,8 +93,8 @@ union { \
  * @name: name of the declared kfifo datatype
  * @size: size of the fifo buffer
  *
- * Note: the macro can be used for global and local kfifo data type variables
- * Note: the macro creates two objects:
+ * Note1: the macro can be used for global and local kfifo data type variables
+ * Note2: the macro creates two objects:
  *  A kfifo object with the given name and a buffer for the kfifo
  *  object named name##kfifo_buffer
  */
@@ -249,7 +248,7 @@ extern __must_check unsigned int kfifo_from_user(struct kfifo *fifo,
 extern __must_check unsigned int kfifo_to_user(struct kfifo *fifo,
 	void __user *to, unsigned int n);
 
-/**
+/*
  * __kfifo_add_out internal helper function for updating the out offset
  */
 static inline void __kfifo_add_out(struct kfifo *fifo,
@@ -259,7 +258,7 @@ static inline void __kfifo_add_out(struct kfifo *fifo,
 	fifo->out += off;
 }
 
-/**
+/*
  * __kfifo_add_in internal helper function for updating the in offset
  */
 static inline void __kfifo_add_in(struct kfifo *fifo,
@@ -269,7 +268,7 @@ static inline void __kfifo_add_in(struct kfifo *fifo,
 	fifo->in += off;
 }
 
-/**
+/*
  * __kfifo_off internal helper function for calculating the index of a
  * given offeset
  */
@@ -278,7 +277,7 @@ static inline unsigned int __kfifo_off(struct kfifo *fifo, unsigned int off)
 	return off & (fifo->size - 1);
 }
 
-/**
+/*
  * __kfifo_peek_n internal helper function for determinate the length of
  * the next record in the fifo
  */
@@ -299,7 +298,7 @@ static inline unsigned int __kfifo_peek_n(struct kfifo *fifo,
 #undef	__KFIFO_GET
 }
 
-/**
+/*
  * __kfifo_poke_n internal helper function for storing the length of
  * the next record into the fifo
  */
@@ -319,7 +318,7 @@ static inline void __kfifo_poke_n(struct kfifo *fifo,
 #undef	__KFIFO_PUT
 }
 
-/**
+/*
  * __kfifo_in_... internal functions for put date into the fifo
  * do not call it directly, use kfifo_in_rec() instead
  */
@@ -367,7 +366,7 @@ static inline __must_check unsigned int kfifo_in_rec(struct kfifo *fifo,
 	return __kfifo_in_rec(fifo, from, n, recsize);
 }
 
-/**
+/*
  * __kfifo_out_... internal functions for get date from the fifo
  * do not call it directly, use kfifo_out_rec() instead
  */
@@ -425,7 +424,7 @@ static inline __must_check unsigned int kfifo_out_rec(struct kfifo *fifo,
 	return __kfifo_out_rec(fifo, to, n, recsize, total);
 }
 
-/**
+/*
  * __kfifo_from_user_... internal functions for transfer from user space into
  * the fifo. do not call it directly, use kfifo_from_user_rec() instead
  */
@@ -474,7 +473,7 @@ static inline __must_check unsigned int kfifo_from_user_rec(struct kfifo *fifo,
 	return __kfifo_from_user_rec(fifo, from, n, recsize);
 }
 
-/**
+/*
  * __kfifo_to_user_... internal functions for transfer fifo data into user space
  * do not call it directly, use kfifo_to_user_rec() instead
  */
@@ -533,7 +532,7 @@ static inline __must_check unsigned int kfifo_to_user_rec(struct kfifo *fifo,
 	return __kfifo_to_user_rec(fifo, to, n, recsize, total);
 }
 
-/**
+/*
  * __kfifo_peek_... internal functions for peek into the next fifo record
  * do not call it directly, use kfifo_peek_rec() instead
  */
@@ -557,7 +556,7 @@ static inline __must_check unsigned int kfifo_peek_rec(struct kfifo *fifo,
 	return __kfifo_peek_n(fifo, recsize);
 }
 
-/**
+/*
  * __kfifo_skip_... internal functions for skip the next fifo record
  * do not call it directly, use kfifo_skip_rec() instead
  */
