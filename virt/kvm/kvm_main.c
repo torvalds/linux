@@ -684,7 +684,7 @@ skip_lpage:
 	spin_unlock(&kvm->mmu_lock);
 #ifdef CONFIG_DMAR
 	/* map the pages in iommu page table */
-	r = kvm_iommu_map_pages(kvm, base_gfn, npages);
+	r = kvm_iommu_map_pages(kvm, memslot);
 	if (r)
 		goto out;
 #endif

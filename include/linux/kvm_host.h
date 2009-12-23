@@ -440,8 +440,7 @@ void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id);
 #define KVM_IOMMU_CACHE_COHERENCY	0x1
 
 #ifdef CONFIG_IOMMU_API
-int kvm_iommu_map_pages(struct kvm *kvm, gfn_t base_gfn,
-			unsigned long npages);
+int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot);
 int kvm_iommu_map_guest(struct kvm *kvm);
 int kvm_iommu_unmap_guest(struct kvm *kvm);
 int kvm_assign_device(struct kvm *kvm,
