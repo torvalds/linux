@@ -547,7 +547,6 @@ enum mac80211_rx_flags {
  *	unspecified depending on the hardware capabilities flags
  *	@IEEE80211_HW_SIGNAL_*
  * @noise: noise when receiving this frame, in dBm.
- * @qual: overall signal quality indication, in percent (0-100).
  * @antenna: antenna used
  * @rate_idx: index of data rate into band's supported rates or MCS index if
  *	HT rates are use (RX_FLAG_HT)
@@ -559,7 +558,6 @@ struct ieee80211_rx_status {
 	int freq;
 	int signal;
 	int noise;
-	int __deprecated qual;
 	int antenna;
 	int rate_idx;
 	int flag;
