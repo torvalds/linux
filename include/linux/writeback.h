@@ -69,6 +69,7 @@ struct writeback_control {
 struct bdi_writeback;
 int inode_wait(void *);
 void writeback_inodes_sb(struct super_block *);
+int writeback_inodes_sb_if_idle(struct super_block *);
 void sync_inodes_sb(struct super_block *);
 void writeback_inodes_wbc(struct writeback_control *wbc);
 long wb_do_writeback(struct bdi_writeback *wb, int force_wait);

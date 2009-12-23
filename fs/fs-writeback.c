@@ -1213,6 +1213,23 @@ void writeback_inodes_sb(struct super_block *sb)
 EXPORT_SYMBOL(writeback_inodes_sb);
 
 /**
+ * writeback_inodes_sb_if_idle	-	start writeback if none underway
+ * @sb: the superblock
+ *
+ * Invoke writeback_inodes_sb if no writeback is currently underway.
+ * Returns 1 if writeback was started, 0 if not.
+ */
+int writeback_inodes_sb_if_idle(struct super_block *sb)
+{
+	if (!writeback_in_progress(sb->s_bdi)) {
+		writeback_inodes_sb(sb);
+		return 1;
+	} else
+		return 0;
+}
+EXPORT_SYMBOL(writeback_inodes_sb_if_idle);
+
+/**
  * sync_inodes_sb	-	sync sb inode pages
  * @sb: the superblock
  *
