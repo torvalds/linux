@@ -89,8 +89,6 @@ source "drivers/staging/dream/Kconfig"
 
 source "drivers/staging/pohmelfs/Kconfig"
 
-source "drivers/staging/b3dfg/Kconfig"
-
 source "drivers/staging/phison/Kconfig"
 
 source "drivers/staging/p9auth/Kconfig"
