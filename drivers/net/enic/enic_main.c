@@ -1084,34 +1084,6 @@ static int enic_rq_service(struct vnic_dev *vdev, struct cq_desc *cq_desc,
 	return 0;
 }
 
-static void enic_rq_drop_buf(struct vnic_rq *rq,
-	struct cq_desc *cq_desc, struct vnic_rq_buf *buf,
-	int skipped, void *opaque)
-{
-	struct enic *enic = vnic_dev_priv(rq->vdev);
-	struct sk_buff *skb = buf->os_buf;
-
-	if (skipped)
-		return;
-
-	pci_unmap_single(enic->pdev, buf->dma_addr,
-		buf->len, PCI_DMA_FROMDEVICE);
-
-	dev_kfree_skb_any(skb);
-}
-
-static int enic_rq_service_drop(struct vnic_dev *vdev, struct cq_desc *cq_desc,
-	u8 type, u16 q_number, u16 completed_index, void *opaque)
-{
-	struct enic *enic = vnic_dev_priv(vdev);
-
-	vnic_rq_service(&enic->rq[q_number], cq_desc,
-		completed_index, VNIC_RQ_RETURN_DESC,
-		enic_rq_drop_buf, opaque);
-
-	return 0;
-}
-
 static int enic_poll(struct napi_struct *napi, int budget)
 {
 	struct enic *enic = container_of(napi, struct enic, napi);
@@ -1304,6 +1276,24 @@ static int enic_request_intr(struct enic *enic)
 	return err;
 }
 
+static void enic_synchronize_irqs(struct enic *enic)
+{
+	unsigned int i;
+
+	switch (vnic_dev_get_intr_mode(enic->vdev)) {
+	case VNIC_DEV_INTR_MODE_INTX:
+	case VNIC_DEV_INTR_MODE_MSI:
+		synchronize_irq(enic->pdev->irq);
+		break;
+	case VNIC_DEV_INTR_MODE_MSIX:
+		for (i = 0; i < enic->intr_count; i++)
+			synchronize_irq(enic->msix_entry[i].vector);
+		break;
+	default:
+		break;
+	}
+}
+
 static int enic_notify_set(struct enic *enic)
 {
 	int err;
@@ -1409,16 +1399,19 @@ static int enic_stop(struct net_device *netdev)
 	unsigned int i;
 	int err;
 
+	for (i = 0; i < enic->intr_count; i++)
+		vnic_intr_mask(&enic->intr[i]);
+
+	enic_synchronize_irqs(enic);
+
 	del_timer_sync(&enic->notify_timer);
 
 	spin_lock(&enic->devcmd_lock);
 	vnic_dev_disable(enic->vdev);
 	spin_unlock(&enic->devcmd_lock);
 	napi_disable(&enic->napi);
-	netif_stop_queue(netdev);
-
-	for (i = 0; i < enic->intr_count; i++)
-		vnic_intr_mask(&enic->intr[i]);
+	netif_carrier_off(netdev);
+	netif_tx_disable(netdev);
 
 	for (i = 0; i < enic->wq_count; i++) {
 		err = vnic_wq_disable(&enic->wq[i]);
@@ -1435,11 +1428,6 @@ static int enic_stop(struct net_device *netdev)
 	vnic_dev_notify_unset(enic->vdev);
 	spin_unlock(&enic->devcmd_lock);
 	enic_free_intr(enic);
-
-	(void)vnic_cq_service(&enic->cq[ENIC_CQ_RQ],
-		-1, enic_rq_service_drop, NULL);
-	(void)vnic_cq_service(&enic->cq[ENIC_CQ_WQ],
-		-1, enic_wq_service, NULL);
 
 	for (i = 0; i < enic->wq_count; i++)
 		vnic_wq_clean(&enic->wq[i], enic_free_wq_buf);

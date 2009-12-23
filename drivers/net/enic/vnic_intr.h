@@ -61,6 +61,7 @@ static inline void vnic_intr_unmask(struct vnic_intr *intr)
 static inline void vnic_intr_mask(struct vnic_intr *intr)
 {
 	iowrite32(1, &intr->ctrl->mask);
+	(void)ioread32(&intr->ctrl->mask);
 }
 
 static inline void vnic_intr_return_credits(struct vnic_intr *intr,
