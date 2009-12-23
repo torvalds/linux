@@ -1884,6 +1884,13 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		ifmgd->ap_smps = ifmgd->req_smps;
 
 	wk->assoc.smps = ifmgd->ap_smps;
+	/*
+	 * IEEE802.11n does not allow TKIP/WEP as pairwise ciphers in HT mode.
+	 * We still associate in non-HT mode (11a/b/g) if any one of these
+	 * ciphers is configured as pairwise.
+	 * We can set this to true for non-11n hardware, that'll be checked
+	 * separately along with the peer capabilities.
+	 */
 	wk->assoc.use_11n = !(ifmgd->flags & IEEE80211_STA_DISABLE_11N);
 	wk->assoc.capability = req->bss->capability;
 	wk->assoc.wmm_used = wk->assoc.bss->wmm_used;
