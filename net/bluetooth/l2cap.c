@@ -1368,13 +1368,14 @@ static int l2cap_ertm_send(struct sock *sk)
 
 	while ((skb = sk->sk_send_head) && (!l2cap_tx_window_full(sk)) &&
 	       !(pi->conn_state & L2CAP_CONN_REMOTE_BUSY)) {
-		tx_skb = skb_clone(skb, GFP_ATOMIC);
 
 		if (pi->remote_max_tx &&
 				bt_cb(skb)->retries == pi->remote_max_tx) {
 			l2cap_send_disconn_req(pi->conn, sk);
 			break;
 		}
+
+		tx_skb = skb_clone(skb, GFP_ATOMIC);
 
 		bt_cb(skb)->retries++;
 
