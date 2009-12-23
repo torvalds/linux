@@ -829,6 +829,7 @@ struct radeon_device {
 	struct r600_ih ih; /* r6/700 interrupt ring */
 	struct workqueue_struct *wq;
 	struct work_struct hotplug_work;
+	struct mutex dc_hw_i2c_mutex; /* display controller hw i2c mutex */
 
 	/* audio stuff */
 	struct timer_list	audio_timer;

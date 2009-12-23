@@ -717,54 +717,62 @@
 #define AVIVO_DVOA_BIT_DEPTH_CONTROL			0x7988
 
 #define AVIVO_DC_GPIO_HPD_A                 0x7e94
-
-#define AVIVO_GPIO_0                        0x7e30
-#define AVIVO_GPIO_1                        0x7e40
-#define AVIVO_GPIO_2                        0x7e50
-#define AVIVO_GPIO_3                        0x7e60
-
 #define AVIVO_DC_GPIO_HPD_Y                 0x7e9c
 
-#define AVIVO_I2C_STATUS					0x7d30
-#	define AVIVO_I2C_STATUS_DONE				(1 << 0)
-#	define AVIVO_I2C_STATUS_NACK				(1 << 1)
-#	define AVIVO_I2C_STATUS_HALT				(1 << 2)
-#	define AVIVO_I2C_STATUS_GO				(1 << 3)
-#	define AVIVO_I2C_STATUS_MASK				0x7
-/* If radeon_mm_i2c is to be believed, this is HALT, NACK, and maybe
- * DONE? */
-#	define AVIVO_I2C_STATUS_CMD_RESET			0x7
-#	define AVIVO_I2C_STATUS_CMD_WAIT			(1 << 3)
-#define AVIVO_I2C_STOP						0x7d34
-#define AVIVO_I2C_START_CNTL				0x7d38
-#	define AVIVO_I2C_START						(1 << 8)
-#	define AVIVO_I2C_CONNECTOR0					(0 << 16)
-#	define AVIVO_I2C_CONNECTOR1					(1 << 16)
-#define R520_I2C_START (1<<0)
-#define R520_I2C_STOP (1<<1)
-#define R520_I2C_RX (1<<2)
-#define R520_I2C_EN (1<<8)
-#define R520_I2C_DDC1 (0<<16)
-#define R520_I2C_DDC2 (1<<16)
-#define R520_I2C_DDC3 (2<<16)
-#define R520_I2C_DDC_MASK (3<<16)
-#define AVIVO_I2C_CONTROL2					0x7d3c
-#	define AVIVO_I2C_7D3C_SIZE_SHIFT			8
-#	define AVIVO_I2C_7D3C_SIZE_MASK				(0xf << 8)
-#define AVIVO_I2C_CONTROL3						0x7d40
-/* Reading is done 4 bytes at a time: read the bottom 8 bits from
- * 7d44, four times in a row.
- * Writing is a little more complex.  First write DATA with
- * 0xnnnnnnzz, then 0xnnnnnnyy, where nnnnnn is some non-deterministic
- * magic number, zz is, I think, the slave address, and yy is the byte
- * you want to write. */
-#define AVIVO_I2C_DATA						0x7d44
-#define R520_I2C_ADDR_COUNT_MASK (0x7)
-#define R520_I2C_DATA_COUNT_SHIFT (8)
-#define R520_I2C_DATA_COUNT_MASK (0xF00)
-#define AVIVO_I2C_CNTL						0x7d50
-#	define AVIVO_I2C_EN							(1 << 0)
-#	define AVIVO_I2C_RESET						(1 << 8)
+#define AVIVO_DC_I2C_STATUS1				0x7d30
+#	define AVIVO_DC_I2C_DONE			(1 << 0)
+#	define AVIVO_DC_I2C_NACK			(1 << 1)
+#	define AVIVO_DC_I2C_HALT			(1 << 2)
+#	define AVIVO_DC_I2C_GO			        (1 << 3)
+#define AVIVO_DC_I2C_RESET 				0x7d34
+#	define AVIVO_DC_I2C_SOFT_RESET			(1 << 0)
+#	define AVIVO_DC_I2C_ABORT			(1 << 8)
+#define AVIVO_DC_I2C_CONTROL1 				0x7d38
+#	define AVIVO_DC_I2C_START			(1 << 0)
+#	define AVIVO_DC_I2C_STOP			(1 << 1)
+#	define AVIVO_DC_I2C_RECEIVE			(1 << 2)
+#	define AVIVO_DC_I2C_EN			        (1 << 8)
+#	define AVIVO_DC_I2C_PIN_SELECT(x)		((x) << 16)
+#	define AVIVO_SEL_DDC1			        0
+#	define AVIVO_SEL_DDC2			        1
+#	define AVIVO_SEL_DDC3			        2
+#define AVIVO_DC_I2C_CONTROL2 				0x7d3c
+#	define AVIVO_DC_I2C_ADDR_COUNT(x)		((x) << 0)
+#	define AVIVO_DC_I2C_DATA_COUNT(x)		((x) << 8)
+#define AVIVO_DC_I2C_CONTROL3 				0x7d40
+#	define AVIVO_DC_I2C_DATA_DRIVE_EN		(1 << 0)
+#	define AVIVO_DC_I2C_DATA_DRIVE_SEL		(1 << 1)
+#	define AVIVO_DC_I2C_CLK_DRIVE_EN		(1 << 7)
+#	define AVIVO_DC_I2C_RD_INTRA_BYTE_DELAY(x)      ((x) << 8)
+#	define AVIVO_DC_I2C_WR_INTRA_BYTE_DELAY(x)	((x) << 16)
+#	define AVIVO_DC_I2C_TIME_LIMIT(x)		((x) << 24)
+#define AVIVO_DC_I2C_DATA 				0x7d44
+#define AVIVO_DC_I2C_INTERRUPT_CONTROL 			0x7d48
+#	define AVIVO_DC_I2C_INTERRUPT_STATUS		(1 << 0)
+#	define AVIVO_DC_I2C_INTERRUPT_AK		(1 << 8)
+#	define AVIVO_DC_I2C_INTERRUPT_ENABLE		(1 << 16)
+#define AVIVO_DC_I2C_ARBITRATION 			0x7d50
+#	define AVIVO_DC_I2C_SW_WANTS_TO_USE_I2C		(1 << 0)
+#	define AVIVO_DC_I2C_SW_CAN_USE_I2C		(1 << 1)
+#	define AVIVO_DC_I2C_SW_DONE_USING_I2C		(1 << 8)
+#	define AVIVO_DC_I2C_HW_NEEDS_I2C		(1 << 9)
+#	define AVIVO_DC_I2C_ABORT_HDCP_I2C		(1 << 16)
+#	define AVIVO_DC_I2C_HW_USING_I2C		(1 << 17)
+
+#define AVIVO_DC_GPIO_DDC1_MASK 		        0x7e40
+#define AVIVO_DC_GPIO_DDC1_A 		                0x7e44
+#define AVIVO_DC_GPIO_DDC1_EN 		                0x7e48
+#define AVIVO_DC_GPIO_DDC1_Y 		                0x7e4c
+
+#define AVIVO_DC_GPIO_DDC2_MASK 		        0x7e50
+#define AVIVO_DC_GPIO_DDC2_A 		                0x7e54
+#define AVIVO_DC_GPIO_DDC2_EN 		                0x7e58
+#define AVIVO_DC_GPIO_DDC2_Y 		                0x7e5c
+
+#define AVIVO_DC_GPIO_DDC3_MASK 		        0x7e60
+#define AVIVO_DC_GPIO_DDC3_A 		                0x7e64
+#define AVIVO_DC_GPIO_DDC3_EN 		                0x7e68
+#define AVIVO_DC_GPIO_DDC3_Y 		                0x7e6c
 
 #define AVIVO_DISP_INTERRUPT_STATUS                             0x7edc
 #       define AVIVO_D1_VBLANK_INTERRUPT                        (1 << 4)
