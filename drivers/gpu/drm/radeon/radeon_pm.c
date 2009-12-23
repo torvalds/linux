@@ -26,7 +26,6 @@
 #define RADEON_IDLE_LOOP_MS 100
 #define RADEON_RECLOCK_DELAY_MS 200
 
-static void radeon_pm_check_limits(struct radeon_device *rdev);
 static void radeon_pm_set_clocks_locked(struct radeon_device *rdev);
 static void radeon_pm_set_clocks(struct radeon_device *rdev);
 static void radeon_pm_reclock_work_handler(struct work_struct *work);
@@ -186,12 +185,21 @@ static void radeon_get_power_state(struct radeon_device *rdev,
 			radeon_pick_clock_mode(rdev, rdev->pm.requested_power_state, POWER_MODE_TYPE_HIGH);
 		break;
 	}
+	DRM_INFO("Requested: e: %d m: %d p: %d\n",
+		 rdev->pm.requested_power_state->requested_clock_mode->sclk,
+		 rdev->pm.requested_power_state->requested_clock_mode->mclk,
+		 rdev->pm.requested_power_state->non_clock_info.pcie_lanes);
 }
 
 static void radeon_set_power_state(struct radeon_device *rdev)
 {
 	if (rdev->pm.requested_power_state == rdev->pm.current_power_state)
 		return;
+
+	DRM_INFO("Setting: e: %d m: %d p: %d\n",
+		 rdev->pm.requested_power_state->requested_clock_mode->sclk,
+		 rdev->pm.requested_power_state->requested_clock_mode->mclk,
+		 rdev->pm.requested_power_state->non_clock_info.pcie_lanes);
 	/* set pcie lanes */
 	/* set voltage */
 	/* set engine clock */
@@ -216,8 +224,6 @@ int radeon_pm_init(struct radeon_device *rdev)
 		radeon_print_power_mode_info(rdev);
 	}
 
-	radeon_pm_check_limits(rdev);
-
 	if (radeon_debugfs_pm_init(rdev)) {
 		DRM_ERROR("Failed to register debugfs file for PM!\n");
 	}
@@ -233,12 +239,6 @@ int radeon_pm_init(struct radeon_device *rdev)
 	DRM_INFO("radeon: power management initialized\n");
 
 	return 0;
-}
-
-static void radeon_pm_check_limits(struct radeon_device *rdev)
-{
-	rdev->pm.min_gpu_engine_clock = rdev->clock.default_sclk - 5000;
-	rdev->pm.min_gpu_memory_clock = rdev->clock.default_mclk - 5000;
 }
 
 void radeon_pm_compute_clocks(struct radeon_device *rdev)
@@ -287,8 +287,6 @@ void radeon_pm_compute_clocks(struct radeon_device *rdev)
 			mutex_unlock(&rdev->pm.mutex);
 		}
 	} else if (count == 1) {
-		rdev->pm.min_mode_engine_clock = rdev->pm.min_gpu_engine_clock;
-		rdev->pm.min_mode_memory_clock = rdev->pm.min_gpu_memory_clock;
 		/* TODO: Increase clocks if needed for current mode */
 
 		if (rdev->pm.state == PM_STATE_MINIMUM) {
@@ -326,23 +324,22 @@ static void radeon_pm_set_clocks_locked(struct radeon_device *rdev)
 	/*radeon_fence_wait_last(rdev);*/
 	switch (rdev->pm.planned_action) {
 	case PM_ACTION_UPCLOCK:
-		radeon_set_engine_clock(rdev, rdev->clock.default_sclk);
+		radeon_get_power_state(rdev, PM_ACTION_UPCLOCK);
 		rdev->pm.downclocked = false;
 		break;
 	case PM_ACTION_DOWNCLOCK:
-		radeon_set_engine_clock(rdev,
-			rdev->pm.min_mode_engine_clock);
+		radeon_get_power_state(rdev, PM_ACTION_DOWNCLOCK);
 		rdev->pm.downclocked = true;
 		break;
 	case PM_ACTION_MINIMUM:
-		radeon_set_engine_clock(rdev,
-			rdev->pm.min_gpu_engine_clock);
+		radeon_get_power_state(rdev, PM_ACTION_MINIMUM);
 		break;
 	case PM_ACTION_NONE:
+		radeon_get_power_state(rdev, PM_ACTION_NONE);
 		DRM_ERROR("%s: PM_ACTION_NONE\n", __func__);
 		break;
 	}
-
+	radeon_set_power_state(rdev);
 	rdev->pm.planned_action = PM_ACTION_NONE;
 }
 

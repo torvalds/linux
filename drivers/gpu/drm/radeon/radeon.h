@@ -666,10 +666,6 @@ struct radeon_pm {
 	bool			vblank_callback;
 	int			active_crtcs;
 	int			req_vblank;
-	uint32_t		min_gpu_engine_clock;
-	uint32_t		min_gpu_memory_clock;
-	uint32_t		min_mode_engine_clock;
-	uint32_t		min_mode_memory_clock;
 	fixed20_12		max_bandwidth;
 	fixed20_12		igp_sideport_mclk;
 	fixed20_12		igp_system_mclk;
