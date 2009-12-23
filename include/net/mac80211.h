@@ -1383,7 +1383,7 @@ enum ieee80211_ampdu_mlme_action {
  *	When the device is started it should not have a MAC address
  *	to avoid acknowledging frames before a non-monitor device
  *	is added.
- *	Must be implemented.
+ *	Must be implemented and can sleep.
  *
  * @stop: Called after last netdevice attached to the hardware
  *	is disabled. This should turn off the hardware (at least
@@ -1391,7 +1391,7 @@ enum ieee80211_ampdu_mlme_action {
  *	May be called right after add_interface if that rejects
  *	an interface. If you added any work onto the mac80211 workqueue
  *	you should ensure to cancel it on this callback.
- *	Must be implemented.
+ *	Must be implemented and can sleep.
  *
  * @add_interface: Called when a netdevice attached to the hardware is
  *	enabled. Because it is not called for monitor mode devices, @start
@@ -1401,7 +1401,7 @@ enum ieee80211_ampdu_mlme_action {
  *	interface is given in the conf parameter.
  *	The callback may refuse to add an interface by returning a
  *	negative error code (which will be seen in userspace.)
- *	Must be implemented.
+ *	Must be implemented and can sleep.
  *
  * @remove_interface: Notifies a driver that an interface is going down.
  *	The @stop callback is called after this if it is the last interface
@@ -1410,19 +1410,20 @@ enum ieee80211_ampdu_mlme_action {
  *	must be cleared so the device no longer acknowledges packets,
  *	the mac_addr member of the conf structure is, however, set to the
  *	MAC address of the device going away.
- *	Hence, this callback must be implemented.
+ *	Hence, this callback must be implemented. It can sleep.
  *
  * @config: Handler for configuration requests. IEEE 802.11 code calls this
  *	function to change hardware configuration, e.g., channel.
  *	This function should never fail but returns a negative error code
- *	if it does.
+ *	if it does. The callback can sleep.
  *
  * @bss_info_changed: Handler for configuration requests related to BSS
  *	parameters that may vary during BSS's lifespan, and may affect low
  *	level driver (e.g. assoc/disassoc status, erp parameters).
  *	This function should not be used if no BSS has been set, unless
  *	for association indication. The @changed parameter indicates which
- *	of the bss parameters has changed when a call is made.
+ *	of the bss parameters has changed when a call is made. The callback
+ *	can sleep.
  *
  * @prepare_multicast: Prepare for multicast filter configuration.
  *	This callback is optional, and its return value is passed
@@ -1430,20 +1431,22 @@ enum ieee80211_ampdu_mlme_action {
  *
  * @configure_filter: Configure the device's RX filter.
  *	See the section "Frame filtering" for more information.
- *	This callback must be implemented.
+ *	This callback must be implemented and can sleep.
  *
  * @set_tim: Set TIM bit. mac80211 calls this function when a TIM bit
  * 	must be set or cleared for a given STA. Must be atomic.
  *
  * @set_key: See the section "Hardware crypto acceleration"
- *	This callback can sleep, and is only called between add_interface
- *	and remove_interface calls, i.e. while the given virtual interface
+ *	This callback is only called between add_interface and
+ *	remove_interface calls, i.e. while the given virtual interface
  *	is enabled.
  *	Returns a negative error code if the key can't be added.
+ *	The callback can sleep.
  *
  * @update_tkip_key: See the section "Hardware crypto acceleration"
  * 	This callback will be called in the context of Rx. Called for drivers
  * 	which set IEEE80211_KEY_FLAG_TKIP_REQ_RX_P1_KEY.
+ *	The callback can sleep.
  *
  * @hw_scan: Ask the hardware to service the scan request, no need to start
  *	the scan state machine in stack. The scan must honour the channel
@@ -1457,21 +1460,28 @@ enum ieee80211_ampdu_mlme_action {
  *	When the scan finishes, ieee80211_scan_completed() must be called;
  *	note that it also must be called when the scan cannot finish due to
  *	any error unless this callback returned a negative error code.
+ *	The callback can sleep.
  *
  * @sw_scan_start: Notifier function that is called just before a software scan
  *	is started. Can be NULL, if the driver doesn't need this notification.
+ *	The callback can sleep.
  *
- * @sw_scan_complete: Notifier function that is called just after a software scan
- *	finished. Can be NULL, if the driver doesn't need this notification.
+ * @sw_scan_complete: Notifier function that is called just after a
+ *	software scan finished. Can be NULL, if the driver doesn't need
+ *	this notification.
+ *	The callback can sleep.
  *
  * @get_stats: Return low-level statistics.
  * 	Returns zero if statistics are available.
+ *	The callback can sleep.
  *
  * @get_tkip_seq: If your device implements TKIP encryption in hardware this
  *	callback should be provided to read the TKIP transmit IVs (both IV32
  *	and IV16) for the given key from hardware.
+ *	The callback must be atomic.
  *
  * @set_rts_threshold: Configuration of RTS threshold (if device needs it)
+ *	The callback can sleep.
  *
  * @sta_notify: Notifies low level driver about addition, removal or power
  *	state transition of an associated station, AP,  IBSS/WDS/mesh peer etc.
@@ -1480,30 +1490,36 @@ enum ieee80211_ampdu_mlme_action {
  * @conf_tx: Configure TX queue parameters (EDCF (aifs, cw_min, cw_max),
  *	bursting) for a hardware TX queue.
  *	Returns a negative error code on failure.
+ *	The callback can sleep.
  *
  * @get_tx_stats: Get statistics of the current TX queue status. This is used
  *	to get number of currently queued packets (queue length), maximum queue
  *	size (limit), and total number of packets sent using each TX queue
  *	(count). The 'stats' pointer points to an array that has hw->queues
  *	items.
+ *	The callback must be atomic.
  *
  * @get_tsf: Get the current TSF timer value from firmware/hardware. Currently,
  *	this is only used for IBSS mode BSSID merging and debugging. Is not a
  *	required function.
+ *	The callback can sleep.
  *
  * @set_tsf: Set the TSF timer to the specified value in the firmware/hardware.
  *      Currently, this is only used for IBSS mode debugging. Is not a
  *	required function.
+ *	The callback can sleep.
  *
  * @reset_tsf: Reset the TSF timer and allow firmware/hardware to synchronize
  *	with other STAs in the IBSS. This is only used in IBSS mode. This
  *	function is optional if the firmware/hardware takes full care of
  *	TSF synchronization.
+ *	The callback can sleep.
  *
  * @tx_last_beacon: Determine whether the last IBSS beacon was sent by us.
  *	This is needed only for IBSS mode and the result of this function is
  *	used to determine whether to reply to Probe Requests.
  *	Returns non-zero if this device sent the last beacon.
+ *	The callback can sleep.
  *
  * @ampdu_action: Perform a certain A-MPDU action
  * 	The RA/TID combination determines the destination and TID we want
@@ -1512,16 +1528,19 @@ enum ieee80211_ampdu_mlme_action {
  * 	is the first frame we expect to perform the action on. Notice
  * 	that TX/RX_STOP can pass NULL for this parameter.
  *	Returns a negative error code on failure.
+ *	The callback must be atomic.
  *
  * @rfkill_poll: Poll rfkill hardware state. If you need this, you also
  *	need to set wiphy->rfkill_poll to %true before registration,
  *	and need to call wiphy_rfkill_set_hw_state() in the callback.
+ *	The callback can sleep.
  *
  * @testmode_cmd: Implement a cfg80211 test mode command.
+ *	The callback can sleep.
  *
  * @flush: Flush all pending frames from the hardware queue, making sure
  *	that the hardware queues are empty. If the parameter @drop is set
- *	to %true, pending frames may be dropped.
+ *	to %true, pending frames may be dropped. The callback can sleep.
  */
 struct ieee80211_ops {
 	int (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
