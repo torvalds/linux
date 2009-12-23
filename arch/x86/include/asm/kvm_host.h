@@ -370,9 +370,13 @@ struct kvm_mem_alias {
 	gfn_t target_gfn;
 };
 
-struct kvm_arch{
-	int naliases;
+struct kvm_mem_aliases {
 	struct kvm_mem_alias aliases[KVM_ALIAS_SLOTS];
+	int naliases;
+};
+
+struct kvm_arch {
+	struct kvm_mem_aliases *aliases;
 
 	unsigned int n_free_mmu_pages;
 	unsigned int n_requested_mmu_pages;

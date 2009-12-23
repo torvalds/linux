@@ -2227,9 +2227,10 @@ gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
 {
 	int i;
 	struct kvm_mem_alias *alias;
+	struct kvm_mem_aliases *aliases = kvm->arch.aliases;
 
-	for (i = 0; i < kvm->arch.naliases; ++i) {
-		alias = &kvm->arch.aliases[i];
+	for (i = 0; i < aliases->naliases; ++i) {
+		alias = &aliases->aliases[i];
 		if (gfn >= alias->base_gfn
 		    && gfn < alias->base_gfn + alias->npages)
 			return alias->target_gfn + gfn - alias->base_gfn;
@@ -2247,6 +2248,7 @@ static int kvm_vm_ioctl_set_memory_alias(struct kvm *kvm,
 {
 	int r, n;
 	struct kvm_mem_alias *p;
+	struct kvm_mem_aliases *aliases;
 
 	r = -EINVAL;
 	/* General sanity checks */
@@ -2266,15 +2268,17 @@ static int kvm_vm_ioctl_set_memory_alias(struct kvm *kvm,
 	down_write(&kvm->slots_lock);
 	spin_lock(&kvm->mmu_lock);
 
-	p = &kvm->arch.aliases[alias->slot];
+	aliases = kvm->arch.aliases;
+
+	p = &aliases->aliases[alias->slot];
 	p->base_gfn = alias->guest_phys_addr >> PAGE_SHIFT;
 	p->npages = alias->memory_size >> PAGE_SHIFT;
 	p->target_gfn = alias->target_phys_addr >> PAGE_SHIFT;
 
 	for (n = KVM_ALIAS_SLOTS; n > 0; --n)
-		if (kvm->arch.aliases[n - 1].npages)
+		if (aliases->aliases[n - 1].npages)
 			break;
-	kvm->arch.naliases = n;
+	aliases->naliases = n;
 
 	spin_unlock(&kvm->mmu_lock);
 	kvm_mmu_zap_all(kvm);
@@ -5158,6 +5162,12 @@ struct  kvm *kvm_arch_create_vm(void)
 	if (!kvm)
 		return ERR_PTR(-ENOMEM);
 
+	kvm->arch.aliases = kzalloc(sizeof(struct kvm_mem_aliases), GFP_KERNEL);
+	if (!kvm->arch.aliases) {
+		kfree(kvm);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	INIT_LIST_HEAD(&kvm->arch.active_mmu_pages);
 	INIT_LIST_HEAD(&kvm->arch.assigned_dev_head);
 
@@ -5214,6 +5224,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 		put_page(kvm->arch.apic_access_page);
 	if (kvm->arch.ept_identity_pagetable)
 		put_page(kvm->arch.ept_identity_pagetable);
+	kfree(kvm->arch.aliases);
 	kfree(kvm);
 }
 
