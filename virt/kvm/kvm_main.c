@@ -859,7 +859,7 @@ int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn)
 	int i;
 	struct kvm_memslots *slots = rcu_dereference(kvm->memslots);
 
-	gfn = unalias_gfn(kvm, gfn);
+	gfn = unalias_gfn_instantiation(kvm, gfn);
 	for (i = 0; i < KVM_MEMORY_SLOTS; ++i) {
 		struct kvm_memory_slot *memslot = &slots->memslots[i];
 
@@ -896,7 +896,7 @@ unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
 {
 	struct kvm_memory_slot *slot;
 
-	gfn = unalias_gfn(kvm, gfn);
+	gfn = unalias_gfn_instantiation(kvm, gfn);
 	slot = gfn_to_memslot_unaliased(kvm, gfn);
 	if (!slot || slot->flags & KVM_MEMSLOT_INVALID)
 		return bad_hva();

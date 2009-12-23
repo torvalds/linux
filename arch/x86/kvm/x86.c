@@ -38,6 +38,7 @@
 #include <linux/intel-iommu.h>
 #include <linux/cpufreq.h>
 #include <linux/user-return-notifier.h>
+#include <linux/srcu.h>
 #include <trace/events/kvm.h>
 #undef TRACE_INCLUDE_FILE
 #define CREATE_TRACE_POINTS
@@ -2223,11 +2224,32 @@ static int kvm_vm_ioctl_get_nr_mmu_pages(struct kvm *kvm)
 	return kvm->arch.n_alloc_mmu_pages;
 }
 
+gfn_t unalias_gfn_instantiation(struct kvm *kvm, gfn_t gfn)
+{
+	int i;
+	struct kvm_mem_alias *alias;
+	struct kvm_mem_aliases *aliases;
+
+	aliases = rcu_dereference(kvm->arch.aliases);
+
+	for (i = 0; i < aliases->naliases; ++i) {
+		alias = &aliases->aliases[i];
+		if (alias->flags & KVM_ALIAS_INVALID)
+			continue;
+		if (gfn >= alias->base_gfn
+		    && gfn < alias->base_gfn + alias->npages)
+			return alias->target_gfn + gfn - alias->base_gfn;
+	}
+	return gfn;
+}
+
 gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
 {
 	int i;
 	struct kvm_mem_alias *alias;
-	struct kvm_mem_aliases *aliases = kvm->arch.aliases;
+	struct kvm_mem_aliases *aliases;
+
+	aliases = rcu_dereference(kvm->arch.aliases);
 
 	for (i = 0; i < aliases->naliases; ++i) {
 		alias = &aliases->aliases[i];
@@ -2248,7 +2270,7 @@ static int kvm_vm_ioctl_set_memory_alias(struct kvm *kvm,
 {
 	int r, n;
 	struct kvm_mem_alias *p;
-	struct kvm_mem_aliases *aliases;
+	struct kvm_mem_aliases *aliases, *old_aliases;
 
 	r = -EINVAL;
 	/* General sanity checks */
@@ -2265,28 +2287,48 @@ static int kvm_vm_ioctl_set_memory_alias(struct kvm *kvm,
 	    < alias->target_phys_addr)
 		goto out;
 
-	down_write(&kvm->slots_lock);
-	spin_lock(&kvm->mmu_lock);
+	r = -ENOMEM;
+	aliases = kzalloc(sizeof(struct kvm_mem_aliases), GFP_KERNEL);
+	if (!aliases)
+		goto out;
 
-	aliases = kvm->arch.aliases;
+	down_write(&kvm->slots_lock);
+
+	/* invalidate any gfn reference in case of deletion/shrinking */
+	memcpy(aliases, kvm->arch.aliases, sizeof(struct kvm_mem_aliases));
+	aliases->aliases[alias->slot].flags |= KVM_ALIAS_INVALID;
+	old_aliases = kvm->arch.aliases;
+	rcu_assign_pointer(kvm->arch.aliases, aliases);
+	synchronize_srcu_expedited(&kvm->srcu);
+	kvm_mmu_zap_all(kvm);
+	kfree(old_aliases);
+
+	r = -ENOMEM;
+	aliases = kzalloc(sizeof(struct kvm_mem_aliases), GFP_KERNEL);
+	if (!aliases)
+		goto out_unlock;
+
+	memcpy(aliases, kvm->arch.aliases, sizeof(struct kvm_mem_aliases));
 
 	p = &aliases->aliases[alias->slot];
 	p->base_gfn = alias->guest_phys_addr >> PAGE_SHIFT;
 	p->npages = alias->memory_size >> PAGE_SHIFT;
 	p->target_gfn = alias->target_phys_addr >> PAGE_SHIFT;
+	p->flags &= ~(KVM_ALIAS_INVALID);
 
 	for (n = KVM_ALIAS_SLOTS; n > 0; --n)
 		if (aliases->aliases[n - 1].npages)
 			break;
 	aliases->naliases = n;
 
-	spin_unlock(&kvm->mmu_lock);
-	kvm_mmu_zap_all(kvm);
+	old_aliases = kvm->arch.aliases;
+	rcu_assign_pointer(kvm->arch.aliases, aliases);
+	synchronize_srcu_expedited(&kvm->srcu);
+	kfree(old_aliases);
+	r = 0;
 
+out_unlock:
 	up_write(&kvm->slots_lock);
-
-	return 0;
-
 out:
 	return r;
 }

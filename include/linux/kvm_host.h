@@ -266,6 +266,8 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 void kvm_disable_largepages(void);
 void kvm_arch_flush_shadow(struct kvm *kvm);
 gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn);
+gfn_t unalias_gfn_instantiation(struct kvm *kvm, gfn_t gfn);
+
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn);
 unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn);
 void kvm_release_page_clean(struct page *page);
@@ -537,6 +539,10 @@ static inline int mmu_notifier_retry(struct kvm_vcpu *vcpu, unsigned long mmu_se
 		return 1;
 	return 0;
 }
+#endif
+
+#ifndef KVM_ARCH_HAS_UNALIAS_INSTANTIATION
+#define unalias_gfn_instantiation unalias_gfn
 #endif
 
 #ifdef CONFIG_HAVE_KVM_IRQCHIP

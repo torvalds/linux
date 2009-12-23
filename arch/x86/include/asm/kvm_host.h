@@ -368,7 +368,11 @@ struct kvm_mem_alias {
 	gfn_t base_gfn;
 	unsigned long npages;
 	gfn_t target_gfn;
+#define KVM_ALIAS_INVALID     1UL
+	unsigned long flags;
 };
+
+#define KVM_ARCH_HAS_UNALIAS_INSTANTIATION
 
 struct kvm_mem_aliases {
 	struct kvm_mem_alias aliases[KVM_ALIAS_SLOTS];
