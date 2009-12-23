@@ -376,7 +376,7 @@ ieee80211_direct_probe(struct ieee80211_work *wk)
 
 	wk->probe_auth.tries++;
 	if (wk->probe_auth.tries > IEEE80211_AUTH_MAX_TRIES) {
-		printk(KERN_DEBUG "%s: direct probe to AP %pM timed out\n",
+		printk(KERN_DEBUG "%s: direct probe to %pM timed out\n",
 		       sdata->name, wk->filter_ta);
 
 		/*
@@ -394,7 +394,7 @@ ieee80211_direct_probe(struct ieee80211_work *wk)
 		return WORK_ACT_TIMEOUT;
 	}
 
-	printk(KERN_DEBUG "%s: direct probe to AP %pM (try %d)\n",
+	printk(KERN_DEBUG "%s: direct probe to %pM (try %d)\n",
 			sdata->name, wk->filter_ta, wk->probe_auth.tries);
 
 	/*
@@ -419,7 +419,7 @@ ieee80211_authenticate(struct ieee80211_work *wk)
 
 	wk->probe_auth.tries++;
 	if (wk->probe_auth.tries > IEEE80211_AUTH_MAX_TRIES) {
-		printk(KERN_DEBUG "%s: authentication with AP %pM"
+		printk(KERN_DEBUG "%s: authentication with %pM"
 		       " timed out\n", sdata->name, wk->filter_ta);
 
 		/*
@@ -437,7 +437,7 @@ ieee80211_authenticate(struct ieee80211_work *wk)
 		return WORK_ACT_TIMEOUT;
 	}
 
-	printk(KERN_DEBUG "%s: authenticate with AP %pM (try %d)\n",
+	printk(KERN_DEBUG "%s: authenticate with %pM (try %d)\n",
 	       sdata->name, wk->filter_ta, wk->probe_auth.tries);
 
 	ieee80211_send_auth(sdata, 1, wk->probe_auth.algorithm, wk->ie,
@@ -458,7 +458,7 @@ ieee80211_associate(struct ieee80211_work *wk)
 
 	wk->assoc.tries++;
 	if (wk->assoc.tries > IEEE80211_ASSOC_MAX_TRIES) {
-		printk(KERN_DEBUG "%s: association with AP %pM"
+		printk(KERN_DEBUG "%s: association with %pM"
 		       " timed out\n",
 		       sdata->name, wk->filter_ta);
 
@@ -479,7 +479,7 @@ ieee80211_associate(struct ieee80211_work *wk)
 		return WORK_ACT_TIMEOUT;
 	}
 
-	printk(KERN_DEBUG "%s: associate with AP %pM (try %d)\n",
+	printk(KERN_DEBUG "%s: associate with %pM (try %d)\n",
 	       sdata->name, wk->filter_ta, wk->assoc.tries);
 	ieee80211_send_assoc(sdata, wk);
 
@@ -592,9 +592,9 @@ ieee80211_rx_mgmt_assoc_resp(struct ieee80211_work *wk,
 		u32 tu, ms;
 		tu = get_unaligned_le32(elems.timeout_int + 1);
 		ms = tu * 1024 / 1000;
-		printk(KERN_DEBUG "%s: AP rejected association temporarily; "
+		printk(KERN_DEBUG "%s: %pM rejected association temporarily; "
 		       "comeback duration %u TU (%u ms)\n",
-		       sdata->name, tu, ms);
+		       sdata->name, mgmt->sa, tu, ms);
 		wk->timeout = jiffies + msecs_to_jiffies(ms);
 		if (ms > IEEE80211_ASSOC_TIMEOUT)
 			run_again(local, wk->timeout);
@@ -602,8 +602,8 @@ ieee80211_rx_mgmt_assoc_resp(struct ieee80211_work *wk,
 	}
 
 	if (status_code != WLAN_STATUS_SUCCESS)
-		printk(KERN_DEBUG "%s: AP denied association (code=%d)\n",
-		       sdata->name, status_code);
+		printk(KERN_DEBUG "%s: %pM denied association (code=%d)\n",
+		       sdata->name, mgmt->sa, status_code);
 	else
 		printk(KERN_DEBUG "%s: associated\n", sdata->name);
 
