@@ -52,6 +52,10 @@
 #include "ngene-ioctls.h"
 #endif
 
+static int one_adapter = 1;
+module_param(one_adapter, int, 0444);
+MODULE_PARM_DESC(one_adapter, "Use only one adapter.");
+
 static int copy_eeprom;
 module_param(copy_eeprom, int, 0444);
 MODULE_PARM_DESC(copy_eeprom, "Copy eeprom.");
@@ -2444,9 +2448,9 @@ static void release_channel(struct ngene_channel *chan)
 					      &chan->mem_frontend);
 		dvb_dmxdev_release(&chan->dmxdev);
 		dvb_dmx_release(&chan->demux);
-#ifndef ONE_ADAPTER
-		dvb_unregister_adapter(&chan->dvb_adapter);
-#endif
+
+		if (chan->number == 0 || !one_adapter)
+			dvb_unregister_adapter(&dev->adapter[chan->number]);
 	}
 
 }
@@ -2472,17 +2476,18 @@ static int init_channel(struct ngene_channel *chan)
 		if (io & NGENE_IO_TSOUT)
 			dec_fw_boot(dev);
 
-#ifdef ONE_ADAPTER
-		adapter = &chan->dev->dvb_adapter;
-#else
-		ret = dvb_register_adapter(&chan->dvb_adapter, "nGene",
-					   THIS_MODULE,
-					   &chan->dev->pci_dev->dev,
-					   adapter_nr);
-		if (ret < 0)
-			return ret;
-		adapter = &chan->dvb_adapter;
-#endif
+		if (nr == 0 || !one_adapter) {
+			adapter = &dev->adapter[nr];
+			ret = dvb_register_adapter(adapter, "nGene",
+						   THIS_MODULE,
+						   &chan->dev->pci_dev->dev,
+						   adapter_nr);
+			if (ret < 0)
+				return ret;
+		} else {
+			adapter = &dev->adapter[0];
+		}
+
 		ret = my_dvb_dmx_ts_card_init(dvbdemux, "SW demux",
 					      ngene_start_feed,
 					      ngene_stop_feed, chan);
@@ -2527,7 +2532,7 @@ static int init_channels(struct ngene *dev)
 
 	for (i = 0; i < MAX_STREAM; i++) {
 		if (init_channel(&dev->channel[i]) < 0) {
-			for (j = 0; j < i; j++)
+			for (j = i - 1; j >= 0; j--)
 				release_channel(&dev->channel[j]);
 			return -1;
 		}
@@ -2545,11 +2550,8 @@ static void __devexit ngene_remove(struct pci_dev *pdev)
 	int i;
 
 	tasklet_kill(&dev->event_tasklet);
-	for (i = 0; i < MAX_STREAM; i++)
+	for (i = MAX_STREAM - 1; i >= 0; i--)
 		release_channel(&dev->channel[i]);
-#ifdef ONE_ADAPTER
-	dvb_unregister_adapter(&dev->dvb_adapter);
-#endif
 	ngene_stop(dev);
 	ngene_release_buffers(dev);
 	pci_set_drvdata(pdev, 0);
@@ -2595,11 +2597,6 @@ static int __devinit ngene_probe(struct pci_dev *pci_dev,
 	/*i2c_check_eeprom(&dev->i2c_adapter);*/
 
 	/* Register DVB adapters and devices for both channels */
-#ifdef ONE_ADAPTER
-	if (dvb_register_adapter(&dev->dvb_adapter, "nGene", THIS_MODULE,
-				 &dev->pci_dev->dev, adapter_nr) < 0)
-		goto fail2;
-#endif
 	if (init_channels(dev) < 0)
 		goto fail2;
 

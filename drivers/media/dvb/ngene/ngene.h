@@ -24,8 +24,6 @@
 #ifndef _NGENE_H_
 #define _NGENE_H_
 
-/*#define ONE_ADAPTER*/
-
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
@@ -649,9 +647,6 @@ struct ngene_channel {
 	struct dmx_frontend   mem_frontend;
 	int                   users;
 	struct video_device  *v4l_dev;
-#ifndef ONE_ADAPTER
-	struct dvb_adapter    dvb_adapter;
-#endif
 	struct tasklet_struct demux_tasklet;
 
 	struct SBufferHeader *nextBuffer;
@@ -728,9 +723,6 @@ struct ngene {
 	struct pci_dev       *pci_dev;
 	unsigned char        *iomem;
 
-#ifdef ONE_ADAPTER
-	struct dvb_adapter    dvb_adapter;
-#endif
 	/*struct i2c_adapter  i2c_adapter;*/
 
 	u32                   device_version;
@@ -764,6 +756,7 @@ struct ngene {
 	int                   i2c_current_bus;
 	spinlock_t            cmd_lock;
 
+	struct dvb_adapter    adapter[MAX_STREAM];
 	struct ngene_channel  channel[MAX_STREAM];
 
 	struct ngene_info    *card_info;
