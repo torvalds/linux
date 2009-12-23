@@ -137,6 +137,14 @@ static int qt202x_reset_phy(struct efx_nic *efx)
 
 static int qt202x_phy_probe(struct efx_nic *efx)
 {
+	struct qt202x_phy_data *phy_data;
+
+	phy_data = kzalloc(sizeof(struct qt202x_phy_data), GFP_KERNEL);
+	if (!phy_data)
+		return -ENOMEM;
+	efx->phy_data = phy_data;
+	phy_data->phy_mode = efx->phy_mode;
+
 	efx->mdio.mmds = QT202X_REQUIRED_DEVS;
 	efx->mdio.mode_support = MDIO_SUPPORTS_C45 | MDIO_EMULATE_C22;
 	efx->loopback_modes = QT202X_LOOPBACKS | FALCON_XMAC_LOOPBACKS;
@@ -145,7 +153,6 @@ static int qt202x_phy_probe(struct efx_nic *efx)
 
 static int qt202x_phy_init(struct efx_nic *efx)
 {
-	struct qt202x_phy_data *phy_data;
 	u32 devid;
 	int rc;
 
@@ -155,17 +162,11 @@ static int qt202x_phy_init(struct efx_nic *efx)
 		return rc;
 	}
 
-	phy_data = kzalloc(sizeof(struct qt202x_phy_data), GFP_KERNEL);
-	if (!phy_data)
-		return -ENOMEM;
-	efx->phy_data = phy_data;
-
 	devid = efx_mdio_read_id(efx, MDIO_MMD_PHYXS);
 	EFX_INFO(efx, "PHY ID reg %x (OUI %06x model %02x revision %x)\n",
 		 devid, efx_mdio_id_oui(devid), efx_mdio_id_model(devid),
 		 efx_mdio_id_rev(devid));
 
-	phy_data->phy_mode = efx->phy_mode;
 	return 0;
 }
 
@@ -224,7 +225,7 @@ static void qt202x_phy_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecm
 	mdio45_ethtool_gset(&efx->mdio, ecmd);
 }
 
-static void qt202x_phy_fini(struct efx_nic *efx)
+static void qt202x_phy_remove(struct efx_nic *efx)
 {
 	/* Free the context block */
 	kfree(efx->phy_data);
@@ -236,7 +237,8 @@ struct efx_phy_operations falcon_qt202x_phy_ops = {
 	.init		 = qt202x_phy_init,
 	.reconfigure	 = qt202x_phy_reconfigure,
 	.poll	     	 = qt202x_phy_poll,
-	.fini	  	 = qt202x_phy_fini,
+	.fini		 = efx_port_dummy_op_void,
+	.remove	  	 = qt202x_phy_remove,
 	.get_settings	 = qt202x_phy_get_settings,
 	.set_settings	 = efx_mdio_set_settings,
 };

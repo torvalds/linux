@@ -524,6 +524,7 @@ struct efx_phy_operations {
 	int (*probe) (struct efx_nic *efx);
 	int (*init) (struct efx_nic *efx);
 	void (*fini) (struct efx_nic *efx);
+	void (*remove) (struct efx_nic *efx);
 	int (*reconfigure) (struct efx_nic *efx);
 	bool (*poll) (struct efx_nic *efx);
 	void (*get_settings) (struct efx_nic *efx,
