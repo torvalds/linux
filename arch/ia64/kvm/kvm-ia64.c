@@ -1382,7 +1382,7 @@ static void kvm_release_vm_pages(struct kvm *kvm)
 	int i, j;
 	unsigned long base_gfn;
 
-	slots = kvm->memslots;
+	slots = rcu_dereference(kvm->memslots);
 	for (i = 0; i < slots->nmemslots; i++) {
 		memslot = &slots->memslots[i];
 		base_gfn = memslot->base_gfn;
@@ -1837,6 +1837,7 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 	struct kvm_memory_slot *memslot;
 	int is_dirty = 0;
 
+	down_write(&kvm->slots_lock);
 	spin_lock(&kvm->arch.dirty_log_lock);
 
 	r = kvm_ia64_sync_dirty_log(kvm, log);
@@ -1856,6 +1857,7 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 	}
 	r = 0;
 out:
+	up_write(&kvm->slots_lock);
 	spin_unlock(&kvm->arch.dirty_log_lock);
 	return r;
 }

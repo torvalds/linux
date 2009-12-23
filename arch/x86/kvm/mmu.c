@@ -29,6 +29,7 @@
 #include <linux/swap.h>
 #include <linux/hugetlb.h>
 #include <linux/compiler.h>
+#include <linux/srcu.h>
 
 #include <asm/page.h>
 #include <asm/cmpxchg.h>
@@ -807,20 +808,14 @@ static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
 {
 	int i, j;
 	int retval = 0;
-	struct kvm_memslots *slots = kvm->memslots;
+	struct kvm_memslots *slots;
 
-	/*
-	 * If mmap_sem isn't taken, we can look the memslots with only
-	 * the mmu_lock by skipping over the slots with userspace_addr == 0.
-	 */
+	slots = rcu_dereference(kvm->memslots);
+
 	for (i = 0; i < slots->nmemslots; i++) {
 		struct kvm_memory_slot *memslot = &slots->memslots[i];
 		unsigned long start = memslot->userspace_addr;
 		unsigned long end;
-
-		/* mmu_lock protects userspace_addr */
-		if (!start)
-			continue;
 
 		end = start + (memslot->npages << PAGE_SHIFT);
 		if (hva >= start && hva < end) {
@@ -1617,7 +1612,7 @@ static void mmu_unshadow(struct kvm *kvm, gfn_t gfn)
 
 static void page_header_update_slot(struct kvm *kvm, void *pte, gfn_t gfn)
 {
-	int slot = memslot_id(kvm, gfn_to_memslot(kvm, gfn));
+	int slot = memslot_id(kvm, gfn);
 	struct kvm_mmu_page *sp = page_header(__pa(pte));
 
 	__set_bit(slot, sp->slot_bitmap);
@@ -3021,9 +3016,11 @@ unsigned int kvm_mmu_calculate_mmu_pages(struct kvm *kvm)
 	int i;
 	unsigned int nr_mmu_pages;
 	unsigned int  nr_pages = 0;
+	struct kvm_memslots *slots;
 
-	for (i = 0; i < kvm->memslots->nmemslots; i++)
-		nr_pages += kvm->memslots->memslots[i].npages;
+	slots = rcu_dereference(kvm->memslots);
+	for (i = 0; i < slots->nmemslots; i++)
+		nr_pages += slots->memslots[i].npages;
 
 	nr_mmu_pages = nr_pages * KVM_PERMILLE_MMU_PAGES / 1000;
 	nr_mmu_pages = max(nr_mmu_pages,
@@ -3293,10 +3290,12 @@ static void audit_mappings(struct kvm_vcpu *vcpu)
 static int count_rmaps(struct kvm_vcpu *vcpu)
 {
 	int nmaps = 0;
-	int i, j, k;
+	int i, j, k, idx;
 
+	idx = srcu_read_lock(&kvm->srcu);
+	slots = rcu_dereference(kvm->memslots);
 	for (i = 0; i < KVM_MEMORY_SLOTS; ++i) {
-		struct kvm_memory_slot *m = &vcpu->kvm->memslots->memslots[i];
+		struct kvm_memory_slot *m = &slots->memslots[i];
 		struct kvm_rmap_desc *d;
 
 		for (j = 0; j < m->npages; ++j) {
@@ -3319,6 +3318,7 @@ static int count_rmaps(struct kvm_vcpu *vcpu)
 			}
 		}
 	}
+	srcu_read_unlock(&kvm->srcu, idx);
 	return nmaps;
 }
 

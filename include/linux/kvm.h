@@ -103,7 +103,7 @@ struct kvm_userspace_memory_region {
 
 /* for kvm_memory_region::flags */
 #define KVM_MEM_LOG_DIRTY_PAGES  1UL
-
+#define KVM_MEMSLOT_INVALID      (1UL << 1)
 
 /* for KVM_IRQ_LINE */
 struct kvm_irq_level {

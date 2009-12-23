@@ -1503,7 +1503,11 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 static gva_t rmode_tss_base(struct kvm *kvm)
 {
 	if (!kvm->arch.tss_addr) {
-		gfn_t base_gfn = kvm->memslots->memslots[0].base_gfn +
+		struct kvm_memslots *slots;
+		gfn_t base_gfn;
+
+		slots = rcu_dereference(kvm->memslots);
+		base_gfn = kvm->memslots->memslots[0].base_gfn +
 				 kvm->memslots->memslots[0].npages - 3;
 		return base_gfn << PAGE_SHIFT;
 	}

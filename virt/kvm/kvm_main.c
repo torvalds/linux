@@ -44,6 +44,7 @@
 #include <linux/bitops.h>
 #include <linux/spinlock.h>
 #include <linux/compat.h>
+#include <linux/srcu.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
@@ -213,7 +214,7 @@ static void kvm_mmu_notifier_invalidate_page(struct mmu_notifier *mn,
 					     unsigned long address)
 {
 	struct kvm *kvm = mmu_notifier_to_kvm(mn);
-	int need_tlb_flush;
+	int need_tlb_flush, idx;
 
 	/*
 	 * When ->invalidate_page runs, the linux pte has been zapped
@@ -233,10 +234,12 @@ static void kvm_mmu_notifier_invalidate_page(struct mmu_notifier *mn,
 	 * pte after kvm_unmap_hva returned, without noticing the page
 	 * is going to be freed.
 	 */
+	idx = srcu_read_lock(&kvm->srcu);
 	spin_lock(&kvm->mmu_lock);
 	kvm->mmu_notifier_seq++;
 	need_tlb_flush = kvm_unmap_hva(kvm, address);
 	spin_unlock(&kvm->mmu_lock);
+	srcu_read_unlock(&kvm->srcu, idx);
 
 	/* we've to flush the tlb before the pages can be freed */
 	if (need_tlb_flush)
@@ -250,11 +253,14 @@ static void kvm_mmu_notifier_change_pte(struct mmu_notifier *mn,
 					pte_t pte)
 {
 	struct kvm *kvm = mmu_notifier_to_kvm(mn);
+	int idx;
 
+	idx = srcu_read_lock(&kvm->srcu);
 	spin_lock(&kvm->mmu_lock);
 	kvm->mmu_notifier_seq++;
 	kvm_set_spte_hva(kvm, address, pte);
 	spin_unlock(&kvm->mmu_lock);
+	srcu_read_unlock(&kvm->srcu, idx);
 }
 
 static void kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
@@ -263,8 +269,9 @@ static void kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
 						    unsigned long end)
 {
 	struct kvm *kvm = mmu_notifier_to_kvm(mn);
-	int need_tlb_flush = 0;
+	int need_tlb_flush = 0, idx;
 
+	idx = srcu_read_lock(&kvm->srcu);
 	spin_lock(&kvm->mmu_lock);
 	/*
 	 * The count increase must become visible at unlock time as no
@@ -275,6 +282,7 @@ static void kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
 	for (; start < end; start += PAGE_SIZE)
 		need_tlb_flush |= kvm_unmap_hva(kvm, start);
 	spin_unlock(&kvm->mmu_lock);
+	srcu_read_unlock(&kvm->srcu, idx);
 
 	/* we've to flush the tlb before the pages can be freed */
 	if (need_tlb_flush)
@@ -312,11 +320,13 @@ static int kvm_mmu_notifier_clear_flush_young(struct mmu_notifier *mn,
 					      unsigned long address)
 {
 	struct kvm *kvm = mmu_notifier_to_kvm(mn);
-	int young;
+	int young, idx;
 
+	idx = srcu_read_lock(&kvm->srcu);
 	spin_lock(&kvm->mmu_lock);
 	young = kvm_age_hva(kvm, address);
 	spin_unlock(&kvm->mmu_lock);
+	srcu_read_unlock(&kvm->srcu, idx);
 
 	if (young)
 		kvm_flush_remote_tlbs(kvm);
@@ -379,11 +389,15 @@ static struct kvm *kvm_create_vm(void)
 	kvm->memslots = kzalloc(sizeof(struct kvm_memslots), GFP_KERNEL);
 	if (!kvm->memslots)
 		goto out_err;
+	if (init_srcu_struct(&kvm->srcu))
+		goto out_err;
 
 #ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
 	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-	if (!page)
+	if (!page) {
+		cleanup_srcu_struct(&kvm->srcu);
 		goto out_err;
+	}
 
 	kvm->coalesced_mmio_ring =
 			(struct kvm_coalesced_mmio_ring *)page_address(page);
@@ -391,6 +405,7 @@ static struct kvm *kvm_create_vm(void)
 
 	r = kvm_init_mmu_notifier(kvm);
 	if (r) {
+		cleanup_srcu_struct(&kvm->srcu);
 #ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
 		put_page(page);
 #endif
@@ -480,6 +495,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 #else
 	kvm_arch_flush_shadow(kvm);
 #endif
+	cleanup_srcu_struct(&kvm->srcu);
 	kvm_arch_destroy_vm(kvm);
 	hardware_disable_all();
 	mmdrop(mm);
@@ -521,12 +537,13 @@ int __kvm_set_memory_region(struct kvm *kvm,
 			    struct kvm_userspace_memory_region *mem,
 			    int user_alloc)
 {
-	int r;
+	int r, flush_shadow = 0;
 	gfn_t base_gfn;
 	unsigned long npages;
 	unsigned long i;
 	struct kvm_memory_slot *memslot;
 	struct kvm_memory_slot old, new;
+	struct kvm_memslots *slots, *old_memslots;
 
 	r = -EINVAL;
 	/* General sanity checks */
@@ -588,15 +605,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		memset(new.rmap, 0, npages * sizeof(*new.rmap));
 
 		new.user_alloc = user_alloc;
-		/*
-		 * hva_to_rmmap() serialzies with the mmu_lock and to be
-		 * safe it has to ignore memslots with !user_alloc &&
-		 * !userspace_addr.
-		 */
-		if (user_alloc)
-			new.userspace_addr = mem->userspace_addr;
-		else
-			new.userspace_addr = 0;
+		new.userspace_addr = mem->userspace_addr;
 	}
 	if (!npages)
 		goto skip_lpage;
@@ -651,8 +660,9 @@ skip_lpage:
 		if (!new.dirty_bitmap)
 			goto out_free;
 		memset(new.dirty_bitmap, 0, dirty_bytes);
+		/* destroy any largepage mappings for dirty tracking */
 		if (old.npages)
-			kvm_arch_flush_shadow(kvm);
+			flush_shadow = 1;
 	}
 #else  /* not defined CONFIG_S390 */
 	new.user_alloc = user_alloc;
@@ -660,34 +670,72 @@ skip_lpage:
 		new.userspace_addr = mem->userspace_addr;
 #endif /* not defined CONFIG_S390 */
 
-	if (!npages)
+	if (!npages) {
+		r = -ENOMEM;
+		slots = kzalloc(sizeof(struct kvm_memslots), GFP_KERNEL);
+		if (!slots)
+			goto out_free;
+		memcpy(slots, kvm->memslots, sizeof(struct kvm_memslots));
+		if (mem->slot >= slots->nmemslots)
+			slots->nmemslots = mem->slot + 1;
+		slots->memslots[mem->slot].flags |= KVM_MEMSLOT_INVALID;
+
+		old_memslots = kvm->memslots;
+		rcu_assign_pointer(kvm->memslots, slots);
+		synchronize_srcu_expedited(&kvm->srcu);
+		/* From this point no new shadow pages pointing to a deleted
+		 * memslot will be created.
+		 *
+		 * validation of sp->gfn happens in:
+		 * 	- gfn_to_hva (kvm_read_guest, gfn_to_pfn)
+		 * 	- kvm_is_visible_gfn (mmu_check_roots)
+		 */
 		kvm_arch_flush_shadow(kvm);
+		kfree(old_memslots);
+	}
 
 	r = kvm_arch_prepare_memory_region(kvm, &new, old, mem, user_alloc);
 	if (r)
 		goto out_free;
 
-	spin_lock(&kvm->mmu_lock);
-	if (mem->slot >= kvm->memslots->nmemslots)
-		kvm->memslots->nmemslots = mem->slot + 1;
+#ifdef CONFIG_DMAR
+	/* map the pages in iommu page table */
+	if (npages) {
+		r = kvm_iommu_map_pages(kvm, &new);
+		if (r)
+			goto out_free;
+	}
+#endif
 
-	*memslot = new;
-	spin_unlock(&kvm->mmu_lock);
+	r = -ENOMEM;
+	slots = kzalloc(sizeof(struct kvm_memslots), GFP_KERNEL);
+	if (!slots)
+		goto out_free;
+	memcpy(slots, kvm->memslots, sizeof(struct kvm_memslots));
+	if (mem->slot >= slots->nmemslots)
+		slots->nmemslots = mem->slot + 1;
+
+	/* actual memory is freed via old in kvm_free_physmem_slot below */
+	if (!npages) {
+		new.rmap = NULL;
+		new.dirty_bitmap = NULL;
+		for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i)
+			new.lpage_info[i] = NULL;
+	}
+
+	slots->memslots[mem->slot] = new;
+	old_memslots = kvm->memslots;
+	rcu_assign_pointer(kvm->memslots, slots);
+	synchronize_srcu_expedited(&kvm->srcu);
 
 	kvm_arch_commit_memory_region(kvm, mem, old, user_alloc);
 
-	kvm_free_physmem_slot(&old, npages ? &new : NULL);
-	/* Slot deletion case: we have to update the current slot */
-	spin_lock(&kvm->mmu_lock);
-	if (!npages)
-		*memslot = old;
-	spin_unlock(&kvm->mmu_lock);
-#ifdef CONFIG_DMAR
-	/* map the pages in iommu page table */
-	r = kvm_iommu_map_pages(kvm, memslot);
-	if (r)
-		goto out;
-#endif
+	kvm_free_physmem_slot(&old, &new);
+	kfree(old_memslots);
+
+	if (flush_shadow)
+		kvm_arch_flush_shadow(kvm);
+
 	return 0;
 
 out_free:
@@ -787,7 +835,7 @@ EXPORT_SYMBOL_GPL(kvm_is_error_hva);
 struct kvm_memory_slot *gfn_to_memslot_unaliased(struct kvm *kvm, gfn_t gfn)
 {
 	int i;
-	struct kvm_memslots *slots = kvm->memslots;
+	struct kvm_memslots *slots = rcu_dereference(kvm->memslots);
 
 	for (i = 0; i < slots->nmemslots; ++i) {
 		struct kvm_memory_slot *memslot = &slots->memslots[i];
@@ -809,11 +857,14 @@ struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
 int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn)
 {
 	int i;
-	struct kvm_memslots *slots = kvm->memslots;
+	struct kvm_memslots *slots = rcu_dereference(kvm->memslots);
 
 	gfn = unalias_gfn(kvm, gfn);
 	for (i = 0; i < KVM_MEMORY_SLOTS; ++i) {
 		struct kvm_memory_slot *memslot = &slots->memslots[i];
+
+		if (memslot->flags & KVM_MEMSLOT_INVALID)
+			continue;
 
 		if (gfn >= memslot->base_gfn
 		    && gfn < memslot->base_gfn + memslot->npages)
@@ -823,13 +874,31 @@ int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn)
 }
 EXPORT_SYMBOL_GPL(kvm_is_visible_gfn);
 
+int memslot_id(struct kvm *kvm, gfn_t gfn)
+{
+	int i;
+	struct kvm_memslots *slots = rcu_dereference(kvm->memslots);
+	struct kvm_memory_slot *memslot = NULL;
+
+	gfn = unalias_gfn(kvm, gfn);
+	for (i = 0; i < slots->nmemslots; ++i) {
+		memslot = &slots->memslots[i];
+
+		if (gfn >= memslot->base_gfn
+		    && gfn < memslot->base_gfn + memslot->npages)
+			break;
+	}
+
+	return memslot - slots->memslots;
+}
+
 unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
 {
 	struct kvm_memory_slot *slot;
 
 	gfn = unalias_gfn(kvm, gfn);
 	slot = gfn_to_memslot_unaliased(kvm, gfn);
-	if (!slot)
+	if (!slot || slot->flags & KVM_MEMSLOT_INVALID)
 		return bad_hva();
 	return (slot->userspace_addr + (gfn - slot->base_gfn) * PAGE_SIZE);
 }

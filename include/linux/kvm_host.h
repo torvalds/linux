@@ -162,6 +162,7 @@ struct kvm {
 	struct rw_semaphore slots_lock;
 	struct mm_struct *mm; /* userspace tied to this vm */
 	struct kvm_memslots *memslots;
+	struct srcu_struct srcu;
 #ifdef CONFIG_KVM_APIC_ARCHITECTURE
 	u32 bsp_vcpu_id;
 	struct kvm_vcpu *bsp_vcpu;
@@ -275,6 +276,7 @@ void kvm_set_page_accessed(struct page *page);
 pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn);
 pfn_t gfn_to_pfn_memslot(struct kvm *kvm,
 			 struct kvm_memory_slot *slot, gfn_t gfn);
+int memslot_id(struct kvm *kvm, gfn_t gfn);
 void kvm_release_pfn_dirty(pfn_t);
 void kvm_release_pfn_clean(pfn_t pfn);
 void kvm_set_pfn_dirty(pfn_t pfn);
@@ -488,11 +490,6 @@ static inline void kvm_guest_exit(void)
 {
 	account_system_vtime(current);
 	current->flags &= ~PF_VCPU;
-}
-
-static inline int memslot_id(struct kvm *kvm, struct kvm_memory_slot *slot)
-{
-	return slot - kvm->memslots->memslots;
 }
 
 static inline gpa_t gfn_to_gpa(gfn_t gfn)

@@ -78,7 +78,7 @@ static int kvm_iommu_map_memslots(struct kvm *kvm)
 	int i, r = 0;
 	struct kvm_memslots *slots;
 
-	slots = kvm->memslots;
+	slots = rcu_dereference(kvm->memslots);
 
 	for (i = 0; i < slots->nmemslots; i++) {
 		r = kvm_iommu_map_pages(kvm, &slots->memslots[i]);
@@ -214,7 +214,7 @@ static int kvm_iommu_unmap_memslots(struct kvm *kvm)
 	int i;
 	struct kvm_memslots *slots;
 
-	slots = kvm->memslots;
+	slots = rcu_dereference(kvm->memslots);
 
 	for (i = 0; i < slots->nmemslots; i++) {
 		kvm_iommu_put_pages(kvm, slots->memslots[i].base_gfn,
