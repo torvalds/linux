@@ -1465,7 +1465,25 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						rdev->pm.power_state[state_index].clock_info[0].voltage.vddc_id =
 							power_info->info.asPowerPlayInfo[i].ucVoltageDropIndex;
 					}
+					/* order matters! */
+					if (misc & ATOM_PM_MISCINFO_POWER_SAVING_MODE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_POWERSAVE;
+					if (misc & ATOM_PM_MISCINFO_DEFAULT_DC_STATE_ENTRY_TRUE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BATTERY;
+					if (misc & ATOM_PM_MISCINFO_DEFAULT_LOW_DC_STATE_ENTRY_TRUE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BATTERY;
+					if (misc & ATOM_PM_MISCINFO_LOAD_BALANCE_EN)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BALANCED;
+					if (misc & ATOM_PM_MISCINFO_3D_ACCELERATION_EN)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_PERFORMANCE;
 					if (misc & ATOM_PM_MISCINFO_DRIVER_DEFAULT_MODE) {
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_DEFAULT;
 						rdev->pm.default_power_state = &rdev->pm.power_state[state_index];
 						rdev->pm.current_power_state = &rdev->pm.power_state[state_index];
 						rdev->pm.power_state[state_index].default_clock_mode =
@@ -1513,7 +1531,28 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						rdev->pm.power_state[state_index].clock_info[0].voltage.vddc_id =
 							power_info->info_2.asPowerPlayInfo[i].ucVoltageDropIndex;
 					}
+					/* order matters! */
+					if (misc & ATOM_PM_MISCINFO_POWER_SAVING_MODE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_POWERSAVE;
+					if (misc & ATOM_PM_MISCINFO_DEFAULT_DC_STATE_ENTRY_TRUE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BATTERY;
+					if (misc & ATOM_PM_MISCINFO_DEFAULT_LOW_DC_STATE_ENTRY_TRUE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BATTERY;
+					if (misc & ATOM_PM_MISCINFO_LOAD_BALANCE_EN)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BALANCED;
+					if (misc & ATOM_PM_MISCINFO_3D_ACCELERATION_EN)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_PERFORMANCE;
+					if (misc2 & ATOM_PM_MISCINFO2_SYSTEM_AC_LITE_MODE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BALANCED;
 					if (misc & ATOM_PM_MISCINFO_DRIVER_DEFAULT_MODE) {
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_DEFAULT;
 						rdev->pm.default_power_state = &rdev->pm.power_state[state_index];
 						rdev->pm.current_power_state = &rdev->pm.power_state[state_index];
 						rdev->pm.power_state[state_index].default_clock_mode =
@@ -1567,7 +1606,28 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 							power_info->info_3.asPowerPlayInfo[i].ucVDDCI_VoltageDropIndex;
 						}
 					}
+					/* order matters! */
+					if (misc & ATOM_PM_MISCINFO_POWER_SAVING_MODE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_POWERSAVE;
+					if (misc & ATOM_PM_MISCINFO_DEFAULT_DC_STATE_ENTRY_TRUE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BATTERY;
+					if (misc & ATOM_PM_MISCINFO_DEFAULT_LOW_DC_STATE_ENTRY_TRUE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BATTERY;
+					if (misc & ATOM_PM_MISCINFO_LOAD_BALANCE_EN)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BALANCED;
+					if (misc & ATOM_PM_MISCINFO_3D_ACCELERATION_EN)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_PERFORMANCE;
+					if (misc2 & ATOM_PM_MISCINFO2_SYSTEM_AC_LITE_MODE)
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BALANCED;
 					if (misc & ATOM_PM_MISCINFO_DRIVER_DEFAULT_MODE) {
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_DEFAULT;
 						rdev->pm.default_power_state = &rdev->pm.power_state[state_index];
 						rdev->pm.current_power_state = &rdev->pm.power_state[state_index];
 						rdev->pm.power_state[state_index].default_clock_mode =
@@ -1655,7 +1715,23 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 					rdev->pm.power_state[state_index].non_clock_info.pcie_lanes =
 						((misc & ATOM_PPLIB_PCIE_LINK_WIDTH_MASK) >>
 						ATOM_PPLIB_PCIE_LINK_WIDTH_SHIFT) + 1;
+					switch (misc2 & ATOM_PPLIB_CLASSIFICATION_UI_MASK) {
+					case ATOM_PPLIB_CLASSIFICATION_UI_BATTERY:
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BATTERY;
+						break;
+					case ATOM_PPLIB_CLASSIFICATION_UI_BALANCED:
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_BALANCED;
+						break;
+					case ATOM_PPLIB_CLASSIFICATION_UI_PERFORMANCE:
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_PERFORMANCE;
+						break;
+					}
 					if (misc2 & ATOM_PPLIB_CLASSIFICATION_BOOT) {
+						rdev->pm.power_state[state_index].type =
+							POWER_STATE_TYPE_DEFAULT;
 						rdev->pm.default_power_state = &rdev->pm.power_state[state_index];
 						rdev->pm.current_power_state = &rdev->pm.power_state[state_index];
 						rdev->pm.power_state[state_index].default_clock_mode =
@@ -1673,6 +1749,8 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 
 	if (rdev->pm.default_power_state == NULL) {
 		/* add the default mode */
+		rdev->pm.power_state[state_index].type =
+			POWER_STATE_TYPE_DEFAULT;
 		rdev->pm.power_state[state_index].num_clock_modes = 1;
 		rdev->pm.power_state[state_index].clock_info[0].mclk = rdev->clock.default_mclk;
 		rdev->pm.power_state[state_index].clock_info[0].sclk = rdev->clock.default_sclk;

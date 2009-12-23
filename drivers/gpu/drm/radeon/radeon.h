@@ -593,6 +593,14 @@ enum radeon_voltage_type {
 	VOLTAGE_SW
 };
 
+enum radeon_pm_state_type {
+	POWER_STATE_TYPE_DEFAULT,
+	POWER_STATE_TYPE_POWERSAVE,
+	POWER_STATE_TYPE_BATTERY,
+	POWER_STATE_TYPE_BALANCED,
+	POWER_STATE_TYPE_PERFORMANCE,
+};
+
 struct radeon_voltage {
 	enum radeon_voltage_type type;
 	/* gpio voltage */
@@ -626,6 +634,7 @@ struct radeon_pm_clock_info {
 };
 
 struct radeon_power_state {
+	enum radeon_pm_state_type type;
 	/* XXX: use a define for num clock modes */
 	struct radeon_pm_clock_info clock_info[8];
 	/* number of valid clock modes in this power state */

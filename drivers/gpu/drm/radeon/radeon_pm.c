@@ -40,6 +40,14 @@ static const char *pm_state_names[4] = {
 	"PM_STATE_ACTIVE"
 };
 
+static const char *pm_state_types[5] = {
+	"Default",
+	"Powersave",
+	"Battery",
+	"Balanced",
+	"Performance",
+};
+
 static void radeon_print_power_mode_info(struct radeon_device *rdev)
 {
 	int i, j;
@@ -51,7 +59,9 @@ static void radeon_print_power_mode_info(struct radeon_device *rdev)
 			is_default = true;
 		else
 			is_default = false;
-		DRM_INFO("State %d %s\n", i, is_default ? "(default)" : "");
+		DRM_INFO("State %d %s %s\n", i,
+			 pm_state_types[rdev->pm.power_state[i].type],
+			 is_default ? "(default)" : "");
 		if ((rdev->flags & RADEON_IS_PCIE) && !(rdev->flags & RADEON_IS_IGP))
 			DRM_INFO("\t%d PCIE Lanes\n", rdev->pm.power_state[i].non_clock_info.pcie_lanes);
 		DRM_INFO("\t%d Clock Mode(s)\n", rdev->pm.power_state[i].num_clock_modes);

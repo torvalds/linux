@@ -2406,6 +2406,8 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 			    (rdev->pm.power_state[state_index].clock_info[0].sclk >
 			     rdev->clock.default_sclk))
 				goto default_mode;
+			rdev->pm.power_state[state_index].type =
+				POWER_STATE_TYPE_BATTERY;
 			misc = RBIOS16(offset + 0x5 + 0x0);
 			if (rev > 4)
 				misc2 = RBIOS16(offset + 0x5 + 0xe);
@@ -2467,6 +2469,8 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 
 default_mode:
 	/* add the default mode */
+	rdev->pm.power_state[state_index].type =
+		POWER_STATE_TYPE_DEFAULT;
 	rdev->pm.power_state[state_index].num_clock_modes = 1;
 	rdev->pm.power_state[state_index].clock_info[0].mclk = rdev->clock.default_mclk;
 	rdev->pm.power_state[state_index].clock_info[0].sclk = rdev->clock.default_sclk;
