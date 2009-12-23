@@ -1148,6 +1148,10 @@ int __ieee80211_request_smps(struct ieee80211_sub_if_data *sdata,
 void ieee80211_recalc_smps(struct ieee80211_local *local,
 			   struct ieee80211_sub_if_data *forsdata);
 
+size_t ieee80211_ie_split(const u8 *ies, size_t ielen,
+			  const u8 *ids, int n_ids, size_t offset);
+size_t ieee80211_ie_split_vendor(const u8 *ies, size_t ielen, size_t offset);
+
 /* internal work items */
 void ieee80211_work_init(struct ieee80211_local *local);
 void ieee80211_add_work(struct ieee80211_work *wk);

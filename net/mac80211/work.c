@@ -204,6 +204,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_mgmt *mgmt;
 	u8 *pos;
 	const u8 *ies;
+	size_t offset = 0, noffset;
 	int i, len, count, rates_len, supp_rates_len;
 	u16 capab;
 	struct ieee80211_supported_band *sband;
@@ -337,20 +338,41 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	/*
-	 * XXX:	These IEs could contain (vendor-specified)
-	 *	IEs that belong after HT -- the buffer may
-	 *	need to be split up.
-	 */
+	/* if present, add any custom IEs that go before HT */
 	if (wk->ie_len && wk->ie) {
-		pos = skb_put(skb, wk->ie_len);
-		memcpy(pos, wk->ie, wk->ie_len);
+		static const u8 before_ht[] = {
+			WLAN_EID_SSID,
+			WLAN_EID_SUPP_RATES,
+			WLAN_EID_EXT_SUPP_RATES,
+			WLAN_EID_PWR_CAPABILITY,
+			WLAN_EID_SUPPORTED_CHANNELS,
+			WLAN_EID_RSN,
+			WLAN_EID_QOS_CAPA,
+			WLAN_EID_RRM_ENABLED_CAPABILITIES,
+			WLAN_EID_MOBILITY_DOMAIN,
+			WLAN_EID_SUPPORTED_REGULATORY_CLASSES,
+		};
+		noffset = ieee80211_ie_split(wk->ie, wk->ie_len,
+					     before_ht, ARRAY_SIZE(before_ht),
+					     offset);
+		pos = skb_put(skb, noffset - offset);
+		memcpy(pos, wk->ie + offset, noffset - offset);
+		offset = noffset;
 	}
 
 	if (wk->assoc.use_11n && wk->assoc.wmm_used &&
 	    local->hw.queues >= 4)
 		ieee80211_add_ht_ie(skb, wk->assoc.ht_information_ie,
 				    sband, wk->chan, wk->assoc.smps);
+
+	/* if present, add any custom non-vendor IEs that go after HT */
+	if (wk->ie_len && wk->ie) {
+		noffset = ieee80211_ie_split_vendor(wk->ie, wk->ie_len,
+						    offset);
+		pos = skb_put(skb, noffset - offset);
+		memcpy(pos, wk->ie + offset, noffset - offset);
+		offset = noffset;
+	}
 
 	if (wk->assoc.wmm_used && local->hw.queues >= 4) {
 		pos = skb_put(skb, 9);
@@ -363,6 +385,13 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 		*pos++ = 0; /* WME info */
 		*pos++ = 1; /* WME ver */
 		*pos++ = 0;
+	}
+
+	/* add any remaining custom (i.e. vendor specific here) IEs */
+	if (wk->ie_len && wk->ie) {
+		noffset = wk->ie_len;
+		pos = skb_put(skb, noffset - offset);
+		memcpy(pos, wk->ie + offset, noffset - offset);
 	}
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;

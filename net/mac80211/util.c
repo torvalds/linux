@@ -881,30 +881,66 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 			     enum ieee80211_band band)
 {
 	struct ieee80211_supported_band *sband;
-	u8 *pos, *supp_rates_len, *esupp_rates_len = NULL;
-	int i;
+	u8 *pos;
+	size_t offset = 0, noffset;
+	int supp_rates_len, i;
 
 	sband = local->hw.wiphy->bands[band];
 
 	pos = buffer;
 
+	supp_rates_len = min_t(int, sband->n_bitrates, 8);
+
 	*pos++ = WLAN_EID_SUPP_RATES;
-	supp_rates_len = pos;
-	*pos++ = 0;
+	*pos++ = supp_rates_len;
 
-	for (i = 0; i < sband->n_bitrates; i++) {
-		struct ieee80211_rate *rate = &sband->bitrates[i];
+	for (i = 0; i < supp_rates_len; i++) {
+		int rate = sband->bitrates[i].bitrate;
+		*pos++ = (u8) (rate / 5);
+	}
 
-		if (esupp_rates_len) {
-			*esupp_rates_len += 1;
-		} else if (*supp_rates_len == 8) {
-			*pos++ = WLAN_EID_EXT_SUPP_RATES;
-			esupp_rates_len = pos;
-			*pos++ = 1;
-		} else
-			*supp_rates_len += 1;
+	/* insert "request information" if in custom IEs */
+	if (ie && ie_len) {
+		static const u8 before_extrates[] = {
+			WLAN_EID_SSID,
+			WLAN_EID_SUPP_RATES,
+			WLAN_EID_REQUEST,
+		};
+		noffset = ieee80211_ie_split(ie, ie_len,
+					     before_extrates,
+					     ARRAY_SIZE(before_extrates),
+					     offset);
+		memcpy(pos, ie + offset, noffset - offset);
+		pos += noffset - offset;
+		offset = noffset;
+	}
 
-		*pos++ = rate->bitrate / 5;
+	if (sband->n_bitrates > i) {
+		*pos++ = WLAN_EID_EXT_SUPP_RATES;
+		*pos++ = sband->n_bitrates - i;
+
+		for (; i < sband->n_bitrates; i++) {
+			int rate = sband->bitrates[i].bitrate;
+			*pos++ = (u8) (rate / 5);
+		}
+	}
+
+	/* insert custom IEs that go before HT */
+	if (ie && ie_len) {
+		static const u8 before_ht[] = {
+			WLAN_EID_SSID,
+			WLAN_EID_SUPP_RATES,
+			WLAN_EID_REQUEST,
+			WLAN_EID_EXT_SUPP_RATES,
+			WLAN_EID_DS_PARAMS,
+			WLAN_EID_SUPPORTED_REGULATORY_CLASSES,
+		};
+		noffset = ieee80211_ie_split(ie, ie_len,
+					     before_ht, ARRAY_SIZE(before_ht),
+					     offset);
+		memcpy(pos, ie + offset, noffset - offset);
+		pos += noffset - offset;
+		offset = noffset;
 	}
 
 	if (sband->ht_cap.ht_supported) {
@@ -936,9 +972,11 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 	 * that calculates local->scan_ies_len.
 	 */
 
-	if (ie) {
-		memcpy(pos, ie, ie_len);
-		pos += ie_len;
+	/* add any remaining custom IEs */
+	if (ie && ie_len) {
+		noffset = ie_len;
+		memcpy(pos, ie + offset, noffset - offset);
+		pos += noffset - offset;
 	}
 
 	return pos - buffer;
@@ -1251,4 +1289,60 @@ void ieee80211_recalc_smps(struct ieee80211_local *local,
 	local->smps_mode = smps_mode;
 	/* changed flag is auto-detected for this */
 	ieee80211_hw_config(local, 0);
+}
+
+static bool ieee80211_id_in_list(const u8 *ids, int n_ids, u8 id)
+{
+	int i;
+
+	for (i = 0; i < n_ids; i++)
+		if (ids[i] == id)
+			return true;
+	return false;
+}
+
+/**
+ * ieee80211_ie_split - split an IE buffer according to ordering
+ *
+ * @ies: the IE buffer
+ * @ielen: the length of the IE buffer
+ * @ids: an array with element IDs that are allowed before
+ *	the split
+ * @n_ids: the size of the element ID array
+ * @offset: offset where to start splitting in the buffer
+ *
+ * This function splits an IE buffer by updating the @offset
+ * variable to point to the location where the buffer should be
+ * split.
+ *
+ * It assumes that the given IE buffer is well-formed, this
+ * has to be guaranteed by the caller!
+ *
+ * It also assumes that the IEs in the buffer are ordered
+ * correctly, if not the result of using this function will not
+ * be ordered correctly either, i.e. it does no reordering.
+ *
+ * The function returns the offset where the next part of the
+ * buffer starts, which may be @ielen if the entire (remainder)
+ * of the buffer should be used.
+ */
+size_t ieee80211_ie_split(const u8 *ies, size_t ielen,
+			  const u8 *ids, int n_ids, size_t offset)
+{
+	size_t pos = offset;
+
+	while (pos < ielen && ieee80211_id_in_list(ids, n_ids, ies[pos]))
+		pos += 2 + ies[pos + 1];
+
+	return pos;
+}
+
+size_t ieee80211_ie_split_vendor(const u8 *ies, size_t ielen, size_t offset)
+{
+	size_t pos = offset;
+
+	while (pos < ielen && ies[pos] != WLAN_EID_VENDOR_SPECIFIC)
+		pos += 2 + ies[pos + 1];
+
+	return pos;
 }
