@@ -54,7 +54,7 @@ static int lp3971_set_bits(struct lp3971 *lp3971, u8 reg, u16 mask, u16 val);
 #define LP3971_BUCK2_BASE 0x29
 #define LP3971_BUCK3_BASE 0x32
 
-const static int buck_base_addr[] = {
+static const int buck_base_addr[] = {
 	LP3971_BUCK1_BASE,
 	LP3971_BUCK2_BASE,
 	LP3971_BUCK3_BASE,
@@ -63,7 +63,7 @@ const static int buck_base_addr[] = {
 #define LP3971_BUCK_TARGET_VOL1_REG(x) (buck_base_addr[x])
 #define LP3971_BUCK_TARGET_VOL2_REG(x) (buck_base_addr[x]+1)
 
-const static int buck_voltage_map[] = {
+static const int buck_voltage_map[] = {
 	   0,  800,  850,  900,  950, 1000, 1050, 1100,
 	1150, 1200, 1250, 1300, 1350, 1400, 1450, 1500,
 	1550, 1600, 1650, 1700, 1800, 1900, 2500, 2800,
@@ -96,17 +96,17 @@ const static int buck_voltage_map[] = {
 #define LDO_VOL_CONTR_SHIFT(x) ((x & 1) << 2)
 #define LDO_VOL_CONTR_MASK 0x0f
 
-const static int ldo45_voltage_map[] = {
+static const int ldo45_voltage_map[] = {
 	1000, 1050, 1100, 1150, 1200, 1250, 1300, 1350,
 	1400, 1500, 1800, 1900, 2500, 2800, 3000, 3300,
 };
 
-const static int ldo123_voltage_map[] = {
+static const int ldo123_voltage_map[] = {
 	1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500,
 	2600, 2700, 2800, 2900, 3000, 3100, 3200, 3300,
 };
 
-const static int *ldo_voltage_map[] = {
+static const int *ldo_voltage_map[] = {
 	ldo123_voltage_map, /* LDO1 */
 	ldo123_voltage_map, /* LDO2 */
 	ldo123_voltage_map, /* LDO3 */
