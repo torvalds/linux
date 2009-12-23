@@ -449,20 +449,18 @@ static void inotify_remove_from_idr(struct fsnotify_group *group,
 	 * if it wasn't....
 	 */
 	if (wd == -1) {
-		printk(KERN_WARNING "%s: ientry=%p ientry->wd=%d ientry->group=%p"
+		WARN_ONCE(1, "%s: ientry=%p ientry->wd=%d ientry->group=%p"
 			" ientry->inode=%p\n", __func__, ientry, ientry->wd,
 			ientry->fsn_entry.group, ientry->fsn_entry.inode);
-		WARN_ON(1);
 		goto out;
 	}
 
 	/* Lets look in the idr to see if we find it */
 	found_ientry = inotify_idr_find_locked(group, wd);
 	if (unlikely(!found_ientry)) {
-		printk(KERN_WARNING "%s: ientry=%p ientry->wd=%d ientry->group=%p"
+		WARN_ONCE(1, "%s: ientry=%p ientry->wd=%d ientry->group=%p"
 			" ientry->inode=%p\n", __func__, ientry, ientry->wd,
 			ientry->fsn_entry.group, ientry->fsn_entry.inode);
-		WARN_ON(1);
 		goto out;
 	}
 
@@ -472,8 +470,7 @@ static void inotify_remove_from_idr(struct fsnotify_group *group,
 	 * fucked up somewhere.
 	 */
 	if (unlikely(found_ientry != ientry)) {
-		WARN_ON(1);
-		printk(KERN_WARNING "%s: ientry=%p ientry->wd=%d ientry->group=%p "
+		WARN_ONCE(1, "%s: ientry=%p ientry->wd=%d ientry->group=%p "
 			"entry->inode=%p found_ientry=%p found_ientry->wd=%d "
 			"found_ientry->group=%p found_ientry->inode=%p\n",
 			__func__, ientry, ientry->wd, ientry->fsn_entry.group,
@@ -489,7 +486,7 @@ static void inotify_remove_from_idr(struct fsnotify_group *group,
 	 * one ref grabbed by inotify_idr_find
 	 */
 	if (unlikely(atomic_read(&ientry->fsn_entry.refcnt) < 3)) {
-		printk(KERN_WARNING "%s: ientry=%p ientry->wd=%d ientry->group=%p"
+		printk(KERN_ERR "%s: ientry=%p ientry->wd=%d ientry->group=%p"
 			" ientry->inode=%p\n", __func__, ientry, ientry->wd,
 			ientry->fsn_entry.group, ientry->fsn_entry.inode);
 		/* we can't really recover with bad ref cnting.. */
