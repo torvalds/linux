@@ -730,16 +730,15 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 #endif
 	struct sh_dmae_device *shdev;
 
+	/* get platform data */
+	if (!pdev->dev.platform_data)
+		return -ENODEV;
+
 	shdev = kzalloc(sizeof(struct sh_dmae_device), GFP_KERNEL);
 	if (!shdev) {
 		dev_err(&pdev->dev, "No enough memory\n");
-		err = -ENOMEM;
-		goto shdev_err;
+		return -ENOMEM;
 	}
-
-	/* get platform data */
-	if (!pdev->dev.platform_data)
-		goto shdev_err;
 
 	/* platform data */
 	memcpy(&shdev->pdata, pdev->dev.platform_data,
@@ -814,7 +813,6 @@ eirq_err:
 rst_err:
 	kfree(shdev);
 
-shdev_err:
 	return err;
 }
 

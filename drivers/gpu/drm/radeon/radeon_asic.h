@@ -31,10 +31,13 @@
 /*
  * common functions
  */
+uint32_t radeon_legacy_get_engine_clock(struct radeon_device *rdev);
 void radeon_legacy_set_engine_clock(struct radeon_device *rdev, uint32_t eng_clock);
 void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable);
 
+uint32_t radeon_atom_get_engine_clock(struct radeon_device *rdev);
 void radeon_atom_set_engine_clock(struct radeon_device *rdev, uint32_t eng_clock);
+uint32_t radeon_atom_get_memory_clock(struct radeon_device *rdev);
 void radeon_atom_set_memory_clock(struct radeon_device *rdev, uint32_t mem_clock);
 void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable);
 
@@ -95,7 +98,9 @@ static struct radeon_asic r100_asic = {
 	.copy_blit = &r100_copy_blit,
 	.copy_dma = NULL,
 	.copy = &r100_copy_blit,
+	.get_engine_clock = &radeon_legacy_get_engine_clock,
 	.set_engine_clock = &radeon_legacy_set_engine_clock,
+	.get_memory_clock = NULL,
 	.set_memory_clock = NULL,
 	.set_pcie_lanes = NULL,
 	.set_clock_gating = &radeon_legacy_set_clock_gating,
@@ -148,7 +153,9 @@ static struct radeon_asic r300_asic = {
 	.copy_blit = &r100_copy_blit,
 	.copy_dma = &r300_copy_dma,
 	.copy = &r100_copy_blit,
+	.get_engine_clock = &radeon_legacy_get_engine_clock,
 	.set_engine_clock = &radeon_legacy_set_engine_clock,
+	.get_memory_clock = NULL,
 	.set_memory_clock = NULL,
 	.set_pcie_lanes = &rv370_set_pcie_lanes,
 	.set_clock_gating = &radeon_legacy_set_clock_gating,
@@ -185,7 +192,9 @@ static struct radeon_asic r420_asic = {
 	.copy_blit = &r100_copy_blit,
 	.copy_dma = &r300_copy_dma,
 	.copy = &r100_copy_blit,
+	.get_engine_clock = &radeon_atom_get_engine_clock,
 	.set_engine_clock = &radeon_atom_set_engine_clock,
+	.get_memory_clock = &radeon_atom_get_memory_clock,
 	.set_memory_clock = &radeon_atom_set_memory_clock,
 	.set_pcie_lanes = &rv370_set_pcie_lanes,
 	.set_clock_gating = &radeon_atom_set_clock_gating,
@@ -227,7 +236,9 @@ static struct radeon_asic rs400_asic = {
 	.copy_blit = &r100_copy_blit,
 	.copy_dma = &r300_copy_dma,
 	.copy = &r100_copy_blit,
+	.get_engine_clock = &radeon_legacy_get_engine_clock,
 	.set_engine_clock = &radeon_legacy_set_engine_clock,
+	.get_memory_clock = NULL,
 	.set_memory_clock = NULL,
 	.set_pcie_lanes = NULL,
 	.set_clock_gating = &radeon_legacy_set_clock_gating,
@@ -273,7 +284,9 @@ static struct radeon_asic rs600_asic = {
 	.copy_blit = &r100_copy_blit,
 	.copy_dma = &r300_copy_dma,
 	.copy = &r100_copy_blit,
+	.get_engine_clock = &radeon_atom_get_engine_clock,
 	.set_engine_clock = &radeon_atom_set_engine_clock,
+	.get_memory_clock = &radeon_atom_get_memory_clock,
 	.set_memory_clock = &radeon_atom_set_memory_clock,
 	.set_pcie_lanes = NULL,
 	.set_clock_gating = &radeon_atom_set_clock_gating,
@@ -312,7 +325,9 @@ static struct radeon_asic rs690_asic = {
 	.copy_blit = &r100_copy_blit,
 	.copy_dma = &r300_copy_dma,
 	.copy = &r300_copy_dma,
+	.get_engine_clock = &radeon_atom_get_engine_clock,
 	.set_engine_clock = &radeon_atom_set_engine_clock,
+	.get_memory_clock = &radeon_atom_get_memory_clock,
 	.set_memory_clock = &radeon_atom_set_memory_clock,
 	.set_pcie_lanes = NULL,
 	.set_clock_gating = &radeon_atom_set_clock_gating,
@@ -357,7 +372,9 @@ static struct radeon_asic rv515_asic = {
 	.copy_blit = &r100_copy_blit,
 	.copy_dma = &r300_copy_dma,
 	.copy = &r100_copy_blit,
+	.get_engine_clock = &radeon_atom_get_engine_clock,
 	.set_engine_clock = &radeon_atom_set_engine_clock,
+	.get_memory_clock = &radeon_atom_get_memory_clock,
 	.set_memory_clock = &radeon_atom_set_memory_clock,
 	.set_pcie_lanes = &rv370_set_pcie_lanes,
 	.set_clock_gating = &radeon_atom_set_clock_gating,
@@ -393,7 +410,9 @@ static struct radeon_asic r520_asic = {
 	.copy_blit = &r100_copy_blit,
 	.copy_dma = &r300_copy_dma,
 	.copy = &r100_copy_blit,
+	.get_engine_clock = &radeon_atom_get_engine_clock,
 	.set_engine_clock = &radeon_atom_set_engine_clock,
+	.get_memory_clock = &radeon_atom_get_memory_clock,
 	.set_memory_clock = &radeon_atom_set_memory_clock,
 	.set_pcie_lanes = &rv370_set_pcie_lanes,
 	.set_clock_gating = &radeon_atom_set_clock_gating,
@@ -456,7 +475,9 @@ static struct radeon_asic r600_asic = {
 	.copy_blit = &r600_copy_blit,
 	.copy_dma = &r600_copy_blit,
 	.copy = &r600_copy_blit,
+	.get_engine_clock = &radeon_atom_get_engine_clock,
 	.set_engine_clock = &radeon_atom_set_engine_clock,
+	.get_memory_clock = &radeon_atom_get_memory_clock,
 	.set_memory_clock = &radeon_atom_set_memory_clock,
 	.set_pcie_lanes = NULL,
 	.set_clock_gating = &radeon_atom_set_clock_gating,
@@ -493,7 +514,9 @@ static struct radeon_asic rv770_asic = {
 	.copy_blit = &r600_copy_blit,
 	.copy_dma = &r600_copy_blit,
 	.copy = &r600_copy_blit,
+	.get_engine_clock = &radeon_atom_get_engine_clock,
 	.set_engine_clock = &radeon_atom_set_engine_clock,
+	.get_memory_clock = &radeon_atom_get_memory_clock,
 	.set_memory_clock = &radeon_atom_set_memory_clock,
 	.set_pcie_lanes = NULL,
 	.set_clock_gating = &radeon_atom_set_clock_gating,

@@ -35,65 +35,15 @@ config CAN_CALC_BITTIMING
 	  arguments "tq", "prop_seg", "phase_seg1", "phase_seg2" and "sjw".
 	  If unsure, say Y.
 
-config CAN_SJA1000
-	depends on CAN_DEV && HAS_IOMEM
-	tristate "Philips SJA1000"
-	---help---
-	  Driver for the SJA1000 CAN controllers from Philips or NXP
-
-config CAN_SJA1000_ISA
-	depends on CAN_SJA1000 && ISA
-	tristate "ISA Bus based legacy SJA1000 driver"
-	---help---
-	  This driver adds legacy support for SJA1000 chips connected to
-	  the ISA bus using I/O port, memory mapped or indirect access.
-
-config CAN_SJA1000_PLATFORM
-	depends on CAN_SJA1000
-	tristate "Generic Platform Bus based SJA1000 driver"
-	---help---
-	  This driver adds support for the SJA1000 chips connected to
-	  the "platform bus" (Linux abstraction for directly to the
-	  processor attached devices).  Which can be found on various
-	  boards from Phytec (http://www.phytec.de) like the PCM027,
-	  PCM038.
-
-config CAN_SJA1000_OF_PLATFORM
-	depends on CAN_SJA1000 && PPC_OF
-	tristate "Generic OF Platform Bus based SJA1000 driver"
-	---help---
-	  This driver adds support for the SJA1000 chips connected to
-	  the OpenFirmware "platform bus" found on embedded systems with
-	  OpenFirmware bindings, e.g. if you have a PowerPC based system
-	  you may want to enable this option.
-
-config CAN_EMS_PCI
-	tristate "EMS CPC-PCI, CPC-PCIe and CPC-104P Card"
-	depends on PCI && CAN_SJA1000
-	---help---
-	  This driver is for the one, two or four channel CPC-PCI,
-	  CPC-PCIe and CPC-104P cards from EMS Dr. Thomas Wuensche
-	  (http://www.ems-wuensche.de).
-
-config CAN_EMS_USB
-	tristate "EMS CPC-USB/ARM7 CAN/USB interface"
-	depends on USB && CAN_DEV
-	---help---
-	  This driver is for the one channel CPC-USB/ARM7 CAN/USB interface
-	  from from EMS Dr. Thomas Wuensche (http://www.ems-wuensche.de).
-
-config CAN_KVASER_PCI
-	tristate "Kvaser PCIcanx and Kvaser PCIcan PCI Cards"
-	depends on PCI && CAN_SJA1000
-	---help---
-	  This driver is for the the PCIcanx and PCIcan cards (1, 2 or
-	  4 channel) from Kvaser (http://www.kvaser.com).
-
 config CAN_AT91
 	tristate "Atmel AT91 onchip CAN controller"
-	depends on CAN && CAN_DEV && ARCH_AT91SAM9263
+	depends on CAN_DEV && ARCH_AT91SAM9263
 	---help---
 	  This is a driver for the SoC CAN controller in Atmel's AT91SAM9263.
+
+source "drivers/net/can/sja1000/Kconfig"
+
+source "drivers/net/can/usb/Kconfig"
 
 config CAN_DEBUG_DEVICES
 	bool "CAN devices debugging messages"

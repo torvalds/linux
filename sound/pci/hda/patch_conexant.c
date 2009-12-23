@@ -110,6 +110,7 @@ struct conexant_spec {
 
 	unsigned int dell_automute;
 	unsigned int port_d_mode;
+	unsigned char ext_mic_bias;
 };
 
 static int conexant_playback_pcm_open(struct hda_pcm_stream *hinfo,
@@ -1927,6 +1928,11 @@ static hda_nid_t cxt5066_adc_nids[3] = { 0x14, 0x15, 0x16 };
 static hda_nid_t cxt5066_capsrc_nids[1] = { 0x17 };
 #define CXT5066_SPDIF_OUT	0x21
 
+/* OLPC's microphone port is DC coupled for use with external sensors,
+ * therefore we use a 50% mic bias in order to center the input signal with
+ * the DC input range of the codec. */
+#define CXT5066_OLPC_EXT_MIC_BIAS PIN_VREF50
+
 static struct hda_channel_mode cxt5066_modes[1] = {
 	{ 2, NULL },
 };
@@ -1980,9 +1986,10 @@ static int cxt5066_hp_master_sw_put(struct snd_kcontrol *kcontrol,
 /* toggle input of built-in and mic jack appropriately */
 static void cxt5066_automic(struct hda_codec *codec)
 {
-	static struct hda_verb ext_mic_present[] = {
+	struct conexant_spec *spec = codec->spec;
+	struct hda_verb ext_mic_present[] = {
 		/* enable external mic, port B */
-		{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
+		{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, spec->ext_mic_bias},
 
 		/* switch to external mic input */
 		{0x17, AC_VERB_SET_CONNECT_SEL, 0},
@@ -2235,7 +2242,7 @@ static struct hda_verb cxt5066_init_verbs_olpc[] = {
 	{0x19, AC_VERB_SET_CONNECT_SEL, 0x00}, /* DAC1 */
 
 	/* Port B: external microphone */
-	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
+	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, CXT5066_OLPC_EXT_MIC_BIAS},
 
 	/* Port C: internal microphone */
 	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
@@ -2325,6 +2332,7 @@ static struct snd_pci_quirk cxt5066_cfg_tbl[] = {
 		      CXT5066_LAPTOP),
 	SND_PCI_QUIRK(0x1028, 0x02f5, "Dell",
 		      CXT5066_DELL_LAPTOP),
+	SND_PCI_QUIRK(0x152d, 0x0833, "OLPC XO-1.5", CXT5066_OLPC_XO_1_5),
 	{}
 };
 
@@ -2352,6 +2360,7 @@ static int patch_cxt5066(struct hda_codec *codec)
 	spec->input_mux = &cxt5066_capture_source;
 
 	spec->port_d_mode = PIN_HP;
+	spec->ext_mic_bias = PIN_VREF80;
 
 	spec->num_init_verbs = 1;
 	spec->init_verbs[0] = cxt5066_init_verbs;
@@ -2383,6 +2392,7 @@ static int patch_cxt5066(struct hda_codec *codec)
 		spec->mixers[spec->num_mixers++] = cxt5066_mixer_master_olpc;
 		spec->mixers[spec->num_mixers++] = cxt5066_mixers;
 		spec->port_d_mode = 0;
+		spec->ext_mic_bias = CXT5066_OLPC_EXT_MIC_BIAS;
 
 		/* no S/PDIF out */
 		spec->multiout.dig_out_nid = 0;

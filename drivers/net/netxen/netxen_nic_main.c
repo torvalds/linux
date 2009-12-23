@@ -437,6 +437,7 @@ netxen_read_mac_addr(struct netxen_adapter *adapter)
 		netdev->dev_addr[i] = *(p + 5 - i);
 
 	memcpy(netdev->perm_addr, netdev->dev_addr, netdev->addr_len);
+	memcpy(adapter->mac_addr, netdev->dev_addr, netdev->addr_len);
 
 	/* set station address */
 
@@ -459,6 +460,7 @@ int netxen_nic_set_mac(struct net_device *netdev, void *p)
 		netxen_napi_disable(adapter);
 	}
 
+	memcpy(adapter->mac_addr, addr->sa_data, netdev->addr_len);
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 	adapter->macaddr_set(adapter, addr->sa_data);
 
@@ -956,7 +958,7 @@ netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
 		return err;
 	}
 	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
-		adapter->macaddr_set(adapter, netdev->dev_addr);
+		adapter->macaddr_set(adapter, adapter->mac_addr);
 
 	adapter->set_multi(netdev);
 	adapter->set_mtu(adapter, netdev->mtu);

@@ -3656,6 +3656,7 @@ fc_bsg_host_dispatch(struct request_queue *q, struct Scsi_Host *shost,
 fail_host_msg:
 	/* return the errno failure code as the only status */
 	BUG_ON(job->reply_len < sizeof(uint32_t));
+	job->reply->reply_payload_rcv_len = 0;
 	job->reply->result = ret;
 	job->reply_len = sizeof(uint32_t);
 	fc_bsg_jobdone(job);
@@ -3741,6 +3742,7 @@ check_bidi:
 fail_rport_msg:
 	/* return the errno failure code as the only status */
 	BUG_ON(job->reply_len < sizeof(uint32_t));
+	job->reply->reply_payload_rcv_len = 0;
 	job->reply->result = ret;
 	job->reply_len = sizeof(uint32_t);
 	fc_bsg_jobdone(job);
@@ -3797,6 +3799,7 @@ fc_bsg_request_handler(struct request_queue *q, struct Scsi_Host *shost,
 		/* check if we have the msgcode value at least */
 		if (job->request_len < sizeof(uint32_t)) {
 			BUG_ON(job->reply_len < sizeof(uint32_t));
+			job->reply->reply_payload_rcv_len = 0;
 			job->reply->result = -ENOMSG;
 			job->reply_len = sizeof(uint32_t);
 			fc_bsg_jobdone(job);

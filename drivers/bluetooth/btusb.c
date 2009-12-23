@@ -591,6 +591,7 @@ static int btusb_close(struct hci_dev *hdev)
 		return 0;
 
 	cancel_work_sync(&data->work);
+	cancel_work_sync(&data->waker);
 
 	clear_bit(BTUSB_ISOC_RUNNING, &data->flags);
 	clear_bit(BTUSB_BULK_RUNNING, &data->flags);
@@ -599,11 +600,13 @@ static int btusb_close(struct hci_dev *hdev)
 	btusb_stop_traffic(data);
 	err = usb_autopm_get_interface(data->intf);
 	if (err < 0)
-		return 0;
+		goto failed;
 
 	data->intf->needs_remote_wakeup = 0;
 	usb_autopm_put_interface(data->intf);
 
+failed:
+	usb_scuttle_anchored_urbs(&data->deferred);
 	return 0;
 }
 

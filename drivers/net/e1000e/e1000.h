@@ -141,6 +141,8 @@ struct e1000_info;
 #define HV_TNCRS_UPPER		PHY_REG(778, 29) /* Transmit with no CRS */
 #define HV_TNCRS_LOWER		PHY_REG(778, 30)
 
+#define E1000_FCRTV_PCH     0x05F40 /* PCH Flow Control Refresh Timer Value */
+
 /* BM PHY Copper Specific Status */
 #define BM_CS_STATUS                      17
 #define BM_CS_STATUS_LINK_UP              0x0400

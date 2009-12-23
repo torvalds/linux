@@ -669,12 +669,6 @@ struct fb_ops {
 	/* perform fb specific mmap */
 	int (*fb_mmap)(struct fb_info *info, struct vm_area_struct *vma);
 
-	/* save current hardware state */
-	void (*fb_save_state)(struct fb_info *info);
-
-	/* restore saved state */
-	void (*fb_restore_state)(struct fb_info *info);
-
 	/* get capability given var */
 	void (*fb_get_caps)(struct fb_info *info, struct fb_blit_caps *caps,
 			    struct fb_var_screeninfo *var);

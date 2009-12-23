@@ -1027,7 +1027,7 @@ try_again:
 	if (fd[i][counter] < 0) {
 		int err = errno;
 
-		if (err == EPERM)
+		if (err == EPERM || err == EACCES)
 			die("No permission - are you root?\n");
 		/*
 		 * If it's cycles then fall back to hrtimer

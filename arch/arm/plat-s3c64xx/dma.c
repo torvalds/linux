@@ -151,8 +151,6 @@ static void s3c64xx_dma_fill_lli(struct s3c2410_dma_chan *chan,
 		src = chan->dev_addr;
 		dst = data;
 		control0 = PL080_CONTROL_SRC_AHB2;
-		control0 |= (u32)chan->hw_width << PL080_CONTROL_SWIDTH_SHIFT;
-		control0 |= 2 << PL080_CONTROL_DWIDTH_SHIFT;
 		control0 |= PL080_CONTROL_DST_INCR;
 		break;
 
@@ -160,8 +158,6 @@ static void s3c64xx_dma_fill_lli(struct s3c2410_dma_chan *chan,
 		src = data;
 		dst = chan->dev_addr;
 		control0 = PL080_CONTROL_DST_AHB2;
-		control0 |= (u32)chan->hw_width << PL080_CONTROL_DWIDTH_SHIFT;
-		control0 |= 2 << PL080_CONTROL_SWIDTH_SHIFT;
 		control0 |= PL080_CONTROL_SRC_INCR;
 		break;
 	default:
@@ -173,6 +169,8 @@ static void s3c64xx_dma_fill_lli(struct s3c2410_dma_chan *chan,
 	control1 = size >> chan->hw_width;	/* size in no of xfers */
 	control0 |= PL080_CONTROL_PROT_SYS;	/* always in priv. mode */
 	control0 |= PL080_CONTROL_TC_IRQ_EN;	/* always fire IRQ */
+	control0 |= (u32)chan->hw_width << PL080_CONTROL_DWIDTH_SHIFT;
+	control0 |= (u32)chan->hw_width << PL080_CONTROL_SWIDTH_SHIFT;
 
 	lli->src_addr = src;
 	lli->dst_addr = dst;
@@ -339,6 +337,7 @@ int s3c2410_dma_enqueue(unsigned int channel, void *id,
 	struct s3c64xx_dma_buff *next;
 	struct s3c64xx_dma_buff *buff;
 	struct pl080s_lli *lli;
+	unsigned long flags;
 	int ret;
 
 	WARN_ON(!chan);
@@ -365,6 +364,8 @@ int s3c2410_dma_enqueue(unsigned int channel, void *id,
 	buff->pw = id;
 
 	s3c64xx_dma_fill_lli(chan, lli, data, size);
+
+	local_irq_save(flags);
 
 	if ((next = chan->next) != NULL) {
 		struct s3c64xx_dma_buff *end = chan->end;
@@ -396,6 +397,8 @@ int s3c2410_dma_enqueue(unsigned int channel, void *id,
 
 		s3c64xx_lli_to_regs(chan, lli);
 	}
+
+	local_irq_restore(flags);
 
 	show_lli(lli);
 
@@ -560,26 +563,11 @@ int s3c2410_dma_free(unsigned int channel, struct s3c2410_dma_client *client)
 
 EXPORT_SYMBOL(s3c2410_dma_free);
 
-
-static void s3c64xx_dma_tcirq(struct s3c64xx_dmac *dmac, int offs)
-{
-	struct s3c2410_dma_chan *chan = dmac->channels + offs;
-
-	/* note, we currently do not bother to work out which buffer
-	 * or buffers have been completed since the last tc-irq. */
-
-	if (chan->callback_fn)
-		(chan->callback_fn)(chan, chan->curr->pw, 0, S3C2410_RES_OK);
-}
-
-static void s3c64xx_dma_errirq(struct s3c64xx_dmac *dmac, int offs)
-{
-	printk(KERN_DEBUG "%s: offs %d\n", __func__, offs);
-}
-
 static irqreturn_t s3c64xx_dma_irq(int irq, void *pw)
 {
 	struct s3c64xx_dmac *dmac = pw;
+	struct s3c2410_dma_chan *chan;
+	enum s3c2410_dma_buffresult res;
 	u32 tcstat, errstat;
 	u32 bit;
 	int offs;
@@ -588,14 +576,54 @@ static irqreturn_t s3c64xx_dma_irq(int irq, void *pw)
 	errstat = readl(dmac->regs + PL080_ERR_STATUS);
 
 	for (offs = 0, bit = 1; offs < 8; offs++, bit <<= 1) {
+		struct s3c64xx_dma_buff *buff;
+
+		if (!(errstat & bit) && !(tcstat & bit))
+			continue;
+
+		chan = dmac->channels + offs;
+		res = S3C2410_RES_ERR;
+
 		if (tcstat & bit) {
 			writel(bit, dmac->regs + PL080_TC_CLEAR);
-			s3c64xx_dma_tcirq(dmac, offs);
+			res = S3C2410_RES_OK;
 		}
 
-		if (errstat & bit) {
-			s3c64xx_dma_errirq(dmac, offs);
+		if (errstat & bit)
 			writel(bit, dmac->regs + PL080_ERR_CLEAR);
+
+		/* 'next' points to the buffer that is next to the
+		 * currently active buffer.
+		 * For CIRCULAR queues, 'next' will be same as 'curr'
+		 * when 'end' is the active buffer.
+		 */
+		buff = chan->curr;
+		while (buff && buff != chan->next
+				&& buff->next != chan->next)
+			buff = buff->next;
+
+		if (!buff)
+			BUG();
+
+		if (buff == chan->next)
+			buff = chan->end;
+
+		s3c64xx_dma_bufffdone(chan, buff, res);
+
+		/* Free the node and update curr, if non-circular queue */
+		if (!(chan->flags & S3C2410_DMAF_CIRCULAR)) {
+			chan->curr = buff->next;
+			s3c64xx_dma_freebuff(buff);
+		}
+
+		/* Update 'next' */
+		buff = chan->next;
+		if (chan->next == chan->end) {
+			chan->next = chan->curr;
+			if (!(chan->flags & S3C2410_DMAF_CIRCULAR))
+				chan->end = NULL;
+		} else {
+			chan->next = buff->next;
 		}
 	}
 

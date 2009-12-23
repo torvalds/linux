@@ -1292,17 +1292,24 @@ static int input_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 	return 0;
 }
 
-#define INPUT_DO_TOGGLE(dev, type, bits, on)			\
-	do {							\
-		int i;						\
-		if (!test_bit(EV_##type, dev->evbit))		\
-			break;					\
-		for (i = 0; i < type##_MAX; i++) {		\
-			if (!test_bit(i, dev->bits##bit) ||	\
-			    !test_bit(i, dev->bits))		\
-				continue;			\
-			dev->event(dev, EV_##type, i, on);	\
-		}						\
+#define INPUT_DO_TOGGLE(dev, type, bits, on)				\
+	do {								\
+		int i;							\
+		bool active;						\
+									\
+		if (!test_bit(EV_##type, dev->evbit))			\
+			break;						\
+									\
+		for (i = 0; i < type##_MAX; i++) {			\
+			if (!test_bit(i, dev->bits##bit))		\
+				continue;				\
+									\
+			active = test_bit(i, dev->bits);		\
+			if (!active && !on)				\
+				continue;				\
+									\
+			dev->event(dev, EV_##type, i, on ? active : 0);	\
+		}							\
 	} while (0)
 
 #ifdef CONFIG_PM

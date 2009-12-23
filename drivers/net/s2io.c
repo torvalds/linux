@@ -3494,6 +3494,7 @@ static void s2io_reset(struct s2io_nic *sp)
 
 		/* Restore the PCI state saved during initialization. */
 		pci_restore_state(sp->pdev);
+		pci_save_state(sp->pdev);
 		pci_read_config_word(sp->pdev, 0x2, &val16);
 		if (check_pci_device_id(val16) != (u16)PCI_ANY_ID)
 			break;

@@ -69,7 +69,7 @@ static inline unsigned long tag2ul(char *arg, const char *tag)
 
 void __init prom_setup_cmdline(void)
 {
-	char cmd_line[CL_SIZE];
+	static char cmd_line[CL_SIZE] __initdata;
 	char *cp, *board;
 	int prom_argc;
 	char **prom_argv, **prom_envp;

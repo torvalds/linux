@@ -4049,6 +4049,8 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 			sector_nr = conf->reshape_progress;
 		sector_div(sector_nr, new_data_disks);
 		if (sector_nr) {
+			mddev->curr_resync_completed = sector_nr;
+			sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 			*skipped = 1;
 			return sector_nr;
 		}
@@ -4821,11 +4823,40 @@ static raid5_conf_t *setup_conf(mddev_t *mddev)
 		return ERR_PTR(-ENOMEM);
 }
 
+
+static int only_parity(int raid_disk, int algo, int raid_disks, int max_degraded)
+{
+	switch (algo) {
+	case ALGORITHM_PARITY_0:
+		if (raid_disk < max_degraded)
+			return 1;
+		break;
+	case ALGORITHM_PARITY_N:
+		if (raid_disk >= raid_disks - max_degraded)
+			return 1;
+		break;
+	case ALGORITHM_PARITY_0_6:
+		if (raid_disk == 0 || 
+		    raid_disk == raid_disks - 1)
+			return 1;
+		break;
+	case ALGORITHM_LEFT_ASYMMETRIC_6:
+	case ALGORITHM_RIGHT_ASYMMETRIC_6:
+	case ALGORITHM_LEFT_SYMMETRIC_6:
+	case ALGORITHM_RIGHT_SYMMETRIC_6:
+		if (raid_disk == raid_disks - 1)
+			return 1;
+	}
+	return 0;
+}
+
 static int run(mddev_t *mddev)
 {
 	raid5_conf_t *conf;
 	int working_disks = 0, chunk_size;
+	int dirty_parity_disks = 0;
 	mdk_rdev_t *rdev;
+	sector_t reshape_offset = 0;
 
 	if (mddev->recovery_cp != MaxSector)
 		printk(KERN_NOTICE "raid5: %s is not clean"
@@ -4859,6 +4890,7 @@ static int run(mddev_t *mddev)
 			       "on a stripe boundary\n");
 			return -EINVAL;
 		}
+		reshape_offset = here_new * mddev->new_chunk_sectors;
 		/* here_new is the stripe we will write to */
 		here_old = mddev->reshape_position;
 		sector_div(here_old, mddev->chunk_sectors *
@@ -4914,10 +4946,51 @@ static int run(mddev_t *mddev)
 	/*
 	 * 0 for a fully functional array, 1 or 2 for a degraded array.
 	 */
-	list_for_each_entry(rdev, &mddev->disks, same_set)
-		if (rdev->raid_disk >= 0 &&
-		    test_bit(In_sync, &rdev->flags))
+	list_for_each_entry(rdev, &mddev->disks, same_set) {
+		if (rdev->raid_disk < 0)
+			continue;
+		if (test_bit(In_sync, &rdev->flags))
 			working_disks++;
+		/* This disc is not fully in-sync.  However if it
+		 * just stored parity (beyond the recovery_offset),
+		 * when we don't need to be concerned about the
+		 * array being dirty.
+		 * When reshape goes 'backwards', we never have
+		 * partially completed devices, so we only need
+		 * to worry about reshape going forwards.
+		 */
+		/* Hack because v0.91 doesn't store recovery_offset properly. */
+		if (mddev->major_version == 0 &&
+		    mddev->minor_version > 90)
+			rdev->recovery_offset = reshape_offset;
+			
+		printk("%d: w=%d pa=%d pr=%d m=%d a=%d r=%d op1=%d op2=%d\n",
+		       rdev->raid_disk, working_disks, conf->prev_algo,
+		       conf->previous_raid_disks, conf->max_degraded,
+		       conf->algorithm, conf->raid_disks, 
+		       only_parity(rdev->raid_disk,
+				   conf->prev_algo,
+				   conf->previous_raid_disks,
+				   conf->max_degraded),
+		       only_parity(rdev->raid_disk,
+				   conf->algorithm,
+				   conf->raid_disks,
+				   conf->max_degraded));
+		if (rdev->recovery_offset < reshape_offset) {
+			/* We need to check old and new layout */
+			if (!only_parity(rdev->raid_disk,
+					 conf->algorithm,
+					 conf->raid_disks,
+					 conf->max_degraded))
+				continue;
+		}
+		if (!only_parity(rdev->raid_disk,
+				 conf->prev_algo,
+				 conf->previous_raid_disks,
+				 conf->max_degraded))
+			continue;
+		dirty_parity_disks++;
+	}
 
 	mddev->degraded = (max(conf->raid_disks, conf->previous_raid_disks)
 			   - working_disks);
@@ -4933,7 +5006,7 @@ static int run(mddev_t *mddev)
 	mddev->dev_sectors &= ~(mddev->chunk_sectors - 1);
 	mddev->resync_max_sectors = mddev->dev_sectors;
 
-	if (mddev->degraded > 0 &&
+	if (mddev->degraded > dirty_parity_disks &&
 	    mddev->recovery_cp != MaxSector) {
 		if (mddev->ok_start_degraded)
 			printk(KERN_WARNING
@@ -5359,9 +5432,11 @@ static int raid5_start_reshape(mddev_t *mddev)
 		    !test_bit(Faulty, &rdev->flags)) {
 			if (raid5_add_disk(mddev, rdev) == 0) {
 				char nm[20];
-				set_bit(In_sync, &rdev->flags);
+				if (rdev->raid_disk >= conf->previous_raid_disks)
+					set_bit(In_sync, &rdev->flags);
+				else
+					rdev->recovery_offset = 0;
 				added_devices++;
-				rdev->recovery_offset = 0;
 				sprintf(nm, "rd%d", rdev->raid_disk);
 				if (sysfs_create_link(&mddev->kobj,
 						      &rdev->kobj, nm))

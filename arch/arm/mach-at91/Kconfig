@@ -289,13 +289,6 @@ config MACH_NEOCORE926
 	help
 	  Select this if you are using the Adeneo Neocore 926 board.
 
-config MACH_AT91SAM9G20EK_2MMC
-	bool "Atmel AT91SAM9G20-EK Evaluation Kit modified for 2 MMC Slots"
-	depends on ARCH_AT91SAM9G20
-	help
-	  Select this if you are using an Atmel AT91SAM9G20-EK Evaluation Kit
-	  Rev A or B modified for 2 MMC Slots.
-
 endif
 
 # ----------------------------------------------------------
@@ -322,7 +315,16 @@ config MACH_AT91SAM9G20EK
 	bool "Atmel AT91SAM9G20-EK Evaluation Kit"
 	depends on ARCH_AT91SAM9G20
 	help
-	  Select this if you are using Atmel's AT91SAM9G20-EK Evaluation Kit.
+	  Select this if you are using Atmel's AT91SAM9G20-EK Evaluation Kit
+	  that embeds only one SD/MMC slot.
+
+config MACH_AT91SAM9G20EK_2MMC
+	bool "Atmel AT91SAM9G20-EK Evaluation Kit with 2 SD/MMC Slots"
+	depends on ARCH_AT91SAM9G20
+	help
+	  Select this if you are using an Atmel AT91SAM9G20-EK Evaluation Kit
+	  with 2 SD/MMC Slots. This is the case for AT91SAM9G20-EK rev. C and
+	  onwards.
 
 config MACH_CPU9G20
 	bool "Eukrea CPU9G20 board"
@@ -392,7 +394,7 @@ config MTD_AT91_DATAFLASH_CARD
 
 config MTD_NAND_ATMEL_BUSWIDTH_16
 	bool "Enable 16-bit data bus interface to NAND flash"
-	depends on (MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9G10EK || MACH_AT91SAM9263EK || MACH_AT91SAM9G20EK || MACH_AT91SAM9G45EKES || MACH_AT91CAP9ADK)
+	depends on (MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9G10EK || MACH_AT91SAM9263EK || MACH_AT91SAM9G20EK || MACH_AT91SAM9G20EK_2MMC || MACH_AT91SAM9G45EKES || MACH_AT91CAP9ADK)
 	help
 	  On AT91SAM926x boards both types of NAND flash can be present
 	  (8 and 16 bit data bus width).

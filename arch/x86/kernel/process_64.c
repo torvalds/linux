@@ -664,3 +664,8 @@ long sys_arch_prctl(int code, unsigned long addr)
 	return do_arch_prctl(current, code, addr);
 }
 
+unsigned long KSTK_ESP(struct task_struct *task)
+{
+	return (test_tsk_thread_flag(task, TIF_IA32)) ?
+			(task_pt_regs(task)->sp) : ((task)->thread.usersp);
+}

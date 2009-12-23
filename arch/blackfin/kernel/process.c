@@ -151,7 +151,7 @@ void start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_
 	regs->pc = new_ip;
 	if (current->mm)
 		regs->p5 = current->mm->start_data;
-#ifdef CONFIG_SMP
+#ifndef CONFIG_SMP
 	task_thread_info(current)->l1_task_info.stack_start =
 		(void *)current->mm->context.stack_start;
 	task_thread_info(current)->l1_task_info.lowest_sp = (void *)new_sp;

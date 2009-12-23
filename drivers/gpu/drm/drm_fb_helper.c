@@ -599,7 +599,7 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 	struct drm_framebuffer *fb = fb_helper->fb;
 	int depth;
 
-	if (var->pixclock == -1 || !var->pixclock)
+	if (var->pixclock != 0)
 		return -EINVAL;
 
 	/* Need to resize the fb object !!! */
@@ -691,7 +691,7 @@ int drm_fb_helper_set_par(struct fb_info *info)
 	int ret;
 	int i;
 
-	if (var->pixclock != -1) {
+	if (var->pixclock != 0) {
 		DRM_ERROR("PIXEL CLCOK SET\n");
 		return -EINVAL;
 	}
@@ -707,7 +707,7 @@ int drm_fb_helper_set_par(struct fb_info *info)
 
 		if (crtc->fb == fb_helper->crtc_info[i].mode_set.fb) {
 			mutex_lock(&dev->mode_config.mutex);
-			ret = crtc->funcs->set_config(&fb_helper->crtc_info->mode_set);
+			ret = crtc->funcs->set_config(&fb_helper->crtc_info[i].mode_set);
 			mutex_unlock(&dev->mode_config.mutex);
 			if (ret)
 				return ret;
@@ -904,7 +904,7 @@ int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 	fb_helper->fb = fb;
 
 	if (new_fb) {
-		info->var.pixclock = -1;
+		info->var.pixclock = 0;
 		if (register_framebuffer(info) < 0)
 			return -EINVAL;
 	} else {

@@ -1088,7 +1088,14 @@ static struct net_device * au1000_probe(int port_num)
 		return NULL;
 	}
 
-	if ((err = register_netdev(dev)) != 0) {
+	dev->base_addr = base;
+	dev->irq = irq;
+	dev->netdev_ops = &au1000_netdev_ops;
+	SET_ETHTOOL_OPS(dev, &au1000_ethtool_ops);
+	dev->watchdog_timeo = ETH_TX_TIMEOUT;
+
+	err = register_netdev(dev);
+	if (err != 0) {
 		printk(KERN_ERR "%s: Cannot register net device, error %d\n",
 				DRV_NAME, err);
 		free_netdev(dev);
@@ -1208,12 +1215,6 @@ static struct net_device * au1000_probe(int port_num)
 		aup->tx_dma_ring[i]->len = 0;
 		aup->tx_db_inuse[i] = pDB;
 	}
-
-	dev->base_addr = base;
-	dev->irq = irq;
-	dev->netdev_ops = &au1000_netdev_ops;
-	SET_ETHTOOL_OPS(dev, &au1000_ethtool_ops);
-	dev->watchdog_timeo = ETH_TX_TIMEOUT;
 
 	/*
 	 * The boot code uses the ethernet controller, so reset it to start

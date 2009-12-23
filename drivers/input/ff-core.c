@@ -337,16 +337,16 @@ int input_ff_create(struct input_dev *dev, int max_effects)
 	dev->ff = ff;
 	dev->flush = flush_effects;
 	dev->event = input_ff_event;
-	set_bit(EV_FF, dev->evbit);
+	__set_bit(EV_FF, dev->evbit);
 
 	/* Copy "true" bits into ff device bitmap */
 	for (i = 0; i <= FF_MAX; i++)
 		if (test_bit(i, dev->ffbit))
-			set_bit(i, ff->ffbit);
+			__set_bit(i, ff->ffbit);
 
 	/* we can emulate RUMBLE with periodic effects */
 	if (test_bit(FF_PERIODIC, ff->ffbit))
-		set_bit(FF_RUMBLE, dev->ffbit);
+		__set_bit(FF_RUMBLE, dev->ffbit);
 
 	return 0;
 }
@@ -362,12 +362,14 @@ EXPORT_SYMBOL_GPL(input_ff_create);
  */
 void input_ff_destroy(struct input_dev *dev)
 {
-	clear_bit(EV_FF, dev->evbit);
-	if (dev->ff) {
-		if (dev->ff->destroy)
-			dev->ff->destroy(dev->ff);
-		kfree(dev->ff->private);
-		kfree(dev->ff);
+	struct ff_device *ff = dev->ff;
+
+	__clear_bit(EV_FF, dev->evbit);
+	if (ff) {
+		if (ff->destroy)
+			ff->destroy(ff);
+		kfree(ff->private);
+		kfree(ff);
 		dev->ff = NULL;
 	}
 }

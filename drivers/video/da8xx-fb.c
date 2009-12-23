@@ -554,11 +554,11 @@ static int fb_check_var(struct fb_var_screeninfo *var,
 		var->transp.length = 0;
 		break;
 	case 16:		/* RGB 565 */
-		var->red.offset = 0;
+		var->red.offset = 11;
 		var->red.length = 5;
 		var->green.offset = 5;
 		var->green.length = 6;
-		var->blue.offset = 11;
+		var->blue.offset = 0;
 		var->blue.length = 5;
 		var->transp.offset = 0;
 		var->transp.length = 0;
@@ -591,7 +591,7 @@ static int __devexit fb_remove(struct platform_device *dev)
 		unregister_framebuffer(info);
 		fb_dealloc_cmap(&info->cmap);
 		dma_free_coherent(NULL, par->databuf_sz + PAGE_SIZE,
-					info->screen_base,
+					info->screen_base - PAGE_SIZE,
 					info->fix.smem_start);
 		free_irq(par->irq, par);
 		clk_disable(par->lcdc_clk);
@@ -704,7 +704,7 @@ static int __init fb_probe(struct platform_device *device)
 
 	if (i == ARRAY_SIZE(known_lcd_panels)) {
 		dev_err(&device->dev, "GLCD: No valid panel found\n");
-		ret = ENODEV;
+		ret = -ENODEV;
 		goto err_clk_disable;
 	} else
 		dev_info(&device->dev, "GLCD: Found %s panel\n",
@@ -749,6 +749,7 @@ static int __init fb_probe(struct platform_device *device)
 				(PAGE_SIZE - par->palette_sz);
 
 	/* the rest of the frame buffer is pixel data */
+	da8xx_fb_info->screen_base = par->v_palette_base + par->palette_sz;
 	da8xx_fb_fix.smem_start = par->p_palette_base + par->palette_sz;
 	da8xx_fb_fix.smem_len = par->databuf_sz - par->palette_sz;
 	da8xx_fb_fix.line_length = (lcdc_info->width * lcd_cfg->bpp) / 8;
@@ -787,6 +788,8 @@ static int __init fb_probe(struct platform_device *device)
 	da8xx_fb_info->var = da8xx_fb_var;
 	da8xx_fb_info->fbops = &da8xx_fb_ops;
 	da8xx_fb_info->pseudo_palette = par->pseudo_palette;
+	da8xx_fb_info->fix.visual = (da8xx_fb_info->var.bits_per_pixel <= 8) ?
+				FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_TRUECOLOR;
 
 	ret = fb_alloc_cmap(&da8xx_fb_info->cmap, PALETTE_SIZE, 0);
 	if (ret)
@@ -825,7 +828,7 @@ err_free_irq:
 
 err_release_fb_mem:
 	dma_free_coherent(NULL, par->databuf_sz + PAGE_SIZE,
-				da8xx_fb_info->screen_base,
+				da8xx_fb_info->screen_base - PAGE_SIZE,
 				da8xx_fb_info->fix.smem_start);
 
 err_release_fb:

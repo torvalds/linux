@@ -2254,7 +2254,7 @@ static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
 {
 	u32 ec  = ERROR_CODE(info->nbsl);
 	u32 xec = EXT_ERROR_CODE(info->nbsl);
-	int ecc_type = info->nbsh & (0x3 << 13);
+	int ecc_type = (info->nbsh >> 13) & 0x3;
 
 	/* Bail early out if this was an 'observed' error */
 	if (PP(ec) == K8_NBSL_PP_OBS)
@@ -3163,7 +3163,7 @@ static int __init amd64_edac_init(void)
 	opstate_init();
 
 	if (cache_k8_northbridges() < 0)
-		goto err_exit;
+		return err;
 
 	err = pci_register_driver(&amd64_pci_driver);
 	if (err)
@@ -3189,8 +3189,6 @@ static int __init amd64_edac_init(void)
 
 err_2nd_stage:
 	debugf0("2nd stage failed\n");
-
-err_exit:
 	pci_unregister_driver(&amd64_pci_driver);
 
 	return err;

@@ -58,20 +58,12 @@ enum dma_ch {
 	DMACH_MAX		/* the end */
 };
 
-static __inline__ int s3c_dma_has_circular(void)
+static __inline__ bool s3c_dma_has_circular(void)
 {
-	/* we will be supporting ciruclar buffers as soon as we have DMA
-	 * engine support.
-	 */
-	return 1;
+	return true;
 }
 
 #define S3C2410_DMAF_CIRCULAR		(1 << 0)
-
-static inline bool s3c_dma_has_circular(void)
-{
-	return false;
-}
 
 #include <plat/dma.h>
 

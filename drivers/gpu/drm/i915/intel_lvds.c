@@ -380,7 +380,7 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 				adjusted_mode->crtc_vblank_start + vsync_pos;
 		/* keep the vsync width constant */
 		adjusted_mode->crtc_vsync_end =
-				adjusted_mode->crtc_vblank_start + vsync_width;
+				adjusted_mode->crtc_vsync_start + vsync_width;
 		border = 1;
 		break;
 	case DRM_MODE_SCALE_ASPECT:
@@ -525,6 +525,14 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 out:
 	lvds_priv->pfit_control = pfit_control;
 	lvds_priv->pfit_pgm_ratios = pfit_pgm_ratios;
+	/*
+	 * When there exists the border, it means that the LVDS_BORDR
+	 * should be enabled.
+	 */
+	if (border)
+		dev_priv->lvds_border_bits |= LVDS_BORDER_ENABLE;
+	else
+		dev_priv->lvds_border_bits &= ~(LVDS_BORDER_ENABLE);
 	/*
 	 * XXX: It would be nice to support lower refresh rates on the
 	 * panels to reduce power consumption, and perhaps match the

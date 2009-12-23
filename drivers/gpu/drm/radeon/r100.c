@@ -186,7 +186,7 @@ static inline uint32_t r100_irq_ack(struct radeon_device *rdev)
 
 int r100_irq_process(struct radeon_device *rdev)
 {
-	uint32_t status;
+	uint32_t status, msi_rearm;
 
 	status = r100_irq_ack(rdev);
 	if (!status) {
@@ -208,6 +208,21 @@ int r100_irq_process(struct radeon_device *rdev)
 			drm_handle_vblank(rdev->ddev, 1);
 		}
 		status = r100_irq_ack(rdev);
+	}
+	if (rdev->msi_enabled) {
+		switch (rdev->family) {
+		case CHIP_RS400:
+		case CHIP_RS480:
+			msi_rearm = RREG32(RADEON_AIC_CNTL) & ~RS400_MSI_REARM;
+			WREG32(RADEON_AIC_CNTL, msi_rearm);
+			WREG32(RADEON_AIC_CNTL, msi_rearm | RS400_MSI_REARM);
+			break;
+		default:
+			msi_rearm = RREG32(RADEON_MSI_REARM_EN) & ~RV370_MSI_REARM_EN;
+			WREG32(RADEON_MSI_REARM_EN, msi_rearm);
+			WREG32(RADEON_MSI_REARM_EN, msi_rearm | RV370_MSI_REARM_EN);
+			break;
+		}
 	}
 	return IRQ_HANDLED;
 }
@@ -240,7 +255,7 @@ int r100_wb_init(struct radeon_device *rdev)
 	int r;
 
 	if (rdev->wb.wb_obj == NULL) {
-		r = radeon_object_create(rdev, NULL, 4096,
+		r = radeon_object_create(rdev, NULL, RADEON_GPU_PAGE_SIZE,
 					 true,
 					 RADEON_GEM_DOMAIN_GTT,
 					 false, &rdev->wb.wb_obj);
@@ -563,19 +578,19 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	indirect1_start = 16;
 	/* cp setup */
 	WREG32(0x718, pre_write_timer | (pre_write_limit << 28));
-	WREG32(RADEON_CP_RB_CNTL,
-#ifdef __BIG_ENDIAN
-	       RADEON_BUF_SWAP_32BIT |
-#endif
-	       REG_SET(RADEON_RB_BUFSZ, rb_bufsz) |
+	tmp = (REG_SET(RADEON_RB_BUFSZ, rb_bufsz) |
 	       REG_SET(RADEON_RB_BLKSZ, rb_blksz) |
 	       REG_SET(RADEON_MAX_FETCH, max_fetch) |
 	       RADEON_RB_NO_UPDATE);
+#ifdef __BIG_ENDIAN
+	tmp |= RADEON_BUF_SWAP_32BIT;
+#endif
+	WREG32(RADEON_CP_RB_CNTL, tmp);
+
 	/* Set ring address */
 	DRM_INFO("radeon: ring at 0x%016lX\n", (unsigned long)rdev->cp.gpu_addr);
 	WREG32(RADEON_CP_RB_BASE, rdev->cp.gpu_addr);
 	/* Force read & write ptr to 0 */
-	tmp = RREG32(RADEON_CP_RB_CNTL);
 	WREG32(RADEON_CP_RB_CNTL, tmp | RADEON_RB_RPTR_WR_ENA);
 	WREG32(RADEON_CP_RB_RPTR_WR, 0);
 	WREG32(RADEON_CP_RB_WPTR, 0);
@@ -2364,7 +2379,7 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 	/*
 	  Find the total latency for the display data.
 	*/
-	disp_latency_overhead.full = rfixed_const(80);
+	disp_latency_overhead.full = rfixed_const(8);
 	disp_latency_overhead.full = rfixed_div(disp_latency_overhead, sclk_ff);
 	mc_latency_mclk.full += disp_latency_overhead.full + cur_latency_mclk.full;
 	mc_latency_sclk.full += disp_latency_overhead.full + cur_latency_sclk.full;
@@ -2562,8 +2577,11 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 static inline void r100_cs_track_texture_print(struct r100_cs_track_texture *t)
 {
 	DRM_ERROR("pitch                      %d\n", t->pitch);
+	DRM_ERROR("use_pitch                  %d\n", t->use_pitch);
 	DRM_ERROR("width                      %d\n", t->width);
+	DRM_ERROR("width_11                   %d\n", t->width_11);
 	DRM_ERROR("height                     %d\n", t->height);
+	DRM_ERROR("height_11                  %d\n", t->height_11);
 	DRM_ERROR("num levels                 %d\n", t->num_levels);
 	DRM_ERROR("depth                      %d\n", t->txdepth);
 	DRM_ERROR("bpp                        %d\n", t->cpp);
@@ -2623,15 +2641,17 @@ static int r100_cs_track_texture_check(struct radeon_device *rdev,
 				else
 					w = track->textures[u].pitch / (1 << i);
 			} else {
-				w = track->textures[u].width / (1 << i);
+				w = track->textures[u].width;
 				if (rdev->family >= CHIP_RV515)
 					w |= track->textures[u].width_11;
+				w = w / (1 << i);
 				if (track->textures[u].roundup_w)
 					w = roundup_pow_of_two(w);
 			}
-			h = track->textures[u].height / (1 << i);
+			h = track->textures[u].height;
 			if (rdev->family >= CHIP_RV515)
 				h |= track->textures[u].height_11;
+			h = h / (1 << i);
 			if (track->textures[u].roundup_h)
 				h = roundup_pow_of_two(h);
 			size += w * h;

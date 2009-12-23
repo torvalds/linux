@@ -5,8 +5,8 @@
 # Print selected MAINTAINERS information for
 # the files modified in a patch or for a file
 #
-# usage: perl scripts/get_maintainers.pl [OPTIONS] <patch>
-#        perl scripts/get_maintainers.pl [OPTIONS] -f <file>
+# usage: perl scripts/get_maintainer.pl [OPTIONS] <patch>
+#        perl scripts/get_maintainer.pl [OPTIONS] -f <file>
 #
 # Licensed under the terms of the GNU GPL License version 2
 
