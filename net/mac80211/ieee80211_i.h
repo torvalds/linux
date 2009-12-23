@@ -227,31 +227,48 @@ struct mesh_preq_queue {
 	u8 flags;
 };
 
-enum ieee80211_mgd_state {
-	IEEE80211_MGD_STATE_INVALID,
-	IEEE80211_MGD_STATE_PROBE,
-	IEEE80211_MGD_STATE_AUTH,
-	IEEE80211_MGD_STATE_ASSOC,
+enum ieee80211_work_type {
+	IEEE80211_WORK_AUTH_PROBE,
+	IEEE80211_WORK_AUTH,
+	IEEE80211_WORK_ASSOC,
 };
 
-struct ieee80211_mgd_work {
+struct ieee80211_work {
 	struct list_head list;
-	struct ieee80211_bss *bss;
-	int ie_len;
-	u8 prev_bssid[ETH_ALEN];
-	u8 ssid[IEEE80211_MAX_SSID_LEN];
-	u8 ssid_len;
+
+	struct ieee80211_channel *chan;
+	/* XXX: chan type? -- right now not really needed */
 	unsigned long timeout;
-	enum ieee80211_mgd_state state;
-	u16 auth_alg, auth_transaction;
+	enum ieee80211_work_type type;
 
-	int tries;
+	union {
+		struct {
+			int tries;
+			u16 algorithm, transaction;
+			u8 ssid[IEEE80211_MAX_SSID_LEN];
+			u8 ssid_len;
+			u8 bssid[ETH_ALEN];
+			u8 key[WLAN_KEY_LEN_WEP104];
+			u8 key_len, key_idx;
+			bool privacy;
+		} auth;
+		struct {
+			struct ieee80211_bss *bss;
+			const u8 *supp_rates;
+			const u8 *ht_information_ie;
+			int tries;
+			u16 capability;
+			u8 bssid[ETH_ALEN], prev_bssid[ETH_ALEN];
+			u8 ssid[IEEE80211_MAX_SSID_LEN];
+			u8 ssid_len;
+			u8 supp_rates_len;
+			bool wmm_used;
+		} assoc;
+	};
 
-	u8 key[WLAN_KEY_LEN_WEP104];
-	u8 key_len, key_idx;
-
+	int ie_len;
 	/* must be last */
-	u8 ie[0]; /* for auth or assoc frame, not probe */
+	u8 ie[0];
 };
 
 /* flags used in struct ieee80211_if_managed.flags */
