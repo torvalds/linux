@@ -225,9 +225,9 @@ static int ath5k_reset_wake(struct ath5k_softc *sc);
 static int ath5k_start(struct ieee80211_hw *hw);
 static void ath5k_stop(struct ieee80211_hw *hw);
 static int ath5k_add_interface(struct ieee80211_hw *hw,
-		struct ieee80211_if_init_conf *conf);
+		struct ieee80211_vif *vif);
 static void ath5k_remove_interface(struct ieee80211_hw *hw,
-		struct ieee80211_if_init_conf *conf);
+		struct ieee80211_vif *vif);
 static int ath5k_config(struct ieee80211_hw *hw, u32 changed);
 static u64 ath5k_prepare_multicast(struct ieee80211_hw *hw,
 				   int mc_count, struct dev_addr_list *mc_list);
@@ -2785,7 +2785,7 @@ static void ath5k_stop(struct ieee80211_hw *hw)
 }
 
 static int ath5k_add_interface(struct ieee80211_hw *hw,
-		struct ieee80211_if_init_conf *conf)
+		struct ieee80211_vif *vif)
 {
 	struct ath5k_softc *sc = hw->priv;
 	int ret;
@@ -2796,22 +2796,22 @@ static int ath5k_add_interface(struct ieee80211_hw *hw,
 		goto end;
 	}
 
-	sc->vif = conf->vif;
+	sc->vif = vif;
 
-	switch (conf->type) {
+	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_MONITOR:
-		sc->opmode = conf->type;
+		sc->opmode = vif->type;
 		break;
 	default:
 		ret = -EOPNOTSUPP;
 		goto end;
 	}
 
-	ath5k_hw_set_lladdr(sc->ah, conf->mac_addr);
+	ath5k_hw_set_lladdr(sc->ah, vif->addr);
 	ath5k_mode_setup(sc);
 
 	ret = 0;
@@ -2822,13 +2822,13 @@ end:
 
 static void
 ath5k_remove_interface(struct ieee80211_hw *hw,
-			struct ieee80211_if_init_conf *conf)
+			struct ieee80211_vif *vif)
 {
 	struct ath5k_softc *sc = hw->priv;
 	u8 mac[ETH_ALEN] = {};
 
 	mutex_lock(&sc->lock);
-	if (sc->vif != conf->vif)
+	if (sc->vif != vif)
 		goto end;
 
 	ath5k_hw_set_lladdr(sc->ah, mac);

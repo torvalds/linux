@@ -1019,9 +1019,9 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
 int rt2x00mac_start(struct ieee80211_hw *hw);
 void rt2x00mac_stop(struct ieee80211_hw *hw);
 int rt2x00mac_add_interface(struct ieee80211_hw *hw,
-			    struct ieee80211_if_init_conf *conf);
+			    struct ieee80211_vif *vif);
 void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
-				struct ieee80211_if_init_conf *conf);
+				struct ieee80211_vif *vif);
 int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed);
 void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 				unsigned int changed_flags,

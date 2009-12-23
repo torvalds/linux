@@ -584,24 +584,24 @@ static void mac80211_hwsim_stop(struct ieee80211_hw *hw)
 
 
 static int mac80211_hwsim_add_interface(struct ieee80211_hw *hw,
-					struct ieee80211_if_init_conf *conf)
+					struct ieee80211_vif *vif)
 {
 	printk(KERN_DEBUG "%s:%s (type=%d mac_addr=%pM)\n",
-	       wiphy_name(hw->wiphy), __func__, conf->type,
-	       conf->mac_addr);
-	hwsim_set_magic(conf->vif);
+	       wiphy_name(hw->wiphy), __func__, vif->type,
+	       vif->addr);
+	hwsim_set_magic(vif);
 	return 0;
 }
 
 
 static void mac80211_hwsim_remove_interface(
-	struct ieee80211_hw *hw, struct ieee80211_if_init_conf *conf)
+	struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	printk(KERN_DEBUG "%s:%s (type=%d mac_addr=%pM)\n",
-	       wiphy_name(hw->wiphy), __func__, conf->type,
-	       conf->mac_addr);
-	hwsim_check_magic(conf->vif);
-	hwsim_clear_magic(conf->vif);
+	       wiphy_name(hw->wiphy), __func__, vif->type,
+	       vif->addr);
+	hwsim_check_magic(vif);
+	hwsim_clear_magic(vif);
 }
 
 

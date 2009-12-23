@@ -1039,13 +1039,13 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 }
 
 static int wl1271_op_add_interface(struct ieee80211_hw *hw,
-				   struct ieee80211_if_init_conf *conf)
+				   struct ieee80211_vif *vif)
 {
 	struct wl1271 *wl = hw->priv;
 	int ret = 0;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 add interface type %d mac %pM",
-		     conf->type, conf->mac_addr);
+		     vif->type, vif->addr);
 
 	mutex_lock(&wl->mutex);
 	if (wl->vif) {
@@ -1053,9 +1053,9 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	wl->vif = conf->vif;
+	wl->vif = vif;
 
-	switch (conf->type) {
+	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		wl->bss_type = BSS_TYPE_STA_BSS;
 		break;
@@ -1075,7 +1075,7 @@ out:
 }
 
 static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
-					 struct ieee80211_if_init_conf *conf)
+					 struct ieee80211_vif *vif)
 {
 	struct wl1271 *wl = hw->priv;
 

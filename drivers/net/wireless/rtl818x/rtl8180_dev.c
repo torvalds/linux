@@ -652,7 +652,7 @@ static void rtl8180_stop(struct ieee80211_hw *dev)
 }
 
 static int rtl8180_add_interface(struct ieee80211_hw *dev,
-				 struct ieee80211_if_init_conf *conf)
+				 struct ieee80211_vif *vif)
 {
 	struct rtl8180_priv *priv = dev->priv;
 
@@ -662,27 +662,27 @@ static int rtl8180_add_interface(struct ieee80211_hw *dev,
 	if (priv->vif)
 		return -EBUSY;
 
-	switch (conf->type) {
+	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		break;
 	default:
 		return -EOPNOTSUPP;
 	}
 
-	priv->vif = conf->vif;
+	priv->vif = vif;
 
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_CONFIG);
 	rtl818x_iowrite32(priv, (__le32 __iomem *)&priv->map->MAC[0],
-			  le32_to_cpu(*(__le32 *)conf->mac_addr));
+			  le32_to_cpu(*(__le32 *)vif->addr));
 	rtl818x_iowrite16(priv, (__le16 __iomem *)&priv->map->MAC[4],
-			  le16_to_cpu(*(__le16 *)(conf->mac_addr + 4)));
+			  le16_to_cpu(*(__le16 *)(vif->addr + 4)));
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
 
 	return 0;
 }
 
 static void rtl8180_remove_interface(struct ieee80211_hw *dev,
-				     struct ieee80211_if_init_conf *conf)
+				     struct ieee80211_vif *vif)
 {
 	struct rtl8180_priv *priv = dev->priv;
 	priv->vif = NULL;

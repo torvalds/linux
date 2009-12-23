@@ -1939,7 +1939,7 @@ err_free:
 }
 
 static int ar9170_op_add_interface(struct ieee80211_hw *hw,
-				   struct ieee80211_if_init_conf *conf)
+				   struct ieee80211_vif *vif)
 {
 	struct ar9170 *ar = hw->priv;
 	struct ath_common *common = &ar->common;
@@ -1952,8 +1952,8 @@ static int ar9170_op_add_interface(struct ieee80211_hw *hw,
 		goto unlock;
 	}
 
-	ar->vif = conf->vif;
-	memcpy(common->macaddr, conf->mac_addr, ETH_ALEN);
+	ar->vif = vif;
+	memcpy(common->macaddr, vif->addr, ETH_ALEN);
 
 	if (modparam_nohwcrypt || (ar->vif->type != NL80211_IFTYPE_STATION)) {
 		ar->rx_software_decryption = true;
@@ -1973,7 +1973,7 @@ unlock:
 }
 
 static void ar9170_op_remove_interface(struct ieee80211_hw *hw,
-				       struct ieee80211_if_init_conf *conf)
+				       struct ieee80211_vif *vif)
 {
 	struct ar9170 *ar = hw->priv;
 

@@ -2534,12 +2534,12 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 }
 
 static int ath9k_add_interface(struct ieee80211_hw *hw,
-			       struct ieee80211_if_init_conf *conf)
+			       struct ieee80211_vif *vif)
 {
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_vif *avp = (void *)conf->vif->drv_priv;
+	struct ath_vif *avp = (void *)vif->drv_priv;
 	enum nl80211_iftype ic_opmode = NL80211_IFTYPE_UNSPECIFIED;
 	int ret = 0;
 
@@ -2551,7 +2551,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	switch (conf->type) {
+	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		ic_opmode = NL80211_IFTYPE_STATION;
 		break;
@@ -2562,11 +2562,11 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 			ret = -ENOBUFS;
 			goto out;
 		}
-		ic_opmode = conf->type;
+		ic_opmode = vif->type;
 		break;
 	default:
 		ath_print(common, ATH_DBG_FATAL,
-			"Interface type %d not yet supported\n", conf->type);
+			"Interface type %d not yet supported\n", vif->type);
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
@@ -2598,18 +2598,18 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	 * Enable MIB interrupts when there are hardware phy counters.
 	 * Note we only do this (at the moment) for station mode.
 	 */
-	if ((conf->type == NL80211_IFTYPE_STATION) ||
-	    (conf->type == NL80211_IFTYPE_ADHOC) ||
-	    (conf->type == NL80211_IFTYPE_MESH_POINT)) {
+	if ((vif->type == NL80211_IFTYPE_STATION) ||
+	    (vif->type == NL80211_IFTYPE_ADHOC) ||
+	    (vif->type == NL80211_IFTYPE_MESH_POINT)) {
 		sc->imask |= ATH9K_INT_MIB;
 		sc->imask |= ATH9K_INT_TSFOOR;
 	}
 
 	ath9k_hw_set_interrupts(sc->sc_ah, sc->imask);
 
-	if (conf->type == NL80211_IFTYPE_AP    ||
-	    conf->type == NL80211_IFTYPE_ADHOC ||
-	    conf->type == NL80211_IFTYPE_MONITOR)
+	if (vif->type == NL80211_IFTYPE_AP    ||
+	    vif->type == NL80211_IFTYPE_ADHOC ||
+	    vif->type == NL80211_IFTYPE_MONITOR)
 		ath_start_ani(common);
 
 out:
@@ -2618,12 +2618,12 @@ out:
 }
 
 static void ath9k_remove_interface(struct ieee80211_hw *hw,
-				   struct ieee80211_if_init_conf *conf)
+				   struct ieee80211_vif *vif)
 {
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_vif *avp = (void *)conf->vif->drv_priv;
+	struct ath_vif *avp = (void *)vif->drv_priv;
 	int i;
 
 	ath_print(common, ATH_DBG_CONFIG, "Detach Interface\n");
@@ -2644,7 +2644,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	sc->sc_flags &= ~SC_OP_BEACONS;
 
 	for (i = 0; i < ARRAY_SIZE(sc->beacon.bslot); i++) {
-		if (sc->beacon.bslot[i] == conf->vif) {
+		if (sc->beacon.bslot[i] == vif) {
 			printk(KERN_DEBUG "%s: vif had allocated beacon "
 			       "slot\n", __func__);
 			sc->beacon.bslot[i] = NULL;

@@ -1075,7 +1075,6 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 {
 	struct ieee80211_hw *hw = &local->hw;
 	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_if_init_conf conf;
 	struct sta_info *sta;
 	unsigned long flags;
 	int res;
@@ -1094,12 +1093,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
 		    sdata->vif.type != NL80211_IFTYPE_MONITOR &&
-		    ieee80211_sdata_running(sdata)) {
-			conf.vif = &sdata->vif;
-			conf.type = sdata->vif.type;
-			conf.mac_addr = sdata->vif.addr;
-			res = drv_add_interface(local, &conf);
-		}
+		    ieee80211_sdata_running(sdata))
+			res = drv_add_interface(local, &sdata->vif);
 	}
 
 	/* add STAs back */

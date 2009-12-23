@@ -318,14 +318,14 @@ static void lbtf_op_stop(struct ieee80211_hw *hw)
 }
 
 static int lbtf_op_add_interface(struct ieee80211_hw *hw,
-			struct ieee80211_if_init_conf *conf)
+			struct ieee80211_vif *vif)
 {
 	struct lbtf_private *priv = hw->priv;
 	if (priv->vif != NULL)
 		return -EOPNOTSUPP;
 
-	priv->vif = conf->vif;
-	switch (conf->type) {
+	priv->vif = vif;
+	switch (vif->type) {
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_AP:
 		lbtf_set_mode(priv, LBTF_AP_MODE);
@@ -337,12 +337,12 @@ static int lbtf_op_add_interface(struct ieee80211_hw *hw,
 		priv->vif = NULL;
 		return -EOPNOTSUPP;
 	}
-	lbtf_set_mac_address(priv, (u8 *) conf->mac_addr);
+	lbtf_set_mac_address(priv, (u8 *) vif->addr);
 	return 0;
 }
 
 static void lbtf_op_remove_interface(struct ieee80211_hw *hw,
-			struct ieee80211_if_init_conf *conf)
+			struct ieee80211_vif *vif)
 {
 	struct lbtf_private *priv = hw->priv;
 

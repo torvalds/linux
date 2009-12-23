@@ -702,33 +702,6 @@ static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
 }
 
 /**
- * struct ieee80211_if_init_conf - initial configuration of an interface
- *
- * @vif: pointer to a driver-use per-interface structure. The pointer
- *	itself is also used for various functions including
- *	ieee80211_beacon_get() and ieee80211_get_buffered_bc().
- * @type: one of &enum nl80211_iftype constants. Determines the type of
- *	added/removed interface.
- * @mac_addr: pointer to MAC address of the interface. This pointer is valid
- *	until the interface is removed (i.e. it cannot be used after
- *	remove_interface() callback was called for this interface).
- *
- * This structure is used in add_interface() and remove_interface()
- * callbacks of &struct ieee80211_hw.
- *
- * When you allow multiple interfaces to be added to your PHY, take care
- * that the hardware can actually handle multiple MAC addresses. However,
- * also take care that when there's no interface left with mac_addr != %NULL
- * you remove the MAC address from the device to avoid acknowledging packets
- * in pure monitor mode.
- */
-struct ieee80211_if_init_conf {
-	enum nl80211_iftype type;
-	struct ieee80211_vif *vif;
-	void *mac_addr;
-};
-
-/**
  * enum ieee80211_key_alg - key algorithm
  * @ALG_WEP: WEP40 or WEP104
  * @ALG_TKIP: TKIP
@@ -1555,9 +1528,9 @@ struct ieee80211_ops {
 	int (*start)(struct ieee80211_hw *hw);
 	void (*stop)(struct ieee80211_hw *hw);
 	int (*add_interface)(struct ieee80211_hw *hw,
-			     struct ieee80211_if_init_conf *conf);
+			     struct ieee80211_vif *vif);
 	void (*remove_interface)(struct ieee80211_hw *hw,
-				 struct ieee80211_if_init_conf *conf);
+				 struct ieee80211_vif *vif);
 	int (*config)(struct ieee80211_hw *hw, u32 changed);
 	void (*bss_info_changed)(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
@@ -1845,7 +1818,7 @@ void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
 /**
  * ieee80211_beacon_get_tim - beacon generation function
  * @hw: pointer obtained from ieee80211_alloc_hw().
- * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  * @tim_offset: pointer to variable that will receive the TIM IE offset.
  *	Set to 0 if invalid (in non-AP modes).
  * @tim_length: pointer to variable that will receive the TIM IE length,
@@ -1873,7 +1846,7 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 /**
  * ieee80211_beacon_get - beacon generation function
  * @hw: pointer obtained from ieee80211_alloc_hw().
- * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  *
  * See ieee80211_beacon_get_tim().
  */
@@ -1886,7 +1859,7 @@ static inline struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 /**
  * ieee80211_rts_get - RTS frame generation function
  * @hw: pointer obtained from ieee80211_alloc_hw().
- * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  * @frame: pointer to the frame that is going to be protected by the RTS.
  * @frame_len: the frame length (in octets).
  * @frame_txctl: &struct ieee80211_tx_info of the frame.
@@ -1905,7 +1878,7 @@ void ieee80211_rts_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 /**
  * ieee80211_rts_duration - Get the duration field for an RTS frame
  * @hw: pointer obtained from ieee80211_alloc_hw().
- * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  * @frame_len: the length of the frame that is going to be protected by the RTS.
  * @frame_txctl: &struct ieee80211_tx_info of the frame.
  *
@@ -1920,7 +1893,7 @@ __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
 /**
  * ieee80211_ctstoself_get - CTS-to-self frame generation function
  * @hw: pointer obtained from ieee80211_alloc_hw().
- * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  * @frame: pointer to the frame that is going to be protected by the CTS-to-self.
  * @frame_len: the frame length (in octets).
  * @frame_txctl: &struct ieee80211_tx_info of the frame.
@@ -1940,7 +1913,7 @@ void ieee80211_ctstoself_get(struct ieee80211_hw *hw,
 /**
  * ieee80211_ctstoself_duration - Get the duration field for a CTS-to-self frame
  * @hw: pointer obtained from ieee80211_alloc_hw().
- * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  * @frame_len: the length of the frame that is going to be protected by the CTS-to-self.
  * @frame_txctl: &struct ieee80211_tx_info of the frame.
  *
@@ -1956,7 +1929,7 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 /**
  * ieee80211_generic_frame_duration - Calculate the duration field for a frame
  * @hw: pointer obtained from ieee80211_alloc_hw().
- * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  * @frame_len: the length of the frame.
  * @rate: the rate at which the frame is going to be transmitted.
  *
@@ -1971,7 +1944,7 @@ __le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw,
 /**
  * ieee80211_get_buffered_bc - accessing buffered broadcast and multicast frames
  * @hw: pointer as obtained from ieee80211_alloc_hw().
- * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  *
  * Function for accessing buffered broadcast and multicast frames. If
  * hardware/firmware does not implement buffering of broadcast/multicast
@@ -2139,7 +2112,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *sta, u16 tid);
 
 /**
  * ieee80211_start_tx_ba_cb - low level driver ready to aggregate.
- * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback
  * @ra: receiver address of the BA session recipient.
  * @tid: the TID to BA on.
  *
@@ -2150,7 +2123,7 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid);
 
 /**
  * ieee80211_start_tx_ba_cb_irqsafe - low level driver ready to aggregate.
- * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback
  * @ra: receiver address of the BA session recipient.
  * @tid: the TID to BA on.
  *
@@ -2178,7 +2151,7 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_sta *sta, u16 tid,
 
 /**
  * ieee80211_stop_tx_ba_cb - low level driver ready to stop aggregate.
- * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback
  * @ra: receiver address of the BA session recipient.
  * @tid: the desired TID to BA on.
  *
@@ -2189,7 +2162,7 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid);
 
 /**
  * ieee80211_stop_tx_ba_cb_irqsafe - low level driver ready to stop aggregate.
- * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback
  * @ra: receiver address of the BA session recipient.
  * @tid: the desired TID to BA on.
  *
@@ -2268,7 +2241,7 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 /**
  * ieee80211_beacon_loss - inform hardware does not receive beacons
  *
- * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  *
  * When beacon filtering is enabled with IEEE80211_HW_BEACON_FILTERING and
  * IEEE80211_CONF_PS is set, the driver needs to inform whenever the

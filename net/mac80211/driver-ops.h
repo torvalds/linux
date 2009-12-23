@@ -36,18 +36,18 @@ static inline void drv_stop(struct ieee80211_local *local)
 }
 
 static inline int drv_add_interface(struct ieee80211_local *local,
-				    struct ieee80211_if_init_conf *conf)
+				    struct ieee80211_vif *vif)
 {
-	int ret = local->ops->add_interface(&local->hw, conf);
-	trace_drv_add_interface(local, vif_to_sdata(conf->vif), ret);
+	int ret = local->ops->add_interface(&local->hw, vif);
+	trace_drv_add_interface(local, vif_to_sdata(vif), ret);
 	return ret;
 }
 
 static inline void drv_remove_interface(struct ieee80211_local *local,
-					struct ieee80211_if_init_conf *conf)
+					struct ieee80211_vif *vif)
 {
-	local->ops->remove_interface(&local->hw, conf);
-	trace_drv_remove_interface(local, vif_to_sdata(conf->vif));
+	local->ops->remove_interface(&local->hw, vif);
+	trace_drv_remove_interface(local, vif_to_sdata(vif));
 }
 
 static inline int drv_config(struct ieee80211_local *local, u32 changed)

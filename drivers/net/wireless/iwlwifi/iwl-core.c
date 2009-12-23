@@ -2584,12 +2584,12 @@ int iwl_set_mode(struct iwl_priv *priv, int mode)
 EXPORT_SYMBOL(iwl_set_mode);
 
 int iwl_mac_add_interface(struct ieee80211_hw *hw,
-				 struct ieee80211_if_init_conf *conf)
+				 struct ieee80211_vif *vif)
 {
 	struct iwl_priv *priv = hw->priv;
 	unsigned long flags;
 
-	IWL_DEBUG_MAC80211(priv, "enter: type %d\n", conf->type);
+	IWL_DEBUG_MAC80211(priv, "enter: type %d\n", vif->type);
 
 	if (priv->vif) {
 		IWL_DEBUG_MAC80211(priv, "leave - vif != NULL\n");
@@ -2597,19 +2597,19 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw,
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
-	priv->vif = conf->vif;
-	priv->iw_mode = conf->type;
+	priv->vif = vif;
+	priv->iw_mode = vif->type;
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	mutex_lock(&priv->mutex);
 
-	if (conf->mac_addr) {
-		IWL_DEBUG_MAC80211(priv, "Set %pM\n", conf->mac_addr);
-		memcpy(priv->mac_addr, conf->mac_addr, ETH_ALEN);
+	if (vif->addr) {
+		IWL_DEBUG_MAC80211(priv, "Set %pM\n", vif->addr);
+		memcpy(priv->mac_addr, vif->addr, ETH_ALEN);
 	}
 
-	if (iwl_set_mode(priv, conf->type) == -EAGAIN)
+	if (iwl_set_mode(priv, vif->type) == -EAGAIN)
 		/* we are not ready, will run again when ready */
 		set_bit(STATUS_MODE_PENDING, &priv->status);
 
@@ -2621,7 +2621,7 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw,
 EXPORT_SYMBOL(iwl_mac_add_interface);
 
 void iwl_mac_remove_interface(struct ieee80211_hw *hw,
-				     struct ieee80211_if_init_conf *conf)
+				     struct ieee80211_vif *vif)
 {
 	struct iwl_priv *priv = hw->priv;
 
@@ -2634,7 +2634,7 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 		priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 		iwlcore_commit_rxon(priv);
 	}
-	if (priv->vif == conf->vif) {
+	if (priv->vif == vif) {
 		priv->vif = NULL;
 		memset(priv->bssid, 0, ETH_ALEN);
 	}

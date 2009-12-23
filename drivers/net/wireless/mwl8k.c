@@ -2835,7 +2835,7 @@ static void mwl8k_stop(struct ieee80211_hw *hw)
 }
 
 static int mwl8k_add_interface(struct ieee80211_hw *hw,
-				struct ieee80211_if_init_conf *conf)
+				struct ieee80211_vif *vif)
 {
 	struct mwl8k_priv *priv = hw->priv;
 	struct mwl8k_vif *mwl8k_vif;
@@ -2849,7 +2849,7 @@ static int mwl8k_add_interface(struct ieee80211_hw *hw,
 	/*
 	 * We only support managed interfaces for now.
 	 */
-	if (conf->type != NL80211_IFTYPE_STATION)
+	if (vif->type != NL80211_IFTYPE_STATION)
 		return -EINVAL;
 
 	/*
@@ -2865,24 +2865,24 @@ static int mwl8k_add_interface(struct ieee80211_hw *hw,
 	}
 
 	/* Clean out driver private area */
-	mwl8k_vif = MWL8K_VIF(conf->vif);
+	mwl8k_vif = MWL8K_VIF(vif);
 	memset(mwl8k_vif, 0, sizeof(*mwl8k_vif));
 
 	/* Set and save the mac address */
-	mwl8k_cmd_set_mac_addr(hw, conf->mac_addr);
-	memcpy(mwl8k_vif->mac_addr, conf->mac_addr, ETH_ALEN);
+	mwl8k_cmd_set_mac_addr(hw, vif->addr);
+	memcpy(mwl8k_vif->mac_addr, vif->addr, ETH_ALEN);
 
 	/* Set Initial sequence number to zero */
 	mwl8k_vif->seqno = 0;
 
-	priv->vif = conf->vif;
+	priv->vif = vif;
 	priv->current_channel = NULL;
 
 	return 0;
 }
 
 static void mwl8k_remove_interface(struct ieee80211_hw *hw,
-				   struct ieee80211_if_init_conf *conf)
+				   struct ieee80211_vif *vif)
 {
 	struct mwl8k_priv *priv = hw->priv;
 

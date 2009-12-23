@@ -96,7 +96,6 @@ static int ieee80211_open(struct net_device *dev)
 	struct ieee80211_sub_if_data *nsdata;
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
-	struct ieee80211_if_init_conf conf;
 	u32 changed = 0;
 	int res;
 	u32 hw_reconf_flags = 0;
@@ -248,10 +247,7 @@ static int ieee80211_open(struct net_device *dev)
 		ieee80211_configure_filter(local);
 		break;
 	default:
-		conf.vif = &sdata->vif;
-		conf.type = sdata->vif.type;
-		conf.mac_addr = sdata->vif.addr;
-		res = drv_add_interface(local, &conf);
+		res = drv_add_interface(local, &sdata->vif);
 		if (res)
 			goto err_stop;
 
@@ -334,7 +330,7 @@ static int ieee80211_open(struct net_device *dev)
 
 	return 0;
  err_del_interface:
-	drv_remove_interface(local, &conf);
+	drv_remove_interface(local, &sdata->vif);
  err_stop:
 	if (!local->open_count)
 		drv_stop(local);
@@ -349,7 +345,6 @@ static int ieee80211_stop(struct net_device *dev)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_if_init_conf conf;
 	struct sta_info *sta;
 	unsigned long flags;
 	struct sk_buff *skb, *tmp;
@@ -533,12 +528,9 @@ static int ieee80211_stop(struct net_device *dev)
 				BSS_CHANGED_BEACON_ENABLED);
 		}
 
-		conf.vif = &sdata->vif;
-		conf.type = sdata->vif.type;
-		conf.mac_addr = sdata->vif.addr;
 		/* disable all keys for as long as this netdev is down */
 		ieee80211_disable_keys(sdata);
-		drv_remove_interface(local, &conf);
+		drv_remove_interface(local, &sdata->vif);
 	}
 
 	sdata->bss = NULL;

@@ -332,9 +332,9 @@ int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb);
 int iwl_commit_rxon(struct iwl_priv *priv);
 int iwl_set_mode(struct iwl_priv *priv, int mode);
 int iwl_mac_add_interface(struct ieee80211_hw *hw,
-				 struct ieee80211_if_init_conf *conf);
+			  struct ieee80211_vif *vif);
 void iwl_mac_remove_interface(struct ieee80211_hw *hw,
-				 struct ieee80211_if_init_conf *conf);
+			      struct ieee80211_vif *vif);
 int iwl_mac_config(struct ieee80211_hw *hw, u32 changed);
 void iwl_config_ap(struct iwl_priv *priv);
 int iwl_mac_get_tx_stats(struct ieee80211_hw *hw,
