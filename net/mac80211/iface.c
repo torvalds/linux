@@ -362,6 +362,11 @@ static int ieee80211_stop(struct net_device *dev)
 	netif_stop_queue(dev);
 
 	/*
+	 * Purge work for this interface.
+	 */
+	ieee80211_work_purge(sdata);
+
+	/*
 	 * Now delete all active aggregation sessions.
 	 */
 	rcu_read_lock();
@@ -928,6 +933,9 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 	struct ieee80211_sub_if_data *sdata;
 	int count = 0;
 
+	if (!list_empty(&local->work_list))
+		return ieee80211_idle_off(local, "working");
+
 	if (local->scanning)
 		return ieee80211_idle_off(local, "scanning");
 
@@ -936,8 +944,7 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 			continue;
 		/* do not count disabled managed interfaces */
 		if (sdata->vif.type == NL80211_IFTYPE_STATION &&
-		    !sdata->u.mgd.associated &&
-		    list_empty(&sdata->u.mgd.work_list))
+		    !sdata->u.mgd.associated)
 			continue;
 		/* do not count unused IBSS interfaces */
 		if (sdata->vif.type == NL80211_IFTYPE_ADHOC &&

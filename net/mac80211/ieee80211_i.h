@@ -228,18 +228,40 @@ struct mesh_preq_queue {
 };
 
 enum ieee80211_work_type {
-	IEEE80211_WORK_AUTH_PROBE,
+	IEEE80211_WORK_DIRECT_PROBE,
 	IEEE80211_WORK_AUTH,
 	IEEE80211_WORK_ASSOC,
+};
+
+/**
+ * enum work_done_result - indicates what to do after work was done
+ *
+ * @WORK_DONE_DESTROY: This work item is no longer needed, destroy.
+ * @WORK_DONE_REQUEUE: This work item was reset to be reused, and
+ *	should be requeued.
+ */
+enum work_done_result {
+	WORK_DONE_DESTROY,
+	WORK_DONE_REQUEUE,
 };
 
 struct ieee80211_work {
 	struct list_head list;
 
+	struct rcu_head rcu_head;
+
+	struct ieee80211_sub_if_data *sdata;
+
+	enum work_done_result (*done)(struct ieee80211_work *wk,
+				      struct sk_buff *skb);
+
 	struct ieee80211_channel *chan;
 	/* XXX: chan type? -- right now not really needed */
+
 	unsigned long timeout;
 	enum ieee80211_work_type type;
+
+	u8 filter_ta[ETH_ALEN];
 
 	union {
 		struct {
@@ -247,22 +269,22 @@ struct ieee80211_work {
 			u16 algorithm, transaction;
 			u8 ssid[IEEE80211_MAX_SSID_LEN];
 			u8 ssid_len;
-			u8 bssid[ETH_ALEN];
 			u8 key[WLAN_KEY_LEN_WEP104];
 			u8 key_len, key_idx;
 			bool privacy;
-		} auth;
+		} probe_auth;
 		struct {
 			struct ieee80211_bss *bss;
 			const u8 *supp_rates;
 			const u8 *ht_information_ie;
+			enum ieee80211_smps_mode smps;
 			int tries;
 			u16 capability;
-			u8 bssid[ETH_ALEN], prev_bssid[ETH_ALEN];
+			u8 prev_bssid[ETH_ALEN];
 			u8 ssid[IEEE80211_MAX_SSID_LEN];
 			u8 ssid_len;
 			u8 supp_rates_len;
-			bool wmm_used;
+			bool wmm_used, use_11n;
 		} assoc;
 	};
 
@@ -276,15 +298,9 @@ enum ieee80211_sta_flags {
 	IEEE80211_STA_BEACON_POLL	= BIT(0),
 	IEEE80211_STA_CONNECTION_POLL	= BIT(1),
 	IEEE80211_STA_CONTROL_PORT	= BIT(2),
-	IEEE80211_STA_WMM_ENABLED	= BIT(3),
 	IEEE80211_STA_DISABLE_11N	= BIT(4),
 	IEEE80211_STA_CSA_RECEIVED	= BIT(5),
 	IEEE80211_STA_MFP_ENABLED	= BIT(6),
-};
-
-/* flags for MLME request */
-enum ieee80211_sta_request {
-	IEEE80211_STA_REQ_SCAN,
 };
 
 struct ieee80211_if_managed {
@@ -302,12 +318,10 @@ struct ieee80211_if_managed {
 
 	struct mutex mtx;
 	struct ieee80211_bss *associated;
-	struct list_head work_list;
 
 	u8 bssid[ETH_ALEN];
 
 	u16 aid;
-	u16 capab;
 
 	struct sk_buff_head skb_queue;
 
@@ -315,8 +329,6 @@ struct ieee80211_if_managed {
 	bool powersave; /* powersave requested for this iface */
 	enum ieee80211_smps_mode req_smps, /* requested smps mode */
 				 ap_smps; /* smps mode AP thinks we're in */
-
-	unsigned long request;
 
 	unsigned int flags;
 
@@ -582,6 +594,15 @@ struct ieee80211_local {
 	struct ieee80211_hw hw;
 
 	const struct ieee80211_ops *ops;
+
+	/*
+	 * work stuff, potentially off-channel (in the future)
+	 */
+	struct mutex work_mtx;
+	struct list_head work_list;
+	struct timer_list work_timer;
+	struct work_struct work_work;
+	struct sk_buff_head work_skb_queue;
 
 	/*
 	 * private workqueue to mac80211. mac80211 makes this accessible
@@ -1126,6 +1147,14 @@ int __ieee80211_request_smps(struct ieee80211_sub_if_data *sdata,
 			     enum ieee80211_smps_mode smps_mode);
 void ieee80211_recalc_smps(struct ieee80211_local *local,
 			   struct ieee80211_sub_if_data *forsdata);
+
+/* internal work items */
+void ieee80211_work_init(struct ieee80211_local *local);
+void ieee80211_add_work(struct ieee80211_work *wk);
+void free_work(struct ieee80211_work *wk);
+void ieee80211_work_purge(struct ieee80211_sub_if_data *sdata);
+ieee80211_rx_result ieee80211_work_rx_mgmt(struct ieee80211_sub_if_data *sdata,
+					   struct sk_buff *skb);
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline

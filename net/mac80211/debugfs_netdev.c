@@ -133,7 +133,6 @@ IEEE80211_IF_FILE(max_ratectrl_rateidx, max_ratectrl_rateidx, DEC);
 /* STA attributes */
 IEEE80211_IF_FILE(bssid, u.mgd.bssid, MAC);
 IEEE80211_IF_FILE(aid, u.mgd.aid, DEC);
-IEEE80211_IF_FILE(capab, u.mgd.capab, HEX);
 
 static int ieee80211_set_smps(struct ieee80211_sub_if_data *sdata,
 			      enum ieee80211_smps_mode smps_mode)
@@ -270,7 +269,6 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 
 	DEBUGFS_ADD(bssid, sta);
 	DEBUGFS_ADD(aid, sta);
-	DEBUGFS_ADD(capab, sta);
 	DEBUGFS_ADD_MODE(smps, 0600);
 }
 
