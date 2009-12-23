@@ -857,17 +857,6 @@ struct ngene_buffer {
 };
 #endif
 
-int ngene_command_stream_control(struct ngene *dev,
-				 u8 stream, u8 control, u8 mode, u8 flags);
-int ngene_command_nop(struct ngene *dev);
-int ngene_command_i2c_read(struct ngene *dev, u8 adr,
-			   u8 *out, u8 outlen, u8 *in, u8 inlen, int flag);
-int ngene_command_i2c_write(struct ngene *dev, u8 adr, u8 *out, u8 outlen);
-int ngene_command_imem_read(struct ngene *dev, u8 adr, u8 *data, int type);
-int ngene_command_imem_write(struct ngene *dev, u8 adr, u8 data, int type);
-int ngene_stream_control(struct ngene *dev, u8 stream, u8 control, u8 mode,
-			 u16 lines, u16 bpl, u16 vblines, u16 vbibpl);
-
 
 #endif
 

@@ -48,17 +48,10 @@
 #include "stv090x.h"
 #include "lnbh24.h"
 
-#ifdef NGENE_COMMAND_API
-#include "ngene-ioctls.h"
-#endif
-
 static int one_adapter = 1;
 module_param(one_adapter, int, 0444);
 MODULE_PARM_DESC(one_adapter, "Use only one adapter.");
 
-static int copy_eeprom;
-module_param(copy_eeprom, int, 0444);
-MODULE_PARM_DESC(copy_eeprom, "Copy eeprom.");
 
 static int debug;
 module_param(debug, int, 0444);
@@ -342,19 +335,8 @@ static int ngene_command(struct ngene *dev, struct ngene_command *com)
 	return result;
 }
 
-int ngene_command_nop(struct ngene *dev)
-{
-	struct ngene_command com;
 
-	com.cmd.hdr.Opcode = CMD_NOP;
-	com.cmd.hdr.Length = 0;
-	com.in_len = 0;
-	com.out_len = 0;
-
-	return ngene_command(dev, &com);
-}
-
-int ngene_command_i2c_read(struct ngene *dev, u8 adr,
+static int ngene_command_i2c_read(struct ngene *dev, u8 adr,
 			   u8 *out, u8 outlen, u8 *in, u8 inlen, int flag)
 {
 	struct ngene_command com;
@@ -381,7 +363,8 @@ int ngene_command_i2c_read(struct ngene *dev, u8 adr,
 	return 0;
 }
 
-int ngene_command_i2c_write(struct ngene *dev, u8 adr, u8 *out, u8 outlen)
+static int ngene_command_i2c_write(struct ngene *dev, u8 adr,
+				   u8 *out, u8 outlen)
 {
 	struct ngene_command com;
 
@@ -435,81 +418,6 @@ static int ngene_command_load_firmware(struct ngene *dev,
 	return ngene_command(dev, &com);
 }
 
-int ngene_command_imem_read(struct ngene *dev, u8 adr, u8 *data, int type)
-{
-	struct ngene_command com;
-
-	com.cmd.hdr.Opcode = type ? CMD_SFR_READ : CMD_IRAM_READ;
-	com.cmd.hdr.Length = 1;
-	com.cmd.SfrIramRead.address = adr;
-	com.in_len = 1;
-	com.out_len = 2;
-
-	if (ngene_command(dev, &com) < 0)
-		return -EIO;
-
-	*data = com.cmd.raw8[1];
-	return 0;
-}
-
-int ngene_command_imem_write(struct ngene *dev, u8 adr, u8 data, int type)
-{
-	struct ngene_command com;
-
-	com.cmd.hdr.Opcode = type ? CMD_SFR_WRITE : CMD_IRAM_WRITE;
-	com.cmd.hdr.Length = 2;
-	com.cmd.SfrIramWrite.address = adr;
-	com.cmd.SfrIramWrite.data = data;
-	com.in_len = 2;
-	com.out_len = 1;
-
-	if (ngene_command(dev, &com) < 0)
-		return -EIO;
-
-	return 0;
-}
-
-static int ngene_command_config_uart(struct ngene *dev, u8 config,
-				     tx_cb_t *tx_cb, rx_cb_t *rx_cb)
-{
-	struct ngene_command com;
-
-	com.cmd.hdr.Opcode = CMD_CONFIGURE_UART;
-	com.cmd.hdr.Length = sizeof(struct FW_CONFIGURE_UART) - 2;
-	com.cmd.ConfigureUart.UartControl = config;
-	com.in_len = sizeof(struct FW_CONFIGURE_UART);
-	com.out_len = 0;
-
-	if (ngene_command(dev, &com) < 0)
-		return -EIO;
-
-	dev->TxEventNotify = tx_cb;
-	dev->RxEventNotify = rx_cb;
-
-	dprintk(KERN_DEBUG DEVICE_NAME ": Set UART config %02x.\n", config);
-
-	return 0;
-}
-
-static void tx_cb(struct ngene *dev, u32 ts)
-{
-	dev->tx_busy = 0;
-	wake_up_interruptible(&dev->tx_wq);
-}
-
-static void rx_cb(struct ngene *dev, u32 ts, u8 c)
-{
-	int rp = dev->uart_rp;
-	int nwp, wp = dev->uart_wp;
-
-	/* dprintk(KERN_DEBUG DEVICE_NAME ": %c\n", c); */
-	nwp = (wp + 1) % (UART_RBUF_LEN);
-	if (nwp == rp)
-		return;
-	dev->uart_rbuf[wp] = c;
-	dev->uart_wp = nwp;
-	wake_up_interruptible(&dev->rx_wq);
-}
 
 static int ngene_command_config_buf(struct ngene *dev, u8 config)
 {
@@ -555,16 +463,6 @@ static int ngene_command_gpio_set(struct ngene *dev, u8 select, u8 level)
 	return ngene_command(dev, &com);
 }
 
-/* The reset is only wired to GPIO4 on MicRacer Revision 1.10 !
-   Also better set bootdelay to 1 in nvram or less. */
-static void ngene_reset_decypher(struct ngene *dev)
-{
-	printk(KERN_INFO DEVICE_NAME ": Resetting Decypher.\n");
-	ngene_command_gpio_set(dev, 4, 0);
-	msleep(1);
-	ngene_command_gpio_set(dev, 4, 1);
-	msleep(2000);
-}
 
 /*
  02000640 is sample on rising edge.
@@ -693,8 +591,8 @@ static void clear_buffers(struct ngene_channel *chan)
 	}
 }
 
-int ngene_command_stream_control(struct ngene *dev, u8 stream, u8 control,
-				 u8 mode, u8 flags)
+static int ngene_command_stream_control(struct ngene *dev, u8 stream,
+					u8 control, u8 mode, u8 flags)
 {
 	struct ngene_channel *chan = &dev->channel[stream];
 	struct ngene_command com;
@@ -847,23 +745,6 @@ int ngene_command_stream_control(struct ngene *dev, u8 stream, u8 control,
 	return 0;
 }
 
-int ngene_stream_control(struct ngene *dev, u8 stream, u8 control, u8 mode,
-			 u16 lines, u16 bpl, u16 vblines, u16 vbibpl)
-{
-	if (!(mode & SMODE_TRANSPORT_STREAM))
-		return -EINVAL;
-
-	if (lines * bpl > MAX_VIDEO_BUFFER_SIZE)
-		return -EINVAL;
-
-	if ((mode & SMODE_TRANSPORT_STREAM) && (((bpl * lines) & 0xff) != 0))
-		return -EINVAL;
-
-	if ((mode & SMODE_VIDEO_CAPTURE) && (bpl & 7) != 0)
-		return -EINVAL;
-
-	return ngene_command_stream_control(dev, stream, control, mode, 0);
-}
 
 /****************************************************************************/
 /* I2C **********************************************************************/
@@ -924,13 +805,12 @@ done:
 }
 
 
-
 static u32 ngene_i2c_functionality(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_SMBUS_EMUL;
 }
 
-struct i2c_algorithm ngene_i2c_algo = {
+static struct i2c_algorithm ngene_i2c_algo = {
 	.master_xfer = ngene_i2c_master_xfer,
 	.functionality = ngene_i2c_functionality,
 };
@@ -956,476 +836,6 @@ static int ngene_i2c_init(struct ngene *dev, int dev_nr)
 	return i2c_add_adapter(adap);
 }
 
-int i2c_write(struct i2c_adapter *adapter, u8 adr, u8 data)
-{
-	u8 m[1] = {data};
-	struct i2c_msg msg = {.addr = adr, .flags = 0, .buf = m, .len = 1};
-
-	if (i2c_transfer(adapter, &msg, 1) != 1) {
-		printk(KERN_ERR DEVICE_NAME
-		       ": Failed to write to I2C adr %02x!\n", adr);
-		return -1;
-	}
-	return 0;
-}
-
-
-static int i2c_write_read(struct i2c_adapter *adapter,
-			  u8 adr, u8 *w, u8 wlen, u8 *r, u8 rlen)
-{
-	struct i2c_msg msgs[2] = {{.addr = adr, .flags = 0,
-				   .buf = w, .len = wlen},
-				  {.addr = adr, .flags = I2C_M_RD,
-				   .buf = r, .len = rlen} };
-
-	if (i2c_transfer(adapter, msgs, 2) != 2) {
-		printk(KERN_ERR DEVICE_NAME ": error in i2c_write_read\n");
-		return -1;
-	}
-	return 0;
-}
-
-static int test_dec_i2c(struct i2c_adapter *adapter, int reg)
-{
-	u8 data[256] = { reg, 0x00, 0x93, 0x78, 0x43, 0x45 };
-	u8 data2[256];
-	int i;
-
-	memset(data2, 0, 256);
-	i2c_write_read(adapter, 0x66, data, 2, data2, 4);
-	for (i = 0; i < 4; i++)
-		printk("%02x ", data2[i]);
-	printk("\n");
-
-	return 0;
-}
-
-
-/****************************************************************************/
-/* EEPROM TAGS **************************************************************/
-/****************************************************************************/
-
-#define MICNG_EE_START      0x0100
-#define MICNG_EE_END        0x0FF0
-
-#define MICNG_EETAG_END0    0x0000
-#define MICNG_EETAG_END1    0xFFFF
-
-/* 0x0001 - 0x000F reserved for housekeeping */
-/* 0xFFFF - 0xFFFE reserved for housekeeping */
-
-/* Micronas assigned tags
-   EEProm tags for hardware support */
-
-#define MICNG_EETAG_DRXD1_OSCDEVIATION  0x1000  /* 2 Bytes data */
-#define MICNG_EETAG_DRXD2_OSCDEVIATION  0x1001  /* 2 Bytes data */
-
-#define MICNG_EETAG_MT2060_1_1STIF      0x1100  /* 2 Bytes data */
-#define MICNG_EETAG_MT2060_2_1STIF      0x1101  /* 2 Bytes data */
-
-/* Tag range for OEMs */
-
-#define MICNG_EETAG_OEM_FIRST  0xC000
-#define MICNG_EETAG_OEM_LAST   0xFFEF
-
-static int i2c_write_eeprom(struct i2c_adapter *adapter,
-			    u8 adr, u16 reg, u8 data)
-{
-	u8 m[3] = {(reg >> 8), (reg & 0xff), data};
-	struct i2c_msg msg = {.addr = adr, .flags = 0, .buf = m,
-			      .len = sizeof(m)};
-
-	if (i2c_transfer(adapter, &msg, 1) != 1) {
-		dprintk(KERN_ERR DEVICE_NAME ": Error writing EEPROM!\n");
-		return -EIO;
-	}
-	return 0;
-}
-
-static int i2c_read_eeprom(struct i2c_adapter *adapter,
-			   u8 adr, u16 reg, u8 *data, int len)
-{
-	u8 msg[2] = {(reg >> 8), (reg & 0xff)};
-	struct i2c_msg msgs[2] = {{.addr = adr, .flags = 0,
-				   .buf = msg, .len = 2 },
-				  {.addr = adr, .flags = I2C_M_RD,
-				   .buf = data, .len = len} };
-
-	if (i2c_transfer(adapter, msgs, 2) != 2) {
-		dprintk(KERN_ERR DEVICE_NAME ": Error reading EEPROM\n");
-		return -EIO;
-	}
-	return 0;
-}
-
-
-static int i2c_dump_eeprom(struct i2c_adapter *adapter, u8 adr)
-{
-	u8 buf[64];
-	int i;
-
-	if (i2c_read_eeprom(adapter, adr, 0x0000, buf, sizeof(buf))) {
-		printk(KERN_ERR DEVICE_NAME ": No EEPROM?\n");
-		return -1;
-	}
-	for (i = 0; i < sizeof(buf); i++) {
-		if (!(i & 15))
-			printk("\n");
-		printk("%02x ", buf[i]);
-	}
-	printk("\n");
-
-	return 0;
-}
-
-static int i2c_copy_eeprom(struct i2c_adapter *adapter, u8 adr, u8 adr2)
-{
-	u8 buf[64];
-	int i;
-
-	if (i2c_read_eeprom(adapter, adr, 0x0000, buf, sizeof(buf))) {
-		printk(KERN_ERR DEVICE_NAME ": No EEPROM?\n");
-		return -1;
-	}
-	buf[36] = 0xc3;
-	buf[39] = 0xab;
-	for (i = 0; i < sizeof(buf); i++) {
-		i2c_write_eeprom(adapter, adr2, i, buf[i]);
-		msleep(10);
-	}
-	return 0;
-}
-
-
-/****************************************************************************/
-/* COMMAND API interface ****************************************************/
-/****************************************************************************/
-
-#ifdef NGENE_COMMAND_API
-
-static int command_do_ioctl(struct inode *inode, struct file *file,
-			    unsigned int cmd, void *parg)
-{
-	struct dvb_device *dvbdev = file->private_data;
-	struct ngene_channel *chan = dvbdev->priv;
-	struct ngene *dev = chan->dev;
-	int err = 0;
-
-	switch (cmd) {
-	case IOCTL_MIC_NO_OP:
-		err = ngene_command_nop(dev);
-		break;
-
-	case IOCTL_MIC_DOWNLOAD_FIRMWARE:
-		break;
-
-	case IOCTL_MIC_I2C_READ:
-	{
-		MIC_I2C_READ *msg = parg;
-
-		err = ngene_command_i2c_read(dev, msg->I2CAddress >> 1,
-					     msg->OutData, msg->OutLength,
-					     msg->OutData, msg->InLength, 1);
-		break;
-	}
-
-	case IOCTL_MIC_I2C_WRITE:
-	{
-		MIC_I2C_WRITE *msg = parg;
-
-		err = ngene_command_i2c_write(dev, msg->I2CAddress >> 1,
-					      msg->Data, msg->Length);
-		break;
-	}
-
-	case IOCTL_MIC_TEST_GETMEM:
-	{
-		MIC_MEM *m = parg;
-
-		if (m->Length > 64 * 1024 || m->Start + m->Length > 64 * 1024)
-			return -EINVAL;
-
-		/* WARNING, only use this on x86,
-		   other archs may not swallow this  */
-		err = copy_to_user(m->Data, dev->iomem + m->Start, m->Length);
-		break;
-	}
-
-	case IOCTL_MIC_TEST_SETMEM:
-	{
-		MIC_MEM *m = parg;
-
-		if (m->Length > 64 * 1024 || m->Start + m->Length > 64 * 1024)
-			return -EINVAL;
-
-		err = copy_from_user(dev->iomem + m->Start, m->Data, m->Length);
-		break;
-	}
-
-	case IOCTL_MIC_SFR_READ:
-	{
-		MIC_IMEM *m = parg;
-
-		err = ngene_command_imem_read(dev, m->Address, &m->Data, 1);
-		break;
-	}
-
-	case IOCTL_MIC_SFR_WRITE:
-	{
-		MIC_IMEM *m = parg;
-
-		err = ngene_command_imem_write(dev, m->Address, m->Data, 1);
-		break;
-	}
-
-	case IOCTL_MIC_IRAM_READ:
-	{
-		MIC_IMEM *m = parg;
-
-		err = ngene_command_imem_read(dev, m->Address, &m->Data, 0);
-		break;
-	}
-
-	case IOCTL_MIC_IRAM_WRITE:
-	{
-		MIC_IMEM *m = parg;
-
-		err = ngene_command_imem_write(dev, m->Address, m->Data, 0);
-		break;
-	}
-
-	case IOCTL_MIC_STREAM_CONTROL:
-	{
-		MIC_STREAM_CONTROL *m = parg;
-
-		err = ngene_stream_control(dev, m->Stream, m->Control, m->Mode,
-					   m->nLines, m->nBytesPerLine,
-					   m->nVBILines, m->nBytesPerVBILine);
-		break;
-	}
-
-	default:
-		err = -EINVAL;
-		break;
-	}
-	return err;
-}
-
-static int command_ioctl(struct inode *inode, struct file *file,
-			 unsigned int cmd, unsigned long arg)
-{
-	void *parg = (void *)arg, *pbuf = NULL;
-	char  buf[64];
-	int   res = -EFAULT;
-
-	if (_IOC_DIR(cmd) & _IOC_WRITE) {
-		parg = buf;
-		if (_IOC_SIZE(cmd) > sizeof(buf)) {
-			pbuf = kmalloc(_IOC_SIZE(cmd), GFP_KERNEL);
-			if (!pbuf)
-				return -ENOMEM;
-			parg = pbuf;
-		}
-		if (copy_from_user(parg, (void __user *)arg, _IOC_SIZE(cmd)))
-			goto error;
-	}
-	res = command_do_ioctl(inode, file, cmd, parg);
-	if (res < 0)
-		goto error;
-	if (_IOC_DIR(cmd) & _IOC_READ)
-		if (copy_to_user((void __user *)arg, parg, _IOC_SIZE(cmd)))
-			res = -EFAULT;
-error:
-	kfree(pbuf);
-	return res;
-}
-
-struct page *ngene_nopage(struct vm_area_struct *vma,
-			  unsigned long address, int *type)
-{
-	return 0;
-}
-
-static int ngene_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	struct dvb_device *dvbdev = file->private_data;
-	struct ngene_channel *chan = dvbdev->priv;
-	struct ngene *dev = chan->dev;
-
-	unsigned long size = vma->vm_end - vma->vm_start;
-	unsigned long off = vma->vm_pgoff << PAGE_SHIFT;
-	unsigned long padr = pci_resource_start(dev->pci_dev, 0) + off;
-	unsigned long psize = pci_resource_len(dev->pci_dev, 0) - off;
-
-	if (size > psize)
-		return -EINVAL;
-
-	if (io_remap_pfn_range(vma, vma->vm_start, padr >> PAGE_SHIFT, size,
-			       vma->vm_page_prot))
-		return -EAGAIN;
-	return 0;
-}
-
-static int write_uart(struct ngene *dev, u8 *data, int len)
-{
-	struct ngene_command com;
-
-	com.cmd.hdr.Opcode = CMD_WRITE_UART;
-	com.cmd.hdr.Length = len;
-	memcpy(com.cmd.WriteUart.Data, data, len);
-	com.cmd.WriteUart.Data[len] = 0;
-	com.cmd.WriteUart.Data[len + 1] = 0;
-	com.in_len = len;
-	com.out_len = 0;
-
-	if (ngene_command(dev, &com) < 0)
-		return -EIO;
-
-	return 0;
-}
-
-static int send_cli(struct ngene *dev, char *cmd)
-{
-	/* printk(KERN_INFO DEVICE_NAME ": %s", cmd); */
-	return write_uart(dev, cmd, strlen(cmd));
-}
-
-static int send_cli_val(struct ngene *dev, char *cmd, u32 val)
-{
-	char s[32];
-
-	snprintf(s, 32, "%s %d\n", cmd, val);
-	/* printk(KERN_INFO DEVICE_NAME ": %s", s); */
-	return write_uart(dev, s, strlen(s));
-}
-
-static int ngene_command_write_uart_user(struct ngene *dev,
-					 const u8 *data, int len)
-{
-	struct ngene_command com;
-
-	dev->tx_busy = 1;
-	com.cmd.hdr.Opcode = CMD_WRITE_UART;
-	com.cmd.hdr.Length = len;
-
-	if (copy_from_user(com.cmd.WriteUart.Data, data, len))
-		return -EFAULT;
-	com.in_len = len;
-	com.out_len = 0;
-
-	if (ngene_command(dev, &com) < 0)
-		return -EIO;
-
-	return 0;
-}
-
-static ssize_t uart_write(struct file *file, const char *buf,
-			  size_t count, loff_t *ppos)
-{
-	struct dvb_device *dvbdev = file->private_data;
-	struct ngene_channel *chan = dvbdev->priv;
-	struct ngene *dev = chan->dev;
-	int len, ret = 0;
-	size_t left = count;
-
-	while (left) {
-		len = left;
-		if (len > 250)
-			len = 250;
-		ret = wait_event_interruptible(dev->tx_wq, dev->tx_busy == 0);
-		if (ret < 0)
-			return ret;
-		ngene_command_write_uart_user(dev, buf, len);
-		left -= len;
-		buf += len;
-	}
-	return count;
-}
-
-static ssize_t ts_write(struct file *file, const char *buf,
-			size_t count, loff_t *ppos)
-{
-	struct dvb_device *dvbdev = file->private_data;
-	struct ngene_channel *chan = dvbdev->priv;
-	struct ngene *dev = chan->dev;
-
-	if (wait_event_interruptible(dev->tsout_rbuf.queue,
-				     dvb_ringbuffer_free
-				     (&dev->tsout_rbuf) >= count) < 0)
-		return 0;
-
-	dvb_ringbuffer_write(&dev->tsout_rbuf, buf, count);
-
-	return count;
-}
-
-static ssize_t uart_read(struct file *file, char *buf,
-			 size_t count, loff_t *ppos)
-{
-	struct dvb_device *dvbdev = file->private_data;
-	struct ngene_channel *chan = dvbdev->priv;
-	struct ngene *dev = chan->dev;
-	int left;
-	int wp, rp, avail, len;
-
-	if (!dev->uart_rbuf)
-		return -EINVAL;
-	if (count > 128)
-		count = 128;
-	left = count;
-	while (left) {
-		if (wait_event_interruptible(dev->rx_wq,
-					     dev->uart_wp != dev->uart_rp) < 0)
-			return -EAGAIN;
-		wp = dev->uart_wp;
-		rp = dev->uart_rp;
-		avail = (wp - rp);
-
-		if (avail < 0)
-			avail += UART_RBUF_LEN;
-		if (avail > left)
-			avail = left;
-		if (wp < rp) {
-			len = UART_RBUF_LEN - rp;
-			if (len > avail)
-				len = avail;
-			if (copy_to_user(buf, dev->uart_rbuf + rp, len))
-				return -EFAULT;
-			if (len < avail)
-				if (copy_to_user(buf + len, dev->uart_rbuf,
-						 avail - len))
-					return -EFAULT;
-		} else {
-			if (copy_to_user(buf, dev->uart_rbuf + rp, avail))
-				return -EFAULT;
-		}
-		dev->uart_rp = (rp + avail) % UART_RBUF_LEN;
-		left -= avail;
-		buf += avail;
-	}
-	return count;
-}
-
-static const struct file_operations command_fops = {
-	.owner   = THIS_MODULE,
-	.read    = uart_read,
-	.write   = ts_write,
-	.ioctl   = command_ioctl,
-	.open    = dvb_generic_open,
-	.release = dvb_generic_release,
-	.poll    = 0,
-	.mmap    = ngene_mmap,
-};
-
-static struct dvb_device dvbdev_command = {
-	.priv    = 0,
-	.readers = -1,
-	.writers = -1,
-	.users   = -1,
-	.fops    = &command_fops,
-};
-
-#endif
 
 /****************************************************************************/
 /* DVB functions and API interface ******************************************/
@@ -1550,32 +960,6 @@ static int ngene_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
 	struct ngene_channel *chan = dvbdmx->priv;
-#ifdef NGENE_COMMAND_API
-	struct ngene *dev = chan->dev;
-
-	if (dev->card_info->io_type[chan->number] & NGENE_IO_TSOUT) {
-		switch (dvbdmxfeed->pes_type) {
-		case DMX_TS_PES_VIDEO:
-			send_cli_val(dev, "vpid", dvbdmxfeed->pid);
-			send_cli(dev, "res 1080i50\n");
-			/* send_cli(dev, "vdec mpeg2\n"); */
-			break;
-
-		case DMX_TS_PES_AUDIO:
-			send_cli_val(dev, "apid", dvbdmxfeed->pid);
-			send_cli(dev, "start\n");
-			break;
-
-		case DMX_TS_PES_PCR:
-			send_cli_val(dev, "pcrpid", dvbdmxfeed->pid);
-			break;
-
-		default:
-			break;
-		}
-
-	}
-#endif
 
 	if (chan->users == 0) {
 		set_transfer(chan, 1);
@@ -1589,27 +973,6 @@ static int ngene_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
 	struct ngene_channel *chan = dvbdmx->priv;
-#ifdef NGENE_COMMAND_API
-	struct ngene *dev = chan->dev;
-
-	if (dev->card_info->io_type[chan->number] & NGENE_IO_TSOUT) {
-		switch (dvbdmxfeed->pes_type) {
-		case DMX_TS_PES_VIDEO:
-			send_cli(dev, "stop\n");
-			break;
-
-		case DMX_TS_PES_AUDIO:
-			break;
-
-		case DMX_TS_PES_PCR:
-			break;
-
-		default:
-			break;
-		}
-
-	}
-#endif
 
 	if (--chan->users)
 		return chan->users;
@@ -1620,23 +983,6 @@ static int ngene_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 }
 
 
-
-static int write_to_decoder(struct dvb_demux_feed *feed,
-			    const u8 *buf, size_t len)
-{
-	struct dvb_demux *dvbdmx = feed->demux;
-	struct ngene_channel *chan = dvbdmx->priv;
-	struct ngene *dev = chan->dev;
-
-	if (wait_event_interruptible(dev->tsout_rbuf.queue,
-				     dvb_ringbuffer_free
-				     (&dev->tsout_rbuf) >= len) < 0)
-		return 0;
-
-	dvb_ringbuffer_write(&dev->tsout_rbuf, buf, len);
-
-	return len;
-}
 
 static int my_dvb_dmx_ts_card_init(struct dvb_demux *dvbdemux, char *id,
 				   int (*start_feed)(struct dvb_demux_feed *),
@@ -1678,86 +1024,12 @@ static int my_dvb_dmxdev_ts_card_init(struct dmxdev *dmxdev,
 	return dvbdemux->dmx.connect_frontend(&dvbdemux->dmx, hw_frontend);
 }
 
-/****************************************************************************/
-/* Decypher firmware loading ************************************************/
-/****************************************************************************/
-
-#define DECYPHER_FW "decypher.fw"
-
-static int dec_ts_send(struct ngene *dev, u8 *buf, u32 len)
-{
-	while (dvb_ringbuffer_free(&dev->tsout_rbuf) < len)
-		msleep(1);
-
-
-	dvb_ringbuffer_write(&dev->tsout_rbuf, buf, len);
-
-	return len;
-}
-
-u8 dec_fw_fill_ts[188] = { 0x47, 0x09, 0x0e, 0x10, 0xff, 0xff, 0x00, 0x00 };
-
-int dec_fw_send(struct ngene *dev, u8 *fw, u32 size)
-{
-	struct ngene_channel *chan = &dev->channel[4];
-	u32 len = 180, cc = 0;
-	u8 buf[8] = { 0x47, 0x09, 0x0e, 0x10, 0x00, 0x00, 0x00, 0x00 };
-
-	set_transfer(chan, 1);
-	msleep(100);
-	while (size) {
-		len = 180;
-		if (len > size)
-			len = size;
-		buf[3] = 0x10 | (cc & 0x0f);
-		buf[4] = (cc >> 8);
-		buf[5] = cc & 0xff;
-		buf[6] = len;
-
-		dec_ts_send(dev, buf, 8);
-		dec_ts_send(dev, fw, len);
-		if (len < 180)
-			dec_ts_send(dev, dec_fw_fill_ts + len + 8, 180 - len);
-		cc++;
-		size -= len;
-		fw += len;
-	}
-	for (len = 0; len < 512; len++)
-		dec_ts_send(dev, dec_fw_fill_ts, 188);
-	while (dvb_ringbuffer_avail(&dev->tsout_rbuf))
-		msleep(10);
-	msleep(100);
-	set_transfer(chan, 0);
-	return 0;
-}
-
-int dec_fw_boot(struct ngene *dev)
-{
-	u32 size;
-	const struct firmware *fw = NULL;
-	u8 *dec_fw;
-
-	if (request_firmware(&fw, DECYPHER_FW, &dev->pci_dev->dev) < 0) {
-		printk(KERN_ERR DEVICE_NAME
-		       ": %s not found. Check hotplug directory.\n",
-		       DECYPHER_FW);
-		return -1;
-	}
-	printk(KERN_INFO DEVICE_NAME ": Booting decypher firmware file %s\n",
-	       DECYPHER_FW);
-
-	size = fw->size;
-	dec_fw = (u8 *)fw->data;
-	dec_fw_send(dev, dec_fw, size);
-	release_firmware(fw);
-	return 0;
-}
 
 /****************************************************************************/
 /* nGene hardware init and release functions ********************************/
 /****************************************************************************/
 
-void free_ringbuffer(struct ngene *dev, struct SRingBufferDescriptor *rb)
+static void free_ringbuffer(struct ngene *dev, struct SRingBufferDescriptor *rb)
 {
 	struct SBufferHeader *Cur = rb->Head;
 	u32 j;
@@ -1786,7 +1058,7 @@ void free_ringbuffer(struct ngene *dev, struct SRingBufferDescriptor *rb)
 	pci_free_consistent(dev->pci_dev, rb->MemSize, rb->Head, rb->PAHead);
 }
 
-void free_idlebuffer(struct ngene *dev,
+static void free_idlebuffer(struct ngene *dev,
 		     struct SRingBufferDescriptor *rb,
 		     struct SRingBufferDescriptor *tb)
 {
@@ -1804,7 +1076,7 @@ void free_idlebuffer(struct ngene *dev,
 	}
 }
 
-void free_common_buffers(struct ngene *dev)
+static void free_common_buffers(struct ngene *dev)
 {
 	u32 i;
 	struct ngene_channel *chan;
@@ -1832,7 +1104,7 @@ void free_common_buffers(struct ngene *dev)
 /* Ring buffer handling *****************************************************/
 /****************************************************************************/
 
-int create_ring_buffer(struct pci_dev *pci_dev,
+static int create_ring_buffer(struct pci_dev *pci_dev,
 		       struct SRingBufferDescriptor *descr, u32 NumBuffers)
 {
 	dma_addr_t tmp;
@@ -2311,8 +1583,6 @@ static int ngene_start(struct ngene *dev)
 		goto fail;
 
 	if (dev->card_info->fw_version == 17) {
-		u8 hdtv_config[6] =
-			{6144 / 64, 0, 0, 2048 / 64, 2048 / 64, 2048 / 64};
 		u8 tsin4_config[6] =
 			{3072 / 64, 3072 / 64, 0, 3072 / 64, 3072 / 64, 0};
 		u8 default_config[6] =
@@ -2321,30 +1591,14 @@ static int ngene_start(struct ngene *dev)
 
 		if (dev->card_info->io_type[3] == NGENE_IO_TSIN)
 			bconf = tsin4_config;
-		if (dev->card_info->io_type[0] == NGENE_IO_HDTV) {
-			bconf = hdtv_config;
-			ngene_reset_decypher(dev);
-		}
 		dprintk(KERN_DEBUG DEVICE_NAME ": FW 17 buffer config\n");
 		stat = ngene_command_config_free_buf(dev, bconf);
 	} else {
 		int bconf = BUFFER_CONFIG_4422;
-
-		if (dev->card_info->io_type[0] == NGENE_IO_HDTV) {
-			bconf = BUFFER_CONFIG_8022;
-			ngene_reset_decypher(dev);
-		}
 		if (dev->card_info->io_type[3] == NGENE_IO_TSIN)
 			bconf = BUFFER_CONFIG_3333;
 		stat = ngene_command_config_buf(dev, bconf);
 	}
-
-	if (dev->card_info->io_type[0] == NGENE_IO_HDTV) {
-		ngene_command_config_uart(dev, 0xc1, tx_cb, rx_cb);
-		test_dec_i2c(&dev->channel[0].i2c_adapter, 0);
-		test_dec_i2c(&dev->channel[0].i2c_adapter, 1);
-	}
-
 	return stat;
 fail:
 	ngwritel(0, NGENE_INT_ENABLE);
@@ -2432,10 +1686,6 @@ static void release_channel(struct ngene_channel *chan)
 	tasklet_kill(&chan->demux_tasklet);
 
 	if (io & (NGENE_IO_TSIN | NGENE_IO_TSOUT)) {
-#ifdef NGENE_COMMAND_API
-		if (chan->command_dev)
-			dvb_unregister_device(chan->command_dev);
-#endif
 		if (chan->fe) {
 			dvb_unregister_frontend(chan->fe);
 			dvb_frontend_detach(chan->fe);
@@ -2452,7 +1702,6 @@ static void release_channel(struct ngene_channel *chan)
 		if (chan->number == 0 || !one_adapter)
 			dvb_unregister_adapter(&dev->adapter[chan->number]);
 	}
-
 }
 
 static int init_channel(struct ngene_channel *chan)
@@ -2472,10 +1721,6 @@ static int init_channel(struct ngene_channel *chan)
 	if (io & (NGENE_IO_TSIN | NGENE_IO_TSOUT)) {
 		if (nr >= STREAM_AUDIOIN1)
 			chan->DataFormatFlags = DF_SWAP32;
-
-		if (io & NGENE_IO_TSOUT)
-			dec_fw_boot(dev);
-
 		if (nr == 0 || !one_adapter) {
 			adapter = &dev->adapter[nr];
 			ret = dvb_register_adapter(adapter, "nGene",
@@ -2494,14 +1739,6 @@ static int init_channel(struct ngene_channel *chan)
 		ret = my_dvb_dmxdev_ts_card_init(&chan->dmxdev, &chan->demux,
 						 &chan->hw_frontend,
 						 &chan->mem_frontend, adapter);
-		if (io & NGENE_IO_TSOUT) {
-			dvbdemux->write_to_decoder = write_to_decoder;
-		}
-#ifdef NGENE_COMMAND_API
-		dvb_register_device(adapter, &chan->command_dev,
-				    &dvbdev_command, (void *)chan,
-				    DVB_DEVICE_SEC);
-#endif
 	}
 
 	if (io & NGENE_IO_TSIN) {
@@ -2522,7 +1759,6 @@ static int init_channel(struct ngene_channel *chan)
 				       nr);
 			}
 	}
-
 	return ret;
 }
 
@@ -2589,12 +1825,6 @@ static int __devinit ngene_probe(struct pci_dev *pci_dev,
 		goto fail1;
 
 	dev->i2c_current_bus = -1;
-	/* Disable analog TV decoder chips if present */
-	if (copy_eeprom) {
-		i2c_copy_eeprom(&dev->channel[0].i2c_adapter, 0x50, 0x52);
-		i2c_dump_eeprom(&dev->channel[0].i2c_adapter, 0x52);
-	}
-	/*i2c_check_eeprom(&dev->i2c_adapter);*/
 
 	/* Register DVB adapters and devices for both channels */
 	if (init_channels(dev) < 0)
