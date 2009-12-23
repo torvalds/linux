@@ -475,12 +475,19 @@ static int ieee80211_ccmp_get_key(void *key, int len, u8 *seq, void *priv)
 static char * ieee80211_ccmp_print_stats(char *p, void *priv)
 {
 	struct ieee80211_ccmp_data *ccmp = priv;
-	p += sprintf(p, "key[%d] alg=CCMP key_set=%d "
-		     "tx_pn=%02x%02x%02x%02x%02x%02x "
-		     "rx_pn=%02x%02x%02x%02x%02x%02x "
-		     "format_errors=%d replays=%d decrypt_errors=%d\n",
-		     ccmp->key_idx, ccmp->key_set,
-		     ccmp->tx_pn, ccmp->rx_pn,
+	int i;
+
+	p += sprintf(p, "key[%d] alg=CCMP key_set=%d tx_pn=",
+		     ccmp->key_idx, ccmp->key_set);
+
+	for (i = 0; i < ARRAY_SIZE(ccmp->tx_pn); i++)
+		p += sprintf(p, "%02x", ccmp->tx_pn[i]);
+
+	sprintf(p, " rx_pn=");
+	for (i = 0; i < ARRAY_SIZE(ccmp->rx_pn); i++)
+		p += sprintf(p, "%02x", ccmp->tx_pn[i]);
+
+	p += sprintf(p, " format_errors=%d replays=%d decrypt_errors=%d\n",
 		     ccmp->dot11RSNAStatsCCMPFormatErrors,
 		     ccmp->dot11RSNAStatsCCMPReplays,
 		     ccmp->dot11RSNAStatsCCMPDecryptErrors);
