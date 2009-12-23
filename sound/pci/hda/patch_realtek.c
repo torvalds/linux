@@ -2551,8 +2551,7 @@ static int alc_build_controls(struct hda_codec *codec)
 		hda_nid_t *nids = spec->capsrc_nids;
 		if (!nids)
 			nids = spec->adc_nids;
-		err = snd_hda_add_nids(codec, kctl, i, nids,
-				       spec->input_mux->num_items);
+		err = snd_hda_add_nid(codec, kctl, i, nids[i]);
 		if (err < 0)
 			return err;
 	}

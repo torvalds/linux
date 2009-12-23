@@ -3537,32 +3537,6 @@ int snd_hda_add_new_ctls(struct hda_codec *codec, struct snd_kcontrol_new *knew)
 }
 EXPORT_SYMBOL_HDA(snd_hda_add_new_ctls);
 
-/**
- * snd_hda_add_nids - assign nids to controls from the array
- * @codec: the HDA codec
- * @kctl: struct snd_kcontrol
- * @index: index to kctl
- * @nids: the array of hda_nid_t
- * @size: count of hda_nid_t items
- *
- * This helper function assigns NIDs in the given array to a control element.
- *
- * Returns 0 if successful, or a negative error code.
- */
-int snd_hda_add_nids(struct hda_codec *codec, struct snd_kcontrol *kctl,
-		     unsigned int index, hda_nid_t *nids, unsigned int size)
-{
-	int err;
-
-	for ( ; size > 0; size--, nids++) {
-		err = snd_hda_add_nid(codec, kctl, index, *nids);
-		if (err < 0)
-			return err;
-	}
-	return 0;
-}
-EXPORT_SYMBOL_HDA(snd_hda_add_nids);
-
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 				unsigned int power_state);
