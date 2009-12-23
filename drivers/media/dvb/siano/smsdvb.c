@@ -134,6 +134,7 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 		break;
 
 	case MSG_SMS_RF_TUNE_RES:
+	case MSG_SMS_ISDBT_TUNE_RES:
 		complete(&client->tune_done);
 		break;
 
@@ -413,8 +414,8 @@ static int smsdvb_get_tune_settings(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int smsdvb_set_frontend(struct dvb_frontend *fe,
-			       struct dvb_frontend_parameters *fep)
+static int smsdvb_dvbt_set_frontend(struct dvb_frontend *fe,
+				    struct dvb_frontend_parameters *fep)
 {
 	struct smsdvb_client_t *client =
 		container_of(fe, struct smsdvb_client_t, frontend);
@@ -468,6 +469,75 @@ static int smsdvb_set_frontend(struct dvb_frontend *fe,
 
 	return smsdvb_sendrequest_and_wait(client, &Msg, sizeof(Msg),
 					   &client->tune_done);
+}
+
+static int smsdvb_isdbt_set_frontend(struct dvb_frontend *fe,
+				     struct dvb_frontend_parameters *fep,
+				     u32 SegmentNumber)
+{
+	struct smsdvb_client_t *client =
+		container_of(fe, struct smsdvb_client_t, frontend);
+
+	struct {
+		struct SmsMsgHdr_ST	Msg;
+		u32		Data[4];
+	} Msg;
+
+	Msg.Msg.msgSrcId  = DVBT_BDA_CONTROL_MSG_ID;
+	Msg.Msg.msgDstId  = HIF_TASK;
+	Msg.Msg.msgFlags  = 0;
+	Msg.Msg.msgType   = MSG_SMS_ISDBT_TUNE_REQ;
+	Msg.Msg.msgLength = sizeof(Msg);
+	Msg.Data[0] = fep->frequency;
+	Msg.Data[2] = 12000000;
+	Msg.Data[3] = SegmentNumber;
+
+	sms_debug("freq %d band %d seg %d\n",
+		  fep->frequency, fep->u.ofdm.bandwidth, SegmentNumber);
+
+	switch (fep->u.ofdm.bandwidth) {
+	case BANDWIDTH_8_MHZ:
+		Msg.Data[1] = BW_ISDBT_3SEG;
+		break;
+	case BANDWIDTH_7_MHZ:
+		Msg.Data[1] = BW_ISDBT_3SEG;
+		break;
+	case BANDWIDTH_6_MHZ:
+		Msg.Data[1] = BW_ISDBT_1SEG;
+		break;
+	case BANDWIDTH_AUTO:
+		return -EOPNOTSUPP;
+	default:
+		return -EINVAL;
+	}
+
+	return smsdvb_sendrequest_and_wait(client, &Msg, sizeof(Msg),
+					   &client->tune_done);
+}
+
+static int smsdvb_set_frontend(struct dvb_frontend *fe,
+			       struct dvb_frontend_parameters *fep)
+{
+	struct smsdvb_client_t *client =
+		container_of(fe, struct smsdvb_client_t, frontend);
+	struct smscore_device_t *coredev = client->coredev;
+
+	switch (smscore_get_device_mode(coredev)) {
+	case DEVICE_MODE_DVBT:
+	case DEVICE_MODE_DVBT_BDA:
+		return smsdvb_dvbt_set_frontend(fe, fep);
+	case DEVICE_MODE_ISDBT:
+	case DEVICE_MODE_ISDBT_BDA:
+	{
+		u32 segmentnum;
+		/* XXX: hack - use 4 lower bits in frequency for segment num */
+		segmentnum = fep->frequency & 0x0000000f;
+		fep->frequency &= ~0x0000000f;
+		return smsdvb_isdbt_set_frontend(fe, fep, segmentnum);
+	}
+	default:
+		return -EINVAL;
+	}
 }
 
 static int smsdvb_get_frontend(struct dvb_frontend *fe,
@@ -557,13 +627,6 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 	/* device removal handled by onremove callback */
 	if (!arrival)
 		return 0;
-
-	if (smscore_get_device_mode(coredev) != DEVICE_MODE_DVBT_BDA) {
-		sms_err("SMS Device mode is not set for "
-			"DVB operation.");
-		return 0;
-	}
-
 	client = kzalloc(sizeof(struct smsdvb_client_t), GFP_KERNEL);
 	if (!client) {
 		sms_err("kmalloc() failed");
