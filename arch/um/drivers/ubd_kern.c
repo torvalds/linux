@@ -27,6 +27,7 @@
 #include "linux/init.h"
 #include "linux/cdrom.h"
 #include "linux/proc_fs.h"
+#include "linux/seq_file.h"
 #include "linux/ctype.h"
 #include "linux/capability.h"
 #include "linux/mm.h"
@@ -200,22 +201,24 @@ static void make_proc_ide(void)
 	proc_ide = proc_mkdir("ide0", proc_ide_root);
 }
 
-static int proc_ide_read_media(char *page, char **start, off_t off, int count,
-			       int *eof, void *data)
+static int fake_ide_media_proc_show(struct seq_file *m, void *v)
 {
-	int len;
-
-	strcpy(page, "disk\n");
-	len = strlen("disk\n");
-	len -= off;
-	if (len < count){
-		*eof = 1;
-		if (len <= 0) return 0;
-	}
-	else len = count;
-	*start = page + off;
-	return len;
+	seq_puts(m, "disk\n");
+	return 0;
 }
+
+static int fake_ide_media_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, fake_ide_media_proc_show, NULL);
+}
+
+static const struct file_operations fake_ide_media_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= fake_ide_media_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 static void make_ide_entries(const char *dev_name)
 {
@@ -227,11 +230,8 @@ static void make_ide_entries(const char *dev_name)
 	dir = proc_mkdir(dev_name, proc_ide);
 	if(!dir) return;
 
-	ent = create_proc_entry("media", S_IFREG|S_IRUGO, dir);
+	ent = proc_create("media", S_IRUGO, dir, &fake_ide_media_proc_fops);
 	if(!ent) return;
-	ent->data = NULL;
-	ent->read_proc = proc_ide_read_media;
-	ent->write_proc = NULL;
 	snprintf(name, sizeof(name), "ide0/%s", dev_name);
 	proc_symlink(dev_name, proc_ide_root, name);
 }

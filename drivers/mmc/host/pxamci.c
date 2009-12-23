@@ -828,7 +828,7 @@ static int pxamci_resume(struct device *dev)
 	return ret;
 }
 
-static struct dev_pm_ops pxamci_pm_ops = {
+static const struct dev_pm_ops pxamci_pm_ops = {
 	.suspend	= pxamci_suspend,
 	.resume		= pxamci_resume,
 };

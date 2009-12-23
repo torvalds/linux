@@ -258,15 +258,15 @@ static void shmedia_unmapioaddr(unsigned long vaddr)
 	pte_clear(&init_mm, vaddr, ptep);
 }
 
-void __iomem *__ioremap(unsigned long offset, unsigned long size,
-			unsigned long flags)
+void __iomem *__ioremap_caller(unsigned long offset, unsigned long size,
+			       unsigned long flags, void *caller)
 {
 	char name[14];
 
 	sprintf(name, "phys_%08x", (u32)offset);
 	return shmedia_alloc_io(offset, size, name, flags);
 }
-EXPORT_SYMBOL(__ioremap);
+EXPORT_SYMBOL(__ioremap_caller);
 
 void __iounmap(void __iomem *virtual)
 {

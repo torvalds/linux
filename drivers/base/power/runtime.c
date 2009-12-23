@@ -85,6 +85,19 @@ static int __pm_runtime_idle(struct device *dev)
 		dev->bus->pm->runtime_idle(dev);
 
 		spin_lock_irq(&dev->power.lock);
+	} else if (dev->type && dev->type->pm && dev->type->pm->runtime_idle) {
+		spin_unlock_irq(&dev->power.lock);
+
+		dev->type->pm->runtime_idle(dev);
+
+		spin_lock_irq(&dev->power.lock);
+	} else if (dev->class && dev->class->pm
+	    && dev->class->pm->runtime_idle) {
+		spin_unlock_irq(&dev->power.lock);
+
+		dev->class->pm->runtime_idle(dev);
+
+		spin_lock_irq(&dev->power.lock);
 	}
 
 	dev->power.idle_notification = false;
@@ -191,6 +204,22 @@ int __pm_runtime_suspend(struct device *dev, bool from_wq)
 		spin_unlock_irq(&dev->power.lock);
 
 		retval = dev->bus->pm->runtime_suspend(dev);
+
+		spin_lock_irq(&dev->power.lock);
+		dev->power.runtime_error = retval;
+	} else if (dev->type && dev->type->pm
+	    && dev->type->pm->runtime_suspend) {
+		spin_unlock_irq(&dev->power.lock);
+
+		retval = dev->type->pm->runtime_suspend(dev);
+
+		spin_lock_irq(&dev->power.lock);
+		dev->power.runtime_error = retval;
+	} else if (dev->class && dev->class->pm
+	    && dev->class->pm->runtime_suspend) {
+		spin_unlock_irq(&dev->power.lock);
+
+		retval = dev->class->pm->runtime_suspend(dev);
 
 		spin_lock_irq(&dev->power.lock);
 		dev->power.runtime_error = retval;
@@ -356,6 +385,22 @@ int __pm_runtime_resume(struct device *dev, bool from_wq)
 		spin_unlock_irq(&dev->power.lock);
 
 		retval = dev->bus->pm->runtime_resume(dev);
+
+		spin_lock_irq(&dev->power.lock);
+		dev->power.runtime_error = retval;
+	} else if (dev->type && dev->type->pm
+	    && dev->type->pm->runtime_resume) {
+		spin_unlock_irq(&dev->power.lock);
+
+		retval = dev->type->pm->runtime_resume(dev);
+
+		spin_lock_irq(&dev->power.lock);
+		dev->power.runtime_error = retval;
+	} else if (dev->class && dev->class->pm
+	    && dev->class->pm->runtime_resume) {
+		spin_unlock_irq(&dev->power.lock);
+
+		retval = dev->class->pm->runtime_resume(dev);
 
 		spin_lock_irq(&dev->power.lock);
 		dev->power.runtime_error = retval;
@@ -701,15 +746,15 @@ EXPORT_SYMBOL_GPL(pm_request_resume);
  * @dev: Device to handle.
  * @sync: If set and the device is suspended, resume it synchronously.
  *
- * Increment the usage count of the device and if it was zero previously,
- * resume it or submit a resume request for it, depending on the value of @sync.
+ * Increment the usage count of the device and resume it or submit a resume
+ * request for it, depending on the value of @sync.
  */
 int __pm_runtime_get(struct device *dev, bool sync)
 {
-	int retval = 1;
+	int retval;
 
-	if (atomic_add_return(1, &dev->power.usage_count) == 1)
-		retval = sync ? pm_runtime_resume(dev) : pm_request_resume(dev);
+	atomic_inc(&dev->power.usage_count);
+	retval = sync ? pm_runtime_resume(dev) : pm_request_resume(dev);
 
 	return retval;
 }

@@ -35,11 +35,16 @@
 # endif
 #endif
 
-/* Node not present */
-#define NUMA_NO_NODE	(-1)
+/*
+ * to preserve the visibility of NUMA_NO_NODE definition,
+ * moved to there from here.  May be used independent of
+ * CONFIG_NUMA.
+ */
+#include <linux/numa.h>
 
 #ifdef CONFIG_NUMA
 #include <linux/cpumask.h>
+
 #include <asm/mpspec.h>
 
 #ifdef CONFIG_X86_32

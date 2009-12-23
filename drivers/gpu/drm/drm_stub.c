@@ -128,6 +128,7 @@ struct drm_master *drm_master_get(struct drm_master *master)
 	kref_get(&master->refcount);
 	return master;
 }
+EXPORT_SYMBOL(drm_master_get);
 
 static void drm_master_destroy(struct kref *kref)
 {
@@ -170,10 +171,13 @@ void drm_master_put(struct drm_master **master)
 	kref_put(&(*master)->refcount, drm_master_destroy);
 	*master = NULL;
 }
+EXPORT_SYMBOL(drm_master_put);
 
 int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
+	int ret = 0;
+
 	if (file_priv->is_master)
 		return 0;
 
@@ -188,6 +192,13 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 		mutex_lock(&dev->struct_mutex);
 		file_priv->minor->master = drm_master_get(file_priv->master);
 		file_priv->is_master = 1;
+		if (dev->driver->master_set) {
+			ret = dev->driver->master_set(dev, file_priv, false);
+			if (unlikely(ret != 0)) {
+				file_priv->is_master = 0;
+				drm_master_put(&file_priv->minor->master);
+			}
+		}
 		mutex_unlock(&dev->struct_mutex);
 	}
 
@@ -204,6 +215,8 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	mutex_lock(&dev->struct_mutex);
+	if (dev->driver->master_drop)
+		dev->driver->master_drop(dev, file_priv, false);
 	drm_master_put(&file_priv->minor->master);
 	file_priv->is_master = 0;
 	mutex_unlock(&dev->struct_mutex);
@@ -220,9 +233,11 @@ static int drm_fill_in_dev(struct drm_device * dev, struct pci_dev *pdev,
 	INIT_LIST_HEAD(&dev->ctxlist);
 	INIT_LIST_HEAD(&dev->vmalist);
 	INIT_LIST_HEAD(&dev->maplist);
+	INIT_LIST_HEAD(&dev->vblank_event_list);
 
 	spin_lock_init(&dev->count_lock);
 	spin_lock_init(&dev->drw_lock);
+	spin_lock_init(&dev->event_lock);
 	init_timer(&dev->timer);
 	mutex_init(&dev->struct_mutex);
 	mutex_init(&dev->ctxlist_mutex);

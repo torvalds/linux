@@ -1953,6 +1953,8 @@ config BCM63XX_ENET
 
 source "drivers/net/fs_enet/Kconfig"
 
+source "drivers/net/octeon/Kconfig"
+
 endif # NET_ETHERNET
 
 #
@@ -2696,6 +2698,7 @@ config NETXEN_NIC
 config NIU
 	tristate "Sun Neptune 10Gbit Ethernet support"
 	depends on PCI
+	select CRC32
 	help
 	  This enables support for cards based upon Sun's
 	  Neptune chipset.

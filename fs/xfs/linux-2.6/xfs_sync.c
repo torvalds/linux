@@ -44,6 +44,7 @@
 #include "xfs_inode_item.h"
 #include "xfs_rw.h"
 #include "xfs_quota.h"
+#include "xfs_trace.h"
 
 #include <linux/kthread.h>
 #include <linux/freezer.h>
@@ -663,10 +664,9 @@ xfs_syncd_stop(
 	kthread_stop(mp->m_sync_task);
 }
 
-int
+STATIC int
 xfs_reclaim_inode(
 	xfs_inode_t	*ip,
-	int		locked,
 	int		sync_mode)
 {
 	xfs_perag_t	*pag = xfs_get_perag(ip->i_mount, ip->i_ino);
@@ -682,10 +682,6 @@ xfs_reclaim_inode(
 	    !__xfs_iflags_test(ip, XFS_IRECLAIMABLE)) {
 		spin_unlock(&ip->i_flags_lock);
 		write_unlock(&pag->pag_ici_lock);
-		if (locked) {
-			xfs_ifunlock(ip);
-			xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		}
 		return -EAGAIN;
 	}
 	__xfs_iflags_set(ip, XFS_IRECLAIM);
@@ -704,10 +700,8 @@ xfs_reclaim_inode(
 	 * We get the flush lock regardless, though, just to make sure
 	 * we don't free it while it is being flushed.
 	 */
-	if (!locked) {
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		xfs_iflock(ip);
-	}
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	xfs_iflock(ip);
 
 	/*
 	 * In the case of a forced shutdown we rely on xfs_iflush() to
@@ -778,7 +772,7 @@ xfs_reclaim_inode_now(
 	}
 	read_unlock(&pag->pag_ici_lock);
 
-	return xfs_reclaim_inode(ip, 0, flags);
+	return xfs_reclaim_inode(ip, flags);
 }
 
 int

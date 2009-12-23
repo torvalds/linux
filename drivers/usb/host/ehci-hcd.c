@@ -549,7 +549,7 @@ static int ehci_init(struct usb_hcd *hcd)
 	/* controllers may cache some of the periodic schedule ... */
 	hcc_params = ehci_readl(ehci, &ehci->caps->hcc_params);
 	if (HCC_ISOC_CACHE(hcc_params))		// full frame cache
-		ehci->i_thresh = 8;
+		ehci->i_thresh = 2 + 8;
 	else					// N microframes cached
 		ehci->i_thresh = 2 + HCC_ISOC_THRES(hcc_params);
 
@@ -605,6 +605,8 @@ static int ehci_init(struct usb_hcd *hcd)
 	}
 	ehci->command = temp;
 
+	/* Accept arbitrarily long scatter-gather lists */
+	hcd->self.sg_tablesize = ~0;
 	return 0;
 }
 
@@ -1105,9 +1107,19 @@ MODULE_LICENSE ("GPL");
 #define	PLATFORM_DRIVER		ehci_fsl_driver
 #endif
 
+#ifdef CONFIG_USB_EHCI_MXC
+#include "ehci-mxc.c"
+#define PLATFORM_DRIVER		ehci_mxc_driver
+#endif
+
 #ifdef CONFIG_SOC_AU1200
 #include "ehci-au1xxx.c"
 #define	PLATFORM_DRIVER		ehci_hcd_au1xxx_driver
+#endif
+
+#ifdef CONFIG_ARCH_OMAP34XX
+#include "ehci-omap.c"
+#define        PLATFORM_DRIVER         ehci_hcd_omap_driver
 #endif
 
 #ifdef CONFIG_PPC_PS3
@@ -1118,6 +1130,11 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_USB_EHCI_HCD_PPC_OF
 #include "ehci-ppc-of.c"
 #define OF_PLATFORM_DRIVER	ehci_hcd_ppc_of_driver
+#endif
+
+#ifdef CONFIG_XPS_USB_HCD_XILINX
+#include "ehci-xilinx-of.c"
+#define OF_PLATFORM_DRIVER	ehci_hcd_xilinx_of_driver
 #endif
 
 #ifdef CONFIG_PLAT_ORION

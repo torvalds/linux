@@ -103,6 +103,35 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 	return NULL;
 }
 
+static inline int
+in_irq_stack(unsigned long *stack, unsigned long *irq_stack,
+	     unsigned long *irq_stack_end)
+{
+	return (stack >= irq_stack && stack < irq_stack_end);
+}
+
+/*
+ * We are returning from the irq stack and go to the previous one.
+ * If the previous stack is also in the irq stack, then bp in the first
+ * frame of the irq stack points to the previous, interrupted one.
+ * Otherwise we have another level of indirection: We first save
+ * the bp of the previous stack, then we switch the stack to the irq one
+ * and save a new bp that links to the previous one.
+ * (See save_args())
+ */
+static inline unsigned long
+fixup_bp_irq_link(unsigned long bp, unsigned long *stack,
+		  unsigned long *irq_stack, unsigned long *irq_stack_end)
+{
+#ifdef CONFIG_FRAME_POINTER
+	struct stack_frame *frame = (struct stack_frame *)bp;
+
+	if (!in_irq_stack(stack, irq_stack, irq_stack_end))
+		return (unsigned long)frame->next_frame;
+#endif
+	return bp;
+}
+
 /*
  * x86-64 can have up to three kernel stacks:
  * process stack
@@ -159,8 +188,8 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 			if (ops->stack(data, id) < 0)
 				break;
 
-			bp = print_context_stack(tinfo, stack, bp, ops,
-						 data, estack_end, &graph);
+			bp = ops->walk_stack(tinfo, stack, bp, ops,
+					     data, estack_end, &graph);
 			ops->stack(data, "<EOE>");
 			/*
 			 * We link to the next stack via the
@@ -175,7 +204,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 			irq_stack = irq_stack_end -
 				(IRQ_STACK_SIZE - 64) / sizeof(*irq_stack);
 
-			if (stack >= irq_stack && stack < irq_stack_end) {
+			if (in_irq_stack(stack, irq_stack, irq_stack_end)) {
 				if (ops->stack(data, "IRQ") < 0)
 					break;
 				bp = print_context_stack(tinfo, stack, bp,
@@ -186,6 +215,8 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 				 * pointer (index -1 to end) in the IRQ stack:
 				 */
 				stack = (unsigned long *) (irq_stack_end[-1]);
+				bp = fixup_bp_irq_link(bp, stack, irq_stack,
+						       irq_stack_end);
 				irq_stack_end = NULL;
 				ops->stack(data, "EOI");
 				continue;

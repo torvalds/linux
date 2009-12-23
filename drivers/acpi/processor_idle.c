@@ -164,7 +164,7 @@ static void lapic_timer_check_state(int state, struct acpi_processor *pr,
 		pr->power.timer_broadcast_on_state = state;
 }
 
-static void lapic_timer_propagate_broadcast(void *arg)
+static void __lapic_timer_propagate_broadcast(void *arg)
 {
 	struct acpi_processor *pr = (struct acpi_processor *) arg;
 	unsigned long reason;
@@ -173,6 +173,12 @@ static void lapic_timer_propagate_broadcast(void *arg)
 		CLOCK_EVT_NOTIFY_BROADCAST_ON : CLOCK_EVT_NOTIFY_BROADCAST_OFF;
 
 	clockevents_notify(reason, &pr->id);
+}
+
+static void lapic_timer_propagate_broadcast(struct acpi_processor *pr)
+{
+	smp_call_function_single(pr->id, __lapic_timer_propagate_broadcast,
+				 (void *)pr, 1);
 }
 
 /* Power(C) State timer broadcast control */
@@ -638,8 +644,7 @@ static int acpi_processor_power_verify(struct acpi_processor *pr)
 		working++;
 	}
 
-	smp_call_function_single(pr->id, lapic_timer_propagate_broadcast,
-				 pr, 1);
+	lapic_timer_propagate_broadcast(pr);
 
 	return (working);
 }

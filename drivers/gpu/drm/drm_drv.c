@@ -145,6 +145,8 @@ static struct drm_ioctl_desc drm_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_MODE_GETFB, drm_mode_getfb, DRM_MASTER|DRM_CONTROL_ALLOW),
 	DRM_IOCTL_DEF(DRM_IOCTL_MODE_ADDFB, drm_mode_addfb, DRM_MASTER|DRM_CONTROL_ALLOW),
 	DRM_IOCTL_DEF(DRM_IOCTL_MODE_RMFB, drm_mode_rmfb, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_PAGE_FLIP, drm_mode_page_flip_ioctl, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_DIRTYFB, drm_mode_dirtyfb_ioctl, DRM_MASTER|DRM_CONTROL_ALLOW)
 };
 
 #define DRM_CORE_IOCTL_COUNT	ARRAY_SIZE( drm_ioctls )
@@ -366,6 +368,29 @@ module_init(drm_core_init);
 module_exit(drm_core_exit);
 
 /**
+ * Copy and IOCTL return string to user space
+ */
+static int drm_copy_field(char *buf, size_t *buf_len, const char *value)
+{
+	int len;
+
+	/* don't overflow userbuf */
+	len = strlen(value);
+	if (len > *buf_len)
+		len = *buf_len;
+
+	/* let userspace know exact length of driver value (which could be
+	 * larger than the userspace-supplied buffer) */
+	*buf_len = strlen(value);
+
+	/* finally, try filling in the userbuf */
+	if (len && buf)
+		if (copy_to_user(buf, value, len))
+			return -EFAULT;
+	return 0;
+}
+
+/**
  * Get version information
  *
  * \param inode device inode.
@@ -380,16 +405,21 @@ static int drm_version(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
 	struct drm_version *version = data;
-	int len;
+	int err;
 
 	version->version_major = dev->driver->major;
 	version->version_minor = dev->driver->minor;
 	version->version_patchlevel = dev->driver->patchlevel;
-	DRM_COPY(version->name, dev->driver->name);
-	DRM_COPY(version->date, dev->driver->date);
-	DRM_COPY(version->desc, dev->driver->desc);
+	err = drm_copy_field(version->name, &version->name_len,
+			dev->driver->name);
+	if (!err)
+		err = drm_copy_field(version->date, &version->date_len,
+				dev->driver->date);
+	if (!err)
+		err = drm_copy_field(version->desc, &version->desc_len,
+				dev->driver->desc);
 
-	return 0;
+	return err;
 }
 
 /**
@@ -404,11 +434,11 @@ static int drm_version(struct drm_device *dev, void *data,
  * Looks up the ioctl function in the ::ioctls table, checking for root
  * previleges if so required, and dispatches to the respective function.
  */
-int drm_ioctl(struct inode *inode, struct file *filp,
+long drm_ioctl(struct file *filp,
 	      unsigned int cmd, unsigned long arg)
 {
 	struct drm_file *file_priv = filp->private_data;
-	struct drm_device *dev = file_priv->minor->dev;
+	struct drm_device *dev;
 	struct drm_ioctl_desc *ioctl;
 	drm_ioctl_t *func;
 	unsigned int nr = DRM_IOCTL_NR(cmd);
@@ -416,6 +446,7 @@ int drm_ioctl(struct inode *inode, struct file *filp,
 	char stack_kdata[128];
 	char *kdata = NULL;
 
+	dev = file_priv->minor->dev;
 	atomic_inc(&dev->ioctl_count);
 	atomic_inc(&dev->counts[_DRM_STAT_IOCTLS]);
 	++file_priv->ioctl_count;
@@ -471,7 +502,13 @@ int drm_ioctl(struct inode *inode, struct file *filp,
 				goto err_i1;
 			}
 		}
-		retcode = func(dev, kdata, file_priv);
+		if (ioctl->flags & DRM_UNLOCKED)
+			retcode = func(dev, kdata, file_priv);
+		else {
+			lock_kernel();
+			retcode = func(dev, kdata, file_priv);
+			unlock_kernel();
+		}
 
 		if (cmd & IOC_OUT) {
 			if (copy_to_user((void __user *)arg, kdata,

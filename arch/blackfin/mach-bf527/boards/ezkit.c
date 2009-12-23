@@ -13,9 +13,6 @@
 #include <linux/mtd/physmap.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
-#if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
-#include <linux/usb/isp1362.h>
-#endif
 #include <linux/i2c.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
@@ -63,7 +60,7 @@ static struct isp1760_platform_data isp1760_priv = {
 };
 
 static struct platform_device bfin_isp1760_device = {
-	.name           = "isp1760-hcd",
+	.name           = "isp1760",
 	.id             = 0,
 	.dev = {
 		.platform_data = &isp1760_priv,
@@ -373,45 +370,6 @@ static struct platform_device sl811_hcd_device = {
 };
 #endif
 
-#if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
-static struct resource isp1362_hcd_resources[] = {
-	{
-		.start = 0x20360000,
-		.end = 0x20360000,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = 0x20360004,
-		.end = 0x20360004,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = CONFIG_USB_ISP1362_BFIN_GPIO_IRQ,
-		.end = CONFIG_USB_ISP1362_BFIN_GPIO_IRQ,
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	},
-};
-
-static struct isp1362_platform_data isp1362_priv = {
-	.sel15Kres = 1,
-	.clknotstop = 0,
-	.oc_enable = 0,
-	.int_act_high = 0,
-	.int_edge_triggered = 0,
-	.remote_wakeup_connected = 0,
-	.no_power_switching = 1,
-	.power_switching_mode = 0,
-};
-
-static struct platform_device isp1362_hcd_device = {
-	.name = "isp1362-hcd",
-	.id = 0,
-	.dev = {
-		.platform_data = &isp1362_priv,
-	},
-	.num_resources = ARRAY_SIZE(isp1362_hcd_resources),
-	.resource = isp1362_hcd_resources,
-};
-#endif
-
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
 static struct platform_device bfin_mii_bus = {
 	.name = "bfin_mii_bus",
@@ -688,12 +646,6 @@ static struct platform_device bfin_spi0_device = {
 };
 #endif  /* spi master and devices */
 
-#if defined(CONFIG_FB_BF537_LQ035) || defined(CONFIG_FB_BF537_LQ035_MODULE)
-static struct platform_device bfin_fb_device = {
-	.name = "bf537-lq035",
-};
-#endif
-
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
 static struct resource bfin_uart_resources[] = {
 #ifdef CONFIG_SERIAL_BFIN_UART0
@@ -850,7 +802,7 @@ static struct platform_device bfin_device_gpiokeys = {
 };
 #endif
 
-#if defined(CONFIG_JOYSTICK_BFIN_ROTARY) || defined(CONFIG_JOYSTICK_BFIN_ROTARY_MODULE)
+#if defined(CONFIG_INPUT_BFIN_ROTARY) || defined(CONFIG_INPUT_BFIN_ROTARY_MODULE)
 #include <linux/input.h>
 #include <asm/bfin_rotary.h>
 
@@ -924,10 +876,6 @@ static struct platform_device *stamp_devices[] __initdata = {
 	&sl811_hcd_device,
 #endif
 
-#if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
-	&isp1362_hcd_device,
-#endif
-
 #if defined(CONFIG_USB_ISP1760_HCD) || defined(CONFIG_USB_ISP1760_HCD_MODULE)
 	&bfin_isp1760_device,
 #endif
@@ -955,10 +903,6 @@ static struct platform_device *stamp_devices[] __initdata = {
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 	&bfin_spi0_device,
-#endif
-
-#if defined(CONFIG_FB_BF537_LQ035) || defined(CONFIG_FB_BF537_LQ035_MODULE)
-	&bfin_fb_device,
 #endif
 
 #if defined(CONFIG_FB_BFIN_T350MCQB) || defined(CONFIG_FB_BFIN_T350MCQB_MODULE)
@@ -991,7 +935,7 @@ static struct platform_device *stamp_devices[] __initdata = {
 	&bfin_device_gpiokeys,
 #endif
 
-#if defined(CONFIG_JOYSTICK_BFIN_ROTARY) || defined(CONFIG_JOYSTICK_BFIN_ROTARY_MODULE)
+#if defined(CONFIG_INPUT_BFIN_ROTARY) || defined(CONFIG_INPUT_BFIN_ROTARY_MODULE)
 	&bfin_rotary_device,
 #endif
 

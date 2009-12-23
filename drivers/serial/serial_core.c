@@ -342,11 +342,11 @@ uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 
 	if (flags == UPF_SPD_HI)
 		altbaud = 57600;
-	if (flags == UPF_SPD_VHI)
+	else if (flags == UPF_SPD_VHI)
 		altbaud = 115200;
-	if (flags == UPF_SPD_SHI)
+	else if (flags == UPF_SPD_SHI)
 		altbaud = 230400;
-	if (flags == UPF_SPD_WARP)
+	else if (flags == UPF_SPD_WARP)
 		altbaud = 460800;
 
 	for (try = 0; try < 2; try++) {
@@ -1217,9 +1217,8 @@ static void uart_set_termios(struct tty_struct *tty,
 	/* Handle transition to B0 status */
 	if ((old_termios->c_cflag & CBAUD) && !(cflag & CBAUD))
 		uart_clear_mctrl(state->uart_port, TIOCM_RTS | TIOCM_DTR);
-
 	/* Handle transition away from B0 status */
-	if (!(old_termios->c_cflag & CBAUD) && (cflag & CBAUD)) {
+	else if (!(old_termios->c_cflag & CBAUD) && (cflag & CBAUD)) {
 		unsigned int mask = TIOCM_DTR;
 		if (!(cflag & CRTSCTS) ||
 		    !test_bit(TTY_THROTTLED, &tty->flags))
@@ -1234,9 +1233,8 @@ static void uart_set_termios(struct tty_struct *tty,
 		__uart_start(tty);
 		spin_unlock_irqrestore(&state->uart_port->lock, flags);
 	}
-
 	/* Handle turning on CRTSCTS */
-	if (!(old_termios->c_cflag & CRTSCTS) && (cflag & CRTSCTS)) {
+	else if (!(old_termios->c_cflag & CRTSCTS) && (cflag & CRTSCTS)) {
 		spin_lock_irqsave(&state->uart_port->lock, flags);
 		if (!(state->uart_port->ops->get_mctrl(state->uart_port) & TIOCM_CTS)) {
 			tty->hw_stopped = 1;
@@ -2344,7 +2342,7 @@ static const struct tty_operations uart_ops = {
  */
 int uart_register_driver(struct uart_driver *drv)
 {
-	struct tty_driver *normal = NULL;
+	struct tty_driver *normal;
 	int i, retval;
 
 	BUG_ON(drv->state);
@@ -2354,13 +2352,12 @@ int uart_register_driver(struct uart_driver *drv)
 	 * we have a large number of ports to handle.
 	 */
 	drv->state = kzalloc(sizeof(struct uart_state) * drv->nr, GFP_KERNEL);
-	retval = -ENOMEM;
 	if (!drv->state)
 		goto out;
 
-	normal  = alloc_tty_driver(drv->nr);
+	normal = alloc_tty_driver(drv->nr);
 	if (!normal)
-		goto out;
+		goto out_kfree;
 
 	drv->tty_driver = normal;
 
@@ -2393,12 +2390,14 @@ int uart_register_driver(struct uart_driver *drv)
 	}
 
 	retval = tty_register_driver(normal);
- out:
-	if (retval < 0) {
-		put_tty_driver(normal);
-		kfree(drv->state);
-	}
-	return retval;
+	if (retval >= 0)
+		return retval;
+
+	put_tty_driver(normal);
+out_kfree:
+	kfree(drv->state);
+out:
+	return -ENOMEM;
 }
 
 /**

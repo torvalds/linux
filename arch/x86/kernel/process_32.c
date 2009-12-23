@@ -23,7 +23,6 @@
 #include <linux/vmalloc.h>
 #include <linux/user.h>
 #include <linux/interrupt.h>
-#include <linux/utsname.h>
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
@@ -35,7 +34,6 @@
 #include <linux/tick.h>
 #include <linux/percpu.h>
 #include <linux/prctl.h>
-#include <linux/dmi.h>
 #include <linux/ftrace.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
@@ -128,7 +126,6 @@ void __show_regs(struct pt_regs *regs, int all)
 	unsigned long d0, d1, d2, d3, d6, d7;
 	unsigned long sp;
 	unsigned short ss, gs;
-	const char *board;
 
 	if (user_mode_vm(regs)) {
 		sp = regs->sp;
@@ -140,16 +137,7 @@ void __show_regs(struct pt_regs *regs, int all)
 		savesegment(gs, gs);
 	}
 
-	printk("\n");
-
-	board = dmi_get_system_info(DMI_PRODUCT_NAME);
-	if (!board)
-		board = "";
-	printk("Pid: %d, comm: %s %s (%s %.*s) %s\n",
-			task_pid_nr(current), current->comm,
-			print_tainted(), init_utsname()->release,
-			(int)strcspn(init_utsname()->version, " "),
-			init_utsname()->version, board);
+	show_regs_common();
 
 	printk("EIP: %04x:[<%08lx>] EFLAGS: %08lx CPU: %d\n",
 			(u16)regs->cs, regs->ip, regs->flags,
@@ -191,39 +179,6 @@ void show_regs(struct pt_regs *regs)
 	show_registers(regs);
 	show_trace(NULL, regs, &regs->sp, regs->bp);
 }
-
-/*
- * This gets run with %bx containing the
- * function to call, and %dx containing
- * the "args".
- */
-extern void kernel_thread_helper(void);
-
-/*
- * Create a kernel thread
- */
-int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
-{
-	struct pt_regs regs;
-
-	memset(&regs, 0, sizeof(regs));
-
-	regs.bx = (unsigned long) fn;
-	regs.dx = (unsigned long) arg;
-
-	regs.ds = __USER_DS;
-	regs.es = __USER_DS;
-	regs.fs = __KERNEL_PERCPU;
-	regs.gs = __KERNEL_STACK_CANARY;
-	regs.orig_ax = -1;
-	regs.ip = (unsigned long) kernel_thread_helper;
-	regs.cs = __KERNEL_CS | get_kernel_rpl();
-	regs.flags = X86_EFLAGS_IF | X86_EFLAGS_SF | X86_EFLAGS_PF | 0x2;
-
-	/* Ok, create the new process.. */
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
-}
-EXPORT_SYMBOL(kernel_thread);
 
 void release_thread(struct task_struct *dead_task)
 {
@@ -434,46 +389,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	percpu_write(current_task, next_p);
 
 	return prev_p;
-}
-
-int sys_clone(struct pt_regs *regs)
-{
-	unsigned long clone_flags;
-	unsigned long newsp;
-	int __user *parent_tidptr, *child_tidptr;
-
-	clone_flags = regs->bx;
-	newsp = regs->cx;
-	parent_tidptr = (int __user *)regs->dx;
-	child_tidptr = (int __user *)regs->di;
-	if (!newsp)
-		newsp = regs->sp;
-	return do_fork(clone_flags, newsp, regs, 0, parent_tidptr, child_tidptr);
-}
-
-/*
- * sys_execve() executes a new program.
- */
-int sys_execve(struct pt_regs *regs)
-{
-	int error;
-	char *filename;
-
-	filename = getname((char __user *) regs->bx);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	error = do_execve(filename,
-			(char __user * __user *) regs->cx,
-			(char __user * __user *) regs->dx,
-			regs);
-	if (error == 0) {
-		/* Make sure we don't return using sysenter.. */
-		set_thread_flag(TIF_IRET);
-	}
-	putname(filename);
-out:
-	return error;
 }
 
 #define top_esp                (THREAD_SIZE - sizeof(unsigned long))

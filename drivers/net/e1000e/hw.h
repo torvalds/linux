@@ -302,6 +302,8 @@ enum e1e_registers {
 #define E1000_KMRNCTRLSTA_OFFSET_SHIFT	16
 #define E1000_KMRNCTRLSTA_REN		0x00200000
 #define E1000_KMRNCTRLSTA_DIAG_OFFSET	0x3    /* Kumeran Diagnostic */
+#define E1000_KMRNCTRLSTA_TIMEOUTS	0x4    /* Kumeran Timeouts */
+#define E1000_KMRNCTRLSTA_INBAND_PARAM	0x9    /* Kumeran InBand Parameters */
 #define E1000_KMRNCTRLSTA_DIAG_NELPBK	0x1000 /* Nearend Loopback mode */
 #define E1000_KMRNCTRLSTA_K1_CONFIG	0x7
 #define E1000_KMRNCTRLSTA_K1_ENABLE	0x140E
@@ -898,6 +900,10 @@ struct e1000_dev_spec_82571 {
 	u32 smb_counter;
 };
 
+struct e1000_dev_spec_80003es2lan {
+	bool  mdic_wa_enable;
+};
+
 struct e1000_shadow_ram {
 	u16  value;
 	bool modified;
@@ -926,6 +932,7 @@ struct e1000_hw {
 
 	union {
 		struct e1000_dev_spec_82571	e82571;
+		struct e1000_dev_spec_80003es2lan e80003es2lan;
 		struct e1000_dev_spec_ich8lan	ich8lan;
 	} dev_spec;
 };

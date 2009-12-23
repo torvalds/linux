@@ -26,7 +26,7 @@
 
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
-#include <linux/i2c/twl4030.h>
+#include <linux/i2c/twl.h>
 #include <linux/usb/otg.h>
 #include <linux/smsc911x.h>
 
@@ -38,11 +38,11 @@
 #include <asm/mach/map.h>
 
 #include <plat/board.h>
-#include <plat/mux.h>
 #include <plat/usb.h>
 #include <plat/common.h>
 #include <plat/mcspi.h>
 
+#include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "mmc-twl4030.h"
 
@@ -223,7 +223,7 @@ static int omap3evm_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
-	omap_cfg_reg(L8_34XX_GPIO63);
+	omap_mux_init_gpio(63, OMAP_PIN_INPUT);
 	mmc[0].gpio_cd = gpio + 0;
 	twl4030_mmc_init(mmc);
 
@@ -422,9 +422,18 @@ static struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 	.reset_gpio_port[2]  = -EINVAL
 };
 
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define board_mux	NULL
+#endif
+
 static void __init omap3_evm_init(void)
 {
 	omap3_evm_get_revision();
+	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 
 	omap3_evm_i2c_init();
 
@@ -440,24 +449,24 @@ static void __init omap3_evm_init(void)
 #endif
 	if (get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2) {
 		/* enable EHCI VBUS using GPIO22 */
-		omap_cfg_reg(AF9_34XX_GPIO22);
+		omap_mux_init_gpio(22, OMAP_PIN_INPUT_PULLUP);
 		gpio_request(OMAP3_EVM_EHCI_VBUS, "enable EHCI VBUS");
 		gpio_direction_output(OMAP3_EVM_EHCI_VBUS, 0);
 		gpio_set_value(OMAP3_EVM_EHCI_VBUS, 1);
 
 		/* Select EHCI port on main board */
-		omap_cfg_reg(U3_34XX_GPIO61);
+		omap_mux_init_gpio(61, OMAP_PIN_INPUT_PULLUP);
 		gpio_request(OMAP3_EVM_EHCI_SELECT, "select EHCI port");
 		gpio_direction_output(OMAP3_EVM_EHCI_SELECT, 0);
 		gpio_set_value(OMAP3_EVM_EHCI_SELECT, 0);
 
 		/* setup EHCI phy reset config */
-		omap_cfg_reg(AH14_34XX_GPIO21);
+		omap_mux_init_gpio(21, OMAP_PIN_INPUT_PULLUP);
 		ehci_pdata.reset_gpio_port[1] = 21;
 
 	} else {
 		/* setup EHCI phy reset on MDC */
-		omap_cfg_reg(AF4_34XX_GPIO135_OUT);
+		omap_mux_init_gpio(135, OMAP_PIN_OUTPUT);
 		ehci_pdata.reset_gpio_port[1] = 135;
 	}
 	usb_musb_init();

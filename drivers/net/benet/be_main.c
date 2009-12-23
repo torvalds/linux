@@ -759,7 +759,7 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 
 	/* vlanf could be wrongly set in some cards.
 	 * ignore if vtm is not set */
-	if ((adapter->cap == 0x400) && !vtm)
+	if ((adapter->cap & 0x400) && !vtm)
 		vlanf = 0;
 
 	skb = netdev_alloc_skb_ip_align(adapter->netdev, BE_HDR_LEN);
@@ -816,7 +816,7 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 
 	/* vlanf could be wrongly set in some cards.
 	 * ignore if vtm is not set */
-	if ((adapter->cap == 0x400) && !vtm)
+	if ((adapter->cap & 0x400) && !vtm)
 		vlanf = 0;
 
 	skb = napi_get_frags(&eq_obj->napi);

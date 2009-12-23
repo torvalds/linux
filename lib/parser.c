@@ -56,13 +56,16 @@ static int match_one(char *s, const char *p, substring_t args[])
 
 		args[argc].from = s;
 		switch (*p++) {
-		case 's':
-			if (strlen(s) == 0)
+		case 's': {
+			size_t str_len = strlen(s);
+
+			if (str_len == 0)
 				return 0;
-			else if (len == -1 || len > strlen(s))
-				len = strlen(s);
+			if (len == -1 || len > str_len)
+				len = str_len;
 			args[argc].to = s + len;
 			break;
+		}
 		case 'd':
 			simple_strtol(s, &args[argc].to, 0);
 			goto num;

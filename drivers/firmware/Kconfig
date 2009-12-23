@@ -7,7 +7,7 @@ menu "Firmware Drivers"
 
 config EDD
 	tristate "BIOS Enhanced Disk Drive calls determine boot disk"
-	depends on !IA64
+	depends on X86
 	help
 	  Say Y or M here if you want to enable BIOS Enhanced Disk Drive
 	  Services real mode BIOS calls to determine which disk
@@ -28,7 +28,7 @@ config EDD_OFF
 
 config FIRMWARE_MEMMAP
     bool "Add firmware-provided memory map to sysfs" if EMBEDDED
-    default (X86_64 || X86_32)
+    default X86
     help
       Add the firmware-provided (unmodified) memory map to /sys/firmware/memmap.
       That memory map is used for example by kexec to set up parameter area

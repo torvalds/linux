@@ -1333,7 +1333,7 @@ static void ipr_log_enhanced_dual_ioa_error(struct ipr_ioa_cfg *ioa_cfg,
 
 	error = &hostrcb->hcam.u.error.u.type_17_error;
 	error->failure_reason[sizeof(error->failure_reason) - 1] = '\0';
-	strstrip(error->failure_reason);
+	strim(error->failure_reason);
 
 	ipr_hcam_err(hostrcb, "%s [PRC: %08X]\n", error->failure_reason,
 		     be32_to_cpu(hostrcb->hcam.u.error.prc));
@@ -1359,7 +1359,7 @@ static void ipr_log_dual_ioa_error(struct ipr_ioa_cfg *ioa_cfg,
 
 	error = &hostrcb->hcam.u.error.u.type_07_error;
 	error->failure_reason[sizeof(error->failure_reason) - 1] = '\0';
-	strstrip(error->failure_reason);
+	strim(error->failure_reason);
 
 	ipr_hcam_err(hostrcb, "%s [PRC: %08X]\n", error->failure_reason,
 		     be32_to_cpu(hostrcb->hcam.u.error.prc));
@@ -6521,6 +6521,7 @@ static int ipr_reset_restore_cfg_space(struct ipr_cmnd *ipr_cmd)
 	int rc;
 
 	ENTER;
+	ioa_cfg->pdev->state_saved = true;
 	rc = pci_restore_state(ioa_cfg->pdev);
 
 	if (rc != PCIBIOS_SUCCESSFUL) {

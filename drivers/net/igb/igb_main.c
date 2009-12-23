@@ -4608,8 +4608,14 @@ static void igb_rcv_msg_from_vf(struct igb_adapter *adapter, u32 vf)
 
 	retval = igb_read_mbx(hw, msgbuf, E1000_VFMAILBOX_SIZE, vf);
 
-	if (retval)
+	if (retval) {
+		/* if receive failed revoke VF CTS stats and restart init */
 		dev_err(&pdev->dev, "Error receiving message from VF\n");
+		vf_data->flags &= ~IGB_VF_FLAG_CTS;
+		if (!time_after(jiffies, vf_data->last_nack + (2 * HZ)))
+			return;
+		goto out;
+	}
 
 	/* this is a message we already processed, do nothing */
 	if (msgbuf[0] & (E1000_VT_MSGTYPE_ACK | E1000_VT_MSGTYPE_NACK))
@@ -4626,12 +4632,10 @@ static void igb_rcv_msg_from_vf(struct igb_adapter *adapter, u32 vf)
 	}
 
 	if (!(vf_data->flags & IGB_VF_FLAG_CTS)) {
-		msgbuf[0] = E1000_VT_MSGTYPE_NACK;
-		if (time_after(jiffies, vf_data->last_nack + (2 * HZ))) {
-			igb_write_mbx(hw, msgbuf, 1, vf);
-			vf_data->last_nack = jiffies;
-		}
-		return;
+		if (!time_after(jiffies, vf_data->last_nack + (2 * HZ)))
+			return;
+		retval = -1;
+		goto out;
 	}
 
 	switch ((msgbuf[0] & 0xFFFF)) {
@@ -4656,13 +4660,13 @@ static void igb_rcv_msg_from_vf(struct igb_adapter *adapter, u32 vf)
 		break;
 	}
 
+	msgbuf[0] |= E1000_VT_MSGTYPE_CTS;
+out:
 	/* notify the VF of the results of what it sent us */
 	if (retval)
 		msgbuf[0] |= E1000_VT_MSGTYPE_NACK;
 	else
 		msgbuf[0] |= E1000_VT_MSGTYPE_ACK;
-
-	msgbuf[0] |= E1000_VT_MSGTYPE_CTS;
 
 	igb_write_mbx(hw, msgbuf, 1, vf);
 }

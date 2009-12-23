@@ -32,7 +32,6 @@
 #include <linux/nsproxy.h>
 #include <linux/pid.h>
 #include <linux/ipc_namespace.h>
-#include <linux/ima.h>
 
 #include <net/sock.h>
 #include "util.h"
@@ -734,7 +733,6 @@ SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, mode_t, mode,
 		error = PTR_ERR(filp);
 		goto out_putfd;
 	}
-	ima_counts_get(filp);
 
 	fd_install(fd, filp);
 	goto out_upsem;

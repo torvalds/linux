@@ -39,12 +39,12 @@
 #include "cxio_resource.h"
 #include "cxio_hal.h"
 
-static struct kfifo *rhdl_fifo;
+static struct kfifo rhdl_fifo;
 static spinlock_t rhdl_fifo_lock;
 
 #define RANDOM_SIZE 16
 
-static int __cxio_init_resource_fifo(struct kfifo **fifo,
+static int __cxio_init_resource_fifo(struct kfifo *fifo,
 				   spinlock_t *fifo_lock,
 				   u32 nr, u32 skip_low,
 				   u32 skip_high,
@@ -55,12 +55,11 @@ static int __cxio_init_resource_fifo(struct kfifo **fifo,
 	u32 rarray[16];
 	spin_lock_init(fifo_lock);
 
-	*fifo = kfifo_alloc(nr * sizeof(u32), GFP_KERNEL, fifo_lock);
-	if (IS_ERR(*fifo))
+	if (kfifo_alloc(fifo, nr * sizeof(u32), GFP_KERNEL))
 		return -ENOMEM;
 
 	for (i = 0; i < skip_low + skip_high; i++)
-		__kfifo_put(*fifo, (unsigned char *) &entry, sizeof(u32));
+		kfifo_in(fifo, (unsigned char *) &entry, sizeof(u32));
 	if (random) {
 		j = 0;
 		random_bytes = random32();
@@ -72,33 +71,35 @@ static int __cxio_init_resource_fifo(struct kfifo **fifo,
 				random_bytes = random32();
 			}
 			idx = (random_bytes >> (j * 2)) & 0xF;
-			__kfifo_put(*fifo,
+			kfifo_in(fifo,
 				(unsigned char *) &rarray[idx],
 				sizeof(u32));
 			rarray[idx] = i;
 			j++;
 		}
 		for (i = 0; i < RANDOM_SIZE; i++)
-			__kfifo_put(*fifo,
+			kfifo_in(fifo,
 				(unsigned char *) &rarray[i],
 				sizeof(u32));
 	} else
 		for (i = skip_low; i < nr - skip_high; i++)
-			__kfifo_put(*fifo, (unsigned char *) &i, sizeof(u32));
+			kfifo_in(fifo, (unsigned char *) &i, sizeof(u32));
 
 	for (i = 0; i < skip_low + skip_high; i++)
-		kfifo_get(*fifo, (unsigned char *) &entry, sizeof(u32));
+		if (kfifo_out_locked(fifo, (unsigned char *) &entry,
+				sizeof(u32), fifo_lock) != sizeof(u32))
+					break;
 	return 0;
 }
 
-static int cxio_init_resource_fifo(struct kfifo **fifo, spinlock_t * fifo_lock,
+static int cxio_init_resource_fifo(struct kfifo *fifo, spinlock_t * fifo_lock,
 				   u32 nr, u32 skip_low, u32 skip_high)
 {
 	return (__cxio_init_resource_fifo(fifo, fifo_lock, nr, skip_low,
 					  skip_high, 0));
 }
 
-static int cxio_init_resource_fifo_random(struct kfifo **fifo,
+static int cxio_init_resource_fifo_random(struct kfifo *fifo,
 				   spinlock_t * fifo_lock,
 				   u32 nr, u32 skip_low, u32 skip_high)
 {
@@ -113,15 +114,13 @@ static int cxio_init_qpid_fifo(struct cxio_rdev *rdev_p)
 
 	spin_lock_init(&rdev_p->rscp->qpid_fifo_lock);
 
-	rdev_p->rscp->qpid_fifo = kfifo_alloc(T3_MAX_NUM_QP * sizeof(u32),
-					      GFP_KERNEL,
-					      &rdev_p->rscp->qpid_fifo_lock);
-	if (IS_ERR(rdev_p->rscp->qpid_fifo))
+	if (kfifo_alloc(&rdev_p->rscp->qpid_fifo, T3_MAX_NUM_QP * sizeof(u32),
+					      GFP_KERNEL))
 		return -ENOMEM;
 
 	for (i = 16; i < T3_MAX_NUM_QP; i++)
 		if (!(i & rdev_p->qpmask))
-			__kfifo_put(rdev_p->rscp->qpid_fifo,
+			kfifo_in(&rdev_p->rscp->qpid_fifo,
 				    (unsigned char *) &i, sizeof(u32));
 	return 0;
 }
@@ -134,7 +133,7 @@ int cxio_hal_init_rhdl_resource(u32 nr_rhdl)
 
 void cxio_hal_destroy_rhdl_resource(void)
 {
-	kfifo_free(rhdl_fifo);
+	kfifo_free(&rhdl_fifo);
 }
 
 /* nr_* must be power of 2 */
@@ -167,11 +166,11 @@ int cxio_hal_init_resource(struct cxio_rdev *rdev_p,
 		goto pdid_err;
 	return 0;
 pdid_err:
-	kfifo_free(rscp->cqid_fifo);
+	kfifo_free(&rscp->cqid_fifo);
 cqid_err:
-	kfifo_free(rscp->qpid_fifo);
+	kfifo_free(&rscp->qpid_fifo);
 qpid_err:
-	kfifo_free(rscp->tpt_fifo);
+	kfifo_free(&rscp->tpt_fifo);
 tpt_err:
 	return -ENOMEM;
 }
@@ -179,33 +178,37 @@ tpt_err:
 /*
  * returns 0 if no resource available
  */
-static u32 cxio_hal_get_resource(struct kfifo *fifo)
+static u32 cxio_hal_get_resource(struct kfifo *fifo, spinlock_t * lock)
 {
 	u32 entry;
-	if (kfifo_get(fifo, (unsigned char *) &entry, sizeof(u32)))
+	if (kfifo_out_locked(fifo, (unsigned char *) &entry, sizeof(u32), lock))
 		return entry;
 	else
 		return 0;	/* fifo emptry */
 }
 
-static void cxio_hal_put_resource(struct kfifo *fifo, u32 entry)
+static void cxio_hal_put_resource(struct kfifo *fifo, spinlock_t * lock,
+		u32 entry)
 {
-	BUG_ON(kfifo_put(fifo, (unsigned char *) &entry, sizeof(u32)) == 0);
+	BUG_ON(
+	kfifo_in_locked(fifo, (unsigned char *) &entry, sizeof(u32), lock)
+	== 0);
 }
 
 u32 cxio_hal_get_stag(struct cxio_hal_resource *rscp)
 {
-	return cxio_hal_get_resource(rscp->tpt_fifo);
+	return cxio_hal_get_resource(&rscp->tpt_fifo, &rscp->tpt_fifo_lock);
 }
 
 void cxio_hal_put_stag(struct cxio_hal_resource *rscp, u32 stag)
 {
-	cxio_hal_put_resource(rscp->tpt_fifo, stag);
+	cxio_hal_put_resource(&rscp->tpt_fifo, &rscp->tpt_fifo_lock, stag);
 }
 
 u32 cxio_hal_get_qpid(struct cxio_hal_resource *rscp)
 {
-	u32 qpid = cxio_hal_get_resource(rscp->qpid_fifo);
+	u32 qpid = cxio_hal_get_resource(&rscp->qpid_fifo,
+			&rscp->qpid_fifo_lock);
 	PDBG("%s qpid 0x%x\n", __func__, qpid);
 	return qpid;
 }
@@ -213,35 +216,35 @@ u32 cxio_hal_get_qpid(struct cxio_hal_resource *rscp)
 void cxio_hal_put_qpid(struct cxio_hal_resource *rscp, u32 qpid)
 {
 	PDBG("%s qpid 0x%x\n", __func__, qpid);
-	cxio_hal_put_resource(rscp->qpid_fifo, qpid);
+	cxio_hal_put_resource(&rscp->qpid_fifo, &rscp->qpid_fifo_lock, qpid);
 }
 
 u32 cxio_hal_get_cqid(struct cxio_hal_resource *rscp)
 {
-	return cxio_hal_get_resource(rscp->cqid_fifo);
+	return cxio_hal_get_resource(&rscp->cqid_fifo, &rscp->cqid_fifo_lock);
 }
 
 void cxio_hal_put_cqid(struct cxio_hal_resource *rscp, u32 cqid)
 {
-	cxio_hal_put_resource(rscp->cqid_fifo, cqid);
+	cxio_hal_put_resource(&rscp->cqid_fifo, &rscp->cqid_fifo_lock, cqid);
 }
 
 u32 cxio_hal_get_pdid(struct cxio_hal_resource *rscp)
 {
-	return cxio_hal_get_resource(rscp->pdid_fifo);
+	return cxio_hal_get_resource(&rscp->pdid_fifo, &rscp->pdid_fifo_lock);
 }
 
 void cxio_hal_put_pdid(struct cxio_hal_resource *rscp, u32 pdid)
 {
-	cxio_hal_put_resource(rscp->pdid_fifo, pdid);
+	cxio_hal_put_resource(&rscp->pdid_fifo, &rscp->pdid_fifo_lock, pdid);
 }
 
 void cxio_hal_destroy_resource(struct cxio_hal_resource *rscp)
 {
-	kfifo_free(rscp->tpt_fifo);
-	kfifo_free(rscp->cqid_fifo);
-	kfifo_free(rscp->qpid_fifo);
-	kfifo_free(rscp->pdid_fifo);
+	kfifo_free(&rscp->tpt_fifo);
+	kfifo_free(&rscp->cqid_fifo);
+	kfifo_free(&rscp->qpid_fifo);
+	kfifo_free(&rscp->pdid_fifo);
 	kfree(rscp);
 }
 

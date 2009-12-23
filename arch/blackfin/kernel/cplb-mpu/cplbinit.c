@@ -92,6 +92,6 @@ void __init generate_cplb_tables_cpu(unsigned int cpu)
 		icplb_tbl[cpu][i_i++].data = 0;
 }
 
-void generate_cplb_tables_all(void)
+void __init generate_cplb_tables_all(void)
 {
 }

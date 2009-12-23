@@ -260,27 +260,27 @@ int filemap_flush(struct address_space *mapping)
 EXPORT_SYMBOL(filemap_flush);
 
 /**
- * wait_on_page_writeback_range - wait for writeback to complete
- * @mapping:	target address_space
- * @start:	beginning page index
- * @end:	ending page index
+ * filemap_fdatawait_range - wait for writeback to complete
+ * @mapping:		address space structure to wait for
+ * @start_byte:		offset in bytes where the range starts
+ * @end_byte:		offset in bytes where the range ends (inclusive)
  *
- * Wait for writeback to complete against pages indexed by start->end
- * inclusive
+ * Walk the list of under-writeback pages of the given address space
+ * in the given range and wait for all of them.
  */
-int wait_on_page_writeback_range(struct address_space *mapping,
-				pgoff_t start, pgoff_t end)
+int filemap_fdatawait_range(struct address_space *mapping, loff_t start_byte,
+			    loff_t end_byte)
 {
+	pgoff_t index = start_byte >> PAGE_CACHE_SHIFT;
+	pgoff_t end = end_byte >> PAGE_CACHE_SHIFT;
 	struct pagevec pvec;
 	int nr_pages;
 	int ret = 0;
-	pgoff_t index;
 
-	if (end < start)
+	if (end_byte < start_byte)
 		return 0;
 
 	pagevec_init(&pvec, 0);
-	index = start;
 	while ((index <= end) &&
 			(nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
 			PAGECACHE_TAG_WRITEBACK,
@@ -310,25 +310,6 @@ int wait_on_page_writeback_range(struct address_space *mapping,
 
 	return ret;
 }
-
-/**
- * filemap_fdatawait_range - wait for all under-writeback pages to complete in a given range
- * @mapping: address space structure to wait for
- * @start:	offset in bytes where the range starts
- * @end:	offset in bytes where the range ends (inclusive)
- *
- * Walk the list of under-writeback pages of the given address space
- * in the given range and wait for all of them.
- *
- * This is just a simple wrapper so that callers don't have to convert offsets
- * to page indexes themselves
- */
-int filemap_fdatawait_range(struct address_space *mapping, loff_t start,
-			    loff_t end)
-{
-	return wait_on_page_writeback_range(mapping, start >> PAGE_CACHE_SHIFT,
-					    end >> PAGE_CACHE_SHIFT);
-}
 EXPORT_SYMBOL(filemap_fdatawait_range);
 
 /**
@@ -345,8 +326,7 @@ int filemap_fdatawait(struct address_space *mapping)
 	if (i_size == 0)
 		return 0;
 
-	return wait_on_page_writeback_range(mapping, 0,
-				(i_size - 1) >> PAGE_CACHE_SHIFT);
+	return filemap_fdatawait_range(mapping, 0, i_size - 1);
 }
 EXPORT_SYMBOL(filemap_fdatawait);
 
@@ -393,9 +373,8 @@ int filemap_write_and_wait_range(struct address_space *mapping,
 						 WB_SYNC_ALL);
 		/* See comment of filemap_write_and_wait() */
 		if (err != -EIO) {
-			int err2 = wait_on_page_writeback_range(mapping,
-						lstart >> PAGE_CACHE_SHIFT,
-						lend >> PAGE_CACHE_SHIFT);
+			int err2 = filemap_fdatawait_range(mapping,
+						lstart, lend);
 			if (!err)
 				err = err2;
 		}
@@ -2261,7 +2240,6 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 		size_t count, ssize_t written)
 {
 	struct file *file = iocb->ki_filp;
-	struct address_space *mapping = file->f_mapping;
 	ssize_t status;
 	struct iov_iter i;
 
@@ -2273,15 +2251,6 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 		*ppos = pos + status;
   	}
 	
-	/*
-	 * If we get here for O_DIRECT writes then we must have fallen through
-	 * to buffered writes (block instantiation inside i_size).  So we sync
-	 * the file data here, to try to honour O_DIRECT expectations.
-	 */
-	if (unlikely(file->f_flags & O_DIRECT) && written)
-		status = filemap_write_and_wait_range(mapping,
-					pos, pos + written - 1);
-
 	return written ? written : status;
 }
 EXPORT_SYMBOL(generic_file_buffered_write);
@@ -2380,10 +2349,7 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		 * semantics.
 		 */
 		endbyte = pos + written_buffered - written - 1;
-		err = do_sync_mapping_range(file->f_mapping, pos, endbyte,
-					    SYNC_FILE_RANGE_WAIT_BEFORE|
-					    SYNC_FILE_RANGE_WRITE|
-					    SYNC_FILE_RANGE_WAIT_AFTER);
+		err = filemap_write_and_wait_range(file->f_mapping, pos, endbyte);
 		if (err == 0) {
 			written = written_buffered;
 			invalidate_mapping_pages(mapping,

@@ -1163,7 +1163,7 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	priv->dev = dev;
 	priv->ring_size = 64;
 	priv->msg_enable = netif_msg_init(debug_level, 0xff);
-	memcpy(dev->dev_addr, pdata->dev_addr, sizeof(dev->dev_addr));
+	memcpy(dev->dev_addr, pdata->dev_addr, sizeof(pdata->dev_addr));
 
 	snprintf(priv->phy_name, MII_BUS_ID_SIZE, PHY_ID_FMT, mdio_bus_id, phy_id);
 

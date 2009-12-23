@@ -9,7 +9,7 @@ BEGIN {
 }
 
 /^GNU/ {
-	split($4, ver, ".");
+	split($3, ver, ".");
 	if (ver[1] > od_ver ||
 	    (ver[1] == od_ver && ver[2] >= od_sver)) {
 		exit 1;

@@ -50,6 +50,7 @@
 #define IXGBE_DEV_ID_82598EB_XF_LR       0x10F4
 #define IXGBE_DEV_ID_82599_KX4           0x10F7
 #define IXGBE_DEV_ID_82599_KX4_MEZZ      0x1514
+#define IXGBE_DEV_ID_82599_KR            0x1517
 #define IXGBE_DEV_ID_82599_CX4           0x10F9
 #define IXGBE_DEV_ID_82599_SFP           0x10FB
 #define IXGBE_DEV_ID_82599_SFP_EM        0x1507
@@ -839,6 +840,8 @@
 #define IXGBE_SMADARCTL 0x14F10
 #define IXGBE_MPVC      0x04318
 #define IXGBE_SGMIIC    0x04314
+
+#define IXGBE_VALIDATE_LINK_READY_TIMEOUT 50
 
 /* Omer CORECTL */
 #define IXGBE_CORECTL           0x014F00

@@ -54,7 +54,7 @@ struct dtl {
 	int			buf_entries;
 	u64			last_idx;
 };
-static DEFINE_PER_CPU(struct dtl, dtl);
+static DEFINE_PER_CPU(struct dtl, cpu_dtl);
 
 /*
  * Dispatch trace log event mask:
@@ -261,7 +261,7 @@ static int dtl_init(void)
 
 	/* set up the per-cpu log structures */
 	for_each_possible_cpu(i) {
-		struct dtl *dtl = &per_cpu(dtl, i);
+		struct dtl *dtl = &per_cpu(cpu_dtl, i);
 		dtl->cpu = i;
 
 		rc = dtl_setup_file(dtl);

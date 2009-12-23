@@ -679,17 +679,17 @@ static int mxcmci_probe(struct platform_device *pdev)
 {
 	struct mmc_host *mmc;
 	struct mxcmci_host *host = NULL;
-	struct resource *r;
+	struct resource *iores, *r;
 	int ret = 0, irq;
 
 	printk(KERN_INFO "i.MX SDHC driver\n");
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	if (!r || irq < 0)
+	if (!iores || irq < 0)
 		return -EINVAL;
 
-	r = request_mem_region(r->start, resource_size(r), pdev->name);
+	r = request_mem_region(iores->start, resource_size(iores), pdev->name);
 	if (!r)
 		return -EBUSY;
 
@@ -809,7 +809,7 @@ out_iounmap:
 out_free:
 	mmc_free_host(mmc);
 out_release_mem:
-	release_mem_region(host->res->start, resource_size(host->res));
+	release_mem_region(iores->start, resource_size(iores));
 	return ret;
 }
 

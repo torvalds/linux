@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2009 Intel-NE, Inc.  All rights reserved.
+ * Copyright (c) 2006 - 2009 Intel Corporation.  All rights reserved.
  * Copyright (c) 2005 Open Grid Computing, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two

@@ -452,12 +452,18 @@ int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
 	rm = regs->regs[index];
 
 	/* shout about fixups */
-	if (!expected && printk_ratelimit())
-		printk(KERN_NOTICE "Fixing up unaligned %s access "
-		       "in \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
-		       user_mode(regs) ? "userspace" : "kernel",
-		       current->comm, task_pid_nr(current),
-		       (void *)regs->pc, instruction);
+	if (!expected) {
+		if (user_mode(regs) && (se_usermode & 1) && printk_ratelimit())
+			pr_notice("Fixing up unaligned userspace access "
+				  "in \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
+				  current->comm, task_pid_nr(current),
+				  (void *)regs->pc, instruction);
+		else if (se_kernmode_warn && printk_ratelimit())
+			pr_notice("Fixing up unaligned kernel access "
+				  "in \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
+				  current->comm, task_pid_nr(current),
+				  (void *)regs->pc, instruction);
+	}
 
 	ret = -EFAULT;
 	switch (instruction&0xF000) {

@@ -142,7 +142,7 @@ struct sony_laptop_input_s {
 	atomic_t		users;
 	struct input_dev	*jog_dev;
 	struct input_dev	*key_dev;
-	struct kfifo		*fifo;
+	struct kfifo		fifo;
 	spinlock_t		fifo_lock;
 	struct workqueue_struct	*wq;
 };
@@ -300,8 +300,9 @@ static void do_sony_laptop_release_key(struct work_struct *work)
 {
 	struct sony_laptop_keypress kp;
 
-	while (kfifo_get(sony_laptop_input.fifo, (unsigned char *)&kp,
-			 sizeof(kp)) == sizeof(kp)) {
+	while (kfifo_out_locked(&sony_laptop_input.fifo, (unsigned char *)&kp,
+			sizeof(kp), &sony_laptop_input.fifo_lock)
+			== sizeof(kp)) {
 		msleep(10);
 		input_report_key(kp.dev, kp.key, 0);
 		input_sync(kp.dev);
@@ -362,8 +363,9 @@ static void sony_laptop_report_input_event(u8 event)
 		/* we emit the scancode so we can always remap the key */
 		input_event(kp.dev, EV_MSC, MSC_SCAN, event);
 		input_sync(kp.dev);
-		kfifo_put(sony_laptop_input.fifo,
-			  (unsigned char *)&kp, sizeof(kp));
+		kfifo_in_locked(&sony_laptop_input.fifo,
+			  (unsigned char *)&kp, sizeof(kp),
+			  &sony_laptop_input.fifo_lock);
 
 		if (!work_pending(&sony_laptop_release_key_work))
 			queue_work(sony_laptop_input.wq,
@@ -385,12 +387,10 @@ static int sony_laptop_setup_input(struct acpi_device *acpi_device)
 
 	/* kfifo */
 	spin_lock_init(&sony_laptop_input.fifo_lock);
-	sony_laptop_input.fifo =
-		kfifo_alloc(SONY_LAPTOP_BUF_SIZE, GFP_KERNEL,
-			    &sony_laptop_input.fifo_lock);
-	if (IS_ERR(sony_laptop_input.fifo)) {
+	error =
+	 kfifo_alloc(&sony_laptop_input.fifo, SONY_LAPTOP_BUF_SIZE, GFP_KERNEL);
+	if (error) {
 		printk(KERN_ERR DRV_PFX "kfifo_alloc failed\n");
-		error = PTR_ERR(sony_laptop_input.fifo);
 		goto err_dec_users;
 	}
 
@@ -474,7 +474,7 @@ err_destroy_wq:
 	destroy_workqueue(sony_laptop_input.wq);
 
 err_free_kfifo:
-	kfifo_free(sony_laptop_input.fifo);
+	kfifo_free(&sony_laptop_input.fifo);
 
 err_dec_users:
 	atomic_dec(&sony_laptop_input.users);
@@ -500,7 +500,7 @@ static void sony_laptop_remove_input(void)
 	}
 
 	destroy_workqueue(sony_laptop_input.wq);
-	kfifo_free(sony_laptop_input.fifo);
+	kfifo_free(&sony_laptop_input.fifo);
 }
 
 /*********** Platform Device ***********/
@@ -2079,7 +2079,7 @@ static struct attribute_group spic_attribute_group = {
 
 struct sonypi_compat_s {
 	struct fasync_struct	*fifo_async;
-	struct kfifo		*fifo;
+	struct kfifo		fifo;
 	spinlock_t		fifo_lock;
 	wait_queue_head_t	fifo_proc_list;
 	atomic_t		open_count;
@@ -2104,12 +2104,12 @@ static int sonypi_misc_open(struct inode *inode, struct file *file)
 	/* Flush input queue on first open */
 	unsigned long flags;
 
-	spin_lock_irqsave(sonypi_compat.fifo->lock, flags);
+	spin_lock_irqsave(&sonypi_compat.fifo_lock, flags);
 
 	if (atomic_inc_return(&sonypi_compat.open_count) == 1)
-		__kfifo_reset(sonypi_compat.fifo);
+		kfifo_reset(&sonypi_compat.fifo);
 
-	spin_unlock_irqrestore(sonypi_compat.fifo->lock, flags);
+	spin_unlock_irqrestore(&sonypi_compat.fifo_lock, flags);
 
 	return 0;
 }
@@ -2120,17 +2120,18 @@ static ssize_t sonypi_misc_read(struct file *file, char __user *buf,
 	ssize_t ret;
 	unsigned char c;
 
-	if ((kfifo_len(sonypi_compat.fifo) == 0) &&
+	if ((kfifo_len(&sonypi_compat.fifo) == 0) &&
 	    (file->f_flags & O_NONBLOCK))
 		return -EAGAIN;
 
 	ret = wait_event_interruptible(sonypi_compat.fifo_proc_list,
-				       kfifo_len(sonypi_compat.fifo) != 0);
+				       kfifo_len(&sonypi_compat.fifo) != 0);
 	if (ret)
 		return ret;
 
 	while (ret < count &&
-	       (kfifo_get(sonypi_compat.fifo, &c, sizeof(c)) == sizeof(c))) {
+	       (kfifo_out_locked(&sonypi_compat.fifo, &c, sizeof(c),
+			  &sonypi_compat.fifo_lock) == sizeof(c))) {
 		if (put_user(c, buf++))
 			return -EFAULT;
 		ret++;
@@ -2147,7 +2148,7 @@ static ssize_t sonypi_misc_read(struct file *file, char __user *buf,
 static unsigned int sonypi_misc_poll(struct file *file, poll_table *wait)
 {
 	poll_wait(file, &sonypi_compat.fifo_proc_list, wait);
-	if (kfifo_len(sonypi_compat.fifo))
+	if (kfifo_len(&sonypi_compat.fifo))
 		return POLLIN | POLLRDNORM;
 	return 0;
 }
@@ -2309,7 +2310,8 @@ static struct miscdevice sonypi_misc_device = {
 
 static void sonypi_compat_report_event(u8 event)
 {
-	kfifo_put(sonypi_compat.fifo, (unsigned char *)&event, sizeof(event));
+	kfifo_in_locked(&sonypi_compat.fifo, (unsigned char *)&event,
+			sizeof(event), &sonypi_compat.fifo_lock);
 	kill_fasync(&sonypi_compat.fifo_async, SIGIO, POLL_IN);
 	wake_up_interruptible(&sonypi_compat.fifo_proc_list);
 }
@@ -2319,11 +2321,11 @@ static int sonypi_compat_init(void)
 	int error;
 
 	spin_lock_init(&sonypi_compat.fifo_lock);
-	sonypi_compat.fifo = kfifo_alloc(SONY_LAPTOP_BUF_SIZE, GFP_KERNEL,
-					 &sonypi_compat.fifo_lock);
-	if (IS_ERR(sonypi_compat.fifo)) {
+	error =
+	 kfifo_alloc(&sonypi_compat.fifo, SONY_LAPTOP_BUF_SIZE, GFP_KERNEL);
+	if (error) {
 		printk(KERN_ERR DRV_PFX "kfifo_alloc failed\n");
-		return PTR_ERR(sonypi_compat.fifo);
+		return error;
 	}
 
 	init_waitqueue_head(&sonypi_compat.fifo_proc_list);
@@ -2342,14 +2344,14 @@ static int sonypi_compat_init(void)
 	return 0;
 
 err_free_kfifo:
-	kfifo_free(sonypi_compat.fifo);
+	kfifo_free(&sonypi_compat.fifo);
 	return error;
 }
 
 static void sonypi_compat_exit(void)
 {
 	misc_deregister(&sonypi_misc_device);
-	kfifo_free(sonypi_compat.fifo);
+	kfifo_free(&sonypi_compat.fifo);
 }
 #else
 static int sonypi_compat_init(void) { return 0; }

@@ -1,7 +1,7 @@
 /*
  * drivers/input/tablet/wacom.h
  *
- *  USB Wacom Graphire and Wacom Intuos tablet support
+ *  USB Wacom tablet support
  *
  *  Copyright (c) 2000-2004 Vojtech Pavlik	<vojtech@ucw.cz>
  *  Copyright (c) 2000 Andreas Bach Aaen	<abach@stofanet.dk>
@@ -69,6 +69,9 @@
  *      v1.49 (pc) - Added support for USB Tablet PC (0x90, 0x93, and 0x9A)
  *      v1.50 (pc) - Fixed a TabletPC touch bug in 2.6.28
  *      v1.51 (pc) - Added support for Intuos4
+ *      v1.52 (pc) - Query Wacom data upon system resume
+ *                 - add defines for features->type
+ *                 - add new devices (0x9F, 0xE2, and 0XE3)
  */
 
 /*
@@ -89,9 +92,9 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v1.51"
+#define DRIVER_VERSION "v1.52"
 #define DRIVER_AUTHOR "Vojtech Pavlik <vojtech@ucw.cz>"
-#define DRIVER_DESC "USB Wacom Graphire and Wacom Intuos tablet driver"
+#define DRIVER_DESC "USB Wacom tablet driver"
 #define DRIVER_LICENSE "GPL"
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
@@ -133,6 +136,8 @@ extern void input_dev_i4s(struct input_dev *input_dev, struct wacom_wac *wacom_w
 extern void input_dev_i4(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_pl(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_pt(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
+extern void input_dev_tpc(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
+extern void input_dev_tpc2fg(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_mo(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_bee(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern __u16 wacom_le16_to_cpu(unsigned char *data);

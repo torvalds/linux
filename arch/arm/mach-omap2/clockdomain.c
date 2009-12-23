@@ -2,7 +2,7 @@
  * OMAP2/3 clockdomain framework functions
  *
  * Copyright (C) 2008 Texas Instruments, Inc.
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008-2009 Nokia Corporation
  *
  * Written by Paul Walmsley and Jouni Högander
  *
@@ -10,9 +10,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#ifdef CONFIG_OMAP_DEBUG_CLOCKDOMAIN
-#  define DEBUG
-#endif
+#undef DEBUG
 
 #include <linux/module.h>
 #include <linux/kernel.h>

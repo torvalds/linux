@@ -3022,7 +3022,7 @@ static inline ata_xlat_func_t ata_get_xlat_func(struct ata_device *dev, u8 cmd)
 	case WRITE_16:
 		return ata_scsi_rw_xlat;
 
-	case 0x93 /*WRITE_SAME_16*/:
+	case WRITE_SAME_16:
 		return ata_scsi_write_same_xlat;
 
 	case SYNCHRONIZE_CACHE:

@@ -44,6 +44,9 @@ EXPORT_SYMBOL_GPL(xp_region_size);
 unsigned long (*xp_pa) (void *addr);
 EXPORT_SYMBOL_GPL(xp_pa);
 
+unsigned long (*xp_socket_pa) (unsigned long gpa);
+EXPORT_SYMBOL_GPL(xp_socket_pa);
+
 enum xp_retval (*xp_remote_memcpy) (unsigned long dst_gpa,
 				    const unsigned long src_gpa, size_t len);
 EXPORT_SYMBOL_GPL(xp_remote_memcpy);

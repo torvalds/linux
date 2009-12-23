@@ -63,7 +63,7 @@
 #ifndef __iwl_core_h__
 #define __iwl_core_h__
 
-#include <linux/utsrelease.h>
+#include <generated/utsrelease.h>
 
 /************************
  * forward declarations *

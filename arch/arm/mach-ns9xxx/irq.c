@@ -66,7 +66,7 @@ static void handle_prio_irq(unsigned int irq, struct irq_desc *desc)
 	struct irqaction *action;
 	irqreturn_t action_ret;
 
-	spin_lock(&desc->lock);
+	raw_spin_lock(&desc->lock);
 
 	BUG_ON(desc->status & IRQ_INPROGRESS);
 
@@ -78,7 +78,7 @@ static void handle_prio_irq(unsigned int irq, struct irq_desc *desc)
 		goto out_mask;
 
 	desc->status |= IRQ_INPROGRESS;
-	spin_unlock(&desc->lock);
+	raw_spin_unlock(&desc->lock);
 
 	action_ret = handle_IRQ_event(irq, action);
 
@@ -87,7 +87,7 @@ static void handle_prio_irq(unsigned int irq, struct irq_desc *desc)
 	 * Maybe this function should go to kernel/irq/chip.c? */
 	note_interrupt(irq, desc, action_ret);
 
-	spin_lock(&desc->lock);
+	raw_spin_lock(&desc->lock);
 	desc->status &= ~IRQ_INPROGRESS;
 
 	if (desc->status & IRQ_DISABLED)
@@ -97,7 +97,7 @@ out_mask:
 	/* ack unconditionally to unmask lower prio irqs */
 	desc->chip->ack(irq);
 
-	spin_unlock(&desc->lock);
+	raw_spin_unlock(&desc->lock);
 }
 #define handle_irq handle_prio_irq
 #endif

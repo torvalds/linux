@@ -24,18 +24,13 @@ struct soc_camera_device {
 	struct device *pdev;		/* Platform device */
 	s32 user_width;
 	s32 user_height;
-	unsigned short width_min;
-	unsigned short height_min;
-	unsigned short y_skip_top;	/* Lines to skip at the top */
+	enum v4l2_colorspace colorspace;
 	unsigned char iface;		/* Host number */
 	unsigned char devnum;		/* Device number per host */
-	unsigned char buswidth;		/* See comment in .c */
 	struct soc_camera_sense *sense;	/* See comment in struct definition */
 	struct soc_camera_ops *ops;
 	struct video_device *vdev;
-	const struct soc_camera_data_format *current_fmt;
-	const struct soc_camera_data_format *formats;
-	int num_formats;
+	const struct soc_camera_format_xlate *current_fmt;
 	struct soc_camera_format_xlate *user_formats;
 	int num_user_formats;
 	enum v4l2_field field;		/* Preserve field over close() */
@@ -107,6 +102,8 @@ struct soc_camera_link {
 	int i2c_adapter_id;
 	struct i2c_board_info *board_info;
 	const char *module_name;
+	void *priv;
+
 	/*
 	 * For non-I2C devices platform platform has to provide methods to
 	 * add a device to the system and to remove
@@ -162,23 +159,13 @@ static inline struct v4l2_subdev *soc_camera_to_subdev(
 int soc_camera_host_register(struct soc_camera_host *ici);
 void soc_camera_host_unregister(struct soc_camera_host *ici);
 
-const struct soc_camera_data_format *soc_camera_format_by_fourcc(
-	struct soc_camera_device *icd, unsigned int fourcc);
 const struct soc_camera_format_xlate *soc_camera_xlate_by_fourcc(
 	struct soc_camera_device *icd, unsigned int fourcc);
 
-struct soc_camera_data_format {
-	const char *name;
-	unsigned int depth;
-	__u32 fourcc;
-	enum v4l2_colorspace colorspace;
-};
-
 /**
  * struct soc_camera_format_xlate - match between host and sensor formats
- * @cam_fmt: sensor format provided by the sensor
- * @host_fmt: host format after host translation from cam_fmt
- * @buswidth: bus width for this format
+ * @code: code of a sensor provided format
+ * @host_fmt: host format after host translation from code
  *
  * Host and sensor translation structure. Used in table of host and sensor
  * formats matchings in soc_camera_device. A host can override the generic list
@@ -186,9 +173,8 @@ struct soc_camera_data_format {
  * format setup.
  */
 struct soc_camera_format_xlate {
-	const struct soc_camera_data_format *cam_fmt;
-	const struct soc_camera_data_format *host_fmt;
-	unsigned char buswidth;
+	enum v4l2_mbus_pixelcode code;
+	const struct soc_mbus_pixelfmt *host_fmt;
 };
 
 struct soc_camera_ops {

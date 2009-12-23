@@ -529,7 +529,7 @@ static int monreader_restore(struct device *dev)
 	return monreader_thaw(dev);
 }
 
-static struct dev_pm_ops monreader_pm_ops = {
+static const struct dev_pm_ops monreader_pm_ops = {
 	.freeze  = monreader_freeze,
 	.thaw	 = monreader_thaw,
 	.restore = monreader_restore,
