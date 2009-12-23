@@ -510,7 +510,8 @@ static int snd_sb8_open(struct snd_pcm_substream *substream)
 	}
 	switch (chip->hardware) {
 	case SB_HW_JAZZ16:
-		runtime->hw.formats |= SNDRV_PCM_FMTBIT_S16_LE;
+		if (chip->dma16 == 5 || chip->dma16 == 7)
+			runtime->hw.formats |= SNDRV_PCM_FMTBIT_S16_LE;
 		runtime->hw.rates |= SNDRV_PCM_RATE_8000_48000;
 		runtime->hw.rate_min = 4000;
 		runtime->hw.rate_max = 50000;

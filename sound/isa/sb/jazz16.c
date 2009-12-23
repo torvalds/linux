@@ -189,10 +189,29 @@ static int __devinit snd_jazz16_match(struct device *devptr, unsigned int dev)
 	if (port[dev] == SNDRV_AUTO_PORT) {
 		snd_printk(KERN_ERR "please specify port\n");
 		return 0;
+	} else if (port[dev] == 0x200 || (port[dev] & ~0x270)) {
+		snd_printk(KERN_ERR "incorrect port specified\n");
+		return 0;
+	}
+	if (dma8[dev] != SNDRV_AUTO_DMA &&
+	    dma8[dev] != 1 && dma8[dev] != 3) {
+		snd_printk(KERN_ERR "dma8 must be 1 or 3\n");
+		return 0;
 	}
 	if (dma16[dev] != SNDRV_AUTO_DMA &&
 	    dma16[dev] != 5 && dma16[dev] != 7) {
-		snd_printk(KERN_ERR "dma16 must be 5 or 7");
+		snd_printk(KERN_ERR "dma16 must be 5 or 7\n");
+		return 0;
+	}
+	if (mpu_port[dev] != SNDRV_AUTO_PORT &&
+	    (mpu_port[dev] & ~0x030) != 0x300) {
+		snd_printk(KERN_ERR "incorrect mpu_port specified\n");
+		return 0;
+	}
+	if (mpu_irq[dev] != SNDRV_AUTO_DMA &&
+	    mpu_irq[dev] != 2 && mpu_irq[dev] != 3 &&
+	    mpu_irq[dev] != 5 && mpu_irq[dev] != 7) {
+		snd_printk(KERN_ERR "mpu_irq must be 2, 3, 5 or 7\n");
 		return 0;
 	}
 	return 1;
