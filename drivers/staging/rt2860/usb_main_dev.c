@@ -296,7 +296,7 @@ static BOOLEAN USBDevConfigInit(IN struct usb_device *dev,
 
 }
 
-static int rtusb_probe(struct usb_interface *intf,
+static int __devinit rtusb_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
 {
 	struct rt_rtmp_adapter *pAd;
