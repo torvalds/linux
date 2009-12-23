@@ -87,8 +87,14 @@ static int qt2025c_wait_heartbeat(struct efx_nic *efx)
 			old_counter = counter;
 		else if (counter != old_counter)
 			break;
-		if (time_after(jiffies, timeout))
+		if (time_after(jiffies, timeout)) {
+			/* Some cables have EEPROMs that conflict with the
+			 * PHY's on-board EEPROM so it cannot load firmware */
+			EFX_ERR(efx, "If an SFP+ direct attach cable is"
+				" connected, please check that it complies"
+				" with the SFP+ specification\n");
 			return -ETIMEDOUT;
+		}
 		msleep(QT2025C_HEARTB_WAIT);
 	}
 
