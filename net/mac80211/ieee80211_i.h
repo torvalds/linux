@@ -228,7 +228,7 @@ struct mesh_preq_queue {
 };
 
 enum ieee80211_mgd_state {
-	IEEE80211_MGD_STATE_IDLE,
+	IEEE80211_MGD_STATE_INVALID,
 	IEEE80211_MGD_STATE_PROBE,
 	IEEE80211_MGD_STATE_AUTH,
 	IEEE80211_MGD_STATE_ASSOC,
@@ -285,7 +285,6 @@ struct ieee80211_if_managed {
 
 	struct mutex mtx;
 	struct ieee80211_bss *associated;
-	struct ieee80211_mgd_work *old_associate_work;
 	struct list_head work_list;
 
 	u8 bssid[ETH_ALEN];
