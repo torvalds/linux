@@ -85,6 +85,7 @@ struct ceph_msg {
 	struct ceph_buffer *middle;
 	struct page **pages;            /* data payload.  NOT OWNER. */
 	unsigned nr_pages;              /* size of page array */
+	struct ceph_pagelist *pagelist; /* instead of pages */
 	struct list_head list_head;
 	struct kref kref;
 	bool front_is_vmalloc;

@@ -13,6 +13,7 @@
 #include "super.h"
 #include "messenger.h"
 #include "decode.h"
+#include "pagelist.h"
 
 /*
  * Ceph uses the messenger to exchange ceph_msg messages with other
@@ -728,6 +729,11 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 			page = msg->pages[con->out_msg_pos.page];
 			if (crc)
 				kaddr = kmap(page);
+		} else if (msg->pagelist) {
+			page = list_first_entry(&msg->pagelist->head,
+						struct page, lru);
+			if (crc)
+				kaddr = kmap(page);
 		} else {
 			page = con->msgr->zero_page;
 			if (crc)
@@ -750,7 +756,7 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 				      MSG_DONTWAIT | MSG_NOSIGNAL |
 				      MSG_MORE);
 
-		if (crc && msg->pages)
+		if (crc && (msg->pages || msg->pagelist))
 			kunmap(page);
 
 		if (ret <= 0)
@@ -762,6 +768,9 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 			con->out_msg_pos.page_pos = 0;
 			con->out_msg_pos.page++;
 			con->out_msg_pos.did_page_crc = 0;
+			if (msg->pagelist)
+				list_move_tail(&page->lru,
+					       &msg->pagelist->head);
 		}
 	}
 
@@ -1051,13 +1060,13 @@ static int process_banner(struct ceph_connection *con)
 				       &con->actual_peer_addr) &&
 	    !(addr_is_blank(&con->actual_peer_addr.in_addr) &&
 	      con->actual_peer_addr.nonce == con->peer_addr.nonce)) {
-		pr_err("wrong peer, want %s/%d, "
-		       "got %s/%d, wtf\n",
+		pr_warning("wrong peer, want %s/%d, "
+		       "got %s/%d\n",
 		       pr_addr(&con->peer_addr.in_addr),
 		       con->peer_addr.nonce,
 		       pr_addr(&con->actual_peer_addr.in_addr),
 		       con->actual_peer_addr.nonce);
-		con->error_msg = "protocol error, wrong peer";
+		con->error_msg = "wrong peer at address";
 		return -1;
 	}
 
@@ -2096,6 +2105,7 @@ struct ceph_msg *ceph_msg_new(int type, int front_len,
 	/* data */
 	m->nr_pages = calc_pages_for(page_off, page_len);
 	m->pages = pages;
+	m->pagelist = NULL;
 
 	dout("ceph_msg_new %p page %d~%d -> %d\n", m, page_off, page_len,
 	     m->nr_pages);
@@ -2180,6 +2190,12 @@ void ceph_msg_last_put(struct kref *kref)
 	}
 	m->nr_pages = 0;
 	m->pages = NULL;
+
+	if (m->pagelist) {
+		ceph_pagelist_release(m->pagelist);
+		kfree(m->pagelist);
+		m->pagelist = NULL;
+	}
 
 	if (m->pool)
 		ceph_msgpool_put(m->pool, m);

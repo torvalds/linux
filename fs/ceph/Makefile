@@ -8,7 +8,7 @@ obj-$(CONFIG_CEPH_FS) += ceph.o
 
 ceph-objs := super.o inode.o dir.o file.o addr.o ioctl.o \
 	export.o caps.o snap.o xattr.o \
-	messenger.o msgpool.o buffer.o \
+	messenger.o msgpool.o buffer.o pagelist.o \
 	mds_client.o mdsmap.o \
 	mon_client.o \
 	osd_client.o osdmap.o crush/crush.o crush/mapper.o crush/hash.o \
