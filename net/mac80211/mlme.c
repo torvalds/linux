@@ -1105,6 +1105,8 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 	else
 		ieee80211_set_wmm_default(sdata);
 
+	local->oper_channel = wk->chan;
+
 	if (elems.ht_info_elem && elems.wmm_param &&
 	    (sdata->local->hw.queues >= 4) &&
 	    !(ifmgd->flags & IEEE80211_STA_DISABLE_11N))
@@ -1797,15 +1799,6 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	wk->sdata = sdata;
 	wk->done = ieee80211_probe_auth_done;
 
-	/*
-	 * XXX: if still associated need to tell AP that we're going
-	 *	to sleep and then change channel etc.
-	 *	For now switch channel here, later will be handled
-	 *	by submitting this as an off-channel work item.
-	 */
-	sdata->local->oper_channel = req->bss->channel;
-	ieee80211_hw_config(sdata->local, 0);
-
 	ieee80211_add_work(wk);
 	return 0;
 }
@@ -1928,9 +1921,6 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		ifmgd->flags |= IEEE80211_STA_CONTROL_PORT;
 	else
 		ifmgd->flags &= ~IEEE80211_STA_CONTROL_PORT;
-
-	sdata->local->oper_channel = req->bss->channel;
-	ieee80211_hw_config(sdata->local, 0);
 
 	ieee80211_add_work(wk);
 	return 0;

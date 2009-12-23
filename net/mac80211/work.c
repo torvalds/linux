@@ -541,39 +541,22 @@ ieee80211_associate(struct ieee80211_work *wk)
 static enum work_action __must_check
 ieee80211_remain_on_channel_timeout(struct ieee80211_work *wk)
 {
-	struct ieee80211_sub_if_data *sdata = wk->sdata;
-	struct ieee80211_local *local = sdata->local;
-
 	/*
 	 * First time we run, do nothing -- the generic code will
 	 * have switched to the right channel etc.
 	 */
-	if (wk->timeout != wk->remain.timeout) {
-		wk->timeout = wk->remain.timeout;
+	if (!wk->remain.started) {
+		wk->remain.started = true;
+		wk->timeout = jiffies + msecs_to_jiffies(wk->remain.duration);
+
+		cfg80211_ready_on_channel(wk->sdata->dev, (u64)wk, wk->chan,
+					  wk->chan_type, wk->remain.duration,
+					  GFP_KERNEL);
+
 		return WORK_ACT_NONE;
 	}
 
-	/*
-	 * We are done serving the remain-on-channel command; kill the work
-	 * item to allow idle state to be entered again. In addition, clear the
-	 * temporary channel information to allow operational channel to be
-	 * used.
-	 */
-	list_del(&wk->list);
-	free_work(wk);
-
-	if (local->tmp_channel) {
-		cfg80211_remain_on_channel_expired(sdata->dev, (u64)wk,
-						   local->tmp_channel,
-						   local->tmp_channel_type,
-						   GFP_KERNEL);
-
-		local->tmp_channel = NULL;
-		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
-		ieee80211_offchannel_return(local, true);
-	}
-
-	return WORK_ACT_NONE;
+	return WORK_ACT_TIMEOUT;
 }
 
 static void ieee80211_auth_challenge(struct ieee80211_work *wk,
@@ -799,7 +782,7 @@ static void ieee80211_work_rx_queued_mgmt(struct ieee80211_local *local,
 		break;
 	case WORK_DONE_REQUEUE:
 		synchronize_rcu();
-		wk->timeout = jiffies; /* run again directly */
+		wk->started = false; /* restart */
 		mutex_lock(&local->work_mtx);
 		list_add_tail(&wk->list, &local->work_list);
 		mutex_unlock(&local->work_mtx);
@@ -827,6 +810,7 @@ static void ieee80211_work_work(struct work_struct *work)
 	struct ieee80211_work *wk, *tmp;
 	LIST_HEAD(free_work);
 	enum work_action rma;
+	bool remain_off_channel = false;
 
 	if (local->scanning)
 		return;
@@ -847,6 +831,34 @@ static void ieee80211_work_work(struct work_struct *work)
 	mutex_lock(&local->work_mtx);
 
 	list_for_each_entry_safe(wk, tmp, &local->work_list, list) {
+		/* mark work as started if it's on the current off-channel */
+		if (!wk->started && local->tmp_channel &&
+		    wk->chan == local->tmp_channel &&
+		    wk->chan_type == local->tmp_channel_type) {
+			wk->started = true;
+		}
+
+		if (!wk->started && !local->tmp_channel) {
+			/*
+			 * TODO: could optimize this by leaving the
+			 *	 station vifs in awake mode if they
+			 *	 happen to be on the same channel as
+			 *	 the requested channel
+			 */
+			ieee80211_offchannel_stop_beaconing(local);
+			ieee80211_offchannel_stop_station(local);
+
+			local->tmp_channel = wk->chan;
+			local->tmp_channel_type = wk->chan_type;
+			ieee80211_hw_config(local, 0);
+			wk->started = true;
+			wk->timeout = jiffies;
+		}
+
+		/* don't try to work with items that aren't started */
+		if (!wk->started)
+			continue;
+
 		if (time_is_after_jiffies(wk->timeout)) {
 			/*
 			 * This work item isn't supposed to be worked on
@@ -881,7 +893,8 @@ static void ieee80211_work_work(struct work_struct *work)
 
 		switch (rma) {
 		case WORK_ACT_NONE:
-			/* no action required */
+			/* might have changed the timeout */
+			run_again(local, wk->timeout);
 			break;
 		case WORK_ACT_TIMEOUT:
 			list_del_rcu(&wk->list);
@@ -893,12 +906,32 @@ static void ieee80211_work_work(struct work_struct *work)
 		}
 	}
 
+	list_for_each_entry(wk, &local->work_list, list) {
+		if (!wk->started)
+			continue;
+		if (wk->chan != local->tmp_channel)
+			continue;
+		if (wk->chan_type != local->tmp_channel_type)
+			continue;
+		remain_off_channel = true;
+	}
+
+	if (!remain_off_channel && local->tmp_channel) {
+		local->tmp_channel = NULL;
+		ieee80211_hw_config(local, 0);
+		ieee80211_offchannel_return(local, true);
+		/* give connection some time to breathe */
+		run_again(local, jiffies + HZ/2);
+	}
+
 	if (list_empty(&local->work_list) && local->scan_req)
 		ieee80211_queue_delayed_work(&local->hw,
 					     &local->scan_work,
 					     round_jiffies_relative(0));
 
 	mutex_unlock(&local->work_mtx);
+
+	ieee80211_recalc_idle(local);
 
 	list_for_each_entry_safe(wk, tmp, &free_work, list) {
 		wk->done(wk, NULL);
@@ -920,7 +953,7 @@ void ieee80211_add_work(struct ieee80211_work *wk)
 	if (WARN_ON(!wk->done))
 		return;
 
-	wk->timeout = jiffies;
+	wk->started = false;
 
 	local = wk->sdata->local;
 	mutex_lock(&local->work_mtx);
@@ -950,6 +983,8 @@ void ieee80211_work_purge(struct ieee80211_sub_if_data *sdata)
 		if (wk->sdata != sdata)
 			continue;
 		wk->type = IEEE80211_WORK_ABORT;
+		wk->started = true;
+		wk->timeout = jiffies;
 	}
 	mutex_unlock(&local->work_mtx);
 
@@ -1004,12 +1039,24 @@ ieee80211_rx_result ieee80211_work_rx_mgmt(struct ieee80211_sub_if_data *sdata,
 	return RX_CONTINUE;
 }
 
+static enum work_done_result ieee80211_remain_done(struct ieee80211_work *wk,
+						   struct sk_buff *skb)
+{
+	/*
+	 * We are done serving the remain-on-channel command.
+	 */
+	cfg80211_remain_on_channel_expired(wk->sdata->dev, (u64)wk,
+					   wk->chan, wk->chan_type,
+					   GFP_KERNEL);
+
+	return WORK_DONE_DESTROY;
+}
+
 int ieee80211_wk_remain_on_channel(struct ieee80211_sub_if_data *sdata,
 				   struct ieee80211_channel *chan,
 				   enum nl80211_channel_type channel_type,
 				   unsigned int duration, u64 *cookie)
 {
-	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_work *wk;
 
 	wk = kzalloc(sizeof(*wk), GFP_KERNEL);
@@ -1018,27 +1065,15 @@ int ieee80211_wk_remain_on_channel(struct ieee80211_sub_if_data *sdata,
 
 	wk->type = IEEE80211_WORK_REMAIN_ON_CHANNEL;
 	wk->chan = chan;
+	wk->chan_type = channel_type;
 	wk->sdata = sdata;
+	wk->done = ieee80211_remain_done;
 
-	wk->remain.timeout = jiffies + msecs_to_jiffies(duration);
+	wk->remain.duration = duration;
 
 	*cookie = (u64)wk;
 
 	ieee80211_add_work(wk);
-
-	/*
-	 * TODO: could optimize this by leaving the station vifs in awake mode
-	 * if they happen to be on the same channel as the requested channel
-	 */
-	ieee80211_offchannel_stop_beaconing(local);
-	ieee80211_offchannel_stop_station(local);
-
-	sdata->local->tmp_channel = chan;
-	sdata->local->tmp_channel_type = channel_type;
-	ieee80211_hw_config(sdata->local, IEEE80211_CONF_CHANGE_CHANNEL);
-
-	cfg80211_ready_on_channel(sdata->dev, (u64)wk, chan, channel_type,
-				  duration, GFP_KERNEL);
 
 	return 0;
 }
@@ -1053,9 +1088,8 @@ int ieee80211_wk_cancel_remain_on_channel(struct ieee80211_sub_if_data *sdata,
 	mutex_lock(&local->work_mtx);
 	list_for_each_entry_safe(wk, tmp, &local->work_list, list) {
 		if ((u64)wk == cookie) {
+			wk->timeout = jiffies;
 			found = true;
-			list_del(&wk->list);
-			free_work(wk);
 			break;
 		}
 	}
@@ -1064,14 +1098,7 @@ int ieee80211_wk_cancel_remain_on_channel(struct ieee80211_sub_if_data *sdata,
 	if (!found)
 		return -ENOENT;
 
-	if (sdata->local->tmp_channel) {
-		sdata->local->tmp_channel = NULL;
-		ieee80211_hw_config(sdata->local,
-				    IEEE80211_CONF_CHANGE_CHANNEL);
-		ieee80211_offchannel_return(sdata->local, true);
-	}
-
-	ieee80211_recalc_idle(local);
+	ieee80211_queue_work(&local->hw, &local->work_work);
 
 	return 0;
 }

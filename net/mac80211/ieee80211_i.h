@@ -255,12 +255,14 @@ struct ieee80211_work {
 				      struct sk_buff *skb);
 
 	struct ieee80211_channel *chan;
-	/* XXX: chan type? -- right now not really needed */
+	enum nl80211_channel_type chan_type;
 
 	unsigned long timeout;
 	enum ieee80211_work_type type;
 
 	u8 filter_ta[ETH_ALEN];
+
+	bool started;
 
 	union {
 		struct {
@@ -286,7 +288,8 @@ struct ieee80211_work {
 			bool wmm_used, use_11n;
 		} assoc;
 		struct {
-			unsigned long timeout;
+			u32 duration;
+			bool started;
 		} remain;
 	};
 
