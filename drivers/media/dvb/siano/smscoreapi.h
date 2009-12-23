@@ -212,6 +212,8 @@ struct smscore_device_t {
 #define MSG_SMS_DAB_CHANNEL				607
 #define MSG_SMS_GET_PID_FILTER_LIST_REQ			608
 #define MSG_SMS_GET_PID_FILTER_LIST_RES			609
+#define MSG_SMS_GET_STATISTICS_RES			616
+#define MSG_SMS_GET_STATISTICS_REQ			615
 #define MSG_SMS_HO_PER_SLICES_IND			630
 #define MSG_SMS_SET_ANTENNA_CONFIG_REQ			651
 #define MSG_SMS_SET_ANTENNA_CONFIG_RES			652
@@ -340,7 +342,7 @@ struct SmsFirmware_ST {
 /* Statistics information returned as response for
  * SmsHostApiGetStatistics_Req */
 struct SMSHOSTLIB_STATISTICS_S {
-	u32 Reserved;		/* Reserved */
+	u8 Reserved[5];		/* Reserved */
 
 	/* Common parameters */
 	u32 IsRfLocked;		/* 0 - not locked, 1 - locked */
