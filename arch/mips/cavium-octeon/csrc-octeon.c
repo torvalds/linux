@@ -50,6 +50,13 @@ static struct clocksource clocksource_mips = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
+unsigned long long notrace sched_clock(void)
+{
+	return clocksource_cyc2ns(read_c0_cvmcount(),
+				  clocksource_mips.mult,
+				  clocksource_mips.shift);
+}
+
 void __init plat_time_init(void)
 {
 	clocksource_mips.rating = 300;
