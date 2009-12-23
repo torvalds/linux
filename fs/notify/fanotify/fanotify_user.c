@@ -231,7 +231,7 @@ static void remove_access_response(struct fsnotify_group *group,
 				   struct fsnotify_event *event,
 				   __s32 fd)
 {
-	return 0;
+	return;
 }
 #endif
 
