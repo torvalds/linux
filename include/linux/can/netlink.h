@@ -80,6 +80,7 @@ struct can_ctrlmode {
 #define CAN_CTRLMODE_LOOPBACK	0x1	/* Loopback mode */
 #define CAN_CTRLMODE_LISTENONLY	0x2 	/* Listen-only mode */
 #define CAN_CTRLMODE_3_SAMPLES	0x4	/* Triple sampling mode */
+#define CAN_CTRLMODE_ONE_SHOT	0x8	/* One-Shot mode */
 
 /*
  * CAN device statistics
