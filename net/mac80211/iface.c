@@ -917,6 +917,8 @@ static u32 ieee80211_idle_on(struct ieee80211_local *local)
 	       wiphy_name(local->hw.wiphy));
 #endif
 
+	drv_flush(local, false);
+
 	local->hw.conf.flags |= IEEE80211_CONF_IDLE;
 	return IEEE80211_CONF_CHANGE_IDLE;
 }

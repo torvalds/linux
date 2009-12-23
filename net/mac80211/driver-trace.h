@@ -690,6 +690,27 @@ TRACE_EVENT(drv_ampdu_action,
 		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG, __entry->action, __entry->tid, __entry->ret
 	)
 );
+
+TRACE_EVENT(drv_flush,
+	TP_PROTO(struct ieee80211_local *local, bool drop),
+
+	TP_ARGS(local, drop),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(bool, drop)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->drop = drop;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " drop:%d",
+		LOCAL_PR_ARG, __entry->drop
+	)
+);
 #endif /* !__MAC80211_DRIVER_TRACE || TRACE_HEADER_MULTI_READ */
 
 #undef TRACE_INCLUDE_PATH

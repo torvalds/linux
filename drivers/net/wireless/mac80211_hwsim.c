@@ -896,6 +896,16 @@ static int mac80211_hwsim_ampdu_action(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static void mac80211_hwsim_flush(struct ieee80211_hw *hw, bool drop)
+{
+	/*
+	 * In this special case, there's nothing we need to
+	 * do because hwsim does transmission synchronously.
+	 * In the future, when it does transmissions via
+	 * userspace, we may need to do something.
+	 */
+}
+
 
 static const struct ieee80211_ops mac80211_hwsim_ops =
 {
@@ -912,6 +922,7 @@ static const struct ieee80211_ops mac80211_hwsim_ops =
 	.conf_tx = mac80211_hwsim_conf_tx,
 	CFG80211_TESTMODE_CMD(mac80211_hwsim_testmode_cmd)
 	.ampdu_action = mac80211_hwsim_ampdu_action,
+	.flush = mac80211_hwsim_flush,
 };
 
 

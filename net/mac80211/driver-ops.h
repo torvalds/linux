@@ -259,4 +259,11 @@ static inline void drv_rfkill_poll(struct ieee80211_local *local)
 	if (local->ops->rfkill_poll)
 		local->ops->rfkill_poll(&local->hw);
 }
+
+static inline void drv_flush(struct ieee80211_local *local, bool drop)
+{
+	trace_drv_flush(local, drop);
+	if (local->ops->flush)
+		local->ops->flush(&local->hw, drop);
+}
 #endif /* __MAC80211_DRIVER_OPS */

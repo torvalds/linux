@@ -418,9 +418,10 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local)
 	local->next_scan_state = SCAN_DECISION;
 	local->scan_channel_idx = 0;
 
+	drv_flush(local, false);
+
 	ieee80211_configure_filter(local);
 
-	/* TODO: start scan as soon as all nullfunc frames are ACKed */
 	ieee80211_queue_delayed_work(&local->hw,
 				     &local->scan_work,
 				     IEEE80211_CHANNEL_TIME);
@@ -584,8 +585,16 @@ static void ieee80211_scan_state_leave_oper_channel(struct ieee80211_local *loca
 
 	__set_bit(SCAN_OFF_CHANNEL, &local->scanning);
 
+	/*
+	 * What if the nullfunc frames didn't arrive?
+	 */
+	drv_flush(local, false);
+	if (local->ops->flush)
+		*next_delay = 0;
+	else
+		*next_delay = HZ / 10;
+
 	/* advance to the next channel to be scanned */
-	*next_delay = HZ / 10;
 	local->next_scan_state = SCAN_SET_CHANNEL;
 }
 

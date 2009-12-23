@@ -1545,6 +1545,10 @@ enum ieee80211_ampdu_mlme_action {
  *	and need to call wiphy_rfkill_set_hw_state() in the callback.
  *
  * @testmode_cmd: Implement a cfg80211 test mode command.
+ *
+ * @flush: Flush all pending frames from the hardware queue, making sure
+ *	that the hardware queues are empty. If the parameter @drop is set
+ *	to %true, pending frames may be dropped.
  */
 struct ieee80211_ops {
 	int (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
@@ -1601,6 +1605,7 @@ struct ieee80211_ops {
 #ifdef CONFIG_NL80211_TESTMODE
 	int (*testmode_cmd)(struct ieee80211_hw *hw, void *data, int len);
 #endif
+	void (*flush)(struct ieee80211_hw *hw, bool drop);
 };
 
 /**
