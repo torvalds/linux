@@ -79,6 +79,128 @@ static void radeon_print_power_mode_info(struct radeon_device *rdev)
 	}
 }
 
+static struct radeon_power_state * radeon_pick_power_state(struct radeon_device *rdev,
+							   enum radeon_pm_state_type type)
+{
+	int i;
+	struct radeon_power_state *power_state = NULL;
+
+	switch (type) {
+	case POWER_STATE_TYPE_DEFAULT:
+	default:
+		return rdev->pm.default_power_state;
+	case POWER_STATE_TYPE_POWERSAVE:
+		for (i = 0; i < rdev->pm.num_power_states; i++) {
+			if (rdev->pm.power_state[i].type == POWER_STATE_TYPE_POWERSAVE) {
+				power_state = &rdev->pm.power_state[i];
+				break;
+			}
+		}
+		if (power_state == NULL) {
+			for (i = 0; i < rdev->pm.num_power_states; i++) {
+				if (rdev->pm.power_state[i].type == POWER_STATE_TYPE_BATTERY) {
+					power_state = &rdev->pm.power_state[i];
+					break;
+				}
+			}
+		}
+		break;
+	case POWER_STATE_TYPE_BATTERY:
+		for (i = 0; i < rdev->pm.num_power_states; i++) {
+			if (rdev->pm.power_state[i].type == POWER_STATE_TYPE_BATTERY) {
+				power_state = &rdev->pm.power_state[i];
+				break;
+			}
+		}
+		if (power_state == NULL) {
+			for (i = 0; i < rdev->pm.num_power_states; i++) {
+				if (rdev->pm.power_state[i].type == POWER_STATE_TYPE_POWERSAVE) {
+					power_state = &rdev->pm.power_state[i];
+					break;
+				}
+			}
+		}
+		break;
+	case POWER_STATE_TYPE_BALANCED:
+	case POWER_STATE_TYPE_PERFORMANCE:
+		for (i = 0; i < rdev->pm.num_power_states; i++) {
+			if (rdev->pm.power_state[i].type == type) {
+				power_state = &rdev->pm.power_state[i];
+				break;
+			}
+		}
+		break;
+	}
+
+	if (power_state == NULL)
+		return rdev->pm.default_power_state;
+
+	return power_state;
+}
+
+static struct radeon_pm_clock_info * radeon_pick_clock_mode(struct radeon_device *rdev,
+							    struct radeon_power_state *power_state,
+							    enum radeon_pm_clock_mode_type type)
+{
+	switch (type) {
+	case POWER_MODE_TYPE_DEFAULT:
+	default:
+		return power_state->default_clock_mode;
+	case POWER_MODE_TYPE_LOW:
+		return &power_state->clock_info[0];
+	case POWER_MODE_TYPE_MID:
+		if (power_state->num_clock_modes > 2)
+			return &power_state->clock_info[1];
+		else
+			return &power_state->clock_info[0];
+		break;
+	case POWER_MODE_TYPE_HIGH:
+		return &power_state->clock_info[power_state->num_clock_modes - 1];
+	}
+
+}
+
+static void radeon_get_power_state(struct radeon_device *rdev,
+				   enum radeon_pm_action action)
+{
+	switch (action) {
+	case PM_ACTION_NONE:
+	default:
+		rdev->pm.requested_power_state = rdev->pm.current_power_state;
+		rdev->pm.requested_power_state->requested_clock_mode =
+			rdev->pm.requested_power_state->current_clock_mode;
+		break;
+	case PM_ACTION_MINIMUM:
+		rdev->pm.requested_power_state = radeon_pick_power_state(rdev, POWER_STATE_TYPE_BATTERY);
+		rdev->pm.requested_power_state->requested_clock_mode =
+			radeon_pick_clock_mode(rdev, rdev->pm.requested_power_state, POWER_MODE_TYPE_LOW);
+		break;
+	case PM_ACTION_DOWNCLOCK:
+		rdev->pm.requested_power_state = radeon_pick_power_state(rdev, POWER_STATE_TYPE_POWERSAVE);
+		rdev->pm.requested_power_state->requested_clock_mode =
+			radeon_pick_clock_mode(rdev, rdev->pm.requested_power_state, POWER_MODE_TYPE_MID);
+		break;
+	case PM_ACTION_UPCLOCK:
+		rdev->pm.requested_power_state = radeon_pick_power_state(rdev, POWER_STATE_TYPE_DEFAULT);
+		rdev->pm.requested_power_state->requested_clock_mode =
+			radeon_pick_clock_mode(rdev, rdev->pm.requested_power_state, POWER_MODE_TYPE_HIGH);
+		break;
+	}
+}
+
+static void radeon_set_power_state(struct radeon_device *rdev)
+{
+	if (rdev->pm.requested_power_state == rdev->pm.current_power_state)
+		return;
+	/* set pcie lanes */
+	/* set voltage */
+	/* set engine clock */
+	radeon_set_engine_clock(rdev, rdev->pm.requested_power_state->requested_clock_mode->sclk);
+	/* set memory clock */
+
+	rdev->pm.current_power_state = rdev->pm.requested_power_state;
+}
+
 int radeon_pm_init(struct radeon_device *rdev)
 {
 	rdev->pm.state = PM_STATE_DISABLED;

@@ -601,6 +601,13 @@ enum radeon_pm_state_type {
 	POWER_STATE_TYPE_PERFORMANCE,
 };
 
+enum radeon_pm_clock_mode_type {
+	POWER_MODE_TYPE_DEFAULT,
+	POWER_MODE_TYPE_LOW,
+	POWER_MODE_TYPE_MID,
+	POWER_MODE_TYPE_HIGH,
+};
+
 struct radeon_voltage {
 	enum radeon_voltage_type type;
 	/* gpio voltage */
@@ -641,6 +648,7 @@ struct radeon_power_state {
 	int num_clock_modes;
 	/* currently selected clock mode */
 	struct radeon_pm_clock_info *current_clock_mode;
+	struct radeon_pm_clock_info *requested_clock_mode;
 	struct radeon_pm_clock_info *default_clock_mode;
 	/* non clock info about this state */
 	struct radeon_pm_non_clock_info non_clock_info;
@@ -678,6 +686,7 @@ struct radeon_pm {
 	/* number of valid power states */
 	int                     num_power_states;
 	struct radeon_power_state *current_power_state;
+	struct radeon_power_state *requested_power_state;
 	struct radeon_power_state *default_power_state;
 };
 
