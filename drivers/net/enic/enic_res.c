@@ -74,13 +74,13 @@ int enic_get_vnic_config(struct enic *enic)
 		min_t(u32, ENIC_MAX_WQ_DESCS,
 		max_t(u32, ENIC_MIN_WQ_DESCS,
 		c->wq_desc_count));
-	c->wq_desc_count &= 0xfffffff0; /* must be aligned to groups of 16 */
+	c->wq_desc_count &= 0xffffffe0; /* must be aligned to groups of 32 */
 
 	c->rq_desc_count =
 		min_t(u32, ENIC_MAX_RQ_DESCS,
 		max_t(u32, ENIC_MIN_RQ_DESCS,
 		c->rq_desc_count));
-	c->rq_desc_count &= 0xfffffff0; /* must be aligned to groups of 16 */
+	c->rq_desc_count &= 0xffffffe0; /* must be aligned to groups of 32 */
 
 	if (c->mtu == 0)
 		c->mtu = 1500;
