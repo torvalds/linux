@@ -435,12 +435,6 @@ ieee80211_direct_probe(struct ieee80211_work *wk)
 		 */
 		ieee80211_remove_auth_bss(local, wk);
 
-		/*
-		 * We might have a pending scan which had no chance to run yet
-		 * due to work needing to be done. Hence, queue the STAs work
-		 * again for that.
-		 */
-		ieee80211_queue_work(&local->hw, &local->work_work);
 		return WORK_ACT_TIMEOUT;
 	}
 
@@ -478,12 +472,6 @@ ieee80211_authenticate(struct ieee80211_work *wk)
 		 */
 		ieee80211_remove_auth_bss(local, wk);
 
-		/*
-		 * We might have a pending scan which had no chance to run yet
-		 * due to work needing to be done. Hence, queue the STAs work
-		 * again for that.
-		 */
-		ieee80211_queue_work(&local->hw, &local->work_work);
 		return WORK_ACT_TIMEOUT;
 	}
 
@@ -519,12 +507,6 @@ ieee80211_associate(struct ieee80211_work *wk)
 		if (wk->assoc.bss)
 			cfg80211_unlink_bss(local->hw.wiphy, wk->assoc.bss);
 
-		/*
-		 * We might have a pending scan which had no chance to run yet
-		 * due to work needing to be done. Hence, queue the STAs work
-		 * again for that.
-		 */
-		ieee80211_queue_work(&local->hw, &local->work_work);
 		return WORK_ACT_TIMEOUT;
 	}
 
