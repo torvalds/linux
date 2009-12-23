@@ -375,12 +375,16 @@ static struct kvm *kvm_create_vm(void)
 	INIT_HLIST_HEAD(&kvm->irq_ack_notifier_list);
 #endif
 
+	r = -ENOMEM;
+	kvm->memslots = kzalloc(sizeof(struct kvm_memslots), GFP_KERNEL);
+	if (!kvm->memslots)
+		goto out_err;
+
 #ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
 	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-	if (!page) {
-		r = -ENOMEM;
+	if (!page)
 		goto out_err;
-	}
+
 	kvm->coalesced_mmio_ring =
 			(struct kvm_coalesced_mmio_ring *)page_address(page);
 #endif
@@ -416,6 +420,7 @@ out:
 out_err:
 	hardware_disable_all();
 out_err_nodisable:
+	kfree(kvm->memslots);
 	kfree(kvm);
 	return ERR_PTR(r);
 }
@@ -450,9 +455,12 @@ static void kvm_free_physmem_slot(struct kvm_memory_slot *free,
 void kvm_free_physmem(struct kvm *kvm)
 {
 	int i;
+	struct kvm_memslots *slots = kvm->memslots;
 
-	for (i = 0; i < kvm->nmemslots; ++i)
-		kvm_free_physmem_slot(&kvm->memslots[i], NULL);
+	for (i = 0; i < slots->nmemslots; ++i)
+		kvm_free_physmem_slot(&slots->memslots[i], NULL);
+
+	kfree(kvm->memslots);
 }
 
 static void kvm_destroy_vm(struct kvm *kvm)
@@ -533,7 +541,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	if (mem->guest_phys_addr + mem->memory_size < mem->guest_phys_addr)
 		goto out;
 
-	memslot = &kvm->memslots[mem->slot];
+	memslot = &kvm->memslots->memslots[mem->slot];
 	base_gfn = mem->guest_phys_addr >> PAGE_SHIFT;
 	npages = mem->memory_size >> PAGE_SHIFT;
 
@@ -554,7 +562,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	/* Check for overlaps */
 	r = -EEXIST;
 	for (i = 0; i < KVM_MEMORY_SLOTS; ++i) {
-		struct kvm_memory_slot *s = &kvm->memslots[i];
+		struct kvm_memory_slot *s = &kvm->memslots->memslots[i];
 
 		if (s == memslot || !s->npages)
 			continue;
@@ -656,8 +664,8 @@ skip_lpage:
 		kvm_arch_flush_shadow(kvm);
 
 	spin_lock(&kvm->mmu_lock);
-	if (mem->slot >= kvm->nmemslots)
-		kvm->nmemslots = mem->slot + 1;
+	if (mem->slot >= kvm->memslots->nmemslots)
+		kvm->memslots->nmemslots = mem->slot + 1;
 
 	*memslot = new;
 	spin_unlock(&kvm->mmu_lock);
@@ -727,7 +735,7 @@ int kvm_get_dirty_log(struct kvm *kvm,
 	if (log->slot >= KVM_MEMORY_SLOTS)
 		goto out;
 
-	memslot = &kvm->memslots[log->slot];
+	memslot = &kvm->memslots->memslots[log->slot];
 	r = -ENOENT;
 	if (!memslot->dirty_bitmap)
 		goto out;
@@ -781,9 +789,10 @@ EXPORT_SYMBOL_GPL(kvm_is_error_hva);
 struct kvm_memory_slot *gfn_to_memslot_unaliased(struct kvm *kvm, gfn_t gfn)
 {
 	int i;
+	struct kvm_memslots *slots = kvm->memslots;
 
-	for (i = 0; i < kvm->nmemslots; ++i) {
-		struct kvm_memory_slot *memslot = &kvm->memslots[i];
+	for (i = 0; i < slots->nmemslots; ++i) {
+		struct kvm_memory_slot *memslot = &slots->memslots[i];
 
 		if (gfn >= memslot->base_gfn
 		    && gfn < memslot->base_gfn + memslot->npages)
@@ -802,10 +811,11 @@ struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
 int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn)
 {
 	int i;
+	struct kvm_memslots *slots = kvm->memslots;
 
 	gfn = unalias_gfn(kvm, gfn);
 	for (i = 0; i < KVM_MEMORY_SLOTS; ++i) {
-		struct kvm_memory_slot *memslot = &kvm->memslots[i];
+		struct kvm_memory_slot *memslot = &slots->memslots[i];
 
 		if (gfn >= memslot->base_gfn
 		    && gfn < memslot->base_gfn + memslot->npages)

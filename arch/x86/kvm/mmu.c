@@ -807,13 +807,14 @@ static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
 {
 	int i, j;
 	int retval = 0;
+	struct kvm_memslots *slots = kvm->memslots;
 
 	/*
 	 * If mmap_sem isn't taken, we can look the memslots with only
 	 * the mmu_lock by skipping over the slots with userspace_addr == 0.
 	 */
-	for (i = 0; i < kvm->nmemslots; i++) {
-		struct kvm_memory_slot *memslot = &kvm->memslots[i];
+	for (i = 0; i < slots->nmemslots; i++) {
+		struct kvm_memory_slot *memslot = &slots->memslots[i];
 		unsigned long start = memslot->userspace_addr;
 		unsigned long end;
 
@@ -3021,8 +3022,8 @@ unsigned int kvm_mmu_calculate_mmu_pages(struct kvm *kvm)
 	unsigned int nr_mmu_pages;
 	unsigned int  nr_pages = 0;
 
-	for (i = 0; i < kvm->nmemslots; i++)
-		nr_pages += kvm->memslots[i].npages;
+	for (i = 0; i < kvm->memslots->nmemslots; i++)
+		nr_pages += kvm->memslots->memslots[i].npages;
 
 	nr_mmu_pages = nr_pages * KVM_PERMILLE_MMU_PAGES / 1000;
 	nr_mmu_pages = max(nr_mmu_pages,
@@ -3295,7 +3296,7 @@ static int count_rmaps(struct kvm_vcpu *vcpu)
 	int i, j, k;
 
 	for (i = 0; i < KVM_MEMORY_SLOTS; ++i) {
-		struct kvm_memory_slot *m = &vcpu->kvm->memslots[i];
+		struct kvm_memory_slot *m = &vcpu->kvm->memslots->memslots[i];
 		struct kvm_rmap_desc *d;
 
 		for (j = 0; j < m->npages; ++j) {

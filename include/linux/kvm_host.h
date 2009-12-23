@@ -150,14 +150,18 @@ struct kvm_irq_routing_table {};
 
 #endif
 
+struct kvm_memslots {
+	int nmemslots;
+	struct kvm_memory_slot memslots[KVM_MEMORY_SLOTS +
+					KVM_PRIVATE_MEM_SLOTS];
+};
+
 struct kvm {
 	spinlock_t mmu_lock;
 	spinlock_t requests_lock;
 	struct rw_semaphore slots_lock;
 	struct mm_struct *mm; /* userspace tied to this vm */
-	int nmemslots;
-	struct kvm_memory_slot memslots[KVM_MEMORY_SLOTS +
-					KVM_PRIVATE_MEM_SLOTS];
+	struct kvm_memslots *memslots;
 #ifdef CONFIG_KVM_APIC_ARCHITECTURE
 	u32 bsp_vcpu_id;
 	struct kvm_vcpu *bsp_vcpu;
@@ -482,7 +486,7 @@ static inline void kvm_guest_exit(void)
 
 static inline int memslot_id(struct kvm *kvm, struct kvm_memory_slot *slot)
 {
-	return slot - kvm->memslots;
+	return slot - kvm->memslots->memslots;
 }
 
 static inline gpa_t gfn_to_gpa(gfn_t gfn)

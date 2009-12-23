@@ -2427,7 +2427,7 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 		spin_lock(&kvm->mmu_lock);
 		kvm_mmu_slot_remove_write_access(kvm, log->slot);
 		spin_unlock(&kvm->mmu_lock);
-		memslot = &kvm->memslots[log->slot];
+		memslot = &kvm->memslots->memslots[log->slot];
 		n = ALIGN(memslot->npages, BITS_PER_LONG) / 8;
 		memset(memslot->dirty_bitmap, 0, n);
 	}
@@ -5223,7 +5223,7 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 				int user_alloc)
 {
 	int npages = mem->memory_size >> PAGE_SHIFT;
-	struct kvm_memory_slot *memslot = &kvm->memslots[mem->slot];
+	struct kvm_memory_slot *memslot = &kvm->memslots->memslots[mem->slot];
 
 	/*To keep backward compatibility with older userspace,
 	 *x86 needs to hanlde !user_alloc case.
