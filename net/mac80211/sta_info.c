@@ -367,7 +367,7 @@ int sta_info_insert(struct sta_info *sta)
 	 * something inserts a STA (on one CPU) without holding the RTNL
 	 * and another CPU turns off the net device.
 	 */
-	if (unlikely(!netif_running(sdata->dev))) {
+	if (unlikely(!ieee80211_sdata_running(sdata))) {
 		err = -ENETDOWN;
 		goto out_free;
 	}

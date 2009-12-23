@@ -78,16 +78,14 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 				  enum nl80211_iftype type, u32 *flags,
 				  struct vif_params *params)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	int ret;
 
-	if (netif_running(dev))
+	if (ieee80211_sdata_running(sdata))
 		return -EBUSY;
 
 	if (!nl80211_params_check(type, params))
 		return -EINVAL;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	ret = ieee80211_if_change_type(sdata, type);
 	if (ret)

@@ -289,7 +289,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 		if (sdata->u.mntr_flags & MONITOR_FLAG_COOK_FRAMES)
 			continue;
 
-		if (!netif_running(sdata->dev))
+		if (!ieee80211_sdata_running(sdata))
 			continue;
 
 		if (prev_dev) {
@@ -2056,7 +2056,7 @@ static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx,
 	skb->protocol = htons(ETH_P_802_2);
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (!netif_running(sdata->dev))
+		if (!ieee80211_sdata_running(sdata))
 			continue;
 
 		if (sdata->vif.type != NL80211_IFTYPE_MONITOR ||
@@ -2318,7 +2318,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	}
 	if (!found_sta) {
 		list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-			if (!netif_running(sdata->dev))
+			if (!ieee80211_sdata_running(sdata))
 				continue;
 
 			if (sdata->vif.type == NL80211_IFTYPE_MONITOR ||

@@ -744,7 +744,7 @@ static void ieee80211_ibss_work(struct work_struct *work)
 	if (WARN_ON(local->suspended))
 		return;
 
-	if (!netif_running(sdata->dev))
+	if (!ieee80211_sdata_running(sdata))
 		return;
 
 	if (local->scanning)
@@ -827,7 +827,7 @@ void ieee80211_ibss_notify_scan_completed(struct ieee80211_local *local)
 
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
-		if (!netif_running(sdata->dev))
+		if (!ieee80211_sdata_running(sdata))
 			continue;
 		if (sdata->vif.type != NL80211_IFTYPE_ADHOC)
 			continue;

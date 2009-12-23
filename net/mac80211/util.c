@@ -468,7 +468,7 @@ void ieee80211_iterate_active_interfaces(
 		case NL80211_IFTYPE_MESH_POINT:
 			break;
 		}
-		if (netif_running(sdata->dev))
+		if (ieee80211_sdata_running(sdata))
 			iterator(data, sdata->vif.addr,
 				 &sdata->vif);
 	}
@@ -502,7 +502,7 @@ void ieee80211_iterate_active_interfaces_atomic(
 		case NL80211_IFTYPE_MESH_POINT:
 			break;
 		}
-		if (netif_running(sdata->dev))
+		if (ieee80211_sdata_running(sdata))
 			iterator(data, sdata->vif.addr,
 				 &sdata->vif);
 	}
@@ -1056,7 +1056,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
 		    sdata->vif.type != NL80211_IFTYPE_MONITOR &&
-		    netif_running(sdata->dev)) {
+		    ieee80211_sdata_running(sdata)) {
 			conf.vif = &sdata->vif;
 			conf.type = sdata->vif.type;
 			conf.mac_addr = sdata->vif.addr;
@@ -1103,7 +1103,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	/* Finally also reconfigure all the BSS information */
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		u32 changed = ~0;
-		if (!netif_running(sdata->dev))
+		if (!ieee80211_sdata_running(sdata))
 			continue;
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_STATION:
@@ -1131,7 +1131,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
 	/* add back keys */
 	list_for_each_entry(sdata, &local->interfaces, list)
-		if (netif_running(sdata->dev))
+		if (ieee80211_sdata_running(sdata))
 			ieee80211_enable_keys(sdata);
 
 	ieee80211_wake_queues_by_reason(hw,

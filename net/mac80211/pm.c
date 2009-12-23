@@ -93,7 +93,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 			break;
 		}
 
-		if (!netif_running(sdata->dev))
+		if (!ieee80211_sdata_running(sdata))
 			continue;
 
 		/* disable beaconing */
