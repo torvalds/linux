@@ -731,7 +731,7 @@ static inline void enic_queue_wq_skb(struct enic *enic,
 
 /* netif_tx_lock held, process context with BHs disabled, or BH */
 static netdev_tx_t enic_hard_start_xmit(struct sk_buff *skb,
-					      struct net_device *netdev)
+	struct net_device *netdev)
 {
 	struct enic *enic = netdev_priv(netdev);
 	struct vnic_wq *wq = &enic->wq[0];
@@ -1824,7 +1824,8 @@ int enic_dev_init(struct enic *enic)
 	err = enic_set_intr_mode(enic);
 	if (err) {
 		printk(KERN_ERR PFX
-			"Failed to set intr mode, aborting.\n");
+			"Failed to set intr mode based on resource "
+			"counts and system capabilities, aborting.\n");
 		return err;
 	}
 
