@@ -20,6 +20,10 @@
 #ifndef _VNIC_ENIC_H_
 #define _VNIC_ENIC_H_
 
+/* Hardware intr coalesce timer is in units of 1.5us */
+#define INTR_COALESCE_USEC_TO_HW(usec) ((usec) * 2/3)
+#define INTR_COALESCE_HW_TO_USEC(usec) ((usec) * 3/2)
+
 /* Device-specific region: enet configuration */
 struct vnic_enet_config {
 	u32 flags;
@@ -30,6 +34,7 @@ struct vnic_enet_config {
 	u8 intr_timer_type;
 	u8 intr_mode;
 	char devname[16];
+	u32 intr_timer_usec;
 };
 
 #define VENETF_TSO		0x1	/* TSO enabled */

@@ -93,6 +93,8 @@ struct enic {
 	unsigned int mc_count;
 	int csum_rx_enabled;
 	u32 port_mtu;
+	u32 rx_coalesce_usecs;
+	u32 tx_coalesce_usecs;
 
 	/* work queue cache line section */
 	____cacheline_aligned struct vnic_wq wq[ENIC_WQ_MAX];

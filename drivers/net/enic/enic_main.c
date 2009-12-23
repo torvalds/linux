@@ -261,6 +261,62 @@ static void enic_set_msglevel(struct net_device *netdev, u32 value)
 	enic->msg_enable = value;
 }
 
+static int enic_get_coalesce(struct net_device *netdev,
+	struct ethtool_coalesce *ecmd)
+{
+	struct enic *enic = netdev_priv(netdev);
+
+	ecmd->tx_coalesce_usecs = enic->tx_coalesce_usecs;
+	ecmd->rx_coalesce_usecs = enic->rx_coalesce_usecs;
+
+	return 0;
+}
+
+static int enic_set_coalesce(struct net_device *netdev,
+	struct ethtool_coalesce *ecmd)
+{
+	struct enic *enic = netdev_priv(netdev);
+	u32 tx_coalesce_usecs;
+	u32 rx_coalesce_usecs;
+
+	tx_coalesce_usecs = min_t(u32,
+		INTR_COALESCE_HW_TO_USEC(VNIC_INTR_TIMER_MAX),
+		ecmd->tx_coalesce_usecs);
+	rx_coalesce_usecs = min_t(u32,
+		INTR_COALESCE_HW_TO_USEC(VNIC_INTR_TIMER_MAX),
+		ecmd->rx_coalesce_usecs);
+
+	switch (vnic_dev_get_intr_mode(enic->vdev)) {
+	case VNIC_DEV_INTR_MODE_INTX:
+		if (tx_coalesce_usecs != rx_coalesce_usecs)
+			return -EINVAL;
+
+		vnic_intr_coalescing_timer_set(&enic->intr[ENIC_INTX_WQ_RQ],
+			INTR_COALESCE_USEC_TO_HW(tx_coalesce_usecs));
+		break;
+	case VNIC_DEV_INTR_MODE_MSI:
+		if (tx_coalesce_usecs != rx_coalesce_usecs)
+			return -EINVAL;
+
+		vnic_intr_coalescing_timer_set(&enic->intr[0],
+			INTR_COALESCE_USEC_TO_HW(tx_coalesce_usecs));
+		break;
+	case VNIC_DEV_INTR_MODE_MSIX:
+		vnic_intr_coalescing_timer_set(&enic->intr[ENIC_MSIX_WQ],
+			INTR_COALESCE_USEC_TO_HW(tx_coalesce_usecs));
+		vnic_intr_coalescing_timer_set(&enic->intr[ENIC_MSIX_RQ],
+			INTR_COALESCE_USEC_TO_HW(rx_coalesce_usecs));
+		break;
+	default:
+		break;
+	}
+
+	enic->tx_coalesce_usecs = tx_coalesce_usecs;
+	enic->rx_coalesce_usecs = rx_coalesce_usecs;
+
+	return 0;
+}
+
 static const struct ethtool_ops enic_ethtool_ops = {
 	.get_settings = enic_get_settings,
 	.get_drvinfo = enic_get_drvinfo,
@@ -278,6 +334,8 @@ static const struct ethtool_ops enic_ethtool_ops = {
 	.set_sg = ethtool_op_set_sg,
 	.get_tso = ethtool_op_get_tso,
 	.set_tso = enic_set_tso,
+	.get_coalesce = enic_get_coalesce,
+	.set_coalesce = enic_set_coalesce,
 	.get_flags = ethtool_op_get_flags,
 	.set_flags = ethtool_op_set_flags,
 };
@@ -363,12 +421,12 @@ static void enic_mtu_check(struct enic *enic)
 	u32 mtu = vnic_dev_mtu(enic->vdev);
 
 	if (mtu && mtu != enic->port_mtu) {
+		enic->port_mtu = mtu;
 		if (mtu < enic->netdev->mtu)
 			printk(KERN_WARNING PFX
 				"%s: interface MTU (%d) set higher "
 				"than switch port MTU (%d)\n",
 				enic->netdev->name, enic->netdev->mtu, mtu);
-		enic->port_mtu = mtu;
 	}
 }
 
@@ -1989,6 +2047,9 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 			"Invalid MAC address, aborting.\n");
 		goto err_out_dev_deinit;
 	}
+
+	enic->tx_coalesce_usecs = enic->config.intr_timer_usec;
+	enic->rx_coalesce_usecs = enic->tx_coalesce_usecs;
 
 	netdev->netdev_ops = &enic_netdev_ops;
 	netdev->watchdog_timeo = 2 * HZ;
