@@ -260,7 +260,7 @@ static int store_debug_level(struct file *file, const char *buffer,
 			     unsigned long count, void *data)
 {
 	char buf[] = "0x00000000";
-	unsigned long len = min(sizeof(buf) - 1, count);
+	unsigned long len = min_t(unsigned long, sizeof(buf) - 1, count);
 	char *p = (char *)buf;
 	unsigned long val;
 
