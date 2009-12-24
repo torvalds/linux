@@ -1276,8 +1276,8 @@ static int soc_new_pcm(struct snd_soc_device *socdev,
 	codec_dai->codec = card->codec;
 
 	/* check client and interface hw capabilities */
-	sprintf(new_name, "%s %s-%d", dai_link->stream_name, codec_dai->name,
-		num);
+	snprintf(new_name, sizeof(new_name), "%s %s-%d",
+		 dai_link->stream_name, codec_dai->name, num);
 
 	if (codec_dai->playback.channels_min)
 		playback = 1;
