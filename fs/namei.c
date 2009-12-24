@@ -1845,8 +1845,6 @@ reval:
 	mutex_lock(&dir->d_inode->i_mutex);
 	path.dentry = lookup_hash(&nd);
 	path.mnt = nd.path.mnt;
-
-do_last:
 	filp = do_last(&nd, &path, open_flag, flag, acc_mode, mode,
 		       pathname, dir, &is_link);
 	if (is_link)
@@ -1926,7 +1924,13 @@ do_link:
 	path.dentry = lookup_hash(&nd);
 	path.mnt = nd.path.mnt;
 	__putname(nd.last.name);
-	goto do_last;
+	filp = do_last(&nd, &path, open_flag, flag, acc_mode, mode,
+		       pathname, dir, &is_link);
+	if (is_link)
+		goto do_link;
+	if (nd.root.mnt)
+		path_put(&nd.root);
+	return filp;
 }
 
 /**
