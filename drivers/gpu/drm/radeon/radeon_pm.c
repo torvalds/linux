@@ -273,6 +273,7 @@ void radeon_pm_compute_clocks(struct radeon_device *rdev)
 
 			rdev->pm.state = PM_STATE_PAUSED;
 			rdev->pm.planned_action = PM_ACTION_UPCLOCK;
+			radeon_get_power_state(rdev, rdev->pm.planned_action);
 			rdev->pm.vblank_callback = true;
 
 			mutex_unlock(&rdev->pm.mutex);
@@ -292,6 +293,7 @@ void radeon_pm_compute_clocks(struct radeon_device *rdev)
 		if (rdev->pm.state == PM_STATE_MINIMUM) {
 			rdev->pm.state = PM_STATE_ACTIVE;
 			rdev->pm.planned_action = PM_ACTION_UPCLOCK;
+			radeon_get_power_state(rdev, rdev->pm.planned_action);
 			radeon_pm_set_clocks_locked(rdev);
 
 			queue_delayed_work(rdev->wq, &rdev->pm.idle_work,
@@ -312,6 +314,7 @@ void radeon_pm_compute_clocks(struct radeon_device *rdev)
 
 			rdev->pm.state = PM_STATE_MINIMUM;
 			rdev->pm.planned_action = PM_ACTION_MINIMUM;
+			radeon_get_power_state(rdev, rdev->pm.planned_action);
 			radeon_pm_set_clocks_locked(rdev);
 		}
 
@@ -324,18 +327,14 @@ static void radeon_pm_set_clocks_locked(struct radeon_device *rdev)
 	/*radeon_fence_wait_last(rdev);*/
 	switch (rdev->pm.planned_action) {
 	case PM_ACTION_UPCLOCK:
-		radeon_get_power_state(rdev, PM_ACTION_UPCLOCK);
 		rdev->pm.downclocked = false;
 		break;
 	case PM_ACTION_DOWNCLOCK:
-		radeon_get_power_state(rdev, PM_ACTION_DOWNCLOCK);
 		rdev->pm.downclocked = true;
 		break;
 	case PM_ACTION_MINIMUM:
-		radeon_get_power_state(rdev, PM_ACTION_MINIMUM);
 		break;
 	case PM_ACTION_NONE:
-		radeon_get_power_state(rdev, PM_ACTION_NONE);
 		DRM_ERROR("%s: PM_ACTION_NONE\n", __func__);
 		break;
 	}
@@ -427,6 +426,7 @@ static void radeon_pm_idle_work_handler(struct work_struct *work)
 				rdev->pm.req_vblank |= (1 << 1);
 				drm_vblank_get(rdev->ddev, 1);
 			}
+			radeon_get_power_state(rdev, rdev->pm.planned_action);
 			rdev->pm.vblank_callback = true;
 		}
 	}
