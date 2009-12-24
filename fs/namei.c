@@ -1873,7 +1873,7 @@ exit_parent:
 
 do_link:
 	error = -ELOOP;
-	if (flag & O_NOFOLLOW)
+	if ((flag & O_NOFOLLOW) || count++ == 32)
 		goto exit_dput;
 	/*
 	 * This is subtle. Instead of calling do_follow_link() we do the
@@ -1912,11 +1912,6 @@ do_link:
 	if (nd.last_type != LAST_NORM)
 		goto exit;
 	if (nd.last.name[nd.last.len]) {
-		__putname(nd.last.name);
-		goto exit;
-	}
-	error = -ELOOP;
-	if (count++==32) {
 		__putname(nd.last.name);
 		goto exit;
 	}
