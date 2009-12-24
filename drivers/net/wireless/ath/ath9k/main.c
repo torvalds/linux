@@ -2726,15 +2726,21 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_RX_STOP:
 		break;
 	case IEEE80211_AMPDU_TX_START:
+		ath9k_ps_wakeup(sc);
 		ath_tx_aggr_start(sc, sta, tid, ssn);
 		ieee80211_start_tx_ba_cb_irqsafe(hw, sta->addr, tid);
+		ath9k_ps_restore(sc);
 		break;
 	case IEEE80211_AMPDU_TX_STOP:
+		ath9k_ps_wakeup(sc);
 		ath_tx_aggr_stop(sc, sta, tid);
 		ieee80211_stop_tx_ba_cb_irqsafe(hw, sta->addr, tid);
+		ath9k_ps_restore(sc);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
+		ath9k_ps_wakeup(sc);
 		ath_tx_aggr_resume(sc, sta, tid);
+		ath9k_ps_restore(sc);
 		break;
 	default:
 		DPRINTF(sc, ATH_DBG_FATAL, "Unknown AMPDU action\n");
