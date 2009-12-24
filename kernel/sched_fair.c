@@ -2465,7 +2465,7 @@ static inline void update_sg_lb_stats(struct sched_domain *sd,
 	 * to do the newly idle load balance.
 	 */
 	if (idle != CPU_NEWLY_IDLE && local_group &&
-	    balance_cpu != this_cpu && balance) {
+	    balance_cpu != this_cpu) {
 		*balance = 0;
 		return;
 	}
@@ -2528,7 +2528,7 @@ static inline void update_sd_lb_stats(struct sched_domain *sd, int this_cpu,
 		update_sg_lb_stats(sd, group, this_cpu, idle, load_idx, sd_idle,
 				local_group, cpus, balance, &sgs);
 
-		if (local_group && balance && !(*balance))
+		if (local_group && !(*balance))
 			return;
 
 		sds->total_load += sgs.group_load;
@@ -2720,7 +2720,7 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 	 * 5) The imbalance is within the specified limit.
 	 * 6) Any rebalance would lead to ping-pong
 	 */
-	if (balance && !(*balance))
+	if (!(*balance))
 		goto ret;
 
 	if (!sds.busiest || sds.busiest_nr_running == 0)
