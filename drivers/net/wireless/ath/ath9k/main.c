@@ -2147,6 +2147,9 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 		return; /* another wiphy still in use */
 	}
 
+	/* Ensure HW is awake when we try to shut it down. */
+	ath9k_ps_wakeup(sc);
+
 	if (sc->sc_flags & SC_OP_BTCOEX_ENABLED) {
 		ath9k_hw_btcoex_disable(sc->sc_ah);
 		if (sc->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_3WIRE)
@@ -2167,6 +2170,9 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	/* disable HAL and put h/w to sleep */
 	ath9k_hw_disable(sc->sc_ah);
 	ath9k_hw_configpcipowersave(sc->sc_ah, 1, 1);
+	ath9k_ps_restore(sc);
+
+	/* Finally, put the chip in FULL SLEEP mode */
 	ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_FULL_SLEEP);
 
 	sc->sc_flags |= SC_OP_INVALID;
