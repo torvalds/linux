@@ -59,6 +59,67 @@ int fw_csr_iterator_next(struct fw_csr_iterator *ci, int *key, int *value)
 }
 EXPORT_SYMBOL(fw_csr_iterator_next);
 
+static u32 *search_leaf(u32 *directory, int search_key)
+{
+	struct fw_csr_iterator ci;
+	int last_key = 0, key, value;
+
+	fw_csr_iterator_init(&ci, directory);
+	while (fw_csr_iterator_next(&ci, &key, &value)) {
+		if (last_key == search_key &&
+		    key == (CSR_DESCRIPTOR | CSR_LEAF))
+			return ci.p - 1 + value;
+		last_key = key;
+	}
+	return NULL;
+}
+
+static int textual_leaf_to_string(u32 *block, char *buf, size_t size)
+{
+	unsigned int quadlets, length;
+
+	if (!size || !buf)
+		return -EINVAL;
+
+	quadlets = min(block[0] >> 16, 256u);
+	if (quadlets < 2)
+		return -ENODATA;
+
+	if (block[1] != 0 || block[2] != 0)
+		/* unknown language/character set */
+		return -ENODATA;
+
+	block += 3;
+	quadlets -= 2;
+	for (length = 0; length < quadlets * 4 && length + 1 < size; length++) {
+		char c = block[length / 4] >> (24 - 8 * (length % 4));
+		if (c == '\0')
+			break;
+		buf[length] = c;
+	}
+	buf[length] = '\0';
+	return length;
+}
+
+/**
+ * fw_csr_string - reads a string from the configuration ROM
+ * @directory: device or unit directory;
+ *             fw_device->config_rom+5 or fw_unit->directory
+ * @key: the key of the preceding directory entry
+ * @buf: where to put the string
+ * @size: size of @buf, in bytes
+ *
+ * Returns string length (>= 0) or error code (< 0).
+ */
+int fw_csr_string(u32 *directory, int key, char *buf, size_t size)
+{
+	u32 *leaf = search_leaf(directory, key);
+	if (!leaf)
+		return -ENOENT;
+	return textual_leaf_to_string(leaf, buf, size);
+}
+EXPORT_SYMBOL(fw_csr_string);
+
 static bool is_fw_unit(struct device *dev);
 
 static int match_unit_directory(u32 *directory, u32 match_flags,
@@ -226,10 +287,10 @@ static ssize_t show_text_leaf(struct device *dev,
 {
 	struct config_rom_attribute *attr =
 		container_of(dattr, struct config_rom_attribute, attr);
-	struct fw_csr_iterator ci;
-	u32 *dir, *block = NULL, *p, *end;
-	int length, key, value, last_key = 0, ret = -ENOENT;
-	char *b;
+	u32 *dir;
+	size_t bufsize;
+	char dummy_buf[2];
+	int ret;
 
 	down_read(&fw_device_rwsem);
 
@@ -238,40 +299,23 @@ static ssize_t show_text_leaf(struct device *dev,
 	else
 		dir = fw_device(dev)->config_rom + 5;
 
-	fw_csr_iterator_init(&ci, dir);
-	while (fw_csr_iterator_next(&ci, &key, &value)) {
-		if (attr->key == last_key &&
-		    key == (CSR_DESCRIPTOR | CSR_LEAF))
-			block = ci.p - 1 + value;
-		last_key = key;
+	if (buf) {
+		bufsize = PAGE_SIZE - 1;
+	} else {
+		buf = dummy_buf;
+		bufsize = 1;
 	}
 
-	if (block == NULL)
-		goto out;
+	ret = fw_csr_string(dir, attr->key, buf, bufsize);
 
-	length = min(block[0] >> 16, 256U);
-	if (length < 3)
-		goto out;
-
-	if (block[1] != 0 || block[2] != 0)
-		/* Unknown encoding. */
-		goto out;
-
-	if (buf == NULL) {
-		ret = length * 4;
-		goto out;
+	if (ret >= 0) {
+		/* Strip trailing whitespace and add newline. */
+		while (ret > 0 && isspace(buf[ret - 1]))
+			ret--;
+		strcpy(buf + ret, "\n");
+		ret++;
 	}
 
-	b = buf;
-	end = &block[length + 1];
-	for (p = &block[3]; p < end; p++, b += 4)
-		* (u32 *) b = (__force u32) __cpu_to_be32(*p);
-
-	/* Strip trailing whitespace and add newline. */
-	while (b--, (isspace(*b) || *b == '\0') && b > buf);
-	strcpy(b + 1, "\n");
-	ret = b + 2 - buf;
- out:
 	up_read(&fw_device_rwsem);
 
 	return ret;
