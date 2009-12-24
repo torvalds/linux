@@ -1193,10 +1193,9 @@ static int read_latency_timer(struct usb_serial_port *port)
 			     0, priv->interface,
 			     (char *) &latency, 1, WDR_TIMEOUT);
 
-	if (rv < 0) {
+	if (rv < 0)
 		dev_err(&port->dev, "Unable to read latency timer: %i\n", rv);
-		return -EIO;
-	} else
+	else
 		priv->latency = latency;
 	return rv;
 }
