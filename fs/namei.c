@@ -1923,9 +1923,9 @@ do_link:
 	mutex_lock(&dir->d_inode->i_mutex);
 	path.dentry = lookup_hash(&nd);
 	path.mnt = nd.path.mnt;
-	__putname(nd.last.name);
 	filp = do_last(&nd, &path, open_flag, flag, acc_mode, mode,
 		       pathname, dir, &is_link);
+	__putname(nd.last.name);
 	if (is_link)
 		goto do_link;
 	if (nd.root.mnt)
