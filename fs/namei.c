@@ -1620,7 +1620,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 		open_flag |= O_DSYNC;
 
 	if (!acc_mode)
-		acc_mode = MAY_OPEN | ACC_MODE(flag);
+		acc_mode = MAY_OPEN | ACC_MODE(open_flag);
 
 	/* O_TRUNC implies we need access checks for write permissions */
 	if (flag & O_TRUNC)
