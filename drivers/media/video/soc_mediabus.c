@@ -24,91 +24,106 @@ static const struct soc_mbus_pixelfmt mbus_fmt[] = {
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_LE,
-	}, [MBUS_IDX(YVYU8_2X8_LE)] = {
+	},
+	[MBUS_IDX(YVYU8_2X8_LE)] = {
 		.fourcc			= V4L2_PIX_FMT_YVYU,
 		.name			= "YVYU",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_LE,
-	}, [MBUS_IDX(YUYV8_2X8_BE)] = {
+	},
+	[MBUS_IDX(YUYV8_2X8_BE)] = {
 		.fourcc			= V4L2_PIX_FMT_UYVY,
 		.name			= "UYVY",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_LE,
-	}, [MBUS_IDX(YVYU8_2X8_BE)] = {
+	},
+	[MBUS_IDX(YVYU8_2X8_BE)] = {
 		.fourcc			= V4L2_PIX_FMT_VYUY,
 		.name			= "VYUY",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_LE,
-	}, [MBUS_IDX(RGB555_2X8_PADHI_LE)] = {
+	},
+	[MBUS_IDX(RGB555_2X8_PADHI_LE)] = {
 		.fourcc			= V4L2_PIX_FMT_RGB555,
 		.name			= "RGB555",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_LE,
-	}, [MBUS_IDX(RGB555_2X8_PADHI_BE)] = {
+	},
+	[MBUS_IDX(RGB555_2X8_PADHI_BE)] = {
 		.fourcc			= V4L2_PIX_FMT_RGB555X,
 		.name			= "RGB555X",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_LE,
-	}, [MBUS_IDX(RGB565_2X8_LE)] = {
+	},
+	[MBUS_IDX(RGB565_2X8_LE)] = {
 		.fourcc			= V4L2_PIX_FMT_RGB565,
 		.name			= "RGB565",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_LE,
-	}, [MBUS_IDX(RGB565_2X8_BE)] = {
+	},
+	[MBUS_IDX(RGB565_2X8_BE)] = {
 		.fourcc			= V4L2_PIX_FMT_RGB565X,
 		.name			= "RGB565X",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_LE,
-	}, [MBUS_IDX(SBGGR8_1X8)] = {
+	},
+	[MBUS_IDX(SBGGR8_1X8)] = {
 		.fourcc			= V4L2_PIX_FMT_SBGGR8,
 		.name			= "Bayer 8 BGGR",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_NONE,
 		.order			= SOC_MBUS_ORDER_LE,
-	}, [MBUS_IDX(SBGGR10_1X10)] = {
+	},
+	[MBUS_IDX(SBGGR10_1X10)] = {
 		.fourcc			= V4L2_PIX_FMT_SBGGR10,
 		.name			= "Bayer 10 BGGR",
 		.bits_per_sample	= 10,
 		.packing		= SOC_MBUS_PACKING_EXTEND16,
 		.order			= SOC_MBUS_ORDER_LE,
-	}, [MBUS_IDX(GREY8_1X8)] = {
+	},
+	[MBUS_IDX(GREY8_1X8)] = {
 		.fourcc			= V4L2_PIX_FMT_GREY,
 		.name			= "Grey",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_NONE,
 		.order			= SOC_MBUS_ORDER_LE,
-	}, [MBUS_IDX(Y10_1X10)] = {
+	},
+	[MBUS_IDX(Y10_1X10)] = {
 		.fourcc			= V4L2_PIX_FMT_Y10,
 		.name			= "Grey 10bit",
 		.bits_per_sample	= 10,
 		.packing		= SOC_MBUS_PACKING_EXTEND16,
 		.order			= SOC_MBUS_ORDER_LE,
-	}, [MBUS_IDX(SBGGR10_2X8_PADHI_LE)] = {
+	},
+	[MBUS_IDX(SBGGR10_2X8_PADHI_LE)] = {
 		.fourcc			= V4L2_PIX_FMT_SBGGR10,
 		.name			= "Bayer 10 BGGR",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_LE,
-	}, [MBUS_IDX(SBGGR10_2X8_PADLO_LE)] = {
+	},
+	[MBUS_IDX(SBGGR10_2X8_PADLO_LE)] = {
 		.fourcc			= V4L2_PIX_FMT_SBGGR10,
 		.name			= "Bayer 10 BGGR",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADLO,
 		.order			= SOC_MBUS_ORDER_LE,
-	}, [MBUS_IDX(SBGGR10_2X8_PADHI_BE)] = {
+	},
+	[MBUS_IDX(SBGGR10_2X8_PADHI_BE)] = {
 		.fourcc			= V4L2_PIX_FMT_SBGGR10,
 		.name			= "Bayer 10 BGGR",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_BE,
-	}, [MBUS_IDX(SBGGR10_2X8_PADLO_BE)] = {
+	},
+	[MBUS_IDX(SBGGR10_2X8_PADLO_BE)] = {
 		.fourcc			= V4L2_PIX_FMT_SBGGR10,
 		.name			= "Bayer 10 BGGR",
 		.bits_per_sample	= 8,
