@@ -222,9 +222,9 @@ static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
 		   Set SCP6MD1,0 = {01} (output)  */
 		__raw_writew((data & 0x0fcf) | 0x1000, SCPCR);
 
-		data = ctrl_inb(SCPDR);
+		data = __raw_readb(SCPDR);
 		/* Set /RTS2 (bit6) = 0 */
-		ctrl_outb(data & 0xbf, SCPDR);
+		__raw_writeb(data & 0xbf, SCPDR);
 	}
 }
 #elif defined(CONFIG_CPU_SUBTYPE_SH7722)
