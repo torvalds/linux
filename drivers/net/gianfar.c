@@ -357,8 +357,11 @@ static void gfar_init_mac(struct net_device *ndev)
 	/* Configure the coalescing support */
 	gfar_configure_coalescing(priv, 0xFF, 0xFF);
 
-	if (priv->rx_filer_enable)
+	if (priv->rx_filer_enable) {
 		rctrl |= RCTRL_FILREN;
+		/* Program the RIR0 reg with the required distribution */
+		gfar_write(&regs->rir0, DEFAULT_RIR0);
+	}
 
 	if (priv->rx_csum_enable)
 		rctrl |= RCTRL_CHECKSUMMING;
@@ -414,6 +417,36 @@ static void gfar_init_mac(struct net_device *ndev)
 	gfar_write(&regs->fifo_tx_starve_shutoff, priv->fifo_starve_off);
 }
 
+static struct net_device_stats *gfar_get_stats(struct net_device *dev)
+{
+	struct gfar_private *priv = netdev_priv(dev);
+	struct netdev_queue *txq;
+	unsigned long rx_packets = 0, rx_bytes = 0, rx_dropped = 0;
+	unsigned long tx_packets = 0, tx_bytes = 0;
+	int i = 0;
+
+	for (i = 0; i < priv->num_rx_queues; i++) {
+		rx_packets += priv->rx_queue[i]->stats.rx_packets;
+		rx_bytes += priv->rx_queue[i]->stats.rx_bytes;
+		rx_dropped += priv->rx_queue[i]->stats.rx_dropped;
+	}
+
+	dev->stats.rx_packets = rx_packets;
+	dev->stats.rx_bytes = rx_bytes;
+	dev->stats.rx_dropped = rx_dropped;
+
+	for (i = 0; i < priv->num_tx_queues; i++) {
+		txq = netdev_get_tx_queue(dev, i);
+		tx_bytes += txq->tx_bytes;
+		tx_packets += txq->tx_packets;
+	}
+
+	dev->stats.tx_bytes = tx_bytes;
+	dev->stats.tx_packets = tx_packets;
+
+	return &dev->stats;
+}
+
 static const struct net_device_ops gfar_netdev_ops = {
 	.ndo_open = gfar_enet_open,
 	.ndo_start_xmit = gfar_start_xmit,
@@ -423,6 +456,7 @@ static const struct net_device_ops gfar_netdev_ops = {
 	.ndo_tx_timeout = gfar_timeout,
 	.ndo_do_ioctl = gfar_ioctl,
 	.ndo_select_queue = gfar_select_queue,
+	.ndo_get_stats = gfar_get_stats,
 	.ndo_vlan_rx_register = gfar_vlan_rx_register,
 	.ndo_set_mac_address = eth_mac_addr,
 	.ndo_validate_addr = eth_validate_addr,
@@ -1022,6 +1056,9 @@ static int gfar_probe(struct of_device *ofdev,
 		priv->rx_queue[i]->rxic = DEFAULT_RXIC;
 	}
 
+	/* enable filer if using multiple RX queues*/
+	if(priv->num_rx_queues > 1)
+		priv->rx_filer_enable = 1;
 	/* Enable most messages by default */
 	priv->msg_enable = (NETIF_MSG_IFUP << 1 ) - 1;
 
@@ -1937,7 +1974,8 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* Update transmit stats */
-	dev->stats.tx_bytes += skb->len;
+	txq->tx_bytes += skb->len;
+	txq->tx_packets ++;
 
 	txbdp = txbdp_start = tx_queue->cur_tx;
 
@@ -2295,8 +2333,6 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 	tx_queue->skb_dirtytx = skb_dirtytx;
 	tx_queue->dirty_tx = bdp;
 
-	dev->stats.tx_packets += howmany;
-
 	return howmany;
 }
 
@@ -2510,14 +2546,14 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 			}
 		} else {
 			/* Increment the number of packets */
-			dev->stats.rx_packets++;
+			rx_queue->stats.rx_packets++;
 			howmany++;
 
 			if (likely(skb)) {
 				pkt_len = bdp->length - ETH_FCS_LEN;
 				/* Remove the FCS from the packet length */
 				skb_put(skb, pkt_len);
-				dev->stats.rx_bytes += pkt_len;
+				rx_queue->stats.rx_bytes += pkt_len;
 
 				gfar_process_frame(dev, skb, amount_pull);
 
@@ -2525,7 +2561,7 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 				if (netif_msg_rx_err(priv))
 					printk(KERN_WARNING
 					       "%s: Missing skb!\n", dev->name);
-				dev->stats.rx_dropped++;
+				rx_queue->stats.rx_dropped++;
 				priv->extra_stats.rx_skbmissing++;
 			}
 

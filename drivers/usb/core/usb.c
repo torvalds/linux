@@ -66,9 +66,9 @@ MODULE_PARM_DESC(autosuspend, "default autosuspend delay");
 /**
  * usb_find_alt_setting() - Given a configuration, find the alternate setting
  * for the given interface.
- * @config - the configuration to search (not necessarily the current config).
- * @iface_num - interface number to search in
- * @alt_num - alternate interface setting number to search for.
+ * @config: the configuration to search (not necessarily the current config).
+ * @iface_num: interface number to search in
+ * @alt_num: alternate interface setting number to search for.
  *
  * Search the configuration's interface cache for the given alt setting.
  */

@@ -47,7 +47,7 @@ static const u16 wm8974_reg[WM8974_CACHEREGNUM] = {
 };
 
 #define WM8974_POWER1_BIASEN  0x08
-#define WM8974_POWER1_BUFIOEN 0x10
+#define WM8974_POWER1_BUFIOEN 0x04
 
 struct wm8974_priv {
 	struct snd_soc_codec codec;

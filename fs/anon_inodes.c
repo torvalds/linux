@@ -121,13 +121,13 @@ struct file *anon_inode_getfile(const char *name,
 	d_instantiate(path.dentry, anon_inode_inode);
 
 	error = -ENFILE;
-	file = alloc_file(&path, FMODE_READ | FMODE_WRITE, fops);
+	file = alloc_file(&path, OPEN_FMODE(flags), fops);
 	if (!file)
 		goto err_dput;
 	file->f_mapping = anon_inode_inode->i_mapping;
 
 	file->f_pos = 0;
-	file->f_flags = O_RDWR | (flags & O_NONBLOCK);
+	file->f_flags = flags & (O_ACCMODE | O_NONBLOCK);
 	file->f_version = 0;
 	file->private_data = priv;
 

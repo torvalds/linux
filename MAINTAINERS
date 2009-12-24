@@ -1402,6 +1402,8 @@ L:	linux-usb@vger.kernel.org
 S:	Supported
 F:	Documentation/usb/WUSB-Design-overview.txt
 F:	Documentation/usb/wusb-cbaf
+F:	drivers/usb/host/hwa-hc.c
+F:	drivers/usb/host/whci/
 F:	drivers/usb/wusbcore/
 F:	include/linux/usb/wusb*
 
@@ -3677,7 +3679,7 @@ F:	include/linux/isicom.h
 MUSB MULTIPOINT HIGH SPEED DUAL-ROLE CONTROLLER
 M:	Felipe Balbi <felipe.balbi@nokia.com>
 L:	linux-usb@vger.kernel.org
-T:	git git://gitorious.org/musb/mainline.git
+T:	git git://gitorious.org/usb/usb.git
 S:	Maintained
 F:	drivers/usb/musb/
 
@@ -5430,7 +5432,10 @@ ULTRA-WIDEBAND (UWB) SUBSYSTEM:
 M:	David Vrabel <david.vrabel@csr.com>
 L:	linux-usb@vger.kernel.org
 S:	Supported
-F:	drivers/uwb/*
+F:	drivers/uwb/
+X:	drivers/uwb/wlp/
+X:	drivers/uwb/i1480/i1480u-wlp/
+X:	drivers/uwb/i1480/i1480-wlp.h
 F:	include/linux/uwb.h
 F:	include/linux/uwb/
 
@@ -5943,9 +5948,12 @@ W:	http://linuxwimax.org
 
 WIMEDIA LLC PROTOCOL (WLP) SUBSYSTEM
 M:	David Vrabel <david.vrabel@csr.com>
+L:	netdev@vger.kernel.org
 S:	Maintained
 F:	include/linux/wlp.h
 F:	drivers/uwb/wlp/
+F:	drivers/uwb/i1480/i1480u-wlp/
+F:	drivers/uwb/i1480/i1480-wlp.h
 
 WISTRON LAPTOP BUTTON DRIVER
 M:	Miloslav Trmac <mitr@volny.cz>

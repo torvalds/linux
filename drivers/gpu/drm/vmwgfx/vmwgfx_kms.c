@@ -106,8 +106,8 @@ int vmw_du_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	int ret;
 
 	if (handle) {
-		ret = vmw_user_surface_lookup(dev_priv, tfile,
-					      handle, &surface);
+		ret = vmw_user_surface_lookup_handle(dev_priv, tfile,
+						     handle, &surface);
 		if (!ret) {
 			if (!surface->snooper.image) {
 				DRM_ERROR("surface not suitable for cursor\n");
@@ -704,8 +704,8 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	struct vmw_dma_buffer *bo = NULL;
 	int ret;
 
-	ret = vmw_user_surface_lookup(dev_priv, tfile,
-				      mode_cmd->handle, &surface);
+	ret = vmw_user_surface_lookup_handle(dev_priv, tfile,
+					     mode_cmd->handle, &surface);
 	if (ret)
 		goto try_dmabuf;
 

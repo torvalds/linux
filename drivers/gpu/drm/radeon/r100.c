@@ -2881,6 +2881,10 @@ int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track)
 
 	for (i = 0; i < track->num_cb; i++) {
 		if (track->cb[i].robj == NULL) {
+			if (!(track->fastfill || track->color_channel_mask ||
+			      track->blend_read_enable)) {
+				continue;
+			}
 			DRM_ERROR("[drm] No buffer for color buffer %d !\n", i);
 			return -EINVAL;
 		}
