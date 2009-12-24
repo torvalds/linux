@@ -898,6 +898,8 @@ static int __init acpi_bus_init(void)
 		goto error1;
 	}
 
+	acpi_early_processor_set_pdc();
+
 	/*
 	 * Maybe EC region is required at bus_scan/acpi_get_devices. So it
 	 * is necessary to enable it as early as possible.
