@@ -1645,6 +1645,104 @@ exit:
 	return ERR_PTR(error);
 }
 
+static struct file *do_last(struct nameidata *nd, struct path *path,
+			    int open_flag, int flag, int acc_mode,
+			    int mode, const char *pathname,
+			    struct dentry *dir, int *is_link)
+{
+	struct file *filp;
+	int error;
+
+	*is_link = 0;
+
+	error = PTR_ERR(path->dentry);
+	if (IS_ERR(path->dentry)) {
+		mutex_unlock(&dir->d_inode->i_mutex);
+		goto exit;
+	}
+
+	if (IS_ERR(nd->intent.open.file)) {
+		error = PTR_ERR(nd->intent.open.file);
+		goto exit_mutex_unlock;
+	}
+
+	/* Negative dentry, just create the file */
+	if (!path->dentry->d_inode) {
+		/*
+		 * This write is needed to ensure that a
+		 * ro->rw transition does not occur between
+		 * the time when the file is created and when
+		 * a permanent write count is taken through
+		 * the 'struct file' in nameidata_to_filp().
+		 */
+		error = mnt_want_write(nd->path.mnt);
+		if (error)
+			goto exit_mutex_unlock;
+		error = __open_namei_create(nd, path, open_flag, mode);
+		if (error) {
+			mnt_drop_write(nd->path.mnt);
+			goto exit;
+		}
+		filp = nameidata_to_filp(nd);
+		mnt_drop_write(nd->path.mnt);
+		if (nd->root.mnt)
+			path_put(&nd->root);
+		if (!IS_ERR(filp)) {
+			error = ima_file_check(filp, acc_mode);
+			if (error) {
+				fput(filp);
+				filp = ERR_PTR(error);
+			}
+		}
+		return filp;
+	}
+
+	/*
+	 * It already exists.
+	 */
+	mutex_unlock(&dir->d_inode->i_mutex);
+	audit_inode(pathname, path->dentry);
+
+	error = -EEXIST;
+	if (flag & O_EXCL)
+		goto exit_dput;
+
+	if (__follow_mount(path)) {
+		error = -ELOOP;
+		if (flag & O_NOFOLLOW)
+			goto exit_dput;
+	}
+
+	error = -ENOENT;
+	if (!path->dentry->d_inode)
+		goto exit_dput;
+	if (path->dentry->d_inode->i_op->follow_link) {
+		*is_link = 1;
+		return NULL;
+	}
+
+	path_to_nameidata(path, nd);
+	error = -EISDIR;
+	if (S_ISDIR(path->dentry->d_inode->i_mode))
+		goto exit;
+	filp = finish_open(nd, open_flag, flag, acc_mode);
+	if (nd->root.mnt)
+		path_put(&nd->root);
+	return filp;
+
+exit_mutex_unlock:
+	mutex_unlock(&dir->d_inode->i_mutex);
+exit_dput:
+	path_put_conditional(path, nd);
+exit:
+	if (!IS_ERR(nd->intent.open.file))
+		release_open_intent(nd);
+	if (nd->root.mnt)
+		path_put(&nd->root);
+	path_put(&nd->path);
+	return ERR_PTR(error);
+}
+
 /*
  * Note that the low bits of the passed in "open_flag"
  * are not the same as in the local variable "flag". See
@@ -1661,6 +1759,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	int count = 0;
 	int flag = open_to_namei_flags(open_flag);
 	int force_reval = 0;
+	int is_link;
 
 	/*
 	 * O_SYNC is implemented as __O_SYNC|O_DSYNC.  As many places only
@@ -1754,82 +1853,18 @@ reval:
 	path.mnt = nd.path.mnt;
 
 do_last:
-	error = PTR_ERR(path.dentry);
-	if (IS_ERR(path.dentry)) {
-		mutex_unlock(&dir->d_inode->i_mutex);
-		goto exit;
-	}
-
-	if (IS_ERR(nd.intent.open.file)) {
-		error = PTR_ERR(nd.intent.open.file);
-		goto exit_mutex_unlock;
-	}
-
-	/* Negative dentry, just create the file */
-	if (!path.dentry->d_inode) {
-		/*
-		 * This write is needed to ensure that a
-		 * ro->rw transition does not occur between
-		 * the time when the file is created and when
-		 * a permanent write count is taken through
-		 * the 'struct file' in nameidata_to_filp().
-		 */
-		error = mnt_want_write(nd.path.mnt);
-		if (error)
-			goto exit_mutex_unlock;
-		error = __open_namei_create(&nd, &path, open_flag, mode);
-		if (error) {
-			mnt_drop_write(nd.path.mnt);
-			goto exit;
-		}
-		filp = nameidata_to_filp(&nd);
-		mnt_drop_write(nd.path.mnt);
-		if (nd.root.mnt)
-			path_put(&nd.root);
-		if (!IS_ERR(filp)) {
-			error = ima_file_check(filp, acc_mode);
-			if (error) {
-				fput(filp);
-				filp = ERR_PTR(error);
-			}
-		}
-		return filp;
-	}
-
-	/*
-	 * It already exists.
-	 */
-	mutex_unlock(&dir->d_inode->i_mutex);
-	audit_inode(pathname, path.dentry);
-
-	error = -EEXIST;
-	if (flag & O_EXCL)
-		goto exit_dput;
-
-	if (__follow_mount(&path)) {
-		error = -ELOOP;
-		if (flag & O_NOFOLLOW)
-			goto exit_dput;
-	}
-
-	error = -ENOENT;
-	if (!path.dentry->d_inode)
-		goto exit_dput;
-	if (path.dentry->d_inode->i_op->follow_link)
+	filp = do_last(&nd, &path, open_flag, flag, acc_mode, mode,
+		       pathname, dir, &is_link);
+	if (is_link)
 		goto do_link;
+	return filp;
 
-	path_to_nameidata(&path, &nd);
-	error = -EISDIR;
-	if (S_ISDIR(path.dentry->d_inode->i_mode))
-		goto exit;
 ok:
 	filp = finish_open(&nd, open_flag, flag, acc_mode);
 	if (nd.root.mnt)
 		path_put(&nd.root);
 	return filp;
 
-exit_mutex_unlock:
-	mutex_unlock(&dir->d_inode->i_mutex);
 exit_dput:
 	path_put_conditional(&path, &nd);
 exit:
