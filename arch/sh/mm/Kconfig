@@ -220,7 +220,7 @@ config PAGE_SIZE_4KB
 
 config PAGE_SIZE_8KB
 	bool "8kB"
-	depends on !MMU || X2TLB && !PGTABLE_LEVELS_3
+	depends on !MMU || X2TLB
 	help
 	  This enables 8kB pages as supported by SH-X2 and later MMUs.
 
@@ -232,7 +232,7 @@ config PAGE_SIZE_16KB
 
 config PAGE_SIZE_64KB
 	bool "64kB"
-	depends on !MMU || CPU_SH4 && !PGTABLE_LEVELS_3 || CPU_SH5
+	depends on !MMU || CPU_SH4 || CPU_SH5
 	help
 	  This enables support for 64kB pages, possible on all SH-4
 	  CPUs and later.
