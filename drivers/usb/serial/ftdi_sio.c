@@ -1181,22 +1181,28 @@ static int read_latency_timer(struct usb_serial_port *port)
 {
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	struct usb_device *udev = port->serial->dev;
-	unsigned short latency = 0;
+	unsigned char *buf;
 	int rv = 0;
 
 	dbg("%s", __func__);
+
+	buf = kmalloc(1, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
 	rv = usb_control_msg(udev,
 			     usb_rcvctrlpipe(udev, 0),
 			     FTDI_SIO_GET_LATENCY_TIMER_REQUEST,
 			     FTDI_SIO_GET_LATENCY_TIMER_REQUEST_TYPE,
 			     0, priv->interface,
-			     (char *) &latency, 1, WDR_TIMEOUT);
-
+			     buf, 1, WDR_TIMEOUT);
 	if (rv < 0)
 		dev_err(&port->dev, "Unable to read latency timer: %i\n", rv);
 	else
-		priv->latency = latency;
+		priv->latency = buf[0];
+
+	kfree(buf);
+
 	return rv;
 }
 
