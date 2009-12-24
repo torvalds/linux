@@ -1142,7 +1142,7 @@ static int write_latency_timer(struct usb_serial_port *port)
 {
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	struct usb_device *udev = port->serial->dev;
-	int rv = 0;
+	int rv;
 	int l = priv->latency;
 
 	if (priv->flags & ASYNC_LOW_LATENCY)
@@ -1166,7 +1166,7 @@ static int read_latency_timer(struct usb_serial_port *port)
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	struct usb_device *udev = port->serial->dev;
 	unsigned char *buf;
-	int rv = 0;
+	int rv;
 
 	dbg("%s", __func__);
 
@@ -1360,7 +1360,7 @@ static void ftdi_set_max_packet_size(struct usb_serial_port *port)
 	struct usb_endpoint_descriptor *ep_desc = &interface->cur_altsetting->endpoint[1].desc;
 
 	unsigned num_endpoints;
-	int i = 0;
+	int i;
 
 	num_endpoints = interface->cur_altsetting->desc.bNumEndpoints;
 	dev_info(&udev->dev, "Number of endpoints %d\n", num_endpoints);
@@ -1412,7 +1412,7 @@ static ssize_t store_latency_timer(struct device *dev,
 	struct usb_serial_port *port = to_usb_serial_port(dev);
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	int v = simple_strtoul(valbuf, NULL, 10);
-	int rv = 0;
+	int rv;
 
 	priv->latency = v;
 	rv = write_latency_timer(port);
@@ -1430,7 +1430,7 @@ static ssize_t store_event_char(struct device *dev,
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	struct usb_device *udev = port->serial->dev;
 	int v = simple_strtoul(valbuf, NULL, 10);
-	int rv = 0;
+	int rv;
 
 	dbg("%s: setting event char = %i", __func__, v);
 
@@ -1617,7 +1617,6 @@ static int ftdi_NDI_device_setup(struct usb_serial *serial)
 {
 	struct usb_device *udev = serial->dev;
 	int latency = ndi_latency_timer;
-	int rv = 0;
 
 	if (latency == 0)
 		latency = 1;
@@ -1627,7 +1626,8 @@ static int ftdi_NDI_device_setup(struct usb_serial *serial)
 	dbg("%s setting NDI device latency to %d", __func__, latency);
 	dev_info(&udev->dev, "NDI device with a latency value of %d", latency);
 
-	rv = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+	/* FIXME: errors are not returned */
+	usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				FTDI_SIO_SET_LATENCY_TIMER_REQUEST,
 				FTDI_SIO_SET_LATENCY_TIMER_REQUEST_TYPE,
 				latency, 0, NULL, 0, WDR_TIMEOUT);
@@ -1718,7 +1718,7 @@ static int ftdi_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct usb_device *dev = port->serial->dev;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
-	int result = 0;
+	int result;
 
 	dbg("%s", __func__);
 
@@ -2137,7 +2137,7 @@ static void ftdi_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	__u16 urb_value = 0;
+	__u16 urb_value;
 
 	/* break_state = -1 to turn on break, and 0 to turn off break */
 	/* see drivers/char/tty_io.c to see it used */
