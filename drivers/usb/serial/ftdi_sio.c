@@ -2341,6 +2341,7 @@ static int ftdi_tiocmget(struct tty_struct *tty, struct file *file)
 	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	unsigned char *buf;
+	int len;
 	int ret;
 
 	dbg("%s TIOCMGET", __func__);
@@ -2348,18 +2349,13 @@ static int ftdi_tiocmget(struct tty_struct *tty, struct file *file)
 	buf = kmalloc(2, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
-
+	/*
+	 * The 8U232AM returns a two byte value (the SIO a 1 byte value) in
+	 * the same format as the data returned from the in point.
+	 */
 	switch (priv->chip_type) {
 	case SIO:
-		/* Request the status from the device */
-		ret = usb_control_msg(port->serial->dev,
-			   usb_rcvctrlpipe(port->serial->dev, 0),
-			   FTDI_SIO_GET_MODEM_STATUS_REQUEST,
-			   FTDI_SIO_GET_MODEM_STATUS_REQUEST_TYPE,
-			   0, 0,
-			   buf, 1, WDR_TIMEOUT);
-		if (ret < 0)
-			goto out;
+		len = 1;
 		break;
 	case FT8U232AM:
 	case FT232BM:
@@ -2367,22 +2363,21 @@ static int ftdi_tiocmget(struct tty_struct *tty, struct file *file)
 	case FT232RL:
 	case FT2232H:
 	case FT4232H:
-		/* the 8U232AM returns a two byte value (the sio is a 1 byte
-		   value) - in the same format as the data returned from the in
-		   point */
-		ret = usb_control_msg(port->serial->dev,
-				   usb_rcvctrlpipe(port->serial->dev, 0),
-				   FTDI_SIO_GET_MODEM_STATUS_REQUEST,
-				   FTDI_SIO_GET_MODEM_STATUS_REQUEST_TYPE,
-				   0, priv->interface,
-				   buf, 2, WDR_TIMEOUT);
-		if (ret < 0)
-			goto out;
+		len = 2;
 		break;
 	default:
 		ret = -EFAULT;
 		goto out;
 	}
+
+	ret = usb_control_msg(port->serial->dev,
+			usb_rcvctrlpipe(port->serial->dev, 0),
+			FTDI_SIO_GET_MODEM_STATUS_REQUEST,
+			FTDI_SIO_GET_MODEM_STATUS_REQUEST_TYPE,
+			0, priv->interface,
+			buf, len, WDR_TIMEOUT);
+	if (ret < 0)
+		goto out;
 
 	ret = (buf[0] & FTDI_SIO_DSR_MASK ? TIOCM_DSR : 0) |
 		(buf[0] & FTDI_SIO_CTS_MASK ? TIOCM_CTS : 0) |
