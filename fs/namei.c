@@ -1777,18 +1777,18 @@ struct file *do_filp_open(int dfd, const char *pathname,
 		acc_mode = MAY_OPEN | ACC_MODE(open_flag);
 
 	/* O_TRUNC implies we need access checks for write permissions */
-	if (flag & O_TRUNC)
+	if (open_flag & O_TRUNC)
 		acc_mode |= MAY_WRITE;
 
 	/* Allow the LSM permission hook to distinguish append 
 	   access from general write access. */
-	if (flag & O_APPEND)
+	if (open_flag & O_APPEND)
 		acc_mode |= MAY_APPEND;
 
 	/*
 	 * The simplest case - just a plain lookup.
 	 */
-	if (!(flag & O_CREAT)) {
+	if (!(open_flag & O_CREAT)) {
 		filp = get_empty_filp();
 
 		if (filp == NULL)
@@ -1798,7 +1798,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 		nd.intent.open.flags = flag;
 		nd.intent.open.create_mode = 0;
 		error = do_path_lookup(dfd, pathname,
-					lookup_flags(flag)|LOOKUP_OPEN, &nd);
+					lookup_flags(open_flag)|LOOKUP_OPEN, &nd);
 		if (IS_ERR(nd.intent.open.file)) {
 			if (error == 0) {
 				error = PTR_ERR(nd.intent.open.file);
@@ -1843,7 +1843,7 @@ reval:
 	nd.intent.open.create_mode = mode;
 	nd.flags &= ~LOOKUP_PARENT;
 	nd.flags |= LOOKUP_CREATE | LOOKUP_OPEN;
-	if (flag & O_EXCL)
+	if (open_flag & O_EXCL)
 		nd.flags |= LOOKUP_EXCL;
 	filp = do_last(&nd, &path, open_flag, acc_mode, mode,
 		       pathname, &is_link);
@@ -1872,7 +1872,7 @@ exit_parent:
 
 do_link:
 	error = -ELOOP;
-	if ((flag & O_NOFOLLOW) || count++ == 32)
+	if ((open_flag & O_NOFOLLOW) || count++ == 32)
 		goto exit_dput;
 	/*
 	 * This is subtle. Instead of calling do_follow_link() we do the
