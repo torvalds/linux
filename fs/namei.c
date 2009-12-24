@@ -1646,7 +1646,7 @@ exit:
 }
 
 static struct file *do_last(struct nameidata *nd, struct path *path,
-			    int open_flag, int flag, int acc_mode,
+			    int open_flag, int acc_mode,
 			    int mode, const char *pathname,
 			    int *is_link)
 {
@@ -1712,12 +1712,12 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	audit_inode(pathname, path->dentry);
 
 	error = -EEXIST;
-	if (flag & O_EXCL)
+	if (open_flag & O_EXCL)
 		goto exit_dput;
 
 	if (__follow_mount(path)) {
 		error = -ELOOP;
-		if (flag & O_NOFOLLOW)
+		if (open_flag & O_NOFOLLOW)
 			goto exit_dput;
 	}
 
@@ -1845,7 +1845,7 @@ reval:
 	nd.flags |= LOOKUP_CREATE | LOOKUP_OPEN;
 	if (flag & O_EXCL)
 		nd.flags |= LOOKUP_EXCL;
-	filp = do_last(&nd, &path, open_flag, flag, acc_mode, mode,
+	filp = do_last(&nd, &path, open_flag, acc_mode, mode,
 		       pathname, &is_link);
 	if (is_link)
 		goto do_link;
@@ -1907,7 +1907,7 @@ do_link:
 	nd.flags &= ~LOOKUP_PARENT;
 	if (nd.last_type == LAST_BIND)
 		goto ok;
-	filp = do_last(&nd, &path, open_flag, flag, acc_mode, mode,
+	filp = do_last(&nd, &path, open_flag, acc_mode, mode,
 		       pathname, &is_link);
 	if (nd.last_type == LAST_NORM)
 		__putname(nd.last.name);
