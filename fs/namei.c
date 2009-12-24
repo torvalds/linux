@@ -1648,12 +1648,18 @@ exit:
 static struct file *do_last(struct nameidata *nd, struct path *path,
 			    int open_flag, int flag, int acc_mode,
 			    int mode, const char *pathname,
-			    struct dentry *dir, int *is_link)
+			    int *is_link)
 {
+	struct dentry *dir = nd->path.dentry;
 	struct file *filp;
 	int error;
 
 	*is_link = 0;
+
+	mutex_lock(&dir->d_inode->i_mutex);
+
+	path->dentry = lookup_hash(nd);
+	path->mnt = nd->path.mnt;
 
 	error = PTR_ERR(path->dentry);
 	if (IS_ERR(path->dentry)) {
@@ -1749,7 +1755,6 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	struct nameidata nd;
 	int error;
 	struct path path;
-	struct dentry *dir;
 	int count = 0;
 	int flag = open_to_namei_flags(open_flag);
 	int force_reval = 0;
@@ -1837,16 +1842,12 @@ reval:
 	filp->f_flags = open_flag;
 	nd.intent.open.flags = flag;
 	nd.intent.open.create_mode = mode;
-	dir = nd.path.dentry;
 	nd.flags &= ~LOOKUP_PARENT;
 	nd.flags |= LOOKUP_CREATE | LOOKUP_OPEN;
 	if (flag & O_EXCL)
 		nd.flags |= LOOKUP_EXCL;
-	mutex_lock(&dir->d_inode->i_mutex);
-	path.dentry = lookup_hash(&nd);
-	path.mnt = nd.path.mnt;
 	filp = do_last(&nd, &path, open_flag, flag, acc_mode, mode,
-		       pathname, dir, &is_link);
+		       pathname, &is_link);
 	if (is_link)
 		goto do_link;
 	if (nd.root.mnt)
@@ -1919,12 +1920,8 @@ do_link:
 		__putname(nd.last.name);
 		goto exit;
 	}
-	dir = nd.path.dentry;
-	mutex_lock(&dir->d_inode->i_mutex);
-	path.dentry = lookup_hash(&nd);
-	path.mnt = nd.path.mnt;
 	filp = do_last(&nd, &path, open_flag, flag, acc_mode, mode,
-		       pathname, dir, &is_link);
+		       pathname, &is_link);
 	__putname(nd.last.name);
 	if (is_link)
 		goto do_link;
