@@ -1590,6 +1590,61 @@ static int open_will_truncate(int flag, struct inode *inode)
 	return (flag & O_TRUNC);
 }
 
+static struct file *finish_open(struct nameidata *nd,
+				int open_flag, int flag, int acc_mode)
+{
+	struct file *filp;
+	int will_truncate;
+	int error;
+
+	will_truncate = open_will_truncate(flag, nd->path.dentry->d_inode);
+	if (will_truncate) {
+		error = mnt_want_write(nd->path.mnt);
+		if (error)
+			goto exit;
+	}
+	error = may_open(&nd->path, acc_mode, open_flag);
+	if (error) {
+		if (will_truncate)
+			mnt_drop_write(nd->path.mnt);
+		goto exit;
+	}
+	filp = nameidata_to_filp(nd);
+	if (!IS_ERR(filp)) {
+		error = ima_file_check(filp, acc_mode);
+		if (error) {
+			fput(filp);
+			filp = ERR_PTR(error);
+		}
+	}
+	if (!IS_ERR(filp)) {
+		if (acc_mode & MAY_WRITE)
+			vfs_dq_init(nd->path.dentry->d_inode);
+
+		if (will_truncate) {
+			error = handle_truncate(&nd->path);
+			if (error) {
+				fput(filp);
+				filp = ERR_PTR(error);
+			}
+		}
+	}
+	/*
+	 * It is now safe to drop the mnt write
+	 * because the filp has had a write taken
+	 * on its behalf.
+	 */
+	if (will_truncate)
+		mnt_drop_write(nd->path.mnt);
+	return filp;
+
+exit:
+	if (!IS_ERR(nd->intent.open.file))
+		release_open_intent(nd);
+	path_put(&nd->path);
+	return ERR_PTR(error);
+}
+
 /*
  * Note that the low bits of the passed in "open_flag"
  * are not the same as in the local variable "flag". See
@@ -1604,7 +1659,6 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	struct path path;
 	struct dentry *dir;
 	int count = 0;
-	int will_truncate;
 	int flag = open_to_namei_flags(open_flag);
 	int force_reval = 0;
 
@@ -1769,55 +1823,7 @@ do_last:
 	if (S_ISDIR(path.dentry->d_inode->i_mode))
 		goto exit;
 ok:
-	/*
-	 * Consider:
-	 * 1. may_open() truncates a file
-	 * 2. a rw->ro mount transition occurs
-	 * 3. nameidata_to_filp() fails due to
-	 *    the ro mount.
-	 * That would be inconsistent, and should
-	 * be avoided. Taking this mnt write here
-	 * ensures that (2) can not occur.
-	 */
-	will_truncate = open_will_truncate(flag, nd.path.dentry->d_inode);
-	if (will_truncate) {
-		error = mnt_want_write(nd.path.mnt);
-		if (error)
-			goto exit;
-	}
-	error = may_open(&nd.path, acc_mode, open_flag);
-	if (error) {
-		if (will_truncate)
-			mnt_drop_write(nd.path.mnt);
-		goto exit;
-	}
-	filp = nameidata_to_filp(&nd);
-	if (!IS_ERR(filp)) {
-		error = ima_file_check(filp, acc_mode);
-		if (error) {
-			fput(filp);
-			filp = ERR_PTR(error);
-		}
-	}
-	if (!IS_ERR(filp)) {
-		if (acc_mode & MAY_WRITE)
-			vfs_dq_init(nd.path.dentry->d_inode);
-
-		if (will_truncate) {
-			error = handle_truncate(&nd.path);
-			if (error) {
-				fput(filp);
-				filp = ERR_PTR(error);
-			}
-		}
-	}
-	/*
-	 * It is now safe to drop the mnt write
-	 * because the filp has had a write taken
-	 * on its behalf.
-	 */
-	if (will_truncate)
-		mnt_drop_write(nd.path.mnt);
+	filp = finish_open(&nd, open_flag, flag, acc_mode);
 	if (nd.root.mnt)
 		path_put(&nd.root);
 	return filp;
