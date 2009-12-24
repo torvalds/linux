@@ -963,7 +963,7 @@ static int find_PCI (void)
   unsigned long base;
   unsigned char irq;
 
-  while ((pci_dev = pci_find_device
+  while ((pci_dev = pci_get_device
 	  (DT3155_VENDORID, DT3155_DEVICEID, pci_dev)) != NULL)
     {
       pci_index ++;
@@ -983,7 +983,7 @@ static int find_PCI (void)
 	       "for %d devices\n"
 	       "DT3155: Please change MAXBOARDS in dt3155.h\n",
 	       pci_index, MAXBOARDS);
-	return DT_3155_FAILURE;
+	goto err;
       }
 
       /* Now, just go out and make sure that this/these device(s) is/are
@@ -992,7 +992,7 @@ static int find_PCI (void)
 					  (u_int *) &base)))
 	{
 	  printk("DT3155: Was not able to find device \n");
-	  return DT_3155_FAILURE;
+	  goto err;
 	}
 
       DT_3155_DEBUG_MSG("DT3155: Base address 0 for device is %lx \n", base);
@@ -1007,13 +1007,13 @@ static int find_PCI (void)
       if ( !dt3155_lbase[pci_index-1] )
 	{
 	  printk("DT3155: Unable to remap control registers\n");
-	  return DT_3155_FAILURE;
+	  goto err;
 	}
 
       if ( (error = pci_read_config_byte( pci_dev, PCI_INTERRUPT_LINE, &irq)) )
 	{
 	  printk("DT3155: Was not able to find device \n");
-	  return DT_3155_FAILURE;
+	  goto err;
 	}
 
       DT_3155_DEBUG_MSG("DT3155: IRQ is %d \n",irq);
@@ -1029,6 +1029,10 @@ static int find_PCI (void)
   ndevices = pci_index;
 
   return DT_3155_SUCCESS;
+
+err:
+  pci_dev_put(pci_dev);
+  return DT_3155_FAILURE;
 }
 
 u_long allocatorAddr = 0;
