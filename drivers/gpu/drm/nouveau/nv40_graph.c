@@ -24,36 +24,10 @@
  *
  */
 
-#include <linux/firmware.h>
-
 #include "drmP.h"
 #include "drm.h"
 #include "nouveau_drv.h"
-
-MODULE_FIRMWARE("nouveau/nv40.ctxprog");
-MODULE_FIRMWARE("nouveau/nv40.ctxvals");
-MODULE_FIRMWARE("nouveau/nv41.ctxprog");
-MODULE_FIRMWARE("nouveau/nv41.ctxvals");
-MODULE_FIRMWARE("nouveau/nv42.ctxprog");
-MODULE_FIRMWARE("nouveau/nv42.ctxvals");
-MODULE_FIRMWARE("nouveau/nv43.ctxprog");
-MODULE_FIRMWARE("nouveau/nv43.ctxvals");
-MODULE_FIRMWARE("nouveau/nv44.ctxprog");
-MODULE_FIRMWARE("nouveau/nv44.ctxvals");
-MODULE_FIRMWARE("nouveau/nv46.ctxprog");
-MODULE_FIRMWARE("nouveau/nv46.ctxvals");
-MODULE_FIRMWARE("nouveau/nv47.ctxprog");
-MODULE_FIRMWARE("nouveau/nv47.ctxvals");
-MODULE_FIRMWARE("nouveau/nv49.ctxprog");
-MODULE_FIRMWARE("nouveau/nv49.ctxvals");
-MODULE_FIRMWARE("nouveau/nv4a.ctxprog");
-MODULE_FIRMWARE("nouveau/nv4a.ctxvals");
-MODULE_FIRMWARE("nouveau/nv4b.ctxprog");
-MODULE_FIRMWARE("nouveau/nv4b.ctxvals");
-MODULE_FIRMWARE("nouveau/nv4c.ctxprog");
-MODULE_FIRMWARE("nouveau/nv4c.ctxvals");
-MODULE_FIRMWARE("nouveau/nv4e.ctxprog");
-MODULE_FIRMWARE("nouveau/nv4e.ctxvals");
+#include "nouveau_grctx.h"
 
 struct nouveau_channel *
 nv40_graph_channel(struct drm_device *dev)
@@ -83,27 +57,30 @@ nv40_graph_create_context(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *ctx;
+	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	int ret;
 
-	/* Allocate a 175KiB block of PRAMIN to store the context.  This
-	 * is massive overkill for a lot of chipsets, but it should be safe
-	 * until we're able to implement this properly (will happen at more
-	 * or less the same time we're able to write our own context programs.
-	 */
-	ret = nouveau_gpuobj_new_ref(dev, chan, NULL, 0, 175*1024, 16,
-					  NVOBJ_FLAG_ZERO_ALLOC,
-					  &chan->ramin_grctx);
+	ret = nouveau_gpuobj_new_ref(dev, chan, NULL, 0, pgraph->grctx_size,
+				     16, NVOBJ_FLAG_ZERO_ALLOC,
+				     &chan->ramin_grctx);
 	if (ret)
 		return ret;
-	ctx = chan->ramin_grctx->gpuobj;
 
 	/* Initialise default context values */
 	dev_priv->engine.instmem.prepare_access(dev, true);
-	nv40_grctx_vals_load(dev, ctx);
-	nv_wo32(dev, ctx, 0, ctx->im_pramin->start);
-	dev_priv->engine.instmem.finish_access(dev);
+	if (!pgraph->ctxprog) {
+		struct nouveau_grctx ctx = {};
 
+		ctx.dev = chan->dev;
+		ctx.mode = NOUVEAU_GRCTX_VALS;
+		ctx.data = chan->ramin_grctx->gpuobj;
+		nv40_grctx_init(&ctx);
+	} else {
+		nouveau_grctx_vals_load(dev, chan->ramin_grctx->gpuobj);
+	}
+	nv_wo32(dev, chan->ramin_grctx->gpuobj, 0,
+		     chan->ramin_grctx->gpuobj->im_pramin->start);
+	dev_priv->engine.instmem.finish_access(dev);
 	return 0;
 }
 
@@ -204,139 +181,6 @@ nv40_graph_unload_context(struct drm_device *dev)
 	return ret;
 }
 
-struct nouveau_ctxprog {
-	uint32_t signature;
-	uint8_t  version;
-	uint16_t length;
-	uint32_t data[];
-} __attribute__ ((packed));
-
-struct nouveau_ctxvals {
-	uint32_t signature;
-	uint8_t  version;
-	uint32_t length;
-	struct {
-		uint32_t offset;
-		uint32_t value;
-	} data[];
-} __attribute__ ((packed));
-
-int
-nv40_grctx_init(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
-	const int chipset = dev_priv->chipset;
-	const struct firmware *fw;
-	const struct nouveau_ctxprog *cp;
-	const struct nouveau_ctxvals *cv;
-	char name[32];
-	int ret, i;
-
-	pgraph->accel_blocked = true;
-
-	if (!pgraph->ctxprog) {
-		sprintf(name, "nouveau/nv%02x.ctxprog", chipset);
-		ret = request_firmware(&fw, name, &dev->pdev->dev);
-		if (ret) {
-			NV_ERROR(dev, "No ctxprog for NV%02x\n", chipset);
-			return ret;
-		}
-
-		pgraph->ctxprog = kmalloc(fw->size, GFP_KERNEL);
-		if (!pgraph->ctxprog) {
-			NV_ERROR(dev, "OOM copying ctxprog\n");
-			release_firmware(fw);
-			return -ENOMEM;
-		}
-		memcpy(pgraph->ctxprog, fw->data, fw->size);
-
-		cp = pgraph->ctxprog;
-		if (le32_to_cpu(cp->signature) != 0x5043564e ||
-		    cp->version != 0 ||
-		    le16_to_cpu(cp->length) != ((fw->size - 7) / 4)) {
-			NV_ERROR(dev, "ctxprog invalid\n");
-			release_firmware(fw);
-			nv40_grctx_fini(dev);
-			return -EINVAL;
-		}
-		release_firmware(fw);
-	}
-
-	if (!pgraph->ctxvals) {
-		sprintf(name, "nouveau/nv%02x.ctxvals", chipset);
-		ret = request_firmware(&fw, name, &dev->pdev->dev);
-		if (ret) {
-			NV_ERROR(dev, "No ctxvals for NV%02x\n", chipset);
-			nv40_grctx_fini(dev);
-			return ret;
-		}
-
-		pgraph->ctxvals = kmalloc(fw->size, GFP_KERNEL);
-		if (!pgraph->ctxprog) {
-			NV_ERROR(dev, "OOM copying ctxprog\n");
-			release_firmware(fw);
-			nv40_grctx_fini(dev);
-			return -ENOMEM;
-		}
-		memcpy(pgraph->ctxvals, fw->data, fw->size);
-
-		cv = (void *)pgraph->ctxvals;
-		if (le32_to_cpu(cv->signature) != 0x5643564e ||
-		    cv->version != 0 ||
-		    le32_to_cpu(cv->length) != ((fw->size - 9) / 8)) {
-			NV_ERROR(dev, "ctxvals invalid\n");
-			release_firmware(fw);
-			nv40_grctx_fini(dev);
-			return -EINVAL;
-		}
-		release_firmware(fw);
-	}
-
-	cp = pgraph->ctxprog;
-
-	nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_INDEX, 0);
-	for (i = 0; i < le16_to_cpu(cp->length); i++)
-		nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_DATA,
-			le32_to_cpu(cp->data[i]));
-
-	pgraph->accel_blocked = false;
-	return 0;
-}
-
-void
-nv40_grctx_fini(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
-
-	if (pgraph->ctxprog) {
-		kfree(pgraph->ctxprog);
-		pgraph->ctxprog = NULL;
-	}
-
-	if (pgraph->ctxvals) {
-		kfree(pgraph->ctxprog);
-		pgraph->ctxvals = NULL;
-	}
-}
-
-void
-nv40_grctx_vals_load(struct drm_device *dev, struct nouveau_gpuobj *ctx)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
-	struct nouveau_ctxvals *cv = pgraph->ctxvals;
-	int i;
-
-	if (!cv)
-		return;
-
-	for (i = 0; i < le32_to_cpu(cv->length); i++)
-		nv_wo32(dev, ctx, le32_to_cpu(cv->data[i].offset),
-			le32_to_cpu(cv->data[i].value));
-}
-
 /*
  * G70		0x47
  * G71		0x49
@@ -359,7 +203,26 @@ nv40_graph_init(struct drm_device *dev)
 	nv_wr32(dev, NV03_PMC_ENABLE, nv_rd32(dev, NV03_PMC_ENABLE) |
 			 NV_PMC_ENABLE_PGRAPH);
 
-	nv40_grctx_init(dev);
+	if (nouveau_ctxfw) {
+		nouveau_grctx_prog_load(dev);
+		dev_priv->engine.graph.grctx_size = 175 * 1024;
+	}
+
+	if (!dev_priv->engine.graph.ctxprog) {
+		struct nouveau_grctx ctx = {};
+		uint32_t cp[256];
+
+		ctx.dev = dev;
+		ctx.mode = NOUVEAU_GRCTX_PROG;
+		ctx.data = cp;
+		ctx.ctxprog_max = 256;
+		nv40_grctx_init(&ctx);
+		dev_priv->engine.graph.grctx_size = ctx.ctxvals_pos * 4;
+
+		nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_INDEX, 0);
+		for (i = 0; i < ctx.ctxprog_len; i++)
+			nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_DATA, cp[i]);
+	}
 
 	/* No context present currently */
 	nv_wr32(dev, NV40_PGRAPH_CTXCTL_CUR, 0x00000000);
@@ -539,6 +402,7 @@ nv40_graph_init(struct drm_device *dev)
 
 void nv40_graph_takedown(struct drm_device *dev)
 {
+	nouveau_grctx_fini(dev);
 }
 
 struct nouveau_pgraph_object_class nv40_graph_grclass[] = {

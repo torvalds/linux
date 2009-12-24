@@ -191,7 +191,7 @@ static int vmw_fifo_wait_noirq(struct vmw_private *dev_priv,
 		}
 		schedule_timeout(1);
 		if (interruptible && signal_pending(current)) {
-			ret = -ERESTART;
+			ret = -ERESTARTSYS;
 			break;
 		}
 	}
@@ -237,9 +237,7 @@ static int vmw_fifo_wait(struct vmw_private *dev_priv,
 		    (dev_priv->fifo_queue,
 		     !vmw_fifo_is_full(dev_priv, bytes), timeout);
 
-	if (unlikely(ret == -ERESTARTSYS))
-		ret = -ERESTART;
-	else if (unlikely(ret == 0))
+	if (unlikely(ret == 0))
 		ret = -EBUSY;
 	else if (likely(ret > 0))
 		ret = 0;

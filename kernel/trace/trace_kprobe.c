@@ -282,6 +282,18 @@ static int kprobe_dispatcher(struct kprobe *kp, struct pt_regs *regs);
 static int kretprobe_dispatcher(struct kretprobe_instance *ri,
 				struct pt_regs *regs);
 
+/* Check the name is good for event/group */
+static int check_event_name(const char *name)
+{
+	if (!isalpha(*name) && *name != '_')
+		return 0;
+	while (*++name != '\0') {
+		if (!isalpha(*name) && !isdigit(*name) && *name != '_')
+			return 0;
+	}
+	return 1;
+}
+
 /*
  * Allocate new trace_probe and initialize it (including kprobes).
  */
@@ -293,10 +305,11 @@ static struct trace_probe *alloc_trace_probe(const char *group,
 					     int nargs, int is_return)
 {
 	struct trace_probe *tp;
+	int ret = -ENOMEM;
 
 	tp = kzalloc(SIZEOF_TRACE_PROBE(nargs), GFP_KERNEL);
 	if (!tp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(ret);
 
 	if (symbol) {
 		tp->symbol = kstrdup(symbol, GFP_KERNEL);
@@ -312,14 +325,20 @@ static struct trace_probe *alloc_trace_probe(const char *group,
 	else
 		tp->rp.kp.pre_handler = kprobe_dispatcher;
 
-	if (!event)
+	if (!event || !check_event_name(event)) {
+		ret = -EINVAL;
 		goto error;
+	}
+
 	tp->call.name = kstrdup(event, GFP_KERNEL);
 	if (!tp->call.name)
 		goto error;
 
-	if (!group)
+	if (!group || !check_event_name(group)) {
+		ret = -EINVAL;
 		goto error;
+	}
+
 	tp->call.system = kstrdup(group, GFP_KERNEL);
 	if (!tp->call.system)
 		goto error;
@@ -330,7 +349,7 @@ error:
 	kfree(tp->call.name);
 	kfree(tp->symbol);
 	kfree(tp);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(ret);
 }
 
 static void free_probe_arg(struct probe_arg *arg)
@@ -695,10 +714,10 @@ static int create_trace_probe(int argc, char **argv)
 	if (!event) {
 		/* Make a new event name */
 		if (symbol)
-			snprintf(buf, MAX_EVENT_NAME_LEN, "%c@%s%+ld",
+			snprintf(buf, MAX_EVENT_NAME_LEN, "%c_%s_%ld",
 				 is_return ? 'r' : 'p', symbol, offset);
 		else
-			snprintf(buf, MAX_EVENT_NAME_LEN, "%c@0x%p",
+			snprintf(buf, MAX_EVENT_NAME_LEN, "%c_0x%p",
 				 is_return ? 'r' : 'p', addr);
 		event = buf;
 	}

@@ -202,6 +202,7 @@
 struct aaci_runtime {
 	void			__iomem *base;
 	void			__iomem *fifo;
+	spinlock_t		lock;
 
 	struct ac97_pcm		*pcm;
 	int			pcm_open;
@@ -232,7 +233,6 @@ struct aaci {
 	struct snd_ac97		*ac97;
 
 	u32			maincr;
-	spinlock_t		lock;
 
 	struct aaci_runtime	playback;
 	struct aaci_runtime	capture;

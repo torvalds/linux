@@ -696,6 +696,10 @@ qla25xx_create_rsp_que(struct qla_hw_data *ha, uint16_t options,
 	/* Use alternate PCI devfn */
 	if (LSB(rsp->rid))
 		options |= BIT_5;
+	/* Enable MSIX handshake mode on for uncapable adapters */
+	if (!IS_MSIX_NACK_CAPABLE(ha))
+		options |= BIT_6;
+
 	rsp->options = options;
 	rsp->id = que_id;
 	reg = ISP_QUE_REG(ha, que_id);

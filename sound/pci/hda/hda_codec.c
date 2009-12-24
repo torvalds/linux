@@ -1086,11 +1086,6 @@ int snd_hda_codec_configure(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 	}
-	/* audio codec should override the mixer name */
-	if (codec->afg || !*codec->bus->card->mixername)
-		snprintf(codec->bus->card->mixername,
-			 sizeof(codec->bus->card->mixername),
-			 "%s %s", codec->vendor_name, codec->chip_name);
 
 	if (is_generic_config(codec)) {
 		err = snd_hda_parse_generic_codec(codec);
@@ -1109,6 +1104,11 @@ int snd_hda_codec_configure(struct hda_codec *codec)
  patched:
 	if (!err && codec->patch_ops.unsol_event)
 		err = init_unsol_queue(codec->bus);
+	/* audio codec should override the mixer name */
+	if (!err && (codec->afg || !*codec->bus->card->mixername))
+		snprintf(codec->bus->card->mixername,
+			 sizeof(codec->bus->card->mixername),
+			 "%s %s", codec->vendor_name, codec->chip_name);
 	return err;
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_configure);

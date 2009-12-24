@@ -85,7 +85,7 @@ static int adp5520_bl_get_brightness(struct backlight_device *bl)
 	return error ? data->current_brightness : reg_val;
 }
 
-static struct backlight_ops adp5520_bl_ops = {
+static const struct backlight_ops adp5520_bl_ops = {
 	.update_status	= adp5520_bl_update_status,
 	.get_brightness	= adp5520_bl_get_brightness,
 };

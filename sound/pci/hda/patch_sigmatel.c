@@ -2104,6 +2104,7 @@ static unsigned int ref9205_pin_configs[12] = {
     10280204
     1028021F
     10280228 (Dell Vostro 1500)
+    10280229 (Dell Vostro 1700)
 */
 static unsigned int dell_9205_m42_pin_configs[12] = {
 	0x0321101F, 0x03A11020, 0x400003FA, 0x90170310,
@@ -2189,6 +2190,8 @@ static struct snd_pci_quirk stac9205_cfg_tbl[] = {
 		      "Dell Inspiron", STAC_9205_DELL_M44),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0228,
 		      "Dell Vostro 1500", STAC_9205_DELL_M42),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0229,
+		      "Dell Vostro 1700", STAC_9205_DELL_M42),
 	/* Gateway */
 	SND_PCI_QUIRK(0x107b, 0x0560, "Gateway T6834c", STAC_9205_EAPD),
 	SND_PCI_QUIRK(0x107b, 0x0565, "Gateway T1616", STAC_9205_EAPD),
@@ -3779,15 +3782,16 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 		err = snd_hda_attach_beep_device(codec, nid);
 		if (err < 0)
 			return err;
-		/* IDT/STAC codecs have linear beep tone parameter */
-		codec->beep->linear_tone = 1;
-		/* if no beep switch is available, make its own one */
-		caps = query_amp_caps(codec, nid, HDA_OUTPUT);
-		if (codec->beep &&
-		    !((caps & AC_AMPCAP_MUTE) >> AC_AMPCAP_MUTE_SHIFT)) {
-			err = stac92xx_beep_switch_ctl(codec);
-			if (err < 0)
-				return err;
+		if (codec->beep) {
+			/* IDT/STAC codecs have linear beep tone parameter */
+			codec->beep->linear_tone = 1;
+			/* if no beep switch is available, make its own one */
+			caps = query_amp_caps(codec, nid, HDA_OUTPUT);
+			if (!(caps & AC_AMPCAP_MUTE)) {
+				err = stac92xx_beep_switch_ctl(codec);
+				if (err < 0)
+					return err;
+			}
 		}
 	}
 #endif

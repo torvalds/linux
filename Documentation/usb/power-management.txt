@@ -71,12 +71,10 @@ being accessed through sysfs, then it definitely is idle.
 	Forms of dynamic PM
 	-------------------
 
-Dynamic suspends can occur in two ways: manual and automatic.
-"Manual" means that the user has told the kernel to suspend a device,
-whereas "automatic" means that the kernel has decided all by itself to
-suspend a device.  Automatic suspend is called "autosuspend" for
-short.  In general, a device won't be autosuspended unless it has been
-idle for some minimum period of time, the so-called idle-delay time.
+Dynamic suspends occur when the kernel decides to suspend an idle
+device.  This is called "autosuspend" for short.  In general, a device
+won't be autosuspended unless it has been idle for some minimum period
+of time, the so-called idle-delay time.
 
 Of course, nothing the kernel does on its own initiative should
 prevent the computer or its devices from working properly.  If a
@@ -96,10 +94,11 @@ idle.
 We can categorize power management events in two broad classes:
 external and internal.  External events are those triggered by some
 agent outside the USB stack: system suspend/resume (triggered by
-userspace), manual dynamic suspend/resume (also triggered by
-userspace), and remote wakeup (triggered by the device).  Internal
-events are those triggered within the USB stack: autosuspend and
-autoresume.
+userspace), manual dynamic resume (also triggered by userspace), and
+remote wakeup (triggered by the device).  Internal events are those
+triggered within the USB stack: autosuspend and autoresume.  Note that
+all dynamic suspend events are internal; external agents are not
+allowed to issue dynamic suspends.
 
 
 	The user interface for dynamic PM
@@ -145,9 +144,9 @@ relevant attribute files are: wakeup, level, and autosuspend.
 		number of seconds the device should remain idle before
 		the kernel will autosuspend it (the idle-delay time).
 		The default is 2.  0 means to autosuspend as soon as
-		the device becomes idle, and -1 means never to
-		autosuspend.  You can write a number to the file to
-		change the autosuspend idle-delay time.
+		the device becomes idle, and negative values mean
+		never to autosuspend.  You can write a number to the
+		file to change the autosuspend idle-delay time.
 
 Writing "-1" to power/autosuspend and writing "on" to power/level do
 essentially the same thing -- they both prevent the device from being
@@ -377,9 +376,9 @@ the device hasn't been idle for long enough, a delayed workqueue
 routine is automatically set up to carry out the operation when the
 autosuspend idle-delay has expired.
 
-Autoresume attempts also can fail.  This will happen if power/level is
-set to "suspend" or if the device doesn't manage to resume properly.
-Unlike autosuspend, there's no delay for an autoresume.
+Autoresume attempts also can fail, although failure would mean that
+the device is no longer present or operating properly.  Unlike
+autosuspend, there's no delay for an autoresume.
 
 
 	Other parts of the driver interface
@@ -527,13 +526,3 @@ succeed, it may still remain active and thus cause the system to
 resume as soon as the system suspend is complete.  Or the remote
 wakeup may fail and get lost.  Which outcome occurs depends on timing
 and on the hardware and firmware design.
-
-More interestingly, a device might undergo a manual resume or
-autoresume during system suspend.  With current kernels this shouldn't
-happen, because manual resumes must be initiated by userspace and
-autoresumes happen in response to I/O requests, but all user processes
-and I/O should be quiescent during a system suspend -- thanks to the
-freezer.  However there are plans to do away with the freezer, which
-would mean these things would become possible.  If and when this comes
-about, the USB core will carefully arrange matters so that either type
-of resume will block until the entire system has resumed.

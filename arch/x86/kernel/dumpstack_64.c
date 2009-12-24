@@ -188,8 +188,8 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 			if (ops->stack(data, id) < 0)
 				break;
 
-			bp = print_context_stack(tinfo, stack, bp, ops,
-						 data, estack_end, &graph);
+			bp = ops->walk_stack(tinfo, stack, bp, ops,
+					     data, estack_end, &graph);
 			ops->stack(data, "<EOE>");
 			/*
 			 * We link to the next stack via the
