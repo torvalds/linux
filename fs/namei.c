@@ -1656,6 +1656,10 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 
 	*is_link = 0;
 
+	error = -EISDIR;
+	if (nd->last_type != LAST_NORM || nd->last.name[nd->last.len])
+		goto exit;
+
 	mutex_lock(&dir->d_inode->i_mutex);
 
 	path->dentry = lookup_hash(nd);
@@ -1826,13 +1830,8 @@ reval:
 		audit_inode(pathname, nd.path.dentry);
 
 	/*
-	 * We have the parent and last component. First of all, check
-	 * that we are not asked to creat(2) an obvious directory - that
-	 * will not do.
+	 * We have the parent and last component.
 	 */
-	error = -EISDIR;
-	if (nd.last_type != LAST_NORM || nd.last.name[nd.last.len])
-		goto exit_parent;
 
 	error = -ENFILE;
 	filp = get_empty_filp();
@@ -1908,16 +1907,10 @@ do_link:
 	nd.flags &= ~LOOKUP_PARENT;
 	if (nd.last_type == LAST_BIND)
 		goto ok;
-	error = -EISDIR;
-	if (nd.last_type != LAST_NORM)
-		goto exit;
-	if (nd.last.name[nd.last.len]) {
-		__putname(nd.last.name);
-		goto exit;
-	}
 	filp = do_last(&nd, &path, open_flag, flag, acc_mode, mode,
 		       pathname, &is_link);
-	__putname(nd.last.name);
+	if (nd.last_type == LAST_NORM)
+		__putname(nd.last.name);
 	if (is_link)
 		goto do_link;
 	if (nd.root.mnt)
