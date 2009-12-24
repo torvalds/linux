@@ -33,13 +33,8 @@ extern u_char *dt3155_bbase;
 #ifdef __KERNEL__
 #include <linux/wait.h>
 
-#include <linux/version.h>	/* need access to LINUX_VERSION_CODE */
 /* wait queue for reads */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 3, 1)
 extern wait_queue_head_t dt3155_read_wait_queue[MAXBOARDS];
-#else
-extern struct wait_queue *dt3155_read_wait_queue[MAXBOARDS];
-#endif
 #endif
 
 /* number of devices */

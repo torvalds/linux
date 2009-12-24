@@ -54,10 +54,9 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/mm.h>	/* PAGE_ALIGN() */
+#include <linux/io.h>
 
 #include <asm/page.h>
-
-#include "sysdep.h"
 
 /*#define ALL_DEBUG*/
 #define ALL_MSG "allocator: "

@@ -59,13 +59,10 @@ extern void printques(int);
 
 #ifdef MODULE
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/interrupt.h>
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,10)
 MODULE_LICENSE("GPL");
-#endif
 
 #endif
 
@@ -105,11 +102,7 @@ int dt3155_errno = 0;
 #endif
 
 /* wait queue for interrupts */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,1)
 wait_queue_head_t dt3155_read_wait_queue[ MAXBOARDS ];
-#else
-struct wait_queue *dt3155_read_wait_queue[ MAXBOARDS ];
-#endif
 
 #define DT_3155_SUCCESS 0
 #define DT_3155_FAILURE -EIO
@@ -186,11 +179,7 @@ static inline void dt3155_isr( int irq, void *dev_id, struct pt_regs *regs )
 {
   int    minor = -1;
   int    index;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
   unsigned long flags;
-#else
-  int    flags;
-#endif
   u_long buffer_addr;
 
   /* find out who issued the interrupt */
@@ -264,21 +253,12 @@ static inline void dt3155_isr( int irq, void *dev_id, struct pt_regs *regs )
 	  buffer_addr = dt3155_fbuffer[ minor ]->
 	    frame_info[ dt3155_fbuffer[ minor ]->active_buf ].addr
 	    + (DT3155_MAX_ROWS / 2) * stride;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 	  local_save_flags(flags);
 	  local_irq_disable();
-#else
-	  save_flags( flags );
-	  cli();
-#endif
 	  wake_up_interruptible( &dt3155_read_wait_queue[ minor ] );
 
 	  /* Set up the DMA address for the next field */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 	  local_irq_restore(flags);
-#else
-	  restore_flags( flags );
-#endif
 	  WriteMReg((dt3155_lbase[ minor ] + ODD_DMA_START), buffer_addr);
 	}
 
@@ -350,13 +330,8 @@ static inline void dt3155_isr( int irq, void *dev_id, struct pt_regs *regs )
 	   DT3155_STATE_FLD )
 	{
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 	  local_save_flags(flags);
 	  local_irq_disable();
-#else
-	  save_flags( flags );
-	  cli();
-#endif
 
 #ifdef DEBUG_QUES_B
 	  printques( minor );
@@ -412,11 +387,7 @@ static inline void dt3155_isr( int irq, void *dev_id, struct pt_regs *regs )
 
 	  wake_up_interruptible( &dt3155_read_wait_queue[ minor ] );
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 	  local_irq_restore(flags);
-#else
-	  restore_flags( flags );
-#endif
 	}
 
 
@@ -675,11 +646,6 @@ static int dt3155_mmap (struct file * file, struct vm_area_struct * vma)
   /* which device are we mmapping? */
   int				minor = MINOR(file->f_dentry->d_inode->i_rdev);
   unsigned long	offset;
-
-  /* not actually sure when vm_area_struct changed,
-     but it was in 2.3 sometime */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,20)
-
   offset = vma->vm_pgoff << PAGE_SHIFT;
 
   if (offset >= __pa(high_memory) || (file->f_flags & O_SYNC))
@@ -688,34 +654,17 @@ static int dt3155_mmap (struct file * file, struct vm_area_struct * vma)
   /* Don't try to swap out physical pages.. */
   vma->vm_flags |= VM_RESERVED;
 
-#else
-
-  if (vma->vm_offset & ~PAGE_MASK)
-    return -ENXIO;
-
-  offset = vma->vm_offset;
-
-#endif
-
   /* they are mapping the registers or the buffer */
   if ((offset == dt3155_status[minor].reg_addr &&
        vma->vm_end - vma->vm_start == PCI_PAGE_SIZE) ||
       (offset == dt3155_status[minor].mem_addr &&
        vma->vm_end - vma->vm_start == dt3155_status[minor].mem_size))
     {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
       if (remap_pfn_range(vma,
 			vma->vm_start,
 			offset >> PAGE_SHIFT,
 			vma->vm_end - vma->vm_start,
-			vma->vm_page_prot))
-#else
-      if (remap_page_range(vma->vm_start,
-			   offset,
-			   vma->vm_end - vma->vm_start,
-			   vma->vm_page_prot))
-#endif
-	{
+			vma->vm_page_prot)) {
 	  printk("DT3155: remap_page_range() failed.\n");
 	  return -EAGAIN;
 	}
@@ -761,9 +710,6 @@ static int dt3155_open( struct inode* inode, struct file* filep)
   printk("DT3155: Device opened.\n");
 
   dt3155_dev_open[ minor ] = 1 ;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-  MOD_INC_USE_COUNT;
-#endif
 
   dt3155_flush( minor );
 
@@ -771,11 +717,7 @@ static int dt3155_open( struct inode* inode, struct file* filep)
   int_csr_r.reg = 0;
   WriteMReg( (dt3155_lbase[ minor ] + INT_CSR), int_csr_r.reg );
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,1)
   init_waitqueue_head(&(dt3155_read_wait_queue[minor]));
-#else
-  dt3155_read_wait_queue[minor] = NULL;
-#endif
 
   return 0;
 }
@@ -798,9 +740,6 @@ static int dt3155_close( struct inode *inode, struct file *filep)
     }
   else
     {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-      MOD_DEC_USE_COUNT;
-#endif
       dt3155_dev_open[ minor ] = 0;
 
       if (dt3155_status[ minor ].state != DT3155_STATE_IDLE)
@@ -846,8 +785,6 @@ static int dt3155_read (
   /*  if (dt3155_status[minor].state == DT3155_STATE_IDLE)*/
   /*    return -EBUSY;*/
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,1)
-
   /* non-blocking reads should return if no data */
   if (filep->f_flags & O_NDELAY)
     {
@@ -876,34 +813,6 @@ static int dt3155_read (
 	  return -EINTR;
 	}
     }
-
-#else
-  while ((frame_index = dt3155_get_ready_buffer(minor)) < 0 )
-    {
-      int index;
-      if (filep->f_flags & O_NDELAY)
-	return 0;
-
-      /* sleep till data arrives , or we get interrupted */
-      interruptible_sleep_on(&dt3155_read_wait_queue[minor]);
-      for (index = 0; index < _NSIG_WORDS; index++)
-	{
-	  /*
-	   * Changing the next line of code below to this:
-	   * if (current->pending.signal.sig[index] &
-	   *                           ~current->blocked.sig[index])
-	   * would also work on a 2.4 kernel, however, the above
-	   * method is preferred & more portable.
-	   */
-	  if (current->signal.sig[index] & ~current->blocked.sig[index])
-	    {
-	      printk ("DT3155: read: interrupted\n");
-	      return -EINTR;
-	    }
-	}
-    }
-
-#endif
 
   frame_info_p = &dt3155_status[minor].fbuffer.frame_info[frame_index];
 
@@ -1046,12 +955,6 @@ int init_module(void)
   int rcode = 0;
   char *devname[ MAXBOARDS ];
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,1)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-  SET_MODULE_OWNER(&dt3155_fops);
-#endif
-#endif
-
   devname[ 0 ] = "dt3155a";
 #if MAXBOARDS == 2
   devname[ 1 ] = "dt3155b";
@@ -1091,17 +994,6 @@ int init_module(void)
 
   /* Now let's find the hardware.  find_PCI() will set ndevices to the
    * number of cards found in this machine. */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-  if ( !(pcibios_present()) )
-    {
-      printk("DT3155: Error: No PCI bios on this machine \n");
-      if( unregister_chrdev( dt3155_major, "dt3155" ) != 0 )
-	printk("DT3155: cleanup_module failed\n");
-
-      return DT_3155_FAILURE;
-    }
-  else
-#endif
     {
       if ( (rcode = find_PCI()) !=  DT_3155_SUCCESS )
 	{
@@ -1199,10 +1091,5 @@ void cleanup_module(void)
 	  free_irq( dt3155_status[ index ].irq, (void*)&dt3155_status[index] );
 	}
     }
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-  if (MOD_IN_USE)
-    printk("DT3155: device busy, remove delayed\n");
-#endif
 }
 

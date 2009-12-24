@@ -435,20 +435,11 @@ static inline void internal_release_locked_buffer( int m )
  *****************************************************/
 inline void dt3155_release_locked_buffer( int m )
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 	unsigned long int flags;
 	local_save_flags(flags);
 	local_irq_disable();
 	internal_release_locked_buffer(m);
 	local_irq_restore(flags);
-#else
-  int flags;
-
-  save_flags( flags );
-  cli();
-  internal_release_locked_buffer( m );
-  restore_flags( flags );
-#endif
 }
 
 
@@ -460,15 +451,9 @@ inline void dt3155_release_locked_buffer( int m )
 inline int dt3155_flush( int m )
 {
   int index;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-	unsigned long int flags;
-	local_save_flags(flags);
-	local_irq_disable();
-#else
-  int flags;
-  save_flags( flags );
-  cli();
-#endif
+  unsigned long int flags;
+  local_save_flags(flags);
+  local_irq_disable();
 
   internal_release_locked_buffer( m );
   dt3155_fbuffer[ m ]->empty_len = 0;
@@ -486,11 +471,7 @@ inline int dt3155_flush( int m )
   dt3155_fbuffer[ m ]->ready_head = 0;
   dt3155_fbuffer[ m ]->ready_len = 0;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
   local_irq_restore(flags);
-#else
-  restore_flags( flags );
-#endif
 
   return 0;
 }
@@ -507,15 +488,9 @@ inline int dt3155_flush( int m )
 inline int dt3155_get_ready_buffer( int m )
 {
   int frame_index;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-	unsigned long int flags;
-	local_save_flags(flags);
-	local_irq_disable();
-#else
-  int flags;
-  save_flags( flags );
-  cli();
-#endif
+  unsigned long int flags;
+  local_save_flags(flags);
+  local_irq_disable();
 
 #ifdef DEBUG_QUES_A
   printques( m );
@@ -535,11 +510,7 @@ inline int dt3155_get_ready_buffer( int m )
   printques( m );
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
   local_irq_restore(flags);
-#else
-  restore_flags( flags );
-#endif
 
   return frame_index;
 }
