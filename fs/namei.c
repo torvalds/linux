@@ -1591,13 +1591,13 @@ static int open_will_truncate(int flag, struct inode *inode)
 }
 
 static struct file *finish_open(struct nameidata *nd,
-				int open_flag, int flag, int acc_mode)
+				int open_flag, int acc_mode)
 {
 	struct file *filp;
 	int will_truncate;
 	int error;
 
-	will_truncate = open_will_truncate(flag, nd->path.dentry->d_inode);
+	will_truncate = open_will_truncate(open_flag, nd->path.dentry->d_inode);
 	if (will_truncate) {
 		error = mnt_want_write(nd->path.mnt);
 		if (error)
@@ -1733,7 +1733,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	error = -EISDIR;
 	if (S_ISDIR(path->dentry->d_inode->i_mode))
 		goto exit;
-	filp = finish_open(nd, open_flag, flag, acc_mode);
+	filp = finish_open(nd, open_flag, acc_mode);
 	return filp;
 
 exit_mutex_unlock:
@@ -1854,7 +1854,7 @@ reval:
 	return filp;
 
 ok:
-	filp = finish_open(&nd, open_flag, flag, acc_mode);
+	filp = finish_open(&nd, open_flag, acc_mode);
 	if (nd.root.mnt)
 		path_put(&nd.root);
 	return filp;
