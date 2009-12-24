@@ -145,6 +145,7 @@ struct sony_laptop_input_s {
 	struct input_dev	*key_dev;
 	struct kfifo		fifo;
 	spinlock_t		fifo_lock;
+	struct timer_list	release_key_timer;
 };
 
 static struct sony_laptop_input_s sony_laptop_input = {
@@ -298,10 +299,8 @@ static int sony_laptop_input_keycode_map[] = {
 };
 
 /* release buttons after a short delay if pressed */
-static void do_sony_laptop_release_key(struct work_struct *work)
+static void do_sony_laptop_release_key(unsigned long unused)
 {
-	struct delayed_work *dwork =
-			container_of(work, struct delayed_work, work);
 	struct sony_laptop_keypress kp;
 	unsigned long flags;
 
@@ -315,13 +314,11 @@ static void do_sony_laptop_release_key(struct work_struct *work)
 
 	/* If there is something in the fifo schedule next release. */
 	if (kfifo_len(&sony_laptop_input.fifo) != 0)
-		schedule_delayed_work(dwork, msecs_to_jiffies(10));
+		mod_timer(&sony_laptop_input.release_key_timer,
+			  jiffies + msecs_to_jiffies(10));
 
 	spin_unlock_irqrestore(&sony_laptop_input.fifo_lock, flags);
 }
-
-static DECLARE_DELAYED_WORK(sony_laptop_release_key_work,
-			    do_sony_laptop_release_key);
 
 /* forward event to the input subsystem */
 static void sony_laptop_report_input_event(u8 event)
@@ -380,8 +377,8 @@ static void sony_laptop_report_input_event(u8 event)
 		kfifo_in_locked(&sony_laptop_input.fifo,
 				(unsigned char *)&kp, sizeof(kp),
 				&sony_laptop_input.fifo_lock);
-		schedule_delayed_work(&sony_laptop_release_key_work,
-				      msecs_to_jiffies(10));
+		mod_timer(&sony_laptop_input.release_key_timer,
+			  jiffies + msecs_to_jiffies(10));
 	} else
 		dprintk("unknown input event %.2x\n", event);
 }
@@ -405,6 +402,9 @@ static int sony_laptop_setup_input(struct acpi_device *acpi_device)
 		printk(KERN_ERR DRV_PFX "kfifo_alloc failed\n");
 		goto err_dec_users;
 	}
+
+	setup_timer(&sony_laptop_input.release_key_timer,
+		    do_sony_laptop_release_key, 0);
 
 	/* input keys */
 	key_dev = input_allocate_device();
@@ -485,7 +485,7 @@ static void sony_laptop_remove_input(void)
 	if (!atomic_dec_and_test(&sony_laptop_input.users))
 		return;
 
-	cancel_delayed_work_sync(&sony_laptop_release_key_work);
+	del_timer_sync(&sony_laptop_input.release_key_timer);
 
 	/*
 	 * Generate key-up events for remaining keys. Note that we don't
