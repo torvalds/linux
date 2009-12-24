@@ -1685,8 +1685,6 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		}
 		filp = nameidata_to_filp(nd);
 		mnt_drop_write(nd->path.mnt);
-		if (nd->root.mnt)
-			path_put(&nd->root);
 		if (!IS_ERR(filp)) {
 			error = ima_file_check(filp, acc_mode);
 			if (error) {
@@ -1726,8 +1724,6 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	if (S_ISDIR(path->dentry->d_inode->i_mode))
 		goto exit;
 	filp = finish_open(nd, open_flag, flag, acc_mode);
-	if (nd->root.mnt)
-		path_put(&nd->root);
 	return filp;
 
 exit_mutex_unlock:
@@ -1737,8 +1733,6 @@ exit_dput:
 exit:
 	if (!IS_ERR(nd->intent.open.file))
 		release_open_intent(nd);
-	if (nd->root.mnt)
-		path_put(&nd->root);
 	path_put(&nd->path);
 	return ERR_PTR(error);
 }
@@ -1857,6 +1851,8 @@ do_last:
 		       pathname, dir, &is_link);
 	if (is_link)
 		goto do_link;
+	if (nd.root.mnt)
+		path_put(&nd.root);
 	return filp;
 
 ok:
