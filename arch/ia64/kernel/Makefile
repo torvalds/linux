@@ -18,10 +18,6 @@ obj-$(CONFIG_IA64_GENERIC)	+= acpi-ext.o
 obj-$(CONFIG_IA64_HP_ZX1)	+= acpi-ext.o
 obj-$(CONFIG_IA64_HP_ZX1_SWIOTLB) += acpi-ext.o
 
-ifneq ($(CONFIG_ACPI_PROCESSOR),)
-obj-y				+= acpi-processor.o
-endif
-
 obj-$(CONFIG_IA64_PALINFO)	+= palinfo.o
 obj-$(CONFIG_IOSAPIC)		+= iosapic.o
 obj-$(CONFIG_MODULES)		+= module.o
