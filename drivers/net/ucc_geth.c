@@ -1651,24 +1651,27 @@ static void adjust_link(struct net_device *dev)
 			ugeth->oldspeed = phydev->speed;
 		}
 
-		/*
-		 * To change the MAC configuration we need to disable the
-		 * controller. To do so, we have to either grab ugeth->lock,
-		 * which is a bad idea since 'graceful stop' commands might
-		 * take quite a while, or we can quiesce driver's activity.
-		 */
-		ugeth_quiesce(ugeth);
-		ugeth_disable(ugeth, COMM_DIR_RX_AND_TX);
-
-		out_be32(&ug_regs->maccfg2, tempval);
-		out_be32(&uf_regs->upsmr, upsmr);
-
-		ugeth_enable(ugeth, COMM_DIR_RX_AND_TX);
-		ugeth_activate(ugeth);
-
 		if (!ugeth->oldlink) {
 			new_state = 1;
 			ugeth->oldlink = 1;
+		}
+
+		if (new_state) {
+			/*
+			 * To change the MAC configuration we need to disable
+			 * the controller. To do so, we have to either grab
+			 * ugeth->lock, which is a bad idea since 'graceful
+			 * stop' commands might take quite a while, or we can
+			 * quiesce driver's activity.
+			 */
+			ugeth_quiesce(ugeth);
+			ugeth_disable(ugeth, COMM_DIR_RX_AND_TX);
+
+			out_be32(&ug_regs->maccfg2, tempval);
+			out_be32(&uf_regs->upsmr, upsmr);
+
+			ugeth_enable(ugeth, COMM_DIR_RX_AND_TX);
+			ugeth_activate(ugeth);
 		}
 	} else if (ugeth->oldlink) {
 			new_state = 1;
