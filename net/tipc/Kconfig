@@ -33,6 +33,7 @@ config TIPC_ADVANCED
 config TIPC_ZONES
 	int "Maximum number of zones in network"
 	depends on TIPC_ADVANCED
+	range 1 255
 	default "3"
 	help
 	 Max number of zones inside TIPC network. Max supported value 
@@ -44,10 +45,10 @@ config TIPC_ZONES
 config TIPC_CLUSTERS
 	int "Maximum number of clusters in a zone"
 	depends on TIPC_ADVANCED
+	range 1 1
 	default "1"
 	help
-          ***Only 1 (one cluster in a zone) is supported by current code.
-          Any value set here will be overridden.***
+          ***Only 1 (one cluster in a zone) is supported by current code.***
 
           (Max number of clusters inside TIPC zone. Max supported 
           value is 4095 clusters, minimum is 1.
@@ -59,6 +60,7 @@ config TIPC_CLUSTERS
 config TIPC_NODES
 	int "Maximum number of nodes in cluster"
 	depends on TIPC_ADVANCED
+	range 8 2047
 	default "255"
 	help
 	  Maximum number of nodes inside a TIPC cluster. Maximum 
@@ -70,6 +72,7 @@ config TIPC_NODES
 config TIPC_SLAVE_NODES
 	int "Maximum number of slave nodes in cluster"
 	depends on TIPC_ADVANCED
+	range 0 2047
 	default "0"
 	help
           ***This capability is not supported by current code.***
@@ -83,6 +86,7 @@ config TIPC_SLAVE_NODES
 config TIPC_PORTS
 	int "Maximum number of ports in a node"
 	depends on TIPC_ADVANCED
+	range 217 65536
 	default "8191"
 	help
 	  Maximum number of ports within a node. Maximum 
