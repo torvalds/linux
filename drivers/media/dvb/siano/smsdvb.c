@@ -507,7 +507,7 @@ static int smsdvb_dvbt_set_frontend(struct dvb_frontend *fe,
 	sms_info("%s: freq %d band %d", __func__, c->frequency,
 		 c->bandwidth_hz);
 
-	switch (c->bandwidth_hz / 1000) {
+	switch (c->bandwidth_hz / 1000000) {
 	case 8:
 		Msg.Data[1] = BW_8_MHZ;
 		break;
@@ -575,7 +575,7 @@ static int smsdvb_isdbt_set_frontend(struct dvb_frontend *fe,
 		Msg.Data[1] = BW_ISDBT_1SEG;
 		break;
 	case 0:	/* AUTO */
-		switch (c->bandwidth_hz / 1000) {
+		switch (c->bandwidth_hz / 1000000) {
 		case 8:
 		case 7:
 			c->isdbt_sb_segment_count = 3;
