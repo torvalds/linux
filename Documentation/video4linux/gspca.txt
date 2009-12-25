@@ -42,6 +42,7 @@ ov519		041e:4064	Creative Live! VISTA VF0420
 ov519		041e:4067	Creative Live! Cam Video IM (VF0350)
 ov519		041e:4068	Creative Live! VISTA VF0470
 spca561		0458:7004	Genius VideoCAM Express V2
+sn9c2028	0458:7005	Genius Smart 300, version 2
 sunplus		0458:7006	Genius Dsc 1.3 Smart
 zc3xx		0458:7007	Genius VideoCam V2
 zc3xx		0458:700c	Genius VideoCam V3
@@ -226,7 +227,8 @@ sunplus		08ca:2050	Medion MD 41437
 sunplus		08ca:2060	Aiptek PocketDV5300
 tv8532		0923:010f	ICM532 cams
 mars		093a:050f	Mars-Semi Pc-Camera
-mr97310a	093a:010f	Sakar Digital no. 77379
+mr97310a	093a:010e	All four known CIF cams with this ID
+mr97310a	093a:010f	All four known VGA cams with this ID
 pac207		093a:2460	Qtec Webcam 100
 pac207		093a:2461	HP Webcam
 pac207		093a:2463	Philips SPC 220 NC
@@ -326,6 +328,10 @@ sn9c20x		0c45:62b0	PC Camera (SN9C202 + MT9V011/MT9V111/MT9V112)
 sn9c20x		0c45:62b3	PC Camera (SN9C202 + OV9655)
 sn9c20x		0c45:62bb	PC Camera (SN9C202 + OV7660)
 sn9c20x		0c45:62bc	PC Camera (SN9C202 + HV7131R)
+sn9c2028	0c45:8001	Wild Planet Digital Spy Camera
+sn9c2028	0c45:8003	Sakar #11199, #6637x, #67480 keychain cams
+sn9c2028	0c45:8008	Mini-Shotz ms-350
+sn9c2028	0c45:800a	Vivitar Vivicam 3350B
 sunplus		0d64:0303	Sunplus FashionCam DXG
 ov519		0e96:c001	TRUST 380 USB2 SPACEC@M
 etoms		102c:6151	Qcam Sangha CIF
@@ -343,10 +349,11 @@ spca501		1776:501c	Arowana 300K CMOS Camera
 t613		17a1:0128	TASCORP JPEG Webcam, NGS Cyclops
 vc032x		17ef:4802	Lenovo Vc0323+MI1310_SOC
 pac207		2001:f115	D-Link DSB-C120
-sq905c		2770:9050	sq905c
-sq905c		2770:905c	DualCamera
-sq905		2770:9120	Argus Digital Camera DC1512
-sq905c		2770:913d	sq905c
+sq905c		2770:9050	Disney pix micro (CIF)
+sq905c		2770:9052	Disney pix micro 2 (VGA)
+sq905c		2770:905c	All 11 known cameras with this ID
+sq905		2770:9120	All 24 known cameras with this ID
+sq905c		2770:913d	All 4 known cameras with this ID
 spca500		2899:012c	Toptro Industrial
 ov519		8020:ef04	ov519
 spca508		8086:0110	Intel Easy PC Camera
