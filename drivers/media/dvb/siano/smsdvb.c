@@ -380,10 +380,10 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 						DVB3_EVENT_UNC_ERR);
 
 		} else {
-			/*client->fe_status =
-				(phdr->msgType == MSG_SMS_NO_SIGNAL_IND) ?
-				0 : FE_HAS_SIGNAL;*/
-			client->fe_status = 0;
+			if (client->sms_stat_dvb.ReceptionData.IsRfLocked)
+				client->fe_status = FE_HAS_SIGNAL | FE_HAS_CARRIER;
+			else
+				client->fe_status = 0;
 			sms_board_dvb3_event(client, DVB3_EVENT_FE_UNLOCK);
 		}
 	}
