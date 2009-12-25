@@ -494,6 +494,7 @@ static int smsdvb_dvbt_set_frontend(struct dvb_frontend *fe,
 	client->fe_status = FE_HAS_SIGNAL;
 	client->event_fe_state = -1;
 	client->event_unc_state = -1;
+	fe->dtv_property_cache.delivery_system = SYS_DVBT;
 
 	Msg.Msg.msgSrcId = DVBT_BDA_CONTROL_MSG_ID;
 	Msg.Msg.msgDstId = HIF_TASK;
@@ -554,6 +555,8 @@ static int smsdvb_isdbt_set_frontend(struct dvb_frontend *fe,
 		struct SmsMsgHdr_ST	Msg;
 		u32		Data[4];
 	} Msg;
+
+	fe->dtv_property_cache.delivery_system = SYS_ISDBT;
 
 	Msg.Msg.msgSrcId  = DVBT_BDA_CONTROL_MSG_ID;
 	Msg.Msg.msgDstId  = HIF_TASK;
