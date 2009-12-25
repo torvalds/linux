@@ -1445,7 +1445,7 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 	if (!dev)
 		goto free_dst;
 
-	/* Copy neighbout for reachability confirmation */
+	/* Copy neighbour for reachability confirmation */
 	dst0->neighbour = neigh_clone(dst->neighbour);
 
 	xfrm_init_path((struct xfrm_dst *)dst0, dst, nfheader_len);
