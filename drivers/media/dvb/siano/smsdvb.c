@@ -162,7 +162,6 @@ static void smsdvb_update_dvb_stats(struct RECEPTION_STATISTICS_S *pReceptionDat
 		printk(KERN_DEBUG "DvbhSrvIndHP = %d", p->DvbhSrvIndHP);
 		printk(KERN_DEBUG "DvbhSrvIndLP = %d", p->DvbhSrvIndLP);
 		printk(KERN_DEBUG "NumMPEReceived = %d", p->NumMPEReceived);
-		printk(KERN_DEBUG "ReservedFields[10] = %d", p->ReservedFields[10]);
 	}
 
 	pReceptionData->IsDemodLocked = p->IsDemodLocked;
