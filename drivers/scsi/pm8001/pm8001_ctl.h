@@ -45,16 +45,6 @@
 #define HEADER_LEN			28
 #define SIZE_OFFSET			16
 
-struct pm8001_ioctl_payload {
-	u32	signature;
-	u16	major_function;
-	u16	minor_function;
-	u16	length;
-	u16	status;
-	u16	offset;
-	u16	id;
-	u8	func_specific[1];
-};
 
 #define FLASH_OK                        0x000000
 #define FAIL_OPEN_BIOS_FILE             0x000100

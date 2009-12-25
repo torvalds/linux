@@ -62,6 +62,18 @@ static int e_snprintf(char *str, size_t size, const char *format, ...)
 	return ret;
 }
 
+/* Check the name is good for event/group */
+static bool check_event_name(const char *name)
+{
+	if (!isalpha(*name) && *name != '_')
+		return false;
+	while (*++name != '\0') {
+		if (!isalpha(*name) && !isdigit(*name) && *name != '_')
+			return false;
+	}
+	return true;
+}
+
 /* Parse probepoint definition. */
 static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 {
@@ -82,6 +94,9 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 		ptr = strchr(arg, ':');
 		if (ptr)	/* Group name is not supported yet. */
 			semantic_error("Group name is not supported yet.");
+		if (!check_event_name(arg))
+			semantic_error("%s is bad for event name -it must "
+				       "follow C symbol-naming rule.", arg);
 		pp->event = strdup(arg);
 		arg = tmp;
 	}

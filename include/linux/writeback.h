@@ -79,8 +79,7 @@ void wakeup_flusher_threads(long nr_pages);
 static inline void wait_on_inode(struct inode *inode)
 {
 	might_sleep();
-	wait_on_bit(&inode->i_state, __I_LOCK, inode_wait,
-							TASK_UNINTERRUPTIBLE);
+	wait_on_bit(&inode->i_state, __I_NEW, inode_wait, TASK_UNINTERRUPTIBLE);
 }
 static inline void inode_sync_wait(struct inode *inode)
 {

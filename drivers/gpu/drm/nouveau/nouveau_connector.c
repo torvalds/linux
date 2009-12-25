@@ -86,7 +86,7 @@ nouveau_connector_destroy(struct drm_connector *drm_connector)
 	struct nouveau_connector *connector = nouveau_connector(drm_connector);
 	struct drm_device *dev = connector->base.dev;
 
-	NV_DEBUG(dev, "\n");
+	NV_DEBUG_KMS(dev, "\n");
 
 	if (!connector)
 		return;
@@ -420,7 +420,7 @@ nouveau_connector_native_mode(struct nouveau_connector *connector)
 	/* Use preferred mode if there is one.. */
 	list_for_each_entry(mode, &connector->base.probed_modes, head) {
 		if (mode->type & DRM_MODE_TYPE_PREFERRED) {
-			NV_DEBUG(dev, "native mode from preferred\n");
+			NV_DEBUG_KMS(dev, "native mode from preferred\n");
 			return drm_mode_duplicate(dev, mode);
 		}
 	}
@@ -445,7 +445,7 @@ nouveau_connector_native_mode(struct nouveau_connector *connector)
 		largest = mode;
 	}
 
-	NV_DEBUG(dev, "native mode from largest: %dx%d@%d\n",
+	NV_DEBUG_KMS(dev, "native mode from largest: %dx%d@%d\n",
 		      high_w, high_h, high_v);
 	return largest ? drm_mode_duplicate(dev, largest) : NULL;
 }
@@ -725,7 +725,7 @@ nouveau_connector_create(struct drm_device *dev, int index, int type)
 	struct drm_encoder *encoder;
 	int ret;
 
-	NV_DEBUG(dev, "\n");
+	NV_DEBUG_KMS(dev, "\n");
 
 	nv_connector = kzalloc(sizeof(*nv_connector), GFP_KERNEL);
 	if (!nv_connector)

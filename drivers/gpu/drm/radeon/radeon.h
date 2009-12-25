@@ -162,6 +162,7 @@ struct radeon_fence_driver {
 	struct list_head		created;
 	struct list_head		emited;
 	struct list_head		signaled;
+	bool				initialized;
 };
 
 struct radeon_fence {
@@ -202,8 +203,9 @@ struct radeon_surface_reg {
 struct radeon_mman {
 	struct ttm_bo_global_ref        bo_global_ref;
 	struct ttm_global_reference	mem_global_ref;
-	bool				mem_global_referenced;
 	struct ttm_bo_device		bdev;
+	bool				mem_global_referenced;
+	bool				initialized;
 };
 
 struct radeon_bo {

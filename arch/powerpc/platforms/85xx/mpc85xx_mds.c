@@ -86,7 +86,7 @@ static int mpc8568_fixup_125_clock(struct phy_device *phydev)
 	scr = phy_read(phydev, MV88E1111_SCR);
 
 	if (scr < 0)
-		return err;
+		return scr;
 
 	err = phy_write(phydev, MV88E1111_SCR, scr | 0x0008);
 

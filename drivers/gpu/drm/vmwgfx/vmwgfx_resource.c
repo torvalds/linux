@@ -488,28 +488,44 @@ static void vmw_user_surface_free(struct vmw_resource *res)
 	kfree(user_srf);
 }
 
-int vmw_user_surface_lookup(struct vmw_private *dev_priv,
-			    struct ttm_object_file *tfile,
-			    int sid, struct vmw_surface **out)
+int vmw_user_surface_lookup_handle(struct vmw_private *dev_priv,
+				   struct ttm_object_file *tfile,
+				   uint32_t handle, struct vmw_surface **out)
 {
 	struct vmw_resource *res;
 	struct vmw_surface *srf;
 	struct vmw_user_surface *user_srf;
+	struct ttm_base_object *base;
+	int ret = -EINVAL;
 
-	res = vmw_resource_lookup(dev_priv, &dev_priv->surface_idr, sid);
-	if (unlikely(res == NULL))
+	base = ttm_base_object_lookup(tfile, handle);
+	if (unlikely(base == NULL))
 		return -EINVAL;
 
-	if (res->res_free != &vmw_user_surface_free)
-		return -EINVAL;
+	if (unlikely(base->object_type != VMW_RES_SURFACE))
+		goto out_bad_resource;
 
-	srf = container_of(res, struct vmw_surface, res);
-	user_srf = container_of(srf, struct vmw_user_surface, srf);
-	if (user_srf->base.tfile != tfile && !user_srf->base.shareable)
-		return -EPERM;
+	user_srf = container_of(base, struct vmw_user_surface, base);
+	srf = &user_srf->srf;
+	res = &srf->res;
+
+	read_lock(&dev_priv->resource_lock);
+
+	if (!res->avail || res->res_free != &vmw_user_surface_free) {
+		read_unlock(&dev_priv->resource_lock);
+		goto out_bad_resource;
+	}
+
+	kref_get(&res->kref);
+	read_unlock(&dev_priv->resource_lock);
 
 	*out = srf;
-	return 0;
+	ret = 0;
+
+out_bad_resource:
+	ttm_base_object_unref(&base);
+
+	return ret;
 }
 
 static void vmw_user_surface_base_release(struct ttm_base_object **p_base)
@@ -526,35 +542,10 @@ static void vmw_user_surface_base_release(struct ttm_base_object **p_base)
 int vmw_surface_destroy_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv)
 {
-	struct vmw_private *dev_priv = vmw_priv(dev);
-	struct vmw_resource *res;
-	struct vmw_surface *srf;
-	struct vmw_user_surface *user_srf;
 	struct drm_vmw_surface_arg *arg = (struct drm_vmw_surface_arg *)data;
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
-	int ret = 0;
 
-	res = vmw_resource_lookup(dev_priv, &dev_priv->surface_idr, arg->sid);
-	if (unlikely(res == NULL))
-		return -EINVAL;
-
-	if (res->res_free != &vmw_user_surface_free) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	srf = container_of(res, struct vmw_surface, res);
-	user_srf = container_of(srf, struct vmw_user_surface, srf);
-	if (user_srf->base.tfile != tfile && !user_srf->base.shareable) {
-		ret = -EPERM;
-		goto out;
-	}
-
-	ttm_ref_object_base_unref(tfile, user_srf->base.hash.key,
-				  TTM_REF_USAGE);
-out:
-	vmw_resource_unreference(&res);
-	return ret;
+	return ttm_ref_object_base_unref(tfile, arg->sid, TTM_REF_USAGE);
 }
 
 int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
@@ -649,7 +640,10 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	}
 	srf->snooper.crtc = NULL;
 
-	rep->sid = res->id;
+	rep->sid = user_srf->base.hash.key;
+	if (rep->sid == SVGA3D_INVALID_ID)
+		DRM_ERROR("Created bad Surface ID.\n");
+
 	vmw_resource_unreference(&res);
 	return 0;
 out_err1:
@@ -662,39 +656,33 @@ out_err0:
 int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv)
 {
-	struct vmw_private *dev_priv = vmw_priv(dev);
 	union drm_vmw_surface_reference_arg *arg =
 	    (union drm_vmw_surface_reference_arg *)data;
 	struct drm_vmw_surface_arg *req = &arg->req;
 	struct drm_vmw_surface_create_req *rep = &arg->rep;
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
-	struct vmw_resource *res;
 	struct vmw_surface *srf;
 	struct vmw_user_surface *user_srf;
 	struct drm_vmw_size __user *user_sizes;
-	int ret;
+	struct ttm_base_object *base;
+	int ret = -EINVAL;
 
-	res = vmw_resource_lookup(dev_priv, &dev_priv->surface_idr, req->sid);
-	if (unlikely(res == NULL))
+	base = ttm_base_object_lookup(tfile, req->sid);
+	if (unlikely(base == NULL)) {
+		DRM_ERROR("Could not find surface to reference.\n");
 		return -EINVAL;
-
-	if (res->res_free != &vmw_user_surface_free) {
-		ret = -EINVAL;
-		goto out;
 	}
 
-	srf = container_of(res, struct vmw_surface, res);
-	user_srf = container_of(srf, struct vmw_user_surface, srf);
-	if (user_srf->base.tfile != tfile && !user_srf->base.shareable) {
-		DRM_ERROR("Tried to reference none shareable surface\n");
-		ret = -EPERM;
-		goto out;
-	}
+	if (unlikely(base->object_type != VMW_RES_SURFACE))
+		goto out_bad_resource;
+
+	user_srf = container_of(base, struct vmw_user_surface, base);
+	srf = &user_srf->srf;
 
 	ret = ttm_ref_object_add(tfile, &user_srf->base, TTM_REF_USAGE, NULL);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Could not add a reference to a surface.\n");
-		goto out;
+		goto out_no_reference;
 	}
 
 	rep->flags = srf->flags;
@@ -706,40 +694,43 @@ int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 	if (user_sizes)
 		ret = copy_to_user(user_sizes, srf->sizes,
 				   srf->num_sizes * sizeof(*srf->sizes));
-	if (unlikely(ret != 0)) {
+	if (unlikely(ret != 0))
 		DRM_ERROR("copy_to_user failed %p %u\n",
 			  user_sizes, srf->num_sizes);
-		/**
-		 * FIXME: Unreference surface here?
-		 */
-		goto out;
-	}
-out:
-	vmw_resource_unreference(&res);
+out_bad_resource:
+out_no_reference:
+	ttm_base_object_unref(&base);
+
 	return ret;
 }
 
 int vmw_surface_check(struct vmw_private *dev_priv,
 		      struct ttm_object_file *tfile,
-		      int id)
+		      uint32_t handle, int *id)
 {
-	struct vmw_resource *res;
-	int ret = 0;
+	struct ttm_base_object *base;
+	struct vmw_user_surface *user_srf;
 
-	read_lock(&dev_priv->resource_lock);
-	res = idr_find(&dev_priv->surface_idr, id);
-	if (res && res->avail) {
-		struct vmw_surface *srf =
-			container_of(res, struct vmw_surface, res);
-		struct vmw_user_surface *usrf =
-			container_of(srf, struct vmw_user_surface, srf);
+	int ret = -EPERM;
 
-		if (usrf->base.tfile != tfile && !usrf->base.shareable)
-			ret = -EPERM;
-	} else
-		ret = -EINVAL;
-	read_unlock(&dev_priv->resource_lock);
+	base = ttm_base_object_lookup(tfile, handle);
+	if (unlikely(base == NULL))
+		return -EINVAL;
 
+	if (unlikely(base->object_type != VMW_RES_SURFACE))
+		goto out_bad_surface;
+
+	user_srf = container_of(base, struct vmw_user_surface, base);
+	*id = user_srf->srf.res.id;
+	ret = 0;
+
+out_bad_surface:
+	/**
+	 * FIXME: May deadlock here when called from the
+	 * command parsing code.
+	 */
+
+	ttm_base_object_unref(&base);
 	return ret;
 }
 

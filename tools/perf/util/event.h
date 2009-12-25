@@ -95,8 +95,8 @@ typedef union event_union {
 } event_t;
 
 struct events_stats {
-	unsigned long total;
-	unsigned long lost;
+	u64 total;
+	u64 lost;
 };
 
 void event__print_totals(void);

@@ -416,7 +416,7 @@ nv50_fifo_unload_context(struct drm_device *dev)
 	NV_DEBUG(dev, "\n");
 
 	chid = pfifo->channel_id(dev);
-	if (chid < 0 || chid >= dev_priv->engine.fifo.channels)
+	if (chid < 1 || chid >= dev_priv->engine.fifo.channels - 1)
 		return 0;
 
 	chan = dev_priv->fifos[chid];

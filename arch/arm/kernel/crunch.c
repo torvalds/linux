@@ -51,7 +51,7 @@ static int crunch_do(struct notifier_block *self, unsigned long cmd, void *t)
 		 * initialised state information on the first fault.
 		 */
 
-	case THREAD_NOTIFY_RELEASE:
+	case THREAD_NOTIFY_EXIT:
 		crunch_task_release(thread);
 		break;
 

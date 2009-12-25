@@ -368,7 +368,7 @@ config ALIM7101_WDT
 
 config GEODE_WDT
 	tristate "AMD Geode CS5535/CS5536 Watchdog"
-	depends on MGEODE_LX
+	depends on CS5535_MFGPT
 	help
 	  This driver enables a watchdog capability built into the
 	  CS5535/CS5536 companion chips for the AMD Geode GX and LX
@@ -814,16 +814,6 @@ config PNX833X_WDT
 	  watchdog timer that will reboot the machine after a programable
 	  timer has expired and no process has written to /dev/watchdog during
 	  that time.
-
-config WDT_RM9K_GPI
-	tristate "RM9000/GPI hardware watchdog"
-	depends on CPU_RM9000
-	help
-	  Watchdog implementation using the GPI hardware found on
-	  PMC-Sierra RM9xxx CPUs.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called rm9k_wdt.
 
 config SIBYTE_WDOG
 	tristate "Sibyte SoC hardware watchdog"

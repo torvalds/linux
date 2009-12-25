@@ -1135,6 +1135,7 @@ static int __init w83627hf_find(int sioaddr, unsigned short *addr,
 		"W83687THF",
 	};
 
+	sio_data->sioaddr = sioaddr;
 	superio_enter(sio_data);
 	val = force_id ? force_id : superio_inb(sio_data, DEVID);
 	switch (val) {
@@ -1177,7 +1178,6 @@ static int __init w83627hf_find(int sioaddr, unsigned short *addr,
 	}
 
 	err = 0;
-	sio_data->sioaddr = sioaddr;
 	pr_info(DRVNAME ": Found %s chip at %#x\n",
 		names[sio_data->type], *addr);
 

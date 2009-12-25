@@ -134,10 +134,15 @@ static int hp_wmi_perform_query(int query, int write, int value)
 
 	obj = output.pointer;
 
-	if (!obj || obj->type != ACPI_TYPE_BUFFER)
+	if (!obj)
 		return -EINVAL;
+	else if (obj->type != ACPI_TYPE_BUFFER) {
+		kfree(obj);
+		return -EINVAL;
+	}
 
 	bios_return = *((struct bios_return *)obj->buffer.pointer);
+	kfree(obj);
 	if (bios_return.return_code > 0)
 		return bios_return.return_code * -1;
 	else
@@ -340,10 +345,12 @@ static void hp_wmi_notify(u32 value, void *context)
 
 	if (!obj || obj->type != ACPI_TYPE_BUFFER || obj->buffer.length != 8) {
 		printk(KERN_INFO "HP WMI: Unknown response received\n");
+		kfree(obj);
 		return;
 	}
 
 	eventcode = *((u8 *) obj->buffer.pointer);
+	kfree(obj);
 	if (eventcode == 0x4)
 		eventcode = hp_wmi_perform_query(HPWMI_HOTKEY_QUERY, 0,
 						0);
@@ -381,6 +388,8 @@ static void hp_wmi_notify(u32 value, void *context)
 	} else
 		printk(KERN_INFO "HP WMI: Unknown key pressed - %x\n",
 			eventcode);
+
+	kfree(obj);
 }
 
 static int __init hp_wmi_input_setup(void)
