@@ -145,7 +145,7 @@ static inline int ad1938_pll_powerctrl(struct snd_soc_codec *codec, int cmd)
 }
 
 static int ad1938_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
-			       unsigned int mask, int slots, int width)
+			       unsigned int rx_mask, int slots, int width)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	int dac_reg = codec->read(codec, AD1938_DAC_CTRL1);
