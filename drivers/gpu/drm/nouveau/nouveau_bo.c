@@ -73,6 +73,7 @@ nouveau_bo_fixup_align(struct drm_device *dev,
 		case 0x4800:
 		case 0x7a00:
 			if (dev_priv->chipset >= 0xA0) {
+				*size = roundup(*size, 28672);
 				/* This is based on high end cards with 448 bits
 				 * memory bus, could be different elsewhere.*/
 				*size += 6 * 28672;
@@ -80,9 +81,11 @@ nouveau_bo_fixup_align(struct drm_device *dev,
 				 * but we must also align to page size. */
 				*align = 2 * 8 * 28672;
 			} else if (dev_priv->chipset >= 0x90) {
+				*size = roundup(*size, 16384);
 				*size += 3 * 16384;
 				*align = 12 * 16384;
 			} else {
+				*size = roundup(*size, 8192);
 				*size += 3 * 8192;
 				/* 12 * 8192 is the actual alignment requirement
 				 * but we must also align to page size. */
@@ -114,10 +117,11 @@ nouveau_bo_fixup_align(struct drm_device *dev,
 		}
 	}
 
-	*size = ALIGN(*size, PAGE_SIZE);
+	/* ALIGN works only on powers of two. */
+	*size = roundup(*size, PAGE_SIZE);
 
 	if (dev_priv->card_type == NV_50) {
-		*size = ALIGN(*size, 65536);
+		*size = roundup(*size, 65536);
 		*align = max(65536, *align);
 	}
 }
