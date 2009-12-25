@@ -62,7 +62,7 @@ static void isram_write(const void *addr, uint64_t data)
 	uint32_t cmd;
 	unsigned long flags;
 
-	if (addr >= (void *)(L1_CODE_START + L1_CODE_LENGTH))
+	if (unlikely(addr >= (void *)(L1_CODE_START + L1_CODE_LENGTH)))
 		return;
 
 	cmd = IADDR2DTEST(addr) | 2;             /* write */
@@ -93,7 +93,7 @@ static uint64_t isram_read(const void *addr)
 	unsigned long flags;
 	uint64_t ret;
 
-	if (addr > (void *)(L1_CODE_START + L1_CODE_LENGTH))
+	if (unlikely(addr > (void *)(L1_CODE_START + L1_CODE_LENGTH)))
 		return 0;
 
 	cmd = IADDR2DTEST(addr) | 0;              /* read */
@@ -120,7 +120,7 @@ static bool isram_check_addr(const void *addr, size_t n)
 {
 	if ((addr >= (void *)L1_CODE_START) &&
 	    (addr < (void *)(L1_CODE_START + L1_CODE_LENGTH))) {
-		if ((addr + n) > (void *)(L1_CODE_START + L1_CODE_LENGTH)) {
+		if (unlikely((addr + n) > (void *)(L1_CODE_START + L1_CODE_LENGTH))) {
 			show_stack(NULL, NULL);
 			pr_err("copy involving %p length (%zu) too long\n", addr, n);
 		}
