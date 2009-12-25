@@ -411,8 +411,6 @@ static int ml_ff_playback(struct input_dev *dev, int effect_id, int value)
 				 msecs_to_jiffies(state->effect->replay.length);
 		state->adj_at = state->play_at;
 
-		ml_schedule_timer(ml);
-
 	} else {
 		debug("initiated stop");
 
@@ -420,9 +418,9 @@ static int ml_ff_playback(struct input_dev *dev, int effect_id, int value)
 			__set_bit(FF_EFFECT_ABORTING, &state->flags);
 		else
 			__clear_bit(FF_EFFECT_STARTED, &state->flags);
-
-		ml_play_effects(ml);
 	}
+
+	ml_play_effects(ml);
 
 	return 0;
 }
