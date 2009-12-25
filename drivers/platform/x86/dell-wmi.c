@@ -330,7 +330,7 @@ static int __init dell_wmi_init(void)
 	int err;
 	acpi_status status;
 
-	if (wmi_has_guid(DELL_EVENT_GUID)) {
+	if (!wmi_has_guid(DELL_EVENT_GUID)) {
 		printk(KERN_WARNING "dell-wmi: No known WMI GUID found\n");
 		return -ENODEV;
 	}
