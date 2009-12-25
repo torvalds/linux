@@ -225,7 +225,7 @@ static int get_compatible_type(struct ff_device *ff, int effect_type)
  */
 static void ml_combine_effects(struct ff_effect *effect,
 			       struct ml_effect_state *state,
-			       unsigned int gain)
+			       int gain)
 {
 	struct ff_effect *new = state->effect;
 	unsigned int strong, weak, i;
@@ -252,8 +252,8 @@ static void ml_combine_effects(struct ff_effect *effect,
 		break;
 
 	case FF_RUMBLE:
-		strong = new->u.rumble.strong_magnitude * gain / 0xffff;
-		weak = new->u.rumble.weak_magnitude * gain / 0xffff;
+		strong = (u32)new->u.rumble.strong_magnitude * gain / 0xffff;
+		weak = (u32)new->u.rumble.weak_magnitude * gain / 0xffff;
 		effect->u.rumble.strong_magnitude =
 			min(strong + effect->u.rumble.strong_magnitude,
 			    0xffffU);
