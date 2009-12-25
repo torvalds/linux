@@ -88,12 +88,12 @@ static struct pcmcia_driver *get_pcmcia_driver(dev_info_t *dev_info)
 
 	p_drv = container_of(drv, struct pcmcia_driver, drv);
 
-	return (p_drv);
+	return p_drv;
 }
 
 
 #ifdef CONFIG_PROC_FS
-static struct proc_dir_entry *proc_pccard = NULL;
+static struct proc_dir_entry *proc_pccard;
 
 static int proc_read_drivers_callback(struct device_driver *driver, void *_m)
 {
@@ -158,7 +158,8 @@ static int adjust_irq(struct pcmcia_socket *s, adjust_t *adj)
 
 #else
 
-static inline int adjust_irq(struct pcmcia_socket *s, adjust_t *adj) {
+static inline int adjust_irq(struct pcmcia_socket *s, adjust_t *adj)
+{
 	return 0;
 }
 
@@ -195,7 +196,7 @@ static int pcmcia_adjust_resource_info(adjust_t *adj)
 				begin = adj->resource.memory.Base;
 				end = adj->resource.memory.Base + adj->resource.memory.Size - 1;
 				if (s->resource_ops->add_mem)
-					ret =s->resource_ops->add_mem(s, adj->Action, begin, end);
+					ret = s->resource_ops->add_mem(s, adj->Action, begin, end);
 			case RES_IO_RANGE:
 				begin = adj->resource.io.BasePort;
 				end = adj->resource.io.BasePort + adj->resource.io.NumPorts - 1;
@@ -215,7 +216,7 @@ static int pcmcia_adjust_resource_info(adjust_t *adj)
 	}
 	up_read(&pcmcia_socket_list_rwsem);
 
-	return (ret);
+	return ret;
 }
 
 
@@ -490,7 +491,7 @@ static int bind_request(struct pcmcia_socket *s, bind_info_t *bind_info)
 	}
 
 	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
-        list_for_each_entry(p_dev, &s->devices_list, socket_device_list) {
+	list_for_each_entry(p_dev, &s->devices_list, socket_device_list) {
 		if (p_dev->func == bind_info->function) {
 			if ((p_dev->dev.driver == &p_drv->drv)) {
 				if (p_dev->cardmgr) {
@@ -558,7 +559,7 @@ rescan:
  err_put:
 	pcmcia_put_socket(s);
 
-	return (ret);
+	return ret;
 } /* bind_request */
 
 #ifdef CONFIG_CARDBUS
@@ -655,7 +656,7 @@ static int get_device_info(struct pcmcia_socket *s, bind_info_t *bind_info, int 
 
  err_put:
 	pcmcia_put_dev(p_dev);
-	return (ret);
+	return ret;
 } /* get_device_info */
 
 
@@ -664,7 +665,7 @@ static int ds_open(struct inode *inode, struct file *file)
     socket_t i = iminor(inode);
     struct pcmcia_socket *s;
     user_info_t *user;
-    static int warning_printed = 0;
+    static int warning_printed;
     int ret = 0;
 
     pr_debug("ds_open(socket %d)\n", i);
@@ -738,12 +739,13 @@ static int ds_release(struct inode *inode, struct file *file)
     s = user->socket;
 
     /* Unlink user data structure */
-    if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
+    if ((file->f_flags & O_ACCMODE) != O_RDONLY)
 	s->pcmcia_state.busy = 0;
-    }
+
     file->private_data = NULL;
     for (link = &s->user; *link; link = &(*link)->next)
-	if (*link == user) break;
+	if (*link == user)
+		break;
     if (link == NULL)
 	goto out;
     *link = user->next;
@@ -774,7 +776,7 @@ static ssize_t ds_read(struct file *file, char __user *buf,
 
     s = user->socket;
     if (s->pcmcia_state.dead)
-        return -EIO;
+	return -EIO;
 
     ret = wait_event_interruptible(s->queue, !queue_empty(user));
     if (ret == 0)
@@ -824,7 +826,7 @@ static u_int ds_poll(struct file *file, poll_table *wait)
 
 /*====================================================================*/
 
-static int ds_ioctl(struct inode * inode, struct file * file,
+static int ds_ioctl(struct inode *inode, struct file *file,
 		    u_int cmd, u_long arg)
 {
     struct pcmcia_socket *s;
@@ -842,10 +844,11 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 
     s = user->socket;
     if (s->pcmcia_state.dead)
-        return -EIO;
+	return -EIO;
 
     size = (cmd & IOCSIZE_MASK) >> IOCSIZE_SHIFT;
-    if (size > sizeof(ds_ioctl_arg_t)) return -EINVAL;
+    if (size > sizeof(ds_ioctl_arg_t))
+	return -EINVAL;
 
     /* Permission check */
     if (!(cmd & IOC_OUT) && !capable(CAP_SYS_ADMIN))
@@ -1024,8 +1027,8 @@ static int ds_ioctl(struct inode * inode, struct file * file,
     }
 
     if (cmd & IOC_OUT) {
-        if (__copy_to_user(uarg, (char *)buf, size))
-            err = -EFAULT;
+	if (__copy_to_user(uarg, (char *)buf, size))
+		err = -EFAULT;
     }
 
 free_out:
@@ -1045,7 +1048,8 @@ static const struct file_operations ds_fops = {
 	.poll		= ds_poll,
 };
 
-void __init pcmcia_setup_ioctl(void) {
+void __init pcmcia_setup_ioctl(void)
+{
 	int i;
 
 	/* Set up character device for user mode clients */
@@ -1064,7 +1068,8 @@ void __init pcmcia_setup_ioctl(void) {
 }
 
 
-void __exit pcmcia_cleanup_ioctl(void) {
+void __exit pcmcia_cleanup_ioctl(void)
+{
 #ifdef CONFIG_PROC_FS
 	if (proc_pccard) {
 		remove_proc_entry("drivers", proc_pccard);

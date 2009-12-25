@@ -41,9 +41,6 @@ MODULE_PARM_DESC(extra_sensor_type, "Type of extra sensor (0=autodetect, 1=tempe
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(gl520sm);
-
 /* Many GL520 constants specified below
 One of the inputs can be configured as either temp or voltage.
 That's why _TEMP2 and _IN4 access the same register
@@ -81,8 +78,7 @@ static const u8 GL520_REG_TEMP_MAX_HYST[]	= { 0x06, 0x18 };
 
 static int gl520_probe(struct i2c_client *client,
 		       const struct i2c_device_id *id);
-static int gl520_detect(struct i2c_client *client, int kind,
-			struct i2c_board_info *info);
+static int gl520_detect(struct i2c_client *client, struct i2c_board_info *info);
 static void gl520_init_client(struct i2c_client *client);
 static int gl520_remove(struct i2c_client *client);
 static int gl520_read_value(struct i2c_client *client, u8 reg);
@@ -91,7 +87,7 @@ static struct gl520_data *gl520_update_device(struct device *dev);
 
 /* Driver data */
 static const struct i2c_device_id gl520_id[] = {
-	{ "gl520sm", gl520sm },
+	{ "gl520sm", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, gl520_id);
@@ -105,7 +101,7 @@ static struct i2c_driver gl520_driver = {
 	.remove		= gl520_remove,
 	.id_table	= gl520_id,
 	.detect		= gl520_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /* Client data */
@@ -681,8 +677,7 @@ static const struct attribute_group gl520_group_opt = {
  */
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int gl520_detect(struct i2c_client *client, int kind,
-			struct i2c_board_info *info)
+static int gl520_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 

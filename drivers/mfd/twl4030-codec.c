@@ -26,7 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/platform_device.h>
-#include <linux/i2c/twl4030.h>
+#include <linux/i2c/twl.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/twl4030-codec.h>
 
@@ -56,7 +56,7 @@ static int twl4030_codec_set_resource(enum twl4030_codec_res id, int enable)
 	struct twl4030_codec *codec = platform_get_drvdata(twl4030_codec_dev);
 	u8 val;
 
-	twl4030_i2c_read_u8(TWL4030_MODULE_AUDIO_VOICE, &val,
+	twl_i2c_read_u8(TWL4030_MODULE_AUDIO_VOICE, &val,
 			codec->resource[id].reg);
 
 	if (enable)
@@ -64,7 +64,7 @@ static int twl4030_codec_set_resource(enum twl4030_codec_res id, int enable)
 	else
 		val &= ~codec->resource[id].mask;
 
-	twl4030_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE,
+	twl_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE,
 					val, codec->resource[id].reg);
 
 	return val;
@@ -75,7 +75,7 @@ static inline int twl4030_codec_get_resource(enum twl4030_codec_res id)
 	struct twl4030_codec *codec = platform_get_drvdata(twl4030_codec_dev);
 	u8 val;
 
-	twl4030_i2c_read_u8(TWL4030_MODULE_AUDIO_VOICE, &val,
+	twl_i2c_read_u8(TWL4030_MODULE_AUDIO_VOICE, &val,
 			codec->resource[id].reg);
 
 	return val;
@@ -183,7 +183,7 @@ static int __devinit twl4030_codec_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Invalid audio_mclk\n");
 		return -EINVAL;
 	}
-	twl4030_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE,
+	twl_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE,
 					val, TWL4030_REG_APLL_CTL);
 
 	codec = kzalloc(sizeof(struct twl4030_codec), GFP_KERNEL);

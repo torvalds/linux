@@ -1013,7 +1013,7 @@ mpc8xxx_spi_probe(struct device *dev, struct resource *mem, unsigned int irq)
 
 	init_completion(&mpc8xxx_spi->done);
 
-	mpc8xxx_spi->base = ioremap(mem->start, mem->end - mem->start + 1);
+	mpc8xxx_spi->base = ioremap(mem->start, resource_size(mem));
 	if (mpc8xxx_spi->base == NULL) {
 		ret = -ENOMEM;
 		goto err_ioremap;
@@ -1356,7 +1356,7 @@ static int __devexit plat_mpc8xxx_spi_remove(struct platform_device *pdev)
 MODULE_ALIAS("platform:mpc8xxx_spi");
 static struct platform_driver mpc8xxx_spi_driver = {
 	.probe = plat_mpc8xxx_spi_probe,
-	.remove = __exit_p(plat_mpc8xxx_spi_remove),
+	.remove = __devexit_p(plat_mpc8xxx_spi_remove),
 	.driver = {
 		.name = "mpc8xxx_spi",
 		.owner = THIS_MODULE,

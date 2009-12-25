@@ -13,9 +13,12 @@
 #include <sound/info.h>
 #include <sound/control.h>
 #include <sound/ac97_codec.h>
+#include <linux/gpio.h>
 
 #include <asm/olpc.h>
 #include "cs5535audio.h"
+
+#define DRV_NAME "cs5535audio-olpc"
 
 /*
  * OLPC has an additional feature on top of the regular AD1888 codec features.
@@ -38,10 +41,7 @@ void olpc_analog_input(struct snd_ac97 *ac97, int on)
 	}
 
 	/* set Analog Input through GPIO */
-	if (on)
-		geode_gpio_set(OLPC_GPIO_MIC_AC, GPIO_OUTPUT_VAL);
-	else
-		geode_gpio_clear(OLPC_GPIO_MIC_AC, GPIO_OUTPUT_VAL);
+	gpio_set_value(OLPC_GPIO_MIC_AC, on);
 }
 
 /*
@@ -73,8 +73,7 @@ static int olpc_dc_info(struct snd_kcontrol *kctl,
 
 static int olpc_dc_get(struct snd_kcontrol *kctl, struct snd_ctl_elem_value *v)
 {
-	v->value.integer.value[0] = geode_gpio_isset(OLPC_GPIO_MIC_AC,
-			GPIO_OUTPUT_VAL);
+	v->value.integer.value[0] = gpio_get_value(OLPC_GPIO_MIC_AC);
 	return 0;
 }
 
@@ -153,6 +152,12 @@ int __devinit olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97)
 	if (!machine_is_olpc())
 		return 0;
 
+	if (gpio_request(OLPC_GPIO_MIC_AC, DRV_NAME)) {
+		printk(KERN_ERR DRV_NAME ": unable to allocate MIC GPIO\n");
+		return -EIO;
+	}
+	gpio_direction_output(OLPC_GPIO_MIC_AC, 0);
+
 	/* drop the original AD1888 HPF control */
 	memset(&elem, 0, sizeof(elem));
 	elem.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
@@ -169,11 +174,18 @@ int __devinit olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97)
 	for (i = 0; i < ARRAY_SIZE(olpc_cs5535audio_ctls); i++) {
 		err = snd_ctl_add(card, snd_ctl_new1(&olpc_cs5535audio_ctls[i],
 				ac97->private_data));
-		if (err < 0)
+		if (err < 0) {
+			gpio_free(OLPC_GPIO_MIC_AC);
 			return err;
+		}
 	}
 
 	/* turn off the mic by default */
 	olpc_mic_bias(ac97, 0);
 	return 0;
+}
+
+void __devexit olpc_quirks_cleanup(void)
+{
+	gpio_free(OLPC_GPIO_MIC_AC);
 }

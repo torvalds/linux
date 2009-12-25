@@ -53,6 +53,17 @@ struct gru_chiplet_info {
 	int	free_user_cbr;
 };
 
+/*
+ * Statictics kept for each context.
+ */
+struct gru_gseg_statistics {
+	unsigned long	fmm_tlbmiss;
+	unsigned long	upm_tlbmiss;
+	unsigned long	tlbdropin;
+	unsigned long	context_stolen;
+	unsigned long	reserved[10];
+};
+
 /* Flags for GRU options on the gru_create_context() call */
 /* Select one of the follow 4 options to specify how TLB misses are handled */
 #define GRU_OPT_MISS_DEFAULT	0x0000	/* Use default mode */

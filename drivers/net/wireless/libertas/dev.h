@@ -10,7 +10,7 @@
 #include "scan.h"
 #include "assoc.h"
 
-
+#include <linux/kfifo.h>
 
 /** sleep_params */
 struct sleep_params {
@@ -120,7 +120,7 @@ struct lbs_private {
 	u32 resp_len[2];
 
 	/* Events sent from hardware to driver */
-	struct kfifo *event_fifo;
+	struct kfifo event_fifo;
 
 	/** thread to service interrupts */
 	struct task_struct *main_thread;

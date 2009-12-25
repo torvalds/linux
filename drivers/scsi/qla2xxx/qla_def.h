@@ -1570,9 +1570,6 @@ typedef struct fc_port {
 	struct fc_rport *rport, *drport;
 	u32 supported_classes;
 
-	unsigned long last_queue_full;
-	unsigned long last_ramp_up;
-
 	uint16_t vp_idx;
 } fc_port_t;
 
@@ -2265,6 +2262,7 @@ struct qla_hw_data {
 		uint32_t	port0			:1;
 		uint32_t	running_gold_fw		:1;
 		uint32_t	cpu_affinity_enabled	:1;
+		uint32_t	disable_msix_handshake	:1;
 	} flags;
 
 	/* This spinlock is used to protect "io transactions", you must
@@ -2387,6 +2385,7 @@ struct qla_hw_data {
 #define IS_QLA81XX(ha)		(IS_QLA8001(ha))
 #define IS_QLA2XXX_MIDTYPE(ha)	(IS_QLA24XX(ha) || IS_QLA84XX(ha) || \
 				IS_QLA25XX(ha) || IS_QLA81XX(ha))
+#define IS_MSIX_NACK_CAPABLE(ha) (IS_QLA81XX(ha))
 #define IS_NOPOLLING_TYPE(ha)	((IS_QLA25XX(ha) || IS_QLA81XX(ha)) && \
 				(ha)->flags.msix_enabled)
 #define IS_FAC_REQUIRED(ha)	(IS_QLA81XX(ha))

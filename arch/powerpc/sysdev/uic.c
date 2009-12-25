@@ -225,12 +225,12 @@ void uic_irq_cascade(unsigned int virq, struct irq_desc *desc)
 	int src;
 	int subvirq;
 
-	spin_lock(&desc->lock);
+	raw_spin_lock(&desc->lock);
 	if (desc->status & IRQ_LEVEL)
 		desc->chip->mask(virq);
 	else
 		desc->chip->mask_ack(virq);
-	spin_unlock(&desc->lock);
+	raw_spin_unlock(&desc->lock);
 
 	msr = mfdcr(uic->dcrbase + UIC_MSR);
 	if (!msr) /* spurious interrupt */
@@ -242,12 +242,12 @@ void uic_irq_cascade(unsigned int virq, struct irq_desc *desc)
 	generic_handle_irq(subvirq);
 
 uic_irq_ret:
-	spin_lock(&desc->lock);
+	raw_spin_lock(&desc->lock);
 	if (desc->status & IRQ_LEVEL)
 		desc->chip->ack(virq);
 	if (!(desc->status & IRQ_DISABLED) && desc->chip->unmask)
 		desc->chip->unmask(virq);
-	spin_unlock(&desc->lock);
+	raw_spin_unlock(&desc->lock);
 }
 
 static struct uic * __init uic_init_one(struct device_node *node)

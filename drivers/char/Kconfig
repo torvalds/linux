@@ -502,7 +502,7 @@ config BRIQ_PANEL
 
 config BFIN_OTP
 	tristate "Blackfin On-Chip OTP Memory Support"
-	depends on BLACKFIN && (BF52x || BF54x)
+	depends on BLACKFIN && (BF51x || BF52x || BF54x)
 	default y
 	help
 	  If you say Y here, you will get support for a character device

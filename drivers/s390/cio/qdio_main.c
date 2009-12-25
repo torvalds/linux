@@ -486,7 +486,8 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 	case SLSB_P_INPUT_PRIMED:
 		inbound_primed(q, count);
 		q->first_to_check = add_buf(q->first_to_check, count);
-		atomic_sub(count, &q->nr_buf_used);
+		if (atomic_sub(count, &q->nr_buf_used) == 0)
+			qdio_perf_stat_inc(&perf_stats.inbound_queue_full);
 		break;
 	case SLSB_P_INPUT_ERROR:
 		announce_buffer_error(q, count);

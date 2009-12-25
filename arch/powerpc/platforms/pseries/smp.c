@@ -144,8 +144,8 @@ static void __devinit smp_pSeries_kick_cpu(int nr)
 		hcpuid = get_hard_smp_processor_id(nr);
 		rc = plpar_hcall_norets(H_PROD, hcpuid);
 		if (rc != H_SUCCESS)
-			panic("Error: Prod to wake up processor %d Ret= %ld\n",
-				nr, rc);
+			printk(KERN_ERR "Error: Prod to wake up processor %d\
+						Ret= %ld\n", nr, rc);
 	}
 }
 

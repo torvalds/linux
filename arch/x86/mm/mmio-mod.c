@@ -20,7 +20,7 @@
  * Derived from the read-mod example from relay-examples by Tom Zanussi.
  */
 
-#define pr_fmt(fmt) "mmiotrace: "
+#define pr_fmt(fmt) "mmiotrace: " fmt
 
 #define DEBUG 1
 

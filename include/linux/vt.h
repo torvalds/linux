@@ -84,4 +84,23 @@ struct vt_setactivate {
 
 #define VT_SETACTIVATE	0x560F	/* Activate and set the mode of a console */
 
+#ifdef __KERNEL__
+
+#ifdef CONFIG_VT_CONSOLE
+
+extern int vt_kmsg_redirect(int new);
+
+#else
+
+static inline int vt_kmsg_redirect(int new)
+{
+	return 0;
+}
+
+#endif
+
+#endif /* __KERNEL__ */
+
+#define vt_get_kmsg_redirect() vt_kmsg_redirect(-1)
+
 #endif /* _LINUX_VT_H */

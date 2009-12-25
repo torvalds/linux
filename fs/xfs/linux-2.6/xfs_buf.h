@@ -55,6 +55,7 @@ typedef enum {
 	XBF_FS_MANAGED = (1 << 8),  /* filesystem controls freeing memory  */
  	XBF_ORDERED = (1 << 11),    /* use ordered writes		   */
 	XBF_READ_AHEAD = (1 << 12), /* asynchronous read-ahead		   */
+	XBF_LOG_BUFFER = (1 << 13), /* this is a buffer used for the log   */
 
 	/* flags used only as arguments to access routines */
 	XBF_LOCK = (1 << 14),       /* lock requested			   */
@@ -94,6 +95,28 @@ typedef enum {
 	 */
 	_XFS_BARRIER_FAILED = (1 << 23),
 } xfs_buf_flags_t;
+
+#define XFS_BUF_FLAGS \
+	{ XBF_READ,		"READ" }, \
+	{ XBF_WRITE,		"WRITE" }, \
+	{ XBF_MAPPED,		"MAPPED" }, \
+	{ XBF_ASYNC,		"ASYNC" }, \
+	{ XBF_DONE,		"DONE" }, \
+	{ XBF_DELWRI,		"DELWRI" }, \
+	{ XBF_STALE,		"STALE" }, \
+	{ XBF_FS_MANAGED,	"FS_MANAGED" }, \
+	{ XBF_ORDERED,		"ORDERED" }, \
+	{ XBF_READ_AHEAD,	"READ_AHEAD" }, \
+	{ XBF_LOCK,		"LOCK" },  	/* should never be set */\
+	{ XBF_TRYLOCK,		"TRYLOCK" }, 	/* ditto */\
+	{ XBF_DONT_BLOCK,	"DONT_BLOCK" },	/* ditto */\
+	{ _XBF_PAGE_CACHE,	"PAGE_CACHE" }, \
+	{ _XBF_PAGES,		"PAGES" }, \
+	{ _XBF_RUN_QUEUES,	"RUN_QUEUES" }, \
+	{ _XBF_DELWRI_Q,	"DELWRI_Q" }, \
+	{ _XBF_PAGE_LOCKED,	"PAGE_LOCKED" }, \
+	{ _XFS_BARRIER_FAILED,	"BARRIER_FAILED" }
+
 
 typedef enum {
 	XBT_FORCE_SLEEP = 0,
@@ -243,13 +266,6 @@ extern void xfs_buf_delwri_dequeue(xfs_buf_t *);
 extern int xfs_buf_init(void);
 extern void xfs_buf_terminate(void);
 
-#ifdef XFS_BUF_TRACE
-extern ktrace_t *xfs_buf_trace_buf;
-extern void xfs_buf_trace(xfs_buf_t *, char *, void *, void *);
-#else
-#define xfs_buf_trace(bp,id,ptr,ra)	do { } while (0)
-#endif
-
 #define xfs_buf_target_name(target)	\
 	({ char __b[BDEVNAME_SIZE]; bdevname((target)->bt_bdev, __b); __b; })
 
@@ -365,10 +381,6 @@ static inline void xfs_buf_relse(xfs_buf_t *bp)
 
 #define xfs_bpin(bp)		xfs_buf_pin(bp)
 #define xfs_bunpin(bp)		xfs_buf_unpin(bp)
-
-#define xfs_buftrace(id, bp)	\
-	    xfs_buf_trace(bp, id, NULL, (void *)__builtin_return_address(0))
-
 #define xfs_biodone(bp)		xfs_buf_ioend(bp, 0)
 
 #define xfs_biomove(bp, off, len, data, rw) \

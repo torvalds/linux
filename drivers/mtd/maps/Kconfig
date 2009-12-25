@@ -359,12 +359,6 @@ config MTD_SA1100
 	  the SA1100 and SA1110, including the Assabet and the Compaq iPAQ.
 	  If you have such a board, say 'Y'.
 
-config MTD_IPAQ
-	tristate "CFI Flash device mapped on Compaq/HP iPAQ"
-	depends on IPAQ_HANDHELD && MTD_CFI
-	help
-	  This provides a driver for the on-board flash of the iPAQ.
-
 config MTD_DC21285
 	tristate "CFI Flash device mapped on DC21285 Footbridge"
 	depends on MTD_CFI && ARCH_FOOTBRIDGE && MTD_COMPLEX_MAPPINGS

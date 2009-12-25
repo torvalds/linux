@@ -14,7 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/seq_file.h>
-#include <linux/utsrelease.h>
+#include <generated/utsrelease.h>
 
 #include <asm/machdep.h>
 #include <asm/cputable.h>

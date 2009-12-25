@@ -543,9 +543,6 @@ FUNC(memmove)
 	b		3f
 	 add		%o0, 2, %o0
 
-#ifdef __KERNEL__
-FUNC(__memcpy)
-#endif
 FUNC(memcpy)	/* %o0=dst %o1=src %o2=len */
 
 	sub		%o0, %o1, %o4

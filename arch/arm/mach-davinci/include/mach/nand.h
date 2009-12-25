@@ -79,6 +79,10 @@ struct davinci_nand_pdata {		/* platform_data */
 
 	/* e.g. NAND_BUSWIDTH_16 or NAND_USE_FLASH_BBT */
 	unsigned		options;
+
+	/* Main and mirror bbt descriptor overrides */
+	struct nand_bbt_descr	*bbt_td;
+	struct nand_bbt_descr	*bbt_md;
 };
 
 #endif	/* __ARCH_ARM_DAVINCI_NAND_H */

@@ -3,7 +3,8 @@ Kernel driver lis3lv02d
 
 Supported chips:
 
-  * STMicroelectronics LIS3LV02DL and LIS3LV02DQ
+  * STMicroelectronics LIS3LV02DL, LIS3LV02DQ (12 bits precision)
+  * STMicroelectronics LIS302DL, LIS3L02DQ, LIS331DL (8 bits)
 
 Authors:
         Yan Burman <burman.yan@gmail.com>
@@ -13,32 +14,52 @@ Authors:
 Description
 -----------
 
-This driver provides support for the accelerometer found in various HP
-laptops sporting the feature officially called "HP Mobile Data
-Protection System 3D" or "HP 3D DriveGuard". It detects automatically
-laptops with this sensor. Known models (for now the HP 2133, nc6420,
-nc2510, nc8510, nc84x0, nw9440 and nx9420) will have their axis
-automatically oriented on standard way (eg: you can directly play
-neverball).  The accelerometer data is readable via
-/sys/devices/platform/lis3lv02d.
+This driver provides support for the accelerometer found in various HP laptops
+sporting the feature officially called "HP Mobile Data Protection System 3D" or
+"HP 3D DriveGuard". It detects automatically laptops with this sensor. Known
+models (full list can be found in drivers/hwmon/hp_accel.c) will have their
+axis automatically oriented on standard way (eg: you can directly play
+neverball). The accelerometer data is readable via
+/sys/devices/platform/lis3lv02d. Reported values are scaled
+to mg values (1/1000th of earth gravity).
 
 Sysfs attributes under /sys/devices/platform/lis3lv02d/:
 position - 3D position that the accelerometer reports. Format: "(x,y,z)"
-calibrate - read: values (x, y, z) that are used as the base for input
-		  class device operation.
-            write: forces the base to be recalibrated with the current
-		   position.
-rate - reports the sampling rate of the accelerometer device in HZ
+rate - read reports the sampling rate of the accelerometer device in HZ.
+	write changes sampling rate of the accelerometer device.
+	Only values which are supported by HW are accepted.
+selftest - performs selftest for the chip as specified by chip manufacturer.
 
 This driver also provides an absolute input class device, allowing
-the laptop to act as a pinball machine-esque joystick.
+the laptop to act as a pinball machine-esque joystick. Joystick device can be
+calibrated. Joystick device can be in two different modes.
+By default output values are scaled between -32768 .. 32767. In joystick raw
+mode, joystick and sysfs position entry have the same scale. There can be
+small difference due to input system fuzziness feature.
+Events are also available as input event device.
+
+Selftest is meant only for hardware diagnostic purposes. It is not meant to be
+used during normal operations. Position data is not corrupted during selftest
+but interrupt behaviour is not guaranteed to work reliably. In test mode, the
+sensing element is internally moved little bit. Selftest measures difference
+between normal mode and test mode. Chip specifications tell the acceptance
+limit for each type of the chip. Limits are provided via platform data
+to allow adjustment of the limits without a change to the actual driver.
+Seltest returns either "OK x y z" or "FAIL x y z" where x, y and z are
+measured difference between modes. Axes are not remapped in selftest mode.
+Measurement values are provided to help HW diagnostic applications to make
+final decision.
+
+On HP laptops, if the led infrastructure is activated, support for a led
+indicating disk protection will be provided as /sys/class/leds/hp::hddprotect.
 
 Another feature of the driver is misc device called "freefall" that
 acts similar to /dev/rtc and reacts on free-fall interrupts received
 from the device. It supports blocking operations, poll/select and
 fasync operation modes. You must read 1 bytes from the device.  The
 result is number of free-fall interrupts since the last successful
-read (or 255 if number of interrupts would not fit).
+read (or 255 if number of interrupts would not fit). See the hpfall.c
+file for an example on using the device.
 
 
 Axes orientation
@@ -55,7 +76,7 @@ the accelerometer are converted into a "standard" organisation of the axes
  * If the laptop is put upside-down, Z becomes negative
 
 If your laptop model is not recognized (cf "dmesg"), you can send an
-email to the authors to add it to the database.  When reporting a new
+email to the maintainer to add it to the database.  When reporting a new
 laptop, please include the output of "dmidecode" plus the value of
 /sys/devices/platform/lis3lv02d/position in these four cases.
 

@@ -34,6 +34,7 @@
 #include "xfs_utils.h"
 #include "xfs_mru_cache.h"
 #include "xfs_filestream.h"
+#include "xfs_trace.h"
 
 #ifdef XFS_FILESTREAMS_TRACE
 
@@ -394,9 +395,7 @@ xfs_filestream_init(void)
 	item_zone = kmem_zone_init(sizeof(fstrm_item_t), "fstrm_item");
 	if (!item_zone)
 		return -ENOMEM;
-#ifdef XFS_FILESTREAMS_TRACE
-	xfs_filestreams_trace_buf = ktrace_alloc(XFS_FSTRM_KTRACE_SIZE, KM_NOFS);
-#endif
+
 	return 0;
 }
 
@@ -407,9 +406,6 @@ xfs_filestream_init(void)
 void
 xfs_filestream_uninit(void)
 {
-#ifdef XFS_FILESTREAMS_TRACE
-	ktrace_free(xfs_filestreams_trace_buf);
-#endif
 	kmem_zone_destroy(item_zone);
 }
 

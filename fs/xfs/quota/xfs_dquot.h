@@ -85,9 +85,6 @@ typedef struct xfs_dquot {
 	struct completion q_flush;	/* flush completion queue */
 	atomic_t          q_pincount;	/* dquot pin count */
 	wait_queue_head_t q_pinwait;	/* dquot pinning wait queue */
-#ifdef XFS_DQUOT_TRACE
-	struct ktrace	*q_trace;	/* trace header structure */
-#endif
 } xfs_dquot_t;
 
 
@@ -143,24 +140,6 @@ static inline void xfs_dqfunlock(xfs_dquot_t *dqp)
 #define XFS_IS_THIS_QUOTA_OFF(d) (! (XFS_QM_ISUDQ(d) ? \
 				     (XFS_IS_UQUOTA_ON((d)->q_mount)) : \
 				     (XFS_IS_OQUOTA_ON((d)->q_mount))))
-
-#ifdef XFS_DQUOT_TRACE
-/*
- * Dquot Tracing stuff.
- */
-#define DQUOT_TRACE_SIZE	64
-#define DQUOT_KTRACE_ENTRY	1
-
-extern void		__xfs_dqtrace_entry(xfs_dquot_t *dqp, char *func,
-					    void *, xfs_inode_t *);
-#define xfs_dqtrace_entry_ino(a,b,ip) \
-		__xfs_dqtrace_entry((a), (b), (void*)__return_address, (ip))
-#define xfs_dqtrace_entry(a,b) \
-		__xfs_dqtrace_entry((a), (b), (void*)__return_address, NULL)
-#else
-#define xfs_dqtrace_entry(a,b)
-#define xfs_dqtrace_entry_ino(a,b,ip)
-#endif
 
 #ifdef QUOTADEBUG
 extern void		xfs_qm_dqprint(xfs_dquot_t *);

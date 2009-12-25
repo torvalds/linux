@@ -87,8 +87,6 @@ source "drivers/staging/frontier/Kconfig"
 
 source "drivers/staging/dream/Kconfig"
 
-source "drivers/staging/dst/Kconfig"
-
 source "drivers/staging/pohmelfs/Kconfig"
 
 source "drivers/staging/b3dfg/Kconfig"
@@ -98,6 +96,8 @@ source "drivers/staging/phison/Kconfig"
 source "drivers/staging/p9auth/Kconfig"
 
 source "drivers/staging/line6/Kconfig"
+
+source "drivers/gpu/drm/vmwgfx/Kconfig"
 
 source "drivers/gpu/drm/radeon/Kconfig"
 
@@ -142,6 +142,8 @@ source "drivers/staging/arlan/Kconfig"
 source "drivers/staging/wavelan/Kconfig"
 
 source "drivers/staging/netwave/Kconfig"
+
+source "drivers/staging/sm7xx/Kconfig"
 
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

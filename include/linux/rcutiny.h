@@ -101,4 +101,9 @@ static inline void exit_rcu(void)
 {
 }
 
+static inline int rcu_preempt_depth(void)
+{
+	return 0;
+}
+
 #endif /* __LINUX_RCUTINY_H */

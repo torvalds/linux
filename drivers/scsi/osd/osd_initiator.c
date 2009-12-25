@@ -432,30 +432,23 @@ static void _osd_free_seg(struct osd_request *or __unused,
 	seg->alloc_size = 0;
 }
 
-static void _put_request(struct request *rq , bool is_async)
+static void _put_request(struct request *rq)
 {
-	if (is_async) {
-		WARN_ON(rq->bio);
-		__blk_put_request(rq->q, rq);
-	} else {
-		/*
-		 * If osd_finalize_request() was called but the request was not
-		 * executed through the block layer, then we must release BIOs.
-		 * TODO: Keep error code in or->async_error. Need to audit all
-		 *       code paths.
-		 */
-		if (unlikely(rq->bio))
-			blk_end_request(rq, -ENOMEM, blk_rq_bytes(rq));
-		else
-			blk_put_request(rq);
-	}
+	/*
+	 * If osd_finalize_request() was called but the request was not
+	 * executed through the block layer, then we must release BIOs.
+	 * TODO: Keep error code in or->async_error. Need to audit all
+	 *       code paths.
+	 */
+	if (unlikely(rq->bio))
+		blk_end_request(rq, -ENOMEM, blk_rq_bytes(rq));
+	else
+		blk_put_request(rq);
 }
 
 void osd_end_request(struct osd_request *or)
 {
 	struct request *rq = or->request;
-	/* IMPORTANT: make sure this agrees with osd_execute_request_async */
-	bool is_async = (or->request->end_io_data == or);
 
 	_osd_free_seg(or, &or->set_attr);
 	_osd_free_seg(or, &or->enc_get_attr);
@@ -463,20 +456,34 @@ void osd_end_request(struct osd_request *or)
 
 	if (rq) {
 		if (rq->next_rq) {
-			_put_request(rq->next_rq, is_async);
+			_put_request(rq->next_rq);
 			rq->next_rq = NULL;
 		}
 
-		_put_request(rq, is_async);
+		_put_request(rq);
 	}
 	_osd_request_free(or);
 }
 EXPORT_SYMBOL(osd_end_request);
 
+static void _set_error_resid(struct osd_request *or, struct request *req,
+			     int error)
+{
+	or->async_error = error;
+	or->req_errors = req->errors ? : error;
+	or->sense_len = req->sense_len;
+	if (or->out.req)
+		or->out.residual = or->out.req->resid_len;
+	if (or->in.req)
+		or->in.residual = or->in.req->resid_len;
+}
+
 int osd_execute_request(struct osd_request *or)
 {
-	return or->async_error =
-			blk_execute_rq(or->request->q, NULL, or->request, 0);
+	int error = blk_execute_rq(or->request->q, NULL, or->request, 0);
+
+	_set_error_resid(or, or->request, error);
+	return error;
 }
 EXPORT_SYMBOL(osd_execute_request);
 
@@ -484,14 +491,16 @@ static void osd_request_async_done(struct request *req, int error)
 {
 	struct osd_request *or = req->end_io_data;
 
-	or->async_error = error;
-
-	if (unlikely(error)) {
-		OSD_DEBUG("osd_request_async_done error recieved %d "
-			  "errors 0x%x\n", error, req->errors);
-		if (!req->errors) /* don't miss out on this one */
-			req->errors = error;
+	_set_error_resid(or, req, error);
+	if (req->next_rq) {
+		__blk_put_request(req->q, req->next_rq);
+		req->next_rq = NULL;
 	}
+
+	__blk_put_request(req->q, req);
+	or->request = NULL;
+	or->in.req = NULL;
+	or->out.req = NULL;
 
 	if (or->async_done)
 		or->async_done(or, or->async_private);
@@ -1489,21 +1498,18 @@ int osd_req_decode_sense_full(struct osd_request *or,
 #endif
 	int ret;
 
-	if (likely(!or->request->errors)) {
-		osi->out_resid = 0;
-		osi->in_resid = 0;
+	if (likely(!or->req_errors))
 		return 0;
-	}
 
 	osi = osi ? : &local_osi;
 	memset(osi, 0, sizeof(*osi));
 
-	ssdb = or->request->sense;
-	sense_len = or->request->sense_len;
+	ssdb = (typeof(ssdb))or->sense;
+	sense_len = or->sense_len;
 	if ((sense_len < (int)sizeof(*ssdb) || !ssdb->sense_key)) {
 		OSD_ERR("Block-layer returned error(0x%x) but "
 			"sense_len(%u) || key(%d) is empty\n",
-			or->request->errors, sense_len, ssdb->sense_key);
+			or->req_errors, sense_len, ssdb->sense_key);
 		goto analyze;
 	}
 
@@ -1525,7 +1531,7 @@ int osd_req_decode_sense_full(struct osd_request *or,
 			"additional_code=0x%x async_error=%d errors=0x%x\n",
 			osi->key, original_sense_len, sense_len,
 			osi->additional_code, or->async_error,
-			or->request->errors);
+			or->req_errors);
 
 	if (original_sense_len < sense_len)
 		sense_len = original_sense_len;
@@ -1695,10 +1701,10 @@ analyze:
 		ret = -EIO;
 	}
 
-	if (or->out.req)
-		osi->out_resid = or->out.req->resid_len ?: or->out.total_bytes;
-	if (or->in.req)
-		osi->in_resid = or->in.req->resid_len ?: or->in.total_bytes;
+	if (!or->out.residual)
+		or->out.residual = or->out.total_bytes;
+	if (!or->in.residual)
+		or->in.residual = or->in.total_bytes;
 
 	return ret;
 }

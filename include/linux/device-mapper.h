@@ -235,7 +235,7 @@ void dm_uevent_add(struct mapped_device *md, struct list_head *elist);
 const char *dm_device_name(struct mapped_device *md);
 int dm_copy_name_and_uuid(struct mapped_device *md, char *name, char *uuid);
 struct gendisk *dm_disk(struct mapped_device *md);
-int dm_suspended(struct mapped_device *md);
+int dm_suspended(struct dm_target *ti);
 int dm_noflush_suspending(struct dm_target *ti);
 union map_info *dm_get_mapinfo(struct bio *bio);
 union map_info *dm_get_rq_mapinfo(struct request *rq);
@@ -276,7 +276,7 @@ void dm_table_unplug_all(struct dm_table *t);
 /*
  * Table reference counting.
  */
-struct dm_table *dm_get_table(struct mapped_device *md);
+struct dm_table *dm_get_live_table(struct mapped_device *md);
 void dm_table_get(struct dm_table *t);
 void dm_table_put(struct dm_table *t);
 
@@ -295,8 +295,10 @@ void dm_table_event(struct dm_table *t);
 
 /*
  * The device must be suspended before calling this method.
+ * Returns the previous table, which the caller must destroy.
  */
-int dm_swap_table(struct mapped_device *md, struct dm_table *t);
+struct dm_table *dm_swap_table(struct mapped_device *md,
+			       struct dm_table *t);
 
 /*
  * A wrapper around vmalloc.

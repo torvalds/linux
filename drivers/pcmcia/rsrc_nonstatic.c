@@ -24,9 +24,9 @@
 #include <linux/timer.h>
 #include <linux/pci.h>
 #include <linux/device.h>
+#include <linux/io.h>
 
 #include <asm/irq.h>
-#include <asm/io.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
@@ -144,43 +144,44 @@ static int add_interval(struct resource_map *map, u_long base, u_long num)
 
 static int sub_interval(struct resource_map *map, u_long base, u_long num)
 {
-    struct resource_map *p, *q;
+	struct resource_map *p, *q;
 
-    for (p = map; ; p = q) {
-	q = p->next;
-	if (q == map)
-	    break;
-	if ((q->base+q->num > base) && (base+num > q->base)) {
-	    if (q->base >= base) {
-		if (q->base+q->num <= base+num) {
-		    /* Delete whole block */
-		    p->next = q->next;
-		    kfree(q);
-		    /* don't advance the pointer yet */
-		    q = p;
-		} else {
-		    /* Cut off bit from the front */
-		    q->num = q->base + q->num - base - num;
-		    q->base = base + num;
+	for (p = map; ; p = q) {
+		q = p->next;
+		if (q == map)
+			break;
+		if ((q->base+q->num > base) && (base+num > q->base)) {
+			if (q->base >= base) {
+				if (q->base+q->num <= base+num) {
+					/* Delete whole block */
+					p->next = q->next;
+					kfree(q);
+					/* don't advance the pointer yet */
+					q = p;
+				} else {
+					/* Cut off bit from the front */
+					q->num = q->base + q->num - base - num;
+					q->base = base + num;
+				}
+			} else if (q->base+q->num <= base+num) {
+				/* Cut off bit from the end */
+				q->num = base - q->base;
+			} else {
+				/* Split the block into two pieces */
+				p = kmalloc(sizeof(struct resource_map),
+					GFP_KERNEL);
+				if (!p) {
+					printk(KERN_WARNING "out of memory to update resources\n");
+					return -ENOMEM;
+				}
+				p->base = base+num;
+				p->num = q->base+q->num - p->base;
+				q->num = base - q->base;
+				p->next = q->next ; q->next = p;
+			}
 		}
-	    } else if (q->base+q->num <= base+num) {
-		/* Cut off bit from the end */
-		q->num = base - q->base;
-	    } else {
-		/* Split the block into two pieces */
-		p = kmalloc(sizeof(struct resource_map), GFP_KERNEL);
-		if (!p) {
-		    printk(KERN_WARNING "out of memory to update resources\n");
-		    return -ENOMEM;
-		}
-		p->base = base+num;
-		p->num = q->base+q->num - p->base;
-		q->num = base - q->base;
-		p->next = q->next ; q->next = p;
-	    }
 	}
-    }
-    return 0;
+	return 0;
 }
 
 /*======================================================================
@@ -194,69 +195,72 @@ static int sub_interval(struct resource_map *map, u_long base, u_long num)
 static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
 			unsigned int num)
 {
-    struct resource *res;
-    struct socket_data *s_data = s->resource_data;
-    unsigned int i, j, bad;
-    int any;
-    u_char *b, hole, most;
+	struct resource *res;
+	struct socket_data *s_data = s->resource_data;
+	unsigned int i, j, bad;
+	int any;
+	u_char *b, hole, most;
 
-    dev_printk(KERN_INFO, &s->dev, "cs: IO port probe %#x-%#x:",
-	       base, base+num-1);
+	dev_printk(KERN_INFO, &s->dev, "cs: IO port probe %#x-%#x:",
+		base, base+num-1);
 
-    /* First, what does a floating port look like? */
-    b = kzalloc(256, GFP_KERNEL);
-    if (!b) {
-	    printk("\n");
-	    dev_printk(KERN_ERR, &s->dev,
-		   "do_io_probe: unable to kmalloc 256 bytes");
-            return;
-    }
-    for (i = base, most = 0; i < base+num; i += 8) {
-	res = claim_region(NULL, i, 8, IORESOURCE_IO, "PCMCIA IO probe");
-	if (!res)
-	    continue;
-	hole = inb(i);
-	for (j = 1; j < 8; j++)
-	    if (inb(i+j) != hole) break;
-	free_region(res);
-	if ((j == 8) && (++b[hole] > b[most]))
-	    most = hole;
-	if (b[most] == 127) break;
-    }
-    kfree(b);
-
-    bad = any = 0;
-    for (i = base; i < base+num; i += 8) {
-	res = claim_region(NULL, i, 8, IORESOURCE_IO, "PCMCIA IO probe");
-	if (!res)
-	    continue;
-	for (j = 0; j < 8; j++)
-	    if (inb(i+j) != most) break;
-	free_region(res);
-	if (j < 8) {
-	    if (!any)
-		printk(" excluding");
-	    if (!bad)
-		bad = any = i;
-	} else {
-	    if (bad) {
-		sub_interval(&s_data->io_db, bad, i-bad);
-		printk(" %#x-%#x", bad, i-1);
-		bad = 0;
-	    }
+	/* First, what does a floating port look like? */
+	b = kzalloc(256, GFP_KERNEL);
+	if (!b) {
+		printk("\n");
+		dev_printk(KERN_ERR, &s->dev,
+			"do_io_probe: unable to kmalloc 256 bytes");
+		return;
 	}
-    }
-    if (bad) {
-	if ((num > 16) && (bad == base) && (i == base+num)) {
-	    printk(" nothing: probe failed.\n");
-	    return;
-	} else {
-	    sub_interval(&s_data->io_db, bad, i-bad);
-	    printk(" %#x-%#x", bad, i-1);
+	for (i = base, most = 0; i < base+num; i += 8) {
+		res = claim_region(NULL, i, 8, IORESOURCE_IO, "PCMCIA ioprobe");
+		if (!res)
+			continue;
+		hole = inb(i);
+		for (j = 1; j < 8; j++)
+			if (inb(i+j) != hole)
+				break;
+		free_region(res);
+		if ((j == 8) && (++b[hole] > b[most]))
+			most = hole;
+		if (b[most] == 127)
+			break;
 	}
-    }
+	kfree(b);
 
-    printk(any ? "\n" : " clean.\n");
+	bad = any = 0;
+	for (i = base; i < base+num; i += 8) {
+		res = claim_region(NULL, i, 8, IORESOURCE_IO, "PCMCIA ioprobe");
+		if (!res)
+			continue;
+		for (j = 0; j < 8; j++)
+			if (inb(i+j) != most)
+				break;
+		free_region(res);
+		if (j < 8) {
+			if (!any)
+				printk(" excluding");
+			if (!bad)
+				bad = any = i;
+		} else {
+			if (bad) {
+				sub_interval(&s_data->io_db, bad, i-bad);
+				printk(" %#x-%#x", bad, i-1);
+				bad = 0;
+			}
+		}
+	}
+	if (bad) {
+		if ((num > 16) && (bad == base) && (i == base+num)) {
+			printk(" nothing: probe failed.\n");
+			return;
+		} else {
+			sub_interval(&s_data->io_db, bad, i-bad);
+			printk(" %#x-%#x", bad, i-1);
+		}
+	}
+
+	printk(any ? "\n" : " clean.\n");
 }
 #endif
 
@@ -327,8 +331,9 @@ cis_readable(struct pcmcia_socket *s, unsigned long base, unsigned long size)
 	unsigned int info1, info2;
 	int ret = 0;
 
-	res1 = claim_region(s, base, size/2, IORESOURCE_MEM, "cs memory probe");
-	res2 = claim_region(s, base + size/2, size/2, IORESOURCE_MEM, "cs memory probe");
+	res1 = claim_region(s, base, size/2, IORESOURCE_MEM, "PCMCIA memprobe");
+	res2 = claim_region(s, base + size/2, size/2, IORESOURCE_MEM,
+			"PCMCIA memprobe");
 
 	if (res1 && res2) {
 		ret = readable(s, res1, &info1);
@@ -347,8 +352,9 @@ checksum_match(struct pcmcia_socket *s, unsigned long base, unsigned long size)
 	struct resource *res1, *res2;
 	int a = -1, b = -1;
 
-	res1 = claim_region(s, base, size/2, IORESOURCE_MEM, "cs memory probe");
-	res2 = claim_region(s, base + size/2, size/2, IORESOURCE_MEM, "cs memory probe");
+	res1 = claim_region(s, base, size/2, IORESOURCE_MEM, "PCMCIA memprobe");
+	res2 = claim_region(s, base + size/2, size/2, IORESOURCE_MEM,
+			"PCMCIA memprobe");
 
 	if (res1 && res2) {
 		a = checksum(s, res1);
@@ -371,42 +377,43 @@ checksum_match(struct pcmcia_socket *s, unsigned long base, unsigned long size)
 
 static int do_mem_probe(u_long base, u_long num, struct pcmcia_socket *s)
 {
-    struct socket_data *s_data = s->resource_data;
-    u_long i, j, bad, fail, step;
+	struct socket_data *s_data = s->resource_data;
+	u_long i, j, bad, fail, step;
 
-    dev_printk(KERN_INFO, &s->dev, "cs: memory probe 0x%06lx-0x%06lx:",
-	       base, base+num-1);
-    bad = fail = 0;
-    step = (num < 0x20000) ? 0x2000 : ((num>>4) & ~0x1fff);
-    /* don't allow too large steps */
-    if (step > 0x800000)
-	step = 0x800000;
-    /* cis_readable wants to map 2x map_size */
-    if (step < 2 * s->map_size)
-	step = 2 * s->map_size;
-    for (i = j = base; i < base+num; i = j + step) {
-	if (!fail) {
-	    for (j = i; j < base+num; j += step) {
-		if (cis_readable(s, j, step))
-		    break;
-	    }
-	    fail = ((i == base) && (j == base+num));
+	dev_printk(KERN_INFO, &s->dev, "cs: memory probe 0x%06lx-0x%06lx:",
+		base, base+num-1);
+	bad = fail = 0;
+	step = (num < 0x20000) ? 0x2000 : ((num>>4) & ~0x1fff);
+	/* don't allow too large steps */
+	if (step > 0x800000)
+		step = 0x800000;
+	/* cis_readable wants to map 2x map_size */
+	if (step < 2 * s->map_size)
+		step = 2 * s->map_size;
+	for (i = j = base; i < base+num; i = j + step) {
+		if (!fail) {
+			for (j = i; j < base+num; j += step) {
+				if (cis_readable(s, j, step))
+					break;
+			}
+			fail = ((i == base) && (j == base+num));
+		}
+		if (fail) {
+			for (j = i; j < base+num; j += 2*step)
+				if (checksum_match(s, j, step) &&
+					checksum_match(s, j + step, step))
+					break;
+		}
+		if (i != j) {
+			if (!bad)
+				printk(" excluding");
+			printk(" %#05lx-%#05lx", i, j-1);
+			sub_interval(&s_data->mem_db, i, j-i);
+			bad += j-i;
+		}
 	}
-	if (fail) {
-	    for (j = i; j < base+num; j += 2*step)
-		if (checksum_match(s, j, step) &&
-		    checksum_match(s, j + step, step))
-		    break;
-	}
-	if (i != j) {
-	    if (!bad) printk(" excluding");
-	    printk(" %#05lx-%#05lx", i, j-1);
-	    sub_interval(&s_data->mem_db, i, j-i);
-	    bad += j-i;
-	}
-    }
-    printk(bad ? "\n" : " clean.\n");
-    return (num - bad);
+	printk(bad ? "\n" : " clean.\n");
+	return num - bad;
 }
 
 #ifdef CONFIG_PCMCIA_PROBE
@@ -656,7 +663,7 @@ static struct resource *nonstatic_find_io_region(unsigned long base, int num,
 	return res;
 }
 
-static struct resource * nonstatic_find_mem_region(u_long base, u_long num,
+static struct resource *nonstatic_find_mem_region(u_long base, u_long num,
 		u_long align, int low, struct pcmcia_socket *s)
 {
 	struct resource *res = make_resource(0, num, IORESOURCE_MEM, dev_name(&s->dev));
@@ -794,7 +801,7 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 		return -EINVAL;
 #endif
 
-	for (i=0; i < PCI_BUS_NUM_RESOURCES; i++) {
+	for (i = 0; i < PCI_BUS_NUM_RESOURCES; i++) {
 		res = s->cb_dev->bus->resource[i];
 		if (!res)
 			continue;
@@ -908,14 +915,14 @@ static ssize_t show_io_db(struct device *dev,
 	for (p = data->io_db.next; p != &data->io_db; p = p->next) {
 		if (ret > (PAGE_SIZE - 10))
 			continue;
-		ret += snprintf (&buf[ret], (PAGE_SIZE - ret - 1),
-				 "0x%08lx - 0x%08lx\n",
-				 ((unsigned long) p->base),
-				 ((unsigned long) p->base + p->num - 1));
+		ret += snprintf(&buf[ret], (PAGE_SIZE - ret - 1),
+				"0x%08lx - 0x%08lx\n",
+				((unsigned long) p->base),
+				((unsigned long) p->base + p->num - 1));
 	}
 
 	mutex_unlock(&rsrc_mutex);
-	return (ret);
+	return ret;
 }
 
 static ssize_t store_io_db(struct device *dev,
@@ -927,12 +934,13 @@ static ssize_t store_io_db(struct device *dev,
 	unsigned int add = ADD_MANAGED_RESOURCE;
 	ssize_t ret = 0;
 
-	ret = sscanf (buf, "+ 0x%lx - 0x%lx", &start_addr, &end_addr);
+	ret = sscanf(buf, "+ 0x%lx - 0x%lx", &start_addr, &end_addr);
 	if (ret != 2) {
-		ret = sscanf (buf, "- 0x%lx - 0x%lx", &start_addr, &end_addr);
+		ret = sscanf(buf, "- 0x%lx - 0x%lx", &start_addr, &end_addr);
 		add = REMOVE_MANAGED_RESOURCE;
 		if (ret != 2) {
-			ret = sscanf (buf, "0x%lx - 0x%lx", &start_addr, &end_addr);
+			ret = sscanf(buf, "0x%lx - 0x%lx", &start_addr,
+				&end_addr);
 			add = ADD_MANAGED_RESOURCE;
 			if (ret != 2)
 				return -EINVAL;
@@ -963,14 +971,14 @@ static ssize_t show_mem_db(struct device *dev,
 	for (p = data->mem_db.next; p != &data->mem_db; p = p->next) {
 		if (ret > (PAGE_SIZE - 10))
 			continue;
-		ret += snprintf (&buf[ret], (PAGE_SIZE - ret - 1),
-				 "0x%08lx - 0x%08lx\n",
-				 ((unsigned long) p->base),
-				 ((unsigned long) p->base + p->num - 1));
+		ret += snprintf(&buf[ret], (PAGE_SIZE - ret - 1),
+				"0x%08lx - 0x%08lx\n",
+				((unsigned long) p->base),
+				((unsigned long) p->base + p->num - 1));
 	}
 
 	mutex_unlock(&rsrc_mutex);
-	return (ret);
+	return ret;
 }
 
 static ssize_t store_mem_db(struct device *dev,
@@ -982,12 +990,13 @@ static ssize_t store_mem_db(struct device *dev,
 	unsigned int add = ADD_MANAGED_RESOURCE;
 	ssize_t ret = 0;
 
-	ret = sscanf (buf, "+ 0x%lx - 0x%lx", &start_addr, &end_addr);
+	ret = sscanf(buf, "+ 0x%lx - 0x%lx", &start_addr, &end_addr);
 	if (ret != 2) {
-		ret = sscanf (buf, "- 0x%lx - 0x%lx", &start_addr, &end_addr);
+		ret = sscanf(buf, "- 0x%lx - 0x%lx", &start_addr, &end_addr);
 		add = REMOVE_MANAGED_RESOURCE;
 		if (ret != 2) {
-			ret = sscanf (buf, "0x%lx - 0x%lx", &start_addr, &end_addr);
+			ret = sscanf(buf, "0x%lx - 0x%lx", &start_addr,
+				&end_addr);
 			add = ADD_MANAGED_RESOURCE;
 			if (ret != 2)
 				return -EINVAL;

@@ -9,16 +9,6 @@
 #ifndef __MACH_BF537_H__
 #define __MACH_BF537_H__
 
-/* Masks for generic ERROR IRQ demultiplexing used in int-priority-sc.c */
-
-#define SPI_ERR_MASK (TXCOL | RBSY | MODF | TXE)	/* SPI_STAT */
-#define SPORT_ERR_MASK (ROVF | RUVF | TOVF | TUVF)	/* SPORTx_STAT */
-#define PPI_ERR_MASK (0xFFFF & ~FLD)	/* PPI_STATUS */
-#define EMAC_ERR_MASK (PHYINT | MMCINT | RXFSINT | TXFSINT | WAKEDET | RXDMAERR | TXDMAERR | STMDONE)	/* EMAC_SYSTAT */
-#define UART_ERR_MASK_STAT1 (0x4)	/* UARTx_IIR */
-#define UART_ERR_MASK_STAT0 (0x2)	/* UARTx_IIR */
-#define CAN_ERR_MASK  (EWTIF | EWRIF | EPIF | BOIF | WUIF | UIAIF | AAIF | RMLIF | UCEIF | EXTIF | ADIF)	/* CAN_GIF */
-
 #define OFFSET_(x) ((x) & 0x0000FFFF)
 
 /*some misc defines*/

@@ -333,7 +333,7 @@ extern const char gfar_driver_version[];
 #define IMASK_BSY               0x20000000
 #define IMASK_EBERR             0x10000000
 #define IMASK_MSRO		0x04000000
-#define IMASK_GRSC              0x02000000
+#define IMASK_GTSC              0x02000000
 #define IMASK_BABT		0x01000000
 #define IMASK_TXC               0x00800000
 #define IMASK_TXEEN		0x00400000
@@ -344,7 +344,7 @@ extern const char gfar_driver_version[];
 #define IMASK_XFUN		0x00010000
 #define IMASK_RXB0              0x00008000
 #define IMASK_MAG		0x00000800
-#define IMASK_GTSC              0x00000100
+#define IMASK_GRSC              0x00000100
 #define IMASK_RXFEN0		0x00000080
 #define IMASK_FIR		0x00000008
 #define IMASK_FIQ		0x00000004
@@ -400,6 +400,10 @@ extern const char gfar_driver_version[];
 
 #define FPR_FILER_MASK	0xFFFFFFFF
 #define MAX_FILER_IDX	0xFF
+
+/* This default RIR value directly corresponds
+ * to the 3-bit hash value generated */
+#define DEFAULT_RIR0	0x05397700
 
 /* RQFCR register bits */
 #define RQFCR_GPI		0x80000000
@@ -936,6 +940,15 @@ struct gfar_priv_tx_q {
 	unsigned short txtime;
 };
 
+/*
+ * Per RX queue stats
+ */
+struct rx_q_stats {
+	unsigned long rx_packets;
+	unsigned long rx_bytes;
+	unsigned long rx_dropped;
+};
+
 /**
  *	struct gfar_priv_rx_q - per rx queue structure
  *	@rxlock: per queue rx spin lock
@@ -958,6 +971,7 @@ struct gfar_priv_rx_q {
 	struct	rxbd8 *cur_rx;
 	struct	net_device *dev;
 	struct gfar_priv_grp *grp;
+	struct rx_q_stats stats;
 	u16	skb_currx;
 	u16	qindex;
 	unsigned int	rx_ring_size;

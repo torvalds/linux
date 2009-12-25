@@ -46,8 +46,7 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_2(gl518sm_r00, gl518sm_r80);
+enum chips { gl518sm_r00, gl518sm_r80 };
 
 /* Many GL518 constants specified below */
 
@@ -139,8 +138,7 @@ struct gl518_data {
 
 static int gl518_probe(struct i2c_client *client,
 		       const struct i2c_device_id *id);
-static int gl518_detect(struct i2c_client *client, int kind,
-			struct i2c_board_info *info);
+static int gl518_detect(struct i2c_client *client, struct i2c_board_info *info);
 static void gl518_init_client(struct i2c_client *client);
 static int gl518_remove(struct i2c_client *client);
 static int gl518_read_value(struct i2c_client *client, u8 reg);
@@ -163,7 +161,7 @@ static struct i2c_driver gl518_driver = {
 	.remove		= gl518_remove,
 	.id_table	= gl518_id,
 	.detect		= gl518_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*
@@ -484,8 +482,7 @@ static const struct attribute_group gl518_group_r80 = {
  */
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int gl518_detect(struct i2c_client *client, int kind,
-			struct i2c_board_info *info)
+static int gl518_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	int rev;

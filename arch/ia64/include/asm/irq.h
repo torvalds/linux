@@ -13,7 +13,7 @@
 
 #include <linux/types.h>
 #include <linux/cpumask.h>
-#include <asm-ia64/nr-irqs.h>
+#include <generated/nr-irqs.h>
 
 static __inline__ int
 irq_canonicalize (int irq)

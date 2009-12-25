@@ -104,43 +104,70 @@ void map__fixup_end(struct map *self)
 
 #define DSO__DELETED "(deleted)"
 
-struct symbol *map__find_symbol(struct map *self, u64 addr,
-				symbol_filter_t filter)
+int map__load(struct map *self, struct perf_session *session,
+	      symbol_filter_t filter)
 {
-	if (!dso__loaded(self->dso, self->type)) {
-		int nr = dso__load(self->dso, self, filter);
+	const char *name = self->dso->long_name;
+	int nr;
 
-		if (nr < 0) {
-			if (self->dso->has_build_id) {
-				char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+	if (dso__loaded(self->dso, self->type))
+		return 0;
 
-				build_id__sprintf(self->dso->build_id,
-						  sizeof(self->dso->build_id),
-						  sbuild_id);
-				pr_warning("%s with build id %s not found",
-					   self->dso->long_name, sbuild_id);
-			} else
-				pr_warning("Failed to open %s",
-					   self->dso->long_name);
-			pr_warning(", continuing without symbols\n");
-			return NULL;
-		} else if (nr == 0) {
-			const char *name = self->dso->long_name;
-			const size_t len = strlen(name);
-			const size_t real_len = len - sizeof(DSO__DELETED);
+	nr = dso__load(self->dso, self, session, filter);
+	if (nr < 0) {
+		if (self->dso->has_build_id) {
+			char sbuild_id[BUILD_ID_SIZE * 2 + 1];
 
-			if (len > sizeof(DSO__DELETED) &&
-			    strcmp(name + real_len + 1, DSO__DELETED) == 0) {
-				pr_warning("%.*s was updated, restart the long running apps that use it!\n",
-					   (int)real_len, name);
-			} else {
-				pr_warning("no symbols found in %s, maybe install a debug package?\n", name);
-			}
-			return NULL;
+			build_id__sprintf(self->dso->build_id,
+					  sizeof(self->dso->build_id),
+					  sbuild_id);
+			pr_warning("%s with build id %s not found",
+				   name, sbuild_id);
+		} else
+			pr_warning("Failed to open %s", name);
+
+		pr_warning(", continuing without symbols\n");
+		return -1;
+	} else if (nr == 0) {
+		const size_t len = strlen(name);
+		const size_t real_len = len - sizeof(DSO__DELETED);
+
+		if (len > sizeof(DSO__DELETED) &&
+		    strcmp(name + real_len + 1, DSO__DELETED) == 0) {
+			pr_warning("%.*s was updated, restart the long "
+				   "running apps that use it!\n",
+				   (int)real_len, name);
+		} else {
+			pr_warning("no symbols found in %s, maybe install "
+				   "a debug package?\n", name);
 		}
+
+		return -1;
 	}
 
-	return self->dso->find_symbol(self->dso, self->type, addr);
+	return 0;
+}
+
+struct symbol *map__find_symbol(struct map *self, struct perf_session *session,
+				u64 addr, symbol_filter_t filter)
+{
+	if (map__load(self, session, filter) < 0)
+		return NULL;
+
+	return dso__find_symbol(self->dso, self->type, addr);
+}
+
+struct symbol *map__find_symbol_by_name(struct map *self, const char *name,
+					struct perf_session *session,
+					symbol_filter_t filter)
+{
+	if (map__load(self, session, filter) < 0)
+		return NULL;
+
+	if (!dso__sorted_by_name(self->dso, self->type))
+		dso__sort_by_name(self->dso, self->type);
+
+	return dso__find_symbol_by_name(self->dso, self->type, name);
 }
 
 struct map *map__clone(struct map *self)

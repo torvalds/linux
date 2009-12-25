@@ -159,9 +159,9 @@ void vr41xx_enable_piuint(uint16_t mask)
 
 	if (current_cpu_type() == CPU_VR4111 ||
 	    current_cpu_type() == CPU_VR4121) {
-		spin_lock_irqsave(&desc->lock, flags);
+		raw_spin_lock_irqsave(&desc->lock, flags);
 		icu1_set(MPIUINTREG, mask);
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 }
 
@@ -174,9 +174,9 @@ void vr41xx_disable_piuint(uint16_t mask)
 
 	if (current_cpu_type() == CPU_VR4111 ||
 	    current_cpu_type() == CPU_VR4121) {
-		spin_lock_irqsave(&desc->lock, flags);
+		raw_spin_lock_irqsave(&desc->lock, flags);
 		icu1_clear(MPIUINTREG, mask);
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 }
 
@@ -189,9 +189,9 @@ void vr41xx_enable_aiuint(uint16_t mask)
 
 	if (current_cpu_type() == CPU_VR4111 ||
 	    current_cpu_type() == CPU_VR4121) {
-		spin_lock_irqsave(&desc->lock, flags);
+		raw_spin_lock_irqsave(&desc->lock, flags);
 		icu1_set(MAIUINTREG, mask);
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 }
 
@@ -204,9 +204,9 @@ void vr41xx_disable_aiuint(uint16_t mask)
 
 	if (current_cpu_type() == CPU_VR4111 ||
 	    current_cpu_type() == CPU_VR4121) {
-		spin_lock_irqsave(&desc->lock, flags);
+		raw_spin_lock_irqsave(&desc->lock, flags);
 		icu1_clear(MAIUINTREG, mask);
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 }
 
@@ -219,9 +219,9 @@ void vr41xx_enable_kiuint(uint16_t mask)
 
 	if (current_cpu_type() == CPU_VR4111 ||
 	    current_cpu_type() == CPU_VR4121) {
-		spin_lock_irqsave(&desc->lock, flags);
+		raw_spin_lock_irqsave(&desc->lock, flags);
 		icu1_set(MKIUINTREG, mask);
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 }
 
@@ -234,9 +234,9 @@ void vr41xx_disable_kiuint(uint16_t mask)
 
 	if (current_cpu_type() == CPU_VR4111 ||
 	    current_cpu_type() == CPU_VR4121) {
-		spin_lock_irqsave(&desc->lock, flags);
+		raw_spin_lock_irqsave(&desc->lock, flags);
 		icu1_clear(MKIUINTREG, mask);
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 }
 
@@ -247,9 +247,9 @@ void vr41xx_enable_macint(uint16_t mask)
 	struct irq_desc *desc = irq_desc + ETHERNET_IRQ;
 	unsigned long flags;
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	icu1_set(MMACINTREG, mask);
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
 EXPORT_SYMBOL(vr41xx_enable_macint);
@@ -259,9 +259,9 @@ void vr41xx_disable_macint(uint16_t mask)
 	struct irq_desc *desc = irq_desc + ETHERNET_IRQ;
 	unsigned long flags;
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	icu1_clear(MMACINTREG, mask);
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
 EXPORT_SYMBOL(vr41xx_disable_macint);
@@ -271,9 +271,9 @@ void vr41xx_enable_dsiuint(uint16_t mask)
 	struct irq_desc *desc = irq_desc + DSIU_IRQ;
 	unsigned long flags;
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	icu1_set(MDSIUINTREG, mask);
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
 EXPORT_SYMBOL(vr41xx_enable_dsiuint);
@@ -283,9 +283,9 @@ void vr41xx_disable_dsiuint(uint16_t mask)
 	struct irq_desc *desc = irq_desc + DSIU_IRQ;
 	unsigned long flags;
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	icu1_clear(MDSIUINTREG, mask);
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
 EXPORT_SYMBOL(vr41xx_disable_dsiuint);
@@ -295,9 +295,9 @@ void vr41xx_enable_firint(uint16_t mask)
 	struct irq_desc *desc = irq_desc + FIR_IRQ;
 	unsigned long flags;
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	icu2_set(MFIRINTREG, mask);
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
 EXPORT_SYMBOL(vr41xx_enable_firint);
@@ -307,9 +307,9 @@ void vr41xx_disable_firint(uint16_t mask)
 	struct irq_desc *desc = irq_desc + FIR_IRQ;
 	unsigned long flags;
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	icu2_clear(MFIRINTREG, mask);
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
 EXPORT_SYMBOL(vr41xx_disable_firint);
@@ -322,9 +322,9 @@ void vr41xx_enable_pciint(void)
 	if (current_cpu_type() == CPU_VR4122 ||
 	    current_cpu_type() == CPU_VR4131 ||
 	    current_cpu_type() == CPU_VR4133) {
-		spin_lock_irqsave(&desc->lock, flags);
+		raw_spin_lock_irqsave(&desc->lock, flags);
 		icu2_write(MPCIINTREG, PCIINT0);
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 }
 
@@ -338,9 +338,9 @@ void vr41xx_disable_pciint(void)
 	if (current_cpu_type() == CPU_VR4122 ||
 	    current_cpu_type() == CPU_VR4131 ||
 	    current_cpu_type() == CPU_VR4133) {
-		spin_lock_irqsave(&desc->lock, flags);
+		raw_spin_lock_irqsave(&desc->lock, flags);
 		icu2_write(MPCIINTREG, 0);
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 }
 
@@ -354,9 +354,9 @@ void vr41xx_enable_scuint(void)
 	if (current_cpu_type() == CPU_VR4122 ||
 	    current_cpu_type() == CPU_VR4131 ||
 	    current_cpu_type() == CPU_VR4133) {
-		spin_lock_irqsave(&desc->lock, flags);
+		raw_spin_lock_irqsave(&desc->lock, flags);
 		icu2_write(MSCUINTREG, SCUINT0);
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 }
 
@@ -370,9 +370,9 @@ void vr41xx_disable_scuint(void)
 	if (current_cpu_type() == CPU_VR4122 ||
 	    current_cpu_type() == CPU_VR4131 ||
 	    current_cpu_type() == CPU_VR4133) {
-		spin_lock_irqsave(&desc->lock, flags);
+		raw_spin_lock_irqsave(&desc->lock, flags);
 		icu2_write(MSCUINTREG, 0);
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 }
 
@@ -386,9 +386,9 @@ void vr41xx_enable_csiint(uint16_t mask)
 	if (current_cpu_type() == CPU_VR4122 ||
 	    current_cpu_type() == CPU_VR4131 ||
 	    current_cpu_type() == CPU_VR4133) {
-		spin_lock_irqsave(&desc->lock, flags);
+		raw_spin_lock_irqsave(&desc->lock, flags);
 		icu2_set(MCSIINTREG, mask);
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 }
 
@@ -402,9 +402,9 @@ void vr41xx_disable_csiint(uint16_t mask)
 	if (current_cpu_type() == CPU_VR4122 ||
 	    current_cpu_type() == CPU_VR4131 ||
 	    current_cpu_type() == CPU_VR4133) {
-		spin_lock_irqsave(&desc->lock, flags);
+		raw_spin_lock_irqsave(&desc->lock, flags);
 		icu2_clear(MCSIINTREG, mask);
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 }
 
@@ -418,9 +418,9 @@ void vr41xx_enable_bcuint(void)
 	if (current_cpu_type() == CPU_VR4122 ||
 	    current_cpu_type() == CPU_VR4131 ||
 	    current_cpu_type() == CPU_VR4133) {
-		spin_lock_irqsave(&desc->lock, flags);
+		raw_spin_lock_irqsave(&desc->lock, flags);
 		icu2_write(MBCUINTREG, BCUINTR);
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 }
 
@@ -434,9 +434,9 @@ void vr41xx_disable_bcuint(void)
 	if (current_cpu_type() == CPU_VR4122 ||
 	    current_cpu_type() == CPU_VR4131 ||
 	    current_cpu_type() == CPU_VR4133) {
-		spin_lock_irqsave(&desc->lock, flags);
+		raw_spin_lock_irqsave(&desc->lock, flags);
 		icu2_write(MBCUINTREG, 0);
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 }
 
@@ -486,7 +486,7 @@ static inline int set_sysint1_assign(unsigned int irq, unsigned char assign)
 
 	pin = SYSINT1_IRQ_TO_PIN(irq);
 
-	spin_lock_irq(&desc->lock);
+	raw_spin_lock_irq(&desc->lock);
 
 	intassign0 = icu1_read(INTASSIGN0);
 	intassign1 = icu1_read(INTASSIGN1);
@@ -525,7 +525,7 @@ static inline int set_sysint1_assign(unsigned int irq, unsigned char assign)
 		intassign1 |= (uint16_t)assign << 9;
 		break;
 	default:
-		spin_unlock_irq(&desc->lock);
+		raw_spin_unlock_irq(&desc->lock);
 		return -EINVAL;
 	}
 
@@ -533,7 +533,7 @@ static inline int set_sysint1_assign(unsigned int irq, unsigned char assign)
 	icu1_write(INTASSIGN0, intassign0);
 	icu1_write(INTASSIGN1, intassign1);
 
-	spin_unlock_irq(&desc->lock);
+	raw_spin_unlock_irq(&desc->lock);
 
 	return 0;
 }
@@ -546,7 +546,7 @@ static inline int set_sysint2_assign(unsigned int irq, unsigned char assign)
 
 	pin = SYSINT2_IRQ_TO_PIN(irq);
 
-	spin_lock_irq(&desc->lock);
+	raw_spin_lock_irq(&desc->lock);
 
 	intassign2 = icu1_read(INTASSIGN2);
 	intassign3 = icu1_read(INTASSIGN3);
@@ -593,7 +593,7 @@ static inline int set_sysint2_assign(unsigned int irq, unsigned char assign)
 		intassign3 |= (uint16_t)assign << 12;
 		break;
 	default:
-		spin_unlock_irq(&desc->lock);
+		raw_spin_unlock_irq(&desc->lock);
 		return -EINVAL;
 	}
 
@@ -601,7 +601,7 @@ static inline int set_sysint2_assign(unsigned int irq, unsigned char assign)
 	icu1_write(INTASSIGN2, intassign2);
 	icu1_write(INTASSIGN3, intassign3);
 
-	spin_unlock_irq(&desc->lock);
+	raw_spin_unlock_irq(&desc->lock);
 
 	return 0;
 }

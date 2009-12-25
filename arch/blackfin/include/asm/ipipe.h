@@ -35,9 +35,9 @@
 #include <asm/atomic.h>
 #include <asm/traps.h>
 
-#define IPIPE_ARCH_STRING     "1.11-00"
+#define IPIPE_ARCH_STRING     "1.12-00"
 #define IPIPE_MAJOR_NUMBER    1
-#define IPIPE_MINOR_NUMBER    11
+#define IPIPE_MINOR_NUMBER    12
 #define IPIPE_PATCH_NUMBER    0
 
 #ifdef CONFIG_SMP
@@ -122,16 +122,6 @@ void __ipipe_disable_irqdesc(struct ipipe_domain *ipd,
 static inline int __ipipe_check_tickdev(const char *devname)
 {
 	return 1;
-}
-
-static inline void __ipipe_lock_root(void)
-{
-	set_bit(IPIPE_SYNCDEFER_FLAG, &ipipe_root_cpudom_var(status));
-}
-
-static inline void __ipipe_unlock_root(void)
-{
-	clear_bit(IPIPE_SYNCDEFER_FLAG, &ipipe_root_cpudom_var(status));
 }
 
 void __ipipe_enable_pipeline(void);

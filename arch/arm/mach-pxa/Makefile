@@ -38,6 +38,7 @@ obj-$(CONFIG_MACH_SAAR)		+= saar.o
 # 3rd Party Dev Platforms
 obj-$(CONFIG_ARCH_PXA_IDP)	+= idp.o
 obj-$(CONFIG_ARCH_VIPER)	+= viper.o
+obj-$(CONFIG_MACH_ARCOM_ZEUS)	+= zeus.o
 obj-$(CONFIG_MACH_BALLOON3)	+= balloon3.o
 obj-$(CONFIG_MACH_CSB726)	+= csb726.o
 obj-$(CONFIG_CSB726_CSB701)	+= csb701.o
