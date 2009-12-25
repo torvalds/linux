@@ -212,11 +212,11 @@ nouveau_fbcon_create(struct drm_device *dev, uint32_t fb_width,
 
 	mode_cmd.bpp = surface_bpp;
 	mode_cmd.pitch = mode_cmd.width * (mode_cmd.bpp >> 3);
-	mode_cmd.pitch = ALIGN(mode_cmd.pitch, 256);
+	mode_cmd.pitch = roundup(mode_cmd.pitch, 256);
 	mode_cmd.depth = surface_depth;
 
 	size = mode_cmd.pitch * mode_cmd.height;
-	size = ALIGN(size, PAGE_SIZE);
+	size = roundup(size, PAGE_SIZE);
 
 	ret = nouveau_gem_new(dev, dev_priv->channel, size, 0, TTM_PL_FLAG_VRAM,
 			      0, 0x0000, false, true, &nvbo);
