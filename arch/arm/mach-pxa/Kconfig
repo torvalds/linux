@@ -464,6 +464,7 @@ config MACH_POODLE
 	select PXA25x
 	select SHARP_LOCOMO
 	select PXA_SSP
+	select PXA_HAVE_BOARD_IRQS
 
 config MACH_CORGI
 	bool "Enable Sharp SL-C700 (Corgi) Support"
