@@ -259,7 +259,14 @@ static int llc_ui_autobind(struct socket *sock, struct sockaddr_llc *addr)
 	if (!sock_flag(sk, SOCK_ZAPPED))
 		goto out;
 	rc = -ENODEV;
-	llc->dev = dev_getfirstbyhwtype(&init_net, addr->sllc_arphrd);
+	if (sk->sk_bound_dev_if) {
+		llc->dev = dev_get_by_index(&init_net, sk->sk_bound_dev_if);
+		if (llc->dev && addr->sllc_arphrd != llc->dev->type) {
+			dev_put(llc->dev);
+			llc->dev = NULL;
+		}
+	} else
+		llc->dev = dev_getfirstbyhwtype(&init_net, addr->sllc_arphrd);
 	if (!llc->dev)
 		goto out;
 	rc = -EUSERS;
@@ -310,7 +317,25 @@ static int llc_ui_bind(struct socket *sock, struct sockaddr *uaddr, int addrlen)
 		goto out;
 	rc = -ENODEV;
 	rtnl_lock();
-	llc->dev = dev_getbyhwaddr(&init_net, addr->sllc_arphrd, addr->sllc_mac);
+	if (sk->sk_bound_dev_if) {
+		llc->dev = dev_get_by_index(&init_net, sk->sk_bound_dev_if);
+		if (llc->dev) {
+			if (!addr->sllc_arphrd)
+				addr->sllc_arphrd = llc->dev->type;
+			if (llc_mac_null(addr->sllc_mac))
+				memcpy(addr->sllc_mac, llc->dev->dev_addr,
+				       IFHWADDRLEN);
+			if (addr->sllc_arphrd != llc->dev->type ||
+			    !llc_mac_match(addr->sllc_mac,
+					   llc->dev->dev_addr)) {
+				rc = -EINVAL;
+				dev_put(llc->dev);
+				llc->dev = NULL;
+			}
+		}
+	} else
+		llc->dev = dev_getbyhwaddr(&init_net, addr->sllc_arphrd,
+					   addr->sllc_mac);
 	rtnl_unlock();
 	if (!llc->dev)
 		goto out;
