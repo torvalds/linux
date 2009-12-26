@@ -142,7 +142,7 @@ static long geodewdt_ioctl(struct file *file, unsigned int cmd,
 	int __user *p = argp;
 	int interval;
 
-	static struct watchdog_info ident = {
+	static const struct watchdog_info ident = {
 		.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING
 		| WDIOF_MAGICCLOSE,
 		.firmware_version =     1,

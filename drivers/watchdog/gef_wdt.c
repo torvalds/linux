@@ -161,7 +161,7 @@ static long gef_wdt_ioctl(struct file *file, unsigned int cmd,
 	int timeout;
 	int options;
 	void __user *argp = (void __user *)arg;
-	static struct watchdog_info info = {
+	static const struct watchdog_info info = {
 		.options =	WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE |
 				WDIOF_KEEPALIVEPING,
 		.firmware_version = 0,

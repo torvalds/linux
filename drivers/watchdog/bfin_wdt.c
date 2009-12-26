@@ -74,7 +74,7 @@
 
 static unsigned int timeout = WATCHDOG_TIMEOUT;
 static int nowayout = WATCHDOG_NOWAYOUT;
-static struct watchdog_info bfin_wdt_info;
+static const struct watchdog_info bfin_wdt_info;
 static unsigned long open_check;
 static char expect_close;
 static DEFINE_SPINLOCK(bfin_wdt_spinlock);
@@ -388,7 +388,7 @@ static struct miscdevice bfin_wdt_miscdev = {
 	.fops     = &bfin_wdt_fops,
 };
 
-static struct watchdog_info bfin_wdt_info = {
+static const struct watchdog_info bfin_wdt_info = {
 	.identity = "Blackfin Watchdog",
 	.options  = WDIOF_SETTIMEOUT |
 		    WDIOF_KEEPALIVEPING |
