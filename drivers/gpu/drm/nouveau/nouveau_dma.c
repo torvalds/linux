@@ -35,6 +35,7 @@ nouveau_dma_init(struct nouveau_channel *chan)
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *m2mf = NULL;
+	struct nouveau_gpuobj *nvsw = NULL;
 	int ret, i;
 
 	/* Create NV_MEMORY_TO_MEMORY_FORMAT for buffer moves */
@@ -44,6 +45,15 @@ nouveau_dma_init(struct nouveau_channel *chan)
 		return ret;
 
 	ret = nouveau_gpuobj_ref_add(dev, chan, NvM2MF, m2mf, NULL);
+	if (ret)
+		return ret;
+
+	/* Create an NV_SW object for various sync purposes */
+	ret = nouveau_gpuobj_sw_new(chan, NV_SW, &nvsw);
+	if (ret)
+		return ret;
+
+	ret = nouveau_gpuobj_ref_add(dev, chan, NvSw, nvsw, NULL);
 	if (ret)
 		return ret;
 
@@ -86,6 +96,13 @@ nouveau_dma_init(struct nouveau_channel *chan)
 	OUT_RING(chan, NvM2MF);
 	BEGIN_RING(chan, NvSubM2MF, NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
 	OUT_RING(chan, NvNotify0);
+
+	/* Initialise NV_SW */
+	ret = RING_SPACE(chan, 2);
+	if (ret)
+		return ret;
+	BEGIN_RING(chan, NvSubSw, 0, 1);
+	OUT_RING(chan, NvSw);
 
 	/* Sit back and pray the channel works.. */
 	FIRE_RING(chan);
