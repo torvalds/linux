@@ -192,9 +192,13 @@ static int node_probe(struct device *dev)
 	int kv_len, err;
 	void *kv_str;
 
-	kv_len = (ud->model_name_kv->value.leaf.len - 2) * sizeof(quadlet_t);
-	kv_str = CSR1212_TEXTUAL_DESCRIPTOR_LEAF_DATA(ud->model_name_kv);
-
+	if (ud->model_name_kv) {
+		kv_len = (ud->model_name_kv->value.leaf.len - 2) * 4;
+		kv_str = CSR1212_TEXTUAL_DESCRIPTOR_LEAF_DATA(ud->model_name_kv);
+	} else {
+		kv_len = 0;
+		kv_str = NULL;
+	}
 	fdtv = fdtv_alloc(dev, &fdtv_1394_backend, kv_str, kv_len);
 	if (!fdtv)
 		return -ENOMEM;
