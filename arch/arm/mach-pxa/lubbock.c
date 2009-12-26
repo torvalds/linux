@@ -228,11 +228,18 @@ static struct resource sa1111_resources[] = {
 	},
 };
 
+static struct sa1111_platform_data sa1111_info = {
+	.irq_base	= IRQ_BOARD_END,
+};
+
 static struct platform_device sa1111_device = {
 	.name		= "sa1111",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(sa1111_resources),
 	.resource	= sa1111_resources,
+	.dev		= {
+		.platform_data	= &sa1111_info,
+	},
 };
 
 /* ADS7846 is connected through SSP ... and if your board has J5 populated,
