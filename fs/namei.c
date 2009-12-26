@@ -1819,7 +1819,9 @@ reval:
 		return ERR_PTR(error);
 	if (force_reval)
 		nd.flags |= LOOKUP_REVAL;
-	error = path_walk(pathname, &nd);
+
+	current->total_link_count = 0;
+	error = link_path_walk(pathname, &nd);
 	if (error) {
 		filp = ERR_PTR(error);
 		goto out;
