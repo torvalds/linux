@@ -50,6 +50,23 @@
 #define bfin_write16(addr, val) _bfin_writeX(addr, val, 16, w)
 #define bfin_write32(addr, val) _bfin_writeX(addr, val, 32,  )
 
+#define bfin_read(addr) \
+({ \
+    sizeof(*(addr)) == 1 ? bfin_read8(addr)  : \
+    sizeof(*(addr)) == 2 ? bfin_read16(addr) : \
+    sizeof(*(addr)) == 4 ? bfin_read32(addr) : \
+    ({ BUG(); 0; }); \
+})
+#define bfin_write(addr, val) \
+({ \
+	switch (sizeof(*(addr))) { \
+	case 1: bfin_write8(addr, val);  break; \
+	case 2: bfin_write16(addr, val); break; \
+	case 4: bfin_write32(addr, val); break; \
+	default: BUG(); \
+	} \
+})
+
 #endif /* __ASSEMBLY__ */
 
 /**************************************************
