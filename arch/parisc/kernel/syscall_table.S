@@ -418,6 +418,7 @@
 	ENTRY_COMP(rt_tgsigqueueinfo)
 	ENTRY_SAME(perf_event_open)
 	ENTRY_COMP(recvmmsg)
+	ENTRY_SAME(accept4)		/* 320 */
 
 	/* Nothing yet */
 

@@ -812,8 +812,9 @@
 #define __NR_rt_tgsigqueueinfo	(__NR_Linux + 317)
 #define __NR_perf_event_open	(__NR_Linux + 318)
 #define __NR_recvmmsg		(__NR_Linux + 319)
+#define __NR_accept4		(__NR_Linux + 320)
 
-#define __NR_Linux_syscalls	(__NR_recvmmsg + 1)
+#define __NR_Linux_syscalls	(__NR_accept4 + 1)
 
 
 #define __IGNORE_select		/* newselect */
