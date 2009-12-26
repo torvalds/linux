@@ -828,9 +828,9 @@ static int ngene_i2c_init(struct ngene *dev, int dev_nr)
 
 	strcpy(adap->name, "nGene");
 
-	adap->id = I2C_HW_SAA7146;
 	adap->algo = &ngene_i2c_algo;
 	adap->algo_data = (void *)&(dev->channel[dev_nr]);
+	adap->dev.parent = &dev->pci_dev->dev;
 
 	mutex_init(&adap->bus_lock);
 	return i2c_add_adapter(adap);
