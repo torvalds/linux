@@ -93,7 +93,7 @@ struct hlist_nulls_head *llc_sk_laddr_hash(struct llc_sap *sap,
 #define LLC_DEST_CONN            2      /* Type 2 goes here */
 
 extern struct list_head llc_sap_list;
-extern rwlock_t llc_sap_list_lock;
+extern spinlock_t llc_sap_list_lock;
 
 extern int llc_rcv(struct sk_buff *skb, struct net_device *dev,
 		   struct packet_type *pt, struct net_device *orig_dev);

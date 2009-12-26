@@ -32,14 +32,11 @@ static void llc_ui_format_mac(struct seq_file *seq, u8 *addr)
 
 static struct sock *llc_get_sk_idx(loff_t pos)
 {
-	struct list_head *sap_entry;
 	struct llc_sap *sap;
 	struct sock *sk = NULL;
 	int i;
 
-	list_for_each(sap_entry, &llc_sap_list) {
-		sap = list_entry(sap_entry, struct llc_sap, node);
-
+	list_for_each_entry_rcu(sap, &llc_sap_list, node) {
 		spin_lock_bh(&sap->sk_lock);
 		for (i = 0; i < LLC_SK_LADDR_HASH_ENTRIES; i++) {
 			struct hlist_nulls_head *head = &sap->sk_laddr_hash[i];
@@ -62,7 +59,7 @@ static void *llc_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	loff_t l = *pos;
 
-	read_lock_bh(&llc_sap_list_lock);
+	rcu_read_lock_bh();
 	return l ? llc_get_sk_idx(--l) : SEQ_START_TOKEN;
 }
 
@@ -102,7 +99,7 @@ static void *llc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	if (sk)
 		goto out;
 	spin_unlock_bh(&sap->sk_lock);
-	list_for_each_entry_continue(sap, &llc_sap_list, node) {
+	list_for_each_entry_continue_rcu(sap, &llc_sap_list, node) {
 		spin_lock_bh(&sap->sk_lock);
 		sk = laddr_hash_next(sap, -1);
 		if (sk)
@@ -122,7 +119,7 @@ static void llc_seq_stop(struct seq_file *seq, void *v)
 
 		spin_unlock_bh(&sap->sk_lock);
 	}
-	read_unlock_bh(&llc_sap_list_lock);
+	rcu_read_unlock_bh();
 }
 
 static int llc_seq_socket_show(struct seq_file *seq, void *v)

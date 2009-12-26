@@ -23,7 +23,7 @@
 #include <net/llc.h>
 
 LIST_HEAD(llc_sap_list);
-DEFINE_RWLOCK(llc_sap_list_lock);
+DEFINE_SPINLOCK(llc_sap_list_lock);
 
 /**
  *	llc_sap_alloc - allocates and initializes sap.
@@ -44,30 +44,6 @@ static struct llc_sap *llc_sap_alloc(void)
 		atomic_set(&sap->refcnt, 1);
 	}
 	return sap;
-}
-
-/**
- *	llc_add_sap - add sap to station list
- *	@sap: Address of the sap
- *
- *	Adds a sap to the LLC's station sap list.
- */
-static void llc_add_sap(struct llc_sap *sap)
-{
-	list_add_tail(&sap->node, &llc_sap_list);
-}
-
-/**
- *	llc_del_sap - del sap from station list
- *	@sap: Address of the sap
- *
- *	Removes a sap to the LLC's station sap list.
- */
-static void llc_del_sap(struct llc_sap *sap)
-{
-	write_lock_bh(&llc_sap_list_lock);
-	list_del(&sap->node);
-	write_unlock_bh(&llc_sap_list_lock);
 }
 
 static struct llc_sap *__llc_sap_find(unsigned char sap_value)
@@ -93,13 +69,13 @@ out:
  */
 struct llc_sap *llc_sap_find(unsigned char sap_value)
 {
-	struct llc_sap* sap;
+	struct llc_sap *sap;
 
-	read_lock_bh(&llc_sap_list_lock);
+	rcu_read_lock_bh();
 	sap = __llc_sap_find(sap_value);
 	if (sap)
 		llc_sap_hold(sap);
-	read_unlock_bh(&llc_sap_list_lock);
+	rcu_read_unlock_bh();
 	return sap;
 }
 
@@ -120,7 +96,7 @@ struct llc_sap *llc_sap_open(unsigned char lsap,
 {
 	struct llc_sap *sap = NULL;
 
-	write_lock_bh(&llc_sap_list_lock);
+	spin_lock_bh(&llc_sap_list_lock);
 	if (__llc_sap_find(lsap)) /* SAP already exists */
 		goto out;
 	sap = llc_sap_alloc();
@@ -128,9 +104,9 @@ struct llc_sap *llc_sap_open(unsigned char lsap,
 		goto out;
 	sap->laddr.lsap = lsap;
 	sap->rcv_func	= func;
-	llc_add_sap(sap);
+	list_add_tail_rcu(&sap->node, &llc_sap_list);
 out:
-	write_unlock_bh(&llc_sap_list_lock);
+	spin_unlock_bh(&llc_sap_list_lock);
 	return sap;
 }
 
@@ -146,7 +122,13 @@ out:
 void llc_sap_close(struct llc_sap *sap)
 {
 	WARN_ON(sap->sk_count);
-	llc_del_sap(sap);
+
+	spin_lock_bh(&llc_sap_list_lock);
+	list_del_rcu(&sap->node);
+	spin_unlock_bh(&llc_sap_list_lock);
+
+	synchronize_rcu();
+
 	kfree(sap);
 }
 
