@@ -1844,17 +1844,38 @@ reval:
 	if (open_flag & O_EXCL)
 		nd.flags |= LOOKUP_EXCL;
 	filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
-	if (!filp)
-		goto do_link;
-	goto out;
-
-exit_dput:
-	path_put_conditional(&path, &nd);
-	if (!IS_ERR(nd.intent.open.file))
-		release_open_intent(&nd);
-exit_parent:
-	path_put(&nd.path);
-	filp = ERR_PTR(error);
+	while (unlikely(!filp)) { /* trailing symlink */
+		error = -ELOOP;
+		if ((open_flag & O_NOFOLLOW) || count++ == 32)
+			goto exit_dput;
+		/*
+		 * This is subtle. Instead of calling do_follow_link() we do
+		 * the thing by hands. The reason is that this way we have zero
+		 * link_count and path_walk() (called from ->follow_link)
+		 * honoring LOOKUP_PARENT.  After that we have the parent and
+		 * last component, i.e. we are in the same situation as after
+		 * the first path_walk().  Well, almost - if the last component
+		 * is normal we get its copy stored in nd->last.name and we will
+		 * have to putname() it when we are done. Procfs-like symlinks
+		 * just set LAST_BIND.
+		 */
+		nd.flags |= LOOKUP_PARENT;
+		error = security_inode_follow_link(path.dentry, &nd);
+		if (error)
+			goto exit_dput;
+		error = __do_follow_link(&path, &nd);
+		path_put(&path);
+		if (error) {
+			/* nd.path had been dropped */
+			release_open_intent(&nd);
+			filp = ERR_PTR(error);
+			goto out;
+		}
+		nd.flags &= ~LOOKUP_PARENT;
+		filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
+		if (nd.last_type == LAST_NORM)
+			__putname(nd.last.name);
+	}
 out:
 	if (nd.root.mnt)
 		path_put(&nd.root);
@@ -1864,41 +1885,13 @@ out:
 	}
 	return filp;
 
-do_link:
-	error = -ELOOP;
-	if ((open_flag & O_NOFOLLOW) || count++ == 32)
-		goto exit_dput;
-	/*
-	 * This is subtle. Instead of calling do_follow_link() we do the
-	 * thing by hands. The reason is that this way we have zero link_count
-	 * and path_walk() (called from ->follow_link) honoring LOOKUP_PARENT.
-	 * After that we have the parent and last component, i.e.
-	 * we are in the same situation as after the first path_walk().
-	 * Well, almost - if the last component is normal we get its copy
-	 * stored in nd->last.name and we will have to putname() it when we
-	 * are done. Procfs-like symlinks just set LAST_BIND.
-	 */
-	nd.flags |= LOOKUP_PARENT;
-	error = security_inode_follow_link(path.dentry, &nd);
-	if (error)
-		goto exit_dput;
-	error = __do_follow_link(&path, &nd);
-	path_put(&path);
-	if (error) {
-		/* Does someone understand code flow here? Or it is only
-		 * me so stupid? Anathema to whoever designed this non-sense
-		 * with "intent.open".
-		 */
+exit_dput:
+	path_put_conditional(&path, &nd);
+	if (!IS_ERR(nd.intent.open.file))
 		release_open_intent(&nd);
-		filp = ERR_PTR(error);
-		goto out;
-	}
-	nd.flags &= ~LOOKUP_PARENT;
-	filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
-	if (nd.last_type == LAST_NORM)
-		__putname(nd.last.name);
-	if (!filp)
-		goto do_link;
+exit_parent:
+	path_put(&nd.path);
+	filp = ERR_PTR(error);
 	goto out;
 }
 
