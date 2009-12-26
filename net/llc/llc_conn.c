@@ -468,6 +468,19 @@ static int llc_exec_conn_trans_actions(struct sock *sk,
 	return rc;
 }
 
+static inline bool llc_estab_match(const struct llc_sap *sap,
+				   const struct llc_addr *daddr,
+				   const struct llc_addr *laddr,
+				   const struct sock *sk)
+{
+	struct llc_sock *llc = llc_sk(sk);
+
+	return llc->laddr.lsap == laddr->lsap &&
+		llc->daddr.lsap == daddr->lsap &&
+		llc_mac_match(llc->laddr.mac, laddr->mac) &&
+		llc_mac_match(llc->daddr.mac, daddr->mac);
+}
+
 /**
  *	__llc_lookup_established - Finds connection for the remote/local sap/mac
  *	@sap: SAP
@@ -484,23 +497,26 @@ static struct sock *__llc_lookup_established(struct llc_sap *sap,
 					     struct llc_addr *laddr)
 {
 	struct sock *rc;
-	struct hlist_node *node;
+	struct hlist_nulls_node *node;
 
-	read_lock(&sap->sk_list.lock);
-	sk_for_each(rc, node, &sap->sk_list.list) {
-		struct llc_sock *llc = llc_sk(rc);
-
-		if (llc->laddr.lsap == laddr->lsap &&
-		    llc->daddr.lsap == daddr->lsap &&
-		    llc_mac_match(llc->laddr.mac, laddr->mac) &&
-		    llc_mac_match(llc->daddr.mac, daddr->mac)) {
-			sock_hold(rc);
+	rcu_read_lock();
+again:
+	sk_nulls_for_each_rcu(rc, node, &sap->sk_list) {
+		if (llc_estab_match(sap, daddr, laddr, rc)) {
+			/* Extra checks required by SLAB_DESTROY_BY_RCU */
+			if (unlikely(!atomic_inc_not_zero(&rc->sk_refcnt)))
+				goto again;
+			if (unlikely(llc_sk(rc)->sap != sap ||
+				     !llc_estab_match(sap, daddr, laddr, rc))) {
+				sock_put(rc);
+				continue;
+			}
 			goto found;
 		}
 	}
 	rc = NULL;
 found:
-	read_unlock(&sap->sk_list.lock);
+	rcu_read_unlock();
 	return rc;
 }
 
@@ -514,6 +530,18 @@ struct sock *llc_lookup_established(struct llc_sap *sap,
 	sk = __llc_lookup_established(sap, daddr, laddr);
 	local_bh_enable();
 	return sk;
+}
+
+static inline bool llc_listener_match(const struct llc_sap *sap,
+				      const struct llc_addr *laddr,
+				      const struct sock *sk)
+{
+	struct llc_sock *llc = llc_sk(sk);
+
+	return sk->sk_type == SOCK_STREAM && sk->sk_state == TCP_LISTEN &&
+		llc->laddr.lsap == laddr->lsap &&
+		(llc_mac_match(llc->laddr.mac, laddr->mac) ||
+		 llc_mac_null(llc->laddr.mac));
 }
 
 /**
@@ -530,23 +558,26 @@ static struct sock *llc_lookup_listener(struct llc_sap *sap,
 					struct llc_addr *laddr)
 {
 	struct sock *rc;
-	struct hlist_node *node;
+	struct hlist_nulls_node *node;
 
-	read_lock(&sap->sk_list.lock);
-	sk_for_each(rc, node, &sap->sk_list.list) {
-		struct llc_sock *llc = llc_sk(rc);
-
-		if (rc->sk_type == SOCK_STREAM && rc->sk_state == TCP_LISTEN &&
-		    llc->laddr.lsap == laddr->lsap &&
-		    (llc_mac_match(llc->laddr.mac, laddr->mac) ||
-		     llc_mac_null(llc->laddr.mac))) {
-			sock_hold(rc);
+	rcu_read_lock();
+again:
+	sk_nulls_for_each_rcu(rc, node, &sap->sk_list) {
+		if (llc_listener_match(sap, laddr, rc)) {
+			/* Extra checks required by SLAB_DESTROY_BY_RCU */
+			if (unlikely(!atomic_inc_not_zero(&rc->sk_refcnt)))
+				goto again;
+			if (unlikely(llc_sk(rc)->sap != sap ||
+				     !llc_listener_match(sap, laddr, rc))) {
+				sock_put(rc);
+				continue;
+			}
 			goto found;
 		}
 	}
 	rc = NULL;
 found:
-	read_unlock(&sap->sk_list.lock);
+	rcu_read_unlock();
 	return rc;
 }
 
@@ -652,10 +683,10 @@ static int llc_find_offset(int state, int ev_type)
 void llc_sap_add_socket(struct llc_sap *sap, struct sock *sk)
 {
 	llc_sap_hold(sap);
-	write_lock_bh(&sap->sk_list.lock);
+	spin_lock_bh(&sap->sk_lock);
 	llc_sk(sk)->sap = sap;
-	sk_add_node(sk, &sap->sk_list.list);
-	write_unlock_bh(&sap->sk_list.lock);
+	sk_nulls_add_node_rcu(sk, &sap->sk_list);
+	spin_unlock_bh(&sap->sk_lock);
 }
 
 /**
@@ -663,14 +694,14 @@ void llc_sap_add_socket(struct llc_sap *sap, struct sock *sk)
  *	@sap: SAP
  *	@sk: socket
  *
- *	This function removes a connection from sk_list.list of a SAP if
+ *	This function removes a connection from sk_list of a SAP if
  *	the connection was in this list.
  */
 void llc_sap_remove_socket(struct llc_sap *sap, struct sock *sk)
 {
-	write_lock_bh(&sap->sk_list.lock);
-	sk_del_node_init(sk);
-	write_unlock_bh(&sap->sk_list.lock);
+	spin_lock_bh(&sap->sk_lock);
+	sk_nulls_del_node_init_rcu(sk);
+	spin_unlock_bh(&sap->sk_lock);
 	llc_sap_put(sap);
 }
 

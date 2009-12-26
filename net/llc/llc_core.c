@@ -37,7 +37,8 @@ static struct llc_sap *llc_sap_alloc(void)
 	if (sap) {
 		/* sap->laddr.mac - leave as a null, it's filled by bind */
 		sap->state = LLC_SAP_STATE_ACTIVE;
-		rwlock_init(&sap->sk_list.lock);
+		spin_lock_init(&sap->sk_lock);
+		INIT_HLIST_NULLS_HEAD(&sap->sk_list, 0);
 		atomic_set(&sap->refcnt, 1);
 	}
 	return sap;
@@ -142,7 +143,7 @@ out:
  */
 void llc_sap_close(struct llc_sap *sap)
 {
-	WARN_ON(!hlist_empty(&sap->sk_list.list));
+	WARN_ON(!hlist_nulls_empty(&sap->sk_list));
 	llc_del_sap(sap);
 	kfree(sap);
 }

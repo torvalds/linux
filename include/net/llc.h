@@ -16,6 +16,7 @@
 #include <linux/if_ether.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <linux/rculist_nulls.h>
 
 #include <asm/atomic.h>
 
@@ -53,10 +54,8 @@ struct llc_sap {
 				     struct net_device *orig_dev);
 	struct llc_addr	 laddr;
 	struct list_head node;
-	struct {
-		rwlock_t	  lock;
-		struct hlist_head list;
-	} sk_list;
+	spinlock_t sk_lock;
+	struct hlist_nulls_head sk_list;
 };
 
 #define LLC_DEST_INVALID         0      /* Invalid LLC PDU type */

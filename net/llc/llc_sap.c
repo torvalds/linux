@@ -297,6 +297,17 @@ static void llc_sap_rcv(struct llc_sap *sap, struct sk_buff *skb,
 	llc_sap_state_process(sap, skb);
 }
 
+static inline bool llc_dgram_match(const struct llc_sap *sap,
+				   const struct llc_addr *laddr,
+				   const struct sock *sk)
+{
+     struct llc_sock *llc = llc_sk(sk);
+
+     return sk->sk_type == SOCK_DGRAM &&
+	  llc->laddr.lsap == laddr->lsap &&
+	  llc_mac_match(llc->laddr.mac, laddr->mac);
+}
+
 /**
  *	llc_lookup_dgram - Finds dgram socket for the local sap/mac
  *	@sap: SAP
@@ -309,23 +320,39 @@ static struct sock *llc_lookup_dgram(struct llc_sap *sap,
 				     const struct llc_addr *laddr)
 {
 	struct sock *rc;
-	struct hlist_node *node;
+	struct hlist_nulls_node *node;
 
-	read_lock_bh(&sap->sk_list.lock);
-	sk_for_each(rc, node, &sap->sk_list.list) {
-		struct llc_sock *llc = llc_sk(rc);
-
-		if (rc->sk_type == SOCK_DGRAM &&
-		    llc->laddr.lsap == laddr->lsap &&
-		    llc_mac_match(llc->laddr.mac, laddr->mac)) {
-			sock_hold(rc);
+	rcu_read_lock_bh();
+again:
+	sk_nulls_for_each_rcu(rc, node, &sap->sk_list) {
+		if (llc_dgram_match(sap, laddr, rc)) {
+			/* Extra checks required by SLAB_DESTROY_BY_RCU */
+			if (unlikely(!atomic_inc_not_zero(&rc->sk_refcnt)))
+				goto again;
+			if (unlikely(llc_sk(rc)->sap != sap ||
+				     !llc_dgram_match(sap, laddr, rc))) {
+				sock_put(rc);
+				continue;
+			}
 			goto found;
 		}
 	}
 	rc = NULL;
 found:
-	read_unlock_bh(&sap->sk_list.lock);
+	rcu_read_unlock_bh();
 	return rc;
+}
+
+static inline bool llc_mcast_match(const struct llc_sap *sap,
+				   const struct llc_addr *laddr,
+				   const struct sk_buff *skb,
+				   const struct sock *sk)
+{
+     struct llc_sock *llc = llc_sk(sk);
+
+     return sk->sk_type == SOCK_DGRAM &&
+	  llc->laddr.lsap == laddr->lsap &&
+	  llc->dev == skb->dev;
 }
 
 /**
@@ -341,20 +368,13 @@ static void llc_sap_mcast(struct llc_sap *sap,
 			  struct sk_buff *skb)
 {
 	struct sock *sk;
-	struct hlist_node *node;
+	struct hlist_nulls_node *node;
 
-	read_lock_bh(&sap->sk_list.lock);
-	sk_for_each(sk, node, &sap->sk_list.list) {
-		struct llc_sock *llc = llc_sk(sk);
+	spin_lock_bh(&sap->sk_lock);
+	sk_nulls_for_each_rcu(sk, node, &sap->sk_list) {
 		struct sk_buff *skb1;
 
-		if (sk->sk_type != SOCK_DGRAM)
-			continue;
-
-		if (llc->laddr.lsap != laddr->lsap)
-			continue;
-
-		if (llc->dev != skb->dev)
+		if (!llc_mcast_match(sap, laddr, skb, sk))
 			continue;
 
 		skb1 = skb_clone(skb, GFP_ATOMIC);
@@ -365,7 +385,7 @@ static void llc_sap_mcast(struct llc_sap *sap,
 		llc_sap_rcv(sap, skb1, sk);
 		sock_put(sk);
 	}
-	read_unlock_bh(&sap->sk_list.lock);
+	spin_unlock_bh(&sap->sk_lock);
 }
 
 
