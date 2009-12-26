@@ -726,9 +726,18 @@ static mfp_cfg_t zeus_pin_config[] __initdata = {
 	GPIO99_GPIO,		/* CF RDY */
 };
 
+/*
+ * DM9k MSCx settings:	SRAM, 16 bits
+ *			17 cycles delay first access
+ *			 5 cycles delay next access
+ *			13 cycles recovery time
+ *			faster device
+ */
+#define DM9K_MSC_VALUE		0xe4c9
+
 static void __init zeus_init(void)
 {
-	u16 dm9000_msc = 0xe279;
+	u16 dm9000_msc = DM9K_MSC_VALUE;
 
 	system_rev = __raw_readw(ZEUS_CPLD_VERSION);
 	pr_info("Zeus CPLD V%dI%d\n", (system_rev & 0xf0) >> 4, (system_rev & 0x0f));
