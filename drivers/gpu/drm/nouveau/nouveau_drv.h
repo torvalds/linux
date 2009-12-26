@@ -788,6 +788,8 @@ extern int nouveau_gpuobj_gart_dma_new(struct nouveau_channel *,
 				       uint32_t *o_ret);
 extern int nouveau_gpuobj_gr_new(struct nouveau_channel *, int class,
 				 struct nouveau_gpuobj **);
+extern int nouveau_gpuobj_sw_new(struct nouveau_channel *, int class,
+				 struct nouveau_gpuobj **);
 extern int nouveau_ioctl_grobj_alloc(struct drm_device *, void *data,
 				     struct drm_file *);
 extern int nouveau_ioctl_gpuobj_free(struct drm_device *, void *data,
@@ -1330,14 +1332,14 @@ nv_two_reg_pll(struct drm_device *dev)
 	return false;
 }
 
-#define NV50_NVSW                                                    0x0000506e
-#define NV50_NVSW_DMA_SEMAPHORE                                      0x00000060
-#define NV50_NVSW_SEMAPHORE_OFFSET                                   0x00000064
-#define NV50_NVSW_SEMAPHORE_ACQUIRE                                  0x00000068
-#define NV50_NVSW_SEMAPHORE_RELEASE                                  0x0000006c
-#define NV50_NVSW_DMA_VBLSEM                                         0x0000018c
-#define NV50_NVSW_VBLSEM_OFFSET                                      0x00000400
-#define NV50_NVSW_VBLSEM_RELEASE_VALUE                               0x00000404
-#define NV50_NVSW_VBLSEM_RELEASE                                     0x00000408
+#define NV_SW                                                        0x0000506e
+#define NV_SW_DMA_SEMAPHORE                                          0x00000060
+#define NV_SW_SEMAPHORE_OFFSET                                       0x00000064
+#define NV_SW_SEMAPHORE_ACQUIRE                                      0x00000068
+#define NV_SW_SEMAPHORE_RELEASE                                      0x0000006c
+#define NV_SW_DMA_VBLSEM                                             0x0000018c
+#define NV_SW_VBLSEM_OFFSET                                          0x00000400
+#define NV_SW_VBLSEM_RELEASE_VALUE                                   0x00000404
+#define NV_SW_VBLSEM_RELEASE                                         0x00000408
 
 #endif /* __NOUVEAU_DRV_H__ */

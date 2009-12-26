@@ -414,7 +414,9 @@ nouveau_ioctl_fifo_alloc(struct drm_device *dev, void *data,
 		init->subchan[0].grclass = 0x0039;
 	else
 		init->subchan[0].grclass = 0x5039;
-	init->nr_subchan = 1;
+	init->subchan[1].handle = NvSw;
+	init->subchan[1].grclass = NV_SW;
+	init->nr_subchan = 2;
 
 	/* Named memory object area */
 	ret = drm_gem_handle_create(file_priv, chan->notifier_bo->gem,

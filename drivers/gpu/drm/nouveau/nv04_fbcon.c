@@ -184,6 +184,7 @@ nv04_fbcon_accel_init(struct fb_info *info)
 	struct drm_device *dev = par->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
+	const int sub = NvSubCtxSurf2D;
 	int surface_fmt, pattern_fmt, rect_fmt;
 	int ret;
 
@@ -247,25 +248,25 @@ nv04_fbcon_accel_init(struct fb_info *info)
 		return 0;
 	}
 
-	BEGIN_RING(chan, 1, 0x0000, 1);
+	BEGIN_RING(chan, sub, 0x0000, 1);
 	OUT_RING(chan, NvCtxSurf2D);
-	BEGIN_RING(chan, 1, 0x0184, 2);
+	BEGIN_RING(chan, sub, 0x0184, 2);
 	OUT_RING(chan, NvDmaFB);
 	OUT_RING(chan, NvDmaFB);
-	BEGIN_RING(chan, 1, 0x0300, 4);
+	BEGIN_RING(chan, sub, 0x0300, 4);
 	OUT_RING(chan, surface_fmt);
 	OUT_RING(chan, info->fix.line_length | (info->fix.line_length << 16));
 	OUT_RING(chan, info->fix.smem_start - dev->mode_config.fb_base);
 	OUT_RING(chan, info->fix.smem_start - dev->mode_config.fb_base);
 
-	BEGIN_RING(chan, 1, 0x0000, 1);
+	BEGIN_RING(chan, sub, 0x0000, 1);
 	OUT_RING(chan, NvRop);
-	BEGIN_RING(chan, 1, 0x0300, 1);
+	BEGIN_RING(chan, sub, 0x0300, 1);
 	OUT_RING(chan, 0x55);
 
-	BEGIN_RING(chan, 1, 0x0000, 1);
+	BEGIN_RING(chan, sub, 0x0000, 1);
 	OUT_RING(chan, NvImagePatt);
-	BEGIN_RING(chan, 1, 0x0300, 8);
+	BEGIN_RING(chan, sub, 0x0300, 8);
 	OUT_RING(chan, pattern_fmt);
 #ifdef __BIG_ENDIAN
 	OUT_RING(chan, 2);
@@ -279,9 +280,9 @@ nv04_fbcon_accel_init(struct fb_info *info)
 	OUT_RING(chan, ~0);
 	OUT_RING(chan, ~0);
 
-	BEGIN_RING(chan, 1, 0x0000, 1);
+	BEGIN_RING(chan, sub, 0x0000, 1);
 	OUT_RING(chan, NvClipRect);
-	BEGIN_RING(chan, 1, 0x0300, 2);
+	BEGIN_RING(chan, sub, 0x0300, 2);
 	OUT_RING(chan, 0);
 	OUT_RING(chan, (info->var.yres_virtual << 16) | info->var.xres_virtual);
 
