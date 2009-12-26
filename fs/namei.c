@@ -1821,9 +1821,8 @@ reval:
 		nd.flags |= LOOKUP_REVAL;
 	error = path_walk(pathname, &nd);
 	if (error) {
-		if (nd.root.mnt)
-			path_put(&nd.root);
-		return ERR_PTR(error);
+		filp = ERR_PTR(error);
+		goto out;
 	}
 	if (unlikely(!audit_dummy_context()))
 		audit_inode(pathname, nd.path.dentry);
@@ -1847,9 +1846,7 @@ reval:
 	filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
 	if (!filp)
 		goto do_link;
-	if (nd.root.mnt)
-		path_put(&nd.root);
-	return filp;
+	goto out;
 
 exit_dput:
 	path_put_conditional(&path, &nd);
@@ -1857,9 +1854,15 @@ exit_dput:
 		release_open_intent(&nd);
 exit_parent:
 	path_put(&nd.path);
+	filp = ERR_PTR(error);
+out:
 	if (nd.root.mnt)
 		path_put(&nd.root);
-	return ERR_PTR(error);
+	if (filp == ERR_PTR(-ESTALE) && !force_reval) {
+		force_reval = 1;
+		goto reval;
+	}
+	return filp;
 
 do_link:
 	error = -ELOOP;
@@ -1887,13 +1890,8 @@ do_link:
 		 * with "intent.open".
 		 */
 		release_open_intent(&nd);
-		if (nd.root.mnt)
-			path_put(&nd.root);
-		if (error == -ESTALE && !force_reval) {
-			force_reval = 1;
-			goto reval;
-		}
-		return ERR_PTR(error);
+		filp = ERR_PTR(error);
+		goto out;
 	}
 	nd.flags &= ~LOOKUP_PARENT;
 	filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
@@ -1901,9 +1899,7 @@ do_link:
 		__putname(nd.last.name);
 	if (!filp)
 		goto do_link;
-	if (nd.root.mnt)
-		path_put(&nd.root);
-	return filp;
+	goto out;
 }
 
 /**
