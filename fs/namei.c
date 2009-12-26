@@ -1359,22 +1359,6 @@ static inline int may_create(struct inode *dir, struct dentry *child)
 	return inode_permission(dir, MAY_WRITE | MAY_EXEC);
 }
 
-/* 
- * O_DIRECTORY translates into forcing a directory lookup.
- */
-static inline int lookup_flags(unsigned int f)
-{
-	unsigned long retval = LOOKUP_FOLLOW;
-
-	if (f & O_NOFOLLOW)
-		retval &= ~LOOKUP_FOLLOW;
-	
-	if (f & O_DIRECTORY)
-		retval |= LOOKUP_DIRECTORY;
-
-	return retval;
-}
-
 /*
  * p1 and p2 should be directories on the same fs.
  */
@@ -1631,19 +1615,60 @@ exit:
 
 static struct file *do_last(struct nameidata *nd, struct path *path,
 			    int open_flag, int acc_mode,
-			    int mode, const char *pathname)
+			    int mode, const char *pathname,
+			    int *want_dir)
 {
 	struct dentry *dir = nd->path.dentry;
 	struct file *filp;
-	int error;
+	int error = -EISDIR;
 
-	if (nd->last_type == LAST_BIND)
+	switch (nd->last_type) {
+	case LAST_DOTDOT:
+		follow_dotdot(nd);
+		dir = nd->path.dentry;
+		if (nd->path.mnt->mnt_sb->s_type->fs_flags & FS_REVAL_DOT) {
+			if (!dir->d_op->d_revalidate(dir, nd)) {
+				error = -ESTALE;
+				goto exit;
+			}
+		}
+		/* fallthrough */
+	case LAST_DOT:
+	case LAST_ROOT:
+		if (open_flag & O_CREAT)
+			goto exit;
+		/* fallthrough */
+	case LAST_BIND:
+		audit_inode(pathname, dir);
 		goto ok;
+	}
 
-	error = -EISDIR;
-	if (nd->last_type != LAST_NORM || nd->last.name[nd->last.len])
-		goto exit;
+	/* trailing slashes? */
+	if (nd->last.name[nd->last.len]) {
+		if (open_flag & O_CREAT)
+			goto exit;
+		*want_dir = 1;
+	}
 
+	/* just plain open? */
+	if (!(open_flag & O_CREAT)) {
+		error = do_lookup(nd, &nd->last, path);
+		if (error)
+			goto exit;
+		error = -ENOENT;
+		if (!path->dentry->d_inode)
+			goto exit_dput;
+		if (path->dentry->d_inode->i_op->follow_link)
+			return NULL;
+		error = -ENOTDIR;
+		if (*want_dir & !path->dentry->d_inode->i_op->lookup)
+			goto exit_dput;
+		path_to_nameidata(path, nd);
+		audit_inode(pathname, nd->path.dentry);
+		goto ok;
+	}
+
+	/* OK, it's O_CREAT */
 	mutex_lock(&dir->d_inode->i_mutex);
 
 	path->dentry = lookup_hash(nd);
@@ -1746,6 +1771,10 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	int count = 0;
 	int flag = open_to_namei_flags(open_flag);
 	int force_reval = 0;
+	int want_dir = open_flag & O_DIRECTORY;
+
+	if (!(open_flag & O_CREAT))
+		mode = 0;
 
 	/*
 	 * O_SYNC is implemented as __O_SYNC|O_DSYNC.  As many places only
@@ -1768,35 +1797,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	if (open_flag & O_APPEND)
 		acc_mode |= MAY_APPEND;
 
-	/*
-	 * The simplest case - just a plain lookup.
-	 */
-	if (!(open_flag & O_CREAT)) {
-		filp = get_empty_filp();
-
-		if (filp == NULL)
-			return ERR_PTR(-ENFILE);
-		nd.intent.open.file = filp;
-		filp->f_flags = open_flag;
-		nd.intent.open.flags = flag;
-		nd.intent.open.create_mode = 0;
-		error = do_path_lookup(dfd, pathname,
-					lookup_flags(open_flag)|LOOKUP_OPEN, &nd);
-		if (IS_ERR(nd.intent.open.file)) {
-			if (error == 0) {
-				error = PTR_ERR(nd.intent.open.file);
-				path_put(&nd.path);
-			}
-		} else if (error)
-			release_open_intent(&nd);
-		if (error)
-			return ERR_PTR(error);
-		return finish_open(&nd, open_flag, acc_mode);
-	}
-
-	/*
-	 * Create - we need to know the parent.
-	 */
+	/* find the parent */
 reval:
 	error = path_init(dfd, pathname, LOOKUP_PARENT, &nd);
 	if (error)
@@ -1810,7 +1811,7 @@ reval:
 		filp = ERR_PTR(error);
 		goto out;
 	}
-	if (unlikely(!audit_dummy_context()))
+	if (unlikely(!audit_dummy_context()) && (open_flag & O_CREAT))
 		audit_inode(pathname, nd.path.dentry);
 
 	/*
@@ -1826,16 +1827,22 @@ reval:
 	nd.intent.open.flags = flag;
 	nd.intent.open.create_mode = mode;
 	nd.flags &= ~LOOKUP_PARENT;
-	nd.flags |= LOOKUP_CREATE | LOOKUP_OPEN;
-	if (open_flag & O_EXCL)
-		nd.flags |= LOOKUP_EXCL;
-	filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
+	nd.flags |= LOOKUP_OPEN;
+	if (open_flag & O_CREAT) {
+		nd.flags |= LOOKUP_CREATE;
+		if (open_flag & O_EXCL)
+			nd.flags |= LOOKUP_EXCL;
+	}
+	filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname, &want_dir);
 	while (unlikely(!filp)) { /* trailing symlink */
 		struct path holder;
-		struct inode *inode;
+		struct inode *inode = path.dentry->d_inode;
 		void *cookie;
 		error = -ELOOP;
-		if ((open_flag & O_NOFOLLOW) || count++ == 32)
+		/* S_ISDIR part is a temporary automount kludge */
+		if ((open_flag & O_NOFOLLOW) && !S_ISDIR(inode->i_mode))
+			goto exit_dput;
+		if (count++ == 32)
 			goto exit_dput;
 		/*
 		 * This is subtle. Instead of calling do_follow_link() we do
@@ -1855,7 +1862,6 @@ reval:
 		error = __do_follow_link(&path, &nd, &cookie);
 		if (unlikely(error)) {
 			/* nd.path had been dropped */
-			inode = path.dentry->d_inode;
 			if (!IS_ERR(cookie) && inode->i_op->put_link)
 				inode->i_op->put_link(path.dentry, &nd, cookie);
 			path_put(&path);
@@ -1865,8 +1871,7 @@ reval:
 		}
 		holder = path;
 		nd.flags &= ~LOOKUP_PARENT;
-		filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
-		inode = holder.dentry->d_inode;
+		filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname, &want_dir);
 		if (inode->i_op->put_link)
 			inode->i_op->put_link(holder.dentry, &nd, cookie);
 		path_put(&holder);
