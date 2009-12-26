@@ -723,6 +723,7 @@ static int ioctl_send_response(struct client *client, void *buffer)
 		if (copy_from_user(r->data, u64_to_uptr(request->data),
 				   r->length)) {
 			ret = -EFAULT;
+			kfree(r->request);
 			goto out;
 		}
 		fw_send_response(client->device->card, r->request,
