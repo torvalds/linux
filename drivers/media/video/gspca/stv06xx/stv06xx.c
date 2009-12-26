@@ -219,6 +219,7 @@ static void stv06xx_dump_bridge(struct sd *sd)
 		info("Read 0x%x from address 0x%x", data, i);
 	}
 
+	info("Testing stv06xx bridge registers for writability");
 	for (i = 0x1400; i < 0x160f; i++) {
 		stv06xx_read_bridge(sd, i, &data);
 		buf = data;
@@ -229,7 +230,7 @@ static void stv06xx_dump_bridge(struct sd *sd)
 			info("Register 0x%x is read/write", i);
 		else if (data != buf)
 			info("Register 0x%x is read/write,"
-			     "but only partially", i);
+			     " but only partially", i);
 		else
 			info("Register 0x%x is read-only", i);
 
