@@ -4184,9 +4184,23 @@ static void stac_store_hints(struct hda_codec *codec)
 	p = snd_hda_get_hint(codec, "eapd_mask");
 	if (p)
 		spec->eapd_mask = simple_strtoul(p, NULL, 0) & spec->gpio_mask;
+	p = snd_hda_get_hint(codec, "gpio_mute");
+	if (p)
+		spec->gpio_mute = simple_strtoul(p, NULL, 0) & spec->gpio_mask;
 	val = snd_hda_get_bool_hint(codec, "eapd_switch");
 	if (val >= 0)
 		spec->eapd_switch = val;
+	p = snd_hda_get_hint(codec, "gpio_led_polarity");
+	if (p)
+		spec->gpio_led_polarity = simple_strtoul(p, NULL, 0);
+	p = snd_hda_get_hint(codec, "gpio_led");
+	if (p) {
+		spec->gpio_led = simple_strtoul(p, NULL, 0);
+		spec->gpio_mask |= spec->gpio_led;
+		spec->gpio_dir |= spec->gpio_led;
+		if (spec->gpio_led_polarity)
+			spec->gpio_data |= spec->gpio_led;
+	}
 }
 
 static int stac92xx_init(struct hda_codec *codec)
