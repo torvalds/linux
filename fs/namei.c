@@ -498,8 +498,6 @@ static int link_path_walk(const char *, struct nameidata *);
 
 static __always_inline int __vfs_follow_link(struct nameidata *nd, const char *link)
 {
-	int res = 0;
-	char *name;
 	if (IS_ERR(link))
 		goto fail;
 
@@ -510,22 +508,7 @@ static __always_inline int __vfs_follow_link(struct nameidata *nd, const char *l
 		path_get(&nd->root);
 	}
 
-	res = link_path_walk(link, nd);
-	if (nd->depth || res || nd->last_type!=LAST_NORM)
-		return res;
-	/*
-	 * If it is an iterative symlinks resolution in open_namei() we
-	 * have to copy the last component. And all that crap because of
-	 * bloody create() on broken symlinks. Furrfu...
-	 */
-	name = __getname();
-	if (unlikely(!name)) {
-		path_put(&nd->path);
-		return -ENOMEM;
-	}
-	strcpy(name, nd->last.name);
-	nd->last.name = name;
-	return 0;
+	return link_path_walk(link, nd);
 fail:
 	path_put(&nd->path);
 	return PTR_ERR(link);
@@ -547,10 +530,10 @@ static inline void path_to_nameidata(struct path *path, struct nameidata *nd)
 	nd->path.dentry = path->dentry;
 }
 
-static __always_inline int __do_follow_link(struct path *path, struct nameidata *nd)
+static __always_inline int
+__do_follow_link(struct path *path, struct nameidata *nd, void **p)
 {
 	int error;
-	void *cookie;
 	struct dentry *dentry = path->dentry;
 
 	touch_atime(path->mnt, dentry);
@@ -562,9 +545,9 @@ static __always_inline int __do_follow_link(struct path *path, struct nameidata 
 	}
 	mntget(path->mnt);
 	nd->last_type = LAST_BIND;
-	cookie = dentry->d_inode->i_op->follow_link(dentry, nd);
-	error = PTR_ERR(cookie);
-	if (!IS_ERR(cookie)) {
+	*p = dentry->d_inode->i_op->follow_link(dentry, nd);
+	error = PTR_ERR(*p);
+	if (!IS_ERR(*p)) {
 		char *s = nd_get_link(nd);
 		error = 0;
 		if (s)
@@ -574,8 +557,6 @@ static __always_inline int __do_follow_link(struct path *path, struct nameidata 
 			if (error)
 				path_put(&nd->path);
 		}
-		if (dentry->d_inode->i_op->put_link)
-			dentry->d_inode->i_op->put_link(dentry, nd, cookie);
 	}
 	return error;
 }
@@ -589,6 +570,7 @@ static __always_inline int __do_follow_link(struct path *path, struct nameidata 
  */
 static inline int do_follow_link(struct path *path, struct nameidata *nd)
 {
+	void *cookie;
 	int err = -ELOOP;
 	if (current->link_count >= MAX_NESTED_LINKS)
 		goto loop;
@@ -602,7 +584,9 @@ static inline int do_follow_link(struct path *path, struct nameidata *nd)
 	current->link_count++;
 	current->total_link_count++;
 	nd->depth++;
-	err = __do_follow_link(path, nd);
+	err = __do_follow_link(path, nd, &cookie);
+	if (!IS_ERR(cookie) && path->dentry->d_inode->i_op->put_link)
+		path->dentry->d_inode->i_op->put_link(path->dentry, nd, cookie);
 	path_put(path);
 	current->link_count--;
 	nd->depth--;
@@ -1847,6 +1831,9 @@ reval:
 		nd.flags |= LOOKUP_EXCL;
 	filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
 	while (unlikely(!filp)) { /* trailing symlink */
+		struct path holder;
+		struct inode *inode;
+		void *cookie;
 		error = -ELOOP;
 		if ((open_flag & O_NOFOLLOW) || count++ == 32)
 			goto exit_dput;
@@ -1865,18 +1852,24 @@ reval:
 		error = security_inode_follow_link(path.dentry, &nd);
 		if (error)
 			goto exit_dput;
-		error = __do_follow_link(&path, &nd);
-		path_put(&path);
-		if (error) {
+		error = __do_follow_link(&path, &nd, &cookie);
+		if (unlikely(error)) {
 			/* nd.path had been dropped */
+			inode = path.dentry->d_inode;
+			if (!IS_ERR(cookie) && inode->i_op->put_link)
+				inode->i_op->put_link(path.dentry, &nd, cookie);
+			path_put(&path);
 			release_open_intent(&nd);
 			filp = ERR_PTR(error);
 			goto out;
 		}
+		holder = path;
 		nd.flags &= ~LOOKUP_PARENT;
 		filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
-		if (nd.last_type == LAST_NORM)
-			__putname(nd.last.name);
+		inode = holder.dentry->d_inode;
+		if (inode->i_op->put_link)
+			inode->i_op->put_link(holder.dentry, &nd, cookie);
+		path_put(&holder);
 	}
 out:
 	if (nd.root.mnt)
