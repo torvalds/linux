@@ -1559,8 +1559,9 @@ void iwl3945_dump_nic_error_log(struct iwl_priv *priv)
  * iwl3945_print_event_log - Dump error event log to syslog
  *
  */
-static void iwl3945_print_event_log(struct iwl_priv *priv, u32 start_idx,
-				u32 num_events, u32 mode)
+static int iwl3945_print_event_log(struct iwl_priv *priv, u32 start_idx,
+				  u32 num_events, u32 mode,
+				  int pos, char **buf, size_t bufsz)
 {
 	u32 i;
 	u32 base;       /* SRAM byte address of event log header */
@@ -1570,7 +1571,7 @@ static void iwl3945_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	unsigned long reg_flags;
 
 	if (num_events == 0)
-		return;
+		return pos;
 
 	base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
 
@@ -1596,26 +1597,43 @@ static void iwl3945_print_event_log(struct iwl_priv *priv, u32 start_idx,
 		time = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
 		if (mode == 0) {
 			/* data, ev */
-			IWL_ERR(priv, "0x%08x\t%04u\n", time, ev);
-			trace_iwlwifi_dev_ucode_event(priv, 0, time, ev);
+			if (bufsz) {
+				pos += scnprintf(*buf + pos, bufsz - pos,
+						"0x%08x:%04u\n",
+						time, ev);
+			} else {
+				IWL_ERR(priv, "0x%08x\t%04u\n", time, ev);
+				trace_iwlwifi_dev_ucode_event(priv, 0,
+							      time, ev);
+			}
 		} else {
 			data = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
-			IWL_ERR(priv, "%010u\t0x%08x\t%04u\n", time, data, ev);
-			trace_iwlwifi_dev_ucode_event(priv, time, data, ev);
+			if (bufsz) {
+				pos += scnprintf(*buf + pos, bufsz - pos,
+						"%010u:0x%08x:%04u\n",
+						 time, data, ev);
+			} else {
+				IWL_ERR(priv, "%010u\t0x%08x\t%04u\n",
+					time, data, ev);
+				trace_iwlwifi_dev_ucode_event(priv, time,
+							      data, ev);
+			}
 		}
 	}
 
 	/* Allow device to power down */
 	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
+	return pos;
 }
 
 /**
  * iwl3945_print_last_event_logs - Dump the newest # of event log to syslog
  */
-static void iwl3945_print_last_event_logs(struct iwl_priv *priv, u32 capacity,
+static int iwl3945_print_last_event_logs(struct iwl_priv *priv, u32 capacity,
 				      u32 num_wraps, u32 next_entry,
-				      u32 size, u32 mode)
+				      u32 size, u32 mode,
+				      int pos, char **buf, size_t bufsz)
 {
 	/*
 	 * display the newest DEFAULT_LOG_ENTRIES entries
@@ -1623,21 +1641,28 @@ static void iwl3945_print_last_event_logs(struct iwl_priv *priv, u32 capacity,
 	 */
 	if (num_wraps) {
 		if (next_entry < size) {
-			iwl3945_print_event_log(priv,
-					capacity - (size - next_entry),
-					size - next_entry, mode);
-			iwl3945_print_event_log(priv, 0,
-				    next_entry, mode);
+			pos = iwl3945_print_event_log(priv,
+					     capacity - (size - next_entry),
+					     size - next_entry, mode,
+					     pos, buf, bufsz);
+			pos = iwl3945_print_event_log(priv, 0,
+						      next_entry, mode,
+						      pos, buf, bufsz);
 		} else
-			iwl3945_print_event_log(priv, next_entry - size,
-				    size, mode);
+			pos = iwl3945_print_event_log(priv, next_entry - size,
+						      size, mode,
+						      pos, buf, bufsz);
 	} else {
 		if (next_entry < size)
-			iwl3945_print_event_log(priv, 0, next_entry, mode);
+			pos = iwl3945_print_event_log(priv, 0,
+						      next_entry, mode,
+						      pos, buf, bufsz);
 		else
-			iwl3945_print_event_log(priv, next_entry - size,
-					    size, mode);
+			pos = iwl3945_print_event_log(priv, next_entry - size,
+						      size, mode,
+						      pos, buf, bufsz);
 	}
+	return pos;
 }
 
 /* For sanity check only.  Actual size is determined by uCode, typ. 512 */
@@ -1645,7 +1670,8 @@ static void iwl3945_print_last_event_logs(struct iwl_priv *priv, u32 capacity,
 
 #define DEFAULT_IWL3945_DUMP_EVENT_LOG_ENTRIES (20)
 
-void iwl3945_dump_nic_event_log(struct iwl_priv *priv, bool full_log)
+int iwl3945_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
+			    char **buf, bool display)
 {
 	u32 base;       /* SRAM byte address of event log header */
 	u32 capacity;   /* event log capacity in # entries */
@@ -1653,11 +1679,13 @@ void iwl3945_dump_nic_event_log(struct iwl_priv *priv, bool full_log)
 	u32 num_wraps;  /* # times uCode wrapped to top of log */
 	u32 next_entry; /* index of next entry to be written by uCode */
 	u32 size;       /* # entries that we'll print */
+	int pos = 0;
+	size_t bufsz = 0;
 
 	base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
 	if (!iwl3945_hw_valid_rtc_data_addr(base)) {
 		IWL_ERR(priv, "Invalid event log pointer 0x%08X\n", base);
-		return;
+		return pos;
 	}
 
 	/* event log header */
@@ -1683,7 +1711,7 @@ void iwl3945_dump_nic_event_log(struct iwl_priv *priv, bool full_log)
 	/* bail out if nothing in log */
 	if (size == 0) {
 		IWL_ERR(priv, "Start IWL Event Log Dump: nothing in log\n");
-		return;
+		return pos;
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -1699,25 +1727,38 @@ void iwl3945_dump_nic_event_log(struct iwl_priv *priv, bool full_log)
 		  size);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
+	if (display) {
+		if (full_log)
+			bufsz = capacity * 48;
+		else
+			bufsz = size * 48;
+		*buf = kmalloc(bufsz, GFP_KERNEL);
+		if (!*buf)
+			return pos;
+	}
 	if ((iwl_get_debug_level(priv) & IWL_DL_FW_ERRORS) || full_log) {
 		/* if uCode has wrapped back to top of log,
 		 * start at the oldest entry,
 		 * i.e the next one that uCode would fill.
 		 */
 		if (num_wraps)
-			iwl3945_print_event_log(priv, next_entry,
-				    capacity - next_entry, mode);
+			pos = iwl3945_print_event_log(priv, next_entry,
+						capacity - next_entry, mode,
+						pos, buf, bufsz);
 
 		/* (then/else) start at top of log */
-		iwl3945_print_event_log(priv, 0, next_entry, mode);
+		pos = iwl3945_print_event_log(priv, 0, next_entry, mode,
+					      pos, buf, bufsz);
 	} else
-		iwl3945_print_last_event_logs(priv, capacity, num_wraps,
-					next_entry, size, mode);
+		pos = iwl3945_print_last_event_logs(priv, capacity, num_wraps,
+						    next_entry, size, mode,
+						    pos, buf, bufsz);
 #else
-	iwl3945_print_last_event_logs(priv, capacity, num_wraps,
-				next_entry, size, mode);
+	pos = iwl3945_print_last_event_logs(priv, capacity, num_wraps,
+					    next_entry, size, mode,
+					    pos, buf, bufsz);
 #endif
-
+	return pos;
 }
 
 static void iwl3945_irq_tasklet(struct iwl_priv *priv)

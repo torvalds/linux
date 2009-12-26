@@ -2510,7 +2510,7 @@ struct iwl_card_state_notif {
 
 #define HW_CARD_DISABLED   0x01
 #define SW_CARD_DISABLED   0x02
-#define RF_CARD_DISABLED   0x04
+#define CT_CARD_DISABLED   0x04
 #define RXON_CARD_DISABLED 0x10
 
 struct iwl_ct_kill_config {

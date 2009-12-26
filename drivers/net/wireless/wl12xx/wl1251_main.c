@@ -395,6 +395,7 @@ static int wl1251_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * the queue here, otherwise the queue will get too long.
 	 */
 	if (skb_queue_len(&wl->tx_queue) >= WL1251_TX_QUEUE_MAX_LENGTH) {
+		wl1251_debug(DEBUG_TX, "op_tx: tx_queue full, stop queues");
 		ieee80211_stop_queues(wl->hw);
 
 		/*
@@ -640,20 +641,25 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 		 * through the bss_info_changed() hook.
 		 */
 		ret = wl1251_ps_set_mode(wl, STATION_POWER_SAVE_MODE);
+		if (ret < 0)
+			goto out_sleep;
 	} else if (!(conf->flags & IEEE80211_CONF_PS) &&
 		   wl->psm_requested) {
 		wl1251_debug(DEBUG_PSM, "psm disabled");
 
 		wl->psm_requested = false;
 
-		if (wl->psm)
+		if (wl->psm) {
 			ret = wl1251_ps_set_mode(wl, STATION_ACTIVE_MODE);
+			if (ret < 0)
+				goto out_sleep;
+		}
 	}
 
 	if (conf->power_level != wl->power_level) {
 		ret = wl1251_acx_tx_power(wl, conf->power_level);
 		if (ret < 0)
-			goto out;
+			goto out_sleep;
 
 		wl->power_level = conf->power_level;
 	}
@@ -1273,6 +1279,43 @@ static struct ieee80211_channel wl1251_channels[] = {
 	{ .hw_value = 13, .center_freq = 2472},
 };
 
+static int wl1251_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
+			     const struct ieee80211_tx_queue_params *params)
+{
+	struct wl1251 *wl = hw->priv;
+	int ret;
+
+	mutex_lock(&wl->mutex);
+
+	wl1251_debug(DEBUG_MAC80211, "mac80211 conf tx %d", queue);
+
+	ret = wl1251_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	ret = wl1251_acx_ac_cfg(wl, wl1251_tx_get_queue(queue),
+				params->cw_min, params->cw_max,
+				params->aifs, params->txop);
+	if (ret < 0)
+		goto out_sleep;
+
+	ret = wl1251_acx_tid_cfg(wl, wl1251_tx_get_queue(queue),
+				 CHANNEL_TYPE_EDCF,
+				 wl1251_tx_get_queue(queue),
+				 WL1251_ACX_PS_SCHEME_LEGACY,
+				 WL1251_ACX_ACK_POLICY_LEGACY);
+	if (ret < 0)
+		goto out_sleep;
+
+out_sleep:
+	wl1251_ps_elp_sleep(wl);
+
+out:
+	mutex_unlock(&wl->mutex);
+
+	return ret;
+}
+
 /* can't be const, mac80211 writes to this */
 static struct ieee80211_supported_band wl1251_band_2ghz = {
 	.channels = wl1251_channels,
@@ -1293,6 +1336,7 @@ static const struct ieee80211_ops wl1251_ops = {
 	.hw_scan = wl1251_op_hw_scan,
 	.bss_info_changed = wl1251_op_bss_info_changed,
 	.set_rts_threshold = wl1251_op_set_rts_threshold,
+	.conf_tx = wl1251_op_conf_tx,
 };
 
 static int wl1251_register_hw(struct wl1251 *wl)
@@ -1337,6 +1381,8 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 	wl->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 	wl->hw->wiphy->max_scan_ssids = 1;
 	wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &wl1251_band_2ghz;
+
+	wl->hw->queues = 4;
 
 	ret = wl1251_register_hw(wl);
 	if (ret)

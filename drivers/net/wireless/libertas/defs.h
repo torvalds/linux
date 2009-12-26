@@ -397,13 +397,6 @@ enum KEY_INFO_WPA {
 	KEY_INFO_WPA_ENABLED = 0x04
 };
 
-/** mesh_fw_ver */
-enum _mesh_fw_ver {
-	MESH_NONE = 0, /* MESH is not supported */
-	MESH_FW_OLD,   /* MESH is supported in FW V5 */
-	MESH_FW_NEW,   /* MESH is supported in FW V10 and newer */
-};
-
 /* Default values for fwt commands. */
 #define FWT_DEFAULT_METRIC 0
 #define FWT_DEFAULT_DIR 1

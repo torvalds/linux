@@ -868,36 +868,35 @@ static int iwm_mlme_mgt_frame(struct iwm_priv *iwm, u8 *buf,
 	struct iwm_umac_notif_mgt_frame *mgt_frame =
 			(struct iwm_umac_notif_mgt_frame *)buf;
 	struct ieee80211_mgmt *mgt = (struct ieee80211_mgmt *)mgt_frame->frame;
-	u8 *ie;
 
 	IWM_HEXDUMP(iwm, DBG, MLME, "MGT: ", mgt_frame->frame,
 		    le16_to_cpu(mgt_frame->len));
 
 	if (ieee80211_is_assoc_req(mgt->frame_control)) {
-		ie = mgt->u.assoc_req.variable;;
-		iwm->req_ie_len =
-				le16_to_cpu(mgt_frame->len) - (ie - (u8 *)mgt);
+		iwm->req_ie_len = le16_to_cpu(mgt_frame->len)
+				  - offsetof(struct ieee80211_mgmt,
+					     u.assoc_req.variable);
 		kfree(iwm->req_ie);
 		iwm->req_ie = kmemdup(mgt->u.assoc_req.variable,
 				      iwm->req_ie_len, GFP_KERNEL);
 	} else if (ieee80211_is_reassoc_req(mgt->frame_control)) {
-		ie = mgt->u.reassoc_req.variable;;
-		iwm->req_ie_len =
-				le16_to_cpu(mgt_frame->len) - (ie - (u8 *)mgt);
+		iwm->req_ie_len = le16_to_cpu(mgt_frame->len)
+				  - offsetof(struct ieee80211_mgmt,
+					     u.reassoc_req.variable);
 		kfree(iwm->req_ie);
 		iwm->req_ie = kmemdup(mgt->u.reassoc_req.variable,
 				      iwm->req_ie_len, GFP_KERNEL);
 	} else if (ieee80211_is_assoc_resp(mgt->frame_control)) {
-		ie = mgt->u.assoc_resp.variable;;
-		iwm->resp_ie_len =
-				le16_to_cpu(mgt_frame->len) - (ie - (u8 *)mgt);
+		iwm->resp_ie_len = le16_to_cpu(mgt_frame->len)
+				   - offsetof(struct ieee80211_mgmt,
+					      u.assoc_resp.variable);
 		kfree(iwm->resp_ie);
 		iwm->resp_ie = kmemdup(mgt->u.assoc_resp.variable,
 				       iwm->resp_ie_len, GFP_KERNEL);
 	} else if (ieee80211_is_reassoc_resp(mgt->frame_control)) {
-		ie = mgt->u.reassoc_resp.variable;;
-		iwm->resp_ie_len =
-				le16_to_cpu(mgt_frame->len) - (ie - (u8 *)mgt);
+		iwm->resp_ie_len = le16_to_cpu(mgt_frame->len)
+				   - offsetof(struct ieee80211_mgmt,
+					      u.reassoc_resp.variable);
 		kfree(iwm->resp_ie);
 		iwm->resp_ie = kmemdup(mgt->u.reassoc_resp.variable,
 				       iwm->resp_ie_len, GFP_KERNEL);
@@ -1534,6 +1533,33 @@ static void classify8023(struct sk_buff *skb)
 	}
 }
 
+static void iwm_rx_process_amsdu(struct iwm_priv *iwm, struct sk_buff *skb)
+{
+	struct wireless_dev *wdev = iwm_to_wdev(iwm);
+	struct net_device *ndev = iwm_to_ndev(iwm);
+	struct sk_buff_head list;
+	struct sk_buff *frame;
+
+	IWM_HEXDUMP(iwm, DBG, RX, "A-MSDU: ", skb->data, skb->len);
+
+	__skb_queue_head_init(&list);
+	ieee80211_amsdu_to_8023s(skb, &list, ndev->dev_addr, wdev->iftype, 0);
+
+	while ((frame = __skb_dequeue(&list))) {
+		ndev->stats.rx_packets++;
+		ndev->stats.rx_bytes += frame->len;
+
+		frame->protocol = eth_type_trans(frame, ndev);
+		frame->ip_summed = CHECKSUM_NONE;
+		memset(frame->cb, 0, sizeof(frame->cb));
+
+		if (netif_rx_ni(frame) == NET_RX_DROP) {
+			IWM_ERR(iwm, "Packet dropped\n");
+			ndev->stats.rx_dropped++;
+		}
+	}
+}
+
 static void iwm_rx_process_packet(struct iwm_priv *iwm,
 				  struct iwm_rx_packet *packet,
 				  struct iwm_rx_ticket_node *ticket_node)
@@ -1548,24 +1574,33 @@ static void iwm_rx_process_packet(struct iwm_priv *iwm,
 	switch (le16_to_cpu(ticket_node->ticket->action)) {
 	case IWM_RX_TICKET_RELEASE:
 		IWM_DBG_RX(iwm, DBG, "RELEASE packet\n");
-		classify8023(skb);
+
 		iwm_rx_adjust_packet(iwm, packet, ticket_node);
+		skb->dev = iwm_to_ndev(iwm);
+		classify8023(skb);
+
+		if (le16_to_cpu(ticket_node->ticket->flags) &
+		    IWM_RX_TICKET_AMSDU_MSK) {
+			iwm_rx_process_amsdu(iwm, skb);
+			break;
+		}
+
 		ret = ieee80211_data_to_8023(skb, ndev->dev_addr, wdev->iftype);
 		if (ret < 0) {
 			IWM_DBG_RX(iwm, DBG, "Couldn't convert 802.11 header - "
 				   "%d\n", ret);
+			kfree_skb(packet->skb);
 			break;
 		}
 
 		IWM_HEXDUMP(iwm, DBG, RX, "802.3: ", skb->data, skb->len);
 
-		skb->dev = iwm_to_ndev(iwm);
+		ndev->stats.rx_packets++;
+		ndev->stats.rx_bytes += skb->len;
+
 		skb->protocol = eth_type_trans(skb, ndev);
 		skb->ip_summed = CHECKSUM_NONE;
 		memset(skb->cb, 0, sizeof(skb->cb));
-
-		ndev->stats.rx_packets++;
-		ndev->stats.rx_bytes += skb->len;
 
 		if (netif_rx_ni(skb) == NET_RX_DROP) {
 			IWM_ERR(iwm, "Packet dropped\n");

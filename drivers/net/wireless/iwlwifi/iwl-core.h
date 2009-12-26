@@ -169,8 +169,10 @@ struct iwl_lib_ops {
 	int (*is_valid_rtc_data_addr)(u32 addr);
 	/* 1st ucode load */
 	int (*load_ucode)(struct iwl_priv *priv);
-	void (*dump_nic_event_log)(struct iwl_priv *priv, bool full_log);
+	int (*dump_nic_event_log)(struct iwl_priv *priv,
+				  bool full_log, char **buf, bool display);
 	void (*dump_nic_error_log)(struct iwl_priv *priv);
+	void (*dump_csr)(struct iwl_priv *priv);
 	int (*set_channel_switch)(struct iwl_priv *priv, u16 channel);
 	/* power management */
 	struct iwl_apm_ops apm_ops;
@@ -230,7 +232,6 @@ struct iwl_mod_params {
  * @chain_noise_num_beacons: number of beacons used to compute chain noise
  * @adv_thermal_throttle: support advance thermal throttle
  * @support_ct_kill_exit: support ct kill exit condition
- * @sm_ps_mode: spatial multiplexing power save mode
  * @support_wimax_coexist: support wimax/wifi co-exist
  *
  * We enable the driver to be backward compatible wrt API version. The
@@ -287,7 +288,6 @@ struct iwl_cfg {
 	const bool supports_idle;
 	bool adv_thermal_throttle;
 	bool support_ct_kill_exit;
-	u8 sm_ps_mode;
 	const bool support_wimax_coexist;
 };
 
@@ -581,7 +581,9 @@ int iwl_pci_resume(struct pci_dev *pdev);
 *  Error Handling Debugging
 ******************************************************/
 void iwl_dump_nic_error_log(struct iwl_priv *priv);
-void iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log);
+int iwl_dump_nic_event_log(struct iwl_priv *priv,
+			   bool full_log, char **buf, bool display);
+void iwl_dump_csr(struct iwl_priv *priv);
 #ifdef CONFIG_IWLWIFI_DEBUG
 void iwl_print_rx_config_cmd(struct iwl_priv *priv);
 #else

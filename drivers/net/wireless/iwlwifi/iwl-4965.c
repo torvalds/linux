@@ -2208,7 +2208,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 	},
 };
 
-static struct iwl_ops iwl4965_ops = {
+static const struct iwl_ops iwl4965_ops = {
 	.ucode = &iwl4965_ucode,
 	.lib = &iwl4965_lib,
 	.hcmd = &iwl4965_hcmd,
@@ -2239,7 +2239,6 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.broken_powersave = true,
 	.led_compensation = 61,
 	.chain_noise_num_beacons = IWL4965_CAL_NUM_BEACONS,
-	.sm_ps_mode = WLAN_HT_CAP_SM_PS_DISABLED,
 };
 
 /* Module firmware */

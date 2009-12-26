@@ -390,10 +390,8 @@ int lbs_cmd_802_11_rate_adapt_rateset(struct lbs_private *priv,
 	cmd.enablehwauto = cpu_to_le16(priv->enablehwauto);
 	cmd.bitmap = lbs_rate_to_fw_bitmap(priv->cur_rate, priv->enablehwauto);
 	ret = lbs_cmd_with_response(priv, CMD_802_11_RATE_ADAPT_RATESET, &cmd);
-	if (!ret && cmd_action == CMD_ACT_GET) {
-		priv->ratebitmap = le16_to_cpu(cmd.bitmap);
+	if (!ret && cmd_action == CMD_ACT_GET)
 		priv->enablehwauto = le16_to_cpu(cmd.enablehwauto);
-	}
 
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return ret;
@@ -807,8 +805,7 @@ static int lbs_try_associate(struct lbs_private *priv,
 	}
 
 	/* Use short preamble only when both the BSS and firmware support it */
-	if ((priv->capability & WLAN_CAPABILITY_SHORT_PREAMBLE) &&
-	    (assoc_req->bss.capability & WLAN_CAPABILITY_SHORT_PREAMBLE))
+	if (assoc_req->bss.capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
 		preamble = RADIO_PREAMBLE_SHORT;
 
 	ret = lbs_set_radio(priv, preamble, 1);
@@ -939,8 +936,7 @@ static int lbs_adhoc_join(struct lbs_private *priv,
 	}
 
 	/* Use short preamble only when both the BSS and firmware support it */
-	if ((priv->capability & WLAN_CAPABILITY_SHORT_PREAMBLE) &&
-	    (bss->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)) {
+	if (bss->capability & WLAN_CAPABILITY_SHORT_PREAMBLE) {
 		lbs_deb_join("AdhocJoin: Short preamble\n");
 		preamble = RADIO_PREAMBLE_SHORT;
 	}
@@ -1049,18 +1045,13 @@ static int lbs_adhoc_start(struct lbs_private *priv,
 	struct assoc_request *assoc_req)
 {
 	struct cmd_ds_802_11_ad_hoc_start cmd;
-	u8 preamble = RADIO_PREAMBLE_LONG;
+	u8 preamble = RADIO_PREAMBLE_SHORT;
 	size_t ratesize = 0;
 	u16 tmpcap = 0;
 	int ret = 0;
 	DECLARE_SSID_BUF(ssid);
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
-
-	if (priv->capability & WLAN_CAPABILITY_SHORT_PREAMBLE) {
-		lbs_deb_join("ADHOC_START: Will use short preamble\n");
-		preamble = RADIO_PREAMBLE_SHORT;
-	}
 
 	ret = lbs_set_radio(priv, preamble, 1);
 	if (ret)

@@ -60,6 +60,22 @@ static int ieee80211_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+static int ieee80211_change_mac(struct net_device *dev, void *addr)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	int ret;
+
+	if (netif_running(dev))
+		return -EBUSY;
+
+	ret = eth_mac_addr(dev, addr);
+
+	if (ret == 0)
+		memcpy(sdata->vif.addr, addr, ETH_ALEN);
+
+	return ret;
+}
+
 static inline int identical_mac_addr_allowed(int type1, int type2)
 {
 	return type1 == NL80211_IFTYPE_MONITOR ||
@@ -234,7 +250,7 @@ static int ieee80211_open(struct net_device *dev)
 	default:
 		conf.vif = &sdata->vif;
 		conf.type = sdata->vif.type;
-		conf.mac_addr = dev->dev_addr;
+		conf.mac_addr = sdata->vif.addr;
 		res = drv_add_interface(local, &conf);
 		if (res)
 			goto err_stop;
@@ -514,7 +530,7 @@ static int ieee80211_stop(struct net_device *dev)
 
 		conf.vif = &sdata->vif;
 		conf.type = sdata->vif.type;
-		conf.mac_addr = dev->dev_addr;
+		conf.mac_addr = sdata->vif.addr;
 		/* disable all keys for as long as this netdev is down */
 		ieee80211_disable_keys(sdata);
 		drv_remove_interface(local, &conf);
@@ -651,7 +667,7 @@ static const struct net_device_ops ieee80211_dataif_ops = {
 	.ndo_start_xmit		= ieee80211_subif_start_xmit,
 	.ndo_set_multicast_list = ieee80211_set_multicast_list,
 	.ndo_change_mtu 	= ieee80211_change_mtu,
-	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_set_mac_address 	= ieee80211_change_mac,
 };
 
 static const struct net_device_ops ieee80211_monitorif_ops = {
@@ -794,6 +810,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 	/* don't use IEEE80211_DEV_TO_SUB_IF because it checks too much */
 	sdata = netdev_priv(ndev);
 	ndev->ieee80211_ptr = &sdata->wdev;
+	memcpy(sdata->vif.addr, ndev->dev_addr, ETH_ALEN);
+	memcpy(sdata->name, ndev->name, IFNAMSIZ);
 
 	/* initialise type-independent data */
 	sdata->wdev.wiphy = local->hw.wiphy;
@@ -944,4 +962,42 @@ void ieee80211_recalc_idle(struct ieee80211_local *local)
 	mutex_unlock(&local->iflist_mtx);
 	if (chg)
 		ieee80211_hw_config(local, chg);
+}
+
+static int netdev_notify(struct notifier_block *nb,
+			 unsigned long state,
+			 void *ndev)
+{
+	struct net_device *dev = ndev;
+	struct ieee80211_sub_if_data *sdata;
+
+	if (state != NETDEV_CHANGENAME)
+		return 0;
+
+	if (!dev->ieee80211_ptr || !dev->ieee80211_ptr->wiphy)
+		return 0;
+
+	if (dev->ieee80211_ptr->wiphy->privid != mac80211_wiphy_privid)
+		return 0;
+
+	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	memcpy(sdata->name, sdata->name, IFNAMSIZ);
+
+	ieee80211_debugfs_rename_netdev(sdata);
+	return 0;
+}
+
+static struct notifier_block mac80211_netdev_notifier = {
+	.notifier_call = netdev_notify,
+};
+
+int ieee80211_iface_init(void)
+{
+	return register_netdevice_notifier(&mac80211_netdev_notifier);
+}
+
+void ieee80211_iface_exit(void)
+{
+	unregister_netdevice_notifier(&mac80211_netdev_notifier);
 }

@@ -35,7 +35,7 @@ static void ieee80211_send_refuse_measurement_request(struct ieee80211_sub_if_da
 
 	if (!skb) {
 		printk(KERN_ERR "%s: failed to allocate buffer for "
-				"measurement report frame\n", sdata->dev->name);
+				"measurement report frame\n", sdata->name);
 		return;
 	}
 
@@ -43,7 +43,7 @@ static void ieee80211_send_refuse_measurement_request(struct ieee80211_sub_if_da
 	msr_report = (struct ieee80211_mgmt *)skb_put(skb, 24);
 	memset(msr_report, 0, 24);
 	memcpy(msr_report->da, da, ETH_ALEN);
-	memcpy(msr_report->sa, sdata->dev->dev_addr, ETH_ALEN);
+	memcpy(msr_report->sa, sdata->vif.addr, ETH_ALEN);
 	memcpy(msr_report->bssid, bssid, ETH_ALEN);
 	msr_report->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 						IEEE80211_STYPE_ACTION);

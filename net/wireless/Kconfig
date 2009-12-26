@@ -109,6 +109,22 @@ config WIRELESS_OLD_REGULATORY
 
 	  Say N and if you say Y, please tell us why. The default is N.
 
+config CFG80211_INTERNAL_REGDB
+	bool "use statically compiled regulatory rules database" if EMBEDDED
+	default n
+	depends on CFG80211
+	---help---
+	  This option generates an internal data structure representing
+	  the wireless regulatory rules described in net/wireless/db.txt
+	  and includes code to query that database.  This is an alternative
+	  to using CRDA for defining regulatory rules for the kernel.
+
+	  For details see:
+
+	  http://wireless.kernel.org/en/developers/Regulatory
+
+	  Most distributions have a CRDA package.  So if unsure, say N.
+
 config CFG80211_WEXT
 	bool "cfg80211 wireless extensions compatibility"
 	depends on CFG80211

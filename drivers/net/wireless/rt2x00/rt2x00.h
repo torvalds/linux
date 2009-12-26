@@ -104,6 +104,12 @@
 #define GET_DURATION_RES(__size, __rate)(((__size) * 8 * 10) % (__rate))
 
 /*
+ * Determine the number of L2 padding bytes required between the header and
+ * the payload.
+ */
+#define L2PAD_SIZE(__hdrlen)	(-(__hdrlen) & 3)
+
+/*
  * Determine the alignment requirement,
  * to make sure the 802.11 payload is padded to a 4-byte boundrary
  * we must determine the address of the payload and calculate the

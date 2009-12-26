@@ -512,6 +512,7 @@ struct iwl_ht_config {
 	bool is_ht;
 	bool is_40mhz;
 	bool single_chain_sufficient;
+	enum ieee80211_smps_mode smps; /* current smps mode */
 	/* BSS related data */
 	u8 extension_chan_offset;
 	u8 ht_protection;
@@ -984,6 +985,32 @@ struct iwl_switch_rxon {
 	__le16 channel;
 };
 
+/*
+ * schedule the timer to wake up every UCODE_TRACE_PERIOD milliseconds
+ * to perform continuous uCode event logging operation if enabled
+ */
+#define UCODE_TRACE_PERIOD (100)
+
+/*
+ * iwl_event_log: current uCode event log position
+ *
+ * @ucode_trace: enable/disable ucode continuous trace timer
+ * @num_wraps: how many times the event buffer wraps
+ * @next_entry:  the entry just before the next one that uCode would fill
+ * @non_wraps_count: counter for no wrap detected when dump ucode events
+ * @wraps_once_count: counter for wrap once detected when dump ucode events
+ * @wraps_more_count: counter for wrap more than once detected
+ *		      when dump ucode events
+ */
+struct iwl_event_log {
+	bool ucode_trace;
+	u32 num_wraps;
+	u32 next_entry;
+	int non_wraps_count;
+	int wraps_once_count;
+	int wraps_more_count;
+};
+
 struct iwl_priv {
 
 	/* ieee device used by generic ieee processing code */
@@ -1261,6 +1288,7 @@ struct iwl_priv {
 	u32 disable_tx_power_cal;
 	struct work_struct run_time_calib_work;
 	struct timer_list statistics_periodic;
+	struct timer_list ucode_trace;
 	bool hw_ready;
 	/*For 3945*/
 #define IWL_DEFAULT_TX_POWER 0x0F
@@ -1268,6 +1296,8 @@ struct iwl_priv {
 	struct iwl3945_notif_statistics statistics_39;
 
 	u32 sta_supp_rates;
+
+	struct iwl_event_log event_log;
 }; /*iwl_priv */
 
 static inline void iwl_txq_ctx_activate(struct iwl_priv *priv, int txq_id)

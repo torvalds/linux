@@ -39,7 +39,7 @@ static inline int drv_add_interface(struct ieee80211_local *local,
 				    struct ieee80211_if_init_conf *conf)
 {
 	int ret = local->ops->add_interface(&local->hw, conf);
-	trace_drv_add_interface(local, conf->mac_addr, conf->vif, ret);
+	trace_drv_add_interface(local, vif_to_sdata(conf->vif), ret);
 	return ret;
 }
 
@@ -47,7 +47,7 @@ static inline void drv_remove_interface(struct ieee80211_local *local,
 					struct ieee80211_if_init_conf *conf)
 {
 	local->ops->remove_interface(&local->hw, conf);
-	trace_drv_remove_interface(local, conf->mac_addr, conf->vif);
+	trace_drv_remove_interface(local, vif_to_sdata(conf->vif));
 }
 
 static inline int drv_config(struct ieee80211_local *local, u32 changed)
@@ -58,13 +58,13 @@ static inline int drv_config(struct ieee80211_local *local, u32 changed)
 }
 
 static inline void drv_bss_info_changed(struct ieee80211_local *local,
-					struct ieee80211_vif *vif,
+					struct ieee80211_sub_if_data *sdata,
 					struct ieee80211_bss_conf *info,
 					u32 changed)
 {
 	if (local->ops->bss_info_changed)
-		local->ops->bss_info_changed(&local->hw, vif, info, changed);
-	trace_drv_bss_info_changed(local, vif, info, changed);
+		local->ops->bss_info_changed(&local->hw, &sdata->vif, info, changed);
+	trace_drv_bss_info_changed(local, sdata, info, changed);
 }
 
 static inline u64 drv_prepare_multicast(struct ieee80211_local *local,
@@ -106,12 +106,13 @@ static inline int drv_set_tim(struct ieee80211_local *local,
 }
 
 static inline int drv_set_key(struct ieee80211_local *local,
-			      enum set_key_cmd cmd, struct ieee80211_vif *vif,
+			      enum set_key_cmd cmd,
+			      struct ieee80211_sub_if_data *sdata,
 			      struct ieee80211_sta *sta,
 			      struct ieee80211_key_conf *key)
 {
-	int ret = local->ops->set_key(&local->hw, cmd, vif, sta, key);
-	trace_drv_set_key(local, cmd, vif, sta, key, ret);
+	int ret = local->ops->set_key(&local->hw, cmd, &sdata->vif, sta, key);
+	trace_drv_set_key(local, cmd, sdata, sta, key, ret);
 	return ret;
 }
 
@@ -179,13 +180,13 @@ static inline int drv_set_rts_threshold(struct ieee80211_local *local,
 }
 
 static inline void drv_sta_notify(struct ieee80211_local *local,
-				  struct ieee80211_vif *vif,
+				  struct ieee80211_sub_if_data *sdata,
 				  enum sta_notify_cmd cmd,
 				  struct ieee80211_sta *sta)
 {
 	if (local->ops->sta_notify)
-		local->ops->sta_notify(&local->hw, vif, cmd, sta);
-	trace_drv_sta_notify(local, vif, cmd, sta);
+		local->ops->sta_notify(&local->hw, &sdata->vif, cmd, sta);
+	trace_drv_sta_notify(local, sdata, cmd, sta);
 }
 
 static inline int drv_conf_tx(struct ieee80211_local *local, u16 queue,
@@ -239,16 +240,16 @@ static inline int drv_tx_last_beacon(struct ieee80211_local *local)
 }
 
 static inline int drv_ampdu_action(struct ieee80211_local *local,
-				   struct ieee80211_vif *vif,
+				   struct ieee80211_sub_if_data *sdata,
 				   enum ieee80211_ampdu_mlme_action action,
 				   struct ieee80211_sta *sta, u16 tid,
 				   u16 *ssn)
 {
 	int ret = -EOPNOTSUPP;
 	if (local->ops->ampdu_action)
-		ret = local->ops->ampdu_action(&local->hw, vif, action,
+		ret = local->ops->ampdu_action(&local->hw, &sdata->vif, action,
 					       sta, tid, ssn);
-	trace_drv_ampdu_action(local, vif, action, sta, tid, ssn, ret);
+	trace_drv_ampdu_action(local, sdata, action, sta, tid, ssn, ret);
 	return ret;
 }
 

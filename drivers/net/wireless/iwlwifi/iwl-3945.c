@@ -2810,7 +2810,7 @@ static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
 	.rts_tx_cmd_flag = iwlcore_rts_tx_cmd_flag,
 };
 
-static struct iwl_ops iwl3945_ops = {
+static const struct iwl_ops iwl3945_ops = {
 	.ucode = &iwl3945_ucode,
 	.lib = &iwl3945_lib,
 	.hcmd = &iwl3945_hcmd,

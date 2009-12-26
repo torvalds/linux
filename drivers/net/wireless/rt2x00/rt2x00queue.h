@@ -92,8 +92,6 @@ enum data_queue_qid {
  * @SKBDESC_DMA_MAPPED_TX: &skb_dma field has been mapped for TX
  * @SKBDESC_IV_STRIPPED: Frame contained a IV/EIV provided by
  *	mac80211 but was stripped for processing by the driver.
- * @SKBDESC_L2_PADDED: Payload has been padded for 4-byte alignment,
- *	the padded bytes are located between header and payload.
  * @SKBDESC_NOT_MAC80211: Frame didn't originate from mac80211,
  *	don't try to pass it back.
  */
@@ -101,8 +99,7 @@ enum skb_frame_desc_flags {
 	SKBDESC_DMA_MAPPED_RX = 1 << 0,
 	SKBDESC_DMA_MAPPED_TX = 1 << 1,
 	SKBDESC_IV_STRIPPED = 1 << 2,
-	SKBDESC_L2_PADDED = 1 << 3,
-	SKBDESC_NOT_MAC80211 = 1 << 4,
+	SKBDESC_NOT_MAC80211 = 1 << 3,
 };
 
 /**

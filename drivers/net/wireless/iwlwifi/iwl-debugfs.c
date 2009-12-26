@@ -420,6 +420,23 @@ static ssize_t iwl_dbgfs_nvm_read(struct file *file,
 	return ret;
 }
 
+static ssize_t iwl_dbgfs_log_event_read(struct file *file,
+					 char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	char *buf;
+	int pos = 0;
+	ssize_t ret = -ENOMEM;
+
+	pos = priv->cfg->ops->lib->dump_nic_event_log(priv, true, &buf, true);
+	if (pos && buf) {
+		ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+		kfree(buf);
+	}
+	return ret;
+}
+
 static ssize_t iwl_dbgfs_log_event_write(struct file *file,
 					const char __user *user_buf,
 					size_t count, loff_t *ppos)
@@ -436,7 +453,8 @@ static ssize_t iwl_dbgfs_log_event_write(struct file *file,
 	if (sscanf(buf, "%d", &event_log_flag) != 1)
 		return -EFAULT;
 	if (event_log_flag == 1)
-		priv->cfg->ops->lib->dump_nic_event_log(priv, true);
+		priv->cfg->ops->lib->dump_nic_event_log(priv, true,
+							NULL, false);
 
 	return count;
 }
@@ -859,7 +877,7 @@ static ssize_t iwl_dbgfs_current_sleep_command_read(struct file *file,
 }
 
 DEBUGFS_READ_WRITE_FILE_OPS(sram);
-DEBUGFS_WRITE_FILE_OPS(log_event);
+DEBUGFS_READ_WRITE_FILE_OPS(log_event);
 DEBUGFS_READ_FILE_OPS(nvm);
 DEBUGFS_READ_FILE_OPS(stations);
 DEBUGFS_READ_FILE_OPS(channels);
@@ -1845,6 +1863,80 @@ static ssize_t iwl_dbgfs_clear_ucode_statistics_write(struct file *file,
 	return count;
 }
 
+static ssize_t iwl_dbgfs_csr_write(struct file *file,
+					 const char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	char buf[8];
+	int buf_size;
+	int csr;
+
+	memset(buf, 0, sizeof(buf));
+	buf_size = min(count, sizeof(buf) -  1);
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	if (sscanf(buf, "%d", &csr) != 1)
+		return -EFAULT;
+
+	if (priv->cfg->ops->lib->dump_csr)
+		priv->cfg->ops->lib->dump_csr(priv);
+
+	return count;
+}
+
+static ssize_t iwl_dbgfs_ucode_tracing_read(struct file *file,
+					char __user *user_buf,
+					size_t count, loff_t *ppos) {
+
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	int pos = 0;
+	char buf[128];
+	const size_t bufsz = sizeof(buf);
+	ssize_t ret;
+
+	pos += scnprintf(buf + pos, bufsz - pos, "ucode trace timer is %s\n",
+			priv->event_log.ucode_trace ? "On" : "Off");
+	pos += scnprintf(buf + pos, bufsz - pos, "non_wraps_count:\t\t %u\n",
+			priv->event_log.non_wraps_count);
+	pos += scnprintf(buf + pos, bufsz - pos, "wraps_once_count:\t\t %u\n",
+			priv->event_log.wraps_once_count);
+	pos += scnprintf(buf + pos, bufsz - pos, "wraps_more_count:\t\t %u\n",
+			priv->event_log.wraps_more_count);
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	return ret;
+}
+
+static ssize_t iwl_dbgfs_ucode_tracing_write(struct file *file,
+					 const char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	char buf[8];
+	int buf_size;
+	int trace;
+
+	memset(buf, 0, sizeof(buf));
+	buf_size = min(count, sizeof(buf) -  1);
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	if (sscanf(buf, "%d", &trace) != 1)
+		return -EFAULT;
+
+	if (trace) {
+		priv->event_log.ucode_trace = true;
+		/* schedule the ucode timer to occur in UCODE_TRACE_PERIOD */
+		mod_timer(&priv->ucode_trace,
+			jiffies + msecs_to_jiffies(UCODE_TRACE_PERIOD));
+	} else {
+		priv->event_log.ucode_trace = false;
+		del_timer_sync(&priv->ucode_trace);
+	}
+
+	return count;
+}
+
 DEBUGFS_READ_FILE_OPS(rx_statistics);
 DEBUGFS_READ_FILE_OPS(tx_statistics);
 DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
@@ -1859,6 +1951,8 @@ DEBUGFS_READ_FILE_OPS(tx_power);
 DEBUGFS_READ_FILE_OPS(power_save_status);
 DEBUGFS_WRITE_FILE_OPS(clear_ucode_statistics);
 DEBUGFS_WRITE_FILE_OPS(clear_traffic_statistics);
+DEBUGFS_WRITE_FILE_OPS(csr);
+DEBUGFS_READ_WRITE_FILE_OPS(ucode_tracing);
 
 /*
  * Create the debugfs files and directories
@@ -1889,7 +1983,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_DIR(debug, dbgfs->dir_drv);
 	DEBUGFS_ADD_FILE(nvm, data, S_IRUSR);
 	DEBUGFS_ADD_FILE(sram, data, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(log_event, data, S_IWUSR);
+	DEBUGFS_ADD_FILE(log_event, data, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(stations, data, S_IRUSR);
 	DEBUGFS_ADD_FILE(channels, data, S_IRUSR);
 	DEBUGFS_ADD_FILE(status, data, S_IRUSR);
@@ -1909,12 +2003,14 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(power_save_status, debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(clear_ucode_statistics, debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(clear_traffic_statistics, debug, S_IWUSR);
+	DEBUGFS_ADD_FILE(csr, debug, S_IWUSR);
 	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) != CSR_HW_REV_TYPE_3945) {
 		DEBUGFS_ADD_FILE(ucode_rx_stats, debug, S_IRUSR);
 		DEBUGFS_ADD_FILE(ucode_tx_stats, debug, S_IRUSR);
 		DEBUGFS_ADD_FILE(ucode_general_stats, debug, S_IRUSR);
 		DEBUGFS_ADD_FILE(sensitivity, debug, S_IRUSR);
 		DEBUGFS_ADD_FILE(chain_noise, debug, S_IRUSR);
+		DEBUGFS_ADD_FILE(ucode_tracing, debug, S_IWUSR | S_IRUSR);
 	}
 	DEBUGFS_ADD_BOOL(disable_sensitivity, rf, &priv->disable_sens_cal);
 	DEBUGFS_ADD_BOOL(disable_chain_noise, rf,
@@ -1966,6 +2062,7 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 			file_clear_ucode_statistics);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.
 			file_clear_traffic_statistics);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_csr);
 	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) != CSR_HW_REV_TYPE_3945) {
 		DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.
 			file_ucode_rx_stats);
@@ -1977,6 +2074,8 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 			file_sensitivity);
 		DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.
 			file_chain_noise);
+		DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.
+			file_ucode_tracing);
 	}
 	DEBUGFS_REMOVE(priv->dbgfs->dir_debug);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_sensitivity);

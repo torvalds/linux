@@ -469,7 +469,7 @@ void ieee80211_iterate_active_interfaces(
 			break;
 		}
 		if (netif_running(sdata->dev))
-			iterator(data, sdata->dev->dev_addr,
+			iterator(data, sdata->vif.addr,
 				 &sdata->vif);
 	}
 
@@ -503,7 +503,7 @@ void ieee80211_iterate_active_interfaces_atomic(
 			break;
 		}
 		if (netif_running(sdata->dev))
-			iterator(data, sdata->dev->dev_addr,
+			iterator(data, sdata->vif.addr,
 				 &sdata->vif);
 	}
 
@@ -848,7 +848,7 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			    sizeof(*mgmt) + 6 + extra_len);
 	if (!skb) {
 		printk(KERN_DEBUG "%s: failed to allocate buffer for auth "
-		       "frame\n", sdata->dev->name);
+		       "frame\n", sdata->name);
 		return;
 	}
 	skb_reserve(skb, local->hw.extra_tx_headroom);
@@ -858,7 +858,7 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_AUTH);
 	memcpy(mgmt->da, bssid, ETH_ALEN);
-	memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
+	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	memcpy(mgmt->bssid, bssid, ETH_ALEN);
 	mgmt->u.auth.auth_alg = cpu_to_le16(auth_alg);
 	mgmt->u.auth.auth_transaction = cpu_to_le16(transaction);
@@ -908,16 +908,24 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 	}
 
 	if (sband->ht_cap.ht_supported) {
-		__le16 tmp = cpu_to_le16(sband->ht_cap.cap);
+		u16 cap = sband->ht_cap.cap;
+		__le16 tmp;
+
+		if (ieee80211_disable_40mhz_24ghz &&
+		    sband->band == IEEE80211_BAND_2GHZ) {
+			cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+			cap &= ~IEEE80211_HT_CAP_SGI_40;
+		}
 
 		*pos++ = WLAN_EID_HT_CAPABILITY;
 		*pos++ = sizeof(struct ieee80211_ht_cap);
 		memset(pos, 0, sizeof(struct ieee80211_ht_cap));
+		tmp = cpu_to_le16(cap);
 		memcpy(pos, &tmp, sizeof(u16));
 		pos += sizeof(u16);
-		/* TODO: needs a define here for << 2 */
 		*pos++ = sband->ht_cap.ampdu_factor |
-			 (sband->ht_cap.ampdu_density << 2);
+			 (sband->ht_cap.ampdu_density <<
+				IEEE80211_HT_AMPDU_PARM_DENSITY_SHIFT);
 		memcpy(pos, &sband->ht_cap.mcs, sizeof(sband->ht_cap.mcs));
 		pos += sizeof(sband->ht_cap.mcs);
 		pos += 2 + 4 + 1; /* ext info, BF cap, antsel */
@@ -949,7 +957,7 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 			    ie_len);
 	if (!skb) {
 		printk(KERN_DEBUG "%s: failed to allocate buffer for probe "
-		       "request\n", sdata->dev->name);
+		       "request\n", sdata->name);
 		return;
 	}
 	skb_reserve(skb, local->hw.extra_tx_headroom);
@@ -958,7 +966,7 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 	memset(mgmt, 0, 24);
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_PROBE_REQ);
-	memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
+	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	if (dst) {
 		memcpy(mgmt->da, dst, ETH_ALEN);
 		memcpy(mgmt->bssid, dst, ETH_ALEN);
@@ -1051,7 +1059,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		    netif_running(sdata->dev)) {
 			conf.vif = &sdata->vif;
 			conf.type = sdata->vif.type;
-			conf.mac_addr = sdata->dev->dev_addr;
+			conf.mac_addr = sdata->vif.addr;
 			res = drv_add_interface(local, &conf);
 		}
 	}
@@ -1066,7 +1074,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 					     struct ieee80211_sub_if_data,
 					     u.ap);
 
-			drv_sta_notify(local, &sdata->vif, STA_NOTIFY_ADD,
+			drv_sta_notify(local, sdata, STA_NOTIFY_ADD,
 				       &sta->sta);
 		}
 		spin_unlock_irqrestore(&local->sta_lock, flags);
@@ -1170,3 +1178,77 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	return 0;
 }
 
+static int check_mgd_smps(struct ieee80211_if_managed *ifmgd,
+			  enum ieee80211_smps_mode *smps_mode)
+{
+	if (ifmgd->associated) {
+		*smps_mode = ifmgd->ap_smps;
+
+		if (*smps_mode == IEEE80211_SMPS_AUTOMATIC) {
+			if (ifmgd->powersave)
+				*smps_mode = IEEE80211_SMPS_DYNAMIC;
+			else
+				*smps_mode = IEEE80211_SMPS_OFF;
+		}
+
+		return 1;
+	}
+
+	return 0;
+}
+
+/* must hold iflist_mtx */
+void ieee80211_recalc_smps(struct ieee80211_local *local,
+			   struct ieee80211_sub_if_data *forsdata)
+{
+	struct ieee80211_sub_if_data *sdata;
+	enum ieee80211_smps_mode smps_mode = IEEE80211_SMPS_OFF;
+	int count = 0;
+
+	if (forsdata)
+		WARN_ON(!mutex_is_locked(&forsdata->u.mgd.mtx));
+
+	WARN_ON(!mutex_is_locked(&local->iflist_mtx));
+
+	/*
+	 * This function could be improved to handle multiple
+	 * interfaces better, but right now it makes any
+	 * non-station interfaces force SM PS to be turned
+	 * off. If there are multiple station interfaces it
+	 * could also use the best possible mode, e.g. if
+	 * one is in static and the other in dynamic then
+	 * dynamic is ok.
+	 */
+
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		if (!netif_running(sdata->dev))
+			continue;
+		if (sdata->vif.type != NL80211_IFTYPE_STATION)
+			goto set;
+		if (sdata != forsdata) {
+			/*
+			 * This nested is ok -- we are holding the iflist_mtx
+			 * so can't get here twice or so. But it's required
+			 * since normally we acquire it first and then the
+			 * iflist_mtx.
+			 */
+			mutex_lock_nested(&sdata->u.mgd.mtx, SINGLE_DEPTH_NESTING);
+			count += check_mgd_smps(&sdata->u.mgd, &smps_mode);
+			mutex_unlock(&sdata->u.mgd.mtx);
+		} else
+			count += check_mgd_smps(&sdata->u.mgd, &smps_mode);
+
+		if (count > 1) {
+			smps_mode = IEEE80211_SMPS_OFF;
+			break;
+		}
+	}
+
+	if (smps_mode == local->smps_mode)
+		return;
+
+ set:
+	local->smps_mode = smps_mode;
+	/* changed flag is auto-detected for this */
+	ieee80211_hw_config(local, 0);
+}

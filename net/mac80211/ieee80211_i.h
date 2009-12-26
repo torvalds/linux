@@ -140,7 +140,6 @@ typedef unsigned __bitwise__ ieee80211_tx_result;
 
 struct ieee80211_tx_data {
 	struct sk_buff *skb;
-	struct net_device *dev;
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
@@ -298,6 +297,8 @@ struct ieee80211_if_managed {
 
 	unsigned long timers_running; /* used for quiesce/restart */
 	bool powersave; /* powersave requested for this iface */
+	enum ieee80211_smps_mode req_smps, /* requested smps mode */
+				 ap_smps; /* smps mode AP thinks we're in */
 
 	unsigned long request;
 
@@ -432,6 +433,8 @@ struct ieee80211_sub_if_data {
 	unsigned int flags;
 
 	int drop_unencrypted;
+
+	char name[IFNAMSIZ];
 
 	/*
 	 * keep track of whether the HT opmode (stored in
@@ -585,6 +588,9 @@ struct ieee80211_local {
 
 	/* used for uploading changed mc list */
 	struct work_struct reconfig_filter;
+
+	/* used to reconfigure hardware SM PS */
+	struct work_struct recalc_smps;
 
 	/* aggregated multicast list */
 	struct dev_addr_list *mc_list;
@@ -760,6 +766,8 @@ struct ieee80211_local {
 	int user_power_level; /* in dBm */
 	int power_constr_level; /* in dBm */
 
+	enum ieee80211_smps_mode smps_mode;
+
 	struct work_struct restart_work;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
@@ -874,6 +882,8 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 void ieee80211_configure_filter(struct ieee80211_local *local);
 u32 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata);
 
+extern bool ieee80211_disable_40mhz_24ghz;
+
 /* STA code */
 void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata);
 int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
@@ -938,6 +948,8 @@ void ieee80211_rx_bss_put(struct ieee80211_local *local,
 			  struct ieee80211_bss *bss);
 
 /* interface handling */
+int ieee80211_iface_init(void);
+void ieee80211_iface_exit(void);
 int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		     struct net_device **new_dev, enum nl80211_iftype type,
 		     struct vif_params *params);
@@ -976,6 +988,9 @@ void ieee80211_send_bar(struct ieee80211_sub_if_data *sdata, u8 *ra, u16 tid, u1
 void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
 			  const u8 *da, u16 tid,
 			  u16 initiator, u16 reason_code);
+int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
+			       enum ieee80211_smps_mode smps, const u8 *da,
+			       const u8 *bssid);
 
 void ieee80211_sta_stop_rx_ba_session(struct ieee80211_sub_if_data *sdata, u8 *da,
 				u16 tid, u16 initiator, u16 reason);
@@ -1086,6 +1101,10 @@ void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
 u32 ieee80211_sta_get_rates(struct ieee80211_local *local,
 			    struct ieee802_11_elems *elems,
 			    enum ieee80211_band band);
+int __ieee80211_request_smps(struct ieee80211_sub_if_data *sdata,
+			     enum ieee80211_smps_mode smps_mode);
+void ieee80211_recalc_smps(struct ieee80211_local *local,
+			   struct ieee80211_sub_if_data *forsdata);
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline

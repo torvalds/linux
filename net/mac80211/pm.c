@@ -65,7 +65,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 					     struct ieee80211_sub_if_data,
 					     u.ap);
 
-			drv_sta_notify(local, &sdata->vif, STA_NOTIFY_REMOVE,
+			drv_sta_notify(local, sdata, STA_NOTIFY_REMOVE,
 				       &sta->sta);
 		}
 
@@ -102,7 +102,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 
 		conf.vif = &sdata->vif;
 		conf.type = sdata->vif.type;
-		conf.mac_addr = sdata->dev->dev_addr;
+		conf.mac_addr = sdata->vif.addr;
 		drv_remove_interface(local, &conf);
 	}
 

@@ -39,15 +39,14 @@ struct lbs_private {
 
 	/* Mesh */
 	struct net_device *mesh_dev; /* Virtual device */
+#ifdef CONFIG_LIBERTAS_MESH
 	u32 mesh_connect_status;
 	struct lbs_mesh_stats mstats;
 	int mesh_open;
-	int mesh_fw_ver;
-	int mesh_autostart_enabled;
 	uint16_t mesh_tlv;
 	u8 mesh_ssid[IEEE80211_MAX_SSID_LEN + 1];
 	u8 mesh_ssid_len;
-	struct work_struct sync_channel;
+#endif
 
 	/* Monitor mode */
 	struct net_device *rtap_net_dev;
@@ -176,9 +175,7 @@ struct lbs_private {
 	struct bss_descriptor *networks;
 	struct assoc_request * pending_assoc_req;
 	struct assoc_request * in_progress_assoc_req;
-	u16 capability;
 	uint16_t enablehwauto;
-	uint16_t ratebitmap;
 
 	/* ADHOC */
 	u16 beacon_period;

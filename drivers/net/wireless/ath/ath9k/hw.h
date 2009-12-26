@@ -212,7 +212,7 @@ struct ath9k_ops_config {
 	u32 cck_trig_low;
 	u32 enable_ani;
 	int serialize_regmode;
-	bool intr_mitigation;
+	bool rx_intr_mitigation;
 #define SPUR_DISABLE        	0
 #define SPUR_ENABLE_IOCTL   	1
 #define SPUR_ENABLE_EEPROM  	2

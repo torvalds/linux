@@ -403,9 +403,34 @@ static inline u32 get_sta_flags(struct sta_info *sta)
 #define STA_INFO_CLEANUP_INTERVAL (10 * HZ)
 
 /*
- * Get a STA info, must have be under RCU read lock.
+ * Get a STA info, must be under RCU read lock.
  */
-struct sta_info *sta_info_get(struct ieee80211_local *local, const u8 *addr);
+struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
+			      const u8 *addr);
+
+static inline
+void for_each_sta_info_type_check(struct ieee80211_local *local,
+				  const u8 *addr,
+				  struct sta_info *sta,
+				  struct sta_info *nxt)
+{
+}
+
+#define for_each_sta_info(local, _addr, sta, nxt) 			\
+	for (	/* initialise loop */					\
+		sta = rcu_dereference(local->sta_hash[STA_HASH(_addr)]),\
+		nxt = sta ? rcu_dereference(sta->hnext) : NULL;		\
+		/* typecheck */						\
+		for_each_sta_info_type_check(local, (_addr), sta, nxt),	\
+		/* continue condition */				\
+		sta;							\
+		/* advance loop */					\
+		sta = nxt,						\
+		nxt = sta ? rcu_dereference(sta->hnext) : NULL		\
+	     )								\
+	/* compare address and run code only if it matches */		\
+	if (memcmp(sta->sta.addr, (_addr), ETH_ALEN) == 0)
+
 /*
  * Get STA info by index, BROKEN!
  */
