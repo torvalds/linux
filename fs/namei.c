@@ -1656,6 +1656,9 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 
 	*is_link = 0;
 
+	if (nd->last_type == LAST_BIND)
+		goto ok;
+
 	error = -EISDIR;
 	if (nd->last_type != LAST_NORM || nd->last.name[nd->last.len])
 		goto exit;
@@ -1733,6 +1736,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	error = -EISDIR;
 	if (S_ISDIR(path->dentry->d_inode->i_mode))
 		goto exit;
+ok:
 	filp = finish_open(nd, open_flag, acc_mode);
 	return filp;
 
@@ -1808,7 +1812,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 			release_open_intent(&nd);
 		if (error)
 			return ERR_PTR(error);
-		goto ok;
+		return finish_open(&nd, open_flag, acc_mode);
 	}
 
 	/*
@@ -1853,21 +1857,14 @@ reval:
 		path_put(&nd.root);
 	return filp;
 
-ok:
-	filp = finish_open(&nd, open_flag, acc_mode);
-	if (nd.root.mnt)
-		path_put(&nd.root);
-	return filp;
-
 exit_dput:
 	path_put_conditional(&path, &nd);
-exit:
 	if (!IS_ERR(nd.intent.open.file))
 		release_open_intent(&nd);
 exit_parent:
+	path_put(&nd.path);
 	if (nd.root.mnt)
 		path_put(&nd.root);
-	path_put(&nd.path);
 	return ERR_PTR(error);
 
 do_link:
@@ -1905,8 +1902,6 @@ do_link:
 		return ERR_PTR(error);
 	}
 	nd.flags &= ~LOOKUP_PARENT;
-	if (nd.last_type == LAST_BIND)
-		goto ok;
 	filp = do_last(&nd, &path, open_flag, acc_mode, mode,
 		       pathname, &is_link);
 	if (nd.last_type == LAST_NORM)
