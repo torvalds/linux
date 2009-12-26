@@ -161,11 +161,9 @@ static int snd_vxpocket_new(struct snd_card *card, int ibl,
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
 	link->io.NumPorts1 = 16;
 
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
+	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
 
-	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	link->irq.Handler = &snd_vx_irq_handler;
-	link->irq.Instance = chip;
 
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
@@ -244,7 +242,7 @@ static int vxpocket_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	chip->dev = &handle_to_dev(link);
+	chip->dev = &link->dev;
 	snd_card_set_dev(chip->card, chip->dev);
 
 	if (snd_vxpocket_assign_resources(chip, link->io.BasePort1, link->irq.AssignedIRQ) < 0)

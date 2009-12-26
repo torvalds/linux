@@ -157,6 +157,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
+#include <linux/dmapool.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/mii.h>
@@ -602,6 +603,7 @@ struct nic {
 	struct mem *mem;
 	dma_addr_t dma_addr;
 
+	struct pci_pool *cbs_pool;
 	dma_addr_t cbs_dma_addr;
 	u8 adaptive_ifs;
 	u8 tx_threshold;
@@ -622,6 +624,7 @@ struct nic {
 	u16 eeprom_wc;
 	__le16 eeprom[256];
 	spinlock_t mdio_lock;
+	const struct firmware *fw;
 };
 
 static inline void e100_write_flush(struct nic *nic)
@@ -1223,9 +1226,9 @@ static void e100_configure(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 static const struct firmware *e100_request_firmware(struct nic *nic)
 {
 	const char *fw_name;
-	const struct firmware *fw;
+	const struct firmware *fw = nic->fw;
 	u8 timer, bundle, min_size;
-	int err;
+	int err = 0;
 
 	/* do not load u-code for ICH devices */
 	if (nic->flags & ich)
@@ -1241,12 +1244,20 @@ static const struct firmware *e100_request_firmware(struct nic *nic)
 	else /* No ucode on other devices */
 		return NULL;
 
-	err = request_firmware(&fw, fw_name, &nic->pdev->dev);
+	/* If the firmware has not previously been loaded, request a pointer
+	 * to it. If it was previously loaded, we are reinitializing the
+	 * adapter, possibly in a resume from hibernate, in which case
+	 * request_firmware() cannot be used.
+	 */
+	if (!fw)
+		err = request_firmware(&fw, fw_name, &nic->pdev->dev);
+
 	if (err) {
 		DPRINTK(PROBE, ERR, "Failed to load firmware \"%s\": %d\n",
 			fw_name, err);
 		return ERR_PTR(err);
 	}
+
 	/* Firmware should be precisely UCODE_SIZE (words) plus three bytes
 	   indicating the offsets for BUNDLESMALL, BUNDLEMAX, INTDELAY */
 	if (fw->size != UCODE_SIZE * 4 + 3) {
@@ -1269,7 +1280,10 @@ static const struct firmware *e100_request_firmware(struct nic *nic)
 		release_firmware(fw);
 		return ERR_PTR(-EINVAL);
 	}
-	/* OK, firmware is validated and ready to use... */
+
+	/* OK, firmware is validated and ready to use. Save a pointer
+	 * to it in the nic */
+	nic->fw = fw;
 	return fw;
 }
 
@@ -1793,9 +1807,7 @@ static void e100_clean_cbs(struct nic *nic)
 			nic->cb_to_clean = nic->cb_to_clean->next;
 			nic->cbs_avail++;
 		}
-		pci_free_consistent(nic->pdev,
-			sizeof(struct cb) * nic->params.cbs.count,
-			nic->cbs, nic->cbs_dma_addr);
+		pci_pool_free(nic->cbs_pool, nic->cbs, nic->cbs_dma_addr);
 		nic->cbs = NULL;
 		nic->cbs_avail = 0;
 	}
@@ -1813,10 +1825,11 @@ static int e100_alloc_cbs(struct nic *nic)
 	nic->cb_to_use = nic->cb_to_send = nic->cb_to_clean = NULL;
 	nic->cbs_avail = 0;
 
-	nic->cbs = pci_alloc_consistent(nic->pdev,
-		sizeof(struct cb) * count, &nic->cbs_dma_addr);
+	nic->cbs = pci_pool_alloc(nic->cbs_pool, GFP_KERNEL,
+				  &nic->cbs_dma_addr);
 	if (!nic->cbs)
 		return -ENOMEM;
+	memset(nic->cbs, 0, count * sizeof(struct cb));
 
 	for (cb = nic->cbs, i = 0; i < count; cb++, i++) {
 		cb->next = (i + 1 < count) ? cb + 1 : nic->cbs;
@@ -1825,7 +1838,6 @@ static int e100_alloc_cbs(struct nic *nic)
 		cb->dma_addr = nic->cbs_dma_addr + i * sizeof(struct cb);
 		cb->link = cpu_to_le32(nic->cbs_dma_addr +
 			((i+1) % count) * sizeof(struct cb));
-		cb->skb = NULL;
 	}
 
 	nic->cb_to_use = nic->cb_to_send = nic->cb_to_clean = nic->cbs;
@@ -1852,11 +1864,10 @@ static inline void e100_start_receiver(struct nic *nic, struct rx *rx)
 #define RFD_BUF_LEN (sizeof(struct rfd) + VLAN_ETH_FRAME_LEN)
 static int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
 {
-	if (!(rx->skb = netdev_alloc_skb(nic->netdev, RFD_BUF_LEN + NET_IP_ALIGN)))
+	if (!(rx->skb = netdev_alloc_skb_ip_align(nic->netdev, RFD_BUF_LEN)))
 		return -ENOMEM;
 
-	/* Align, init, and map the RFD. */
-	skb_reserve(rx->skb, NET_IP_ALIGN);
+	/* Init, and map the RFD. */
 	skb_copy_to_linear_data(rx->skb, &nic->blank_rfd, sizeof(struct rfd));
 	rx->dma_addr = pci_map_single(nic->pdev, rx->skb->data,
 		RFD_BUF_LEN, PCI_DMA_BIDIRECTIONAL);
@@ -2841,7 +2852,11 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 		DPRINTK(PROBE, ERR, "Cannot register net device, aborting.\n");
 		goto err_out_free;
 	}
-
+	nic->cbs_pool = pci_pool_create(netdev->name,
+			   nic->pdev,
+			   nic->params.cbs.count * sizeof(struct cb),
+			   sizeof(u32),
+			   0);
 	DPRINTK(PROBE, INFO, "addr 0x%llx, irq %d, MAC addr %pM\n",
 		(unsigned long long)pci_resource_start(pdev, use_io ? 1 : 0),
 		pdev->irq, netdev->dev_addr);
@@ -2871,6 +2886,7 @@ static void __devexit e100_remove(struct pci_dev *pdev)
 		unregister_netdev(netdev);
 		e100_free(nic);
 		pci_iounmap(pdev, nic->csr);
+		pci_pool_destroy(nic->cbs_pool);
 		free_netdev(netdev);
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);

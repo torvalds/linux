@@ -22,7 +22,8 @@ struct snd_usX2Y_urbSeq {
 #include "usx2yhwdeppcm.h"
 
 struct usX2Ydev {
-	struct snd_usb_audio 	chip;
+	struct usb_device	*dev;
+	int			card_index;
 	int			stride;
 	struct urb		*In04urb;
 	void			*In04Buf;
@@ -42,6 +43,9 @@ struct usX2Ydev {
 	struct snd_usX2Y_substream	*subs[4];
 	struct snd_usX2Y_substream	* volatile  prepare_subs;
 	wait_queue_head_t	prepare_wait_queue;
+	struct list_head	midi_list;
+	struct list_head	pcm_list;
+	int			pcm_devs;
 };
 
 

@@ -55,6 +55,8 @@
 #include <scsi/libfc.h>
 #include <scsi/fc_encode.h>
 
+#include "fc_libfc.h"
+
 struct workqueue_struct *rport_event_queue;
 
 static void fc_rport_enter_plogi(struct fc_rport_priv *);
@@ -86,12 +88,13 @@ static const char *fc_rport_state_names[] = {
 	[RPORT_ST_LOGO] = "LOGO",
 	[RPORT_ST_ADISC] = "ADISC",
 	[RPORT_ST_DELETE] = "Delete",
+	[RPORT_ST_RESTART] = "Restart",
 };
 
 /**
- * fc_rport_lookup() - lookup a remote port by port_id
- * @lport: Fibre Channel host port instance
- * @port_id: remote port port_id to match
+ * fc_rport_lookup() - Lookup a remote port by port_id
+ * @lport:   The local port to lookup the remote port on
+ * @port_id: The remote port ID to look up
  */
 static struct fc_rport_priv *fc_rport_lookup(const struct fc_lport *lport,
 					     u32 port_id)
@@ -99,16 +102,17 @@ static struct fc_rport_priv *fc_rport_lookup(const struct fc_lport *lport,
 	struct fc_rport_priv *rdata;
 
 	list_for_each_entry(rdata, &lport->disc.rports, peers)
-		if (rdata->ids.port_id == port_id &&
-		    rdata->rp_state != RPORT_ST_DELETE)
+		if (rdata->ids.port_id == port_id)
 			return rdata;
 	return NULL;
 }
 
 /**
  * fc_rport_create() - Create a new remote port
- * @lport:   The local port that the new remote port is for
- * @port_id: The port ID for the new remote port
+ * @lport: The local port this remote port will be associated with
+ * @ids:   The identifiers for the new remote port
+ *
+ * The remote port will start in the INIT state.
  *
  * Locking note:  must be called with the disc_mutex held.
  */
@@ -147,8 +151,8 @@ static struct fc_rport_priv *fc_rport_create(struct fc_lport *lport,
 }
 
 /**
- * fc_rport_destroy() - free a remote port after last reference is released.
- * @kref: pointer to kref inside struct fc_rport_priv
+ * fc_rport_destroy() - Free a remote port after last reference is released
+ * @kref: The remote port's kref
  */
 static void fc_rport_destroy(struct kref *kref)
 {
@@ -159,8 +163,8 @@ static void fc_rport_destroy(struct kref *kref)
 }
 
 /**
- * fc_rport_state() - return a string for the state the rport is in
- * @rdata: remote port private data
+ * fc_rport_state() - Return a string identifying the remote port's state
+ * @rdata: The remote port
  */
 static const char *fc_rport_state(struct fc_rport_priv *rdata)
 {
@@ -173,9 +177,9 @@ static const char *fc_rport_state(struct fc_rport_priv *rdata)
 }
 
 /**
- * fc_set_rport_loss_tmo() - Set the remote port loss timeout in seconds.
- * @rport: Pointer to Fibre Channel remote port structure
- * @timeout: timeout in seconds
+ * fc_set_rport_loss_tmo() - Set the remote port loss timeout
+ * @rport:   The remote port that gets a new timeout value
+ * @timeout: The new timeout value (in seconds)
  */
 void fc_set_rport_loss_tmo(struct fc_rport *rport, u32 timeout)
 {
@@ -187,9 +191,11 @@ void fc_set_rport_loss_tmo(struct fc_rport *rport, u32 timeout)
 EXPORT_SYMBOL(fc_set_rport_loss_tmo);
 
 /**
- * fc_plogi_get_maxframe() - Get max payload from the common service parameters
- * @flp: FLOGI payload structure
- * @maxval: upper limit, may be less than what is in the service parameters
+ * fc_plogi_get_maxframe() - Get the maximum payload from the common service
+ *			     parameters in a FLOGI frame
+ * @flp:    The FLOGI payload
+ * @maxval: The maximum frame size upper limit; this may be less than what
+ *	    is in the service parameters
  */
 static unsigned int fc_plogi_get_maxframe(struct fc_els_flogi *flp,
 					  unsigned int maxval)
@@ -210,9 +216,9 @@ static unsigned int fc_plogi_get_maxframe(struct fc_els_flogi *flp,
 }
 
 /**
- * fc_rport_state_enter() - Change the rport's state
- * @rdata: The rport whose state should change
- * @new: The new state of the rport
+ * fc_rport_state_enter() - Change the state of a remote port
+ * @rdata: The remote port whose state should change
+ * @new:   The new state
  *
  * Locking Note: Called with the rport lock held
  */
@@ -224,17 +230,22 @@ static void fc_rport_state_enter(struct fc_rport_priv *rdata,
 	rdata->rp_state = new;
 }
 
+/**
+ * fc_rport_work() - Handler for remote port events in the rport_event_queue
+ * @work: Handle to the remote port being dequeued
+ */
 static void fc_rport_work(struct work_struct *work)
 {
 	u32 port_id;
 	struct fc_rport_priv *rdata =
 		container_of(work, struct fc_rport_priv, event_work);
-	struct fc_rport_libfc_priv *rp;
+	struct fc_rport_libfc_priv *rpriv;
 	enum fc_rport_event event;
 	struct fc_lport *lport = rdata->local_port;
 	struct fc_rport_operations *rport_ops;
 	struct fc_rport_identifiers ids;
 	struct fc_rport *rport;
+	int restart = 0;
 
 	mutex_lock(&rdata->rp_mutex);
 	event = rdata->event;
@@ -265,12 +276,12 @@ static void fc_rport_work(struct work_struct *work)
 		rport->maxframe_size = rdata->maxframe_size;
 		rport->supported_classes = rdata->supported_classes;
 
-		rp = rport->dd_data;
-		rp->local_port = lport;
-		rp->rp_state = rdata->rp_state;
-		rp->flags = rdata->flags;
-		rp->e_d_tov = rdata->e_d_tov;
-		rp->r_a_tov = rdata->r_a_tov;
+		rpriv = rport->dd_data;
+		rpriv->local_port = lport;
+		rpriv->rp_state = rdata->rp_state;
+		rpriv->flags = rdata->flags;
+		rpriv->e_d_tov = rdata->e_d_tov;
+		rpriv->r_a_tov = rdata->r_a_tov;
 		mutex_unlock(&rdata->rp_mutex);
 
 		if (rport_ops && rport_ops->event_callback) {
@@ -287,8 +298,20 @@ static void fc_rport_work(struct work_struct *work)
 		mutex_unlock(&rdata->rp_mutex);
 
 		if (port_id != FC_FID_DIR_SERV) {
+			/*
+			 * We must drop rp_mutex before taking disc_mutex.
+			 * Re-evaluate state to allow for restart.
+			 * A transition to RESTART state must only happen
+			 * while disc_mutex is held and rdata is on the list.
+			 */
 			mutex_lock(&lport->disc.disc_mutex);
-			list_del(&rdata->peers);
+			mutex_lock(&rdata->rp_mutex);
+			if (rdata->rp_state == RPORT_ST_RESTART)
+				restart = 1;
+			else
+				list_del(&rdata->peers);
+			rdata->event = RPORT_EV_NONE;
+			mutex_unlock(&rdata->rp_mutex);
 			mutex_unlock(&lport->disc.disc_mutex);
 		}
 
@@ -305,14 +328,20 @@ static void fc_rport_work(struct work_struct *work)
 		lport->tt.exch_mgr_reset(lport, port_id, 0);
 
 		if (rport) {
-			rp = rport->dd_data;
-			rp->rp_state = RPORT_ST_DELETE;
+			rpriv = rport->dd_data;
+			rpriv->rp_state = RPORT_ST_DELETE;
 			mutex_lock(&rdata->rp_mutex);
 			rdata->rport = NULL;
 			mutex_unlock(&rdata->rp_mutex);
 			fc_remote_port_delete(rport);
 		}
-		kref_put(&rdata->kref, lport->tt.rport_destroy);
+		if (restart) {
+			mutex_lock(&rdata->rp_mutex);
+			FC_RPORT_DBG(rdata, "work restart\n");
+			fc_rport_enter_plogi(rdata);
+			mutex_unlock(&rdata->rp_mutex);
+		} else
+			kref_put(&rdata->kref, lport->tt.rport_destroy);
 		break;
 
 	default:
@@ -323,7 +352,7 @@ static void fc_rport_work(struct work_struct *work)
 
 /**
  * fc_rport_login() - Start the remote port login state machine
- * @rdata: private remote port
+ * @rdata: The remote port to be logged in to
  *
  * Locking Note: Called without the rport lock held. This
  * function will hold the rport lock, call an _enter_*
@@ -342,6 +371,12 @@ int fc_rport_login(struct fc_rport_priv *rdata)
 		FC_RPORT_DBG(rdata, "ADISC port\n");
 		fc_rport_enter_adisc(rdata);
 		break;
+	case RPORT_ST_RESTART:
+		break;
+	case RPORT_ST_DELETE:
+		FC_RPORT_DBG(rdata, "Restart deleted port\n");
+		fc_rport_state_enter(rdata, RPORT_ST_RESTART);
+		break;
 	default:
 		FC_RPORT_DBG(rdata, "Login to port\n");
 		fc_rport_enter_plogi(rdata);
@@ -353,9 +388,9 @@ int fc_rport_login(struct fc_rport_priv *rdata)
 }
 
 /**
- * fc_rport_enter_delete() - schedule a remote port to be deleted.
- * @rdata: private remote port
- * @event: event to report as the reason for deletion
+ * fc_rport_enter_delete() - Schedule a remote port to be deleted
+ * @rdata: The remote port to be deleted
+ * @event: The event to report as the reason for deletion
  *
  * Locking Note: Called with the rport lock held.
  *
@@ -382,8 +417,8 @@ static void fc_rport_enter_delete(struct fc_rport_priv *rdata,
 }
 
 /**
- * fc_rport_logoff() - Logoff and remove an rport
- * @rdata: private remote port
+ * fc_rport_logoff() - Logoff and remove a remote port
+ * @rdata: The remote port to be logged off of
  *
  * Locking Note: Called without the rport lock held. This
  * function will hold the rport lock, call an _enter_*
@@ -397,26 +432,27 @@ int fc_rport_logoff(struct fc_rport_priv *rdata)
 
 	if (rdata->rp_state == RPORT_ST_DELETE) {
 		FC_RPORT_DBG(rdata, "Port in Delete state, not removing\n");
-		mutex_unlock(&rdata->rp_mutex);
 		goto out;
 	}
 
-	fc_rport_enter_logo(rdata);
+	if (rdata->rp_state == RPORT_ST_RESTART)
+		FC_RPORT_DBG(rdata, "Port in Restart state, deleting\n");
+	else
+		fc_rport_enter_logo(rdata);
 
 	/*
 	 * Change the state to Delete so that we discard
 	 * the response.
 	 */
 	fc_rport_enter_delete(rdata, RPORT_EV_STOP);
-	mutex_unlock(&rdata->rp_mutex);
-
 out:
+	mutex_unlock(&rdata->rp_mutex);
 	return 0;
 }
 
 /**
- * fc_rport_enter_ready() - The rport is ready
- * @rdata: private remote port
+ * fc_rport_enter_ready() - Transition to the RPORT_ST_READY state
+ * @rdata: The remote port that is ready
  *
  * Locking Note: The rport lock is expected to be held before calling
  * this routine.
@@ -433,8 +469,8 @@ static void fc_rport_enter_ready(struct fc_rport_priv *rdata)
 }
 
 /**
- * fc_rport_timeout() - Handler for the retry_work timer.
- * @work: The work struct of the fc_rport_priv
+ * fc_rport_timeout() - Handler for the retry_work timer
+ * @work: Handle to the remote port that has timed out
  *
  * Locking Note: Called without the rport lock held. This
  * function will hold the rport lock, call an _enter_*
@@ -466,6 +502,7 @@ static void fc_rport_timeout(struct work_struct *work)
 	case RPORT_ST_READY:
 	case RPORT_ST_INIT:
 	case RPORT_ST_DELETE:
+	case RPORT_ST_RESTART:
 		break;
 	}
 
@@ -474,8 +511,8 @@ static void fc_rport_timeout(struct work_struct *work)
 
 /**
  * fc_rport_error() - Error handler, called once retries have been exhausted
- * @rdata: private remote port
- * @fp: The frame pointer
+ * @rdata: The remote port the error is happened on
+ * @fp:	   The error code encapsulated in a frame pointer
  *
  * Locking Note: The rport lock is expected to be held before
  * calling this routine
@@ -499,6 +536,7 @@ static void fc_rport_error(struct fc_rport_priv *rdata, struct fc_frame *fp)
 		fc_rport_enter_logo(rdata);
 		break;
 	case RPORT_ST_DELETE:
+	case RPORT_ST_RESTART:
 	case RPORT_ST_READY:
 	case RPORT_ST_INIT:
 		break;
@@ -506,9 +544,9 @@ static void fc_rport_error(struct fc_rport_priv *rdata, struct fc_frame *fp)
 }
 
 /**
- * fc_rport_error_retry() - Error handler when retries are desired
- * @rdata: private remote port data
- * @fp: The frame pointer
+ * fc_rport_error_retry() - Handler for remote port state retries
+ * @rdata: The remote port whose state is to be retried
+ * @fp:	   The error code encapsulated in a frame pointer
  *
  * If the error was an exchange timeout retry immediately,
  * otherwise wait for E_D_TOV.
@@ -540,10 +578,10 @@ static void fc_rport_error_retry(struct fc_rport_priv *rdata,
 }
 
 /**
- * fc_rport_plogi_recv_resp() - Handle incoming ELS PLOGI response
- * @sp: current sequence in the PLOGI exchange
- * @fp: response frame
- * @rdata_arg: private remote port data
+ * fc_rport_plogi_recv_resp() - Handler for ELS PLOGI responses
+ * @sp:	       The sequence the PLOGI is on
+ * @fp:	       The PLOGI response frame
+ * @rdata_arg: The remote port that sent the PLOGI response
  *
  * Locking Note: This function will be called without the rport lock
  * held, but it will lock, call an _enter_* function or fc_rport_error
@@ -606,8 +644,8 @@ err:
 }
 
 /**
- * fc_rport_enter_plogi() - Send Port Login (PLOGI) request to peer
- * @rdata: private remote port data
+ * fc_rport_enter_plogi() - Send Port Login (PLOGI) request
+ * @rdata: The remote port to send a PLOGI to
  *
  * Locking Note: The rport lock is expected to be held before calling
  * this routine.
@@ -631,17 +669,18 @@ static void fc_rport_enter_plogi(struct fc_rport_priv *rdata)
 	rdata->e_d_tov = lport->e_d_tov;
 
 	if (!lport->tt.elsct_send(lport, rdata->ids.port_id, fp, ELS_PLOGI,
-				  fc_rport_plogi_resp, rdata, lport->e_d_tov))
-		fc_rport_error_retry(rdata, fp);
+				  fc_rport_plogi_resp, rdata,
+				  2 * lport->r_a_tov))
+		fc_rport_error_retry(rdata, NULL);
 	else
 		kref_get(&rdata->kref);
 }
 
 /**
  * fc_rport_prli_resp() - Process Login (PRLI) response handler
- * @sp: current sequence in the PRLI exchange
- * @fp: response frame
- * @rdata_arg: private remote port data
+ * @sp:	       The sequence the PRLI response was on
+ * @fp:	       The PRLI response frame
+ * @rdata_arg: The remote port that sent the PRLI response
  *
  * Locking Note: This function will be called without the rport lock
  * held, but it will lock, call an _enter_* function or fc_rport_error
@@ -710,10 +749,10 @@ err:
 }
 
 /**
- * fc_rport_logo_resp() - Logout (LOGO) response handler
- * @sp: current sequence in the LOGO exchange
- * @fp: response frame
- * @rdata_arg: private remote port data
+ * fc_rport_logo_resp() - Handler for logout (LOGO) responses
+ * @sp:	       The sequence the LOGO was on
+ * @fp:	       The LOGO response frame
+ * @rdata_arg: The remote port that sent the LOGO response
  *
  * Locking Note: This function will be called without the rport lock
  * held, but it will lock, call an _enter_* function or fc_rport_error
@@ -756,8 +795,8 @@ err:
 }
 
 /**
- * fc_rport_enter_prli() - Send Process Login (PRLI) request to peer
- * @rdata: private remote port data
+ * fc_rport_enter_prli() - Send Process Login (PRLI) request
+ * @rdata: The remote port to send the PRLI request to
  *
  * Locking Note: The rport lock is expected to be held before calling
  * this routine.
@@ -792,17 +831,18 @@ static void fc_rport_enter_prli(struct fc_rport_priv *rdata)
 	}
 
 	if (!lport->tt.elsct_send(lport, rdata->ids.port_id, fp, ELS_PRLI,
-				  fc_rport_prli_resp, rdata, lport->e_d_tov))
-		fc_rport_error_retry(rdata, fp);
+				  fc_rport_prli_resp, rdata,
+				  2 * lport->r_a_tov))
+		fc_rport_error_retry(rdata, NULL);
 	else
 		kref_get(&rdata->kref);
 }
 
 /**
- * fc_rport_els_rtv_resp() - Request Timeout Value response handler
- * @sp: current sequence in the RTV exchange
- * @fp: response frame
- * @rdata_arg: private remote port data
+ * fc_rport_els_rtv_resp() - Handler for Request Timeout Value (RTV) responses
+ * @sp:	       The sequence the RTV was on
+ * @fp:	       The RTV response frame
+ * @rdata_arg: The remote port that sent the RTV response
  *
  * Many targets don't seem to support this.
  *
@@ -865,8 +905,8 @@ err:
 }
 
 /**
- * fc_rport_enter_rtv() - Send Request Timeout Value (RTV) request to peer
- * @rdata: private remote port data
+ * fc_rport_enter_rtv() - Send Request Timeout Value (RTV) request
+ * @rdata: The remote port to send the RTV request to
  *
  * Locking Note: The rport lock is expected to be held before calling
  * this routine.
@@ -888,15 +928,16 @@ static void fc_rport_enter_rtv(struct fc_rport_priv *rdata)
 	}
 
 	if (!lport->tt.elsct_send(lport, rdata->ids.port_id, fp, ELS_RTV,
-				     fc_rport_rtv_resp, rdata, lport->e_d_tov))
-		fc_rport_error_retry(rdata, fp);
+				  fc_rport_rtv_resp, rdata,
+				  2 * lport->r_a_tov))
+		fc_rport_error_retry(rdata, NULL);
 	else
 		kref_get(&rdata->kref);
 }
 
 /**
- * fc_rport_enter_logo() - Send Logout (LOGO) request to peer
- * @rdata: private remote port data
+ * fc_rport_enter_logo() - Send a logout (LOGO) request
+ * @rdata: The remote port to send the LOGO request to
  *
  * Locking Note: The rport lock is expected to be held before calling
  * this routine.
@@ -918,24 +959,25 @@ static void fc_rport_enter_logo(struct fc_rport_priv *rdata)
 	}
 
 	if (!lport->tt.elsct_send(lport, rdata->ids.port_id, fp, ELS_LOGO,
-				  fc_rport_logo_resp, rdata, lport->e_d_tov))
-		fc_rport_error_retry(rdata, fp);
+				  fc_rport_logo_resp, rdata,
+				  2 * lport->r_a_tov))
+		fc_rport_error_retry(rdata, NULL);
 	else
 		kref_get(&rdata->kref);
 }
 
 /**
- * fc_rport_els_adisc_resp() - Address Discovery response handler
- * @sp: current sequence in the ADISC exchange
- * @fp: response frame
- * @rdata_arg: remote port private.
+ * fc_rport_els_adisc_resp() - Handler for Address Discovery (ADISC) responses
+ * @sp:	       The sequence the ADISC response was on
+ * @fp:	       The ADISC response frame
+ * @rdata_arg: The remote port that sent the ADISC response
  *
  * Locking Note: This function will be called without the rport lock
  * held, but it will lock, call an _enter_* function or fc_rport_error
  * and then unlock the rport.
  */
 static void fc_rport_adisc_resp(struct fc_seq *sp, struct fc_frame *fp,
-			      void *rdata_arg)
+				void *rdata_arg)
 {
 	struct fc_rport_priv *rdata = rdata_arg;
 	struct fc_els_adisc *adisc;
@@ -983,8 +1025,8 @@ err:
 }
 
 /**
- * fc_rport_enter_adisc() - Send Address Discover (ADISC) request to peer
- * @rdata: remote port private data
+ * fc_rport_enter_adisc() - Send Address Discover (ADISC) request
+ * @rdata: The remote port to send the ADISC request to
  *
  * Locking Note: The rport lock is expected to be held before calling
  * this routine.
@@ -1005,17 +1047,18 @@ static void fc_rport_enter_adisc(struct fc_rport_priv *rdata)
 		return;
 	}
 	if (!lport->tt.elsct_send(lport, rdata->ids.port_id, fp, ELS_ADISC,
-				  fc_rport_adisc_resp, rdata, lport->e_d_tov))
-		fc_rport_error_retry(rdata, fp);
+				  fc_rport_adisc_resp, rdata,
+				  2 * lport->r_a_tov))
+		fc_rport_error_retry(rdata, NULL);
 	else
 		kref_get(&rdata->kref);
 }
 
 /**
- * fc_rport_recv_adisc_req() - Handle incoming Address Discovery (ADISC) Request
- * @rdata: remote port private
- * @sp: current sequence in the ADISC exchange
- * @in_fp: ADISC request frame
+ * fc_rport_recv_adisc_req() - Handler for Address Discovery (ADISC) requests
+ * @rdata: The remote port that sent the ADISC request
+ * @sp:	   The sequence the ADISC request was on
+ * @in_fp: The ADISC request frame
  *
  * Locking Note:  Called with the lport and rport locks held.
  */
@@ -1056,10 +1099,82 @@ drop:
 }
 
 /**
- * fc_rport_recv_els_req() - handle a validated ELS request.
- * @lport: Fibre Channel local port
- * @sp: current sequence in the PLOGI exchange
- * @fp: response frame
+ * fc_rport_recv_rls_req() - Handle received Read Link Status request
+ * @rdata: The remote port that sent the RLS request
+ * @sp:	The sequence that the RLS was on
+ * @rx_fp: The PRLI request frame
+ *
+ * Locking Note: The rport lock is expected to be held before calling
+ * this function.
+ */
+static void fc_rport_recv_rls_req(struct fc_rport_priv *rdata,
+				  struct fc_seq *sp, struct fc_frame *rx_fp)
+
+{
+	struct fc_lport *lport = rdata->local_port;
+	struct fc_frame *fp;
+	struct fc_exch *ep = fc_seq_exch(sp);
+	struct fc_els_rls *rls;
+	struct fc_els_rls_resp *rsp;
+	struct fc_els_lesb *lesb;
+	struct fc_seq_els_data rjt_data;
+	struct fc_host_statistics *hst;
+	u32 f_ctl;
+
+	FC_RPORT_DBG(rdata, "Received RLS request while in state %s\n",
+		     fc_rport_state(rdata));
+
+	rls = fc_frame_payload_get(rx_fp, sizeof(*rls));
+	if (!rls) {
+		rjt_data.reason = ELS_RJT_PROT;
+		rjt_data.explan = ELS_EXPL_INV_LEN;
+		goto out_rjt;
+	}
+
+	fp = fc_frame_alloc(lport, sizeof(*rsp));
+	if (!fp) {
+		rjt_data.reason = ELS_RJT_UNAB;
+		rjt_data.explan = ELS_EXPL_INSUF_RES;
+		goto out_rjt;
+	}
+
+	rsp = fc_frame_payload_get(fp, sizeof(*rsp));
+	memset(rsp, 0, sizeof(*rsp));
+	rsp->rls_cmd = ELS_LS_ACC;
+	lesb = &rsp->rls_lesb;
+	if (lport->tt.get_lesb) {
+		/* get LESB from LLD if it supports it */
+		lport->tt.get_lesb(lport, lesb);
+	} else {
+		fc_get_host_stats(lport->host);
+		hst = &lport->host_stats;
+		lesb->lesb_link_fail = htonl(hst->link_failure_count);
+		lesb->lesb_sync_loss = htonl(hst->loss_of_sync_count);
+		lesb->lesb_sig_loss = htonl(hst->loss_of_signal_count);
+		lesb->lesb_prim_err = htonl(hst->prim_seq_protocol_err_count);
+		lesb->lesb_inv_word = htonl(hst->invalid_tx_word_count);
+		lesb->lesb_inv_crc = htonl(hst->invalid_crc_count);
+	}
+
+	sp = lport->tt.seq_start_next(sp);
+	f_ctl = FC_FC_EX_CTX | FC_FC_LAST_SEQ | FC_FC_END_SEQ;
+	fc_fill_fc_hdr(fp, FC_RCTL_ELS_REP, ep->did, ep->sid,
+		       FC_TYPE_ELS, f_ctl, 0);
+	lport->tt.seq_send(lport, sp, fp);
+	goto out;
+
+out_rjt:
+	rjt_data.fp = NULL;
+	lport->tt.seq_els_rsp_send(sp, ELS_LS_RJT, &rjt_data);
+out:
+	fc_frame_free(rx_fp);
+}
+
+/**
+ * fc_rport_recv_els_req() - Handler for validated ELS requests
+ * @lport: The local port that received the ELS request
+ * @sp:	   The sequence that the ELS request was on
+ * @fp:	   The ELS request frame
  *
  * Handle incoming ELS requests that require port login.
  * The ELS opcode has already been validated by the caller.
@@ -1117,6 +1232,9 @@ static void fc_rport_recv_els_req(struct fc_lport *lport,
 		els_data.fp = fp;
 		lport->tt.seq_els_rsp_send(sp, ELS_REC, &els_data);
 		break;
+	case ELS_RLS:
+		fc_rport_recv_rls_req(rdata, sp, fp);
+		break;
 	default:
 		fc_frame_free(fp);	/* can't happen */
 		break;
@@ -1131,10 +1249,10 @@ reject:
 }
 
 /**
- * fc_rport_recv_req() - Handle a received ELS request from a rport
- * @sp: current sequence in the PLOGI exchange
- * @fp: response frame
- * @lport: Fibre Channel local port
+ * fc_rport_recv_req() - Handler for requests
+ * @sp:	   The sequence the request was on
+ * @fp:	   The request frame
+ * @lport: The local port that received the request
  *
  * Locking Note: Called with the lport lock held.
  */
@@ -1161,6 +1279,7 @@ void fc_rport_recv_req(struct fc_seq *sp, struct fc_frame *fp,
 	case ELS_ADISC:
 	case ELS_RRQ:
 	case ELS_REC:
+	case ELS_RLS:
 		fc_rport_recv_els_req(lport, sp, fp);
 		break;
 	default:
@@ -1174,10 +1293,10 @@ void fc_rport_recv_req(struct fc_seq *sp, struct fc_frame *fp,
 }
 
 /**
- * fc_rport_recv_plogi_req() - Handle incoming Port Login (PLOGI) request
- * @lport: local port
- * @sp: current sequence in the PLOGI exchange
- * @fp: PLOGI request frame
+ * fc_rport_recv_plogi_req() - Handler for Port Login (PLOGI) requests
+ * @lport: The local port that received the PLOGI request
+ * @sp:	   The sequence that the PLOGI request was on
+ * @rx_fp: The PLOGI request frame
  *
  * Locking Note: The rport lock is held before calling this function.
  */
@@ -1248,6 +1367,7 @@ static void fc_rport_recv_plogi_req(struct fc_lport *lport,
 		}
 		break;
 	case RPORT_ST_PRLI:
+	case RPORT_ST_RTV:
 	case RPORT_ST_READY:
 	case RPORT_ST_ADISC:
 		FC_RPORT_DBG(rdata, "Received PLOGI in logged-in state %d "
@@ -1255,11 +1375,14 @@ static void fc_rport_recv_plogi_req(struct fc_lport *lport,
 		/* XXX TBD - should reset */
 		break;
 	case RPORT_ST_DELETE:
-	default:
-		FC_RPORT_DBG(rdata, "Received PLOGI in unexpected state %d\n",
-			     rdata->rp_state);
-		fc_frame_free(rx_fp);
-		goto out;
+	case RPORT_ST_LOGO:
+	case RPORT_ST_RESTART:
+		FC_RPORT_DBG(rdata, "Received PLOGI in state %s - send busy\n",
+			     fc_rport_state(rdata));
+		mutex_unlock(&rdata->rp_mutex);
+		rjt_data.reason = ELS_RJT_BUSY;
+		rjt_data.explan = ELS_EXPL_NONE;
+		goto reject;
 	}
 
 	/*
@@ -1295,10 +1418,10 @@ reject:
 }
 
 /**
- * fc_rport_recv_prli_req() - Handle incoming Process Login (PRLI) request
- * @rdata: private remote port data
- * @sp: current sequence in the PRLI exchange
- * @fp: PRLI request frame
+ * fc_rport_recv_prli_req() - Handler for process login (PRLI) requests
+ * @rdata: The remote port that sent the PRLI request
+ * @sp:	   The sequence that the PRLI was on
+ * @rx_fp: The PRLI request frame
  *
  * Locking Note: The rport lock is exected to be held before calling
  * this function.
@@ -1402,7 +1525,7 @@ static void fc_rport_recv_prli_req(struct fc_rport_priv *rdata,
 				break;
 			case FC_TYPE_FCP:
 				fcp_parm = ntohl(rspp->spp_params);
-				if (fcp_parm * FCP_SPPF_RETRY)
+				if (fcp_parm & FCP_SPPF_RETRY)
 					rdata->flags |= FC_RP_FLAGS_RETRY;
 				rdata->supported_classes = FC_COS_CLASS3;
 				if (fcp_parm & FCP_SPPF_INIT_FCN)
@@ -1452,10 +1575,10 @@ static void fc_rport_recv_prli_req(struct fc_rport_priv *rdata,
 }
 
 /**
- * fc_rport_recv_prlo_req() - Handle incoming Process Logout (PRLO) request
- * @rdata: private remote port data
- * @sp: current sequence in the PRLO exchange
- * @fp: PRLO request frame
+ * fc_rport_recv_prlo_req() - Handler for process logout (PRLO) requests
+ * @rdata: The remote port that sent the PRLO request
+ * @sp:	   The sequence that the PRLO was on
+ * @fp:	   The PRLO request frame
  *
  * Locking Note: The rport lock is exected to be held before calling
  * this function.
@@ -1482,10 +1605,10 @@ static void fc_rport_recv_prlo_req(struct fc_rport_priv *rdata,
 }
 
 /**
- * fc_rport_recv_logo_req() - Handle incoming Logout (LOGO) request
- * @lport: local port.
- * @sp: current sequence in the LOGO exchange
- * @fp: LOGO request frame
+ * fc_rport_recv_logo_req() - Handler for logout (LOGO) requests
+ * @lport: The local port that received the LOGO request
+ * @sp:	   The sequence that the LOGO request was on
+ * @fp:	   The LOGO request frame
  *
  * Locking Note: The rport lock is exected to be held before calling
  * this function.
@@ -1510,14 +1633,14 @@ static void fc_rport_recv_logo_req(struct fc_lport *lport,
 		FC_RPORT_DBG(rdata, "Received LOGO request while in state %s\n",
 			     fc_rport_state(rdata));
 
+		fc_rport_enter_delete(rdata, RPORT_EV_LOGO);
+
 		/*
-		 * If the remote port was created due to discovery,
-		 * log back in.  It may have seen a stale RSCN about us.
+		 * If the remote port was created due to discovery, set state
+		 * to log back in.  It may have seen a stale RSCN about us.
 		 */
-		if (rdata->rp_state != RPORT_ST_DELETE && rdata->disc_id)
-			fc_rport_enter_plogi(rdata);
-		else
-			fc_rport_enter_delete(rdata, RPORT_EV_LOGO);
+		if (rdata->disc_id)
+			fc_rport_state_enter(rdata, RPORT_ST_RESTART);
 		mutex_unlock(&rdata->rp_mutex);
 	} else
 		FC_RPORT_ID_DBG(lport, sid,
@@ -1526,11 +1649,18 @@ static void fc_rport_recv_logo_req(struct fc_lport *lport,
 	fc_frame_free(fp);
 }
 
+/**
+ * fc_rport_flush_queue() - Flush the rport_event_queue
+ */
 static void fc_rport_flush_queue(void)
 {
 	flush_workqueue(rport_event_queue);
 }
 
+/**
+ * fc_rport_init() - Initialize the remote port layer for a local port
+ * @lport: The local port to initialize the remote port layer for
+ */
 int fc_rport_init(struct fc_lport *lport)
 {
 	if (!lport->tt.rport_lookup)
@@ -1558,25 +1688,33 @@ int fc_rport_init(struct fc_lport *lport)
 }
 EXPORT_SYMBOL(fc_rport_init);
 
-int fc_setup_rport(void)
+/**
+ * fc_setup_rport() - Initialize the rport_event_queue
+ */
+int fc_setup_rport()
 {
 	rport_event_queue = create_singlethread_workqueue("fc_rport_eq");
 	if (!rport_event_queue)
 		return -ENOMEM;
 	return 0;
 }
-EXPORT_SYMBOL(fc_setup_rport);
 
-void fc_destroy_rport(void)
+/**
+ * fc_destroy_rport() - Destroy the rport_event_queue
+ */
+void fc_destroy_rport()
 {
 	destroy_workqueue(rport_event_queue);
 }
-EXPORT_SYMBOL(fc_destroy_rport);
 
+/**
+ * fc_rport_terminate_io() - Stop all outstanding I/O on a remote port
+ * @rport: The remote port whose I/O should be terminated
+ */
 void fc_rport_terminate_io(struct fc_rport *rport)
 {
-	struct fc_rport_libfc_priv *rp = rport->dd_data;
-	struct fc_lport *lport = rp->local_port;
+	struct fc_rport_libfc_priv *rpriv = rport->dd_data;
+	struct fc_lport *lport = rpriv->local_port;
 
 	lport->tt.exch_mgr_reset(lport, 0, rport->port_id);
 	lport->tt.exch_mgr_reset(lport, rport->port_id, 0);

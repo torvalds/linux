@@ -380,9 +380,8 @@ static struct sk_buff *cpmac_rx_one(struct cpmac_priv *priv,
 		return NULL;
 	}
 
-	skb = netdev_alloc_skb(priv->dev, CPMAC_SKB_SIZE);
+	skb = netdev_alloc_skb_ip_align(priv->dev, CPMAC_SKB_SIZE);
 	if (likely(skb)) {
-		skb_reserve(skb, 2);
 		skb_put(desc->skb, desc->datalen);
 		desc->skb->protocol = eth_type_trans(desc->skb, priv->dev);
 		desc->skb->ip_summed = CHECKSUM_NONE;
@@ -991,12 +990,11 @@ static int cpmac_open(struct net_device *dev)
 
 	priv->rx_head = &priv->desc_ring[CPMAC_QUEUES];
 	for (i = 0, desc = priv->rx_head; i < priv->ring_size; i++, desc++) {
-		skb = netdev_alloc_skb(dev, CPMAC_SKB_SIZE);
+		skb = netdev_alloc_skb_ip_align(dev, CPMAC_SKB_SIZE);
 		if (unlikely(!skb)) {
 			res = -ENOMEM;
 			goto fail_desc;
 		}
-		skb_reserve(skb, 2);
 		desc->skb = skb;
 		desc->data_mapping = dma_map_single(&dev->dev, skb->data,
 						    CPMAC_SKB_SIZE,
@@ -1165,7 +1163,7 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	priv->dev = dev;
 	priv->ring_size = 64;
 	priv->msg_enable = netif_msg_init(debug_level, 0xff);
-	memcpy(dev->dev_addr, pdata->dev_addr, sizeof(dev->dev_addr));
+	memcpy(dev->dev_addr, pdata->dev_addr, sizeof(pdata->dev_addr));
 
 	snprintf(priv->phy_name, MII_BUS_ID_SIZE, PHY_ID_FMT, mdio_bus_id, phy_id);
 

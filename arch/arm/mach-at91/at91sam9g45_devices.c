@@ -131,6 +131,62 @@ void __init at91_add_device_usbh_ohci(struct at91_usbh_data *data) {}
 
 
 /* --------------------------------------------------------------------
+ *  USB Host HS (EHCI)
+ *  Needs an OHCI host for low and full speed management
+ * -------------------------------------------------------------------- */
+
+#if defined(CONFIG_USB_EHCI_HCD) || defined(CONFIG_USB_EHCI_HCD_MODULE)
+static u64 ehci_dmamask = DMA_BIT_MASK(32);
+static struct at91_usbh_data usbh_ehci_data;
+
+static struct resource usbh_ehci_resources[] = {
+	[0] = {
+		.start	= AT91SAM9G45_EHCI_BASE,
+		.end	= AT91SAM9G45_EHCI_BASE + SZ_1M - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91SAM9G45_ID_UHPHS,
+		.end	= AT91SAM9G45_ID_UHPHS,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91_usbh_ehci_device = {
+	.name		= "atmel-ehci",
+	.id		= -1,
+	.dev		= {
+				.dma_mask		= &ehci_dmamask,
+				.coherent_dma_mask	= DMA_BIT_MASK(32),
+				.platform_data		= &usbh_ehci_data,
+	},
+	.resource	= usbh_ehci_resources,
+	.num_resources	= ARRAY_SIZE(usbh_ehci_resources),
+};
+
+void __init at91_add_device_usbh_ehci(struct at91_usbh_data *data)
+{
+	int i;
+
+	if (!data)
+		return;
+
+	/* Enable VBus control for UHP ports */
+	for (i = 0; i < data->ports; i++) {
+		if (data->vbus_pin[i])
+			at91_set_gpio_output(data->vbus_pin[i], 0);
+	}
+
+	usbh_ehci_data = *data;
+	at91_clock_associate("uhphs_clk", &at91_usbh_ehci_device.dev, "ehci_clk");
+	platform_device_register(&at91_usbh_ehci_device);
+}
+#else
+void __init at91_add_device_usbh_ehci(struct at91_usbh_data *data) {}
+#endif
+
+
+/* --------------------------------------------------------------------
  *  USB HS Device (Gadget)
  * -------------------------------------------------------------------- */
 
@@ -806,6 +862,57 @@ static void __init at91_add_device_rtc(void)
 }
 #else
 static void __init at91_add_device_rtc(void) {}
+#endif
+
+
+/* --------------------------------------------------------------------
+ *  Touchscreen
+ * -------------------------------------------------------------------- */
+
+#if defined(CONFIG_TOUCHSCREEN_ATMEL_TSADCC) || defined(CONFIG_TOUCHSCREEN_ATMEL_TSADCC_MODULE)
+static u64 tsadcc_dmamask = DMA_BIT_MASK(32);
+static struct at91_tsadcc_data tsadcc_data;
+
+static struct resource tsadcc_resources[] = {
+	[0] = {
+		.start	= AT91SAM9G45_BASE_TSC,
+		.end	= AT91SAM9G45_BASE_TSC + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91SAM9G45_ID_TSC,
+		.end	= AT91SAM9G45_ID_TSC,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device at91sam9g45_tsadcc_device = {
+	.name		= "atmel_tsadcc",
+	.id		= -1,
+	.dev		= {
+				.dma_mask		= &tsadcc_dmamask,
+				.coherent_dma_mask	= DMA_BIT_MASK(32),
+				.platform_data		= &tsadcc_data,
+	},
+	.resource	= tsadcc_resources,
+	.num_resources	= ARRAY_SIZE(tsadcc_resources),
+};
+
+void __init at91_add_device_tsadcc(struct at91_tsadcc_data *data)
+{
+	if (!data)
+		return;
+
+	at91_set_gpio_input(AT91_PIN_PD20, 0);	/* AD0_XR */
+	at91_set_gpio_input(AT91_PIN_PD21, 0);	/* AD1_XL */
+	at91_set_gpio_input(AT91_PIN_PD22, 0);	/* AD2_YT */
+	at91_set_gpio_input(AT91_PIN_PD23, 0);	/* AD3_TB */
+
+	tsadcc_data = *data;
+	platform_device_register(&at91sam9g45_tsadcc_device);
+}
+#else
+void __init at91_add_device_tsadcc(struct at91_tsadcc_data *data) {}
 #endif
 
 

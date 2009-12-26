@@ -1,0 +1,9 @@
+config WLAGS49_H25
+	tristate "Linksys HERMES II.5 WCF54G_Wireless-G_CompactFlash_Card"
+	depends on WLAN_80211 && WIRELESS_EXT && PCMCIA
+	select WEXT_SPY
+	---help---
+	  Driver for wireless cards using Agere's HERMES II.5 chipset
+	  which are identified with Manufacture ID: 0156,0004
+	  The software is a modified version of wl_lkm_722_abg.tar.gz
+	  from the Agere Systems website, addapted for Ubuntu 9.04.

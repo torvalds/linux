@@ -285,15 +285,10 @@ static void quirk_system_pci_resources(struct pnp_dev *dev)
 				 * the PCI region, and that might prevent a PCI
 				 * driver from requesting its resources.
 				 */
-				dev_warn(&dev->dev, "%s resource "
-					"(0x%llx-0x%llx) overlaps %s BAR %d "
-					"(0x%llx-0x%llx), disabling\n",
-					pnp_resource_type_name(res),
-					(unsigned long long) pnp_start,
-					(unsigned long long) pnp_end,
-					pci_name(pdev), i,
-					(unsigned long long) pci_start,
-					(unsigned long long) pci_end);
+				dev_warn(&dev->dev,
+					 "disabling %pR because it overlaps "
+					 "%s BAR %d %pR\n", res,
+					 pci_name(pdev), i, &pdev->resource[i]);
 				res->flags |= IORESOURCE_DISABLED;
 			}
 		}

@@ -199,7 +199,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv, int monitor)
 	ieee->host_decrypt = 1;
 	ieee->host_mc_decrypt = 1;
 
-	/* Host fragementation in Open mode. Default is enabled.
+	/* Host fragmentation in Open mode. Default is enabled.
 	 * Note: host fragmentation is always enabled if host encryption
 	 * is enabled. For cards can do hardware encryption, they must do
 	 * hardware fragmentation as well. So we don't need a variable
@@ -241,13 +241,6 @@ void free_ieee80211(struct net_device *dev, int monitor)
 	free_netdev(dev);
 }
 
-void unregister_ieee80211(struct libipw_device *ieee)
-{
-	wiphy_unregister(ieee->wdev.wiphy);
-	kfree(ieee->a_band.channels);
-	kfree(ieee->bg_band.channels);
-}
-
 #ifdef CONFIG_LIBIPW_DEBUG
 
 static int debug = 0;
@@ -255,17 +248,22 @@ u32 libipw_debug_level = 0;
 EXPORT_SYMBOL_GPL(libipw_debug_level);
 static struct proc_dir_entry *libipw_proc = NULL;
 
-static int show_debug_level(char *page, char **start, off_t offset,
-			    int count, int *eof, void *data)
+static int debug_level_proc_show(struct seq_file *m, void *v)
 {
-	return snprintf(page, count, "0x%08X\n", libipw_debug_level);
+	seq_printf(m, "0x%08X\n", libipw_debug_level);
+	return 0;
 }
 
-static int store_debug_level(struct file *file, const char __user * buffer,
-			     unsigned long count, void *data)
+static int debug_level_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, debug_level_proc_show, NULL);
+}
+
+static ssize_t debug_level_proc_write(struct file *file,
+		const char __user *buffer, size_t count, loff_t *pos)
 {
 	char buf[] = "0x00000000\n";
-	unsigned long len = min((unsigned long)sizeof(buf) - 1, count);
+	size_t len = min(sizeof(buf) - 1, count);
 	unsigned long val;
 
 	if (copy_from_user(buf, buffer, len))
@@ -279,6 +277,15 @@ static int store_debug_level(struct file *file, const char __user * buffer,
 
 	return strnlen(buf, len);
 }
+
+static const struct file_operations debug_level_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= debug_level_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= debug_level_proc_write,
+};
 #endif				/* CONFIG_LIBIPW_DEBUG */
 
 static int __init libipw_init(void)
@@ -293,16 +300,13 @@ static int __init libipw_init(void)
 				" proc directory\n");
 		return -EIO;
 	}
-	e = create_proc_entry("debug_level", S_IFREG | S_IRUGO | S_IWUSR,
-			      libipw_proc);
+	e = proc_create("debug_level", S_IRUGO | S_IWUSR, libipw_proc,
+			&debug_level_proc_fops);
 	if (!e) {
 		remove_proc_entry(DRV_NAME, init_net.proc_net);
 		libipw_proc = NULL;
 		return -EIO;
 	}
-	e->read_proc = show_debug_level;
-	e->write_proc = store_debug_level;
-	e->data = NULL;
 #endif				/* CONFIG_LIBIPW_DEBUG */
 
 	printk(KERN_INFO DRV_NAME ": " DRV_DESCRIPTION ", " DRV_VERSION "\n");
@@ -333,4 +337,3 @@ module_init(libipw_init);
 
 EXPORT_SYMBOL(alloc_ieee80211);
 EXPORT_SYMBOL(free_ieee80211);
-EXPORT_SYMBOL(unregister_ieee80211);

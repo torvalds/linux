@@ -58,7 +58,16 @@ static irqreturn_t coh901331_interrupt(int irq, void *data)
 	clk_enable(rtap->clk);
 	/* Ack IRQ */
 	writel(1, rtap->virtbase + COH901331_IRQ_EVENT);
+	/*
+	 * Disable the interrupt. This is necessary because
+	 * the RTC lives on a lower-clocked line and will
+	 * not release the IRQ line until after a few (slower)
+	 * clock cycles. The interrupt will be re-enabled when
+	 * a new alarm is set anyway.
+	 */
+	writel(0, rtap->virtbase + COH901331_IRQ_MASK);
 	clk_disable(rtap->clk);
+
 	/* Set alarm flag */
 	rtc_update_irq(rtap->rtc, 1, RTC_AF);
 
@@ -128,6 +137,8 @@ static int coh901331_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	else
 		writel(0, rtap->virtbase + COH901331_IRQ_MASK);
 	clk_disable(rtap->clk);
+
+	return 0;
 }
 
 static struct rtc_class_ops coh901331_ops = {

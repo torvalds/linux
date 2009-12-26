@@ -1,5 +1,5 @@
-#ifndef _INCLUDE_GUARD_SVG_HELPER_
-#define _INCLUDE_GUARD_SVG_HELPER_
+#ifndef __PERF_SVGHELPER_H
+#define __PERF_SVGHELPER_H
 
 #include "types.h"
 
@@ -25,4 +25,4 @@ extern void svg_close(void);
 
 extern int svg_page_width;
 
-#endif
+#endif /* __PERF_SVGHELPER_H */

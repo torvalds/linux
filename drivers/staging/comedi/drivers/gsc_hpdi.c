@@ -55,7 +55,7 @@ support could be added to this driver.
 
 static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int hpdi_detach(struct comedi_device *dev);
-void abort_dma(struct comedi_device *dev, unsigned int channel);
+static void abort_dma(struct comedi_device *dev, unsigned int channel);
 static int hpdi_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 static int hpdi_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_cmd *cmd);
@@ -110,7 +110,8 @@ enum hpdi_registers {
 int command_channel_valid(unsigned int channel)
 {
 	if (channel == 0 || channel > 6) {
-		printk("gsc_hpdi: bug! invalid cable command channel\n");
+		printk(KERN_WARNING
+		       "gsc_hpdi: bug! invalid cable command channel\n");
 		return 0;
 	}
 	return 1;
@@ -142,7 +143,8 @@ enum board_control_bits {
 	RX_FIFO_RESET_BIT = 0x4,
 	TX_ENABLE_BIT = 0x10,
 	RX_ENABLE_BIT = 0x20,
-	DEMAND_DMA_DIRECTION_TX_BIT = 0x40,	/* for channel 0, channel 1 can only transmit (when present) */
+	DEMAND_DMA_DIRECTION_TX_BIT = 0x40,
+		/* for ch 0, ch 1 can only transmit (when present) */
 	LINE_VALID_ON_STATUS_VALID_BIT = 0x80,
 	START_TX_BIT = 0x10,
 	CABLE_THROTTLE_ENABLE_BIT = 0x20,
@@ -420,9 +422,11 @@ static void init_plx9080(struct comedi_device *dev)
 	bits |= PLX_DMA_EN_READYIN_BIT;
 	/*  enable dma chaining */
 	bits |= PLX_EN_CHAIN_BIT;
-	/*  enable interrupt on dma done (probably don't need this, since chain never finishes) */
+	/*  enable interrupt on dma done
+	 *  (probably don't need this, since chain never finishes) */
 	bits |= PLX_EN_DMA_DONE_INTR_BIT;
-	/*  don't increment local address during transfers (we are transferring from a fixed fifo register) */
+	/*  don't increment local address during transfers
+	 *  (we are transferring from a fixed fifo register) */
 	bits |= PLX_LOCAL_ADDR_CONST_BIT;
 	/*  route dma interrupt to pci bus */
 	bits |= PLX_DMA_INTR_PCI_BIT;
@@ -560,7 +564,7 @@ static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int i;
 	int retval;
 
-	printk("comedi%d: gsc_hpdi\n", dev->minor);
+	printk(KERN_WARNING "comedi%d: gsc_hpdi\n", dev->minor);
 
 	if (alloc_private(dev, sizeof(struct hpdi_private)) < 0)
 		return -ENOMEM;
@@ -588,11 +592,12 @@ static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		} while (pcidev != NULL);
 	}
 	if (dev->board_ptr == NULL) {
-		printk("gsc_hpdi: no hpdi card found\n");
+		printk(KERN_WARNING "gsc_hpdi: no hpdi card found\n");
 		return -EIO;
 	}
 
-	printk("gsc_hpdi: found %s on bus %i, slot %i\n", board(dev)->name,
+	printk(KERN_WARNING
+	       "gsc_hpdi: found %s on bus %i, slot %i\n", board(dev)->name,
 	       pcidev->bus->number, PCI_SLOT(pcidev->devfn));
 
 	if (comedi_pci_enable(pcidev, driver_hpdi.driver_name)) {
@@ -618,7 +623,7 @@ static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	    ioremap(priv(dev)->hpdi_phys_iobase,
 		    pci_resource_len(pcidev, HPDI_BADDRINDEX));
 	if (!priv(dev)->plx9080_iobase || !priv(dev)->hpdi_iobase) {
-		printk(" failed to remap io memory\n");
+		printk(KERN_WARNING " failed to remap io memory\n");
 		return -ENOMEM;
 	}
 
@@ -630,12 +635,13 @@ static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/*  get irq */
 	if (request_irq(pcidev->irq, handle_interrupt, IRQF_SHARED,
 			driver_hpdi.driver_name, dev)) {
-		printk(" unable to allocate irq %u\n", pcidev->irq);
+		printk(KERN_WARNING
+		       " unable to allocate irq %u\n", pcidev->irq);
 		return -EINVAL;
 	}
 	dev->irq = pcidev->irq;
 
-	printk(" irq %u\n", dev->irq);
+	printk(KERN_WARNING " irq %u\n", dev->irq);
 
 	/*  alocate pci dma buffers */
 	for (i = 0; i < NUM_DMA_BUFFERS; i++) {
@@ -653,7 +659,8 @@ static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 						   &priv(dev)->
 						   dma_desc_phys_addr);
 	if (priv(dev)->dma_desc_phys_addr & 0xf) {
-		printk(" dma descriptors not quad-word aligned (bug)\n");
+		printk(KERN_WARNING
+		       " dma descriptors not quad-word aligned (bug)\n");
 		return -EIO;
 	}
 
@@ -672,42 +679,39 @@ static int hpdi_detach(struct comedi_device *dev)
 {
 	unsigned int i;
 
-	printk("comedi%d: gsc_hpdi: remove\n", dev->minor);
+	printk(KERN_WARNING "comedi%d: gsc_hpdi: remove\n", dev->minor);
 
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (priv(dev)) {
-		if (priv(dev)->hw_dev) {
-			if (priv(dev)->plx9080_iobase) {
-				disable_plx_interrupts(dev);
-				iounmap((void *)priv(dev)->plx9080_iobase);
-			}
-			if (priv(dev)->hpdi_iobase)
-				iounmap((void *)priv(dev)->hpdi_iobase);
-			/*  free pci dma buffers */
-			for (i = 0; i < NUM_DMA_BUFFERS; i++) {
-				if (priv(dev)->dio_buffer[i])
-					pci_free_consistent(priv(dev)->hw_dev,
-							    DMA_BUFFER_SIZE,
-							    priv(dev)->
-							    dio_buffer[i],
-							    priv
-							    (dev)->dio_buffer_phys_addr
-							    [i]);
-			}
-			/*  free dma descriptors */
-			if (priv(dev)->dma_desc)
-				pci_free_consistent(priv(dev)->hw_dev,
-						    sizeof(struct plx_dma_desc)
-						    * NUM_DMA_DESCRIPTORS,
-						    priv(dev)->dma_desc,
-						    priv(dev)->
-						    dma_desc_phys_addr);
-			if (priv(dev)->hpdi_phys_iobase) {
-				comedi_pci_disable(priv(dev)->hw_dev);
-			}
-			pci_dev_put(priv(dev)->hw_dev);
+	if ((priv(dev)) && (priv(dev)->hw_dev)) {
+		if (priv(dev)->plx9080_iobase) {
+			disable_plx_interrupts(dev);
+			iounmap((void *)priv(dev)->plx9080_iobase);
 		}
+		if (priv(dev)->hpdi_iobase)
+			iounmap((void *)priv(dev)->hpdi_iobase);
+		/*  free pci dma buffers */
+		for (i = 0; i < NUM_DMA_BUFFERS; i++) {
+			if (priv(dev)->dio_buffer[i])
+				pci_free_consistent(priv(dev)->hw_dev,
+						    DMA_BUFFER_SIZE,
+						    priv(dev)->
+						    dio_buffer[i],
+						    priv
+						    (dev)->dio_buffer_phys_addr
+						    [i]);
+		}
+		/*  free dma descriptors */
+		if (priv(dev)->dma_desc)
+			pci_free_consistent(priv(dev)->hw_dev,
+					    sizeof(struct plx_dma_desc)
+					    * NUM_DMA_DESCRIPTORS,
+					    priv(dev)->dma_desc,
+					    priv(dev)->
+					    dma_desc_phys_addr);
+		if (priv(dev)->hpdi_phys_iobase)
+			comedi_pci_disable(priv(dev)->hw_dev);
+		pci_dev_put(priv(dev)->hw_dev);
 	}
 	return 0;
 }
@@ -810,15 +814,16 @@ static int di_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (err)
 		return 4;
 
-	if (cmd->chanlist) {
-		for (i = 1; i < cmd->chanlist_len; i++) {
-			if (CR_CHAN(cmd->chanlist[i]) != i) {
-				/*  XXX could support 8 channels or 16 channels */
-				comedi_error(dev,
-					     "chanlist must be channels 0 to 31 in order");
-				err++;
-				break;
-			}
+	if (!cmd->chanlist)
+		return 0;
+
+	for (i = 1; i < cmd->chanlist_len; i++) {
+		if (CR_CHAN(cmd->chanlist[i]) != i) {
+			/*  XXX could support 8 or 16 channels */
+			comedi_error(dev,
+				     "chanlist must be ch 0 to 31 in order");
+			err++;
+			break;
 		}
 	}
 
@@ -831,9 +836,9 @@ static int di_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 static int hpdi_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_cmd *cmd)
 {
-	if (priv(dev)->dio_config_output) {
+	if (priv(dev)->dio_config_output)
 		return -EINVAL;
-	} else
+	else
 		return di_cmd_test(dev, s, cmd);
 }
 
@@ -899,9 +904,9 @@ static int di_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 static int hpdi_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	if (priv(dev)->dio_config_output) {
+	if (priv(dev)->dio_config_output)
 		return -EINVAL;
-	} else
+	else
 		return di_cmd(dev, s);
 }
 
@@ -963,14 +968,12 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 	uint8_t dma0_status, dma1_status;
 	unsigned long flags;
 
-	if (!dev->attached) {
+	if (!dev->attached)
 		return IRQ_NONE;
-	}
 
 	plx_status = readl(priv(dev)->plx9080_iobase + PLX_INTRCS_REG);
-	if ((plx_status & (ICS_DMA0_A | ICS_DMA1_A | ICS_LIA)) == 0) {
+	if ((plx_status & (ICS_DMA0_A | ICS_DMA1_A | ICS_LIA)) == 0)
 		return IRQ_NONE;
-	}
 
 	hpdi_intr_status = readl(priv(dev)->hpdi_iobase + INTERRUPT_STATUS_REG);
 	hpdi_board_status = readl(priv(dev)->hpdi_iobase + BOARD_STATUS_REG);
@@ -990,9 +993,8 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 		       priv(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 
 		DEBUG_PRINT("dma0 status 0x%x\n", dma0_status);
-		if (dma0_status & PLX_DMA_EN_BIT) {
+		if (dma0_status & PLX_DMA_EN_BIT)
 			drain_dma_buffers(dev, 0);
-		}
 		DEBUG_PRINT(" cleared dma ch0 interrupt\n");
 	}
 	spin_unlock_irqrestore(&dev->spinlock, flags);
@@ -1042,7 +1044,7 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-void abort_dma(struct comedi_device *dev, unsigned int channel)
+static void abort_dma(struct comedi_device *dev, unsigned int channel)
 {
 	unsigned long flags;
 

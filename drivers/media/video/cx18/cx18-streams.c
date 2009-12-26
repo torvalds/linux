@@ -115,6 +115,9 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 	s->dma = cx18_stream_info[type].dma;
 	s->buffers = cx->stream_buffers[type];
 	s->buf_size = cx->stream_buf_size[type];
+	INIT_LIST_HEAD(&s->buf_pool);
+	s->bufs_per_mdl = 1;
+	s->mdl_size = s->buf_size * s->bufs_per_mdl;
 
 	init_waitqueue_head(&s->waitq);
 	s->id = -1;
@@ -124,6 +127,8 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 	cx18_queue_init(&s->q_busy);
 	spin_lock_init(&s->q_full.lock);
 	cx18_queue_init(&s->q_full);
+	spin_lock_init(&s->q_idle.lock);
+	cx18_queue_init(&s->q_idle);
 
 	INIT_WORK(&s->out_work_order, cx18_out_work_handler);
 }
@@ -214,6 +219,7 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 {
 	struct cx18_stream *s = &cx->streams[type];
 	int vfl_type = cx18_stream_info[type].vfl_type;
+	const char *name;
 	int num, ret;
 
 	/* TODO: Shouldn't this be a VFL_TYPE_TRANSPORT or something?
@@ -253,29 +259,30 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 		s->video_dev = NULL;
 		return ret;
 	}
-	num = s->video_dev->num;
+
+	name = video_device_node_name(s->video_dev);
 
 	switch (vfl_type) {
 	case VFL_TYPE_GRABBER:
-		CX18_INFO("Registered device video%d for %s (%d x %d kB)\n",
-			  num, s->name, cx->stream_buffers[type],
-			  cx->stream_buf_size[type]/1024);
+		CX18_INFO("Registered device %s for %s (%d x %d.%02d kB)\n",
+			  name, s->name, cx->stream_buffers[type],
+			  cx->stream_buf_size[type] / 1024,
+			  (cx->stream_buf_size[type] * 100 / 1024) % 100);
 		break;
 
 	case VFL_TYPE_RADIO:
-		CX18_INFO("Registered device radio%d for %s\n",
-			num, s->name);
+		CX18_INFO("Registered device %s for %s\n", name, s->name);
 		break;
 
 	case VFL_TYPE_VBI:
 		if (cx->stream_buffers[type])
-			CX18_INFO("Registered device vbi%d for %s "
+			CX18_INFO("Registered device %s for %s "
 				  "(%d x %d bytes)\n",
-				  num, s->name, cx->stream_buffers[type],
+				  name, s->name, cx->stream_buffers[type],
 				  cx->stream_buf_size[type]);
 		else
-			CX18_INFO("Registered device vbi%d for %s\n",
-				num, s->name);
+			CX18_INFO("Registered device %s for %s\n",
+				name, s->name);
 		break;
 	}
 
@@ -441,8 +448,8 @@ static void cx18_vbi_setup(struct cx18_stream *s)
 }
 
 static
-struct cx18_queue *_cx18_stream_put_buf_fw(struct cx18_stream *s,
-					   struct cx18_buffer *buf)
+struct cx18_queue *_cx18_stream_put_mdl_fw(struct cx18_stream *s,
+					   struct cx18_mdl *mdl)
 {
 	struct cx18 *cx = s->cx;
 	struct cx18_queue *q;
@@ -451,16 +458,16 @@ struct cx18_queue *_cx18_stream_put_buf_fw(struct cx18_stream *s,
 	if (s->handle == CX18_INVALID_TASK_HANDLE ||
 	    test_bit(CX18_F_S_STOPPING, &s->s_flags) ||
 	    !test_bit(CX18_F_S_STREAMING, &s->s_flags))
-		return cx18_enqueue(s, buf, &s->q_free);
+		return cx18_enqueue(s, mdl, &s->q_free);
 
-	q = cx18_enqueue(s, buf, &s->q_busy);
+	q = cx18_enqueue(s, mdl, &s->q_busy);
 	if (q != &s->q_busy)
-		return q; /* The firmware has the max buffers it can handle */
+		return q; /* The firmware has the max MDLs it can handle */
 
-	cx18_buf_sync_for_device(s, buf);
+	cx18_mdl_sync_for_device(s, mdl);
 	cx18_vapi(cx, CX18_CPU_DE_SET_MDL, 5, s->handle,
-		  (void __iomem *) &cx->scb->cpu_mdl[buf->id] - cx->enc_mem,
-		  1, buf->id, s->buf_size);
+		  (void __iomem *) &cx->scb->cpu_mdl[mdl->id] - cx->enc_mem,
+		  s->bufs_per_mdl, mdl->id, s->mdl_size);
 	return q;
 }
 
@@ -468,19 +475,19 @@ static
 void _cx18_stream_load_fw_queue(struct cx18_stream *s)
 {
 	struct cx18_queue *q;
-	struct cx18_buffer *buf;
+	struct cx18_mdl *mdl;
 
-	if (atomic_read(&s->q_free.buffers) == 0 ||
-	    atomic_read(&s->q_busy.buffers) >= CX18_MAX_FW_MDLS_PER_STREAM)
+	if (atomic_read(&s->q_free.depth) == 0 ||
+	    atomic_read(&s->q_busy.depth) >= CX18_MAX_FW_MDLS_PER_STREAM)
 		return;
 
 	/* Move from q_free to q_busy notifying the firmware, until the limit */
 	do {
-		buf = cx18_dequeue(s, &s->q_free);
-		if (buf == NULL)
+		mdl = cx18_dequeue(s, &s->q_free);
+		if (mdl == NULL)
 			break;
-		q = _cx18_stream_put_buf_fw(s, buf);
-	} while (atomic_read(&s->q_busy.buffers) < CX18_MAX_FW_MDLS_PER_STREAM
+		q = _cx18_stream_put_mdl_fw(s, mdl);
+	} while (atomic_read(&s->q_busy.depth) < CX18_MAX_FW_MDLS_PER_STREAM
 		 && q == &s->q_busy);
 }
 
@@ -492,11 +499,51 @@ void cx18_out_work_handler(struct work_struct *work)
 	_cx18_stream_load_fw_queue(s);
 }
 
+static void cx18_stream_configure_mdls(struct cx18_stream *s)
+{
+	cx18_unload_queues(s);
+
+	switch (s->type) {
+	case CX18_ENC_STREAM_TYPE_YUV:
+		/*
+		 * Height should be a multiple of 32 lines.
+		 * Set the MDL size to the exact size needed for one frame.
+		 * Use enough buffers per MDL to cover the MDL size
+		 */
+		s->mdl_size = 720 * s->cx->params.height * 3 / 2;
+		s->bufs_per_mdl = s->mdl_size / s->buf_size;
+		if (s->mdl_size % s->buf_size)
+			s->bufs_per_mdl++;
+		break;
+	case CX18_ENC_STREAM_TYPE_VBI:
+		s->bufs_per_mdl = 1;
+		if  (cx18_raw_vbi(s->cx)) {
+			s->mdl_size = (s->cx->is_60hz ? 12 : 18)
+						       * 2 * vbi_active_samples;
+		} else {
+			/*
+			 * See comment in cx18_vbi_setup() below about the
+			 * extra lines we capture in sliced VBI mode due to
+			 * the lines on which EAV RP codes toggle.
+			*/
+			s->mdl_size = s->cx->is_60hz
+				   ? (21 - 4 + 1) * 2 * vbi_hblank_samples_60Hz
+				   : (23 - 2 + 1) * 2 * vbi_hblank_samples_50Hz;
+		}
+		break;
+	default:
+		s->bufs_per_mdl = 1;
+		s->mdl_size = s->buf_size * s->bufs_per_mdl;
+		break;
+	}
+
+	cx18_load_queues(s);
+}
+
 int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 {
 	u32 data[MAX_MB_ARGUMENTS];
 	struct cx18 *cx = s->cx;
-	struct cx18_buffer *buf;
 	int captype = 0;
 	struct cx18_api_func_private priv;
 
@@ -619,14 +666,7 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 		(void __iomem *)&cx->scb->cpu_mdl_ack[s->type][1] - cx->enc_mem);
 
 	/* Init all the cpu_mdls for this stream */
-	cx18_flush_queues(s);
-	spin_lock(&s->q_free.lock);
-	list_for_each_entry(buf, &s->q_free.list, list) {
-		cx18_writel(cx, buf->dma_handle,
-					&cx->scb->cpu_mdl[buf->id].paddr);
-		cx18_writel(cx, s->buf_size, &cx->scb->cpu_mdl[buf->id].length);
-	}
-	spin_unlock(&s->q_free.lock);
+	cx18_stream_configure_mdls(s);
 	_cx18_stream_load_fw_queue(s);
 
 	/* begin_capture */

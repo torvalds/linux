@@ -794,7 +794,7 @@ bfa_iocfc_get_stats(struct bfa_s *bfa, struct bfa_iocfc_stats_s *stats,
 
 	if (iocfc->stats_busy) {
 		bfa_trc(bfa, iocfc->stats_busy);
-		return (BFA_STATUS_DEVBUSY);
+		return BFA_STATUS_DEVBUSY;
 	}
 
 	iocfc->stats_busy = BFA_TRUE;
@@ -804,7 +804,7 @@ bfa_iocfc_get_stats(struct bfa_s *bfa, struct bfa_iocfc_stats_s *stats,
 
 	bfa_iocfc_stats_query(bfa);
 
-	return (BFA_STATUS_OK);
+	return BFA_STATUS_OK;
 }
 
 bfa_status_t
@@ -814,7 +814,7 @@ bfa_iocfc_clear_stats(struct bfa_s *bfa, bfa_cb_ioc_t cbfn, void *cbarg)
 
 	if (iocfc->stats_busy) {
 		bfa_trc(bfa, iocfc->stats_busy);
-		return (BFA_STATUS_DEVBUSY);
+		return BFA_STATUS_DEVBUSY;
 	}
 
 	iocfc->stats_busy = BFA_TRUE;
@@ -822,7 +822,7 @@ bfa_iocfc_clear_stats(struct bfa_s *bfa, bfa_cb_ioc_t cbfn, void *cbarg)
 	iocfc->stats_cbarg = cbarg;
 
 	bfa_iocfc_stats_clear(bfa);
-	return (BFA_STATUS_OK);
+	return BFA_STATUS_OK;
 }
 
 /**

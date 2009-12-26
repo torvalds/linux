@@ -7,49 +7,8 @@
 #ifndef _DEF_BF514_H
 #define _DEF_BF514_H
 
-/* Include all Core registers and bit definitions */
-#include <asm/def_LPBlackfin.h>
-
-/* SYSTEM & MMR ADDRESS DEFINITIONS FOR ADSP-BF514 */
-
-/* Include defBF51x_base.h for the set of #defines that are common to all ADSP-BF51x processors */
-#include "defBF51x_base.h"
-
-/* The following are the #defines needed by ADSP-BF514 that are not in the common header */
-
-/* SDH Registers */
-
-#define SDH_PWR_CTL                    0xFFC03900 /* SDH Power Control */
-#define SDH_CLK_CTL                    0xFFC03904 /* SDH Clock Control */
-#define SDH_ARGUMENT                   0xFFC03908 /* SDH Argument */
-#define SDH_COMMAND                    0xFFC0390C /* SDH Command */
-#define SDH_RESP_CMD                   0xFFC03910 /* SDH Response Command */
-#define SDH_RESPONSE0                  0xFFC03914 /* SDH Response0 */
-#define SDH_RESPONSE1                  0xFFC03918 /* SDH Response1 */
-#define SDH_RESPONSE2                  0xFFC0391C /* SDH Response2 */
-#define SDH_RESPONSE3                  0xFFC03920 /* SDH Response3 */
-#define SDH_DATA_TIMER                 0xFFC03924 /* SDH Data Timer */
-#define SDH_DATA_LGTH                  0xFFC03928 /* SDH Data Length */
-#define SDH_DATA_CTL                   0xFFC0392C /* SDH Data Control */
-#define SDH_DATA_CNT                   0xFFC03930 /* SDH Data Counter */
-#define SDH_STATUS                     0xFFC03934 /* SDH Status */
-#define SDH_STATUS_CLR                 0xFFC03938 /* SDH Status Clear */
-#define SDH_MASK0                      0xFFC0393C /* SDH Interrupt0 Mask */
-#define SDH_MASK1                      0xFFC03940 /* SDH Interrupt1 Mask */
-#define SDH_FIFO_CNT                   0xFFC03948 /* SDH FIFO Counter */
-#define SDH_FIFO                       0xFFC03980 /* SDH Data FIFO */
-#define SDH_E_STATUS                   0xFFC039C0 /* SDH Exception Status */
-#define SDH_E_MASK                     0xFFC039C4 /* SDH Exception Mask */
-#define SDH_CFG                        0xFFC039C8 /* SDH Configuration */
-#define SDH_RD_WAIT_EN                 0xFFC039CC /* SDH Read Wait Enable */
-#define SDH_PID0                       0xFFC039D0 /* SDH Peripheral Identification0 */
-#define SDH_PID1                       0xFFC039D4 /* SDH Peripheral Identification1 */
-#define SDH_PID2                       0xFFC039D8 /* SDH Peripheral Identification2 */
-#define SDH_PID3                       0xFFC039DC /* SDH Peripheral Identification3 */
-#define SDH_PID4                       0xFFC039E0 /* SDH Peripheral Identification4 */
-#define SDH_PID5                       0xFFC039E4 /* SDH Peripheral Identification5 */
-#define SDH_PID6                       0xFFC039E8 /* SDH Peripheral Identification6 */
-#define SDH_PID7                       0xFFC039EC /* SDH Peripheral Identification7 */
+/* BF514 is BF512 + RSI */
+#include "defBF512.h"
 
 /* Removable Storage Interface Registers */
 

@@ -10,7 +10,7 @@
 #include <asm/mach-types.h>
 
 #include <mach/gpio.h>
-#include <mach/mux.h>
+#include <plat/mux.h>
 
 #include "leds.h"
 

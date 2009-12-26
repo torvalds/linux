@@ -92,6 +92,7 @@ config PLATFORM_AT32AP
 	select PERFORMANCE_COUNTERS
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_ALLOCATOR
+	select HAVE_FB_ATMEL
 
 #
 # CPU types
@@ -111,6 +112,11 @@ config CPU_AT32AP7002
 	bool
 	select CPU_AT32AP700X
 
+# AP700X boards
+config BOARD_ATNGW100_COMMON
+	bool
+	select CPU_AT32AP7000
+
 choice
 	prompt "AVR32 board type"
 	default BOARD_ATSTK1000
@@ -118,9 +124,13 @@ choice
 config BOARD_ATSTK1000
 	bool "ATSTK1000 evaluation board"
 
-config BOARD_ATNGW100
+config BOARD_ATNGW100_MKI
 	bool "ATNGW100 Network Gateway"
-	select CPU_AT32AP7000
+	select BOARD_ATNGW100_COMMON
+
+config BOARD_ATNGW100_MKII
+	bool "ATNGW100 mkII Network Gateway"
+	select BOARD_ATNGW100_COMMON
 
 config BOARD_HAMMERHEAD
 	bool "Hammerhead board"

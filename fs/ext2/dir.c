@@ -353,8 +353,8 @@ ext2_readdir (struct file * filp, void * dirent, filldir_t filldir)
  *	ext2_find_entry()
  *
  * finds an entry in the specified directory with the wanted name. It
- * returns the page in which the entry was found, and the entry itself
- * (as a parameter - res_dir). Page is returned mapped and unlocked.
+ * returns the page in which the entry was found (as a parameter - res_page),
+ * and the entry itself. Page is returned mapped and unlocked.
  * Entry is guaranteed to be valid.
  */
 struct ext2_dir_entry_2 *ext2_find_entry (struct inode * dir,
@@ -721,5 +721,5 @@ const struct file_operations ext2_dir_operations = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= ext2_compat_ioctl,
 #endif
-	.fsync		= simple_fsync,
+	.fsync		= ext2_fsync,
 };

@@ -603,8 +603,8 @@ AC97_SINGLE("Tone Control - Treble", AC97_MASTER_TONE, 0, 15, 1)
 };
 
 static const struct snd_kcontrol_new snd_ac97_controls_pc_beep[2] = {
-AC97_SINGLE("PC Speaker Playback Switch", AC97_PC_BEEP, 15, 1, 1),
-AC97_SINGLE("PC Speaker Playback Volume", AC97_PC_BEEP, 1, 15, 1)
+AC97_SINGLE("Beep Playback Switch", AC97_PC_BEEP, 15, 1, 1),
+AC97_SINGLE("Beep Playback Volume", AC97_PC_BEEP, 1, 15, 1)
 };
 
 static const struct snd_kcontrol_new snd_ac97_controls_mic_boost =
@@ -1393,7 +1393,7 @@ static int snd_ac97_mixer_build(struct snd_ac97 * ac97)
 		}
 	}
 	
-	/* build PC Speaker controls */
+	/* build Beep controls */
 	if (!(ac97->flags & AC97_HAS_NO_PC_BEEP) && 
 		((ac97->flags & AC97_HAS_PC_BEEP) ||
 	    snd_ac97_try_volume_mix(ac97, AC97_PC_BEEP))) {
@@ -2122,7 +2122,7 @@ int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template,
 		}
 		/* nothing should be in powerdown mode */
 		snd_ac97_write_cache(ac97, AC97_GENERAL_PURPOSE, 0);
-		end_time = jiffies + msecs_to_jiffies(120);
+		end_time = jiffies + msecs_to_jiffies(5000);
 		do {
 			if ((snd_ac97_read(ac97, AC97_POWERDOWN) & 0x0f) == 0x0f)
 				goto __ready_ok;

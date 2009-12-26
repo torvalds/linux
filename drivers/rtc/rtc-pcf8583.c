@@ -277,6 +277,8 @@ static int pcf8583_probe(struct i2c_client *client,
 	if (!pcf8583)
 		return -ENOMEM;
 
+	i2c_set_clientdata(client, pcf8583);
+
 	pcf8583->rtc = rtc_device_register(pcf8583_driver.driver.name,
 			&client->dev, &pcf8583_rtc_ops, THIS_MODULE);
 
@@ -285,7 +287,6 @@ static int pcf8583_probe(struct i2c_client *client,
 		goto exit_kfree;
 	}
 
-	i2c_set_clientdata(client, pcf8583);
 	return 0;
 
 exit_kfree:

@@ -1071,6 +1071,15 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid, unsig
 	channels = (ftr[0] - 7) / csize - 1;
 
 	master_bits = snd_usb_combine_bytes(ftr + 6, csize);
+	/* master configuration quirks */
+	switch (state->chip->usb_id) {
+	case USB_ID(0x08bb, 0x2702):
+		snd_printk(KERN_INFO
+			   "usbmixer: master volume quirk for PCM2702 chip\n");
+		/* disable non-functional volume control */
+		master_bits &= ~(1 << (USB_FEATURE_VOLUME - 1));
+		break;
+	}
 	if (channels > 0)
 		first_ch_bits = snd_usb_combine_bytes(ftr + 6 + csize, csize);
 	else

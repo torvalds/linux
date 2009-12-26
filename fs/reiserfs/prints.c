@@ -349,10 +349,6 @@ void reiserfs_debug(struct super_block *s, int level, const char *fmt, ...)
 
    .  */
 
-#ifdef CONFIG_REISERFS_CHECK
-extern struct tree_balance *cur_tb;
-#endif
-
 void __reiserfs_panic(struct super_block *sb, const char *id,
 		      const char *function, const char *fmt, ...)
 {

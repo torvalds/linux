@@ -218,6 +218,9 @@ void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *))
 
 static void stop_this_cpu(void *dummy)
 {
+	/* Remove this CPU */
+	set_cpu_online(smp_processor_id(), false);
+
 	local_irq_disable();
 	while (1)
 		;
@@ -232,7 +235,7 @@ struct thread_info *current_set[NR_CPUS];
 
 static void __devinit smp_store_cpu_info(int id)
 {
-	per_cpu(pvr, id) = mfspr(SPRN_PVR);
+	per_cpu(cpu_pvr, id) = mfspr(SPRN_PVR);
 }
 
 static void __init smp_create_idle(unsigned int cpu)

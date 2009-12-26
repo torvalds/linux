@@ -617,7 +617,6 @@ static struct bin_attribute nvram = {
 static int __devinit ds1305_probe(struct spi_device *spi)
 {
 	struct ds1305			*ds1305;
-	struct rtc_device		*rtc;
 	int				status;
 	u8				addr, value;
 	struct ds1305_platform_data	*pdata = spi->dev.platform_data;
@@ -756,14 +755,13 @@ static int __devinit ds1305_probe(struct spi_device *spi)
 		dev_dbg(&spi->dev, "AM/PM\n");
 
 	/* register RTC ... from here on, ds1305->ctrl needs locking */
-	rtc = rtc_device_register("ds1305", &spi->dev,
+	ds1305->rtc = rtc_device_register("ds1305", &spi->dev,
 			&ds1305_ops, THIS_MODULE);
-	if (IS_ERR(rtc)) {
-		status = PTR_ERR(rtc);
+	if (IS_ERR(ds1305->rtc)) {
+		status = PTR_ERR(ds1305->rtc);
 		dev_dbg(&spi->dev, "register rtc --> %d\n", status);
 		goto fail0;
 	}
-	ds1305->rtc = rtc;
 
 	/* Maybe set up alarm IRQ; be ready to handle it triggering right
 	 * away.  NOTE that we don't share this.  The signal is active low,
@@ -774,12 +772,14 @@ static int __devinit ds1305_probe(struct spi_device *spi)
 	if (spi->irq) {
 		INIT_WORK(&ds1305->work, ds1305_work);
 		status = request_irq(spi->irq, ds1305_irq,
-				0, dev_name(&rtc->dev), ds1305);
+				0, dev_name(&ds1305->rtc->dev), ds1305);
 		if (status < 0) {
 			dev_dbg(&spi->dev, "request_irq %d --> %d\n",
 					spi->irq, status);
 			goto fail1;
 		}
+
+		device_set_wakeup_capable(&spi->dev, 1);
 	}
 
 	/* export NVRAM */
@@ -794,7 +794,7 @@ static int __devinit ds1305_probe(struct spi_device *spi)
 fail2:
 	free_irq(spi->irq, ds1305);
 fail1:
-	rtc_device_unregister(rtc);
+	rtc_device_unregister(ds1305->rtc);
 fail0:
 	kfree(ds1305);
 	return status;
@@ -802,7 +802,7 @@ fail0:
 
 static int __devexit ds1305_remove(struct spi_device *spi)
 {
-	struct ds1305	*ds1305 = spi_get_drvdata(spi);
+	struct ds1305 *ds1305 = spi_get_drvdata(spi);
 
 	sysfs_remove_bin_file(&spi->dev.kobj, &nvram);
 

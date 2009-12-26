@@ -112,7 +112,7 @@ static void fun_select_chip(struct mtd_info *mtd, int mchip_nr)
 
 	if (mchip_nr == -1) {
 		chip->cmd_ctrl(mtd, NAND_CMD_NONE, 0 | NAND_CTRL_CHANGE);
-	} else if (mchip_nr >= 0) {
+	} else if (mchip_nr >= 0 && mchip_nr < NAND_MAX_CHIPS) {
 		fun->mchip_number = mchip_nr;
 		chip->IO_ADDR_R = fun->io_base + fun->mchip_offsets[mchip_nr];
 		chip->IO_ADDR_W = chip->IO_ADDR_R;

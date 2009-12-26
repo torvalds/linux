@@ -9,6 +9,7 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -25,6 +26,8 @@
 #include <linux/i2c.h>
 #include <linux/usb/sl811.h>
 #include <linux/spi/mmc_spi.h>
+#include <linux/leds.h>
+#include <linux/input.h>
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
 #include <asm/reboot.h>
@@ -65,7 +68,7 @@ static struct isp1760_platform_data isp1760_priv = {
 };
 
 static struct platform_device bfin_isp1760_device = {
-	.name           = "isp1760-hcd",
+	.name           = "isp1760",
 	.id             = 0,
 	.dev = {
 		.platform_data = &isp1760_priv,
@@ -76,7 +79,6 @@ static struct platform_device bfin_isp1760_device = {
 #endif
 
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
-#include <linux/input.h>
 #include <linux/gpio_keys.h>
 
 static struct gpio_keys_button bfin_gpio_keys_table[] = {
@@ -195,28 +197,6 @@ static struct platform_device dm9000_device = {
 };
 #endif
 
-#if defined(CONFIG_AX88180) || defined(CONFIG_AX88180_MODULE)
-static struct resource ax88180_resources[] = {
-	[0] = {
-		.start	= 0x20300000,
-		.end	= 0x20300000 + 0x8000,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_PF7,
-		.end	= IRQ_PF7,
-		.flags	= (IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL),
-	},
-};
-
-static struct platform_device ax88180_device = {
-	.name		= "ax88180",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(ax88180_resources),
-	.resource	= ax88180_resources,
-};
-#endif
-
 #if defined(CONFIG_USB_SL811_HCD) || defined(CONFIG_USB_SL811_HCD_MODULE)
 static struct resource sl811_hcd_resources[] = {
 	{
@@ -272,8 +252,8 @@ static struct resource isp1362_hcd_resources[] = {
 		.end = 0x20360004,
 		.flags = IORESOURCE_MEM,
 	}, {
-		.start = CONFIG_USB_ISP1362_BFIN_GPIO_IRQ,
-		.end = CONFIG_USB_ISP1362_BFIN_GPIO_IRQ,
+		.start = IRQ_PF3,
+		.end = IRQ_PF3,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	},
 };
@@ -297,6 +277,44 @@ static struct platform_device isp1362_hcd_device = {
 	},
 	.num_resources = ARRAY_SIZE(isp1362_hcd_resources),
 	.resource = isp1362_hcd_resources,
+};
+#endif
+
+#if defined(CONFIG_CAN_BFIN) || defined(CONFIG_CAN_BFIN_MODULE)
+unsigned short bfin_can_peripherals[] = {
+	P_CAN0_RX, P_CAN0_TX, 0
+};
+
+static struct resource bfin_can_resources[] = {
+	{
+		.start = 0xFFC02A00,
+		.end = 0xFFC02FFF,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_CAN_RX,
+		.end = IRQ_CAN_RX,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_CAN_TX,
+		.end = IRQ_CAN_TX,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_CAN_ERROR,
+		.end = IRQ_CAN_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device bfin_can_device = {
+	.name = "bfin_can",
+	.num_resources = ARRAY_SIZE(bfin_can_resources),
+	.resource = bfin_can_resources,
+	.dev = {
+		.platform_data = &bfin_can_peripherals, /* Passed to driver */
+	},
 };
 #endif
 
@@ -514,15 +532,14 @@ static struct bfin5xx_spi_chip ad1938_spi_chip_info = {
 };
 #endif
 
-#if defined(CONFIG_INPUT_EVAL_AD7147EBZ)
-#include <linux/input.h>
+#if defined(CONFIG_INPUT_AD714X_SPI) || defined(CONFIG_INPUT_AD714X_SPI_MODULE)
 #include <linux/input/ad714x.h>
 static struct bfin5xx_spi_chip ad7147_spi_chip_info = {
 	.enable_dma = 0,
 	.bits_per_word = 16,
 };
 
-static struct ad714x_slider_plat slider_plat[] = {
+static struct ad714x_slider_plat ad7147_spi_slider_plat[] = {
 	{
 		.start_stage = 0,
 		.end_stage = 7,
@@ -530,7 +547,7 @@ static struct ad714x_slider_plat slider_plat[] = {
 	},
 };
 
-static struct ad714x_button_plat button_plat[] = {
+static struct ad714x_button_plat ad7147_spi_button_plat[] = {
 	{
 		.keycode = BTN_FORWARD,
 		.l_mask = 0,
@@ -557,11 +574,11 @@ static struct ad714x_button_plat button_plat[] = {
 		.h_mask = 0x400,
 	},
 };
-static struct ad714x_platform_data ad7147_platfrom_data = {
+static struct ad714x_platform_data ad7147_spi_platform_data = {
 	.slider_num = 1,
 	.button_num = 5,
-	.slider = slider_plat,
-	.button = button_plat,
+	.slider = ad7147_spi_slider_plat,
+	.button = ad7147_spi_button_plat,
 	.stage_cfg_reg =  {
 		{0xFBFF, 0x1FFF, 0, 0x2626, 1600, 1600, 1600, 1600},
 		{0xEFFF, 0x1FFF, 0, 0x2626, 1650, 1650, 1650, 1650},
@@ -580,10 +597,9 @@ static struct ad714x_platform_data ad7147_platfrom_data = {
 };
 #endif
 
-#if defined(CONFIG_INPUT_EVAL_AD7142EB)
-#include <linux/input.h>
+#if defined(CONFIG_INPUT_AD714X_I2C) || defined(CONFIG_INPUT_AD714X_I2C_MODULE)
 #include <linux/input/ad714x.h>
-static struct ad714x_button_plat button_plat[] = {
+static struct ad714x_button_plat ad7142_i2c_button_plat[] = {
 	{
 		.keycode = BTN_1,
 		.l_mask = 0,
@@ -605,9 +621,9 @@ static struct ad714x_button_plat button_plat[] = {
 		.h_mask = 0x8,
 	},
 };
-static struct ad714x_platform_data ad7142_platfrom_data = {
+static struct ad714x_platform_data ad7142_i2c_platform_data = {
 	.button_num = 4,
-	.button = button_plat,
+	.button = ad7142_i2c_button_plat,
 	.stage_cfg_reg =  {
 		/* fixme: figure out right setting for all comoponent according
 		 * to hardware feature of EVAL-AD7142EB board */
@@ -696,8 +712,7 @@ static const struct ad7879_platform_data bfin_ad7879_ts_info = {
 #endif
 
 #if defined(CONFIG_INPUT_ADXL34X) || defined(CONFIG_INPUT_ADXL34X_MODULE)
-#include <linux/input.h>
-#include <linux/spi/adxl34x.h>
+#include <linux/input/adxl34x.h>
 static const struct adxl34x_platform_data adxl34x_info = {
 	.x_axis_offset = 0,
 	.y_axis_offset = 0,
@@ -721,9 +736,7 @@ static const struct adxl34x_platform_data adxl34x_info = {
 	.ev_code_y = ABS_Y,		/* EV_REL */
 	.ev_code_z = ABS_Z,		/* EV_REL */
 
-	.ev_code_tap_x = BTN_TOUCH,		/* EV_KEY */
-	.ev_code_tap_y = BTN_TOUCH,		/* EV_KEY */
-	.ev_code_tap_z = BTN_TOUCH,		/* EV_KEY */
+	.ev_code_tap = {BTN_TOUCH, BTN_TOUCH, BTN_TOUCH}, /* EV_KEY x,y,z */
 
 /*	.ev_code_ff = KEY_F,*/		/* EV_KEY */
 /*	.ev_code_act_inactivity = KEY_A,*/	/* EV_KEY */
@@ -761,6 +774,47 @@ static struct bfin5xx_spi_chip enc28j60_spi_chip_info = {
 };
 #endif
 
+#if defined(CONFIG_ADF702X) || defined(CONFIG_ADF702X_MODULE)
+static struct bfin5xx_spi_chip adf7021_spi_chip_info = {
+	.bits_per_word = 16,
+	.cs_gpio = GPIO_PF10,
+};
+
+#include <linux/spi/adf702x.h>
+#define TXREG 0x0160A470
+static const u32 adf7021_regs[] = {
+	0x09608FA0,
+	0x00575011,
+	0x00A7F092,
+	0x2B141563,
+	0x81F29E94,
+	0x00003155,
+	0x050A4F66,
+	0x00000007,
+	0x00000008,
+	0x000231E9,
+	0x3296354A,
+	0x891A2B3B,
+	0x00000D9C,
+	0x0000000D,
+	0x0000000E,
+	0x0000000F,
+};
+
+static struct adf702x_platform_data adf7021_platform_data = {
+	.regs_base = (void *)SPORT1_TCR1,
+	.dma_ch_rx = CH_SPORT1_RX,
+	.dma_ch_tx = CH_SPORT1_TX,
+	.irq_sport_err = IRQ_SPORT1_ERROR,
+	.gpio_int_rfs = GPIO_PF8,
+	.pin_req = {P_SPORT1_DTPRI, P_SPORT1_RFS, P_SPORT1_DRPRI,
+			P_SPORT1_RSCLK, P_SPORT1_TSCLK, 0},
+	.adf702x_model = MODEL_ADF7021,
+	.adf702x_regs = adf7021_regs,
+	.tx_reg = TXREG,
+};
+#endif
+
 #if defined(CONFIG_MTD_DATAFLASH) \
 	|| defined(CONFIG_MTD_DATAFLASH_MODULE)
 
@@ -789,6 +843,13 @@ static struct flash_platform_data bfin_spi_dataflash_data = {
 
 /* DataFlash chip */
 static struct bfin5xx_spi_chip data_flash_chip_info = {
+	.enable_dma = 0,         /* use dma transfer with this chip*/
+	.bits_per_word = 8,
+};
+#endif
+
+#if defined(CONFIG_INPUT_ADXL34X_SPI) || defined(CONFIG_INPUT_ADXL34X_SPI_MODULE)
+static struct bfin5xx_spi_chip spi_adxl34x_chip_info = {
 	.enable_dma = 0,         /* use dma transfer with this chip*/
 	.bits_per_word = 8,
 };
@@ -855,7 +916,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 #endif
 
-#if defined(CONFIG_INPUT_EVAL_AD7147EBZ)
+#if defined(CONFIG_INPUT_AD714X_SPI) || defined(CONFIG_INPUT_AD714X_SPI_MODULE)
 	{
 		.modalias = "ad714x_captouch",
 		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
@@ -863,7 +924,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.bus_num = 0,
 		.chip_select = 5,
 		.mode = SPI_MODE_3,
-		.platform_data = &ad7147_platfrom_data,
+		.platform_data = &ad7147_spi_platform_data,
 		.controller_data = &ad7147_spi_chip_info,
 	},
 #endif
@@ -932,6 +993,30 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.mode = SPI_MODE_0,
 	},
 #endif
+#if defined(CONFIG_INPUT_ADXL34X_SPI) || defined(CONFIG_INPUT_ADXL34X_SPI_MODULE)
+	{
+		.modalias	= "adxl34x",
+		.platform_data	= &adxl34x_info,
+		.irq		= IRQ_PF6,
+		.max_speed_hz	= 5000000,    /* max spi clock (SCK) speed in HZ */
+		.bus_num	= 0,
+		.chip_select	= 2,
+		.controller_data = &spi_adxl34x_chip_info,
+		.mode = SPI_MODE_3,
+	},
+#endif
+#if defined(CONFIG_ADF702X) || defined(CONFIG_ADF702X_MODULE)
+	{
+		.modalias = "adf702x",
+		.max_speed_hz = 16000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 0,	/* GPIO controlled SSEL */
+		.controller_data = &adf7021_spi_chip_info,
+		.platform_data = &adf7021_platform_data,
+		.mode = SPI_MODE_0,
+	},
+#endif
+
 };
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
@@ -1175,7 +1260,6 @@ static struct platform_device i2c_bfin_twi_device = {
 #endif
 
 #if defined(CONFIG_KEYBOARD_ADP5588) || defined(CONFIG_KEYBOARD_ADP5588_MODULE)
-#include <linux/input.h>
 #include <linux/i2c/adp5588.h>
 static const unsigned short adp5588_keymap[ADP5588_KEYMAPSIZE] = {
 	[0]	 = KEY_GRAVE,
@@ -1268,35 +1352,33 @@ static struct adp5588_kpad_platform_data adp5588_kpad_data = {
 	 *  ADP5520/5501 Backlight Data
 	 */
 
-static struct adp5520_backlight_platfrom_data adp5520_backlight_data = {
-	.fade_in 		= FADE_T_1200ms,
-	.fade_out 		= FADE_T_1200ms,
-	.fade_led_law 		= BL_LAW_LINEAR,
-	.en_ambl_sens 		= 1,
-	.abml_filt 		= BL_AMBL_FILT_640ms,
-	.l1_daylight_max 	= BL_CUR_mA(15),
-	.l1_daylight_dim 	= BL_CUR_mA(0),
-	.l2_office_max 		= BL_CUR_mA(7),
-	.l2_office_dim 		= BL_CUR_mA(0),
-	.l3_dark_max 		= BL_CUR_mA(3),
-	.l3_dark_dim 		= BL_CUR_mA(0),
-	.l2_trip 		= L2_COMP_CURR_uA(700),
-	.l2_hyst 		= L2_COMP_CURR_uA(50),
-	.l3_trip 		= L3_COMP_CURR_uA(80),
-	.l3_hyst 		= L3_COMP_CURR_uA(20),
+static struct adp5520_backlight_platform_data adp5520_backlight_data = {
+	.fade_in		= ADP5520_FADE_T_1200ms,
+	.fade_out		= ADP5520_FADE_T_1200ms,
+	.fade_led_law		= ADP5520_BL_LAW_LINEAR,
+	.en_ambl_sens		= 1,
+	.abml_filt		= ADP5520_BL_AMBL_FILT_640ms,
+	.l1_daylight_max	= ADP5520_BL_CUR_mA(15),
+	.l1_daylight_dim	= ADP5520_BL_CUR_mA(0),
+	.l2_office_max		= ADP5520_BL_CUR_mA(7),
+	.l2_office_dim		= ADP5520_BL_CUR_mA(0),
+	.l3_dark_max		= ADP5520_BL_CUR_mA(3),
+	.l3_dark_dim		= ADP5520_BL_CUR_mA(0),
+	.l2_trip		= ADP5520_L2_COMP_CURR_uA(700),
+	.l2_hyst		= ADP5520_L2_COMP_CURR_uA(50),
+	.l3_trip		= ADP5520_L3_COMP_CURR_uA(80),
+	.l3_hyst		= ADP5520_L3_COMP_CURR_uA(20),
 };
 
 	/*
 	 *  ADP5520/5501 LEDs Data
 	 */
 
-#include <linux/leds.h>
-
 static struct led_info adp5520_leds[] = {
 	{
 		.name = "adp5520-led1",
 		.default_trigger = "none",
-		.flags = FLAG_ID_ADP5520_LED1_ADP5501_LED0 | LED_OFFT_600ms,
+		.flags = FLAG_ID_ADP5520_LED1_ADP5501_LED0 | ADP5520_LED_OFFT_600ms,
 	},
 #ifdef ADP5520_EN_ALL_LEDS
 	{
@@ -1312,51 +1394,50 @@ static struct led_info adp5520_leds[] = {
 #endif
 };
 
-static struct adp5520_leds_platfrom_data adp5520_leds_data = {
+static struct adp5520_leds_platform_data adp5520_leds_data = {
 	.num_leds = ARRAY_SIZE(adp5520_leds),
 	.leds = adp5520_leds,
-	.fade_in = FADE_T_600ms,
-	.fade_out = FADE_T_600ms,
-	.led_on_time = LED_ONT_600ms,
+	.fade_in = ADP5520_FADE_T_600ms,
+	.fade_out = ADP5520_FADE_T_600ms,
+	.led_on_time = ADP5520_LED_ONT_600ms,
 };
 
 	/*
 	 *  ADP5520 GPIO Data
 	 */
 
-static struct adp5520_gpio_platfrom_data adp5520_gpio_data = {
+static struct adp5520_gpio_platform_data adp5520_gpio_data = {
 	.gpio_start = 50,
-	.gpio_en_mask = GPIO_C1 | GPIO_C2 | GPIO_R2,
-	.gpio_pullup_mask = GPIO_C1 | GPIO_C2 | GPIO_R2,
+	.gpio_en_mask = ADP5520_GPIO_C1 | ADP5520_GPIO_C2 | ADP5520_GPIO_R2,
+	.gpio_pullup_mask = ADP5520_GPIO_C1 | ADP5520_GPIO_C2 | ADP5520_GPIO_R2,
 };
 
 	/*
 	 *  ADP5520 Keypad Data
 	 */
 
-#include <linux/input.h>
 static const unsigned short adp5520_keymap[ADP5520_KEYMAPSIZE] = {
-	[KEY(0, 0)]	= KEY_GRAVE,
-	[KEY(0, 1)]	= KEY_1,
-	[KEY(0, 2)]	= KEY_2,
-	[KEY(0, 3)]	= KEY_3,
-	[KEY(1, 0)]	= KEY_4,
-	[KEY(1, 1)]	= KEY_5,
-	[KEY(1, 2)]	= KEY_6,
-	[KEY(1, 3)]	= KEY_7,
-	[KEY(2, 0)]	= KEY_8,
-	[KEY(2, 1)]	= KEY_9,
-	[KEY(2, 2)]	= KEY_0,
-	[KEY(2, 3)]	= KEY_MINUS,
-	[KEY(3, 0)]	= KEY_EQUAL,
-	[KEY(3, 1)]	= KEY_BACKSLASH,
-	[KEY(3, 2)]	= KEY_BACKSPACE,
-	[KEY(3, 3)]	= KEY_ENTER,
+	[ADP5520_KEY(0, 0)]	= KEY_GRAVE,
+	[ADP5520_KEY(0, 1)]	= KEY_1,
+	[ADP5520_KEY(0, 2)]	= KEY_2,
+	[ADP5520_KEY(0, 3)]	= KEY_3,
+	[ADP5520_KEY(1, 0)]	= KEY_4,
+	[ADP5520_KEY(1, 1)]	= KEY_5,
+	[ADP5520_KEY(1, 2)]	= KEY_6,
+	[ADP5520_KEY(1, 3)]	= KEY_7,
+	[ADP5520_KEY(2, 0)]	= KEY_8,
+	[ADP5520_KEY(2, 1)]	= KEY_9,
+	[ADP5520_KEY(2, 2)]	= KEY_0,
+	[ADP5520_KEY(2, 3)]	= KEY_MINUS,
+	[ADP5520_KEY(3, 0)]	= KEY_EQUAL,
+	[ADP5520_KEY(3, 1)]	= KEY_BACKSLASH,
+	[ADP5520_KEY(3, 2)]	= KEY_BACKSPACE,
+	[ADP5520_KEY(3, 3)]	= KEY_ENTER,
 };
 
-static struct adp5520_keys_platfrom_data adp5520_keys_data = {
-	.rows_en_mask	= ROW_R3 | ROW_R2 | ROW_R1 | ROW_R0,
-	.cols_en_mask	= COL_C3 | COL_C2 | COL_C1 | COL_C0,
+static struct adp5520_keys_platform_data adp5520_keys_data = {
+	.rows_en_mask	= ADP5520_ROW_R3 | ADP5520_ROW_R2 | ADP5520_ROW_R1 | ADP5520_ROW_R0,
+	.cols_en_mask	= ADP5520_COL_C3 | ADP5520_COL_C2 | ADP5520_COL_C1 | ADP5520_COL_C0,
 	.keymap		= adp5520_keymap,
 	.keymapsize	= ARRAY_SIZE(adp5520_keymap),
 	.repeat		= 0,
@@ -1366,50 +1447,81 @@ static struct adp5520_keys_platfrom_data adp5520_keys_data = {
 	 *  ADP5520/5501 Multifuction Device Init Data
 	 */
 
-static struct adp5520_subdev_info adp5520_subdevs[] = {
-	{
-		.name = "adp5520-backlight",
-		.id = ID_ADP5520,
-		.platform_data = &adp5520_backlight_data,
-	},
-	{
-		.name = "adp5520-led",
-		.id = ID_ADP5520,
-		.platform_data = &adp5520_leds_data,
-	},
-	{
-		.name = "adp5520-gpio",
-		.id = ID_ADP5520,
-		.platform_data = &adp5520_gpio_data,
-	},
-	{
-		.name = "adp5520-keys",
-		.id = ID_ADP5520,
-		.platform_data = &adp5520_keys_data,
-	},
-};
-
 static struct adp5520_platform_data adp5520_pdev_data = {
-	.num_subdevs = ARRAY_SIZE(adp5520_subdevs),
-	.subdevs = adp5520_subdevs,
+	.backlight = &adp5520_backlight_data,
+	.leds = &adp5520_leds_data,
+	.gpio = &adp5520_gpio_data,
+	.keys = &adp5520_keys_data,
 };
 
 #endif
 
 #if defined(CONFIG_GPIO_ADP5588) || defined(CONFIG_GPIO_ADP5588_MODULE)
 #include <linux/i2c/adp5588.h>
-static struct adp5588_gpio_platfrom_data adp5588_gpio_data = {
+static struct adp5588_gpio_platform_data adp5588_gpio_data = {
 	.gpio_start = 50,
 	.pullup_dis_mask = 0,
 };
 #endif
 
+#if defined(CONFIG_BACKLIGHT_ADP8870) || defined(CONFIG_BACKLIGHT_ADP8870_MODULE)
+#include <linux/i2c/adp8870.h>
+static struct led_info adp8870_leds[] = {
+	{
+		.name = "adp8870-led7",
+		.default_trigger = "none",
+		.flags = ADP8870_LED_D7 | ADP8870_LED_OFFT_600ms,
+	},
+};
+
+
+static struct adp8870_backlight_platform_data adp8870_pdata = {
+	.bl_led_assign = ADP8870_BL_D1 | ADP8870_BL_D2 | ADP8870_BL_D3 |
+			 ADP8870_BL_D4 | ADP8870_BL_D5 | ADP8870_BL_D6,	/* 1 = Backlight 0 = Individual LED */
+	.pwm_assign = 0,				/* 1 = Enables PWM mode */
+
+	.bl_fade_in = ADP8870_FADE_T_1200ms,		/* Backlight Fade-In Timer */
+	.bl_fade_out = ADP8870_FADE_T_1200ms,		/* Backlight Fade-Out Timer */
+	.bl_fade_law = ADP8870_FADE_LAW_CUBIC1,		/* fade-on/fade-off transfer characteristic */
+
+	.en_ambl_sens = 1,				/* 1 = enable ambient light sensor */
+	.abml_filt = ADP8870_BL_AMBL_FILT_320ms,	/* Light sensor filter time */
+
+	.l1_daylight_max = ADP8870_BL_CUR_mA(20),	/* use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l1_daylight_dim = ADP8870_BL_CUR_mA(0),	/* typ = 0, use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l2_bright_max = ADP8870_BL_CUR_mA(14),		/* use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l2_bright_dim = ADP8870_BL_CUR_mA(0),		/* typ = 0, use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l3_office_max = ADP8870_BL_CUR_mA(6),		/* use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l3_office_dim = ADP8870_BL_CUR_mA(0),		/* typ = 0, use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l4_indoor_max = ADP8870_BL_CUR_mA(3),		/* use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l4_indor_dim = ADP8870_BL_CUR_mA(0),		/* typ = 0, use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l5_dark_max = ADP8870_BL_CUR_mA(2),		/* use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l5_dark_dim = ADP8870_BL_CUR_mA(0),		/* typ = 0, use BL_CUR_mA(I) 0 <= I <= 30 mA */
+
+	.l2_trip = ADP8870_L2_COMP_CURR_uA(710),	/* use L2_COMP_CURR_uA(I) 0 <= I <= 1106 uA */
+	.l2_hyst = ADP8870_L2_COMP_CURR_uA(73),		/* use L2_COMP_CURR_uA(I) 0 <= I <= 1106 uA */
+	.l3_trip = ADP8870_L3_COMP_CURR_uA(389),	/* use L3_COMP_CURR_uA(I) 0 <= I <= 551 uA */
+	.l3_hyst = ADP8870_L3_COMP_CURR_uA(54),		/* use L3_COMP_CURR_uA(I) 0 <= I <= 551 uA */
+	.l4_trip = ADP8870_L4_COMP_CURR_uA(167),	/* use L4_COMP_CURR_uA(I) 0 <= I <= 275 uA */
+	.l4_hyst = ADP8870_L4_COMP_CURR_uA(16),		/* use L4_COMP_CURR_uA(I) 0 <= I <= 275 uA */
+	.l5_trip = ADP8870_L5_COMP_CURR_uA(43),		/* use L5_COMP_CURR_uA(I) 0 <= I <= 138 uA */
+	.l5_hyst = ADP8870_L5_COMP_CURR_uA(11),		/* use L6_COMP_CURR_uA(I) 0 <= I <= 138 uA */
+
+	.leds = adp8870_leds,
+	.num_leds = ARRAY_SIZE(adp8870_leds),
+	.led_fade_law = ADP8870_FADE_LAW_SQUARE,	/* fade-on/fade-off transfer characteristic */
+	.led_fade_in = ADP8870_FADE_T_600ms,
+	.led_fade_out = ADP8870_FADE_T_600ms,
+	.led_on_time = ADP8870_LED_ONT_200ms,
+};
+#endif
+
 static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
-#if defined(CONFIG_INPUT_EVAL_AD7142EB)
+#if defined(CONFIG_INPUT_AD714X_I2C) || defined(CONFIG_INPUT_AD714X_I2C_MODULE)
 	{
 		I2C_BOARD_INFO("ad7142_captouch", 0x2C),
 		.irq = IRQ_PG5,
-		.platform_data = (void *)&ad7142_platfrom_data,
+		.platform_data = (void *)&ad7142_i2c_platform_data,
 	},
 #endif
 #if defined(CONFIG_BFIN_TWI_LCD) || defined(CONFIG_BFIN_TWI_LCD_MODULE)
@@ -1460,6 +1572,32 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 #if defined(CONFIG_FB_BFIN_7393) || defined(CONFIG_FB_BFIN_7393_MODULE)
 	{
 		I2C_BOARD_INFO("bfin-adv7393", 0x2B),
+	},
+#endif
+#if defined(CONFIG_FB_BF537_LQ035) || defined(CONFIG_FB_BF537_LQ035_MODULE)
+	{
+		I2C_BOARD_INFO("bf537-lq035-ad5280", 0x2C),
+	},
+#endif
+#if defined(CONFIG_BACKLIGHT_ADP8870) || defined(CONFIG_BACKLIGHT_ADP8870_MODULE)
+	{
+		I2C_BOARD_INFO("adp8870", 0x2B),
+		.platform_data = (void *)&adp8870_pdata,
+	},
+#endif
+#if defined(CONFIG_SND_SOC_ADAU1371) || defined(CONFIG_SND_SOC_ADAU1371_MODULE)
+	{
+		I2C_BOARD_INFO("adau1371", 0x1A),
+	},
+#endif
+#if defined(CONFIG_SND_SOC_ADAU1761) || defined(CONFIG_SND_SOC_ADAU1761_MODULE)
+	{
+		I2C_BOARD_INFO("adau1761", 0x38),
+	},
+#endif
+#if defined(CONFIG_AD525X_DPOT) || defined(CONFIG_AD525X_DPOT_MODULE)
+	{
+		I2C_BOARD_INFO("ad5258", 0x18),
 	},
 #endif
 };
@@ -1602,8 +1740,8 @@ static struct platform_device *stamp_devices[] __initdata = {
 	&dm9000_device,
 #endif
 
-#if defined(CONFIG_AX88180) || defined(CONFIG_AX88180_MODULE)
-	&ax88180_device,
+#if defined(CONFIG_CAN_BFIN) || defined(CONFIG_CAN_BFIN_MODULE)
+	&bfin_can_device,
 #endif
 
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)

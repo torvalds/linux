@@ -56,7 +56,7 @@ static int fb_notifier_callback(struct notifier_block *self,
 
 static int lcd_register_fb(struct lcd_device *ld)
 {
-	memset(&ld->fb_notif, 0, sizeof(&ld->fb_notif));
+	memset(&ld->fb_notif, 0, sizeof(ld->fb_notif));
 	ld->fb_notif.notifier_call = fb_notifier_callback;
 	return fb_register_client(&ld->fb_notif);
 }
@@ -101,7 +101,7 @@ static ssize_t lcd_store_power(struct device *dev,
 	int power = simple_strtoul(buf, &endp, 0);
 	size_t size = endp - buf;
 
-	if (*endp && isspace(*endp))
+	if (isspace(*endp))
 		size++;
 	if (size != count)
 		return -EINVAL;
@@ -140,7 +140,7 @@ static ssize_t lcd_store_contrast(struct device *dev,
 	int contrast = simple_strtoul(buf, &endp, 0);
 	size_t size = endp - buf;
 
-	if (*endp && isspace(*endp))
+	if (isspace(*endp))
 		size++;
 	if (size != count)
 		return -EINVAL;

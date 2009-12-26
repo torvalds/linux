@@ -203,8 +203,9 @@ static const union acpi_predefined_info predefined_names[] =
 	{{"_BCT", 1, ACPI_RTYPE_INTEGER}},
 	{{"_BDN", 0, ACPI_RTYPE_INTEGER}},
 	{{"_BFS", 1, 0}},
-	{{"_BIF", 0, ACPI_RTYPE_PACKAGE}}, /* Fixed-length (9 Int),(4 Str) */
-			  {{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 9, ACPI_RTYPE_STRING}, 4,0}},
+	{{"_BIF", 0, ACPI_RTYPE_PACKAGE} }, /* Fixed-length (9 Int),(4 Str/Buf) */
+			  {{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 9,
+			     ACPI_RTYPE_STRING | ACPI_RTYPE_BUFFER}, 4, 0} },
 
 	{{"_BIX", 0, ACPI_RTYPE_PACKAGE}},	/* Fixed-length (16 Int),(4 Str) */
 	{{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 16, ACPI_RTYPE_STRING}, 4,

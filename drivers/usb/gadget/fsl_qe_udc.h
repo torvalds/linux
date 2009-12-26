@@ -419,19 +419,4 @@ struct qe_udc {
 #define CPM_USB_RESTART_TX_OPCODE 0x0b
 #define CPM_USB_EP_SHIFT 5
 
-#ifndef CONFIG_CPM
-inline int cpm_command(u32 command, u8 opcode)
-{
-	return -EOPNOTSUPP;
-}
-#endif
-
-#ifndef CONFIG_QUICC_ENGINE
-inline int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol,
-	u32 cmd_input)
-{
-	return -EOPNOTSUPP;
-}
-#endif
-
 #endif  /* __FSL_QE_UDC_H */

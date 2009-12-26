@@ -3,7 +3,6 @@
 
 static bool report_gart_errors;
 static void (*nb_bus_decoder)(int node_id, struct err_regs *regs);
-static void (*orig_mce_callback)(struct mce *m);
 
 void amd_report_gart_errors(bool v)
 {
@@ -300,6 +299,12 @@ void amd_decode_nb_mce(int node_id, struct err_regs *regs, int handle_errors)
 	if (!handle_errors)
 		return;
 
+	/*
+	 * GART TLB error reporting is disabled by default. Bail out early.
+	 */
+	if (TLB_ERROR(ec) && !report_gart_errors)
+		return;
+
 	pr_emerg(" Northbridge Error, node %d", node_id);
 
 	/*
@@ -307,13 +312,12 @@ void amd_decode_nb_mce(int node_id, struct err_regs *regs, int handle_errors)
 	 * value encoding has changed so interpret those differently
 	 */
 	if ((boot_cpu_data.x86 == 0x10) &&
-	    (boot_cpu_data.x86_model > 8)) {
+	    (boot_cpu_data.x86_model > 7)) {
 		if (regs->nbsh & K8_NBSH_ERR_CPU_VAL)
 			pr_cont(", core: %u\n", (u8)(regs->nbsh & 0xf));
 	} else {
-		pr_cont(", core: %d\n", ilog2((regs->nbsh & 0xf)));
+		pr_cont(", core: %d\n", fls((regs->nbsh & 0xf) - 1));
 	}
-
 
 	pr_emerg("%s.\n", EXT_ERR_MSG(xec));
 
@@ -334,21 +338,6 @@ static void amd_decode_fr_mce(u64 mc5_status)
 static inline void amd_decode_err_code(unsigned int ec)
 {
 	if (TLB_ERROR(ec)) {
-		/*
-		 * GART errors are intended to help graphics driver developers
-		 * to detect bad GART PTEs. It is recommended by AMD to disable
-		 * GART table walk error reporting by default[1] (currently
-		 * being disabled in mce_cpu_quirks()) and according to the
-		 * comment in mce_cpu_quirks(), such GART errors can be
-		 * incorrectly triggered. We may see these errors anyway and
-		 * unless requested by the user, they won't be reported.
-		 *
-		 * [1] section 13.10.1 on BIOS and Kernel Developers Guide for
-		 *     AMD NPT family 0Fh processors
-		 */
-		if (!report_gart_errors)
-			return;
-
 		pr_emerg(" Transaction: %s, Cache Level %s\n",
 			 TT_MSG(ec), LL_MSG(ec));
 	} else if (MEM_ERROR(ec)) {
@@ -363,8 +352,10 @@ static inline void amd_decode_err_code(unsigned int ec)
 		pr_warning("Huh? Unknown MCE error 0x%x\n", ec);
 }
 
-static void amd_decode_mce(struct mce *m)
+static int amd_decode_mce(struct notifier_block *nb, unsigned long val,
+			   void *data)
 {
+	struct mce *m = (struct mce *)data;
 	struct err_regs regs;
 	int node, ecc;
 
@@ -420,7 +411,13 @@ static void amd_decode_mce(struct mce *m)
 	}
 
 	amd_decode_err_code(m->status & 0xffff);
+
+	return NOTIFY_STOP;
 }
+
+static struct notifier_block amd_mce_dec_nb = {
+	.notifier_call	= amd_decode_mce,
+};
 
 static int __init mce_amd_init(void)
 {
@@ -428,12 +425,8 @@ static int __init mce_amd_init(void)
 	 * We can decode MCEs for Opteron and later CPUs:
 	 */
 	if ((boot_cpu_data.x86_vendor == X86_VENDOR_AMD) &&
-	    (boot_cpu_data.x86 >= 0xf)) {
-		/* safe the default decode mce callback */
-		orig_mce_callback = x86_mce_decode_callback;
-
-		x86_mce_decode_callback = amd_decode_mce;
-	}
+	    (boot_cpu_data.x86 >= 0xf))
+		atomic_notifier_chain_register(&x86_mce_decoder_chain, &amd_mce_dec_nb);
 
 	return 0;
 }
@@ -442,7 +435,7 @@ early_initcall(mce_amd_init);
 #ifdef MODULE
 static void __exit mce_amd_exit(void)
 {
-	x86_mce_decode_callback = orig_mce_callback;
+	atomic_notifier_chain_unregister(&x86_mce_decoder_chain, &amd_mce_dec_nb);
 }
 
 MODULE_DESCRIPTION("AMD MCE decoder");

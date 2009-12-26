@@ -817,8 +817,8 @@ collect_rx_frame(usb_fifo * fifo, __u8 * data, int len, int finish)
 	}
 	/* we have a complete hdlc packet */
 	if (finish) {
-		if ((!fifo->skbuff->data[fifo->skbuff->len - 1])
-		    && (fifo->skbuff->len > 3)) {
+		if (fifo->skbuff->len > 3 &&
+				!fifo->skbuff->data[fifo->skbuff->len - 1]) {
 
 			if (fifon == HFCUSB_D_RX) {
 				DBG(HFCUSB_DBG_DCHANNEL,
@@ -1086,7 +1086,7 @@ hfc_usb_l2l1(struct hisax_if *my_hisax_if, int pr, void *arg)
 			break;
 		default:
 			DBG(HFCUSB_DBG_STATES,
-			       "HFC_USB: hfc_usb_d_l2l1: unkown state : %#x", pr);
+			       "HFC_USB: hfc_usb_d_l2l1: unknown state : %#x", pr);
 			break;
 	}
 }

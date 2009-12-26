@@ -221,7 +221,7 @@ static int afiucv_pm_restore_thaw(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops afiucv_pm_ops = {
+static const struct dev_pm_ops afiucv_pm_ops = {
 	.prepare = afiucv_pm_prepare,
 	.complete = afiucv_pm_complete,
 	.freeze = afiucv_pm_freeze,
@@ -428,7 +428,6 @@ static void iucv_sock_close(struct sock *sk)
 		break;
 
 	default:
-		sock_set_flag(sk, SOCK_ZAPPED);
 		/* nothing to do here */
 		break;
 	}
@@ -482,7 +481,8 @@ static struct sock *iucv_sock_alloc(struct socket *sock, int proto, gfp_t prio)
 }
 
 /* Create an IUCV socket */
-static int iucv_sock_create(struct net *net, struct socket *sock, int protocol)
+static int iucv_sock_create(struct net *net, struct socket *sock, int protocol,
+			    int kern)
 {
 	struct sock *sk;
 
@@ -536,7 +536,7 @@ void iucv_accept_enqueue(struct sock *parent, struct sock *sk)
 	list_add_tail(&iucv_sk(sk)->accept_q, &par->accept_q);
 	spin_unlock_irqrestore(&par->accept_q_lock, flags);
 	iucv_sk(sk)->parent = parent;
-	parent->sk_ack_backlog++;
+	sk_acceptq_added(parent);
 }
 
 void iucv_accept_unlink(struct sock *sk)
@@ -547,7 +547,7 @@ void iucv_accept_unlink(struct sock *sk)
 	spin_lock_irqsave(&par->accept_q_lock, flags);
 	list_del_init(&iucv_sk(sk)->accept_q);
 	spin_unlock_irqrestore(&par->accept_q_lock, flags);
-	iucv_sk(sk)->parent->sk_ack_backlog--;
+	sk_acceptq_removed(iucv_sk(sk)->parent);
 	iucv_sk(sk)->parent = NULL;
 	sock_put(sk);
 }
@@ -1715,7 +1715,7 @@ static const struct proto_ops iucv_sock_ops = {
 	.getsockopt	= iucv_sock_getsockopt,
 };
 
-static struct net_proto_family iucv_sock_family_ops = {
+static const struct net_proto_family iucv_sock_family_ops = {
 	.family	= AF_IUCV,
 	.owner	= THIS_MODULE,
 	.create	= iucv_sock_create,

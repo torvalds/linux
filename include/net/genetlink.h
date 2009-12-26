@@ -13,8 +13,7 @@
  * @list: list entry for linking
  * @family: pointer to family, need not be set before registering
  */
-struct genl_multicast_group
-{
+struct genl_multicast_group {
 	struct genl_family	*family;	/* private */
 	struct list_head	list;		/* private */
 	char			name[GENL_NAMSIZ];
@@ -35,8 +34,7 @@ struct genl_multicast_group
  * @family_list: family list
  * @mcast_groups: multicast groups list
  */
-struct genl_family
-{
+struct genl_family {
 	unsigned int		id;
 	unsigned int		hdrsize;
 	char			name[GENL_NAMSIZ];
@@ -58,8 +56,7 @@ struct genl_family
  * @userhdr: user specific header
  * @attrs: netlink attributes
  */
-struct genl_info
-{
+struct genl_info {
 	u32			snd_seq;
 	u32			snd_pid;
 	struct nlmsghdr *	nlhdr;
@@ -102,8 +99,7 @@ static inline void genl_info_net_set(struct genl_info *info, struct net *net)
  * @done: completion callback for dumps
  * @ops_list: operations list
  */
-struct genl_ops
-{
+struct genl_ops {
 	u8			cmd;
 	unsigned int		flags;
 	const struct nla_policy	*policy;

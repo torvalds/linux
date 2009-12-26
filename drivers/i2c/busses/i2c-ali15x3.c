@@ -131,7 +131,7 @@ MODULE_PARM_DESC(force_addr,
 static struct pci_driver ali15x3_driver;
 static unsigned short ali15x3_smba;
 
-static int ali15x3_setup(struct pci_dev *ALI15X3_dev)
+static int __devinit ali15x3_setup(struct pci_dev *ALI15X3_dev)
 {
 	u16 a;
 	unsigned char temp;

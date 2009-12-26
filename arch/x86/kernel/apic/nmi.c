@@ -39,7 +39,8 @@
 int unknown_nmi_panic;
 int nmi_watchdog_enabled;
 
-static cpumask_t backtrace_mask __read_mostly;
+/* For reliability, we're prepared to waste bits here. */
+static DECLARE_BITMAP(backtrace_mask, NR_CPUS) __read_mostly;
 
 /* nmi_active:
  * >0: the lapic NMI watchdog is active, but can be disabled
@@ -360,7 +361,7 @@ void stop_apic_nmi_watchdog(void *unused)
  */
 
 static DEFINE_PER_CPU(unsigned, last_irq_sum);
-static DEFINE_PER_CPU(local_t, alert_counter);
+static DEFINE_PER_CPU(long, alert_counter);
 static DEFINE_PER_CPU(int, nmi_touch);
 
 void touch_nmi_watchdog(void)
@@ -414,7 +415,7 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 	}
 
 	/* We can be called before check_nmi_watchdog, hence NULL check. */
-	if (cpumask_test_cpu(cpu, &backtrace_mask)) {
+	if (cpumask_test_cpu(cpu, to_cpumask(backtrace_mask))) {
 		static DEFINE_SPINLOCK(lock);	/* Serialise the printks */
 
 		spin_lock(&lock);
@@ -422,7 +423,7 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 		show_regs(regs);
 		dump_stack();
 		spin_unlock(&lock);
-		cpumask_clear_cpu(cpu, &backtrace_mask);
+		cpumask_clear_cpu(cpu, to_cpumask(backtrace_mask));
 
 		rc = 1;
 	}
@@ -437,8 +438,8 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 		 * Ayiee, looks like this CPU is stuck ...
 		 * wait a few IRQs (5 seconds) before doing the oops ...
 		 */
-		local_inc(&__get_cpu_var(alert_counter));
-		if (local_read(&__get_cpu_var(alert_counter)) == 5 * nmi_hz)
+		__this_cpu_inc(per_cpu_var(alert_counter));
+		if (__this_cpu_read(per_cpu_var(alert_counter)) == 5 * nmi_hz)
 			/*
 			 * die_nmi will return ONLY if NOTIFY_STOP happens..
 			 */
@@ -446,7 +447,7 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 				regs, panic_on_timeout);
 	} else {
 		__get_cpu_var(last_irq_sum) = sum;
-		local_set(&__get_cpu_var(alert_counter), 0);
+		__this_cpu_write(per_cpu_var(alert_counter), 0);
 	}
 
 	/* see if the nmi watchdog went off */
@@ -558,14 +559,14 @@ void arch_trigger_all_cpu_backtrace(void)
 {
 	int i;
 
-	cpumask_copy(&backtrace_mask, cpu_online_mask);
+	cpumask_copy(to_cpumask(backtrace_mask), cpu_online_mask);
 
 	printk(KERN_INFO "sending NMI to all CPUs:\n");
 	apic->send_IPI_all(NMI_VECTOR);
 
 	/* Wait for up to 10 seconds for all CPUs to do the backtrace */
 	for (i = 0; i < 10 * 1000; i++) {
-		if (cpumask_empty(&backtrace_mask))
+		if (cpumask_empty(to_cpumask(backtrace_mask)))
 			break;
 		mdelay(1);
 	}

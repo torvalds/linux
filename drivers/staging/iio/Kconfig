@@ -8,7 +8,7 @@ menuconfig IIO
 	---help---
 	  The industrial I/O subsystem provides a unified framework for
 	  drivers for many different types of embedded sensors using a
-	  number of different physical interfaces (i2c, spi etc). See
+	  number of different physical interfaces (i2c, spi, etc). See
 	  Documentation/industrialio for more information.
 if IIO
 
@@ -23,10 +23,10 @@ if IIO_RING_BUFFER
 config IIO_SW_RING
 	tristate "Industrial I/O lock free software ring"
 	help
-	example software ring buffer implementation.  The design aim
-	of this particular realization was to minize write locking
-	with the intention that some devices would be able to write
-	in interrupt context.
+	  Example software ring buffer implementation.  The design aim
+	  of this particular realization was to minimize write locking
+	  with the intention that some devices would be able to write
+	  in interrupt context.
 
 endif # IIO_RINGBUFFER
 

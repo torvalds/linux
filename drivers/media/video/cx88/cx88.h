@@ -238,6 +238,7 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_HAUPPAUGE_IRONLY        80
 #define CX88_BOARD_WINFAST_DTV1800H        81
 #define CX88_BOARD_WINFAST_DTV2000H_J      82
+#define CX88_BOARD_PROF_7301               83
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
@@ -422,7 +423,6 @@ struct cx8800_suspend_state {
 
 struct cx8800_dev {
 	struct cx88_core           *core;
-	struct list_head           devlist;
 	spinlock_t                 slock;
 
 	/* various device info */
@@ -669,7 +669,6 @@ int cx88_audio_thread(void *data);
 
 int cx8802_register_driver(struct cx8802_driver *drv);
 int cx8802_unregister_driver(struct cx8802_driver *drv);
-struct cx8802_dev *cx8802_get_device(int minor);
 struct cx8802_driver * cx8802_get_driver(struct cx8802_dev *dev, enum cx88_board_type btype);
 
 /* ----------------------------------------------------------- */

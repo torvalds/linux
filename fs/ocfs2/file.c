@@ -1712,7 +1712,8 @@ int ocfs2_check_range_for_refcount(struct inode *inode, loff_t pos,
 	struct super_block *sb = inode->i_sb;
 
 	if (!ocfs2_refcount_tree(OCFS2_SB(inode->i_sb)) ||
-	    !(OCFS2_I(inode)->ip_dyn_features & OCFS2_HAS_REFCOUNT_FL))
+	    !(OCFS2_I(inode)->ip_dyn_features & OCFS2_HAS_REFCOUNT_FL) ||
+	    OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL)
 		return 0;
 
 	cpos = pos >> OCFS2_SB(sb)->s_clustersize_bits;
@@ -2005,7 +2006,7 @@ out_dio:
 	/* buffered aio wouldn't have proper lock coverage today */
 	BUG_ON(ret == -EIOCBQUEUED && !(file->f_flags & O_DIRECT));
 
-	if ((file->f_flags & O_SYNC && !direct_io) || IS_SYNC(inode)) {
+	if ((file->f_flags & O_DSYNC && !direct_io) || IS_SYNC(inode)) {
 		ret = filemap_fdatawrite_range(file->f_mapping, pos,
 					       pos + count - 1);
 		if (ret < 0)

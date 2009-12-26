@@ -414,6 +414,11 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 		goto done;
 	}
 
+	if (!test_bit(HCI_UP, &hdev->flags)) {
+		err = -ENETDOWN;
+		goto done;
+	}
+
 	if (!(skb = bt_skb_send_alloc(sk, len, msg->msg_flags & MSG_DONTWAIT, &err)))
 		goto done;
 
@@ -440,10 +445,10 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 		if (test_bit(HCI_RAW, &hdev->flags) || (ogf == 0x3f)) {
 			skb_queue_tail(&hdev->raw_q, skb);
-			hci_sched_tx(hdev);
+			tasklet_schedule(&hdev->tx_task);
 		} else {
 			skb_queue_tail(&hdev->cmd_q, skb);
-			hci_sched_cmd(hdev);
+			tasklet_schedule(&hdev->cmd_task);
 		}
 	} else {
 		if (!capable(CAP_NET_RAW)) {
@@ -452,7 +457,7 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 		}
 
 		skb_queue_tail(&hdev->raw_q, skb);
-		hci_sched_tx(hdev);
+		tasklet_schedule(&hdev->tx_task);
 	}
 
 	err = len;
@@ -621,7 +626,8 @@ static struct proto hci_sk_proto = {
 	.obj_size	= sizeof(struct hci_pinfo)
 };
 
-static int hci_sock_create(struct net *net, struct socket *sock, int protocol)
+static int hci_sock_create(struct net *net, struct socket *sock, int protocol,
+			   int kern)
 {
 	struct sock *sk;
 
@@ -687,7 +693,7 @@ static int hci_sock_dev_event(struct notifier_block *this, unsigned long event, 
 	return NOTIFY_DONE;
 }
 
-static struct net_proto_family hci_sock_family_ops = {
+static const struct net_proto_family hci_sock_family_ops = {
 	.family	= PF_BLUETOOTH,
 	.owner	= THIS_MODULE,
 	.create	= hci_sock_create,

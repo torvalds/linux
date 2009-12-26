@@ -70,8 +70,8 @@ struct vt_event {
 #define VT_EVENT_UNBLANK	0x0004	/* Screen unblank */
 #define VT_EVENT_RESIZE		0x0008	/* Resize display */
 #define VT_MAX_EVENT		0x000F
-	unsigned int old;		/* Old console */
-	unsigned int new;		/* New console (if changing) */
+	unsigned int oldev;		/* Old console */
+	unsigned int newev;		/* New console (if changing) */
 	unsigned int pad[4];		/* Padding for expansion */
 };
 
@@ -83,5 +83,24 @@ struct vt_setactivate {
 };
 
 #define VT_SETACTIVATE	0x560F	/* Activate and set the mode of a console */
+
+#ifdef __KERNEL__
+
+#ifdef CONFIG_VT_CONSOLE
+
+extern int vt_kmsg_redirect(int new);
+
+#else
+
+static inline int vt_kmsg_redirect(int new)
+{
+	return 0;
+}
+
+#endif
+
+#endif /* __KERNEL__ */
+
+#define vt_get_kmsg_redirect() vt_kmsg_redirect(-1)
 
 #endif /* _LINUX_VT_H */

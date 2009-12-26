@@ -32,6 +32,7 @@
 #include <asm/mach-types.h>
 
 #include <mach/regs-serial.h>
+#include <mach/nuc900_spi.h>
 #include <mach/map.h>
 
 #include "cpu.h"
@@ -196,6 +197,18 @@ static struct platform_device nuc900_device_emc = {
 
 /* SPI device */
 
+static struct nuc900_spi_info nuc900_spiflash_data = {
+	.num_cs		= 1,
+	.lsb		= 0,
+	.txneg		= 1,
+	.rxneg		= 0,
+	.divider	= 24,
+	.sleep		= 0,
+	.txnum		= 0,
+	.txbitlen	= 1,
+	.bus_num	= 0,
+};
+
 static struct resource nuc900_spi_resource[] = {
 	[0] = {
 		.start = W90X900_PA_I2C + SPIOFFSET,
@@ -214,6 +227,9 @@ static struct platform_device nuc900_device_spi = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(nuc900_spi_resource),
 	.resource	= nuc900_spi_resource,
+	.dev		= {
+				.platform_data = &nuc900_spiflash_data,
+			}
 };
 
 /* spi device, spi flash info */

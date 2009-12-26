@@ -162,7 +162,7 @@ enum {
 #define MLX4_EN_DEF_RX_PAUSE	1
 #define MLX4_EN_DEF_TX_PAUSE	1
 
-/* Interval between sucessive polls in the Tx routine when polling is used
+/* Interval between successive polls in the Tx routine when polling is used
    instead of interrupts (in per-core Tx rings) - should be power of 2 */
 #define MLX4_EN_TX_POLL_MODER	16
 #define MLX4_EN_TX_POLL_TIMEOUT	(HZ / 4)

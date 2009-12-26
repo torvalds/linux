@@ -624,11 +624,13 @@ hda-verb.  The program gives you an easy-to-use GUI stuff for showing
 the widget information and adjusting the amp values, as well as the
 proc-compatible output.
 
-The hda-analyzer is a part of alsa.git repository in
-alsa-project.org:
+The hda-analyzer:
 
 - http://git.alsa-project.org/?p=alsa.git;a=tree;f=hda-analyzer
 
+is a part of alsa.git repository in alsa-project.org:
+
+- git://git.alsa-project.org/alsa.git
 
 Codecgraph
 ~~~~~~~~~~

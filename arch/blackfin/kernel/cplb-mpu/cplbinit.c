@@ -38,7 +38,7 @@ void __init generate_cplb_tables_cpu(unsigned int cpu)
 
 #ifdef CONFIG_BFIN_EXTMEM_DCACHEABLE
 	d_cache = CPLB_L1_CHBL;
-#ifdef CONFIG_BFIN_EXTMEM_WRITETROUGH
+#ifdef CONFIG_BFIN_EXTMEM_WRITETHROUGH
 	d_cache |= CPLB_L1_AOW | CPLB_WT;
 #endif
 #endif
@@ -92,6 +92,6 @@ void __init generate_cplb_tables_cpu(unsigned int cpu)
 		icplb_tbl[cpu][i_i++].data = 0;
 }
 
-void generate_cplb_tables_all(void)
+void __init generate_cplb_tables_all(void)
 {
 }

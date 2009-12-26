@@ -251,7 +251,7 @@ early_param("loglevel", loglevel);
 
 /*
  * Unknown boot options get handed to init, unless they look like
- * failed parameters
+ * unused parameters (modprobe will find them in /proc/cmdline).
  */
 static int __init unknown_bootoption(char *param, char *val)
 {
@@ -272,14 +272,9 @@ static int __init unknown_bootoption(char *param, char *val)
 	if (obsolete_checksetup(param))
 		return 0;
 
-	/*
-	 * Preemptive maintenance for "why didn't my misspelled command
-	 * line work?"
-	 */
-	if (strchr(param, '.') && (!val || strchr(param, '.') < val)) {
-		printk(KERN_ERR "Unknown boot option `%s': ignoring\n", param);
+	/* Unused module parameter. */
+	if (strchr(param, '.') && (!val || strchr(param, '.') < val))
 		return 0;
-	}
 
 	if (panic_later)
 		return 0;
@@ -373,12 +368,6 @@ static void __init setup_nr_cpu_ids(void)
 static void __init smp_init(void)
 {
 	unsigned int cpu;
-
-	/*
-	 * Set up the current CPU as possible to migrate to.
-	 * The other ones will be done by cpu_up/cpu_down()
-	 */
-	set_cpu_active(smp_processor_id(), true);
 
 	/* FIXME: This should be done in userspace --RR */
 	for_each_present_cpu(cpu) {
@@ -491,6 +480,7 @@ static void __init boot_cpu_init(void)
 	int cpu = smp_processor_id();
 	/* Mark the boot cpu "present", "online" etc for SMP and UP case */
 	set_cpu_online(cpu, true);
+	set_cpu_active(cpu, true);
 	set_cpu_present(cpu, true);
 	set_cpu_possible(cpu, true);
 }
@@ -696,10 +686,10 @@ asmlinkage void __init start_kernel(void)
 static void __init do_ctors(void)
 {
 #ifdef CONFIG_CONSTRUCTORS
-	ctor_fn_t *call = (ctor_fn_t *) __ctors_start;
+	ctor_fn_t *fn = (ctor_fn_t *) __ctors_start;
 
-	for (; call < (ctor_fn_t *) __ctors_end; call++)
-		(*call)();
+	for (; fn < (ctor_fn_t *) __ctors_end; fn++)
+		(*fn)();
 #endif
 }
 
@@ -760,10 +750,10 @@ extern initcall_t __initcall_start[], __initcall_end[], __early_initcall_end[];
 
 static void __init do_initcalls(void)
 {
-	initcall_t *call;
+	initcall_t *fn;
 
-	for (call = __early_initcall_end; call < __initcall_end; call++)
-		do_one_initcall(*call);
+	for (fn = __early_initcall_end; fn < __initcall_end; fn++)
+		do_one_initcall(*fn);
 
 	/* Make sure there is no pending stuff from the initcall sequence */
 	flush_scheduled_work();
@@ -790,10 +780,10 @@ static void __init do_basic_setup(void)
 
 static void __init do_pre_smp_initcalls(void)
 {
-	initcall_t *call;
+	initcall_t *fn;
 
-	for (call = __initcall_start; call < __early_initcall_end; call++)
-		do_one_initcall(*call);
+	for (fn = __initcall_start; fn < __early_initcall_end; fn++)
+		do_one_initcall(*fn);
 }
 
 static void run_init_process(char *init_filename)

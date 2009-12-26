@@ -199,7 +199,7 @@ static int lgs8gxx_set_if_freq(struct lgs8gxx_state *priv, u32 freq /*in kHz*/)
 
 	val = freq;
 	if (freq != 0) {
-		val *= (u64)1 << 32;
+		val <<= 32;
 		if (if_clk != 0)
 			do_div(val, if_clk);
 		v32 = val & 0xFFFFFFFF;
@@ -246,7 +246,7 @@ static int lgs8gxx_get_afc_phase(struct lgs8gxx_state *priv)
 
 	val = v32;
 	val *= priv->config->if_clk_freq;
-	val /= (u64)1 << 32;
+	val >>= 32;
 	dprintk("AFC = %u kHz\n", (u32)val);
 	return 0;
 }

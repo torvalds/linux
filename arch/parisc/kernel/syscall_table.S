@@ -234,7 +234,7 @@
 	ENTRY_SAME(getsid)
 	ENTRY_SAME(fdatasync)
 	/* struct __sysctl_args is a mess */
-	ENTRY_DIFF(sysctl)
+	ENTRY_COMP(sysctl)
 	ENTRY_SAME(mlock)		/* 150 */
 	ENTRY_SAME(munlock)
 	ENTRY_SAME(mlockall)

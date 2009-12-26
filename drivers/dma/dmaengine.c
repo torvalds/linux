@@ -326,14 +326,7 @@ arch_initcall(dma_channel_table_init);
  */
 struct dma_chan *dma_find_channel(enum dma_transaction_type tx_type)
 {
-	struct dma_chan *chan;
-	int cpu;
-
-	cpu = get_cpu();
-	chan = per_cpu_ptr(channel_table[tx_type], cpu)->chan;
-	put_cpu();
-
-	return chan;
+	return this_cpu_read(channel_table[tx_type]->chan);
 }
 EXPORT_SYMBOL(dma_find_channel);
 
@@ -632,11 +625,21 @@ static bool device_has_all_tx_types(struct dma_device *device)
 	#if defined(CONFIG_ASYNC_XOR) || defined(CONFIG_ASYNC_XOR_MODULE)
 	if (!dma_has_cap(DMA_XOR, device->cap_mask))
 		return false;
+
+	#ifndef CONFIG_ASYNC_TX_DISABLE_XOR_VAL_DMA
+	if (!dma_has_cap(DMA_XOR_VAL, device->cap_mask))
+		return false;
+	#endif
 	#endif
 
 	#if defined(CONFIG_ASYNC_PQ) || defined(CONFIG_ASYNC_PQ_MODULE)
 	if (!dma_has_cap(DMA_PQ, device->cap_mask))
 		return false;
+
+	#ifndef CONFIG_ASYNC_TX_DISABLE_PQ_VAL_DMA
+	if (!dma_has_cap(DMA_PQ_VAL, device->cap_mask))
+		return false;
+	#endif
 	#endif
 
 	return true;
@@ -847,7 +850,6 @@ dma_async_memcpy_buf_to_buf(struct dma_chan *chan, void *dest,
 	struct dma_async_tx_descriptor *tx;
 	dma_addr_t dma_dest, dma_src;
 	dma_cookie_t cookie;
-	int cpu;
 	unsigned long flags;
 
 	dma_src = dma_map_single(dev->dev, src, len, DMA_TO_DEVICE);
@@ -866,10 +868,10 @@ dma_async_memcpy_buf_to_buf(struct dma_chan *chan, void *dest,
 	tx->callback = NULL;
 	cookie = tx->tx_submit(tx);
 
-	cpu = get_cpu();
-	per_cpu_ptr(chan->local, cpu)->bytes_transferred += len;
-	per_cpu_ptr(chan->local, cpu)->memcpy_count++;
-	put_cpu();
+	preempt_disable();
+	__this_cpu_add(chan->local->bytes_transferred, len);
+	__this_cpu_inc(chan->local->memcpy_count);
+	preempt_enable();
 
 	return cookie;
 }
@@ -896,7 +898,6 @@ dma_async_memcpy_buf_to_pg(struct dma_chan *chan, struct page *page,
 	struct dma_async_tx_descriptor *tx;
 	dma_addr_t dma_dest, dma_src;
 	dma_cookie_t cookie;
-	int cpu;
 	unsigned long flags;
 
 	dma_src = dma_map_single(dev->dev, kdata, len, DMA_TO_DEVICE);
@@ -913,10 +914,10 @@ dma_async_memcpy_buf_to_pg(struct dma_chan *chan, struct page *page,
 	tx->callback = NULL;
 	cookie = tx->tx_submit(tx);
 
-	cpu = get_cpu();
-	per_cpu_ptr(chan->local, cpu)->bytes_transferred += len;
-	per_cpu_ptr(chan->local, cpu)->memcpy_count++;
-	put_cpu();
+	preempt_disable();
+	__this_cpu_add(chan->local->bytes_transferred, len);
+	__this_cpu_inc(chan->local->memcpy_count);
+	preempt_enable();
 
 	return cookie;
 }
@@ -945,7 +946,6 @@ dma_async_memcpy_pg_to_pg(struct dma_chan *chan, struct page *dest_pg,
 	struct dma_async_tx_descriptor *tx;
 	dma_addr_t dma_dest, dma_src;
 	dma_cookie_t cookie;
-	int cpu;
 	unsigned long flags;
 
 	dma_src = dma_map_page(dev->dev, src_pg, src_off, len, DMA_TO_DEVICE);
@@ -963,10 +963,10 @@ dma_async_memcpy_pg_to_pg(struct dma_chan *chan, struct page *dest_pg,
 	tx->callback = NULL;
 	cookie = tx->tx_submit(tx);
 
-	cpu = get_cpu();
-	per_cpu_ptr(chan->local, cpu)->bytes_transferred += len;
-	per_cpu_ptr(chan->local, cpu)->memcpy_count++;
-	put_cpu();
+	preempt_disable();
+	__this_cpu_add(chan->local->bytes_transferred, len);
+	__this_cpu_inc(chan->local->memcpy_count);
+	preempt_enable();
 
 	return cookie;
 }

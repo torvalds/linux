@@ -134,19 +134,24 @@ static inline void task_name(struct seq_file *m, struct task_struct *p)
  * simple bit tests.
  */
 static const char *task_state_array[] = {
-	"R (running)",		/*  0 */
-	"S (sleeping)",		/*  1 */
-	"D (disk sleep)",	/*  2 */
-	"T (stopped)",		/*  4 */
-	"T (tracing stop)",	/*  8 */
-	"Z (zombie)",		/* 16 */
-	"X (dead)"		/* 32 */
+	"R (running)",		/*   0 */
+	"S (sleeping)",		/*   1 */
+	"D (disk sleep)",	/*   2 */
+	"T (stopped)",		/*   4 */
+	"t (tracing stop)",	/*   8 */
+	"Z (zombie)",		/*  16 */
+	"X (dead)",		/*  32 */
+	"x (dead)",		/*  64 */
+	"K (wakekill)",		/* 128 */
+	"W (waking)",		/* 256 */
 };
 
 static inline const char *get_task_state(struct task_struct *tsk)
 {
 	unsigned int state = (tsk->state & TASK_REPORT) | tsk->exit_state;
 	const char **p = &task_state_array[0];
+
+	BUILD_BUG_ON(1 + ilog2(TASK_STATE_MAX) != ARRAY_SIZE(task_state_array));
 
 	while (state) {
 		p++;
@@ -410,6 +415,16 @@ static void task_show_stack_usage(struct seq_file *m, struct task_struct *task)
 }
 #endif		/* CONFIG_MMU */
 
+static void task_cpus_allowed(struct seq_file *m, struct task_struct *task)
+{
+	seq_printf(m, "Cpus_allowed:\t");
+	seq_cpumask(m, &task->cpus_allowed);
+	seq_printf(m, "\n");
+	seq_printf(m, "Cpus_allowed_list:\t");
+	seq_cpumask_list(m, &task->cpus_allowed);
+	seq_printf(m, "\n");
+}
+
 int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
 			struct pid *pid, struct task_struct *task)
 {
@@ -424,6 +439,7 @@ int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
 	}
 	task_sig(m, task);
 	task_cap(m, task);
+	task_cpus_allowed(m, task);
 	cpuset_task_status_allowed(m, task);
 #if defined(CONFIG_S390)
 	task_show_regs(m, task);
@@ -495,20 +511,17 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 
 		/* add up live thread stats at the group level */
 		if (whole) {
-			struct task_cputime cputime;
 			struct task_struct *t = task;
 			do {
 				min_flt += t->min_flt;
 				maj_flt += t->maj_flt;
-				gtime = cputime_add(gtime, task_gtime(t));
+				gtime = cputime_add(gtime, t->gtime);
 				t = next_thread(t);
 			} while (t != task);
 
 			min_flt += sig->min_flt;
 			maj_flt += sig->maj_flt;
-			thread_group_cputime(task, &cputime);
-			utime = cputime.utime;
-			stime = cputime.stime;
+			thread_group_times(task, &utime, &stime);
 			gtime = cputime_add(gtime, sig->gtime);
 		}
 
@@ -524,9 +537,8 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 	if (!whole) {
 		min_flt = task->min_flt;
 		maj_flt = task->maj_flt;
-		utime = task_utime(task);
-		stime = task_stime(task);
-		gtime = task_gtime(task);
+		task_times(task, &utime, &stime);
+		gtime = task->gtime;
 	}
 
 	/* scale priority and nice values from timeslices to -20..20 */
@@ -571,7 +583,7 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 		rsslim,
 		mm ? mm->start_code : 0,
 		mm ? mm->end_code : 0,
-		(permitted) ? task->stack_start : 0,
+		(permitted && mm) ? task->stack_start : 0,
 		esp,
 		eip,
 		/* The signal information here is obsolete.

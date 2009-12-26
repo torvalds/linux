@@ -2947,6 +2947,7 @@ static void handle_stripe5(struct stripe_head *sh)
 	struct r5dev *dev;
 	mdk_rdev_t *blocked_rdev = NULL;
 	int prexor;
+	int dec_preread_active = 0;
 
 	memset(&s, 0, sizeof(s));
 	pr_debug("handling stripe %llu, state=%#lx cnt=%d, pd_idx=%d check:%d "
@@ -3096,12 +3097,8 @@ static void handle_stripe5(struct stripe_head *sh)
 					set_bit(STRIPE_INSYNC, &sh->state);
 			}
 		}
-		if (test_and_clear_bit(STRIPE_PREREAD_ACTIVE, &sh->state)) {
-			atomic_dec(&conf->preread_active_stripes);
-			if (atomic_read(&conf->preread_active_stripes) <
-				IO_THRESHOLD)
-				md_wakeup_thread(conf->mddev->thread);
-		}
+		if (test_and_clear_bit(STRIPE_PREREAD_ACTIVE, &sh->state))
+			dec_preread_active = 1;
 	}
 
 	/* Now to consider new write requests and what else, if anything
@@ -3208,6 +3205,16 @@ static void handle_stripe5(struct stripe_head *sh)
 
 	ops_run_io(sh, &s);
 
+	if (dec_preread_active) {
+		/* We delay this until after ops_run_io so that if make_request
+		 * is waiting on a barrier, it won't continue until the writes
+		 * have actually been submitted.
+		 */
+		atomic_dec(&conf->preread_active_stripes);
+		if (atomic_read(&conf->preread_active_stripes) <
+		    IO_THRESHOLD)
+			md_wakeup_thread(conf->mddev->thread);
+	}
 	return_io(return_bi);
 }
 
@@ -3221,6 +3228,7 @@ static void handle_stripe6(struct stripe_head *sh)
 	struct r6_state r6s;
 	struct r5dev *dev, *pdev, *qdev;
 	mdk_rdev_t *blocked_rdev = NULL;
+	int dec_preread_active = 0;
 
 	pr_debug("handling stripe %llu, state=%#lx cnt=%d, "
 		"pd_idx=%d, qd_idx=%d\n, check:%d, reconstruct:%d\n",
@@ -3358,7 +3366,6 @@ static void handle_stripe6(struct stripe_head *sh)
 	 * completed
 	 */
 	if (sh->reconstruct_state == reconstruct_state_drain_result) {
-		int qd_idx = sh->qd_idx;
 
 		sh->reconstruct_state = reconstruct_state_idle;
 		/* All the 'written' buffers and the parity blocks are ready to
@@ -3380,12 +3387,8 @@ static void handle_stripe6(struct stripe_head *sh)
 					set_bit(STRIPE_INSYNC, &sh->state);
 			}
 		}
-		if (test_and_clear_bit(STRIPE_PREREAD_ACTIVE, &sh->state)) {
-			atomic_dec(&conf->preread_active_stripes);
-			if (atomic_read(&conf->preread_active_stripes) <
-				IO_THRESHOLD)
-				md_wakeup_thread(conf->mddev->thread);
-		}
+		if (test_and_clear_bit(STRIPE_PREREAD_ACTIVE, &sh->state))
+			dec_preread_active = 1;
 	}
 
 	/* Now to consider new write requests and what else, if anything
@@ -3493,6 +3496,18 @@ static void handle_stripe6(struct stripe_head *sh)
 		raid_run_ops(sh, s.ops_request);
 
 	ops_run_io(sh, &s);
+
+
+	if (dec_preread_active) {
+		/* We delay this until after ops_run_io so that if make_request
+		 * is waiting on a barrier, it won't continue until the writes
+		 * have actually been submitted.
+		 */
+		atomic_dec(&conf->preread_active_stripes);
+		if (atomic_read(&conf->preread_active_stripes) <
+		    IO_THRESHOLD)
+			md_wakeup_thread(conf->mddev->thread);
+	}
 
 	return_io(return_bi);
 }
@@ -3741,7 +3756,7 @@ static int chunk_aligned_read(struct request_queue *q, struct bio * raid_bio)
 {
 	mddev_t *mddev = q->queuedata;
 	raid5_conf_t *conf = mddev->private;
-	unsigned int dd_idx;
+	int dd_idx;
 	struct bio* align_bi;
 	mdk_rdev_t *rdev;
 
@@ -3866,7 +3881,13 @@ static int make_request(struct request_queue *q, struct bio * bi)
 	int cpu, remaining;
 
 	if (unlikely(bio_rw_flagged(bi, BIO_RW_BARRIER))) {
-		bio_endio(bi, -EOPNOTSUPP);
+		/* Drain all pending writes.  We only really need
+		 * to ensure they have been submitted, but this is
+		 * easier.
+		 */
+		mddev->pers->quiesce(mddev, 1);
+		mddev->pers->quiesce(mddev, 0);
+		md_barrier_request(mddev, bi);
 		return 0;
 	}
 
@@ -3990,6 +4011,9 @@ static int make_request(struct request_queue *q, struct bio * bi)
 			finish_wait(&conf->wait_for_overlap, &w);
 			set_bit(STRIPE_HANDLE, &sh->state);
 			clear_bit(STRIPE_DELAYED, &sh->state);
+			if (mddev->barrier && 
+			    !test_and_set_bit(STRIPE_PREREAD_ACTIVE, &sh->state))
+				atomic_inc(&conf->preread_active_stripes);
 			release_stripe(sh);
 		} else {
 			/* cannot get stripe for read-ahead, just give-up */
@@ -4008,6 +4032,14 @@ static int make_request(struct request_queue *q, struct bio * bi)
 			md_write_end(mddev);
 
 		bio_endio(bi, 0);
+	}
+
+	if (mddev->barrier) {
+		/* We need to wait for the stripes to all be handled.
+		 * So: wait for preread_active_stripes to drop to 0.
+		 */
+		wait_event(mddev->thread->wqueue,
+			   atomic_read(&conf->preread_active_stripes) == 0);
 	}
 	return 0;
 }
@@ -4049,6 +4081,8 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 			sector_nr = conf->reshape_progress;
 		sector_div(sector_nr, new_data_disks);
 		if (sector_nr) {
+			mddev->curr_resync_completed = sector_nr;
+			sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 			*skipped = 1;
 			return sector_nr;
 		}
@@ -4821,11 +4855,40 @@ static raid5_conf_t *setup_conf(mddev_t *mddev)
 		return ERR_PTR(-ENOMEM);
 }
 
+
+static int only_parity(int raid_disk, int algo, int raid_disks, int max_degraded)
+{
+	switch (algo) {
+	case ALGORITHM_PARITY_0:
+		if (raid_disk < max_degraded)
+			return 1;
+		break;
+	case ALGORITHM_PARITY_N:
+		if (raid_disk >= raid_disks - max_degraded)
+			return 1;
+		break;
+	case ALGORITHM_PARITY_0_6:
+		if (raid_disk == 0 || 
+		    raid_disk == raid_disks - 1)
+			return 1;
+		break;
+	case ALGORITHM_LEFT_ASYMMETRIC_6:
+	case ALGORITHM_RIGHT_ASYMMETRIC_6:
+	case ALGORITHM_LEFT_SYMMETRIC_6:
+	case ALGORITHM_RIGHT_SYMMETRIC_6:
+		if (raid_disk == raid_disks - 1)
+			return 1;
+	}
+	return 0;
+}
+
 static int run(mddev_t *mddev)
 {
 	raid5_conf_t *conf;
 	int working_disks = 0, chunk_size;
+	int dirty_parity_disks = 0;
 	mdk_rdev_t *rdev;
+	sector_t reshape_offset = 0;
 
 	if (mddev->recovery_cp != MaxSector)
 		printk(KERN_NOTICE "raid5: %s is not clean"
@@ -4859,6 +4922,7 @@ static int run(mddev_t *mddev)
 			       "on a stripe boundary\n");
 			return -EINVAL;
 		}
+		reshape_offset = here_new * mddev->new_chunk_sectors;
 		/* here_new is the stripe we will write to */
 		here_old = mddev->reshape_position;
 		sector_div(here_old, mddev->chunk_sectors *
@@ -4914,10 +4978,51 @@ static int run(mddev_t *mddev)
 	/*
 	 * 0 for a fully functional array, 1 or 2 for a degraded array.
 	 */
-	list_for_each_entry(rdev, &mddev->disks, same_set)
-		if (rdev->raid_disk >= 0 &&
-		    test_bit(In_sync, &rdev->flags))
+	list_for_each_entry(rdev, &mddev->disks, same_set) {
+		if (rdev->raid_disk < 0)
+			continue;
+		if (test_bit(In_sync, &rdev->flags))
 			working_disks++;
+		/* This disc is not fully in-sync.  However if it
+		 * just stored parity (beyond the recovery_offset),
+		 * when we don't need to be concerned about the
+		 * array being dirty.
+		 * When reshape goes 'backwards', we never have
+		 * partially completed devices, so we only need
+		 * to worry about reshape going forwards.
+		 */
+		/* Hack because v0.91 doesn't store recovery_offset properly. */
+		if (mddev->major_version == 0 &&
+		    mddev->minor_version > 90)
+			rdev->recovery_offset = reshape_offset;
+			
+		printk("%d: w=%d pa=%d pr=%d m=%d a=%d r=%d op1=%d op2=%d\n",
+		       rdev->raid_disk, working_disks, conf->prev_algo,
+		       conf->previous_raid_disks, conf->max_degraded,
+		       conf->algorithm, conf->raid_disks, 
+		       only_parity(rdev->raid_disk,
+				   conf->prev_algo,
+				   conf->previous_raid_disks,
+				   conf->max_degraded),
+		       only_parity(rdev->raid_disk,
+				   conf->algorithm,
+				   conf->raid_disks,
+				   conf->max_degraded));
+		if (rdev->recovery_offset < reshape_offset) {
+			/* We need to check old and new layout */
+			if (!only_parity(rdev->raid_disk,
+					 conf->algorithm,
+					 conf->raid_disks,
+					 conf->max_degraded))
+				continue;
+		}
+		if (!only_parity(rdev->raid_disk,
+				 conf->prev_algo,
+				 conf->previous_raid_disks,
+				 conf->max_degraded))
+			continue;
+		dirty_parity_disks++;
+	}
 
 	mddev->degraded = (max(conf->raid_disks, conf->previous_raid_disks)
 			   - working_disks);
@@ -4933,7 +5038,7 @@ static int run(mddev_t *mddev)
 	mddev->dev_sectors &= ~(mddev->chunk_sectors - 1);
 	mddev->resync_max_sectors = mddev->dev_sectors;
 
-	if (mddev->degraded > 0 &&
+	if (mddev->degraded > dirty_parity_disks &&
 	    mddev->recovery_cp != MaxSector) {
 		if (mddev->ok_start_degraded)
 			printk(KERN_WARNING
@@ -5359,9 +5464,11 @@ static int raid5_start_reshape(mddev_t *mddev)
 		    !test_bit(Faulty, &rdev->flags)) {
 			if (raid5_add_disk(mddev, rdev) == 0) {
 				char nm[20];
-				set_bit(In_sync, &rdev->flags);
+				if (rdev->raid_disk >= conf->previous_raid_disks)
+					set_bit(In_sync, &rdev->flags);
+				else
+					rdev->recovery_offset = 0;
 				added_devices++;
-				rdev->recovery_offset = 0;
 				sprintf(nm, "rd%d", rdev->raid_disk);
 				if (sysfs_create_link(&mddev->kobj,
 						      &rdev->kobj, nm))
@@ -5785,6 +5892,7 @@ static void raid5_exit(void)
 module_init(raid5_init);
 module_exit(raid5_exit);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("RAID4/5/6 (striping with parity) personality for MD");
 MODULE_ALIAS("md-personality-4"); /* RAID5 */
 MODULE_ALIAS("md-raid5");
 MODULE_ALIAS("md-raid4");

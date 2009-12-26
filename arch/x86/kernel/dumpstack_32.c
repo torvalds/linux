@@ -10,9 +10,9 @@
 #include <linux/module.h>
 #include <linux/ptrace.h>
 #include <linux/kexec.h>
+#include <linux/sysfs.h>
 #include <linux/bug.h>
 #include <linux/nmi.h>
-#include <linux/sysfs.h>
 
 #include <asm/stacktrace.h>
 
@@ -35,6 +35,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 
 	if (!stack) {
 		unsigned long dummy;
+
 		stack = &dummy;
 		if (task && task != current)
 			stack = (unsigned long *)task->thread.sp;
@@ -57,8 +58,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 
 		context = (struct thread_info *)
 			((unsigned long)stack & (~(THREAD_SIZE - 1)));
-		bp = print_context_stack(context, stack, bp, ops,
-					 data, NULL, &graph);
+		bp = ops->walk_stack(context, stack, bp, ops, data, NULL, &graph);
 
 		stack = (unsigned long *)context->previous_esp;
 		if (!stack)
@@ -72,7 +72,7 @@ EXPORT_SYMBOL(dump_trace);
 
 void
 show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
-		unsigned long *sp, unsigned long bp, char *log_lvl)
+		   unsigned long *sp, unsigned long bp, char *log_lvl)
 {
 	unsigned long *stack;
 	int i;
@@ -156,4 +156,3 @@ int is_valid_bugaddr(unsigned long ip)
 
 	return ud2 == 0x0b0f;
 }
-

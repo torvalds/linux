@@ -64,25 +64,7 @@ static struct buffer_head *qnx4_getblk(struct inode *inode, int nr,
 		result = sb_getblk(inode->i_sb, nr);
 		return result;
 	}
-	if (!create) {
-		return NULL;
-	}
-#if 0
-	tmp = qnx4_new_block(inode->i_sb);
-	if (!tmp) {
-		return NULL;
-	}
-	result = sb_getblk(inode->i_sb, tmp);
-	if (tst) {
-		qnx4_free_block(inode->i_sb, tmp);
-		brelse(result);
-		goto repeat;
-	}
-	tst = tmp;
-#endif
-	inode->i_ctime = CURRENT_TIME_SEC;
-	mark_inode_dirty(inode);
-	return result;
+	return NULL;
 }
 
 struct buffer_head *qnx4_bread(struct inode *inode, int block, int create)
@@ -107,14 +89,12 @@ static int qnx4_get_block( struct inode *inode, sector_t iblock, struct buffer_h
 {
 	unsigned long phys;
 
-	QNX4DEBUG(("qnx4: qnx4_get_block inode=[%ld] iblock=[%ld]\n",inode->i_ino,iblock));
+	QNX4DEBUG((KERN_INFO "qnx4: qnx4_get_block inode=[%ld] iblock=[%ld]\n",inode->i_ino,iblock));
 
 	phys = qnx4_block_map( inode, iblock );
 	if ( phys ) {
 		// logical block is before EOF
 		map_bh(bh, inode->i_sb, phys);
-	} else if ( create ) {
-		// to be done.
 	}
 	return 0;
 }
@@ -142,12 +122,12 @@ unsigned long qnx4_block_map( struct inode *inode, long iblock )
 				// read next xtnt block.
 				bh = sb_bread(inode->i_sb, i_xblk - 1);
 				if ( !bh ) {
-					QNX4DEBUG(("qnx4: I/O error reading xtnt block [%ld])\n", i_xblk - 1));
+					QNX4DEBUG((KERN_ERR "qnx4: I/O error reading xtnt block [%ld])\n", i_xblk - 1));
 					return -EIO;
 				}
 				xblk = (struct qnx4_xblk*)bh->b_data;
 				if ( memcmp( xblk->xblk_signature, "IamXblk", 7 ) ) {
-					QNX4DEBUG(("qnx4: block at %ld is not a valid xtnt\n", qnx4_inode->i_xblk));
+					QNX4DEBUG((KERN_ERR "qnx4: block at %ld is not a valid xtnt\n", qnx4_inode->i_xblk));
 					return -EIO;
 				}
 			}
@@ -168,7 +148,7 @@ unsigned long qnx4_block_map( struct inode *inode, long iblock )
 			brelse( bh );
 	}
 
-	QNX4DEBUG(("qnx4: mapping block %ld of inode %ld = %ld\n",iblock,inode->i_ino,block));
+	QNX4DEBUG((KERN_INFO "qnx4: mapping block %ld of inode %ld = %ld\n",iblock,inode->i_ino,block));
 	return block;
 }
 
@@ -209,7 +189,7 @@ static const char *qnx4_checkroot(struct super_block *sb)
 	if (*(qnx4_sb(sb)->sb->RootDir.di_fname) != '/') {
 		return "no qnx4 filesystem (no root dir).";
 	} else {
-		QNX4DEBUG(("QNX4 filesystem found on dev %s.\n", sb->s_id));
+		QNX4DEBUG((KERN_NOTICE "QNX4 filesystem found on dev %s.\n", sb->s_id));
 		rd = le32_to_cpu(qnx4_sb(sb)->sb->RootDir.di_first_xtnt.xtnt_blk) - 1;
 		rl = le32_to_cpu(qnx4_sb(sb)->sb->RootDir.di_first_xtnt.xtnt_size);
 		for (j = 0; j < rl; j++) {
@@ -220,7 +200,7 @@ static const char *qnx4_checkroot(struct super_block *sb)
 			for (i = 0; i < QNX4_INODES_PER_BLOCK; i++) {
 				rootdir = (struct qnx4_inode_entry *) (bh->b_data + i * QNX4_DIR_ENTRY_SIZE);
 				if (rootdir->di_fname != NULL) {
-					QNX4DEBUG(("Rootdir entry found : [%s]\n", rootdir->di_fname));
+					QNX4DEBUG((KERN_INFO "rootdir entry found : [%s]\n", rootdir->di_fname));
 					if (!strncmp(rootdir->di_fname, QNX4_BMNAME, sizeof QNX4_BMNAME)) {
 						found = 1;
 						qnx4_sb(sb)->BitMap = kmalloc( sizeof( struct qnx4_inode_entry ), GFP_KERNEL );
@@ -265,12 +245,12 @@ static int qnx4_fill_super(struct super_block *s, void *data, int silent)
 	   if we don't belong here... */
 	bh = sb_bread(s, 1);
 	if (!bh) {
-		printk("qnx4: unable to read the superblock\n");
+		printk(KERN_ERR "qnx4: unable to read the superblock\n");
 		goto outnobh;
 	}
 	if ( le32_to_cpup((__le32*) bh->b_data) != QNX4_SUPER_MAGIC ) {
 		if (!silent)
-			printk("qnx4: wrong fsid in superblock.\n");
+			printk(KERN_ERR "qnx4: wrong fsid in superblock.\n");
 		goto out;
 	}
 	s->s_op = &qnx4_sops;
@@ -284,14 +264,14 @@ static int qnx4_fill_super(struct super_block *s, void *data, int silent)
 	errmsg = qnx4_checkroot(s);
 	if (errmsg != NULL) {
  		if (!silent)
- 			printk("qnx4: %s\n", errmsg);
+			printk(KERN_ERR "qnx4: %s\n", errmsg);
 		goto out;
 	}
 
  	/* does root not have inode number QNX4_ROOT_INO ?? */
 	root = qnx4_iget(s, QNX4_ROOT_INO * QNX4_INODES_PER_BLOCK);
 	if (IS_ERR(root)) {
- 		printk("qnx4: get inode failed\n");
+		printk(KERN_ERR "qnx4: get inode failed\n");
 		ret = PTR_ERR(root);
  		goto out;
  	}
@@ -374,7 +354,7 @@ struct inode *qnx4_iget(struct super_block *sb, unsigned long ino)
 	qnx4_inode = qnx4_raw_inode(inode);
 	inode->i_mode = 0;
 
-	QNX4DEBUG(("Reading inode : [%d]\n", ino));
+	QNX4DEBUG((KERN_INFO "reading inode : [%d]\n", ino));
 	if (!ino) {
 		printk(KERN_ERR "qnx4: bad inode number on dev %s: %lu is "
 				"out of range\n",
@@ -385,7 +365,7 @@ struct inode *qnx4_iget(struct super_block *sb, unsigned long ino)
 	block = ino / QNX4_INODES_PER_BLOCK;
 
 	if (!(bh = sb_bread(sb, block))) {
-		printk("qnx4: major problem: unable to read inode from dev "
+		printk(KERN_ERR "qnx4: major problem: unable to read inode from dev "
 		       "%s\n", sb->s_id);
 		iget_failed(inode);
 		return ERR_PTR(-EIO);
@@ -499,7 +479,7 @@ static int __init init_qnx4_fs(void)
 		return err;
 	}
 
-	printk("QNX4 filesystem 0.2.3 registered.\n");
+	printk(KERN_INFO "QNX4 filesystem 0.2.3 registered.\n");
 	return 0;
 }
 

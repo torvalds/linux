@@ -356,7 +356,7 @@ sys_call_table:
 	PTR	sys_ni_syscall			/* 4150 */
 	PTR	sys_getsid
 	PTR	sys_fdatasync
-	PTR	sys_32_sysctl
+	PTR	compat_sys_sysctl
 	PTR	sys_mlock
 	PTR	sys_munlock			/* 4155 */
 	PTR	sys_mlockall
@@ -538,4 +538,5 @@ sys_call_table:
 	PTR	compat_sys_rt_tgsigqueueinfo
 	PTR	sys_perf_event_open
 	PTR	sys_accept4
+	PTR     compat_sys_recvmmsg
 	.size	sys_call_table,.-sys_call_table

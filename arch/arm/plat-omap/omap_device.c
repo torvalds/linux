@@ -82,8 +82,8 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include <mach/omap_device.h>
-#include <mach/omap_hwmod.h>
+#include <plat/omap_device.h>
+#include <plat/omap_hwmod.h>
 
 /* These parameters are passed to _omap_device_{de,}activate() */
 #define USE_WAKEUP_LAT			0
@@ -103,21 +103,6 @@
 /* Private functions */
 
 /**
- * _read_32ksynct - read the OMAP 32K sync timer
- *
- * Returns the current value of the 32KiHz synchronization counter.
- * XXX this should be generalized to simply read the system clocksource.
- * XXX this should be moved to a separate synctimer32k.c file
- */
-static u32 _read_32ksynct(void)
-{
-	if (!cpu_class_is_omap2())
-		BUG();
-
-	return __raw_readl(OMAP2_IO_ADDRESS(OMAP_32KSYNCT_BASE + 0x010));
-}
-
-/**
  * _omap_device_activate - increase device readiness
  * @od: struct omap_device *
  * @ignore_lat: increase to latency target (0) or full readiness (1)?
@@ -133,13 +118,13 @@ static u32 _read_32ksynct(void)
  */
 static int _omap_device_activate(struct omap_device *od, u8 ignore_lat)
 {
-	u32 a, b;
+	struct timespec a, b, c;
 
 	pr_debug("omap_device: %s: activating\n", od->pdev.name);
 
 	while (od->pm_lat_level > 0) {
 		struct omap_device_pm_latency *odpl;
-		int act_lat = 0;
+		unsigned long long act_lat = 0;
 
 		od->pm_lat_level--;
 
@@ -149,20 +134,22 @@ static int _omap_device_activate(struct omap_device *od, u8 ignore_lat)
 		    (od->dev_wakeup_lat <= od->_dev_wakeup_lat_limit))
 			break;
 
-		a = _read_32ksynct();
+		read_persistent_clock(&a);
 
 		/* XXX check return code */
 		odpl->activate_func(od);
 
-		b = _read_32ksynct();
+		read_persistent_clock(&b);
 
-		act_lat = (b - a) >> 15; /* 32KiHz cycles to microseconds */
+		c = timespec_sub(b, a);
+		act_lat = timespec_to_ns(&c);
 
 		pr_debug("omap_device: %s: pm_lat %d: activate: elapsed time "
-			 "%d usec\n", od->pdev.name, od->pm_lat_level, act_lat);
+			 "%llu nsec\n", od->pdev.name, od->pm_lat_level,
+			 act_lat);
 
 		WARN(act_lat > odpl->activate_lat, "omap_device: %s.%d: "
-		     "activate step %d took longer than expected (%d > %d)\n",
+		     "activate step %d took longer than expected (%llu > %d)\n",
 		     od->pdev.name, od->pdev.id, od->pm_lat_level,
 		     act_lat, odpl->activate_lat);
 
@@ -188,13 +175,13 @@ static int _omap_device_activate(struct omap_device *od, u8 ignore_lat)
  */
 static int _omap_device_deactivate(struct omap_device *od, u8 ignore_lat)
 {
-	u32 a, b;
+	struct timespec a, b, c;
 
 	pr_debug("omap_device: %s: deactivating\n", od->pdev.name);
 
 	while (od->pm_lat_level < od->pm_lats_cnt) {
 		struct omap_device_pm_latency *odpl;
-		int deact_lat = 0;
+		unsigned long long deact_lat = 0;
 
 		odpl = od->pm_lats + od->pm_lat_level;
 
@@ -203,23 +190,24 @@ static int _omap_device_deactivate(struct omap_device *od, u8 ignore_lat)
 		     od->_dev_wakeup_lat_limit))
 			break;
 
-		a = _read_32ksynct();
+		read_persistent_clock(&a);
 
 		/* XXX check return code */
 		odpl->deactivate_func(od);
 
-		b = _read_32ksynct();
+		read_persistent_clock(&b);
 
-		deact_lat = (b - a) >> 15; /* 32KiHz cycles to microseconds */
+		c = timespec_sub(b, a);
+		deact_lat = timespec_to_ns(&c);
 
 		pr_debug("omap_device: %s: pm_lat %d: deactivate: elapsed time "
-			 "%d usec\n", od->pdev.name, od->pm_lat_level,
+			 "%llu nsec\n", od->pdev.name, od->pm_lat_level,
 			 deact_lat);
 
 		WARN(deact_lat > odpl->deactivate_lat, "omap_device: %s.%d: "
-		     "deactivate step %d took longer than expected (%d > %d)\n",
-		     od->pdev.name, od->pdev.id, od->pm_lat_level,
-		     deact_lat, odpl->deactivate_lat);
+		     "deactivate step %d took longer than expected "
+		     "(%llu > %d)\n", od->pdev.name, od->pdev.id,
+		     od->pm_lat_level, deact_lat, odpl->deactivate_lat);
 
 		od->dev_wakeup_lat += odpl->activate_lat;
 
@@ -471,7 +459,7 @@ int omap_device_enable(struct platform_device *pdev)
 	ret = _omap_device_activate(od, IGNORE_WAKEUP_LAT);
 
 	od->dev_wakeup_lat = 0;
-	od->_dev_wakeup_lat_limit = INT_MAX;
+	od->_dev_wakeup_lat_limit = UINT_MAX;
 	od->_state = OMAP_DEVICE_STATE_ENABLED;
 
 	return ret;

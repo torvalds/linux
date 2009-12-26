@@ -97,7 +97,7 @@ __error_a:
 	bl	printhex8
 	adr	r0, str_a2
 	bl	printascii
-	adr	r3, 3f
+	adr	r3, 4f
 	ldmia	r3, {r4, r5, r6}		@ get machine desc list
 	sub	r4, r3, r4			@ get offset between virt&phys
 	add	r5, r5, r4			@ convert virt addresses to

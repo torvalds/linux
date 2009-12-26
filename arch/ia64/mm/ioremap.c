@@ -22,6 +22,12 @@ __ioremap (unsigned long phys_addr)
 }
 
 void __iomem *
+early_ioremap (unsigned long phys_addr, unsigned long size)
+{
+	return __ioremap(phys_addr);
+}
+
+void __iomem *
 ioremap (unsigned long phys_addr, unsigned long size)
 {
 	void __iomem *addr;
@@ -100,6 +106,11 @@ ioremap_nocache (unsigned long phys_addr, unsigned long size)
 	return __ioremap(phys_addr);
 }
 EXPORT_SYMBOL(ioremap_nocache);
+
+void
+early_iounmap (volatile void __iomem *addr, unsigned long size)
+{
+}
 
 void
 iounmap (volatile void __iomem *addr)

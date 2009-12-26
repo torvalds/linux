@@ -438,6 +438,7 @@ serial_pxa_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned char cval, fcr = 0;
 	unsigned long flags;
 	unsigned int baud, quot;
+	unsigned int dll;
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
@@ -534,10 +535,18 @@ serial_pxa_set_termios(struct uart_port *port, struct ktermios *termios,
 	else
 		up->mcr &= ~UART_MCR_AFE;
 
-	serial_out(up, UART_LCR, cval | UART_LCR_DLAB);/* set DLAB */
+	serial_out(up, UART_LCR, cval | UART_LCR_DLAB);	/* set DLAB */
 	serial_out(up, UART_DLL, quot & 0xff);		/* LS of divisor */
+
+	/*
+	 * work around Errata #75 according to Intel(R) PXA27x Processor Family
+	 * Specification Update (Nov 2005)
+	 */
+	dll = serial_in(up, UART_DLL);
+	WARN_ON(dll != (quot & 0xff));
+
 	serial_out(up, UART_DLM, quot >> 8);		/* MS of divisor */
-	serial_out(up, UART_LCR, cval);		/* reset DLAB */
+	serial_out(up, UART_LCR, cval);			/* reset DLAB */
 	up->lcr = cval;					/* Save LCR */
 	serial_pxa_set_mctrl(&up->port, up->port.mctrl);
 	serial_out(up, UART_FCR, fcr);
@@ -747,7 +756,7 @@ static int serial_pxa_resume(struct device *dev)
         return 0;
 }
 
-static struct dev_pm_ops serial_pxa_pm_ops = {
+static const struct dev_pm_ops serial_pxa_pm_ops = {
 	.suspend	= serial_pxa_suspend,
 	.resume		= serial_pxa_resume,
 };

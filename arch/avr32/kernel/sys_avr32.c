@@ -5,38 +5,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/errno.h>
-#include <linux/fs.h>
-#include <linux/file.h>
-#include <linux/mm.h>
 #include <linux/unistd.h>
-
-#include <asm/mman.h>
-#include <asm/uaccess.h>
-#include <asm/syscalls.h>
-
-asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
-			  unsigned long prot, unsigned long flags,
-			  unsigned long fd, off_t offset)
-{
-	int error = -EBADF;
-	struct file *file = NULL;
-
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file)
-			return error;
-	}
-
-	down_write(&current->mm->mmap_sem);
-	error = do_mmap_pgoff(file, addr, len, prot, flags, offset);
-	up_write(&current->mm->mmap_sem);
-
-	if (file)
-		fput(file);
-	return error;
-}
 
 int kernel_execve(const char *file, char **argv, char **envp)
 {

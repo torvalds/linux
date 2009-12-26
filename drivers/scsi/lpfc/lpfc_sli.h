@@ -29,14 +29,17 @@ typedef enum _lpfc_ctx_cmd {
 	LPFC_CTX_HOST
 } lpfc_ctx_cmd;
 
-/* This structure is used to carry the needed response IOCB states */
-struct lpfc_sli4_rspiocb_info {
-	uint8_t hw_status;
-	uint8_t bfield;
-#define LPFC_XB	0x1
-#define LPFC_PV	0x2
-	uint8_t priority;
-	uint8_t reserved;
+struct lpfc_cq_event {
+	struct list_head list;
+	union {
+		struct lpfc_mcqe		mcqe_cmpl;
+		struct lpfc_acqe_link		acqe_link;
+		struct lpfc_acqe_fcoe		acqe_fcoe;
+		struct lpfc_acqe_dcbx		acqe_dcbx;
+		struct lpfc_rcqe		rcqe_cmpl;
+		struct sli4_wcqe_xri_aborted	wcqe_axri;
+		struct lpfc_wcqe_complete	wcqe_cmpl;
+	} cqe;
 };
 
 /* This structure is used to handle IOCB requests / responses */
@@ -46,6 +49,7 @@ struct lpfc_iocbq {
 	struct list_head clist;
 	uint16_t iotag;         /* pre-assigned IO tag */
 	uint16_t sli4_xritag;   /* pre-assigned XRI, (OXID) tag. */
+	struct lpfc_cq_event cq_event;
 
 	IOCB_t iocb;		/* IOCB cmd */
 	uint8_t retry;		/* retry counter for IOCB cmd - if needed */
@@ -56,11 +60,13 @@ struct lpfc_iocbq {
 #define LPFC_DRIVER_ABORTED	8	/* driver aborted this request */
 #define LPFC_IO_FABRIC		0x10	/* Iocb send using fabric scheduler */
 #define LPFC_DELAY_MEM_FREE	0x20    /* Defer free'ing of FC data */
-#define LPFC_FIP_ELS		0x40
+#define LPFC_FIP_ELS_ID_MASK	0xc0	/* ELS_ID range 0-3 */
+#define LPFC_FIP_ELS_ID_SHIFT	6
 
 	uint8_t abort_count;
 	uint8_t rsvd2;
 	uint32_t drvrTimeout;	/* driver timeout in seconds */
+	uint32_t fcp_wqidx;	/* index to FCP work queue */
 	struct lpfc_vport *vport;/* virtual port pointer */
 	void *context1;		/* caller context information */
 	void *context2;		/* caller context information */
@@ -76,7 +82,6 @@ struct lpfc_iocbq {
 			   struct lpfc_iocbq *);
 	void (*iocb_cmpl) (struct lpfc_hba *, struct lpfc_iocbq *,
 			   struct lpfc_iocbq *);
-	struct lpfc_sli4_rspiocb_info sli4_info;
 };
 
 #define SLI_IOCB_RET_IOCB      1	/* Return IOCB if cmd ring full */
@@ -110,7 +115,7 @@ typedef struct lpfcMboxq {
 				   return */
 #define MBX_NOWAIT      2	/* issue command then return immediately */
 
-#define LPFC_MAX_RING_MASK  4	/* max num of rctl/type masks allowed per
+#define LPFC_MAX_RING_MASK  5	/* max num of rctl/type masks allowed per
 				   ring */
 #define LPFC_MAX_RING       4	/* max num of SLI rings used by driver */
 

@@ -48,7 +48,6 @@
 #include "wmgr.h"
 #include "power.h"
 #include "wctl.h"
-#include "card.h"
 #include "baseband.h"
 #include "rxtx.h"
 #include "rf.h"

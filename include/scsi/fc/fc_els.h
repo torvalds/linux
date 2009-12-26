@@ -20,6 +20,8 @@
 #ifndef _FC_ELS_H_
 #define	_FC_ELS_H_
 
+#include <linux/types.h>
+
 /*
  * Fibre Channel Switch - Enhanced Link Services definitions.
  * From T11 FC-LS Rev 1.2 June 7, 2005.
@@ -248,10 +250,12 @@ struct fc_els_csp {
 /*
  * sp_features
  */
-#define	FC_SP_FT_CIRO	0x8000	/* continuously increasing rel. off. */
+#define	FC_SP_FT_NPIV	0x8000	/* multiple N_Port_ID support (FLOGI) */
+#define	FC_SP_FT_CIRO	0x8000	/* continuously increasing rel off (PLOGI) */
 #define	FC_SP_FT_CLAD	0x8000	/* clean address (in FLOGI LS_ACC) */
 #define	FC_SP_FT_RAND	0x4000	/* random relative offset */
 #define	FC_SP_FT_VAL	0x2000	/* valid vendor version level */
+#define	FC_SP_FT_NPIV_ACC	0x2000	/* NPIV assignment (FLOGI LS_ACC) */
 #define	FC_SP_FT_FPORT	0x1000	/* F port (1) vs. N port (0) */
 #define	FC_SP_FT_ABB	0x0800	/* alternate BB_credit management */
 #define	FC_SP_FT_EDTR	0x0400	/* E_D_TOV Resolution is nanoseconds */

@@ -53,20 +53,15 @@ struct gfs2_ea_location {
 	struct gfs2_ea_header *el_prev;
 };
 
-extern int gfs2_xattr_get(struct inode *inode, int type, const char *name,
-			  void *buffer, size_t size);
-extern int gfs2_xattr_set(struct inode *inode, int type, const char *name,
-			  const void *value, size_t size, int flags);
+extern int __gfs2_xattr_set(struct inode *inode, const char *name,
+			    const void *value, size_t size,
+			    int flags, int type);
 extern ssize_t gfs2_listxattr(struct dentry *dentry, char *buffer, size_t size);
 extern int gfs2_ea_dealloc(struct gfs2_inode *ip);
 
 /* Exported to acl.c */
 
-extern int gfs2_ea_find(struct gfs2_inode *ip, int type, const char *name,
-			struct gfs2_ea_location *el);
-extern int gfs2_ea_get_copy(struct gfs2_inode *ip, struct gfs2_ea_location *el,
-			    char *data, size_t size);
-extern int gfs2_ea_acl_chmod(struct gfs2_inode *ip, struct gfs2_ea_location *el,
-			     struct iattr *attr, char *data);
+extern int gfs2_xattr_acl_get(struct gfs2_inode *ip, const char *name, char **data);
+extern int gfs2_xattr_acl_chmod(struct gfs2_inode *ip, struct iattr *attr, char *data);
 
 #endif /* __EATTR_DOT_H__ */

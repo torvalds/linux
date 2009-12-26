@@ -1,0 +1,7 @@
+#!/bin/bash
+# description: r/w activity for a program, by file
+# args: <comm>
+perf trace -s ~/libexec/perf-core/scripts/perl/rw-by-file.pl $1
+
+
+

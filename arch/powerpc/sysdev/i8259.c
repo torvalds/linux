@@ -135,7 +135,7 @@ static void i8259_unmask_irq(unsigned int irq_nr)
 }
 
 static struct irq_chip i8259_pic = {
-	.typename	= " i8259    ",
+	.name		= " i8259    ",
 	.mask		= i8259_mask_irq,
 	.disable	= i8259_mask_irq,
 	.unmask		= i8259_unmask_irq,
@@ -175,12 +175,12 @@ static int i8259_host_map(struct irq_host *h, unsigned int virq,
 
 	/* We block the internal cascade */
 	if (hw == 2)
-		get_irq_desc(virq)->status |= IRQ_NOREQUEST;
+		irq_to_desc(virq)->status |= IRQ_NOREQUEST;
 
 	/* We use the level handler only for now, we might want to
 	 * be more cautious here but that works for now
 	 */
-	get_irq_desc(virq)->status |= IRQ_LEVEL;
+	irq_to_desc(virq)->status |= IRQ_LEVEL;
 	set_irq_chip_and_handler(virq, &i8259_pic, handle_level_irq);
 	return 0;
 }
@@ -198,7 +198,7 @@ static void i8259_host_unmap(struct irq_host *h, unsigned int virq)
 }
 
 static int i8259_host_xlate(struct irq_host *h, struct device_node *ct,
-			    u32 *intspec, unsigned int intsize,
+			    const u32 *intspec, unsigned int intsize,
 			    irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 {
 	static unsigned char map_isa_senses[4] = {

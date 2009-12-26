@@ -39,9 +39,6 @@
 static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
 						I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(lm77);
-
 /* The LM77 registers */
 #define LM77_REG_TEMP		0x00
 #define LM77_REG_CONF		0x01
@@ -66,8 +63,7 @@ struct lm77_data {
 
 static int lm77_probe(struct i2c_client *client,
 		      const struct i2c_device_id *id);
-static int lm77_detect(struct i2c_client *client, int kind,
-		       struct i2c_board_info *info);
+static int lm77_detect(struct i2c_client *client, struct i2c_board_info *info);
 static void lm77_init_client(struct i2c_client *client);
 static int lm77_remove(struct i2c_client *client);
 static u16 lm77_read_value(struct i2c_client *client, u8 reg);
@@ -77,7 +73,7 @@ static struct lm77_data *lm77_update_device(struct device *dev);
 
 
 static const struct i2c_device_id lm77_id[] = {
-	{ "lm77", lm77 },
+	{ "lm77", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm77_id);
@@ -92,7 +88,7 @@ static struct i2c_driver lm77_driver = {
 	.remove		= lm77_remove,
 	.id_table	= lm77_id,
 	.detect		= lm77_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /* straight from the datasheet */
@@ -245,10 +241,11 @@ static const struct attribute_group lm77_group = {
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm77_detect(struct i2c_client *new_client, int kind,
+static int lm77_detect(struct i2c_client *new_client,
 		       struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = new_client->adapter;
+	int i, cur, conf, hyst, crit, min, max;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_WORD_DATA))
@@ -265,51 +262,48 @@ static int lm77_detect(struct i2c_client *new_client, int kind,
 	   4. registers cycling over 8-address boundaries
 
 	   Word-sized registers are high-byte first. */
-	if (kind < 0) {
-		int i, cur, conf, hyst, crit, min, max;
 
-		/* addresses cycling */
-		cur = i2c_smbus_read_word_data(new_client, 0);
-		conf = i2c_smbus_read_byte_data(new_client, 1);
-		hyst = i2c_smbus_read_word_data(new_client, 2);
-		crit = i2c_smbus_read_word_data(new_client, 3);
-		min = i2c_smbus_read_word_data(new_client, 4);
-		max = i2c_smbus_read_word_data(new_client, 5);
-		for (i = 8; i <= 0xff; i += 8)
-			if (i2c_smbus_read_byte_data(new_client, i + 1) != conf
-			    || i2c_smbus_read_word_data(new_client, i + 2) != hyst
-			    || i2c_smbus_read_word_data(new_client, i + 3) != crit
-			    || i2c_smbus_read_word_data(new_client, i + 4) != min
-			    || i2c_smbus_read_word_data(new_client, i + 5) != max)
-				return -ENODEV;
-
-		/* sign bits */
-		if (((cur & 0x00f0) != 0xf0 && (cur & 0x00f0) != 0x0)
-		    || ((hyst & 0x00f0) != 0xf0 && (hyst & 0x00f0) != 0x0)
-		    || ((crit & 0x00f0) != 0xf0 && (crit & 0x00f0) != 0x0)
-		    || ((min & 0x00f0) != 0xf0 && (min & 0x00f0) != 0x0)
-		    || ((max & 0x00f0) != 0xf0 && (max & 0x00f0) != 0x0))
+	/* addresses cycling */
+	cur = i2c_smbus_read_word_data(new_client, 0);
+	conf = i2c_smbus_read_byte_data(new_client, 1);
+	hyst = i2c_smbus_read_word_data(new_client, 2);
+	crit = i2c_smbus_read_word_data(new_client, 3);
+	min = i2c_smbus_read_word_data(new_client, 4);
+	max = i2c_smbus_read_word_data(new_client, 5);
+	for (i = 8; i <= 0xff; i += 8) {
+		if (i2c_smbus_read_byte_data(new_client, i + 1) != conf
+		 || i2c_smbus_read_word_data(new_client, i + 2) != hyst
+		 || i2c_smbus_read_word_data(new_client, i + 3) != crit
+		 || i2c_smbus_read_word_data(new_client, i + 4) != min
+		 || i2c_smbus_read_word_data(new_client, i + 5) != max)
 			return -ENODEV;
-
-		/* unused bits */
-		if (conf & 0xe0)
-			return -ENODEV;
-
-		/* 0x06 and 0x07 return the last read value */
-		cur = i2c_smbus_read_word_data(new_client, 0);
-		if (i2c_smbus_read_word_data(new_client, 6) != cur
-		    || i2c_smbus_read_word_data(new_client, 7) != cur)
-			return -ENODEV;
-		hyst = i2c_smbus_read_word_data(new_client, 2);
-		if (i2c_smbus_read_word_data(new_client, 6) != hyst
-		    || i2c_smbus_read_word_data(new_client, 7) != hyst)
-			return -ENODEV;
-		min = i2c_smbus_read_word_data(new_client, 4);
-		if (i2c_smbus_read_word_data(new_client, 6) != min
-		    || i2c_smbus_read_word_data(new_client, 7) != min)
-			return -ENODEV;
-
 	}
+
+	/* sign bits */
+	if (((cur & 0x00f0) != 0xf0 && (cur & 0x00f0) != 0x0)
+	 || ((hyst & 0x00f0) != 0xf0 && (hyst & 0x00f0) != 0x0)
+	 || ((crit & 0x00f0) != 0xf0 && (crit & 0x00f0) != 0x0)
+	 || ((min & 0x00f0) != 0xf0 && (min & 0x00f0) != 0x0)
+	 || ((max & 0x00f0) != 0xf0 && (max & 0x00f0) != 0x0))
+		return -ENODEV;
+
+	/* unused bits */
+	if (conf & 0xe0)
+		return -ENODEV;
+
+	/* 0x06 and 0x07 return the last read value */
+	cur = i2c_smbus_read_word_data(new_client, 0);
+	if (i2c_smbus_read_word_data(new_client, 6) != cur
+	 || i2c_smbus_read_word_data(new_client, 7) != cur)
+		return -ENODEV;
+	hyst = i2c_smbus_read_word_data(new_client, 2);
+	if (i2c_smbus_read_word_data(new_client, 6) != hyst
+	 || i2c_smbus_read_word_data(new_client, 7) != hyst)
+		return -ENODEV;
+	min = i2c_smbus_read_word_data(new_client, 4);
+	if (i2c_smbus_read_word_data(new_client, 6) != min
+	 || i2c_smbus_read_word_data(new_client, 7) != min)
+		return -ENODEV;
 
 	strlcpy(info->type, "lm77", I2C_NAME_SIZE);
 

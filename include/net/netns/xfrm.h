@@ -43,6 +43,7 @@ struct netns_xfrm {
 	struct work_struct	policy_hash_work;
 
 	struct sock		*nlsk;
+	struct sock		*nlsk_stash;
 
 	u32			sysctl_aevent_etime;
 	u32			sysctl_aevent_rseqth;

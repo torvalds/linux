@@ -715,3 +715,17 @@ cifsConvertToUCS(__le16 *target, const char *source, int maxlen,
 ctoUCS_out:
 	return i;
 }
+
+void
+cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb)
+{
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_SERVER_INUM;
+		cERROR(1, ("Autodisabling the use of server inode numbers on "
+			   "%s. This server doesn't seem to support them "
+			   "properly. Hardlinks will not be recognized on this "
+			   "mount. Consider mounting with the \"noserverino\" "
+			   "option to silence this message.",
+			   cifs_sb->tcon->treeName));
+	}
+}

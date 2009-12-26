@@ -567,13 +567,11 @@ static void __init mpic_scan_ht_pics(struct mpic *mpic)
 #endif /* CONFIG_MPIC_U3_HT_IRQS */
 
 #ifdef CONFIG_SMP
-static int irq_choose_cpu(unsigned int virt_irq)
+static int irq_choose_cpu(const cpumask_t *mask)
 {
-	cpumask_t mask;
 	int cpuid;
 
-	cpumask_copy(&mask, irq_desc[virt_irq].affinity);
-	if (cpus_equal(mask, CPU_MASK_ALL)) {
+	if (cpumask_equal(mask, cpu_all_mask)) {
 		static int irq_rover;
 		static DEFINE_SPINLOCK(irq_rover_lock);
 		unsigned long flags;
@@ -594,20 +592,15 @@ static int irq_choose_cpu(unsigned int virt_irq)
 
 		spin_unlock_irqrestore(&irq_rover_lock, flags);
 	} else {
-		cpumask_t tmp;
-
-		cpus_and(tmp, cpu_online_map, mask);
-
-		if (cpus_empty(tmp))
+		cpuid = cpumask_first_and(mask, cpu_online_mask);
+		if (cpuid >= nr_cpu_ids)
 			goto do_round_robin;
-
-		cpuid = first_cpu(tmp);
 	}
 
 	return get_hard_smp_processor_id(cpuid);
 }
 #else
-static int irq_choose_cpu(unsigned int virt_irq)
+static int irq_choose_cpu(const cpumask_t *mask)
 {
 	return hard_smp_processor_id();
 }
@@ -621,7 +614,7 @@ static struct mpic *mpic_find(unsigned int irq)
 	if (irq < NUM_ISA_INTERRUPTS)
 		return NULL;
 
-	return irq_desc[irq].chip_data;
+	return irq_to_desc(irq)->chip_data;
 }
 
 /* Determine if the linux irq is an IPI */
@@ -648,14 +641,14 @@ static inline u32 mpic_physmask(u32 cpumask)
 /* Get the mpic structure from the IPI number */
 static inline struct mpic * mpic_from_ipi(unsigned int ipi)
 {
-	return irq_desc[ipi].chip_data;
+	return irq_to_desc(ipi)->chip_data;
 }
 #endif
 
 /* Get the mpic structure from the irq number */
 static inline struct mpic * mpic_from_irq(unsigned int irq)
 {
-	return irq_desc[irq].chip_data;
+	return irq_to_desc(irq)->chip_data;
 }
 
 /* Send an EOI */
@@ -735,7 +728,7 @@ static void mpic_unmask_ht_irq(unsigned int irq)
 
 	mpic_unmask_irq(irq);
 
-	if (irq_desc[irq].status & IRQ_LEVEL)
+	if (irq_to_desc(irq)->status & IRQ_LEVEL)
 		mpic_ht_end_irq(mpic, src);
 }
 
@@ -745,7 +738,7 @@ static unsigned int mpic_startup_ht_irq(unsigned int irq)
 	unsigned int src = mpic_irq_to_hw(irq);
 
 	mpic_unmask_irq(irq);
-	mpic_startup_ht_interrupt(mpic, src, irq_desc[irq].status);
+	mpic_startup_ht_interrupt(mpic, src, irq_to_desc(irq)->status);
 
 	return 0;
 }
@@ -755,7 +748,7 @@ static void mpic_shutdown_ht_irq(unsigned int irq)
 	struct mpic *mpic = mpic_from_irq(irq);
 	unsigned int src = mpic_irq_to_hw(irq);
 
-	mpic_shutdown_ht_interrupt(mpic, src, irq_desc[irq].status);
+	mpic_shutdown_ht_interrupt(mpic, src, irq_to_desc(irq)->status);
 	mpic_mask_irq(irq);
 }
 
@@ -772,7 +765,7 @@ static void mpic_end_ht_irq(unsigned int irq)
 	 * latched another edge interrupt coming in anyway
 	 */
 
-	if (irq_desc[irq].status & IRQ_LEVEL)
+	if (irq_to_desc(irq)->status & IRQ_LEVEL)
 		mpic_ht_end_irq(mpic, src);
 	mpic_eoi(mpic);
 }
@@ -816,7 +809,7 @@ int mpic_set_affinity(unsigned int irq, const struct cpumask *cpumask)
 	unsigned int src = mpic_irq_to_hw(irq);
 
 	if (mpic->flags & MPIC_SINGLE_DEST_CPU) {
-		int cpuid = irq_choose_cpu(irq);
+		int cpuid = irq_choose_cpu(cpumask);
 
 		mpic_irq_write(src, MPIC_INFO(IRQ_DESTINATION), 1 << cpuid);
 	} else {
@@ -856,7 +849,7 @@ int mpic_set_irq_type(unsigned int virq, unsigned int flow_type)
 {
 	struct mpic *mpic = mpic_from_irq(virq);
 	unsigned int src = mpic_irq_to_hw(virq);
-	struct irq_desc *desc = get_irq_desc(virq);
+	struct irq_desc *desc = irq_to_desc(virq);
 	unsigned int vecpri, vold, vnew;
 
 	DBG("mpic: set_irq_type(mpic:@%p,virq:%d,src:0x%x,type:0x%x)\n",
@@ -994,7 +987,7 @@ static int mpic_host_map(struct irq_host *h, unsigned int virq,
 }
 
 static int mpic_host_xlate(struct irq_host *h, struct device_node *ct,
-			   u32 *intspec, unsigned int intsize,
+			   const u32 *intspec, unsigned int intsize,
 			   irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 
 {
@@ -1062,19 +1055,19 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	mpic->name = name;
 
 	mpic->hc_irq = mpic_irq_chip;
-	mpic->hc_irq.typename = name;
+	mpic->hc_irq.name = name;
 	if (flags & MPIC_PRIMARY)
 		mpic->hc_irq.set_affinity = mpic_set_affinity;
 #ifdef CONFIG_MPIC_U3_HT_IRQS
 	mpic->hc_ht_irq = mpic_irq_ht_chip;
-	mpic->hc_ht_irq.typename = name;
+	mpic->hc_ht_irq.name = name;
 	if (flags & MPIC_PRIMARY)
 		mpic->hc_ht_irq.set_affinity = mpic_set_affinity;
 #endif /* CONFIG_MPIC_U3_HT_IRQS */
 
 #ifdef CONFIG_SMP
 	mpic->hc_ipi = mpic_ipi_chip;
-	mpic->hc_ipi.typename = name;
+	mpic->hc_ipi.name = name;
 #endif /* CONFIG_SMP */
 
 	mpic->flags = flags;

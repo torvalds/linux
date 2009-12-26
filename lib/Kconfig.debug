@@ -105,7 +105,7 @@ config DEBUG_SECTION_MISMATCH
 	bool "Enable full Section mismatch analysis"
 	depends on UNDEFINED
 	# This option is on purpose disabled for now.
-	# It will be enabled when we are down to a resonable number
+	# It will be enabled when we are down to a reasonable number
 	# of section mismatch warnings (< 10 for an allyesconfig build)
 	help
 	  The section mismatch analysis checks if there are illegal
@@ -298,6 +298,14 @@ config DEBUG_OBJECTS_TIMERS
 	  timer routines to track the life time of timer objects and
 	  validate the timer operations.
 
+config DEBUG_OBJECTS_WORK
+	bool "Debug work objects"
+	depends on DEBUG_OBJECTS
+	help
+	  If you say Y here, additional code will be inserted into the
+	  work queue routines to track the life time of work objects and
+	  validate the work operations.
+
 config DEBUG_OBJECTS_ENABLE_DEFAULT
 	int "debug_objects bootup default value (0-1)"
         range 0 1
@@ -352,6 +360,7 @@ config DEBUG_KMEMLEAK
 	select DEBUG_FS if SYSFS
 	select STACKTRACE if STACKTRACE_SUPPORT
 	select KALLSYMS
+	select CRC32
 	help
 	  Say Y here if you want to enable the memory leak
 	  detector. The memory allocation/freeing is traced in a way
@@ -567,7 +576,7 @@ config DEBUG_BUGVERBOSE
 	depends on BUG
 	depends on ARM || AVR32 || M32R || M68K || SPARC32 || SPARC64 || \
 		   FRV || SUPERH || GENERIC_BUG || BLACKFIN || MN10300
-	default !EMBEDDED
+	default y
 	help
 	  Say Y here to make BUG() panics output the file name and line number
 	  of the BUG call as well as the EIP and oops trace.  This aids
@@ -750,7 +759,7 @@ config RCU_TORTURE_TEST_RUNNABLE
 config RCU_CPU_STALL_DETECTOR
 	bool "Check for stalled CPUs delaying RCU grace periods"
 	depends on TREE_RCU || TREE_PREEMPT_RCU
-	default n
+	default y
 	help
 	  This option causes RCU to printk information on which
 	  CPUs are delaying the current grace period, but only when
@@ -912,7 +921,7 @@ config LATENCYTOP
 
 config SYSCTL_SYSCALL_CHECK
 	bool "Sysctl checks"
-	depends on SYSCTL_SYSCALL
+	depends on SYSCTL
 	---help---
 	  sys_sysctl uses binary paths that have been found challenging
 	  to properly maintain and use. This enables checks that help

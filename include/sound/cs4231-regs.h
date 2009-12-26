@@ -70,7 +70,6 @@
 #define AD1845_PWR_DOWN		0x1b	/* power down control */
 #define CS4235_LEFT_MASTER	0x1b	/* left master output control */
 #define CS4231_REC_FORMAT	0x1c	/* clock and data format - record - bits 7-0 MCE */
-#define CS4231_PLY_VAR_FREQ	0x1d	/* playback variable frequency */
 #define AD1845_CLOCK		0x1d	/* crystal clock select and total power down */
 #define CS4235_RIGHT_MASTER	0x1d	/* right master output control */
 #define CS4231_REC_UPR_CNT	0x1e	/* record upper count */

@@ -47,7 +47,6 @@
 #include <linux/slab.h>
 #include <linux/tcp.h>
 #include <linux/types.h>
-#include <linux/version.h>
 #include <linux/wireless.h>
 #include <linux/etherdevice.h>
 #include <asm/uaccess.h>
@@ -605,7 +604,7 @@ void ieee80211_query_seqnum(struct ieee80211_device*ieee, struct sk_buff* skb, u
 	}
 }
 
-int rtl8192_ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
+int rtl8192_ieee80211_rtl_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ieee80211_device *ieee = netdev_priv(dev);
 	struct ieee80211_txb *txb = NULL;

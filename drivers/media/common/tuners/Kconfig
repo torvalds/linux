@@ -172,4 +172,11 @@ config MEDIA_TUNER_MC44S803
 	help
 	  Say Y here to support the Freescale MC44S803 based tuners
 
+config MEDIA_TUNER_MAX2165
+	tristate "Maxim MAX2165 silicon tuner"
+	depends on VIDEO_MEDIA && I2C
+	default m if MEDIA_TUNER_CUSTOMISE
+	help
+	  A driver for the silicon tuner MAX2165 from Maxim.
+
 endif # MEDIA_TUNER_CUSTOMISE

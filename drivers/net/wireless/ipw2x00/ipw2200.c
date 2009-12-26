@@ -81,6 +81,11 @@ MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT);
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE("ipw2200-ibss.fw");
+#ifdef CONFIG_IPW2200_MONITOR
+MODULE_FIRMWARE("ipw2200-sniffer.fw");
+#endif
+MODULE_FIRMWARE("ipw2200-bss.fw");
 
 static int cmdlog = 0;
 static int debug = 0;
@@ -787,7 +792,7 @@ static int ipw_get_ordinal(struct ipw_priv *priv, u32 ord, void *val, u32 * len)
 		/* get number of entries */
 		field_count = *(((u16 *) & field_info) + 1);
 
-		/* abort if not enought memory */
+		/* abort if not enough memory */
 		total_len = field_len * field_count;
 		if (total_len > *len) {
 			*len = total_len;
@@ -1753,10 +1758,13 @@ static DEVICE_ATTR(direct_dword, S_IWUSR | S_IRUGO,
 
 static int rf_kill_active(struct ipw_priv *priv)
 {
-	if (0 == (ipw_read32(priv, 0x30) & 0x10000))
+	if (0 == (ipw_read32(priv, 0x30) & 0x10000)) {
 		priv->status |= STATUS_RF_KILL_HW;
-	else
+		wiphy_rfkill_set_hw_state(priv->ieee->wdev.wiphy, true);
+	} else {
 		priv->status &= ~STATUS_RF_KILL_HW;
+		wiphy_rfkill_set_hw_state(priv->ieee->wdev.wiphy, false);
+	}
 
 	return (priv->status & STATUS_RF_KILL_HW) ? 1 : 0;
 }
@@ -2039,6 +2047,7 @@ static void ipw_irq_tasklet(struct ipw_priv *priv)
 	if (inta & IPW_INTA_BIT_RF_KILL_DONE) {
 		IPW_DEBUG_RF_KILL("RF_KILL_DONE\n");
 		priv->status |= STATUS_RF_KILL_HW;
+		wiphy_rfkill_set_hw_state(priv->ieee->wdev.wiphy, true);
 		wake_up_interruptible(&priv->wait_command_queue);
 		priv->status &= ~(STATUS_ASSOCIATED | STATUS_ASSOCIATING);
 		cancel_delayed_work(&priv->request_scan);
@@ -7751,7 +7760,7 @@ static void ipw_rebuild_decrypted_skb(struct ipw_priv *priv,
 	case SEC_LEVEL_0:
 		break;
 	default:
-		printk(KERN_ERR "Unknow security level %d\n",
+		printk(KERN_ERR "Unknown security level %d\n",
 		       priv->ieee->sec.level);
 		break;
 	}
@@ -8917,7 +8926,7 @@ static int ipw_wx_get_range(struct net_device *dev,
 	range->max_qual.updated = 7;	/* Updated all three */
 
 	range->avg_qual.qual = 70;
-	/* TODO: Find real 'good' to 'bad' threshol value for RSSI */
+	/* TODO: Find real 'good' to 'bad' threshold value for RSSI */
 	range->avg_qual.level = 0;	/* FIXME to real average level */
 	range->avg_qual.noise = 0;
 	range->avg_qual.updated = 7;	/* Updated all three */
@@ -10290,7 +10299,7 @@ static int ipw_tx_skb(struct ipw_priv *priv, struct libipw_txb *txb,
 		case SEC_LEVEL_0:
 			break;
 		default:
-			printk(KERN_ERR "Unknow security level %d\n",
+			printk(KERN_ERR "Unknown security level %d\n",
 			       priv->ieee->sec.level);
 			break;
 		}
@@ -11276,6 +11285,7 @@ static int ipw_up(struct ipw_priv *priv)
 		if (!(priv->config & CFG_CUSTOM_MAC))
 			eeprom_parse_mac(priv, priv->mac_addr);
 		memcpy(priv->net_dev->dev_addr, priv->mac_addr, ETH_ALEN);
+		memcpy(priv->net_dev->perm_addr, priv->mac_addr, ETH_ALEN);
 
 		for (j = 0; j < ARRAY_SIZE(ipw_geos); j++) {
 			if (!memcmp(&priv->eeprom[EEPROM_COUNTRY_CODE],
@@ -11822,7 +11832,6 @@ static int __devinit ipw_pci_probe(struct pci_dev *pdev,
 		if (err) {
 			IPW_ERROR("Failed to register promiscuous network "
 				  "device (error %d).\n", err);
-			unregister_ieee80211(priv->ieee);
 			unregister_netdev(priv->net_dev);
 			goto out_remove_sysfs;
 		}
@@ -11873,7 +11882,6 @@ static void __devexit ipw_pci_remove(struct pci_dev *pdev)
 
 	mutex_unlock(&priv->mutex);
 
-	unregister_ieee80211(priv->ieee);
 	unregister_netdev(priv->net_dev);
 
 	if (priv->rxq) {
@@ -11919,6 +11927,10 @@ static void __devexit ipw_pci_remove(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
+	/* wiphy_unregister needs to be here, before free_ieee80211 */
+	wiphy_unregister(priv->ieee->wdev.wiphy);
+	kfree(priv->ieee->a_band.channels);
+	kfree(priv->ieee->bg_band.channels);
 	free_ieee80211(priv->net_dev, 0);
 	free_firmware();
 }

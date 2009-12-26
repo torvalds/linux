@@ -126,6 +126,7 @@ ALC882/883/885/888/889
   mb5		Macbook 5,1
   mbp3		Macbook Pro rev3
   imac24	iMac 24'' with jack detection
+  imac91	iMac 9,1
   w2jc		ASUS W2JC
   3stack-2ch-dig	3-jack with SPDIF I/O (ALC883)
   alc883-6stack-dig	6-jack digital with SPDIF I/O (ALC883)
@@ -391,6 +392,7 @@ STAC92HD83*
   ref		Reference board
   mic-ref	Reference board with power management for ports
   dell-s14	Dell laptop
+  hp		HP laptops with (inverted) mute-LED
   auto		BIOS setup (default)
 
 STAC9872
@@ -401,4 +403,5 @@ STAC9872
 Cirrus Logic CS4206/4207
 ========================
   mbp55		MacBook Pro 5,5
+  imac27	IMac 27 Inch
   auto		BIOS setup (default)

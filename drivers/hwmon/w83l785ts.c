@@ -1,7 +1,7 @@
 /*
  * w83l785ts.c - Part of lm_sensors, Linux kernel modules for hardware
  *               monitoring
- * Copyright (C) 2003-2004  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2003-2009  Jean Delvare <khali@linux-fr.org>
  *
  * Inspired from the lm83 driver. The W83L785TS-S is a sensor chip made
  * by Winbond. It reports a single external temperature with a 1 deg
@@ -52,12 +52,6 @@
 static const unsigned short normal_i2c[] = { 0x2e, I2C_CLIENT_END };
 
 /*
- * Insmod parameters
- */
-
-I2C_CLIENT_INSMOD_1(w83l785ts);
-
-/*
  * The W83L785TS-S registers
  * Manufacturer ID is 0x5CA3 for Winbond.
  */
@@ -83,7 +77,7 @@ I2C_CLIENT_INSMOD_1(w83l785ts);
 
 static int w83l785ts_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id);
-static int w83l785ts_detect(struct i2c_client *client, int kind,
+static int w83l785ts_detect(struct i2c_client *client,
 			    struct i2c_board_info *info);
 static int w83l785ts_remove(struct i2c_client *client);
 static u8 w83l785ts_read_value(struct i2c_client *client, u8 reg, u8 defval);
@@ -94,7 +88,7 @@ static struct w83l785ts_data *w83l785ts_update_device(struct device *dev);
  */
  
 static const struct i2c_device_id w83l785ts_id[] = {
-	{ "w83l785ts", w83l785ts },
+	{ "w83l785ts", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, w83l785ts_id);
@@ -108,7 +102,7 @@ static struct i2c_driver w83l785ts_driver = {
 	.remove		= w83l785ts_remove,
 	.id_table	= w83l785ts_id,
 	.detect		= w83l785ts_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*
@@ -146,60 +140,36 @@ static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, show_temp, NULL, 1);
  */
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int w83l785ts_detect(struct i2c_client *new_client, int kind,
+static int w83l785ts_detect(struct i2c_client *client,
 			    struct i2c_board_info *info)
 {
-	struct i2c_adapter *adapter = new_client->adapter;
+	struct i2c_adapter *adapter = client->adapter;
+	u16 man_id;
+	u8 chip_id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	/*
-	 * Now we do the remaining detection. A negative kind means that
-	 * the driver was loaded with no force parameter (default), so we
-	 * must both detect and identify the chip (actually there is only
-	 * one possible kind of chip for now, W83L785TS-S). A zero kind means
-	 * that the driver was loaded with the force parameter, the detection
-	 * step shall be skipped. A positive kind means that the driver
-	 * was loaded with the force parameter and a given kind of chip is
-	 * requested, so both the detection and the identification steps
-	 * are skipped.
-	 */
-	if (kind < 0) { /* detection */
-		if (((w83l785ts_read_value(new_client,
-		      W83L785TS_REG_CONFIG, 0) & 0x80) != 0x00)
-		 || ((w83l785ts_read_value(new_client,
-		      W83L785TS_REG_TYPE, 0) & 0xFC) != 0x00)) {
-			dev_dbg(&adapter->dev,
-				"W83L785TS-S detection failed at 0x%02x.\n",
-				new_client->addr);
-			return -ENODEV;
-		}
+	/* detection */
+	if ((w83l785ts_read_value(client, W83L785TS_REG_CONFIG, 0) & 0x80)
+	 || (w83l785ts_read_value(client, W83L785TS_REG_TYPE, 0) & 0xFC)) {
+		dev_dbg(&adapter->dev,
+			"W83L785TS-S detection failed at 0x%02x\n",
+			client->addr);
+		return -ENODEV;
 	}
 
-	if (kind <= 0) { /* identification */
-		u16 man_id;
-		u8 chip_id;
+	/* Identification */
+	man_id = (w83l785ts_read_value(client, W83L785TS_REG_MAN_ID1, 0) << 8)
+	       + w83l785ts_read_value(client, W83L785TS_REG_MAN_ID2, 0);
+	chip_id = w83l785ts_read_value(client, W83L785TS_REG_CHIP_ID, 0);
 
-		man_id = (w83l785ts_read_value(new_client,
-			 W83L785TS_REG_MAN_ID1, 0) << 8) +
-			 w83l785ts_read_value(new_client,
-			 W83L785TS_REG_MAN_ID2, 0);
-		chip_id = w83l785ts_read_value(new_client,
-			  W83L785TS_REG_CHIP_ID, 0);
-
-		if (man_id == 0x5CA3) { /* Winbond */
-			if (chip_id == 0x70) { /* W83L785TS-S */
-				kind = w83l785ts;			
-			}
-		}
-	
-		if (kind <= 0) { /* identification failed */
-			dev_info(&adapter->dev,
-				 "Unsupported chip (man_id=0x%04X, "
-				 "chip_id=0x%02X).\n", man_id, chip_id);
-			return -ENODEV;
-		}
+	if (man_id != 0x5CA3		/* Winbond */
+	 || chip_id != 0x70) {		/* W83L785TS-S */
+		dev_dbg(&adapter->dev,
+			"Unsupported chip (man_id=0x%04X, chip_id=0x%02X)\n",
+			man_id, chip_id);
+		return -ENODEV;
 	}
 
 	strlcpy(info->type, "w83l785ts", I2C_NAME_SIZE);

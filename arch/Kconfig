@@ -83,6 +83,13 @@ config KRETPROBES
 	def_bool y
 	depends on KPROBES && HAVE_KRETPROBES
 
+config USER_RETURN_NOTIFIER
+	bool
+	depends on HAVE_USER_RETURN_NOTIFIER
+	help
+	  Provide a kernel-internal notification when a cpu is about to
+	  switch to user mode.
+
 config HAVE_IOREMAP_PROT
 	bool
 
@@ -124,6 +131,13 @@ config HAVE_DMA_API_DEBUG
 	bool
 
 config HAVE_DEFAULT_NO_SPIN_MUTEXES
+	bool
+
+config HAVE_HW_BREAKPOINT
+	bool
+	depends on PERF_EVENTS
+
+config HAVE_USER_RETURN_NOTIFIER
 	bool
 
 source "kernel/gcov/Kconfig"

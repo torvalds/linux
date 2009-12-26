@@ -129,24 +129,22 @@
  *         sections 3.5.4 and 3.5.5 for more information.
  */
 
-#define EDAC_AMD64_VERSION		" Ver: 3.2.0 " __DATE__
+#define EDAC_AMD64_VERSION		" Ver: 3.3.0 " __DATE__
 #define EDAC_MOD_STR			"amd64_edac"
 
 #define EDAC_MAX_NUMNODES		8
 
 /* Extended Model from CPUID, for CPU Revision numbers */
-#define OPTERON_CPU_LE_REV_C		0
-#define OPTERON_CPU_REV_D		1
-#define OPTERON_CPU_REV_E		2
-
-/* NPT processors have the following Extended Models */
-#define OPTERON_CPU_REV_F		4
-#define OPTERON_CPU_REV_FA		5
+#define K8_REV_D			1
+#define K8_REV_E			2
+#define K8_REV_F			4
 
 /* Hardware limit on ChipSelect rows per MC and processors per system */
 #define MAX_CS_COUNT			8
 #define DRAM_REG_COUNT			8
 
+#define ON true
+#define OFF false
 
 /*
  * PCI-defined configuration space registers
@@ -241,7 +239,7 @@
 #define F10_DCHR_1			0x194
 
 #define F10_DCHR_FOUR_RANK_DIMM		BIT(18)
-#define F10_DCHR_Ddr3Mode		BIT(8)
+#define DDR3_MODE			BIT(8)
 #define F10_DCHR_MblMode		BIT(6)
 
 
@@ -382,14 +380,9 @@ enum {
 #define K8_NBCAP_CORES			(BIT(12)|BIT(13))
 #define K8_NBCAP_CHIPKILL		BIT(4)
 #define K8_NBCAP_SECDED			BIT(3)
-#define K8_NBCAP_8_NODE			BIT(2)
-#define K8_NBCAP_DUAL_NODE		BIT(1)
 #define K8_NBCAP_DCT_DUAL		BIT(0)
 
-/*
- * MSR Regs
- */
-#define K8_MSR_MCGCTL			0x017b
+/* MSRs */
 #define K8_MSR_MCGCTL_NBE		BIT(4)
 
 #define K8_MSR_MC4CTL			0x0410
@@ -487,7 +480,6 @@ struct amd64_pvt {
 	/* Save old hw registers' values before we modified them */
 	u32 nbctl_mcgctl_saved;		/* When true, following 2 are valid */
 	u32 old_nbctl;
-	unsigned long old_mcgctl;	/* per core on this node */
 
 	/* MC Type Index value: socket F vs Family 10h */
 	u32 mc_type_index;
@@ -495,6 +487,7 @@ struct amd64_pvt {
 	/* misc settings */
 	struct flags {
 		unsigned long cf8_extcfg:1;
+		unsigned long ecc_report:1;
 	} flags;
 };
 
@@ -504,7 +497,6 @@ struct scrubrate {
 };
 
 extern struct scrubrate scrubrates[23];
-extern u32 revf_quad_ddr2_shift[16];
 extern const char *tt_msgs[4];
 extern const char *ll_msgs[4];
 extern const char *rrrr_msgs[16];
@@ -534,17 +526,15 @@ extern struct mcidev_sysfs_attribute amd64_dbg_attrs[NUM_DBG_ATTRS],
  * functions and per device encoding/decoding logic.
  */
 struct low_ops {
-	int (*probe_valid_hardware)(struct amd64_pvt *pvt);
-	int (*early_channel_count)(struct amd64_pvt *pvt);
+	int (*early_channel_count)	(struct amd64_pvt *pvt);
 
-	u64 (*get_error_address)(struct mem_ctl_info *mci,
-			struct err_regs *info);
-	void (*read_dram_base_limit)(struct amd64_pvt *pvt, int dram);
-	void (*read_dram_ctl_register)(struct amd64_pvt *pvt);
-	void (*map_sysaddr_to_csrow)(struct mem_ctl_info *mci,
-					struct err_regs *info,
-					u64 SystemAddr);
-	int (*dbam_map_to_pages)(struct amd64_pvt *pvt, int dram_map);
+	u64 (*get_error_address)	(struct mem_ctl_info *mci,
+					 struct err_regs *info);
+	void (*read_dram_base_limit)	(struct amd64_pvt *pvt, int dram);
+	void (*read_dram_ctl_register)	(struct amd64_pvt *pvt);
+	void (*map_sysaddr_to_csrow)	(struct mem_ctl_info *mci,
+					 struct err_regs *info, u64 SystemAddr);
+	int (*dbam_to_cs)		(struct amd64_pvt *pvt, int cs_mode);
 };
 
 struct amd64_family_type {
@@ -565,6 +555,22 @@ static inline struct low_ops *family_ops(int index)
 {
 	return &amd64_family_types[index].ops;
 }
+
+static inline int amd64_read_pci_cfg_dword(struct pci_dev *pdev, int offset,
+					   u32 *val, const char *func)
+{
+	int err = 0;
+
+	err = pci_read_config_dword(pdev, offset, val);
+	if (err)
+		amd64_printk(KERN_WARNING, "%s: error reading F%dx%x.\n",
+			     func, PCI_FUNC(pdev->devfn), offset);
+
+	return err;
+}
+
+#define amd64_read_pci_cfg(pdev, offset, val)	\
+	amd64_read_pci_cfg_dword(pdev, offset, val, __func__)
 
 /*
  * For future CPU versions, verify the following as new 'slow' rates appear and

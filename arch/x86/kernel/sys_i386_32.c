@@ -24,31 +24,6 @@
 
 #include <asm/syscalls.h>
 
-asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
-			  unsigned long prot, unsigned long flags,
-			  unsigned long fd, unsigned long pgoff)
-{
-	int error = -EBADF;
-	struct file *file = NULL;
-	struct mm_struct *mm = current->mm;
-
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file)
-			goto out;
-	}
-
-	down_write(&mm->mmap_sem);
-	error = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-	up_write(&mm->mmap_sem);
-
-	if (file)
-		fput(file);
-out:
-	return error;
-}
-
 /*
  * Perform the select(nd, in, out, ex, tv) and mmap() system
  * calls. Linux/i386 didn't use to be able to handle more than
@@ -77,7 +52,7 @@ asmlinkage int old_mmap(struct mmap_arg_struct __user *arg)
 	if (a.offset & ~PAGE_MASK)
 		goto out;
 
-	err = sys_mmap2(a.addr, a.len, a.prot, a.flags,
+	err = sys_mmap_pgoff(a.addr, a.len, a.prot, a.flags,
 			a.fd, a.offset >> PAGE_SHIFT);
 out:
 	return err;

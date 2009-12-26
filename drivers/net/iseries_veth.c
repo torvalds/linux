@@ -604,10 +604,10 @@ static int veth_process_caps(struct veth_lpar_connection *cnx)
 	/* Convert timer to jiffies */
 	cnx->ack_timeout = remote_caps->ack_timeout * HZ / 1000000;
 
-	if ( (remote_caps->num_buffers == 0)
-	     || (remote_caps->ack_threshold > VETH_MAX_ACKS_PER_MSG)
-	     || (remote_caps->ack_threshold == 0)
-	     || (cnx->ack_timeout == 0) ) {
+	if ( (remote_caps->num_buffers == 0) ||
+	     (remote_caps->ack_threshold > VETH_MAX_ACKS_PER_MSG) ||
+	     (remote_caps->ack_threshold == 0) ||
+	     (cnx->ack_timeout == 0) ) {
 		veth_error("Received incompatible capabilities from LPAR %d.\n",
 				cnx->remote_lp);
 		return HvLpEvent_Rc_InvalidSubtypeData;
@@ -714,8 +714,8 @@ static void veth_statemachine(struct work_struct *work)
 		cnx->state |= VETH_STATE_OPEN;
 	}
 
-	if ( (cnx->state & VETH_STATE_OPEN)
-	     && !(cnx->state & VETH_STATE_SENTMON) ) {
+	if ( (cnx->state & VETH_STATE_OPEN) &&
+	     !(cnx->state & VETH_STATE_SENTMON) ) {
 		rc = veth_signalevent(cnx, VETH_EVENT_MONITOR,
 				      HvLpEvent_AckInd_DoAck,
 				      HvLpEvent_AckType_DeferredAck,
@@ -724,8 +724,8 @@ static void veth_statemachine(struct work_struct *work)
 		if (rc == HvLpEvent_Rc_Good) {
 			cnx->state |= VETH_STATE_SENTMON;
 		} else {
-			if ( (rc != HvLpEvent_Rc_PartitionDead)
-			     && (rc != HvLpEvent_Rc_PathClosed) )
+			if ( (rc != HvLpEvent_Rc_PartitionDead) &&
+			     (rc != HvLpEvent_Rc_PathClosed) )
 				veth_error("Error sending monitor to LPAR %d, "
 						"rc = %d\n", rlp, rc);
 
@@ -735,8 +735,8 @@ static void veth_statemachine(struct work_struct *work)
 		}
 	}
 
-	if ( (cnx->state & VETH_STATE_OPEN)
-	     && !(cnx->state & VETH_STATE_SENTCAPS)) {
+	if ( (cnx->state & VETH_STATE_OPEN) &&
+	     !(cnx->state & VETH_STATE_SENTCAPS)) {
 		u64 *rawcap = (u64 *)&cnx->local_caps;
 
 		rc = veth_signalevent(cnx, VETH_EVENT_CAP,
@@ -748,8 +748,8 @@ static void veth_statemachine(struct work_struct *work)
 		if (rc == HvLpEvent_Rc_Good) {
 			cnx->state |= VETH_STATE_SENTCAPS;
 		} else {
-			if ( (rc != HvLpEvent_Rc_PartitionDead)
-			     && (rc != HvLpEvent_Rc_PathClosed) )
+			if ( (rc != HvLpEvent_Rc_PartitionDead) &&
+			     (rc != HvLpEvent_Rc_PathClosed) )
 				veth_error("Error sending caps to LPAR %d, "
 						"rc = %d\n", rlp, rc);
 
@@ -759,8 +759,8 @@ static void veth_statemachine(struct work_struct *work)
 		}
 	}
 
-	if ((cnx->state & VETH_STATE_GOTCAPS)
-	    && !(cnx->state & VETH_STATE_SENTCAPACK)) {
+	if ((cnx->state & VETH_STATE_GOTCAPS) &&
+	    !(cnx->state & VETH_STATE_SENTCAPACK)) {
 		struct veth_cap_data *remote_caps = &cnx->remote_caps;
 
 		memcpy(remote_caps, &cnx->cap_event.u.caps_data,
@@ -783,9 +783,9 @@ static void veth_statemachine(struct work_struct *work)
 			goto cant_cope;
 	}
 
-	if ((cnx->state & VETH_STATE_GOTCAPACK)
-	    && (cnx->state & VETH_STATE_GOTCAPS)
-	    && !(cnx->state & VETH_STATE_READY)) {
+	if ((cnx->state & VETH_STATE_GOTCAPACK) &&
+	    (cnx->state & VETH_STATE_GOTCAPS) &&
+	    !(cnx->state & VETH_STATE_READY)) {
 		if (cnx->cap_ack_event.base_event.xRc == HvLpEvent_Rc_Good) {
 			/* Start the ACK timer */
 			cnx->ack_timer.expires = jiffies + cnx->ack_timeout;
@@ -818,8 +818,8 @@ static int veth_init_connection(u8 rlp)
 	struct veth_msg *msgs;
 	int i;
 
-	if ( (rlp == this_lp)
-	     || ! HvLpConfig_doLpsCommunicateOnVirtualLan(this_lp, rlp) )
+	if ( (rlp == this_lp) ||
+	     ! HvLpConfig_doLpsCommunicateOnVirtualLan(this_lp, rlp) )
 		return 0;
 
 	cnx = kzalloc(sizeof(*cnx), GFP_KERNEL);
@@ -1384,7 +1384,7 @@ static inline void veth_build_dma_list(struct dma_chunk *list,
 	unsigned long done;
 	int i = 1;
 
-	/* FIXME: skbs are continguous in real addresses.  Do we
+	/* FIXME: skbs are contiguous in real addresses.  Do we
 	 * really need to break it into PAGE_SIZE chunks, or can we do
 	 * it just at the granularity of iSeries real->absolute
 	 * mapping?  Indeed, given the way the allocator works, can we
@@ -1538,8 +1538,8 @@ static void veth_receive(struct veth_lpar_connection *cnx,
 	cnx->pending_acks[cnx->num_pending_acks++] =
 		event->base_event.xCorrelationToken;
 
-	if ( (cnx->num_pending_acks >= cnx->remote_caps.ack_threshold)
-	     || (cnx->num_pending_acks >= VETH_MAX_ACKS_PER_MSG) )
+	if ( (cnx->num_pending_acks >= cnx->remote_caps.ack_threshold) ||
+	     (cnx->num_pending_acks >= VETH_MAX_ACKS_PER_MSG) )
 		veth_flush_acks(cnx);
 
 	spin_unlock_irqrestore(&cnx->lock, flags);

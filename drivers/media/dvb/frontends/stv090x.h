@@ -75,6 +75,8 @@ struct stv090x_config {
 
 	enum stv090x_i2crpt	repeater_level;
 
+	bool diseqc_envelope_mode;
+
 	int (*tuner_init) (struct dvb_frontend *fe);
 	int (*tuner_set_mode) (struct dvb_frontend *fe, enum tuner_mode mode);
 	int (*tuner_set_frequency) (struct dvb_frontend *fe, u32 frequency);

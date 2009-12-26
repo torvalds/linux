@@ -57,6 +57,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/sort.h>
 #include <linux/io.h>
+#include <linux/time.h>
 
 #include "mpt2sas_base.h"
 
@@ -76,6 +77,44 @@ MODULE_PARM_DESC(max_sgl_entries, " max sg entries ");
 static int msix_disable = -1;
 module_param(msix_disable, int, 0);
 MODULE_PARM_DESC(msix_disable, " disable msix routed interrupts (default=0)");
+
+/* diag_buffer_enable is bitwise
+ * bit 0 set = TRACE
+ * bit 1 set = SNAPSHOT
+ * bit 2 set = EXTENDED
+ *
+ * Either bit can be set, or both
+ */
+static int diag_buffer_enable;
+module_param(diag_buffer_enable, int, 0);
+MODULE_PARM_DESC(diag_buffer_enable, " post diag buffers "
+    "(TRACE=1/SNAPSHOT=2/EXTENDED=4/default=0)");
+
+int mpt2sas_fwfault_debug;
+MODULE_PARM_DESC(mpt2sas_fwfault_debug, " enable detection of firmware fault "
+    "and halt firmware - (default=0)");
+
+/**
+ * _scsih_set_fwfault_debug - global setting of ioc->fwfault_debug.
+ *
+ */
+static int
+_scsih_set_fwfault_debug(const char *val, struct kernel_param *kp)
+{
+	int ret = param_set_int(val, kp);
+	struct MPT2SAS_ADAPTER *ioc;
+
+	if (ret)
+		return ret;
+
+	printk(KERN_INFO "setting logging_level(0x%08x)\n",
+				mpt2sas_fwfault_debug);
+	list_for_each_entry(ioc, &mpt2sas_ioc_list, list)
+		ioc->fwfault_debug = mpt2sas_fwfault_debug;
+	return 0;
+}
+module_param_call(mpt2sas_fwfault_debug, _scsih_set_fwfault_debug,
+    param_get_int, &mpt2sas_fwfault_debug, 0644);
 
 /**
  * _base_fault_reset_work - workq handling ioc fault conditions
@@ -121,7 +160,7 @@ _base_fault_reset_work(struct work_struct *work)
 
 /**
  * mpt2sas_base_start_watchdog - start the fault_reset_work_q
- * @ioc: pointer to scsi command object
+ * @ioc: per adapter object
  * Context: sleep.
  *
  * Return nothing.
@@ -155,7 +194,7 @@ mpt2sas_base_start_watchdog(struct MPT2SAS_ADAPTER *ioc)
 
 /**
  * mpt2sas_base_stop_watchdog - stop the fault_reset_work_q
- * @ioc: pointer to scsi command object
+ * @ioc: per adapter object
  * Context: sleep.
  *
  * Return nothing.
@@ -177,10 +216,55 @@ mpt2sas_base_stop_watchdog(struct MPT2SAS_ADAPTER *ioc)
 	}
 }
 
+/**
+ * mpt2sas_base_fault_info - verbose translation of firmware FAULT code
+ * @ioc: per adapter object
+ * @fault_code: fault code
+ *
+ * Return nothing.
+ */
+void
+mpt2sas_base_fault_info(struct MPT2SAS_ADAPTER *ioc , u16 fault_code)
+{
+	printk(MPT2SAS_ERR_FMT "fault_state(0x%04x)!\n",
+	    ioc->name, fault_code);
+}
+
+/**
+ * mpt2sas_halt_firmware - halt's mpt controller firmware
+ * @ioc: per adapter object
+ *
+ * For debugging timeout related issues.  Writing 0xCOFFEE00
+ * to the doorbell register will halt controller firmware. With
+ * the purpose to stop both driver and firmware, the enduser can
+ * obtain a ring buffer from controller UART.
+ */
+void
+mpt2sas_halt_firmware(struct MPT2SAS_ADAPTER *ioc)
+{
+	u32 doorbell;
+
+	if (!ioc->fwfault_debug)
+		return;
+
+	dump_stack();
+
+	doorbell = readl(&ioc->chip->Doorbell);
+	if ((doorbell & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_FAULT)
+		mpt2sas_base_fault_info(ioc , doorbell);
+	else {
+		writel(0xC0FFEE00, &ioc->chip->Doorbell);
+		printk(MPT2SAS_ERR_FMT "Firmware is halted due to command "
+		    "timeout\n", ioc->name);
+	}
+
+	panic("panic in %s\n", __func__);
+}
+
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 /**
  * _base_sas_ioc_info - verbose translation of the ioc status
- * @ioc: pointer to scsi command object
+ * @ioc: per adapter object
  * @mpi_reply: reply mf payload returned from firmware
  * @request_hdr: request mf
  *
@@ -394,7 +478,7 @@ _base_sas_ioc_info(struct MPT2SAS_ADAPTER *ioc, MPI2DefaultReply_t *mpi_reply,
 
 /**
  * _base_display_event_data - verbose translation of firmware asyn events
- * @ioc: pointer to scsi command object
+ * @ioc: per adapter object
  * @mpi_reply: reply mf payload returned from firmware
  *
  * Return nothing.
@@ -474,7 +558,7 @@ _base_display_event_data(struct MPT2SAS_ADAPTER *ioc,
 
 /**
  * _base_sas_log_info - verbose translation of firmware log info
- * @ioc: pointer to scsi command object
+ * @ioc: per adapter object
  * @log_info: log info
  *
  * Return nothing.
@@ -526,22 +610,8 @@ _base_sas_log_info(struct MPT2SAS_ADAPTER *ioc , u32 log_info)
 }
 
 /**
- * mpt2sas_base_fault_info - verbose translation of firmware FAULT code
- * @ioc: pointer to scsi command object
- * @fault_code: fault code
- *
- * Return nothing.
- */
-void
-mpt2sas_base_fault_info(struct MPT2SAS_ADAPTER *ioc , u16 fault_code)
-{
-	printk(MPT2SAS_ERR_FMT "fault_state(0x%04x)!\n",
-	    ioc->name, fault_code);
-}
-
-/**
  * _base_display_reply_info -
- * @ioc: pointer to scsi command object
+ * @ioc: per adapter object
  * @smid: system request message index
  * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
@@ -570,7 +640,7 @@ _base_display_reply_info(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 
 /**
  * mpt2sas_base_done - base internal command completion routine
- * @ioc: pointer to scsi command object
+ * @ioc: per adapter object
  * @smid: system request message index
  * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
@@ -603,7 +673,7 @@ mpt2sas_base_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 
 /**
  * _base_async_event - main callback handler for firmware asyn events
- * @ioc: pointer to scsi command object
+ * @ioc: per adapter object
  * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
  *
@@ -684,7 +754,7 @@ _base_get_cb_idx(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 
 /**
  * _base_mask_interrupts - disable interrupts
- * @ioc: pointer to scsi command object
+ * @ioc: per adapter object
  *
  * Disabling ResetIRQ, Reply and Doorbell Interrupts
  *
@@ -704,7 +774,7 @@ _base_mask_interrupts(struct MPT2SAS_ADAPTER *ioc)
 
 /**
  * _base_unmask_interrupts - enable interrupts
- * @ioc: pointer to scsi command object
+ * @ioc: per adapter object
  *
  * Enabling only Reply Interrupts
  *
@@ -1258,12 +1328,13 @@ mpt2sas_base_get_sense_buffer(struct MPT2SAS_ADAPTER *ioc, u16 smid)
  * @ioc: per adapter object
  * @smid: system request message index
  *
- * Returns phys pointer to sense buffer.
+ * Returns phys pointer to the low 32bit address of the sense buffer.
  */
-dma_addr_t
+__le32
 mpt2sas_base_get_sense_buffer_dma(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 {
-	return ioc->sense_dma + ((smid - 1) * SCSI_SENSE_BUFFERSIZE);
+	return cpu_to_le32(ioc->sense_dma +
+			((smid - 1) * SCSI_SENSE_BUFFERSIZE));
 }
 
 /**
@@ -1693,6 +1764,12 @@ _base_display_ioc_capabilities(struct MPT2SAS_ADAPTER *ioc)
 	if (ioc->facts.IOCCapabilities &
 	    MPI2_IOCFACTS_CAPABILITY_DIAG_TRACE_BUFFER) {
 		printk("%sDiag Trace Buffer", i ? "," : "");
+		i++;
+	}
+
+	if (ioc->facts.IOCCapabilities &
+	    MPI2_IOCFACTS_CAPABILITY_EXTENDED_BUFFER) {
+		printk(KERN_INFO "%sDiag Extended Buffer", i ? "," : "");
 		i++;
 	}
 
@@ -2871,6 +2948,8 @@ _base_send_ioc_init(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 	Mpi2IOCInitRequest_t mpi_request;
 	Mpi2IOCInitReply_t mpi_reply;
 	int r;
+	struct timeval current_time;
+	u16 ioc_status;
 
 	dinitprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s\n", ioc->name,
 	    __func__));
@@ -2921,6 +3000,13 @@ _base_send_ioc_init(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 	    cpu_to_le32(ioc->reply_post_free_dma);
 #endif
 
+	/* This time stamp specifies number of milliseconds
+	 * since epoch ~ midnight January 1, 1970.
+	 */
+	do_gettimeofday(&current_time);
+	mpi_request.TimeStamp = (current_time.tv_sec * 1000) +
+	    (current_time.tv_usec >> 3);
+
 	if (ioc->logging_level & MPT_DEBUG_INIT) {
 		u32 *mfp;
 		int i;
@@ -2943,7 +3029,8 @@ _base_send_ioc_init(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 		return r;
 	}
 
-	if (mpi_reply.IOCStatus != MPI2_IOCSTATUS_SUCCESS ||
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) & MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS ||
 	    mpi_reply.IOCLogInfo) {
 		printk(MPT2SAS_ERR_FMT "%s: failed\n", ioc->name, __func__);
 		r = -EIO;
@@ -3461,11 +3548,11 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 		return r;
 
 	pci_set_drvdata(ioc->pdev, ioc->shost);
-	r = _base_make_ioc_ready(ioc, CAN_SLEEP, SOFT_RESET);
+	r = _base_get_ioc_facts(ioc, CAN_SLEEP);
 	if (r)
 		goto out_free_resources;
 
-	r = _base_get_ioc_facts(ioc, CAN_SLEEP);
+	r = _base_make_ioc_ready(ioc, CAN_SLEEP, SOFT_RESET);
 	if (r)
 		goto out_free_resources;
 
@@ -3495,6 +3582,11 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 	ioc->transport_cmds.reply = kzalloc(ioc->reply_sz, GFP_KERNEL);
 	ioc->transport_cmds.status = MPT2_CMD_NOT_USED;
 	mutex_init(&ioc->transport_cmds.mutex);
+
+	/* scsih internal command bits */
+	ioc->scsih_cmds.reply = kzalloc(ioc->reply_sz, GFP_KERNEL);
+	ioc->scsih_cmds.status = MPT2_CMD_NOT_USED;
+	mutex_init(&ioc->scsih_cmds.mutex);
 
 	/* task management internal command bits */
 	ioc->tm_cmds.reply = kzalloc(ioc->reply_sz, GFP_KERNEL);
@@ -3531,6 +3623,8 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 		goto out_free_resources;
 
 	mpt2sas_base_start_watchdog(ioc);
+	if (diag_buffer_enable != 0)
+		mpt2sas_enable_diag_buffer(ioc, diag_buffer_enable);
 	return 0;
 
  out_free_resources:
@@ -3683,6 +3777,9 @@ mpt2sas_base_hard_reset_handler(struct MPT2SAS_ADAPTER *ioc, int sleep_flag,
 
 	dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: enter\n", ioc->name,
 	    __func__));
+
+	if (mpt2sas_fwfault_debug)
+		mpt2sas_halt_firmware(ioc);
 
 	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
 	if (ioc->shost_recovery) {

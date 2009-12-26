@@ -7969,7 +7969,7 @@ static int advansys_reset(struct scsi_cmnd *scp)
 		ASC_DBG(1, "before AscInitAsc1000Driver()\n");
 		status = AscInitAsc1000Driver(asc_dvc);
 
-		/* Refer to ASC_IERR_* defintions for meaning of 'err_code'. */
+		/* Refer to ASC_IERR_* definitions for meaning of 'err_code'. */
 		if (asc_dvc->err_code) {
 			scmd_printk(KERN_INFO, scp, "SCSI bus reset error: "
 				    "0x%x\n", asc_dvc->err_code);

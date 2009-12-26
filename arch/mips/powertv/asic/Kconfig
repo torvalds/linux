@@ -1,0 +1,28 @@
+config MIN_RUNTIME_RESOURCES
+	bool "Support for minimum runtime resources"
+	default n
+	depends on POWERTV
+	help
+	  Enables support for minimizing the number of (SA asic) runtime
+	  resources that are preallocated by the kernel.
+
+config MIN_RUNTIME_DOCSIS
+	bool "Support for minimum DOCSIS resource"
+	default y
+	depends on MIN_RUNTIME_RESOURCES
+	help
+	  Enables support for the preallocated DOCSIS resource.
+
+config MIN_RUNTIME_PMEM
+	bool "Support for minimum PMEM resource"
+	default y
+	depends on MIN_RUNTIME_RESOURCES
+	help
+	  Enables support for the preallocated Memory resource.
+
+config MIN_RUNTIME_TFTP
+	bool "Support for minimum TFTP resource"
+	default y
+	depends on MIN_RUNTIME_RESOURCES
+	help
+	  Enables support for the preallocated TFTP resource.

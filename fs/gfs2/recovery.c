@@ -7,6 +7,7 @@
  * of the GNU General Public License version 2.
  */
 
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
@@ -409,7 +410,9 @@ static int clean_journal(struct gfs2_jdesc *jd, struct gfs2_log_header_host *hea
 	memset(lh, 0, sizeof(struct gfs2_log_header));
 	lh->lh_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
 	lh->lh_header.mh_type = cpu_to_be32(GFS2_METATYPE_LH);
+	lh->lh_header.__pad0 = cpu_to_be64(0);
 	lh->lh_header.mh_format = cpu_to_be32(GFS2_FORMAT_LH);
+	lh->lh_header.mh_jid = cpu_to_be32(sdp->sd_jdesc->jd_jid);
 	lh->lh_sequence = cpu_to_be64(head->lh_sequence + 1);
 	lh->lh_flags = cpu_to_be32(GFS2_LOG_HEAD_UNMOUNT);
 	lh->lh_blkno = cpu_to_be32(lblock);
@@ -593,6 +596,7 @@ fail:
 }
 
 struct slow_work_ops gfs2_recover_ops = {
+	.owner	 = THIS_MODULE,
 	.get_ref = gfs2_recover_get_ref,
 	.put_ref = gfs2_recover_put_ref,
 	.execute = gfs2_recover_work,

@@ -56,6 +56,7 @@
 /* deprecated: RDS_BARRIER 4 */
 #define RDS_RECVERR			5
 #define RDS_CONG_MONITOR		6
+#define RDS_GET_MR_FOR_DEST		7
 
 /*
  * Control message types for SOL_RDS.
@@ -222,6 +223,13 @@ struct rds_get_mr_args {
 	struct rds_iovec vec;
 	u_int64_t	cookie_addr;
 	uint64_t	flags;
+};
+
+struct rds_get_mr_for_dest_args {
+	struct sockaddr_storage	dest_addr;
+	struct rds_iovec 	vec;
+	u_int64_t		cookie_addr;
+	uint64_t		flags;
 };
 
 struct rds_free_mr_args {

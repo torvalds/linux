@@ -1,0 +1,6 @@
+#!/bin/bash
+# description: useless but exhaustive test script
+perf trace -s ~/libexec/perf-core/scripts/perl/check-perf-trace.pl
+
+
+

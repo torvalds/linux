@@ -40,10 +40,10 @@ struct nilfs_btnode_chkey_ctxt {
 void nilfs_btnode_cache_init_once(struct address_space *);
 void nilfs_btnode_cache_init(struct address_space *, struct backing_dev_info *);
 void nilfs_btnode_cache_clear(struct address_space *);
+struct buffer_head *nilfs_btnode_create_block(struct address_space *btnc,
+					      __u64 blocknr);
 int nilfs_btnode_submit_block(struct address_space *, __u64, sector_t,
-			      struct buffer_head **, int);
-int nilfs_btnode_get(struct address_space *, __u64, sector_t,
-		     struct buffer_head **, int);
+			      struct buffer_head **);
 void nilfs_btnode_delete(struct buffer_head *);
 int nilfs_btnode_prepare_change_key(struct address_space *,
 				    struct nilfs_btnode_chkey_ctxt *);

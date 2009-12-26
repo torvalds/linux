@@ -35,11 +35,16 @@
 # endif
 #endif
 
-/* Node not present */
-#define NUMA_NO_NODE	(-1)
+/*
+ * to preserve the visibility of NUMA_NO_NODE definition,
+ * moved to there from here.  May be used independent of
+ * CONFIG_NUMA.
+ */
+#include <linux/numa.h>
 
 #ifdef CONFIG_NUMA
 #include <linux/cpumask.h>
+
 #include <asm/mpspec.h>
 
 #ifdef CONFIG_X86_32
@@ -143,7 +148,7 @@ extern unsigned long node_remap_size[];
 				| 1*SD_BALANCE_FORK			\
 				| 0*SD_BALANCE_WAKE			\
 				| 1*SD_WAKE_AFFINE			\
-				| 1*SD_PREFER_LOCAL			\
+				| 0*SD_PREFER_LOCAL			\
 				| 0*SD_SHARE_CPUPOWER			\
 				| 0*SD_POWERSAVINGS_BALANCE		\
 				| 0*SD_SHARE_PKG_RESOURCES		\

@@ -29,7 +29,6 @@ static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, 0x4c,
 					0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
 /* Insmod parameters */
-I2C_CLIENT_INSMOD_1(pcf8591);
 
 static int input_mode;
 module_param(input_mode, int, 0);
@@ -169,7 +168,7 @@ static const struct attribute_group pcf8591_attr_group_opt = {
  */
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int pcf8591_detect(struct i2c_client *client, int kind,
+static int pcf8591_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
@@ -299,7 +298,7 @@ static struct i2c_driver pcf8591_driver = {
 
 	.class		= I2C_CLASS_HWMON,	/* Nearest choice */
 	.detect		= pcf8591_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static int __init pcf8591_init(void)

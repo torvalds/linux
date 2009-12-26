@@ -797,27 +797,28 @@ static struct video_device *vdev_init(struct saa7134_dev *dev,
 	vfd->debug   = video_debug;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
 		 dev->name, type, saa7134_boards[dev->board].name);
+	video_set_drvdata(vfd, dev);
 	return vfd;
 }
 
 static void saa7134_unregister_video(struct saa7134_dev *dev)
 {
 	if (dev->video_dev) {
-		if (-1 != dev->video_dev->minor)
+		if (video_is_registered(dev->video_dev))
 			video_unregister_device(dev->video_dev);
 		else
 			video_device_release(dev->video_dev);
 		dev->video_dev = NULL;
 	}
 	if (dev->vbi_dev) {
-		if (-1 != dev->vbi_dev->minor)
+		if (video_is_registered(dev->vbi_dev))
 			video_unregister_device(dev->vbi_dev);
 		else
 			video_device_release(dev->vbi_dev);
 		dev->vbi_dev = NULL;
 	}
 	if (dev->radio_dev) {
-		if (-1 != dev->radio_dev->minor)
+		if (video_is_registered(dev->radio_dev))
 			video_unregister_device(dev->radio_dev);
 		else
 			video_device_release(dev->radio_dev);
@@ -1032,7 +1033,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	saa7134_irq_video_signalchange(dev);
 
 	if (TUNER_ABSENT != dev->tuner_type)
-		saa_call_all(dev, tuner, s_standby);
+		saa_call_all(dev, core, s_power, 0);
 
 	/* register v4l devices */
 	if (saa7134_no_overlay > 0)
@@ -1046,8 +1047,8 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 		       dev->name);
 		goto fail4;
 	}
-	printk(KERN_INFO "%s: registered device video%d [v4l2]\n",
-	       dev->name, dev->video_dev->num);
+	printk(KERN_INFO "%s: registered device %s [v4l2]\n",
+	       dev->name, video_device_node_name(dev->video_dev));
 
 	dev->vbi_dev = vdev_init(dev, &saa7134_video_template, "vbi");
 
@@ -1055,8 +1056,8 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 				    vbi_nr[dev->nr]);
 	if (err < 0)
 		goto fail4;
-	printk(KERN_INFO "%s: registered device vbi%d\n",
-	       dev->name, dev->vbi_dev->num);
+	printk(KERN_INFO "%s: registered device %s\n",
+	       dev->name, video_device_node_name(dev->vbi_dev));
 
 	if (card_has_radio(dev)) {
 		dev->radio_dev = vdev_init(dev,&saa7134_radio_template,"radio");
@@ -1064,8 +1065,8 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 					    radio_nr[dev->nr]);
 		if (err < 0)
 			goto fail4;
-		printk(KERN_INFO "%s: registered device radio%d\n",
-		       dev->name, dev->radio_dev->num);
+		printk(KERN_INFO "%s: registered device %s\n",
+		       dev->name, video_device_node_name(dev->radio_dev));
 	}
 
 	/* everything worked */
@@ -1319,7 +1320,7 @@ static struct pci_driver saa7134_pci_driver = {
 #endif
 };
 
-static int saa7134_init(void)
+static int __init saa7134_init(void)
 {
 	INIT_LIST_HEAD(&saa7134_devlist);
 	printk(KERN_INFO "saa7130/34: v4l2 driver version %d.%d.%d loaded\n",
@@ -1333,7 +1334,7 @@ static int saa7134_init(void)
 	return pci_register_driver(&saa7134_pci_driver);
 }
 
-static void saa7134_fini(void)
+static void __exit saa7134_fini(void)
 {
 	pci_unregister_driver(&saa7134_pci_driver);
 }

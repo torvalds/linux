@@ -219,7 +219,9 @@ static int shared_resources_initialised;
      *  Mid level stuff
      */
 
-struct sound_settings dmasound = { .lock = SPIN_LOCK_UNLOCKED };
+struct sound_settings dmasound = {
+	.lock = __SPIN_LOCK_UNLOCKED(dmasound.lock)
+};
 
 static inline void sound_silence(void)
 {

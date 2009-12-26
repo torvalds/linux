@@ -9,14 +9,8 @@
 #ifndef NFSD_SYSCALL_H
 #define NFSD_SYSCALL_H
 
-# include <linux/types.h>
-#ifdef __KERNEL__
-# include <linux/in.h>
-#endif 
-#include <linux/posix_types.h>
-#include <linux/nfsd/const.h>
+#include <linux/types.h>
 #include <linux/nfsd/export.h>
-#include <linux/nfsd/nfsfh.h>
 
 /*
  * Version of the syscall interface

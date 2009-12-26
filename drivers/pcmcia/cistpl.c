@@ -23,7 +23,7 @@
 #include <linux/mm.h>
 #include <linux/pci.h>
 #include <linux/ioport.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
@@ -125,7 +125,7 @@ set_cis_map(struct pcmcia_socket *s, unsigned int card_offset, unsigned int flag
 
     Low-level functions to read and write CIS memory.  I think the
     write routine is only useful for writing one-byte registers.
-    
+
 ======================================================================*/
 
 /* Bits in attr field */
@@ -137,8 +137,8 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 {
     void __iomem *sys, *end;
     unsigned char *buf = ptr;
-    
-    cs_dbg(s, 3, "pcmcia_read_cis_mem(%d, %#x, %u)\n", attr, addr, len);
+
+    dev_dbg(&s->dev, "pcmcia_read_cis_mem(%d, %#x, %u)\n", attr, addr, len);
 
     if (attr & IS_INDIRECT) {
 	/* Indirect accesses use a bunch of special registers at fixed
@@ -190,7 +190,7 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	    addr = 0;
 	}
     }
-    cs_dbg(s, 3, "  %#2.2x %#2.2x %#2.2x %#2.2x ...\n",
+    dev_dbg(&s->dev, "  %#2.2x %#2.2x %#2.2x %#2.2x ...\n",
 	  *(u_char *)(ptr+0), *(u_char *)(ptr+1),
 	  *(u_char *)(ptr+2), *(u_char *)(ptr+3));
     return 0;
@@ -203,8 +203,8 @@ void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 {
     void __iomem *sys, *end;
     unsigned char *buf = ptr;
-    
-    cs_dbg(s, 3, "pcmcia_write_cis_mem(%d, %#x, %u)\n", attr, addr, len);
+
+    dev_dbg(&s->dev, "pcmcia_write_cis_mem(%d, %#x, %u)\n", attr, addr, len);
 
     if (attr & IS_INDIRECT) {
 	/* Indirect accesses use a bunch of special registers at fixed
@@ -262,7 +262,7 @@ EXPORT_SYMBOL(pcmcia_write_cis_mem);
     This is a wrapper around read_cis_mem, with the same interface,
     but which caches information, for cards whose CIS may not be
     readable all the time.
-    
+
 ======================================================================*/
 
 static void read_cis_cache(struct pcmcia_socket *s, int attr, u_int addr,
@@ -342,7 +342,7 @@ EXPORT_SYMBOL(destroy_cis_cache);
 
     This verifies if the CIS of a card matches what is in the CIS
     cache.
-    
+
 ======================================================================*/
 
 int verify_cis_cache(struct pcmcia_socket *s)
@@ -381,7 +381,7 @@ int verify_cis_cache(struct pcmcia_socket *s)
 
     For really bad cards, we provide a facility for uploading a
     replacement CIS.
-    
+
 ======================================================================*/
 
 int pcmcia_replace_cis(struct pcmcia_socket *s,
@@ -406,7 +406,7 @@ EXPORT_SYMBOL(pcmcia_replace_cis);
 /*======================================================================
 
     The high-level CIS tuple services
-    
+
 ======================================================================*/
 
 typedef struct tuple_flags {
@@ -420,8 +420,6 @@ typedef struct tuple_flags {
 #define HAS_LINK(f)	(((tuple_flags *)(&(f)))->has_link)
 #define MFC_FN(f)	(((tuple_flags *)(&(f)))->mfc_fn)
 #define SPACE(f)	(((tuple_flags *)(&(f)))->space)
-
-int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int func, tuple_t *tuple);
 
 int pccard_get_first_tuple(struct pcmcia_socket *s, unsigned int function, tuple_t *tuple)
 {
@@ -523,10 +521,11 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function, tuple_
 		ofs++; continue;
 	    }
 	}
-	
+
 	/* End of chain?  Follow long link if possible */
 	if (link[0] == CISTPL_END) {
-	    if ((ofs = follow_link(s, tuple)) < 0)
+	    ofs = follow_link(s, tuple);
+	    if (ofs < 0)
 		return -ENOSPC;
 	    attr = SPACE(tuple->Flags);
 	    read_cis_cache(s, attr, ofs, 2, link);
@@ -578,16 +577,16 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function, tuple_
 	} else
 	    if (tuple->DesiredTuple == RETURN_FIRST_TUPLE)
 		break;
-	
+
 	if (link[0] == tuple->DesiredTuple)
 	    break;
 	ofs += link[1] + 2;
     }
     if (i == MAX_TUPLES) {
-	cs_dbg(s, 1, "cs: overrun in pcmcia_get_next_tuple\n");
+	dev_dbg(&s->dev, "cs: overrun in pcmcia_get_next_tuple\n");
 	return -ENOSPC;
     }
-    
+
     tuple->TupleCode = link[0];
     tuple->TupleLink = link[1];
     tuple->CISOffset = ofs + 2;
@@ -623,7 +622,7 @@ EXPORT_SYMBOL(pccard_get_tuple_data);
 /*======================================================================
 
     Parsing routines for individual tuples
-    
+
 ======================================================================*/
 
 static int parse_device(tuple_t *tuple, cistpl_device_t *device)
@@ -637,26 +636,37 @@ static int parse_device(tuple_t *tuple, cistpl_device_t *device)
 
     device->ndev = 0;
     for (i = 0; i < CISTPL_MAX_DEVICES; i++) {
-	
-	if (*p == 0xff) break;
+
+	if (*p == 0xff)
+		break;
 	device->dev[i].type = (*p >> 4);
 	device->dev[i].wp = (*p & 0x08) ? 1 : 0;
 	switch (*p & 0x07) {
-	case 0: device->dev[i].speed = 0;   break;
-	case 1: device->dev[i].speed = 250; break;
-	case 2: device->dev[i].speed = 200; break;
-	case 3: device->dev[i].speed = 150; break;
-	case 4: device->dev[i].speed = 100; break;
+	case 0:
+		device->dev[i].speed = 0;
+		break;
+	case 1:
+		device->dev[i].speed = 250;
+		break;
+	case 2:
+		device->dev[i].speed = 200;
+		break;
+	case 3:
+		device->dev[i].speed = 150;
+		break;
+	case 4:
+		device->dev[i].speed = 100;
+		break;
 	case 7:
-	    if (++p == q)
-		    return -EINVAL;
-	    device->dev[i].speed = SPEED_CVT(*p);
-	    while (*p & 0x80)
 		if (++p == q)
 			return -EINVAL;
-	    break;
+		device->dev[i].speed = SPEED_CVT(*p);
+		while (*p & 0x80)
+			if (++p == q)
+				return -EINVAL;
+		break;
 	default:
-	    return -EINVAL;
+		return -EINVAL;
 	}
 
 	if (++p == q)
@@ -671,7 +681,7 @@ static int parse_device(tuple_t *tuple, cistpl_device_t *device)
 	if (++p == q)
 		break;
     }
-    
+
     return 0;
 }
 
@@ -706,9 +716,9 @@ static int parse_longlink_mfc(tuple_t *tuple,
 {
     u_char *p;
     int i;
-    
+
     p = (u_char *)tuple->TupleData;
-    
+
     link->nfn = *p; p++;
     if (tuple->TupleDataLen <= link->nfn*5)
 	return -EINVAL;
@@ -737,11 +747,13 @@ static int parse_strings(u_char *p, u_char *q, int max,
 	ns++;
 	for (;;) {
 	    s[j++] = (*p == 0xff) ? '\0' : *p;
-	    if ((*p == '\0') || (*p == 0xff)) break;
+	    if ((*p == '\0') || (*p == 0xff))
+		    break;
 	    if (++p == q)
 		    return -EINVAL;
 	}
-	if ((*p == 0xff) || (++p == q)) break;
+	if ((*p == 0xff) || (++p == q))
+		break;
     }
     if (found) {
 	*found = ns;
@@ -756,10 +768,10 @@ static int parse_strings(u_char *p, u_char *q, int max,
 static int parse_vers_1(tuple_t *tuple, cistpl_vers_1_t *vers_1)
 {
     u_char *p, *q;
-    
+
     p = (u_char *)tuple->TupleData;
     q = p + tuple->TupleDataLen;
-    
+
     vers_1->major = *p; p++;
     vers_1->minor = *p; p++;
     if (p >= q)
@@ -774,10 +786,10 @@ static int parse_vers_1(tuple_t *tuple, cistpl_vers_1_t *vers_1)
 static int parse_altstr(tuple_t *tuple, cistpl_altstr_t *altstr)
 {
     u_char *p, *q;
-    
+
     p = (u_char *)tuple->TupleData;
     q = p + tuple->TupleDataLen;
-    
+
     return parse_strings(p, q, CISTPL_MAX_ALTSTR_STRINGS,
 			 altstr->str, altstr->ofs, &altstr->ns);
 }
@@ -793,7 +805,8 @@ static int parse_jedec(tuple_t *tuple, cistpl_jedec_t *jedec)
     q = p + tuple->TupleDataLen;
 
     for (nid = 0; nid < CISTPL_MAX_DEVICES; nid++) {
-	if (p > q-2) break;
+	if (p > q-2)
+		break;
 	jedec->id[nid].mfr = p[0];
 	jedec->id[nid].info = p[1];
 	p += 2;
@@ -871,7 +884,7 @@ static int parse_config(tuple_t *tuple, cistpl_config_t *config)
 
     The following routines are all used to parse the nightmarish
     config table entries.
-    
+
 ======================================================================*/
 
 static u_char *parse_power(u_char *p, u_char *q,
@@ -880,17 +893,20 @@ static u_char *parse_power(u_char *p, u_char *q,
     int i;
     u_int scale;
 
-    if (p == q) return NULL;
+    if (p == q)
+	    return NULL;
     pwr->present = *p;
     pwr->flags = 0;
     p++;
     for (i = 0; i < 7; i++)
 	if (pwr->present & (1<<i)) {
-	    if (p == q) return NULL;
+	    if (p == q)
+		    return NULL;
 	    pwr->param[i] = POWER_CVT(*p);
 	    scale = POWER_SCALE(*p);
 	    while (*p & 0x80) {
-		if (++p == q) return NULL;
+		if (++p == q)
+			return NULL;
 		if ((*p & 0x7f) < 100)
 		    pwr->param[i] += (*p & 0x7f) * scale / 100;
 		else if (*p == 0x7d)
@@ -914,24 +930,28 @@ static u_char *parse_timing(u_char *p, u_char *q,
 {
     u_char scale;
 
-    if (p == q) return NULL;
+    if (p == q)
+	    return NULL;
     scale = *p;
     if ((scale & 3) != 3) {
-	if (++p == q) return NULL;
+	if (++p == q)
+		return NULL;
 	timing->wait = SPEED_CVT(*p);
 	timing->waitscale = exponent[scale & 3];
     } else
 	timing->wait = 0;
     scale >>= 2;
     if ((scale & 7) != 7) {
-	if (++p == q) return NULL;
+	if (++p == q)
+		return NULL;
 	timing->ready = SPEED_CVT(*p);
 	timing->rdyscale = exponent[scale & 7];
     } else
 	timing->ready = 0;
     scale >>= 3;
     if (scale != 7) {
-	if (++p == q) return NULL;
+	if (++p == q)
+		return NULL;
 	timing->reserved = SPEED_CVT(*p);
 	timing->rsvscale = exponent[scale];
     } else
@@ -946,7 +966,8 @@ static u_char *parse_io(u_char *p, u_char *q, cistpl_io_t *io)
 {
     int i, j, bsz, lsz;
 
-    if (p == q) return NULL;
+    if (p == q)
+	    return NULL;
     io->flags = *p;
 
     if (!(*p & 0x80)) {
@@ -955,24 +976,29 @@ static u_char *parse_io(u_char *p, u_char *q, cistpl_io_t *io)
 	io->win[0].len = (1 << (io->flags & CISTPL_IO_LINES_MASK));
 	return p+1;
     }
-    
-    if (++p == q) return NULL;
+
+    if (++p == q)
+	    return NULL;
     io->nwin = (*p & 0x0f) + 1;
     bsz = (*p & 0x30) >> 4;
-    if (bsz == 3) bsz++;
+    if (bsz == 3)
+	    bsz++;
     lsz = (*p & 0xc0) >> 6;
-    if (lsz == 3) lsz++;
+    if (lsz == 3)
+	    lsz++;
     p++;
-    
+
     for (i = 0; i < io->nwin; i++) {
 	io->win[i].base = 0;
 	io->win[i].len = 1;
 	for (j = 0; j < bsz; j++, p++) {
-	    if (p == q) return NULL;
+	    if (p == q)
+		    return NULL;
 	    io->win[i].base += *p << (j*8);
 	}
 	for (j = 0; j < lsz; j++, p++) {
-	    if (p == q) return NULL;
+	    if (p == q)
+		    return NULL;
 	    io->win[i].len += *p << (j*8);
 	}
     }
@@ -986,27 +1012,32 @@ static u_char *parse_mem(u_char *p, u_char *q, cistpl_mem_t *mem)
     int i, j, asz, lsz, has_ha;
     u_int len, ca, ha;
 
-    if (p == q) return NULL;
+    if (p == q)
+	    return NULL;
 
     mem->nwin = (*p & 0x07) + 1;
     lsz = (*p & 0x18) >> 3;
     asz = (*p & 0x60) >> 5;
     has_ha = (*p & 0x80);
-    if (++p == q) return NULL;
-    
+    if (++p == q)
+	    return NULL;
+
     for (i = 0; i < mem->nwin; i++) {
 	len = ca = ha = 0;
 	for (j = 0; j < lsz; j++, p++) {
-	    if (p == q) return NULL;
+	    if (p == q)
+		    return NULL;
 	    len += *p << (j*8);
 	}
 	for (j = 0; j < asz; j++, p++) {
-	    if (p == q) return NULL;
+	    if (p == q)
+		    return NULL;
 	    ca += *p << (j*8);
 	}
 	if (has_ha)
 	    for (j = 0; j < asz; j++, p++) {
-		if (p == q) return NULL;
+		if (p == q)
+			return NULL;
 		ha += *p << (j*8);
 	    }
 	mem->win[i].len = len << 8;
@@ -1095,7 +1126,7 @@ static int parse_cftable_entry(tuple_t *tuple,
 	entry->timing.ready = 0;
 	entry->timing.reserved = 0;
     }
-    
+
     /* I/O window options */
     if (features & 0x08) {
 	p = parse_io(p, q, &entry->io);
@@ -1103,7 +1134,7 @@ static int parse_cftable_entry(tuple_t *tuple,
 		return -EINVAL;
     } else
 	entry->io.nwin = 0;
-    
+
     /* Interrupt options */
     if (features & 0x10) {
 	p = parse_irq(p, q, &entry->irq);
@@ -1153,7 +1184,7 @@ static int parse_cftable_entry(tuple_t *tuple,
     }
 
     entry->subtuples = q-p;
-    
+
     return 0;
 }
 
@@ -1176,7 +1207,7 @@ static int parse_bar(tuple_t *tuple, cistpl_bar_t *bar)
 static int parse_config_cb(tuple_t *tuple, cistpl_config_t *config)
 {
     u_char *p;
-    
+
     p = (u_char *)tuple->TupleData;
     if ((*p != 3) || (tuple->TupleDataLen < 6))
 	return -EINVAL;
@@ -1231,7 +1262,7 @@ static int parse_cftable_entry_cb(tuple_t *tuple,
 	entry->io = *p; p++;
     } else
 	entry->io = 0;
-    
+
     /* Interrupt options */
     if (features & 0x10) {
 	p = parse_irq(p, q, &entry->irq);
@@ -1264,7 +1295,7 @@ static int parse_cftable_entry_cb(tuple_t *tuple,
     }
 
     entry->subtuples = q-p;
-    
+
     return 0;
 }
 
@@ -1281,7 +1312,8 @@ static int parse_device_geo(tuple_t *tuple, cistpl_device_geo_t *geo)
     q = p + tuple->TupleDataLen;
 
     for (n = 0; n < CISTPL_MAX_DEVICES; n++) {
-	if (p > q-6) break;
+	if (p > q-6)
+		break;
 	geo->geo[n].buswidth = p[0];
 	geo->geo[n].erase_block = 1 << (p[1]-1);
 	geo->geo[n].read_block  = 1 << (p[2]-1);
@@ -1302,13 +1334,13 @@ static int parse_vers_2(tuple_t *tuple, cistpl_vers_2_t *v2)
 
     if (tuple->TupleDataLen < 10)
 	return -EINVAL;
-    
+
     p = tuple->TupleData;
     q = p + tuple->TupleDataLen;
 
     v2->vers = p[0];
     v2->comply = p[1];
-    v2->dindex = get_unaligned_le16(p +2 );
+    v2->dindex = get_unaligned_le16(p + 2);
     v2->vspec8 = p[6];
     v2->vspec9 = p[7];
     v2->nhdr = p[8];
@@ -1322,7 +1354,7 @@ static int parse_org(tuple_t *tuple, cistpl_org_t *org)
 {
     u_char *p, *q;
     int i;
-    
+
     p = tuple->TupleData;
     q = p + tuple->TupleDataLen;
     if (p == q)
@@ -1332,7 +1364,8 @@ static int parse_org(tuple_t *tuple, cistpl_org_t *org)
 	    return -EINVAL;
     for (i = 0; i < 30; i++) {
 	org->desc[i] = *p;
-	if (*p == '\0') break;
+	if (*p == '\0')
+		break;
 	if (++p == q)
 		return -EINVAL;
     }
@@ -1363,7 +1396,7 @@ static int parse_format(tuple_t *tuple, cistpl_format_t *fmt)
 int pcmcia_parse_tuple(tuple_t *tuple, cisparse_t *parse)
 {
     int ret = 0;
-    
+
     if (tuple->TupleDataLen > tuple->TupleDataMax)
 	return -EINVAL;
     switch (tuple->TupleCode) {
@@ -1440,7 +1473,7 @@ int pcmcia_parse_tuple(tuple_t *tuple, cisparse_t *parse)
 	break;
     }
     if (ret)
-	    __cs_dbg(0, "parse_tuple failed %d\n", ret);
+	    pr_debug("parse_tuple failed %d\n", ret);
     return ret;
 }
 EXPORT_SYMBOL(pcmcia_parse_tuple);
@@ -1448,7 +1481,7 @@ EXPORT_SYMBOL(pcmcia_parse_tuple);
 /*======================================================================
 
     This is used internally by Card Services to look up CIS stuff.
-    
+
 ======================================================================*/
 
 int pccard_read_tuple(struct pcmcia_socket *s, unsigned int function, cisdata_t code, void *parse)
@@ -1482,6 +1515,67 @@ done:
 }
 EXPORT_SYMBOL(pccard_read_tuple);
 
+
+/**
+ * pccard_loop_tuple() - loop over tuples in the CIS
+ * @s:		the struct pcmcia_socket where the card is inserted
+ * @function:	the device function we loop for
+ * @code:	which CIS code shall we look for?
+ * @parse:	buffer where the tuple shall be parsed (or NULL, if no parse)
+ * @priv_data:	private data to be passed to the loop_tuple function.
+ * @loop_tuple:	function to call for each CIS entry of type @function. IT
+ *		gets passed the raw tuple, the paresed tuple (if @parse is
+ *		set) and @priv_data.
+ *
+ * pccard_loop_tuple() loops over all CIS entries of type @function, and
+ * calls the @loop_tuple function for each entry. If the call to @loop_tuple
+ * returns 0, the loop exits. Returns 0 on success or errorcode otherwise.
+ */
+int pccard_loop_tuple(struct pcmcia_socket *s, unsigned int function,
+		      cisdata_t code, cisparse_t *parse, void *priv_data,
+		      int (*loop_tuple) (tuple_t *tuple,
+					 cisparse_t *parse,
+					 void *priv_data))
+{
+	tuple_t tuple;
+	cisdata_t *buf;
+	int ret;
+
+	buf = kzalloc(256, GFP_KERNEL);
+	if (buf == NULL) {
+		dev_printk(KERN_WARNING, &s->dev, "no memory to read tuple\n");
+		return -ENOMEM;
+	}
+
+	tuple.TupleData = buf;
+	tuple.TupleDataMax = 255;
+	tuple.TupleOffset = 0;
+	tuple.DesiredTuple = code;
+	tuple.Attributes = 0;
+
+	ret = pccard_get_first_tuple(s, function, &tuple);
+	while (!ret) {
+		if (pccard_get_tuple_data(s, &tuple))
+			goto next_entry;
+
+		if (parse)
+			if (pcmcia_parse_tuple(&tuple, parse))
+				goto next_entry;
+
+		ret = loop_tuple(&tuple, parse, priv_data);
+		if (!ret)
+			break;
+
+next_entry:
+		ret = pccard_get_next_tuple(s, function, &tuple);
+	}
+
+	kfree(buf);
+	return ret;
+}
+EXPORT_SYMBOL(pccard_loop_tuple);
+
+
 /*======================================================================
 
     This tries to determine if a card has a sensible CIS.  It returns
@@ -1489,7 +1583,7 @@ EXPORT_SYMBOL(pccard_read_tuple);
     checks include making sure several critical tuples are present and
     valid; seeing if the total number of tuples is reasonable; and
     looking for tuples that use reserved codes.
-    
+
 ======================================================================*/
 
 int pccard_validate_cis(struct pcmcia_socket *s, unsigned int *info)

@@ -434,7 +434,7 @@ static int __init ibm_acpiphp_init(void)
 	dbg("%s\n", __func__);
 
 	if (acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-			ACPI_UINT32_MAX, ibm_find_acpi_device,
+			ACPI_UINT32_MAX, ibm_find_acpi_device, NULL,
 			&ibm_acpi_handle, NULL) != FOUND_APCI) {
 		err("%s: acpi_walk_namespace failed\n", __func__);
 		retval = -ENODEV;

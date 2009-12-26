@@ -34,15 +34,15 @@
 
 #include "../kernel/fsyscall_gtod_data.h"
 
-DEFINE_PER_CPU(struct vcpu_runstate_info, runstate);
-DEFINE_PER_CPU(unsigned long, processed_stolen_time);
-DEFINE_PER_CPU(unsigned long, processed_blocked_time);
+static DEFINE_PER_CPU(struct vcpu_runstate_info, xen_runstate);
+static DEFINE_PER_CPU(unsigned long, xen_stolen_time);
+static DEFINE_PER_CPU(unsigned long, xen_blocked_time);
 
 /* taken from i386/kernel/time-xen.c */
 static void xen_init_missing_ticks_accounting(int cpu)
 {
 	struct vcpu_register_runstate_memory_area area;
-	struct vcpu_runstate_info *runstate = &per_cpu(runstate, cpu);
+	struct vcpu_runstate_info *runstate = &per_cpu(xen_runstate, cpu);
 	int rc;
 
 	memset(runstate, 0, sizeof(*runstate));
@@ -52,8 +52,8 @@ static void xen_init_missing_ticks_accounting(int cpu)
 				&area);
 	WARN_ON(rc && rc != -ENOSYS);
 
-	per_cpu(processed_blocked_time, cpu) = runstate->time[RUNSTATE_blocked];
-	per_cpu(processed_stolen_time, cpu) = runstate->time[RUNSTATE_runnable]
+	per_cpu(xen_blocked_time, cpu) = runstate->time[RUNSTATE_blocked];
+	per_cpu(xen_stolen_time, cpu) = runstate->time[RUNSTATE_runnable]
 					    + runstate->time[RUNSTATE_offline];
 }
 
@@ -68,7 +68,7 @@ static void get_runstate_snapshot(struct vcpu_runstate_info *res)
 
 	BUG_ON(preemptible());
 
-	state = &__get_cpu_var(runstate);
+	state = &__get_cpu_var(xen_runstate);
 
 	/*
 	 * The runstate info is always updated by the hypervisor on
@@ -103,12 +103,12 @@ consider_steal_time(unsigned long new_itm)
 	 * This function just checks and reject this effect.
 	 */
 	if (!time_after_eq(runstate.time[RUNSTATE_blocked],
-			   per_cpu(processed_blocked_time, cpu)))
+			   per_cpu(xen_blocked_time, cpu)))
 		blocked = 0;
 
 	if (!time_after_eq(runstate.time[RUNSTATE_runnable] +
 			   runstate.time[RUNSTATE_offline],
-			   per_cpu(processed_stolen_time, cpu)))
+			   per_cpu(xen_stolen_time, cpu)))
 		stolen = 0;
 
 	if (!time_after(delta_itm + new_itm, ia64_get_itc()))
@@ -147,8 +147,8 @@ consider_steal_time(unsigned long new_itm)
 		} else {
 			local_cpu_data->itm_next = delta_itm + new_itm;
 		}
-		per_cpu(processed_stolen_time, cpu) += NS_PER_TICK * stolen;
-		per_cpu(processed_blocked_time, cpu) += NS_PER_TICK * blocked;
+		per_cpu(xen_stolen_time, cpu) += NS_PER_TICK * stolen;
+		per_cpu(xen_blocked_time, cpu) += NS_PER_TICK * blocked;
 	}
 	return delta_itm;
 }

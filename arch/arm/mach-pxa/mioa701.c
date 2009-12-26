@@ -798,6 +798,9 @@ static void __init mioa701_machine_init(void)
 	UP2OCR = UP2OCR_HXOE;
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(mioa701_pin_config));
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
 	mio_gpio_request(ARRAY_AND_SIZE(global_gpios));
 	bootstrap_init();
 	set_pxa_fb_info(&mioa701_pxafb_info);

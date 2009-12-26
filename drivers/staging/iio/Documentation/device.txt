@@ -10,7 +10,7 @@ First allocate one using:
 
 struct iio_dev *indio_dev = iio_allocate_device();
 
-The fill in the following.
+Then fill in the following:
 
 indio_dev->dev.parent
   the struct device associated with the underlying hardware.
@@ -45,5 +45,5 @@ allocated prior to registering the device with the iio-core, but must
 be registered afterwards (otherwise the whole parentage of devices
 gets confused)
 
-On remove iio_device_unregister(indio_dev) will remove the device from
+On remove, iio_device_unregister(indio_dev) will remove the device from
 the core, and iio_free_device will clean up.

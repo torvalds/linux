@@ -75,6 +75,7 @@
 
 #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
 #define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
+#define MADV_HWPOISON    100		/* poison a page for testing */
 
 /* compatibility flags */
 #define MAP_FILE	0

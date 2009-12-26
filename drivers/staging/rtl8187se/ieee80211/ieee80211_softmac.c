@@ -689,7 +689,7 @@ void ieee80211_stop_scan(struct ieee80211_device *ieee)
 }
 
 /* called with ieee->lock held */
-void ieee80211_start_scan(struct ieee80211_device *ieee)
+void ieee80211_rtl_start_scan(struct ieee80211_device *ieee)
 {
 	if(IS_DOT11D_ENABLE(ieee) )
 	{
@@ -1196,7 +1196,7 @@ void ieee80211_associate_step1(struct ieee80211_device *ieee)
 	}
 }
 
-void ieee80211_auth_challenge(struct ieee80211_device *ieee, u8 *challenge, int chlen)
+void ieee80211_rtl_auth_challenge(struct ieee80211_device *ieee, u8 *challenge, int chlen)
 {
 	u8 *c;
 	struct sk_buff *skb;
@@ -1837,7 +1837,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 					 	            if (((ieee->current_network.wmm_info^info_element->data[6])& \
 										    0x0f)||(!ieee->init_wmmparam_flag)) {
-						   	      //refresh paramete element for current network
+						   	      // refresh parameter element for current network
 							      // update the register parameter for hardware
 							      ieee->init_wmmparam_flag = 1;
 							      queue_work(ieee->wq, &ieee->wmm_param_update_wq);
@@ -1898,7 +1898,7 @@ associate_complete:
 
 								ieee80211_associate_step2(ieee);
 							}else{
-								ieee80211_auth_challenge(ieee, challenge, chlen);
+								ieee80211_rtl_auth_challenge(ieee, challenge, chlen);
 							}
 						}else{
 							ieee->softmac_stats.rx_auth_rs_err++;
@@ -1958,10 +1958,10 @@ associate_complete:
  * care of the ieee802.11 fragmentation.
  * So the driver receives a fragment per time and might
  * call the stop function when it want without take care
- * to have enought room to TX an entire packet.
+ * to have enough room to TX an entire packet.
  * This might be useful if each fragment need it's own
  * descriptor, thus just keep a total free memory > than
- * the max fragmentation treshold is not enought.. If the
+ * the max fragmentation threshold is not enough.. If the
  * ieee802.11 stack passed a TXB struct then you needed
  * to keep N free descriptors where
  * N = MAX_PACKET_SIZE / MIN_FRAG_TRESHOLD
@@ -2047,7 +2047,7 @@ void ieee80211_reset_queue(struct ieee80211_device *ieee)
 
 }
 
-void ieee80211_wake_queue(struct ieee80211_device *ieee)
+void ieee80211_rtl_wake_queue(struct ieee80211_device *ieee)
 {
 
 	unsigned long flags;
@@ -2089,7 +2089,7 @@ exit :
 }
 
 
-void ieee80211_stop_queue(struct ieee80211_device *ieee)
+void ieee80211_rtl_stop_queue(struct ieee80211_device *ieee)
 {
 	//unsigned long flags;
 	//spin_lock_irqsave(&ieee->lock,flags);
@@ -2301,7 +2301,7 @@ void ieee80211_start_bss(struct ieee80211_device *ieee)
 //#else
 	if (ieee->state == IEEE80211_NOLINK){
 		ieee->actscanning = true;
-		ieee80211_start_scan(ieee);
+		ieee80211_rtl_start_scan(ieee);
 	}
 //#endif
 	spin_unlock_irqrestore(&ieee->lock, flags);
@@ -2357,7 +2357,7 @@ void ieee80211_associate_retry_wq(struct work_struct *work)
 	if(ieee->state == IEEE80211_NOLINK){
 		ieee->beinretry = false;
 		ieee->actscanning = true;
-		ieee80211_start_scan(ieee);
+		ieee80211_rtl_start_scan(ieee);
 	}
 	//YJ,add,080828, notify os here
 	if(ieee->state == IEEE80211_NOLINK)

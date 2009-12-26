@@ -25,6 +25,7 @@ struct clk {
 };
 
 extern struct clkops apbc_clk_ops;
+extern struct clkops apmu_clk_ops;
 
 #define APBC_CLK(_name, _reg, _fnclksel, _rate)			\
 struct clk clk_##_name = {					\

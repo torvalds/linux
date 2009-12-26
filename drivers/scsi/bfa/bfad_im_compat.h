@@ -31,7 +31,7 @@ u32 *bfad_read_firmware(struct pci_dev *pdev, u32 **bfi_image,
 static inline u32 *
 bfad_load_fwimg(struct pci_dev *pdev)
 {
-	return(bfad_get_firmware_buf(pdev));
+	return bfad_get_firmware_buf(pdev);
 }
 
 static inline void

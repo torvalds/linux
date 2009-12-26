@@ -253,17 +253,14 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state * walk_state)
 		}
 
 		/* Create an integer for the return value */
+		/* Default return value is ACPI_INTEGER_MAX if no match found */
 
-		return_desc = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
+		return_desc = acpi_ut_create_integer_object(ACPI_INTEGER_MAX);
 		if (!return_desc) {
 			status = AE_NO_MEMORY;
 			goto cleanup;
 
 		}
-
-		/* Default return value if no match found */
-
-		return_desc->integer.value = ACPI_INTEGER_MAX;
 
 		/*
 		 * Examine each element until a match is found. Both match conditions
