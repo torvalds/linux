@@ -33,12 +33,14 @@ DEFINE_RWLOCK(llc_sap_list_lock);
 static struct llc_sap *llc_sap_alloc(void)
 {
 	struct llc_sap *sap = kzalloc(sizeof(*sap), GFP_ATOMIC);
+	int i;
 
 	if (sap) {
 		/* sap->laddr.mac - leave as a null, it's filled by bind */
 		sap->state = LLC_SAP_STATE_ACTIVE;
 		spin_lock_init(&sap->sk_lock);
-		INIT_HLIST_NULLS_HEAD(&sap->sk_list, 0);
+		for (i = 0; i < LLC_SK_LADDR_HASH_ENTRIES; i++)
+			INIT_HLIST_NULLS_HEAD(&sap->sk_laddr_hash[i], i);
 		atomic_set(&sap->refcnt, 1);
 	}
 	return sap;
@@ -143,7 +145,7 @@ out:
  */
 void llc_sap_close(struct llc_sap *sap)
 {
-	WARN_ON(!hlist_nulls_empty(&sap->sk_list));
+	WARN_ON(sap->sk_count);
 	llc_del_sap(sap);
 	kfree(sap);
 }

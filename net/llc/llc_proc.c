@@ -34,17 +34,22 @@ static struct sock *llc_get_sk_idx(loff_t pos)
 {
 	struct list_head *sap_entry;
 	struct llc_sap *sap;
-	struct hlist_nulls_node *node;
 	struct sock *sk = NULL;
+	int i;
 
 	list_for_each(sap_entry, &llc_sap_list) {
 		sap = list_entry(sap_entry, struct llc_sap, node);
 
 		spin_lock_bh(&sap->sk_lock);
-		sk_nulls_for_each(sk, node, &sap->sk_list) {
-			if (!pos)
-				goto found;
-			--pos;
+		for (i = 0; i < LLC_SK_LADDR_HASH_ENTRIES; i++) {
+			struct hlist_nulls_head *head = &sap->sk_laddr_hash[i];
+			struct hlist_nulls_node *node;
+
+			sk_nulls_for_each(sk, node, head) {
+				if (!pos)
+					goto found; /* keep the lock */
+				--pos;
+			}
 		}
 		spin_unlock_bh(&sap->sk_lock);
 	}
@@ -59,6 +64,19 @@ static void *llc_seq_start(struct seq_file *seq, loff_t *pos)
 
 	read_lock_bh(&llc_sap_list_lock);
 	return l ? llc_get_sk_idx(--l) : SEQ_START_TOKEN;
+}
+
+static struct sock *laddr_hash_next(struct llc_sap *sap, int bucket)
+{
+	struct hlist_nulls_node *node;
+	struct sock *sk = NULL;
+
+	while (++bucket < LLC_SK_LADDR_HASH_ENTRIES)
+		sk_nulls_for_each(sk, node, &sap->sk_laddr_hash[bucket])
+			goto out;
+
+out:
+	return sk;
 }
 
 static void *llc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
@@ -80,17 +98,15 @@ static void *llc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	}
 	llc = llc_sk(sk);
 	sap = llc->sap;
+	sk = laddr_hash_next(sap, llc_sk_laddr_hashfn(sap, &llc->laddr));
+	if (sk)
+		goto out;
 	spin_unlock_bh(&sap->sk_lock);
-	sk = NULL;
-	for (;;) {
-		if (sap->node.next == &llc_sap_list)
-			break;
-		sap = list_entry(sap->node.next, struct llc_sap, node);
+	list_for_each_entry_continue(sap, &llc_sap_list, node) {
 		spin_lock_bh(&sap->sk_lock);
-		if (!hlist_nulls_empty(&sap->sk_list)) {
-			sk = sk_nulls_head(&sap->sk_list);
-			break;
-		}
+		sk = laddr_hash_next(sap, -1);
+		if (sk)
+			break; /* keep the lock */
 		spin_unlock_bh(&sap->sk_lock);
 	}
 out:
