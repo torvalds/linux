@@ -33,6 +33,8 @@
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 
+#include <linux/log2.h>
+
 static void
 nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 {
@@ -67,29 +69,29 @@ nouveau_bo_fixup_align(struct drm_device *dev,
 	 * avoid corruption of other buffer objects.
 	 */
 	if (dev_priv->card_type == NV_50) {
+		uint32_t block_size = nouveau_mem_fb_amount(dev) >> 15;
+		int i;
+
 		switch (tile_flags) {
 		case 0x1800:
 		case 0x2800:
 		case 0x4800:
 		case 0x7a00:
-			if (dev_priv->chipset >= 0xA0) {
-				*size = roundup(*size, 28672);
-				/* This is based on high end cards with 448 bits
-				 * memory bus, could be different elsewhere.*/
-				*size += 6 * 28672;
-				/* 8 * 28672 is the actual alignment requirement
-				 * but we must also align to page size. */
-				*align = 2 * 8 * 28672;
-			} else if (dev_priv->chipset >= 0x90) {
-				*size = roundup(*size, 16384);
-				*size += 3 * 16384;
-				*align = 12 * 16384;
+			*size = roundup(*size, block_size);
+			if (is_power_of_2(block_size)) {
+				*size += 3 * block_size;
+				for (i = 1; i < 10; i++) {
+					*align = 12 * i * block_size;
+					if (!(*align % 65536))
+						break;
+				}
 			} else {
-				*size = roundup(*size, 8192);
-				*size += 3 * 8192;
-				/* 12 * 8192 is the actual alignment requirement
-				 * but we must also align to page size. */
-				*align = 2 * 12 * 8192;
+				*size += 6 * block_size;
+				for (i = 1; i < 10; i++) {
+					*align = 8 * i * block_size;
+					if (!(*align % 65536))
+						break;
+				}
 			}
 			break;
 		default:
