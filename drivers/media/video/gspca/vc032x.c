@@ -2791,6 +2791,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		gspca_dev->ctrl_dis = (1 << LIGHTFREQ_IDX);
 	switch (sd->sensor) {
 	case SENSOR_MI1310_SOC:
+	case SENSOR_MI1320:
 	case SENSOR_MI1320_SOC:
 	case SENSOR_OV7660:
 	case SENSOR_OV7670:
@@ -2834,6 +2835,7 @@ static void sethvflip(struct gspca_dev *gspca_dev)
 		vflip = !vflip;
 	switch (sd->sensor) {
 	case SENSOR_MI1310_SOC:
+	case SENSOR_MI1320:
 	case SENSOR_MI1320_SOC:
 		data[0] = data[1] = 0;		/* select page 0 */
 		i2c_write(gspca_dev, 0xf0, data, 2);
