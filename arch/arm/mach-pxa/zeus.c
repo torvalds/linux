@@ -626,8 +626,8 @@ static void zeus_power_off(void)
 	pxa27x_cpu_suspend(PWRMODE_DEEPSLEEP);
 }
 
-int zeus_get_pcb_info(struct i2c_client *client, unsigned gpio,
-		      unsigned ngpio, void *context)
+static int zeus_get_pcb_info(struct i2c_client *client, unsigned gpio,
+			     unsigned ngpio, void *context)
 {
 	int i;
 	u8 pcb_info = 0;
