@@ -32,6 +32,9 @@ struct llc_addr {
 #define LLC_SAP_STATE_INACTIVE	1
 #define LLC_SAP_STATE_ACTIVE	2
 
+#define LLC_SK_DEV_HASH_BITS 6
+#define LLC_SK_DEV_HASH_ENTRIES (1<<LLC_SK_DEV_HASH_BITS)
+
 /**
  * struct llc_sap - Defines the SAP component
  *
@@ -56,7 +59,15 @@ struct llc_sap {
 	struct list_head node;
 	spinlock_t sk_lock;
 	struct hlist_nulls_head sk_list;
+	struct hlist_head sk_dev_hash[LLC_SK_DEV_HASH_ENTRIES];
 };
+
+static inline
+struct hlist_head *llc_sk_dev_hash(struct llc_sap *sap, int ifindex)
+{
+	return &sap->sk_dev_hash[ifindex % LLC_SK_DEV_HASH_ENTRIES];
+}
+
 
 #define LLC_DEST_INVALID         0      /* Invalid LLC PDU type */
 #define LLC_DEST_SAP             1      /* Type 1 goes here */

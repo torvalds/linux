@@ -682,10 +682,15 @@ static int llc_find_offset(int state, int ev_type)
  */
 void llc_sap_add_socket(struct llc_sap *sap, struct sock *sk)
 {
+	struct llc_sock *llc = llc_sk(sk);
+	struct hlist_head *dev_hb = llc_sk_dev_hash(sap, llc->dev->ifindex);
+
 	llc_sap_hold(sap);
-	spin_lock_bh(&sap->sk_lock);
 	llc_sk(sk)->sap = sap;
+
+	spin_lock_bh(&sap->sk_lock);
 	sk_nulls_add_node_rcu(sk, &sap->sk_list);
+	hlist_add_head(&llc->dev_hash_node, dev_hb);
 	spin_unlock_bh(&sap->sk_lock);
 }
 
@@ -699,8 +704,11 @@ void llc_sap_add_socket(struct llc_sap *sap, struct sock *sk)
  */
 void llc_sap_remove_socket(struct llc_sap *sap, struct sock *sk)
 {
+	struct llc_sock *llc = llc_sk(sk);
+
 	spin_lock_bh(&sap->sk_lock);
 	sk_nulls_del_node_init_rcu(sk);
+	hlist_del(&llc->dev_hash_node);
 	spin_unlock_bh(&sap->sk_lock);
 	llc_sap_put(sap);
 }
