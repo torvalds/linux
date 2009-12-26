@@ -43,7 +43,7 @@
 
 #include "core.h"
 
-void fw_csr_iterator_init(struct fw_csr_iterator *ci, u32 * p)
+void fw_csr_iterator_init(struct fw_csr_iterator *ci, const u32 *p)
 {
 	ci->p = p + 1;
 	ci->end = ci->p + (p[0] >> 16);
@@ -59,7 +59,7 @@ int fw_csr_iterator_next(struct fw_csr_iterator *ci, int *key, int *value)
 }
 EXPORT_SYMBOL(fw_csr_iterator_next);
 
-static u32 *search_leaf(u32 *directory, int search_key)
+static const u32 *search_leaf(const u32 *directory, int search_key)
 {
 	struct fw_csr_iterator ci;
 	int last_key = 0, key, value;
@@ -76,7 +76,7 @@ static u32 *search_leaf(u32 *directory, int search_key)
 	return NULL;
 }
 
-static int textual_leaf_to_string(u32 *block, char *buf, size_t size)
+static int textual_leaf_to_string(const u32 *block, char *buf, size_t size)
 {
 	unsigned int quadlets, i;
 	char c;
@@ -116,9 +116,9 @@ static int textual_leaf_to_string(u32 *block, char *buf, size_t size)
  * the immediate entry with @key.  The string is zero-terminated.
  * Returns strlen(buf) or a negative error code.
  */
-int fw_csr_string(u32 *directory, int key, char *buf, size_t size)
+int fw_csr_string(const u32 *directory, int key, char *buf, size_t size)
 {
-	u32 *leaf = search_leaf(directory, key);
+	const u32 *leaf = search_leaf(directory, key);
 	if (!leaf)
 		return -ENOENT;
 
@@ -128,7 +128,7 @@ EXPORT_SYMBOL(fw_csr_string);
 
 static bool is_fw_unit(struct device *dev);
 
-static int match_unit_directory(u32 *directory, u32 match_flags,
+static int match_unit_directory(const u32 *directory, u32 match_flags,
 				const struct ieee1394_device_id *id)
 {
 	struct fw_csr_iterator ci;
@@ -262,7 +262,7 @@ static ssize_t show_immediate(struct device *dev,
 	struct config_rom_attribute *attr =
 		container_of(dattr, struct config_rom_attribute, attr);
 	struct fw_csr_iterator ci;
-	u32 *dir;
+	const u32 *dir;
 	int key, value, ret = -ENOENT;
 
 	down_read(&fw_device_rwsem);
@@ -293,7 +293,7 @@ static ssize_t show_text_leaf(struct device *dev,
 {
 	struct config_rom_attribute *attr =
 		container_of(dattr, struct config_rom_attribute, attr);
-	u32 *dir;
+	const u32 *dir;
 	size_t bufsize;
 	char dummy_buf[2];
 	int ret;
@@ -421,7 +421,7 @@ static ssize_t guid_show(struct device *dev,
 	return ret;
 }
 
-static int units_sprintf(char *buf, u32 *directory)
+static int units_sprintf(char *buf, const u32 *directory)
 {
 	struct fw_csr_iterator ci;
 	int key, value;
@@ -503,7 +503,8 @@ static int read_rom(struct fw_device *device,
  */
 static int read_bus_info_block(struct fw_device *device, int generation)
 {
-	u32 *rom, *stack, *old_rom, *new_rom;
+	const u32 *old_rom, *new_rom;
+	u32 *rom, *stack;
 	u32 sp, key;
 	int i, end, length, ret = -1;
 
