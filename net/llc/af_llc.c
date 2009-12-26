@@ -47,6 +47,10 @@ static int llc_ui_wait_for_busy_core(struct sock *sk, long timeout);
 #define dprintk(args...)
 #endif
 
+/* Maybe we'll add some more in the future. */
+#define LLC_CMSG_PKTINFO	1
+
+
 /**
  *	llc_ui_next_link_no - return the next unused link number for a sap
  *	@sap: Address of sap to get link number from.
@@ -591,6 +595,20 @@ static int llc_wait_data(struct sock *sk, long timeo)
 	return rc;
 }
 
+static void llc_cmsg_rcv(struct msghdr *msg, struct sk_buff *skb)
+{
+	struct llc_sock *llc = llc_sk(skb->sk);
+
+	if (llc->cmsg_flags & LLC_CMSG_PKTINFO) {
+		struct llc_pktinfo info;
+
+		info.lpi_ifindex = llc_sk(skb->sk)->dev->ifindex;
+		llc_pdu_decode_dsap(skb, &info.lpi_sap);
+		llc_pdu_decode_da(skb, info.lpi_mac);
+		put_cmsg(msg, SOL_LLC, LLC_OPT_PKTINFO, sizeof(info), &info);
+	}
+}
+
 /**
  *	llc_ui_accept - accept a new incoming connection.
  *	@sock: Socket which connections arrive on.
@@ -812,6 +830,8 @@ copy_uaddr:
 		memcpy(uaddr, llc_ui_skb_cb(skb), sizeof(*uaddr));
 		msg->msg_namelen = sizeof(*uaddr);
 	}
+	if (llc_sk(sk)->cmsg_flags)
+		llc_cmsg_rcv(msg, skb);
 	goto out;
 }
 
@@ -1030,6 +1050,12 @@ static int llc_ui_setsockopt(struct socket *sock, int level, int optname,
 			goto out;
 		llc->rw = opt;
 		break;
+	case LLC_OPT_PKTINFO:
+		if (opt)
+			llc->cmsg_flags |= LLC_CMSG_PKTINFO;
+		else
+			llc->cmsg_flags &= ~LLC_CMSG_PKTINFO;
+		break;
 	default:
 		rc = -ENOPROTOOPT;
 		goto out;
@@ -1083,6 +1109,9 @@ static int llc_ui_getsockopt(struct socket *sock, int level, int optname,
 		val = llc->k;				break;
 	case LLC_OPT_RX_WIN:
 		val = llc->rw;				break;
+	case LLC_OPT_PKTINFO:
+		val = (llc->cmsg_flags & LLC_CMSG_PKTINFO) != 0;
+		break;
 	default:
 		rc = -ENOPROTOOPT;
 		goto out;
