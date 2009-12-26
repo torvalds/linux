@@ -1647,14 +1647,11 @@ exit:
 
 static struct file *do_last(struct nameidata *nd, struct path *path,
 			    int open_flag, int acc_mode,
-			    int mode, const char *pathname,
-			    int *is_link)
+			    int mode, const char *pathname)
 {
 	struct dentry *dir = nd->path.dentry;
 	struct file *filp;
 	int error;
-
-	*is_link = 0;
 
 	if (nd->last_type == LAST_BIND)
 		goto ok;
@@ -1727,10 +1724,9 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	error = -ENOENT;
 	if (!path->dentry->d_inode)
 		goto exit_dput;
-	if (path->dentry->d_inode->i_op->follow_link) {
-		*is_link = 1;
+
+	if (path->dentry->d_inode->i_op->follow_link)
 		return NULL;
-	}
 
 	path_to_nameidata(path, nd);
 	error = -EISDIR;
@@ -1766,7 +1762,6 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	int count = 0;
 	int flag = open_to_namei_flags(open_flag);
 	int force_reval = 0;
-	int is_link;
 
 	/*
 	 * O_SYNC is implemented as __O_SYNC|O_DSYNC.  As many places only
@@ -1849,9 +1844,8 @@ reval:
 	nd.flags |= LOOKUP_CREATE | LOOKUP_OPEN;
 	if (open_flag & O_EXCL)
 		nd.flags |= LOOKUP_EXCL;
-	filp = do_last(&nd, &path, open_flag, acc_mode, mode,
-		       pathname, &is_link);
-	if (is_link)
+	filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
+	if (!filp)
 		goto do_link;
 	if (nd.root.mnt)
 		path_put(&nd.root);
@@ -1902,11 +1896,10 @@ do_link:
 		return ERR_PTR(error);
 	}
 	nd.flags &= ~LOOKUP_PARENT;
-	filp = do_last(&nd, &path, open_flag, acc_mode, mode,
-		       pathname, &is_link);
+	filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
 	if (nd.last_type == LAST_NORM)
 		__putname(nd.last.name);
-	if (is_link)
+	if (!filp)
 		goto do_link;
 	if (nd.root.mnt)
 		path_put(&nd.root);
