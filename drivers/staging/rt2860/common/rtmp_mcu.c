@@ -221,7 +221,7 @@ int RtmpAsicSendCommandToMcu(struct rt_rtmp_adapter *pAd,
 				 ("AsicSendCommanToMcu::Mail box is busy\n"));
 		} while (i++ < 100);
 
-		if (i >= 100) {
+		if (i > 100) {
 			DBGPRINT_ERR(("H2M_MAILBOX still hold by MCU. command fail\n"));
 			return FALSE;
 		}
