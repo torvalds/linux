@@ -228,6 +228,7 @@ static const struct stv_init stv_bridge_init[] = {
 	/* This reg is written twice. Some kind of reset? */
 	{NULL,  0x1620, 0x80},
 	{NULL,  0x1620, 0x00},
+	{NULL,  0x1443, 0x00},
 	{NULL,  0x1423, 0x04},
 	{x1500, 0x1500, ARRAY_SIZE(x1500)},
 	{x1536, 0x1536, ARRAY_SIZE(x1536)},
