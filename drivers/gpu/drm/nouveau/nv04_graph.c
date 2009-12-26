@@ -547,7 +547,7 @@ nv04_graph_mthd_set_operation(struct nouveau_channel *chan, int grclass,
 	return 0;
 }
 
-static struct nouveau_pgraph_object_method nv04_graph_mthds_m2mf[] = {
+static struct nouveau_pgraph_object_method nv04_graph_mthds_sw[] = {
 	{ 0x0150, nv04_graph_mthd_set_ref },
 	{}
 };
@@ -558,7 +558,7 @@ static struct nouveau_pgraph_object_method nv04_graph_mthds_set_operation[] = {
 };
 
 struct nouveau_pgraph_object_class nv04_graph_grclass[] = {
-	{ 0x0039, false, nv04_graph_mthds_m2mf },
+	{ 0x0039, false, NULL },
 	{ 0x004a, false, nv04_graph_mthds_set_operation }, /* gdirect */
 	{ 0x005f, false, nv04_graph_mthds_set_operation }, /* imageblit */
 	{ 0x0061, false, nv04_graph_mthds_set_operation }, /* ifc */
@@ -574,6 +574,7 @@ struct nouveau_pgraph_object_class nv04_graph_grclass[] = {
 	{ 0x0053, false, NULL }, /* surf3d */
 	{ 0x0054, false, NULL }, /* tex_tri */
 	{ 0x0055, false, NULL }, /* multitex_tri */
+	{ 0x506e, true, nv04_graph_mthds_sw },
 	{}
 };
 
