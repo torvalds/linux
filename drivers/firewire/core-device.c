@@ -69,19 +69,22 @@ static u32 *search_leaf(u32 *directory, int search_key)
 		if (last_key == search_key &&
 		    key == (CSR_DESCRIPTOR | CSR_LEAF))
 			return ci.p - 1 + value;
+
 		last_key = key;
 	}
+
 	return NULL;
 }
 
 static int textual_leaf_to_string(u32 *block, char *buf, size_t size)
 {
-	unsigned int quadlets, length;
+	unsigned int quadlets, i;
+	char c;
 
 	if (!size || !buf)
 		return -EINVAL;
 
-	quadlets = min(block[0] >> 16, 256u);
+	quadlets = min(block[0] >> 16, 256U);
 	if (quadlets < 2)
 		return -ENODATA;
 
@@ -91,31 +94,34 @@ static int textual_leaf_to_string(u32 *block, char *buf, size_t size)
 
 	block += 3;
 	quadlets -= 2;
-	for (length = 0; length < quadlets * 4 && length + 1 < size; length++) {
-		char c = block[length / 4] >> (24 - 8 * (length % 4));
+	for (i = 0; i < quadlets * 4 && i < size - 1; i++) {
+		c = block[i / 4] >> (24 - 8 * (i % 4));
 		if (c == '\0')
 			break;
-		buf[length] = c;
+		buf[i] = c;
 	}
-	buf[length] = '\0';
-	return length;
+	buf[i] = '\0';
+
+	return i;
 }
 
 /**
  * fw_csr_string - reads a string from the configuration ROM
- * @directory: device or unit directory;
- *             fw_device->config_rom+5 or fw_unit->directory
+ * @directory: e.g. root directory or unit directory
  * @key: the key of the preceding directory entry
  * @buf: where to put the string
  * @size: size of @buf, in bytes
  *
- * Returns string length (>= 0) or error code (< 0).
+ * The string is taken from a minimal ASCII text descriptor leaf after
+ * the immediate entry with @key.  The string is zero-terminated.
+ * Returns strlen(buf) or a negative error code.
  */
 int fw_csr_string(u32 *directory, int key, char *buf, size_t size)
 {
 	u32 *leaf = search_leaf(directory, key);
 	if (!leaf)
 		return -ENOENT;
+
 	return textual_leaf_to_string(leaf, buf, size);
 }
 EXPORT_SYMBOL(fw_csr_string);

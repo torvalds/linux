@@ -71,7 +71,6 @@ struct fw_csr_iterator {
 
 void fw_csr_iterator_init(struct fw_csr_iterator *ci, u32 *p);
 int fw_csr_iterator_next(struct fw_csr_iterator *ci, int *key, int *value);
-
 int fw_csr_string(u32 *directory, int key, char *buf, size_t size);
 
 extern struct bus_type fw_bus_type;
