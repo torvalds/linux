@@ -355,6 +355,24 @@ static inline bool llc_mcast_match(const struct llc_sap *sap,
 	  llc->dev == skb->dev;
 }
 
+static void llc_do_mcast(struct llc_sap *sap, struct sk_buff *skb,
+			 struct sock **stack, int count)
+{
+	struct sk_buff *skb1;
+	int i;
+
+	for (i = 0; i < count; i++) {
+		skb1 = skb_clone(skb, GFP_ATOMIC);
+		if (!skb1) {
+			sock_put(stack[i]);
+			continue;
+		}
+
+		llc_sap_rcv(sap, skb1, stack[i]);
+		sock_put(stack[i]);
+	}
+}
+
 /**
  * 	llc_sap_mcast - Deliver multicast PDU's to all matching datagram sockets.
  *	@sap: SAP
@@ -367,25 +385,27 @@ static void llc_sap_mcast(struct llc_sap *sap,
 			  const struct llc_addr *laddr,
 			  struct sk_buff *skb)
 {
-	struct sock *sk;
+	int i = 0, count = 256 / sizeof(struct sock *);
+	struct sock *sk, *stack[count];
 	struct hlist_nulls_node *node;
 
 	spin_lock_bh(&sap->sk_lock);
 	sk_nulls_for_each_rcu(sk, node, &sap->sk_list) {
-		struct sk_buff *skb1;
 
 		if (!llc_mcast_match(sap, laddr, skb, sk))
 			continue;
 
-		skb1 = skb_clone(skb, GFP_ATOMIC);
-		if (!skb1)
-			break;
-
 		sock_hold(sk);
-		llc_sap_rcv(sap, skb1, sk);
-		sock_put(sk);
+		if (i < count)
+			stack[i++] = sk;
+		else {
+			llc_do_mcast(sap, skb, stack, i);
+			i = 0;
+		}
 	}
 	spin_unlock_bh(&sap->sk_lock);
+
+	llc_do_mcast(sap, skb, stack, i);
 }
 
 
