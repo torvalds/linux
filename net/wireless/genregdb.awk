@@ -26,11 +26,11 @@ BEGIN {
 }
 
 /^[ \t]*#/ {
-	/* Ignore */
+	# Ignore
 }
 
 !active && /^[ \t]*$/ {
-	/* Ignore */
+	# Ignore
 }
 
 !active && /country/ {
