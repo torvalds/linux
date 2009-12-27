@@ -423,7 +423,6 @@ LIB_OBJS += util/trace-event-perl.o
 LIB_OBJS += util/svghelper.o
 LIB_OBJS += util/sort.o
 LIB_OBJS += util/hist.o
-LIB_OBJS += util/data_map.o
 LIB_OBJS += util/probe-event.o
 
 BUILTIN_OBJS += builtin-annotate.o
