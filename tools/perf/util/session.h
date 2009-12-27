@@ -20,6 +20,7 @@ struct perf_session {
 	struct thread		*last_match;
 	struct events_stats	events_stats;
 	unsigned long		event_total[PERF_RECORD_MAX];
+	unsigned long		unknown_events;
 	struct rb_root		hists;
 	u64			sample_type;
 	int			fd;
@@ -40,7 +41,6 @@ struct perf_event_ops {
 	event_op	process_read_event;
 	event_op	process_throttle_event;
 	event_op	process_unthrottle_event;
-	unsigned long	total_unknown;
 	bool		full_paths;
 };
 

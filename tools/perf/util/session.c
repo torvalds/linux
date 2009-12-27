@@ -66,6 +66,7 @@ struct perf_session *perf_session__new(const char *filename, int mode, bool forc
 	self->mmap_window = 32;
 	self->cwd = NULL;
 	self->cwdlen = 0;
+	self->unknown_events = 0;
 	map_groups__init(&self->kmaps);
 
 	if (perf_session__create_kernel_maps(self) < 0)
@@ -239,7 +240,7 @@ static int perf_session__process_event(struct perf_session *self,
 	case PERF_RECORD_UNTHROTTLE:
 		return ops->process_unthrottle_event(event, self);
 	default:
-		ops->total_unknown++;
+		self->unknown_events++;
 		return -1;
 	}
 }
