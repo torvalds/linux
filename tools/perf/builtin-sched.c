@@ -1654,9 +1654,9 @@ static int process_lost_event(event_t *event __used,
 }
 
 static struct perf_event_ops event_ops = {
-	.process_sample_event	= process_sample_event,
-	.process_comm_event	= event__process_comm,
-	.process_lost_event	= process_lost_event,
+	.sample	= process_sample_event,
+	.comm	= event__process_comm,
+	.lost	= process_lost_event,
 };
 
 static int read_events(void)

@@ -32,15 +32,15 @@ struct perf_session {
 typedef int (*event_op)(event_t *self, struct perf_session *session);
 
 struct perf_event_ops {
-	event_op	process_sample_event;
-	event_op	process_mmap_event;
-	event_op	process_comm_event;
-	event_op	process_fork_event;
-	event_op	process_exit_event;
-	event_op	process_lost_event;
-	event_op	process_read_event;
-	event_op	process_throttle_event;
-	event_op	process_unthrottle_event;
+	event_op sample,
+		 mmap,
+		 comm,
+		 fork,
+		 exit,
+		 lost,
+		 read,
+		 throttle,
+		 unthrottle;
 };
 
 struct perf_session *perf_session__new(const char *filename, int mode, bool force);

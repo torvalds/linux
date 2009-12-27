@@ -1030,10 +1030,10 @@ static void process_samples(struct perf_session *session)
 }
 
 static struct perf_event_ops event_ops = {
-	.process_comm_event	= process_comm_event,
-	.process_fork_event	= process_fork_event,
-	.process_exit_event	= process_exit_event,
-	.process_sample_event	= queue_sample_event,
+	.comm	= process_comm_event,
+	.fork	= process_fork_event,
+	.exit	= process_exit_event,
+	.sample	= queue_sample_event,
 };
 
 static int __cmd_timechart(void)

@@ -66,12 +66,12 @@ static int diff__process_sample_event(event_t *event, struct perf_session *sessi
 }
 
 static struct perf_event_ops event_ops = {
-	.process_sample_event = diff__process_sample_event,
-	.process_mmap_event   = event__process_mmap,
-	.process_comm_event   = event__process_comm,
-	.process_exit_event   = event__process_task,
-	.process_fork_event   = event__process_task,
-	.process_lost_event   = event__process_lost,
+	.sample	= diff__process_sample_event,
+	.mmap	= event__process_mmap,
+	.comm	= event__process_comm,
+	.exit	= event__process_task,
+	.fork	= event__process_task,
+	.lost	= event__process_lost,
 };
 
 static void perf_session__insert_hist_entry_by_name(struct rb_root *root,

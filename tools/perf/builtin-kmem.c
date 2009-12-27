@@ -343,8 +343,8 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 }
 
 static struct perf_event_ops event_ops = {
-	.process_sample_event	= process_sample_event,
-	.process_comm_event	= event__process_comm,
+	.sample	= process_sample_event,
+	.comm	= event__process_comm,
 };
 
 static double fragmentation(unsigned long n_req, unsigned long n_alloc)

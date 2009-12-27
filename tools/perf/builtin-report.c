@@ -184,13 +184,13 @@ static int perf_session__setup_sample_type(struct perf_session *self)
 }
 
 static struct perf_event_ops event_ops = {
-	.process_sample_event	= process_sample_event,
-	.process_mmap_event	= event__process_mmap,
-	.process_comm_event	= event__process_comm,
-	.process_exit_event	= event__process_task,
-	.process_fork_event	= event__process_task,
-	.process_lost_event	= event__process_lost,
-	.process_read_event	= process_read_event,
+	.sample	= process_sample_event,
+	.mmap	= event__process_mmap,
+	.comm	= event__process_comm,
+	.exit	= event__process_task,
+	.fork	= event__process_task,
+	.lost	= event__process_lost,
+	.read	= process_read_event,
 };
 
 static int __cmd_report(void)

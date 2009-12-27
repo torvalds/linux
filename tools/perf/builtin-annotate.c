@@ -451,10 +451,10 @@ static void perf_session__find_annotations(struct perf_session *self)
 }
 
 static struct perf_event_ops event_ops = {
-	.process_sample_event	= process_sample_event,
-	.process_mmap_event	= event__process_mmap,
-	.process_comm_event	= event__process_comm,
-	.process_fork_event	= event__process_task,
+	.sample	= process_sample_event,
+	.mmap	= event__process_mmap,
+	.comm	= event__process_comm,
+	.fork	= event__process_task,
 };
 
 static int __cmd_annotate(void)

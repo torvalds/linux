@@ -161,24 +161,24 @@ static int process_event_stub(event_t *event __used,
 
 static void perf_event_ops__fill_defaults(struct perf_event_ops *handler)
 {
-	if (handler->process_sample_event == NULL)
-		handler->process_sample_event = process_event_stub;
-	if (handler->process_mmap_event == NULL)
-		handler->process_mmap_event = process_event_stub;
-	if (handler->process_comm_event == NULL)
-		handler->process_comm_event = process_event_stub;
-	if (handler->process_fork_event == NULL)
-		handler->process_fork_event = process_event_stub;
-	if (handler->process_exit_event == NULL)
-		handler->process_exit_event = process_event_stub;
-	if (handler->process_lost_event == NULL)
-		handler->process_lost_event = process_event_stub;
-	if (handler->process_read_event == NULL)
-		handler->process_read_event = process_event_stub;
-	if (handler->process_throttle_event == NULL)
-		handler->process_throttle_event = process_event_stub;
-	if (handler->process_unthrottle_event == NULL)
-		handler->process_unthrottle_event = process_event_stub;
+	if (handler->sample == NULL)
+		handler->sample = process_event_stub;
+	if (handler->mmap == NULL)
+		handler->mmap = process_event_stub;
+	if (handler->comm == NULL)
+		handler->comm = process_event_stub;
+	if (handler->fork == NULL)
+		handler->fork = process_event_stub;
+	if (handler->exit == NULL)
+		handler->exit = process_event_stub;
+	if (handler->lost == NULL)
+		handler->lost = process_event_stub;
+	if (handler->read == NULL)
+		handler->read = process_event_stub;
+	if (handler->throttle == NULL)
+		handler->throttle = process_event_stub;
+	if (handler->unthrottle == NULL)
+		handler->unthrottle = process_event_stub;
 }
 
 static const char *event__name[] = {
@@ -222,23 +222,23 @@ static int perf_session__process_event(struct perf_session *self,
 
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
-		return ops->process_sample_event(event, self);
+		return ops->sample(event, self);
 	case PERF_RECORD_MMAP:
-		return ops->process_mmap_event(event, self);
+		return ops->mmap(event, self);
 	case PERF_RECORD_COMM:
-		return ops->process_comm_event(event, self);
+		return ops->comm(event, self);
 	case PERF_RECORD_FORK:
-		return ops->process_fork_event(event, self);
+		return ops->fork(event, self);
 	case PERF_RECORD_EXIT:
-		return ops->process_exit_event(event, self);
+		return ops->exit(event, self);
 	case PERF_RECORD_LOST:
-		return ops->process_lost_event(event, self);
+		return ops->lost(event, self);
 	case PERF_RECORD_READ:
-		return ops->process_read_event(event, self);
+		return ops->read(event, self);
 	case PERF_RECORD_THROTTLE:
-		return ops->process_throttle_event(event, self);
+		return ops->throttle(event, self);
 	case PERF_RECORD_UNTHROTTLE:
-		return ops->process_unthrottle_event(event, self);
+		return ops->unthrottle(event, self);
 	default:
 		self->unknown_events++;
 		return -1;
