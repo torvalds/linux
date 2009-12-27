@@ -2674,37 +2674,6 @@ static int dib0700_xc4000_tuner_callback(void *priv, int component,
 	return 0;
 }
 
-/* validation:
-   band
-   setup 0x4b=0x64
-   inv_gain 0x4c=0x02c8
-   time_stabaliz 0x4d=0x0015
-   alpha_level 0 (0x64=0x0076)
-   thlock 0x76 (0x64=0x0076)
-   wbd_inv 0x01 (0x69=0x1b33)
-   wbd_ref 0x0b33 (0x69=1b33)
-   wbd_sel 0x00 (0x6a=0400)
-   wbd_alpha 0x02 (0x6a=0x400)
-   agc1_max 0x00 (0x6b=0x0000)
-   agc1_min 0x00 (0x6c=0x0000)
-   agc2_max 0x9b26 (0x6d=0x9b26)
-   agc2_min 0x26ca (0x6e=0x26ca)
-   agc1_pt1 0x00 (0x6f=0x0000)
-   agc1_pt2 0x00 (0x6f=0x0000)
-   agc1_pt3 0x00 (0x70=0x0000)
-   agc1_slope1 0x00 (0x71=0x0000)
-   agc1_slope2 0x00 (0x71=0x0000)
-   agc2_pt1 0x00 (0x72=0x0080)
-   agc2_pt2 0x80 (0x72=0x0080)
-   agc2_slope1 0x1d (0x73=0x1d1d)
-   agc2_slope2 0x1d (0x73=0x1d1d)
-   alpha_mant 0x11 (0x65=023b)
-   alpha_exp 0x1b (0x65=023b)
-   beta_mant 0x17 (0x66=05f3)
-   beta_exp 0x33 (0x66=05f3)
-   perform_agc_softsplit 0x00 (0x6a=0x400)
-
- */
 static struct dibx000_agc_config stk7700p_7000p_xc4000_agc_config = {
 	.band_caps = BAND_UHF | BAND_VHF,
 	.setup = 0x64,
@@ -2736,36 +2705,6 @@ static struct dibx000_agc_config stk7700p_7000p_xc4000_agc_config = {
 	.perform_agc_softsplit = 0x00,
 };
 
-/* validation:
-   reg 900 (0x0384) = 0x0e60
-   reg 903 (0x0387) = 0x0027
-   reg 18 (0x0012) = 0x0321 (0393)
-   reg 19 (0x0013) = 0x1620 (8700)
-   reg 21 (0x0015) = 0x0265 (0258)
-   reg 22 (0x0016) =  0x6cbd (bf26)
-   reg 23 (0x0017) = 0x0138
-   reg 24 (0x0018) = 0x1381
-   reg 72 (0x0048) = 0xd257
-   internal = 52500
-   sampling = never seems to be used?
-   pll_prediv = 1
-   pll_ratio = 7
-   pll_range = 3
-   pll_reset = 1
-   pll_bypass = 0
-   enable_refdiv = 0
-   bypclk_div = 0
-   IO_CLK_en_core = 1
-   ADClkSrc = 1
-   modulo = 0
-   sad_cfg: = 0xd257
-	    refsel = (3 << 14)
-	    sel = (1 << 12)
-	    freq_15k = (599 << 0)
-   ifreq = 40201405
-   timf = ? (need lock to compute)
-   xtal_hz = ? (val dependent on exact tuning freq)
- */
 static struct dibx000_bandwidth_config stk7700p_xc4000_pll_config = {
 	60000, 30000, // internal, sampling
 	1, 8, 3, 1, 0, // pll_cfg: prediv, ratio, range, reset, bypass
@@ -2778,7 +2717,7 @@ static struct dibx000_bandwidth_config stk7700p_xc4000_pll_config = {
 
 /* FIXME: none of these inputs are validated yet */
 static struct dib7000p_config pctv_340e_config = {
-	.output_mpeg2_in_188_bytes = 1, // validated L3317: 0x00eb=0x0066
+	.output_mpeg2_in_188_bytes = 1,
 
 	.agc_config_count = 1,
 	.agc = &stk7700p_7000p_xc4000_agc_config,
