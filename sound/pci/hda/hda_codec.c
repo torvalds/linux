@@ -899,6 +899,25 @@ static void restore_pincfgs(struct hda_codec *codec)
 	}
 }
 
+/**
+ * snd_hda_shutup_pins - Shut up all pins
+ * @codec: the HDA codec
+ *
+ * Clear all pin controls to shup up before suspend for avoiding click noise.
+ * The controls aren't cached so that they can be resumed properly.
+ */
+void snd_hda_shutup_pins(struct hda_codec *codec)
+{
+	int i;
+	for (i = 0; i < codec->init_pins.used; i++) {
+		struct hda_pincfg *pin = snd_array_elem(&codec->init_pins, i);
+		/* use read here for syncing after issuing each verb */
+		snd_hda_codec_read(codec, pin->nid, 0,
+				   AC_VERB_SET_PIN_WIDGET_CONTROL, 0);
+	}
+}
+EXPORT_SYMBOL_HDA(snd_hda_shutup_pins);
+
 static void init_hda_cache(struct hda_cache_rec *cache,
 			   unsigned int record_size);
 static void free_hda_cache(struct hda_cache_rec *cache);

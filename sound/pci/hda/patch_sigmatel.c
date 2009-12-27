@@ -4385,18 +4385,8 @@ static void stac92xx_free_kctls(struct hda_codec *codec)
 static void stac92xx_shutup(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	int i;
-	hda_nid_t nid;
 
-	/* reset each pin before powering down DAC/ADC to avoid click noise */
-	nid = codec->start_nid;
-	for (i = 0; i < codec->num_nodes; i++, nid++) {
-		unsigned int wcaps = get_wcaps(codec, nid);
-		unsigned int wid_type = get_wcaps_type(wcaps);
-		if (wid_type == AC_WID_PIN)
-			snd_hda_codec_read(codec, nid, 0,
-				AC_VERB_SET_PIN_WIDGET_CONTROL, 0);
-	}
+	snd_hda_shutup_pins(codec);
 
 	if (spec->eapd_mask)
 		stac_gpio_set(codec, spec->gpio_mask,
