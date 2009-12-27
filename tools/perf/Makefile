@@ -425,6 +425,7 @@ LIB_OBJS += util/svghelper.o
 LIB_OBJS += util/sort.o
 LIB_OBJS += util/hist.o
 LIB_OBJS += util/probe-event.o
+LIB_OBJS += util/util.o
 
 BUILTIN_OBJS += builtin-annotate.o
 

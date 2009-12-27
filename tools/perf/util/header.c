@@ -169,20 +169,23 @@ static int do_write(int fd, const void *buf, size_t size)
 	return 0;
 }
 
+#define dsos__for_each_with_build_id(pos, head)	\
+	list_for_each_entry(pos, head, node)	\
+		if (!pos->has_build_id)		\
+			continue;		\
+		else
+
 static int __dsos__write_buildid_table(struct list_head *head, int fd)
 {
 #define NAME_ALIGN	64
 	struct dso *pos;
 	static const char zero_buf[NAME_ALIGN];
 
-	list_for_each_entry(pos, head, node) {
+	dsos__for_each_with_build_id(pos, head) {
 		int err;
 		struct build_id_event b;
-		size_t len;
+		size_t len = pos->long_name_len + 1;
 
-		if (!pos->has_build_id)
-			continue;
-		len = pos->long_name_len + 1;
 		len = ALIGN(len, NAME_ALIGN);
 		memset(&b, 0, sizeof(b));
 		memcpy(&b.build_id, pos->build_id, sizeof(pos->build_id));
@@ -207,6 +210,74 @@ static int dsos__write_buildid_table(int fd)
 	if (err == 0)
 		err = __dsos__write_buildid_table(&dsos__user, fd);
 	return err;
+}
+
+static int dso__cache_build_id(struct dso *self, const char *debugdir)
+{
+	const size_t size = PATH_MAX;
+	char *filename = malloc(size),
+	     *linkname = malloc(size), *targetname, *sbuild_id;
+	int len, err = -1;
+
+	if (filename == NULL || linkname == NULL)
+		goto out_free;
+
+	len = snprintf(filename, size, "%s%s", debugdir, self->long_name);
+	if (mkdir_p(filename, 0755))
+		goto out_free;
+
+	len += snprintf(filename + len, sizeof(filename) - len, "/");
+	sbuild_id = filename + len;
+	build_id__sprintf(self->build_id, sizeof(self->build_id), sbuild_id);
+
+	if (access(filename, F_OK) && link(self->long_name, filename) &&
+	    copyfile(self->long_name, filename))
+		goto out_free;
+
+	len = snprintf(linkname, size, "%s/.build-id/%.2s",
+		       debugdir, sbuild_id);
+
+	if (access(linkname, X_OK) && mkdir_p(linkname, 0755))
+		goto out_free;
+
+	snprintf(linkname + len, size - len, "/%s", sbuild_id + 2);
+	targetname = filename + strlen(debugdir) - 5;
+	memcpy(targetname, "../..", 5);
+
+	if (symlink(targetname, linkname) == 0)
+		err = 0;
+out_free:
+	free(filename);
+	free(linkname);
+	return err;
+}
+
+static int __dsos__cache_build_ids(struct list_head *head, const char *debugdir)
+{
+	struct dso *pos;
+	int err = 0;
+
+	dsos__for_each_with_build_id(pos, head)
+		if (dso__cache_build_id(pos, debugdir))
+			err = -1;
+
+	return err;
+}
+
+static int dsos__cache_build_ids(void)
+{
+	int err_kernel, err_user;
+	char debugdir[PATH_MAX];
+
+	snprintf(debugdir, sizeof(debugdir), "%s/%s", getenv("HOME"),
+		 DEBUG_CACHE_DIR);
+
+	if (mkdir(debugdir, 0755) != 0 && errno != EEXIST)
+		return -1;
+
+	err_kernel = __dsos__cache_build_ids(&dsos__kernel, debugdir);
+	err_user   = __dsos__cache_build_ids(&dsos__user, debugdir);
+	return err_kernel || err_user ? -1 : 0;
 }
 
 static int perf_header__adds_write(struct perf_header *self, int fd)
@@ -258,6 +329,7 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 			goto out_free;
 		}
 		buildid_sec->size = lseek(fd, 0, SEEK_CUR) - buildid_sec->offset;
+		dsos__cache_build_ids();
 	}
 
 	lseek(fd, sec_start, SEEK_SET);
