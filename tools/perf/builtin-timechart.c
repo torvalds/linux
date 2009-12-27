@@ -1029,23 +1029,12 @@ static void process_samples(struct perf_session *session)
 	}
 }
 
-static int sample_type_check(struct perf_session *session)
-{
-	if (!(session->sample_type & PERF_SAMPLE_RAW)) {
-		fprintf(stderr, "No trace samples found in the file.\n"
-				"Have you used 'perf timechart record' to record it?\n");
-		return -1;
-	}
-
-	return 0;
-}
-
 static struct perf_event_ops event_ops = {
 	.process_comm_event	= process_comm_event,
 	.process_fork_event	= process_fork_event,
 	.process_exit_event	= process_exit_event,
 	.process_sample_event	= queue_sample_event,
-	.sample_type_check	= sample_type_check,
+	.sample_type_check	= perf_session__has_traces,
 };
 
 static int __cmd_timechart(void)

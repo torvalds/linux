@@ -56,6 +56,8 @@ struct symbol **perf_session__resolve_callchain(struct perf_session *self,
 						struct ip_callchain *chain,
 						struct symbol **parent);
 
+int perf_session__has_traces(struct perf_session *self);
+
 int perf_header__read_build_ids(int input, u64 offset, u64 file_size);
 
 #endif /* __PERF_SESSION_H */

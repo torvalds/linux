@@ -393,3 +393,14 @@ done:
 out_err:
 	return err;
 }
+
+int perf_session__has_traces(struct perf_session *self)
+{
+	if (!(self->sample_type & PERF_SAMPLE_RAW)) {
+		pr_err("No trace sample to read. Did you call perf record "
+		       "without -R?");
+		return -1;
+	}
+
+	return 0;
+}
