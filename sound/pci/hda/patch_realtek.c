@@ -3693,6 +3693,11 @@ static int alc_build_pcms(struct hda_codec *codec)
 	return 0;
 }
 
+static inline void alc_shutup(struct hda_codec *codec)
+{
+	snd_hda_shutup_pins(codec);
+}
+
 static void alc_free_kctls(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -3713,6 +3718,7 @@ static void alc_free(struct hda_codec *codec)
 	if (!spec)
 		return;
 
+	alc_shutup(codec);
 	alc_free_kctls(codec);
 	kfree(spec);
 	snd_hda_detach_beep_device(codec);
@@ -3722,6 +3728,7 @@ static void alc_free(struct hda_codec *codec)
 static int alc_suspend(struct hda_codec *codec, pm_message_t state)
 {
 	struct alc_spec *spec = codec->spec;
+	alc_shutup(codec);
 	if (spec && spec->power_hook)
 		spec->power_hook(codec, 0);
 	return 0;
