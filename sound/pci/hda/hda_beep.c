@@ -239,8 +239,12 @@ int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 	mutex_init(&beep->mutex);
 
 	if (beep->mode == HDA_BEEP_MODE_ON) {
-		beep->enabled = 1;
-		snd_hda_do_register(&beep->register_work);
+		int err = snd_hda_do_attach(beep);
+		if (err < 0) {
+			kfree(beep);
+			codec->beep = NULL;
+			return err;
+		}
 	}
 
 	return 0;
@@ -253,7 +257,7 @@ void snd_hda_detach_beep_device(struct hda_codec *codec)
 	if (beep) {
 		cancel_work_sync(&beep->register_work);
 		cancel_delayed_work(&beep->unregister_work);
-		if (beep->enabled)
+		if (beep->dev)
 			snd_hda_do_detach(beep);
 		codec->beep = NULL;
 		kfree(beep);
