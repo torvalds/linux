@@ -171,7 +171,7 @@ int mt9m111_probe(struct sd *sd)
 		return -ENODEV;
 	}
 
-	info("Probing for a mt9m111 sensor");
+	PDEBUG(D_PROBE, "Probing for a mt9m111 sensor");
 
 	/* Do the preinit */
 	for (i = 0; i < ARRAY_SIZE(preinit_mt9m111); i++) {
