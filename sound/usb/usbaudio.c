@@ -169,6 +169,7 @@ struct snd_usb_substream {
 	unsigned int curpacksize;	/* current packet size in bytes (for capture) */
 	unsigned int curframesize;	/* current packet size in frames (for capture) */
 	unsigned int fill_max: 1;	/* fill max packet size always */
+	unsigned int txfr_quirk:1;	/* allow sub-frame alignment */
 	unsigned int fmt_type;		/* USB audio format type (1-3) */
 
 	unsigned int running: 1;	/* running status */
@@ -353,14 +354,25 @@ static int retire_capture_urb(struct snd_usb_substream *subs,
 			snd_printd(KERN_ERR "frame %d active: %d\n", i, urb->iso_frame_desc[i].status);
 			// continue;
 		}
-		frames = urb->iso_frame_desc[i].actual_length / stride;
-		bytes = frames * stride;
+		bytes = urb->iso_frame_desc[i].actual_length;
+		frames = bytes / stride;
+		if (!subs->txfr_quirk)
+			bytes = frames * stride;
+		if (bytes % (runtime->sample_bits >> 3) != 0) {
+#ifdef CONFIG_SND_DEBUG_VERBOSE
+			int oldbytes = bytes;
+#endif
+			bytes = frames * stride;
+			snd_printdd(KERN_ERR "Corrected urb data len. %d->%d\n",
+							oldbytes, bytes);
+		}
 		/* update the current pointer */
 		spin_lock_irqsave(&subs->lock, flags);
 		oldptr = subs->hwptr_done;
 		subs->hwptr_done += bytes;
 		if (subs->hwptr_done >= runtime->buffer_size * stride)
 			subs->hwptr_done -= runtime->buffer_size * stride;
+		frames = (bytes + (oldptr % stride)) / stride;
 		subs->transfer_done += frames;
 		if (subs->transfer_done >= runtime->period_size) {
 			subs->transfer_done -= runtime->period_size;
@@ -2238,6 +2250,7 @@ static void init_substream(struct snd_usb_stream *as, int stream, struct audiofo
 	subs->stream = as;
 	subs->direction = stream;
 	subs->dev = as->chip->dev;
+	subs->txfr_quirk = as->chip->txfr_quirk;
 	if (snd_usb_get_speed(subs->dev) == USB_SPEED_FULL) {
 		subs->ops = audio_urb_ops[stream];
 	} else {
@@ -3618,6 +3631,20 @@ static void *snd_usb_audio_probe(struct usb_device *dev,
 		}
 	}
 
+	switch (chip->usb_id) {
+	case USB_ID(0x2040, 0x7200): /* Hauppage hvr950Q */
+	case USB_ID(0x2040, 0x7221): /* Hauppage hvr950Q */
+	case USB_ID(0x2040, 0x7222): /* Hauppage hvr950Q */
+	case USB_ID(0x2040, 0x7223): /* Hauppage hvr950Q */
+	case USB_ID(0x2040, 0x7224): /* Hauppage hvr950Q */
+	case USB_ID(0x2040, 0x7225): /* Hauppage hvr950Q */
+	case USB_ID(0x2040, 0x7230): /* Hauppage hvr850 */
+	case USB_ID(0x2040, 0x7250): /* Hauppage hvr950Q */
+		chip->txfr_quirk = 1;
+		break;
+	default:
+		chip->txfr_quirk = 0;
+		}
 	err = 1; /* continue */
 	if (quirk && quirk->ifnum != QUIRK_NO_INTERFACE) {
 		/* need some special handlings */
