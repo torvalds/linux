@@ -824,6 +824,9 @@ int snd_hda_add_pincfg(struct hda_codec *codec, struct snd_array *list,
 	struct hda_pincfg *pin;
 	unsigned int oldcfg;
 
+	if (get_wcaps_type(get_wcaps(codec, nid)) != AC_WID_PIN)
+		return -EINVAL;
+
 	oldcfg = snd_hda_codec_get_pincfg(codec, nid);
 	pin = look_up_pincfg(codec, list, nid);
 	if (!pin) {
