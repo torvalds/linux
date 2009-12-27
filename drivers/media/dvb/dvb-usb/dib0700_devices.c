@@ -2729,6 +2729,7 @@ static struct dibx000_agc_config stk7700p_7000p_xc4000_agc_config = {
 	.agc2_pt2 = 0x80,
 	.agc2_slope1 = 0x1d,
 	.agc2_slope2 = 0x1d,
+	.alpha_mant = 0x11,
 	.alpha_exp = 0x1b,
 	.beta_mant = 0x17,
 	.beta_exp = 0x33,
@@ -2738,10 +2739,10 @@ static struct dibx000_agc_config stk7700p_7000p_xc4000_agc_config = {
 /* validation:
    reg 900 (0x0384) = 0x0e60
    reg 903 (0x0387) = 0x0027
-   reg 18 (0x0012) = 0x0321
-   reg 19 (0x0013) = 0x1620
-   reg 21 (0x0015) = 0x0265
-   reg 22 (0x0016) =  0x6cbd
+   reg 18 (0x0012) = 0x0321 (0393)
+   reg 19 (0x0013) = 0x1620 (8700)
+   reg 21 (0x0015) = 0x0265 (0258)
+   reg 22 (0x0016) =  0x6cbd (bf26)
    reg 23 (0x0017) = 0x0138
    reg 24 (0x0018) = 0x1381
    reg 72 (0x0048) = 0xd257
@@ -2766,11 +2767,11 @@ static struct dibx000_agc_config stk7700p_7000p_xc4000_agc_config = {
    xtal_hz = ? (val dependent on exact tuning freq)
  */
 static struct dibx000_bandwidth_config stk7700p_xc4000_pll_config = {
-	52500, 30000, // internal, sampling
-	1, 7, 3, 1, 0, // pll_cfg: prediv, ratio, range, reset, bypass
+	60000, 30000, // internal, sampling
+	1, 8, 3, 1, 0, // pll_cfg: prediv, ratio, range, reset, bypass
 	0, 0, 1, 1, 0, // misc: refdiv, bypclk_div, IO_CLK_en_core, ADClkSrc, modulo
-	(3 << 14) | (1 << 12) | (599 << 0), // sad_cfg: refsel, sel, freq_15k
-	40201405, // ifreq
+	(3 << 14) | (1 << 12) | (524 << 0), // sad_cfg: refsel, sel, freq_15k
+	39370534, // ifreq
 	20452225, // timf
 	30000000, // xtal
 };
