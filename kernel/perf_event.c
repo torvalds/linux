@@ -1170,9 +1170,9 @@ static void perf_event_sync_stat(struct perf_event_context *ctx,
  * not restart the event.
  */
 void perf_event_task_sched_out(struct task_struct *task,
-				 struct task_struct *next, int cpu)
+				 struct task_struct *next)
 {
-	struct perf_cpu_context *cpuctx = &per_cpu(perf_cpu_context, cpu);
+	struct perf_cpu_context *cpuctx = &__get_cpu_var(perf_cpu_context);
 	struct perf_event_context *ctx = task->perf_event_ctxp;
 	struct perf_event_context *next_ctx;
 	struct perf_event_context *parent;
@@ -1252,8 +1252,9 @@ static void perf_event_cpu_sched_out(struct perf_cpu_context *cpuctx)
 
 static void
 __perf_event_sched_in(struct perf_event_context *ctx,
-			struct perf_cpu_context *cpuctx, int cpu)
+			struct perf_cpu_context *cpuctx)
 {
+	int cpu = smp_processor_id();
 	struct perf_event *event;
 	int can_add_hw = 1;
 
@@ -1326,24 +1327,24 @@ __perf_event_sched_in(struct perf_event_context *ctx,
  * accessing the event control register. If a NMI hits, then it will
  * keep the event running.
  */
-void perf_event_task_sched_in(struct task_struct *task, int cpu)
+void perf_event_task_sched_in(struct task_struct *task)
 {
-	struct perf_cpu_context *cpuctx = &per_cpu(perf_cpu_context, cpu);
+	struct perf_cpu_context *cpuctx = &__get_cpu_var(perf_cpu_context);
 	struct perf_event_context *ctx = task->perf_event_ctxp;
 
 	if (likely(!ctx))
 		return;
 	if (cpuctx->task_ctx == ctx)
 		return;
-	__perf_event_sched_in(ctx, cpuctx, cpu);
+	__perf_event_sched_in(ctx, cpuctx);
 	cpuctx->task_ctx = ctx;
 }
 
-static void perf_event_cpu_sched_in(struct perf_cpu_context *cpuctx, int cpu)
+static void perf_event_cpu_sched_in(struct perf_cpu_context *cpuctx)
 {
 	struct perf_event_context *ctx = &cpuctx->ctx;
 
-	__perf_event_sched_in(ctx, cpuctx, cpu);
+	__perf_event_sched_in(ctx, cpuctx);
 }
 
 #define MAX_INTERRUPTS (~0ULL)
@@ -1461,7 +1462,7 @@ static void rotate_ctx(struct perf_event_context *ctx)
 	raw_spin_unlock(&ctx->lock);
 }
 
-void perf_event_task_tick(struct task_struct *curr, int cpu)
+void perf_event_task_tick(struct task_struct *curr)
 {
 	struct perf_cpu_context *cpuctx;
 	struct perf_event_context *ctx;
@@ -1469,7 +1470,7 @@ void perf_event_task_tick(struct task_struct *curr, int cpu)
 	if (!atomic_read(&nr_events))
 		return;
 
-	cpuctx = &per_cpu(perf_cpu_context, cpu);
+	cpuctx = &__get_cpu_var(perf_cpu_context);
 	ctx = curr->perf_event_ctxp;
 
 	perf_ctx_adjust_freq(&cpuctx->ctx);
@@ -1484,9 +1485,9 @@ void perf_event_task_tick(struct task_struct *curr, int cpu)
 	if (ctx)
 		rotate_ctx(ctx);
 
-	perf_event_cpu_sched_in(cpuctx, cpu);
+	perf_event_cpu_sched_in(cpuctx);
 	if (ctx)
-		perf_event_task_sched_in(curr, cpu);
+		perf_event_task_sched_in(curr);
 }
 
 /*
@@ -1527,7 +1528,7 @@ static void perf_event_enable_on_exec(struct task_struct *task)
 
 	raw_spin_unlock(&ctx->lock);
 
-	perf_event_task_sched_in(task, smp_processor_id());
+	perf_event_task_sched_in(task);
  out:
 	local_irq_restore(flags);
 }
