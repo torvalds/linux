@@ -3203,6 +3203,18 @@ static int ignore_interface_quirk(struct snd_usb_audio *chip,
 	return 0;
 }
 
+/*
+ * Allow alignment on audio sub-slot (channel samples) rather than
+ * on audio slots (audio frames)
+ */
+static int create_align_transfer_quirk(struct snd_usb_audio *chip,
+				  struct usb_interface *iface,
+				  const struct snd_usb_audio_quirk *quirk)
+{
+	chip->txfr_quirk = 1;
+	return 1;	/* Continue with creating streams and mixer */
+}
+
 
 /*
  * boot quirks
@@ -3377,7 +3389,8 @@ static int snd_usb_create_quirk(struct snd_usb_audio *chip,
 		[QUIRK_AUDIO_STANDARD_INTERFACE] = create_standard_audio_quirk,
 		[QUIRK_AUDIO_FIXED_ENDPOINT] = create_fixed_stream_quirk,
 		[QUIRK_AUDIO_EDIROL_UA1000] = create_ua1000_quirk,
-		[QUIRK_AUDIO_EDIROL_UAXX] = create_uaxx_quirk
+		[QUIRK_AUDIO_EDIROL_UAXX] = create_uaxx_quirk,
+		[QUIRK_AUDIO_ALIGN_TRANSFER] = create_align_transfer_quirk
 	};
 
 	if (quirk->type < QUIRK_TYPE_COUNT) {
@@ -3631,20 +3644,7 @@ static void *snd_usb_audio_probe(struct usb_device *dev,
 		}
 	}
 
-	switch (chip->usb_id) {
-	case USB_ID(0x2040, 0x7200): /* Hauppage hvr950Q */
-	case USB_ID(0x2040, 0x7221): /* Hauppage hvr950Q */
-	case USB_ID(0x2040, 0x7222): /* Hauppage hvr950Q */
-	case USB_ID(0x2040, 0x7223): /* Hauppage hvr950Q */
-	case USB_ID(0x2040, 0x7224): /* Hauppage hvr950Q */
-	case USB_ID(0x2040, 0x7225): /* Hauppage hvr950Q */
-	case USB_ID(0x2040, 0x7230): /* Hauppage hvr850 */
-	case USB_ID(0x2040, 0x7250): /* Hauppage hvr950Q */
-		chip->txfr_quirk = 1;
-		break;
-	default:
-		chip->txfr_quirk = 0;
-		}
+	chip->txfr_quirk = 0;
 	err = 1; /* continue */
 	if (quirk && quirk->ifnum != QUIRK_NO_INTERFACE) {
 		/* need some special handlings */
