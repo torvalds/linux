@@ -1,6 +1,8 @@
 #ifndef _PROBE_FINDER_H
 #define _PROBE_FINDER_H
 
+#include "util.h"
+
 #define MAX_PATH_LEN		 256
 #define MAX_PROBE_BUFFER	1024
 #define MAX_PROBES		 128
