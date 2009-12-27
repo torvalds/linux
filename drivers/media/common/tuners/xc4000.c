@@ -36,7 +36,7 @@
 #include "tuner-i2c.h"
 #include "tuner-xc2028-types.h"
 
-static int debug=1;
+static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 
