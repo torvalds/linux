@@ -2844,7 +2844,7 @@ static int tcam_wait_bit(struct niu *np, u64 bit)
 			break;
 		udelay(1);
 	}
-	if (limit < 0)
+	if (limit <= 0)
 		return -ENODEV;
 
 	return 0;
