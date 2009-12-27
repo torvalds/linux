@@ -639,12 +639,6 @@ static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
 	int                 i, best_i = -1, best_nr_matches = 0;
 	unsigned int        type_mask = 0;
 
-	printk("%s called, want type=", __func__);
-	if (debug) {
-		dump_firm_type(type);
-		printk("(%x), id %016llx.\n", type, (unsigned long long)*id);
-	}
-
 	if (!priv->firm) {
 		printk("Error! firmware not loaded\n");
 		return -EINVAL;
@@ -715,12 +709,11 @@ found:
 	*id = priv->firm[i].id;
 
 ret:
-	printk("%s firmware for type=", (i < 0) ? "Can't find" : "Found");
 	if (debug) {
+		printk("%s firmware for type=", (i < 0) ? "Can't find" :
+		       "Found");
 		dump_firm_type(type);
 		printk("(%x), id %016llx.\n", type, (unsigned long long)*id);
-		if (i < 0)
-			dump_stack();
 	}
 	return i;
 }
@@ -732,19 +725,11 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 	int                pos, rc;
 	unsigned char      *p;
 
-	printk("%s called\n", __func__);
-
 	pos = seek_firmware(fe, type, id);
 	if (pos < 0)
 		return pos;
 
-	printk("Loading firmware for type=");
-//	dump_firm_type(priv->firm[pos].type);
-	printk("(%x), id %016llx.\n", priv->firm[pos].type,
-	       (unsigned long long)*id);
-
 	p = priv->firm[pos].ptr;
-	printk("firmware length = %d\n", priv->firm[pos].size);
 
 	/* Don't complain when the request fails because of i2c stretching */
 	priv->ignore_i2c_write_errors = 1;
@@ -765,8 +750,6 @@ static int xc4000_fwupload(struct dvb_frontend *fe)
 	int		      n, n_array;
 	char		      name[33];
 	char		      *fname;
-
-	printk("%s called\n", __func__);
 
 	fname = XC4000_DEFAULT_FIRMWARE;
 
@@ -801,9 +784,9 @@ static int xc4000_fwupload(struct dvb_frontend *fe)
 	n_array = get_unaligned_le16(p);
 	p += 2;
 
-	printk("Loading %d firmware images from %s, type: %s, ver %d.%d\n",
-		   n_array, fname, name,
-		   priv->firm_version >> 8, priv->firm_version & 0xff);
+	dprintk(1, "Loading %d firmware images from %s, type: %s, ver %d.%d\n",
+		n_array, fname, name,
+		priv->firm_version >> 8, priv->firm_version & 0xff);
 
 	priv->firm = kzalloc(sizeof(*priv->firm) * n_array, GFP_KERNEL);
 	if (priv->firm == NULL) {
@@ -899,7 +882,7 @@ err:
 done:
 	release_firmware(fw);
 	if (rc == 0)
-		printk("Firmware files loaded.\n");
+		dprintk(1, "Firmware files loaded.\n");
 
 	return rc;
 }
@@ -1059,8 +1042,6 @@ retry:
 			  rc);
 		goto fail;
 	}
-
-	printk("Done with init1\n");
 
 skip_base:
 	/*
