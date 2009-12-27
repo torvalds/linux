@@ -581,7 +581,7 @@ static int __init hp_wmi_init(void)
 	if (wmi_has_guid(HPWMI_EVENT_GUID)) {
 		err = wmi_install_notify_handler(HPWMI_EVENT_GUID,
 						 hp_wmi_notify, NULL);
-		if (!err)
+		if (ACPI_SUCCESS(err))
 			hp_wmi_input_setup();
 	}
 
