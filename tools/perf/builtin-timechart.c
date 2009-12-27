@@ -1034,16 +1034,18 @@ static struct perf_event_ops event_ops = {
 	.process_fork_event	= process_fork_event,
 	.process_exit_event	= process_exit_event,
 	.process_sample_event	= queue_sample_event,
-	.sample_type_check	= perf_session__has_traces,
 };
 
 static int __cmd_timechart(void)
 {
 	struct perf_session *session = perf_session__new(input_name, O_RDONLY, 0);
-	int ret;
+	int ret = -EINVAL;
 
 	if (session == NULL)
 		return -ENOMEM;
+
+	if (!perf_session__has_traces(session, "timechart record"))
+		goto out_delete;
 
 	ret = perf_session__process_events(session, &event_ops);
 	if (ret)

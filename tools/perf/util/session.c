@@ -73,6 +73,8 @@ struct perf_session *perf_session__new(const char *filename, int mode, bool forc
 
 	if (mode == O_RDONLY && perf_session__open(self, force) < 0)
 		goto out_delete;
+
+	self->sample_type = perf_header__sample_type(&self->header);
 out:
 	return self;
 out_free:
@@ -302,11 +304,6 @@ int perf_session__process_events(struct perf_session *self,
 	page_size = getpagesize();
 
 	head = self->header.data_offset;
-	self->sample_type = perf_header__sample_type(&self->header);
-
-	err = -EINVAL;
-	if (ops->sample_type_check && ops->sample_type_check(self) < 0)
-		goto out_err;
 
 	if (!ops->full_paths) {
 		char bf[PATH_MAX];
@@ -394,13 +391,12 @@ out_err:
 	return err;
 }
 
-int perf_session__has_traces(struct perf_session *self)
+bool perf_session__has_traces(struct perf_session *self, const char *msg)
 {
 	if (!(self->sample_type & PERF_SAMPLE_RAW)) {
-		pr_err("No trace sample to read. Did you call perf record "
-		       "without -R?");
-		return -1;
+		pr_err("No trace sample to read. Did you call 'perf %s'?\n", msg);
+		return false;
 	}
 
-	return 0;
+	return true;
 }

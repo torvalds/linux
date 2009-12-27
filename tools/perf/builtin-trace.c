@@ -106,7 +106,6 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 static struct perf_event_ops event_ops = {
 	.process_sample_event	= process_sample_event,
 	.process_comm_event	= event__process_comm,
-	.sample_type_check	= perf_session__has_traces,
 };
 
 static int __cmd_trace(struct perf_session *session)
@@ -579,6 +578,9 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 	session = perf_session__new(input_name, O_RDONLY, 0);
 	if (session == NULL)
 		return -ENOMEM;
+
+	if (!perf_session__has_traces(session, "record -R"))
+		return -EINVAL;
 
 	if (generate_script_lang) {
 		struct stat perf_stat;

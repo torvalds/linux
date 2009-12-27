@@ -40,7 +40,6 @@ struct perf_event_ops {
 	event_op	process_read_event;
 	event_op	process_throttle_event;
 	event_op	process_unthrottle_event;
-	int		(*sample_type_check)(struct perf_session *session);
 	unsigned long	total_unknown;
 	bool		full_paths;
 };
@@ -56,7 +55,7 @@ struct symbol **perf_session__resolve_callchain(struct perf_session *self,
 						struct ip_callchain *chain,
 						struct symbol **parent);
 
-int perf_session__has_traces(struct perf_session *self);
+bool perf_session__has_traces(struct perf_session *self, const char *msg);
 
 int perf_header__read_build_ids(int input, u64 offset, u64 file_size);
 

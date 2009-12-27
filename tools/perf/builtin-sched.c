@@ -1657,17 +1657,18 @@ static struct perf_event_ops event_ops = {
 	.process_sample_event	= process_sample_event,
 	.process_comm_event	= event__process_comm,
 	.process_lost_event	= process_lost_event,
-	.sample_type_check	= perf_session__has_traces,
 };
 
 static int read_events(void)
 {
-	int err;
+	int err = -EINVAL;
 	struct perf_session *session = perf_session__new(input_name, O_RDONLY, 0);
 	if (session == NULL)
 		return -ENOMEM;
 
-	err = perf_session__process_events(session, &event_ops);
+	if (perf_session__has_traces(session, "record -R"))
+		err = perf_session__process_events(session, &event_ops);
+
 	perf_session__delete(session);
 	return err;
 }
