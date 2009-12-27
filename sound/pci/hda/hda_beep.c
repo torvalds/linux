@@ -42,7 +42,7 @@ static void snd_hda_generate_beep(struct work_struct *work)
 		return;
 
 	/* generate tone */
-	snd_hda_codec_write_cache(codec, beep->nid, 0,
+	snd_hda_codec_write(codec, beep->nid, 0,
 			AC_VERB_SET_BEEP_CONTROL, beep->tone);
 }
 
@@ -119,7 +119,7 @@ static void snd_hda_do_detach(struct hda_beep *beep)
 	beep->dev = NULL;
 	cancel_work_sync(&beep->beep_work);
 	/* turn off beep for sure */
-	snd_hda_codec_write_cache(beep->codec, beep->nid, 0,
+	snd_hda_codec_write(beep->codec, beep->nid, 0,
 				  AC_VERB_SET_BEEP_CONTROL, 0);
 }
 
@@ -192,7 +192,7 @@ int snd_hda_enable_beep_device(struct hda_codec *codec, int enable)
 		beep->enabled = enable;
 		if (!enable) {
 			/* turn off beep */
-			snd_hda_codec_write_cache(beep->codec, beep->nid, 0,
+			snd_hda_codec_write(beep->codec, beep->nid, 0,
 						  AC_VERB_SET_BEEP_CONTROL, 0);
 		}
 		if (beep->mode == HDA_BEEP_MODE_SWREG) {
