@@ -6705,10 +6705,11 @@ static int __init volume_create_alsa_mixer(void)
 
 	rc = snd_card_create(alsa_index, alsa_id, THIS_MODULE,
 			    sizeof(struct tpacpi_alsa_data), &card);
-	if (rc < 0)
-		return rc;
-	if (!card)
-		return -ENOMEM;
+	if (rc < 0 || !card) {
+		printk(TPACPI_ERR
+			"Failed to create ALSA card structures: %d\n", rc);
+		return 1;
+	}
 
 	BUG_ON(!card->private_data);
 	data = card->private_data;
@@ -6741,8 +6742,9 @@ static int __init volume_create_alsa_mixer(void)
 		rc = snd_ctl_add(card, ctl_vol);
 		if (rc < 0) {
 			printk(TPACPI_ERR
-				"Failed to create ALSA volume control\n");
-			goto err_out;
+				"Failed to create ALSA volume control: %d\n",
+				rc);
+			goto err_exit;
 		}
 		data->ctl_vol_id = &ctl_vol->id;
 	}
@@ -6750,22 +6752,25 @@ static int __init volume_create_alsa_mixer(void)
 	ctl_mute = snd_ctl_new1(&volume_alsa_control_mute, NULL);
 	rc = snd_ctl_add(card, ctl_mute);
 	if (rc < 0) {
-		printk(TPACPI_ERR "Failed to create ALSA mute control\n");
-		goto err_out;
+		printk(TPACPI_ERR "Failed to create ALSA mute control: %d\n",
+			rc);
+		goto err_exit;
 	}
 	data->ctl_mute_id = &ctl_mute->id;
 
 	snd_card_set_dev(card, &tpacpi_pdev->dev);
 	rc = snd_card_register(card);
-
-err_out:
 	if (rc < 0) {
-		snd_card_free(card);
-		card = NULL;
+		printk(TPACPI_ERR "Failed to register ALSA card: %d\n", rc);
+		goto err_exit;
 	}
 
 	alsa_card = card;
-	return rc;
+	return 0;
+
+err_exit:
+	snd_card_free(card);
+	return 1;
 }
 
 #define TPACPI_VOL_Q_MUTEONLY	0x0001	/* Mute-only control available */
