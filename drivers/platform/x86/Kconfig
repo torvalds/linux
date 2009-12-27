@@ -231,6 +231,11 @@ config THINKPAD_ACPI
 
 	  This driver was formerly known as ibm-acpi.
 
+	  Extra functionality will be available if the rfkill (CONFIG_RFKILL)
+	  and/or ALSA (CONFIG_SND) subsystems are available in the kernel.
+	  Note that if you want ThinkPad-ACPI to be built-in instead of
+	  modular, ALSA and rfkill will also have to be built-in.
+
 	  If you have an IBM or Lenovo ThinkPad laptop, say Y or M here.
 
 config THINKPAD_ACPI_ALSA_SUPPORT
