@@ -208,6 +208,16 @@ struct snd_usb_midi_endpoint_info {
 /*
  */
 
+/*E-mu USB samplerate control quirk*/
+enum {
+	EMU_QUIRK_SR_44100HZ = 0,
+	EMU_QUIRK_SR_48000HZ,
+	EMU_QUIRK_SR_88200HZ,
+	EMU_QUIRK_SR_96000HZ,
+	EMU_QUIRK_SR_176400HZ,
+	EMU_QUIRK_SR_192000HZ
+};
+
 #define combine_word(s)    ((*(s)) | ((unsigned int)(s)[1] << 8))
 #define combine_triple(s)  (combine_word(s) | ((unsigned int)(s)[2] << 16))
 #define combine_quad(s)    (combine_triple(s) | ((unsigned int)(s)[3] << 24))
@@ -232,6 +242,9 @@ int snd_usbmidi_create(struct snd_card *card,
 void snd_usbmidi_input_stop(struct list_head* p);
 void snd_usbmidi_input_start(struct list_head* p);
 void snd_usbmidi_disconnect(struct list_head *p);
+
+void snd_emuusb_set_samplerate(struct snd_usb_audio *chip,
+			unsigned char samplerate_id);
 
 /*
  * retrieve usb_interface descriptor from the host interface
