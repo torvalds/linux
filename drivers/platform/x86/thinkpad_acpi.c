@@ -6384,6 +6384,8 @@ static struct ibm_struct brightness_driver_data = {
  * and we leave them unchanged.
  */
 
+#ifdef CONFIG_THINKPAD_ACPI_ALSA_SUPPORT
+
 #define TPACPI_ALSA_DRVNAME  "ThinkPad EC"
 #define TPACPI_ALSA_SHRTNAME "ThinkPad Console Audio Control"
 #define TPACPI_ALSA_MIXERNAME TPACPI_ALSA_SHRTNAME
@@ -7020,6 +7022,28 @@ static struct ibm_struct volume_driver_data = {
 	.resume = volume_resume,
 	.shutdown = volume_shutdown,
 };
+
+#else /* !CONFIG_THINKPAD_ACPI_ALSA_SUPPORT */
+
+#define alsa_card NULL
+
+static void inline volume_alsa_notify_change(void)
+{
+}
+
+static int __init volume_init(struct ibm_init_struct *iibm)
+{
+	printk(TPACPI_INFO
+		"volume: disabled as there is no ALSA support in this kernel\n");
+
+	return 1;
+}
+
+static struct ibm_struct volume_driver_data = {
+	.name = "volume",
+};
+
+#endif /* CONFIG_THINKPAD_ACPI_ALSA_SUPPORT */
 
 /*************************************************************************
  * Fan subdriver
@@ -8743,6 +8767,7 @@ MODULE_PARM_DESC(hotkey_report_mode,
 		 "used for backwards compatibility with userspace, "
 		 "see documentation");
 
+#ifdef CONFIG_THINKPAD_ACPI_ALSA_SUPPORT
 module_param_named(volume_mode, volume_mode, uint, 0444);
 MODULE_PARM_DESC(volume_mode,
 		 "Selects volume control strategy: "
@@ -8765,6 +8790,7 @@ module_param_named(id, alsa_id, charp, 0444);
 MODULE_PARM_DESC(id, "ALSA id for the ACPI EC Mixer");
 module_param_named(enable, alsa_enable, bool, 0444);
 MODULE_PARM_DESC(enable, "Enable the ALSA interface for the ACPI EC Mixer");
+#endif /* CONFIG_THINKPAD_ACPI_ALSA_SUPPORT */
 
 #define TPACPI_PARAM(feature) \
 	module_param_call(feature, set_ibm_param, NULL, NULL, 0); \
