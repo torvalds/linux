@@ -41,7 +41,6 @@ struct perf_event_ops {
 	event_op	process_read_event;
 	event_op	process_throttle_event;
 	event_op	process_unthrottle_event;
-	bool		full_paths;
 };
 
 struct perf_session *perf_session__new(const char *filename, int mode, bool force);

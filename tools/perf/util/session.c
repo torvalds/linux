@@ -306,7 +306,7 @@ int perf_session__process_events(struct perf_session *self,
 
 	head = self->header.data_offset;
 
-	if (!ops->full_paths) {
+	if (!symbol_conf.full_paths) {
 		char bf[PATH_MAX];
 
 		if (getcwd(bf, sizeof(bf)) == NULL) {
