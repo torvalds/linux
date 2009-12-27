@@ -52,7 +52,9 @@ static LIST_HEAD(hybrid_tuner_instance_list);
 #define dprintk(level, fmt, arg...) if (debug >= level) \
 	printk(KERN_INFO "%s: " fmt, "xc4000", ## arg)
 
-#define XC4000_DEFAULT_FIRMWARE "xc4000-02.fw"
+/* Note that the last version digit is my internal build number (so I can
+   rev the firmware even if the core Xceive firmware was unchanged) */
+#define XC4000_DEFAULT_FIRMWARE "dvb-fe-xc4000-1.4.1.fw"
 #define XC4000_DEFAULT_FIRMWARE_SIZE 18643
 
 
