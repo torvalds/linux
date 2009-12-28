@@ -1191,8 +1191,13 @@ irqreturn_t cppi_interrupt(int irq, void *dev_id)
 
 		bd = tx_ch->head;
 
+		/*
+		 * If Head is null then this could mean that a abort interrupt
+		 * that needs to be acknowledged.
+		 */
 		if (NULL == bd) {
 			DBG(1, "null BD\n");
+			tx_ram->tx_complete = 0;
 			continue;
 		}
 
@@ -1412,15 +1417,6 @@ static int cppi_channel_abort(struct dma_channel *channel)
 
 	if (cppi_ch->transmit) {
 		struct cppi_tx_stateram __iomem *tx_ram;
-		int			enabled;
-
-		/* mask interrupts raised to signal teardown complete.  */
-		enabled = musb_readl(tibase, DAVINCI_TXCPPI_INTENAB_REG)
-				& (1 << cppi_ch->index);
-		if (enabled)
-			musb_writel(tibase, DAVINCI_TXCPPI_INTCLR_REG,
-					(1 << cppi_ch->index));
-
 		/* REVISIT put timeouts on these controller handshakes */
 
 		cppi_dump_tx(6, cppi_ch, " (teardown)");
@@ -1435,7 +1431,6 @@ static int cppi_channel_abort(struct dma_channel *channel)
 		do {
 			value = musb_readl(&tx_ram->tx_complete, 0);
 		} while (0xFFFFFFFC != value);
-		musb_writel(&tx_ram->tx_complete, 0, 0xFFFFFFFC);
 
 		/* FIXME clean up the transfer state ... here?
 		 * the completion routine should get called with
@@ -1448,23 +1443,15 @@ static int cppi_channel_abort(struct dma_channel *channel)
 		musb_writew(regs, MUSB_TXCSR, value);
 		musb_writew(regs, MUSB_TXCSR, value);
 
-		/* While we scrub the TX state RAM, ensure that we clean
-		 * up any interrupt that's currently asserted:
+		/*
 		 * 1. Write to completion Ptr value 0x1(bit 0 set)
 		 *    (write back mode)
-		 * 2. Write to completion Ptr value 0x0(bit 0 cleared)
-		 *    (compare mode)
-		 * Value written is compared(for bits 31:2) and when
-		 * equal, interrupt is deasserted.
+		 * 2. Wait for abort interrupt and then put the channel in
+		 *    compare mode by writing 1 to the tx_complete register.
 		 */
 		cppi_reset_tx(tx_ram, 1);
-		musb_writel(&tx_ram->tx_complete, 0, 0);
-
-		/* re-enable interrupt */
-		if (enabled)
-			musb_writel(tibase, DAVINCI_TXCPPI_INTENAB_REG,
-					(1 << cppi_ch->index));
-
+		cppi_ch->head = 0;
+		musb_writel(&tx_ram->tx_complete, 0, 1);
 		cppi_dump_tx(5, cppi_ch, " (done teardown)");
 
 		/* REVISIT tx side _should_ clean up the same way
