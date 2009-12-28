@@ -250,6 +250,11 @@ config NR_CPUS
 	depends on SMP
 	default 2 if BF561
 
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs"
+	depends on SMP && HOTPLUG
+	default y
+
 config IRQ_PER_CPU
 	bool
 	depends on SMP
@@ -1130,7 +1135,6 @@ source "fs/Kconfig.binfmt"
 endmenu
 
 menu "Power management options"
-	depends on !SMP
 
 source "kernel/power/Kconfig"
 

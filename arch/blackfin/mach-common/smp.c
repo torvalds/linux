@@ -344,8 +344,11 @@ void smp_send_stop(void)
 
 int __cpuinit __cpu_up(unsigned int cpu)
 {
-	struct task_struct *idle;
 	int ret;
+	static struct task_struct *idle;
+
+	if (idle)
+		free_task(idle);
 
 	idle = fork_idle(cpu);
 	if (IS_ERR(idle)) {
@@ -354,7 +357,6 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	}
 
 	secondary_stack = task_stack_page(idle) + THREAD_SIZE;
-	smp_wmb();
 
 	ret = platform_boot_secondary(cpu, idle);
 
@@ -413,7 +415,6 @@ void __cpuinit secondary_start_kernel(void)
 	atomic_inc(&mm->mm_users);
 	atomic_inc(&mm->mm_count);
 	current->active_mm = mm;
-	BUG_ON(current->mm);	/* Can't be, but better be safe than sorry. */
 
 	preempt_disable();
 
@@ -494,4 +495,35 @@ void resync_core_dcache(void)
 	put_cpu();
 }
 EXPORT_SYMBOL(resync_core_dcache);
+#endif
+
+#ifdef CONFIG_HOTPLUG_CPU
+int __cpuexit __cpu_disable(void)
+{
+	unsigned int cpu = smp_processor_id();
+
+	if (cpu == 0)
+		return -EPERM;
+
+	set_cpu_online(cpu, false);
+	return 0;
+}
+
+static DECLARE_COMPLETION(cpu_killed);
+
+int __cpuexit __cpu_die(unsigned int cpu)
+{
+	return wait_for_completion_timeout(&cpu_killed, 5000);
+}
+
+void cpu_die(void)
+{
+	complete(&cpu_killed);
+
+	atomic_dec(&init_mm.mm_users);
+	atomic_dec(&init_mm.mm_count);
+
+	local_irq_disable();
+	platform_cpu_die();
+}
 #endif

@@ -65,6 +65,8 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	bfin_write_SICB_IAR5(bfin_read_SICA_IAR5());
 	bfin_write_SICB_IAR6(bfin_read_SICA_IAR6());
 	bfin_write_SICB_IAR7(bfin_read_SICA_IAR7());
+	bfin_write_SICB_IWR0(IWR_DISABLE_ALL);
+	bfin_write_SICB_IWR1(IWR_DISABLE_ALL);
 	SSYNC();
 
 	/* Store CPU-private information to the cpu_data array. */
@@ -80,17 +82,18 @@ int __cpuinit platform_boot_secondary(unsigned int cpu, struct task_struct *idle
 {
 	unsigned long timeout;
 
-	/* CoreB already running?! */
-	BUG_ON((bfin_read_SICA_SYSCR() & COREB_SRAM_INIT) == 0);
-
 	printk(KERN_INFO "Booting Core B.\n");
 
 	spin_lock(&boot_lock);
 
-	/* Kick CoreB, which should start execution from CORE_SRAM_BASE. */
-	SSYNC();
-	bfin_write_SICA_SYSCR(bfin_read_SICA_SYSCR() & ~COREB_SRAM_INIT);
-	SSYNC();
+	if ((bfin_read_SICA_SYSCR() & COREB_SRAM_INIT) == 0) {
+		/* CoreB already running, sending ipi to wakeup it */
+		platform_send_ipi_cpu(cpu, IRQ_SUPPLE_0);
+	} else {
+		/* Kick CoreB, which should start execution from CORE_SRAM_BASE. */
+		bfin_write_SICA_SYSCR(bfin_read_SICA_SYSCR() & ~COREB_SRAM_INIT);
+		SSYNC();
+	}
 
 	timeout = jiffies + 1 * HZ;
 	while (time_before(jiffies, timeout)) {
