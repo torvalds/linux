@@ -422,7 +422,7 @@ static void ch341_break_ctl(struct tty_struct *tty, int break_state)
 	}
 	dbg("%s - New ch341 break register contents - reg1: %x, reg2: %x",
 			__func__, break_reg[0], break_reg[1]);
-	reg_contents = (uint16_t)break_reg[0] | ((uint16_t)break_reg[1] << 8);
+	reg_contents = le16_to_cpup((uint16_t *)break_reg);
 	r = ch341_control_out(port->serial->dev, CH341_REQ_WRITE_REG,
 			ch341_break_reg, reg_contents);
 	if (r < 0)
