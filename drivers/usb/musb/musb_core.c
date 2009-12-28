@@ -557,6 +557,69 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 		handled = IRQ_HANDLED;
 	}
 
+
+	if (int_usb & MUSB_INTR_SUSPEND) {
+		DBG(1, "SUSPEND (%s) devctl %02x power %02x\n",
+				otg_state_string(musb), devctl, power);
+		handled = IRQ_HANDLED;
+
+		switch (musb->xceiv->state) {
+#ifdef	CONFIG_USB_MUSB_OTG
+		case OTG_STATE_A_PERIPHERAL:
+			/* We also come here if the cable is removed, since
+			 * this silicon doesn't report ID-no-longer-grounded.
+			 *
+			 * We depend on T(a_wait_bcon) to shut us down, and
+			 * hope users don't do anything dicey during this
+			 * undesired detour through A_WAIT_BCON.
+			 */
+			musb_hnp_stop(musb);
+			usb_hcd_resume_root_hub(musb_to_hcd(musb));
+			musb_root_disconnect(musb);
+			musb_platform_try_idle(musb, jiffies
+					+ msecs_to_jiffies(musb->a_wait_bcon
+						? : OTG_TIME_A_WAIT_BCON));
+
+			break;
+#endif
+		case OTG_STATE_B_IDLE:
+			if (!musb->is_active)
+				break;
+		case OTG_STATE_B_PERIPHERAL:
+			musb_g_suspend(musb);
+			musb->is_active = is_otg_enabled(musb)
+					&& musb->xceiv->gadget->b_hnp_enable;
+			if (musb->is_active) {
+#ifdef	CONFIG_USB_MUSB_OTG
+				musb->xceiv->state = OTG_STATE_B_WAIT_ACON;
+				DBG(1, "HNP: Setting timer for b_ase0_brst\n");
+				mod_timer(&musb->otg_timer, jiffies
+					+ msecs_to_jiffies(
+							OTG_TIME_B_ASE0_BRST));
+#endif
+			}
+			break;
+		case OTG_STATE_A_WAIT_BCON:
+			if (musb->a_wait_bcon != 0)
+				musb_platform_try_idle(musb, jiffies
+					+ msecs_to_jiffies(musb->a_wait_bcon));
+			break;
+		case OTG_STATE_A_HOST:
+			musb->xceiv->state = OTG_STATE_A_SUSPEND;
+			musb->is_active = is_otg_enabled(musb)
+					&& musb->xceiv->host->b_hnp_enable;
+			break;
+		case OTG_STATE_B_HOST:
+			/* Transition to B_PERIPHERAL, see 6.8.2.6 p 44 */
+			DBG(1, "REVISIT: SUSPEND as B_HOST\n");
+			break;
+		default:
+			/* "should not happen" */
+			musb->is_active = 0;
+			break;
+		}
+	}
+
 	if (int_usb & MUSB_INTR_CONNECT) {
 		struct usb_hcd *hcd = musb_to_hcd(musb);
 
@@ -625,136 +688,6 @@ b_host:
 	}
 #endif	/* CONFIG_USB_MUSB_HDRC_HCD */
 
-	/* mentor saves a bit: bus reset and babble share the same irq.
-	 * only host sees babble; only peripheral sees bus reset.
-	 */
-	if (int_usb & MUSB_INTR_RESET) {
-		if (is_host_capable() && (devctl & MUSB_DEVCTL_HM) != 0) {
-			/*
-			 * Looks like non-HS BABBLE can be ignored, but
-			 * HS BABBLE is an error condition. For HS the solution
-			 * is to avoid babble in the first place and fix what
-			 * caused BABBLE. When HS BABBLE happens we can only
-			 * stop the session.
-			 */
-			if (devctl & (MUSB_DEVCTL_FSDEV | MUSB_DEVCTL_LSDEV))
-				DBG(1, "BABBLE devctl: %02x\n", devctl);
-			else {
-				ERR("Stopping host session -- babble\n");
-				musb_writeb(mbase, MUSB_DEVCTL, 0);
-			}
-		} else if (is_peripheral_capable()) {
-			DBG(1, "BUS RESET as %s\n", otg_state_string(musb));
-			switch (musb->xceiv->state) {
-#ifdef CONFIG_USB_OTG
-			case OTG_STATE_A_SUSPEND:
-				/* We need to ignore disconnect on suspend
-				 * otherwise tusb 2.0 won't reconnect after a
-				 * power cycle, which breaks otg compliance.
-				 */
-				musb->ignore_disconnect = 1;
-				musb_g_reset(musb);
-				/* FALLTHROUGH */
-			case OTG_STATE_A_WAIT_BCON:	/* OPT TD.4.7-900ms */
-				/* never use invalid T(a_wait_bcon) */
-				DBG(1, "HNP: in %s, %d msec timeout\n",
-						otg_state_string(musb),
-						TA_WAIT_BCON(musb));
-				mod_timer(&musb->otg_timer, jiffies
-					+ msecs_to_jiffies(TA_WAIT_BCON(musb)));
-				break;
-			case OTG_STATE_A_PERIPHERAL:
-				musb->ignore_disconnect = 0;
-				del_timer(&musb->otg_timer);
-				musb_g_reset(musb);
-				break;
-			case OTG_STATE_B_WAIT_ACON:
-				DBG(1, "HNP: RESET (%s), to b_peripheral\n",
-					otg_state_string(musb));
-				musb->xceiv->state = OTG_STATE_B_PERIPHERAL;
-				musb_g_reset(musb);
-				break;
-#endif
-			case OTG_STATE_B_IDLE:
-				musb->xceiv->state = OTG_STATE_B_PERIPHERAL;
-				/* FALLTHROUGH */
-			case OTG_STATE_B_PERIPHERAL:
-				musb_g_reset(musb);
-				break;
-			default:
-				DBG(1, "Unhandled BUS RESET as %s\n",
-					otg_state_string(musb));
-			}
-		}
-
-		handled = IRQ_HANDLED;
-	}
-	schedule_work(&musb->irq_work);
-
-	return handled;
-}
-
-/*
- * Interrupt Service Routine to record USB "global" interrupts.
- * Since these do not happen often and signify things of
- * paramount importance, it seems OK to check them individually;
- * the order of the tests is specified in the manual
- *
- * @param musb instance pointer
- * @param int_usb register contents
- * @param devctl
- * @param power
- */
-static irqreturn_t musb_stage2_irq(struct musb *musb, u8 int_usb,
-				u8 devctl, u8 power)
-{
-	irqreturn_t handled = IRQ_NONE;
-
-#if 0
-/* REVISIT ... this would be for multiplexing periodic endpoints, or
- * supporting transfer phasing to prevent exceeding ISO bandwidth
- * limits of a given frame or microframe.
- *
- * It's not needed for peripheral side, which dedicates endpoints;
- * though it _might_ use SOF irqs for other purposes.
- *
- * And it's not currently needed for host side, which also dedicates
- * endpoints, relies on TX/RX interval registers, and isn't claimed
- * to support ISO transfers yet.
- */
-	if (int_usb & MUSB_INTR_SOF) {
-		void __iomem *mbase = musb->mregs;
-		struct musb_hw_ep	*ep;
-		u8 epnum;
-		u16 frame;
-
-		DBG(6, "START_OF_FRAME\n");
-		handled = IRQ_HANDLED;
-
-		/* start any periodic Tx transfers waiting for current frame */
-		frame = musb_readw(mbase, MUSB_FRAME);
-		ep = musb->endpoints;
-		for (epnum = 1; (epnum < musb->nr_endpoints)
-					&& (musb->epmask >= (1 << epnum));
-				epnum++, ep++) {
-			/*
-			 * FIXME handle framecounter wraps (12 bits)
-			 * eliminate duplicated StartUrb logic
-			 */
-			if (ep->dwWaitFrame >= frame) {
-				ep->dwWaitFrame = 0;
-				pr_debug("SOF --> periodic TX%s on %d\n",
-					ep->tx_channel ? " DMA" : "",
-					epnum);
-				if (!ep->tx_channel)
-					musb_h_tx_start(musb, epnum);
-				else
-					cppi_hostdma_start(musb, epnum);
-			}
-		}		/* end of for loop */
-	}
-#endif
-
 	if ((int_usb & MUSB_INTR_DISCONNECT) && !musb->ignore_disconnect) {
 		DBG(1, "DISCONNECT (%s) as %s, devctl %02x\n",
 				otg_state_string(musb),
@@ -803,69 +736,118 @@ static irqreturn_t musb_stage2_irq(struct musb *musb, u8 int_usb,
 				otg_state_string(musb));
 			break;
 		}
-
-		schedule_work(&musb->irq_work);
 	}
 
-	if (int_usb & MUSB_INTR_SUSPEND) {
-		DBG(1, "SUSPEND (%s) devctl %02x power %02x\n",
-				otg_state_string(musb), devctl, power);
+	/* mentor saves a bit: bus reset and babble share the same irq.
+	 * only host sees babble; only peripheral sees bus reset.
+	 */
+	if (int_usb & MUSB_INTR_RESET) {
+		handled = IRQ_HANDLED;
+		if (is_host_capable() && (devctl & MUSB_DEVCTL_HM) != 0) {
+			/*
+			 * Looks like non-HS BABBLE can be ignored, but
+			 * HS BABBLE is an error condition. For HS the solution
+			 * is to avoid babble in the first place and fix what
+			 * caused BABBLE. When HS BABBLE happens we can only
+			 * stop the session.
+			 */
+			if (devctl & (MUSB_DEVCTL_FSDEV | MUSB_DEVCTL_LSDEV))
+				DBG(1, "BABBLE devctl: %02x\n", devctl);
+			else {
+				ERR("Stopping host session -- babble\n");
+				musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
+			}
+		} else if (is_peripheral_capable()) {
+			DBG(1, "BUS RESET as %s\n", otg_state_string(musb));
+			switch (musb->xceiv->state) {
+#ifdef CONFIG_USB_OTG
+			case OTG_STATE_A_SUSPEND:
+				/* We need to ignore disconnect on suspend
+				 * otherwise tusb 2.0 won't reconnect after a
+				 * power cycle, which breaks otg compliance.
+				 */
+				musb->ignore_disconnect = 1;
+				musb_g_reset(musb);
+				/* FALLTHROUGH */
+			case OTG_STATE_A_WAIT_BCON:	/* OPT TD.4.7-900ms */
+				/* never use invalid T(a_wait_bcon) */
+				DBG(1, "HNP: in %s, %d msec timeout\n",
+						otg_state_string(musb),
+						TA_WAIT_BCON(musb));
+				mod_timer(&musb->otg_timer, jiffies
+					+ msecs_to_jiffies(TA_WAIT_BCON(musb)));
+				break;
+			case OTG_STATE_A_PERIPHERAL:
+				musb->ignore_disconnect = 0;
+				del_timer(&musb->otg_timer);
+				musb_g_reset(musb);
+				break;
+			case OTG_STATE_B_WAIT_ACON:
+				DBG(1, "HNP: RESET (%s), to b_peripheral\n",
+					otg_state_string(musb));
+				musb->xceiv->state = OTG_STATE_B_PERIPHERAL;
+				musb_g_reset(musb);
+				break;
+#endif
+			case OTG_STATE_B_IDLE:
+				musb->xceiv->state = OTG_STATE_B_PERIPHERAL;
+				/* FALLTHROUGH */
+			case OTG_STATE_B_PERIPHERAL:
+				musb_g_reset(musb);
+				break;
+			default:
+				DBG(1, "Unhandled BUS RESET as %s\n",
+					otg_state_string(musb));
+			}
+		}
+	}
+
+#if 0
+/* REVISIT ... this would be for multiplexing periodic endpoints, or
+ * supporting transfer phasing to prevent exceeding ISO bandwidth
+ * limits of a given frame or microframe.
+ *
+ * It's not needed for peripheral side, which dedicates endpoints;
+ * though it _might_ use SOF irqs for other purposes.
+ *
+ * And it's not currently needed for host side, which also dedicates
+ * endpoints, relies on TX/RX interval registers, and isn't claimed
+ * to support ISO transfers yet.
+ */
+	if (int_usb & MUSB_INTR_SOF) {
+		void __iomem *mbase = musb->mregs;
+		struct musb_hw_ep	*ep;
+		u8 epnum;
+		u16 frame;
+
+		DBG(6, "START_OF_FRAME\n");
 		handled = IRQ_HANDLED;
 
-		switch (musb->xceiv->state) {
-#ifdef	CONFIG_USB_MUSB_OTG
-		case OTG_STATE_A_PERIPHERAL:
-			/* We also come here if the cable is removed, since
-			 * this silicon doesn't report ID-no-longer-grounded.
-			 *
-			 * We depend on T(a_wait_bcon) to shut us down, and
-			 * hope users don't do anything dicey during this
-			 * undesired detour through A_WAIT_BCON.
+		/* start any periodic Tx transfers waiting for current frame */
+		frame = musb_readw(mbase, MUSB_FRAME);
+		ep = musb->endpoints;
+		for (epnum = 1; (epnum < musb->nr_endpoints)
+					&& (musb->epmask >= (1 << epnum));
+				epnum++, ep++) {
+			/*
+			 * FIXME handle framecounter wraps (12 bits)
+			 * eliminate duplicated StartUrb logic
 			 */
-			musb_hnp_stop(musb);
-			usb_hcd_resume_root_hub(musb_to_hcd(musb));
-			musb_root_disconnect(musb);
-			musb_platform_try_idle(musb, jiffies
-					+ msecs_to_jiffies(musb->a_wait_bcon
-						? : OTG_TIME_A_WAIT_BCON));
-			break;
-#endif
-		case OTG_STATE_B_PERIPHERAL:
-			musb_g_suspend(musb);
-			musb->is_active = is_otg_enabled(musb)
-					&& musb->xceiv->gadget->b_hnp_enable;
-			if (musb->is_active) {
-#ifdef	CONFIG_USB_MUSB_OTG
-				musb->xceiv->state = OTG_STATE_B_WAIT_ACON;
-				DBG(1, "HNP: Setting timer for b_ase0_brst\n");
-				mod_timer(&musb->otg_timer, jiffies
-					+ msecs_to_jiffies(
-							OTG_TIME_B_ASE0_BRST));
-#endif
+			if (ep->dwWaitFrame >= frame) {
+				ep->dwWaitFrame = 0;
+				pr_debug("SOF --> periodic TX%s on %d\n",
+					ep->tx_channel ? " DMA" : "",
+					epnum);
+				if (!ep->tx_channel)
+					musb_h_tx_start(musb, epnum);
+				else
+					cppi_hostdma_start(musb, epnum);
 			}
-			break;
-		case OTG_STATE_A_WAIT_BCON:
-			if (musb->a_wait_bcon != 0)
-				musb_platform_try_idle(musb, jiffies
-					+ msecs_to_jiffies(musb->a_wait_bcon));
-			break;
-		case OTG_STATE_A_HOST:
-			musb->xceiv->state = OTG_STATE_A_SUSPEND;
-			musb->is_active = is_otg_enabled(musb)
-					&& musb->xceiv->host->b_hnp_enable;
-			break;
-		case OTG_STATE_B_HOST:
-			/* Transition to B_PERIPHERAL, see 6.8.2.6 p 44 */
-			DBG(1, "REVISIT: SUSPEND as B_HOST\n");
-			break;
-		default:
-			/* "should not happen" */
-			musb->is_active = 0;
-			break;
-		}
-		schedule_work(&musb->irq_work);
+		}		/* end of for loop */
 	}
+#endif
 
+	schedule_work(&musb->irq_work);
 
 	return handled;
 }
@@ -1596,11 +1578,6 @@ irqreturn_t musb_interrupt(struct musb *musb)
 		reg >>= 1;
 		ep_num++;
 	}
-
-	/* finish handling "global" interrupts after handling fifos */
-	if (musb->int_usb)
-		retval |= musb_stage2_irq(musb,
-				musb->int_usb, devctl, power);
 
 	return retval;
 }
