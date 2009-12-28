@@ -392,16 +392,22 @@ static void ch341_break_ctl(struct tty_struct *tty, int break_state)
 	struct usb_serial_port *port = tty->driver_data;
 	int r;
 	uint16_t reg_contents;
-	uint8_t break_reg[2];
+	uint8_t *break_reg;
 
 	dbg("%s()", __func__);
 
+	break_reg = kmalloc(2, GFP_KERNEL);
+	if (!break_reg) {
+		dev_err(&port->dev, "%s - kmalloc failed\n", __func__);
+		return;
+	}
+
 	r = ch341_control_in(port->serial->dev, CH341_REQ_READ_REG,
-			ch341_break_reg, 0, break_reg, sizeof(break_reg));
+			ch341_break_reg, 0, break_reg, 2);
 	if (r < 0) {
 		dev_err(&port->dev, "%s - USB control read error (%d)\n",
 				__func__, r);
-		return;
+		goto out;
 	}
 	dbg("%s - initial ch341 break register contents - reg1: %x, reg2: %x",
 			__func__, break_reg[0], break_reg[1]);
@@ -422,6 +428,8 @@ static void ch341_break_ctl(struct tty_struct *tty, int break_state)
 	if (r < 0)
 		dev_err(&port->dev, "%s - USB control write error (%d)\n",
 				__func__, r);
+out:
+	kfree(break_reg);
 }
 
 static int ch341_tiocmset(struct tty_struct *tty, struct file *file,
