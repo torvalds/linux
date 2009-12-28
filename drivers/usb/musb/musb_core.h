@@ -411,6 +411,7 @@ struct musb {
 
 	unsigned		hb_iso_rx:1;	/* high bandwidth iso rx? */
 	unsigned		hb_iso_tx:1;	/* high bandwidth iso tx? */
+	unsigned		dyn_fifo:1;	/* dynamic FIFO supported? */
 
 	unsigned		bulk_split:1;
 #define	can_bulk_split(musb,type) \
