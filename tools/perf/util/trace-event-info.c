@@ -38,6 +38,7 @@
 
 #include "../perf.h"
 #include "trace-event.h"
+#include "debugfs.h"
 
 #define VERSION "0.5"
 
@@ -102,32 +103,12 @@ void *malloc_or_die(unsigned int size)
 
 static const char *find_debugfs(void)
 {
-	static char debugfs[MAX_PATH+1];
-	static int debugfs_found;
-	FILE *fp;
-	struct mntent *m;
+	const char *path = debugfs_mount(NULL);
 
-	if (debugfs_found)
-		return debugfs;
+	if (!path)
+		die("Your kernel not support debugfs filesystem");
 
-	fp = setmntent("/proc/mounts", "r");
-	if (!fp)
-		die("Can't open /proc/mounts for read");
-
-	while ((m = getmntent(fp)) != NULL) {
-		if (strcmp(m->mnt_type, "debugfs") == 0) {
-			strcpy(debugfs, m->mnt_dir);
-			debugfs_found = 1;
-			break;
-		}
-	}
-
-	endmntent(fp);
-
-	if (!debugfs_found)
-		die("debugfs not mounted, please mount");
-
-	return debugfs;
+	return path;
 }
 
 /*
