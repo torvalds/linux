@@ -607,8 +607,10 @@ void __init uv_system_init(void)
 	uv_rtc_init();
 
 	for_each_present_cpu(cpu) {
+		int apicid = per_cpu(x86_cpu_to_apicid, cpu);
+
 		nid = cpu_to_node(cpu);
-		pnode = uv_apicid_to_pnode(per_cpu(x86_cpu_to_apicid, cpu));
+		pnode = uv_apicid_to_pnode(apicid);
 		blade = boot_pnode_to_blade(pnode);
 		lcpu = uv_blade_info[blade].nr_possible_cpus;
 		uv_blade_info[blade].nr_possible_cpus++;
@@ -629,15 +631,13 @@ void __init uv_system_init(void)
 		uv_cpu_hub_info(cpu)->gnode_extra = gnode_extra;
 		uv_cpu_hub_info(cpu)->global_mmr_base = mmr_base;
 		uv_cpu_hub_info(cpu)->coherency_domain_number = sn_coherency_id;
-		uv_cpu_hub_info(cpu)->scir.offset = SCIR_LOCAL_MMR_BASE + lcpu;
+		uv_cpu_hub_info(cpu)->scir.offset = uv_scir_offset(apicid);
 		uv_node_to_blade[nid] = blade;
 		uv_cpu_to_blade[cpu] = blade;
 		max_pnode = max(pnode, max_pnode);
 
-		printk(KERN_DEBUG "UV: cpu %d, apicid 0x%x, pnode %d, nid %d, "
-			"lcpu %d, blade %d\n",
-			cpu, per_cpu(x86_cpu_to_apicid, cpu), pnode, nid,
-			lcpu, blade);
+		printk(KERN_DEBUG "UV: cpu %d, apicid 0x%x, pnode %d, nid %d, lcpu %d, blade %d\n",
+			cpu, apicid, pnode, nid, lcpu, blade);
 	}
 
 	/* Add blade/pnode info for nodes without cpus */
