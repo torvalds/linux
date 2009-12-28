@@ -399,8 +399,8 @@ static void ch341_break_ctl(struct tty_struct *tty, int break_state)
 	r = ch341_control_in(port->serial->dev, CH341_REQ_READ_REG,
 			ch341_break_reg, 0, break_reg, sizeof(break_reg));
 	if (r < 0) {
-		printk(KERN_WARNING "%s: USB control read error whilst getting"
-				" break register contents.\n", __FILE__);
+		dev_err(&port->dev, "%s - USB control read error (%d)\n",
+				__func__, r);
 		return;
 	}
 	dbg("%s - initial ch341 break register contents - reg1: %x, reg2: %x",
@@ -420,8 +420,8 @@ static void ch341_break_ctl(struct tty_struct *tty, int break_state)
 	r = ch341_control_out(port->serial->dev, CH341_REQ_WRITE_REG,
 			ch341_break_reg, reg_contents);
 	if (r < 0)
-		printk(KERN_WARNING "%s: USB control write error whilst setting"
-				" break register contents.\n", __FILE__);
+		dev_err(&port->dev, "%s - USB control write error (%d)\n",
+				__func__, r);
 }
 
 static int ch341_tiocmset(struct tty_struct *tty, struct file *file,
