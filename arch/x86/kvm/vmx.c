@@ -3993,28 +3993,48 @@ static u64 vmx_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 	return ret;
 }
 
+#define _ER(x) { EXIT_REASON_##x, #x }
+
 static const struct trace_print_flags vmx_exit_reasons_str[] = {
-	{ EXIT_REASON_EXCEPTION_NMI,           "exception" },
-	{ EXIT_REASON_EXTERNAL_INTERRUPT,      "ext_irq" },
-	{ EXIT_REASON_TRIPLE_FAULT,            "triple_fault" },
-	{ EXIT_REASON_NMI_WINDOW,              "nmi_window" },
-	{ EXIT_REASON_IO_INSTRUCTION,          "io_instruction" },
-	{ EXIT_REASON_CR_ACCESS,               "cr_access" },
-	{ EXIT_REASON_DR_ACCESS,               "dr_access" },
-	{ EXIT_REASON_CPUID,                   "cpuid" },
-	{ EXIT_REASON_MSR_READ,                "rdmsr" },
-	{ EXIT_REASON_MSR_WRITE,               "wrmsr" },
-	{ EXIT_REASON_PENDING_INTERRUPT,       "interrupt_window" },
-	{ EXIT_REASON_HLT,                     "halt" },
-	{ EXIT_REASON_INVLPG,                  "invlpg" },
-	{ EXIT_REASON_VMCALL,                  "hypercall" },
-	{ EXIT_REASON_TPR_BELOW_THRESHOLD,     "tpr_below_thres" },
-	{ EXIT_REASON_APIC_ACCESS,             "apic_access" },
-	{ EXIT_REASON_WBINVD,                  "wbinvd" },
-	{ EXIT_REASON_TASK_SWITCH,             "task_switch" },
-	{ EXIT_REASON_EPT_VIOLATION,           "ept_violation" },
+	_ER(EXCEPTION_NMI),
+	_ER(EXTERNAL_INTERRUPT),
+	_ER(TRIPLE_FAULT),
+	_ER(PENDING_INTERRUPT),
+	_ER(NMI_WINDOW),
+	_ER(TASK_SWITCH),
+	_ER(CPUID),
+	_ER(HLT),
+	_ER(INVLPG),
+	_ER(RDPMC),
+	_ER(RDTSC),
+	_ER(VMCALL),
+	_ER(VMCLEAR),
+	_ER(VMLAUNCH),
+	_ER(VMPTRLD),
+	_ER(VMPTRST),
+	_ER(VMREAD),
+	_ER(VMRESUME),
+	_ER(VMWRITE),
+	_ER(VMOFF),
+	_ER(VMON),
+	_ER(CR_ACCESS),
+	_ER(DR_ACCESS),
+	_ER(IO_INSTRUCTION),
+	_ER(MSR_READ),
+	_ER(MSR_WRITE),
+	_ER(MWAIT_INSTRUCTION),
+	_ER(MONITOR_INSTRUCTION),
+	_ER(PAUSE_INSTRUCTION),
+	_ER(MCE_DURING_VMENTRY),
+	_ER(TPR_BELOW_THRESHOLD),
+	_ER(APIC_ACCESS),
+	_ER(EPT_VIOLATION),
+	_ER(EPT_MISCONFIG),
+	_ER(WBINVD),
 	{ -1, NULL }
 };
+
+#undef _ER
 
 static bool vmx_gb_page_enable(void)
 {
