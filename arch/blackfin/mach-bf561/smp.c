@@ -14,8 +14,6 @@
 
 static DEFINE_SPINLOCK(boot_lock);
 
-static cpumask_t cpu_callin_map;
-
 /*
  * platform_init_cpus() - Tell the world about how many cores we
  * have. This is called while setting up the architecture support
@@ -72,7 +70,7 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	bfin_setup_cpudata(cpu);
 
 	/* We are done with local CPU inits, unblock the boot CPU. */
-	cpu_set(cpu, cpu_callin_map);
+	set_cpu_online(cpu, true);
 	spin_lock(&boot_lock);
 	spin_unlock(&boot_lock);
 }
@@ -95,14 +93,13 @@ int __cpuinit platform_boot_secondary(unsigned int cpu, struct task_struct *idle
 
 	timeout = jiffies + 1 * HZ;
 	while (time_before(jiffies, timeout)) {
-		if (cpu_isset(cpu, cpu_callin_map))
+		if (cpu_online(cpu))
 			break;
 		udelay(100);
 		barrier();
 	}
 
-	if (cpu_isset(cpu, cpu_callin_map)) {
-		cpu_set(cpu, cpu_online_map);
+	if (cpu_online(cpu)) {
 		/* release the lock and let coreb run */
 		spin_unlock(&boot_lock);
 		return 0;
