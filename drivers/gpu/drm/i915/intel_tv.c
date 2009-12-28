@@ -1801,8 +1801,6 @@ intel_tv_init(struct drm_device *dev)
 	drm_connector_attach_property(connector,
 				   dev->mode_config.tv_bottom_margin_property,
 				   tv_priv->margin[TV_MARGIN_BOTTOM]);
-
-	dev_priv->hotplug_supported_mask |= TV_HOTPLUG_INT_STATUS;
 out:
 	drm_sysfs_connector_add(connector);
 }
