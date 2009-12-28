@@ -338,6 +338,18 @@ static inline unsigned long uv_global_gru_mmr_address(int pnode, unsigned long o
 	return UV_GLOBAL_GRU_MMR_BASE | offset | (pnode << uv_hub_info->m_val);
 }
 
+static inline void uv_write_global_mmr8(int pnode, unsigned long offset,
+				unsigned char val)
+{
+	writeb(val, uv_global_mmr64_address(pnode, offset));
+}
+
+static inline unsigned char uv_read_global_mmr8(int pnode,
+						 unsigned long offset)
+{
+	return readb(uv_global_mmr64_address(pnode, offset));
+}
+
 /*
  * Access hub local MMRs. Faster than using global space but only local MMRs
  * are accessible.
@@ -457,11 +469,17 @@ static inline void uv_set_scir_bits(unsigned char value)
 	}
 }
 
+static inline unsigned long uv_scir_offset(int apicid)
+{
+	return SCIR_LOCAL_MMR_BASE | (apicid & 0x3f);
+}
+
 static inline void uv_set_cpu_scir_bits(int cpu, unsigned char value)
 {
 	if (uv_cpu_hub_info(cpu)->scir.state != value) {
+		uv_write_global_mmr8(uv_cpu_to_pnode(cpu),
+				uv_cpu_hub_info(cpu)->scir.offset, value);
 		uv_cpu_hub_info(cpu)->scir.state = value;
-		uv_write_local_mmr8(uv_cpu_hub_info(cpu)->scir.offset, value);
 	}
 }
 
