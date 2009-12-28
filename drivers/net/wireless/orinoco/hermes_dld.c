@@ -427,7 +427,7 @@ int hermesi_program_init(hermes_t *hw, u32 offset)
 	if (err)
 		return err;
 
-	pr_debug(KERN_DEBUG PFX "Enabling volatile, EP 0x%08x\n", offset);
+	pr_debug(PFX "Enabling volatile, EP 0x%08x\n", offset);
 	err = hermes_doicmd_wait(hw,
 				 HERMES_PROGRAM_ENABLE_VOLATILE,
 				 offset & 0xFFFFu,
