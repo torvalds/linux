@@ -210,11 +210,17 @@ static int fsi_is_port_a(struct fsi_priv *fsi)
 	return fsi->master->base == fsi->base;
 }
 
-static struct fsi_priv *fsi_get_priv(struct snd_pcm_substream *substream)
+static struct snd_soc_dai *fsi_get_dai(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai_link *machine = rtd->dai;
-	struct snd_soc_dai *dai = machine->cpu_dai;
+
+	return  machine->cpu_dai;
+}
+
+static struct fsi_priv *fsi_get_priv(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_dai *dai = fsi_get_dai(substream);
 
 	return dai->private_data;
 }
