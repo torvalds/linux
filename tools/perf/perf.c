@@ -388,7 +388,7 @@ static int run_argv(int *argcp, const char ***argv)
 /* mini /proc/mounts parser: searching for "^blah /mount/point debugfs" */
 static void get_debugfs_mntpt(void)
 {
-	const char *path = debugfs_find_mountpoint();
+	const char *path = debugfs_mount(NULL);
 
 	if (path)
 		strncpy(debugfs_mntpt, path, sizeof(debugfs_mntpt));
