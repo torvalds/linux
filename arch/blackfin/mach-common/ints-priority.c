@@ -173,7 +173,12 @@ static void bfin_internal_mask_irq(unsigned int irq)
 	local_irq_restore_hw(flags);
 }
 
+#ifdef CONFIG_SMP
+static void bfin_internal_unmask_irq_affinity(unsigned int irq,
+		const struct cpumask *affinity)
+#else
 static void bfin_internal_unmask_irq(unsigned int irq)
+#endif
 {
 	unsigned long flags;
 
@@ -186,15 +191,37 @@ static void bfin_internal_unmask_irq(unsigned int irq)
 	local_irq_save_hw(flags);
 	mask_bank = SIC_SYSIRQ(irq) / 32;
 	mask_bit = SIC_SYSIRQ(irq) % 32;
-	bfin_write_SIC_IMASK(mask_bank, bfin_read_SIC_IMASK(mask_bank) |
-			     (1 << mask_bit));
 #ifdef CONFIG_SMP
-	bfin_write_SICB_IMASK(mask_bank, bfin_read_SICB_IMASK(mask_bank) |
-			     (1 << mask_bit));
+	if (cpumask_test_cpu(0, affinity))
+#endif
+		bfin_write_SIC_IMASK(mask_bank,
+			bfin_read_SIC_IMASK(mask_bank) |
+			(1 << mask_bit));
+#ifdef CONFIG_SMP
+	if (cpumask_test_cpu(1, affinity))
+		bfin_write_SICB_IMASK(mask_bank,
+			bfin_read_SICB_IMASK(mask_bank) |
+			(1 << mask_bit));
 #endif
 #endif
 	local_irq_restore_hw(flags);
 }
+
+#ifdef CONFIG_SMP
+static void bfin_internal_unmask_irq(unsigned int irq)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+	bfin_internal_unmask_irq_affinity(irq, desc->affinity);
+}
+
+static int bfin_internal_set_affinity(unsigned int irq, const struct cpumask *mask)
+{
+	bfin_internal_mask_irq(irq);
+	bfin_internal_unmask_irq_affinity(irq, mask);
+
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_PM
 int bfin_internal_set_wake(unsigned int irq, unsigned int state)
@@ -271,6 +298,9 @@ static struct irq_chip bfin_internal_irqchip = {
 	.mask_ack = bfin_internal_mask_irq,
 	.disable = bfin_internal_mask_irq,
 	.enable = bfin_internal_unmask_irq,
+#ifdef CONFIG_SMP
+	.set_affinity = bfin_internal_set_affinity,
+#endif
 #ifdef CONFIG_PM
 	.set_wake = bfin_internal_set_wake,
 #endif
