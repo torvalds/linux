@@ -115,6 +115,8 @@ int viafb_i2c_readbyte(u8 adap, u8 slave_addr, u8 index, u8 *pdata)
 	u8 mm1[] = {0x00};
 	struct i2c_msg msgs[2];
 
+	if (!via_i2c_par[adap].is_active)
+		return -ENODEV;
 	*pdata = 0;
 	msgs[0].flags = 0;
 	msgs[1].flags = I2C_M_RD;
@@ -130,6 +132,8 @@ int viafb_i2c_writebyte(u8 adap, u8 slave_addr, u8 index, u8 data)
 	u8 msg[2] = { index, data };
 	struct i2c_msg msgs;
 
+	if (!via_i2c_par[adap].is_active)
+		return -ENODEV;
 	msgs.flags = 0;
 	msgs.addr = slave_addr / 2;
 	msgs.len = 2;
@@ -142,6 +146,8 @@ int viafb_i2c_readbytes(u8 adap, u8 slave_addr, u8 index, u8 *buff, int buff_len
 	u8 mm1[] = {0x00};
 	struct i2c_msg msgs[2];
 
+	if (!via_i2c_par[adap].is_active)
+		return -ENODEV;
 	msgs[0].flags = 0;
 	msgs[1].flags = I2C_M_RD;
 	msgs[0].addr = msgs[1].addr = slave_addr / 2;
@@ -198,18 +204,18 @@ static int viafb_i2c_probe(struct platform_device *platdev)
 		struct via_port_cfg *adap_cfg = configs++;
 		struct via_i2c_stuff *i2c_stuff = &via_i2c_par[i];
 
+		i2c_stuff->is_active = 0;
 		if (adap_cfg->type == 0 || adap_cfg->mode != VIA_MODE_I2C)
 			continue;
-
 		ret = create_i2c_bus(&i2c_stuff->adapter,
 				     &i2c_stuff->algo, adap_cfg,
 				NULL); /* FIXME: PCIDEV */
 		if (ret < 0) {
 			printk(KERN_ERR "viafb: cannot create i2c bus %u:%d\n",
 				i, ret);
-			/* FIXME: properly release previous busses */
-			return ret;
+			continue;  /* Still try to make the rest */
 		}
+		i2c_stuff->is_active = 1;
 	}
 
 	return 0;
@@ -225,7 +231,7 @@ static int viafb_i2c_remove(struct platform_device *platdev)
 		 * Only remove those entries in the array that we've
 		 * actually used (and thus initialized algo_data)
 		 */
-		if (i2c_stuff->adapter.algo_data == &i2c_stuff->algo)
+		if (i2c_stuff->is_active)
 			i2c_del_adapter(&i2c_stuff->adapter);
 	}
 	return 0;

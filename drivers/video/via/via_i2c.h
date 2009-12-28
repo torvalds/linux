@@ -26,6 +26,7 @@
 
 struct via_i2c_stuff {
 	u16 i2c_port;			/* GPIO or I2C port */
+	u16 is_active;			/* Being used as I2C? */
 	struct i2c_adapter adapter;
 	struct i2c_algo_bit_data algo;
 };
