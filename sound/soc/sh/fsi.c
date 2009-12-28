@@ -67,6 +67,7 @@
 /* DOFF_ST */
 #define ERR_OVER	0x00000010
 #define ERR_UNDER	0x00000001
+#define ST_ERR		(ERR_OVER | ERR_UNDER)
 
 /* CLK_RST */
 #define B_CLK		0x00000010
@@ -375,11 +376,12 @@ static int fsi_data_push(struct fsi_priv *fsi)
 {
 	struct snd_pcm_runtime *runtime;
 	struct snd_pcm_substream *substream = NULL;
+	u32 status;
 	int send;
 	int fifo_free;
 	int width;
 	u8 *start;
-	int i, over_period;
+	int i, ret, over_period;
 
 	if (!fsi			||
 	    !fsi->substream		||
@@ -435,23 +437,33 @@ static int fsi_data_push(struct fsi_priv *fsi)
 
 	fsi->byte_offset += send * width;
 
+	ret = 0;
+	status = fsi_reg_read(fsi, DOFF_ST);
+	if (status & ERR_OVER) {
+		struct snd_soc_dai *dai = fsi_get_dai(substream);
+		dev_err(dai->dev, "over run error\n");
+		fsi_reg_write(fsi, DOFF_ST, status & ~ST_ERR);
+		ret = -EIO;
+	}
+
 	fsi_irq_enable(fsi, 1);
 
 	if (over_period)
 		snd_pcm_period_elapsed(substream);
 
-	return 0;
+	return ret;
 }
 
 static int fsi_data_pop(struct fsi_priv *fsi)
 {
 	struct snd_pcm_runtime *runtime;
 	struct snd_pcm_substream *substream = NULL;
+	u32 status;
 	int free;
 	int fifo_fill;
 	int width;
 	u8 *start;
-	int i, over_period;
+	int i, ret, over_period;
 
 	if (!fsi			||
 	    !fsi->substream		||
@@ -506,12 +518,21 @@ static int fsi_data_pop(struct fsi_priv *fsi)
 
 	fsi->byte_offset += fifo_fill * width;
 
+	ret = 0;
+	status = fsi_reg_read(fsi, DIFF_ST);
+	if (status & ERR_UNDER) {
+		struct snd_soc_dai *dai = fsi_get_dai(substream);
+		dev_err(dai->dev, "under run error\n");
+		fsi_reg_write(fsi, DIFF_ST, status & ~ST_ERR);
+		ret = -EIO;
+	}
+
 	fsi_irq_enable(fsi, 0);
 
 	if (over_period)
 		snd_pcm_period_elapsed(substream);
 
-	return 0;
+	return ret;
 }
 
 static irqreturn_t fsi_interrupt(int irq, void *data)
