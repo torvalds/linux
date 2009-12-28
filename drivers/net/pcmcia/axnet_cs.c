@@ -1065,14 +1065,11 @@ static netdev_tx_t axnet_start_xmit(struct sk_buff *skb,
 	   
 	spin_lock_irqsave(&ei_local->page_lock, flags);
 	outb_p(0x00, e8390_base + EN0_IMR);
-	spin_unlock_irqrestore(&ei_local->page_lock, flags);
 	
 	/*
 	 *	Slow phase with lock held.
 	 */
 	 
-	spin_lock_irqsave(&ei_local->page_lock, flags);
-	
 	ei_local->irqlock = 1;
 
 	send_length = max(length, ETH_ZLEN);
