@@ -876,7 +876,7 @@ int cx25821_enum_input(struct cx25821_dev *dev, struct v4l2_input *i)
 	dprintk(1, "%s()\n", __func__);
 
 	n = i->index;
-	if (n > 2)
+	if (n >= 2)
 		return -EINVAL;
 
 	if (0 == INPUT(n)->type)
