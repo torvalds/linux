@@ -413,11 +413,18 @@ static int write_boot_mem(struct edgeport_serial *serial,
 {
 	int status = 0;
 	int i;
-	__u8 temp;
+	u8 *temp;
 
 	/* Must do a read before write */
 	if (!serial->TiReadI2C) {
-		status = read_boot_mem(serial, 0, 1, &temp);
+		temp = kmalloc(1, GFP_KERNEL);
+		if (!temp) {
+			dev_err(&serial->serial->dev->dev,
+					"%s - out of memory\n", __func__);
+			return -ENOMEM;
+		}
+		status = read_boot_mem(serial, 0, 1, temp);
+		kfree(temp);
 		if (status)
 			return status;
 	}
@@ -935,37 +942,47 @@ static int build_i2c_fw_hdr(__u8 *header, struct device *dev)
 static int i2c_type_bootmode(struct edgeport_serial *serial)
 {
 	int status;
-	__u8 data;
+	u8 *data;
+
+	data = kmalloc(1, GFP_KERNEL);
+	if (!data) {
+		dev_err(&serial->serial->dev->dev,
+				"%s - out of memory\n", __func__);
+		return -ENOMEM;
+	}
 
 	/* Try to read type 2 */
 	status = ti_vread_sync(serial->serial->dev, UMPC_MEMORY_READ,
-				DTK_ADDR_SPACE_I2C_TYPE_II, 0, &data, 0x01);
+				DTK_ADDR_SPACE_I2C_TYPE_II, 0, data, 0x01);
 	if (status)
 		dbg("%s - read 2 status error = %d", __func__, status);
 	else
-		dbg("%s - read 2 data = 0x%x", __func__, data);
-	if ((!status) && (data == UMP5152 || data == UMP3410)) {
+		dbg("%s - read 2 data = 0x%x", __func__, *data);
+	if ((!status) && (*data == UMP5152 || *data == UMP3410)) {
 		dbg("%s - ROM_TYPE_II", __func__);
 		serial->TI_I2C_Type = DTK_ADDR_SPACE_I2C_TYPE_II;
-		return 0;
+		goto out;
 	}
 
 	/* Try to read type 3 */
 	status = ti_vread_sync(serial->serial->dev, UMPC_MEMORY_READ,
-				DTK_ADDR_SPACE_I2C_TYPE_III, 0,	&data, 0x01);
+				DTK_ADDR_SPACE_I2C_TYPE_III, 0,	data, 0x01);
 	if (status)
 		dbg("%s - read 3 status error = %d", __func__, status);
 	else
-		dbg("%s - read 2 data = 0x%x", __func__, data);
-	if ((!status) && (data == UMP5152 || data == UMP3410)) {
+		dbg("%s - read 2 data = 0x%x", __func__, *data);
+	if ((!status) && (*data == UMP5152 || *data == UMP3410)) {
 		dbg("%s - ROM_TYPE_III", __func__);
 		serial->TI_I2C_Type = DTK_ADDR_SPACE_I2C_TYPE_III;
-		return 0;
+		goto out;
 	}
 
 	dbg("%s - Unknown", __func__);
 	serial->TI_I2C_Type = DTK_ADDR_SPACE_I2C_TYPE_II;
-	return -ENODEV;
+	status = -ENODEV;
+out:
+	kfree(data);
+	return status;
 }
 
 static int bulk_xfer(struct usb_serial *serial, void *buffer,
@@ -1113,7 +1130,7 @@ static int download_fw(struct edgeport_serial *serial)
 				I2C_DESC_TYPE_FIRMWARE_BASIC, rom_desc);
 		if (start_address != 0) {
 			struct ti_i2c_firmware_rec *firmware_version;
-			__u8 record;
+			u8 *record;
 
 			dbg("%s - Found Type FIRMWARE (Type 2) record",
 								__func__);
@@ -1165,6 +1182,15 @@ static int download_fw(struct edgeport_serial *serial)
 				    OperationalMajorVersion,
 				    OperationalMinorVersion);
 
+				record = kmalloc(1, GFP_KERNEL);
+				if (!record) {
+					dev_err(dev, "%s - out of memory.\n",
+							__func__);
+					kfree(firmware_version);
+					kfree(rom_desc);
+					kfree(ti_manuf_desc);
+					return -ENOMEM;
+				}
 				/* In order to update the I2C firmware we must
 				 * change the type 2 record to type 0xF2. This
 				 * will force the UMP to come up in Boot Mode.
@@ -1177,13 +1203,14 @@ static int download_fw(struct edgeport_serial *serial)
 				 * firmware will update the record type from
 				 * 0xf2 to 0x02.
 				 */
-				record = I2C_DESC_TYPE_FIRMWARE_BLANK;
+				*record = I2C_DESC_TYPE_FIRMWARE_BLANK;
 
 				/* Change the I2C Firmware record type to
 				   0xf2 to trigger an update */
 				status = write_rom(serial, start_address,
-						sizeof(record),	&record);
+						sizeof(*record), record);
 				if (status) {
+					kfree(record);
 					kfree(firmware_version);
 					kfree(rom_desc);
 					kfree(ti_manuf_desc);
@@ -1196,19 +1223,21 @@ static int download_fw(struct edgeport_serial *serial)
 				 */
 				status = read_rom(serial,
 							start_address,
-							sizeof(record),
-							&record);
+							sizeof(*record),
+							record);
 				if (status) {
+					kfree(record);
 					kfree(firmware_version);
 					kfree(rom_desc);
 					kfree(ti_manuf_desc);
 					return status;
 				}
 
-				if (record != I2C_DESC_TYPE_FIRMWARE_BLANK) {
+				if (*record != I2C_DESC_TYPE_FIRMWARE_BLANK) {
 					dev_err(dev,
 						"%s - error resetting device\n",
 						__func__);
+					kfree(record);
 					kfree(firmware_version);
 					kfree(rom_desc);
 					kfree(ti_manuf_desc);
@@ -1226,6 +1255,7 @@ static int download_fw(struct edgeport_serial *serial)
 						__func__, status);
 
 				/* return an error on purpose. */
+				kfree(record);
 				kfree(firmware_version);
 				kfree(rom_desc);
 				kfree(ti_manuf_desc);
