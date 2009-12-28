@@ -150,6 +150,8 @@ struct radeon_clock {
  */
 int radeon_pm_init(struct radeon_device *rdev);
 void radeon_pm_compute_clocks(struct radeon_device *rdev);
+void radeon_combios_get_power_modes(struct radeon_device *rdev);
+void radeon_atombios_get_power_modes(struct radeon_device *rdev);
 
 /*
  * Fences.
@@ -583,6 +585,59 @@ enum radeon_pm_action {
 	PM_ACTION_DOWNCLOCK,
 	PM_ACTION_UPCLOCK
 };
+
+enum radeon_voltage_type {
+	VOLTAGE_NONE = 0,
+	VOLTAGE_GPIO,
+	VOLTAGE_VDDC,
+	VOLTAGE_SW
+};
+
+struct radeon_voltage {
+	enum radeon_voltage_type type;
+	/* gpio voltage */
+	struct radeon_gpio_rec gpio;
+	u32 delay; /* delay in usec from voltage drop to sclk change */
+	bool active_high; /* voltage drop is active when bit is high */
+	/* VDDC voltage */
+	u8 vddc_id; /* index into vddc voltage table */
+	u8 vddci_id; /* index into vddci voltage table */
+	bool vddci_enabled;
+	/* r6xx+ sw */
+	u32 voltage;
+};
+
+struct radeon_pm_non_clock_info {
+	/* pcie lanes */
+	int pcie_lanes;
+	/* standardized non-clock flags */
+	u32 flags;
+};
+
+struct radeon_pm_clock_info {
+	/* memory clock */
+	u32 mclk;
+	/* engine clock */
+	u32 sclk;
+	/* voltage info */
+	struct radeon_voltage voltage;
+	/* standardized clock flags - not sure we'll need these */
+	u32 flags;
+};
+
+struct radeon_power_state {
+	/* XXX: use a define for num clock modes */
+	struct radeon_pm_clock_info clock_info[8];
+	/* number of valid clock modes in this power state */
+	int num_clock_modes;
+	/* currently selected clock mode */
+	struct radeon_pm_clock_info *current_clock_mode;
+	struct radeon_pm_clock_info *default_clock_mode;
+	/* non clock info about this state */
+	struct radeon_pm_non_clock_info non_clock_info;
+	bool voltage_drop_active;
+};
+
 struct radeon_pm {
 	struct mutex		mutex;
 	struct work_struct	reclock_work;
@@ -609,6 +664,12 @@ struct radeon_pm {
 	fixed20_12		core_bandwidth;
 	fixed20_12		sclk;
 	fixed20_12		needed_bandwidth;
+	/* XXX: use a define for num power modes */
+	struct radeon_power_state power_state[8];
+	/* number of valid power states */
+	int                     num_power_states;
+	struct radeon_power_state *current_power_state;
+	struct radeon_power_state *default_power_state;
 };
 
 

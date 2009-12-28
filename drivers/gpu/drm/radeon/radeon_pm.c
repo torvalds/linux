@@ -18,6 +18,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  * Authors: Rafał Miłecki <zajec5@gmail.com>
+ *          Alex Deucher <alexdeucher@gmail.com>
  */
 #include "drmP.h"
 #include "radeon.h"
@@ -39,12 +40,49 @@ static const char *pm_state_names[4] = {
 	"PM_STATE_ACTIVE"
 };
 
+static void radeon_print_power_mode_info(struct radeon_device *rdev)
+{
+	int i, j;
+	bool is_default;
+
+	DRM_INFO("%d Power State(s)\n", rdev->pm.num_power_states);
+	for (i = 0; i < rdev->pm.num_power_states; i++) {
+		if (rdev->pm.default_power_state == &rdev->pm.power_state[i])
+			is_default = true;
+		else
+			is_default = false;
+		DRM_INFO("State %d %s\n", i, is_default ? "(default)" : "");
+		if ((rdev->flags & RADEON_IS_PCIE) && !(rdev->flags & RADEON_IS_IGP))
+			DRM_INFO("\t%d PCIE Lanes\n", rdev->pm.power_state[i].non_clock_info.pcie_lanes);
+		DRM_INFO("\t%d Clock Mode(s)\n", rdev->pm.power_state[i].num_clock_modes);
+		for (j = 0; j < rdev->pm.power_state[i].num_clock_modes; j++) {
+			if (rdev->flags & RADEON_IS_IGP)
+				DRM_INFO("\t\t%d engine: %d\n",
+					 j,
+					 rdev->pm.power_state[i].clock_info[j].sclk * 10);
+			else
+				DRM_INFO("\t\t%d engine/memory: %d/%d\n",
+					 j,
+					 rdev->pm.power_state[i].clock_info[j].sclk * 10,
+					 rdev->pm.power_state[i].clock_info[j].mclk * 10);
+		}
+	}
+}
+
 int radeon_pm_init(struct radeon_device *rdev)
 {
 	rdev->pm.state = PM_STATE_DISABLED;
 	rdev->pm.planned_action = PM_ACTION_NONE;
 	rdev->pm.downclocked = false;
 	rdev->pm.vblank_callback = false;
+
+	if (rdev->bios) {
+		if (rdev->is_atom_bios)
+			radeon_atombios_get_power_modes(rdev);
+		else
+			radeon_combios_get_power_modes(rdev);
+		radeon_print_power_mode_info(rdev);
+	}
 
 	radeon_pm_check_limits(rdev);
 

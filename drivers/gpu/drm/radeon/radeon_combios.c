@@ -2374,6 +2374,114 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 	return true;
 }
 
+void radeon_combios_get_power_modes(struct radeon_device *rdev)
+{
+	struct drm_device *dev = rdev->ddev;
+	u16 offset, misc, misc2 = 0;
+	u8 rev, blocks, tmp;
+	int state_index = 0;
+
+	rdev->pm.default_power_state = NULL;
+	rdev->pm.current_power_state = NULL;
+
+	/* XXX mac/sparc cards */
+	if (rdev->bios == NULL)
+		goto default_mode;
+
+	if (rdev->flags & RADEON_IS_MOBILITY) {
+		offset = combios_get_table_offset(dev, COMBIOS_POWERPLAY_INFO_TABLE);
+		if (offset) {
+			rev = RBIOS8(offset);
+			blocks = RBIOS8(offset + 0x2);
+			/* power mode 0 tends to be the only valid one */
+			rdev->pm.power_state[state_index].num_clock_modes = 1;
+			rdev->pm.power_state[state_index].clock_info[0].mclk = RBIOS32(offset + 0x5 + 0x2);
+			rdev->pm.power_state[state_index].clock_info[0].sclk = RBIOS32(offset + 0x5 + 0x6);
+			if ((rdev->pm.power_state[state_index].clock_info[0].mclk == 0) ||
+			    (rdev->pm.power_state[state_index].clock_info[0].sclk == 0))
+				goto default_mode;
+			/* skip overclock modes for now */
+			if ((rdev->pm.power_state[state_index].clock_info[0].mclk >
+			     rdev->clock.default_mclk) ||
+			    (rdev->pm.power_state[state_index].clock_info[0].sclk >
+			     rdev->clock.default_sclk))
+				goto default_mode;
+			misc = RBIOS16(offset + 0x5 + 0x0);
+			if (rev > 4)
+				misc2 = RBIOS16(offset + 0x5 + 0xe);
+			if (misc & 0x4) {
+				rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_GPIO;
+				if (misc & 0x8)
+					rdev->pm.power_state[state_index].clock_info[0].voltage.active_high =
+						true;
+				else
+					rdev->pm.power_state[state_index].clock_info[0].voltage.active_high =
+						false;
+				rdev->pm.power_state[state_index].clock_info[0].voltage.gpio.valid = true;
+				if (rev < 6) {
+					rdev->pm.power_state[state_index].clock_info[0].voltage.gpio.reg =
+						RBIOS16(offset + 0x5 + 0xb) * 4;
+					tmp = RBIOS8(offset + 0x5 + 0xd);
+					rdev->pm.power_state[state_index].clock_info[0].voltage.gpio.mask = (1 << tmp);
+				} else {
+					u8 entries = RBIOS8(offset + 0x5 + 0xb);
+					u16 voltage_table_offset = RBIOS16(offset + 0x5 + 0xc);
+					if (entries && voltage_table_offset) {
+						rdev->pm.power_state[state_index].clock_info[0].voltage.gpio.reg =
+							RBIOS16(voltage_table_offset) * 4;
+						tmp = RBIOS8(voltage_table_offset + 0x2);
+						rdev->pm.power_state[state_index].clock_info[0].voltage.gpio.mask = (1 << tmp);
+					} else
+						rdev->pm.power_state[state_index].clock_info[0].voltage.gpio.valid = false;
+				}
+				switch ((misc2 & 0x700) >> 8) {
+				case 0:
+				default:
+					rdev->pm.power_state[state_index].clock_info[0].voltage.delay = 0;
+					break;
+				case 1:
+					rdev->pm.power_state[state_index].clock_info[0].voltage.delay = 33;
+					break;
+				case 2:
+					rdev->pm.power_state[state_index].clock_info[0].voltage.delay = 66;
+					break;
+				case 3:
+					rdev->pm.power_state[state_index].clock_info[0].voltage.delay = 99;
+					break;
+				case 4:
+					rdev->pm.power_state[state_index].clock_info[0].voltage.delay = 132;
+					break;
+				}
+			} else
+				rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
+			if (rev > 6)
+				rdev->pm.power_state[state_index].non_clock_info.pcie_lanes =
+					RBIOS8(offset + 0x5 + 0x10);
+			state_index++;
+		} else {
+			/* XXX figure out some good default low power mode for mobility cards w/out power tables */
+		}
+	} else {
+		/* XXX figure out some good default low power mode for desktop cards */
+	}
+
+default_mode:
+	/* add the default mode */
+	rdev->pm.power_state[state_index].num_clock_modes = 1;
+	rdev->pm.power_state[state_index].clock_info[0].mclk = rdev->clock.default_mclk;
+	rdev->pm.power_state[state_index].clock_info[0].sclk = rdev->clock.default_sclk;
+	rdev->pm.power_state[state_index].default_clock_mode = &rdev->pm.power_state[state_index].clock_info[0];
+	rdev->pm.power_state[state_index].current_clock_mode = &rdev->pm.power_state[state_index].clock_info[0];
+	rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
+	if (rdev->asic->get_pcie_lanes)
+		rdev->pm.power_state[state_index].non_clock_info.pcie_lanes = radeon_get_pcie_lanes(rdev);
+	else
+		rdev->pm.power_state[state_index].non_clock_info.pcie_lanes = 16;
+	rdev->pm.default_power_state = &rdev->pm.power_state[state_index];
+	rdev->pm.current_power_state = &rdev->pm.power_state[state_index];
+	rdev->pm.num_power_states = state_index + 1;
+}
+
 void radeon_external_tmds_setup(struct drm_encoder *encoder)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
