@@ -344,7 +344,8 @@ static int cypress_serial_control(struct tty_struct *tty,
 {
 	int new_baudrate = 0, retval = 0, tries = 0;
 	struct cypress_private *priv;
-	__u8 feature_buffer[5];
+	u8 *feature_buffer;
+	const unsigned int feature_len = 5;
 	unsigned long flags;
 
 	dbg("%s", __func__);
@@ -353,6 +354,10 @@ static int cypress_serial_control(struct tty_struct *tty,
 
 	if (!priv->comm_is_ok)
 		return -ENODEV;
+
+	feature_buffer = kcalloc(feature_len, sizeof(u8), GFP_KERNEL);
+	if (!feature_buffer)
+		return -ENOMEM;
 
 	switch (cypress_request_type) {
 	case CYPRESS_SET_CONFIG:
@@ -370,7 +375,6 @@ static int cypress_serial_control(struct tty_struct *tty,
 		dbg("%s - baud rate is being sent as %d",
 					__func__, new_baudrate);
 
-		memset(feature_buffer, 0, sizeof(feature_buffer));
 		/* fill the feature_buffer with new configuration */
 		*((u_int32_t *)feature_buffer) = new_baudrate;
 		feature_buffer[4] |= data_bits;   /* assign data bits in 2 bit space ( max 3 ) */
@@ -394,15 +398,15 @@ static int cypress_serial_control(struct tty_struct *tty,
 					HID_REQ_SET_REPORT,
 					USB_DIR_OUT | USB_RECIP_INTERFACE | USB_TYPE_CLASS,
 					0x0300, 0, feature_buffer,
-					sizeof(feature_buffer), 500);
+					feature_len, 500);
 
 			if (tries++ >= 3)
 				break;
 
-		} while (retval != sizeof(feature_buffer) &&
+		} while (retval != feature_len &&
 			 retval != -ENODEV);
 
-		if (retval != sizeof(feature_buffer)) {
+		if (retval != feature_len) {
 			dev_err(&port->dev, "%s - failed sending serial "
 				"line settings - %d\n", __func__, retval);
 			cypress_set_dead(port);
@@ -422,30 +426,28 @@ static int cypress_serial_control(struct tty_struct *tty,
 			/* Not implemented for this device,
 			   and if we try to do it we're likely
 			   to crash the hardware. */
-			return -ENOTTY;
+			retval = -ENOTTY;
+			goto out;
 		}
 		dbg("%s - retreiving serial line settings", __func__);
-		/* set initial values in feature buffer */
-		memset(feature_buffer, 0, sizeof(feature_buffer));
-
 		do {
 			retval = usb_control_msg(port->serial->dev,
 					usb_rcvctrlpipe(port->serial->dev, 0),
 					HID_REQ_GET_REPORT,
 					USB_DIR_IN | USB_RECIP_INTERFACE | USB_TYPE_CLASS,
 					0x0300, 0, feature_buffer,
-					sizeof(feature_buffer), 500);
+					feature_len, 500);
 
 			if (tries++ >= 3)
 				break;
-		} while (retval != sizeof(feature_buffer)
+		} while (retval != feature_len
 						&& retval != -ENODEV);
 
-		if (retval != sizeof(feature_buffer)) {
+		if (retval != feature_len) {
 			dev_err(&port->dev, "%s - failed to retrieve serial "
 				"line settings - %d\n", __func__, retval);
 			cypress_set_dead(port);
-			return retval;
+			goto out;
 		} else {
 			spin_lock_irqsave(&priv->lock, flags);
 			/* store the config in one byte, and later
@@ -458,7 +460,8 @@ static int cypress_serial_control(struct tty_struct *tty,
 	spin_lock_irqsave(&priv->lock, flags);
 	++priv->cmd_count;
 	spin_unlock_irqrestore(&priv->lock, flags);
-
+out:
+	kfree(feature_buffer);
 	return retval;
 } /* cypress_serial_control */
 
