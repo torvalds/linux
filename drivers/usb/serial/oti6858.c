@@ -302,7 +302,7 @@ void send_data(struct work_struct *work)
 	struct usb_serial_port *port = priv->port;
 	int count = 0, result;
 	unsigned long flags;
-	unsigned char allow;
+	u8 *allow;
 
 	dbg("%s(port = %d)", __func__, port->number);
 
@@ -321,13 +321,20 @@ void send_data(struct work_struct *work)
 		count = port->bulk_out_size;
 
 	if (count != 0) {
+		allow = kmalloc(1, GFP_KERNEL);
+		if (!allow) {
+			dev_err(&port->dev, "%s(): kmalloc failed\n",
+					__func__);
+			return;
+		}
 		result = usb_control_msg(port->serial->dev,
 				usb_rcvctrlpipe(port->serial->dev, 0),
 				OTI6858_REQ_T_CHECK_TXBUFF,
 				OTI6858_REQ_CHECK_TXBUFF,
-				count, 0, &allow, 1, 100);
-		if (result != 1 || allow != 0)
+				count, 0, allow, 1, 100);
+		if (result != 1 || *allow != 0)
 			count = 0;
+		kfree(allow);
 	}
 
 	if (count == 0) {
