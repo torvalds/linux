@@ -624,7 +624,6 @@ static void kobil_set_termios(struct tty_struct *tty,
 	unsigned short urb_val = 0;
 	int c_cflag = tty->termios->c_cflag;
 	speed_t speed;
-	void *settings;
 
 	priv = usb_get_serial_port_data(port);
 	if (priv->device_type == KOBIL_USBTWIN_PRODUCT_ID ||
@@ -647,25 +646,13 @@ static void kobil_set_termios(struct tty_struct *tty,
 	}
 	urb_val |= (c_cflag & CSTOPB) ? SUSBCR_SPASB_2StopBits :
 							SUSBCR_SPASB_1StopBit;
-
-	settings = kzalloc(50, GFP_KERNEL);
-	if (!settings)
-		return;
-
-	sprintf(settings, "%d ", speed);
-
 	if (c_cflag & PARENB) {
-		if  (c_cflag & PARODD) {
+		if  (c_cflag & PARODD)
 			urb_val |= SUSBCR_SPASB_OddParity;
-			strcat(settings, "Odd Parity");
-		} else {
+		else
 			urb_val |= SUSBCR_SPASB_EvenParity;
-			strcat(settings, "Even Parity");
-		}
-	} else {
+	} else
 		urb_val |= SUSBCR_SPASB_NoParity;
-		strcat(settings, "No Parity");
-	}
 	tty->termios->c_cflag &= ~CMSPAR;
 	tty_encode_baud_rate(tty, speed, speed);
 
@@ -675,11 +662,10 @@ static void kobil_set_termios(struct tty_struct *tty,
 		  USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_OUT,
 		  urb_val,
 		  0,
-		  settings,
+		  NULL,
 		  0,
 		  KOBIL_TIMEOUT
 		);
-	kfree(settings);
 }
 
 static int kobil_ioctl(struct tty_struct *tty, struct file *file,
