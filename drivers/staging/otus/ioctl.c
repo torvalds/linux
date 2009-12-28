@@ -930,7 +930,7 @@ int usbdrvwext_siwessid(struct net_device *dev,
 		return -EINVAL;
 
 	if (essid->flags == 1) {
-		if (essid->length > (IW_ESSID_MAX_SIZE + 1))
+		if (essid->length > IW_ESSID_MAX_SIZE)
 			return -E2BIG;
 
 		if (copy_from_user(&EssidBuf, essid->pointer, essid->length))
