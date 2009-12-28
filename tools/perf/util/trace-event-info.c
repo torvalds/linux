@@ -253,6 +253,8 @@ static void read_header_files(void)
 	write_or_die("header_page", 12);
 	write_or_die(&size, 8);
 	check_size = copy_file_fd(fd);
+	close(fd);
+
 	if (size != check_size)
 		die("wrong size for '%s' size=%lld read=%lld",
 		    path, size, check_size);
@@ -271,6 +273,7 @@ static void read_header_files(void)
 	if (size != check_size)
 		die("wrong size for '%s'", path);
 	put_tracing_file(path);
+	close(fd);
 }
 
 static bool name_in_tp_list(char *sys, struct tracepoint_path *tps)
@@ -337,6 +340,7 @@ static void copy_event_system(const char *sys, struct tracepoint_path *tps)
 
 		free(format);
 	}
+	closedir(dir);
 }
 
 static void read_ftrace_files(struct tracepoint_path *tps)
@@ -407,6 +411,7 @@ static void read_event_files(struct tracepoint_path *tps)
 		free(sys);
 	}
 
+	closedir(dir);
 	put_tracing_file(path);
 }
 
