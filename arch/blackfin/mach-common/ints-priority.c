@@ -1073,9 +1073,6 @@ int __init init_arch_irq(void)
 #endif
 
 #ifdef CONFIG_SMP
-#ifdef CONFIG_TICKSOURCE_GPTMR0
-		case IRQ_TIMER0:
-#endif
 #ifdef CONFIG_TICKSOURCE_CORETMR
 		case IRQ_CORETMR:
 #endif

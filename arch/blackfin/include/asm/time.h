@@ -37,5 +37,9 @@ extern unsigned long long __bfin_cycles_off;
 extern unsigned int __bfin_cycles_mod;
 #endif
 
-extern void __init setup_core_timer(void);
+#if defined(CONFIG_TICKSOURCE_CORETMR)
+extern void bfin_coretmr_init(void);
+extern void bfin_coretmr_clockevent_init(void);
+#endif
+
 #endif

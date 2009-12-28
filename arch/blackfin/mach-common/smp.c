@@ -365,9 +365,6 @@ int __cpuinit __cpu_up(unsigned int cpu)
 
 static void __cpuinit setup_secondary(unsigned int cpu)
 {
-#if !defined(CONFIG_TICKSOURCE_GPTMR0)
-	struct irq_desc *timer_desc;
-#endif
 	unsigned long ilat;
 
 	bfin_write_IMASK(0);
@@ -382,17 +379,6 @@ static void __cpuinit setup_secondary(unsigned int cpu)
 	bfin_irq_flags |= IMASK_IVG15 |
 	    IMASK_IVG14 | IMASK_IVG13 | IMASK_IVG12 | IMASK_IVG11 |
 	    IMASK_IVG10 | IMASK_IVG9 | IMASK_IVG8 | IMASK_IVG7 | IMASK_IVGHW;
-
-#if defined(CONFIG_TICKSOURCE_GPTMR0)
-	/* Power down the core timer, just to play safe. */
-	bfin_write_TCNTL(0);
-
-	/* system timer0 has been setup by CoreA. */
-#else
-	timer_desc = irq_desc + IRQ_CORETMR;
-	setup_core_timer();
-	timer_desc->chip->enable(IRQ_CORETMR);
-#endif
 }
 
 void __cpuinit secondary_start_kernel(void)
@@ -434,6 +420,9 @@ void __cpuinit secondary_start_kernel(void)
 	setup_secondary(cpu);
 
 	platform_secondary_init(cpu);
+
+	/* setup local core timer */
+	bfin_local_timer_setup();
 
 	local_irq_enable();
 

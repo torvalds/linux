@@ -11,6 +11,7 @@
 #include <linux/delay.h>
 #include <asm/smp.h>
 #include <asm/dma.h>
+#include <asm/time.h>
 
 static DEFINE_SPINLOCK(boot_lock);
 
@@ -143,4 +144,21 @@ void platform_clear_ipi(unsigned int cpu)
 	SSYNC();
 	bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (10 + cpu)));
 	SSYNC();
+}
+
+/*
+ * Setup core B's local core timer.
+ * In SMP, core timer is used for clock event device.
+ */
+void __cpuinit bfin_local_timer_setup(void)
+{
+#if defined(CONFIG_TICKSOURCE_CORETMR)
+	bfin_coretmr_init();
+	bfin_coretmr_clockevent_init();
+	get_irq_chip(IRQ_CORETMR)->unmask(IRQ_CORETMR);
+#else
+	/* Power down the core timer, just to play safe. */
+	bfin_write_TCNTL(0);
+#endif
+
 }

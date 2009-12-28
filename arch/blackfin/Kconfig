@@ -236,7 +236,7 @@ endchoice
 
 config SMP
 	depends on BF561
-	select GENERIC_CLOCKEVENTS
+	select TICKSOURCE_CORETMR
 	bool "Symmetric multi-processing support"
 	---help---
 	  This enables support for systems with more than one CPU,
@@ -610,23 +610,23 @@ config GENERIC_CLOCKEVENTS
 	bool "Generic clock events"
 	default y
 
-choice
-	prompt "Kernel Tick Source"
+menu "Clock event device"
 	depends on GENERIC_CLOCKEVENTS
-	default TICKSOURCE_CORETMR
-
 config TICKSOURCE_GPTMR0
-	bool "Gptimer0 (SCLK domain)"
+	bool "GPTimer0"
+	depends on !SMP
 	select BFIN_GPTIMERS
 
 config TICKSOURCE_CORETMR
-	bool "Core timer (CCLK domain)"
+	bool "Core timer"
+	default y
+endmenu
 
-endchoice
-
-config CYCLES_CLOCKSOURCE
-	bool "Use 'CYCLES' as a clocksource"
+menu "Clock souce"
 	depends on GENERIC_CLOCKEVENTS
+config CYCLES_CLOCKSOURCE
+	bool "CYCLES"
+	default y
 	depends on !BFIN_SCRATCH_REG_CYCLES
 	depends on !SMP
 	help
@@ -637,10 +637,10 @@ config CYCLES_CLOCKSOURCE
 	  writing the registers will most likely crash the kernel.
 
 config GPTMR0_CLOCKSOURCE
-	bool "Use GPTimer0 as a clocksource"
+	bool "GPTimer0"
 	select BFIN_GPTIMERS
-	depends on GENERIC_CLOCKEVENTS
 	depends on !TICKSOURCE_GPTMR0
+endmenu
 
 config ARCH_USES_GETTIMEOFFSET
 	depends on !GENERIC_CLOCKEVENTS
