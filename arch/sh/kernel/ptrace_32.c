@@ -2,7 +2,7 @@
  * SuperH process tracing
  *
  * Copyright (C) 1999, 2000  Kaz Kojima & Niibe Yutaka
- * Copyright (C) 2002 - 2008  Paul Mundt
+ * Copyright (C) 2002 - 2009  Paul Mundt
  *
  * Audit support by Yuichi Nakamura <ynakam@hitachisoft.jp>
  *
@@ -26,6 +26,7 @@
 #include <linux/tracehook.h>
 #include <linux/elf.h>
 #include <linux/regset.h>
+#include <linux/hw_breakpoint.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
@@ -63,9 +64,59 @@ static inline int put_stack_long(struct task_struct *task, int offset,
 	return 0;
 }
 
+void ptrace_triggered(struct perf_event *bp, int nmi,
+		      struct perf_sample_data *data, struct pt_regs *regs)
+{
+	struct perf_event_attr attr;
+
+	/*
+	 * Disable the breakpoint request here since ptrace has defined a
+	 * one-shot behaviour for breakpoint exceptions.
+	 */
+	attr = bp->attr;
+	attr.disabled = true;
+	modify_user_hw_breakpoint(bp, &attr);
+}
+
+static int set_single_step(struct task_struct *tsk, unsigned long addr)
+{
+	struct thread_struct *thread = &tsk->thread;
+	struct perf_event *bp;
+	struct perf_event_attr attr;
+
+	bp = thread->ptrace_bps[0];
+	if (!bp) {
+		hw_breakpoint_init(&attr);
+
+		attr.bp_addr = addr;
+		attr.bp_len = HW_BREAKPOINT_LEN_2;
+		attr.bp_type = HW_BREAKPOINT_R;
+
+		bp = register_user_hw_breakpoint(&attr, ptrace_triggered, tsk);
+		if (IS_ERR(bp))
+			return PTR_ERR(bp);
+
+		thread->ptrace_bps[0] = bp;
+	} else {
+		int err;
+
+		attr = bp->attr;
+		attr.bp_addr = addr;
+		err = modify_user_hw_breakpoint(bp, &attr);
+		if (unlikely(err))
+			return err;
+	}
+
+	return 0;
+}
+
 void user_enable_single_step(struct task_struct *child)
 {
+	unsigned long pc = get_stack_long(child, offsetof(struct pt_regs, pc));
+
 	set_tsk_thread_flag(child, TIF_SINGLESTEP);
+
+	set_single_step(child, pc);
 }
 
 void user_disable_single_step(struct task_struct *child)

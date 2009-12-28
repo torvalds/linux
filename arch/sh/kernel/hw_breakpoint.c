@@ -20,6 +20,7 @@
 #include <linux/io.h>
 #include <asm/hw_breakpoint.h>
 #include <asm/mmu_context.h>
+#include <asm/ptrace.h>
 
 struct ubc_context {
 	unsigned long pc;
@@ -372,7 +373,7 @@ static int __kprobes hw_breakpoint_handler(struct die_args *args)
 		rcu_read_unlock();
 	}
 
-	if (bp) {
+	if (bp && bp->overflow_handler != ptrace_triggered) {
 		struct arch_hw_breakpoint *info = counter_arch_bp(bp);
 
 		__raw_writel(UBC_CBR_CE | info->len | info->type, UBC_CBR0);
@@ -387,9 +388,19 @@ static int __kprobes hw_breakpoint_handler(struct die_args *args)
 BUILD_TRAP_HANDLER(breakpoint)
 {
 	unsigned long ex = lookup_exception_vector();
+	siginfo_t info;
+	int err;
 	TRAP_HANDLER_DECL;
 
-	notify_die(DIE_BREAKPOINT, "breakpoint", regs, 0, ex, SIGTRAP);
+	err = notify_die(DIE_BREAKPOINT, "breakpoint", regs, 0, ex, SIGTRAP);
+	if (err == NOTIFY_STOP)
+		return;
+
+	/* Deliver the signal to userspace */
+	info.si_signo = SIGTRAP;
+	info.si_errno = 0;
+	info.si_code = TRAP_HWBKPT;
+	force_sig_info(SIGTRAP, &info, current);
 }
 
 /*
