@@ -2031,6 +2031,7 @@ bad_config:
 	/* host side needs more setup */
 	if (is_host_enabled(musb)) {
 		struct usb_hcd	*hcd = musb_to_hcd(musb);
+		u8 busctl;
 
 		otg_set_host(musb->xceiv, &hcd->self);
 
@@ -2038,6 +2039,13 @@ bad_config:
 			hcd->self.otg_port = 1;
 		musb->xceiv->host = &hcd->self;
 		hcd->power_budget = 2 * (plat->power ? : 250);
+
+		/* program PHY to use external vBus if required */
+		if (plat->extvbus) {
+			busctl = musb_readb(musb->mregs, MUSB_ULPI_BUSCONTROL);
+			busctl |= MUSB_ULPI_USE_EXTVBUS;
+			musb_writeb(musb->mregs, MUSB_ULPI_BUSCONTROL, busctl);
+		}
 	}
 
 	/* For the host-only role, we can activate right away.
