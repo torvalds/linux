@@ -681,6 +681,7 @@ static int ehci_hcd_omap_remove(struct platform_device *pdev)
 	iounmap(omap->tll_base);
 	iounmap(omap->uhh_base);
 	usb_put_hcd(hcd);
+	kfree(omap);
 
 	return 0;
 }
