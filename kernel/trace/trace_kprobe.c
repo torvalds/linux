@@ -606,23 +606,22 @@ static int create_trace_probe(int argc, char **argv)
 	 */
 	struct trace_probe *tp;
 	int i, ret = 0;
-	int is_return = 0;
+	int is_return = 0, is_delete = 0;
 	char *symbol = NULL, *event = NULL, *arg = NULL, *group = NULL;
 	unsigned long offset = 0;
 	void *addr = NULL;
 	char buf[MAX_EVENT_NAME_LEN];
 
-	if (argc < 2) {
-		pr_info("Probe point is not specified.\n");
-		return -EINVAL;
-	}
-
+	/* argc must be >= 1 */
 	if (argv[0][0] == 'p')
 		is_return = 0;
 	else if (argv[0][0] == 'r')
 		is_return = 1;
+	else if (argv[0][0] == '-')
+		is_delete = 1;
 	else {
-		pr_info("Probe definition must be started with 'p' or 'r'.\n");
+		pr_info("Probe definition must be started with 'p', 'r' or"
+			" '-'.\n");
 		return -EINVAL;
 	}
 
@@ -642,7 +641,29 @@ static int create_trace_probe(int argc, char **argv)
 			return -EINVAL;
 		}
 	}
+	if (!group)
+		group = KPROBE_EVENT_SYSTEM;
 
+	if (is_delete) {
+		if (!event) {
+			pr_info("Delete command needs an event name.\n");
+			return -EINVAL;
+		}
+		tp = find_probe_event(event, group);
+		if (!tp) {
+			pr_info("Event %s/%s doesn't exist.\n", group, event);
+			return -ENOENT;
+		}
+		/* delete an event */
+		unregister_trace_probe(tp);
+		free_trace_probe(tp);
+		return 0;
+	}
+
+	if (argc < 2) {
+		pr_info("Probe point is not specified.\n");
+		return -EINVAL;
+	}
 	if (isdigit(argv[1][0])) {
 		if (is_return) {
 			pr_info("Return probe point must be a symbol.\n");
@@ -671,8 +692,6 @@ static int create_trace_probe(int argc, char **argv)
 	argc -= 2; argv += 2;
 
 	/* setup a probe */
-	if (!group)
-		group = KPROBE_EVENT_SYSTEM;
 	if (!event) {
 		/* Make a new event name */
 		if (symbol)
@@ -1113,10 +1132,6 @@ static int kprobe_event_define_fields(struct ftrace_event_call *event_call)
 	struct kprobe_trace_entry field;
 	struct trace_probe *tp = (struct trace_probe *)event_call->data;
 
-	ret = trace_define_common_fields(event_call);
-	if (!ret)
-		return ret;
-
 	DEFINE_FIELD(unsigned long, ip, FIELD_STRING_IP, 0);
 	DEFINE_FIELD(int, nargs, FIELD_STRING_NARGS, 1);
 	/* Set argument names as fields */
@@ -1130,10 +1145,6 @@ static int kretprobe_event_define_fields(struct ftrace_event_call *event_call)
 	int ret, i;
 	struct kretprobe_trace_entry field;
 	struct trace_probe *tp = (struct trace_probe *)event_call->data;
-
-	ret = trace_define_common_fields(event_call);
-	if (!ret)
-		return ret;
 
 	DEFINE_FIELD(unsigned long, func, FIELD_STRING_FUNC, 0);
 	DEFINE_FIELD(unsigned long, ret_ip, FIELD_STRING_RETIP, 0);
@@ -1434,7 +1445,6 @@ static int register_probe_event(struct trace_probe *tp)
 	call->unregfunc = probe_event_disable;
 
 #ifdef CONFIG_EVENT_PROFILE
-	atomic_set(&call->profile_count, -1);
 	call->profile_enable = probe_profile_enable;
 	call->profile_disable = probe_profile_disable;
 #endif

@@ -36,34 +36,16 @@ asmlinkage long
 sys_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
 	  unsigned long flags, unsigned long fd, unsigned long pgoff)
 {
-	int error = -EBADF;
-	struct file *file = NULL;
-
-	if (pgoff & (~PAGE_MASK >> 12))
-		return -EINVAL;
-
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file)
-			return error;
-	}
-
-	down_write(&current->mm->mmap_sem);
-	error = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-	up_write(&current->mm->mmap_sem);
-
-	if (file)
-		fput(file);
-
-	return error;
+	return sys_mmap_pgoff(addr, len, prot, flags, fd, pgoff);
 }
 
 asmlinkage long
 sys_mmap(unsigned long addr, unsigned long len, unsigned long prot,
-	unsigned long flags, unsigned long fd, off_t pgoff)
+	unsigned long flags, unsigned long fd, off_t offset)
 {
-	return sys_mmap2(addr, len, prot, flags, fd, pgoff >> PAGE_SHIFT);
+	if (unlikely(offset & ~PAGE_MASK))
+		return -EINVAL;
+	return sys_mmap_pgoff(addr, len, prot, flags, fd, offset >> PAGE_SHIFT);
 }
 
 asmlinkage long

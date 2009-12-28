@@ -57,15 +57,16 @@ static void se7722_irq_demux(unsigned int irq, struct irq_desc *desc)
  */
 void __init init_se7722_IRQ(void)
 {
-	int i;
+	int i, irq;
 
 	ctrl_outw(0, IRQ01_MASK);       /* disable all irqs */
 	ctrl_outw(0x2000, 0xb03fffec);  /* mrshpc irq enable */
 
 	for (i = 0; i < SE7722_FPGA_IRQ_NR; i++) {
-		se7722_fpga_irq[i] = create_irq();
-		if (se7722_fpga_irq[i] < 0)
+		irq = create_irq();
+		if (irq < 0)
 			return;
+		se7722_fpga_irq[i] = irq;
 
 		set_irq_chip_and_handler_name(se7722_fpga_irq[i],
 					      &se7722_irq_chip,

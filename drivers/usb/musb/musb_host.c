@@ -1642,18 +1642,18 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			c = musb->dma_controller;
 
 			if (usb_pipeisoc(pipe)) {
-				int status = 0;
+				int d_status = 0;
 				struct usb_iso_packet_descriptor *d;
 
 				d = urb->iso_frame_desc + qh->iso_idx;
 
 				if (iso_err) {
-					status = -EILSEQ;
+					d_status = -EILSEQ;
 					urb->error_count++;
 				}
 				if (rx_count > d->length) {
-					if (status == 0) {
-						status = -EOVERFLOW;
+					if (d_status == 0) {
+						d_status = -EOVERFLOW;
 						urb->error_count++;
 					}
 					DBG(2, "** OVERFLOW %d into %d\n",\
@@ -1662,7 +1662,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 					length = d->length;
 				} else
 					length = rx_count;
-				d->status = status;
+				d->status = d_status;
 				buf = urb->transfer_dma + d->offset;
 			} else {
 				length = rx_count;

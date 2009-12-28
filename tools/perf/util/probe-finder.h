@@ -12,6 +12,9 @@ static inline int is_c_varname(const char *name)
 }
 
 struct probe_point {
+	char	*event;		/* Event name */
+	char	*group;		/* Event group */
+
 	/* Inputs */
 	char	*file;		/* File name */
 	int	line;		/* Line number */

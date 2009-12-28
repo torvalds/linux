@@ -45,6 +45,7 @@ void heartbeat(void)
 void setup_heartbeat(void)
 {
 	struct device_node *gpio = NULL;
+	int *prop;
 	int j;
 	char *gpio_list[] = {
 				"xlnx,xps-gpio-1.00.a",
@@ -58,10 +59,14 @@ void setup_heartbeat(void)
 			break;
 	}
 
-	base_addr = *(int *) of_get_property(gpio, "reg", NULL);
-	base_addr = (unsigned long) ioremap(base_addr, PAGE_SIZE);
-	printk(KERN_NOTICE "Heartbeat GPIO at 0x%x\n", base_addr);
+	if (gpio) {
+		base_addr = *(int *) of_get_property(gpio, "reg", NULL);
+		base_addr = (unsigned long) ioremap(base_addr, PAGE_SIZE);
+		printk(KERN_NOTICE "Heartbeat GPIO at 0x%x\n", base_addr);
 
-	if (*(int *) of_get_property(gpio, "xlnx,is-bidir", NULL))
-		out_be32(base_addr + 4, 0); /* GPIO is configured as output */
+		/* GPIO is configured as output */
+		prop = (int *) of_get_property(gpio, "xlnx,is-bidir", NULL);
+		if (prop)
+			out_be32(base_addr + 4, 0);
+	}
 }

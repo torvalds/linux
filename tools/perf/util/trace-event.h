@@ -270,7 +270,7 @@ enum trace_flag_type {
 
 struct scripting_ops {
 	const char *name;
-	int (*start_script) (const char *);
+	int (*start_script) (const char *script, int argc, const char **argv);
 	int (*stop_script) (void);
 	void (*process_event) (int cpu, void *data, int size,
 			       unsigned long long nsecs, char *comm);

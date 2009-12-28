@@ -87,7 +87,7 @@ extern spinlock_t cmxgcr_lock;
 
 /* Export QE common operations */
 #ifdef CONFIG_QUICC_ENGINE
-extern void __init qe_reset(void);
+extern void qe_reset(void);
 #else
 static inline void qe_reset(void) {}
 #endif
@@ -145,8 +145,17 @@ static inline void qe_pin_set_gpio(struct qe_pin *qe_pin) {}
 static inline void qe_pin_set_dedicated(struct qe_pin *pin) {}
 #endif /* CONFIG_QE_GPIO */
 
-/* QE internal API */
+#ifdef CONFIG_QUICC_ENGINE
 int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol, u32 cmd_input);
+#else
+static inline int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol,
+			       u32 cmd_input)
+{
+	return -ENOSYS;
+}
+#endif /* CONFIG_QUICC_ENGINE */
+
+/* QE internal API */
 enum qe_clock qe_clock_source(const char *source);
 unsigned int qe_get_brg_clk(void);
 int qe_setbrg(enum qe_clock brg, unsigned int rate, unsigned int multiplier);
@@ -154,7 +163,28 @@ int qe_get_snum(void);
 void qe_put_snum(u8 snum);
 unsigned int qe_get_num_of_risc(void);
 unsigned int qe_get_num_of_snums(void);
-int qe_alive_during_sleep(void);
+
+static inline int qe_alive_during_sleep(void)
+{
+	/*
+	 * MPC8568E reference manual says:
+	 *
+	 * "...power down sequence waits for all I/O interfaces to become idle.
+	 *  In some applications this may happen eventually without actively
+	 *  shutting down interfaces, but most likely, software will have to
+	 *  take steps to shut down the eTSEC, QUICC Engine Block, and PCI
+	 *  interfaces before issuing the command (either the write to the core
+	 *  MSR[WE] as described above or writing to POWMGTCSR) to put the
+	 *  device into sleep state."
+	 *
+	 * MPC8569E reference manual has a similar paragraph.
+	 */
+#ifdef CONFIG_PPC_85xx
+	return 0;
+#else
+	return 1;
+#endif
+}
 
 /* we actually use cpm_muram implementation, define this for convenience */
 #define qe_muram_init cpm_muram_init
@@ -210,8 +240,15 @@ struct qe_firmware_info {
 	u64 extended_modes;	/* Extended modes */
 };
 
+#ifdef CONFIG_QUICC_ENGINE
 /* Upload a firmware to the QE */
 int qe_upload_firmware(const struct qe_firmware *firmware);
+#else
+static inline int qe_upload_firmware(const struct qe_firmware *firmware)
+{
+	return -ENOSYS;
+}
+#endif /* CONFIG_QUICC_ENGINE */
 
 /* Obtain information on the uploaded firmware */
 struct qe_firmware_info *qe_get_firmware_info(void);

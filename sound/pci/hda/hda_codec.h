@@ -255,9 +255,13 @@ enum {
  *       in HD-audio specification
  */
 #define AC_PINCAP_HDMI			(1<<7)	/* HDMI pin */
+#define AC_PINCAP_DP			(1<<24)	/* DisplayPort pin, can
+						 * coexist with AC_PINCAP_HDMI
+						 */
 #define AC_PINCAP_VREF			(0x37<<8)
 #define AC_PINCAP_VREF_SHIFT		8
 #define AC_PINCAP_EAPD			(1<<16)	/* EAPD capable */
+#define AC_PINCAP_HBR			(1<<27)	/* High Bit Rate */
 /* Vref status (used in pin cap) */
 #define AC_PINCAP_VREF_HIZ		(1<<0)	/* Hi-Z */
 #define AC_PINCAP_VREF_50		(1<<1)	/* 50% */
@@ -635,6 +639,7 @@ struct hda_bus {
 	unsigned int rirb_error:1;	/* error in codec communication */
 	unsigned int response_reset:1;	/* controller was reset */
 	unsigned int in_reset:1;	/* during reset operation */
+	unsigned int power_keep_link_on:1; /* don't power off HDA link */
 };
 
 /*

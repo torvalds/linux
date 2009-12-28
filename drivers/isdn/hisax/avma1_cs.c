@@ -120,8 +120,7 @@ static int avma1cs_probe(struct pcmcia_device *p_dev)
     p_dev->io.IOAddrLines = 5;
 
     /* Interrupt setup */
-    p_dev->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-    p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
+    p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
 
     /* General socket configuration */
     p_dev->conf.Attributes = CONF_ENABLE_IRQ;

@@ -2540,11 +2540,6 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 			ctd.tcpct_cookie_desired = cvp->cookie_desired;
 			ctd.tcpct_s_data_desired = cvp->s_data_desired;
 
-			/* Cookie(s) saved, return as nonce */
-			if (sizeof(ctd.tcpct_value) < cvp->cookie_pair_size) {
-				/* impossible? */
-				return -EINVAL;
-			}
 			memcpy(&ctd.tcpct_value[0], &cvp->cookie_pair[0],
 			       cvp->cookie_pair_size);
 			ctd.tcpct_used = cvp->cookie_pair_size;

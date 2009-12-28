@@ -629,10 +629,6 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 			goto out_sleep;
 	}
 
-	ret = wl1251_build_null_data(wl);
-	if (ret < 0)
-		goto out_sleep;
-
 	if (conf->flags & IEEE80211_CONF_PS && !wl->psm_requested) {
 		wl1251_debug(DEBUG_PSM, "psm enabled");
 
@@ -1110,6 +1106,21 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
+	if (changed & BSS_CHANGED_BSSID) {
+		memcpy(wl->bssid, bss_conf->bssid, ETH_ALEN);
+
+		ret = wl1251_build_null_data(wl);
+		if (ret < 0)
+			goto out;
+
+		if (wl->bss_type != BSS_TYPE_IBSS) {
+			ret = wl1251_join(wl, wl->bss_type, wl->channel,
+					  wl->beacon_int, wl->dtim_period);
+			if (ret < 0)
+				goto out_sleep;
+		}
+	}
+
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
 			wl->beacon_int = bss_conf->beacon_int;
@@ -1166,23 +1177,6 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 		if (ret < 0) {
 			wl1251_warning("Set ctsprotect failed %d", ret);
 			goto out;
-		}
-	}
-
-	if (changed & BSS_CHANGED_BSSID) {
-		memcpy(wl->bssid, bss_conf->bssid, ETH_ALEN);
-
-		ret = wl1251_build_null_data(wl);
-		if (ret < 0)
-			goto out;
-
-		if (wl->bss_type != BSS_TYPE_IBSS) {
-			ret = wl1251_join(wl, wl->bss_type, wl->channel,
-					  wl->beacon_int, wl->dtim_period);
-			if (ret < 0)
-				goto out_sleep;
-			wl1251_warning("Set ctsprotect failed %d", ret);
-			goto out_sleep;
 		}
 	}
 

@@ -1374,7 +1374,6 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 		case RADEON_TXFORMAT_ARGB4444:
 		case RADEON_TXFORMAT_VYUY422:
 		case RADEON_TXFORMAT_YVYU422:
-		case RADEON_TXFORMAT_DXT1:
 		case RADEON_TXFORMAT_SHADOW16:
 		case RADEON_TXFORMAT_LDUDV655:
 		case RADEON_TXFORMAT_DUDV88:
@@ -1382,11 +1381,18 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 			break;
 		case RADEON_TXFORMAT_ARGB8888:
 		case RADEON_TXFORMAT_RGBA8888:
-		case RADEON_TXFORMAT_DXT23:
-		case RADEON_TXFORMAT_DXT45:
 		case RADEON_TXFORMAT_SHADOW32:
 		case RADEON_TXFORMAT_LDUDUV8888:
 			track->textures[i].cpp = 4;
+			break;
+		case RADEON_TXFORMAT_DXT1:
+			track->textures[i].cpp = 1;
+			track->textures[i].compress_format = R100_TRACK_COMP_DXT1;
+			break;
+		case RADEON_TXFORMAT_DXT23:
+		case RADEON_TXFORMAT_DXT45:
+			track->textures[i].cpp = 1;
+			track->textures[i].compress_format = R100_TRACK_COMP_DXT35;
 			break;
 		}
 		track->textures[i].cube_info[4].width = 1 << ((idx_value >> 16) & 0xf);
@@ -2731,6 +2737,7 @@ static inline void r100_cs_track_texture_print(struct r100_cs_track_texture *t)
 	DRM_ERROR("coordinate type            %d\n", t->tex_coord_type);
 	DRM_ERROR("width round to power of 2  %d\n", t->roundup_w);
 	DRM_ERROR("height round to power of 2 %d\n", t->roundup_h);
+	DRM_ERROR("compress format            %d\n", t->compress_format);
 }
 
 static int r100_cs_track_cube(struct radeon_device *rdev,
@@ -2758,6 +2765,36 @@ static int r100_cs_track_cube(struct radeon_device *rdev,
 		}
 	}
 	return 0;
+}
+
+static int r100_track_compress_size(int compress_format, int w, int h)
+{
+	int block_width, block_height, block_bytes;
+	int wblocks, hblocks;
+	int min_wblocks;
+	int sz;
+
+	block_width = 4;
+	block_height = 4;
+
+	switch (compress_format) {
+	case R100_TRACK_COMP_DXT1:
+		block_bytes = 8;
+		min_wblocks = 4;
+		break;
+	default:
+	case R100_TRACK_COMP_DXT35:
+		block_bytes = 16;
+		min_wblocks = 2;
+		break;
+	}
+
+	hblocks = (h + block_height - 1) / block_height;
+	wblocks = (w + block_width - 1) / block_width;
+	if (wblocks < min_wblocks)
+		wblocks = min_wblocks;
+	sz = wblocks * hblocks * block_bytes;
+	return sz;
 }
 
 static int r100_cs_track_texture_check(struct radeon_device *rdev,
@@ -2797,9 +2834,15 @@ static int r100_cs_track_texture_check(struct radeon_device *rdev,
 			h = h / (1 << i);
 			if (track->textures[u].roundup_h)
 				h = roundup_pow_of_two(h);
-			size += w * h;
+			if (track->textures[u].compress_format) {
+
+				size += r100_track_compress_size(track->textures[u].compress_format, w, h);
+				/* compressed textures are block based */
+			} else
+				size += w * h;
 		}
 		size *= track->textures[u].cpp;
+
 		switch (track->textures[u].tex_coord_type) {
 		case 0:
 			break;
@@ -2967,6 +3010,7 @@ void r100_cs_track_clear(struct radeon_device *rdev, struct r100_cs_track *track
 		track->arrays[i].esize = 0x7F;
 	}
 	for (i = 0; i < track->num_texture; i++) {
+		track->textures[i].compress_format = R100_TRACK_COMP_NONE;
 		track->textures[i].pitch = 16536;
 		track->textures[i].width = 16536;
 		track->textures[i].height = 16536;
@@ -3399,6 +3443,8 @@ int r100_init(struct radeon_device *rdev)
 	r100_errata(rdev);
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
+	/* Initialize power management */
+	radeon_pm_init(rdev);
 	/* Get vram informations */
 	r100_vram_info(rdev);
 	/* Initialize memory controller (also test AGP) */

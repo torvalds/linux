@@ -65,8 +65,6 @@ source "drivers/staging/rt2860/Kconfig"
 
 source "drivers/staging/rt2870/Kconfig"
 
-source "drivers/staging/rt3090/Kconfig"
-
 source "drivers/staging/comedi/Kconfig"
 
 source "drivers/staging/asus_oled/Kconfig"
@@ -79,13 +77,13 @@ source "drivers/staging/rtl8187se/Kconfig"
 
 source "drivers/staging/rtl8192su/Kconfig"
 
+source "drivers/staging/rtl8192u/Kconfig"
+
 source "drivers/staging/rtl8192e/Kconfig"
 
 source "drivers/staging/mimio/Kconfig"
 
 source "drivers/staging/frontier/Kconfig"
-
-source "drivers/staging/android/Kconfig"
 
 source "drivers/staging/dream/Kconfig"
 
@@ -101,7 +99,11 @@ source "drivers/staging/p9auth/Kconfig"
 
 source "drivers/staging/line6/Kconfig"
 
+source "drivers/gpu/drm/vmwgfx/Kconfig"
+
 source "drivers/gpu/drm/radeon/Kconfig"
+
+source "drivers/gpu/drm/nouveau/Kconfig"
 
 source "drivers/staging/octeon/Kconfig"
 
@@ -124,6 +126,16 @@ source "drivers/staging/rar/Kconfig"
 source "drivers/staging/sep/Kconfig"
 
 source "drivers/staging/iio/Kconfig"
+
+source "drivers/staging/ramzswap/Kconfig"
+
+source "drivers/staging/wlags49_h2/Kconfig"
+
+source "drivers/staging/wlags49_h25/Kconfig"
+
+source "drivers/staging/batman-adv/Kconfig"
+
+source "drivers/staging/samsung-laptop/Kconfig"
 
 source "drivers/staging/strip/Kconfig"
 

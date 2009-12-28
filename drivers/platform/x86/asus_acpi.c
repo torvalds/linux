@@ -466,6 +466,7 @@ MODULE_DEVICE_TABLE(acpi, asus_device_ids);
 static struct acpi_driver asus_hotk_driver = {
 	.name = "asus_acpi",
 	.class = ACPI_HOTK_CLASS,
+	.owner = THIS_MODULE,
 	.ids = asus_device_ids,
 	.flags = ACPI_DRIVER_ALL_NOTIFY_EVENTS,
 	.ops = {
@@ -1334,9 +1335,6 @@ static int asus_hotk_add(struct acpi_device *device)
 	acpi_status status = AE_OK;
 	int result;
 
-	if (!device)
-		return -EINVAL;
-
 	printk(KERN_NOTICE "Asus Laptop ACPI Extras version %s\n",
 	       ASUS_ACPI_VERSION);
 
@@ -1392,9 +1390,6 @@ end:
 
 static int asus_hotk_remove(struct acpi_device *device, int type)
 {
-	if (!device || !acpi_driver_data(device))
-		return -EINVAL;
-
 	asus_hotk_remove_fs(device);
 
 	kfree(hotk);
@@ -1422,19 +1417,15 @@ static int __init asus_acpi_init(void)
 {
 	int result;
 
-	if (acpi_disabled)
-		return -ENODEV;
+	result = acpi_bus_register_driver(&asus_hotk_driver);
+	if (result < 0)
+		return result;
 
 	asus_proc_dir = proc_mkdir(PROC_ASUS, acpi_root_dir);
 	if (!asus_proc_dir) {
 		printk(KERN_ERR "Asus ACPI: Unable to create /proc entry\n");
+		acpi_bus_unregister_driver(&asus_hotk_driver);
 		return -ENODEV;
-	}
-
-	result = acpi_bus_register_driver(&asus_hotk_driver);
-	if (result < 0) {
-		remove_proc_entry(PROC_ASUS, acpi_root_dir);
-		return result;
 	}
 
 	/*

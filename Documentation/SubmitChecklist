@@ -15,7 +15,7 @@ kernel patches.
 2: Passes allnoconfig, allmodconfig
 
 3: Builds on multiple CPU architectures by using local cross-compile tools
-   or something like PLM at OSDL.
+   or some other build farm.
 
 4: ppc64 is a good architecture for cross-compilation checking because it
    tends to use `unsigned long' for 64-bit quantities.
@@ -88,3 +88,6 @@ kernel patches.
 
 24: All memory barriers {e.g., barrier(), rmb(), wmb()} need a comment in the
     source code that explains the logic of what they are doing and why.
+
+25: If any ioctl's are added by the patch, then also update
+    Documentation/ioctl/ioctl-number.txt.

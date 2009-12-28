@@ -671,24 +671,25 @@ acpi_ns_externalize_name(u32 internal_name_length,
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ns_map_handle_to_node
+ * FUNCTION:    acpi_ns_validate_handle
  *
- * PARAMETERS:  Handle          - Handle to be converted to an Node
+ * PARAMETERS:  Handle          - Handle to be validated and typecast to a
+ *                                namespace node.
  *
- * RETURN:      A Name table entry pointer
+ * RETURN:      A pointer to a namespace node
  *
- * DESCRIPTION: Convert a namespace handle to a real Node
+ * DESCRIPTION: Convert a namespace handle to a namespace node. Handles special
+ *              cases for the root node.
  *
- * Note: Real integer handles would allow for more verification
+ * NOTE: Real integer handles would allow for more verification
  *       and keep all pointers within this subsystem - however this introduces
- *       more (and perhaps unnecessary) overhead.
- *
- * The current implemenation is basically a placeholder until such time comes
- * that it is needed.
+ *       more overhead and has not been necessary to this point. Drivers
+ *       holding handles are typically notified before a node becomes invalid
+ *       due to a table unload.
  *
  ******************************************************************************/
 
-struct acpi_namespace_node *acpi_ns_map_handle_to_node(acpi_handle handle)
+struct acpi_namespace_node *acpi_ns_validate_handle(acpi_handle handle)
 {
 
 	ACPI_FUNCTION_ENTRY();
@@ -706,42 +707,6 @@ struct acpi_namespace_node *acpi_ns_map_handle_to_node(acpi_handle handle)
 	}
 
 	return (ACPI_CAST_PTR(struct acpi_namespace_node, handle));
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ns_convert_entry_to_handle
- *
- * PARAMETERS:  Node          - Node to be converted to a Handle
- *
- * RETURN:      A user handle
- *
- * DESCRIPTION: Convert a real Node to a namespace handle
- *
- ******************************************************************************/
-
-acpi_handle acpi_ns_convert_entry_to_handle(struct acpi_namespace_node *node)
-{
-
-	/*
-	 * Simple implementation for now;
-	 */
-	return ((acpi_handle) node);
-
-/* Example future implementation ---------------------
-
-	if (!Node)
-	{
-		return (NULL);
-	}
-
-	if (Node == acpi_gbl_root_node)
-	{
-		return (ACPI_ROOT_OBJECT);
-	}
-
-	return ((acpi_handle) Node);
-------------------------------------------------------*/
 }
 
 /*******************************************************************************

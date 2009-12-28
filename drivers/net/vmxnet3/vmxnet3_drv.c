@@ -2689,7 +2689,7 @@ vmxnet3_resume(struct device *device)
 	return 0;
 }
 
-static struct dev_pm_ops vmxnet3_pm_ops = {
+static const struct dev_pm_ops vmxnet3_pm_ops = {
 	.suspend = vmxnet3_suspend,
 	.resume = vmxnet3_resume,
 };

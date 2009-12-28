@@ -53,7 +53,7 @@ static inline int inet6_sk_ehashfn(const struct sock *sk)
 	return inet6_ehashfn(net, laddr, lport, faddr, fport);
 }
 
-extern void __inet6_hash(struct sock *sk);
+extern int __inet6_hash(struct sock *sk, struct inet_timewait_sock *twp);
 
 /*
  * Sockets in TCP_CLOSE state are _always_ taken out of the hash, so

@@ -34,9 +34,9 @@ static int adp5520_gpio_get_value(struct gpio_chip *chip, unsigned off)
 	 */
 
 	if (test_bit(off, &dev->output))
-		adp5520_read(dev->master, GPIO_OUT, &reg_val);
+		adp5520_read(dev->master, ADP5520_GPIO_OUT, &reg_val);
 	else
-		adp5520_read(dev->master, GPIO_IN, &reg_val);
+		adp5520_read(dev->master, ADP5520_GPIO_IN, &reg_val);
 
 	return !!(reg_val & dev->lut[off]);
 }
@@ -48,9 +48,9 @@ static void adp5520_gpio_set_value(struct gpio_chip *chip,
 	dev = container_of(chip, struct adp5520_gpio, gpio_chip);
 
 	if (val)
-		adp5520_set_bits(dev->master, GPIO_OUT, dev->lut[off]);
+		adp5520_set_bits(dev->master, ADP5520_GPIO_OUT, dev->lut[off]);
 	else
-		adp5520_clr_bits(dev->master, GPIO_OUT, dev->lut[off]);
+		adp5520_clr_bits(dev->master, ADP5520_GPIO_OUT, dev->lut[off]);
 }
 
 static int adp5520_gpio_direction_input(struct gpio_chip *chip, unsigned off)
@@ -60,7 +60,8 @@ static int adp5520_gpio_direction_input(struct gpio_chip *chip, unsigned off)
 
 	clear_bit(off, &dev->output);
 
-	return adp5520_clr_bits(dev->master, GPIO_CFG_2, dev->lut[off]);
+	return adp5520_clr_bits(dev->master, ADP5520_GPIO_CFG_2,
+				dev->lut[off]);
 }
 
 static int adp5520_gpio_direction_output(struct gpio_chip *chip,
@@ -73,18 +74,21 @@ static int adp5520_gpio_direction_output(struct gpio_chip *chip,
 	set_bit(off, &dev->output);
 
 	if (val)
-		ret |= adp5520_set_bits(dev->master, GPIO_OUT, dev->lut[off]);
+		ret |= adp5520_set_bits(dev->master, ADP5520_GPIO_OUT,
+					dev->lut[off]);
 	else
-		ret |= adp5520_clr_bits(dev->master, GPIO_OUT, dev->lut[off]);
+		ret |= adp5520_clr_bits(dev->master, ADP5520_GPIO_OUT,
+					dev->lut[off]);
 
-	ret |= adp5520_set_bits(dev->master, GPIO_CFG_2, dev->lut[off]);
+	ret |= adp5520_set_bits(dev->master, ADP5520_GPIO_CFG_2,
+					dev->lut[off]);
 
 	return ret;
 }
 
 static int __devinit adp5520_gpio_probe(struct platform_device *pdev)
 {
-	struct adp5520_gpio_platfrom_data *pdata = pdev->dev.platform_data;
+	struct adp5520_gpio_platform_data *pdata = pdev->dev.platform_data;
 	struct adp5520_gpio *dev;
 	struct gpio_chip *gc;
 	int ret, i, gpios;
@@ -129,20 +133,20 @@ static int __devinit adp5520_gpio_probe(struct platform_device *pdev)
 	gc->label = pdev->name;
 	gc->owner = THIS_MODULE;
 
-	ret = adp5520_clr_bits(dev->master, GPIO_CFG_1,
+	ret = adp5520_clr_bits(dev->master, ADP5520_GPIO_CFG_1,
 		pdata->gpio_en_mask);
 
-	if (pdata->gpio_en_mask & GPIO_C3)
-		ctl_mask |= C3_MODE;
+	if (pdata->gpio_en_mask & ADP5520_GPIO_C3)
+		ctl_mask |= ADP5520_C3_MODE;
 
-	if (pdata->gpio_en_mask & GPIO_R3)
-		ctl_mask |= R3_MODE;
+	if (pdata->gpio_en_mask & ADP5520_GPIO_R3)
+		ctl_mask |= ADP5520_R3_MODE;
 
 	if (ctl_mask)
-		ret = adp5520_set_bits(dev->master, LED_CONTROL,
+		ret = adp5520_set_bits(dev->master, ADP5520_LED_CONTROL,
 			ctl_mask);
 
-	ret |= adp5520_set_bits(dev->master, GPIO_PULLUP,
+	ret |= adp5520_set_bits(dev->master, ADP5520_GPIO_PULLUP,
 		pdata->gpio_pullup_mask);
 
 	if (ret) {

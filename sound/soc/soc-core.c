@@ -1236,7 +1236,7 @@ static int soc_poweroff(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops soc_pm_ops = {
+static const struct dev_pm_ops soc_pm_ops = {
 	.suspend = soc_suspend,
 	.resume = soc_resume,
 	.poweroff = soc_poweroff,

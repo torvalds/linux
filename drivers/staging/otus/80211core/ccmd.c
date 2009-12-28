@@ -899,7 +899,7 @@ u16_t zfiWlanDisable(zdev_t *dev, u8_t ResetKeyCache)
 		zfStaDisableSWEncryption(dev);
 	}
 
-	/* Improve WEP/TKIP performace with HT AP,
+	/* Improve WEP/TKIP performance with HT AP,
 	detail information please look bug#32495 */
 	/* zfHpSetTTSIFSTime(dev, 0x8); */
 
@@ -1407,7 +1407,7 @@ u16_t zfWlanReset(zdev_t *dev)
 		zfStaDisableSWEncryption(dev);
 	}
 
-	/* 	Improve WEP/TKIP performace with HT AP,
+	/* 	Improve WEP/TKIP performance with HT AP,
 		detail information please look bug#32495
 	*/
 	/* zfHpSetTTSIFSTime(dev, 0x8); */

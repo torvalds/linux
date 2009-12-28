@@ -28,7 +28,7 @@
 #include <asm/asm-compat.h>
 #include <asm/synch.h>
 
-#define __raw_spin_is_locked(x)		((x)->slock != 0)
+#define arch_spin_is_locked(x)		((x)->slock != 0)
 
 #ifdef CONFIG_PPC64
 /* use 0x800000yy when locked, where yy == CPU number */
@@ -54,7 +54,7 @@
  * This returns the old value in the lock, so we succeeded
  * in getting the lock if the return value is 0.
  */
-static inline unsigned long arch_spin_trylock(raw_spinlock_t *lock)
+static inline unsigned long __arch_spin_trylock(arch_spinlock_t *lock)
 {
 	unsigned long tmp, token;
 
@@ -73,10 +73,10 @@ static inline unsigned long arch_spin_trylock(raw_spinlock_t *lock)
 	return tmp;
 }
 
-static inline int __raw_spin_trylock(raw_spinlock_t *lock)
+static inline int arch_spin_trylock(arch_spinlock_t *lock)
 {
 	CLEAR_IO_SYNC;
-	return arch_spin_trylock(lock) == 0;
+	return __arch_spin_trylock(lock) == 0;
 }
 
 /*
@@ -96,19 +96,19 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 #if defined(CONFIG_PPC_SPLPAR) || defined(CONFIG_PPC_ISERIES)
 /* We only yield to the hypervisor if we are in shared processor mode */
 #define SHARED_PROCESSOR (get_lppaca()->shared_proc)
-extern void __spin_yield(raw_spinlock_t *lock);
-extern void __rw_yield(raw_rwlock_t *lock);
+extern void __spin_yield(arch_spinlock_t *lock);
+extern void __rw_yield(arch_rwlock_t *lock);
 #else /* SPLPAR || ISERIES */
 #define __spin_yield(x)	barrier()
 #define __rw_yield(x)	barrier()
 #define SHARED_PROCESSOR	0
 #endif
 
-static inline void __raw_spin_lock(raw_spinlock_t *lock)
+static inline void arch_spin_lock(arch_spinlock_t *lock)
 {
 	CLEAR_IO_SYNC;
 	while (1) {
-		if (likely(arch_spin_trylock(lock) == 0))
+		if (likely(__arch_spin_trylock(lock) == 0))
 			break;
 		do {
 			HMT_low();
@@ -120,13 +120,13 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 }
 
 static inline
-void __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long flags)
+void arch_spin_lock_flags(arch_spinlock_t *lock, unsigned long flags)
 {
 	unsigned long flags_dis;
 
 	CLEAR_IO_SYNC;
 	while (1) {
-		if (likely(arch_spin_trylock(lock) == 0))
+		if (likely(__arch_spin_trylock(lock) == 0))
 			break;
 		local_save_flags(flags_dis);
 		local_irq_restore(flags);
@@ -140,19 +140,19 @@ void __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long flags)
 	}
 }
 
-static inline void __raw_spin_unlock(raw_spinlock_t *lock)
+static inline void arch_spin_unlock(arch_spinlock_t *lock)
 {
 	SYNC_IO;
-	__asm__ __volatile__("# __raw_spin_unlock\n\t"
+	__asm__ __volatile__("# arch_spin_unlock\n\t"
 				LWSYNC_ON_SMP: : :"memory");
 	lock->slock = 0;
 }
 
 #ifdef CONFIG_PPC64
-extern void __raw_spin_unlock_wait(raw_spinlock_t *lock);
+extern void arch_spin_unlock_wait(arch_spinlock_t *lock);
 #else
-#define __raw_spin_unlock_wait(lock) \
-	do { while (__raw_spin_is_locked(lock)) cpu_relax(); } while (0)
+#define arch_spin_unlock_wait(lock) \
+	do { while (arch_spin_is_locked(lock)) cpu_relax(); } while (0)
 #endif
 
 /*
@@ -166,8 +166,8 @@ extern void __raw_spin_unlock_wait(raw_spinlock_t *lock);
  * read-locks.
  */
 
-#define __raw_read_can_lock(rw)		((rw)->lock >= 0)
-#define __raw_write_can_lock(rw)	(!(rw)->lock)
+#define arch_read_can_lock(rw)		((rw)->lock >= 0)
+#define arch_write_can_lock(rw)	(!(rw)->lock)
 
 #ifdef CONFIG_PPC64
 #define __DO_SIGN_EXTEND	"extsw	%0,%0\n"
@@ -181,7 +181,7 @@ extern void __raw_spin_unlock_wait(raw_spinlock_t *lock);
  * This returns the old value in the lock + 1,
  * so we got a read lock if the return value is > 0.
  */
-static inline long arch_read_trylock(raw_rwlock_t *rw)
+static inline long __arch_read_trylock(arch_rwlock_t *rw)
 {
 	long tmp;
 
@@ -205,7 +205,7 @@ static inline long arch_read_trylock(raw_rwlock_t *rw)
  * This returns the old value in the lock,
  * so we got the write lock if the return value is 0.
  */
-static inline long arch_write_trylock(raw_rwlock_t *rw)
+static inline long __arch_write_trylock(arch_rwlock_t *rw)
 {
 	long tmp, token;
 
@@ -225,10 +225,10 @@ static inline long arch_write_trylock(raw_rwlock_t *rw)
 	return tmp;
 }
 
-static inline void __raw_read_lock(raw_rwlock_t *rw)
+static inline void arch_read_lock(arch_rwlock_t *rw)
 {
 	while (1) {
-		if (likely(arch_read_trylock(rw) > 0))
+		if (likely(__arch_read_trylock(rw) > 0))
 			break;
 		do {
 			HMT_low();
@@ -239,10 +239,10 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 	}
 }
 
-static inline void __raw_write_lock(raw_rwlock_t *rw)
+static inline void arch_write_lock(arch_rwlock_t *rw)
 {
 	while (1) {
-		if (likely(arch_write_trylock(rw) == 0))
+		if (likely(__arch_write_trylock(rw) == 0))
 			break;
 		do {
 			HMT_low();
@@ -253,17 +253,17 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 	}
 }
 
-static inline int __raw_read_trylock(raw_rwlock_t *rw)
+static inline int arch_read_trylock(arch_rwlock_t *rw)
 {
-	return arch_read_trylock(rw) > 0;
+	return __arch_read_trylock(rw) > 0;
 }
 
-static inline int __raw_write_trylock(raw_rwlock_t *rw)
+static inline int arch_write_trylock(arch_rwlock_t *rw)
 {
-	return arch_write_trylock(rw) == 0;
+	return __arch_write_trylock(rw) == 0;
 }
 
-static inline void __raw_read_unlock(raw_rwlock_t *rw)
+static inline void arch_read_unlock(arch_rwlock_t *rw)
 {
 	long tmp;
 
@@ -280,19 +280,19 @@ static inline void __raw_read_unlock(raw_rwlock_t *rw)
 	: "cr0", "xer", "memory");
 }
 
-static inline void __raw_write_unlock(raw_rwlock_t *rw)
+static inline void arch_write_unlock(arch_rwlock_t *rw)
 {
 	__asm__ __volatile__("# write_unlock\n\t"
 				LWSYNC_ON_SMP: : :"memory");
 	rw->lock = 0;
 }
 
-#define __raw_read_lock_flags(lock, flags) __raw_read_lock(lock)
-#define __raw_write_lock_flags(lock, flags) __raw_write_lock(lock)
+#define arch_read_lock_flags(lock, flags) arch_read_lock(lock)
+#define arch_write_lock_flags(lock, flags) arch_write_lock(lock)
 
-#define _raw_spin_relax(lock)	__spin_yield(lock)
-#define _raw_read_relax(lock)	__rw_yield(lock)
-#define _raw_write_relax(lock)	__rw_yield(lock)
+#define arch_spin_relax(lock)	__spin_yield(lock)
+#define arch_read_relax(lock)	__rw_yield(lock)
+#define arch_write_relax(lock)	__rw_yield(lock)
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_SPINLOCK_H */

@@ -41,16 +41,6 @@
 		icplb_flush();
 		dcplb_flush();
 
-	- Locking the cache.
-
-		cache_grab_lock();
-		cache_lock();
-
-	Please refer linux-2.6.x/Documentation/blackfin/cache-lock.txt for how to
-	lock the cache.
-
-	Locking the cache is optional feature.
-
 	- Miscellaneous cache functions.
 
 		flush_cache_all();

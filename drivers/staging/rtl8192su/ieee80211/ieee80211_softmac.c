@@ -2120,10 +2120,10 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
  * care of the ieee802.11 fragmentation.
  * So the driver receives a fragment per time and might
  * call the stop function when it want without take care
- * to have enought room to TX an entire packet.
+ * to have enough room to TX an entire packet.
  * This might be useful if each fragment need it's own
  * descriptor, thus just keep a total free memory > than
- * the max fragmentation treshold is not enought.. If the
+ * the max fragmentation threshold is not enough.. If the
  * ieee802.11 stack passed a TXB struct then you needed
  * to keep N free descriptors where
  * N = MAX_PACKET_SIZE / MIN_FRAG_TRESHOLD

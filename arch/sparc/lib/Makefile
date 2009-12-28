@@ -44,3 +44,4 @@ obj-y                 += iomap.o
 obj-$(CONFIG_SPARC32) += atomic32.o
 obj-y                 += ksyms.o
 obj-$(CONFIG_SPARC64) += PeeCeeI.o
+obj-y                 += usercopy.o

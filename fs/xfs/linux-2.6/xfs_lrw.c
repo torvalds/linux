@@ -48,72 +48,11 @@
 #include "xfs_utils.h"
 #include "xfs_iomap.h"
 #include "xfs_vnodeops.h"
+#include "xfs_trace.h"
 
 #include <linux/capability.h>
 #include <linux/writeback.h>
 
-
-#if defined(XFS_RW_TRACE)
-void
-xfs_rw_enter_trace(
-	int			tag,
-	xfs_inode_t		*ip,
-	void			*data,
-	size_t			segs,
-	loff_t			offset,
-	int			ioflags)
-{
-	if (ip->i_rwtrace == NULL)
-		return;
-	ktrace_enter(ip->i_rwtrace,
-		(void *)(unsigned long)tag,
-		(void *)ip,
-		(void *)((unsigned long)((ip->i_d.di_size >> 32) & 0xffffffff)),
-		(void *)((unsigned long)(ip->i_d.di_size & 0xffffffff)),
-		(void *)data,
-		(void *)((unsigned long)segs),
-		(void *)((unsigned long)((offset >> 32) & 0xffffffff)),
-		(void *)((unsigned long)(offset & 0xffffffff)),
-		(void *)((unsigned long)ioflags),
-		(void *)((unsigned long)((ip->i_new_size >> 32) & 0xffffffff)),
-		(void *)((unsigned long)(ip->i_new_size & 0xffffffff)),
-		(void *)((unsigned long)current_pid()),
-		(void *)NULL,
-		(void *)NULL,
-		(void *)NULL,
-		(void *)NULL);
-}
-
-void
-xfs_inval_cached_trace(
-	xfs_inode_t	*ip,
-	xfs_off_t	offset,
-	xfs_off_t	len,
-	xfs_off_t	first,
-	xfs_off_t	last)
-{
-
-	if (ip->i_rwtrace == NULL)
-		return;
-	ktrace_enter(ip->i_rwtrace,
-		(void *)(__psint_t)XFS_INVAL_CACHED,
-		(void *)ip,
-		(void *)((unsigned long)((offset >> 32) & 0xffffffff)),
-		(void *)((unsigned long)(offset & 0xffffffff)),
-		(void *)((unsigned long)((len >> 32) & 0xffffffff)),
-		(void *)((unsigned long)(len & 0xffffffff)),
-		(void *)((unsigned long)((first >> 32) & 0xffffffff)),
-		(void *)((unsigned long)(first & 0xffffffff)),
-		(void *)((unsigned long)((last >> 32) & 0xffffffff)),
-		(void *)((unsigned long)(last & 0xffffffff)),
-		(void *)((unsigned long)current_pid()),
-		(void *)NULL,
-		(void *)NULL,
-		(void *)NULL,
-		(void *)NULL,
-		(void *)NULL);
-}
-#endif
 
 /*
  *	xfs_iozero
@@ -250,13 +189,10 @@ xfs_read(
 		}
 	}
 
-	xfs_rw_enter_trace(XFS_READ_ENTER, ip,
-				(void *)iovp, segs, *offset, ioflags);
+	trace_xfs_file_read(ip, size, *offset, ioflags);
 
 	iocb->ki_pos = *offset;
 	ret = generic_file_aio_read(iocb, iovp, segs, *offset);
-	if (ret == -EIOCBQUEUED && !(ioflags & IO_ISAIO))
-		ret = wait_on_sync_kiocb(iocb);
 	if (ret > 0)
 		XFS_STATS_ADD(xs_read_bytes, ret);
 
@@ -294,8 +230,9 @@ xfs_splice_read(
 			return -error;
 		}
 	}
-	xfs_rw_enter_trace(XFS_SPLICE_READ_ENTER, ip,
-			   pipe, count, *ppos, ioflags);
+
+	trace_xfs_file_splice_read(ip, count, *ppos, ioflags);
+
 	ret = generic_file_splice_read(infilp, ppos, pipe, count, flags);
 	if (ret > 0)
 		XFS_STATS_ADD(xs_read_bytes, ret);
@@ -344,8 +281,8 @@ xfs_splice_write(
 		ip->i_new_size = new_size;
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 
-	xfs_rw_enter_trace(XFS_SPLICE_WRITE_ENTER, ip,
-			   pipe, count, *ppos, ioflags);
+	trace_xfs_file_splice_write(ip, count, *ppos, ioflags);
+
 	ret = generic_file_splice_write(pipe, outfilp, ppos, count, flags);
 	if (ret > 0)
 		XFS_STATS_ADD(xs_write_bytes, ret);
@@ -712,8 +649,6 @@ start:
 	if ((ioflags & IO_ISDIRECT)) {
 		if (mapping->nrpages) {
 			WARN_ON(need_i_mutex == 0);
-			xfs_inval_cached_trace(xip, pos, -1,
-					(pos & PAGE_CACHE_MASK), -1);
 			error = xfs_flushinval_pages(xip,
 					(pos & PAGE_CACHE_MASK),
 					-1, FI_REMAPF_LOCKED);
@@ -730,8 +665,7 @@ start:
 			need_i_mutex = 0;
 		}
 
- 		xfs_rw_enter_trace(XFS_DIOWR_ENTER, xip, (void *)iovp, segs,
-				*offset, ioflags);
+		trace_xfs_file_direct_write(xip, count, *offset, ioflags);
 		ret = generic_file_direct_write(iocb, iovp,
 				&segs, pos, offset, count, ocount);
 
@@ -754,8 +688,7 @@ start:
 		ssize_t ret2 = 0;
 
 write_retry:
-		xfs_rw_enter_trace(XFS_WRITE_ENTER, xip, (void *)iovp, segs,
-				*offset, ioflags);
+		trace_xfs_file_buffered_write(xip, count, *offset, ioflags);
 		ret2 = generic_file_buffered_write(iocb, iovp, segs,
 				pos, offset, count, ret);
 		/*
@@ -773,9 +706,6 @@ write_retry:
 	}
 
 	current->backing_dev_info = NULL;
-
-	if (ret == -EIOCBQUEUED && !(ioflags & IO_ISAIO))
-		ret = wait_on_sync_kiocb(iocb);
 
 	isize = i_size_read(inode);
 	if (unlikely(ret < 0 && ret != -EFAULT && *offset > isize))
@@ -811,7 +741,7 @@ write_retry:
 	XFS_STATS_ADD(xs_write_bytes, ret);
 
 	/* Handle various SYNC-type writes */
-	if ((file->f_flags & O_SYNC) || IS_SYNC(inode)) {
+	if ((file->f_flags & O_DSYNC) || IS_SYNC(inode)) {
 		loff_t end = pos + ret - 1;
 		int error2;
 
@@ -863,7 +793,7 @@ int
 xfs_bdstrat_cb(struct xfs_buf *bp)
 {
 	if (XFS_FORCED_SHUTDOWN(bp->b_mount)) {
-		xfs_buftrace("XFS__BDSTRAT IOERROR", bp);
+		trace_xfs_bdstrat_shut(bp, _RET_IP_);
 		/*
 		 * Metadata write that didn't get logged but
 		 * written delayed anyway. These aren't associated
@@ -896,7 +826,7 @@ xfsbdstrat(
 		return;
 	}
 
-	xfs_buftrace("XFSBDSTRAT IOERROR", bp);
+	trace_xfs_bdstrat_shut(bp, _RET_IP_);
 	xfs_bioerror_relse(bp);
 }
 

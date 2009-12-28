@@ -139,6 +139,16 @@ show_devnum(struct device *dev, struct device_attribute *attr, char *buf)
 static DEVICE_ATTR(devnum, S_IRUGO, show_devnum, NULL);
 
 static ssize_t
+show_devpath(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct usb_device *udev;
+
+	udev = to_usb_device(dev);
+	return sprintf(buf, "%s\n", udev->devpath);
+}
+static DEVICE_ATTR(devpath, S_IRUGO, show_devpath, NULL);
+
+static ssize_t
 show_version(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_device *udev;
@@ -317,7 +327,6 @@ static DEVICE_ATTR(autosuspend, S_IRUGO | S_IWUSR,
 
 static const char on_string[] = "on";
 static const char auto_string[] = "auto";
-static const char suspend_string[] = "suspend";
 
 static ssize_t
 show_level(struct device *dev, struct device_attribute *attr, char *buf)
@@ -325,13 +334,8 @@ show_level(struct device *dev, struct device_attribute *attr, char *buf)
 	struct usb_device *udev = to_usb_device(dev);
 	const char *p = auto_string;
 
-	if (udev->state == USB_STATE_SUSPENDED) {
-		if (udev->autoresume_disabled)
-			p = suspend_string;
-	} else {
-		if (udev->autosuspend_disabled)
-			p = on_string;
-	}
+	if (udev->state != USB_STATE_SUSPENDED && udev->autosuspend_disabled)
+		p = on_string;
 	return sprintf(buf, "%s\n", p);
 }
 
@@ -343,7 +347,7 @@ set_level(struct device *dev, struct device_attribute *attr,
 	int len = count;
 	char *cp;
 	int rc = 0;
-	int old_autosuspend_disabled, old_autoresume_disabled;
+	int old_autosuspend_disabled;
 
 	cp = memchr(buf, '\n', count);
 	if (cp)
@@ -351,7 +355,6 @@ set_level(struct device *dev, struct device_attribute *attr,
 
 	usb_lock_device(udev);
 	old_autosuspend_disabled = udev->autosuspend_disabled;
-	old_autoresume_disabled = udev->autoresume_disabled;
 
 	/* Setting the flags without calling usb_pm_lock is a subject to
 	 * races, but who cares...
@@ -359,28 +362,18 @@ set_level(struct device *dev, struct device_attribute *attr,
 	if (len == sizeof on_string - 1 &&
 			strncmp(buf, on_string, len) == 0) {
 		udev->autosuspend_disabled = 1;
-		udev->autoresume_disabled = 0;
 		rc = usb_external_resume_device(udev, PMSG_USER_RESUME);
 
 	} else if (len == sizeof auto_string - 1 &&
 			strncmp(buf, auto_string, len) == 0) {
 		udev->autosuspend_disabled = 0;
-		udev->autoresume_disabled = 0;
 		rc = usb_external_resume_device(udev, PMSG_USER_RESUME);
-
-	} else if (len == sizeof suspend_string - 1 &&
-			strncmp(buf, suspend_string, len) == 0) {
-		udev->autosuspend_disabled = 0;
-		udev->autoresume_disabled = 1;
-		rc = usb_external_suspend_device(udev, PMSG_USER_SUSPEND);
 
 	} else
 		rc = -EINVAL;
 
-	if (rc) {
+	if (rc)
 		udev->autosuspend_disabled = old_autosuspend_disabled;
-		udev->autoresume_disabled = old_autoresume_disabled;
-	}
 	usb_unlock_device(udev);
 	return (rc < 0 ? rc : count);
 }
@@ -508,6 +501,28 @@ static ssize_t usb_dev_authorized_store(struct device *dev,
 static DEVICE_ATTR(authorized, 0644,
 	    usb_dev_authorized_show, usb_dev_authorized_store);
 
+/* "Safely remove a device" */
+static ssize_t usb_remove_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct usb_device *udev = to_usb_device(dev);
+	int rc = 0;
+
+	usb_lock_device(udev);
+	if (udev->state != USB_STATE_NOTATTACHED) {
+
+		/* To avoid races, first unconfigure and then remove */
+		usb_set_configuration(udev, -1);
+		rc = usb_remove_device(udev);
+	}
+	if (rc == 0)
+		rc = count;
+	usb_unlock_device(udev);
+	return rc;
+}
+static DEVICE_ATTR(remove, 0200, NULL, usb_remove_store);
+
 
 static struct attribute *dev_attrs[] = {
 	/* current configuration's attributes */
@@ -516,8 +531,8 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_bConfigurationValue.attr,
 	&dev_attr_bmAttributes.attr,
 	&dev_attr_bMaxPower.attr,
-	&dev_attr_urbnum.attr,
 	/* device attributes */
+	&dev_attr_urbnum.attr,
 	&dev_attr_idVendor.attr,
 	&dev_attr_idProduct.attr,
 	&dev_attr_bcdDevice.attr,
@@ -529,10 +544,12 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_speed.attr,
 	&dev_attr_busnum.attr,
 	&dev_attr_devnum.attr,
+	&dev_attr_devpath.attr,
 	&dev_attr_version.attr,
 	&dev_attr_maxchild.attr,
 	&dev_attr_quirks.attr,
 	&dev_attr_authorized.attr,
+	&dev_attr_remove.attr,
 	NULL,
 };
 static struct attribute_group dev_attr_grp = {

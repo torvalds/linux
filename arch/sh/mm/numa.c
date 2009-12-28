@@ -28,7 +28,7 @@ void __init setup_memory(void)
 {
 	unsigned long free_pfn = PFN_UP(__pa(_end));
 	u64 base = min_low_pfn << PAGE_SHIFT;
-	u64 size = (max_low_pfn << PAGE_SHIFT) - min_low_pfn;
+	u64 size = (max_low_pfn << PAGE_SHIFT) - base;
 
 	lmb_add(base, size);
 
@@ -36,6 +36,15 @@ void __init setup_memory(void)
 	lmb_reserve(__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET,
 		    (PFN_PHYS(free_pfn) + PAGE_SIZE - 1) -
 		    (__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET));
+
+	/*
+	 * Reserve physical pages below CONFIG_ZERO_PAGE_OFFSET.
+	 */
+	if (CONFIG_ZERO_PAGE_OFFSET != 0)
+		lmb_reserve(__MEMORY_START, CONFIG_ZERO_PAGE_OFFSET);
+
+	lmb_analyze();
+	lmb_dump_all();
 
 	/*
 	 * Node 0 sets up its pgdat at the first available pfn,
@@ -71,7 +80,7 @@ void __init setup_bootmem_node(int nid, unsigned long start, unsigned long end)
 
 	/* Node-local pgdat */
 	NODE_DATA(nid) = __va(lmb_alloc_base(sizeof(struct pglist_data),
-					     SMP_CACHE_BYTES, end_pfn));
+					     SMP_CACHE_BYTES, end));
 	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
 
 	NODE_DATA(nid)->bdata = &bootmem_node_data[nid];
@@ -81,7 +90,7 @@ void __init setup_bootmem_node(int nid, unsigned long start, unsigned long end)
 	/* Node-local bootmap */
 	bootmap_pages = bootmem_bootmap_pages(end_pfn - start_pfn);
 	bootmem_paddr = lmb_alloc_base(bootmap_pages << PAGE_SHIFT,
-				       PAGE_SIZE, end_pfn);
+				       PAGE_SIZE, end);
 	init_bootmem_node(NODE_DATA(nid), bootmem_paddr >> PAGE_SHIFT,
 			  start_pfn, end_pfn);
 

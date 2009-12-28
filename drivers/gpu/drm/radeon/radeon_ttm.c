@@ -200,7 +200,19 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 static void radeon_evict_flags(struct ttm_buffer_object *bo,
 				struct ttm_placement *placement)
 {
-	struct radeon_bo *rbo = container_of(bo, struct radeon_bo, tbo);
+	struct radeon_bo *rbo;
+	static u32 placements = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
+
+	if (!radeon_ttm_bo_is_radeon_bo(bo)) {
+		placement->fpfn = 0;
+		placement->lpfn = 0;
+		placement->placement = &placements;
+		placement->busy_placement = &placements;
+		placement->num_placement = 1;
+		placement->num_busy_placement = 1;
+		return;
+	}
+	rbo = container_of(bo, struct radeon_bo, tbo);
 	switch (bo->mem.mem_type) {
 	case TTM_PL_VRAM:
 		radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_GTT);

@@ -1863,6 +1863,14 @@ int r600_startup(struct radeon_device *rdev)
 	}
 	r600_gpu_init(rdev);
 
+	if (!rdev->r600_blit.shader_obj) {
+		r = r600_blit_init(rdev);
+		if (r) {
+			DRM_ERROR("radeon: failed blitter (%d).\n", r);
+			return r;
+		}
+	}
+
 	r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
 	if (unlikely(r != 0))
 		return r;
@@ -2038,12 +2046,6 @@ int r600_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = r600_blit_init(rdev);
-	if (r) {
-		DRM_ERROR("radeon: failed blitter (%d).\n", r);
-		return r;
-	}
-
 	rdev->accel_working = true;
 	r = r600_startup(rdev);
 	if (r) {
@@ -2065,6 +2067,10 @@ int r600_init(struct radeon_device *rdev)
 			rdev->accel_working = false;
 		}
 	}
+
+	r = r600_audio_init(rdev);
+	if (r)
+		return r; /* TODO error handling */
 	return 0;
 }
 
@@ -2073,6 +2079,7 @@ void r600_fini(struct radeon_device *rdev)
 	/* Suspend operations */
 	r600_suspend(rdev);
 
+	r600_audio_fini(rdev);
 	r600_blit_fini(rdev);
 	r600_irq_fini(rdev);
 	radeon_irq_kms_fini(rdev);

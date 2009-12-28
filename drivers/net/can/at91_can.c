@@ -474,7 +474,7 @@ static void at91_read_mb(struct net_device *dev, unsigned int mb,
 	reg_msr = at91_read(priv, AT91_MSR(mb));
 	if (reg_msr & AT91_MSR_MRTR)
 		cf->can_id |= CAN_RTR_FLAG;
-	cf->can_dlc = min_t(__u8, (reg_msr >> 16) & 0xf, 8);
+	cf->can_dlc = get_can_dlc((reg_msr >> 16) & 0xf);
 
 	*(u32 *)(cf->data + 0) = at91_read(priv, AT91_MDL(mb));
 	*(u32 *)(cf->data + 4) = at91_read(priv, AT91_MDH(mb));

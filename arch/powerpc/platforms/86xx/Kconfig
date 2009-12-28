@@ -35,6 +35,7 @@ config MPC8610_HPCD
 config GEF_PPC9A
 	bool "GE Fanuc PPC9A"
 	select DEFAULT_UIMAGE
+	select MMIO_NVRAM
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help
@@ -43,6 +44,7 @@ config GEF_PPC9A
 config GEF_SBC310
 	bool "GE Fanuc SBC310"
 	select DEFAULT_UIMAGE
+	select MMIO_NVRAM
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help
@@ -51,6 +53,7 @@ config GEF_SBC310
 config GEF_SBC610
 	bool "GE Fanuc SBC610"
 	select DEFAULT_UIMAGE
+	select MMIO_NVRAM
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select HAS_RAPIDIO

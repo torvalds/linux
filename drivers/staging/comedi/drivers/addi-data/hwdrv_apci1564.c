@@ -154,7 +154,7 @@ int i_APCI1564_Read1DigitalInput(struct comedi_device *dev, struct comedi_subdev
 	unsigned int ui_Channel;
 
 	ui_Channel = CR_CHAN(insn->chanspec);
-	if (ui_Channel >= 0 && ui_Channel <= 31) {
+	if (ui_Channel <= 31) {
 		ui_TmpValue =
 			(unsigned int) inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP);
 /*

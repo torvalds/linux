@@ -2644,6 +2644,7 @@ static void gfar_netpoll(struct net_device *dev)
 			gfar_interrupt(priv->gfargrp[i].interruptTransmit,
 						&priv->gfargrp[i]);
 			enable_irq(priv->gfargrp[i].interruptTransmit);
+		}
 	}
 }
 #endif

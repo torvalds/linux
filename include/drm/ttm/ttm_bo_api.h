@@ -308,7 +308,7 @@ ttm_bo_reference(struct ttm_buffer_object *bo)
 extern int ttm_bo_wait(struct ttm_buffer_object *bo, bool lazy,
 		       bool interruptible, bool no_wait);
 /**
- * ttm_buffer_object_validate
+ * ttm_bo_validate
  *
  * @bo: The buffer object.
  * @placement: Proposed placement for the buffer object.
@@ -323,9 +323,9 @@ extern int ttm_bo_wait(struct ttm_buffer_object *bo, bool lazy,
  * -EBUSY if no_wait is true and buffer busy.
  * -ERESTARTSYS if interrupted by a signal.
  */
-extern int ttm_buffer_object_validate(struct ttm_buffer_object *bo,
-					struct ttm_placement *placement,
-					bool interruptible, bool no_wait);
+extern int ttm_bo_validate(struct ttm_buffer_object *bo,
+				struct ttm_placement *placement,
+				bool interruptible, bool no_wait);
 
 /**
  * ttm_bo_unref
@@ -362,7 +362,7 @@ ttm_bo_synccpu_write_grab(struct ttm_buffer_object *bo, bool no_wait);
 extern void ttm_bo_synccpu_write_release(struct ttm_buffer_object *bo);
 
 /**
- * ttm_buffer_object_init
+ * ttm_bo_init
  *
  * @bdev: Pointer to a ttm_bo_device struct.
  * @bo: Pointer to a ttm_buffer_object to be initialized.
@@ -393,17 +393,17 @@ extern void ttm_bo_synccpu_write_release(struct ttm_buffer_object *bo);
  * -ERESTARTSYS: Interrupted by signal while sleeping waiting for resources.
  */
 
-extern int ttm_buffer_object_init(struct ttm_bo_device *bdev,
-				  struct ttm_buffer_object *bo,
-				  unsigned long size,
-				  enum ttm_bo_type type,
-				  uint32_t flags,
-				  uint32_t page_alignment,
-				  unsigned long buffer_start,
-				  bool interrubtible,
-				  struct file *persistant_swap_storage,
-				  size_t acc_size,
-				  void (*destroy) (struct ttm_buffer_object *));
+extern int ttm_bo_init(struct ttm_bo_device *bdev,
+			struct ttm_buffer_object *bo,
+			unsigned long size,
+			enum ttm_bo_type type,
+			struct ttm_placement *placement,
+			uint32_t page_alignment,
+			unsigned long buffer_start,
+			bool interrubtible,
+			struct file *persistant_swap_storage,
+			size_t acc_size,
+			void (*destroy) (struct ttm_buffer_object *));
 /**
  * ttm_bo_synccpu_object_init
  *
@@ -424,40 +424,37 @@ extern int ttm_buffer_object_init(struct ttm_bo_device *bdev,
  * GEM user interface.
  * @p_bo: On successful completion *p_bo points to the created object.
  *
- * This function allocates a ttm_buffer_object, and then calls
- * ttm_buffer_object_init on that object.
- * The destroy function is set to kfree().
+ * This function allocates a ttm_buffer_object, and then calls ttm_bo_init
+ * on that object. The destroy function is set to kfree().
  * Returns
  * -ENOMEM: Out of memory.
  * -EINVAL: Invalid placement flags.
  * -ERESTARTSYS: Interrupted by signal while waiting for resources.
  */
 
-extern int ttm_buffer_object_create(struct ttm_bo_device *bdev,
-				    unsigned long size,
-				    enum ttm_bo_type type,
-				    uint32_t flags,
-				    uint32_t page_alignment,
-				    unsigned long buffer_start,
-				    bool interruptible,
-				    struct file *persistant_swap_storage,
-				    struct ttm_buffer_object **p_bo);
+extern int ttm_bo_create(struct ttm_bo_device *bdev,
+				unsigned long size,
+				enum ttm_bo_type type,
+				struct ttm_placement *placement,
+				uint32_t page_alignment,
+				unsigned long buffer_start,
+				bool interruptible,
+				struct file *persistant_swap_storage,
+				struct ttm_buffer_object **p_bo);
 
 /**
  * ttm_bo_check_placement
  *
- * @bo: the buffer object.
- * @set_flags: placement flags to set.
- * @clr_flags: placement flags to clear.
+ * @bo:		the buffer object.
+ * @placement:	placements
  *
  * Performs minimal validity checking on an intended change of
  * placement flags.
  * Returns
  * -EINVAL: Intended change is invalid or not allowed.
  */
-
 extern int ttm_bo_check_placement(struct ttm_buffer_object *bo,
-				  uint32_t set_flags, uint32_t clr_flags);
+					struct ttm_placement *placement);
 
 /**
  * ttm_bo_init_mm

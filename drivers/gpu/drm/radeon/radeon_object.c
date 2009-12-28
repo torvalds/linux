@@ -56,23 +56,11 @@ static void radeon_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	kfree(bo);
 }
 
-static inline u32 radeon_ttm_flags_from_domain(u32 domain)
+bool radeon_ttm_bo_is_radeon_bo(struct ttm_buffer_object *bo)
 {
-	u32 flags = 0;
-
-	if (domain & RADEON_GEM_DOMAIN_VRAM) {
-		flags |= TTM_PL_FLAG_VRAM | TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED;
-	}
-	if (domain & RADEON_GEM_DOMAIN_GTT) {
-		flags |= TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING;
-	}
-	if (domain & RADEON_GEM_DOMAIN_CPU) {
-		flags |= TTM_PL_FLAG_SYSTEM | TTM_PL_MASK_CACHING;
-	}
-	if (!flags) {
-		flags |= TTM_PL_FLAG_SYSTEM | TTM_PL_MASK_CACHING;
-	}
-	return flags;
+	if (bo->destroy == &radeon_ttm_bo_destroy)
+		return true;
+	return false;
 }
 
 void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
@@ -90,6 +78,8 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 		rbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
 	if (domain & RADEON_GEM_DOMAIN_CPU)
 		rbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
+	if (!c)
+		rbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
 	rbo->placement.num_placement = c;
 	rbo->placement.num_busy_placement = c;
 }
@@ -100,7 +90,6 @@ int radeon_bo_create(struct radeon_device *rdev, struct drm_gem_object *gobj,
 {
 	struct radeon_bo *bo;
 	enum ttm_bo_type type;
-	u32 flags;
 	int r;
 
 	if (unlikely(rdev->mman.bdev.dev_mapping == NULL)) {
@@ -120,16 +109,16 @@ int radeon_bo_create(struct radeon_device *rdev, struct drm_gem_object *gobj,
 	bo->surface_reg = -1;
 	INIT_LIST_HEAD(&bo->list);
 
-	flags = radeon_ttm_flags_from_domain(domain);
+	radeon_ttm_placement_from_domain(bo, domain);
 	/* Kernel allocation are uninterruptible */
-	r = ttm_buffer_object_init(&rdev->mman.bdev, &bo->tbo, size, type,
-					flags, 0, 0, !kernel, NULL, size,
-					&radeon_ttm_bo_destroy);
+	r = ttm_bo_init(&rdev->mman.bdev, &bo->tbo, size, type,
+			&bo->placement, 0, 0, !kernel, NULL, size,
+			&radeon_ttm_bo_destroy);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			dev_err(rdev->dev,
-				"object_init failed for (%ld, 0x%08X)\n",
-				size, flags);
+				"object_init failed for (%lu, 0x%08X)\n",
+				size, domain);
 		return r;
 	}
 	*bo_ptr = bo;
@@ -199,7 +188,7 @@ int radeon_bo_pin(struct radeon_bo *bo, u32 domain, u64 *gpu_addr)
 	radeon_ttm_placement_from_domain(bo, domain);
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i] |= TTM_PL_FLAG_NO_EVICT;
-	r = ttm_buffer_object_validate(&bo->tbo, &bo->placement, false, false);
+	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
 	if (likely(r == 0)) {
 		bo->pin_count = 1;
 		if (gpu_addr != NULL)
@@ -223,7 +212,7 @@ int radeon_bo_unpin(struct radeon_bo *bo)
 		return 0;
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i] &= ~TTM_PL_FLAG_NO_EVICT;
-	r = ttm_buffer_object_validate(&bo->tbo, &bo->placement, false, false);
+	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
 	if (unlikely(r != 0))
 		dev_err(bo->rdev->dev, "%p validate failed for unpin\n", bo);
 	return r;
@@ -336,8 +325,7 @@ int radeon_bo_list_validate(struct list_head *head, void *fence)
 				radeon_ttm_placement_from_domain(bo,
 								lobj->rdomain);
 			}
-			r = ttm_buffer_object_validate(&bo->tbo,
-						&bo->placement,
+			r = ttm_bo_validate(&bo->tbo, &bo->placement,
 						true, false);
 			if (unlikely(r))
 				return r;
@@ -502,14 +490,20 @@ int radeon_bo_check_tiling(struct radeon_bo *bo, bool has_moved,
 }
 
 void radeon_bo_move_notify(struct ttm_buffer_object *bo,
-				struct ttm_mem_reg *mem)
+			   struct ttm_mem_reg *mem)
 {
-	struct radeon_bo *rbo = container_of(bo, struct radeon_bo, tbo);
+	struct radeon_bo *rbo;
+	if (!radeon_ttm_bo_is_radeon_bo(bo))
+		return;
+	rbo = container_of(bo, struct radeon_bo, tbo);
 	radeon_bo_check_tiling(rbo, 0, 1);
 }
 
 void radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 {
-	struct radeon_bo *rbo = container_of(bo, struct radeon_bo, tbo);
+	struct radeon_bo *rbo;
+	if (!radeon_ttm_bo_is_radeon_bo(bo))
+		return;
+	rbo = container_of(bo, struct radeon_bo, tbo);
 	radeon_bo_check_tiling(rbo, 0, 0);
 }

@@ -1048,21 +1048,15 @@ static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *id)
 
 static int mpeg_open(struct file *file)
 {
-	int minor = video_devdata(file)->minor;
-	struct cx8802_dev *dev = NULL;
+	struct video_device *vdev = video_devdata(file);
+	struct cx8802_dev *dev = video_drvdata(file);
 	struct cx8802_fh *fh;
 	struct cx8802_driver *drv = NULL;
 	int err;
 
-	lock_kernel();
-	dev = cx8802_get_device(minor);
-
 	dprintk( 1, "%s\n", __func__);
 
-	if (dev == NULL) {
-		unlock_kernel();
-		return -ENODEV;
-	}
+	lock_kernel();
 
 	/* Make sure we can acquire the hardware */
 	drv = cx8802_get_driver(dev, CX88_MPEG_BLACKBIRD);
@@ -1081,7 +1075,7 @@ static int mpeg_open(struct file *file)
 		unlock_kernel();
 		return -EINVAL;
 	}
-	dprintk(1,"open minor=%d\n",minor);
+	dprintk(1, "open dev=%s\n", video_device_node_name(vdev));
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh),GFP_KERNEL);
@@ -1129,10 +1123,6 @@ static int mpeg_release(struct file *file)
 	kfree(fh);
 
 	/* Make sure we release the hardware */
-	dev = cx8802_get_device(video_devdata(file)->minor);
-	if (dev == NULL)
-		return -ENODEV;
-
 	drv = cx8802_get_driver(dev, CX88_MPEG_BLACKBIRD);
 	if (drv)
 		drv->request_release(drv);
@@ -1220,7 +1210,6 @@ static struct video_device cx8802_mpeg_template = {
 	.name                 = "cx8802",
 	.fops                 = &mpeg_fops,
 	.ioctl_ops 	      = &mpeg_ioctl_ops,
-	.minor                = -1,
 	.tvnorms              = CX88_NORMS,
 	.current_norm         = V4L2_STD_NTSC_M,
 };
@@ -1276,7 +1265,7 @@ static int cx8802_blackbird_advise_release(struct cx8802_driver *drv)
 static void blackbird_unregister_video(struct cx8802_dev *dev)
 {
 	if (dev->mpeg_dev) {
-		if (-1 != dev->mpeg_dev->minor)
+		if (video_is_registered(dev->mpeg_dev))
 			video_unregister_device(dev->mpeg_dev);
 		else
 			video_device_release(dev->mpeg_dev);
@@ -1290,14 +1279,15 @@ static int blackbird_register_video(struct cx8802_dev *dev)
 
 	dev->mpeg_dev = cx88_vdev_init(dev->core,dev->pci,
 				       &cx8802_mpeg_template,"mpeg");
+	video_set_drvdata(dev->mpeg_dev, dev);
 	err = video_register_device(dev->mpeg_dev,VFL_TYPE_GRABBER, -1);
 	if (err < 0) {
 		printk(KERN_INFO "%s/2: can't register mpeg device\n",
 		       dev->core->name);
 		return err;
 	}
-	printk(KERN_INFO "%s/2: registered device video%d [mpeg]\n",
-	       dev->core->name, dev->mpeg_dev->num);
+	printk(KERN_INFO "%s/2: registered device %s [mpeg]\n",
+	       dev->core->name, video_device_node_name(dev->mpeg_dev));
 	return 0;
 }
 

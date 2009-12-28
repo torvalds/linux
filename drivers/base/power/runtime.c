@@ -701,15 +701,15 @@ EXPORT_SYMBOL_GPL(pm_request_resume);
  * @dev: Device to handle.
  * @sync: If set and the device is suspended, resume it synchronously.
  *
- * Increment the usage count of the device and if it was zero previously,
- * resume it or submit a resume request for it, depending on the value of @sync.
+ * Increment the usage count of the device and resume it or submit a resume
+ * request for it, depending on the value of @sync.
  */
 int __pm_runtime_get(struct device *dev, bool sync)
 {
-	int retval = 1;
+	int retval;
 
-	if (atomic_add_return(1, &dev->power.usage_count) == 1)
-		retval = sync ? pm_runtime_resume(dev) : pm_request_resume(dev);
+	atomic_inc(&dev->power.usage_count);
+	retval = sync ? pm_runtime_resume(dev) : pm_request_resume(dev);
 
 	return retval;
 }

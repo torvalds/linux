@@ -71,7 +71,7 @@ static void gpio_write_bit(struct pinmux_data_reg *dr,
 
 	pos = dr->reg_width - (in_pos + 1);
 
-	pr_debug("write_bit addr = %lx, value = %ld, pos = %ld, "
+	pr_debug("write_bit addr = %lx, value = %d, pos = %ld, "
 		 "r_width = %ld\n",
 		 dr->reg, !!value, pos, dr->reg_width);
 
