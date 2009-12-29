@@ -125,6 +125,7 @@ static DEVICE_ATTR(current_protocol, S_IRUGO | S_IWUSR,
 
 static struct attribute *ir_dev_attrs[] = {
 	&dev_attr_current_protocol.attr,
+	NULL,
 };
 
 /**
