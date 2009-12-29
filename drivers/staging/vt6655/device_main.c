@@ -1105,10 +1105,7 @@ static void device_print_info(PSDevice pDevice)
     struct net_device* dev=pDevice->dev;
 
     DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "%s: %s\n",dev->name, get_chip_name(pDevice->chip_id));
-    DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "%s: MAC=%2.2X:%2.2X:%2.2X:%2.2X:%2.2X:%2.2X",
-        dev->name,
-        dev->dev_addr[0],dev->dev_addr[1],dev->dev_addr[2],
-        dev->dev_addr[3],dev->dev_addr[4],dev->dev_addr[5]);
+    DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "%s: MAC=%pM", dev->name, dev->dev_addr);
 #ifdef IO_MAP
     DBG_PRT(MSG_LEVEL_INFO, KERN_INFO" IO=0x%lx  ",(ULONG) pDevice->ioaddr);
     DBG_PRT(MSG_LEVEL_INFO, KERN_INFO" IRQ=%d \n", pDevice->dev->irq);
