@@ -2997,6 +2997,7 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 		vmx_fpu_deactivate(vcpu);
 		vcpu->arch.cr0 &= ~X86_CR0_TS;
 		vmcs_writel(CR0_READ_SHADOW, vcpu->arch.cr0);
+		trace_kvm_cr_write(0, vcpu->arch.cr0);
 		vmx_fpu_activate(vcpu);
 		skip_emulated_instruction(vcpu);
 		return 1;
@@ -3016,7 +3017,9 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 		}
 		break;
 	case 3: /* lmsw */
-		kvm_lmsw(vcpu, (exit_qualification >> LMSW_SOURCE_DATA_SHIFT) & 0x0f);
+		val = (exit_qualification >> LMSW_SOURCE_DATA_SHIFT) & 0x0f;
+		trace_kvm_cr_write(0, (vcpu->arch.cr0 & ~0xful) | val);
+		kvm_lmsw(vcpu, val);
 
 		skip_emulated_instruction(vcpu);
 		return 1;
