@@ -82,29 +82,19 @@ static void perf_session__insert_hist_entry_by_name(struct rb_root *root,
 	struct hist_entry *iter;
 
 	while (*p != NULL) {
-		int cmp;
 		parent = *p;
 		iter = rb_entry(parent, struct hist_entry, rb_node);
-
-		cmp = strcmp(he->map->dso->name, iter->map->dso->name);
-		if (cmp > 0)
+		if (hist_entry__cmp(he, iter) < 0)
 			p = &(*p)->rb_left;
-		else if (cmp < 0)
+		else
 			p = &(*p)->rb_right;
-		else {
-			cmp = strcmp(he->sym->name, iter->sym->name);
-			if (cmp > 0)
-				p = &(*p)->rb_left;
-			else
-				p = &(*p)->rb_right;
-		}
 	}
 
 	rb_link_node(&he->rb_node, parent, p);
 	rb_insert_color(&he->rb_node, root);
 }
 
-static void perf_session__resort_by_name(struct perf_session *self)
+static void perf_session__resort_hist_entries(struct perf_session *self)
 {
 	unsigned long position = 1;
 	struct rb_root tmp = RB_ROOT;
@@ -122,29 +112,28 @@ static void perf_session__resort_by_name(struct perf_session *self)
 	self->hists = tmp;
 }
 
+static void perf_session__set_hist_entries_positions(struct perf_session *self)
+{
+	perf_session__output_resort(self, self->events_stats.total);
+	perf_session__resort_hist_entries(self);
+}
+
 static struct hist_entry *
-perf_session__find_hist_entry_by_name(struct perf_session *self,
-				      struct hist_entry *he)
+perf_session__find_hist_entry(struct perf_session *self,
+			      struct hist_entry *he)
 {
 	struct rb_node *n = self->hists.rb_node;
 
 	while (n) {
 		struct hist_entry *iter = rb_entry(n, struct hist_entry, rb_node);
-		int cmp = strcmp(he->map->dso->name, iter->map->dso->name);
+		int64_t cmp = hist_entry__cmp(he, iter);
 
-		if (cmp > 0)
+		if (cmp < 0)
 			n = n->rb_left;
-		else if (cmp < 0)
+		else if (cmp > 0)
 			n = n->rb_right;
-		else {
-			cmp = strcmp(he->sym->name, iter->sym->name);
-			if (cmp > 0)
-				n = n->rb_left;
-			else if (cmp < 0)
-				n = n->rb_right;
-			else
-				return iter;
-		}
+		else 
+			return iter;
 	}
 
 	return NULL;
@@ -155,11 +144,9 @@ static void perf_session__match_hists(struct perf_session *old_session,
 {
 	struct rb_node *nd;
 
-	perf_session__resort_by_name(old_session);
-
 	for (nd = rb_first(&new_session->hists); nd; nd = rb_next(nd)) {
 		struct hist_entry *pos = rb_entry(nd, struct hist_entry, rb_node);
-		pos->pair = perf_session__find_hist_entry_by_name(old_session, pos);
+		pos->pair = perf_session__find_hist_entry(old_session, pos);
 	}
 }
 
@@ -177,8 +164,11 @@ static int __cmd_diff(void)
 		ret = perf_session__process_events(session[i], &event_ops);
 		if (ret)
 			goto out_delete;
-		perf_session__output_resort(session[i], session[i]->events_stats.total);
 	}
+
+	perf_session__output_resort(session[1], session[1]->events_stats.total);
+	if (show_displacement)
+		perf_session__set_hist_entries_positions(session[0]);
 
 	perf_session__match_hists(session[0], session[1]);
 	perf_session__fprintf_hists(session[1], session[0],
