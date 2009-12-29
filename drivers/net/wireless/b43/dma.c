@@ -383,160 +383,44 @@ static inline
 	}
 }
 
-/* Check if a DMA region fits the device constraints.
- * Returns true, if the region is OK for usage with this device. */
-static inline bool b43_dma_address_ok(struct b43_dmaring *ring,
-				      dma_addr_t addr, size_t size)
-{
-	switch (ring->type) {
-	case B43_DMA_30BIT:
-		if ((u64)addr + size > (1ULL << 30))
-			return 0;
-		break;
-	case B43_DMA_32BIT:
-		if ((u64)addr + size > (1ULL << 32))
-			return 0;
-		break;
-	case B43_DMA_64BIT:
-		/* Currently we can't have addresses beyond
-		 * 64bit in the kernel. */
-		break;
-	}
-	return 1;
-}
-
-#define is_4k_aligned(addr)	(((u64)(addr) & 0x0FFFull) == 0)
-#define is_8k_aligned(addr)	(((u64)(addr) & 0x1FFFull) == 0)
-
-static void b43_unmap_and_free_ringmem(struct b43_dmaring *ring, void *base,
-				       dma_addr_t dmaaddr, size_t size)
-{
-	ssb_dma_unmap_single(ring->dev->dev, dmaaddr, size, DMA_TO_DEVICE);
-	free_pages((unsigned long)base, get_order(size));
-}
-
-static void * __b43_get_and_map_ringmem(struct b43_dmaring *ring,
-					dma_addr_t *dmaaddr, size_t size,
-					gfp_t gfp_flags)
-{
-	void *base;
-
-	base = (void *)__get_free_pages(gfp_flags, get_order(size));
-	if (!base)
-		return NULL;
-	memset(base, 0, size);
-	*dmaaddr = ssb_dma_map_single(ring->dev->dev, base, size,
-				      DMA_TO_DEVICE);
-	if (ssb_dma_mapping_error(ring->dev->dev, *dmaaddr)) {
-		free_pages((unsigned long)base, get_order(size));
-		return NULL;
-	}
-
-	return base;
-}
-
-static void * b43_get_and_map_ringmem(struct b43_dmaring *ring,
-				      dma_addr_t *dmaaddr, size_t size)
-{
-	void *base;
-
-	base = __b43_get_and_map_ringmem(ring, dmaaddr, size,
-					 GFP_KERNEL);
-	if (!base) {
-		b43err(ring->dev->wl, "Failed to allocate or map pages "
-		       "for DMA ringmemory\n");
-		return NULL;
-	}
-	if (!b43_dma_address_ok(ring, *dmaaddr, size)) {
-		/* The memory does not fit our device constraints.
-		 * Retry with GFP_DMA set to get lower memory. */
-		b43_unmap_and_free_ringmem(ring, base, *dmaaddr, size);
-		base = __b43_get_and_map_ringmem(ring, dmaaddr, size,
-						 GFP_KERNEL | GFP_DMA);
-		if (!base) {
-			b43err(ring->dev->wl, "Failed to allocate or map pages "
-			       "in the GFP_DMA region for DMA ringmemory\n");
-			return NULL;
-		}
-		if (!b43_dma_address_ok(ring, *dmaaddr, size)) {
-			b43_unmap_and_free_ringmem(ring, base, *dmaaddr, size);
-			b43err(ring->dev->wl, "Failed to allocate DMA "
-			       "ringmemory that fits device constraints\n");
-			return NULL;
-		}
-	}
-	/* We expect the memory to be 4k aligned, at least. */
-	if (B43_WARN_ON(!is_4k_aligned(*dmaaddr))) {
-		b43_unmap_and_free_ringmem(ring, base, *dmaaddr, size);
-		return NULL;
-	}
-
-	return base;
-}
-
 static int alloc_ringmemory(struct b43_dmaring *ring)
 {
-	unsigned int required;
-	void *base;
-	dma_addr_t dmaaddr;
+	gfp_t flags = GFP_KERNEL;
 
-	/* There are several requirements to the descriptor ring memory:
-	 * - The memory region needs to fit the address constraints for the
-	 *   device (same as for frame buffers).
-	 * - For 30/32bit DMA devices, the descriptor ring must be 4k aligned.
-	 * - For 64bit DMA devices, the descriptor ring must be 8k aligned.
+	/* The specs call for 4K buffers for 30- and 32-bit DMA with 4K
+	 * alignment and 8K buffers for 64-bit DMA with 8K alignment. Testing
+	 * has shown that 4K is sufficient for the latter as long as the buffer
+	 * does not cross an 8K boundary.
+	 *
+	 * For unknown reasons - possibly a hardware error - the BCM4311 rev
+	 * 02, which uses 64-bit DMA, needs the ring buffer in very low memory,
+	 * which accounts for the GFP_DMA flag below.
+	 *
+	 * The flags here must match the flags in free_ringmemory below!
 	 */
-
 	if (ring->type == B43_DMA_64BIT)
-		required = ring->nr_slots * sizeof(struct b43_dmadesc64);
-	else
-		required = ring->nr_slots * sizeof(struct b43_dmadesc32);
-	if (B43_WARN_ON(required > 0x1000))
+		flags |= GFP_DMA;
+	ring->descbase = ssb_dma_alloc_consistent(ring->dev->dev,
+						  B43_DMA_RINGMEMSIZE,
+						  &(ring->dmabase), flags);
+	if (!ring->descbase) {
+		b43err(ring->dev->wl, "DMA ringmemory allocation failed\n");
 		return -ENOMEM;
-
-	ring->alloc_descsize = 0x1000;
-	base = b43_get_and_map_ringmem(ring, &dmaaddr, ring->alloc_descsize);
-	if (!base)
-		return -ENOMEM;
-	ring->alloc_descbase = base;
-	ring->alloc_dmabase = dmaaddr;
-
-	if ((ring->type != B43_DMA_64BIT) || is_8k_aligned(dmaaddr)) {
-		/* We're on <=32bit DMA, or we already got 8k aligned memory.
-		 * That's all we need, so we're fine. */
-		ring->descbase = base;
-		ring->dmabase = dmaaddr;
-		return 0;
 	}
-	b43_unmap_and_free_ringmem(ring, base, dmaaddr, ring->alloc_descsize);
-
-	/* Ok, we failed at the 8k alignment requirement.
-	 * Try to force-align the memory region now. */
-	ring->alloc_descsize = 0x2000;
-	base = b43_get_and_map_ringmem(ring, &dmaaddr, ring->alloc_descsize);
-	if (!base)
-		return -ENOMEM;
-	ring->alloc_descbase = base;
-	ring->alloc_dmabase = dmaaddr;
-
-	if (is_8k_aligned(dmaaddr)) {
-		/* We're already 8k aligned. That Ok, too. */
-		ring->descbase = base;
-		ring->dmabase = dmaaddr;
-		return 0;
-	}
-	/* Force-align it to 8k */
-	ring->descbase = (void *)((u8 *)base + 0x1000);
-	ring->dmabase = dmaaddr + 0x1000;
-	B43_WARN_ON(!is_8k_aligned(ring->dmabase));
+	memset(ring->descbase, 0, B43_DMA_RINGMEMSIZE);
 
 	return 0;
 }
 
 static void free_ringmemory(struct b43_dmaring *ring)
 {
-	b43_unmap_and_free_ringmem(ring, ring->alloc_descbase,
-				   ring->alloc_dmabase, ring->alloc_descsize);
+	gfp_t flags = GFP_KERNEL;
+
+	if (ring->type == B43_DMA_64BIT)
+		flags |= GFP_DMA;
+
+	ssb_dma_free_consistent(ring->dev->dev, B43_DMA_RINGMEMSIZE,
+				ring->descbase, ring->dmabase, flags);
 }
 
 /* Reset the RX DMA channel */
@@ -646,14 +530,29 @@ static bool b43_dma_mapping_error(struct b43_dmaring *ring,
 	if (unlikely(ssb_dma_mapping_error(ring->dev->dev, addr)))
 		return 1;
 
-	if (!b43_dma_address_ok(ring, addr, buffersize)) {
-		/* We can't support this address. Unmap it again. */
-		unmap_descbuffer(ring, addr, buffersize, dma_to_device);
-		return 1;
+	switch (ring->type) {
+	case B43_DMA_30BIT:
+		if ((u64)addr + buffersize > (1ULL << 30))
+			goto address_error;
+		break;
+	case B43_DMA_32BIT:
+		if ((u64)addr + buffersize > (1ULL << 32))
+			goto address_error;
+		break;
+	case B43_DMA_64BIT:
+		/* Currently we can't have addresses beyond
+		 * 64bit in the kernel. */
+		break;
 	}
 
 	/* The address is OK. */
 	return 0;
+
+address_error:
+	/* We can't support this address. Unmap it again. */
+	unmap_descbuffer(ring, addr, buffersize, dma_to_device);
+
+	return 1;
 }
 
 static bool b43_rx_buffer_is_poisoned(struct b43_dmaring *ring, struct sk_buff *skb)
@@ -715,9 +614,6 @@ static int setup_rx_descbuffer(struct b43_dmaring *ring,
 	meta->dmaaddr = dmaaddr;
 	ring->ops->fill_descriptor(ring, desc, dmaaddr,
 				   ring->rx_buffersize, 0, 0, 0);
-	ssb_dma_sync_single_for_device(ring->dev->dev,
-				       ring->alloc_dmabase,
-				       ring->alloc_descsize, DMA_TO_DEVICE);
 
 	return 0;
 }
@@ -1354,9 +1250,6 @@ static int dma_tx_fragment(struct b43_dmaring *ring,
 	}
 	/* Now transfer the whole frame. */
 	wmb();
-	ssb_dma_sync_single_for_device(ring->dev->dev,
-				       ring->alloc_dmabase,
-				       ring->alloc_descsize, DMA_TO_DEVICE);
 	ops->poke_tx(ring, next_slot(ring, slot));
 	return 0;
 
