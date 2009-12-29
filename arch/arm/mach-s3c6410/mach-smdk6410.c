@@ -155,6 +155,16 @@ static struct s3c_fb_platdata smdk6410_lcd_pdata __initdata = {
 	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
 };
 
+/*
+ * Configuring Ethernet on SMDK6410
+ *
+ * Both CS8900A and LAN9115 chips share one chip select mediated by CFG6.
+ * The constant address below corresponds to nCS1
+ *
+ *  1) Set CFGB2 p3 ON others off, no other CFGB selects "ethernet"
+ *  2) CFG6 needs to be switched to "LAN9115" side
+ */
+
 static struct resource smdk6410_smsc911x_resources[] = {
 	[0] = {
 		.start = S3C64XX_PA_XM0CSN1,
