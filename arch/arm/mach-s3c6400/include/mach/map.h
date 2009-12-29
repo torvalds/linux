@@ -17,6 +17,18 @@
 
 #include <plat/map-base.h>
 
+/*
+ * Post-mux Chip Select Regions Xm0CSn_
+ * These may be used by SROM, NAND or CF depending on settings
+ */
+
+#define S3C64XX_PA_XM0CSN0 (0x10000000)
+#define S3C64XX_PA_XM0CSN1 (0x18000000)
+#define S3C64XX_PA_XM0CSN2 (0x20000000)
+#define S3C64XX_PA_XM0CSN3 (0x28000000)
+#define S3C64XX_PA_XM0CSN4 (0x30000000)
+#define S3C64XX_PA_XM0CSN5 (0x38000000)
+
 /* HSMMC units */
 #define S3C64XX_PA_HSMMC(x)	(0x7C200000 + ((x) * 0x100000))
 #define S3C64XX_PA_HSMMC0	S3C64XX_PA_HSMMC(0)
