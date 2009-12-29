@@ -40,6 +40,8 @@ static inline u64 kvm_pdptr_read(struct kvm_vcpu *vcpu, int index)
 
 static inline ulong kvm_read_cr0_bits(struct kvm_vcpu *vcpu, ulong mask)
 {
+	if (mask & vcpu->arch.cr0_guest_owned_bits)
+		kvm_x86_ops->decache_cr0_guest_bits(vcpu);
 	return vcpu->arch.cr0 & mask;
 }
 

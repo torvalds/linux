@@ -1653,6 +1653,14 @@ static void vmx_flush_tlb(struct kvm_vcpu *vcpu)
 		ept_sync_context(construct_eptp(vcpu->arch.mmu.root_hpa));
 }
 
+static void vmx_decache_cr0_guest_bits(struct kvm_vcpu *vcpu)
+{
+	ulong cr0_guest_owned_bits = vcpu->arch.cr0_guest_owned_bits;
+
+	vcpu->arch.cr0 &= ~cr0_guest_owned_bits;
+	vcpu->arch.cr0 |= vmcs_readl(GUEST_CR0) & cr0_guest_owned_bits;
+}
+
 static void vmx_decache_cr4_guest_bits(struct kvm_vcpu *vcpu)
 {
 	ulong cr4_guest_owned_bits = vcpu->arch.cr4_guest_owned_bits;
@@ -4106,6 +4114,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.set_segment = vmx_set_segment,
 	.get_cpl = vmx_get_cpl,
 	.get_cs_db_l_bits = vmx_get_cs_db_l_bits,
+	.decache_cr0_guest_bits = vmx_decache_cr0_guest_bits,
 	.decache_cr4_guest_bits = vmx_decache_cr4_guest_bits,
 	.set_cr0 = vmx_set_cr0,
 	.set_cr3 = vmx_set_cr3,
