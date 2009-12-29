@@ -799,7 +799,7 @@ static void vmx_fpu_activate(struct kvm_vcpu *vcpu)
 		return;
 	vcpu->fpu_active = 1;
 	vmcs_clear_bits(GUEST_CR0, X86_CR0_TS);
-	if (vcpu->arch.cr0 & X86_CR0_TS)
+	if (kvm_read_cr0_bits(vcpu, X86_CR0_TS))
 		vmcs_set_bits(GUEST_CR0, X86_CR0_TS);
 	update_exception_bitmap(vcpu);
 }
@@ -1785,7 +1785,7 @@ static void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 
 	vmx_flush_tlb(vcpu);
 	vmcs_writel(GUEST_CR3, guest_cr3);
-	if (vcpu->arch.cr0 & X86_CR0_PE)
+	if (kvm_read_cr0_bits(vcpu, X86_CR0_PE))
 		vmx_fpu_deactivate(vcpu);
 }
 
@@ -1840,7 +1840,7 @@ static void vmx_get_segment(struct kvm_vcpu *vcpu,
 
 static int vmx_get_cpl(struct kvm_vcpu *vcpu)
 {
-	if (!(vcpu->arch.cr0 & X86_CR0_PE)) /* if real mode */
+	if (!kvm_read_cr0_bits(vcpu, X86_CR0_PE)) /* if real mode */
 		return 0;
 
 	if (vmx_get_rflags(vcpu) & X86_EFLAGS_VM) /* if virtual 8086 */
@@ -2095,7 +2095,7 @@ static bool cs_ss_rpl_check(struct kvm_vcpu *vcpu)
 static bool guest_state_valid(struct kvm_vcpu *vcpu)
 {
 	/* real mode guest state checks */
-	if (!(vcpu->arch.cr0 & X86_CR0_PE)) {
+	if (!kvm_read_cr0_bits(vcpu, X86_CR0_PE)) {
 		if (!rmode_segment_valid(vcpu, VCPU_SREG_CS))
 			return false;
 		if (!rmode_segment_valid(vcpu, VCPU_SREG_SS))
@@ -2580,7 +2580,7 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 		vmcs_write16(VIRTUAL_PROCESSOR_ID, vmx->vpid);
 
 	vmx->vcpu.arch.cr0 = X86_CR0_NW | X86_CR0_CD | X86_CR0_ET;
-	vmx_set_cr0(&vmx->vcpu, vmx->vcpu.arch.cr0); /* enter rmode */
+	vmx_set_cr0(&vmx->vcpu, kvm_read_cr0(vcpu)); /* enter rmode */
 	vmx_set_cr4(&vmx->vcpu, 0);
 	vmx_set_efer(&vmx->vcpu, 0);
 	vmx_fpu_activate(&vmx->vcpu);
@@ -2996,8 +2996,8 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 	case 2: /* clts */
 		vmx_fpu_deactivate(vcpu);
 		vcpu->arch.cr0 &= ~X86_CR0_TS;
-		vmcs_writel(CR0_READ_SHADOW, vcpu->arch.cr0);
-		trace_kvm_cr_write(0, vcpu->arch.cr0);
+		vmcs_writel(CR0_READ_SHADOW, kvm_read_cr0(vcpu));
+		trace_kvm_cr_write(0, kvm_read_cr0(vcpu));
 		vmx_fpu_activate(vcpu);
 		skip_emulated_instruction(vcpu);
 		return 1;
@@ -3018,7 +3018,7 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 		break;
 	case 3: /* lmsw */
 		val = (exit_qualification >> LMSW_SOURCE_DATA_SHIFT) & 0x0f;
-		trace_kvm_cr_write(0, (vcpu->arch.cr0 & ~0xful) | val);
+		trace_kvm_cr_write(0, (kvm_read_cr0(vcpu) & ~0xful) | val);
 		kvm_lmsw(vcpu, val);
 
 		skip_emulated_instruction(vcpu);

@@ -226,7 +226,7 @@ EXPORT_SYMBOL_GPL(kvm_mmu_set_mask_ptes);
 
 static int is_write_protection(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.cr0 & X86_CR0_WP;
+	return kvm_read_cr0_bits(vcpu, X86_CR0_WP);
 }
 
 static int is_cpuid_PSE36(void)

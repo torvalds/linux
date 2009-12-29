@@ -79,7 +79,7 @@ static inline int is_pse(struct kvm_vcpu *vcpu)
 
 static inline int is_paging(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.cr0 & X86_CR0_PG;
+	return kvm_read_cr0_bits(vcpu, X86_CR0_PG);
 }
 
 static inline int is_present_gpte(unsigned long pte)

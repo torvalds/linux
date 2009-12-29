@@ -980,7 +980,7 @@ static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	if (npt_enabled)
 		goto set;
 
-	if ((vcpu->arch.cr0 & X86_CR0_TS) && !(cr0 & X86_CR0_TS)) {
+	if (kvm_read_cr0_bits(vcpu, X86_CR0_TS) && !(cr0 & X86_CR0_TS)) {
 		svm->vmcb->control.intercept_exceptions &= ~(1 << NM_VECTOR);
 		vcpu->fpu_active = 1;
 	}
@@ -1244,7 +1244,7 @@ static int ud_interception(struct vcpu_svm *svm)
 static int nm_interception(struct vcpu_svm *svm)
 {
 	svm->vmcb->control.intercept_exceptions &= ~(1 << NM_VECTOR);
-	if (!(svm->vcpu.arch.cr0 & X86_CR0_TS))
+	if (!kvm_read_cr0_bits(&svm->vcpu, X86_CR0_TS))
 		svm->vmcb->save.cr0 &= ~X86_CR0_TS;
 	svm->vcpu.fpu_active = 1;
 
@@ -1743,7 +1743,7 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 	hsave->save.gdtr   = vmcb->save.gdtr;
 	hsave->save.idtr   = vmcb->save.idtr;
 	hsave->save.efer   = svm->vcpu.arch.shadow_efer;
-	hsave->save.cr0    = svm->vcpu.arch.cr0;
+	hsave->save.cr0    = kvm_read_cr0(&svm->vcpu);
 	hsave->save.cr4    = svm->vcpu.arch.cr4;
 	hsave->save.rflags = vmcb->save.rflags;
 	hsave->save.rip    = svm->next_rip;
@@ -2387,7 +2387,8 @@ static int handle_exit(struct kvm_vcpu *vcpu)
 
 	if (npt_enabled) {
 		int mmu_reload = 0;
-		if ((vcpu->arch.cr0 ^ svm->vmcb->save.cr0) & X86_CR0_PG) {
+		if ((kvm_read_cr0_bits(vcpu, X86_CR0_PG) ^ svm->vmcb->save.cr0)
+		    & X86_CR0_PG) {
 			svm_set_cr0(vcpu, svm->vmcb->save.cr0);
 			mmu_reload = 1;
 		}
