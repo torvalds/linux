@@ -64,7 +64,7 @@ int perf_header__write(struct perf_header *self, int fd, bool at_exit);
 int perf_header__add_attr(struct perf_header *self,
 			  struct perf_header_attr *attr);
 
-void perf_header__push_event(u64 id, const char *name);
+int perf_header__push_event(u64 id, const char *name);
 char *perf_header__find_event(u64 id);
 
 struct perf_header_attr *perf_header_attr__new(struct perf_event_attr *attr);

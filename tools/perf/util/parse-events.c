@@ -753,11 +753,11 @@ modifier:
 	return ret;
 }
 
-static void store_event_type(const char *orgname)
+static int store_event_type(const char *orgname)
 {
 	char filename[PATH_MAX], *c;
 	FILE *file;
-	int id;
+	int id, n;
 
 	sprintf(filename, "%s/", debugfs_path);
 	strncat(filename, orgname, strlen(orgname));
@@ -769,11 +769,14 @@ static void store_event_type(const char *orgname)
 
 	file = fopen(filename, "r");
 	if (!file)
-		return;
-	if (fscanf(file, "%i", &id) < 1)
-		die("cannot store event ID");
+		return 0;
+	n = fscanf(file, "%i", &id);
 	fclose(file);
-	perf_header__push_event(id, orgname);
+	if (n < 1) {
+		pr_err("cannot store event ID\n");
+		return -EINVAL;
+	}
+	return perf_header__push_event(id, orgname);
 }
 
 int parse_events(const struct option *opt __used, const char *str, int unset __used)
@@ -782,7 +785,8 @@ int parse_events(const struct option *opt __used, const char *str, int unset __u
 	enum event_result ret;
 
 	if (strchr(str, ':'))
-		store_event_type(str);
+		if (store_event_type(str) < 0)
+			return -1;
 
 	for (;;) {
 		if (nr_counters == MAX_COUNTERS)

@@ -105,24 +105,28 @@ struct perf_trace_event_type {
 static int event_count;
 static struct perf_trace_event_type *events;
 
-void perf_header__push_event(u64 id, const char *name)
+int perf_header__push_event(u64 id, const char *name)
 {
 	if (strlen(name) > MAX_EVENT_NAME)
 		pr_warning("Event %s will be truncated\n", name);
 
 	if (!events) {
 		events = malloc(sizeof(struct perf_trace_event_type));
-		if (!events)
-			die("nomem");
+		if (events == NULL)
+			return -ENOMEM;
 	} else {
-		events = realloc(events, (event_count + 1) * sizeof(struct perf_trace_event_type));
-		if (!events)
-			die("nomem");
+		struct perf_trace_event_type *nevents;
+
+		nevents = realloc(events, (event_count + 1) * sizeof(*events));
+		if (nevents == NULL)
+			return -ENOMEM;
+		events = nevents;
 	}
 	memset(&events[event_count], 0, sizeof(struct perf_trace_event_type));
 	events[event_count].event_id = id;
 	strncpy(events[event_count].name, name, MAX_EVENT_NAME - 1);
 	event_count++;
+	return 0;
 }
 
 char *perf_header__find_event(u64 id)
