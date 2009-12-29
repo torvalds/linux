@@ -34,6 +34,7 @@
 static char		const *input_name = "perf.data";
 
 static int		force;
+static bool		hide_unresolved;
 
 static int		show_threads;
 static struct perf_read_values	show_threads_values;
@@ -121,7 +122,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 		return -1;
 	}
 
-	if (al.filtered)
+	if (al.filtered || (hide_unresolved && al.sym == NULL))
 		return 0;
 
 	if (perf_session__add_hist_entry(session, &al, data.callchain, data.period)) {
@@ -342,6 +343,8 @@ static const struct option options[] = {
 	OPT_STRING('t', "field-separator", &symbol_conf.field_sep, "separator",
 		   "separator for columns, no spaces will be added between "
 		   "columns '.' is reserved."),
+	OPT_BOOLEAN('U', "hide-unresolved", &hide_unresolved,
+		    "Only display entries resolved to a symbol"),
 	OPT_END()
 };
 
