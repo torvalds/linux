@@ -520,6 +520,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	txrc.skb = tx->skb;
 	txrc.reported_rate.idx = -1;
 	txrc.max_rate_idx = tx->sdata->max_ratectrl_rateidx;
+	txrc.ap = tx->sdata->vif.type == NL80211_IFTYPE_AP;
 
 	/* set up RTS protection if desired */
 	if (len > tx->local->hw.wiphy->rts_threshold) {
@@ -2060,6 +2061,7 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 	struct beacon_data *beacon;
 	struct ieee80211_supported_band *sband;
 	enum ieee80211_band band = local->hw.conf.channel->band;
+	struct ieee80211_tx_rate_control txrc;
 
 	sband = local->hw.wiphy->bands[band];
 
@@ -2167,21 +2169,21 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 	info = IEEE80211_SKB_CB(skb);
 
 	info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	info->flags |= IEEE80211_TX_CTL_NO_ACK;
 	info->band = band;
-	/*
-	 * XXX: For now, always use the lowest rate
-	 */
-	info->control.rates[0].idx = 0;
-	info->control.rates[0].count = 1;
-	info->control.rates[1].idx = -1;
-	info->control.rates[2].idx = -1;
-	info->control.rates[3].idx = -1;
-	info->control.rates[4].idx = -1;
-	BUILD_BUG_ON(IEEE80211_TX_MAX_RATES != 5);
+
+	memset(&txrc, 0, sizeof(txrc));
+	txrc.hw = hw;
+	txrc.sband = sband;
+	txrc.bss_conf = &sdata->vif.bss_conf;
+	txrc.skb = skb;
+	txrc.reported_rate.idx = -1;
+	txrc.max_rate_idx = sdata->max_ratectrl_rateidx;
+	txrc.ap = true;
+	rate_control_get_rate(sdata, NULL, &txrc);
 
 	info->control.vif = vif;
 
-	info->flags |= IEEE80211_TX_CTL_NO_ACK;
 	info->flags |= IEEE80211_TX_CTL_CLEAR_PS_FILT;
 	info->flags |= IEEE80211_TX_CTL_ASSIGN_SEQ;
  out:

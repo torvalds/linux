@@ -207,6 +207,27 @@ static bool rc_no_data_or_no_ack(struct ieee80211_tx_rate_control *txrc)
 	return ((info->flags & IEEE80211_TX_CTL_NO_ACK) || !ieee80211_is_data(fc));
 }
 
+static void rc_send_low_broadcast(s8 *idx, u32 basic_rates, u8 max_rate_idx)
+{
+	u8 i;
+
+	if (basic_rates == 0)
+		return; /* assume basic rates unknown and accept rate */
+	if (*idx < 0)
+		return;
+	if (basic_rates & (1 << *idx))
+		return; /* selected rate is a basic rate */
+
+	for (i = *idx + 1; i <= max_rate_idx; i++) {
+		if (basic_rates & (1 << i)) {
+			*idx = i;
+			return;
+		}
+	}
+
+	/* could not find a basic rate; use original selection */
+}
+
 bool rate_control_send_low(struct ieee80211_sta *sta,
 			   void *priv_sta,
 			   struct ieee80211_tx_rate_control *txrc)
@@ -218,6 +239,10 @@ bool rate_control_send_low(struct ieee80211_sta *sta,
 		info->control.rates[0].count =
 			(info->flags & IEEE80211_TX_CTL_NO_ACK) ?
 			1 : txrc->hw->max_rate_tries;
+		if (!sta && txrc->ap)
+			rc_send_low_broadcast(&info->control.rates[0].idx,
+					      txrc->bss_conf->basic_rates,
+					      txrc->sband->n_bitrates);
 		return true;
 	}
 	return false;

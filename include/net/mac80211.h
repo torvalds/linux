@@ -2299,6 +2299,7 @@ enum rate_control_changed {
  * @max_rate_idx: user-requested maximum rate (not MCS for now)
  * @skb: the skb that will be transmitted, the control information in it needs
  *	to be filled in
+ * @ap: whether this frame is sent out in AP mode
  */
 struct ieee80211_tx_rate_control {
 	struct ieee80211_hw *hw;
@@ -2308,6 +2309,7 @@ struct ieee80211_tx_rate_control {
 	struct ieee80211_tx_rate reported_rate;
 	bool rts, short_preamble;
 	u8 max_rate_idx;
+	bool ap;
 };
 
 struct rate_control_ops {
