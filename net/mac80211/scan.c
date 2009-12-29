@@ -12,7 +12,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/wireless.h>
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
 #include <net/mac80211.h>

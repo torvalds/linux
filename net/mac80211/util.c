@@ -18,7 +18,6 @@
 #include <linux/skbuff.h>
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
-#include <linux/wireless.h>
 #include <linux/bitmap.h>
 #include <linux/crc32.h>
 #include <net/net_namespace.h>
