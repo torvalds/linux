@@ -768,12 +768,12 @@ start_here:
  */
 initial_mmu:
 	tlbia			/* Invalidate all TLB entries */
-#ifdef CONFIG_PIN_TLB
+/* Always pin the first 8 MB ITLB to prevent ITLB
+   misses while mucking around with SRR0/SRR1 in asm
+*/
 	lis	r8, MI_RSV4I@h
 	ori	r8, r8, 0x1c00
-#else
-	li	r8, 0
-#endif
+
 	mtspr	SPRN_MI_CTR, r8	/* Set instruction MMU control */
 
 #ifdef CONFIG_PIN_TLB
