@@ -3426,10 +3426,9 @@ rtl8192SU_ConfigAdapterInfo8192SForAutoLoadFail(struct net_device* dev)
 	write_nic_dword(dev, IDR0, ((u32*)dev->dev_addr)[0]);
 	write_nic_word(dev, IDR4, ((u16*)(dev->dev_addr + 4))[0]);
 
-	RT_TRACE(COMP_INIT, "ReadAdapterInfo8192SEFuse(), Permanent Address = %02x-%02x-%02x-%02x-%02x-%02x\n",
-			dev->dev_addr[0], dev->dev_addr[1],
-			dev->dev_addr[2], dev->dev_addr[3],
-			dev->dev_addr[4], dev->dev_addr[5]);
+	RT_TRACE(COMP_INIT,
+		"ReadAdapterInfo8192SEFuse(), Permanent Address = %pM\n",
+		dev->dev_addr);
 
 	priv->EEPROMBoardType = EEPROM_Default_BoardType;
 	priv->rf_type = RF_1T2R; //RF_2T2R
@@ -3767,10 +3766,9 @@ rtl8192SU_ReadAdapterInfo8192SUsb(struct net_device* dev)
 	write_nic_dword(dev, IDR0, ((u32*)dev->dev_addr)[0]);
 	write_nic_word(dev, IDR4, ((u16*)(dev->dev_addr + 4))[0]);
 
-	RT_TRACE(COMP_INIT, "ReadAdapterInfo8192SEFuse(), Permanent Address = %02x-%02x-%02x-%02x-%02x-%02x\n",
-			dev->dev_addr[0], dev->dev_addr[1],
-			dev->dev_addr[2], dev->dev_addr[3],
-			dev->dev_addr[4], dev->dev_addr[5]);
+	RT_TRACE(COMP_INIT,
+		"ReadAdapterInfo8192SEFuse(), Permanent Address = %pM\n",
+		dev->dev_addr);
 
 	//
 	// Get CustomerID(Boad Type)
