@@ -484,7 +484,7 @@ reiserfs_xattr_set_handle(struct reiserfs_transaction_handle *th,
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	down_write(&REISERFS_I(inode)->i_xattr_sem);
+	reiserfs_down_read_safe(&REISERFS_I(inode)->i_xattr_sem, inode->i_sb);
 
 	xahash = xattr_hash(buffer, buffer_size);
 	while (buffer_pos < buffer_size || buffer_pos == 0) {

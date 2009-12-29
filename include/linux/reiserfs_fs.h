@@ -106,6 +106,14 @@ reiserfs_mutex_lock_nested_safe(struct mutex *m, unsigned int subclass,
 	reiserfs_write_lock(s);
 }
 
+static inline void
+reiserfs_down_read_safe(struct rw_semaphore *sem, struct super_block *s)
+{
+	reiserfs_write_unlock(s);
+	down_read(sem);
+	reiserfs_write_lock(s);
+}
+
 /*
  * When we schedule, we usually want to also release the write lock,
  * according to the previous bkl based locking scheme of reiserfs.
