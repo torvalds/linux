@@ -450,14 +450,14 @@ int init_syscall_trace(struct ftrace_event_call *call)
 	if (set_syscall_print_fmt(call) < 0)
 		return -ENOMEM;
 
-	id = register_ftrace_event(call->event);
-	if (!id) {
+	id = trace_event_raw_init(call);
+
+	if (id < 0) {
 		free_syscall_print_fmt(call);
-		return -ENODEV;
+		return id;
 	}
-	call->id = id;
-	INIT_LIST_HEAD(&call->fields);
-	return 0;
+
+	return id;
 }
 
 int __init init_ftrace_syscalls(void)
