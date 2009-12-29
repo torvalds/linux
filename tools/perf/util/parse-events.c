@@ -835,11 +835,12 @@ int parse_filter(const struct option *opt __used, const char *str,
 }
 
 static const char * const event_type_descriptors[] = {
-	"",
 	"Hardware event",
 	"Software event",
 	"Tracepoint event",
 	"Hardware cache event",
+	"Raw hardware event descriptor",
+	"Hardware breakpoint",
 };
 
 /*
@@ -872,7 +873,7 @@ static void print_tracepoint_events(void)
 			snprintf(evt_path, MAXPATHLEN, "%s:%s",
 				 sys_dirent.d_name, evt_dirent.d_name);
 			printf("  %-42s [%s]\n", evt_path,
-				event_type_descriptors[PERF_TYPE_TRACEPOINT+1]);
+				event_type_descriptors[PERF_TYPE_TRACEPOINT]);
 		}
 		closedir(evt_dir);
 	}
@@ -892,9 +893,7 @@ void print_events(void)
 	printf("List of pre-defined events (to be used in -e):\n");
 
 	for (i = 0; i < ARRAY_SIZE(event_symbols); i++, syms++) {
-		type = syms->type + 1;
-		if (type >= ARRAY_SIZE(event_type_descriptors))
-			type = 0;
+		type = syms->type;
 
 		if (type != prev_type)
 			printf("\n");
@@ -919,17 +918,19 @@ void print_events(void)
 			for (i = 0; i < PERF_COUNT_HW_CACHE_RESULT_MAX; i++) {
 				printf("  %-42s [%s]\n",
 					event_cache_name(type, op, i),
-					event_type_descriptors[4]);
+					event_type_descriptors[PERF_TYPE_HW_CACHE]);
 			}
 		}
 	}
 
 	printf("\n");
-	printf("  %-42s [raw hardware event descriptor]\n",
-		"rNNN");
+	printf("  %-42s [%s]\n",
+		"rNNN", event_type_descriptors[PERF_TYPE_RAW]);
 	printf("\n");
 
-	printf("  %-42s [hardware breakpoint]\n", "mem:<addr>[:access]");
+	printf("  %-42s [%s]\n",
+			"mem:<addr>[:access]",
+			event_type_descriptors[PERF_TYPE_BREAKPOINT]);
 	printf("\n");
 
 	print_tracepoint_events();
