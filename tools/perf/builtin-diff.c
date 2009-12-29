@@ -51,12 +51,12 @@ static int diff__process_sample_event(event_t *event, struct perf_session *sessi
 		return -1;
 	}
 
-	if (al.filtered)
+	if (al.filtered || al.sym == NULL)
 		return 0;
 
 	event__parse_sample(event, session->sample_type, &data);
 
-	if (al.sym && perf_session__add_hist_entry(session, &al, data.period)) {
+	if (perf_session__add_hist_entry(session, &al, data.period)) {
 		pr_warning("problem incrementing symbol count, skipping event\n");
 		return -1;
 	}
