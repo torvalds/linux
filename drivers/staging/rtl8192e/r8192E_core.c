@@ -2814,10 +2814,7 @@ static void rtl8192_read_eeprom_info(struct net_device* dev)
 		memcpy(dev->dev_addr, bMac_Tmp_Addr, 6);
 	}
 
-	RT_TRACE(COMP_INIT, "Permanent Address = %02x-%02x-%02x-%02x-%02x-%02x\n",
-			dev->dev_addr[0], dev->dev_addr[1],
-			dev->dev_addr[2], dev->dev_addr[3],
-			dev->dev_addr[4], dev->dev_addr[5]);
+	RT_TRACE(COMP_INIT, "Permanent Address = %pM\n", dev->dev_addr);
 
 		//2 TX Power Check EEPROM Fail or not
 	if(priv->card_8192_version > VERSION_8190_BD) {
