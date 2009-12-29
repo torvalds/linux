@@ -970,13 +970,14 @@ static int runtime_suspend(struct device *dev)
 	return rc;
 }
 
-static void runtime_resume(struct device *dev)
+static int runtime_resume(struct device *dev)
 {
 	int rc;
 
 	down(&dev->sem);
 	rc = pcmcia_dev_resume(dev);
 	up(&dev->sem);
+	return rc;
 }
 
 /************************ per-device sysfs output ***************************/
@@ -1027,7 +1028,7 @@ static ssize_t pcmcia_store_pm_state(struct device *dev, struct device_attribute
 	if ((!p_dev->suspended) && !strncmp(buf, "off", 3))
 		ret = runtime_suspend(dev);
 	else if (p_dev->suspended && !strncmp(buf, "on", 2))
-		runtime_resume(dev);
+		ret = runtime_resume(dev);
 
 	return ret ? ret : count;
 }
