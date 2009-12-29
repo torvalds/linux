@@ -185,18 +185,14 @@ static void ir_delete_key(struct ir_scancode_table *rc_tab, int elem)
 	int newsize = rc_tab->size - 1;
 	int resize = ir_is_resize_needed(rc_tab, newsize);
 	struct ir_scancode *oldkeymap = rc_tab->scan;
-	struct ir_scancode *newkeymap;
+	struct ir_scancode *newkeymap = NULL;
 
-	if (resize) {
+	if (resize)
 		newkeymap = kzalloc(ir_roundup_tablesize(newsize) *
 				    sizeof(*newkeymap), GFP_ATOMIC);
 
-		/* There's no memory for resize. Keep the old table */
-		if (!newkeymap)
-			resize = 0;
-	}
-
-	if (!resize) {
+	/* There's no memory for resize. Keep the old table */
+	if (!resize || !newkeymap) {
 		newkeymap = oldkeymap;
 
 		/* We'll modify the live table. Lock it */
