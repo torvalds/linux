@@ -1153,11 +1153,11 @@ pci_disable_device(struct pci_dev *dev)
 
 /**
  * pcibios_set_pcie_reset_state - set reset state for device dev
- * @dev: the PCI-E device reset
+ * @dev: the PCIe device reset
  * @state: Reset state to enter into
  *
  *
- * Sets the PCI-E reset state for the device. This is the default
+ * Sets the PCIe reset state for the device. This is the default
  * implementation. Architecture implementations can override this.
  */
 int __attribute__ ((weak)) pcibios_set_pcie_reset_state(struct pci_dev *dev,
@@ -1168,7 +1168,7 @@ int __attribute__ ((weak)) pcibios_set_pcie_reset_state(struct pci_dev *dev,
 
 /**
  * pci_set_pcie_reset_state - set reset state for device dev
- * @dev: the PCI-E device reset
+ * @dev: the PCIe device reset
  * @state: Reset state to enter into
  *
  *
@@ -2284,6 +2284,21 @@ static int pci_parent_bus_reset(struct pci_dev *dev, int probe)
 	return 0;
 }
 
+static int pci_dev_specific_reset(struct pci_dev *dev, int probe)
+{
+	struct pci_dev_reset_methods *i;
+
+	for (i = pci_dev_reset_methods; i->reset; i++) {
+		if ((i->vendor == dev->vendor ||
+		     i->vendor == (u16)PCI_ANY_ID) &&
+		    (i->device == dev->device ||
+		     i->device == (u16)PCI_ANY_ID))
+			return i->reset(dev, probe);
+	}
+
+	return -ENOTTY;
+}
+
 static int pci_dev_reset(struct pci_dev *dev, int probe)
 {
 	int rc;
@@ -2295,6 +2310,10 @@ static int pci_dev_reset(struct pci_dev *dev, int probe)
 		/* block PM suspend, driver probe, etc. */
 		down(&dev->dev.sem);
 	}
+
+	rc = pci_dev_specific_reset(dev, probe);
+	if (rc != -ENOTTY)
+		goto done;
 
 	rc = pcie_flr(dev, probe);
 	if (rc != -ENOTTY)
@@ -2778,6 +2797,11 @@ int __attribute__ ((weak)) pci_ext_cfg_avail(struct pci_dev *dev)
 {
 	return 1;
 }
+
+void __weak pci_fixup_cardbus(struct pci_bus *bus)
+{
+}
+EXPORT_SYMBOL(pci_fixup_cardbus);
 
 static int __init pci_setup(char *str)
 {

@@ -103,7 +103,7 @@ I.2 libpciaccess
 ----------------
 
 To use the vga arbiter char device it was implemented an API inside the
-libpciaccess library. One fieldd was added to struct pci_device (each device
+libpciaccess library. One field was added to struct pci_device (each device
 on the system):
 
     /* the type of resource decoded by the device */
