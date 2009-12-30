@@ -803,12 +803,20 @@ static void vmx_fpu_activate(struct kvm_vcpu *vcpu)
 	if (kvm_read_cr0_bits(vcpu, X86_CR0_TS))
 		vmcs_set_bits(GUEST_CR0, X86_CR0_TS);
 	update_exception_bitmap(vcpu);
+	vcpu->arch.cr0_guest_owned_bits = X86_CR0_TS;
+	vmcs_writel(CR0_GUEST_HOST_MASK, ~vcpu->arch.cr0_guest_owned_bits);
 }
+
+static void vmx_decache_cr0_guest_bits(struct kvm_vcpu *vcpu);
 
 static void vmx_fpu_deactivate(struct kvm_vcpu *vcpu)
 {
+	vmx_decache_cr0_guest_bits(vcpu);
 	vmcs_set_bits(GUEST_CR0, X86_CR0_TS);
 	update_exception_bitmap(vcpu);
+	vcpu->arch.cr0_guest_owned_bits = 0;
+	vmcs_writel(CR0_GUEST_HOST_MASK, ~vcpu->arch.cr0_guest_owned_bits);
+	vmcs_writel(CR0_READ_SHADOW, vcpu->arch.cr0);
 }
 
 static unsigned long vmx_get_rflags(struct kvm_vcpu *vcpu)
@@ -2996,8 +3004,7 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 		};
 		break;
 	case 2: /* clts */
-		vcpu->arch.cr0 &= ~X86_CR0_TS;
-		vmcs_writel(CR0_READ_SHADOW, kvm_read_cr0(vcpu));
+		vmx_set_cr0(vcpu, kvm_read_cr0_bits(vcpu, ~X86_CR0_TS));
 		trace_kvm_cr_write(0, kvm_read_cr0(vcpu));
 		skip_emulated_instruction(vcpu);
 		return 1;
