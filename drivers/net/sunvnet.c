@@ -1062,10 +1062,7 @@ static struct vnet * __devinit vnet_new(const u64 *local_mac)
 		goto err_out_free_dev;
 	}
 
-	printk(KERN_INFO "%s: Sun LDOM vnet ", dev->name);
-
-	for (i = 0; i < 6; i++)
-		printk("%2.2x%c", dev->dev_addr[i], i == 5 ? '\n' : ':');
+	printk(KERN_INFO "%s: Sun LDOM vnet %pM\n", dev->name, dev->dev_addr);
 
 	list_add(&vp->list, &vnet_list);
 
