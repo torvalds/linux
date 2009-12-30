@@ -32,6 +32,8 @@
 #include <linux/hw_breakpoint.h>
 #include <asm/hw_breakpoint.h>
 
+#include <asm/atomic.h>
+
 /*
  * For now, let us restrict the no. of symbols traced simultaneously to number
  * of available hardware breakpoint registers.
@@ -44,7 +46,7 @@ struct trace_ksym {
 	struct perf_event	**ksym_hbp;
 	struct perf_event_attr	attr;
 #ifdef CONFIG_PROFILE_KSYM_TRACER
-	unsigned long		counter;
+	atomic64_t		counter;
 #endif
 	struct hlist_node	ksym_hlist;
 };
@@ -69,9 +71,8 @@ void ksym_collect_stats(unsigned long hbp_hit_addr)
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(entry, node, &ksym_filter_head, ksym_hlist) {
-		if ((entry->attr.bp_addr == hbp_hit_addr) &&
-		    (entry->counter <= MAX_UL_INT)) {
-			entry->counter++;
+		if (entry->attr.bp_addr == hbp_hit_addr) {
+			atomic64_inc(&entry->counter);
 			break;
 		}
 	}
@@ -501,7 +502,8 @@ static int ksym_tracer_stat_show(struct seq_file *m, void *v)
 		seq_printf(m, "  %-36s", fn_name);
 	else
 		seq_printf(m, "  %-36s", "<NA>");
-	seq_printf(m, " %15lu\n", entry->counter);
+	seq_printf(m, " %15llu\n",
+		   (unsigned long long)atomic64_read(&entry->counter));
 
 	return 0;
 }
