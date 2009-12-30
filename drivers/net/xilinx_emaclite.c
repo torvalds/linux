@@ -925,11 +925,7 @@ static int __devinit xemaclite_of_probe(struct of_device *ofdev,
 	/* Set the MAC address in the EmacLite device */
 	xemaclite_set_mac_address(lp, ndev->dev_addr);
 
-	dev_info(dev,
-		 "MAC address is now %2x:%2x:%2x:%2x:%2x:%2x\n",
-		 ndev->dev_addr[0], ndev->dev_addr[1],
-		 ndev->dev_addr[2], ndev->dev_addr[3],
-		 ndev->dev_addr[4], ndev->dev_addr[5]);
+	dev_info(dev, "MAC address is now %pM\n", ndev->dev_addr);
 
 	ndev->netdev_ops = &xemaclite_netdev_ops;
 	ndev->flags &= ~IFF_MULTICAST;
