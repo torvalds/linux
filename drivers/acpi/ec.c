@@ -535,7 +535,8 @@ static int acpi_ec_sync_query(struct acpi_ec *ec)
 				return -ENOMEM;
 			memcpy(copy, handler, sizeof(*copy));
 			pr_debug(PREFIX "push query execution (0x%2x) on queue\n", value);
-			return acpi_os_execute(OSL_GPE_HANDLER,
+			return acpi_os_execute((copy->func) ?
+				OSL_NOTIFY_HANDLER : OSL_GPE_HANDLER,
 				acpi_ec_run, copy);
 		}
 	}
