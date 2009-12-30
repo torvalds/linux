@@ -107,6 +107,9 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 	if (scan_chan) {
 		chan = scan_chan;
 		channel_type = NL80211_CHAN_NO_HT;
+	} else if (local->tmp_channel) {
+		chan = scan_chan = local->tmp_channel;
+		channel_type = local->tmp_channel_type;
 	} else {
 		chan = local->oper_channel;
 		channel_type = local->oper_channel_type;
@@ -212,7 +215,7 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
-		if (local->quiescing || !netif_running(sdata->dev) ||
+		if (local->quiescing || !ieee80211_sdata_running(sdata) ||
 		    test_bit(SCAN_SW_SCANNING, &local->scanning)) {
 			sdata->vif.bss_conf.enable_beacon = false;
 		} else {
@@ -359,9 +362,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 			WIPHY_FLAG_4ADDR_STATION;
 	wiphy->privid = mac80211_wiphy_privid;
 
-	/* Yes, putting cfg80211_bss into ieee80211_bss is a hack */
-	wiphy->bss_priv_size = sizeof(struct ieee80211_bss) -
-			       sizeof(struct cfg80211_bss);
+	wiphy->bss_priv_size = sizeof(struct ieee80211_bss);
 
 	local = wiphy_priv(wiphy);
 
@@ -394,6 +395,8 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	spin_lock_init(&local->queue_stop_reason_lock);
 
 	INIT_DELAYED_WORK(&local->scan_work, ieee80211_scan_work);
+
+	ieee80211_work_init(local);
 
 	INIT_WORK(&local->restart_work, ieee80211_restart_work);
 

@@ -270,6 +270,31 @@
  * @NL80211_CMD_SET_WIPHY_NETNS: Set a wiphy's netns. Note that all devices
  *	associated with this wiphy must be down and will follow.
  *
+ * @NL80211_CMD_REMAIN_ON_CHANNEL: Request to remain awake on the specified
+ *	channel for the specified amount of time. This can be used to do
+ *	off-channel operations like transmit a Public Action frame and wait for
+ *	a response while being associated to an AP on another channel.
+ *	%NL80211_ATTR_WIPHY or %NL80211_ATTR_IFINDEX is used to specify which
+ *	radio is used. %NL80211_ATTR_WIPHY_FREQ is used to specify the
+ *	frequency for the operation and %NL80211_ATTR_WIPHY_CHANNEL_TYPE may be
+ *	optionally used to specify additional channel parameters.
+ *	%NL80211_ATTR_DURATION is used to specify the duration in milliseconds
+ *	to remain on the channel. This command is also used as an event to
+ *	notify when the requested duration starts (it may take a while for the
+ *	driver to schedule this time due to other concurrent needs for the
+ *	radio).
+ *	When called, this operation returns a cookie (%NL80211_ATTR_COOKIE)
+ *	that will be included with any events pertaining to this request;
+ *	the cookie is also used to cancel the request.
+ * @NL80211_CMD_CANCEL_REMAIN_ON_CHANNEL: This command can be used to cancel a
+ *	pending remain-on-channel duration if the desired operation has been
+ *	completed prior to expiration of the originally requested duration.
+ *	%NL80211_ATTR_WIPHY or %NL80211_ATTR_IFINDEX is used to specify the
+ *	radio. The %NL80211_ATTR_COOKIE attribute must be given as well to
+ *	uniquely identify the request.
+ *	This command is also used as an event to notify when a requested
+ *	remain-on-channel duration has expired.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -352,6 +377,9 @@ enum nl80211_commands {
 	NL80211_CMD_SET_PMKSA,
 	NL80211_CMD_DEL_PMKSA,
 	NL80211_CMD_FLUSH_PMKSA,
+
+	NL80211_CMD_REMAIN_ON_CHANNEL,
+	NL80211_CMD_CANCEL_REMAIN_ON_CHANNEL,
 
 	/* add new commands above here */
 
@@ -606,6 +634,10 @@ enum nl80211_commands {
  * @NL80211_ATTR_MAX_NUM_PMKIDS: maximum number of PMKIDs a firmware can
  *	cache, a wiphy attribute.
  *
+ * @NL80211_ATTR_DURATION: Duration of an operation in milliseconds, u32.
+ *
+ * @NL80211_ATTR_COOKIE: Generic 64-bit cookie to identify objects.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -742,6 +774,10 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_PMKID,
 	NL80211_ATTR_MAX_NUM_PMKIDS,
+
+	NL80211_ATTR_DURATION,
+
+	NL80211_ATTR_COOKIE,
 
 	/* add attributes here, update the policy in nl80211.c */
 

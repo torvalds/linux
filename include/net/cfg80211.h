@@ -988,6 +988,15 @@ struct cfg80211_pmksa {
  *
  * @dump_survey: get site survey information.
  *
+ * @remain_on_channel: Request the driver to remain awake on the specified
+ *	channel for the specified duration to complete an off-channel
+ *	operation (e.g., public action frame exchange). When the driver is
+ *	ready on the requested channel, it must indicate this with an event
+ *	notification by calling cfg80211_ready_on_channel().
+ * @cancel_remain_on_channel: Cancel an on-going remain-on-channel operation.
+ *	This allows the operation to be terminated prior to timeout based on
+ *	the duration value.
+ *
  * @testmode_cmd: run a test mode command
  *
  * @set_pmksa: Cache a PMKID for a BSSID. This is mostly useful for fullmac
@@ -1122,6 +1131,16 @@ struct cfg80211_ops {
 	int	(*del_pmksa)(struct wiphy *wiphy, struct net_device *netdev,
 			     struct cfg80211_pmksa *pmksa);
 	int	(*flush_pmksa)(struct wiphy *wiphy, struct net_device *netdev);
+
+	int	(*remain_on_channel)(struct wiphy *wiphy,
+				     struct net_device *dev,
+				     struct ieee80211_channel *chan,
+				     enum nl80211_channel_type channel_type,
+				     unsigned int duration,
+				     u64 *cookie);
+	int	(*cancel_remain_on_channel)(struct wiphy *wiphy,
+					    struct net_device *dev,
+					    u64 cookie);
 
 	/* some temporary stuff to finish wext */
 	int	(*set_power_mgmt)(struct wiphy *wiphy, struct net_device *dev,
@@ -2147,5 +2166,45 @@ void cfg80211_roamed(struct net_device *dev, const u8 *bssid,
 void cfg80211_disconnected(struct net_device *dev, u16 reason,
 			   u8 *ie, size_t ie_len, gfp_t gfp);
 
+/**
+ * cfg80211_ready_on_channel - notification of remain_on_channel start
+ * @dev: network device
+ * @cookie: the request cookie
+ * @chan: The current channel (from remain_on_channel request)
+ * @channel_type: Channel type
+ * @duration: Duration in milliseconds that the driver intents to remain on the
+ *	channel
+ * @gfp: allocation flags
+ */
+void cfg80211_ready_on_channel(struct net_device *dev, u64 cookie,
+			       struct ieee80211_channel *chan,
+			       enum nl80211_channel_type channel_type,
+			       unsigned int duration, gfp_t gfp);
+
+/**
+ * cfg80211_remain_on_channel_expired - remain_on_channel duration expired
+ * @dev: network device
+ * @cookie: the request cookie
+ * @chan: The current channel (from remain_on_channel request)
+ * @channel_type: Channel type
+ * @gfp: allocation flags
+ */
+void cfg80211_remain_on_channel_expired(struct net_device *dev,
+					u64 cookie,
+					struct ieee80211_channel *chan,
+					enum nl80211_channel_type channel_type,
+					gfp_t gfp);
+
+
+/**
+ * cfg80211_new_sta - notify userspace about station
+ *
+ * @dev: the netdev
+ * @mac_addr: the station's address
+ * @sinfo: the station information
+ * @gfp: allocation flags
+ */
+void cfg80211_new_sta(struct net_device *dev, const u8 *mac_addr,
+		      struct station_info *sinfo, gfp_t gfp);
 
 #endif /* __NET_CFG80211_H */

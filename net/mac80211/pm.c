@@ -10,7 +10,6 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_if_init_conf conf;
 	struct sta_info *sta;
 	unsigned long flags;
 
@@ -93,17 +92,14 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 			break;
 		}
 
-		if (!netif_running(sdata->dev))
+		if (!ieee80211_sdata_running(sdata))
 			continue;
 
 		/* disable beaconing */
 		ieee80211_bss_info_change_notify(sdata,
 			BSS_CHANGED_BEACON_ENABLED);
 
-		conf.vif = &sdata->vif;
-		conf.type = sdata->vif.type;
-		conf.mac_addr = sdata->vif.addr;
-		drv_remove_interface(local, &conf);
+		drv_remove_interface(local, &sdata->vif);
 	}
 
 	/* stop hardware - this must stop RX */

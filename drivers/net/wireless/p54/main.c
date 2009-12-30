@@ -216,7 +216,7 @@ static void p54_stop(struct ieee80211_hw *dev)
 }
 
 static int p54_add_interface(struct ieee80211_hw *dev,
-			     struct ieee80211_if_init_conf *conf)
+			     struct ieee80211_vif *vif)
 {
 	struct p54_common *priv = dev->priv;
 
@@ -226,28 +226,28 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 		return -EOPNOTSUPP;
 	}
 
-	priv->vif = conf->vif;
+	priv->vif = vif;
 
-	switch (conf->type) {
+	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_MESH_POINT:
-		priv->mode = conf->type;
+		priv->mode = vif->type;
 		break;
 	default:
 		mutex_unlock(&priv->conf_mutex);
 		return -EOPNOTSUPP;
 	}
 
-	memcpy(priv->mac_addr, conf->mac_addr, ETH_ALEN);
+	memcpy(priv->mac_addr, vif->addr, ETH_ALEN);
 	p54_setup_mac(priv);
 	mutex_unlock(&priv->conf_mutex);
 	return 0;
 }
 
 static void p54_remove_interface(struct ieee80211_hw *dev,
-				 struct ieee80211_if_init_conf *conf)
+				 struct ieee80211_vif *vif)
 {
 	struct p54_common *priv = dev->priv;
 

@@ -229,6 +229,10 @@ int wl1271_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		goto out_free_memmap;
 
+	ret = wl1271_acx_dco_itrim_params(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
 	/* Initialize connection monitoring thresholds */
 	ret = wl1271_acx_conn_monit_params(wl);
 	if (ret < 0)
@@ -280,12 +284,12 @@ int wl1271_hw_init(struct wl1271 *wl)
 		goto out_free_memmap;
 
 	/* Configure TX rate classes */
-	ret = wl1271_acx_rate_policies(wl, CONF_TX_RATE_MASK_ALL);
+	ret = wl1271_acx_rate_policies(wl);
 	if (ret < 0)
 		goto out_free_memmap;
 
 	/* Enable data path */
-	ret = wl1271_cmd_data_path(wl, wl->channel, 1);
+	ret = wl1271_cmd_data_path(wl, 1);
 	if (ret < 0)
 		goto out_free_memmap;
 
@@ -299,8 +303,8 @@ int wl1271_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		goto out_free_memmap;
 
-	/* Configure smart reflex */
-	ret = wl1271_acx_smart_reflex(wl);
+	/* configure PM */
+	ret = wl1271_acx_pm_config(wl);
 	if (ret < 0)
 		goto out_free_memmap;
 

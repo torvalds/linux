@@ -289,7 +289,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 		if (sdata->u.mntr_flags & MONITOR_FLAG_COOK_FRAMES)
 			continue;
 
-		if (!netif_running(sdata->dev))
+		if (!ieee80211_sdata_running(sdata))
 			continue;
 
 		if (prev_dev) {
@@ -1945,12 +1945,17 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_sub_if_data *sdata = rx->sdata;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) rx->skb->data;
+	ieee80211_rx_result rxs;
 
 	if (!(rx->flags & IEEE80211_RX_RA_MATCH))
 		return RX_DROP_MONITOR;
 
 	if (ieee80211_drop_unencrypted(rx, mgmt->frame_control))
 		return RX_DROP_MONITOR;
+
+	rxs = ieee80211_work_rx_mgmt(rx->sdata, rx->skb);
+	if (rxs != RX_CONTINUE)
+		return rxs;
 
 	if (ieee80211_vif_is_mesh(&sdata->vif))
 		return ieee80211_mesh_rx_mgmt(sdata, rx->skb);
@@ -2056,7 +2061,7 @@ static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx,
 	skb->protocol = htons(ETH_P_802_2);
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (!netif_running(sdata->dev))
+		if (!ieee80211_sdata_running(sdata))
 			continue;
 
 		if (sdata->vif.type != NL80211_IFTYPE_MONITOR ||
@@ -2318,7 +2323,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	}
 	if (!found_sta) {
 		list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-			if (!netif_running(sdata->dev))
+			if (!ieee80211_sdata_running(sdata))
 				continue;
 
 			if (sdata->vif.type == NL80211_IFTYPE_MONITOR ||

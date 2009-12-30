@@ -54,12 +54,12 @@ config RT61PCI
 	  When compiled as a module, this driver will be called rt61pci.
 
 config RT2800PCI_PCI
-	tristate
+	boolean
 	depends on PCI
 	default y
 
 config RT2800PCI_SOC
-	tristate
+	boolean
 	depends on RALINK_RT288X || RALINK_RT305X
 	default y
 

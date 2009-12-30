@@ -121,6 +121,11 @@ static int wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 	pad = pad - skb->len;
 	tx_attr |= pad << TX_HW_ATTR_OFST_LAST_WORD_PAD;
 
+	/* if the packets are destined for AP (have a STA entry) send them
+	   with AP rate policies, otherwise use default basic rates */
+	if (control->control.sta)
+		tx_attr |= ACX_TX_AP_FULL_RATE << TX_HW_ATTR_OFST_RATE_POLICY;
+
 	desc->tx_attr = cpu_to_le16(tx_attr);
 
 	wl1271_debug(DEBUG_TX, "tx_fill_hdr: pad: %d", pad);
@@ -214,17 +219,49 @@ static int wl1271_tx_frame(struct wl1271 *wl, struct sk_buff *skb)
 	return ret;
 }
 
+static u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set)
+{
+	struct ieee80211_supported_band *band;
+	u32 enabled_rates = 0;
+	int bit;
+
+	band = wl->hw->wiphy->bands[wl->band];
+	for (bit = 0; bit < band->n_bitrates; bit++) {
+		if (rate_set & 0x1)
+			enabled_rates |= band->bitrates[bit].hw_value;
+		rate_set >>= 1;
+	}
+
+	return enabled_rates;
+}
+
 void wl1271_tx_work(struct work_struct *work)
 {
 	struct wl1271 *wl = container_of(work, struct wl1271, tx_work);
 	struct sk_buff *skb;
 	bool woken_up = false;
+	u32 sta_rates = 0;
 	int ret;
+
+	/* check if the rates supported by the AP have changed */
+	if (unlikely(test_and_clear_bit(WL1271_FLAG_STA_RATES_CHANGED,
+					&wl->flags))) {
+		unsigned long flags;
+		spin_lock_irqsave(&wl->wl_lock, flags);
+		sta_rates = wl->sta_rate_set;
+		spin_unlock_irqrestore(&wl->wl_lock, flags);
+	}
 
 	mutex_lock(&wl->mutex);
 
 	if (unlikely(wl->state == WL1271_STATE_OFF))
 		goto out;
+
+	/* if rates have changed, re-configure the rate policy */
+	if (unlikely(sta_rates)) {
+		wl->rate_set = wl1271_tx_enabled_rates_get(wl, sta_rates);
+		wl1271_acx_rate_policies(wl);
+	}
 
 	while ((skb = skb_dequeue(&wl->tx_queue))) {
 		if (!woken_up) {
@@ -240,18 +277,18 @@ void wl1271_tx_work(struct work_struct *work)
 			wl1271_debug(DEBUG_TX, "tx_work: fw buffer full, "
 				     "stop queues");
 			ieee80211_stop_queues(wl->hw);
-			wl->tx_queue_stopped = true;
+			set_bit(WL1271_FLAG_TX_QUEUE_STOPPED, &wl->flags);
 			skb_queue_head(&wl->tx_queue, skb);
 			goto out;
 		} else if (ret < 0) {
 			dev_kfree_skb(skb);
 			goto out;
-		} else if (wl->tx_queue_stopped) {
+		} else if (test_and_clear_bit(WL1271_FLAG_TX_QUEUE_STOPPED,
+					      &wl->flags)) {
 			/* firmware buffer has space, restart queues */
 			wl1271_debug(DEBUG_TX,
 				     "complete_packet: waking queues");
 			ieee80211_wake_queues(wl->hw);
-			wl->tx_queue_stopped = false;
 		}
 	}
 

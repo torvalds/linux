@@ -37,7 +37,7 @@
 #include <linux/module.h>
 
 #include "rt2x00.h"
-#if defined(CONFIG_RT2800USB) || defined(CONFIG_RT2800USB_MODULE)
+#if defined(CONFIG_RT2X00_LIB_USB) || defined(CONFIG_RT2X00_LIB_USB_MODULE)
 #include "rt2x00usb.h"
 #endif
 #include "rt2800lib.h"
@@ -220,8 +220,7 @@ void rt2800_mcu_request(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * RT2880 and RT3052 don't support MCU requests.
 	 */
-	if (rt2x00_rt(&rt2x00dev->chip, RT2880) ||
-	    rt2x00_rt(&rt2x00dev->chip, RT3052))
+	if (rt2x00_rt(rt2x00dev, RT2880) || rt2x00_rt(rt2x00dev, RT3052))
 		return;
 
 	mutex_lock(&rt2x00dev->csr_mutex);
@@ -806,12 +805,12 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	unsigned int tx_pin;
 	u8 bbp;
 
-	if ((rt2x00_rt(&rt2x00dev->chip, RT3070) ||
-	     rt2x00_rt(&rt2x00dev->chip, RT3090)) &&
-	    (rt2x00_rf(&rt2x00dev->chip, RF2020) ||
-	     rt2x00_rf(&rt2x00dev->chip, RF3020) ||
-	     rt2x00_rf(&rt2x00dev->chip, RF3021) ||
-	     rt2x00_rf(&rt2x00dev->chip, RF3022)))
+	if ((rt2x00_rt(rt2x00dev, RT3070) ||
+	     rt2x00_rt(rt2x00dev, RT3090)) &&
+	    (rt2x00_rf(rt2x00dev, RF2020) ||
+	     rt2x00_rf(rt2x00dev, RF3020) ||
+	     rt2x00_rf(rt2x00dev, RF3021) ||
+	     rt2x00_rf(rt2x00dev, RF3022)))
 		rt2800_config_channel_rt3x(rt2x00dev, conf, rf, info);
 	else
 		rt2800_config_channel_rt2x(rt2x00dev, conf, rf, info);
@@ -878,7 +877,7 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field8(&bbp, BBP3_HT40_PLUS, conf_is_ht40_plus(conf));
 	rt2800_bbp_write(rt2x00dev, 3, bbp);
 
-	if (rt2x00_rev(&rt2x00dev->chip) == RT2860C_VERSION) {
+	if (rt2x00_rev(rt2x00dev) == RT2860C_VERSION) {
 		if (conf_is_ht40(conf)) {
 			rt2800_bbp_write(rt2x00dev, 69, 0x1a);
 			rt2800_bbp_write(rt2x00dev, 70, 0x0a);
@@ -1041,7 +1040,7 @@ static u8 rt2800_get_default_vgc(struct rt2x00_dev *rt2x00dev)
 {
 	if (rt2x00dev->curr_band == IEEE80211_BAND_2GHZ) {
 		if (rt2x00_intf_is_usb(rt2x00dev) &&
-		    rt2x00_rev(&rt2x00dev->chip) == RT3070_VERSION)
+		    rt2x00_rev(rt2x00dev) == RT3070_VERSION)
 			return 0x1c + (2 * rt2x00dev->lna_gain);
 		else
 			return 0x2e + rt2x00dev->lna_gain;
@@ -1072,7 +1071,7 @@ EXPORT_SYMBOL_GPL(rt2800_reset_tuner);
 void rt2800_link_tuner(struct rt2x00_dev *rt2x00dev, struct link_qual *qual,
 		       const u32 count)
 {
-	if (rt2x00_rev(&rt2x00dev->chip) == RT2860C_VERSION)
+	if (rt2x00_rev(rt2x00dev) == RT2860C_VERSION)
 		return;
 
 	/*
@@ -1121,7 +1120,7 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 
 	if (rt2x00_intf_is_usb(rt2x00dev)) {
 		rt2800_register_write(rt2x00dev, USB_DMA_CFG, 0x00000000);
-#if defined(CONFIG_RT2800USB) || defined(CONFIG_RT2800USB_MODULE)
+#if defined(CONFIG_RT2X00_LIB_USB) || defined(CONFIG_RT2X00_LIB_USB_MODULE)
 		rt2x00usb_vendor_request_sw(rt2x00dev, USB_DEVICE_MODE, 0,
 					    USB_MODE_RESET, REGISTER_TIMEOUT);
 #endif
@@ -1158,7 +1157,7 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 
 	if (rt2x00_intf_is_usb(rt2x00dev) &&
-	    rt2x00_rev(&rt2x00dev->chip) == RT3070_VERSION) {
+	    rt2x00_rev(rt2x00dev) == RT3070_VERSION) {
 		rt2800_register_write(rt2x00dev, TX_SW_CFG0, 0x00000400);
 		rt2800_register_write(rt2x00dev, TX_SW_CFG1, 0x00000000);
 		rt2800_register_write(rt2x00dev, TX_SW_CFG2, 0x00000000);
@@ -1185,8 +1184,8 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 
 	rt2800_register_read(rt2x00dev, MAX_LEN_CFG, &reg);
 	rt2x00_set_field32(&reg, MAX_LEN_CFG_MAX_MPDU, AGGREGATION_SIZE);
-	if (rt2x00_rev(&rt2x00dev->chip) >= RT2880E_VERSION &&
-	    rt2x00_rev(&rt2x00dev->chip) < RT3070_VERSION)
+	if (rt2x00_rev(rt2x00dev) >= RT2880E_VERSION &&
+	    rt2x00_rev(rt2x00dev) < RT3070_VERSION)
 		rt2x00_set_field32(&reg, MAX_LEN_CFG_MAX_PSDU, 2);
 	else
 		rt2x00_set_field32(&reg, MAX_LEN_CFG_MAX_PSDU, 1);
@@ -1465,22 +1464,22 @@ int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 	rt2800_bbp_write(rt2x00dev, 103, 0x00);
 	rt2800_bbp_write(rt2x00dev, 105, 0x05);
 
-	if (rt2x00_rev(&rt2x00dev->chip) == RT2860C_VERSION) {
+	if (rt2x00_rev(rt2x00dev) == RT2860C_VERSION) {
 		rt2800_bbp_write(rt2x00dev, 69, 0x16);
 		rt2800_bbp_write(rt2x00dev, 73, 0x12);
 	}
 
-	if (rt2x00_rev(&rt2x00dev->chip) > RT2860D_VERSION)
+	if (rt2x00_rev(rt2x00dev) > RT2860D_VERSION)
 		rt2800_bbp_write(rt2x00dev, 84, 0x19);
 
 	if (rt2x00_intf_is_usb(rt2x00dev) &&
-	    rt2x00_rev(&rt2x00dev->chip) == RT3070_VERSION) {
+	    rt2x00_rev(rt2x00dev) == RT3070_VERSION) {
 		rt2800_bbp_write(rt2x00dev, 70, 0x0a);
 		rt2800_bbp_write(rt2x00dev, 84, 0x99);
 		rt2800_bbp_write(rt2x00dev, 105, 0x05);
 	}
 
-	if (rt2x00_rt(&rt2x00dev->chip, RT3052)) {
+	if (rt2x00_rt(rt2x00dev, RT3052)) {
 		rt2800_bbp_write(rt2x00dev, 31, 0x08);
 		rt2800_bbp_write(rt2x00dev, 78, 0x0e);
 		rt2800_bbp_write(rt2x00dev, 80, 0x08);
@@ -1566,13 +1565,13 @@ int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 	u8 bbp;
 
 	if (rt2x00_intf_is_usb(rt2x00dev) &&
-	    rt2x00_rev(&rt2x00dev->chip) != RT3070_VERSION)
+	    rt2x00_rev(rt2x00dev) != RT3070_VERSION)
 		return 0;
 
 	if (rt2x00_intf_is_pci(rt2x00dev)) {
-		if (!rt2x00_rf(&rt2x00dev->chip, RF3020) &&
-		    !rt2x00_rf(&rt2x00dev->chip, RF3021) &&
-		    !rt2x00_rf(&rt2x00dev->chip, RF3022))
+		if (!rt2x00_rf(rt2x00dev, RF3020) &&
+		    !rt2x00_rf(rt2x00dev, RF3021) &&
+		    !rt2x00_rf(rt2x00dev, RF3022))
 			return 0;
 	}
 
@@ -1737,7 +1736,7 @@ int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_ANTENNA_RF_TYPE, RF2820);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_ANTENNA, word);
 		EEPROM(rt2x00dev, "Antenna: 0x%04x\n", word);
-	} else if (rt2x00_rev(&rt2x00dev->chip) < RT2883_VERSION) {
+	} else if (rt2x00_rev(rt2x00dev) < RT2883_VERSION) {
 		/*
 		 * There is a max of 2 RX streams for RT28x0 series
 		 */
@@ -1839,17 +1838,15 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_chip_rf(rt2x00dev, value, reg);
 
 	if (rt2x00_intf_is_usb(rt2x00dev)) {
-		struct rt2x00_chip *chip = &rt2x00dev->chip;
-
 		/*
 		 * The check for rt2860 is not a typo, some rt2870 hardware
 		 * identifies itself as rt2860 in the CSR register.
 		 */
-		if (rt2x00_check_rev(chip, 0xfff00000, 0x28600000) ||
-		    rt2x00_check_rev(chip, 0xfff00000, 0x28700000) ||
-		    rt2x00_check_rev(chip, 0xfff00000, 0x28800000)) {
+		if (rt2x00_check_rev(rt2x00dev, 0xfff00000, 0x28600000) ||
+		    rt2x00_check_rev(rt2x00dev, 0xfff00000, 0x28700000) ||
+		    rt2x00_check_rev(rt2x00dev, 0xfff00000, 0x28800000)) {
 			rt2x00_set_chip_rt(rt2x00dev, RT2870);
-		} else if (rt2x00_check_rev(chip, 0xffff0000, 0x30700000)) {
+		} else if (rt2x00_check_rev(rt2x00dev, 0xffff0000, 0x30700000)) {
 			rt2x00_set_chip_rt(rt2x00dev, RT3070);
 		} else {
 			ERROR(rt2x00dev, "Invalid RT chipset detected.\n");
@@ -1858,14 +1855,14 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	}
 	rt2x00_print_chip(rt2x00dev);
 
-	if (!rt2x00_rf(&rt2x00dev->chip, RF2820) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF2850) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF2720) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF2750) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF3020) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF2020) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF3021) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF3022)) {
+	if (!rt2x00_rf(rt2x00dev, RF2820) &&
+	    !rt2x00_rf(rt2x00dev, RF2850) &&
+	    !rt2x00_rf(rt2x00dev, RF2720) &&
+	    !rt2x00_rf(rt2x00dev, RF2750) &&
+	    !rt2x00_rf(rt2x00dev, RF3020) &&
+	    !rt2x00_rf(rt2x00dev, RF2020) &&
+	    !rt2x00_rf(rt2x00dev, RF3021) &&
+	    !rt2x00_rf(rt2x00dev, RF3022)) {
 		ERROR(rt2x00dev, "Invalid RF chipset detected.\n");
 		return -ENODEV;
 	}
@@ -2013,7 +2010,6 @@ static const struct rf_channel rf_vals_302x[] = {
 
 int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 {
-	struct rt2x00_chip *chip = &rt2x00dev->chip;
 	struct hw_mode_spec *spec = &rt2x00dev->spec;
 	struct channel_info *info;
 	char *tx_power1;
@@ -2049,19 +2045,19 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	spec->supported_bands = SUPPORT_BAND_2GHZ;
 	spec->supported_rates = SUPPORT_RATE_CCK | SUPPORT_RATE_OFDM;
 
-	if (rt2x00_rf(chip, RF2820) ||
-	    rt2x00_rf(chip, RF2720) ||
-	    (rt2x00_intf_is_pci(rt2x00dev) && rt2x00_rf(chip, RF3052))) {
+	if (rt2x00_rf(rt2x00dev, RF2820) ||
+	    rt2x00_rf(rt2x00dev, RF2720) ||
+	    (rt2x00_intf_is_pci(rt2x00dev) && rt2x00_rf(rt2x00dev, RF3052))) {
 		spec->num_channels = 14;
 		spec->channels = rf_vals;
-	} else if (rt2x00_rf(chip, RF2850) || rt2x00_rf(chip, RF2750)) {
+	} else if (rt2x00_rf(rt2x00dev, RF2850) || rt2x00_rf(rt2x00dev, RF2750)) {
 		spec->supported_bands |= SUPPORT_BAND_5GHZ;
 		spec->num_channels = ARRAY_SIZE(rf_vals);
 		spec->channels = rf_vals;
-	} else if (rt2x00_rf(chip, RF3020) ||
-		   rt2x00_rf(chip, RF2020) ||
-		   rt2x00_rf(chip, RF3021) ||
-		   rt2x00_rf(chip, RF3022)) {
+	} else if (rt2x00_rf(rt2x00dev, RF3020) ||
+		   rt2x00_rf(rt2x00dev, RF2020) ||
+		   rt2x00_rf(rt2x00dev, RF3021) ||
+		   rt2x00_rf(rt2x00dev, RF3022)) {
 		spec->num_channels = ARRAY_SIZE(rf_vals_302x);
 		spec->channels = rf_vals_302x;
 	}
@@ -2069,7 +2065,7 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize HT information.
 	 */
-	if (!rt2x00_rf(chip, RF2020))
+	if (!rt2x00_rf(rt2x00dev, RF2020))
 		spec->ht.ht_supported = true;
 	else
 		spec->ht.ht_supported = false;

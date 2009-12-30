@@ -35,7 +35,7 @@ static int wl1271_event_scan_complete(struct wl1271 *wl,
 	wl1271_debug(DEBUG_EVENT, "status: 0x%x",
 		     mbox->scheduled_scan_status);
 
-	if (wl->scanning) {
+	if (test_bit(WL1271_FLAG_SCANNING, &wl->flags)) {
 		if (wl->scan.state == WL1271_SCAN_BAND_DUAL) {
 			wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_2_4,
 						NULL, size);
@@ -43,7 +43,7 @@ static int wl1271_event_scan_complete(struct wl1271 *wl,
 			 * to the wl1271_cmd_scan function that we are not
 			 * scanning as it checks that.
 			 */
-			wl->scanning = false;
+			clear_bit(WL1271_FLAG_SCANNING, &wl->flags);
 			wl1271_cmd_scan(wl, wl->scan.ssid, wl->scan.ssid_len,
 						wl->scan.active,
 						wl->scan.high_prio,
@@ -62,7 +62,7 @@ static int wl1271_event_scan_complete(struct wl1271 *wl,
 			mutex_unlock(&wl->mutex);
 			ieee80211_scan_completed(wl->hw, false);
 			mutex_lock(&wl->mutex);
-			wl->scanning = false;
+			clear_bit(WL1271_FLAG_SCANNING, &wl->flags);
 		}
 	}
 	return 0;
@@ -78,7 +78,7 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 
 	switch (mbox->ps_status) {
 	case EVENT_ENTER_POWER_SAVE_FAIL:
-		if (!wl->psm) {
+		if (!test_bit(WL1271_FLAG_PSM, &wl->flags)) {
 			wl->psm_entry_retry = 0;
 			break;
 		}
@@ -89,7 +89,6 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 		} else {
 			wl1271_error("PSM entry failed, giving up.\n");
 			wl->psm_entry_retry = 0;
-			*beacon_loss = true;
 		}
 		break;
 	case EVENT_ENTER_POWER_SAVE_SUCCESS:
@@ -136,7 +135,8 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 	 * filtering) is enabled. Without PSM, the stack will receive all
 	 * beacons and can detect beacon loss by itself.
 	 */
-	if (vector & BSS_LOSE_EVENT_ID && wl->psm) {
+	if (vector & BSS_LOSE_EVENT_ID &&
+	    test_bit(WL1271_FLAG_PSM, &wl->flags)) {
 		wl1271_debug(DEBUG_EVENT, "BSS_LOSE_EVENT");
 
 		/* indicate to the stack, that beacons have been lost */
@@ -150,7 +150,7 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 			return ret;
 	}
 
-	if (beacon_loss) {
+	if (wl->vif && beacon_loss) {
 		/* Obviously, it's dangerous to release the mutex while
 		   we are holding many of the variables in the wl struct.
 		   That's why it's done last in the function, and care must
@@ -184,7 +184,7 @@ void wl1271_event_mbox_config(struct wl1271 *wl)
 		     wl->mbox_ptr[0], wl->mbox_ptr[1]);
 }
 
-int wl1271_event_handle(struct wl1271 *wl, u8 mbox_num, bool do_ack)
+int wl1271_event_handle(struct wl1271 *wl, u8 mbox_num)
 {
 	struct event_mailbox mbox;
 	int ret;
@@ -204,9 +204,7 @@ int wl1271_event_handle(struct wl1271 *wl, u8 mbox_num, bool do_ack)
 		return ret;
 
 	/* then we let the firmware know it can go on...*/
-	if (do_ack)
-		wl1271_spi_write32(wl, ACX_REG_INTERRUPT_TRIG,
-				   INTR_TRIG_EVENT_ACK);
+	wl1271_spi_write32(wl, ACX_REG_INTERRUPT_TRIG, INTR_TRIG_EVENT_ACK);
 
 	return 0;
 }

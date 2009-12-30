@@ -92,7 +92,7 @@ static bool rt2800usb_check_crc(const u8 *data, const size_t len)
 static int rt2800usb_check_firmware(struct rt2x00_dev *rt2x00dev,
 				    const u8 *data, const size_t len)
 {
-	u16 chipset = (rt2x00_rev(&rt2x00dev->chip) >> 16) & 0xffff;
+	u16 chipset = (rt2x00_rev(rt2x00dev) >> 16) & 0xffff;
 	size_t offset = 0;
 
 	/*
@@ -138,7 +138,7 @@ static int rt2800usb_load_firmware(struct rt2x00_dev *rt2x00dev,
 	u32 reg;
 	u32 offset;
 	u32 length;
-	u16 chipset = (rt2x00_rev(&rt2x00dev->chip) >> 16) & 0xffff;
+	u16 chipset = (rt2x00_rev(rt2x00dev) >> 16) & 0xffff;
 
 	/*
 	 * Check which section of the firmware we need.
@@ -933,6 +933,7 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x1737, 0x0070), USB_DEVICE_DATA(&rt2800usb_ops) },
 	{ USB_DEVICE(0x1737, 0x0071), USB_DEVICE_DATA(&rt2800usb_ops) },
 	{ USB_DEVICE(0x1737, 0x0077), USB_DEVICE_DATA(&rt2800usb_ops) },
+	{ USB_DEVICE(0x1737, 0x0079), USB_DEVICE_DATA(&rt2800usb_ops) },
 	/* Logitec */
 	{ USB_DEVICE(0x0789, 0x0162), USB_DEVICE_DATA(&rt2800usb_ops) },
 	{ USB_DEVICE(0x0789, 0x0163), USB_DEVICE_DATA(&rt2800usb_ops) },

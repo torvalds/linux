@@ -359,6 +359,7 @@ int sta_info_insert(struct sta_info *sta)
 {
 	struct ieee80211_local *local = sta->local;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct station_info sinfo;
 	unsigned long flags;
 	int err = 0;
 
@@ -367,7 +368,7 @@ int sta_info_insert(struct sta_info *sta)
 	 * something inserts a STA (on one CPU) without holding the RTNL
 	 * and another CPU turns off the net device.
 	 */
-	if (unlikely(!netif_running(sdata->dev))) {
+	if (unlikely(!ieee80211_sdata_running(sdata))) {
 		err = -ENETDOWN;
 		goto out_free;
 	}
@@ -407,6 +408,10 @@ int sta_info_insert(struct sta_info *sta)
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 	spin_unlock_irqrestore(&local->sta_lock, flags);
+
+	sinfo.filled = 0;
+	sinfo.generation = local->sta_generation;
+	cfg80211_new_sta(sdata->dev, sta->sta.addr, &sinfo, GFP_ATOMIC);
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	/*

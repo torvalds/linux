@@ -65,7 +65,7 @@ static int ieee80211_change_mac(struct net_device *dev, void *addr)
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	int ret;
 
-	if (netif_running(dev))
+	if (ieee80211_sdata_running(sdata))
 		return -EBUSY;
 
 	ret = eth_mac_addr(dev, addr);
@@ -96,7 +96,6 @@ static int ieee80211_open(struct net_device *dev)
 	struct ieee80211_sub_if_data *nsdata;
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
-	struct ieee80211_if_init_conf conf;
 	u32 changed = 0;
 	int res;
 	u32 hw_reconf_flags = 0;
@@ -111,7 +110,7 @@ static int ieee80211_open(struct net_device *dev)
 	list_for_each_entry(nsdata, &local->interfaces, list) {
 		struct net_device *ndev = nsdata->dev;
 
-		if (ndev != dev && netif_running(ndev)) {
+		if (ndev != dev && ieee80211_sdata_running(nsdata)) {
 			/*
 			 * Allow only a single IBSS interface to be up at any
 			 * time. This is restricted because beacon distribution
@@ -197,7 +196,7 @@ static int ieee80211_open(struct net_device *dev)
 		struct net_device *ndev = nsdata->dev;
 
 		/*
-		 * No need to check netif_running since we do not allow
+		 * No need to check running since we do not allow
 		 * it to start up with this invalid address.
 		 */
 		if (compare_ether_addr(null_addr, ndev->dev_addr) == 0) {
@@ -248,10 +247,7 @@ static int ieee80211_open(struct net_device *dev)
 		ieee80211_configure_filter(local);
 		break;
 	default:
-		conf.vif = &sdata->vif;
-		conf.type = sdata->vif.type;
-		conf.mac_addr = sdata->vif.addr;
-		res = drv_add_interface(local, &conf);
+		res = drv_add_interface(local, &sdata->vif);
 		if (res)
 			goto err_stop;
 
@@ -334,7 +330,7 @@ static int ieee80211_open(struct net_device *dev)
 
 	return 0;
  err_del_interface:
-	drv_remove_interface(local, &conf);
+	drv_remove_interface(local, &sdata->vif);
  err_stop:
 	if (!local->open_count)
 		drv_stop(local);
@@ -349,7 +345,6 @@ static int ieee80211_stop(struct net_device *dev)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_if_init_conf conf;
 	struct sta_info *sta;
 	unsigned long flags;
 	struct sk_buff *skb, *tmp;
@@ -360,6 +355,11 @@ static int ieee80211_stop(struct net_device *dev)
 	 * Stop TX on this interface first.
 	 */
 	netif_stop_queue(dev);
+
+	/*
+	 * Purge work for this interface.
+	 */
+	ieee80211_work_purge(sdata);
 
 	/*
 	 * Now delete all active aggregation sessions.
@@ -528,12 +528,9 @@ static int ieee80211_stop(struct net_device *dev)
 				BSS_CHANGED_BEACON_ENABLED);
 		}
 
-		conf.vif = &sdata->vif;
-		conf.type = sdata->vif.type;
-		conf.mac_addr = sdata->vif.addr;
 		/* disable all keys for as long as this netdev is down */
 		ieee80211_disable_keys(sdata);
-		drv_remove_interface(local, &conf);
+		drv_remove_interface(local, &sdata->vif);
 	}
 
 	sdata->bss = NULL;
@@ -756,7 +753,7 @@ int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
 	 * and goes into the requested mode.
 	 */
 
-	if (netif_running(sdata->dev))
+	if (ieee80211_sdata_running(sdata))
 		return -EBUSY;
 
 	/* Purge and reset type-dependent state. */
@@ -917,6 +914,8 @@ static u32 ieee80211_idle_on(struct ieee80211_local *local)
 	       wiphy_name(local->hw.wiphy));
 #endif
 
+	drv_flush(local, false);
+
 	local->hw.conf.flags |= IEEE80211_CONF_IDLE;
 	return IEEE80211_CONF_CHANGE_IDLE;
 }
@@ -926,16 +925,18 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 	struct ieee80211_sub_if_data *sdata;
 	int count = 0;
 
+	if (!list_empty(&local->work_list))
+		return ieee80211_idle_off(local, "working");
+
 	if (local->scanning)
 		return ieee80211_idle_off(local, "scanning");
 
 	list_for_each_entry(sdata, &local->interfaces, list) {
-		if (!netif_running(sdata->dev))
+		if (!ieee80211_sdata_running(sdata))
 			continue;
 		/* do not count disabled managed interfaces */
 		if (sdata->vif.type == NL80211_IFTYPE_STATION &&
-		    !sdata->u.mgd.associated &&
-		    list_empty(&sdata->u.mgd.work_list))
+		    !sdata->u.mgd.associated)
 			continue;
 		/* do not count unused IBSS interfaces */
 		if (sdata->vif.type == NL80211_IFTYPE_ADHOC &&

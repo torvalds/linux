@@ -637,8 +637,7 @@ static void rt61pci_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
 	rt61pci_bbp_read(rt2x00dev, 4, &r4);
 	rt61pci_bbp_read(rt2x00dev, 77, &r77);
 
-	rt2x00_set_field8(&r3, BBP_R3_SMART_MODE,
-			  rt2x00_rf(&rt2x00dev->chip, RF5325));
+	rt2x00_set_field8(&r3, BBP_R3_SMART_MODE, rt2x00_rf(rt2x00dev, RF5325));
 
 	/*
 	 * Configure the RX antenna.
@@ -684,8 +683,7 @@ static void rt61pci_config_antenna_2x(struct rt2x00_dev *rt2x00dev,
 	rt61pci_bbp_read(rt2x00dev, 4, &r4);
 	rt61pci_bbp_read(rt2x00dev, 77, &r77);
 
-	rt2x00_set_field8(&r3, BBP_R3_SMART_MODE,
-			  rt2x00_rf(&rt2x00dev->chip, RF2529));
+	rt2x00_set_field8(&r3, BBP_R3_SMART_MODE, rt2x00_rf(rt2x00dev, RF2529));
 	rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END,
 			  !test_bit(CONFIG_FRAME_TYPE, &rt2x00dev->flags));
 
@@ -833,12 +831,11 @@ static void rt61pci_config_ant(struct rt2x00_dev *rt2x00dev,
 
 	rt2x00pci_register_write(rt2x00dev, PHY_CSR0, reg);
 
-	if (rt2x00_rf(&rt2x00dev->chip, RF5225) ||
-	    rt2x00_rf(&rt2x00dev->chip, RF5325))
+	if (rt2x00_rf(rt2x00dev, RF5225) || rt2x00_rf(rt2x00dev, RF5325))
 		rt61pci_config_antenna_5x(rt2x00dev, ant);
-	else if (rt2x00_rf(&rt2x00dev->chip, RF2527))
+	else if (rt2x00_rf(rt2x00dev, RF2527))
 		rt61pci_config_antenna_2x(rt2x00dev, ant);
-	else if (rt2x00_rf(&rt2x00dev->chip, RF2529)) {
+	else if (rt2x00_rf(rt2x00dev, RF2529)) {
 		if (test_bit(CONFIG_DOUBLE_ANTENNA, &rt2x00dev->flags))
 			rt61pci_config_antenna_2x(rt2x00dev, ant);
 		else
@@ -879,8 +876,7 @@ static void rt61pci_config_channel(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&rf->rf3, RF3_TXPOWER, TXPOWER_TO_DEV(txpower));
 	rt2x00_set_field32(&rf->rf4, RF4_FREQ_OFFSET, rt2x00dev->freq_offset);
 
-	smart = !(rt2x00_rf(&rt2x00dev->chip, RF5225) ||
-		  rt2x00_rf(&rt2x00dev->chip, RF2527));
+	smart = !(rt2x00_rf(rt2x00dev, RF5225) || rt2x00_rf(rt2x00dev, RF2527));
 
 	rt61pci_bbp_read(rt2x00dev, 3, &r3);
 	rt2x00_set_field8(&r3, BBP_R3_SMART_MODE, smart);
@@ -2302,10 +2298,10 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_chip_rf(rt2x00dev, value, reg);
 	rt2x00_print_chip(rt2x00dev);
 
-	if (!rt2x00_rf(&rt2x00dev->chip, RF5225) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF5325) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF2527) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF2529)) {
+	if (!rt2x00_rf(rt2x00dev, RF5225) &&
+	    !rt2x00_rf(rt2x00dev, RF5325) &&
+	    !rt2x00_rf(rt2x00dev, RF2527) &&
+	    !rt2x00_rf(rt2x00dev, RF2529)) {
 		ERROR(rt2x00dev, "Invalid RF chipset detected.\n");
 		return -ENODEV;
 	}
@@ -2360,7 +2356,7 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 * the antenna settings should be gathered from the NIC
 	 * eeprom word.
 	 */
-	if (rt2x00_rf(&rt2x00dev->chip, RF2529) &&
+	if (rt2x00_rf(rt2x00dev, RF2529) &&
 	    !test_bit(CONFIG_DOUBLE_ANTENNA, &rt2x00dev->flags)) {
 		rt2x00dev->default_ant.rx =
 		    ANTENNA_A + rt2x00_get_field16(eeprom, EEPROM_NIC_RX_FIXED);
@@ -2571,8 +2567,7 @@ static int rt61pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 		spec->channels = rf_vals_seq;
 	}
 
-	if (rt2x00_rf(&rt2x00dev->chip, RF5225) ||
-	    rt2x00_rf(&rt2x00dev->chip, RF5325)) {
+	if (rt2x00_rf(rt2x00dev, RF5225) || rt2x00_rf(rt2x00dev, RF5325)) {
 		spec->supported_bands |= SUPPORT_BAND_5GHZ;
 		spec->num_channels = ARRAY_SIZE(rf_vals_seq);
 	}

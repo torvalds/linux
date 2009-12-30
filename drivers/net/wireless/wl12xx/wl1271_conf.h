@@ -258,7 +258,8 @@ struct conf_rx_settings {
 #define CONF_TX_MAX_RATE_CLASSES       8
 
 #define CONF_TX_RATE_MASK_UNSPECIFIED  0
-#define CONF_TX_RATE_MASK_ALL          0x1eff
+#define CONF_TX_RATE_MASK_BASIC        (CONF_HW_BIT_RATE_1MBPS | \
+					CONF_HW_BIT_RATE_2MBPS)
 #define CONF_TX_RATE_RETRY_LIMIT       10
 
 struct conf_tx_rate_class {
@@ -722,31 +723,6 @@ struct conf_conn_settings {
 	u8 psm_entry_retries;
 };
 
-#define CONF_SR_ERR_TBL_MAX_VALUES   14
-
-struct conf_mart_reflex_err_table {
-	/*
-	 * Length of the error table values table.
-	 *
-	 * Range: 0 - CONF_SR_ERR_TBL_MAX_VALUES
-	 */
-	u8 len;
-
-	/*
-	 * Smart Reflex error table upper limit.
-	 *
-	 * Range: s8
-	 */
-	s8 upper_limit;
-
-	/*
-	 * Smart Reflex error table values.
-	 *
-	 * Range: s8
-	 */
-	s8 values[CONF_SR_ERR_TBL_MAX_VALUES];
-};
-
 enum {
 	CONF_REF_CLK_19_2_E,
 	CONF_REF_CLK_26_E,
@@ -758,6 +734,9 @@ enum single_dual_band_enum {
 	CONF_SINGLE_BAND,
 	CONF_DUAL_BAND
 };
+
+
+#define CONF_MAX_SMART_REFLEX_PARAMS 16
 
 struct conf_general_parms {
 	/*
@@ -815,6 +794,20 @@ struct conf_general_parms {
 	 * Range: Unknown
 	 */
 	u8 settings;
+
+	/* Smart reflex settings */
+	u8 sr_state;
+
+	s8 srf1[CONF_MAX_SMART_REFLEX_PARAMS];
+	s8 srf2[CONF_MAX_SMART_REFLEX_PARAMS];
+	s8 srf3[CONF_MAX_SMART_REFLEX_PARAMS];
+
+	s8 sr_debug_table[CONF_MAX_SMART_REFLEX_PARAMS];
+
+	u8 sr_sen_n_p;
+	u8 sr_sen_n_p_gain;
+	u8 sr_sen_nrn;
+	u8 sr_sen_prn;
 };
 
 #define CONF_RSSI_AND_PROCESS_COMPENSATION_SIZE 15
@@ -847,12 +840,13 @@ struct conf_radio_parms {
 	 *
 	 * Range: unknown
 	 */
-	s16 tx_ref_pd_voltage;
-	s8  tx_ref_power;
+	u16 tx_ref_pd_voltage;
+	u8  tx_ref_power;
 	s8  tx_offset_db;
 
 	s8  tx_rate_limits_normal[CONF_NUMBER_OF_RATE_GROUPS];
 	s8  tx_rate_limits_degraded[CONF_NUMBER_OF_RATE_GROUPS];
+	s8  tx_rate_limits_extreme[CONF_NUMBER_OF_RATE_GROUPS];
 
 	s8  tx_channel_limits_11b[CONF_NUMBER_OF_CHANNELS_2_4];
 	s8  tx_channel_limits_ofdm[CONF_NUMBER_OF_CHANNELS_2_4];
@@ -861,17 +855,22 @@ struct conf_radio_parms {
 	u8  tx_ibias[CONF_NUMBER_OF_RATE_GROUPS];
 	u8  rx_fem_insertion_loss;
 
+	u8  degraded_low_to_normal_threshold;
+	u8  degraded_normal_to_high_threshold;
+
+
 	/*
 	 * Dynamic radio parameters for 5GHz
 	 *
 	 * Range: unknown
 	 */
-	s16 tx_ref_pd_voltage_5[CONF_NUMBER_OF_SUB_BANDS_5];
-	s8  tx_ref_power_5[CONF_NUMBER_OF_SUB_BANDS_5];
+	u16 tx_ref_pd_voltage_5[CONF_NUMBER_OF_SUB_BANDS_5];
+	u8  tx_ref_power_5[CONF_NUMBER_OF_SUB_BANDS_5];
 	s8  tx_offset_db_5[CONF_NUMBER_OF_SUB_BANDS_5];
 
 	s8  tx_rate_limits_normal_5[CONF_NUMBER_OF_RATE_GROUPS];
 	s8  tx_rate_limits_degraded_5[CONF_NUMBER_OF_RATE_GROUPS];
+	s8  tx_rate_limits_extreme_5[CONF_NUMBER_OF_RATE_GROUPS];
 
 	s8  tx_channel_limits_ofdm_5[CONF_NUMBER_OF_CHANNELS_5];
 	s8  tx_pdv_rate_offsets_5[CONF_NUMBER_OF_RATE_GROUPS];
@@ -879,23 +878,12 @@ struct conf_radio_parms {
 	/* FIXME: this is inconsistent with the types for 2.4GHz */
 	s8  tx_ibias_5[CONF_NUMBER_OF_RATE_GROUPS];
 	s8  rx_fem_insertion_loss_5[CONF_NUMBER_OF_SUB_BANDS_5];
+
+	u8  degraded_low_to_normal_threshold_5;
+	u8  degraded_normal_to_high_threshold_5;
 };
 
-#define CONF_SR_ERR_TBL_COUNT        3
-
 struct conf_init_settings {
-	/*
-	 * Configure Smart Reflex error table values.
-	 */
-	struct conf_mart_reflex_err_table sr_err_tbl[CONF_SR_ERR_TBL_COUNT];
-
-	/*
-	 * Smart Reflex enable flag.
-	 *
-	 * Range: 1 - Smart Reflex enabled, 0 - Smart Reflex disabled
-	 */
-	u8 sr_enable;
-
 	/*
 	 * Configure general parameters.
 	 */
@@ -908,12 +896,38 @@ struct conf_init_settings {
 
 };
 
+struct conf_itrim_settings {
+	/* enable dco itrim */
+	u8 enable;
+
+	/* moderation timeout in microsecs from the last TX */
+	u32 timeout;
+};
+
+struct conf_pm_config_settings {
+	/*
+	 * Host clock settling time
+	 *
+	 * Range: 0 - 30000 us
+	 */
+	u32 host_clk_settling_time;
+
+	/*
+	 * Host fast wakeup support
+	 *
+	 * Range: true, false
+	 */
+	bool host_fast_wakeup_support;
+};
+
 struct conf_drv_settings {
 	struct conf_sg_settings sg;
 	struct conf_rx_settings rx;
 	struct conf_tx_settings tx;
 	struct conf_conn_settings conn;
 	struct conf_init_settings init;
+	struct conf_itrim_settings itrim;
+	struct conf_pm_config_settings pm_config;
 };
 
 #endif

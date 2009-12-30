@@ -937,25 +937,25 @@ static inline void rt2x00_print_chip(struct rt2x00_dev *rt2x00dev)
 	     rt2x00dev->chip.rt, rt2x00dev->chip.rf, rt2x00dev->chip.rev);
 }
 
-static inline char rt2x00_rt(const struct rt2x00_chip *chipset, const u16 chip)
+static inline char rt2x00_rt(struct rt2x00_dev *rt2x00dev, const u16 rt)
 {
-	return (chipset->rt == chip);
+	return (rt2x00dev->chip.rt == rt);
 }
 
-static inline char rt2x00_rf(const struct rt2x00_chip *chipset, const u16 chip)
+static inline char rt2x00_rf(struct rt2x00_dev *rt2x00dev, const u16 rf)
 {
-	return (chipset->rf == chip);
+	return (rt2x00dev->chip.rf == rf);
 }
 
-static inline u32 rt2x00_rev(const struct rt2x00_chip *chipset)
+static inline u32 rt2x00_rev(struct rt2x00_dev *rt2x00dev)
 {
-	return chipset->rev;
+	return rt2x00dev->chip.rev;
 }
 
-static inline bool rt2x00_check_rev(const struct rt2x00_chip *chipset,
+static inline bool rt2x00_check_rev(struct rt2x00_dev *rt2x00dev,
 				    const u32 mask, const u32 rev)
 {
-	return ((chipset->rev & mask) == rev);
+	return ((rt2x00dev->chip.rev & mask) == rev);
 }
 
 static inline void rt2x00_set_chip_intf(struct rt2x00_dev *rt2x00dev,
@@ -964,20 +964,20 @@ static inline void rt2x00_set_chip_intf(struct rt2x00_dev *rt2x00dev,
 	rt2x00dev->chip.intf = intf;
 }
 
-static inline bool rt2x00_intf(const struct rt2x00_chip *chipset,
+static inline bool rt2x00_intf(struct rt2x00_dev *rt2x00dev,
 			       enum rt2x00_chip_intf intf)
 {
-	return (chipset->intf == intf);
+	return (rt2x00dev->chip.intf == intf);
 }
 
 static inline bool rt2x00_intf_is_pci(struct rt2x00_dev *rt2x00dev)
 {
-	return rt2x00_intf(&rt2x00dev->chip, RT2X00_CHIP_INTF_PCI);
+	return rt2x00_intf(rt2x00dev, RT2X00_CHIP_INTF_PCI);
 }
 
 static inline bool rt2x00_intf_is_usb(struct rt2x00_dev *rt2x00dev)
 {
-	return rt2x00_intf(&rt2x00dev->chip, RT2X00_CHIP_INTF_USB);
+	return rt2x00_intf(rt2x00dev, RT2X00_CHIP_INTF_USB);
 }
 
 /**
@@ -1019,9 +1019,9 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
 int rt2x00mac_start(struct ieee80211_hw *hw);
 void rt2x00mac_stop(struct ieee80211_hw *hw);
 int rt2x00mac_add_interface(struct ieee80211_hw *hw,
-			    struct ieee80211_if_init_conf *conf);
+			    struct ieee80211_vif *vif);
 void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
-				struct ieee80211_if_init_conf *conf);
+				struct ieee80211_vif *vif);
 int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed);
 void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 				unsigned int changed_flags,

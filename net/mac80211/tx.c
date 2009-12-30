@@ -1418,6 +1418,10 @@ static bool need_dynamic_ps(struct ieee80211_local *local)
 	if (!local->ps_sdata)
 		return false;
 
+	/* No point if we're going to suspend */
+	if (local->quiescing)
+		return false;
+
 	return true;
 }
 
@@ -1469,7 +1473,7 @@ static void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 
 			list_for_each_entry_rcu(tmp_sdata, &local->interfaces,
 						list) {
-				if (!netif_running(tmp_sdata->dev))
+				if (!ieee80211_sdata_running(tmp_sdata))
 					continue;
 				if (tmp_sdata->vif.type != NL80211_IFTYPE_AP)
 					continue;

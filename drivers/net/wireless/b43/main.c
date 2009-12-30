@@ -102,6 +102,9 @@ int b43_modparam_verbose = B43_VERBOSITY_DEFAULT;
 module_param_named(verbose, b43_modparam_verbose, int, 0644);
 MODULE_PARM_DESC(verbose, "Log message verbosity: 0=error, 1=warn, 2=info(default), 3=debug");
 
+static int modparam_pio;
+module_param_named(pio, modparam_pio, int, 0444);
+MODULE_PARM_DESC(pio, "enable(1) / disable(0) PIO mode");
 
 static const struct ssb_device_id b43_ssb_tbl[] = {
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_80211, 5),
@@ -1786,8 +1789,8 @@ static void b43_do_interrupt_thread(struct b43_wldev *dev)
 			       dma_reason[4], dma_reason[5]);
 			b43err(dev->wl, "This device does not support DMA "
 			       "on your system. Please use PIO instead.\n");
-			b43err(dev->wl, "CONFIG_B43_FORCE_PIO must be set in "
-			       "your kernel configuration.\n");
+			b43err(dev->wl, "Unload the b43 module and reload "
+			       "with 'pio=1'\n");
 			return;
 		}
 		if (merged_dma_reason & B43_DMAIRQ_NONFATALMASK) {
@@ -4353,7 +4356,7 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 
 	if ((dev->dev->bus->bustype == SSB_BUSTYPE_PCMCIA) ||
 	    (dev->dev->bus->bustype == SSB_BUSTYPE_SDIO) ||
-	    B43_FORCE_PIO) {
+	    modparam_pio) {
 		dev->__using_pio_transfers = 1;
 		err = b43_pio_init(dev);
 	} else {
@@ -4388,7 +4391,7 @@ err_busdown:
 }
 
 static int b43_op_add_interface(struct ieee80211_hw *hw,
-				struct ieee80211_if_init_conf *conf)
+				struct ieee80211_vif *vif)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct b43_wldev *dev;
@@ -4396,24 +4399,24 @@ static int b43_op_add_interface(struct ieee80211_hw *hw,
 
 	/* TODO: allow WDS/AP devices to coexist */
 
-	if (conf->type != NL80211_IFTYPE_AP &&
-	    conf->type != NL80211_IFTYPE_MESH_POINT &&
-	    conf->type != NL80211_IFTYPE_STATION &&
-	    conf->type != NL80211_IFTYPE_WDS &&
-	    conf->type != NL80211_IFTYPE_ADHOC)
+	if (vif->type != NL80211_IFTYPE_AP &&
+	    vif->type != NL80211_IFTYPE_MESH_POINT &&
+	    vif->type != NL80211_IFTYPE_STATION &&
+	    vif->type != NL80211_IFTYPE_WDS &&
+	    vif->type != NL80211_IFTYPE_ADHOC)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&wl->mutex);
 	if (wl->operating)
 		goto out_mutex_unlock;
 
-	b43dbg(wl, "Adding Interface type %d\n", conf->type);
+	b43dbg(wl, "Adding Interface type %d\n", vif->type);
 
 	dev = wl->current_dev;
 	wl->operating = 1;
-	wl->vif = conf->vif;
-	wl->if_type = conf->type;
-	memcpy(wl->mac_addr, conf->mac_addr, ETH_ALEN);
+	wl->vif = vif;
+	wl->if_type = vif->type;
+	memcpy(wl->mac_addr, vif->addr, ETH_ALEN);
 
 	b43_adjust_opmode(dev);
 	b43_set_pretbtt(dev);
@@ -4428,17 +4431,17 @@ static int b43_op_add_interface(struct ieee80211_hw *hw,
 }
 
 static void b43_op_remove_interface(struct ieee80211_hw *hw,
-				    struct ieee80211_if_init_conf *conf)
+				    struct ieee80211_vif *vif)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct b43_wldev *dev = wl->current_dev;
 
-	b43dbg(wl, "Removing Interface type %d\n", conf->type);
+	b43dbg(wl, "Removing Interface type %d\n", vif->type);
 
 	mutex_lock(&wl->mutex);
 
 	B43_WARN_ON(!wl->operating);
-	B43_WARN_ON(wl->vif != conf->vif);
+	B43_WARN_ON(wl->vif != vif);
 	wl->vif = NULL;
 
 	wl->operating = 0;

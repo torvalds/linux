@@ -78,16 +78,14 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 				  enum nl80211_iftype type, u32 *flags,
 				  struct vif_params *params)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	int ret;
 
-	if (netif_running(dev))
+	if (ieee80211_sdata_running(sdata))
 		return -EBUSY;
 
 	if (!nl80211_params_check(type, params))
 		return -EINVAL;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	ret = ieee80211_if_change_type(sdata, type);
 	if (ret)
@@ -1345,7 +1343,7 @@ int __ieee80211_request_smps(struct ieee80211_sub_if_data *sdata,
 		return 0;
 	}
 
-	ap = sdata->u.mgd.associated->cbss.bssid;
+	ap = sdata->u.mgd.associated->bssid;
 
 	if (smps_mode == IEEE80211_SMPS_AUTOMATIC) {
 		if (sdata->u.mgd.powersave)
@@ -1443,6 +1441,28 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 	return -EINVAL;
 }
 
+static int ieee80211_remain_on_channel(struct wiphy *wiphy,
+				       struct net_device *dev,
+				       struct ieee80211_channel *chan,
+				       enum nl80211_channel_type channel_type,
+				       unsigned int duration,
+				       u64 *cookie)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	return ieee80211_wk_remain_on_channel(sdata, chan, channel_type,
+					      duration, cookie);
+}
+
+static int ieee80211_cancel_remain_on_channel(struct wiphy *wiphy,
+					      struct net_device *dev,
+					      u64 cookie)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	return ieee80211_wk_cancel_remain_on_channel(sdata, cookie);
+}
+
 struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -1489,4 +1509,6 @@ struct cfg80211_ops mac80211_config_ops = {
 	CFG80211_TESTMODE_CMD(ieee80211_testmode_cmd)
 	.set_power_mgmt = ieee80211_set_power_mgmt,
 	.set_bitrate_mask = ieee80211_set_bitrate_mask,
+	.remain_on_channel = ieee80211_remain_on_channel,
+	.cancel_remain_on_channel = ieee80211_cancel_remain_on_channel,
 };

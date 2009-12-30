@@ -443,7 +443,7 @@ void ieee80211_key_link(struct ieee80211_key *key,
 	add_todo(old_key, KEY_FLAG_TODO_DELETE);
 
 	add_todo(key, KEY_FLAG_TODO_ADD_DEBUGFS);
-	if (netif_running(sdata->dev))
+	if (ieee80211_sdata_running(sdata))
 		add_todo(key, KEY_FLAG_TODO_HWACCEL_ADD);
 
 	spin_unlock_irqrestore(&sdata->local->key_lock, flags);
@@ -509,7 +509,7 @@ void ieee80211_enable_keys(struct ieee80211_sub_if_data *sdata)
 {
 	ASSERT_RTNL();
 
-	if (WARN_ON(!netif_running(sdata->dev)))
+	if (WARN_ON(!ieee80211_sdata_running(sdata)))
 		return;
 
 	ieee80211_todo_for_each_key(sdata, KEY_FLAG_TODO_HWACCEL_ADD);

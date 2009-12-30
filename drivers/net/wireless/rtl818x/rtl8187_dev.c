@@ -1018,31 +1018,30 @@ static void rtl8187_stop(struct ieee80211_hw *dev)
 }
 
 static int rtl8187_add_interface(struct ieee80211_hw *dev,
-				 struct ieee80211_if_init_conf *conf)
+				 struct ieee80211_vif *vif)
 {
 	struct rtl8187_priv *priv = dev->priv;
 	int i;
 	int ret = -EOPNOTSUPP;
 
 	mutex_lock(&priv->conf_mutex);
-	if (priv->mode != NL80211_IFTYPE_MONITOR)
+	if (priv->vif)
 		goto exit;
 
-	switch (conf->type) {
+	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		priv->mode = conf->type;
 		break;
 	default:
 		goto exit;
 	}
 
 	ret = 0;
-	priv->vif = conf->vif;
+	priv->vif = vif;
 
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_CONFIG);
 	for (i = 0; i < ETH_ALEN; i++)
 		rtl818x_iowrite8(priv, &priv->map->MAC[i],
-				 ((u8 *)conf->mac_addr)[i]);
+				 ((u8 *)vif->addr)[i]);
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
 
 exit:
@@ -1051,11 +1050,10 @@ exit:
 }
 
 static void rtl8187_remove_interface(struct ieee80211_hw *dev,
-				     struct ieee80211_if_init_conf *conf)
+				     struct ieee80211_vif *vif)
 {
 	struct rtl8187_priv *priv = dev->priv;
 	mutex_lock(&priv->conf_mutex);
-	priv->mode = NL80211_IFTYPE_MONITOR;
 	priv->vif = NULL;
 	mutex_unlock(&priv->conf_mutex);
 }
@@ -1365,7 +1363,6 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band;
 
 
-	priv->mode = NL80211_IFTYPE_MONITOR;
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 		     IEEE80211_HW_SIGNAL_DBM |
 		     IEEE80211_HW_RX_INCLUDES_FCS;

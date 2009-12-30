@@ -37,7 +37,7 @@ int wl1271_cmd_join(struct wl1271 *wl);
 int wl1271_cmd_test(struct wl1271 *wl, void *buf, size_t buf_len, u8 answer);
 int wl1271_cmd_interrogate(struct wl1271 *wl, u16 id, void *buf, size_t len);
 int wl1271_cmd_configure(struct wl1271 *wl, u16 id, void *buf, size_t len);
-int wl1271_cmd_data_path(struct wl1271 *wl, u8 channel, bool enable);
+int wl1271_cmd_data_path(struct wl1271 *wl, bool enable);
 int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode);
 int wl1271_cmd_read_memory(struct wl1271 *wl, u32 addr, void *answer,
 			   size_t len);
@@ -437,6 +437,21 @@ struct wl1271_general_parms_cmd {
 	u8 tx_bip_fem_autodetect;
 	u8 tx_bip_fem_manufacturer;
 	u8 settings;
+
+	u8 sr_state;
+
+	s8 srf1[CONF_MAX_SMART_REFLEX_PARAMS];
+	s8 srf2[CONF_MAX_SMART_REFLEX_PARAMS];
+	s8 srf3[CONF_MAX_SMART_REFLEX_PARAMS];
+
+	s8 sr_debug_table[CONF_MAX_SMART_REFLEX_PARAMS];
+
+	u8 sr_sen_n_p;
+	u8 sr_sen_n_p_gain;
+	u8 sr_sen_nrn;
+	u8 sr_sen_prn;
+
+	u8 padding[3];
 } __attribute__ ((packed));
 
 struct wl1271_radio_parms_cmd {
@@ -458,11 +473,12 @@ struct wl1271_radio_parms_cmd {
 	/* Dynamic radio parameters */
 	/* 2.4GHz */
 	__le16 tx_ref_pd_voltage;
-	s8  tx_ref_power;
+	u8  tx_ref_power;
 	s8  tx_offset_db;
 
 	s8  tx_rate_limits_normal[CONF_NUMBER_OF_RATE_GROUPS];
 	s8  tx_rate_limits_degraded[CONF_NUMBER_OF_RATE_GROUPS];
+	s8  tx_rate_limits_extreme[CONF_NUMBER_OF_RATE_GROUPS];
 
 	s8  tx_channel_limits_11b[CONF_NUMBER_OF_CHANNELS_2_4];
 	s8  tx_channel_limits_ofdm[CONF_NUMBER_OF_CHANNELS_2_4];
@@ -471,15 +487,19 @@ struct wl1271_radio_parms_cmd {
 	u8  tx_ibias[CONF_NUMBER_OF_RATE_GROUPS];
 	u8  rx_fem_insertion_loss;
 
-	u8 padding2;
+	u8  degraded_low_to_normal_threshold;
+	u8  degraded_normal_to_high_threshold;
+
+	u8  padding1; /* our own padding, not in ref driver */
 
 	/* 5GHz */
 	__le16 tx_ref_pd_voltage_5[CONF_NUMBER_OF_SUB_BANDS_5];
-	s8  tx_ref_power_5[CONF_NUMBER_OF_SUB_BANDS_5];
+	u8  tx_ref_power_5[CONF_NUMBER_OF_SUB_BANDS_5];
 	s8  tx_offset_db_5[CONF_NUMBER_OF_SUB_BANDS_5];
 
 	s8  tx_rate_limits_normal_5[CONF_NUMBER_OF_RATE_GROUPS];
 	s8  tx_rate_limits_degraded_5[CONF_NUMBER_OF_RATE_GROUPS];
+	s8  tx_rate_limits_extreme_5[CONF_NUMBER_OF_RATE_GROUPS];
 
 	s8  tx_channel_limits_ofdm_5[CONF_NUMBER_OF_CHANNELS_5];
 	s8  tx_pdv_rate_offsets_5[CONF_NUMBER_OF_RATE_GROUPS];
@@ -488,7 +508,10 @@ struct wl1271_radio_parms_cmd {
 	s8  tx_ibias_5[CONF_NUMBER_OF_RATE_GROUPS];
 	s8  rx_fem_insertion_loss_5[CONF_NUMBER_OF_SUB_BANDS_5];
 
-	u8 padding3[2];
+	u8  degraded_low_to_normal_threshold_5;
+	u8  degraded_normal_to_high_threshold_5;
+
+	u8 padding2[2];
 } __attribute__ ((packed));
 
 struct wl1271_cmd_cal_channel_tune {

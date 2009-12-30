@@ -225,9 +225,15 @@ static int wl1271_boot_upload_nvs(struct wl1271 *wl)
 	if (nvs == NULL)
 		return -ENODEV;
 
+	if (wl->nvs_len < WL1271_NVS_LEN)
+		return -EINVAL;
+
 	nvs_ptr = nvs;
 
-	nvs_len = wl->nvs_len;
+	/* only the first part of the NVS needs to be uploaded */
+	nvs_len = WL1271_NVS_LEN;
+
+	/* FIXME: read init settings from the remaining part of the NVS */
 
 	/* Update the device MAC address into the nvs */
 	nvs[11] = wl->mac_addr[0];

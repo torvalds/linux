@@ -107,10 +107,9 @@ enum {
 				  CFG_RX_CTL_EN | CFG_RX_BCN_EN |     \
 				  CFG_RX_AUTH_EN | CFG_RX_ASSOC_EN)
 
-#define WL1271_DEFAULT_BASIC_RATE_SET (CONF_TX_RATE_MASK_ALL)
-
 #define WL1271_FW_NAME "wl1271-fw.bin"
 #define WL1271_NVS_NAME "wl1271-nvs.bin"
+#define WL1271_NVS_LEN  468
 
 /*
  * Enable/disable 802.11a support for WL1273
@@ -276,6 +275,7 @@ struct wl1271_debugfs {
 
 	struct dentry *retry_count;
 	struct dentry *excessive_retries;
+	struct dentry *gpio_power;
 };
 
 #define NUM_TX_QUEUES              4
@@ -322,6 +322,17 @@ struct wl1271 {
 	enum wl1271_state state;
 	struct mutex mutex;
 
+#define WL1271_FLAG_STA_RATES_CHANGED  (0)
+#define WL1271_FLAG_STA_ASSOCIATED     (1)
+#define WL1271_FLAG_JOINED             (2)
+#define WL1271_FLAG_GPIO_POWER         (3)
+#define WL1271_FLAG_TX_QUEUE_STOPPED   (4)
+#define WL1271_FLAG_SCANNING           (5)
+#define WL1271_FLAG_IN_ELP             (6)
+#define WL1271_FLAG_PSM                (7)
+#define WL1271_FLAG_PSM_REQUESTED      (8)
+	unsigned long flags;
+
 	struct wl1271_partition_set part;
 
 	struct wl1271_chip chip;
@@ -359,7 +370,6 @@ struct wl1271 {
 
 	/* Frames scheduled for transmission, not handled yet */
 	struct sk_buff_head tx_queue;
-	bool tx_queue_stopped;
 
 	struct work_struct tx_work;
 
@@ -387,14 +397,15 @@ struct wl1271 {
 	u32 mbox_ptr[2];
 
 	/* Are we currently scanning */
-	bool scanning;
 	struct wl1271_scan scan;
 
 	/* Our association ID */
 	u16 aid;
 
 	/* currently configured rate set */
+	u32 sta_rate_set;
 	u32 basic_rate_set;
+	u32 rate_set;
 
 	/* The current band */
 	enum ieee80211_band band;
@@ -405,17 +416,8 @@ struct wl1271 {
 	unsigned int rx_config;
 	unsigned int rx_filter;
 
-	/* is firmware in elp mode */
-	bool elp;
-
 	struct completion *elp_compl;
 	struct delayed_work elp_work;
-
-	/* we can be in psm, but not in elp, we have to differentiate */
-	bool psm;
-
-	/* PSM mode requested */
-	bool psm_requested;
 
 	/* retry counter for PSM entries */
 	u8 psm_entry_retry;
@@ -435,9 +437,6 @@ struct wl1271 {
 
 	struct ieee80211_vif *vif;
 
-	/* Used for a workaround to send disconnect before rejoining */
-	bool joined;
-
 	/* Current chipset configuration */
 	struct conf_drv_settings conf;
 
@@ -455,7 +454,9 @@ int wl1271_plt_stop(struct wl1271 *wl);
 
 #define WL1271_TX_QUEUE_MAX_LENGTH 20
 
-/* WL1271 needs a 200ms sleep after power on */
+/* WL1271 needs a 200ms sleep after power on, and a 20ms sleep before power
+   on in case is has been shut down shortly before */
+#define WL1271_PRE_POWER_ON_SLEEP 20 /* in miliseconds */
 #define WL1271_POWER_ON_SLEEP 200 /* in miliseconds */
 
 static inline bool wl1271_11a_enabled(void)

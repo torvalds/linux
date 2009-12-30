@@ -225,9 +225,9 @@ static int ath5k_reset_wake(struct ath5k_softc *sc);
 static int ath5k_start(struct ieee80211_hw *hw);
 static void ath5k_stop(struct ieee80211_hw *hw);
 static int ath5k_add_interface(struct ieee80211_hw *hw,
-		struct ieee80211_if_init_conf *conf);
+		struct ieee80211_vif *vif);
 static void ath5k_remove_interface(struct ieee80211_hw *hw,
-		struct ieee80211_if_init_conf *conf);
+		struct ieee80211_vif *vif);
 static int ath5k_config(struct ieee80211_hw *hw, u32 changed);
 static u64 ath5k_prepare_multicast(struct ieee80211_hw *hw,
 				   int mc_count, struct dev_addr_list *mc_list);
@@ -1903,17 +1903,6 @@ accept:
 		rxs->noise = sc->ah->ah_noise_floor;
 		rxs->signal = rxs->noise + rs.rs_rssi;
 
-		/* An rssi of 35 indicates you should be able use
-		 * 54 Mbps reliably. A more elaborate scheme can be used
-		 * here but it requires a map of SNR/throughput for each
-		 * possible mode used */
-		rxs->qual = rs.rs_rssi * 100 / 35;
-
-		/* rssi can be more than 35 though, anything above that
-		 * should be considered at 100% */
-		if (rxs->qual > 100)
-			rxs->qual = 100;
-
 		rxs->antenna = rs.rs_antenna;
 		rxs->rate_idx = ath5k_hw_to_driver_rix(sc, rs.rs_rate);
 		rxs->flag |= ath5k_rx_decrypted(sc, ds, skb, &rs);
@@ -2381,6 +2370,9 @@ ath5k_init(struct ath5k_softc *sc)
 	 */
 	ath5k_stop_locked(sc);
 
+	/* Set PHY calibration interval */
+	ah->ah_cal_intval = ath5k_calinterval;
+
 	/*
 	 * The basic interface to setting the hardware in a good
 	 * state is ``reset''.  On return the hardware is known to
@@ -2408,10 +2400,6 @@ ath5k_init(struct ath5k_softc *sc)
 
 	/* Set ack to be sent at low bit-rates */
 	ath5k_hw_set_ack_bitrate_high(ah, false);
-
-	/* Set PHY calibration inteval */
-	ah->ah_cal_intval = ath5k_calinterval;
-
 	ret = 0;
 done:
 	mmiowb();
@@ -2785,7 +2773,7 @@ static void ath5k_stop(struct ieee80211_hw *hw)
 }
 
 static int ath5k_add_interface(struct ieee80211_hw *hw,
-		struct ieee80211_if_init_conf *conf)
+		struct ieee80211_vif *vif)
 {
 	struct ath5k_softc *sc = hw->priv;
 	int ret;
@@ -2796,22 +2784,22 @@ static int ath5k_add_interface(struct ieee80211_hw *hw,
 		goto end;
 	}
 
-	sc->vif = conf->vif;
+	sc->vif = vif;
 
-	switch (conf->type) {
+	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_MONITOR:
-		sc->opmode = conf->type;
+		sc->opmode = vif->type;
 		break;
 	default:
 		ret = -EOPNOTSUPP;
 		goto end;
 	}
 
-	ath5k_hw_set_lladdr(sc->ah, conf->mac_addr);
+	ath5k_hw_set_lladdr(sc->ah, vif->addr);
 	ath5k_mode_setup(sc);
 
 	ret = 0;
@@ -2822,13 +2810,13 @@ end:
 
 static void
 ath5k_remove_interface(struct ieee80211_hw *hw,
-			struct ieee80211_if_init_conf *conf)
+			struct ieee80211_vif *vif)
 {
 	struct ath5k_softc *sc = hw->priv;
 	u8 mac[ETH_ALEN] = {};
 
 	mutex_lock(&sc->lock);
-	if (sc->vif != conf->vif)
+	if (sc->vif != vif)
 		goto end;
 
 	ath5k_hw_set_lladdr(sc->ah, mac);

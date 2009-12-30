@@ -187,15 +187,17 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_bss *bss)
 {
+	struct cfg80211_bss *cbss =
+		container_of((void *)bss, struct cfg80211_bss, priv);
 	struct ieee80211_supported_band *sband;
 	u32 basic_rates;
 	int i, j;
-	u16 beacon_int = bss->cbss.beacon_interval;
+	u16 beacon_int = cbss->beacon_interval;
 
 	if (beacon_int < 10)
 		beacon_int = 10;
 
-	sband = sdata->local->hw.wiphy->bands[bss->cbss.channel->band];
+	sband = sdata->local->hw.wiphy->bands[cbss->channel->band];
 
 	basic_rates = 0;
 
@@ -212,12 +214,12 @@ static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	__ieee80211_sta_join_ibss(sdata, bss->cbss.bssid,
+	__ieee80211_sta_join_ibss(sdata, cbss->bssid,
 				  beacon_int,
-				  bss->cbss.channel,
+				  cbss->channel,
 				  basic_rates,
-				  bss->cbss.capability,
-				  bss->cbss.tsf);
+				  cbss->capability,
+				  cbss->tsf);
 }
 
 static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
@@ -229,6 +231,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	int freq;
+	struct cfg80211_bss *cbss;
 	struct ieee80211_bss *bss;
 	struct sta_info *sta;
 	struct ieee80211_channel *channel;
@@ -283,8 +286,10 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	if (!bss)
 		return;
 
+	cbss = container_of((void *)bss, struct cfg80211_bss, priv);
+
 	/* was just updated in ieee80211_bss_info_update */
-	beacon_timestamp = bss->cbss.tsf;
+	beacon_timestamp = cbss->tsf;
 
 	/* check if we need to merge IBSS */
 
@@ -297,11 +302,11 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		goto put_bss;
 
 	/* not an IBSS */
-	if (!(bss->cbss.capability & WLAN_CAPABILITY_IBSS))
+	if (!(cbss->capability & WLAN_CAPABILITY_IBSS))
 		goto put_bss;
 
 	/* different channel */
-	if (bss->cbss.channel != local->oper_channel)
+	if (cbss->channel != local->oper_channel)
 		goto put_bss;
 
 	/* different SSID */
@@ -311,7 +316,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		goto put_bss;
 
 	/* same BSSID */
-	if (memcmp(bss->cbss.bssid, sdata->u.ibss.bssid, ETH_ALEN) == 0)
+	if (memcmp(cbss->bssid, sdata->u.ibss.bssid, ETH_ALEN) == 0)
 		goto put_bss;
 
 	if (rx_status->flag & RX_FLAG_TSFT) {
@@ -382,6 +387,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 					u8 *bssid,u8 *addr, u32 supp_rates)
 {
+	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 	int band = local->hw.conf.channel->band;
@@ -396,6 +402,9 @@ struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 			       sdata->name, addr);
 		return NULL;
 	}
+
+	if (ifibss->state == IEEE80211_IBSS_MLME_SEARCH)
+		return NULL;
 
 	if (compare_ether_addr(bssid, sdata->u.ibss.bssid))
 		return NULL;
@@ -514,7 +523,7 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_bss *bss;
+	struct cfg80211_bss *cbss;
 	struct ieee80211_channel *chan = NULL;
 	const u8 *bssid = NULL;
 	int active_ibss;
@@ -538,21 +547,23 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 		chan = ifibss->channel;
 	if (!is_zero_ether_addr(ifibss->bssid))
 		bssid = ifibss->bssid;
-	bss = (void *)cfg80211_get_bss(local->hw.wiphy, chan, bssid,
-				       ifibss->ssid, ifibss->ssid_len,
-				       WLAN_CAPABILITY_IBSS |
-				       WLAN_CAPABILITY_PRIVACY,
-				       capability);
+	cbss = cfg80211_get_bss(local->hw.wiphy, chan, bssid,
+				ifibss->ssid, ifibss->ssid_len,
+				WLAN_CAPABILITY_IBSS | WLAN_CAPABILITY_PRIVACY,
+				capability);
 
-	if (bss) {
+	if (cbss) {
+		struct ieee80211_bss *bss;
+
+		bss = (void *)cbss->priv;
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 		printk(KERN_DEBUG "   sta_find_ibss: selected %pM current "
-		       "%pM\n", bss->cbss.bssid, ifibss->bssid);
+		       "%pM\n", cbss->bssid, ifibss->bssid);
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
 
 		printk(KERN_DEBUG "%s: Selected IBSS BSSID %pM"
 		       " based on configured SSID\n",
-		       sdata->name, bss->cbss.bssid);
+		       sdata->name, cbss->bssid);
 
 		ieee80211_sta_join_ibss(sdata, bss);
 		ieee80211_rx_bss_put(local, bss);
@@ -744,7 +755,7 @@ static void ieee80211_ibss_work(struct work_struct *work)
 	if (WARN_ON(local->suspended))
 		return;
 
-	if (!netif_running(sdata->dev))
+	if (!ieee80211_sdata_running(sdata))
 		return;
 
 	if (local->scanning)
@@ -827,7 +838,7 @@ void ieee80211_ibss_notify_scan_completed(struct ieee80211_local *local)
 
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
-		if (!netif_running(sdata->dev))
+		if (!ieee80211_sdata_running(sdata))
 			continue;
 		if (sdata->vif.type != NL80211_IFTYPE_ADHOC)
 			continue;

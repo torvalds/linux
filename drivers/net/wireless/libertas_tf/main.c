@@ -318,14 +318,14 @@ static void lbtf_op_stop(struct ieee80211_hw *hw)
 }
 
 static int lbtf_op_add_interface(struct ieee80211_hw *hw,
-			struct ieee80211_if_init_conf *conf)
+			struct ieee80211_vif *vif)
 {
 	struct lbtf_private *priv = hw->priv;
 	if (priv->vif != NULL)
 		return -EOPNOTSUPP;
 
-	priv->vif = conf->vif;
-	switch (conf->type) {
+	priv->vif = vif;
+	switch (vif->type) {
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_AP:
 		lbtf_set_mode(priv, LBTF_AP_MODE);
@@ -337,12 +337,12 @@ static int lbtf_op_add_interface(struct ieee80211_hw *hw,
 		priv->vif = NULL;
 		return -EOPNOTSUPP;
 	}
-	lbtf_set_mac_address(priv, (u8 *) conf->mac_addr);
+	lbtf_set_mac_address(priv, (u8 *) vif->addr);
 	return 0;
 }
 
 static void lbtf_op_remove_interface(struct ieee80211_hw *hw,
-			struct ieee80211_if_init_conf *conf)
+			struct ieee80211_vif *vif)
 {
 	struct lbtf_private *priv = hw->priv;
 
@@ -495,7 +495,6 @@ int lbtf_rx(struct lbtf_private *priv, struct sk_buff *skb)
 	stats.band = IEEE80211_BAND_2GHZ;
 	stats.signal = prxpd->snr;
 	stats.noise = prxpd->nf;
-	stats.qual = prxpd->snr - prxpd->nf;
 	/* Marvell rate index has a hole at value 4 */
 	if (prxpd->rx_rate > 4)
 		--prxpd->rx_rate;

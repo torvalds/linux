@@ -209,6 +209,26 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 	gen_parms->tx_bip_fem_manufacturer = g->tx_bip_fem_manufacturer;
 	gen_parms->settings = g->settings;
 
+	gen_parms->sr_state = g->sr_state;
+
+	memcpy(gen_parms->srf1,
+	       g->srf1,
+	       CONF_MAX_SMART_REFLEX_PARAMS);
+	memcpy(gen_parms->srf2,
+	       g->srf2,
+	       CONF_MAX_SMART_REFLEX_PARAMS);
+	memcpy(gen_parms->srf3,
+	       g->srf3,
+	       CONF_MAX_SMART_REFLEX_PARAMS);
+	memcpy(gen_parms->sr_debug_table,
+	       g->sr_debug_table,
+	       CONF_MAX_SMART_REFLEX_PARAMS);
+
+	gen_parms->sr_sen_n_p = g->sr_sen_n_p;
+	gen_parms->sr_sen_n_p_gain = g->sr_sen_n_p_gain;
+	gen_parms->sr_sen_nrn = g->sr_sen_nrn;
+	gen_parms->sr_sen_prn = g->sr_sen_prn;
+
 	ret = wl1271_cmd_test(wl, gen_parms, sizeof(*gen_parms), 0);
 	if (ret < 0)
 		wl1271_warning("CMD_INI_FILE_GENERAL_PARAM failed");
@@ -253,6 +273,8 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 	       CONF_NUMBER_OF_RATE_GROUPS);
 	memcpy(radio_parms->tx_rate_limits_degraded, r->tx_rate_limits_degraded,
 	       CONF_NUMBER_OF_RATE_GROUPS);
+	memcpy(radio_parms->tx_rate_limits_extreme, r->tx_rate_limits_extreme,
+	       CONF_NUMBER_OF_RATE_GROUPS);
 
 	memcpy(radio_parms->tx_channel_limits_11b, r->tx_channel_limits_11b,
 	       CONF_NUMBER_OF_CHANNELS_2_4);
@@ -263,6 +285,11 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 	memcpy(radio_parms->tx_ibias, r->tx_ibias, CONF_NUMBER_OF_RATE_GROUPS);
 
 	radio_parms->rx_fem_insertion_loss = r->rx_fem_insertion_loss;
+	radio_parms->degraded_low_to_normal_threshold =
+		r->degraded_low_to_normal_threshold;
+	radio_parms->degraded_normal_to_high_threshold =
+		r->degraded_normal_to_high_threshold;
+
 
 	for (i = 0; i < CONF_NUMBER_OF_SUB_BANDS_5; i++)
 		radio_parms->tx_ref_pd_voltage_5[i] =
@@ -275,6 +302,8 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 	       r->tx_rate_limits_normal_5, CONF_NUMBER_OF_RATE_GROUPS);
 	memcpy(radio_parms->tx_rate_limits_degraded_5,
 	       r->tx_rate_limits_degraded_5, CONF_NUMBER_OF_RATE_GROUPS);
+	memcpy(radio_parms->tx_rate_limits_extreme_5,
+	       r->tx_rate_limits_extreme_5, CONF_NUMBER_OF_RATE_GROUPS);
 	memcpy(radio_parms->tx_channel_limits_ofdm_5,
 	       r->tx_channel_limits_ofdm_5, CONF_NUMBER_OF_CHANNELS_5);
 	memcpy(radio_parms->tx_pdv_rate_offsets_5, r->tx_pdv_rate_offsets_5,
@@ -283,6 +312,10 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 	       CONF_NUMBER_OF_RATE_GROUPS);
 	memcpy(radio_parms->rx_fem_insertion_loss_5,
 	       r->rx_fem_insertion_loss_5, CONF_NUMBER_OF_SUB_BANDS_5);
+	radio_parms->degraded_low_to_normal_threshold_5 =
+		r->degraded_low_to_normal_threshold_5;
+	radio_parms->degraded_normal_to_high_threshold_5 =
+		r->degraded_normal_to_high_threshold_5;
 
 	wl1271_dump(DEBUG_CMD, "TEST_CMD_INI_FILE_RADIO_PARAM: ",
 		    radio_parms, sizeof(*radio_parms));
@@ -309,19 +342,6 @@ int wl1271_cmd_join(struct wl1271 *wl)
 			wl1271_warning("couldn't calibrate");
 		else
 			do_cal = false;
-	}
-
-	/* FIXME: This is a workaround, because with the current stack, we
-	 * cannot know when we have disassociated.  So, if we have already
-	 * joined, we disconnect before joining again. */
-	if (wl->joined) {
-		ret = wl1271_cmd_disconnect(wl);
-		if (ret < 0) {
-			wl1271_error("failed to disconnect before rejoining");
-			goto out;
-		}
-
-		wl->joined = false;
 	}
 
 	join = kzalloc(sizeof(*join), GFP_KERNEL);
@@ -387,8 +407,6 @@ int wl1271_cmd_join(struct wl1271 *wl)
 		wl1271_error("failed to initiate cmd join");
 		goto out_free;
 	}
-
-	wl->joined = true;
 
 	/*
 	 * ugly hack: we should wait for JOIN_EVENT_COMPLETE_ID but to
@@ -487,7 +505,7 @@ int wl1271_cmd_configure(struct wl1271 *wl, u16 id, void *buf, size_t len)
 	return 0;
 }
 
-int wl1271_cmd_data_path(struct wl1271 *wl, u8 channel, bool enable)
+int wl1271_cmd_data_path(struct wl1271 *wl, bool enable)
 {
 	struct cmd_enabledisable_path *cmd;
 	int ret;
@@ -501,7 +519,8 @@ int wl1271_cmd_data_path(struct wl1271 *wl, u8 channel, bool enable)
 		goto out;
 	}
 
-	cmd->channel = channel;
+	/* the channel here is only used for calibration, so hardcoded to 1 */
+	cmd->channel = 1;
 
 	if (enable) {
 		cmd_rx = CMD_ENABLE_RX;
@@ -514,22 +533,22 @@ int wl1271_cmd_data_path(struct wl1271 *wl, u8 channel, bool enable)
 	ret = wl1271_cmd_send(wl, cmd_rx, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
 		wl1271_error("rx %s cmd for channel %d failed",
-			     enable ? "start" : "stop", channel);
+			     enable ? "start" : "stop", cmd->channel);
 		goto out;
 	}
 
 	wl1271_debug(DEBUG_BOOT, "rx %s cmd channel %d",
-		     enable ? "start" : "stop", channel);
+		     enable ? "start" : "stop", cmd->channel);
 
 	ret = wl1271_cmd_send(wl, cmd_tx, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
 		wl1271_error("tx %s cmd for channel %d failed",
-			     enable ? "start" : "stop", channel);
+			     enable ? "start" : "stop", cmd->channel);
 		return ret;
 	}
 
 	wl1271_debug(DEBUG_BOOT, "tx %s cmd channel %d",
-		     enable ? "start" : "stop", channel);
+		     enable ? "start" : "stop", cmd->channel);
 
 out:
 	kfree(cmd);
@@ -636,7 +655,7 @@ int wl1271_cmd_scan(struct wl1271 *wl, u8 *ssid, size_t len,
 	channels = wl->hw->wiphy->bands[ieee_band]->channels;
 	n_ch = wl->hw->wiphy->bands[ieee_band]->n_channels;
 
-	if (wl->scanning)
+	if (test_bit(WL1271_FLAG_SCANNING, &wl->flags))
 		return -EINVAL;
 
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
@@ -711,7 +730,7 @@ int wl1271_cmd_scan(struct wl1271 *wl, u8 *ssid, size_t len,
 
 	wl1271_dump(DEBUG_SCAN, "SCAN: ", params, sizeof(*params));
 
-	wl->scanning = true;
+	set_bit(WL1271_FLAG_SCANNING, &wl->flags);
 	if (wl1271_11a_enabled()) {
 		wl->scan.state = band;
 		if (band == WL1271_SCAN_BAND_DUAL) {
@@ -729,7 +748,7 @@ int wl1271_cmd_scan(struct wl1271 *wl, u8 *ssid, size_t len,
 	ret = wl1271_cmd_send(wl, CMD_SCAN, params, sizeof(*params), 0);
 	if (ret < 0) {
 		wl1271_error("SCAN failed");
-		wl->scanning = false;
+		clear_bit(WL1271_FLAG_SCANNING, &wl->flags);
 		goto out;
 	}
 
@@ -777,7 +796,7 @@ out:
 	return ret;
 }
 
-static int wl1271_build_basic_rates(char *rates, u8 band)
+static int wl1271_build_basic_rates(u8 *rates, u8 band)
 {
 	u8 index = 0;
 
@@ -804,7 +823,7 @@ static int wl1271_build_basic_rates(char *rates, u8 band)
 	return index;
 }
 
-static int wl1271_build_extended_rates(char *rates, u8 band)
+static int wl1271_build_extended_rates(u8 *rates, u8 band)
 {
 	u8 index = 0;
 

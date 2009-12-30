@@ -390,6 +390,35 @@ out:
 	return ret;
 }
 
+int wl1271_acx_dco_itrim_params(struct wl1271 *wl)
+{
+	struct acx_dco_itrim_params *dco;
+	struct conf_itrim_settings *c = &wl->conf.itrim;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx dco itrim parameters");
+
+	dco = kzalloc(sizeof(*dco), GFP_KERNEL);
+	if (!dco) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	dco->enable = c->enable;
+	dco->timeout = cpu_to_le32(c->timeout);
+
+	ret = wl1271_cmd_configure(wl, ACX_SET_DCO_ITRIM_PARAMS,
+				   dco, sizeof(*dco));
+	if (ret < 0) {
+		wl1271_warning("failed to set dco itrim parameters: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(dco);
+	return ret;
+}
+
 int wl1271_acx_beacon_filter_opt(struct wl1271 *wl, bool enable_filter)
 {
 	struct acx_beacon_filter_option *beacon_filter = NULL;
@@ -758,10 +787,11 @@ int wl1271_acx_statistics(struct wl1271 *wl, struct acx_statistics *stats)
 	return 0;
 }
 
-int wl1271_acx_rate_policies(struct wl1271 *wl, u32 enabled_rates)
+int wl1271_acx_rate_policies(struct wl1271 *wl)
 {
 	struct acx_rate_policy *acx;
 	struct conf_tx_rate_class *c = &wl->conf.tx.rc_conf;
+	int idx = 0;
 	int ret = 0;
 
 	wl1271_debug(DEBUG_ACX, "acx rate policies");
@@ -773,12 +803,21 @@ int wl1271_acx_rate_policies(struct wl1271 *wl, u32 enabled_rates)
 		goto out;
 	}
 
-	/* configure one default (one-size-fits-all) rate class */
-	acx->rate_class_cnt = cpu_to_le32(1);
-	acx->rate_class[0].enabled_rates = cpu_to_le32(enabled_rates);
-	acx->rate_class[0].short_retry_limit = c->short_retry_limit;
-	acx->rate_class[0].long_retry_limit = c->long_retry_limit;
-	acx->rate_class[0].aflags = c->aflags;
+	/* configure one basic rate class */
+	idx = ACX_TX_BASIC_RATE;
+	acx->rate_class[idx].enabled_rates = cpu_to_le32(wl->basic_rate_set);
+	acx->rate_class[idx].short_retry_limit = c->short_retry_limit;
+	acx->rate_class[idx].long_retry_limit = c->long_retry_limit;
+	acx->rate_class[idx].aflags = c->aflags;
+
+	/* configure one AP supported rate class */
+	idx = ACX_TX_AP_FULL_RATE;
+	acx->rate_class[idx].enabled_rates = cpu_to_le32(wl->rate_set);
+	acx->rate_class[idx].short_retry_limit = c->short_retry_limit;
+	acx->rate_class[idx].long_retry_limit = c->long_retry_limit;
+	acx->rate_class[idx].aflags = c->aflags;
+
+	acx->rate_class_cnt = cpu_to_le32(ACX_TX_RATE_POLICY_CNT);
 
 	ret = wl1271_cmd_configure(wl, ACX_RATE_POLICY, acx, sizeof(*acx));
 	if (ret < 0) {
@@ -1012,59 +1051,6 @@ out:
 	return ret;
 }
 
-int wl1271_acx_smart_reflex(struct wl1271 *wl)
-{
-	struct acx_smart_reflex_state *sr_state = NULL;
-	struct acx_smart_reflex_config_params *sr_param = NULL;
-	int i, ret;
-
-	wl1271_debug(DEBUG_ACX, "acx smart reflex");
-
-	sr_param = kzalloc(sizeof(*sr_param), GFP_KERNEL);
-	if (!sr_param) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	for (i = 0; i < CONF_SR_ERR_TBL_COUNT; i++) {
-		struct conf_mart_reflex_err_table *e =
-			&(wl->conf.init.sr_err_tbl[i]);
-
-		sr_param->error_table[i].len = e->len;
-		sr_param->error_table[i].upper_limit = e->upper_limit;
-		memcpy(sr_param->error_table[i].values, e->values, e->len);
-	}
-
-	ret = wl1271_cmd_configure(wl, ACX_SET_SMART_REFLEX_PARAMS,
-				   sr_param, sizeof(*sr_param));
-	if (ret < 0) {
-		wl1271_warning("failed to set smart reflex params: %d", ret);
-		goto out;
-	}
-
-	sr_state = kzalloc(sizeof(*sr_state), GFP_KERNEL);
-	if (!sr_state) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	/* enable smart reflex */
-	sr_state->enable = wl->conf.init.sr_enable;
-
-	ret = wl1271_cmd_configure(wl, ACX_SET_SMART_REFLEX_STATE,
-				   sr_state, sizeof(*sr_state));
-	if (ret < 0) {
-		wl1271_warning("failed to set smart reflex params: %d", ret);
-		goto out;
-	}
-
-out:
-	kfree(sr_state);
-	kfree(sr_param);
-	return ret;
-
-}
-
 int wl1271_acx_bet_enable(struct wl1271 *wl, bool enable)
 {
 	struct wl1271_acx_bet_enable *acx = NULL;
@@ -1125,6 +1111,34 @@ int wl1271_acx_arp_ip_filter(struct wl1271 *wl, bool enable, u8 *address,
 				   acx, sizeof(*acx));
 	if (ret < 0) {
 		wl1271_warning("failed to set arp ip filter: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+int wl1271_acx_pm_config(struct wl1271 *wl)
+{
+	struct wl1271_acx_pm_config *acx = NULL;
+	struct  conf_pm_config_settings *c = &wl->conf.pm_config;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_ACX, "acx pm config");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->host_clk_settling_time = cpu_to_le32(c->host_clk_settling_time);
+	acx->host_fast_wakeup_support = c->host_fast_wakeup_support;
+
+	ret = wl1271_cmd_configure(wl, ACX_PM_CONFIG, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx pm config failed: %d", ret);
 		goto out;
 	}
 

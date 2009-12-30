@@ -645,7 +645,7 @@ static void ieee80211_mesh_work(struct work_struct *work)
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct sk_buff *skb;
 
-	if (!netif_running(sdata->dev))
+	if (!ieee80211_sdata_running(sdata))
 		return;
 
 	if (local->scanning)

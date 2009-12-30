@@ -1299,47 +1299,6 @@ int iwl3945_calc_db_from_ratio(int sig_ratio)
 	return (int)ratio2dB[sig_ratio];
 }
 
-#define PERFECT_RSSI (-20) /* dBm */
-#define WORST_RSSI (-95)   /* dBm */
-#define RSSI_RANGE (PERFECT_RSSI - WORST_RSSI)
-
-/* Calculate an indication of rx signal quality (a percentage, not dBm!).
- * See http://www.ces.clemson.edu/linux/signal_quality.shtml for info
- *   about formulas used below. */
-int iwl3945_calc_sig_qual(int rssi_dbm, int noise_dbm)
-{
-	int sig_qual;
-	int degradation = PERFECT_RSSI - rssi_dbm;
-
-	/* If we get a noise measurement, use signal-to-noise ratio (SNR)
-	 * as indicator; formula is (signal dbm - noise dbm).
-	 * SNR at or above 40 is a great signal (100%).
-	 * Below that, scale to fit SNR of 0 - 40 dB within 0 - 100% indicator.
-	 * Weakest usable signal is usually 10 - 15 dB SNR. */
-	if (noise_dbm) {
-		if (rssi_dbm - noise_dbm >= 40)
-			return 100;
-		else if (rssi_dbm < noise_dbm)
-			return 0;
-		sig_qual = ((rssi_dbm - noise_dbm) * 5) / 2;
-
-	/* Else use just the signal level.
-	 * This formula is a least squares fit of data points collected and
-	 *   compared with a reference system that had a percentage (%) display
-	 *   for signal quality. */
-	} else
-		sig_qual = (100 * (RSSI_RANGE * RSSI_RANGE) - degradation *
-			    (15 * RSSI_RANGE + 62 * degradation)) /
-			   (RSSI_RANGE * RSSI_RANGE);
-
-	if (sig_qual > 100)
-		sig_qual = 100;
-	else if (sig_qual < 1)
-		sig_qual = 0;
-
-	return sig_qual;
-}
-
 /**
  * iwl3945_rx_handle - Main entry function for receiving responses from uCode
  *

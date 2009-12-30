@@ -511,13 +511,13 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 }
 
 static int wl1251_op_add_interface(struct ieee80211_hw *hw,
-				   struct ieee80211_if_init_conf *conf)
+				   struct ieee80211_vif *vif)
 {
 	struct wl1251 *wl = hw->priv;
 	int ret = 0;
 
 	wl1251_debug(DEBUG_MAC80211, "mac80211 add interface type %d mac %pM",
-		     conf->type, conf->mac_addr);
+		     vif->type, vif->addr);
 
 	mutex_lock(&wl->mutex);
 	if (wl->vif) {
@@ -525,9 +525,9 @@ static int wl1251_op_add_interface(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	wl->vif = conf->vif;
+	wl->vif = vif;
 
-	switch (conf->type) {
+	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		wl->bss_type = BSS_TYPE_STA_BSS;
 		break;
@@ -539,8 +539,8 @@ static int wl1251_op_add_interface(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	if (memcmp(wl->mac_addr, conf->mac_addr, ETH_ALEN)) {
-		memcpy(wl->mac_addr, conf->mac_addr, ETH_ALEN);
+	if (memcmp(wl->mac_addr, vif->addr, ETH_ALEN)) {
+		memcpy(wl->mac_addr, vif->addr, ETH_ALEN);
 		SET_IEEE80211_PERM_ADDR(wl->hw, wl->mac_addr);
 		ret = wl1251_acx_station_id(wl);
 		if (ret < 0)
@@ -553,7 +553,7 @@ out:
 }
 
 static void wl1251_op_remove_interface(struct ieee80211_hw *hw,
-					 struct ieee80211_if_init_conf *conf)
+					 struct ieee80211_vif *vif)
 {
 	struct wl1251 *wl = hw->priv;
 

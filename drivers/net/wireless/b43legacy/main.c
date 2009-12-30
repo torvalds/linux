@@ -3361,7 +3361,7 @@ err_kfree_lo_control:
 }
 
 static int b43legacy_op_add_interface(struct ieee80211_hw *hw,
-				      struct ieee80211_if_init_conf *conf)
+				      struct ieee80211_vif *vif)
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
 	struct b43legacy_wldev *dev;
@@ -3370,23 +3370,23 @@ static int b43legacy_op_add_interface(struct ieee80211_hw *hw,
 
 	/* TODO: allow WDS/AP devices to coexist */
 
-	if (conf->type != NL80211_IFTYPE_AP &&
-	    conf->type != NL80211_IFTYPE_STATION &&
-	    conf->type != NL80211_IFTYPE_WDS &&
-	    conf->type != NL80211_IFTYPE_ADHOC)
+	if (vif->type != NL80211_IFTYPE_AP &&
+	    vif->type != NL80211_IFTYPE_STATION &&
+	    vif->type != NL80211_IFTYPE_WDS &&
+	    vif->type != NL80211_IFTYPE_ADHOC)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&wl->mutex);
 	if (wl->operating)
 		goto out_mutex_unlock;
 
-	b43legacydbg(wl, "Adding Interface type %d\n", conf->type);
+	b43legacydbg(wl, "Adding Interface type %d\n", vif->type);
 
 	dev = wl->current_dev;
 	wl->operating = 1;
-	wl->vif = conf->vif;
-	wl->if_type = conf->type;
-	memcpy(wl->mac_addr, conf->mac_addr, ETH_ALEN);
+	wl->vif = vif;
+	wl->if_type = vif->type;
+	memcpy(wl->mac_addr, vif->addr, ETH_ALEN);
 
 	spin_lock_irqsave(&wl->irq_lock, flags);
 	b43legacy_adjust_opmode(dev);
@@ -3403,18 +3403,18 @@ static int b43legacy_op_add_interface(struct ieee80211_hw *hw,
 }
 
 static void b43legacy_op_remove_interface(struct ieee80211_hw *hw,
-					  struct ieee80211_if_init_conf *conf)
+					  struct ieee80211_vif *vif)
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
 	struct b43legacy_wldev *dev = wl->current_dev;
 	unsigned long flags;
 
-	b43legacydbg(wl, "Removing Interface type %d\n", conf->type);
+	b43legacydbg(wl, "Removing Interface type %d\n", vif->type);
 
 	mutex_lock(&wl->mutex);
 
 	B43legacy_WARN_ON(!wl->operating);
-	B43legacy_WARN_ON(wl->vif != conf->vif);
+	B43legacy_WARN_ON(wl->vif != vif);
 	wl->vif = NULL;
 
 	wl->operating = 0;
