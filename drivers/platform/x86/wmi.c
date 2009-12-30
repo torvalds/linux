@@ -492,8 +492,7 @@ wmi_notify_handler handler, void *data)
 	if (!guid || !handler)
 		return AE_BAD_PARAMETER;
 
-	find_guid(guid, &block);
-	if (!block)
+	if (!find_guid(guid, &block))
 		return AE_NOT_EXIST;
 
 	if (block->handler)
@@ -521,8 +520,7 @@ acpi_status wmi_remove_notify_handler(const char *guid)
 	if (!guid)
 		return AE_BAD_PARAMETER;
 
-	find_guid(guid, &block);
-	if (!block)
+	if (!find_guid(guid, &block))
 		return AE_NOT_EXIST;
 
 	if (!block->handler)
