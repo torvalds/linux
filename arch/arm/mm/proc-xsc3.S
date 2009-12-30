@@ -407,6 +407,13 @@ __xsc3_setup:
 
 	adr	r5, xsc3_crval
 	ldmia	r5, {r5, r6}
+
+#ifdef CONFIG_CACHE_XSC3L2
+	mrc	p15, 1, r0, c0, c0, 1		@ get L2 present information
+	ands	r0, r0, #0xf8
+	orrne	r6, r6, #(1 << 26)		@ enable L2 if present
+#endif
+
 	mrc	p15, 0, r0, c1, c0, 0		@ get control register
 	bic	r0, r0, r5			@ ..V. ..R. .... ..A.
 	orr	r0, r0, r6			@ ..VI Z..S .... .C.M (mmu)
