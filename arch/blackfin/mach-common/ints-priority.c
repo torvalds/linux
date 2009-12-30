@@ -1062,7 +1062,6 @@ int __init init_arch_irq(void)
 #elif defined(CONFIG_BF538) || defined(CONFIG_BF539)
 		case IRQ_PORTF_INTA:
 #endif
-
 			set_irq_chained_handler(irq,
 						bfin_demux_gpio_irq);
 			break;
@@ -1073,24 +1072,30 @@ int __init init_arch_irq(void)
 #endif
 
 #ifdef CONFIG_SMP
-#ifdef CONFIG_TICKSOURCE_CORETMR
-		case IRQ_CORETMR:
-#endif
 		case IRQ_SUPPLE_0:
 		case IRQ_SUPPLE_1:
 			set_irq_handler(irq, handle_percpu_irq);
 			break;
 #endif
 
-#ifdef CONFIG_IPIPE
-#ifndef CONFIG_TICKSOURCE_CORETMR
+#ifdef CONFIG_TICKSOURCE_CORETMR
+		case IRQ_CORETMR:
+# ifdef CONFIG_SMP
+			set_irq_handler(irq, handle_percpu_irq);
+			break;
+# else
+			set_irq_handler(irq, handle_simple_irq);
+			break;
+# endif
+#endif
+
+#ifdef CONFIG_TICKSOURCE_GPTMR0
 		case IRQ_TIMER0:
 			set_irq_handler(irq, handle_simple_irq);
 			break;
 #endif
-		case IRQ_CORETMR:
-			set_irq_handler(irq, handle_simple_irq);
-			break;
+
+#ifdef CONFIG_IPIPE
 		default:
 			set_irq_handler(irq, handle_level_irq);
 			break;
