@@ -98,7 +98,8 @@ static int xattr_rmdir(struct inode *dir, struct dentry *dentry)
 	BUG_ON(!mutex_is_locked(&dir->i_mutex));
 	vfs_dq_init(dir);
 
-	mutex_lock_nested(&dentry->d_inode->i_mutex, I_MUTEX_CHILD);
+	reiserfs_mutex_lock_nested_safe(&dentry->d_inode->i_mutex,
+					I_MUTEX_CHILD, dir->i_sb);
 	dentry_unhash(dentry);
 	error = dir->i_op->rmdir(dir, dentry);
 	if (!error)
