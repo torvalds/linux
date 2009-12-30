@@ -1862,7 +1862,8 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	    !rt2x00_rf(rt2x00dev, RF3020) &&
 	    !rt2x00_rf(rt2x00dev, RF2020) &&
 	    !rt2x00_rf(rt2x00dev, RF3021) &&
-	    !rt2x00_rf(rt2x00dev, RF3022)) {
+	    !rt2x00_rf(rt2x00dev, RF3022) &&
+	    !rt2x00_rf(rt2x00dev, RF3052)) {
 		ERROR(rt2x00dev, "Invalid RF chipset detected.\n");
 		return -ENODEV;
 	}
@@ -2047,7 +2048,7 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 
 	if (rt2x00_rf(rt2x00dev, RF2820) ||
 	    rt2x00_rf(rt2x00dev, RF2720) ||
-	    (rt2x00_intf_is_pci(rt2x00dev) && rt2x00_rf(rt2x00dev, RF3052))) {
+	    rt2x00_rf(rt2x00dev, RF3052)) {
 		spec->num_channels = 14;
 		spec->channels = rf_vals;
 	} else if (rt2x00_rf(rt2x00dev, RF2850) || rt2x00_rf(rt2x00dev, RF2750)) {
