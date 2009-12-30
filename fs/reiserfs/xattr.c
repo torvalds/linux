@@ -485,11 +485,16 @@ reiserfs_xattr_set_handle(struct reiserfs_transaction_handle *th,
 	if (!buffer)
 		return lookup_and_delete_xattr(inode, name);
 
+	reiserfs_write_unlock(inode->i_sb);
 	dentry = xattr_lookup(inode, name, flags);
-	if (IS_ERR(dentry))
+	if (IS_ERR(dentry)) {
+		reiserfs_write_lock(inode->i_sb);
 		return PTR_ERR(dentry);
+	}
 
-	reiserfs_down_read_safe(&REISERFS_I(inode)->i_xattr_sem, inode->i_sb);
+	down_read(&REISERFS_I(inode)->i_xattr_sem);
+
+	reiserfs_write_lock(inode->i_sb);
 
 	xahash = xattr_hash(buffer, buffer_size);
 	while (buffer_pos < buffer_size || buffer_pos == 0) {
