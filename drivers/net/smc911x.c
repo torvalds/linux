@@ -2017,10 +2017,8 @@ static int __devinit smc911x_probe(struct net_device *dev)
 					"set using ifconfig\n", dev->name);
 		} else {
 			/* Print the Ethernet address */
-			printk("%s: Ethernet addr: ", dev->name);
-			for (i = 0; i < 5; i++)
-				printk("%2.2x:", dev->dev_addr[i]);
-			printk("%2.2x\n", dev->dev_addr[5]);
+			printk("%s: Ethernet addr: %pM\n",
+				dev->name, dev->dev_addr);
 		}
 
 		if (lp->phy_type == 0) {
