@@ -796,7 +796,7 @@ out:
 	return ret;
 }
 
-static int wl1271_build_basic_rates(char *rates, u8 band)
+static int wl1271_build_basic_rates(u8 *rates, u8 band)
 {
 	u8 index = 0;
 
@@ -823,7 +823,7 @@ static int wl1271_build_basic_rates(char *rates, u8 band)
 	return index;
 }
 
-static int wl1271_build_extended_rates(char *rates, u8 band)
+static int wl1271_build_extended_rates(u8 *rates, u8 band)
 {
 	u8 index = 0;
 
