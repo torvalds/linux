@@ -228,6 +228,9 @@ static void iforce_close(struct input_dev *dev)
 
 		/* Disable force feedback playback */
 		iforce_send_packet(iforce, FF_CMD_ENABLE, "\001");
+		/* Wait for the command to complete */
+		wait_event_interruptible(iforce->wait,
+			!test_bit(IFORCE_XMIT_RUNNING, iforce->xmit_flags));
 	}
 
 	switch (iforce->bus) {

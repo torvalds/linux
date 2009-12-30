@@ -109,6 +109,7 @@ static void iforce_usb_out(struct urb *urb)
 	struct iforce *iforce = urb->context;
 
 	if (urb->status) {
+		clear_bit(IFORCE_XMIT_RUNNING, iforce->xmit_flags);
 		dbg("urb->status %d, exiting", urb->status);
 		return;
 	}
