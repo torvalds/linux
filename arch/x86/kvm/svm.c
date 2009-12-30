@@ -984,17 +984,11 @@ static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	if (npt_enabled)
 		goto set;
 
-	if (kvm_read_cr0_bits(vcpu, X86_CR0_TS) && !(cr0 & X86_CR0_TS)) {
-		svm->vmcb->control.intercept_exceptions &= ~(1 << NM_VECTOR);
-		vcpu->fpu_active = 1;
-	}
-
 	vcpu->arch.cr0 = cr0;
 	cr0 |= X86_CR0_PG | X86_CR0_WP;
-	if (!vcpu->fpu_active) {
-		svm->vmcb->control.intercept_exceptions |= (1 << NM_VECTOR);
+
+	if (!vcpu->fpu_active)
 		cr0 |= X86_CR0_TS;
-	}
 set:
 	/*
 	 * re-enable caching here because the QEMU bios
@@ -1250,6 +1244,8 @@ static int nm_interception(struct vcpu_svm *svm)
 	svm->vmcb->control.intercept_exceptions &= ~(1 << NM_VECTOR);
 	if (!kvm_read_cr0_bits(&svm->vcpu, X86_CR0_TS))
 		svm->vmcb->save.cr0 &= ~X86_CR0_TS;
+	else
+		svm->vmcb->save.cr0 |= X86_CR0_TS;
 	svm->vcpu.fpu_active = 1;
 
 	return 1;
@@ -2586,6 +2582,8 @@ static void svm_flush_tlb(struct kvm_vcpu *vcpu)
 
 static void svm_prepare_guest_switch(struct kvm_vcpu *vcpu)
 {
+	if (npt_enabled)
+		vcpu->fpu_active = 1;
 }
 
 static inline void sync_cr8_to_lapic(struct kvm_vcpu *vcpu)
@@ -2805,12 +2803,6 @@ static void svm_set_cr3(struct kvm_vcpu *vcpu, unsigned long root)
 
 	svm->vmcb->save.cr3 = root;
 	force_new_asid(vcpu);
-
-	if (vcpu->fpu_active) {
-		svm->vmcb->control.intercept_exceptions |= (1 << NM_VECTOR);
-		svm->vmcb->save.cr0 |= X86_CR0_TS;
-		vcpu->fpu_active = 0;
-	}
 }
 
 static int is_disabled(void)
@@ -2926,6 +2918,20 @@ static bool svm_rdtscp_supported(void)
 	return false;
 }
 
+static void svm_fpu_deactivate(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (npt_enabled) {
+		/* hack: npt requires active fpu at this time */
+		vcpu->fpu_active = 1;
+		return;
+	}
+
+	svm->vmcb->control.intercept_exceptions |= 1 << NM_VECTOR;
+	svm->vmcb->save.cr0 |= X86_CR0_TS;
+}
+
 static struct kvm_x86_ops svm_x86_ops = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -2967,6 +2973,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.cache_reg = svm_cache_reg,
 	.get_rflags = svm_get_rflags,
 	.set_rflags = svm_set_rflags,
+	.fpu_deactivate = svm_fpu_deactivate,
 
 	.tlb_flush = svm_flush_tlb,
 

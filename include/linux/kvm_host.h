@@ -38,6 +38,7 @@
 #define KVM_REQ_MMU_SYNC           7
 #define KVM_REQ_KVMCLOCK_UPDATE    8
 #define KVM_REQ_KICK               9
+#define KVM_REQ_DEACTIVATE_FPU    10
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID	0
 
