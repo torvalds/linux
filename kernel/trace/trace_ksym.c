@@ -197,7 +197,6 @@ int process_new_ksym_entry(char *ksymname, int op, unsigned long addr)
 	entry->attr.bp_addr = addr;
 	entry->attr.bp_len = HW_BREAKPOINT_LEN_4;
 
-	ret = -EAGAIN;
 	entry->ksym_hbp = register_wide_hw_breakpoint(&entry->attr,
 					ksym_hbp_handler);
 
