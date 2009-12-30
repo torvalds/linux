@@ -3023,6 +3023,14 @@ out:
 	return err;
 }
 
+static void unmap_underlying_metadata_blocks(struct block_device *bdev,
+			sector_t block, int count)
+{
+	int i;
+	for (i = 0; i < count; i++)
+                unmap_underlying_metadata(bdev, block + i);
+}
+
 static int
 ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 			ext4_lblk_t iblock, unsigned int max_blocks,
@@ -3098,6 +3106,18 @@ out:
 	} else
 		allocated = ret;
 	set_buffer_new(bh_result);
+	/*
+	 * if we allocated more blocks than requested
+	 * we need to make sure we unmap the extra block
+	 * allocated. The actual needed block will get
+	 * unmapped later when we find the buffer_head marked
+	 * new.
+	 */
+	if (allocated > max_blocks) {
+		unmap_underlying_metadata_blocks(inode->i_sb->s_bdev,
+					newblock + max_blocks,
+					allocated - max_blocks);
+	}
 map_out:
 	set_buffer_mapped(bh_result);
 out1:
