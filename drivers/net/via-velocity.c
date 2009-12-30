@@ -2702,10 +2702,8 @@ static void __devinit velocity_print_info(struct velocity_info *vptr)
 	struct net_device *dev = vptr->dev;
 
 	printk(KERN_INFO "%s: %s\n", dev->name, get_chip_name(vptr->chip_id));
-	printk(KERN_INFO "%s: Ethernet Address: %2.2X:%2.2X:%2.2X:%2.2X:%2.2X:%2.2X\n",
-		dev->name,
-		dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-		dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
+	printk(KERN_INFO "%s: Ethernet Address: %pM\n",
+		dev->name, dev->dev_addr);
 }
 
 static u32 velocity_get_link(struct net_device *dev)
