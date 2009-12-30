@@ -139,6 +139,7 @@ void rt2800_link_tuner(struct rt2x00_dev *rt2x00dev, struct link_qual *qual,
 int rt2800_init_registers(struct rt2x00_dev *rt2x00dev);
 int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev);
 int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev);
+int rt2800_wait_wpdma_ready(struct rt2x00_dev *rt2x00dev);
 
 int rt2800_efuse_detect(struct rt2x00_dev *rt2x00dev);
 void rt2800_read_eeprom_efuse(struct rt2x00_dev *rt2x00dev);

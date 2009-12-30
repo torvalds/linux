@@ -245,6 +245,25 @@ void rt2800_mcu_request(struct rt2x00_dev *rt2x00dev,
 }
 EXPORT_SYMBOL_GPL(rt2800_mcu_request);
 
+int rt2800_wait_wpdma_ready(struct rt2x00_dev *rt2x00dev)
+{
+	unsigned int i;
+	u32 reg;
+
+	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
+		rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
+		if (!rt2x00_get_field32(reg, WPDMA_GLO_CFG_TX_DMA_BUSY) &&
+		    !rt2x00_get_field32(reg, WPDMA_GLO_CFG_RX_DMA_BUSY))
+			return 0;
+
+		msleep(1);
+	}
+
+	ERROR(rt2x00dev, "WPDMA TX/RX busy, aborting.\n");
+	return -EACCES;
+}
+EXPORT_SYMBOL_GPL(rt2800_wait_wpdma_ready);
+
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 const struct rt2x00debug rt2800_rt2x00debug = {
 	.owner	= THIS_MODULE,
