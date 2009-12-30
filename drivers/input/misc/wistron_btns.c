@@ -1328,7 +1328,7 @@ static struct platform_driver wistron_driver = {
 	.driver		= {
 		.name	= "wistron-bios",
 		.owner	= THIS_MODULE,
-#if CONFIG_PM
+#ifdef CONFIG_PM
 		.pm	= &wistron_pm_ops,
 #endif
 	},
