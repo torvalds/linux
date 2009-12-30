@@ -860,7 +860,7 @@ static int mg_probe(struct platform_device *plat_dev)
 		err = -EINVAL;
 		goto probe_err_2;
 	}
-	host->dev_base = ioremap(rsc->start , rsc->end + 1);
+	host->dev_base = ioremap(rsc->start, resource_size(rsc));
 	if (!host->dev_base) {
 		printk(KERN_ERR "%s:%d ioremap fail\n",
 				__func__, __LINE__);
