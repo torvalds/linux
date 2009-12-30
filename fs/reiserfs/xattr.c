@@ -289,8 +289,9 @@ static int reiserfs_for_each_xattr(struct inode *inode,
 		err = journal_begin(&th, inode->i_sb, blocks);
 		if (!err) {
 			int jerror;
-			mutex_lock_nested(&dir->d_parent->d_inode->i_mutex,
-					  I_MUTEX_XATTR);
+			reiserfs_mutex_lock_nested_safe(
+					  &dir->d_parent->d_inode->i_mutex,
+					  I_MUTEX_XATTR, inode->i_sb);
 			err = action(dir, data);
 			jerror = journal_end(&th, inode->i_sb, blocks);
 			mutex_unlock(&dir->d_parent->d_inode->i_mutex);
