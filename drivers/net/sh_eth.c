@@ -110,7 +110,7 @@ static void sh_eth_reset(struct net_device *ndev)
 		mdelay(1);
 		cnt--;
 	}
-	if (cnt < 0)
+	if (cnt == 0)
 		printk(KERN_ERR "Device reset fail\n");
 
 	/* Table Init */
