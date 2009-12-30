@@ -1094,11 +1094,9 @@ static int __devinit i82596_probe(struct net_device *dev)
 		return i;
 	};
 
-	DEB(DEB_PROBE, printk(KERN_INFO "%s: 82596 at %#3lx,",
-			      dev->name, dev->base_addr));
-	for (i = 0; i < 6; i++)
-		DEB(DEB_PROBE, printk(" %2.2X", dev->dev_addr[i]));
-	DEB(DEB_PROBE, printk(" IRQ %d.\n", dev->irq));
+	DEB(DEB_PROBE, printk(KERN_INFO "%s: 82596 at %#3lx, %pM IRQ %d.\n",
+			      dev->name, dev->base_addr, dev->dev_addr,
+			      dev->irq));
 	DEB(DEB_INIT, printk(KERN_INFO
 			     "%s: dma at 0x%p (%d bytes), lp->scb at 0x%p\n",
 			     dev->name, dma, (int)sizeof(struct i596_dma),
