@@ -299,8 +299,8 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 	 * 2: echo 0 > ksym_trace_filter
 	 * 3: echo "*:---" > ksym_trace_filter
 	 */
-	if (!buf[0] || !strcmp(buf, "0") ||
-	    !strcmp(buf, "*:---")) {
+	if (!input_string[0] || !strcmp(input_string, "0") ||
+	    !strcmp(input_string, "*:---")) {
 		__ksym_trace_reset();
 		ret = 0;
 		goto out;
