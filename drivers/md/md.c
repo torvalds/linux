@@ -4421,34 +4421,6 @@ static int do_md_run(mddev_t * mddev)
 
 	set_capacity(disk, mddev->array_sectors);
 
-	/* If there is a partially-recovered drive we need to
-	 * start recovery here.  If we leave it to md_check_recovery,
-	 * it will remove the drives and not do the right thing
-	 */
-	if (mddev->degraded && !mddev->sync_thread) {
-		int spares = 0;
-		list_for_each_entry(rdev, &mddev->disks, same_set)
-			if (rdev->raid_disk >= 0 &&
-			    !test_bit(In_sync, &rdev->flags) &&
-			    !test_bit(Faulty, &rdev->flags))
-				/* complete an interrupted recovery */
-				spares++;
-		if (spares && mddev->pers->sync_request) {
-			mddev->recovery = 0;
-			set_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
-			set_bit(MD_RECOVERY_RECOVER, &mddev->recovery);
-			mddev->sync_thread = md_register_thread(md_do_sync,
-								mddev,
-								"resync");
-			if (!mddev->sync_thread) {
-				printk(KERN_ERR "%s: could not start resync"
-				       " thread...\n",
-				       mdname(mddev));
-				/* leave the spares where they are, it shouldn't hurt */
-				mddev->recovery = 0;
-			}
-		}
-	}
 	md_wakeup_thread(mddev->thread);
 	md_wakeup_thread(mddev->sync_thread); /* possibly kick off a reshape */
 
