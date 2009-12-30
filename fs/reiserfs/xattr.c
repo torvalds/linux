@@ -234,17 +234,22 @@ static int reiserfs_for_each_xattr(struct inode *inode,
 	if (IS_PRIVATE(inode) || get_inode_sd_version(inode) == STAT_DATA_V1)
 		return 0;
 
+	reiserfs_write_unlock(inode->i_sb);
 	dir = open_xa_dir(inode, XATTR_REPLACE);
 	if (IS_ERR(dir)) {
 		err = PTR_ERR(dir);
+		reiserfs_write_lock(inode->i_sb);
 		goto out;
 	} else if (!dir->d_inode) {
 		err = 0;
+		reiserfs_write_lock(inode->i_sb);
 		goto out_dir;
 	}
 
-	reiserfs_mutex_lock_nested_safe(&dir->d_inode->i_mutex, I_MUTEX_XATTR,
-					inode->i_sb);
+	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_XATTR);
+
+	reiserfs_write_lock(inode->i_sb);
+
 	buf.xadir = dir;
 	err = reiserfs_readdir_dentry(dir, &buf, fill_with_dentries, &pos);
 	while ((err == 0 || err == -ENOSPC) && buf.count) {
