@@ -45,6 +45,7 @@ struct sd {
 	u8 red;
 	u8 gamma;
 	u8 vflip;			/* ov7630/ov7648 only */
+	u8 sharpness;
 	u8 infrared;			/* mt9v111 only */
 	u8 freq;			/* ov76xx only */
 	u8 quality;			/* image quality */
@@ -97,6 +98,8 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setinfrared(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getinfrared(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
@@ -226,8 +229,23 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setvflip,
 	    .get = sd_getvflip,
 	},
+#define SHARPNESS_IDX 8
+	{
+	    {
+		.id	 = V4L2_CID_SHARPNESS,
+		.type    = V4L2_CTRL_TYPE_INTEGER,
+		.name    = "Sharpness",
+		.minimum = 0,
+		.maximum = 255,
+		.step    = 1,
+#define SHARPNESS_DEF 90
+		.default_value = SHARPNESS_DEF,
+	    },
+	    .set = sd_setsharpness,
+	    .get = sd_getsharpness,
+	},
 /* mt9v111 only */
-#define INFRARED_IDX 8
+#define INFRARED_IDX 9
 	{
 	    {
 		.id      = V4L2_CID_INFRARED,
@@ -243,7 +261,7 @@ static struct ctrl sd_ctrls[] = {
 	    .get = sd_getinfrared,
 	},
 /* ov7630/ov7648/ov7660 only */
-#define FREQ_IDX 9
+#define FREQ_IDX 10
 	{
 	    {
 		.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
@@ -263,7 +281,7 @@ static struct ctrl sd_ctrls[] = {
 /* table of the disabled controls */
 static __u32 ctrl_dis[] = {
 	(1 << INFRARED_IDX) | (1 << VFLIP_IDX) | (1 << FREQ_IDX) |
-	(1 << AUTOGAIN_IDX) | (1 << BRIGHTNESS_IDX), /* SENSOR_ADCM1700 0 */
+			(1 << AUTOGAIN_IDX),	/* SENSOR_ADCM1700 0 */
 	(1 << INFRARED_IDX) | (1 << VFLIP_IDX) | (1 << FREQ_IDX),
 						/* SENSOR_HV7131R 1 */
 	(1 << INFRARED_IDX) | (1 << VFLIP_IDX) | (1 << FREQ_IDX),
@@ -314,7 +332,7 @@ static const struct v4l2_pix_format vga_mode[] = {
 
 static const u8 sn_adcm1700[0x1c] = {
 /*	reg0	reg1	reg2	reg3	reg4	reg5	reg6	reg7 */
-	0x00,	0x42,	0x60,	0x00,	0x1a,	0x20,	0x20,	0x20,
+	0x00,	0x43,	0x60,	0x00,	0x1a,	0x00,	0x00,	0x00,
 /*	reg8	reg9	rega	regb	regc	regd	rege	regf */
 	0x80,	0x51,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,
 /*	reg10	reg11	reg12	reg13	reg14	reg15	reg16	reg17 */
@@ -479,7 +497,7 @@ static const u8 reg84[] = {
 };
 static const u8 adcm1700_sensor_init[][8] = {
 	{0xa0, 0x51, 0xfe, 0x00, 0x00, 0x00, 0x00, 0x10},
-	{0xb0, 0x51, 0x04, 0x08, 0x00, 0x00, 0x00, 0x10},
+	{0xb0, 0x51, 0x04, 0x08, 0x00, 0x00, 0x00, 0x10},	/* reset */
 	{0xdd, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 	{0xb0, 0x51, 0x04, 0x00, 0x00, 0x00, 0x00, 0x10},
 	{0xdd, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
@@ -498,15 +516,19 @@ static const u8 adcm1700_sensor_init[][8] = {
 	{}
 };
 static const u8 adcm1700_sensor_param1[][8] = {
-	{0xb0, 0x51, 0x26, 0xf9, 0x01, 0x00, 0x00, 0x10},
+	{0xb0, 0x51, 0x26, 0xf9, 0x01, 0x00, 0x00, 0x10},	/* exposure? */
 	{0xd0, 0x51, 0x1e, 0x8e, 0x8e, 0x8e, 0x8e, 0x10},
 
 	{0xa0, 0x51, 0xfe, 0x01, 0x00, 0x00, 0x00, 0x10},
 	{0xb0, 0x51, 0x00, 0x02, 0x00, 0x00, 0x00, 0x10},
 	{0xa0, 0x51, 0xfe, 0x10, 0x00, 0x00, 0x00, 0x10},
 	{0xb0, 0x51, 0x32, 0x00, 0x72, 0x00, 0x00, 0x10},
-	{0xd0, 0x51, 0x1e, 0x8e, 0x91, 0x91, 0x8e, 0x10},
+	{0xd0, 0x51, 0x1e, 0xbe, 0xd7, 0xe8, 0xbe, 0x10},	/* exposure? */
 
+	{0xa0, 0x51, 0xfe, 0x01, 0x00, 0x00, 0x00, 0x10},
+	{0xb0, 0x51, 0x00, 0x02, 0x00, 0x00, 0x00, 0x10},
+	{0xa0, 0x51, 0xfe, 0x10, 0x00, 0x00, 0x00, 0x10},
+	{0xb0, 0x51, 0x32, 0x00, 0xa2, 0x00, 0x00, 0x10},
 	{}
 };
 static const u8 hv7131r_sensor_init[][8] = {
@@ -1347,7 +1369,7 @@ static void bridge_init(struct gspca_dev *gspca_dev,
 
 	switch (sd->sensor) {
 	case SENSOR_ADCM1700:
-		reg_w1(gspca_dev, 0x01, 0x42);
+		reg_w1(gspca_dev, 0x01, 0x43);
 		reg_w1(gspca_dev, 0x17, 0x62);
 		reg_w1(gspca_dev, 0x01, 0x42);
 		reg_w1(gspca_dev, 0x01, 0x42);
@@ -1447,6 +1469,14 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->autogain = AUTOGAIN_DEF;
 	sd->ag_cnt = -1;
 	sd->vflip = VFLIP_DEF;
+	switch (sd->sensor) {
+	case SENSOR_OM6802:
+		sd->sharpness = 0x10;
+		break;
+	default:
+		sd->sharpness = SHARPNESS_DEF;
+		break;
+	}
 	sd->infrared = INFRARED_DEF;
 	sd->freq = FREQ_DEF;
 	sd->quality = QUALITY_DEF;
@@ -1617,7 +1647,9 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	k2 = ((int) sd->brightness - 0x8000) >> 10;
 	switch (sd->sensor) {
 	case SENSOR_ADCM1700:
-		return;
+		if (k2 > 0x1f)
+			k2 = 0;		/* only positive Y offset */
+		break;
 	case SENSOR_HV7131R:
 		expo = sd->brightness << 4;
 		if (expo > 0x002dc6c0)
@@ -1765,6 +1797,11 @@ static void setvflip(struct sd *sd)
 			comn |= 0x80;
 	}
 	i2c_w1(&sd->gspca_dev, 0x75, comn);
+}
+
+static void setsharpness(struct sd *sd)
+{
+	reg_w1(&sd->gspca_dev, 0x99, sd->sharpness);
 }
 
 static void setinfrared(struct sd *sd)
@@ -1926,20 +1963,20 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x13, sn9c1xx[0x13]);
 	reg_w1(gspca_dev, 0x18, sn9c1xx[0x18]);
 	if (sd->sensor == SENSOR_ADCM1700) {
-		reg_w1(gspca_dev, 0xd2, 0x3a);		/* DC29 */
-		reg_w1(gspca_dev, 0xd3, 0x30);
+		reg_w1(gspca_dev, 0xd2, 0x3a);	/* AE_H_SIZE = 116 */
+		reg_w1(gspca_dev, 0xd3, 0x30);	/* AE_V_SIZE = 96 */
 	} else {
-		reg_w1(gspca_dev, 0xd2, 0x6a);		/* DC29 */
-		reg_w1(gspca_dev, 0xd3, 0x50);
+		reg_w1(gspca_dev, 0xd2, 0x6a);	/* AE_H_SIZE = 212 */
+		reg_w1(gspca_dev, 0xd3, 0x50);	/* AE_V_SIZE = 160 */
 	}
 	reg_w1(gspca_dev, 0xc6, 0x00);
 	reg_w1(gspca_dev, 0xc7, 0x00);
 	if (sd->sensor == SENSOR_ADCM1700) {
-		reg_w1(gspca_dev, 0xc8, 0x2c);
-		reg_w1(gspca_dev, 0xc9, 0x24);
+		reg_w1(gspca_dev, 0xc8, 0x2c);	/* AW_H_STOP = 352 */
+		reg_w1(gspca_dev, 0xc9, 0x24);	/* AW_V_STOP = 288 */
 	} else {
-		reg_w1(gspca_dev, 0xc8, 0x50);
-		reg_w1(gspca_dev, 0xc9, 0x3c);
+		reg_w1(gspca_dev, 0xc8, 0x50);	/* AW_H_STOP = 640 */
+		reg_w1(gspca_dev, 0xc9, 0x3c);	/* AW_V_STOP = 480 */
 	}
 	reg_w1(gspca_dev, 0x18, sn9c1xx[0x18]);
 	switch (sd->sensor) {
@@ -1964,48 +2001,39 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		break;
 	}
 	reg_w1(gspca_dev, 0x17, reg17);
-/* set reg1 was here */
-	reg_w1(gspca_dev, 0x05, sn9c1xx[5]);	/* red */
-	reg_w1(gspca_dev, 0x07, sn9c1xx[7]);	/* green */
-	reg_w1(gspca_dev, 0x06, sn9c1xx[6]);	/* blue */
+
+	reg_w1(gspca_dev, 0x05, 0x00);		/* red */
+	reg_w1(gspca_dev, 0x07, 0x00);		/* green */
+	reg_w1(gspca_dev, 0x06, 0x00);		/* blue */
 	reg_w1(gspca_dev, 0x14, sn9c1xx[0x14]);
 
 	setgamma(gspca_dev);
 
+/*fixme: 8 times with all zeroes and 1 or 2 times with normal values */
 	for (i = 0; i < 8; i++)
 		reg_w(gspca_dev, 0x84, reg84, sizeof reg84);
 	switch (sd->sensor) {
 	case SENSOR_ADCM1700:
-		reg_w1(gspca_dev, 0x9a, 0x05);
-		reg_w1(gspca_dev, 0x99, 0x60);
-		break;
-	case SENSOR_MT9V111:
-		reg_w1(gspca_dev, 0x9a, 0x07);
-		reg_w1(gspca_dev, 0x99, 0x59);
-		break;
-	case SENSOR_OM6802:
-		reg_w1(gspca_dev, 0x9a, 0x08);
-		reg_w1(gspca_dev, 0x99, 0x10);
-		break;
-	case SENSOR_OV7648:
-		reg_w1(gspca_dev, 0x9a, 0x0a);
-		reg_w1(gspca_dev, 0x99, 0x60);
-		break;
 	case SENSOR_OV7660:
 	case SENSOR_SP80708:
 		reg_w1(gspca_dev, 0x9a, 0x05);
-		reg_w1(gspca_dev, 0x99, 0x59);
+		break;
+	case SENSOR_MT9V111:
+		reg_w1(gspca_dev, 0x9a, 0x07);
+		break;
+	case SENSOR_OV7648:
+		reg_w1(gspca_dev, 0x9a, 0x0a);
 		break;
 	default:
 		reg_w1(gspca_dev, 0x9a, 0x08);
-		reg_w1(gspca_dev, 0x99, 0x59);
 		break;
 	}
+	setsharpness(sd);
 
 	reg_w(gspca_dev, 0x84, reg84, sizeof reg84);
-	reg_w1(gspca_dev, 0x05, sn9c1xx[5]);	/* red */
-	reg_w1(gspca_dev, 0x07, sn9c1xx[7]);	/* green */
-	reg_w1(gspca_dev, 0x06, sn9c1xx[6]);	/* blue */
+	reg_w1(gspca_dev, 0x05, 0x20);		/* red */
+	reg_w1(gspca_dev, 0x07, 0x20);		/* green */
+	reg_w1(gspca_dev, 0x06, 0x20);		/* blue */
 
 	init = NULL;
 	mode = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv;
@@ -2392,6 +2420,24 @@ static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	*val = sd->autogain;
+	return 0;
+}
+
+static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->sharpness = val;
+	if (gspca_dev->streaming)
+		setsharpness(sd);
+	return 0;
+}
+
+static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->sharpness;
 	return 0;
 }
 
