@@ -921,6 +921,7 @@ static int reiserfs_unlink(struct inode *dir, struct dentry *dentry)
 	struct reiserfs_transaction_handle th;
 	int jbegin_count;
 	unsigned long savelink;
+	int depth;
 
 	inode = dentry->d_inode;
 
@@ -932,7 +933,7 @@ static int reiserfs_unlink(struct inode *dir, struct dentry *dentry)
 	    JOURNAL_PER_BALANCE_CNT * 2 + 2 +
 	    4 * REISERFS_QUOTA_TRANS_BLOCKS(dir->i_sb);
 
-	reiserfs_write_lock(dir->i_sb);
+	depth = reiserfs_write_lock_once(dir->i_sb);
 	retval = journal_begin(&th, dir->i_sb, jbegin_count);
 	if (retval)
 		goto out_unlink;
@@ -993,7 +994,7 @@ static int reiserfs_unlink(struct inode *dir, struct dentry *dentry)
 
 	retval = journal_end(&th, dir->i_sb, jbegin_count);
 	reiserfs_check_path(&path);
-	reiserfs_write_unlock(dir->i_sb);
+	reiserfs_write_unlock_once(dir->i_sb, depth);
 	return retval;
 
       end_unlink:
@@ -1003,7 +1004,7 @@ static int reiserfs_unlink(struct inode *dir, struct dentry *dentry)
 	if (err)
 		retval = err;
       out_unlink:
-	reiserfs_write_unlock(dir->i_sb);
+	reiserfs_write_unlock_once(dir->i_sb, depth);
 	return retval;
 }
 
