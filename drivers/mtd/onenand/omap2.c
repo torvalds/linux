@@ -65,6 +65,10 @@ struct omap2_onenand {
 	int (*setup)(void __iomem *base, int freq);
 };
 
+#ifdef CONFIG_MTD_PARTITIONS
+static const char *part_probes[] = { "cmdlinepart", NULL,  };
+#endif
+
 static void omap2_onenand_dma_cb(int lch, u16 ch_status, void *data)
 {
 	struct omap2_onenand *c = data;
@@ -730,13 +734,15 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_MTD_PARTITIONS
-	if (pdata->parts != NULL)
-		r = add_mtd_partitions(&c->mtd, pdata->parts,
-				       pdata->nr_parts);
+	r = parse_mtd_partitions(&c->mtd, part_probes, &c->parts, 0);
+	if (r > 0)
+		r = add_mtd_partitions(&c->mtd, c->parts, r);
+	else if (pdata->parts != NULL)
+		r = add_mtd_partitions(&c->mtd, pdata->parts, pdata->nr_parts);
 	else
 #endif
 		r = add_mtd_device(&c->mtd);
-	if (r < 0)
+	if (r)
 		goto err_release_onenand;
 
 	platform_set_drvdata(pdev, c);
@@ -760,6 +766,7 @@ err_release_mem_region:
 err_free_cs:
 	gpmc_cs_free(c->gpmc_cs);
 err_kfree:
+	kfree(c->parts);
 	kfree(c);
 
 	return r;
@@ -768,17 +775,6 @@ err_kfree:
 static int __devexit omap2_onenand_remove(struct platform_device *pdev)
 {
 	struct omap2_onenand *c = dev_get_drvdata(&pdev->dev);
-
-	BUG_ON(c == NULL);
-
-#ifdef CONFIG_MTD_PARTITIONS
-	if (c->parts)
-		del_mtd_partitions(&c->mtd);
-	else
-		del_mtd_device(&c->mtd);
-#else
-	del_mtd_device(&c->mtd);
-#endif
 
 	onenand_release(&c->mtd);
 	if (c->dma_channel != -1)
@@ -792,6 +788,7 @@ static int __devexit omap2_onenand_remove(struct platform_device *pdev)
 	iounmap(c->onenand.base);
 	release_mem_region(c->phys_base, ONENAND_IO_SIZE);
 	gpmc_cs_free(c->gpmc_cs);
+	kfree(c->parts);
 	kfree(c);
 
 	return 0;
