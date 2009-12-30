@@ -929,9 +929,6 @@ static inline int zd_get_beacon_interval(struct zd_chip *chip, u32 *interval)
 
 struct rx_status;
 
-u8 zd_rx_qual_percent(const void *rx_frame, unsigned int size,
-	               const struct rx_status *status);
-
 u8 zd_rx_rate(const void *rx_frame, const struct rx_status *status);
 
 struct zd_mc_hash {
