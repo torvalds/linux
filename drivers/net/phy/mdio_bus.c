@@ -303,8 +303,18 @@ static int mdio_bus_suspend(struct device * dev, pm_message_t state)
 	struct phy_driver *phydrv = to_phy_driver(dev->driver);
 	struct phy_device *phydev = to_phy_device(dev);
 
+	/*
+	 * We must stop the state machine manually, otherwise it stops out of
+	 * control, possibly with the phydev->lock held. Upon resume, netdev
+	 * may call phy routines that try to grab the same lock, and that may
+	 * lead to a deadlock.
+	 */
+	if (phydev->attached_dev)
+		phy_stop_machine(phydev);
+
 	if (!mdio_bus_phy_may_suspend(phydev))
 		return 0;
+
 	return phydrv->suspend(phydev);
 }
 
@@ -312,10 +322,20 @@ static int mdio_bus_resume(struct device * dev)
 {
 	struct phy_driver *phydrv = to_phy_driver(dev->driver);
 	struct phy_device *phydev = to_phy_device(dev);
+	int ret;
 
 	if (!mdio_bus_phy_may_suspend(phydev))
-		return 0;
-	return phydrv->resume(phydev);
+		goto no_resume;
+
+	ret = phydrv->resume(phydev);
+	if (ret < 0)
+		return ret;
+
+no_resume:
+	if (phydev->attached_dev)
+		phy_start_machine(phydev, NULL);
+
+	return 0;
 }
 
 struct bus_type mdio_bus_type = {
