@@ -531,9 +531,9 @@ ieee80211_remain_on_channel_timeout(struct ieee80211_work *wk)
 		wk->remain.started = true;
 		wk->timeout = jiffies + msecs_to_jiffies(wk->remain.duration);
 
-		cfg80211_ready_on_channel(wk->sdata->dev, (u64)wk, wk->chan,
-					  wk->chan_type, wk->remain.duration,
-					  GFP_KERNEL);
+		cfg80211_ready_on_channel(wk->sdata->dev, (unsigned long) wk,
+					  wk->chan, wk->chan_type,
+					  wk->remain.duration, GFP_KERNEL);
 
 		return WORK_ACT_NONE;
 	}
@@ -1027,7 +1027,7 @@ static enum work_done_result ieee80211_remain_done(struct ieee80211_work *wk,
 	/*
 	 * We are done serving the remain-on-channel command.
 	 */
-	cfg80211_remain_on_channel_expired(wk->sdata->dev, (u64)wk,
+	cfg80211_remain_on_channel_expired(wk->sdata->dev, (unsigned long) wk,
 					   wk->chan, wk->chan_type,
 					   GFP_KERNEL);
 
@@ -1053,7 +1053,7 @@ int ieee80211_wk_remain_on_channel(struct ieee80211_sub_if_data *sdata,
 
 	wk->remain.duration = duration;
 
-	*cookie = (u64)wk;
+	*cookie = (unsigned long) wk;
 
 	ieee80211_add_work(wk);
 
@@ -1069,7 +1069,7 @@ int ieee80211_wk_cancel_remain_on_channel(struct ieee80211_sub_if_data *sdata,
 
 	mutex_lock(&local->work_mtx);
 	list_for_each_entry_safe(wk, tmp, &local->work_list, list) {
-		if ((u64)wk == cookie) {
+		if ((unsigned long) wk == cookie) {
 			wk->timeout = jiffies;
 			found = true;
 			break;
