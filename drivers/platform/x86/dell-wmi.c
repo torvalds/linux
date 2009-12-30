@@ -323,6 +323,7 @@ static int __init dell_wmi_input_setup(void)
 static int __init dell_wmi_init(void)
 {
 	int err;
+	acpi_status status;
 
 	if (wmi_has_guid(DELL_EVENT_GUID)) {
 		printk(KERN_WARNING "dell-wmi: No known WMI GUID found\n");
@@ -336,14 +337,14 @@ static int __init dell_wmi_init(void)
 	if (err)
 		return err;
 
-	err = wmi_install_notify_handler(DELL_EVENT_GUID,
+	status = wmi_install_notify_handler(DELL_EVENT_GUID,
 					 dell_wmi_notify, NULL);
-	if (err) {
+	if (ACPI_FAILURE(status)) {
 		input_unregister_device(dell_wmi_input_dev);
 		printk(KERN_ERR
 			"dell-wmi: Unable to register notify handler - %d\n",
-			err);
-		return err;
+			status);
+		return -ENODEV;
 	}
 
 	return 0;
