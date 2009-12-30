@@ -64,7 +64,7 @@ MODULE_LICENSE("GPL");
 /*
  * Ordering of locks:
  *
- * 		kvm->slots_lock --> kvm->lock --> kvm->irq_lock
+ * 		kvm->lock --> kvm->slots_lock --> kvm->irq_lock
  */
 
 DEFINE_SPINLOCK(kvm_lock);
@@ -406,8 +406,11 @@ static struct kvm *kvm_create_vm(void)
 out:
 	return kvm;
 
+#if defined(KVM_COALESCED_MMIO_PAGE_OFFSET) || \
+    (defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER))
 out_err:
 	hardware_disable_all();
+#endif
 out_err_nodisable:
 	kfree(kvm);
 	return ERR_PTR(r);
