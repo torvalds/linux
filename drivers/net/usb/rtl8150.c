@@ -313,20 +313,17 @@ static int rtl8150_set_mac_address(struct net_device *netdev, void *p)
 {
 	struct sockaddr *addr = p;
 	rtl8150_t *dev = netdev_priv(netdev);
-	int i;
 
 	if (netif_running(netdev))
 		return -EBUSY;
 
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
-	dbg("%s: Setting MAC address to ", netdev->name);
-	for (i = 0; i < 5; i++)
-		dbg("%02X:", netdev->dev_addr[i]);
-	dbg("%02X\n", netdev->dev_addr[i]);
+	dbg("%s: Setting MAC address to %pM\n", netdev->name, netdev->dev_addr);
 	/* Set the IDR registers. */
 	set_registers(dev, IDR, netdev->addr_len, netdev->dev_addr);
 #ifdef EEPROM_WRITE
 	{
+	int i;
 	u8 cr;
 	/* Get the CR contents. */
 	get_registers(dev, CR, 1, &cr);
