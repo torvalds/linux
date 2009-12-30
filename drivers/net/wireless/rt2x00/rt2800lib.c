@@ -366,7 +366,7 @@ static int rt2800_blink_set(struct led_classdev *led_cdev,
 	return 0;
 }
 
-void rt2800_init_led(struct rt2x00_dev *rt2x00dev,
+static void rt2800_init_led(struct rt2x00_dev *rt2x00dev,
 		     struct rt2x00_led *led, enum led_type type)
 {
 	led->rt2x00dev = rt2x00dev;
@@ -375,7 +375,6 @@ void rt2800_init_led(struct rt2x00_dev *rt2x00dev,
 	led->led_dev.blink_set = rt2800_blink_set;
 	led->flags = LED_INITIALIZED;
 }
-EXPORT_SYMBOL_GPL(rt2800_init_led);
 #endif /* CONFIG_RT2X00_LIB_LEDS */
 
 /*
