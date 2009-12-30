@@ -4173,7 +4173,7 @@ static int do_md_run(mddev_t * mddev)
 	mddev->barriers_work = 1;
 	mddev->ok_start_degraded = start_dirty_degraded;
 
-	if (start_readonly)
+	if (start_readonly && mddev->ro == 0)
 		mddev->ro = 2; /* read-only, but switch on first write */
 
 	err = mddev->pers->run(mddev);
