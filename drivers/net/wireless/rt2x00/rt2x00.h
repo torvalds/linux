@@ -113,6 +113,12 @@
 	(  ((unsigned long)((__skb)->data + (__header))) & 3 )
 
 /*
+ * Constants for extra TX headroom for alignment purposes.
+ */
+#define RT2X00_ALIGN_SIZE	4 /* Only whole frame needs alignment */
+#define RT2X00_L2PAD_SIZE	8 /* Both header & payload need alignment */
+
+/*
  * Standard timing and size defines.
  * These values should follow the ieee80211 specifications.
  */
