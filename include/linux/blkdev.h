@@ -845,7 +845,6 @@ static inline struct request_queue *bdev_get_queue(struct block_device *bdev)
  * blk_rq_err_bytes()		: bytes left till the next error boundary
  * blk_rq_sectors()		: sectors left in the entire request
  * blk_rq_cur_sectors()		: sectors left in the current segment
- * blk_rq_err_sectors()		: sectors left till the next error boundary
  */
 static inline sector_t blk_rq_pos(const struct request *rq)
 {
@@ -872,11 +871,6 @@ static inline unsigned int blk_rq_sectors(const struct request *rq)
 static inline unsigned int blk_rq_cur_sectors(const struct request *rq)
 {
 	return blk_rq_cur_bytes(rq) >> 9;
-}
-
-static inline unsigned int blk_rq_err_sectors(const struct request *rq)
-{
-	return blk_rq_err_bytes(rq) >> 9;
 }
 
 /*
