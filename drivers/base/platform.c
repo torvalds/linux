@@ -548,6 +548,64 @@ int __init_or_module platform_driver_probe(struct platform_driver *drv,
 }
 EXPORT_SYMBOL_GPL(platform_driver_probe);
 
+/**
+ * platform_create_bundle - register driver and create corresponding device
+ * @driver: platform driver structure
+ * @probe: the driver probe routine, probably from an __init section
+ * @res: set of resources that needs to be allocated for the device
+ * @n_res: number of resources
+ * @data: platform specific data for this platform device
+ * @size: size of platform specific data
+ *
+ * Use this in legacy-style modules that probe hardware directly and
+ * register a single platform device and corresponding platform driver.
+ */
+struct platform_device * __init_or_module platform_create_bundle(
+			struct platform_driver *driver,
+			int (*probe)(struct platform_device *),
+			struct resource *res, unsigned int n_res,
+			const void *data, size_t size)
+{
+	struct platform_device *pdev;
+	int error;
+
+	pdev = platform_device_alloc(driver->driver.name, -1);
+	if (!pdev) {
+		error = -ENOMEM;
+		goto err_out;
+	}
+
+	if (res) {
+		error = platform_device_add_resources(pdev, res, n_res);
+		if (error)
+			goto err_pdev_put;
+	}
+
+	if (data) {
+		error = platform_device_add_data(pdev, data, size);
+		if (error)
+			goto err_pdev_put;
+	}
+
+	error = platform_device_add(pdev);
+	if (error)
+		goto err_pdev_put;
+
+	error = platform_driver_probe(driver, probe);
+	if (error)
+		goto err_pdev_del;
+
+	return pdev;
+
+err_pdev_del:
+	platform_device_del(pdev);
+err_pdev_put:
+	platform_device_put(pdev);
+err_out:
+	return ERR_PTR(error);
+}
+EXPORT_SYMBOL_GPL(platform_create_bundle);
+
 /* modalias support enables more hands-off userspace setup:
  * (a) environment variable lets new-style hotplug events work once system is
  *     fully running:  "modprobe $MODALIAS"

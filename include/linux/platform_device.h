@@ -77,6 +77,11 @@ extern int platform_driver_probe(struct platform_driver *driver,
 #define platform_get_drvdata(_dev)	dev_get_drvdata(&(_dev)->dev)
 #define platform_set_drvdata(_dev,data)	dev_set_drvdata(&(_dev)->dev, (data))
 
+extern struct platform_device *platform_create_bundle(struct platform_driver *driver,
+					int (*probe)(struct platform_device *),
+					struct resource *res, unsigned int n_res,
+					const void *data, size_t size);
+
 /* early platform driver interface */
 struct early_platform_driver {
 	const char *class_str;
