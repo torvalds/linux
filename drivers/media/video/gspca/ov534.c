@@ -106,7 +106,7 @@ static int sd_getsatur(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
 
-static struct ctrl sd_ctrls_ov772x[] = {
+static const struct ctrl sd_ctrls_ov772x[] = {
     {							/* 0 */
 	{
 		.id      = V4L2_CID_BRIGHTNESS,
@@ -277,7 +277,7 @@ static struct ctrl sd_ctrls_ov772x[] = {
 	.get = sd_getvflip,
     },
 };
-static struct ctrl sd_ctrls_ov965x[] = {
+static const struct ctrl sd_ctrls_ov965x[] = {
     {							/* 0 */
 	{
 		.id      = V4L2_CID_BRIGHTNESS,

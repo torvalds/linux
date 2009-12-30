@@ -45,7 +45,7 @@ struct sd {
 };
 
 /* V4L2 controls supported by the driver */
-static struct ctrl sd_ctrls[] = {
+static const struct ctrl sd_ctrls[] = {
 };
 
 static int stv_sndctrl(struct gspca_dev *gspca_dev, int set, u8 req, u16 val,

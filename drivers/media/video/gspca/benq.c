@@ -32,7 +32,7 @@ struct sd {
 };
 
 /* V4L2 controls supported by the driver */
-static struct ctrl sd_ctrls[] = {
+static const struct ctrl sd_ctrls[] = {
 };
 
 static const struct v4l2_pix_format vga_mode[] = {

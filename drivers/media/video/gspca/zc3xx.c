@@ -92,7 +92,7 @@ static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val);
 
-static struct ctrl sd_ctrls[] = {
+static const struct ctrl sd_ctrls[] = {
 #define BRIGHTNESS_IDX 0
 #define SD_BRIGHTNESS 0
 	{

@@ -107,7 +107,7 @@ static void setexposure(struct gspca_dev *gspca_dev);
 static void setgain(struct gspca_dev *gspca_dev);
 
 /* V4L2 controls supported by the driver */
-static struct ctrl sd_ctrls[] = {
+static const struct ctrl sd_ctrls[] = {
 /* Separate brightness control description for Argus QuickClix as it has
    different limits from the other mr97310a cameras */
 	{
