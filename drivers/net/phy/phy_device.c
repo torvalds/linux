@@ -378,6 +378,20 @@ void phy_disconnect(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(phy_disconnect);
 
+int phy_init_hw(struct phy_device *phydev)
+{
+	int ret;
+
+	if (!phydev->drv || !phydev->drv->config_init)
+		return 0;
+
+	ret = phy_scan_fixups(phydev);
+	if (ret < 0)
+		return ret;
+
+	return phydev->drv->config_init(phydev);
+}
+
 /**
  * phy_attach_direct - attach a network device to a given PHY device pointer
  * @dev: network device to attach
@@ -425,21 +439,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	/* Do initial configuration here, now that
 	 * we have certain key parameters
 	 * (dev_flags and interface) */
-	if (phydev->drv->config_init) {
-		int err;
-
-		err = phy_scan_fixups(phydev);
-
-		if (err < 0)
-			return err;
-
-		err = phydev->drv->config_init(phydev);
-
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
+	return phy_init_hw(phydev);
 }
 EXPORT_SYMBOL(phy_attach_direct);
 
