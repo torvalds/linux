@@ -6473,10 +6473,11 @@ void md_do_sync(mddev_t *mddev)
 		mddev->curr_resync = 2;
 
 	try_again:
-		if (kthread_should_stop()) {
+		if (kthread_should_stop())
 			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
+
+		if (test_bit(MD_RECOVERY_INTR, &mddev->recovery))
 			goto skip;
-		}
 		for_each_mddev(mddev2, tmp) {
 			if (mddev2 == mddev)
 				continue;
