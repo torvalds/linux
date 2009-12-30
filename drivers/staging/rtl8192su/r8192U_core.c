@@ -3359,6 +3359,46 @@ u8 rtl8192SU_BoardTypeToRFtype(struct net_device* dev,  u8 Boardtype)
 	return RFtype;
 }
 
+void update_hal_variables(struct r8192_priv *priv)
+{
+	int rf_path;
+	int i;
+	u8 index;
+
+	for (rf_path = 0; rf_path < 2; rf_path++) {
+		for (i = 0; i < 3; i++)	{
+			RT_TRACE((COMP_INIT), "CCK RF-%d CHan_Area-%d = 0x%x\n", rf_path, i, priv->RfCckChnlAreaTxPwr[rf_path][i]);
+			RT_TRACE((COMP_INIT), "OFDM-1T RF-%d CHan_Area-%d = 0x%x\n", rf_path, i, priv->RfOfdmChnlAreaTxPwr1T[rf_path][i]);
+			RT_TRACE((COMP_INIT), "OFDM-2T RF-%d CHan_Area-%d = 0x%x\n", rf_path, i, priv->RfOfdmChnlAreaTxPwr2T[rf_path][i]);
+		}
+		/* Assign dedicated channel tx power */
+		for(i = 0; i < 14; i++) {
+			/* channel 1-3 use the same Tx Power Level. */
+			if (i < 3)			/* Channel 1-3 */
+				index = 0;
+			else if (i < 9)			/* Channel 4-9 */
+				index = 1;
+			else				/* Channel 10-14 */
+				index = 2;
+			/* Record A & B CCK /OFDM - 1T/2T Channel area tx power */
+			priv->RfTxPwrLevelCck[rf_path][i] = priv->RfCckChnlAreaTxPwr[rf_path][index];
+			priv->RfTxPwrLevelOfdm1T[rf_path][i]  = priv->RfOfdmChnlAreaTxPwr1T[rf_path][index];
+			priv->RfTxPwrLevelOfdm2T[rf_path][i]  = priv->RfOfdmChnlAreaTxPwr2T[rf_path][index];
+			if (rf_path == 0) {
+				priv->TxPowerLevelOFDM24G[i] = priv->RfTxPwrLevelOfdm1T[rf_path][i] ;
+				priv->TxPowerLevelCCK[i] = priv->RfTxPwrLevelCck[rf_path][i];
+			}
+		}
+		for(i = 0; i < 14; i++) {
+			RT_TRACE((COMP_INIT),
+			"Rf-%d TxPwr CH-%d CCK OFDM_1T OFDM_2T= 0x%x/0x%x/0x%x\n",
+				rf_path, i, priv->RfTxPwrLevelCck[rf_path][i],
+				priv->RfTxPwrLevelOfdm1T[rf_path][i] ,
+				priv->RfTxPwrLevelOfdm2T[rf_path][i] );
+		}
+	}
+}
+
 //
 //	Description:
 //		Config HW adapter information into initial value.
@@ -3374,7 +3414,7 @@ rtl8192SU_ConfigAdapterInfo8192SForAutoLoadFail(struct net_device* dev)
 	struct r8192_priv 	*priv = ieee80211_priv(dev);
 	//u16			i,usValue;
 	//u8 sMacAddr[6] = {0x00, 0xE0, 0x4C, 0x81, 0x92, 0x00};
-	u8		rf_path, index;	// For EEPROM/EFUSE After V0.6_1117
+	u8		rf_path;	// For EEPROM/EFUSE After V0.6_1117
 	int	i;
 
 	RT_TRACE(COMP_INIT, "====> ConfigAdapterInfo8192SForAutoLoadFail\n");
@@ -3454,42 +3494,7 @@ rtl8192SU_ConfigAdapterInfo8192SForAutoLoadFail(struct net_device* dev)
 		}
 	}
 
-	for (i = 0; i < 3; i++)
-	{
-		//RT_TRACE((COMP_EFUSE), "CCK RF-%d CHan_Area-%d = 0x%x\n",  rf_path, i,
-		//priv->RfCckChnlAreaTxPwr[rf_path][i]);
-		//RT_TRACE((COMP_EFUSE), "OFDM-1T RF-%d CHan_Area-%d = 0x%x\n",  rf_path, i,
-		//priv->RfOfdmChnlAreaTxPwr1T[rf_path][i]);
-		//RT_TRACE((COMP_EFUSE), "OFDM-2T RF-%d CHan_Area-%d = 0x%x\n",  rf_path, i,
-		//priv->RfOfdmChnlAreaTxPwr2T[rf_path][i]);
-	}
-
-	// Assign dedicated channel tx power
-	for(i=0; i<14; i++)	// channel 1~3 use the same Tx Power Level.
-		{
-		if (i < 3)			// Cjanel 1-3
-			index = 0;
-		else if (i < 9)		// Channel 4-9
-			index = 1;
-		else				// Channel 10-14
-			index = 2;
-
-		// Record A & B CCK /OFDM - 1T/2T Channel area tx power
-		priv->RfTxPwrLevelCck[rf_path][i]  =
-		priv->RfCckChnlAreaTxPwr[rf_path][index];
-		priv->RfTxPwrLevelOfdm1T[rf_path][i]  =
-		priv->RfOfdmChnlAreaTxPwr1T[rf_path][index];
-		priv->RfTxPwrLevelOfdm2T[rf_path][i]  =
-		priv->RfOfdmChnlAreaTxPwr2T[rf_path][index];
-		}
-
-		for(i=0; i<14; i++)
-		{
-		//RT_TRACE((COMP_EFUSE), "Rf-%d TxPwr CH-%d CCK OFDM_1T OFDM_2T= 0x%x/0x%x/0x%x\n",
-		//rf_path, i, priv->RfTxPwrLevelCck[0][i],
-		//priv->RfTxPwrLevelOfdm1T[0][i] ,
-		//priv->RfTxPwrLevelOfdm2T[0][i] );
-		}
+	update_hal_variables(priv);
 
 	//
 	// Update remained HAL variables.
@@ -3899,53 +3904,7 @@ rtl8192SU_ReadAdapterInfo8192SUsb(struct net_device* dev)
 			}
 
 		}
-//
-		// Update Tx Power HAL variables.
-//
-		for (rf_path = 0; rf_path < 2; rf_path++)
-		{
-			for (i = 0; i < 3; i++)
-			{
-				RT_TRACE((COMP_INIT),  "CCK RF-%d CHan_Area-%d = 0x%x\n",  rf_path, i,
-				priv->RfCckChnlAreaTxPwr[rf_path][i]);
-				RT_TRACE((COMP_INIT), "OFDM-1T RF-%d CHan_Area-%d = 0x%x\n",  rf_path, i,
-				priv->RfOfdmChnlAreaTxPwr1T[rf_path][i]);
-				RT_TRACE((COMP_INIT), "OFDM-2T RF-%d CHan_Area-%d = 0x%x\n",  rf_path, i, priv->RfOfdmChnlAreaTxPwr2T[rf_path][i]);
-			}
-
-			// Assign dedicated channel tx power
-			for(i=0; i<14; i++)	// channel 1~3 use the same Tx Power Level.
-			{
-				if (i < 3)			// Cjanel 1-3
-					index = 0;
-				else if (i < 9)		// Channel 4-9
-					index = 1;
-				else				// Channel 10-14
-					index = 2;
-
-				// Record A & B CCK /OFDM - 1T/2T Channel area tx power
-				priv->RfTxPwrLevelCck[rf_path][i]  =
-				priv->RfCckChnlAreaTxPwr[rf_path][index];
-				priv->RfTxPwrLevelOfdm1T[rf_path][i]  =
-				priv->RfOfdmChnlAreaTxPwr1T[rf_path][index];
-				priv->RfTxPwrLevelOfdm2T[rf_path][i]  =
-				priv->RfOfdmChnlAreaTxPwr2T[rf_path][index];
-				if (rf_path == 0)
-				{
-					priv->TxPowerLevelOFDM24G[i] = priv->RfTxPwrLevelOfdm1T[rf_path][i] ;
-					priv->TxPowerLevelCCK[i] = priv->RfTxPwrLevelCck[rf_path][i];
-				}
-			}
-
-			for(i=0; i<14; i++)
-			{
-				RT_TRACE((COMP_INIT),
-				"Rf-%d TxPwr CH-%d CCK OFDM_1T OFDM_2T= 0x%x/0x%x/0x%x\n",
-				rf_path, i, priv->RfTxPwrLevelCck[rf_path][i],
-				priv->RfTxPwrLevelOfdm1T[rf_path][i] ,
-				priv->RfTxPwrLevelOfdm2T[rf_path][i] );
-			}
-		}
+		update_hal_variables(priv);
 	}
 
 	//
