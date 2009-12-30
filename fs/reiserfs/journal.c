@@ -2009,9 +2009,10 @@ static int do_journal_release(struct reiserfs_transaction_handle *th,
 		destroy_workqueue(commit_wq);
 		commit_wq = NULL;
 	}
-	reiserfs_write_lock(sb);
 
 	free_journal_ram(sb);
+
+	reiserfs_write_lock(sb);
 
 	return 0;
 }
