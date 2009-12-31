@@ -182,7 +182,7 @@ static struct {
 	{
 		.addr_bits = 7, .data_bits = 9,
 		.write = snd_soc_7_9_write, .read = snd_soc_7_9_read,
-		.spi_write = snd_soc_7_9_spi_write 
+		.spi_write = snd_soc_7_9_spi_write,
 	},
 	{
 		.addr_bits = 8, .data_bits = 8,
