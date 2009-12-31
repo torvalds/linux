@@ -1488,7 +1488,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	int err = -EOPNOTSUPP;
 
-	dprintk ("%s\n", __func__);
+	dprintk("%s (%d)\n", __func__, _IOC_NR(cmd));
 
 	if (fepriv->exit)
 		return -ENODEV;
