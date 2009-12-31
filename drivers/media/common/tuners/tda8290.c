@@ -672,16 +672,19 @@ static int tda8290_probe(struct tuner_i2c_props *i2c_props)
 static int tda8295_probe(struct tuner_i2c_props *i2c_props)
 {
 #define TDA8295_ID 0x8a
+#define TDA8295C2_ID 0x8b
 	unsigned char tda8295_id[] = { 0x2f, 0x00 };
 
 	/* detect tda8295 */
 	tuner_i2c_xfer_send(i2c_props, &tda8295_id[0], 1);
 	tuner_i2c_xfer_recv(i2c_props, &tda8295_id[1], 1);
 
-	if (tda8295_id[1] == TDA8295_ID) {
+	if ((tda8295_id[1] & 0xfe) == TDA8295_ID) {
 		if (debug)
-			printk(KERN_DEBUG "%s: tda8295 detected @ %d-%04x\n",
-			       __func__, i2c_adapter_id(i2c_props->adap),
+			printk(KERN_DEBUG "%s: %s detected @ %d-%04x\n",
+			       __func__, (tda8295_id[1] == TDA8295_ID) ?
+			       "tda8295c1" : "tda8295c2",
+			       i2c_adapter_id(i2c_props->adap),
 			       i2c_props->addr);
 		return 0;
 	}
