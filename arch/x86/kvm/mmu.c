@@ -151,6 +151,9 @@ module_param(oos_shadow, bool, 0644);
 #define ACC_USER_MASK    PT_USER_MASK
 #define ACC_ALL          (ACC_EXEC_MASK | ACC_WRITE_MASK | ACC_USER_MASK)
 
+#include <trace/events/kvm.h>
+
+#undef TRACE_INCLUDE_FILE
 #define CREATE_TRACE_POINTS
 #include "mmutrace.h"
 
@@ -792,6 +795,7 @@ static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
 					 unsigned long data))
 {
 	int i, j;
+	int ret;
 	int retval = 0;
 	struct kvm_memslots *slots;
 
@@ -806,16 +810,17 @@ static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
 		if (hva >= start && hva < end) {
 			gfn_t gfn_offset = (hva - start) >> PAGE_SHIFT;
 
-			retval |= handler(kvm, &memslot->rmap[gfn_offset],
-					  data);
+			ret = handler(kvm, &memslot->rmap[gfn_offset], data);
 
 			for (j = 0; j < KVM_NR_PAGE_SIZES - 1; ++j) {
 				int idx = gfn_offset;
 				idx /= KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL + j);
-				retval |= handler(kvm,
+				ret |= handler(kvm,
 					&memslot->lpage_info[j][idx].rmap_pde,
 					data);
 			}
+			trace_kvm_age_page(hva, memslot, ret);
+			retval |= ret;
 		}
 	}
 
