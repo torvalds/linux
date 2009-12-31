@@ -574,7 +574,7 @@ static int gfs2_uevent(struct kset *kset, struct kobject *kobj,
 	return 0;
 }
 
-static struct kset_uevent_ops gfs2_uevent_ops = {
+static const struct kset_uevent_ops gfs2_uevent_ops = {
 	.uevent = gfs2_uevent,
 };
 

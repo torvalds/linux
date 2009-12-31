@@ -44,7 +44,7 @@ static int memory_uevent(struct kset *kset, struct kobject *obj, struct kobj_uev
 	return retval;
 }
 
-static struct kset_uevent_ops memory_uevent_ops = {
+static const struct kset_uevent_ops memory_uevent_ops = {
 	.name		= memory_uevent_name,
 	.uevent		= memory_uevent,
 };

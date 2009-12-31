@@ -4409,7 +4409,7 @@ static int uevent_filter(struct kset *kset, struct kobject *kobj)
 	return 0;
 }
 
-static struct kset_uevent_ops slab_uevent_ops = {
+static const struct kset_uevent_ops slab_uevent_ops = {
 	.filter = uevent_filter,
 };
 

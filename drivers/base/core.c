@@ -252,7 +252,7 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj,
 	return retval;
 }
 
-static struct kset_uevent_ops device_uevent_ops = {
+static const struct kset_uevent_ops device_uevent_ops = {
 	.filter =	dev_uevent_filter,
 	.name =		dev_uevent_name,
 	.uevent =	dev_uevent,
