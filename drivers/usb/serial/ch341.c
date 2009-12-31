@@ -22,6 +22,7 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 #include <linux/serial.h>
+#include <asm/unaligned.h>
 
 #define DEFAULT_BAUD_RATE 9600
 #define DEFAULT_TIMEOUT   1000
@@ -422,7 +423,7 @@ static void ch341_break_ctl(struct tty_struct *tty, int break_state)
 	}
 	dbg("%s - New ch341 break register contents - reg1: %x, reg2: %x",
 			__func__, break_reg[0], break_reg[1]);
-	reg_contents = le16_to_cpup((uint16_t *)break_reg);
+	reg_contents = get_unaligned_le16(break_reg);
 	r = ch341_control_out(port->serial->dev, CH341_REQ_WRITE_REG,
 			ch341_break_reg, reg_contents);
 	if (r < 0)
