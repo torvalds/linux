@@ -141,9 +141,9 @@ typedef pte_t *pte_addr_t;
 #define pte_pfn(x)		((unsigned long)(((x).pte_low >> PAGE_SHIFT)))
 
 /*
- * No page table caches to initialise
+ * Initialise the page table caches
  */
-#define pgtable_cache_init()	do { } while (0)
+extern void pgtable_cache_init(void);
 
 struct vm_area_struct;
 
