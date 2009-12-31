@@ -2297,7 +2297,6 @@ void callchain_store(struct perf_callchain_entry *entry, u64 ip)
 
 static DEFINE_PER_CPU(struct perf_callchain_entry, pmc_irq_entry);
 static DEFINE_PER_CPU(struct perf_callchain_entry, pmc_nmi_entry);
-static DEFINE_PER_CPU(int, in_ignored_frame);
 
 
 static void
@@ -2313,19 +2312,12 @@ static void backtrace_warning(void *data, char *msg)
 
 static int backtrace_stack(void *data, char *name)
 {
-	per_cpu(in_ignored_frame, smp_processor_id()) =
-			x86_is_stack_id(NMI_STACK, name) ||
-			x86_is_stack_id(DEBUG_STACK, name);
-
 	return 0;
 }
 
 static void backtrace_address(void *data, unsigned long addr, int reliable)
 {
 	struct perf_callchain_entry *entry = data;
-
-	if (per_cpu(in_ignored_frame, smp_processor_id()))
-		return;
 
 	if (reliable)
 		callchain_store(entry, addr);

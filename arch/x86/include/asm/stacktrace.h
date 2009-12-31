@@ -3,8 +3,6 @@
 
 extern int kstack_depth_to_print;
 
-int x86_is_stack_id(int id, char *name);
-
 struct thread_info;
 struct stacktrace_ops;
 
