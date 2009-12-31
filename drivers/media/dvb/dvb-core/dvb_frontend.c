@@ -1199,8 +1199,6 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 {
 	int r = 0;
 
-	dtv_property_dump(tvp);
-
 	/* Allow the frontend to validate incoming properties */
 	if (fe->ops.get_property)
 		r = fe->ops.get_property(fe, tvp);
@@ -1322,6 +1320,8 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 	default:
 		r = -1;
 	}
+
+	dtv_property_dump(tvp);
 
 	return r;
 }
