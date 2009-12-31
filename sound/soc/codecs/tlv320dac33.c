@@ -62,6 +62,7 @@ enum dac33_state {
 enum dac33_fifo_modes {
 	DAC33_FIFO_BYPASS = 0,
 	DAC33_FIFO_MODE1,
+	DAC33_FIFO_MODE7,
 	DAC33_FIFO_LAST_MODE,
 };
 
@@ -422,7 +423,7 @@ static int dac33_set_fifo_mode(struct snd_kcontrol *kcontrol,
 
 /* Codec operation modes */
 static const char *dac33_fifo_mode_texts[] = {
-	"Bypass", "Mode 1"
+	"Bypass", "Mode 1", "Mode 7"
 };
 
 static const struct soc_enum dac33_fifo_mode_enum =
@@ -556,6 +557,10 @@ static inline void dac33_prefill_handler(struct tlv320dac33_priv *dac33)
 		dac33_write16(codec, DAC33_PREFILL_MSB,
 				DAC33_THRREG(dac33->alarm_threshold));
 		break;
+	case DAC33_FIFO_MODE7:
+		dac33_write16(codec, DAC33_PREFILL_MSB,
+				DAC33_THRREG(20));
+		break;
 	default:
 		dev_warn(codec->dev, "Unhandled FIFO mode: %d\n",
 							dac33->fifo_mode);
@@ -573,6 +578,9 @@ static inline void dac33_playback_handler(struct tlv320dac33_priv *dac33)
 	case DAC33_FIFO_MODE1:
 		dac33_write16(codec, DAC33_NSAMPLE_MSB,
 				DAC33_THRREG(dac33->nsample));
+		break;
+	case DAC33_FIFO_MODE7:
+		/* At the moment we are not using interrupts in mode7 */
 		break;
 	default:
 		dev_warn(codec->dev, "Unhandled FIFO mode: %d\n",
@@ -788,6 +796,10 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream)
 			    DAC33_ATM(DAC33_FIFO_IRQ_MODE_LEVEL));
 		dac33_write(codec, DAC33_FIFO_IRQ_MASK, DAC33_MAT);
 		break;
+	case DAC33_FIFO_MODE7:
+		/* Disable all interrupts */
+		dac33_write(codec, DAC33_FIFO_IRQ_MASK, 0);
+		break;
 	default:
 		/* in FIFO bypass mode, the interrupts are not used */
 		break;
@@ -805,6 +817,17 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream)
 		 */
 		fifoctrl_a &= ~DAC33_FBYPAS;
 		fifoctrl_a &= ~DAC33_FAUTO;
+		aictrl_b &= ~DAC33_BCLKON;
+		break;
+	case DAC33_FIFO_MODE7:
+		/*
+		 * For mode1:
+		 * Disable the FIFO bypass (Enable the use of FIFO)
+		 * Select Threshold mode
+		 * BCLK is only running when data is needed by DAC33
+		 */
+		fifoctrl_a &= ~DAC33_FBYPAS;
+		fifoctrl_a |= DAC33_FAUTO;
 		aictrl_b &= ~DAC33_BCLKON;
 		break;
 	default:
@@ -829,6 +852,16 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream)
 
 		dac33_write16(codec, DAC33_ATHR_MSB,
 			      DAC33_THRREG(dac33->alarm_threshold));
+		break;
+	case DAC33_FIFO_MODE7:
+		/*
+		 * Configure the threshold levels, and leave 10 sample space
+		 * at the bottom, and also at the top of the FIFO
+		 */
+		dac33_write16(codec, DAC33_UTHR_MSB,
+			DAC33_THRREG(DAC33_BUFFER_SIZE_SAMPLES - 10));
+		dac33_write16(codec, DAC33_LTHR_MSB,
+			DAC33_THRREG(10));
 		break;
 	default:
 		/* BYPASS mode */
