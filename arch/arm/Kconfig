@@ -548,6 +548,15 @@ config ARCH_W90X900
 	  <http://www.nuvoton.com/hq/enu/ProductAndSales/ProductLines/
 		ConsumerElectronicsIC/ARMMicrocontroller/ARMMicrocontroller>
 
+config ARCH_NUC93X
+	bool "Nuvoton NUC93X CPU"
+	select CPU_ARM926T
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	help
+	  Support for Nuvoton (Winbond logic dept.) NUC93X MCU,The NUC93X is a
+	  low-power and high performance MPEG-4/JPEG multimedia controller chip.
+
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
 	select CPU_ARM926T
@@ -827,6 +836,8 @@ source "arch/arm/mach-msm/Kconfig"
 source "arch/arm/mach-u300/Kconfig"
 
 source "arch/arm/mach-w90x900/Kconfig"
+
+source "arch/arm/mach-nuc93x/Kconfig"
 
 source "arch/arm/mach-bcmring/Kconfig"
 
