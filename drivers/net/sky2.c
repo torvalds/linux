@@ -3176,7 +3176,9 @@ static void sky2_reset(struct sky2_hw *hw)
 static void sky2_detach(struct net_device *dev)
 {
 	if (netif_running(dev)) {
+		netif_tx_lock(dev);
 		netif_device_detach(dev);	/* stop txq */
+		netif_tx_unlock(dev);
 		sky2_down(dev);
 	}
 }
