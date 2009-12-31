@@ -350,10 +350,10 @@ static int copy_user_to_page_vector(struct page **pages,
 			return -EFAULT;
 		data += l - bad;
 		left -= l - bad;
-		if (po) {
-			po += l - bad;
-			if (po == PAGE_CACHE_SIZE)
-				po = 0;
+		po += l - bad;
+		if (po == PAGE_CACHE_SIZE) {
+			po = 0;
+			i++;
 		}
 	}
 	return len;
