@@ -1137,7 +1137,10 @@ static void psmouse_cleanup(struct serio *serio)
 	if (psmouse->cleanup)
 		psmouse->cleanup(psmouse);
 
-	psmouse_reset(psmouse);
+/*
+ * Reset the mouse to defaults (bare PS/2 protocol).
+ */
+	ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_RESET_DIS);
 
 /*
  * Some boxes, such as HP nx7400, get terribly confused if mouse
