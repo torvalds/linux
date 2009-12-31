@@ -126,10 +126,22 @@
 #define CX18_625_LINE_ENC_YUV_BUFSIZE	(CX18_UNIT_ENC_YUV_BUFSIZE * 576/32)
 #define CX18_525_LINE_ENC_YUV_BUFSIZE	(CX18_UNIT_ENC_YUV_BUFSIZE * 480/32)
 
+/* IDX buffer size should be a multiple of the index entry size from the chip */
+struct cx18_enc_idx_entry {
+	__le32 length;
+	__le32 offset_low;
+	__le32 offset_high;
+	__le32 flags;
+	__le32 pts_low;
+	__le32 pts_high;
+} __attribute__ ((packed));
+#define CX18_UNIT_ENC_IDX_BUFSIZE \
+	(sizeof(struct cx18_enc_idx_entry) * V4L2_ENC_IDX_ENTRIES)
+
 /* DMA buffer, default size in kB allocated */
 #define CX18_DEFAULT_ENC_TS_BUFSIZE   32
 #define CX18_DEFAULT_ENC_MPG_BUFSIZE  32
-#define CX18_DEFAULT_ENC_IDX_BUFSIZE  32
+#define CX18_DEFAULT_ENC_IDX_BUFSIZE  (CX18_UNIT_ENC_IDX_BUFSIZE * 1 / 1024 + 1)
 #define CX18_DEFAULT_ENC_YUV_BUFSIZE  (CX18_UNIT_ENC_YUV_BUFSIZE * 3 / 1024 + 1)
 #define CX18_DEFAULT_ENC_PCM_BUFSIZE   4
 

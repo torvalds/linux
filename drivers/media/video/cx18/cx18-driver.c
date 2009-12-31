@@ -91,7 +91,7 @@ static int enc_pcm_bufsize = CX18_DEFAULT_ENC_PCM_BUFSIZE;
 
 static int enc_ts_bufs = -1;
 static int enc_mpg_bufs = -1;
-static int enc_idx_bufs = -1;
+static int enc_idx_bufs = CX18_MAX_FW_MDLS_PER_STREAM;
 static int enc_yuv_bufs = -1;
 static int enc_vbi_bufs = -1;
 static int enc_pcm_bufs = -1;
@@ -196,14 +196,17 @@ MODULE_PARM_DESC(enc_mpg_bufs,
 		 "Number of encoder MPG buffers\n"
 		 "\t\t\tDefault is computed from other enc_mpg_* parameters");
 MODULE_PARM_DESC(enc_idx_buffers,
-		 "Encoder IDX buffer memory (MB). (enc_idx_bufs can override)\n"
-		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_IDX_BUFFERS));
+		 "(Deprecated) Encoder IDX buffer memory (MB)\n"
+		 "\t\t\tIgnored, except 0 disables IDX buffer allocations\n"
+		 "\t\t\tDefault: 1 [Enabled]");
 MODULE_PARM_DESC(enc_idx_bufsize,
 		 "Size of an encoder IDX buffer (kB)\n"
-		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_IDX_BUFSIZE));
+		 "\t\t\tAllowed values are multiples of 1.5 kB rounded up\n"
+		 "\t\t\t(multiples of size required for 64 index entries)\n"
+		 "\t\t\tDefault: 2");
 MODULE_PARM_DESC(enc_idx_bufs,
 		 "Number of encoder IDX buffers\n"
-		 "\t\t\tDefault is computed from other enc_idx_* parameters");
+		 "\t\t\tDefault: " __stringify(CX18_MAX_FW_MDLS_PER_STREAM));
 MODULE_PARM_DESC(enc_yuv_buffers,
 		 "Encoder YUV buffer memory (MB). (enc_yuv_bufs can override)\n"
 		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_YUV_BUFFERS));
@@ -501,7 +504,12 @@ static void cx18_process_options(struct cx18 *cx)
 		/*
 		 * YUV is a special case where the stream_buf_size needs to be
 		 * an integral multiple of 33.75 kB (storage for 32 screens
-		 * lines to maintain alignment in case of lost buffers
+		 * lines to maintain alignment in case of lost buffers).
+		 *
+		 * IDX is a special case where the stream_buf_size should be
+		 * an integral multiple of 1.5 kB (storage for 64 index entries
+		 * to maintain alignment in case of lost buffers).
+		 *
 		 */
 		if (i == CX18_ENC_STREAM_TYPE_YUV) {
 			cx->stream_buf_size[i] *= 1024;
@@ -511,15 +519,24 @@ static void cx18_process_options(struct cx18 *cx)
 			if (cx->stream_buf_size[i] < CX18_UNIT_ENC_YUV_BUFSIZE)
 				cx->stream_buf_size[i] =
 						CX18_UNIT_ENC_YUV_BUFSIZE;
+		} else if (i == CX18_ENC_STREAM_TYPE_IDX) {
+			cx->stream_buf_size[i] *= 1024;
+			cx->stream_buf_size[i] -=
+			   (cx->stream_buf_size[i] % CX18_UNIT_ENC_IDX_BUFSIZE);
+
+			if (cx->stream_buf_size[i] < CX18_UNIT_ENC_IDX_BUFSIZE)
+				cx->stream_buf_size[i] =
+						CX18_UNIT_ENC_IDX_BUFSIZE;
 		}
 		/*
-		 * YUV is a special case where the stream_buf_size is
+		 * YUV and IDX are special cases where the stream_buf_size is
 		 * now in bytes.
 		 * VBI is a special case where the stream_buf_size is fixed
 		 * and already in bytes
 		 */
 		if (i == CX18_ENC_STREAM_TYPE_VBI ||
-		    i == CX18_ENC_STREAM_TYPE_YUV) {
+		    i == CX18_ENC_STREAM_TYPE_YUV ||
+		    i == CX18_ENC_STREAM_TYPE_IDX) {
 			if (cx->stream_buffers[i] < 0) {
 				cx->stream_buffers[i] =
 					cx->options.megabytes[i] * 1024 * 1024
