@@ -2808,7 +2808,7 @@ void zfStaProcessProbeReq(zdev_t* dev, zbuf_t* buf, u16_t* src)
     zmw_get_wlan_dev(dev);
 
     /* check mode : AP/IBSS */
-    if ((wd->wlanMode != ZM_MODE_AP) || (wd->wlanMode != ZM_MODE_IBSS))
+    if ((wd->wlanMode != ZM_MODE_AP) && (wd->wlanMode != ZM_MODE_IBSS))
     {
         zm_msg0_mm(ZM_LV_3, "Ignore probe req");
         return;
