@@ -340,6 +340,11 @@ void cx18_streams_cleanup(struct cx18 *cx, int unregister)
 	}
 }
 
+static inline bool cx18_stream_enabled(struct cx18_stream *s)
+{
+	return s->video_dev || s->dvb.enabled;
+}
+
 static void cx18_vbi_setup(struct cx18_stream *s)
 {
 	struct cx18 *cx = s->cx;
@@ -547,7 +552,7 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	int captype = 0;
 	struct cx18_api_func_private priv;
 
-	if (s->video_dev == NULL && s->dvb.enabled == 0)
+	if (!cx18_stream_enabled(s))
 		return -EINVAL;
 
 	CX18_DEBUG_INFO("Start encoder stream %s\n", s->name);
@@ -705,7 +710,7 @@ void cx18_stop_all_captures(struct cx18 *cx)
 	for (i = CX18_MAX_STREAMS - 1; i >= 0; i--) {
 		struct cx18_stream *s = &cx->streams[i];
 
-		if (s->video_dev == NULL && s->dvb.enabled == 0)
+		if (!cx18_stream_enabled(s))
 			continue;
 		if (test_bit(CX18_F_S_STREAMING, &s->s_flags))
 			cx18_stop_v4l2_encode_stream(s, 0);
@@ -717,7 +722,7 @@ int cx18_stop_v4l2_encode_stream(struct cx18_stream *s, int gop_end)
 	struct cx18 *cx = s->cx;
 	unsigned long then;
 
-	if (s->video_dev == NULL && s->dvb.enabled == 0)
+	if (!cx18_stream_enabled(s))
 		return -EINVAL;
 
 	/* This function assumes that you are allowed to stop the capture
@@ -789,7 +794,7 @@ struct cx18_stream *cx18_handle_to_stream(struct cx18 *cx, u32 handle)
 		s = &cx->streams[i];
 		if (s->handle != handle)
 			continue;
-		if (s->video_dev || s->dvb.enabled)
+		if (cx18_stream_enabled(s))
 			return s;
 	}
 	return NULL;
