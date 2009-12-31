@@ -66,6 +66,7 @@
 #include <linux/serial.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>
+#include <asm/unaligned.h>
 
 #include "cypress_m8.h"
 
@@ -376,7 +377,7 @@ static int cypress_serial_control(struct tty_struct *tty,
 					__func__, new_baudrate);
 
 		/* fill the feature_buffer with new configuration */
-		*((u32 *)feature_buffer) = cpu_to_le32(new_baudrate);
+		put_unaligned_le32(new_baudrate, feature_buffer);
 		feature_buffer[4] |= data_bits;   /* assign data bits in 2 bit space ( max 3 ) */
 		/* 1 bit gap */
 		feature_buffer[4] |= (stop_bits << 3);   /* assign stop bits in 1 bit space */
@@ -453,7 +454,7 @@ static int cypress_serial_control(struct tty_struct *tty,
 			/* store the config in one byte, and later
 			   use bit masks to check values */
 			priv->current_config = feature_buffer[4];
-			priv->baud_rate = le32_to_cpup((u32 *)feature_buffer);
+			priv->baud_rate = get_unaligned_le32(feature_buffer);
 			spin_unlock_irqrestore(&priv->lock, flags);
 		}
 	}
