@@ -358,7 +358,9 @@ void cx18_streams_cleanup(struct cx18 *cx, int unregister)
 
 static inline bool cx18_stream_enabled(struct cx18_stream *s)
 {
-	return s->video_dev || s->dvb.enabled;
+	return s->video_dev || s->dvb.enabled ||
+	       (s->type == CX18_ENC_STREAM_TYPE_IDX &&
+		s->cx->stream_buffers[CX18_ENC_STREAM_TYPE_IDX] != 0);
 }
 
 static void cx18_vbi_setup(struct cx18_stream *s)
@@ -567,6 +569,7 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	struct cx18 *cx = s->cx;
 	int captype = 0;
 	struct cx18_api_func_private priv;
+	struct cx18_stream *s_idx;
 
 	if (!cx18_stream_enabled(s))
 		return -EINVAL;
@@ -582,6 +585,9 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 		cx->search_pack_header = 0;
 		break;
 
+	case CX18_ENC_STREAM_TYPE_IDX:
+		captype = CAPTURE_CHANNEL_TYPE_INDEX;
+		break;
 	case CX18_ENC_STREAM_TYPE_TS:
 		captype = CAPTURE_CHANNEL_TYPE_TS;
 		break;
@@ -656,11 +662,13 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 			cx18_vbi_setup(s);
 
 		/*
-		 * assign program index info.
-		 * Mask 7: select I/P/B, Num_req: 400 max
-		 * FIXME - currently we have this hardcoded as disabled
+		 * Select to receive I, P, and B frame index entries, if the
+		 * index stream is enabled.  Otherwise disable index entry
+		 * generation.
 		 */
-		cx18_vapi_result(cx, data, CX18_CPU_SET_INDEXTABLE, 1, 0);
+		s_idx = &cx->streams[CX18_ENC_STREAM_TYPE_IDX];
+		cx18_vapi_result(cx, data, CX18_CPU_SET_INDEXTABLE, 1,
+				 cx18_stream_enabled(s_idx) ? 7 : 0);
 
 		/* Call out to the common CX2341x API setup for user controls */
 		priv.cx = cx;
