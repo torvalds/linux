@@ -543,6 +543,44 @@ static int dac33_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
+static inline void dac33_prefill_handler(struct tlv320dac33_priv *dac33)
+{
+	struct snd_soc_codec *codec;
+
+	codec = &dac33->codec;
+
+	switch (dac33->fifo_mode) {
+	case DAC33_FIFO_MODE1:
+		dac33_write16(codec, DAC33_NSAMPLE_MSB,
+				DAC33_THRREG(dac33->nsample));
+		dac33_write16(codec, DAC33_PREFILL_MSB,
+				DAC33_THRREG(dac33->alarm_threshold));
+		break;
+	default:
+		dev_warn(codec->dev, "Unhandled FIFO mode: %d\n",
+							dac33->fifo_mode);
+		break;
+	}
+}
+
+static inline void dac33_playback_handler(struct tlv320dac33_priv *dac33)
+{
+	struct snd_soc_codec *codec;
+
+	codec = &dac33->codec;
+
+	switch (dac33->fifo_mode) {
+	case DAC33_FIFO_MODE1:
+		dac33_write16(codec, DAC33_NSAMPLE_MSB,
+				DAC33_THRREG(dac33->nsample));
+		break;
+	default:
+		dev_warn(codec->dev, "Unhandled FIFO mode: %d\n",
+							dac33->fifo_mode);
+		break;
+	}
+}
+
 static void dac33_work(struct work_struct *work)
 {
 	struct snd_soc_codec *codec;
@@ -556,14 +594,10 @@ static void dac33_work(struct work_struct *work)
 	switch (dac33->state) {
 	case DAC33_PREFILL:
 		dac33->state = DAC33_PLAYBACK;
-		dac33_write16(codec, DAC33_NSAMPLE_MSB,
-				DAC33_THRREG(dac33->nsample));
-		dac33_write16(codec, DAC33_PREFILL_MSB,
-				DAC33_THRREG(dac33->alarm_threshold));
+		dac33_prefill_handler(dac33);
 		break;
 	case DAC33_PLAYBACK:
-		dac33_write16(codec, DAC33_NSAMPLE_MSB,
-				DAC33_THRREG(dac33->nsample));
+		dac33_playback_handler(dac33);
 		break;
 	case DAC33_IDLE:
 		break;
