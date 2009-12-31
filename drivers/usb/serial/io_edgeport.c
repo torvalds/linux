@@ -372,31 +372,32 @@ static void update_edgeport_E2PROM(struct edgeport_serial *edge_serial)
  ************************************************************************/
 static int get_string(struct usb_device *dev, int Id, char *string, int buflen)
 {
-	struct usb_string_descriptor StringDesc;
-	struct usb_string_descriptor *pStringDesc;
+	struct usb_string_descriptor *StringDesc = NULL;
+	struct usb_string_descriptor *pStringDesc = NULL;
+	int ret = 0;
 
 	dbg("%s - USB String ID = %d", __func__, Id);
 
-	if (!usb_get_descriptor(dev, USB_DT_STRING, Id,
-					&StringDesc, sizeof(StringDesc)))
-		return 0;
+	StringDesc = kmalloc(sizeof(*StringDesc), GFP_KERNEL);
+	if (!StringDesc)
+		goto free;
+	if (usb_get_descriptor(dev, USB_DT_STRING, Id, StringDesc, sizeof(*StringDesc)) <= 0)
+		goto free;
 
-	pStringDesc = kmalloc(StringDesc.bLength, GFP_KERNEL);
+	pStringDesc = kmalloc(StringDesc->bLength, GFP_KERNEL);
 	if (!pStringDesc)
-		return 0;
+		goto free;
 
-	if (!usb_get_descriptor(dev, USB_DT_STRING, Id,
-					pStringDesc, StringDesc.bLength)) {
-		kfree(pStringDesc);
-		return 0;
-	}
+	if (usb_get_descriptor(dev, USB_DT_STRING, Id, pStringDesc, StringDesc->bLength) <= 0)
+		goto free;
 
-	unicode_to_ascii(string, buflen,
-				pStringDesc->wData, pStringDesc->bLength/2);
-
-	kfree(pStringDesc);
+	unicode_to_ascii(string, buflen, pStringDesc->wData, pStringDesc->bLength/2);
+	ret = strlen(string);
 	dbg("%s - USB String %s", __func__, string);
-	return strlen(string);
+free:
+	kfree(StringDesc);
+	kfree(pStringDesc);
+	return ret;
 }
 
 
