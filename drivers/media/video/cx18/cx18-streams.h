@@ -28,6 +28,13 @@ int cx18_streams_setup(struct cx18 *cx);
 int cx18_streams_register(struct cx18 *cx);
 void cx18_streams_cleanup(struct cx18 *cx, int unregister);
 
+static inline bool cx18_stream_enabled(struct cx18_stream *s)
+{
+	return s->video_dev || s->dvb.enabled ||
+	       (s->type == CX18_ENC_STREAM_TYPE_IDX &&
+		s->cx->stream_buffers[CX18_ENC_STREAM_TYPE_IDX] != 0);
+}
+
 /* Related to submission of mdls to firmware */
 static inline void cx18_stream_load_fw_queue(struct cx18_stream *s)
 {

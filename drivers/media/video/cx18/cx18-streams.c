@@ -356,13 +356,6 @@ void cx18_streams_cleanup(struct cx18 *cx, int unregister)
 	}
 }
 
-static inline bool cx18_stream_enabled(struct cx18_stream *s)
-{
-	return s->video_dev || s->dvb.enabled ||
-	       (s->type == CX18_ENC_STREAM_TYPE_IDX &&
-		s->cx->stream_buffers[CX18_ENC_STREAM_TYPE_IDX] != 0);
-}
-
 static void cx18_vbi_setup(struct cx18_stream *s)
 {
 	struct cx18 *cx = s->cx;
