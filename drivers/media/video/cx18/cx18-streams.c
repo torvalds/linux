@@ -319,11 +319,27 @@ void cx18_streams_cleanup(struct cx18 *cx, int unregister)
 
 	/* Teardown all streams */
 	for (type = 0; type < CX18_MAX_STREAMS; type++) {
-		if (cx->streams[type].dvb.enabled) {
-			cx18_dvb_unregister(&cx->streams[type]);
-			cx->streams[type].dvb.enabled = false;
+
+		/* No struct video_device, but can have buffers allocated */
+		if (type == CX18_ENC_STREAM_TYPE_TS) {
+			if (cx->streams[type].dvb.enabled) {
+				cx18_dvb_unregister(&cx->streams[type]);
+				cx->streams[type].dvb.enabled = false;
+				cx18_stream_free(&cx->streams[type]);
+			}
+			continue;
 		}
 
+		/* No struct video_device, but can have buffers allocated */
+		if (type == CX18_ENC_STREAM_TYPE_IDX) {
+			if (cx->stream_buffers[type] != 0) {
+				cx->stream_buffers[type] = 0;
+				cx18_stream_free(&cx->streams[type]);
+			}
+			continue;
+		}
+
+		/* If struct video_device exists, can have buffers allocated */
 		vdev = cx->streams[type].video_dev;
 
 		cx->streams[type].video_dev = NULL;
