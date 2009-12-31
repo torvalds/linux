@@ -262,6 +262,14 @@ struct intel_limit {
 #define IRONLAKE_P2_LVDS_FAST    7  /* double channel */
 #define IRONLAKE_P2_DOT_LIMIT    225000 /* 225Mhz */
 
+#define IRONLAKE_P_DISPLAY_PORT_MIN	10
+#define IRONLAKE_P_DISPLAY_PORT_MAX	20
+#define IRONLAKE_P2_DISPLAY_PORT_FAST	10
+#define IRONLAKE_P2_DISPLAY_PORT_SLOW	10
+#define IRONLAKE_P2_DISPLAY_PORT_LIMIT	0
+#define IRONLAKE_P1_DISPLAY_PORT_MIN	1
+#define IRONLAKE_P1_DISPLAY_PORT_MAX	2
+
 static bool
 intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 		    int target, int refclk, intel_clock_t *best_clock);
@@ -271,9 +279,6 @@ intel_find_best_reduced_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 static bool
 intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 			int target, int refclk, intel_clock_t *best_clock);
-static bool
-intel_ironlake_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-			     int target, int refclk, intel_clock_t *best_clock);
 
 static bool
 intel_find_pll_g4x_dp(const intel_limit_t *, struct drm_crtc *crtc,
@@ -496,7 +501,7 @@ static const intel_limit_t intel_limits_ironlake_sdvo = {
 	.p2  = { .dot_limit = IRONLAKE_P2_DOT_LIMIT,
 		 .p2_slow = IRONLAKE_P2_SDVO_DAC_SLOW,
 		 .p2_fast = IRONLAKE_P2_SDVO_DAC_FAST },
-	.find_pll = intel_ironlake_find_best_PLL,
+	.find_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_ironlake_lvds = {
@@ -511,7 +516,30 @@ static const intel_limit_t intel_limits_ironlake_lvds = {
 	.p2  = { .dot_limit = IRONLAKE_P2_DOT_LIMIT,
 		 .p2_slow = IRONLAKE_P2_LVDS_SLOW,
 		 .p2_fast = IRONLAKE_P2_LVDS_FAST },
-	.find_pll = intel_ironlake_find_best_PLL,
+	.find_pll = intel_g4x_find_best_PLL,
+};
+
+static const intel_limit_t intel_limits_ironlake_display_port = {
+        .dot = { .min = IRONLAKE_DOT_MIN,
+                 .max = IRONLAKE_DOT_MAX },
+        .vco = { .min = IRONLAKE_VCO_MIN,
+                 .max = IRONLAKE_VCO_MAX},
+        .n   = { .min = IRONLAKE_N_MIN,
+                 .max = IRONLAKE_N_MAX },
+        .m   = { .min = IRONLAKE_M_MIN,
+                 .max = IRONLAKE_M_MAX },
+        .m1  = { .min = IRONLAKE_M1_MIN,
+                 .max = IRONLAKE_M1_MAX },
+        .m2  = { .min = IRONLAKE_M2_MIN,
+                 .max = IRONLAKE_M2_MAX },
+        .p   = { .min = IRONLAKE_P_DISPLAY_PORT_MIN,
+                 .max = IRONLAKE_P_DISPLAY_PORT_MAX },
+        .p1  = { .min = IRONLAKE_P1_DISPLAY_PORT_MIN,
+                 .max = IRONLAKE_P1_DISPLAY_PORT_MAX},
+        .p2  = { .dot_limit = IRONLAKE_P2_DISPLAY_PORT_LIMIT,
+                 .p2_slow = IRONLAKE_P2_DISPLAY_PORT_SLOW,
+                 .p2_fast = IRONLAKE_P2_DISPLAY_PORT_FAST },
+        .find_pll = intel_find_pll_ironlake_dp,
 };
 
 static const intel_limit_t *intel_ironlake_limit(struct drm_crtc *crtc)
@@ -519,6 +547,9 @@ static const intel_limit_t *intel_ironlake_limit(struct drm_crtc *crtc)
 	const intel_limit_t *limit;
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
 		limit = &intel_limits_ironlake_lvds;
+	else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT) ||
+			HAS_eDP)
+		limit = &intel_limits_ironlake_display_port;
 	else
 		limit = &intel_limits_ironlake_sdvo;
 
@@ -791,7 +822,13 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 	found = false;
 
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
-		if ((I915_READ(LVDS) & LVDS_CLKB_POWER_MASK) ==
+		int lvds_reg;
+
+		if (IS_IRONLAKE(dev))
+			lvds_reg = PCH_LVDS;
+		else
+			lvds_reg = LVDS;
+		if ((I915_READ(lvds_reg) & LVDS_CLKB_POWER_MASK) ==
 		    LVDS_CLKB_POWER_UP)
 			clock.p2 = limit->p2.p2_fast;
 		else
@@ -839,6 +876,11 @@ intel_find_pll_ironlake_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	intel_clock_t clock;
+
+	/* return directly when it is eDP */
+	if (HAS_eDP)
+		return true;
+
 	if (target < 200000) {
 		clock.n = 1;
 		clock.p1 = 2;
@@ -854,68 +896,6 @@ intel_find_pll_ironlake_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
 	}
 	intel_clock(dev, refclk, &clock);
 	memcpy(best_clock, &clock, sizeof(intel_clock_t));
-	return true;
-}
-
-static bool
-intel_ironlake_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-			     int target, int refclk, intel_clock_t *best_clock)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	intel_clock_t clock;
-	int err_most = 47;
-	int err_min = 10000;
-
-	/* eDP has only 2 clock choice, no n/m/p setting */
-	if (HAS_eDP)
-		return true;
-
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT))
-		return intel_find_pll_ironlake_dp(limit, crtc, target,
-					       refclk, best_clock);
-
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
-		if ((I915_READ(PCH_LVDS) & LVDS_CLKB_POWER_MASK) ==
-		    LVDS_CLKB_POWER_UP)
-			clock.p2 = limit->p2.p2_fast;
-		else
-			clock.p2 = limit->p2.p2_slow;
-	} else {
-		if (target < limit->p2.dot_limit)
-			clock.p2 = limit->p2.p2_slow;
-		else
-			clock.p2 = limit->p2.p2_fast;
-	}
-
-	memset(best_clock, 0, sizeof(*best_clock));
-	for (clock.p1 = limit->p1.max; clock.p1 >= limit->p1.min; clock.p1--) {
-		/* based on hardware requriment prefer smaller n to precision */
-		for (clock.n = limit->n.min; clock.n <= limit->n.max; clock.n++) {
-			/* based on hardware requirment prefere larger m1,m2 */
-			for (clock.m1 = limit->m1.max;
-			     clock.m1 >= limit->m1.min; clock.m1--) {
-				for (clock.m2 = limit->m2.max;
-				     clock.m2 >= limit->m2.min; clock.m2--) {
-					int this_err;
-
-					intel_clock(dev, refclk, &clock);
-					if (!intel_PLL_is_valid(crtc, &clock))
-						continue;
-					this_err = abs((10000 - (target*10000/clock.dot)));
-					if (this_err < err_most) {
-						*best_clock = clock;
-						/* found on first matching */
-						goto out;
-					} else if (this_err < err_min) {
-						*best_clock = clock;
-						err_min = this_err;
-					}
-				}
-			}
-		}
-	}
-out:
 	return true;
 }
 
