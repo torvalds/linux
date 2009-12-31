@@ -993,6 +993,7 @@ static int dac33_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			     unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
+	struct tlv320dac33_priv *dac33 = codec->private_data;
 	u8 aictrl_a, aictrl_b;
 
 	aictrl_a = dac33_read_reg_cache(codec, DAC33_SER_AUDIOIF_CTRL_A);
@@ -1005,7 +1006,11 @@ static int dac33_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
 		/* Codec Slave */
-		aictrl_a &= ~(DAC33_MSBCLK | DAC33_MSWCLK);
+		if (dac33->fifo_mode) {
+			dev_err(codec->dev, "FIFO mode requires master mode\n");
+			return -EINVAL;
+		} else
+			aictrl_a &= ~(DAC33_MSBCLK | DAC33_MSWCLK);
 		break;
 	default:
 		return -EINVAL;
