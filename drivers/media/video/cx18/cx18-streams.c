@@ -463,6 +463,32 @@ static void cx18_vbi_setup(struct cx18_stream *s)
 	cx18_api(cx, CX18_CPU_SET_RAW_VBI_PARAM, 6, data);
 }
 
+void cx18_stream_rotate_idx_mdls(struct cx18 *cx)
+{
+	struct cx18_stream *s = &cx->streams[CX18_ENC_STREAM_TYPE_IDX];
+	struct cx18_mdl *mdl;
+
+	if (!cx18_stream_enabled(s))
+		return;
+
+	/* Return if the firmware is not running low on MDLs */
+	if ((atomic_read(&s->q_free.depth) + atomic_read(&s->q_busy.depth)) >=
+					    CX18_ENC_STREAM_TYPE_IDX_FW_MDL_MIN)
+		return;
+
+	/* Return if there are no MDLs to rotate back to the firmware */
+	if (atomic_read(&s->q_full.depth) < 2)
+		return;
+
+	/*
+	 * Take the oldest IDX MDL still holding data, and discard its index
+	 * entries by scheduling the MDL to go back to the firmware
+	 */
+	mdl = cx18_dequeue(s, &s->q_full);
+	if (mdl != NULL)
+		cx18_enqueue(s, mdl, &s->q_free);
+}
+
 static
 struct cx18_queue *_cx18_stream_put_mdl_fw(struct cx18_stream *s,
 					   struct cx18_mdl *mdl)

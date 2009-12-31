@@ -223,8 +223,11 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_in_work_order *order)
 		CX18_DEBUG_HI_DMA("%s recv bytesused = %d\n",
 				  s->name, mdl->bytesused);
 
-		if (s->type != CX18_ENC_STREAM_TYPE_TS)
+		if (s->type != CX18_ENC_STREAM_TYPE_TS) {
 			cx18_enqueue(s, mdl, &s->q_full);
+			if (s->type == CX18_ENC_STREAM_TYPE_IDX)
+				cx18_stream_rotate_idx_mdls(cx);
+		}
 		else {
 			cx18_mdl_send_to_dvb(s, mdl);
 			cx18_enqueue(s, mdl, &s->q_free);
