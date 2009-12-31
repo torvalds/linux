@@ -2284,21 +2284,6 @@ static int pci_parent_bus_reset(struct pci_dev *dev, int probe)
 	return 0;
 }
 
-static int pci_dev_specific_reset(struct pci_dev *dev, int probe)
-{
-	struct pci_dev_reset_methods *i;
-
-	for (i = pci_dev_reset_methods; i->reset; i++) {
-		if ((i->vendor == dev->vendor ||
-		     i->vendor == (u16)PCI_ANY_ID) &&
-		    (i->device == dev->device ||
-		     i->device == (u16)PCI_ANY_ID))
-			return i->reset(dev, probe);
-	}
-
-	return -ENOTTY;
-}
-
 static int pci_dev_reset(struct pci_dev *dev, int probe)
 {
 	int rc;

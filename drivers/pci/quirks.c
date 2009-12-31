@@ -2684,14 +2684,31 @@ static int reset_intel_82599_sfp_virtfn(struct pci_dev *dev, int probe)
 
 #define PCI_DEVICE_ID_INTEL_82599_SFP_VF   0x10ed
 
-struct pci_dev_reset_methods pci_dev_reset_methods[] = {
+static const struct pci_dev_reset_methods pci_dev_reset_methods[] = {
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82599_SFP_VF,
 		 reset_intel_82599_sfp_virtfn },
 	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID,
 		reset_intel_generic_dev },
 	{ 0 }
 };
+
+int pci_dev_specific_reset(struct pci_dev *dev, int probe)
+{
+	struct pci_dev_reset_methods *i;
+
+	for (i = pci_dev_reset_methods; i->reset; i++) {
+		if ((i->vendor == dev->vendor ||
+		     i->vendor == (u16)PCI_ANY_ID) &&
+		    (i->device == dev->device ||
+		     i->device == (u16)PCI_ANY_ID))
+			return i->reset(dev, probe);
+	}
+
+	return -ENOTTY;
+}
+
 #else
 void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev) {}
+int pci_dev_specific_reset(struct pci_dev *dev, int probe) { return -ENOTTY; }
 #endif
 EXPORT_SYMBOL(pci_fixup_device);
