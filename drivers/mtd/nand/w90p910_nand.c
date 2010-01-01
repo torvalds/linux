@@ -358,7 +358,7 @@ static struct platform_driver w90p910_nand_driver = {
 	.probe		= w90p910_nand_probe,
 	.remove		= __devexit_p(w90p910_nand_remove),
 	.driver		= {
-		.name	= "w90p910-fmi",
+		.name	= "nuc900-fmi",
 		.owner	= THIS_MODULE,
 	},
 };
@@ -379,4 +379,4 @@ module_exit(w90p910_nand_exit);
 MODULE_AUTHOR("Wan ZongShun <mcuos.com@gmail.com>");
 MODULE_DESCRIPTION("w90p910 nand driver!");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:w90p910-fmi");
+MODULE_ALIAS("platform:nuc900-fmi");
