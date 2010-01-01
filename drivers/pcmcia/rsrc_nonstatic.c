@@ -534,7 +534,7 @@ struct pcmcia_align_data {
 };
 
 static resource_size_t
-pcmcia_common_align(void *align_data, struct resource *res,
+pcmcia_common_align(void *align_data, const struct resource *res,
 			resource_size_t size, resource_size_t align)
 {
 	struct pcmcia_align_data *data = align_data;
@@ -549,8 +549,8 @@ pcmcia_common_align(void *align_data, struct resource *res,
 }
 
 static resource_size_t
-pcmcia_align(void *align_data, struct resource *res, resource_size_t size,
-		resource_size_t align)
+pcmcia_align(void *align_data, const struct resource *res,
+	resource_size_t size, resource_size_t align)
 {
 	struct pcmcia_align_data *data = align_data;
 	struct resource_map *m;

@@ -722,7 +722,7 @@ void pcibios_update_irq(struct pci_dev *pdev, int irq)
 {
 }
 
-resource_size_t pcibios_align_resource(void *data, struct resource *res,
+resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 				resource_size_t size, resource_size_t align)
 {
 	return res->start;
