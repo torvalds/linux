@@ -2694,7 +2694,7 @@ static const struct pci_dev_reset_methods pci_dev_reset_methods[] = {
 
 int pci_dev_specific_reset(struct pci_dev *dev, int probe)
 {
-	struct pci_dev_reset_methods *i;
+	const struct pci_dev_reset_methods *i;
 
 	for (i = pci_dev_reset_methods; i->reset; i++) {
 		if ((i->vendor == dev->vendor ||
