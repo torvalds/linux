@@ -259,8 +259,7 @@ static void pcm990_irq_handler(unsigned int irq, struct irq_desc *desc)
 	unsigned long pending = (~PCM990_INTSETCLR) & pcm990_irq_enabled;
 
 	do {
-		GEDR(PCM990_CTRL_INT_IRQ_GPIO) =
-					GPIO_bit(PCM990_CTRL_INT_IRQ_GPIO);
+		desc->chip->ack(irq);	/* clear our parent IRQ */
 		if (likely(pending)) {
 			irq = PCM027_IRQ(0) + __ffs(pending);
 			generic_handle_irq(irq);

@@ -162,7 +162,7 @@ static void mainstone_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned long pending = MST_INTSETCLR & mainstone_irq_enabled;
 	do {
-		GEDR(0) = GPIO_bit(0);  /* clear useless edge notification */
+		desc->chip->ack(irq);	/* clear useless edge notification */
 		if (likely(pending)) {
 			irq = MAINSTONE_IRQ(0) + __ffs(pending);
 			generic_handle_irq(irq);

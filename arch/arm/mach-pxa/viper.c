@@ -281,7 +281,7 @@ static void viper_irq_handler(unsigned int irq, struct irq_desc *desc)
 	do {
 		/* we're in a chained irq handler,
 		 * so ack the interrupt by hand */
-		GEDR(VIPER_CPLD_GPIO) = GPIO_bit(VIPER_CPLD_GPIO);
+		desc->chip->ack(irq);
 
 		if (likely(pending)) {
 			irq = viper_bit_to_irq(__ffs(pending));

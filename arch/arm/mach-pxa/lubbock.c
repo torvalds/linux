@@ -158,7 +158,7 @@ static void lubbock_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned long pending = LUB_IRQ_SET_CLR & lubbock_irq_enabled;
 	do {
-		GEDR(0) = GPIO_bit(0);	/* clear our parent irq */
+		desc->chip->ack(irq);	/* clear our parent irq */
 		if (likely(pending)) {
 			irq = LUBBOCK_IRQ(0) + __ffs(pending);
 			generic_handle_irq(irq);

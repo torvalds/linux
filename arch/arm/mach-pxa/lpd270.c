@@ -121,7 +121,7 @@ static void lpd270_irq_handler(unsigned int irq, struct irq_desc *desc)
 
 	pending = __raw_readw(LPD270_INT_STATUS) & lpd270_irq_enabled;
 	do {
-		GEDR(0) = GPIO_bit(0);  /* clear useless edge notification */
+		desc->chip->ack(irq);	/* clear useless edge notification */
 		if (likely(pending)) {
 			irq = LPD270_IRQ(0) + __ffs(pending);
 			generic_handle_irq(irq);
