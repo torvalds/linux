@@ -686,8 +686,8 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 		 * generation.
 		 */
 		s_idx = &cx->streams[CX18_ENC_STREAM_TYPE_IDX];
-		cx18_vapi_result(cx, data, CX18_CPU_SET_INDEXTABLE, 1,
-				 cx18_stream_enabled(s_idx) ? 7 : 0);
+		cx18_vapi_result(cx, data, CX18_CPU_SET_INDEXTABLE, 2,
+				 s->handle, cx18_stream_enabled(s_idx) ? 7 : 0);
 
 		/* Call out to the common CX2341x API setup for user controls */
 		priv.cx = cx;
