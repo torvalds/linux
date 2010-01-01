@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Nuvoton technology corporation.
+ * Copyright © 2009 Nuvoton technology corporation.
  *
  * Wan ZongShun <mcuos.com@gmail.com>
  *
@@ -55,7 +55,7 @@
 #define write_addr_reg(dev, val)	\
 	__raw_writel((val), (dev)->reg + REG_SMADDR)
 
-struct w90p910_nand {
+struct nuc900_nand {
 	struct mtd_info mtd;
 	struct nand_chip chip;
 	void __iomem *reg;
@@ -76,49 +76,49 @@ static const struct mtd_partition partitions[] = {
 	}
 };
 
-static unsigned char w90p910_nand_read_byte(struct mtd_info *mtd)
+static unsigned char nuc900_nand_read_byte(struct mtd_info *mtd)
 {
 	unsigned char ret;
-	struct w90p910_nand *nand;
+	struct nuc900_nand *nand;
 
-	nand = container_of(mtd, struct w90p910_nand, mtd);
+	nand = container_of(mtd, struct nuc900_nand, mtd);
 
 	ret = (unsigned char)read_data_reg(nand);
 
 	return ret;
 }
 
-static void w90p910_nand_read_buf(struct mtd_info *mtd,
-						unsigned char *buf, int len)
+static void nuc900_nand_read_buf(struct mtd_info *mtd,
+				 unsigned char *buf, int len)
 {
 	int i;
-	struct w90p910_nand *nand;
+	struct nuc900_nand *nand;
 
-	nand = container_of(mtd, struct w90p910_nand, mtd);
+	nand = container_of(mtd, struct nuc900_nand, mtd);
 
 	for (i = 0; i < len; i++)
 		buf[i] = (unsigned char)read_data_reg(nand);
 }
 
-static void w90p910_nand_write_buf(struct mtd_info *mtd,
-					const unsigned char *buf, int len)
+static void nuc900_nand_write_buf(struct mtd_info *mtd,
+				  const unsigned char *buf, int len)
 {
 	int i;
-	struct w90p910_nand *nand;
+	struct nuc900_nand *nand;
 
-	nand = container_of(mtd, struct w90p910_nand, mtd);
+	nand = container_of(mtd, struct nuc900_nand, mtd);
 
 	for (i = 0; i < len; i++)
 		write_data_reg(nand, buf[i]);
 }
 
-static int w90p910_verify_buf(struct mtd_info *mtd,
-					const unsigned char *buf, int len)
+static int nuc900_verify_buf(struct mtd_info *mtd,
+			     const unsigned char *buf, int len)
 {
 	int i;
-	struct w90p910_nand *nand;
+	struct nuc900_nand *nand;
 
-	nand = container_of(mtd, struct w90p910_nand, mtd);
+	nand = container_of(mtd, struct nuc900_nand, mtd);
 
 	for (i = 0; i < len; i++) {
 		if (buf[i] != (unsigned char)read_data_reg(nand))
@@ -128,7 +128,7 @@ static int w90p910_verify_buf(struct mtd_info *mtd,
 	return 0;
 }
 
-static int w90p910_check_rb(struct w90p910_nand *nand)
+static int nuc900_check_rb(struct nuc900_nand *nand)
 {
 	unsigned int val;
 	spin_lock(&nand->lock);
@@ -139,24 +139,24 @@ static int w90p910_check_rb(struct w90p910_nand *nand)
 	return val;
 }
 
-static int w90p910_nand_devready(struct mtd_info *mtd)
+static int nuc900_nand_devready(struct mtd_info *mtd)
 {
-	struct w90p910_nand *nand;
+	struct nuc900_nand *nand;
 	int ready;
 
-	nand = container_of(mtd, struct w90p910_nand, mtd);
+	nand = container_of(mtd, struct nuc900_nand, mtd);
 
-	ready = (w90p910_check_rb(nand)) ? 1 : 0;
+	ready = (nuc900_check_rb(nand)) ? 1 : 0;
 	return ready;
 }
 
-static void w90p910_nand_command_lp(struct mtd_info *mtd,
-			unsigned int command, int column, int page_addr)
+static void nuc900_nand_command_lp(struct mtd_info *mtd, unsigned int command,
+				   int column, int page_addr)
 {
 	register struct nand_chip *chip = mtd->priv;
-	struct w90p910_nand *nand;
+	struct nuc900_nand *nand;
 
-	nand = container_of(mtd, struct w90p910_nand, mtd);
+	nand = container_of(mtd, struct nuc900_nand, mtd);
 
 	if (command == NAND_CMD_READOOB) {
 		column += mtd->writesize;
@@ -212,7 +212,7 @@ static void w90p910_nand_command_lp(struct mtd_info *mtd,
 		write_cmd_reg(nand, NAND_CMD_STATUS);
 		write_cmd_reg(nand, command);
 
-		while (!w90p910_check_rb(nand))
+		while (!nuc900_check_rb(nand))
 			;
 
 		return;
@@ -241,7 +241,7 @@ static void w90p910_nand_command_lp(struct mtd_info *mtd,
 }
 
 
-static void w90p910_nand_enable(struct w90p910_nand *nand)
+static void nuc900_nand_enable(struct nuc900_nand *nand)
 {
 	unsigned int val;
 	spin_lock(&nand->lock);
@@ -262,37 +262,37 @@ static void w90p910_nand_enable(struct w90p910_nand *nand)
 	spin_unlock(&nand->lock);
 }
 
-static int __devinit w90p910_nand_probe(struct platform_device *pdev)
+static int __devinit nuc900_nand_probe(struct platform_device *pdev)
 {
-	struct w90p910_nand *w90p910_nand;
+	struct nuc900_nand *nuc900_nand;
 	struct nand_chip *chip;
 	int retval;
 	struct resource *res;
 
 	retval = 0;
 
-	w90p910_nand = kzalloc(sizeof(struct w90p910_nand), GFP_KERNEL);
-	if (!w90p910_nand)
+	nuc900_nand = kzalloc(sizeof(struct nuc900_nand), GFP_KERNEL);
+	if (!nuc900_nand)
 		return -ENOMEM;
-	chip = &(w90p910_nand->chip);
+	chip = &(nuc900_nand->chip);
 
-	w90p910_nand->mtd.priv	= chip;
-	w90p910_nand->mtd.owner	= THIS_MODULE;
-	spin_lock_init(&w90p910_nand->lock);
+	nuc900_nand->mtd.priv	= chip;
+	nuc900_nand->mtd.owner	= THIS_MODULE;
+	spin_lock_init(&nuc900_nand->lock);
 
-	w90p910_nand->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(w90p910_nand->clk)) {
+	nuc900_nand->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(nuc900_nand->clk)) {
 		retval = -ENOENT;
 		goto fail1;
 	}
-	clk_enable(w90p910_nand->clk);
+	clk_enable(nuc900_nand->clk);
 
-	chip->cmdfunc		= w90p910_nand_command_lp;
-	chip->dev_ready		= w90p910_nand_devready;
-	chip->read_byte		= w90p910_nand_read_byte;
-	chip->write_buf		= w90p910_nand_write_buf;
-	chip->read_buf		= w90p910_nand_read_buf;
-	chip->verify_buf	= w90p910_verify_buf;
+	chip->cmdfunc		= nuc900_nand_command_lp;
+	chip->dev_ready		= nuc900_nand_devready;
+	chip->read_byte		= nuc900_nand_read_byte;
+	chip->write_buf		= nuc900_nand_write_buf;
+	chip->read_buf		= nuc900_nand_read_buf;
+	chip->verify_buf	= nuc900_verify_buf;
 	chip->chip_delay	= 50;
 	chip->options		= 0;
 	chip->ecc.mode		= NAND_ECC_SOFT;
@@ -308,75 +308,75 @@ static int __devinit w90p910_nand_probe(struct platform_device *pdev)
 		goto fail1;
 	}
 
-	w90p910_nand->reg = ioremap(res->start, resource_size(res));
-	if (!w90p910_nand->reg) {
+	nuc900_nand->reg = ioremap(res->start, resource_size(res));
+	if (!nuc900_nand->reg) {
 		retval = -ENOMEM;
 		goto fail2;
 	}
 
-	w90p910_nand_enable(w90p910_nand);
+	nuc900_nand_enable(nuc900_nand);
 
-	if (nand_scan(&(w90p910_nand->mtd), 1)) {
+	if (nand_scan(&(nuc900_nand->mtd), 1)) {
 		retval = -ENXIO;
 		goto fail3;
 	}
 
-	add_mtd_partitions(&(w90p910_nand->mtd), partitions,
+	add_mtd_partitions(&(nuc900_nand->mtd), partitions,
 						ARRAY_SIZE(partitions));
 
-	platform_set_drvdata(pdev, w90p910_nand);
+	platform_set_drvdata(pdev, nuc900_nand);
 
 	return retval;
 
-fail3:	iounmap(w90p910_nand->reg);
+fail3:	iounmap(nuc900_nand->reg);
 fail2:	release_mem_region(res->start, resource_size(res));
-fail1:	kfree(w90p910_nand);
+fail1:	kfree(nuc900_nand);
 	return retval;
 }
 
-static int __devexit w90p910_nand_remove(struct platform_device *pdev)
+static int __devexit nuc900_nand_remove(struct platform_device *pdev)
 {
-	struct w90p910_nand *w90p910_nand = platform_get_drvdata(pdev);
+	struct nuc900_nand *nuc900_nand = platform_get_drvdata(pdev);
 	struct resource *res;
 
-	iounmap(w90p910_nand->reg);
+	iounmap(nuc900_nand->reg);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, resource_size(res));
 
-	clk_disable(w90p910_nand->clk);
-	clk_put(w90p910_nand->clk);
+	clk_disable(nuc900_nand->clk);
+	clk_put(nuc900_nand->clk);
 
-	kfree(w90p910_nand);
+	kfree(nuc900_nand);
 
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
 
-static struct platform_driver w90p910_nand_driver = {
-	.probe		= w90p910_nand_probe,
-	.remove		= __devexit_p(w90p910_nand_remove),
+static struct platform_driver nuc900_nand_driver = {
+	.probe		= nuc900_nand_probe,
+	.remove		= __devexit_p(nuc900_nand_remove),
 	.driver		= {
 		.name	= "nuc900-fmi",
 		.owner	= THIS_MODULE,
 	},
 };
 
-static int __init w90p910_nand_init(void)
+static int __init nuc900_nand_init(void)
 {
-	return platform_driver_register(&w90p910_nand_driver);
+	return platform_driver_register(&nuc900_nand_driver);
 }
 
-static void __exit w90p910_nand_exit(void)
+static void __exit nuc900_nand_exit(void)
 {
-	platform_driver_unregister(&w90p910_nand_driver);
+	platform_driver_unregister(&nuc900_nand_driver);
 }
 
-module_init(w90p910_nand_init);
-module_exit(w90p910_nand_exit);
+module_init(nuc900_nand_init);
+module_exit(nuc900_nand_exit);
 
 MODULE_AUTHOR("Wan ZongShun <mcuos.com@gmail.com>");
-MODULE_DESCRIPTION("w90p910 nand driver!");
+MODULE_DESCRIPTION("w90p910/NUC9xx nand driver!");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:nuc900-fmi");
