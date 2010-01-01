@@ -547,10 +547,11 @@ pcibios_disable_device (struct pci_dev *dev)
 		acpi_pci_irq_disable(dev);
 }
 
-void
+resource_size_t
 pcibios_align_resource (void *data, struct resource *res,
 		        resource_size_t size, resource_size_t align)
 {
+	return res->start;
 }
 
 /*

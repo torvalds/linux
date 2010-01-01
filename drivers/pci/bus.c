@@ -36,8 +36,10 @@ int
 pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 		resource_size_t size, resource_size_t align,
 		resource_size_t min, unsigned int type_mask,
-		void (*alignf)(void *, struct resource *, resource_size_t,
-				resource_size_t),
+		resource_size_t (*alignf)(void *,
+					  struct resource *,
+					  resource_size_t,
+					  resource_size_t),
 		void *alignf_data)
 {
 	int i, ret = -ENOMEM;
