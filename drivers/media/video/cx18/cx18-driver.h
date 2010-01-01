@@ -288,6 +288,18 @@ struct cx18_options {
 #define CX18_SLICED_TYPE_WSS_625        (5)
 #define CX18_SLICED_TYPE_VPS            (7)
 
+/**
+ * list_entry_is_past_end - check if a previous loop cursor is off list end
+ * @pos:	the type * previously used as a loop cursor.
+ * @head:	the head for your list.
+ * @member:	the name of the list_struct within the struct.
+ *
+ * Check if the entry's list_head is the head of the list, thus it's not a
+ * real entry but was the loop cursor that walked past the end
+ */
+#define list_entry_is_past_end(pos, head, member) \
+	(&pos->member == (head))
+
 struct cx18_buffer {
 	struct list_head list;
 	dma_addr_t dma_handle;

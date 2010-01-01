@@ -392,18 +392,6 @@ static size_t cx18_copy_buf_to_user(struct cx18_stream *s,
 	return len;
 }
 
-/**
- * list_entry_is_past_end - check if a previous loop cursor is off list end
- * @pos:	the type * previously used as a loop cursor.
- * @head:	the head for your list.
- * @member:	the name of the list_struct within the struct.
- *
- * Check if the entry's list_head is the head of the list, thus it's not a
- * real entry but was the loop cursor that walked past the end
- */
-#define list_entry_is_past_end(pos, head, member) \
-	(&pos->member == (head))
-
 static size_t cx18_copy_mdl_to_user(struct cx18_stream *s,
 		struct cx18_mdl *mdl, char __user *ubuf, size_t ucount)
 {
