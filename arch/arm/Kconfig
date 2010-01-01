@@ -601,14 +601,14 @@ config ARCH_PXA
 
 config ARCH_MSM
 	bool "Qualcomm MSM"
-	select CPU_V6
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	help
-	  Support for Qualcomm MSM7K based systems.  This runs on the ARM11
-	  apps processor of the MSM7K and depends on a shared memory
-	  interface to the ARM9 modem processor which runs the baseband stack
-	  and controls some vital subsystems (clock and power control, etc).
+	  Support for Qualcomm MSM/QSD based systems.  This runs on the
+	  apps processor of the MSM/QSD and depends on a shared memory
+	  interface to the modem processor which runs the baseband
+	  stack and controls some vital subsystems
+	  (clock and power control, etc).
 
 config ARCH_SHMOBILE
 	bool "Renesas SH-Mobile"
