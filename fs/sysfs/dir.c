@@ -837,11 +837,46 @@ static inline unsigned char dt_type(struct sysfs_dirent *sd)
 	return (sd->s_mode >> 12) & 15;
 }
 
+static int sysfs_dir_release(struct inode *inode, struct file *filp)
+{
+	sysfs_put(filp->private_data);
+	return 0;
+}
+
+static struct sysfs_dirent *sysfs_dir_pos(struct sysfs_dirent *parent_sd,
+	ino_t ino, struct sysfs_dirent *pos)
+{
+	if (pos) {
+		int valid = !(pos->s_flags & SYSFS_FLAG_REMOVED) &&
+			pos->s_parent == parent_sd &&
+			ino == pos->s_ino;
+		sysfs_put(pos);
+		if (valid)
+			return pos;
+	}
+	pos = NULL;
+	if ((ino > 1) && (ino < INT_MAX)) {
+		pos = parent_sd->s_dir.children;
+		while (pos && (ino > pos->s_ino))
+			pos = pos->s_sibling;
+	}
+	return pos;
+}
+
+static struct sysfs_dirent *sysfs_dir_next_pos(struct sysfs_dirent *parent_sd,
+	ino_t ino, struct sysfs_dirent *pos)
+{
+	pos = sysfs_dir_pos(parent_sd, ino, pos);
+	if (pos)
+		pos = pos->s_sibling;
+	return pos;
+}
+
 static int sysfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
 {
 	struct dentry *dentry = filp->f_path.dentry;
 	struct sysfs_dirent * parent_sd = dentry->d_fsdata;
-	struct sysfs_dirent *pos;
+	struct sysfs_dirent *pos = filp->private_data;
 	ino_t ino;
 
 	if (filp->f_pos == 0) {
@@ -857,29 +892,31 @@ static int sysfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
 		if (filldir(dirent, "..", 2, filp->f_pos, ino, DT_DIR) == 0)
 			filp->f_pos++;
 	}
-	if ((filp->f_pos > 1) && (filp->f_pos < INT_MAX)) {
-		mutex_lock(&sysfs_mutex);
+	mutex_lock(&sysfs_mutex);
+	for (pos = sysfs_dir_pos(parent_sd, filp->f_pos, pos);
+	     pos;
+	     pos = sysfs_dir_next_pos(parent_sd, filp->f_pos, pos)) {
+		const char * name;
+		unsigned int type;
+		int len, ret;
 
-		/* Skip the dentries we have already reported */
-		pos = parent_sd->s_dir.children;
-		while (pos && (filp->f_pos > pos->s_ino))
-			pos = pos->s_sibling;
+		name = pos->s_name;
+		len = strlen(name);
+		ino = pos->s_ino;
+		type = dt_type(pos);
+		filp->f_pos = ino;
+		filp->private_data = sysfs_get(pos);
 
-		for ( ; pos; pos = pos->s_sibling) {
-			const char * name;
-			int len;
-
-			name = pos->s_name;
-			len = strlen(name);
-			filp->f_pos = ino = pos->s_ino;
-
-			if (filldir(dirent, name, len, filp->f_pos, ino,
-					 dt_type(pos)) < 0)
-				break;
-		}
-		if (!pos)
-			filp->f_pos = INT_MAX;
 		mutex_unlock(&sysfs_mutex);
+		ret = filldir(dirent, name, len, filp->f_pos, ino, type);
+		mutex_lock(&sysfs_mutex);
+		if (ret < 0)
+			break;
+	}
+	mutex_unlock(&sysfs_mutex);
+	if ((filp->f_pos > 1) && !pos) { /* EOF */
+		filp->f_pos = INT_MAX;
+		filp->private_data = NULL;
 	}
 	return 0;
 }
@@ -888,5 +925,6 @@ static int sysfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
 const struct file_operations sysfs_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= sysfs_readdir,
+	.release	= sysfs_dir_release,
 	.llseek		= generic_file_llseek,
 };
