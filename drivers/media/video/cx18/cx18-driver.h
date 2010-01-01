@@ -246,15 +246,7 @@ struct cx18_enc_idx_entry {
 #define CX18_WARN_DEV(dev, fmt, args...)     v4l2_warn(dev, fmt , ## args)
 #define CX18_INFO_DEV(dev, fmt, args...)     v4l2_info(dev, fmt , ## args)
 
-/* Values for CX18_API_DEC_PLAYBACK_SPEED mpeg_frame_type_mask parameter: */
-#define MPEG_FRAME_TYPE_IFRAME 1
-#define MPEG_FRAME_TYPE_IFRAME_PFRAME 3
-#define MPEG_FRAME_TYPE_ALL 7
-
-#define CX18_MAX_PGM_INDEX (400)
-
 extern int cx18_debug;
-
 
 struct cx18_options {
 	int megabytes[CX18_MAX_STREAMS]; /* Size in megabytes of each stream */
@@ -598,12 +590,6 @@ struct cx18 {
 	void __iomem *enc_mem, *reg_mem;
 
 	struct vbi_info vbi;
-
-	u32 pgm_info_offset;
-	u32 pgm_info_num;
-	u32 pgm_info_write_idx;
-	u32 pgm_info_read_idx;
-	struct v4l2_enc_idx_entry pgm_info[CX18_MAX_PGM_INDEX];
 
 	u64 mpg_data_received;
 	u64 vbi_data_inserted;

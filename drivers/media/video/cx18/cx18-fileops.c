@@ -207,9 +207,7 @@ static struct cx18_mdl *cx18_get_mdl(struct cx18_stream *s, int non_block,
 	*err = 0;
 	while (1) {
 		if (s->type == CX18_ENC_STREAM_TYPE_MPG) {
-			/* Process pending program info updates and pending
-			   VBI data */
-
+			/* Process pending program updates and VBI data */
 			if (time_after(jiffies, cx->dualwatch_jiffies + msecs_to_jiffies(1000))) {
 				cx->dualwatch_jiffies = jiffies;
 				cx18_dualwatch(cx);
