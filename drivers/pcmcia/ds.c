@@ -1241,10 +1241,12 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 		s->pcmcia_state.present = 0;
 		pcmcia_card_remove(skt, NULL);
 		handle_event(skt, event);
+		destroy_cis_cache(s);
 		break;
 
 	case CS_EVENT_CARD_INSERTION:
 		s->pcmcia_state.present = 1;
+		destroy_cis_cache(s); /* to be on the safe side... */
 		pcmcia_card_add(skt);
 		handle_event(skt, event);
 		break;
@@ -1366,6 +1368,7 @@ static void pcmcia_bus_remove_socket(struct device *dev,
 	/* unregister any unbound devices */
 	mutex_lock(&socket->skt_mutex);
 	pcmcia_card_remove(socket, NULL);
+	release_cis_mem(socket);
 	mutex_unlock(&socket->skt_mutex);
 
 	pcmcia_put_socket(socket);

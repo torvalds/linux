@@ -283,8 +283,6 @@ void pcmcia_unregister_socket(struct pcmcia_socket *socket)
 	if (socket->thread)
 		kthread_stop(socket->thread);
 
-	release_cis_mem(socket);
-
 	/* remove from our own list */
 	down_write(&pcmcia_socket_list_rwsem);
 	list_del(&socket->socket_list);
@@ -399,7 +397,6 @@ static void socket_shutdown(struct pcmcia_socket *s)
 	s->ops->set_socket(s, &s->socket);
 	s->irq.AssignedIRQ = s->irq.Config = 0;
 	s->lock_count = 0;
-	destroy_cis_cache(s);
 	kfree(s->fake_cis);
 	s->fake_cis = NULL;
 #ifdef CONFIG_CARDBUS
