@@ -377,7 +377,7 @@ static void purge_vis_packets(void)
 		if (info == my_vis_info)	/* never purge own data. */
 			continue;
 		if (time_after(jiffies,
-			       info->first_seen + (VIS_TIMEOUT/1000)*HZ)) {
+			       info->first_seen + (VIS_TIMEOUT*HZ)/1000)) {
 			hash_remove_bucket(vis_hash, &hashit);
 			free_info(info);
 		}
@@ -556,6 +556,6 @@ void vis_quit(void)
 static void start_vis_timer(void)
 {
 	queue_delayed_work(bat_event_workqueue, &vis_timer_wq,
-			   (atomic_read(&vis_interval)/1000) * HZ);
+			   (atomic_read(&vis_interval) * HZ) / 1000);
 }
 
