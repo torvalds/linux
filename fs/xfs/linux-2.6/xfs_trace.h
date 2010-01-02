@@ -1079,28 +1079,28 @@ TRACE_EVENT(xfs_alloc_unbusy,
 
 TRACE_EVENT(xfs_alloc_busysearch,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, xfs_agblock_t agbno,
-		 xfs_extlen_t len, int found),
-	TP_ARGS(mp, agno, agbno, len, found),
+		 xfs_extlen_t len, xfs_lsn_t lsn),
+	TP_ARGS(mp, agno, agbno, len, lsn),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
 		__field(xfs_agblock_t, agbno)
 		__field(xfs_extlen_t, len)
-		__field(int, found)
+		__field(xfs_lsn_t, lsn)
 	),
 	TP_fast_assign(
 		__entry->dev = mp->m_super->s_dev;
 		__entry->agno = agno;
 		__entry->agbno = agbno;
 		__entry->len = len;
-		__entry->found = found;
+		__entry->lsn = lsn;
 	),
-	TP_printk("dev %d:%d agno %u agbno %u len %u %s",
+	TP_printk("dev %d:%d agno %u agbno %u len %u force lsn 0x%llx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->agno,
 		  __entry->agbno,
 		  __entry->len,
-		  __print_symbolic(__entry->found, XFS_BUSY_STATES))
+		  __entry->lsn)
 );
 
 TRACE_EVENT(xfs_agf,
