@@ -37,6 +37,8 @@ config MACH_ZYLONITE320
 config MACH_LITTLETON
 	bool "PXA3xx Form Factor Platform (aka Littleton)"
 	select PXA3xx
+	select CPU_PXA300
+	select CPU_PXA310
 	select PXA_SSP
 
 config MACH_TAVOREVB
