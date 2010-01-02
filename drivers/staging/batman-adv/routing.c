@@ -154,11 +154,14 @@ static int isBidirectionalNeigh(struct orig_node *orig_node,
 				neigh_node = tmp_neigh_node;
 		}
 
-		if (neigh_node == NULL)
+		if (!neigh_node)
 			neigh_node = create_neighbor(orig_node,
 						     orig_neigh_node,
 						     orig_neigh_node->orig,
 						     if_incoming);
+		/* create_neighbor failed, return 0 */
+		if (!neigh_node)
+			return 0;
 
 		neigh_node->last_valid = jiffies;
 	} else {
@@ -172,11 +175,14 @@ static int isBidirectionalNeigh(struct orig_node *orig_node,
 				neigh_node = tmp_neigh_node;
 		}
 
-		if (neigh_node == NULL)
+		if (!neigh_node)
 			neigh_node = create_neighbor(orig_neigh_node,
 						     orig_neigh_node,
 						     orig_neigh_node->orig,
 						     if_incoming);
+		/* create_neighbor failed, return 0 */
+		if (!neigh_node)
+			return 0;
 	}
 
 	orig_node->last_valid = jiffies;
@@ -260,11 +266,19 @@ static void update_orig(struct orig_node *orig_node, struct ethhdr *ethhdr,
 			ring_buffer_avg(tmp_neigh_node->tq_recv);
 	}
 
-	if (neigh_node == NULL)
+	if (!neigh_node) {
+		struct orig_node *orig_tmp;
+
+		orig_tmp = get_orig_node(ethhdr->h_source);
+		if (!orig_tmp)
+			return;
+
 		neigh_node = create_neighbor(orig_node,
-					     get_orig_node(ethhdr->h_source),
+					     orig_tmp,
 					     ethhdr->h_source, if_incoming);
-	else
+		if (!neigh_node)
+			return;
+	} else
 		bat_dbg(DBG_BATMAN,
 			"Updating existing last-hop neighbor of originator\n");
 
@@ -443,6 +457,9 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 		int offset;
 
 		orig_neigh_node = get_orig_node(ethhdr->h_source);
+
+		if (!orig_neigh_node)
+			return;
 
 		/* neighbor has to indicate direct link and it has to
 		 * come via the corresponding interface */

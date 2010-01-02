@@ -77,6 +77,9 @@ create_neighbor(struct orig_node *orig_node, struct orig_node *orig_neigh_node,
 	bat_dbg(DBG_BATMAN, "Creating new last-hop neighbor of originator\n");
 
 	neigh_node = kmalloc(sizeof(struct neigh_node), GFP_ATOMIC);
+	if (!neigh_node)
+		return NULL;
+
 	memset(neigh_node, 0, sizeof(struct neigh_node));
 	INIT_LIST_HEAD(&neigh_node->list);
 
@@ -127,6 +130,9 @@ struct orig_node *get_orig_node(uint8_t *addr)
 	bat_dbg(DBG_BATMAN, "Creating new originator: %s \n", orig_str);
 
 	orig_node = kmalloc(sizeof(struct orig_node), GFP_ATOMIC);
+	if (!orig_node)
+		return NULL;
+
 	memset(orig_node, 0, sizeof(struct orig_node));
 	INIT_LIST_HEAD(&orig_node->neigh_list);
 
@@ -138,13 +144,20 @@ struct orig_node *get_orig_node(uint8_t *addr)
 	size = num_ifs * sizeof(TYPE_OF_WORD) * NUM_WORDS;
 
 	orig_node->bcast_own = kmalloc(size, GFP_ATOMIC);
+	if (!orig_node->bcast_own)
+		goto free_orig_node;
+
 	memset(orig_node->bcast_own, 0, size);
 
 	size = num_ifs * sizeof(uint8_t);
 	orig_node->bcast_own_sum = kmalloc(size, GFP_ATOMIC);
+	if (!orig_node->bcast_own_sum)
+		goto free_bcast_own;
+
 	memset(orig_node->bcast_own_sum, 0, size);
 
-	hash_add(orig_hash, orig_node);
+	if (hash_add(orig_hash, orig_node) < 0)
+		goto free_bcast_own_sum;
 
 	if (orig_hash->elements * 4 > orig_hash->size) {
 		swaphash = hash_resize(orig_hash, orig_hash->size * 2);
@@ -157,6 +170,13 @@ struct orig_node *get_orig_node(uint8_t *addr)
 	}
 
 	return orig_node;
+free_bcast_own_sum:
+	kfree(orig_node->bcast_own_sum);
+free_bcast_own:
+	kfree(orig_node->bcast_own);
+free_orig_node:
+	kfree(orig_node);
+	return NULL;
 }
 
 static bool purge_orig_neighbors(struct orig_node *orig_node,
