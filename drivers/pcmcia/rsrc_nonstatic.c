@@ -281,10 +281,9 @@ static int readable(struct pcmcia_socket *s, struct resource *res,
 	s->cis_virt = ioremap(res->start, s->map_size);
 	if (s->cis_virt) {
 		ret = pccard_validate_cis(s, count);
-		/* invalidate mapping and CIS cache */
+		/* invalidate mapping */
 		iounmap(s->cis_virt);
 		s->cis_virt = NULL;
-		destroy_cis_cache(s);
 	}
 	s->cis_mem.res = NULL;
 	if ((ret != 0) || (*count == 0))

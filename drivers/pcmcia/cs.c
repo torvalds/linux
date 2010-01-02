@@ -407,6 +407,8 @@ static void socket_shutdown(struct pcmcia_socket *s)
 	s->irq.AssignedIRQ = s->irq.Config = 0;
 	s->lock_count = 0;
 	destroy_cis_cache(s);
+	kfree(s->fake_cis);
+	s->fake_cis = NULL;
 #ifdef CONFIG_CARDBUS
 	cb_free(s);
 #endif
@@ -577,6 +579,8 @@ static int socket_late_resume(struct pcmcia_socket *skt)
 			dev_dbg(&skt->dev, "cis mismatch - different card\n");
 			socket_remove_drivers(skt);
 			destroy_cis_cache(skt);
+			kfree(skt->fake_cis);
+			skt->fake_cis = NULL;
 			/*
 			 * Workaround: give DS time to schedule removal.
 			 * Remove me once the 100ms delay is eliminated

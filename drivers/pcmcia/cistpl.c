@@ -319,22 +319,23 @@ remove_cis_cache(struct pcmcia_socket *s, int attr, u_int addr, u_int len)
 		}
 }
 
+/**
+ * destroy_cis_cache() - destroy the CIS cache
+ * @s:		pcmcia_socket for which CIS cache shall be destroyed
+ *
+ * This destroys the CIS cache but keeps any fake CIS alive.
+ */
+
 void destroy_cis_cache(struct pcmcia_socket *s)
 {
 	struct list_head *l, *n;
+	struct cis_cache_entry *cis;
 
 	list_for_each_safe(l, n, &s->cis_cache) {
-		struct cis_cache_entry *cis = list_entry(l, struct cis_cache_entry, node);
-
+		cis = list_entry(l, struct cis_cache_entry, node);
 		list_del(&cis->node);
 		kfree(cis);
 	}
-
-	/*
-	 * If there was a fake CIS, destroy that as well.
-	 */
-	kfree(s->fake_cis);
-	s->fake_cis = NULL;
 }
 EXPORT_SYMBOL(destroy_cis_cache);
 
@@ -1596,6 +1597,9 @@ int pccard_validate_cis(struct pcmcia_socket *s, unsigned int *info)
     if (!s)
 	return -EINVAL;
 
+    /* We do not want to validate the CIS cache... */
+    destroy_cis_cache(s);
+
     tuple = kmalloc(sizeof(*tuple), GFP_KERNEL);
     if (tuple == NULL) {
 	    dev_printk(KERN_WARNING, &s->dev, "no memory to validate CIS\n");
@@ -1647,6 +1651,10 @@ int pccard_validate_cis(struct pcmcia_socket *s, unsigned int *info)
 	count = 0;
 
 done:
+    /* invalidate CIS cache on failure */
+    if (!dev_ok || !ident_ok || !count)
+	    destroy_cis_cache(s);
+
     if (info)
 	    *info = count;
     kfree(tuple);
