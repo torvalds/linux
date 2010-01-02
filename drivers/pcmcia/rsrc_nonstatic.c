@@ -727,13 +727,6 @@ static int adjust_memory(struct pcmcia_socket *s, unsigned int action, unsigned 
 		break;
 	case REMOVE_MANAGED_RESOURCE:
 		ret = sub_interval(&data->mem_db, start, size);
-		if (!ret) {
-			struct pcmcia_socket *socket;
-			down_read(&pcmcia_socket_list_rwsem);
-			list_for_each_entry(socket, &pcmcia_socket_list, socket_list)
-				release_cis_mem(socket);
-			up_read(&pcmcia_socket_list_rwsem);
-		}
 		break;
 	default:
 		ret = -EINVAL;
