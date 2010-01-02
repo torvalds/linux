@@ -8,6 +8,7 @@
  * This file is released under the GPLv2.
  */
 
+#include <linux/lockdep.h>
 #include <linux/fs.h>
 
 struct sysfs_open_dirent;
@@ -50,6 +51,9 @@ struct sysfs_inode_attrs {
 struct sysfs_dirent {
 	atomic_t		s_count;
 	atomic_t		s_active;
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	struct lockdep_map	dep_map;
+#endif
 	struct sysfs_dirent	*s_parent;
 	struct sysfs_dirent	*s_sibling;
 	const char		*s_name;
@@ -83,6 +87,17 @@ static inline unsigned int sysfs_type(struct sysfs_dirent *sd)
 {
 	return sd->s_flags & SYSFS_TYPE_MASK;
 }
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#define sysfs_dirent_init_lockdep(sd)				\
+do {								\
+	static struct lock_class_key __key;			\
+								\
+	lockdep_init_map(&sd->dep_map, "s_active", &__key, 0);	\
+} while(0)
+#else
+#define sysfs_dirent_init_lockdep(sd) do {} while(0)
+#endif
 
 /*
  * Context structure to be used while adding/removing nodes.

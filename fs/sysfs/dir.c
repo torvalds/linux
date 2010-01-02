@@ -106,8 +106,10 @@ static struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd)
 			return NULL;
 
 		t = atomic_cmpxchg(&sd->s_active, v, v + 1);
-		if (likely(t == v))
+		if (likely(t == v)) {
+			rwsem_acquire_read(&sd->dep_map, 0, 1, _RET_IP_);
 			return sd;
+		}
 		if (t < 0)
 			return NULL;
 
@@ -130,6 +132,7 @@ static void sysfs_put_active(struct sysfs_dirent *sd)
 	if (unlikely(!sd))
 		return;
 
+	rwsem_release(&sd->dep_map, 1, _RET_IP_);
 	v = atomic_dec_return(&sd->s_active);
 	if (likely(v != SD_DEACTIVATED_BIAS))
 		return;
@@ -194,15 +197,21 @@ static void sysfs_deactivate(struct sysfs_dirent *sd)
 	BUG_ON(sd->s_sibling || !(sd->s_flags & SYSFS_FLAG_REMOVED));
 	sd->s_sibling = (void *)&wait;
 
+	rwsem_acquire(&sd->dep_map, 0, 0, _RET_IP_);
 	/* atomic_add_return() is a mb(), put_active() will always see
 	 * the updated sd->s_sibling.
 	 */
 	v = atomic_add_return(SD_DEACTIVATED_BIAS, &sd->s_active);
 
-	if (v != SD_DEACTIVATED_BIAS)
+	if (v != SD_DEACTIVATED_BIAS) {
+		lock_contended(&sd->dep_map, _RET_IP_);
 		wait_for_completion(&wait);
+	}
 
 	sd->s_sibling = NULL;
+
+	lock_acquired(&sd->dep_map, _RET_IP_);
+	rwsem_release(&sd->dep_map, 1, _RET_IP_);
 }
 
 static int sysfs_alloc_ino(ino_t *pino)
@@ -345,6 +354,7 @@ struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type)
 
 	atomic_set(&sd->s_count, 1);
 	atomic_set(&sd->s_active, 0);
+	sysfs_dirent_init_lockdep(sd);
 
 	sd->s_name = name;
 	sd->s_mode = mode;
