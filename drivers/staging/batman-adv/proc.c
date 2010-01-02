@@ -186,7 +186,7 @@ static int proc_orig_interval_open(struct inode *inode, struct file *file)
 
 static int proc_originators_read(struct seq_file *seq, void *offset)
 {
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit);
 	struct orig_node *orig_node;
 	struct neigh_node *neigh_node;
 	int batman_count = 0;
@@ -215,9 +215,9 @@ static int proc_originators_read(struct seq_file *seq, void *offset)
 	rcu_read_unlock();
 	spin_lock(&orig_hash_lock);
 
-	while (NULL != (hashit = hash_iterate(orig_hash, hashit))) {
+	while (hash_iterate(orig_hash, &hashit)) {
 
-		orig_node = hashit->bucket->data;
+		orig_node = hashit.bucket->data;
 
 		if (!orig_node->router)
 			continue;
@@ -413,7 +413,7 @@ static void proc_vis_read_entry(struct seq_file *seq,
 
 static int proc_vis_read(struct seq_file *seq, void *offset)
 {
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit);
 	struct vis_info *info;
 	struct vis_info_entry *entries;
 	struct vis_if_list *if_entries = NULL;
@@ -440,8 +440,8 @@ static int proc_vis_read(struct seq_file *seq, void *offset)
 		seq_printf(seq, "digraph {\n");
 
 	spin_lock(&vis_hash_lock);
-	while (NULL != (hashit = hash_iterate(vis_hash, hashit))) {
-		info = hashit->bucket->data;
+	while (hash_iterate(vis_hash, &hashit)) {
+		info = hashit.bucket->data;
 		entries = (struct vis_info_entry *)
 			((char *)info + sizeof(struct vis_info));
 

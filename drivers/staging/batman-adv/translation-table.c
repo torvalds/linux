@@ -134,18 +134,18 @@ void hna_local_add(uint8_t *addr)
 int hna_local_fill_buffer(unsigned char *buff, int buff_len)
 {
 	struct hna_local_entry *hna_local_entry;
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit);
 	int i = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hna_local_hash_lock, flags);
 
-	while (NULL != (hashit = hash_iterate(hna_local_hash, hashit))) {
+	while (hash_iterate(hna_local_hash, &hashit)) {
 
 		if (buff_len < (i + 1) * ETH_ALEN)
 			break;
 
-		hna_local_entry = hashit->bucket->data;
+		hna_local_entry = hashit.bucket->data;
 		memcpy(buff + (i * ETH_ALEN), hna_local_entry->addr, ETH_ALEN);
 
 		i++;
@@ -163,18 +163,18 @@ int hna_local_fill_buffer(unsigned char *buff, int buff_len)
 int hna_local_fill_buffer_text(unsigned char *buff, int buff_len)
 {
 	struct hna_local_entry *hna_local_entry;
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit);
 	int bytes_written = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hna_local_hash_lock, flags);
 
-	while (NULL != (hashit = hash_iterate(hna_local_hash, hashit))) {
+	while (hash_iterate(hna_local_hash, &hashit)) {
 
 		if (buff_len < bytes_written + ETH_STR_LEN + 4)
 			break;
 
-		hna_local_entry = hashit->bucket->data;
+		hna_local_entry = hashit.bucket->data;
 
 		bytes_written += snprintf(buff + bytes_written, ETH_STR_LEN + 4,
 					  " * %02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -214,14 +214,14 @@ static void hna_local_del(struct hna_local_entry *hna_local_entry,
 void hna_local_purge(struct work_struct *work)
 {
 	struct hna_local_entry *hna_local_entry;
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit);
 	unsigned long flags;
 	unsigned long timeout;
 
 	spin_lock_irqsave(&hna_local_hash_lock, flags);
 
-	while (NULL != (hashit = hash_iterate(hna_local_hash, hashit))) {
-		hna_local_entry = hashit->bucket->data;
+	while (hash_iterate(hna_local_hash, &hashit)) {
+		hna_local_entry = hashit.bucket->data;
 
 		timeout = hna_local_entry->last_seen +
 			((LOCAL_HNA_TIMEOUT / 1000) * HZ);
@@ -345,17 +345,17 @@ void hna_global_add_orig(struct orig_node *orig_node,
 int hna_global_fill_buffer_text(unsigned char *buff, int buff_len)
 {
 	struct hna_global_entry *hna_global_entry;
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit);
 	int bytes_written = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hna_global_hash_lock, flags);
 
-	while (NULL != (hashit = hash_iterate(hna_global_hash, hashit))) {
+	while (hash_iterate(hna_global_hash, &hashit)) {
 		if (buff_len < bytes_written + (2 * ETH_STR_LEN) + 10)
 			break;
 
-		hna_global_entry = hashit->bucket->data;
+		hna_global_entry = hashit.bucket->data;
 
 		bytes_written += snprintf(buff + bytes_written,
 					  (2 * ETH_STR_LEN) + 10,

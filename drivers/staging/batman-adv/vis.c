@@ -266,12 +266,12 @@ end:
  * Must be called with the originator hash locked */
 static int find_best_vis_server(struct vis_info *info)
 {
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit);
 	struct orig_node *orig_node;
 	int best_tq = -1;
 
-	while (NULL != (hashit = hash_iterate(orig_hash, hashit))) {
-		orig_node = hashit->bucket->data;
+	while (hash_iterate(orig_hash, &hashit)) {
+		orig_node = hashit.bucket->data;
 		if ((orig_node != NULL) &&
 		    (orig_node->router != NULL) &&
 		    (orig_node->flags & VIS_SERVER) &&
@@ -297,7 +297,8 @@ static bool vis_packet_full(struct vis_info *info)
  * returns 0 on success, -1 if no packet could be generated */
 static int generate_vis_packet(void)
 {
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit_local);
+	HASHIT(hashit_global);
 	struct orig_node *orig_node;
 	struct vis_info *info = (struct vis_info *)my_vis_info;
 	struct vis_info_entry *entry, *entry_array;
@@ -320,13 +321,12 @@ static int generate_vis_packet(void)
 			return -1;
 		}
 	}
-	hashit = NULL;
 
 	entry_array = (struct vis_info_entry *)
 		((char *)info + sizeof(struct vis_info));
 
-	while (NULL != (hashit = hash_iterate(orig_hash, hashit))) {
-		orig_node = hashit->bucket->data;
+	while (hash_iterate(orig_hash, &hashit_global)) {
+		orig_node = hashit_global.bucket->data;
 		if (orig_node->router != NULL
 			&& compare_orig(orig_node->router->addr, orig_node->orig)
 			&& orig_node->batman_if
@@ -349,10 +349,9 @@ static int generate_vis_packet(void)
 
 	spin_unlock(&orig_hash_lock);
 
-	hashit = NULL;
 	spin_lock_irqsave(&hna_local_hash_lock, flags);
-	while (NULL != (hashit = hash_iterate(hna_local_hash, hashit))) {
-		hna_local_entry = hashit->bucket->data;
+	while (hash_iterate(hna_local_hash, &hashit_local)) {
+		hna_local_entry = hashit_local.bucket->data;
 		entry = &entry_array[info->packet.entries];
 		memset(entry->src, 0, ETH_ALEN);
 		memcpy(entry->dest, hna_local_entry->addr, ETH_ALEN);
@@ -370,16 +369,16 @@ static int generate_vis_packet(void)
 
 static void purge_vis_packets(void)
 {
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit);
 	struct vis_info *info;
 
-	while (NULL != (hashit = hash_iterate(vis_hash, hashit))) {
-		info = hashit->bucket->data;
+	while (hash_iterate(vis_hash, &hashit)) {
+		info = hashit.bucket->data;
 		if (info == my_vis_info)	/* never purge own data. */
 			continue;
 		if (time_after(jiffies,
 			       info->first_seen + (VIS_TIMEOUT/1000)*HZ)) {
-			hash_remove_bucket(vis_hash, hashit);
+			hash_remove_bucket(vis_hash, &hashit);
 			free_info(info);
 		}
 	}
@@ -387,14 +386,14 @@ static void purge_vis_packets(void)
 
 static void broadcast_vis_packet(struct vis_info *info, int packet_length)
 {
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit);
 	struct orig_node *orig_node;
 
 	spin_lock(&orig_hash_lock);
 
 	/* send to all routers in range. */
-	while (NULL != (hashit = hash_iterate(orig_hash, hashit))) {
-		orig_node = hashit->bucket->data;
+	while (hash_iterate(orig_hash, &hashit)) {
+		orig_node = hashit.bucket->data;
 
 		/* if it's a vis server and reachable, send it. */
 		if (orig_node &&

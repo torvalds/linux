@@ -40,14 +40,14 @@ static atomic_t data_ready_cond;
 atomic_t exit_cond;
 void slide_own_bcast_window(struct batman_if *batman_if)
 {
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit);
 	struct orig_node *orig_node;
 	TYPE_OF_WORD *word;
 
 	spin_lock(&orig_hash_lock);
 
-	while (NULL != (hashit = hash_iterate(orig_hash, hashit))) {
-		orig_node = hashit->bucket->data;
+	while (hash_iterate(orig_hash, &hashit)) {
+		orig_node = hashit.bucket->data;
 		word = &(orig_node->bcast_own[batman_if->if_num * NUM_WORDS]);
 
 		bit_get_packet(word, 1, 0);

@@ -221,16 +221,16 @@ static bool purge_orig_node(struct orig_node *orig_node)
 
 void purge_orig(struct work_struct *work)
 {
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit);
 	struct orig_node *orig_node;
 
 	spin_lock(&orig_hash_lock);
 
 	/* for all origins... */
-	while (NULL != (hashit = hash_iterate(orig_hash, hashit))) {
-		orig_node = hashit->bucket->data;
+	while (hash_iterate(orig_hash, &hashit)) {
+		orig_node = hashit.bucket->data;
 		if (purge_orig_node(orig_node)) {
-			hash_remove_bucket(orig_hash, hashit);
+			hash_remove_bucket(orig_hash, &hashit);
 			free_orig_node(orig_node);
 		}
 	}

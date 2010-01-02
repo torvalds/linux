@@ -318,7 +318,7 @@ int hardif_add_interface(char *dev, int if_num)
 	struct batman_if *batman_if;
 	struct batman_packet *batman_packet;
 	struct orig_node *orig_node;
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit);
 
 	batman_if = kmalloc(sizeof(struct batman_if), GFP_KERNEL);
 
@@ -377,8 +377,8 @@ int hardif_add_interface(char *dev, int if_num)
 	 * if_num */
 	spin_lock(&orig_hash_lock);
 
-	while (NULL != (hashit = hash_iterate(orig_hash, hashit))) {
-		orig_node = hashit->bucket->data;
+	while (hash_iterate(orig_hash, &hashit)) {
+		orig_node = hashit.bucket->data;
 		if (resize_orig(orig_node, if_num) == -1) {
 			spin_unlock(&orig_hash_lock);
 			goto out;
