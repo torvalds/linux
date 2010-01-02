@@ -29,13 +29,11 @@
 #include "vis.h"
 #include "compat.h"
 
-static uint8_t vis_format = DOT_DRAW;
-
 static struct proc_dir_entry *proc_batman_dir, *proc_interface_file;
 static struct proc_dir_entry *proc_orig_interval_file, *proc_originators_file;
 static struct proc_dir_entry *proc_transt_local_file;
 static struct proc_dir_entry *proc_transt_global_file;
-static struct proc_dir_entry *proc_vis_file, *proc_vis_format_file;
+static struct proc_dir_entry *proc_vis_file;
 static struct proc_dir_entry *proc_aggr_file;
 
 static int proc_interfaces_read(struct seq_file *seq, void *offset)
@@ -401,10 +399,7 @@ static int proc_vis_read(struct seq_file *seq, void *offset)
 	struct vis_info_entry *entries;
 	HLIST_HEAD(vis_if_list);
 	int i;
-	uint8_t current_format;
 	char tmp_addr_str[ETH_STR_LEN];
-
-	current_format = vis_format;
 
 	rcu_read_lock();
 	if (list_empty(&if_list) || (!is_vis_server())) {
@@ -471,55 +466,6 @@ static int proc_vis_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_vis_read, NULL);
 }
 
-static int proc_vis_format_read(struct seq_file *seq, void *offset)
-{
-	uint8_t current_format = vis_format;
-
-	seq_printf(seq, "[%c] %s\n",
-		   (current_format == DOT_DRAW) ? 'x' : ' ',
-		   VIS_FORMAT_DD_NAME);
-	seq_printf(seq, "[%c] %s\n",
-		   (current_format == JSON) ? 'x' : ' ',
-		   VIS_FORMAT_JSON_NAME);
-	return 0;
-}
-
-static int proc_vis_format_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, proc_vis_format_read, NULL);
-}
-
-static ssize_t proc_vis_format_write(struct file *file,
-				     const char __user *buffer,
-				     size_t count, loff_t *ppos)
-{
-	char *vis_format_string;
-	int not_copied = 0;
-
-	vis_format_string = kmalloc(count, GFP_KERNEL);
-
-	if (!vis_format_string)
-		return -ENOMEM;
-
-	not_copied = copy_from_user(vis_format_string, buffer, count);
-	vis_format_string[count - not_copied - 1] = 0;
-
-	if (strcmp(vis_format_string, VIS_FORMAT_DD_NAME) == 0) {
-		printk(KERN_INFO "batman-adv:Setting VIS output format to: %s\n",
-		       VIS_FORMAT_DD_NAME);
-		vis_format = DOT_DRAW;
-	} else if (strcmp(vis_format_string, VIS_FORMAT_JSON_NAME) == 0) {
-		printk(KERN_INFO "batman-adv:Setting VIS output format to: %s\n",
-		       VIS_FORMAT_JSON_NAME);
-		vis_format = JSON;
-	} else
-		printk(KERN_ERR "batman-adv:Unknown VIS output format: %s\n",
-		       vis_format_string);
-
-	kfree(vis_format_string);
-	return count;
-}
-
 static int proc_aggr_read(struct seq_file *seq, void *offset)
 {
 	seq_printf(seq, "%i\n", atomic_read(&aggregation_enabled));
@@ -579,15 +525,6 @@ static const struct file_operations proc_aggr_fops = {
 	.open		= proc_aggr_open,
 	.read		= seq_read,
 	.write		= proc_aggr_write,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static const struct file_operations proc_vis_format_fops = {
-	.owner		= THIS_MODULE,
-	.open		= proc_vis_format_open,
-	.read		= seq_read,
-	.write		= proc_vis_format_write,
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
@@ -665,9 +602,6 @@ void cleanup_procfs(void)
 
 	if (proc_vis_file)
 		remove_proc_entry(PROC_FILE_VIS, proc_batman_dir);
-
-	if (proc_vis_format_file)
-		remove_proc_entry(PROC_FILE_VIS_FORMAT, proc_batman_dir);
 
 	if (proc_aggr_file)
 		remove_proc_entry(PROC_FILE_AGGR, proc_batman_dir);
@@ -751,17 +685,6 @@ int setup_procfs(void)
 		proc_vis_file->proc_fops = &proc_vis_fops;
 	} else {
 		printk(KERN_ERR "batman-adv: Registering the '/proc/net/%s/%s' file failed\n", PROC_ROOT_DIR, PROC_FILE_VIS);
-		cleanup_procfs();
-		return -EFAULT;
-	}
-
-	proc_vis_format_file = create_proc_entry(PROC_FILE_VIS_FORMAT,
-						 S_IWUSR | S_IRUGO,
-						 proc_batman_dir);
-	if (proc_vis_format_file) {
-		proc_vis_format_file->proc_fops = &proc_vis_format_fops;
-	} else {
-		printk(KERN_ERR "batman-adv: Registering the '/proc/net/%s/%s' file failed\n", PROC_ROOT_DIR, PROC_FILE_VIS_FORMAT);
 		cleanup_procfs();
 		return -EFAULT;
 	}

@@ -45,11 +45,6 @@ struct recvlist_node {
 	uint8_t mac[ETH_ALEN];
 };
 
-enum vis_formats {
-	DOT_DRAW,
-	JSON,
-};
-
 extern struct hashtable_t *vis_hash;
 extern spinlock_t vis_hash_lock;
 
