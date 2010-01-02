@@ -385,25 +385,18 @@ netxen_nic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 static u32 netxen_nic_test_link(struct net_device *dev)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
-	__u32 status;
-	int val;
+	u32 val, port;
 
-	/* read which mode */
-	if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
-		if (adapter->phy_read &&
-		    adapter->phy_read(adapter,
-				      NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
-				      &status) != 0)
-			return -EIO;
-		else {
-			val = netxen_get_phy_link(status);
-			return !val;
-		}
-	} else if (adapter->ahw.port_type == NETXEN_NIC_XGBE) {
+	port = adapter->physical_port;
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
+		val = NXRD32(adapter, CRB_XG_STATE_P3);
+		val = XG_LINK_STATE_P3(adapter->ahw.pci_func, val);
+		return (val == XG_LINK_UP_P3) ? 0 : 1;
+	} else {
 		val = NXRD32(adapter, CRB_XG_STATE);
+		val = (val >> port*8) & 0xff;
 		return (val == XG_LINK_UP) ? 0 : 1;
 	}
-	return -EIO;
 }
 
 static int
