@@ -849,20 +849,20 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 				 * The term had to be converted to get
 				 * rid of the division by 10000; d = 0 here
 				 */
-				int clk = (1000 * j * r) / p;
+				int tmp_clk = (1000 * j * r) / p;
 
 				/* Check whether this values get closer than
 				 * the best ones we had before
 				 */
-				if (abs(codec_clk - clk) <
+				if (abs(codec_clk - tmp_clk) <
 					abs(codec_clk - last_clk)) {
 					pll_j = j; pll_d = 0;
 					pll_r = r; pll_p = p;
-					last_clk = clk;
+					last_clk = tmp_clk;
 				}
 
 				/* Early exit for exact matches */
-				if (clk == codec_clk)
+				if (tmp_clk == codec_clk)
 					goto found;
 			}
 		}
