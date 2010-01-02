@@ -26,7 +26,7 @@
 
 #define MWL8K_DESC	"Marvell TOPDOG(R) 802.11 Wireless Network Driver"
 #define MWL8K_NAME	KBUILD_MODNAME
-#define MWL8K_VERSION	"0.10"
+#define MWL8K_VERSION	"0.11"
 
 /* Register definitions */
 #define MWL8K_HIU_GEN_PTR			0x00000c10
