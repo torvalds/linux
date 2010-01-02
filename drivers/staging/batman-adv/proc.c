@@ -230,7 +230,7 @@ static int proc_originators_read(struct seq_file *seq, void *offset)
 		addr_to_string(orig_str, orig_node->orig);
 		addr_to_string(router_str, orig_node->router->addr);
 
-		seq_printf(seq, "%-17s	(%3i) %17s [%10s]:",
+		seq_printf(seq, "%-17s  (%3i) %17s [%10s]:",
 			   orig_str, orig_node->router->tq_avg,
 			   router_str, orig_node->router->if_incoming->dev);
 
