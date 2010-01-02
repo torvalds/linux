@@ -338,12 +338,13 @@ static void forw_packet_free(struct forw_packet *forw_packet)
 static void _add_bcast_packet_to_list(struct forw_packet *forw_packet,
 				      unsigned long send_time)
 {
+	unsigned long flags;
 	INIT_HLIST_NODE(&forw_packet->list);
 
 	/* add new packet to packet list */
-	spin_lock(&forw_bcast_list_lock);
+	spin_lock_irqsave(&forw_bcast_list_lock, flags);
 	hlist_add_head(&forw_packet->list, &forw_bcast_list);
-	spin_unlock(&forw_bcast_list_lock);
+	spin_unlock_irqrestore(&forw_bcast_list_lock, flags);
 
 	/* start timer for this packet */
 	INIT_DELAYED_WORK(&forw_packet->delayed_work,
@@ -382,10 +383,11 @@ void send_outstanding_bcast_packet(struct work_struct *work)
 		container_of(work, struct delayed_work, work);
 	struct forw_packet *forw_packet =
 		container_of(delayed_work, struct forw_packet, delayed_work);
+	unsigned long flags;
 
-	spin_lock(&forw_bcast_list_lock);
+	spin_lock_irqsave(&forw_bcast_list_lock, flags);
 	hlist_del(&forw_packet->list);
-	spin_unlock(&forw_bcast_list_lock);
+	spin_unlock_irqrestore(&forw_bcast_list_lock, flags);
 
 	/* rebroadcast packet */
 	rcu_read_lock();
@@ -436,24 +438,25 @@ void purge_outstanding_packets(void)
 {
 	struct forw_packet *forw_packet;
 	struct hlist_node *tmp_node, *safe_tmp_node;
+	unsigned long flags;
 
 	bat_dbg(DBG_BATMAN, "purge_outstanding_packets()\n");
 
 	/* free bcast list */
-	spin_lock(&forw_bcast_list_lock);
+	spin_lock_irqsave(&forw_bcast_list_lock, flags);
 	hlist_for_each_entry_safe(forw_packet, tmp_node, safe_tmp_node,
 				  &forw_bcast_list, list) {
 
-		spin_unlock(&forw_bcast_list_lock);
+		spin_unlock_irqrestore(&forw_bcast_list_lock, flags);
 
 		/**
 		 * send_outstanding_bcast_packet() will lock the list to
 		 * delete the item from the list
 		 */
 		cancel_delayed_work_sync(&forw_packet->delayed_work);
-		spin_lock(&forw_bcast_list_lock);
+		spin_lock_irqsave(&forw_bcast_list_lock, flags);
 	}
-	spin_unlock(&forw_bcast_list_lock);
+	spin_unlock_irqrestore(&forw_bcast_list_lock, flags);
 
 	/* free batman packet list */
 	spin_lock(&forw_bat_list_lock);
