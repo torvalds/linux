@@ -1022,6 +1022,9 @@ static int wm8961_resume(struct platform_device *pdev)
 	int i;
 
 	for (i = 0; i < codec->reg_cache_size; i++) {
+		if (reg_cache[i] == wm8961_reg_defaults[i])
+			continue;
+
 		if (i == WM8961_SOFTWARE_RESET)
 			continue;
 
