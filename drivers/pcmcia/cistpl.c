@@ -1577,88 +1577,95 @@ next_entry:
 EXPORT_SYMBOL(pccard_loop_tuple);
 
 
-/*======================================================================
-
-    This tries to determine if a card has a sensible CIS.  It returns
-    the number of tuples in the CIS, or 0 if the CIS looks bad.  The
-    checks include making sure several critical tuples are present and
-    valid; seeing if the total number of tuples is reasonable; and
-    looking for tuples that use reserved codes.
-
-======================================================================*/
-
+/**
+ * pccard_validate_cis() - check whether card has a sensible CIS
+ * @s:		the struct pcmcia_socket we are to check
+ * @info:	returns the number of tuples in the (valid) CIS, or 0
+ *
+ * This tries to determine if a card has a sensible CIS.  In @info, it
+ * returns the number of tuples in the CIS, or 0 if the CIS looks bad. The
+ * checks include making sure several critical tuples are present and
+ * valid; seeing if the total number of tuples is reasonable; and
+ * looking for tuples that use reserved codes.
+ *
+ * The function returns 0 on success.
+ */
 int pccard_validate_cis(struct pcmcia_socket *s, unsigned int *info)
 {
-    tuple_t *tuple;
-    cisparse_t *p;
-    unsigned int count = 0;
-    int ret, reserved, dev_ok = 0, ident_ok = 0;
+	tuple_t *tuple;
+	cisparse_t *p;
+	unsigned int count = 0;
+	int ret, reserved, dev_ok = 0, ident_ok = 0;
 
-    if (!s)
-	return -EINVAL;
+	if (!s)
+		return -EINVAL;
 
-    /* We do not want to validate the CIS cache... */
-    destroy_cis_cache(s);
+	/* We do not want to validate the CIS cache... */
+	destroy_cis_cache(s);
 
-    tuple = kmalloc(sizeof(*tuple), GFP_KERNEL);
-    if (tuple == NULL) {
-	    dev_printk(KERN_WARNING, &s->dev, "no memory to validate CIS\n");
-	    return -ENOMEM;
-    }
-    p = kmalloc(sizeof(*p), GFP_KERNEL);
-    if (p == NULL) {
-	    kfree(tuple);
-	    dev_printk(KERN_WARNING, &s->dev, "no memory to validate CIS\n");
-	    return -ENOMEM;
-    }
+	tuple = kmalloc(sizeof(*tuple), GFP_KERNEL);
+	if (tuple == NULL) {
+		dev_warn(&s->dev, "no memory to validate CIS\n");
+		return -ENOMEM;
+	}
+	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	if (p == NULL) {
+		kfree(tuple);
+		dev_warn(&s->dev, "no memory to validate CIS\n");
+		return -ENOMEM;
+	}
 
-    count = reserved = 0;
-    tuple->DesiredTuple = RETURN_FIRST_TUPLE;
-    tuple->Attributes = TUPLE_RETURN_COMMON;
-    ret = pccard_get_first_tuple(s, BIND_FN_ALL, tuple);
-    if (ret != 0)
-	goto done;
-
-    /* First tuple should be DEVICE; we should really have either that
-       or a CFTABLE_ENTRY of some sort */
-    if ((tuple->TupleCode == CISTPL_DEVICE) ||
-	(pccard_read_tuple(s, BIND_FN_ALL, CISTPL_CFTABLE_ENTRY, p) == 0) ||
-	(pccard_read_tuple(s, BIND_FN_ALL, CISTPL_CFTABLE_ENTRY_CB, p) == 0))
-	dev_ok++;
-
-    /* All cards should have a MANFID tuple, and/or a VERS_1 or VERS_2
-       tuple, for card identification.  Certain old D-Link and Linksys
-       cards have only a broken VERS_2 tuple; hence the bogus test. */
-    if ((pccard_read_tuple(s, BIND_FN_ALL, CISTPL_MANFID, p) == 0) ||
-	(pccard_read_tuple(s, BIND_FN_ALL, CISTPL_VERS_1, p) == 0) ||
-	(pccard_read_tuple(s, BIND_FN_ALL, CISTPL_VERS_2, p) != -ENOSPC))
-	ident_ok++;
-
-    if (!dev_ok && !ident_ok)
-	goto done;
-
-    for (count = 1; count < MAX_TUPLES; count++) {
-	ret = pccard_get_next_tuple(s, BIND_FN_ALL, tuple);
+	count = reserved = 0;
+	tuple->DesiredTuple = RETURN_FIRST_TUPLE;
+	tuple->Attributes = TUPLE_RETURN_COMMON;
+	ret = pccard_get_first_tuple(s, BIND_FN_ALL, tuple);
 	if (ret != 0)
-		break;
-	if (((tuple->TupleCode > 0x23) && (tuple->TupleCode < 0x40)) ||
-	    ((tuple->TupleCode > 0x47) && (tuple->TupleCode < 0x80)) ||
-	    ((tuple->TupleCode > 0x90) && (tuple->TupleCode < 0xff)))
-	    reserved++;
-    }
-    if ((count == MAX_TUPLES) || (reserved > 5) ||
-	((!dev_ok || !ident_ok) && (count > 10)))
-	count = 0;
+		goto done;
+
+	/* First tuple should be DEVICE; we should really have either that
+	   or a CFTABLE_ENTRY of some sort */
+	if ((tuple->TupleCode == CISTPL_DEVICE) ||
+	    (!pccard_read_tuple(s, BIND_FN_ALL, CISTPL_CFTABLE_ENTRY, p)) ||
+	    (!pccard_read_tuple(s, BIND_FN_ALL, CISTPL_CFTABLE_ENTRY_CB, p)))
+		dev_ok++;
+
+	/* All cards should have a MANFID tuple, and/or a VERS_1 or VERS_2
+	   tuple, for card identification.  Certain old D-Link and Linksys
+	   cards have only a broken VERS_2 tuple; hence the bogus test. */
+	if ((pccard_read_tuple(s, BIND_FN_ALL, CISTPL_MANFID, p) == 0) ||
+	    (pccard_read_tuple(s, BIND_FN_ALL, CISTPL_VERS_1, p) == 0) ||
+	    (pccard_read_tuple(s, BIND_FN_ALL, CISTPL_VERS_2, p) != -ENOSPC))
+		ident_ok++;
+
+	if (!dev_ok && !ident_ok)
+		goto done;
+
+	for (count = 1; count < MAX_TUPLES; count++) {
+		ret = pccard_get_next_tuple(s, BIND_FN_ALL, tuple);
+		if (ret != 0)
+			break;
+		if (((tuple->TupleCode > 0x23) && (tuple->TupleCode < 0x40)) ||
+		    ((tuple->TupleCode > 0x47) && (tuple->TupleCode < 0x80)) ||
+		    ((tuple->TupleCode > 0x90) && (tuple->TupleCode < 0xff)))
+			reserved++;
+	}
+	if ((count == MAX_TUPLES) || (reserved > 5) ||
+		((!dev_ok || !ident_ok) && (count > 10)))
+		count = 0;
+
+	ret = 0;
 
 done:
-    /* invalidate CIS cache on failure */
-    if (!dev_ok || !ident_ok || !count)
-	    destroy_cis_cache(s);
+	/* invalidate CIS cache on failure */
+	if (!dev_ok || !ident_ok || !count) {
+		destroy_cis_cache(s);
+		ret = -EIO;
+	}
 
-    if (info)
-	    *info = count;
-    kfree(tuple);
-    kfree(p);
-    return 0;
+	if (info)
+		*info = count;
+	kfree(tuple);
+	kfree(p);
+	return ret;
 }
 EXPORT_SYMBOL(pccard_validate_cis);
