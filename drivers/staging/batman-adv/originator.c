@@ -37,35 +37,38 @@ static void start_purge_timer(void)
 
 int originator_init(void)
 {
+	unsigned long flags;
 	if (orig_hash)
 		return 1;
 
-	spin_lock(&orig_hash_lock);
+	spin_lock_irqsave(&orig_hash_lock, flags);
 	orig_hash = hash_new(128, compare_orig, choose_orig);
 
 	if (!orig_hash)
 		goto err;
 
-	spin_unlock(&orig_hash_lock);
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 	start_purge_timer();
 	return 1;
 
 err:
-	spin_unlock(&orig_hash_lock);
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 	return 0;
 }
 
 void originator_free(void)
 {
+	unsigned long flags;
+
 	if (!orig_hash)
 		return;
 
 	cancel_delayed_work_sync(&purge_orig_wq);
 
-	spin_lock(&orig_hash_lock);
+	spin_lock_irqsave(&orig_hash_lock, flags);
 	hash_delete(orig_hash, free_orig_node);
 	orig_hash = NULL;
-	spin_unlock(&orig_hash_lock);
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 }
 
 struct neigh_node *
@@ -243,8 +246,9 @@ void purge_orig(struct work_struct *work)
 {
 	HASHIT(hashit);
 	struct orig_node *orig_node;
+	unsigned long flags;
 
-	spin_lock(&orig_hash_lock);
+	spin_lock_irqsave(&orig_hash_lock, flags);
 
 	/* for all origins... */
 	while (hash_iterate(orig_hash, &hashit)) {
@@ -255,7 +259,7 @@ void purge_orig(struct work_struct *work)
 		}
 	}
 
-	spin_unlock(&orig_hash_lock);
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 
 	start_purge_timer();
 }

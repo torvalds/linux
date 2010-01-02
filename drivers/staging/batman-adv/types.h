@@ -39,7 +39,6 @@ struct batman_if {
 	char if_active;
 	char addr_str[ETH_STR_LEN];
 	struct net_device *net_dev;
-	struct socket *raw_sock;
 	atomic_t seqno;
 	unsigned char *packet_buff;
 	int packet_len;
@@ -113,6 +112,7 @@ struct forw_packet {               /* structure for forw_list maintaining packet
 	struct hlist_node list;
 	unsigned long send_time;
 	uint8_t own;
+	struct sk_buff *skb;
 	unsigned char *packet_buff;
 	uint16_t packet_len;
 	uint32_t direct_link_flags;

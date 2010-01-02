@@ -189,6 +189,7 @@ static int proc_originators_read(struct seq_file *seq, void *offset)
 	struct neigh_node *neigh_node;
 	int batman_count = 0;
 	char orig_str[ETH_STR_LEN], router_str[ETH_STR_LEN];
+	unsigned long flags;
 
 	rcu_read_lock();
 	if (list_empty(&if_list)) {
@@ -211,7 +212,7 @@ static int proc_originators_read(struct seq_file *seq, void *offset)
 		   ((struct batman_if *)if_list.next)->addr_str);
 
 	rcu_read_unlock();
-	spin_lock(&orig_hash_lock);
+	spin_lock_irqsave(&orig_hash_lock, flags);
 
 	while (hash_iterate(orig_hash, &hashit)) {
 
@@ -242,7 +243,7 @@ static int proc_originators_read(struct seq_file *seq, void *offset)
 
 	}
 
-	spin_unlock(&orig_hash_lock);
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 
 	if (batman_count == 0)
 		seq_printf(seq, "No batman nodes in range ... \n");
@@ -376,6 +377,7 @@ static int proc_vis_data_read(struct seq_file *seq, void *offset)
 	HLIST_HEAD(vis_if_list);
 	int i;
 	char tmp_addr_str[ETH_STR_LEN];
+	unsigned long flags;
 
 	rcu_read_lock();
 	if (list_empty(&if_list) || (!is_vis_server())) {
@@ -385,7 +387,7 @@ static int proc_vis_data_read(struct seq_file *seq, void *offset)
 
 	rcu_read_unlock();
 
-	spin_lock(&vis_hash_lock);
+	spin_lock_irqsave(&vis_hash_lock, flags);
 	while (hash_iterate(vis_hash, &hashit)) {
 		info = hashit.bucket->data;
 		entries = (struct vis_info_entry *)
@@ -402,7 +404,7 @@ static int proc_vis_data_read(struct seq_file *seq, void *offset)
 		proc_vis_read_prim_sec(seq, &vis_if_list);
 		seq_printf(seq, "\n");
 	}
-	spin_unlock(&vis_hash_lock);
+	spin_unlock_irqrestore(&vis_hash_lock, flags);
 
 end:
 	return 0;

@@ -23,6 +23,7 @@
 #include "send.h"
 #include "routing.h"
 #include "translation-table.h"
+#include "soft-interface.h"
 #include "hard-interface.h"
 #include "types.h"
 #include "vis.h"
@@ -58,51 +59,69 @@ static unsigned long forward_send_time(void)
 	return send_time;
 }
 
-/* sends a raw packet. */
-void send_raw_packet(unsigned char *pack_buff, int pack_buff_len,
-		     struct batman_if *batman_if, uint8_t *dst_addr)
+/* send out an already prepared packet to the given address via the
+ * specified batman interface */
+int send_skb_packet(struct sk_buff *skb,
+				struct batman_if *batman_if,
+				uint8_t *dst_addr)
 {
 	struct ethhdr *ethhdr;
-	struct sk_buff *skb;
-	int retval;
-	char *data;
 
 	if (batman_if->if_active != IF_ACTIVE)
-		return;
+		goto send_skb_err;
+
+	if (unlikely(!batman_if->net_dev))
+		goto send_skb_err;
 
 	if (!(batman_if->net_dev->flags & IFF_UP)) {
 		printk(KERN_WARNING
 		       "batman-adv:Interface %s is not up - can't send packet via that interface!\n",
 		       batman_if->dev);
-		return;
+		goto send_skb_err;
 	}
 
-	skb = dev_alloc_skb(pack_buff_len + sizeof(struct ethhdr));
-	if (!skb)
-		return;
-	data = skb_put(skb, pack_buff_len + sizeof(struct ethhdr));
+	/* push to the ethernet header. */
+	if (my_skb_push(skb, sizeof(struct ethhdr)) < 0)
+		goto send_skb_err;
 
-	memcpy(data + sizeof(struct ethhdr), pack_buff, pack_buff_len);
+	skb_reset_mac_header(skb);
 
-	ethhdr = (struct ethhdr *) data;
+	ethhdr = (struct ethhdr *) skb_mac_header(skb);
 	memcpy(ethhdr->h_source, batman_if->net_dev->dev_addr, ETH_ALEN);
 	memcpy(ethhdr->h_dest, dst_addr, ETH_ALEN);
 	ethhdr->h_proto = __constant_htons(ETH_P_BATMAN);
 
-	skb_reset_mac_header(skb);
 	skb_set_network_header(skb, ETH_HLEN);
 	skb->priority = TC_PRIO_CONTROL;
 	skb->protocol = __constant_htons(ETH_P_BATMAN);
+
 	skb->dev = batman_if->net_dev;
 
 	/* dev_queue_xmit() returns a negative result on error.	 However on
 	 * congestion and traffic shaping, it drops and returns NET_XMIT_DROP
 	 * (which is > 0). This will not be treated as an error. */
-	retval = dev_queue_xmit(skb);
-	if (retval < 0)
-		printk(KERN_WARNING
-		       "batman-adv:Can't write to raw socket: %i\n",
-		       retval);
+
+	return dev_queue_xmit(skb);
+send_skb_err:
+	kfree_skb(skb);
+	return NET_XMIT_DROP;
+}
+
+/* sends a raw packet. */
+void send_raw_packet(unsigned char *pack_buff, int pack_buff_len,
+		     struct batman_if *batman_if, uint8_t *dst_addr)
+{
+	struct sk_buff *skb;
+	char *data;
+
+	skb = dev_alloc_skb(pack_buff_len + sizeof(struct ethhdr));
+	if (!skb)
+		return;
+	data = skb_put(skb, pack_buff_len + sizeof(struct ethhdr));
+	memcpy(data + sizeof(struct ethhdr), pack_buff, pack_buff_len);
+	/* pull back to the batman "network header" */
+	skb_pull(skb, sizeof(struct ethhdr));
+	send_skb_packet(skb, batman_if, dst_addr);
 }
 
 /* Send a packet to a given interface */
@@ -331,6 +350,8 @@ void schedule_forward_packet(struct orig_node *orig_node,
 
 static void forw_packet_free(struct forw_packet *forw_packet)
 {
+	if (forw_packet->skb)
+		kfree_skb(forw_packet->skb);
 	kfree(forw_packet->packet_buff);
 	kfree(forw_packet);
 }
@@ -353,7 +374,7 @@ static void _add_bcast_packet_to_list(struct forw_packet *forw_packet,
 			   send_time);
 }
 
-void add_bcast_packet_to_list(unsigned char *packet_buff, int packet_len)
+void add_bcast_packet_to_list(struct sk_buff *skb)
 {
 	struct forw_packet *forw_packet;
 
@@ -361,14 +382,16 @@ void add_bcast_packet_to_list(unsigned char *packet_buff, int packet_len)
 	if (!forw_packet)
 		return;
 
-	forw_packet->packet_buff = kmalloc(packet_len, GFP_ATOMIC);
-	if (!forw_packet->packet_buff) {
+	skb = skb_copy(skb, GFP_ATOMIC);
+	if (!skb) {
 		kfree(forw_packet);
 		return;
 	}
 
-	forw_packet->packet_len = packet_len;
-	memcpy(forw_packet->packet_buff, packet_buff, forw_packet->packet_len);
+	skb_reset_mac_header(skb);
+
+	forw_packet->skb = skb;
+	forw_packet->packet_buff = NULL;
 
 	/* how often did we send the bcast packet ? */
 	forw_packet->num_packets = 0;
@@ -384,6 +407,7 @@ void send_outstanding_bcast_packet(struct work_struct *work)
 	struct forw_packet *forw_packet =
 		container_of(delayed_work, struct forw_packet, delayed_work);
 	unsigned long flags;
+	struct sk_buff *skb1;
 
 	spin_lock_irqsave(&forw_bcast_list_lock, flags);
 	hlist_del(&forw_packet->list);
@@ -392,8 +416,10 @@ void send_outstanding_bcast_packet(struct work_struct *work)
 	/* rebroadcast packet */
 	rcu_read_lock();
 	list_for_each_entry_rcu(batman_if, &if_list, list) {
-		send_raw_packet(forw_packet->packet_buff,
-				forw_packet->packet_len,
+		/* send a copy of the saved skb */
+		skb1 = skb_copy(forw_packet->skb, GFP_ATOMIC);
+		if (skb1)
+			send_skb_packet(skb1,
 				batman_if, broadcastAddr);
 	}
 	rcu_read_unlock();
@@ -415,10 +441,11 @@ void send_outstanding_bat_packet(struct work_struct *work)
 		container_of(work, struct delayed_work, work);
 	struct forw_packet *forw_packet =
 		container_of(delayed_work, struct forw_packet, delayed_work);
+	unsigned long flags;
 
-	spin_lock(&forw_bat_list_lock);
+	spin_lock_irqsave(&forw_bat_list_lock, flags);
 	hlist_del(&forw_packet->list);
-	spin_unlock(&forw_bat_list_lock);
+	spin_unlock_irqrestore(&forw_bat_list_lock, flags);
 
 	send_packet(forw_packet);
 
@@ -459,18 +486,18 @@ void purge_outstanding_packets(void)
 	spin_unlock_irqrestore(&forw_bcast_list_lock, flags);
 
 	/* free batman packet list */
-	spin_lock(&forw_bat_list_lock);
+	spin_lock_irqsave(&forw_bat_list_lock, flags);
 	hlist_for_each_entry_safe(forw_packet, tmp_node, safe_tmp_node,
 				  &forw_bat_list, list) {
 
-		spin_unlock(&forw_bat_list_lock);
+		spin_unlock_irqrestore(&forw_bat_list_lock, flags);
 
 		/**
 		 * send_outstanding_bat_packet() will lock the list to
 		 * delete the item from the list
 		 */
 		cancel_delayed_work_sync(&forw_packet->delayed_work);
-		spin_lock(&forw_bat_list_lock);
+		spin_lock_irqsave(&forw_bat_list_lock, flags);
 	}
-	spin_unlock(&forw_bat_list_lock);
+	spin_unlock_irqrestore(&forw_bat_list_lock, flags);
 }

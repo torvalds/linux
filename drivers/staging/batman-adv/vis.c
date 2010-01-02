@@ -52,12 +52,13 @@ static void free_info(void *data)
 /* set the mode of the visualization to client or server */
 void vis_set_mode(int mode)
 {
-	spin_lock(&vis_hash_lock);
+	unsigned long flags;
+	spin_lock_irqsave(&vis_hash_lock, flags);
 
 	if (my_vis_info != NULL)
 		my_vis_info->packet.vis_type = mode;
 
-	spin_unlock(&vis_hash_lock);
+	spin_unlock_irqrestore(&vis_hash_lock, flags);
 }
 
 /* is_vis_server(), locked outside */
@@ -74,10 +75,11 @@ static int is_vis_server_locked(void)
 int is_vis_server(void)
 {
 	int ret = 0;
+	unsigned long flags;
 
-	spin_lock(&vis_hash_lock);
+	spin_lock_irqsave(&vis_hash_lock, flags);
 	ret = is_vis_server_locked();
-	spin_unlock(&vis_hash_lock);
+	spin_unlock_irqrestore(&vis_hash_lock, flags);
 
 	return ret;
 }
@@ -269,8 +271,9 @@ void receive_server_sync_packet(struct vis_packet *vis_packet, int vis_info_len)
 {
 	struct vis_info *info;
 	int is_new;
+	unsigned long flags;
 
-	spin_lock(&vis_hash_lock);
+	spin_lock_irqsave(&vis_hash_lock, flags);
 	info = add_packet(vis_packet, vis_info_len, &is_new);
 	if (info == NULL)
 		goto end;
@@ -283,7 +286,7 @@ void receive_server_sync_packet(struct vis_packet *vis_packet, int vis_info_len)
 			list_add_tail(&info->send_list, &send_list);
 	}
 end:
-	spin_unlock(&vis_hash_lock);
+	spin_unlock_irqrestore(&vis_hash_lock, flags);
 }
 
 /* handle an incoming client update packet and schedule forward if needed. */
@@ -292,12 +295,13 @@ void receive_client_update_packet(struct vis_packet *vis_packet,
 {
 	struct vis_info *info;
 	int is_new;
+	unsigned long flags;
 
 	/* clients shall not broadcast. */
 	if (is_bcast(vis_packet->target_orig))
 		return;
 
-	spin_lock(&vis_hash_lock);
+	spin_lock_irqsave(&vis_hash_lock, flags);
 	info = add_packet(vis_packet, vis_info_len, &is_new);
 	if (info == NULL)
 		goto end;
@@ -319,7 +323,7 @@ void receive_client_update_packet(struct vis_packet *vis_packet,
 			list_add_tail(&info->send_list, &send_list);
 	}
 end:
-	spin_unlock(&vis_hash_lock);
+	spin_unlock_irqrestore(&vis_hash_lock, flags);
 }
 
 /* Walk the originators and find the VIS server with the best tq. Set the packet
@@ -370,7 +374,7 @@ static int generate_vis_packet(void)
 
 	info->first_seen = jiffies;
 
-	spin_lock(&orig_hash_lock);
+	spin_lock_irqsave(&orig_hash_lock, flags);
 	memcpy(info->packet.target_orig, broadcastAddr, ETH_ALEN);
 	info->packet.ttl = TTL;
 	info->packet.seqno++;
@@ -379,7 +383,7 @@ static int generate_vis_packet(void)
 	if (!is_vis_server_locked()) {
 		best_tq = find_best_vis_server(info);
 		if (best_tq < 0) {
-			spin_unlock(&orig_hash_lock);
+			spin_unlock_irqrestore(&orig_hash_lock, flags);
 			return -1;
 		}
 	}
@@ -403,13 +407,13 @@ static int generate_vis_packet(void)
 			info->packet.entries++;
 
 			if (vis_packet_full(info)) {
-				spin_unlock(&orig_hash_lock);
+				spin_unlock_irqrestore(&orig_hash_lock, flags);
 				return 0;
 			}
 		}
 	}
 
-	spin_unlock(&orig_hash_lock);
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 
 	spin_lock_irqsave(&hna_local_hash_lock, flags);
 	while (hash_iterate(hna_local_hash, &hashit_local)) {
@@ -450,8 +454,9 @@ static void broadcast_vis_packet(struct vis_info *info, int packet_length)
 {
 	HASHIT(hashit);
 	struct orig_node *orig_node;
+	unsigned long flags;
 
-	spin_lock(&orig_hash_lock);
+	spin_lock_irqsave(&orig_hash_lock, flags);
 
 	/* send to all routers in range. */
 	while (hash_iterate(orig_hash, &hashit)) {
@@ -478,14 +483,15 @@ static void broadcast_vis_packet(struct vis_info *info, int packet_length)
 		}
 	}
 	memcpy(info->packet.target_orig, broadcastAddr, ETH_ALEN);
-	spin_unlock(&orig_hash_lock);
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 }
 
 static void unicast_vis_packet(struct vis_info *info, int packet_length)
 {
 	struct orig_node *orig_node;
+	unsigned long flags;
 
-	spin_lock(&orig_hash_lock);
+	spin_lock_irqsave(&orig_hash_lock, flags);
 	orig_node = ((struct orig_node *)
 		     hash_find(orig_hash, info->packet.target_orig));
 
@@ -496,7 +502,7 @@ static void unicast_vis_packet(struct vis_info *info, int packet_length)
 				orig_node->batman_if,
 				orig_node->router->addr);
 	}
-	spin_unlock(&orig_hash_lock);
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 }
 
 /* only send one vis packet. called from send_vis_packets() */
@@ -526,8 +532,9 @@ static void send_vis_packet(struct vis_info *info)
 static void send_vis_packets(struct work_struct *work)
 {
 	struct vis_info *info, *temp;
+	unsigned long flags;
 
-	spin_lock(&vis_hash_lock);
+	spin_lock_irqsave(&vis_hash_lock, flags);
 	purge_vis_packets();
 
 	if (generate_vis_packet() == 0)
@@ -538,7 +545,7 @@ static void send_vis_packets(struct work_struct *work)
 		list_del_init(&info->send_list);
 		send_vis_packet(info);
 	}
-	spin_unlock(&vis_hash_lock);
+	spin_unlock_irqrestore(&vis_hash_lock, flags);
 	start_vis_timer();
 }
 static DECLARE_DELAYED_WORK(vis_timer_wq, send_vis_packets);
@@ -547,10 +554,11 @@ static DECLARE_DELAYED_WORK(vis_timer_wq, send_vis_packets);
  * initialized (e.g. bat0 is initialized, interfaces have been added) */
 int vis_init(void)
 {
+	unsigned long flags;
 	if (vis_hash)
 		return 1;
 
-	spin_lock(&vis_hash_lock);
+	spin_lock_irqsave(&vis_hash_lock, flags);
 
 	vis_hash = hash_new(256, vis_info_cmp, vis_info_choose);
 	if (!vis_hash) {
@@ -588,12 +596,12 @@ int vis_init(void)
 		goto err;
 	}
 
-	spin_unlock(&vis_hash_lock);
+	spin_unlock_irqrestore(&vis_hash_lock, flags);
 	start_vis_timer();
 	return 1;
 
 err:
-	spin_unlock(&vis_hash_lock);
+	spin_unlock_irqrestore(&vis_hash_lock, flags);
 	vis_quit();
 	return 0;
 }
@@ -601,17 +609,18 @@ err:
 /* shutdown vis-server */
 void vis_quit(void)
 {
+	unsigned long flags;
 	if (!vis_hash)
 		return;
 
 	cancel_delayed_work_sync(&vis_timer_wq);
 
-	spin_lock(&vis_hash_lock);
+	spin_lock_irqsave(&vis_hash_lock, flags);
 	/* properly remove, kill timers ... */
 	hash_delete(vis_hash, free_info);
 	vis_hash = NULL;
 	my_vis_info = NULL;
-	spin_unlock(&vis_hash_lock);
+	spin_unlock_irqrestore(&vis_hash_lock, flags);
 }
 
 /* schedule packets for (re)transmission */

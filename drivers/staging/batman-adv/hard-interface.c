@@ -153,9 +153,6 @@ void hardif_deactivate_interface(struct batman_if *batman_if)
 	if (batman_if->if_active != IF_ACTIVE)
 		return;
 
-	if (batman_if->raw_sock)
-		sock_release(batman_if->raw_sock);
-
 	/**
 	 * batman_if->net_dev has been acquired by dev_get_by_name() in
 	 * proc_interfaces_write() and has to be unreferenced.
@@ -163,9 +160,6 @@ void hardif_deactivate_interface(struct batman_if *batman_if)
 
 	if (batman_if->net_dev)
 		dev_put(batman_if->net_dev);
-
-	batman_if->raw_sock = NULL;
-	batman_if->net_dev = NULL;
 
 	batman_if->if_active = IF_INACTIVE;
 	active_ifs--;
@@ -177,9 +171,6 @@ void hardif_deactivate_interface(struct batman_if *batman_if)
 /* (re)activate given interface. */
 static void hardif_activate_interface(struct batman_if *batman_if)
 {
-	struct sockaddr_ll bind_addr;
-	int retval;
-
 	if (batman_if->if_active != IF_INACTIVE)
 		return;
 
@@ -191,34 +182,7 @@ static void hardif_activate_interface(struct batman_if *batman_if)
 	if (!batman_if->net_dev)
 		goto dev_err;
 
-	retval = sock_create_kern(PF_PACKET, SOCK_RAW,
-				  __constant_htons(ETH_P_BATMAN),
-				  &batman_if->raw_sock);
-
-	if (retval < 0) {
-		printk(KERN_ERR "batman-adv:Can't create raw socket: %i\n",
-			  retval);
-		goto sock_err;
-	}
-
-	bind_addr.sll_family = AF_PACKET;
-	bind_addr.sll_ifindex = batman_if->net_dev->ifindex;
-	bind_addr.sll_protocol = 0;	/* is set by the kernel */
-
-	retval = kernel_bind(batman_if->raw_sock,
-			     (struct sockaddr *)&bind_addr, sizeof(bind_addr));
-
-	if (retval < 0) {
-		printk(KERN_ERR "batman-adv:Can't create bind raw socket: %i\n",
-			  retval);
-		goto bind_err;
-	}
-
 	check_known_mac_addr(batman_if->net_dev->dev_addr);
-
-	batman_if->raw_sock->sk->sk_user_data =
-		batman_if->raw_sock->sk->sk_data_ready;
-	batman_if->raw_sock->sk->sk_data_ready = batman_data_ready;
 
 	addr_to_string(batman_if->addr_str, batman_if->net_dev->dev_addr);
 
@@ -239,12 +203,7 @@ static void hardif_activate_interface(struct batman_if *batman_if)
 
 	return;
 
-bind_err:
-	sock_release(batman_if->raw_sock);
-sock_err:
-	dev_put(batman_if->net_dev);
 dev_err:
-	batman_if->raw_sock = NULL;
 	batman_if->net_dev = NULL;
 }
 
@@ -318,6 +277,7 @@ int hardif_add_interface(char *dev, int if_num)
 	struct batman_if *batman_if;
 	struct batman_packet *batman_packet;
 	struct orig_node *orig_node;
+	unsigned long flags;
 	HASHIT(hashit);
 
 	batman_if = kmalloc(sizeof(struct batman_if), GFP_KERNEL);
@@ -327,7 +287,6 @@ int hardif_add_interface(char *dev, int if_num)
 		return -1;
 	}
 
-	batman_if->raw_sock = NULL;
 	batman_if->net_dev = NULL;
 
 	if ((if_num == 0) && (num_hna > 0))
@@ -375,17 +334,17 @@ int hardif_add_interface(char *dev, int if_num)
 
 	/* resize all orig nodes because orig_node->bcast_own(_sum) depend on
 	 * if_num */
-	spin_lock(&orig_hash_lock);
+	spin_lock_irqsave(&orig_hash_lock, flags);
 
 	while (hash_iterate(orig_hash, &hashit)) {
 		orig_node = hashit.bucket->data;
 		if (resize_orig(orig_node, if_num) == -1) {
-			spin_unlock(&orig_hash_lock);
+			spin_unlock_irqrestore(&orig_hash_lock, flags);
 			goto out;
 		}
 	}
 
-	spin_unlock(&orig_hash_lock);
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 
 	if (!hardif_is_interface_up(batman_if->dev))
 		printk(KERN_ERR "batman-adv:Not using interface %s (retrying later): interface not active\n", batman_if->dev);
@@ -442,6 +401,111 @@ static int hard_if_event(struct notifier_block *this,
 out:
 	return NOTIFY_DONE;
 }
+
+/* find batman interface by netdev. assumes rcu_read_lock on */
+static struct batman_if *find_batman_if(struct net_device *dev)
+{
+	struct batman_if *batman_if;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(batman_if, &if_list, list) {
+		if (batman_if->net_dev == dev) {
+			rcu_read_unlock();
+			return batman_if;
+		}
+	}
+	rcu_read_unlock();
+	return NULL;
+}
+
+
+/* receive a packet with the batman ethertype coming on a hard
+ * interface */
+int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
+	struct packet_type *ptype, struct net_device *orig_dev)
+{
+	struct batman_packet *batman_packet;
+	struct batman_if *batman_if;
+	struct net_device_stats *stats;
+	int ret;
+
+    skb = skb_share_check(skb, GFP_ATOMIC);
+
+    if (skb == NULL)
+		goto err_free;
+
+	/* packet should hold at least type and version */
+	if (unlikely(skb_headlen(skb) < 2))
+		goto err_free;
+
+	/* expect a valid ethernet header here. */
+	if (unlikely(skb->mac_len != sizeof(struct ethhdr)
+				|| !skb_mac_header(skb)))
+		goto err_free;
+
+	batman_if = find_batman_if(skb->dev);
+	if (!batman_if)
+		goto err_free;
+
+    stats = &skb->dev->stats;
+    stats->rx_packets++;
+    stats->rx_bytes += skb->len;
+
+	batman_packet = (struct batman_packet *)skb->data;
+
+	if (batman_packet->version != COMPAT_VERSION) {
+		bat_dbg(DBG_BATMAN,
+			"Drop packet: incompatible batman version (%i)\n",
+			batman_packet->version);
+		goto err_free;
+	}
+
+	/* all receive handlers return whether they received or reused
+	 * the supplied skb. if not, we have to free the skb. */
+
+	switch (batman_packet->packet_type) {
+		/* batman originator packet */
+	case BAT_PACKET:
+		ret = recv_bat_packet(skb, batman_if);
+		break;
+
+		/* batman icmp packet */
+	case BAT_ICMP:
+		ret = recv_icmp_packet(skb);
+		break;
+
+		/* unicast packet */
+	case BAT_UNICAST:
+		ret = recv_unicast_packet(skb);
+		break;
+
+		/* broadcast packet */
+	case BAT_BCAST:
+		ret = recv_bcast_packet(skb);
+		break;
+
+		/* vis packet */
+	case BAT_VIS:
+		ret = recv_vis_packet(skb);
+		break;
+	default:
+		ret = NET_RX_DROP;
+	}
+	if (ret == NET_RX_DROP)
+		kfree_skb(skb);
+
+	/* return NET_RX_SUCCESS in any case as we
+	 * most probably dropped the packet for
+	 * routing-logical reasons. */
+
+	return NET_RX_SUCCESS;
+
+err_free:
+    kfree_skb(skb);
+    return NET_RX_DROP;
+
+}
+
 
 struct notifier_block hard_if_notifier = {
 	.notifier_call = hard_if_event,

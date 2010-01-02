@@ -50,10 +50,13 @@ int16_t num_ifs;
 
 struct net_device *soft_device;
 
-static struct task_struct *kthread_task;
-
 unsigned char broadcastAddr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 atomic_t module_state;
+
+static struct packet_type batman_adv_packet_type __read_mostly = {
+	.type = cpu_to_be16(ETH_P_BATMAN),
+	.func = batman_skb_recv,
+};
 
 struct workqueue_struct *bat_event_workqueue;
 
@@ -113,6 +116,7 @@ int init_module(void)
 	}
 
 	register_netdevice_notifier(&hard_if_notifier);
+	dev_add_pack(&batman_adv_packet_type);
 
 	printk(KERN_INFO "batman-adv:B.A.T.M.A.N. advanced %s%s (compatibility version %i) loaded \n",
 		  SOURCE_VERSION, REVISION_VERSION_STR, COMPAT_VERSION);
@@ -134,6 +138,8 @@ void cleanup_module(void)
 		unregister_netdev(soft_device);
 		soft_device = NULL;
 	}
+
+	dev_remove_pack(&batman_adv_packet_type);
 
 	unregister_netdevice_notifier(&hard_if_notifier);
 	cleanup_procfs();
@@ -162,16 +168,6 @@ void activate_module(void)
 	if (vis_init() < 1)
 		goto err;
 
-	/* (re)start kernel thread for packet processing */
-	if (!kthread_task) {
-		kthread_task = kthread_run(packet_recv_thread, NULL, "batman-adv");
-
-		if (IS_ERR(kthread_task)) {
-			printk(KERN_ERR "batman-adv:Unable to start packet receive thread\n");
-			kthread_task = NULL;
-		}
-	}
-
 	update_min_mtu();
 	atomic_set(&module_state, MODULE_ACTIVE);
 	goto end;
@@ -193,14 +189,7 @@ void shutdown_module(void)
 
 	vis_quit();
 
-	/* deactivate kernel thread for packet processing (if running) */
-	if (kthread_task) {
-		atomic_set(&exit_cond, 1);
-		wake_up_interruptible(&thread_wait);
-		kthread_stop(kthread_task);
-
-		kthread_task = NULL;
-	}
+	/* TODO: unregister BATMAN pack */
 
 	originator_free();
 
