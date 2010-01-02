@@ -319,6 +319,13 @@ struct pci_dev_reset_methods {
 	int (*reset)(struct pci_dev *dev, int probe);
 };
 
+#ifdef CONFIG_PCI_QUIRKS
 extern int pci_dev_specific_reset(struct pci_dev *dev, int probe);
+#else
+static inline int pci_dev_specific_reset(struct pci_dev *dev, int probe)
+{
+	return -ENOTTY;
+}
+#endif
 
 #endif /* DRIVERS_PCI_H */
