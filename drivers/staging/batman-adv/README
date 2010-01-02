@@ -1,4 +1,4 @@
-[state: 13-11-2009]
+[state: 13-12-2009]
 
 BATMAN-ADV
 ----------
@@ -15,7 +15,7 @@ above B.A.T.M.A.N. Advanced, prominent examples are: IPv4, IPv6, DHCP, IPX.
 This is batman-advanced implemented as Linux kernel driver. It does not depend
 on any network (other) driver, and can be used on wifi as well as ethernet,
 vpn, etc ... (anything with ethernet-style layer 2).
-It compiles against and should work with Linux 2.6.20 - 2.6.31. Supporting older
+It compiles against and should work with Linux 2.6.20 - 2.6.32. Supporting older
 versions is not planned, but it's probably easy to backport it. If you work on a
 backport, feel free to contact us.  :-)
 
