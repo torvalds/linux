@@ -17,17 +17,6 @@
 -> transtable_global (read-only) [outputs the global translation table]
 -> transtable_local (read-only) [outputs the local translation table]
 
-=> vis "raw" data output
-* the raw format shall replace dot draw / json to offer a neutral that can
-* be converted
-* the format (comma seperated entries):
--> "mac" -> mac address of an originator (each line begins with it)
--> "TQ mac value" -> src mac's link quality towards mac address
--> "HNA mac" -> HNA announced by source mac
--> "PRIMARY" -> this is a primary interface
--> "SEC mac" -> secondary mac address of source (requires preceeding
--> PRIMARY)
-
 => logging
 * make use of printk %pM support instead of converting mac addresses
 * manually
