@@ -54,12 +54,8 @@
 #define RX_RING_SHADOW_SPACE	(sizeof(u64) + \
 		MAX_DB_PAGES_PER_BQ(NUM_SMALL_BUFFERS) * sizeof(u64) + \
 		MAX_DB_PAGES_PER_BQ(NUM_LARGE_BUFFERS) * sizeof(u64))
-#define SMALL_BUFFER_SIZE 512
-#define SMALL_BUF_MAP_SIZE (SMALL_BUFFER_SIZE / 2)
 #define LARGE_BUFFER_MAX_SIZE 8192
 #define LARGE_BUFFER_MIN_SIZE 2048
-#define MAX_SPLIT_SIZE 1023
-#define QLGE_SB_PAD 32
 
 #define MAX_CQ 128
 #define DFLT_COALESCE_WAIT 100	/* 100 usec wait for coalescing */
@@ -736,6 +732,21 @@ enum {
 	PRB_MX_ADDR = 0xf8,	/* Use semaphore */
 	PRB_MX_DATA = 0xfc,	/* Use semaphore */
 };
+
+#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
+#define SMALL_BUFFER_SIZE 256
+#define SMALL_BUF_MAP_SIZE SMALL_BUFFER_SIZE
+#define SPLT_SETTING  FSC_DBRST_1024
+#define SPLT_LEN 0
+#define QLGE_SB_PAD 0
+#else
+#define SMALL_BUFFER_SIZE 512
+#define SMALL_BUF_MAP_SIZE (SMALL_BUFFER_SIZE / 2)
+#define SPLT_SETTING  FSC_SH
+#define SPLT_LEN (SPLT_HDR_EP | \
+	min(SMALL_BUF_MAP_SIZE, 1023))
+#define QLGE_SB_PAD 32
+#endif
 
 /*
  * CAM output format.
