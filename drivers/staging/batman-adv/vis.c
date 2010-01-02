@@ -26,7 +26,6 @@
 #include "soft-interface.h"
 #include "hard-interface.h"
 #include "hash.h"
-#include "compat.h"
 
 struct hashtable_t *vis_hash;
 DEFINE_SPINLOCK(vis_hash_lock);

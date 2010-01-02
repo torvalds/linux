@@ -28,7 +28,6 @@
 #include "hash.h"
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
-#include "compat.h"
 
 static uint16_t bcast_seqno = 1; /* give own bcast messages seq numbers to avoid
 				  * broadcast storms */
@@ -120,7 +119,7 @@ void interface_setup(struct net_device *dev)
 
 	/* generate random address */
 	random_ether_addr(dev_addr);
-	memcpy(dev->dev_addr, dev_addr, sizeof(dev->dev_addr));
+	memcpy(dev->dev_addr, dev_addr, ETH_ALEN);
 
 	SET_ETHTOOL_OPS(dev, &bat_ethtool_ops);
 
@@ -269,7 +268,7 @@ unlock:
 dropped:
 	priv->stats.tx_dropped++;
 end:
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 void interface_rx(struct sk_buff *skb, int hdr_size)
@@ -338,7 +337,6 @@ static u32 bat_get_msglevel(struct net_device *dev)
 
 static void bat_set_msglevel(struct net_device *dev, u32 value)
 {
-	return;
 }
 
 static u32 bat_get_link(struct net_device *dev)

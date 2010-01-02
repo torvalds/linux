@@ -26,8 +26,6 @@
 #include "hash.h"
 #include "translation-table.h"
 #include "routing.h"
-#include "compat.h"
-
 
 static DECLARE_DELAYED_WORK(purge_orig_wq, purge_orig);
 
@@ -80,11 +78,10 @@ create_neighbor(struct orig_node *orig_node, struct orig_node *orig_neigh_node,
 
 	bat_dbg(DBG_BATMAN, "Creating new last-hop neighbor of originator\n");
 
-	neigh_node = kmalloc(sizeof(struct neigh_node), GFP_ATOMIC);
+	neigh_node = kzalloc(sizeof(struct neigh_node), GFP_ATOMIC);
 	if (!neigh_node)
 		return NULL;
 
-	memset(neigh_node, 0, sizeof(struct neigh_node));
 	INIT_LIST_HEAD(&neigh_node->list);
 
 	memcpy(neigh_node->addr, neigh, ETH_ALEN);
@@ -131,11 +128,10 @@ struct orig_node *get_orig_node(uint8_t *addr)
 
 	bat_dbg(DBG_BATMAN, "Creating new originator: %pM \n", addr);
 
-	orig_node = kmalloc(sizeof(struct orig_node), GFP_ATOMIC);
+	orig_node = kzalloc(sizeof(struct orig_node), GFP_ATOMIC);
 	if (!orig_node)
 		return NULL;
 
-	memset(orig_node, 0, sizeof(struct orig_node));
 	INIT_LIST_HEAD(&orig_node->neigh_list);
 
 	memcpy(orig_node->orig, addr, ETH_ALEN);
@@ -145,18 +141,14 @@ struct orig_node *get_orig_node(uint8_t *addr)
 
 	size = num_ifs * sizeof(TYPE_OF_WORD) * NUM_WORDS;
 
-	orig_node->bcast_own = kmalloc(size, GFP_ATOMIC);
+	orig_node->bcast_own = kzalloc(size, GFP_ATOMIC);
 	if (!orig_node->bcast_own)
 		goto free_orig_node;
 
-	memset(orig_node->bcast_own, 0, size);
-
 	size = num_ifs * sizeof(uint8_t);
-	orig_node->bcast_own_sum = kmalloc(size, GFP_ATOMIC);
+	orig_node->bcast_own_sum = kzalloc(size, GFP_ATOMIC);
 	if (!orig_node->bcast_own_sum)
 		goto free_bcast_own;
-
-	memset(orig_node->bcast_own_sum, 0, size);
 
 	if (hash_add(orig_hash, orig_node) < 0)
 		goto free_bcast_own_sum;

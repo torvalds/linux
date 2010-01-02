@@ -27,7 +27,6 @@
 #include "types.h"
 #include "hash.h"
 #include "vis.h"
-#include "compat.h"
 
 static struct proc_dir_entry *proc_batman_dir, *proc_interface_file;
 static struct proc_dir_entry *proc_orig_interval_file, *proc_originators_file;

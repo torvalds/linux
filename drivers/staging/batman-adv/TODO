@@ -17,9 +17,6 @@
 -> transtable_global (read-only) [outputs the global translation table]
 -> transtable_local (read-only) [outputs the local translation table]
 
-=> strip out all backward compatibility support to older kernels
-   (only found in compat.h)
-
 => fix checkpatch.pl errors
 
 Please send all patches to:

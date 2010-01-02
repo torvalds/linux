@@ -32,7 +32,6 @@
 #include "ring_buffer.h"
 #include "vis.h"
 #include "aggregation.h"
-#include "compat.h"
 
 DECLARE_WAIT_QUEUE_HEAD(thread_wait);
 
@@ -310,7 +309,6 @@ static void update_orig(struct orig_node *orig_node, struct ethhdr *ethhdr,
 
 update_hna:
 	update_routes(orig_node, orig_node->router, hna_buff, tmp_hna_buff_len);
-	return;
 }
 
 static char count_real_packets(struct ethhdr *ethhdr,

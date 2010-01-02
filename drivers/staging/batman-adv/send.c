@@ -29,8 +29,6 @@
 #include "vis.h"
 #include "aggregation.h"
 
-#include "compat.h"
-
 /* apply hop penalty for a normal link */
 static uint8_t hop_penalty(const uint8_t tq)
 {

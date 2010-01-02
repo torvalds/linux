@@ -24,7 +24,6 @@
 #include "soft-interface.h"
 #include "types.h"
 #include "hash.h"
-#include "compat.h"
 
 struct hashtable_t *hna_local_hash;
 static struct hashtable_t *hna_global_hash;

@@ -26,8 +26,6 @@
 #include "types.h"
 #include "hash.h"
 
-#include "compat.h"
-
 static struct class *batman_class;
 
 static int Major;	/* Major number assigned to our device driver */

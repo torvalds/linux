@@ -26,7 +26,6 @@
 #include "translation-table.h"
 #include "routing.h"
 #include "hash.h"
-#include "compat.h"
 
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 

@@ -31,7 +31,6 @@
 #include "types.h"
 #include "vis.h"
 #include "hash.h"
-#include "compat.h"
 
 struct list_head if_list;
 struct hlist_head forw_bat_list;
