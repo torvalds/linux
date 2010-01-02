@@ -244,12 +244,6 @@ struct pcmcia_socket {
 #endif /* CONFIG_PCMCIA_IOCTL */
 #endif /* CONFIG_PCMCIA */
 
-	/* cardbus (32-bit) */
-#ifdef CONFIG_CARDBUS
-	struct resource			*cb_cis_res;
-	void __iomem			*cb_cis_virt;
-#endif /* CONFIG_CARDBUS */
-
 	/* socket device */
 	struct device			dev;
 	/* data internal to the socket driver */
