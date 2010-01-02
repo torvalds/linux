@@ -140,19 +140,13 @@ struct pcmcia_socket *pcmcia_get_socket(struct pcmcia_socket *skt)
 	struct device *dev = get_device(&skt->dev);
 	if (!dev)
 		return NULL;
-	skt = dev_get_drvdata(dev);
-	if (!try_module_get(skt->owner)) {
-		put_device(&skt->dev);
-		return NULL;
-	}
-	return skt;
+	return dev_get_drvdata(dev);
 }
 EXPORT_SYMBOL(pcmcia_get_socket);
 
 
 void pcmcia_put_socket(struct pcmcia_socket *skt)
 {
-	module_put(skt->owner);
 	put_device(&skt->dev);
 }
 EXPORT_SYMBOL(pcmcia_put_socket);
