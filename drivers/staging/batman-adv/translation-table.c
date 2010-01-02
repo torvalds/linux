@@ -211,6 +211,21 @@ static void hna_local_del(struct hna_local_entry *hna_local_entry,
 	_hna_local_del(hna_local_entry);
 }
 
+void hna_local_remove(uint8_t *addr, char *message)
+{
+	struct hna_local_entry *hna_local_entry;
+	unsigned long flags;
+
+	spin_lock_irqsave(&hna_local_hash_lock, flags);
+
+	hna_local_entry = (struct hna_local_entry *)
+		hash_find(hna_local_hash, addr);
+	if (hna_local_entry)
+		hna_local_del(hna_local_entry, message);
+
+	spin_unlock_irqrestore(&hna_local_hash_lock, flags);
+}
+
 void hna_local_purge(struct work_struct *work)
 {
 	struct hna_local_entry *hna_local_entry;

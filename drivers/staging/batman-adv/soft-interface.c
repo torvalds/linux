@@ -145,9 +145,18 @@ struct net_device_stats *interface_stats(struct net_device *dev)
 	return &priv->stats;
 }
 
-int interface_set_mac_addr(struct net_device *dev, void *addr)
+int interface_set_mac_addr(struct net_device *dev, void *p)
 {
-	return -EBUSY;
+	struct sockaddr *addr = p;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
+
+	hna_local_remove(dev->dev_addr, "mac address changed");
+	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	hna_local_add(dev->dev_addr);
+
+	return 0;
 }
 
 int interface_change_mtu(struct net_device *dev, int new_mtu)
