@@ -87,26 +87,6 @@ struct pccard_resource_ops {
 #define SOCKET_CARDBUS		0x8000
 #define SOCKET_CARDBUS_CONFIG	0x10000
 
-static inline int cs_socket_get(struct pcmcia_socket *skt)
-{
-	int ret;
-
-	WARN_ON(skt->state & SOCKET_INUSE);
-
-	ret = try_module_get(skt->owner);
-	if (ret)
-		skt->state |= SOCKET_INUSE;
-	return ret;
-}
-
-static inline void cs_socket_put(struct pcmcia_socket *skt)
-{
-	if (skt->state & SOCKET_INUSE) {
-		skt->state &= ~SOCKET_INUSE;
-		module_put(skt->owner);
-	}
-}
-
 
 /*
  * Stuff internal to module "pcmcia_core":
