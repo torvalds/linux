@@ -114,6 +114,68 @@ static int vis_info_choose(void *data, int size)
 	return hash % size;
 }
 
+/* insert interface to the list of interfaces of one originator, if it
+ * does not already exist in the list */
+static void proc_vis_insert_interface(const uint8_t *interface,
+				      struct hlist_head *if_list,
+				      bool primary)
+{
+	struct if_list_entry *entry;
+	struct hlist_node *pos;
+
+	hlist_for_each_entry(entry, pos, if_list, list) {
+		if (compare_orig(entry->addr, (void *)interface))
+			return;
+	}
+
+	/* its a new address, add it to the list */
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return;
+	memcpy(entry->addr, interface, ETH_ALEN);
+	entry->primary = primary;
+	hlist_add_head(&entry->list, if_list);
+}
+
+void proc_vis_read_prim_sec(struct seq_file *seq,
+			    struct hlist_head *if_list)
+{
+	struct if_list_entry *entry;
+	struct hlist_node *pos, *n;
+	char tmp_addr_str[ETH_STR_LEN];
+
+	hlist_for_each_entry_safe(entry, pos, n, if_list, list) {
+		if (entry->primary) {
+			seq_printf(seq, "PRIMARY, ");
+		} else {
+			addr_to_string(tmp_addr_str, entry->addr);
+			seq_printf(seq, "SEC %s, ", tmp_addr_str);
+		}
+
+		hlist_del(&entry->list);
+		kfree(entry);
+	}
+}
+
+/* read an entry  */
+void proc_vis_read_entry(struct seq_file *seq,
+				struct vis_info_entry *entry,
+				struct hlist_head *if_list,
+				uint8_t *vis_orig)
+{
+	char to[40];
+
+	addr_to_string(to, entry->dest);
+	if (entry->quality == 0) {
+		proc_vis_insert_interface(vis_orig, if_list, true);
+		seq_printf(seq, "HNA %s, ", to);
+	} else {
+		proc_vis_insert_interface(entry->src, if_list,
+					  compare_orig(entry->src, vis_orig));
+		seq_printf(seq, "TQ %s %d, ", to, entry->quality);
+	}
+}
+
 /* tries to add one entry to the receive list. */
 static void recv_list_add(struct list_head *recv_list, char *mac)
 {

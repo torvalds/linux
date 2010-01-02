@@ -33,7 +33,7 @@ static struct proc_dir_entry *proc_batman_dir, *proc_interface_file;
 static struct proc_dir_entry *proc_orig_interval_file, *proc_originators_file;
 static struct proc_dir_entry *proc_transt_local_file;
 static struct proc_dir_entry *proc_transt_global_file;
-static struct proc_dir_entry *proc_vis_file;
+static struct proc_dir_entry *proc_vis_srv_file, *proc_vis_data_file;
 static struct proc_dir_entry *proc_aggr_file;
 
 static int proc_interfaces_read(struct seq_file *seq, void *offset)
@@ -320,79 +320,55 @@ static int proc_transt_global_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_transt_global_read, NULL);
 }
 
-/* While scanning for vis-entries of a particular vis-originator
- * this list collects its interfaces to create a subgraph/cluster
- * out of them later
- */
-struct if_list_entry {
-	uint8_t addr[ETH_ALEN];
-	bool primary;
-	struct hlist_node list;
-};
-
-/* insert interface to the list of interfaces of one originator, if it
- * does not already exist in the list */
-static void proc_vis_insert_interface(const uint8_t *interface,
-				      struct hlist_head *if_list,
-				      bool primary)
+/* setting the mode of the vis server by the user */
+static ssize_t proc_vis_srv_write(struct file *file, const char __user * buffer,
+			      size_t count, loff_t *ppos)
 {
-	struct if_list_entry *entry;
-	struct hlist_node *pos;
+	char *vis_mode_string;
+	int not_copied = 0;
 
-	hlist_for_each_entry(entry, pos, if_list, list) {
-		if (compare_orig(entry->addr, (void *)interface))
-			return;
-	}
+	vis_mode_string = kmalloc(count, GFP_KERNEL);
 
-	/* its a new address, add it to the list */
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry)
-		return;
-	memcpy(entry->addr, interface, ETH_ALEN);
-	entry->primary = primary;
-	hlist_add_head(&entry->list, if_list);
+	if (!vis_mode_string)
+		return -ENOMEM;
+
+	not_copied = copy_from_user(vis_mode_string, buffer, count);
+	vis_mode_string[count - not_copied - 1] = 0;
+
+	if ((strcmp(vis_mode_string, "client") == 0) ||
+			(strcmp(vis_mode_string, "disabled") == 0)) {
+		printk(KERN_INFO "batman-adv:Setting VIS mode to client (disabling vis server)\n");
+		vis_set_mode(VIS_TYPE_CLIENT_UPDATE);
+	} else if ((strcmp(vis_mode_string, "server") == 0) ||
+			(strcmp(vis_mode_string, "enabled") == 0)) {
+		printk(KERN_INFO "batman-adv:Setting VIS mode to server (enabling vis server)\n");
+		vis_set_mode(VIS_TYPE_SERVER_SYNC);
+	} else
+		printk(KERN_ERR "batman-adv:Unknown VIS mode: %s\n",
+		       vis_mode_string);
+
+	kfree(vis_mode_string);
+	return count;
 }
 
-static void proc_vis_read_prim_sec(struct seq_file *seq,
-				   struct hlist_head *if_list)
+static int proc_vis_srv_read(struct seq_file *seq, void *offset)
 {
-	struct if_list_entry *entry;
-	struct hlist_node *pos, *n;
-	char tmp_addr_str[ETH_STR_LEN];
+	int vis_server = is_vis_server();
 
-	hlist_for_each_entry_safe(entry, pos, n, if_list, list) {
-		if (entry->primary) {
-			seq_printf(seq, "PRIMARY, ");
-		} else {
-			addr_to_string(tmp_addr_str, entry->addr);
-			seq_printf(seq, "SEC %s, ", tmp_addr_str);
-		}
+	seq_printf(seq, "[%c] client mode (server disabled) \n",
+			(!vis_server) ? 'x' : ' ');
+	seq_printf(seq, "[%c] server mode (server enabled) \n",
+			(vis_server) ? 'x' : ' ');
 
-		hlist_del(&entry->list);
-		kfree(entry);
-	}
+	return 0;
 }
 
-/* read an entry  */
-static void proc_vis_read_entry(struct seq_file *seq,
-				struct vis_info_entry *entry,
-				struct hlist_head *if_list,
-				uint8_t *vis_orig)
+static int proc_vis_srv_open(struct inode *inode, struct file *file)
 {
-	char to[40];
-
-	addr_to_string(to, entry->dest);
-	if (entry->quality == 0) {
-		proc_vis_insert_interface(vis_orig, if_list, true);
-		seq_printf(seq, "HNA %s, ", to);
-	} else {
-		proc_vis_insert_interface(entry->src, if_list,
-					  compare_orig(entry->src, vis_orig));
-		seq_printf(seq, "TQ %s %d, ", to, entry->quality);
-	}
+	return single_open(file, proc_vis_srv_read, NULL);
 }
 
-static int proc_vis_read(struct seq_file *seq, void *offset)
+static int proc_vis_data_read(struct seq_file *seq, void *offset)
 {
 	HASHIT(hashit);
 	struct vis_info *info;
@@ -432,38 +408,9 @@ end:
 	return 0;
 }
 
-/* setting the mode of the vis server by the user */
-static ssize_t proc_vis_write(struct file *file, const char __user * buffer,
-			      size_t count, loff_t *ppos)
+static int proc_vis_data_open(struct inode *inode, struct file *file)
 {
-	char *vis_mode_string;
-	int not_copied = 0;
-
-	vis_mode_string = kmalloc(count, GFP_KERNEL);
-
-	if (!vis_mode_string)
-		return -ENOMEM;
-
-	not_copied = copy_from_user(vis_mode_string, buffer, count);
-	vis_mode_string[count - not_copied - 1] = 0;
-
-	if (strcmp(vis_mode_string, "client") == 0) {
-		printk(KERN_INFO "batman-adv:Setting VIS mode to client\n");
-		vis_set_mode(VIS_TYPE_CLIENT_UPDATE);
-	} else if (strcmp(vis_mode_string, "server") == 0) {
-		printk(KERN_INFO "batman-adv:Setting VIS mode to server\n");
-		vis_set_mode(VIS_TYPE_SERVER_SYNC);
-	} else
-		printk(KERN_ERR "batman-adv:Unknown VIS mode: %s\n",
-		       vis_mode_string);
-
-	kfree(vis_mode_string);
-	return count;
-}
-
-static int proc_vis_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, proc_vis_read, NULL);
+	return single_open(file, proc_vis_data_read, NULL);
 }
 
 static int proc_aggr_read(struct seq_file *seq, void *offset)
@@ -529,11 +476,20 @@ static const struct file_operations proc_aggr_fops = {
 	.release	= single_release,
 };
 
-static const struct file_operations proc_vis_fops = {
+static const struct file_operations proc_vis_srv_fops = {
 	.owner		= THIS_MODULE,
-	.open		= proc_vis_open,
+	.open		= proc_vis_srv_open,
 	.read		= seq_read,
-	.write		= proc_vis_write,
+	.write		= proc_vis_srv_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static const struct file_operations proc_vis_data_fops = {
+	.owner		= THIS_MODULE,
+	.open		= proc_vis_data_open,
+	.read		= seq_read,
+	.write		= proc_dummy_write,
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
@@ -600,8 +556,11 @@ void cleanup_procfs(void)
 	if (proc_interface_file)
 		remove_proc_entry(PROC_FILE_INTERFACES, proc_batman_dir);
 
-	if (proc_vis_file)
-		remove_proc_entry(PROC_FILE_VIS, proc_batman_dir);
+	if (proc_vis_data_file)
+		remove_proc_entry(PROC_FILE_VIS_DATA, proc_batman_dir);
+
+	if (proc_vis_srv_file)
+		remove_proc_entry(PROC_FILE_VIS_SRV, proc_batman_dir);
 
 	if (proc_aggr_file)
 		remove_proc_entry(PROC_FILE_AGGR, proc_batman_dir);
@@ -679,12 +638,23 @@ int setup_procfs(void)
 		return -EFAULT;
 	}
 
-	proc_vis_file = create_proc_entry(PROC_FILE_VIS, S_IWUSR | S_IRUGO,
-					  proc_batman_dir);
-	if (proc_vis_file) {
-		proc_vis_file->proc_fops = &proc_vis_fops;
+	proc_vis_srv_file = create_proc_entry(PROC_FILE_VIS_SRV,
+						S_IWUSR | S_IRUGO,
+						proc_batman_dir);
+	if (proc_vis_srv_file) {
+		proc_vis_srv_file->proc_fops = &proc_vis_srv_fops;
 	} else {
-		printk(KERN_ERR "batman-adv: Registering the '/proc/net/%s/%s' file failed\n", PROC_ROOT_DIR, PROC_FILE_VIS);
+		printk(KERN_ERR "batman-adv: Registering the '/proc/net/%s/%s' file failed\n", PROC_ROOT_DIR, PROC_FILE_VIS_SRV);
+		cleanup_procfs();
+		return -EFAULT;
+	}
+
+	proc_vis_data_file = create_proc_entry(PROC_FILE_VIS_DATA, S_IRUGO,
+					  proc_batman_dir);
+	if (proc_vis_data_file) {
+		proc_vis_data_file->proc_fops = &proc_vis_data_fops;
+	} else {
+		printk(KERN_ERR "batman-adv: Registering the '/proc/net/%s/%s' file failed\n", PROC_ROOT_DIR, PROC_FILE_VIS_DATA);
 		cleanup_procfs();
 		return -EFAULT;
 	}

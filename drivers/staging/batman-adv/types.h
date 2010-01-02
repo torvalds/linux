@@ -121,4 +121,14 @@ struct forw_packet {               /* structure for forw_list maintaining packet
 	struct batman_if *if_incoming;
 };
 
+/* While scanning for vis-entries of a particular vis-originator
+ * this list collects its interfaces to create a subgraph/cluster
+ * out of them later
+ */
+struct if_list_entry {
+	uint8_t addr[ETH_ALEN];
+	bool primary;
+	struct hlist_node list;
+};
+
 #endif

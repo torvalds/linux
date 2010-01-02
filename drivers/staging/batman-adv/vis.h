@@ -50,6 +50,12 @@ extern spinlock_t vis_hash_lock;
 
 void vis_set_mode(int mode);
 int is_vis_server(void);
+void proc_vis_read_entry(struct seq_file *seq,
+				struct vis_info_entry *entry,
+				struct hlist_head *if_list,
+				uint8_t *vis_orig);
+void proc_vis_read_prim_sec(struct seq_file *seq,
+			    struct hlist_head *if_list);
 void receive_server_sync_packet(struct vis_packet *vis_packet,
 				int vis_info_len);
 void receive_client_update_packet(struct vis_packet *vis_packet,
