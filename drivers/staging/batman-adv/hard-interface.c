@@ -399,8 +399,7 @@ int hardif_add_interface(char *dev, int if_num)
 	return 1;
 
 out:
-	if (batman_if->packet_buff)
-		kfree(batman_if->packet_buff);
+	kfree(batman_if->packet_buff);
 	kfree(batman_if);
 	kfree(dev);
 	return -1;
