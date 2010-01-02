@@ -377,6 +377,7 @@ int verify_cis_cache(struct pcmcia_socket *s)
 	kfree(buf);
 	return 0;
 }
+EXPORT_SYMBOL(verify_cis_cache);
 
 /*======================================================================
 

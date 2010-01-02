@@ -328,7 +328,7 @@ static int send_event(struct pcmcia_socket *s, event_t event, int priority)
 {
 	int ret;
 
-	if (s->state & SOCKET_CARDBUS)
+	if ((s->state & SOCKET_CARDBUS) && (event != CS_EVENT_CARD_REMOVAL))
 		return 0;
 
 	dev_dbg(&s->dev, "send_event(event %d, pri %d, callback 0x%p)\n",
@@ -344,13 +344,6 @@ static int send_event(struct pcmcia_socket *s, event_t event, int priority)
 	module_put(s->callback->owner);
 
 	return ret;
-}
-
-static void socket_remove_drivers(struct pcmcia_socket *skt)
-{
-	dev_dbg(&skt->dev, "remove_drivers\n");
-
-	send_event(skt, CS_EVENT_CARD_REMOVAL, CS_EVENT_PRI_HIGH);
 }
 
 static int socket_reset(struct pcmcia_socket *skt)
@@ -395,7 +388,7 @@ static void socket_shutdown(struct pcmcia_socket *s)
 
 	dev_dbg(&s->dev, "shutdown\n");
 
-	socket_remove_drivers(s);
+	send_event(s, CS_EVENT_CARD_REMOVAL, CS_EVENT_PRI_HIGH);
 	s->state &= SOCKET_INUSE | SOCKET_PRESENT;
 	msleep(shutdown_delay * 10);
 	s->state &= SOCKET_INUSE;
@@ -462,7 +455,8 @@ static int socket_setup(struct pcmcia_socket *skt, int initial_delay)
 			return -EINVAL;
 		}
 		skt->state |= SOCKET_CARDBUS;
-	}
+	} else
+		skt->state &= ~SOCKET_CARDBUS;
 
 	/*
 	 * Decode the card voltage requirements, and apply power to the card.
@@ -544,6 +538,8 @@ static int socket_suspend(struct pcmcia_socket *skt)
 	if (skt->state & SOCKET_SUSPEND)
 		return -EBUSY;
 
+	skt->suspended_state = skt->state;
+
 	send_event(skt, CS_EVENT_PM_SUSPEND, CS_EVENT_PRI_LOW);
 	skt->socket = dead_socket;
 	skt->ops->set_socket(skt, &skt->socket);
@@ -566,38 +562,37 @@ static int socket_early_resume(struct pcmcia_socket *skt)
 
 static int socket_late_resume(struct pcmcia_socket *skt)
 {
-	if (!(skt->state & SOCKET_PRESENT)) {
-		skt->state &= ~SOCKET_SUSPEND;
+	skt->state &= ~SOCKET_SUSPEND;
+
+	if (!(skt->state & SOCKET_PRESENT))
+		return socket_insert(skt);
+
+	if (skt->resume_status) {
+		socket_shutdown(skt);
+		return 0;
+	}
+
+	if (skt->suspended_state != skt->state) {
+		dev_dbg(&skt->dev,
+			"suspend state 0x%x != resume state 0x%x\n",
+			skt->suspended_state, skt->state);
+
+		socket_shutdown(skt);
 		return socket_insert(skt);
 	}
 
-	if (skt->resume_status == 0) {
-		/*
-		 * FIXME: need a better check here for cardbus cards.
-		 */
-		if (verify_cis_cache(skt) != 0) {
-			dev_dbg(&skt->dev, "cis mismatch - different card\n");
-			socket_remove_drivers(skt);
-			destroy_cis_cache(skt);
-			kfree(skt->fake_cis);
-			skt->fake_cis = NULL;
-			/*
-			 * Workaround: give DS time to schedule removal.
-			 * Remove me once the 100ms delay is eliminated
-			 * in ds.c
-			 */
-			msleep(200);
-			send_event(skt, CS_EVENT_CARD_INSERTION, CS_EVENT_PRI_LOW);
-		} else {
-			dev_dbg(&skt->dev, "cis matches cache\n");
-			send_event(skt, CS_EVENT_PM_RESUME, CS_EVENT_PRI_LOW);
-		}
-	} else {
-		socket_shutdown(skt);
+#ifdef CONFIG_CARDBUS
+	if (skt->state & SOCKET_CARDBUS) {
+		/* We can't be sure the CardBus card is the same
+		 * as the one previously inserted. Therefore, remove
+		 * and re-add... */
+		cb_free(skt);
+		cb_alloc(skt);
+		return 0;
 	}
+#endif
 
-	skt->state &= ~SOCKET_SUSPEND;
-
+	send_event(skt, CS_EVENT_PM_RESUME, CS_EVENT_PRI_LOW);
 	return 0;
 }
 

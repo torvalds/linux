@@ -137,6 +137,7 @@ struct pcmcia_socket {
 	spinlock_t			lock;
 	socket_state_t			socket;
 	u_int				state;
+	u_int				suspended_state;	/* state before suspend */
 	u_short				functions;
 	u_short				lock_count;
 	pccard_mem_map			cis_mem;
