@@ -427,6 +427,7 @@ static ssize_t proc_aggr_write(struct file *file, const char __user *buffer,
 	char *aggr_string;
 	int not_copied = 0;
 	unsigned long aggregation_enabled_tmp;
+	int retval;
 
 	aggr_string = kmalloc(count, GFP_KERNEL);
 
@@ -436,22 +437,21 @@ static ssize_t proc_aggr_write(struct file *file, const char __user *buffer,
 	not_copied = copy_from_user(aggr_string, buffer, count);
 	aggr_string[count - not_copied - 1] = 0;
 
-	strict_strtoul(aggr_string, 10, &aggregation_enabled_tmp);
+	retval = strict_strtoul(aggr_string, 10, &aggregation_enabled_tmp);
 
-	if ((aggregation_enabled_tmp != 0) && (aggregation_enabled_tmp != 1)) {
+	if (retval || aggregation_enabled_tmp > 1) {
 		printk(KERN_ERR "batman-adv:Aggregation can only be enabled (1) or disabled (0), given value: %li\n", aggregation_enabled_tmp);
-		goto end;
+	} else {
+		printk(KERN_INFO "batman-adv:Changing aggregation from: %s (%i) to: %s (%li)\n",
+		       (atomic_read(&aggregation_enabled) == 1 ?
+			"enabled" : "disabled"),
+		       atomic_read(&aggregation_enabled),
+		       (aggregation_enabled_tmp == 1 ? "enabled" : "disabled"),
+		       aggregation_enabled_tmp);
+		atomic_set(&aggregation_enabled,
+			   (unsigned)aggregation_enabled_tmp);
 	}
 
-	printk(KERN_INFO "batman-adv:Changing aggregation from: %s (%i) to: %s (%li)\n",
-	       (atomic_read(&aggregation_enabled) == 1 ?
-		"enabled" : "disabled"),
-	       atomic_read(&aggregation_enabled),
-	       (aggregation_enabled_tmp == 1 ? "enabled" : "disabled"),
-	       aggregation_enabled_tmp);
-
-	atomic_set(&aggregation_enabled, (unsigned)aggregation_enabled_tmp);
-end:
 	kfree(aggr_string);
 	return count;
 }
