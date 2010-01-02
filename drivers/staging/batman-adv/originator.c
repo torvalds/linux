@@ -26,6 +26,7 @@
 #include "hash.h"
 #include "translation-table.h"
 #include "routing.h"
+#include "compat.h"
 
 
 static DECLARE_DELAYED_WORK(purge_orig_wq, purge_orig);
@@ -121,7 +122,6 @@ struct orig_node *get_orig_node(uint8_t *addr)
 {
 	struct orig_node *orig_node;
 	struct hashtable_t *swaphash;
-	char orig_str[ETH_STR_LEN];
 	int size;
 
 	orig_node = ((struct orig_node *)hash_find(orig_hash, addr));
@@ -129,8 +129,7 @@ struct orig_node *get_orig_node(uint8_t *addr)
 	if (orig_node != NULL)
 		return orig_node;
 
-	addr_to_string(orig_str, addr);
-	bat_dbg(DBG_BATMAN, "Creating new originator: %s \n", orig_str);
+	bat_dbg(DBG_BATMAN, "Creating new originator: %pM \n", addr);
 
 	orig_node = kmalloc(sizeof(struct orig_node), GFP_ATOMIC);
 	if (!orig_node)
@@ -186,7 +185,6 @@ static bool purge_orig_neighbors(struct orig_node *orig_node,
 				 struct neigh_node **best_neigh_node)
 {
 	struct list_head *list_pos, *list_pos_tmp;
-	char neigh_str[ETH_STR_LEN], orig_str[ETH_STR_LEN];
 	struct neigh_node *neigh_node;
 	bool neigh_purged = false;
 
@@ -201,9 +199,7 @@ static bool purge_orig_neighbors(struct orig_node *orig_node,
 			       (neigh_node->last_valid +
 				((PURGE_TIMEOUT * HZ) / 1000)))) {
 
-			addr_to_string(neigh_str, neigh_node->addr);
-			addr_to_string(orig_str, orig_node->orig);
-			bat_dbg(DBG_BATMAN, "neighbor timeout: originator %s, neighbor: %s, last_valid %lu\n", orig_str, neigh_str, (neigh_node->last_valid / HZ));
+			bat_dbg(DBG_BATMAN, "neighbor timeout: originator %pM, neighbor: %pM, last_valid %lu\n", orig_node->orig, neigh_node->addr, (neigh_node->last_valid / HZ));
 
 			neigh_purged = true;
 			list_del(list_pos);
@@ -221,17 +217,14 @@ static bool purge_orig_neighbors(struct orig_node *orig_node,
 static bool purge_orig_node(struct orig_node *orig_node)
 {
 	struct neigh_node *best_neigh_node;
-	char orig_str[ETH_STR_LEN];
-
-	addr_to_string(orig_str, orig_node->orig);
 
 	if (time_after(jiffies,
 		       (orig_node->last_valid +
 			((2 * PURGE_TIMEOUT * HZ) / 1000)))) {
 
 		bat_dbg(DBG_BATMAN,
-			"Originator timeout: originator %s, last_valid %lu\n",
-			orig_str, (orig_node->last_valid / HZ));
+			"Originator timeout: originator %pM, last_valid %lu\n",
+			orig_node->orig, (orig_node->last_valid / HZ));
 		return true;
 	} else {
 		if (purge_orig_neighbors(orig_node, &best_neigh_node))

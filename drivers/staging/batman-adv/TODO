@@ -17,10 +17,6 @@
 -> transtable_global (read-only) [outputs the global translation table]
 -> transtable_local (read-only) [outputs the local translation table]
 
-=> logging
-* make use of printk %pM support instead of converting mac addresses
-* manually
-
 => strip out all backward compatibility support to older kernels
    (only found in compat.h)
 

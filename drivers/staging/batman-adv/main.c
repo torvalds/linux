@@ -54,7 +54,7 @@ unsigned char broadcastAddr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 atomic_t module_state;
 
 static struct packet_type batman_adv_packet_type __read_mostly = {
-	.type = cpu_to_be16(ETH_P_BATMAN),
+	.type = __constant_htons(ETH_P_BATMAN),
 	.func = batman_skb_recv,
 };
 

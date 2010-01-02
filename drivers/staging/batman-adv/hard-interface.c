@@ -74,7 +74,6 @@ int hardif_min_mtu(void)
 static void check_known_mac_addr(uint8_t *addr)
 {
 	struct batman_if *batman_if;
-	char mac_string[ETH_STR_LEN];
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(batman_if, &if_list, list) {
@@ -85,9 +84,8 @@ static void check_known_mac_addr(uint8_t *addr)
 		if (!compare_orig(batman_if->net_dev->dev_addr, addr))
 			continue;
 
-		addr_to_string(mac_string, addr);
-		printk(KERN_WARNING "batman-adv:The newly added mac address (%s) already exists on: %s\n",
-		       mac_string, batman_if->dev);
+		printk(KERN_WARNING "batman-adv:The newly added mac address (%pM) already exists on: %s\n",
+		       addr, batman_if->dev);
 		printk(KERN_WARNING "batman-adv:It is strongly recommended to keep mac addresses unique to avoid problems!\n");
 	}
 	rcu_read_unlock();
@@ -447,9 +445,11 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	if (!batman_if)
 		goto err_free;
 
-    stats = &skb->dev->stats;
-    stats->rx_packets++;
-    stats->rx_bytes += skb->len;
+    stats = (struct net_device_stats *) dev_get_stats(skb->dev);
+	if (stats) {
+		stats->rx_packets++;
+		stats->rx_bytes += skb->len;
+	}
 
 	batman_packet = (struct batman_packet *)skb->data;
 

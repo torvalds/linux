@@ -19,6 +19,7 @@
  *
  */
 
+#include <linux/device.h>
 #include "main.h"
 #include "device.h"
 #include "send.h"

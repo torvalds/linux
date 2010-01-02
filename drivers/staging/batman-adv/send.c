@@ -132,7 +132,6 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 	uint8_t packet_num;
 	int16_t buff_pos;
 	struct batman_packet *batman_packet;
-	char orig_str[ETH_STR_LEN];
 
 	if (batman_if->if_active != IF_ACTIVE)
 		return;
@@ -154,15 +153,14 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 		else
 			batman_packet->flags &= ~DIRECTLINK;
 
-		addr_to_string(orig_str, batman_packet->orig);
 		fwd_str = (packet_num > 0 ? "Forwarding" : (forw_packet->own ?
 							    "Sending own" :
 							    "Forwarding"));
 		bat_dbg(DBG_BATMAN,
-			"%s %spacket (originator %s, seqno %d, TQ %d, TTL %d, IDF %s) on interface %s [%s]\n",
+			"%s %spacket (originator %pM, seqno %d, TQ %d, TTL %d, IDF %s) on interface %s [%s]\n",
 			fwd_str,
 			(packet_num > 0 ? "aggregated " : ""),
-			orig_str, ntohs(batman_packet->seqno),
+			batman_packet->orig, ntohs(batman_packet->seqno),
 			batman_packet->tq, batman_packet->ttl,
 			(batman_packet->flags & DIRECTLINK ?
 			 "on" : "off"),
@@ -186,7 +184,6 @@ static void send_packet(struct forw_packet *forw_packet)
 	struct batman_if *batman_if;
 	struct batman_packet *batman_packet =
 		(struct batman_packet *)(forw_packet->packet_buff);
-	char orig_str[ETH_STR_LEN];
 	unsigned char directlink = (batman_packet->flags & DIRECTLINK ? 1 : 0);
 
 	if (!forw_packet->if_incoming) {
@@ -197,8 +194,6 @@ static void send_packet(struct forw_packet *forw_packet)
 	if (forw_packet->if_incoming->if_active != IF_ACTIVE)
 		return;
 
-	addr_to_string(orig_str, batman_packet->orig);
-
 	/* multihomed peer assumed */
 	/* non-primary OGMs are only broadcasted on their interface */
 	if ((directlink && (batman_packet->ttl == 1)) ||
@@ -206,9 +201,9 @@ static void send_packet(struct forw_packet *forw_packet)
 
 		/* FIXME: what about aggregated packets ? */
 		bat_dbg(DBG_BATMAN,
-			"%s packet (originator %s, seqno %d, TTL %d) on interface %s [%s]\n",
+			"%s packet (originator %pM, seqno %d, TTL %d) on interface %s [%s]\n",
 			(forw_packet->own ? "Sending own" : "Forwarding"),
-			orig_str, ntohs(batman_packet->seqno),
+			batman_packet->orig, ntohs(batman_packet->seqno),
 			batman_packet->ttl, forw_packet->if_incoming->dev,
 			forw_packet->if_incoming->addr_str);
 
