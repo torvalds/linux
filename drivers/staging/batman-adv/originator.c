@@ -74,7 +74,7 @@ create_neighbor(struct orig_node *orig_node, struct orig_node *orig_neigh_node,
 {
 	struct neigh_node *neigh_node;
 
-	bat_dbg(DBG_BATMAN, "Creating new last-hop neighbour of originator\n");
+	bat_dbg(DBG_BATMAN, "Creating new last-hop neighbor of originator\n");
 
 	neigh_node = kmalloc(sizeof(struct neigh_node), GFP_ATOMIC);
 	memset(neigh_node, 0, sizeof(struct neigh_node));
@@ -94,7 +94,7 @@ void free_orig_node(void *data)
 	struct neigh_node *neigh_node;
 	struct orig_node *orig_node = (struct orig_node *)data;
 
-	/* for all neighbours towards this originator ... */
+	/* for all neighbors towards this originator ... */
 	list_for_each_safe(list_pos, list_pos_tmp, &orig_node->neigh_list) {
 		neigh_node = list_entry(list_pos, struct neigh_node, list);
 
@@ -159,7 +159,7 @@ struct orig_node *get_orig_node(uint8_t *addr)
 	return orig_node;
 }
 
-static bool purge_orig_neigbours(struct orig_node *orig_node,
+static bool purge_orig_neighbors(struct orig_node *orig_node,
 				 struct neigh_node **best_neigh_node)
 {
 	struct list_head *list_pos, *list_pos_tmp;
@@ -170,7 +170,7 @@ static bool purge_orig_neigbours(struct orig_node *orig_node,
 	*best_neigh_node = NULL;
 
 
-	/* for all neighbours towards this originator ... */
+	/* for all neighbors towards this originator ... */
 	list_for_each_safe(list_pos, list_pos_tmp, &orig_node->neigh_list) {
 		neigh_node = list_entry(list_pos, struct neigh_node, list);
 
@@ -180,7 +180,7 @@ static bool purge_orig_neigbours(struct orig_node *orig_node,
 
 			addr_to_string(neigh_str, neigh_node->addr);
 			addr_to_string(orig_str, orig_node->orig);
-			bat_dbg(DBG_BATMAN, "Neighbour timeout: originator %s, neighbour: %s, last_valid %lu\n", orig_str, neigh_str, (neigh_node->last_valid / HZ));
+			bat_dbg(DBG_BATMAN, "neighbor timeout: originator %s, neighbor: %s, last_valid %lu\n", orig_str, neigh_str, (neigh_node->last_valid / HZ));
 
 			neigh_purged = true;
 			list_del(list_pos);
@@ -211,7 +211,7 @@ static bool purge_orig_node(struct orig_node *orig_node)
 			orig_str, (orig_node->last_valid / HZ));
 		return true;
 	} else {
-		if (purge_orig_neigbours(orig_node, &best_neigh_node))
+		if (purge_orig_neighbors(orig_node, &best_neigh_node))
 			update_routes(orig_node, best_neigh_node,
 				      orig_node->hna_buff,
 				      orig_node->hna_buff_len);

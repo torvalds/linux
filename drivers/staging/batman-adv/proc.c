@@ -404,7 +404,7 @@ static void proc_vis_read_entry(struct seq_file *seq,
 				   from, to, int_part, frac_part);
 		} else {
 			seq_printf(seq,
-				   "%s\t{ router : \"%s\", neighbour : \"%s\", label : %d.%d }",
+				   "%s\t{ router : \"%s\", neighbor : \"%s\", label : %d.%d }",
 				   (first_line ? "" : ",\n"), from, to, int_part, frac_part);
 		}
 	}

@@ -266,7 +266,7 @@ static void update_orig(struct orig_node *orig_node, struct ethhdr *ethhdr,
 					     ethhdr->h_source, if_incoming);
 	else
 		bat_dbg(DBG_BATMAN,
-			"Updating existing last-hop neighbour of originator\n");
+			"Updating existing last-hop neighbor of originator\n");
 
 	orig_node->flags = batman_packet->flags;
 	neigh_node->last_valid = jiffies;
@@ -444,7 +444,7 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 
 		orig_neigh_node = get_orig_node(ethhdr->h_source);
 
-		/* neighbour has to indicate direct link and it has to
+		/* neighbor has to indicate direct link and it has to
 		 * come via the corresponding interface */
 		/* if received seqno equals last send seqno save new
 		 * seqno for bidirectional check */
@@ -459,7 +459,7 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 				bit_packet_count(word);
 		}
 
-		bat_dbg(DBG_BATMAN, "Drop packet: originator packet from myself (via neighbour) \n");
+		bat_dbg(DBG_BATMAN, "Drop packet: originator packet from myself (via neighbor) \n");
 		return;
 	}
 
@@ -520,14 +520,14 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 		update_orig(orig_node, ethhdr, batman_packet,
 			    if_incoming, hna_buff, hna_buff_len, is_duplicate);
 
-	/* is single hop (direct) neighbour */
+	/* is single hop (direct) neighbor */
 	if (is_single_hop_neigh) {
 
 		/* mark direct link on incoming interface */
 		schedule_forward_packet(orig_node, ethhdr, batman_packet,
 					1, hna_buff_len, if_incoming);
 
-		bat_dbg(DBG_BATMAN, "Forwarding packet: rebroadcast neighbour packet with direct link flag\n");
+		bat_dbg(DBG_BATMAN, "Forwarding packet: rebroadcast neighbor packet with direct link flag\n");
 		return;
 	}
 

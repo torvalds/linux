@@ -75,7 +75,7 @@ struct neigh_node {
 	uint8_t tq_index;
 	uint8_t tq_avg;
 	uint8_t last_ttl;
-	unsigned long last_valid;            /* when last packet via this neighbour was received */
+	unsigned long last_valid;            /* when last packet via this neighbor was received */
 	TYPE_OF_WORD real_bits[NUM_WORDS];
 	struct orig_node *orig_node;
 	struct batman_if *if_incoming;
