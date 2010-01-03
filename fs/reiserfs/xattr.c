@@ -495,7 +495,7 @@ reiserfs_xattr_set_handle(struct reiserfs_transaction_handle *th,
 		return PTR_ERR(dentry);
 	}
 
-	down_read(&REISERFS_I(inode)->i_xattr_sem);
+	down_write(&REISERFS_I(inode)->i_xattr_sem);
 
 	reiserfs_write_lock(inode->i_sb);
 
