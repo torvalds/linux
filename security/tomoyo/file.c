@@ -167,9 +167,6 @@ static struct tomoyo_path_info *tomoyo_get_path(struct path *path)
 	return NULL;
 }
 
-/* Lock for domain->acl_info_list. */
-DECLARE_RWSEM(tomoyo_domain_acl_info_list_lock);
-
 static int tomoyo_update_double_path_acl(const u8 type, const char *filename1,
 					 const char *filename2,
 					 struct tomoyo_domain_info *
@@ -204,7 +201,6 @@ static int tomoyo_update_single_path_acl(const u8 type, const char *filename,
  * belongs to.
  */
 static LIST_HEAD(tomoyo_globally_readable_list);
-static DECLARE_RWSEM(tomoyo_globally_readable_list_lock);
 
 /**
  * tomoyo_update_globally_readable_entry - Update "struct tomoyo_globally_readable_file_entry" list.
@@ -229,7 +225,7 @@ static int tomoyo_update_globally_readable_entry(const char *filename,
 	saved_filename = tomoyo_save_name(filename);
 	if (!saved_filename)
 		return -ENOMEM;
-	down_write(&tomoyo_globally_readable_list_lock);
+	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_globally_readable_list, list) {
 		if (ptr->filename != saved_filename)
 			continue;
@@ -248,7 +244,7 @@ static int tomoyo_update_globally_readable_entry(const char *filename,
 	list_add_tail_rcu(&new_entry->list, &tomoyo_globally_readable_list);
 	error = 0;
  out:
-	up_write(&tomoyo_globally_readable_list_lock);
+	mutex_unlock(&tomoyo_policy_lock);
 	return error;
 }
 
@@ -352,7 +348,6 @@ bool tomoyo_read_globally_readable_policy(struct tomoyo_io_buffer *head)
  * current process from accessing other process's information.
  */
 static LIST_HEAD(tomoyo_pattern_list);
-static DECLARE_RWSEM(tomoyo_pattern_list_lock);
 
 /**
  * tomoyo_update_file_pattern_entry - Update "struct tomoyo_pattern_entry" list.
@@ -377,7 +372,7 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
 	saved_pattern = tomoyo_save_name(pattern);
 	if (!saved_pattern)
 		return -ENOMEM;
-	down_write(&tomoyo_pattern_list_lock);
+	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_pattern_list, list) {
 		if (saved_pattern != ptr->pattern)
 			continue;
@@ -396,7 +391,7 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
 	list_add_tail_rcu(&new_entry->list, &tomoyo_pattern_list);
 	error = 0;
  out:
-	up_write(&tomoyo_pattern_list_lock);
+	mutex_unlock(&tomoyo_policy_lock);
 	return error;
 }
 
@@ -505,7 +500,6 @@ bool tomoyo_read_file_pattern(struct tomoyo_io_buffer *head)
  * need to worry whether the file is already unlink()ed or not.
  */
 static LIST_HEAD(tomoyo_no_rewrite_list);
-static DECLARE_RWSEM(tomoyo_no_rewrite_list_lock);
 
 /**
  * tomoyo_update_no_rewrite_entry - Update "struct tomoyo_no_rewrite_entry" list.
@@ -529,7 +523,7 @@ static int tomoyo_update_no_rewrite_entry(const char *pattern,
 	saved_pattern = tomoyo_save_name(pattern);
 	if (!saved_pattern)
 		return -ENOMEM;
-	down_write(&tomoyo_no_rewrite_list_lock);
+	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_no_rewrite_list, list) {
 		if (ptr->pattern != saved_pattern)
 			continue;
@@ -548,7 +542,7 @@ static int tomoyo_update_no_rewrite_entry(const char *pattern,
 	list_add_tail_rcu(&new_entry->list, &tomoyo_no_rewrite_list);
 	error = 0;
  out:
-	up_write(&tomoyo_no_rewrite_list_lock);
+	mutex_unlock(&tomoyo_policy_lock);
 	return error;
 }
 
@@ -881,7 +875,7 @@ static int tomoyo_update_single_path_acl(const u8 type, const char *filename,
 	saved_filename = tomoyo_save_name(filename);
 	if (!saved_filename)
 		return -ENOMEM;
-	down_write(&tomoyo_domain_acl_info_list_lock);
+	mutex_lock(&tomoyo_policy_lock);
 	if (is_delete)
 		goto delete;
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
@@ -943,7 +937,7 @@ static int tomoyo_update_single_path_acl(const u8 type, const char *filename,
 		break;
 	}
  out:
-	up_write(&tomoyo_domain_acl_info_list_lock);
+	mutex_unlock(&tomoyo_policy_lock);
 	return error;
 }
 
@@ -981,7 +975,7 @@ static int tomoyo_update_double_path_acl(const u8 type, const char *filename1,
 	saved_filename2 = tomoyo_save_name(filename2);
 	if (!saved_filename1 || !saved_filename2)
 		return -ENOMEM;
-	down_write(&tomoyo_domain_acl_info_list_lock);
+	mutex_lock(&tomoyo_policy_lock);
 	if (is_delete)
 		goto delete;
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
@@ -1027,7 +1021,7 @@ static int tomoyo_update_double_path_acl(const u8 type, const char *filename1,
 		break;
 	}
  out:
-	up_write(&tomoyo_domain_acl_info_list_lock);
+	mutex_unlock(&tomoyo_policy_lock);
 	return error;
 }
 

@@ -58,7 +58,6 @@ struct tomoyo_domain_info tomoyo_kernel_domain;
  * exceptions.
  */
 LIST_HEAD(tomoyo_domain_list);
-DECLARE_RWSEM(tomoyo_domain_list_lock);
 
 /*
  * tomoyo_domain_initializer_entry is a structure which is used for holding
@@ -206,7 +205,6 @@ const char *tomoyo_get_last_name(const struct tomoyo_domain_info *domain)
  * unless executed from "<kernel> /etc/rc.d/init.d/httpd" domain.
  */
 static LIST_HEAD(tomoyo_domain_initializer_list);
-static DECLARE_RWSEM(tomoyo_domain_initializer_list_lock);
 
 /**
  * tomoyo_update_domain_initializer_entry - Update "struct tomoyo_domain_initializer_entry" list.
@@ -247,7 +245,7 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 	saved_program = tomoyo_save_name(program);
 	if (!saved_program)
 		return -ENOMEM;
-	down_write(&tomoyo_domain_initializer_list_lock);
+	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_domain_initializer_list, list) {
 		if (ptr->is_not != is_not ||
 		    ptr->domainname != saved_domainname ||
@@ -271,7 +269,7 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 	list_add_tail_rcu(&new_entry->list, &tomoyo_domain_initializer_list);
 	error = 0;
  out:
-	up_write(&tomoyo_domain_initializer_list_lock);
+	mutex_unlock(&tomoyo_policy_lock);
 	return error;
 }
 
@@ -423,7 +421,6 @@ static bool tomoyo_is_domain_initializer(const struct tomoyo_path_info *
  * explicitly specified by "initialize_domain".
  */
 static LIST_HEAD(tomoyo_domain_keeper_list);
-static DECLARE_RWSEM(tomoyo_domain_keeper_list_lock);
 
 /**
  * tomoyo_update_domain_keeper_entry - Update "struct tomoyo_domain_keeper_entry" list.
@@ -464,7 +461,7 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 	saved_domainname = tomoyo_save_name(domainname);
 	if (!saved_domainname)
 		return -ENOMEM;
-	down_write(&tomoyo_domain_keeper_list_lock);
+	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_domain_keeper_list, list) {
 		if (ptr->is_not != is_not ||
 		    ptr->domainname != saved_domainname ||
@@ -488,7 +485,7 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 	list_add_tail_rcu(&new_entry->list, &tomoyo_domain_keeper_list);
 	error = 0;
  out:
-	up_write(&tomoyo_domain_keeper_list_lock);
+	mutex_unlock(&tomoyo_policy_lock);
 	return error;
 }
 
@@ -624,7 +621,6 @@ static bool tomoyo_is_domain_keeper(const struct tomoyo_path_info *domainname,
  * execve() succeeds is calculated using /bin/cat rather than /bin/busybox .
  */
 static LIST_HEAD(tomoyo_alias_list);
-static DECLARE_RWSEM(tomoyo_alias_list_lock);
 
 /**
  * tomoyo_update_alias_entry - Update "struct tomoyo_alias_entry" list.
@@ -654,7 +650,7 @@ static int tomoyo_update_alias_entry(const char *original_name,
 	saved_aliased_name = tomoyo_save_name(aliased_name);
 	if (!saved_original_name || !saved_aliased_name)
 		return -ENOMEM;
-	down_write(&tomoyo_alias_list_lock);
+	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_alias_list, list) {
 		if (ptr->original_name != saved_original_name ||
 		    ptr->aliased_name != saved_aliased_name)
@@ -675,7 +671,7 @@ static int tomoyo_update_alias_entry(const char *original_name,
 	list_add_tail_rcu(&new_entry->list, &tomoyo_alias_list);
 	error = 0;
  out:
-	up_write(&tomoyo_alias_list_lock);
+	mutex_unlock(&tomoyo_policy_lock);
 	return error;
 }
 
@@ -745,7 +741,7 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 	struct tomoyo_domain_info *domain = NULL;
 	const struct tomoyo_path_info *saved_domainname;
 
-	down_write(&tomoyo_domain_list_lock);
+	mutex_lock(&tomoyo_policy_lock);
 	domain = tomoyo_find_domain(domainname);
 	if (domain)
 		goto out;
@@ -792,7 +788,7 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 		list_add_tail_rcu(&domain->list, &tomoyo_domain_list);
 	}
  out:
-	up_write(&tomoyo_domain_list_lock);
+	mutex_unlock(&tomoyo_policy_lock);
 	return domain;
 }
 

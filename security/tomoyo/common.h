@@ -431,10 +431,9 @@ static inline bool tomoyo_is_invalid(const unsigned char c)
 
 /* The list for "struct tomoyo_domain_info". */
 extern struct list_head tomoyo_domain_list;
-extern struct rw_semaphore tomoyo_domain_list_lock;
 
-/* Lock for domain->acl_info_list. */
-extern struct rw_semaphore tomoyo_domain_acl_info_list_lock;
+/* Lock for protecting policy. */
+extern struct mutex tomoyo_policy_lock;
 
 /* Has /sbin/init started? */
 extern bool tomoyo_policy_loaded;

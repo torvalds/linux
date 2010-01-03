@@ -16,6 +16,9 @@
 #include "common.h"
 #include "tomoyo.h"
 
+/* Lock for protecting policy. */
+DEFINE_MUTEX(tomoyo_policy_lock);
+
 /* Has loading policy done? */
 bool tomoyo_policy_loaded;
 
@@ -1086,7 +1089,6 @@ struct tomoyo_policy_manager_entry {
  * # cat /sys/kernel/security/tomoyo/manager
  */
 static LIST_HEAD(tomoyo_policy_manager_list);
-static DECLARE_RWSEM(tomoyo_policy_manager_list_lock);
 
 /**
  * tomoyo_update_manager_entry - Add a manager entry.
@@ -1118,7 +1120,7 @@ static int tomoyo_update_manager_entry(const char *manager,
 	saved_manager = tomoyo_save_name(manager);
 	if (!saved_manager)
 		return -ENOMEM;
-	down_write(&tomoyo_policy_manager_list_lock);
+	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_policy_manager_list, list) {
 		if (ptr->manager != saved_manager)
 			continue;
@@ -1138,7 +1140,7 @@ static int tomoyo_update_manager_entry(const char *manager,
 	list_add_tail_rcu(&new_entry->list, &tomoyo_policy_manager_list);
 	error = 0;
  out:
-	up_write(&tomoyo_policy_manager_list_lock);
+	mutex_unlock(&tomoyo_policy_lock);
 	return error;
 }
 
@@ -1315,7 +1317,7 @@ static int tomoyo_delete_domain(char *domainname)
 
 	name.name = domainname;
 	tomoyo_fill_path_info(&name);
-	down_write(&tomoyo_domain_list_lock);
+	mutex_lock(&tomoyo_policy_lock);
 	/* Is there an active domain? */
 	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list) {
 		/* Never delete tomoyo_kernel_domain */
@@ -1327,7 +1329,7 @@ static int tomoyo_delete_domain(char *domainname)
 		domain->is_deleted = true;
 		break;
 	}
-	up_write(&tomoyo_domain_list_lock);
+	mutex_unlock(&tomoyo_policy_lock);
 	return 0;
 }
 
