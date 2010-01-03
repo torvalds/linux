@@ -62,7 +62,6 @@ nv04_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 	struct drm_device *dev = par->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
-	uint32_t color = ((uint32_t *) info->pseudo_palette)[rect->color];
 
 	if (info->state != FBINFO_STATE_RUNNING)
 		return;
@@ -80,7 +79,11 @@ nv04_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 	BEGIN_RING(chan, NvSubGdiRect, 0x02fc, 1);
 	OUT_RING(chan, (rect->rop != ROP_COPY) ? 1 : 3);
 	BEGIN_RING(chan, NvSubGdiRect, 0x03fc, 1);
-	OUT_RING(chan, color);
+	if (info->fix.visual == FB_VISUAL_TRUECOLOR ||
+	    info->fix.visual == FB_VISUAL_DIRECTCOLOR)
+		OUT_RING(chan, ((uint32_t *)info->pseudo_palette)[rect->color]);
+	else
+		OUT_RING(chan, rect->color);
 	BEGIN_RING(chan, NvSubGdiRect, 0x0400, 2);
 	OUT_RING(chan, (rect->dx << 16) | rect->dy);
 	OUT_RING(chan, (rect->width << 16) | rect->height);

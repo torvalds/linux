@@ -10,7 +10,6 @@ nv50_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 	struct drm_device *dev = par->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
-	uint32_t color = ((uint32_t *) info->pseudo_palette)[rect->color];
 
 	if (info->state != FBINFO_STATE_RUNNING)
 		return;
@@ -32,7 +31,11 @@ nv50_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 		OUT_RING(chan, 1);
 	}
 	BEGIN_RING(chan, NvSub2D, 0x0588, 1);
-	OUT_RING(chan, color);
+	if (info->fix.visual == FB_VISUAL_TRUECOLOR ||
+	    info->fix.visual == FB_VISUAL_DIRECTCOLOR)
+		OUT_RING(chan, ((uint32_t *)info->pseudo_palette)[rect->color]);
+	else
+		OUT_RING(chan, rect->color);
 	BEGIN_RING(chan, NvSub2D, 0x0600, 4);
 	OUT_RING(chan, rect->dx);
 	OUT_RING(chan, rect->dy);
