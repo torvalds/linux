@@ -117,8 +117,6 @@ void __init prom_init(void)
 	board_nmi_handler_setup = mips_nmi_setup;
 	board_ejtag_handler_setup = mips_ejtag_setup;
 
-	pr_info("\nLINUX started...\n");
-
 	if (prom_argc == 1)
 		strlcat(arcs_cmdline, prom_argv, COMMAND_LINE_SIZE);
 
