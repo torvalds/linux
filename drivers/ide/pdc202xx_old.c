@@ -100,13 +100,13 @@ static int pdc202xx_test_irq(ide_hwif_t *hwif)
 		 * bit 7: error, bit 6: interrupting,
 		 * bit 5: FIFO full, bit 4: FIFO empty
 		 */
-		return ((sc1d & 0x50) == 0x40) ? 1 : 0;
+		return ((sc1d & 0x50) == 0x50) ? 1 : 0;
 	} else	{
 		/*
 		 * bit 3: error, bit 2: interrupting,
 		 * bit 1: FIFO full, bit 0: FIFO empty
 		 */
-		return ((sc1d & 0x05) == 0x04) ? 1 : 0;
+		return ((sc1d & 0x05) == 0x05) ? 1 : 0;
 	}
 }
 
