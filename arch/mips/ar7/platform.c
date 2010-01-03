@@ -34,6 +34,7 @@
 #include <linux/etherdevice.h>
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
+#include <linux/gpio.h>
 
 #include <asm/addrspace.h>
 #include <asm/mach-ar7/ar7.h>
