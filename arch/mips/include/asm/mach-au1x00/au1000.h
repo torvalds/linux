@@ -1659,7 +1659,7 @@ enum soc_au1200_ints {
 #define IOPORT_RESOURCE_START	0x00001000	/* skip legacy probing */
 #define IOPORT_RESOURCE_END	0xffffffff
 #define IOMEM_RESOURCE_START	0x10000000
-#define IOMEM_RESOURCE_END	0xffffffff
+#define IOMEM_RESOURCE_END	0xfffffffffULL
 
 #else /* Au1000 and Au1100 and Au1200 */
 
@@ -1667,7 +1667,7 @@ enum soc_au1200_ints {
 #define IOPORT_RESOURCE_START	0x10000000
 #define IOPORT_RESOURCE_END	0xffffffff
 #define IOMEM_RESOURCE_START	0x10000000
-#define IOMEM_RESOURCE_END	0xffffffff
+#define IOMEM_RESOURCE_END	0xfffffffffULL
 
 #define PCI_IO_START	0
 #define PCI_IO_END	0

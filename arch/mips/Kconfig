@@ -1725,6 +1725,9 @@ config SB1_PASS_2_1_WORKAROUNDS
 config 64BIT_PHYS_ADDR
 	bool
 
+config ARCH_PHYS_ADDR_T_64BIT
+       def_bool 64BIT_PHYS_ADDR
+
 config CPU_HAS_SMARTMIPS
 	depends on SYS_SUPPORTS_SMARTMIPS
 	bool "Support for the SmartMIPS ASE"
