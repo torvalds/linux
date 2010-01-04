@@ -21,7 +21,6 @@
 
 #include <asm/perf_event.h>
 #include <asm/ptrace.h>
-#include <asm/local.h>
 #include <asm/pcr.h>
 
 /* We don't have a real NMI on sparc64, but we can fake one
