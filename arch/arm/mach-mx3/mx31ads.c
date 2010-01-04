@@ -302,6 +302,7 @@ static struct regulator_init_data ldo1_data = {
 		.min_uV = 2800000,
 		.max_uV = 2800000,
 		.valid_modes_mask = REGULATOR_MODE_NORMAL,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
 		.apply_uV = 1,
 	},
 };
@@ -318,6 +319,7 @@ static struct regulator_init_data ldo2_data = {
 		.min_uV = 3300000,
 		.max_uV = 3300000,
 		.valid_modes_mask = REGULATOR_MODE_NORMAL,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
 		.apply_uV = 1,
 	},
 	.num_consumer_supplies = ARRAY_SIZE(ldo2_consumers),
