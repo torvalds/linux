@@ -1442,7 +1442,7 @@ static int is_cxgb3_dev(struct net_device *dev)
 	struct cxgb3i_sdev_data *cdata;
 	struct net_device *ndev = dev;
 
-	if (dev->priv_flags && IFF_802_1Q_VLAN)
+	if (dev->priv_flags & IFF_802_1Q_VLAN)
 		ndev = vlan_dev_real_dev(dev);
 
 	write_lock(&cdata_rwlock);
