@@ -1191,7 +1191,6 @@ static int rcu_process_dyntick(struct rcu_state *rsp, long lastcomp,
 static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 {
 	unsigned long flags;
-	long lastcomp;
 	struct rcu_node *rnp = rcu_get_root(rsp);
 	u8 forcenow;
 	u8 gpdone;
@@ -1207,7 +1206,6 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 		goto unlock_fqs_ret; /* no emergency and done recently. */
 	rsp->n_force_qs++;
 	spin_lock(&rnp->lock);  /* irqs already disabled */
-	lastcomp = rsp->gpnum - 1;
 	rsp->jiffies_force_qs = jiffies + RCU_JIFFIES_TILL_FORCE_QS;
 	if(!rcu_gp_in_progress(rsp)) {
 		rsp->n_force_qs_ngp++;
@@ -1228,7 +1226,7 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 			break; /* So gcc recognizes the dead code. */
 
 		/* Record dyntick-idle state. */
-		gpdone = rcu_process_dyntick(rsp, lastcomp,
+		gpdone = rcu_process_dyntick(rsp, rsp->gpnum - 1,
 					     dyntick_save_progress_counter);
 		spin_lock(&rnp->lock);  /* irqs already disabled */
 		if (gpdone)
@@ -1239,11 +1237,9 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 
 		/* Update state, record completion counter. */
 		forcenow = 0;
-		if (lastcomp + 1 == rsp->gpnum &&
-		    lastcomp == rsp->completed) {
+		if (rsp->gpnum - 1 == rsp->completed) {
 			forcenow = rsp->signaled == RCU_SAVE_COMPLETED;
 			rsp->signaled = RCU_FORCE_QS;
-			rsp->completed_fqs = lastcomp;
 		}
 		if (!forcenow)
 			break;
@@ -1253,7 +1249,7 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 
 		/* Check dyntick-idle state, send IPI to laggarts. */
 		spin_unlock(&rnp->lock);  /* irqs remain disabled */
-		gpdone = rcu_process_dyntick(rsp, rsp->completed_fqs,
+		gpdone = rcu_process_dyntick(rsp, rsp->gpnum - 1,
 					     rcu_implicit_dynticks_qs);
 
 		/* Leave state in case more forcing is required. */
