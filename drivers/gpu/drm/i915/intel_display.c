@@ -3195,7 +3195,20 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		 * appropriately here, but we need to look more thoroughly into how
 		 * panels behave in the two modes.
 		 */
-
+		/* set the dithering flag */
+		if (IS_I965G(dev)) {
+			if (dev_priv->lvds_dither) {
+				if (IS_IRONLAKE(dev))
+					pipeconf |= PIPE_ENABLE_DITHER;
+				else
+					lvds |= LVDS_ENABLE_DITHER;
+			} else {
+				if (IS_IRONLAKE(dev))
+					pipeconf &= ~PIPE_ENABLE_DITHER;
+				else
+					lvds &= ~LVDS_ENABLE_DITHER;
+			}
+		}
 		I915_WRITE(lvds_reg, lvds);
 		I915_READ(lvds_reg);
 	}
