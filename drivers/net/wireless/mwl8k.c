@@ -2958,57 +2958,71 @@ static void mwl8k_bss_info_changed(struct ieee80211_hw *hw,
 				   u32 changed)
 {
 	struct mwl8k_priv *priv = hw->priv;
+	u32 ap_legacy_rates;
 	int rc;
 
-	if ((changed & BSS_CHANGED_ASSOC) == 0)
+	if (mwl8k_fw_lock(hw))
 		return;
 
-	priv->capture_beacon = false;
+	/*
+	 * No need to capture a beacon if we're no longer associated.
+	 */
+	if ((changed & BSS_CHANGED_ASSOC) && !vif->bss_conf.assoc)
+		priv->capture_beacon = false;
 
-	rc = mwl8k_fw_lock(hw);
-	if (rc)
-		return;
-
+	/*
+	 * Get the AP's legacy rates.
+	 */
+	ap_legacy_rates = 0;
 	if (vif->bss_conf.assoc) {
 		struct ieee80211_sta *ap;
-		u32 legacy_rate_mask;
 
 		rcu_read_lock();
+
 		ap = ieee80211_find_sta(vif, vif->bss_conf.bssid);
-		if (ap != NULL)
-			legacy_rate_mask = ap->supp_rates[IEEE80211_BAND_2GHZ];
-		rcu_read_unlock();
-
-		if (ap == NULL)
+		if (ap == NULL) {
+			rcu_read_unlock();
 			goto out;
+		}
 
-		/* Install rates */
-		rc = mwl8k_cmd_set_rate(hw, vif, legacy_rate_mask);
+		ap_legacy_rates = ap->supp_rates[IEEE80211_BAND_2GHZ];
+
+		rcu_read_unlock();
+	}
+
+	if ((changed & BSS_CHANGED_ASSOC) && vif->bss_conf.assoc) {
+		rc = mwl8k_cmd_set_rate(hw, vif, ap_legacy_rates);
 		if (rc)
 			goto out;
 
-		/* Turn on rate adaptation */
 		rc = mwl8k_cmd_use_fixed_rate(hw, MWL8K_USE_AUTO_RATE,
 			MWL8K_UCAST_RATE, NULL);
 		if (rc)
 			goto out;
+	}
 
-		/* Set radio preamble */
+	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
 		rc = mwl8k_set_radio_preamble(hw,
 				vif->bss_conf.use_short_preamble);
 		if (rc)
 			goto out;
+	}
 
-		/* Set slot time */
+	if (changed & BSS_CHANGED_ERP_SLOT) {
 		rc = mwl8k_cmd_set_slot(hw, vif->bss_conf.use_short_slot);
 		if (rc)
 			goto out;
+	}
 
-		/* Set AID */
-		rc = mwl8k_cmd_set_aid(hw, vif, legacy_rate_mask);
+	if (((changed & BSS_CHANGED_ASSOC) && vif->bss_conf.assoc) ||
+	    (changed & (BSS_CHANGED_ERP_CTS_PROT | BSS_CHANGED_HT))) {
+		rc = mwl8k_cmd_set_aid(hw, vif, ap_legacy_rates);
 		if (rc)
 			goto out;
+	}
 
+	if (vif->bss_conf.assoc &&
+	    (changed & (BSS_CHANGED_ASSOC | BSS_CHANGED_BEACON_INT))) {
 		/*
 		 * Finalize the join.  Tell rx handler to process
 		 * next beacon from our BSSID.
