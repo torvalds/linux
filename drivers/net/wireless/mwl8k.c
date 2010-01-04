@@ -1269,8 +1269,8 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 		}
 
 		if (priv->pending_tx_pkts < oldcount) {
-			printk(KERN_NOTICE "%s: timeout waiting for tx "
-			       "rings to drain (%d -> %d pkts), retrying\n",
+			printk(KERN_NOTICE "%s: waiting for tx rings "
+			       "to drain (%d -> %d pkts)\n",
 			       wiphy_name(hw->wiphy), oldcount,
 			       priv->pending_tx_pkts);
 			retry = 1;
