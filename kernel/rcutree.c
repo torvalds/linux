@@ -1219,7 +1219,6 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 	case RCU_GP_IDLE:
 	case RCU_GP_INIT:
 
-		spin_unlock(&rnp->lock);
 		break; /* grace period idle or initializing, ignore. */
 
 	case RCU_SAVE_DYNTICK:
@@ -1246,10 +1245,8 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 			rsp->completed_fqs = lastcomp;
 			forcenow = signaled == RCU_SAVE_COMPLETED;
 		}
-		if (!forcenow) {
-			spin_unlock(&rnp->lock);
+		if (!forcenow)
 			break;
-		}
 		/* fall into next case. */
 
 	case RCU_FORCE_QS:
@@ -1262,14 +1259,10 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 
 		/* Leave state in case more forcing is required. */
 
-		break;
-
-	default:
-
-		spin_unlock(&rnp->lock);
-		WARN_ON_ONCE(1);
+		spin_lock(&rnp->lock);
 		break;
 	}
+	spin_unlock(&rnp->lock);
 unlock_fqs_ret:
 	spin_unlock_irqrestore(&rsp->fqslock, flags);
 }
