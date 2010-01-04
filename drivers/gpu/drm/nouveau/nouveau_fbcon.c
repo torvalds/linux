@@ -64,8 +64,7 @@ nouveau_fbcon_sync(struct fb_info *info)
 		return 0;
 
 	if (RING_SPACE(chan, 4)) {
-		NV_ERROR(dev, "GPU lockup - switching to software fbcon\n");
-		info->flags |= FBINFO_HWACCEL_DISABLED;
+		nouveau_fbcon_gpu_lockup(info);
 		return 0;
 	}
 
@@ -86,8 +85,7 @@ nouveau_fbcon_sync(struct fb_info *info)
 	}
 
 	if (ret) {
-		NV_ERROR(dev, "GPU lockup - switching to software fbcon\n");
-		info->flags |= FBINFO_HWACCEL_DISABLED;
+		nouveau_fbcon_gpu_lockup(info);
 		return 0;
 	}
 
@@ -379,4 +377,13 @@ nouveau_fbcon_remove(struct drm_device *dev, struct drm_framebuffer *fb)
 	}
 
 	return 0;
+}
+
+void nouveau_fbcon_gpu_lockup(struct fb_info *info)
+{
+	struct nouveau_fbcon_par *par = info->par;
+	struct drm_device *dev = par->dev;
+
+	NV_ERROR(dev, "GPU lockup - switching to software fbcon\n");
+	info->flags |= FBINFO_HWACCEL_DISABLED;
 }
