@@ -2233,7 +2233,7 @@ static int sep_set_flow_id_handler(struct sep_device *sep,
 	return error;
 }
 
-static int sep_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
+static long sep_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	int error = 0;
 	struct sep_device *sep = filp->private_data;
@@ -2608,7 +2608,7 @@ static dev_t sep_devno;
 /* the files operations structure of the driver */
 static struct file_operations sep_file_operations = {
 	.owner = THIS_MODULE,
-	.ioctl = sep_ioctl,
+	.unlocked_ioctl = sep_ioctl,
 	.poll = sep_poll,
 	.open = sep_open,
 	.release = sep_release,
