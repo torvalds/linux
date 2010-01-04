@@ -2582,9 +2582,6 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 	bool retry_alloc = false;
 	int ret;
 
-	if (dev_priv->mm.suspended)
-		return -EBUSY;
-
 	if (obj_priv->madv != I915_MADV_WILLNEED) {
 		DRM_ERROR("Attempting to bind a purgeable object\n");
 		return -EINVAL;
