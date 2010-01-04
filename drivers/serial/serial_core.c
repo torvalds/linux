@@ -385,13 +385,20 @@ uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 		}
 
 		/*
-		 * As a last resort, if the quotient is zero,
-		 * default to 9600 bps
+		 * As a last resort, if the range cannot be met then clip to
+		 * the nearest chip supported rate.
 		 */
-		if (!hung_up)
-			tty_termios_encode_baud_rate(termios, 9600, 9600);
+		if (!hung_up) {
+			if (baud <= min)
+				tty_termios_encode_baud_rate(termios,
+							min + 1, min + 1);
+			else
+				tty_termios_encode_baud_rate(termios,
+							max - 1, max - 1);
+		}
 	}
-
+	/* Should never happen */
+	WARN_ON(1);
 	return 0;
 }
 
