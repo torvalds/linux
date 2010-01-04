@@ -81,13 +81,13 @@ struct xt_hashlimit_htable {
 	struct hlist_node node;		/* global list of all htables */
 	atomic_t use;
 	u_int8_t family;
+	bool rnd_initialized;
 
 	struct hashlimit_cfg1 cfg;	/* config */
 
 	/* used internally */
 	spinlock_t lock;		/* lock for list_head */
 	u_int32_t rnd;			/* random seed for hash */
-	int rnd_initialized;
 	unsigned int count;		/* number entries in table */
 	struct timer_list timer;	/* timer for gc */
 
@@ -150,7 +150,7 @@ dsthash_alloc_init(struct xt_hashlimit_htable *ht,
 	 * the first hashtable entry */
 	if (!ht->rnd_initialized) {
 		get_random_bytes(&ht->rnd, sizeof(ht->rnd));
-		ht->rnd_initialized = 1;
+		ht->rnd_initialized = true;
 	}
 
 	if (ht->cfg.max && ht->count >= ht->cfg.max) {
@@ -235,7 +235,7 @@ static int htable_create_v0(struct xt_hashlimit_info *minfo, u_int8_t family)
 	atomic_set(&hinfo->use, 1);
 	hinfo->count = 0;
 	hinfo->family = family;
-	hinfo->rnd_initialized = 0;
+	hinfo->rnd_initialized = false;
 	spin_lock_init(&hinfo->lock);
 	hinfo->pde = proc_create_data(minfo->name, 0,
 		(family == NFPROTO_IPV4) ?
@@ -296,7 +296,7 @@ static int htable_create(struct xt_hashlimit_mtinfo1 *minfo, u_int8_t family)
 	atomic_set(&hinfo->use, 1);
 	hinfo->count = 0;
 	hinfo->family = family;
-	hinfo->rnd_initialized = 0;
+	hinfo->rnd_initialized = false;
 	spin_lock_init(&hinfo->lock);
 
 	hinfo->pde = proc_create_data(minfo->name, 0,
