@@ -267,11 +267,7 @@ static const struct snd_kcontrol_new tpa6130a2_controls[] = {
  */
 static void tpa6130a2_channel_enable(u8 channel, int enable)
 {
-	struct	tpa6130a2_data *data;
 	u8	val;
-
-	BUG_ON(tpa6130a2_client == NULL);
-	data = i2c_get_clientdata(tpa6130a2_client);
 
 	if (enable) {
 		/* Enable channel */
