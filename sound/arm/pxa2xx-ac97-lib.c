@@ -22,7 +22,6 @@
 
 #include <asm/irq.h>
 #include <mach/regs-ac97.h>
-#include <mach/pxa2xx-gpio.h>
 #include <mach/audio.h>
 
 static DEFINE_MUTEX(car_mutex);
@@ -336,13 +335,6 @@ int __devinit pxa2xx_ac97_hw_probe(struct platform_device *dev)
 	} else {
 		if (cpu_is_pxa27x())
 			reset_gpio = 113;
-	}
-
-	if (cpu_is_pxa25x() || cpu_is_pxa27x()) {
-		pxa_gpio_mode(GPIO31_SYNC_AC97_MD);
-		pxa_gpio_mode(GPIO30_SDATA_OUT_AC97_MD);
-		pxa_gpio_mode(GPIO28_BITCLK_AC97_MD);
-		pxa_gpio_mode(GPIO29_SDATA_IN_AC97_MD);
 	}
 
 	if (cpu_is_pxa27x()) {
