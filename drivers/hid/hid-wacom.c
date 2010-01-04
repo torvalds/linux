@@ -196,6 +196,9 @@ static int wacom_probe(struct hid_device *hdev,
 	/* Pad */
 	input->evbit[0] |= BIT(EV_MSC);
 	input->mscbit[0] |= BIT(MSC_SERIAL);
+	set_bit(BTN_0, input->keybit);
+	set_bit(BTN_1, input->keybit);
+	set_bit(BTN_TOOL_FINGER, input->keybit);
 
 	/* Distance, rubber and mouse */
 	input->absbit[0] |= BIT(ABS_DISTANCE);
