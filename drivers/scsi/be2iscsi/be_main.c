@@ -3825,8 +3825,8 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 		goto free_port;
 	}
 	phba->shost->max_id = phba->fw_config.iscsi_cid_count;
-	phba->shost->can_queue = phba->params.ios_per_ctrl;
 	beiscsi_get_params(phba);
+	phba->shost->can_queue = phba->params.ios_per_ctrl;
 	ret = beiscsi_init_port(phba);
 	if (ret < 0) {
 		shost_printk(KERN_ERR, phba->shost, "beiscsi_dev_probe-"
