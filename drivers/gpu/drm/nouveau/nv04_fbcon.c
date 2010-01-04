@@ -39,8 +39,7 @@ nv04_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 		return;
 
 	if (!(info->flags & FBINFO_HWACCEL_DISABLED) && RING_SPACE(chan, 4)) {
-		NV_ERROR(dev, "GPU lockup - switching to software fbcon\n");
-		info->flags |= FBINFO_HWACCEL_DISABLED;
+		nouveau_fbcon_gpu_lockup(info);
 	}
 
 	if (info->flags & FBINFO_HWACCEL_DISABLED) {
@@ -67,8 +66,7 @@ nv04_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 		return;
 
 	if (!(info->flags & FBINFO_HWACCEL_DISABLED) && RING_SPACE(chan, 7)) {
-		NV_ERROR(dev, "GPU lockup - switching to software fbcon\n");
-		info->flags |= FBINFO_HWACCEL_DISABLED;
+		nouveau_fbcon_gpu_lockup(info);
 	}
 
 	if (info->flags & FBINFO_HWACCEL_DISABLED) {
@@ -112,8 +110,7 @@ nv04_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 	}
 
 	if (!(info->flags & FBINFO_HWACCEL_DISABLED) && RING_SPACE(chan, 8)) {
-		NV_ERROR(dev, "GPU lockup - switching to software fbcon\n");
-		info->flags |= FBINFO_HWACCEL_DISABLED;
+		nouveau_fbcon_gpu_lockup(info);
 	}
 
 	if (info->flags & FBINFO_HWACCEL_DISABLED) {
@@ -147,8 +144,7 @@ nv04_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 		int iter_len = dsize > 128 ? 128 : dsize;
 
 		if (RING_SPACE(chan, iter_len + 1)) {
-			NV_ERROR(dev, "GPU lockup - switching to software fbcon\n");
-			info->flags |= FBINFO_HWACCEL_DISABLED;
+			nouveau_fbcon_gpu_lockup(info);
 			cfb_imageblit(info, image);
 			return;
 		}
@@ -246,8 +242,7 @@ nv04_fbcon_accel_init(struct fb_info *info)
 		return ret;
 
 	if (RING_SPACE(chan, 49)) {
-		NV_ERROR(dev, "GPU lockup - switching to software fbcon\n");
-		info->flags |= FBINFO_HWACCEL_DISABLED;
+		nouveau_fbcon_gpu_lockup(info);
 		return 0;
 	}
 
