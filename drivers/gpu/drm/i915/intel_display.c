@@ -4414,6 +4414,42 @@ static const struct drm_mode_config_funcs intel_mode_funcs = {
 	.fb_changed = intelfb_probe,
 };
 
+static struct drm_gem_object *
+intel_alloc_power_context(struct drm_device *dev)
+{
+	struct drm_gem_object *pwrctx;
+	int ret;
+
+	pwrctx = drm_gem_object_alloc(dev, 4096);
+	if (!pwrctx) {
+		DRM_DEBUG("failed to alloc power context, RC6 disabled\n");
+		return NULL;
+	}
+
+	mutex_lock(&dev->struct_mutex);
+	ret = i915_gem_object_pin(pwrctx, 4096);
+	if (ret) {
+		DRM_ERROR("failed to pin power context: %d\n", ret);
+		goto err_unref;
+	}
+
+	ret = i915_gem_object_set_to_gtt_domain(pwrctx, 1);
+	if (ret) {
+		DRM_ERROR("failed to set-domain on power context: %d\n", ret);
+		goto err_unpin;
+	}
+	mutex_unlock(&dev->struct_mutex);
+
+	return pwrctx;
+
+err_unpin:
+	i915_gem_object_unpin(pwrctx);
+err_unref:
+	drm_gem_object_unreference(pwrctx);
+	mutex_unlock(&dev->struct_mutex);
+	return NULL;
+}
+
 void intel_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -4467,41 +4503,26 @@ void intel_init_clock_gating(struct drm_device *dev)
 	 * to save state.
 	 */
 	if (I915_HAS_RC6(dev) && drm_core_check_feature(dev, DRIVER_MODESET)) {
-		struct drm_gem_object *pwrctx;
-		struct drm_i915_gem_object *obj_priv;
-		int ret;
+		struct drm_i915_gem_object *obj_priv = NULL;
 
 		if (dev_priv->pwrctx) {
 			obj_priv = dev_priv->pwrctx->driver_private;
 		} else {
-			pwrctx = drm_gem_object_alloc(dev, 4096);
-			if (!pwrctx) {
-				DRM_DEBUG("failed to alloc power context, "
-					  "RC6 disabled\n");
-				goto out;
+			struct drm_gem_object *pwrctx;
+
+			pwrctx = intel_alloc_power_context(dev);
+			if (pwrctx) {
+				dev_priv->pwrctx = pwrctx;
+				obj_priv = pwrctx->driver_private;
 			}
-
-			ret = i915_gem_object_pin(pwrctx, 4096);
-			if (ret) {
-				DRM_ERROR("failed to pin power context: %d\n",
-					  ret);
-				drm_gem_object_unreference(pwrctx);
-				goto out;
-			}
-
-			i915_gem_object_set_to_gtt_domain(pwrctx, 1);
-
-			dev_priv->pwrctx = pwrctx;
-			obj_priv = pwrctx->driver_private;
 		}
 
-		I915_WRITE(PWRCTXA, obj_priv->gtt_offset | PWRCTX_EN);
-		I915_WRITE(MCHBAR_RENDER_STANDBY,
-			   I915_READ(MCHBAR_RENDER_STANDBY) & ~RCX_SW_EXIT);
+		if (obj_priv) {
+			I915_WRITE(PWRCTXA, obj_priv->gtt_offset | PWRCTX_EN);
+			I915_WRITE(MCHBAR_RENDER_STANDBY,
+				   I915_READ(MCHBAR_RENDER_STANDBY) & ~RCX_SW_EXIT);
+		}
 	}
-
-out:
-	return;
 }
 
 /* Set up chip specific display functions */
