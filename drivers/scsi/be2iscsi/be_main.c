@@ -442,7 +442,7 @@ static irqreturn_t be_isr(int irq, void *dev_id)
 			if (phba->todo_mcc_cq)
 				queue_work(phba->wq, &phba->work_cqs);
 
-		if ((num_mcceq_processed) && (!num_ioeq_processed))
+			if ((num_mcceq_processed) && (!num_ioeq_processed))
 				hwi_ring_eq_db(phba, eq->id, 0,
 					      (num_ioeq_processed +
 					       num_mcceq_processed) , 1, 1);
@@ -651,7 +651,6 @@ struct wrb_handle *alloc_wrb_handle(struct beiscsi_hba *phba, unsigned int cid)
 			pwrb_context->alloc_index = 0;
 		else
 			pwrb_context->alloc_index++;
-
 		pwrb_handle_tmp = pwrb_context->pwrb_handle_base[
 						pwrb_context->alloc_index];
 		pwrb_handle->nxt_wrb_index = pwrb_handle_tmp->wrb_index;
@@ -791,6 +790,7 @@ be_complete_io(struct beiscsi_conn *beiscsi_conn,
 		memcpy(task->sc->sense_buffer, sense,
 		       min_t(u16, sense_len, SCSI_SENSE_BUFFERSIZE));
 	}
+
 	if (io_task->cmd_bhs->iscsi_hdr.flags & ISCSI_FLAG_CMD_READ) {
 		if (psol->dw[offsetof(struct amap_sol_cqe, i_res_cnt) / 32]
 							& SOL_RES_CNT_MASK)
@@ -1432,6 +1432,48 @@ static void hwi_process_default_pdu_ring(struct beiscsi_conn *beiscsi_conn,
 	hwi_post_async_buffers(phba, pasync_handle->is_header);
 }
 
+static void  beiscsi_process_mcc_isr(struct beiscsi_hba *phba)
+{
+	struct be_queue_info *mcc_cq;
+	struct  be_mcc_compl *mcc_compl;
+	unsigned int num_processed = 0;
+
+	mcc_cq = &phba->ctrl.mcc_obj.cq;
+	mcc_compl = queue_tail_node(mcc_cq);
+	mcc_compl->flags = le32_to_cpu(mcc_compl->flags);
+	while (mcc_compl->flags & CQE_FLAGS_VALID_MASK) {
+
+		if (num_processed >= 32) {
+			hwi_ring_cq_db(phba, mcc_cq->id,
+					num_processed, 0, 0);
+			num_processed = 0;
+		}
+		if (mcc_compl->flags & CQE_FLAGS_ASYNC_MASK) {
+			/* Interpret flags as an async trailer */
+			if (is_link_state_evt(mcc_compl->flags))
+				/* Interpret compl as a async link evt */
+				beiscsi_async_link_state_process(phba,
+				(struct be_async_event_link_state *) mcc_compl);
+			else
+				SE_DEBUG(DBG_LVL_1,
+					" Unsupported Async Event, flags"
+					" = 0x%08x \n", mcc_compl->flags);
+		} else if (mcc_compl->flags & CQE_FLAGS_COMPLETED_MASK) {
+			be_mcc_compl_process_isr(&phba->ctrl, mcc_compl);
+			atomic_dec(&phba->ctrl.mcc_obj.q.used);
+		}
+
+		mcc_compl->flags = 0;
+		queue_tail_inc(mcc_cq);
+		mcc_compl = queue_tail_node(mcc_cq);
+		mcc_compl->flags = le32_to_cpu(mcc_compl->flags);
+		num_processed++;
+	}
+
+	if (num_processed > 0)
+		hwi_ring_cq_db(phba, mcc_cq->id, num_processed, 1, 0);
+
+}
 
 static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 {
@@ -1468,6 +1510,7 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 		}
 		beiscsi_ep = ep->dd_data;
 		beiscsi_conn = beiscsi_ep->conn;
+
 		if (num_processed >= 32) {
 			hwi_ring_cq_db(phba, cq->id,
 					num_processed, 0, 0);
@@ -1603,7 +1646,7 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 	return tot_nump;
 }
 
-static void beiscsi_process_all_cqs(struct work_struct *work)
+void beiscsi_process_all_cqs(struct work_struct *work)
 {
 	unsigned long flags;
 	struct hwi_controller *phwi_ctrlr;
@@ -1623,6 +1666,7 @@ static void beiscsi_process_all_cqs(struct work_struct *work)
 		spin_lock_irqsave(&phba->isr_lock, flags);
 		phba->todo_mcc_cq = 0;
 		spin_unlock_irqrestore(&phba->isr_lock, flags);
+		beiscsi_process_mcc_isr(phba);
 	}
 
 	if (phba->todo_cq) {
@@ -3160,6 +3204,7 @@ static void hwi_purge_eq(struct beiscsi_hba *phba)
 	struct be_queue_info *eq;
 	struct be_eq_entry *eqe = NULL;
 	int i, eq_msix;
+	unsigned int num_processed;
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	phwi_context = phwi_ctrlr->phwi_ctxt;
@@ -3171,13 +3216,17 @@ static void hwi_purge_eq(struct beiscsi_hba *phba)
 	for (i = 0; i < (phba->num_cpus + eq_msix); i++) {
 		eq = &phwi_context->be_eq[i].q;
 		eqe = queue_tail_node(eq);
-
+		num_processed = 0;
 		while (eqe->dw[offsetof(struct amap_eq_entry, valid) / 32]
 					& EQE_VALID_MASK) {
 			AMAP_SET_BITS(struct amap_eq_entry, valid, eqe, 0);
 			queue_tail_inc(eq);
 			eqe = queue_tail_node(eq);
+			num_processed++;
 		}
+
+		if (num_processed)
+			hwi_ring_eq_db(phba, eq->id, 1,	num_processed, 1, 1);
 	}
 }
 
@@ -3189,8 +3238,9 @@ static void beiscsi_clean_port(struct beiscsi_hba *phba)
 	if (mgmt_status)
 		shost_printk(KERN_WARNING, phba->shost,
 			     "mgmt_epfw_cleanup FAILED \n");
-	hwi_cleanup(phba);
+
 	hwi_purge_eq(phba);
+	hwi_cleanup(phba);
 	if (ring_mode)
 		kfree(phba->sgl_hndl_array);
 	kfree(phba->io_sgl_hndl_base);
@@ -3519,6 +3569,7 @@ static int beiscsi_mtask(struct iscsi_task *task)
 	unsigned int doorbell = 0;
 	unsigned int i, cid;
 	struct iscsi_task *aborted_task;
+	unsigned int tag;
 
 	cid = beiscsi_conn->beiscsi_conn_cid;
 	pwrb = io_task->pwrb_handle->pwrb;
@@ -3550,7 +3601,6 @@ static int beiscsi_mtask(struct iscsi_task *task)
 			AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 0);
 		else
 			AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 1);
-
 		hwi_write_buffer(pwrb, task);
 		break;
 	case ISCSI_OP_TEXT:
@@ -3579,9 +3629,18 @@ static int beiscsi_mtask(struct iscsi_task *task)
 		if (!aborted_io_task->scsi_cmnd)
 			return 0;
 
-		mgmt_invalidate_icds(phba,
+		tag = mgmt_invalidate_icds(phba,
 				     aborted_io_task->psgl_handle->sgl_index,
 				     cid);
+		if (!tag) {
+			shost_printk(KERN_WARNING, phba->shost,
+				     "mgmt_invalidate_icds could not be"
+				     " submitted\n");
+		} else {
+			wait_event_interruptible(phba->ctrl.mcc_wait[tag],
+						 phba->ctrl.mcc_numtag[tag]);
+			free_mcc_tag(&phba->ctrl, tag);
+		}
 		if (ring_mode)
 			io_task->psgl_handle->type = INI_TMF_CMD;
 		else
@@ -3655,7 +3714,6 @@ static int beiscsi_task_xmit(struct iscsi_task *task)
 		writedir = 0;
 	return beiscsi_iotask(task, sg, num_sg, xferlen, writedir);
 }
-
 
 static void beiscsi_remove(struct pci_dev *pcidev)
 {
@@ -3775,6 +3833,15 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 			     "Failed in beiscsi_init_port\n");
 		goto free_port;
 	}
+
+	for (i = 0; i < MAX_MCC_CMD ; i++) {
+		init_waitqueue_head(&phba->ctrl.mcc_wait[i + 1]);
+		phba->ctrl.mcc_tag[i] = i + 1;
+		phba->ctrl.mcc_numtag[i + 1] = 0;
+		phba->ctrl.mcc_tag_available++;
+	}
+
+	phba->ctrl.mcc_alloc_index = phba->ctrl.mcc_free_index = 0;
 
 	snprintf(phba->wq_name, sizeof(phba->wq_name), "beiscsi_q_irq%u",
 		 phba->shost->host_no);

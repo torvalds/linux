@@ -250,7 +250,4 @@ unsigned char mgmt_invalidate_connection(struct beiscsi_hba *phba,
 					 unsigned short issue_reset,
 					 unsigned short savecfg_flag);
 
-unsigned char mgmt_fw_cmd(struct be_ctrl_info *ctrl,
-			  struct beiscsi_hba *phba,
-			  char *buf, unsigned int len);
 #endif

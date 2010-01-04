@@ -655,6 +655,8 @@ struct wrb_handle *alloc_wrb_handle(struct beiscsi_hba *phba, unsigned int cid);
 void
 free_mgmt_sgl_handle(struct beiscsi_hba *phba, struct sgl_handle *psgl_handle);
 
+void beiscsi_process_all_cqs(struct work_struct *work);
+
 struct pdu_nop_out {
 	u32 dw[12];
 };
