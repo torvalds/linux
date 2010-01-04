@@ -277,6 +277,8 @@ struct rcu_state {
 
 	u8	signaled ____cacheline_internodealigned_in_smp;
 						/* Force QS state. */
+	u8	fqs_active;			/* force_quiescent_state() */
+						/*  is running. */
 	long	gpnum;				/* Current gp number. */
 	long	completed;			/* # of last completed gp. */
 
