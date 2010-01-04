@@ -3501,7 +3501,7 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	if (rc) {
 		printk(KERN_ERR "%s: Cannot register device\n",
 		       wiphy_name(hw->wiphy));
-		goto err_free_irq;
+		goto err_free_queues;
 	}
 
 	printk(KERN_INFO "%s: %s v%d, %pM, %s firmware %u.%u.%u.%u\n",
