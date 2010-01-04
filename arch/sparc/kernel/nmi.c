@@ -96,7 +96,6 @@ notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
 	int cpu = smp_processor_id();
 
 	clear_softint(1 << irq);
-	pcr_ops->write(PCR_PIC_PRIV);
 
 	local_cpu_data().__nmi_count++;
 
@@ -105,6 +104,8 @@ notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
 	if (notify_die(DIE_NMI, "nmi", regs, 0,
 		       pt_regs_trap_type(regs), SIGINT) == NOTIFY_STOP)
 		touched = 1;
+	else
+		pcr_ops->write(PCR_PIC_PRIV);
 
 	sum = kstat_irqs_cpu(0, cpu);
 	if (__get_cpu_var(nmi_touch)) {
