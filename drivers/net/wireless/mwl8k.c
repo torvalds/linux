@@ -3344,11 +3344,17 @@ static void mwl8k_finalize_join_worker(struct work_struct *work)
 }
 
 enum {
-	MWL8687 = 0,
+	MWL8363 = 0,
+	MWL8687,
 	MWL8366,
 };
 
 static struct mwl8k_device_info mwl8k_info_tbl[] __devinitdata = {
+	[MWL8363] = {
+		.part_name	= "88w8363",
+		.helper_image	= "mwl8k/helper_8363.fw",
+		.fw_image	= "mwl8k/fmimage_8363.fw",
+	},
 	[MWL8687] = {
 		.part_name	= "88w8687",
 		.helper_image	= "mwl8k/helper_8687.fw",
@@ -3363,6 +3369,8 @@ static struct mwl8k_device_info mwl8k_info_tbl[] __devinitdata = {
 };
 
 static DEFINE_PCI_DEVICE_TABLE(mwl8k_pci_id_table) = {
+	{ PCI_VDEVICE(MARVELL, 0x2a0c), .driver_data = MWL8363, },
+	{ PCI_VDEVICE(MARVELL, 0x2a24), .driver_data = MWL8363, },
 	{ PCI_VDEVICE(MARVELL, 0x2a2b), .driver_data = MWL8687, },
 	{ PCI_VDEVICE(MARVELL, 0x2a30), .driver_data = MWL8687, },
 	{ PCI_VDEVICE(MARVELL, 0x2a40), .driver_data = MWL8366, },
