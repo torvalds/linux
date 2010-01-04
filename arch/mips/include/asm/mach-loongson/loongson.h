@@ -23,7 +23,7 @@ extern void mach_prepare_reboot(void);
 extern void mach_prepare_shutdown(void);
 
 /* environment arguments from bootloader */
-extern unsigned long bus_clock, cpu_clock_freq;
+extern unsigned long cpu_clock_freq;
 extern unsigned long memsize, highmemsize;
 
 /* loongson-specific command line, env and memory initialization */
