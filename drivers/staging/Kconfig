@@ -139,5 +139,7 @@ source "drivers/staging/sm7xx/Kconfig"
 
 source "drivers/staging/dt3155/Kconfig"
 
+source "drivers/staging/crystalhd/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
