@@ -99,6 +99,9 @@ extern void rcu_check_callbacks(int cpu, int user);
 extern long rcu_batches_completed(void);
 extern long rcu_batches_completed_bh(void);
 extern long rcu_batches_completed_sched(void);
+extern void rcu_force_quiescent_state(void);
+extern void rcu_bh_force_quiescent_state(void);
+extern void rcu_sched_force_quiescent_state(void);
 
 #ifdef CONFIG_NO_HZ
 void rcu_enter_nohz(void);

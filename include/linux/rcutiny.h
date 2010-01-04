@@ -62,6 +62,18 @@ static inline long rcu_batches_completed_bh(void)
 
 extern int rcu_expedited_torture_stats(char *page);
 
+static inline void rcu_force_quiescent_state(void)
+{
+}
+
+static inline void rcu_bh_force_quiescent_state(void)
+{
+}
+
+static inline void rcu_sched_force_quiescent_state(void)
+{
+}
+
 #define synchronize_rcu synchronize_sched
 
 static inline void synchronize_rcu_expedited(void)
