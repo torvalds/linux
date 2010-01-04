@@ -660,6 +660,8 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 	struct rcu_node *rnp = rcu_get_root(rsp);
 
 	if (!cpu_needs_another_gp(rsp, rdp) || rsp->fqs_active) {
+		if (cpu_needs_another_gp(rsp, rdp))
+			rsp->fqs_need_gp = 1;
 		if (rnp->completed == rsp->completed) {
 			spin_unlock_irqrestore(&rnp->lock, flags);
 			return;
@@ -1239,6 +1241,12 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 		break;
 	}
 	rsp->fqs_active = 0;
+	if (rsp->fqs_need_gp) {
+		spin_unlock(&rsp->fqslock); /* irqs remain disabled */
+		rsp->fqs_need_gp = 0;
+		rcu_start_gp(rsp, flags); /* releases rnp->lock */
+		return;
+	}
 	spin_unlock(&rnp->lock);  /* irqs remain disabled */
 unlock_fqs_ret:
 	spin_unlock_irqrestore(&rsp->fqslock, flags);
