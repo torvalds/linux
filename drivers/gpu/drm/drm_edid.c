@@ -920,18 +920,18 @@ static int drm_cvt_modes(struct drm_connector *connector,
 		if (!memcmp(cvt->code, empty, 3))
 			continue;
 
-		height = (cvt->code[0] + ((cvt->code[1] & 0xf0) << 8) + 1) * 2;
-		switch (cvt->code[1] & 0xc0) {
+		height = (cvt->code[0] + ((cvt->code[1] & 0xf0) << 4) + 1) * 2;
+		switch (cvt->code[1] & 0x0c) {
 		case 0x00:
 			width = height * 4 / 3;
 			break;
-		case 0x40:
+		case 0x04:
 			width = height * 16 / 9;
 			break;
-		case 0x80:
+		case 0x08:
 			width = height * 16 / 10;
 			break;
-		case 0xc0:
+		case 0x0c:
 			width = height * 15 / 9;
 			break;
 		}
