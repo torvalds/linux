@@ -2993,6 +2993,18 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 		/* determine panel color depth */
 		temp = I915_READ(pipeconf_reg);
+		temp &= ~PIPE_BPC_MASK;
+		if (is_lvds) {
+			int lvds_reg = I915_READ(PCH_LVDS);
+			/* the BPC will be 6 if it is 18-bit LVDS panel */
+			if ((lvds_reg & LVDS_A3_POWER_MASK) == LVDS_A3_POWER_UP)
+				temp |= PIPE_8BPC;
+			else
+				temp |= PIPE_6BPC;
+		} else
+			temp |= PIPE_8BPC;
+		I915_WRITE(pipeconf_reg, temp);
+		I915_READ(pipeconf_reg);
 
 		switch (temp & PIPE_BPC_MASK) {
 		case PIPE_8BPC:
