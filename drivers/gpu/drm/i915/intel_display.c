@@ -1493,6 +1493,10 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 	int trans_vsync_reg = (pipe == 0) ? TRANS_VSYNC_A : TRANS_VSYNC_B;
 	u32 temp;
 	int tries = 5, j, n;
+	u32 pipe_bpc;
+
+	temp = I915_READ(pipeconf_reg);
+	pipe_bpc = temp & PIPE_BPC_MASK;
 
 	/* XXX: When our outputs are all unaware of DPMS modes other than off
 	 * and on, we should map those modes to DRM_MODE_DPMS_OFF in the CRTC.
@@ -1524,6 +1528,12 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 			/* enable PCH FDI RX PLL, wait warmup plus DMI latency */
 			temp = I915_READ(fdi_rx_reg);
+			/*
+			 * make the BPC in FDI Rx be consistent with that in
+			 * pipeconf reg.
+			 */
+			temp &= ~(0x7 << 16);
+			temp |= (pipe_bpc << 11);
 			I915_WRITE(fdi_rx_reg, temp | FDI_RX_PLL_ENABLE |
 					FDI_SEL_PCDCLK |
 					FDI_DP_PORT_WIDTH_X4); /* default 4 lanes */
@@ -1666,6 +1676,12 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 			/* enable PCH transcoder */
 			temp = I915_READ(transconf_reg);
+			/*
+			 * make the BPC in transcoder be consistent with
+			 * that in pipeconf reg.
+			 */
+			temp &= ~PIPE_BPC_MASK;
+			temp |= pipe_bpc;
 			I915_WRITE(transconf_reg, temp | TRANS_ENABLE);
 			I915_READ(transconf_reg);
 
@@ -1745,6 +1761,9 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 		I915_READ(fdi_tx_reg);
 
 		temp = I915_READ(fdi_rx_reg);
+		/* BPC in FDI rx is consistent with that in pipeconf */
+		temp &= ~(0x07 << 16);
+		temp |= (pipe_bpc << 11);
 		I915_WRITE(fdi_rx_reg, temp & ~FDI_RX_ENABLE);
 		I915_READ(fdi_rx_reg);
 
@@ -1789,7 +1808,12 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 				}
 			}
 		}
-
+		temp = I915_READ(transconf_reg);
+		/* BPC in transcoder is consistent with that in pipeconf */
+		temp &= ~PIPE_BPC_MASK;
+		temp |= pipe_bpc;
+		I915_WRITE(transconf_reg, temp);
+		I915_READ(transconf_reg);
 		udelay(100);
 
 		/* disable PCH DPLL */
