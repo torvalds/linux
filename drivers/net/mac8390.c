@@ -237,14 +237,14 @@ static enum mac8390_access __init mac8390_testio(volatile unsigned long membase)
 	unsigned long outdata = 0xA5A0B5B0;
 	unsigned long indata =  0x00000000;
 	/* Try writing 32 bits */
-	memcpy((char *)membase, (char *)&outdata, 4);
+	memcpy(membase, &outdata, 4);
 	/* Now compare them */
 	if (memcmp((char *)&outdata, (char *)membase, 4) == 0)
 		return ACCESS_32;
 	/* Write 16 bit output */
-	word_memcpy_tocard((char *)membase, (char *)&outdata, 4);
+	word_memcpy_tocard(membase, &outdata, 4);
 	/* Now read it back */
-	word_memcpy_fromcard((char *)&indata, (char *)membase, 4);
+	word_memcpy_fromcard(&indata, membase, 4);
 	if (outdata == indata)
 		return ACCESS_16;
 	return ACCESS_UNKNOWN;
@@ -759,7 +759,7 @@ static void dayna_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr
 {
 	unsigned long hdr_start = (ring_page - WD_START_PG)<<8;
 
-	dayna_memcpy_fromcard(dev, (void *)hdr, hdr_start, 4);
+	dayna_memcpy_fromcard(dev, hdr, hdr_start, 4);
 	/* Fix endianness */
 	hdr->count=(hdr->count&0xFF)<<8|(hdr->count>>8);
 }
@@ -801,7 +801,7 @@ static void slow_sane_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr 
 	int ring_page)
 {
 	unsigned long hdr_start = (ring_page - WD_START_PG)<<8;
-	word_memcpy_fromcard((void *)hdr, (char *)dev->mem_start+hdr_start, 4);
+	word_memcpy_fromcard(hdr, (char *)dev->mem_start + hdr_start, 4);
 	/* Register endianism - fix here rather than 8390.c */
 	hdr->count = (hdr->count&0xFF)<<8|(hdr->count>>8);
 }
@@ -816,16 +816,17 @@ static void slow_sane_block_input(struct net_device *dev, int count, struct sk_b
 	{
 		/* We must wrap the input move. */
 		int semi_count = ei_status.rmem_end - xfer_start;
-		word_memcpy_fromcard(skb->data, (char *)dev->mem_start +
-			xfer_base, semi_count);
+		word_memcpy_fromcard(skb->data,
+				     (char *)dev->mem_start + xfer_base,
+				     semi_count);
 		count -= semi_count;
 		word_memcpy_fromcard(skb->data + semi_count,
 				     (char *)ei_status.rmem_start, count);
 	}
 	else
 	{
-		word_memcpy_fromcard(skb->data, (char *)dev->mem_start +
-			xfer_base, count);
+		word_memcpy_fromcard(skb->data,
+				     (char *)dev->mem_start + xfer_base, count);
 	}
 }
 
