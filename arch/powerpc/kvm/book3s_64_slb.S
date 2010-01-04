@@ -31,7 +31,7 @@
 #define REBOLT_SLB_ENTRY(num) \
 	ld	r10, SHADOW_SLB_ESID(num)(r11); \
 	cmpdi	r10, 0; \
-	beq	slb_exit_skip_1; \
+	beq	slb_exit_skip_ ## num; \
 	oris	r10, r10, SLB_ESID_V@h; \
 	ld	r9, SHADOW_SLB_VSID(num)(r11); \
 	slbmte	r9, r10; \
