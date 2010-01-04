@@ -132,6 +132,14 @@ static void __init balloon3_init_irq(void)
 		"enabled\n", __func__, BALLOON3_AUX_NIRQ);
 }
 
+static unsigned long balloon3_ac97_pin_config[] = {
+	GPIO28_AC97_BITCLK,
+	GPIO29_AC97_SDATA_IN_0,
+	GPIO30_AC97_SDATA_OUT,
+	GPIO31_AC97_SYNC,
+	GPIO113_AC97_nRESET,
+};
+
 static void balloon3_backlight_power(int on)
 {
 	pr_debug("%s: power is %s\n", __func__, on ? "on" : "off");
@@ -292,8 +300,10 @@ static void __init balloon3_init(void)
 	pxa_set_stuart_info(NULL);
 
 	pxa_set_i2c_info(NULL);
-	if (balloon3_has(BALLOON3_FEATURE_AUDIO))
+	if (balloon3_has(BALLOON3_FEATURE_AUDIO)) {
+		pxa2xx_mfp_config(ARRAY_AND_SIZE(balloon3_ac97_pin_config));
 		pxa_set_ac97_info(NULL);
+	}
 
 	if (balloon3_has(BALLOON3_FEATURE_TOPPOLY)) {
 		pxa2xx_mfp_config(ARRAY_AND_SIZE(balloon3_lcd_pin_config));

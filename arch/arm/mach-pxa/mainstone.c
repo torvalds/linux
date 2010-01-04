@@ -88,6 +88,10 @@ static unsigned long mainstone_pin_config[] = {
 	GPIO57_nIOIS16,
 
 	/* AC97 */
+	GPIO28_AC97_BITCLK,
+	GPIO29_AC97_SDATA_IN_0,
+	GPIO30_AC97_SDATA_OUT,
+	GPIO31_AC97_SYNC,
 	GPIO45_AC97_SYSCLK,
 
 	/* Keypad */

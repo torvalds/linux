@@ -706,6 +706,12 @@ static struct i2c_board_info __initdata zeus_i2c_devices[] = {
 };
 
 static mfp_cfg_t zeus_pin_config[] __initdata = {
+	/* AC97 */
+	GPIO28_AC97_BITCLK,
+	GPIO29_AC97_SDATA_IN_0,
+	GPIO30_AC97_SDATA_OUT,
+	GPIO31_AC97_SYNC,
+
 	GPIO15_nCS_1,
 	GPIO78_nCS_2,
 	GPIO80_nCS_4,

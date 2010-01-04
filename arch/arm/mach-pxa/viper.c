@@ -711,6 +711,12 @@ static mfp_cfg_t viper_pin_config[] __initdata = {
 	GPIO80_nCS_4,
 	GPIO33_nCS_5,
 
+	/* AC97 */
+	GPIO28_AC97_BITCLK,
+	GPIO29_AC97_SDATA_IN_0,
+	GPIO30_AC97_SDATA_OUT,
+	GPIO31_AC97_SYNC,
+
 	/* FP Backlight */
 	GPIO9_GPIO, 				/* VIPER_BCKLIGHT_EN_GPIO */
 	GPIO10_GPIO,				/* VIPER_LCD_EN_GPIO */

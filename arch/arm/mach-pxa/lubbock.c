@@ -66,6 +66,12 @@ static unsigned long lubbock_pin_config[] __initdata = {
 	GPIO25_SSP1_TXD,
 	GPIO26_SSP1_RXD,
 
+	/* AC97 */
+	GPIO28_AC97_BITCLK,
+	GPIO29_AC97_SDATA_IN_0,
+	GPIO30_AC97_SDATA_OUT,
+	GPIO31_AC97_SYNC,
+
 	/* LCD - 16bpp DSTN */
 	GPIOxx_LCD_DSTN_16BPP,
 
