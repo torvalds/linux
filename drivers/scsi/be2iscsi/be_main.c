@@ -1434,6 +1434,8 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 	unsigned int tot_nump = 0;
 	struct beiscsi_conn *beiscsi_conn;
 	struct sgl_handle *psgl_handle = NULL;
+	struct beiscsi_endpoint *beiscsi_ep;
+	struct iscsi_endpoint *ep;
 	struct beiscsi_hba *phba;
 
 	cq = pbe_eq->cq;
@@ -1449,28 +1451,15 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 				      dw[offsetof(struct amap_sol_cqe_ring,
 				      icd_index) / 32] & SOL_ICD_INDEX_MASK)
 				      >> 6)];
-			beiscsi_conn = phba->conn_table[psgl_handle->cid];
-			if (!beiscsi_conn || !beiscsi_conn->ep) {
-				shost_printk(KERN_WARNING, phba->shost,
-				     "Connection table empty for cid = %d\n",
-				      psgl_handle->cid);
-				return 0;
-			}
-
+			ep = phba->ep_array[psgl_handle->cid];
 		} else {
-			beiscsi_conn = phba->conn_table[(u32) ((sol->
-				 dw[offsetof(struct amap_sol_cqe, cid) / 32] &
-				 SOL_CID_MASK) >> 6) -
+			ep = phba->ep_array[(u32) ((sol->
+				   dw[offsetof(struct amap_sol_cqe, cid) / 32] &
+				   SOL_CID_MASK) >> 6) -
 				   phba->fw_config.iscsi_cid_start];
-			if (!beiscsi_conn || !beiscsi_conn->ep) {
-				shost_printk(KERN_WARNING, phba->shost,
-				     "Connection table empty for cid = %d\n",
-				     (u32)(sol->dw[offsetof(struct amap_sol_cqe,
-				     cid) / 32] & SOL_CID_MASK) >> 6);
-				return 0;
-			}
 		}
-
+		beiscsi_ep = ep->dd_data;
+		beiscsi_conn = beiscsi_ep->conn;
 		if (num_processed >= 32) {
 			hwi_ring_cq_db(phba, cq->id,
 					num_processed, 0, 0);
@@ -3044,7 +3033,7 @@ static int hba_setup_cid_tbls(struct beiscsi_hba *phba)
 {
 	int i, new_cid;
 
-	phba->cid_array = kmalloc(sizeof(void *) * phba->params.cxns_per_ctrl,
+	phba->cid_array = kzalloc(sizeof(void *) * phba->params.cxns_per_ctrl,
 				  GFP_KERNEL);
 	if (!phba->cid_array) {
 		shost_printk(KERN_ERR, phba->shost,
@@ -3052,7 +3041,7 @@ static int hba_setup_cid_tbls(struct beiscsi_hba *phba)
 			     "hba_setup_cid_tbls\n");
 		return -ENOMEM;
 	}
-	phba->ep_array = kmalloc(sizeof(struct iscsi_endpoint *) *
+	phba->ep_array = kzalloc(sizeof(struct iscsi_endpoint *) *
 				 phba->params.cxns_per_ctrl * 2, GFP_KERNEL);
 	if (!phba->ep_array) {
 		shost_printk(KERN_ERR, phba->shost,

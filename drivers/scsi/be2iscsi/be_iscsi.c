@@ -460,14 +460,12 @@ static void beiscsi_put_cid(struct beiscsi_hba *phba, unsigned short cid)
  * beiscsi_free_ep - free endpoint
  * @ep:	pointer to iscsi endpoint structure
  */
-static void beiscsi_free_ep(struct iscsi_endpoint *ep)
+static void beiscsi_free_ep(struct beiscsi_endpoint *beiscsi_ep)
 {
-	struct beiscsi_endpoint *beiscsi_ep = ep->dd_data;
 	struct beiscsi_hba *phba = beiscsi_ep->phba;
 
 	beiscsi_put_cid(phba, beiscsi_ep->ep_cid);
 	beiscsi_ep->phba = NULL;
-	iscsi_destroy_endpoint(ep);
 }
 
 /**
@@ -498,7 +496,7 @@ beiscsi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 
 	if (phba->state) {
 		ret = -EBUSY;
-		SE_DEBUG(DBG_LVL_1, "The Adapet state is Not UP \n");
+		SE_DEBUG(DBG_LVL_1, "The Adapter state is Not UP \n");
 		return ERR_PTR(ret);
 	}
 
@@ -510,9 +508,10 @@ beiscsi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 
 	beiscsi_ep = ep->dd_data;
 	beiscsi_ep->phba = phba;
+	beiscsi_ep->openiscsi_ep = ep;
 
 	if (beiscsi_open_conn(ep, NULL, dst_addr, non_blocking)) {
-		SE_DEBUG(DBG_LVL_1, "Failed in allocate iscsi cid\n");
+		SE_DEBUG(DBG_LVL_1, "Failed in beiscsi_open_conn \n");
 		ret = -ENOMEM;
 		goto free_ep;
 	}
@@ -520,7 +519,7 @@ beiscsi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 	return ep;
 
 free_ep:
-	beiscsi_free_ep(ep);
+	beiscsi_free_ep(beiscsi_ep);
 	return ERR_PTR(ret);
 }
 
@@ -547,15 +546,14 @@ int beiscsi_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
  * @ep: The iscsi endpoint
  * @flag: The type of connection closure
  */
-static int beiscsi_close_conn(struct iscsi_endpoint *ep, int flag)
+static int beiscsi_close_conn(struct  beiscsi_endpoint *beiscsi_ep, int flag)
 {
 	int ret = 0;
-	struct beiscsi_endpoint *beiscsi_ep = ep->dd_data;
 	struct beiscsi_hba *phba = beiscsi_ep->phba;
 
 	if (MGMT_STATUS_SUCCESS !=
 	    mgmt_upload_connection(phba, beiscsi_ep->ep_cid,
-		CONNECTION_UPLOAD_GRACEFUL)) {
+		flag)) {
 		SE_DEBUG(DBG_LVL_8, "upload failed for cid 0x%x",
 			 beiscsi_ep->ep_cid);
 		ret = -1;
@@ -575,19 +573,15 @@ void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 	struct beiscsi_conn *beiscsi_conn;
 	struct beiscsi_endpoint *beiscsi_ep;
 	struct beiscsi_hba *phba;
-	int flag = 0;
 
 	beiscsi_ep = ep->dd_data;
 	phba = beiscsi_ep->phba;
-	SE_DEBUG(DBG_LVL_8, "In beiscsi_ep_disconnect\n");
 
 	if (beiscsi_ep->conn) {
 		beiscsi_conn = beiscsi_ep->conn;
 		iscsi_suspend_queue(beiscsi_conn->conn);
-		beiscsi_close_conn(ep, flag);
 	}
 
-	beiscsi_free_ep(ep);
 }
 
 /**
@@ -637,6 +631,9 @@ void beiscsi_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 			 "mgmt_invalidate_connection Failed for cid=%d \n",
 			 beiscsi_ep->ep_cid);
 	}
+	beiscsi_close_conn(beiscsi_ep, CONNECTION_UPLOAD_GRACEFUL);
+	beiscsi_free_ep(beiscsi_ep);
+	iscsi_destroy_endpoint(beiscsi_ep->openiscsi_ep);
 	beiscsi_unbind_conn_to_cid(phba, beiscsi_ep->ep_cid);
 	iscsi_conn_stop(cls_conn, flag);
 }

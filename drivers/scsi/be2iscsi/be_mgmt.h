@@ -231,6 +231,7 @@ struct beiscsi_endpoint {
 	struct beiscsi_hba *phba;
 	struct beiscsi_sess *sess;
 	struct beiscsi_conn *conn;
+	struct iscsi_endpoint *openiscsi_ep;
 	unsigned short ip_type;
 	char dst6_addr[ISCSI_ADDRESS_BUF_LEN];
 	unsigned long dst_addr;
