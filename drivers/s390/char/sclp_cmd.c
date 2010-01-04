@@ -547,7 +547,7 @@ struct read_storage_sccb {
 	u32 entries[0];
 } __packed;
 
-static struct dev_pm_ops sclp_mem_pm_ops = {
+static const struct dev_pm_ops sclp_mem_pm_ops = {
 	.freeze		= sclp_mem_freeze,
 };
 

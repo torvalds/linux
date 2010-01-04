@@ -259,6 +259,7 @@ static int journal_submit_data_buffers(journal_t *journal,
 			ret = err;
 		spin_lock(&journal->j_list_lock);
 		J_ASSERT(jinode->i_transaction == commit_transaction);
+		commit_transaction->t_flushed_data_blocks = 1;
 		jinode->i_flags &= ~JI_COMMIT_RUNNING;
 		wake_up_bit(&jinode->i_flags, __JI_COMMIT_RUNNING);
 	}
@@ -286,7 +287,7 @@ static int journal_finish_inode_data_buffers(journal_t *journal,
 		if (err) {
 			/*
 			 * Because AS_EIO is cleared by
-			 * wait_on_page_writeback_range(), set it again so
+			 * filemap_fdatawait_range(), set it again so
 			 * that user process can get -EIO from fsync().
 			 */
 			set_bit(AS_EIO,
@@ -708,8 +709,17 @@ start_journal_io:
 		}
 	}
 
-	/* Done it all: now write the commit record asynchronously. */
+	/* 
+	 * If the journal is not located on the file system device,
+	 * then we must flush the file system device before we issue
+	 * the commit record
+	 */
+	if (commit_transaction->t_flushed_data_blocks &&
+	    (journal->j_fs_dev != journal->j_dev) &&
+	    (journal->j_flags & JBD2_BARRIER))
+		blkdev_issue_flush(journal->j_fs_dev, NULL);
 
+	/* Done it all: now write the commit record asynchronously. */
 	if (JBD2_HAS_INCOMPAT_FEATURE(journal,
 				      JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)) {
 		err = journal_submit_commit_record(journal, commit_transaction,
@@ -720,13 +730,6 @@ start_journal_io:
 			blkdev_issue_flush(journal->j_dev, NULL);
 	}
 
-	/*
-	 * This is the right place to wait for data buffers both for ASYNC
-	 * and !ASYNC commit. If commit is ASYNC, we need to wait only after
-	 * the commit block went to disk (which happens above). If commit is
-	 * SYNC, we need to wait for data buffers before we start writing
-	 * commit block, which happens below in such setting.
-	 */
 	err = journal_finish_inode_data_buffers(journal, commit_transaction);
 	if (err) {
 		printk(KERN_WARNING

@@ -7101,7 +7101,7 @@ static struct DAC960_privdata DAC960_BA_privdata = {
 
 static struct DAC960_privdata DAC960_LP_privdata = {
 	.HardwareType =		DAC960_LP_Controller,
-	.FirmwareType 	=	DAC960_LP_Controller,
+	.FirmwareType 	=	DAC960_V2_Controller,
 	.InterruptHandler =	DAC960_LP_InterruptHandler,
 	.MemoryWindowSize =	DAC960_LP_RegisterWindowSize,
 };

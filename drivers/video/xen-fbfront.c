@@ -25,7 +25,10 @@
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
+
 #include <asm/xen/hypervisor.h>
+
+#include <xen/xen.h>
 #include <xen/events.h>
 #include <xen/page.h>
 #include <xen/interface/io/fbif.h>

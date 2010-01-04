@@ -814,7 +814,7 @@ static journal_t * journal_init_common (void)
 	journal_t *journal;
 	int err;
 
-	journal = kzalloc(sizeof(*journal), GFP_KERNEL|__GFP_NOFAIL);
+	journal = kzalloc(sizeof(*journal), GFP_KERNEL);
 	if (!journal)
 		goto fail;
 
@@ -2115,7 +2115,8 @@ static void __init jbd2_create_debugfs_entry(void)
 {
 	jbd2_debugfs_dir = debugfs_create_dir("jbd2", NULL);
 	if (jbd2_debugfs_dir)
-		jbd2_debug = debugfs_create_u8(JBD2_DEBUG_NAME, S_IRUGO,
+		jbd2_debug = debugfs_create_u8(JBD2_DEBUG_NAME,
+					       S_IRUGO | S_IWUSR,
 					       jbd2_debugfs_dir,
 					       &jbd2_journal_enable_debug);
 }

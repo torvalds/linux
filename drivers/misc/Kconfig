@@ -13,6 +13,20 @@ menuconfig MISC_DEVICES
 
 if MISC_DEVICES
 
+config AD525X_DPOT
+	tristate "Analog Devices AD525x Digital Potentiometers"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here, you get support for the Analog Devices
+	  AD5258, AD5259, AD5251, AD5252, AD5253, AD5254 and AD5255
+	  digital potentiometer chips.
+
+	  See Documentation/misc-devices/ad525x_dpot.txt for the
+	  userspace interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ad525x_dpot.
+
 config ATMEL_PWM
 	tristate "Atmel AT32/AT91 PWM support"
 	depends on AVR32 || ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || ARCH_AT91CAP9
@@ -173,6 +187,31 @@ config SGI_XP
 	  this feature will allow for direct communication between SSIs
 	  based on a network adapter and DMA messaging.
 
+config CS5535_MFGPT
+	tristate "CS5535/CS5536 Geode Multi-Function General Purpose Timer (MFGPT) support"
+	depends on PCI
+	depends on X86
+	default n
+	help
+	  This driver provides access to MFGPT functionality for other
+	  drivers that need timers.  MFGPTs are available in the CS5535 and
+	  CS5536 companion chips that are found in AMD Geode and several
+	  other platforms.  They have a better resolution and max interval
+	  than the generic PIT, and are suitable for use as high-res timers.
+	  You probably don't want to enable this manually; other drivers that
+	  make use of it should enable it.
+
+config CS5535_MFGPT_DEFAULT_IRQ
+	int
+	depends on CS5535_MFGPT
+	default 7
+	help
+	  MFGPTs on the CS5535 require an interrupt.  The selected IRQ
+	  can be overridden as a module option as well as by driver that
+	  use the cs5535_mfgpt_ API; however, different architectures might
+	  want to use a different IRQ by default.  This is here for
+	  architectures to set as necessary.
+
 config HP_ILO
 	tristate "Channel interface driver for HP iLO/iLO2 processor"
 	depends on PCI
@@ -210,19 +249,6 @@ config SGI_GRU_DEBUG
 	This option enables addition debugging code for the SGI GRU driver. If
 	you are unsure, say N.
 
-config DELL_LAPTOP
-	tristate "Dell Laptop Extras (EXPERIMENTAL)"
-	depends on X86
-	depends on DCDBAS
-	depends on EXPERIMENTAL
-	depends on BACKLIGHT_CLASS_DEVICE
-	depends on RFKILL
-	depends on POWER_SUPPLY
-	default n
-	---help---
-	This driver adds support for rfkill and backlight control to Dell
-	laptops.
-
 config ISL29003
 	tristate "Intersil ISL29003 ambient light sensor"
 	depends on I2C && SYSFS
@@ -255,6 +281,16 @@ config DS1682
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called ds1682.
+
+config TI_DAC7512
+	tristate "Texas Instruments DAC7512"
+	depends on SPI && SYSFS
+	help
+	  If you say yes here you get support for the Texas Instruments
+	  DAC7512 16-bit digital-to-analog converter.
+
+	  This driver can also be built as a module. If so, the module
+	  will be calles ti_dac7512.
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"

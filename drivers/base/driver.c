@@ -98,7 +98,7 @@ EXPORT_SYMBOL_GPL(driver_find_device);
  * @attr: driver attribute descriptor.
  */
 int driver_create_file(struct device_driver *drv,
-		       struct driver_attribute *attr)
+		       const struct driver_attribute *attr)
 {
 	int error;
 	if (drv)
@@ -115,7 +115,7 @@ EXPORT_SYMBOL_GPL(driver_create_file);
  * @attr: driver attribute descriptor.
  */
 void driver_remove_file(struct device_driver *drv,
-			struct driver_attribute *attr)
+			const struct driver_attribute *attr)
 {
 	if (drv)
 		sysfs_remove_file(&drv->p->kobj, &attr->attr);

@@ -86,6 +86,12 @@ standards.</para>
 <constant>VIDIOC_S_STD</constant> parameter was unsuitable.</para>
 	</listitem>
       </varlistentry>
+      <varlistentry>
+	<term><errorcode>EBUSY</errorcode></term>
+	<listitem>
+	  <para>The device is busy and therefore can not change the standard</para>
+	</listitem>
+      </varlistentry>
     </variablelist>
   </refsect1>
 </refentry>

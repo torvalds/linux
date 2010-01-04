@@ -1319,8 +1319,7 @@ static int __init musb_core_init(u16 musb_type, struct musb *musb)
 #endif
 	u8 reg;
 	char *type;
-	u16 hwvers, rev_major, rev_minor;
-	char aInfo[78], aRevision[32], aDate[12];
+	char aInfo[90], aRevision[32], aDate[12];
 	void __iomem	*mbase = musb->mregs;
 	int		status = 0;
 	int		i;
@@ -1391,11 +1390,10 @@ static int __init musb_core_init(u16 musb_type, struct musb *musb)
 	}
 
 	/* log release info */
-	hwvers = musb_read_hwvers(mbase);
-	rev_major = (hwvers >> 10) & 0x1f;
-	rev_minor = hwvers & 0x3ff;
-	snprintf(aRevision, 32, "%d.%d%s", rev_major,
-		rev_minor, (hwvers & 0x8000) ? "RC" : "");
+	musb->hwvers = musb_read_hwvers(mbase);
+	snprintf(aRevision, 32, "%d.%d%s", MUSB_HWVERS_MAJOR(musb->hwvers),
+		MUSB_HWVERS_MINOR(musb->hwvers),
+		(musb->hwvers & MUSB_HWVERS_RC) ? "RC" : "");
 	printk(KERN_DEBUG "%s: %sHDRC RTL version %s %s\n",
 			musb_driver_name, type, aRevision, aDate);
 
@@ -1522,6 +1520,14 @@ irqreturn_t musb_interrupt(struct musb *musb)
 	DBG(4, "** IRQ %s usb%04x tx%04x rx%04x\n",
 		(devctl & MUSB_DEVCTL_HM) ? "host" : "peripheral",
 		musb->int_usb, musb->int_tx, musb->int_rx);
+
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
+	if (is_otg_enabled(musb) || is_peripheral_enabled(musb))
+		if (!musb->gadget_driver) {
+			DBG(5, "No gadget driver loaded\n");
+			return IRQ_HANDLED;
+		}
+#endif
 
 	/* the core can interrupt us for multiple reasons; docs have
 	 * a generic interrupt flowchart to follow
@@ -2141,7 +2147,7 @@ static int __init musb_probe(struct platform_device *pdev)
 	return musb_init_controller(dev, irq, base);
 }
 
-static int __devexit musb_remove(struct platform_device *pdev)
+static int __exit musb_remove(struct platform_device *pdev)
 {
 	struct musb	*musb = dev_to_musb(&pdev->dev);
 	void __iomem	*ctrl_base = musb->ctrl_base;
@@ -2216,7 +2222,7 @@ static int musb_resume_noirq(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops musb_dev_pm_ops = {
+static const struct dev_pm_ops musb_dev_pm_ops = {
 	.suspend	= musb_suspend,
 	.resume_noirq	= musb_resume_noirq,
 };
@@ -2233,7 +2239,7 @@ static struct platform_driver musb_driver = {
 		.owner		= THIS_MODULE,
 		.pm		= MUSB_DEV_PM_OPS,
 	},
-	.remove		= __devexit_p(musb_remove),
+	.remove		= __exit_p(musb_remove),
 	.shutdown	= musb_shutdown,
 };
 

@@ -1,6 +1,7 @@
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/sched.h>
+#include <linux/hugetlb.h>
 
 static int walk_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 			  struct mm_walk *walk)
@@ -107,6 +108,7 @@ int walk_page_range(unsigned long addr, unsigned long end,
 	pgd_t *pgd;
 	unsigned long next;
 	int err = 0;
+	struct vm_area_struct *vma;
 
 	if (addr >= end)
 		return err;
@@ -117,11 +119,38 @@ int walk_page_range(unsigned long addr, unsigned long end,
 	pgd = pgd_offset(walk->mm, addr);
 	do {
 		next = pgd_addr_end(addr, end);
+
+		/*
+		 * handle hugetlb vma individually because pagetable walk for
+		 * the hugetlb page is dependent on the architecture and
+		 * we can't handled it in the same manner as non-huge pages.
+		 */
+		vma = find_vma(walk->mm, addr);
+#ifdef CONFIG_HUGETLB_PAGE
+		if (vma && is_vm_hugetlb_page(vma)) {
+			pte_t *pte;
+			struct hstate *hs;
+
+			if (vma->vm_end < next)
+				next = vma->vm_end;
+			hs = hstate_vma(vma);
+			pte = huge_pte_offset(walk->mm,
+					      addr & huge_page_mask(hs));
+			if (pte && !huge_pte_none(huge_ptep_get(pte))
+			    && walk->hugetlb_entry)
+				err = walk->hugetlb_entry(pte, addr,
+							  next, walk);
+			if (err)
+				break;
+			continue;
+		}
+#endif
 		if (pgd_none_or_clear_bad(pgd)) {
 			if (walk->pte_hole)
 				err = walk->pte_hole(addr, next, walk);
 			if (err)
 				break;
+			pgd++;
 			continue;
 		}
 		if (walk->pgd_entry)
@@ -131,7 +160,8 @@ int walk_page_range(unsigned long addr, unsigned long end,
 			err = walk_pud_range(pgd, addr, next, walk);
 		if (err)
 			break;
-	} while (pgd++, addr = next, addr != end);
+		pgd++;
+	} while (addr = next, addr != end);
 
 	return err;
 }

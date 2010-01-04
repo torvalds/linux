@@ -1194,7 +1194,7 @@ long keyctl_get_security(key_serial_t keyid,
 		 * have the authorisation token handy */
 		instkey = key_get_instantiation_authkey(keyid);
 		if (IS_ERR(instkey))
-			return PTR_ERR(key_ref);
+			return PTR_ERR(instkey);
 		key_put(instkey);
 
 		key_ref = lookup_user_key(keyid, KEY_LOOKUP_PARTIAL, 0);
@@ -1236,6 +1236,7 @@ long keyctl_get_security(key_serial_t keyid,
  */
 long keyctl_session_to_parent(void)
 {
+#ifdef TIF_NOTIFY_RESUME
 	struct task_struct *me, *parent;
 	const struct cred *mycred, *pcred;
 	struct cred *cred, *oldcred;
@@ -1326,6 +1327,15 @@ not_permitted:
 error_keyring:
 	key_ref_put(keyring_r);
 	return ret;
+
+#else /* !TIF_NOTIFY_RESUME */
+	/*
+	 * To be removed when TIF_NOTIFY_RESUME has been implemented on
+	 * m68k/xtensa
+	 */
+#warning TIF_NOTIFY_RESUME not implemented
+	return -EOPNOTSUPP;
+#endif /* !TIF_NOTIFY_RESUME */
 }
 
 /*****************************************************************************/

@@ -189,7 +189,7 @@ static inline void qe_ic_write(volatile __be32  __iomem * base, unsigned int reg
 
 static inline struct qe_ic *qe_ic_from_irq(unsigned int virq)
 {
-	return irq_desc[virq].chip_data;
+	return irq_to_desc(virq)->chip_data;
 }
 
 #define virq_to_hw(virq)	((unsigned int)irq_map[virq].hwirq)
@@ -237,7 +237,7 @@ static void qe_ic_mask_irq(unsigned int virq)
 }
 
 static struct irq_chip qe_ic_irq_chip = {
-	.typename = " QEIC  ",
+	.name = " QEIC  ",
 	.unmask = qe_ic_unmask_irq,
 	.mask = qe_ic_mask_irq,
 	.mask_ack = qe_ic_mask_irq,
@@ -263,7 +263,7 @@ static int qe_ic_host_map(struct irq_host *h, unsigned int virq,
 	chip = &qe_ic->hc_irq;
 
 	set_irq_chip_data(virq, qe_ic);
-	get_irq_desc(virq)->status |= IRQ_LEVEL;
+	irq_to_desc(virq)->status |= IRQ_LEVEL;
 
 	set_irq_chip_and_handler(virq, chip, handle_level_irq);
 
@@ -271,7 +271,7 @@ static int qe_ic_host_map(struct irq_host *h, unsigned int virq,
 }
 
 static int qe_ic_host_xlate(struct irq_host *h, struct device_node *ct,
-			    u32 * intspec, unsigned int intsize,
+			    const u32 * intspec, unsigned int intsize,
 			    irq_hw_number_t * out_hwirq,
 			    unsigned int *out_flags)
 {

@@ -51,7 +51,7 @@ static int snd_pcm_alloc_vmalloc_buffer(struct snd_pcm_substream *subs, size_t s
 			return 0; /* already enough large */
 		vfree(runtime->dma_area);
 	}
-	runtime->dma_area = vmalloc_32(size);
+	runtime->dma_area = vmalloc_32_user(size);
 	if (! runtime->dma_area)
 		return -ENOMEM;
 	runtime->dma_bytes = size;

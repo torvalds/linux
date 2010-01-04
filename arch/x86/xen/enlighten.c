@@ -27,7 +27,9 @@
 #include <linux/page-flags.h>
 #include <linux/highmem.h>
 #include <linux/console.h>
+#include <linux/pci.h>
 
+#include <xen/xen.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/version.h>
 #include <xen/interface/physdev.h>
@@ -1175,7 +1177,11 @@ asmlinkage void __init xen_start_kernel(void)
 		add_preferred_console("xenboot", 0, NULL);
 		add_preferred_console("tty", 0, NULL);
 		add_preferred_console("hvc", 0, NULL);
+	} else {
+		/* Make sure ACS will be enabled */
+		pci_request_acs();
 	}
+		
 
 	xen_raw_console_write("about to get started...\n");
 

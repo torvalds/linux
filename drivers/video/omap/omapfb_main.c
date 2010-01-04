@@ -29,8 +29,8 @@
 #include <linux/uaccess.h>
 
 #include <plat/dma.h>
-#include <plat/omapfb.h>
 
+#include "omapfb.h"
 #include "lcdc.h"
 #include "dispc.h"
 

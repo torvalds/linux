@@ -18,10 +18,6 @@ obj-$(CONFIG_IA64_GENERIC)	+= acpi-ext.o
 obj-$(CONFIG_IA64_HP_ZX1)	+= acpi-ext.o
 obj-$(CONFIG_IA64_HP_ZX1_SWIOTLB) += acpi-ext.o
 
-ifneq ($(CONFIG_ACPI_PROCESSOR),)
-obj-y				+= acpi-processor.o
-endif
-
 obj-$(CONFIG_IA64_PALINFO)	+= palinfo.o
 obj-$(CONFIG_IOSAPIC)		+= iosapic.o
 obj-$(CONFIG_MODULES)		+= module.o
@@ -81,16 +77,13 @@ define cmd_nr_irqs
 endef
 
 # We use internal kbuild rules to avoid the "is up to date" message from make
-arch/$(SRCARCH)/kernel/nr-irqs.s: $(srctree)/arch/$(SRCARCH)/kernel/nr-irqs.c \
-				$(wildcard $(srctree)/include/asm-ia64/*/irq.h)
+arch/$(SRCARCH)/kernel/nr-irqs.s: arch/$(SRCARCH)/kernel/nr-irqs.c
 	$(Q)mkdir -p $(dir $@)
 	$(call if_changed_dep,cc_s_c)
 
-include/asm-ia64/nr-irqs.h: arch/$(SRCARCH)/kernel/nr-irqs.s
+include/generated/nr-irqs.h: arch/$(SRCARCH)/kernel/nr-irqs.s
 	$(Q)mkdir -p $(dir $@)
 	$(call cmd,nr_irqs)
-
-clean-files += $(objtree)/include/asm-ia64/nr-irqs.h
 
 #
 # native ivt.S, entry.S and fsys.S

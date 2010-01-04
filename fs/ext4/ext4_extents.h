@@ -225,7 +225,8 @@ static inline void ext4_ext_mark_initialized(struct ext4_extent *ext)
 	ext->ee_len = cpu_to_le16(ext4_ext_get_actual_len(ext));
 }
 
-extern int ext4_ext_calc_metadata_amount(struct inode *inode, int blocks);
+extern int ext4_ext_calc_metadata_amount(struct inode *inode,
+					 sector_t lblocks);
 extern ext4_fsblk_t ext_pblock(struct ext4_extent *ex);
 extern ext4_fsblk_t idx_pblock(struct ext4_extent_idx *);
 extern void ext4_ext_store_pblock(struct ext4_extent *, ext4_fsblk_t);

@@ -56,6 +56,7 @@ static const char version[] =
 #include <linux/errno.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/if_ether.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -734,8 +735,7 @@ static void init_82586_mem(struct net_device *dev)
 	memcpy_toio(lp->base, init_words + 5, sizeof(init_words) - 10);
 
 	/* Fill in the station address. */
-	memcpy_toio(lp->base+SA_OFFSET, dev->dev_addr,
-		   sizeof(dev->dev_addr));
+	memcpy_toio(lp->base+SA_OFFSET, dev->dev_addr, ETH_ALEN);
 
 	/* The Tx-block list is written as needed.  We just set up the values. */
 	lp->tx_cmd_link = IDLELOOP + 4;

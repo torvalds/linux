@@ -242,6 +242,7 @@ static void bdi_sync_writeback(struct backing_dev_info *bdi,
 /**
  * bdi_start_writeback - start writeback
  * @bdi: the backing device to write from
+ * @sb: write inodes from this super_block
  * @nr_pages: the number of pages to write
  *
  * Description:
@@ -1185,6 +1186,23 @@ void writeback_inodes_sb(struct super_block *sb)
 	bdi_start_writeback(sb->s_bdi, sb, nr_to_write);
 }
 EXPORT_SYMBOL(writeback_inodes_sb);
+
+/**
+ * writeback_inodes_sb_if_idle	-	start writeback if none underway
+ * @sb: the superblock
+ *
+ * Invoke writeback_inodes_sb if no writeback is currently underway.
+ * Returns 1 if writeback was started, 0 if not.
+ */
+int writeback_inodes_sb_if_idle(struct super_block *sb)
+{
+	if (!writeback_in_progress(sb->s_bdi)) {
+		writeback_inodes_sb(sb);
+		return 1;
+	} else
+		return 0;
+}
+EXPORT_SYMBOL(writeback_inodes_sb_if_idle);
 
 /**
  * sync_inodes_sb	-	sync sb inode pages

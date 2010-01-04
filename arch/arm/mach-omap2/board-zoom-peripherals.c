@@ -14,7 +14,7 @@
 #include <linux/input.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/gpio.h>
-#include <linux/i2c/twl4030.h>
+#include <linux/i2c/twl.h>
 #include <linux/regulator/machine.h>
 
 #include <asm/mach-types.h>
@@ -152,14 +152,20 @@ static struct regulator_init_data zoom_vsim = {
 
 static struct twl4030_hsmmc_info mmc[] __initdata = {
 	{
+		.name		= "external",
 		.mmc		= 1,
 		.wires		= 4,
 		.gpio_wp	= -EINVAL,
+		.power_saving	= true,
 	},
 	{
+		.name		= "internal",
 		.mmc		= 2,
-		.wires		= 4,
+		.wires		= 8,
+		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
+		.nonremovable	= true,
+		.power_saving	= true,
 	},
 	{}      /* Terminator */
 };
@@ -167,11 +173,8 @@ static struct twl4030_hsmmc_info mmc[] __initdata = {
 static int zoom_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
-	/* gpio + 0 is "mmc0_cd" (input/IRQ),
-	 * gpio + 1 is "mmc1_cd" (input/IRQ)
-	 */
+	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
 	mmc[0].gpio_cd = gpio + 0;
-	mmc[1].gpio_cd = gpio + 1;
 	twl4030_mmc_init(mmc);
 
 	/* link regulators to MMC adapters ... we "know" the
@@ -236,6 +239,7 @@ static struct twl4030_platform_data zoom_twldata = {
 	.gpio		= &zoom_gpio_data,
 	.keypad		= &zoom_kp_twl4030_data,
 	.codec		= &zoom_codec_data,
+	.vmmc1          = &zoom_vmmc1,
 	.vmmc2          = &zoom_vmmc2,
 	.vsim           = &zoom_vsim,
 

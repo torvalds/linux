@@ -50,7 +50,6 @@ static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 						I2C_CLIENT_END };
 
 /* Insmod parameters */
-I2C_CLIENT_INSMOD_1(w83792d);
 
 static unsigned short force_subclients[4];
 module_param_array(force_subclients, short, NULL, 0);
@@ -302,7 +301,7 @@ struct w83792d_data {
 
 static int w83792d_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int w83792d_detect(struct i2c_client *client, int kind,
+static int w83792d_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static int w83792d_remove(struct i2c_client *client);
 static struct w83792d_data *w83792d_update_device(struct device *dev);
@@ -314,7 +313,7 @@ static void w83792d_print_debug(struct w83792d_data *data, struct device *dev);
 static void w83792d_init_client(struct i2c_client *client);
 
 static const struct i2c_device_id w83792d_id[] = {
-	{ "w83792d", w83792d },
+	{ "w83792d", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, w83792d_id);
@@ -328,7 +327,7 @@ static struct i2c_driver w83792d_driver = {
 	.remove		= w83792d_remove,
 	.id_table	= w83792d_id,
 	.detect		= w83792d_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static inline long in_count_from_reg(int nr, struct w83792d_data *data)
@@ -1263,7 +1262,7 @@ static const struct attribute_group w83792d_group = {
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
 static int
-w83792d_detect(struct i2c_client *client, int kind, struct i2c_board_info *info)
+w83792d_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	int val1, val2;

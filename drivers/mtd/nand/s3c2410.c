@@ -774,7 +774,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 	chip->select_chip  = s3c2410_nand_select_chip;
 	chip->chip_delay   = 50;
 	chip->priv	   = nmtd;
-	chip->options	   = 0;
+	chip->options	   = set->options;
 	chip->controller   = &info->controller;
 
 	switch (info->cpu_type) {

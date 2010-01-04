@@ -37,10 +37,6 @@ config VIDEO_BTCX
 	depends on PCI
 	tristate
 
-config VIDEO_IR
-	tristate
-	depends on INPUT
-
 config VIDEO_TVEEPROM
 	tristate
 	depends on I2C
@@ -839,6 +835,12 @@ config SOC_CAMERA_MT9T031
 	depends on SOC_CAMERA && I2C
 	help
 	  This driver supports MT9T031 cameras from Micron.
+
+config SOC_CAMERA_MT9T112
+	tristate "mt9t112 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This driver supports MT9T112 cameras from Aptina.
 
 config SOC_CAMERA_MT9V022
 	tristate "mt9v022 support"

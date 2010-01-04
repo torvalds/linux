@@ -659,7 +659,7 @@ static int __ptmx_open(struct inode *inode, struct file *filp)
 	if (!retval)
 		return 0;
 out1:
-	tty_release_dev(filp);
+	tty_release(inode, filp);
 	return retval;
 out:
 	devpts_kill_index(inode, index);

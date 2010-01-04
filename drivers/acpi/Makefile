@@ -19,6 +19,7 @@ obj-y				+= acpi.o \
 
 # All the builtin files are in the "acpi." module_param namespace.
 acpi-y				+= osl.o utils.o reboot.o
+acpi-y				+= hest.o
 
 # sleep related files
 acpi-y				+= wakeup.o
@@ -31,6 +32,7 @@ acpi-$(CONFIG_ACPI_SLEEP)	+= proc.o
 #
 acpi-y				+= bus.o glue.o
 acpi-y				+= scan.o
+acpi-y				+= processor_pdc.o
 acpi-y				+= ec.o
 acpi-$(CONFIG_ACPI_DOCK)	+= dock.o
 acpi-y				+= pci_root.o pci_link.o pci_irq.o pci_bind.o

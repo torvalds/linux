@@ -38,9 +38,11 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_7(lm85b, lm85c, adm1027, adt7463, adt7468, emc6d100,
-		    emc6d102);
+enum chips {
+	any_chip, lm85b, lm85c,
+	adm1027, adt7463, adt7468,
+	emc6d100, emc6d102
+};
 
 /* The LM85 registers */
 
@@ -323,8 +325,7 @@ struct lm85_data {
 	struct lm85_zone zone[3];
 };
 
-static int lm85_detect(struct i2c_client *client, int kind,
-		       struct i2c_board_info *info);
+static int lm85_detect(struct i2c_client *client, struct i2c_board_info *info);
 static int lm85_probe(struct i2c_client *client,
 		      const struct i2c_device_id *id);
 static int lm85_remove(struct i2c_client *client);
@@ -357,7 +358,7 @@ static struct i2c_driver lm85_driver = {
 	.remove		= lm85_remove,
 	.id_table	= lm85_id,
 	.detect		= lm85_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 
@@ -1156,8 +1157,7 @@ static int lm85_is_fake(struct i2c_client *client)
 }
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm85_detect(struct i2c_client *client, int kind,
-		       struct i2c_board_info *info)
+static int lm85_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	int address = client->addr;

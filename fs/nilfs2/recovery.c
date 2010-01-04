@@ -770,14 +770,8 @@ int nilfs_recover_logical_segments(struct the_nilfs *nilfs,
 		nilfs_finish_roll_forward(nilfs, sbi, ri);
 	}
 
-	nilfs_detach_checkpoint(sbi);
-	return 0;
-
  failed:
 	nilfs_detach_checkpoint(sbi);
-	nilfs_mdt_clear(nilfs->ns_cpfile);
-	nilfs_mdt_clear(nilfs->ns_sufile);
-	nilfs_mdt_clear(nilfs->ns_dat);
 	return err;
 }
 
@@ -804,6 +798,7 @@ int nilfs_search_super_root(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi,
 	struct nilfs_segsum_info ssi;
 	sector_t pseg_start, pseg_end, sr_pseg_start = 0;
 	sector_t seg_start, seg_end; /* range of full segment (block number) */
+	sector_t b, end;
 	u64 seg_seq;
 	__u64 segnum, nextnum = 0;
 	__u64 cno;
@@ -818,6 +813,11 @@ int nilfs_search_super_root(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi,
 
 	/* Calculate range of segment */
 	nilfs_get_segment_range(nilfs, segnum, &seg_start, &seg_end);
+
+	/* Read ahead segment */
+	b = seg_start;
+	while (b <= seg_end)
+		sb_breadahead(sbi->s_super, b++);
 
 	for (;;) {
 		/* Load segment summary */
@@ -841,14 +841,20 @@ int nilfs_search_super_root(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi,
 		ri->ri_nextnum = nextnum;
 		empty_seg = 0;
 
+		if (!NILFS_SEG_HAS_SR(&ssi) && !scan_newer) {
+			/* This will never happen because a superblock
+			   (last_segment) always points to a pseg
+			   having a super root. */
+			ret = NILFS_SEG_FAIL_CONSISTENCY;
+			goto failed;
+		}
+
+		if (pseg_start == seg_start) {
+			nilfs_get_segment_range(nilfs, nextnum, &b, &end);
+			while (b <= end)
+				sb_breadahead(sbi->s_super, b++);
+		}
 		if (!NILFS_SEG_HAS_SR(&ssi)) {
-			if (!scan_newer) {
-				/* This will never happen because a superblock
-				   (last_segment) always points to a pseg
-				   having a super root. */
-				ret = NILFS_SEG_FAIL_CONSISTENCY;
-				goto failed;
-			}
 			if (!ri->ri_lsegs_start && NILFS_SEG_LOGBGN(&ssi)) {
 				ri->ri_lsegs_start = pseg_start;
 				ri->ri_lsegs_start_seq = seg_seq;
@@ -919,7 +925,7 @@ int nilfs_search_super_root(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi,
 
  super_root_found:
 	/* Updating pointers relating to the latest checkpoint */
-	list_splice(&segments, ri->ri_used_segments.prev);
+	list_splice_tail(&segments, &ri->ri_used_segments);
 	nilfs->ns_last_pseg = sr_pseg_start;
 	nilfs->ns_last_seq = nilfs->ns_seg_seq;
 	nilfs->ns_last_cno = ri->ri_cno;

@@ -2,6 +2,7 @@
 #define __LIBSRP_H__
 
 #include <linux/list.h>
+#include <linux/kfifo.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
 #include <scsi/srp.h>
@@ -21,7 +22,7 @@ struct srp_buf {
 struct srp_queue {
 	void *pool;
 	void *items;
-	struct kfifo *queue;
+	struct kfifo queue;
 	spinlock_t lock;
 };
 

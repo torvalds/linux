@@ -276,7 +276,7 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 	range->max_qual.updated = 7; /* Updated all three */
 
 	range->avg_qual.qual = 92; /* > 8% missed beacons is 'bad' */
-	/* TODO: Find real 'good' to 'bad' threshol value for RSSI */
+	/* TODO: Find real 'good' to 'bad' threshold value for RSSI */
 	range->avg_qual.level = 20 + -98;
 	range->avg_qual.noise = 0;
 	range->avg_qual.updated = 7; /* Updated all three */
@@ -377,7 +377,7 @@ static int r8180_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 	//	queue_work(priv->ieee80211->wq, &priv->ieee80211->wx_sync_scan_wq);
 		//printk("start scan============================>\n");
 		ieee80211_softmac_ips_scan_syncro(priv->ieee80211);
-//ieee80211_start_scan(priv->ieee80211);
+//ieee80211_rtl_start_scan(priv->ieee80211);
 		/* intentionally forget to up sem */
 //			up(&priv->ieee80211->wx_sem);
 			ret = 0;

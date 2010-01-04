@@ -145,7 +145,7 @@ static int uvc_get_video_ctrl(struct uvc_streaming *stream,
 		uvc_warn_once(stream->dev, UVC_WARN_MINMAX, "UVC non "
 			"compliance - GET_MIN/MAX(PROBE) incorrectly "
 			"supported. Enabling workaround.\n");
-		memset(ctrl, 0, sizeof ctrl);
+		memset(ctrl, 0, sizeof *ctrl);
 		ctrl->wCompQuality = le16_to_cpup((__le16 *)data);
 		ret = 0;
 		goto out;

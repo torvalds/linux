@@ -1,7 +1,5 @@
 #include <media/saa7146_vv.h>
 
-#define BOARD_CAN_DO_VBI(dev)   (dev->revision != 0 && dev->vv_data->vbi_minor != -1)
-
 /****************************************************************************/
 /* resource management functions, shamelessly stolen from saa7134 driver */
 
@@ -194,42 +192,23 @@ void saa7146_buffer_timeout(unsigned long data)
 
 static int fops_open(struct file *file)
 {
-	unsigned int minor = video_devdata(file)->minor;
-	struct saa7146_dev *h = NULL, *dev = NULL;
-	struct list_head *list;
+	struct video_device *vdev = video_devdata(file);
+	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_fh *fh = NULL;
 	int result = 0;
 
-	enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	enum v4l2_buf_type type;
 
-	DEB_EE(("file:%p, minor:%d\n", file, minor));
+	DEB_EE(("file:%p, dev:%s\n", file, video_device_node_name(vdev)));
 
 	if (mutex_lock_interruptible(&saa7146_devices_lock))
 		return -ERESTARTSYS;
 
-	list_for_each(list,&saa7146_devices) {
-		h = list_entry(list, struct saa7146_dev, item);
-		if( NULL == h->vv_data ) {
-			DEB_D(("device %p has not registered video devices.\n",h));
-			continue;
-		}
-		DEB_D(("trying: %p @ major %d,%d\n",h,h->vv_data->video_minor,h->vv_data->vbi_minor));
-
-		if (h->vv_data->video_minor == minor) {
-			dev = h;
-		}
-		if (h->vv_data->vbi_minor == minor) {
-			type = V4L2_BUF_TYPE_VBI_CAPTURE;
-			dev = h;
-		}
-	}
-	if (NULL == dev) {
-		DEB_S(("no such video device.\n"));
-		result = -ENODEV;
-		goto out;
-	}
-
 	DEB_D(("using: %p\n",dev));
+
+	type = vdev->vfl_type == VFL_TYPE_GRABBER
+	     ? V4L2_BUF_TYPE_VIDEO_CAPTURE
+	     : V4L2_BUF_TYPE_VBI_CAPTURE;
 
 	/* check if an extension is registered */
 	if( NULL == dev->ext ) {
@@ -474,9 +453,6 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 	   configuration data) */
 	dev->ext_vv_data = ext_vv;
 
-	vv->video_minor = -1;
-	vv->vbi_minor = -1;
-
 	vv->d_clipping.cpu_addr = pci_alloc_consistent(dev->pci, SAA7146_CLIPPING_MEM, &vv->d_clipping.dma_handle);
 	if( NULL == vv->d_clipping.cpu_addr ) {
 		ERR(("out of memory. aborting.\n"));
@@ -515,7 +491,6 @@ EXPORT_SYMBOL_GPL(saa7146_vv_release);
 int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 			    char *name, int type)
 {
-	struct saa7146_vv *vv = dev->vv_data;
 	struct video_device *vfd;
 	int err;
 	int i;
@@ -543,15 +518,8 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 		return err;
 	}
 
-	if( VFL_TYPE_GRABBER == type ) {
-		vv->video_minor = vfd->minor;
-		INFO(("%s: registered device video%d [v4l2]\n",
-			dev->name, vfd->num));
-	} else {
-		vv->vbi_minor = vfd->minor;
-		INFO(("%s: registered device vbi%d [v4l2]\n",
-			dev->name, vfd->num));
-	}
+	INFO(("%s: registered device %s [v4l2]\n",
+		dev->name, video_device_node_name(vfd)));
 
 	*vid = vfd;
 	return 0;
@@ -560,15 +528,7 @@ EXPORT_SYMBOL_GPL(saa7146_register_device);
 
 int saa7146_unregister_device(struct video_device **vid, struct saa7146_dev* dev)
 {
-	struct saa7146_vv *vv = dev->vv_data;
-
 	DEB_EE(("dev:%p\n",dev));
-
-	if ((*vid)->vfl_type == VFL_TYPE_GRABBER) {
-		vv->video_minor = -1;
-	} else {
-		vv->vbi_minor = -1;
-	}
 
 	video_unregister_device(*vid);
 	*vid = NULL;

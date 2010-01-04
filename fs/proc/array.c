@@ -134,19 +134,24 @@ static inline void task_name(struct seq_file *m, struct task_struct *p)
  * simple bit tests.
  */
 static const char *task_state_array[] = {
-	"R (running)",		/*  0 */
-	"S (sleeping)",		/*  1 */
-	"D (disk sleep)",	/*  2 */
-	"T (stopped)",		/*  4 */
-	"T (tracing stop)",	/*  8 */
-	"Z (zombie)",		/* 16 */
-	"X (dead)"		/* 32 */
+	"R (running)",		/*   0 */
+	"S (sleeping)",		/*   1 */
+	"D (disk sleep)",	/*   2 */
+	"T (stopped)",		/*   4 */
+	"t (tracing stop)",	/*   8 */
+	"Z (zombie)",		/*  16 */
+	"X (dead)",		/*  32 */
+	"x (dead)",		/*  64 */
+	"K (wakekill)",		/* 128 */
+	"W (waking)",		/* 256 */
 };
 
 static inline const char *get_task_state(struct task_struct *tsk)
 {
 	unsigned int state = (tsk->state & TASK_REPORT) | tsk->exit_state;
 	const char **p = &task_state_array[0];
+
+	BUILD_BUG_ON(1 + ilog2(TASK_STATE_MAX) != ARRAY_SIZE(task_state_array));
 
 	while (state) {
 		p++;

@@ -1096,9 +1096,7 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 		hw_dbg("Configuring Autoneg:PCS_LCTL=0x%08X\n", reg);
 	} else {
 		/* Set PCS register for forced link */
-		reg |= E1000_PCS_LCTL_FSD |        /* Force Speed */
-		       E1000_PCS_LCTL_FORCE_LINK | /* Force Link */
-		       E1000_PCS_LCTL_FLV_LINK_UP; /* Force link value up */
+		reg |= E1000_PCS_LCTL_FSD;        /* Force Speed */
 
 		hw_dbg("Configuring Forced Link:PCS_LCTL=0x%08X\n", reg);
 	}

@@ -108,16 +108,12 @@ struct saa7146_fh {
 
 struct saa7146_vv
 {
-	int vbi_minor;
-
 	/* vbi capture */
 	struct saa7146_dmaqueue		vbi_q;
 	/* vbi workaround interrupt queue */
 	wait_queue_head_t		vbi_wq;
 	int				vbi_fieldcount;
 	struct saa7146_fh		*vbi_streaming;
-
-	int video_minor;
 
 	int				video_status;
 	struct saa7146_fh		*video_fh;

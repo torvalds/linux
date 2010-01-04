@@ -23,6 +23,7 @@
 #define RTL8187_EEPROM_TXPWR_CHAN_1	0x16	/* 3 channels */
 #define RTL8187_EEPROM_TXPWR_CHAN_6	0x1B	/* 2 channels */
 #define RTL8187_EEPROM_TXPWR_CHAN_4	0x3D	/* 2 channels */
+#define RTL8187_EEPROM_SELECT_GPIO	0x3B
 
 #define RTL8187_REQT_READ	0xC0
 #define RTL8187_REQT_WRITE	0x40
@@ -30,6 +31,9 @@
 #define RTL8187_REQ_SET_REG	0x05
 
 #define RTL8187_MAX_RX		0x9C4
+
+#define RFKILL_MASK_8187_89_97	0x2
+#define RFKILL_MASK_8198	0x4
 
 struct rtl8187_rx_info {
 	struct urb *urb;
@@ -104,6 +108,7 @@ struct rtl8187_priv {
 	struct delayed_work work;
 	struct ieee80211_hw *dev;
 #ifdef CONFIG_RTL8187_LEDS
+	struct rtl8187_led led_radio;
 	struct rtl8187_led led_tx;
 	struct rtl8187_led led_rx;
 	struct delayed_work led_on;
@@ -122,6 +127,7 @@ struct rtl8187_priv {
 	u8 noise;
 	u8 slot_time;
 	u8 aifsn[4];
+	u8 rfkill_mask;
 	struct {
 		__le64 buf;
 		struct sk_buff_head queue;

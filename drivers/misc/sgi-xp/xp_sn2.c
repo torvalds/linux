@@ -84,6 +84,15 @@ xp_pa_sn2(void *addr)
 }
 
 /*
+ * Convert a global physical to a socket physical address.
+ */
+static unsigned long
+xp_socket_pa_sn2(unsigned long gpa)
+{
+	return gpa;
+}
+
+/*
  * Wrapper for bte_copy().
  *
  *	dst_pa - physical address of the destination of the transfer.
@@ -162,6 +171,7 @@ xp_init_sn2(void)
 	xp_region_size = sn_region_size;
 
 	xp_pa = xp_pa_sn2;
+	xp_socket_pa = xp_socket_pa_sn2;
 	xp_remote_memcpy = xp_remote_memcpy_sn2;
 	xp_cpu_to_nasid = xp_cpu_to_nasid_sn2;
 	xp_expand_memprotect = xp_expand_memprotect_sn2;

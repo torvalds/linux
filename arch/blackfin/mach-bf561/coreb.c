@@ -22,8 +22,8 @@
 #define CMD_COREB_STOP		3
 #define CMD_COREB_RESET		4
 
-static int
-coreb_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long
+coreb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;
 
@@ -49,8 +49,8 @@ coreb_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned l
 }
 
 static const struct file_operations coreb_fops = {
-	.owner   = THIS_MODULE,
-	.ioctl   = coreb_ioctl,
+	.owner          = THIS_MODULE,
+	.unlocked_ioctl = coreb_ioctl,
 };
 
 static struct miscdevice coreb_dev = {

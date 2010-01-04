@@ -84,7 +84,7 @@ int cachefiles_daemon_bind(struct cachefiles_cache *cache, char *args)
 static int cachefiles_daemon_add_cache(struct cachefiles_cache *cache)
 {
 	struct cachefiles_object *fsdef;
-	struct nameidata nd;
+	struct path path;
 	struct kstatfs stats;
 	struct dentry *graveyard, *cachedir, *root;
 	const struct cred *saved_cred;
@@ -114,15 +114,12 @@ static int cachefiles_daemon_add_cache(struct cachefiles_cache *cache)
 	_debug("- fsdef %p", fsdef);
 
 	/* look up the directory at the root of the cache */
-	memset(&nd, 0, sizeof(nd));
-
-	ret = path_lookup(cache->rootdirname, LOOKUP_DIRECTORY, &nd);
+	ret = kern_path(cache->rootdirname, LOOKUP_DIRECTORY, &path);
 	if (ret < 0)
 		goto error_open_root;
 
-	cache->mnt = mntget(nd.path.mnt);
-	root = dget(nd.path.dentry);
-	path_put(&nd.path);
+	cache->mnt = path.mnt;
+	root = path.dentry;
 
 	/* check parameters */
 	ret = -EOPNOTSUPP;

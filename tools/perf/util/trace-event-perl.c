@@ -32,9 +32,6 @@
 
 void xs_init(pTHX);
 
-void boot_Perf__Trace__Context(pTHX_ CV *cv);
-void boot_DynaLoader(pTHX_ CV *cv);
-
 void xs_init(pTHX)
 {
 	const char *file = __FILE__;
@@ -270,7 +267,7 @@ int common_lock_depth(struct scripting_context *context)
 }
 
 static void perl_process_event(int cpu, void *data,
-			       int size __attribute((unused)),
+			       int size __unused,
 			       unsigned long long nsecs, char *comm)
 {
 	struct format_field *field;
@@ -362,28 +359,46 @@ static void run_start_sub(void)
 /*
  * Start trace script
  */
-static int perl_start_script(const char *script)
+static int perl_start_script(const char *script, int argc, const char **argv)
 {
-	const char *command_line[2] = { "", NULL };
+	const char **command_line;
+	int i, err = 0;
 
+	command_line = malloc((argc + 2) * sizeof(const char *));
+	command_line[0] = "";
 	command_line[1] = script;
+	for (i = 2; i < argc + 2; i++)
+		command_line[i] = argv[i - 2];
 
 	my_perl = perl_alloc();
 	perl_construct(my_perl);
 
-	if (perl_parse(my_perl, xs_init, 2, (char **)command_line,
-		       (char **)NULL))
-		return -1;
+	if (perl_parse(my_perl, xs_init, argc + 2, (char **)command_line,
+		       (char **)NULL)) {
+		err = -1;
+		goto error;
+	}
 
-	perl_run(my_perl);
-	if (SvTRUE(ERRSV))
-		return -1;
+	if (perl_run(my_perl)) {
+		err = -1;
+		goto error;
+	}
+
+	if (SvTRUE(ERRSV)) {
+		err = -1;
+		goto error;
+	}
 
 	run_start_sub();
 
+	free(command_line);
 	fprintf(stderr, "perf trace started with Perl script %s\n\n", script);
-
 	return 0;
+error:
+	perl_free(my_perl);
+	free(command_line);
+
+	return err;
 }
 
 /*
@@ -573,26 +588,74 @@ struct scripting_ops perl_scripting_ops = {
 	.generate_script = perl_generate_script,
 };
 
-#ifdef NO_LIBPERL
-void setup_perl_scripting(void)
+static void print_unsupported_msg(void)
 {
 	fprintf(stderr, "Perl scripting not supported."
-		"  Install libperl and rebuild perf to enable it.  e.g. "
-		"apt-get install libperl-dev (ubuntu), yum install "
-		"perl-ExtUtils-Embed (Fedora), etc.\n");
+		"  Install libperl and rebuild perf to enable it.\n"
+		"For example:\n  # apt-get install libperl-dev (ubuntu)"
+		"\n  # yum install perl-ExtUtils-Embed (Fedora)"
+		"\n  etc.\n");
 }
-#else
-void setup_perl_scripting(void)
+
+static int perl_start_script_unsupported(const char *script __unused,
+					 int argc __unused,
+					 const char **argv __unused)
+{
+	print_unsupported_msg();
+
+	return -1;
+}
+
+static int perl_stop_script_unsupported(void)
+{
+	return 0;
+}
+
+static void perl_process_event_unsupported(int cpu __unused,
+					   void *data __unused,
+					   int size __unused,
+					   unsigned long long nsecs __unused,
+					   char *comm __unused)
+{
+}
+
+static int perl_generate_script_unsupported(const char *outfile __unused)
+{
+	print_unsupported_msg();
+
+	return -1;
+}
+
+struct scripting_ops perl_scripting_unsupported_ops = {
+	.name = "Perl",
+	.start_script = perl_start_script_unsupported,
+	.stop_script = perl_stop_script_unsupported,
+	.process_event = perl_process_event_unsupported,
+	.generate_script = perl_generate_script_unsupported,
+};
+
+static void register_perl_scripting(struct scripting_ops *scripting_ops)
 {
 	int err;
-	err = script_spec_register("Perl", &perl_scripting_ops);
+	err = script_spec_register("Perl", scripting_ops);
 	if (err)
 		die("error registering Perl script extension");
 
-	err = script_spec_register("pl", &perl_scripting_ops);
+	err = script_spec_register("pl", scripting_ops);
 	if (err)
 		die("error registering pl script extension");
 
 	scripting_context = malloc(sizeof(struct scripting_context));
+}
+
+#ifdef NO_LIBPERL
+void setup_perl_scripting(void)
+{
+	register_perl_scripting(&perl_scripting_unsupported_ops);
+}
+#else
+void setup_perl_scripting(void)
+{
+	register_perl_scripting(&perl_scripting_ops);
 }
 #endif

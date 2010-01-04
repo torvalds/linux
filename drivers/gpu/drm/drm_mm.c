@@ -226,6 +226,44 @@ struct drm_mm_node *drm_mm_get_block_generic(struct drm_mm_node *node,
 }
 EXPORT_SYMBOL(drm_mm_get_block_generic);
 
+struct drm_mm_node *drm_mm_get_block_range_generic(struct drm_mm_node *node,
+						unsigned long size,
+						unsigned alignment,
+						unsigned long start,
+						unsigned long end,
+						int atomic)
+{
+	struct drm_mm_node *align_splitoff = NULL;
+	unsigned tmp = 0;
+	unsigned wasted = 0;
+
+	if (node->start < start)
+		wasted += start - node->start;
+	if (alignment)
+		tmp = ((node->start + wasted) % alignment);
+
+	if (tmp)
+		wasted += alignment - tmp;
+	if (wasted) {
+		align_splitoff = drm_mm_split_at_start(node, wasted, atomic);
+		if (unlikely(align_splitoff == NULL))
+			return NULL;
+	}
+
+	if (node->size == size) {
+		list_del_init(&node->fl_entry);
+		node->free = 0;
+	} else {
+		node = drm_mm_split_at_start(node, size, atomic);
+	}
+
+	if (align_splitoff)
+		drm_mm_put_block(align_splitoff);
+
+	return node;
+}
+EXPORT_SYMBOL(drm_mm_get_block_range_generic);
+
 /*
  * Put a block. Merge with the previous and / or next block if they are free.
  * Otherwise add to the free stack.
@@ -320,7 +358,7 @@ struct drm_mm_node *drm_mm_search_free(const struct drm_mm *mm,
 		if (entry->size >= size + wasted) {
 			if (!best_match)
 				return entry;
-			if (size < best_size) {
+			if (entry->size < best_size) {
 				best = entry;
 				best_size = entry->size;
 			}
@@ -330,6 +368,56 @@ struct drm_mm_node *drm_mm_search_free(const struct drm_mm *mm,
 	return best;
 }
 EXPORT_SYMBOL(drm_mm_search_free);
+
+struct drm_mm_node *drm_mm_search_free_in_range(const struct drm_mm *mm,
+						unsigned long size,
+						unsigned alignment,
+						unsigned long start,
+						unsigned long end,
+						int best_match)
+{
+	struct list_head *list;
+	const struct list_head *free_stack = &mm->fl_entry;
+	struct drm_mm_node *entry;
+	struct drm_mm_node *best;
+	unsigned long best_size;
+	unsigned wasted;
+
+	best = NULL;
+	best_size = ~0UL;
+
+	list_for_each(list, free_stack) {
+		entry = list_entry(list, struct drm_mm_node, fl_entry);
+		wasted = 0;
+
+		if (entry->size < size)
+			continue;
+
+		if (entry->start > end || (entry->start+entry->size) < start)
+			continue;
+
+		if (entry->start < start)
+			wasted += start - entry->start;
+
+		if (alignment) {
+			register unsigned tmp = (entry->start + wasted) % alignment;
+			if (tmp)
+				wasted += alignment - tmp;
+		}
+
+		if (entry->size >= size + wasted) {
+			if (!best_match)
+				return entry;
+			if (entry->size < best_size) {
+				best = entry;
+				best_size = entry->size;
+			}
+		}
+	}
+
+	return best;
+}
+EXPORT_SYMBOL(drm_mm_search_free_in_range);
 
 int drm_mm_clean(struct drm_mm * mm)
 {
@@ -381,6 +469,26 @@ void drm_mm_takedown(struct drm_mm * mm)
 }
 EXPORT_SYMBOL(drm_mm_takedown);
 
+void drm_mm_debug_table(struct drm_mm *mm, const char *prefix)
+{
+	struct drm_mm_node *entry;
+	int total_used = 0, total_free = 0, total = 0;
+
+	list_for_each_entry(entry, &mm->ml_entry, ml_entry) {
+		printk(KERN_DEBUG "%s 0x%08lx-0x%08lx: %8ld: %s\n",
+			prefix, entry->start, entry->start + entry->size,
+			entry->size, entry->free ? "free" : "used");
+		total += entry->size;
+		if (entry->free)
+			total_free += entry->size;
+		else
+			total_used += entry->size;
+	}
+	printk(KERN_DEBUG "%s total: %d, used %d free %d\n", prefix, total,
+		total_used, total_free);
+}
+EXPORT_SYMBOL(drm_mm_debug_table);
+
 #if defined(CONFIG_DEBUG_FS)
 int drm_mm_dump_table(struct seq_file *m, struct drm_mm *mm)
 {
@@ -395,7 +503,7 @@ int drm_mm_dump_table(struct seq_file *m, struct drm_mm *mm)
 		else
 			total_used += entry->size;
 	}
-	seq_printf(m, "total: %d, used %d free %d\n", total, total_free, total_used);
+	seq_printf(m, "total: %d, used %d free %d\n", total, total_used, total_free);
 	return 0;
 }
 EXPORT_SYMBOL(drm_mm_dump_table);

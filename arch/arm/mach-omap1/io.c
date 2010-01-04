@@ -18,7 +18,8 @@
 #include <plat/mux.h>
 #include <plat/tc.h>
 
-extern int omap1_clk_init(void);
+#include "clock.h"
+
 extern void omap_check_revision(void);
 extern void omap_sram_init(void);
 extern void omapfb_reserve_sdram(void);

@@ -147,32 +147,36 @@ static void cvm_oct_rgmii_poll(struct net_device *dev)
 		cvmx_write_csr(CVMX_GMXX_RXX_INT_REG(index, interface),
 			       gmxx_rxx_int_reg.u64);
 	}
-
-	link_info = cvmx_helper_link_autoconf(priv->port);
-	priv->link_info = link_info.u64;
+	if (priv->phydev == NULL) {
+		link_info = cvmx_helper_link_autoconf(priv->port);
+		priv->link_info = link_info.u64;
+	}
 	spin_unlock_irqrestore(&global_register_lock, flags);
 
-	/* Tell Linux */
-	if (link_info.s.link_up) {
-
-		if (!netif_carrier_ok(dev))
-			netif_carrier_on(dev);
-		if (priv->queue != -1)
-			DEBUGPRINT
-			    ("%s: %u Mbps %s duplex, port %2d, queue %2d\n",
-			     dev->name, link_info.s.speed,
-			     (link_info.s.full_duplex) ? "Full" : "Half",
-			     priv->port, priv->queue);
-		else
-			DEBUGPRINT("%s: %u Mbps %s duplex, port %2d, POW\n",
-				   dev->name, link_info.s.speed,
-				   (link_info.s.full_duplex) ? "Full" : "Half",
-				   priv->port);
-	} else {
-
-		if (netif_carrier_ok(dev))
-			netif_carrier_off(dev);
-		DEBUGPRINT("%s: Link down\n", dev->name);
+	if (priv->phydev == NULL) {
+		/* Tell core. */
+		if (link_info.s.link_up) {
+			if (!netif_carrier_ok(dev))
+				netif_carrier_on(dev);
+			if (priv->queue != -1)
+				DEBUGPRINT("%s: %u Mbps %s duplex, "
+					   "port %2d, queue %2d\n",
+					   dev->name, link_info.s.speed,
+					   (link_info.s.full_duplex) ?
+						"Full" : "Half",
+					   priv->port, priv->queue);
+			else
+				DEBUGPRINT("%s: %u Mbps %s duplex, "
+					   "port %2d, POW\n",
+					   dev->name, link_info.s.speed,
+					   (link_info.s.full_duplex) ?
+						"Full" : "Half",
+					   priv->port);
+		} else {
+			if (netif_carrier_ok(dev))
+				netif_carrier_off(dev);
+			DEBUGPRINT("%s: Link down\n", dev->name);
+		}
 	}
 }
 
@@ -308,7 +312,7 @@ int cvm_oct_rgmii_init(struct net_device *dev)
 
 	/*
 	 * Due to GMX errata in CN3XXX series chips, it is necessary
-	 * to take the link down immediately whne the PHY changes
+	 * to take the link down immediately when the PHY changes
 	 * state. In order to do this we call the poll function every
 	 * time the RGMII inband status changes.  This may cause
 	 * problems if the PHY doesn't implement inband status
@@ -317,6 +321,8 @@ int cvm_oct_rgmii_init(struct net_device *dev)
 	if (number_rgmii_ports == 0) {
 		r = request_irq(OCTEON_IRQ_RML, cvm_oct_rgmii_rml_interrupt,
 				IRQF_SHARED, "RGMII", &number_rgmii_ports);
+		if (r != 0)
+			return r;
 	}
 	number_rgmii_ports++;
 

@@ -579,7 +579,7 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 		if (elen > left)
 			break;
 
-		if (calc_crc && id < 64 && (filter & BIT(id)))
+		if (calc_crc && id < 64 && (filter & (1ULL << id)))
 			crc = crc32_be(crc, pos - 2, elen + 2);
 
 		switch (id) {
@@ -1039,7 +1039,19 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
 	/* restart hardware */
 	if (local->open_count) {
+		/*
+		 * Upon resume hardware can sometimes be goofy due to
+		 * various platform / driver / bus issues, so restarting
+		 * the device may at times not work immediately. Propagate
+		 * the error.
+		 */
 		res = drv_start(local);
+		if (res) {
+			WARN(local->suspended, "Harware became unavailable "
+			     "upon resume. This is could be a software issue"
+			     "prior to suspend or a harware issue\n");
+			return res;
+		}
 
 		ieee80211_led_radio(local, true);
 	}

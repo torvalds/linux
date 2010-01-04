@@ -534,8 +534,6 @@ static void edac_pci_dev_parity_clear(struct pci_dev *dev)
 {
 	u8 header_type;
 
-	debugf0("%s()\n", __func__);
-
 	get_pci_parity_status(dev, 0);
 
 	/* read the device TYPE, looking for bridges */

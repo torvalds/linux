@@ -2291,8 +2291,8 @@ was renamed to <structname id="v4l2-chip-ident-old">v4l2_chip_ident_old</structn
 	<listitem>
 	  <para>New control <constant>V4L2_CID_COLORFX</constant> was added.</para>
 	</listitem>
-       </orderedlist>
-     </section>
+      </orderedlist>
+    </section>
     <section>
       <title>V4L2 in Linux 2.6.32</title>
       <orderedlist>
@@ -2322,8 +2322,16 @@ more information.</para>
 	<listitem>
 	  <para>Added Remote Controller chapter, describing the default Remote Controller mapping for media devices.</para>
 	</listitem>
-       </orderedlist>
-     </section>
+      </orderedlist>
+    </section>
+    <section>
+      <title>V4L2 in Linux 2.6.33</title>
+      <orderedlist>
+	<listitem>
+	  <para>Added support for Digital Video timings in order to support HDTV receivers and transmitters.</para>
+	</listitem>
+      </orderedlist>
+    </section>
    </section>
 
    <section id="other">

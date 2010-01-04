@@ -1143,9 +1143,6 @@ static int do_mmap_private(struct vm_area_struct *vma,
 		if (ret < rlen)
 			memset(base + ret, 0, rlen - ret);
 
-	} else {
-		/* if it's an anonymous mapping, then just clear it */
-		memset(base, 0, rlen);
 	}
 
 	return 0;
@@ -1343,6 +1340,11 @@ unsigned long do_mmap_pgoff(struct file *file,
 		goto error_just_free;
 	add_nommu_region(region);
 
+	/* clear anonymous mappings that don't ask for uninitialized data */
+	if (!vma->vm_file && !(flags & MAP_UNINITIALIZED))
+		memset((void *)region->vm_start, 0,
+		       region->vm_end - region->vm_start);
+
 	/* okay... we have a mapping; now we have to register it */
 	result = vma->vm_start;
 
@@ -1395,6 +1397,31 @@ error_getting_region:
 	return -ENOMEM;
 }
 EXPORT_SYMBOL(do_mmap_pgoff);
+
+SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
+		unsigned long, prot, unsigned long, flags,
+		unsigned long, fd, unsigned long, pgoff)
+{
+	struct file *file = NULL;
+	unsigned long retval = -EBADF;
+
+	if (!(flags & MAP_ANONYMOUS)) {
+		file = fget(fd);
+		if (!file)
+			goto out;
+	}
+
+	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
+
+	down_write(&current->mm->mmap_sem);
+	retval = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
+	up_write(&current->mm->mmap_sem);
+
+	if (file)
+		fput(file);
+out:
+	return retval;
+}
 
 /*
  * split a vma into two pieces at address 'addr', a new vma is allocated either

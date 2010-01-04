@@ -98,8 +98,8 @@
 #define ISP1301_I2C_INTERRUPT_RISING 0xE
 #define ISP1301_I2C_REG_CLEAR_ADDR 1
 
-struct i2c_driver isp1301_driver;
-struct i2c_client *isp1301_i2c_client;
+static struct i2c_driver isp1301_driver;
+static struct i2c_client *isp1301_i2c_client;
 
 extern int usb_disabled(void);
 extern int ocpi_enable(void);
@@ -120,12 +120,12 @@ static int isp1301_remove(struct i2c_client *client)
 	return 0;
 }
 
-const struct i2c_device_id isp1301_id[] = {
+static const struct i2c_device_id isp1301_id[] = {
 	{ "isp1301_pnx", 0 },
 	{ }
 };
 
-struct i2c_driver isp1301_driver = {
+static struct i2c_driver isp1301_driver = {
 	.driver = {
 		.name = "isp1301_pnx",
 	},

@@ -7,6 +7,10 @@
  * Author: Stefan Bader <shbader@de.ibm.com>
  * Based on simple class device code by Greg K-H
  */
+
+#define KMSG_COMPONENT "tape"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include "tape_class.h"
 
 MODULE_AUTHOR("Stefan Bader <shbader@de.ibm.com>");

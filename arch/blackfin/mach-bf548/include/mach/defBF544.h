@@ -624,9 +624,9 @@
 #define                 DMA_READY  0x1        /* DMA Ready */
 #define                  FIFOFULL  0x2        /* FIFO Full */
 #define                 FIFOEMPTY  0x4        /* FIFO Empty */
-#define                  COMPLETE  0x8        /* DMA Complete */
+#define              DMA_COMPLETE  0x8        /* DMA Complete */
 #define                      HSHK  0x10       /* Host Handshake */
-#define                   TIMEOUT  0x20       /* Host Timeout */
+#define                 HSTIMEOUT  0x20       /* Host Timeout */
 #define                      HIRQ  0x40       /* Host Interrupt Request */
 #define                ALLOW_CNFG  0x80       /* Allow New Configuration */
 #define                   DMA_DIR  0x100      /* DMA Direction */

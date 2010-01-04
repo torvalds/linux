@@ -124,7 +124,13 @@ current input.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
-	    <entry><structfield>reserved</structfield>[4]</entry>
+	    <entry><structfield>capabilities</structfield></entry>
+	    <entry>This field provides capabilities for the
+input. See <xref linkend="input-capabilities" /> for flags.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[3]</entry>
 	    <entry>Reserved for future extensions. Drivers must set
 the array to zero.</entry>
 	  </row>
@@ -257,6 +263,34 @@ flag is set Macrovision has been detected.</entry>
 	    <entry><constant>V4L2_IN_ST_VTR</constant></entry>
 	    <entry>0x04000000</entry>
 	    <entry>VTR time constant. [?]</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <!-- Capability flags based on video timings RFC by Muralidharan
+Karicheri, titled RFC (v1.2): V4L - Support for video timings at the
+input/output interface to linux-media@vger.kernel.org on 19 Oct 2009.
+	-->
+    <table frame="none" pgwide="1" id="input-capabilities">
+      <title>Input capabilities</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_IN_CAP_PRESETS</constant></entry>
+	    <entry>0x00000001</entry>
+	    <entry>This input supports setting DV presets by using VIDIOC_S_DV_PRESET.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_OUT_CAP_CUSTOM_TIMINGS</constant></entry>
+	    <entry>0x00000002</entry>
+	    <entry>This input supports setting custom video timings by using VIDIOC_S_DV_TIMINGS.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_IN_CAP_STD</constant></entry>
+	    <entry>0x00000004</entry>
+	    <entry>This input supports setting the TV standard by using VIDIOC_S_STD.</entry>
 	  </row>
 	</tbody>
       </tgroup>

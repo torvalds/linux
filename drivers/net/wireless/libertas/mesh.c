@@ -2,6 +2,7 @@
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
+#include <linux/if_ether.h>
 #include <linux/if_arp.h>
 #include <linux/kthread.h>
 #include <linux/kfifo.h>
@@ -351,8 +352,7 @@ int lbs_add_mesh(struct lbs_private *priv)
 
 	mesh_dev->netdev_ops = &mesh_netdev_ops;
 	mesh_dev->ethtool_ops = &lbs_ethtool_ops;
-	memcpy(mesh_dev->dev_addr, priv->dev->dev_addr,
-			sizeof(priv->dev->dev_addr));
+	memcpy(mesh_dev->dev_addr, priv->dev->dev_addr, ETH_ALEN);
 
 	SET_NETDEV_DEV(priv->mesh_dev, priv->dev->dev.parent);
 

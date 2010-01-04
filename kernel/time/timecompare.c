@@ -89,7 +89,7 @@ int timecompare_offset(struct timecompare *sync,
 			 * source time
 			 */
 			sample.offset =
-				ktime_to_ns(ktime_add(end, start)) / 2 -
+				(ktime_to_ns(end) + ktime_to_ns(start)) / 2 -
 				ts;
 
 			/* simple insertion sort based on duration */

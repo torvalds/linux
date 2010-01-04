@@ -1795,7 +1795,7 @@ static int igb_wol_exclusion(struct igb_adapter *adapter,
 		/* dual port cards only support WoL on port A from now on
 		 * unless it was enabled in the eeprom for port B
 		 * so exclude FUNC_1 ports from having WoL enabled */
-		if (rd32(E1000_STATUS) & E1000_STATUS_FUNC_1 &&
+		if ((rd32(E1000_STATUS) & E1000_STATUS_FUNC_MASK) &&
 		    !adapter->eeprom_wol) {
 			wol->supported = 0;
 			break;

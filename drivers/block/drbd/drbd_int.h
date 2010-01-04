@@ -1490,7 +1490,7 @@ void drbd_bump_write_ordering(struct drbd_conf *mdev, enum write_ordering_e wo);
 
 /* drbd_proc.c */
 extern struct proc_dir_entry *drbd_proc;
-extern struct file_operations drbd_proc_fops;
+extern const struct file_operations drbd_proc_fops;
 extern const char *drbd_conn_str(enum drbd_conns s);
 extern const char *drbd_role_str(enum drbd_role s);
 

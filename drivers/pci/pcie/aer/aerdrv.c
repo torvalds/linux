@@ -53,7 +53,7 @@ static struct pci_error_handlers aer_error_handlers = {
 
 static struct pcie_port_service_driver aerdriver = {
 	.name		= "aer",
-	.port_type	= PCIE_RC_PORT,
+	.port_type	= PCI_EXP_TYPE_ROOT_PORT,
 	.service	= PCIE_PORT_SERVICE_AER,
 
 	.probe		= aer_probe,
@@ -155,7 +155,7 @@ static struct aer_rpc *aer_alloc_rpc(struct pcie_device *dev)
 	mutex_init(&rpc->rpc_mutex);
 	init_waitqueue_head(&rpc->wait_release);
 
-	/* Use PCIE bus function to store rpc into PCIE device */
+	/* Use PCIe bus function to store rpc into PCIe device */
 	set_service_data(dev, rpc);
 
 	return rpc;
@@ -295,7 +295,7 @@ static void aer_error_resume(struct pci_dev *dev)
 	u16 reg16;
 
 	/* Clean up Root device status */
-	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(dev);
 	pci_read_config_word(dev, pos + PCI_EXP_DEVSTA, &reg16);
 	pci_write_config_word(dev, pos + PCI_EXP_DEVSTA, reg16);
 

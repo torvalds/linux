@@ -2323,9 +2323,9 @@ static int w9968cf_sensor_init(struct w9968cf_device* cam)
 error:
 	cam->sensor_initialized = 0;
 	cam->sensor = CC_UNKNOWN;
-	DBG(1, "Image sensor initialization failed for %s (/dev/video%d). "
+	DBG(1, "Image sensor initialization failed for %s (%s). "
 	       "Try to detach and attach this device again",
-	    symbolic(camlist, cam->id), cam->v4ldev->num)
+	    symbolic(camlist, cam->id), video_device_node_name(cam->v4ldev))
 	return err;
 }
 
@@ -2571,7 +2571,8 @@ static void w9968cf_release_resources(struct w9968cf_device* cam)
 {
 	mutex_lock(&w9968cf_devlist_mutex);
 
-	DBG(2, "V4L device deregistered: /dev/video%d", cam->v4ldev->num)
+	DBG(2, "V4L device deregistered: %s",
+	    video_device_node_name(cam->v4ldev))
 
 	video_unregister_device(cam->v4ldev);
 	list_del(&cam->v4llist);
@@ -2605,17 +2606,19 @@ static int w9968cf_open(struct file *filp)
 
 	if (cam->sensor == CC_UNKNOWN) {
 		DBG(2, "No supported image sensor has been detected by the "
-		       "'ovcamchip' module for the %s (/dev/video%d). Make "
-		       "sure it is loaded *before* (re)connecting the camera.",
-		    symbolic(camlist, cam->id), cam->v4ldev->num)
+		       "'ovcamchip' module for the %s (%s). Make sure "
+		       "it is loaded *before* (re)connecting the camera.",
+		    symbolic(camlist, cam->id),
+		    video_device_node_name(cam->v4ldev))
 		mutex_unlock(&cam->dev_mutex);
 		up_read(&w9968cf_disconnect);
 		return -ENODEV;
 	}
 
 	if (cam->users) {
-		DBG(2, "%s (/dev/video%d) has been already occupied by '%s'",
-		    symbolic(camlist, cam->id), cam->v4ldev->num, cam->command)
+		DBG(2, "%s (%s) has been already occupied by '%s'",
+		    symbolic(camlist, cam->id),
+		    video_device_node_name(cam->v4ldev), cam->command)
 		if ((filp->f_flags & O_NONBLOCK)||(filp->f_flags & O_NDELAY)) {
 			mutex_unlock(&cam->dev_mutex);
 			up_read(&w9968cf_disconnect);
@@ -2636,8 +2639,8 @@ static int w9968cf_open(struct file *filp)
 		mutex_lock(&cam->dev_mutex);
 	}
 
-	DBG(5, "Opening '%s', /dev/video%d ...",
-	    symbolic(camlist, cam->id), cam->v4ldev->num)
+	DBG(5, "Opening '%s', %s ...",
+	    symbolic(camlist, cam->id), video_device_node_name(cam->v4ldev))
 
 	cam->streaming = 0;
 	cam->misconfigured = 0;
@@ -2874,8 +2877,7 @@ static long w9968cf_v4l_ioctl(struct file *filp,
 			.minwidth = cam->minwidth,
 			.minheight = cam->minheight,
 		};
-		sprintf(cap.name, "W996[87]CF USB Camera #%d",
-			cam->v4ldev->num);
+		sprintf(cap.name, "W996[87]CF USB Camera");
 		cap.maxwidth = (cam->upscaling && w9968cf_vpp)
 			       ? max((u16)W9968CF_MAX_WIDTH, cam->maxwidth)
 				 : cam->maxwidth;
@@ -3485,7 +3487,6 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 
 	strcpy(cam->v4ldev->name, symbolic(camlist, mod_id));
 	cam->v4ldev->fops = &w9968cf_fops;
-	cam->v4ldev->minor = video_nr[dev_nr];
 	cam->v4ldev->release = video_device_release;
 	video_set_drvdata(cam->v4ldev, cam);
 	cam->v4ldev->v4l2_dev = &cam->v4l2_dev;
@@ -3501,7 +3502,8 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 		goto fail;
 	}
 
-	DBG(2, "V4L device registered as /dev/video%d", cam->v4ldev->num)
+	DBG(2, "V4L device registered as %s",
+	    video_device_node_name(cam->v4ldev))
 
 	/* Set some basic constants */
 	w9968cf_configure_camera(cam, udev, mod_id, dev_nr);
@@ -3557,10 +3559,10 @@ static void w9968cf_usb_disconnect(struct usb_interface* intf)
 		wake_up_interruptible_all(&cam->open);
 
 		if (cam->users) {
-			DBG(2, "The device is open (/dev/video%d)! "
+			DBG(2, "The device is open (%s)! "
 			       "Process name: %s. Deregistration and memory "
 			       "deallocation are deferred on close.",
-			    cam->v4ldev->num, cam->command)
+			    video_device_node_name(cam->v4ldev), cam->command)
 			cam->misconfigured = 1;
 			w9968cf_stop_transfer(cam);
 			wake_up_interruptible(&cam->wait_queue);

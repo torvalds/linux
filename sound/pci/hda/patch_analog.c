@@ -1186,6 +1186,8 @@ static int patch_ad1986a(struct hda_codec *codec)
 	 */
 	spec->multiout.no_share_stream = 1;
 
+	codec->no_trigger_sense = 1;
+
 	return 0;
 }
 
@@ -1370,6 +1372,8 @@ static int patch_ad1983(struct hda_codec *codec)
 	spec->vmaster_nid = 0x05;
 
 	codec->patch_ops = ad198x_patch_ops;
+
+	codec->no_trigger_sense = 1;
 
 	return 0;
 }
@@ -1789,6 +1793,14 @@ static int patch_ad1981(struct hda_codec *codec)
 
 		codec->patch_ops.init = ad1981_hp_init;
 		codec->patch_ops.unsol_event = ad1981_hp_unsol_event;
+		/* set the upper-limit for mixer amp to 0dB for avoiding the
+		 * possible damage by overloading
+		 */
+		snd_hda_override_amp_caps(codec, 0x11, HDA_INPUT,
+					  (0x17 << AC_AMPCAP_OFFSET_SHIFT) |
+					  (0x17 << AC_AMPCAP_NUM_STEPS_SHIFT) |
+					  (0x05 << AC_AMPCAP_STEP_SIZE_SHIFT) |
+					  (1 << AC_AMPCAP_MUTE_SHIFT));
 		break;
 	case AD1981_THINKPAD:
 		spec->mixers[0] = ad1981_thinkpad_mixers;
@@ -1805,6 +1817,9 @@ static int patch_ad1981(struct hda_codec *codec)
 		codec->patch_ops.unsol_event = ad1981_hp_unsol_event;
 		break;
 	}
+
+	codec->no_trigger_sense = 1;
+
 	return 0;
 }
 
@@ -3110,6 +3125,8 @@ static int patch_ad1988(struct hda_codec *codec)
 #endif
 	spec->vmaster_nid = 0x04;
 
+	codec->no_trigger_sense = 1;
+
 	return 0;
 }
 
@@ -3321,6 +3338,8 @@ static int patch_ad1884(struct hda_codec *codec)
 	spec->slave_vols = ad1884_slave_vols;
 
 	codec->patch_ops = ad198x_patch_ops;
+
+	codec->no_trigger_sense = 1;
 
 	return 0;
 }
@@ -4279,6 +4298,8 @@ static int patch_ad1884a(struct hda_codec *codec)
 		break;
 	}
 
+	codec->no_trigger_sense = 1;
+
 	return 0;
 }
 
@@ -4615,6 +4636,9 @@ static int patch_ad1882(struct hda_codec *codec)
 		spec->mixers[2] = ad1882_6stack_mixers;
 		break;
 	}
+
+	codec->no_trigger_sense = 1;
+
 	return 0;
 }
 
