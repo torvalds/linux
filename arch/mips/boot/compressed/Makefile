@@ -9,7 +9,7 @@
 # modified by Cort (cort@cs.nmt.edu)
 #
 # Copyright (C) 2009 Lemote Inc. & DSLab, Lanzhou University
-# Author: Wu Zhangjin <wuzj@lemote.com>
+# Author: Wu Zhangjin <wuzhangjin@gmail.com>
 #
 
 # compressed kernel load addr: VMLINUZ_LOAD_ADDRESS > VMLINUX_LOAD_ADDRESS + VMLINUX_SIZE

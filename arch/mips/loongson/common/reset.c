@@ -7,7 +7,7 @@
  * Copyright (C) 2007 Lemote, Inc. & Institute of Computing Technology
  * Author: Fuxin Zhang, zhangfx@lemote.com
  * Copyright (C) 2009 Lemote, Inc.
- * Author: Zhangjin Wu, wuzj@lemote.com
+ * Author: Zhangjin Wu, wuzhangjin@gmail.com
  */
 #include <linux/init.h>
 #include <linux/pm.h>
