@@ -40,15 +40,11 @@ struct xt_connlimit_data {
 	spinlock_t lock;
 };
 
-static u_int32_t connlimit_rnd;
-static bool connlimit_rnd_inited;
+static u_int32_t connlimit_rnd __read_mostly;
+static bool connlimit_rnd_inited __read_mostly;
 
 static inline unsigned int connlimit_iphash(__be32 addr)
 {
-	if (unlikely(!connlimit_rnd_inited)) {
-		get_random_bytes(&connlimit_rnd, sizeof(connlimit_rnd));
-		connlimit_rnd_inited = true;
-	}
 	return jhash_1word((__force __u32)addr, connlimit_rnd) & 0xFF;
 }
 
@@ -58,11 +54,6 @@ connlimit_iphash6(const union nf_inet_addr *addr,
 {
 	union nf_inet_addr res;
 	unsigned int i;
-
-	if (unlikely(!connlimit_rnd_inited)) {
-		get_random_bytes(&connlimit_rnd, sizeof(connlimit_rnd));
-		connlimit_rnd_inited = true;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(addr->ip6); ++i)
 		res.ip6[i] = addr->ip6[i] & mask->ip6[i];
@@ -226,6 +217,10 @@ static bool connlimit_mt_check(const struct xt_mtchk_param *par)
 	struct xt_connlimit_info *info = par->matchinfo;
 	unsigned int i;
 
+	if (unlikely(!connlimit_rnd_inited)) {
+		get_random_bytes(&connlimit_rnd, sizeof(connlimit_rnd));
+		connlimit_rnd_inited = true;
+	}
 	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
 		printk(KERN_WARNING "cannot load conntrack support for "
 		       "address family %u\n", par->family);
