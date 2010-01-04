@@ -3361,10 +3361,17 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	mwl8k_release_firmware(priv);
 
 
-	if (priv->ap_fw)
+	if (priv->ap_fw) {
 		priv->rxd_ops = priv->device_info->ap_rxd_ops;
-	else
+		if (priv->rxd_ops == NULL) {
+			printk(KERN_ERR "%s: Driver does not have AP "
+			       "firmware image support for this hardware\n",
+			       wiphy_name(hw->wiphy));
+			goto err_stop_firmware;
+		}
+	} else {
 		priv->rxd_ops = &rxd_sta_ops;
+	}
 
 	priv->sniffer_enabled = false;
 	priv->wmm_enabled = false;
