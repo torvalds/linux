@@ -3140,8 +3140,17 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 				    journal_end(&th, inode->i_sb, jbegin_count);
 			}
 		}
-		if (!error)
+		if (!error) {
+			/*
+			 * Relax the lock here, as it might truncate the
+			 * inode pages and wait for inode pages locks.
+			 * To release such page lock, the owner needs the
+			 * reiserfs lock
+			 */
+			reiserfs_write_unlock_once(inode->i_sb, depth);
 			error = inode_setattr(inode, attr);
+			depth = reiserfs_write_lock_once(inode->i_sb);
+		}
 	}
 
 	if (!error && reiserfs_posixacl(inode->i_sb)) {
