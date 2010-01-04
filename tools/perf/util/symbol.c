@@ -64,7 +64,7 @@ static void dso__set_sorted_by_name(struct dso *self, enum map_type type)
 	self->sorted_by_name |= (1 << type);
 }
 
-static bool symbol_type__is_a(char symbol_type, enum map_type map_type)
+bool symbol_type__is_a(char symbol_type, enum map_type map_type)
 {
 	switch (map_type) {
 	case MAP__FUNCTION:

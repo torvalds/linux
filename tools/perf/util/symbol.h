@@ -139,6 +139,8 @@ int kallsyms__parse(void *arg, int (*process_symbol)(void *arg, const char *name
 						     char type, u64 start));
 
 int symbol__init(void);
+bool symbol_type__is_a(char symbol_type, enum map_type map_type);
+
 int perf_session__create_kernel_maps(struct perf_session *self);
 
 extern struct list_head dsos__user, dsos__kernel;
