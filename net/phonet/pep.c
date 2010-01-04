@@ -860,7 +860,9 @@ static int pep_sendmsg(struct kiocb *iocb, struct sock *sk,
 	int flags = msg->msg_flags;
 	int err, done;
 
-	if (msg->msg_flags & MSG_OOB || !(msg->msg_flags & MSG_EOR))
+	if ((msg->msg_flags & ~(MSG_DONTWAIT|MSG_EOR|MSG_NOSIGNAL|
+				MSG_CMSG_COMPAT)) ||
+			!(msg->msg_flags & MSG_EOR))
 		return -EOPNOTSUPP;
 
 	skb = sock_alloc_send_skb(sk, MAX_PNPIPE_HEADER + len,
@@ -981,6 +983,10 @@ static int pep_recvmsg(struct kiocb *iocb, struct sock *sk,
 	struct sk_buff *skb;
 	int err;
 
+	if (flags & ~(MSG_OOB|MSG_PEEK|MSG_TRUNC|MSG_DONTWAIT|MSG_WAITALL|
+			MSG_NOSIGNAL|MSG_CMSG_COMPAT))
+		return -EOPNOTSUPP;
+
 	if (unlikely(1 << sk->sk_state & (TCPF_LISTEN | TCPF_CLOSE)))
 		return -ENOTCONN;
 
@@ -988,6 +994,8 @@ static int pep_recvmsg(struct kiocb *iocb, struct sock *sk,
 		/* Dequeue and acknowledge control request */
 		struct pep_sock *pn = pep_sk(sk);
 
+		if (flags & MSG_PEEK)
+			return -EOPNOTSUPP;
 		skb = skb_dequeue(&pn->ctrlreq_queue);
 		if (skb) {
 			pep_ctrlreq_error(sk, skb, PN_PIPE_NO_ERROR,
