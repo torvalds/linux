@@ -539,8 +539,6 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		r = kvmppc_emulate_mmio(run, vcpu);
 		if ( r == RESUME_HOST_NV )
 			r = RESUME_HOST;
-		if ( r == RESUME_GUEST_NV )
-			r = RESUME_GUEST;
 	}
 
 	return r;
@@ -645,7 +643,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		er = kvmppc_emulate_instruction(run, vcpu);
 		switch (er) {
 		case EMULATE_DONE:
-			r = RESUME_GUEST;
+			r = RESUME_GUEST_NV;
 			break;
 		case EMULATE_FAIL:
 			printk(KERN_CRIT "%s: emulation at %lx failed (%08x)\n",
