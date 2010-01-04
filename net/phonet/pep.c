@@ -354,6 +354,9 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 		queue = &pn->ctrlreq_queue;
 		goto queue;
 
+	case PNS_PIPE_ALIGNED_DATA:
+		__skb_pull(skb, 1);
+		/* fall through */
 	case PNS_PIPE_DATA:
 		__skb_pull(skb, 3); /* Pipe data header */
 		if (!pn_flow_safe(pn->rx_fc)) {

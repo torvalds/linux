@@ -77,6 +77,7 @@ static inline struct pnpipehdr *pnp_hdr(struct sk_buff *skb)
 
 enum {
 	PNS_PIPE_DATA = 0x20,
+	PNS_PIPE_ALIGNED_DATA,
 
 	PNS_PEP_CONNECT_REQ = 0x40,
 	PNS_PEP_CONNECT_RESP,
