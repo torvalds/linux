@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2007 Lemote, Inc. & Institute of Computing Technology
  * Author: Fuxin Zhang, zhangfx@lemote.com
- * Copyright (C) 2009 Lemote, Inc. & Institute of Computing Technology
+ * Copyright (C) 2009 Lemote, Inc.
  * Author: Zhangjin Wu, wuzj@lemote.com
  */
 #include <linux/init.h>
@@ -28,8 +28,7 @@ static void loongson_restart(char *command)
 static void loongson_halt(void)
 {
 	mach_prepare_shutdown();
-	while (1)
-		;
+	unreachable();
 }
 
 static int __init mips_reboot_setup(void)
