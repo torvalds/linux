@@ -248,7 +248,7 @@ config HID_SONY
 	Support for Sony PS3 controller.
 
 config HID_STANTUM
-	tristate "Stantum" if EMBEDDED
+	tristate "Stantum"
 	depends on USB_HID
 	---help---
 	Support for Stantum multitouch panel.
