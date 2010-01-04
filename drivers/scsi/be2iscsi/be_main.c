@@ -3607,7 +3607,7 @@ static int beiscsi_mtask(struct iscsi_task *task)
 	}
 
 	AMAP_SET_BITS(struct amap_iscsi_wrb, r2t_exp_dtl, pwrb,
-		      be32_to_cpu(task->data_count));
+		      task->data_count);
 	AMAP_SET_BITS(struct amap_iscsi_wrb, ptr2nextwrb, pwrb,
 		      io_task->pwrb_handle->nxt_wrb_index);
 	be_dws_le_to_cpu(pwrb, sizeof(struct iscsi_wrb));
