@@ -35,6 +35,7 @@
 #include <linux/cdev.h>
 #include <linux/kdev_t.h>
 #include <linux/mutex.h>
+#include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/poll.h>
 #include <linux/wait.h>
@@ -273,8 +274,8 @@ static dma_addr_t sep_shared_virt_to_bus(struct sep_device *sep,
 						void *virt_address)
 {
 	dma_addr_t pa = sep->shared_bus + (virt_address - sep->shared_addr);
-	edbg("sep: virt to bus b %08llx v %p\n",
-		(unsigned long long)pa, virt_address);
+	edbg("sep: virt to bus b %08llx v %p\n", (unsigned long long) pa,
+								virt_address);
 	return pa;
 }
 
@@ -1771,7 +1772,7 @@ static struct sep_flow_context_t *sep_find_flow_context(struct sep_device *sep,
 static int sep_create_flow_dma_tables_handler(struct sep_device *sep,
 							unsigned long arg)
 {
-	int error;
+	int error = -ENOENT;
 	struct sep_driver_build_flow_table_t command_args;
 	/* first table - output */
 	struct sep_lli_entry_t first_table_data;
