@@ -18,6 +18,7 @@ struct perf_session {
 	struct map_groups	kmaps;
 	struct rb_root		threads;
 	struct thread		*last_match;
+	struct map		*vmlinux_maps[MAP__NR_TYPES];
 	struct events_stats	events_stats;
 	unsigned long		event_total[PERF_RECORD_MAX];
 	unsigned long		unknown_events;

@@ -1662,7 +1662,7 @@ size_t dsos__fprintf_buildid(FILE *fp)
 		__dsos__fprintf_buildid(&dsos__user, fp));
 }
 
-static struct dso *dsos__create_kernel( const char *vmlinux)
+static struct dso *dsos__create_kernel(const char *vmlinux)
 {
 	struct dso *kernel = dso__new(vmlinux ?: "[kernel.kallsyms]");
 
@@ -1691,28 +1691,25 @@ out_delete_kernel_dso:
 	return NULL;
 }
 
-static int map_groups__create_kernel_maps(struct map_groups *self, const char *vmlinux)
+static int map_groups__create_kernel_maps(struct map_groups *self,
+					  struct map *vmlinux_maps[MAP__NR_TYPES],
+					  const char *vmlinux)
 {
-	struct map *functions, *variables;
 	struct dso *kernel = dsos__create_kernel(vmlinux);
+	enum map_type type;
 
 	if (kernel == NULL)
 		return -1;
 
-	functions = map__new2(0, kernel, MAP__FUNCTION);
-	if (functions == NULL)
-		return -1;
+	for (type = 0; type < MAP__NR_TYPES; ++type) {
+		vmlinux_maps[type] = map__new2(0, kernel, type);
+		if (vmlinux_maps[type] == NULL)
+			return -1;
 
-	variables = map__new2(0, kernel, MAP__VARIABLE);
-	if (variables == NULL) {
-		map__delete(functions);
-		return -1;
+		vmlinux_maps[type]->map_ip =
+			vmlinux_maps[type]->unmap_ip = identity__map_ip;
+		map_groups__insert(self, vmlinux_maps[type]);
 	}
-
-	functions->map_ip = functions->unmap_ip =
-		variables->map_ip = variables->unmap_ip = identity__map_ip;
-	map_groups__insert(self, functions);
-	map_groups__insert(self, variables);
 
 	return 0;
 }
@@ -1824,7 +1821,7 @@ out_free_comm_list:
 
 int perf_session__create_kernel_maps(struct perf_session *self)
 {
-	if (map_groups__create_kernel_maps(&self->kmaps,
+	if (map_groups__create_kernel_maps(&self->kmaps, self->vmlinux_maps,
 					   symbol_conf.vmlinux_name) < 0)
 		return -1;
 

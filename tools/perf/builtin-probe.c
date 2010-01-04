@@ -235,9 +235,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 	session.psession = perf_session__new(NULL, O_WRONLY, false);
 	if (session.psession == NULL)
 		die("Failed to init perf_session.");
-	session.kmap = map_groups__find_by_name(&session.psession->kmaps,
-						MAP__FUNCTION,
-						"[kernel.kallsyms]");
+	session.kmap = session.psession->vmlinux_maps[MAP__FUNCTION];
 	if (!session.kmap)
 		die("Could not find kernel map.\n");
 
