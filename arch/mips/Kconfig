@@ -180,7 +180,7 @@ config LASAT
 
 config MACH_LOONGSON
 	bool "Loongson family of machines"
-	select SYS_SUPPORTS_ZBOOT_UART16550
+	select SYS_SUPPORTS_ZBOOT
 	help
 	  This enables the support of Loongson family of machines.
 
