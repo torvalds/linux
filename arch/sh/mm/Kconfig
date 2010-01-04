@@ -82,8 +82,7 @@ config 32BIT
 
 config PMB_ENABLE
 	bool "Support 32-bit physical addressing through PMB"
-	depends on MMU && EXPERIMENTAL && CPU_SH4A
-	default y
+	depends on MMU && EXPERIMENTAL && CPU_SH4A && !CPU_SH4AL_DSP
 	help
 	  If you say Y here, physical addressing will be extended to
 	  32-bits through the SH-4A PMB. If this is not set, legacy
@@ -96,7 +95,7 @@ choice
 
 config PMB
 	bool "PMB"
-	depends on MMU && EXPERIMENTAL && CPU_SH4A
+	depends on MMU && EXPERIMENTAL && CPU_SH4A && !CPU_SH4AL_DSP
 	help
 	  If you say Y here, physical addressing will be extended to
 	  32-bits through the SH-4A PMB. If this is not set, legacy
@@ -104,7 +103,7 @@ config PMB
 
 config PMB_FIXED
 	bool "fixed PMB"
-	depends on MMU && EXPERIMENTAL && CPU_SH4A
+	depends on MMU && EXPERIMENTAL && CPU_SH4A && !CPU_SH4AL_DSP
 	select 32BIT
 	help
 	  If this option is enabled, fixed PMB mappings are inherited

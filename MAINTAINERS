@@ -1472,6 +1472,12 @@ L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/fnic/
 
+CMPC ACPI DRIVER
+M:	Thadeu Lima de Souza Cascardo <cascardo@holoscopio.com>
+M:	Daniel Oliveira Nascimento <don@syst.com.br>
+S:	Supported
+F:	drivers/platform/x86/classmate-laptop.c
+
 CODA FILE SYSTEM
 M:	Jan Harkes <jaharkes@cs.cmu.edu>
 M:	coda@cs.cmu.edu
@@ -3645,6 +3651,11 @@ W:	https://tango.0pointer.de/mailman/listinfo/s270-linux
 W:	http://0pointer.de/lennart/tchibo.html
 S:	Maintained
 F:	drivers/platform/x86/msi-laptop.c
+
+MSI WMI SUPPORT
+M:	Anisse Astier <anisse@astier.eu>
+S:	Supported
+F:	drivers/platform/x86/msi-wmi.c
 
 MULTIFUNCTION DEVICES (MFD)
 M:	Samuel Ortiz <sameo@linux.intel.com>

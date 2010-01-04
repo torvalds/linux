@@ -397,6 +397,7 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context)
 	union acpi_object *out_obj;
 	u8 uuid[16];
 	u32 errors;
+	struct acpi_buffer output = {ACPI_ALLOCATE_BUFFER, NULL};
 
 	if (!context)
 		return AE_ERROR;
@@ -419,16 +420,16 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context)
 	in_params[3].buffer.length 	= context->cap.length;
 	in_params[3].buffer.pointer 	= context->cap.pointer;
 
-	status = acpi_evaluate_object(handle, "_OSC", &input, &context->ret);
+	status = acpi_evaluate_object(handle, "_OSC", &input, &output);
 	if (ACPI_FAILURE(status))
 		return status;
 
-	/* return buffer should have the same length as cap buffer */
-	if (context->ret.length != context->cap.length)
+	if (!output.length)
 		return AE_NULL_OBJECT;
 
-	out_obj = context->ret.pointer;
-	if (out_obj->type != ACPI_TYPE_BUFFER) {
+	out_obj = output.pointer;
+	if (out_obj->type != ACPI_TYPE_BUFFER
+		|| out_obj->buffer.length != context->cap.length) {
 		acpi_print_osc_error(handle, context,
 			"_OSC evaluation returned wrong type");
 		status = AE_TYPE;
@@ -457,11 +458,20 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context)
 		goto out_kfree;
 	}
 out_success:
-	return AE_OK;
+	context->ret.length = out_obj->buffer.length;
+	context->ret.pointer = kmalloc(context->ret.length, GFP_KERNEL);
+	if (!context->ret.pointer) {
+		status =  AE_NO_MEMORY;
+		goto out_kfree;
+	}
+	memcpy(context->ret.pointer, out_obj->buffer.pointer,
+		context->ret.length);
+	status =  AE_OK;
 
 out_kfree:
-	kfree(context->ret.pointer);
-	context->ret.pointer = NULL;
+	kfree(output.pointer);
+	if (status != AE_OK)
+		context->ret.pointer = NULL;
 	return status;
 }
 EXPORT_SYMBOL(acpi_run_osc);
@@ -887,6 +897,8 @@ static int __init acpi_bus_init(void)
 		printk(KERN_ERR PREFIX "Unable to initialize ACPI objects\n");
 		goto error1;
 	}
+
+	acpi_early_processor_set_pdc();
 
 	/*
 	 * Maybe EC region is required at bus_scan/acpi_get_devices. So it
