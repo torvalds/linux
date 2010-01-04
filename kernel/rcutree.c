@@ -1146,8 +1146,7 @@ void rcu_check_callbacks(int cpu, int user)
  * have not yet encountered a quiescent state, using the function specified.
  * The caller must have suppressed start of new grace periods.
  */
-static void rcu_process_dyntick(struct rcu_state *rsp,
-				int (*f)(struct rcu_data *))
+static void force_qs_rnp(struct rcu_state *rsp, int (*f)(struct rcu_data *))
 {
 	unsigned long bit;
 	int cpu;
@@ -1172,7 +1171,7 @@ static void rcu_process_dyntick(struct rcu_state *rsp,
 			if ((rnp->qsmask & bit) != 0 && f(rsp->rda[cpu]))
 				mask |= bit;
 		}
-		if (mask != 0 && rcu_gp_in_progress(rsp)) {
+		if (mask != 0) {
 
 			/* rcu_report_qs_rnp() releases rnp->lock. */
 			rcu_report_qs_rnp(mask, rsp, rnp, flags);
@@ -1222,7 +1221,7 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 			break; /* So gcc recognizes the dead code. */
 
 		/* Record dyntick-idle state. */
-		rcu_process_dyntick(rsp, dyntick_save_progress_counter);
+		force_qs_rnp(rsp, dyntick_save_progress_counter);
 		spin_lock(&rnp->lock);  /* irqs already disabled */
 		if (rcu_gp_in_progress(rsp))
 			rsp->signaled = RCU_FORCE_QS;
@@ -1232,7 +1231,7 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 
 		/* Check dyntick-idle state, send IPI to laggarts. */
 		spin_unlock(&rnp->lock);  /* irqs remain disabled */
-		rcu_process_dyntick(rsp, rcu_implicit_dynticks_qs);
+		force_qs_rnp(rsp, rcu_implicit_dynticks_qs);
 
 		/* Leave state in case more forcing is required. */
 
