@@ -185,7 +185,7 @@ err:
 	return ret;
 }
 
-static int palmtc_backlight_notify(int brightness)
+static int palmtc_backlight_notify(struct device *dev, int brightness)
 {
 	/* backlight is on when GPIO16 AF0 is high */
 	gpio_set_value(GPIO_NR_PALMTC_BL_POWER, brightness);
