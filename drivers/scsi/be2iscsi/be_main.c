@@ -3917,7 +3917,7 @@ disable_pci:
 struct iscsi_transport beiscsi_iscsi_transport = {
 	.owner = THIS_MODULE,
 	.name = DRV_NAME,
-	.caps = CAP_RECOVERY_L0 | CAP_HDRDGST |
+	.caps = CAP_RECOVERY_L0 | CAP_HDRDGST | CAP_TEXT_NEGO |
 		CAP_MULTI_R2T | CAP_DATADGST | CAP_DATA_PATH_OFFLOAD,
 	.param_mask = ISCSI_MAX_RECV_DLENGTH |
 		ISCSI_MAX_XMIT_DLENGTH |
