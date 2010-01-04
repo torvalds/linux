@@ -471,14 +471,208 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	return dib0700_ctrl_wr(adap->dev, b, 4);
 }
 
+/* Number of keypresses to ignore before start repeating */
+#define RC_REPEAT_DELAY_V1_20 10
+
+/* This is the structure of the RC response packet starting in firmware 1.20 */
+struct dib0700_rc_response {
+	u8 report_id;
+	u8 data_state;
+	u16 system;
+	u8 data;
+	u8 not_data;
+};
+#define RC_MSG_SIZE_V1_20 6
+
+static void dib0700_rc_urb_completion(struct urb *purb)
+{
+	struct dvb_usb_device *d = purb->context;
+	struct dvb_usb_rc_key *keymap;
+	struct dib0700_state *st;
+	struct dib0700_rc_response poll_reply;
+	u8 *buf;
+	int found = 0;
+	u32 event;
+	int state;
+	int i;
+
+	deb_info("%s()\n", __func__);
+	if (d == NULL)
+		return;
+
+	if (d->rc_input_dev == NULL) {
+		/* This will occur if disable_rc_polling=1 */
+		usb_free_urb(purb);
+		return;
+	}
+
+	keymap = d->props.rc_key_map;
+	st = d->priv;
+	buf = (u8 *)purb->transfer_buffer;
+
+	if (purb->status < 0) {
+		deb_info("discontinuing polling\n");
+		usb_free_urb(purb);
+		return;
+	}
+
+	if (purb->actual_length != RC_MSG_SIZE_V1_20) {
+		deb_info("malformed rc msg size=%d\n", purb->actual_length);
+		goto resubmit;
+	}
+
+	/* Set initial results in case we exit the function early */
+	event = 0;
+	state = REMOTE_NO_KEY_PRESSED;
+
+	deb_data("IR raw %02X %02X %02X %02X %02X %02X (len %d)\n", buf[0],
+		 buf[1], buf[2], buf[3], buf[4], buf[5], purb->actual_length);
+
+	switch (dvb_usb_dib0700_ir_proto) {
+	case 0:
+		/* NEC Protocol */
+		poll_reply.report_id  = 0;
+		poll_reply.data_state = 1;
+		poll_reply.system     = buf[2];
+		poll_reply.data       = buf[4];
+		poll_reply.not_data   = buf[5];
+
+		/* NEC protocol sends repeat code as 0 0 0 FF */
+		if ((poll_reply.system == 0x00) && (poll_reply.data == 0x00)
+		    && (poll_reply.not_data == 0xff)) {
+			poll_reply.data_state = 2;
+			break;
+		}
+		break;
+	default:
+		/* RC5 Protocol */
+		poll_reply.report_id  = buf[0];
+		poll_reply.data_state = buf[1];
+		poll_reply.system     = (buf[2] << 8) | buf[3];
+		poll_reply.data       = buf[4];
+		poll_reply.not_data   = buf[5];
+		break;
+	}
+
+	if ((poll_reply.data + poll_reply.not_data) != 0xff) {
+		/* Key failed integrity check */
+		err("key failed integrity check: %04x %02x %02x",
+		    poll_reply.system,
+		    poll_reply.data, poll_reply.not_data);
+		goto resubmit;
+	}
+
+	deb_data("rid=%02x ds=%02x sm=%04x d=%02x nd=%02x\n",
+		 poll_reply.report_id, poll_reply.data_state,
+		 poll_reply.system, poll_reply.data, poll_reply.not_data);
+
+	/* Find the key in the map */
+	for (i = 0; i < d->props.rc_key_map_size; i++) {
+		if (rc5_custom(&keymap[i]) == (poll_reply.system & 0xff) &&
+		    rc5_data(&keymap[i]) == poll_reply.data) {
+			event = keymap[i].event;
+			found = 1;
+			break;
+		}
+	}
+
+	if (found == 0) {
+		err("Unknown remote controller key: %04x %02x %02x",
+		    poll_reply.system, poll_reply.data, poll_reply.not_data);
+		d->last_event = 0;
+		goto resubmit;
+	}
+
+	if (poll_reply.data_state == 1) {
+		/* New key hit */
+		st->rc_counter = 0;
+		event = keymap[i].event;
+		state = REMOTE_KEY_PRESSED;
+		d->last_event = keymap[i].event;
+	} else if (poll_reply.data_state == 2) {
+		/* Key repeated */
+		st->rc_counter++;
+
+		/* prevents unwanted double hits */
+		if (st->rc_counter > RC_REPEAT_DELAY_V1_20) {
+			event = d->last_event;
+			state = REMOTE_KEY_PRESSED;
+			st->rc_counter = RC_REPEAT_DELAY_V1_20;
+		}
+	} else {
+		err("Unknown data state [%d]", poll_reply.data_state);
+	}
+
+	switch (state) {
+	case REMOTE_NO_KEY_PRESSED:
+		break;
+	case REMOTE_KEY_PRESSED:
+		deb_info("key pressed\n");
+		d->last_event = event;
+	case REMOTE_KEY_REPEAT:
+		deb_info("key repeated\n");
+		input_event(d->rc_input_dev, EV_KEY, event, 1);
+		input_event(d->rc_input_dev, EV_KEY, d->last_event, 0);
+		input_sync(d->rc_input_dev);
+		break;
+	default:
+		break;
+	}
+
+resubmit:
+	/* Clean the buffer before we requeue */
+	memset(purb->transfer_buffer, 0, RC_MSG_SIZE_V1_20);
+
+	/* Requeue URB */
+	usb_submit_urb(purb, GFP_ATOMIC);
+}
+
 int dib0700_rc_setup(struct dvb_usb_device *d)
 {
+	struct dib0700_state *st = d->priv;
 	u8 rc_setup[3] = {REQUEST_SET_RC, dvb_usb_dib0700_ir_proto, 0};
-	int i = dib0700_ctrl_wr(d, rc_setup, 3);
+	struct urb *purb;
+	int ret;
+	int i;
+
+	if (d->props.rc_key_map == NULL)
+		return 0;
+
+	/* Set the IR mode */
+	i = dib0700_ctrl_wr(d, rc_setup, 3);
 	if (i<0) {
 		err("ir protocol setup failed");
 		return -1;
 	}
+
+	if (st->fw_version < 0x10200)
+		return 0;
+
+	/* Starting in firmware 1.20, the RC info is provided on a bulk pipe */
+	purb = usb_alloc_urb(0, GFP_KERNEL);
+	if (purb == NULL) {
+		err("rc usb alloc urb failed\n");
+		return -1;
+	}
+
+	purb->transfer_buffer = kzalloc(RC_MSG_SIZE_V1_20, GFP_KERNEL);
+	if (purb->transfer_buffer == NULL) {
+		err("rc kzalloc failed\n");
+		usb_free_urb(purb);
+		return -1;
+	}
+
+	purb->status = -EINPROGRESS;
+	usb_fill_bulk_urb(purb, d->udev, usb_rcvbulkpipe(d->udev, 1),
+			  purb->transfer_buffer, RC_MSG_SIZE_V1_20,
+			  dib0700_rc_urb_completion, d);
+
+	ret = usb_submit_urb(purb, GFP_ATOMIC);
+	if (ret != 0) {
+		err("rc submit urb failed\n");
+		return -1;
+	}
+
 	return 0;
 }
 
