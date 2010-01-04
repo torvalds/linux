@@ -745,7 +745,6 @@ extern int  nouveau_channel_alloc(struct drm_device *dev,
 				  struct drm_file *file_priv,
 				  uint32_t fb_ctxdma, uint32_t tt_ctxdma);
 extern void nouveau_channel_free(struct nouveau_channel *);
-extern int  nouveau_channel_idle(struct nouveau_channel *chan);
 
 /* nouveau_object.c */
 extern int  nouveau_gpuobj_early_init(struct drm_device *);

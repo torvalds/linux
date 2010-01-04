@@ -235,47 +235,6 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	return 0;
 }
 
-int
-nouveau_channel_idle(struct nouveau_channel *chan)
-{
-	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_engine *engine = &dev_priv->engine;
-	uint32_t caches;
-	int idle;
-
-	if (!chan) {
-		NV_ERROR(dev, "no channel...\n");
-		return 1;
-	}
-
-	caches = nv_rd32(dev, NV03_PFIFO_CACHES);
-	nv_wr32(dev, NV03_PFIFO_CACHES, caches & ~1);
-
-	if (engine->fifo.channel_id(dev) != chan->id) {
-		struct nouveau_gpuobj *ramfc =
-			chan->ramfc ? chan->ramfc->gpuobj : NULL;
-
-		if (!ramfc) {
-			NV_ERROR(dev, "No RAMFC for channel %d\n", chan->id);
-			return 1;
-		}
-
-		engine->instmem.prepare_access(dev, false);
-		if (nv_ro32(dev, ramfc, 0) != nv_ro32(dev, ramfc, 1))
-			idle = 0;
-		else
-			idle = 1;
-		engine->instmem.finish_access(dev);
-	} else {
-		idle = (nv_rd32(dev, NV04_PFIFO_CACHE1_DMA_GET) ==
-			nv_rd32(dev, NV04_PFIFO_CACHE1_DMA_PUT));
-	}
-
-	nv_wr32(dev, NV03_PFIFO_CACHES, caches);
-	return idle;
-}
-
 /* stops a fifo */
 void
 nouveau_channel_free(struct nouveau_channel *chan)
