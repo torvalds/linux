@@ -522,6 +522,40 @@ static void attach_one_fan(struct bbc_i2c_bus *bp, struct of_device *op,
 	set_fan_speeds(fp);
 }
 
+static void destroy_one_temp(struct bbc_cpu_temperature *tp)
+{
+	bbc_i2c_detach(tp->client);
+	kfree(tp);
+}
+
+static void destroy_all_temps(struct bbc_i2c_bus *bp)
+{
+	struct bbc_cpu_temperature *tp, *tpos;
+
+	list_for_each_entry_safe(tp, tpos, &bp->temps, bp_list) {
+		list_del(&tp->bp_list);
+		list_del(&tp->glob_list);
+		destroy_one_temp(tp);
+	}
+}
+
+static void destroy_one_fan(struct bbc_fan_control *fp)
+{
+	bbc_i2c_detach(fp->client);
+	kfree(fp);
+}
+
+static void destroy_all_fans(struct bbc_i2c_bus *bp)
+{
+	struct bbc_fan_control *fp, *fpos;
+
+	list_for_each_entry_safe(fp, fpos, &bp->fans, bp_list) {
+		list_del(&fp->bp_list);
+		list_del(&fp->glob_list);
+		destroy_one_fan(fp);
+	}
+}
+
 int bbc_envctrl_init(struct bbc_i2c_bus *bp)
 {
 	struct of_device *op;
@@ -541,6 +575,8 @@ int bbc_envctrl_init(struct bbc_i2c_bus *bp)
 			int err = PTR_ERR(kenvctrld_task);
 
 			kenvctrld_task = NULL;
+			destroy_all_temps(bp);
+			destroy_all_fans(bp);
 			return err;
 		}
 	}
@@ -548,35 +584,11 @@ int bbc_envctrl_init(struct bbc_i2c_bus *bp)
 	return 0;
 }
 
-static void destroy_one_temp(struct bbc_cpu_temperature *tp)
-{
-	bbc_i2c_detach(tp->client);
-	kfree(tp);
-}
-
-static void destroy_one_fan(struct bbc_fan_control *fp)
-{
-	bbc_i2c_detach(fp->client);
-	kfree(fp);
-}
-
 void bbc_envctrl_cleanup(struct bbc_i2c_bus *bp)
 {
-	struct bbc_cpu_temperature *tp, *tpos;
-	struct bbc_fan_control *fp, *fpos;
-
 	if (kenvctrld_task)
 		kthread_stop(kenvctrld_task);
 
-	list_for_each_entry_safe(tp, tpos, &bp->temps, bp_list) {
-		list_del(&tp->bp_list);
-		list_del(&tp->glob_list);
-		destroy_one_temp(tp);
-	}
-
-	list_for_each_entry_safe(fp, fpos, &bp->fans, bp_list) {
-		list_del(&fp->bp_list);
-		list_del(&fp->glob_list);
-		destroy_one_fan(fp);
-	}
+	destroy_all_temps(bp);
+	destroy_all_fans(bp);
 }
