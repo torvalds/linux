@@ -3309,6 +3309,22 @@ static int mwl8k_get_stats(struct ieee80211_hw *hw,
 	return mwl8k_cmd_get_stat(hw, stats);
 }
 
+static int
+mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		   enum ieee80211_ampdu_mlme_action action,
+		   struct ieee80211_sta *sta, u16 tid, u16 *ssn)
+{
+	switch (action) {
+	case IEEE80211_AMPDU_RX_START:
+	case IEEE80211_AMPDU_RX_STOP:
+		if (!(hw->flags & IEEE80211_HW_AMPDU_AGGREGATION))
+			return -ENOTSUPP;
+		return 0;
+	default:
+		return -ENOTSUPP;
+	}
+}
+
 static const struct ieee80211_ops mwl8k_ops = {
 	.tx			= mwl8k_tx,
 	.start			= mwl8k_start,
@@ -3324,6 +3340,7 @@ static const struct ieee80211_ops mwl8k_ops = {
 	.conf_tx		= mwl8k_conf_tx,
 	.get_tx_stats		= mwl8k_get_tx_stats,
 	.get_stats		= mwl8k_get_stats,
+	.ampdu_action		= mwl8k_ampdu_action,
 };
 
 static void mwl8k_tx_reclaim_handler(unsigned long data)
