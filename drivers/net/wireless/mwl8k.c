@@ -2030,8 +2030,9 @@ struct mwl8k_cmd_set_rf_channel {
 } __attribute__((packed));
 
 static int mwl8k_cmd_set_rf_channel(struct ieee80211_hw *hw,
-				    struct ieee80211_channel *channel)
+				    struct ieee80211_conf *conf)
 {
+	struct ieee80211_channel *channel = conf->channel;
 	struct mwl8k_cmd_set_rf_channel *cmd;
 	int rc;
 
@@ -2043,10 +2044,17 @@ static int mwl8k_cmd_set_rf_channel(struct ieee80211_hw *hw,
 	cmd->header.length = cpu_to_le16(sizeof(*cmd));
 	cmd->action = cpu_to_le16(MWL8K_CMD_SET);
 	cmd->current_channel = channel->hw_value;
+
 	if (channel->band == IEEE80211_BAND_2GHZ)
-		cmd->channel_flags = cpu_to_le32(0x00000081);
-	else
-		cmd->channel_flags = cpu_to_le32(0x00000000);
+		cmd->channel_flags |= cpu_to_le32(0x00000001);
+
+	if (conf->channel_type == NL80211_CHAN_NO_HT ||
+	    conf->channel_type == NL80211_CHAN_HT20)
+		cmd->channel_flags |= cpu_to_le32(0x00000080);
+	else if (conf->channel_type == NL80211_CHAN_HT40MINUS)
+		cmd->channel_flags |= cpu_to_le32(0x000001900);
+	else if (conf->channel_type == NL80211_CHAN_HT40PLUS)
+		cmd->channel_flags |= cpu_to_le32(0x000000900);
 
 	rc = mwl8k_post_cmd(hw, &cmd->header);
 	kfree(cmd);
@@ -2926,7 +2934,7 @@ static int mwl8k_config(struct ieee80211_hw *hw, u32 changed)
 	if (rc)
 		goto out;
 
-	rc = mwl8k_cmd_set_rf_channel(hw, conf->channel);
+	rc = mwl8k_cmd_set_rf_channel(hw, conf);
 	if (rc)
 		goto out;
 
