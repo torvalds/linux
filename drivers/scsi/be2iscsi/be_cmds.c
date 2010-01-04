@@ -161,13 +161,13 @@ void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
 		SE_DEBUG(DBG_LVL_1, "Link Down on Physical Port %d \n",
 						evt->physical_port);
 		phba->state |= BE_ADAPTER_LINK_DOWN;
+		iscsi_host_for_each_session(phba->shost,
+					    be2iscsi_fail_session);
 		break;
 	case ASYNC_EVENT_LINK_UP:
 		phba->state = BE_ADAPTER_UP;
 		SE_DEBUG(DBG_LVL_1, "Link UP on Physical Port %d \n",
 						evt->physical_port);
-		iscsi_host_for_each_session(phba->shost,
-					    be2iscsi_fail_session);
 		break;
 	default:
 		SE_DEBUG(DBG_LVL_1, "Unexpected Async Notification %d on"
