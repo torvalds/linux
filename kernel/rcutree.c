@@ -1144,6 +1144,7 @@ void rcu_check_callbacks(int cpu, int user)
 /*
  * Scan the leaf rcu_node structures, processing dyntick state for any that
  * have not yet encountered a quiescent state, using the function specified.
+ * The caller must have suppressed start of new grace periods.
  */
 static void rcu_process_dyntick(struct rcu_state *rsp,
 				int (*f)(struct rcu_data *))
@@ -1157,7 +1158,7 @@ static void rcu_process_dyntick(struct rcu_state *rsp,
 	rcu_for_each_leaf_node(rsp, rnp) {
 		mask = 0;
 		spin_lock_irqsave(&rnp->lock, flags);
-		if (rnp->completed != rsp->gpnum - 1) {
+		if (!rcu_gp_in_progress(rsp)) {
 			spin_unlock_irqrestore(&rnp->lock, flags);
 			return;
 		}
@@ -1171,7 +1172,7 @@ static void rcu_process_dyntick(struct rcu_state *rsp,
 			if ((rnp->qsmask & bit) != 0 && f(rsp->rda[cpu]))
 				mask |= bit;
 		}
-		if (mask != 0 && rnp->completed == rsp->gpnum - 1) {
+		if (mask != 0 && rcu_gp_in_progress(rsp)) {
 
 			/* rcu_report_qs_rnp() releases rnp->lock. */
 			rcu_report_qs_rnp(mask, rsp, rnp, flags);
@@ -1189,7 +1190,6 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 {
 	unsigned long flags;
 	struct rcu_node *rnp = rcu_get_root(rsp);
-	u8 forcenow;
 
 	if (!rcu_gp_in_progress(rsp))
 		return;  /* No grace period in progress, nothing to force. */
@@ -1224,21 +1224,9 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 		/* Record dyntick-idle state. */
 		rcu_process_dyntick(rsp, dyntick_save_progress_counter);
 		spin_lock(&rnp->lock);  /* irqs already disabled */
-		if (!rcu_gp_in_progress(rsp))
-			break;
-		/* fall into next case. */
-
-	case RCU_SAVE_COMPLETED:
-
-		/* Update state, record completion counter. */
-		forcenow = 0;
-		if (rsp->gpnum - 1 == rsp->completed) {
-			forcenow = rsp->signaled == RCU_SAVE_COMPLETED;
+		if (rcu_gp_in_progress(rsp))
 			rsp->signaled = RCU_FORCE_QS;
-		}
-		if (!forcenow)
-			break;
-		/* fall into next case. */
+		break;
 
 	case RCU_FORCE_QS:
 
