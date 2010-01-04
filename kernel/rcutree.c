@@ -1144,11 +1144,9 @@ void rcu_check_callbacks(int cpu, int user)
 /*
  * Scan the leaf rcu_node structures, processing dyntick state for any that
  * have not yet encountered a quiescent state, using the function specified.
- * Returns 1 if the current grace period ends while scanning (possibly
- * because we made it end).
  */
-static int rcu_process_dyntick(struct rcu_state *rsp,
-			       int (*f)(struct rcu_data *))
+static void rcu_process_dyntick(struct rcu_state *rsp,
+				int (*f)(struct rcu_data *))
 {
 	unsigned long bit;
 	int cpu;
@@ -1161,7 +1159,7 @@ static int rcu_process_dyntick(struct rcu_state *rsp,
 		spin_lock_irqsave(&rnp->lock, flags);
 		if (rnp->completed != rsp->gpnum - 1) {
 			spin_unlock_irqrestore(&rnp->lock, flags);
-			return 1;
+			return;
 		}
 		if (rnp->qsmask == 0) {
 			spin_unlock_irqrestore(&rnp->lock, flags);
@@ -1181,7 +1179,6 @@ static int rcu_process_dyntick(struct rcu_state *rsp,
 		}
 		spin_unlock_irqrestore(&rnp->lock, flags);
 	}
-	return 0;
 }
 
 /*
@@ -1193,7 +1190,6 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 	unsigned long flags;
 	struct rcu_node *rnp = rcu_get_root(rsp);
 	u8 forcenow;
-	u8 gpdone;
 
 	if (!rcu_gp_in_progress(rsp))
 		return;  /* No grace period in progress, nothing to force. */
@@ -1226,10 +1222,9 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 			break; /* So gcc recognizes the dead code. */
 
 		/* Record dyntick-idle state. */
-		gpdone = rcu_process_dyntick(rsp,
-					     dyntick_save_progress_counter);
+		rcu_process_dyntick(rsp, dyntick_save_progress_counter);
 		spin_lock(&rnp->lock);  /* irqs already disabled */
-		if (gpdone)
+		if (!rcu_gp_in_progress(rsp))
 			break;
 		/* fall into next case. */
 
@@ -1249,7 +1244,7 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 
 		/* Check dyntick-idle state, send IPI to laggarts. */
 		spin_unlock(&rnp->lock);  /* irqs remain disabled */
-		gpdone = rcu_process_dyntick(rsp, rcu_implicit_dynticks_qs);
+		rcu_process_dyntick(rsp, rcu_implicit_dynticks_qs);
 
 		/* Leave state in case more forcing is required. */
 
