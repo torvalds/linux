@@ -430,7 +430,6 @@ struct hotplug_slot_ops rpaphp_hotplug_slot_ops = {
 	.get_power_status = get_power_status,
 	.get_attention_status = get_attention_status,
 	.get_adapter_status = get_adapter_status,
-	.get_max_bus_speed = get_max_bus_speed,
 };
 
 module_init(rpaphp_init);
