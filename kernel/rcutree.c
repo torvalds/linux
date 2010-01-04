@@ -1204,7 +1204,7 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 	}
 	if (relaxed &&
 	    (long)(rsp->jiffies_force_qs - jiffies) >= 0)
-		goto unlock_ret; /* no emergency and done recently. */
+		goto unlock_fqs_ret; /* no emergency and done recently. */
 	rsp->n_force_qs++;
 	spin_lock(&rnp->lock);
 	lastcomp = rsp->gpnum - 1;
@@ -1213,31 +1213,32 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 	if(!rcu_gp_in_progress(rsp)) {
 		rsp->n_force_qs_ngp++;
 		spin_unlock(&rnp->lock);
-		goto unlock_ret;  /* no GP in progress, time updated. */
+		goto unlock_fqs_ret;  /* no GP in progress, time updated. */
 	}
-	spin_unlock(&rnp->lock);
 	switch (signaled) {
 	case RCU_GP_IDLE:
 	case RCU_GP_INIT:
 
+		spin_unlock(&rnp->lock);
 		break; /* grace period idle or initializing, ignore. */
 
 	case RCU_SAVE_DYNTICK:
 
+		spin_unlock(&rnp->lock);
 		if (RCU_SIGNAL_INIT != RCU_SAVE_DYNTICK)
 			break; /* So gcc recognizes the dead code. */
 
 		/* Record dyntick-idle state. */
 		if (rcu_process_dyntick(rsp, lastcomp,
 					dyntick_save_progress_counter))
-			goto unlock_ret;
+			goto unlock_fqs_ret;
+		spin_lock(&rnp->lock);
 		/* fall into next case. */
 
 	case RCU_SAVE_COMPLETED:
 
 		/* Update state, record completion counter. */
 		forcenow = 0;
-		spin_lock(&rnp->lock);
 		if (lastcomp + 1 == rsp->gpnum &&
 		    lastcomp == rsp->completed &&
 		    rsp->signaled == signaled) {
@@ -1245,23 +1246,31 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 			rsp->completed_fqs = lastcomp;
 			forcenow = signaled == RCU_SAVE_COMPLETED;
 		}
-		spin_unlock(&rnp->lock);
-		if (!forcenow)
+		if (!forcenow) {
+			spin_unlock(&rnp->lock);
 			break;
+		}
 		/* fall into next case. */
 
 	case RCU_FORCE_QS:
 
 		/* Check dyntick-idle state, send IPI to laggarts. */
+		spin_unlock(&rnp->lock);
 		if (rcu_process_dyntick(rsp, rsp->completed_fqs,
 					rcu_implicit_dynticks_qs))
-			goto unlock_ret;
+			goto unlock_fqs_ret;
 
 		/* Leave state in case more forcing is required. */
 
 		break;
+
+	default:
+
+		spin_unlock(&rnp->lock);
+		WARN_ON_ONCE(1);
+		break;
 	}
-unlock_ret:
+unlock_fqs_ret:
 	spin_unlock_irqrestore(&rsp->fqslock, flags);
 }
 
