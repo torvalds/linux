@@ -250,20 +250,17 @@
 
 #define cpu_is_pxa930()					\
 	({						\
-		unsigned int id = read_cpuid(CPUID_ID);	\
-		__cpu_is_pxa930(id);			\
+		__cpu_is_pxa930(read_cpuid_id());	\
 	 })
 
 #define cpu_is_pxa935()					\
 	({						\
-		unsigned int id = read_cpuid(CPUID_ID);	\
-		__cpu_is_pxa935(id);			\
+		__cpu_is_pxa935(read_cpuid_id());	\
 	 })
 
 #define cpu_is_pxa950()					\
 	({						\
-		unsigned int id = read_cpuid(CPUID_ID);	\
-		__cpu_is_pxa950(id);			\
+		__cpu_is_pxa950(read_cpuid_id());	\
 	 })
 
 
