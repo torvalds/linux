@@ -112,6 +112,7 @@ static struct beiscsi_hba *beiscsi_hba_alloc(struct pci_dev *pcidev)
 	memset(phba, 0, sizeof(*phba));
 	phba->shost = shost;
 	phba->pcidev = pci_dev_get(pcidev);
+	pci_set_drvdata(pcidev, phba);
 
 	if (iscsi_host_add(shost, &phba->pcidev->dev))
 		goto free_devices;
@@ -3734,7 +3735,6 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 	}
 	SE_DEBUG(DBG_LVL_8, " phba = %p \n", phba);
 
-	pci_set_drvdata(pcidev, phba);
 	if (enable_msix)
 		num_cpus = find_num_cpus();
 	else
