@@ -135,6 +135,8 @@ int filename__read_build_id(const char *filename, void *bf, size_t size);
 int sysfs__read_build_id(const char *filename, void *bf, size_t size);
 bool dsos__read_build_ids(void);
 int build_id__sprintf(u8 *self, int len, char *bf);
+int kallsyms__parse(void *arg, int (*process_symbol)(void *arg, const char *name,
+						     char type, u64 start));
 
 int symbol__init(void);
 int perf_session__create_kernel_maps(struct perf_session *self);

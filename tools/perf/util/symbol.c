@@ -383,16 +383,12 @@ size_t dso__fprintf(struct dso *self, enum map_type type, FILE *fp)
 	return ret;
 }
 
-/*
- * Loads the function entries in /proc/kallsyms into kernel_map->dso,
- * so that we can in the next step set the symbol ->end address and then
- * call kernel_maps__split_kallsyms.
- */
-static int dso__load_all_kallsyms(struct dso *self, struct map *map)
+int kallsyms__parse(void *arg, int (*process_symbol)(void *arg, const char *name,
+						     char type, u64 start))
 {
 	char *line = NULL;
 	size_t n;
-	struct rb_root *root = &self->symbols[map->type];
+	int err = 0;
 	FILE *file = fopen("/proc/kallsyms", "r");
 
 	if (file == NULL)
@@ -400,7 +396,6 @@ static int dso__load_all_kallsyms(struct dso *self, struct map *map)
 
 	while (!feof(file)) {
 		u64 start;
-		struct symbol *sym;
 		int line_len, len;
 		char symbol_type;
 		char *symbol_name;
@@ -421,33 +416,60 @@ static int dso__load_all_kallsyms(struct dso *self, struct map *map)
 			continue;
 
 		symbol_type = toupper(line[len]);
-		if (!symbol_type__is_a(symbol_type, map->type))
-			continue;
-
 		symbol_name = line + len + 2;
-		/*
-		 * Will fix up the end later, when we have all symbols sorted.
-		 */
-		sym = symbol__new(start, 0, symbol_name);
 
-		if (sym == NULL)
-			goto out_delete_line;
-		/*
-		 * We will pass the symbols to the filter later, in
-		 * map__split_kallsyms, when we have split the maps per module
-		 */
-		symbols__insert(root, sym);
+		err = process_symbol(arg, symbol_name, symbol_type, start);
+		if (err)
+			break;
 	}
 
 	free(line);
 	fclose(file);
+	return err;
 
-	return 0;
-
-out_delete_line:
-	free(line);
 out_failure:
 	return -1;
+}
+
+struct process_kallsyms_args {
+	struct map *map;
+	struct dso *dso;
+};
+
+static int map__process_kallsym_symbol(void *arg, const char *name,
+				       char type, u64 start)
+{
+	struct symbol *sym;
+	struct process_kallsyms_args *a = arg;
+	struct rb_root *root = &a->dso->symbols[a->map->type];
+
+	if (!symbol_type__is_a(type, a->map->type))
+		return 0;
+
+	/*
+	 * Will fix up the end later, when we have all symbols sorted.
+	 */
+	sym = symbol__new(start, 0, name);
+
+	if (sym == NULL)
+		return -ENOMEM;
+	/*
+	 * We will pass the symbols to the filter later, in
+	 * map__split_kallsyms, when we have split the maps per module
+	 */
+	symbols__insert(root, sym);
+	return 0;
+}
+
+/*
+ * Loads the function entries in /proc/kallsyms into kernel_map->dso,
+ * so that we can in the next step set the symbol ->end address and then
+ * call kernel_maps__split_kallsyms.
+ */
+static int dso__load_all_kallsyms(struct dso *self, struct map *map)
+{
+	struct process_kallsyms_args args = { .map = map, .dso = self, };
+	return kallsyms__parse(&args, map__process_kallsym_symbol);
 }
 
 /*
