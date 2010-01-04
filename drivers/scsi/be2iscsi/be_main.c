@@ -559,6 +559,7 @@ beiscsi_process_async_pdu(struct beiscsi_conn *beiscsi_conn,
 		SE_DEBUG(DBG_LVL_1, "In ISCSI_OP_REJECT\n");
 		break;
 	case ISCSI_OP_LOGIN_RSP:
+	case ISCSI_OP_TEXT_RSP:
 		task = conn->login_task;
 		io_task = task->dd_data;
 		login_hdr = (struct iscsi_hdr *)ppdu;
@@ -810,6 +811,7 @@ be_complete_logout(struct beiscsi_conn *beiscsi_conn,
 	struct iscsi_conn *conn = beiscsi_conn->conn;
 
 	hdr = (struct iscsi_logout_rsp *)task->hdr;
+	hdr->opcode = ISCSI_OP_LOGOUT_RSP;
 	hdr->t2wait = 5;
 	hdr->t2retain = 0;
 	hdr->flags = ((psol->dw[offsetof(struct amap_sol_cqe, i_flags) / 32]
@@ -824,6 +826,9 @@ be_complete_logout(struct beiscsi_conn *beiscsi_conn,
 					& SOL_EXP_CMD_SN_MASK) +
 			((psol->dw[offsetof(struct amap_sol_cqe, i_cmd_wnd)
 					/ 32] & SOL_CMD_WND_MASK) >> 24) - 1);
+	hdr->dlength[0] = 0;
+	hdr->dlength[1] = 0;
+	hdr->dlength[2] = 0;
 	hdr->hlength = 0;
 	hdr->itt = io_task->libiscsi_itt;
 	__iscsi_complete_pdu(conn, (struct iscsi_hdr *)hdr, NULL, 0);
@@ -838,6 +843,7 @@ be_complete_tmf(struct beiscsi_conn *beiscsi_conn,
 	struct beiscsi_io_task *io_task = task->dd_data;
 
 	hdr = (struct iscsi_tm_rsp *)task->hdr;
+	hdr->opcode = ISCSI_OP_SCSI_TMFUNC_RSP;
 	hdr->flags = ((psol->dw[offsetof(struct amap_sol_cqe, i_flags) / 32]
 					& SOL_FLAGS_MASK) >> 24) | 0x80;
 	hdr->response = (psol->dw[offsetof(struct amap_sol_cqe, i_resp) /
