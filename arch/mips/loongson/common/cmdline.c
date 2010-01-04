@@ -21,12 +21,11 @@
 
 #include <loongson.h>
 
-int prom_argc;
-/* pmon passes arguments in 32bit pointers */
-int *_prom_argv;
-
 void __init prom_init_cmdline(void)
 {
+	int prom_argc;
+	/* pmon passes arguments in 32bit pointers */
+	int *_prom_argv;
 	int i;
 	long l;
 
