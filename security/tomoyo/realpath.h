@@ -36,11 +36,8 @@ char *tomoyo_realpath_nofollow(const char *pathname);
 /* Same with tomoyo_realpath() except that the pathname is already solved. */
 char *tomoyo_realpath_from_path(struct path *path);
 
-/*
- * Allocate memory for ACL entry.
- * The RAM is chunked, so NEVER try to kfree() the returned pointer.
- */
-void *tomoyo_alloc_element(const unsigned int size);
+/* Check memory quota. */
+bool tomoyo_memory_ok(void *ptr);
 
 /*
  * Keep the given name on the RAM.

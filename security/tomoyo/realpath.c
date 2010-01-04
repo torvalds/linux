@@ -212,57 +212,32 @@ static unsigned int tomoyo_allocated_memory_for_elements;
 static unsigned int tomoyo_quota_for_elements;
 
 /**
- * tomoyo_alloc_element - Allocate permanent memory for structures.
+ * tomoyo_memory_ok - Check memory quota.
  *
- * @size: Size in bytes.
+ * @ptr: Pointer to allocated memory.
  *
- * Returns pointer to allocated memory on success, NULL otherwise.
+ * Returns true on success, false otherwise.
  *
- * Memory has to be zeroed.
- * The RAM is chunked, so NEVER try to kfree() the returned pointer.
+ * Caller holds tomoyo_policy_lock.
+ * Memory pointed by @ptr will be zeroed on success.
  */
-void *tomoyo_alloc_element(const unsigned int size)
+bool tomoyo_memory_ok(void *ptr)
 {
-	static char *buf;
-	static DEFINE_MUTEX(lock);
-	static unsigned int buf_used_len = PATH_MAX;
-	char *ptr = NULL;
-	/*Assumes sizeof(void *) >= sizeof(long) is true. */
-	const unsigned int word_aligned_size
-		= roundup(size, max(sizeof(void *), sizeof(long)));
-	if (word_aligned_size > PATH_MAX)
-		return NULL;
-	mutex_lock(&lock);
-	if (buf_used_len + word_aligned_size > PATH_MAX) {
-		if (!tomoyo_quota_for_elements ||
-		    tomoyo_allocated_memory_for_elements
-		    + PATH_MAX <= tomoyo_quota_for_elements)
-			ptr = kzalloc(PATH_MAX, GFP_KERNEL);
-		if (!ptr) {
-			printk(KERN_WARNING "ERROR: Out of memory "
-			       "for tomoyo_alloc_element().\n");
-			if (!tomoyo_policy_loaded)
-				panic("MAC Initialization failed.\n");
-		} else {
-			buf = ptr;
-			tomoyo_allocated_memory_for_elements += PATH_MAX;
-			buf_used_len = word_aligned_size;
-			ptr = buf;
-		}
-	} else if (word_aligned_size) {
-		int i;
-		ptr = buf + buf_used_len;
-		buf_used_len += word_aligned_size;
-		for (i = 0; i < word_aligned_size; i++) {
-			if (!ptr[i])
-				continue;
-			printk(KERN_ERR "WARNING: Reserved memory was tainted! "
-			       "The system might go wrong.\n");
-			ptr[i] = '\0';
-		}
+	int allocated_len = ptr ? ksize(ptr) : 0;
+	bool result = false;
+	if (!ptr || (tomoyo_quota_for_elements &&
+		     tomoyo_allocated_memory_for_elements
+		     + allocated_len > tomoyo_quota_for_elements)) {
+		printk(KERN_WARNING "ERROR: Out of memory "
+		       "for tomoyo_alloc_element().\n");
+		if (!tomoyo_policy_loaded)
+			panic("MAC Initialization failed.\n");
+	} else {
+		result = true;
+		tomoyo_allocated_memory_for_elements += allocated_len;
+		memset(ptr, 0, allocated_len);
 	}
-	mutex_unlock(&lock);
-	return ptr;
+	return result;
 }
 
 /* Memory allocated for string data in bytes. */

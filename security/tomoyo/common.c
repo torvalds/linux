@@ -900,9 +900,11 @@ static struct tomoyo_profile *tomoyo_find_or_assign_new_profile(const unsigned
 	ptr = tomoyo_profile_ptr[profile];
 	if (ptr)
 		goto ok;
-	ptr = tomoyo_alloc_element(sizeof(*ptr));
-	if (!ptr)
+	ptr = kmalloc(sizeof(*ptr), GFP_KERNEL);
+	if (!tomoyo_memory_ok(ptr)) {
+		kfree(ptr);
 		goto ok;
+	}
 	for (i = 0; i < TOMOYO_MAX_CONTROL_INDEX; i++)
 		ptr->value[i] = tomoyo_control_array[i].current_value;
 	mb(); /* Avoid out-of-order execution. */
@@ -1120,6 +1122,7 @@ static int tomoyo_update_manager_entry(const char *manager,
 	saved_manager = tomoyo_save_name(manager);
 	if (!saved_manager)
 		return -ENOMEM;
+	new_entry = kmalloc(sizeof(*new_entry), GFP_KERNEL);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_policy_manager_list, list) {
 		if (ptr->manager != saved_manager)
@@ -1132,15 +1135,16 @@ static int tomoyo_update_manager_entry(const char *manager,
 		error = -ENOENT;
 		goto out;
 	}
-	new_entry = tomoyo_alloc_element(sizeof(*new_entry));
-	if (!new_entry)
+	if (!tomoyo_memory_ok(new_entry))
 		goto out;
 	new_entry->manager = saved_manager;
 	new_entry->is_domain = is_domain;
 	list_add_tail_rcu(&new_entry->list, &tomoyo_policy_manager_list);
+	new_entry = NULL;
 	error = 0;
  out:
 	mutex_unlock(&tomoyo_policy_lock);
+	kfree(new_entry);
 	return error;
 }
 
@@ -2145,35 +2149,6 @@ static int tomoyo_close_control(struct file *file)
 	head = NULL;
 	file->private_data = NULL;
 	return 0;
-}
-
-/**
- * tomoyo_alloc_acl_element - Allocate permanent memory for ACL entry.
- *
- * @acl_type:  Type of ACL entry.
- *
- * Returns pointer to the ACL entry on success, NULL otherwise.
- */
-void *tomoyo_alloc_acl_element(const u8 acl_type)
-{
-	int len;
-	struct tomoyo_acl_info *ptr;
-
-	switch (acl_type) {
-	case TOMOYO_TYPE_SINGLE_PATH_ACL:
-		len = sizeof(struct tomoyo_single_path_acl_record);
-		break;
-	case TOMOYO_TYPE_DOUBLE_PATH_ACL:
-		len = sizeof(struct tomoyo_double_path_acl_record);
-		break;
-	default:
-		return NULL;
-	}
-	ptr = tomoyo_alloc_element(len);
-	if (!ptr)
-		return NULL;
-	ptr->type = acl_type;
-	return ptr;
 }
 
 /**

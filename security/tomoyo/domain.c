@@ -245,6 +245,7 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 	saved_program = tomoyo_save_name(program);
 	if (!saved_program)
 		return -ENOMEM;
+	new_entry = kmalloc(sizeof(*new_entry), GFP_KERNEL);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_domain_initializer_list, list) {
 		if (ptr->is_not != is_not ||
@@ -259,17 +260,18 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 		error = -ENOENT;
 		goto out;
 	}
-	new_entry = tomoyo_alloc_element(sizeof(*new_entry));
-	if (!new_entry)
+	if (!tomoyo_memory_ok(new_entry))
 		goto out;
 	new_entry->domainname = saved_domainname;
 	new_entry->program = saved_program;
 	new_entry->is_not = is_not;
 	new_entry->is_last_name = is_last_name;
 	list_add_tail_rcu(&new_entry->list, &tomoyo_domain_initializer_list);
+	new_entry = NULL;
 	error = 0;
  out:
 	mutex_unlock(&tomoyo_policy_lock);
+	kfree(new_entry);
 	return error;
 }
 
@@ -461,6 +463,7 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 	saved_domainname = tomoyo_save_name(domainname);
 	if (!saved_domainname)
 		return -ENOMEM;
+	new_entry = kmalloc(sizeof(*new_entry), GFP_KERNEL);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_domain_keeper_list, list) {
 		if (ptr->is_not != is_not ||
@@ -475,17 +478,18 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 		error = -ENOENT;
 		goto out;
 	}
-	new_entry = tomoyo_alloc_element(sizeof(*new_entry));
-	if (!new_entry)
+	if (!tomoyo_memory_ok(new_entry))
 		goto out;
 	new_entry->domainname = saved_domainname;
 	new_entry->program = saved_program;
 	new_entry->is_not = is_not;
 	new_entry->is_last_name = is_last_name;
 	list_add_tail_rcu(&new_entry->list, &tomoyo_domain_keeper_list);
+	new_entry = NULL;
 	error = 0;
  out:
 	mutex_unlock(&tomoyo_policy_lock);
+	kfree(new_entry);
 	return error;
 }
 
@@ -650,6 +654,7 @@ static int tomoyo_update_alias_entry(const char *original_name,
 	saved_aliased_name = tomoyo_save_name(aliased_name);
 	if (!saved_original_name || !saved_aliased_name)
 		return -ENOMEM;
+	new_entry = kmalloc(sizeof(*new_entry), GFP_KERNEL);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_alias_list, list) {
 		if (ptr->original_name != saved_original_name ||
@@ -663,15 +668,16 @@ static int tomoyo_update_alias_entry(const char *original_name,
 		error = -ENOENT;
 		goto out;
 	}
-	new_entry = tomoyo_alloc_element(sizeof(*new_entry));
-	if (!new_entry)
+	if (!tomoyo_memory_ok(new_entry))
 		goto out;
 	new_entry->original_name = saved_original_name;
 	new_entry->aliased_name = saved_aliased_name;
 	list_add_tail_rcu(&new_entry->list, &tomoyo_alias_list);
+	new_entry = NULL;
 	error = 0;
  out:
 	mutex_unlock(&tomoyo_policy_lock);
+	kfree(new_entry);
 	return error;
 }
 
@@ -738,7 +744,7 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 							    domainname,
 							    const u8 profile)
 {
-	struct tomoyo_domain_info *domain = NULL;
+	struct tomoyo_domain_info *domain;
 	const struct tomoyo_path_info *saved_domainname;
 
 	mutex_lock(&tomoyo_policy_lock);
@@ -750,43 +756,17 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 	saved_domainname = tomoyo_save_name(domainname);
 	if (!saved_domainname)
 		goto out;
-	/* Can I reuse memory of deleted domain? */
-	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list) {
-		struct task_struct *p;
-		struct tomoyo_acl_info *ptr;
-		bool flag;
-		if (!domain->is_deleted ||
-		    domain->domainname != saved_domainname)
-			continue;
-		flag = false;
-		read_lock(&tasklist_lock);
-		for_each_process(p) {
-			if (tomoyo_real_domain(p) != domain)
-				continue;
-			flag = true;
-			break;
-		}
-		read_unlock(&tasklist_lock);
-		if (flag)
-			continue;
-		list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
-			ptr->type |= TOMOYO_ACL_DELETED;
-		}
-		tomoyo_set_domain_flag(domain, true, domain->flags);
-		domain->profile = profile;
-		domain->quota_warned = false;
-		mb(); /* Avoid out-of-order execution. */
-		domain->is_deleted = false;
-		goto out;
-	}
-	/* No memory reusable. Create using new memory. */
-	domain = tomoyo_alloc_element(sizeof(*domain));
-	if (domain) {
+	domain = kmalloc(sizeof(*domain), GFP_KERNEL);
+	if (tomoyo_memory_ok(domain)) {
 		INIT_LIST_HEAD(&domain->acl_info_list);
 		domain->domainname = saved_domainname;
 		domain->profile = profile;
 		list_add_tail_rcu(&domain->list, &tomoyo_domain_list);
+	} else {
+		kfree(domain);
+		domain = NULL;
 	}
+
  out:
 	mutex_unlock(&tomoyo_policy_lock);
 	return domain;

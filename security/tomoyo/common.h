@@ -376,8 +376,6 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 /* Check mode for specified functionality. */
 unsigned int tomoyo_check_flags(const struct tomoyo_domain_info *domain,
 				const u8 index);
-/* Allocate memory for structures. */
-void *tomoyo_alloc_acl_element(const u8 acl_type);
 /* Fill in "struct tomoyo_path_info" members. */
 void tomoyo_fill_path_info(struct tomoyo_path_info *ptr);
 /* Run policy loader when /sbin/init starts. */

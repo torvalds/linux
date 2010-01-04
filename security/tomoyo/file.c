@@ -225,6 +225,7 @@ static int tomoyo_update_globally_readable_entry(const char *filename,
 	saved_filename = tomoyo_save_name(filename);
 	if (!saved_filename)
 		return -ENOMEM;
+	new_entry = kmalloc(sizeof(*new_entry), GFP_KERNEL);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_globally_readable_list, list) {
 		if (ptr->filename != saved_filename)
@@ -237,14 +238,15 @@ static int tomoyo_update_globally_readable_entry(const char *filename,
 		error = -ENOENT;
 		goto out;
 	}
-	new_entry = tomoyo_alloc_element(sizeof(*new_entry));
-	if (!new_entry)
+	if (!tomoyo_memory_ok(new_entry))
 		goto out;
 	new_entry->filename = saved_filename;
 	list_add_tail_rcu(&new_entry->list, &tomoyo_globally_readable_list);
+	new_entry = NULL;
 	error = 0;
  out:
 	mutex_unlock(&tomoyo_policy_lock);
+	kfree(new_entry);
 	return error;
 }
 
@@ -372,6 +374,7 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
 	saved_pattern = tomoyo_save_name(pattern);
 	if (!saved_pattern)
 		return -ENOMEM;
+	new_entry = kmalloc(sizeof(*new_entry), GFP_KERNEL);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_pattern_list, list) {
 		if (saved_pattern != ptr->pattern)
@@ -384,14 +387,15 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
 		error = -ENOENT;
 		goto out;
 	}
-	new_entry = tomoyo_alloc_element(sizeof(*new_entry));
-	if (!new_entry)
+	if (!tomoyo_memory_ok(new_entry))
 		goto out;
 	new_entry->pattern = saved_pattern;
 	list_add_tail_rcu(&new_entry->list, &tomoyo_pattern_list);
+	new_entry = NULL;
 	error = 0;
  out:
 	mutex_unlock(&tomoyo_policy_lock);
+	kfree(new_entry);
 	return error;
 }
 
@@ -523,6 +527,7 @@ static int tomoyo_update_no_rewrite_entry(const char *pattern,
 	saved_pattern = tomoyo_save_name(pattern);
 	if (!saved_pattern)
 		return -ENOMEM;
+	new_entry = kmalloc(sizeof(*new_entry), GFP_KERNEL);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_no_rewrite_list, list) {
 		if (ptr->pattern != saved_pattern)
@@ -535,14 +540,15 @@ static int tomoyo_update_no_rewrite_entry(const char *pattern,
 		error = -ENOENT;
 		goto out;
 	}
-	new_entry = tomoyo_alloc_element(sizeof(*new_entry));
-	if (!new_entry)
+	if (!tomoyo_memory_ok(new_entry))
 		goto out;
 	new_entry->pattern = saved_pattern;
 	list_add_tail_rcu(&new_entry->list, &tomoyo_no_rewrite_list);
+	new_entry = NULL;
 	error = 0;
  out:
 	mutex_unlock(&tomoyo_policy_lock);
+	kfree(new_entry);
 	return error;
 }
 
@@ -901,9 +907,13 @@ static int tomoyo_update_single_path_acl(const u8 type, const char *filename,
 		goto out;
 	}
 	/* Not found. Append it to the tail. */
-	acl = tomoyo_alloc_acl_element(TOMOYO_TYPE_SINGLE_PATH_ACL);
-	if (!acl)
+	acl = kmalloc(sizeof(*acl), GFP_KERNEL);
+	if (!tomoyo_memory_ok(acl)) {
+		kfree(acl);
+		acl = NULL;
 		goto out;
+	}
+	acl->head.type = TOMOYO_TYPE_SINGLE_PATH_ACL;
 	if (perm <= 0xFFFF)
 		acl->perm = perm;
 	else
@@ -995,9 +1005,13 @@ static int tomoyo_update_double_path_acl(const u8 type, const char *filename1,
 		goto out;
 	}
 	/* Not found. Append it to the tail. */
-	acl = tomoyo_alloc_acl_element(TOMOYO_TYPE_DOUBLE_PATH_ACL);
-	if (!acl)
+	acl = kmalloc(sizeof(*acl), GFP_KERNEL);
+	if (!tomoyo_memory_ok(acl)) {
+		kfree(acl);
+		acl = NULL;
 		goto out;
+	}
+	acl->head.type = TOMOYO_TYPE_DOUBLE_PATH_ACL;
 	acl->perm = perm;
 	acl->filename1 = saved_filename1;
 	acl->filename2 = saved_filename2;
