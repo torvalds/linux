@@ -406,7 +406,7 @@ static void dbg_rsvd64(struct xhci_hcd *xhci, u64 *ctx, dma_addr_t dma)
 	}
 }
 
-inline char *xhci_get_slot_state(struct xhci_hcd *xhci,
+char *xhci_get_slot_state(struct xhci_hcd *xhci,
 		struct xhci_container_ctx *ctx)
 {
 	struct xhci_slot_ctx *slot_ctx = xhci_get_slot_ctx(xhci, ctx);

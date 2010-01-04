@@ -1210,7 +1210,7 @@ void xhci_dbg_erst(struct xhci_hcd *xhci, struct xhci_erst *erst);
 void xhci_dbg_cmd_ptrs(struct xhci_hcd *xhci);
 void xhci_dbg_ring_ptrs(struct xhci_hcd *xhci, struct xhci_ring *ring);
 void xhci_dbg_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx, unsigned int last_ep);
-inline char *xhci_get_slot_state(struct xhci_hcd *xhci,
+char *xhci_get_slot_state(struct xhci_hcd *xhci,
 		struct xhci_container_ctx *ctx);
 
 /* xHCI memory management */
