@@ -345,16 +345,6 @@ EXPORT_SYMBOL_GPL(pxa2xx_ac97_hw_suspend);
 
 int pxa2xx_ac97_hw_resume(void)
 {
-	if (cpu_is_pxa25x() || cpu_is_pxa27x()) {
-		pxa_gpio_mode(GPIO31_SYNC_AC97_MD);
-		pxa_gpio_mode(GPIO30_SDATA_OUT_AC97_MD);
-		pxa_gpio_mode(GPIO28_BITCLK_AC97_MD);
-		pxa_gpio_mode(GPIO29_SDATA_IN_AC97_MD);
-	}
-	if (cpu_is_pxa27x()) {
-		/* Use GPIO 113 or 95 as AC97 Reset on Bulverde */
-		set_resetgpio_mode(RESETGPIO_NORMAL_ALTFUNC);
-	}
 	clk_enable(ac97_clk);
 	return 0;
 }
