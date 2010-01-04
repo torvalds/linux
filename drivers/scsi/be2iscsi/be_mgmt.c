@@ -48,6 +48,14 @@ unsigned char mgmt_get_fw_config(struct be_ctrl_info *ctrl,
 					pfw_cfg->ulp[0].sq_base;
 		phba->fw_config.iscsi_cid_count =
 					pfw_cfg->ulp[0].sq_count;
+		if (phba->fw_config.iscsi_cid_count > (BE2_MAX_SESSIONS / 2)) {
+			status = 1;
+			shost_printk(KERN_WARNING, phba->shost,
+			     "FW reported MAX CXNS as %d \t"
+			     "Max Supported = %d. Failing to load \n",
+					phba->fw_config.iscsi_cid_count,
+					BE2_MAX_SESSIONS);
+		}
 	} else {
 		shost_printk(KERN_WARNING, phba->shost,
 			     "Failed in mgmt_get_fw_config \n");
@@ -317,7 +325,8 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 		struct tcp_connect_and_offload_out *ptcpcnct_out =
 							embedded_payload(wrb);
 
-		ep = phba->ep_array[ptcpcnct_out->cid];
+		ep = phba->ep_array[ptcpcnct_out->cid -
+				    phba->fw_config.iscsi_cid_start];
 		beiscsi_ep = ep->dd_data;
 		beiscsi_ep->fw_handle = ptcpcnct_out->connection_handle;
 		beiscsi_ep->cid_vld = 1;

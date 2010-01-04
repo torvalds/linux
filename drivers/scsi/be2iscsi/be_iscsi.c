@@ -431,9 +431,10 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 	}
 	SE_DEBUG(DBG_LVL_8, "In beiscsi_open_conn, ep_cid=%d ",
 		 beiscsi_ep->ep_cid);
-	phba->ep_array[beiscsi_ep->ep_cid] = ep;
-	if (beiscsi_ep->ep_cid >
-	    (phba->fw_config.iscsi_cid_start + phba->params.cxns_per_ctrl)) {
+	phba->ep_array[beiscsi_ep->ep_cid -
+		       phba->fw_config.iscsi_cid_start] = ep;
+	if (beiscsi_ep->ep_cid > (phba->fw_config.iscsi_cid_start +
+				  phba->params.cxns_per_ctrl * 2)) {
 		SE_DEBUG(DBG_LVL_1, "Failed in allocate iscsi cid\n");
 		return ret;
 	}

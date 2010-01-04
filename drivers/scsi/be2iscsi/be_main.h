@@ -46,23 +46,18 @@
 #define OC_DEVICE_ID3		0x712
 #define OC_DEVICE_ID4		0x222
 
-#define BE2_MAX_SESSIONS	64
+#define BE2_IO_DEPTH		1024
+#define BE2_MAX_SESSIONS	256
 #define BE2_CMDS_PER_CXN	128
-#define BE2_LOGOUTS		BE2_MAX_SESSIONS
 #define BE2_TMFS		16
 #define BE2_NOPOUT_REQ		16
-#define BE2_ASYNCPDUS		BE2_MAX_SESSIONS
-#define BE2_MAX_ICDS		2048
 #define BE2_SGE			32
 #define BE2_DEFPDU_HDR_SZ	64
 #define BE2_DEFPDU_DATA_SZ	8192
-#define BE2_IO_DEPTH \
-	(BE2_MAX_ICDS / 2 - (BE2_LOGOUTS + BE2_TMFS + BE2_NOPOUT_REQ))
 
 #define MAX_CPUS		31
 #define BEISCSI_SGLIST_ELEMENTS	BE2_SGE
 
-#define BEISCSI_MAX_CMNDS	1024	/* Max IO's per Ctrlr sht->can_queue */
 #define BEISCSI_CMD_PER_LUN	128	/* scsi_host->cmd_per_lun */
 #define BEISCSI_MAX_SECTORS	2048	/* scsi_host->max_sectors */
 
@@ -802,7 +797,6 @@ struct hwi_controller {
 	struct be_ring default_pdu_hdr;
 	struct be_ring default_pdu_data;
 	struct hwi_context_memory *phwi_ctxt;
-	unsigned short cq_errors[CXN_KILLED_CMND_DATA_NOT_ON_SAME_CONN];
 };
 
 enum hwh_type_enum {
