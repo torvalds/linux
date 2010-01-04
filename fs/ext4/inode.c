@@ -1009,38 +1009,44 @@ qsize_t *ext4_get_reserved_space(struct inode *inode)
 	return &EXT4_I(inode)->i_reserved_quota;
 }
 #endif
+
 /*
  * Calculate the number of metadata blocks need to reserve
- * to allocate @blocks for non extent file based file
+ * to allocate a new block at @lblocks for non extent file based file
  */
-static int ext4_indirect_calc_metadata_amount(struct inode *inode, int blocks)
+static int ext4_indirect_calc_metadata_amount(struct inode *inode,
+					      sector_t lblock)
 {
-	int icap = EXT4_ADDR_PER_BLOCK(inode->i_sb);
-	int ind_blks, dind_blks, tind_blks;
+	struct ext4_inode_info *ei = EXT4_I(inode);
+	int dind_mask = EXT4_ADDR_PER_BLOCK(inode->i_sb) - 1;
+	int blk_bits;
 
-	/* number of new indirect blocks needed */
-	ind_blks = (blocks + icap - 1) / icap;
+	if (lblock < EXT4_NDIR_BLOCKS)
+		return 0;
 
-	dind_blks = (ind_blks + icap - 1) / icap;
+	lblock -= EXT4_NDIR_BLOCKS;
 
-	tind_blks = 1;
-
-	return ind_blks + dind_blks + tind_blks;
+	if (ei->i_da_metadata_calc_len &&
+	    (lblock & dind_mask) == ei->i_da_metadata_calc_last_lblock) {
+		ei->i_da_metadata_calc_len++;
+		return 0;
+	}
+	ei->i_da_metadata_calc_last_lblock = lblock & dind_mask;
+	ei->i_da_metadata_calc_len = 1;
+	blk_bits = roundup_pow_of_two(lblock + 1);
+	return (blk_bits / EXT4_ADDR_PER_BLOCK_BITS(inode->i_sb)) + 1;
 }
 
 /*
  * Calculate the number of metadata blocks need to reserve
- * to allocate given number of blocks
+ * to allocate a block located at @lblock
  */
-static int ext4_calc_metadata_amount(struct inode *inode, int blocks)
+static int ext4_calc_metadata_amount(struct inode *inode, sector_t lblock)
 {
-	if (!blocks)
-		return 0;
-
 	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL)
-		return ext4_ext_calc_metadata_amount(inode, blocks);
+		return ext4_ext_calc_metadata_amount(inode, lblock);
 
-	return ext4_indirect_calc_metadata_amount(inode, blocks);
+	return ext4_indirect_calc_metadata_amount(inode, lblock);
 }
 
 /*
@@ -1076,9 +1082,10 @@ static void ext4_da_update_reserve_space(struct inode *inode, int used)
 		 * only when we have written all of the delayed
 		 * allocation blocks.
 		 */
-		mdb_free = ei->i_allocated_meta_blocks;
+		mdb_free = ei->i_reserved_meta_blocks;
+		ei->i_reserved_meta_blocks = 0;
+		ei->i_da_metadata_calc_len = 0;
 		percpu_counter_sub(&sbi->s_dirtyblocks_counter, mdb_free);
-		ei->i_allocated_meta_blocks = 0;
 	}
 	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
 
@@ -1802,12 +1809,15 @@ static int ext4_journalled_write_end(struct file *file,
 	return ret ? ret : copied;
 }
 
-static int ext4_da_reserve_space(struct inode *inode, int nrblocks)
+/*
+ * Reserve a single block located at lblock
+ */
+static int ext4_da_reserve_space(struct inode *inode, sector_t lblock)
 {
 	int retries = 0;
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	struct ext4_inode_info *ei = EXT4_I(inode);
-	unsigned long md_needed, md_reserved, total = 0;
+	unsigned long md_needed, md_reserved;
 
 	/*
 	 * recalculate the amount of metadata blocks to reserve
@@ -1817,8 +1827,7 @@ static int ext4_da_reserve_space(struct inode *inode, int nrblocks)
 repeat:
 	spin_lock(&ei->i_block_reservation_lock);
 	md_reserved = ei->i_reserved_meta_blocks;
-	md_needed = ext4_calc_metadata_amount(inode, nrblocks);
-	total = md_needed + nrblocks;
+	md_needed = ext4_calc_metadata_amount(inode, lblock);
 	spin_unlock(&ei->i_block_reservation_lock);
 
 	/*
@@ -1826,7 +1835,7 @@ repeat:
 	 * later. Real quota accounting is done at pages writeout
 	 * time.
 	 */
-	if (vfs_dq_reserve_block(inode, total)) {
+	if (vfs_dq_reserve_block(inode, md_needed + 1)) {
 		/* 
 		 * We tend to badly over-estimate the amount of
 		 * metadata blocks which are needed, so if we have
@@ -1838,8 +1847,8 @@ repeat:
 		return -EDQUOT;
 	}
 
-	if (ext4_claim_free_blocks(sbi, total)) {
-		vfs_dq_release_reservation_block(inode, total);
+	if (ext4_claim_free_blocks(sbi, md_needed + 1)) {
+		vfs_dq_release_reservation_block(inode, md_needed + 1);
 		if (ext4_should_retry_alloc(inode->i_sb, &retries)) {
 		retry:
 			if (md_reserved)
@@ -1850,7 +1859,7 @@ repeat:
 		return -ENOSPC;
 	}
 	spin_lock(&ei->i_block_reservation_lock);
-	ei->i_reserved_data_blocks += nrblocks;
+	ei->i_reserved_data_blocks++;
 	ei->i_reserved_meta_blocks += md_needed;
 	spin_unlock(&ei->i_block_reservation_lock);
 
@@ -1889,8 +1898,9 @@ static void ext4_da_release_space(struct inode *inode, int to_free)
 		 * only when we have written all of the delayed
 		 * allocation blocks.
 		 */
-		to_free += ei->i_allocated_meta_blocks;
-		ei->i_allocated_meta_blocks = 0;
+		to_free += ei->i_reserved_meta_blocks;
+		ei->i_reserved_meta_blocks = 0;
+		ei->i_da_metadata_calc_len = 0;
 	}
 
 	/* update fs dirty blocks counter */
@@ -2504,7 +2514,7 @@ static int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 		 * XXX: __block_prepare_write() unmaps passed block,
 		 * is it OK?
 		 */
-		ret = ext4_da_reserve_space(inode, 1);
+		ret = ext4_da_reserve_space(inode, iblock);
 		if (ret)
 			/* not enough space to reserve */
 			return ret;
