@@ -651,8 +651,7 @@ struct amap_iscsi_wrb {
 
 } __packed;
 
-struct wrb_handle *alloc_wrb_handle(struct beiscsi_hba *phba, unsigned int cid,
-				    int index);
+struct wrb_handle *alloc_wrb_handle(struct beiscsi_hba *phba, unsigned int cid);
 void
 free_mgmt_sgl_handle(struct beiscsi_hba *phba, struct sgl_handle *psgl_handle);
 
