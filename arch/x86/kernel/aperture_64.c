@@ -31,6 +31,7 @@
 #include <asm/x86_init.h>
 
 int gart_iommu_aperture;
+EXPORT_SYMBOL_GPL(gart_iommu_aperture);
 int gart_iommu_aperture_disabled __initdata;
 int gart_iommu_aperture_allowed __initdata;
 
