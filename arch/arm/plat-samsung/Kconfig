@@ -19,4 +19,46 @@ config SAMSUNG_CLKSRC
 	  Select the clock code for the clksrc implementation
 	  used by newer systems such as the S3C64XX.
 
+# device definitions to compile in
+
+config S3C_DEV_HSMMC
+	bool
+	help
+	  Compile in platform device definitions for HSMMC code
+
+config S3C_DEV_HSMMC1
+	bool
+	help
+	  Compile in platform device definitions for HSMMC channel 1
+
+config S3C_DEV_HSMMC2
+	bool
+	help
+	  Compile in platform device definitions for HSMMC channel 2
+
+config S3C_DEV_I2C1
+	bool
+	help
+	  Compile in platform device definitions for I2C channel 1
+
+config S3C_DEV_FB
+	bool
+	help
+	  Compile in platform device definition for framebuffer
+
+config S3C_DEV_USB_HOST
+	bool
+	help
+	  Compile in platform device definition for USB host.
+
+config S3C_DEV_USB_HSOTG
+	bool
+	help
+	  Compile in platform device definition for USB high-speed OtG
+
+config S3C_DEV_NAND
+	bool
+	help
+	  Compile in platform device definition for NAND controller
+
 endif
