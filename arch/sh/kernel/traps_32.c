@@ -956,7 +956,7 @@ void __init trap_init(void)
 #endif
 
 #ifdef TRAP_UBC
-	set_exception_table_vec(TRAP_UBC, break_point_trap);
+	set_exception_table_vec(TRAP_UBC, breakpoint_trap_handler);
 #endif
 
 	/* Setup VBR for boot cpu */
