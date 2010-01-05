@@ -30,16 +30,15 @@ static inline unsigned long __must_check copy_from_user(void *to,
 					  unsigned long n)
 {
 	int sz = __compiletime_object_size(to);
-	int ret = -EFAULT;
 
 	might_fault();
 	if (likely(sz == -1 || sz >= n))
-		ret = _copy_from_user(to, from, n);
+		n = _copy_from_user(to, from, n);
 #ifdef CONFIG_DEBUG_VM
 	else
 		WARN(1, "Buffer overflow detected!\n");
 #endif
-	return ret;
+	return n;
 }
 
 static __always_inline __must_check
