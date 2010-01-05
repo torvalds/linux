@@ -692,6 +692,25 @@ proxy_arp - BOOLEAN
 	conf/{all,interface}/proxy_arp is set to TRUE,
 	it will be disabled otherwise
 
+proxy_arp_pvlan - BOOLEAN
+	Private VLAN proxy arp.
+	Basically allow proxy arp replies back to the same interface
+	(from which the ARP request/solicitation was received).
+
+	This is done to support (ethernet) switch features, like RFC
+	3069, where the individual ports are NOT allowed to
+	communicate with each other, but they are allowed to talk to
+	the upstream router.  As described in RFC 3069, it is possible
+	to allow these hosts to communicate through the upstream
+	router by proxy_arp'ing. Don't need to be used together with
+	proxy_arp.
+
+	This technology is known by different names:
+	  In RFC 3069 it is called VLAN Aggregation.
+	  Cisco and Allied Telesyn call it Private VLAN.
+	  Hewlett-Packard call it Source-Port filtering or port-isolation.
+	  Ericsson call it MAC-Forced Forwarding (RFC Draft).
+
 shared_media - BOOLEAN
 	Send(router) or accept(host) RFC1620 shared media redirects.
 	Overrides ip_secure_redirects.
