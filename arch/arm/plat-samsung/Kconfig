@@ -19,6 +19,41 @@ config SAMSUNG_CLKSRC
 	  Select the clock code for the clksrc implementation
 	  used by newer systems such as the S3C64XX.
 
+# options for gpio configuration support
+
+config S3C_GPIO_CFG_S3C24XX
+	bool
+	help
+	  Internal configuration to enable S3C24XX style GPIO configuration
+	  functions.
+
+config S3C_GPIO_CFG_S3C64XX
+	bool
+	help
+	  Internal configuration to enable S3C64XX style GPIO configuration
+	  functions.
+
+config S5P_GPIO_CFG_S5PC1XX
+	bool
+	help
+	  Internal configuration to enable S5PC1XX style GPIO configuration
+	  functions.
+
+config S3C_GPIO_PULL_UPDOWN
+	bool
+	help
+	  Internal configuration to enable the correct GPIO pull helper
+
+config S3C_GPIO_PULL_DOWN
+	bool
+	help
+	  Internal configuration to enable the correct GPIO pull helper
+
+config S3C_GPIO_PULL_UP
+	bool
+	help
+	  Internal configuration to enable the correct GPIO pull helper
+
 # device definitions to compile in
 
 config S3C_DEV_HSMMC

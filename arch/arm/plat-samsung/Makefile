@@ -13,6 +13,7 @@ obj-				:=
 
 obj-y				+= clock.o
 obj-y				+= pwm-clock.o
+obj-y				+= gpio-config.o
 
 obj-$(CONFIG_SAMSUNG_CLKSRC)	+= clock-clksrc.o
 

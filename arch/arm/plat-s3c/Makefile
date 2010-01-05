@@ -14,7 +14,6 @@ obj-				:=
 obj-y				+= init.o
 obj-y				+= time.o
 obj-y				+= gpio.o
-obj-y				+= gpio-config.o
 
 # DMA support
 
