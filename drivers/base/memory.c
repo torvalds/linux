@@ -309,17 +309,18 @@ static SYSDEV_ATTR(removable, 0444, show_mem_removable, NULL);
  * Block size attribute stuff
  */
 static ssize_t
-print_block_size(struct class *class, char *buf)
+print_block_size(struct sysdev_class *class, struct sysdev_class_attribute *attr,
+		 char *buf)
 {
 	return sprintf(buf, "%#lx\n", (unsigned long)PAGES_PER_SECTION * PAGE_SIZE);
 }
 
-static CLASS_ATTR(block_size_bytes, 0444, print_block_size, NULL);
+static SYSDEV_CLASS_ATTR(block_size_bytes, 0444, print_block_size, NULL);
 
 static int block_size_init(void)
 {
 	return sysfs_create_file(&memory_sysdev_class.kset.kobj,
-				&class_attr_block_size_bytes.attr);
+				&attr_block_size_bytes.attr);
 }
 
 /*
