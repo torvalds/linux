@@ -44,12 +44,12 @@
 #include "nl80211.h"
 
 #ifdef CONFIG_CFG80211_REG_DEBUG
-#define REG_DBG_PRINT(args...) \
+#define REG_DBG_PRINT(format, args...) \
 	do { \
-		printk(KERN_DEBUG args); \
+		printk(KERN_DEBUG format , ## args); \
 	} while (0)
 #else
-#define REG_DBG_PRINT(args)
+#define REG_DBG_PRINT(args...)
 #endif
 
 /* Receipt of information from last regulatory request */
