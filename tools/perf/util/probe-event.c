@@ -37,6 +37,7 @@
 #include "string.h"
 #include "strlist.h"
 #include "debug.h"
+#include "cache.h"
 #include "parse-events.h"  /* For debugfs_path */
 #include "probe-event.h"
 
@@ -454,6 +455,8 @@ void show_perf_probe_events(void)
 	struct probe_point pp;
 	struct strlist *rawlist;
 	struct str_node *ent;
+
+	setup_pager();
 
 	fd = open_kprobe_events(O_RDONLY, 0);
 	rawlist = get_trace_kprobe_event_rawlist(fd);
