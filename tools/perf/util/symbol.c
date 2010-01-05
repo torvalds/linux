@@ -956,10 +956,14 @@ static int dso__load_sym(struct dso *self, struct map *map,
 
 	elf_symtab__for_each_symbol(syms, nr_syms, idx, sym) {
 		struct symbol *f;
-		const char *elf_name;
+		const char *elf_name = elf_sym__name(&sym, symstrs);
 		char *demangled = NULL;
 		int is_label = elf_sym__is_label(&sym);
 		const char *section_name;
+
+		if (kernel && session->ref_reloc_sym.name != NULL &&
+		    strcmp(elf_name, session->ref_reloc_sym.name) == 0)
+			perf_session__reloc_vmlinux_maps(session, sym.st_value);
 
 		if (!is_label && !elf_sym__is_a(&sym, map->type))
 			continue;
@@ -973,7 +977,6 @@ static int dso__load_sym(struct dso *self, struct map *map,
 		if (is_label && !elf_sec__is_a(&shdr, secstrs, map->type))
 			continue;
 
-		elf_name = elf_sym__name(&sym, symstrs);
 		section_name = elf_sec__name(&shdr, secstrs);
 
 		if (kernel || kmodule) {

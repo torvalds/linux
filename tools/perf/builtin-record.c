@@ -551,6 +551,13 @@ static int __cmd_record(int argc, const char **argv)
 			return err;
 	}
 
+	err = event__synthesize_kernel_mmap(process_synthesized_event,
+					    session, "_text");
+	if (err < 0) {
+		pr_err("Couldn't record kernel reference relocation symbol.\n");
+		return err;
+	}
+
 	if (!system_wide && profile_cpu == -1)
 		event__synthesize_thread(pid, process_synthesized_event,
 					 session);

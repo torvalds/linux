@@ -189,6 +189,50 @@ void event__synthesize_threads(int (*process)(event_t *event,
 	closedir(proc);
 }
 
+struct process_symbol_args {
+	const char *name;
+	u64	   start;
+};
+
+static int find_symbol_cb(void *arg, const char *name, char type, u64 start)
+{
+	struct process_symbol_args *args = arg;
+
+	if (!symbol_type__is_a(type, MAP__FUNCTION) || strcmp(name, args->name))
+		return 0;
+
+	args->start = start;
+	return 1;
+}
+
+int event__synthesize_kernel_mmap(int (*process)(event_t *event,
+						 struct perf_session *session),
+				  struct perf_session *session,
+				  const char *symbol_name)
+{
+	size_t size;
+	event_t ev = {
+		.header = { .type = PERF_RECORD_MMAP },
+	};
+	/*
+	 * We should get this from /sys/kernel/sections/.text, but till that is
+	 * available use this, and after it is use this as a fallback for older
+	 * kernels.
+	 */
+	struct process_symbol_args args = { .name = symbol_name, };
+
+	if (kallsyms__parse(&args, find_symbol_cb) <= 0)
+		return -ENOENT;
+
+	size = snprintf(ev.mmap.filename, sizeof(ev.mmap.filename),
+			"[kernel.kallsyms.%s]", symbol_name) + 1;
+	size = ALIGN(size, sizeof(u64));
+	ev.mmap.header.size = (sizeof(ev.mmap) - (sizeof(ev.mmap.filename) - size));
+	ev.mmap.start = args.start;
+
+	return process(&ev, session);
+}
+
 static void thread__comm_adjust(struct thread *self)
 {
 	char *comm = self->comm;
@@ -240,9 +284,9 @@ int event__process_lost(event_t *self, struct perf_session *session)
 
 int event__process_mmap(event_t *self, struct perf_session *session)
 {
-	struct thread *thread = perf_session__findnew(session, self->mmap.pid);
-	struct map *map = map__new(&self->mmap, MAP__FUNCTION,
-				   session->cwd, session->cwdlen);
+	struct thread *thread;
+	struct map *map;
+	static const char kmmap_prefix[] = "[kernel.kallsyms.";
 
 	dump_printf(" %d/%d: [%p(%p) @ %p]: %s\n",
 		    self->mmap.pid, self->mmap.tid,
@@ -250,6 +294,20 @@ int event__process_mmap(event_t *self, struct perf_session *session)
 		    (void *)(long)self->mmap.len,
 		    (void *)(long)self->mmap.pgoff,
 		    self->mmap.filename);
+
+	if (self->mmap.pid == 0 &&
+	    memcmp(self->mmap.filename, kmmap_prefix,
+		   sizeof(kmmap_prefix) - 1) == 0) {
+		const char *symbol_name = (self->mmap.filename +
+					   sizeof(kmmap_prefix) - 1);
+		perf_session__set_kallsyms_ref_reloc_sym(session, symbol_name,
+							 self->mmap.start);
+		return 0;
+	}
+
+	thread = perf_session__findnew(session, self->mmap.pid);
+	map = map__new(&self->mmap, MAP__FUNCTION,
+		       session->cwd, session->cwdlen);
 
 	if (thread == NULL || map == NULL)
 		dump_printf("problem processing PERF_RECORD_MMAP, skipping event.\n");

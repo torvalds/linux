@@ -110,6 +110,10 @@ int event__synthesize_thread(pid_t pid,
 void event__synthesize_threads(int (*process)(event_t *event,
 					      struct perf_session *session),
 			       struct perf_session *session);
+int event__synthesize_kernel_mmap(int (*process)(event_t *event,
+						 struct perf_session *session),
+				  struct perf_session *session,
+				  const char *symbol_name);
 
 int event__process_comm(event_t *self, struct perf_session *session);
 int event__process_lost(event_t *self, struct perf_session *session);
