@@ -4517,6 +4517,8 @@ struct dvb_frontend *stv090x_attach(const struct stv090x_config *config,
 					  GFP_KERNEL);
 		temp_int = append_internal(state->internal);
 		state->internal->num_used = 1;
+		state->internal->mclk = 0;
+		state->internal->dev_ver = 0;
 		state->internal->i2c_adap = state->i2c;
 		state->internal->i2c_addr = state->config->address;
 		dprintk(FE_INFO, 1, "Create New Internal Structure!");
