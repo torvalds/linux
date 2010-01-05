@@ -13,8 +13,11 @@
 
 #include "base.h"
 
+static struct sysdev_class_attribute *cpu_sysdev_class_attrs[];
+
 struct sysdev_class cpu_sysdev_class = {
 	.name = "cpu",
+	.attrs = cpu_sysdev_class_attrs,
 };
 EXPORT_SYMBOL(cpu_sysdev_class);
 
@@ -90,20 +93,6 @@ static ssize_t cpu_release_store(struct class *class, const char *buf,
 
 static CLASS_ATTR(probe, S_IWUSR, NULL, cpu_probe_store);
 static CLASS_ATTR(release, S_IWUSR, NULL, cpu_release_store);
-
-int __init cpu_probe_release_init(void)
-{
-	int rc;
-
-	rc = sysfs_create_file(&cpu_sysdev_class.kset.kobj,
-			       &class_attr_probe.attr);
-	if (!rc)
-		rc = sysfs_create_file(&cpu_sysdev_class.kset.kobj,
-				       &class_attr_release.attr);
-
-	return rc;
-}
-device_initcall(cpu_probe_release_init);
 #endif /* CONFIG_ARCH_CPU_PROBE_RELEASE */
 
 #else /* ... !CONFIG_HOTPLUG_CPU */
@@ -162,6 +151,7 @@ static ssize_t show_cpus_attr(struct sysdev_class *class,
 #define _CPU_ATTR(name, map)						\
 	{ _SYSDEV_CLASS_ATTR(name, 0444, show_cpus_attr, NULL), map }
 
+/* Keep in sync with cpu_sysdev_class_attrs */
 static struct cpu_attr cpu_attrs[] = {
 	_CPU_ATTR(online, &cpu_online_mask),
 	_CPU_ATTR(possible, &cpu_possible_mask),
@@ -212,29 +202,6 @@ static ssize_t print_cpus_offline(struct sysdev_class *class,
 }
 static SYSDEV_CLASS_ATTR(offline, 0444, print_cpus_offline, NULL);
 
-static struct sysdev_class_attribute *cpu_state_attr[] = {
-	&cpu_attrs[0].attr,
-	&cpu_attrs[1].attr,
-	&cpu_attrs[2].attr,
-	&attr_kernel_max,
-	&attr_offline,
-};
-
-static int cpu_states_init(void)
-{
-	int i;
-	int err = 0;
-
-	for (i = 0;  i < ARRAY_SIZE(cpu_state_attr); i++) {
-		int ret;
-		ret = sysdev_class_create_file(&cpu_sysdev_class,
-						cpu_state_attr[i]);
-		if (!err)
-			err = ret;
-	}
-	return err;
-}
-
 /*
  * register_cpu - Setup a sysfs device for a CPU.
  * @cpu - cpu->hotpluggable field set to 1 will generate a control file in
@@ -280,9 +247,6 @@ int __init cpu_dev_init(void)
 	int err;
 
 	err = sysdev_class_register(&cpu_sysdev_class);
-	if (!err)
-		err = cpu_states_init();
-
 #if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
 	if (!err)
 		err = sched_create_sysfs_power_savings_entries(&cpu_sysdev_class);
@@ -290,3 +254,16 @@ int __init cpu_dev_init(void)
 
 	return err;
 }
+
+static struct sysdev_class_attribute *cpu_sysdev_class_attrs[] = {
+#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
+	&class_attr_probe.attr,
+	&class_attr_release.attr,
+#endif
+	&cpu_attrs[0].attr,
+	&cpu_attrs[1].attr,
+	&cpu_attrs[2].attr,
+	&attr_kernel_max,
+	&attr_offline,
+	NULL
+};
