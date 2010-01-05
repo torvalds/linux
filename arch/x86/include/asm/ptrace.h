@@ -274,10 +274,6 @@ static inline unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
 		return 0;
 }
 
-/* Get Nth argument at function call */
-extern unsigned long regs_get_argument_nth(struct pt_regs *regs,
-					   unsigned int n);
-
 /*
  * These are defined as per linux/ptrace.h, which see.
  */

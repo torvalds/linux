@@ -140,30 +140,6 @@ static const int arg_offs_table[] = {
 #endif
 };
 
-/**
- * regs_get_argument_nth() - get Nth argument at function call
- * @regs:	pt_regs which contains registers at function entry.
- * @n:		argument number.
- *
- * regs_get_argument_nth() returns @n th argument of a function call.
- * Since usually the kernel stack will be changed right after function entry,
- * you must use this at function entry. If the @n th entry is NOT in the
- * kernel stack or pt_regs, this returns 0.
- */
-unsigned long regs_get_argument_nth(struct pt_regs *regs, unsigned int n)
-{
-	if (n < ARRAY_SIZE(arg_offs_table))
-		return *(unsigned long *)((char *)regs + arg_offs_table[n]);
-	else {
-		/*
-		 * The typical case: arg n is on the stack.
-		 * (Note: stack[0] = return address, so skip it)
-		 */
-		n -= ARRAY_SIZE(arg_offs_table);
-		return regs_get_kernel_stack_nth(regs, 1 + n);
-	}
-}
-
 /*
  * does not yet catch signals sent when the child dies.
  * in exit.c or in signal.c.
