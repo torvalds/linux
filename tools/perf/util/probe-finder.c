@@ -402,11 +402,11 @@ static void show_location(Dwarf_Loc *loc, struct probe_finder *pf)
 	} else if (op == DW_OP_regx) {
 		regn = loc->lr_number;
 	} else
-		die("Dwarf_OP %d is not supported.\n", op);
+		die("Dwarf_OP %d is not supported.", op);
 
 	regs = get_arch_regstr(regn);
 	if (!regs)
-		die("%lld exceeds max register number.\n", regn);
+		die("%lld exceeds max register number.", regn);
 
 	if (deref)
 		ret = snprintf(pf->buf, pf->len,
@@ -438,7 +438,7 @@ static void show_variable(Dwarf_Die vr_die, struct probe_finder *pf)
 	return ;
 error:
 	die("Failed to find the location of %s at this address.\n"
-	    " Perhaps, it has been optimized out.\n", pf->var);
+	    " Perhaps, it has been optimized out.", pf->var);
 }
 
 static int variable_callback(struct die_link *dlink, void *data)
@@ -476,7 +476,7 @@ static void find_variable(Dwarf_Die sp_die, struct probe_finder *pf)
 	/* Search child die for local variables and parameters. */
 	ret = search_die_from_children(sp_die, variable_callback, pf);
 	if (!ret)
-		die("Failed to find '%s' in this function.\n", pf->var);
+		die("Failed to find '%s' in this function.", pf->var);
 }
 
 /* Get a frame base on the address */
@@ -602,7 +602,7 @@ static void find_by_line(struct probe_finder *pf)
 		ret = search_die_from_children(pf->cu_die,
 					       probeaddr_callback, pf);
 		if (ret == 0)
-			die("Probe point is not found in subprograms.\n");
+			die("Probe point is not found in subprograms.");
 		/* Continuing, because target line might be inlined. */
 	}
 	dwarf_srclines_dealloc(__dw_debug, lines, cnt);
@@ -661,7 +661,7 @@ static int probefunc_callback(struct die_link *dlink, void *data)
 				    !die_inlined_subprogram(lk->die))
 					goto found;
 			}
-			die("Failed to find real subprogram.\n");
+			die("Failed to find real subprogram.");
 found:
 			/* Get offset from subprogram */
 			ret = die_within_subprogram(lk->die, pf->addr, &offs);
