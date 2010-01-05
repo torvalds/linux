@@ -878,7 +878,8 @@ static int wl1251_op_hw_scan(struct ieee80211_hw *hw,
 
 	wl->scanning = true;
 
-	ret = wl1251_cmd_scan(wl, ssid, ssid_len, 13, 3);
+	ret = wl1251_cmd_scan(wl, ssid, ssid_len, req->channels,
+			      req->n_channels, WL1251_SCAN_NUM_PROBES);
 	if (ret < 0) {
 		wl->scanning = false;
 		goto out_sleep;

@@ -412,6 +412,7 @@ out:
 }
 
 int wl1251_cmd_scan(struct wl1251 *wl, u8 *ssid, size_t ssid_len,
+		    struct ieee80211_channel *channels[],
 		    unsigned int n_channels, unsigned int n_probes)
 {
 	struct wl1251_cmd_scan *cmd;
@@ -442,7 +443,7 @@ int wl1251_cmd_scan(struct wl1251 *wl, u8 *ssid, size_t ssid_len,
 		memset(&cmd->channels[i].bssid_msb, 0xff, 2);
 		cmd->channels[i].early_termination = 0;
 		cmd->channels[i].tx_power_att = 0;
-		cmd->channels[i].channel = i + 1;
+		cmd->channels[i].channel = channels[i]->hw_value;
 	}
 
 	cmd->params.ssid_len = ssid_len;

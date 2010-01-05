@@ -27,6 +27,8 @@
 
 #include "wl1251.h"
 
+#include <net/cfg80211.h>
+
 struct acx_header;
 
 int wl1251_cmd_send(struct wl1251 *wl, u16 type, void *buf, size_t buf_len);
@@ -44,6 +46,7 @@ int wl1251_cmd_read_memory(struct wl1251 *wl, u32 addr, void *answer,
 int wl1251_cmd_template_set(struct wl1251 *wl, u16 cmd_id,
 			    void *buf, size_t buf_len);
 int wl1251_cmd_scan(struct wl1251 *wl, u8 *ssid, size_t ssid_len,
+		    struct ieee80211_channel *channels[],
 		    unsigned int n_channels, unsigned int n_probes);
 int wl1251_cmd_trigger_scan_to(struct wl1251 *wl, u32 timeout);
 
@@ -168,6 +171,8 @@ struct cmd_read_write_memory {
 
 #define WL1251_SCAN_MIN_DURATION 30000
 #define WL1251_SCAN_MAX_DURATION 60000
+
+#define WL1251_SCAN_NUM_PROBES 3
 
 struct wl1251_scan_parameters {
 	u32 rx_config_options;
