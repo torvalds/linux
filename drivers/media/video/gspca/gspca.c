@@ -2062,9 +2062,13 @@ int gspca_dev_probe(struct usb_interface *intf,
 		PDEBUG(D_ERR, "Too many config");
 		return -ENODEV;
 	}
+
+	/* check the interface class and ignore the sound interfaces */
 	interface = &intf->cur_altsetting->desc;
-	if (interface->bInterfaceNumber > 0) {
-		PDEBUG(D_ERR, "intf != 0");
+	if (interface->bInterfaceClass != USB_CLASS_VENDOR_SPEC
+	    && interface->bInterfaceClass != USB_CLASS_PER_INTERFACE) {
+		PDEBUG(D_PROBE, "Interface class %d not handled here",
+			interface->bInterfaceClass);
 		return -ENODEV;
 	}
 
