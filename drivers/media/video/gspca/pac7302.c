@@ -1211,7 +1211,7 @@ static int sd_chip_ident(struct gspca_dev *gspca_dev,
 #endif
 
 /* sub-driver description for pac7302 */
-static struct sd_desc sd_desc = {
+static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
