@@ -4036,9 +4036,9 @@ static const struct trace_print_flags vmx_exit_reasons_str[] = {
 
 #undef _ER
 
-static bool vmx_gb_page_enable(void)
+static int vmx_get_lpage_level(void)
 {
-	return false;
+	return PT_DIRECTORY_LEVEL;
 }
 
 static inline u32 bit(int bitno)
@@ -4131,7 +4131,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.get_mt_mask = vmx_get_mt_mask,
 
 	.exit_reasons_str = vmx_exit_reasons_str,
-	.gb_page_enable = vmx_gb_page_enable,
+	.get_lpage_level = vmx_get_lpage_level,
 
 	.cpuid_update = vmx_cpuid_update,
 

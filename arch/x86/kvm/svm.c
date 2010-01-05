@@ -2911,9 +2911,9 @@ static const struct trace_print_flags svm_exit_reasons_str[] = {
 	{ -1, NULL }
 };
 
-static bool svm_gb_page_enable(void)
+static int svm_get_lpage_level(void)
 {
-	return true;
+	return PT_PDPE_LEVEL;
 }
 
 static bool svm_rdtscp_supported(void)
@@ -2986,7 +2986,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.get_mt_mask = svm_get_mt_mask,
 
 	.exit_reasons_str = svm_exit_reasons_str,
-	.gb_page_enable = svm_gb_page_enable,
+	.get_lpage_level = svm_get_lpage_level,
 
 	.cpuid_update = svm_cpuid_update,
 
