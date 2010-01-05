@@ -680,7 +680,8 @@ int wm8350_block_write(struct wm8350 *wm8350, int reg, int size, u16 *src);
 int wm8350_register_irq(struct wm8350 *wm8350, int irq,
 			irq_handler_t handler, unsigned long flags,
 			const char *name, void *data);
-int wm8350_free_irq(struct wm8350 *wm8350, int irq);
+int wm8350_free_irq(struct wm8350 *wm8350, int irq, void *data);
+
 int wm8350_mask_irq(struct wm8350 *wm8350, int irq);
 int wm8350_unmask_irq(struct wm8350 *wm8350, int irq);
 int wm8350_irq_init(struct wm8350 *wm8350, int irq,

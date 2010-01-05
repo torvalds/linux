@@ -478,8 +478,8 @@ static int __devexit wm8350_rtc_remove(struct platform_device *pdev)
 	struct wm8350 *wm8350 = platform_get_drvdata(pdev);
 	struct wm8350_rtc *wm_rtc = &wm8350->rtc;
 
-	wm8350_free_irq(wm8350, WM8350_IRQ_RTC_SEC);
-	wm8350_free_irq(wm8350, WM8350_IRQ_RTC_ALM);
+	wm8350_free_irq(wm8350, WM8350_IRQ_RTC_SEC, wm8350);
+	wm8350_free_irq(wm8350, WM8350_IRQ_RTC_ALM, wm8350);
 
 	rtc_device_unregister(wm_rtc->rtc);
 

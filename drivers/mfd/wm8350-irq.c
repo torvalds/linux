@@ -451,7 +451,7 @@ int wm8350_register_irq(struct wm8350 *wm8350, int irq,
 }
 EXPORT_SYMBOL_GPL(wm8350_register_irq);
 
-int wm8350_free_irq(struct wm8350 *wm8350, int irq)
+int wm8350_free_irq(struct wm8350 *wm8350, int irq, void *data)
 {
 	if (irq < 0 || irq >= WM8350_NUM_IRQ)
 		return -EINVAL;
