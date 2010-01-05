@@ -3,7 +3,7 @@
  *
  * Unified kernel/user-space hardware breakpoint facility for the on-chip UBC.
  *
- * Copyright (C) 2009  Paul Mundt
+ * Copyright (C) 2009 - 2010  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -18,17 +18,10 @@
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
 #include <linux/io.h>
+#include <linux/clk.h>
 #include <asm/hw_breakpoint.h>
 #include <asm/mmu_context.h>
 #include <asm/ptrace.h>
-
-struct ubc_context {
-	unsigned long pc;
-	unsigned long state;
-};
-
-/* Per cpu ubc channel state */
-static DEFINE_PER_CPU(struct ubc_context, ubc_ctx[HBP_NUM]);
 
 /*
  * Stores the breakpoints currently in use on each breakpoint address
@@ -36,20 +29,13 @@ static DEFINE_PER_CPU(struct ubc_context, ubc_ctx[HBP_NUM]);
  */
 static DEFINE_PER_CPU(struct perf_event *, bp_per_reg[HBP_NUM]);
 
-static int __init ubc_init(void)
-{
-	__raw_writel(0, UBC_CAMR0);
-	__raw_writel(0, UBC_CBR0);
-	__raw_writel(0, UBC_CBCR);
+/*
+ * A dummy placeholder for early accesses until the CPUs get a chance to
+ * register their UBCs later in the boot process.
+ */
+static struct sh_ubc ubc_dummy = { .num_events = 0 };
 
-	__raw_writel(UBC_CRR_BIE | UBC_CRR_PCB, UBC_CRR0);
-
-	/* dummy read for write posting */
-	(void)__raw_readl(UBC_CRR0);
-
-	return 0;
-}
-arch_initcall(ubc_init);
+static struct sh_ubc *sh_ubc __read_mostly = &ubc_dummy;
 
 /*
  * Install a perf counter breakpoint.
@@ -62,10 +48,9 @@ arch_initcall(ubc_init);
 int arch_install_hw_breakpoint(struct perf_event *bp)
 {
 	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
-	struct ubc_context *ubc_ctx;
 	int i;
 
-	for (i = 0; i < HBP_NUM; i++) {
+	for (i = 0; i < sh_ubc->num_events; i++) {
 		struct perf_event **slot = &__get_cpu_var(bp_per_reg[i]);
 
 		if (!*slot) {
@@ -74,16 +59,11 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 		}
 	}
 
-	if (WARN_ONCE(i == HBP_NUM, "Can't find any breakpoint slot"))
+	if (WARN_ONCE(i == sh_ubc->num_events, "Can't find any breakpoint slot"))
 		return -EBUSY;
 
-	ubc_ctx = &__get_cpu_var(ubc_ctx[i]);
-
-	ubc_ctx->pc = info->address;
-	ubc_ctx->state = info->len | info->type;
-
-	__raw_writel(UBC_CBR_CE | ubc_ctx->state, UBC_CBR0);
-	__raw_writel(ubc_ctx->pc, UBC_CAR0);
+	clk_enable(sh_ubc->clk);
+	sh_ubc->enable(info, i);
 
 	return 0;
 }
@@ -100,10 +80,9 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 void arch_uninstall_hw_breakpoint(struct perf_event *bp)
 {
 	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
-	struct ubc_context *ubc_ctx;
 	int i;
 
-	for (i = 0; i < HBP_NUM; i++) {
+	for (i = 0; i < sh_ubc->num_events; i++) {
 		struct perf_event **slot = &__get_cpu_var(bp_per_reg[i]);
 
 		if (*slot == bp) {
@@ -112,15 +91,11 @@ void arch_uninstall_hw_breakpoint(struct perf_event *bp)
 		}
 	}
 
-	if (WARN_ONCE(i == HBP_NUM, "Can't find any breakpoint slot"))
+	if (WARN_ONCE(i == sh_ubc->num_events, "Can't find any breakpoint slot"))
 		return;
 
-	ubc_ctx = &__get_cpu_var(ubc_ctx[i]);
-	ubc_ctx->pc = 0;
-	ubc_ctx->state &= ~(info->len | info->type);
-
-	__raw_writel(ubc_ctx->pc, UBC_CBR0);
-	__raw_writel(ubc_ctx->state, UBC_CAR0);
+	sh_ubc->disable(info, i);
+	clk_disable(sh_ubc->clk);
 }
 
 static int get_hbp_len(u16 hbp_len)
@@ -182,10 +157,8 @@ static int arch_store_info(struct perf_event *bp)
 	 */
 	if (info->name)
 		info->address = (unsigned long)kallsyms_lookup_name(info->name);
-	if (info->address) {
-		info->asid = get_asid();
+	if (info->address)
 		return 0;
-	}
 
 	return -EINVAL;
 }
@@ -335,7 +308,7 @@ void flush_ptrace_hw_breakpoint(struct task_struct *tsk)
 	int i;
 	struct thread_struct *t = &tsk->thread;
 
-	for (i = 0; i < HBP_NUM; i++) {
+	for (i = 0; i < sh_ubc->num_events; i++) {
 		unregister_hw_breakpoint(t->ptrace_bps[i]);
 		t->ptrace_bps[i] = NULL;
 	}
@@ -345,13 +318,32 @@ static int __kprobes hw_breakpoint_handler(struct die_args *args)
 {
 	int cpu, i, rc = NOTIFY_STOP;
 	struct perf_event *bp;
-	unsigned long val;
+	unsigned int cmf, resume_mask;
 
-	val = __raw_readl(UBC_CBR0);
-	__raw_writel(val & ~UBC_CBR_CE, UBC_CBR0);
+	/*
+	 * Do an early return if none of the channels triggered.
+	 */
+	cmf = sh_ubc->triggered_mask();
+	if (unlikely(!cmf))
+		return NOTIFY_DONE;
+
+	/*
+	 * By default, resume all of the active channels.
+	 */
+	resume_mask = sh_ubc->active_mask();
+
+	/*
+	 * Disable breakpoints during exception handling.
+	 */
+	sh_ubc->disable_all();
 
 	cpu = get_cpu();
-	for (i = 0; i < HBP_NUM; i++) {
+	for (i = 0; i < sh_ubc->num_events; i++) {
+		unsigned long event_mask = (1 << i);
+
+		if (likely(!(cmf & event_mask)))
+			continue;
+
 		/*
 		 * The counter may be concurrently released but that can only
 		 * occur from a call_rcu() path. We can then safely fetch
@@ -361,24 +353,52 @@ static int __kprobes hw_breakpoint_handler(struct die_args *args)
 		rcu_read_lock();
 
 		bp = per_cpu(bp_per_reg[i], cpu);
-		if (bp) {
+		if (bp)
 			rc = NOTIFY_DONE;
-		} else {
+
+		/*
+		 * Reset the condition match flag to denote completion of
+		 * exception handling.
+		 */
+		sh_ubc->clear_triggered_mask(event_mask);
+
+		/*
+		 * bp can be NULL due to concurrent perf counter
+		 * removing.
+		 */
+		if (!bp) {
 			rcu_read_unlock();
 			break;
 		}
 
+		/*
+		 * Don't restore the channel if the breakpoint is from
+		 * ptrace, as it always operates in one-shot mode.
+		 */
+		if (bp->overflow_handler == ptrace_triggered)
+			resume_mask &= ~(1 << i);
+
 		perf_bp_event(bp, args->regs);
+
+		/* Deliver the signal to userspace */
+		if (arch_check_va_in_userspace(bp->attr.bp_addr,
+					       bp->attr.bp_len)) {
+			siginfo_t info;
+
+			info.si_signo = args->signr;
+			info.si_errno = notifier_to_errno(rc);
+			info.si_code = TRAP_HWBKPT;
+
+			force_sig_info(args->signr, &info, current);
+		}
 
 		rcu_read_unlock();
 	}
 
-	if (bp && bp->overflow_handler != ptrace_triggered) {
-		struct arch_hw_breakpoint *info = counter_arch_bp(bp);
+	if (cmf == 0)
+		rc = NOTIFY_DONE;
 
-		__raw_writel(UBC_CBR_CE | info->len | info->type, UBC_CBR0);
-		__raw_writel(info->address, UBC_CAR0);
-	}
+	sh_ubc->enable_all(resume_mask);
 
 	put_cpu();
 
@@ -388,19 +408,9 @@ static int __kprobes hw_breakpoint_handler(struct die_args *args)
 BUILD_TRAP_HANDLER(breakpoint)
 {
 	unsigned long ex = lookup_exception_vector();
-	siginfo_t info;
-	int err;
 	TRAP_HANDLER_DECL;
 
-	err = notify_die(DIE_BREAKPOINT, "breakpoint", regs, 0, ex, SIGTRAP);
-	if (err == NOTIFY_STOP)
-		return;
-
-	/* Deliver the signal to userspace */
-	info.si_signo = SIGTRAP;
-	info.si_errno = 0;
-	info.si_code = TRAP_HWBKPT;
-	force_sig_info(SIGTRAP, &info, current);
+	notify_die(DIE_BREAKPOINT, "breakpoint", regs, 0, ex, SIGTRAP);
 }
 
 /*
@@ -417,8 +427,12 @@ int __kprobes hw_breakpoint_exceptions_notify(struct notifier_block *unused,
 	/*
 	 * If the breakpoint hasn't been triggered by the UBC, it's
 	 * probably from a debugger, so don't do anything more here.
+	 *
+	 * This also permits the UBC interface clock to remain off for
+	 * non-UBC breakpoints, as we don't need to check the triggered
+	 * or active channel masks.
 	 */
-	if (args->trapnr != 0x1e0)
+	if (args->trapnr != sh_ubc->trap_nr)
 		return NOTIFY_DONE;
 
 	return hw_breakpoint_handler(data);
@@ -432,4 +446,18 @@ void hw_breakpoint_pmu_read(struct perf_event *bp)
 void hw_breakpoint_pmu_unthrottle(struct perf_event *bp)
 {
 	/* TODO */
+}
+
+int register_sh_ubc(struct sh_ubc *ubc)
+{
+	/* Bail if it's already assigned */
+	if (sh_ubc != &ubc_dummy)
+		return -EBUSY;
+	sh_ubc = ubc;
+
+	pr_info("HW Breakpoints: %s UBC support registered\n", ubc->name);
+
+	WARN_ON(ubc->num_events > HBP_NUM);
+
+	return 0;
 }

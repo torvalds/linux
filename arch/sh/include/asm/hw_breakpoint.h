@@ -3,7 +3,6 @@
 
 #include <linux/kdebug.h>
 #include <linux/types.h>
-#include <asm/ubc.h>
 
 #ifdef __KERNEL__
 #define __ARCH_HW_BREAKPOINT_H
@@ -11,7 +10,6 @@
 struct arch_hw_breakpoint {
 	char		*name; /* Contains name of the symbol to set bkpt */
 	unsigned long	address;
-	unsigned long	asid;
 	u16		len;
 	u16		type;
 };
@@ -27,13 +25,28 @@ enum {
 	SH_BREAKPOINT_LEN_8	= (1 << 14),
 };
 
-/* Total number of available UBC channels */
-#define HBP_NUM		1 /* XXX */
+struct sh_ubc {
+	const char	*name;
+	unsigned int	num_events;
+	unsigned int	trap_nr;
+	void		(*enable)(struct arch_hw_breakpoint *, int);
+	void		(*disable)(struct arch_hw_breakpoint *, int);
+	void		(*enable_all)(unsigned long);
+	void		(*disable_all)(void);
+	unsigned long	(*active_mask)(void);
+	unsigned long	(*triggered_mask)(void);
+	void		(*clear_triggered_mask)(unsigned long);
+	struct clk	*clk;	/* optional interface clock / MSTP bit */
+};
 
 struct perf_event;
 struct task_struct;
 struct pmu;
 
+/* Maximum number of UBC channels */
+#define HBP_NUM		2
+
+/* arch/sh/kernel/hw_breakpoint.c */
 extern int arch_check_va_in_userspace(unsigned long va, u16 hbp_len);
 extern int arch_validate_hwbkpt_settings(struct perf_event *bp,
 					 struct task_struct *tsk);
@@ -46,6 +59,7 @@ void hw_breakpoint_pmu_read(struct perf_event *bp);
 void hw_breakpoint_pmu_unthrottle(struct perf_event *bp);
 
 extern void arch_fill_perf_breakpoint(struct perf_event *bp);
+extern int register_sh_ubc(struct sh_ubc *);
 
 extern struct pmu perf_ops_bp;
 

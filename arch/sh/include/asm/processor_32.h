@@ -14,7 +14,7 @@
 #include <asm/page.h>
 #include <asm/types.h>
 #include <asm/ptrace.h>
-#include <asm/ubc.h>
+#include <asm/hw_breakpoint.h>
 
 /*
  * Default implementation of macro that returns current
@@ -102,7 +102,7 @@ struct thread_struct {
 	unsigned long pc;
 
 	/* Save middle states of ptrace breakpoints */
-	struct perf_event	*ptrace_bps[NR_UBC_CHANNELS];
+	struct perf_event	*ptrace_bps[HBP_NUM];
 
 	/* floating point info */
 	union sh_fpu_union fpu;
