@@ -450,7 +450,8 @@ parse_single_tracepoint_event(char *sys_name,
 /* sys + ':' + event + ':' + flags*/
 #define MAX_EVOPT_LEN	(MAX_EVENT_LENGTH * 2 + 2 + 128)
 static enum event_result
-parse_subsystem_tracepoint_event(char *sys_name, char *flags)
+parse_multiple_tracepoint_event(char *sys_name, const char *evt_exp,
+				char *flags)
 {
 	char evt_path[MAXPATHLEN];
 	struct dirent *evt_ent;
@@ -472,6 +473,9 @@ parse_subsystem_tracepoint_event(char *sys_name, char *flags)
 		    || !strcmp(evt_ent->d_name, "..")
 		    || !strcmp(evt_ent->d_name, "enable")
 		    || !strcmp(evt_ent->d_name, "filter"))
+			continue;
+
+		if (!strglobmatch(evt_ent->d_name, evt_exp))
 			continue;
 
 		len = snprintf(event_opt, MAX_EVOPT_LEN, "%s:%s%s%s", sys_name,
@@ -522,9 +526,10 @@ static enum event_result parse_tracepoint_event(const char **strp,
 	if (evt_length >= MAX_EVENT_LENGTH)
 		return EVT_FAILED;
 
-	if (!strcmp(evt_name, "*")) {
+	if (strpbrk(evt_name, "*?")) {
 		*strp = evt_name + evt_length;
-		return parse_subsystem_tracepoint_event(sys_name, flags);
+		return parse_multiple_tracepoint_event(sys_name, evt_name,
+						       flags);
 	} else
 		return parse_single_tracepoint_event(sys_name, evt_name,
 						     evt_length, flags,
