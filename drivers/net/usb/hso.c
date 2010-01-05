@@ -1723,6 +1723,10 @@ static int hso_serial_tiocmset(struct tty_struct *tty, struct file *file,
 		D1("no tty structures");
 		return -EINVAL;
 	}
+
+	if ((serial->parent->port_spec & HSO_PORT_MASK) != HSO_PORT_MODEM)
+		return -EINVAL;
+
 	if_num = serial->parent->interface->altsetting->desc.bInterfaceNumber;
 
 	spin_lock_irqsave(&serial->serial_lock, flags);
