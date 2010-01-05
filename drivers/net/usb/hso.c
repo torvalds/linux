@@ -1915,18 +1915,18 @@ static void intr_callback(struct urb *urb)
 			if (serial != NULL) {
 				D1("Pending read interrupt on port %d\n", i);
 				spin_lock(&serial->serial_lock);
-				if (serial->rx_state == RX_IDLE) {
+				if (serial->rx_state == RX_IDLE &&
+					serial->open_count > 0) {
 					/* Setup and send a ctrl req read on
 					 * port i */
-				if (!serial->rx_urb_filled[0]) {
+					if (!serial->rx_urb_filled[0]) {
 						serial->rx_state = RX_SENT;
 						hso_mux_serial_read(serial);
 					} else
 						serial->rx_state = RX_PENDING;
-
 				} else {
-					D1("Already pending a read on "
-					   "port %d\n", i);
+					D1("Already a read pending on "
+					   "port %d or port not open\n", i);
 				}
 				spin_unlock(&serial->serial_lock);
 			}
