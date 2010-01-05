@@ -3393,6 +3393,9 @@ static enum dvbfe_search stv090x_search(struct dvb_frontend *fe, struct dvb_fron
 	struct stv090x_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *props = &fe->dtv_property_cache;
 
+	if (p->frequency == 0)
+		return DVBFE_ALGO_SEARCH_INVALID;
+
 	state->delsys = props->delivery_system;
 	state->frequency = p->frequency;
 	state->srate = p->u.qpsk.symbol_rate;
