@@ -1,4 +1,8 @@
-/* Changes made by  LG Soft Oct 2004*/
+/*
+ * Copyright 2004-2009 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
+ */
 
 #ifndef __ASMBFIN_ELF_H
 #define __ASMBFIN_ELF_H
@@ -51,7 +55,6 @@ do {											\
 	_regs->p2	= _dynamic_addr;				\
 } while(0)
 
-#define USE_ELF_CORE_DUMP
 #define ELF_FDPIC_CORE_EFLAGS	EF_BFIN_FDPIC
 #define ELF_EXEC_PAGESIZE	4096
 

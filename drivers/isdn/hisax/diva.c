@@ -382,7 +382,7 @@ MemwaitforXFW(struct IsdnCardState *cs, int hscx)
 {
 	int to = 50;
 
-	while ((!(MemReadHSCX(cs, hscx, HSCX_STAR) & 0x44) == 0x40) && to) {
+	while (((MemReadHSCX(cs, hscx, HSCX_STAR) & 0x44) != 0x40) && to) {
 		udelay(1);
 		to--;
 	}

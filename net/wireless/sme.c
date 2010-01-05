@@ -26,6 +26,7 @@ struct cfg80211_conn {
 		CFG80211_CONN_AUTHENTICATING,
 		CFG80211_CONN_ASSOCIATE_NEXT,
 		CFG80211_CONN_ASSOCIATING,
+		CFG80211_CONN_DEAUTH_ASSOC_FAIL,
 	} state;
 	u8 bssid[ETH_ALEN], prev_bssid[ETH_ALEN];
 	u8 *ie;
@@ -148,6 +149,12 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 					       NULL, 0,
 					       WLAN_REASON_DEAUTH_LEAVING);
 		return err;
+	case CFG80211_CONN_DEAUTH_ASSOC_FAIL:
+		__cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
+				       NULL, 0,
+				       WLAN_REASON_DEAUTH_LEAVING);
+		/* return an error so that we call __cfg80211_connect_result() */
+		return -EINVAL;
 	default:
 		return 0;
 	}
@@ -158,6 +165,7 @@ void cfg80211_conn_work(struct work_struct *work)
 	struct cfg80211_registered_device *rdev =
 		container_of(work, struct cfg80211_registered_device, conn_work);
 	struct wireless_dev *wdev;
+	u8 bssid_buf[ETH_ALEN], *bssid = NULL;
 
 	rtnl_lock();
 	cfg80211_lock_rdev(rdev);
@@ -173,10 +181,13 @@ void cfg80211_conn_work(struct work_struct *work)
 			wdev_unlock(wdev);
 			continue;
 		}
+		if (wdev->conn->params.bssid) {
+			memcpy(bssid_buf, wdev->conn->params.bssid, ETH_ALEN);
+			bssid = bssid_buf;
+		}
 		if (cfg80211_conn_do_work(wdev))
 			__cfg80211_connect_result(
-					wdev->netdev,
-					wdev->conn->params.bssid,
+					wdev->netdev, bssid,
 					NULL, 0, NULL, 0,
 					WLAN_STATUS_UNSPECIFIED_FAILURE,
 					false, NULL);
@@ -337,6 +348,15 @@ bool cfg80211_sme_failed_reassoc(struct wireless_dev *wdev)
 	return true;
 }
 
+void cfg80211_sme_failed_assoc(struct wireless_dev *wdev)
+{
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
+	wdev->conn->state = CFG80211_CONN_DEAUTH_ASSOC_FAIL;
+	schedule_work(&rdev->conn_work);
+}
+
 void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 			       const u8 *req_ie, size_t req_ie_len,
 			       const u8 *resp_ie, size_t resp_ie_len,
@@ -345,7 +365,7 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	u8 *country_ie;
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	union iwreq_data wrqu;
 #endif
 
@@ -362,7 +382,7 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 				    resp_ie, resp_ie_len,
 				    status, GFP_KERNEL);
 
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	if (wextev) {
 		if (req_ie && status == WLAN_STATUS_SUCCESS) {
 			memset(&wrqu, 0, sizeof(wrqu));
@@ -468,7 +488,7 @@ void cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 	spin_lock_irqsave(&wdev->event_lock, flags);
 	list_add_tail(&ev->list, &wdev->event_list);
 	spin_unlock_irqrestore(&wdev->event_lock, flags);
-	schedule_work(&rdev->event_work);
+	queue_work(cfg80211_wq, &rdev->event_work);
 }
 EXPORT_SYMBOL(cfg80211_connect_result);
 
@@ -477,7 +497,7 @@ void __cfg80211_roamed(struct wireless_dev *wdev, const u8 *bssid,
 		       const u8 *resp_ie, size_t resp_ie_len)
 {
 	struct cfg80211_bss *bss;
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	union iwreq_data wrqu;
 #endif
 
@@ -512,7 +532,7 @@ void __cfg80211_roamed(struct wireless_dev *wdev, const u8 *bssid,
 			    req_ie, req_ie_len, resp_ie, resp_ie_len,
 			    GFP_KERNEL);
 
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	if (req_ie) {
 		memset(&wrqu, 0, sizeof(wrqu));
 		wrqu.data.length = req_ie_len;
@@ -563,7 +583,7 @@ void cfg80211_roamed(struct net_device *dev, const u8 *bssid,
 	spin_lock_irqsave(&wdev->event_lock, flags);
 	list_add_tail(&ev->list, &wdev->event_list);
 	spin_unlock_irqrestore(&wdev->event_lock, flags);
-	schedule_work(&rdev->event_work);
+	queue_work(cfg80211_wq, &rdev->event_work);
 }
 EXPORT_SYMBOL(cfg80211_roamed);
 
@@ -573,7 +593,7 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	int i;
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	union iwreq_data wrqu;
 #endif
 
@@ -631,7 +651,7 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 		for (i = 0; i < 6; i++)
 			rdev->ops->del_key(wdev->wiphy, dev, i, NULL);
 
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	memset(&wrqu, 0, sizeof(wrqu));
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 	wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
@@ -661,7 +681,7 @@ void cfg80211_disconnected(struct net_device *dev, u16 reason,
 	spin_lock_irqsave(&wdev->event_lock, flags);
 	list_add_tail(&ev->list, &wdev->event_list);
 	spin_unlock_irqrestore(&wdev->event_lock, flags);
-	schedule_work(&rdev->event_work);
+	queue_work(cfg80211_wq, &rdev->event_work);
 }
 EXPORT_SYMBOL(cfg80211_disconnected);
 

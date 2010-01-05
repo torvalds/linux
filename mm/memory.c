@@ -572,7 +572,7 @@ out:
  * covered by this vma.
  */
 
-static inline void
+static inline unsigned long
 copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		pte_t *dst_pte, pte_t *src_pte, struct vm_area_struct *vma,
 		unsigned long addr, int *rss)
@@ -586,7 +586,9 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		if (!pte_file(pte)) {
 			swp_entry_t entry = pte_to_swp_entry(pte);
 
-			swap_duplicate(entry);
+			if (swap_duplicate(entry) < 0)
+				return entry.val;
+
 			/* make sure dst_mm is on swapoff's mmlist. */
 			if (unlikely(list_empty(&dst_mm->mmlist))) {
 				spin_lock(&mmlist_lock);
@@ -635,16 +637,19 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 
 out_set_pte:
 	set_pte_at(dst_mm, addr, dst_pte, pte);
+	return 0;
 }
 
 static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		pmd_t *dst_pmd, pmd_t *src_pmd, struct vm_area_struct *vma,
 		unsigned long addr, unsigned long end)
 {
+	pte_t *orig_src_pte, *orig_dst_pte;
 	pte_t *src_pte, *dst_pte;
 	spinlock_t *src_ptl, *dst_ptl;
 	int progress = 0;
 	int rss[2];
+	swp_entry_t entry = (swp_entry_t){0};
 
 again:
 	rss[1] = rss[0] = 0;
@@ -654,6 +659,8 @@ again:
 	src_pte = pte_offset_map_nested(src_pmd, addr);
 	src_ptl = pte_lockptr(src_mm, src_pmd);
 	spin_lock_nested(src_ptl, SINGLE_DEPTH_NESTING);
+	orig_src_pte = src_pte;
+	orig_dst_pte = dst_pte;
 	arch_enter_lazy_mmu_mode();
 
 	do {
@@ -671,16 +678,25 @@ again:
 			progress++;
 			continue;
 		}
-		copy_one_pte(dst_mm, src_mm, dst_pte, src_pte, vma, addr, rss);
+		entry.val = copy_one_pte(dst_mm, src_mm, dst_pte, src_pte,
+							vma, addr, rss);
+		if (entry.val)
+			break;
 		progress += 8;
 	} while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr != end);
 
 	arch_leave_lazy_mmu_mode();
 	spin_unlock(src_ptl);
-	pte_unmap_nested(src_pte - 1);
+	pte_unmap_nested(orig_src_pte);
 	add_mm_rss(dst_mm, rss[0], rss[1]);
-	pte_unmap_unlock(dst_pte - 1, dst_ptl);
+	pte_unmap_unlock(orig_dst_pte, dst_ptl);
 	cond_resched();
+
+	if (entry.val) {
+		if (add_swap_count_continuation(entry, GFP_KERNEL) < 0)
+			return -ENOMEM;
+		progress = 0;
+	}
 	if (addr != end)
 		goto again;
 	return 0;
@@ -940,6 +956,7 @@ static unsigned long unmap_page_range(struct mmu_gather *tlb,
 		details = NULL;
 
 	BUG_ON(addr >= end);
+	mem_cgroup_uncharge_start();
 	tlb_start_vma(tlb, vma);
 	pgd = pgd_offset(vma->vm_mm, addr);
 	do {
@@ -952,6 +969,7 @@ static unsigned long unmap_page_range(struct mmu_gather *tlb,
 						zap_work, details);
 	} while (pgd++, addr = next, (addr != end && *zap_work > 0));
 	tlb_end_vma(tlb, vma);
+	mem_cgroup_uncharge_end();
 
 	return addr;
 }
@@ -1820,10 +1838,10 @@ static int apply_to_pte_range(struct mm_struct *mm, pmd_t *pmd,
 	token = pmd_pgtable(*pmd);
 
 	do {
-		err = fn(pte, token, addr, data);
+		err = fn(pte++, token, addr, data);
 		if (err)
 			break;
-	} while (pte++, addr += PAGE_SIZE, addr != end);
+	} while (addr += PAGE_SIZE, addr != end);
 
 	arch_leave_lazy_mmu_mode();
 
@@ -2511,7 +2529,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			ret = VM_FAULT_HWPOISON;
 		} else {
 			print_bad_pte(vma, address, orig_pte, NULL);
-			ret = VM_FAULT_OOM;
+			ret = VM_FAULT_SIGBUS;
 		}
 		goto out;
 	}
@@ -2537,13 +2555,23 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		ret = VM_FAULT_MAJOR;
 		count_vm_event(PGMAJFAULT);
 	} else if (PageHWPoison(page)) {
+		/*
+		 * hwpoisoned dirty swapcache pages are kept for killing
+		 * owner processes (which may be unknown at hwpoison time)
+		 */
 		ret = VM_FAULT_HWPOISON;
 		delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
-		goto out;
+		goto out_release;
 	}
 
 	lock_page(page);
 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+
+	page = ksm_might_need_to_copy(page, vma, address);
+	if (!page) {
+		ret = VM_FAULT_OOM;
+		goto out;
+	}
 
 	if (mem_cgroup_try_charge_swapin(mm, page, GFP_KERNEL, &ptr)) {
 		ret = VM_FAULT_OOM;
@@ -2611,6 +2639,7 @@ out_nomap:
 	pte_unmap_unlock(page_table, ptl);
 out_page:
 	unlock_page(page);
+out_release:
 	page_cache_release(page);
 	return ret;
 }
@@ -2906,7 +2935,7 @@ static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		 * Page table corrupted: show pte and kill process.
 		 */
 		print_bad_pte(vma, address, orig_pte, NULL);
-		return VM_FAULT_OOM;
+		return VM_FAULT_SIGBUS;
 	}
 
 	pgoff = pte_to_pgoff(orig_pte);

@@ -1,0 +1,15 @@
+menu "ST-Ericsson platform type"
+	depends on ARCH_U8500
+
+comment "ST-Ericsson Multicore Mobile Platforms"
+
+config MACH_U8500_MOP
+	bool "U8500 Early Development platform"
+	default y
+	select ARM_GIC
+	select HAS_MTU
+	help
+	  Include support for mop500 development platform
+	  based on U8500 architecture. The platform is based
+	  on early drop silicon version of 8500.
+endmenu

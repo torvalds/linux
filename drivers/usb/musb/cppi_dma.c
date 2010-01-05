@@ -1154,8 +1154,11 @@ irqreturn_t cppi_interrupt(int irq, void *dev_id)
 	struct musb_hw_ep	*hw_ep = NULL;
 	u32			rx, tx;
 	int			i, index;
+	unsigned long		flags;
 
 	cppi = container_of(musb->dma_controller, struct cppi, controller);
+	if (cppi->irq)
+		spin_lock_irqsave(&musb->lock, flags);
 
 	tibase = musb->ctrl_base;
 
@@ -1284,6 +1287,9 @@ irqreturn_t cppi_interrupt(int irq, void *dev_id)
 
 	/* write to CPPI EOI register to re-enable interrupts */
 	musb_writel(tibase, DAVINCI_CPPI_EOI_REG, 0);
+
+	if (cppi->irq)
+		spin_unlock_irqrestore(&musb->lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -1442,11 +1448,6 @@ static int cppi_channel_abort(struct dma_channel *channel)
 		musb_writew(regs, MUSB_TXCSR, value);
 		musb_writew(regs, MUSB_TXCSR, value);
 
-		/* re-enable interrupt */
-		if (enabled)
-			musb_writel(tibase, DAVINCI_TXCPPI_INTENAB_REG,
-					(1 << cppi_ch->index));
-
 		/* While we scrub the TX state RAM, ensure that we clean
 		 * up any interrupt that's currently asserted:
 		 * 1. Write to completion Ptr value 0x1(bit 0 set)
@@ -1458,6 +1459,11 @@ static int cppi_channel_abort(struct dma_channel *channel)
 		 */
 		cppi_reset_tx(tx_ram, 1);
 		musb_writel(&tx_ram->tx_complete, 0, 0);
+
+		/* re-enable interrupt */
+		if (enabled)
+			musb_writel(tibase, DAVINCI_TXCPPI_INTENAB_REG,
+					(1 << cppi_ch->index));
 
 		cppi_dump_tx(5, cppi_ch, " (done teardown)");
 

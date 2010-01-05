@@ -455,6 +455,10 @@ static void __init lpd270_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(lpd270_pin_config));
 
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	lpd270_flash_data[0].width = (BOOT_DEF & 1) ? 2 : 4;
 	lpd270_flash_data[1].width = 4;
 

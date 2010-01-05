@@ -160,7 +160,7 @@ struct tuner_state {
  * search callback possible return status
  *
  * DVBFE_ALGO_SEARCH_SUCCESS
- * The frontend search algorithm completed and returned succesfully
+ * The frontend search algorithm completed and returned successfully
  *
  * DVBFE_ALGO_SEARCH_ASLEEP
  * The frontend search algorithm is sleeping

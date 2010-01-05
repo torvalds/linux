@@ -755,7 +755,7 @@ static int hw_reset_phy(struct zd_chip *chip)
 static int zd1211_hw_init_hmac(struct zd_chip *chip)
 {
 	static const struct zd_ioreq32 ioreqs[] = {
-		{ CR_ZD1211_RETRY_MAX,		0x2 },
+		{ CR_ZD1211_RETRY_MAX,		ZD1211_RETRY_COUNT },
 		{ CR_RX_THRESHOLD,		0x000c0640 },
 	};
 
@@ -767,7 +767,7 @@ static int zd1211_hw_init_hmac(struct zd_chip *chip)
 static int zd1211b_hw_init_hmac(struct zd_chip *chip)
 {
 	static const struct zd_ioreq32 ioreqs[] = {
-		{ CR_ZD1211B_RETRY_MAX,		0x02020202 },
+		{ CR_ZD1211B_RETRY_MAX,		ZD1211B_RETRY_COUNT },
 		{ CR_ZD1211B_CWIN_MAX_MIN_AC0,	0x007f003f },
 		{ CR_ZD1211B_CWIN_MAX_MIN_AC1,	0x007f003f },
 		{ CR_ZD1211B_CWIN_MAX_MIN_AC2,  0x003f001f },
@@ -1325,149 +1325,9 @@ int zd_chip_set_basic_rates(struct zd_chip *chip, u16 cr_rates)
 	return r;
 }
 
-static int ofdm_qual_db(u8 status_quality, u8 zd_rate, unsigned int size)
-{
-	static const u16 constants[] = {
-		715, 655, 585, 540, 470, 410, 360, 315,
-		270, 235, 205, 175, 150, 125, 105,  85,
-		 65,  50,  40,  25,  15
-	};
-
-	int i;
-	u32 x;
-
-	/* It seems that their quality parameter is somehow per signal
-	 * and is now transferred per bit.
-	 */
-	switch (zd_rate) {
-	case ZD_OFDM_RATE_6M:
-	case ZD_OFDM_RATE_12M:
-	case ZD_OFDM_RATE_24M:
-		size *= 2;
-		break;
-	case ZD_OFDM_RATE_9M:
-	case ZD_OFDM_RATE_18M:
-	case ZD_OFDM_RATE_36M:
-	case ZD_OFDM_RATE_54M:
-		size *= 4;
-		size /= 3;
-		break;
-	case ZD_OFDM_RATE_48M:
-		size *= 3;
-		size /= 2;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	x = (10000 * status_quality)/size;
-	for (i = 0; i < ARRAY_SIZE(constants); i++) {
-		if (x > constants[i])
-			break;
-	}
-
-	switch (zd_rate) {
-	case ZD_OFDM_RATE_6M:
-	case ZD_OFDM_RATE_9M:
-		i += 3;
-		break;
-	case ZD_OFDM_RATE_12M:
-	case ZD_OFDM_RATE_18M:
-		i += 5;
-		break;
-	case ZD_OFDM_RATE_24M:
-	case ZD_OFDM_RATE_36M:
-		i += 9;
-		break;
-	case ZD_OFDM_RATE_48M:
-	case ZD_OFDM_RATE_54M:
-		i += 15;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return i;
-}
-
-static int ofdm_qual_percent(u8 status_quality, u8 zd_rate, unsigned int size)
-{
-	int r;
-
-	r = ofdm_qual_db(status_quality, zd_rate, size);
-	ZD_ASSERT(r >= 0);
-	if (r < 0)
-		r = 0;
-
-	r = (r * 100)/29;
-	return r <= 100 ? r : 100;
-}
-
-static unsigned int log10times100(unsigned int x)
-{
-	static const u8 log10[] = {
-		  0,
-		  0,   30,   47,   60,   69,   77,   84,   90,   95,  100,
-		104,  107,  111,  114,  117,  120,  123,  125,  127,  130,
-		132,  134,  136,  138,  139,  141,  143,  144,  146,  147,
-		149,  150,  151,  153,  154,  155,  156,  157,  159,  160,
-		161,  162,  163,  164,  165,  166,  167,  168,  169,  169,
-		170,  171,  172,  173,  174,  174,  175,  176,  177,  177,
-		178,  179,  179,  180,  181,  181,  182,  183,  183,  184,
-		185,  185,  186,  186,  187,  188,  188,  189,  189,  190,
-		190,  191,  191,  192,  192,  193,  193,  194,  194,  195,
-		195,  196,  196,  197,  197,  198,  198,  199,  199,  200,
-		200,  200,  201,  201,  202,  202,  202,  203,  203,  204,
-		204,  204,  205,  205,  206,  206,  206,  207,  207,  207,
-		208,  208,  208,  209,  209,  210,  210,  210,  211,  211,
-		211,  212,  212,  212,  213,  213,  213,  213,  214,  214,
-		214,  215,  215,  215,  216,  216,  216,  217,  217,  217,
-		217,  218,  218,  218,  219,  219,  219,  219,  220,  220,
-		220,  220,  221,  221,  221,  222,  222,  222,  222,  223,
-		223,  223,  223,  224,  224,  224,  224,
-	};
-
-	return x < ARRAY_SIZE(log10) ? log10[x] : 225;
-}
-
-enum {
-	MAX_CCK_EVM_DB = 45,
-};
-
-static int cck_evm_db(u8 status_quality)
-{
-	return (20 * log10times100(status_quality)) / 100;
-}
-
-static int cck_snr_db(u8 status_quality)
-{
-	int r = MAX_CCK_EVM_DB - cck_evm_db(status_quality);
-	ZD_ASSERT(r >= 0);
-	return r;
-}
-
-static int cck_qual_percent(u8 status_quality)
-{
-	int r;
-
-	r = cck_snr_db(status_quality);
-	r = (100*r)/17;
-	return r <= 100 ? r : 100;
-}
-
 static inline u8 zd_rate_from_ofdm_plcp_header(const void *rx_frame)
 {
 	return ZD_OFDM | zd_ofdm_plcp_header_rate(rx_frame);
-}
-
-u8 zd_rx_qual_percent(const void *rx_frame, unsigned int size,
-	              const struct rx_status *status)
-{
-	return (status->frame_status&ZD_RX_OFDM) ?
-		ofdm_qual_percent(status->signal_quality_ofdm,
-				  zd_rate_from_ofdm_plcp_header(rx_frame),
-			          size) :
-		cck_qual_percent(status->signal_quality_cck);
 }
 
 /**

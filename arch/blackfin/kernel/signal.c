@@ -1,30 +1,7 @@
 /*
- * File:         arch/blackfin/kernel/signal.c
- * Based on:
- * Author:
+ * Copyright 2004-2009 Analog Devices Inc.
  *
- * Created:
- * Description:
- *
- * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later
  */
 
 #include <linux/signal.h>
@@ -35,6 +12,7 @@
 #include <linux/binfmts.h>
 #include <linux/freezer.h>
 #include <linux/uaccess.h>
+#include <linux/tracehook.h>
 
 #include <asm/cacheflush.h>
 #include <asm/ucontext.h>
@@ -355,3 +333,20 @@ asmlinkage void do_signal(struct pt_regs *regs)
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 	}
 }
+
+/*
+ * notification of userspace execution resumption
+ */
+asmlinkage void do_notify_resume(struct pt_regs *regs)
+{
+	if (test_thread_flag(TIF_SIGPENDING) || test_thread_flag(TIF_RESTORE_SIGMASK))
+		do_signal(regs);
+
+	if (test_thread_flag(TIF_NOTIFY_RESUME)) {
+		clear_thread_flag(TIF_NOTIFY_RESUME);
+		tracehook_notify_resume(regs);
+		if (current->replacement_session_keyring)
+			key_replace_session_keyring();
+	}
+}
+

@@ -1,6 +1,4 @@
 /*
- * linux/fs/nfsd/nfssvc.c
- *
  * Central processing for nfsd.
  *
  * Authors:	Olaf Kirch (okir@monad.swb.de)
@@ -8,33 +6,19 @@
  * Copyright (C) 1995, 1996, 1997 Olaf Kirch <okir@monad.swb.de>
  */
 
-#include <linux/module.h>
 #include <linux/sched.h>
-#include <linux/time.h>
-#include <linux/errno.h>
-#include <linux/nfs.h>
-#include <linux/in.h>
-#include <linux/uio.h>
-#include <linux/unistd.h>
-#include <linux/slab.h>
-#include <linux/smp.h>
 #include <linux/freezer.h>
 #include <linux/fs_struct.h>
-#include <linux/kthread.h>
 #include <linux/swap.h>
 
-#include <linux/sunrpc/types.h>
 #include <linux/sunrpc/stats.h>
-#include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/svcsock.h>
-#include <linux/sunrpc/cache.h>
-#include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/stats.h>
-#include <linux/nfsd/cache.h>
-#include <linux/nfsd/syscall.h>
 #include <linux/lockd/bind.h>
 #include <linux/nfsacl.h>
 #include <linux/seq_file.h>
+#include "nfsd.h"
+#include "cache.h"
+#include "vfs.h"
 
 #define NFSDDBG_FACILITY	NFSDDBG_SVC
 

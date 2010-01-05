@@ -8,6 +8,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/percpu.h>
+#include <linux/sched.h>
 #include <asm/apic.h>
 #include <asm/processor.h>
 #include <asm/msr.h>

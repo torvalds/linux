@@ -160,16 +160,19 @@ void __cpuinit twd_timer_setup(struct clock_event_device *clk)
 
 	/* Make sure our local interrupt controller has this enabled */
 	local_irq_save(flags);
+	irq_to_desc(clk->irq)->status |= IRQ_NOPROBE;
 	get_irq_chip(clk->irq)->unmask(clk->irq);
 	local_irq_restore(flags);
 
 	clockevents_register_device(clk);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 /*
  * take a local timer down
  */
-void __cpuexit twd_timer_stop(void)
+void twd_timer_stop(void)
 {
 	__raw_writel(0, twd_base + TWD_TIMER_CONTROL);
 }
+#endif

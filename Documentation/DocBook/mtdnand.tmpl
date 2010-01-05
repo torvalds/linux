@@ -174,7 +174,7 @@
 		</para>
 		<programlisting>
 static struct mtd_info *board_mtd;
-static unsigned long baseaddr;
+static void __iomem *baseaddr;
 		</programlisting>
 		<para>
 			Static example
@@ -182,7 +182,7 @@ static unsigned long baseaddr;
 		<programlisting>
 static struct mtd_info board_mtd;
 static struct nand_chip board_chip;
-static unsigned long baseaddr;
+static void __iomem *baseaddr;
 		</programlisting>
 	</sect1>
 	<sect1 id="Partition_defines">
@@ -283,8 +283,8 @@ int __init board_init (void)
 	}
 
 	/* map physical address */
-	baseaddr = (unsigned long)ioremap(CHIP_PHYSICAL_ADDRESS, 1024);
-	if(!baseaddr){
+	baseaddr = ioremap(CHIP_PHYSICAL_ADDRESS, 1024);
+	if (!baseaddr) {
 		printk("Ioremap to access NAND chip failed\n");
 		err = -EIO;
 		goto out_mtd;
@@ -316,7 +316,7 @@ int __init board_init (void)
 	goto out;
 
 out_ior:
-	iounmap((void *)baseaddr);
+	iounmap(baseaddr);
 out_mtd:
 	kfree (board_mtd);
 out:
@@ -341,7 +341,7 @@ static void __exit board_cleanup (void)
 	nand_release (board_mtd);
 
 	/* unmap physical address */
-	iounmap((void *)baseaddr);
+	iounmap(baseaddr);
 	
 	/* Free the MTD device structure */
 	kfree (board_mtd);
@@ -362,7 +362,7 @@ module_exit(board_cleanup);
 	<sect1 id="Multiple_chip_control">
 		<title>Multiple chip control</title>
 		<para>
-			The nand driver can control chip arrays. Therefor the
+			The nand driver can control chip arrays. Therefore the
 			board driver must provide an own select_chip function. This
 			function must (de)select the requested chip.
 			The function pointer in the nand_chip structure must

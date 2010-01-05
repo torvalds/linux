@@ -101,7 +101,7 @@ static int dasd_ioctl_quiesce(struct dasd_block *block)
 	pr_info("%s: The DASD has been put in the quiesce "
 		"state\n", dev_name(&base->cdev->dev));
 	spin_lock_irqsave(get_ccwdev_lock(base->cdev), flags);
-	base->stopped |= DASD_STOPPED_QUIESCE;
+	dasd_device_set_stop_bits(base, DASD_STOPPED_QUIESCE);
 	spin_unlock_irqrestore(get_ccwdev_lock(base->cdev), flags);
 	return 0;
 }
@@ -122,7 +122,7 @@ static int dasd_ioctl_resume(struct dasd_block *block)
 	pr_info("%s: I/O operations have been resumed "
 		"on the DASD\n", dev_name(&base->cdev->dev));
 	spin_lock_irqsave(get_ccwdev_lock(base->cdev), flags);
-	base->stopped &= ~DASD_STOPPED_QUIESCE;
+	dasd_device_remove_stop_bits(base, DASD_STOPPED_QUIESCE);
 	spin_unlock_irqrestore(get_ccwdev_lock(base->cdev), flags);
 
 	dasd_schedule_block_bh(block);

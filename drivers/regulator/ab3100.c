@@ -81,7 +81,7 @@ static const u8 ab3100_reg_init_order[AB3100_NUM_REGULATORS+2] = {
 #define LDO_C_VOLTAGE 2650000
 #define LDO_D_VOLTAGE 2650000
 
-static const int const ldo_e_buck_typ_voltages[] = {
+static const int ldo_e_buck_typ_voltages[] = {
 	1800000,
 	1400000,
 	1300000,
@@ -91,7 +91,7 @@ static const int const ldo_e_buck_typ_voltages[] = {
 	900000,
 };
 
-static const int const ldo_f_typ_voltages[] = {
+static const int ldo_f_typ_voltages[] = {
 	1800000,
 	1400000,
 	1300000,
@@ -102,21 +102,21 @@ static const int const ldo_f_typ_voltages[] = {
 	2650000,
 };
 
-static const int const ldo_g_typ_voltages[] = {
+static const int ldo_g_typ_voltages[] = {
 	2850000,
 	2750000,
 	1800000,
 	1500000,
 };
 
-static const int const ldo_h_typ_voltages[] = {
+static const int ldo_h_typ_voltages[] = {
 	2750000,
 	1800000,
 	1500000,
 	1200000,
 };
 
-static const int const ldo_k_typ_voltages[] = {
+static const int ldo_k_typ_voltages[] = {
 	2750000,
 	1800000,
 };
@@ -241,24 +241,12 @@ static int ab3100_disable_regulator(struct regulator_dev *reg)
 	 * LDO D is a special regulator. When it is disabled, the entire
 	 * system is shut down. So this is handled specially.
 	 */
+	pr_info("Called ab3100_disable_regulator\n");
 	if (abreg->regreg == AB3100_LDO_D) {
-		int i;
-
 		dev_info(&reg->dev, "disabling LDO D - shut down system\n");
-		/*
-		 * Set regulators to default values, ignore any errors,
-		 * we're going DOWN
-		 */
-		for (i = 0; i < ARRAY_SIZE(ab3100_reg_init_order); i++) {
-			(void) ab3100_set_register_interruptible(abreg->ab3100,
-					ab3100_reg_init_order[i],
-					abreg->plfdata->reg_initvals[i]);
-		}
-
 		/* Setting LDO D to 0x00 cuts the power to the SoC */
 		return ab3100_set_register_interruptible(abreg->ab3100,
 							 AB3100_LDO_D, 0x00U);
-
 	}
 
 	/*
@@ -607,13 +595,6 @@ static int __init ab3100_regulators_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (err) {
-		dev_err(&pdev->dev,
-			"LDO D regulator initialization failed with error %d\n",
-			err);
-		return err;
-	}
-
 	/* Register the regulators */
 	for (i = 0; i < AB3100_NUM_REGULATORS; i++) {
 		struct ab3100_regulator *reg = &ab3100_regulators[i];
@@ -688,7 +669,7 @@ static __init int ab3100_regulators_init(void)
 
 static __exit void ab3100_regulators_exit(void)
 {
-	platform_driver_register(&ab3100_regulators_driver);
+	platform_driver_unregister(&ab3100_regulators_driver);
 }
 
 subsys_initcall(ab3100_regulators_init);

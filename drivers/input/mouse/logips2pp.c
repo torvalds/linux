@@ -219,7 +219,7 @@ static const struct ps2pp_info *get_model_info(unsigned char model)
 				PS2PP_WHEEL | PS2PP_SIDE_BTN | PS2PP_TASK_BTN |
 				PS2PP_EXTRA_BTN | PS2PP_NAV_BTN | PS2PP_HWHEEL },
 		{ 72,	PS2PP_KIND_TRACKMAN,	0 },			/* T-CH11: TrackMan Marble */
-		{ 73,	0,			PS2PP_SIDE_BTN },
+		{ 73,	PS2PP_KIND_TRACKMAN,	PS2PP_SIDE_BTN },	/* TrackMan FX */
 		{ 75,	PS2PP_KIND_WHEEL,	PS2PP_WHEEL },
 		{ 76,	PS2PP_KIND_WHEEL,	PS2PP_WHEEL },
 		{ 79,	PS2PP_KIND_TRACKMAN,	PS2PP_WHEEL },		/* TrackMan with wheel */
@@ -404,8 +404,8 @@ int ps2pp_init(struct psmouse *psmouse, bool set_properties)
 			}
 		}
 
-		if (buttons < 3)
-			__clear_bit(BTN_MIDDLE, psmouse->dev->keybit);
+		if (buttons >= 3)
+			__set_bit(BTN_MIDDLE, psmouse->dev->keybit);
 
 		if (model_info)
 			ps2pp_set_model_properties(psmouse, model_info, use_ps2pp);

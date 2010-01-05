@@ -1,32 +1,11 @@
 /*
- * File:         arch/blackfin/mach-bf533/H8606.c
- * Based on:     arch/blackfin/mach-bf533/stamp.c
- * Author:       Javier Herrero <jherrero@hvsistemas.es>
+ * Copyright 2004-2009 Analog Devices Inc.
+ *           2007-2008 HV Sistemas S.L.
+ *                      Javier Herrero <jherrero@hvsistemas.es>
+ *                2005 National ICT Australia (NICTA)
+ *                      Aidan Williams <aidan@nicta.com.au>
  *
- * Created:      2007
- * Description:  Board Info File for the HV Sistemas H8606 board
- *
- * Modified:
- *               Copyright 2005 National ICT Australia (NICTA)
- *               Copyright 2004-2006 Analog Devices Inc
- *		 Copyright 2007,2008 HV Sistemas S.L.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
 
 #include <linux/device.h>
@@ -187,7 +166,6 @@ static struct bfin5xx_spi_chip spi_flash_chip_info = {
 #if defined(CONFIG_BFIN_SPI_ADC) || defined(CONFIG_BFIN_SPI_ADC_MODULE)
 /* SPI ADC chip */
 static struct bfin5xx_spi_chip spi_adc_chip_info = {
-	.ctl_reg = 0x1000,
 	.enable_dma = 1,         /* use dma transfer with this chip*/
 	.bits_per_word = 16,
 };
@@ -195,7 +173,6 @@ static struct bfin5xx_spi_chip spi_adc_chip_info = {
 
 #if defined(CONFIG_SND_BLACKFIN_AD1836) || defined(CONFIG_SND_BLACKFIN_AD1836_MODULE)
 static struct bfin5xx_spi_chip ad1836_spi_chip_info = {
-	.ctl_reg = 0x1000,
 	.enable_dma = 0,
 	.bits_per_word = 16,
 };
@@ -278,12 +255,6 @@ static struct platform_device bfin_spi0_device = {
 	},
 };
 #endif  /* spi master and devices */
-
-#if defined(CONFIG_FB_BF537_LQ035) || defined(CONFIG_FB_BF537_LQ035_MODULE)
-static struct platform_device bfin_fb_device = {
-	.name = "bf537-fb",
-};
-#endif
 
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
 static struct resource bfin_uart_resources[] = {

@@ -41,7 +41,7 @@ static struct cpufreq_driver *cpufreq_driver;
 static DEFINE_PER_CPU(struct cpufreq_policy *, cpufreq_cpu_data);
 #ifdef CONFIG_HOTPLUG_CPU
 /* This one keeps track of the previously set governor of a removed CPU */
-static DEFINE_PER_CPU(struct cpufreq_governor *, cpufreq_cpu_governor);
+static DEFINE_PER_CPU(char[CPUFREQ_NAME_LEN], cpufreq_cpu_governor);
 #endif
 static DEFINE_SPINLOCK(cpufreq_driver_lock);
 
@@ -647,6 +647,21 @@ static ssize_t show_scaling_setspeed(struct cpufreq_policy *policy, char *buf)
 	return policy->governor->show_setspeed(policy, buf);
 }
 
+/**
+ * show_scaling_driver - show the current cpufreq HW/BIOS limitation
+ */
+static ssize_t show_bios_limit(struct cpufreq_policy *policy, char *buf)
+{
+	unsigned int limit;
+	int ret;
+	if (cpufreq_driver->bios_limit) {
+		ret = cpufreq_driver->bios_limit(policy->cpu, &limit);
+		if (!ret)
+			return sprintf(buf, "%u\n", limit);
+	}
+	return sprintf(buf, "%u\n", policy->cpuinfo.max_freq);
+}
+
 #define define_one_ro(_name) \
 static struct freq_attr _name = \
 __ATTR(_name, 0444, show_##_name, NULL)
@@ -666,6 +681,7 @@ define_one_ro(cpuinfo_transition_latency);
 define_one_ro(scaling_available_governors);
 define_one_ro(scaling_driver);
 define_one_ro(scaling_cur_freq);
+define_one_ro(bios_limit);
 define_one_ro(related_cpus);
 define_one_ro(affected_cpus);
 define_one_rw(scaling_min_freq);
@@ -767,17 +783,20 @@ static struct kobj_type ktype_cpufreq = {
  *   0:        Success
  *   Positive: When we have a managed CPU and the sysfs got symlinked
  */
-int cpufreq_add_dev_policy(unsigned int cpu, struct cpufreq_policy *policy,
-		struct sys_device *sys_dev)
+static int cpufreq_add_dev_policy(unsigned int cpu,
+				  struct cpufreq_policy *policy,
+				  struct sys_device *sys_dev)
 {
 	int ret = 0;
 #ifdef CONFIG_SMP
 	unsigned long flags;
 	unsigned int j;
-
 #ifdef CONFIG_HOTPLUG_CPU
-	if (per_cpu(cpufreq_cpu_governor, cpu)) {
-		policy->governor = per_cpu(cpufreq_cpu_governor, cpu);
+	struct cpufreq_governor *gov;
+
+	gov = __find_governor(per_cpu(cpufreq_cpu_governor, cpu));
+	if (gov) {
+		policy->governor = gov;
 		dprintk("Restoring governor %s for cpu %d\n",
 		       policy->governor->name, cpu);
 	}
@@ -840,7 +859,8 @@ int cpufreq_add_dev_policy(unsigned int cpu, struct cpufreq_policy *policy,
 
 
 /* symlink affected CPUs */
-int cpufreq_add_dev_symlink(unsigned int cpu, struct cpufreq_policy *policy)
+static int cpufreq_add_dev_symlink(unsigned int cpu,
+				   struct cpufreq_policy *policy)
 {
 	unsigned int j;
 	int ret = 0;
@@ -867,8 +887,9 @@ int cpufreq_add_dev_symlink(unsigned int cpu, struct cpufreq_policy *policy)
 	return ret;
 }
 
-int cpufreq_add_dev_interface(unsigned int cpu, struct cpufreq_policy *policy,
-		struct sys_device *sys_dev)
+static int cpufreq_add_dev_interface(unsigned int cpu,
+				     struct cpufreq_policy *policy,
+				     struct sys_device *sys_dev)
 {
 	struct cpufreq_policy new_policy;
 	struct freq_attr **drv_attr;
@@ -897,6 +918,11 @@ int cpufreq_add_dev_interface(unsigned int cpu, struct cpufreq_policy *policy,
 	}
 	if (cpufreq_driver->target) {
 		ret = sysfs_create_file(&policy->kobj, &scaling_cur_freq.attr);
+		if (ret)
+			goto err_out_kobj_put;
+	}
+	if (cpufreq_driver->bios_limit) {
+		ret = sysfs_create_file(&policy->kobj, &bios_limit.attr);
 		if (ret)
 			goto err_out_kobj_put;
 	}
@@ -949,10 +975,13 @@ err_out_kobj_put:
 static int cpufreq_add_dev(struct sys_device *sys_dev)
 {
 	unsigned int cpu = sys_dev->id;
-	int ret = 0;
+	int ret = 0, found = 0;
 	struct cpufreq_policy *policy;
 	unsigned long flags;
 	unsigned int j;
+#ifdef CONFIG_HOTPLUG_CPU
+	int sibling;
+#endif
 
 	if (cpu_is_offline(cpu))
 		return 0;
@@ -999,7 +1028,19 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 	INIT_WORK(&policy->update, handle_update);
 
 	/* Set governor before ->init, so that driver could check it */
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
+#ifdef CONFIG_HOTPLUG_CPU
+	for_each_online_cpu(sibling) {
+		struct cpufreq_policy *cp = per_cpu(cpufreq_cpu_data, sibling);
+		if (cp && cp->governor &&
+		    (cpumask_test_cpu(cpu, cp->related_cpus))) {
+			policy->governor = cp->governor;
+			found = 1;
+			break;
+		}
+	}
+#endif
+	if (!found)
+		policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	/* call driver. From then on the cpufreq must be able
 	 * to accept all calls to ->verify and ->setpolicy for this CPU
 	 */
@@ -1111,7 +1152,8 @@ static int __cpufreq_remove_dev(struct sys_device *sys_dev)
 #ifdef CONFIG_SMP
 
 #ifdef CONFIG_HOTPLUG_CPU
-	per_cpu(cpufreq_cpu_governor, cpu) = data->governor;
+	strncpy(per_cpu(cpufreq_cpu_governor, cpu), data->governor->name,
+			CPUFREQ_NAME_LEN);
 #endif
 
 	/* if we have other CPUs still registered, we need to unlink them,
@@ -1135,7 +1177,8 @@ static int __cpufreq_remove_dev(struct sys_device *sys_dev)
 				continue;
 			dprintk("removing link for cpu %u\n", j);
 #ifdef CONFIG_HOTPLUG_CPU
-			per_cpu(cpufreq_cpu_governor, j) = data->governor;
+			strncpy(per_cpu(cpufreq_cpu_governor, j),
+				data->governor->name, CPUFREQ_NAME_LEN);
 #endif
 			cpu_sys_dev = get_cpu_sysdev(j);
 			sysfs_remove_link(&cpu_sys_dev->kobj, "cpufreq");
@@ -1606,8 +1649,21 @@ EXPORT_SYMBOL_GPL(cpufreq_register_governor);
 
 void cpufreq_unregister_governor(struct cpufreq_governor *governor)
 {
+#ifdef CONFIG_HOTPLUG_CPU
+	int cpu;
+#endif
+
 	if (!governor)
 		return;
+
+#ifdef CONFIG_HOTPLUG_CPU
+	for_each_present_cpu(cpu) {
+		if (cpu_online(cpu))
+			continue;
+		if (!strcmp(per_cpu(cpufreq_cpu_governor, cpu), governor->name))
+			strcpy(per_cpu(cpufreq_cpu_governor, cpu), "\0");
+	}
+#endif
 
 	mutex_lock(&cpufreq_governor_mutex);
 	list_del(&governor->governor_list);

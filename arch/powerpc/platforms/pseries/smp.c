@@ -48,6 +48,7 @@
 #include "plpar_wrappers.h"
 #include "pseries.h"
 #include "xics.h"
+#include "offline_states.h"
 
 
 /*
@@ -84,6 +85,9 @@ static inline int __devinit smp_startup_cpu(unsigned int lcpu)
 	/* Fixup atomic count: it exited inside IRQ handler. */
 	task_thread_info(paca[lcpu].__current)->preempt_count	= 0;
 
+	if (get_cpu_current_state(lcpu) == CPU_STATE_INACTIVE)
+		goto out;
+
 	/* 
 	 * If the RTAS start-cpu token does not exist then presume the
 	 * cpu is already spinning.
@@ -98,6 +102,7 @@ static inline int __devinit smp_startup_cpu(unsigned int lcpu)
 		return 0;
 	}
 
+out:
 	return 1;
 }
 
@@ -111,12 +116,16 @@ static void __devinit smp_xics_setup_cpu(int cpu)
 		vpa_init(cpu);
 
 	cpu_clear(cpu, of_spin_map);
+	set_cpu_current_state(cpu, CPU_STATE_ONLINE);
+	set_default_offline_state(cpu);
 
 }
 #endif /* CONFIG_XICS */
 
 static void __devinit smp_pSeries_kick_cpu(int nr)
 {
+	long rc;
+	unsigned long hcpuid;
 	BUG_ON(nr < 0 || nr >= NR_CPUS);
 
 	if (!smp_startup_cpu(nr))
@@ -128,6 +137,16 @@ static void __devinit smp_pSeries_kick_cpu(int nr)
 	 * the processor will continue on to secondary_start
 	 */
 	paca[nr].cpu_start = 1;
+
+	set_preferred_offline_state(nr, CPU_STATE_ONLINE);
+
+	if (get_cpu_current_state(nr) == CPU_STATE_INACTIVE) {
+		hcpuid = get_hard_smp_processor_id(nr);
+		rc = plpar_hcall_norets(H_PROD, hcpuid);
+		if (rc != H_SUCCESS)
+			printk(KERN_ERR "Error: Prod to wake up processor %d\
+						Ret= %ld\n", nr, rc);
+	}
 }
 
 static int smp_pSeries_cpu_bootable(unsigned int nr)

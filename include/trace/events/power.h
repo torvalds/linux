@@ -16,9 +16,7 @@ enum {
 };
 #endif
 
-
-
-TRACE_EVENT(power_start,
+DECLARE_EVENT_CLASS(power,
 
 	TP_PROTO(unsigned int type, unsigned int state),
 
@@ -37,6 +35,20 @@ TRACE_EVENT(power_start,
 	TP_printk("type=%lu state=%lu", (unsigned long)__entry->type, (unsigned long)__entry->state)
 );
 
+DEFINE_EVENT(power, power_start,
+
+	TP_PROTO(unsigned int type, unsigned int state),
+
+	TP_ARGS(type, state)
+);
+
+DEFINE_EVENT(power, power_frequency,
+
+	TP_PROTO(unsigned int type, unsigned int state),
+
+	TP_ARGS(type, state)
+);
+
 TRACE_EVENT(power_end,
 
 	TP_PROTO(int dummy),
@@ -53,26 +65,6 @@ TRACE_EVENT(power_end,
 
 	TP_printk("dummy=%lu", (unsigned long)__entry->dummy)
 
-);
-
-
-TRACE_EVENT(power_frequency,
-
-	TP_PROTO(unsigned int type, unsigned int state),
-
-	TP_ARGS(type, state),
-
-	TP_STRUCT__entry(
-		__field(	u64,		type		)
-		__field(	u64,		state		)
-	),
-
-	TP_fast_assign(
-		__entry->type = type;
-		__entry->state = state;
-	),
-
-	TP_printk("type=%lu state=%lu", (unsigned long)__entry->type, (unsigned long) __entry->state)
 );
 
 #endif /* _TRACE_POWER_H */

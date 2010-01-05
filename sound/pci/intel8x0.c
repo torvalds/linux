@@ -1950,8 +1950,26 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 	},
 	{
 		.subvendor = 0x104d,
+		.subdevice = 0x8144,
+		.name = "Sony",
+		.type = AC97_TUNE_INV_EAPD
+	},
+	{
+		.subvendor = 0x104d,
 		.subdevice = 0x8197,
 		.name = "Sony S1XP",
+		.type = AC97_TUNE_INV_EAPD
+	},
+	{
+		.subvendor = 0x104d,
+		.subdevice = 0x81c0,
+		.name = "Sony VAIO VGN-T350P", /*AD1981B*/
+		.type = AC97_TUNE_INV_EAPD
+	},
+	{
+		.subvendor = 0x104d,
+		.subdevice = 0x81c5,
+		.name = "Sony VAIO VGN-B1VP", /*AD1981B*/
 		.type = AC97_TUNE_INV_EAPD
 	},
  	{
@@ -2043,6 +2061,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 		.subdevice = 0x5470,
 		.name = "MSI P4 ATX 645 Ultra",
 		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.subvendor = 0x161f,
+		.subdevice = 0x203a,
+		.name = "Gateway 4525GZ",		/* AD1981B */
+		.type = AC97_TUNE_INV_EAPD
 	},
 	{
 		.subvendor = 0x1734,

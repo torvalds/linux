@@ -51,6 +51,31 @@ static inline void fnic_queue_wq_desc(struct vnic_wq *wq,
 	vnic_wq_post(wq, os_buf, dma_addr, len, sop, eop);
 }
 
+static inline void fnic_queue_wq_eth_desc(struct vnic_wq *wq,
+				      void *os_buf, dma_addr_t dma_addr,
+				      unsigned int len,
+				      int vlan_tag_insert,
+				      unsigned int vlan_tag,
+				      int cq_entry)
+{
+	struct wq_enet_desc *desc = vnic_wq_next_desc(wq);
+
+	wq_enet_desc_enc(desc,
+			 (u64)dma_addr | VNIC_PADDR_TARGET,
+			 (u16)len,
+			 0, /* mss_or_csum_offset */
+			 0, /* fc_eof */
+			 0, /* offload_mode */
+			 1, /* eop */
+			 (u8)cq_entry,
+			 0, /* fcoe_encap */
+			 (u8)vlan_tag_insert,
+			 (u16)vlan_tag,
+			 0 /* loopback */);
+
+	vnic_wq_post(wq, os_buf, dma_addr, len, 1, 1);
+}
+
 static inline void fnic_queue_wq_copy_desc_icmnd_16(struct vnic_wq_copy *wq,
 						    u32 req_id,
 						    u32 lunmap_id, u8 spl_flags,
@@ -58,6 +83,7 @@ static inline void fnic_queue_wq_copy_desc_icmnd_16(struct vnic_wq_copy *wq,
 						    u64 sgl_addr, u64 sns_addr,
 						    u8 crn, u8 pri_ta,
 						    u8 flags, u8 *scsi_cdb,
+						    u8 cdb_len,
 						    u32 data_len, u8 *lun,
 						    u32 d_id, u16 mss,
 						    u32 ratov, u32 edtov)
@@ -82,7 +108,8 @@ static inline void fnic_queue_wq_copy_desc_icmnd_16(struct vnic_wq_copy *wq,
 	desc->u.icmnd_16.pri_ta = pri_ta; 	/* SCSI Pri & Task attribute */
 	desc->u.icmnd_16._resvd1 = 0;           /* reserved: should be 0 */
 	desc->u.icmnd_16.flags = flags;         /* command flags */
-	memcpy(desc->u.icmnd_16.scsi_cdb, scsi_cdb, CDB_16);    /* SCSI CDB */
+	memset(desc->u.icmnd_16.scsi_cdb, 0, CDB_16);
+	memcpy(desc->u.icmnd_16.scsi_cdb, scsi_cdb, cdb_len);    /* SCSI CDB */
 	desc->u.icmnd_16.data_len = data_len;   /* length of data expected */
 	memcpy(desc->u.icmnd_16.lun, lun, LUN_ADDRESS);  /* LUN address */
 	desc->u.icmnd_16._resvd2 = 0;          	/* reserved */
@@ -132,8 +159,33 @@ static inline void fnic_queue_wq_copy_desc_flogi_reg(struct vnic_wq_copy *wq,
 	desc->hdr.tag.u.req_id = req_id;      /* id for this request */
 
 	desc->u.flogi_reg.format = format;
+	desc->u.flogi_reg._resvd = 0;
 	hton24(desc->u.flogi_reg.s_id, s_id);
 	memcpy(desc->u.flogi_reg.gateway_mac, gw_mac, ETH_ALEN);
+
+	vnic_wq_copy_post(wq);
+}
+
+static inline void fnic_queue_wq_copy_desc_fip_reg(struct vnic_wq_copy *wq,
+						   u32 req_id, u32 s_id,
+						   u8 *fcf_mac, u8 *ha_mac,
+						   u32 r_a_tov, u32 e_d_tov)
+{
+	struct fcpio_host_req *desc = vnic_wq_copy_next_desc(wq);
+
+	desc->hdr.type = FCPIO_FLOGI_FIP_REG; /* enum fcpio_type */
+	desc->hdr.status = 0;                 /* header status entry */
+	desc->hdr._resvd = 0;                 /* reserved */
+	desc->hdr.tag.u.req_id = req_id;      /* id for this request */
+
+	desc->u.flogi_fip_reg._resvd0 = 0;
+	hton24(desc->u.flogi_fip_reg.s_id, s_id);
+	memcpy(desc->u.flogi_fip_reg.fcf_mac, fcf_mac, ETH_ALEN);
+	desc->u.flogi_fip_reg._resvd1 = 0;
+	desc->u.flogi_fip_reg.r_a_tov = r_a_tov;
+	desc->u.flogi_fip_reg.e_d_tov = e_d_tov;
+	memcpy(desc->u.flogi_fip_reg.ha_mac, ha_mac, ETH_ALEN);
+	desc->u.flogi_fip_reg._resvd2 = 0;
 
 	vnic_wq_copy_post(wq);
 }

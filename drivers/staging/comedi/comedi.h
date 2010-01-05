@@ -24,10 +24,6 @@
 #ifndef _COMEDI_H
 #define _COMEDI_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define COMEDI_MAJORVERSION	0
 #define COMEDI_MINORVERSION	7
 #define COMEDI_MICROVERSION	76
@@ -455,7 +451,7 @@ extern "C" {
 
 #define COMEDI_CB_EOS		1	/* end of scan */
 #define COMEDI_CB_EOA		2	/* end of acquisition */
-#define COMEDI_CB_BLOCK		4	/* DEPRECATED: convenient block size */
+#define COMEDI_CB_BLOCK		4	/* data has arrived: wakes up read() / write() */
 #define COMEDI_CB_EOBUF		8	/* DEPRECATED: end of buffer */
 #define COMEDI_CB_ERROR		16	/* card error during acquisition */
 #define COMEDI_CB_OVERFLOW	32	/* buffer overflow/underflow */
@@ -870,9 +866,5 @@ INSN_CONFIG_ARM */
 		AMPLC_DIO_GAT_RESERVED6,
 		AMPLC_DIO_GAT_RESERVED7
 	};
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* _COMEDI_H */

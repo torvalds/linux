@@ -1,32 +1,11 @@
 /*
- * File:         arch/blackfin/mach-common/entry.S
- * Based on:
- * Author:       Linus Torvalds
+ * Contains the system-call and fault low-level handling routines.
+ * This also contains the timer-interrupt handler, as well as all
+ * interrupts and faults that can result in a task-switch.
  *
- * Created:      ?
- * Description:  contains the system-call and fault low-level handling routines.
- *               This also contains the timer-interrupt handler, as well as all
- *               interrupts and faults that can result in a task-switch.
+ * Copyright 2005-2009 Analog Devices Inc.
  *
- * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
 
 /* NOTE: This code handles signal-recognition, which happens every time
@@ -734,6 +713,8 @@ ENTRY(_system_call)
 	cc = BITTST(r7, TIF_RESTORE_SIGMASK);
 	if cc jump .Lsyscall_do_signals;
 	cc = BITTST(r7, TIF_SIGPENDING);
+	if cc jump .Lsyscall_do_signals;
+	cc = BITTST(r7, TIF_NOTIFY_RESUME);
 	if !cc jump .Lsyscall_really_exit;
 .Lsyscall_do_signals:
 	/* Reenable interrupts.  */
@@ -742,7 +723,7 @@ ENTRY(_system_call)
 
 	r0 = sp;
 	SP += -12;
-	call _do_signal;
+	call _do_notify_resume;
 	SP += 12;
 
 .Lsyscall_really_exit:
@@ -1443,7 +1424,7 @@ ENTRY(_sys_call_table)
 	.long _sys_ni_syscall	/* streams2 */
 	.long _sys_vfork		/* 190 */
 	.long _sys_getrlimit
-	.long _sys_mmap2
+	.long _sys_mmap_pgoff
 	.long _sys_truncate64
 	.long _sys_ftruncate64
 	.long _sys_stat64	/* 195 */
@@ -1621,6 +1602,7 @@ ENTRY(_sys_call_table)
 	.long _sys_pwritev
 	.long _sys_rt_tgsigqueueinfo
 	.long _sys_perf_event_open
+	.long _sys_recvmmsg		/* 370 */
 
 	.rept NR_syscalls-(.-_sys_call_table)/4
 	.long _sys_ni_syscall

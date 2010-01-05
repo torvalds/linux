@@ -433,8 +433,9 @@ static int corgi_bl_update_status(struct backlight_device *bd)
 
 	if (corgibl_flags & CORGIBL_SUSPENDED)
 		intensity = 0;
-	if (corgibl_flags & CORGIBL_BATTLOW)
-		intensity &= lcd->limit_mask;
+
+	if ((corgibl_flags & CORGIBL_BATTLOW) && intensity > lcd->limit_mask)
+		intensity = lcd->limit_mask;
 
 	return corgi_bl_set_intensity(lcd, intensity);
 }
@@ -450,7 +451,7 @@ void corgi_lcd_limit_intensity(int limit)
 }
 EXPORT_SYMBOL(corgi_lcd_limit_intensity);
 
-static struct backlight_ops corgi_bl_ops = {
+static const struct backlight_ops corgi_bl_ops = {
 	.get_brightness	= corgi_bl_get_intensity,
 	.update_status  = corgi_bl_update_status,
 };

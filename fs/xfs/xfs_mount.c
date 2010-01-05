@@ -44,6 +44,8 @@
 #include "xfs_quota.h"
 #include "xfs_fsops.h"
 #include "xfs_utils.h"
+#include "xfs_trace.h"
+
 
 STATIC void	xfs_unmountfs_wait(xfs_mount_t *);
 
@@ -583,8 +585,8 @@ xfs_readsb(xfs_mount_t *mp, int flags)
 	sector_size = xfs_getsize_buftarg(mp->m_ddev_targp);
 	extra_flags = XFS_BUF_LOCK | XFS_BUF_MANAGE | XFS_BUF_MAPPED;
 
-	bp = xfs_buf_read_flags(mp->m_ddev_targp, XFS_SB_DADDR,
-				BTOBB(sector_size), extra_flags);
+	bp = xfs_buf_read(mp->m_ddev_targp, XFS_SB_DADDR, BTOBB(sector_size),
+			  extra_flags);
 	if (!bp || XFS_BUF_ISERROR(bp)) {
 		xfs_fs_mount_cmn_err(flags, "SB read failed");
 		error = bp ? XFS_BUF_GETERROR(bp) : ENOMEM;
@@ -624,8 +626,8 @@ xfs_readsb(xfs_mount_t *mp, int flags)
 		XFS_BUF_UNMANAGE(bp);
 		xfs_buf_relse(bp);
 		sector_size = mp->m_sb.sb_sectsize;
-		bp = xfs_buf_read_flags(mp->m_ddev_targp, XFS_SB_DADDR,
-					BTOBB(sector_size), extra_flags);
+		bp = xfs_buf_read(mp->m_ddev_targp, XFS_SB_DADDR,
+				  BTOBB(sector_size), extra_flags);
 		if (!bp || XFS_BUF_ISERROR(bp)) {
 			xfs_fs_mount_cmn_err(flags, "SB re-read failed");
 			error = bp ? XFS_BUF_GETERROR(bp) : ENOMEM;
@@ -1471,7 +1473,7 @@ xfs_log_sbcount(
 	if (!xfs_sb_version_haslazysbcount(&mp->m_sb))
 		return 0;
 
-	tp = _xfs_trans_alloc(mp, XFS_TRANS_SB_COUNT);
+	tp = _xfs_trans_alloc(mp, XFS_TRANS_SB_COUNT, KM_SLEEP);
 	error = xfs_trans_reserve(tp, 0, mp->m_sb.sb_sectsize + 128, 0, 0,
 					XFS_DEFAULT_LOG_COUNT);
 	if (error) {
@@ -2123,7 +2125,7 @@ xfs_icsb_destroy_counters(
 	mutex_destroy(&mp->m_icsb_mutex);
 }
 
-STATIC_INLINE void
+STATIC void
 xfs_icsb_lock_cntr(
 	xfs_icsb_cnts_t	*icsbp)
 {
@@ -2132,7 +2134,7 @@ xfs_icsb_lock_cntr(
 	}
 }
 
-STATIC_INLINE void
+STATIC void
 xfs_icsb_unlock_cntr(
 	xfs_icsb_cnts_t	*icsbp)
 {
@@ -2140,7 +2142,7 @@ xfs_icsb_unlock_cntr(
 }
 
 
-STATIC_INLINE void
+STATIC void
 xfs_icsb_lock_all_counters(
 	xfs_mount_t	*mp)
 {
@@ -2153,7 +2155,7 @@ xfs_icsb_lock_all_counters(
 	}
 }
 
-STATIC_INLINE void
+STATIC void
 xfs_icsb_unlock_all_counters(
 	xfs_mount_t	*mp)
 {

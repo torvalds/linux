@@ -202,7 +202,11 @@ PEGASUS_DEV( "AEI USB Fast Ethernet Adapter", VENDOR_AEILAB, 0x1701,
 		DEFAULT_GPIO_RESET | PEGASUS_II )
 PEGASUS_DEV( "Allied Telesyn Int. AT-USB100", VENDOR_ALLIEDTEL, 0xb100,
 		DEFAULT_GPIO_RESET | PEGASUS_II )
-PEGASUS_DEV( "Belkin F5D5050 USB Ethernet", VENDOR_BELKIN, 0x0121,
+/*
+ * Distinguish between this Belkin adaptor and the Belkin bluetooth adaptors
+ * with the same product IDs by checking the device class too.
+ */
+PEGASUS_DEV_CLASS( "Belkin F5D5050 USB Ethernet", VENDOR_BELKIN, 0x0121, 0x00,
 		DEFAULT_GPIO_RESET | PEGASUS_II )
 PEGASUS_DEV( "Billionton USB-100", VENDOR_BILLIONTON, 0x0986,
 		DEFAULT_GPIO_RESET )

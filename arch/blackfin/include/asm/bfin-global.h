@@ -1,29 +1,9 @@
 /*
- * File:         include/asm-blackfin/bfin-global.h
- * Based on:
- * Author: *
- * Created:
- * Description:  Global extern defines for blackfin
+ * Global extern defines for blackfin
  *
- * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
+ * Copyright 2006-2009 Analog Devices Inc.
  *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
 
 #ifndef _BFIN_GLOBAL_H_
@@ -31,9 +11,6 @@
 
 #ifndef __ASSEMBLY__
 
-#include <asm/sections.h>
-#include <asm/ptrace.h>
-#include <asm/user.h>
 #include <linux/linkage.h>
 #include <linux/types.h>
 
@@ -43,6 +20,12 @@
 # define DMA_UNCACHED_REGION (2 * 1024 * 1024)
 #elif defined(CONFIG_DMA_UNCACHED_1M)
 # define DMA_UNCACHED_REGION (1024 * 1024)
+#elif defined(CONFIG_DMA_UNCACHED_512K)
+# define DMA_UNCACHED_REGION (512 * 1024)
+#elif defined(CONFIG_DMA_UNCACHED_256K)
+# define DMA_UNCACHED_REGION (256 * 1024)
+#elif defined(CONFIG_DMA_UNCACHED_128K)
+# define DMA_UNCACHED_REGION (128 * 1024)
 #else
 # define DMA_UNCACHED_REGION (0)
 #endif
@@ -55,6 +38,7 @@ extern unsigned long get_sclk(void);
 extern unsigned long sclk_to_usecs(unsigned long sclk);
 extern unsigned long usecs_to_sclk(unsigned long usecs);
 
+struct pt_regs;
 extern void dump_bfin_process(struct pt_regs *regs);
 extern void dump_bfin_mem(struct pt_regs *regs);
 extern void dump_bfin_trace_buffer(void);

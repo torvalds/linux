@@ -1245,112 +1245,68 @@ static int proc_do_uuid(ctl_table *table, int write,
 	if (uuid[8] == 0)
 		generate_random_uuid(uuid);
 
-	sprintf(buf, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-"
-		"%02x%02x%02x%02x%02x%02x",
-		uuid[0],  uuid[1],  uuid[2],  uuid[3],
-		uuid[4],  uuid[5],  uuid[6],  uuid[7],
-		uuid[8],  uuid[9],  uuid[10], uuid[11],
-		uuid[12], uuid[13], uuid[14], uuid[15]);
+	sprintf(buf, "%pU", uuid);
+
 	fake_table.data = buf;
 	fake_table.maxlen = sizeof(buf);
 
 	return proc_dostring(&fake_table, write, buffer, lenp, ppos);
 }
 
-static int uuid_strategy(ctl_table *table,
-			 void __user *oldval, size_t __user *oldlenp,
-			 void __user *newval, size_t newlen)
-{
-	unsigned char tmp_uuid[16], *uuid;
-	unsigned int len;
-
-	if (!oldval || !oldlenp)
-		return 1;
-
-	uuid = table->data;
-	if (!uuid) {
-		uuid = tmp_uuid;
-		uuid[8] = 0;
-	}
-	if (uuid[8] == 0)
-		generate_random_uuid(uuid);
-
-	if (get_user(len, oldlenp))
-		return -EFAULT;
-	if (len) {
-		if (len > 16)
-			len = 16;
-		if (copy_to_user(oldval, uuid, len) ||
-		    put_user(len, oldlenp))
-			return -EFAULT;
-	}
-	return 1;
-}
-
 static int sysctl_poolsize = INPUT_POOL_WORDS * 32;
 ctl_table random_table[] = {
 	{
-		.ctl_name 	= RANDOM_POOLSIZE,
 		.procname	= "poolsize",
 		.data		= &sysctl_poolsize,
 		.maxlen		= sizeof(int),
 		.mode		= 0444,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= RANDOM_ENTROPY_COUNT,
 		.procname	= "entropy_avail",
 		.maxlen		= sizeof(int),
 		.mode		= 0444,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 		.data		= &input_pool.entropy_count,
 	},
 	{
-		.ctl_name	= RANDOM_READ_THRESH,
 		.procname	= "read_wakeup_threshold",
 		.data		= &random_read_wakeup_thresh,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &min_read_thresh,
 		.extra2		= &max_read_thresh,
 	},
 	{
-		.ctl_name	= RANDOM_WRITE_THRESH,
 		.procname	= "write_wakeup_threshold",
 		.data		= &random_write_wakeup_thresh,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &min_write_thresh,
 		.extra2		= &max_write_thresh,
 	},
 	{
-		.ctl_name	= RANDOM_BOOT_ID,
 		.procname	= "boot_id",
 		.data		= &sysctl_bootid,
 		.maxlen		= 16,
 		.mode		= 0444,
-		.proc_handler	= &proc_do_uuid,
-		.strategy	= &uuid_strategy,
+		.proc_handler	= proc_do_uuid,
 	},
 	{
-		.ctl_name	= RANDOM_UUID,
 		.procname	= "uuid",
 		.maxlen		= 16,
 		.mode		= 0444,
-		.proc_handler	= &proc_do_uuid,
-		.strategy	= &uuid_strategy,
+		.proc_handler	= proc_do_uuid,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 #endif 	/* CONFIG_SYSCTL */
 
 /********************************************************************
  *
- * Random funtions for networking
+ * Random functions for networking
  *
  ********************************************************************/
 

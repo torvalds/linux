@@ -1,30 +1,8 @@
 /*
- * File:         arch/blackfin/kernel/ptrace.c
- * Based on:     Taken from linux/kernel/ptrace.c
- * Author:       linux/kernel/ptrace.c is by Ross Biro 1/23/92, edited by Linus Torvalds
+ * linux/kernel/ptrace.c is by Ross Biro 1/23/92, edited by Linus Torvalds
+ * these modifications are Copyright 2004-2009 Analog Devices Inc.
  *
- * Created:      1/23/92
- * Description:
- *
- * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2
  */
 
 #include <linux/kernel.h>
@@ -337,20 +315,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			case BFIN_MEM_ACCESS_CORE:
 			case BFIN_MEM_ACCESS_CORE_ONLY:
 				copied = access_process_vm(child, addr, &data,
-				                           to_copy, 0);
-				if (copied)
-					break;
-
-				/* hrm, why didn't that work ... maybe no mapping */
-				if (addr >= FIXED_CODE_START &&
-				    addr + to_copy <= FIXED_CODE_END) {
-					copy_to_user_page(0, 0, 0, paddr, &data, to_copy);
-					copied = to_copy;
-				} else if (addr >= BOOT_ROM_START) {
-					memcpy(paddr, &data, to_copy);
-					copied = to_copy;
-				}
-
+				                           to_copy, 1);
 				break;
 			case BFIN_MEM_ACCESS_DMA:
 				if (safe_dma_memcpy(paddr, &data, to_copy))

@@ -126,6 +126,8 @@ static unsigned char i8042_suppress_kbd_ack;
 static struct platform_device *i8042_platform_device;
 
 static irqreturn_t i8042_interrupt(int irq, void *dev_id);
+static bool (*i8042_platform_filter)(unsigned char data, unsigned char str,
+				     struct serio *serio);
 
 void i8042_lock_chip(void)
 {
@@ -138,6 +140,48 @@ void i8042_unlock_chip(void)
 	mutex_unlock(&i8042_mutex);
 }
 EXPORT_SYMBOL(i8042_unlock_chip);
+
+int i8042_install_filter(bool (*filter)(unsigned char data, unsigned char str,
+					struct serio *serio))
+{
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&i8042_lock, flags);
+
+	if (i8042_platform_filter) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	i8042_platform_filter = filter;
+
+out:
+	spin_unlock_irqrestore(&i8042_lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL(i8042_install_filter);
+
+int i8042_remove_filter(bool (*filter)(unsigned char data, unsigned char str,
+				       struct serio *port))
+{
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&i8042_lock, flags);
+
+	if (i8042_platform_filter != filter) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	i8042_platform_filter = NULL;
+
+out:
+	spin_unlock_irqrestore(&i8042_lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL(i8042_remove_filter);
 
 /*
  * The i8042_wait_read() and i8042_wait_write functions wait for the i8042 to
@@ -369,6 +413,31 @@ static void i8042_stop(struct serio *serio)
 }
 
 /*
+ * i8042_filter() filters out unwanted bytes from the input data stream.
+ * It is called from i8042_interrupt and thus is running with interrupts
+ * off and i8042_lock held.
+ */
+static bool i8042_filter(unsigned char data, unsigned char str,
+			 struct serio *serio)
+{
+	if (unlikely(i8042_suppress_kbd_ack)) {
+		if ((~str & I8042_STR_AUXDATA) &&
+		    (data == 0xfa || data == 0xfe)) {
+			i8042_suppress_kbd_ack--;
+			dbg("Extra keyboard ACK - filtered out\n");
+			return true;
+		}
+	}
+
+	if (i8042_platform_filter && i8042_platform_filter(data, str, serio)) {
+		dbg("Filtered out by platfrom filter\n");
+		return true;
+	}
+
+	return false;
+}
+
+/*
  * i8042_interrupt() is the most important function in this driver -
  * it handles the interrupts from the i8042, and sends incoming bytes
  * to the upper layers.
@@ -377,13 +446,16 @@ static void i8042_stop(struct serio *serio)
 static irqreturn_t i8042_interrupt(int irq, void *dev_id)
 {
 	struct i8042_port *port;
+	struct serio *serio;
 	unsigned long flags;
 	unsigned char str, data;
 	unsigned int dfl;
 	unsigned int port_no;
+	bool filtered;
 	int ret = 1;
 
 	spin_lock_irqsave(&i8042_lock, flags);
+
 	str = i8042_read_status();
 	if (unlikely(~str & I8042_STR_OBF)) {
 		spin_unlock_irqrestore(&i8042_lock, flags);
@@ -391,8 +463,8 @@ static irqreturn_t i8042_interrupt(int irq, void *dev_id)
 		ret = 0;
 		goto out;
 	}
+
 	data = i8042_read_data();
-	spin_unlock_irqrestore(&i8042_lock, flags);
 
 	if (i8042_mux_present && (str & I8042_STR_AUXDATA)) {
 		static unsigned long last_transmit;
@@ -441,21 +513,19 @@ static irqreturn_t i8042_interrupt(int irq, void *dev_id)
 	}
 
 	port = &i8042_ports[port_no];
+	serio = port->exists ? port->serio : NULL;
 
 	dbg("%02x <- i8042 (interrupt, %d, %d%s%s)",
 	    data, port_no, irq,
 	    dfl & SERIO_PARITY ? ", bad parity" : "",
 	    dfl & SERIO_TIMEOUT ? ", timeout" : "");
 
-	if (unlikely(i8042_suppress_kbd_ack))
-		if (port_no == I8042_KBD_PORT_NO &&
-		    (data == 0xfa || data == 0xfe)) {
-			i8042_suppress_kbd_ack--;
-			goto out;
-		}
+	filtered = i8042_filter(data, str, serio);
 
-	if (likely(port->exists))
-		serio_interrupt(port->serio, data, dfl);
+	spin_unlock_irqrestore(&i8042_lock, flags);
+
+	if (likely(port->exists && !filtered))
+		serio_interrupt(serio, data, dfl);
 
  out:
 	return IRQ_RETVAL(ret);
@@ -609,6 +679,8 @@ static irqreturn_t __init i8042_aux_test_irq(int irq, void *dev_id)
 	str = i8042_read_status();
 	if (str & I8042_STR_OBF) {
 		data = i8042_read_data();
+		dbg("%02x <- i8042 (aux_test_irq, %s)",
+			data, str & I8042_STR_AUXDATA ? "aux" : "kbd");
 		if (i8042_irq_being_tested &&
 		    data == 0xa5 && (str & I8042_STR_AUXDATA))
 			complete(&i8042_aux_irq_delivered);
@@ -750,6 +822,7 @@ static int __init i8042_check_aux(void)
  * AUX IRQ was never delivered so we need to flush the controller to
  * get rid of the byte we put there; otherwise keyboard may not work.
  */
+		dbg("     -- i8042 (aux irq test timeout)");
 		i8042_flush();
 		retval = -1;
 	}
@@ -833,17 +906,32 @@ static int i8042_controller_selftest(void)
 static int i8042_controller_init(void)
 {
 	unsigned long flags;
+	int n = 0;
+	unsigned char ctr[2];
 
 /*
- * Save the CTR for restoral on unload / reboot.
+ * Save the CTR for restore on unload / reboot.
  */
 
-	if (i8042_command(&i8042_ctr, I8042_CMD_CTL_RCTR)) {
-		printk(KERN_ERR "i8042.c: Can't read CTR while initializing i8042.\n");
-		return -EIO;
-	}
+	do {
+		if (n >= 10) {
+			printk(KERN_ERR
+				"i8042.c: Unable to get stable CTR read.\n");
+			return -EIO;
+		}
 
-	i8042_initial_ctr = i8042_ctr;
+		if (n != 0)
+			udelay(50);
+
+		if (i8042_command(&ctr[n++ % 2], I8042_CMD_CTL_RCTR)) {
+			printk(KERN_ERR
+				"i8042.c: Can't read CTR while initializing i8042.\n");
+			return -EIO;
+		}
+
+	} while (n < 2 || ctr[0] != ctr[1]);
+
+	i8042_initial_ctr = i8042_ctr = ctr[0];
 
 /*
  * Disable the keyboard interface and interrupt.
@@ -892,6 +980,12 @@ static int i8042_controller_init(void)
 		return -EIO;
 	}
 
+/*
+ * Flush whatever accumulated while we were disabling keyboard port.
+ */
+
+	i8042_flush();
+
 	return 0;
 }
 
@@ -911,7 +1005,7 @@ static void i8042_controller_reset(void)
 	i8042_ctr |= I8042_CTR_KBDDIS | I8042_CTR_AUXDIS;
 	i8042_ctr &= ~(I8042_CTR_KBDINT | I8042_CTR_AUXINT);
 
-	if (i8042_command(&i8042_initial_ctr, I8042_CMD_CTL_WCTR))
+	if (i8042_command(&i8042_ctr, I8042_CMD_CTL_WCTR))
 		printk(KERN_WARNING "i8042.c: Can't write CTR while resetting.\n");
 
 /*

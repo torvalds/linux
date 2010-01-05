@@ -80,7 +80,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/io.h>
-#include <linux/bitops.h>
+#include <linux/bitmap.h>
 
 #include <asm/irq.h>
 #include <asm/system.h>
@@ -190,10 +190,8 @@ static int claim_ptd_buffers(struct isp1362_ep_queue *epq,
 			     struct isp1362_ep *ep, u16 len)
 {
 	int ptd_offset = -EINVAL;
-	int index;
 	int num_ptds = ((len + PTD_HEADER_SIZE - 1) / epq->blk_size) + 1;
-	int found = -1;
-	int last = -1;
+	int found;
 
 	BUG_ON(len > epq->buf_size);
 
@@ -205,20 +203,9 @@ static int claim_ptd_buffers(struct isp1362_ep_queue *epq,
 		    epq->name, len, epq->blk_size, num_ptds, epq->buf_map, epq->skip_map);
 	BUG_ON(ep->num_ptds != 0);
 
-	for (index = 0; index <= epq->buf_count - num_ptds; index++) {
-		if (test_bit(index, &epq->buf_map))
-			continue;
-		found = index;
-		for (last = index + 1; last < index + num_ptds; last++) {
-			if (test_bit(last, &epq->buf_map)) {
-				found = -1;
-				break;
-			}
-		}
-		if (found >= 0)
-			break;
-	}
-	if (found < 0)
+	found = bitmap_find_next_zero_area(&epq->buf_map, epq->buf_count, 0,
+						num_ptds, 0);
+	if (found >= epq->buf_count)
 		return -EOVERFLOW;
 
 	DBG(1, "%s: Found %d PTDs[%d] for %d/%d byte\n", __func__,
@@ -230,8 +217,7 @@ static int claim_ptd_buffers(struct isp1362_ep_queue *epq,
 	epq->buf_avail -= num_ptds;
 	BUG_ON(epq->buf_avail > epq->buf_count);
 	ep->ptd_index = found;
-	for (index = found; index < last; index++)
-		__set_bit(index, &epq->buf_map);
+	bitmap_set(&epq->buf_map, found, num_ptds);
 	DBG(1, "%s: Done %s PTD[%d] $%04x, avail %d count %d claimed %d %08lx:%08lx\n",
 	    __func__, epq->name, ep->ptd_index, ep->ptd_offset,
 	    epq->buf_avail, epq->buf_count, num_ptds, epq->buf_map, epq->skip_map);
@@ -2284,10 +2270,10 @@ static int isp1362_mem_config(struct usb_hcd *hcd)
 	dev_info(hcd->self.controller, "ISP1362 Memory usage:\n");
 	dev_info(hcd->self.controller, "  ISTL:    2 * %4d:     %4d @ $%04x:$%04x\n",
 		 istl_size / 2, istl_size, 0, istl_size / 2);
-	dev_info(hcd->self.controller, "  INTL: %4d * (%3u+8):  %4d @ $%04x\n",
+	dev_info(hcd->self.controller, "  INTL: %4d * (%3lu+8):  %4d @ $%04x\n",
 		 ISP1362_INTL_BUFFERS, intl_blksize - PTD_HEADER_SIZE,
 		 intl_size, istl_size);
-	dev_info(hcd->self.controller, "  ATL : %4d * (%3u+8):  %4d @ $%04x\n",
+	dev_info(hcd->self.controller, "  ATL : %4d * (%3lu+8):  %4d @ $%04x\n",
 		 atl_buffers, atl_blksize - PTD_HEADER_SIZE,
 		 atl_size, istl_size + intl_size);
 	dev_info(hcd->self.controller, "  USED/FREE:   %4d      %4d\n", total,
@@ -2677,12 +2663,12 @@ static int __devexit isp1362_remove(struct platform_device *pdev)
 	DBG(0, "%s: Removing HCD\n", __func__);
 	usb_remove_hcd(hcd);
 
-	DBG(0, "%s: Unmapping data_reg @ %08x\n", __func__,
-	    (u32)isp1362_hcd->data_reg);
+	DBG(0, "%s: Unmapping data_reg @ %p\n", __func__,
+	    isp1362_hcd->data_reg);
 	iounmap(isp1362_hcd->data_reg);
 
-	DBG(0, "%s: Unmapping addr_reg @ %08x\n", __func__,
-	    (u32)isp1362_hcd->addr_reg);
+	DBG(0, "%s: Unmapping addr_reg @ %p\n", __func__,
+	    isp1362_hcd->addr_reg);
 	iounmap(isp1362_hcd->addr_reg);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
@@ -2810,16 +2796,16 @@ static int __init isp1362_probe(struct platform_device *pdev)
 	return 0;
 
  err6:
-	DBG(0, "%s: Freeing dev %08x\n", __func__, (u32)isp1362_hcd);
+	DBG(0, "%s: Freeing dev %p\n", __func__, isp1362_hcd);
 	usb_put_hcd(hcd);
  err5:
-	DBG(0, "%s: Unmapping data_reg @ %08x\n", __func__, (u32)data_reg);
+	DBG(0, "%s: Unmapping data_reg @ %p\n", __func__, data_reg);
 	iounmap(data_reg);
  err4:
 	DBG(0, "%s: Releasing mem region %08lx\n", __func__, (long unsigned int)data->start);
 	release_mem_region(data->start, resource_len(data));
  err3:
-	DBG(0, "%s: Unmapping addr_reg @ %08x\n", __func__, (u32)addr_reg);
+	DBG(0, "%s: Unmapping addr_reg @ %p\n", __func__, addr_reg);
 	iounmap(addr_reg);
  err2:
 	DBG(0, "%s: Releasing mem region %08lx\n", __func__, (long unsigned int)addr->start);

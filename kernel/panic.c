@@ -10,6 +10,7 @@
  */
 #include <linux/debug_locks.h>
 #include <linux/interrupt.h>
+#include <linux/kmsg_dump.h>
 #include <linux/kallsyms.h>
 #include <linux/notifier.h>
 #include <linux/module.h>
@@ -74,6 +75,7 @@ NORET_TYPE void panic(const char * fmt, ...)
 	dump_stack();
 #endif
 
+	kmsg_dump(KMSG_DUMP_PANIC);
 	/*
 	 * If we have crashed and we have a crash kernel loaded let it handle
 	 * everything else.
@@ -89,6 +91,8 @@ NORET_TYPE void panic(const char * fmt, ...)
 	smp_send_stop();
 
 	atomic_notifier_call_chain(&panic_notifier_list, 0, buf);
+
+	bust_spinlocks(0);
 
 	if (!panic_blink)
 		panic_blink = no_blink;
@@ -136,7 +140,6 @@ NORET_TYPE void panic(const char * fmt, ...)
 		mdelay(1);
 		i++;
 	}
-	bust_spinlocks(0);
 }
 
 EXPORT_SYMBOL(panic);
@@ -338,6 +341,7 @@ void oops_exit(void)
 {
 	do_oops_enter_exit();
 	print_oops_end_marker();
+	kmsg_dump(KMSG_DUMP_OOPS);
 }
 
 #ifdef WANT_WARN_ON_SLOWPATH

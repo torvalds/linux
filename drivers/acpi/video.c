@@ -999,8 +999,10 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		sprintf(name, "acpi_video%d", count++);
 		device->backlight = backlight_device_register(name,
 			NULL, device, &acpi_backlight_ops);
-		device->backlight->props.max_brightness = device->brightness->count-3;
 		kfree(name);
+		if (IS_ERR(device->backlight))
+			return;
+		device->backlight->props.max_brightness = device->brightness->count-3;
 
 		result = sysfs_create_link(&device->backlight->dev.kobj,
 					   &device->dev->dev.kobj, "device");
@@ -1109,7 +1111,12 @@ static int acpi_video_bus_check(struct acpi_video_bus *video)
 	 */
 
 	/* Does this device support video switching? */
-	if (video->cap._DOS) {
+	if (video->cap._DOS || video->cap._DOD) {
+		if (!video->cap._DOS) {
+			printk(KERN_WARNING FW_BUG
+				"ACPI(%s) defines _DOD but not _DOS\n",
+				acpi_device_bid(video->device));
+		}
 		video->flags.multihead = 1;
 		status = 0;
 	}
@@ -1218,7 +1225,7 @@ acpi_video_device_write_state(struct file *file,
 	u32 state = 0;
 
 
-	if (!dev || count + 1 > sizeof str)
+	if (!dev || count >= sizeof(str))
 		return -EINVAL;
 
 	if (copy_from_user(str, buffer, count))
@@ -1275,7 +1282,7 @@ acpi_video_device_write_brightness(struct file *file,
 	int i;
 
 
-	if (!dev || !dev->brightness || count + 1 > sizeof str)
+	if (!dev || !dev->brightness || count >= sizeof(str))
 		return -EINVAL;
 
 	if (copy_from_user(str, buffer, count))
@@ -1557,7 +1564,7 @@ acpi_video_bus_write_POST(struct file *file,
 	unsigned long long opt, options;
 
 
-	if (!video || count + 1 > sizeof str)
+	if (!video || count >= sizeof(str))
 		return -EINVAL;
 
 	status = acpi_video_bus_POST_options(video, &options);
@@ -1597,7 +1604,7 @@ acpi_video_bus_write_DOS(struct file *file,
 	unsigned long opt;
 
 
-	if (!video || count + 1 > sizeof str)
+	if (!video || count >= sizeof(str))
 		return -EINVAL;
 
 	if (copy_from_user(str, buffer, count))
@@ -1973,6 +1980,10 @@ acpi_video_switch_brightness(struct acpi_video_device *device, int event)
 {
 	unsigned long long level_current, level_next;
 	int result = -EINVAL;
+
+	/* no warning message if acpi_backlight=vendor is used */
+	if (!acpi_video_backlight_support())
+		return 0;
 
 	if (!device->brightness)
 		goto out;

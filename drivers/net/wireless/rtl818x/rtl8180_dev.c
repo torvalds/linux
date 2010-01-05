@@ -132,7 +132,6 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 
 			rx_status.antenna = (flags2 >> 15) & 1;
 			/* TODO: improve signal/rssi reporting */
-			rx_status.qual = flags2 & 0xFF;
 			rx_status.signal = (flags2 >> 8) & 0x7F;
 			/* XXX: is this correct? */
 			rx_status.rate_idx = (flags >> 20) & 0xF;
@@ -548,7 +547,7 @@ static int rtl8180_start(struct ieee80211_hw *dev)
 	rtl818x_iowrite32(priv, &priv->map->TNPDA, priv->tx_ring[1].dma);
 	rtl818x_iowrite32(priv, &priv->map->TLPDA, priv->tx_ring[0].dma);
 
-	ret = request_irq(priv->pdev->irq, &rtl8180_interrupt,
+	ret = request_irq(priv->pdev->irq, rtl8180_interrupt,
 			  IRQF_SHARED, KBUILD_MODNAME, dev);
 	if (ret) {
 		printk(KERN_ERR "%s: failed to register IRQ handler\n",

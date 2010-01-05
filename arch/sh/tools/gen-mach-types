@@ -1,6 +1,6 @@
 #!/bin/awk
 #
-# Awk script to generate include/asm-sh/machtypes.h
+# Awk script to generate include/generated/machtypes.h
 # Heavily based on arch/arm/tools/gen-mach-types
 #
 BEGIN	{ nr = 0 }

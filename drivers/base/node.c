@@ -173,6 +173,47 @@ static ssize_t node_read_distance(struct sys_device * dev,
 }
 static SYSDEV_ATTR(distance, S_IRUGO, node_read_distance, NULL);
 
+#ifdef CONFIG_HUGETLBFS
+/*
+ * hugetlbfs per node attributes registration interface:
+ * When/if hugetlb[fs] subsystem initializes [sometime after this module],
+ * it will register its per node attributes for all online nodes with
+ * memory.  It will also call register_hugetlbfs_with_node(), below, to
+ * register its attribute registration functions with this node driver.
+ * Once these hooks have been initialized, the node driver will call into
+ * the hugetlb module to [un]register attributes for hot-plugged nodes.
+ */
+static node_registration_func_t __hugetlb_register_node;
+static node_registration_func_t __hugetlb_unregister_node;
+
+static inline bool hugetlb_register_node(struct node *node)
+{
+	if (__hugetlb_register_node &&
+			node_state(node->sysdev.id, N_HIGH_MEMORY)) {
+		__hugetlb_register_node(node);
+		return true;
+	}
+	return false;
+}
+
+static inline void hugetlb_unregister_node(struct node *node)
+{
+	if (__hugetlb_unregister_node)
+		__hugetlb_unregister_node(node);
+}
+
+void register_hugetlbfs_with_node(node_registration_func_t doregister,
+				  node_registration_func_t unregister)
+{
+	__hugetlb_register_node   = doregister;
+	__hugetlb_unregister_node = unregister;
+}
+#else
+static inline void hugetlb_register_node(struct node *node) {}
+
+static inline void hugetlb_unregister_node(struct node *node) {}
+#endif
+
 
 /*
  * register_node - Setup a sysfs device for a node.
@@ -196,6 +237,8 @@ int register_node(struct node *node, int num, struct node *parent)
 		sysdev_create_file(&node->sysdev, &attr_distance);
 
 		scan_unevictable_register_node(node);
+
+		hugetlb_register_node(node);
 	}
 	return error;
 }
@@ -216,6 +259,7 @@ void unregister_node(struct node *node)
 	sysdev_remove_file(&node->sysdev, &attr_distance);
 
 	scan_unevictable_unregister_node(node);
+	hugetlb_unregister_node(node);		/* no-op, if memoryless node */
 
 	sysdev_unregister(&node->sysdev);
 }
@@ -227,26 +271,43 @@ struct node node_devices[MAX_NUMNODES];
  */
 int register_cpu_under_node(unsigned int cpu, unsigned int nid)
 {
-	if (node_online(nid)) {
-		struct sys_device *obj = get_cpu_sysdev(cpu);
-		if (!obj)
-			return 0;
-		return sysfs_create_link(&node_devices[nid].sysdev.kobj,
-					 &obj->kobj,
-					 kobject_name(&obj->kobj));
-	 }
+	int ret;
+	struct sys_device *obj;
 
-	return 0;
+	if (!node_online(nid))
+		return 0;
+
+	obj = get_cpu_sysdev(cpu);
+	if (!obj)
+		return 0;
+
+	ret = sysfs_create_link(&node_devices[nid].sysdev.kobj,
+				&obj->kobj,
+				kobject_name(&obj->kobj));
+	if (ret)
+		return ret;
+
+	return sysfs_create_link(&obj->kobj,
+				 &node_devices[nid].sysdev.kobj,
+				 kobject_name(&node_devices[nid].sysdev.kobj));
 }
 
 int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
 {
-	if (node_online(nid)) {
-		struct sys_device *obj = get_cpu_sysdev(cpu);
-		if (obj)
-			sysfs_remove_link(&node_devices[nid].sysdev.kobj,
-					 kobject_name(&obj->kobj));
-	}
+	struct sys_device *obj;
+
+	if (!node_online(nid))
+		return 0;
+
+	obj = get_cpu_sysdev(cpu);
+	if (!obj)
+		return 0;
+
+	sysfs_remove_link(&node_devices[nid].sysdev.kobj,
+			  kobject_name(&obj->kobj));
+	sysfs_remove_link(&obj->kobj,
+			  kobject_name(&node_devices[nid].sysdev.kobj));
+
 	return 0;
 }
 
@@ -268,6 +329,7 @@ static int get_nid_for_pfn(unsigned long pfn)
 /* register memory section under specified node if it spans that node */
 int register_mem_sect_under_node(struct memory_block *mem_blk, int nid)
 {
+	int ret;
 	unsigned long pfn, sect_start_pfn, sect_end_pfn;
 
 	if (!mem_blk)
@@ -284,9 +346,15 @@ int register_mem_sect_under_node(struct memory_block *mem_blk, int nid)
 			continue;
 		if (page_nid != nid)
 			continue;
-		return sysfs_create_link_nowarn(&node_devices[nid].sysdev.kobj,
+		ret = sysfs_create_link_nowarn(&node_devices[nid].sysdev.kobj,
 					&mem_blk->sysdev.kobj,
 					kobject_name(&mem_blk->sysdev.kobj));
+		if (ret)
+			return ret;
+
+		return sysfs_create_link_nowarn(&mem_blk->sysdev.kobj,
+				&node_devices[nid].sysdev.kobj,
+				kobject_name(&node_devices[nid].sysdev.kobj));
 	}
 	/* mem section does not span the specified node */
 	return 0;
@@ -295,12 +363,16 @@ int register_mem_sect_under_node(struct memory_block *mem_blk, int nid)
 /* unregister memory section under all nodes that it spans */
 int unregister_mem_sect_under_nodes(struct memory_block *mem_blk)
 {
-	nodemask_t unlinked_nodes;
+	NODEMASK_ALLOC(nodemask_t, unlinked_nodes, GFP_KERNEL);
 	unsigned long pfn, sect_start_pfn, sect_end_pfn;
 
-	if (!mem_blk)
+	if (!mem_blk) {
+		NODEMASK_FREE(unlinked_nodes);
 		return -EFAULT;
-	nodes_clear(unlinked_nodes);
+	}
+	if (!unlinked_nodes)
+		return -ENOMEM;
+	nodes_clear(*unlinked_nodes);
 	sect_start_pfn = section_nr_to_pfn(mem_blk->phys_index);
 	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
 	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
@@ -311,11 +383,14 @@ int unregister_mem_sect_under_nodes(struct memory_block *mem_blk)
 			continue;
 		if (!node_online(nid))
 			continue;
-		if (node_test_and_set(nid, unlinked_nodes))
+		if (node_test_and_set(nid, *unlinked_nodes))
 			continue;
 		sysfs_remove_link(&node_devices[nid].sysdev.kobj,
 			 kobject_name(&mem_blk->sysdev.kobj));
+		sysfs_remove_link(&mem_blk->sysdev.kobj,
+			 kobject_name(&node_devices[nid].sysdev.kobj));
 	}
+	NODEMASK_FREE(unlinked_nodes);
 	return 0;
 }
 
@@ -345,9 +420,77 @@ static int link_mem_sections(int nid)
 	}
 	return err;
 }
-#else
+
+#ifdef CONFIG_HUGETLBFS
+/*
+ * Handle per node hstate attribute [un]registration on transistions
+ * to/from memoryless state.
+ */
+static void node_hugetlb_work(struct work_struct *work)
+{
+	struct node *node = container_of(work, struct node, node_work);
+
+	/*
+	 * We only get here when a node transitions to/from memoryless state.
+	 * We can detect which transition occurred by examining whether the
+	 * node has memory now.  hugetlb_register_node() already check this
+	 * so we try to register the attributes.  If that fails, then the
+	 * node has transitioned to memoryless, try to unregister the
+	 * attributes.
+	 */
+	if (!hugetlb_register_node(node))
+		hugetlb_unregister_node(node);
+}
+
+static void init_node_hugetlb_work(int nid)
+{
+	INIT_WORK(&node_devices[nid].node_work, node_hugetlb_work);
+}
+
+static int node_memory_callback(struct notifier_block *self,
+				unsigned long action, void *arg)
+{
+	struct memory_notify *mnb = arg;
+	int nid = mnb->status_change_nid;
+
+	switch (action) {
+	case MEM_ONLINE:
+	case MEM_OFFLINE:
+		/*
+		 * offload per node hstate [un]registration to a work thread
+		 * when transitioning to/from memoryless state.
+		 */
+		if (nid != NUMA_NO_NODE)
+			schedule_work(&node_devices[nid].node_work);
+		break;
+
+	case MEM_GOING_ONLINE:
+	case MEM_GOING_OFFLINE:
+	case MEM_CANCEL_ONLINE:
+	case MEM_CANCEL_OFFLINE:
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+#endif	/* CONFIG_HUGETLBFS */
+#else	/* !CONFIG_MEMORY_HOTPLUG_SPARSE */
+
 static int link_mem_sections(int nid) { return 0; }
-#endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
+#endif	/* CONFIG_MEMORY_HOTPLUG_SPARSE */
+
+#if !defined(CONFIG_MEMORY_HOTPLUG_SPARSE) || \
+    !defined(CONFIG_HUGETLBFS)
+static inline int node_memory_callback(struct notifier_block *self,
+				unsigned long action, void *arg)
+{
+	return NOTIFY_OK;
+}
+
+static void init_node_hugetlb_work(int nid) { }
+
+#endif
 
 int register_one_node(int nid)
 {
@@ -371,6 +514,9 @@ int register_one_node(int nid)
 
 		/* link memory sections under this node */
 		error = link_mem_sections(nid);
+
+		/* initialize work queue for memory hot plug */
+		init_node_hugetlb_work(nid);
 	}
 
 	return error;
@@ -460,13 +606,17 @@ static int node_states_init(void)
 	return err;
 }
 
+#define NODE_CALLBACK_PRI	2	/* lower than SLAB */
 static int __init register_node_type(void)
 {
 	int ret;
 
 	ret = sysdev_class_register(&node_class);
-	if (!ret)
+	if (!ret) {
 		ret = node_states_init();
+		hotplug_memory_notifier(node_memory_callback,
+					NODE_CALLBACK_PRI);
+	}
 
 	/*
 	 * Note:  we're not going to unregister the node class if we fail

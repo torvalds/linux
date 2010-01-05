@@ -88,7 +88,7 @@ static void iic_eoi(unsigned int irq)
 }
 
 static struct irq_chip iic_chip = {
-	.typename = " CELL-IIC ",
+	.name = " CELL-IIC ",
 	.mask = iic_mask,
 	.unmask = iic_unmask,
 	.eoi = iic_eoi,
@@ -133,7 +133,7 @@ static void iic_ioexc_cascade(unsigned int irq, struct irq_desc *desc)
 
 
 static struct irq_chip iic_ioexc_chip = {
-	.typename = " CELL-IOEX",
+	.name = " CELL-IOEX",
 	.mask = iic_mask,
 	.unmask = iic_unmask,
 	.eoi = iic_ioexc_eoi,
@@ -237,7 +237,7 @@ extern int noirqdebug;
 
 static void handle_iic_irq(unsigned int irq, struct irq_desc *desc)
 {
-	spin_lock(&desc->lock);
+	raw_spin_lock(&desc->lock);
 
 	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
 
@@ -265,18 +265,18 @@ static void handle_iic_irq(unsigned int irq, struct irq_desc *desc)
 			goto out_eoi;
 
 		desc->status &= ~IRQ_PENDING;
-		spin_unlock(&desc->lock);
+		raw_spin_unlock(&desc->lock);
 		action_ret = handle_IRQ_event(irq, action);
 		if (!noirqdebug)
 			note_interrupt(irq, desc, action_ret);
-		spin_lock(&desc->lock);
+		raw_spin_lock(&desc->lock);
 
 	} while ((desc->status & (IRQ_PENDING | IRQ_DISABLED)) == IRQ_PENDING);
 
 	desc->status &= ~IRQ_INPROGRESS;
 out_eoi:
 	desc->chip->eoi(irq);
-	spin_unlock(&desc->lock);
+	raw_spin_unlock(&desc->lock);
 }
 
 static int iic_host_map(struct irq_host *h, unsigned int virq,
@@ -297,7 +297,7 @@ static int iic_host_map(struct irq_host *h, unsigned int virq,
 }
 
 static int iic_host_xlate(struct irq_host *h, struct device_node *ct,
-			   u32 *intspec, unsigned int intsize,
+			   const u32 *intspec, unsigned int intsize,
 			   irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 
 {

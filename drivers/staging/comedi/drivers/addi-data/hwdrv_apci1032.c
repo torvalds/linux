@@ -150,7 +150,7 @@ int i_APCI1032_Read1DigitalInput(struct comedi_device *dev, struct comedi_subdev
 	unsigned int ui_TmpValue = 0;
 	unsigned int ui_Channel;
 	ui_Channel = CR_CHAN(insn->chanspec);
-	if (ui_Channel >= 0 && ui_Channel <= 31) {
+	if (ui_Channel <= 31) {
 		ui_TmpValue = (unsigned int) inl(devpriv->iobase + APCI1032_DIGITAL_IP);
 /*
 * since only 1 channel reqd to bring it to last bit it is rotated 8

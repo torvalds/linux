@@ -298,6 +298,16 @@ static void snd_ice1712_set_gpio_dir(struct snd_ice1712 *ice, unsigned int data)
 	inb(ICEREG(ice, DATA)); /* dummy read for pci-posting */
 }
 
+static unsigned int snd_ice1712_get_gpio_dir(struct snd_ice1712 *ice)
+{
+	return snd_ice1712_read(ice, ICE1712_IREG_GPIO_DIRECTION);
+}
+
+static unsigned int snd_ice1712_get_gpio_mask(struct snd_ice1712 *ice)
+{
+	return snd_ice1712_read(ice, ICE1712_IREG_GPIO_WRITE_MASK);
+}
+
 static void snd_ice1712_set_gpio_mask(struct snd_ice1712 *ice, unsigned int data)
 {
 	snd_ice1712_write(ice, ICE1712_IREG_GPIO_WRITE_MASK, data);
@@ -2259,7 +2269,7 @@ static int snd_ice1712_pro_peak_get(struct snd_kcontrol *kcontrol,
 }
 
 static struct snd_kcontrol_new snd_ice1712_mixer_pro_peak __devinitdata = {
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 	.name = "Multi Track Peak",
 	.access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info = snd_ice1712_pro_peak_info,
@@ -2557,7 +2567,9 @@ static int __devinit snd_ice1712_create(struct snd_card *card,
 	mutex_init(&ice->i2c_mutex);
 	mutex_init(&ice->open_mutex);
 	ice->gpio.set_mask = snd_ice1712_set_gpio_mask;
+	ice->gpio.get_mask = snd_ice1712_get_gpio_mask;
 	ice->gpio.set_dir = snd_ice1712_set_gpio_dir;
+	ice->gpio.get_dir = snd_ice1712_get_gpio_dir;
 	ice->gpio.set_data = snd_ice1712_set_gpio_data;
 	ice->gpio.get_data = snd_ice1712_get_gpio_data;
 

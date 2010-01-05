@@ -61,14 +61,14 @@ unsigned long lastfoffset = -1;
 unsigned long lastfrelno;
 btfixup *lastf;
 
-void fatal(void) __attribute__((noreturn));
-void fatal(void)
+static void fatal(void) __attribute__((noreturn));
+static void fatal(void)
 {
 	fprintf(stderr, "Malformed output from objdump\n%s\n", buffer);
 	exit(1);
 }
 
-btfixup *find(int type, char *name)
+static btfixup *find(int type, char *name)
 {
 	int i;
 	for (i = 0; i < last; i++) {
@@ -88,7 +88,7 @@ btfixup *find(int type, char *name)
 	return array + last - 1;
 }
 
-void set_mode (char *buffer)
+static void set_mode (char *buffer)
 {
   	for (mode = 0;; mode++)
 		if (buffer[mode] < '0' || buffer[mode] > '9')

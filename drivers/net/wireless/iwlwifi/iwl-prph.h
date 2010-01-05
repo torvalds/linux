@@ -254,7 +254,8 @@
  * device.  A queue maps to only one (selectable by driver) Tx DMA channel,
  * but one DMA channel may take input from several queues.
  *
- * Tx DMA channels have dedicated purposes.  For 4965, they are used as follows:
+ * Tx DMA channels have dedicated purposes.  For 4965, they are used as follows
+ * (cf. default_queue_to_tx_fifo in iwl-4965.c):
  *
  * 0 -- EDCA BK (background) frames, lowest priority
  * 1 -- EDCA BE (best effort) frames, normal priority
@@ -265,9 +266,21 @@
  * 6 -- HCCA long frames
  * 7 -- not used by driver (device-internal only)
  *
+ * For 5000 series and up, they are used slightly differently
+ * (cf. iwl5000_default_queue_to_tx_fifo in iwl-5000.c):
+ *
+ * 0 -- EDCA BK (background) frames, lowest priority
+ * 1 -- EDCA BE (best effort) frames, normal priority
+ * 2 -- EDCA VI (video) frames, higher priority
+ * 3 -- EDCA VO (voice) and management frames, highest priority
+ * 4 -- (TBD)
+ * 5 -- HCCA short frames
+ * 6 -- HCCA long frames
+ * 7 -- Commands
+ *
  * Driver should normally map queues 0-6 to Tx DMA/FIFO channels 0-6.
- * In addition, driver can map queues 7-15 to Tx DMA/FIFO channels 0-3 to
- * support 11n aggregation via EDCA DMA channels.
+ * In addition, driver can map the remaining queues to Tx DMA/FIFO
+ * channels 0-3 to support 11n aggregation via EDCA DMA channels.
  *
  * The driver sets up each queue to work in one of two modes:
  *

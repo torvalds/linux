@@ -807,7 +807,7 @@ static struct sunqec * __devinit get_qec(struct of_device *child)
 
 			qec_init_once(qecp, op);
 
-			if (request_irq(op->irqs[0], &qec_interrupt,
+			if (request_irq(op->irqs[0], qec_interrupt,
 					IRQF_SHARED, "qec", (void *) qecp)) {
 				printk(KERN_ERR "qec: Can't register irq.\n");
 				goto fail;

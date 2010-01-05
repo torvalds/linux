@@ -35,12 +35,23 @@ static size_t buffer_pos;
 /* atomic_t because wait_event checks it outside of buffer_mutex */
 static atomic_t buffer_ready = ATOMIC_INIT(0);
 
-/* Add an entry to the event buffer. When we
- * get near to the end we wake up the process
- * sleeping on the read() of the file.
+/*
+ * Add an entry to the event buffer. When we get near to the end we
+ * wake up the process sleeping on the read() of the file. To protect
+ * the event_buffer this function may only be called when buffer_mutex
+ * is set.
  */
 void add_event_entry(unsigned long value)
 {
+	/*
+	 * This shouldn't happen since all workqueues or handlers are
+	 * canceled or flushed before the event buffer is freed.
+	 */
+	if (!event_buffer) {
+		WARN_ON_ONCE(1);
+		return;
+	}
+
 	if (buffer_pos == buffer_size) {
 		atomic_inc(&oprofile_stats.event_lost_overflow);
 		return;
@@ -69,7 +80,6 @@ void wake_up_buffer_waiter(void)
 
 int alloc_event_buffer(void)
 {
-	int err = -ENOMEM;
 	unsigned long flags;
 
 	spin_lock_irqsave(&oprofilefs_lock, flags);
@@ -80,21 +90,22 @@ int alloc_event_buffer(void)
 	if (buffer_watershed >= buffer_size)
 		return -EINVAL;
 
+	buffer_pos = 0;
 	event_buffer = vmalloc(sizeof(unsigned long) * buffer_size);
 	if (!event_buffer)
-		goto out;
+		return -ENOMEM;
 
-	err = 0;
-out:
-	return err;
+	return 0;
 }
 
 
 void free_event_buffer(void)
 {
+	mutex_lock(&buffer_mutex);
 	vfree(event_buffer);
-
+	buffer_pos = 0;
 	event_buffer = NULL;
+	mutex_unlock(&buffer_mutex);
 }
 
 
@@ -166,6 +177,12 @@ static ssize_t event_buffer_read(struct file *file, char __user *buf,
 		return -EAGAIN;
 
 	mutex_lock(&buffer_mutex);
+
+	/* May happen if the buffer is freed during pending reads. */
+	if (!event_buffer) {
+		retval = -EINTR;
+		goto out;
+	}
 
 	atomic_set(&buffer_ready, 0);
 

@@ -2,6 +2,7 @@
 #define CCISS_H
 
 #include <linux/genhd.h>
+#include <linux/mutex.h>
 
 #include "cciss_cmd.h"
 
@@ -29,7 +30,7 @@ struct access_method {
 };
 typedef struct _drive_info_struct
 {
- 	__u32   LunID;	
+	unsigned char LunID[8];
 	int 	usage_count;
 	struct request_queue *queue;
 	sector_t nr_blocks;
@@ -51,9 +52,16 @@ typedef struct _drive_info_struct
 	char vendor[VENDOR_LEN + 1]; /* SCSI vendor string */
 	char model[MODEL_LEN + 1];   /* SCSI model string */
 	char rev[REV_LEN + 1];       /* SCSI revision string */
+	char device_initialized;     /* indicates whether dev is initialized */
 } drive_info_struct;
 
-struct ctlr_info 
+struct Cmd_sg_list {
+	SGDescriptor_struct	*sgchain;
+	dma_addr_t		sg_chain_dma;
+	int			chain_block_size;
+};
+
+struct ctlr_info
 {
 	int	ctlr;
 	char	devname[8];
@@ -73,6 +81,16 @@ struct ctlr_info
 	int	num_luns;
 	int 	highest_lun;
 	int	usage_count;  /* number of opens all all minor devices */
+	/* Need space for temp sg list
+	 * number of scatter/gathers supported
+	 * number of scatter/gathers in chained block
+	 */
+	struct	scatterlist **scatter_list;
+	int	maxsgentries;
+	int	chainsize;
+	int	max_cmd_sgentries;
+	struct Cmd_sg_list **cmd_sg_list;
+
 #	define DOORBELL_INT	0
 #	define PERF_MODE_INT	1
 #	define SIMPLE_MODE_INT	2
@@ -86,7 +104,7 @@ struct ctlr_info
 	BYTE	cciss_read_capacity;
 
 	// information about each logical volume
-	drive_info_struct drv[CISS_MAX_LUN];
+	drive_info_struct *drv[CISS_MAX_LUN];
 
 	struct access_method access;
 
@@ -108,6 +126,8 @@ struct ctlr_info
 	int			nr_frees; 
 	int			busy_configuring;
 	int			busy_initializing;
+	int			busy_scanning;
+	struct mutex		busy_shutting_down;
 
 	/* This element holds the zero based queue number of the last
 	 * queue to be started.  It is used for fairness.
@@ -122,8 +142,8 @@ struct ctlr_info
 	/* and saved for later processing */
 #endif
 	unsigned char alive;
-	struct completion *rescan_wait;
-	struct task_struct *cciss_scan_thread;
+	struct list_head scan_list;
+	struct completion scan_wait;
 	struct device dev;
 };
 

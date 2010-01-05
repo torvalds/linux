@@ -26,13 +26,7 @@
 #include <linux/shm.h>
 #include <linux/slab.h>
 #include <linux/uio.h>
-#include <linux/nfs_fs.h>
 #include <linux/ncp_fs.h>
-#include <linux/sunrpc/svc.h>
-#include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/cache.h>
-#include <linux/nfsd/xdr.h>
-#include <linux/nfsd/syscall.h>
 #include <linux/poll.h>
 #include <linux/personality.h>
 #include <linux/stat.h>
@@ -89,77 +83,6 @@ asmlinkage long sys32_unimplemented(int r26, int r25, int r24, int r23,
     	current->comm, current->pid, r20);
     return -ENOSYS;
 }
-
-#ifdef CONFIG_SYSCTL
-
-struct __sysctl_args32 {
-	u32 name;
-	int nlen;
-	u32 oldval;
-	u32 oldlenp;
-	u32 newval;
-	u32 newlen;
-	u32 __unused[4];
-};
-
-asmlinkage long sys32_sysctl(struct __sysctl_args32 __user *args)
-{
-#ifndef CONFIG_SYSCTL_SYSCALL
-	return -ENOSYS;
-#else
-	struct __sysctl_args32 tmp;
-	int error;
-	unsigned int oldlen32;
-	size_t oldlen, __user *oldlenp = NULL;
-	unsigned long addr = (((long __force)&args->__unused[0]) + 7) & ~7;
-
-	DBG(("sysctl32(%p)\n", args));
-
-	if (copy_from_user(&tmp, args, sizeof(tmp)))
-		return -EFAULT;
-
-	if (tmp.oldval && tmp.oldlenp) {
-		/* Duh, this is ugly and might not work if sysctl_args
-		   is in read-only memory, but do_sysctl does indirectly
-		   a lot of uaccess in both directions and we'd have to
-		   basically copy the whole sysctl.c here, and
-		   glibc's __sysctl uses rw memory for the structure
-		   anyway.  */
-		/* a possibly better hack than this, which will avoid the
-		 * problem if the struct is read only, is to push the
-		 * 'oldlen' value out to the user's stack instead. -PB
-		 */
-		if (get_user(oldlen32, (u32 *)(u64)tmp.oldlenp))
-			return -EFAULT;
-		oldlen = oldlen32;
-		if (put_user(oldlen, (size_t *)addr))
-			return -EFAULT;
-		oldlenp = (size_t *)addr;
-	}
-
-	lock_kernel();
-	error = do_sysctl((int __user *)(u64)tmp.name, tmp.nlen,
-			  (void __user *)(u64)tmp.oldval, oldlenp,
-			  (void __user *)(u64)tmp.newval, tmp.newlen);
-	unlock_kernel();
-	if (oldlenp) {
-		if (!error) {
-			if (get_user(oldlen, (size_t *)addr)) {
-				error = -EFAULT;
-			} else {
-				oldlen32 = oldlen;
-				if (put_user(oldlen32, (u32 *)(u64)tmp.oldlenp))
-					error = -EFAULT;
-			}
-		}
-		if (copy_to_user(args->__unused, tmp.__unused, sizeof(tmp.__unused)))
-			error = -EFAULT;
-	}
-	return error;
-#endif
-}
-
-#endif /* CONFIG_SYSCTL */
 
 asmlinkage long sys32_sched_rr_get_interval(pid_t pid,
 	struct compat_timespec __user *interval)

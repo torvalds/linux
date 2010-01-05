@@ -77,14 +77,32 @@ static void intel_hdmi_dpms(struct drm_encoder *encoder, int mode)
 	struct intel_hdmi_priv *hdmi_priv = intel_output->dev_priv;
 	u32 temp;
 
-	if (mode != DRM_MODE_DPMS_ON) {
-		temp = I915_READ(hdmi_priv->sdvox_reg);
+	temp = I915_READ(hdmi_priv->sdvox_reg);
+
+	/* HW workaround, need to toggle enable bit off and on for 12bpc, but
+	 * we do this anyway which shows more stable in testing.
+	 */
+	if (IS_IRONLAKE(dev)) {
 		I915_WRITE(hdmi_priv->sdvox_reg, temp & ~SDVO_ENABLE);
-	} else {
-		temp = I915_READ(hdmi_priv->sdvox_reg);
-		I915_WRITE(hdmi_priv->sdvox_reg, temp | SDVO_ENABLE);
+		POSTING_READ(hdmi_priv->sdvox_reg);
 	}
+
+	if (mode != DRM_MODE_DPMS_ON) {
+		temp &= ~SDVO_ENABLE;
+	} else {
+		temp |= SDVO_ENABLE;
+	}
+
+	I915_WRITE(hdmi_priv->sdvox_reg, temp);
 	POSTING_READ(hdmi_priv->sdvox_reg);
+
+	/* HW workaround, need to write this twice for issue that may result
+	 * in first write getting masked.
+	 */
+	if (IS_IRONLAKE(dev)) {
+		I915_WRITE(hdmi_priv->sdvox_reg, temp);
+		POSTING_READ(hdmi_priv->sdvox_reg);
+	}
 }
 
 static void intel_hdmi_save(struct drm_connector *connector)
@@ -207,7 +225,52 @@ static const struct drm_encoder_funcs intel_hdmi_enc_funcs = {
 	.destroy = intel_hdmi_enc_destroy,
 };
 
+/*
+ * Enumerate the child dev array parsed from VBT to check whether
+ * the given HDMI is present.
+ * If it is present, return 1.
+ * If it is not present, return false.
+ * If no child dev is parsed from VBT, it assumes that the given
+ * HDMI is present.
+ */
+static int hdmi_is_present_in_vbt(struct drm_device *dev, int hdmi_reg)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct child_device_config *p_child;
+	int i, hdmi_port, ret;
 
+	if (!dev_priv->child_dev_num)
+		return 1;
+
+	if (hdmi_reg == SDVOB)
+		hdmi_port = DVO_B;
+	else if (hdmi_reg == SDVOC)
+		hdmi_port = DVO_C;
+	else if (hdmi_reg == HDMIB)
+		hdmi_port = DVO_B;
+	else if (hdmi_reg == HDMIC)
+		hdmi_port = DVO_C;
+	else if (hdmi_reg == HDMID)
+		hdmi_port = DVO_D;
+	else
+		return 0;
+
+	ret = 0;
+	for (i = 0; i < dev_priv->child_dev_num; i++) {
+		p_child = dev_priv->child_dev + i;
+		/*
+		 * If the device type is not HDMI, continue.
+		 */
+		if (p_child->device_type != DEVICE_TYPE_HDMI)
+			continue;
+		/* Find the HDMI port */
+		if (p_child->dvo_port == hdmi_port) {
+			ret = 1;
+			break;
+		}
+	}
+	return ret;
+}
 void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -215,6 +278,10 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 	struct intel_output *intel_output;
 	struct intel_hdmi_priv *hdmi_priv;
 
+	if (!hdmi_is_present_in_vbt(dev, sdvox_reg)) {
+		DRM_DEBUG_KMS("HDMI is not present. Ignored it \n");
+		return;
+	}
 	intel_output = kcalloc(sizeof(struct intel_output) +
 			       sizeof(struct intel_hdmi_priv), 1, GFP_KERNEL);
 	if (!intel_output)
@@ -223,7 +290,7 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 
 	connector = &intel_output->base;
 	drm_connector_init(dev, connector, &intel_hdmi_connector_funcs,
-			   DRM_MODE_CONNECTOR_DVID);
+			   DRM_MODE_CONNECTOR_HDMIA);
 	drm_connector_helper_add(connector, &intel_hdmi_connector_helper_funcs);
 
 	intel_output->type = INTEL_OUTPUT_HDMI;

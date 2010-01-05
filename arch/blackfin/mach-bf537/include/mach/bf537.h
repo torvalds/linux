@@ -1,44 +1,13 @@
 /*
- * File:         include/asm-blackfin/mach-bf537/bf537.h
- * Based on:
- * Author:
+ * System MMR Register and memory map for ADSP-BF537
  *
- * Created:
- * Description:  SYSTEM MMR REGISTER AND MEMORY MAP FOR ADSP-BF537
+ * Copyright 2005-2008 Analog Devices Inc.
  *
- * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
 
 #ifndef __MACH_BF537_H__
 #define __MACH_BF537_H__
-
-/* Masks for generic ERROR IRQ demultiplexing used in int-priority-sc.c */
-
-#define SPI_ERR_MASK (TXCOL | RBSY | MODF | TXE)	/* SPI_STAT */
-#define SPORT_ERR_MASK (ROVF | RUVF | TOVF | TUVF)	/* SPORTx_STAT */
-#define PPI_ERR_MASK (0xFFFF & ~FLD)	/* PPI_STATUS */
-#define EMAC_ERR_MASK (PHYINT | MMCINT | RXFSINT | TXFSINT | WAKEDET | RXDMAERR | TXDMAERR | STMDONE)	/* EMAC_SYSTAT */
-#define UART_ERR_MASK_STAT1 (0x4)	/* UARTx_IIR */
-#define UART_ERR_MASK_STAT0 (0x2)	/* UARTx_IIR */
-#define CAN_ERR_MASK  (EWTIF | EWRIF | EPIF | BOIF | WUIF | UIAIF | AAIF | RMLIF | UCEIF | EXTIF | ADIF)	/* CAN_GIF */
 
 #define OFFSET_(x) ((x) & 0x0000FFFF)
 

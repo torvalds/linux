@@ -1,33 +1,14 @@
 /*
- * File:         arch/blackfin/mach-common/ints-priority.c
+ * Set up the interrupt priorities
  *
- * Description:  Set up the interrupt priorities
+ * Copyright  2004-2009 Analog Devices Inc.
+ *                 2003 Bas Vermeulen <bas@buyways.nl>
+ *                 2002 Arcturus Networks Inc. MaTed <mated@sympatico.ca>
+ *            2000-2001 Lineo, Inc. D. Jefff Dionne <jeff@lineo.ca>
+ *                 1999 D. Jeff Dionne <jeff@uclinux.org>
+ *                 1996 Roman Zippel
  *
- * Modified:
- *               1996 Roman Zippel
- *               1999 D. Jeff Dionne <jeff@uclinux.org>
- *               2000-2001 Lineo, Inc. D. Jefff Dionne <jeff@lineo.ca>
- *               2002 Arcturus Networks Inc. MaTed <mated@sympatico.ca>
- *               2003 Metrowerks/Motorola
- *               2003 Bas Vermeulen <bas@buyways.nl>
- *               Copyright 2004-2008 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2
  */
 
 #include <linux/module.h>
@@ -44,11 +25,20 @@
 #include <asm/blackfin.h>
 #include <asm/gpio.h>
 #include <asm/irq_handler.h>
+#include <asm/dpmc.h>
+#include <asm/bfin5xx_spi.h>
+#include <asm/bfin_sport.h>
 
 #define SIC_SYSIRQ(irq)	(irq - (IRQ_CORETMR + 1))
 
 #ifdef BF537_FAMILY
 # define BF537_GENERIC_ERROR_INT_DEMUX
+# define SPI_ERR_MASK   (BIT_STAT_TXCOL | BIT_STAT_RBSY | BIT_STAT_MODF | BIT_STAT_TXE)	/* SPI_STAT */
+# define SPORT_ERR_MASK (ROVF | RUVF | TOVF | TUVF)	/* SPORT_STAT */
+# define PPI_ERR_MASK   (0xFFFF & ~FLD)	/* PPI_STATUS */
+# define EMAC_ERR_MASK  (PHYINT | MMCINT | RXFSINT | TXFSINT | WAKEDET | RXDMAERR | TXDMAERR | STMDONE)	/* EMAC_SYSTAT */
+# define UART_ERR_MASK  (0x6)	/* UART_IIR */
+# define CAN_ERR_MASK   (EWTIF | EWRIF | EPIF | BOIF | WUIF | UIAIF | AAIF | RMLIF | UCEIF | EXTIF | ADIF)	/* CAN_GIF */
 #else
 # undef BF537_GENERIC_ERROR_INT_DEMUX
 #endif
@@ -343,11 +333,9 @@ static void bfin_demux_error_irq(unsigned int int_err_irq,
 		irq = IRQ_CAN_ERROR;
 	else if (bfin_read_SPI_STAT() & SPI_ERR_MASK)
 		irq = IRQ_SPI_ERROR;
-	else if ((bfin_read_UART0_IIR() & UART_ERR_MASK_STAT1) &&
-		 (bfin_read_UART0_IIR() & UART_ERR_MASK_STAT0))
+	else if ((bfin_read_UART0_IIR() & UART_ERR_MASK) == UART_ERR_MASK)
 		irq = IRQ_UART0_ERROR;
-	else if ((bfin_read_UART1_IIR() & UART_ERR_MASK_STAT1) &&
-		 (bfin_read_UART1_IIR() & UART_ERR_MASK_STAT0))
+	else if ((bfin_read_UART1_IIR() & UART_ERR_MASK) == UART_ERR_MASK)
 		irq = IRQ_UART1_ERROR;
 
 	if (irq) {

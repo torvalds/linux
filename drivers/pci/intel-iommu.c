@@ -48,6 +48,7 @@
 
 #define IS_GFX_DEVICE(pdev) ((pdev->class >> 16) == PCI_BASE_CLASS_DISPLAY)
 #define IS_ISA_DEVICE(pdev) ((pdev->class >> 8) == PCI_CLASS_BRIDGE_ISA)
+#define IS_AZALIA(pdev) ((pdev)->vendor == 0x8086 && (pdev)->device == 0x3a3e)
 
 #define IOAPIC_RANGE_START	(0xfee00000)
 #define IOAPIC_RANGE_END	(0xfeefffff)
@@ -94,6 +95,7 @@ static inline unsigned long virt_to_dma_pfn(void *p)
 /* global iommu list, set NULL for ignored DMAR units */
 static struct intel_iommu **g_iommus;
 
+static void __init check_tylersburg_isoch(void);
 static int rwbf_quirk;
 
 /*
@@ -275,6 +277,7 @@ static int hw_pass_through = 1;
 
 struct dmar_domain {
 	int	id;			/* domain id */
+	int	nid;			/* node id */
 	unsigned long iommu_bmp;	/* bitmap of iommus this domain uses*/
 
 	struct list_head devices; 	/* all devices' list */
@@ -302,7 +305,7 @@ struct device_domain_info {
 	int segment;		/* PCI domain */
 	u8 bus;			/* PCI bus number */
 	u8 devfn;		/* PCI devfn number */
-	struct pci_dev *dev; /* it's NULL for PCIE-to-PCI bridge */
+	struct pci_dev *dev; /* it's NULL for PCIe-to-PCI bridge */
 	struct intel_iommu *iommu; /* IOMMU used by this device */
 	struct dmar_domain *domain; /* pointer to domain */
 };
@@ -384,30 +387,14 @@ static struct kmem_cache *iommu_domain_cache;
 static struct kmem_cache *iommu_devinfo_cache;
 static struct kmem_cache *iommu_iova_cache;
 
-static inline void *iommu_kmem_cache_alloc(struct kmem_cache *cachep)
+static inline void *alloc_pgtable_page(int node)
 {
-	unsigned int flags;
-	void *vaddr;
+	struct page *page;
+	void *vaddr = NULL;
 
-	/* trying to avoid low memory issues */
-	flags = current->flags & PF_MEMALLOC;
-	current->flags |= PF_MEMALLOC;
-	vaddr = kmem_cache_alloc(cachep, GFP_ATOMIC);
-	current->flags &= (~PF_MEMALLOC | flags);
-	return vaddr;
-}
-
-
-static inline void *alloc_pgtable_page(void)
-{
-	unsigned int flags;
-	void *vaddr;
-
-	/* trying to avoid low memory issues */
-	flags = current->flags & PF_MEMALLOC;
-	current->flags |= PF_MEMALLOC;
-	vaddr = (void *)get_zeroed_page(GFP_ATOMIC);
-	current->flags &= (~PF_MEMALLOC | flags);
+	page = alloc_pages_node(node, GFP_ATOMIC | __GFP_ZERO, 0);
+	if (page)
+		vaddr = page_address(page);
 	return vaddr;
 }
 
@@ -418,7 +405,7 @@ static inline void free_pgtable_page(void *vaddr)
 
 static inline void *alloc_domain_mem(void)
 {
-	return iommu_kmem_cache_alloc(iommu_domain_cache);
+	return kmem_cache_alloc(iommu_domain_cache, GFP_ATOMIC);
 }
 
 static void free_domain_mem(void *vaddr)
@@ -428,7 +415,7 @@ static void free_domain_mem(void *vaddr)
 
 static inline void * alloc_devinfo_mem(void)
 {
-	return iommu_kmem_cache_alloc(iommu_devinfo_cache);
+	return kmem_cache_alloc(iommu_devinfo_cache, GFP_ATOMIC);
 }
 
 static inline void free_devinfo_mem(void *vaddr)
@@ -438,7 +425,7 @@ static inline void free_devinfo_mem(void *vaddr)
 
 struct iova *alloc_iova_mem(void)
 {
-	return iommu_kmem_cache_alloc(iommu_iova_cache);
+	return kmem_cache_alloc(iommu_iova_cache, GFP_ATOMIC);
 }
 
 void free_iova_mem(struct iova *iova)
@@ -587,7 +574,8 @@ static struct context_entry * device_to_context_entry(struct intel_iommu *iommu,
 	root = &iommu->root_entry[bus];
 	context = get_context_addr_from_root(root);
 	if (!context) {
-		context = (struct context_entry *)alloc_pgtable_page();
+		context = (struct context_entry *)
+				alloc_pgtable_page(iommu->node);
 		if (!context) {
 			spin_unlock_irqrestore(&iommu->lock, flags);
 			return NULL;
@@ -730,7 +718,7 @@ static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
 		if (!dma_pte_present(pte)) {
 			uint64_t pteval;
 
-			tmp_page = alloc_pgtable_page();
+			tmp_page = alloc_pgtable_page(domain->nid);
 
 			if (!tmp_page)
 				return NULL;
@@ -866,7 +854,7 @@ static int iommu_alloc_root_entry(struct intel_iommu *iommu)
 	struct root_entry *root;
 	unsigned long flags;
 
-	root = (struct root_entry *)alloc_pgtable_page();
+	root = (struct root_entry *)alloc_pgtable_page(iommu->node);
 	if (!root)
 		return -ENOMEM;
 
@@ -1261,6 +1249,7 @@ static struct dmar_domain *alloc_domain(void)
 	if (!domain)
 		return NULL;
 
+	domain->nid = -1;
 	memset(&domain->iommu_bmp, 0, sizeof(unsigned long));
 	domain->flags = 0;
 
@@ -1418,9 +1407,10 @@ static int domain_init(struct dmar_domain *domain, int guest_width)
 		domain->iommu_snooping = 0;
 
 	domain->iommu_count = 1;
+	domain->nid = iommu->node;
 
 	/* always allocate the top pgd */
-	domain->pgd = (struct dma_pte *)alloc_pgtable_page();
+	domain->pgd = (struct dma_pte *)alloc_pgtable_page(domain->nid);
 	if (!domain->pgd)
 		return -ENOMEM;
 	__iommu_flush_cache(iommu, domain->pgd, PAGE_SIZE);
@@ -1521,12 +1511,15 @@ static int domain_context_mapping_one(struct dmar_domain *domain, int segment,
 
 		/* Skip top levels of page tables for
 		 * iommu which has less agaw than default.
+		 * Unnecessary for PT mode.
 		 */
-		for (agaw = domain->agaw; agaw != iommu->agaw; agaw--) {
-			pgd = phys_to_virt(dma_pte_addr(pgd));
-			if (!dma_pte_present(pgd)) {
-				spin_unlock_irqrestore(&iommu->lock, flags);
-				return -ENOMEM;
+		if (translation != CONTEXT_TT_PASS_THROUGH) {
+			for (agaw = domain->agaw; agaw != iommu->agaw; agaw--) {
+				pgd = phys_to_virt(dma_pte_addr(pgd));
+				if (!dma_pte_present(pgd)) {
+					spin_unlock_irqrestore(&iommu->lock, flags);
+					return -ENOMEM;
+				}
 			}
 		}
 	}
@@ -1575,6 +1568,8 @@ static int domain_context_mapping_one(struct dmar_domain *domain, int segment,
 	spin_lock_irqsave(&domain->iommu_lock, flags);
 	if (!test_and_set_bit(iommu->seq_id, &domain->iommu_bmp)) {
 		domain->iommu_count++;
+		if (domain->iommu_count == 1)
+			domain->nid = iommu->node;
 		domain_update_iommu_cap(domain);
 	}
 	spin_unlock_irqrestore(&domain->iommu_lock, flags);
@@ -1609,7 +1604,7 @@ domain_context_mapping(struct dmar_domain *domain, struct pci_dev *pdev,
 			return ret;
 		parent = parent->bus->self;
 	}
-	if (tmp->is_pcie) /* this is a PCIE-to-PCI bridge */
+	if (pci_is_pcie(tmp)) /* this is a PCIe-to-PCI bridge */
 		return domain_context_mapping_one(domain,
 					pci_domain_nr(tmp->subordinate),
 					tmp->subordinate->number, 0,
@@ -1649,7 +1644,7 @@ static int domain_context_mapped(struct pci_dev *pdev)
 			return ret;
 		parent = parent->bus->self;
 	}
-	if (tmp->is_pcie)
+	if (pci_is_pcie(tmp))
 		return device_context_mapped(iommu, tmp->subordinate->number,
 					     0);
 	else
@@ -1819,7 +1814,7 @@ static struct dmar_domain *get_domain_for_dev(struct pci_dev *pdev, int gaw)
 
 	dev_tmp = pci_find_upstream_pcie_bridge(pdev);
 	if (dev_tmp) {
-		if (dev_tmp->is_pcie) {
+		if (pci_is_pcie(dev_tmp)) {
 			bus = dev_tmp->subordinate->number;
 			devfn = 0;
 		} else {
@@ -1934,6 +1929,9 @@ error:
 }
 
 static int iommu_identity_mapping;
+#define IDENTMAP_ALL		1
+#define IDENTMAP_GFX		2
+#define IDENTMAP_AZALIA		4
 
 static int iommu_domain_identity_map(struct dmar_domain *domain,
 				     unsigned long long start,
@@ -1986,6 +1984,16 @@ static int iommu_prepare_identity_map(struct pci_dev *pdev,
 	       "IOMMU: Setting identity map for device %s [0x%Lx - 0x%Lx]\n",
 	       pci_name(pdev), start, end);
 	
+	if (end < start) {
+		WARN(1, "Your BIOS is broken; RMRR ends before it starts!\n"
+			"BIOS vendor: %s; Ver: %s; Product Version: %s\n",
+			dmi_get_system_info(DMI_BIOS_VENDOR),
+			dmi_get_system_info(DMI_BIOS_VERSION),
+		     dmi_get_system_info(DMI_PRODUCT_VERSION));
+		ret = -EIO;
+		goto error;
+	}
+
 	if (end >> agaw_to_width(domain->agaw)) {
 		WARN(1, "Your BIOS is broken; RMRR exceeds permitted address width (%d bits)\n"
 		     "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
@@ -2151,8 +2159,14 @@ static int domain_add_dev_info(struct dmar_domain *domain,
 
 static int iommu_should_identity_map(struct pci_dev *pdev, int startup)
 {
-	if (iommu_identity_mapping == 2)
-		return IS_GFX_DEVICE(pdev);
+	if ((iommu_identity_mapping & IDENTMAP_AZALIA) && IS_AZALIA(pdev))
+		return 1;
+
+	if ((iommu_identity_mapping & IDENTMAP_GFX) && IS_GFX_DEVICE(pdev))
+		return 1;
+
+	if (!(iommu_identity_mapping & IDENTMAP_ALL))
+		return 0;
 
 	/*
 	 * We want to start off with all devices in the 1:1 domain, and
@@ -2171,7 +2185,7 @@ static int iommu_should_identity_map(struct pci_dev *pdev, int startup)
 	 * the 1:1 domain, just in _case_ one of their siblings turns out
 	 * not to be able to map all of memory.
 	 */
-	if (!pdev->is_pcie) {
+	if (!pci_is_pcie(pdev)) {
 		if (!pci_is_root_bus(pdev->bus))
 			return 0;
 		if (pdev->class >> 8 == PCI_CLASS_BRIDGE_PCI)
@@ -2332,11 +2346,14 @@ int __init init_dmars(void)
 	}
 
 	if (iommu_pass_through)
-		iommu_identity_mapping = 1;
+		iommu_identity_mapping |= IDENTMAP_ALL;
+
 #ifdef CONFIG_DMAR_BROKEN_GFX_WA
-	else
-		iommu_identity_mapping = 2;
+	iommu_identity_mapping |= IDENTMAP_GFX;
 #endif
+
+	check_tylersburg_isoch();
+
 	/*
 	 * If pass through is not set or not enabled, setup context entries for
 	 * identity mappings for rmrr, gfx, and isa and may fall back to static
@@ -2753,7 +2770,15 @@ static void *intel_alloc_coherent(struct device *hwdev, size_t size,
 
 	size = PAGE_ALIGN(size);
 	order = get_order(size);
-	flags &= ~(GFP_DMA | GFP_DMA32);
+
+	if (!iommu_no_mapping(hwdev))
+		flags &= ~(GFP_DMA | GFP_DMA32);
+	else if (hwdev->coherent_dma_mask < dma_get_required_mask(hwdev)) {
+		if (hwdev->coherent_dma_mask < DMA_BIT_MASK(32))
+			flags |= GFP_DMA;
+		else
+			flags |= GFP_DMA32;
+	}
 
 	vaddr = (void *)__get_free_pages(flags, order);
 	if (!vaddr)
@@ -3193,6 +3218,36 @@ static int __init init_iommu_sysfs(void)
 }
 #endif	/* CONFIG_PM */
 
+/*
+ * Here we only respond to action of unbound device from driver.
+ *
+ * Added device is not attached to its DMAR domain here yet. That will happen
+ * when mapping the device to iova.
+ */
+static int device_notifier(struct notifier_block *nb,
+				  unsigned long action, void *data)
+{
+	struct device *dev = data;
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct dmar_domain *domain;
+
+	if (iommu_no_mapping(dev))
+		return 0;
+
+	domain = find_domain(pdev);
+	if (!domain)
+		return 0;
+
+	if (action == BUS_NOTIFY_UNBOUND_DRIVER && !iommu_pass_through)
+		domain_remove_one_dev_info(domain, pdev);
+
+	return 0;
+}
+
+static struct notifier_block device_nb = {
+	.notifier_call = device_notifier,
+};
+
 int __init intel_iommu_init(void)
 {
 	int ret = 0;
@@ -3217,7 +3272,7 @@ int __init intel_iommu_init(void)
 	 * Check the need for DMA-remapping initialization now.
 	 * Above initialization will also be used by Interrupt-remapping.
 	 */
-	if (no_iommu || swiotlb || dmar_disabled)
+	if (no_iommu || dmar_disabled)
 		return -ENODEV;
 
 	iommu_init_mempool();
@@ -3238,12 +3293,16 @@ int __init intel_iommu_init(void)
 	"PCI-DMA: Intel(R) Virtualization Technology for Directed I/O\n");
 
 	init_timer(&unmap_timer);
-	force_iommu = 1;
+#ifdef CONFIG_SWIOTLB
+	swiotlb = 0;
+#endif
 	dma_ops = &intel_dma_ops;
 
 	init_iommu_sysfs();
 
 	register_iommu(&intel_iommu_ops);
+
+	bus_register_notifier(&pci_bus_type, &device_nb);
 
 	return 0;
 }
@@ -3266,7 +3325,7 @@ static void iommu_detach_dependent_devices(struct intel_iommu *iommu,
 					 parent->devfn);
 			parent = parent->bus->self;
 		}
-		if (tmp->is_pcie) /* this is a PCIE-to-PCI bridge */
+		if (pci_is_pcie(tmp)) /* this is a PCIe-to-PCI bridge */
 			iommu_detach_dev(iommu,
 				tmp->subordinate->number, 0);
 		else /* this is a legacy PCI bridge */
@@ -3402,6 +3461,7 @@ static struct dmar_domain *iommu_alloc_vm_domain(void)
 		return NULL;
 
 	domain->id = vm_domid++;
+	domain->nid = -1;
 	memset(&domain->iommu_bmp, 0, sizeof(unsigned long));
 	domain->flags = DOMAIN_FLAG_VIRTUAL_MACHINE;
 
@@ -3428,9 +3488,10 @@ static int md_domain_init(struct dmar_domain *domain, int guest_width)
 	domain->iommu_coherency = 0;
 	domain->iommu_snooping = 0;
 	domain->max_addr = 0;
+	domain->nid = -1;
 
 	/* always allocate the top pgd */
-	domain->pgd = (struct dma_pte *)alloc_pgtable_page();
+	domain->pgd = (struct dma_pte *)alloc_pgtable_page(domain->nid);
 	if (!domain->pgd)
 		return -ENOMEM;
 	domain_flush_cache(domain, domain->pgd, PAGE_SIZE);
@@ -3670,3 +3731,61 @@ static void __devinit quirk_iommu_rwbf(struct pci_dev *dev)
 }
 
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x2a40, quirk_iommu_rwbf);
+
+/* On Tylersburg chipsets, some BIOSes have been known to enable the
+   ISOCH DMAR unit for the Azalia sound device, but not give it any
+   TLB entries, which causes it to deadlock. Check for that.  We do
+   this in a function called from init_dmars(), instead of in a PCI
+   quirk, because we don't want to print the obnoxious "BIOS broken"
+   message if VT-d is actually disabled.
+*/
+static void __init check_tylersburg_isoch(void)
+{
+	struct pci_dev *pdev;
+	uint32_t vtisochctrl;
+
+	/* If there's no Azalia in the system anyway, forget it. */
+	pdev = pci_get_device(PCI_VENDOR_ID_INTEL, 0x3a3e, NULL);
+	if (!pdev)
+		return;
+	pci_dev_put(pdev);
+
+	/* System Management Registers. Might be hidden, in which case
+	   we can't do the sanity check. But that's OK, because the
+	   known-broken BIOSes _don't_ actually hide it, so far. */
+	pdev = pci_get_device(PCI_VENDOR_ID_INTEL, 0x342e, NULL);
+	if (!pdev)
+		return;
+
+	if (pci_read_config_dword(pdev, 0x188, &vtisochctrl)) {
+		pci_dev_put(pdev);
+		return;
+	}
+
+	pci_dev_put(pdev);
+
+	/* If Azalia DMA is routed to the non-isoch DMAR unit, fine. */
+	if (vtisochctrl & 1)
+		return;
+
+	/* Drop all bits other than the number of TLB entries */
+	vtisochctrl &= 0x1c;
+
+	/* If we have the recommended number of TLB entries (16), fine. */
+	if (vtisochctrl == 0x10)
+		return;
+
+	/* Zero TLB entries? You get to ride the short bus to school. */
+	if (!vtisochctrl) {
+		WARN(1, "Your BIOS is broken; DMA routed to ISOCH DMAR unit but no TLB space.\n"
+		     "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
+		     dmi_get_system_info(DMI_BIOS_VENDOR),
+		     dmi_get_system_info(DMI_BIOS_VERSION),
+		     dmi_get_system_info(DMI_PRODUCT_VERSION));
+		iommu_identity_mapping |= IDENTMAP_AZALIA;
+		return;
+	}
+	
+	printk(KERN_WARNING "DMAR: Recommended TLB entries for ISOCH unit is 16; your BIOS set %d\n",
+	       vtisochctrl);
+}

@@ -259,7 +259,6 @@ config SND_CS5530
 
 config SND_CS5535AUDIO
 	tristate "CS5535/CS5536 Audio"
-	depends on X86 && !X86_64
 	select SND_PCM
 	select SND_AC97_CODEC
 	help
@@ -571,6 +570,7 @@ config SND_ICE1712
 	tristate "ICEnsemble ICE1712 (Envy24)"
 	select SND_MPU401_UART
 	select SND_AC97_CODEC
+	select BITREVERSE
 	help
 	  Say Y here to include support for soundcards based on the
 	  ICE1712 (Envy24) chip.

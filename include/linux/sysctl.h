@@ -15,9 +15,6 @@
  **  The kernel will then return -ENOTDIR to any application using
  **  the old binary interface.
  **
- **  For new interfaces unless you really need a binary number
- **  please use CTL_UNNUMBERED.
- **
  ****************************************************************
  ****************************************************************
  */
@@ -49,12 +46,6 @@ struct __sysctl_args {
 /* Define sysctl names first */
 
 /* Top-level names: */
-
-/* For internal pattern-matching use only: */
-#ifdef __KERNEL__
-#define CTL_NONE	0
-#define CTL_UNNUMBERED	CTL_NONE	/* sysctl without a binary number */
-#endif
 
 enum
 {
@@ -98,8 +89,8 @@ enum
 	KERN_VERSION=4,		/* string: compile time info */
 	KERN_SECUREMASK=5,	/* struct: maximum rights mask */
 	KERN_PROF=6,		/* table: profiling information */
-	KERN_NODENAME=7,
-	KERN_DOMAINNAME=8,
+	KERN_NODENAME=7,	/* string: hostname */
+	KERN_DOMAINNAME=8,	/* string: domainname */
 
 	KERN_PANIC=15,		/* int: panic timeout */
 	KERN_REALROOTDEV=16,	/* real root device to mount after initrd */
@@ -111,8 +102,8 @@ enum
 	KERN_PPC_HTABRECLAIM=25, /* turn htab reclaimation on/off on PPC */
 	KERN_PPC_ZEROPAGED=26,	/* turn idle page zeroing on/off on PPC */
 	KERN_PPC_POWERSAVE_NAP=27, /* use nap mode for power saving */
-	KERN_MODPROBE=28,
-	KERN_SG_BIG_BUFF=29,
+	KERN_MODPROBE=28,	/* string: modprobe path */
+	KERN_SG_BIG_BUFF=29,	/* int: sg driver reserved buffer size */
 	KERN_ACCT=30,		/* BSD process accounting parameters */
 	KERN_PPC_L2CR=31,	/* l2cr register on PPC */
 
@@ -159,7 +150,7 @@ enum
 	KERN_ACPI_VIDEO_FLAGS=71, /* int: flags for setting up video after ACPI sleep */
 	KERN_IA64_UNALIGNED=72, /* int: ia64 unaligned userland trap enable */
 	KERN_COMPAT_LOG=73,	/* int: print compat layer  messages */
-	KERN_MAX_LOCK_DEPTH=74,
+	KERN_MAX_LOCK_DEPTH=74, /* int: rtmutex's maximum lock depth */
 	KERN_NMI_WATCHDOG=75, /* int: enable/disable nmi watchdog */
 	KERN_PANIC_ON_NMI=76, /* int: whether we will panic on an unrecovered */
 };
@@ -490,6 +481,8 @@ enum
 	NET_IPV4_CONF_PROMOTE_SECONDARIES=20,
 	NET_IPV4_CONF_ARP_ACCEPT=21,
 	NET_IPV4_CONF_ARP_NOTIFY=22,
+	NET_IPV4_CONF_ACCEPT_LOCAL=23,
+	NET_IPV4_CONF_SRC_VMARK=24,
 	__NET_IPV4_CONF_MAX
 };
 
@@ -972,10 +965,6 @@ extern int sysctl_perm(struct ctl_table_root *root,
 
 typedef struct ctl_table ctl_table;
 
-typedef int ctl_handler (struct ctl_table *table,
-			 void __user *oldval, size_t __user *oldlenp,
-			 void __user *newval, size_t newlen);
-
 typedef int proc_handler (struct ctl_table *ctl, int write,
 			  void __user *buffer, size_t *lenp, loff_t *ppos);
 
@@ -996,21 +985,10 @@ extern int proc_doulongvec_minmax(struct ctl_table *, int,
 extern int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int,
 				      void __user *, size_t *, loff_t *);
 
-extern int do_sysctl (int __user *name, int nlen,
-		      void __user *oldval, size_t __user *oldlenp,
-		      void __user *newval, size_t newlen);
-
-extern ctl_handler sysctl_data;
-extern ctl_handler sysctl_string;
-extern ctl_handler sysctl_intvec;
-extern ctl_handler sysctl_jiffies;
-extern ctl_handler sysctl_ms_jiffies;
-
-
 /*
  * Register a set of sysctl names by calling register_sysctl_table
- * with an initialised array of struct ctl_table's.  An entry with zero
- * ctl_name and NULL procname terminates the table.  table->de will be
+ * with an initialised array of struct ctl_table's.  An entry with 
+ * NULL procname terminates the table.  table->de will be
  * set up by the registration and need not be initialised in advance.
  *
  * sysctl names can be mirrored automatically under /proc/sys.  The
@@ -1023,23 +1001,10 @@ extern ctl_handler sysctl_ms_jiffies;
  * under /proc; non-leaf nodes will be represented by directories.  A
  * null procname disables /proc mirroring at this node.
  *
- * sysctl entries with a zero ctl_name will not be available through
- * the binary sysctl interface.
- *
  * sysctl(2) can automatically manage read and write requests through
  * the sysctl table.  The data and maxlen fields of the ctl_table
  * struct enable minimal validation of the values being written to be
  * performed, and the mode field allows minimal authentication.
- * 
- * More sophisticated management can be enabled by the provision of a
- * strategy routine with the table entry.  This will be called before
- * any automatic read or write of the data is performed.
- * 
- * The strategy routine may return:
- * <0: Error occurred (error is passed to user process)
- * 0:  OK - proceed with automatic read or write.
- * >0: OK - read or write has been done by the strategy routine, so 
- *     return immediately.
  * 
  * There must be a proc_handler routine for any terminal nodes
  * mirrored under /proc/sys (non-terminals are handled by a built-in
@@ -1050,7 +1015,6 @@ extern ctl_handler sysctl_ms_jiffies;
 /* A sysctl table is an array of struct ctl_table: */
 struct ctl_table 
 {
-	int ctl_name;			/* Binary ID */
 	const char *procname;		/* Text ID for /proc/sys, or zero */
 	void *data;
 	int maxlen;
@@ -1058,7 +1022,6 @@ struct ctl_table
 	struct ctl_table *child;
 	struct ctl_table *parent;	/* Automatically set */
 	proc_handler *proc_handler;	/* Callback for text formatting */
-	ctl_handler *strategy;		/* Callback function for all r/w */
 	void *extra1;
 	void *extra2;
 };
@@ -1092,7 +1055,6 @@ struct ctl_table_header
 /* struct ctl_path describes where in the hierarchy a table is added */
 struct ctl_path {
 	const char *procname;
-	int ctl_name;
 };
 
 void register_sysctl_root(struct ctl_table_root *root);

@@ -1,31 +1,9 @@
 /*
- * File:         arch/blackfin/mach-bf518/boards/ezbrd.c
- * Based on:     arch/blackfin/mach-bf527/boards/ezbrd.c
- * Author:       Bryan Wu <cooloney@kernel.org>
+ * Copyright 2004-2009 Analog Devices Inc.
+ *                2005 National ICT Australia (NICTA)
+ *                      Aidan Williams <aidan@nicta.com.au>
  *
- * Created:
- * Description:
- *
- * Modified:
- *               Copyright 2005 National ICT Australia (NICTA)
- *               Copyright 2004-2008 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
 
 #include <linux/device.h>
@@ -571,19 +549,6 @@ static struct platform_device bf51x_sdh_device = {
 };
 #endif
 
-static struct resource bfin_gpios_resources = {
-	.start = 0,
-	.end   = MAX_BLACKFIN_GPIOS - 1,
-	.flags = IORESOURCE_IRQ,
-};
-
-static struct platform_device bfin_gpios_device = {
-	.name = "simple-gpio",
-	.id = -1,
-	.num_resources = 1,
-	.resource = &bfin_gpios_resources,
-};
-
 static const unsigned int cclk_vlev_datasheet[] =
 {
 	VRPAIR(VLEV_100, 400000000),
@@ -660,8 +625,6 @@ static struct platform_device *stamp_devices[] __initdata = {
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 	&ezbrd_flash_device,
 #endif
-
-	&bfin_gpios_device,
 };
 
 static int __init ezbrd_init(void)

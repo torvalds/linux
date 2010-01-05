@@ -1,5 +1,5 @@
-#ifndef _PERF_TYPES_H
-#define _PERF_TYPES_H
+#ifndef __PERF_TYPES_H
+#define __PERF_TYPES_H
 
 /*
  * We define u64 as unsigned long long for every architecture
@@ -14,4 +14,4 @@ typedef signed short	   s16;
 typedef unsigned char	   u8;
 typedef signed char	   s8;
 
-#endif /* _PERF_TYPES_H */
+#endif /* __PERF_TYPES_H */

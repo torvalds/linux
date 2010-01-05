@@ -701,7 +701,7 @@ static int gbefb_set_par(struct fb_info *info)
 	   blocks of 512x128, 256x128 or 128x128 pixels, respectively for 8bit,
 	   16bit and 32 bit modes (64 kB). They cover the screen with partial
 	   tiles on the right and/or bottom of the screen if needed.
-	   For exemple in 640x480 8 bit mode the mapping is:
+	   For example in 640x480 8 bit mode the mapping is:
 
 	   <-------- 640 ----->
 	   <---- 512 ----><128|384 offscreen>
@@ -1147,7 +1147,7 @@ static int __init gbefb_probe(struct platform_device *p_dev)
 	gbefb_setup(options);
 #endif
 
-	if (!request_region(GBE_BASE, sizeof(struct sgi_gbe), "GBE")) {
+	if (!request_mem_region(GBE_BASE, sizeof(struct sgi_gbe), "GBE")) {
 		printk(KERN_ERR "gbefb: couldn't reserve mmio region\n");
 		ret = -EBUSY;
 		goto out_release_framebuffer;

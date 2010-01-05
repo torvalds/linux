@@ -7,8 +7,6 @@
  *  version 2 as published by the Free Software Foundation.
  *
  */
-
-#include <linux/cpufreq.h>
 #include <mach/hardware.h>
 #include <mach/clocks.h>
 #include <linux/err.h>
@@ -30,12 +28,6 @@ struct clk {
 #define PREDIV(c)	(((c) >>  2) & 0x1f)
 #define HCLKDIV(c)	(((c) >>  0) & 0x02)
 #define PCLKDIV(c)	(((c) >> 16) & 0x03)
-
-unsigned int cpufreq_get (unsigned int cpu) /* in kHz */
-{
-	return fclkfreq_get ()/1000;
-}
-EXPORT_SYMBOL(cpufreq_get);
 
 unsigned int fclkfreq_get (void)
 {

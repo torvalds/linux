@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -1825,6 +1825,7 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RF_TYPE);
 	rt2x00usb_register_read(rt2x00dev, MAC_CSR0, &reg);
 	rt2x00_set_chip(rt2x00dev, RT2571, value, reg);
+	rt2x00_print_chip(rt2x00dev);
 
 	if (!rt2x00_check_rev(&rt2x00dev->chip, 0x000ffff0, 0x25730) ||
 	    rt2x00_check_rev(&rt2x00dev->chip, 0x0000000f, 0)) {
@@ -2068,7 +2069,6 @@ static int rt73usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	    IEEE80211_HW_SIGNAL_DBM |
 	    IEEE80211_HW_SUPPORTS_PS |
 	    IEEE80211_HW_PS_NULLFUNC_STACK;
-	rt2x00dev->hw->extra_tx_headroom = TXD_DESC_SIZE;
 
 	SET_IEEE80211_DEV(rt2x00dev->hw, rt2x00dev->dev);
 	SET_IEEE80211_PERM_ADDR(rt2x00dev->hw,
@@ -2305,19 +2305,20 @@ static const struct data_queue_desc rt73usb_queue_bcn = {
 };
 
 static const struct rt2x00_ops rt73usb_ops = {
-	.name		= KBUILD_MODNAME,
-	.max_sta_intf	= 1,
-	.max_ap_intf	= 4,
-	.eeprom_size	= EEPROM_SIZE,
-	.rf_size	= RF_SIZE,
-	.tx_queues	= NUM_TX_QUEUES,
-	.rx		= &rt73usb_queue_rx,
-	.tx		= &rt73usb_queue_tx,
-	.bcn		= &rt73usb_queue_bcn,
-	.lib		= &rt73usb_rt2x00_ops,
-	.hw		= &rt73usb_mac80211_ops,
+	.name			= KBUILD_MODNAME,
+	.max_sta_intf		= 1,
+	.max_ap_intf		= 4,
+	.eeprom_size		= EEPROM_SIZE,
+	.rf_size		= RF_SIZE,
+	.tx_queues		= NUM_TX_QUEUES,
+	.extra_tx_headroom	= TXD_DESC_SIZE,
+	.rx			= &rt73usb_queue_rx,
+	.tx			= &rt73usb_queue_tx,
+	.bcn			= &rt73usb_queue_bcn,
+	.lib			= &rt73usb_rt2x00_ops,
+	.hw			= &rt73usb_mac80211_ops,
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
-	.debugfs	= &rt73usb_rt2x00debug,
+	.debugfs		= &rt73usb_rt2x00debug,
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
 };
 
@@ -2381,6 +2382,7 @@ static struct usb_device_id rt73usb_device_table[] = {
 	/* Huawei-3Com */
 	{ USB_DEVICE(0x1472, 0x0009), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* Hercules */
+	{ USB_DEVICE(0x06f8, 0xe002), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x06f8, 0xe010), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x06f8, 0xe020), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* Linksys */
@@ -2388,10 +2390,13 @@ static struct usb_device_id rt73usb_device_table[] = {
 	{ USB_DEVICE(0x13b1, 0x0023), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x13b1, 0x0028), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* MSI */
+	{ USB_DEVICE(0x0db0, 0x4600), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x0db0, 0x6877), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x0db0, 0x6874), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x0db0, 0xa861), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x0db0, 0xa874), USB_DEVICE_DATA(&rt73usb_ops) },
+	/* Ovislink */
+	{ USB_DEVICE(0x1b75, 0x7318), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* Ralink */
 	{ USB_DEVICE(0x04bb, 0x093d), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x148f, 0x2573), USB_DEVICE_DATA(&rt73usb_ops) },
@@ -2419,6 +2424,8 @@ static struct usb_device_id rt73usb_device_table[] = {
 	/* Planex */
 	{ USB_DEVICE(0x2019, 0xab01), USB_DEVICE_DATA(&rt73usb_ops) },
 	{ USB_DEVICE(0x2019, 0xab50), USB_DEVICE_DATA(&rt73usb_ops) },
+	/* WideTell */
+	{ USB_DEVICE(0x7167, 0x3840), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* Zcom */
 	{ USB_DEVICE(0x0cde, 0x001c), USB_DEVICE_DATA(&rt73usb_ops) },
 	/* ZyXEL */

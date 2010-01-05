@@ -18,6 +18,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/ctype.h>
+#include <linux/string.h>
 #include <linux/sysctl.h>
 #include <asm/uaccess.h>
 #include <linux/module.h>
@@ -893,35 +894,30 @@ s390dbf_procactive(ctl_table *table, int write,
 
 static struct ctl_table s390dbf_table[] = {
 	{
-		.ctl_name       = CTL_S390DBF_STOPPABLE,
 		.procname       = "debug_stoppable",
 		.data		= &debug_stoppable,
 		.maxlen		= sizeof(int),
 		.mode           = S_IRUGO | S_IWUSR,
-		.proc_handler   = &proc_dointvec,
-		.strategy	= &sysctl_intvec,
+		.proc_handler   = proc_dointvec,
 	},
 	 {
-		.ctl_name       = CTL_S390DBF_ACTIVE,
 		.procname       = "debug_active",
 		.data		= &debug_active,
 		.maxlen		= sizeof(int),
 		.mode           = S_IRUGO | S_IWUSR,
-		.proc_handler   = &s390dbf_procactive,
-		.strategy	= &sysctl_intvec,
+		.proc_handler   = s390dbf_procactive,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static struct ctl_table s390dbf_dir_table[] = {
 	{
-		.ctl_name       = CTL_S390DBF,
 		.procname       = "s390dbf",
 		.maxlen         = 0,
 		.mode           = S_IRUGO | S_IXUGO,
 		.child          = s390dbf_table,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static struct ctl_table_header *s390dbf_sysctl_header;
@@ -1183,7 +1179,7 @@ debug_get_uint(char *buf)
 {
 	int rc;
 
-	for(; isspace(*buf); buf++);
+	buf = skip_spaces(buf);
 	rc = simple_strtoul(buf, &buf, 10);
 	if(*buf){
 		rc = -EINVAL;

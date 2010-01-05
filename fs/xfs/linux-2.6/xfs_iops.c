@@ -47,6 +47,7 @@
 #include "xfs_buf_item.h"
 #include "xfs_utils.h"
 #include "xfs_vnodeops.h"
+#include "xfs_trace.h"
 
 #include <linux/capability.h>
 #include <linux/xattr.h>
@@ -57,19 +58,22 @@
 #include <linux/fiemap.h>
 
 /*
- * Bring the atime in the XFS inode uptodate.
- * Used before logging the inode to disk or when the Linux inode goes away.
+ * Bring the timestamps in the XFS inode uptodate.
+ *
+ * Used before writing the inode to disk.
  */
 void
-xfs_synchronize_atime(
+xfs_synchronize_times(
 	xfs_inode_t	*ip)
 {
 	struct inode	*inode = VFS_I(ip);
 
-	if (!(inode->i_state & I_CLEAR)) {
-		ip->i_d.di_atime.t_sec = (__int32_t)inode->i_atime.tv_sec;
-		ip->i_d.di_atime.t_nsec = (__int32_t)inode->i_atime.tv_nsec;
-	}
+	ip->i_d.di_atime.t_sec = (__int32_t)inode->i_atime.tv_sec;
+	ip->i_d.di_atime.t_nsec = (__int32_t)inode->i_atime.tv_nsec;
+	ip->i_d.di_ctime.t_sec = (__int32_t)inode->i_ctime.tv_sec;
+	ip->i_d.di_ctime.t_nsec = (__int32_t)inode->i_ctime.tv_nsec;
+	ip->i_d.di_mtime.t_sec = (__int32_t)inode->i_mtime.tv_sec;
+	ip->i_d.di_mtime.t_nsec = (__int32_t)inode->i_mtime.tv_nsec;
 }
 
 /*
@@ -106,32 +110,20 @@ xfs_ichgtime(
 	if ((flags & XFS_ICHGTIME_MOD) &&
 	    !timespec_equal(&inode->i_mtime, &tv)) {
 		inode->i_mtime = tv;
-		ip->i_d.di_mtime.t_sec = (__int32_t)tv.tv_sec;
-		ip->i_d.di_mtime.t_nsec = (__int32_t)tv.tv_nsec;
 		sync_it = 1;
 	}
 	if ((flags & XFS_ICHGTIME_CHG) &&
 	    !timespec_equal(&inode->i_ctime, &tv)) {
 		inode->i_ctime = tv;
-		ip->i_d.di_ctime.t_sec = (__int32_t)tv.tv_sec;
-		ip->i_d.di_ctime.t_nsec = (__int32_t)tv.tv_nsec;
 		sync_it = 1;
 	}
 
 	/*
-	 * We update the i_update_core field _after_ changing
-	 * the timestamps in order to coordinate properly with
-	 * xfs_iflush() so that we don't lose timestamp updates.
-	 * This keeps us from having to hold the inode lock
-	 * while doing this.  We use the SYNCHRONIZE macro to
-	 * ensure that the compiler does not reorder the update
-	 * of i_update_core above the timestamp updates above.
+	 * Update complete - now make sure everyone knows that the inode
+	 * is dirty.
 	 */
-	if (sync_it) {
-		SYNCHRONIZE();
-		ip->i_update_core = 1;
+	if (sync_it)
 		xfs_mark_inode_dirty_sync(ip);
-	}
 }
 
 /*
@@ -506,10 +498,8 @@ xfs_vn_getattr(
 	stat->gid = ip->i_d.di_gid;
 	stat->ino = ip->i_ino;
 	stat->atime = inode->i_atime;
-	stat->mtime.tv_sec = ip->i_d.di_mtime.t_sec;
-	stat->mtime.tv_nsec = ip->i_d.di_mtime.t_nsec;
-	stat->ctime.tv_sec = ip->i_d.di_ctime.t_sec;
-	stat->ctime.tv_nsec = ip->i_d.di_ctime.t_nsec;
+	stat->mtime = inode->i_mtime;
+	stat->ctime = inode->i_ctime;
 	stat->blocks =
 		XFS_FSB_TO_BB(mp, ip->i_d.di_nblocks + ip->i_delayed_blks);
 
@@ -584,8 +574,8 @@ xfs_vn_fallocate(
 	bf.l_len = len;
 
 	xfs_ilock(ip, XFS_IOLOCK_EXCL);
-	error = xfs_change_file_space(ip, XFS_IOC_RESVSP, &bf,
-				      0, XFS_ATTR_NOLOCK);
+	error = -xfs_change_file_space(ip, XFS_IOC_RESVSP, &bf,
+				       0, XFS_ATTR_NOLOCK);
 	if (!error && !(mode & FALLOC_FL_KEEP_SIZE) &&
 	    offset + len > i_size_read(inode))
 		new_size = offset + len;
@@ -596,7 +586,7 @@ xfs_vn_fallocate(
 
 		iattr.ia_valid = ATTR_SIZE;
 		iattr.ia_size = new_size;
-		error = xfs_setattr(ip, &iattr, XFS_ATTR_NOLOCK);
+		error = -xfs_setattr(ip, &iattr, XFS_ATTR_NOLOCK);
 	}
 
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
@@ -804,7 +794,7 @@ xfs_setup_inode(
 	struct inode		*inode = &ip->i_vnode;
 
 	inode->i_ino = ip->i_ino;
-	inode->i_state = I_NEW|I_LOCK;
+	inode->i_state = I_NEW;
 	inode_add_to_lists(ip->i_mount->m_super, inode);
 
 	inode->i_mode	= ip->i_d.di_mode;

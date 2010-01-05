@@ -207,7 +207,7 @@ static int __init at91sam9g20ek_init(void)
 	struct clk *pllb;
 	int ret;
 
-	if (!machine_is_at91sam9g20ek())
+	if (!(machine_is_at91sam9g20ek() || machine_is_at91sam9g20ek_2mmc()))
 		return -ENODEV;
 
 	/*

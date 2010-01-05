@@ -134,7 +134,8 @@ static const unsigned short atkbd_unxlate_table[128] = {
 #define ATKBD_CMD_GETID		0x02f2
 #define ATKBD_CMD_SETREP	0x10f3
 #define ATKBD_CMD_ENABLE	0x00f4
-#define ATKBD_CMD_RESET_DIS	0x00f5
+#define ATKBD_CMD_RESET_DIS	0x00f5	/* Reset to defaults and disable */
+#define ATKBD_CMD_RESET_DEF	0x00f6	/* Reset to defaults */
 #define ATKBD_CMD_SETALL_MBR	0x00fa
 #define ATKBD_CMD_RESET_BAT	0x02ff
 #define ATKBD_CMD_RESEND	0x00fe
@@ -233,6 +234,7 @@ struct atkbd {
  */
 static void (*atkbd_platform_fixup)(struct atkbd *, const void *data);
 static void *atkbd_platform_fixup_data;
+static unsigned int (*atkbd_platform_scancode_fixup)(struct atkbd *, unsigned int);
 
 static ssize_t atkbd_attr_show_helper(struct device *dev, char *buf,
 				ssize_t (*handler)(struct atkbd *, char *));
@@ -392,6 +394,9 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 		goto out;
 
 	input_event(dev, EV_MSC, MSC_RAW, code);
+
+	if (atkbd_platform_scancode_fixup)
+		code = atkbd_platform_scancode_fixup(atkbd, code);
 
 	if (atkbd->translated) {
 
@@ -574,11 +579,22 @@ static void atkbd_event_work(struct work_struct *work)
 
 	mutex_lock(&atkbd->event_mutex);
 
-	if (test_and_clear_bit(ATKBD_LED_EVENT_BIT, &atkbd->event_mask))
-		atkbd_set_leds(atkbd);
+	if (!atkbd->enabled) {
+		/*
+		 * Serio ports are resumed asynchronously so while driver core
+		 * thinks that device is already fully operational in reality
+		 * it may not be ready yet. In this case we need to keep
+		 * rescheduling till reconnect completes.
+		 */
+		schedule_delayed_work(&atkbd->event_work,
+					msecs_to_jiffies(100));
+	} else {
+		if (test_and_clear_bit(ATKBD_LED_EVENT_BIT, &atkbd->event_mask))
+			atkbd_set_leds(atkbd);
 
-	if (test_and_clear_bit(ATKBD_REP_EVENT_BIT, &atkbd->event_mask))
-		atkbd_set_repeat_rate(atkbd);
+		if (test_and_clear_bit(ATKBD_REP_EVENT_BIT, &atkbd->event_mask))
+			atkbd_set_repeat_rate(atkbd);
+	}
 
 	mutex_unlock(&atkbd->event_mutex);
 }
@@ -770,6 +786,30 @@ static int atkbd_select_set(struct atkbd *atkbd, int target_set, int allow_extra
 	return 3;
 }
 
+static int atkbd_reset_state(struct atkbd *atkbd)
+{
+        struct ps2dev *ps2dev = &atkbd->ps2dev;
+	unsigned char param[1];
+
+/*
+ * Set the LEDs to a predefined state (all off).
+ */
+
+	param[0] = 0;
+	if (ps2_command(ps2dev, param, ATKBD_CMD_SETLEDS))
+		return -1;
+
+/*
+ * Set autorepeat to fastest possible.
+ */
+
+	param[0] = 0;
+	if (ps2_command(ps2dev, param, ATKBD_CMD_SETREP))
+		return -1;
+
+	return 0;
+}
+
 static int atkbd_activate(struct atkbd *atkbd)
 {
 	struct ps2dev *ps2dev = &atkbd->ps2dev;
@@ -797,7 +837,7 @@ static void atkbd_cleanup(struct serio *serio)
 	struct atkbd *atkbd = serio_get_drvdata(serio);
 
 	atkbd_disable(atkbd);
-	ps2_command(&atkbd->ps2dev, NULL, ATKBD_CMD_RESET_BAT);
+	ps2_command(&atkbd->ps2dev, NULL, ATKBD_CMD_RESET_DEF);
 }
 
 
@@ -852,41 +892,10 @@ static unsigned int atkbd_hp_forced_release_keys[] = {
 };
 
 /*
- * Inventec system with broken key release on volume keys
- */
-static unsigned int atkbd_inventec_forced_release_keys[] = {
-	0xae, 0xb0, -1U
-};
-
-/*
- * Perform fixup for HP Pavilion ZV6100 laptop that doesn't generate release
- * for its volume buttons
- */
-static unsigned int atkbd_hp_zv6100_forced_release_keys[] = {
-	0xae, 0xb0, -1U
-};
-
-/*
- * Perform fixup for HP (Compaq) Presario R4000 R4100 R4200 that don't generate
- * release for their volume buttons
- */
-static unsigned int atkbd_hp_r4000_forced_release_keys[] = {
-	0xae, 0xb0, -1U
-};
-
-/*
  * Samsung NC10,NC20 with Fn+F? key release not working
  */
 static unsigned int atkbd_samsung_forced_release_keys[] = {
 	0x82, 0x83, 0x84, 0x86, 0x88, 0x89, 0xb3, 0xf7, 0xf9, -1U
-};
-
-/*
- * The volume up and volume down special keys on a Fujitsu Amilo PA 1510 laptop
- * do not generate release events so we have to do it ourselves.
- */
-static unsigned int atkbd_amilo_pa1510_forced_release_keys[] = {
-	0xb0, 0xae, -1U
 };
 
 /*
@@ -909,6 +918,30 @@ static unsigned int atkbd_amilo_xi3650_forced_release_keys[] = {
 static unsigned int atkdb_soltech_ta12_forced_release_keys[] = {
 	0xa0, 0xae, 0xb0, -1U
 };
+
+/*
+ * Many notebooks don't send key release event for volume up/down
+ * keys, with key list below common among them
+ */
+static unsigned int atkbd_volume_forced_release_keys[] = {
+	0xae, 0xb0, -1U
+};
+
+/*
+ * OQO 01+ multimedia keys (64--66) generate e0 6x upon release whereas
+ * they should be generating e4-e6 (0x80 | code).
+ */
+static unsigned int atkbd_oqo_01plus_scancode_fixup(struct atkbd *atkbd,
+						    unsigned int code)
+{
+	if (atkbd->translated && atkbd->emul == 1 &&
+	    (code == 0x64 || code == 0x65 || code == 0x66)) {
+		atkbd->emul = 0;
+		code |= 0x80;
+	}
+
+	return code;
+}
 
 /*
  * atkbd_set_keycode_table() initializes keyboard's keycode table
@@ -1087,6 +1120,7 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 		}
 
 		atkbd->set = atkbd_select_set(atkbd, atkbd_set, atkbd_extra);
+		atkbd_reset_state(atkbd);
 		atkbd_activate(atkbd);
 
 	} else {
@@ -1141,6 +1175,18 @@ static int atkbd_reconnect(struct serio *serio)
 			return -1;
 
 		atkbd_activate(atkbd);
+
+		/*
+		 * Restore LED state and repeat rate. While input core
+		 * will do this for us at resume time reconnect may happen
+		 * because user requested it via sysfs or simply because
+		 * keyboard was unplugged and plugged in again so we need
+		 * to do it ourselves here.
+		 */
+		atkbd_set_leds(atkbd);
+		if (!atkbd->softrepeat)
+			atkbd_set_repeat_rate(atkbd);
+
 	}
 
 	atkbd_enable(atkbd);
@@ -1267,6 +1313,7 @@ static ssize_t atkbd_set_extra(struct atkbd *atkbd, const char *buf, size_t coun
 
 		atkbd->dev = new_dev;
 		atkbd->set = atkbd_select_set(atkbd, atkbd->set, value);
+		atkbd_reset_state(atkbd);
 		atkbd_activate(atkbd);
 		atkbd_set_keycode_table(atkbd);
 		atkbd_set_device_attrs(atkbd);
@@ -1388,6 +1435,7 @@ static ssize_t atkbd_set_set(struct atkbd *atkbd, const char *buf, size_t count)
 
 		atkbd->dev = new_dev;
 		atkbd->set = atkbd_select_set(atkbd, value, atkbd->extra);
+		atkbd_reset_state(atkbd);
 		atkbd_activate(atkbd);
 		atkbd_set_keycode_table(atkbd);
 		atkbd_set_device_attrs(atkbd);
@@ -1513,9 +1561,15 @@ static int __init atkbd_setup_forced_release(const struct dmi_system_id *id)
 	return 0;
 }
 
-static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
+static int __init atkbd_setup_scancode_fixup(const struct dmi_system_id *id)
+{
+	atkbd_platform_scancode_fixup = id->driver_data;
+
+	return 0;
+}
+
+static const struct dmi_system_id atkbd_dmi_quirk_table[] __initconst = {
 	{
-		.ident = "Dell Laptop",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_CHASSIS_TYPE, "8"), /* Portable */
@@ -1524,7 +1578,6 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_dell_laptop_forced_release_keys,
 	},
 	{
-		.ident = "Dell Laptop",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Computer Corporation"),
 			DMI_MATCH(DMI_CHASSIS_TYPE, "8"), /* Portable */
@@ -1533,7 +1586,6 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_dell_laptop_forced_release_keys,
 	},
 	{
-		.ident = "HP 2133",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "HP 2133"),
@@ -1542,52 +1594,48 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_hp_forced_release_keys,
 	},
 	{
-		.ident = "HP Pavilion ZV6100",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Pavilion ZV6100"),
 		},
 		.callback = atkbd_setup_forced_release,
-		.driver_data = atkbd_hp_zv6100_forced_release_keys,
+		.driver_data = atkbd_volume_forced_release_keys,
 	},
 	{
-		.ident = "HP Presario R4000",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Presario R4000"),
 		},
 		.callback = atkbd_setup_forced_release,
-		.driver_data = atkbd_hp_r4000_forced_release_keys,
+		.driver_data = atkbd_volume_forced_release_keys,
 	},
 	{
-		.ident = "HP Presario R4100",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Presario R4100"),
 		},
 		.callback = atkbd_setup_forced_release,
-		.driver_data = atkbd_hp_r4000_forced_release_keys,
+		.driver_data = atkbd_volume_forced_release_keys,
 	},
 	{
-		.ident = "HP Presario R4200",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Presario R4200"),
 		},
 		.callback = atkbd_setup_forced_release,
-		.driver_data = atkbd_hp_r4000_forced_release_keys,
+		.driver_data = atkbd_volume_forced_release_keys,
 	},
 	{
-		.ident = "Inventec Symphony",
+		/* Inventec Symphony */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "INVENTEC"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "SYMPHONY 6.0/7.0"),
 		},
 		.callback = atkbd_setup_forced_release,
-		.driver_data = atkbd_inventec_forced_release_keys,
+		.driver_data = atkbd_volume_forced_release_keys,
 	},
 	{
-		.ident = "Samsung NC10",
+		/* Samsung NC10 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "NC10"),
@@ -1596,7 +1644,7 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_samsung_forced_release_keys,
 	},
 	{
-		.ident = "Samsung NC20",
+		/* Samsung NC20 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "NC20"),
@@ -1605,7 +1653,7 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_samsung_forced_release_keys,
 	},
 	{
-		.ident = "Samsung SQ45S70S",
+		/* Samsung SQ45S70S */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "SQ45S70S"),
@@ -1614,16 +1662,16 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_samsung_forced_release_keys,
 	},
 	{
-		.ident = "Fujitsu Amilo PA 1510",
+		/* Fujitsu Amilo PA 1510 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Pa 1510"),
 		},
 		.callback = atkbd_setup_forced_release,
-		.driver_data = atkbd_amilo_pa1510_forced_release_keys,
+		.driver_data = atkbd_volume_forced_release_keys,
 	},
 	{
-		.ident = "Fujitsu Amilo Pi 3525",
+		/* Fujitsu Amilo Pi 3525 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Pi 3525"),
@@ -1632,7 +1680,7 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_amilo_pi3525_forced_release_keys,
 	},
 	{
-		.ident = "Fujitsu Amilo Xi 3650",
+		/* Fujitsu Amilo Xi 3650 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Xi 3650"),
@@ -1641,13 +1689,21 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_amilo_xi3650_forced_release_keys,
 	},
 	{
-		.ident = "Soltech Corporation TA12",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Soltech Corporation"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TA12"),
 		},
 		.callback = atkbd_setup_forced_release,
 		.driver_data = atkdb_soltech_ta12_forced_release_keys,
+	},
+	{
+		/* OQO Model 01+ */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "OQO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ZEPTO"),
+		},
+		.callback = atkbd_setup_scancode_fixup,
+		.driver_data = atkbd_oqo_01plus_scancode_fixup,
 	},
 	{ }
 };

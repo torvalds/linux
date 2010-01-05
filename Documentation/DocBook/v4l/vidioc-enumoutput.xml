@@ -114,7 +114,13 @@ details on video standards and how to switch see <xref
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
-	    <entry><structfield>reserved</structfield>[4]</entry>
+	    <entry><structfield>capabilities</structfield></entry>
+	    <entry>This field provides capabilities for the
+output. See <xref linkend="output-capabilities" /> for flags.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[3]</entry>
 	    <entry>Reserved for future extensions. Drivers must set
 the array to zero.</entry>
 	  </row>
@@ -142,6 +148,34 @@ CVBS, S-Video, RGB.</entry>
 	    <entry><constant>V4L2_OUTPUT_TYPE_ANALOGVGAOVERLAY</constant></entry>
 	    <entry>3</entry>
 	    <entry>[?]</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <!-- Capabilities flags based on video timings RFC by Muralidharan
+Karicheri, titled RFC (v1.2): V4L - Support for video timings at the
+input/output interface to linux-media@vger.kernel.org on 19 Oct 2009.
+	-->
+    <table frame="none" pgwide="1" id="output-capabilities">
+      <title>Output capabilities</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_OUT_CAP_PRESETS</constant></entry>
+	    <entry>0x00000001</entry>
+	    <entry>This output supports setting DV presets by using VIDIOC_S_DV_PRESET.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_OUT_CAP_CUSTOM_TIMINGS</constant></entry>
+	    <entry>0x00000002</entry>
+	    <entry>This output supports setting custom video timings by using VIDIOC_S_DV_TIMINGS.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_OUT_CAP_STD</constant></entry>
+	    <entry>0x00000004</entry>
+	    <entry>This output supports setting the TV standard by using VIDIOC_S_STD.</entry>
 	  </row>
 	</tbody>
       </tgroup>

@@ -26,6 +26,15 @@
  * http://infocenter.arm.com/help/topic/com.arm.doc.subset.swdev.abi/index.html
  */
 
+#if !defined (__ARM_EABI__)
+#warning Your compiler does not have EABI support.
+#warning    ARM unwind is known to compile only with EABI compilers.
+#warning    Change compiler or disable ARM_UNWIND option.
+#elif (__GNUC__ == 4 && __GNUC_MINOR__ <= 2)
+#warning Your compiler is too buggy; it is known to not compile ARM unwind support.
+#warning    Change compiler or disable ARM_UNWIND option.
+#endif
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>

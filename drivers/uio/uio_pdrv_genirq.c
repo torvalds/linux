@@ -178,6 +178,7 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 	return 0;
  bad1:
 	kfree(priv);
+	pm_runtime_disable(&pdev->dev);
  bad0:
 	return ret;
 }
@@ -209,7 +210,7 @@ static int uio_pdrv_genirq_runtime_nop(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops uio_pdrv_genirq_dev_pm_ops = {
+static const struct dev_pm_ops uio_pdrv_genirq_dev_pm_ops = {
 	.runtime_suspend = uio_pdrv_genirq_runtime_nop,
 	.runtime_resume = uio_pdrv_genirq_runtime_nop,
 };

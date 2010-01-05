@@ -34,9 +34,8 @@
 static const unsigned short normal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x4c, 0x4d, 0x4e, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_8(adm1021, adm1023, max1617, max1617a, thmc10, lm84, gl523sm,
-			mc1066);
+enum chips {
+	adm1021, adm1023, max1617, max1617a, thmc10, lm84, gl523sm, mc1066 };
 
 /* adm1021 constants specified below */
 
@@ -97,7 +96,7 @@ struct adm1021_data {
 
 static int adm1021_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int adm1021_detect(struct i2c_client *client, int kind,
+static int adm1021_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static void adm1021_init_client(struct i2c_client *client);
 static int adm1021_remove(struct i2c_client *client);
@@ -130,7 +129,7 @@ static struct i2c_driver adm1021_driver = {
 	.remove		= adm1021_remove,
 	.id_table	= adm1021_id,
 	.detect		= adm1021_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static ssize_t show_temp(struct device *dev,
@@ -284,13 +283,12 @@ static const struct attribute_group adm1021_group = {
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int adm1021_detect(struct i2c_client *client, int kind,
+static int adm1021_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
-	int i;
-	const char *type_name = "";
-	int conv_rate, status, config;
+	const char *type_name;
+	int conv_rate, status, config, man_id, dev_id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		pr_debug("adm1021: detect failed, "
@@ -303,62 +301,37 @@ static int adm1021_detect(struct i2c_client *client, int kind,
 					     ADM1021_REG_CONV_RATE_R);
 	config = i2c_smbus_read_byte_data(client, ADM1021_REG_CONFIG_R);
 
-	/* Now, we do the remaining detection. */
-	if (kind < 0) {
-		if ((status & 0x03) != 0x00 || (config & 0x3F) != 0x00
-		    || (conv_rate & 0xF8) != 0x00) {
-			pr_debug("adm1021: detect failed, "
-				 "chip not detected!\n");
-			return -ENODEV;
-		}
+	/* Check unused bits */
+	if ((status & 0x03) || (config & 0x3F) || (conv_rate & 0xF8)) {
+		pr_debug("adm1021: detect failed, chip not detected!\n");
+		return -ENODEV;
 	}
 
 	/* Determine the chip type. */
-	if (kind <= 0) {
-		i = i2c_smbus_read_byte_data(client, ADM1021_REG_MAN_ID);
-		if (i == 0x41)
-			if ((i2c_smbus_read_byte_data(client,
-					ADM1021_REG_DEV_ID) & 0xF0) == 0x30)
-				kind = adm1023;
-			else
-				kind = adm1021;
-		else if (i == 0x49)
-			kind = thmc10;
-		else if (i == 0x23)
-			kind = gl523sm;
-		else if ((i == 0x4d) &&
-			 (i2c_smbus_read_byte_data(client,
-						   ADM1021_REG_DEV_ID) == 0x01))
-			kind = max1617a;
-		else if (i == 0x54)
-			kind = mc1066;
-		/* LM84 Mfr ID in a different place, and it has more unused bits */
-		else if (conv_rate == 0x00
-			 && (kind == 0 /* skip extra detection */
-			     || ((config & 0x7F) == 0x00
-				 && (status & 0xAB) == 0x00)))
-			kind = lm84;
-		else
-			kind = max1617;
-	}
+	man_id = i2c_smbus_read_byte_data(client, ADM1021_REG_MAN_ID);
+	dev_id = i2c_smbus_read_byte_data(client, ADM1021_REG_DEV_ID);
 
-	if (kind == max1617) {
-		type_name = "max1617";
-	} else if (kind == max1617a) {
+	if (man_id == 0x4d && dev_id == 0x01)
 		type_name = "max1617a";
-	} else if (kind == adm1021) {
-		type_name = "adm1021";
-	} else if (kind == adm1023) {
-		type_name = "adm1023";
-	} else if (kind == thmc10) {
+	else if (man_id == 0x41) {
+		if ((dev_id & 0xF0) == 0x30)
+			type_name = "adm1023";
+		else
+			type_name = "adm1021";
+	} else if (man_id == 0x49)
 		type_name = "thmc10";
-	} else if (kind == lm84) {
-		type_name = "lm84";
-	} else if (kind == gl523sm) {
+	else if (man_id == 0x23)
 		type_name = "gl523sm";
-	} else if (kind == mc1066) {
+	else if (man_id == 0x54)
 		type_name = "mc1066";
-	}
+	/* LM84 Mfr ID in a different place, and it has more unused bits */
+	else if (conv_rate == 0x00
+		 && (config & 0x7F) == 0x00
+		 && (status & 0xAB) == 0x00)
+		type_name = "lm84";
+	else
+		type_name = "max1617";
+
 	pr_debug("adm1021: Detected chip %s at adapter %d, address 0x%02x.\n",
 		 type_name, i2c_adapter_id(adapter), client->addr);
 	strlcpy(info->type, type_name, I2C_NAME_SIZE);

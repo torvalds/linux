@@ -17,13 +17,6 @@
 #include <linux/bitops.h>
 #include "qnx4.h"
 
-#if 0
-int qnx4_new_block(struct super_block *sb)
-{
-	return 0;
-}
-#endif  /*  0  */
-
 static void count_bits(register const char *bmPart, register int size,
 		       int *const tf)
 {
@@ -35,22 +28,7 @@ static void count_bits(register const char *bmPart, register int size,
 	}
 	do {
 		b = *bmPart++;
-		if ((b & 1) == 0)
-			tot++;
-		if ((b & 2) == 0)
-			tot++;
-		if ((b & 4) == 0)
-			tot++;
-		if ((b & 8) == 0)
-			tot++;
-		if ((b & 16) == 0)
-			tot++;
-		if ((b & 32) == 0)
-			tot++;
-		if ((b & 64) == 0)
-			tot++;
-		if ((b & 128) == 0)
-			tot++;
+		tot += 8 - hweight8(b);
 		size--;
 	} while (size != 0);
 	*tf = tot;
@@ -67,7 +45,7 @@ unsigned long qnx4_count_free_blocks(struct super_block *sb)
 
 	while (total < size) {
 		if ((bh = sb_bread(sb, start + offset)) == NULL) {
-			printk("qnx4: I/O error in counting free blocks\n");
+			printk(KERN_ERR "qnx4: I/O error in counting free blocks\n");
 			break;
 		}
 		count_bits(bh->b_data, size - total, &total_free);

@@ -73,6 +73,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_mgmt *mgmt;
 	u8 *pos;
 	struct ieee80211_supported_band *sband;
+	struct cfg80211_bss *bss;
 	u32 bss_change;
 	u8 supp_rates[IEEE80211_MAX_SUPP_RATES];
 
@@ -177,8 +178,9 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	mod_timer(&ifibss->timer,
 		  round_jiffies(jiffies + IEEE80211_IBSS_MERGE_INTERVAL));
 
-	cfg80211_inform_bss_frame(local->hw.wiphy, local->hw.conf.channel,
-				  mgmt, skb->len, 0, GFP_KERNEL);
+	bss = cfg80211_inform_bss_frame(local->hw.wiphy, local->hw.conf.channel,
+					mgmt, skb->len, 0, GFP_KERNEL);
+	cfg80211_put_bss(bss);
 	cfg80211_ibss_joined(sdata->dev, ifibss->bssid, GFP_KERNEL);
 }
 
@@ -380,6 +382,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 					u8 *bssid,u8 *addr, u32 supp_rates)
 {
+	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 	int band = local->hw.conf.channel->band;
@@ -394,6 +397,9 @@ struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 			       sdata->dev->name, addr);
 		return NULL;
 	}
+
+	if (ifibss->state == IEEE80211_IBSS_MLME_SEARCH)
+		return NULL;
 
 	if (compare_ether_addr(bssid, sdata->u.ibss.bssid))
 		return NULL;
@@ -452,6 +458,10 @@ static void ieee80211_sta_merge_ibss(struct ieee80211_sub_if_data *sdata)
 		  round_jiffies(jiffies + IEEE80211_IBSS_MERGE_INTERVAL));
 
 	ieee80211_sta_expire(sdata, IEEE80211_IBSS_INACTIVITY_LIMIT);
+
+	if (time_before(jiffies, ifibss->last_scan_completed +
+		       IEEE80211_IBSS_MERGE_INTERVAL))
+		return;
 
 	if (ieee80211_sta_active_ibss(sdata))
 		return;
@@ -538,13 +548,12 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 				       WLAN_CAPABILITY_PRIVACY,
 				       capability);
 
+	if (bss) {
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
-	if (bss)
 		printk(KERN_DEBUG "   sta_find_ibss: selected %pM current "
 		       "%pM\n", bss->cbss.bssid, ifibss->bssid);
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
 
-	if (bss && memcmp(ifibss->bssid, bss->cbss.bssid, ETH_ALEN)) {
 		printk(KERN_DEBUG "%s: Selected IBSS BSSID %pM"
 		       " based on configured SSID\n",
 		       sdata->dev->name, bss->cbss.bssid);
@@ -552,8 +561,7 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 		ieee80211_sta_join_ibss(sdata, bss);
 		ieee80211_rx_bss_put(local, bss);
 		return;
-	} else if (bss)
-		ieee80211_rx_bss_put(local, bss);
+	}
 
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 	printk(KERN_DEBUG "   did not try to join ibss\n");
@@ -655,7 +663,8 @@ static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 	printk(KERN_DEBUG "%s: Sending ProbeResp to %pM\n",
 	       sdata->dev->name, resp->da);
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
-	ieee80211_tx_skb(sdata, skb, 0);
+	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	ieee80211_tx_skb(sdata, skb);
 }
 
 static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_sub_if_data *sdata,
@@ -829,7 +838,7 @@ void ieee80211_ibss_notify_scan_completed(struct ieee80211_local *local)
 		if (!sdata->u.ibss.ssid_len)
 			continue;
 		sdata->u.ibss.last_scan_completed = jiffies;
-		ieee80211_sta_find_ibss(sdata);
+		mod_timer(&sdata->u.ibss.timer, 0);
 	}
 	mutex_unlock(&local->iflist_mtx);
 }

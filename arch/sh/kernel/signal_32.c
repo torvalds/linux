@@ -67,7 +67,8 @@ sys_sigsuspend(old_sigset_t mask,
 
 	current->state = TASK_INTERRUPTIBLE;
 	schedule();
-	set_thread_flag(TIF_RESTORE_SIGMASK);
+	set_restore_sigmask();
+
 	return -ERESTARTNOHAND;
 }
 
@@ -145,7 +146,7 @@ static inline int restore_sigcontext_fpu(struct sigcontext __user *sc)
 {
 	struct task_struct *tsk = current;
 
-	if (!(current_cpu_data.flags & CPU_HAS_FPU))
+	if (!(boot_cpu_data.flags & CPU_HAS_FPU))
 		return 0;
 
 	set_used_math();
@@ -158,7 +159,7 @@ static inline int save_sigcontext_fpu(struct sigcontext __user *sc,
 {
 	struct task_struct *tsk = current;
 
-	if (!(current_cpu_data.flags & CPU_HAS_FPU))
+	if (!(boot_cpu_data.flags & CPU_HAS_FPU))
 		return 0;
 
 	if (!used_math()) {
@@ -199,7 +200,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, int *r0_p
 #undef COPY
 
 #ifdef CONFIG_SH_FPU
-	if (current_cpu_data.flags & CPU_HAS_FPU) {
+	if (boot_cpu_data.flags & CPU_HAS_FPU) {
 		int owned_fp;
 		struct task_struct *tsk = current;
 
@@ -472,6 +473,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		err |= __put_user(OR_R0_R0, &frame->retcode[6]);
 		err |= __put_user((__NR_rt_sigreturn), &frame->retcode[7]);
 		regs->pr = (unsigned long) frame->retcode;
+		flush_icache_range(regs->pr, regs->pr + sizeof(frame->retcode));
 	}
 
 	if (err)
@@ -496,8 +498,6 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	pr_debug("SIG deliver (%s:%d): sp=%p pc=%08lx pr=%08lx\n",
 		 current->comm, task_pid_nr(current), frame, regs->pc, regs->pr);
-
-	flush_icache_range(regs->pr, regs->pr + sizeof(frame->retcode));
 
 	return 0;
 
@@ -591,7 +591,7 @@ static void do_signal(struct pt_regs *regs, unsigned int save_r0)
 	if (try_to_freeze())
 		goto no_signal;
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+	if (current_thread_info()->status & TS_RESTORE_SIGMASK)
 		oldset = &current->saved_sigmask;
 	else
 		oldset = &current->blocked;
@@ -603,12 +603,13 @@ static void do_signal(struct pt_regs *regs, unsigned int save_r0)
 		/* Whee!  Actually deliver the signal.  */
 		if (handle_signal(signr, &ka, &info, oldset,
 				  regs, save_r0) == 0) {
-			/* a signal was successfully delivered; the saved
+			/*
+			 * A signal was successfully delivered; the saved
 			 * sigmask will have been stored in the signal frame,
 			 * and will be restored by sigreturn, so we can simply
-			 * clear the TIF_RESTORE_SIGMASK flag */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
+			 * clear the TS_RESTORE_SIGMASK flag
+			 */
+			current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
 
 			tracehook_signal_handler(signr, &info, &ka, regs,
 					test_thread_flag(TIF_SINGLESTEP));
@@ -632,10 +633,12 @@ no_signal:
 		}
 	}
 
-	/* if there's no signal to deliver, we just put the saved sigmask
-	 * back */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
+	/*
+	 * If there's no signal to deliver, we just put the saved sigmask
+	 * back.
+	 */
+	if (current_thread_info()->status & TS_RESTORE_SIGMASK) {
+		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 	}
 }

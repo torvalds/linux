@@ -38,23 +38,6 @@ MODULE_DESCRIPTION("ISDN4Linux: PCMCIA client driver for Teles PCMCIA cards");
 MODULE_AUTHOR("Christof Petig, christof.petig@wtal.de, Karsten Keil, kkeil@suse.de");
 MODULE_LICENSE("GPL");
 
-/*
-   All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
-   you do not define PCMCIA_DEBUG at all, all the debug code will be
-   left out.  If you compile with PCMCIA_DEBUG=0, the debug code will
-   be present but disabled -- but it can then be enabled for specific
-   modules at load time with a 'pc_debug=#' option to insmod.
-*/
-
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-module_param(pc_debug, int, 0);
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args);
-static char *version =
-"teles_cs.c 2.10 2002/07/30 22:23:34 kkeil";
-#else
-#define DEBUG(n, args...)
-#endif
 
 /*====================================================================*/
 
@@ -133,7 +116,7 @@ static int teles_probe(struct pcmcia_device *link)
 {
     local_info_t *local;
 
-    DEBUG(0, "teles_attach()\n");
+    dev_dbg(&link->dev, "teles_attach()\n");
 
     /* Allocate space for private device-specific data */
     local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
@@ -144,8 +127,7 @@ static int teles_probe(struct pcmcia_device *link)
     link->priv = local;
 
     /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
-    link->irq.IRQInfo1 = IRQ_LEVEL_ID|IRQ_SHARE_ID;
+    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
     link->irq.Handler = NULL;
 
     /*
@@ -178,7 +160,7 @@ static void teles_detach(struct pcmcia_device *link)
 {
 	local_info_t *info = link->priv;
 
-	DEBUG(0, "teles_detach(0x%p)\n", link);
+	dev_dbg(&link->dev, "teles_detach(0x%p)\n", link);
 
 	info->busy = 1;
 	teles_cs_release(link);
@@ -221,30 +203,25 @@ static int teles_cs_configcheck(struct pcmcia_device *p_dev,
 static int teles_cs_config(struct pcmcia_device *link)
 {
     local_info_t *dev;
-    int i, last_fn;
+    int i;
     IsdnCard_t icard;
 
-    DEBUG(0, "teles_config(0x%p)\n", link);
+    dev_dbg(&link->dev, "teles_config(0x%p)\n", link);
     dev = link->priv;
 
     i = pcmcia_loop_config(link, teles_cs_configcheck, NULL);
-    if (i != 0) {
-	last_fn = RequestIO;
+    if (i != 0)
 	goto cs_failed;
-    }
 
     i = pcmcia_request_irq(link, &link->irq);
     if (i != 0) {
         link->irq.AssignedIRQ = 0;
-	last_fn = RequestIRQ;
         goto cs_failed;
     }
 
     i = pcmcia_request_configuration(link, &link->conf);
-    if (i != 0) {
-      last_fn = RequestConfiguration;
+    if (i != 0)
       goto cs_failed;
-    }
 
     /* At this point, the dev_node_t structure(s) should be
        initialized and arranged in a linked list at link->dev. *//*  */
@@ -283,7 +260,6 @@ static int teles_cs_config(struct pcmcia_device *link)
     return 0;
 
 cs_failed:
-    cs_error(link, last_fn, i);
     teles_cs_release(link);
     return -ENODEV;
 } /* teles_cs_config */
@@ -300,7 +276,7 @@ static void teles_cs_release(struct pcmcia_device *link)
 {
     local_info_t *local = link->priv;
 
-    DEBUG(0, "teles_cs_release(0x%p)\n", link);
+    dev_dbg(&link->dev, "teles_cs_release(0x%p)\n", link);
 
     if (local) {
     	if (local->cardnr >= 0) {

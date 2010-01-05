@@ -25,13 +25,13 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/board-ams-delta.h>
+#include <plat/board-ams-delta.h>
 #include <mach/gpio.h>
-#include <mach/keypad.h>
-#include <mach/mux.h>
-#include <mach/usb.h>
-#include <mach/board.h>
-#include <mach/common.h>
+#include <plat/keypad.h>
+#include <plat/mux.h>
+#include <plat/usb.h>
+#include <plat/board.h>
+#include <plat/common.h>
 
 static u8 ams_delta_latch1_reg;
 static u16 ams_delta_latch2_reg;
@@ -219,6 +219,10 @@ static struct platform_device *ams_delta_devices[] __initdata = {
 
 static void __init ams_delta_init(void)
 {
+	/* mux pins for uarts */
+	omap_cfg_reg(UART1_TX);
+	omap_cfg_reg(UART1_RTS);
+
 	iotable_init(ams_delta_io_desc, ARRAY_SIZE(ams_delta_io_desc));
 
 	omap_board_config = ams_delta_config;
@@ -231,6 +235,8 @@ static void __init ams_delta_init(void)
 
 	omap_usb_init(&ams_delta_usb_config);
 	platform_add_devices(ams_delta_devices, ARRAY_SIZE(ams_delta_devices));
+
+	omap_writew(omap_readw(ARM_RSTCT1) | 0x0004, ARM_RSTCT1);
 }
 
 static struct plat_serial8250_port ams_delta_modem_ports[] = {

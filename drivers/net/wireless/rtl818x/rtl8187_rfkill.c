@@ -18,16 +18,17 @@
 #include <net/mac80211.h>
 
 #include "rtl8187.h"
+#include "rtl8187_rfkill.h"
 
 static bool rtl8187_is_radio_enabled(struct rtl8187_priv *priv)
 {
 	u8 gpio;
 
 	gpio = rtl818x_ioread8(priv, &priv->map->GPIO0);
-	rtl818x_iowrite8(priv, &priv->map->GPIO0, gpio & ~0x02);
+	rtl818x_iowrite8(priv, &priv->map->GPIO0, gpio & ~priv->rfkill_mask);
 	gpio = rtl818x_ioread8(priv, &priv->map->GPIO1);
 
-	return gpio & 0x02;
+	return gpio & priv->rfkill_mask;
 }
 
 void rtl8187_rfkill_init(struct ieee80211_hw *hw)

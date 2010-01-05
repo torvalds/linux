@@ -143,7 +143,7 @@ static bool event_compare(struct fsnotify_event *old, struct fsnotify_event *new
 			/* remember, after old was put on the wait_q we aren't
 			 * allowed to look at the inode any more, only thing
 			 * left to check was if the file_name is the same */
-			if (old->name_len &&
+			if (!old->name_len ||
 			    !strcmp(old->file_name, new->file_name))
 				return true;
 			break;

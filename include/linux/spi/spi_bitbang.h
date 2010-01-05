@@ -15,7 +15,7 @@
  * Some hardware works well with requests at spi_transfer scope:
  *
  *   -	Drivers leveraging smarter hardware, with fifos or DMA; or for half
- *	duplex (MicroWire) controllers.  Provide chipslect() and txrx_bufs(),
+ *	duplex (MicroWire) controllers.  Provide chipselect() and txrx_bufs(),
  *	and custom setup()/cleanup() methods.
  */
 

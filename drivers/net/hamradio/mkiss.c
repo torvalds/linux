@@ -36,6 +36,7 @@
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
 #include <linux/jiffies.h>
+#include <linux/compat.h>
 
 #include <net/ax25.h>
 
@@ -258,7 +259,7 @@ static void ax_bump(struct mkiss *ax)
 			}
 			if (ax->crcmode != CRC_MODE_SMACK && ax->crcauto) {
 				printk(KERN_INFO
-				       "mkiss: %s: Switchting to crc-smack\n",
+				       "mkiss: %s: Switching to crc-smack\n",
 				       ax->dev->name);
 				ax->crcmode = CRC_MODE_SMACK;
 			}
@@ -272,7 +273,7 @@ static void ax_bump(struct mkiss *ax)
 			}
 			if (ax->crcmode != CRC_MODE_FLEX && ax->crcauto) {
 				printk(KERN_INFO
-				       "mkiss: %s: Switchting to crc-flexnet\n",
+				       "mkiss: %s: Switching to crc-flexnet\n",
 				       ax->dev->name);
 				ax->crcmode = CRC_MODE_FLEX;
 			}
@@ -898,6 +899,23 @@ static int mkiss_ioctl(struct tty_struct *tty, struct file *file,
 	return err;
 }
 
+#ifdef CONFIG_COMPAT
+static long mkiss_compat_ioctl(struct tty_struct *tty, struct file *file,
+	unsigned int cmd, unsigned long arg)
+{
+	switch (cmd) {
+	case SIOCGIFNAME:
+	case SIOCGIFENCAP:
+	case SIOCSIFENCAP:
+	case SIOCSIFHWADDR:
+		return mkiss_ioctl(tty, file, cmd,
+				   (unsigned long)compat_ptr(arg));
+	}
+
+	return -ENOIOCTLCMD;
+}
+#endif
+
 /*
  * Handle the 'receiver data ready' interrupt.
  * This function is called by the 'tty_io' module in the kernel when
@@ -972,6 +990,9 @@ static struct tty_ldisc_ops ax_ldisc = {
 	.open		= mkiss_open,
 	.close		= mkiss_close,
 	.ioctl		= mkiss_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= mkiss_compat_ioctl,
+#endif
 	.receive_buf	= mkiss_receive_buf,
 	.write_wakeup	= mkiss_write_wakeup
 };

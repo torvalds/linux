@@ -97,6 +97,8 @@ static phys_addr_t *io_tlb_orig_addr;
  */
 static DEFINE_SPINLOCK(io_tlb_lock);
 
+static int late_alloc;
+
 static int __init
 setup_io_tlb_npages(char *str)
 {
@@ -109,6 +111,7 @@ setup_io_tlb_npages(char *str)
 		++str;
 	if (!strcmp(str, "force"))
 		swiotlb_force = 1;
+
 	return 1;
 }
 __setup("swiotlb=", setup_io_tlb_npages);
@@ -121,8 +124,9 @@ static dma_addr_t swiotlb_virt_to_bus(struct device *hwdev,
 	return phys_to_dma(hwdev, virt_to_phys(address));
 }
 
-static void swiotlb_print_info(unsigned long bytes)
+void swiotlb_print_info(void)
 {
+	unsigned long bytes = io_tlb_nslabs << IO_TLB_SHIFT;
 	phys_addr_t pstart, pend;
 
 	pstart = virt_to_phys(io_tlb_start);
@@ -140,7 +144,7 @@ static void swiotlb_print_info(unsigned long bytes)
  * structures for the software IO TLB used to implement the DMA API.
  */
 void __init
-swiotlb_init_with_default_size(size_t default_size)
+swiotlb_init_with_default_size(size_t default_size, int verbose)
 {
 	unsigned long i, bytes;
 
@@ -176,14 +180,14 @@ swiotlb_init_with_default_size(size_t default_size)
 	io_tlb_overflow_buffer = alloc_bootmem_low(io_tlb_overflow);
 	if (!io_tlb_overflow_buffer)
 		panic("Cannot allocate SWIOTLB overflow buffer!\n");
-
-	swiotlb_print_info(bytes);
+	if (verbose)
+		swiotlb_print_info();
 }
 
 void __init
-swiotlb_init(void)
+swiotlb_init(int verbose)
 {
-	swiotlb_init_with_default_size(64 * (1<<20));	/* default to 64MB */
+	swiotlb_init_with_default_size(64 * (1<<20), verbose);	/* default to 64MB */
 }
 
 /*
@@ -260,7 +264,9 @@ swiotlb_late_init_with_default_size(size_t default_size)
 	if (!io_tlb_overflow_buffer)
 		goto cleanup4;
 
-	swiotlb_print_info(bytes);
+	swiotlb_print_info();
+
+	late_alloc = 1;
 
 	return 0;
 
@@ -279,6 +285,32 @@ cleanup2:
 cleanup1:
 	io_tlb_nslabs = req_nslabs;
 	return -ENOMEM;
+}
+
+void __init swiotlb_free(void)
+{
+	if (!io_tlb_overflow_buffer)
+		return;
+
+	if (late_alloc) {
+		free_pages((unsigned long)io_tlb_overflow_buffer,
+			   get_order(io_tlb_overflow));
+		free_pages((unsigned long)io_tlb_orig_addr,
+			   get_order(io_tlb_nslabs * sizeof(phys_addr_t)));
+		free_pages((unsigned long)io_tlb_list, get_order(io_tlb_nslabs *
+								 sizeof(int)));
+		free_pages((unsigned long)io_tlb_start,
+			   get_order(io_tlb_nslabs << IO_TLB_SHIFT));
+	} else {
+		free_bootmem_late(__pa(io_tlb_overflow_buffer),
+				  io_tlb_overflow);
+		free_bootmem_late(__pa(io_tlb_orig_addr),
+				  io_tlb_nslabs * sizeof(phys_addr_t));
+		free_bootmem_late(__pa(io_tlb_list),
+				  io_tlb_nslabs * sizeof(int));
+		free_bootmem_late(__pa(io_tlb_start),
+				  io_tlb_nslabs << IO_TLB_SHIFT);
+	}
 }
 
 static int is_swiotlb_buffer(phys_addr_t paddr)
@@ -453,7 +485,7 @@ do_unmap_single(struct device *hwdev, char *dma_addr, size_t size, int dir)
 
 	/*
 	 * Return the buffer to the free list by setting the corresponding
-	 * entries to indicate the number of contigous entries available.
+	 * entries to indicate the number of contiguous entries available.
 	 * While returning the entries to the free list, we merge the entries
 	 * with slots below and above the pool being returned.
 	 */
@@ -517,7 +549,7 @@ swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 		dma_mask = hwdev->coherent_dma_mask;
 
 	ret = (void *)__get_free_pages(flags, order);
-	if (ret && swiotlb_virt_to_bus(hwdev, ret) + size > dma_mask) {
+	if (ret && swiotlb_virt_to_bus(hwdev, ret) + size - 1 > dma_mask) {
 		/*
 		 * The allocated memory isn't reachable by the device.
 		 */
@@ -539,7 +571,7 @@ swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 	dev_addr = swiotlb_virt_to_bus(hwdev, ret);
 
 	/* Confirm address can be DMA'd by device */
-	if (dev_addr + size > dma_mask) {
+	if (dev_addr + size - 1 > dma_mask) {
 		printk("hwdev DMA mask = 0x%016Lx, dev_addr = 0x%016Lx\n",
 		       (unsigned long long)dma_mask,
 		       (unsigned long long)dev_addr);

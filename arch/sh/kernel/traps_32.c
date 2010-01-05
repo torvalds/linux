@@ -25,6 +25,8 @@
 #include <linux/kexec.h>
 #include <linux/limits.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+#include <linux/sysfs.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/fpu.h>
@@ -54,8 +56,8 @@ static unsigned long se_multi;
 /* bitfield: 1: warn 2: fixup 4: signal -> combinations 2|4 && 1|2|4 are not
    valid! */
 static int se_usermode = 3;
-/* 0: no warning 1: print a warning message */
-static int se_kernmode_warn = 1;
+/* 0: no warning 1: print a warning message, disabled by default */
+static int se_kernmode_warn;
 
 #ifdef CONFIG_PROC_FS
 static const char *se_usermode_action[] = {
@@ -67,61 +69,49 @@ static const char *se_usermode_action[] = {
 	"signal+warn"
 };
 
-static int
-proc_alignment_read(char *page, char **start, off_t off, int count, int *eof,
-		    void *data)
+static int alignment_proc_show(struct seq_file *m, void *v)
 {
-	char *p = page;
-	int len;
-
-	p += sprintf(p, "User:\t\t%lu\n", se_user);
-	p += sprintf(p, "System:\t\t%lu\n", se_sys);
-	p += sprintf(p, "Half:\t\t%lu\n", se_half);
-	p += sprintf(p, "Word:\t\t%lu\n", se_word);
-	p += sprintf(p, "DWord:\t\t%lu\n", se_dword);
-	p += sprintf(p, "Multi:\t\t%lu\n", se_multi);
-	p += sprintf(p, "User faults:\t%i (%s)\n", se_usermode,
+	seq_printf(m, "User:\t\t%lu\n", se_user);
+	seq_printf(m, "System:\t\t%lu\n", se_sys);
+	seq_printf(m, "Half:\t\t%lu\n", se_half);
+	seq_printf(m, "Word:\t\t%lu\n", se_word);
+	seq_printf(m, "DWord:\t\t%lu\n", se_dword);
+	seq_printf(m, "Multi:\t\t%lu\n", se_multi);
+	seq_printf(m, "User faults:\t%i (%s)\n", se_usermode,
 			se_usermode_action[se_usermode]);
-	p += sprintf(p, "Kernel faults:\t%i (fixup%s)\n", se_kernmode_warn,
+	seq_printf(m, "Kernel faults:\t%i (fixup%s)\n", se_kernmode_warn,
 			se_kernmode_warn ? "+warn" : "");
-
-	len = (p - page) - off;
-	if (len < 0)
-		len = 0;
-
-	*eof = (len <= count) ? 1 : 0;
-	*start = page + off;
-
-	return len;
+	return 0;
 }
 
-static int proc_alignment_write(struct file *file, const char __user *buffer,
-				unsigned long count, void *data)
+static int alignment_proc_open(struct inode *inode, struct file *file)
 {
+	return single_open(file, alignment_proc_show, NULL);
+}
+
+static ssize_t alignment_proc_write(struct file *file,
+		const char __user *buffer, size_t count, loff_t *pos)
+{
+	int *data = PDE(file->f_path.dentry->d_inode)->data;
 	char mode;
 
 	if (count > 0) {
 		if (get_user(mode, buffer))
 			return -EFAULT;
 		if (mode >= '0' && mode <= '5')
-			se_usermode = mode - '0';
+			*data = mode - '0';
 	}
 	return count;
 }
 
-static int proc_alignment_kern_write(struct file *file, const char __user *buffer,
-				     unsigned long count, void *data)
-{
-	char mode;
-
-	if (count > 0) {
-		if (get_user(mode, buffer))
-			return -EFAULT;
-		if (mode >= '0' && mode <= '1')
-			se_kernmode_warn = mode - '0';
-	}
-	return count;
-}
+static const struct file_operations alignment_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= alignment_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= alignment_proc_write,
+};
 #endif
 
 static void dump_mem(const char *str, unsigned long bottom, unsigned long top)
@@ -159,12 +149,12 @@ void die(const char * str, struct pt_regs * regs, long err)
 
 	oops_enter();
 
-	console_verbose();
 	spin_lock_irq(&die_lock);
+	console_verbose();
 	bust_spinlocks(1);
 
 	printk("%s: %04lx [#%d]\n", str, err & 0xffff, ++die_counter);
-
+	sysfs_printk_last_file();
 	print_modules();
 	show_regs(regs);
 
@@ -180,6 +170,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 	bust_spinlocks(0);
 	add_taint(TAINT_DIE);
 	spin_unlock_irq(&die_lock);
+	oops_exit();
 
 	if (kexec_should_crash(current))
 		crash_kexec(regs);
@@ -190,7 +181,6 @@ void die(const char * str, struct pt_regs * regs, long err)
 	if (panic_on_oops)
 		panic("Fatal exception");
 
-	oops_exit();
 	do_exit(SIGSEGV);
 }
 
@@ -462,12 +452,18 @@ int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
 	rm = regs->regs[index];
 
 	/* shout about fixups */
-	if (!expected && printk_ratelimit())
-		printk(KERN_NOTICE "Fixing up unaligned %s access "
-		       "in \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
-		       user_mode(regs) ? "userspace" : "kernel",
-		       current->comm, task_pid_nr(current),
-		       (void *)regs->pc, instruction);
+	if (!expected) {
+		if (user_mode(regs) && (se_usermode & 1) && printk_ratelimit())
+			pr_notice("Fixing up unaligned userspace access "
+				  "in \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
+				  current->comm, task_pid_nr(current),
+				  (void *)regs->pc, instruction);
+		else if (se_kernmode_warn && printk_ratelimit())
+			pr_notice("Fixing up unaligned kernel access "
+				  "in \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
+				  current->comm, task_pid_nr(current),
+				  (void *)regs->pc, instruction);
+	}
 
 	ret = -EFAULT;
 	switch (instruction&0xF000) {
@@ -944,13 +940,8 @@ void __init trap_init(void)
 	set_exception_table_evt(0x800, do_reserved_inst);
 	set_exception_table_evt(0x820, do_illegal_slot_inst);
 #elif defined(CONFIG_SH_FPU)
-#ifdef CONFIG_CPU_SUBTYPE_SHX3
-	set_exception_table_evt(0xd80, fpu_state_restore_trap_handler);
-	set_exception_table_evt(0xda0, fpu_state_restore_trap_handler);
-#else
 	set_exception_table_evt(0x800, fpu_state_restore_trap_handler);
 	set_exception_table_evt(0x820, fpu_state_restore_trap_handler);
-#endif
 #endif
 
 #ifdef CONFIG_CPU_SH2
@@ -1010,19 +1001,15 @@ static int __init alignment_init(void)
 	if (!dir)
 		return -ENOMEM;
 
-	res = create_proc_entry("alignment", S_IWUSR | S_IRUGO, dir);
+	res = proc_create_data("alignment", S_IWUSR | S_IRUGO, dir,
+			       &alignment_proc_fops, &se_usermode);
 	if (!res)
 		return -ENOMEM;
 
-	res->read_proc = proc_alignment_read;
-	res->write_proc = proc_alignment_write;
-
-        res = create_proc_entry("kernel_alignment", S_IWUSR | S_IRUGO, dir);
+        res = proc_create_data("kernel_alignment", S_IWUSR | S_IRUGO, dir,
+			       &alignment_proc_fops, &se_kernmode_warn);
         if (!res)
                 return -ENOMEM;
-
-        res->read_proc = proc_alignment_read;
-        res->write_proc = proc_alignment_kern_write;
 
 	return 0;
 }

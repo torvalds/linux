@@ -58,7 +58,6 @@ static const unsigned short cclk_frequency_100khz[NR_FREQS] = {
 	2802	/* 280.2 MHz */
 };
 
-#if defined(CONFIG_CPU_FREQ_SA1100) || defined(CONFIG_CPU_FREQ_SA1110)
 /* rounds up(!)  */
 unsigned int sa11x0_freq_to_ppcr(unsigned int khz)
 {
@@ -110,17 +109,6 @@ unsigned int sa11x0_getspeed(unsigned int cpu)
 	return cclk_frequency_100khz[PPCR & 0xf] * 100;
 }
 
-#else
-/*
- * We still need to provide this so building without cpufreq works.
- */
-unsigned int cpufreq_get(unsigned int cpu)
-{
-	return cclk_frequency_100khz[PPCR & 0xf] * 100;
-}
-EXPORT_SYMBOL(cpufreq_get);
-#endif
-
 /*
  * This is the SA11x0 sched_clock implementation.  This has
  * a resolution of 271ns, and a maximum value of 32025597s (370 days).
@@ -161,6 +149,17 @@ static void sa1100_power_off(void)
 	/* enter sleep mode */
 	PMCR = PMCR_SF;
 }
+
+static void sa11x0_register_device(struct platform_device *dev, void *data)
+{
+	int err;
+	dev->dev.platform_data = data;
+	err = platform_device_register(dev);
+	if (err)
+		printk(KERN_ERR "Unable to register device %s: %d\n",
+			dev->name, err);
+}
+
 
 static struct resource sa11x0udc_resources[] = {
 	[0] = {
@@ -234,9 +233,9 @@ static struct platform_device sa11x0mcp_device = {
 	.resource	= sa11x0mcp_resources,
 };
 
-void sa11x0_set_mcp_data(struct mcp_plat_data *data)
+void sa11x0_register_mcp(struct mcp_plat_data *data)
 {
-	sa11x0mcp_device.dev.platform_data = data;
+	sa11x0_register_device(&sa11x0mcp_device, data);
 }
 
 static struct resource sa11x0ssp_resources[] = {
@@ -293,13 +292,13 @@ static struct platform_device sa11x0mtd_device = {
 	.id		= -1,
 };
 
-void sa11x0_set_flash_data(struct flash_platform_data *flash,
-			   struct resource *res, int nr)
+void sa11x0_register_mtd(struct flash_platform_data *flash,
+			 struct resource *res, int nr)
 {
 	flash->name = "sa1100";
-	sa11x0mtd_device.dev.platform_data = flash;
 	sa11x0mtd_device.resource = res;
 	sa11x0mtd_device.num_resources = nr;
+	sa11x0_register_device(&sa11x0mtd_device, flash);
 }
 
 static struct resource sa11x0ir_resources[] = {
@@ -329,9 +328,9 @@ static struct platform_device sa11x0ir_device = {
 	.resource	= sa11x0ir_resources,
 };
 
-void sa11x0_set_irda_data(struct irda_platform_data *irda)
+void sa11x0_register_irda(struct irda_platform_data *irda)
 {
-	sa11x0ir_device.dev.platform_data = irda;
+	sa11x0_register_device(&sa11x0ir_device, irda);
 }
 
 static struct platform_device sa11x0rtc_device = {
@@ -343,21 +342,15 @@ static struct platform_device *sa11x0_devices[] __initdata = {
 	&sa11x0udc_device,
 	&sa11x0uart1_device,
 	&sa11x0uart3_device,
-	&sa11x0mcp_device,
 	&sa11x0ssp_device,
 	&sa11x0pcmcia_device,
 	&sa11x0fb_device,
-	&sa11x0mtd_device,
 	&sa11x0rtc_device,
 };
 
 static int __init sa1100_init(void)
 {
 	pm_power_off = sa1100_power_off;
-
-	if (sa11x0ir_device.dev.platform_data)
-		platform_device_register(&sa11x0ir_device);
-
 	return platform_add_devices(sa11x0_devices, ARRAY_SIZE(sa11x0_devices));
 }
 

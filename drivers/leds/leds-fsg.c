@@ -22,6 +22,13 @@
 #include <mach/hardware.h>
 #include <asm/io.h>
 
+#define FSG_LED_WLAN_BIT	0
+#define FSG_LED_WAN_BIT		1
+#define FSG_LED_SATA_BIT	2
+#define FSG_LED_USB_BIT		4
+#define FSG_LED_RING_BIT	5
+#define FSG_LED_SYNC_BIT	7
+
 static short __iomem *latch_address;
 static unsigned short latch_value;
 

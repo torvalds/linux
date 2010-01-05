@@ -1104,7 +1104,6 @@ extern u32 radeon_get_scratch(drm_radeon_private_t *dev_priv, int index);
 #       define R600_IT_WAIT_REG_MEM             0x00003C00
 #       define R600_IT_MEM_WRITE                0x00003D00
 #       define R600_IT_INDIRECT_BUFFER          0x00003200
-#       define R600_IT_CP_INTERRUPT             0x00004000
 #       define R600_IT_SURFACE_SYNC             0x00004300
 #              define R600_CB0_DEST_BASE_ENA    (1 << 6)
 #              define R600_TC_ACTION_ENA        (1 << 23)

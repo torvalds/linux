@@ -1,5 +1,3 @@
-# drivers/Kconfig
-
 menu "Device Drivers"
 
 source "drivers/base/Kconfig"
@@ -30,7 +28,7 @@ source "drivers/md/Kconfig"
 
 source "drivers/message/fusion/Kconfig"
 
-source "drivers/ieee1394/Kconfig"
+source "drivers/firewire/Kconfig"
 
 source "drivers/message/i2o/Kconfig"
 
@@ -97,6 +95,8 @@ source "drivers/infiniband/Kconfig"
 source "drivers/edac/Kconfig"
 
 source "drivers/rtc/Kconfig"
+
+source "drivers/clocksource/Kconfig"
 
 source "drivers/dma/Kconfig"
 

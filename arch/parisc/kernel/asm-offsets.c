@@ -244,9 +244,6 @@ int main(void)
 	DEFINE(THREAD_SZ, sizeof(struct thread_info));
 	DEFINE(THREAD_SZ_ALGN, align(sizeof(struct thread_info), 64));
 	BLANK();
-	DEFINE(IRQSTAT_SIRQ_PEND, offsetof(irq_cpustat_t, __softirq_pending));
-	DEFINE(IRQSTAT_SZ, sizeof(irq_cpustat_t));
-	BLANK();
 	DEFINE(ICACHE_BASE, offsetof(struct pdc_cache_info, ic_base));
 	DEFINE(ICACHE_STRIDE, offsetof(struct pdc_cache_info, ic_stride));
 	DEFINE(ICACHE_COUNT, offsetof(struct pdc_cache_info, ic_count));
@@ -270,8 +267,8 @@ int main(void)
 	DEFINE(DTLB_OFF_COUNT, offsetof(struct pdc_cache_info, dt_off_count));
 	DEFINE(DTLB_LOOP, offsetof(struct pdc_cache_info, dt_loop));
 	BLANK();
-	DEFINE(PA_BLOCKSTEP_BIT, 31-PT_BLOCKSTEP_BIT);
-	DEFINE(PA_SINGLESTEP_BIT, 31-PT_SINGLESTEP_BIT);
+	DEFINE(TIF_BLOCKSTEP_PA_BIT, 31-TIF_BLOCKSTEP);
+	DEFINE(TIF_SINGLESTEP_PA_BIT, 31-TIF_SINGLESTEP);
 	BLANK();
 	DEFINE(ASM_PMD_SHIFT, PMD_SHIFT);
 	DEFINE(ASM_PGDIR_SHIFT, PGDIR_SHIFT);

@@ -54,7 +54,8 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	 * We enforce the MAP_FIXED case.
 	 */
 	if (flags & MAP_FIXED) {
-		if (aliasing && flags & MAP_SHARED && addr & (SHMLBA - 1))
+		if (aliasing && flags & MAP_SHARED &&
+		    (addr - (pgoff << PAGE_SHIFT)) & (SHMLBA - 1))
 			return -EINVAL;
 		return addr;
 	}
@@ -124,7 +125,7 @@ int valid_phys_addr_range(unsigned long addr, size_t size)
 {
 	if (addr < PHYS_OFFSET)
 		return 0;
-	if (addr + size >= __pa(high_memory - 1))
+	if (addr + size > __pa(high_memory - 1) + 1)
 		return 0;
 
 	return 1;

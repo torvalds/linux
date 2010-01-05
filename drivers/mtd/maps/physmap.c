@@ -48,23 +48,22 @@ static int physmap_flash_remove(struct platform_device *dev)
 
 	if (info->cmtd) {
 #ifdef CONFIG_MTD_PARTITIONS
-		if (info->nr_parts || physmap_data->nr_parts)
+		if (info->nr_parts || physmap_data->nr_parts) {
 			del_mtd_partitions(info->cmtd);
-		else
+
+			if (info->nr_parts)
+				kfree(info->parts);
+		} else {
 			del_mtd_device(info->cmtd);
+		}
 #else
 		del_mtd_device(info->cmtd);
 #endif
-	}
-#ifdef CONFIG_MTD_PARTITIONS
-	if (info->nr_parts)
-		kfree(info->parts);
-#endif
-
 #ifdef CONFIG_MTD_CONCAT
-	if (info->cmtd != info->mtd[0])
-		mtd_concat_destroy(info->cmtd);
+		if (info->cmtd != info->mtd[0])
+			mtd_concat_destroy(info->cmtd);
 #endif
+	}
 
 	for (i = 0; i < MAX_RESOURCES; i++) {
 		if (info->mtd[i] != NULL)
@@ -130,7 +129,7 @@ static int physmap_flash_probe(struct platform_device *dev)
 						 info->map[i].size);
 		if (info->map[i].virt == NULL) {
 			dev_err(&dev->dev, "Failed to ioremap flash region\n");
-			err = EIO;
+			err = -EIO;
 			goto err_out;
 		}
 

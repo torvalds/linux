@@ -43,6 +43,7 @@
 #include "xfs_error.h"
 #include "xfs_rw.h"
 #include "xfs_vnodeops.h"
+#include "xfs_trace.h"
 
 /*
  * Syssgi interface for swapext
@@ -168,7 +169,6 @@ xfs_swap_extents(
 	}
 
 	if (VN_CACHED(VFS_I(tip)) != 0) {
-		xfs_inval_cached_trace(tip, 0, -1, 0, -1);
 		error = xfs_flushinval_pages(tip, 0, -1,
 				FI_REMAPF_LOCKED);
 		if (error)
@@ -206,10 +206,10 @@ xfs_swap_extents(
 	 * process that the file was not changed out from
 	 * under it.
 	 */
-	if ((sbp->bs_ctime.tv_sec != ip->i_d.di_ctime.t_sec) ||
-	    (sbp->bs_ctime.tv_nsec != ip->i_d.di_ctime.t_nsec) ||
-	    (sbp->bs_mtime.tv_sec != ip->i_d.di_mtime.t_sec) ||
-	    (sbp->bs_mtime.tv_nsec != ip->i_d.di_mtime.t_nsec)) {
+	if ((sbp->bs_ctime.tv_sec != VFS_I(ip)->i_ctime.tv_sec) ||
+	    (sbp->bs_ctime.tv_nsec != VFS_I(ip)->i_ctime.tv_nsec) ||
+	    (sbp->bs_mtime.tv_sec != VFS_I(ip)->i_mtime.tv_sec) ||
+	    (sbp->bs_mtime.tv_nsec != VFS_I(ip)->i_mtime.tv_nsec)) {
 		error = XFS_ERROR(EBUSY);
 		goto out_unlock;
 	}

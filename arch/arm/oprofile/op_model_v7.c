@@ -191,12 +191,8 @@ int armv7_setup_pmnc(void)
 		return -EBUSY;
 	}
 
-	/*
-	 * Initialize & Reset PMNC: C bit, D bit and P bit.
-	 *  Note: Using a slower count for CCNT (D bit: divide by 64) results
-	 *   in a more stable system
-	 */
-	armv7_pmnc_write(PMNC_P | PMNC_C | PMNC_D);
+	/* Initialize & Reset PMNC: C bit and P bit */
+	armv7_pmnc_write(PMNC_P | PMNC_C);
 
 
 	for (cnt = CCNT; cnt < CNTMAX; cnt++) {

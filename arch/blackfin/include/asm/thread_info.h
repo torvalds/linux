@@ -1,27 +1,7 @@
 /*
- * File:         include/asm-blackfin/thread_info.h
- * Based on:     include/asm-m68knommu/thread_info.h
- * Author:       LG Soft India
- *               Copyright (C) 2004-2005 Analog Devices Inc.
- * Created:      Tue Sep 21 2004
- * Description:  Blackfin low-level thread information
- * Modified:
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ * Copyright 2004-2009 Analog Devices Inc.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.
- * If not, write to the Free Software Foundation,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * Licensed under the GPL-2 or later.
  */
 
 #ifndef _ASM_THREAD_INFO_H
@@ -123,11 +103,13 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_RESTORE_SIGMASK	5	/* restore signal mask in do_signal() */
 #define TIF_FREEZE              6       /* is freezing for suspend */
 #define TIF_IRQ_SYNC            7       /* sync pipeline stage */
+#define TIF_NOTIFY_RESUME       8       /* callback before returning to user */
 
 /* as above, but as bit values */
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
+#define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
 #define _TIF_RESTORE_SIGMASK	(1<<TIF_RESTORE_SIGMASK)
 #define _TIF_FREEZE             (1<<TIF_FREEZE)

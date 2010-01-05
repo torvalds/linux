@@ -732,8 +732,10 @@ static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id 
 	}
 
 	err = acpi_check_resource_conflict(&dev->resource[SMBBAR]);
-	if (err)
+	if (err) {
+		err = -ENODEV;
 		goto exit;
+	}
 
 	err = pci_request_region(dev, SMBBAR, i801_driver.name);
 	if (err) {
@@ -764,6 +766,9 @@ static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id 
 
 	/* set up the sysfs linkage to our parent device */
 	i801_adapter.dev.parent = &dev->dev;
+
+	/* Retry up to 3 times on lost arbitration */
+	i801_adapter.retries = 3;
 
 	snprintf(i801_adapter.name, sizeof(i801_adapter.name),
 		"SMBus I801 adapter at %04lx", i801_smba);

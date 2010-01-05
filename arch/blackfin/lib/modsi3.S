@@ -1,36 +1,12 @@
 /*
- * File:         arch/blackfin/lib/modsi3.S
- * Based on:
- * Author:
+ * This program computes 32 bit signed remainder. It calls div32 function
+ * for quotient estimation.
+ *   Registers in:  R0, R1 = Numerator/ Denominator
+ *   Registers out: R0     = Remainder
  *
- * Created:
- * Description:  This program computes 32 bit signed remainder. It calls div32 function
- *               for quotient estimation.
+ * Copyright 2004-2009 Analog Devices Inc.
  *
- *               Registers used :
- *               Numerator/ Denominator in  R0, R1
- *                 R0  -  returns remainder.
- *                 R2-R7
- *
- * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the ADI BSD license or the GPL-2 (or later)
  */
 
 .global ___modsi3;

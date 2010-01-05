@@ -1,30 +1,7 @@
 /*
- * File:         arch/blackfin/kernel/irqchip.c
- * Based on:
- * Author:
+ * Copyright 2005-2009 Analog Devices Inc.
  *
- * Created:
- * Description:  This file contains the simple DMA Implementation for Blackfin
- *
- * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later
  */
 
 #include <linux/kernel_stat.h>
@@ -46,7 +23,7 @@ void ack_bad_irq(unsigned int irq)
 
 static struct irq_desc bad_irq_desc = {
 	.handle_irq = handle_bad_irq,
-	.lock = __SPIN_LOCK_UNLOCKED(irq_desc->lock),
+	.lock = __RAW_SPIN_LOCK_UNLOCKED(bad_irq_desc.lock),
 };
 
 #ifdef CONFIG_CPUMASK_OFFSTACK
@@ -62,7 +39,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	unsigned long flags;
 
 	if (i < NR_IRQS) {
-		spin_lock_irqsave(&irq_desc[i].lock, flags);
+		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
 		action = irq_desc[i].action;
 		if (!action)
 			goto skip;
@@ -76,7 +53,7 @@ int show_interrupts(struct seq_file *p, void *v)
 
 		seq_putc(p, '\n');
  skip:
-		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
 	} else if (i == NR_IRQS) {
 		seq_printf(p, "NMI: ");
 		for_each_online_cpu(j)

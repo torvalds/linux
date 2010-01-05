@@ -7,8 +7,9 @@
  *
  * Author: Andy Fleming
  * Maintainer: Kumar Gala
+ * Modifier: Sandeep Gopalpet <sandeep.kumar@freescale.com>
  *
- * Copyright (c) 2002-2004 Freescale Semiconductor, Inc.
+ * Copyright 2002-2009 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -73,6 +74,13 @@
 #define DRV_NAME "gfar-enet"
 extern const char gfar_driver_name[];
 extern const char gfar_driver_version[];
+
+/* MAXIMUM NUMBER OF QUEUES SUPPORTED */
+#define MAX_TX_QS	0x8
+#define MAX_RX_QS	0x8
+
+/* MAXIMUM NUMBER OF GROUPS SUPPORTED */
+#define MAXGROUPS 0x2
 
 /* These need to be powers of 2 for this driver */
 #define DEFAULT_TX_RING_SIZE	256
@@ -171,12 +179,63 @@ extern const char gfar_driver_version[];
 
 #define MINFLR_INIT_SETTINGS	0x00000040
 
+/* Tqueue control */
+#define TQUEUE_EN0		0x00008000
+#define TQUEUE_EN1		0x00004000
+#define TQUEUE_EN2		0x00002000
+#define TQUEUE_EN3		0x00001000
+#define TQUEUE_EN4		0x00000800
+#define TQUEUE_EN5		0x00000400
+#define TQUEUE_EN6		0x00000200
+#define TQUEUE_EN7		0x00000100
+#define TQUEUE_EN_ALL		0x0000FF00
+
+#define TR03WT_WT0_MASK		0xFF000000
+#define TR03WT_WT1_MASK		0x00FF0000
+#define TR03WT_WT2_MASK		0x0000FF00
+#define TR03WT_WT3_MASK		0x000000FF
+
+#define TR47WT_WT4_MASK		0xFF000000
+#define TR47WT_WT5_MASK		0x00FF0000
+#define TR47WT_WT6_MASK		0x0000FF00
+#define TR47WT_WT7_MASK		0x000000FF
+
+/* Rqueue control */
+#define RQUEUE_EX0		0x00800000
+#define RQUEUE_EX1		0x00400000
+#define RQUEUE_EX2		0x00200000
+#define RQUEUE_EX3		0x00100000
+#define RQUEUE_EX4		0x00080000
+#define RQUEUE_EX5		0x00040000
+#define RQUEUE_EX6		0x00020000
+#define RQUEUE_EX7		0x00010000
+#define RQUEUE_EX_ALL		0x00FF0000
+
+#define RQUEUE_EN0		0x00000080
+#define RQUEUE_EN1		0x00000040
+#define RQUEUE_EN2		0x00000020
+#define RQUEUE_EN3		0x00000010
+#define RQUEUE_EN4		0x00000008
+#define RQUEUE_EN5		0x00000004
+#define RQUEUE_EN6		0x00000002
+#define RQUEUE_EN7		0x00000001
+#define RQUEUE_EN_ALL		0x000000FF
+
 /* Init to do tx snooping for buffers and descriptors */
 #define DMACTRL_INIT_SETTINGS   0x000000c3
 #define DMACTRL_GRS             0x00000010
 #define DMACTRL_GTS             0x00000008
 
-#define TSTAT_CLEAR_THALT       0x80000000
+#define TSTAT_CLEAR_THALT_ALL	0xFF000000
+#define TSTAT_CLEAR_THALT	0x80000000
+#define TSTAT_CLEAR_THALT0	0x80000000
+#define TSTAT_CLEAR_THALT1	0x40000000
+#define TSTAT_CLEAR_THALT2	0x20000000
+#define TSTAT_CLEAR_THALT3	0x10000000
+#define TSTAT_CLEAR_THALT4	0x08000000
+#define TSTAT_CLEAR_THALT5	0x04000000
+#define TSTAT_CLEAR_THALT6	0x02000000
+#define TSTAT_CLEAR_THALT7	0x01000000
 
 /* Interrupt coalescing macros */
 #define IC_ICEN			0x80000000
@@ -227,6 +286,13 @@ extern const char gfar_driver_version[];
 #define TCTRL_IPCSEN		0x00004000
 #define TCTRL_TUCSEN		0x00002000
 #define TCTRL_VLINS		0x00001000
+#define TCTRL_THDF		0x00000800
+#define TCTRL_RFCPAUSE		0x00000010
+#define TCTRL_TFCPAUSE		0x00000008
+#define TCTRL_TXSCHED_MASK	0x00000006
+#define TCTRL_TXSCHED_INIT	0x00000000
+#define TCTRL_TXSCHED_PRIO	0x00000002
+#define TCTRL_TXSCHED_WRRS	0x00000004
 #define TCTRL_INIT_CSUM		(TCTRL_TUCSEN | TCTRL_IPCSEN)
 
 #define IEVENT_INIT_CLEAR	0xffffffff
@@ -267,7 +333,7 @@ extern const char gfar_driver_version[];
 #define IMASK_BSY               0x20000000
 #define IMASK_EBERR             0x10000000
 #define IMASK_MSRO		0x04000000
-#define IMASK_GRSC              0x02000000
+#define IMASK_GTSC              0x02000000
 #define IMASK_BABT		0x01000000
 #define IMASK_TXC               0x00800000
 #define IMASK_TXEEN		0x00400000
@@ -278,7 +344,7 @@ extern const char gfar_driver_version[];
 #define IMASK_XFUN		0x00010000
 #define IMASK_RXB0              0x00008000
 #define IMASK_MAG		0x00000800
-#define IMASK_GTSC              0x00000100
+#define IMASK_GRSC              0x00000100
 #define IMASK_RXFEN0		0x00000080
 #define IMASK_FIR		0x00000008
 #define IMASK_FIQ		0x00000004
@@ -314,6 +380,88 @@ extern const char gfar_driver_version[];
 
 #define BD_LFLAG(flags) ((flags) << 16)
 #define BD_LENGTH_MASK		0x0000ffff
+
+#define CLASS_CODE_UNRECOG		0x00
+#define CLASS_CODE_DUMMY1		0x01
+#define CLASS_CODE_ETHERTYPE1		0x02
+#define CLASS_CODE_ETHERTYPE2		0x03
+#define CLASS_CODE_USER_PROG1		0x04
+#define CLASS_CODE_USER_PROG2		0x05
+#define CLASS_CODE_USER_PROG3		0x06
+#define CLASS_CODE_USER_PROG4		0x07
+#define CLASS_CODE_TCP_IPV4		0x08
+#define CLASS_CODE_UDP_IPV4		0x09
+#define CLASS_CODE_AH_ESP_IPV4		0x0a
+#define CLASS_CODE_SCTP_IPV4		0x0b
+#define CLASS_CODE_TCP_IPV6		0x0c
+#define CLASS_CODE_UDP_IPV6		0x0d
+#define CLASS_CODE_AH_ESP_IPV6		0x0e
+#define CLASS_CODE_SCTP_IPV6		0x0f
+
+#define FPR_FILER_MASK	0xFFFFFFFF
+#define MAX_FILER_IDX	0xFF
+
+/* This default RIR value directly corresponds
+ * to the 3-bit hash value generated */
+#define DEFAULT_RIR0	0x05397700
+
+/* RQFCR register bits */
+#define RQFCR_GPI		0x80000000
+#define RQFCR_HASHTBL_Q		0x00000000
+#define RQFCR_HASHTBL_0		0x00020000
+#define RQFCR_HASHTBL_1		0x00040000
+#define RQFCR_HASHTBL_2		0x00060000
+#define RQFCR_HASHTBL_3		0x00080000
+#define RQFCR_HASH		0x00010000
+#define RQFCR_CLE		0x00000200
+#define RQFCR_RJE		0x00000100
+#define RQFCR_AND		0x00000080
+#define RQFCR_CMP_EXACT		0x00000000
+#define RQFCR_CMP_MATCH		0x00000020
+#define RQFCR_CMP_NOEXACT	0x00000040
+#define RQFCR_CMP_NOMATCH	0x00000060
+
+/* RQFCR PID values */
+#define	RQFCR_PID_MASK		0x00000000
+#define	RQFCR_PID_PARSE		0x00000001
+#define	RQFCR_PID_ARB		0x00000002
+#define	RQFCR_PID_DAH		0x00000003
+#define	RQFCR_PID_DAL		0x00000004
+#define	RQFCR_PID_SAH		0x00000005
+#define	RQFCR_PID_SAL		0x00000006
+#define	RQFCR_PID_ETY		0x00000007
+#define	RQFCR_PID_VID		0x00000008
+#define	RQFCR_PID_PRI		0x00000009
+#define	RQFCR_PID_TOS		0x0000000A
+#define	RQFCR_PID_L4P		0x0000000B
+#define	RQFCR_PID_DIA		0x0000000C
+#define	RQFCR_PID_SIA		0x0000000D
+#define	RQFCR_PID_DPT		0x0000000E
+#define	RQFCR_PID_SPT		0x0000000F
+
+/* RQFPR when PID is 0x0001 */
+#define RQFPR_HDR_GE_512	0x00200000
+#define RQFPR_LERR		0x00100000
+#define RQFPR_RAR		0x00080000
+#define RQFPR_RARQ		0x00040000
+#define RQFPR_AR		0x00020000
+#define RQFPR_ARQ		0x00010000
+#define RQFPR_EBC		0x00008000
+#define RQFPR_VLN		0x00004000
+#define RQFPR_CFI		0x00002000
+#define RQFPR_JUM		0x00001000
+#define RQFPR_IPF		0x00000800
+#define RQFPR_FIF		0x00000400
+#define RQFPR_IPV4		0x00000200
+#define RQFPR_IPV6		0x00000100
+#define RQFPR_ICC		0x00000080
+#define RQFPR_ICV		0x00000040
+#define RQFPR_TCP		0x00000020
+#define RQFPR_UDP		0x00000010
+#define RQFPR_TUC		0x00000008
+#define RQFPR_TUV		0x00000004
+#define RQFPR_PER		0x00000002
+#define RQFPR_EER		0x00000001
 
 /* TxBD status field bits */
 #define TXBD_READY		0x8000
@@ -503,25 +651,32 @@ struct gfar_stats {
 
 struct gfar {
 	u32	tsec_id;	/* 0x.000 - Controller ID register */
-	u8	res1[12];
+	u32	tsec_id2;	/* 0x.004 - Controller ID2 register */
+	u8	res1[8];
 	u32	ievent;		/* 0x.010 - Interrupt Event Register */
 	u32	imask;		/* 0x.014 - Interrupt Mask Register */
 	u32	edis;		/* 0x.018 - Error Disabled Register */
-	u8	res2[4];
+	u32	emapg;		/* 0x.01c - Group Error mapping register */
 	u32	ecntrl;		/* 0x.020 - Ethernet Control Register */
 	u32	minflr;		/* 0x.024 - Minimum Frame Length Register */
 	u32	ptv;		/* 0x.028 - Pause Time Value Register */
 	u32	dmactrl;	/* 0x.02c - DMA Control Register */
 	u32	tbipa;		/* 0x.030 - TBI PHY Address Register */
-	u8	res3[88];
+	u8	res2[28];
+	u32	fifo_rx_pause;	/* 0x.050 - FIFO receive pause start threshold
+					register */
+	u32	fifo_rx_pause_shutoff;	/* x.054 - FIFO receive starve shutoff
+						register */
+	u32	fifo_rx_alarm;	/* 0x.058 - FIFO receive alarm start threshold
+						register */
+	u32	fifo_rx_alarm_shutoff;	/*0x.05c - FIFO receive alarm  starve
+						shutoff register */
+	u8	res3[44];
 	u32	fifo_tx_thr;	/* 0x.08c - FIFO transmit threshold register */
 	u8	res4[8];
 	u32	fifo_tx_starve;	/* 0x.098 - FIFO transmit starve register */
 	u32	fifo_tx_starve_shutoff;	/* 0x.09c - FIFO transmit starve shutoff register */
-	u8	res5[4];
-	u32	fifo_rx_pause;	/* 0x.0a4 - FIFO receive pause threshold register */
-	u32	fifo_rx_alarm;	/* 0x.0a8 - FIFO receive alarm threshold register */
-	u8	res6[84];
+	u8	res5[96];
 	u32	tctrl;		/* 0x.100 - Transmit Control Register */
 	u32	tstat;		/* 0x.104 - Transmit Status Register */
 	u32	dfvlan;		/* 0x.108 - Default VLAN Control word */
@@ -572,7 +727,11 @@ struct gfar {
 	u8	res12[8];
 	u32	rxic;		/* 0x.310 - Receive Interrupt Coalescing Configuration Register */
 	u32	rqueue;		/* 0x.314 - Receive queue control register */
-	u8	res13[24];
+	u32	rir0;		/* 0x.318 - Ring mapping register 0 */
+	u32	rir1;		/* 0x.31c - Ring mapping register 1 */
+	u32	rir2;		/* 0x.320 - Ring mapping register 2 */
+	u32	rir3;		/* 0x.324 - Ring mapping register 3 */
+	u8	res13[8];
 	u32	rbifx;		/* 0x.330 - Receive bit field extract control register */
 	u32	rqfar;		/* 0x.334 - Receive queue filing table address register */
 	u32	rqfcr;		/* 0x.338 - Receive queue filing table control register */
@@ -621,7 +780,7 @@ struct gfar {
 	u32	maxfrm;		/* 0x.510 - Maximum Frame Length Register */
 	u8	res18[12];
 	u8	gfar_mii_regs[24];	/* See gianfar_phy.h */
-	u8	res19[4];
+	u32	ifctrl;		/* 0x.538 - Interface control register */
 	u32	ifstat;		/* 0x.53c - Interface Status Register */
 	u32	macstnaddr1;	/* 0x.540 - Station Address Part 1 Register */
 	u32	macstnaddr2;	/* 0x.544 - Station Address Part 2 Register */
@@ -682,8 +841,30 @@ struct gfar {
 	u8	res23c[248];
 	u32	attr;		/* 0x.bf8 - Attributes Register */
 	u32	attreli;	/* 0x.bfc - Attributes Extract Length and Extract Index Register */
-	u8	res24[1024];
-
+	u8	res24[688];
+	u32	isrg0;		/* 0x.eb0 - Interrupt steering group 0 register */
+	u32	isrg1;		/* 0x.eb4 - Interrupt steering group 1 register */
+	u32	isrg2;		/* 0x.eb8 - Interrupt steering group 2 register */
+	u32	isrg3;		/* 0x.ebc - Interrupt steering group 3 register */
+	u8	res25[16];
+	u32	rxic0;		/* 0x.ed0 - Ring 0 Rx interrupt coalescing */
+	u32	rxic1;		/* 0x.ed4 - Ring 1 Rx interrupt coalescing */
+	u32	rxic2;		/* 0x.ed8 - Ring 2 Rx interrupt coalescing */
+	u32	rxic3;		/* 0x.edc - Ring 3 Rx interrupt coalescing */
+	u32	rxic4;		/* 0x.ee0 - Ring 4 Rx interrupt coalescing */
+	u32	rxic5;		/* 0x.ee4 - Ring 5 Rx interrupt coalescing */
+	u32	rxic6;		/* 0x.ee8 - Ring 6 Rx interrupt coalescing */
+	u32	rxic7;		/* 0x.eec - Ring 7 Rx interrupt coalescing */
+	u8	res26[32];
+	u32	txic0;		/* 0x.f10 - Ring 0 Tx interrupt coalescing */
+	u32	txic1;		/* 0x.f14 - Ring 1 Tx interrupt coalescing */
+	u32	txic2;		/* 0x.f18 - Ring 2 Tx interrupt coalescing */
+	u32	txic3;		/* 0x.f1c - Ring 3 Tx interrupt coalescing */
+	u32	txic4;		/* 0x.f20 - Ring 4 Tx interrupt coalescing */
+	u32	txic5;		/* 0x.f24 - Ring 5 Tx interrupt coalescing */
+	u32	txic6;		/* 0x.f28 - Ring 6 Tx interrupt coalescing */
+	u32	txic7;		/* 0x.f2c - Ring 7 Tx interrupt coalescing */
+	u8	res27[208];
 };
 
 /* Flags related to gianfar device features */
@@ -699,6 +880,143 @@ struct gfar {
 #define FSL_GIANFAR_DEV_HAS_BD_STASHING		0x00000200
 #define FSL_GIANFAR_DEV_HAS_BUF_STASHING	0x00000400
 
+#if (MAXGROUPS == 2)
+#define DEFAULT_MAPPING 	0xAA
+#else
+#define DEFAULT_MAPPING 	0xFF
+#endif
+
+#define ISRG_SHIFT_TX	0x10
+#define ISRG_SHIFT_RX	0x18
+
+/* The same driver can operate in two modes */
+/* SQ_SG_MODE: Single Queue Single Group Mode
+ * 		(Backward compatible mode)
+ * MQ_MG_MODE: Multi Queue Multi Group mode
+ */
+enum {
+	SQ_SG_MODE = 0,
+	MQ_MG_MODE
+};
+
+/**
+ *	struct gfar_priv_tx_q - per tx queue structure
+ *	@txlock: per queue tx spin lock
+ *	@tx_skbuff:skb pointers
+ *	@skb_curtx: to be used skb pointer
+ *	@skb_dirtytx:the last used skb pointer
+ *	@qindex: index of this queue
+ *	@dev: back pointer to the dev structure
+ *	@grp: back pointer to the group to which this queue belongs
+ *	@tx_bd_base: First tx buffer descriptor
+ *	@cur_tx: Next free ring entry
+ *	@dirty_tx: First buffer in line to be transmitted
+ *	@tx_ring_size: Tx ring size
+ *	@num_txbdfree: number of free TxBds
+ *	@txcoalescing: enable/disable tx coalescing
+ *	@txic: transmit interrupt coalescing value
+ *	@txcount: coalescing value if based on tx frame count
+ *	@txtime: coalescing value if based on time
+ */
+struct gfar_priv_tx_q {
+	spinlock_t txlock __attribute__ ((aligned (SMP_CACHE_BYTES)));
+	struct sk_buff ** tx_skbuff;
+	/* Buffer descriptor pointers */
+	dma_addr_t tx_bd_dma_base;
+	struct	txbd8 *tx_bd_base;
+	struct	txbd8 *cur_tx;
+	struct	txbd8 *dirty_tx;
+	struct	net_device *dev;
+	struct gfar_priv_grp *grp;
+	u16	skb_curtx;
+	u16	skb_dirtytx;
+	u16	qindex;
+	unsigned int tx_ring_size;
+	unsigned int num_txbdfree;
+	/* Configuration info for the coalescing features */
+	unsigned char txcoalescing;
+	unsigned long txic;
+	unsigned short txcount;
+	unsigned short txtime;
+};
+
+/*
+ * Per RX queue stats
+ */
+struct rx_q_stats {
+	unsigned long rx_packets;
+	unsigned long rx_bytes;
+	unsigned long rx_dropped;
+};
+
+/**
+ *	struct gfar_priv_rx_q - per rx queue structure
+ *	@rxlock: per queue rx spin lock
+ *	@rx_skbuff: skb pointers
+ *	@skb_currx: currently use skb pointer
+ *	@rx_bd_base: First rx buffer descriptor
+ *	@cur_rx: Next free rx ring entry
+ *	@qindex: index of this queue
+ *	@dev: back pointer to the dev structure
+ *	@rx_ring_size: Rx ring size
+ *	@rxcoalescing: enable/disable rx-coalescing
+ *	@rxic: receive interrupt coalescing vlaue
+ */
+
+struct gfar_priv_rx_q {
+	spinlock_t rxlock __attribute__ ((aligned (SMP_CACHE_BYTES)));
+	struct	sk_buff ** rx_skbuff;
+	dma_addr_t rx_bd_dma_base;
+	struct	rxbd8 *rx_bd_base;
+	struct	rxbd8 *cur_rx;
+	struct	net_device *dev;
+	struct gfar_priv_grp *grp;
+	struct rx_q_stats stats;
+	u16	skb_currx;
+	u16	qindex;
+	unsigned int	rx_ring_size;
+	/* RX Coalescing values */
+	unsigned char rxcoalescing;
+	unsigned long rxic;
+};
+
+/**
+ *	struct gfar_priv_grp - per group structure
+ *	@napi: the napi poll function
+ *	@priv: back pointer to the priv structure
+ *	@regs: the ioremapped register space for this group
+ *	@grp_id: group id for this group
+ *	@interruptTransmit: The TX interrupt number for this group
+ *	@interruptReceive: The RX interrupt number for this group
+ *	@interruptError: The ERROR interrupt number for this group
+ *	@int_name_tx: tx interrupt name for this group
+ *	@int_name_rx: rx interrupt name for this group
+ *	@int_name_er: er interrupt name for this group
+ */
+
+struct gfar_priv_grp {
+	spinlock_t grplock __attribute__ ((aligned (SMP_CACHE_BYTES)));
+	struct	napi_struct napi;
+	struct gfar_private *priv;
+	struct gfar __iomem *regs;
+	unsigned int grp_id;
+	unsigned long rx_bit_map;
+	unsigned long tx_bit_map;
+	unsigned long num_tx_queues;
+	unsigned long num_rx_queues;
+	unsigned int rstat;
+	unsigned int tstat;
+	unsigned int imask;
+	unsigned int ievent;
+	unsigned int interruptTransmit;
+	unsigned int interruptReceive;
+	unsigned int interruptError;
+
+	char int_name_tx[GFAR_INT_NAME_MAX];
+	char int_name_rx[GFAR_INT_NAME_MAX];
+	char int_name_er[GFAR_INT_NAME_MAX];
+};
+
 /* Struct stolen almost completely (and shamelessly) from the FCC enet source
  * (Ok, that's not so true anymore, but there is a family resemblence)
  * The GFAR buffer descriptors track the ring buffers.  The rx_bd_base
@@ -709,62 +1027,36 @@ struct gfar {
  * the buffer descriptor determines the actual condition.
  */
 struct gfar_private {
-	/* Fields controlled by TX lock */
-	spinlock_t txlock;
 
-	/* Pointer to the array of skbuffs */
-	struct sk_buff ** tx_skbuff;
+	/* Indicates how many tx, rx queues are enabled */
+	unsigned int num_tx_queues;
+	unsigned int num_rx_queues;
+	unsigned int num_grps;
+	unsigned int mode;
 
-	/* next free skb in the array */
-	u16 skb_curtx;
-
-	/* First skb in line to be transmitted */
-	u16 skb_dirtytx;
-
-	/* Configuration info for the coalescing features */
-	unsigned char txcoalescing;
-	unsigned long txic;
-
-	/* Buffer descriptor pointers */
-	struct txbd8 *tx_bd_base;	/* First tx buffer descriptor */
-	struct txbd8 *cur_tx;	        /* Next free ring entry */
-	struct txbd8 *dirty_tx;		/* First buffer in line
-					   to be transmitted */
-	unsigned int tx_ring_size;
-	unsigned int num_txbdfree;	/* number of TxBDs free */
-
-	/* RX Locked fields */
-	spinlock_t rxlock;
+	/* The total tx and rx ring size for the enabled queues */
+	unsigned int total_tx_ring_size;
+	unsigned int total_rx_ring_size;
 
 	struct device_node *node;
 	struct net_device *ndev;
 	struct of_device *ofdev;
-	struct napi_struct napi;
 
-	/* skb array and index */
-	struct sk_buff ** rx_skbuff;
-	u16 skb_currx;
+	struct gfar_priv_grp gfargrp[MAXGROUPS];
+	struct gfar_priv_tx_q *tx_queue[MAX_TX_QS];
+	struct gfar_priv_rx_q *rx_queue[MAX_RX_QS];
 
-	/* RX Coalescing values */
-	unsigned char rxcoalescing;
-	unsigned long rxic;
-
-	struct rxbd8 *rx_bd_base;	/* First Rx buffers */
-	struct rxbd8 *cur_rx;           /* Next free rx ring entry */
-
-	/* RX parameters */
-	unsigned int rx_ring_size;
+	/* RX per device parameters */
 	unsigned int rx_buffer_size;
 	unsigned int rx_stash_size;
 	unsigned int rx_stash_index;
+
+	u32 cur_filer_idx;
 
 	struct sk_buff_head rx_recycle;
 
 	struct vlan_group *vlgrp;
 
-	/* Unprotected fields */
-	/* Pointer to the GFAR memory mapped Registers */
-	struct gfar __iomem *regs;
 
 	/* Hash registers and their width */
 	u32 __iomem *hash_regs[16];
@@ -785,12 +1077,9 @@ struct gfar_private {
 	unsigned char rx_csum_enable:1,
 		extended_hash:1,
 		bd_stash_en:1,
+		rx_filer_enable:1,
 		wol_en:1; /* Wake-on-LAN enabled */
 	unsigned short padding;
-
-	unsigned int interruptTransmit;
-	unsigned int interruptReceive;
-	unsigned int interruptError;
 
 	/* PHY stuff */
 	struct phy_device *phydev;
@@ -803,13 +1092,12 @@ struct gfar_private {
 
 	struct work_struct reset_task;
 
-	char int_name_tx[GFAR_INT_NAME_MAX];
-	char int_name_rx[GFAR_INT_NAME_MAX];
-	char int_name_er[GFAR_INT_NAME_MAX];
-
 	/* Network Statistics */
 	struct gfar_extra_stats extra_stats;
 };
+
+extern unsigned int ftp_rqfpr[MAX_FILER_IDX + 1];
+extern unsigned int ftp_rqfcr[MAX_FILER_IDX + 1];
 
 static inline u32 gfar_read(volatile unsigned __iomem *addr)
 {
@@ -823,12 +1111,28 @@ static inline void gfar_write(volatile unsigned __iomem *addr, u32 val)
 	out_be32(addr, val);
 }
 
+static inline void gfar_write_filer(struct gfar_private *priv,
+		unsigned int far, unsigned int fcr, unsigned int fpr)
+{
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
+
+	gfar_write(&regs->rqfar, far);
+	gfar_write(&regs->rqfcr, fcr);
+	gfar_write(&regs->rqfpr, fpr);
+}
+
+extern void lock_rx_qs(struct gfar_private *priv);
+extern void lock_tx_qs(struct gfar_private *priv);
+extern void unlock_rx_qs(struct gfar_private *priv);
+extern void unlock_tx_qs(struct gfar_private *priv);
 extern irqreturn_t gfar_receive(int irq, void *dev_id);
 extern int startup_gfar(struct net_device *dev);
 extern void stop_gfar(struct net_device *dev);
 extern void gfar_halt(struct net_device *dev);
 extern void gfar_phy_test(struct mii_bus *bus, struct phy_device *phydev,
 		int enable, u32 regnum, u32 read);
+extern void gfar_configure_coalescing(struct gfar_private *priv,
+		unsigned long tx_mask, unsigned long rx_mask);
 void gfar_init_sysfs(struct net_device *dev);
 
 extern const struct ethtool_ops gfar_ethtool_ops;

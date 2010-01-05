@@ -409,7 +409,7 @@ sys32_munmap_wrapper:
 	.globl	sys32_truncate_wrapper
 sys32_truncate_wrapper:
 	llgtr	%r2,%r2			# const char *
-	llgfr	%r3,%r3			# unsigned long
+	lgfr	%r3,%r3			# long
 	jg	sys_truncate		# branch to system call
 
 	.globl	sys32_ftruncate_wrapper
@@ -688,8 +688,6 @@ sys32_getsid_wrapper:
 sys32_fdatasync_wrapper:
 	llgfr	%r2,%r2			# unsigned int
 	jg	sys_fdatasync		# branch to system call
-
-#sys32_sysctl_wrapper			# tbd
 
 	.globl	sys32_mlock_wrapper
 sys32_mlock_wrapper:
@@ -1087,8 +1085,8 @@ sys32_stime_wrapper:
 
 	.globl	sys32_sysctl_wrapper
 sys32_sysctl_wrapper:
-	llgtr	%r2,%r2 		# struct __sysctl_args32 *
-	jg	sys32_sysctl
+	llgtr	%r2,%r2 		# struct compat_sysctl_args *
+	jg	compat_sys_sysctl
 
 	.globl	sys32_fstat64_wrapper
 sys32_fstat64_wrapper:
@@ -1855,3 +1853,12 @@ sys32_execve_wrapper:
 	llgtr	%r3,%r3			# compat_uptr_t *
 	llgtr	%r4,%r4			# compat_uptr_t *
 	jg	sys32_execve		# branch to system call
+
+	.globl	compat_sys_recvmmsg_wrapper
+compat_sys_recvmmsg_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# struct compat_mmsghdr *
+	llgfr	%r4,%r4			# unsigned int
+	llgfr	%r5,%r5			# unsigned int
+	llgtr	%r6,%r6			# struct compat_timespec *
+	jg	compat_sys_recvmmsg

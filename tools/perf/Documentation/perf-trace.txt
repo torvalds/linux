@@ -8,11 +8,28 @@ perf-trace - Read perf.data (created by perf record) and display trace output
 SYNOPSIS
 --------
 [verse]
-'perf trace' [-i <file> | --input=file] symbol_name
+'perf trace' {record <script> | report <script> [args] }
 
 DESCRIPTION
 -----------
 This command reads the input file and displays the trace recorded.
+
+There are several variants of perf trace:
+
+  'perf trace' to see a detailed trace of the workload that was
+  recorded.
+
+  'perf trace record <script>' to record the events required for 'perf
+  trace report'.  <script> is the name displayed in the output of
+  'perf trace --list' i.e. the actual script name minus any language
+  extension.
+
+  'perf trace report <script>' to run and display the results of
+  <script>.  <script> is the name displayed in the output of 'perf
+  trace --list' i.e. the actual script name minus any language
+  extension.  The perf.data output from a previous run of 'perf trace
+  record <script>' is used and should be present for this command to
+  succeed.
 
 OPTIONS
 -------
@@ -20,6 +37,23 @@ OPTIONS
 --dump-raw-trace=::
         Display verbose dump of the trace data.
 
+-L::
+--Latency=::
+        Show latency attributes (irqs/preemption disabled, etc).
+
+-l::
+--list=::
+        Display a list of available trace scripts.
+
+-s::
+--script=::
+        Process trace data with the given script ([lang]:script[.ext]).
+
+-g::
+--gen-script=::
+        Generate perf-trace.[ext] starter script for given language,
+        using current perf.data.
+
 SEE ALSO
 --------
-linkperf:perf-record[1]
+linkperf:perf-record[1], linkperf:perf-trace-perl[1]

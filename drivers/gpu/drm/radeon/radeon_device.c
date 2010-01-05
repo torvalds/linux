@@ -44,10 +44,11 @@ void radeon_surface_init(struct radeon_device *rdev)
 	if (rdev->family < CHIP_R600) {
 		int i;
 
-		for (i = 0; i < 8; i++) {
-			WREG32(RADEON_SURFACE0_INFO +
-			       i * (RADEON_SURFACE1_INFO - RADEON_SURFACE0_INFO),
-			       0);
+		for (i = 0; i < RADEON_GEM_MAX_SURFACES; i++) {
+			if (rdev->surface_regs[i].bo)
+				radeon_bo_get_surface_reg(rdev->surface_regs[i].bo);
+			else
+				radeon_clear_surface_reg(rdev, i);
 		}
 		/* enable surfaces */
 		WREG32(RADEON_SURFACE_CNTL, 0);
@@ -208,6 +209,24 @@ bool radeon_card_posted(struct radeon_device *rdev)
 
 }
 
+bool radeon_boot_test_post_card(struct radeon_device *rdev)
+{
+	if (radeon_card_posted(rdev))
+		return true;
+
+	if (rdev->bios) {
+		DRM_INFO("GPU not posted. posting now...\n");
+		if (rdev->is_atom_bios)
+			atom_asic_init(rdev->mode_info.atom_context);
+		else
+			radeon_combios_asic_init(rdev->ddev);
+		return true;
+	} else {
+		dev_err(rdev->dev, "Card not posted and no BIOS - ignoring\n");
+		return false;
+	}
+}
+
 int radeon_dummy_page_init(struct radeon_device *rdev)
 {
 	rdev->dummy_page.page = alloc_page(GFP_DMA32 | GFP_KERNEL | __GFP_ZERO);
@@ -322,10 +341,6 @@ int radeon_asic_init(struct radeon_device *rdev)
 	case CHIP_RV380:
 		rdev->asic = &r300_asic;
 		if (rdev->flags & RADEON_IS_PCIE) {
-			rdev->asic->gart_init = &rv370_pcie_gart_init;
-			rdev->asic->gart_fini = &rv370_pcie_gart_fini;
-			rdev->asic->gart_enable = &rv370_pcie_gart_enable;
-			rdev->asic->gart_disable = &rv370_pcie_gart_disable;
 			rdev->asic->gart_tlb_flush = &rv370_pcie_gart_tlb_flush;
 			rdev->asic->gart_set_page = &rv370_pcie_gart_set_page;
 		}
@@ -376,6 +391,12 @@ int radeon_asic_init(struct radeon_device *rdev)
 		/* FIXME: not supported yet */
 		return -EINVAL;
 	}
+
+	if (rdev->flags & RADEON_IS_IGP) {
+		rdev->asic->get_memory_clock = NULL;
+		rdev->asic->set_memory_clock = NULL;
+	}
+
 	return 0;
 }
 
@@ -448,27 +469,37 @@ static uint32_t cail_reg_read(struct card_info *info, uint32_t reg)
 	return r;
 }
 
-static struct card_info atom_card_info = {
-	.dev = NULL,
-	.reg_read = cail_reg_read,
-	.reg_write = cail_reg_write,
-	.mc_read = cail_mc_read,
-	.mc_write = cail_mc_write,
-	.pll_read = cail_pll_read,
-	.pll_write = cail_pll_write,
-};
-
 int radeon_atombios_init(struct radeon_device *rdev)
 {
-	atom_card_info.dev = rdev->ddev;
-	rdev->mode_info.atom_context = atom_parse(&atom_card_info, rdev->bios);
+	struct card_info *atom_card_info =
+	    kzalloc(sizeof(struct card_info), GFP_KERNEL);
+
+	if (!atom_card_info)
+		return -ENOMEM;
+
+	rdev->mode_info.atom_card_info = atom_card_info;
+	atom_card_info->dev = rdev->ddev;
+	atom_card_info->reg_read = cail_reg_read;
+	atom_card_info->reg_write = cail_reg_write;
+	atom_card_info->mc_read = cail_mc_read;
+	atom_card_info->mc_write = cail_mc_write;
+	atom_card_info->pll_read = cail_pll_read;
+	atom_card_info->pll_write = cail_pll_write;
+
+	rdev->mode_info.atom_context = atom_parse(atom_card_info, rdev->bios);
+	mutex_init(&rdev->mode_info.atom_context->mutex);
 	radeon_atom_initialize_bios_scratch_regs(rdev->ddev);
+	atom_allocate_fb_scratch(rdev->mode_info.atom_context);
 	return 0;
 }
 
 void radeon_atombios_fini(struct radeon_device *rdev)
 {
-	kfree(rdev->mode_info.atom_context);
+	if (rdev->mode_info.atom_context) {
+		kfree(rdev->mode_info.atom_context->scratch);
+		kfree(rdev->mode_info.atom_context);
+	}
+	kfree(rdev->mode_info.atom_card_info);
 }
 
 int radeon_combios_init(struct radeon_device *rdev)
@@ -485,7 +516,6 @@ void radeon_combios_fini(struct radeon_device *rdev)
 static unsigned int radeon_vga_set_decode(void *cookie, bool state)
 {
 	struct radeon_device *rdev = cookie;
-
 	radeon_vga_set_state(rdev, state);
 	if (state)
 		return VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM |
@@ -493,9 +523,95 @@ static unsigned int radeon_vga_set_decode(void *cookie, bool state)
 	else
 		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
 }
-/*
- * Radeon device.
- */
+
+void radeon_agp_disable(struct radeon_device *rdev)
+{
+	rdev->flags &= ~RADEON_IS_AGP;
+	if (rdev->family >= CHIP_R600) {
+		DRM_INFO("Forcing AGP to PCIE mode\n");
+		rdev->flags |= RADEON_IS_PCIE;
+	} else if (rdev->family >= CHIP_RV515 ||
+			rdev->family == CHIP_RV380 ||
+			rdev->family == CHIP_RV410 ||
+			rdev->family == CHIP_R423) {
+		DRM_INFO("Forcing AGP to PCIE mode\n");
+		rdev->flags |= RADEON_IS_PCIE;
+		rdev->asic->gart_tlb_flush = &rv370_pcie_gart_tlb_flush;
+		rdev->asic->gart_set_page = &rv370_pcie_gart_set_page;
+	} else {
+		DRM_INFO("Forcing AGP to PCI mode\n");
+		rdev->flags |= RADEON_IS_PCI;
+		rdev->asic->gart_tlb_flush = &r100_pci_gart_tlb_flush;
+		rdev->asic->gart_set_page = &r100_pci_gart_set_page;
+	}
+}
+
+void radeon_check_arguments(struct radeon_device *rdev)
+{
+	/* vramlimit must be a power of two */
+	switch (radeon_vram_limit) {
+	case 0:
+	case 4:
+	case 8:
+	case 16:
+	case 32:
+	case 64:
+	case 128:
+	case 256:
+	case 512:
+	case 1024:
+	case 2048:
+	case 4096:
+		break;
+	default:
+		dev_warn(rdev->dev, "vram limit (%d) must be a power of 2\n",
+				radeon_vram_limit);
+		radeon_vram_limit = 0;
+		break;
+	}
+	radeon_vram_limit = radeon_vram_limit << 20;
+	/* gtt size must be power of two and greater or equal to 32M */
+	switch (radeon_gart_size) {
+	case 4:
+	case 8:
+	case 16:
+		dev_warn(rdev->dev, "gart size (%d) too small forcing to 512M\n",
+				radeon_gart_size);
+		radeon_gart_size = 512;
+		break;
+	case 32:
+	case 64:
+	case 128:
+	case 256:
+	case 512:
+	case 1024:
+	case 2048:
+	case 4096:
+		break;
+	default:
+		dev_warn(rdev->dev, "gart size (%d) must be a power of 2\n",
+				radeon_gart_size);
+		radeon_gart_size = 512;
+		break;
+	}
+	rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
+	/* AGP mode can only be -1, 1, 2, 4, 8 */
+	switch (radeon_agpmode) {
+	case -1:
+	case 0:
+	case 1:
+	case 2:
+	case 4:
+	case 8:
+		break;
+	default:
+		dev_warn(rdev->dev, "invalid AGP mode %d (valid mode: "
+				"-1, 0, 1, 2, 4, 8)\n", radeon_agpmode);
+		radeon_agpmode = 0;
+		break;
+	}
+}
+
 int radeon_device_init(struct radeon_device *rdev,
 		       struct drm_device *ddev,
 		       struct pci_dev *pdev,
@@ -521,42 +637,25 @@ int radeon_device_init(struct radeon_device *rdev,
 	mutex_init(&rdev->cs_mutex);
 	mutex_init(&rdev->ib_pool.mutex);
 	mutex_init(&rdev->cp.mutex);
+	if (rdev->family >= CHIP_R600)
+		spin_lock_init(&rdev->ih.lock);
+	mutex_init(&rdev->gem.mutex);
 	rwlock_init(&rdev->fence_drv.lock);
 	INIT_LIST_HEAD(&rdev->gem.objects);
 
+	/* setup workqueue */
+	rdev->wq = create_workqueue("radeon");
+	if (rdev->wq == NULL)
+		return -ENOMEM;
+
 	/* Set asic functions */
 	r = radeon_asic_init(rdev);
-	if (r) {
+	if (r)
 		return r;
-	}
+	radeon_check_arguments(rdev);
 
-	if (radeon_agpmode == -1) {
-		rdev->flags &= ~RADEON_IS_AGP;
-		if (rdev->family >= CHIP_R600) {
-			DRM_INFO("Forcing AGP to PCIE mode\n");
-			rdev->flags |= RADEON_IS_PCIE;
-		} else if (rdev->family >= CHIP_RV515 ||
-			   rdev->family == CHIP_RV380 ||
-			   rdev->family == CHIP_RV410 ||
-			   rdev->family == CHIP_R423) {
-			DRM_INFO("Forcing AGP to PCIE mode\n");
-			rdev->flags |= RADEON_IS_PCIE;
-			rdev->asic->gart_init = &rv370_pcie_gart_init;
-			rdev->asic->gart_fini = &rv370_pcie_gart_fini;
-			rdev->asic->gart_enable = &rv370_pcie_gart_enable;
-			rdev->asic->gart_disable = &rv370_pcie_gart_disable;
-			rdev->asic->gart_tlb_flush = &rv370_pcie_gart_tlb_flush;
-			rdev->asic->gart_set_page = &rv370_pcie_gart_set_page;
-		} else {
-			DRM_INFO("Forcing AGP to PCI mode\n");
-			rdev->flags |= RADEON_IS_PCI;
-			rdev->asic->gart_init = &r100_pci_gart_init;
-			rdev->asic->gart_fini = &r100_pci_gart_fini;
-			rdev->asic->gart_enable = &r100_pci_gart_enable;
-			rdev->asic->gart_disable = &r100_pci_gart_disable;
-			rdev->asic->gart_tlb_flush = &r100_pci_gart_tlb_flush;
-			rdev->asic->gart_set_page = &r100_pci_gart_set_page;
-		}
+	if (rdev->flags & RADEON_IS_AGP && radeon_agpmode == -1) {
+		radeon_agp_disable(rdev);
 	}
 
 	/* set DMA mask + need_dma32 flags.
@@ -588,111 +687,26 @@ int radeon_device_init(struct radeon_device *rdev,
 	DRM_INFO("register mmio base: 0x%08X\n", (uint32_t)rdev->rmmio_base);
 	DRM_INFO("register mmio size: %u\n", (unsigned)rdev->rmmio_size);
 
-	rdev->new_init_path = false;
-	r = radeon_init(rdev);
-	if (r) {
-		return r;
-	}
-
 	/* if we have > 1 VGA cards, then disable the radeon VGA resources */
-	r = vga_client_register(rdev->pdev, rdev, NULL, radeon_vga_set_decode);
-	if (r) {
-		return -EINVAL;
+	/* this will fail for cards that aren't VGA class devices, just
+	 * ignore it */
+	vga_client_register(rdev->pdev, rdev, NULL, radeon_vga_set_decode);
+
+	r = radeon_init(rdev);
+	if (r)
+		return r;
+
+	if (rdev->flags & RADEON_IS_AGP && !rdev->accel_working) {
+		/* Acceleration not working on AGP card try again
+		 * with fallback to PCI or PCIE GART
+		 */
+		radeon_gpu_reset(rdev);
+		radeon_fini(rdev);
+		radeon_agp_disable(rdev);
+		r = radeon_init(rdev);
+		if (r)
+			return r;
 	}
-
-	if (!rdev->new_init_path) {
-		/* Setup errata flags */
-		radeon_errata(rdev);
-		/* Initialize scratch registers */
-		radeon_scratch_init(rdev);
-		/* Initialize surface registers */
-		radeon_surface_init(rdev);
-
-		/* BIOS*/
-		if (!radeon_get_bios(rdev)) {
-			if (ASIC_IS_AVIVO(rdev))
-				return -EINVAL;
-		}
-		if (rdev->is_atom_bios) {
-			r = radeon_atombios_init(rdev);
-			if (r) {
-				return r;
-			}
-		} else {
-			r = radeon_combios_init(rdev);
-			if (r) {
-				return r;
-			}
-		}
-		/* Reset gpu before posting otherwise ATOM will enter infinite loop */
-		if (radeon_gpu_reset(rdev)) {
-			/* FIXME: what do we want to do here ? */
-		}
-		/* check if cards are posted or not */
-		if (!radeon_card_posted(rdev) && rdev->bios) {
-			DRM_INFO("GPU not posted. posting now...\n");
-			if (rdev->is_atom_bios) {
-				atom_asic_init(rdev->mode_info.atom_context);
-			} else {
-				radeon_combios_asic_init(rdev->ddev);
-			}
-		}
-		/* Get clock & vram information */
-		radeon_get_clock_info(rdev->ddev);
-		radeon_vram_info(rdev);
-		/* Initialize clocks */
-		r = radeon_clocks_init(rdev);
-		if (r) {
-			return r;
-		}
-
-		/* Initialize memory controller (also test AGP) */
-		r = radeon_mc_init(rdev);
-		if (r) {
-			return r;
-		}
-		/* Fence driver */
-		r = radeon_fence_driver_init(rdev);
-		if (r) {
-			return r;
-		}
-		r = radeon_irq_kms_init(rdev);
-		if (r) {
-			return r;
-		}
-		/* Memory manager */
-		r = radeon_object_init(rdev);
-		if (r) {
-			return r;
-		}
-		r = radeon_gpu_gart_init(rdev);
-		if (r)
-			return r;
-		/* Initialize GART (initialize after TTM so we can allocate
-		 * memory through TTM but finalize after TTM) */
-		r = radeon_gart_enable(rdev);
-		if (r)
-			return 0;
-			r = radeon_gem_init(rdev);
-		if (r)
-			return 0;
-
-		/* 1M ring buffer */
-		r = radeon_cp_init(rdev, 1024 * 1024);
-		if (r)
-			return 0;
-		r = radeon_wb_init(rdev);
-		if (r)
-			DRM_ERROR("radeon: failled initializing WB (%d).\n", r);
-		r = radeon_ib_pool_init(rdev);
-		if (r)
-			return 0;
-		r = radeon_ib_test(rdev);
-		if (r)
-			return 0;
-		rdev->accel_working = true;
-	}
-	DRM_INFO("radeon: kernel modesetting successfully initialized.\n");
 	if (radeon_testing) {
 		radeon_test_moves(rdev);
 	}
@@ -706,32 +720,9 @@ void radeon_device_fini(struct radeon_device *rdev)
 {
 	DRM_INFO("radeon: finishing device.\n");
 	rdev->shutdown = true;
-	/* Order matter so becarefull if you rearrange anythings */
-	if (!rdev->new_init_path) {
-		radeon_ib_pool_fini(rdev);
-		radeon_cp_fini(rdev);
-		radeon_wb_fini(rdev);
-		radeon_gpu_gart_fini(rdev);
-		radeon_gem_fini(rdev);
-		radeon_mc_fini(rdev);
-#if __OS_HAS_AGP
-		radeon_agp_fini(rdev);
-#endif
-		radeon_irq_kms_fini(rdev);
-		vga_client_register(rdev->pdev, NULL, NULL, NULL);
-		radeon_fence_driver_fini(rdev);
-		radeon_clocks_fini(rdev);
-		radeon_object_fini(rdev);
-		if (rdev->is_atom_bios) {
-			radeon_atombios_fini(rdev);
-		} else {
-			radeon_combios_fini(rdev);
-		}
-		kfree(rdev->bios);
-		rdev->bios = NULL;
-	} else {
-		radeon_fini(rdev);
-	}
+	radeon_fini(rdev);
+	destroy_workqueue(rdev->wq);
+	vga_client_register(rdev->pdev, NULL, NULL, NULL);
 	iounmap(rdev->rmmio);
 	rdev->rmmio = NULL;
 }
@@ -744,6 +735,7 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_crtc *crtc;
+	int r;
 
 	if (dev == NULL || rdev == NULL) {
 		return -ENODEV;
@@ -754,33 +746,31 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	/* unpin the front buffers */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct radeon_framebuffer *rfb = to_radeon_framebuffer(crtc->fb);
-		struct radeon_object *robj;
+		struct radeon_bo *robj;
 
 		if (rfb == NULL || rfb->obj == NULL) {
 			continue;
 		}
 		robj = rfb->obj->driver_private;
-		if (robj != rdev->fbdev_robj) {
-			radeon_object_unpin(robj);
+		if (robj != rdev->fbdev_rbo) {
+			r = radeon_bo_reserve(robj, false);
+			if (unlikely(r == 0)) {
+				radeon_bo_unpin(robj);
+				radeon_bo_unreserve(robj);
+			}
 		}
 	}
 	/* evict vram memory */
-	radeon_object_evict_vram(rdev);
+	radeon_bo_evict_vram(rdev);
 	/* wait for gpu to finish processing current batch */
 	radeon_fence_wait_last(rdev);
 
 	radeon_save_bios_scratch_regs(rdev);
 
-	if (!rdev->new_init_path) {
-		radeon_cp_disable(rdev);
-		radeon_gart_disable(rdev);
-		rdev->irq.sw_int = false;
-		radeon_irq_set(rdev);
-	} else {
-		radeon_suspend(rdev);
-	}
+	radeon_suspend(rdev);
+	radeon_hpd_fini(rdev);
 	/* evict remaining vram memory */
-	radeon_object_evict_vram(rdev);
+	radeon_bo_evict_vram(rdev);
 
 	pci_save_state(dev->pdev);
 	if (state.event == PM_EVENT_SUSPEND) {
@@ -797,7 +787,6 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 int radeon_resume_kms(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
-	int r;
 
 	acquire_console_sem();
 	pci_set_power_state(dev->pdev, PCI_D0);
@@ -807,47 +796,15 @@ int radeon_resume_kms(struct drm_device *dev)
 		return -1;
 	}
 	pci_set_master(dev->pdev);
-	/* Reset gpu before posting otherwise ATOM will enter infinite loop */
-	if (!rdev->new_init_path) {
-		if (radeon_gpu_reset(rdev)) {
-			/* FIXME: what do we want to do here ? */
-		}
-		/* post card */
-		if (rdev->is_atom_bios) {
-			atom_asic_init(rdev->mode_info.atom_context);
-		} else {
-			radeon_combios_asic_init(rdev->ddev);
-		}
-		/* Initialize clocks */
-		r = radeon_clocks_init(rdev);
-		if (r) {
-			release_console_sem();
-			return r;
-		}
-		/* Enable IRQ */
-		rdev->irq.sw_int = true;
-		radeon_irq_set(rdev);
-		/* Initialize GPU Memory Controller */
-		r = radeon_mc_init(rdev);
-		if (r) {
-			goto out;
-		}
-		r = radeon_gart_enable(rdev);
-		if (r) {
-			goto out;
-		}
-		r = radeon_cp_init(rdev, rdev->cp.ring_size);
-		if (r) {
-			goto out;
-		}
-	} else {
-		radeon_resume(rdev);
-	}
-out:
+	/* resume AGP if in use */
+	radeon_agp_resume(rdev);
+	radeon_resume(rdev);
 	radeon_restore_bios_scratch_regs(rdev);
 	fb_set_suspend(rdev->fbdev_info, 0);
 	release_console_sem();
 
+	/* reset hpd state */
+	radeon_hpd_init(rdev);
 	/* blat the mode back in */
 	drm_helper_resume_force_mode(dev);
 	return 0;

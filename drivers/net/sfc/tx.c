@@ -1,7 +1,7 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2005-2008 Solarflare Communications Inc.
+ * Copyright 2005-2009 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -12,12 +12,13 @@
 #include <linux/tcp.h>
 #include <linux/ip.h>
 #include <linux/in.h>
+#include <linux/ipv6.h>
+#include <net/ipv6.h>
 #include <linux/if_ether.h>
 #include <linux/highmem.h>
 #include "net_driver.h"
-#include "tx.h"
 #include "efx.h"
-#include "falcon.h"
+#include "nic.h"
 #include "workarounds.h"
 
 /*
@@ -26,8 +27,7 @@
  * The tx_queue descriptor ring fill-level must fall below this value
  * before we restart the netif queue
  */
-#define EFX_NETDEV_TX_THRESHOLD(_tx_queue)	\
-	(_tx_queue->efx->type->txd_ring_mask / 2u)
+#define EFX_TXQ_THRESHOLD (EFX_TXQ_MASK / 2u)
 
 /* We want to be able to nest calls to netif_stop_queue(), since each
  * channel can have an individual stop on the queue.
@@ -125,6 +125,24 @@ static void efx_tsoh_free(struct efx_tx_queue *tx_queue,
 }
 
 
+static inline unsigned
+efx_max_tx_len(struct efx_nic *efx, dma_addr_t dma_addr)
+{
+	/* Depending on the NIC revision, we can use descriptor
+	 * lengths up to 8K or 8K-1.  However, since PCI Express
+	 * devices must split read requests at 4K boundaries, there is
+	 * little benefit from using descriptors that cross those
+	 * boundaries and we keep things simple by not doing so.
+	 */
+	unsigned len = (~dma_addr & 0xfff) + 1;
+
+	/* Work around hardware bug for unaligned buffers. */
+	if (EFX_WORKAROUND_5391(efx) && (dma_addr & 0xf))
+		len = min_t(unsigned, len, 512 - (dma_addr & 0xf));
+
+	return len;
+}
+
 /*
  * Add a socket buffer to a TX queue
  *
@@ -135,11 +153,13 @@ static void efx_tsoh_free(struct efx_tx_queue *tx_queue,
  * If any DMA mapping fails, any mapped fragments will be unmapped,
  * the queue's insert pointer will be restored to its original value.
  *
+ * This function is split out from efx_hard_start_xmit to allow the
+ * loopback test to direct packets via specific TX queues.
+ *
  * Returns NETDEV_TX_OK or NETDEV_TX_BUSY
  * You must hold netif_tx_lock() to call this function.
  */
-static netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue,
-					 struct sk_buff *skb)
+netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 {
 	struct efx_nic *efx = tx_queue->efx;
 	struct pci_dev *pci_dev = efx->pci_dev;
@@ -147,7 +167,7 @@ static netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue,
 	skb_frag_t *fragment;
 	struct page *page;
 	int page_offset;
-	unsigned int len, unmap_len = 0, fill_level, insert_ptr, misalign;
+	unsigned int len, unmap_len = 0, fill_level, insert_ptr;
 	dma_addr_t dma_addr, unmap_addr = 0;
 	unsigned int dma_len;
 	bool unmap_single;
@@ -156,7 +176,7 @@ static netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue,
 
 	EFX_BUG_ON_PARANOID(tx_queue->write_count != tx_queue->insert_count);
 
-	if (skb_shinfo((struct sk_buff *)skb)->gso_size)
+	if (skb_shinfo(skb)->gso_size)
 		return efx_enqueue_skb_tso(tx_queue, skb);
 
 	/* Get size of the initial fragment */
@@ -171,7 +191,7 @@ static netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue,
 	}
 
 	fill_level = tx_queue->insert_count - tx_queue->old_read_count;
-	q_space = efx->type->txd_ring_mask - 1 - fill_level;
+	q_space = EFX_TXQ_MASK - 1 - fill_level;
 
 	/* Map for DMA.  Use pci_map_single rather than pci_map_page
 	 * since this is more efficient on machines with sparse
@@ -208,16 +228,14 @@ static netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue,
 					&tx_queue->read_count;
 				fill_level = (tx_queue->insert_count
 					      - tx_queue->old_read_count);
-				q_space = (efx->type->txd_ring_mask - 1 -
-					   fill_level);
+				q_space = EFX_TXQ_MASK - 1 - fill_level;
 				if (unlikely(q_space-- <= 0))
 					goto stop;
 				smp_mb();
 				--tx_queue->stopped;
 			}
 
-			insert_ptr = (tx_queue->insert_count &
-				      efx->type->txd_ring_mask);
+			insert_ptr = tx_queue->insert_count & EFX_TXQ_MASK;
 			buffer = &tx_queue->buffer[insert_ptr];
 			efx_tsoh_free(tx_queue, buffer);
 			EFX_BUG_ON_PARANOID(buffer->tsoh);
@@ -226,13 +244,9 @@ static netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue,
 			EFX_BUG_ON_PARANOID(!buffer->continuation);
 			EFX_BUG_ON_PARANOID(buffer->unmap_len);
 
-			dma_len = (((~dma_addr) & efx->type->tx_dma_mask) + 1);
-			if (likely(dma_len > len))
+			dma_len = efx_max_tx_len(efx, dma_addr);
+			if (likely(dma_len >= len))
 				dma_len = len;
-
-			misalign = (unsigned)dma_addr & efx->type->bug5391_mask;
-			if (misalign && dma_len + misalign > 512)
-				dma_len = 512 - misalign;
 
 			/* Fill out per descriptor fields */
 			buffer->len = dma_len;
@@ -266,7 +280,7 @@ static netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue,
 	buffer->continuation = false;
 
 	/* Pass off to hardware */
-	falcon_push_buffers(tx_queue);
+	efx_nic_push_buffers(tx_queue);
 
 	return NETDEV_TX_OK;
 
@@ -276,7 +290,7 @@ static netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue,
 		   skb_shinfo(skb)->nr_frags + 1);
 
 	/* Mark the packet as transmitted, and free the SKB ourselves */
-	dev_kfree_skb_any((struct sk_buff *)skb);
+	dev_kfree_skb_any(skb);
 	goto unwind;
 
  stop:
@@ -289,7 +303,7 @@ static netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue,
 	/* Work backwards until we hit the original insert pointer value */
 	while (tx_queue->insert_count != tx_queue->write_count) {
 		--tx_queue->insert_count;
-		insert_ptr = tx_queue->insert_count & efx->type->txd_ring_mask;
+		insert_ptr = tx_queue->insert_count & EFX_TXQ_MASK;
 		buffer = &tx_queue->buffer[insert_ptr];
 		efx_dequeue_buffer(tx_queue, buffer);
 		buffer->len = 0;
@@ -318,10 +332,9 @@ static void efx_dequeue_buffers(struct efx_tx_queue *tx_queue,
 {
 	struct efx_nic *efx = tx_queue->efx;
 	unsigned int stop_index, read_ptr;
-	unsigned int mask = tx_queue->efx->type->txd_ring_mask;
 
-	stop_index = (index + 1) & mask;
-	read_ptr = tx_queue->read_count & mask;
+	stop_index = (index + 1) & EFX_TXQ_MASK;
+	read_ptr = tx_queue->read_count & EFX_TXQ_MASK;
 
 	while (read_ptr != stop_index) {
 		struct efx_tx_buffer *buffer = &tx_queue->buffer[read_ptr];
@@ -338,26 +351,8 @@ static void efx_dequeue_buffers(struct efx_tx_queue *tx_queue,
 		buffer->len = 0;
 
 		++tx_queue->read_count;
-		read_ptr = tx_queue->read_count & mask;
+		read_ptr = tx_queue->read_count & EFX_TXQ_MASK;
 	}
-}
-
-/* Initiate a packet transmission on the specified TX queue.
- * Note that returning anything other than NETDEV_TX_OK will cause the
- * OS to free the skb.
- *
- * This function is split out from efx_hard_start_xmit to allow the
- * loopback test to direct packets via specific TX queues.  It is
- * therefore a non-static inline, so as not to penalise performance
- * for non-loopback transmissions.
- *
- * Context: netif_tx_lock held
- */
-inline netdev_tx_t efx_xmit(struct efx_nic *efx,
-			   struct efx_tx_queue *tx_queue, struct sk_buff *skb)
-{
-	/* Map fragments for DMA and add to TX queue */
-	return efx_enqueue_skb(tx_queue, skb);
 }
 
 /* Initiate a packet transmission.  We use one channel per CPU
@@ -383,7 +378,7 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 	else
 		tx_queue = &efx->tx_queue[EFX_TX_QUEUE_NO_CSUM];
 
-	return efx_xmit(efx, tx_queue, skb);
+	return efx_enqueue_skb(tx_queue, skb);
 }
 
 void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
@@ -391,7 +386,7 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 	unsigned fill_level;
 	struct efx_nic *efx = tx_queue->efx;
 
-	EFX_BUG_ON_PARANOID(index > efx->type->txd_ring_mask);
+	EFX_BUG_ON_PARANOID(index > EFX_TXQ_MASK);
 
 	efx_dequeue_buffers(tx_queue, index);
 
@@ -401,7 +396,7 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 	smp_mb();
 	if (unlikely(tx_queue->stopped) && likely(efx->port_enabled)) {
 		fill_level = tx_queue->insert_count - tx_queue->read_count;
-		if (fill_level < EFX_NETDEV_TX_THRESHOLD(tx_queue)) {
+		if (fill_level < EFX_TXQ_THRESHOLD) {
 			EFX_BUG_ON_PARANOID(!efx_dev_registered(efx));
 
 			/* Do this under netif_tx_lock(), to avoid racing
@@ -425,15 +420,15 @@ int efx_probe_tx_queue(struct efx_tx_queue *tx_queue)
 	EFX_LOG(efx, "creating TX queue %d\n", tx_queue->queue);
 
 	/* Allocate software ring */
-	txq_size = (efx->type->txd_ring_mask + 1) * sizeof(*tx_queue->buffer);
+	txq_size = EFX_TXQ_SIZE * sizeof(*tx_queue->buffer);
 	tx_queue->buffer = kzalloc(txq_size, GFP_KERNEL);
 	if (!tx_queue->buffer)
 		return -ENOMEM;
-	for (i = 0; i <= efx->type->txd_ring_mask; ++i)
+	for (i = 0; i <= EFX_TXQ_MASK; ++i)
 		tx_queue->buffer[i].continuation = true;
 
 	/* Allocate hardware ring */
-	rc = falcon_probe_tx(tx_queue);
+	rc = efx_nic_probe_tx(tx_queue);
 	if (rc)
 		goto fail;
 
@@ -456,7 +451,7 @@ void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 	BUG_ON(tx_queue->stopped);
 
 	/* Set up TX descriptor ring */
-	falcon_init_tx(tx_queue);
+	efx_nic_init_tx(tx_queue);
 }
 
 void efx_release_tx_buffers(struct efx_tx_queue *tx_queue)
@@ -468,8 +463,7 @@ void efx_release_tx_buffers(struct efx_tx_queue *tx_queue)
 
 	/* Free any buffers left in the ring */
 	while (tx_queue->read_count != tx_queue->write_count) {
-		buffer = &tx_queue->buffer[tx_queue->read_count &
-					   tx_queue->efx->type->txd_ring_mask];
+		buffer = &tx_queue->buffer[tx_queue->read_count & EFX_TXQ_MASK];
 		efx_dequeue_buffer(tx_queue, buffer);
 		buffer->continuation = true;
 		buffer->len = 0;
@@ -483,7 +477,7 @@ void efx_fini_tx_queue(struct efx_tx_queue *tx_queue)
 	EFX_LOG(tx_queue->efx, "shutting down TX queue %d\n", tx_queue->queue);
 
 	/* Flush TX queue, remove descriptor ring */
-	falcon_fini_tx(tx_queue);
+	efx_nic_fini_tx(tx_queue);
 
 	efx_release_tx_buffers(tx_queue);
 
@@ -500,7 +494,7 @@ void efx_fini_tx_queue(struct efx_tx_queue *tx_queue)
 void efx_remove_tx_queue(struct efx_tx_queue *tx_queue)
 {
 	EFX_LOG(tx_queue->efx, "destroying TX queue %d\n", tx_queue->queue);
-	falcon_remove_tx(tx_queue);
+	efx_nic_remove_tx(tx_queue);
 
 	kfree(tx_queue->buffer);
 	tx_queue->buffer = NULL;
@@ -539,6 +533,7 @@ void efx_remove_tx_queue(struct efx_tx_queue *tx_queue)
 #define ETH_HDR_LEN(skb)  (skb_network_header(skb) - (skb)->data)
 #define SKB_TCP_OFF(skb)  PTR_DIFF(tcp_hdr(skb), (skb)->data)
 #define SKB_IPV4_OFF(skb) PTR_DIFF(ip_hdr(skb), (skb)->data)
+#define SKB_IPV6_OFF(skb) PTR_DIFF(ipv6_hdr(skb), (skb)->data)
 
 /**
  * struct tso_state - TSO state for an SKB
@@ -551,6 +546,7 @@ void efx_remove_tx_queue(struct efx_tx_queue *tx_queue)
  * @unmap_len: Length of SKB fragment
  * @unmap_addr: DMA address of SKB fragment
  * @unmap_single: DMA single vs page mapping flag
+ * @protocol: Network protocol (after any VLAN header)
  * @header_len: Number of bytes of header
  * @full_packet_size: Number of bytes to put in each outgoing segment
  *
@@ -571,6 +567,7 @@ struct tso_state {
 	dma_addr_t unmap_addr;
 	bool unmap_single;
 
+	__be16 protocol;
 	unsigned header_len;
 	int full_packet_size;
 };
@@ -578,9 +575,9 @@ struct tso_state {
 
 /*
  * Verify that our various assumptions about sk_buffs and the conditions
- * under which TSO will be attempted hold true.
+ * under which TSO will be attempted hold true.  Return the protocol number.
  */
-static void efx_tso_check_safe(struct sk_buff *skb)
+static __be16 efx_tso_check_protocol(struct sk_buff *skb)
 {
 	__be16 protocol = skb->protocol;
 
@@ -595,13 +592,22 @@ static void efx_tso_check_safe(struct sk_buff *skb)
 		if (protocol == htons(ETH_P_IP))
 			skb_set_transport_header(skb, sizeof(*veh) +
 						 4 * ip_hdr(skb)->ihl);
+		else if (protocol == htons(ETH_P_IPV6))
+			skb_set_transport_header(skb, sizeof(*veh) +
+						 sizeof(struct ipv6hdr));
 	}
 
-	EFX_BUG_ON_PARANOID(protocol != htons(ETH_P_IP));
-	EFX_BUG_ON_PARANOID(ip_hdr(skb)->protocol != IPPROTO_TCP);
+	if (protocol == htons(ETH_P_IP)) {
+		EFX_BUG_ON_PARANOID(ip_hdr(skb)->protocol != IPPROTO_TCP);
+	} else {
+		EFX_BUG_ON_PARANOID(protocol != htons(ETH_P_IPV6));
+		EFX_BUG_ON_PARANOID(ipv6_hdr(skb)->nexthdr != NEXTHDR_TCP);
+	}
 	EFX_BUG_ON_PARANOID((PTR_DIFF(tcp_hdr(skb), skb->data)
 			     + (tcp_hdr(skb)->doff << 2u)) >
 			    skb_headlen(skb));
+
+	return protocol;
 }
 
 
@@ -708,14 +714,14 @@ static int efx_tx_queue_insert(struct efx_tx_queue *tx_queue,
 {
 	struct efx_tx_buffer *buffer;
 	struct efx_nic *efx = tx_queue->efx;
-	unsigned dma_len, fill_level, insert_ptr, misalign;
+	unsigned dma_len, fill_level, insert_ptr;
 	int q_space;
 
 	EFX_BUG_ON_PARANOID(len <= 0);
 
 	fill_level = tx_queue->insert_count - tx_queue->old_read_count;
 	/* -1 as there is no way to represent all descriptors used */
-	q_space = efx->type->txd_ring_mask - 1 - fill_level;
+	q_space = EFX_TXQ_MASK - 1 - fill_level;
 
 	while (1) {
 		if (unlikely(q_space-- <= 0)) {
@@ -731,7 +737,7 @@ static int efx_tx_queue_insert(struct efx_tx_queue *tx_queue,
 				*(volatile unsigned *)&tx_queue->read_count;
 			fill_level = (tx_queue->insert_count
 				      - tx_queue->old_read_count);
-			q_space = efx->type->txd_ring_mask - 1 - fill_level;
+			q_space = EFX_TXQ_MASK - 1 - fill_level;
 			if (unlikely(q_space-- <= 0)) {
 				*final_buffer = NULL;
 				return 1;
@@ -740,13 +746,13 @@ static int efx_tx_queue_insert(struct efx_tx_queue *tx_queue,
 			--tx_queue->stopped;
 		}
 
-		insert_ptr = tx_queue->insert_count & efx->type->txd_ring_mask;
+		insert_ptr = tx_queue->insert_count & EFX_TXQ_MASK;
 		buffer = &tx_queue->buffer[insert_ptr];
 		++tx_queue->insert_count;
 
 		EFX_BUG_ON_PARANOID(tx_queue->insert_count -
 				    tx_queue->read_count >
-				    efx->type->txd_ring_mask);
+				    EFX_TXQ_MASK);
 
 		efx_tsoh_free(tx_queue, buffer);
 		EFX_BUG_ON_PARANOID(buffer->len);
@@ -757,12 +763,7 @@ static int efx_tx_queue_insert(struct efx_tx_queue *tx_queue,
 
 		buffer->dma_addr = dma_addr;
 
-		/* Ensure we do not cross a boundary unsupported by H/W */
-		dma_len = (~dma_addr & efx->type->tx_dma_mask) + 1;
-
-		misalign = (unsigned)dma_addr & efx->type->bug5391_mask;
-		if (misalign && dma_len + misalign > 512)
-			dma_len = 512 - misalign;
+		dma_len = efx_max_tx_len(efx, dma_addr);
 
 		/* If there is enough space to send then do so */
 		if (dma_len >= len)
@@ -792,8 +793,7 @@ static void efx_tso_put_header(struct efx_tx_queue *tx_queue,
 {
 	struct efx_tx_buffer *buffer;
 
-	buffer = &tx_queue->buffer[tx_queue->insert_count &
-				   tx_queue->efx->type->txd_ring_mask];
+	buffer = &tx_queue->buffer[tx_queue->insert_count & EFX_TXQ_MASK];
 	efx_tsoh_free(tx_queue, buffer);
 	EFX_BUG_ON_PARANOID(buffer->len);
 	EFX_BUG_ON_PARANOID(buffer->unmap_len);
@@ -818,11 +818,9 @@ static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue)
 	while (tx_queue->insert_count != tx_queue->write_count) {
 		--tx_queue->insert_count;
 		buffer = &tx_queue->buffer[tx_queue->insert_count &
-					   tx_queue->efx->type->txd_ring_mask];
+					   EFX_TXQ_MASK];
 		efx_tsoh_free(tx_queue, buffer);
 		EFX_BUG_ON_PARANOID(buffer->skb);
-		buffer->len = 0;
-		buffer->continuation = true;
 		if (buffer->unmap_len) {
 			unmap_addr = (buffer->dma_addr + buffer->len -
 				      buffer->unmap_len);
@@ -836,6 +834,8 @@ static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue)
 					       PCI_DMA_TODEVICE);
 			buffer->unmap_len = 0;
 		}
+		buffer->len = 0;
+		buffer->continuation = true;
 	}
 }
 
@@ -850,7 +850,10 @@ static void tso_start(struct tso_state *st, const struct sk_buff *skb)
 			  + PTR_DIFF(tcp_hdr(skb), skb->data));
 	st->full_packet_size = st->header_len + skb_shinfo(skb)->gso_size;
 
-	st->ipv4_id = ntohs(ip_hdr(skb)->id);
+	if (st->protocol == htons(ETH_P_IP))
+		st->ipv4_id = ntohs(ip_hdr(skb)->id);
+	else
+		st->ipv4_id = 0;
 	st->seqnum = ntohl(tcp_hdr(skb)->seq);
 
 	EFX_BUG_ON_PARANOID(tcp_hdr(skb)->urg);
@@ -965,7 +968,6 @@ static int tso_start_new_packet(struct efx_tx_queue *tx_queue,
 				struct tso_state *st)
 {
 	struct efx_tso_header *tsoh;
-	struct iphdr *tsoh_iph;
 	struct tcphdr *tsoh_th;
 	unsigned ip_length;
 	u8 *header;
@@ -989,7 +991,6 @@ static int tso_start_new_packet(struct efx_tx_queue *tx_queue,
 
 	header = TSOH_BUFFER(tsoh);
 	tsoh_th = (struct tcphdr *)(header + SKB_TCP_OFF(skb));
-	tsoh_iph = (struct iphdr *)(header + SKB_IPV4_OFF(skb));
 
 	/* Copy and update the headers. */
 	memcpy(header, skb->data, st->header_len);
@@ -1007,11 +1008,22 @@ static int tso_start_new_packet(struct efx_tx_queue *tx_queue,
 		tsoh_th->fin = tcp_hdr(skb)->fin;
 		tsoh_th->psh = tcp_hdr(skb)->psh;
 	}
-	tsoh_iph->tot_len = htons(ip_length);
 
-	/* Linux leaves suitable gaps in the IP ID space for us to fill. */
-	tsoh_iph->id = htons(st->ipv4_id);
-	st->ipv4_id++;
+	if (st->protocol == htons(ETH_P_IP)) {
+		struct iphdr *tsoh_iph =
+			(struct iphdr *)(header + SKB_IPV4_OFF(skb));
+
+		tsoh_iph->tot_len = htons(ip_length);
+
+		/* Linux leaves suitable gaps in the IP ID space for us to fill. */
+		tsoh_iph->id = htons(st->ipv4_id);
+		st->ipv4_id++;
+	} else {
+		struct ipv6hdr *tsoh_iph =
+			(struct ipv6hdr *)(header + SKB_IPV6_OFF(skb));
+
+		tsoh_iph->payload_len = htons(ip_length - sizeof(*tsoh_iph));
+	}
 
 	st->packet_space = skb_shinfo(skb)->gso_size;
 	++tx_queue->tso_packets;
@@ -1041,8 +1053,8 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 	int frag_i, rc, rc2 = NETDEV_TX_OK;
 	struct tso_state state;
 
-	/* Verify TSO is safe - these checks should never fail. */
-	efx_tso_check_safe(skb);
+	/* Find the packet protocol and sanity-check it */
+	state.protocol = efx_tso_check_protocol(skb);
 
 	EFX_BUG_ON_PARANOID(tx_queue->write_count != tx_queue->insert_count);
 
@@ -1092,14 +1104,14 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 	}
 
 	/* Pass off to hardware */
-	falcon_push_buffers(tx_queue);
+	efx_nic_push_buffers(tx_queue);
 
 	tx_queue->tso_bursts++;
 	return NETDEV_TX_OK;
 
  mem_err:
 	EFX_ERR(efx, "Out of memory for TSO headers, or PCI mapping error\n");
-	dev_kfree_skb_any((struct sk_buff *)skb);
+	dev_kfree_skb_any(skb);
 	goto unwind;
 
  stop:
@@ -1135,7 +1147,7 @@ static void efx_fini_tso(struct efx_tx_queue *tx_queue)
 	unsigned i;
 
 	if (tx_queue->buffer) {
-		for (i = 0; i <= tx_queue->efx->type->txd_ring_mask; ++i)
+		for (i = 0; i <= EFX_TXQ_MASK; ++i)
 			efx_tsoh_free(tx_queue, &tx_queue->buffer[i]);
 	}
 

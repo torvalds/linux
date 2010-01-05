@@ -5,6 +5,10 @@
 
 mainmenu "Blackfin Kernel Configuration"
 
+config SYMBOL_PREFIX
+	string
+	default "_"
+
 config MMU
 	def_bool n
 
@@ -28,6 +32,9 @@ config BLACKFIN
 	select HAVE_OPROFILE
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 
+config GENERIC_CSUM
+	def_bool y
+
 config GENERIC_BUG
 	def_bool y
 	depends on BUG
@@ -45,6 +52,9 @@ config GENERIC_HARDIRQS
 	def_bool y
 
 config GENERIC_IRQ_PROBE
+	def_bool y
+
+config GENERIC_HARDIRQS_NO__DO_IRQ
 	def_bool y
 
 config GENERIC_GPIO
@@ -170,7 +180,7 @@ config BF539
 	help
 	  BF539 Processor Support.
 
-config BF542
+config BF542_std
 	bool "BF542"
 	help
 	  BF542 Processor Support.
@@ -180,7 +190,7 @@ config BF542M
 	help
 	  BF542 Processor Support.
 
-config BF544
+config BF544_std
 	bool "BF544"
 	help
 	  BF544 Processor Support.
@@ -190,7 +200,7 @@ config BF544M
 	help
 	  BF544 Processor Support.
 
-config BF547
+config BF547_std
 	bool "BF547"
 	help
 	  BF547 Processor Support.
@@ -200,7 +210,7 @@ config BF547M
 	help
 	  BF547 Processor Support.
 
-config BF548
+config BF548_std
 	bool "BF548"
 	help
 	  BF548 Processor Support.
@@ -210,7 +220,7 @@ config BF548M
 	help
 	  BF548 Processor Support.
 
-config BF549
+config BF549_std
 	bool "BF549"
 	help
 	  BF549 Processor Support.
@@ -229,7 +239,7 @@ endchoice
 
 config SMP
 	depends on BF561
-	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 	bool "Symmetric multi-processing support"
 	---help---
 	  This enables support for systems with more than one CPU,
@@ -304,29 +314,9 @@ config BF_REV_NONE
 
 endchoice
 
-config BF51x
-	bool
-	depends on (BF512 || BF514 || BF516 || BF518)
-	default y
-
-config BF52x
-	bool
-	depends on (BF522 || BF523 || BF524 || BF525 || BF526 || BF527)
-	default y
-
 config BF53x
 	bool
 	depends on (BF531 || BF532 || BF533 || BF534 || BF536 || BF537)
-	default y
-
-config BF54xM
-	bool
-	depends on (BF542M || BF544M || BF547M || BF548M || BF549M)
-	default y
-
-config BF54x
-	bool
-	depends on (BF542 || BF544 || BF547 || BF548 || BF549 || BF54xM)
 	default y
 
 config MEM_GENERIC_BOARD
@@ -613,12 +603,10 @@ comment "Kernel Timer/Scheduler"
 source kernel/Kconfig.hz
 
 config GENERIC_TIME
-	bool "Generic time"
-	default y
+	def_bool y
 
 config GENERIC_CLOCKEVENTS
 	bool "Generic clock events"
-	depends on GENERIC_TIME
 	default y
 
 choice
@@ -652,6 +640,10 @@ config GPTMR0_CLOCKSOURCE
 	select BFIN_GPTIMERS
 	depends on GENERIC_CLOCKEVENTS
 	depends on !TICKSOURCE_GPTMR0
+
+config ARCH_USES_GETTIMEOFFSET
+	depends on !GENERIC_CLOCKEVENTS
+	def_bool y
 
 source kernel/time/Kconfig
 
@@ -908,6 +900,12 @@ config DMA_UNCACHED_2M
 	bool "Enable 2M DMA region"
 config DMA_UNCACHED_1M
 	bool "Enable 1M DMA region"
+config DMA_UNCACHED_512K
+	bool "Enable 512K DMA region"
+config DMA_UNCACHED_256K
+	bool "Enable 256K DMA region"
+config DMA_UNCACHED_128K
+	bool "Enable 128K DMA region"
 config DMA_UNCACHED_NONE
 	bool "Disable DMA region"
 endchoice
@@ -1268,6 +1266,8 @@ endmenu
 source "net/Kconfig"
 
 source "drivers/Kconfig"
+
+source "drivers/firmware/Kconfig"
 
 source "fs/Kconfig"
 

@@ -157,7 +157,7 @@ For such memory, you can do things like
 	 * access only the 640k-1MB area, so anything else
 	 * has to be remapped.
 	 */
-	char * baseptr = ioremap(0xFC000000, 1024*1024);
+	void __iomem *baseptr = ioremap(0xFC000000, 1024*1024);
 
 	/* write a 'A' to the offset 10 of the area */
 	writeb('A',baseptr+10);

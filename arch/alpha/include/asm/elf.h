@@ -81,7 +81,6 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 #define ELF_DATA	ELFDATA2LSB
 #define ELF_ARCH	EM_ALPHA
 
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	8192
 
 /* This is the location that an ET_DYN program is loaded if exec'ed.  Typical

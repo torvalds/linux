@@ -246,6 +246,7 @@ static void b43_led_get_sprominfo(struct b43_wldev *dev,
 			*behaviour = B43_LED_OFF;
 			break;
 		default:
+			*behaviour = B43_LED_OFF;
 			B43_WARN_ON(1);
 			return;
 		}
@@ -348,9 +349,9 @@ void b43_leds_register(struct b43_wldev *dev)
 	}
 }
 
-void b43_leds_unregister(struct b43_wldev *dev)
+void b43_leds_unregister(struct b43_wl *wl)
 {
-	struct b43_leds *leds = &dev->wl->leds;
+	struct b43_leds *leds = &wl->leds;
 
 	b43_unregister_led(&leds->led_tx);
 	b43_unregister_led(&leds->led_rx);

@@ -13,9 +13,9 @@
 #ifndef __DMA_SHDMA_H
 #define __DMA_SHDMA_H
 
-#include <linux/device.h>
-#include <linux/dmapool.h>
 #include <linux/dmaengine.h>
+#include <linux/interrupt.h>
+#include <linux/list.h>
 
 #define SH_DMA_TCR_MAX 0x00FFFFFF	/* 16MB */
 
@@ -26,24 +26,27 @@ struct sh_dmae_regs {
 };
 
 struct sh_desc {
-	struct list_head tx_list;
 	struct sh_dmae_regs hw;
 	struct list_head node;
 	struct dma_async_tx_descriptor async_tx;
+	dma_cookie_t cookie;
+	int chunks;
 	int mark;
 };
 
+struct device;
+
 struct sh_dmae_chan {
 	dma_cookie_t completed_cookie;	/* The maximum cookie completed */
-	spinlock_t desc_lock;			/* Descriptor operation lock */
-	struct list_head ld_queue;		/* Link descriptors queue */
-	struct list_head ld_free;		/* Link descriptors free */
-	struct dma_chan common;			/* DMA common channel */
-	struct device *dev;				/* Channel device */
+	spinlock_t desc_lock;		/* Descriptor operation lock */
+	struct list_head ld_queue;	/* Link descriptors queue */
+	struct list_head ld_free;	/* Link descriptors free */
+	struct dma_chan common;		/* DMA common channel */
+	struct device *dev;		/* Channel device */
 	struct tasklet_struct tasklet;	/* Tasklet */
-	int descs_allocated;			/* desc count */
+	int descs_allocated;		/* desc count */
 	int id;				/* Raw id of this channel */
-	char dev_id[16];	/* unique name per DMAC of channel */
+	char dev_id[16];		/* unique name per DMAC of channel */
 
 	/* Set chcr */
 	int (*set_chcr)(struct sh_dmae_chan *sh_chan, u32 regs);

@@ -677,6 +677,9 @@ void __init_or_cpufreq s3c6400_setup_clocks(void)
 
 	printk(KERN_DEBUG "%s: xtal is %ld\n", __func__, xtal);
 
+	/* For now assume the mux always selects the crystal */
+	clk_ext_xtal_mux.parent = xtal_clk;
+
 	epll = s3c6400_get_epll(xtal);
 	mpll = s3c6400_get_pll(xtal, __raw_readl(S3C_MPLL_CON));
 	apll = s3c6400_get_pll(xtal, __raw_readl(S3C_APLL_CON));

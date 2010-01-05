@@ -273,9 +273,13 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
 	if (mmu_notifier_retry(vcpu, vcpu->arch.update_pte.mmu_seq))
 		return;
 	kvm_get_pfn(pfn);
+	/*
+	 * we call mmu_set_spte() with reset_host_protection = true beacuse that
+	 * vcpu->arch.update_pte.pfn was fetched from get_user_pages(write = 1).
+	 */
 	mmu_set_spte(vcpu, spte, page->role.access, pte_access, 0, 0,
 		     gpte & PT_DIRTY_MASK, NULL, PT_PAGE_TABLE_LEVEL,
-		     gpte_to_gfn(gpte), pfn, true);
+		     gpte_to_gfn(gpte), pfn, true, true);
 }
 
 /*
@@ -308,7 +312,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 				     user_fault, write_fault,
 				     gw->ptes[gw->level-1] & PT_DIRTY_MASK,
 				     ptwrite, level,
-				     gw->gfn, pfn, false);
+				     gw->gfn, pfn, false, true);
 			break;
 		}
 
@@ -451,8 +455,6 @@ out_unlock:
 static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 {
 	struct kvm_shadow_walk_iterator iterator;
-	pt_element_t gpte;
-	gpa_t pte_gpa = -1;
 	int level;
 	u64 *sptep;
 	int need_flush = 0;
@@ -463,14 +465,9 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 		level = iterator.level;
 		sptep = iterator.sptep;
 
-		/* FIXME: properly handle invlpg on large guest pages */
 		if (level == PT_PAGE_TABLE_LEVEL  ||
 		    ((level == PT_DIRECTORY_LEVEL && is_large_pte(*sptep))) ||
 		    ((level == PT_PDPE_LEVEL && is_large_pte(*sptep)))) {
-			struct kvm_mmu_page *sp = page_header(__pa(sptep));
-
-			pte_gpa = (sp->gfn << PAGE_SHIFT);
-			pte_gpa += (sptep - sp->spt) * sizeof(pt_element_t);
 
 			if (is_shadow_present_pte(*sptep)) {
 				rmap_remove(vcpu->kvm, sptep);
@@ -489,18 +486,6 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 	if (need_flush)
 		kvm_flush_remote_tlbs(vcpu->kvm);
 	spin_unlock(&vcpu->kvm->mmu_lock);
-
-	if (pte_gpa == -1)
-		return;
-	if (kvm_read_guest_atomic(vcpu->kvm, pte_gpa, &gpte,
-				  sizeof(pt_element_t)))
-		return;
-	if (is_present_gpte(gpte) && (gpte & PT_ACCESSED_MASK)) {
-		if (mmu_topup_memory_caches(vcpu))
-			return;
-		kvm_mmu_pte_write(vcpu, pte_gpa, (const u8 *)&gpte,
-				  sizeof(pt_element_t), 0);
-	}
 }
 
 static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr)
@@ -558,6 +543,7 @@ static void FNAME(prefetch_page)(struct kvm_vcpu *vcpu,
 static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 {
 	int i, offset, nr_present;
+	bool reset_host_protection;
 
 	offset = nr_present = 0;
 
@@ -595,9 +581,16 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 
 		nr_present++;
 		pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
+		if (!(sp->spt[i] & SPTE_HOST_WRITEABLE)) {
+			pte_access &= ~ACC_WRITE_MASK;
+			reset_host_protection = 0;
+		} else {
+			reset_host_protection = 1;
+		}
 		set_spte(vcpu, &sp->spt[i], pte_access, 0, 0,
 			 is_dirty_gpte(gpte), PT_PAGE_TABLE_LEVEL, gfn,
-			 spte_to_pfn(sp->spt[i]), true, false);
+			 spte_to_pfn(sp->spt[i]), true, false,
+			 reset_host_protection);
 	}
 
 	return !nr_present;

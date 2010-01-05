@@ -20,6 +20,7 @@
 #include "hfc_pci.h"
 #include "isdnl1.h"
 #include <linux/pci.h>
+#include <linux/sched.h>
 #include <linux/interrupt.h>
 
 static const char *hfcpci_revision = "$Revision: 1.48.2.4 $";

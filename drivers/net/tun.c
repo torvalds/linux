@@ -44,7 +44,6 @@
 #include <linux/kernel.h>
 #include <linux/major.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/poll.h>
 #include <linux/fcntl.h>
 #include <linux/init.h>
@@ -54,6 +53,7 @@
 #include <linux/miscdevice.h>
 #include <linux/ethtool.h>
 #include <linux/rtnetlink.h>
+#include <linux/compat.h>
 #include <linux/if.h>
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
@@ -849,13 +849,13 @@ static void tun_sock_write_space(struct sock *sk)
 	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
 		wake_up_interruptible_sync(sk->sk_sleep);
 
-	tun = container_of(sk, struct tun_sock, sk)->tun;
+	tun = tun_sk(sk)->tun;
 	kill_fasync(&tun->fasync, SIGIO, POLL_OUT);
 }
 
 static void tun_sock_destruct(struct sock *sk)
 {
-	free_netdev(container_of(sk, struct tun_sock, sk)->tun->dev);
+	free_netdev(tun_sk(sk)->tun->dev);
 }
 
 static struct proto tun_proto = {
@@ -990,7 +990,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		sk->sk_write_space = tun_sock_write_space;
 		sk->sk_sndbuf = INT_MAX;
 
-		container_of(sk, struct tun_sock, sk)->tun = tun;
+		tun_sk(sk)->tun = tun;
 
 		security_tun_dev_post_create(sk);
 
@@ -1110,8 +1110,8 @@ static int set_offload(struct net_device *dev, unsigned long arg)
 	return 0;
 }
 
-static long tun_chr_ioctl(struct file *file, unsigned int cmd,
-			  unsigned long arg)
+static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
+			    unsigned long arg, int ifreq_len)
 {
 	struct tun_file *tfile = file->private_data;
 	struct tun_struct *tun;
@@ -1121,7 +1121,7 @@ static long tun_chr_ioctl(struct file *file, unsigned int cmd,
 	int ret;
 
 	if (cmd == TUNSETIFF || _IOC_TYPE(cmd) == 0x89)
-		if (copy_from_user(&ifr, argp, sizeof ifr))
+		if (copy_from_user(&ifr, argp, ifreq_len))
 			return -EFAULT;
 
 	if (cmd == TUNGETFEATURES) {
@@ -1144,7 +1144,7 @@ static long tun_chr_ioctl(struct file *file, unsigned int cmd,
 		if (ret)
 			goto unlock;
 
-		if (copy_to_user(argp, &ifr, sizeof(ifr)))
+		if (copy_to_user(argp, &ifr, ifreq_len))
 			ret = -EFAULT;
 		goto unlock;
 	}
@@ -1162,7 +1162,7 @@ static long tun_chr_ioctl(struct file *file, unsigned int cmd,
 		if (ret)
 			break;
 
-		if (copy_to_user(argp, &ifr, sizeof(ifr)))
+		if (copy_to_user(argp, &ifr, ifreq_len))
 			ret = -EFAULT;
 		break;
 
@@ -1236,7 +1236,7 @@ static long tun_chr_ioctl(struct file *file, unsigned int cmd,
 		/* Get hw addres */
 		memcpy(ifr.ifr_hwaddr.sa_data, tun->dev->dev_addr, ETH_ALEN);
 		ifr.ifr_hwaddr.sa_family = tun->dev->type;
-		if (copy_to_user(argp, &ifr, sizeof ifr))
+		if (copy_to_user(argp, &ifr, ifreq_len))
 			ret = -EFAULT;
 		break;
 
@@ -1275,6 +1275,41 @@ unlock:
 	return ret;
 }
 
+static long tun_chr_ioctl(struct file *file,
+			  unsigned int cmd, unsigned long arg)
+{
+	return __tun_chr_ioctl(file, cmd, arg, sizeof (struct ifreq));
+}
+
+#ifdef CONFIG_COMPAT
+static long tun_chr_compat_ioctl(struct file *file,
+			 unsigned int cmd, unsigned long arg)
+{
+	switch (cmd) {
+	case TUNSETIFF:
+	case TUNGETIFF:
+	case TUNSETTXFILTER:
+	case TUNGETSNDBUF:
+	case TUNSETSNDBUF:
+	case SIOCGIFHWADDR:
+	case SIOCSIFHWADDR:
+		arg = (unsigned long)compat_ptr(arg);
+		break;
+	default:
+		arg = (compat_ulong_t)arg;
+		break;
+	}
+
+	/*
+	 * compat_ifreq is shorter than ifreq, so we must not access beyond
+	 * the end of that structure. All fields that are used in this
+	 * driver are compatible though, we don't need to convert the
+	 * contents.
+	 */
+	return __tun_chr_ioctl(file, cmd, arg, sizeof(struct compat_ifreq));
+}
+#endif /* CONFIG_COMPAT */
+
 static int tun_chr_fasync(int fd, struct file *file, int on)
 {
 	struct tun_struct *tun = tun_get(file);
@@ -1285,7 +1320,6 @@ static int tun_chr_fasync(int fd, struct file *file, int on)
 
 	DBG(KERN_INFO "%s: tun_chr_fasync %d\n", tun->dev->name, on);
 
-	lock_kernel();
 	if ((ret = fasync_helper(fd, file, on, &tun->fasync)) < 0)
 		goto out;
 
@@ -1298,7 +1332,6 @@ static int tun_chr_fasync(int fd, struct file *file, int on)
 		tun->flags &= ~TUN_FASYNC;
 	ret = 0;
 out:
-	unlock_kernel();
 	tun_put(tun);
 	return ret;
 }
@@ -1306,7 +1339,7 @@ out:
 static int tun_chr_open(struct inode *inode, struct file * file)
 {
 	struct tun_file *tfile;
-	cycle_kernel_lock();
+
 	DBG1(KERN_INFO "tunX: tun_chr_open\n");
 
 	tfile = kmalloc(sizeof(*tfile), GFP_KERNEL);
@@ -1359,7 +1392,10 @@ static const struct file_operations tun_fops = {
 	.write = do_sync_write,
 	.aio_write = tun_chr_aio_write,
 	.poll	= tun_chr_poll,
-	.unlocked_ioctl = tun_chr_ioctl,
+	.unlocked_ioctl	= tun_chr_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = tun_chr_compat_ioctl,
+#endif
 	.open	= tun_chr_open,
 	.release = tun_chr_close,
 	.fasync = tun_chr_fasync

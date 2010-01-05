@@ -26,6 +26,7 @@ config SPARC
 	select RTC_CLASS
 	select RTC_DRV_M48T59
 	select HAVE_PERF_EVENTS
+	select PERF_USE_VMALLOC
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
 
@@ -42,12 +43,14 @@ config SPARC64
 	select HAVE_SYSCALL_WRAPPERS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_SYSCALL_TRACEPOINTS
 	select USE_GENERIC_SMP_HELPERS if SMP
 	select RTC_DRV_CMOS
 	select RTC_DRV_BQ4802
 	select RTC_DRV_SUN4V
 	select RTC_DRV_STARFIRE
 	select HAVE_PERF_EVENTS
+	select PERF_USE_VMALLOC
 
 config ARCH_DEFCONFIG
 	string
@@ -218,6 +221,13 @@ config SPARC64_SMP
 	bool
 	default y
 	depends on SPARC64 && SMP
+
+config EARLYFB
+	bool "Support for early boot text console"
+	default y
+	depends on SPARC64
+	help
+	  Say Y here to enable a faster early framebuffer boot console.
 
 choice
 	prompt "Kernel page size" if SPARC64

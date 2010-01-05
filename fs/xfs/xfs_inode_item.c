@@ -41,6 +41,7 @@
 #include "xfs_ialloc.h"
 #include "xfs_rw.h"
 #include "xfs_error.h"
+#include "xfs_trace.h"
 
 
 kmem_zone_t	*xfs_ili_zone;		/* inode log item zone */
@@ -232,6 +233,15 @@ xfs_inode_item_format(
 	nvecs	     = 1;
 
 	/*
+	 * Make sure the linux inode is dirty. We do this before
+	 * clearing i_update_core as the VFS will call back into
+	 * XFS here and set i_update_core, so we need to dirty the
+	 * inode first so that the ordering of i_update_core and
+	 * unlogged modifications still works as described below.
+	 */
+	xfs_mark_inode_dirty_sync(ip);
+
+	/*
 	 * Clear i_update_core if the timestamps (or any other
 	 * non-transactional modification) need flushing/logging
 	 * and we're about to log them with the rest of the core.
@@ -263,14 +273,9 @@ xfs_inode_item_format(
 	}
 
 	/*
-	 * Make sure to get the latest atime from the Linux inode.
+	 * Make sure to get the latest timestamps from the Linux inode.
 	 */
-	xfs_synchronize_atime(ip);
-
-	/*
-	 * make sure the linux inode is dirty
-	 */
-	xfs_mark_inode_dirty_sync(ip);
+	xfs_synchronize_times(ip);
 
 	vecp->i_addr = (xfs_caddr_t)&ip->i_d;
 	vecp->i_len  = sizeof(struct xfs_icdinode);
@@ -796,7 +801,9 @@ xfs_inode_item_pushbuf(
 				  !completion_done(&ip->i_flush));
 			iip->ili_pushbuf_flag = 0;
 			xfs_iunlock(ip, XFS_ILOCK_SHARED);
-			xfs_buftrace("INODE ITEM PUSH", bp);
+
+			trace_xfs_inode_item_push(bp, _RET_IP_);
+
 			if (XFS_BUF_ISPINNED(bp)) {
 				xfs_log_force(mp, (xfs_lsn_t)0,
 					      XFS_LOG_FORCE);

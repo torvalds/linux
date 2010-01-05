@@ -19,6 +19,7 @@
  *
  */
 
+#include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/if_arp.h>
@@ -1896,7 +1897,7 @@ prism54_get_mac(struct net_device *ndev, struct iw_request_info *info,
 	return 0;
 }
 
-/* Setting policy also clears the MAC acl, even if we don't change the defaut
+/* Setting policy also clears the MAC acl, even if we don't change the default
  * policy
  */
 
@@ -2322,7 +2323,7 @@ prism54_process_trap_helper(islpci_private *priv, enum oid_num_t oid,
 
 	case DOT11_OID_BEACON:
 		send_formatted_event(priv,
-				     "Received a beacon from an unkown AP",
+				     "Received a beacon from an unknown AP",
 				     mlme, 0);
 		break;
 

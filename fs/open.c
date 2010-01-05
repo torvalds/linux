@@ -30,6 +30,9 @@
 #include <linux/audit.h>
 #include <linux/falloc.h>
 #include <linux/fs_struct.h>
+#include <linux/ima.h>
+
+#include "internal.h"
 
 int vfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
@@ -587,6 +590,9 @@ SYSCALL_DEFINE1(chroot, const char __user *, filename)
 	error = -EPERM;
 	if (!capable(CAP_SYS_CHROOT))
 		goto dput_and_out;
+	error = security_path_chroot(&path);
+	if (error)
+		goto dput_and_out;
 
 	set_fs_root(current->fs, &path);
 	error = 0;
@@ -617,11 +623,15 @@ SYSCALL_DEFINE2(fchmod, unsigned int, fd, mode_t, mode)
 	if (err)
 		goto out_putf;
 	mutex_lock(&inode->i_mutex);
+	err = security_path_chmod(dentry, file->f_vfsmnt, mode);
+	if (err)
+		goto out_unlock;
 	if (mode == (mode_t) -1)
 		mode = inode->i_mode;
 	newattrs.ia_mode = (mode & S_IALLUGO) | (inode->i_mode & ~S_IALLUGO);
 	newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
 	err = notify_change(dentry, &newattrs);
+out_unlock:
 	mutex_unlock(&inode->i_mutex);
 	mnt_drop_write(file->f_path.mnt);
 out_putf:
@@ -646,11 +656,15 @@ SYSCALL_DEFINE3(fchmodat, int, dfd, const char __user *, filename, mode_t, mode)
 	if (error)
 		goto dput_and_out;
 	mutex_lock(&inode->i_mutex);
+	error = security_path_chmod(path.dentry, path.mnt, mode);
+	if (error)
+		goto out_unlock;
 	if (mode == (mode_t) -1)
 		mode = inode->i_mode;
 	newattrs.ia_mode = (mode & S_IALLUGO) | (inode->i_mode & ~S_IALLUGO);
 	newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
 	error = notify_change(path.dentry, &newattrs);
+out_unlock:
 	mutex_unlock(&inode->i_mutex);
 	mnt_drop_write(path.mnt);
 dput_and_out:
@@ -664,9 +678,9 @@ SYSCALL_DEFINE2(chmod, const char __user *, filename, mode_t, mode)
 	return sys_fchmodat(AT_FDCWD, filename, mode);
 }
 
-static int chown_common(struct dentry * dentry, uid_t user, gid_t group)
+static int chown_common(struct path *path, uid_t user, gid_t group)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = path->dentry->d_inode;
 	int error;
 	struct iattr newattrs;
 
@@ -683,7 +697,9 @@ static int chown_common(struct dentry * dentry, uid_t user, gid_t group)
 		newattrs.ia_valid |=
 			ATTR_KILL_SUID | ATTR_KILL_SGID | ATTR_KILL_PRIV;
 	mutex_lock(&inode->i_mutex);
-	error = notify_change(dentry, &newattrs);
+	error = security_path_chown(path, user, group);
+	if (!error)
+		error = notify_change(path->dentry, &newattrs);
 	mutex_unlock(&inode->i_mutex);
 
 	return error;
@@ -700,7 +716,7 @@ SYSCALL_DEFINE3(chown, const char __user *, filename, uid_t, user, gid_t, group)
 	error = mnt_want_write(path.mnt);
 	if (error)
 		goto out_release;
-	error = chown_common(path.dentry, user, group);
+	error = chown_common(&path, user, group);
 	mnt_drop_write(path.mnt);
 out_release:
 	path_put(&path);
@@ -725,7 +741,7 @@ SYSCALL_DEFINE5(fchownat, int, dfd, const char __user *, filename, uid_t, user,
 	error = mnt_want_write(path.mnt);
 	if (error)
 		goto out_release;
-	error = chown_common(path.dentry, user, group);
+	error = chown_common(&path, user, group);
 	mnt_drop_write(path.mnt);
 out_release:
 	path_put(&path);
@@ -744,7 +760,7 @@ SYSCALL_DEFINE3(lchown, const char __user *, filename, uid_t, user, gid_t, group
 	error = mnt_want_write(path.mnt);
 	if (error)
 		goto out_release;
-	error = chown_common(path.dentry, user, group);
+	error = chown_common(&path, user, group);
 	mnt_drop_write(path.mnt);
 out_release:
 	path_put(&path);
@@ -767,7 +783,7 @@ SYSCALL_DEFINE3(fchown, unsigned int, fd, uid_t, user, gid_t, group)
 		goto out_fput;
 	dentry = file->f_path.dentry;
 	audit_inode(NULL, dentry);
-	error = chown_common(dentry, user, group);
+	error = chown_common(&file->f_path, user, group);
 	mnt_drop_write(file->f_path.mnt);
 out_fput:
 	fput(file);
@@ -805,15 +821,14 @@ static inline int __get_file_write_access(struct inode *inode,
 }
 
 static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
-					int flags, struct file *f,
+					struct file *f,
 					int (*open)(struct inode *, struct file *),
 					const struct cred *cred)
 {
 	struct inode *inode;
 	int error;
 
-	f->f_flags = flags;
-	f->f_mode = (__force fmode_t)((flags+1) & O_ACCMODE) | FMODE_LSEEK |
+	f->f_mode = OPEN_FMODE(f->f_flags) | FMODE_LSEEK |
 				FMODE_PREAD | FMODE_PWRITE;
 	inode = dentry->d_inode;
 	if (f->f_mode & FMODE_WRITE) {
@@ -842,6 +857,7 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 		if (error)
 			goto cleanup_all;
 	}
+	ima_counts_get(f);
 
 	f->f_flags &= ~(O_CREAT | O_EXCL | O_NOCTTY | O_TRUNC);
 
@@ -913,7 +929,6 @@ struct file *lookup_instantiate_filp(struct nameidata *nd, struct dentry *dentry
 	if (IS_ERR(dentry))
 		goto out_err;
 	nd->intent.open.file = __dentry_open(dget(dentry), mntget(nd->path.mnt),
-					     nd->intent.open.flags - 1,
 					     nd->intent.open.file,
 					     open, cred);
 out:
@@ -932,7 +947,7 @@ EXPORT_SYMBOL_GPL(lookup_instantiate_filp);
  *
  * Note that this function destroys the original nameidata
  */
-struct file *nameidata_to_filp(struct nameidata *nd, int flags)
+struct file *nameidata_to_filp(struct nameidata *nd)
 {
 	const struct cred *cred = current_cred();
 	struct file *filp;
@@ -941,7 +956,7 @@ struct file *nameidata_to_filp(struct nameidata *nd, int flags)
 	filp = nd->intent.open.file;
 	/* Has the filesystem initialised the file for us? */
 	if (filp->f_path.dentry == NULL)
-		filp = __dentry_open(nd->path.dentry, nd->path.mnt, flags, filp,
+		filp = __dentry_open(nd->path.dentry, nd->path.mnt, filp,
 				     NULL, cred);
 	else
 		path_put(&nd->path);
@@ -980,7 +995,8 @@ struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags,
 		return ERR_PTR(error);
 	}
 
-	return __dentry_open(dentry, mnt, flags, f, NULL, cred);
+	f->f_flags = flags;
+	return __dentry_open(dentry, mnt, f, NULL, cred);
 }
 EXPORT_SYMBOL(dentry_open);
 

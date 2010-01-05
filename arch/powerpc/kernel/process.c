@@ -1016,9 +1016,13 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	int curr_frame = current->curr_ret_stack;
 	extern void return_to_handler(void);
-	unsigned long addr = (unsigned long)return_to_handler;
+	unsigned long rth = (unsigned long)return_to_handler;
+	unsigned long mrth = -1;
 #ifdef CONFIG_PPC64
-	addr = *(unsigned long*)addr;
+	extern void mod_return_to_handler(void);
+	rth = *(unsigned long *)rth;
+	mrth = (unsigned long)mod_return_to_handler;
+	mrth = *(unsigned long *)mrth;
 #endif
 #endif
 
@@ -1044,7 +1048,7 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 		if (!firstframe || ip != lr) {
 			printk("["REG"] ["REG"] %pS", sp, ip, (void *)ip);
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-			if (ip == addr && curr_frame >= 0) {
+			if ((ip == rth || ip == mrth) && curr_frame >= 0) {
 				printk(" (%pS)",
 				       (void *)current->ret_stack[curr_frame].ret);
 				curr_frame--;
@@ -1168,7 +1172,7 @@ unsigned long arch_randomize_brk(struct mm_struct *mm)
 	unsigned long base = mm->brk;
 	unsigned long ret;
 
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_STD_MMU_64
 	/*
 	 * If we are using 1TB segments and we are allowed to randomise
 	 * the heap, we can put it above 1TB so it is backed by a 1TB

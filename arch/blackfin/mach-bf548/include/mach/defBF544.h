@@ -1,31 +1,7 @@
 /*
- * File:         include/asm-blackfin/mach-bf548/defBF544.h
- * Based on:
- * Author:
+ * Copyright 2007-2008 Analog Devices Inc.
  *
- * Created:
- * Description:
- *
- * Rev:
- *
- * Modified:
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.
- * If not, write to the Free Software Foundation,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * Licensed under the ADI BSD license or the GPL-2 (or later)
  */
 
 #ifndef _DEF_BF544_H
@@ -515,7 +491,7 @@
 #define                   HMDMA0_CONTROL  0xffc04500   /* Handshake MDMA0 Control Register */
 #define                    HMDMA0_ECINIT  0xffc04504   /* Handshake MDMA0 Initial Edge Count Register */
 #define                    HMDMA0_BCINIT  0xffc04508   /* Handshake MDMA0 Initial Block Count Register */
-#define                  HMDMA0_ECURGENT  0xffc0450c   /* Handshake MDMA0 Urgent Edge Count Threshhold Register */
+#define                  HMDMA0_ECURGENT  0xffc0450c   /* Handshake MDMA0 Urgent Edge Count Threshold Register */
 #define                HMDMA0_ECOVERFLOW  0xffc04510   /* Handshake MDMA0 Edge Count Overflow Interrupt Register */
 #define                    HMDMA0_ECOUNT  0xffc04514   /* Handshake MDMA0 Current Edge Count Register */
 #define                    HMDMA0_BCOUNT  0xffc04518   /* Handshake MDMA0 Current Block Count Register */
@@ -525,7 +501,7 @@
 #define                   HMDMA1_CONTROL  0xffc04540   /* Handshake MDMA1 Control Register */
 #define                    HMDMA1_ECINIT  0xffc04544   /* Handshake MDMA1 Initial Edge Count Register */
 #define                    HMDMA1_BCINIT  0xffc04548   /* Handshake MDMA1 Initial Block Count Register */
-#define                  HMDMA1_ECURGENT  0xffc0454c   /* Handshake MDMA1 Urgent Edge Count Threshhold Register */
+#define                  HMDMA1_ECURGENT  0xffc0454c   /* Handshake MDMA1 Urgent Edge Count Threshold Register */
 #define                HMDMA1_ECOVERFLOW  0xffc04550   /* Handshake MDMA1 Edge Count Overflow Interrupt Register */
 #define                    HMDMA1_ECOUNT  0xffc04554   /* Handshake MDMA1 Current Edge Count Register */
 #define                    HMDMA1_BCOUNT  0xffc04558   /* Handshake MDMA1 Current Block Count Register */
@@ -648,9 +624,9 @@
 #define                 DMA_READY  0x1        /* DMA Ready */
 #define                  FIFOFULL  0x2        /* FIFO Full */
 #define                 FIFOEMPTY  0x4        /* FIFO Empty */
-#define                  COMPLETE  0x8        /* DMA Complete */
+#define              DMA_COMPLETE  0x8        /* DMA Complete */
 #define                      HSHK  0x10       /* Host Handshake */
-#define                   TIMEOUT  0x20       /* Host Timeout */
+#define                 HSTIMEOUT  0x20       /* Host Timeout */
 #define                      HIRQ  0x40       /* Host Interrupt Request */
 #define                ALLOW_CNFG  0x80       /* Allow New Configuration */
 #define                   DMA_DIR  0x100      /* DMA Direction */

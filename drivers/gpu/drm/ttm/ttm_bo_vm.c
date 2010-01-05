@@ -114,7 +114,7 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		ret = ttm_bo_wait(bo, false, true, false);
 		spin_unlock(&bo->lock);
 		if (unlikely(ret != 0)) {
-			retval = (ret != -ERESTART) ?
+			retval = (ret != -ERESTARTSYS) ?
 			    VM_FAULT_SIGBUS : VM_FAULT_NOPAGE;
 			goto out_unlock;
 		}
@@ -320,7 +320,7 @@ ssize_t ttm_bo_io(struct ttm_bo_device *bdev, struct file *filp,
 		return -EFAULT;
 
 	driver = bo->bdev->driver;
-	if (unlikely(driver->verify_access)) {
+	if (unlikely(!driver->verify_access)) {
 		ret = -EPERM;
 		goto out_unref;
 	}
@@ -349,9 +349,6 @@ ssize_t ttm_bo_io(struct ttm_bo_device *bdev, struct file *filp,
 	switch (ret) {
 	case 0:
 		break;
-	case -ERESTART:
-		ret = -EINTR;
-		goto out_unref;
 	case -EBUSY:
 		ret = -EAGAIN;
 		goto out_unref;
@@ -421,8 +418,6 @@ ssize_t ttm_bo_fbdev_io(struct ttm_buffer_object *bo, const char __user *wbuf,
 	switch (ret) {
 	case 0:
 		break;
-	case -ERESTART:
-		return -EINTR;
 	case -EBUSY:
 		return -EAGAIN;
 	default:

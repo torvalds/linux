@@ -60,15 +60,6 @@ MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
 MODULE_DESCRIPTION("PCMCIA ATA/IDE card driver");
 MODULE_LICENSE("Dual MPL/GPL");
 
-#define INT_MODULE_PARM(n, v) static int n = v; module_param(n, int, 0)
-
-#ifdef CONFIG_PCMCIA_DEBUG
-INT_MODULE_PARM(pc_debug, 0);
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-#else
-#define DEBUG(n, args...)
-#endif
-
 /*====================================================================*/
 
 typedef struct ide_info_t {
@@ -98,7 +89,7 @@ static int ide_probe(struct pcmcia_device *link)
 {
     ide_info_t *info;
 
-    DEBUG(0, "ide_attach()\n");
+    dev_dbg(&link->dev, "ide_attach()\n");
 
     /* Create new ide device */
     info = kzalloc(sizeof(*info), GFP_KERNEL);
@@ -112,7 +103,6 @@ static int ide_probe(struct pcmcia_device *link)
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
     link->io.IOAddrLines = 3;
     link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -134,7 +124,7 @@ static void ide_detach(struct pcmcia_device *link)
     ide_hwif_t *hwif = info->host->ports[0];
     unsigned long data_addr, ctl_addr;
 
-    DEBUG(0, "ide_detach(0x%p)\n", link);
+    dev_dbg(&link->dev, "ide_detach(0x%p)\n", link);
 
     data_addr = hwif->io_ports.data_addr;
     ctl_addr  = hwif->io_ports.ctl_addr;
@@ -217,9 +207,6 @@ out_release:
 
 ======================================================================*/
 
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
-
 struct pcmcia_config_check {
 	unsigned long ctl_base;
 	int skip_vcc;
@@ -282,11 +269,11 @@ static int ide_config(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
     struct pcmcia_config_check *stk = NULL;
-    int last_ret = 0, last_fn = 0, is_kme = 0;
+    int ret = 0, is_kme = 0;
     unsigned long io_base, ctl_base;
     struct ide_host *host;
 
-    DEBUG(0, "ide_config(0x%p)\n", link);
+    dev_dbg(&link->dev, "ide_config(0x%p)\n", link);
 
     is_kme = ((link->manf_id == MANFID_KME) &&
 	      ((link->card_id == PRODID_KME_KXLC005_A) ||
@@ -306,8 +293,12 @@ static int ide_config(struct pcmcia_device *link)
     io_base = link->io.BasePort1;
     ctl_base = stk->ctl_base;
 
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
+    ret = pcmcia_request_irq(link, &link->irq);
+    if (ret)
+	    goto failed;
+    ret = pcmcia_request_configuration(link, &link->conf);
+    if (ret)
+	    goto failed;
 
     /* disable drive interrupts during IDE probe */
     outb(0x02, ctl_base);
@@ -342,8 +333,6 @@ err_mem:
     printk(KERN_NOTICE "ide-cs: ide_config failed memory allocation\n");
     goto failed;
 
-cs_failed:
-    cs_error(link, last_fn, last_ret);
 failed:
     kfree(stk);
     ide_release(link);
@@ -363,7 +352,7 @@ static void ide_release(struct pcmcia_device *link)
     ide_info_t *info = link->priv;
     struct ide_host *host = info->host;
 
-    DEBUG(0, "ide_release(0x%p)\n", link);
+    dev_dbg(&link->dev, "ide_release(0x%p)\n", link);
 
     if (info->ndev)
 	/* FIXME: if this fails we need to queue the cleanup somehow

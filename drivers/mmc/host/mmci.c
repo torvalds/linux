@@ -56,7 +56,7 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 				clk = 255;
 			host->cclk = host->mclk / (2 * (clk + 1));
 		}
-		if (host->hw_designer == 0x80)
+		if (host->hw_designer == AMBA_VENDOR_ST)
 			clk |= MCI_FCEN; /* Bug fix in ST IP block */
 		clk |= MCI_CLK_ENABLE;
 		/* This hasn't proven to be worthwhile */
@@ -678,7 +678,6 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 	writel(0, host->base + MMCIMASK1);
 	writel(0xfff, host->base + MMCICLEAR);
 
-#ifdef CONFIG_GPIOLIB
 	if (gpio_is_valid(plat->gpio_cd)) {
 		ret = gpio_request(plat->gpio_cd, DRIVER_NAME " (cd)");
 		if (ret == 0)
@@ -697,7 +696,6 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 		else if (ret != -ENOSYS)
 			goto err_gpio_wp;
 	}
-#endif
 
 	ret = request_irq(dev->irq[0], mmci_irq, IRQF_SHARED, DRIVER_NAME " (cmd)", host);
 	if (ret)

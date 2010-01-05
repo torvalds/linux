@@ -1031,8 +1031,8 @@ struct gem {
 #endif
 };
 
-#define found_mii_phy(gp) ((gp->phy_type == phy_mii_mdio0 || gp->phy_type == phy_mii_mdio1) \
-				&& gp->phy_mii.def && gp->phy_mii.def->ops)
+#define found_mii_phy(gp) ((gp->phy_type == phy_mii_mdio0 || gp->phy_type == phy_mii_mdio1) && \
+			   gp->phy_mii.def && gp->phy_mii.def->ops)
 
 #define ALIGNED_RX_SKB_ADDR(addr) \
         ((((unsigned long)(addr) + (64UL - 1UL)) & ~(64UL - 1UL)) - (unsigned long)(addr))

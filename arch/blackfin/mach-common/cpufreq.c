@@ -1,30 +1,9 @@
 /*
- * File:	 arch/blackfin/mach-common/cpufreq.c
- * Based on:
- * Author:
+ * Blackfin core clock scaling
  *
- * Created:
- * Description:	 Blackfin core clock scaling
+ * Copyright 2008-2009 Analog Devices Inc.
  *
- * Modified:
- *		 Copyright 2004-2008 Analog Devices Inc.
- *
- * Bugs:	 Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA	02110-1301	USA
+ * Licensed under the GPL-2 or later.
  */
 
 #include <linux/kernel.h>
@@ -34,7 +13,7 @@
 #include <linux/fs.h>
 #include <asm/blackfin.h>
 #include <asm/time.h>
-
+#include <asm/dpmc.h>
 
 /* this is the table of CCLK frequencies, in Hz */
 /* .index is the entry in the auxillary dpm_state_table[] */
@@ -159,7 +138,8 @@ static int __init __bfin_cpu_init(struct cpufreq_policy *policy)
 						 dpm_state_table[index].tscale);
 	}
 
-	policy->cpuinfo.transition_latency = (bfin_read_PLL_LOCKCNT() / (sclk / 1000000)) * 1000;
+	policy->cpuinfo.transition_latency = 50000; /* 50us assumed */
+
 	/*Now ,only support one cpu */
 	policy->cur = cclk;
 	cpufreq_frequency_table_get_attr(bfin_freq_table, policy->cpu);

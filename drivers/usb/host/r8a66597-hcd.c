@@ -822,8 +822,6 @@ static void force_dequeue(struct r8a66597 *r8a66597, u16 pipenum, u16 address)
 		return;
 
 	list_for_each_entry_safe(td, next, list, queue) {
-		if (!td)
-			continue;
 		if (td->address != address)
 			continue;
 
@@ -1003,19 +1001,20 @@ static void r8a66597_check_syssts(struct r8a66597 *r8a66597, int port,
 	if (syssts == SE0) {
 		r8a66597_write(r8a66597, ~ATTCH, get_intsts_reg(port));
 		r8a66597_bset(r8a66597, ATTCHE, get_intenb_reg(port));
-		return;
+	} else {
+		if (syssts == FS_JSTS)
+			r8a66597_bset(r8a66597, HSE, get_syscfg_reg(port));
+		else if (syssts == LS_JSTS)
+			r8a66597_bclr(r8a66597, HSE, get_syscfg_reg(port));
+
+		r8a66597_write(r8a66597, ~DTCH, get_intsts_reg(port));
+		r8a66597_bset(r8a66597, DTCHE, get_intenb_reg(port));
+
+		if (r8a66597->bus_suspended)
+			usb_hcd_resume_root_hub(r8a66597_to_hcd(r8a66597));
 	}
 
-	if (syssts == FS_JSTS)
-		r8a66597_bset(r8a66597, HSE, get_syscfg_reg(port));
-	else if (syssts == LS_JSTS)
-		r8a66597_bclr(r8a66597, HSE, get_syscfg_reg(port));
-
-	r8a66597_write(r8a66597, ~DTCH, get_intsts_reg(port));
-	r8a66597_bset(r8a66597, DTCHE, get_intenb_reg(port));
-
-	if (r8a66597->bus_suspended)
-		usb_hcd_resume_root_hub(r8a66597_to_hcd(r8a66597));
+	usb_hcd_poll_rh_status(r8a66597_to_hcd(r8a66597));
 }
 
 /* this function must be called with interrupt disabled */
@@ -1024,6 +1023,8 @@ static void r8a66597_usb_connect(struct r8a66597 *r8a66597, int port)
 	u16 speed = get_rh_usb_speed(r8a66597, port);
 	struct r8a66597_root_hub *rh = &r8a66597->root_hub[port];
 
+	rh->port &= ~((1 << USB_PORT_FEAT_HIGHSPEED) |
+		      (1 << USB_PORT_FEAT_LOWSPEED));
 	if (speed == HSMODE)
 		rh->port |= (1 << USB_PORT_FEAT_HIGHSPEED);
 	else if (speed == LSMODE)
@@ -2022,8 +2023,6 @@ static struct r8a66597_device *get_r8a66597_device(struct r8a66597 *r8a66597,
 	struct list_head *list = &r8a66597->child_device;
 
 	list_for_each_entry(dev, list, device_list) {
-		if (!dev)
-			continue;
 		if (dev->usb_address != addr)
 			continue;
 
@@ -2354,7 +2353,7 @@ static int r8a66597_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops r8a66597_dev_pm_ops = {
+static const struct dev_pm_ops r8a66597_dev_pm_ops = {
 	.suspend = r8a66597_suspend,
 	.resume = r8a66597_resume,
 	.poweroff = r8a66597_suspend,

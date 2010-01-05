@@ -5481,7 +5481,7 @@ HFCmulti_init(void)
 		if (err) {
 			printk(KERN_ERR "error registering embedded driver: "
 				"%x\n", err);
-			return -err;
+			return err;
 		}
 		HFC_cnt++;
 		printk(KERN_INFO "%d devices registered\n", HFC_cnt);

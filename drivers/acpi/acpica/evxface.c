@@ -259,7 +259,7 @@ acpi_install_notify_handler(acpi_handle device,
 
 	/* Convert and validate the device handle */
 
-	node = acpi_ns_map_handle_to_node(device);
+	node = acpi_ns_validate_handle(device);
 	if (!node) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;
@@ -425,7 +425,7 @@ acpi_remove_notify_handler(acpi_handle device,
 
 	/* Convert and validate the device handle */
 
-	node = acpi_ns_map_handle_to_node(device);
+	node = acpi_ns_validate_handle(device);
 	if (!node) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;

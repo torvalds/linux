@@ -1,34 +1,12 @@
 /*
- * File:         arch/blackfin/mach-bf533/ip0x.c
- * Based on:     arch/blackfin/mach-bf533/bf1.c
- * Based on:     arch/blackfin/mach-bf533/stamp.c
- * Author:       Ivan Danov <idanov@gmail.com>
- *               Modified for IP0X David Rowe
+ * Copyright 2004-2009 Analog Devices Inc.
+ *                2007 David Rowe
+ *                2006 Intratrade Ltd.
+ *                     Ivan Danov <idanov@gmail.com>
+ *                2005 National ICT Australia (NICTA)
+ *                     Aidan Williams <aidan@nicta.com.au>
  *
- * Created:      2007
- * Description:  Board info file for the IP04/IP08 boards, which
- *               are derived from the BlackfinOne V2.0 boards.
- *
- * Modified:
- *               COpyright 2007 David Rowe
- *               Copyright 2006 Intratrade Ltd.
- *               Copyright 2005 National ICT Australia (NICTA)
- *               Copyright 2004-2006 Analog Devices Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
 
 #include <linux/device.h>
@@ -42,6 +20,7 @@
 #endif
 #include <asm/irq.h>
 #include <asm/bfin5xx_spi.h>
+#include <asm/portmux.h>
 
 /*
  * Name the Board for the /proc/cpuinfo
@@ -129,23 +108,8 @@ static struct platform_device dm9000_device2 = {
 
 #if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
 static struct bfin5xx_spi_chip mmc_spi_chip_info = {
-/*
- * CPOL (Clock Polarity)
- *  0 - Active high SCK
- *  1 - Active low SCK
- *  CPHA (Clock Phase) Selects transfer format and operation mode
- *  0 - SCLK toggles from middle of the first data bit, slave select
- *      pins controlled by hardware.
- *  1 - SCLK toggles from beginning of first data bit, slave select
- *      pins controller by user software.
- * 	.ctl_reg = 0x1c00,		 *  CPOL=1,CPHA=1,Sandisk 1G work
- * NO NO	.ctl_reg = 0x1800,		 *  CPOL=1,CPHA=0
- * NO NO	.ctl_reg = 0x1400,		 *  CPOL=0,CPHA=1
- */
-	.ctl_reg = 0x1000,		/* CPOL=0,CPHA=0,Sandisk 1G work */
 	.enable_dma = 0,		/* if 1 - block!!! */
 	.bits_per_word = 8,
-	.cs_change_per_word = 0,
 };
 #endif
 

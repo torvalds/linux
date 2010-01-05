@@ -23,6 +23,7 @@
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
 #include <linux/pci.h>
+#include <linux/sched.h>
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
 #include <linux/if_arp.h>
@@ -40,6 +41,9 @@
 #define ISL3877_IMAGE_FILE	"isl3877"
 #define ISL3886_IMAGE_FILE	"isl3886"
 #define ISL3890_IMAGE_FILE	"isl3890"
+MODULE_FIRMWARE(ISL3877_IMAGE_FILE);
+MODULE_FIRMWARE(ISL3886_IMAGE_FILE);
+MODULE_FIRMWARE(ISL3890_IMAGE_FILE);
 
 static int prism54_bring_down(islpci_private *);
 static int islpci_alloc_memory(islpci_private *);

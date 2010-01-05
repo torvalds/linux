@@ -853,8 +853,12 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 
 	if (buf && --buf->nframesout == 0 && buf->resid == 0) {
 		diskstats(d->gd, buf->bio, jiffies - buf->stime, buf->sector);
-		n = (buf->flags & BUFFL_FAIL) ? -EIO : 0;
-		bio_endio(buf->bio, n);
+		if (buf->flags & BUFFL_FAIL)
+			bio_endio(buf->bio, -EIO);
+		else {
+			bio_flush_dcache_pages(buf->bio);
+			bio_endio(buf->bio, 0);
+		}
 		mempool_free(buf, d->bufpool);
 	}
 

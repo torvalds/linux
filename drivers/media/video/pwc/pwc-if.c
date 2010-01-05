@@ -68,6 +68,7 @@
 #endif
 #include <linux/vmalloc.h>
 #include <asm/io.h>
+#include <linux/kernel.h>		/* simple_strtol() */
 
 #include "pwc.h"
 #include "pwc-kiara.h"
@@ -168,7 +169,6 @@ static struct video_device pwc_template = {
 	.name =		"Philips Webcam",	/* Filled in later */
 	.release =	video_device_release,
 	.fops =         &pwc_fops,
-	.minor =        -1,
 };
 
 /***************************************************************************/
@@ -1806,7 +1806,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 		goto err_video_release;
 	}
 
-	PWC_INFO("Registered as /dev/video%d.\n", pdev->vdev->num);
+	PWC_INFO("Registered as %s.\n", video_device_node_name(pdev->vdev));
 
 	/* occupy slot */
 	if (hint < MAX_DEV_HINTS)
@@ -1916,19 +1916,6 @@ disconnect_out:
 	unlock_kernel();
 }
 
-/* *grunt* We have to do atoi ourselves :-( */
-static int pwc_atoi(const char *s)
-{
-	int k = 0;
-
-	k = 0;
-	while (*s != '\0' && *s >= '0' && *s <= '9') {
-		k = 10 * k + (*s - '0');
-		s++;
-	}
-	return k;
-}
-
 
 /*
  * Initialization code & module stuff
@@ -1960,7 +1947,9 @@ MODULE_PARM_DESC(size, "Initial image size. One of sqcif, qsif, qcif, sif, cif, 
 MODULE_PARM_DESC(fps, "Initial frames per second. Varies with model, useful range 5-30");
 MODULE_PARM_DESC(fbufs, "Number of internal frame buffers to reserve");
 MODULE_PARM_DESC(mbufs, "Number of external (mmap()ed) image buffers");
+#ifdef CONFIG_USB_PWC_DEBUG
 MODULE_PARM_DESC(trace, "For debugging purposes");
+#endif
 MODULE_PARM_DESC(power_save, "Turn power save feature in camera on or off");
 MODULE_PARM_DESC(compression, "Preferred compression quality. Range 0 (uncompressed) to 3 (high compression)");
 MODULE_PARM_DESC(leds, "LED on,off time in milliseconds");
@@ -2078,13 +2067,16 @@ static int __init usb_pwc_init(void)
 				}
 				else {
 					/* No type or serial number specified, just a number. */
-					device_hint[i].device_node = pwc_atoi(s);
+					device_hint[i].device_node =
+						simple_strtol(s, NULL, 10);
 				}
 			}
 			else {
 				/* There's a colon, so we have at least a type and a device node */
-				device_hint[i].type = pwc_atoi(s);
-				device_hint[i].device_node = pwc_atoi(colon + 1);
+				device_hint[i].type =
+					simple_strtol(s, NULL, 10);
+				device_hint[i].device_node =
+					simple_strtol(colon + 1, NULL, 10);
 				if (*dot != '\0') {
 					/* There's a serial number as well */
 					int k;

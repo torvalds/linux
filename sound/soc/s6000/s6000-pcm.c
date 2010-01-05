@@ -196,7 +196,7 @@ static int s6000_pcm_start(struct snd_pcm_substream *substream)
 			   0 /* destination skip after chunk (impossible) */,
 			   4 /* 16 byte burst size */,
 			   -1 /* don't conserve bandwidth */,
-			   0 /* low watermark irq descriptor theshold */,
+			   0 /* low watermark irq descriptor threshold */,
 			   0 /* disable hardware timestamps */,
 			   1 /* enable channel */);
 
@@ -423,7 +423,7 @@ static void s6000_pcm_free(struct snd_pcm *pcm)
 	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
 
-static u64 s6000_pcm_dmamask = DMA_32BIT_MASK;
+static u64 s6000_pcm_dmamask = DMA_BIT_MASK(32);
 
 static int s6000_pcm_new(struct snd_card *card,
 			 struct snd_soc_dai *dai, struct snd_pcm *pcm)
@@ -435,7 +435,7 @@ static int s6000_pcm_new(struct snd_card *card,
 	if (!card->dev->dma_mask)
 		card->dev->dma_mask = &s6000_pcm_dmamask;
 	if (!card->dev->coherent_dma_mask)
-		card->dev->coherent_dma_mask = DMA_32BIT_MASK;
+		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
 
 	if (params->dma_in) {
 		s6dmac_disable_chan(DMA_MASK_DMAC(params->dma_in),

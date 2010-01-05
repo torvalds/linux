@@ -365,7 +365,7 @@ enum {
 	/* This should match the actual table size of
 	 * ata_eh_cmd_timeout_table in libata-eh.c.
 	 */
-	ATA_EH_CMD_TIMEOUT_TABLE_SIZE = 5,
+	ATA_EH_CMD_TIMEOUT_TABLE_SIZE = 6,
 
 	/* Horkage types. May be set by libata or controller on drives
 	   (some horkage may be drive/controller pair dependant */
@@ -418,6 +418,17 @@ enum {
 				  ATA_TIMING_ACTIVE | ATA_TIMING_RECOVER |
 				  ATA_TIMING_DMACK_HOLD | ATA_TIMING_CYCLE |
 				  ATA_TIMING_UDMA,
+
+	/* ACPI constants */
+	ATA_ACPI_FILTER_SETXFER	= 1 << 0,
+	ATA_ACPI_FILTER_LOCK	= 1 << 1,
+	ATA_ACPI_FILTER_DIPM	= 1 << 2,
+	ATA_ACPI_FILTER_FPDMA_OFFSET = 1 << 3,	/* FPDMA non-zero offset */
+	ATA_ACPI_FILTER_FPDMA_AA = 1 << 4,	/* FPDMA auto activate */
+
+	ATA_ACPI_FILTER_DEFAULT	= ATA_ACPI_FILTER_SETXFER |
+				  ATA_ACPI_FILTER_LOCK |
+				  ATA_ACPI_FILTER_DIPM,
 };
 
 enum ata_xfer_mask {
@@ -584,9 +595,11 @@ struct ata_device {
 	unsigned int		horkage;	/* List of broken features */
 	unsigned long		flags;		/* ATA_DFLAG_xxx */
 	struct scsi_device	*sdev;		/* attached SCSI device */
+	void			*private_data;
 #ifdef CONFIG_ATA_ACPI
 	acpi_handle		acpi_handle;
 	union acpi_object	*gtf_cache;
+	unsigned int		gtf_filter;
 #endif
 	/* n_sector is CLEAR_BEGIN, read comment above CLEAR_BEGIN */
 	u64			n_sectors;	/* size of device, if ATA */
@@ -1011,7 +1024,7 @@ extern int ata_std_bios_param(struct scsi_device *sdev,
 extern int ata_scsi_slave_config(struct scsi_device *sdev);
 extern void ata_scsi_slave_destroy(struct scsi_device *sdev);
 extern int ata_scsi_change_queue_depth(struct scsi_device *sdev,
-				       int queue_depth);
+				       int queue_depth, int reason);
 extern struct ata_device *ata_dev_pair(struct ata_device *adev);
 extern int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev);
 

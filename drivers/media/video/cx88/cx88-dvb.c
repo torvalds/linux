@@ -53,6 +53,9 @@
 #include "stv0288.h"
 #include "stb6000.h"
 #include "cx24116.h"
+#include "stv0900.h"
+#include "stb6100.h"
+#include "stb6100_proc.h"
 
 MODULE_DESCRIPTION("driver for cx2388x based DVB cards");
 MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
@@ -573,6 +576,15 @@ static int cx24116_set_ts_param(struct dvb_frontend *fe,
 	return 0;
 }
 
+static int stv0900_set_ts_param(struct dvb_frontend *fe,
+	int is_punctured)
+{
+	struct cx8802_dev *dev = fe->dvb->priv;
+	dev->ts_gen_cntrl = 0;
+
+	return 0;
+}
+
 static int cx24116_reset_device(struct dvb_frontend *fe)
 {
 	struct cx8802_dev *dev = fe->dvb->priv;
@@ -599,6 +611,23 @@ static struct cx24116_config tevii_s460_config = {
 	.demod_address = 0x55,
 	.set_ts_params = cx24116_set_ts_param,
 	.reset_device  = cx24116_reset_device,
+};
+
+static struct stv0900_config prof_7301_stv0900_config = {
+	.demod_address = 0x6a,
+/*	demod_mode = 0,*/
+	.xtal = 27000000,
+	.clkmode = 3,/* 0-CLKI, 2-XTALI, else AUTO */
+	.diseqc_mode = 2,/* 2/3 PWM */
+	.tun1_maddress = 0,/* 0x60 */
+	.tun1_adc = 0,/* 2 Vpp */
+	.path1_mode = 3,
+	.set_ts_params = stv0900_set_ts_param,
+};
+
+static struct stb6100_config prof_7301_stb6100_config = {
+	.tuner_address = 0x60,
+	.refclock = 27000000,
 };
 
 static struct stv0299_config tevii_tuner_sharp_config = {
@@ -1149,6 +1178,31 @@ static int dvb_register(struct cx8802_dev *dev)
 				goto frontend_detach;
 		}
 		break;
+	case CX88_BOARD_PROF_7301:{
+		struct dvb_tuner_ops *tuner_ops = NULL;
+
+		fe0->dvb.frontend = dvb_attach(stv0900_attach,
+						&prof_7301_stv0900_config,
+						&core->i2c_adap, 0);
+		if (fe0->dvb.frontend != NULL) {
+			if (!dvb_attach(stb6100_attach, fe0->dvb.frontend,
+					&prof_7301_stb6100_config,
+					&core->i2c_adap))
+				goto frontend_detach;
+
+			tuner_ops = &fe0->dvb.frontend->ops.tuner_ops;
+			tuner_ops->set_frequency = stb6100_set_freq;
+			tuner_ops->get_frequency = stb6100_get_freq;
+			tuner_ops->set_bandwidth = stb6100_set_bandw;
+			tuner_ops->get_bandwidth = stb6100_get_bandw;
+
+			core->prev_set_voltage =
+					fe0->dvb.frontend->ops.set_voltage;
+			fe0->dvb.frontend->ops.set_voltage =
+					tevii_dvbs_set_voltage;
+		}
+		break;
+		}
 	default:
 		printk(KERN_ERR "%s/2: The frontend of your DVB/ATSC card isn't supported yet\n",
 		       core->name);
@@ -1170,11 +1224,11 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe1->dvb.frontend->ops.ts_bus_ctrl = cx88_dvb_bus_ctrl;
 
 	/* Put the analog decoder in standby to keep it quiet */
-	call_all(core, tuner, s_standby);
+	call_all(core, core, s_power, 0);
 
 	/* register everything */
 	return videobuf_dvb_register_bus(&dev->frontends, THIS_MODULE, dev,
-		&dev->pci->dev, adapter_nr, mfe_shared);
+					 &dev->pci->dev, adapter_nr, mfe_shared, NULL);
 
 frontend_detach:
 	core->gate_ctrl = NULL;

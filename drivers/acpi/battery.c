@@ -831,7 +831,7 @@ static void acpi_battery_notify(struct acpi_device *device, u32 event)
 					dev_name(&device->dev), event,
 					acpi_battery_present(battery));
 #ifdef CONFIG_ACPI_SYSFS_POWER
-	/* acpi_batter_update could remove power_supply object */
+	/* acpi_battery_update could remove power_supply object */
 	if (battery->bat.dev)
 		kobject_uevent(&battery->bat.dev->kobj, KOBJ_CHANGE);
 #endif

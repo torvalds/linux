@@ -246,13 +246,17 @@ EXPORT_SYMBOL(strlcat);
 #undef strcmp
 int strcmp(const char *cs, const char *ct)
 {
-	signed char __res;
+	unsigned char c1, c2;
 
 	while (1) {
-		if ((__res = *cs - *ct++) != 0 || !*cs++)
+		c1 = *cs++;
+		c2 = *ct++;
+		if (c1 != c2)
+			return c1 < c2 ? -1 : 1;
+		if (!c1)
 			break;
 	}
-	return __res;
+	return 0;
 }
 EXPORT_SYMBOL(strcmp);
 #endif
@@ -266,14 +270,18 @@ EXPORT_SYMBOL(strcmp);
  */
 int strncmp(const char *cs, const char *ct, size_t count)
 {
-	signed char __res = 0;
+	unsigned char c1, c2;
 
 	while (count) {
-		if ((__res = *cs - *ct++) != 0 || !*cs++)
+		c1 = *cs++;
+		c2 = *ct++;
+		if (c1 != c2)
+			return c1 < c2 ? -1 : 1;
+		if (!c1)
 			break;
 		count--;
 	}
-	return __res;
+	return 0;
 }
 EXPORT_SYMBOL(strncmp);
 #endif
@@ -330,20 +338,34 @@ EXPORT_SYMBOL(strnchr);
 #endif
 
 /**
- * strstrip - Removes leading and trailing whitespace from @s.
+ * skip_spaces - Removes leading whitespace from @str.
+ * @str: The string to be stripped.
+ *
+ * Returns a pointer to the first non-whitespace character in @str.
+ */
+char *skip_spaces(const char *str)
+{
+	while (isspace(*str))
+		++str;
+	return (char *)str;
+}
+EXPORT_SYMBOL(skip_spaces);
+
+/**
+ * strim - Removes leading and trailing whitespace from @s.
  * @s: The string to be stripped.
  *
  * Note that the first trailing whitespace is replaced with a %NUL-terminator
  * in the given string @s. Returns a pointer to the first non-whitespace
  * character in @s.
  */
-char *strstrip(char *s)
+char *strim(char *s)
 {
 	size_t size;
 	char *end;
 
+	s = skip_spaces(s);
 	size = strlen(s);
-
 	if (!size)
 		return s;
 
@@ -352,12 +374,9 @@ char *strstrip(char *s)
 		end--;
 	*(end + 1) = '\0';
 
-	while (*s && isspace(*s))
-		s++;
-
 	return s;
 }
-EXPORT_SYMBOL(strstrip);
+EXPORT_SYMBOL(strim);
 
 #ifndef __HAVE_ARCH_STRLEN
 /**

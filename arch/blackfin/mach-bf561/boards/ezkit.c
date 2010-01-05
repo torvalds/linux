@@ -1,30 +1,9 @@
 /*
- * File:         arch/blackfin/mach-bf561/ezkit.c
- * Based on:
- * Author:
+ * Copyright 2004-2009 Analog Devices Inc.
+ *               2005 National ICT Australia (NICTA)
+ *                    Aidan Williams <aidan@nicta.com.au>
  *
- * Created:
- * Description:
- *
- * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
 
 #include <linux/device.h>
@@ -70,7 +49,7 @@ static struct isp1760_platform_data isp1760_priv = {
 };
 
 static struct platform_device bfin_isp1760_device = {
-	.name           = "isp1760-hcd",
+	.name           = "isp1760",
 	.id             = 0,
 	.dev = {
 		.platform_data = &isp1760_priv,
@@ -177,28 +156,6 @@ static struct platform_device smc91x_device = {
 	.dev	= {
 		.platform_data	= &smc91x_info,
 	},
-};
-#endif
-
-#if defined(CONFIG_AX88180) || defined(CONFIG_AX88180_MODULE)
-static struct resource ax88180_resources[] = {
-	[0] = {
-		.start	= 0x2c000000,
-		.end	= 0x2c000000 + 0x8000,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_PF10,
-		.end	= IRQ_PF10,
-		.flags	= (IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL),
-	},
-};
-
-static struct platform_device ax88180_device = {
-	.name		= "ax88180",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(ax88180_resources),
-	.resource	= ax88180_resources,
 };
 #endif
 
@@ -387,19 +344,6 @@ static struct platform_device bfin_device_gpiokeys = {
 };
 #endif
 
-static struct resource bfin_gpios_resources = {
-	.start = 0,
-	.end   = MAX_BLACKFIN_GPIOS - 1,
-	.flags = IORESOURCE_IRQ,
-};
-
-static struct platform_device bfin_gpios_device = {
-	.name = "simple-gpio",
-	.id = -1,
-	.num_resources = 1,
-	.resource = &bfin_gpios_resources,
-};
-
 #if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
 #include <linux/i2c-gpio.h>
 
@@ -455,10 +399,6 @@ static struct platform_device *ezkit_devices[] __initdata = {
 	&smc91x_device,
 #endif
 
-#if defined(CONFIG_AX88180) || defined(CONFIG_AX88180_MODULE)
-	&ax88180_device,
-#endif
-
 #if defined(CONFIG_USB_NET2272) || defined(CONFIG_USB_NET2272_MODULE)
 	&net2272_bfin_device,
 #endif
@@ -492,8 +432,6 @@ static struct platform_device *ezkit_devices[] __initdata = {
 #if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
 	&isp1362_hcd_device,
 #endif
-
-	&bfin_gpios_device,
 
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 	&ezkit_flash_device,

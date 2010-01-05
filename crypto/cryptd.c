@@ -711,6 +711,13 @@ struct crypto_shash *cryptd_ahash_child(struct cryptd_ahash *tfm)
 }
 EXPORT_SYMBOL_GPL(cryptd_ahash_child);
 
+struct shash_desc *cryptd_shash_desc(struct ahash_request *req)
+{
+	struct cryptd_hash_request_ctx *rctx = ahash_request_ctx(req);
+	return &rctx->desc;
+}
+EXPORT_SYMBOL_GPL(cryptd_shash_desc);
+
 void cryptd_free_ahash(struct cryptd_ahash *tfm)
 {
 	crypto_free_ahash(&tfm->base);

@@ -214,12 +214,10 @@ static int __init txx9wdt_probe(struct platform_device *dev)
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!res)
 		goto exit_busy;
-	if (!devm_request_mem_region(&dev->dev,
-				     res->start, res->end - res->start + 1,
+	if (!devm_request_mem_region(&dev->dev, res->start, resource_size(res),
 				     "txx9wdt"))
 		goto exit_busy;
-	txx9wdt_reg = devm_ioremap(&dev->dev,
-				   res->start, res->end - res->start + 1);
+	txx9wdt_reg = devm_ioremap(&dev->dev, res->start, resource_size(res));
 	if (!txx9wdt_reg)
 		goto exit_busy;
 

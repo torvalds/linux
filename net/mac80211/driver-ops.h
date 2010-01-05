@@ -239,15 +239,16 @@ static inline int drv_tx_last_beacon(struct ieee80211_local *local)
 }
 
 static inline int drv_ampdu_action(struct ieee80211_local *local,
+				   struct ieee80211_vif *vif,
 				   enum ieee80211_ampdu_mlme_action action,
 				   struct ieee80211_sta *sta, u16 tid,
 				   u16 *ssn)
 {
 	int ret = -EOPNOTSUPP;
 	if (local->ops->ampdu_action)
-		ret = local->ops->ampdu_action(&local->hw, action,
+		ret = local->ops->ampdu_action(&local->hw, vif, action,
 					       sta, tid, ssn);
-	trace_drv_ampdu_action(local, action, sta, tid, ssn, ret);
+	trace_drv_ampdu_action(local, vif, action, sta, tid, ssn, ret);
 	return ret;
 }
 

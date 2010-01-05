@@ -148,7 +148,7 @@ static int sh_sci_spi_probe(struct platform_device *dev)
 		ret = -ENOENT;
 		goto err1;
 	}
-	sp->membase = ioremap(r->start, r->end - r->start + 1);
+	sp->membase = ioremap(r->start, resource_size(r));
 	if (!sp->membase) {
 		ret = -ENXIO;
 		goto err1;

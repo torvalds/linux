@@ -36,6 +36,7 @@
 #include <asm/tlbflush.h>
 #include <asm/ptrace.h>
 #include <asm/localtimer.h>
+#include <asm/smp_plat.h>
 
 /*
  * as from 2.5, kernels no longer have an init_tasks structure
@@ -153,7 +154,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 /*
  * __cpu_disable runs on the processor to be shutdown.
  */
-int __cpuexit __cpu_disable(void)
+int __cpu_disable(void)
 {
 	unsigned int cpu = smp_processor_id();
 	struct task_struct *p;
@@ -200,7 +201,7 @@ int __cpuexit __cpu_disable(void)
  * called on the thread which is asking for a CPU to be shutdown -
  * waits until shutdown has completed, or it is timed out.
  */
-void __cpuexit __cpu_die(unsigned int cpu)
+void __cpu_die(unsigned int cpu)
 {
 	if (!platform_cpu_kill(cpu))
 		printk("CPU%u: unable to kill\n", cpu);
@@ -214,7 +215,7 @@ void __cpuexit __cpu_die(unsigned int cpu)
  * of the other hotplug-cpu capable cores, so presumably coming
  * out of idle fixes this.
  */
-void __cpuexit cpu_die(void)
+void __ref cpu_die(void)
 {
 	unsigned int cpu = smp_processor_id();
 
@@ -585,12 +586,6 @@ struct tlb_args {
 	unsigned long ta_start;
 	unsigned long ta_end;
 };
-
-/* all SMP configurations have the extended CPUID registers */
-static inline int tlb_ops_need_broadcast(void)
-{
-	return ((read_cpuid_ext(CPUID_EXT_MMFR3) >> 12) & 0xf) < 2;
-}
 
 static inline void ipi_flush_tlb_all(void *ignored)
 {

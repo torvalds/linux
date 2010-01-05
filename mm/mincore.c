@@ -14,6 +14,7 @@
 #include <linux/syscalls.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>
+#include <linux/hugetlb.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -71,6 +72,42 @@ static long do_mincore(unsigned long addr, unsigned char *vec, unsigned long pag
 	 */
 	if (!vma || addr < vma->vm_start)
 		return -ENOMEM;
+
+#ifdef CONFIG_HUGETLB_PAGE
+	if (is_vm_hugetlb_page(vma)) {
+		struct hstate *h;
+		unsigned long nr_huge;
+		unsigned char present;
+
+		i = 0;
+		nr = min(pages, (vma->vm_end - addr) >> PAGE_SHIFT);
+		h = hstate_vma(vma);
+		nr_huge = ((addr + pages * PAGE_SIZE - 1) >> huge_page_shift(h))
+			  - (addr >> huge_page_shift(h)) + 1;
+		nr_huge = min(nr_huge,
+			      (vma->vm_end - addr) >> huge_page_shift(h));
+		while (1) {
+			/* hugepage always in RAM for now,
+			 * but generally it needs to be check */
+			ptep = huge_pte_offset(current->mm,
+					       addr & huge_page_mask(h));
+			present = !!(ptep &&
+				     !huge_pte_none(huge_ptep_get(ptep)));
+			while (1) {
+				vec[i++] = present;
+				addr += PAGE_SIZE;
+				/* reach buffer limit */
+				if (i == nr)
+					return nr;
+				/* check hugepage border */
+				if (!((addr & ~huge_page_mask(h))
+				      >> PAGE_SHIFT))
+					break;
+			}
+		}
+		return nr;
+	}
+#endif
 
 	/*
 	 * Calculate how many pages there are left in the last level of the

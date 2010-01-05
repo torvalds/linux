@@ -3,6 +3,25 @@ HIGHPOINT ROCKETRAID 3xxx/4xxx ADAPTER DRIVER (hptiop)
 Controller Register Map
 -------------------------
 
+For RR44xx Intel IOP based adapters, the controller IOP is accessed via PCI BAR0 and BAR2:
+
+     BAR0 offset    Register
+            0x11C5C Link Interface IRQ Set
+            0x11C60 Link Interface IRQ Clear
+
+     BAR2 offset    Register
+            0x10    Inbound Message Register 0
+            0x14    Inbound Message Register 1
+            0x18    Outbound Message Register 0
+            0x1C    Outbound Message Register 1
+            0x20    Inbound Doorbell Register
+            0x24    Inbound Interrupt Status Register
+            0x28    Inbound Interrupt Mask Register
+            0x30    Outbound Interrupt Status Register
+            0x34    Outbound Interrupt Mask Register
+            0x40    Inbound Queue Port
+            0x44    Outbound Queue Port
+
 For Intel IOP based adapters, the controller IOP is accessed via PCI BAR0:
 
      BAR0 offset    Register
@@ -93,7 +112,7 @@ The driver exposes following sysfs attributes:
 
 
 -----------------------------------------------------------------------------
-Copyright (C) 2006-2007 HighPoint Technologies, Inc. All Rights Reserved.
+Copyright (C) 2006-2009 HighPoint Technologies, Inc. All Rights Reserved.
 
   This file is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of

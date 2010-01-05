@@ -1,24 +1,10 @@
 /*
- * File:         arch/blackfin/kernel/smp.c
- * Author:       Philippe Gerum <rpm@xenomai.org>
- * IPI management based on arch/arm/kernel/smp.c.
+ * IPI management based on arch/arm/kernel/smp.c (Copyright 2002 ARM Limited)
  *
- *               Copyright 2007 Analog Devices Inc.
+ * Copyright 2007-2009 Analog Devices Inc.
+ *                         Philippe Gerum <rpm@xenomai.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2.
  */
 
 #include <linux/module.h>
@@ -290,10 +276,9 @@ void smp_send_reschedule(int cpu)
 	if (cpu_is_offline(cpu))
 		return;
 
-	msg = kmalloc(sizeof(*msg), GFP_ATOMIC);
+	msg = kzalloc(sizeof(*msg), GFP_ATOMIC);
 	if (!msg)
 		return;
-	memset(msg, 0, sizeof(msg));
 	INIT_LIST_HEAD(&msg->list);
 	msg->type = BFIN_IPI_RESCHEDULE;
 
@@ -319,10 +304,9 @@ void smp_send_stop(void)
 	if (cpus_empty(callmap))
 		return;
 
-	msg = kmalloc(sizeof(*msg), GFP_ATOMIC);
+	msg = kzalloc(sizeof(*msg), GFP_ATOMIC);
 	if (!msg)
 		return;
-	memset(msg, 0, sizeof(msg));
 	INIT_LIST_HEAD(&msg->list);
 	msg->type = BFIN_IPI_CPU_STOP;
 
@@ -351,13 +335,6 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	smp_wmb();
 
 	ret = platform_boot_secondary(cpu, idle);
-
-	if (ret) {
-		cpu_clear(cpu, cpu_present_map);
-		printk(KERN_CRIT "CPU%u: processor failed to boot (%d)\n", cpu, ret);
-		free_task(idle);
-	} else
-		cpu_set(cpu, cpu_online_map);
 
 	secondary_stack = NULL;
 
@@ -434,9 +411,16 @@ void __cpuinit secondary_start_kernel(void)
 
 	setup_secondary(cpu);
 
+	platform_secondary_init(cpu);
+
 	local_irq_enable();
 
-	platform_secondary_init(cpu);
+	/*
+	 * Calibrate loops per jiffy value.
+	 * IRQs need to be enabled here - D-cache can be invalidated
+	 * in timer irq handler, so core B can read correct jiffies.
+	 */
+	calibrate_delay();
 
 	cpu_idle();
 }

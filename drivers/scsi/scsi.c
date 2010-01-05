@@ -241,10 +241,7 @@ scsi_host_alloc_command(struct Scsi_Host *shost, gfp_t gfp_mask)
  */
 struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *shost, gfp_t gfp_mask)
 {
-	struct scsi_cmnd *cmd;
-	unsigned char *buf;
-
-	cmd = scsi_host_alloc_command(shost, gfp_mask);
+	struct scsi_cmnd *cmd = scsi_host_alloc_command(shost, gfp_mask);
 
 	if (unlikely(!cmd)) {
 		unsigned long flags;
@@ -258,9 +255,15 @@ struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *shost, gfp_t gfp_mask)
 		spin_unlock_irqrestore(&shost->free_list_lock, flags);
 
 		if (cmd) {
+			void *buf, *prot;
+
 			buf = cmd->sense_buffer;
+			prot = cmd->prot_sdb;
+
 			memset(cmd, 0, sizeof(*cmd));
+
 			cmd->sense_buffer = buf;
+			cmd->prot_sdb = prot;
 		}
 	}
 
@@ -937,10 +940,16 @@ EXPORT_SYMBOL(scsi_adjust_queue_depth);
  */
 int scsi_track_queue_full(struct scsi_device *sdev, int depth)
 {
-	if ((jiffies >> 4) == sdev->last_queue_full_time)
+
+	/*
+	 * Don't let QUEUE_FULLs on the same
+	 * jiffies count, they could all be from
+	 * same event.
+	 */
+	if ((jiffies >> 4) == (sdev->last_queue_full_time >> 4))
 		return 0;
 
-	sdev->last_queue_full_time = (jiffies >> 4);
+	sdev->last_queue_full_time = jiffies;
 	if (sdev->last_queue_full_depth != depth) {
 		sdev->last_queue_full_count = 1;
 		sdev->last_queue_full_depth = depth;

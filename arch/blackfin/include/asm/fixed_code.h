@@ -1,5 +1,11 @@
-/* This file defines the fixed addresses where userspace programs can find
-   atomic code sequences.  */
+/*
+ * This file defines the fixed addresses where userspace programs
+ * can find atomic code sequences.
+ *
+ * Copyright 2007-2008 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
+ */
 
 #ifndef __BFIN_ASM_FIXED_CODE_H__
 #define __BFIN_ASM_FIXED_CODE_H__

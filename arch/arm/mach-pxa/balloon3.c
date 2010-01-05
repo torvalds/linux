@@ -306,6 +306,10 @@ static void __init balloon3_init(void)
 	 */
 	ARB_CNTRL = ARB_CORE_PARK | 0x234;
 
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	pxa_set_i2c_info(NULL);
 	if (balloon3_has(BALLOON3_FEATURE_AUDIO))
 		pxa_set_ac97_info(NULL);

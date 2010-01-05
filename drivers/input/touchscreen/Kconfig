@@ -111,6 +111,18 @@ config TOUCHSCREEN_DA9034
 	  Say Y here to enable the support for the touchscreen found
 	  on Dialog Semiconductor DA9034 PMIC.
 
+config TOUCHSCREEN_DYNAPRO
+	tristate "Dynapro serial touchscreen"
+	select SERIO
+	help
+	  Say Y here if you have a Dynapro serial touchscreen connected to
+	  your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called dynapro.
+
 config TOUCHSCREEN_EETI
 	tristate "EETI touchscreen panel support"
 	depends on I2C
@@ -132,6 +144,18 @@ config TOUCHSCREEN_FUJITSU
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called fujitsu-ts.
+
+config TOUCHSCREEN_S3C2410
+	tristate "Samsung S3C2410 touchscreen input driver"
+	depends on ARCH_S3C2410
+	select S3C24XX_ADC
+	help
+	  Say Y here if you have the s3c2410 touchscreen.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called s3c2410_ts.
 
 config TOUCHSCREEN_GUNZE
 	tristate "Gunze AHL-51S touchscreen"
@@ -297,7 +321,7 @@ config TOUCHSCREEN_TOUCHWIN
 
 config TOUCHSCREEN_ATMEL_TSADCC
 	tristate "Atmel Touchscreen Interface"
-	depends on ARCH_AT91SAM9RL
+	depends on ARCH_AT91SAM9RL || ARCH_AT91SAM9G45
 	help
 	  Say Y here if you have a 4-wire touchscreen connected to the
           ADC Controller on your Atmel SoC (such as the AT91SAM9RL).
@@ -418,12 +442,25 @@ config TOUCHSCREEN_USB_COMPOSITE
 	  - IdealTEK URTC1000
 	  - GoTop Super_Q2/GogoPen/PenPower tablets
 	  - JASTEC USB Touch Controller/DigiTech DTR-02U
+	  - Zytronic controllers
 
 	  Have a look at <http://linux.chapter7.ch/touchkit/> for
 	  a usage description and the required user-space stuff.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbtouchscreen.
+
+config TOUCHSCREEN_MC13783
+	tristate "Freescale MC13783 touchscreen input driver"
+	depends on MFD_MC13783
+	help
+	  Say Y here if you have an Freescale MC13783 PMIC on your
+	  board and want to use its touchscreen
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mc13783_ts.
 
 config TOUCHSCREEN_USB_EGALAX
 	default y
@@ -488,6 +525,16 @@ config TOUCHSCREEN_USB_JASTEC
 config TOUCHSCREEN_USB_E2I
 	default y
 	bool "e2i Touchscreen controller (e.g. from Mimo 740)"
+	depends on TOUCHSCREEN_USB_COMPOSITE
+
+config TOUCHSCREEN_USB_ZYTRONIC
+	default y
+	bool "Zytronic controller" if EMBEDDED
+	depends on TOUCHSCREEN_USB_COMPOSITE
+
+config TOUCHSCREEN_USB_ETT_TC5UH
+	default y
+	bool "ET&T TC5UH touchscreen controler support" if EMBEDDED
 	depends on TOUCHSCREEN_USB_COMPOSITE
 
 config TOUCHSCREEN_TOUCHIT213

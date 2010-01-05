@@ -88,6 +88,8 @@ static int wf_max6690_probe(struct i2c_client *client,
 	return rc;
 }
 
+static struct i2c_driver wf_max6690_driver;
+
 static struct i2c_client *wf_max6690_create(struct i2c_adapter *adapter,
 					    u8 addr, const char *loc)
 {
@@ -119,7 +121,7 @@ static struct i2c_client *wf_max6690_create(struct i2c_adapter *adapter,
 	 * Let i2c-core delete that device on driver removal.
 	 * This is safe because i2c-core holds the core_lock mutex for us.
 	 */
-	list_add_tail(&client->detected, &client->driver->clients);
+	list_add_tail(&client->detected, &wf_max6690_driver.clients);
 	return client;
 
  fail:

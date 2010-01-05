@@ -19,15 +19,20 @@
 #define GCMP_GDB_OFS		0x8000 /* Global Debug Block */
 
 /* Offsets to individual GCMP registers from GCMP base */
-#define GCMPOFS(block, tag, reg)	(GCMP_##block##_OFS + GCMP_##tag##_##reg##_OFS)
+#define GCMPOFS(block, tag, reg)	\
+	(GCMP_##block##_OFS + GCMP_##tag##_##reg##_OFS)
+#define GCMPOFSn(block, tag, reg, n) \
+	(GCMP_##block##_OFS + GCMP_##tag##_##reg##_OFS(n))
 
 #define GCMPGCBOFS(reg)		GCMPOFS(GCB, GCB, reg)
+#define GCMPGCBOFSn(reg, n)	GCMPOFSn(GCB, GCB, reg, n)
 #define GCMPCLCBOFS(reg)	GCMPOFS(CLCB, CCB, reg)
 #define GCMPCOCBOFS(reg)	GCMPOFS(COCB, CCB, reg)
 #define GCMPGDBOFS(reg)		GCMPOFS(GDB, GDB, reg)
 
 /* GCMP register access */
 #define GCMPGCB(reg)			REGP(_gcmp_base, GCMPGCBOFS(reg))
+#define GCMPGCBn(reg, n)               REGP(_gcmp_base, GCMPGCBOFSn(reg, n))
 #define GCMPCLCB(reg)			REGP(_gcmp_base, GCMPCLCBOFS(reg))
 #define GCMPCOCB(reg)			REGP(_gcmp_base, GCMPCOCBOFS(reg))
 #define GCMPGDB(reg)			REGP(_gcmp_base, GCMPGDBOFS(reg))
@@ -49,10 +54,10 @@
 #define  GCMP_GCB_GCMPB_GCMPBASE_MSK	GCMPGCBMSK(GCMPB_GCMPBASE, 17)
 #define  GCMP_GCB_GCMPB_CMDEFTGT_SHF	0
 #define  GCMP_GCB_GCMPB_CMDEFTGT_MSK	GCMPGCBMSK(GCMPB_CMDEFTGT, 2)
-#define  GCMP_GCB_GCMPB_CMDEFTGT_MEM	0
-#define  GCMP_GCB_GCMPB_CMDEFTGT_MEM1	1
-#define  GCMP_GCB_GCMPB_CMDEFTGT_IOCU1 2
-#define  GCMP_GCB_GCMPB_CMDEFTGT_IOCU2 3
+#define  GCMP_GCB_GCMPB_CMDEFTGT_DISABLED	0
+#define  GCMP_GCB_GCMPB_CMDEFTGT_MEM		1
+#define  GCMP_GCB_GCMPB_CMDEFTGT_IOCU1		2
+#define  GCMP_GCB_GCMPB_CMDEFTGT_IOCU2		3
 #define GCMP_GCB_CCMC_OFS		0x0010	/* Global CM Control */
 #define GCMP_GCB_GCSRAP_OFS		0x0020	/* Global CSR Access Privilege */
 #define  GCMP_GCB_GCSRAP_CMACCESS_SHF	0
@@ -115,5 +120,6 @@
 #define GCMP_CCB_DBGGROUP_OFS		0x0100		/* DebugBreak Group */
 
 extern int __init gcmp_probe(unsigned long, unsigned long);
-
+extern int __init gcmp_niocu(void);
+extern void __init gcmp_setregion(int, unsigned long, unsigned long, int);
 #endif /* _ASM_GCMPREGS_H */

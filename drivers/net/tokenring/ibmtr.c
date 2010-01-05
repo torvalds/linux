@@ -96,7 +96,7 @@
  *
  *      Change by Mike Sullivan et al.:
  *      + added turbo card support. No need to use lanaid to configure
- *      the adapter into isa compatiblity mode.
+ *      the adapter into isa compatibility mode.
  *
  *      Changes by Burt Silverman to allow the computer to behave nicely when
  *	a cable is pulled or not in place, or a PCMCIA card is removed hot.
@@ -108,6 +108,7 @@ in the event that chatty debug messages are desired - jjs 12/30/98 */
 #define IBMTR_DEBUG_MESSAGES 0
 
 #include <linux/module.h>
+#include <linux/sched.h>
 
 #ifdef PCMCIA		/* required for ibmtr_cs.c to build */
 #undef MODULE		/* yes, really */
@@ -679,7 +680,7 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 
 	/* The PCMCIA has already got the interrupt line and the io port, 
 	   so no chance of anybody else getting it - MLP */
-	if (request_irq(dev->irq = irq, &tok_interrupt, 0, "ibmtr", dev) != 0) {
+	if (request_irq(dev->irq = irq, tok_interrupt, 0, "ibmtr", dev) != 0) {
 		DPRINTK("Could not grab irq %d.  Halting Token Ring driver.\n",
 					irq);
 		iounmap(t_mmio);
@@ -1143,9 +1144,16 @@ static void dir_open_adapter (struct net_device *dev)
                 } else {
 			char **prphase = printphase;
 			char **prerror = printerror;
+			int pnr = err / 16 - 1;
+			int enr = err % 16 - 1;
 			DPRINTK("TR Adapter misc open failure, error code = ");
-			printk("0x%x, Phase: %s, Error: %s\n",
-				err, prphase[err/16 -1], prerror[err%16 -1]);
+			if (pnr < 0 || pnr >= ARRAY_SIZE(printphase) ||
+					enr < 0 ||
+					enr >= ARRAY_SIZE(printerror))
+				printk("0x%x, invalid Phase/Error.", err);
+			else
+				printk("0x%x, Phase: %s, Error: %s\n", err,
+						prphase[pnr], prerror[enr]);
 			printk(" retrying after %ds delay...\n",
 					TR_RETRY_INTERVAL/HZ);
                 }

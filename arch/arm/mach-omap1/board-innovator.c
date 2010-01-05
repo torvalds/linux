@@ -23,6 +23,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/input.h>
+#include <linux/smc91x.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -30,14 +31,14 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
-#include <mach/mux.h>
-#include <mach/fpga.h>
+#include <plat/mux.h>
+#include <plat/fpga.h>
 #include <mach/gpio.h>
-#include <mach/tc.h>
-#include <mach/usb.h>
-#include <mach/keypad.h>
-#include <mach/common.h>
-#include <mach/mmc.h>
+#include <plat/tc.h>
+#include <plat/usb.h>
+#include <plat/keypad.h>
+#include <plat/common.h>
+#include <plat/mmc.h>
 
 /* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */
 #define INNOVATOR1610_ETHR_START	0x04000300
@@ -142,6 +143,11 @@ static struct platform_device innovator_kp_device = {
 	.resource	= innovator_kp_resources,
 };
 
+static struct smc91x_platdata innovator_smc91x_info = {
+	.flags	= SMC91X_USE_16BIT | SMC91X_NOWAIT,
+	.leda	= RPC_LED_100_10,
+	.ledb	= RPC_LED_TX_RX,
+};
 
 #ifdef CONFIG_ARCH_OMAP15XX
 
@@ -175,6 +181,9 @@ static struct resource innovator1510_smc91x_resources[] = {
 static struct platform_device innovator1510_smc91x_device = {
 	.name		= "smc91x",
 	.id		= 0,
+	.dev	= {
+		.platform_data	= &innovator_smc91x_info,
+	},
 	.num_resources	= ARRAY_SIZE(innovator1510_smc91x_resources),
 	.resource	= innovator1510_smc91x_resources,
 };
@@ -241,6 +250,9 @@ static struct resource innovator1610_smc91x_resources[] = {
 static struct platform_device innovator1610_smc91x_device = {
 	.name		= "smc91x",
 	.id		= 0,
+	.dev	= {
+		.platform_data	= &innovator_smc91x_info,
+	},
 	.num_resources	= ARRAY_SIZE(innovator1610_smc91x_resources),
 	.resource	= innovator1610_smc91x_resources,
 };
@@ -376,6 +388,26 @@ static void __init innovator_init(void)
 {
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
+		unsigned char reg;
+
+		/* mux pins for uarts */
+		omap_cfg_reg(UART1_TX);
+		omap_cfg_reg(UART1_RTS);
+		omap_cfg_reg(UART2_TX);
+		omap_cfg_reg(UART2_RTS);
+		omap_cfg_reg(UART3_TX);
+		omap_cfg_reg(UART3_RX);
+
+		reg = fpga_read(OMAP1510_FPGA_POWER);
+		reg |= OMAP1510_FPGA_PCR_COM1_EN;
+		fpga_write(reg, OMAP1510_FPGA_POWER);
+		udelay(10);
+
+		reg = fpga_read(OMAP1510_FPGA_POWER);
+		reg |= OMAP1510_FPGA_PCR_COM2_EN;
+		fpga_write(reg, OMAP1510_FPGA_POWER);
+		udelay(10);
+
 		platform_add_devices(innovator1510_devices, ARRAY_SIZE(innovator1510_devices));
 		spi_register_board_info(innovator1510_boardinfo,
 				ARRAY_SIZE(innovator1510_boardinfo));

@@ -63,6 +63,7 @@
 #include <asm/uaccess.h>
 #include <linux/crc32.h>
 #include <linux/mutex.h>
+#include <linux/sched.h>
 
 #include "dvb_demux.h"
 #include "dvb_net.h"
@@ -1395,7 +1396,7 @@ static int dvb_net_do_ioctl(struct inode *inode, struct file *file,
 		return ret;
 	}
 
-	/* binary compatiblity cruft */
+	/* binary compatibility cruft */
 	case __NET_ADD_IF_OLD:
 	{
 		struct __dvb_net_if_old *dvbnetif = parg;

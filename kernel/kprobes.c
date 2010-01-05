@@ -90,6 +90,9 @@ static spinlock_t *kretprobe_table_lock_ptr(unsigned long hash)
  */
 static struct kprobe_blackpoint kprobe_blacklist[] = {
 	{"preempt_schedule",},
+	{"native_get_debugreg",},
+	{"irq_entries_start",},
+	{"common_interrupt",},
 	{NULL}    /* Terminator */
 };
 
@@ -673,6 +676,40 @@ static kprobe_opcode_t __kprobes *kprobe_addr(struct kprobe *p)
 	return (kprobe_opcode_t *)(((char *)addr) + p->offset);
 }
 
+/* Check passed kprobe is valid and return kprobe in kprobe_table. */
+static struct kprobe * __kprobes __get_valid_kprobe(struct kprobe *p)
+{
+	struct kprobe *old_p, *list_p;
+
+	old_p = get_kprobe(p->addr);
+	if (unlikely(!old_p))
+		return NULL;
+
+	if (p != old_p) {
+		list_for_each_entry_rcu(list_p, &old_p->list, list)
+			if (list_p == p)
+			/* kprobe p is a valid probe */
+				goto valid;
+		return NULL;
+	}
+valid:
+	return old_p;
+}
+
+/* Return error if the kprobe is being re-registered */
+static inline int check_kprobe_rereg(struct kprobe *p)
+{
+	int ret = 0;
+	struct kprobe *old_p;
+
+	mutex_lock(&kprobe_mutex);
+	old_p = __get_valid_kprobe(p);
+	if (old_p)
+		ret = -EINVAL;
+	mutex_unlock(&kprobe_mutex);
+	return ret;
+}
+
 int __kprobes register_kprobe(struct kprobe *p)
 {
 	int ret = 0;
@@ -684,6 +721,10 @@ int __kprobes register_kprobe(struct kprobe *p)
 	if (!addr)
 		return -EINVAL;
 	p->addr = addr;
+
+	ret = check_kprobe_rereg(p);
+	if (ret)
+		return ret;
 
 	preempt_disable();
 	if (!kernel_text_address((unsigned long) p->addr) ||
@@ -753,26 +794,6 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(register_kprobe);
-
-/* Check passed kprobe is valid and return kprobe in kprobe_table. */
-static struct kprobe * __kprobes __get_valid_kprobe(struct kprobe *p)
-{
-	struct kprobe *old_p, *list_p;
-
-	old_p = get_kprobe(p->addr);
-	if (unlikely(!old_p))
-		return NULL;
-
-	if (p != old_p) {
-		list_for_each_entry_rcu(list_p, &old_p->list, list)
-			if (list_p == p)
-			/* kprobe p is a valid probe */
-				goto valid;
-		return NULL;
-	}
-valid:
-	return old_p;
-}
 
 /*
  * Unregister a kprobe without a scheduler synchronization.
@@ -1014,9 +1035,9 @@ int __kprobes register_kretprobe(struct kretprobe *rp)
 	/* Pre-allocate memory for max kretprobe instances */
 	if (rp->maxactive <= 0) {
 #ifdef CONFIG_PREEMPT
-		rp->maxactive = max(10, 2 * NR_CPUS);
+		rp->maxactive = max_t(unsigned int, 10, 2*num_possible_cpus());
 #else
-		rp->maxactive = NR_CPUS;
+		rp->maxactive = num_possible_cpus();
 #endif
 	}
 	spin_lock_init(&rp->lock);
@@ -1139,6 +1160,13 @@ static void __kprobes kill_kprobe(struct kprobe *p)
 	 * the original probed function (which will be freed soon) any more.
 	 */
 	arch_remove_kprobe(p);
+}
+
+void __kprobes dump_kprobe(struct kprobe *kp)
+{
+	printk(KERN_WARNING "Dumping kprobe:\n");
+	printk(KERN_WARNING "Name: %s\nAddress: %p\nOffset: %x\n",
+	       kp->symbol_name, kp->addr, kp->offset);
 }
 
 /* Module notifier call back, checking kprobes on the module */

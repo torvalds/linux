@@ -554,8 +554,12 @@ static struct i2c_pxa_platform_data i2c_pdata = {
 
 static void __init imote2_init(void)
 {
-
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(imote2_pin_config));
+
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	/* SPI chip select directions - all other directions should
 	 * be handled by drivers.*/
 	gpio_direction_output(37, 0);

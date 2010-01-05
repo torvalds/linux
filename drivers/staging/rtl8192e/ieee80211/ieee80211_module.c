@@ -119,7 +119,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	ieee = (struct ieee80211_device *)dev->priv;
 #endif
 #if 0
-	dev->hard_start_xmit = ieee80211_xmit;
+	dev->hard_start_xmit = ieee80211_rtl_xmit;
 #endif
 
 	memset(ieee, 0, sizeof(struct ieee80211_device)+sizeof_priv);
@@ -164,7 +164,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
  	ieee->privacy_invoked = 0;
  	ieee->ieee802_1x = 1;
 	ieee->raw_tx = 0;
-	//ieee->hwsec_support = 1; //defalt support hw security. //use module_param instead.
+	//ieee->hwsec_support = 1; //default support hw security. //use module_param instead.
 	ieee->hwsec_active = 0; //disable hwsec, switch it on when necessary.
 
 	ieee80211_softmac_init(ieee);
@@ -242,14 +242,8 @@ void free_ieee80211(struct net_device *dev)
 	for (i = 0; i < WEP_KEYS; i++) {
 		struct ieee80211_crypt_data *crypt = ieee->crypt[i];
 		if (crypt) {
-			if (crypt->ops) {
+			if (crypt->ops)
 				crypt->ops->deinit(crypt->priv);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-				module_put(crypt->ops->owner);
-#else
-				__MOD_DEC_USE_COUNT(crypt->ops->owner);
-#endif
-			}
 			kfree(crypt);
 			ieee->crypt[i] = NULL;
 		}
@@ -339,7 +333,7 @@ extern void ieee80211_crypto_ccmp_exit(void);
 extern int ieee80211_crypto_wep_init(void);
 extern void ieee80211_crypto_wep_exit(void);
 
-int __init ieee80211_init(void)
+int __init ieee80211_rtl_init(void)
 {
 	struct proc_dir_entry *e;
 	int retval;
@@ -395,7 +389,7 @@ int __init ieee80211_init(void)
 	return 0;
 }
 
-void __exit ieee80211_exit(void)
+void __exit ieee80211_rtl_exit(void)
 {
 	if (ieee80211_proc) {
 		remove_proc_entry("debug_level", ieee80211_proc);
@@ -418,8 +412,8 @@ module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "debug output mask");
 
 
-//module_exit(ieee80211_exit);
-//module_init(ieee80211_init);
+//module_exit(ieee80211_rtl_exit);
+//module_init(ieee80211_rtl_init);
 #endif
 #endif
 

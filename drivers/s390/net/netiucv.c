@@ -159,7 +159,7 @@ static void netiucv_pm_complete(struct device *);
 static int netiucv_pm_freeze(struct device *);
 static int netiucv_pm_restore_thaw(struct device *);
 
-static struct dev_pm_ops netiucv_pm_ops = {
+static const struct dev_pm_ops netiucv_pm_ops = {
 	.prepare = netiucv_pm_prepare,
 	.complete = netiucv_pm_complete,
 	.freeze = netiucv_pm_freeze,
@@ -739,13 +739,13 @@ static void conn_action_txdone(fsm_instance *fi, int event, void *arg)
 	if (single_flag) {
 		if ((skb = skb_dequeue(&conn->commit_queue))) {
 			atomic_dec(&skb->users);
-			dev_kfree_skb_any(skb);
 			if (privptr) {
 				privptr->stats.tx_packets++;
 				privptr->stats.tx_bytes +=
 					(skb->len - NETIUCV_HDRLEN
-					 	  - NETIUCV_HDRLEN);
+						  - NETIUCV_HDRLEN);
 			}
+			dev_kfree_skb_any(skb);
 		}
 	}
 	conn->tx_buff->data = conn->tx_buff->head;

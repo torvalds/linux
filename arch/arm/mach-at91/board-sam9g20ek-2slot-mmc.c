@@ -90,7 +90,7 @@ static struct at91_udc_data __initdata ek_udc_data = {
  * SPI devices.
  */
 static struct spi_board_info ek_spi_devices[] = {
-#if !defined(CONFIG_MMC_ATMELMCI)
+#if !(defined(CONFIG_MMC_ATMELMCI) || defined(CONFIG_MMC_AT91))
 	{	/* DataFlash chip */
 		.modalias	= "mtd_dataflash",
 		.chip_select	= 1,
@@ -113,7 +113,7 @@ static struct spi_board_info ek_spi_devices[] = {
  * MACB Ethernet device
  */
 static struct at91_eth_data __initdata ek_macb_data = {
-	.phy_irq_pin	= AT91_PIN_PC12,
+	.phy_irq_pin	= AT91_PIN_PB0,
 	.is_rmii	= 1,
 };
 
@@ -194,24 +194,27 @@ static void __init ek_add_device_nand(void)
 
 /*
  * MCI (SD/MMC)
- * det_pin and wp_pin are not connected
+ * wp_pin is not connected
  */
 #if defined(CONFIG_MMC_ATMELMCI) || defined(CONFIG_MMC_ATMELMCI_MODULE)
 static struct mci_platform_data __initdata ek_mmc_data = {
 	.slot[0] = {
 		.bus_width	= 4,
-		.detect_pin	= -ENODEV,
+		.detect_pin	= AT91_PIN_PC2,
 		.wp_pin		= -ENODEV,
 	},
 	.slot[1] = {
 		.bus_width	= 4,
-		.detect_pin	= -ENODEV,
+		.detect_pin	= AT91_PIN_PC9,
 		.wp_pin		= -ENODEV,
 	},
 
 };
 #else
-static struct amci_platform_data __initdata ek_mmc_data = {
+static struct at91_mmc_data __initdata ek_mmc_data = {
+	.slot_b		= 1,	/* Only one slot so use slot B */
+	.wire4		= 1,
+	.det_pin	= AT91_PIN_PC9,
 };
 #endif
 
@@ -221,13 +224,13 @@ static struct amci_platform_data __initdata ek_mmc_data = {
 static struct gpio_led ek_leds[] = {
 	{	/* "bottom" led, green, userled1 to be defined */
 		.name			= "ds5",
-		.gpio			= AT91_PIN_PB12,
+		.gpio			= AT91_PIN_PB8,
 		.active_low		= 1,
 		.default_trigger	= "none",
 	},
 	{	/* "power" led, yellow */
 		.name			= "ds1",
-		.gpio			= AT91_PIN_PB13,
+		.gpio			= AT91_PIN_PB9,
 		.default_trigger	= "heartbeat",
 	}
 };
@@ -254,7 +257,11 @@ static void __init ek_board_init(void)
 	/* Ethernet */
 	at91_add_device_eth(&ek_macb_data);
 	/* MMC */
+#if defined(CONFIG_MMC_ATMELMCI) || defined(CONFIG_MMC_ATMELMCI_MODULE)
 	at91_add_device_mci(0, &ek_mmc_data);
+#else
+	at91_add_device_mmc(0, &ek_mmc_data);
+#endif
 	/* I2C */
 	at91_add_device_i2c(ek_i2c_devices, ARRAY_SIZE(ek_i2c_devices));
 	/* LEDs */

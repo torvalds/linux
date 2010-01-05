@@ -1249,14 +1249,18 @@ struct buffer_head *reiserfs_read_bitmap_block(struct super_block *sb,
 	else if (bitmap == 0)
 		block = (REISERFS_DISK_OFFSET_IN_BYTES >> sb->s_blocksize_bits) + 1;
 
+	reiserfs_write_unlock(sb);
 	bh = sb_bread(sb, block);
+	reiserfs_write_lock(sb);
 	if (bh == NULL)
 		reiserfs_warning(sb, "sh-2029: %s: bitmap block (#%u) "
 		                 "reading failed", __func__, block);
 	else {
 		if (buffer_locked(bh)) {
 			PROC_INFO_INC(sb, scan_bitmap.wait);
+			reiserfs_write_unlock(sb);
 			__wait_on_buffer(bh);
+			reiserfs_write_lock(sb);
 		}
 		BUG_ON(!buffer_uptodate(bh));
 		BUG_ON(atomic_read(&bh->b_count) == 0);
@@ -1273,7 +1277,10 @@ int reiserfs_init_bitmap_cache(struct super_block *sb)
 	struct reiserfs_bitmap_info *bitmap;
 	unsigned int bmap_nr = reiserfs_bmap_count(sb);
 
+	/* Avoid lock recursion in fault case */
+	reiserfs_write_unlock(sb);
 	bitmap = vmalloc(sizeof(*bitmap) * bmap_nr);
+	reiserfs_write_lock(sb);
 	if (bitmap == NULL)
 		return -ENOMEM;
 

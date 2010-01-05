@@ -16,6 +16,7 @@
 #include <linux/ptrace.h>
 #include <linux/smp.h>
 #include <linux/stddef.h>
+#include <linux/module.h>
 
 #include <asm/bugs.h>
 #include <asm/cpu.h>
@@ -23,7 +24,7 @@
 #include <asm/mipsregs.h>
 #include <asm/system.h>
 #include <asm/watch.h>
-
+#include <asm/spram.h>
 /*
  * Not all of the MIPS CPUs have the "wait" instruction available. Moreover,
  * the implementation of the "wait" feature differs between CPU families. This
@@ -32,6 +33,7 @@
  * the CPU very much.
  */
 void (*cpu_wait)(void);
+EXPORT_SYMBOL(cpu_wait);
 
 static void r3081_wait(void)
 {
@@ -710,12 +712,6 @@ static void __cpuinit decode_configs(struct cpuinfo_mips *c)
 
 	mips_probe_watch_registers(c);
 }
-
-#ifdef CONFIG_CPU_MIPSR2
-extern void spram_config(void);
-#else
-static inline void spram_config(void) {}
-#endif
 
 static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 {

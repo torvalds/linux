@@ -310,7 +310,7 @@ size_t __i2400m_tx_tail_room(struct i2400m *i2400m)
 	size_t tail_room;
 	size_t tx_in;
 
-	if (unlikely(i2400m->tx_in) == 0)
+	if (unlikely(i2400m->tx_in == 0))
 		return I2400M_TX_BUF_SIZE;
 	tx_in = i2400m->tx_in % I2400M_TX_BUF_SIZE;
 	tail_room = I2400M_TX_BUF_SIZE - tx_in;
@@ -642,6 +642,9 @@ int i2400m_tx(struct i2400m *i2400m, const void *buf, size_t buf_len,
 	 * current one is out of payload slots or we have a singleton,
 	 * close it and start a new one */
 	spin_lock_irqsave(&i2400m->tx_lock, flags);
+	result = -ESHUTDOWN;
+	if (i2400m->tx_buf == NULL)
+		goto error_tx_new;
 try_new:
 	if (unlikely(i2400m->tx_msg == NULL))
 		i2400m_tx_new(i2400m);
@@ -697,7 +700,10 @@ try_new:
 	}
 error_tx_new:
 	spin_unlock_irqrestore(&i2400m->tx_lock, flags);
-	i2400m->bus_tx_kick(i2400m);	/* always kick, might free up space */
+	/* kick in most cases, except when the TX subsys is down, as
+	 * it might free space */
+	if (likely(result != -ESHUTDOWN))
+		i2400m->bus_tx_kick(i2400m);
 	d_fnend(3, dev, "(i2400m %p skb %p [%zu bytes] pt %u) = %d\n",
 		i2400m, buf, buf_len, pl_type, result);
 	return result;
@@ -740,6 +746,9 @@ struct i2400m_msg_hdr *i2400m_tx_msg_get(struct i2400m *i2400m,
 
 	d_fnstart(3, dev, "(i2400m %p bus_size %p)\n", i2400m, bus_size);
 	spin_lock_irqsave(&i2400m->tx_lock, flags);
+	tx_msg_moved = NULL;
+	if (i2400m->tx_buf == NULL)
+		goto out_unlock;
 skip:
 	tx_msg_moved = NULL;
 	if (i2400m->tx_in == i2400m->tx_out) {	/* Empty FIFO? */
@@ -829,6 +838,8 @@ void i2400m_tx_msg_sent(struct i2400m *i2400m)
 
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
 	spin_lock_irqsave(&i2400m->tx_lock, flags);
+	if (i2400m->tx_buf == NULL)
+		goto out_unlock;
 	i2400m->tx_out += i2400m->tx_msg_size;
 	d_printf(2, dev, "TX: sent %zu b\n", (size_t) i2400m->tx_msg_size);
 	i2400m->tx_msg_size = 0;
@@ -837,6 +848,7 @@ void i2400m_tx_msg_sent(struct i2400m *i2400m)
 	n = i2400m->tx_out / I2400M_TX_BUF_SIZE;
 	i2400m->tx_out %= I2400M_TX_BUF_SIZE;
 	i2400m->tx_in -= n * I2400M_TX_BUF_SIZE;
+out_unlock:
 	spin_unlock_irqrestore(&i2400m->tx_lock, flags);
 	d_fnend(3, dev, "(i2400m %p) = void\n", i2400m);
 }
@@ -876,5 +888,9 @@ int i2400m_tx_setup(struct i2400m *i2400m)
  */
 void i2400m_tx_release(struct i2400m *i2400m)
 {
+	unsigned long flags;
+	spin_lock_irqsave(&i2400m->tx_lock, flags);
 	kfree(i2400m->tx_buf);
+	i2400m->tx_buf = NULL;
+	spin_unlock_irqrestore(&i2400m->tx_lock, flags);
 }

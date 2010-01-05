@@ -716,6 +716,41 @@ if (-1 == ioctl (fd, &VIDIOC-S-STD;, &amp;std_id)) {
 }
       </programlisting>
     </example>
+  <section id="dv-timings">
+	<title>Digital Video (DV) Timings</title>
+	<para>
+	The video standards discussed so far has been dealing with Analog TV and the
+corresponding video timings. Today there are many more different hardware interfaces
+such as High Definition TV interfaces (HDMI), VGA, DVI connectors etc., that carry
+video signals and there is a need to extend the API to select the video timings
+for these interfaces. Since it is not possible to extend the &v4l2-std-id; due to
+the limited bits available, a new set of IOCTLs is added to set/get video timings at
+the input and output: </para><itemizedlist>
+	<listitem>
+	<para>DV Presets: Digital Video (DV) presets. These are IDs representing a
+video timing at the input/output. Presets are pre-defined timings implemented
+by the hardware according to video standards. A __u32 data type is used to represent
+a preset unlike the bit mask that is used in &v4l2-std-id; allowing future extensions
+to support as many different presets as needed.</para>
+	</listitem>
+	<listitem>
+	<para>Custom DV Timings: This will allow applications to define more detailed
+custom video timings for the interface. This includes parameters such as width, height,
+polarities, frontporch, backporch etc.
+	</para>
+	</listitem>
+	</itemizedlist>
+	<para>To enumerate and query the attributes of DV presets supported by a device,
+applications use the &VIDIOC-ENUM-DV-PRESETS; ioctl. To get the current DV preset,
+applications use the &VIDIOC-G-DV-PRESET; ioctl and to set a preset they use the
+&VIDIOC-S-DV-PRESET; ioctl.</para>
+	<para>To set custom DV timings for the device, applications use the
+&VIDIOC-S-DV-TIMINGS; ioctl and to get current custom DV timings they use the
+&VIDIOC-G-DV-TIMINGS; ioctl.</para>
+	<para>Applications can make use of the <xref linkend="input-capabilities" /> and
+<xref linkend="output-capabilities"/> flags to decide what ioctls are available to set the
+video timings for the device.</para>
+	</section>
   </section>
 
   &sub-controls;

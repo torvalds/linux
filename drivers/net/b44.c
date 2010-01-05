@@ -912,9 +912,6 @@ static irqreturn_t b44_interrupt(int irq, void *dev_id)
 			bp->istat = istat;
 			__b44_disable_ints(bp);
 			__napi_schedule(&bp->napi);
-		} else {
-			printk(KERN_ERR PFX "%s: Error, poll already scheduled\n",
-			       dev->name);
 		}
 
 irq_ack:
@@ -1508,8 +1505,7 @@ static int b44_magic_pattern(u8 *macaddr, u8 *ppattern, u8 *pmask, int offset)
 		for (k = 0; k< ethaddr_bytes; k++) {
 			ppattern[offset + magicsync +
 				(j * ETH_ALEN) + k] = macaddr[k];
-			len++;
-			set_bit(len, (unsigned long *) pmask);
+			set_bit(len++, (unsigned long *) pmask);
 		}
 	}
 	return len - 1;

@@ -863,7 +863,7 @@ static int hifn_init_pubrng(struct hifn_device *dev)
 		dev->dmareg |= HIFN_DMAIER_PUBDONE;
 		hifn_write_1(dev, HIFN_1_DMA_IER, dev->dmareg);
 
-		dprintk("Chip %s: Public key engine has been sucessfully "
+		dprintk("Chip %s: Public key engine has been successfully "
 				"initialised.\n", dev->name);
 	}
 

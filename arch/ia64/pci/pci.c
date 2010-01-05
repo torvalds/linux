@@ -56,10 +56,13 @@ int raw_pci_read(unsigned int seg, unsigned int bus, unsigned int devfn,
 	if ((seg | reg) <= 255) {
 		addr = PCI_SAL_ADDRESS(seg, bus, devfn, reg);
 		mode = 0;
-	} else {
+	} else if (sal_revision >= SAL_VERSION_CODE(3,2)) {
 		addr = PCI_SAL_EXT_ADDRESS(seg, bus, devfn, reg);
 		mode = 1;
+	} else {
+		return -EINVAL;
 	}
+
 	result = ia64_sal_pci_config_read(addr, mode, len, &data);
 	if (result != 0)
 		return -EINVAL;
@@ -80,9 +83,11 @@ int raw_pci_write(unsigned int seg, unsigned int bus, unsigned int devfn,
 	if ((seg | reg) <= 255) {
 		addr = PCI_SAL_ADDRESS(seg, bus, devfn, reg);
 		mode = 0;
-	} else {
+	} else if (sal_revision >= SAL_VERSION_CODE(3,2)) {
 		addr = PCI_SAL_EXT_ADDRESS(seg, bus, devfn, reg);
 		mode = 1;
+	} else {
+		return -EINVAL;
 	}
 	result = ia64_sal_pci_config_write(addr, mode, len, value);
 	if (result != 0)
@@ -126,6 +131,7 @@ alloc_pci_controller (int seg)
 }
 
 struct pci_root_info {
+	struct acpi_device *bridge;
 	struct pci_controller *controller;
 	char *name;
 };
@@ -292,9 +298,20 @@ static __devinit acpi_status add_window(struct acpi_resource *res, void *data)
 	window->offset = offset;
 
 	if (insert_resource(root, &window->resource)) {
-		printk(KERN_ERR "alloc 0x%llx-0x%llx from %s for %s failed\n",
-			window->resource.start, window->resource.end,
-			root->name, info->name);
+		dev_err(&info->bridge->dev,
+			"can't allocate host bridge window %pR\n",
+			&window->resource);
+	} else {
+		if (offset)
+			dev_info(&info->bridge->dev, "host bridge window %pR "
+				 "(PCI address [%#llx-%#llx])\n",
+				 &window->resource,
+				 window->resource.start - offset,
+				 window->resource.end - offset);
+		else
+			dev_info(&info->bridge->dev,
+				 "host bridge window %pR\n",
+				 &window->resource);
 	}
 
 	return AE_OK;
@@ -314,8 +331,9 @@ pcibios_setup_root_windows(struct pci_bus *bus, struct pci_controller *ctrl)
 		    (res->end - res->start < 16))
 			continue;
 		if (j >= PCI_BUS_NUM_RESOURCES) {
-			printk("Ignoring range [%#llx-%#llx] (%lx)\n",
-					res->start, res->end, res->flags);
+			dev_warn(&bus->dev,
+				 "ignoring host bridge window %pR (no space)\n",
+				 res);
 			continue;
 		}
 		bus->resource[j++] = res;
@@ -359,6 +377,7 @@ pci_acpi_scan_root(struct acpi_device *device, int domain, int bus)
 			goto out3;
 
 		sprintf(name, "PCI Bus %04x:%02x", domain, bus);
+		info.bridge = device;
 		info.controller = controller;
 		info.name = name;
 		acpi_walk_resources(device->handle, METHOD_NAME__CRS,
@@ -715,9 +734,6 @@ int ia64_pci_legacy_write(struct pci_bus *bus, u16 port, u32 val, u8 size)
 	return ret;
 }
 
-/* It's defined in drivers/pci/pci.c */
-extern u8 pci_cache_line_size;
-
 /**
  * set_pci_cacheline_size - determine cacheline size for PCI devices
  *
@@ -726,7 +742,7 @@ extern u8 pci_cache_line_size;
  *
  * Code mostly taken from arch/ia64/kernel/palinfo.c:cache_info().
  */
-static void __init set_pci_cacheline_size(void)
+static void __init set_pci_dfl_cacheline_size(void)
 {
 	unsigned long levels, unique_caches;
 	long status;
@@ -746,7 +762,7 @@ static void __init set_pci_cacheline_size(void)
 			"(status=%ld)\n", __func__, status);
 		return;
 	}
-	pci_cache_line_size = (1 << cci.pcci_line_size) / 4;
+	pci_dfl_cache_line_size = (1 << cci.pcci_line_size) / 4;
 }
 
 u64 ia64_dma_get_required_mask(struct device *dev)
@@ -777,7 +793,7 @@ EXPORT_SYMBOL_GPL(dma_get_required_mask);
 
 static int __init pcibios_init(void)
 {
-	set_pci_cacheline_size();
+	set_pci_dfl_cacheline_size();
 	return 0;
 }
 

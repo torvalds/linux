@@ -237,6 +237,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
@@ -848,7 +849,7 @@ static int depca_open(struct net_device *dev)
 
 	depca_dbg_open(dev);
 
-	if (request_irq(dev->irq, &depca_interrupt, 0, lp->adapter_name, dev)) {
+	if (request_irq(dev->irq, depca_interrupt, 0, lp->adapter_name, dev)) {
 		printk("depca_open(): Requested IRQ%d is busy\n", dev->irq);
 		status = -EAGAIN;
 	} else {

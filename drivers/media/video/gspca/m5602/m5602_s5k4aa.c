@@ -35,10 +35,23 @@ static
     const
 	struct dmi_system_id s5k4aa_vflip_dmi_table[] = {
 	{
+		.ident = "BRUNEINIT",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "BRUNENIT"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "BRUNENIT"),
+			DMI_MATCH(DMI_BOARD_VERSION, "00030D0000000001")
+		}
+	}, {
 		.ident = "Fujitsu-Siemens Amilo Xa 2528",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Xa 2528")
+		}
+	}, {
+		.ident = "Fujitsu-Siemens Amilo Xi 2528",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Xi 2528")
 		}
 	}, {
 		.ident = "Fujitsu-Siemens Amilo Xi 2550",
@@ -51,6 +64,13 @@ static
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Pa 2548")
+		}
+	}, {
+		.ident = "MSI GX700",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "GX700"),
+			DMI_MATCH(DMI_BIOS_DATE, "12/02/2008")
 		}
 	}, {
 		.ident = "MSI GX700",
@@ -505,7 +525,10 @@ static int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_read_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
 	if (err < 0)
 		return err;
-	data = (data & 0xfe) | !val;
+	if (val)
+		data &= 0xfe;
+	else
+		data |= 0x01;
 	err = m5602_write_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
 	return err;
 }
@@ -550,7 +573,10 @@ static int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_read_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
 	if (err < 0)
 		return err;
-	data = (data & 0xfe) | !val;
+	if (val)
+		data &= 0xfe;
+	else
+		data |= 0x01;
 	err = m5602_write_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
 	return err;
 }

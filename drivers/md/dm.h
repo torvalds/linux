@@ -89,6 +89,16 @@ int dm_target_iterate(void (*iter_func)(struct target_type *tt,
 int dm_split_args(int *argc, char ***argvp, char *input);
 
 /*
+ * Is this mapped_device being deleted?
+ */
+int dm_deleting_md(struct mapped_device *md);
+
+/*
+ * Is this mapped_device suspended?
+ */
+int dm_suspended_md(struct mapped_device *md);
+
+/*
  * The device-mapper can be driven through one of two interfaces;
  * ioctl or filesystem, depending which patch you have applied.
  */
@@ -117,6 +127,9 @@ int dm_lock_for_deletion(struct mapped_device *md);
 
 void dm_kobject_uevent(struct mapped_device *md, enum kobject_action action,
 		       unsigned cookie);
+
+int dm_io_init(void);
+void dm_io_exit(void);
 
 int dm_kcopyd_init(void);
 void dm_kcopyd_exit(void);

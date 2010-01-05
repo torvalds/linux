@@ -29,6 +29,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-subdev.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <linux/uaccess.h>
@@ -45,6 +46,9 @@
 #ifndef V4L2_MPEG_VIDEO_ENCODING_MPEG_4
 #define	V4L2_MPEG_VIDEO_ENCODING_MPEG_4   3
 #endif
+
+#define call_all(dev, o, f, args...) \
+	v4l2_device_call_until_err(dev, 0, o, f, ##args)
 
 static void deactivate_buffer(struct go7007_buffer *gobuf)
 {
@@ -247,19 +251,23 @@ static int set_capture_size(struct go7007 *go, struct v4l2_format *fmt, int try)
 		go->modet_map[i] = 0;
 
 	if (go->board_info->sensor_flags & GO7007_SENSOR_SCALING) {
-		struct video_decoder_resolution res;
+		struct v4l2_format res;
 
-		res.width = width;
+		if (fmt != NULL) {
+			res = *fmt;
+		} else {
+			res.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+			res.fmt.pix.width = width;
+		}
+
 		if (height > sensor_height / 2) {
-			res.height = height / 2;
+			res.fmt.pix.height = height / 2;
 			go->encoder_v_halve = 0;
 		} else {
-			res.height = height;
+			res.fmt.pix.height = height;
 			go->encoder_v_halve = 1;
 		}
-		if (go->i2c_adapter_online)
-			i2c_clients_command(&go->i2c_adapter,
-					DECODER_SET_RESOLUTION, &res);
+		call_all(&go->v4l2_dev, video, s_fmt, &res);
 	} else {
 		if (width <= sensor_width / 4) {
 			go->encoder_h_halve = 1;
@@ -385,7 +393,7 @@ static int clip_to_modet_map(struct go7007 *go, int region,
 }
 #endif
 
-static int mpeg_queryctrl(struct v4l2_queryctrl *ctrl)
+static int mpeg_query_ctrl(struct v4l2_queryctrl *ctrl)
 {
 	static const u32 mpeg_ctrls[] = {
 		V4L2_CID_MPEG_CLASS,
@@ -973,51 +981,35 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 			   struct v4l2_queryctrl *query)
 {
 	struct go7007 *go = ((struct go7007_file *) priv)->go;
+	int id = query->id;
 
-	if (!go->i2c_adapter_online)
-		return -EIO;
+	if (0 == call_all(&go->v4l2_dev, core, queryctrl, query))
+		return 0;
 
-	i2c_clients_command(&go->i2c_adapter, VIDIOC_QUERYCTRL, query);
-
-	return (!query->name[0]) ? mpeg_queryctrl(query) : 0;
+	query->id = id;
+	return mpeg_query_ctrl(query);
 }
 
 static int vidioc_g_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
 	struct go7007 *go = ((struct go7007_file *) priv)->go;
-	struct v4l2_queryctrl query;
 
-	if (!go->i2c_adapter_online)
-		return -EIO;
+	if (0 == call_all(&go->v4l2_dev, core, g_ctrl, ctrl))
+		return 0;
 
-	memset(&query, 0, sizeof(query));
-	query.id = ctrl->id;
-	i2c_clients_command(&go->i2c_adapter, VIDIOC_QUERYCTRL, &query);
-	if (query.name[0] == 0)
-		return mpeg_g_ctrl(ctrl, go);
-	i2c_clients_command(&go->i2c_adapter, VIDIOC_G_CTRL, ctrl);
-
-	return 0;
+	return mpeg_g_ctrl(ctrl, go);
 }
 
 static int vidioc_s_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
 	struct go7007 *go = ((struct go7007_file *) priv)->go;
-	struct v4l2_queryctrl query;
 
-	if (!go->i2c_adapter_online)
-		return -EIO;
+	if (0 == call_all(&go->v4l2_dev, core, s_ctrl, ctrl))
+		return 0;
 
-	memset(&query, 0, sizeof(query));
-	query.id = ctrl->id;
-	i2c_clients_command(&go->i2c_adapter, VIDIOC_QUERYCTRL, &query);
-	if (query.name[0] == 0)
-		return mpeg_s_ctrl(ctrl, go);
-	i2c_clients_command(&go->i2c_adapter, VIDIOC_S_CTRL, ctrl);
-
-	return 0;
+	return mpeg_s_ctrl(ctrl, go);
 }
 
 static int vidioc_g_parm(struct file *filp, void *priv,
@@ -1135,8 +1127,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *std)
 	if (go->streaming)
 		return -EBUSY;
 
-	if (!(go->board_info->sensor_flags & GO7007_SENSOR_TV) &&
-			*std != 0)
+	if (!(go->board_info->sensor_flags & GO7007_SENSOR_TV) && *std != 0)
 		return -EINVAL;
 
 	if (*std == 0)
@@ -1146,9 +1137,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *std)
 			go->input == go->board_info->num_inputs - 1) {
 		if (!go->i2c_adapter_online)
 			return -EIO;
-		i2c_clients_command(&go->i2c_adapter,
-					VIDIOC_S_STD, std);
-		if (!*std) /* hack to indicate EINVAL from tuner */
+		if (call_all(&go->v4l2_dev, core, s_std, *std) < 0)
 			return -EINVAL;
 	}
 
@@ -1164,9 +1153,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *std)
 	} else
 		return -EINVAL;
 
-	if (go->i2c_adapter_online)
-		i2c_clients_command(&go->i2c_adapter,
-					VIDIOC_S_STD, std);
+	call_all(&go->v4l2_dev, core, s_std, *std);
 	set_capture_size(go, NULL, 0);
 
 	return 0;
@@ -1180,7 +1167,7 @@ static int vidioc_querystd(struct file *file, void *priv, v4l2_std_id *std)
 			go->input == go->board_info->num_inputs - 1) {
 		if (!go->i2c_adapter_online)
 			return -EIO;
-		i2c_clients_command(&go->i2c_adapter, VIDIOC_QUERYSTD, std);
+		return call_all(&go->v4l2_dev, video, querystd, std);
 	} else if (go->board_info->sensor_flags & GO7007_SENSOR_TV)
 		*std = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM;
 	else
@@ -1238,14 +1225,8 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int input)
 		return -EBUSY;
 
 	go->input = input;
-	if (go->i2c_adapter_online) {
-		i2c_clients_command(&go->i2c_adapter, VIDIOC_S_INPUT,
-			&go->board_info->inputs[input].video_input);
-		i2c_clients_command(&go->i2c_adapter, VIDIOC_S_AUDIO,
-			&go->board_info->inputs[input].audio_input);
-	}
 
-	return 0;
+	return call_all(&go->v4l2_dev, video, s_routing, input, 0, 0);
 }
 
 static int vidioc_g_tuner(struct file *file, void *priv,
@@ -1260,10 +1241,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	if (!go->i2c_adapter_online)
 		return -EIO;
 
-	i2c_clients_command(&go->i2c_adapter, VIDIOC_G_TUNER, t);
-
-	t->index = 0;
-	return 0;
+	return call_all(&go->v4l2_dev, tuner, g_tuner, t);
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
@@ -1287,9 +1265,7 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 		break;
 	}
 
-	i2c_clients_command(&go->i2c_adapter, VIDIOC_S_TUNER, t);
-
-	return 0;
+	return call_all(&go->v4l2_dev, tuner, s_tuner, t);
 }
 
 static int vidioc_g_frequency(struct file *file, void *priv,
@@ -1303,8 +1279,8 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 		return -EIO;
 
 	f->type = V4L2_TUNER_ANALOG_TV;
-	i2c_clients_command(&go->i2c_adapter, VIDIOC_G_FREQUENCY, f);
-	return 0;
+
+	return call_all(&go->v4l2_dev, tuner, g_frequency, f);
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
@@ -1317,9 +1293,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	if (!go->i2c_adapter_online)
 		return -EIO;
 
-	i2c_clients_command(&go->i2c_adapter, VIDIOC_S_FREQUENCY, f);
-
-	return 0;
+	return call_all(&go->v4l2_dev, tuner, s_frequency, f);
 }
 
 static int vidioc_cropcap(struct file *file, void *priv,
@@ -1813,7 +1787,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 static struct video_device go7007_template = {
 	.name		= "go7007",
 	.fops		= &go7007_fops,
-	.minor		= -1,
 	.release	= go7007_vfl_release,
 	.ioctl_ops	= &video_ioctl_ops,
 	.tvnorms	= V4L2_STD_ALL,
@@ -1827,7 +1800,7 @@ int go7007_v4l2_init(struct go7007 *go)
 	go->video_dev = video_device_alloc();
 	if (go->video_dev == NULL)
 		return -ENOMEM;
-	memcpy(go->video_dev, &go7007_template, sizeof(go7007_template));
+	*go->video_dev = go7007_template;
 	go->video_dev->parent = go->dev;
 	rv = video_register_device(go->video_dev, VFL_TYPE_GRABBER, -1);
 	if (rv < 0) {
@@ -1835,10 +1808,16 @@ int go7007_v4l2_init(struct go7007 *go)
 		go->video_dev = NULL;
 		return rv;
 	}
+	rv = v4l2_device_register(go->dev, &go->v4l2_dev);
+	if (rv < 0) {
+		video_device_release(go->video_dev);
+		go->video_dev = NULL;
+		return rv;
+	}
 	video_set_drvdata(go->video_dev, go);
 	++go->ref_count;
-	printk(KERN_INFO "%s: registered device video%d [v4l2]\n",
-	       go->video_dev->name, go->video_dev->num);
+	printk(KERN_INFO "%s: registered device %s [v4l2]\n",
+	       go->video_dev->name, video_device_node_name(go->video_dev));
 
 	return 0;
 }
@@ -1858,4 +1837,5 @@ void go7007_v4l2_remove(struct go7007 *go)
 	mutex_unlock(&go->hw_lock);
 	if (go->video_dev)
 		video_unregister_device(go->video_dev);
+	v4l2_device_unregister(&go->v4l2_dev);
 }

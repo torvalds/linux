@@ -76,15 +76,6 @@ union partition_info_u {
 	};
 };
 
-union uv_watchlist_u {
-	u64	val;
-	struct {
-		u64	blade	: 16,
-			size	: 32,
-			filler	: 16;
-	};
-};
-
 enum uv_memprotect {
 	UV_MEMPROT_RESTRICT_ACCESS,
 	UV_MEMPROT_ALLOW_AMO,
@@ -100,7 +91,7 @@ extern s64 uv_bios_call_reentrant(enum uv_bios_cmd, u64, u64, u64, u64, u64);
 
 extern s64 uv_bios_get_sn_info(int, int *, long *, long *, long *);
 extern s64 uv_bios_freq_base(u64, u64 *);
-extern int uv_bios_mq_watchlist_alloc(int, unsigned long, unsigned int,
+extern int uv_bios_mq_watchlist_alloc(unsigned long, unsigned int,
 					unsigned long *);
 extern int uv_bios_mq_watchlist_free(int, int);
 extern s64 uv_bios_change_memprotect(u64, u64, enum uv_memprotect);

@@ -403,6 +403,15 @@
 #define __ARM_NR_set_tls		(__ARM_NR_BASE+5)
 
 /*
+ * *NOTE*: This is a ghost syscall private to the kernel.  Only the
+ * __kuser_cmpxchg code in entry-armv.S should be aware of its
+ * existence.  Don't ever use this from user code.
+ */
+#ifdef __KERNEL__
+#define __ARM_NR_cmpxchg		(__ARM_NR_BASE+0x00fff0)
+#endif
+
+/*
  * The following syscalls are obsolete and no longer available for EABI.
  */
 #if defined(__ARM_EABI__) && !defined(__KERNEL__)
@@ -456,6 +465,7 @@
  * Unimplemented (or alternatively implemented) syscalls
  */
 #define __IGNORE_fadvise64_64		1
+#define __IGNORE_migrate_pages		1
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_ARM_UNISTD_H */

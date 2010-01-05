@@ -149,6 +149,8 @@ void prepare_namespace(void);
 
 extern void (*late_time_init)(void);
 
+extern int initcall_debug;
+
 #endif
   
 #ifndef MODULE
@@ -271,6 +273,7 @@ void __init parse_early_options(char *cmdline);
 #else /* MODULE */
 
 /* Don't use these in modules, but some people do... */
+#define early_initcall(fn)		module_init(fn)
 #define core_initcall(fn)		module_init(fn)
 #define postcore_initcall(fn)		module_init(fn)
 #define arch_initcall(fn)		module_init(fn)

@@ -222,7 +222,7 @@ static void cpm_cascade(unsigned int irq, struct irq_desc *desc)
 	int cascade_irq;
 
 	if ((cascade_irq = cpm_get_irq()) >= 0) {
-		struct irq_desc *cdesc = irq_desc + cascade_irq;
+		struct irq_desc *cdesc = irq_to_desc(cascade_irq);
 
 		generic_handle_irq(cascade_irq);
 		cdesc->chip->eoi(cascade_irq);

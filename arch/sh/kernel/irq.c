@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/kernel_stat.h>
 #include <linux/seq_file.h>
+#include <linux/ftrace.h>
 #include <asm/processor.h>
 #include <asm/machvec.h>
 #include <asm/uaccess.h>
@@ -36,7 +37,15 @@ void ack_bad_irq(unsigned int irq)
  */
 static int show_other_interrupts(struct seq_file *p, int prec)
 {
+	int j;
+
+	seq_printf(p, "%*s: ", prec, "NMI");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", irq_stat[j].__nmi_count);
+	seq_printf(p, "  Non-maskable interrupts\n");
+
 	seq_printf(p, "%*s: %10u\n", prec, "ERR", atomic_read(&irq_err_count));
+
 	return 0;
 }
 
@@ -67,7 +76,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	if (!desc)
 		return 0;
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	for_each_online_cpu(j)
 		any_count |= kstat_irqs_cpu(i, j);
 	action = desc->action;
@@ -88,7 +97,7 @@ int show_interrupts(struct seq_file *p, void *v)
 
 	seq_putc(p, '\n');
 out:
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	return 0;
 }
 #endif
@@ -106,7 +115,7 @@ static union irq_ctx *hardirq_ctx[NR_CPUS] __read_mostly;
 static union irq_ctx *softirq_ctx[NR_CPUS] __read_mostly;
 #endif
 
-asmlinkage int do_IRQ(unsigned int irq, struct pt_regs *regs)
+asmlinkage __irq_entry int do_IRQ(unsigned int irq, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 #ifdef CONFIG_IRQSTACKS
@@ -253,6 +262,12 @@ asmlinkage void do_softirq(void)
 void __init init_IRQ(void)
 {
 	plat_irq_setup();
+
+	/*
+	 * Pin any of the legacy IRQ vectors that haven't already been
+	 * grabbed by the platform
+	 */
+	reserve_irq_legacy();
 
 	/* Perform the machine specific initialisation */
 	if (sh_mv.mv_init_irq)

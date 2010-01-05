@@ -30,8 +30,8 @@ struct videobuf_vmalloc_memory
 };
 
 void videobuf_queue_vmalloc_init(struct videobuf_queue* q,
-			 struct videobuf_queue_ops *ops,
-			 void *dev,
+			 const struct videobuf_queue_ops *ops,
+			 struct device *dev,
 			 spinlock_t *irqlock,
 			 enum v4l2_buf_type type,
 			 enum v4l2_field field,

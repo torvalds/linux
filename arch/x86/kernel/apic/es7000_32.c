@@ -27,6 +27,9 @@
  *
  * http://www.unisys.com
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/notifier.h>
 #include <linux/spinlock.h>
 #include <linux/cpumask.h>
@@ -223,9 +226,9 @@ static int parse_unisys_oem(char *oemptr)
 			mip_addr = val;
 			mip = (struct mip_reg *)val;
 			mip_reg = __va(mip);
-			pr_debug("es7000_mipcfg: host_reg = 0x%lx \n",
+			pr_debug("host_reg = 0x%lx\n",
 				 (unsigned long)host_reg);
-			pr_debug("es7000_mipcfg: mip_reg = 0x%lx \n",
+			pr_debug("mip_reg = 0x%lx\n",
 				 (unsigned long)mip_reg);
 			success++;
 			break;
@@ -401,7 +404,7 @@ static void es7000_enable_apic_mode(void)
 	if (!es7000_plat)
 		return;
 
-	printk(KERN_INFO "ES7000: Enabling APIC mode.\n");
+	pr_info("Enabling APIC mode.\n");
 	memset(&es7000_mip_reg, 0, sizeof(struct mip_reg));
 	es7000_mip_reg.off_0x00 = MIP_SW_APIC;
 	es7000_mip_reg.off_0x38 = MIP_VALID;
@@ -466,11 +469,11 @@ static const struct cpumask *es7000_target_cpus(void)
 	return cpumask_of(smp_processor_id());
 }
 
-static unsigned long
-es7000_check_apicid_used(physid_mask_t bitmap, int apicid)
+static unsigned long es7000_check_apicid_used(physid_mask_t *map, int apicid)
 {
 	return 0;
 }
+
 static unsigned long es7000_check_apicid_present(int bit)
 {
 	return physid_isset(bit, phys_cpu_present_map);
@@ -514,8 +517,7 @@ static void es7000_setup_apic_routing(void)
 {
 	int apic = per_cpu(x86_bios_cpu_apicid, smp_processor_id());
 
-	printk(KERN_INFO
-	  "Enabling APIC mode:  %s. Using %d I/O APICs, target cpus %lx\n",
+	pr_info("Enabling APIC mode:  %s. Using %d I/O APICs, target cpus %lx\n",
 		(apic_version[apic] == 0x14) ?
 			"Physical Cluster" : "Logical Cluster",
 		nr_ioapics, cpumask_bits(es7000_target_cpus())[0]);
@@ -539,14 +541,10 @@ static int es7000_cpu_present_to_apicid(int mps_cpu)
 
 static int cpu_id;
 
-static physid_mask_t es7000_apicid_to_cpu_present(int phys_apicid)
+static void es7000_apicid_to_cpu_present(int phys_apicid, physid_mask_t *retmap)
 {
-	physid_mask_t mask;
-
-	mask = physid_mask_of_physid(cpu_id);
+	physid_set_mask_of_physid(cpu_id, retmap);
 	++cpu_id;
-
-	return mask;
 }
 
 /* Mapping from cpu number to logical apicid */
@@ -561,10 +559,10 @@ static int es7000_cpu_to_logical_apicid(int cpu)
 #endif
 }
 
-static physid_mask_t es7000_ioapic_phys_id_map(physid_mask_t phys_map)
+static void es7000_ioapic_phys_id_map(physid_mask_t *phys_map, physid_mask_t *retmap)
 {
 	/* For clustered we don't have a good way to do this yet - hack */
-	return physids_promote(0xff);
+	physids_promote(0xFFL, retmap);
 }
 
 static int es7000_check_phys_apicid_present(int cpu_physical_apicid)

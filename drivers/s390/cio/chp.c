@@ -65,7 +65,7 @@ static void set_chp_logically_online(struct chp_id chpid, int onoff)
 	chpid_to_chp(chpid)->state = onoff;
 }
 
-/* On succes return 0 if channel-path is varied offline, 1 if it is varied
+/* On success return 0 if channel-path is varied offline, 1 if it is varied
  * online. Return -ENODEV if channel-path is not registered. */
 int chp_get_status(struct chp_id chpid)
 {
@@ -393,7 +393,6 @@ int chp_new(struct chp_id chpid)
 	chp->state = 1;
 	chp->dev.parent = &channel_subsystems[chpid.cssid]->device;
 	chp->dev.release = chp_release;
-	dev_set_name(&chp->dev, "chp%x.%02x", chpid.cssid, chpid.id);
 
 	/* Obtain channel path description and fill it in. */
 	ret = chsc_determine_base_channel_path_desc(chpid, &chp->desc);
@@ -411,6 +410,7 @@ int chp_new(struct chp_id chpid)
 	} else {
 		chp->cmg = -1;
 	}
+	dev_set_name(&chp->dev, "chp%x.%02x", chpid.cssid, chpid.id);
 
 	/* make it known to the system */
 	ret = device_register(&chp->dev);

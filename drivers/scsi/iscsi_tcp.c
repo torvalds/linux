@@ -811,7 +811,7 @@ iscsi_sw_tcp_session_create(struct iscsi_endpoint *ep, uint16_t cmds_max,
 		goto free_host;
 
 	cls_session = iscsi_session_setup(&iscsi_sw_tcp_transport, shost,
-					  cmds_max,
+					  cmds_max, 0,
 					  sizeof(struct iscsi_tcp_task) +
 					  sizeof(struct iscsi_sw_tcp_hdrbuf),
 					  initial_cmdsn, 0);
@@ -903,7 +903,7 @@ static struct iscsi_transport iscsi_sw_tcp_transport = {
 				  ISCSI_USERNAME | ISCSI_PASSWORD |
 				  ISCSI_USERNAME_IN | ISCSI_PASSWORD_IN |
 				  ISCSI_FAST_ABORT | ISCSI_ABORT_TMO |
-				  ISCSI_LU_RESET_TMO |
+				  ISCSI_LU_RESET_TMO | ISCSI_TGT_RESET_TMO |
 				  ISCSI_PING_TMO | ISCSI_RECV_TMO |
 				  ISCSI_IFACE_NAME | ISCSI_INITIATOR_NAME,
 	.host_param_mask	= ISCSI_HOST_HWADDRESS | ISCSI_HOST_IPADDRESS |

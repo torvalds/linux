@@ -361,9 +361,12 @@ struct l2_fhdr {
 #define BNX2_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE_VALUE	 (1<<28)
 
 #define BNX2_L2CTX_HOST_BDIDX				0x00000004
-#define BNX2_L2CTX_STATUSB_NUM_SHIFT			 16
-#define BNX2_L2CTX_STATUSB_NUM(sb_id)			 \
-	(((sb_id) > 0) ? (((sb_id) + 7) << BNX2_L2CTX_STATUSB_NUM_SHIFT) : 0)
+#define BNX2_L2CTX_L5_STATUSB_NUM_SHIFT			 16
+#define BNX2_L2CTX_L2_STATUSB_NUM_SHIFT			 24
+#define BNX2_L2CTX_L5_STATUSB_NUM(sb_id)		\
+	(((sb_id) > 0) ? (((sb_id) + 7) << BNX2_L2CTX_L5_STATUSB_NUM_SHIFT) : 0)
+#define BNX2_L2CTX_L2_STATUSB_NUM(sb_id)		\
+	(((sb_id) > 0) ? (((sb_id) + 7) << BNX2_L2CTX_L2_STATUSB_NUM_SHIFT) : 0)
 #define BNX2_L2CTX_HOST_BSEQ				0x00000008
 #define BNX2_L2CTX_NX_BSEQ				0x0000000c
 #define BNX2_L2CTX_NX_BDHADDR_HI			0x00000010
@@ -6342,6 +6345,8 @@ struct l2_fhdr {
 
 #define BNX2_MCP_ROM					0x00150000
 #define BNX2_MCP_SCRATCH				0x00160000
+#define BNX2_MCP_STATE_P1				 0x0016f9c8
+#define BNX2_MCP_STATE_P0				 0x0016fdc8
 
 #define BNX2_SHM_HDR_SIGNATURE				BNX2_MCP_SCRATCH
 #define BNX2_SHM_HDR_SIGNATURE_SIG_MASK			 0xffff0000
@@ -6556,6 +6561,7 @@ struct sw_pg {
 
 struct sw_tx_bd {
 	struct sk_buff		*skb;
+	DECLARE_PCI_UNMAP_ADDR(mapping)
 	unsigned short		is_gso;
 	unsigned short		nr_frags;
 };
