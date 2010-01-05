@@ -104,18 +104,21 @@ SECTIONS
 	___init_begin = .;
 
 	INIT_TEXT_SECTION(PAGE_SIZE)
-	. = ALIGN(16);
-	INIT_DATA_SECTION(16)
-	PERCPU(4)
 
-	/* we have to discard exit text and such at runtime, not link time, to
+	/* We have to discard exit text and such at runtime, not link time, to
 	 * handle embedded cross-section references (alt instructions, bug
-	 * table, eh_frame, etc...)
+	 * table, eh_frame, etc...).  We need all of our .text up front and
+	 * .data after it for PCREL call issues.
 	 */
 	.exit.text :
 	{
 		EXIT_TEXT
 	}
+
+	. = ALIGN(16);
+	INIT_DATA_SECTION(16)
+	PERCPU(4)
+
 	.exit.data :
 	{
 		EXIT_DATA
