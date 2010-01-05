@@ -3446,7 +3446,8 @@ static int stv090x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			if (STV090x_GETFIELD_Px(reg, PKTDELIN_LOCK_FIELD)) {
 				reg = STV090x_READ_DEMOD(state, TSSTATUS);
 				if (STV090x_GETFIELD_Px(reg, TSFIFO_LINEOK_FIELD)) {
-					*status = FE_HAS_CARRIER |
+					*status = FE_HAS_SIGNAL |
+						  FE_HAS_CARRIER |
 						  FE_HAS_VITERBI |
 						  FE_HAS_SYNC |
 						  FE_HAS_LOCK;
@@ -3463,7 +3464,11 @@ static int stv090x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			if (STV090x_GETFIELD_Px(reg, LOCKEDVIT_FIELD)) {
 				reg = STV090x_READ_DEMOD(state, TSSTATUS);
 				if (STV090x_GETFIELD_Px(reg, TSFIFO_LINEOK_FIELD)) {
-					*status = FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
+					*status = FE_HAS_SIGNAL |
+						  FE_HAS_CARRIER |
+						  FE_HAS_VITERBI |
+						  FE_HAS_SYNC |
+						  FE_HAS_LOCK;
 				}
 			}
 		}
