@@ -133,11 +133,12 @@
 #define MCE_SELF_VECTOR			0xeb
 
 /*
- * First APIC vector available to drivers: (vectors 0x30-0xee) we
- * start at 0x31 to spread out vectors evenly between priority
- * levels. (0x80 is the syscall vector)
+ * First APIC vector available to drivers: (vectors 0x30-0xee).  We
+ * start allocating at 0x31 to spread out vectors evenly between
+ * priority levels. (0x80 is the syscall vector)
  */
-#define FIRST_DEVICE_VECTOR		(IRQ15_VECTOR + 2)
+#define FIRST_DEVICE_VECTOR		(IRQ15_VECTOR + 1)
+#define VECTOR_OFFSET_START		1
 
 #define NR_VECTORS			 256
 
