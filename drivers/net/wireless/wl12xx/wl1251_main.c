@@ -946,7 +946,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 					      skb->data, skb->len);
 		dev_kfree_skb(skb);
 		if (ret < 0)
-			goto out;
+			goto out_sleep;
 
 		if (wl->bss_type != BSS_TYPE_IBSS) {
 			ret = wl1251_join(wl, wl->bss_type, wl->channel,
@@ -1018,7 +1018,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 			ret = wl1251_acx_cts_protect(wl, CTSPROTECT_DISABLE);
 		if (ret < 0) {
 			wl1251_warning("Set ctsprotect failed %d", ret);
-			goto out;
+			goto out_sleep;
 		}
 	}
 
@@ -1029,7 +1029,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 
 		if (ret < 0) {
 			dev_kfree_skb(beacon);
-			goto out;
+			goto out_sleep;
 		}
 
 		ret = wl1251_cmd_template_set(wl, CMD_PROBE_RESP, beacon->data,
@@ -1038,13 +1038,13 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 		dev_kfree_skb(beacon);
 
 		if (ret < 0)
-			goto out;
+			goto out_sleep;
 
 		ret = wl1251_join(wl, wl->bss_type, wl->beacon_int,
 				  wl->channel, wl->dtim_period);
 
 		if (ret < 0)
-			goto out;
+			goto out_sleep;
 	}
 
 out_sleep:
