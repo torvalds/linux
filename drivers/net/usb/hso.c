@@ -1028,7 +1028,8 @@ static void read_bulk_callback(struct urb *urb)
 	if (odev->parent->port_spec & HSO_INFO_CRC_BUG) {
 		u32 rest;
 		u8 crc_check[4] = { 0xDE, 0xAD, 0xBE, 0xEF };
-		rest = urb->actual_length % odev->in_endp->wMaxPacketSize;
+		rest = urb->actual_length %
+			le16_to_cpu(odev->in_endp->wMaxPacketSize);
 		if (((rest == 5) || (rest == 6)) &&
 		    !memcmp(((u8 *) urb->transfer_buffer) +
 			    urb->actual_length - 4, crc_check, 4)) {
@@ -1234,7 +1235,7 @@ static void hso_std_serial_read_bulk_callback(struct urb *urb)
 			u8 crc_check[4] = { 0xDE, 0xAD, 0xBE, 0xEF };
 			rest =
 			    urb->actual_length %
-			    serial->in_endp->wMaxPacketSize;
+			    le16_to_cpu(serial->in_endp->wMaxPacketSize);
 			if (((rest == 5) || (rest == 6)) &&
 			    !memcmp(((u8 *) urb->transfer_buffer) +
 				    urb->actual_length - 4, crc_check, 4)) {
@@ -2843,8 +2844,9 @@ struct hso_shared_int *hso_create_shared_int(struct usb_interface *interface)
 		dev_err(&interface->dev, "Could not allocate intr urb?");
 		goto exit;
 	}
-	mux->shared_intr_buf = kzalloc(mux->intr_endp->wMaxPacketSize,
-				       GFP_KERNEL);
+	mux->shared_intr_buf =
+		kzalloc(le16_to_cpu(mux->intr_endp->wMaxPacketSize),
+			GFP_KERNEL);
 	if (!mux->shared_intr_buf) {
 		dev_err(&interface->dev, "Could not allocate intr buf?");
 		goto exit;
@@ -3241,7 +3243,7 @@ static int hso_mux_submit_intr_urb(struct hso_shared_int *shared_int,
 			 usb_rcvintpipe(usb,
 				shared_int->intr_endp->bEndpointAddress & 0x7F),
 			 shared_int->shared_intr_buf,
-			 shared_int->intr_endp->wMaxPacketSize,
+			 1,
 			 intr_callback, shared_int,
 			 shared_int->intr_endp->bInterval);
 
