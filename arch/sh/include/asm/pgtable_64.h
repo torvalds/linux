@@ -43,11 +43,6 @@ static __inline__ void set_pte(pte_t *pteptr, pte_t pteval)
 }
 #define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
 
-static __inline__ void pmd_set(pmd_t *pmdp,pte_t *ptep)
-{
-	pmd_val(*pmdp) = (unsigned long) ptep;
-}
-
 /*
  * PGD defines. Top level.
  */
@@ -201,12 +196,6 @@ static __inline__ void pmd_set(pmd_t *pmdp,pte_t *ptep)
    registers into user-space via /dev/map).  */
 #define pgprot_noncached(x) __pgprot(((x).pgprot & ~(_PAGE_CACHABLE)) | _PAGE_DEVICE)
 #define pgprot_writecombine(prot) __pgprot(pgprot_val(prot) & ~_PAGE_CACHABLE)
-
-/*
- * Handling allocation failures during page table setup.
- */
-extern void __handle_bad_pmd_kernel(pmd_t * pmd);
-#define __handle_bad_pmd(x)	__handle_bad_pmd_kernel(x)
 
 /*
  * PTE level access routines.

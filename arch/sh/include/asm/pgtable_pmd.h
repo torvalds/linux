@@ -17,11 +17,11 @@
 #define USER_PTRS_PER_PGD	2
 
 /* PMD bits */
-#define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT - 3))
+#define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT - PTE_MAGNITUDE))
 #define PMD_SIZE	(1UL << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
 
-#define PTRS_PER_PMD	(PAGE_SIZE / sizeof(pmd_t))
+#define PTRS_PER_PMD	((1 << PGDIR_SHIFT) / PMD_SIZE)
 
 #define pmd_ERROR(e) \
 	printk("%s:%d: bad pmd %016llx.\n", __FILE__, __LINE__, pmd_val(e))
