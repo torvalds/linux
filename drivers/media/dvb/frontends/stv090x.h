@@ -68,8 +68,6 @@ struct stv090x_config {
 	u32 xtal; /* default: 8000000 */
 	u8 address; /* default: 0x68 */
 
-	u32 ref_clk; /* default: 16000000 FIXME to tuner config */
-
 	u8 ts1_mode;
 	u8 ts2_mode;
 

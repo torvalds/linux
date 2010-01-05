@@ -435,7 +435,6 @@ static struct stv090x_config tt1600_stv090x_config = {
 
 	.xtal			= 27000000,
 	.address		= 0x68,
-	.ref_clk		= 27000000,
 
 	.ts1_mode		= STV090x_TSMODE_DVBCI,
 	.ts2_mode		= STV090x_TSMODE_SERIAL_CONTINUOUS,
