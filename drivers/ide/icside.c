@@ -65,6 +65,8 @@ static struct cardinfo icside_cardinfo_v6_2 = {
 };
 
 struct icside_state {
+	unsigned int channel;
+	unsigned int enabled;
 	void __iomem *irq_port;
 	void __iomem *ioc_base;
 	unsigned int sel;
@@ -114,11 +116,18 @@ static void icside_irqenable_arcin_v6 (struct expansion_card *ec, int irqnr)
 	struct icside_state *state = ec->irq_data;
 	void __iomem *base = state->irq_port;
 
-	writeb(0, base + ICS_ARCIN_V6_INTROFFSET_1);
-	readb(base + ICS_ARCIN_V6_INTROFFSET_2);
+	state->enabled = 1;
 
-	writeb(0, base + ICS_ARCIN_V6_INTROFFSET_2);
-	readb(base + ICS_ARCIN_V6_INTROFFSET_1);
+	switch (state->channel) {
+	case 0:
+		writeb(0, base + ICS_ARCIN_V6_INTROFFSET_1);
+		readb(base + ICS_ARCIN_V6_INTROFFSET_2);
+		break;
+	case 1:
+		writeb(0, base + ICS_ARCIN_V6_INTROFFSET_2);
+		readb(base + ICS_ARCIN_V6_INTROFFSET_1);
+		break;
+	}
 }
 
 /* Prototype: icside_irqdisable_arcin_v6 (struct expansion_card *ec, int irqnr)
@@ -127,6 +136,8 @@ static void icside_irqenable_arcin_v6 (struct expansion_card *ec, int irqnr)
 static void icside_irqdisable_arcin_v6 (struct expansion_card *ec, int irqnr)
 {
 	struct icside_state *state = ec->irq_data;
+
+	state->enabled = 0;
 
 	readb(state->irq_port + ICS_ARCIN_V6_INTROFFSET_1);
 	readb(state->irq_port + ICS_ARCIN_V6_INTROFFSET_2);
@@ -147,6 +158,44 @@ static const expansioncard_ops_t icside_ops_arcin_v6 = {
 	.irqenable	= icside_irqenable_arcin_v6,
 	.irqdisable	= icside_irqdisable_arcin_v6,
 	.irqpending	= icside_irqpending_arcin_v6,
+};
+
+/*
+ * Handle routing of interrupts.  This is called before
+ * we write the command to the drive.
+ */
+static void icside_maskproc(ide_drive_t *drive, int mask)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	struct expansion_card *ec = ECARD_DEV(hwif->dev);
+	struct icside_state *state = ecard_get_drvdata(ec);
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	state->channel = hwif->channel;
+
+	if (state->enabled && !mask) {
+		switch (hwif->channel) {
+		case 0:
+			writeb(0, state->irq_port + ICS_ARCIN_V6_INTROFFSET_1);
+			readb(state->irq_port + ICS_ARCIN_V6_INTROFFSET_2);
+			break;
+		case 1:
+			writeb(0, state->irq_port + ICS_ARCIN_V6_INTROFFSET_2);
+			readb(state->irq_port + ICS_ARCIN_V6_INTROFFSET_1);
+			break;
+		}
+	} else {
+		readb(state->irq_port + ICS_ARCIN_V6_INTROFFSET_2);
+		readb(state->irq_port + ICS_ARCIN_V6_INTROFFSET_1);
+	}
+
+	local_irq_restore(flags);
+}
+
+static const struct ide_port_ops icside_v6_no_dma_port_ops = {
+	.maskproc		= icside_maskproc,
 };
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_ICS
@@ -228,6 +277,7 @@ static void icside_set_dma_mode(ide_drive_t *drive, const u8 xfer_mode)
 
 static const struct ide_port_ops icside_v6_port_ops = {
 	.set_dma_mode		= icside_set_dma_mode,
+	.maskproc		= icside_maskproc,
 };
 
 static void icside_dma_host_set(ide_drive_t *drive, int on)
@@ -270,6 +320,11 @@ static int icside_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 	 * We can not enable DMA on both channels.
 	 */
 	BUG_ON(dma_channel_active(ec->dma));
+
+	/*
+	 * Ensure that we have the right interrupt routed.
+	 */
+	icside_maskproc(drive, 0);
 
 	/*
 	 * Route the DMA signals to the correct interface.
@@ -399,6 +454,7 @@ err_free:
 
 static const struct ide_port_info icside_v6_port_info __initdata = {
 	.init_dma		= icside_dma_off_init,
+	.port_ops		= &icside_v6_no_dma_port_ops,
 	.dma_ops		= &icside_v6_dma_ops,
 	.host_flags		= IDE_HFLAG_SERIALIZE | IDE_HFLAG_MMIO,
 	.mwdma_mask		= ATA_MWDMA2,
