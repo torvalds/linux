@@ -86,7 +86,7 @@ static int s3c_setparent_clksrc(struct clk *clk, struct clk *parent)
 			break;
 		}
 
-	if (src_nr >= 0 && sclk->reg_src.reg) {
+	if (src_nr >= 0) {
 		clk->parent = parent;
 
 		clksrc &= ~mask;
@@ -162,6 +162,12 @@ static struct clk_ops clksrc_ops_nodiv = {
 	.set_parent	= s3c_setparent_clksrc,
 };
 
+static struct clk_ops clksrc_ops_nosrc = {
+	.get_rate	= s3c_getrate_clksrc,
+	.set_rate	= s3c_setrate_clksrc,
+	.round_rate	= s3c_roundrate_clksrc,
+};
+
 void __init s3c_register_clksrc(struct clksrc_clk *clksrc, int size)
 {
 	int ret;
@@ -174,6 +180,8 @@ void __init s3c_register_clksrc(struct clksrc_clk *clksrc, int size)
 		if (!clksrc->clk.ops) {
 			if (!clksrc->reg_div.reg)
 				clksrc->clk.ops = &clksrc_ops_nodiv;
+			else if (!clksrc->reg_src.reg)
+				clksrc->clk.ops = &clksrc_ops_nosrc;
 			else
 				clksrc->clk.ops = &clksrc_ops;
 		}
