@@ -141,27 +141,32 @@ static SYSDEV_ATTR(crash_notes, 0400, show_crash_notes, NULL);
 /*
  * Print cpu online, possible, present, and system maps
  */
-static ssize_t print_cpus_map(char *buf, const struct cpumask *map)
+
+struct cpu_attr {
+	struct sysdev_class_attribute attr;
+	const struct cpumask *const * const map;
+};
+
+static ssize_t show_cpus_attr(struct sysdev_class *class,
+			      struct sysdev_class_attribute *attr,
+			      char *buf)
 {
-	int n = cpulist_scnprintf(buf, PAGE_SIZE-2, map);
+	struct cpu_attr *ca = container_of(attr, struct cpu_attr, attr);
+	int n = cpulist_scnprintf(buf, PAGE_SIZE-2, *(ca->map));
 
 	buf[n++] = '\n';
 	buf[n] = '\0';
 	return n;
 }
 
-#define	print_cpus_func(type) \
-static ssize_t print_cpus_##type(struct sysdev_class *class, 		\
-	 		struct sysdev_class_attribute *attr, char *buf)	\
-{									\
-	return print_cpus_map(buf, cpu_##type##_mask);			\
-}									\
-static struct sysdev_class_attribute attr_##type##_map = 		\
-	_SYSDEV_CLASS_ATTR(type, 0444, print_cpus_##type, NULL)
+#define _CPU_ATTR(name, map)						\
+	{ _SYSDEV_CLASS_ATTR(name, 0444, show_cpus_attr, NULL), map }
 
-print_cpus_func(online);
-print_cpus_func(possible);
-print_cpus_func(present);
+static struct cpu_attr cpu_attrs[] = {
+	_CPU_ATTR(online, &cpu_online_mask),
+	_CPU_ATTR(possible, &cpu_possible_mask),
+	_CPU_ATTR(present, &cpu_present_mask),
+};
 
 /*
  * Print values for NR_CPUS and offlined cpus
@@ -208,9 +213,9 @@ static ssize_t print_cpus_offline(struct sysdev_class *class,
 static SYSDEV_CLASS_ATTR(offline, 0444, print_cpus_offline, NULL);
 
 static struct sysdev_class_attribute *cpu_state_attr[] = {
-	&attr_online_map,
-	&attr_possible_map,
-	&attr_present_map,
+	&cpu_attrs[0].attr,
+	&cpu_attrs[1].attr,
+	&cpu_attrs[2].attr,
 	&attr_kernel_max,
 	&attr_offline,
 };
