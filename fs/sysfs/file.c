@@ -542,6 +542,18 @@ int sysfs_create_file(struct kobject * kobj, const struct attribute * attr)
 
 }
 
+int sysfs_create_files(struct kobject *kobj, const struct attribute **ptr)
+{
+	int err = 0;
+	int i;
+
+	for (i = 0; ptr[i] && !err; i++)
+		err = sysfs_create_file(kobj, ptr[i]);
+	if (err)
+		while (--i >= 0)
+			sysfs_remove_file(kobj, ptr[i]);
+	return err;
+}
 
 /**
  * sysfs_add_file_to_group - add an attribute file to a pre-existing group.
@@ -614,6 +626,12 @@ void sysfs_remove_file(struct kobject * kobj, const struct attribute * attr)
 	sysfs_hash_and_remove(kobj->sd, attr->name);
 }
 
+void sysfs_remove_files(struct kobject * kobj, const struct attribute **ptr)
+{
+	int i;
+	for (i = 0; ptr[i]; i++)
+		sysfs_remove_file(kobj, ptr[i]);
+}
 
 /**
  * sysfs_remove_file_from_group - remove an attribute file from a group.
@@ -732,3 +750,5 @@ EXPORT_SYMBOL_GPL(sysfs_schedule_callback);
 
 EXPORT_SYMBOL_GPL(sysfs_create_file);
 EXPORT_SYMBOL_GPL(sysfs_remove_file);
+EXPORT_SYMBOL_GPL(sysfs_remove_files);
+EXPORT_SYMBOL_GPL(sysfs_create_files);
