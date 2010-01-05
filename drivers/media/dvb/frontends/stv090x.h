@@ -70,6 +70,8 @@ struct stv090x_config {
 
 	u8 ts1_mode;
 	u8 ts2_mode;
+	u32 ts1_clk;
+	u32 ts2_clk;
 
 	enum stv090x_i2crpt	repeater_level;
 

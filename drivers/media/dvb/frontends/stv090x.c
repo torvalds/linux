@@ -4199,6 +4199,71 @@ static int stv090x_set_tspath(struct stv090x_state *state)
 	default:
 		break;
 	}
+
+	if (state->config->ts1_clk > 0) {
+		u32 speed;
+
+		switch (state->config->ts1_mode) {
+		case STV090x_TSMODE_PARALLEL_PUNCTURED:
+		case STV090x_TSMODE_DVBCI:
+		default:
+			speed = state->internal->mclk /
+				(state->config->ts1_clk / 4);
+			if (speed < 0x08)
+				speed = 0x08;
+			if (speed > 0xFF)
+				speed = 0xFF;
+			break;
+		case STV090x_TSMODE_SERIAL_PUNCTURED:
+		case STV090x_TSMODE_SERIAL_CONTINUOUS:
+			speed = state->internal->mclk /
+				(state->config->ts1_clk / 32);
+			if (speed < 0x20)
+				speed = 0x20;
+			if (speed > 0xFF)
+				speed = 0xFF;
+			break;
+		}
+		reg = stv090x_read_reg(state, STV090x_P1_TSCFGM);
+		STV090x_SETFIELD_Px(reg, TSFIFO_MANSPEED_FIELD, 3);
+		if (stv090x_write_reg(state, STV090x_P1_TSCFGM, reg) < 0)
+			goto err;
+		if (stv090x_write_reg(state, STV090x_P1_TSSPEED, speed) < 0)
+			goto err;
+	}
+
+	if (state->config->ts2_clk > 0) {
+		u32 speed;
+
+		switch (state->config->ts2_mode) {
+		case STV090x_TSMODE_PARALLEL_PUNCTURED:
+		case STV090x_TSMODE_DVBCI:
+		default:
+			speed = state->internal->mclk /
+				(state->config->ts2_clk / 4);
+			if (speed < 0x08)
+				speed = 0x08;
+			if (speed > 0xFF)
+				speed = 0xFF;
+			break;
+		case STV090x_TSMODE_SERIAL_PUNCTURED:
+		case STV090x_TSMODE_SERIAL_CONTINUOUS:
+			speed = state->internal->mclk /
+				(state->config->ts2_clk / 32);
+			if (speed < 0x20)
+				speed = 0x20;
+			if (speed > 0xFF)
+				speed = 0xFF;
+			break;
+		}
+		reg = stv090x_read_reg(state, STV090x_P2_TSCFGM);
+		STV090x_SETFIELD_Px(reg, TSFIFO_MANSPEED_FIELD, 3);
+		if (stv090x_write_reg(state, STV090x_P2_TSCFGM, reg) < 0)
+			goto err;
+		if (stv090x_write_reg(state, STV090x_P2_TSSPEED, speed) < 0)
+			goto err;
+	}
+
 	reg = stv090x_read_reg(state, STV090x_P2_TSCFGH);
 	STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 0x01);
 	if (stv090x_write_reg(state, STV090x_P2_TSCFGH, reg) < 0)
