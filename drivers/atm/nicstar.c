@@ -807,9 +807,7 @@ static int __devinit ns_init_card(int i, struct pci_dev *pcidev)
       }
    }
 
-   printk("nicstar%d: MAC address %02X:%02X:%02X:%02X:%02X:%02X\n", i,
-          card->atmdev->esi[0], card->atmdev->esi[1], card->atmdev->esi[2],
-          card->atmdev->esi[3], card->atmdev->esi[4], card->atmdev->esi[5]);
+   printk("nicstar%d: MAC address %pM\n", i, card->atmdev->esi);
 
    card->atmdev->dev_data = card;
    card->atmdev->ci_range.vpi_bits = card->vpibits;
