@@ -17,7 +17,6 @@
 #include <linux/moduleparam.h>
 #include <linux/tracepoint.h>
 
-#include <asm/local.h>
 #include <linux/percpu.h>
 #include <asm/module.h>
 
