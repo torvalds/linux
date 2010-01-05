@@ -123,6 +123,19 @@ struct sysdev_attribute {
 extern int sysdev_create_file(struct sys_device *, struct sysdev_attribute *);
 extern void sysdev_remove_file(struct sys_device *, struct sysdev_attribute *);
 
+/* Create/remove NULL terminated attribute list */
+static inline int
+sysdev_create_files(struct sys_device *d, struct sysdev_attribute **a)
+{
+	return sysfs_create_files(&d->kobj, (const struct attribute **)a);
+}
+
+static inline void
+sysdev_remove_files(struct sys_device *d, struct sysdev_attribute **a)
+{
+	return sysfs_remove_files(&d->kobj, (const struct attribute **)a);
+}
+
 struct sysdev_ext_attribute {
 	struct sysdev_attribute attr;
 	void *var;
