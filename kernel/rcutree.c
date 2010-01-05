@@ -1811,10 +1811,16 @@ static void __init rcu_init_levelspread(struct rcu_state *rsp)
  */
 static void __init rcu_init_one(struct rcu_state *rsp)
 {
+	static char *buf[] = { "rcu_node_level_0",
+			       "rcu_node_level_1",
+			       "rcu_node_level_2",
+			       "rcu_node_level_3" };  /* Match MAX_RCU_LVLS */
 	int cpustride = 1;
 	int i;
 	int j;
 	struct rcu_node *rnp;
+
+	BUILD_BUG_ON(MAX_RCU_LVLS > ARRAY_SIZE(buf));  /* Fix buf[] init! */
 
 	/* Initialize the level-tracking arrays. */
 
@@ -1829,7 +1835,8 @@ static void __init rcu_init_one(struct rcu_state *rsp)
 		rnp = rsp->level[i];
 		for (j = 0; j < rsp->levelcnt[i]; j++, rnp++) {
 			spin_lock_init(&rnp->lock);
-			lockdep_set_class(&rnp->lock, &rcu_node_class[i]);
+			lockdep_set_class_and_name(&rnp->lock,
+						   &rcu_node_class[i], buf[i]);
 			rnp->gpnum = 0;
 			rnp->qsmask = 0;
 			rnp->qsmaskinit = 0;
