@@ -37,15 +37,12 @@ Synopsis of kprobe_events
   @SYM[+|-offs]	: Fetch memory at SYM +|- offs (SYM should be a data symbol)
   $stackN	: Fetch Nth entry of stack (N >= 0)
   $stack	: Fetch stack address.
-  $argN		: Fetch function argument. (N >= 0)(*)
-  $retval	: Fetch return value.(**)
-  +|-offs(FETCHARG) : Fetch memory at FETCHARG +|- offs address.(***)
+  $retval	: Fetch return value.(*)
+  +|-offs(FETCHARG) : Fetch memory at FETCHARG +|- offs address.(**)
   NAME=FETCHARG: Set NAME as the argument name of FETCHARG.
 
-  (*) aN may not correct on asmlinkaged functions and at the middle of
-      function body.
-  (**) only for return probe.
-  (***) this is useful for fetching a field of data structures.
+  (*) only for return probe.
+  (**) this is useful for fetching a field of data structures.
 
 
 Per-Probe Event Filtering
@@ -82,11 +79,14 @@ Usage examples
 To add a probe as a new event, write a new definition to kprobe_events
 as below.
 
-  echo p:myprobe do_sys_open dfd=$arg0 filename=$arg1 flags=$arg2 mode=$arg3 > /sys/kernel/debug/tracing/kprobe_events
+  echo p:myprobe do_sys_open dfd=%ax filename=%dx flags=%cx mode=+4($stack) > /sys/kernel/debug/tracing/kprobe_events
 
  This sets a kprobe on the top of do_sys_open() function with recording
-1st to 4th arguments as "myprobe" event. As this example shows, users can
-choose more familiar names for each arguments.
+1st to 4th arguments as "myprobe" event. Note, which register/stack entry is
+assigned to each function argument depends on arch-specific ABI. If you unsure
+the ABI, please try to use probe subcommand of perf-tools (you can find it
+under tools/perf/).
+As this example shows, users can choose more familiar names for each arguments.
 
   echo r:myretprobe do_sys_open $retval >> /sys/kernel/debug/tracing/kprobe_events
 
@@ -146,5 +146,4 @@ events, you need to enable it.
  Each line shows when the kernel hits an event, and <- SYMBOL means kernel
 returns from SYMBOL(e.g. "sys_open+0x1b/0x1d <- do_sys_open" means kernel
 returns from do_sys_open to sys_open+0x1b).
-
 
