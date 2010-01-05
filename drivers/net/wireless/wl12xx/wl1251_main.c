@@ -903,111 +903,13 @@ static int wl1251_build_probe_req(struct wl1251 *wl, u8 *ssid, size_t ssid_len)
 				      size);
 }
 
-static int wl1251_hw_scan(struct wl1251 *wl, u8 *ssid, size_t len,
-			  u8 active_scan, u8 high_prio, u8 num_channels,
-			  u8 probe_requests)
-{
-	struct wl1251_cmd_trigger_scan_to *trigger = NULL;
-	struct cmd_scan *params = NULL;
-	int i, ret;
-	u16 scan_options = 0;
-
-	if (wl->scanning)
-		return -EINVAL;
-
-	params = kzalloc(sizeof(*params), GFP_KERNEL);
-	if (!params)
-		return -ENOMEM;
-
-	params->params.rx_config_options = cpu_to_le32(CFG_RX_ALL_GOOD);
-	params->params.rx_filter_options =
-		cpu_to_le32(CFG_RX_PRSP_EN | CFG_RX_MGMT_EN | CFG_RX_BCN_EN);
-
-	/* High priority scan */
-	if (!active_scan)
-		scan_options |= SCAN_PASSIVE;
-	if (high_prio)
-		scan_options |= SCAN_PRIORITY_HIGH;
-	params->params.scan_options = scan_options;
-
-	params->params.num_channels = num_channels;
-	params->params.num_probe_requests = probe_requests;
-	params->params.tx_rate = cpu_to_le16(1 << 1); /* 2 Mbps */
-	params->params.tid_trigger = 0;
-
-	for (i = 0; i < num_channels; i++) {
-		params->channels[i].min_duration = cpu_to_le32(30000);
-		params->channels[i].max_duration = cpu_to_le32(60000);
-		memset(&params->channels[i].bssid_lsb, 0xff, 4);
-		memset(&params->channels[i].bssid_msb, 0xff, 2);
-		params->channels[i].early_termination = 0;
-		params->channels[i].tx_power_att = 0;
-		params->channels[i].channel = i + 1;
-		memset(params->channels[i].pad, 0, 3);
-	}
-
-	for (i = num_channels; i < SCAN_MAX_NUM_OF_CHANNELS; i++)
-		memset(&params->channels[i], 0,
-		       sizeof(struct basic_scan_channel_parameters));
-
-	if (len && ssid) {
-		params->params.ssid_len = len;
-		memcpy(params->params.ssid, ssid, len);
-	} else {
-		params->params.ssid_len = 0;
-		memset(params->params.ssid, 0, 32);
-	}
-
-	ret = wl1251_build_probe_req(wl, ssid, len);
-	if (ret < 0) {
-		wl1251_error("PROBE request template failed");
-		goto out;
-	}
-
-	trigger = kzalloc(sizeof(*trigger), GFP_KERNEL);
-	if (!trigger)
-		goto out;
-
-	trigger->timeout = 0;
-
-	ret = wl1251_cmd_send(wl, CMD_TRIGGER_SCAN_TO, trigger,
-			      sizeof(*trigger));
-	if (ret < 0) {
-		wl1251_error("trigger scan to failed for hw scan");
-		goto out;
-	}
-
-	wl1251_dump(DEBUG_SCAN, "SCAN: ", params, sizeof(*params));
-
-	wl->scanning = true;
-
-	ret = wl1251_cmd_send(wl, CMD_SCAN, params, sizeof(*params));
-	if (ret < 0)
-		wl1251_error("SCAN failed");
-
-	wl1251_mem_read(wl, wl->cmd_box_addr, params, sizeof(*params));
-
-	if (params->header.status != CMD_STATUS_SUCCESS) {
-		wl1251_error("TEST command answer error: %d",
-			     params->header.status);
-		wl->scanning = false;
-		ret = -EIO;
-		goto out;
-	}
-
-out:
-	kfree(params);
-	return ret;
-
-}
-
 static int wl1251_op_hw_scan(struct ieee80211_hw *hw,
 			     struct cfg80211_scan_request *req)
 {
 	struct wl1251 *wl = hw->priv;
-	int ret;
-	u8 *ssid = NULL;
 	size_t ssid_len = 0;
+	u8 *ssid = NULL;
+	int ret;
 
 	wl1251_debug(DEBUG_MAC80211, "mac80211 hw scan");
 
@@ -1018,12 +920,33 @@ static int wl1251_op_hw_scan(struct ieee80211_hw *hw,
 
 	mutex_lock(&wl->mutex);
 
+	if (wl->scanning) {
+		wl1251_debug(DEBUG_SCAN, "scan already in progress");
+		ret = -EINVAL;
+		goto out;
+	}
+
 	ret = wl1251_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
 
-	ret = wl1251_hw_scan(hw->priv, ssid, ssid_len, 1, 0, 13, 3);
+	ret = wl1251_build_probe_req(wl, ssid, ssid_len);
+	if (ret < 0)
+		wl1251_error("probe request template build failed");
 
+	ret = wl1251_cmd_trigger_scan_to(wl, 0);
+	if (ret < 0)
+		goto out_sleep;
+
+	wl->scanning = true;
+
+	ret = wl1251_cmd_scan(wl, ssid, ssid_len, 13, 3);
+	if (ret < 0) {
+		wl->scanning = false;
+		goto out_sleep;
+	}
+
+out_sleep:
 	wl1251_ps_elp_sleep(wl);
 
 out:
