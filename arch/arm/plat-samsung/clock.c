@@ -336,6 +336,28 @@ int s3c24xx_register_clocks(struct clk **clks, int nr_clks)
 	return fails;
 }
 
+/**
+ * s3c_register_clocks() - register an array of clocks
+ * @clkp: Pointer to the first clock in the array.
+ * @nr_clks: Number of clocks to register.
+ *
+ * Call s3c24xx_register_clock() on the @clkp array given, printing an
+ * error if it fails to register the clock (unlikely).
+ */
+void __initdata s3c_register_clocks(struct clk *clkp, int nr_clks)
+{
+	int ret;
+
+	for (; nr_clks > 0; nr_clks--, clkp++) {
+		ret = s3c24xx_register_clock(clkp);
+
+		if (ret < 0) {
+			printk(KERN_ERR "Failed to register clock %s (%d)\n",
+			       clkp->name, ret);
+		}
+	}
+}
+
 /* initalise all the clocks */
 
 int __init s3c24xx_register_baseclocks(unsigned long xtal)

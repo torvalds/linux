@@ -430,25 +430,15 @@ __init void s3c_pwmclk_init(void)
 		return;
 	}
 
-	for (clk = 0; clk < ARRAY_SIZE(clk_timer_scaler); clk++) {
+	for (clk = 0; clk < ARRAY_SIZE(clk_timer_scaler); clk++)
 		clk_timer_scaler[clk].parent = clk_timers;
-		ret = s3c24xx_register_clock(&clk_timer_scaler[clk]);
-		if (ret < 0) {
-			printk(KERN_ERR "error adding pwm scaler%d clock\n", clk);
-			return;
-		}
-	}
 
-	for (clk = 0; clk < ARRAY_SIZE(clk_timer_tclk); clk++) {
-		ret = s3c24xx_register_clock(&clk_timer_tclk[clk]);
-		if (ret < 0) {
-			printk(KERN_ERR "error adding pww tclk%d\n", clk);
-			return;
-		}
-	}
+	s3c_register_clocks(clk_timer_scaler, ARRAY_SIZE(clk_timer_scaler));
+	s3c_register_clocks(clk_timer_tclk, ARRAY_SIZE(clk_timer_tclk));
 
 	for (clk = 0; clk < ARRAY_SIZE(clk_timer_tdiv); clk++) {
 		ret = clk_pwm_tdiv_register(clk);
+
 		if (ret < 0) {
 			printk(KERN_ERR "error adding pwm%d tdiv clock\n", clk);
 			return;

@@ -704,16 +704,8 @@ void __init s5pc1xx_register_clocks(void)
 
 	s3c24xx_register_clocks(clks, ARRAY_SIZE(clks));
 
-	clkp = s5pc100_init_clocks;
-	size = ARRAY_SIZE(s5pc100_init_clocks);
-
-	for (ptr = 0; ptr < size; ptr++, clkp++) {
-		ret = s3c24xx_register_clock(clkp);
-		if (ret < 0) {
-			printk(KERN_ERR "Failed to register clock %s (%d)\n",
-			       clkp->name, ret);
-		}
-	}
+	s3c_register_clocks(s5pc100_init_clocks,
+			    ARRAY_SIZE(s5pc100_init_clocks));
 
 	clkp = s5pc100_init_clocks_disable;
 	size = ARRAY_SIZE(s5pc100_init_clocks_disable);

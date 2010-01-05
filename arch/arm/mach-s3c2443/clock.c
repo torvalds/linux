@@ -1104,14 +1104,7 @@ void __init s3c2443_init_clocks(int xtal)
 
 	/* register clocks from clock array */
 
-	clkp = init_clocks;
-	for (ptr = 0; ptr < ARRAY_SIZE(init_clocks); ptr++, clkp++) {
-		ret = s3c24xx_register_clock(clkp);
-		if (ret < 0) {
-			printk(KERN_ERR "Failed to register clock %s (%d)\n",
-			       clkp->name, ret);
-		}
-	}
+	s3c_register_clocks(init_clocks, ARRAY_SIZE(init_clocks));
 
 	/* We must be careful disabling the clocks we are not intending to
 	 * be using at boot time, as subsystems such as the LCD which do
