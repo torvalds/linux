@@ -58,12 +58,23 @@ static int stv6110x_read_reg(struct stv6110x_state *stv6110x, u8 reg, u8 *data)
 	return 0;
 }
 
-static int stv6110x_write_reg(struct stv6110x_state *stv6110x, u8 reg, u8 data)
+static int stv6110x_write_regs(struct stv6110x_state *stv6110x, int start, u8 data[], int len)
 {
 	int ret;
 	const struct stv6110x_config *config = stv6110x->config;
-	u8 buf[] = { reg, data };
-	struct i2c_msg msg = { .addr = config->addr, .flags = 0, . buf = buf, .len = 2 };
+	u8 buf[len + 1];
+	struct i2c_msg msg = {
+		.addr = config->addr,
+		.flags = 0,
+		.buf = buf,
+		.len = len + 1
+	};
+
+	if (start + len > 8)
+		return -EINVAL;
+
+	buf[0] = start;
+	memcpy(&buf[1], data, len);
 
 	ret = i2c_transfer(stv6110x->i2c, &msg, 1);
 	if (ret != 1) {
@@ -74,18 +85,21 @@ static int stv6110x_write_reg(struct stv6110x_state *stv6110x, u8 reg, u8 data)
 	return 0;
 }
 
+static int stv6110x_write_reg(struct stv6110x_state *stv6110x, u8 reg, u8 data)
+{
+	return stv6110x_write_regs(stv6110x, reg, &data, 1);
+}
+
 static int stv6110x_init(struct dvb_frontend *fe)
 {
 	struct stv6110x_state *stv6110x = fe->tuner_priv;
 	int ret;
-	u8 i;
 
-	for (i = 0; i < ARRAY_SIZE(stv6110x_regs); i++) {
-		ret = stv6110x_write_reg(stv6110x, i, stv6110x_regs[i]);
-		if (ret < 0) {
-			dprintk(FE_ERROR, 1, "Initialization failed");
-			return -1;
-		}
+	ret = stv6110x_write_regs(stv6110x, 0, stv6110x_regs,
+				  ARRAY_SIZE(stv6110x_regs));
+	if (ret < 0) {
+		dprintk(FE_ERROR, 1, "Initialization failed");
+		return -1;
 	}
 
 	return 0;
