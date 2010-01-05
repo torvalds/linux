@@ -812,6 +812,16 @@ config USB_CDC_COMPOSITE
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module.
 
+config USB_G_NOKIA
+	tristate "Nokia composite gadget"
+	depends on PHONET
+	help
+	  The Nokia composite gadget provides support for acm, obex
+	  and phonet in only one composite gadget driver.
+
+	  It's only really useful for N900 hardware. If you're building
+	  a kernel for N900, say Y or M here. If unsure, say N.
+
 config USB_G_MULTI
 	tristate "Multifunction Composite Gadget (EXPERIMENTAL)"
 	depends on BLOCK && NET
