@@ -235,6 +235,7 @@ struct stv090x_internal {
 	u8			i2c_addr;
 
 	struct mutex		demod_lock; /* Lock access to shared register */
+	struct mutex		tuner_lock; /* Lock access to tuners */
 	s32			mclk; /* Masterclock Divider factor */
 	u32			dev_ver;
 

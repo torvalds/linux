@@ -758,6 +758,9 @@ static int stv090x_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 	struct stv090x_state *state = fe->demodulator_priv;
 	u32 reg;
 
+	if (enable)
+		mutex_lock(&state->internal->tuner_lock);
+
 	reg = STV090x_READ_DEMOD(state, I2CRPT);
 	if (enable) {
 		dprintk(FE_DEBUG, 1, "Enable Gate");
@@ -771,9 +774,14 @@ static int stv090x_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 		if ((STV090x_WRITE_DEMOD(state, I2CRPT, reg)) < 0)
 			goto err;
 	}
+
+	if (!enable)
+		mutex_unlock(&state->internal->tuner_lock);
+
 	return 0;
 err:
 	dprintk(FE_ERROR, 1, "I/O error");
+	mutex_unlock(&state->internal->tuner_lock);
 	return -1;
 }
 
@@ -4439,6 +4447,7 @@ struct dvb_frontend *stv090x_attach(const struct stv090x_config *config,
 	}
 
 	mutex_init(&state->internal->demod_lock);
+	mutex_init(&state->internal->tuner_lock);
 
 	if (stv090x_sleep(&state->frontend) < 0) {
 		dprintk(FE_ERROR, 1, "Error putting device to sleep");
