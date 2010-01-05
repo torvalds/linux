@@ -97,23 +97,24 @@ recording return value as "myretprobe" event.
 
   cat /sys/kernel/debug/tracing/events/kprobes/myprobe/format
 name: myprobe
-ID: 75
+ID: 780
 format:
-	field:unsigned short common_type;	offset:0;	size:2;
-	field:unsigned char common_flags;	offset:2;	size:1;
-	field:unsigned char common_preempt_count;	offset:3;	size:1;
-	field:int common_pid;	offset:4;	size:4;
-	field:int common_tgid;	offset:8;	size:4;
+        field:unsigned short common_type;       offset:0;       size:2; signed:0;
+        field:unsigned char common_flags;       offset:2;       size:1; signed:0;
+        field:unsigned char common_preempt_count;       offset:3; size:1;signed:0;
+        field:int common_pid;   offset:4;       size:4; signed:1;
+        field:int common_lock_depth;    offset:8;       size:4; signed:1;
 
-	field: unsigned long ip;	offset:16;tsize:8;
-	field: int nargs;	offset:24;tsize:4;
-	field: unsigned long dfd;	offset:32;tsize:8;
-	field: unsigned long filename;	offset:40;tsize:8;
-	field: unsigned long flags;	offset:48;tsize:8;
-	field: unsigned long mode;	offset:56;tsize:8;
+        field:unsigned long __probe_ip; offset:12;      size:4; signed:0;
+        field:int __probe_nargs;        offset:16;      size:4; signed:1;
+        field:unsigned long dfd;        offset:20;      size:4; signed:0;
+        field:unsigned long filename;   offset:24;      size:4; signed:0;
+        field:unsigned long flags;      offset:28;      size:4; signed:0;
+        field:unsigned long mode;       offset:32;      size:4; signed:0;
 
-print fmt: "(%lx) dfd=%lx filename=%lx flags=%lx mode=%lx", REC->ip, REC->dfd, REC->filename, REC->flags, REC->mode
 
+print fmt: "(%lx) dfd=%lx filename=%lx flags=%lx mode=%lx", REC->__probe_ip,
+REC->dfd, REC->filename, REC->flags, REC->mode
 
  You can see that the event has 4 arguments as in the expressions you specified.
 
