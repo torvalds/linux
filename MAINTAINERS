@@ -4422,6 +4422,13 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ycmiao/pxa-linux-2.6.git
 S:	Maintained
 
+MMP2 SUPPORT (aka ARMADA610)
+M:	Haojian Zhuang <haojian.zhuang@marvell.com>
+M:	Eric Miao <eric.y.miao@gmail.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ycmiao/pxa-linux-2.6.git
+S:	Maintained
+
 PXA MMCI DRIVER
 S:	Orphan
 
