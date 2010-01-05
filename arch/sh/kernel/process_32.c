@@ -30,7 +30,6 @@
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
 #include <asm/system.h>
-#include <asm/ubc.h>
 #include <asm/fpu.h>
 #include <asm/syscalls.h>
 #include <asm/watchdog.h>

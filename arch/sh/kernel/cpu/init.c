@@ -24,9 +24,6 @@
 #include <asm/elf.h>
 #include <asm/io.h>
 #include <asm/smp.h>
-#ifdef CONFIG_SUPERH32
-#include <asm/ubc.h>
-#endif
 
 /*
  * Generic wrapper for command line arguments to disable on-chip
@@ -252,20 +249,19 @@ static void __init dsp_init(void)
 /**
  * sh_cpu_init
  *
- * This is our initial entry point for each CPU, and is invoked on the boot
- * CPU prior to calling start_kernel(). For SMP, a combination of this and
- * start_secondary() will bring up each processor to a ready state prior
- * to hand forking the idle loop.
+ * This is our initial entry point for each CPU, and is invoked on the
+ * boot CPU prior to calling start_kernel(). For SMP, a combination of
+ * this and start_secondary() will bring up each processor to a ready
+ * state prior to hand forking the idle loop.
  *
- * We do all of the basic processor init here, including setting up the
- * caches, FPU, DSP, kicking the UBC, etc. By the time start_kernel() is
- * hit (and subsequently platform_setup()) things like determining the
- * CPU subtype and initial configuration will all be done.
+ * We do all of the basic processor init here, including setting up
+ * the caches, FPU, DSP, etc. By the time start_kernel() is hit (and
+ * subsequently platform_setup()) things like determining the CPU
+ * subtype and initial configuration will all be done.
  *
  * Each processor family is still responsible for doing its own probing
  * and cache configuration in detect_cpu_and_cache_system().
  */
-
 asmlinkage void __init sh_cpu_init(void)
 {
 	current_thread_info()->cpu = hard_smp_processor_id();
