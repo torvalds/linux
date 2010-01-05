@@ -635,7 +635,7 @@ static __init void memory_setup(void)
 		__bss_start, __bss_stop,
 		_sdata, _edata,
 		(void *)&init_thread_union,
-		(void *)((int)(&init_thread_union) + 0x2000),
+		(void *)((int)(&init_thread_union) + THREAD_SIZE),
 		__init_begin, __init_end,
 		(void *)_ramstart, (void *)memory_end
 #ifdef CONFIG_MTD_UCLINUX
