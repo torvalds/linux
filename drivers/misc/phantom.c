@@ -497,7 +497,7 @@ static struct pci_driver phantom_pci_driver = {
 	.resume = phantom_resume
 };
 
-static ssize_t phantom_show_version(struct class *cls, char *buf)
+static ssize_t phantom_show_version(struct class *cls, struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, PHANTOM_VERSION "\n");
 }

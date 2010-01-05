@@ -71,7 +71,8 @@ static int drm_class_resume(struct device *dev)
 }
 
 /* Display the version of drm_core. This doesn't work right in current design */
-static ssize_t version_show(struct class *dev, char *buf)
+static ssize_t version_show(struct class *dev, struct class_attribute *attr,
+				char *buf)
 {
 	return sprintf(buf, "%s %d.%d.%d %s\n", CORE_NAME, CORE_MAJOR,
 		       CORE_MINOR, CORE_PATCHLEVEL, CORE_DATE);

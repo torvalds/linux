@@ -691,7 +691,9 @@ static ssize_t show_dev_abi_version(struct device *device,
 }
 static DEVICE_ATTR(abi_version, S_IRUGO, show_dev_abi_version, NULL);
 
-static ssize_t show_abi_version(struct class *class, char *buf)
+static ssize_t show_abi_version(struct class *class,
+				struct class_attribute *attr,
+				char *buf)
 {
 	return sprintf(buf, "%d\n", IB_USER_VERBS_ABI_VERSION);
 }

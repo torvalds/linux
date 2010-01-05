@@ -770,7 +770,9 @@ static struct usb_driver oled_driver = {
 	.id_table =	id_table,
 };
 
-static ssize_t version_show(struct class *dev, char *buf)
+static ssize_t version_show(struct class *dev,
+			    struct class_attribute *attr,
+			    char *buf)
 {
 	return sprintf(buf, ASUS_OLED_UNDERSCORE_NAME " %s\n",
 		       ASUS_OLED_VERSION);

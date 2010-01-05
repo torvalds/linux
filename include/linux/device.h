@@ -251,8 +251,10 @@ extern struct device *class_find_device(struct class *class,
 
 struct class_attribute {
 	struct attribute attr;
-	ssize_t (*show)(struct class *class, char *buf);
-	ssize_t (*store)(struct class *class, const char *buf, size_t count);
+	ssize_t (*show)(struct class *class, struct class_attribute *attr,
+			char *buf);
+	ssize_t (*store)(struct class *class, struct class_attribute *attr,
+			const char *buf, size_t count);
 };
 
 #define CLASS_ATTR(_name, _mode, _show, _store)			\

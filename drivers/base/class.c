@@ -31,7 +31,7 @@ static ssize_t class_attr_show(struct kobject *kobj, struct attribute *attr,
 	ssize_t ret = -EIO;
 
 	if (class_attr->show)
-		ret = class_attr->show(cp->class, buf);
+		ret = class_attr->show(cp->class, class_attr, buf);
 	return ret;
 }
 
@@ -43,7 +43,7 @@ static ssize_t class_attr_store(struct kobject *kobj, struct attribute *attr,
 	ssize_t ret = -EIO;
 
 	if (class_attr->store)
-		ret = class_attr->store(cp->class, buf, count);
+		ret = class_attr->store(cp->class, class_attr, buf, count);
 	return ret;
 }
 
