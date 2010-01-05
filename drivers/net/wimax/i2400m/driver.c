@@ -301,24 +301,15 @@ int i2400m_check_mac_addr(struct i2400m *i2400m)
 	/* Extract MAC addresss */
 	ddi = (void *) skb->data;
 	BUILD_BUG_ON(ETH_ALEN != sizeof(ddi->mac_address));
-	d_printf(2, dev, "GET DEVICE INFO: mac addr "
-		 "%02x:%02x:%02x:%02x:%02x:%02x\n",
-		 ddi->mac_address[0], ddi->mac_address[1],
-		 ddi->mac_address[2], ddi->mac_address[3],
-		 ddi->mac_address[4], ddi->mac_address[5]);
+	d_printf(2, dev, "GET DEVICE INFO: mac addr %pM\n",
+		 ddi->mac_address);
 	if (!memcmp(net_dev->perm_addr, ddi->mac_address,
 		   sizeof(ddi->mac_address)))
 		goto ok;
 	dev_warn(dev, "warning: device reports a different MAC address "
 		 "to that of boot mode's\n");
-	dev_warn(dev, "device reports     %02x:%02x:%02x:%02x:%02x:%02x\n",
-		 ddi->mac_address[0], ddi->mac_address[1],
-		 ddi->mac_address[2], ddi->mac_address[3],
-		 ddi->mac_address[4], ddi->mac_address[5]);
-	dev_warn(dev, "boot mode reported %02x:%02x:%02x:%02x:%02x:%02x\n",
-		 net_dev->perm_addr[0], net_dev->perm_addr[1],
-		 net_dev->perm_addr[2], net_dev->perm_addr[3],
-		 net_dev->perm_addr[4], net_dev->perm_addr[5]);
+	dev_warn(dev, "device reports     %pM\n", ddi->mac_address);
+	dev_warn(dev, "boot mode reported %pM\n", net_dev->perm_addr);
 	if (!memcmp(zeromac, ddi->mac_address, sizeof(zeromac)))
 		dev_err(dev, "device reports an invalid MAC address, "
 			"not updating\n");
