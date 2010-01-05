@@ -4292,6 +4292,15 @@ static int stv090x_init(struct dvb_frontend *fe)
 	const struct stv090x_config *config = state->config;
 	u32 reg;
 
+	if (state->internal->mclk == 0) {
+		stv090x_set_mclk(state, 135000000, config->xtal); /* 135 Mhz */
+		msleep(5);
+		if (stv090x_write_reg(state, STV090x_SYNTCTRL,
+				      0x20 | config->clk_mode) < 0)
+			goto err;
+		stv090x_get_mclk(state);
+	}
+
 	if (stv090x_wakeup(fe) < 0) {
 		dprintk(FE_ERROR, 1, "Error waking device");
 		goto err;
@@ -4425,12 +4434,6 @@ static int stv090x_setup(struct dvb_frontend *fe)
 		goto err;
 	if (stv090x_write_reg(state, STV090x_TSTRES0, 0x00) < 0)
 		goto err;
-
-	stv090x_set_mclk(state, 135000000, config->xtal); /* 135 Mhz */
-	msleep(5);
-	if (stv090x_write_reg(state, STV090x_SYNTCTRL, 0x20 | config->clk_mode) < 0)
-		goto err;
-	stv090x_get_mclk(state);
 
 	return 0;
 err:
