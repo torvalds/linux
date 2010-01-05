@@ -1147,12 +1147,96 @@ UNUSUAL_DEV( 0x0af0, 0x7401, 0x0000, 0x0000,
 		0 ),
 
 /* Reported by Jan Dumon <j.dumon@option.com>
- * This device (wrongly) has a vendor-specific device descriptor.
- * The entry is needed so usb-storage can bind to it's mass-storage
+ * These devices (wrongly) have a vendor-specific device descriptor.
+ * These entries are needed so usb-storage can bind to their mass-storage
  * interface as an interface driver */
 UNUSUAL_DEV( 0x0af0, 0x7501, 0x0000, 0x0000,
 		"Option",
 		"GI 0431 SD-Card",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		0 ),
+
+UNUSUAL_DEV( 0x0af0, 0x7701, 0x0000, 0x0000,
+		"Option",
+		"GI 0451 SD-Card",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		0 ),
+
+UNUSUAL_DEV( 0x0af0, 0x7706, 0x0000, 0x0000,
+		"Option",
+		"GI 0451 SD-Card",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		0 ),
+
+UNUSUAL_DEV( 0x0af0, 0x7901, 0x0000, 0x0000,
+		"Option",
+		"GI 0452 SD-Card",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		0 ),
+
+UNUSUAL_DEV( 0x0af0, 0x7A01, 0x0000, 0x0000,
+		"Option",
+		"GI 0461 SD-Card",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		0 ),
+
+UNUSUAL_DEV( 0x0af0, 0x7A05, 0x0000, 0x0000,
+		"Option",
+		"GI 0461 SD-Card",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		0 ),
+
+UNUSUAL_DEV( 0x0af0, 0x8300, 0x0000, 0x0000,
+		"Option",
+		"GI 033x SD-Card",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		0 ),
+
+UNUSUAL_DEV( 0x0af0, 0x8302, 0x0000, 0x0000,
+		"Option",
+		"GI 033x SD-Card",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		0 ),
+
+UNUSUAL_DEV( 0x0af0, 0x8304, 0x0000, 0x0000,
+		"Option",
+		"GI 033x SD-Card",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		0 ),
+
+UNUSUAL_DEV( 0x0af0, 0xc100, 0x0000, 0x0000,
+		"Option",
+		"GI 070x SD-Card",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		0 ),
+
+UNUSUAL_DEV( 0x0af0, 0xd057, 0x0000, 0x0000,
+		"Option",
+		"GI 1505 SD-Card",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		0 ),
+
+UNUSUAL_DEV( 0x0af0, 0xd058, 0x0000, 0x0000,
+		"Option",
+		"GI 1509 SD-Card",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		0 ),
+
+UNUSUAL_DEV( 0x0af0, 0xd157, 0x0000, 0x0000,
+		"Option",
+		"GI 1515 SD-Card",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		0 ),
+
+UNUSUAL_DEV( 0x0af0, 0xd257, 0x0000, 0x0000,
+		"Option",
+		"GI 1215 SD-Card",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		0 ),
+
+UNUSUAL_DEV( 0x0af0, 0xd357, 0x0000, 0x0000,
+		"Option",
+		"GI 1505 SD-Card",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		0 ),
 
