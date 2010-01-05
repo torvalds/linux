@@ -364,6 +364,7 @@ enum vmcs_field {
 #define VMX_EPTP_UC_BIT				(1ull << 8)
 #define VMX_EPTP_WB_BIT				(1ull << 14)
 #define VMX_EPT_2MB_PAGE_BIT			(1ull << 16)
+#define VMX_EPT_1GB_PAGE_BIT			(1ull << 17)
 #define VMX_EPT_EXTENT_INDIVIDUAL_BIT		(1ull << 24)
 #define VMX_EPT_EXTENT_CONTEXT_BIT		(1ull << 25)
 #define VMX_EPT_EXTENT_GLOBAL_BIT		(1ull << 26)

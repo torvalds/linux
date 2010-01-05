@@ -500,8 +500,7 @@ out:
 static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn)
 {
 	struct kvm_memory_slot *slot;
-	int host_level;
-	int level = PT_PAGE_TABLE_LEVEL;
+	int host_level, level, max_level;
 
 	slot = gfn_to_memslot(vcpu->kvm, large_gfn);
 	if (slot && slot->dirty_bitmap)
@@ -512,7 +511,10 @@ static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn)
 	if (host_level == PT_PAGE_TABLE_LEVEL)
 		return host_level;
 
-	for (level = PT_DIRECTORY_LEVEL; level <= host_level; ++level)
+	max_level = kvm_x86_ops->get_lpage_level() < host_level ?
+		kvm_x86_ops->get_lpage_level() : host_level;
+
+	for (level = PT_DIRECTORY_LEVEL; level <= max_level; ++level)
 		if (has_wrprotected_page(vcpu->kvm, large_gfn, level))
 			break;
 
