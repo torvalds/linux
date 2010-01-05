@@ -134,6 +134,10 @@ static int i915_init_phys_hws(struct drm_device *dev)
 
 	memset(dev_priv->hw_status_page, 0, PAGE_SIZE);
 
+	if (IS_I965G(dev))
+		dev_priv->dma_status_page |= (dev_priv->dma_status_page >> 28) &
+					     0xf0;
+
 	I915_WRITE(HWS_PGA, dev_priv->dma_status_page);
 	DRM_DEBUG_DRIVER("Enabled hardware status page\n");
 	return 0;
