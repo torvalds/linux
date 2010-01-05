@@ -1875,6 +1875,36 @@ static inline struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 }
 
 /**
+ * ieee80211_pspoll_get - retrieve a PS Poll template
+ * @hw: pointer obtained from ieee80211_alloc_hw().
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ *
+ * Creates a PS Poll a template which can, for example, uploaded to
+ * hardware. The template must be updated after association so that correct
+ * AID, BSSID and MAC address is used.
+ *
+ * Note: Caller (or hardware) is responsible for setting the
+ * &IEEE80211_FCTL_PM bit.
+ */
+struct sk_buff *ieee80211_pspoll_get(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif);
+
+/**
+ * ieee80211_nullfunc_get - retrieve a nullfunc template
+ * @hw: pointer obtained from ieee80211_alloc_hw().
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ *
+ * Creates a Nullfunc template which can, for example, uploaded to
+ * hardware. The template must be updated after association so that correct
+ * BSSID and address is used.
+ *
+ * Note: Caller (or hardware) is responsible for setting the
+ * &IEEE80211_FCTL_PM bit as well as Duration and Sequence Control fields.
+ */
+struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif);
+
+/**
  * ieee80211_rts_get - RTS frame generation function
  * @hw: pointer obtained from ieee80211_alloc_hw().
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
