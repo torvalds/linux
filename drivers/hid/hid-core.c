@@ -387,7 +387,8 @@ static int hid_parser_local(struct hid_parser *parser, struct hid_item *item)
 	__u32 data;
 	unsigned n;
 
-	if (item->size == 0) {
+	/* Local delimiter could have value 0, which allows size to be 0 */
+	if (item->size == 0 && item->tag != HID_LOCAL_ITEM_TAG_DELIMITER) {
 		dbg_hid("item data expected for local item\n");
 		return -1;
 	}
