@@ -1512,7 +1512,7 @@ static void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 				return;
 			}
 
-	ieee80211_select_queue(local, skb);
+	ieee80211_set_qos_hdr(local, skb);
 	ieee80211_tx(sdata, skb, false);
 	rcu_read_unlock();
 }
@@ -2290,6 +2290,9 @@ void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 	skb_set_mac_header(skb, 0);
 	skb_set_network_header(skb, 0);
 	skb_set_transport_header(skb, 0);
+
+	/* send all internal mgmt frames on VO */
+	skb_set_queue_mapping(skb, 0);
 
 	/*
 	 * The other path calling ieee80211_xmit is from the tasklet,
