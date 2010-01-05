@@ -16,8 +16,11 @@
 #include <linux/device.h>
 #include <linux/swap.h>
 
+static struct sysdev_class_attribute *node_state_attrs[];
+
 static struct sysdev_class node_class = {
 	.name = "node",
+	.attrs = node_state_attrs,
 };
 
 
@@ -569,29 +572,27 @@ static struct node_attr node_state_attr[] = {
 #endif
 };
 
-static int node_states_init(void)
-{
-	int i;
-	int err = 0;
-
-	BUILD_BUG_ON(ARRAY_SIZE(node_state_attr) != NR_NODE_STATES);
-	for (i = 0;  i < NR_NODE_STATES; i++) {
-		int ret;
-		ret = sysdev_class_create_file(&node_class, &node_state_attr[i].attr);
-		if (!err)
-			err = ret;
-	}
-	return err;
-}
+static struct sysdev_class_attribute *node_state_attrs[] = {
+	&node_state_attr[0].attr,
+	&node_state_attr[1].attr,
+	&node_state_attr[2].attr,
+	&node_state_attr[3].attr,
+#ifdef CONFIG_HIGHMEM
+	&node_state_attr[4].attr,
+#endif
+	NULL
+};
 
 #define NODE_CALLBACK_PRI	2	/* lower than SLAB */
 static int __init register_node_type(void)
 {
 	int ret;
 
+ 	BUILD_BUG_ON(ARRAY_SIZE(node_state_attr) != NR_NODE_STATES);
+ 	BUILD_BUG_ON(ARRAY_SIZE(node_state_attrs)-1 != NR_NODE_STATES);
+
 	ret = sysdev_class_register(&node_class);
 	if (!ret) {
-		ret = node_states_init();
 		hotplug_memory_notifier(node_memory_callback,
 					NODE_CALLBACK_PRI);
 	}
