@@ -158,14 +158,25 @@ static struct clk_ops clksrc_ops = {
 	.round_rate	= s3c_roundrate_clksrc,
 };
 
+static struct clk_ops clksrc_ops_nodiv = {
+	.set_parent	= s3c_setparent_clksrc,
+};
+
 void __init s3c_register_clksrc(struct clksrc_clk *clksrc, int size)
 {
 	int ret;
 
+	WARN_ON(!clksrc->reg_div.reg && !clksrc->reg_src.reg);
+
 	for (; size > 0; size--, clksrc++) {
 		/* fill in the default functions */
-		if (!clksrc->clk.ops)
-			clksrc->clk.ops = &clksrc_ops;
+
+		if (!clksrc->clk.ops) {
+			if (!clksrc->reg_div.reg)
+				clksrc->clk.ops = &clksrc_ops_nodiv;
+			else
+				clksrc->clk.ops = &clksrc_ops;
+		}
 
 		/* setup the clocksource, but do not announce it
 		 * as it may be re-set by the setup routines
