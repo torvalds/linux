@@ -273,12 +273,12 @@ static void mon_text_error(void *data, struct urb *urb, int error)
 
 	ep->type = 'E';
 	ep->id = (unsigned long) urb;
-	ep->busnum = 0;
+	ep->busnum = urb->dev->bus->busnum;
 	ep->devnum = urb->dev->devnum;
 	ep->epnum = usb_endpoint_num(&urb->ep->desc);
 	ep->xfertype = usb_endpoint_type(&urb->ep->desc);
 	ep->is_in = usb_urb_dir_in(urb);
-	ep->tstamp = 0;
+	ep->tstamp = mon_get_timestamp();
 	ep->length = 0;
 	ep->status = error;
 
