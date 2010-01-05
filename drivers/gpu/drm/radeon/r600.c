@@ -726,6 +726,10 @@ int r600_mc_init(struct radeon_device *rdev)
 	a.full = rfixed_const(100);
 	rdev->pm.sclk.full = rfixed_const(rdev->clock.default_sclk);
 	rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
+
+	if (rdev->flags & RADEON_IS_IGP)
+		rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
+
 	return 0;
 }
 

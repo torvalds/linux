@@ -172,6 +172,7 @@ static int rs690_mc_init(struct radeon_device *rdev)
 	rdev->mc.vram_location = G_000100_MC_FB_START(tmp) << 16;
 	rdev->mc.gtt_location = 0xFFFFFFFFUL;
 	r = radeon_mc_setup(rdev);
+	rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
 	if (r)
 		return r;
 	return 0;

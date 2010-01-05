@@ -319,10 +319,12 @@ struct radeon_mc {
 	u64			real_vram_size;
 	int			vram_mtrr;
 	bool			vram_is_ddr;
+	bool                    igp_sideport_enabled;
 };
 
 int radeon_mc_setup(struct radeon_device *rdev);
-
+bool radeon_combios_sideport_present(struct radeon_device *rdev);
+bool radeon_atombios_sideport_present(struct radeon_device *rdev);
 
 /*
  * GPU scratch registers structures, functions & helpers
