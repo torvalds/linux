@@ -1010,7 +1010,7 @@ static int acm_probe(struct usb_interface *intf,
 		case USB_CDC_CALL_MANAGEMENT_TYPE:
 			call_management_function = buffer[3];
 			call_interface_num = buffer[4];
-			if ((call_management_function & 3) != 3)
+			if ( (quirks & NOT_A_MODEM) == 0 && (call_management_function & 3) != 3)
 				dev_err(&intf->dev, "This device cannot do calls on its own. It is not a modem.\n");
 			break;
 		default:
@@ -1595,7 +1595,9 @@ static struct usb_device_id acm_ids[] = {
 	/* NOTE: non-Nokia COMM/ACM/0xff is likely MSFT RNDIS... NOT a modem! */
 
 	/* Support Lego NXT using pbLua firmware */
-	{ USB_DEVICE(0x0694, 0xff00), },
+	{ USB_DEVICE(0x0694, 0xff00),
+	.driver_info = NOT_A_MODEM,
+       	},
 
 	/* control interfaces with various AT-command sets */
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM,

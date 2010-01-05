@@ -136,3 +136,4 @@ struct acm {
 #define NO_UNION_NORMAL			1
 #define SINGLE_RX_URB			2
 #define NO_CAP_LINE			4
+#define NOT_A_MODEM			8
