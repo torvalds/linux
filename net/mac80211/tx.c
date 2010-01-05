@@ -2278,6 +2278,56 @@ struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(ieee80211_nullfunc_get);
 
+struct sk_buff *ieee80211_probereq_get(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif,
+				       const u8 *ssid, size_t ssid_len,
+				       const u8 *ie, size_t ie_len)
+{
+	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_local *local;
+	struct ieee80211_hdr_3addr *hdr;
+	struct sk_buff *skb;
+	size_t ie_ssid_len;
+	u8 *pos;
+
+	sdata = vif_to_sdata(vif);
+	local = sdata->local;
+	ie_ssid_len = 2 + ssid_len;
+
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*hdr) +
+			    ie_ssid_len + ie_len);
+	if (!skb) {
+		printk(KERN_DEBUG "%s: failed to allocate buffer for probe "
+		       "request template\n", sdata->name);
+		return NULL;
+	}
+
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+
+	hdr = (struct ieee80211_hdr_3addr *) skb_put(skb, sizeof(*hdr));
+	memset(hdr, 0, sizeof(*hdr));
+	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					 IEEE80211_STYPE_PROBE_REQ);
+	memset(hdr->addr1, 0xff, ETH_ALEN);
+	memcpy(hdr->addr2, vif->addr, ETH_ALEN);
+	memset(hdr->addr3, 0xff, ETH_ALEN);
+
+	pos = skb_put(skb, ie_ssid_len);
+	*pos++ = WLAN_EID_SSID;
+	*pos++ = ssid_len;
+	if (ssid)
+		memcpy(pos, ssid, ssid_len);
+	pos += ssid_len;
+
+	if (ie) {
+		pos = skb_put(skb, ie_len);
+		memcpy(pos, ie, ie_len);
+	}
+
+	return skb;
+}
+EXPORT_SYMBOL(ieee80211_probereq_get);
+
 void ieee80211_rts_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       const void *frame, size_t frame_len,
 		       const struct ieee80211_tx_info *frame_txctl,

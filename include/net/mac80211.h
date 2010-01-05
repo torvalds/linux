@@ -1905,6 +1905,23 @@ struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif);
 
 /**
+ * ieee80211_probereq_get - retrieve a Probe Request template
+ * @hw: pointer obtained from ieee80211_alloc_hw().
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @ssid: SSID buffer
+ * @ssid_len: length of SSID
+ * @ie: buffer containing all IEs except SSID for the template
+ * @ie_len: length of the IE buffer
+ *
+ * Creates a Probe Request template which can, for example, be uploaded to
+ * hardware.
+ */
+struct sk_buff *ieee80211_probereq_get(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif,
+				       const u8 *ssid, size_t ssid_len,
+				       const u8 *ie, size_t ie_len);
+
+/**
  * ieee80211_rts_get - RTS frame generation function
  * @hw: pointer obtained from ieee80211_alloc_hw().
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
