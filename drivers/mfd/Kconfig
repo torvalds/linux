@@ -205,7 +205,7 @@ config MFD_WM831X
 	  functionality of the device.
 
 config MFD_WM8350
-	tristate
+	bool
 
 config MFD_WM8350_CONFIG_MODE_0
 	bool
@@ -256,9 +256,9 @@ config MFD_WM8352_CONFIG_MODE_3
 	depends on MFD_WM8350
 
 config MFD_WM8350_I2C
-	tristate "Support Wolfson Microelectronics WM8350 with I2C"
+	bool "Support Wolfson Microelectronics WM8350 with I2C"
 	select MFD_WM8350
-	depends on I2C
+	depends on I2C=y
 	help
 	  The WM8350 is an integrated audio and power management
 	  subsystem with watchdog and RTC functionality for embedded
