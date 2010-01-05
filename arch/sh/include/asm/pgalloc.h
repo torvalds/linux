@@ -4,7 +4,7 @@
 #include <linux/quicklist.h>
 #include <asm/page.h>
 
-#define QUICK_PT 1	/* Other page table pages that are zero on free */
+#define QUICK_PT 0	/* Other page table pages that are zero on free */
 
 extern pgd_t *pgd_alloc(struct mm_struct *);
 extern void pgd_free(struct mm_struct *mm, pgd_t *pgd);
