@@ -68,6 +68,10 @@ config	IP_VS_TAB_BITS
 	  each hash entry uses 8 bytes, so you can estimate how much memory is
 	  needed for your box.
 
+	  You can overwrite this number setting conn_tab_bits module parameter
+	  or by appending ip_vs.conn_tab_bits=? to the kernel command line
+	  if IP VS was compiled built-in.
+
 comment "IPVS transport protocol load balancing support"
 
 config	IP_VS_PROTO_TCP
