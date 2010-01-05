@@ -432,14 +432,14 @@ sub update_funcs
 
     # Loop through all the mcount caller offsets and print a reference
     # to the caller based from the ref_func.
-    for (my $i=0; $i <= $#offsets; $i++) {
-	if (!$opened) {
-	    open(FILE, ">$mcount_s") || die "can't create $mcount_s\n";
-	    $opened = 1;
-	    print FILE "\t.section $mcount_section,\"a\",$section_type\n";
-	    print FILE "\t.align $alignment\n" if (defined($alignment));
-	}
-	printf FILE "\t%s %s + %d\n", $type, $ref_func, $offsets[$i] - $offset;
+    if (!$opened) {
+	open(FILE, ">$mcount_s") || die "can't create $mcount_s\n";
+	$opened = 1;
+	print FILE "\t.section $mcount_section,\"a\",$section_type\n";
+	print FILE "\t.align $alignment\n" if (defined($alignment));
+    }
+    foreach my $cur_offset (@offsets) {
+	printf FILE "\t%s %s + %d\n", $type, $ref_func, $cur_offset - $offset;
     }
 }
 
@@ -514,7 +514,7 @@ while (<IN>) {
     }
     # is this a call site to mcount? If so, record it to print later
     if ($text_found && /$mcount_regex/) {
-	$offsets[$#offsets + 1] = hex $1;
+	push(@offsets, hex $1);
     }
 }
 
