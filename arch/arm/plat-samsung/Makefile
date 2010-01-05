@@ -12,5 +12,6 @@ obj-				:=
 # Objects we always build independent of SoC choice
 
 obj-y				+= clock.o
+obj-y				+= pwm-clock.o
 
 obj-$(CONFIG_SAMSUNG_CLKSRC)	+= clock-clksrc.o
