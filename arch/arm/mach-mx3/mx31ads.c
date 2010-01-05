@@ -173,6 +173,7 @@ static void expio_unmask_irq(u32 irq)
 }
 
 static struct irq_chip expio_irq_chip = {
+	.name = "EXPIO(CPLD)",
 	.ack = expio_ack_irq,
 	.mask = expio_mask_irq,
 	.unmask = expio_unmask_irq,
