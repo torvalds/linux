@@ -151,7 +151,8 @@ static ssize_t print_cpus_map(char *buf, const struct cpumask *map)
 }
 
 #define	print_cpus_func(type) \
-static ssize_t print_cpus_##type(struct sysdev_class *class, char *buf)	\
+static ssize_t print_cpus_##type(struct sysdev_class *class, 		\
+	 		struct sysdev_class_attribute *attr, char *buf)	\
 {									\
 	return print_cpus_map(buf, cpu_##type##_mask);			\
 }									\
@@ -165,7 +166,8 @@ print_cpus_func(present);
 /*
  * Print values for NR_CPUS and offlined cpus
  */
-static ssize_t print_cpus_kernel_max(struct sysdev_class *class, char *buf)
+static ssize_t print_cpus_kernel_max(struct sysdev_class *class,
+				     struct sysdev_class_attribute *attr, char *buf)
 {
 	int n = snprintf(buf, PAGE_SIZE-2, "%d\n", NR_CPUS - 1);
 	return n;
@@ -175,7 +177,8 @@ static SYSDEV_CLASS_ATTR(kernel_max, 0444, print_cpus_kernel_max, NULL);
 /* arch-optional setting to enable display of offline cpus >= nr_cpu_ids */
 unsigned int total_cpus;
 
-static ssize_t print_cpus_offline(struct sysdev_class *class, char *buf)
+static ssize_t print_cpus_offline(struct sysdev_class *class,
+				  struct sysdev_class_attribute *attr, char *buf)
 {
 	int n = 0, len = PAGE_SIZE-2;
 	cpumask_var_t offline;

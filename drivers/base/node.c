@@ -544,23 +544,29 @@ static ssize_t print_nodes_state(enum node_states state, char *buf)
 	return n;
 }
 
-static ssize_t print_nodes_possible(struct sysdev_class *class, char *buf)
+static ssize_t print_nodes_possible(struct sysdev_class *class,
+				    struct sysdev_class_attribute *attr, char *buf)
 {
 	return print_nodes_state(N_POSSIBLE, buf);
 }
 
-static ssize_t print_nodes_online(struct sysdev_class *class, char *buf)
+static ssize_t print_nodes_online(struct sysdev_class *class,
+				  struct sysdev_class_attribute *attr,
+				  char *buf)
 {
 	return print_nodes_state(N_ONLINE, buf);
 }
 
 static ssize_t print_nodes_has_normal_memory(struct sysdev_class *class,
-						char *buf)
+					     struct sysdev_class_attribute *attr,
+					     char *buf)
 {
 	return print_nodes_state(N_NORMAL_MEMORY, buf);
 }
 
-static ssize_t print_nodes_has_cpu(struct sysdev_class *class, char *buf)
+static ssize_t print_nodes_has_cpu(struct sysdev_class *class,
+				   struct sysdev_class_attribute *attr,
+				   char *buf)
 {
 	return print_nodes_state(N_CPU, buf);
 }
@@ -573,7 +579,8 @@ static SYSDEV_CLASS_ATTR(has_cpu, 0444, print_nodes_has_cpu, NULL);
 
 #ifdef CONFIG_HIGHMEM
 static ssize_t print_nodes_has_high_memory(struct sysdev_class *class,
-						 char *buf)
+					   struct sysdev_class_attribute *attr,
+					   char *buf)
 {
 	return print_nodes_state(N_HIGH_MEMORY, buf);
 }

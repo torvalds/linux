@@ -89,7 +89,7 @@ static ssize_t sysdev_class_show(struct kobject *kobj, struct attribute *attr,
 	struct sysdev_class_attribute *class_attr = to_sysdev_class_attr(attr);
 
 	if (class_attr->show)
-		return class_attr->show(class, buffer);
+		return class_attr->show(class, class_attr, buffer);
 	return -EIO;
 }
 
@@ -100,7 +100,7 @@ static ssize_t sysdev_class_store(struct kobject *kobj, struct attribute *attr,
 	struct sysdev_class_attribute *class_attr = to_sysdev_class_attr(attr);
 
 	if (class_attr->store)
-		return class_attr->store(class, buffer, count);
+		return class_attr->store(class, class_attr, buffer, count);
 	return -EIO;
 }
 

@@ -41,8 +41,10 @@ struct sysdev_class {
 
 struct sysdev_class_attribute {
 	struct attribute attr;
-	ssize_t (*show)(struct sysdev_class *, char *);
-	ssize_t (*store)(struct sysdev_class *, const char *, size_t);
+	ssize_t (*show)(struct sysdev_class *, struct sysdev_class_attribute *,
+			char *);
+	ssize_t (*store)(struct sysdev_class *, struct sysdev_class_attribute *,
+			 const char *, size_t);
 };
 
 #define _SYSDEV_CLASS_ATTR(_name,_mode,_show,_store) 		\
