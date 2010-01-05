@@ -265,6 +265,23 @@ extern int __must_check class_create_file(struct class *class,
 extern void class_remove_file(struct class *class,
 			      const struct class_attribute *attr);
 
+/* Simple class attribute that is just a static string */
+
+struct class_attribute_string {
+	struct class_attribute attr;
+	char *str;
+};
+
+/* Currently read-only only */
+#define _CLASS_ATTR_STRING(_name, _mode, _str) \
+	{ __ATTR(_name, _mode, show_class_attr_string, NULL), _str }
+#define CLASS_ATTR_STRING(_name, _mode, _str) \
+	struct class_attribute_string class_attr_##_name = \
+		_CLASS_ATTR_STRING(_name, _mode, _str)
+
+extern ssize_t show_class_attr_string(struct class *class, struct class_attribute *attr,
+                        char *buf);
+
 struct class_interface {
 	struct list_head	node;
 	struct class		*class;
