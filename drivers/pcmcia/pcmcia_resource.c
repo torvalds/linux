@@ -43,6 +43,23 @@ module_param(io_speed, int, 0444);
 static u8 pcmcia_used_irq[NR_IRQS];
 #endif
 
+static int pcmcia_adjust_io_region(struct resource *res, unsigned long start,
+				   unsigned long end, struct pcmcia_socket *s)
+{
+	if (s->resource_ops->adjust_io_region)
+		return s->resource_ops->adjust_io_region(res, start, end, s);
+	return -ENOMEM;
+}
+
+static struct resource *pcmcia_find_io_region(unsigned long base, int num,
+					      unsigned long align,
+					      struct pcmcia_socket *s)
+{
+	if (s->resource_ops->find_io)
+		return s->resource_ops->find_io(base, num, align, s);
+	return NULL;
+}
+
 
 /** alloc_io_space
  *

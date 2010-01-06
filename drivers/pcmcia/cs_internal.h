@@ -168,14 +168,6 @@ int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple);
 
 /* rsrc_mgr.c */
 int pcmcia_validate_mem(struct pcmcia_socket *s);
-struct resource *pcmcia_find_io_region(unsigned long base,
-				       int num,
-				       unsigned long align,
-				       struct pcmcia_socket *s);
-int pcmcia_adjust_io_region(struct resource *res,
-			    unsigned long r_start,
-			    unsigned long r_end,
-			    struct pcmcia_socket *s);
 struct resource *pcmcia_find_mem_region(u_long base,
 					u_long num,
 					u_long align,
