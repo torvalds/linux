@@ -95,9 +95,6 @@ struct pccard_resource_ops {
 /* cistpl.c */
 int verify_cis_cache(struct pcmcia_socket *s);
 
-/* rsrc_mgr.c */
-void release_resource_db(struct pcmcia_socket *s);
-
 /* socket_sysfs.c */
 extern int pccard_sysfs_add_socket(struct device *dev);
 extern void pccard_sysfs_remove_socket(struct device *dev);

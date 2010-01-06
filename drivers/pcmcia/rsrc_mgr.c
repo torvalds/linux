@@ -58,12 +58,6 @@ struct resource *pcmcia_find_mem_region(u_long base, u_long num, u_long align,
 }
 EXPORT_SYMBOL(pcmcia_find_mem_region);
 
-void release_resource_db(struct pcmcia_socket *s)
-{
-	if (s->resource_ops->exit)
-		s->resource_ops->exit(s);
-}
-
 
 static int static_init(struct pcmcia_socket *s)
 {
