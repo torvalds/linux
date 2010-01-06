@@ -24,7 +24,6 @@
   Maintainer: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
-#include <linux/netdevice.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
 

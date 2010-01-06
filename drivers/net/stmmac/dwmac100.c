@@ -26,7 +26,6 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
-#include <linux/netdevice.h>
 #include <linux/crc32.h>
 #include <linux/mii.h>
 #include <linux/phy.h>

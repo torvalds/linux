@@ -23,7 +23,7 @@
 *******************************************************************************/
 
 #include "descs.h"
-#include <linux/io.h>
+#include <linux/netdevice.h>
 
 struct stmmac_extra_stats {
 	/* Transmit errors */
