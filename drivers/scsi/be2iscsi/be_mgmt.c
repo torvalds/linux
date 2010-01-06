@@ -49,12 +49,12 @@ unsigned char mgmt_get_fw_config(struct be_ctrl_info *ctrl,
 		phba->fw_config.iscsi_cid_count =
 					pfw_cfg->ulp[0].sq_count;
 		if (phba->fw_config.iscsi_cid_count > (BE2_MAX_SESSIONS / 2)) {
-			status = 1;
-			shost_printk(KERN_WARNING, phba->shost,
-			     "FW reported MAX CXNS as %d \t"
-			     "Max Supported = %d. Failing to load \n",
-					phba->fw_config.iscsi_cid_count,
-					BE2_MAX_SESSIONS);
+			SE_DEBUG(DBG_LVL_8,
+				"FW reported MAX CXNS as %d \t"
+				"Max Supported = %d.\n",
+				phba->fw_config.iscsi_cid_count,
+				BE2_MAX_SESSIONS);
+			phba->fw_config.iscsi_cid_count = BE2_MAX_SESSIONS / 2;
 		}
 	} else {
 		shost_printk(KERN_WARNING, phba->shost,
