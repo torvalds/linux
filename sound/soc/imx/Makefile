@@ -1,5 +1,5 @@
 # i.MX Platform Support
-snd-soc-imx-objs := imx-ssi.o imx-pcm-fiq.o imx-pcm-dma-mx2.o
+snd-soc-imx-objs := imx-ssi.o imx-pcm-fiq.o
 
 ifdef CONFIG_MACH_MX27
 snd-soc-imx-objs += imx-pcm-dma-mx2.o
