@@ -45,7 +45,6 @@
 #include <linux/phy.h>
 #include <linux/if_vlan.h>
 #include <linux/dma-mapping.h>
-#include <linux/stm/soc.h>
 #include "stmmac.h"
 
 #define STMMAC_RESOURCE_NAME	"stmmaceth"
@@ -1798,8 +1797,7 @@ static int stmmac_mac_device_setup(struct net_device *dev)
 
 static int stmmacphy_dvr_probe(struct platform_device *pdev)
 {
-	struct plat_stmmacphy_data *plat_dat;
-	plat_dat = (struct plat_stmmacphy_data *)((pdev->dev).platform_data);
+	struct plat_stmmacphy_data *plat_dat = pdev->dev.platform_data;
 
 	pr_debug("stmmacphy_dvr_probe: added phy for bus %d\n",
 	       plat_dat->bus_id);
@@ -1831,9 +1829,7 @@ static struct platform_driver stmmacphy_driver = {
 static int stmmac_associate_phy(struct device *dev, void *data)
 {
 	struct stmmac_priv *priv = (struct stmmac_priv *)data;
-	struct plat_stmmacphy_data *plat_dat;
-
-	plat_dat = (struct plat_stmmacphy_data *)(dev->platform_data);
+	struct plat_stmmacphy_data *plat_dat = dev->platform_data;
 
 	DBG(probe, DEBUG, "%s: checking phy for bus %d\n", __func__,
 		plat_dat->bus_id);
@@ -1923,7 +1919,7 @@ static int stmmac_dvr_probe(struct platform_device *pdev)
 	priv = netdev_priv(ndev);
 	priv->device = &(pdev->dev);
 	priv->dev = ndev;
-	plat_dat = (struct plat_stmmacenet_data *)((pdev->dev).platform_data);
+	plat_dat = pdev->dev.platform_data;
 	priv->bus_id = plat_dat->bus_id;
 	priv->pbl = plat_dat->pbl;	/* TLI */
 	priv->is_gmac = plat_dat->has_gmac;	/* GMAC is on board */
@@ -1932,6 +1928,11 @@ static int stmmac_dvr_probe(struct platform_device *pdev)
 
 	/* Set the I/O base addr */
 	ndev->base_addr = (unsigned long)addr;
+
+	/* Verify embedded resource for the platform */
+	ret = stmmac_claim_resource(pdev);
+	if (ret < 0)
+		goto out;
 
 	/* MAC HW revice detection */
 	ret = stmmac_mac_device_setup(ndev);
@@ -1953,6 +1954,7 @@ static int stmmac_dvr_probe(struct platform_device *pdev)
 	}
 
 	priv->fix_mac_speed = plat_dat->fix_mac_speed;
+	priv->bus_setup = plat_dat->bus_setup;
 	priv->bsp_priv = plat_dat->bsp_priv;
 
 	pr_info("\t%s - (dev. name: %s - id: %d, IRQ #%d\n"
