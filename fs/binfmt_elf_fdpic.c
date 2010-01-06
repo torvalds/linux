@@ -1798,11 +1798,11 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	ELF_CORE_WRITE_EXTRA_DATA;
 #endif
 
-	if (file->f_pos != offset) {
+	if (cprm->file->f_pos != offset) {
 		/* Sanity check */
 		printk(KERN_WARNING
 		       "elf_core_dump: file->f_pos (%lld) != offset (%lld)\n",
-		       file->f_pos, offset);
+		       cprm->file->f_pos, offset);
 	}
 
 end_coredump:

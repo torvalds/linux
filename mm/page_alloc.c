@@ -48,6 +48,7 @@
 #include <linux/page_cgroup.h>
 #include <linux/debugobjects.h>
 #include <linux/kmemleak.h>
+#include <linux/memory.h>
 #include <trace/events/kmem.h>
 
 #include <asm/tlbflush.h>
@@ -2401,13 +2402,14 @@ int numa_zonelist_order_handler(ctl_table *table, int write,
 {
 	char saved_string[NUMA_ZONELIST_ORDER_LEN];
 	int ret;
+	static DEFINE_MUTEX(zl_order_mutex);
 
+	mutex_lock(&zl_order_mutex);
 	if (write)
-		strncpy(saved_string, (char*)table->data,
-			NUMA_ZONELIST_ORDER_LEN);
+		strcpy(saved_string, (char*)table->data);
 	ret = proc_dostring(table, write, buffer, length, ppos);
 	if (ret)
-		return ret;
+		goto out;
 	if (write) {
 		int oldval = user_zonelist_order;
 		if (__parse_numa_zonelist_order((char*)table->data)) {
@@ -2420,7 +2422,9 @@ int numa_zonelist_order_handler(ctl_table *table, int write,
 		} else if (oldval != user_zonelist_order)
 			build_all_zonelists();
 	}
-	return 0;
+out:
+	mutex_unlock(&zl_order_mutex);
+	return ret;
 }
 
 
@@ -5008,23 +5012,65 @@ void set_pageblock_flags_group(struct page *page, unsigned long flags,
 int set_migratetype_isolate(struct page *page)
 {
 	struct zone *zone;
-	unsigned long flags;
+	struct page *curr_page;
+	unsigned long flags, pfn, iter;
+	unsigned long immobile = 0;
+	struct memory_isolate_notify arg;
+	int notifier_ret;
 	int ret = -EBUSY;
 	int zone_idx;
 
 	zone = page_zone(page);
 	zone_idx = zone_idx(zone);
+
 	spin_lock_irqsave(&zone->lock, flags);
-	/*
-	 * In future, more migrate types will be able to be isolation target.
-	 */
-	if (get_pageblock_migratetype(page) != MIGRATE_MOVABLE &&
-	    zone_idx != ZONE_MOVABLE)
+	if (get_pageblock_migratetype(page) == MIGRATE_MOVABLE ||
+	    zone_idx == ZONE_MOVABLE) {
+		ret = 0;
 		goto out;
-	set_pageblock_migratetype(page, MIGRATE_ISOLATE);
-	move_freepages_block(zone, page, MIGRATE_ISOLATE);
-	ret = 0;
+	}
+
+	pfn = page_to_pfn(page);
+	arg.start_pfn = pfn;
+	arg.nr_pages = pageblock_nr_pages;
+	arg.pages_found = 0;
+
+	/*
+	 * It may be possible to isolate a pageblock even if the
+	 * migratetype is not MIGRATE_MOVABLE. The memory isolation
+	 * notifier chain is used by balloon drivers to return the
+	 * number of pages in a range that are held by the balloon
+	 * driver to shrink memory. If all the pages are accounted for
+	 * by balloons, are free, or on the LRU, isolation can continue.
+	 * Later, for example, when memory hotplug notifier runs, these
+	 * pages reported as "can be isolated" should be isolated(freed)
+	 * by the balloon driver through the memory notifier chain.
+	 */
+	notifier_ret = memory_isolate_notify(MEM_ISOLATE_COUNT, &arg);
+	notifier_ret = notifier_to_errno(notifier_ret);
+	if (notifier_ret || !arg.pages_found)
+		goto out;
+
+	for (iter = pfn; iter < (pfn + pageblock_nr_pages); iter++) {
+		if (!pfn_valid_within(pfn))
+			continue;
+
+		curr_page = pfn_to_page(iter);
+		if (!page_count(curr_page) || PageLRU(curr_page))
+			continue;
+
+		immobile++;
+	}
+
+	if (arg.pages_found == immobile)
+		ret = 0;
+
 out:
+	if (!ret) {
+		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
+		move_freepages_block(zone, page, MIGRATE_ISOLATE);
+	}
+
 	spin_unlock_irqrestore(&zone->lock, flags);
 	if (!ret)
 		drain_all_pages();

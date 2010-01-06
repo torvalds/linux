@@ -195,7 +195,7 @@ config BOUNCE
 config NR_QUICK
 	int
 	depends on QUICKLIST
-	default "2" if SUPERH || AVR32
+	default "2" if AVR32
 	default "1"
 
 config VIRT_TO_BUS
@@ -253,7 +253,7 @@ config MEMORY_FAILURE
 
 config HWPOISON_INJECT
 	tristate "HWPoison pages injector"
-	depends on MEMORY_FAILURE && DEBUG_KERNEL
+	depends on MEMORY_FAILURE && DEBUG_KERNEL && PROC_FS
 	select PROC_PAGE_MONITOR
 
 config NOMMU_INITIAL_TRIM_EXCESS

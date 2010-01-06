@@ -242,14 +242,14 @@ static int __devinit adx_wdt_probe(struct platform_device *pdev)
 	}
 
 	res = devm_request_mem_region(&pdev->dev, res->start,
-			res->end - res->start + 1, res->name);
+			resource_size(res), res->name);
 	if (!res) {
 		dev_err(&pdev->dev, "cannot request I/O memory region\n");
 		return -ENXIO;
 	}
 
 	wdt->base = devm_ioremap_nocache(&pdev->dev, res->start,
-			res->end - res->start + 1);
+			resource_size(res));
 	if (!wdt->base) {
 		dev_err(&pdev->dev, "cannot remap I/O memory region\n");
 		return -ENXIO;

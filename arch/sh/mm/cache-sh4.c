@@ -109,6 +109,7 @@ static inline void flush_cache_one(unsigned long start, unsigned long phys)
 static void sh4_flush_dcache_page(void *arg)
 {
 	struct page *page = arg;
+	unsigned long addr = (unsigned long)page_address(page);
 #ifndef CONFIG_SMP
 	struct address_space *mapping = page_mapping(page);
 
@@ -116,16 +117,8 @@ static void sh4_flush_dcache_page(void *arg)
 		set_bit(PG_dcache_dirty, &page->flags);
 	else
 #endif
-	{
-		unsigned long phys = page_to_phys(page);
-		unsigned long addr = CACHE_OC_ADDRESS_ARRAY;
-		int i, n;
-
-		/* Loop all the D-cache */
-		n = boot_cpu_data.dcache.n_aliases;
-		for (i = 0; i < n; i++, addr += PAGE_SIZE)
-			flush_cache_one(addr, phys);
-	}
+		flush_cache_one(CACHE_OC_ADDRESS_ARRAY |
+				(addr & shm_align_mask), page_to_phys(page));
 
 	wmb();
 }

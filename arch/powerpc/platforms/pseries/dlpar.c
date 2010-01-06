@@ -346,12 +346,14 @@ int dlpar_release_drc(u32 drc_index)
 
 static DEFINE_MUTEX(pseries_cpu_hotplug_mutex);
 
-void cpu_hotplug_driver_lock()
+void cpu_hotplug_driver_lock(void)
+__acquires(pseries_cpu_hotplug_mutex)
 {
 	mutex_lock(&pseries_cpu_hotplug_mutex);
 }
 
-void cpu_hotplug_driver_unlock()
+void cpu_hotplug_driver_unlock(void)
+__releases(pseries_cpu_hotplug_mutex)
 {
 	mutex_unlock(&pseries_cpu_hotplug_mutex);
 }

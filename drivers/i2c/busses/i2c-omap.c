@@ -247,7 +247,13 @@ static void omap_i2c_unidle(struct omap_i2c_dev *dev)
 		omap_i2c_write_reg(dev, OMAP_I2C_CON_REG, OMAP_I2C_CON_EN);
 	}
 	dev->idle = 0;
-	omap_i2c_write_reg(dev, OMAP_I2C_IE_REG, dev->iestate);
+
+	/*
+	 * Don't write to this register if the IE state is 0 as it can
+	 * cause deadlock.
+	 */
+	if (dev->iestate)
+		omap_i2c_write_reg(dev, OMAP_I2C_IE_REG, dev->iestate);
 }
 
 static void omap_i2c_idle(struct omap_i2c_dev *dev)
@@ -280,6 +286,11 @@ static int omap_i2c_init(struct omap_i2c_dev *dev)
 	unsigned long internal_clk = 0;
 
 	if (dev->rev >= OMAP_I2C_REV_2) {
+		/* Disable I2C controller before soft reset */
+		omap_i2c_write_reg(dev, OMAP_I2C_CON_REG,
+			omap_i2c_read_reg(dev, OMAP_I2C_CON_REG) &
+				~(OMAP_I2C_CON_EN));
+
 		omap_i2c_write_reg(dev, OMAP_I2C_SYSC_REG, SYSC_SOFTRESET_MASK);
 		/* For some reason we need to set the EN bit before the
 		 * reset done bit gets set. */

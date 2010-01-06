@@ -887,6 +887,14 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			track->textures[i].cpp = 1;
 			track->textures[i].compress_format = R100_TRACK_COMP_DXT1;
 			break;
+		case R300_TX_FORMAT_ATI2N:
+			if (p->rdev->family < CHIP_R420) {
+				DRM_ERROR("Invalid texture format %u\n",
+					  (idx_value & 0x1F));
+				return -EINVAL;
+			}
+			/* The same rules apply as for DXT3/5. */
+			/* Pass through. */
 		case R300_TX_FORMAT_DXT3:
 		case R300_TX_FORMAT_DXT5:
 			track->textures[i].cpp = 1;
@@ -951,6 +959,16 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			track->textures[i].width_11 = tmp;
 			tmp = ((idx_value >> 16) & 1) << 11;
 			track->textures[i].height_11 = tmp;
+
+			/* ATI1N */
+			if (idx_value & (1 << 14)) {
+				/* The same rules apply as for DXT1. */
+				track->textures[i].compress_format =
+					R100_TRACK_COMP_DXT1;
+			}
+		} else if (idx_value & (1 << 14)) {
+			DRM_ERROR("Forbidden bit TXFORMAT_MSB\n");
+			return -EINVAL;
 		}
 		break;
 	case 0x4480:
@@ -991,6 +1009,18 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			return r;
 		}
 		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
+		break;
+	case 0x4e0c:
+		/* RB3D_COLOR_CHANNEL_MASK */
+		track->color_channel_mask = idx_value;
+		break;
+	case 0x4d1c:
+		/* ZB_BW_CNTL */
+		track->fastfill = !!(idx_value & (1 << 2));
+		break;
+	case 0x4e04:
+		/* RB3D_BLENDCNTL */
+		track->blend_read_enable = !!(idx_value & (1 << 2));
 		break;
 	case 0x4be8:
 		/* valid register only on RV530 */

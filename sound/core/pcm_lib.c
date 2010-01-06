@@ -758,7 +758,7 @@ int snd_interval_ratnum(struct snd_interval *i,
 		int diff;
 		if (q == 0)
 			q = 1;
-		den = div_down(num, q);
+		den = div_up(num, q);
 		if (den < rats[k].den_min)
 			continue;
 		if (den > rats[k].den_max)
@@ -794,7 +794,7 @@ int snd_interval_ratnum(struct snd_interval *i,
 			i->empty = 1;
 			return -EINVAL;
 		}
-		den = div_up(num, q);
+		den = div_down(num, q);
 		if (den > rats[k].den_max)
 			continue;
 		if (den < rats[k].den_min)

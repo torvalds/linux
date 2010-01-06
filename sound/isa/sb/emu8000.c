@@ -393,8 +393,6 @@ size_dram(struct snd_emu8000 *emu)
 
 	while (size < EMU8000_MAX_DRAM) {
 
-		size += 512 * 1024;  /* increment 512kbytes */
-
 		/* Write a unique data on the test address.
 		 * if the address is out of range, the data is written on
 		 * 0x200000(=EMU8000_DRAM_OFFSET).  Then the id word is
@@ -414,7 +412,9 @@ size_dram(struct snd_emu8000 *emu)
 		/*snd_emu8000_read_wait(emu);*/
 		EMU8000_SMLD_READ(emu); /* discard stale data  */
 		if (EMU8000_SMLD_READ(emu) != UNIQUE_ID2)
-			break; /* we must have wrapped around */
+			break; /* no memory at this address */
+
+		size += 512 * 1024;  /* increment 512kbytes */
 
 		snd_emu8000_read_wait(emu);
 

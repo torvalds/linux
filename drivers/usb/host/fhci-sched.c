@@ -37,7 +37,7 @@ static void recycle_frame(struct fhci_usb *usb, struct packet *pkt)
 	pkt->info = 0;
 	pkt->priv_data = NULL;
 
-	cq_put(usb->ep0->empty_frame_Q, pkt);
+	cq_put(&usb->ep0->empty_frame_Q, pkt);
 }
 
 /* confirm submitted packet */
@@ -57,7 +57,7 @@ void fhci_transaction_confirm(struct fhci_usb *usb, struct packet *pkt)
 		if ((td->data + td->actual_len) && trans_len)
 			memcpy(td->data + td->actual_len, pkt->data,
 			       trans_len);
-		cq_put(usb->ep0->dummy_packets_Q, pkt->data);
+		cq_put(&usb->ep0->dummy_packets_Q, pkt->data);
 	}
 
 	recycle_frame(usb, pkt);
@@ -213,7 +213,7 @@ static int add_packet(struct fhci_usb *usb, struct ed *ed, struct td *td)
 	}
 
 	/* update frame object fields before transmitting */
-	pkt = cq_get(usb->ep0->empty_frame_Q);
+	pkt = cq_get(&usb->ep0->empty_frame_Q);
 	if (!pkt) {
 		fhci_dbg(usb->fhci, "there is no empty frame\n");
 		return -1;
@@ -222,7 +222,7 @@ static int add_packet(struct fhci_usb *usb, struct ed *ed, struct td *td)
 
 	pkt->info = 0;
 	if (data == NULL) {
-		data = cq_get(usb->ep0->dummy_packets_Q);
+		data = cq_get(&usb->ep0->dummy_packets_Q);
 		BUG_ON(!data);
 		pkt->info = PKT_DUMMY_PACKET;
 	}
@@ -246,7 +246,7 @@ static int add_packet(struct fhci_usb *usb, struct ed *ed, struct td *td)
 		list_del_init(&td->frame_lh);
 		td->status = USB_TD_OK;
 		if (pkt->info & PKT_DUMMY_PACKET)
-			cq_put(usb->ep0->dummy_packets_Q, pkt->data);
+			cq_put(&usb->ep0->dummy_packets_Q, pkt->data);
 		recycle_frame(usb, pkt);
 		usb->actual_frame->total_bytes -= (len + PROTOCOL_OVERHEAD);
 		fhci_err(usb->fhci, "host transaction failed\n");
