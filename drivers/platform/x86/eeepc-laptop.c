@@ -34,6 +34,7 @@
 #include <linux/rfkill.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
+#include <linux/dmi.h>
 
 #define EEEPC_LAPTOP_VERSION	"0.1"
 
@@ -135,6 +136,7 @@ struct eeepc_hotk {
 	acpi_handle handle;		/* the handle of the hotk device */
 	u32 cm_supported;		/* the control methods supported
 					   by this BIOS */
+	bool cpufv_disabled;
 	uint init_flag;			/* Init flags */
 	u16 event_count[128];		/* count for each event */
 	struct input_dev *inputdev;
@@ -467,6 +469,8 @@ static ssize_t store_cpufv(struct device *dev,
 	struct eeepc_cpufv c;
 	int rv, value;
 
+	if (ehotk->cpufv_disabled)
+		return -EPERM;
 	if (get_cpufv(&c))
 		return -ENODEV;
 	rv = parse_arg(buf, count, &value);
@@ -477,6 +481,38 @@ static ssize_t store_cpufv(struct device *dev,
 	set_acpi(CM_ASL_CPUFV, value);
 	return rv;
 }
+
+static ssize_t show_cpufv_disabled(struct device *dev,
+			  struct device_attribute *attr,
+			  char *buf)
+{
+	return sprintf(buf, "%d\n", ehotk->cpufv_disabled);
+}
+
+static ssize_t store_cpufv_disabled(struct device *dev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	int rv, value;
+
+	rv = parse_arg(buf, count, &value);
+	if (rv < 0)
+		return rv;
+
+	switch (value) {
+	case 0:
+		if (ehotk->cpufv_disabled)
+			pr_warning("cpufv enabled (not officially supported "
+				"on this model)\n");
+		ehotk->cpufv_disabled = false;
+		return rv;
+	case 1:
+		return -EPERM;
+	default:
+		return -EINVAL;
+	}
+}
+
 
 static struct device_attribute dev_attr_cpufv = {
 	.attr = {
@@ -493,12 +529,22 @@ static struct device_attribute dev_attr_available_cpufv = {
 	.show   = show_available_cpufv
 };
 
+static struct device_attribute dev_attr_cpufv_disabled = {
+	.attr = {
+		.name = "cpufv_disabled",
+		.mode = 0644 },
+	.show   = show_cpufv_disabled,
+	.store  = store_cpufv_disabled
+};
+
+
 static struct attribute *platform_attributes[] = {
 	&dev_attr_camera.attr,
 	&dev_attr_cardr.attr,
 	&dev_attr_disp.attr,
 	&dev_attr_cpufv.attr,
 	&dev_attr_available_cpufv.attr,
+	&dev_attr_cpufv_disabled.attr,
 	NULL
 };
 
@@ -562,6 +608,42 @@ static int eeepc_setkeycode(struct input_dev *dev, int scancode, int keycode)
 	}
 
 	return -EINVAL;
+}
+
+static void eeepc_dmi_check(void)
+{
+	const char *model;
+
+	/*
+	 * Blacklist for setting cpufv (cpu speed).
+	 *
+	 * EeePC 4G ("701") implements CFVS, but it is not supported
+	 * by the pre-installed OS, and the original option to change it
+	 * in the BIOS setup screen was removed in later versions.
+	 *
+	 * Judging by the lack of "Super Hybrid Engine" on Asus product pages,
+	 * this applies to all "701" models (4G/4G Surf/2G Surf).
+	 *
+	 * So Asus made a deliberate decision not to support it on this model.
+	 * We have several reports that using it can cause the system to hang
+	 *
+	 * The hang has also been reported on a "702" (Model name "8G"?).
+	 *
+	 * We avoid dmi_check_system() / dmi_match(), because they use
+	 * substring matching.  We don't want to affect the "701SD"
+	 * and "701SDX" models, because they do support S.H.E.
+	 */
+
+	model = dmi_get_system_info(DMI_PRODUCT_NAME);
+	if (!model)
+		return;
+
+	if (strcmp(model, "701") == 0 || strcmp(model, "702") == 0) {
+		ehotk->cpufv_disabled = true;
+		pr_info("model %s does not officially support setting cpu "
+			"speed\n", model);
+		pr_info("cpufv disabled to avoid instability\n");
+	}
 }
 
 static void cmsg_quirk(int cm, const char *name)
@@ -1207,6 +1289,8 @@ static int __devinit eeepc_hotk_add(struct acpi_device *device)
 	strcpy(acpi_device_class(device), EEEPC_HOTK_CLASS);
 	device->driver_data = ehotk;
 	ehotk->device = device;
+
+	eeepc_dmi_check();
 
 	result = eeepc_hotk_check();
 	if (result)
