@@ -74,7 +74,7 @@ struct x86_emulate_ops {
 			     struct kvm_vcpu *vcpu);
 
 	/*
-	 * write_emulated: Read bytes from emulated/special memory area.
+	 * write_emulated: Write bytes to emulated/special memory area.
 	 *  @addr:  [IN ] Linear address to which to write.
 	 *  @val:   [IN ] Value to write to memory (low-order bytes used as
 	 *                required).
