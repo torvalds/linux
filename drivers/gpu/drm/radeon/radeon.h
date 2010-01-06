@@ -674,6 +674,7 @@ struct r100_asic {
 struct r300_asic {
 	const unsigned	*reg_safe_bm;
 	unsigned	reg_safe_bm_size;
+	u32		resync_scratch;
 };
 
 struct r600_asic {
