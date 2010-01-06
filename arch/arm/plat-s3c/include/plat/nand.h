@@ -3,7 +3,7 @@
  * Copyright (c) 2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * S3C2410 - NAND device controller platfrom_device info
+ * S3C2410 - NAND device controller platform_device info
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
