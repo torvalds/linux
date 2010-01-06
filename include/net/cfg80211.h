@@ -626,8 +626,14 @@ enum cfg80211_signal_type {
  * @beacon_interval: the beacon interval as from the frame
  * @capability: the capability field in host byte order
  * @information_elements: the information elements (Note that there
- *	is no guarantee that these are well-formed!)
+ *	is no guarantee that these are well-formed!); this is a pointer to
+ *	either the beacon_ies or proberesp_ies depending on whether Probe
+ *	Response frame has been received
  * @len_information_elements: total length of the information elements
+ * @beacon_ies: the information elements from the last Beacon frame
+ * @len_beacon_ies: total length of the beacon_ies
+ * @proberesp_ies: the information elements from the last Probe Response frame
+ * @len_proberesp_ies: total length of the proberesp_ies
  * @signal: signal strength value (type depends on the wiphy's signal_type)
  * @free_priv: function pointer to free private data
  * @priv: private area for driver use, has at least wiphy->bss_priv_size bytes
@@ -641,6 +647,10 @@ struct cfg80211_bss {
 	u16 capability;
 	u8 *information_elements;
 	size_t len_information_elements;
+	u8 *beacon_ies;
+	size_t len_beacon_ies;
+	u8 *proberesp_ies;
+	size_t len_proberesp_ies;
 
 	s32 signal;
 

@@ -1378,13 +1378,20 @@ enum nl80211_channel_type {
  * @NL80211_BSS_BEACON_INTERVAL: beacon interval of the (I)BSS (u16)
  * @NL80211_BSS_CAPABILITY: capability field (CPU order, u16)
  * @NL80211_BSS_INFORMATION_ELEMENTS: binary attribute containing the
- *	raw information elements from the probe response/beacon (bin)
+ *	raw information elements from the probe response/beacon (bin);
+ *	if the %NL80211_BSS_BEACON_IES attribute is present, the IEs here are
+ *	from a Probe Response frame; otherwise they are from a Beacon frame.
+ *	However, if the driver does not indicate the source of the IEs, these
+ *	IEs may be from either frame subtype.
  * @NL80211_BSS_SIGNAL_MBM: signal strength of probe response/beacon
  *	in mBm (100 * dBm) (s32)
  * @NL80211_BSS_SIGNAL_UNSPEC: signal strength of the probe response/beacon
  *	in unspecified units, scaled to 0..100 (u8)
  * @NL80211_BSS_STATUS: status, if this BSS is "used"
  * @NL80211_BSS_SEEN_MS_AGO: age of this BSS entry in ms
+ * @NL80211_BSS_BEACON_IES: binary attribute containing the raw information
+ *	elements from a Beacon frame (bin); not present if no Beacon frame has
+ *	yet been received
  * @__NL80211_BSS_AFTER_LAST: internal
  * @NL80211_BSS_MAX: highest BSS attribute
  */
@@ -1400,6 +1407,7 @@ enum nl80211_bss {
 	NL80211_BSS_SIGNAL_UNSPEC,
 	NL80211_BSS_STATUS,
 	NL80211_BSS_SEEN_MS_AGO,
+	NL80211_BSS_BEACON_IES,
 
 	/* keep last */
 	__NL80211_BSS_AFTER_LAST,

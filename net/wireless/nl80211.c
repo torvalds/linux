@@ -3163,6 +3163,10 @@ static int nl80211_send_bss(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 		NLA_PUT(msg, NL80211_BSS_INFORMATION_ELEMENTS,
 			res->len_information_elements,
 			res->information_elements);
+	if (res->beacon_ies && res->len_beacon_ies &&
+	    res->beacon_ies != res->information_elements)
+		NLA_PUT(msg, NL80211_BSS_BEACON_IES,
+			res->len_beacon_ies, res->beacon_ies);
 	if (res->tsf)
 		NLA_PUT_U64(msg, NL80211_BSS_TSF, res->tsf);
 	if (res->beacon_interval)
