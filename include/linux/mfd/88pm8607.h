@@ -33,8 +33,8 @@ enum {
 	PM8607_ID_RG_MAX,
 };
 
-#define CHIP_ID				(0x40)
-#define CHIP_ID_MASK			(0xF8)
+#define PM8607_ID			(0x40)	/* 8607 chip ID */
+#define PM8607_ID_MASK			(0xF8)	/* 8607 chip ID mask */
 
 /* Interrupt Registers */
 #define PM8607_STATUS_1			(0x01)
@@ -185,6 +185,7 @@ struct pm8607_chip {
 	struct device		*dev;
 	struct mutex		io_lock;
 	struct i2c_client	*client;
+	struct i2c_device_id	id;
 
 	int (*read)(struct pm8607_chip *chip, int reg, int bytes, void *dest);
 	int (*write)(struct pm8607_chip *chip, int reg, int bytes, void *src);
@@ -214,4 +215,9 @@ extern int pm8607_bulk_write(struct pm8607_chip *, int, int,
 			     unsigned char *);
 extern int pm8607_set_bits(struct pm8607_chip *, int, unsigned char,
 			   unsigned char);
-#endif /* __LINUX_MFD_88PM8607_H */
+
+extern int pm860x_device_init(struct pm8607_chip *chip,
+			      struct pm8607_platform_data *pdata);
+extern void pm860x_device_exit(struct pm8607_chip *chip);
+
+#endif /* __LINUX_MFD_88PM860X_H */
