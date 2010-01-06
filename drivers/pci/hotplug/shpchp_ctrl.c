@@ -453,6 +453,7 @@ void shpchp_queue_pushbutton_work(struct work_struct *work)
 		p_slot->state = POWERON_STATE;
 		break;
 	default:
+		kfree(info);
 		goto out;
 	}
 	queue_work(shpchp_wq, &info->work);
