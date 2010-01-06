@@ -284,6 +284,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	ieee80211_mlme_notify_scan_completed(local);
 	ieee80211_ibss_notify_scan_completed(local);
 	ieee80211_mesh_notify_scan_completed(local);
+	ieee80211_queue_work(&local->hw, &local->work_work);
 }
 EXPORT_SYMBOL(ieee80211_scan_completed);
 

@@ -818,6 +818,7 @@ static void ieee80211_work_work(struct work_struct *work)
 		    wk->chan == local->tmp_channel &&
 		    wk->chan_type == local->tmp_channel_type) {
 			wk->started = true;
+			wk->timeout = jiffies;
 		}
 
 		if (!wk->started && !local->tmp_channel) {
@@ -933,6 +934,9 @@ void ieee80211_add_work(struct ieee80211_work *wk)
 		return;
 
 	if (WARN_ON(!wk->done))
+		return;
+
+	if (WARN_ON(!ieee80211_sdata_running(wk->sdata)))
 		return;
 
 	wk->started = false;
