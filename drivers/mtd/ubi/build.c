@@ -59,10 +59,10 @@ struct mtd_dev_param {
 };
 
 /* Numbers of elements set in the @mtd_dev_param array */
-static int mtd_devs;
+static int __initdata mtd_devs;
 
 /* MTD devices specification parameters */
-static struct mtd_dev_param mtd_dev_param[UBI_MAX_DEVICES];
+static struct mtd_dev_param __initdata mtd_dev_param[UBI_MAX_DEVICES];
 
 /* Root UBI "class" object (corresponds to '/<sysfs>/class/ubi/') */
 struct class *ubi_class;
