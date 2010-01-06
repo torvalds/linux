@@ -258,8 +258,9 @@ static void stmmac_adjust_link(struct net_device *dev)
 				} else {
 					ctrl &= ~priv->mac_type->hw.link.port;
 				}
-				priv->fix_mac_speed(priv->bsp_priv,
-						    phydev->speed);
+				if (likely(priv->fix_mac_speed))
+					priv->fix_mac_speed(priv->bsp_priv,
+							    phydev->speed);
 				break;
 			default:
 				if (netif_msg_link(priv))
