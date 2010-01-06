@@ -143,43 +143,45 @@ static int dma_is_idle(struct fsl_dma_chan *fsl_chan)
 
 static void dma_start(struct fsl_dma_chan *fsl_chan)
 {
-	u32 mr_set = 0;
+	u32 mode;
 
-	if (fsl_chan->feature & FSL_DMA_CHAN_PAUSE_EXT) {
-		DMA_OUT(fsl_chan, &fsl_chan->reg_base->bcr, 0, 32);
-		mr_set |= FSL_DMA_MR_EMP_EN;
-	} else if ((fsl_chan->feature & FSL_DMA_IP_MASK) == FSL_DMA_IP_85XX) {
-		DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr,
-			DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32)
-				& ~FSL_DMA_MR_EMP_EN, 32);
+	mode = DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32);
+
+	if ((fsl_chan->feature & FSL_DMA_IP_MASK) == FSL_DMA_IP_85XX) {
+		if (fsl_chan->feature & FSL_DMA_CHAN_PAUSE_EXT) {
+			DMA_OUT(fsl_chan, &fsl_chan->reg_base->bcr, 0, 32);
+			mode |= FSL_DMA_MR_EMP_EN;
+		} else {
+			mode &= ~FSL_DMA_MR_EMP_EN;
+		}
 	}
 
 	if (fsl_chan->feature & FSL_DMA_CHAN_START_EXT)
-		mr_set |= FSL_DMA_MR_EMS_EN;
+		mode |= FSL_DMA_MR_EMS_EN;
 	else
-		mr_set |= FSL_DMA_MR_CS;
+		mode |= FSL_DMA_MR_CS;
 
-	DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr,
-			DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32)
-			| mr_set, 32);
+	DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr, mode, 32);
 }
 
 static void dma_halt(struct fsl_dma_chan *fsl_chan)
 {
+	u32 mode;
 	int i;
 
-	DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr,
-		DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32) | FSL_DMA_MR_CA,
-		32);
-	DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr,
-		DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32) & ~(FSL_DMA_MR_CS
-		| FSL_DMA_MR_EMS_EN | FSL_DMA_MR_CA), 32);
+	mode = DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32);
+	mode |= FSL_DMA_MR_CA;
+	DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr, mode, 32);
+
+	mode &= ~(FSL_DMA_MR_CS | FSL_DMA_MR_EMS_EN | FSL_DMA_MR_CA);
+	DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr, mode, 32);
 
 	for (i = 0; i < 100; i++) {
 		if (dma_is_idle(fsl_chan))
 			break;
 		udelay(10);
 	}
+
 	if (i >= 100 && !dma_is_idle(fsl_chan))
 		dev_err(fsl_chan->dev, "DMA halt timeout!\n");
 }
@@ -231,22 +233,23 @@ static void append_ld_queue(struct fsl_dma_chan *fsl_chan,
  */
 static void fsl_chan_set_src_loop_size(struct fsl_dma_chan *fsl_chan, int size)
 {
+	u32 mode;
+
+	mode = DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32);
+
 	switch (size) {
 	case 0:
-		DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr,
-			DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32) &
-			(~FSL_DMA_MR_SAHE), 32);
+		mode &= ~FSL_DMA_MR_SAHE;
 		break;
 	case 1:
 	case 2:
 	case 4:
 	case 8:
-		DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr,
-			DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32) |
-			FSL_DMA_MR_SAHE | (__ilog2(size) << 14),
-			32);
+		mode |= FSL_DMA_MR_SAHE | (__ilog2(size) << 14);
 		break;
 	}
+
+	DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr, mode, 32);
 }
 
 /**
@@ -262,22 +265,23 @@ static void fsl_chan_set_src_loop_size(struct fsl_dma_chan *fsl_chan, int size)
  */
 static void fsl_chan_set_dest_loop_size(struct fsl_dma_chan *fsl_chan, int size)
 {
+	u32 mode;
+
+	mode = DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32);
+
 	switch (size) {
 	case 0:
-		DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr,
-			DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32) &
-			(~FSL_DMA_MR_DAHE), 32);
+		mode &= ~FSL_DMA_MR_DAHE;
 		break;
 	case 1:
 	case 2:
 	case 4:
 	case 8:
-		DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr,
-			DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32) |
-			FSL_DMA_MR_DAHE | (__ilog2(size) << 16),
-			32);
+		mode |= FSL_DMA_MR_DAHE | (__ilog2(size) << 16);
 		break;
 	}
+
+	DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr, mode, 32);
 }
 
 /**
@@ -294,11 +298,14 @@ static void fsl_chan_set_dest_loop_size(struct fsl_dma_chan *fsl_chan, int size)
  */
 static void fsl_chan_set_request_count(struct fsl_dma_chan *fsl_chan, int size)
 {
+	u32 mode;
+
 	BUG_ON(size > 1024);
-	DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr,
-		DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32)
-			| ((__ilog2(size) << 24) & 0x0f000000),
-		32);
+
+	mode = DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32);
+	mode |= (__ilog2(size) << 24) & 0x0f000000;
+
+	DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr, mode, 32);
 }
 
 /**
