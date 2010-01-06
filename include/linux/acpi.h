@@ -80,7 +80,7 @@ char * __acpi_map_table (unsigned long phys_addr, unsigned long size);
 void __acpi_unmap_table(char *map, unsigned long size);
 int early_acpi_boot_init(void);
 int acpi_boot_init (void);
-int acpi_boot_table_init (void);
+void acpi_boot_table_init (void);
 int acpi_mps_check (void);
 int acpi_numa_init (void);
 
@@ -321,9 +321,9 @@ static inline int acpi_boot_init(void)
 	return 0;
 }
 
-static inline int acpi_boot_table_init(void)
+static inline void acpi_boot_table_init(void)
 {
-	return 0;
+	return;
 }
 
 static inline int acpi_mps_check(void)
