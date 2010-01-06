@@ -577,8 +577,6 @@ static void serio_add_port(struct serio *serio)
 		printk(KERN_ERR
 			"serio: device_add() failed for %s (%s), error: %d\n",
 			serio->phys, serio->name, error);
-	else
-		serio->registered = true;
 }
 
 /*
@@ -605,10 +603,8 @@ static void serio_destroy_port(struct serio *serio)
 		serio->parent = NULL;
 	}
 
-	if (serio->registered) {
+	if (device_is_registered(&serio->dev))
 		device_del(&serio->dev);
-		serio->registered = false;
-	}
 
 	list_del_init(&serio->node);
 	serio_remove_pending_events(serio);
@@ -995,7 +991,7 @@ irqreturn_t serio_interrupt(struct serio *serio,
 
         if (likely(serio->drv)) {
                 ret = serio->drv->interrupt(serio, data, dfl);
-	} else if (!dfl && serio->registered) {
+	} else if (!dfl && device_is_registered(&serio->dev)) {
 		serio_rescan(serio);
 		ret = IRQ_HANDLED;
 	}
