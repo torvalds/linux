@@ -346,6 +346,8 @@ static struct fsl_usb2_platform_data usb_pdata = {
 	.phy_mode	= FSL_USB2_PHY_ULPI,
 };
 
+#if defined(CONFIG_USB_ULPI)
+
 #define USBH2_EN_B IOMUX_TO_GPIO(MX31_PIN_SCK6)
 
 static int moboard_usbh2_hw_init(struct platform_device *pdev)
@@ -392,8 +394,11 @@ static int __init moboard_usbh2_init(void)
 	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
 			USB_OTG_DRV_VBUS | USB_OTG_DRV_VBUS_EXT);
 
-	return mxc_register_device(&mx31_usbh2, &usbh2_pdata);
+	return mxc_register_device(&mxc_usbh2, &usbh2_pdata);
 }
+#else
+static inline int moboard_usbh2_init(void) { return 0; }
+#endif
 
 
 static struct gpio_led mx31moboard_leds[] = {

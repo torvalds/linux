@@ -135,6 +135,7 @@ static struct spi_board_info mc13783_spi_dev __initdata = {
  * USB
  */
 
+#if defined(CONFIG_USB_ULPI)
 #define USB_PAD_CFG (PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST | PAD_CTL_HYS_CMOS | \
 			PAD_CTL_ODE_CMOS | PAD_CTL_100K_PU)
 
@@ -180,6 +181,7 @@ static struct mxc_usbh_platform_data usbh2_pdata = {
 	.portsc = MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
 	.flags  = MXC_EHCI_POWER_PINS_ENABLED,
 };
+#endif
 
 /*
  * NOR flash
@@ -212,11 +214,6 @@ static struct platform_device physmap_flash_device = {
  */
 static struct map_desc mx31lite_io_desc[] __initdata = {
 	{
-		.virtual = SPBA0_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(SPBA0_BASE_ADDR),
-		.length = SPBA0_SIZE,
-		.type = MT_DEVICE_NONSHARED
-	}, {
 		.virtual = CS4_BASE_ADDR_VIRT,
 		.pfn = __phys_to_pfn(CS4_BASE_ADDR),
 		.length = CS4_SIZE,
@@ -261,11 +258,13 @@ static void __init mxc_board_init(void)
 	mxc_register_device(&mxc_spi_device1, &spi1_pdata);
 	spi_register_board_info(&mc13783_spi_dev, 1);
 
+#if defined(CONFIG_USB_ULPI)
 	/* USB */
 	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
 				USB_OTG_DRV_VBUS | USB_OTG_DRV_VBUS_EXT);
 
 	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
+#endif
 
 	/* SMSC9117 IRQ pin */
 	ret = gpio_request(IOMUX_TO_GPIO(MX31_PIN_SFS6), "sms9117-irq");
