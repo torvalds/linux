@@ -143,7 +143,7 @@ struct fsldma_chan {
 	void (*toggle_ext_pause)(struct fsldma_chan *fsl_chan, int enable);
 	void (*toggle_ext_start)(struct fsldma_chan *fsl_chan, int enable);
 	void (*set_src_loop_size)(struct fsldma_chan *fsl_chan, int size);
-	void (*set_dest_loop_size)(struct fsldma_chan *fsl_chan, int size);
+	void (*set_dst_loop_size)(struct fsldma_chan *fsl_chan, int size);
 	void (*set_request_count)(struct fsldma_chan *fsl_chan, int size);
 };
 

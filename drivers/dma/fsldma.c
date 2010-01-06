@@ -90,14 +90,14 @@ static void set_desc_src(struct fsldma_chan *fsl_chan,
 	hw->src_addr = CPU_TO_DMA(fsl_chan, snoop_bits | src, 64);
 }
 
-static void set_desc_dest(struct fsldma_chan *fsl_chan,
-				struct fsl_dma_ld_hw *hw, dma_addr_t dest)
+static void set_desc_dst(struct fsldma_chan *fsl_chan,
+				struct fsl_dma_ld_hw *hw, dma_addr_t dst)
 {
 	u64 snoop_bits;
 
 	snoop_bits = ((fsl_chan->feature & FSL_DMA_IP_MASK) == FSL_DMA_IP_85XX)
 		? ((u64)FSL_DMA_DATR_DWRITETYPE_SNOOP_WRITE << 32) : 0;
-	hw->dst_addr = CPU_TO_DMA(fsl_chan, snoop_bits | dest, 64);
+	hw->dst_addr = CPU_TO_DMA(fsl_chan, snoop_bits | dst, 64);
 }
 
 static void set_desc_next(struct fsldma_chan *fsl_chan,
@@ -253,7 +253,7 @@ static void fsl_chan_set_src_loop_size(struct fsldma_chan *fsl_chan, int size)
 }
 
 /**
- * fsl_chan_set_dest_loop_size - Set destination address hold transfer size
+ * fsl_chan_set_dst_loop_size - Set destination address hold transfer size
  * @fsl_chan : Freescale DMA channel
  * @size     : Address loop size, 0 for disable loop
  *
@@ -263,7 +263,7 @@ static void fsl_chan_set_src_loop_size(struct fsldma_chan *fsl_chan, int size)
  * write data to TA, TA + 1, TA + 2, TA + 3, then loop back to TA,
  * TA + 1 ... and so on.
  */
-static void fsl_chan_set_dest_loop_size(struct fsldma_chan *fsl_chan, int size)
+static void fsl_chan_set_dst_loop_size(struct fsldma_chan *fsl_chan, int size)
 {
 	u32 mode;
 
@@ -486,7 +486,7 @@ fsl_dma_prep_interrupt(struct dma_chan *chan, unsigned long flags)
 }
 
 static struct dma_async_tx_descriptor *fsl_dma_prep_memcpy(
-	struct dma_chan *chan, dma_addr_t dma_dest, dma_addr_t dma_src,
+	struct dma_chan *chan, dma_addr_t dma_dst, dma_addr_t dma_src,
 	size_t len, unsigned long flags)
 {
 	struct fsldma_chan *fsl_chan;
@@ -519,7 +519,7 @@ static struct dma_async_tx_descriptor *fsl_dma_prep_memcpy(
 
 		set_desc_cnt(fsl_chan, &new->hw, copy);
 		set_desc_src(fsl_chan, &new->hw, dma_src);
-		set_desc_dest(fsl_chan, &new->hw, dma_dest);
+		set_desc_dst(fsl_chan, &new->hw, dma_dst);
 
 		if (!first)
 			first = new;
@@ -532,7 +532,7 @@ static struct dma_async_tx_descriptor *fsl_dma_prep_memcpy(
 		prev = new;
 		len -= copy;
 		dma_src += copy;
-		dma_dest += copy;
+		dma_dst += copy;
 
 		/* Insert the link descriptor to the LD ring */
 		list_add_tail(&new->node, &first->tx_list);
@@ -680,7 +680,7 @@ static struct dma_async_tx_descriptor *fsl_dma_prep_slave_sg(
 			/* Fill in the descriptor */
 			set_desc_cnt(fsl_chan, &new->hw, copy);
 			set_desc_src(fsl_chan, &new->hw, dma_src);
-			set_desc_dest(fsl_chan, &new->hw, dma_dst);
+			set_desc_dst(fsl_chan, &new->hw, dma_dst);
 
 			/*
 			 * If this is not the first descriptor, chain the
@@ -721,8 +721,8 @@ finished:
 	if (fsl_chan->set_src_loop_size)
 		fsl_chan->set_src_loop_size(fsl_chan, slave->src_loop_size);
 
-	if (fsl_chan->set_dest_loop_size)
-		fsl_chan->set_dest_loop_size(fsl_chan, slave->dst_loop_size);
+	if (fsl_chan->set_dst_loop_size)
+		fsl_chan->set_dst_loop_size(fsl_chan, slave->dst_loop_size);
 
 	if (fsl_chan->toggle_ext_start)
 		fsl_chan->toggle_ext_start(fsl_chan, slave->external_start);
@@ -867,7 +867,7 @@ static void fsl_chan_ld_cleanup(struct fsldma_chan *fsl_chan)
 static void fsl_chan_xfer_ld_queue(struct fsldma_chan *fsl_chan)
 {
 	struct list_head *ld_node;
-	dma_addr_t next_dest_addr;
+	dma_addr_t next_dst_addr;
 	unsigned long flags;
 
 	spin_lock_irqsave(&fsl_chan->desc_lock, flags);
@@ -892,10 +892,10 @@ static void fsl_chan_xfer_ld_queue(struct fsldma_chan *fsl_chan)
 
 	if (ld_node != &fsl_chan->ld_queue) {
 		/* Get the ld start address from ld_queue */
-		next_dest_addr = to_fsl_desc(ld_node)->async_tx.phys;
+		next_dst_addr = to_fsl_desc(ld_node)->async_tx.phys;
 		dev_dbg(fsl_chan->dev, "xfer LDs staring from 0x%llx\n",
-				(unsigned long long)next_dest_addr);
-		set_cdar(fsl_chan, next_dest_addr);
+				(unsigned long long)next_dst_addr);
+		set_cdar(fsl_chan, next_dst_addr);
 		dma_start(fsl_chan);
 	} else {
 		set_cdar(fsl_chan, 0);
@@ -1130,7 +1130,7 @@ static int __devinit fsl_dma_chan_probe(struct fsldma_device *fdev,
 	case FSL_DMA_IP_83XX:
 		new_fsl_chan->toggle_ext_start = fsl_chan_toggle_ext_start;
 		new_fsl_chan->set_src_loop_size = fsl_chan_set_src_loop_size;
-		new_fsl_chan->set_dest_loop_size = fsl_chan_set_dest_loop_size;
+		new_fsl_chan->set_dst_loop_size = fsl_chan_set_dst_loop_size;
 		new_fsl_chan->set_request_count = fsl_chan_set_request_count;
 	}
 
