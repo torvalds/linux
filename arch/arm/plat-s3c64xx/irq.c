@@ -54,8 +54,8 @@ void __init s3c64xx_init_irq(u32 vic0_valid, u32 vic1_valid)
 	printk(KERN_DEBUG "%s: initialising interrupts\n", __func__);
 
 	/* initialise the pair of VICs */
-	vic_init(S3C_VA_VIC0, S3C_VIC0_BASE, vic0_valid, 0);
-	vic_init(S3C_VA_VIC1, S3C_VIC1_BASE, vic1_valid, 0);
+	vic_init(VA_VIC0, IRQ_VIC0_BASE, vic0_valid, 0);
+	vic_init(VA_VIC1, IRQ_VIC1_BASE, vic1_valid, 0);
 
 	/* add the timer sub-irqs */
 

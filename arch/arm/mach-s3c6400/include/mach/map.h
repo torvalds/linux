@@ -70,8 +70,8 @@
 #define S3C64XX_VA_USB_HSPHY	S3C_ADDR_CPU(0x00200000)
 
 /* place VICs close together */
-#define S3C_VA_VIC0		(S3C_VA_IRQ + 0x00)
-#define S3C_VA_VIC1		(S3C_VA_IRQ + 0x10000)
+#define VA_VIC0			(S3C_VA_IRQ + 0x00)
+#define VA_VIC1			(S3C_VA_IRQ + 0x10000)
 
 /* compatibiltiy defines. */
 #define S3C_PA_TIMER		S3C64XX_PA_TIMER

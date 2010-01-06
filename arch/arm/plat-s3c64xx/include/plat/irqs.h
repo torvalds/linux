@@ -24,8 +24,8 @@
 
 #define S3C_IRQ(x)	((x) + S3C_IRQ_OFFSET)
 
-#define S3C_VIC0_BASE	S3C_IRQ(0)
-#define S3C_VIC1_BASE	S3C_IRQ(32)
+#define IRQ_VIC0_BASE	S3C_IRQ(0)
+#define IRQ_VIC1_BASE	S3C_IRQ(32)
 
 /* UART interrupts, each UART has 4 intterupts per channel so
  * use the space between the ISA and S3C main interrupts. Note, these
@@ -59,8 +59,8 @@
 
 /* VIC based IRQs */
 
-#define S3C64XX_IRQ_VIC0(x)	(S3C_VIC0_BASE + (x))
-#define S3C64XX_IRQ_VIC1(x)	(S3C_VIC1_BASE + (x))
+#define S3C64XX_IRQ_VIC0(x)	(IRQ_VIC0_BASE + (x))
+#define S3C64XX_IRQ_VIC1(x)	(IRQ_VIC1_BASE + (x))
 
 /* VIC0 */
 
