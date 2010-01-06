@@ -121,6 +121,8 @@ my %prompts;
 my %objects;
 my $var;
 my $cont = 0;
+my $iflevel = 0;
+my @ifdeps;
 
 # prevent recursion
 my %read_kconfigs;
@@ -146,6 +148,15 @@ sub read_kconfig {
 	    $state = "NEW";
 	    $config = $1;
 
+	    for (my $i = 0; $i < $iflevel; $i++) {
+		if ($i) {
+		    $depends{$config} .= " " . $ifdeps[$i];
+		} else {
+		    $depends{$config} = $ifdeps[$i];
+		}
+		$state = "DEP";
+	    }
+
 	# collect the depends for the config
 	} elsif ($state eq "NEW" && /^\s*depends\s+on\s+(.*)$/) {
 	    $state = "DEP";
@@ -165,6 +176,21 @@ sub read_kconfig {
 	} elsif ($state ne "NONE" && /^\s*tristate\s\S/) {
 	    # note if the config has a prompt
 	    $prompt{$config} = 1;
+
+	# Check for if statements
+	} elsif (/^if\s+(.*\S)\s*$/) {
+	    my $deps = $1;
+	    # remove beginning and ending non text
+	    $deps =~ s/^[^a-zA-Z0-9_]*//;
+	    $deps =~ s/[^a-zA-Z0-9_]*$//;
+
+	    my @deps = split /[^a-zA-Z0-9_]+/, $deps;
+
+	    $ifdeps[$iflevel++] = join ':', @deps;
+
+	} elsif (/^endif/) {
+
+	    $iflevel-- if ($iflevel);
 
 	# stop on "help"
 	} elsif (/^\s*help\s*$/) {
