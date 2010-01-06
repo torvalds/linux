@@ -452,6 +452,11 @@ static struct attribute_group serio_id_attr_group = {
 	.attrs	= serio_device_id_attrs,
 };
 
+static const struct attribute_group *serio_device_attr_groups[] = {
+	&serio_id_attr_group,
+	NULL
+};
+
 static ssize_t serio_rebind_driver(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct serio *serio = to_serio_port(dev);
@@ -539,6 +544,7 @@ static void serio_init_port(struct serio *serio)
 			(long)atomic_inc_return(&serio_no) - 1);
 	serio->dev.bus = &serio_bus;
 	serio->dev.release = serio_release_port;
+	serio->dev.groups = serio_device_attr_groups;
 	if (serio->parent) {
 		serio->dev.parent = &serio->parent->dev;
 		serio->depth = serio->parent->depth + 1;
@@ -562,21 +568,17 @@ static void serio_add_port(struct serio *serio)
 	}
 
 	list_add_tail(&serio->node, &serio_list);
+
 	if (serio->start)
 		serio->start(serio);
+
 	error = device_add(&serio->dev);
 	if (error)
 		printk(KERN_ERR
 			"serio: device_add() failed for %s (%s), error: %d\n",
 			serio->phys, serio->name, error);
-	else {
+	else
 		serio->registered = true;
-		error = sysfs_create_group(&serio->dev.kobj, &serio_id_attr_group);
-		if (error)
-			printk(KERN_ERR
-				"serio: sysfs_create_group() failed for %s (%s), error: %d\n",
-				serio->phys, serio->name, error);
-	}
 }
 
 /*
@@ -604,7 +606,6 @@ static void serio_destroy_port(struct serio *serio)
 	}
 
 	if (serio->registered) {
-		sysfs_remove_group(&serio->dev.kobj, &serio_id_attr_group);
 		device_del(&serio->dev);
 		serio->registered = false;
 	}
