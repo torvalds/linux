@@ -1204,20 +1204,46 @@ int cfg80211_wext_siwrate(struct net_device *dev,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	struct cfg80211_bitrate_mask mask;
+	u32 fixed, maxrate;
+	struct ieee80211_supported_band *sband;
+	int band, ridx;
+	bool match = false;
 
 	if (!rdev->ops->set_bitrate_mask)
 		return -EOPNOTSUPP;
 
-	mask.fixed = 0;
-	mask.maxrate = 0;
+	memset(&mask, 0, sizeof(mask));
+	fixed = 0;
+	maxrate = 0;
 
 	if (rate->value < 0) {
 		/* nothing */
 	} else if (rate->fixed) {
-		mask.fixed = rate->value / 1000; /* kbps */
+		fixed = rate->value / 100000;
 	} else {
-		mask.maxrate = rate->value / 1000; /* kbps */
+		maxrate = rate->value / 100000;
 	}
+
+	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+		sband = wdev->wiphy->bands[band];
+		if (sband == NULL)
+			continue;
+		for (ridx = 0; ridx < sband->n_bitrates; ridx++) {
+			struct ieee80211_rate *srate = &sband->bitrates[ridx];
+			if (fixed == srate->bitrate) {
+				mask.control[band].legacy = 1 << ridx;
+				match = true;
+				break;
+			}
+			if (srate->bitrate <= maxrate) {
+				mask.control[band].legacy |= 1 << ridx;
+				match = true;
+			}
+		}
+	}
+
+	if (!match)
+		return -EINVAL;
 
 	return rdev->ops->set_bitrate_mask(wdev->wiphy, dev, NULL, &mask);
 }

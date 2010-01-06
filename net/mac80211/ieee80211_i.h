@@ -494,8 +494,8 @@ struct ieee80211_sub_if_data {
 	 */
 	struct ieee80211_if_ap *bss;
 
-	int force_unicast_rateidx; /* forced TX rateidx for unicast frames */
-	int max_ratectrl_rateidx; /* max TX rateidx for rate control */
+	/* bitmap of allowed (non-MCS) rate indexes for rate control */
+	u32 rc_rateidx_mask[IEEE80211_NUM_BANDS];
 
 	union {
 		struct ieee80211_if_ap ap;

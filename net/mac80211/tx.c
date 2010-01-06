@@ -519,7 +519,11 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	txrc.bss_conf = &tx->sdata->vif.bss_conf;
 	txrc.skb = tx->skb;
 	txrc.reported_rate.idx = -1;
-	txrc.max_rate_idx = tx->sdata->max_ratectrl_rateidx;
+	txrc.rate_idx_mask = tx->sdata->rc_rateidx_mask[tx->channel->band];
+	if (txrc.rate_idx_mask == (1 << sband->n_bitrates) - 1)
+		txrc.max_rate_idx = -1;
+	else
+		txrc.max_rate_idx = fls(txrc.rate_idx_mask) - 1;
 	txrc.ap = tx->sdata->vif.type == NL80211_IFTYPE_AP;
 
 	/* set up RTS protection if desired */
@@ -2178,7 +2182,11 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 	txrc.bss_conf = &sdata->vif.bss_conf;
 	txrc.skb = skb;
 	txrc.reported_rate.idx = -1;
-	txrc.max_rate_idx = sdata->max_ratectrl_rateidx;
+	txrc.rate_idx_mask = sdata->rc_rateidx_mask[band];
+	if (txrc.rate_idx_mask == (1 << sband->n_bitrates) - 1)
+		txrc.max_rate_idx = -1;
+	else
+		txrc.max_rate_idx = fls(txrc.rate_idx_mask) - 1;
 	txrc.ap = true;
 	rate_control_get_rate(sdata, NULL, &txrc);
 

@@ -1406,8 +1406,6 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	int i;
-	u32 target_rate;
-	struct ieee80211_supported_band *sband;
 
 	/*
 	 * This _could_ be supported by providing a hook for
@@ -1417,35 +1415,11 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 	if (local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL)
 		return -EOPNOTSUPP;
 
-	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
-	/*
-	 * target_rate = -1, rate->fixed = 0 means auto only, so use all rates
-	 * target_rate = X, rate->fixed = 1 means only rate X
-	 * target_rate = X, rate->fixed = 0 means all rates <= X
-	 */
-	sdata->max_ratectrl_rateidx = -1;
-	sdata->force_unicast_rateidx = -1;
+	for (i = 0; i < IEEE80211_NUM_BANDS; i++)
+		sdata->rc_rateidx_mask[i] = mask->control[i].legacy;
 
-	if (mask->fixed)
-		target_rate = mask->fixed / 100;
-	else if (mask->maxrate)
-		target_rate = mask->maxrate / 100;
-	else
-		return 0;
-
-	for (i = 0; i< sband->n_bitrates; i++) {
-		if (target_rate != sband->bitrates[i].bitrate)
-			continue;
-
-		/* requested bitrate found */
-		sdata->max_ratectrl_rateidx = i;
-		if (mask->fixed)
-			sdata->force_unicast_rateidx = i;
-		return 0;
-	}
-
-	return -EINVAL;
+	return 0;
 }
 
 static int ieee80211_remain_on_channel(struct wiphy *wiphy,
