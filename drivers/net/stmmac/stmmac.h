@@ -58,7 +58,7 @@ struct stmmac_priv {
 	int rx_csum;
 	unsigned int dma_buf_sz;
 	struct device *device;
-	struct mac_device_info *mac_type;
+	struct mac_device_info *hw;
 
 	struct stmmac_extra_stats xstats;
 	struct napi_struct napi;

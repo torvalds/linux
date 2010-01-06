@@ -467,19 +467,28 @@ static int mac100_get_rx_frame_len(struct dma_desc *p)
 	return p->des01.rx.frame_length;
 }
 
-struct stmmac_ops mac100_driver = {
+struct stmmac_ops mac100_ops = {
 	.core_init = mac100_core_init,
-	.dump_mac_regs = mac100_dump_mac_regs,
-	.dma_init = mac100_dma_init,
-	.dump_dma_regs = mac100_dump_dma_regs,
-	.dma_mode = mac100_dma_operation_mode,
-	.dma_diagnostic_fr = mac100_dma_diagnostic_fr,
-	.tx_status = mac100_get_tx_frame_status,
-	.rx_status = mac100_get_rx_frame_status,
-	.get_tx_len = mac100_get_tx_len,
+	.dump_regs = mac100_dump_mac_regs,
+	.host_irq_status = mac100_irq_status,
 	.set_filter = mac100_set_filter,
 	.flow_ctrl = mac100_flow_ctrl,
 	.pmt = mac100_pmt,
+	.set_umac_addr = mac100_set_umac_addr,
+	.get_umac_addr = mac100_get_umac_addr,
+};
+
+struct stmmac_dma_ops mac100_dma_ops = {
+	.init = mac100_dma_init,
+	.dump_regs = mac100_dump_dma_regs,
+	.dma_mode = mac100_dma_operation_mode,
+	.dma_diagnostic_fr = mac100_dma_diagnostic_fr,
+};
+
+struct stmmac_desc_ops mac100_desc_ops = {
+	.tx_status = mac100_get_tx_frame_status,
+	.rx_status = mac100_get_rx_frame_status,
+	.get_tx_len = mac100_get_tx_len,
 	.init_rx_desc = mac100_init_rx_desc,
 	.init_tx_desc = mac100_init_tx_desc,
 	.get_tx_owner = mac100_get_tx_owner,
@@ -492,9 +501,6 @@ struct stmmac_ops mac100_driver = {
 	.set_tx_owner = mac100_set_tx_owner,
 	.set_rx_owner = mac100_set_rx_owner,
 	.get_rx_frame_len = mac100_get_rx_frame_len,
-	.host_irq_status = mac100_irq_status,
-	.set_umac_addr = mac100_set_umac_addr,
-	.get_umac_addr = mac100_get_umac_addr,
 };
 
 struct mac_device_info *mac100_setup(unsigned long ioaddr)
@@ -505,13 +511,16 @@ struct mac_device_info *mac100_setup(unsigned long ioaddr)
 
 	pr_info("\tMAC 10/100\n");
 
-	mac->ops = &mac100_driver;
-	mac->hw.pmt = PMT_NOT_SUPPORTED;
-	mac->hw.link.port = MAC_CONTROL_PS;
-	mac->hw.link.duplex = MAC_CONTROL_F;
-	mac->hw.link.speed = 0;
-	mac->hw.mii.addr = MAC_MII_ADDR;
-	mac->hw.mii.data = MAC_MII_DATA;
+	mac->mac = &mac100_ops;
+	mac->desc = &mac100_desc_ops;
+	mac->dma = &mac100_dma_ops;
+
+	mac->pmt = PMT_NOT_SUPPORTED;
+	mac->link.port = MAC_CONTROL_PS;
+	mac->link.duplex = MAC_CONTROL_F;
+	mac->link.speed = 0;
+	mac->mii.addr = MAC_MII_ADDR;
+	mac->mii.data = MAC_MII_DATA;
 
 	return mac;
 }

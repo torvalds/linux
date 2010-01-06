@@ -268,8 +268,8 @@ stmmac_set_pauseparam(struct net_device *netdev,
 		}
 	} else {
 		unsigned long ioaddr = netdev->base_addr;
-		priv->mac_type->ops->flow_ctrl(ioaddr, phy->duplex,
-					       priv->flow_ctrl, priv->pause);
+		priv->hw->mac->flow_ctrl(ioaddr, phy->duplex,
+					 priv->flow_ctrl, priv->pause);
 	}
 	spin_unlock(&priv->lock);
 	return ret;
@@ -283,8 +283,8 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 	int i;
 
 	/* Update HW stats if supported */
-	priv->mac_type->ops->dma_diagnostic_fr(&dev->stats, &priv->xstats,
-					       ioaddr);
+	priv->hw->dma->dma_diagnostic_fr(&dev->stats, (void *) &priv->xstats,
+					 ioaddr);
 
 	for (i = 0; i < STMMAC_STATS_LEN; i++) {
 		char *p = (char *)priv + stmmac_gstrings_stats[i].stat_offset;

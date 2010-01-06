@@ -630,19 +630,28 @@ static int gmac_get_rx_frame_len(struct dma_desc *p)
 	return p->des01.erx.frame_length;
 }
 
-struct stmmac_ops gmac_driver = {
+struct stmmac_ops gmac_ops = {
 	.core_init = gmac_core_init,
-	.dump_mac_regs = gmac_dump_regs,
-	.dma_init = gmac_dma_init,
-	.dump_dma_regs = gmac_dump_dma_regs,
-	.dma_mode = gmac_dma_operation_mode,
-	.dma_diagnostic_fr = gmac_dma_diagnostic_fr,
-	.tx_status = gmac_get_tx_frame_status,
-	.rx_status = gmac_get_rx_frame_status,
-	.get_tx_len = gmac_get_tx_len,
+	.dump_regs = gmac_dump_regs,
+	.host_irq_status = gmac_irq_status,
 	.set_filter = gmac_set_filter,
 	.flow_ctrl = gmac_flow_ctrl,
 	.pmt = gmac_pmt,
+	.set_umac_addr = gmac_set_umac_addr,
+	.get_umac_addr = gmac_get_umac_addr,
+};
+
+struct stmmac_dma_ops gmac_dma_ops = {
+	.init = gmac_dma_init,
+	.dump_regs = gmac_dump_dma_regs,
+	.dma_mode = gmac_dma_operation_mode,
+	.dma_diagnostic_fr = gmac_dma_diagnostic_fr,
+};
+
+struct stmmac_desc_ops gmac_desc_ops = {
+	.tx_status = gmac_get_tx_frame_status,
+	.rx_status = gmac_get_rx_frame_status,
+	.get_tx_len = gmac_get_tx_len,
 	.init_rx_desc = gmac_init_rx_desc,
 	.init_tx_desc = gmac_init_tx_desc,
 	.get_tx_owner = gmac_get_tx_owner,
@@ -655,9 +664,6 @@ struct stmmac_ops gmac_driver = {
 	.set_tx_owner = gmac_set_tx_owner,
 	.set_rx_owner = gmac_set_rx_owner,
 	.get_rx_frame_len = gmac_get_rx_frame_len,
-	.host_irq_status = gmac_irq_status,
-	.set_umac_addr = gmac_set_umac_addr,
-	.get_umac_addr = gmac_get_umac_addr,
 };
 
 struct mac_device_info *gmac_setup(unsigned long ioaddr)
@@ -670,13 +676,16 @@ struct mac_device_info *gmac_setup(unsigned long ioaddr)
 
 	mac = kzalloc(sizeof(const struct mac_device_info), GFP_KERNEL);
 
-	mac->ops = &gmac_driver;
-	mac->hw.pmt = PMT_SUPPORTED;
-	mac->hw.link.port = GMAC_CONTROL_PS;
-	mac->hw.link.duplex = GMAC_CONTROL_DM;
-	mac->hw.link.speed = GMAC_CONTROL_FES;
-	mac->hw.mii.addr = GMAC_MII_ADDR;
-	mac->hw.mii.data = GMAC_MII_DATA;
+	mac->mac = &gmac_ops;
+	mac->desc = &gmac_desc_ops;
+	mac->dma = &gmac_dma_ops;
+
+	mac->pmt = PMT_SUPPORTED;
+	mac->link.port = GMAC_CONTROL_PS;
+	mac->link.duplex = GMAC_CONTROL_DM;
+	mac->link.speed = GMAC_CONTROL_FES;
+	mac->mii.addr = GMAC_MII_ADDR;
+	mac->mii.data = GMAC_MII_DATA;
 
 	return mac;
 }
