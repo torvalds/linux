@@ -123,6 +123,8 @@ struct vm_region {
 	struct file	*vm_file;	/* the backing file or NULL */
 
 	atomic_t	vm_usage;	/* region usage count */
+	bool		vm_icache_flushed : 1; /* true if the icache has been flushed for
+						* this region */
 };
 
 /*
