@@ -226,11 +226,11 @@ struct edma {
 	 */
 	DECLARE_BITMAP(edma_inuse, EDMA_MAX_PARAMENTRY);
 
-	/* The edma_noevent bit for each channel is clear unless
-	 * it doesn't trigger DMA events on this platform.  It uses a
-	 * bit of SOC-specific initialization code.
+	/* The edma_unused bit for each channel is clear unless
+	 * it is not being used on this platform. It uses a bit
+	 * of SOC-specific initialization code.
 	 */
-	DECLARE_BITMAP(edma_noevent, EDMA_MAX_DMACH);
+	DECLARE_BITMAP(edma_unused, EDMA_MAX_DMACH);
 
 	unsigned	irq_res_start;
 	unsigned	irq_res_end;
@@ -556,7 +556,26 @@ static int reserve_contiguous_slots(int ctlr, unsigned int id,
 	return EDMA_CTLR_CHAN(ctlr, i - num_slots + 1);
 }
 
+static int prepare_unused_channel_list(struct device *dev, void *data)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	int i, ctlr;
+
+	for (i = 0; i < pdev->num_resources; i++) {
+		if ((pdev->resource[i].flags & IORESOURCE_DMA) &&
+				(int)pdev->resource[i].start >= 0) {
+			ctlr = EDMA_CTLR(pdev->resource[i].start);
+			clear_bit(EDMA_CHAN_SLOT(pdev->resource[i].start),
+					edma_info[ctlr]->edma_unused);
+		}
+	}
+
+	return 0;
+}
+
 /*-----------------------------------------------------------------------*/
+
+static bool unused_chan_list_done;
 
 /* Resource alloc/free:  dma channels, parameter RAM slots */
 
@@ -596,6 +615,21 @@ int edma_alloc_channel(int channel,
 		enum dma_event_q eventq_no)
 {
 	unsigned i, done = 0, ctlr = 0;
+	int ret = 0;
+
+	if (!unused_chan_list_done) {
+		/*
+		 * Scan all the platform devices to find out the EDMA channels
+		 * used and clear them in the unused list, making the rest
+		 * available for ARM usage.
+		 */
+		ret = bus_for_each_dev(&platform_bus_type, NULL, NULL,
+				prepare_unused_channel_list);
+		if (ret < 0)
+			return ret;
+
+		unused_chan_list_done = true;
+	}
 
 	if (channel >= 0) {
 		ctlr = EDMA_CTLR(channel);
@@ -607,7 +641,7 @@ int edma_alloc_channel(int channel,
 			channel = 0;
 			for (;;) {
 				channel = find_next_bit(edma_info[i]->
-						edma_noevent,
+						edma_unused,
 						edma_info[i]->num_channels,
 						channel);
 				if (channel == edma_info[i]->num_channels)
@@ -1222,7 +1256,7 @@ int edma_start(unsigned channel)
 		unsigned int mask = (1 << (channel & 0x1f));
 
 		/* EDMA channels without event association */
-		if (test_bit(channel, edma_info[ctlr]->edma_noevent)) {
+		if (test_bit(channel, edma_info[ctlr]->edma_unused)) {
 			pr_debug("EDMA: ESR%d %08x\n", j,
 				edma_shadow0_read_array(ctlr, SH_ESR, j));
 			edma_shadow0_write_array(ctlr, SH_ESR, j, mask);
@@ -1347,7 +1381,6 @@ static int __init edma_probe(struct platform_device *pdev)
 	const s8		(*queue_tc_mapping)[2];
 	int			i, j, found = 0;
 	int			status = -1;
-	const s8		*noevent;
 	int			irq[EDMA_MAX_CC] = {0, 0};
 	int			err_irq[EDMA_MAX_CC] = {0, 0};
 	struct resource		*r[EDMA_MAX_CC] = {NULL};
@@ -1410,11 +1443,9 @@ static int __init edma_probe(struct platform_device *pdev)
 			memcpy_toio(edmacc_regs_base[j] + PARM_OFFSET(i),
 					&dummy_paramset, PARM_SIZE);
 
-		noevent = info[j].noevent;
-		if (noevent) {
-			while (*noevent != -1)
-				set_bit(*noevent++, edma_info[j]->edma_noevent);
-		}
+		/* Mark all channels as unused */
+		memset(edma_info[j]->edma_unused, 0xff,
+			sizeof(edma_info[j]->edma_unused));
 
 		sprintf(irq_name, "edma%d", j);
 		irq[j] = platform_get_irq_byname(pdev, irq_name);

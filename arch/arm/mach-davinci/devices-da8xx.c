@@ -83,11 +83,6 @@ struct platform_device da8xx_serial_device = {
 	},
 };
 
-static const s8 da8xx_dma_chan_no_event[] = {
-	20, 21,
-	-1
-};
-
 static const s8 da8xx_queue_tc_mapping[][2] = {
 	/* {event queue no, TC no} */
 	{0, 0},
@@ -109,7 +104,6 @@ static struct edma_soc_info da8xx_edma_info[] = {
 		.n_slot			= 128,
 		.n_tc			= 2,
 		.n_cc			= 1,
-		.noevent		= da8xx_dma_chan_no_event,
 		.queue_tc_mapping	= da8xx_queue_tc_mapping,
 		.queue_priority_mapping	= da8xx_queue_priority_mapping,
 	},
