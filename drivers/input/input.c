@@ -613,12 +613,12 @@ static int input_default_setkeycode(struct input_dev *dev,
 		}
 	}
 
-	clear_bit(old_keycode, dev->keybit);
-	set_bit(keycode, dev->keybit);
+	__clear_bit(old_keycode, dev->keybit);
+	__set_bit(keycode, dev->keybit);
 
 	for (i = 0; i < dev->keycodemax; i++) {
 		if (input_fetch_keycode(dev, i) == old_keycode) {
-			set_bit(old_keycode, dev->keybit);
+			__set_bit(old_keycode, dev->keybit);
 			break; /* Setting the bit twice is useless, so break */
 		}
 	}
@@ -675,6 +675,9 @@ int input_set_keycode(struct input_dev *dev, int scancode, int keycode)
 	retval = dev->setkeycode(dev, scancode, keycode);
 	if (retval)
 		goto out;
+
+	/* Make sure KEY_RESERVED did not get enabled. */
+	__clear_bit(KEY_RESERVED, dev->keybit);
 
 	/*
 	 * Simulate keyup event if keycode is not present
@@ -1513,13 +1516,16 @@ int input_register_device(struct input_dev *dev)
 	const char *path;
 	int error;
 
+	/* Every input device generates EV_SYN/SYN_REPORT events. */
 	__set_bit(EV_SYN, dev->evbit);
+
+	/* KEY_RESERVED is not supposed to be transmitted to userspace. */
+	__clear_bit(KEY_RESERVED, dev->keybit);
 
 	/*
 	 * If delay and period are pre-set by the driver, then autorepeating
 	 * is handled by the driver itself and we don't do it in input.c.
 	 */
-
 	init_timer(&dev->timer);
 	if (!dev->rep[REP_DELAY] && !dev->rep[REP_PERIOD]) {
 		dev->timer.data = (long) dev;
