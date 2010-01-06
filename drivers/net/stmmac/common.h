@@ -25,131 +25,6 @@
 #include "descs.h"
 #include <linux/io.h>
 
-/* *********************************************
-   DMA CRS Control and Status Register Mapping
- * *********************************************/
-#define DMA_BUS_MODE		0x00001000	/* Bus Mode */
-#define DMA_XMT_POLL_DEMAND	0x00001004	/* Transmit Poll Demand */
-#define DMA_RCV_POLL_DEMAND	0x00001008	/* Received Poll Demand */
-#define DMA_RCV_BASE_ADDR	0x0000100c	/* Receive List Base */
-#define DMA_TX_BASE_ADDR	0x00001010	/* Transmit List Base */
-#define DMA_STATUS		0x00001014	/* Status Register */
-#define DMA_CONTROL		0x00001018	/* Ctrl (Operational Mode) */
-#define DMA_INTR_ENA		0x0000101c	/* Interrupt Enable */
-#define DMA_MISSED_FRAME_CTR	0x00001020	/* Missed Frame Counter */
-#define DMA_CUR_TX_BUF_ADDR	0x00001050	/* Current Host Tx Buffer */
-#define DMA_CUR_RX_BUF_ADDR	0x00001054	/* Current Host Rx Buffer */
-
-/* ********************************
-   DMA Control register defines
- * ********************************/
-#define DMA_CONTROL_ST		0x00002000	/* Start/Stop Transmission */
-#define DMA_CONTROL_SR		0x00000002	/* Start/Stop Receive */
-
-/* **************************************
-   DMA Interrupt Enable register defines
- * **************************************/
-/**** NORMAL INTERRUPT ****/
-#define DMA_INTR_ENA_NIE 0x00010000	/* Normal Summary */
-#define DMA_INTR_ENA_TIE 0x00000001	/* Transmit Interrupt */
-#define DMA_INTR_ENA_TUE 0x00000004	/* Transmit Buffer Unavailable */
-#define DMA_INTR_ENA_RIE 0x00000040	/* Receive Interrupt */
-#define DMA_INTR_ENA_ERE 0x00004000	/* Early Receive */
-
-#define DMA_INTR_NORMAL	(DMA_INTR_ENA_NIE | DMA_INTR_ENA_RIE | \
-			DMA_INTR_ENA_TIE)
-
-/**** ABNORMAL INTERRUPT ****/
-#define DMA_INTR_ENA_AIE 0x00008000	/* Abnormal Summary */
-#define DMA_INTR_ENA_FBE 0x00002000	/* Fatal Bus Error */
-#define DMA_INTR_ENA_ETE 0x00000400	/* Early Transmit */
-#define DMA_INTR_ENA_RWE 0x00000200	/* Receive Watchdog */
-#define DMA_INTR_ENA_RSE 0x00000100	/* Receive Stopped */
-#define DMA_INTR_ENA_RUE 0x00000080	/* Receive Buffer Unavailable */
-#define DMA_INTR_ENA_UNE 0x00000020	/* Tx Underflow */
-#define DMA_INTR_ENA_OVE 0x00000010	/* Receive Overflow */
-#define DMA_INTR_ENA_TJE 0x00000008	/* Transmit Jabber */
-#define DMA_INTR_ENA_TSE 0x00000002	/* Transmit Stopped */
-
-#define DMA_INTR_ABNORMAL	(DMA_INTR_ENA_AIE | DMA_INTR_ENA_FBE | \
-				DMA_INTR_ENA_UNE)
-
-/* DMA default interrupt mask */
-#define DMA_INTR_DEFAULT_MASK	(DMA_INTR_NORMAL | DMA_INTR_ABNORMAL)
-
-/* ****************************
- *  DMA Status register defines
- * ****************************/
-#define DMA_STATUS_GPI		0x10000000	/* PMT interrupt */
-#define DMA_STATUS_GMI		0x08000000	/* MMC interrupt */
-#define DMA_STATUS_GLI		0x04000000	/* GMAC Line interface int. */
-#define DMA_STATUS_GMI		0x08000000
-#define DMA_STATUS_GLI		0x04000000
-#define DMA_STATUS_EB_MASK	0x00380000	/* Error Bits Mask */
-#define DMA_STATUS_EB_TX_ABORT	0x00080000	/* Error Bits - TX Abort */
-#define DMA_STATUS_EB_RX_ABORT	0x00100000	/* Error Bits - RX Abort */
-#define DMA_STATUS_TS_MASK	0x00700000	/* Transmit Process State */
-#define DMA_STATUS_TS_SHIFT	20
-#define DMA_STATUS_RS_MASK	0x000e0000	/* Receive Process State */
-#define DMA_STATUS_RS_SHIFT	17
-#define DMA_STATUS_NIS	0x00010000	/* Normal Interrupt Summary */
-#define DMA_STATUS_AIS	0x00008000	/* Abnormal Interrupt Summary */
-#define DMA_STATUS_ERI	0x00004000	/* Early Receive Interrupt */
-#define DMA_STATUS_FBI	0x00002000	/* Fatal Bus Error Interrupt */
-#define DMA_STATUS_ETI	0x00000400	/* Early Transmit Interrupt */
-#define DMA_STATUS_RWT	0x00000200	/* Receive Watchdog Timeout */
-#define DMA_STATUS_RPS	0x00000100	/* Receive Process Stopped */
-#define DMA_STATUS_RU	0x00000080	/* Receive Buffer Unavailable */
-#define DMA_STATUS_RI	0x00000040	/* Receive Interrupt */
-#define DMA_STATUS_UNF	0x00000020	/* Transmit Underflow */
-#define DMA_STATUS_OVF	0x00000010	/* Receive Overflow */
-#define DMA_STATUS_TJT	0x00000008	/* Transmit Jabber Timeout */
-#define DMA_STATUS_TU	0x00000004	/* Transmit Buffer Unavailable */
-#define DMA_STATUS_TPS	0x00000002	/* Transmit Process Stopped */
-#define DMA_STATUS_TI	0x00000001	/* Transmit Interrupt */
-
-/* Other defines */
-#define HASH_TABLE_SIZE 64
-#define PAUSE_TIME 0x200
-
-/* Flow Control defines */
-#define FLOW_OFF	0
-#define FLOW_RX		1
-#define FLOW_TX		2
-#define FLOW_AUTO	(FLOW_TX | FLOW_RX)
-
-/* DMA STORE-AND-FORWARD Operation Mode */
-#define SF_DMA_MODE 1
-
-#define HW_CSUM 1
-#define NO_HW_CSUM 0
-
-/* GMAC TX FIFO is 8K, Rx FIFO is 16K */
-#define BUF_SIZE_16KiB 16384
-#define BUF_SIZE_8KiB 8192
-#define BUF_SIZE_4KiB 4096
-#define BUF_SIZE_2KiB 2048
-
-/* Power Down and WOL */
-#define PMT_NOT_SUPPORTED 0
-#define PMT_SUPPORTED 1
-
-/* Common MAC defines */
-#define MAC_CTRL_REG		0x00000000	/* MAC Control */
-#define MAC_ENABLE_TX		0x00000008	/* Transmitter Enable */
-#define MAC_RNABLE_RX		0x00000004	/* Receiver Enable */
-
-/* MAC Management Counters register */
-#define MMC_CONTROL		0x00000100	/* MMC Control */
-#define MMC_HIGH_INTR		0x00000104	/* MMC High Interrupt */
-#define MMC_LOW_INTR		0x00000108	/* MMC Low Interrupt */
-#define MMC_HIGH_INTR_MASK	0x0000010c	/* MMC High Interrupt Mask */
-#define MMC_LOW_INTR_MASK	0x00000110	/* MMC Low Interrupt Mask */
-
-#define MMC_CONTROL_MAX_FRM_MASK	0x0003ff8	/* Maximum Frame Size */
-#define MMC_CONTROL_MAX_FRM_SHIFT	3
-#define MMC_CONTROL_MAX_FRAME		0x7FF
-
 struct stmmac_extra_stats {
 	/* Transmit errors */
 	unsigned long tx_underflow ____cacheline_aligned;
@@ -198,46 +73,56 @@ struct stmmac_extra_stats {
 	unsigned long normal_irq_n;
 };
 
-/* GMAC core can compute the checksums in HW. */
-enum rx_frame_status {
+#define HASH_TABLE_SIZE 64
+#define PAUSE_TIME 0x200
+
+/* Flow Control defines */
+#define FLOW_OFF	0
+#define FLOW_RX		1
+#define FLOW_TX		2
+#define FLOW_AUTO	(FLOW_TX | FLOW_RX)
+
+#define SF_DMA_MODE 1 /* DMA STORE-AND-FORWARD Operation Mode */
+
+#define HW_CSUM 1
+#define NO_HW_CSUM 0
+enum rx_frame_status { /* IPC status */
 	good_frame = 0,
 	discard_frame = 1,
 	csum_none = 2,
 };
 
-static inline void stmmac_set_mac_addr(unsigned long ioaddr, u8 addr[6],
-			 unsigned int high, unsigned int low)
-{
-	unsigned long data;
+enum tx_dma_irq_status {
+	tx_hard_error = 1,
+	tx_hard_error_bump_tc = 2,
+	handle_tx_rx = 3,
+};
 
-	data = (addr[5] << 8) | addr[4];
-	writel(data, ioaddr + high);
-	data = (addr[3] << 24) | (addr[2] << 16) | (addr[1] << 8) | addr[0];
-	writel(data, ioaddr + low);
+/* GMAC TX FIFO is 8K, Rx FIFO is 16K */
+#define BUF_SIZE_16KiB 16384
+#define BUF_SIZE_8KiB 8192
+#define BUF_SIZE_4KiB 4096
+#define BUF_SIZE_2KiB 2048
 
-	return;
-}
+/* Power Down and WOL */
+#define PMT_NOT_SUPPORTED 0
+#define PMT_SUPPORTED 1
 
-static inline void stmmac_get_mac_addr(unsigned long ioaddr,
-				unsigned char *addr, unsigned int high,
-				unsigned int low)
-{
-	unsigned int hi_addr, lo_addr;
+/* Common MAC defines */
+#define MAC_CTRL_REG		0x00000000	/* MAC Control */
+#define MAC_ENABLE_TX		0x00000008	/* Transmitter Enable */
+#define MAC_RNABLE_RX		0x00000004	/* Receiver Enable */
 
-	/* Read the MAC address from the hardware */
-	hi_addr = readl(ioaddr + high);
-	lo_addr = readl(ioaddr + low);
+/* MAC Management Counters register */
+#define MMC_CONTROL		0x00000100	/* MMC Control */
+#define MMC_HIGH_INTR		0x00000104	/* MMC High Interrupt */
+#define MMC_LOW_INTR		0x00000108	/* MMC Low Interrupt */
+#define MMC_HIGH_INTR_MASK	0x0000010c	/* MMC High Interrupt Mask */
+#define MMC_LOW_INTR_MASK	0x00000110	/* MMC Low Interrupt Mask */
 
-	/* Extract the MAC address from the high and low words */
-	addr[0] = lo_addr & 0xff;
-	addr[1] = (lo_addr >> 8) & 0xff;
-	addr[2] = (lo_addr >> 16) & 0xff;
-	addr[3] = (lo_addr >> 24) & 0xff;
-	addr[4] = hi_addr & 0xff;
-	addr[5] = (hi_addr >> 8) & 0xff;
-
-	return;
-}
+#define MMC_CONTROL_MAX_FRM_MASK	0x0003ff8	/* Maximum Frame Size */
+#define MMC_CONTROL_MAX_FRM_SHIFT	3
+#define MMC_CONTROL_MAX_FRAME		0x7FF
 
 struct stmmac_desc_ops {
 	/* DMA RX descriptor ring initialization */
@@ -287,6 +172,15 @@ struct stmmac_dma_ops {
 	/* To track extra statistic (if supported) */
 	void (*dma_diagnostic_fr) (void *data, struct stmmac_extra_stats *x,
 				   unsigned long ioaddr);
+	void (*enable_dma_transmission) (unsigned long ioaddr);
+	void (*enable_dma_irq) (unsigned long ioaddr);
+	void (*disable_dma_irq) (unsigned long ioaddr);
+	void (*start_tx) (unsigned long ioaddr);
+	void (*stop_tx) (unsigned long ioaddr);
+	void (*start_rx) (unsigned long ioaddr);
+	void (*stop_rx) (unsigned long ioaddr);
+	int (*dma_interrupt) (unsigned long ioaddr,
+			      struct stmmac_extra_stats *x);
 };
 
 struct stmmac_ops {
@@ -332,3 +226,8 @@ struct mac_device_info {
 
 struct mac_device_info *gmac_setup(unsigned long addr);
 struct mac_device_info *mac100_setup(unsigned long addr);
+
+extern void stmmac_set_mac_addr(unsigned long ioaddr, u8 addr[6],
+				unsigned int high, unsigned int low);
+extern void stmmac_get_mac_addr(unsigned long ioaddr, unsigned char *addr,
+				unsigned int high, unsigned int low);

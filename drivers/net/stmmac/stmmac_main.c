@@ -572,50 +572,6 @@ static void free_dma_desc_resources(struct stmmac_priv *priv)
 }
 
 /**
- * stmmac_dma_start_tx
- * @ioaddr: device I/O address
- * Description:  this function starts the DMA tx process.
- */
-static void stmmac_dma_start_tx(unsigned long ioaddr)
-{
-	u32 value = readl(ioaddr + DMA_CONTROL);
-	value |= DMA_CONTROL_ST;
-	writel(value, ioaddr + DMA_CONTROL);
-	return;
-}
-
-static void stmmac_dma_stop_tx(unsigned long ioaddr)
-{
-	u32 value = readl(ioaddr + DMA_CONTROL);
-	value &= ~DMA_CONTROL_ST;
-	writel(value, ioaddr + DMA_CONTROL);
-	return;
-}
-
-/**
- * stmmac_dma_start_rx
- * @ioaddr: device I/O address
- * Description:  this function starts the DMA rx process.
- */
-static void stmmac_dma_start_rx(unsigned long ioaddr)
-{
-	u32 value = readl(ioaddr + DMA_CONTROL);
-	value |= DMA_CONTROL_SR;
-	writel(value, ioaddr + DMA_CONTROL);
-
-	return;
-}
-
-static void stmmac_dma_stop_rx(unsigned long ioaddr)
-{
-	u32 value = readl(ioaddr + DMA_CONTROL);
-	value &= ~DMA_CONTROL_SR;
-	writel(value, ioaddr + DMA_CONTROL);
-
-	return;
-}
-
-/**
  *  stmmac_dma_operation_mode - HW DMA operation mode
  *  @priv : pointer to the private device structure.
  *  Description: it sets the DMA operation mode: tx/rx DMA thresholds
@@ -645,88 +601,6 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 
 	return;
 }
-
-#ifdef STMMAC_DEBUG
-/**
- * show_tx_process_state
- * @status: tx descriptor status field
- * Description: it shows the Transmit Process State for CSR5[22:20]
- */
-static void show_tx_process_state(unsigned int status)
-{
-	unsigned int state;
-	state = (status & DMA_STATUS_TS_MASK) >> DMA_STATUS_TS_SHIFT;
-
-	switch (state) {
-	case 0:
-		pr_info("- TX (Stopped): Reset or Stop command\n");
-		break;
-	case 1:
-		pr_info("- TX (Running):Fetching the Tx desc\n");
-		break;
-	case 2:
-		pr_info("- TX (Running): Waiting for end of tx\n");
-		break;
-	case 3:
-		pr_info("- TX (Running): Reading the data "
-		       "and queuing the data into the Tx buf\n");
-		break;
-	case 6:
-		pr_info("- TX (Suspended): Tx Buff Underflow "
-		       "or an unavailable Transmit descriptor\n");
-		break;
-	case 7:
-		pr_info("- TX (Running): Closing Tx descriptor\n");
-		break;
-	default:
-		break;
-	}
-	return;
-}
-
-/**
- * show_rx_process_state
- * @status: rx descriptor status field
- * Description: it shows the  Receive Process State for CSR5[19:17]
- */
-static void show_rx_process_state(unsigned int status)
-{
-	unsigned int state;
-	state = (status & DMA_STATUS_RS_MASK) >> DMA_STATUS_RS_SHIFT;
-
-	switch (state) {
-	case 0:
-		pr_info("- RX (Stopped): Reset or Stop command\n");
-		break;
-	case 1:
-		pr_info("- RX (Running): Fetching the Rx desc\n");
-		break;
-	case 2:
-		pr_info("- RX (Running):Checking for end of pkt\n");
-		break;
-	case 3:
-		pr_info("- RX (Running): Waiting for Rx pkt\n");
-		break;
-	case 4:
-		pr_info("- RX (Suspended): Unavailable Rx buf\n");
-		break;
-	case 5:
-		pr_info("- RX (Running): Closing Rx descriptor\n");
-		break;
-	case 6:
-		pr_info("- RX(Running): Flushing the current frame"
-		       " from the Rx buf\n");
-		break;
-	case 7:
-		pr_info("- RX (Running): Queuing the Rx frame"
-		       " from the Rx buf into memory\n");
-		break;
-	default:
-		break;
-	}
-	return;
-}
-#endif
 
 /**
  * stmmac_tx:
@@ -811,7 +685,7 @@ static inline void stmmac_enable_irq(struct stmmac_priv *priv)
 		priv->tm->timer_start(tmrate);
 	else
 #endif
-	writel(DMA_INTR_DEFAULT_MASK, priv->dev->base_addr + DMA_INTR_ENA);
+		priv->hw->dma->enable_dma_irq(priv->dev->base_addr);
 }
 
 static inline void stmmac_disable_irq(struct stmmac_priv *priv)
@@ -821,7 +695,7 @@ static inline void stmmac_disable_irq(struct stmmac_priv *priv)
 		priv->tm->timer_stop();
 	else
 #endif
-	writel(0, priv->dev->base_addr + DMA_INTR_ENA);
+		priv->hw->dma->disable_dma_irq(priv->dev->base_addr);
 }
 
 static int stmmac_has_work(struct stmmac_priv *priv)
@@ -880,12 +754,12 @@ static void stmmac_tx_err(struct stmmac_priv *priv)
 {
 	netif_stop_queue(priv->dev);
 
-	stmmac_dma_stop_tx(priv->dev->base_addr);
+	priv->hw->dma->stop_tx(priv->dev->base_addr);
 	dma_free_tx_skbufs(priv);
 	priv->hw->desc->init_tx_desc(priv->dma_tx, priv->dma_tx_size);
 	priv->dirty_tx = 0;
 	priv->cur_tx = 0;
-	stmmac_dma_start_tx(priv->dev->base_addr);
+	priv->hw->dma->start_tx(priv->dev->base_addr);
 
 	priv->dev->stats.tx_errors++;
 	netif_wake_queue(priv->dev);
@@ -893,95 +767,27 @@ static void stmmac_tx_err(struct stmmac_priv *priv)
 	return;
 }
 
-/**
- * stmmac_dma_interrupt - Interrupt handler for the driver
- * @dev: net device structure
- * Description: Interrupt handler for the driver (DMA).
- */
-static void stmmac_dma_interrupt(struct net_device *dev)
+
+static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 {
-	unsigned long ioaddr = dev->base_addr;
-	struct stmmac_priv *priv = netdev_priv(dev);
-	/* read the status register (CSR5) */
-	u32 intr_status = readl(ioaddr + DMA_STATUS);
+	unsigned long ioaddr = priv->dev->base_addr;
+	int status;
 
-	DBG(intr, INFO, "%s: [CSR5: 0x%08x]\n", __func__, intr_status);
+	status = priv->hw->dma->dma_interrupt(priv->dev->base_addr,
+					      &priv->xstats);
+	if (likely(status == handle_tx_rx))
+		_stmmac_schedule(priv);
 
-#ifdef STMMAC_DEBUG
-	/* It displays the DMA transmit process state (CSR5 register) */
-	if (netif_msg_tx_done(priv))
-		show_tx_process_state(intr_status);
-	if (netif_msg_rx_status(priv))
-		show_rx_process_state(intr_status);
-#endif
-	/* ABNORMAL interrupts */
-	if (unlikely(intr_status & DMA_STATUS_AIS)) {
-		DBG(intr, INFO, "CSR5[15] DMA ABNORMAL IRQ: ");
-		if (unlikely(intr_status & DMA_STATUS_UNF)) {
-			DBG(intr, INFO, "transmit underflow\n");
-			if (unlikely(tc != SF_DMA_MODE) && (tc <= 256)) {
-				/* Try to bump up the threshold */
-				tc += 64;
-				priv->hw->dma->dma_mode(ioaddr, tc,
-							SF_DMA_MODE);
-				priv->xstats.threshold = tc;
-			}
-			stmmac_tx_err(priv);
-			priv->xstats.tx_undeflow_irq++;
+	else if (unlikely(status == tx_hard_error_bump_tc)) {
+		/* Try to bump up the dma threshold on this failure */
+		if (unlikely(tc != SF_DMA_MODE) && (tc <= 256)) {
+			tc += 64;
+			priv->hw->dma->dma_mode(ioaddr, tc, SF_DMA_MODE);
+			priv->xstats.threshold = tc;
 		}
-		if (unlikely(intr_status & DMA_STATUS_TJT)) {
-			DBG(intr, INFO, "transmit jabber\n");
-			priv->xstats.tx_jabber_irq++;
-		}
-		if (unlikely(intr_status & DMA_STATUS_OVF)) {
-			DBG(intr, INFO, "recv overflow\n");
-			priv->xstats.rx_overflow_irq++;
-		}
-		if (unlikely(intr_status & DMA_STATUS_RU)) {
-			DBG(intr, INFO, "receive buffer unavailable\n");
-			priv->xstats.rx_buf_unav_irq++;
-		}
-		if (unlikely(intr_status & DMA_STATUS_RPS)) {
-			DBG(intr, INFO, "receive process stopped\n");
-			priv->xstats.rx_process_stopped_irq++;
-		}
-		if (unlikely(intr_status & DMA_STATUS_RWT)) {
-			DBG(intr, INFO, "receive watchdog\n");
-			priv->xstats.rx_watchdog_irq++;
-		}
-		if (unlikely(intr_status & DMA_STATUS_ETI)) {
-			DBG(intr, INFO, "transmit early interrupt\n");
-			priv->xstats.tx_early_irq++;
-		}
-		if (unlikely(intr_status & DMA_STATUS_TPS)) {
-			DBG(intr, INFO, "transmit process stopped\n");
-			priv->xstats.tx_process_stopped_irq++;
-			stmmac_tx_err(priv);
-		}
-		if (unlikely(intr_status & DMA_STATUS_FBI)) {
-			DBG(intr, INFO, "fatal bus error\n");
-			priv->xstats.fatal_bus_error_irq++;
-			stmmac_tx_err(priv);
-		}
-	}
-
-	/* TX/RX NORMAL interrupts */
-	if (intr_status & DMA_STATUS_NIS) {
-		priv->xstats.normal_irq_n++;
-		if (likely((intr_status & DMA_STATUS_RI) ||
-			 (intr_status & (DMA_STATUS_TI))))
-				_stmmac_schedule(priv);
-	}
-
-	/* Optional hardware blocks, interrupts should be disabled */
-	if (unlikely(intr_status &
-		     (DMA_STATUS_GPI | DMA_STATUS_GMI | DMA_STATUS_GLI)))
-		pr_info("%s: unexpected status %08x\n", __func__, intr_status);
-
-	/* Clear the interrupt by writing a logic 1 to the CSR5[15-0] */
-	writel((intr_status & 0x1ffff), ioaddr + DMA_STATUS);
-
-	DBG(intr, INFO, "\n\n");
+		stmmac_tx_err(priv);
+	} else if (unlikely(status == tx_hard_error))
+		stmmac_tx_err(priv);
 
 	return;
 }
@@ -1089,8 +895,8 @@ static int stmmac_open(struct net_device *dev)
 
 	/* Start the ball rolling... */
 	DBG(probe, DEBUG, "%s: DMA RX/TX processes started...\n", dev->name);
-	stmmac_dma_start_tx(ioaddr);
-	stmmac_dma_start_rx(ioaddr);
+	priv->hw->dma->start_tx(ioaddr);
+	priv->hw->dma->start_rx(ioaddr);
 
 #ifdef CONFIG_STMMAC_TIMER
 	priv->tm->timer_start(tmrate);
@@ -1142,8 +948,8 @@ static int stmmac_release(struct net_device *dev)
 	free_irq(dev->irq, dev);
 
 	/* Stop TX/RX DMA and clear the descriptors */
-	stmmac_dma_stop_tx(dev->base_addr);
-	stmmac_dma_stop_rx(dev->base_addr);
+	priv->hw->dma->stop_tx(dev->base_addr);
+	priv->hw->dma->stop_rx(dev->base_addr);
 
 	/* Release and free the Rx/Tx resources */
 	free_dma_desc_resources(priv);
@@ -1227,7 +1033,6 @@ static unsigned int stmmac_handle_jumbo_frames(struct sk_buff *skb,
 		priv->hw->desc->prepare_tx_desc(desc, 0, buf2_size,
 						csum_insertion);
 		priv->hw->desc->set_tx_owner(desc);
-
 		priv->tx_skbuff[entry] = NULL;
 	} else {
 		desc->des2 = dma_map_single(priv->device, skb->data,
@@ -1353,8 +1158,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev->stats.tx_bytes += skb->len;
 
-	/* CSR1 enables the transmit DMA to check for new descriptor */
-	writel(1, dev->base_addr + DMA_XMT_POLL_DEMAND);
+	priv->hw->dma->enable_dma_transmission(dev->base_addr);
 
 	return NETDEV_TX_OK;
 }
@@ -1624,7 +1428,8 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
 		/* To handle GMAC own interrupts */
 		priv->hw->mac->host_irq_status(ioaddr);
 	}
-	stmmac_dma_interrupt(dev);
+
+	stmmac_dma_interrupt(priv);
 
 	return IRQ_HANDLED;
 }
@@ -1988,12 +1793,13 @@ out:
 static int stmmac_dvr_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct resource *res;
 
 	pr_info("%s:\n\tremoving driver", __func__);
 
-	stmmac_dma_stop_rx(ndev->base_addr);
-	stmmac_dma_stop_tx(ndev->base_addr);
+	priv->hw->dma->stop_rx(ndev->base_addr);
+	priv->hw->dma->stop_tx(ndev->base_addr);
 
 	stmmac_mac_disable_rx(ndev->base_addr);
 	stmmac_mac_disable_tx(ndev->base_addr);
@@ -2040,8 +1846,8 @@ static int stmmac_suspend(struct platform_device *pdev, pm_message_t state)
 		napi_disable(&priv->napi);
 
 		/* Stop TX/RX DMA */
-		stmmac_dma_stop_tx(dev->base_addr);
-		stmmac_dma_stop_rx(dev->base_addr);
+		priv->hw->dma->stop_tx(dev->base_addr);
+		priv->hw->dma->stop_rx(dev->base_addr);
 		/* Clear the Rx/Tx descriptors */
 		priv->hw->desc->init_rx_desc(priv->dma_rx, priv->dma_rx_size,
 					     dis_ic);
@@ -2101,8 +1907,8 @@ static int stmmac_resume(struct platform_device *pdev)
 	/* Enable the MAC and DMA */
 	stmmac_mac_enable_rx(ioaddr);
 	stmmac_mac_enable_tx(ioaddr);
-	stmmac_dma_start_tx(ioaddr);
-	stmmac_dma_start_rx(ioaddr);
+	priv->hw->dma->start_tx(ioaddr);
+	priv->hw->dma->start_rx(ioaddr);
 
 #ifdef CONFIG_STMMAC_TIMER
 	priv->tm->timer_start(tmrate);

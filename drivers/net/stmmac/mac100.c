@@ -33,6 +33,7 @@
 
 #include "common.h"
 #include "mac100.h"
+#include "dwmac_dma.h"
 
 #undef MAC100_DEBUG
 /*#define MAC100_DEBUG*/
@@ -483,6 +484,14 @@ struct stmmac_dma_ops mac100_dma_ops = {
 	.dump_regs = mac100_dump_dma_regs,
 	.dma_mode = mac100_dma_operation_mode,
 	.dma_diagnostic_fr = mac100_dma_diagnostic_fr,
+	.enable_dma_transmission = dwmac_enable_dma_transmission,
+	.enable_dma_irq = dwmac_enable_dma_irq,
+	.disable_dma_irq = dwmac_disable_dma_irq,
+	.start_tx = dwmac_dma_start_tx,
+	.stop_tx = dwmac_dma_stop_tx,
+	.start_rx = dwmac_dma_start_rx,
+	.stop_rx = dwmac_dma_stop_rx,
+	.dma_interrupt = dwmac_dma_interrupt,
 };
 
 struct stmmac_desc_ops mac100_desc_ops = {

@@ -28,6 +28,7 @@
 #include <linux/phy.h>
 
 #include "stmmac.h"
+#include "dwmac_dma.h"
 
 #define REG_SPACE_SIZE	0x1054
 #define MAC100_ETHTOOL_NAME	"st_mac100"
