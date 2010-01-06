@@ -1313,6 +1313,7 @@ static struct pcmcia_callback pcmcia_bus_callback = {
 	.owner = THIS_MODULE,
 	.event = ds_event,
 	.requery = pcmcia_bus_rescan,
+	.validate = pccard_validate_cis,
 	.suspend = pcmcia_bus_suspend,
 	.resume = pcmcia_bus_resume,
 };
@@ -1335,6 +1336,13 @@ static int __devinit pcmcia_bus_add_socket(struct device *dev,
 	 * We really should let the drivers themselves drive some of this..
 	 */
 	msleep(250);
+
+	ret = sysfs_create_bin_file(&dev->kobj, &pccard_cis_attr);
+	if (ret) {
+		dev_printk(KERN_ERR, dev, "PCMCIA registration failed\n");
+		pcmcia_put_socket(socket);
+		return ret;
+	}
 
 #ifdef CONFIG_PCMCIA_IOCTL
 	init_waitqueue_head(&socket->queue);
@@ -1370,6 +1378,8 @@ static void pcmcia_bus_remove_socket(struct device *dev,
 	pcmcia_card_remove(socket, NULL);
 	release_cis_mem(socket);
 	mutex_unlock(&socket->skt_mutex);
+
+	sysfs_remove_bin_file(&dev->kobj, &pccard_cis_attr);
 
 	pcmcia_put_socket(socket);
 

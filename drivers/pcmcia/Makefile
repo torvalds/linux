@@ -2,11 +2,11 @@
 # Makefile for the kernel pcmcia subsystem (c/o David Hinds)
 #
 
-pcmcia_core-y					+= cs.o cistpl.o rsrc_mgr.o socket_sysfs.o
+pcmcia_core-y					+= cs.o rsrc_mgr.o socket_sysfs.o
 pcmcia_core-$(CONFIG_CARDBUS)			+= cardbus.o
 obj-$(CONFIG_PCCARD)				+= pcmcia_core.o
 
-pcmcia-y					+= ds.o pcmcia_resource.o
+pcmcia-y					+= ds.o pcmcia_resource.o cistpl.o
 pcmcia-$(CONFIG_PCMCIA_IOCTL)			+= pcmcia_ioctl.o
 obj-$(CONFIG_PCMCIA)				+= pcmcia.o
 

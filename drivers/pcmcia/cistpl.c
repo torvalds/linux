@@ -76,7 +76,6 @@ void release_cis_mem(struct pcmcia_socket *s)
 	s->cis_virt = NULL;
     }
 }
-EXPORT_SYMBOL(release_cis_mem);
 
 /*
  * Map the card memory at "card_offset" into virtual space.
@@ -195,7 +194,6 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	  *(u_char *)(ptr+2), *(u_char *)(ptr+3));
     return 0;
 }
-EXPORT_SYMBOL(pcmcia_read_cis_mem);
 
 
 void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
@@ -254,7 +252,6 @@ void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	}
     }
 }
-EXPORT_SYMBOL(pcmcia_write_cis_mem);
 
 
 /*======================================================================
@@ -335,7 +332,6 @@ void destroy_cis_cache(struct pcmcia_socket *s)
 		kfree(cis);
 	}
 }
-EXPORT_SYMBOL(destroy_cis_cache);
 
 /*======================================================================
 
@@ -374,7 +370,6 @@ int verify_cis_cache(struct pcmcia_socket *s)
 	kfree(buf);
 	return 0;
 }
-EXPORT_SYMBOL(verify_cis_cache);
 
 /*======================================================================
 
@@ -400,7 +395,6 @@ int pcmcia_replace_cis(struct pcmcia_socket *s,
 	memcpy(s->fake_cis, data, len);
 	return 0;
 }
-EXPORT_SYMBOL(pcmcia_replace_cis);
 
 /*======================================================================
 
@@ -446,7 +440,6 @@ int pccard_get_first_tuple(struct pcmcia_socket *s, unsigned int function, tuple
     }
     return pccard_get_next_tuple(s, function, tuple);
 }
-EXPORT_SYMBOL(pccard_get_first_tuple);
 
 static int follow_link(struct pcmcia_socket *s, tuple_t *tuple)
 {
@@ -582,7 +575,6 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function, tuple_
     tuple->CISOffset = ofs + 2;
     return 0;
 }
-EXPORT_SYMBOL(pccard_get_next_tuple);
 
 /*====================================================================*/
 
@@ -606,7 +598,6 @@ int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple)
 		   _MIN(len, tuple->TupleDataMax), tuple->TupleData);
     return 0;
 }
-EXPORT_SYMBOL(pccard_get_tuple_data);
 
 
 /*======================================================================
@@ -1379,7 +1370,6 @@ done:
     kfree(buf);
     return ret;
 }
-EXPORT_SYMBOL(pccard_read_tuple);
 
 
 /**
@@ -1439,7 +1429,6 @@ next_entry:
 	kfree(buf);
 	return ret;
 }
-EXPORT_SYMBOL(pccard_loop_tuple);
 
 
 /**
@@ -1533,4 +1522,149 @@ done:
 	kfree(p);
 	return ret;
 }
-EXPORT_SYMBOL(pccard_validate_cis);
+
+
+#define to_socket(_dev) container_of(_dev, struct pcmcia_socket, dev)
+
+static ssize_t pccard_extract_cis(struct pcmcia_socket *s, char *buf,
+				  loff_t off, size_t count)
+{
+	tuple_t tuple;
+	int status, i;
+	loff_t pointer = 0;
+	ssize_t ret = 0;
+	u_char *tuplebuffer;
+	u_char *tempbuffer;
+
+	tuplebuffer = kmalloc(sizeof(u_char) * 256, GFP_KERNEL);
+	if (!tuplebuffer)
+		return -ENOMEM;
+
+	tempbuffer = kmalloc(sizeof(u_char) * 258, GFP_KERNEL);
+	if (!tempbuffer) {
+		ret = -ENOMEM;
+		goto free_tuple;
+	}
+
+	memset(&tuple, 0, sizeof(tuple_t));
+
+	tuple.Attributes = TUPLE_RETURN_LINK | TUPLE_RETURN_COMMON;
+	tuple.DesiredTuple = RETURN_FIRST_TUPLE;
+	tuple.TupleOffset = 0;
+
+	status = pccard_get_first_tuple(s, BIND_FN_ALL, &tuple);
+	while (!status) {
+		tuple.TupleData = tuplebuffer;
+		tuple.TupleDataMax = 255;
+		memset(tuplebuffer, 0, sizeof(u_char) * 255);
+
+		status = pccard_get_tuple_data(s, &tuple);
+		if (status)
+			break;
+
+		if (off < (pointer + 2 + tuple.TupleDataLen)) {
+			tempbuffer[0] = tuple.TupleCode & 0xff;
+			tempbuffer[1] = tuple.TupleLink & 0xff;
+			for (i = 0; i < tuple.TupleDataLen; i++)
+				tempbuffer[i + 2] = tuplebuffer[i] & 0xff;
+
+			for (i = 0; i < (2 + tuple.TupleDataLen); i++) {
+				if (((i + pointer) >= off) &&
+				    (i + pointer) < (off + count)) {
+					buf[ret] = tempbuffer[i];
+					ret++;
+				}
+			}
+		}
+
+		pointer += 2 + tuple.TupleDataLen;
+
+		if (pointer >= (off + count))
+			break;
+
+		if (tuple.TupleCode == CISTPL_END)
+			break;
+		status = pccard_get_next_tuple(s, BIND_FN_ALL, &tuple);
+	}
+
+	kfree(tempbuffer);
+ free_tuple:
+	kfree(tuplebuffer);
+
+	return ret;
+}
+
+
+static ssize_t pccard_show_cis(struct kobject *kobj,
+			       struct bin_attribute *bin_attr,
+			       char *buf, loff_t off, size_t count)
+{
+	unsigned int size = 0x200;
+
+	if (off >= size)
+		count = 0;
+	else {
+		struct pcmcia_socket *s;
+		unsigned int chains;
+
+		if (off + count > size)
+			count = size - off;
+
+		s = to_socket(container_of(kobj, struct device, kobj));
+
+		if (!(s->state & SOCKET_PRESENT))
+			return -ENODEV;
+		if (pccard_validate_cis(s, &chains))
+			return -EIO;
+		if (!chains)
+			return -ENODATA;
+
+		count = pccard_extract_cis(s, buf, off, count);
+	}
+
+	return count;
+}
+
+
+static ssize_t pccard_store_cis(struct kobject *kobj,
+				struct bin_attribute *bin_attr,
+				char *buf, loff_t off, size_t count)
+{
+	struct pcmcia_socket *s;
+	int error;
+
+	s = to_socket(container_of(kobj, struct device, kobj));
+
+	if (off)
+		return -EINVAL;
+
+	if (count >= CISTPL_MAX_CIS_SIZE)
+		return -EINVAL;
+
+	if (!(s->state & SOCKET_PRESENT))
+		return -ENODEV;
+
+	error = pcmcia_replace_cis(s, buf, count);
+	if (error)
+		return -EIO;
+
+	mutex_lock(&s->skt_mutex);
+	if ((s->callback) && (s->state & SOCKET_PRESENT) &&
+	    !(s->state & SOCKET_CARDBUS)) {
+		if (try_module_get(s->callback->owner)) {
+			s->callback->requery(s, 1);
+			module_put(s->callback->owner);
+		}
+	}
+	mutex_unlock(&s->skt_mutex);
+
+	return count;
+}
+
+
+struct bin_attribute pccard_cis_attr = {
+	.attr = { .name = "cis", .mode = S_IRUGO | S_IWUSR },
+	.size = 0x200,
+	.read = pccard_show_cis,
+	.write = pccard_store_cis,
+};
