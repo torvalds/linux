@@ -238,14 +238,12 @@ config PCMCIA_PROBE
 config M32R_PCC
 	bool "M32R PCMCIA I/F"
 	depends on M32R && CHIP_M32700 && PCMCIA
-	select PCCARD_NONSTATIC
 	help
 	  Say Y here to use the M32R PCMCIA controller.
 
 config M32R_CFC
 	bool "M32R CF I/F Controller"
 	depends on M32R && (PLAT_USRV || PLAT_M32700UT || PLAT_MAPPI2 || PLAT_MAPPI3 || PLAT_OPSPUT)
-	select PCCARD_NONSTATIC
 	help
 	  Say Y here to use the M32R CompactFlash controller.
 
