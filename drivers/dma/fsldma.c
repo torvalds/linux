@@ -1072,6 +1072,7 @@ static int __devinit fsl_dma_chan_probe(struct fsl_dma_device *fdev,
 	struct device_node *node, u32 feature, const char *compatible)
 {
 	struct fsl_dma_chan *new_fsl_chan;
+	struct resource res;
 	int err;
 
 	/* alloc channel */
@@ -1083,7 +1084,7 @@ static int __devinit fsl_dma_chan_probe(struct fsl_dma_device *fdev,
 	}
 
 	/* get dma channel register base */
-	err = of_address_to_resource(node, 0, &new_fsl_chan->reg);
+	err = of_address_to_resource(node, 0, &res);
 	if (err) {
 		dev_err(fdev->dev, "Can't get %s property 'reg'\n",
 				node->full_name);
@@ -1101,10 +1102,8 @@ static int __devinit fsl_dma_chan_probe(struct fsl_dma_device *fdev,
 	WARN_ON(fdev->feature != new_fsl_chan->feature);
 
 	new_fsl_chan->dev = fdev->dev;
-	new_fsl_chan->reg_base = ioremap(new_fsl_chan->reg.start,
-			new_fsl_chan->reg.end - new_fsl_chan->reg.start + 1);
-
-	new_fsl_chan->id = ((new_fsl_chan->reg.start - 0x100) & 0xfff) >> 7;
+	new_fsl_chan->reg_base = ioremap(res.start, resource_size(&res));
+	new_fsl_chan->id = ((res.start - 0x100) & 0xfff) >> 7;
 	if (new_fsl_chan->id >= FSL_DMA_MAX_CHANS_PER_DEVICE) {
 		dev_err(fdev->dev, "There is no %d channel!\n",
 				new_fsl_chan->id);
@@ -1183,6 +1182,7 @@ static int __devinit of_fsl_dma_probe(struct of_device *dev,
 	int err;
 	struct fsl_dma_device *fdev;
 	struct device_node *child;
+	struct resource res;
 
 	fdev = kzalloc(sizeof(struct fsl_dma_device), GFP_KERNEL);
 	if (!fdev) {
@@ -1193,7 +1193,7 @@ static int __devinit of_fsl_dma_probe(struct of_device *dev,
 	INIT_LIST_HEAD(&fdev->common.channels);
 
 	/* get DMA controller register base */
-	err = of_address_to_resource(dev->node, 0, &fdev->reg);
+	err = of_address_to_resource(dev->node, 0, &res);
 	if (err) {
 		dev_err(&dev->dev, "Can't get %s property 'reg'\n",
 				dev->node->full_name);
@@ -1202,9 +1202,8 @@ static int __devinit of_fsl_dma_probe(struct of_device *dev,
 
 	dev_info(&dev->dev, "Probe the Freescale DMA driver for %s "
 			"controller at 0x%llx...\n",
-			match->compatible, (unsigned long long)fdev->reg.start);
-	fdev->reg_base = ioremap(fdev->reg.start, fdev->reg.end
-						- fdev->reg.start + 1);
+			match->compatible, (unsigned long long)res.start);
+	fdev->reg_base = ioremap(res.start, resource_size(&res));
 
 	dma_cap_set(DMA_MEMCPY, fdev->common.cap_mask);
 	dma_cap_set(DMA_INTERRUPT, fdev->common.cap_mask);

@@ -92,8 +92,6 @@ struct fsl_desc_sw {
 	struct list_head node;
 	struct list_head tx_list;
 	struct dma_async_tx_descriptor async_tx;
-	struct list_head *ld;
-	void *priv;
 } __attribute__((aligned(32)));
 
 struct fsl_dma_chan_regs {
@@ -111,7 +109,6 @@ struct fsl_dma_chan;
 
 struct fsl_dma_device {
 	void __iomem *reg_base;	/* DGSR register base */
-	struct resource reg;	/* Resource for register */
 	struct device *dev;
 	struct dma_device common;
 	struct fsl_dma_chan *chan[FSL_DMA_MAX_CHANS_PER_DEVICE];
@@ -138,7 +135,6 @@ struct fsl_dma_chan {
 	struct dma_chan common;		/* DMA common channel */
 	struct dma_pool *desc_pool;	/* Descriptors pool */
 	struct device *dev;		/* Channel device */
-	struct resource reg;		/* Resource for register */
 	int irq;			/* Channel IRQ */
 	int id;				/* Raw id of this channel */
 	struct tasklet_struct tasklet;
