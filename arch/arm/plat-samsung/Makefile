@@ -17,6 +17,8 @@ obj-y				+= gpio-config.o
 
 obj-$(CONFIG_SAMSUNG_CLKSRC)	+= clock-clksrc.o
 
+obj-$(CONFIG_SAMSUNG_IRQ_VIC_TIMER) += irq-vic-timer.o
+
 # devices
 
 obj-$(CONFIG_S3C_DEV_HSMMC)	+= dev-hsmmc.o

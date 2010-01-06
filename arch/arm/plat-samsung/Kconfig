@@ -19,6 +19,13 @@ config SAMSUNG_CLKSRC
 	  Select the clock code for the clksrc implementation
 	  used by newer systems such as the S3C64XX.
 
+# options for IRQ support
+
+config SAMSUNG_IRQ_VIC_TIMER
+       bool
+       help
+         Internal configuration to build the VIC timer interrupt code.
+
 # options for gpio configuration support
 
 config S3C_GPIO_CFG_S3C24XX
