@@ -60,6 +60,22 @@ static struct resource *pcmcia_find_io_region(unsigned long base, int num,
 	return NULL;
 }
 
+int pcmcia_validate_mem(struct pcmcia_socket *s)
+{
+	if (s->resource_ops->validate_mem)
+		return s->resource_ops->validate_mem(s);
+	/* if there is no callback, we can assume that everything is OK */
+	return 0;
+}
+
+struct resource *pcmcia_find_mem_region(u_long base, u_long num, u_long align,
+				 int low, struct pcmcia_socket *s)
+{
+	if (s->resource_ops->find_mem)
+		return s->resource_ops->find_mem(base, num, align, low, s);
+	return NULL;
+}
+
 
 /** alloc_io_space
  *

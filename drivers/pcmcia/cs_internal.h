@@ -133,14 +133,6 @@ int pcmcia_insert_card(struct pcmcia_socket *skt);
 struct pcmcia_socket *pcmcia_get_socket(struct pcmcia_socket *skt);
 void pcmcia_put_socket(struct pcmcia_socket *skt);
 
-/* rsrc_mgr.c */
-int pcmcia_validate_mem(struct pcmcia_socket *s);
-struct resource *pcmcia_find_mem_region(u_long base,
-					u_long num,
-					u_long align,
-					int low,
-					struct pcmcia_socket *s);
-
 /*
  * Stuff internal to module "pcmcia".
  */
@@ -149,6 +141,13 @@ extern struct bus_type pcmcia_bus_type;
 
 /* pcmcia_resource.c */
 extern int pcmcia_release_configuration(struct pcmcia_device *p_dev);
+extern int pcmcia_validate_mem(struct pcmcia_socket *s);
+extern struct resource *pcmcia_find_mem_region(u_long base,
+					       u_long num,
+					       u_long align,
+					       int low,
+					       struct pcmcia_socket *s);
+
 
 /* cistpl.c */
 extern struct bin_attribute pccard_cis_attr;

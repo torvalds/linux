@@ -21,26 +21,6 @@
 #include <pcmcia/cistpl.h>
 #include "cs_internal.h"
 
-
-int pcmcia_validate_mem(struct pcmcia_socket *s)
-{
-	if (s->resource_ops->validate_mem)
-		return s->resource_ops->validate_mem(s);
-	/* if there is no callback, we can assume that everything is OK */
-	return 0;
-}
-EXPORT_SYMBOL(pcmcia_validate_mem);
-
-struct resource *pcmcia_find_mem_region(u_long base, u_long num, u_long align,
-				 int low, struct pcmcia_socket *s)
-{
-	if (s->resource_ops->find_mem)
-		return s->resource_ops->find_mem(base, num, align, low, s);
-	return NULL;
-}
-EXPORT_SYMBOL(pcmcia_find_mem_region);
-
-
 static int static_init(struct pcmcia_socket *s)
 {
 	unsigned long flags;
