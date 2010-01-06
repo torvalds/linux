@@ -104,9 +104,10 @@ setflags_out:
 		err = put_user(inode->i_generation, (int __user *)arg);
 		break;
 	case REISERFS_IOC_SETVERSION:
-		if (!is_owner_or_cap(inode))
+		if (!is_owner_or_cap(inode)) {
 			err = -EPERM;
 			break;
+		}
 		err = mnt_want_write(filp->f_path.mnt);
 		if (err)
 			break;
