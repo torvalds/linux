@@ -263,10 +263,20 @@ struct pcmcia_socket {
  * - pccard_nonstatic_ops	iomem and ioport areas are assigned dynamically.
  *				If this option is selected, use
  *				"select PCCARD_NONSTATIC" in Kconfig.
+ *
  */
 extern struct pccard_resource_ops pccard_static_ops;
+#if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
 extern struct pccard_resource_ops pccard_iodyn_ops;
 extern struct pccard_resource_ops pccard_nonstatic_ops;
+#else
+/* If PCMCIA is not used, but only CARDBUS, these functions are not used
+ * at all. Therefore, do not use the large (240K!) rsrc_nonstatic module
+ */
+#define pccard_iodyn_ops pccard_static_ops
+#define pccard_nonstatic_ops pccard_static_ops
+#endif
+
 
 /* socket drivers are expected to use these callbacks in their .drv struct */
 extern int pcmcia_socket_dev_suspend(struct device *dev);
