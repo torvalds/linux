@@ -967,6 +967,10 @@ static enum dma_status fsl_dma_is_complete(struct dma_chan *chan,
 	return dma_async_is_complete(cookie, last_complete, last_used);
 }
 
+/*----------------------------------------------------------------------------*/
+/* Interrupt Handling                                                         */
+/*----------------------------------------------------------------------------*/
+
 static irqreturn_t fsldma_chan_irq(int irq, void *data)
 {
 	struct fsldma_chan *fsl_chan = data;
@@ -1048,24 +1052,116 @@ static irqreturn_t fsldma_chan_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t fsldma_irq(int irq, void *data)
-{
-	struct fsldma_device *fdev = data;
-	int ch_nr;
-	u32 gsr;
-
-	gsr = (fdev->feature & FSL_DMA_BIG_ENDIAN) ? in_be32(fdev->regs)
-			: in_le32(fdev->regs);
-	ch_nr = (32 - ffs(gsr)) / 8;
-
-	return fdev->chan[ch_nr] ? fsldma_chan_irq(irq,
-			fdev->chan[ch_nr]) : IRQ_NONE;
-}
-
 static void dma_do_tasklet(unsigned long data)
 {
 	struct fsldma_chan *fsl_chan = (struct fsldma_chan *)data;
 	fsl_chan_ld_cleanup(fsl_chan);
+}
+
+static irqreturn_t fsldma_ctrl_irq(int irq, void *data)
+{
+	struct fsldma_device *fdev = data;
+	struct fsldma_chan *chan;
+	unsigned int handled = 0;
+	u32 gsr, mask;
+	int i;
+
+	gsr = (fdev->feature & FSL_DMA_BIG_ENDIAN) ? in_be32(fdev->regs)
+						   : in_le32(fdev->regs);
+	mask = 0xff000000;
+	dev_dbg(fdev->dev, "IRQ: gsr 0x%.8x\n", gsr);
+
+	for (i = 0; i < FSL_DMA_MAX_CHANS_PER_DEVICE; i++) {
+		chan = fdev->chan[i];
+		if (!chan)
+			continue;
+
+		if (gsr & mask) {
+			dev_dbg(fdev->dev, "IRQ: chan %d\n", chan->id);
+			fsldma_chan_irq(irq, chan);
+			handled++;
+		}
+
+		gsr &= ~mask;
+		mask >>= 8;
+	}
+
+	return IRQ_RETVAL(handled);
+}
+
+static void fsldma_free_irqs(struct fsldma_device *fdev)
+{
+	struct fsldma_chan *chan;
+	int i;
+
+	if (fdev->irq != NO_IRQ) {
+		dev_dbg(fdev->dev, "free per-controller IRQ\n");
+		free_irq(fdev->irq, fdev);
+		return;
+	}
+
+	for (i = 0; i < FSL_DMA_MAX_CHANS_PER_DEVICE; i++) {
+		chan = fdev->chan[i];
+		if (chan && chan->irq != NO_IRQ) {
+			dev_dbg(fdev->dev, "free channel %d IRQ\n", chan->id);
+			free_irq(chan->irq, chan);
+		}
+	}
+}
+
+static int fsldma_request_irqs(struct fsldma_device *fdev)
+{
+	struct fsldma_chan *chan;
+	int ret;
+	int i;
+
+	/* if we have a per-controller IRQ, use that */
+	if (fdev->irq != NO_IRQ) {
+		dev_dbg(fdev->dev, "request per-controller IRQ\n");
+		ret = request_irq(fdev->irq, fsldma_ctrl_irq, IRQF_SHARED,
+				  "fsldma-controller", fdev);
+		return ret;
+	}
+
+	/* no per-controller IRQ, use the per-channel IRQs */
+	for (i = 0; i < FSL_DMA_MAX_CHANS_PER_DEVICE; i++) {
+		chan = fdev->chan[i];
+		if (!chan)
+			continue;
+
+		if (chan->irq == NO_IRQ) {
+			dev_err(fdev->dev, "no interrupts property defined for "
+					   "DMA channel %d. Please fix your "
+					   "device tree\n", chan->id);
+			ret = -ENODEV;
+			goto out_unwind;
+		}
+
+		dev_dbg(fdev->dev, "request channel %d IRQ\n", chan->id);
+		ret = request_irq(chan->irq, fsldma_chan_irq, IRQF_SHARED,
+				  "fsldma-chan", chan);
+		if (ret) {
+			dev_err(fdev->dev, "unable to request IRQ for DMA "
+					   "channel %d\n", chan->id);
+			goto out_unwind;
+		}
+	}
+
+	return 0;
+
+out_unwind:
+	for (/* none */; i >= 0; i--) {
+		chan = fdev->chan[i];
+		if (!chan)
+			continue;
+
+		if (chan->irq == NO_IRQ)
+			continue;
+
+		free_irq(chan->irq, chan);
+	}
+
+	return ret;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1143,29 +1239,18 @@ static int __devinit fsl_dma_chan_probe(struct fsldma_device *fdev,
 
 	fchan->common.device = &fdev->common;
 
+	/* find the IRQ line, if it exists in the device tree */
+	fchan->irq = irq_of_parse_and_map(node, 0);
+
 	/* Add the channel to DMA device channel list */
 	list_add_tail(&fchan->common.device_node, &fdev->common.channels);
 	fdev->common.chancnt++;
-
-	fchan->irq = irq_of_parse_and_map(node, 0);
-	if (fchan->irq != NO_IRQ) {
-		err = request_irq(fchan->irq, &fsldma_chan_irq,
-				  IRQF_SHARED, "fsldma-channel", fchan);
-		if (err) {
-			dev_err(fdev->dev, "unable to request IRQ "
-					   "for channel %d\n", fchan->id);
-			goto out_list_del;
-		}
-	}
 
 	dev_info(fdev->dev, "#%d (%s), irq %d\n", fchan->id, compatible,
 		 fchan->irq != NO_IRQ ? fchan->irq : fdev->irq);
 
 	return 0;
 
-out_list_del:
-	irq_dispose_mapping(fchan->irq);
-	list_del_init(&fchan->common.device_node);
 out_iounmap_regs:
 	iounmap(fchan->regs);
 out_free_fchan:
@@ -1176,11 +1261,7 @@ out_return:
 
 static void fsl_dma_chan_remove(struct fsldma_chan *fchan)
 {
-	if (fchan->irq != NO_IRQ) {
-		free_irq(fchan->irq, fchan);
-		irq_dispose_mapping(fchan->irq);
-	}
-
+	irq_dispose_mapping(fchan->irq);
 	list_del(&fchan->common.device_node);
 	iounmap(fchan->regs);
 	kfree(fchan);
@@ -1211,6 +1292,9 @@ static int __devinit fsldma_of_probe(struct of_device *op,
 		goto out_free_fdev;
 	}
 
+	/* map the channel IRQ if it exists, but don't hookup the handler yet */
+	fdev->irq = irq_of_parse_and_map(op->node, 0);
+
 	dma_cap_set(DMA_MEMCPY, fdev->common.cap_mask);
 	dma_cap_set(DMA_INTERRUPT, fdev->common.cap_mask);
 	dma_cap_set(DMA_SLAVE, fdev->common.cap_mask);
@@ -1223,16 +1307,6 @@ static int __devinit fsldma_of_probe(struct of_device *op,
 	fdev->common.device_prep_slave_sg = fsl_dma_prep_slave_sg;
 	fdev->common.device_terminate_all = fsl_dma_device_terminate_all;
 	fdev->common.dev = &op->dev;
-
-	fdev->irq = irq_of_parse_and_map(op->node, 0);
-	if (fdev->irq != NO_IRQ) {
-		err = request_irq(fdev->irq, &fsldma_irq, IRQF_SHARED,
-				  "fsldma-device", fdev);
-		if (err) {
-			dev_err(&op->dev, "unable to request IRQ\n");
-			goto out_iounmap_regs;
-		}
-	}
 
 	dev_set_drvdata(&op->dev, fdev);
 
@@ -1255,12 +1329,24 @@ static int __devinit fsldma_of_probe(struct of_device *op,
 		}
 	}
 
+	/*
+	 * Hookup the IRQ handler(s)
+	 *
+	 * If we have a per-controller interrupt, we prefer that to the
+	 * per-channel interrupts to reduce the number of shared interrupt
+	 * handlers on the same IRQ line
+	 */
+	err = fsldma_request_irqs(fdev);
+	if (err) {
+		dev_err(fdev->dev, "unable to request IRQs\n");
+		goto out_free_fdev;
+	}
+
 	dma_async_device_register(&fdev->common);
 	return 0;
 
-out_iounmap_regs:
-	iounmap(fdev->regs);
 out_free_fdev:
+	irq_dispose_mapping(fdev->irq);
 	kfree(fdev);
 out_return:
 	return err;
@@ -1274,13 +1360,12 @@ static int fsldma_of_remove(struct of_device *op)
 	fdev = dev_get_drvdata(&op->dev);
 	dma_async_device_unregister(&fdev->common);
 
+	fsldma_free_irqs(fdev);
+
 	for (i = 0; i < FSL_DMA_MAX_CHANS_PER_DEVICE; i++) {
 		if (fdev->chan[i])
 			fsl_dma_chan_remove(fdev->chan[i]);
 	}
-
-	if (fdev->irq != NO_IRQ)
-		free_irq(fdev->irq, fdev);
 
 	iounmap(fdev->regs);
 	dev_set_drvdata(&op->dev, NULL);
