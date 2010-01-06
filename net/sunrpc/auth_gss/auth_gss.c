@@ -657,7 +657,7 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 			break;
 		default:
 			printk(KERN_CRIT "%s: bad return from "
-				"gss_fill_context: %ld\n", __func__, err);
+				"gss_fill_context: %zd\n", __func__, err);
 			BUG();
 		}
 		goto err_release_msg;
