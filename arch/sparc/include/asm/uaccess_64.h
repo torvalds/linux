@@ -221,8 +221,8 @@ extern unsigned long copy_from_user_fixup(void *to, const void __user *from,
 static inline unsigned long __must_check
 copy_from_user(void *to, const void __user *from, unsigned long size)
 {
-	unsigned long ret = (unsigned long) -EFAULT;
 	int sz = __compiletime_object_size(to);
+	unsigned long ret = size;
 
 	if (likely(sz == -1 || sz >= size)) {
 		ret = ___copy_from_user(to, from, size);
