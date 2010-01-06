@@ -1252,4 +1252,8 @@ source "block/Kconfig"
 config PREEMPT_NOTIFIERS
 	bool
 
+config PADATA
+	depends on SMP
+	bool
+
 source "kernel/Kconfig.locks"
