@@ -471,8 +471,8 @@ static struct i2c_board_info ap325rxa_i2c_camera[] = {
 };
 
 static struct ov772x_camera_info ov7725_info = {
-	.buswidth	= SOCAM_DATAWIDTH_8,
-	.flags		= OV772X_FLAG_VFLIP | OV772X_FLAG_HFLIP,
+	.flags		= OV772X_FLAG_VFLIP | OV772X_FLAG_HFLIP | \
+			  OV772X_FLAG_8BIT,
 	.edgectrl	= OV772X_AUTO_EDGECTRL(0xf, 0),
 };
 
