@@ -2,7 +2,8 @@
 # Makefile for multifunction miscellaneous devices
 #
 
-obj-$(CONFIG_MFD_88PM8607)	+= 88pm860x-core.o 88pm860x-i2c.o
+88pm860x-objs			:= 88pm860x-core.o 88pm860x-i2c.o
+obj-$(CONFIG_MFD_88PM860X)	+= 88pm860x.o
 obj-$(CONFIG_MFD_SM501)		+= sm501.o
 obj-$(CONFIG_MFD_ASIC3)		+= asic3.o tmio_core.o
 obj-$(CONFIG_MFD_SH_MOBILE_SDHI)		+= sh_mobile_sdhi.o

@@ -9,6 +9,16 @@ config MFD_CORE
 	tristate
 	default n
 
+config MFD_88PM860X
+	bool "Support Marvell 88PM8606/88PM8607"
+	depends on I2C=y
+	select MFD_CORE
+	help
+	  This supports for Marvell 88PM8606/88PM8607 Power Management IC.
+	  This includes the I2C driver and the core APIs _only_, you have to
+	  select individual components like voltage regulators, RTC and
+	  battery-charger under the corresponding menus.
+
 config MFD_SM501
 	tristate "Support for Silicon Motion SM501"
 	 ---help---
@@ -328,16 +338,6 @@ config EZX_PCAP
 	help
 	  This enables the PCAP ASIC present on EZX Phones. This is
 	  needed for MMC, TouchScreen, Sound, USB, etc..
-
-config MFD_88PM8607
-	bool "Support Marvell 88PM8607"
-	depends on I2C=y
-	select MFD_CORE
-	help
-	  This supports for Marvell 88PM8607 Power Management IC. This includes
-	  the I2C driver and the core APIs _only_, you have to select
-	  individual components like voltage regulators, RTC and
-	  battery-charger under the corresponding menus.
 
 config AB4500_CORE
 	tristate "ST-Ericsson's AB4500 Mixed Signal Power management chip"

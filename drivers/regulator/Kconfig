@@ -191,7 +191,7 @@ config REGULATOR_TPS6507X
 
 config REGULATOR_88PM8607
 	bool "Marvell 88PM8607 Power regulators"
-	depends on MFD_88PM8607=y
+	depends on MFD_88PM860X=y
 	help
 	  This driver supports 88PM8607 voltage regulator chips.
 
