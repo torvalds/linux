@@ -164,7 +164,7 @@ int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 	led_trigger_set_default(led_cdev);
 #endif
 
-	printk(KERN_INFO "Registered led device: %s\n",
+	printk(KERN_DEBUG "Registered led device: %s\n",
 			led_cdev->name);
 
 	return 0;
