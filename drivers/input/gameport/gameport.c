@@ -298,14 +298,12 @@ static void gameport_free_event(struct gameport_event *event)
 
 static void gameport_remove_duplicate_events(struct gameport_event *event)
 {
-	struct list_head *node, *next;
-	struct gameport_event *e;
+	struct gameport_event *e, *next;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gameport_event_lock, flags);
 
-	list_for_each_safe(node, next, &gameport_event_list) {
-		e = list_entry(node, struct gameport_event, node);
+	list_for_each_entry_safe(e, next, &gameport_event_list, node) {
 		if (event->object == e->object) {
 			/*
 			 * If this event is of different type we should not
@@ -315,7 +313,7 @@ static void gameport_remove_duplicate_events(struct gameport_event *event)
 			if (event->type != e->type)
 				break;
 
-			list_del_init(node);
+			list_del_init(&e->node);
 			gameport_free_event(e);
 		}
 	}
@@ -325,20 +323,16 @@ static void gameport_remove_duplicate_events(struct gameport_event *event)
 
 static struct gameport_event *gameport_get_event(void)
 {
-	struct gameport_event *event;
-	struct list_head *node;
+	struct gameport_event *event = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gameport_event_lock, flags);
 
-	if (list_empty(&gameport_event_list)) {
-		spin_unlock_irqrestore(&gameport_event_lock, flags);
-		return NULL;
+	if (!list_empty(&gameport_event_list)) {
+		event = list_first_entry(&gameport_event_list,
+					 struct gameport_event, node);
+		list_del_init(&event->node);
 	}
-
-	node = gameport_event_list.next;
-	event = list_entry(node, struct gameport_event, node);
-	list_del_init(node);
 
 	spin_unlock_irqrestore(&gameport_event_lock, flags);
 
@@ -385,16 +379,14 @@ static void gameport_handle_event(void)
  */
 static void gameport_remove_pending_events(void *object)
 {
-	struct list_head *node, *next;
-	struct gameport_event *event;
+	struct gameport_event *event, *next;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gameport_event_lock, flags);
 
-	list_for_each_safe(node, next, &gameport_event_list) {
-		event = list_entry(node, struct gameport_event, node);
+	list_for_each_entry_safe(event, next, &gameport_event_list, node) {
 		if (event->object == object) {
-			list_del_init(node);
+			list_del_init(&event->node);
 			gameport_free_event(event);
 		}
 	}
