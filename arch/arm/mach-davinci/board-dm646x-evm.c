@@ -40,6 +40,8 @@
 #include <mach/serial.h>
 #include <mach/i2c.h>
 #include <mach/nand.h>
+#include <mach/clock.h>
+#include <mach/cdce949.h>
 
 #include "clock.h"
 
@@ -389,6 +391,9 @@ static struct i2c_board_info __initdata i2c_info[] =  {
 	{
 		I2C_BOARD_INFO("cpld_video", 0x3b),
 	},
+	{
+		I2C_BOARD_INFO("cdce949", 0x6c),
+	},
 };
 
 static struct davinci_i2c_platform_data i2c_pdata = {
@@ -681,9 +686,35 @@ static void __init evm_init_i2c(void)
 	evm_init_video();
 }
 
+#define CDCE949_XIN_RATE	27000000
+
+/* CDCE949 support - "lpsc" field is overridden to work as clock number */
+static struct clk cdce_clk_in = {
+	.name	= "cdce_xin",
+	.rate	= CDCE949_XIN_RATE,
+};
+
+static struct davinci_clk cdce_clks[] = {
+	CLK(NULL, "xin", &cdce_clk_in),
+	CLK(NULL, NULL, NULL),
+};
+
+static void __init cdce_clk_init(void)
+{
+	struct davinci_clk *c;
+	struct clk *clk;
+
+	for (c = cdce_clks; c->lk.clk; c++) {
+		clk = c->lk.clk;
+		clkdev_add(&c->lk);
+		clk_register(clk);
+	}
+}
+
 static void __init davinci_map_io(void)
 {
 	dm646x_init();
+	cdce_clk_init();
 }
 
 static struct davinci_uart_config uart_config __initdata = {
