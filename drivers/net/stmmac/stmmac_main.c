@@ -1585,7 +1585,7 @@ static int stmmac_mac_device_setup(struct net_device *dev)
 	if (priv->is_gmac)
 		device = gmac_setup(ioaddr);
 	else
-		device = mac100_setup(ioaddr);
+		device = dwmac100_setup(ioaddr);
 
 	if (!device)
 		return -ENOMEM;

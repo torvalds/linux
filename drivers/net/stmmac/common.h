@@ -225,7 +225,7 @@ struct mac_device_info {
 };
 
 struct mac_device_info *gmac_setup(unsigned long addr);
-struct mac_device_info *mac100_setup(unsigned long addr);
+struct mac_device_info *dwmac100_setup(unsigned long addr);
 
 extern void stmmac_set_mac_addr(unsigned long ioaddr, u8 addr[6],
 				unsigned int high, unsigned int low);
