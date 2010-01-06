@@ -50,6 +50,14 @@ MODULE_AUTHOR("Corentin Chary, Eric Cooper");
 MODULE_DESCRIPTION(EEEPC_LAPTOP_NAME);
 MODULE_LICENSE("GPL");
 
+static bool hotplug_disabled;
+
+module_param(hotplug_disabled, bool, 0644);
+MODULE_PARM_DESC(hotplug_disabled,
+		 "Disable hotplug for wireless device. "
+		 "If your laptop need that, please report to "
+		 "acpi4asus-user@lists.sourceforge.net.");
+
 /*
  * Definitions for Asus EeePC
  */
@@ -1355,6 +1363,8 @@ static int __devinit eeepc_acpi_add(struct acpi_device *device)
 	strcpy(acpi_device_name(device), EEEPC_ACPI_DEVICE_NAME);
 	strcpy(acpi_device_class(device), EEEPC_ACPI_CLASS);
 	device->driver_data = eeepc;
+
+	eeepc->hotplug_disabled = hotplug_disabled;
 
 	eeepc_dmi_check(eeepc);
 
