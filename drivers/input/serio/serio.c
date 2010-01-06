@@ -230,14 +230,12 @@ static void serio_free_event(struct serio_event *event)
 
 static void serio_remove_duplicate_events(struct serio_event *event)
 {
-	struct list_head *node, *next;
-	struct serio_event *e;
+	struct serio_event *e, *next;
 	unsigned long flags;
 
 	spin_lock_irqsave(&serio_event_lock, flags);
 
-	list_for_each_safe(node, next, &serio_event_list) {
-		e = list_entry(node, struct serio_event, node);
+	list_for_each_entry_safe(e, next, &serio_event_list, node) {
 		if (event->object == e->object) {
 			/*
 			 * If this event is of different type we should not
@@ -247,7 +245,7 @@ static void serio_remove_duplicate_events(struct serio_event *event)
 			if (event->type != e->type)
 				break;
 
-			list_del_init(node);
+			list_del_init(&e->node);
 			serio_free_event(e);
 		}
 	}
@@ -258,23 +256,18 @@ static void serio_remove_duplicate_events(struct serio_event *event)
 
 static struct serio_event *serio_get_event(void)
 {
-	struct serio_event *event;
-	struct list_head *node;
+	struct serio_event *event = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&serio_event_lock, flags);
 
-	if (list_empty(&serio_event_list)) {
-		spin_unlock_irqrestore(&serio_event_lock, flags);
-		return NULL;
+	if (!list_empty(&serio_event_list)) {
+		event = list_first_entry(&serio_event_list,
+					 struct serio_event, node);
+		list_del_init(&event->node);
 	}
 
-	node = serio_event_list.next;
-	event = list_entry(node, struct serio_event, node);
-	list_del_init(node);
-
 	spin_unlock_irqrestore(&serio_event_lock, flags);
-
 	return event;
 }
 
@@ -331,16 +324,14 @@ static void serio_handle_event(void)
  */
 static void serio_remove_pending_events(void *object)
 {
-	struct list_head *node, *next;
-	struct serio_event *event;
+	struct serio_event *event, *next;
 	unsigned long flags;
 
 	spin_lock_irqsave(&serio_event_lock, flags);
 
-	list_for_each_safe(node, next, &serio_event_list) {
-		event = list_entry(node, struct serio_event, node);
+	list_for_each_entry_safe(event, next, &serio_event_list, node) {
 		if (event->object == object) {
-			list_del_init(node);
+			list_del_init(&event->node);
 			serio_free_event(event);
 		}
 	}
