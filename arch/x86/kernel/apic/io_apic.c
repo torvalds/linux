@@ -2434,6 +2434,13 @@ asmlinkage void smp_irq_move_cleanup_interrupt(void)
 		cfg = irq_cfg(irq);
 		raw_spin_lock(&desc->lock);
 
+		/*
+		 * Check if the irq migration is in progress. If so, we
+		 * haven't received the cleanup request yet for this irq.
+		 */
+		if (cfg->move_in_progress)
+			goto unlock;
+
 		if (vector == cfg->vector && cpumask_test_cpu(me, cfg->domain))
 			goto unlock;
 
