@@ -243,6 +243,7 @@ struct edma {
 };
 
 static struct edma *edma_info[EDMA_MAX_CC];
+static int arch_num_cc;
 
 /* dummy param set used to (re)initialize parameter RAM slots */
 static const struct edmacc_param dummy_paramset = {
@@ -602,7 +603,7 @@ int edma_alloc_channel(int channel,
 	}
 
 	if (channel < 0) {
-		for (i = 0; i < EDMA_MAX_CC; i++) {
+		for (i = 0; i < arch_num_cc; i++) {
 			channel = 0;
 			for (;;) {
 				channel = find_next_bit(edma_info[i]->
@@ -1467,6 +1468,7 @@ static int __init edma_probe(struct platform_device *pdev)
 			edma_write_array2(j, EDMA_DRAE, i, 1, 0x0);
 			edma_write_array(j, EDMA_QRAE, i, 0x0);
 		}
+		arch_num_cc++;
 	}
 
 	if (tc_errs_handled) {
