@@ -11,6 +11,8 @@
  * the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/stddef.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
@@ -190,9 +192,8 @@ static int gameport_bind_driver(struct gameport *gameport, struct gameport_drive
 
 	error = device_bind_driver(&gameport->dev);
 	if (error) {
-		printk(KERN_WARNING
-			"gameport: device_bind_driver() failed "
-			"for %s (%s) and %s, error: %d\n",
+		dev_warn(&gameport->dev,
+			 "device_bind_driver() failed for %s (%s) and %s, error: %d\n",
 			gameport->phys, gameport->name,
 			drv->description, error);
 		drv->disconnect(gameport);
@@ -209,9 +210,9 @@ static void gameport_find_driver(struct gameport *gameport)
 
 	error = device_attach(&gameport->dev);
 	if (error < 0)
-		printk(KERN_WARNING
-			"gameport: device_attach() failed for %s (%s), error: %d\n",
-			gameport->phys, gameport->name, error);
+		dev_warn(&gameport->dev,
+			 "device_attach() failed for %s (%s), error: %d\n",
+			 gameport->phys, gameport->name, error);
 }
 
 
@@ -262,17 +263,14 @@ static int gameport_queue_event(void *object, struct module *owner,
 
 	event = kmalloc(sizeof(struct gameport_event), GFP_ATOMIC);
 	if (!event) {
-		printk(KERN_ERR
-			"gameport: Not enough memory to queue event %d\n",
-			event_type);
+		pr_err("Not enough memory to queue event %d\n", event_type);
 		retval = -ENOMEM;
 		goto out;
 	}
 
 	if (!try_module_get(owner)) {
-		printk(KERN_WARNING
-			"gameport: Can't get module reference, dropping event %d\n",
-			event_type);
+		pr_warning("Can't get module reference, dropping event %d\n",
+			   event_type);
 		kfree(event);
 		retval = -EINVAL;
 		goto out;
@@ -335,7 +333,6 @@ static struct gameport_event *gameport_get_event(void)
 	}
 
 	spin_unlock_irqrestore(&gameport_event_lock, flags);
-
 	return event;
 }
 
@@ -354,16 +351,14 @@ static void gameport_handle_event(void)
 	if ((event = gameport_get_event())) {
 
 		switch (event->type) {
-			case GAMEPORT_REGISTER_PORT:
-				gameport_add_port(event->object);
-				break;
 
-			case GAMEPORT_ATTACH_DRIVER:
-				gameport_attach_driver(event->object);
-				break;
+		case GAMEPORT_REGISTER_PORT:
+			gameport_add_port(event->object);
+			break;
 
-			default:
-				break;
+		case GAMEPORT_ATTACH_DRIVER:
+			gameport_attach_driver(event->object);
+			break;
 		}
 
 		gameport_remove_duplicate_events(event);
@@ -433,7 +428,6 @@ static int gameport_thread(void *nothing)
 			kthread_should_stop() || !list_empty(&gameport_event_list));
 	} while (!kthread_should_stop());
 
-	printk(KERN_DEBUG "gameport: kgameportd exiting\n");
 	return 0;
 }
 
@@ -445,6 +439,7 @@ static int gameport_thread(void *nothing)
 static ssize_t gameport_show_description(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct gameport *gameport = to_gameport_port(dev);
+
 	return sprintf(buf, "%s\n", gameport->name);
 }
 
@@ -513,7 +508,8 @@ static void gameport_init_port(struct gameport *gameport)
 
 	mutex_init(&gameport->drv_mutex);
 	device_initialize(&gameport->dev);
-	dev_set_name(&gameport->dev, "gameport%lu", (unsigned long)atomic_inc_return(&gameport_no) - 1);
+	dev_set_name(&gameport->dev, "gameport%lu",
+			(unsigned long)atomic_inc_return(&gameport_no) - 1);
 	gameport->dev.bus = &gameport_bus;
 	gameport->dev.release = gameport_release_port;
 	if (gameport->parent)
@@ -542,16 +538,16 @@ static void gameport_add_port(struct gameport *gameport)
 	list_add_tail(&gameport->node, &gameport_list);
 
 	if (gameport->io)
-		printk(KERN_INFO "gameport: %s is %s, io %#x, speed %dkHz\n",
-			gameport->name, gameport->phys, gameport->io, gameport->speed);
+		dev_info(&gameport->dev, "%s is %s, io %#x, speed %dkHz\n",
+			 gameport->name, gameport->phys, gameport->io, gameport->speed);
 	else
-		printk(KERN_INFO "gameport: %s is %s, speed %dkHz\n",
+		dev_info(&gameport->dev, "%s is %s, speed %dkHz\n",
 			gameport->name, gameport->phys, gameport->speed);
 
 	error = device_add(&gameport->dev);
 	if (error)
-		printk(KERN_ERR
-			"gameport: device_add() failed for %s (%s), error: %d\n",
+		dev_err(&gameport->dev,
+			"device_add() failed for %s (%s), error: %d\n",
 			gameport->phys, gameport->name, error);
 }
 
@@ -693,8 +689,7 @@ static void gameport_attach_driver(struct gameport_driver *drv)
 
 	error = driver_attach(&drv->driver);
 	if (error)
-		printk(KERN_ERR
-			"gameport: driver_attach() failed for %s, error: %d\n",
+		pr_err("driver_attach() failed for %s, error: %d\n",
 			drv->driver.name, error);
 }
 
@@ -715,8 +710,7 @@ int __gameport_register_driver(struct gameport_driver *drv, struct module *owner
 
 	error = driver_register(&drv->driver);
 	if (error) {
-		printk(KERN_ERR
-			"gameport: driver_register() failed for %s, error: %d\n",
+		pr_err("driver_register() failed for %s, error: %d\n",
 			drv->driver.name, error);
 		return error;
 	}
@@ -816,7 +810,7 @@ static int __init gameport_init(void)
 
 	error = bus_register(&gameport_bus);
 	if (error) {
-		printk(KERN_ERR "gameport: failed to register gameport bus, error: %d\n", error);
+		pr_err("failed to register gameport bus, error: %d\n", error);
 		return error;
 	}
 
@@ -824,7 +818,7 @@ static int __init gameport_init(void)
 	if (IS_ERR(gameport_task)) {
 		bus_unregister(&gameport_bus);
 		error = PTR_ERR(gameport_task);
-		printk(KERN_ERR "gameport: Failed to start kgameportd, error: %d\n", error);
+		pr_err("Failed to start kgameportd, error: %d\n", error);
 		return error;
 	}
 
