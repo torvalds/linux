@@ -364,6 +364,7 @@ config EEEPC_LAPTOP
 	select HWMON
 	select LEDS_CLASS
 	select NEW_LEDS
+	select INPUT_SPARSEKMAP
 	---help---
 	  This driver supports the Fn-Fx keys on Eee PC laptops.
 
