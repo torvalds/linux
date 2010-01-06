@@ -660,7 +660,7 @@ static void eeepc_dmi_check(void)
 	 * hotplug code. In fact, current hotplug code seems to unplug another
 	 * device...
 	 */
-	if (strcmp(model, "1005HA") == 0) {
+	if (strcmp(model, "1005HA") == 0 || strcmp(model, "1201N") == 0) {
 		ehotk->hotplug_disabled = true;
 		pr_info("wlan hotplug disabled\n");
 	}
