@@ -33,9 +33,9 @@
  */
 static int ext3_release_file (struct inode * inode, struct file * filp)
 {
-	if (EXT3_I(inode)->i_state & EXT3_STATE_FLUSH_ON_CLOSE) {
+	if (ext3_test_inode_state(inode, EXT3_STATE_FLUSH_ON_CLOSE)) {
 		filemap_flush(inode->i_mapping);
-		EXT3_I(inode)->i_state &= ~EXT3_STATE_FLUSH_ON_CLOSE;
+		ext3_clear_inode_state(inode, EXT3_STATE_FLUSH_ON_CLOSE);
 	}
 	/* if we are the last writer on the inode, drop the block reservation */
 	if ((filp->f_mode & FMODE_WRITE) &&

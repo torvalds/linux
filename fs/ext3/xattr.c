@@ -274,7 +274,7 @@ ext3_xattr_ibody_get(struct inode *inode, int name_index, const char *name,
 	void *end;
 	int error;
 
-	if (!(EXT3_I(inode)->i_state & EXT3_STATE_XATTR))
+	if (!ext3_test_inode_state(inode, EXT3_STATE_XATTR))
 		return -ENODATA;
 	error = ext3_get_inode_loc(inode, &iloc);
 	if (error)
@@ -403,7 +403,7 @@ ext3_xattr_ibody_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 	void *end;
 	int error;
 
-	if (!(EXT3_I(inode)->i_state & EXT3_STATE_XATTR))
+	if (!ext3_test_inode_state(inode, EXT3_STATE_XATTR))
 		return 0;
 	error = ext3_get_inode_loc(inode, &iloc);
 	if (error)
@@ -882,7 +882,7 @@ ext3_xattr_ibody_find(struct inode *inode, struct ext3_xattr_info *i,
 	is->s.base = is->s.first = IFIRST(header);
 	is->s.here = is->s.first;
 	is->s.end = (void *)raw_inode + EXT3_SB(inode->i_sb)->s_inode_size;
-	if (EXT3_I(inode)->i_state & EXT3_STATE_XATTR) {
+	if (ext3_test_inode_state(inode, EXT3_STATE_XATTR)) {
 		error = ext3_xattr_check_names(IFIRST(header), is->s.end);
 		if (error)
 			return error;
@@ -914,10 +914,10 @@ ext3_xattr_ibody_set(handle_t *handle, struct inode *inode,
 	header = IHDR(inode, ext3_raw_inode(&is->iloc));
 	if (!IS_LAST_ENTRY(s->first)) {
 		header->h_magic = cpu_to_le32(EXT3_XATTR_MAGIC);
-		EXT3_I(inode)->i_state |= EXT3_STATE_XATTR;
+		ext3_set_inode_state(inode, EXT3_STATE_XATTR);
 	} else {
 		header->h_magic = cpu_to_le32(0);
-		EXT3_I(inode)->i_state &= ~EXT3_STATE_XATTR;
+		ext3_clear_inode_state(inode, EXT3_STATE_XATTR);
 	}
 	return 0;
 }
@@ -967,10 +967,10 @@ ext3_xattr_set_handle(handle_t *handle, struct inode *inode, int name_index,
 	if (error)
 		goto cleanup;
 
-	if (EXT3_I(inode)->i_state & EXT3_STATE_NEW) {
+	if (ext3_test_inode_state(inode, EXT3_STATE_NEW)) {
 		struct ext3_inode *raw_inode = ext3_raw_inode(&is.iloc);
 		memset(raw_inode, 0, EXT3_SB(inode->i_sb)->s_inode_size);
-		EXT3_I(inode)->i_state &= ~EXT3_STATE_NEW;
+		ext3_clear_inode_state(inode, EXT3_STATE_NEW);
 	}
 
 	error = ext3_xattr_ibody_find(inode, &i, &is);
