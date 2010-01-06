@@ -163,7 +163,6 @@ config PCMCIA_M8XX
 	tristate "MPC8xx PCMCIA support"
 	depends on PCMCIA && PPC && 8xx
 	select PCCARD_IODYN
-	select PCCARD_NONSTATIC
 	help
 	  Say Y here to include support for PowerPC 8xx series PCMCIA
 	  controller.

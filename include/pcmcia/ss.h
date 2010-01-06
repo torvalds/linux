@@ -258,6 +258,8 @@ struct pcmcia_socket {
  * - pccard_static_ops		iomem and ioport areas are assigned statically
  * - pccard_iodyn_ops		iomem areas is assigned statically, ioport
  *				areas dynamically
+ *				If this option is selected, use
+ *				"select PCCARD_IODYN" in Kconfig.
  * - pccard_nonstatic_ops	iomem and ioport areas are assigned dynamically.
  *				If this option is selected, use
  *				"select PCCARD_NONSTATIC" in Kconfig.

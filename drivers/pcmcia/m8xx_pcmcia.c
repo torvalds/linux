@@ -1233,7 +1233,7 @@ static int __init m8xx_probe(struct of_device *ofdev,
 		socket[i].socket.io_offset = 0;
 		socket[i].socket.pci_irq = pcmcia_schlvl;
 		socket[i].socket.ops = &m8xx_services;
-		socket[i].socket.resource_ops = &pccard_nonstatic_ops;
+		socket[i].socket.resource_ops = &pccard_iodyn_ops;
 		socket[i].socket.cb_dev = NULL;
 		socket[i].socket.dev.parent = &ofdev->dev;
 		socket[i].pcmcia = pcmcia;
