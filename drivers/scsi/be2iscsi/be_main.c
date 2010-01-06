@@ -1711,7 +1711,8 @@ hwi_write_sgl(struct iscsi_wrb *pwrb, struct scatterlist *sg,
 				      io_task->bhs_pa.u.a32.address_hi);
 
 	l_sg = sg;
-	for (index = 0; (index < num_sg) && (index < 2); index++, sg_next(sg)) {
+	for (index = 0; (index < num_sg) && (index < 2); index++,
+							 sg = sg_next(sg)) {
 		if (index == 0) {
 			sg_len = sg_dma_len(sg);
 			addr = (u64) sg_dma_address(sg);
@@ -1755,7 +1756,7 @@ hwi_write_sgl(struct iscsi_wrb *pwrb, struct scatterlist *sg,
 	psgl++;
 	psgl++;
 	offset = 0;
-	for (index = 0; index < num_sg; index++, sg_next(sg), psgl++) {
+	for (index = 0; index < num_sg; index++, sg = sg_next(sg), psgl++) {
 		sg_len = sg_dma_len(sg);
 		addr = (u64) sg_dma_address(sg);
 		AMAP_SET_BITS(struct amap_iscsi_sge, addr_lo, psgl,
