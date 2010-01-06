@@ -108,7 +108,7 @@ struct fsldma_chan;
 #define FSL_DMA_MAX_CHANS_PER_DEVICE 4
 
 struct fsldma_device {
-	void __iomem *reg_base;	/* DGSR register base */
+	void __iomem *regs;	/* DGSR register base */
 	struct device *dev;
 	struct dma_device common;
 	struct fsldma_chan *chan[FSL_DMA_MAX_CHANS_PER_DEVICE];
@@ -128,7 +128,7 @@ struct fsldma_device {
 #define FSL_DMA_CHAN_START_EXT	0x00002000
 
 struct fsldma_chan {
-	struct fsldma_chan_regs __iomem *reg_base;
+	struct fsldma_chan_regs __iomem *regs;
 	dma_cookie_t completed_cookie;	/* The maximum cookie completed */
 	spinlock_t desc_lock;		/* Descriptor operation lock */
 	struct list_head ld_queue;	/* Link descriptors queue */
