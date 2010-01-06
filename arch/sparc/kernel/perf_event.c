@@ -986,6 +986,17 @@ static int __kprobes perf_event_nmi_handler(struct notifier_block *self,
 	data.addr = 0;
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
+
+	/* If the PMU has the TOE IRQ enable bits, we need to do a
+	 * dummy write to the %pcr to clear the overflow bits and thus
+	 * the interrupt.
+	 *
+	 * Do this before we peek at the counters to determine
+	 * overflow so we don't lose any events.
+	 */
+	if (sparc_pmu->irq_bit)
+		pcr_ops->write(cpuc->pcr);
+
 	for (idx = 0; idx < MAX_HWEVENTS; idx++) {
 		struct perf_event *event = cpuc->events[idx];
 		struct hw_perf_event *hwc;
