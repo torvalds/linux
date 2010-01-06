@@ -561,8 +561,6 @@ static void gameport_add_port(struct gameport *gameport)
 		printk(KERN_ERR
 			"gameport: device_add() failed for %s (%s), error: %d\n",
 			gameport->phys, gameport->name, error);
-	else
-		gameport->registered = 1;
 }
 
 /*
@@ -584,10 +582,8 @@ static void gameport_destroy_port(struct gameport *gameport)
 		gameport->parent = NULL;
 	}
 
-	if (gameport->registered) {
+	if (device_is_registered(&gameport->dev))
 		device_del(&gameport->dev);
-		gameport->registered = 0;
-	}
 
 	list_del_init(&gameport->node);
 
