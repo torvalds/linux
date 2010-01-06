@@ -1448,11 +1448,11 @@ void usb_set_device_state(struct usb_device *udev,
 					|| new_state == USB_STATE_SUSPENDED)
 				;	/* No change to wakeup settings */
 			else if (new_state == USB_STATE_CONFIGURED)
-				device_init_wakeup(&udev->dev,
+				device_set_wakeup_capable(&udev->dev,
 					(udev->actconfig->desc.bmAttributes
 					 & USB_CONFIG_ATT_WAKEUP));
 			else
-				device_init_wakeup(&udev->dev, 0);
+				device_set_wakeup_capable(&udev->dev, 0);
 		}
 		if (udev->state == USB_STATE_SUSPENDED &&
 			new_state != USB_STATE_SUSPENDED)
@@ -1799,9 +1799,17 @@ int usb_new_device(struct usb_device *udev)
 {
 	int err;
 
-	/* Increment the parent's count of unsuspended children */
-	if (udev->parent)
+	if (udev->parent) {
+		/* Increment the parent's count of unsuspended children */
 		usb_autoresume_device(udev->parent);
+
+		/* Initialize non-root-hub device wakeup to disabled;
+		 * device (un)configuration controls wakeup capable
+		 * sysfs power/wakeup controls wakeup enabled/disabled
+		 */
+		device_init_wakeup(&udev->dev, 0);
+		device_set_wakeup_enable(&udev->dev, 1);
+	}
 
 	usb_detect_quirks(udev);
 	err = usb_enumerate_device(udev);	/* Read descriptors */
