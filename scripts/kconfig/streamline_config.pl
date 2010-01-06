@@ -264,7 +264,20 @@ foreach my $makefile (@makefiles) {
 my %modules;
 
 # see what modules are loaded on this system
-open(LIN,"/sbin/lsmod|") || die "Cant lsmod";
+my $lsmod;
+
+foreach $dir ( ("/sbin", "/bin", "/usr/sbin", "/usr/bin") ) {
+    if ( -x "$dir/lsmod" ) {
+	$lsmod = "$dir/lsmod";
+	last;
+    }
+}
+if (!defined($lsmod)) {
+    # try just the path
+    $lsmod = "lsmod";
+}
+
+open(LIN,"$lsmod|") || die "Can not call lsmod with $lsmod";
 while (<LIN>) {
 	next if (/^Module/);  # Skip the first line.
 	if (/^(\S+)/) {
