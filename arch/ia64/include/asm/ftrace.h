@@ -8,7 +8,6 @@
 extern void _mcount(unsigned long pfs, unsigned long r1, unsigned long b0, unsigned long r0);
 #define mcount _mcount
 
-#include <asm/kprobes.h>
 /* In IA64, MCOUNT_ADDR is set in link time, so it's not a constant at compile time */
 #define MCOUNT_ADDR (((struct fnptr *)mcount)->ip)
 #define FTRACE_ADDR (((struct fnptr *)ftrace_caller)->ip)
