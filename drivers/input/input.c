@@ -1497,6 +1497,25 @@ void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int
 }
 EXPORT_SYMBOL(input_set_capability);
 
+#define INPUT_CLEANSE_BITMASK(dev, type, bits)				\
+	do {								\
+		if (!test_bit(EV_##type, dev->evbit))			\
+			memset(dev->bits##bit, 0,			\
+				sizeof(dev->bits##bit));		\
+	} while (0)
+
+static void input_cleanse_bitmasks(struct input_dev *dev)
+{
+	INPUT_CLEANSE_BITMASK(dev, KEY, key);
+	INPUT_CLEANSE_BITMASK(dev, REL, rel);
+	INPUT_CLEANSE_BITMASK(dev, ABS, abs);
+	INPUT_CLEANSE_BITMASK(dev, MSC, msc);
+	INPUT_CLEANSE_BITMASK(dev, LED, led);
+	INPUT_CLEANSE_BITMASK(dev, SND, snd);
+	INPUT_CLEANSE_BITMASK(dev, FF, ff);
+	INPUT_CLEANSE_BITMASK(dev, SW, sw);
+}
+
 /**
  * input_register_device - register device with input core
  * @dev: device to be registered
@@ -1521,6 +1540,9 @@ int input_register_device(struct input_dev *dev)
 
 	/* KEY_RESERVED is not supposed to be transmitted to userspace. */
 	__clear_bit(KEY_RESERVED, dev->keybit);
+
+	/* Make sure that bitmasks not mentioned in dev->evbit are clean. */
+	input_cleanse_bitmasks(dev);
 
 	/*
 	 * If delay and period are pre-set by the driver, then autorepeating
