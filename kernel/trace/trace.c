@@ -1392,8 +1392,10 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 	entry->fmt			= fmt;
 
 	memcpy(entry->buf, trace_buf, sizeof(u32) * len);
-	if (!filter_check_discard(call, entry, buffer, event))
+	if (!filter_check_discard(call, entry, buffer, event)) {
 		ring_buffer_unlock_commit(buffer, event);
+		ftrace_trace_stack(buffer, flags, 6, pc);
+	}
 
 out_unlock:
 	arch_spin_unlock(&trace_buf_lock);
@@ -1466,8 +1468,10 @@ int trace_array_vprintk(struct trace_array *tr,
 
 	memcpy(&entry->buf, trace_buf, len);
 	entry->buf[len] = '\0';
-	if (!filter_check_discard(call, entry, buffer, event))
+	if (!filter_check_discard(call, entry, buffer, event)) {
 		ring_buffer_unlock_commit(buffer, event);
+		ftrace_trace_stack(buffer, irq_flags, 6, pc);
+	}
 
  out_unlock:
 	arch_spin_unlock(&trace_buf_lock);
