@@ -241,11 +241,11 @@ struct intel_limit {
 #define IRONLAKE_VCO_MIN         1760000
 #define IRONLAKE_VCO_MAX         3510000
 #define IRONLAKE_N_MIN           1
-#define IRONLAKE_N_MAX           5
+#define IRONLAKE_N_MAX           6
 #define IRONLAKE_M_MIN           79
-#define IRONLAKE_M_MAX           118
+#define IRONLAKE_M_MAX           127
 #define IRONLAKE_M1_MIN          12
-#define IRONLAKE_M1_MAX          23
+#define IRONLAKE_M1_MAX          22
 #define IRONLAKE_M2_MIN          5
 #define IRONLAKE_M2_MAX          9
 #define IRONLAKE_P_SDVO_DAC_MIN  5
