@@ -131,7 +131,8 @@ struct fsldma_chan {
 	struct fsldma_chan_regs __iomem *regs;
 	dma_cookie_t completed_cookie;	/* The maximum cookie completed */
 	spinlock_t desc_lock;		/* Descriptor operation lock */
-	struct list_head ld_queue;	/* Link descriptors queue */
+	struct list_head ld_pending;	/* Link descriptors queue */
+	struct list_head ld_running;	/* Link descriptors queue */
 	struct dma_chan common;		/* DMA common channel */
 	struct dma_pool *desc_pool;	/* Descriptors pool */
 	struct device *dev;		/* Channel device */
