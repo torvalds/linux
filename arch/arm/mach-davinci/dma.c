@@ -642,7 +642,7 @@ int edma_alloc_channel(int channel,
 
 	map_dmach_queue(ctlr, channel, eventq_no);
 
-	return channel;
+	return EDMA_CTLR_CHAN(ctlr, channel);
 }
 EXPORT_SYMBOL(edma_alloc_channel);
 
