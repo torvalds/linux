@@ -24,8 +24,8 @@ struct ramzswap_ioctl_stats {
 				 * size (if present) */
 	u64 num_reads;		/* failed + successful */
 	u64 num_writes;		/* --do-- */
-	u64 failed_reads;	/* can happen when memory is too low */
-	u64 failed_writes;	/* should NEVER! happen */
+	u64 failed_reads;	/* should NEVER! happen */
+	u64 failed_writes;	/* can happen when memory is too low */
 	u64 invalid_io;		/* non-swap I/O requests */
 	u32 pages_zero;		/* no. of zero filled pages */
 	u32 good_compress_pct;	/* no. of pages with compression ratio<=50% */

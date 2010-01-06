@@ -730,7 +730,7 @@ static int ramzswap_read(struct ramzswap *rzs, struct bio *bio)
 	if (!rzs->table[index].page)
 		return handle_ramzswap_fault(rzs, bio);
 
-	/* Page is stored uncompressed since its incompressible */
+	/* Page is stored uncompressed since it's incompressible */
 	if (unlikely(rzs_test_flag(rzs, index, RZS_UNCOMPRESSED)))
 		return handle_uncompressed_page(rzs, bio);
 
@@ -792,7 +792,7 @@ static int ramzswap_write(struct ramzswap *rzs, struct bio *bio)
 		ramzswap_free_page(rzs, index);
 
 	/*
-	 * No memory ia allocated for zero filled pages.
+	 * No memory is allocated for zero filled pages.
 	 * Simply clear zero page flag.
 	 */
 	if (rzs_test_flag(rzs, index, RZS_ZERO)) {

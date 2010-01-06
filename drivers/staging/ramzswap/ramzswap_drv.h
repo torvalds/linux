@@ -102,7 +102,7 @@ struct table {
 	u16 offset;
 	u8 count;	/* object ref count (not yet used) */
 	u8 flags;
-} __attribute__((aligned(4)));;
+} __attribute__((aligned(4)));
 
 /*
  * Swap extent information in case backing swap is a regular
@@ -121,8 +121,8 @@ struct ramzswap_stats {
 #if defined(CONFIG_RAMZSWAP_STATS)
 	u64 num_reads;		/* failed + successful */
 	u64 num_writes;		/* --do-- */
-	u64 failed_reads;	/* can happen when memory is too low */
-	u64 failed_writes;	/* should NEVER! happen */
+	u64 failed_reads;	/* should NEVER! happen */
+	u64 failed_writes;	/* can happen when memory is too low */
 	u64 invalid_io;		/* non-swap I/O requests */
 	u32 pages_zero;		/* no. of zero filled pages */
 	u32 pages_stored;	/* no. of pages currently stored */

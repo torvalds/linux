@@ -273,7 +273,7 @@ static void remove_block(struct xv_pool *pool, struct page *page, u32 offset,
 }
 
 /*
- * Allocate a page and add it freelist of given pool.
+ * Allocate a page and add it to freelist of given pool.
  */
 static int grow_pool(struct xv_pool *pool, gfp_t flags)
 {

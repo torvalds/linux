@@ -62,7 +62,7 @@ struct link_free {
 
 struct block_header {
 	union {
-		/* This common header must be ALIGN bytes */
+		/* This common header must be XV_ALIGN bytes */
 		u8 common[XV_ALIGN];
 		struct {
 			u16 size;
