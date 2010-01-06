@@ -595,7 +595,7 @@ int edma_alloc_channel(int channel,
 		void *data,
 		enum dma_event_q eventq_no)
 {
-	unsigned i, done, ctlr = 0;
+	unsigned i, done = 0, ctlr = 0;
 
 	if (channel >= 0) {
 		ctlr = EDMA_CTLR(channel);
@@ -611,7 +611,7 @@ int edma_alloc_channel(int channel,
 						edma_info[i]->num_channels,
 						channel);
 				if (channel == edma_info[i]->num_channels)
-					return -ENOMEM;
+					break;
 				if (!test_and_set_bit(channel,
 						edma_info[i]->edma_inuse)) {
 					done = 1;
@@ -623,6 +623,8 @@ int edma_alloc_channel(int channel,
 			if (done)
 				break;
 		}
+		if (!done)
+			return -ENOMEM;
 	} else if (channel >= edma_info[ctlr]->num_channels) {
 		return -EINVAL;
 	} else if (test_and_set_bit(channel, edma_info[ctlr]->edma_inuse)) {
