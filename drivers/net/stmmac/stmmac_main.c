@@ -1067,6 +1067,9 @@ static int stmmac_open(struct net_device *dev)
 
 	/* Copy the MAC addr into the HW  */
 	priv->mac_type->ops->set_umac_addr(ioaddr, dev->dev_addr, 0);
+	/* If required, perform hw setup of the bus. */
+	if (priv->bus_setup)
+		priv->bus_setup(ioaddr);
 	/* Initialize the MAC Core */
 	priv->mac_type->ops->core_init(ioaddr);
 
