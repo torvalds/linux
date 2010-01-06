@@ -1349,7 +1349,7 @@ static irqreturn_t wm8350_hp_jack_handler(int irq, void *data)
 	int mask;
 	struct wm8350_jack_data *jack = NULL;
 
-	switch (irq) {
+	switch (irq - wm8350->irq_base) {
 	case WM8350_IRQ_CODEC_JCK_DET_L:
 		jack = &priv->hpl;
 		mask = WM8350_JACK_L_LVL;
@@ -1424,7 +1424,7 @@ int wm8350_hp_jack_detect(struct snd_soc_codec *codec, enum wm8350_jack which,
 	wm8350_set_bits(wm8350, WM8350_JACK_DETECT, ena);
 
 	/* Sync status */
-	wm8350_hp_jack_handler(irq, priv);
+	wm8350_hp_jack_handler(irq + wm8350->irq_base, priv);
 
 	return 0;
 }

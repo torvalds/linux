@@ -190,7 +190,7 @@ static irqreturn_t wm8350_charger_handler(int irq, void *data)
 	struct wm8350_power *power = &wm8350->power;
 	struct wm8350_charger_policy *policy = power->policy;
 
-	switch (irq) {
+	switch (irq - wm8350->irq_base) {
 	case WM8350_IRQ_CHG_BAT_FAIL:
 		dev_err(wm8350->dev, "battery failed\n");
 		break;
