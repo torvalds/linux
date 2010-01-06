@@ -1583,7 +1583,7 @@ static int stmmac_mac_device_setup(struct net_device *dev)
 	struct mac_device_info *device;
 
 	if (priv->is_gmac)
-		device = gmac_setup(ioaddr);
+		device = dwmac1000_setup(ioaddr);
 	else
 		device = dwmac100_setup(ioaddr);
 

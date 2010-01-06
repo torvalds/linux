@@ -224,7 +224,7 @@ struct mac_device_info {
 	struct mac_link link;
 };
 
-struct mac_device_info *gmac_setup(unsigned long addr);
+struct mac_device_info *dwmac1000_setup(unsigned long addr);
 struct mac_device_info *dwmac100_setup(unsigned long addr);
 
 extern void stmmac_set_mac_addr(unsigned long ioaddr, u8 addr[6],
