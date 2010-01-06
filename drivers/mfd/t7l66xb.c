@@ -38,6 +38,19 @@ enum {
 	T7L66XB_CELL_MMC,
 };
 
+static const struct resource t7l66xb_mmc_resources[] = {
+	{
+		.start = 0x800,
+		.end	= 0x9ff,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_T7L66XB_MMC,
+		.end	= IRQ_T7L66XB_MMC,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
 #define SCR_REVID	0x08		/* b Revision ID	*/
 #define SCR_IMR		0x42		/* b Interrupt Mask	*/
 #define SCR_DEV_CTL	0xe0		/* b Device control	*/
@@ -83,6 +96,9 @@ static int t7l66xb_mmc_enable(struct platform_device *mmc)
 
 	spin_unlock_irqrestore(&t7l66xb->lock, flags);
 
+	tmio_core_mmc_enable(t7l66xb->scr + 0x200, 0,
+		t7l66xb_mmc_resources[0].start & 0xfffe);
+
 	return 0;
 }
 
@@ -106,28 +122,28 @@ static int t7l66xb_mmc_disable(struct platform_device *mmc)
 	return 0;
 }
 
+static void t7l66xb_mmc_pwr(struct platform_device *mmc, int state)
+{
+	struct platform_device *dev = to_platform_device(mmc->dev.parent);
+	struct t7l66xb *t7l66xb = platform_get_drvdata(dev);
+
+	tmio_core_mmc_pwr(t7l66xb->scr + 0x200, 0, state);
+}
+
+static void t7l66xb_mmc_clk_div(struct platform_device *mmc, int state)
+{
+	struct platform_device *dev = to_platform_device(mmc->dev.parent);
+	struct t7l66xb *t7l66xb = platform_get_drvdata(dev);
+
+	tmio_core_mmc_clk_div(t7l66xb->scr + 0x200, 0, state);
+}
+
 /*--------------------------------------------------------------------------*/
 
 static struct tmio_mmc_data t7166xb_mmc_data = {
 	.hclk = 24000000,
-};
-
-static const struct resource t7l66xb_mmc_resources[] = {
-	{
-		.start = 0x800,
-		.end	= 0x9ff,
-		.flags = IORESOURCE_MEM,
-	},
-	{
-		.start = 0x200,
-		.end	= 0x2ff,
-		.flags = IORESOURCE_MEM,
-	},
-	{
-		.start = IRQ_T7L66XB_MMC,
-		.end	= IRQ_T7L66XB_MMC,
-		.flags = IORESOURCE_IRQ,
-	},
+	.set_pwr = t7l66xb_mmc_pwr,
+	.set_clk_div = t7l66xb_mmc_clk_div,
 };
 
 static const struct resource t7l66xb_nand_resources[] = {
@@ -281,6 +297,9 @@ static int t7l66xb_resume(struct platform_device *dev)
 	clk_enable(t7l66xb->clk48m);
 	if (pdata && pdata->resume)
 		pdata->resume(dev);
+
+	tmio_core_mmc_enable(t7l66xb->scr + 0x200, 0,
+		t7l66xb_mmc_resources[0].start & 0xfffe);
 
 	return 0;
 }
