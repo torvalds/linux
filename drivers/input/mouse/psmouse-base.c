@@ -1450,24 +1450,10 @@ ssize_t psmouse_attr_show_helper(struct device *dev, struct device_attribute *de
 	struct serio *serio = to_serio_port(dev);
 	struct psmouse_attribute *attr = to_psmouse_attr(devattr);
 	struct psmouse *psmouse;
-	int retval;
-
-	retval = serio_pin_driver(serio);
-	if (retval)
-		return retval;
-
-	if (serio->drv != &psmouse_drv) {
-		retval = -ENODEV;
-		goto out;
-	}
 
 	psmouse = serio_get_drvdata(serio);
 
-	retval = attr->show(psmouse, attr->data, buf);
-
-out:
-	serio_unpin_driver(serio);
-	return retval;
+	return attr->show(psmouse, attr->data, buf);
 }
 
 ssize_t psmouse_attr_set_helper(struct device *dev, struct device_attribute *devattr,
@@ -1478,18 +1464,9 @@ ssize_t psmouse_attr_set_helper(struct device *dev, struct device_attribute *dev
 	struct psmouse *psmouse, *parent = NULL;
 	int retval;
 
-	retval = serio_pin_driver(serio);
-	if (retval)
-		return retval;
-
-	if (serio->drv != &psmouse_drv) {
-		retval = -ENODEV;
-		goto out_unpin;
-	}
-
 	retval = mutex_lock_interruptible(&psmouse_mutex);
 	if (retval)
-		goto out_unpin;
+		goto out;
 
 	psmouse = serio_get_drvdata(serio);
 
@@ -1519,8 +1496,7 @@ ssize_t psmouse_attr_set_helper(struct device *dev, struct device_attribute *dev
 
  out_unlock:
 	mutex_unlock(&psmouse_mutex);
- out_unpin:
-	serio_unpin_driver(serio);
+ out:
 	return retval;
 }
 
@@ -1582,9 +1558,7 @@ static ssize_t psmouse_attr_set_protocol(struct psmouse *psmouse, void *data, co
 		}
 
 		mutex_unlock(&psmouse_mutex);
-		serio_unpin_driver(serio);
 		serio_unregister_child_port(serio);
-		serio_pin_driver_uninterruptible(serio);
 		mutex_lock(&psmouse_mutex);
 
 		if (serio->drv != &psmouse_drv) {
