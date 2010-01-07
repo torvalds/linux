@@ -1388,11 +1388,6 @@ void r600_pciep_wreg(struct radeon_device *rdev, u32 reg, u32 v)
 	(void)RREG32(PCIE_PORT_DATA);
 }
 
-void r600_hdp_flush(struct radeon_device *rdev)
-{
-	WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
-}
-
 /*
  * CP & Ring
  */
@@ -1789,6 +1784,8 @@ void r600_fence_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
 	radeon_ring_write(rdev, ((rdev->fence_drv.scratch_reg - PACKET3_SET_CONFIG_REG_OFFSET) >> 2));
 	radeon_ring_write(rdev, fence->seq);
+	radeon_ring_write(rdev, PACKET0(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0));
+	radeon_ring_write(rdev, 1);
 	/* CP_INTERRUPT packet 3 no longer exists, use packet 0 */
 	radeon_ring_write(rdev, PACKET0(CP_INT_STATUS, 0));
 	radeon_ring_write(rdev, RB_INT_STAT);

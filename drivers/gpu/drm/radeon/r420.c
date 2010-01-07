@@ -219,6 +219,7 @@ static int r420_startup(struct radeon_device *rdev)
 	r420_pipes_init(rdev);
 	/* Enable IRQ */
 	r100_irq_set(rdev);
+	rdev->config.r300.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
 	if (r) {
