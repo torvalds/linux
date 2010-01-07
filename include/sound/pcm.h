@@ -311,6 +311,7 @@ struct snd_pcm_runtime {
 	struct snd_pcm_mmap_control *control;
 
 	/* -- locking / scheduling -- */
+	unsigned int nowake: 1;		/* no wakeup (data-copy in progress) */
 	wait_queue_head_t sleep;
 	struct fasync_struct *fasync;
 
@@ -839,6 +840,8 @@ void snd_pcm_set_sync(struct snd_pcm_substream *substream);
 int snd_pcm_lib_interleave_len(struct snd_pcm_substream *substream);
 int snd_pcm_lib_ioctl(struct snd_pcm_substream *substream,
 		      unsigned int cmd, void *arg);                      
+int snd_pcm_update_state(struct snd_pcm_substream *substream,
+			 struct snd_pcm_runtime *runtime);
 int snd_pcm_update_hw_ptr(struct snd_pcm_substream *substream);
 int snd_pcm_playback_xrun_check(struct snd_pcm_substream *substream);
 int snd_pcm_capture_xrun_check(struct snd_pcm_substream *substream);

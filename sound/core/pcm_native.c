@@ -516,6 +516,7 @@ static int snd_pcm_sw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_sw_params *params)
 {
 	struct snd_pcm_runtime *runtime;
+	int err;
 
 	if (PCM_RUNTIME_CHECK(substream))
 		return -ENXIO;
@@ -540,6 +541,7 @@ static int snd_pcm_sw_params(struct snd_pcm_substream *substream,
 		if (params->silence_threshold > runtime->buffer_size)
 			return -EINVAL;
 	}
+	err = 0;
 	snd_pcm_stream_lock_irq(substream);
 	runtime->tstamp_mode = params->tstamp_mode;
 	runtime->period_step = params->period_step;
@@ -553,10 +555,10 @@ static int snd_pcm_sw_params(struct snd_pcm_substream *substream,
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
 		    runtime->silence_size > 0)
 			snd_pcm_playback_silence(substream, ULONG_MAX);
-		wake_up(&runtime->sleep);
+		err = snd_pcm_update_state(substream, runtime);
 	}
 	snd_pcm_stream_unlock_irq(substream);
-	return 0;
+	return err;
 }
 
 static int snd_pcm_sw_params_user(struct snd_pcm_substream *substream,
