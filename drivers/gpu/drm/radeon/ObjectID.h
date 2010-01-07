@@ -106,6 +106,8 @@
 #define CONNECTOR_OBJECT_ID_CROSSFIRE             0x11
 #define CONNECTOR_OBJECT_ID_HARDCODE_DVI          0x12
 #define CONNECTOR_OBJECT_ID_DISPLAYPORT           0x13
+#define CONNECTOR_OBJECT_ID_eDP                   0x14
+#define CONNECTOR_OBJECT_ID_MXM                   0x15
 
 /* deleted */
 
@@ -116,7 +118,15 @@
 #define ROUTER_OBJECT_ID_I2C_EXTENDER_CNTL				0x01
 
 /****************************************************/
-// Graphics Object ENUM ID Definition               */
+/* Generic Object ID Definition                     */
+/****************************************************/
+#define GENERIC_OBJECT_ID_NONE                    0x00
+#define GENERIC_OBJECT_ID_GLSYNC                  0x01
+#define GENERIC_OBJECT_ID_PX2_NON_DRIVABLE        0x02
+#define GENERIC_OBJECT_ID_MXM_OPM                 0x03
+
+/****************************************************/
+/* Graphics Object ENUM ID Definition               */
 /****************************************************/
 #define GRAPH_OBJECT_ENUM_ID1                     0x01
 #define GRAPH_OBJECT_ENUM_ID2                     0x02
@@ -124,6 +134,7 @@
 #define GRAPH_OBJECT_ENUM_ID4                     0x04
 #define GRAPH_OBJECT_ENUM_ID5                     0x05
 #define GRAPH_OBJECT_ENUM_ID6                     0x06
+#define GRAPH_OBJECT_ENUM_ID7                     0x07
 
 /****************************************************/
 /* Graphics Object ID Bit definition                */
@@ -374,6 +385,18 @@
                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
                                                  CONNECTOR_OBJECT_ID_LVDS << OBJECT_ID_SHIFT)
 
+#define CONNECTOR_LVDS_ENUM_ID2                ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID2 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_LVDS << OBJECT_ID_SHIFT)
+
+#define CONNECTOR_eDP_ENUM_ID1                 ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_eDP << OBJECT_ID_SHIFT)
+
+#define CONNECTOR_eDP_ENUM_ID2                 ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID2 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_eDP << OBJECT_ID_SHIFT)
+
 #define CONNECTOR_SINGLE_LINK_DVI_I_ENUM_ID1   ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
                                                  CONNECTOR_OBJECT_ID_SINGLE_LINK_DVI_I << OBJECT_ID_SHIFT)
@@ -402,6 +425,14 @@
                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
                                                  CONNECTOR_OBJECT_ID_DUAL_LINK_DVI_D << OBJECT_ID_SHIFT)
 
+#define CONNECTOR_DUAL_LINK_DVI_D_ENUM_ID2     ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID2 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_DUAL_LINK_DVI_D << OBJECT_ID_SHIFT)
+
+#define CONNECTOR_DUAL_LINK_DVI_D_ENUM_ID3     ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID3 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_DUAL_LINK_DVI_D << OBJECT_ID_SHIFT)
+
 #define CONNECTOR_VGA_ENUM_ID1                 ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
                                                  CONNECTOR_OBJECT_ID_VGA << OBJECT_ID_SHIFT)
@@ -414,36 +445,75 @@
                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
                                                  CONNECTOR_OBJECT_ID_COMPOSITE << OBJECT_ID_SHIFT)
 
+#define CONNECTOR_COMPOSITE_ENUM_ID2           ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID2 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_COMPOSITE << OBJECT_ID_SHIFT)
+
 #define CONNECTOR_SVIDEO_ENUM_ID1              ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_SVIDEO << OBJECT_ID_SHIFT)
+
+#define CONNECTOR_SVIDEO_ENUM_ID2              ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID2 << ENUM_ID_SHIFT |\
                                                  CONNECTOR_OBJECT_ID_SVIDEO << OBJECT_ID_SHIFT)
 
 #define CONNECTOR_YPbPr_ENUM_ID1               ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
                                                  CONNECTOR_OBJECT_ID_YPbPr << OBJECT_ID_SHIFT)
 
+#define CONNECTOR_YPbPr_ENUM_ID2               ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID2 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_YPbPr << OBJECT_ID_SHIFT)
+
 #define CONNECTOR_D_CONNECTOR_ENUM_ID1         ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_D_CONNECTOR << OBJECT_ID_SHIFT)
+
+#define CONNECTOR_D_CONNECTOR_ENUM_ID2         ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID2 << ENUM_ID_SHIFT |\
                                                  CONNECTOR_OBJECT_ID_D_CONNECTOR << OBJECT_ID_SHIFT)
 
 #define CONNECTOR_9PIN_DIN_ENUM_ID1            ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
                                                  CONNECTOR_OBJECT_ID_9PIN_DIN << OBJECT_ID_SHIFT)
 
+#define CONNECTOR_9PIN_DIN_ENUM_ID2            ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID2 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_9PIN_DIN << OBJECT_ID_SHIFT)
+
 #define CONNECTOR_SCART_ENUM_ID1               ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_SCART << OBJECT_ID_SHIFT)
+
+#define CONNECTOR_SCART_ENUM_ID2               ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID2 << ENUM_ID_SHIFT |\
                                                  CONNECTOR_OBJECT_ID_SCART << OBJECT_ID_SHIFT)
 
 #define CONNECTOR_HDMI_TYPE_A_ENUM_ID1         ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
                                                  CONNECTOR_OBJECT_ID_HDMI_TYPE_A << OBJECT_ID_SHIFT)
 
+#define CONNECTOR_HDMI_TYPE_A_ENUM_ID2         ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID2 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_HDMI_TYPE_A << OBJECT_ID_SHIFT)
+
+#define CONNECTOR_HDMI_TYPE_A_ENUM_ID3         ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID3 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_HDMI_TYPE_A << OBJECT_ID_SHIFT)
+
 #define CONNECTOR_HDMI_TYPE_B_ENUM_ID1         ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
                                                  CONNECTOR_OBJECT_ID_HDMI_TYPE_B << OBJECT_ID_SHIFT)
 
+#define CONNECTOR_HDMI_TYPE_B_ENUM_ID2         ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID2 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_HDMI_TYPE_B << OBJECT_ID_SHIFT)
+
 #define CONNECTOR_7PIN_DIN_ENUM_ID1            ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
                                                  GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_7PIN_DIN << OBJECT_ID_SHIFT)
+#define CONNECTOR_7PIN_DIN_ENUM_ID2            ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID2 << ENUM_ID_SHIFT |\
                                                  CONNECTOR_OBJECT_ID_7PIN_DIN << OBJECT_ID_SHIFT)
 
 #define CONNECTOR_PCIE_CONNECTOR_ENUM_ID1      ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
@@ -487,6 +557,42 @@
                                                  GRAPH_OBJECT_ENUM_ID4 << ENUM_ID_SHIFT |\
                                                  CONNECTOR_OBJECT_ID_DISPLAYPORT << OBJECT_ID_SHIFT)
 
+#define CONNECTOR_DISPLAYPORT_ENUM_ID5         ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID5 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_DISPLAYPORT << OBJECT_ID_SHIFT)
+
+#define CONNECTOR_DISPLAYPORT_ENUM_ID6         ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID6 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_DISPLAYPORT << OBJECT_ID_SHIFT)
+
+#define CONNECTOR_MXM_ENUM_ID1                 ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_MXM << OBJECT_ID_SHIFT)          //Mapping to MXM_DP_A
+
+#define CONNECTOR_MXM_ENUM_ID2                 ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID2 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_MXM << OBJECT_ID_SHIFT)          //Mapping to MXM_DP_B
+
+#define CONNECTOR_MXM_ENUM_ID3                 ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID3 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_MXM << OBJECT_ID_SHIFT)          //Mapping to MXM_DP_C
+
+#define CONNECTOR_MXM_ENUM_ID4                 ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID4 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_MXM << OBJECT_ID_SHIFT)          //Mapping to MXM_DP_D
+
+#define CONNECTOR_MXM_ENUM_ID5                 ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID5 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_MXM << OBJECT_ID_SHIFT)          //Mapping to MXM_LVDS_TXxx
+
+#define CONNECTOR_MXM_ENUM_ID6                 ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID6 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_MXM << OBJECT_ID_SHIFT)          //Mapping to MXM_LVDS_UXxx
+
+#define CONNECTOR_MXM_ENUM_ID7                 ( GRAPH_OBJECT_TYPE_CONNECTOR << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID7 << ENUM_ID_SHIFT |\
+                                                 CONNECTOR_OBJECT_ID_MXM << OBJECT_ID_SHIFT)          //Mapping to MXM_DAC
+
 /****************************************************/
 /* Router Object ID definition - Shared with BIOS   */
 /****************************************************/
@@ -495,6 +601,25 @@
                                                 ROUTER_OBJECT_ID_I2C_EXTENDER_CNTL << OBJECT_ID_SHIFT)
 
 /* deleted */
+
+/****************************************************/
+/* Generic Object ID definition - Shared with BIOS  */
+/****************************************************/
+#define GENERICOBJECT_GLSYNC_ENUM_ID1           (GRAPH_OBJECT_TYPE_GENERIC << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
+                                                 GENERIC_OBJECT_ID_GLSYNC << OBJECT_ID_SHIFT)
+
+#define GENERICOBJECT_PX2_NON_DRIVABLE_ID1       (GRAPH_OBJECT_TYPE_GENERIC << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
+                                                 GENERIC_OBJECT_ID_PX2_NON_DRIVABLE<< OBJECT_ID_SHIFT)
+
+#define GENERICOBJECT_PX2_NON_DRIVABLE_ID2       (GRAPH_OBJECT_TYPE_GENERIC << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID2 << ENUM_ID_SHIFT |\
+                                                 GENERIC_OBJECT_ID_PX2_NON_DRIVABLE<< OBJECT_ID_SHIFT)
+
+#define GENERICOBJECT_MXM_OPM_ENUM_ID1           (GRAPH_OBJECT_TYPE_GENERIC << OBJECT_TYPE_SHIFT |\
+                                                 GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
+                                                 GENERIC_OBJECT_ID_MXM_OPM << OBJECT_ID_SHIFT)
 
 /****************************************************/
 /* Object Cap definition - Shared with BIOS         */
