@@ -125,6 +125,7 @@ void e1000_write_vfta_generic(struct e1000_hw *hw, u32 offset, u32 value)
 void e1000e_init_rx_addrs(struct e1000_hw *hw, u16 rar_count)
 {
 	u32 i;
+	u8 mac_addr[ETH_ALEN] = {0};
 
 	/* Setup the receive address */
 	e_dbg("Programming MAC Address into RAR[0]\n");
@@ -133,12 +134,8 @@ void e1000e_init_rx_addrs(struct e1000_hw *hw, u16 rar_count)
 
 	/* Zero out the other (rar_entry_count - 1) receive addresses */
 	e_dbg("Clearing RAR[1-%u]\n", rar_count-1);
-	for (i = 1; i < rar_count; i++) {
-		E1000_WRITE_REG_ARRAY(hw, E1000_RA, (i << 1), 0);
-		e1e_flush();
-		E1000_WRITE_REG_ARRAY(hw, E1000_RA, ((i << 1) + 1), 0);
-		e1e_flush();
-	}
+	for (i = 1; i < rar_count; i++)
+		e1000e_rar_set(hw, mac_addr, i);
 }
 
 /**
@@ -164,10 +161,19 @@ void e1000e_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
 
 	rar_high = ((u32) addr[4] | ((u32) addr[5] << 8));
 
-	rar_high |= E1000_RAH_AV;
+	/* If MAC address zero, no need to set the AV bit */
+	if (rar_low || rar_high)
+		rar_high |= E1000_RAH_AV;
 
-	E1000_WRITE_REG_ARRAY(hw, E1000_RA, (index << 1), rar_low);
-	E1000_WRITE_REG_ARRAY(hw, E1000_RA, ((index << 1) + 1), rar_high);
+	/*
+	 * Some bridges will combine consecutive 32-bit writes into
+	 * a single burst write, which will malfunction on some parts.
+	 * The flushes avoid this.
+	 */
+	ew32(RAL(index), rar_low);
+	e1e_flush();
+	ew32(RAH(index), rar_high);
+	e1e_flush();
 }
 
 /**
