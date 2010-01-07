@@ -99,10 +99,11 @@ struct sd {
 #define SEN_OV66308AF 5
 #define SEN_OV7610 6
 #define SEN_OV7620 7
-#define SEN_OV7640 8
-#define SEN_OV7670 9
-#define SEN_OV76BE 10
-#define SEN_OV8610 11
+#define SEN_OV7620AE 8
+#define SEN_OV7640 9
+#define SEN_OV7670 10
+#define SEN_OV76BE 11
+#define SEN_OV8610 12
 
 	u8 sensor_addr;
 	int sensor_width;
@@ -2554,7 +2555,7 @@ static int ov7xx0_configure(struct sd *sd)
 		/* I don't know what's different about the 76BE yet. */
 		if (i2c_r(sd, 0x15) & 1) {
 			PDEBUG(D_PROBE, "Sensor is an OV7620AE");
-			sd->sensor = SEN_OV7620;
+			sd->sensor = SEN_OV7620AE;
 		} else {
 			PDEBUG(D_PROBE, "Sensor is an OV76BE");
 			sd->sensor = SEN_OV76BE;
@@ -3169,6 +3170,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			return -EIO;
 		break;
 	case SEN_OV7620:
+	case SEN_OV7620AE:
 		if (write_i2c_regvals(sd, norm_7620, ARRAY_SIZE(norm_7620)))
 			return -EIO;
 		break;
@@ -3246,6 +3248,7 @@ static int ov511_mode_init_regs(struct sd *sd)
 	/* Note once the FIXME's in mode_init_ov_sensor_regs() are fixed
 	   for more sensors we need to do this for them too */
 	case SEN_OV7620:
+	case SEN_OV7620AE:
 	case SEN_OV7640:
 	case SEN_OV76BE:
 		if (sd->gspca_dev.width == 320)
@@ -3377,7 +3380,7 @@ static int ov518_mode_init_regs(struct sd *sd)
 
 	if (sd->bridge == BRIDGE_OV518PLUS) {
 		switch (sd->sensor) {
-		case SEN_OV7620:
+		case SEN_OV7620AE:
 			if (sd->gspca_dev.width == 320) {
 				reg_w(sd, 0x20, 0x00);
 				reg_w(sd, 0x21, 0x19);
@@ -3385,6 +3388,10 @@ static int ov518_mode_init_regs(struct sd *sd)
 				reg_w(sd, 0x20, 0x60);
 				reg_w(sd, 0x21, 0x1f);
 			}
+			break;
+		case SEN_OV7620:
+			reg_w(sd, 0x20, 0x00);
+			reg_w(sd, 0x21, 0x19);
 			break;
 		default:
 			reg_w(sd, 0x21, 0x19);
@@ -3649,6 +3656,7 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 		i2c_w_mask(sd, 0x12, 0x04, 0x06); /* AWB: 1 Test pattern: 0 */
 		break;
 	case SEN_OV7620:
+	case SEN_OV7620AE:
 	case SEN_OV76BE:
 		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
 		i2c_w_mask(sd, 0x28, qvga ? 0x00 : 0x20, 0x20);
@@ -3795,6 +3803,7 @@ static int set_ov_sensor_window(struct sd *sd)
 		}
 		break;
 	case SEN_OV7620:
+	case SEN_OV7620AE:
 		hwsbase = 0x2f;		/* From 7620.SET (spec is wrong) */
 		hwebase = 0x2f;
 		vwsbase = vwebase = 0x05;
@@ -4106,6 +4115,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 		i2c_w(sd, OV7610_REG_BRT, val);
 		break;
 	case SEN_OV7620:
+	case SEN_OV7620AE:
 		/* 7620 doesn't like manual changes when in auto mode */
 		if (!sd->autobrightness)
 			i2c_w(sd, OV7610_REG_BRT, val);
@@ -4142,7 +4152,8 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		i2c_w(sd, 0x64, ctab[val >> 5]);
 		break;
 	    }
-	case SEN_OV7620: {
+	case SEN_OV7620:
+	case SEN_OV7620AE: {
 		static const __u8 ctab[] = {
 			0x01, 0x05, 0x09, 0x11, 0x15, 0x35, 0x37, 0x57,
 			0x5b, 0xa5, 0xa7, 0xc7, 0xc9, 0xcf, 0xef, 0xff
@@ -4179,6 +4190,7 @@ static void setcolors(struct gspca_dev *gspca_dev)
 		i2c_w(sd, OV7610_REG_SAT, val);
 		break;
 	case SEN_OV7620:
+	case SEN_OV7620AE:
 		/* Use UV gamma control instead. Bits 0 & 7 are reserved. */
 /*		rc = ov_i2c_write(sd->dev, 0x62, (val >> 9) & 0x7e);
 		if (rc < 0)
