@@ -1806,8 +1806,10 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 		goto out;
 
 	rd = country_ie_2_rd(country_ie, country_ie_len, &checksum);
-	if (!rd)
+	if (!rd) {
+		REG_DBG_PRINT("cfg80211: Ignoring bogus country IE\n");
 		goto out;
+	}
 
 	/*
 	 * This will not happen right now but we leave it here for the
