@@ -83,10 +83,17 @@ static struct caps_table_struct color_caps[] = {
 	{ 1 << OMAPFB_COLOR_YUY422,	"YUY422", },
 };
 
+static void omapdss_release(struct device *dev)
+{
+}
+
 /* dummy device for clocks */
 static struct platform_device omapdss_device = {
 	.name		= "omapdss",
 	.id		= -1,
+	.dev            = {
+		.release = omapdss_release,
+	},
 };
 
 /*
