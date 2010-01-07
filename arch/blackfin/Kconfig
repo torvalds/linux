@@ -26,9 +26,9 @@ config BLACKFIN
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
 	select HAVE_IDE
-	select HAVE_KERNEL_GZIP
-	select HAVE_KERNEL_BZIP2
-	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_GZIP if RAMKERNEL
+	select HAVE_KERNEL_BZIP2 if RAMKERNEL
+	select HAVE_KERNEL_LZMA if RAMKERNEL
 	select HAVE_OPROFILE
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 
@@ -407,10 +407,18 @@ config BOOT_LOAD
 config ROM_BASE
 	hex "Kernel ROM Base"
 	depends on ROMKERNEL
-	default "0x20040000"
+	default "0x20040040"
 	range 0x20000000 0x20400000 if !(BF54x || BF561)
 	range 0x20000000 0x30000000 if (BF54x || BF561)
 	help
+	  Make sure your ROM base does not include any file-header
+	  information that is prepended to the kernel.
+
+	  For example, the bootable U-Boot format (created with
+	  mkimage) has a 64 byte header (0x40).  So while the image
+	  you write to flash might start at say 0x20080000, you have
+	  to add 0x40 to get the kernel's ROM base as it will come
+	  after the header.
 
 comment "Clock/PLL Setup"
 

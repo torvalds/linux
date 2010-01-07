@@ -186,6 +186,11 @@ ENTRY(__start)
 
 	/* Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM */
 	call _bfin_relocate_l1_mem;
+
+#ifdef CONFIG_ROMKERNEL
+	call _bfin_relocate_xip_data;
+#endif
+
 #ifdef CONFIG_BFIN_KERNEL_CLOCK
 	/* Only use on-chip scratch space for stack when absolutely required
 	 * to avoid Anomaly 05000227 ... we know the init_clocks() func only

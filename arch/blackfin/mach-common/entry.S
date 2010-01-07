@@ -405,7 +405,7 @@ ENTRY(_double_fault)
 
 	r0 = sp;        /* stack frame pt_regs pointer argument ==> r0 */
 	SP += -12;
-	call _double_fault_c;
+	pseudo_long_call _double_fault_c, p5;
 	SP += 12;
 .L_double_fault_panic:
         JUMP .L_double_fault_panic
@@ -447,7 +447,7 @@ ENTRY(_exception_to_level5)
 
 	r0 = sp; 	/* stack frame pt_regs pointer argument ==> r0 */
 	SP += -12;
-	call _trap_c;
+	pseudo_long_call _trap_c, p4;
 	SP += 12;
 
 	/* If interrupts were off during the exception (IPEND[4] = 1), turn them off
@@ -551,7 +551,7 @@ ENTRY(_kernel_execve)
 	p0 = sp;
 	sp += -16;
 	[sp + 12] = p0;
-	call _do_execve;
+	pseudo_long_call _do_execve, p5;
 	SP += 16;
 	cc = r0 == 0;
 	if ! cc jump .Lexecve_failed;
@@ -704,7 +704,7 @@ ENTRY(_system_call)
 	sp += 4;
 
 	SP += -12;
-	call _schedule;
+	pseudo_long_call _schedule, p4;
 	SP += 12;
 
 	jump .Lresume_userspace_1;
@@ -723,7 +723,7 @@ ENTRY(_system_call)
 
 	r0 = sp;
 	SP += -12;
-	call _do_notify_resume;
+	pseudo_long_call _do_notify_resume, p5;
 	SP += 12;
 
 .Lsyscall_really_exit:
@@ -736,7 +736,7 @@ ENDPROC(_system_call)
  * this symbol need not be global anyways, so ...
  */
 _sys_trace:
-	call _syscall_trace;
+	pseudo_long_call _syscall_trace, p5;
 
 	/* Execute the appropriate system call */
 
@@ -760,7 +760,7 @@ _sys_trace:
 	SP += 24;
 	[sp + PT_R0] = r0;
 
-	call _syscall_trace;
+	pseudo_long_call _syscall_trace, p5;
 	jump .Lresume_userspace;
 ENDPROC(_sys_trace)
 
@@ -1007,7 +1007,8 @@ ENTRY(_schedule_and_signal_from_int)
 
 	r0 = sp;
 	sp += -12;
-	call _finish_atomic_sections;
+
+	pseudo_long_call _finish_atomic_sections, p5;
 	sp += 12;
 	jump.s .Lresume_userspace;
 ENDPROC(_schedule_and_signal_from_int)

@@ -220,6 +220,16 @@ void __init bfin_relocate_l1_mem(void)
 		memcpy(_stext_l2, _l2_lma, l2_len);
 }
 
+#ifdef CONFIG_ROMKERNEL
+void __init bfin_relocate_xip_data(void)
+{
+	early_shadow_stamp();
+
+	memcpy(_sdata, _data_lma, (unsigned long)_data_len - THREAD_SIZE + sizeof(struct thread_info));
+	memcpy(_sinitdata, _init_data_lma, (unsigned long)_init_data_len);
+}
+#endif
+
 /* add_memory_region to memmap */
 static void __init add_memory_region(unsigned long long start,
 			      unsigned long long size, int type)
@@ -504,7 +514,7 @@ static __init void memory_setup(void)
 #endif
 	unsigned long max_mem;
 
-	_rambase = (unsigned long)_stext;
+	_rambase = CONFIG_BOOT_LOAD;
 	_ramstart = (unsigned long)_end;
 
 	if (DMA_UNCACHED_REGION > (_ramend - _ramstart)) {
@@ -1261,8 +1271,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "board memory\t: %ld kB (0x%p -> 0x%p)\n",
 		 physical_mem_end >> 10, (void *)0, (void *)physical_mem_end);
 	seq_printf(m, "kernel memory\t: %d kB (0x%p -> 0x%p)\n",
-		((int)memory_end - (int)_stext) >> 10,
-		_stext,
+		((int)memory_end - (int)_rambase) >> 10,
+		(void *)_rambase,
 		(void *)memory_end);
 	seq_printf(m, "\n");
 

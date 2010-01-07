@@ -21,6 +21,9 @@ extern unsigned long memory_start, memory_end, physical_mem_end;
 extern char _stext_l1[], _etext_l1[], _text_l1_lma[], __weak _text_l1_len[];
 extern char _sdata_l1[], _edata_l1[], _sbss_l1[], _ebss_l1[],
 	_data_l1_lma[], __weak _data_l1_len[];
+#ifdef CONFIG_ROMKERNEL
+extern char _data_lma[], _data_len[], _sinitdata[], _einitdata[], _init_data_lma[], _init_data_len[];
+#endif
 extern char _sdata_b_l1[], _edata_b_l1[], _sbss_b_l1[], _ebss_b_l1[],
 	_data_b_l1_lma[], __weak _data_b_l1_len[];
 extern char _stext_l2[], _etext_l2[], _sdata_l2[], _edata_l2[],

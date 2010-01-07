@@ -109,10 +109,10 @@ __common_int_entry:
 	cc = r0 == 0;
 	if cc jump .Lcommon_restore_context;
 #else /* CONFIG_IPIPE */
-	call _do_irq;
+	pseudo_long_call _do_irq, p2;
 	SP += 12;
 #endif /* CONFIG_IPIPE */
-	call _return_from_int;
+	pseudo_long_call _return_from_int, p2;
 .Lcommon_restore_context:
 	RESTORE_CONTEXT
 	rti;
@@ -168,7 +168,7 @@ ENTRY(_evt_ivhw)
 
 	r0 = sp;        /* stack frame pt_regs pointer argument ==> r0 */
 	SP += -12;
-	call _trap_c;
+	pseudo_long_call _trap_c, p5;
 	SP += 12;
 
 #ifdef EBIU_ERRMST
@@ -179,7 +179,7 @@ ENTRY(_evt_ivhw)
 	w[p0] = r0.l;
 #endif
 
-	call _ret_from_exception;
+	pseudo_long_call _ret_from_exception, p2;
 
 .Lcommon_restore_all_sys:
 	RESTORE_ALL_SYS
@@ -223,7 +223,7 @@ ENTRY(_evt_system_call)
 #ifdef CONFIG_FRAME_POINTER
 	fp = 0;
 #endif
-	call _system_call;
+	pseudo_long_call _system_call, p2;
 	jump .Lcommon_restore_context;
 ENDPROC(_evt_system_call)
 

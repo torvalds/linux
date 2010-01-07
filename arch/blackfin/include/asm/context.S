@@ -374,3 +374,13 @@
 
 	(R7:0, P5:0) = [SP++];
 .endm
+
+.macro pseudo_long_call func:req, scratch:req
+#ifdef CONFIG_ROMKERNEL
+	\scratch\().l = \func;
+	\scratch\().h = \func;
+	call (\scratch);
+#else
+	call \func;
+#endif
+.endm
