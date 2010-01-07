@@ -595,6 +595,34 @@ bool radeon_combios_get_clock_info(struct drm_device *dev)
 	return false;
 }
 
+static const uint32_t default_primarydac_adj[CHIP_LAST] = {
+	0x00000808,		/* r100  */
+	0x00000808,		/* rv100 */
+	0x00000808,		/* rs100 */
+	0x00000808,		/* rv200 */
+	0x00000808,		/* rs200 */
+	0x00000808,		/* r200  */
+	0x00000808,		/* rv250 */
+	0x00000000,		/* rs300 */
+	0x00000808,		/* rv280 */
+	0x00000808,		/* r300  */
+	0x00000808,		/* r350  */
+	0x00000808,		/* rv350 */
+	0x00000808,		/* rv380 */
+	0x00000808,		/* r420  */
+	0x00000808,		/* r423  */
+	0x00000808,		/* rv410 */
+	0x00000000,		/* rs400 */
+	0x00000000,		/* rs480 */
+};
+
+static void radeon_legacy_get_primary_dac_info_from_table(struct radeon_device *rdev,
+							  struct radeon_encoder_primary_dac *p_dac)
+{
+	p_dac->ps2_pdac_adj = default_primarydac_adj[rdev->family];
+	return;
+}
+
 struct radeon_encoder_primary_dac *radeon_combios_get_primary_dac_info(struct
 								       radeon_encoder
 								       *encoder)
@@ -604,20 +632,20 @@ struct radeon_encoder_primary_dac *radeon_combios_get_primary_dac_info(struct
 	uint16_t dac_info;
 	uint8_t rev, bg, dac;
 	struct radeon_encoder_primary_dac *p_dac = NULL;
+	int found = 0;
+
+	p_dac = kzalloc(sizeof(struct radeon_encoder_primary_dac),
+			GFP_KERNEL);
+
+	if (!p_dac)
+		return NULL;
 
 	if (rdev->bios == NULL)
-		return NULL;
+		goto out;
 
 	/* check CRT table */
 	dac_info = combios_get_table_offset(dev, COMBIOS_CRT_INFO_TABLE);
 	if (dac_info) {
-		p_dac =
-		    kzalloc(sizeof(struct radeon_encoder_primary_dac),
-			    GFP_KERNEL);
-
-		if (!p_dac)
-			return NULL;
-
 		rev = RBIOS8(dac_info) & 0x3;
 		if (rev < 2) {
 			bg = RBIOS8(dac_info + 0x2) & 0xf;
@@ -628,8 +656,12 @@ struct radeon_encoder_primary_dac *radeon_combios_get_primary_dac_info(struct
 			dac = RBIOS8(dac_info + 0x3) & 0xf;
 			p_dac->ps2_pdac_adj = (bg << 8) | (dac);
 		}
-
+		found = 1;
 	}
+
+out:
+	if (!found) /* fallback to defaults */
+		radeon_legacy_get_primary_dac_info_from_table(rdev, p_dac);
 
 	return p_dac;
 }

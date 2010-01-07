@@ -114,6 +114,7 @@ static inline struct radeon_i2c_bus_rec radeon_lookup_i2c_gpio(struct radeon_dev
 			i2c.i2c_id = gpio->sucI2cId.ucAccess;
 
 			i2c.valid = true;
+			break;
 		}
 	}
 
@@ -1026,6 +1027,7 @@ static struct radeon_atom_ss *radeon_atombios_get_ss_info(struct
 				ss->delay = ss_info->asSS_Info[i].ucSS_Delay;
 				ss->range = ss_info->asSS_Info[i].ucSS_Range;
 				ss->refdiv = ss_info->asSS_Info[i].ucRecommendedRef_Div;
+				break;
 			}
 		}
 	}
