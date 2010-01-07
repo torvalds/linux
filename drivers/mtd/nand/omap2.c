@@ -295,11 +295,14 @@ static void omap_read_buf_pref(struct mtd_info *mtd, u_char *buf, int len)
 	u32 *p = (u32 *)buf;
 
 	/* take care of subpage reads */
-	for (; len % 4 != 0; ) {
-		*buf++ = __raw_readb(info->nand.IO_ADDR_R);
-		len--;
+	if (len % 4) {
+		if (info->nand.options & NAND_BUSWIDTH_16)
+			omap_read_buf16(mtd, buf, len % 4);
+		else
+			omap_read_buf8(mtd, buf, len % 4);
+		p = (u32 *) (buf + len % 4);
+		len -= len % 4;
 	}
-	p = (u32 *) buf;
 
 	/* configure and start prefetch transfer */
 	ret = gpmc_prefetch_enable(info->gpmc_cs, 0x0, len, 0x0);
