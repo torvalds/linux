@@ -31,10 +31,6 @@
 #include <linux/etherdevice.h>
 #include <linux/ip.h>
 #include <linux/string.h>
-#include <linux/ethtool.h>
-#include <linux/mii.h>
-#include <linux/seq_file.h>
-#include <linux/proc_fs.h>
 #include <net/dst.h>
 #ifdef CONFIG_XFRM
 #include <linux/xfrm.h>
@@ -527,101 +523,6 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 	dev_kfree_skb(skb);
 	return 0;
 }
-
-/**
- * Transmit a work queue entry out of the ethernet port. Both
- * the work queue entry and the packet data can optionally be
- * freed. The work will be freed on error as well.
- *
- * @dev:     Device to transmit out.
- * @work_queue_entry:
- *                Work queue entry to send
- * @do_free: True if the work queue entry and packet data should be
- *                freed. If false, neither will be freed.
- * @qos:     Index into the queues for this port to transmit on. This
- *                is used to implement QoS if their are multiple queues per
- *                port. This parameter must be between 0 and the number of
- *                queues per port minus 1. Values outside of this range will
- *                be change to zero.
- *
- * Returns Zero on success, negative on failure.
- */
-int cvm_oct_transmit_qos(struct net_device *dev, void *work_queue_entry,
-			 int do_free, int qos)
-{
-	unsigned long flags;
-	union cvmx_buf_ptr hw_buffer;
-	cvmx_pko_command_word0_t pko_command;
-	int dropped;
-	struct octeon_ethernet *priv = netdev_priv(dev);
-	cvmx_wqe_t *work = work_queue_entry;
-
-	if (!(dev->flags & IFF_UP)) {
-		DEBUGPRINT("%s: Device not up\n", dev->name);
-		if (do_free)
-			cvm_oct_free_work(work);
-		return -1;
-	}
-
-	/* The check on CVMX_PKO_QUEUES_PER_PORT_* is designed to completely
-	   remove "qos" in the event neither interface supports
-	   multiple queues per port */
-	if ((CVMX_PKO_QUEUES_PER_PORT_INTERFACE0 > 1) ||
-	    (CVMX_PKO_QUEUES_PER_PORT_INTERFACE1 > 1)) {
-		if (qos <= 0)
-			qos = 0;
-		else if (qos >= cvmx_pko_get_num_queues(priv->port))
-			qos = 0;
-	} else
-		qos = 0;
-
-	/* Start off assuming no drop */
-	dropped = 0;
-
-	local_irq_save(flags);
-	cvmx_pko_send_packet_prepare(priv->port, priv->queue + qos,
-				     CVMX_PKO_LOCK_CMD_QUEUE);
-
-	/* Build the PKO buffer pointer */
-	hw_buffer.u64 = 0;
-	hw_buffer.s.addr = work->packet_ptr.s.addr;
-	hw_buffer.s.pool = CVMX_FPA_PACKET_POOL;
-	hw_buffer.s.size = CVMX_FPA_PACKET_POOL_SIZE;
-	hw_buffer.s.back = work->packet_ptr.s.back;
-
-	/* Build the PKO command */
-	pko_command.u64 = 0;
-	pko_command.s.n2 = 1;	/* Don't pollute L2 with the outgoing packet */
-	pko_command.s.dontfree = !do_free;
-	pko_command.s.segs = work->word2.s.bufs;
-	pko_command.s.total_bytes = work->len;
-
-	/* Check if we can use the hardware checksumming */
-	if (unlikely(work->word2.s.not_IP || work->word2.s.IP_exc))
-		pko_command.s.ipoffp1 = 0;
-	else
-		pko_command.s.ipoffp1 = sizeof(struct ethhdr) + 1;
-
-	/* Send the packet to the output queue */
-	if (unlikely
-	    (cvmx_pko_send_packet_finish
-	     (priv->port, priv->queue + qos, pko_command, hw_buffer,
-	      CVMX_PKO_LOCK_CMD_QUEUE))) {
-		DEBUGPRINT("%s: Failed to send the packet\n", dev->name);
-		dropped = -1;
-	}
-	local_irq_restore(flags);
-
-	if (unlikely(dropped)) {
-		if (do_free)
-			cvm_oct_free_work(work);
-		priv->stats.tx_dropped++;
-	} else if (do_free)
-		cvmx_fpa_free(work, CVMX_FPA_WQE_POOL, DONT_WRITEBACK(1));
-
-	return dropped;
-}
-EXPORT_SYMBOL(cvm_oct_transmit_qos);
 
 /**
  * This function frees all skb that are currently queued for TX.

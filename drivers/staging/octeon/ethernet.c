@@ -104,14 +104,6 @@ MODULE_PARM_DESC(pow_send_list, "\n"
 	"\t\"eth2,spi3,spi7\" would cause these three devices to transmit\n"
 	"\tusing the pow_send_group.");
 
-static int disable_core_queueing = 1;
-module_param(disable_core_queueing, int, 0444);
-MODULE_PARM_DESC(disable_core_queueing, "\n"
-	"\tWhen set the networking core's tx_queue_len is set to zero.  This\n"
-	"\tallows packets to be sent without lock contention in the packet\n"
-	"\tscheduler resulting in some cases in improved throughput.\n");
-
-
 /*
  * The offset from mac_addr_base that should be used for the next port
  * that is configured.  By convention, if any mgmt ports exist on the
@@ -204,10 +196,6 @@ static __init void cvm_oct_configure_common_hw(void)
 	if (USE_RED)
 		cvmx_helper_setup_red(num_packet_buffers / 4,
 				      num_packet_buffers / 8);
-
-	/* Enable the MII interface */
-	if (!octeon_is_simulation())
-		cvmx_write_csr(CVMX_SMIX_EN(0), 1);
 
 	/* Register an IRQ hander for to receive POW interrupts */
 	r = request_irq(OCTEON_IRQ_WORKQ0 + pow_receive_group,
@@ -689,7 +677,6 @@ static int __init cvm_oct_init_module(void)
 		if (dev) {
 			/* Initialize the device private structure. */
 			struct octeon_ethernet *priv = netdev_priv(dev);
-			memset(priv, 0, sizeof(struct octeon_ethernet));
 
 			dev->netdev_ops = &cvm_oct_pow_netdev_ops;
 			priv->imode = CVMX_HELPER_INTERFACE_MODE_DISABLED;
@@ -700,19 +687,16 @@ static int __init cvm_oct_init_module(void)
 				skb_queue_head_init(&priv->tx_free_list[qos]);
 
 			if (register_netdev(dev) < 0) {
-				pr_err("Failed to register ethernet "
-					 "device for POW\n");
+				pr_err("Failed to register ethernet device for POW\n");
 				kfree(dev);
 			} else {
 				cvm_oct_device[CVMX_PIP_NUM_INPUT_PORTS] = dev;
-				pr_info("%s: POW send group %d, receive "
-					"group %d\n",
-				     dev->name, pow_send_group,
-				     pow_receive_group);
+				pr_info("%s: POW send group %d, receive group %d\n",
+					dev->name, pow_send_group,
+					pow_receive_group);
 			}
 		} else {
-			pr_err("Failed to allocate ethernet device "
-				 "for POW\n");
+			pr_err("Failed to allocate ethernet device for POW\n");
 		}
 	}
 
@@ -730,12 +714,9 @@ static int __init cvm_oct_init_module(void)
 			struct net_device *dev =
 			    alloc_etherdev(sizeof(struct octeon_ethernet));
 			if (!dev) {
-				pr_err("Failed to allocate ethernet device "
-					 "for port %d\n", port);
+				pr_err("Failed to allocate ethernet device for port %d\n", port);
 				continue;
 			}
-			if (disable_core_queueing)
-				dev->tx_queue_len = 0;
 
 			/* Initialize the device private structure. */
 			priv = netdev_priv(dev);

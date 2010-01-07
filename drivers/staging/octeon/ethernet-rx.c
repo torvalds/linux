@@ -33,10 +33,6 @@
 #include <linux/ip.h>
 #include <linux/string.h>
 #include <linux/prefetch.h>
-#include <linux/ethtool.h>
-#include <linux/mii.h>
-#include <linux/seq_file.h>
-#include <linux/proc_fs.h>
 #include <net/dst.h>
 #ifdef CONFIG_XFRM
 #include <linux/xfrm.h>
@@ -292,39 +288,27 @@ void cvm_oct_tasklet_rx(unsigned long unused)
 		 * buffer.
 		 */
 		if (likely(skb_in_hw)) {
-			/*
-			 * This calculation was changed in case the
-			 * skb header is using a different address
-			 * aliasing type than the buffer. It doesn't
-			 * make any differnece now, but the new one is
-			 * more correct.
-			 */
-			skb->data =
-			    skb->head + work->packet_ptr.s.addr -
-			    cvmx_ptr_to_phys(skb->head);
+			skb->data = skb->head + work->packet_ptr.s.addr - cvmx_ptr_to_phys(skb->head);
 			prefetch(skb->data);
 			skb->len = work->len;
 			skb_set_tail_pointer(skb, skb->len);
 			packet_not_copied = 1;
 		} else {
-
 			/*
 			 * We have to copy the packet. First allocate
 			 * an skbuff for it.
 			 */
 			skb = dev_alloc_skb(work->len);
 			if (!skb) {
-				DEBUGPRINT("Port %d failed to allocate "
-					   "skbuff, packet dropped\n",
-				     work->ipprt);
+				DEBUGPRINT("Port %d failed to allocate skbuff, packet dropped\n",
+					   work->ipprt);
 				cvm_oct_free_work(work);
 				continue;
 			}
 
 			/*
 			 * Check if we've received a packet that was
-			 * entirely stored in the work entry. This is
-			 * untested.
+			 * entirely stored in the work entry.
 			 */
 			if (unlikely(work->word2.s.bufs == 0)) {
 				uint8_t *ptr = work->packet_data;
@@ -343,15 +327,13 @@ void cvm_oct_tasklet_rx(unsigned long unused)
 				/* No packet buffers to free */
 			} else {
 				int segments = work->word2.s.bufs;
-				union cvmx_buf_ptr segment_ptr =
-					work->packet_ptr;
+				union cvmx_buf_ptr segment_ptr = work->packet_ptr;
 				int len = work->len;
 
 				while (segments--) {
 					union cvmx_buf_ptr next_ptr =
-					    *(union cvmx_buf_ptr *)
-					    cvmx_phys_to_ptr(segment_ptr.s.
-							     addr - 8);
+					    *(union cvmx_buf_ptr *)cvmx_phys_to_ptr(segment_ptr.s.addr - 8);
+
 			/*
 			 * Octeon Errata PKI-100: The segment size is
 			 * wrong. Until it is fixed, calculate the
@@ -361,22 +343,18 @@ void cvm_oct_tasklet_rx(unsigned long unused)
 			 * one: int segment_size =
 			 * segment_ptr.s.size;
 			 */
-					int segment_size =
-					    CVMX_FPA_PACKET_POOL_SIZE -
-					    (segment_ptr.s.addr -
-					     (((segment_ptr.s.addr >> 7) -
-					       segment_ptr.s.back) << 7));
-					/* Don't copy more than what is left
-					   in the packet */
+					int segment_size = CVMX_FPA_PACKET_POOL_SIZE -
+						(segment_ptr.s.addr - (((segment_ptr.s.addr >> 7) - segment_ptr.s.back) << 7));
+					/*
+					 * Don't copy more than what
+					 * is left in the packet.
+					 */
 					if (segment_size > len)
 						segment_size = len;
 					/* Copy the data into the packet */
 					memcpy(skb_put(skb, segment_size),
-					       cvmx_phys_to_ptr(segment_ptr.s.
-								addr),
+					       cvmx_phys_to_ptr(segment_ptr.s.addr),
 					       segment_size);
-					/* Reduce the amount of bytes left
-					   to copy */
 					len -= segment_size;
 					segment_ptr = next_ptr;
 				}
@@ -389,16 +367,15 @@ void cvm_oct_tasklet_rx(unsigned long unused)
 			struct net_device *dev = cvm_oct_device[work->ipprt];
 			struct octeon_ethernet *priv = netdev_priv(dev);
 
-			/* Only accept packets for devices
-			   that are currently up */
+			/*
+			 * Only accept packets for devices that are
+			 * currently up.
+			 */
 			if (likely(dev->flags & IFF_UP)) {
 				skb->protocol = eth_type_trans(skb, dev);
 				skb->dev = dev;
 
-				if (unlikely
-				    (work->word2.s.not_IP
-				     || work->word2.s.IP_exc
-				     || work->word2.s.L4_error))
+				if (unlikely(work->word2.s.not_IP || work->word2.s.IP_exc || work->word2.s.L4_error))
 					skb->ip_summed = CHECKSUM_NONE;
 				else
 					skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -415,14 +392,11 @@ void cvm_oct_tasklet_rx(unsigned long unused)
 				}
 				netif_receive_skb(skb);
 			} else {
+				/* Drop any packet received for a device that isn't up */
 				/*
-				 * Drop any packet received for a
-				 * device that isn't up.
-				 */
-				/*
-				   DEBUGPRINT("%s: Device not up, packet dropped\n",
-				   dev->name);
-				 */
+				DEBUGPRINT("%s: Device not up, packet dropped\n",
+					   dev->name);
+				*/
 #ifdef CONFIG_64BIT
 				atomic64_add(1, (atomic64_t *)&priv->stats.rx_dropped);
 #else
@@ -435,9 +409,8 @@ void cvm_oct_tasklet_rx(unsigned long unused)
 			 * Drop any packet received for a device that
 			 * doesn't exist.
 			 */
-			DEBUGPRINT("Port %d not controlled by Linux, packet "
-				   "dropped\n",
-			     work->ipprt);
+			DEBUGPRINT("Port %d not controlled by Linux, packet dropped\n",
+				   work->ipprt);
 			dev_kfree_skb_irq(skb);
 		}
 		/*
