@@ -359,8 +359,8 @@ dont_put_skbuff_in_hw:
 	if (USE_HW_TCPUDP_CHECKSUM && (skb->protocol == htons(ETH_P_IP)) &&
 	    (ip_hdr(skb)->version == 4) && (ip_hdr(skb)->ihl == 5) &&
 	    ((ip_hdr(skb)->frag_off == 0) || (ip_hdr(skb)->frag_off == 1 << 14))
-	    && ((ip_hdr(skb)->protocol == IP_PROTOCOL_TCP)
-		|| (ip_hdr(skb)->protocol == IP_PROTOCOL_UDP))) {
+	    && ((ip_hdr(skb)->protocol == IPPROTO_TCP)
+		|| (ip_hdr(skb)->protocol == IPPROTO_UDP))) {
 		/* Use hardware checksum calc */
 		pko_command.s.ipoffp1 = sizeof(struct ethhdr) + 1;
 	}
@@ -550,8 +550,8 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 		work->word2.s.dec_ipcomp = 0;	/* FIXME */
 #endif
 		work->word2.s.tcp_or_udp =
-		    (ip_hdr(skb)->protocol == IP_PROTOCOL_TCP)
-		    || (ip_hdr(skb)->protocol == IP_PROTOCOL_UDP);
+		    (ip_hdr(skb)->protocol == IPPROTO_TCP)
+		    || (ip_hdr(skb)->protocol == IPPROTO_UDP);
 #if 0
 		/* FIXME */
 		work->word2.s.dec_ipsec = 0;
