@@ -135,7 +135,8 @@ void rs600_hpd_init(struct radeon_device *rdev)
 			break;
 		}
 	}
-	rs600_irq_set(rdev);
+	if (rdev->irq.installed)
+		rs600_irq_set(rdev);
 }
 
 void rs600_hpd_fini(struct radeon_device *rdev)
@@ -316,6 +317,11 @@ int rs600_irq_set(struct radeon_device *rdev)
 	u32 hpd2 = RREG32(R_007D18_DC_HOT_PLUG_DETECT2_INT_CONTROL) &
 		~S_007D18_DC_HOT_PLUG_DETECT2_INT_EN(1);
 
+	if (!rdev->irq.installed) {
+		WARN(1, "Can't enable IRQ/MSI because no handler is installed.\n");
+		WREG32(R_000040_GEN_INT_CNTL, 0);
+		return -EINVAL;
+	}
 	if (rdev->irq.sw_int) {
 		tmp |= S_000040_SW_INT_EN(1);
 	}

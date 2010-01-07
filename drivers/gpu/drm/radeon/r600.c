@@ -285,7 +285,8 @@ void r600_hpd_init(struct radeon_device *rdev)
 			}
 		}
 	}
-	r600_irq_set(rdev);
+	if (rdev->irq.installed)
+		r600_irq_set(rdev);
 }
 
 void r600_hpd_fini(struct radeon_device *rdev)
@@ -2461,6 +2462,10 @@ int r600_irq_set(struct radeon_device *rdev)
 	u32 mode_int = 0;
 	u32 hpd1, hpd2, hpd3, hpd4 = 0, hpd5 = 0, hpd6 = 0;
 
+	if (!rdev->irq.installed) {
+		WARN(1, "Can't enable IRQ/MSI because no handler is installed.\n");
+		return -EINVAL;
+	}
 	/* don't enable anything if the ih is disabled */
 	if (!rdev->ih.enabled)
 		return 0;

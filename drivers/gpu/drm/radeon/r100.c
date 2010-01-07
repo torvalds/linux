@@ -131,7 +131,8 @@ void r100_hpd_init(struct radeon_device *rdev)
 			break;
 		}
 	}
-	r100_irq_set(rdev);
+	if (rdev->irq.installed)
+		r100_irq_set(rdev);
 }
 
 void r100_hpd_fini(struct radeon_device *rdev)
@@ -243,6 +244,11 @@ int r100_irq_set(struct radeon_device *rdev)
 {
 	uint32_t tmp = 0;
 
+	if (!rdev->irq.installed) {
+		WARN(1, "Can't enable IRQ/MSI because no handler is installed.\n");
+		WREG32(R_000040_GEN_INT_CNTL, 0);
+		return -EINVAL;
+	}
 	if (rdev->irq.sw_int) {
 		tmp |= RADEON_SW_INT_ENABLE;
 	}
