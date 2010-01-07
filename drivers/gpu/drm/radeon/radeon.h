@@ -351,6 +351,7 @@ struct radeon_irq {
 	bool		sw_int;
 	/* FIXME: use a define max crtc rather than hardcode it */
 	bool		crtc_vblank_int[2];
+	wait_queue_head_t	vblank_queue;
 	/* FIXME: use defines for max hpd/dacs */
 	bool            hpd[6];
 	spinlock_t sw_lock;
@@ -657,13 +658,11 @@ struct radeon_power_state {
 
 struct radeon_pm {
 	struct mutex		mutex;
-	struct work_struct	reclock_work;
 	struct delayed_work	idle_work;
 	enum radeon_pm_state	state;
 	enum radeon_pm_action	planned_action;
 	unsigned long		action_timeout;
 	bool 			downclocked;
-	bool			vblank_callback;
 	int			active_crtcs;
 	int			req_vblank;
 	fixed20_12		max_bandwidth;
