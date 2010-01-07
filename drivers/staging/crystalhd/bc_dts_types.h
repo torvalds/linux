@@ -25,6 +25,10 @@
 #ifndef _BC_DTS_TYPES_H_
 #define _BC_DTS_TYPES_H_
 
+#ifdef __LINUX_USER__  // Don't include these for KERNEL..
+#include <stdint.h>
+#endif
+
 #if defined(_WIN64) || defined(_WIN32)
 typedef uint32_t		U32;
 typedef int32_t			S32;
@@ -62,7 +66,9 @@ typedef int	BOOL;
 typedef uint32_t	ULONG;
 typedef int32_t		LONG;
 typedef void		*HANDLE;
+#ifndef VOID
 typedef void		VOID;
+#endif
 typedef void		*LPVOID;
 typedef uint32_t	DWORD;
 typedef uint32_t	UINT32;
