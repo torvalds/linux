@@ -627,8 +627,15 @@ static int psmouse_extensions(struct psmouse *psmouse,
 		synaptics_hardware = true;
 
 		if (max_proto > PSMOUSE_IMEX) {
-			if (!set_properties || synaptics_init(psmouse) == 0)
+/*
+ * Try activating protocol, but check if support is enabled first, since
+ * we try detecting Synaptics even when protocol is disabled.
+ */
+			if (synaptics_supported() &&
+			    (!set_properties || synaptics_init(psmouse) == 0)) {
 				return PSMOUSE_SYNAPTICS;
+			}
+
 /*
  * Some Synaptics touchpads can emulate extended protocols (like IMPS/2).
  * Unfortunately Logitech/Genius probes confuse some firmware versions so
