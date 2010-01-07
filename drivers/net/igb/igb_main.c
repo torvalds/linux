@@ -4110,6 +4110,9 @@ static irqreturn_t igb_msix_other(int irq, void *data)
 	u32 icr = rd32(E1000_ICR);
 	/* reading ICR causes bit 31 of EICR to be cleared */
 
+	if (icr & E1000_ICR_DRSTA)
+		schedule_work(&adapter->reset_task);
+
 	if (icr & E1000_ICR_DOUTSYNC) {
 		/* HW is reporting DMA is out of sync */
 		adapter->stats.doosync++;
@@ -4733,6 +4736,9 @@ static irqreturn_t igb_intr_msi(int irq, void *data)
 
 	igb_write_itr(q_vector);
 
+	if (icr & E1000_ICR_DRSTA)
+		schedule_work(&adapter->reset_task);
+
 	if (icr & E1000_ICR_DOUTSYNC) {
 		/* HW is reporting DMA is out of sync */
 		adapter->stats.doosync++;
@@ -4771,6 +4777,9 @@ static irqreturn_t igb_intr(int irq, void *data)
 	 * not set, then the adapter didn't send an interrupt */
 	if (!(icr & E1000_ICR_INT_ASSERTED))
 		return IRQ_NONE;
+
+	if (icr & E1000_ICR_DRSTA)
+		schedule_work(&adapter->reset_task);
 
 	if (icr & E1000_ICR_DOUTSYNC) {
 		/* HW is reporting DMA is out of sync */
