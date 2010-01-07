@@ -31,6 +31,8 @@
 #ifndef OCTEON_ETHERNET_H
 #define OCTEON_ETHERNET_H
 
+#include <linux/hrtimer.h>
+
 /**
  * This is the definition of the Ethernet driver's private
  * driver state stored in netdev_priv(dev).
@@ -57,6 +59,8 @@ struct octeon_ethernet {
 	uint64_t link_info;
 	/* Called periodically to check link status */
 	void (*poll) (struct net_device *dev);
+	struct hrtimer		tx_restart_timer;
+	ktime_t			tx_restart_interval;
 };
 
 /**

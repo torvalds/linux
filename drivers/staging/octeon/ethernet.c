@@ -131,50 +131,29 @@ struct net_device *cvm_oct_device[TOTAL_NUMBER_OF_PORTS];
  */
 static void cvm_do_timer(unsigned long arg)
 {
-	int32_t skb_to_free, undo;
-	int queues_per_port;
-	int qos;
-	struct octeon_ethernet *priv;
 	static int port;
-
-	if (port >= CVMX_PIP_NUM_INPUT_PORTS) {
+	if (port < CVMX_PIP_NUM_INPUT_PORTS) {
+		if (cvm_oct_device[port]) {
+			struct octeon_ethernet *priv = netdev_priv(cvm_oct_device[port]);
+			if (priv->poll)
+				priv->poll(cvm_oct_device[port]);
+			cvm_oct_free_tx_skbs(priv);
+			cvm_oct_device[port]->netdev_ops->ndo_get_stats(cvm_oct_device[port]);
+		}
+		port++;
 		/*
-		 * All ports have been polled. Start the next
-		 * iteration through the ports in one second.
+		 * Poll the next port in a 50th of a second.  This
+		 * spreads the polling of ports out a little bit.
 		 */
+		mod_timer(&cvm_oct_poll_timer, jiffies + HZ/50);
+	} else {
 		port = 0;
+		/*
+		 * All ports have been polled. Start the next iteration through
+		 * the ports in one second.
+		 */
 		mod_timer(&cvm_oct_poll_timer, jiffies + HZ);
-		return;
 	}
-	if (!cvm_oct_device[port])
-		goto out;
-
-	priv = netdev_priv(cvm_oct_device[port]);
-	if (priv->poll)
-		priv->poll(cvm_oct_device[port]);
-
-	queues_per_port = cvmx_pko_get_num_queues(port);
-	/* Drain any pending packets in the free list */
-	for (qos = 0; qos < queues_per_port; qos++) {
-		if (skb_queue_len(&priv->tx_free_list[qos]) == 0)
-			continue;
-		skb_to_free = cvmx_fau_fetch_and_add32(priv->fau + qos * 4,
-						       MAX_SKB_TO_FREE);
-		undo = skb_to_free > 0 ?
-			MAX_SKB_TO_FREE : skb_to_free + MAX_SKB_TO_FREE;
-		if (undo > 0)
-			cvmx_fau_atomic_add32(priv->fau+qos*4, -undo);
-		skb_to_free = -skb_to_free > MAX_SKB_TO_FREE ?
-			MAX_SKB_TO_FREE : -skb_to_free;
-		cvm_oct_free_tx_skbs(priv, skb_to_free, qos, 1);
-	}
-	cvm_oct_device[port]->netdev_ops->ndo_get_stats(cvm_oct_device[port]);
-
-out:
-	port++;
-	/* Poll the next port in a 50th of a second.
-	   This spreads the polling of ports out a little bit */
-	mod_timer(&cvm_oct_poll_timer, jiffies + HZ / 50);
 }
 
 /**
@@ -678,6 +657,18 @@ static int __init cvm_oct_init_module(void)
 			/* Initialize the device private structure. */
 			struct octeon_ethernet *priv = netdev_priv(dev);
 
+			hrtimer_init(&priv->tx_restart_timer,
+				     CLOCK_MONOTONIC,
+				     HRTIMER_MODE_REL);
+			priv->tx_restart_timer.function = cvm_oct_restart_tx;
+
+			/*
+			 * Default for 10GE 5000nS enough time to
+			 * transmit about 100 64byte packtes.  1GE
+			 * interfaces will get 50000nS below.
+			 */
+			priv->tx_restart_interval = ktime_set(0, 5000);
+
 			dev->netdev_ops = &cvm_oct_pow_netdev_ops;
 			priv->imode = CVMX_HELPER_INTERFACE_MODE_DISABLED;
 			priv->port = CVMX_PIP_NUM_INPUT_PORTS;
@@ -757,6 +748,7 @@ static int __init cvm_oct_init_module(void)
 
 			case CVMX_HELPER_INTERFACE_MODE_SGMII:
 				dev->netdev_ops = &cvm_oct_sgmii_netdev_ops;
+				priv->tx_restart_interval = ktime_set(0, 50000);
 				strcpy(dev->name, "eth%d");
 				break;
 
@@ -768,6 +760,7 @@ static int __init cvm_oct_init_module(void)
 			case CVMX_HELPER_INTERFACE_MODE_RGMII:
 			case CVMX_HELPER_INTERFACE_MODE_GMII:
 				dev->netdev_ops = &cvm_oct_rgmii_netdev_ops;
+				priv->tx_restart_interval = ktime_set(0, 50000);
 				strcpy(dev->name, "eth%d");
 				break;
 			}

@@ -64,6 +64,49 @@
 #define GET_SKBUFF_QOS(skb) 0
 #endif
 
+
+static inline int32_t cvm_oct_adjust_skb_to_free(int32_t skb_to_free, int fau)
+{
+	int32_t undo;
+	undo = skb_to_free > 0 ? MAX_SKB_TO_FREE : skb_to_free + MAX_SKB_TO_FREE;
+	if (undo > 0)
+		cvmx_fau_atomic_add32(fau, -undo);
+	skb_to_free = -skb_to_free > MAX_SKB_TO_FREE ? MAX_SKB_TO_FREE : -skb_to_free;
+	return skb_to_free;
+}
+
+void cvm_oct_free_tx_skbs(struct octeon_ethernet *priv)
+{
+	int32_t skb_to_free;
+	int qos, queues_per_port;
+	queues_per_port = cvmx_pko_get_num_queues(priv->port);
+	/* Drain any pending packets in the free list */
+	for (qos = 0; qos < queues_per_port; qos++) {
+		if (skb_queue_len(&priv->tx_free_list[qos]) == 0)
+			continue;
+		skb_to_free = cvmx_fau_fetch_and_add32(priv->fau+qos*4, MAX_SKB_TO_FREE);
+		skb_to_free = cvm_oct_adjust_skb_to_free(skb_to_free, priv->fau+qos*4);
+
+		while (skb_to_free > 0) {
+			dev_kfree_skb_any(skb_dequeue(&priv->tx_free_list[qos]));
+			skb_to_free--;
+		}
+	}
+}
+
+enum hrtimer_restart cvm_oct_restart_tx(struct hrtimer *timer)
+{
+	struct octeon_ethernet *priv = container_of(timer, struct octeon_ethernet, tx_restart_timer);
+	struct net_device *dev = cvm_oct_device[priv->port];
+
+	cvm_oct_free_tx_skbs(priv);
+
+	if (netif_queue_stopped(dev))
+		netif_wake_queue(dev);
+
+	return HRTIMER_NORESTART;
+}
+
 /**
  * Packet transmit
  *
@@ -77,13 +120,13 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	union cvmx_buf_ptr hw_buffer;
 	uint64_t old_scratch;
 	uint64_t old_scratch2;
-	int dropped;
 	int qos;
-	int queue_it_up;
+	enum {QUEUE_CORE, QUEUE_HW, QUEUE_DROP} queue_type;
 	struct octeon_ethernet *priv = netdev_priv(dev);
+	struct sk_buff *to_free_list;
 	int32_t skb_to_free;
-	int32_t undo;
 	int32_t buffers_to_free;
+	unsigned long flags;
 #if REUSE_SKBUFFS_WITHOUT_FREE
 	unsigned char *fpa_head;
 #endif
@@ -93,9 +136,6 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * cache line.
 	 */
 	prefetch(priv);
-
-	/* Start off assuming no drop */
-	dropped = 0;
 
 	/*
 	 * The check on CVMX_PKO_QUEUES_PER_PORT_* is designed to
@@ -268,9 +308,9 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb->tc_verd = 0;
 #endif /* CONFIG_NET_CLS_ACT */
 #endif /* CONFIG_NET_SCHED */
+#endif /* REUSE_SKBUFFS_WITHOUT_FREE */
 
 dont_put_skbuff_in_hw:
-#endif /* REUSE_SKBUFFS_WITHOUT_FREE */
 
 	/* Check if we can use the hardware checksumming */
 	if (USE_HW_TCPUDP_CHECKSUM && (skb->protocol == htons(ETH_P_IP)) &&
@@ -295,18 +335,7 @@ dont_put_skbuff_in_hw:
 		    cvmx_fau_fetch_and_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE, 0);
 	}
 
-	/*
-	 * We try to claim MAX_SKB_TO_FREE buffers.  If there were not
-	 * that many available, we have to un-claim (undo) any that
-	 * were in excess.  If skb_to_free is positive we will free
-	 * that many buffers.
-	 */
-	undo = skb_to_free > 0 ?
-		MAX_SKB_TO_FREE : skb_to_free + MAX_SKB_TO_FREE;
-	if (undo > 0)
-		cvmx_fau_atomic_add32(priv->fau+qos*4, -undo);
-	skb_to_free = -skb_to_free > MAX_SKB_TO_FREE ?
-		MAX_SKB_TO_FREE : -skb_to_free;
+	skb_to_free = cvm_oct_adjust_skb_to_free(skb_to_free, priv->fau+qos*4);
 
 	/*
 	 * If we're sending faster than the receive can free them then
@@ -317,24 +346,74 @@ dont_put_skbuff_in_hw:
 		pko_command.s.reg0 = priv->fau + qos * 4;
 	}
 
-	cvmx_pko_send_packet_prepare(priv->port, priv->queue + qos,
-				     CVMX_PKO_LOCK_CMD_QUEUE);
+	if (pko_command.s.dontfree)
+		queue_type = QUEUE_CORE;
+	else
+		queue_type = QUEUE_HW;
+
+	spin_lock_irqsave(&priv->tx_free_list[qos].lock, flags);
 
 	/* Drop this packet if we have too many already queued to the HW */
-	if (unlikely
-	    (skb_queue_len(&priv->tx_free_list[qos]) >= MAX_OUT_QUEUE_DEPTH)) {
-		/*
-		   DEBUGPRINT("%s: Tx dropped. Too many queued\n", dev->name);
-		 */
-		dropped = 1;
+	if (unlikely(skb_queue_len(&priv->tx_free_list[qos]) >= MAX_OUT_QUEUE_DEPTH)) {
+		if (dev->tx_queue_len != 0) {
+			/* Drop the lock when notifying the core.  */
+			spin_unlock_irqrestore(&priv->tx_free_list[qos].lock, flags);
+			netif_stop_queue(dev);
+			hrtimer_start(&priv->tx_restart_timer,
+				      priv->tx_restart_interval, HRTIMER_MODE_REL);
+			spin_lock_irqsave(&priv->tx_free_list[qos].lock, flags);
+
+		} else {
+			/* If not using normal queueing.  */
+			queue_type = QUEUE_DROP;
+			goto skip_xmit;
+		}
 	}
+
+	cvmx_pko_send_packet_prepare(priv->port, priv->queue + qos,
+				     CVMX_PKO_LOCK_NONE);
+
 	/* Send the packet to the output queue */
-	else if (unlikely
-		 (cvmx_pko_send_packet_finish
-		  (priv->port, priv->queue + qos, pko_command, hw_buffer,
-		   CVMX_PKO_LOCK_CMD_QUEUE))) {
+	if (unlikely(cvmx_pko_send_packet_finish(priv->port,
+						 priv->queue + qos,
+						 pko_command, hw_buffer,
+						 CVMX_PKO_LOCK_NONE))) {
 		DEBUGPRINT("%s: Failed to send the packet\n", dev->name);
-		dropped = 1;
+		queue_type = QUEUE_DROP;
+	}
+skip_xmit:
+	to_free_list = NULL;
+
+	switch (queue_type) {
+	case QUEUE_DROP:
+		skb->next = to_free_list;
+		to_free_list = skb;
+		priv->stats.tx_dropped++;
+		break;
+	case QUEUE_HW:
+		cvmx_fau_atomic_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE, -1);
+		break;
+	case QUEUE_CORE:
+		__skb_queue_tail(&priv->tx_free_list[qos], skb);
+		break;
+	default:
+		BUG();
+	}
+
+	while (skb_to_free > 0) {
+		struct sk_buff *t = __skb_dequeue(&priv->tx_free_list[qos]);
+		t->next = to_free_list;
+		to_free_list = t;
+		skb_to_free--;
+	}
+
+	spin_unlock_irqrestore(&priv->tx_free_list[qos].lock, flags);
+
+	/* Do the actual freeing outside of the lock. */
+	while (to_free_list) {
+		struct sk_buff *t = to_free_list;
+		to_free_list = to_free_list->next;
+		dev_kfree_skb_any(t);
 	}
 
 	if (USE_ASYNC_IOBDMA) {
@@ -343,34 +422,7 @@ dont_put_skbuff_in_hw:
 		cvmx_scratch_write64(CVMX_SCR_SCRATCH + 8, old_scratch2);
 	}
 
-	queue_it_up = 0;
-	if (unlikely(dropped)) {
-		dev_kfree_skb_any(skb);
-		priv->stats.tx_dropped++;
-	} else {
-		if (USE_SKBUFFS_IN_HW) {
-			/* Put this packet on the queue to be freed later */
-			if (pko_command.s.dontfree)
-				queue_it_up = 1;
-			else
-				cvmx_fau_atomic_add32
-				    (FAU_NUM_PACKET_BUFFERS_TO_FREE, -1);
-		} else {
-			/* Put this packet on the queue to be freed later */
-			queue_it_up = 1;
-		}
-	}
-
-	if (queue_it_up) {
-		spin_lock(&priv->tx_free_list[qos].lock);
-		__skb_queue_tail(&priv->tx_free_list[qos], skb);
-		cvm_oct_free_tx_skbs(priv, skb_to_free, qos, 0);
-		spin_unlock(&priv->tx_free_list[qos].lock);
-	} else {
-		cvm_oct_free_tx_skbs(priv, skb_to_free, qos, 1);
-	}
-
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /**
