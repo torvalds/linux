@@ -53,24 +53,28 @@ static int stv_sndctrl(struct gspca_dev *gspca_dev, int set, u8 req, u16 val,
 {
 	int ret = -1;
 	u8 req_type = 0;
+	unsigned int pipe = 0;
 
 	switch (set) {
 	case 0: /*  0xc1  */
 		req_type = USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_ENDPOINT;
+		pipe = usb_rcvctrlpipe(gspca_dev->dev, 0);
 		break;
 	case 1: /*  0x41  */
 		req_type = USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_ENDPOINT;
+		pipe = usb_sndctrlpipe(gspca_dev->dev, 0);
 		break;
 	case 2:	/*  0x80  */
 		req_type = USB_DIR_IN | USB_RECIP_DEVICE;
+		pipe = usb_rcvctrlpipe(gspca_dev->dev, 0);
 		break;
 	case 3:	/*  0x40  */
 		req_type = USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE;
+		pipe = usb_sndctrlpipe(gspca_dev->dev, 0);
 		break;
 	}
 
-	ret = usb_control_msg(gspca_dev->dev,
-			      usb_rcvctrlpipe(gspca_dev->dev, 0),
+	ret = usb_control_msg(gspca_dev->dev, pipe,
 			      req, req_type,
 			      val, 0, gspca_dev->usb_buf, size, 500);
 
@@ -173,6 +177,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		PDEBUG(D_PROBE, "Camera supports CIF mode");
 	if (gspca_dev->usb_buf[7] & 0x02)
 		PDEBUG(D_PROBE, "Camera supports VGA mode");
+	if (gspca_dev->usb_buf[7] & 0x04)
+		PDEBUG(D_PROBE, "Camera supports QCIF mode");
 	if (gspca_dev->usb_buf[7] & 0x08)
 		PDEBUG(D_PROBE, "Camera supports QVGA mode");
 
