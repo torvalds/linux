@@ -173,9 +173,7 @@ static struct platform_device *platform_devices[] __initdata = {
  * setup other stuffs to access the sram. */
 static void __init pcm038_init_sram(void)
 {
-	__raw_writel(0x0000d843, CSCR_U(1));
-	__raw_writel(0x22252521, CSCR_L(1));
-	__raw_writel(0x22220a00, CSCR_A(1));
+	mx27_setup_weimcs(1, 0x0000d843, 0x22252521, 0x22220a00);
 }
 
 static struct imxi2c_platform_data pcm038_i2c_1_data = {

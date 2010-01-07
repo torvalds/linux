@@ -198,9 +198,7 @@ static struct platform_device qong_nand_device = {
 static void __init qong_init_nand_mtd(void)
 {
 	/* init CS */
-	__raw_writel(0x00004f00, CSCR_U(3));
-	__raw_writel(0x20013b31, CSCR_L(3));
-	__raw_writel(0x00020800, CSCR_A(3));
+	mx31_setup_weimcs(3, 0x00004f00, 0x20013b31, 0x00020800);
 	mxc_iomux_set_gpr(MUX_SDCTL_CSD1_SEL, true);
 
 	/* enable pin */
