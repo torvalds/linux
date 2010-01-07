@@ -55,7 +55,7 @@ static struct snd_pcm_hardware snd_cx18_hw_capture = {
 
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
 
-	.rates = SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_KNOT,
+	.rates = SNDRV_PCM_RATE_48000,
 
 	.rate_min = 48000,
 	.rate_max = 48000,
@@ -196,7 +196,6 @@ static int snd_cx18_pcm_capture_open(struct snd_pcm_substream *substream)
 
 static int snd_cx18_pcm_capture_close(struct snd_pcm_substream *substream)
 {
-	unsigned long flags;
 	struct snd_cx18_card *cxsc = snd_pcm_substream_chip(substream);
 	struct v4l2_device *v4l2_dev = cxsc->v4l2_dev;
 	struct cx18 *cx = to_cx18(v4l2_dev);
@@ -211,14 +210,6 @@ static int snd_cx18_pcm_capture_close(struct snd_pcm_substream *substream)
 	cx18_release_stream(s);
 
 	cx->pcm_announce_callback = NULL;
-
-	spin_lock_irqsave(&cxsc->slock, flags);
-	if (substream->runtime->dma_area) {
-		dprintk("freeing pcm capture region\n");
-		vfree(substream->runtime->dma_area);
-		substream->runtime->dma_area = NULL;
-	}
-	spin_unlock_irqrestore(&cxsc->slock, flags);
 
 	return 0;
 }
@@ -265,6 +256,17 @@ static int snd_cx18_pcm_hw_params(struct snd_pcm_substream *substream,
 
 static int snd_cx18_pcm_hw_free(struct snd_pcm_substream *substream)
 {
+	struct snd_cx18_card *cxsc = snd_pcm_substream_chip(substream);
+	unsigned long flags;
+
+	spin_lock_irqsave(&cxsc->slock, flags);
+	if (substream->runtime->dma_area) {
+		dprintk("freeing pcm capture region\n");
+		vfree(substream->runtime->dma_area);
+		substream->runtime->dma_area = NULL;
+	}
+	spin_unlock_irqrestore(&cxsc->slock, flags);
+
 	return 0;
 }
 
