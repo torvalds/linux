@@ -2301,10 +2301,12 @@ bool e1000e_enable_tx_pkt_filtering(struct e1000_hw *hw)
 	s32 ret_val, hdr_csum, csum;
 	u8 i, len;
 
+	hw->mac.tx_pkt_filtering = true;
+
 	/* No manageability, no filtering */
 	if (!e1000e_check_mng_mode(hw)) {
 		hw->mac.tx_pkt_filtering = false;
-		return 0;
+		goto out;
 	}
 
 	/*
@@ -2312,9 +2314,9 @@ bool e1000e_enable_tx_pkt_filtering(struct e1000_hw *hw)
 	 * reason, disable filtering.
 	 */
 	ret_val = e1000_mng_enable_host_if(hw);
-	if (ret_val != 0) {
+	if (ret_val) {
 		hw->mac.tx_pkt_filtering = false;
-		return ret_val;
+		goto out;
 	}
 
 	/* Read in the header.  Length and offset are in dwords. */
@@ -2333,17 +2335,17 @@ bool e1000e_enable_tx_pkt_filtering(struct e1000_hw *hw)
 	 */
 	if ((hdr_csum != csum) || (hdr->signature != E1000_IAMT_SIGNATURE)) {
 		hw->mac.tx_pkt_filtering = true;
-		return 1;
+		goto out;
 	}
 
 	/* Cookie area is valid, make the final check for filtering. */
 	if (!(hdr->status & E1000_MNG_DHCP_COOKIE_STATUS_PARSING)) {
 		hw->mac.tx_pkt_filtering = false;
-		return 0;
+		goto out;
 	}
 
-	hw->mac.tx_pkt_filtering = true;
-	return 1;
+out:
+	return hw->mac.tx_pkt_filtering;
 }
 
 /**
