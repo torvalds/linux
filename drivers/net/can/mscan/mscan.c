@@ -4,7 +4,7 @@
  * Copyright (C) 2005-2006 Andrey Volkov <avolkov@varma-el.com>,
  *                         Varma Electronics Oy
  * Copyright (C) 2008-2009 Wolfgang Grandegger <wg@grandegger.com>
- * Copytight (C) 2008-2009 Pengutronix <kernel@pengutronix.de>
+ * Copyright (C) 2008-2009 Pengutronix <kernel@pengutronix.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the version 2 of the GNU General Public License
@@ -177,8 +177,11 @@ static netdev_tx_t mscan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int i, rtr, buf_id;
 	u32 can_id;
 
-	if (frame->can_dlc > 8)
-		return -EINVAL;
+	if (skb->len != sizeof(*frame) || frame->can_dlc > 8) {
+		kfree_skb(skb);
+		dev->stats.tx_dropped++;
+		return NETDEV_TX_OK;
+	}
 
 	out_8(&regs->cantier, 0);
 
