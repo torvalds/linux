@@ -475,7 +475,7 @@ static void uv_heartbeat(unsigned long ignored)
 
 static void __cpuinit uv_heartbeat_enable(int cpu)
 {
-	if (!uv_cpu_hub_info(cpu)->scir.enabled) {
+	while (!uv_cpu_hub_info(cpu)->scir.enabled) {
 		struct timer_list *timer = &uv_cpu_hub_info(cpu)->scir.timer;
 
 		uv_set_cpu_scir_bits(cpu, SCIR_CPU_HEARTBEAT|SCIR_CPU_ACTIVITY);
@@ -483,11 +483,10 @@ static void __cpuinit uv_heartbeat_enable(int cpu)
 		timer->expires = jiffies + SCIR_CPU_HB_INTERVAL;
 		add_timer_on(timer, cpu);
 		uv_cpu_hub_info(cpu)->scir.enabled = 1;
-	}
 
-	/* check boot cpu */
-	if (!uv_cpu_hub_info(0)->scir.enabled)
-		uv_heartbeat_enable(0);
+		/* also ensure that boot cpu is enabled */
+		cpu = 0;
+	}
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
