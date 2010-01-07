@@ -346,7 +346,9 @@ const int object_connector_convert[] = {
 	DRM_MODE_CONNECTOR_Unknown,
 	DRM_MODE_CONNECTOR_Unknown,
 	DRM_MODE_CONNECTOR_Unknown,
-	DRM_MODE_CONNECTOR_DisplayPort
+	DRM_MODE_CONNECTOR_DisplayPort,
+	DRM_MODE_CONNECTOR_eDP,
+	DRM_MODE_CONNECTOR_Unknown
 };
 
 bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
