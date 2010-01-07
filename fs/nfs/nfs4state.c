@@ -1314,6 +1314,7 @@ static void nfs4_set_lease_expired(struct nfs_client *clp, int status)
 		case -NFS4ERR_DELAY:
 		case -NFS4ERR_CLID_INUSE:
 		case -EAGAIN:
+		case -EKEYEXPIRED:
 			break;
 
 		case -NFS4ERR_NOT_SAME: /* FixMe: implement recovery
