@@ -4,6 +4,7 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <asm/processor.h>
+#include <asm/alternative.h>
 #include <asm/cmpxchg.h>
 
 /*
@@ -145,8 +146,8 @@ static inline int atomic_inc_and_test(atomic_t *v)
 
 /**
  * atomic_add_negative - add and test if negative
- * @v: pointer of type atomic_t
  * @i: integer value to add
+ * @v: pointer of type atomic_t
  *
  * Atomically adds @i to @v and returns true
  * if the result is negative, or false when
@@ -164,8 +165,8 @@ static inline int atomic_add_negative(int i, atomic_t *v)
 
 /**
  * atomic_add_return - add integer and return
- * @v: pointer of type atomic_t
  * @i: integer value to add
+ * @v: pointer of type atomic_t
  *
  * Atomically adds @i to @v and returns @i + @v
  */
@@ -206,6 +207,9 @@ static inline int atomic_sub_return(int i, atomic_t *v)
 	return atomic_add_return(-i, v);
 }
 
+#define atomic_inc_return(v)  (atomic_add_return(1, v))
+#define atomic_dec_return(v)  (atomic_sub_return(1, v))
+
 static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 {
 	return cmpxchg(&v->counter, old, new);
@@ -242,8 +246,33 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
 
 #define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
-#define atomic_inc_return(v)  (atomic_add_return(1, v))
-#define atomic_dec_return(v)  (atomic_sub_return(1, v))
+/**
+ * atomic_inc_short - increment of a short integer
+ * @v: pointer to type int
+ *
+ * Atomically adds 1 to @v
+ * Returns the new value of @u
+ */
+static inline short int atomic_inc_short(short int *v)
+{
+	asm(LOCK_PREFIX "addw $1, %0" : "+m" (*v));
+	return *v;
+}
+
+#ifdef CONFIG_X86_64
+/**
+ * atomic_or_long - OR of two long integers
+ * @v1: pointer to type unsigned long
+ * @v2: pointer to type unsigned long
+ *
+ * Atomically ORs @v1 and @v2
+ * Returns the result of the OR
+ */
+static inline void atomic_or_long(unsigned long *v1, unsigned long v2)
+{
+	asm(LOCK_PREFIX "orq %1, %0" : "+m" (*v1) : "r" (v2));
+}
+#endif
 
 /* These are x86-specific, used by some header files */
 #define atomic_clear_mask(mask, addr)				\
@@ -251,8 +280,9 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
 		     : : "r" (~(mask)), "m" (*(addr)) : "memory")
 
 #define atomic_set_mask(mask, addr)				\
-	asm volatile(LOCK_PREFIX "orl %0,%1"				\
-		     : : "r" (mask), "m" (*(addr)) : "memory")
+	asm volatile(LOCK_PREFIX "orl %0,%1"			\
+		     : : "r" ((unsigned)(mask)), "m" (*(addr))	\
+		     : "memory")
 
 /* Atomic operations are already serializing on x86 */
 #define smp_mb__before_atomic_dec()	barrier()
