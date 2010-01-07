@@ -488,9 +488,8 @@ zx1_gart_probe (acpi_handle obj, u32 depth, void *context, void **ret)
 	handle = obj;
 	do {
 		status = acpi_get_object_info(handle, &info);
-		if (ACPI_SUCCESS(status)) {
+		if (ACPI_SUCCESS(status) && (info->valid & ACPI_VALID_HID)) {
 			/* TBD check _CID also */
-			info->hardware_id.string[sizeof(info->hardware_id.length)-1] = '\0';
 			match = (strcmp(info->hardware_id.string, "HWP0001") == 0);
 			kfree(info);
 			if (match) {
