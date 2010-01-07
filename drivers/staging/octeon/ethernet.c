@@ -104,6 +104,16 @@ MODULE_PARM_DESC(pow_send_list, "\n"
 	"\t\"eth2,spi3,spi7\" would cause these three devices to transmit\n"
 	"\tusing the pow_send_group.");
 
+int max_rx_cpus = -1;
+module_param(max_rx_cpus, int, 0444);
+MODULE_PARM_DESC(max_rx_cpus, "\n"
+	"\t\tThe maximum number of CPUs to use for packet reception.\n"
+	"\t\tUse -1 to use all available CPUs.");
+
+int rx_napi_weight = 32;
+module_param(rx_napi_weight, int, 0444);
+MODULE_PARM_DESC(rx_napi_weight, "The NAPI WEIGHT parameter.");
+
 /*
  * The offset from mac_addr_base that should be used for the next port
  * that is configured.  By convention, if any mgmt ports exist on the
@@ -149,6 +159,15 @@ static void cvm_do_timer(unsigned long arg)
 	} else {
 		port = 0;
 		/*
+		 * FPA 0 may have been drained, try to refill it if we
+		 * need more than num_packet_buffers / 2, otherwise
+		 * normal receive processing will refill it.  If it
+		 * were drained, no packets could be received so
+		 * cvm_oct_napi_poll would never be invoked to do the
+		 * refill.
+		 */
+		cvm_oct_rx_refill_pool(num_packet_buffers / 2);
+		/*
 		 * All ports have been polled. Start the next iteration through
 		 * the ports in one second.
 		 */
@@ -161,7 +180,6 @@ static void cvm_do_timer(unsigned long arg)
  */
 static __init void cvm_oct_configure_common_hw(void)
 {
-	int r;
 	/* Setup the FPA */
 	cvmx_fpa_enable();
 	cvm_oct_mem_fill_fpa(CVMX_FPA_PACKET_POOL, CVMX_FPA_PACKET_POOL_SIZE,
@@ -176,17 +194,6 @@ static __init void cvm_oct_configure_common_hw(void)
 		cvmx_helper_setup_red(num_packet_buffers / 4,
 				      num_packet_buffers / 8);
 
-	/* Register an IRQ hander for to receive POW interrupts */
-	r = request_irq(OCTEON_IRQ_WORKQ0 + pow_receive_group,
-			cvm_oct_do_interrupt, IRQF_SHARED, "Ethernet",
-			cvm_oct_device);
-
-#if defined(CONFIG_SMP) && 0
-	if (USE_MULTICORE_RECEIVE) {
-		irq_set_affinity(OCTEON_IRQ_WORKQ0 + pow_receive_group,
-				 cpu_online_mask);
-	}
-#endif
 }
 
 /**
@@ -616,7 +623,6 @@ static int __init cvm_oct_init_module(void)
 		cvm_oct_mac_addr_offset = 0;
 
 	cvm_oct_proc_initialize();
-	cvm_oct_rx_initialize();
 	cvm_oct_configure_common_hw();
 
 	cvmx_helper_initialize_packet_io_global();
@@ -781,25 +787,7 @@ static int __init cvm_oct_init_module(void)
 		}
 	}
 
-	if (INTERRUPT_LIMIT) {
-		/*
-		 * Set the POW timer rate to give an interrupt at most
-		 * INTERRUPT_LIMIT times per second.
-		 */
-		cvmx_write_csr(CVMX_POW_WQ_INT_PC,
-			       octeon_bootinfo->eclock_hz / (INTERRUPT_LIMIT *
-							     16 * 256) << 8);
-
-		/*
-		 * Enable POW timer interrupt. It will count when
-		 * there are packets available.
-		 */
-		cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group),
-			       0x1ful << 24);
-	} else {
-		/* Enable POW interrupt when our port has at least one packet */
-		cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group), 0x1001);
-	}
+	cvm_oct_rx_initialize();
 
 	/* Enable the poll timer for checking RGMII status */
 	init_timer(&cvm_oct_poll_timer);

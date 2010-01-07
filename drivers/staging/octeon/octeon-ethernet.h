@@ -98,4 +98,7 @@ extern int pow_receive_group;
 extern char pow_send_list[];
 extern struct net_device *cvm_oct_device[];
 
+extern int max_rx_cpus;
+extern int rx_napi_weight;
+
 #endif

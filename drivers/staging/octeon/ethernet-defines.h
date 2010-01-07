@@ -45,10 +45,6 @@
  *      Controls if the Octeon TCP/UDP checksum engine is used for packet
  *      output. If this is zero, the kernel will perform the checksum in
  *      software.
- *  USE_MULTICORE_RECEIVE
- *      Process receive interrupts on multiple cores. This spreads the network
- *      load across the first 8 processors. If ths is zero, only one core
- *      processes incomming packets.
  *  USE_ASYNC_IOBDMA
  *      Use asynchronous IO access to hardware. This uses Octeon's asynchronous
  *      IOBDMAs to issue IO accesses without stalling. Set this to zero
@@ -79,14 +75,7 @@
 #define REUSE_SKBUFFS_WITHOUT_FREE  1
 #endif
 
-/* Max interrupts per second per core */
-#define INTERRUPT_LIMIT             10000
-
-/* Don't limit the number of interrupts */
-/*#define INTERRUPT_LIMIT             0     */
 #define USE_HW_TCPUDP_CHECKSUM      1
-
-#define USE_MULTICORE_RECEIVE       1
 
 /* Enable Random Early Dropping under load */
 #define USE_RED                     1
@@ -105,16 +94,9 @@
 /* Use this to not have FPA frees control L2 */
 /*#define DONT_WRITEBACK(x)         0   */
 
-/* Maximum number of packets to process per interrupt. */
-#define MAX_RX_PACKETS 120
 /* Maximum number of SKBs to try to free per xmit packet. */
 #define MAX_SKB_TO_FREE 10
 #define MAX_OUT_QUEUE_DEPTH 1000
-
-#ifndef CONFIG_SMP
-#undef USE_MULTICORE_RECEIVE
-#define USE_MULTICORE_RECEIVE 0
-#endif
 
 #define IP_PROTOCOL_TCP             6
 #define IP_PROTOCOL_UDP             0x11
