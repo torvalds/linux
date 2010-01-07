@@ -92,7 +92,7 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		err = -ENODEV;
+		ret = -ENODEV;
 		goto no_res;
 	}
 
