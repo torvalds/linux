@@ -680,7 +680,7 @@ static struct ieee80211_regdomain *country_ie_2_rd(
 		 */
 		freq_range->max_bandwidth_khz = MHZ_TO_KHZ(40);
 		power_rule->max_antenna_gain = DBI_TO_MBI(100);
-		power_rule->max_eirp = DBM_TO_MBM(100);
+		power_rule->max_eirp = DBM_TO_MBM(triplet->chans.max_power);
 
 		country_ie += 3;
 		country_ie_len -= 3;
