@@ -9,6 +9,7 @@
 
 #include <linux/init.h>
 #include <linux/irq.h>
+#include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
@@ -159,6 +160,18 @@ out:
 }
 device_initcall(octeon_rng_device_init);
 
+static struct i2c_board_info __initdata octeon_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("ds1337", 0x68),
+	},
+};
+
+static int __init octeon_i2c_devices_init(void)
+{
+	return i2c_register_board_info(0, octeon_i2c_devices,
+				       ARRAY_SIZE(octeon_i2c_devices));
+}
+arch_initcall(octeon_i2c_devices_init);
 
 #define OCTEON_I2C_IO_BASE 0x1180000001000ull
 #define OCTEON_I2C_IO_UNIT_OFFSET 0x200
