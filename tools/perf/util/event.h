@@ -103,15 +103,13 @@ void event__print_totals(void);
 
 struct perf_session;
 
-int event__synthesize_thread(pid_t pid,
-			     int (*process)(event_t *event,
-					    struct perf_session *session),
+typedef int (*event__handler_t)(event_t *event, struct perf_session *session);
+
+int event__synthesize_thread(pid_t pid, event__handler_t process,
 			     struct perf_session *session);
-void event__synthesize_threads(int (*process)(event_t *event,
-					      struct perf_session *session),
+void event__synthesize_threads(event__handler_t process,
 			       struct perf_session *session);
-int event__synthesize_kernel_mmap(int (*process)(event_t *event,
-						 struct perf_session *session),
+int event__synthesize_kernel_mmap(event__handler_t process,
 				  struct perf_session *session,
 				  const char *symbol_name);
 

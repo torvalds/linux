@@ -8,8 +8,7 @@
 #include "thread.h"
 
 static pid_t event__synthesize_comm(pid_t pid, int full,
-				    int (*process)(event_t *event,
-						   struct perf_session *session),
+				    event__handler_t process,
 				    struct perf_session *session)
 {
 	event_t ev;
@@ -91,8 +90,7 @@ out_failure:
 }
 
 static int event__synthesize_mmap_events(pid_t pid, pid_t tgid,
-					 int (*process)(event_t *event,
-							struct perf_session *session),
+					 event__handler_t process,
 					 struct perf_session *session)
 {
 	char filename[PATH_MAX];
@@ -156,9 +154,7 @@ static int event__synthesize_mmap_events(pid_t pid, pid_t tgid,
 	return 0;
 }
 
-int event__synthesize_thread(pid_t pid,
-			     int (*process)(event_t *event,
-					    struct perf_session *session),
+int event__synthesize_thread(pid_t pid, event__handler_t process,
 			     struct perf_session *session)
 {
 	pid_t tgid = event__synthesize_comm(pid, 1, process, session);
@@ -167,8 +163,7 @@ int event__synthesize_thread(pid_t pid,
 	return event__synthesize_mmap_events(pid, tgid, process, session);
 }
 
-void event__synthesize_threads(int (*process)(event_t *event,
-					      struct perf_session *session),
+void event__synthesize_threads(event__handler_t process,
 			       struct perf_session *session)
 {
 	DIR *proc;
@@ -205,8 +200,7 @@ static int find_symbol_cb(void *arg, const char *name, char type, u64 start)
 	return 1;
 }
 
-int event__synthesize_kernel_mmap(int (*process)(event_t *event,
-						 struct perf_session *session),
+int event__synthesize_kernel_mmap(event__handler_t process,
 				  struct perf_session *session,
 				  const char *symbol_name)
 {
