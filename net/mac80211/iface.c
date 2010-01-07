@@ -685,6 +685,7 @@ static u16 ieee80211_monitor_select_queue(struct net_device *dev,
 		return ieee802_1d_to_ac[skb->priority];
 	}
 
+	skb->priority = 0;
 	return ieee80211_downgrade_queue(local, skb);
 }
 
