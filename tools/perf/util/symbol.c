@@ -1615,14 +1615,14 @@ static struct dso *dsos__find(struct list_head *head, const char *name)
 	return NULL;
 }
 
-struct dso *dsos__findnew(const char *name)
+struct dso *__dsos__findnew(struct list_head *head, const char *name)
 {
-	struct dso *dso = dsos__find(&dsos__user, name);
+	struct dso *dso = dsos__find(head, name);
 
 	if (!dso) {
 		dso = dso__new(name);
 		if (dso != NULL) {
-			dsos__add(&dsos__user, dso);
+			dsos__add(head, dso);
 			dso__set_basename(dso);
 		}
 	}

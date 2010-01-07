@@ -193,7 +193,7 @@ static int write_padded(int fd, const void *bf, size_t count,
 			continue;		\
 		else
 
-static int __dsos__write_buildid_table(struct list_head *head, int fd)
+static int __dsos__write_buildid_table(struct list_head *head, u16 misc, int fd)
 {
 	struct dso *pos;
 
@@ -205,6 +205,7 @@ static int __dsos__write_buildid_table(struct list_head *head, int fd)
 		len = ALIGN(len, NAME_ALIGN);
 		memset(&b, 0, sizeof(b));
 		memcpy(&b.build_id, pos->build_id, sizeof(pos->build_id));
+		b.header.misc = misc;
 		b.header.size = sizeof(b) + len;
 		err = do_write(fd, &b, sizeof(b));
 		if (err < 0)
@@ -220,9 +221,11 @@ static int __dsos__write_buildid_table(struct list_head *head, int fd)
 
 static int dsos__write_buildid_table(int fd)
 {
-	int err = __dsos__write_buildid_table(&dsos__kernel, fd);
+	int err = __dsos__write_buildid_table(&dsos__kernel,
+					      PERF_RECORD_MISC_KERNEL, fd);
 	if (err == 0)
-		err = __dsos__write_buildid_table(&dsos__user, fd);
+		err = __dsos__write_buildid_table(&dsos__user,
+						  PERF_RECORD_MISC_USER, fd);
 	return err;
 }
 

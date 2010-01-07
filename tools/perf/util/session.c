@@ -255,6 +255,7 @@ int perf_header__read_build_ids(int input, u64 offset, u64 size)
 	while (offset < limit) {
 		struct dso *dso;
 		ssize_t len;
+		struct list_head *head = &dsos__user;
 
 		if (read(input, &bev, sizeof(bev)) != sizeof(bev))
 			goto out;
@@ -263,7 +264,10 @@ int perf_header__read_build_ids(int input, u64 offset, u64 size)
 		if (read(input, filename, len) != len)
 			goto out;
 
-		dso = dsos__findnew(filename);
+		if (bev.header.misc & PERF_RECORD_MISC_KERNEL)
+			head = &dsos__kernel;
+
+		dso = __dsos__findnew(head, filename);
 		if (dso != NULL)
 			dso__set_build_id(dso, &bev.build_id);
 
