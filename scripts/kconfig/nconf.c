@@ -452,7 +452,7 @@ static void handle_f8(int *key, struct menu *current_item)
 }
 
 /* return != 0 to indicate the key was handles */
-int process_special_keys(int *key, struct menu *menu)
+static int process_special_keys(int *key, struct menu *menu)
 {
 	int i;
 
@@ -484,7 +484,7 @@ static void clean_items(void)
 }
 
 /* return the index of the next hot item, or -1 if no such item exists */
-int get_next_hot(int c)
+static int get_next_hot(int c)
 {
 	static int hot_index;
 	static int hot_char;
@@ -503,7 +503,7 @@ int get_next_hot(int c)
 }
 
 /* can the char c be a hot key? no, if c is a common shortcut used elsewhere */
-int canbhot(char c)
+static int canbhot(char c)
 {
 	c = tolower(c);
 	return isalnum(c) && c != 'y' && c != 'm' && c != 'h' &&
@@ -511,7 +511,7 @@ int canbhot(char c)
 }
 
 /* check if str already contains a hot key. */
-int is_hot(int index)
+static int is_hot(int index)
 {
 	return k_menu_items[index].is_hot;
 }
@@ -519,7 +519,7 @@ int is_hot(int index)
 /* find the first possible hot key, and mark it.
  * index is the index of the item in the menu
  * return 0 on success*/
-int make_hot(char *dest, int len, const char *org, int index)
+static int make_hot(char *dest, int len, const char *org, int index)
 {
 	int position = -1;
 	int i;
@@ -579,7 +579,7 @@ int make_hot(char *dest, int len, const char *org, int index)
 /* Make a new item. Add a hotkey mark in the first possible letter.
  * As ncurses does not allow any attributes inside menue item, we mark the
  * hot key as the first capitalized letter in the string */
-void item_make(struct menu *menu, char tag, const char *fmt, ...)
+static void item_make(struct menu *menu, char tag, const char *fmt, ...)
 {
 	va_list ap;
 	char tmp_str[256];
@@ -623,7 +623,7 @@ void item_make(struct menu *menu, char tag, const char *fmt, ...)
 }
 
 /* very hackish. adds a string to the last item added */
-void item_add_str(const char *fmt, ...)
+static void item_add_str(const char *fmt, ...)
 {
 	va_list ap;
 	int index = items_num-1;
@@ -653,7 +653,7 @@ void item_add_str(const char *fmt, ...)
 }
 
 /* get the tag of the currently selected item */
-char item_tag(void)
+static char item_tag(void)
 {
 	ITEM *cur;
 	struct mitem *mcur;
@@ -665,12 +665,12 @@ char item_tag(void)
 	return mcur->tag;
 }
 
-int curses_item_index(void)
+static int curses_item_index(void)
 {
 	return  item_index(current_item(curses_menu));
 }
 
-void *item_data(void)
+static void *item_data(void)
 {
 	ITEM *cur;
 	struct mitem *mcur;
@@ -681,14 +681,14 @@ void *item_data(void)
 
 }
 
-int item_is_tag(char tag)
+static int item_is_tag(char tag)
 {
 	return item_tag() == tag;
 }
 
 static char filename[PATH_MAX+1];
 static char menu_backtitle[PATH_MAX+128];
-const char *set_config_filename(const char *config_filename)
+static const char *set_config_filename(const char *config_filename)
 {
 	int size;
 	struct symbol *sym;

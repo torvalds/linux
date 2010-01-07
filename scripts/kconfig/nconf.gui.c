@@ -20,7 +20,7 @@ attributes_t attributes[ATTR_MAX+1] = {0};
    COLOR_CYAN    6
    COLOR_WHITE   7
    */
-void set_normal_colors(void)
+static void set_normal_colors(void)
 {
 	init_pair(NORMAL, -1, -1);
 	init_pair(MAIN_HEADING, COLOR_MAGENTA, -1);
@@ -65,7 +65,7 @@ void set_normal_colors(void)
    A_CHARTEXT      Bit-mask to extract a character
    COLOR_PAIR(n)   Color-pair number n
    */
-void normal_color_theme(void)
+static void normal_color_theme(void)
 {
 	/* automatically add color... */
 #define mkattr(name, attr) do { \
@@ -97,7 +97,7 @@ attributes[name] = attr | COLOR_PAIR(name); } while (0)
 	mkattr(FUNCTION_TEXT, A_REVERSE);
 }
 
-void no_colors_theme(void)
+static void no_colors_theme(void)
 {
 	/* automatically add highlight, no color */
 #define mkattrn(name, attr) { attributes[name] = attr; }
