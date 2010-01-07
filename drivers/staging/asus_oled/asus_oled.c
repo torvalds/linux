@@ -430,6 +430,11 @@ static ssize_t odev_set_picture(struct asus_oled_dev *odev,
 
 		kfree(odev->buf);
 		odev->buf = kmalloc(odev->buf_size, GFP_KERNEL);
+		if (odev->buf == NULL) {
+			odev->buf_size = 0;
+			printk(ASUS_OLED_ERROR "Out of memory!\n");
+			return -ENOMEM;
+		}
 
 		memset(odev->buf, 0xff, odev->buf_size);
 
