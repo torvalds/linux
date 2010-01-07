@@ -53,6 +53,8 @@
 
 #include "cvmx-gmxx-defs.h"
 
+#define CVM_OCT_SKB_CB(skb)	((u64 *)((skb)->cb))
+
 /*
  * You can define GET_SKBUFF_QOS() to override how the skbuff output
  * function determines which output queue is used. The default
@@ -121,6 +123,7 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	uint64_t old_scratch;
 	uint64_t old_scratch2;
 	int qos;
+	int i;
 	enum {QUEUE_CORE, QUEUE_HW, QUEUE_DROP} queue_type;
 	struct octeon_ethernet *priv = netdev_priv(dev);
 	struct sk_buff *to_free_list;
@@ -171,6 +174,28 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/*
+	 * We have space for 6 segment pointers, If there will be more
+	 * than that, we must linearize.
+	 */
+	if (unlikely(skb_shinfo(skb)->nr_frags > 5)) {
+		if (unlikely(__skb_linearize(skb))) {
+			queue_type = QUEUE_DROP;
+			if (USE_ASYNC_IOBDMA) {
+				/* Get the number of skbuffs in use by the hardware */
+				CVMX_SYNCIOBDMA;
+				skb_to_free = cvmx_scratch_read64(CVMX_SCR_SCRATCH);
+			} else {
+				/* Get the number of skbuffs in use by the hardware */
+				skb_to_free = cvmx_fau_fetch_and_add32(priv->fau + qos * 4,
+								       MAX_SKB_TO_FREE);
+			}
+			skb_to_free = cvm_oct_adjust_skb_to_free(skb_to_free, priv->fau + qos * 4);
+			spin_lock_irqsave(&priv->tx_free_list[qos].lock, flags);
+			goto skip_xmit;
+		}
+	}
+
+	/*
 	 * The CN3XXX series of parts has an errata (GMX-401) which
 	 * causes the GMX block to hang if a collision occurs towards
 	 * the end of a <68 byte packet. As a workaround for this, we
@@ -198,13 +223,6 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	/* Build the PKO buffer pointer */
-	hw_buffer.u64 = 0;
-	hw_buffer.s.addr = cvmx_ptr_to_phys(skb->data);
-	hw_buffer.s.pool = 0;
-	hw_buffer.s.size =
-	    (unsigned long)skb_end_pointer(skb) - (unsigned long)skb->head;
-
 	/* Build the PKO command */
 	pko_command.u64 = 0;
 	pko_command.s.n2 = 1;	/* Don't pollute L2 with the outgoing packet */
@@ -215,6 +233,31 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	pko_command.s.dontfree = 1;
 	pko_command.s.reg0 = priv->fau + qos * 4;
+
+	/* Build the PKO buffer pointer */
+	hw_buffer.u64 = 0;
+	if (skb_shinfo(skb)->nr_frags == 0) {
+		hw_buffer.s.addr = XKPHYS_TO_PHYS((u64)skb->data);
+		hw_buffer.s.pool = 0;
+		hw_buffer.s.size = skb->len;
+	} else {
+		hw_buffer.s.addr = XKPHYS_TO_PHYS((u64)skb->data);
+		hw_buffer.s.pool = 0;
+		hw_buffer.s.size = skb_headlen(skb);
+		CVM_OCT_SKB_CB(skb)[0] = hw_buffer.u64;
+		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+			struct skb_frag_struct *fs = skb_shinfo(skb)->frags + i;
+			hw_buffer.s.addr = XKPHYS_TO_PHYS((u64)(page_address(fs->page) + fs->page_offset));
+			hw_buffer.s.size = fs->size;
+			CVM_OCT_SKB_CB(skb)[i + 1] = hw_buffer.u64;
+		}
+		hw_buffer.s.addr = XKPHYS_TO_PHYS((u64)CVM_OCT_SKB_CB(skb));
+		hw_buffer.s.size = skb_shinfo(skb)->nr_frags + 1;
+		pko_command.s.segs = skb_shinfo(skb)->nr_frags + 1;
+		pko_command.s.gather = 1;
+		goto dont_put_skbuff_in_hw;
+	}
+
 	/*
 	 * See if we can put this skb in the FPA pool. Any strange
 	 * behavior from the Linux networking stack will most likely
