@@ -455,8 +455,7 @@ static int __init pcc_cpufreq_probe(void)
 	}
 	pcch_hdr = pcch_virt_addr;
 
-	dprintk("probe: PCCH header (virtual) addr: 0x%llx\n",
-		(u64)pcch_hdr);
+	dprintk("probe: PCCH header (virtual) addr: 0x%p\n", pcch_hdr);
 	dprintk("probe: PCCH header is at physical address: 0x%llx,"
 		" signature: 0x%x, length: %d bytes, major: %d, minor: %d,"
 		" supported features: 0x%x, command field: 0x%x,"
