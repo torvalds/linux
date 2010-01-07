@@ -3949,7 +3949,7 @@ S:	Maintained
 F:	sound/soc/omap/
 
 OMAP FRAMEBUFFER SUPPORT
-M:	Imre Deak <imre.deak@nokia.com>
+M:	Tomi Valkeinen <tomi.valkeinen@nokia.com>
 L:	linux-fbdev@vger.kernel.org
 L:	linux-omap@vger.kernel.org
 S:	Maintained
