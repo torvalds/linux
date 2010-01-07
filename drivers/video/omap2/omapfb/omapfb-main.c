@@ -1311,6 +1311,7 @@ static void omapfb_free_fbmem(struct fb_info *fbi)
 		if (rg->vrfb.vaddr[0]) {
 			iounmap(rg->vrfb.vaddr[0]);
 			omap_vrfb_release_ctx(&rg->vrfb);
+			rg->vrfb.vaddr[0] = NULL;
 		}
 	}
 
