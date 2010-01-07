@@ -14,7 +14,11 @@
  * Safely read from address @src to the buffer at @dst.  If a kernel fault
  * happens, handle that and return -EFAULT.
  */
-long probe_kernel_read(void *dst, void *src, size_t size)
+
+long __weak probe_kernel_read(void *dst, void *src, size_t size)
+    __attribute__((alias("__probe_kernel_read")));
+
+long __probe_kernel_read(void *dst, void *src, size_t size)
 {
 	long ret;
 	mm_segment_t old_fs = get_fs();
@@ -39,7 +43,10 @@ EXPORT_SYMBOL_GPL(probe_kernel_read);
  * Safely write to address @dst from the buffer at @src.  If a kernel fault
  * happens, handle that and return -EFAULT.
  */
-long notrace __weak probe_kernel_write(void *dst, void *src, size_t size)
+long __weak probe_kernel_write(void *dst, void *src, size_t size)
+    __attribute__((alias("__probe_kernel_write")));
+
+long __probe_kernel_write(void *dst, void *src, size_t size)
 {
 	long ret;
 	mm_segment_t old_fs = get_fs();
