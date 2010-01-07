@@ -784,7 +784,7 @@ netxen_need_fw_reset(struct netxen_adapter *adapter)
 	if (NXRD32(adapter, CRB_CMDPEG_STATE) == PHAN_INITIALIZE_FAILED)
 		return 1;
 
-	old_count = count = NXRD32(adapter, NETXEN_PEG_ALIVE_COUNTER);
+	old_count = NXRD32(adapter, NETXEN_PEG_ALIVE_COUNTER);
 
 	for (i = 0; i < 10; i++) {
 

@@ -340,7 +340,7 @@ netxen_check_hw_init(struct netxen_adapter *adapter, int first_boot)
 		if (!(first_boot & 0x4)) {
 			first_boot |= 0x4;
 			NXWR32(adapter, NETXEN_PCIE_REG(0x4), first_boot);
-			first_boot = NXRD32(adapter, NETXEN_PCIE_REG(0x4));
+			NXRD32(adapter, NETXEN_PCIE_REG(0x4));
 		}
 
 		/* This is the first boot after power up */

@@ -345,8 +345,7 @@ netxen_pcie_sem_lock(struct netxen_adapter *adapter, int sem, u32 id_reg)
 void
 netxen_pcie_sem_unlock(struct netxen_adapter *adapter, int sem)
 {
-	int val;
-	val = NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM_UNLOCK(sem)));
+	NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM_UNLOCK(sem)));
 }
 
 int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port)
