@@ -138,6 +138,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam = &gspca_dev->cam;
 
+	/* Give the camera some time to settle, otherwise initalization will
+	   fail on hotplug, and yes it really needs a full second. */
+	msleep(1000);
+
 	/* ping camera to be sure STV0680 is present */
 	if (stv_sndctrl(gspca_dev, 0, 0x88, 0x5678, 0x02) != 0x02 ||
 	    gspca_dev->usb_buf[0] != 0x56 || gspca_dev->usb_buf[1] != 0x78) {
