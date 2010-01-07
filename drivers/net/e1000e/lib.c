@@ -1609,6 +1609,11 @@ void e1000e_reset_adaptive(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 
+	if (!mac->adaptive_ifs) {
+		e_dbg("Not in Adaptive IFS mode!\n");
+		goto out;
+	}
+
 	mac->current_ifs_val = 0;
 	mac->ifs_min_val = IFS_MIN;
 	mac->ifs_max_val = IFS_MAX;
@@ -1617,6 +1622,8 @@ void e1000e_reset_adaptive(struct e1000_hw *hw)
 
 	mac->in_ifs_mode = false;
 	ew32(AIT, 0);
+out:
+	return;
 }
 
 /**
@@ -1629,6 +1636,11 @@ void e1000e_reset_adaptive(struct e1000_hw *hw)
 void e1000e_update_adaptive(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
+
+	if (!mac->adaptive_ifs) {
+		e_dbg("Not in Adaptive IFS mode!\n");
+		goto out;
+	}
 
 	if ((mac->collision_delta * mac->ifs_ratio) > mac->tx_packet_delta) {
 		if (mac->tx_packet_delta > MIN_NUM_XMITS) {
@@ -1650,6 +1662,8 @@ void e1000e_update_adaptive(struct e1000_hw *hw)
 			ew32(AIT, 0);
 		}
 	}
+out:
+	return;
 }
 
 /**
