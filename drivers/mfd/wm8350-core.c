@@ -134,8 +134,7 @@ static inline int is_reg_locked(struct wm8350 *wm8350, u8 reg)
 	    wm8350->reg_cache[WM8350_SECURITY] == WM8350_UNLOCK_KEY)
 		return 0;
 
-	if ((reg == WM8350_GPIO_CONFIGURATION_I_O) ||
-	    (reg >= WM8350_GPIO_FUNCTION_SELECT_1 &&
+	if ((reg >= WM8350_GPIO_FUNCTION_SELECT_1 &&
 	     reg <= WM8350_GPIO_FUNCTION_SELECT_4) ||
 	    (reg >= WM8350_BATTERY_CHARGER_CONTROL_1 &&
 	     reg <= WM8350_BATTERY_CHARGER_CONTROL_3))
