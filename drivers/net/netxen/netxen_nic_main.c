@@ -100,7 +100,7 @@ static void netxen_config_indev_addr(struct net_device *dev, unsigned long);
 	{PCI_DEVICE(PCI_VENDOR_ID_NETXEN, (device)), \
 	.class = PCI_CLASS_NETWORK_ETHERNET << 8, .class_mask = ~0}
 
-static struct pci_device_id netxen_pci_tbl[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(netxen_pci_tbl) = {
 	ENTRY(PCI_DEVICE_ID_NX2031_10GXSR),
 	ENTRY(PCI_DEVICE_ID_NX2031_10GCX4),
 	ENTRY(PCI_DEVICE_ID_NX2031_4GCU),

@@ -59,7 +59,7 @@ MODULE_LICENSE("GPL");
 
 static /* const */ char drivername[] = DRIVER_NAME;
 
-static struct pci_device_id vlsi_irda_table [] = {
+static DEFINE_PCI_DEVICE_TABLE(vlsi_irda_table) = {
 	{
 		.class =        PCI_CLASS_WIRELESS_IRDA << 8,
 		.class_mask =	PCI_CLASS_SUBCLASS_MASK << 8, 

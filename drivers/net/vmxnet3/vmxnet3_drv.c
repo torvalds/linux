@@ -35,7 +35,7 @@ char vmxnet3_driver_name[] = "vmxnet3";
  * PCI Device ID Table
  * Last entry must be all 0s
  */
-static const struct pci_device_id vmxnet3_pciid_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(vmxnet3_pciid_table) = {
 	{PCI_VDEVICE(VMWARE, PCI_DEVICE_ID_VMWARE_VMXNET3)},
 	{0}
 };

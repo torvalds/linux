@@ -361,7 +361,7 @@ static struct velocity_info_tbl chip_info_table[] = {
  *	Describe the PCI device identifiers that we support in this
  *	device driver. Used for hotplug autoloading.
  */
-static const struct pci_device_id velocity_id_table[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(velocity_id_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_612X) },
 	{ }
 };

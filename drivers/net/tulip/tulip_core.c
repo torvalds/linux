@@ -207,7 +207,7 @@ struct tulip_chip_table tulip_tbl[] = {
 };
 
 
-static struct pci_device_id tulip_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(tulip_pci_tbl) = {
 	{ 0x1011, 0x0009, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DC21140 },
 	{ 0x1011, 0x0019, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DC21143 },
 	{ 0x11AD, 0x0002, PCI_ANY_ID, PCI_ANY_ID, 0, 0, LC82C168 },

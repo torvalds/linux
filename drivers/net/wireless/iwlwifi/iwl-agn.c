@@ -3766,7 +3766,7 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
  *****************************************************************************/
 
 /* Hardware specific file defines the PCI IDs table for that hardware module */
-static struct pci_device_id iwl_hw_card_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 #ifdef CONFIG_IWL4965
 	{IWL_PCI_DEVICE(0x4229, PCI_ANY_ID, iwl4965_agn_cfg)},
 	{IWL_PCI_DEVICE(0x4230, PCI_ANY_ID, iwl4965_agn_cfg)},

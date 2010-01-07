@@ -51,7 +51,7 @@
 #define PCI_DEVICE_ID_CISCO_VIC_ENET         0x0043  /* ethernet vnic */
 
 /* Supported devices */
-static struct pci_device_id enic_id_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(enic_id_table) = {
 	{ PCI_VDEVICE(CISCO, PCI_DEVICE_ID_CISCO_VIC_ENET) },
 	{ 0, }	/* end of table */
 };

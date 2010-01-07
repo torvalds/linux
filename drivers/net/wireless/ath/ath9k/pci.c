@@ -18,7 +18,7 @@
 #include <linux/pci.h>
 #include "ath9k.h"
 
-static struct pci_device_id ath_pci_id_table[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
 	{ PCI_VDEVICE(ATHEROS, 0x0023) }, /* PCI   */
 	{ PCI_VDEVICE(ATHEROS, 0x0024) }, /* PCI-E */
 	{ PCI_VDEVICE(ATHEROS, 0x0027) }, /* PCI   */

@@ -172,7 +172,7 @@ module_param_array(message_level, int, NULL, 0) ;
 static int network_monitor[OLYMPIC_MAX_ADAPTERS] = {0,};
 module_param_array(network_monitor, int, NULL, 0);
 
-static struct pci_device_id olympic_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(olympic_pci_tbl) = {
 	{PCI_VENDOR_ID_IBM,PCI_DEVICE_ID_IBM_TR_WAKE,PCI_ANY_ID,PCI_ANY_ID,},
 	{ } 	/* Terminating Entry */
 };

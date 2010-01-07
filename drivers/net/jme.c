@@ -2994,7 +2994,7 @@ jme_resume(struct pci_dev *pdev)
 }
 #endif
 
-static struct pci_device_id jme_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(jme_pci_tbl) = {
 	{ PCI_VDEVICE(JMICRON, PCI_DEVICE_ID_JMICRON_JMC250) },
 	{ PCI_VDEVICE(JMICRON, PCI_DEVICE_ID_JMICRON_JMC260) },
 	{ }
