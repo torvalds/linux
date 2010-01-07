@@ -80,6 +80,7 @@ static void b43_lpphy_op_free(struct b43_wldev *dev)
 	dev->phy.lp = NULL;
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/LP/ReadBandSrom */
 static void lpphy_read_band_sprom(struct b43_wldev *dev)
 {
 	struct b43_phy_lp *lpphy = dev->phy.lp;
@@ -101,6 +102,12 @@ static void lpphy_read_band_sprom(struct b43_wldev *dev)
 		maxpwr = bus->sprom.maxpwr_bg;
 		lpphy->max_tx_pwr_med_band = maxpwr;
 		cckpo = bus->sprom.cck2gpo;
+		/*
+		 * We don't read SPROM's opo as specs say. On rev8 SPROMs
+		 * opo == ofdm2gpo and we don't know any SSB with LP-PHY
+		 * and SPROM rev below 8.
+		 */
+		B43_WARN_ON(bus->sprom.revision < 8);
 		ofdmpo = bus->sprom.ofdm2gpo;
 		if (cckpo) {
 			for (i = 0; i < 4; i++) {
