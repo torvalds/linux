@@ -1953,7 +1953,9 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 			rma = ieee80211_rx_mgmt_disassoc(sdata, mgmt, skb->len);
 			break;
 		case IEEE80211_STYPE_ACTION:
-			/* XXX: differentiate, can only happen for CSA now! */
+			if (mgmt->u.action.category != WLAN_CATEGORY_SPECTRUM_MGMT)
+				break;
+
 			ieee80211_sta_process_chanswitch(sdata,
 					&mgmt->u.action.u.chan_switch.sw_elem,
 					ifmgd->associated);
