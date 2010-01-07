@@ -84,7 +84,7 @@ config YENTA
 	tristate "CardBus yenta-compatible bridge support"
 	depends on PCI
 	select CARDBUS if !EMBEDDED
-	select PCCARD_NONSTATIC if PCMCIA
+	select PCCARD_NONSTATIC if PCMCIA != n
 	---help---
 	  This option enables support for CardBus host bridges.  Virtually
 	  all modern PCMCIA bridges are CardBus compatible.  A "bridge" is
@@ -161,8 +161,8 @@ config TCIC
 
 config PCMCIA_M8XX
 	tristate "MPC8xx PCMCIA support"
-	depends on PCMCIA && PPC && 8xx
-	select PCCARD_IODYN if PCMCIA
+	depends on PCCARD && PPC && 8xx
+	select PCCARD_IODYN if PCMCIA != n
 	help
 	  Say Y here to include support for PowerPC 8xx series PCMCIA
 	  controller.
