@@ -134,7 +134,7 @@ static int __init snd_cx18_card_set_names(struct snd_cx18_card *cxsc)
 static int __init snd_cx18_init(struct v4l2_device *v4l2_dev)
 {
 	struct cx18 *cx = to_cx18(v4l2_dev);
-	struct snd_card *sc;
+	struct snd_card *sc = NULL;
 	struct snd_cx18_card *cxsc;
 	int ret;
 
@@ -189,7 +189,8 @@ static int __init snd_cx18_init(struct v4l2_device *v4l2_dev)
 	return 0;
 
 err_exit_free:
-	snd_card_free(sc);
+	if (sc != NULL)
+		snd_card_free(sc);
 err_exit:
 	return ret;
 }
