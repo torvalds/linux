@@ -817,6 +817,33 @@ out:
 }
 
 /*
+ * Set dentry's directory position based on the current dir's max, and
+ * order it in d_subdirs, so that dcache_readdir behaves.
+ */
+static void ceph_set_dentry_offset(struct dentry *dn)
+{
+	struct dentry *dir = dn->d_parent;
+	struct inode *inode = dn->d_parent->d_inode;
+	struct ceph_dentry_info *di;
+
+	BUG_ON(!inode);
+
+	di = ceph_dentry(dn);
+
+	spin_lock(&inode->i_lock);
+	di->offset = ceph_inode(inode)->i_max_offset++;
+	spin_unlock(&inode->i_lock);
+
+	spin_lock(&dcache_lock);
+	spin_lock(&dn->d_lock);
+	list_move_tail(&dir->d_subdirs, &dn->d_u.d_child);
+	dout("set_dentry_offset %p %lld (%p %p)\n", dn, di->offset,
+	     dn->d_u.d_child.prev, dn->d_u.d_child.next);
+	spin_unlock(&dn->d_lock);
+	spin_unlock(&dcache_lock);
+}
+
+/*
  * Incorporate results into the local cache.  This is either just
  * one inode, or a directory, dentry, and possibly linked-to inode (e.g.,
  * after a lookup).
@@ -987,6 +1014,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 				goto done;
 			}
 			req->r_dentry = dn;  /* may have spliced */
+			ceph_set_dentry_offset(dn);
 			igrab(in);
 		} else if (ceph_ino(in) == vino.ino &&
 			   ceph_snap(in) == vino.snap) {
@@ -1029,6 +1057,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 			err = PTR_ERR(dn);
 			goto done;
 		}
+		ceph_set_dentry_offset(dn);
 		req->r_dentry = dn;  /* may have spliced */
 		igrab(in);
 		rinfo->head->is_dentry = 1;  /* fool notrace handlers */
