@@ -193,12 +193,26 @@ static void octeon_irq_ciu0_enable_v2(unsigned int irq)
  * Disable the irq on the current core for chips that have the EN*_W1{S,C}
  * registers.
  */
-static void octeon_irq_ciu0_disable_v2(unsigned int irq)
+static void octeon_irq_ciu0_ack_v2(unsigned int irq)
 {
 	int index = cvmx_get_core_num() * 2;
 	u64 mask = 1ull << (irq - OCTEON_IRQ_WORKQ0);
 
 	cvmx_write_csr(CVMX_CIU_INTX_EN0_W1C(index), mask);
+}
+
+/*
+ * Enable the irq on the current core for chips that have the EN*_W1{S,C}
+ * registers.
+ */
+static void octeon_irq_ciu0_eoi_v2(unsigned int irq)
+{
+	struct irq_desc *desc = irq_desc + irq;
+	int index = cvmx_get_core_num() * 2;
+	u64 mask = 1ull << (irq - OCTEON_IRQ_WORKQ0);
+
+	if ((desc->status & IRQ_DISABLED) == 0)
+		cvmx_write_csr(CVMX_CIU_INTX_EN0_W1S(index), mask);
 }
 
 /*
@@ -272,8 +286,8 @@ static struct irq_chip octeon_irq_chip_ciu0_v2 = {
 	.name = "CIU0",
 	.enable = octeon_irq_ciu0_enable_v2,
 	.disable = octeon_irq_ciu0_disable_all_v2,
-	.ack = octeon_irq_ciu0_disable_v2,
-	.eoi = octeon_irq_ciu0_enable_v2,
+	.ack = octeon_irq_ciu0_ack_v2,
+	.eoi = octeon_irq_ciu0_eoi_v2,
 #ifdef CONFIG_SMP
 	.set_affinity = octeon_irq_ciu0_set_affinity_v2,
 #endif
@@ -374,12 +388,26 @@ static void octeon_irq_ciu1_enable_v2(unsigned int irq)
  * Disable the irq on the current core for chips that have the EN*_W1{S,C}
  * registers.
  */
-static void octeon_irq_ciu1_disable_v2(unsigned int irq)
+static void octeon_irq_ciu1_ack_v2(unsigned int irq)
 {
 	int index = cvmx_get_core_num() * 2 + 1;
 	u64 mask = 1ull << (irq - OCTEON_IRQ_WDOG0);
 
 	cvmx_write_csr(CVMX_CIU_INTX_EN1_W1C(index), mask);
+}
+
+/*
+ * Enable the irq on the current core for chips that have the EN*_W1{S,C}
+ * registers.
+ */
+static void octeon_irq_ciu1_eoi_v2(unsigned int irq)
+{
+	struct irq_desc *desc = irq_desc + irq;
+	int index = cvmx_get_core_num() * 2 + 1;
+	u64 mask = 1ull << (irq - OCTEON_IRQ_WDOG0);
+
+	if ((desc->status & IRQ_DISABLED) == 0)
+		cvmx_write_csr(CVMX_CIU_INTX_EN1_W1S(index), mask);
 }
 
 /*
@@ -455,8 +483,8 @@ static struct irq_chip octeon_irq_chip_ciu1_v2 = {
 	.name = "CIU0",
 	.enable = octeon_irq_ciu1_enable_v2,
 	.disable = octeon_irq_ciu1_disable_all_v2,
-	.ack = octeon_irq_ciu1_disable_v2,
-	.eoi = octeon_irq_ciu1_enable_v2,
+	.ack = octeon_irq_ciu1_ack_v2,
+	.eoi = octeon_irq_ciu1_eoi_v2,
 #ifdef CONFIG_SMP
 	.set_affinity = octeon_irq_ciu1_set_affinity_v2,
 #endif
