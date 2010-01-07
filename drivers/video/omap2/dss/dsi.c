@@ -828,12 +828,12 @@ static int dsi_pll_power(enum dsi_pll_power_state state)
 
 	/* PLL_PWR_STATUS */
 	while (FLD_GET(dsi_read_reg(DSI_CLK_CTRL), 29, 28) != state) {
-		udelay(1);
-		if (t++ > 1000) {
+		if (++t > 1000) {
 			DSSERR("Failed to set DSI PLL power mode to %d\n",
 					state);
 			return -ENODEV;
 		}
+		udelay(1);
 	}
 
 	return 0;
@@ -1441,12 +1441,12 @@ static int dsi_complexio_power(enum dsi_complexio_power_state state)
 
 	/* PWR_STATUS */
 	while (FLD_GET(dsi_read_reg(DSI_COMPLEXIO_CFG1), 26, 25) != state) {
-		udelay(1);
-		if (t++ > 1000) {
+		if (++t > 1000) {
 			DSSERR("failed to set complexio power state to "
 					"%d\n", state);
 			return -ENODEV;
 		}
+		udelay(1);
 	}
 
 	return 0;
@@ -1646,10 +1646,10 @@ static void dsi_complexio_uninit(void)
 
 static int _dsi_wait_reset(void)
 {
-	int i = 0;
+	int t = 0;
 
 	while (REG_GET(DSI_SYSSTATUS, 0, 0) == 0) {
-		if (i++ > 5) {
+		if (++t > 5) {
 			DSSERR("soft reset failed\n");
 			return -ENODEV;
 		}
@@ -2706,7 +2706,6 @@ static int dsi_update_screen_l4(struct omap_dss_device *dssdev,
 		/* using fifo not empty */
 		/* TX_FIFO_NOT_EMPTY */
 		while (FLD_GET(dsi_read_reg(DSI_VC_CTRL(0)), 5, 5)) {
-			udelay(1);
 			fifo_stalls++;
 			if (fifo_stalls > 0xfffff) {
 				DSSERR("fifo stalls overflow, pixels left %d\n",
@@ -2714,6 +2713,7 @@ static int dsi_update_screen_l4(struct omap_dss_device *dssdev,
 				dsi_if_enable(0);
 				return -EIO;
 			}
+			udelay(1);
 		}
 #elif 1
 		/* using fifo emptiness */
