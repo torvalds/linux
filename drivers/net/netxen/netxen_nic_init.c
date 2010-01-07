@@ -184,6 +184,8 @@ skip_rds:
 
 	tx_ring = adapter->tx_ring;
 	vfree(tx_ring->cmd_buf_arr);
+	kfree(tx_ring);
+	adapter->tx_ring = NULL;
 }
 
 int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
