@@ -272,7 +272,7 @@ static void i915_dump_pages(struct seq_file *m, struct page **pages, int page_co
 		mem = kmap_atomic(pages[page], KM_USER0);
 		for (i = 0; i < PAGE_SIZE; i += 4)
 			seq_printf(m, "%08x :  %08x\n", i, mem[i / 4]);
-		kunmap_atomic(pages[page], KM_USER0);
+		kunmap_atomic(mem, KM_USER0);
 	}
 }
 
@@ -386,34 +386,6 @@ out:
 	return 0;
 }
 
-static int i915_registers_info(struct seq_file *m, void *data) {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	uint32_t reg;
-
-#define DUMP_RANGE(start, end) \
-	for (reg=start; reg < end; reg += 4) \
-	seq_printf(m, "%08x\t%08x\n", reg, I915_READ(reg));
-
-	DUMP_RANGE(0x00000, 0x00fff);   /* VGA registers */
-	DUMP_RANGE(0x02000, 0x02fff);   /* instruction, memory, interrupt control registers */
-	DUMP_RANGE(0x03000, 0x031ff);   /* FENCE and PPGTT control registers */
-	DUMP_RANGE(0x03200, 0x03fff);   /* frame buffer compression registers */
-	DUMP_RANGE(0x05000, 0x05fff);   /* I/O control registers */
-	DUMP_RANGE(0x06000, 0x06fff);   /* clock control registers */
-	DUMP_RANGE(0x07000, 0x07fff);   /* 3D internal debug registers */
-	DUMP_RANGE(0x07400, 0x088ff);   /* GPE debug registers */
-	DUMP_RANGE(0x0a000, 0x0afff);   /* display palette registers */
-	DUMP_RANGE(0x10000, 0x13fff);   /* MMIO MCHBAR */
-	DUMP_RANGE(0x30000, 0x3ffff);   /* overlay registers */
-	DUMP_RANGE(0x60000, 0x6ffff);   /* display engine pipeline registers */
-	DUMP_RANGE(0x70000, 0x72fff);   /* display and cursor registers */
-	DUMP_RANGE(0x73000, 0x73fff);   /* performance counters */
-
-	return 0;
-}
-
 static int
 i915_wedged_open(struct inode *inode,
 		 struct file *filp)
@@ -519,7 +491,6 @@ static int i915_wedged_create(struct dentry *root, struct drm_minor *minor)
 }
 
 static struct drm_info_list i915_debugfs_list[] = {
-	{"i915_regs", i915_registers_info, 0},
 	{"i915_gem_active", i915_gem_object_list_info, 0, (void *) ACTIVE_LIST},
 	{"i915_gem_flushing", i915_gem_object_list_info, 0, (void *) FLUSHING_LIST},
 	{"i915_gem_inactive", i915_gem_object_list_info, 0, (void *) INACTIVE_LIST},
