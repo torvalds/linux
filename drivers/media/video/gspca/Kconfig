@@ -95,14 +95,24 @@ config USB_GSPCA_OV519
 	  module will be called gspca_ov519.
 
 config USB_GSPCA_OV534
-	tristate "OV534 USB Camera Driver"
+	tristate "OV534 OV772x USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA
 	help
-	  Say Y here if you want support for cameras based on the OV534 chip.
-	  (e.g. Sony Playstation EYE)
+	  Say Y here if you want support for cameras based on the OV534 chip
+	  and sensor OV772x (e.g. Sony Playstation EYE)
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_ov534.
+
+config USB_GSPCA_OV534_9
+	tristate "OV534 OV965x USB Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for cameras based on the OV534 chip
+	  and sensor OV965x (e.g. Hercules Dualpix)
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_ov534_9.
 
 config USB_GSPCA_PAC207
 	tristate "Pixart PAC207 USB Camera Driver"

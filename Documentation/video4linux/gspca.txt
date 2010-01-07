@@ -190,8 +190,7 @@ spca500		06bd:0404	Agfa CL20
 spca500		06be:0800	Optimedia
 sunplus		06d6:0031	Trust 610 LCD PowerC@m Zoom
 spca506		06e1:a190	ADS Instant VCD
-ov534		06f8:3002	Hercules Blog Webcam
-ov534		06f8:3003	Hercules Dualpix HD Weblog
+ov534_9		06f8:3003	Hercules Dualpix HD Weblog
 sonixj		06f8:3004	Hercules Classic Silver
 sonixj		06f8:3008	Hercules Deluxe Optical Glass
 pac7302		06f8:3009	Hercules Classic Link
