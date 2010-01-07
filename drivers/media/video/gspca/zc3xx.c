@@ -1,9 +1,8 @@
 /*
- *	Z-Star/Vimicro zc301/zc302p/vc30x library
- *	Copyright (C) 2004 2005 2006 Michel Xhaard
- *		mxhaard@magic.fr
+ * Z-Star/Vimicro zc301/zc302p/vc30x library
  *
- * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
+ * Copyright (C) 2009-2010 Jean-Francois Moine <http://moinejf.free.fr>
+ * Copyright (C) 2004 2005 2006 Michel Xhaard mxhaard@magic.fr
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +24,7 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>, "
+MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>, "
 		"Serge A. Suchkov <Serge.A.S@tochka.ru>");
 MODULE_DESCRIPTION("GSPCA ZC03xx/VC3xx USB Camera Driver");
 MODULE_LICENSE("GPL");
@@ -39,18 +38,18 @@ static int force_sensor = -1;
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	__u8 brightness;
-	__u8 contrast;
-	__u8 gamma;
-	__u8 autogain;
-	__u8 lightfreq;
-	__u8 sharpness;
+	u8 brightness;
+	u8 contrast;
+	u8 gamma;
+	u8 autogain;
+	u8 lightfreq;
+	u8 sharpness;
 	u8 quality;			/* image quality */
 #define QUALITY_MIN 40
 #define QUALITY_MAX 60
 #define QUALITY_DEF 50
 
-	signed char sensor;		/* Type of image sensor chip */
+	u8 sensor;		/* Type of image sensor chip */
 /* !! values used in different tables */
 #define SENSOR_ADCM2700 0
 #define SENSOR_CS2102 1
@@ -94,7 +93,6 @@ static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val);
 
 static const struct ctrl sd_ctrls[] = {
 #define BRIGHTNESS_IDX 0
-#define SD_BRIGHTNESS 0
 	{
 	    {
 		.id      = V4L2_CID_BRIGHTNESS,
@@ -103,12 +101,12 @@ static const struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 255,
 		.step    = 1,
-		.default_value = 128,
+#define BRIGHTNESS_DEF 128
+		.default_value = BRIGHTNESS_DEF,
 	    },
 	    .set = sd_setbrightness,
 	    .get = sd_getbrightness,
 	},
-#define SD_CONTRAST 1
 	{
 	    {
 		.id      = V4L2_CID_CONTRAST,
@@ -117,12 +115,12 @@ static const struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 255,
 		.step    = 1,
-		.default_value = 128,
+#define CONTRAST_DEF 128
+		.default_value = CONTRAST_DEF,
 	    },
 	    .set = sd_setcontrast,
 	    .get = sd_getcontrast,
 	},
-#define SD_GAMMA 2
 	{
 	    {
 		.id      = V4L2_CID_GAMMA,
@@ -136,7 +134,6 @@ static const struct ctrl sd_ctrls[] = {
 	    .set = sd_setgamma,
 	    .get = sd_getgamma,
 	},
-#define SD_AUTOGAIN 3
 	{
 	    {
 		.id      = V4L2_CID_AUTOGAIN,
@@ -145,13 +142,13 @@ static const struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 1,
 		.step    = 1,
-		.default_value = 1,
+#define AUTOGAIN_DEF 1
+		.default_value = AUTOGAIN_DEF,
 	    },
 	    .set = sd_setautogain,
 	    .get = sd_getautogain,
 	},
 #define LIGHTFREQ_IDX 4
-#define SD_FREQ 4
 	{
 	    {
 		.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
@@ -160,12 +157,12 @@ static const struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 2,	/* 0: 0, 1: 50Hz, 2:60Hz */
 		.step    = 1,
-		.default_value = 1,
+#define FREQ_DEF 0
+		.default_value = FREQ_DEF,
 	    },
 	    .set = sd_setfreq,
 	    .get = sd_getfreq,
 	},
-#define SD_SHARPNESS 5
 	{
 	    {
 		.id	 = V4L2_CID_SHARPNESS,
@@ -174,7 +171,8 @@ static const struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 3,
 		.step    = 1,
-		.default_value = 2,
+#define SHARPNESS_DEF 2
+		.default_value = SHARPNESS_DEF,
 	    },
 	    .set = sd_setsharpness,
 	    .get = sd_getsharpness,
@@ -209,9 +207,9 @@ static const struct v4l2_pix_format sif_mode[] = {
 
 /* usb exchanges */
 struct usb_action {
-	__u8	req;
-	__u8	val;
-	__u16	idx;
+	u8	req;
+	u8	val;
+	u16	idx;
 };
 
 static const struct usb_action adcm2700_Initial[] = {
@@ -5841,7 +5839,7 @@ static const struct usb_action tas5130c_vf0250_NoFlikerScale[] = {
 };
 
 static u8 reg_r_i(struct gspca_dev *gspca_dev,
-		__u16 index)
+		u16 index)
 {
 	usb_control_msg(gspca_dev->dev,
 			usb_rcvctrlpipe(gspca_dev->dev, 0),
@@ -5854,7 +5852,7 @@ static u8 reg_r_i(struct gspca_dev *gspca_dev,
 }
 
 static u8 reg_r(struct gspca_dev *gspca_dev,
-		__u16 index)
+		u16 index)
 {
 	u8 ret;
 
@@ -5864,8 +5862,8 @@ static u8 reg_r(struct gspca_dev *gspca_dev,
 }
 
 static void reg_w_i(struct usb_device *dev,
-			__u8 value,
-			__u16 index)
+			u8 value,
+			u16 index)
 {
 	usb_control_msg(dev,
 			usb_sndctrlpipe(dev, 0),
@@ -5876,18 +5874,18 @@ static void reg_w_i(struct usb_device *dev,
 }
 
 static void reg_w(struct usb_device *dev,
-			__u8 value,
-			__u16 index)
+			u8 value,
+			u16 index)
 {
 	PDEBUG(D_USBO, "reg w [%04x] = %02x", index, value);
 	reg_w_i(dev, value, index);
 }
 
-static __u16 i2c_read(struct gspca_dev *gspca_dev,
-			__u8 reg)
+static u16 i2c_read(struct gspca_dev *gspca_dev,
+			u8 reg)
 {
-	__u8 retbyte;
-	__u16 retval;
+	u8 retbyte;
+	u16 retval;
 
 	reg_w_i(gspca_dev->dev, reg, 0x0092);
 	reg_w_i(gspca_dev->dev, 0x02, 0x0090);		/* <- read command */
@@ -5902,12 +5900,12 @@ static __u16 i2c_read(struct gspca_dev *gspca_dev,
 	return retval;
 }
 
-static __u8 i2c_write(struct gspca_dev *gspca_dev,
-			__u8 reg,
-			__u8 valL,
-			__u8 valH)
+static u8 i2c_write(struct gspca_dev *gspca_dev,
+			u8 reg,
+			u8 valL,
+			u8 valH)
 {
-	__u8 retbyte;
+	u8 retbyte;
 
 	reg_w_i(gspca_dev->dev, reg, 0x92);
 	reg_w_i(gspca_dev->dev, valL, 0x93);
@@ -5959,24 +5957,24 @@ static void setmatrix(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i;
-	const __u8 *matrix;
+	const u8 *matrix;
 	static const u8 adcm2700_matrix[9] =
 /*		{0x66, 0xed, 0xed, 0xed, 0x66, 0xed, 0xed, 0xed, 0x66}; */
 /*ms-win*/
 		{0x74, 0xed, 0xed, 0xed, 0x74, 0xed, 0xed, 0xed, 0x74};
-	static const __u8 gc0305_matrix[9] =
+	static const u8 gc0305_matrix[9] =
 		{0x50, 0xf8, 0xf8, 0xf8, 0x50, 0xf8, 0xf8, 0xf8, 0x50};
-	static const __u8 ov7620_matrix[9] =
+	static const u8 ov7620_matrix[9] =
 		{0x58, 0xf4, 0xf4, 0xf4, 0x58, 0xf4, 0xf4, 0xf4, 0x58};
-	static const __u8 pas202b_matrix[9] =
+	static const u8 pas202b_matrix[9] =
 		{0x4c, 0xf5, 0xff, 0xf9, 0x51, 0xf5, 0xfb, 0xed, 0x5f};
-	static const __u8 po2030_matrix[9] =
+	static const u8 po2030_matrix[9] =
 		{0x60, 0xf0, 0xf0, 0xf0, 0x60, 0xf0, 0xf0, 0xf0, 0x60};
 	static const u8 tas5130c_matrix[9] =
 		{0x68, 0xec, 0xec, 0xec, 0x68, 0xec, 0xec, 0xec, 0x68};
-	static const __u8 vf0250_matrix[9] =
+	static const u8 vf0250_matrix[9] =
 		{0x7b, 0xea, 0xea, 0xea, 0x7b, 0xea, 0xea, 0xea, 0x7b};
-	static const __u8 *matrix_tb[SENSOR_MAX] = {
+	static const u8 *matrix_tb[SENSOR_MAX] = {
 		adcm2700_matrix, /* SENSOR_ADCM2700 0 */
 		ov7620_matrix,	/* SENSOR_CS2102 1 */
 		NULL,		/* SENSOR_CS2102K 2 */
@@ -6008,7 +6006,7 @@ static void setmatrix(struct gspca_dev *gspca_dev)
 static void setbrightness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 brightness;
+	u8 brightness;
 
 	switch (sd->sensor) {
 	case SENSOR_GC0305:
@@ -6037,7 +6035,7 @@ static void setsharpness(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *dev = gspca_dev->dev;
 	int sharpness;
-	static const __u8 sharpness_tb[][2] = {
+	static const u8 sharpness_tb[][2] = {
 		{0x02, 0x03},
 		{0x04, 0x07},
 		{0x08, 0x0f},
@@ -6056,7 +6054,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *dev = gspca_dev->dev;
-	const __u8 *Tgamma;
+	const u8 *Tgamma;
 	int g, i, k, adj, gp;
 	u8 gr[16];
 	static const u8 delta_tb[16] =		/* delta for contrast */
@@ -6111,7 +6109,7 @@ static void setquality(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *dev = gspca_dev->dev;
-	__u8 frxt;
+	u8 frxt;
 
 	switch (sd->sensor) {
 	case SENSOR_ADCM2700:
@@ -6233,7 +6231,7 @@ static int setlightfreq(struct gspca_dev *gspca_dev)
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 	if (!mode)
 		i++;			/* 640x480 */
-	zc3_freq = freq_tb[(int) sd->sensor][i];
+	zc3_freq = freq_tb[sd->sensor][i];
 	if (zc3_freq != NULL) {
 		usb_exchange(gspca_dev, zc3_freq);
 		switch (sd->sensor) {
@@ -6262,7 +6260,7 @@ static int setlightfreq(struct gspca_dev *gspca_dev)
 static void setautogain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 autoval;
+	u8 autoval;
 
 	if (sd->autogain)
 		autoval = 0x42;
@@ -6312,7 +6310,7 @@ static void start_2wr_probe(struct usb_device *dev, int sensor)
 
 static int sif_probe(struct gspca_dev *gspca_dev)
 {
-	__u16 checkword;
+	u16 checkword;
 
 	start_2wr_probe(gspca_dev->dev, 0x0f);		/* PAS106 */
 	reg_w(gspca_dev->dev, 0x08, 0x008d);
@@ -6422,8 +6420,8 @@ ov_check:
 }
 
 struct sensor_by_chipset_revision {
-	__u16 revision;
-	__u8 internal_sensor_id;
+	u16 revision;
+	u8 internal_sensor_id;
 };
 static const struct sensor_by_chipset_revision chipset_revision_sensor[] = {
 	{0xc000, 0x12},		/* TAS5130C */
@@ -6440,7 +6438,7 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *dev = gspca_dev->dev;
 	int i;
-	__u8 retbyte;
+	u8 retbyte;
 	u16 retword;
 
 /*fixme: lack of 8b=b3 (11,12)-> 10, 8b=e0 (14,15,16)-> 12 found in gspcav1*/
@@ -6589,7 +6587,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct cam *cam;
 	int sensor;
 	int vga = 1;		/* 1: vga, 0: sif */
-	static const __u8 gamma[SENSOR_MAX] = {
+	static const u8 gamma[SENSOR_MAX] = {
 		4,	/* SENSOR_ADCM2700 0 */
 		4,	/* SENSOR_CS2102 1 */
 		5,	/* SENSOR_CS2102K 2 */
@@ -6612,7 +6610,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	};
 
 	/* define some sensors from the vendor/product */
-	sd->sharpness = 2;
+	sd->sharpness = SHARPNESS_DEF;
 	sd->sensor = id->driver_info;
 	sensor = zcxx_probeSensor(gspca_dev);
 	if (sensor >= 0)
@@ -6764,11 +6762,11 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->cam_mode = sif_mode;
 		cam->nmodes = ARRAY_SIZE(sif_mode);
 	}
-	sd->brightness = sd_ctrls[SD_BRIGHTNESS].qctrl.default_value;
-	sd->contrast = sd_ctrls[SD_CONTRAST].qctrl.default_value;
-	sd->gamma = gamma[(int) sd->sensor];
-	sd->autogain = sd_ctrls[SD_AUTOGAIN].qctrl.default_value;
-	sd->lightfreq = sd_ctrls[SD_FREQ].qctrl.default_value;
+	sd->brightness = BRIGHTNESS_DEF;
+	sd->contrast = CONTRAST_DEF;
+	sd->gamma = gamma[sd->sensor];
+	sd->autogain = AUTOGAIN_DEF;
+	sd->lightfreq = FREQ_DEF;
 	sd->quality = QUALITY_DEF;
 
 	switch (sd->sensor) {
@@ -6835,7 +6833,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
 
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
-	zc3_init = init_tb[(int) sd->sensor][mode];
+	zc3_init = init_tb[sd->sensor][mode];
 	switch (sd->sensor) {
 	case SENSOR_HV7131C:
 		zcxx_probeSensor(gspca_dev);
