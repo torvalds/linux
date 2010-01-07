@@ -604,13 +604,13 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 		else
 			return ATOM_ENCODER_MODE_DVI;
 		break;
-	case CONNECTOR_DVI_A:
-	case CONNECTOR_VGA:
+	case DRM_MODE_CONNECTOR_DVIA:
+	case DRM_MODE_CONNECTOR_VGA:
 		return ATOM_ENCODER_MODE_CRT;
 		break;
-	case CONNECTOR_STV:
-	case CONNECTOR_CTV:
-	case CONNECTOR_DIN:
+	case DRM_MODE_CONNECTOR_Composite:
+	case DRM_MODE_CONNECTOR_SVIDEO:
+	case DRM_MODE_CONNECTOR_9PinDIN:
 		/* fix me */
 		return ATOM_ENCODER_MODE_TV;
 		/*return ATOM_ENCODER_MODE_CV;*/
