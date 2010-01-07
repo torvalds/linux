@@ -642,7 +642,10 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 		dev_priv->chipset = (reg0 & 0xff00000) >> 20;
 	/* NV04 or NV05 */
 	} else if ((reg0 & 0xff00fff0) == 0x20004000) {
-		dev_priv->chipset = 0x04;
+		if (reg0 & 0x00f00000)
+			dev_priv->chipset = 0x05;
+		else
+			dev_priv->chipset = 0x04;
 	} else
 		dev_priv->chipset = 0xff;
 
