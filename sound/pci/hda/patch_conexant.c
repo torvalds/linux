@@ -111,8 +111,12 @@ struct conexant_spec {
 
 	unsigned int dell_automute;
 	unsigned int port_d_mode;
-	unsigned char ext_mic_bias;
 	unsigned int dell_vostro;
+
+	unsigned int ext_mic_present;
+	unsigned int recording;
+	void (*capture_prepare)(struct hda_codec *codec);
+	void (*capture_cleanup)(struct hda_codec *codec);
 };
 
 static int conexant_playback_pcm_open(struct hda_pcm_stream *hinfo,
@@ -185,6 +189,8 @@ static int conexant_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 				      struct snd_pcm_substream *substream)
 {
 	struct conexant_spec *spec = codec->spec;
+	if (spec->capture_prepare)
+		spec->capture_prepare(codec);
 	snd_hda_codec_setup_stream(codec, spec->adc_nids[substream->number],
 				   stream_tag, 0, format);
 	return 0;
@@ -196,6 +202,8 @@ static int conexant_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 {
 	struct conexant_spec *spec = codec->spec;
 	snd_hda_codec_cleanup_stream(codec, spec->adc_nids[substream->number]);
+	if (spec->capture_cleanup)
+		spec->capture_cleanup(codec);
 	return 0;
 }
 
@@ -2016,53 +2024,53 @@ static int cxt5066_hp_master_sw_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-/* toggle input of built-in and mic jack appropriately */
-static void cxt5066_automic(struct hda_codec *codec)
+/* OLPC defers mic widget control until when capture is started because the
+ * microphone LED comes on as soon as these settings are put in place. if we
+ * did this before recording, it would give the false indication that recording
+ * is happening when it is not. */
+static void cxt5066_olpc_select_mic(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
-	struct hda_verb ext_mic_present[] = {
-		/* enable external mic, port B */
-		{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, spec->ext_mic_bias},
+	if (!spec->recording)
+		return;
 
-		/* switch to external mic input */
-		{0x17, AC_VERB_SET_CONNECT_SEL, 0},
+	/* external mic, port B */
+	snd_hda_codec_write(codec, 0x1a, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+		spec->ext_mic_present ? CXT5066_OLPC_EXT_MIC_BIAS : 0);
 
-		/* disable internal mic, port C */
-		{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
-		{}
-	};
-	static struct hda_verb ext_mic_absent[] = {
-		/* enable internal mic, port C */
-		{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
+	/* internal mic, port C */
+	snd_hda_codec_write(codec, 0x1b, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+		spec->ext_mic_present ? 0 : PIN_VREF80);
+}
 
-		/* switch to internal mic input */
-		{0x17, AC_VERB_SET_CONNECT_SEL, 1},
-
-		/* disable external mic, port B */
-		{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
-		{}
-	};
+/* toggle input of built-in and mic jack appropriately */
+static void cxt5066_olpc_automic(struct hda_codec *codec)
+{
+	struct conexant_spec *spec = codec->spec;
 	unsigned int present;
 
-	present = snd_hda_jack_detect(codec, 0x1a);
-	if (present) {
+	present = snd_hda_codec_read(codec, 0x1a, 0,
+				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	if (present)
 		snd_printdd("CXT5066: external microphone detected\n");
-		snd_hda_sequence_write(codec, ext_mic_present);
-	} else {
+	else
 		snd_printdd("CXT5066: external microphone absent\n");
-		snd_hda_sequence_write(codec, ext_mic_absent);
-	}
+
+	snd_hda_codec_write(codec, 0x17, 0, AC_VERB_SET_CONNECT_SEL,
+		present ? 0 : 1);
+	spec->ext_mic_present = !!present;
+
+	cxt5066_olpc_select_mic(codec);
 }
 
 /* toggle input of built-in digital mic and mic jack appropriately */
 static void cxt5066_vostro_automic(struct hda_codec *codec)
 {
-	struct conexant_spec *spec = codec->spec;
 	unsigned int present;
 
 	struct hda_verb ext_mic_present[] = {
 		/* enable external mic, port B */
-		{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, spec->ext_mic_bias},
+		{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
 
 		/* switch to external mic input */
 		{0x17, AC_VERB_SET_CONNECT_SEL, 0},
@@ -2113,7 +2121,7 @@ static void cxt5066_hp_automute(struct hda_codec *codec)
 }
 
 /* unsolicited event for jack sensing */
-static void cxt5066_unsol_event(struct hda_codec *codec, unsigned int res)
+static void cxt5066_olpc_unsol_event(struct hda_codec *codec, unsigned int res)
 {
 	snd_printdd("CXT5066: unsol event %x (%x)\n", res, res >> 26);
 	switch (res >> 26) {
@@ -2121,7 +2129,7 @@ static void cxt5066_unsol_event(struct hda_codec *codec, unsigned int res)
 		cxt5066_hp_automute(codec);
 		break;
 	case CONEXANT_MIC_EVENT:
-		cxt5066_automic(codec);
+		cxt5066_olpc_automic(codec);
 		break;
 	}
 }
@@ -2195,6 +2203,31 @@ static int cxt5066_mic_boost_mux_enum_put(struct snd_kcontrol *kcontrol,
 			imux->items[idx].index);
 
 	return 1;
+}
+
+static void cxt5066_olpc_capture_prepare(struct hda_codec *codec)
+{
+	struct conexant_spec *spec = codec->spec;
+	/* mark as recording and configure the microphone widget so that the
+	 * recording LED comes on. */
+	spec->recording = 1;
+	cxt5066_olpc_select_mic(codec);
+}
+
+static void cxt5066_olpc_capture_cleanup(struct hda_codec *codec)
+{
+	struct conexant_spec *spec = codec->spec;
+	const struct hda_verb disable_mics[] = {
+		/* disable external mic, port B */
+		{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+
+		/* disble internal mic, port C */
+		{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+		{},
+	};
+
+	snd_hda_sequence_write(codec, disable_mics);
+	spec->recording = 0;
 }
 
 static struct hda_input_mux cxt5066_capture_source = {
@@ -2347,10 +2380,10 @@ static struct hda_verb cxt5066_init_verbs_olpc[] = {
 	{0x19, AC_VERB_SET_CONNECT_SEL, 0x00}, /* DAC1 */
 
 	/* Port B: external microphone */
-	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, CXT5066_OLPC_EXT_MIC_BIAS},
+	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
 
 	/* Port C: internal microphone */
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
+	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
 
 	/* Port D: unused */
 	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
@@ -2479,9 +2512,16 @@ static int cxt5066_init(struct hda_codec *codec)
 		cxt5066_hp_automute(codec);
 		if (spec->dell_vostro)
 			cxt5066_vostro_automic(codec);
-		else
-			cxt5066_automic(codec);
 	}
+	return 0;
+}
+
+static int cxt5066_olpc_init(struct hda_codec *codec)
+{
+	snd_printdd("CXT5066: init\n");
+	conexant_init(codec);
+	cxt5066_hp_automute(codec);
+	cxt5066_olpc_automic(codec);
 	return 0;
 }
 
@@ -2521,7 +2561,7 @@ static int patch_cxt5066(struct hda_codec *codec)
 	codec->spec = spec;
 
 	codec->patch_ops = conexant_patch_ops;
-	codec->patch_ops.init = cxt5066_init;
+	codec->patch_ops.init = conexant_init;
 
 	spec->dell_automute = 0;
 	spec->multiout.max_channels = 2;
@@ -2534,7 +2574,6 @@ static int patch_cxt5066(struct hda_codec *codec)
 	spec->input_mux = &cxt5066_capture_source;
 
 	spec->port_d_mode = PIN_HP;
-	spec->ext_mic_bias = PIN_VREF80;
 
 	spec->num_init_verbs = 1;
 	spec->init_verbs[0] = cxt5066_init_verbs;
@@ -2561,20 +2600,26 @@ static int patch_cxt5066(struct hda_codec *codec)
 		spec->dell_automute = 1;
 		break;
 	case CXT5066_OLPC_XO_1_5:
-		codec->patch_ops.unsol_event = cxt5066_unsol_event;
+		codec->patch_ops.init = cxt5066_olpc_init;
+		codec->patch_ops.unsol_event = cxt5066_olpc_unsol_event;
 		spec->init_verbs[0] = cxt5066_init_verbs_olpc;
 		spec->mixers[spec->num_mixers++] = cxt5066_mixer_master_olpc;
 		spec->mixers[spec->num_mixers++] = cxt5066_mixers;
 		spec->port_d_mode = 0;
-		spec->ext_mic_bias = CXT5066_OLPC_EXT_MIC_BIAS;
 
 		/* no S/PDIF out */
 		spec->multiout.dig_out_nid = 0;
 
 		/* input source automatically selected */
 		spec->input_mux = NULL;
+
+		/* our capture hooks which allow us to turn on the microphone LED
+		 * at the right time */
+		spec->capture_prepare = cxt5066_olpc_capture_prepare;
+		spec->capture_cleanup = cxt5066_olpc_capture_cleanup;
 		break;
 	case CXT5066_DELL_VOSTO:
+		codec->patch_ops.init = cxt5066_init;
 		codec->patch_ops.unsol_event = cxt5066_vostro_event;
 		spec->init_verbs[0] = cxt5066_init_verbs_vostro;
 		spec->mixers[spec->num_mixers++] = cxt5066_mixer_master_olpc;
