@@ -196,9 +196,13 @@ struct tulip_chip_table tulip_tbl[] = {
 	| HAS_NWAY | HAS_PCI_MWI, tulip_timer, tulip_media_task },
 
   /* DM910X */
+#ifdef CONFIG_TULIP_DM910X
   { "Davicom DM9102/DM9102A", 128, 0x0001ebef,
 	HAS_MII | HAS_MEDIA_TABLE | CSR12_IN_SROM | HAS_ACPI,
 	tulip_timer, tulip_media_task },
+#else
+  { NULL },
+#endif
 
   /* RS7112 */
   { "Conexant LANfinity", 256, 0x0001ebef,
@@ -228,8 +232,10 @@ static struct pci_device_id tulip_pci_tbl[] = {
 	{ 0x1259, 0xa120, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
 	{ 0x11F6, 0x9881, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMPEX9881 },
 	{ 0x8086, 0x0039, PCI_ANY_ID, PCI_ANY_ID, 0, 0, I21145 },
+#ifdef CONFIG_TULIP_DM910X
 	{ 0x1282, 0x9100, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DM910X },
 	{ 0x1282, 0x9102, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DM910X },
+#endif
 	{ 0x1113, 0x1216, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
 	{ 0x1113, 0x1217, PCI_ANY_ID, PCI_ANY_ID, 0, 0, MX98715 },
 	{ 0x1113, 0x9511, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
@@ -1299,18 +1305,30 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	}
 
 	/*
-	 *	Early DM9100's need software CRC and the DMFE driver
+	 *	DM910x chips should be handled by the dmfe driver, except
+	 *	on-board chips on SPARC systems.  Also, early DM9100s need
+	 *	software CRC which only the dmfe driver supports.
 	 */
 
-	if (pdev->vendor == 0x1282 && pdev->device == 0x9100)
-	{
-		/* Read Chip revision */
-		if (pdev->revision < 0x30)
-		{
-			printk(KERN_ERR PFX "skipping early DM9100 with Crc bug (use dmfe)\n");
+#ifdef CONFIG_TULIP_DM910X
+	if (chip_idx == DM910X) {
+		struct device_node *dp;
+
+		if (pdev->vendor == 0x1282 && pdev->device == 0x9100 &&
+		    pdev->revision < 0x30) {
+			printk(KERN_INFO PFX
+			       "skipping early DM9100 with Crc bug (use dmfe)\n");
+			return -ENODEV;
+		}
+
+		dp = pci_device_to_OF_node(pdev);
+		if (!(dp && of_get_property(dp, "local-mac-address", NULL))) {
+			printk(KERN_INFO PFX
+			       "skipping DM910x expansion card (use dmfe)\n");
 			return -ENODEV;
 		}
 	}
+#endif
 
 	/*
 	 *	Looks for early PCI chipsets where people report hangs
