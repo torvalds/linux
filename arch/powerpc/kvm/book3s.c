@@ -66,12 +66,16 @@ void kvmppc_core_load_guest_debugstate(struct kvm_vcpu *vcpu)
 void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	memcpy(get_paca()->kvm_slb, to_book3s(vcpu)->slb_shadow, sizeof(get_paca()->kvm_slb));
+	memcpy(&get_paca()->shadow_vcpu, &to_book3s(vcpu)->shadow_vcpu,
+	       sizeof(get_paca()->shadow_vcpu));
 	get_paca()->kvm_slb_max = to_book3s(vcpu)->slb_shadow_max;
 }
 
 void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	memcpy(to_book3s(vcpu)->slb_shadow, get_paca()->kvm_slb, sizeof(get_paca()->kvm_slb));
+	memcpy(&to_book3s(vcpu)->shadow_vcpu, &get_paca()->shadow_vcpu,
+	       sizeof(get_paca()->shadow_vcpu));
 	to_book3s(vcpu)->slb_shadow_max = get_paca()->kvm_slb_max;
 }
 

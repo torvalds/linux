@@ -23,6 +23,7 @@
 #include <linux/types.h>
 #include <linux/kvm_host.h>
 #include <asm/kvm_ppc.h>
+#include <asm/kvm_book3s_64_asm.h>
 
 struct kvmppc_slb {
 	u64 esid;
@@ -69,6 +70,7 @@ struct kvmppc_sid_map {
 
 struct kvmppc_vcpu_book3s {
 	struct kvm_vcpu vcpu;
+	struct kvmppc_book3s_shadow_vcpu shadow_vcpu;
 	struct kvmppc_sid_map sid_map[SID_MAP_NUM];
 	struct kvmppc_slb slb[64];
 	struct {

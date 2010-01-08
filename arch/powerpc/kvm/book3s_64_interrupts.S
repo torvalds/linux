@@ -28,11 +28,6 @@
 #define ULONG_SIZE 8
 #define VCPU_GPR(n)     (VCPU_GPRS + (n * ULONG_SIZE))
 
-.macro mfpaca tmp_reg, src_reg, offset, vcpu_reg
-	ld	\tmp_reg, (PACA_EXMC+\offset)(r13)
-	std	\tmp_reg, VCPU_GPR(\src_reg)(\vcpu_reg)
-.endm
-
 .macro DISABLE_INTERRUPTS
        mfmsr   r0
        rldicl  r0,r0,48,1
@@ -92,37 +87,30 @@ kvm_start_entry:
 	/* Load non-volatile guest state from the vcpu */
 	VCPU_LOAD_NVGPRS(r4)
 
+	/* Save R1/R2 in the PACA */
+	std	r1, PACA_KVM_HOST_R1(r13)
+	std	r2, PACA_KVM_HOST_R2(r13)
+
+	/* XXX swap in/out on load? */
+	ld	r3, VCPU_HIGHMEM_HANDLER(r4)
+	std	r3, PACA_KVM_VMHANDLER(r13)
+
+	ld	r3, VCPU_TRAMPOLINE_ENTER(r4)
+	std	r3, PACA_KVM_RMHANDLER(r13)
+
 kvm_start_lightweight:
 
 	ld	r9, VCPU_PC(r4)			/* r9 = vcpu->arch.pc */
 	ld	r10, VCPU_SHADOW_MSR(r4)	/* r10 = vcpu->arch.shadow_msr */
 
-	DISABLE_INTERRUPTS
-
-	/* Save R1/R2 in the PACA */
-	std	r1, PACAR1(r13)
-	std	r2, (PACA_EXMC+EX_SRR0)(r13)
-	ld	r3, VCPU_HIGHMEM_HANDLER(r4)
-	std	r3, PACASAVEDMSR(r13)
-
-	ld	r3, VCPU_TRAMPOLINE_ENTER(r4)
-	mtsrr0	r3
-
-	LOAD_REG_IMMEDIATE(r3, MSR_KERNEL & ~(MSR_IR | MSR_DR))
-	mtsrr1	r3
-
-	/* Load guest state in the respective registers */
-	lwz	r3, VCPU_CR(r4)		/* r3 = vcpu->arch.cr */
-	stw	r3, (PACA_EXMC + EX_CCR)(r13)
-
+	/* Load some guest state in the respective registers */
 	ld	r3, VCPU_CTR(r4)	/* r3 = vcpu->arch.ctr */
 	mtctr	r3			/* CTR = r3 */
 
 	ld	r3, VCPU_LR(r4)		/* r3 = vcpu->arch.lr */
 	mtlr	r3			/* LR = r3 */
 
-	ld	r3, VCPU_XER(r4)	/* r3 = vcpu->arch.xer */
-	std	r3, (PACA_EXMC + EX_R3)(r13)
+	DISABLE_INTERRUPTS
 
 	/* Some guests may need to have dcbz set to 32 byte length.
 	 *
@@ -142,33 +130,20 @@ kvm_start_lightweight:
 	mtspr   SPRN_HID5,r3
 
 no_dcbz32_on:
-	/*	Load guest GPRs */
-
-	ld	r3, VCPU_GPR(r9)(r4)
-	std	r3, (PACA_EXMC + EX_R9)(r13)
-	ld	r3, VCPU_GPR(r10)(r4)
-	std	r3, (PACA_EXMC + EX_R10)(r13)
-	ld	r3, VCPU_GPR(r11)(r4)
-	std	r3, (PACA_EXMC + EX_R11)(r13)
-	ld	r3, VCPU_GPR(r12)(r4)
-	std	r3, (PACA_EXMC + EX_R12)(r13)
-	ld	r3, VCPU_GPR(r13)(r4)
-	std	r3, (PACA_EXMC + EX_R13)(r13)
-
-	ld	r0, VCPU_GPR(r0)(r4)
-	ld	r1, VCPU_GPR(r1)(r4)
-	ld	r2, VCPU_GPR(r2)(r4)
-	ld	r3, VCPU_GPR(r3)(r4)
-	ld	r5, VCPU_GPR(r5)(r4)
-	ld	r6, VCPU_GPR(r6)(r4)
-	ld	r7, VCPU_GPR(r7)(r4)
-	ld	r8, VCPU_GPR(r8)(r4)
-	ld	r4, VCPU_GPR(r4)(r4)
 
 	/* This sets the Magic value for the trampoline */
 
+	/* XXX this needs to move into a safe function, so we can
+	   be sure we don't get any interrupts */
+
 	li	r11, 1
 	stb	r11, PACA_KVM_IN_GUEST(r13)
+
+	ld	r3, PACA_KVM_RMHANDLER(r13)
+	mtsrr0	r3
+
+	LOAD_REG_IMMEDIATE(r3, MSR_KERNEL & ~(MSR_IR | MSR_DR))
+	mtsrr1	r3
 
 	/* Jump to SLB patching handlder and into our guest */
 	RFI
@@ -185,60 +160,31 @@ kvmppc_handler_highmem:
 	/*
 	 * Register usage at this point:
 	 *
-	 * R00   = guest R13
-	 * R01   = host R1
-	 * R02   = host R2
-	 * R10   = guest PC
-	 * R11   = guest MSR
-	 * R12   = exit handler id
-	 * R13   = PACA
-	 * PACA.exmc.R9    = guest R1
-	 * PACA.exmc.R10   = guest R10
-	 * PACA.exmc.R11   = guest R11
-	 * PACA.exmc.R12   = guest R12
-	 * PACA.exmc.R13   = guest R2
-	 * PACA.exmc.DAR   = guest DAR
-	 * PACA.exmc.DSISR = guest DSISR
-	 * PACA.exmc.LR    = guest instruction
-	 * PACA.exmc.CCR   = guest CR
-	 * PACA.exmc.SRR0  = guest R0
+	 * R0         = guest last inst
+	 * R1         = host R1
+	 * R2         = host R2
+	 * R3         = guest PC
+	 * R4         = guest MSR
+	 * R5         = guest DAR
+	 * R6         = guest DSISR
+	 * R13        = PACA
+	 * PACA.KVM.* = guest *
 	 *
 	 */
 
-	std	r3, (PACA_EXMC+EX_R3)(r13)
-
-	/* save the exit id in R3 */
-	mr	r3, r12
-
-	/* R12 = vcpu */
-	ld	r12, GPR4(r1)
+	/* R7 = vcpu */
+	ld	r7, GPR4(r1)
 
 	/* Now save the guest state */
 
-	std	r0, VCPU_GPR(r13)(r12)
-	std	r4, VCPU_GPR(r4)(r12)
-	std	r5, VCPU_GPR(r5)(r12)
-	std	r6, VCPU_GPR(r6)(r12)
-	std	r7, VCPU_GPR(r7)(r12)
-	std	r8, VCPU_GPR(r8)(r12)
-	std	r9, VCPU_GPR(r9)(r12)
+	stw	r0, VCPU_LAST_INST(r7)
 
-	/* get registers from PACA */
-	mfpaca	r5, r0, EX_SRR0, r12
-	mfpaca	r5, r3, EX_R3, r12
-	mfpaca	r5, r1, EX_R9, r12
-	mfpaca	r5, r10, EX_R10, r12
-	mfpaca	r5, r11, EX_R11, r12
-	mfpaca	r5, r12, EX_R12, r12
-	mfpaca	r5, r2, EX_R13, r12
+	std	r3, VCPU_PC(r7)
+	std	r4, VCPU_SHADOW_MSR(r7)
+	std	r5, VCPU_FAULT_DEAR(r7)
+	std	r6, VCPU_FAULT_DSISR(r7)
 
-	lwz	r5, (PACA_EXMC+EX_LR)(r13)
-	stw	r5, VCPU_LAST_INST(r12)
-
-	lwz	r5, (PACA_EXMC+EX_CCR)(r13)
-	stw	r5, VCPU_CR(r12)
-
-	ld	r5, VCPU_HFLAGS(r12)
+	ld	r5, VCPU_HFLAGS(r7)
 	rldicl.	r5, r5, 0, 63		/* CR = ((r5 & 1) == 0) */
 	beq	no_dcbz32_off
 
@@ -248,58 +194,42 @@ kvmppc_handler_highmem:
 
 no_dcbz32_off:
 
-	std	r14, VCPU_GPR(r14)(r12)
-	std	r15, VCPU_GPR(r15)(r12)
-	std	r16, VCPU_GPR(r16)(r12)
-	std	r17, VCPU_GPR(r17)(r12)
-	std	r18, VCPU_GPR(r18)(r12)
-	std	r19, VCPU_GPR(r19)(r12)
-	std	r20, VCPU_GPR(r20)(r12)
-	std	r21, VCPU_GPR(r21)(r12)
-	std	r22, VCPU_GPR(r22)(r12)
-	std	r23, VCPU_GPR(r23)(r12)
-	std	r24, VCPU_GPR(r24)(r12)
-	std	r25, VCPU_GPR(r25)(r12)
-	std	r26, VCPU_GPR(r26)(r12)
-	std	r27, VCPU_GPR(r27)(r12)
-	std	r28, VCPU_GPR(r28)(r12)
-	std	r29, VCPU_GPR(r29)(r12)
-	std	r30, VCPU_GPR(r30)(r12)
-	std	r31, VCPU_GPR(r31)(r12)
+	std	r14, VCPU_GPR(r14)(r7)
+	std	r15, VCPU_GPR(r15)(r7)
+	std	r16, VCPU_GPR(r16)(r7)
+	std	r17, VCPU_GPR(r17)(r7)
+	std	r18, VCPU_GPR(r18)(r7)
+	std	r19, VCPU_GPR(r19)(r7)
+	std	r20, VCPU_GPR(r20)(r7)
+	std	r21, VCPU_GPR(r21)(r7)
+	std	r22, VCPU_GPR(r22)(r7)
+	std	r23, VCPU_GPR(r23)(r7)
+	std	r24, VCPU_GPR(r24)(r7)
+	std	r25, VCPU_GPR(r25)(r7)
+	std	r26, VCPU_GPR(r26)(r7)
+	std	r27, VCPU_GPR(r27)(r7)
+	std	r28, VCPU_GPR(r28)(r7)
+	std	r29, VCPU_GPR(r29)(r7)
+	std	r30, VCPU_GPR(r30)(r7)
+	std	r31, VCPU_GPR(r31)(r7)
 
-	/* Save guest PC (R10) */
-	std	r10, VCPU_PC(r12)
-
-	/* Save guest msr (R11) */
-	std	r11, VCPU_SHADOW_MSR(r12)
-
-	/* Save guest CTR (in R12) */
+	/* Save guest CTR */
 	mfctr	r5
-	std	r5, VCPU_CTR(r12)
+	std	r5, VCPU_CTR(r7)
 
 	/* Save guest LR */
 	mflr	r5
-	std	r5, VCPU_LR(r12)
+	std	r5, VCPU_LR(r7)
 
-	/* Save guest XER */
-	mfxer	r5
-	std	r5, VCPU_XER(r12)
-
-	/* Save guest DAR */
-	ld	r5, (PACA_EXMC+EX_DAR)(r13)
-	std	r5, VCPU_FAULT_DEAR(r12)
-
-	/* Save guest DSISR */
-	lwz	r5, (PACA_EXMC+EX_DSISR)(r13)
-	std	r5, VCPU_FAULT_DSISR(r12)
+	/* XXX convert to safe function call */
 
 	/* Restore host msr -> SRR1 */
-	ld	r7, VCPU_HOST_MSR(r12)
-	mtsrr1	r7
+	ld	r6, VCPU_HOST_MSR(r7)
+	mtsrr1	r6
 
 	/* Restore host IP -> SRR0 */
-	ld	r6, VCPU_HOST_RETIP(r12)
-	mtsrr0	r6
+	ld	r5, VCPU_HOST_RETIP(r7)
+	mtsrr0	r5
 
 	/*
 	 * For some interrupts, we need to call the real Linux
@@ -311,9 +241,9 @@ no_dcbz32_off:
 	 * r3 = address of interrupt handler (exit reason)
 	 */
 
-	cmpwi	r3, BOOK3S_INTERRUPT_EXTERNAL
+	cmpwi	r12, BOOK3S_INTERRUPT_EXTERNAL
 	beq	call_linux_handler
-	cmpwi	r3, BOOK3S_INTERRUPT_DECREMENTER
+	cmpwi	r12, BOOK3S_INTERRUPT_DECREMENTER
 	beq	call_linux_handler
 
 	/* Back to Interruptable Mode! (goto kvm_return_point) */
@@ -334,12 +264,12 @@ call_linux_handler:
 	 * R7 VCPU_HOST_MSR
 	 */
 
-	mtlr	r3
+	mtlr	r12
 
-	ld	r5, VCPU_TRAMPOLINE_LOWMEM(r12)
-	mtsrr0	r5
-	LOAD_REG_IMMEDIATE(r5, MSR_KERNEL & ~(MSR_IR | MSR_DR))
-	mtsrr1	r5
+	ld	r4, VCPU_TRAMPOLINE_LOWMEM(r7)
+	mtsrr0	r4
+	LOAD_REG_IMMEDIATE(r3, MSR_KERNEL & ~(MSR_IR | MSR_DR))
+	mtsrr1	r3
 
 	RFI
 
@@ -350,7 +280,7 @@ kvm_return_point:
 	/* go back into the guest */
 
 	/* Pass the exit number as 3rd argument to kvmppc_handle_exit */
-	mr	r5, r3
+	mr	r5, r12
 
 	/* Restore r3 (kvm_run) and r4 (vcpu) */
 	REST_2GPRS(3, r1)

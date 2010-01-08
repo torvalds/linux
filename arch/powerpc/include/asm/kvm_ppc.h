@@ -98,34 +98,42 @@ extern void kvmppc_core_destroy_mmu(struct kvm_vcpu *vcpu);
 
 #ifdef CONFIG_PPC_BOOK3S
 
+/* We assume we're always acting on the current vcpu */
+
 static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)
 {
-	vcpu->arch.gpr[num] = val;
+	if ( num < 14 )
+		get_paca()->shadow_vcpu.gpr[num] = val;
+	else
+		vcpu->arch.gpr[num] = val;
 }
 
 static inline ulong kvmppc_get_gpr(struct kvm_vcpu *vcpu, int num)
 {
-	return vcpu->arch.gpr[num];
+	if ( num < 14 )
+		return get_paca()->shadow_vcpu.gpr[num];
+	else
+		return vcpu->arch.gpr[num];
 }
 
 static inline void kvmppc_set_cr(struct kvm_vcpu *vcpu, u32 val)
 {
-	vcpu->arch.cr = val;
+	get_paca()->shadow_vcpu.cr = val;
 }
 
 static inline u32 kvmppc_get_cr(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.cr;
+	return get_paca()->shadow_vcpu.cr;
 }
 
 static inline void kvmppc_set_xer(struct kvm_vcpu *vcpu, u32 val)
 {
-	vcpu->arch.xer = val;
+	get_paca()->shadow_vcpu.xer = val;
 }
 
 static inline u32 kvmppc_get_xer(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.xer;
+	return get_paca()->shadow_vcpu.xer;
 }
 
 #else

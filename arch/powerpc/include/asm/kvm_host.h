@@ -175,10 +175,13 @@ struct kvm_vcpu_arch {
 	ulong gpr[32];
 
 	ulong pc;
-	u32 cr;
 	ulong ctr;
 	ulong lr;
+
+#ifdef CONFIG_BOOKE
 	ulong xer;
+	u32 cr;
+#endif
 
 	ulong msr;
 #ifdef CONFIG_PPC64

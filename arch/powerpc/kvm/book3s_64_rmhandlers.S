@@ -45,37 +45,21 @@ kvmppc_trampoline_\intno:
 	 * To distinguish, we check a magic byte in the PACA
 	 */
 	mfspr	r13, SPRN_SPRG_PACA		/* r13 = PACA */
-	std	r12, (PACA_EXMC + EX_R12)(r13)
+	std	r12, PACA_KVM_SCRATCH0(r13)
 	mfcr	r12
-	stw	r12, (PACA_EXMC + EX_CCR)(r13)
+	stw	r12, PACA_KVM_SCRATCH1(r13)
 	lbz	r12, PACA_KVM_IN_GUEST(r13)
 	cmpwi	r12, 0
 	bne	..kvmppc_handler_hasmagic_\intno
 	/* No KVM guest? Then jump back to the Linux handler! */
-	lwz	r12, (PACA_EXMC + EX_CCR)(r13)
+	lwz	r12, PACA_KVM_SCRATCH1(r13)
 	mtcr	r12
-	ld	r12, (PACA_EXMC + EX_R12)(r13)
+	ld	r12, PACA_KVM_SCRATCH0(r13)
 	mfspr	r13, SPRN_SPRG_SCRATCH0		/* r13 = original r13 */
 	b	kvmppc_resume_\intno		/* Get back original handler */
 
 	/* Now we know we're handling a KVM guest */
 ..kvmppc_handler_hasmagic_\intno:
-	/* Unset guest state */
-	li	r12, 0
-	stb	r12, PACA_KVM_IN_GUEST(r13)
-
-	std	r1, (PACA_EXMC+EX_R9)(r13)
-	std	r10, (PACA_EXMC+EX_R10)(r13)
-	std	r11, (PACA_EXMC+EX_R11)(r13)
-	std	r2, (PACA_EXMC+EX_R13)(r13)
-
-	mfsrr0	r10
-	mfsrr1	r11
-
-	/* Restore R1/R2 so we can handle faults */
-	ld	r1, PACAR1(r13)
-	ld	r2, (PACA_EXMC+EX_SRR0)(r13)
-
 	/* Let's store which interrupt we're handling */
 	li	r12, \intno
 
@@ -106,16 +90,16 @@ INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_VSX
  *
  * Input Registers:
  *
- * R6 = SRR0
- * R7 = SRR1
+ * R5 = SRR0
+ * R6 = SRR1
  * LR = real-mode IP
  *
  */
 .global kvmppc_handler_lowmem_trampoline
 kvmppc_handler_lowmem_trampoline:
 
-	mtsrr0	r6
-	mtsrr1	r7
+	mtsrr0	r5
+	mtsrr1	r6
 	blr
 kvmppc_handler_lowmem_trampoline_end:
 

@@ -20,6 +20,8 @@
 #ifndef __ASM_KVM_BOOK3S_ASM_H__
 #define __ASM_KVM_BOOK3S_ASM_H__
 
+#ifdef __ASSEMBLY__
+
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 
 #include <asm/kvm_asm.h>
@@ -54,5 +56,22 @@ kvmppc_resume_\intno:
 .endm
 
 #endif /* CONFIG_KVM_BOOK3S_64_HANDLER */
+
+#else  /*__ASSEMBLY__ */
+
+struct kvmppc_book3s_shadow_vcpu {
+	ulong gpr[14];
+	u32 cr;
+	u32 xer;
+	ulong host_r1;
+	ulong host_r2;
+	ulong handler;
+	ulong scratch0;
+	ulong scratch1;
+	ulong vmhandler;
+	ulong rmhandler;
+};
+
+#endif /*__ASSEMBLY__ */
 
 #endif /* __ASM_KVM_BOOK3S_ASM_H__ */
