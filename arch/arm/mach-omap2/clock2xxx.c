@@ -455,12 +455,15 @@ static struct cpufreq_frequency_table freq_table[ARRAY_SIZE(rate_table)];
 void omap2_clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
 {
 	struct prcm_config *prcm;
+	long sys_ck_rate;
 	int i = 0;
+
+	sys_ck_rate = clk_get_rate(sclk);
 
 	for (prcm = rate_table; prcm->mpu_speed; prcm++) {
 		if (!(prcm->flags & cpu_mask))
 			continue;
-		if (prcm->xtal_speed != sys_ck.rate)
+		if (prcm->xtal_speed != sys_ck_rate)
 			continue;
 
 		/* don't put bypass rates in table */
