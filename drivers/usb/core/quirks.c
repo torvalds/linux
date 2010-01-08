@@ -103,11 +103,10 @@ void usb_detect_quirks(struct usb_device *udev)
 		dev_dbg(&udev->dev, "USB quirks for this device: %x\n",
 				udev->quirks);
 
-	/* By default, disable autosuspend for all non-hubs */
-#ifdef	CONFIG_USB_SUSPEND
-	if (udev->descriptor.bDeviceClass != USB_CLASS_HUB)
-		udev->autosuspend_disabled = 1;
-#endif
+	/* By default, disable autosuspend for all devices.  The hub driver
+	 * will enable it for hubs.
+	 */
+	usb_disable_autosuspend(udev);
 
 	/* For the present, all devices default to USB-PERSIST enabled */
 #if 0		/* was: #ifdef CONFIG_PM */

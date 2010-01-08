@@ -229,6 +229,11 @@ necessary operations by hand or add them to a udev script.  You can
 also change the idle-delay time; 2 seconds is not the best choice for
 every device.
 
+If a driver knows that its device has proper suspend/resume support,
+it can enable autosuspend all by itself.  For example, the video
+driver for a laptop's webcam might do this, since these devices are
+rarely used and so should normally be autosuspended.
+
 Sometimes it turns out that even when a device does work okay with
 autosuspend there are still problems.  For example, there are
 experimental patches adding autosuspend support to the usbhid driver,
@@ -383,6 +388,19 @@ autosuspend, there's no delay for an autoresume.
 
 	Other parts of the driver interface
 	-----------------------------------
+
+Drivers can enable autosuspend for their devices by calling
+
+	usb_enable_autosuspend(struct usb_device *udev);
+
+in their probe() routine, if they know that the device is capable of
+suspending and resuming correctly.  This is exactly equivalent to
+writing "auto" to the device's power/level attribute.  Likewise,
+drivers can disable autosuspend by calling
+
+	usb_disable_autosuspend(struct usb_device *udev);
+
+This is exactly the same as writing "on" to the power/level attribute.
 
 Sometimes a driver needs to make sure that remote wakeup is enabled
 during autosuspend.  For example, there's not much point

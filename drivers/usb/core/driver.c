@@ -1415,6 +1415,48 @@ static int usb_resume_both(struct usb_device *udev, pm_message_t msg)
 
 #ifdef CONFIG_USB_SUSPEND
 
+/**
+ * usb_enable_autosuspend - allow a USB device to be autosuspended
+ * @udev: the USB device which may be autosuspended
+ *
+ * This routine allows @udev to be autosuspended.  An autosuspend won't
+ * take place until the autosuspend_delay has elapsed and all the other
+ * necessary conditions are satisfied.
+ *
+ * The caller must hold @udev's device lock.
+ */
+int usb_enable_autosuspend(struct usb_device *udev)
+{
+	if (udev->autosuspend_disabled) {
+		udev->autosuspend_disabled = 0;
+		usb_autosuspend_device(udev);
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usb_enable_autosuspend);
+
+/**
+ * usb_disable_autosuspend - prevent a USB device from being autosuspended
+ * @udev: the USB device which may not be autosuspended
+ *
+ * This routine prevents @udev from being autosuspended and wakes it up
+ * if it is already autosuspended.
+ *
+ * The caller must hold @udev's device lock.
+ */
+int usb_disable_autosuspend(struct usb_device *udev)
+{
+	int rc = 0;
+
+	if (!udev->autosuspend_disabled) {
+		rc = usb_autoresume_device(udev);
+		if (rc == 0)
+			udev->autosuspend_disabled = 1;
+	}
+	return rc;
+}
+EXPORT_SYMBOL_GPL(usb_disable_autosuspend);
+
 /* Internal routine to adjust a device's usage counter and change
  * its autosuspend state.
  */

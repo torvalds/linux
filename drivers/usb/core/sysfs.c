@@ -389,34 +389,25 @@ set_level(struct device *dev, struct device_attribute *attr,
 	struct usb_device *udev = to_usb_device(dev);
 	int len = count;
 	char *cp;
-	int rc = 0;
-	int old_autosuspend_disabled;
+	int rc;
 
 	cp = memchr(buf, '\n', count);
 	if (cp)
 		len = cp - buf;
 
 	usb_lock_device(udev);
-	old_autosuspend_disabled = udev->autosuspend_disabled;
 
-	/* Setting the flags without calling usb_pm_lock is a subject to
-	 * races, but who cares...
-	 */
 	if (len == sizeof on_string - 1 &&
-			strncmp(buf, on_string, len) == 0) {
-		udev->autosuspend_disabled = 1;
-		rc = usb_external_resume_device(udev, PMSG_USER_RESUME);
+			strncmp(buf, on_string, len) == 0)
+		rc = usb_disable_autosuspend(udev);
 
-	} else if (len == sizeof auto_string - 1 &&
-			strncmp(buf, auto_string, len) == 0) {
-		udev->autosuspend_disabled = 0;
-		rc = usb_external_resume_device(udev, PMSG_USER_RESUME);
+	else if (len == sizeof auto_string - 1 &&
+			strncmp(buf, auto_string, len) == 0)
+		rc = usb_enable_autosuspend(udev);
 
-	} else
+	else
 		rc = -EINVAL;
 
-	if (rc)
-		udev->autosuspend_disabled = old_autosuspend_disabled;
 	usb_unlock_device(udev);
 	return (rc < 0 ? rc : count);
 }
