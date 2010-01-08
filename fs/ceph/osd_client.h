@@ -42,6 +42,7 @@ struct ceph_osd_request {
 	struct rb_node  r_node;
 	struct list_head r_osd_item;
 	struct ceph_osd *r_osd;
+	struct ceph_pg   r_pgid;
 
 	struct ceph_connection *r_con_filling_pages;
 

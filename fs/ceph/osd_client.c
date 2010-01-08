@@ -538,6 +538,8 @@ static int __map_osds(struct ceph_osd_client *osdc,
 	if (err)
 		return err;
 	pgid = reqhead->layout.ol_pgid;
+	req->r_pgid = pgid;
+
 	o = ceph_calc_pg_primary(osdc->osdmap, pgid);
 
 	if ((req->r_osd && req->r_osd->o_osd == o &&
