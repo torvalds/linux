@@ -94,7 +94,6 @@ struct storvsc_driver_object {
 	/* Specific to this driver */
 	int (*OnIORequest)(struct hv_device *Device,
 			   struct hv_storvsc_request *Request);
-	int (*OnHostReset)(struct hv_device *Device);
 };
 
 struct storvsc_device_info {
@@ -105,6 +104,7 @@ struct storvsc_device_info {
 
 /* Interface */
 int StorVscInitialize(struct hv_driver *driver);
+int StorVscOnHostReset(struct hv_device *Device);
 int BlkVscInitialize(struct hv_driver *driver);
 
 #endif /* _STORVSC_API_H_ */

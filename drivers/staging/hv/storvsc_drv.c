@@ -870,13 +870,6 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 	struct host_device_context *host_device_ctx =
 		(struct host_device_context *)scmnd->device->host->hostdata;
 	struct device_context *device_ctx = host_device_ctx->device_ctx;
-	struct driver_context *driver_ctx =
-			driver_to_driver_context(device_ctx->device.driver);
-	struct storvsc_driver_context *storvsc_drv_ctx =
-			(struct storvsc_driver_context *)driver_ctx;
-
-	struct storvsc_driver_object *storvsc_drv_obj =
-			&storvsc_drv_ctx->drv_obj;
 
 	DPRINT_ENTER(STORVSC_DRV);
 
@@ -884,8 +877,7 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 		    scmnd->device, &device_ctx->device_obj);
 
 	/* Invokes the vsc to reset the host/bus */
-	ASSERT(storvsc_drv_obj->OnHostReset);
-	ret = storvsc_drv_obj->OnHostReset(&device_ctx->device_obj);
+	ret = StorVscOnHostReset(&device_ctx->device_obj);
 	if (ret != 0) {
 		DPRINT_EXIT(STORVSC_DRV);
 		return ret;
