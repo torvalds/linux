@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/apm-emulation.h>
@@ -25,7 +26,8 @@
 #include <mach/sharpsl.h>
 #include <mach/corgi.h>
 #include <mach/pxa2xx-regs.h>
-#include <mach/pxa2xx-gpio.h>
+
+#include "generic.h"
 #include "sharpsl.h"
 
 #define SHARPSL_CHARGE_ON_VOLT         0x99  /* 2.9V */
@@ -35,44 +37,42 @@
 #define SHARPSL_FATAL_ACIN_VOLT        182   /* 3.45V */
 #define SHARPSL_FATAL_NOACIN_VOLT      170   /* 3.40V */
 
+static struct gpio charger_gpios[] = {
+	{ CORGI_GPIO_ADC_TEMP_ON, GPIOF_OUT_INIT_LOW, "ADC Temp On" },
+	{ CORGI_GPIO_CHRG_ON,	  GPIOF_OUT_INIT_LOW, "Charger On" },
+	{ CORGI_GPIO_CHRG_UKN,	  GPIOF_OUT_INIT_LOW, "Charger Unknown" },
+	{ CORGI_GPIO_KEY_INT,	  GPIOF_IN, "Key Interrupt" },
+};
+
 static void corgi_charger_init(void)
 {
-	pxa_gpio_mode(CORGI_GPIO_ADC_TEMP_ON | GPIO_OUT);
-	pxa_gpio_mode(CORGI_GPIO_CHRG_ON | GPIO_OUT);
-	pxa_gpio_mode(CORGI_GPIO_CHRG_UKN | GPIO_OUT);
-	pxa_gpio_mode(CORGI_GPIO_KEY_INT | GPIO_IN);
+	gpio_request_array(ARRAY_AND_SIZE(charger_gpios));
 }
 
 static void corgi_measure_temp(int on)
 {
-	if (on)
-		GPSR(CORGI_GPIO_ADC_TEMP_ON) = GPIO_bit(CORGI_GPIO_ADC_TEMP_ON);
-	else
-		GPCR(CORGI_GPIO_ADC_TEMP_ON) = GPIO_bit(CORGI_GPIO_ADC_TEMP_ON);
+	gpio_set_value(CORGI_GPIO_ADC_TEMP_ON, on);
 }
 
 static void corgi_charge(int on)
 {
 	if (on) {
 		if (machine_is_corgi() && (sharpsl_pm.flags & SHARPSL_SUSPENDED)) {
-			GPCR(CORGI_GPIO_CHRG_ON) = GPIO_bit(CORGI_GPIO_CHRG_ON);
-			GPSR(CORGI_GPIO_CHRG_UKN) = GPIO_bit(CORGI_GPIO_CHRG_UKN);
+			gpio_set_value(CORGI_GPIO_CHRG_ON, 0);
+			gpio_set_value(CORGI_GPIO_CHRG_UKN, 1);
 		} else {
-			GPSR(CORGI_GPIO_CHRG_ON) = GPIO_bit(CORGI_GPIO_CHRG_ON);
-			GPCR(CORGI_GPIO_CHRG_UKN) = GPIO_bit(CORGI_GPIO_CHRG_UKN);
+			gpio_set_value(CORGI_GPIO_CHRG_ON, 1);
+			gpio_set_value(CORGI_GPIO_CHRG_UKN, 0);
 		}
 	} else {
-		GPCR(CORGI_GPIO_CHRG_ON) = GPIO_bit(CORGI_GPIO_CHRG_ON);
-		GPCR(CORGI_GPIO_CHRG_UKN) = GPIO_bit(CORGI_GPIO_CHRG_UKN);
+		gpio_set_value(CORGI_GPIO_CHRG_ON, 0);
+		gpio_set_value(CORGI_GPIO_CHRG_UKN, 0);
 	}
 }
 
 static void corgi_discharge(int on)
 {
-	if (on)
-		GPSR(CORGI_GPIO_DISCHARGE_ON) = GPIO_bit(CORGI_GPIO_DISCHARGE_ON);
-	else
-		GPCR(CORGI_GPIO_DISCHARGE_ON) = GPIO_bit(CORGI_GPIO_DISCHARGE_ON);
+	gpio_set_value(CORGI_GPIO_DISCHARGE_ON, on);
 }
 
 static void corgi_presuspend(void)
