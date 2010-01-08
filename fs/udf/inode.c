@@ -1408,9 +1408,8 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 	unsigned char blocksize_bits = inode->i_sb->s_blocksize_bits;
 	struct udf_inode_info *iinfo = UDF_I(inode);
 
-	bh = udf_tread(inode->i_sb,
-			udf_get_lb_pblock(inode->i_sb,
-					  &iinfo->i_location, 0));
+	bh = udf_tgetblk(inode->i_sb,
+			udf_get_lb_pblock(inode->i_sb, &iinfo->i_location, 0));
 	if (!bh) {
 		udf_debug("getblk failure\n");
 		return -ENOMEM;
@@ -1602,6 +1601,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 	fe->descTag.tagChecksum = udf_tag_checksum(&fe->descTag);
 
 out:
+	set_buffer_uptodate(bh);
 	unlock_buffer(bh);
 
 	/* write the data blocks */
