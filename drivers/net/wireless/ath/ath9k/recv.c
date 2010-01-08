@@ -571,6 +571,8 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		hw = ath_get_virt_hw(sc, hdr);
 		rx_stats = &ds->ds_rxstat;
 
+		ath_debug_stat_rx(sc, bf);
+
 		/*
 		 * If we're asked to flush receive queue, directly
 		 * chain it back at the queue without processing it.
