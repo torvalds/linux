@@ -341,6 +341,8 @@ int ath_beaconq_config(struct ath_softc *sc);
 #define ATH_LONG_CALINTERVAL      30000   /* 30 seconds */
 #define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
 
+void ath_ani_calibrate(unsigned long data);
+
 /**********/
 /* BTCOEX */
 /**********/
@@ -519,6 +521,7 @@ struct ath_wiphy {
 	int chan_is_ht;
 };
 
+void ath9k_tasklet(unsigned long data);
 int ath_reset(struct ath_softc *sc, bool retry_tx);
 int ath_get_hal_qnum(u16 queue, struct ath_softc *sc);
 int ath_get_mac80211_qnum(u32 queue, struct ath_softc *sc);
@@ -535,6 +538,7 @@ static inline void ath_bus_cleanup(struct ath_common *common)
 }
 
 extern struct ieee80211_ops ath9k_ops;
+extern int modparam_nohwcrypt;
 
 irqreturn_t ath_isr(int irq, void *dev);
 void ath_cleanup(struct ath_softc *sc);
@@ -552,6 +556,7 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 
 void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw);
 void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw);
+bool ath9k_setpower(struct ath_softc *sc, enum ath9k_power_mode mode);
 
 #ifdef CONFIG_PCI
 int ath_pci_init(void);
