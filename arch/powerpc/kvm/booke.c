@@ -82,8 +82,9 @@ static void kvmppc_booke_queue_irqprio(struct kvm_vcpu *vcpu,
 	set_bit(priority, &vcpu->arch.pending_exceptions);
 }
 
-void kvmppc_core_queue_program(struct kvm_vcpu *vcpu)
+void kvmppc_core_queue_program(struct kvm_vcpu *vcpu, ulong flags)
 {
+	/* BookE does flags in ESR, so ignore those we get here */
 	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_PROGRAM);
 }
 

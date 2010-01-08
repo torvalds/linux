@@ -91,6 +91,7 @@ struct kvmppc_vcpu_book3s {
 	u64 vsid_next;
 	u64 vsid_max;
 	int context_id;
+	ulong prog_flags; /* flags to inject when giving a 700 trap */
 };
 
 #define CONTEXT_HOST		0

@@ -154,7 +154,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 #else
 		vcpu->arch.esr |= ESR_PTR;
 #endif
-		kvmppc_core_queue_program(vcpu);
+		kvmppc_core_queue_program(vcpu, SRR1_PROGTRAP);
 		advance = 0;
 		break;
 
