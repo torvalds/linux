@@ -39,8 +39,6 @@
 struct host_device_context {
 	/* must be 1st field
 	 * FIXME this is a bug */
-	struct work_struct host_rescan_work;
-
 	/* point back to our device context */
 	struct device_context *device_ctx;
 	struct kmem_cache *request_pool;
@@ -77,8 +75,6 @@ static int storvsc_queuecommand(struct scsi_cmnd *scmnd,
 static int storvsc_device_alloc(struct scsi_device *);
 static int storvsc_device_configure(struct scsi_device *);
 static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd);
-static void storvsc_host_rescan_callback(struct work_struct *work);
-static void storvsc_host_rescan(struct hv_device *device_obj);
 static int storvsc_remove(struct device *dev);
 
 static struct scatterlist *create_bounce_buffer(struct scatterlist *sgl,
@@ -94,8 +90,6 @@ static unsigned int copy_to_bounce_buffer(struct scatterlist *orig_sgl,
 					  struct scatterlist *bounce_sgl,
 					  unsigned int orig_sgl_count);
 
-static int storvsc_report_luns(struct scsi_device *sdev, unsigned int luns[],
-			       unsigned int *lun_count);
 static int storvsc_get_chs(struct scsi_device *sdev, struct block_device *bdev,
 			   sector_t capacity, int *info);
 
@@ -264,9 +258,6 @@ static int storvsc_probe(struct device *device)
 
 	host_device_ctx->port = host->host_no;
 	host_device_ctx->device_ctx = device_ctx;
-
-	INIT_WORK(&host_device_ctx->host_rescan_work,
-		  storvsc_host_rescan_callback);
 
 	host_device_ctx->request_pool =
 				kmem_cache_create(dev_name(&device_ctx->device),
@@ -906,201 +897,6 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 	DPRINT_EXIT(STORVSC_DRV);
 
 	return ret;
-}
-
-/**
- * storvsc_host_rescan - Rescan the scsi HBA
- */
-static void storvsc_host_rescan_callback(struct work_struct *work)
-{
-	struct hv_device *device_obj =
-	    &((struct host_device_context *)work)->device_ctx->device_obj;
-	struct device_context *device_ctx = to_device_context(device_obj);
-	struct Scsi_Host *host = dev_get_drvdata(&device_ctx->device);
-	struct scsi_device *sdev;
-	struct host_device_context *host_device_ctx;
-	struct scsi_device **sdevs_remove_list;
-	unsigned int sdevs_count = 0;
-	unsigned int found;
-	unsigned int i;
-	unsigned int lun_count = 0;
-	unsigned int *lun_list;
-
-	DPRINT_ENTER(STORVSC_DRV);
-
-	host_device_ctx = (struct host_device_context *)host->hostdata;
-	lun_list = kcalloc(STORVSC_MAX_LUNS_PER_TARGET, sizeof(unsigned int),
-			   GFP_ATOMIC);
-	if (!lun_list) {
-		DPRINT_ERR(STORVSC_DRV, "unable to allocate lun list");
-		return;
-	}
-
-	sdevs_remove_list = kcalloc(STORVSC_MAX_LUNS_PER_TARGET,
-				    sizeof(void *), GFP_ATOMIC);
-	if (!sdevs_remove_list) {
-		kfree(lun_list);
-		DPRINT_ERR(STORVSC_DRV, "unable to allocate lun remove list");
-		return;
-	}
-
-	DPRINT_INFO(STORVSC_DRV, "rescanning host for new scsi devices...");
-
-	/* Rescan for new device */
-	scsi_scan_target(&host->shost_gendev, host_device_ctx->path,
-			 host_device_ctx->target, SCAN_WILD_CARD, 1);
-
-	DPRINT_INFO(STORVSC_DRV, "rescanning host for removed scsi device...");
-
-	/* Use the 1st device to send the report luns cmd */
-	shost_for_each_device(sdev, host) {
-		lun_count = STORVSC_MAX_LUNS_PER_TARGET;
-		storvsc_report_luns(sdev, lun_list, &lun_count);
-
-		DPRINT_INFO(STORVSC_DRV,
-			    "report luns on scsi device (%p) found %u luns ",
-			    sdev, lun_count);
-		DPRINT_INFO(STORVSC_DRV,
-			    "existing luns on scsi device (%p) host (%d)",
-			    sdev, host->host_no);
-
-		scsi_device_put(sdev);
-		break;
-	}
-
-	for (i = 0; i < lun_count; i++)
-		DPRINT_INFO(STORVSC_DRV, "%d) lun %u", i, lun_list[i]);
-
-	/* Rescan for devices that may have been removed.
-	 * We do not have to worry that new devices may have been added since
-	 * this callback is serialized by the workqueue ie add/remove are done
-	 * here.
-	 */
-	shost_for_each_device(sdev, host) {
-		/* See if this device is still here */
-		found = 0;
-		for (i = 0; i < lun_count; i++) {
-			if (sdev->lun == lun_list[i]) {
-				found = 1;
-				break;
-			}
-		}
-		if (!found) {
-			DPRINT_INFO(STORVSC_DRV, "lun (%u) does not exists",
-				    sdev->lun);
-			sdevs_remove_list[sdevs_count++] = sdev;
-		}
-	}
-
-	/* Now remove the devices */
-	for (i = 0; i < sdevs_count; i++) {
-		DPRINT_INFO(STORVSC_DRV,
-			    "removing scsi device (%p) lun (%u)...",
-			    sdevs_remove_list[i], sdevs_remove_list[i]->lun);
-
-		/* make sure it is not removed from underneath us */
-		if (!scsi_device_get(sdevs_remove_list[i])) {
-			scsi_remove_device(sdevs_remove_list[i]);
-			scsi_device_put(sdevs_remove_list[i]);
-		}
-	}
-
-	DPRINT_INFO(STORVSC_DRV, "rescan completed on dev obj (%p) "
-		    "target (%u) bus (%u)", device_obj,
-		    host_device_ctx->target, host_device_ctx->path);
-
-	kfree(lun_list);
-	kfree(sdevs_remove_list);
-
-	DPRINT_EXIT(STORVSC_DRV);
-}
-
-static int storvsc_report_luns(struct scsi_device *sdev, unsigned int luns[],
-			       unsigned int *lun_count)
-{
-	int i, j;
-	unsigned int lun = 0;
-	unsigned int num_luns;
-	int result;
-	unsigned char *data;
-	struct scsi_sense_hdr sshdr;
-	unsigned char cmd[16] = {0};
-	/* Add 1 to cover the report_lun header */
-	unsigned int report_len = 8 * (STORVSC_MAX_LUNS_PER_TARGET+1);
-	unsigned long long *report_luns;
-	const unsigned int in_lun_count = *lun_count;
-
-	*lun_count = 0;
-
-	report_luns = kzalloc(report_len, GFP_ATOMIC);
-	if (!report_luns)
-		return -ENOMEM;
-
-	cmd[0] = REPORT_LUNS;
-
-	/* cmd length */
-	*(unsigned int *)&cmd[6] = cpu_to_be32(report_len);
-
-	result = scsi_execute_req(sdev, cmd, DMA_FROM_DEVICE,
-				  (unsigned char *)report_luns, report_len,
-				  &sshdr, 30 * HZ, 3, NULL);
-	if (result != 0) {
-		kfree(report_luns);
-		return -EBUSY;
-	}
-
-	/* get the length from the first four bytes */
-	report_len = be32_to_cpu(*(unsigned int *)&report_luns[0]);
-
-	num_luns = (report_len / sizeof(unsigned long long));
-	if (num_luns > in_lun_count) {
-		kfree(report_luns);
-		return -EINVAL;
-	}
-
-	*lun_count = num_luns;
-
-	DPRINT_DBG(STORVSC_DRV,
-		   "report luns on scsi device (%p) found %u luns ",
-		   sdev, num_luns);
-
-	/* lun id starts at 1 */
-	for (i = 1; i < num_luns + 1; i++) {
-		lun = 0;
-		data = (unsigned char *)&report_luns[i];
-		for (j = 0; j < sizeof(lun); j += 2) {
-			lun = lun | (((data[j] << 8) | data[j + 1]) <<
-				(j * 8));
-		}
-
-		luns[i-1] = lun;
-	}
-
-	kfree(report_luns);
-	return 0;
-}
-
-static void storvsc_host_rescan(struct hv_device *device_obj)
-{
-	struct device_context *device_ctx = to_device_context(device_obj);
-	struct Scsi_Host *host = dev_get_drvdata(&device_ctx->device);
-	struct host_device_context *host_device_ctx;
-
-	DPRINT_ENTER(STORVSC_DRV);
-
-	host_device_ctx = (struct host_device_context *)host->hostdata;
-
-	DPRINT_INFO(STORVSC_DRV, "initiating rescan on dev obj (%p) "
-		    "target (%u) bus (%u)...", device_obj,
-		    host_device_ctx->target, host_device_ctx->path);
-
-	/*
-	 * We need to queue this since the scanning may block and the caller
-	 * may be in an intr context
-	 */
-	/* scsi_queue_work(host, &host_device_ctx->host_rescan_work); */
-	schedule_work(&host_device_ctx->host_rescan_work);
-	DPRINT_EXIT(STORVSC_DRV);
 }
 
 static int storvsc_get_chs(struct scsi_device *sdev, struct block_device * bdev,
