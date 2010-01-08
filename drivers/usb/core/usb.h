@@ -63,6 +63,7 @@ extern int usb_external_suspend_device(struct usb_device *udev,
 		pm_message_t msg);
 extern int usb_external_resume_device(struct usb_device *udev,
 		pm_message_t msg);
+extern int usb_remote_wakeup(struct usb_device *dev);
 
 static inline void usb_pm_lock(struct usb_device *udev)
 {
@@ -82,6 +83,11 @@ static inline int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 }
 
 static inline int usb_port_resume(struct usb_device *udev, pm_message_t msg)
+{
+	return 0;
+}
+
+static inline int usb_remote_wakeup(struct usb_device *udev)
 {
 	return 0;
 }

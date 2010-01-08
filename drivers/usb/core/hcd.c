@@ -1865,8 +1865,7 @@ static void hcd_resume_work(struct work_struct *work)
 	struct usb_device *udev = hcd->self.root_hub;
 
 	usb_lock_device(udev);
-	usb_mark_last_busy(udev);
-	usb_external_resume_device(udev, PMSG_REMOTE_RESUME);
+	usb_remote_wakeup(udev);
 	usb_unlock_device(udev);
 }
 
