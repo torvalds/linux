@@ -2984,7 +2984,7 @@ struct statistics_rx_ht_phy {
 	__le32 agg_crc32_good;
 	__le32 agg_mpdu_cnt;
 	__le32 agg_cnt;
-	__le32 reserved2;
+	__le32 unsupport_mcs;
 } __attribute__ ((packed));
 
 #define INTERFERENCE_DATA_AVAILABLE      cpu_to_le32(1)
@@ -3087,8 +3087,8 @@ struct statistics_div {
 } __attribute__ ((packed));
 
 struct statistics_general {
-	__le32 temperature;
-	__le32 temperature_m;
+	__le32 temperature;   /* radio temperature */
+	__le32 temperature_m; /* for 5000 and up, this is radio voltage */
 	struct statistics_dbg dbg;
 	__le32 sleep_time;
 	__le32 slots_out;

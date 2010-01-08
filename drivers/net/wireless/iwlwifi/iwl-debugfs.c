@@ -1387,6 +1387,9 @@ static ssize_t iwl_dbgfs_ucode_rx_stats_read(struct file *file,
 			 accum_ht->agg_mpdu_cnt);
 	pos += scnprintf(buf + pos, bufsz - pos, "agg_cnt:\t\t%u\t\t\t%u\n",
 			 le32_to_cpu(ht->agg_cnt), accum_ht->agg_cnt);
+	pos += scnprintf(buf + pos, bufsz - pos, "unsupport_mcs:\t\t%u\t\t\t%u\n",
+			 le32_to_cpu(ht->unsupport_mcs),
+			 accum_ht->unsupport_mcs);
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	kfree(buf);
