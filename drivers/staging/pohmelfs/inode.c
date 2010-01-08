@@ -322,7 +322,7 @@ int pohmelfs_write_create_inode(struct pohmelfs_inode *pi)
 	t = netfs_trans_alloc(psb, err + 1, 0, 0);
 	if (!t) {
 		err = -ENOMEM;
-		goto err_out_put;
+		goto err_out_exit;
 	}
 	t->complete = pohmelfs_write_inode_complete;
 	t->private = igrab(inode);
