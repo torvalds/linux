@@ -14,7 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/core.h>
-#include <linux/mfd/88pm8607.h>
+#include <linux/mfd/88pm860x.h>
 
 
 #define PM8607_REG_RESOURCE(_start, _end)		\
@@ -67,18 +67,23 @@ static struct mfd_cell pm8607_devs[] = {
 	PM8607_REG_DEVS(ldo14, LDO14),
 };
 
-int pm860x_device_init(struct pm8607_chip *chip,
-		       struct pm8607_platform_data *pdata)
+static void device_8606_init(struct pm860x_chip *chip, struct i2c_client *i2c,
+			     struct pm860x_platform_data *pdata)
+{
+}
+
+static void device_8607_init(struct pm860x_chip *chip, struct i2c_client *i2c,
+			     struct pm860x_platform_data *pdata)
 {
 	int i, count;
 	int ret;
 
-	ret = pm8607_reg_read(chip, PM8607_CHIP_ID);
+	ret = pm860x_reg_read(i2c, PM8607_CHIP_ID);
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to read CHIP ID: %d\n", ret);
 		goto out;
 	}
-	if ((ret & PM8607_ID_MASK) == PM8607_ID)
+	if ((ret & PM8607_VERSION_MASK) == PM8607_VERSION)
 		dev_info(chip->dev, "Marvell 88PM8607 (ID: %02x) detected\n",
 			 ret);
 	else {
@@ -86,9 +91,9 @@ int pm860x_device_init(struct pm8607_chip *chip,
 			"Chip ID: %02x\n", ret);
 		goto out;
 	}
-	chip->chip_id = ret;
+	chip->chip_version = ret;
 
-	ret = pm8607_reg_read(chip, PM8607_BUCK3);
+	ret = pm860x_reg_read(i2c, PM8607_BUCK3);
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to read BUCK3 register: %d\n", ret);
 		goto out;
@@ -96,18 +101,9 @@ int pm860x_device_init(struct pm8607_chip *chip,
 	if (ret & PM8607_BUCK3_DOUBLE)
 		chip->buck3_double = 1;
 
-	ret = pm8607_reg_read(chip, PM8607_MISC1);
+	ret = pm860x_reg_read(i2c, PM8607_MISC1);
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to read MISC1 register: %d\n", ret);
-		goto out;
-	}
-	if (pdata->i2c_port == PI2C_PORT)
-		ret |= PM8607_MISC1_PI2C;
-	else
-		ret &= ~PM8607_MISC1_PI2C;
-	ret = pm8607_reg_write(chip, PM8607_MISC1, ret);
-	if (ret < 0) {
-		dev_err(chip->dev, "Failed to write MISC1 register: %d\n", ret);
 		goto out;
 	}
 
@@ -121,14 +117,39 @@ int pm860x_device_init(struct pm8607_chip *chip,
 		}
 	}
 out:
-	return ret;
+	return;
 }
 
-void pm8607_device_exit(struct pm8607_chip *chip)
+int pm860x_device_init(struct pm860x_chip *chip,
+		       struct pm860x_platform_data *pdata)
+{
+	switch (chip->id) {
+	case CHIP_PM8606:
+		device_8606_init(chip, chip->client, pdata);
+		break;
+	case CHIP_PM8607:
+		device_8607_init(chip, chip->client, pdata);
+		break;
+	}
+
+	if (chip->companion) {
+		switch (chip->id) {
+		case CHIP_PM8607:
+			device_8606_init(chip, chip->companion, pdata);
+			break;
+		case CHIP_PM8606:
+			device_8607_init(chip, chip->companion, pdata);
+			break;
+		}
+	}
+	return 0;
+}
+
+void pm860x_device_exit(struct pm860x_chip *chip)
 {
 	mfd_remove_devices(chip->dev);
 }
 
-MODULE_DESCRIPTION("PMIC Driver for Marvell 88PM8607");
+MODULE_DESCRIPTION("PMIC Driver for Marvell 88PM860x");
 MODULE_AUTHOR("Haojian Zhuang <haojian.zhuang@marvell.com>");
 MODULE_LICENSE("GPL");

@@ -1,5 +1,5 @@
 /*
- * I2C driver for Marvell 88PM8607
+ * I2C driver for Marvell 88PM860x
  *
  * Copyright (C) 2009 Marvell International Ltd.
  * 	Haojian Zhuang <haojian.zhuang@marvell.com>
@@ -12,12 +12,11 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
-#include <linux/mfd/88pm8607.h>
+#include <linux/mfd/88pm860x.h>
 
-static inline int pm8607_read_device(struct pm8607_chip *chip,
+static inline int pm860x_read_device(struct i2c_client *i2c,
 				     int reg, int bytes, void *dest)
 {
-	struct i2c_client *i2c = chip->client;
 	unsigned char data;
 	int ret;
 
@@ -32,10 +31,9 @@ static inline int pm8607_read_device(struct pm8607_chip *chip,
 	return 0;
 }
 
-static inline int pm8607_write_device(struct pm8607_chip *chip,
+static inline int pm860x_write_device(struct i2c_client *i2c,
 				      int reg, int bytes, void *src)
 {
-	struct i2c_client *i2c = chip->client;
 	unsigned char buf[bytes + 1];
 	int ret;
 
@@ -48,13 +46,14 @@ static inline int pm8607_write_device(struct pm8607_chip *chip,
 	return 0;
 }
 
-int pm8607_reg_read(struct pm8607_chip *chip, int reg)
+int pm860x_reg_read(struct i2c_client *i2c, int reg)
 {
+	struct pm860x_chip *chip = i2c_get_clientdata(i2c);
 	unsigned char data;
 	int ret;
 
 	mutex_lock(&chip->io_lock);
-	ret = chip->read(chip, reg, 1, &data);
+	ret = pm860x_read_device(i2c, reg, 1, &data);
 	mutex_unlock(&chip->io_lock);
 
 	if (ret < 0)
@@ -62,111 +61,178 @@ int pm8607_reg_read(struct pm8607_chip *chip, int reg)
 	else
 		return (int)data;
 }
-EXPORT_SYMBOL(pm8607_reg_read);
+EXPORT_SYMBOL(pm860x_reg_read);
 
-int pm8607_reg_write(struct pm8607_chip *chip, int reg,
+int pm860x_reg_write(struct i2c_client *i2c, int reg,
 		     unsigned char data)
 {
+	struct pm860x_chip *chip = i2c_get_clientdata(i2c);
 	int ret;
 
 	mutex_lock(&chip->io_lock);
-	ret = chip->write(chip, reg, 1, &data);
+	ret = pm860x_write_device(i2c, reg, 1, &data);
 	mutex_unlock(&chip->io_lock);
 
 	return ret;
 }
-EXPORT_SYMBOL(pm8607_reg_write);
+EXPORT_SYMBOL(pm860x_reg_write);
 
-int pm8607_bulk_read(struct pm8607_chip *chip, int reg,
+int pm860x_bulk_read(struct i2c_client *i2c, int reg,
 		     int count, unsigned char *buf)
 {
+	struct pm860x_chip *chip = i2c_get_clientdata(i2c);
 	int ret;
 
 	mutex_lock(&chip->io_lock);
-	ret = chip->read(chip, reg, count, buf);
+	ret = pm860x_read_device(i2c, reg, count, buf);
 	mutex_unlock(&chip->io_lock);
 
 	return ret;
 }
-EXPORT_SYMBOL(pm8607_bulk_read);
+EXPORT_SYMBOL(pm860x_bulk_read);
 
-int pm8607_bulk_write(struct pm8607_chip *chip, int reg,
+int pm860x_bulk_write(struct i2c_client *i2c, int reg,
 		      int count, unsigned char *buf)
 {
+	struct pm860x_chip *chip = i2c_get_clientdata(i2c);
 	int ret;
 
 	mutex_lock(&chip->io_lock);
-	ret = chip->write(chip, reg, count, buf);
+	ret = pm860x_write_device(i2c, reg, count, buf);
 	mutex_unlock(&chip->io_lock);
 
 	return ret;
 }
-EXPORT_SYMBOL(pm8607_bulk_write);
+EXPORT_SYMBOL(pm860x_bulk_write);
 
-int pm8607_set_bits(struct pm8607_chip *chip, int reg,
+int pm860x_set_bits(struct i2c_client *i2c, int reg,
 		    unsigned char mask, unsigned char data)
 {
+	struct pm860x_chip *chip = i2c_get_clientdata(i2c);
 	unsigned char value;
 	int ret;
 
 	mutex_lock(&chip->io_lock);
-	ret = chip->read(chip, reg, 1, &value);
+	ret = pm860x_read_device(i2c, reg, 1, &value);
 	if (ret < 0)
 		goto out;
 	value &= ~mask;
 	value |= data;
-	ret = chip->write(chip, reg, 1, &value);
+	ret = pm860x_write_device(i2c, reg, 1, &value);
 out:
 	mutex_unlock(&chip->io_lock);
 	return ret;
 }
-EXPORT_SYMBOL(pm8607_set_bits);
+EXPORT_SYMBOL(pm860x_set_bits);
 
 
 static const struct i2c_device_id pm860x_id_table[] = {
-	{ "88PM8607", 0 },
+	{ "88PM860x", 0 },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, pm860x_id_table);
 
+static int verify_addr(struct i2c_client *i2c)
+{
+	unsigned short addr_8607[] = {0x30, 0x34};
+	unsigned short addr_8606[] = {0x10, 0x11};
+	int size, i;
+
+	if (i2c == NULL)
+		return 0;
+	size = ARRAY_SIZE(addr_8606);
+	for (i = 0; i < size; i++) {
+		if (i2c->addr == *(addr_8606 + i))
+			return CHIP_PM8606;
+	}
+	size = ARRAY_SIZE(addr_8607);
+	for (i = 0; i < size; i++) {
+		if (i2c->addr == *(addr_8607 + i))
+			return CHIP_PM8607;
+	}
+	return 0;
+}
+
 static int __devinit pm860x_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
-	struct pm8607_platform_data *pdata = client->dev.platform_data;
-	struct pm8607_chip *chip;
-	int ret;
+	struct pm860x_platform_data *pdata = client->dev.platform_data;
+	static struct pm860x_chip *chip;
+	struct i2c_board_info i2c_info = {
+		.type		= "88PM860x",
+		.platform_data	= client->dev.platform_data,
+	};
+	int addr_c, found_companion = 0;
 
-	chip = kzalloc(sizeof(struct pm8607_chip), GFP_KERNEL);
-	if (chip == NULL)
-		return -ENOMEM;
+	if (pdata == NULL) {
+		pr_info("No platform data in %s!\n", __func__);
+		return -EINVAL;
+	}
 
-	chip->client = client;
-	chip->dev = &client->dev;
-	chip->read = pm8607_read_device;
-	chip->write = pm8607_write_device;
-	memcpy(&chip->id, id, sizeof(struct i2c_device_id));
-	i2c_set_clientdata(client, chip);
+	/*
+	 * Both client and companion client shares same platform driver.
+	 * Driver distinguishes them by pdata->companion_addr.
+	 * pdata->companion_addr is only assigned if companion chip exists.
+	 * At the same time, the companion_addr shouldn't equal to client
+	 * address.
+	 */
+	addr_c = pdata->companion_addr;
+	if (addr_c && (addr_c != client->addr)) {
+		i2c_info.addr = addr_c;
+		found_companion = 1;
+	}
 
-	mutex_init(&chip->io_lock);
-	dev_set_drvdata(chip->dev, chip);
+	if (found_companion || (addr_c == 0)) {
+		chip = kzalloc(sizeof(struct pm860x_chip), GFP_KERNEL);
+		if (chip == NULL)
+			return -ENOMEM;
 
-	ret = pm860x_device_init(chip, pdata);
-	if (ret < 0)
-		goto out;
+		chip->id = verify_addr(client);
+		chip->companion_addr = addr_c;
+		chip->client = client;
+		i2c_set_clientdata(client, chip);
+		chip->dev = &client->dev;
+		mutex_init(&chip->io_lock);
+		dev_set_drvdata(chip->dev, chip);
 
+		if (found_companion) {
+			/*
+			 * If this driver is built in, probe function is
+			 * recursive.
+			 * If this driver is built as module, the next probe
+			 * function is called after the first one finished.
+			 */
+			chip->companion = i2c_new_device(client->adapter,
+							 &i2c_info);
+		}
+	}
 
+	/*
+	 * If companion chip existes, it's called by companion probe.
+	 * If there's no companion chip, it's called by client probe.
+	 */
+	if ((addr_c == 0) || (addr_c == client->addr)) {
+		chip->companion = client;
+		i2c_set_clientdata(chip->companion, chip);
+		pm860x_device_init(chip, pdata);
+	}
 	return 0;
-
-out:
-	i2c_set_clientdata(client, NULL);
-	kfree(chip);
-	return ret;
 }
 
 static int __devexit pm860x_remove(struct i2c_client *client)
 {
-	struct pm8607_chip *chip = i2c_get_clientdata(client);
+	struct pm860x_chip *chip = i2c_get_clientdata(client);
 
+	/*
+	 * If companion existes, companion client is removed first.
+	 * Because companion client is registered last and removed first.
+	 */
+	if (chip->companion_addr == client->addr)
+		return 0;
+	pm860x_device_exit(chip);
+	i2c_unregister_device(chip->companion);
+	i2c_set_clientdata(chip->companion, NULL);
+	i2c_set_clientdata(chip->client, NULL);
 	kfree(chip);
 	return 0;
 }

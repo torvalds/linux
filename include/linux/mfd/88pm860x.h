@@ -1,5 +1,5 @@
 /*
- * Marvell 88PM8607 Interface
+ * Marvell 88PM860x Interface
  *
  * Copyright (C) 2009 Marvell International Ltd.
  * 	Haojian Zhuang <haojian.zhuang@marvell.com>
@@ -9,8 +9,15 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __LINUX_MFD_88PM8607_H
-#define __LINUX_MFD_88PM8607_H
+#ifndef __LINUX_MFD_88PM860X_H
+#define __LINUX_MFD_88PM860X_H
+
+enum {
+	CHIP_INVALID = 0,
+	CHIP_PM8606,
+	CHIP_PM8607,
+	CHIP_MAX,
+};
 
 enum {
 	PM8607_ID_BUCK1 = 0,
@@ -33,8 +40,8 @@ enum {
 	PM8607_ID_RG_MAX,
 };
 
-#define PM8607_ID			(0x40)	/* 8607 chip ID */
-#define PM8607_ID_MASK			(0xF8)	/* 8607 chip ID mask */
+#define PM8607_VERSION			(0x40)	/* 8607 chip ID */
+#define PM8607_VERSION_MASK		(0xF0)	/* 8607 chip ID mask */
 
 /* Interrupt Registers */
 #define PM8607_STATUS_1			(0x01)
@@ -180,18 +187,16 @@ enum {
 	PM8607_CHIP_B0 = 0x48,
 };
 
-
-struct pm8607_chip {
+struct pm860x_chip {
 	struct device		*dev;
 	struct mutex		io_lock;
 	struct i2c_client	*client;
-	struct i2c_device_id	id;
-
-	int (*read)(struct pm8607_chip *chip, int reg, int bytes, void *dest);
-	int (*write)(struct pm8607_chip *chip, int reg, int bytes, void *src);
+	struct i2c_client	*companion;	/* companion chip client */
 
 	int			buck3_double;	/* DVC ramp slope double */
-	unsigned char		chip_id;
+	unsigned short		companion_addr;
+	int			id;
+	unsigned char		chip_version;
 
 };
 
@@ -202,22 +207,21 @@ enum {
 	PI2C_PORT,
 };
 
-struct pm8607_platform_data {
-	int	i2c_port;	/* Controlled by GI2C or PI2C */
+struct pm860x_platform_data {
+	unsigned short	companion_addr;	/* I2C address of companion chip */
+	int		i2c_port;	/* Controlled by GI2C or PI2C */
 	struct regulator_init_data *regulator[PM8607_MAX_REGULATOR];
 };
 
-extern int pm8607_reg_read(struct pm8607_chip *, int);
-extern int pm8607_reg_write(struct pm8607_chip *, int, unsigned char);
-extern int pm8607_bulk_read(struct pm8607_chip *, int, int,
-			    unsigned char *);
-extern int pm8607_bulk_write(struct pm8607_chip *, int, int,
-			     unsigned char *);
-extern int pm8607_set_bits(struct pm8607_chip *, int, unsigned char,
+extern int pm860x_reg_read(struct i2c_client *, int);
+extern int pm860x_reg_write(struct i2c_client *, int, unsigned char);
+extern int pm860x_bulk_read(struct i2c_client *, int, int, unsigned char *);
+extern int pm860x_bulk_write(struct i2c_client *, int, int, unsigned char *);
+extern int pm860x_set_bits(struct i2c_client *, int, unsigned char,
 			   unsigned char);
 
-extern int pm860x_device_init(struct pm8607_chip *chip,
-			      struct pm8607_platform_data *pdata);
-extern void pm860x_device_exit(struct pm8607_chip *chip);
+extern int pm860x_device_init(struct pm860x_chip *chip,
+			      struct pm860x_platform_data *pdata);
+extern void pm860x_device_exit(struct pm860x_chip *chip);
 
 #endif /* __LINUX_MFD_88PM860X_H */
