@@ -6339,6 +6339,7 @@ static int vga_2wr_probe(struct gspca_dev *gspca_dev)
 	}
 
 	start_2wr_probe(dev, 0x08);		/* HDCS2020 */
+	i2c_write(gspca_dev, 0x1c, 0x00, 0x00);
 	i2c_write(gspca_dev, 0x15, 0xaa, 0x00);
 	retword = i2c_read(gspca_dev, 0x15);
 	if (retword != 0)
