@@ -101,11 +101,6 @@ static int netvsc_open(struct net_device *net)
 static int netvsc_close(struct net_device *net)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
-	struct driver_context *driver_ctx =
-	    driver_to_driver_context(net_device_ctx->device_ctx->device.driver);
-	struct netvsc_driver_context *net_drv_ctx =
-		(struct netvsc_driver_context *)driver_ctx;
-	struct netvsc_driver *net_drv_obj = &net_drv_ctx->drv_obj;
 	struct hv_device *device_obj = &net_device_ctx->device_ctx->device_obj;
 	int ret;
 
@@ -113,7 +108,7 @@ static int netvsc_close(struct net_device *net)
 
 	netif_stop_queue(net);
 
-	ret = net_drv_obj->OnClose(device_obj);
+	ret = RndisFilterOnClose(device_obj);
 	if (ret != 0)
 		DPRINT_ERR(NETVSC_DRV, "unable to close device (ret %d).", ret);
 

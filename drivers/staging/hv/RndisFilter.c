@@ -85,8 +85,6 @@ static int RndisFilterOnDeviceRemove(struct hv_device *Device);
 
 static void RndisFilterOnCleanup(struct hv_driver *Driver);
 
-static int RndisFilterOnClose(struct hv_device *Device);
-
 static int RndisFilterOnSend(struct hv_device *Device,
 			     struct hv_netvsc_packet *Packet);
 
@@ -652,7 +650,6 @@ int RndisFilterInit(struct netvsc_driver *Driver)
 	Driver->Base.OnDeviceRemove = RndisFilterOnDeviceRemove;
 	Driver->Base.OnCleanup = RndisFilterOnCleanup;
 	Driver->OnSend = RndisFilterOnSend;
-	Driver->OnClose = RndisFilterOnClose;
 	/* Driver->QueryLinkStatus = RndisFilterQueryDeviceLinkStatus; */
 	Driver->OnReceiveCallback = RndisFilterOnReceive;
 
@@ -900,7 +897,7 @@ int RndisFilterOnOpen(struct hv_device *Device)
 	return ret;
 }
 
-static int RndisFilterOnClose(struct hv_device *Device)
+int RndisFilterOnClose(struct hv_device *Device)
 {
 	int ret;
 	struct netvsc_device *netDevice = Device->Extension;
