@@ -341,6 +341,10 @@ int ath_beaconq_config(struct ath_softc *sc);
 #define ATH_LONG_CALINTERVAL      30000   /* 30 seconds */
 #define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
 
+/**********/
+/* BTCOEX */
+/**********/
+
 /* Defines the BT AR_BT_COEX_WGHT used */
 enum ath_stomp_type {
 	ATH_BTCOEX_NO_STOMP,
@@ -360,6 +364,10 @@ struct ath_btcoex {
 	u32 btcoex_period; /* in usec */
 	struct ath_gen_timer *no_stomp_timer; /* Timer for no BT stomping */
 };
+
+int ath_init_btcoex_timer(struct ath_softc *sc);
+void ath9k_btcoex_timer_resume(struct ath_softc *sc);
+void ath9k_btcoex_timer_pause(struct ath_softc *sc);
 
 /********************/
 /*   LED Control    */
@@ -384,6 +392,9 @@ struct ath_led {
 	char name[32];
 	bool registered;
 };
+
+void ath_init_leds(struct ath_softc *sc);
+void ath_deinit_leds(struct ath_softc *sc);
 
 /********************/
 /* Main driver core */
@@ -582,4 +593,8 @@ void ath_mac80211_stop_queue(struct ath_softc *sc, u16 skb_queue);
 void ath_mac80211_start_queue(struct ath_softc *sc, u16 skb_queue);
 
 int ath_tx_get_qnum(struct ath_softc *sc, int qtype, int haltype);
+
+void ath_start_rfkill_poll(struct ath_softc *sc);
+extern void ath9k_rfkill_poll_state(struct ieee80211_hw *hw);
+
 #endif /* ATH9K_H */
