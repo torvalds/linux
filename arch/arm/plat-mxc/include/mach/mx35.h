@@ -1,3 +1,5 @@
+#ifndef __MACH_MX35_H__
+#define __MACH_MX35_H__
 /*
  * IRAM
  */
@@ -204,3 +206,5 @@
 #define MXC_INT_SPDIF MX35_INT_SPDIF
 #define MXC_INT_FEC MX35_INT_FEC
 #endif
+
+#endif /* ifndef __MACH_MX35_H__ */

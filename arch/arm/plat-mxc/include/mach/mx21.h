@@ -22,8 +22,8 @@
  * MA  02110-1301, USA.
  */
 
-#ifndef __ASM_ARCH_MXC_MX21_H__
-#define __ASM_ARCH_MXC_MX21_H__
+#ifndef __MACH_MX21_H__
+#define __MACH_MX21_H__
 
 #define MX21_AIPI_BASE_ADDR		0x10000000
 #define MX21_AIPI_BASE_ADDR_VIRT	0xf4000000
@@ -219,4 +219,4 @@
 #define DMA_REQ_BMI_RX MX21_DMA_REQ_BMI_RX
 #endif
 
-#endif /* __ASM_ARCH_MXC_MX21_H__ */
+#endif /* ifndef __MACH_MX21_H__ */

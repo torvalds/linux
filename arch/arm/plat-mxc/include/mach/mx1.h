@@ -9,8 +9,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __ASM_ARCH_MXC_MX1_H__
-#define __ASM_ARCH_MXC_MX1_H__
+#ifndef __MACH_MX1_H__
+#define __MACH_MX1_H__
 
 #include <mach/vmalloc.h>
 
@@ -161,4 +161,4 @@
 #define DMA_REQ_UART1_T		30
 #define DMA_REQ_UART1_R		31
 
-#endif /*  __ASM_ARCH_MXC_MX1_H__ */
+#endif /* ifndef __MACH_MX1_H__ */

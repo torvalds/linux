@@ -34,4 +34,4 @@
 
 #define MX25_INT_FEC	57
 
-#endif /* __MACH_MX25_H__ */
+#endif /* ifndef __MACH_MX25_H__ */

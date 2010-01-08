@@ -21,8 +21,8 @@
  * MA  02110-1301, USA.
  */
 
-#ifndef __ASM_ARCH_MXC_MX27_H__
-#define __ASM_ARCH_MXC_MX27_H__
+#ifndef __MACH_MX27_H__
+#define __MACH_MX27_H__
 
 #define MX27_AIPI_BASE_ADDR		0x10000000
 #define MX27_AIPI_BASE_ADDR_VIRT	0xf4000000
@@ -300,4 +300,4 @@ extern int mx27_revision(void);
 #define DMA_REQ_NFC MX27_DMA_REQ_NFC
 #endif
 
-#endif /* __ASM_ARCH_MXC_MX27_H__ */
+#endif /* ifndef __MACH_MX27_H__ */

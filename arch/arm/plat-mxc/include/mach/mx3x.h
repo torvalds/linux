@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __ASM_ARCH_MXC_MX31_H__
-#define __ASM_ARCH_MXC_MX31_H__
+#ifndef __MACH_MX3x_H__
+#define __MACH_MX3x_H__
 
 /*
  * MX31 memory map:
@@ -404,4 +404,4 @@ static inline int mx31_revision(void)
 #define SYSTEM_REV_NUM MX3x_SYSTEM_REV_NUM
 #endif
 
-#endif /*  __ASM_ARCH_MXC_MX31_H__ */
+#endif /* ifndef __MACH_MX3x_H__ */

@@ -1,3 +1,6 @@
+#ifndef __MACH_MX31_H__
+#define __MACH_MX31_H__
+
 /*
  * IRAM
  */
@@ -225,3 +228,5 @@
 #define MXC_INT_CCM MX31_INT_CCM
 #define MXC_INT_PCMCIA MX31_INT_PCMCIA
 #endif
+
+#endif /* ifndef __MACH_MX31_H__ */
