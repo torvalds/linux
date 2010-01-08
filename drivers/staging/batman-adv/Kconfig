@@ -4,6 +4,7 @@
 
 config BATMAN_ADV
 	tristate "B.A.T.M.A.N. Advanced Meshing Protocol"
+	depends on PROC_FS && PACKET
         default n
 	---help---
 

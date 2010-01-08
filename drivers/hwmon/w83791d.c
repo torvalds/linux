@@ -52,7 +52,6 @@ static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 						I2C_CLIENT_END };
 
 /* Insmod parameters */
-I2C_CLIENT_INSMOD_1(w83791d);
 
 static unsigned short force_subclients[4];
 module_param_array(force_subclients, short, NULL, 0);
@@ -326,7 +325,7 @@ struct w83791d_data {
 
 static int w83791d_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int w83791d_detect(struct i2c_client *client, int kind,
+static int w83791d_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static int w83791d_remove(struct i2c_client *client);
 
@@ -341,7 +340,7 @@ static void w83791d_print_debug(struct w83791d_data *data, struct device *dev);
 static void w83791d_init_client(struct i2c_client *client);
 
 static const struct i2c_device_id w83791d_id[] = {
-	{ "w83791d", w83791d },
+	{ "w83791d", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, w83791d_id);
@@ -355,7 +354,7 @@ static struct i2c_driver w83791d_driver = {
 	.remove		= w83791d_remove,
 	.id_table	= w83791d_id,
 	.detect		= w83791d_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /* following are the sysfs callback functions */
@@ -1259,7 +1258,7 @@ error_sc_0:
 
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int w83791d_detect(struct i2c_client *client, int kind,
+static int w83791d_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;

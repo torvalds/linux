@@ -12,6 +12,7 @@ m5602		0402:5602	ALi Video Camera Controller
 spca501		040a:0002	Kodak DVC-325
 spca500		040a:0300	Kodak EZ200
 zc3xx		041e:041e	Creative WebCam Live!
+ov519		041e:4003	Video Blaster WebCam Go Plus
 spca500		041e:400a	Creative PC-CAM 300
 sunplus		041e:400b	Creative PC-CAM 600
 sunplus		041e:4012	PC-Cam350
@@ -168,10 +169,14 @@ sunplus		055f:c650	Mustek MDC5500Z
 zc3xx		055f:d003	Mustek WCam300A
 zc3xx		055f:d004	Mustek WCam300 AN
 conex		0572:0041	Creative Notebook cx11646
+ov519		05a9:0511	Video Blaster WebCam 3/WebCam Plus, D-Link USB Digital Video Camera
+ov519		05a9:0518	Creative WebCam
 ov519		05a9:0519	OV519 Microphone
 ov519		05a9:0530	OmniVision
+ov519		05a9:2800	OmniVision SuperCAM
 ov519		05a9:4519	Webcam Classic
 ov519		05a9:8519	OmniVision
+ov519		05a9:a511	D-Link USB Digital Video Camera
 ov519		05a9:a518	D-Link DSB-C310 Webcam
 sunplus		05da:1018	Digital Dream Enigma 1.3
 stk014		05e1:0893	Syntek DV4000
@@ -187,7 +192,7 @@ ov534		06f8:3002	Hercules Blog Webcam
 ov534		06f8:3003	Hercules Dualpix HD Weblog
 sonixj		06f8:3004	Hercules Classic Silver
 sonixj		06f8:3008	Hercules Deluxe Optical Glass
-pac7311		06f8:3009	Hercules Classic Link
+pac7302		06f8:3009	Hercules Classic Link
 spca508		0733:0110	ViewQuest VQ110
 spca501		0733:0401	Intel Create and Share
 spca501		0733:0402	ViewQuest M318B
@@ -199,6 +204,7 @@ sunplus		0733:2221	Mercury Digital Pro 3.1p
 sunplus		0733:3261	Concord 3045 spca536a
 sunplus		0733:3281	Cyberpix S550V
 spca506		0734:043b	3DeMon USB Capture aka
+ov519		0813:0002	Dual Mode USB Camera Plus
 spca500		084d:0003	D-Link DSC-350
 spca500		08ca:0103	Aiptek PocketDV
 sunplus		08ca:0104	Aiptek PocketDVII 1.3
@@ -236,15 +242,15 @@ pac7311		093a:2603	Philips SPC 500 NC
 pac7311		093a:2608	Trust WB-3300p
 pac7311		093a:260e	Gigaware VGA PC Camera, Trust WB-3350p, SIGMA cam 2350
 pac7311		093a:260f	SnakeCam
-pac7311		093a:2620	Apollo AC-905
-pac7311		093a:2621	PAC731x
-pac7311		093a:2622	Genius Eye 312
-pac7311		093a:2624	PAC7302
-pac7311		093a:2626	Labtec 2200
-pac7311		093a:2628	Genius iLook 300
-pac7311		093a:2629	Genious iSlim 300
-pac7311		093a:262a	Webcam 300k
-pac7311		093a:262c	Philips SPC 230 NC
+pac7302		093a:2620	Apollo AC-905
+pac7302		093a:2621	PAC731x
+pac7302		093a:2622	Genius Eye 312
+pac7302		093a:2624	PAC7302
+pac7302		093a:2626	Labtec 2200
+pac7302		093a:2628	Genius iLook 300
+pac7302		093a:2629	Genious iSlim 300
+pac7302		093a:262a	Webcam 300k
+pac7302		093a:262c	Philips SPC 230 NC
 jeilinj		0979:0280	Sakar 57379
 zc3xx		0ac8:0302	Z-star Vimicro zc0302
 vc032x		0ac8:0321	Vimicro generic vc0321
@@ -259,6 +265,7 @@ vc032x		0ac8:c002	Sony embedded vimicro
 vc032x		0ac8:c301	Samsung Q1 Ultra Premium
 spca508		0af9:0010	Hama USB Sightcam 100
 spca508		0af9:0011	Hama USB Sightcam 100
+ov519		0b62:0059	iBOT2 Webcam
 sonixb		0c45:6001	Genius VideoCAM NB
 sonixb		0c45:6005	Microdia Sweex Mini Webcam
 sonixb		0c45:6007	Sonix sn9c101 + Tas5110D
@@ -318,8 +325,10 @@ sn9c20x		0c45:62b3	PC Camera (SN9C202 + OV9655)
 sn9c20x		0c45:62bb	PC Camera (SN9C202 + OV7660)
 sn9c20x		0c45:62bc	PC Camera (SN9C202 + HV7131R)
 sunplus		0d64:0303	Sunplus FashionCam DXG
+ov519		0e96:c001	TRUST 380 USB2 SPACEC@M
 etoms		102c:6151	Qcam Sangha CIF
 etoms		102c:6251	Qcam xxxxxx VGA
+ov519		1046:9967	W9967CF/W9968CF WebCam IC, Video Blaster WebCam Go
 zc3xx		10fd:0128	Typhoon Webshot II USB 300k 0x0128
 spca561		10fd:7e50	FlyCam Usb 100
 zc3xx		10fd:8050	Typhoon Webshot II USB 300k
@@ -332,7 +341,12 @@ spca501		1776:501c	Arowana 300K CMOS Camera
 t613		17a1:0128	TASCORP JPEG Webcam, NGS Cyclops
 vc032x		17ef:4802	Lenovo Vc0323+MI1310_SOC
 pac207		2001:f115	D-Link DSB-C120
+sq905c		2770:9050	sq905c
+sq905c		2770:905c	DualCamera
+sq905		2770:9120	Argus Digital Camera DC1512
+sq905c		2770:913d	sq905c
 spca500		2899:012c	Toptro Industrial
+ov519		8020:ef04	ov519
 spca508		8086:0110	Intel Easy PC Camera
 spca500		8086:0630	Intel Pocket PC Camera
 spca506		99fa:8988	Grandtec V.cap

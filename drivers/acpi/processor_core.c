@@ -124,29 +124,6 @@ static const struct file_operations acpi_processor_info_fops = {
 
 DEFINE_PER_CPU(struct acpi_processor *, processors);
 struct acpi_processor_errata errata __read_mostly;
-static int set_no_mwait(const struct dmi_system_id *id)
-{
-	printk(KERN_NOTICE PREFIX "%s detected - "
-		"disabling mwait for CPU C-states\n", id->ident);
-	idle_nomwait = 1;
-	return 0;
-}
-
-static struct dmi_system_id __cpuinitdata processor_idle_dmi_table[] = {
-	{
-	set_no_mwait, "IFL91 board", {
-	DMI_MATCH(DMI_BIOS_VENDOR, "COMPAL"),
-	DMI_MATCH(DMI_SYS_VENDOR, "ZEPTO"),
-	DMI_MATCH(DMI_PRODUCT_VERSION, "3215W"),
-	DMI_MATCH(DMI_BOARD_NAME, "IFL91") }, NULL},
-	{
-	set_no_mwait, "Extensa 5220", {
-	DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies LTD"),
-	DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
-	DMI_MATCH(DMI_PRODUCT_VERSION, "0100"),
-	DMI_MATCH(DMI_BOARD_NAME, "Columbia") }, NULL},
-	{},
-};
 
 /* --------------------------------------------------------------------------
                                 Errata Handling
@@ -277,45 +254,6 @@ static int acpi_processor_errata(struct acpi_processor *pr)
 }
 
 /* --------------------------------------------------------------------------
-                              Common ACPI processor functions
-   -------------------------------------------------------------------------- */
-
-/*
- * _PDC is required for a BIOS-OS handshake for most of the newer
- * ACPI processor features.
- */
-static int acpi_processor_set_pdc(struct acpi_processor *pr)
-{
-	struct acpi_object_list *pdc_in = pr->pdc;
-	acpi_status status = AE_OK;
-
-
-	if (!pdc_in)
-		return status;
-	if (idle_nomwait) {
-		/*
-		 * If mwait is disabled for CPU C-states, the C2C3_FFH access
-		 * mode will be disabled in the parameter of _PDC object.
-		 * Of course C1_FFH access mode will also be disabled.
-		 */
-		union acpi_object *obj;
-		u32 *buffer = NULL;
-
-		obj = pdc_in->pointer;
-		buffer = (u32 *)(obj->buffer.pointer);
-		buffer[2] &= ~(ACPI_PDC_C_C2C3_FFH | ACPI_PDC_C_C1_FFH);
-
-	}
-	status = acpi_evaluate_object(pr->handle, "_PDC", pdc_in, NULL);
-
-	if (ACPI_FAILURE(status))
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-		    "Could not evaluate _PDC, using legacy perf. control...\n"));
-
-	return status;
-}
-
-/* --------------------------------------------------------------------------
                               FS Interface (/proc)
    -------------------------------------------------------------------------- */
 
@@ -353,7 +291,7 @@ static int acpi_processor_info_open_fs(struct inode *inode, struct file *file)
 			   PDE(inode)->data);
 }
 
-static int acpi_processor_add_fs(struct acpi_device *device)
+static int __cpuinit acpi_processor_add_fs(struct acpi_device *device)
 {
 	struct proc_dir_entry *entry = NULL;
 
@@ -722,7 +660,7 @@ static void acpi_processor_notify(struct acpi_device *device, u32 event)
 	switch (event) {
 	case ACPI_PROCESSOR_NOTIFY_PERFORMANCE:
 		saved = pr->performance_platform_limit;
-		acpi_processor_ppc_has_changed(pr);
+		acpi_processor_ppc_has_changed(pr, 1);
 		if (saved == pr->performance_platform_limit)
 			break;
 		acpi_bus_generate_proc_event(device, event,
@@ -758,7 +696,7 @@ static int acpi_cpu_soft_notify(struct notifier_block *nfb,
 	struct acpi_processor *pr = per_cpu(processors, cpu);
 
 	if (action == CPU_ONLINE && pr) {
-		acpi_processor_ppc_has_changed(pr);
+		acpi_processor_ppc_has_changed(pr, 0);
 		acpi_processor_cst_has_changed(pr);
 		acpi_processor_tstate_has_changed(pr);
 	}
@@ -825,12 +763,10 @@ static int __cpuinit acpi_processor_add(struct acpi_device *device)
 	}
 
 	/* _PDC call should be done before doing anything else (if reqd.). */
-	arch_acpi_processor_init_pdc(pr);
-	acpi_processor_set_pdc(pr);
-	arch_acpi_processor_cleanup_pdc(pr);
+	acpi_processor_set_pdc(pr->handle);
 
 #ifdef CONFIG_CPU_FREQ
-	acpi_processor_ppc_has_changed(pr);
+	acpi_processor_ppc_has_changed(pr, 0);
 #endif
 	acpi_processor_get_throttling_info(pr);
 	acpi_processor_get_limit_info(pr);
@@ -845,7 +781,7 @@ static int __cpuinit acpi_processor_add(struct acpi_device *device)
 		goto err_power_exit;
 	}
 
-	dev_info(&device->dev, "registered as cooling_device%d\n",
+	dev_dbg(&device->dev, "registered as cooling_device%d\n",
 		 pr->cdev->id);
 
 	result = sysfs_create_link(&device->dev.kobj,
@@ -1145,11 +1081,6 @@ static int __init acpi_processor_init(void)
 	if (!acpi_processor_dir)
 		return -ENOMEM;
 #endif
-	/*
-	 * Check whether the system is DMI table. If yes, OSPM
-	 * should not use mwait for CPU-states.
-	 */
-	dmi_check_system(processor_idle_dmi_table);
 	result = cpuidle_register_driver(&acpi_idle_driver);
 	if (result < 0)
 		goto out_proc;

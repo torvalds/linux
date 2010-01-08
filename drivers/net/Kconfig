@@ -1953,6 +1953,8 @@ config BCM63XX_ENET
 
 source "drivers/net/fs_enet/Kconfig"
 
+source "drivers/net/octeon/Kconfig"
+
 endif # NET_ETHERNET
 
 #

@@ -826,7 +826,7 @@ static int sh_rtc_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops sh_rtc_dev_pm_ops = {
+static const struct dev_pm_ops sh_rtc_dev_pm_ops = {
 	.suspend = sh_rtc_suspend,
 	.resume = sh_rtc_resume,
 };

@@ -47,7 +47,7 @@ static DEFINE_PER_CPU(short, wd_enabled);
 static int endflag __initdata;
 
 static DEFINE_PER_CPU(unsigned int, last_irq_sum);
-static DEFINE_PER_CPU(local_t, alert_counter);
+static DEFINE_PER_CPU(long, alert_counter);
 static DEFINE_PER_CPU(int, nmi_touch);
 
 void touch_nmi_watchdog(void)
@@ -112,13 +112,13 @@ notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
 		touched = 1;
 	}
 	if (!touched && __get_cpu_var(last_irq_sum) == sum) {
-		local_inc(&__get_cpu_var(alert_counter));
-		if (local_read(&__get_cpu_var(alert_counter)) == 30 * nmi_hz)
+		__this_cpu_inc(per_cpu_var(alert_counter));
+		if (__this_cpu_read(per_cpu_var(alert_counter)) == 30 * nmi_hz)
 			die_nmi("BUG: NMI Watchdog detected LOCKUP",
 				regs, panic_on_timeout);
 	} else {
 		__get_cpu_var(last_irq_sum) = sum;
-		local_set(&__get_cpu_var(alert_counter), 0);
+		__this_cpu_write(per_cpu_var(alert_counter), 0);
 	}
 	if (__get_cpu_var(wd_enabled)) {
 		write_pic(picl_value(nmi_hz));

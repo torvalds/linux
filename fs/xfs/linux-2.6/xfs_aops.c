@@ -38,6 +38,7 @@
 #include "xfs_rw.h"
 #include "xfs_iomap.h"
 #include "xfs_vnodeops.h"
+#include "xfs_trace.h"
 #include <linux/mpage.h>
 #include <linux/pagevec.h>
 #include <linux/writeback.h>
@@ -76,7 +77,7 @@ xfs_ioend_wake(
 		wake_up(to_ioend_wq(ip));
 }
 
-STATIC void
+void
 xfs_count_page_state(
 	struct page		*page,
 	int			*delalloc,
@@ -97,48 +98,6 @@ xfs_count_page_state(
 			(*delalloc) = 1;
 	} while ((bh = bh->b_this_page) != head);
 }
-
-#if defined(XFS_RW_TRACE)
-void
-xfs_page_trace(
-	int		tag,
-	struct inode	*inode,
-	struct page	*page,
-	unsigned long	pgoff)
-{
-	xfs_inode_t	*ip;
-	loff_t		isize = i_size_read(inode);
-	loff_t		offset = page_offset(page);
-	int		delalloc = -1, unmapped = -1, unwritten = -1;
-
-	if (page_has_buffers(page))
-		xfs_count_page_state(page, &delalloc, &unmapped, &unwritten);
-
-	ip = XFS_I(inode);
-	if (!ip->i_rwtrace)
-		return;
-
-	ktrace_enter(ip->i_rwtrace,
-		(void *)((unsigned long)tag),
-		(void *)ip,
-		(void *)inode,
-		(void *)page,
-		(void *)pgoff,
-		(void *)((unsigned long)((ip->i_d.di_size >> 32) & 0xffffffff)),
-		(void *)((unsigned long)(ip->i_d.di_size & 0xffffffff)),
-		(void *)((unsigned long)((isize >> 32) & 0xffffffff)),
-		(void *)((unsigned long)(isize & 0xffffffff)),
-		(void *)((unsigned long)((offset >> 32) & 0xffffffff)),
-		(void *)((unsigned long)(offset & 0xffffffff)),
-		(void *)((unsigned long)delalloc),
-		(void *)((unsigned long)unmapped),
-		(void *)((unsigned long)unwritten),
-		(void *)((unsigned long)current_pid()),
-		(void *)NULL);
-}
-#else
-#define xfs_page_trace(tag, inode, page, pgoff)
-#endif
 
 STATIC struct block_device *
 xfs_find_bdev_for_inode(
@@ -1202,7 +1161,7 @@ xfs_vm_writepage(
 	int			delalloc, unmapped, unwritten;
 	struct inode		*inode = page->mapping->host;
 
-	xfs_page_trace(XFS_WRITEPAGE_ENTER, inode, page, 0);
+	trace_xfs_writepage(inode, page, 0);
 
 	/*
 	 * We need a transaction if:
@@ -1307,7 +1266,7 @@ xfs_vm_releasepage(
 		.nr_to_write = 1,
 	};
 
-	xfs_page_trace(XFS_RELEASEPAGE_ENTER, inode, page, 0);
+	trace_xfs_releasepage(inode, page, 0);
 
 	if (!page_has_buffers(page))
 		return 0;
@@ -1515,19 +1474,13 @@ xfs_vm_direct_IO(
 
 	bdev = xfs_find_bdev_for_inode(XFS_I(inode));
 
-	if (rw == WRITE) {
-		iocb->private = xfs_alloc_ioend(inode, IOMAP_UNWRITTEN);
-		ret = blockdev_direct_IO_own_locking(rw, iocb, inode,
-			bdev, iov, offset, nr_segs,
-			xfs_get_blocks_direct,
-			xfs_end_io_direct);
-	} else {
-		iocb->private = xfs_alloc_ioend(inode, IOMAP_READ);
-		ret = blockdev_direct_IO_no_locking(rw, iocb, inode,
-			bdev, iov, offset, nr_segs,
-			xfs_get_blocks_direct,
-			xfs_end_io_direct);
-	}
+	iocb->private = xfs_alloc_ioend(inode, rw == WRITE ?
+					IOMAP_UNWRITTEN : IOMAP_READ);
+
+	ret = blockdev_direct_IO_no_locking(rw, iocb, inode, bdev, iov,
+					    offset, nr_segs,
+					    xfs_get_blocks_direct,
+					    xfs_end_io_direct);
 
 	if (unlikely(ret != -EIOCBQUEUED && iocb->private))
 		xfs_destroy_ioend(iocb->private);
@@ -1587,8 +1540,7 @@ xfs_vm_invalidatepage(
 	struct page		*page,
 	unsigned long		offset)
 {
-	xfs_page_trace(XFS_INVALIDPAGE_ENTER,
-			page->mapping->host, page, offset);
+	trace_xfs_invalidatepage(page->mapping->host, page, offset);
 	block_invalidatepage(page, offset);
 }
 

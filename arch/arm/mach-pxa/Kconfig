@@ -63,6 +63,15 @@ config ARCH_VIPER
 	select HAVE_PWM
 	select PXA_HAVE_BOARD_IRQS
 	select PXA_HAVE_ISA_IRQS
+	select ARCOM_PCMCIA
+
+config MACH_ARCOM_ZEUS
+	bool "Arcom/Eurotech ZEUS SBC"
+	select PXA27x
+	select ISA
+	select PXA_HAVE_BOARD_IRQS
+	select PXA_HAVE_ISA_IRQS
+	select ARCOM_PCMCIA
 
 config MACH_BALLOON3
 	bool "Balloon 3 board"
@@ -101,6 +110,8 @@ config MACH_CM_X300
 	bool "CompuLab CM-X300 modules"
 	select PXA3xx
 	select CPU_PXA300
+	select CPU_PXA310
+	select HAVE_PWM
 
 config ARCH_GUMSTIX
 	bool "Gumstix XScale 255 boards"
@@ -179,6 +190,11 @@ config MACH_TRIZEPS_ANY
 
 endchoice
 
+config ARCOM_PCMCIA
+	bool
+	help
+	  Generic option for Arcom Viper/Zeus PCMCIA
+
 config TRIZEPS_PCMCIA
 	bool
 	help
@@ -226,7 +242,6 @@ config MACH_COLIBRI300
 	select PXA3xx
 	select CPU_PXA300
 	select CPU_PXA310
-	select HAVE_PWM
 
 config MACH_COLIBRI320
 	bool "Toradex Colibri PXA320"

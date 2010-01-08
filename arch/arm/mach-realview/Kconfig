@@ -70,7 +70,7 @@ config MACH_REALVIEW_PBX
 	bool "Support RealView/PBX platform"
 	select ARM_GIC
 	select HAVE_PATA_PLATFORM
-	select ARCH_SPARSEMEM_ENABLE if CPU_V7 && !HIGH_PHYS_OFFSET
+	select ARCH_SPARSEMEM_ENABLE if CPU_V7 && !REALVIEW_HIGH_PHYS_OFFSET
 	select ZONE_DMA if SPARSEMEM
 	help
 	  Include support for the ARM(R) RealView PBX platform.

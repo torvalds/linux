@@ -758,8 +758,8 @@ int cx18_v4l2_open(struct file *filp)
 
 	mutex_lock(&cx->serialize_lock);
 	if (cx18_init_on_first_open(cx)) {
-		CX18_ERR("Failed to initialize on minor %d\n",
-			 video_dev->minor);
+		CX18_ERR("Failed to initialize on %s\n",
+			 video_device_node_name(video_dev));
 		mutex_unlock(&cx->serialize_lock);
 		return -ENXIO;
 	}

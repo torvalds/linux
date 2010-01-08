@@ -311,7 +311,7 @@ config NR_CPUS
 
 config NOT_COHERENT_CACHE
 	bool
-	depends on 4xx || 8xx || E200 || PPC_MPC512x
+	depends on 4xx || 8xx || E200 || PPC_MPC512x || GAMECUBE_COMMON
 	default y
 
 config CHECK_CACHE_COHERENCY

@@ -35,7 +35,7 @@ MODULE_LICENSE("GPL");
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 /* Insmod parameters */
-I2C_CLIENT_INSMOD_2(thmc50, adm1022);
+enum chips { thmc50, adm1022 };
 
 static unsigned short adm1022_temp3[16];
 static unsigned int adm1022_temp3_num;
@@ -84,7 +84,7 @@ struct thmc50_data {
 	u8 alarms;
 };
 
-static int thmc50_detect(struct i2c_client *client, int kind,
+static int thmc50_detect(struct i2c_client *client,
 			 struct i2c_board_info *info);
 static int thmc50_probe(struct i2c_client *client,
 			const struct i2c_device_id *id);
@@ -108,7 +108,7 @@ static struct i2c_driver thmc50_driver = {
 	.remove = thmc50_remove,
 	.id_table = thmc50_id,
 	.detect = thmc50_detect,
-	.address_data = &addr_data,
+	.address_list = normal_i2c,
 };
 
 static ssize_t show_analog_out(struct device *dev,
@@ -286,7 +286,7 @@ static const struct attribute_group temp3_group = {
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int thmc50_detect(struct i2c_client *client, int kind,
+static int thmc50_detect(struct i2c_client *client,
 			 struct i2c_board_info *info)
 {
 	unsigned company;

@@ -56,12 +56,6 @@
 static const unsigned short normal_i2c[] = { 0x4c, I2C_CLIENT_END };
 
 /*
- * Insmod parameters
- */
-
-I2C_CLIENT_INSMOD_1(lm63);
-
-/*
  * The LM63 registers
  */
 
@@ -134,8 +128,7 @@ static int lm63_remove(struct i2c_client *client);
 
 static struct lm63_data *lm63_update_device(struct device *dev);
 
-static int lm63_detect(struct i2c_client *client, int kind,
-		       struct i2c_board_info *info);
+static int lm63_detect(struct i2c_client *client, struct i2c_board_info *info);
 static void lm63_init_client(struct i2c_client *client);
 
 /*
@@ -143,7 +136,7 @@ static void lm63_init_client(struct i2c_client *client);
  */
 
 static const struct i2c_device_id lm63_id[] = {
-	{ "lm63", lm63 },
+	{ "lm63", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm63_id);
@@ -157,7 +150,7 @@ static struct i2c_driver lm63_driver = {
 	.remove		= lm63_remove,
 	.id_table	= lm63_id,
 	.detect		= lm63_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*
@@ -423,7 +416,7 @@ static const struct attribute_group lm63_group_fan1 = {
  */
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm63_detect(struct i2c_client *new_client, int kind,
+static int lm63_detect(struct i2c_client *new_client,
 		       struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = new_client->adapter;

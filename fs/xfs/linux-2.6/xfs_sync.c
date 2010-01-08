@@ -44,6 +44,7 @@
 #include "xfs_inode_item.h"
 #include "xfs_rw.h"
 #include "xfs_quota.h"
+#include "xfs_trace.h"
 
 #include <linux/kthread.h>
 #include <linux/freezer.h>

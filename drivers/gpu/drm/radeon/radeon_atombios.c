@@ -745,8 +745,7 @@ bool radeon_get_atom_connector_info_from_supported_devices_table(struct
 		else
 			radeon_add_legacy_encoder(dev,
 						  radeon_get_encoder_id(dev,
-									(1 <<
-									 i),
+									(1 << i),
 									dac),
 						  (1 << i));
 	}
@@ -758,32 +757,30 @@ bool radeon_get_atom_connector_info_from_supported_devices_table(struct
 				if (bios_connectors[j].valid && (i != j)) {
 					if (bios_connectors[i].line_mux ==
 					    bios_connectors[j].line_mux) {
-						if (((bios_connectors[i].
-						      devices &
-						      (ATOM_DEVICE_DFP_SUPPORT))
-						     && (bios_connectors[j].
-							 devices &
-							 (ATOM_DEVICE_CRT_SUPPORT)))
-						    ||
-						    ((bios_connectors[j].
-						      devices &
-						      (ATOM_DEVICE_DFP_SUPPORT))
-						     && (bios_connectors[i].
-							 devices &
-							 (ATOM_DEVICE_CRT_SUPPORT)))) {
-							bios_connectors[i].
-							    devices |=
-							    bios_connectors[j].
-							    devices;
-							bios_connectors[i].
-							    connector_type =
-							    DRM_MODE_CONNECTOR_DVII;
-							if (bios_connectors[j].devices &
-							    (ATOM_DEVICE_DFP_SUPPORT))
+						/* make sure not to combine LVDS */
+						if (bios_connectors[i].devices & (ATOM_DEVICE_LCD_SUPPORT)) {
+							bios_connectors[i].line_mux = 53;
+							bios_connectors[i].ddc_bus.valid = false;
+							continue;
+						}
+						if (bios_connectors[j].devices & (ATOM_DEVICE_LCD_SUPPORT)) {
+							bios_connectors[j].line_mux = 53;
+							bios_connectors[j].ddc_bus.valid = false;
+							continue;
+						}
+						/* combine analog and digital for DVI-I */
+						if (((bios_connectors[i].devices & (ATOM_DEVICE_DFP_SUPPORT)) &&
+						     (bios_connectors[j].devices & (ATOM_DEVICE_CRT_SUPPORT))) ||
+						    ((bios_connectors[j].devices & (ATOM_DEVICE_DFP_SUPPORT)) &&
+						     (bios_connectors[i].devices & (ATOM_DEVICE_CRT_SUPPORT)))) {
+							bios_connectors[i].devices |=
+								bios_connectors[j].devices;
+							bios_connectors[i].connector_type =
+								DRM_MODE_CONNECTOR_DVII;
+							if (bios_connectors[j].devices & (ATOM_DEVICE_DFP_SUPPORT))
 								bios_connectors[i].hpd =
 									bios_connectors[j].hpd;
-							bios_connectors[j].
-							    valid = false;
+							bios_connectors[j].valid = false;
 						}
 					}
 				}
@@ -1234,6 +1231,61 @@ bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
 	return true;
 }
 
+enum radeon_tv_std
+radeon_atombios_get_tv_info(struct radeon_device *rdev)
+{
+	struct radeon_mode_info *mode_info = &rdev->mode_info;
+	int index = GetIndexIntoMasterTable(DATA, AnalogTV_Info);
+	uint16_t data_offset;
+	uint8_t frev, crev;
+	struct _ATOM_ANALOG_TV_INFO *tv_info;
+	enum radeon_tv_std tv_std = TV_STD_NTSC;
+
+	atom_parse_data_header(mode_info->atom_context, index, NULL, &frev, &crev, &data_offset);
+
+	tv_info = (struct _ATOM_ANALOG_TV_INFO *)(mode_info->atom_context->bios + data_offset);
+
+	switch (tv_info->ucTV_BootUpDefaultStandard) {
+	case ATOM_TV_NTSC:
+		tv_std = TV_STD_NTSC;
+		DRM_INFO("Default TV standard: NTSC\n");
+		break;
+	case ATOM_TV_NTSCJ:
+		tv_std = TV_STD_NTSC_J;
+		DRM_INFO("Default TV standard: NTSC-J\n");
+		break;
+	case ATOM_TV_PAL:
+		tv_std = TV_STD_PAL;
+		DRM_INFO("Default TV standard: PAL\n");
+		break;
+	case ATOM_TV_PALM:
+		tv_std = TV_STD_PAL_M;
+		DRM_INFO("Default TV standard: PAL-M\n");
+		break;
+	case ATOM_TV_PALN:
+		tv_std = TV_STD_PAL_N;
+		DRM_INFO("Default TV standard: PAL-N\n");
+		break;
+	case ATOM_TV_PALCN:
+		tv_std = TV_STD_PAL_CN;
+		DRM_INFO("Default TV standard: PAL-CN\n");
+		break;
+	case ATOM_TV_PAL60:
+		tv_std = TV_STD_PAL_60;
+		DRM_INFO("Default TV standard: PAL-60\n");
+		break;
+	case ATOM_TV_SECAM:
+		tv_std = TV_STD_SECAM;
+		DRM_INFO("Default TV standard: SECAM\n");
+		break;
+	default:
+		tv_std = TV_STD_NTSC;
+		DRM_INFO("Unknown TV standard; defaulting to NTSC\n");
+		break;
+	}
+	return tv_std;
+}
+
 struct radeon_encoder_tv_dac *
 radeon_atombios_get_tv_dac_info(struct radeon_encoder *encoder)
 {
@@ -1269,6 +1321,7 @@ radeon_atombios_get_tv_dac_info(struct radeon_encoder *encoder)
 		dac = dac_info->ucDAC2_NTSC_DAC_Adjustment;
 		tv_dac->ntsc_tvdac_adj = (bg << 16) | (dac << 20);
 
+		tv_dac->tv_std = radeon_atombios_get_tv_info(rdev);
 	}
 	return tv_dac;
 }

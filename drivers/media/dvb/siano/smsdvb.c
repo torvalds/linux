@@ -662,7 +662,7 @@ adapter_error:
 	return rc;
 }
 
-int smsdvb_module_init(void)
+static int __init smsdvb_module_init(void)
 {
 	int rc;
 
@@ -676,7 +676,7 @@ int smsdvb_module_init(void)
 	return rc;
 }
 
-void smsdvb_module_exit(void)
+static void __exit smsdvb_module_exit(void)
 {
 	smscore_unregister_hotplug(smsdvb_hotplug);
 

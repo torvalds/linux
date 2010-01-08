@@ -205,7 +205,7 @@ out:
 	NVWriteVgaSeq(dev, 0, NV_VIO_SR_CLOCK_INDEX, saved_seq1);
 
 	if (blue == 0x18) {
-		NV_TRACE(dev, "Load detected on head A\n");
+		NV_INFO(dev, "Load detected on head A\n");
 		return connector_status_connected;
 	}
 
@@ -350,13 +350,9 @@ static void nv04_dac_mode_set(struct drm_encoder *encoder,
 			      struct drm_display_mode *mode,
 			      struct drm_display_mode *adjusted_mode)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct drm_device *dev = encoder->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	int head = nouveau_crtc(encoder->crtc)->index;
-
-	NV_TRACE(dev, "%s called for encoder %d\n", __func__,
-		      nv_encoder->dcb->index);
 
 	if (nv_gf4_disp_arch(dev)) {
 		struct drm_encoder *rebind;
@@ -466,7 +462,7 @@ static void nv04_dac_destroy(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 
-	NV_DEBUG(encoder->dev, "\n");
+	NV_DEBUG_KMS(encoder->dev, "\n");
 
 	drm_encoder_cleanup(encoder);
 	kfree(nv_encoder);

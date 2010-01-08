@@ -407,6 +407,7 @@ uint64_t nouveau_mem_fb_amount(struct drm_device *dev)
 	return 0;
 }
 
+#if __OS_HAS_AGP
 static void nouveau_mem_reset_agp(struct drm_device *dev)
 {
 	uint32_t saved_pci_nv_1, saved_pci_nv_19, pmc_enable;
@@ -432,10 +433,12 @@ static void nouveau_mem_reset_agp(struct drm_device *dev)
 	nv_wr32(dev, NV04_PBUS_PCI_NV_19, saved_pci_nv_19);
 	nv_wr32(dev, NV04_PBUS_PCI_NV_1, saved_pci_nv_1);
 }
+#endif
 
 int
 nouveau_mem_init_agp(struct drm_device *dev)
 {
+#if __OS_HAS_AGP
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct drm_agp_info info;
 	struct drm_agp_mode mode;
@@ -471,6 +474,7 @@ nouveau_mem_init_agp(struct drm_device *dev)
 	dev_priv->gart_info.type	= NOUVEAU_GART_AGP;
 	dev_priv->gart_info.aper_base	= info.aperture_base;
 	dev_priv->gart_info.aper_size	= info.aperture_size;
+#endif
 	return 0;
 }
 

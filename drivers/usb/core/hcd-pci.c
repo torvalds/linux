@@ -363,7 +363,7 @@ static int hcd_pci_restore(struct device *dev)
 	return resume_common(dev, true);
 }
 
-struct dev_pm_ops usb_hcd_pci_pm_ops = {
+const struct dev_pm_ops usb_hcd_pci_pm_ops = {
 	.suspend	= hcd_pci_suspend,
 	.suspend_noirq	= hcd_pci_suspend_noirq,
 	.resume_noirq	= hcd_pci_resume_noirq,

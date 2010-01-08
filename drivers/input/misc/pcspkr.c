@@ -127,7 +127,7 @@ static void pcspkr_shutdown(struct platform_device *dev)
 	pcspkr_event(NULL, EV_SND, SND_BELL, 0);
 }
 
-static struct dev_pm_ops pcspkr_pm_ops = {
+static const struct dev_pm_ops pcspkr_pm_ops = {
 	.suspend = pcspkr_suspend,
 };
 

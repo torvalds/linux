@@ -69,7 +69,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	}
 
 	if (i < NR_IRQS) {
-		spin_lock_irqsave(&irq_desc[i].lock, flags);
+		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
 		action = irq_desc[i].action;
 		if (!action)
 			goto unlock;
@@ -84,7 +84,7 @@ int show_interrupts(struct seq_file *p, void *v)
 
 		seq_putc(p, '\n');
 unlock:
-		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
 	} else if (i == NR_IRQS) {
 #ifdef CONFIG_FIQ
 		show_fiq_list(p, v);
@@ -139,7 +139,7 @@ void set_irq_flags(unsigned int irq, unsigned int iflags)
 	}
 
 	desc = irq_desc + irq;
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	desc->status |= IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
 	if (iflags & IRQF_VALID)
 		desc->status &= ~IRQ_NOREQUEST;
@@ -147,7 +147,7 @@ void set_irq_flags(unsigned int irq, unsigned int iflags)
 		desc->status &= ~IRQ_NOPROBE;
 	if (!(iflags & IRQF_NOAUTOEN))
 		desc->status &= ~IRQ_NOAUTOEN;
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
 void __init init_IRQ(void)
@@ -166,9 +166,9 @@ static void route_irq(struct irq_desc *desc, unsigned int irq, unsigned int cpu)
 {
 	pr_debug("IRQ%u: moving from cpu%u to cpu%u\n", irq, desc->node, cpu);
 
-	spin_lock_irq(&desc->lock);
+	raw_spin_lock_irq(&desc->lock);
 	desc->chip->set_affinity(irq, cpumask_of(cpu));
-	spin_unlock_irq(&desc->lock);
+	raw_spin_unlock_irq(&desc->lock);
 }
 
 /*

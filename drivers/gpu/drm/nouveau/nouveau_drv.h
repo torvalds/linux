@@ -54,6 +54,7 @@ struct nouveau_fpriv {
 #include "nouveau_drm.h"
 #include "nouveau_reg.h"
 #include "nouveau_bios.h"
+struct nouveau_grctx;
 
 #define MAX_NUM_DCB_ENTRIES 16
 
@@ -317,6 +318,7 @@ struct nouveau_pgraph_engine {
 	bool accel_blocked;
 	void *ctxprog;
 	void *ctxvals;
+	int grctx_size;
 
 	int  (*init)(struct drm_device *);
 	void (*takedown)(struct drm_device *);
@@ -647,6 +649,7 @@ extern int nouveau_fbpercrtc;
 extern char *nouveau_tv_norm;
 extern int nouveau_reg_debug;
 extern char *nouveau_vbios;
+extern int nouveau_ctxfw;
 
 /* nouveau_state.c */
 extern void nouveau_preclose(struct drm_device *dev, struct drm_file *);
@@ -959,9 +962,7 @@ extern int  nv40_graph_create_context(struct nouveau_channel *);
 extern void nv40_graph_destroy_context(struct nouveau_channel *);
 extern int  nv40_graph_load_context(struct nouveau_channel *);
 extern int  nv40_graph_unload_context(struct drm_device *);
-extern int  nv40_grctx_init(struct drm_device *);
-extern void nv40_grctx_fini(struct drm_device *);
-extern void nv40_grctx_vals_load(struct drm_device *, struct nouveau_gpuobj *);
+extern void nv40_grctx_init(struct nouveau_grctx *);
 
 /* nv50_graph.c */
 extern struct nouveau_pgraph_object_class nv50_graph_grclass[];
@@ -974,6 +975,12 @@ extern void nv50_graph_destroy_context(struct nouveau_channel *);
 extern int  nv50_graph_load_context(struct nouveau_channel *);
 extern int  nv50_graph_unload_context(struct drm_device *);
 extern void nv50_graph_context_switch(struct drm_device *);
+
+/* nouveau_grctx.c */
+extern int  nouveau_grctx_prog_load(struct drm_device *);
+extern void nouveau_grctx_vals_load(struct drm_device *,
+				    struct nouveau_gpuobj *);
+extern void nouveau_grctx_fini(struct drm_device *);
 
 /* nv04_instmem.c */
 extern int  nv04_instmem_init(struct drm_device *);
@@ -1207,14 +1214,24 @@ static inline void nv_wo32(struct drm_device *dev, struct nouveau_gpuobj *obj,
 					pci_name(d->pdev), ##arg)
 #ifndef NV_DEBUG_NOTRACE
 #define NV_DEBUG(d, fmt, arg...) do {                                          \
-	if (drm_debug) {                                                       \
+	if (drm_debug & DRM_UT_DRIVER) {                                       \
+		NV_PRINTK(KERN_DEBUG, d, "%s:%d - " fmt, __func__,             \
+			  __LINE__, ##arg);                                    \
+	}                                                                      \
+} while (0)
+#define NV_DEBUG_KMS(d, fmt, arg...) do {                                      \
+	if (drm_debug & DRM_UT_KMS) {                                          \
 		NV_PRINTK(KERN_DEBUG, d, "%s:%d - " fmt, __func__,             \
 			  __LINE__, ##arg);                                    \
 	}                                                                      \
 } while (0)
 #else
 #define NV_DEBUG(d, fmt, arg...) do {                                          \
-	if (drm_debug)                                                         \
+	if (drm_debug & DRM_UT_DRIVER)                                         \
+		NV_PRINTK(KERN_DEBUG, d, fmt, ##arg);                          \
+} while (0)
+#define NV_DEBUG_KMS(d, fmt, arg...) do {                                      \
+	if (drm_debug & DRM_UT_KMS)                                            \
 		NV_PRINTK(KERN_DEBUG, d, fmt, ##arg);                          \
 } while (0)
 #endif

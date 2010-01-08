@@ -104,7 +104,7 @@ acpi_rs_validate_parameters(acpi_handle device_handle,
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	node = acpi_ns_map_handle_to_node(device_handle);
+	node = acpi_ns_validate_handle(device_handle);
 	if (!node) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}

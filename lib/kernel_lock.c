@@ -23,7 +23,7 @@
  *
  * Don't use in new code.
  */
-static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(kernel_flag);
+static  __cacheline_aligned_in_smp DEFINE_RAW_SPINLOCK(kernel_flag);
 
 
 /*
@@ -36,12 +36,12 @@ static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(kernel_flag);
  * If it successfully gets the lock, it should increment
  * the preemption count like any spinlock does.
  *
- * (This works on UP too - _raw_spin_trylock will never
+ * (This works on UP too - do_raw_spin_trylock will never
  * return false in that case)
  */
 int __lockfunc __reacquire_kernel_lock(void)
 {
-	while (!_raw_spin_trylock(&kernel_flag)) {
+	while (!do_raw_spin_trylock(&kernel_flag)) {
 		if (need_resched())
 			return -EAGAIN;
 		cpu_relax();
@@ -52,27 +52,27 @@ int __lockfunc __reacquire_kernel_lock(void)
 
 void __lockfunc __release_kernel_lock(void)
 {
-	_raw_spin_unlock(&kernel_flag);
+	do_raw_spin_unlock(&kernel_flag);
 	preempt_enable_no_resched();
 }
 
 /*
  * These are the BKL spinlocks - we try to be polite about preemption.
  * If SMP is not on (ie UP preemption), this all goes away because the
- * _raw_spin_trylock() will always succeed.
+ * do_raw_spin_trylock() will always succeed.
  */
 #ifdef CONFIG_PREEMPT
 static inline void __lock_kernel(void)
 {
 	preempt_disable();
-	if (unlikely(!_raw_spin_trylock(&kernel_flag))) {
+	if (unlikely(!do_raw_spin_trylock(&kernel_flag))) {
 		/*
 		 * If preemption was disabled even before this
 		 * was called, there's nothing we can be polite
 		 * about - just spin.
 		 */
 		if (preempt_count() > 1) {
-			_raw_spin_lock(&kernel_flag);
+			do_raw_spin_lock(&kernel_flag);
 			return;
 		}
 
@@ -82,10 +82,10 @@ static inline void __lock_kernel(void)
 		 */
 		do {
 			preempt_enable();
-			while (spin_is_locked(&kernel_flag))
+			while (raw_spin_is_locked(&kernel_flag))
 				cpu_relax();
 			preempt_disable();
-		} while (!_raw_spin_trylock(&kernel_flag));
+		} while (!do_raw_spin_trylock(&kernel_flag));
 	}
 }
 
@@ -96,7 +96,7 @@ static inline void __lock_kernel(void)
  */
 static inline void __lock_kernel(void)
 {
-	_raw_spin_lock(&kernel_flag);
+	do_raw_spin_lock(&kernel_flag);
 }
 #endif
 
@@ -106,7 +106,7 @@ static inline void __unlock_kernel(void)
 	 * the BKL is not covered by lockdep, so we open-code the
 	 * unlocking sequence (and thus avoid the dep-chain ops):
 	 */
-	_raw_spin_unlock(&kernel_flag);
+	do_raw_spin_unlock(&kernel_flag);
 	preempt_enable();
 }
 

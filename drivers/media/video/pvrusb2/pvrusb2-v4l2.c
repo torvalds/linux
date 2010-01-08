@@ -151,17 +151,6 @@ static struct v4l2_format pvr_format [] = {
 };
 
 
-static const char *get_v4l_name(int v4l_type)
-{
-	switch (v4l_type) {
-	case VFL_TYPE_GRABBER: return "video";
-	case VFL_TYPE_RADIO: return "radio";
-	case VFL_TYPE_VBI: return "vbi";
-	default: return "?";
-	}
-}
-
-
 /*
  * pvr_ioctl()
  *
@@ -891,10 +880,8 @@ static long pvr2_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 static void pvr2_v4l2_dev_destroy(struct pvr2_v4l2_dev *dip)
 {
-	int num = dip->devbase.num;
 	struct pvr2_hdw *hdw = dip->v4lp->channel.mc_head->hdw;
 	enum pvr2_config cfg = dip->config;
-	int v4l_type = dip->v4l_type;
 
 	pvr2_hdw_v4l_store_minor_number(hdw,dip->minor_type,-1);
 
@@ -906,8 +893,8 @@ static void pvr2_v4l2_dev_destroy(struct pvr2_v4l2_dev *dip)
 	   are gone. */
 	video_unregister_device(&dip->devbase);
 
-	printk(KERN_INFO "pvrusb2: unregistered device %s%u [%s]\n",
-	       get_v4l_name(v4l_type), num,
+	printk(KERN_INFO "pvrusb2: unregistered device %s [%s]\n",
+	       video_device_node_name(&dip->devbase),
 	       pvr2_config_get_name(cfg));
 
 }
@@ -1317,8 +1304,8 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 			": Failed to register pvrusb2 v4l device\n");
 	}
 
-	printk(KERN_INFO "pvrusb2: registered device %s%u [%s]\n",
-	       get_v4l_name(dip->v4l_type), dip->devbase.num,
+	printk(KERN_INFO "pvrusb2: registered device %s [%s]\n",
+	       video_device_node_name(&dip->devbase),
 	       pvr2_config_get_name(dip->config));
 
 	pvr2_hdw_v4l_store_minor_number(vp->channel.mc_head->hdw,

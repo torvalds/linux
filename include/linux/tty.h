@@ -350,8 +350,6 @@ extern void tty_write_flush(struct tty_struct *);
 
 extern struct ktermios tty_std_termios;
 
-extern int kmsg_redirect;
-
 extern void console_init(void);
 extern int vcs_init(void);
 

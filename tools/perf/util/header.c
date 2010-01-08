@@ -8,8 +8,8 @@
 #include "header.h"
 #include "../perf.h"
 #include "trace-event.h"
+#include "session.h"
 #include "symbol.h"
-#include "data_map.h"
 #include "debug.h"
 
 /*
@@ -58,35 +58,19 @@ int perf_header_attr__add_id(struct perf_header_attr *self, u64 id)
 	return 0;
 }
 
-/*
- * Create new perf.data header:
- */
-struct perf_header *perf_header__new(void)
+int perf_header__init(struct perf_header *self)
 {
-	struct perf_header *self = zalloc(sizeof(*self));
-
-	if (self != NULL) {
-		self->size = 1;
-		self->attr = malloc(sizeof(void *));
-
-		if (self->attr == NULL) {
-			free(self);
-			self = NULL;
-		}
-	}
-
-	return self;
+	self->size = 1;
+	self->attr = malloc(sizeof(void *));
+	return self->attr == NULL ? -ENOMEM : 0;
 }
 
-void perf_header__delete(struct perf_header *self)
+void perf_header__exit(struct perf_header *self)
 {
 	int i;
-
 	for (i = 0; i < self->attrs; ++i)
-		perf_header_attr__delete(self->attr[i]);
-
+                perf_header_attr__delete(self->attr[i]);
 	free(self->attr);
-	free(self);
 }
 
 int perf_header__add_attr(struct perf_header *self,

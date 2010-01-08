@@ -450,7 +450,10 @@ static void dispatch_job(struct kcopyd_job *job)
 {
 	struct dm_kcopyd_client *kc = job->kc;
 	atomic_inc(&kc->nr_jobs);
-	push(&kc->pages_jobs, job);
+	if (unlikely(!job->source.count))
+		push(&kc->complete_jobs, job);
+	else
+		push(&kc->pages_jobs, job);
 	wake(kc);
 }
 

@@ -374,6 +374,8 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 {
 	struct amradio_device *radio = file->private_data;
 
+	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
+		return -EINVAL;
 	return amradio_setfreq(radio, f->frequency);
 }
 
@@ -383,6 +385,8 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 {
 	struct amradio_device *radio = file->private_data;
 
+	if (f->tuner != 0)
+		return -EINVAL;
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = radio->curfreq;
 

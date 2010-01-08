@@ -1597,7 +1597,9 @@ rescan:
 }
 
 /**
- * Check whether a new bandwidth setting exceeds the bus bandwidth.
+ * usb_hcd_alloc_bandwidth - check whether a new bandwidth setting exceeds
+ *				the bus bandwidth
+ * @udev: target &usb_device
  * @new_config: new configuration to install
  * @cur_alt: the current alternate interface setting
  * @new_alt: alternate interface setting that is being installed

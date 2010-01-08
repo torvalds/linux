@@ -244,8 +244,7 @@ static int ad198x_build_controls(struct hda_codec *codec)
 	if (!kctl)
 		kctl = snd_hda_find_mixer_ctl(codec, "Input Source");
 	for (i = 0; kctl && i < kctl->count; i++) {
-		err = snd_hda_add_nids(codec, kctl, i, spec->capsrc_nids,
-				       spec->input_mux->num_items);
+		err = snd_hda_add_nid(codec, kctl, i, spec->capsrc_nids[i]);
 		if (err < 0)
 			return err;
 	}
@@ -442,6 +441,11 @@ static int ad198x_build_pcms(struct hda_codec *codec)
 	return 0;
 }
 
+static inline void ad198x_shutup(struct hda_codec *codec)
+{
+	snd_hda_shutup_pins(codec);
+}
+
 static void ad198x_free_kctls(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
@@ -455,6 +459,46 @@ static void ad198x_free_kctls(struct hda_codec *codec)
 	snd_array_free(&spec->kctls);
 }
 
+static void ad198x_power_eapd_write(struct hda_codec *codec, hda_nid_t front,
+				hda_nid_t hp)
+{
+	struct ad198x_spec *spec = codec->spec;
+	snd_hda_codec_write(codec, front, 0, AC_VERB_SET_EAPD_BTLENABLE,
+			    !spec->inv_eapd ? 0x00 : 0x02);
+	snd_hda_codec_write(codec, hp, 0, AC_VERB_SET_EAPD_BTLENABLE,
+			    !spec->inv_eapd ? 0x00 : 0x02);
+}
+
+static void ad198x_power_eapd(struct hda_codec *codec)
+{
+	/* We currently only handle front, HP */
+	switch (codec->vendor_id) {
+	case 0x11d41882:
+	case 0x11d4882a:
+	case 0x11d41884:
+	case 0x11d41984:
+	case 0x11d41883:
+	case 0x11d4184a:
+	case 0x11d4194a:
+	case 0x11d4194b:
+		ad198x_power_eapd_write(codec, 0x12, 0x11);
+		break;
+	case 0x11d41981:
+	case 0x11d41983:
+		ad198x_power_eapd_write(codec, 0x05, 0x06);
+		break;
+	case 0x11d41986:
+		ad198x_power_eapd_write(codec, 0x1b, 0x1a);
+		break;
+	case 0x11d41988:
+	case 0x11d4198b:
+	case 0x11d4989a:
+	case 0x11d4989b:
+		ad198x_power_eapd_write(codec, 0x29, 0x22);
+		break;
+	}
+}
+
 static void ad198x_free(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
@@ -462,10 +506,28 @@ static void ad198x_free(struct hda_codec *codec)
 	if (!spec)
 		return;
 
+	ad198x_shutup(codec);
 	ad198x_free_kctls(codec);
 	kfree(spec);
 	snd_hda_detach_beep_device(codec);
 }
+
+#ifdef SND_HDA_NEEDS_RESUME
+static int ad198x_suspend(struct hda_codec *codec, pm_message_t state)
+{
+	ad198x_shutup(codec);
+	ad198x_power_eapd(codec);
+	return 0;
+}
+
+static int ad198x_resume(struct hda_codec *codec)
+{
+	ad198x_init(codec);
+	snd_hda_codec_resume_amp(codec);
+	snd_hda_codec_resume_cache(codec);
+	return 0;
+}
+#endif
 
 static struct hda_codec_ops ad198x_patch_ops = {
 	.build_controls = ad198x_build_controls,
@@ -475,6 +537,11 @@ static struct hda_codec_ops ad198x_patch_ops = {
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	.check_power_status = ad198x_check_power_status,
 #endif
+#ifdef SND_HDA_NEEDS_RESUME
+	.suspend = ad198x_suspend,
+	.resume = ad198x_resume,
+#endif
+	.reboot_notify = ad198x_shutup,
 };
 
 
@@ -1813,6 +1880,14 @@ static int patch_ad1981(struct hda_codec *codec)
 
 		codec->patch_ops.init = ad1981_hp_init;
 		codec->patch_ops.unsol_event = ad1981_hp_unsol_event;
+		/* set the upper-limit for mixer amp to 0dB for avoiding the
+		 * possible damage by overloading
+		 */
+		snd_hda_override_amp_caps(codec, 0x11, HDA_INPUT,
+					  (0x17 << AC_AMPCAP_OFFSET_SHIFT) |
+					  (0x17 << AC_AMPCAP_NUM_STEPS_SHIFT) |
+					  (0x05 << AC_AMPCAP_STEP_SIZE_SHIFT) |
+					  (1 << AC_AMPCAP_MUTE_SHIFT));
 		break;
 	case AD1981_THINKPAD:
 		spec->mixers[0] = ad1981_thinkpad_mixers;

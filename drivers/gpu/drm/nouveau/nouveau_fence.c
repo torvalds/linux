@@ -205,7 +205,7 @@ nouveau_fence_wait(void *sync_obj, void *sync_arg, bool lazy, bool intr)
 			schedule_timeout(1);
 
 		if (intr && signal_pending(current)) {
-			ret = -ERESTART;
+			ret = -ERESTARTSYS;
 			break;
 		}
 	}

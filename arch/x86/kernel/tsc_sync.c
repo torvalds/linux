@@ -33,7 +33,7 @@ static __cpuinitdata atomic_t stop_count;
  * we want to have the fastest, inlined, non-debug version
  * of a critical section, to be able to prove TSC time-warps:
  */
-static __cpuinitdata raw_spinlock_t sync_lock = __RAW_SPIN_LOCK_UNLOCKED;
+static __cpuinitdata arch_spinlock_t sync_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 
 static __cpuinitdata cycles_t last_tsc;
 static __cpuinitdata cycles_t max_warp;
@@ -62,13 +62,13 @@ static __cpuinit void check_tsc_warp(void)
 		 * previous TSC that was measured (possibly on
 		 * another CPU) and update the previous TSC timestamp.
 		 */
-		__raw_spin_lock(&sync_lock);
+		arch_spin_lock(&sync_lock);
 		prev = last_tsc;
 		rdtsc_barrier();
 		now = get_cycles();
 		rdtsc_barrier();
 		last_tsc = now;
-		__raw_spin_unlock(&sync_lock);
+		arch_spin_unlock(&sync_lock);
 
 		/*
 		 * Be nice every now and then (and also check whether
@@ -87,10 +87,10 @@ static __cpuinit void check_tsc_warp(void)
 		 * we saw a time-warp of the TSC going backwards:
 		 */
 		if (unlikely(prev > now)) {
-			__raw_spin_lock(&sync_lock);
+			arch_spin_lock(&sync_lock);
 			max_warp = max(max_warp, prev - now);
 			nr_warps++;
-			__raw_spin_unlock(&sync_lock);
+			arch_spin_unlock(&sync_lock);
 		}
 	}
 	WARN(!(now-start),

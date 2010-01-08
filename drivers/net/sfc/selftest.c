@@ -47,7 +47,7 @@ static const unsigned char payload_source[ETH_ALEN] = {
 	0x00, 0x0f, 0x53, 0x1b, 0x1b, 0x1b,
 };
 
-static const char *payload_msg =
+static const char payload_msg[] =
 	"Hello world! This is an Efx loopback test in progress!";
 
 /**

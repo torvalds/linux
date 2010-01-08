@@ -164,7 +164,7 @@ static inline void part_hdr__part_name(enum diag204_format type, void *hdr,
 		       LPAR_NAME_LEN);
 	EBCASC(name, LPAR_NAME_LEN);
 	name[LPAR_NAME_LEN] = 0;
-	strstrip(name);
+	strim(name);
 }
 
 struct cpu_info {
@@ -523,7 +523,7 @@ static int diag224_idx2name(int index, char *name)
 	memcpy(name, diag224_cpu_names + ((index + 1) * CPU_NAME_LEN),
 		CPU_NAME_LEN);
 	name[CPU_NAME_LEN] = 0;
-	strstrip(name);
+	strim(name);
 	return 0;
 }
 

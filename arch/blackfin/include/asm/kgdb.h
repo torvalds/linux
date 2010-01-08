@@ -10,9 +10,6 @@
 
 #include <linux/ptrace.h>
 
-/* gdb locks */
-#define KGDB_MAX_NO_CPUS 8
-
 /*
  * BUFMAX defines the maximum number of characters in inbound/outbound buffers.
  * At least NUMREGBYTES*2 are needed for register packets.

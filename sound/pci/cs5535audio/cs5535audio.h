@@ -99,10 +99,11 @@ int snd_cs5535audio_suspend(struct pci_dev *pci, pm_message_t state);
 int snd_cs5535audio_resume(struct pci_dev *pci);
 #endif
 
-#if defined(CONFIG_OLPC) && defined(CONFIG_MGEODE_LX)
+#ifdef CONFIG_OLPC
 void __devinit olpc_prequirks(struct snd_card *card,
 		struct snd_ac97_template *ac97);
 int __devinit olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97);
+void __devexit olpc_quirks_cleanup(void);
 void olpc_analog_input(struct snd_ac97 *ac97, int on);
 void olpc_mic_bias(struct snd_ac97 *ac97, int on);
 
@@ -128,6 +129,7 @@ static inline int olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97)
 {
 	return 0;
 }
+static inline void olpc_quirks_cleanup(void) { }
 static inline void olpc_analog_input(struct snd_ac97 *ac97, int on) { }
 static inline void olpc_mic_bias(struct snd_ac97 *ac97, int on) { }
 static inline void olpc_capture_open(struct snd_ac97 *ac97) { }

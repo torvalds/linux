@@ -24,6 +24,7 @@
 #include <linux/compat.h>
 #include <linux/mutex.h>
 #include <linux/ctype.h>
+#include <linux/string.h>
 #include <linux/firmware.h>
 #include <sound/core.h>
 #include "hda_codec.h"
@@ -292,8 +293,11 @@ static ssize_t type##_store(struct device *dev,			\
 {								\
 	struct snd_hwdep *hwdep = dev_get_drvdata(dev);		\
 	struct hda_codec *codec = hwdep->private_data;		\
-	char *after;						\
-	codec->type = simple_strtoul(buf, &after, 0);		\
+	unsigned long val;					\
+	int err = strict_strtoul(buf, 0, &val);			\
+	if (err < 0)						\
+		return err;					\
+	codec->type = val;					\
 	return count;						\
 }
 
@@ -428,8 +432,7 @@ static int parse_hints(struct hda_codec *codec, const char *buf)
 	char *key, *val;
 	struct hda_hint *hint;
 
-	while (isspace(*buf))
-		buf++;
+	buf = skip_spaces(buf);
 	if (!*buf || *buf == '#' || *buf == '\n')
 		return 0;
 	if (*buf == '=')
@@ -444,8 +447,7 @@ static int parse_hints(struct hda_codec *codec, const char *buf)
 		return -EINVAL;
 	}
 	*val++ = 0;
-	while (isspace(*val))
-		val++;
+	val = skip_spaces(val);
 	remove_trail_spaces(key);
 	remove_trail_spaces(val);
 	hint = get_hint(codec, key);

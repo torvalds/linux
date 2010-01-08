@@ -492,6 +492,7 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 					int is_async, int *fd)
 {
 	struct ib_uverbs_event_file *ev_file;
+	struct path path;
 	struct file *filp;
 	int ret;
 
@@ -519,8 +520,10 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 	 * system call on a uverbs file, which will already have a
 	 * module reference.
 	 */
-	filp = alloc_file(uverbs_event_mnt, dget(uverbs_event_mnt->mnt_root),
-			  FMODE_READ, fops_get(&uverbs_event_fops));
+	path.mnt = uverbs_event_mnt;
+	path.dentry = uverbs_event_mnt->mnt_root;
+	path_get(&path);
+	filp = alloc_file(&path, FMODE_READ, fops_get(&uverbs_event_fops));
 	if (!filp) {
 		ret = -ENFILE;
 		goto err_fd;
@@ -531,6 +534,8 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 	return filp;
 
 err_fd:
+	fops_put(&uverbs_event_fops);
+	path_put(&path);
 	put_unused_fd(*fd);
 
 err:

@@ -6,7 +6,7 @@
  * Copyright (c) 2002 Thibaut Varene <varenet@parisc-linux.org>
  *
  * Pieces of code based on linux-2.4's hp_mouse.c & hp_keyb.c
- * 	Copyright (c) 1999 Alex deVries <alex@onefishtwo.ca>
+ *	Copyright (c) 1999 Alex deVries <alex@onefishtwo.ca>
  *	Copyright (c) 1999-2000 Philipp Rumpf <prumpf@tux.org>
  *	Copyright (c) 2000 Xavier Debacker <debackex@esiee.fr>
  *	Copyright (c) 2000-2001 Thomas Marteau <marteaut@esiee.fr>
@@ -326,7 +326,7 @@ static void gscps2_close(struct serio *port)
  * @return: success/error report
  */
 
-static int __init gscps2_probe(struct parisc_device *dev)
+static int __devinit gscps2_probe(struct parisc_device *dev)
 {
 	struct gscps2port *ps2port;
 	struct serio *serio;
@@ -443,7 +443,7 @@ static struct parisc_driver parisc_ps2_driver = {
 	.name		= "gsc_ps2",
 	.id_table	= gscps2_device_tbl,
 	.probe		= gscps2_probe,
-	.remove		= gscps2_remove,
+	.remove		= __devexit_p(gscps2_remove),
 };
 
 static int __init gscps2_init(void)

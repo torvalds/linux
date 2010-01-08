@@ -71,34 +71,34 @@ static inline int ttm_mem_type_from_flags(uint32_t flags, uint32_t *mem_type)
 	return -EINVAL;
 }
 
-static void ttm_mem_type_manager_debug(struct ttm_bo_global *glob,
-					struct ttm_mem_type_manager *man)
+static void ttm_mem_type_debug(struct ttm_bo_device *bdev, int mem_type)
 {
+	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
+
 	printk(KERN_ERR TTM_PFX "    has_type: %d\n", man->has_type);
 	printk(KERN_ERR TTM_PFX "    use_type: %d\n", man->use_type);
 	printk(KERN_ERR TTM_PFX "    flags: 0x%08X\n", man->flags);
 	printk(KERN_ERR TTM_PFX "    gpu_offset: 0x%08lX\n", man->gpu_offset);
 	printk(KERN_ERR TTM_PFX "    io_offset: 0x%08lX\n", man->io_offset);
 	printk(KERN_ERR TTM_PFX "    io_size: %ld\n", man->io_size);
-	printk(KERN_ERR TTM_PFX "    size: %ld\n", (unsigned long)man->size);
+	printk(KERN_ERR TTM_PFX "    size: %llu\n", man->size);
 	printk(KERN_ERR TTM_PFX "    available_caching: 0x%08X\n",
 		man->available_caching);
 	printk(KERN_ERR TTM_PFX "    default_caching: 0x%08X\n",
 		man->default_caching);
-	spin_lock(&glob->lru_lock);
-	drm_mm_debug_table(&man->manager, TTM_PFX);
-	spin_unlock(&glob->lru_lock);
+	if (mem_type != TTM_PL_SYSTEM) {
+		spin_lock(&bdev->glob->lru_lock);
+		drm_mm_debug_table(&man->manager, TTM_PFX);
+		spin_unlock(&bdev->glob->lru_lock);
+	}
 }
 
 static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
 					struct ttm_placement *placement)
 {
-	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_bo_global *glob = bo->glob;
-	struct ttm_mem_type_manager *man;
 	int i, ret, mem_type;
 
-	printk(KERN_ERR TTM_PFX "No space for %p (%ld pages, %ldK, %ldM)\n",
+	printk(KERN_ERR TTM_PFX "No space for %p (%lu pages, %luK, %luM)\n",
 		bo, bo->mem.num_pages, bo->mem.size >> 10,
 		bo->mem.size >> 20);
 	for (i = 0; i < placement->num_placement; i++) {
@@ -106,10 +106,9 @@ static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
 						&mem_type);
 		if (ret)
 			return;
-		man = &bdev->man[mem_type];
 		printk(KERN_ERR TTM_PFX "  placement[%d]=0x%08X (%d)\n",
 			i, placement->placement[i], mem_type);
-		ttm_mem_type_manager_debug(glob, man);
+		ttm_mem_type_debug(bo->bdev, mem_type);
 	}
 }
 
@@ -465,6 +464,8 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo, bool remove_all)
 		spin_unlock(&bo->lock);
 
 		spin_lock(&glob->lru_lock);
+		put_count = ttm_bo_del_from_lru(bo);
+
 		ret = ttm_bo_reserve_locked(bo, false, false, false, 0);
 		BUG_ON(ret);
 		if (bo->ttm)
@@ -472,20 +473,19 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo, bool remove_all)
 
 		if (!list_empty(&bo->ddestroy)) {
 			list_del_init(&bo->ddestroy);
-			kref_put(&bo->list_kref, ttm_bo_ref_bug);
+			++put_count;
 		}
 		if (bo->mem.mm_node) {
 			bo->mem.mm_node->private = NULL;
 			drm_mm_put_block(bo->mem.mm_node);
 			bo->mem.mm_node = NULL;
 		}
-		put_count = ttm_bo_del_from_lru(bo);
 		spin_unlock(&glob->lru_lock);
 
 		atomic_set(&bo->reserved, 0);
 
 		while (put_count--)
-			kref_put(&bo->list_kref, ttm_bo_release_list);
+			kref_put(&bo->list_kref, ttm_bo_ref_bug);
 
 		return 0;
 	}
@@ -684,19 +684,45 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 	struct ttm_buffer_object *bo;
 	int ret, put_count = 0;
 
+retry:
 	spin_lock(&glob->lru_lock);
+	if (list_empty(&man->lru)) {
+		spin_unlock(&glob->lru_lock);
+		return -EBUSY;
+	}
+
 	bo = list_first_entry(&man->lru, struct ttm_buffer_object, lru);
 	kref_get(&bo->list_kref);
-	ret = ttm_bo_reserve_locked(bo, interruptible, no_wait, false, 0);
-	if (likely(ret == 0))
-		put_count = ttm_bo_del_from_lru(bo);
+
+	ret = ttm_bo_reserve_locked(bo, false, true, false, 0);
+
+	if (unlikely(ret == -EBUSY)) {
+		spin_unlock(&glob->lru_lock);
+		if (likely(!no_wait))
+			ret = ttm_bo_wait_unreserved(bo, interruptible);
+
+		kref_put(&bo->list_kref, ttm_bo_release_list);
+
+		/**
+		 * We *need* to retry after releasing the lru lock.
+		 */
+
+		if (unlikely(ret != 0))
+			return ret;
+		goto retry;
+	}
+
+	put_count = ttm_bo_del_from_lru(bo);
 	spin_unlock(&glob->lru_lock);
-	if (unlikely(ret != 0))
-		return ret;
+
+	BUG_ON(ret != 0);
+
 	while (put_count--)
 		kref_put(&bo->list_kref, ttm_bo_ref_bug);
+
 	ret = ttm_bo_evict(bo, interruptible, no_wait);
 	ttm_bo_unreserve(bo);
+
 	kref_put(&bo->list_kref, ttm_bo_release_list);
 	return ret;
 }
@@ -849,7 +875,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 	int i, ret;
 
 	mem->mm_node = NULL;
-	for (i = 0; i <= placement->num_placement; ++i) {
+	for (i = 0; i < placement->num_placement; ++i) {
 		ret = ttm_mem_type_from_flags(placement->placement[i],
 						&mem_type);
 		if (ret)
@@ -900,8 +926,8 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 	if (!type_found)
 		return -EINVAL;
 
-	for (i = 0; i <= placement->num_busy_placement; ++i) {
-		ret = ttm_mem_type_from_flags(placement->placement[i],
+	for (i = 0; i < placement->num_busy_placement; ++i) {
+		ret = ttm_mem_type_from_flags(placement->busy_placement[i],
 						&mem_type);
 		if (ret)
 			return ret;
@@ -911,7 +937,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		if (!ttm_bo_mt_compatible(man,
 						bo->type == ttm_bo_type_user,
 						mem_type,
-						placement->placement[i],
+						placement->busy_placement[i],
 						&cur_flags))
 			continue;
 
@@ -921,7 +947,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		 * Use the access and other non-mapping-related flag bits from
 		 * the memory placement flags to the current flags
 		 */
-		ttm_flag_masked(&cur_flags, placement->placement[i],
+		ttm_flag_masked(&cur_flags, placement->busy_placement[i],
 				~TTM_PL_MASK_MEMTYPE);
 
 		ret = ttm_bo_mem_force_space(bo, mem_type, placement, mem,
@@ -1115,6 +1141,7 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	bo->glob = bdev->glob;
 	bo->type = type;
 	bo->num_pages = num_pages;
+	bo->mem.size = num_pages << PAGE_SHIFT;
 	bo->mem.mem_type = TTM_PL_SYSTEM;
 	bo->mem.num_pages = bo->num_pages;
 	bo->mem.mm_node = NULL;

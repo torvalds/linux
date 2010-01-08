@@ -207,6 +207,8 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 {
 	struct typhoon *dev = video_drvdata(file);
 
+	if (f->tuner != 0)
+		return -EINVAL;
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = dev->curfreq;
 	return 0;
@@ -217,6 +219,8 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 {
 	struct typhoon *dev = video_drvdata(file);
 
+	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
+		return -EINVAL;
 	dev->curfreq = f->frequency;
 	typhoon_setfreq(dev, dev->curfreq);
 	return 0;

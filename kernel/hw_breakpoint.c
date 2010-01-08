@@ -96,7 +96,7 @@ static int task_bp_pinned(struct task_struct *tsk)
 
 	list = &ctx->event_list;
 
-	spin_lock_irqsave(&ctx->lock, flags);
+	raw_spin_lock_irqsave(&ctx->lock, flags);
 
 	/*
 	 * The current breakpoint counter is not included in the list
@@ -107,7 +107,7 @@ static int task_bp_pinned(struct task_struct *tsk)
 			count++;
 	}
 
-	spin_unlock_irqrestore(&ctx->lock, flags);
+	raw_spin_unlock_irqrestore(&ctx->lock, flags);
 
 	return count;
 }

@@ -229,12 +229,45 @@ config LEDS_PWM
 	help
 	  This option enables support for pwm driven LEDs
 
+config LEDS_REGULATOR
+	tristate "REGULATOR driven LED support"
+	depends on LEDS_CLASS && REGULATOR
+	help
+	  This option enables support for regulator driven LEDs.
+
 config LEDS_BD2802
 	tristate "LED driver for BD2802 RGB LED"
 	depends on LEDS_CLASS && I2C
 	help
 	  This option enables support for BD2802GU RGB LED driver chips
 	  accessed via the I2C bus.
+
+config LEDS_INTEL_SS4200
+	tristate "LED driver for Intel NAS SS4200 series"
+	depends on LEDS_CLASS && PCI && DMI
+	help
+	  This option enables support for the Intel SS4200 series of
+	  Network Attached Storage servers.  You may control the hard
+	  drive or power LEDs on the front panel.  Using this driver
+	  can stop the front LED from blinking after startup.
+
+config LEDS_LT3593
+	tristate "LED driver for LT3593 controllers"
+	depends on LEDS_CLASS && GENERIC_GPIO
+	help
+	  This option enables support for LEDs driven by a Linear Technology
+	  LT3593 controller. This controller uses a special one-wire pulse
+	  coding protocol to set the brightness.
+
+config LEDS_ADP5520
+	tristate "LED Support for ADP5520/ADP5501 PMIC"
+	depends on LEDS_CLASS && PMIC_ADP5520
+	help
+	  This option enables support for on-chip LED drivers found
+	  on Analog Devices ADP5520/ADP5501 PMICs.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called leds-adp5520.
 
 comment "LED Triggers"
 

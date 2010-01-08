@@ -160,7 +160,7 @@ static void __init prom_init_cmdline(void)
 	int argc;
 	int *argv32;
 	int i;			/* Always ignore the "-c" at argv[0] */
-	static char builtin[CL_SIZE] __initdata;
+	static char builtin[COMMAND_LINE_SIZE] __initdata;
 
 	if (fw_arg0 >= CKSEG0 || fw_arg1 < CKSEG0) {
 		/*
@@ -315,7 +315,7 @@ static inline void txx9_cache_fixup(void)
 
 static void __init preprocess_cmdline(void)
 {
-	static char cmdline[CL_SIZE] __initdata;
+	static char cmdline[COMMAND_LINE_SIZE] __initdata;
 	char *s;
 
 	strcpy(cmdline, arcs_cmdline);

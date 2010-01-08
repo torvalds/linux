@@ -1294,7 +1294,7 @@ linux_sparc_syscall:
 	sethi	%hi(PSR_SYSCALL), %l4
 	or	%l0, %l4, %l0
 	/* Direct access to user regs, must faster. */
-	cmp	%g1, NR_SYSCALLS
+	cmp	%g1, NR_syscalls
 	bgeu	linux_sparc_ni_syscall
 	 sll	%g1, 2, %l4
 	ld	[%l7 + %l4], %l7

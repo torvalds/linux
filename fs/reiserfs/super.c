@@ -2222,8 +2222,6 @@ static int __init init_reiserfs_fs(void)
 	}
 
 	reiserfs_proc_info_global_init();
-	reiserfs_proc_register_global("version",
-				      reiserfs_global_version_in_proc);
 
 	ret = register_filesystem(&reiserfs_fs_type);
 
@@ -2231,7 +2229,6 @@ static int __init init_reiserfs_fs(void)
 		return 0;
 	}
 
-	reiserfs_proc_unregister_global("version");
 	reiserfs_proc_info_global_done();
 	destroy_inodecache();
 
@@ -2240,7 +2237,6 @@ static int __init init_reiserfs_fs(void)
 
 static void __exit exit_reiserfs_fs(void)
 {
-	reiserfs_proc_unregister_global("version");
 	reiserfs_proc_info_global_done();
 	unregister_filesystem(&reiserfs_fs_type);
 	destroy_inodecache();

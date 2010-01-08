@@ -756,7 +756,7 @@ static int serial_pxa_resume(struct device *dev)
         return 0;
 }
 
-static struct dev_pm_ops serial_pxa_pm_ops = {
+static const struct dev_pm_ops serial_pxa_pm_ops = {
 	.suspend	= serial_pxa_suspend,
 	.resume		= serial_pxa_resume,
 };

@@ -525,7 +525,10 @@ static int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_read_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
 	if (err < 0)
 		return err;
-	data = (data & 0xfe) | !val;
+	if (val)
+		data &= 0xfe;
+	else
+		data |= 0x01;
 	err = m5602_write_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
 	return err;
 }
@@ -570,7 +573,10 @@ static int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_read_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
 	if (err < 0)
 		return err;
-	data = (data & 0xfe) | !val;
+	if (val)
+		data &= 0xfe;
+	else
+		data |= 0x01;
 	err = m5602_write_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
 	return err;
 }

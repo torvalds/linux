@@ -526,6 +526,15 @@ config DVB_TUNER_DIB0070
 	  This device is only used inside a SiP called together with a
 	  demodulator for now.
 
+config DVB_TUNER_DIB0090
+	tristate "DiBcom DiB0090 silicon base-band tuner"
+	depends on I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for the silicon baseband tuner DiB0090 from DiBcom.
+	  This device is only used inside a SiP called together with a
+	  demodulator for now.
+
 comment "SEC control devices for DVB-S"
 	depends on DVB_CORE
 

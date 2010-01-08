@@ -233,7 +233,8 @@ int setkeycode(unsigned int scancode, unsigned int keycode)
 }
 
 /*
- * Making beeps and bells.
+ * Making beeps and bells. Note that we prefer beeps to bells, but when
+ * shutting the sound off we do both.
  */
 
 static int kd_sound_helper(struct input_handle *handle, void *data)
@@ -242,9 +243,12 @@ static int kd_sound_helper(struct input_handle *handle, void *data)
 	struct input_dev *dev = handle->dev;
 
 	if (test_bit(EV_SND, dev->evbit)) {
-		if (test_bit(SND_TONE, dev->sndbit))
+		if (test_bit(SND_TONE, dev->sndbit)) {
 			input_inject_event(handle, EV_SND, SND_TONE, *hz);
-		if (test_bit(SND_BELL, handle->dev->sndbit))
+			if (*hz)
+				return 0;
+		}
+		if (test_bit(SND_BELL, dev->sndbit))
 			input_inject_event(handle, EV_SND, SND_BELL, *hz ? 1 : 0);
 	}
 

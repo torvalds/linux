@@ -523,7 +523,7 @@ static unsigned int hdpvr_poll(struct file *filp, poll_table *wait)
 
 	mutex_lock(&dev->io_mutex);
 
-	if (video_is_unregistered(dev->video_dev)) {
+	if (!video_is_registered(dev->video_dev)) {
 		mutex_unlock(&dev->io_mutex);
 		return -EIO;
 	}

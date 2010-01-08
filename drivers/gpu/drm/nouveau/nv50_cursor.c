@@ -41,7 +41,7 @@ nv50_cursor_show(struct nouveau_crtc *nv_crtc, bool update)
 	struct drm_device *dev = nv_crtc->base.dev;
 	int ret;
 
-	NV_DEBUG(dev, "\n");
+	NV_DEBUG_KMS(dev, "\n");
 
 	if (update && nv_crtc->cursor.visible)
 		return;
@@ -76,7 +76,7 @@ nv50_cursor_hide(struct nouveau_crtc *nv_crtc, bool update)
 	struct drm_device *dev = nv_crtc->base.dev;
 	int ret;
 
-	NV_DEBUG(dev, "\n");
+	NV_DEBUG_KMS(dev, "\n");
 
 	if (update && !nv_crtc->cursor.visible)
 		return;
@@ -116,7 +116,7 @@ nv50_cursor_set_pos(struct nouveau_crtc *nv_crtc, int x, int y)
 static void
 nv50_cursor_set_offset(struct nouveau_crtc *nv_crtc, uint32_t offset)
 {
-	NV_DEBUG(nv_crtc->base.dev, "\n");
+	NV_DEBUG_KMS(nv_crtc->base.dev, "\n");
 	if (offset == nv_crtc->cursor.offset)
 		return;
 
@@ -143,7 +143,7 @@ nv50_cursor_fini(struct nouveau_crtc *nv_crtc)
 	struct drm_device *dev = nv_crtc->base.dev;
 	int idx = nv_crtc->index;
 
-	NV_DEBUG(dev, "\n");
+	NV_DEBUG_KMS(dev, "\n");
 
 	nv_wr32(dev, NV50_PDISPLAY_CURSOR_CURSOR_CTRL2(idx), 0);
 	if (!nv_wait(NV50_PDISPLAY_CURSOR_CURSOR_CTRL2(idx),

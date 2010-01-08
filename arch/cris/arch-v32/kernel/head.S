@@ -10,7 +10,6 @@
  * The macros found in mmu_defs_asm.h uses the ## concatenation operator, so
  * -traditional must not be used when assembling this file.
  */
-#include <linux/autoconf.h>
 #include <arch/memmap.h>
 #include <hwregs/reg_rdwr.h>
 #include <hwregs/intr_vect.h>

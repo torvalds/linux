@@ -152,7 +152,6 @@ typedef struct {
 					 (x)->e_machine == EM_SPARC32PLUS)
 #define compat_start_thread		start_thread32
 
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	PAGE_SIZE
 
 /* This is the location that an ET_DYN program is loaded if exec'ed.  Typical

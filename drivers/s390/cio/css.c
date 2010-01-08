@@ -1148,7 +1148,7 @@ static int css_pm_restore(struct device *dev)
 	return drv->restore ? drv->restore(sch) : 0;
 }
 
-static struct dev_pm_ops css_pm_ops = {
+static const struct dev_pm_ops css_pm_ops = {
 	.prepare = css_pm_prepare,
 	.complete = css_pm_complete,
 	.freeze = css_pm_freeze,

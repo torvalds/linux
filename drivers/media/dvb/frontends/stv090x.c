@@ -3597,7 +3597,8 @@ static int stv090x_send_diseqc_msg(struct dvb_frontend *fe, struct dvb_diseqc_ma
 
 	reg = STV090x_READ_DEMOD(state, DISTXCTL);
 
-	STV090x_SETFIELD_Px(reg, DISTX_MODE_FIELD, 2);
+	STV090x_SETFIELD_Px(reg, DISTX_MODE_FIELD,
+		(state->config->diseqc_envelope_mode) ? 4 : 2);
 	STV090x_SETFIELD_Px(reg, DISEQC_RESET_FIELD, 1);
 	if (STV090x_WRITE_DEMOD(state, DISTXCTL, reg) < 0)
 		goto err;
@@ -3649,10 +3650,10 @@ static int stv090x_send_diseqc_burst(struct dvb_frontend *fe, fe_sec_mini_cmd_t 
 	reg = STV090x_READ_DEMOD(state, DISTXCTL);
 
 	if (burst == SEC_MINI_A) {
-		mode = 3;
+		mode = (state->config->diseqc_envelope_mode) ? 5 : 3;
 		value = 0x00;
 	} else {
-		mode = 2;
+		mode = (state->config->diseqc_envelope_mode) ? 4 : 2;
 		value = 0xFF;
 	}
 

@@ -143,10 +143,10 @@ static void nv_crtc_calc_state_ext(struct drm_crtc *crtc, struct drm_display_mod
 	state->pllsel |= nv_crtc->index ? PLLSEL_VPLL2_MASK : PLLSEL_VPLL1_MASK;
 
 	if (pv->NM2)
-		NV_TRACE(dev, "vpll: n1 %d n2 %d m1 %d m2 %d log2p %d\n",
+		NV_DEBUG_KMS(dev, "vpll: n1 %d n2 %d m1 %d m2 %d log2p %d\n",
 			 pv->N1, pv->N2, pv->M1, pv->M2, pv->log2P);
 	else
-		NV_TRACE(dev, "vpll: n %d m %d log2p %d\n",
+		NV_DEBUG_KMS(dev, "vpll: n %d m %d log2p %d\n",
 			 pv->N1, pv->M1, pv->log2P);
 
 	nv_crtc->cursor.set_offset(nv_crtc, nv_crtc->cursor.offset);
@@ -160,7 +160,7 @@ nv_crtc_dpms(struct drm_crtc *crtc, int mode)
 	unsigned char seq1 = 0, crtc17 = 0;
 	unsigned char crtc1A;
 
-	NV_TRACE(dev, "Setting dpms mode %d on CRTC %d\n", mode,
+	NV_DEBUG_KMS(dev, "Setting dpms mode %d on CRTC %d\n", mode,
 							nv_crtc->index);
 
 	if (nv_crtc->last_dpms == mode) /* Don't do unnecesary mode changes. */
@@ -603,7 +603,7 @@ nv_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
-	NV_DEBUG(dev, "CTRC mode on CRTC %d:\n", nv_crtc->index);
+	NV_DEBUG_KMS(dev, "CTRC mode on CRTC %d:\n", nv_crtc->index);
 	drm_mode_debug_printmodeline(adjusted_mode);
 
 	/* unlock must come after turning off FP_TG_CONTROL in output_prepare */
@@ -703,7 +703,7 @@ static void nv_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 
-	NV_DEBUG(crtc->dev, "\n");
+	NV_DEBUG_KMS(crtc->dev, "\n");
 
 	if (!nv_crtc)
 		return;

@@ -48,6 +48,7 @@
 #include <net/checksum.h>
 #include <linux/stat.h>
 #include <linux/quotaops.h>
+#include <linux/security.h>
 
 #define PRIVROOT_NAME ".reiserfs_priv"
 #define XAROOT_NAME   "xattrs"
@@ -726,15 +727,14 @@ ssize_t
 reiserfs_getxattr(struct dentry * dentry, const char *name, void *buffer,
 		  size_t size)
 {
-	struct inode *inode = dentry->d_inode;
 	struct xattr_handler *handler;
 
-	handler = find_xattr_handler_prefix(inode->i_sb->s_xattr, name);
+	handler = find_xattr_handler_prefix(dentry->d_sb->s_xattr, name);
 
-	if (!handler || get_inode_sd_version(inode) == STAT_DATA_V1)
+	if (!handler || get_inode_sd_version(dentry->d_inode) == STAT_DATA_V1)
 		return -EOPNOTSUPP;
 
-	return handler->get(inode, name, buffer, size);
+	return handler->get(dentry, name, buffer, size, handler->flags);
 }
 
 /*
@@ -746,15 +746,14 @@ int
 reiserfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		  size_t size, int flags)
 {
-	struct inode *inode = dentry->d_inode;
 	struct xattr_handler *handler;
 
-	handler = find_xattr_handler_prefix(inode->i_sb->s_xattr, name);
+	handler = find_xattr_handler_prefix(dentry->d_sb->s_xattr, name);
 
-	if (!handler || get_inode_sd_version(inode) == STAT_DATA_V1)
+	if (!handler || get_inode_sd_version(dentry->d_inode) == STAT_DATA_V1)
 		return -EOPNOTSUPP;
 
-	return handler->set(inode, name, value, size, flags);
+	return handler->set(dentry, name, value, size, flags, handler->flags);
 }
 
 /*
@@ -764,21 +763,20 @@ reiserfs_setxattr(struct dentry *dentry, const char *name, const void *value,
  */
 int reiserfs_removexattr(struct dentry *dentry, const char *name)
 {
-	struct inode *inode = dentry->d_inode;
 	struct xattr_handler *handler;
-	handler = find_xattr_handler_prefix(inode->i_sb->s_xattr, name);
+	handler = find_xattr_handler_prefix(dentry->d_sb->s_xattr, name);
 
-	if (!handler || get_inode_sd_version(inode) == STAT_DATA_V1)
+	if (!handler || get_inode_sd_version(dentry->d_inode) == STAT_DATA_V1)
 		return -EOPNOTSUPP;
 
-	return handler->set(inode, name, NULL, 0, XATTR_REPLACE);
+	return handler->set(dentry, name, NULL, 0, XATTR_REPLACE, handler->flags);
 }
 
 struct listxattr_buf {
 	size_t size;
 	size_t pos;
 	char *buf;
-	struct inode *inode;
+	struct dentry *dentry;
 };
 
 static int listxattr_filler(void *buf, const char *name, int namelen,
@@ -789,17 +787,19 @@ static int listxattr_filler(void *buf, const char *name, int namelen,
 	if (name[0] != '.' ||
 	    (namelen != 1 && (name[1] != '.' || namelen != 2))) {
 		struct xattr_handler *handler;
-		handler = find_xattr_handler_prefix(b->inode->i_sb->s_xattr,
+		handler = find_xattr_handler_prefix(b->dentry->d_sb->s_xattr,
 						    name);
 		if (!handler)	/* Unsupported xattr name */
 			return 0;
 		if (b->buf) {
-			size = handler->list(b->inode, b->buf + b->pos,
-					 b->size, name, namelen);
+			size = handler->list(b->dentry, b->buf + b->pos,
+					 b->size, name, namelen,
+					 handler->flags);
 			if (size > b->size)
 				return -ERANGE;
 		} else {
-			size = handler->list(b->inode, NULL, 0, name, namelen);
+			size = handler->list(b->dentry, NULL, 0, name,
+					     namelen, handler->flags);
 		}
 
 		b->pos += size;
@@ -820,7 +820,7 @@ ssize_t reiserfs_listxattr(struct dentry * dentry, char *buffer, size_t size)
 	int err = 0;
 	loff_t pos = 0;
 	struct listxattr_buf buf = {
-		.inode = dentry->d_inode,
+		.dentry = dentry,
 		.buf = buffer,
 		.size = buffer ? size : 0,
 	};

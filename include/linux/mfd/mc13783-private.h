@@ -24,51 +24,22 @@
 
 #include <linux/platform_device.h>
 #include <linux/mfd/mc13783.h>
-#include <linux/workqueue.h>
 #include <linux/mutex.h>
-
-struct mc13783_irq {
-	void (*handler)(int, void *);
-	void *data;
-};
-
-#define MC13783_NUM_IRQ		2
-#define MC13783_IRQ_TS		0
-#define MC13783_IRQ_REGULATOR	1
-
-#define MC13783_ADC_MODE_TS		1
-#define MC13783_ADC_MODE_SINGLE_CHAN	2
-#define MC13783_ADC_MODE_MULT_CHAN	3
+#include <linux/interrupt.h>
 
 struct mc13783 {
-	int revision;
-	struct device *dev;
-	struct spi_device *spi_device;
-
-	int (*read_dev)(void *data, char reg, int count, u32 *dst);
-	int (*write_dev)(void *data, char reg, int count, const u32 *src);
-
-	struct mutex io_lock;
-	void *io_data;
+	struct spi_device *spidev;
+	struct mutex lock;
 	int irq;
-	unsigned int flags;
+	int flags;
 
-	struct mc13783_irq irq_handler[MC13783_NUM_IRQ];
-	struct work_struct work;
-	struct completion adc_done;
-	unsigned int ts_active;
-	struct mutex adc_conv_lock;
+	irq_handler_t irqhandler[MC13783_NUM_IRQ];
+	void *irqdata[MC13783_NUM_IRQ];
 
+	/* XXX these should go as platformdata to the regulator subdevice */
 	struct mc13783_regulator_init_data *regulators;
 	int num_regulators;
 };
-
-int mc13783_reg_read(struct mc13783 *, int reg_num, u32 *);
-int mc13783_reg_write(struct mc13783 *, int, u32);
-int mc13783_set_bits(struct mc13783 *, int, u32, u32);
-int mc13783_free_irq(struct mc13783 *mc13783, int irq);
-int mc13783_register_irq(struct mc13783 *mc13783, int irq,
-		void (*handler) (int, void *), void *data);
 
 #define MC13783_REG_INTERRUPT_STATUS_0		 0
 #define MC13783_REG_INTERRUPT_MASK_0		 1
@@ -135,55 +106,6 @@ int mc13783_register_irq(struct mc13783 *mc13783, int irq,
 #define MC13783_REG_TEST_2			62
 #define MC13783_REG_TEST_3			63
 #define MC13783_REG_NB				64
-
-
-/*
- * Interrupt Status
- */
-#define MC13783_INT_STAT_ADCDONEI	(1 << 0)
-#define MC13783_INT_STAT_ADCBISDONEI	(1 << 1)
-#define MC13783_INT_STAT_TSI		(1 << 2)
-#define MC13783_INT_STAT_WHIGHI		(1 << 3)
-#define MC13783_INT_STAT_WLOWI		(1 << 4)
-#define MC13783_INT_STAT_CHGDETI	(1 << 6)
-#define MC13783_INT_STAT_CHGOVI		(1 << 7)
-#define MC13783_INT_STAT_CHGREVI	(1 << 8)
-#define MC13783_INT_STAT_CHGSHORTI	(1 << 9)
-#define MC13783_INT_STAT_CCCVI		(1 << 10)
-#define MC13783_INT_STAT_CHGCURRI	(1 << 11)
-#define MC13783_INT_STAT_BPONI		(1 << 12)
-#define MC13783_INT_STAT_LOBATLI	(1 << 13)
-#define MC13783_INT_STAT_LOBATHI	(1 << 14)
-#define MC13783_INT_STAT_UDPI		(1 << 15)
-#define MC13783_INT_STAT_USBI		(1 << 16)
-#define MC13783_INT_STAT_IDI		(1 << 19)
-#define MC13783_INT_STAT_Unused		(1 << 20)
-#define MC13783_INT_STAT_SE1I		(1 << 21)
-#define MC13783_INT_STAT_CKDETI		(1 << 22)
-#define MC13783_INT_STAT_UDMI		(1 << 23)
-
-/*
- * Interrupt Mask
- */
-#define MC13783_INT_MASK_ADCDONEM	(1 << 0)
-#define MC13783_INT_MASK_ADCBISDONEM	(1 << 1)
-#define MC13783_INT_MASK_TSM		(1 << 2)
-#define MC13783_INT_MASK_WHIGHM		(1 << 3)
-#define MC13783_INT_MASK_WLOWM		(1 << 4)
-#define MC13783_INT_MASK_CHGDETM	(1 << 6)
-#define MC13783_INT_MASK_CHGOVM		(1 << 7)
-#define MC13783_INT_MASK_CHGREVM	(1 << 8)
-#define MC13783_INT_MASK_CHGSHORTM	(1 << 9)
-#define MC13783_INT_MASK_CCCVM		(1 << 10)
-#define MC13783_INT_MASK_CHGCURRM	(1 << 11)
-#define MC13783_INT_MASK_BPONM		(1 << 12)
-#define MC13783_INT_MASK_LOBATLM	(1 << 13)
-#define MC13783_INT_MASK_LOBATHM	(1 << 14)
-#define MC13783_INT_MASK_UDPM		(1 << 15)
-#define MC13783_INT_MASK_USBM		(1 << 16)
-#define MC13783_INT_MASK_IDM		(1 << 19)
-#define MC13783_INT_MASK_SE1M		(1 << 21)
-#define MC13783_INT_MASK_CKDETM		(1 << 22)
 
 /*
  * Reg Regulator Mode 0
@@ -284,113 +206,15 @@ int mc13783_register_irq(struct mc13783 *mc13783, int irq,
 #define MC13783_SWCTRL_SW3_STBY		(1 << 21)
 #define MC13783_SWCTRL_SW3_MODE		(1 << 22)
 
-/*
- * ADC/Touch
- */
-#define MC13783_ADC0_LICELLCON		(1 << 0)
-#define MC13783_ADC0_CHRGICON		(1 << 1)
-#define MC13783_ADC0_BATICON		(1 << 2)
-#define MC13783_ADC0_RTHEN 		(1 << 3)
-#define MC13783_ADC0_DTHEN		(1 << 4)
-#define MC13783_ADC0_UIDEN		(1 << 5)
-#define MC13783_ADC0_ADOUTEN 		(1 << 6)
-#define MC13783_ADC0_ADOUTPER		(1 << 7)
-#define MC13783_ADC0_ADREFEN		(1 << 10)
-#define MC13783_ADC0_ADREFMODE		(1 << 11)
-#define MC13783_ADC0_TSMOD0		(1 << 12)
-#define MC13783_ADC0_TSMOD1		(1 << 13)
-#define MC13783_ADC0_TSMOD2		(1 << 14)
-#define MC13783_ADC0_CHRGRAWDIV		(1 << 15)
-#define MC13783_ADC0_ADINC1		(1 << 16)
-#define MC13783_ADC0_ADINC2		(1 << 17)
-#define MC13783_ADC0_WCOMP		(1 << 18)
-#define MC13783_ADC0_ADCBIS0		(1 << 23)
+static inline int mc13783_set_bits(struct mc13783 *mc13783, unsigned int offset,
+		u32 mask, u32 val)
+{
+	int ret;
+	mc13783_lock(mc13783);
+	ret = mc13783_reg_rmw(mc13783, offset, mask, val);
+	mc13783_unlock(mc13783);
 
-#define MC13783_ADC1_ADEN		(1 << 0)
-#define MC13783_ADC1_RAND		(1 << 1)
-#define MC13783_ADC1_ADSEL		(1 << 3)
-#define MC13783_ADC1_TRIGMASK		(1 << 4)
-#define MC13783_ADC1_ADA10		(1 << 5)
-#define MC13783_ADC1_ADA11		(1 << 6)
-#define MC13783_ADC1_ADA12		(1 << 7)
-#define MC13783_ADC1_ADA20		(1 << 8)
-#define MC13783_ADC1_ADA21		(1 << 9)
-#define MC13783_ADC1_ADA22		(1 << 10)
-#define MC13783_ADC1_ATO0		(1 << 11)
-#define MC13783_ADC1_ATO1		(1 << 12)
-#define MC13783_ADC1_ATO2		(1 << 13)
-#define MC13783_ADC1_ATO3		(1 << 14)
-#define MC13783_ADC1_ATO4		(1 << 15)
-#define MC13783_ADC1_ATO5		(1 << 16)
-#define MC13783_ADC1_ATO6		(1 << 17)
-#define MC13783_ADC1_ATO7		(1 << 18)
-#define MC13783_ADC1_ATOX		(1 << 19)
-#define MC13783_ADC1_ASC		(1 << 20)
-#define MC13783_ADC1_ADTRIGIGN		(1 << 21)
-#define MC13783_ADC1_ADONESHOT		(1 << 22)
-#define MC13783_ADC1_ADCBIS1		(1 << 23)
-
-#define MC13783_ADC1_CHAN0_SHIFT	5
-#define MC13783_ADC1_CHAN1_SHIFT	8
-
-#define MC13783_ADC2_ADD10		(1 << 2)
-#define MC13783_ADC2_ADD11		(1 << 3)
-#define MC13783_ADC2_ADD12		(1 << 4)
-#define MC13783_ADC2_ADD13		(1 << 5)
-#define MC13783_ADC2_ADD14		(1 << 6)
-#define MC13783_ADC2_ADD15		(1 << 7)
-#define MC13783_ADC2_ADD16		(1 << 8)
-#define MC13783_ADC2_ADD17		(1 << 9)
-#define MC13783_ADC2_ADD18		(1 << 10)
-#define MC13783_ADC2_ADD19		(1 << 11)
-#define MC13783_ADC2_ADD20		(1 << 14)
-#define MC13783_ADC2_ADD21		(1 << 15)
-#define MC13783_ADC2_ADD22		(1 << 16)
-#define MC13783_ADC2_ADD23		(1 << 17)
-#define MC13783_ADC2_ADD24		(1 << 18)
-#define MC13783_ADC2_ADD25		(1 << 19)
-#define MC13783_ADC2_ADD26		(1 << 20)
-#define MC13783_ADC2_ADD27		(1 << 21)
-#define MC13783_ADC2_ADD28		(1 << 22)
-#define MC13783_ADC2_ADD29		(1 << 23)
-
-#define MC13783_ADC3_WHIGH0		(1 << 0)
-#define MC13783_ADC3_WHIGH1		(1 << 1)
-#define MC13783_ADC3_WHIGH2		(1 << 2)
-#define MC13783_ADC3_WHIGH3		(1 << 3)
-#define MC13783_ADC3_WHIGH4		(1 << 4)
-#define MC13783_ADC3_WHIGH5		(1 << 5)
-#define MC13783_ADC3_ICID0		(1 << 6)
-#define MC13783_ADC3_ICID1		(1 << 7)
-#define MC13783_ADC3_ICID2		(1 << 8)
-#define MC13783_ADC3_WLOW0		(1 << 9)
-#define MC13783_ADC3_WLOW1		(1 << 10)
-#define MC13783_ADC3_WLOW2		(1 << 11)
-#define MC13783_ADC3_WLOW3		(1 << 12)
-#define MC13783_ADC3_WLOW4		(1 << 13)
-#define MC13783_ADC3_WLOW5		(1 << 14)
-#define MC13783_ADC3_ADCBIS2		(1 << 23)
-
-#define MC13783_ADC4_ADDBIS10		(1 << 2)
-#define MC13783_ADC4_ADDBIS11		(1 << 3)
-#define MC13783_ADC4_ADDBIS12		(1 << 4)
-#define MC13783_ADC4_ADDBIS13		(1 << 5)
-#define MC13783_ADC4_ADDBIS14		(1 << 6)
-#define MC13783_ADC4_ADDBIS15		(1 << 7)
-#define MC13783_ADC4_ADDBIS16		(1 << 8)
-#define MC13783_ADC4_ADDBIS17		(1 << 9)
-#define MC13783_ADC4_ADDBIS18		(1 << 10)
-#define MC13783_ADC4_ADDBIS19		(1 << 11)
-#define MC13783_ADC4_ADDBIS20		(1 << 14)
-#define MC13783_ADC4_ADDBIS21		(1 << 15)
-#define MC13783_ADC4_ADDBIS22		(1 << 16)
-#define MC13783_ADC4_ADDBIS23		(1 << 17)
-#define MC13783_ADC4_ADDBIS24		(1 << 18)
-#define MC13783_ADC4_ADDBIS25		(1 << 19)
-#define MC13783_ADC4_ADDBIS26		(1 << 20)
-#define MC13783_ADC4_ADDBIS27		(1 << 21)
-#define MC13783_ADC4_ADDBIS28		(1 << 22)
-#define MC13783_ADC4_ADDBIS29		(1 << 23)
+	return ret;
+}
 
 #endif /* __LINUX_MFD_MC13783_PRIV_H */
-

@@ -634,11 +634,10 @@ struct radeon_encoder_primary_dac *radeon_combios_get_primary_dac_info(struct
 	return p_dac;
 }
 
-static enum radeon_tv_std
-radeon_combios_get_tv_info(struct radeon_encoder *encoder)
+enum radeon_tv_std
+radeon_combios_get_tv_info(struct radeon_device *rdev)
 {
-	struct drm_device *dev = encoder->base.dev;
-	struct radeon_device *rdev = dev->dev_private;
+	struct drm_device *dev = rdev->ddev;
 	uint16_t tv_info;
 	enum radeon_tv_std tv_std = TV_STD_NTSC;
 
@@ -779,7 +778,7 @@ struct radeon_encoder_tv_dac *radeon_combios_get_tv_dac_info(struct
 			tv_dac->ntsc_tvdac_adj = (bg << 16) | (dac << 20);
 			found = 1;
 		}
-		tv_dac->tv_std = radeon_combios_get_tv_info(encoder);
+		tv_dac->tv_std = radeon_combios_get_tv_info(rdev);
 	}
 	if (!found) {
 		/* then check CRT table */

@@ -353,7 +353,7 @@ static int __cpuinit mmu_context_cpu_notify(struct notifier_block *self,
 		read_lock(&tasklist_lock);
 		for_each_process(p) {
 			if (p->mm)
-				cpu_mask_clear_cpu(cpu, mm_cpumask(p->mm));
+				cpumask_clear_cpu(cpu, mm_cpumask(p->mm));
 		}
 		read_unlock(&tasklist_lock);
 	break;

@@ -74,11 +74,7 @@
 
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
-/*
- * Insmod parameters
- */
-
-I2C_CLIENT_INSMOD_2(lm87, adm1024);
+enum chips { lm87, adm1024 };
 
 /*
  * The LM87 registers
@@ -158,7 +154,7 @@ static u8 LM87_REG_TEMP_LOW[3] = { 0x3A, 0x38, 0x2C };
 
 static int lm87_probe(struct i2c_client *client,
 		      const struct i2c_device_id *id);
-static int lm87_detect(struct i2c_client *new_client, int kind,
+static int lm87_detect(struct i2c_client *new_client,
 		       struct i2c_board_info *info);
 static void lm87_init_client(struct i2c_client *client);
 static int lm87_remove(struct i2c_client *client);
@@ -184,7 +180,7 @@ static struct i2c_driver lm87_driver = {
 	.remove		= lm87_remove,
 	.id_table	= lm87_id,
 	.detect		= lm87_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*
@@ -662,7 +658,7 @@ static const struct attribute_group lm87_group_opt = {
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm87_detect(struct i2c_client *new_client, int kind,
+static int lm87_detect(struct i2c_client *new_client,
 		       struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = new_client->adapter;

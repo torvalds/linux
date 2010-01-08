@@ -739,7 +739,7 @@ static struct drm_prop_enum_list radeon_tv_std_enum_list[] =
 	{ TV_STD_SECAM, "secam" },
 };
 
-int radeon_modeset_create_props(struct radeon_device *rdev)
+static int radeon_modeset_create_props(struct radeon_device *rdev)
 {
 	int i, sz;
 

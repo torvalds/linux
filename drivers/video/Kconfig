@@ -614,6 +614,21 @@ config FB_BFIN_T350MCQB
 	 This display is a QVGA 320x240 24-bit RGB display interfaced by an 8-bit wide PPI
 	 It uses PPI[0..7] PPI_FS1, PPI_FS2 and PPI_CLK.
 
+config FB_BFIN_LQ035Q1
+	tristate "SHARP LQ035Q1DH02 TFT LCD"
+	depends on FB && BLACKFIN && SPI
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select BFIN_GPTIMERS
+	help
+	  This is the framebuffer device driver for a SHARP LQ035Q1DH02 TFT display found on
+	  the Blackfin Landscape LCD EZ-Extender Card.
+	  This display is a QVGA 320x240 18-bit RGB display interfaced by an 16-bit wide PPI
+	  It uses PPI[0..15] PPI_FS1, PPI_FS2 and PPI_CLK.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bfin-lq035q1-fb.
 
 config FB_STI
 	tristate "HP STI frame buffer device support"

@@ -81,8 +81,14 @@ pwm[1-4] - this file stores PWM duty cycle or DC value (fan speed) in range:
 	   0 (stop) to 255 (full)
 
 pwm[1-4]_enable - this file controls mode of fan/temperature control:
-	* 1 Manual Mode, write to pwm file any value 0-255 (full speed)
-	* 2 Thermal Cruise
+	* 1 Manual mode, write to pwm file any value 0-255 (full speed)
+	* 2 "Thermal Cruise" mode
+	* 3 "Fan Speed Cruise" mode
+	* 4 "Smart Fan III" mode
+
+pwm[1-4]_mode - controls if output is PWM or DC level
+        * 0 DC output (0 - 12v)
+        * 1 PWM output
 
 Thermal Cruise mode
 -------------------

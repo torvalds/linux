@@ -35,15 +35,15 @@ struct sh_desc {
 
 struct sh_dmae_chan {
 	dma_cookie_t completed_cookie;	/* The maximum cookie completed */
-	spinlock_t desc_lock;			/* Descriptor operation lock */
-	struct list_head ld_queue;		/* Link descriptors queue */
-	struct list_head ld_free;		/* Link descriptors free */
-	struct dma_chan common;			/* DMA common channel */
-	struct device *dev;				/* Channel device */
+	spinlock_t desc_lock;		/* Descriptor operation lock */
+	struct list_head ld_queue;	/* Link descriptors queue */
+	struct list_head ld_free;	/* Link descriptors free */
+	struct dma_chan common;		/* DMA common channel */
+	struct device *dev;		/* Channel device */
 	struct tasklet_struct tasklet;	/* Tasklet */
-	int descs_allocated;			/* desc count */
+	int descs_allocated;		/* desc count */
 	int id;				/* Raw id of this channel */
-	char dev_id[16];	/* unique name per DMAC of channel */
+	char dev_id[16];		/* unique name per DMAC of channel */
 
 	/* Set chcr */
 	int (*set_chcr)(struct sh_dmae_chan *sh_chan, u32 regs);

@@ -18,6 +18,7 @@ config ARCH_OMAP2430
 config ARCH_OMAP34XX
 	bool "OMAP34xx Based System"
 	depends on ARCH_OMAP3
+	select USB_ARCH_HAS_EHCI
 
 config ARCH_OMAP3430
 	bool "OMAP3430 support"

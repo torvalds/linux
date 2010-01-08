@@ -543,7 +543,7 @@ nv04_graph_mthd_set_operation(struct nouveau_channel *chan, int grclass,
 
 	nv_wi32(dev, instance, tmp);
 	nv_wr32(dev, NV04_PGRAPH_CTX_SWITCH1, tmp);
-	nv_wr32(dev, NV04_PGRAPH_CTX_CACHE1 + subc, tmp);
+	nv_wr32(dev, NV04_PGRAPH_CTX_CACHE1 + (subc<<2), tmp);
 	return 0;
 }
 

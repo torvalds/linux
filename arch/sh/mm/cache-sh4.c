@@ -256,8 +256,7 @@ static void sh4_flush_cache_page(void *args)
 		address = (unsigned long)vaddr;
 	}
 
-	if (pages_do_alias(address, phys))
-		flush_cache_one(CACHE_OC_ADDRESS_ARRAY |
+	flush_cache_one(CACHE_OC_ADDRESS_ARRAY |
 			(address & shm_align_mask), phys);
 
 	if (vma->vm_flags & VM_EXEC)

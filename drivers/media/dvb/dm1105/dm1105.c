@@ -589,7 +589,7 @@ int __devinit dm1105_ir_init(struct dm1105dvb *dm1105)
 	snprintf(dm1105->ir.input_phys, sizeof(dm1105->ir.input_phys),
 		"pci-%s/ir0", pci_name(dm1105->pdev));
 
-	err = ir_input_init(input_dev, &dm1105->ir.ir, ir_type, ir_codes);
+	err = ir_input_init(input_dev, &dm1105->ir.ir, ir_type);
 	if (err < 0) {
 		input_free_device(input_dev);
 		return err;
@@ -611,20 +611,14 @@ int __devinit dm1105_ir_init(struct dm1105dvb *dm1105)
 
 	INIT_WORK(&dm1105->ir.work, dm1105_emit_key);
 
-	err = input_register_device(input_dev);
-	if (err) {
-		ir_input_free(input_dev);
-		input_free_device(input_dev);
-		return err;
-	}
+	err = ir_input_register(input_dev, ir_codes);
 
-	return 0;
+	return err;
 }
 
 void __devexit dm1105_ir_exit(struct dm1105dvb *dm1105)
 {
-	ir_input_free(dm1105->ir.input_dev);
-	input_unregister_device(dm1105->ir.input_dev);
+	ir_input_unregister(dm1105->ir.input_dev);
 }
 
 static int __devinit dm1105dvb_hw_init(struct dm1105dvb *dm1105dvb)

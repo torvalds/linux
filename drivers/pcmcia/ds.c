@@ -57,7 +57,7 @@ static void pcmcia_check_driver(struct pcmcia_driver *p_drv)
 		       "function\n", p_drv->drv.name);
 
 	while (did && did->match_flags) {
-		for (i=0; i<4; i++) {
+		for (i = 0; i < 4; i++) {
 			if (!did->prod_id[i])
 				continue;
 
@@ -105,7 +105,7 @@ pcmcia_store_new_id(struct device_driver *driver, const char *buf, size_t count)
 	__u16 match_flags, manf_id, card_id;
 	__u8 func_id, function, device_no;
 	__u32 prod_id_hash[4] = {0, 0, 0, 0};
-	int fields=0;
+	int fields = 0;
 	int retval = 0;
 
 	fields = sscanf(buf, "%hx %hx %hx %hhx %hhx %hhx %x %x %x %x",
@@ -214,7 +214,7 @@ EXPORT_SYMBOL(pcmcia_unregister_driver);
 
 /* pcmcia_device handling */
 
-struct pcmcia_device * pcmcia_get_dev(struct pcmcia_device *p_dev)
+struct pcmcia_device *pcmcia_get_dev(struct pcmcia_device *p_dev)
 {
 	struct device *tmp_dev;
 	tmp_dev = get_device(&p_dev->dev);
@@ -258,7 +258,7 @@ static void pcmcia_add_device_later(struct pcmcia_socket *s, int mfc)
 	return;
 }
 
-static int pcmcia_device_probe(struct device * dev)
+static int pcmcia_device_probe(struct device *dev)
 {
 	struct pcmcia_device *p_dev;
 	struct pcmcia_driver *p_drv;
@@ -325,7 +325,7 @@ put_module:
 put_dev:
 	if (ret)
 		put_device(dev);
-	return (ret);
+	return ret;
 }
 
 
@@ -354,7 +354,7 @@ static void pcmcia_card_remove(struct pcmcia_socket *s, struct pcmcia_device *le
 
 		spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
 		list_del(&p_dev->socket_device_list);
-		p_dev->_removed=1;
+		p_dev->_removed = 1;
 		spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 
 		dev_dbg(&p_dev->dev, "unregistering device\n");
@@ -364,7 +364,7 @@ static void pcmcia_card_remove(struct pcmcia_socket *s, struct pcmcia_device *le
 	return;
 }
 
-static int pcmcia_device_remove(struct device * dev)
+static int pcmcia_device_remove(struct device *dev)
 {
 	struct pcmcia_device *p_dev;
 	struct pcmcia_driver *p_drv;
@@ -391,7 +391,7 @@ static int pcmcia_device_remove(struct device * dev)
 		return 0;
 
 	if (p_drv->remove)
-	       	p_drv->remove(p_dev);
+		p_drv->remove(p_dev);
 
 	p_dev->dev_node = NULL;
 
@@ -499,7 +499,7 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
  */
 static DEFINE_MUTEX(device_add_lock);
 
-struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int function)
+struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int function)
 {
 	struct pcmcia_device *p_dev, *tmp_dev;
 	unsigned long flags;
@@ -545,8 +545,8 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 	 * Note that this is serialized by the device_add_lock, so that
 	 * only one such struct will be created.
 	 */
-        list_for_each_entry(tmp_dev, &s->devices_list, socket_device_list)
-                if (p_dev->func == tmp_dev->func) {
+	list_for_each_entry(tmp_dev, &s->devices_list, socket_device_list)
+		if (p_dev->func == tmp_dev->func) {
 			p_dev->function_config = tmp_dev->function_config;
 			p_dev->io = tmp_dev->io;
 			p_dev->irq = tmp_dev->irq;
@@ -627,10 +627,10 @@ static int pcmcia_card_add(struct pcmcia_socket *s)
 		no_funcs = 1;
 	s->functions = no_funcs;
 
-	for (i=0; i < no_funcs; i++)
+	for (i = 0; i < no_funcs; i++)
 		pcmcia_device_add(s, i);
 
-	return (ret);
+	return ret;
 }
 
 
@@ -756,7 +756,7 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
  release:
 	release_firmware(fw);
 
-	return (ret);
+	return ret;
 }
 
 #else /* !CONFIG_PCMCIA_LOAD_CIS */
@@ -852,7 +852,7 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 
 	if (did->match_flags & PCMCIA_DEV_ID_MATCH_ANONYMOUS) {
 		int i;
-		for (i=0; i<4; i++)
+		for (i = 0; i < 4; i++)
 			if (dev->prod_id[i])
 				return 0;
 		if (dev->has_manf_id || dev->has_card_id || dev->has_func_id)
@@ -865,9 +865,10 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 }
 
 
-static int pcmcia_bus_match(struct device * dev, struct device_driver * drv) {
-	struct pcmcia_device * p_dev = to_pcmcia_dev(dev);
-	struct pcmcia_driver * p_drv = to_pcmcia_drv(drv);
+static int pcmcia_bus_match(struct device *dev, struct device_driver *drv)
+{
+	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
+	struct pcmcia_driver *p_drv = to_pcmcia_drv(drv);
 	struct pcmcia_device_id *did = p_drv->id_table;
 	struct pcmcia_dynid *dynid;
 
@@ -917,7 +918,7 @@ static int pcmcia_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 	p_dev = to_pcmcia_dev(dev);
 
 	/* calculate hashes */
-	for (i=0; i<4; i++) {
+	for (i = 0; i < 4; i++) {
 		if (!p_dev->prod_id[i])
 			continue;
 		hash[i] = crc32(0, p_dev->prod_id[i], strlen(p_dev->prod_id[i]));
@@ -984,14 +985,14 @@ static void runtime_resume(struct device *dev)
 static ssize_t field##_show (struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);		\
-	return p_dev->test ? sprintf (buf, format, p_dev->field) : -ENODEV; \
+	return p_dev->test ? sprintf(buf, format, p_dev->field) : -ENODEV; \
 }
 
 #define pcmcia_device_stringattr(name, field)					\
 static ssize_t name##_show (struct device *dev, struct device_attribute *attr, char *buf)		\
 {									\
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);		\
-	return p_dev->field ? sprintf (buf, "%s\n", p_dev->field) : -ENODEV; \
+	return p_dev->field ? sprintf(buf, "%s\n", p_dev->field) : -ENODEV; \
 }
 
 pcmcia_device_attr(func, socket, "0x%02x\n");
@@ -1020,8 +1021,8 @@ static ssize_t pcmcia_store_pm_state(struct device *dev, struct device_attribute
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
 	int ret = 0;
 
-        if (!count)
-                return -EINVAL;
+	if (!count)
+		return -EINVAL;
 
 	if ((!p_dev->suspended) && !strncmp(buf, "off", 3))
 		ret = runtime_suspend(dev);
@@ -1039,10 +1040,11 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr, 
 	u32 hash[4] = { 0, 0, 0, 0};
 
 	/* calculate hashes */
-	for (i=0; i<4; i++) {
+	for (i = 0; i < 4; i++) {
 		if (!p_dev->prod_id[i])
 			continue;
-		hash[i] = crc32(0,p_dev->prod_id[i],strlen(p_dev->prod_id[i]));
+		hash[i] = crc32(0, p_dev->prod_id[i],
+				strlen(p_dev->prod_id[i]));
 	}
 	return sprintf(buf, "pcmcia:m%04Xc%04Xf%02Xfn%02Xpfn%02X"
 				"pa%08Xpb%08Xpc%08Xpd%08X\n",
@@ -1091,7 +1093,7 @@ static struct device_attribute pcmcia_dev_attrs[] = {
 
 /* PM support, also needed for reset */
 
-static int pcmcia_dev_suspend(struct device * dev, pm_message_t state)
+static int pcmcia_dev_suspend(struct device *dev, pm_message_t state)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
 	struct pcmcia_driver *p_drv = NULL;
@@ -1131,10 +1133,10 @@ static int pcmcia_dev_suspend(struct device * dev, pm_message_t state)
 }
 
 
-static int pcmcia_dev_resume(struct device * dev)
+static int pcmcia_dev_resume(struct device *dev)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
-        struct pcmcia_driver *p_drv = NULL;
+	struct pcmcia_driver *p_drv = NULL;
 	int ret = 0;
 
 	if (!p_dev->suspended)
@@ -1211,7 +1213,7 @@ static int pcmcia_bus_suspend(struct pcmcia_socket *skt)
 /*======================================================================
 
     The card status event handler.
-    
+
 ======================================================================*/
 
 /* Normally, the event is passed to individual drivers after
@@ -1264,7 +1266,7 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 } /* ds_event */
 
 
-struct pcmcia_device * pcmcia_dev_present(struct pcmcia_device *_p_dev)
+struct pcmcia_device *pcmcia_dev_present(struct pcmcia_device *_p_dev)
 {
 	struct pcmcia_device *p_dev;
 	struct pcmcia_device *ret = NULL;
@@ -1329,7 +1331,7 @@ static int __devinit pcmcia_bus_add_socket(struct device *dev,
 	if (ret) {
 		dev_printk(KERN_ERR, dev, "PCMCIA registration failed\n");
 		pcmcia_put_socket(socket);
-		return (ret);
+		return ret;
 	}
 
 	return 0;
@@ -1400,7 +1402,7 @@ static int __init init_pcmcia_bus(void)
 
 	return 0;
 }
-fs_initcall(init_pcmcia_bus); /* one level after subsys_initcall so that 
+fs_initcall(init_pcmcia_bus); /* one level after subsys_initcall so that
 			       * pcmcia_socket_class is already registered */
 
 
