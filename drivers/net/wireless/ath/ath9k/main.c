@@ -144,10 +144,10 @@ void ath9k_ps_restore(struct ath_softc *sc)
 		goto unlock;
 
 	if (sc->ps_enabled &&
-	    !(sc->sc_flags & (SC_OP_WAIT_FOR_BEACON |
-			      SC_OP_WAIT_FOR_CAB |
-			      SC_OP_WAIT_FOR_PSPOLL_DATA |
-			      SC_OP_WAIT_FOR_TX_ACK)))
+	    !(sc->ps_flags & (PS_WAIT_FOR_BEACON |
+			      PS_WAIT_FOR_CAB |
+			      PS_WAIT_FOR_PSPOLL_DATA |
+			      PS_WAIT_FOR_TX_ACK)))
 		ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_NETWORK_SLEEP);
 
  unlock:
@@ -424,7 +424,7 @@ void ath9k_tasklet(unsigned long data)
 		 */
 		ath_print(common, ATH_DBG_PS,
 			  "TSFOOR - Sync with next Beacon\n");
-		sc->sc_flags |= SC_OP_WAIT_FOR_BEACON | SC_OP_BEACON_SYNC;
+		sc->ps_flags |= PS_WAIT_FOR_BEACON | PS_BEACON_SYNC;
 	}
 
 	if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
@@ -525,7 +525,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 			 * receive frames */
 			ath9k_setpower(sc, ATH9K_PM_AWAKE);
 			ath9k_hw_setrxabort(sc->sc_ah, 0);
-			sc->sc_flags |= SC_OP_WAIT_FOR_BEACON;
+			sc->ps_flags |= PS_WAIT_FOR_BEACON;
 		}
 
 chip_reset:
@@ -833,7 +833,7 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 		 * on the receipt of the first Beacon frame (i.e.,
 		 * after time sync with the AP).
 		 */
-		sc->sc_flags |= SC_OP_BEACON_SYNC;
+		sc->ps_flags |= PS_BEACON_SYNC;
 
 		/* Configure the beacon */
 		ath_beacon_config(sc, vif);
@@ -1238,11 +1238,11 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 		if (ieee80211_is_pspoll(hdr->frame_control)) {
 			ath_print(common, ATH_DBG_PS,
 				  "Sending PS-Poll to pick a buffered frame\n");
-			sc->sc_flags |= SC_OP_WAIT_FOR_PSPOLL_DATA;
+			sc->ps_flags |= PS_WAIT_FOR_PSPOLL_DATA;
 		} else {
 			ath_print(common, ATH_DBG_PS,
 				  "Wake up to complete TX\n");
-			sc->sc_flags |= SC_OP_WAIT_FOR_TX_ACK;
+			sc->ps_flags |= PS_WAIT_FOR_TX_ACK;
 		}
 		/*
 		 * The actual restore operation will happen only after
@@ -1538,7 +1538,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	 */
 	if (changed & IEEE80211_CONF_CHANGE_PS) {
 		if (conf->flags & IEEE80211_CONF_PS) {
-			sc->sc_flags |= SC_OP_PS_ENABLED;
+			sc->ps_flags |= PS_ENABLED;
 			if (!(ah->caps.hw_caps &
 			      ATH9K_HW_CAP_AUTOSLEEP)) {
 				if ((sc->imask & ATH9K_INT_TIM_TIMER) == 0) {
@@ -1551,23 +1551,23 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 			 * At this point we know hardware has received an ACK
 			 * of a previously sent null data frame.
 			 */
-			if ((sc->sc_flags & SC_OP_NULLFUNC_COMPLETED)) {
-				sc->sc_flags &= ~SC_OP_NULLFUNC_COMPLETED;
+			if ((sc->ps_flags & PS_NULLFUNC_COMPLETED)) {
+				sc->ps_flags &= ~PS_NULLFUNC_COMPLETED;
 				sc->ps_enabled = true;
 				ath9k_hw_setrxabort(sc->sc_ah, 1);
                         }
 		} else {
 			sc->ps_enabled = false;
-			sc->sc_flags &= ~(SC_OP_PS_ENABLED |
-					  SC_OP_NULLFUNC_COMPLETED);
+			sc->ps_flags &= ~(PS_ENABLED |
+					  PS_NULLFUNC_COMPLETED);
 			ath9k_setpower(sc, ATH9K_PM_AWAKE);
 			if (!(ah->caps.hw_caps &
 			      ATH9K_HW_CAP_AUTOSLEEP)) {
 				ath9k_hw_setrxabort(sc->sc_ah, 0);
-				sc->sc_flags &= ~(SC_OP_WAIT_FOR_BEACON |
-						  SC_OP_WAIT_FOR_CAB |
-						  SC_OP_WAIT_FOR_PSPOLL_DATA |
-						  SC_OP_WAIT_FOR_TX_ACK);
+				sc->ps_flags &= ~(PS_WAIT_FOR_BEACON |
+						  PS_WAIT_FOR_CAB |
+						  PS_WAIT_FOR_PSPOLL_DATA |
+						  PS_WAIT_FOR_TX_ACK);
 				if (sc->imask & ATH9K_INT_TIM_TIMER) {
 					sc->imask &= ~ATH9K_INT_TIM_TIMER;
 					ath9k_hw_set_interrupts(sc->sc_ah,

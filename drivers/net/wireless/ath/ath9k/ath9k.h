@@ -416,26 +416,28 @@ void ath_deinit_leds(struct ath_softc *sc);
 #define ATH_TXPOWER_MAX         100     /* .5 dBm units */
 #define ATH_RATE_DUMMY_MARKER   0
 
-#define SC_OP_INVALID           BIT(0)
-#define SC_OP_BEACONS           BIT(1)
-#define SC_OP_RXAGGR            BIT(2)
-#define SC_OP_TXAGGR            BIT(3)
-#define SC_OP_FULL_RESET        BIT(4)
-#define SC_OP_PREAMBLE_SHORT    BIT(5)
-#define SC_OP_PROTECT_ENABLE    BIT(6)
-#define SC_OP_RXFLUSH           BIT(7)
-#define SC_OP_LED_ASSOCIATED    BIT(8)
-#define SC_OP_WAIT_FOR_BEACON   BIT(12)
-#define SC_OP_LED_ON            BIT(13)
-#define SC_OP_SCANNING          BIT(14)
-#define SC_OP_TSF_RESET         BIT(15)
-#define SC_OP_WAIT_FOR_CAB      BIT(16)
-#define SC_OP_WAIT_FOR_PSPOLL_DATA BIT(17)
-#define SC_OP_WAIT_FOR_TX_ACK   BIT(18)
-#define SC_OP_BEACON_SYNC       BIT(19)
-#define SC_OP_BT_PRIORITY_DETECTED BIT(21)
-#define SC_OP_NULLFUNC_COMPLETED BIT(22)
-#define SC_OP_PS_ENABLED	BIT(23)
+#define SC_OP_INVALID                BIT(0)
+#define SC_OP_BEACONS                BIT(1)
+#define SC_OP_RXAGGR                 BIT(2)
+#define SC_OP_TXAGGR                 BIT(3)
+#define SC_OP_FULL_RESET             BIT(4)
+#define SC_OP_PREAMBLE_SHORT         BIT(5)
+#define SC_OP_PROTECT_ENABLE         BIT(6)
+#define SC_OP_RXFLUSH                BIT(7)
+#define SC_OP_LED_ASSOCIATED         BIT(8)
+#define SC_OP_LED_ON                 BIT(9)
+#define SC_OP_SCANNING               BIT(10)
+#define SC_OP_TSF_RESET              BIT(11)
+#define SC_OP_BT_PRIORITY_DETECTED   BIT(12)
+
+/* Powersave flags */
+#define PS_WAIT_FOR_BEACON        BIT(0)
+#define PS_WAIT_FOR_CAB           BIT(1)
+#define PS_WAIT_FOR_PSPOLL_DATA   BIT(2)
+#define PS_WAIT_FOR_TX_ACK        BIT(3)
+#define PS_BEACON_SYNC            BIT(4)
+#define PS_NULLFUNC_COMPLETED     BIT(5)
+#define PS_ENABLED                BIT(6)
 
 struct ath_wiphy;
 struct ath_rate_table;
@@ -471,6 +473,7 @@ struct ath_softc {
 
 	u32 intrstatus;
 	u32 sc_flags; /* SC_OP_* */
+	u16 ps_flags; /* PS_* */
 	u16 curtxpow;
 	u8 nbcnvifs;
 	u16 nvifs;
