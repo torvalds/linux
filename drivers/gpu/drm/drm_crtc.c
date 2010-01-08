@@ -158,6 +158,7 @@ static struct drm_conn_prop_enum_list drm_connector_enum_list[] =
 	{ DRM_MODE_CONNECTOR_HDMIA, "HDMI Type A", 0 },
 	{ DRM_MODE_CONNECTOR_HDMIB, "HDMI Type B", 0 },
 	{ DRM_MODE_CONNECTOR_TV, "TV", 0 },
+	{ DRM_MODE_CONNECTOR_eDP, "Embedded DisplayPort", 0 },
 };
 
 static struct drm_prop_enum_list drm_encoder_enum_list[] =
