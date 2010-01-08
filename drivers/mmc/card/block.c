@@ -618,6 +618,7 @@ static int mmc_blk_probe(struct mmc_card *card)
 	return 0;
 
  out:
+	mmc_cleanup_queue(&md->queue);
 	mmc_blk_put(md);
 
 	return err;
