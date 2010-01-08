@@ -1628,6 +1628,32 @@ intel_sdvo_hdmi_sink_detect(struct drm_connector *connector, u16 response)
 	edid = drm_get_edid(&intel_output->base,
 			    intel_output->ddc_bus);
 
+	/* This is only applied to SDVO cards with multiple outputs */
+	if (edid == NULL && intel_sdvo_multifunc_encoder(intel_output)) {
+		uint8_t saved_ddc, temp_ddc;
+		saved_ddc = sdvo_priv->ddc_bus;
+		temp_ddc = sdvo_priv->ddc_bus >> 1;
+		/*
+		 * Don't use the 1 as the argument of DDC bus switch to get
+		 * the EDID. It is used for SDVO SPD ROM.
+		 */
+		while(temp_ddc > 1) {
+			sdvo_priv->ddc_bus = temp_ddc;
+			edid = drm_get_edid(&intel_output->base,
+				intel_output->ddc_bus);
+			if (edid) {
+				/*
+				 * When we can get the EDID, maybe it is the
+				 * correct DDC bus. Update it.
+				 */
+				sdvo_priv->ddc_bus = temp_ddc;
+				break;
+			}
+			temp_ddc >>= 1;
+		}
+		if (edid == NULL)
+			sdvo_priv->ddc_bus = saved_ddc;
+	}
 	/* when there is no edid and no monitor is connected with VGA
 	 * port, try to use the CRT ddc to read the EDID for DVI-connector
 	 */
