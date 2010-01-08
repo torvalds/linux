@@ -279,7 +279,7 @@ static int __init pci_sanity_check(struct pci_ops *o)
 	     (x == PCI_VENDOR_ID_INTEL || x == PCI_VENDOR_ID_COMPAQ)))
 		return 1;
 
-	printk(KERN_ERROR "PCI: Sanity check failed\n");
+	printk(KERN_ERR "PCI: Sanity check failed\n");
 	return 0;
 }
 
