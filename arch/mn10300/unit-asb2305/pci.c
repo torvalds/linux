@@ -440,7 +440,7 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 {
 	int err;
 
-	err = pcibios_enable_resources(dev, mask);
+	err = pci_enable_resources(dev, mask);
 	if (err == 0)
 		pcibios_enable_irq(dev);
 	return err;
@@ -455,6 +455,7 @@ static void __init unit_disable_pcnet(struct pci_bus *bus, struct pci_ops *o)
 
 	bus->number = 0;
 
+	o->read (bus, PCI_DEVFN(2, 0), PCI_VENDOR_ID,		4, &x);
 	o->read (bus, PCI_DEVFN(2, 0), PCI_COMMAND,		2, &x);
 	x |= PCI_COMMAND_MASTER |
 		PCI_COMMAND_IO | PCI_COMMAND_MEMORY |
