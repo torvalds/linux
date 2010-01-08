@@ -282,6 +282,38 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
 	ieee80211_tx_skb(sdata, skb);
 }
 
+static void ieee80211_send_4addr_nullfunc(struct ieee80211_local *local,
+					  struct ieee80211_sub_if_data *sdata)
+{
+	struct sk_buff *skb;
+	struct ieee80211_hdr *nullfunc;
+	__le16 fc;
+
+	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION))
+		return;
+
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + 30);
+	if (!skb) {
+		printk(KERN_DEBUG "%s: failed to allocate buffer for 4addr "
+		       "nullfunc frame\n", sdata->name);
+		return;
+	}
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+
+	nullfunc = (struct ieee80211_hdr *) skb_put(skb, 30);
+	memset(nullfunc, 0, 30);
+	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_NULLFUNC |
+			 IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
+	nullfunc->frame_control = fc;
+	memcpy(nullfunc->addr1, sdata->u.mgd.bssid, ETH_ALEN);
+	memcpy(nullfunc->addr2, sdata->vif.addr, ETH_ALEN);
+	memcpy(nullfunc->addr3, sdata->u.mgd.bssid, ETH_ALEN);
+	memcpy(nullfunc->addr4, sdata->vif.addr, ETH_ALEN);
+
+	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	ieee80211_tx_skb(sdata, skb);
+}
+
 /* spectrum management related things */
 static void ieee80211_chswitch_work(struct work_struct *work)
 {
@@ -1088,6 +1120,13 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 	bss_conf->aid = aid;
 	bss_conf->assoc_capability = capab_info;
 	ieee80211_set_associated(sdata, cbss, changed);
+
+	/*
+	 * If we're using 4-addr mode, let the AP know that we're
+	 * doing so, so that it can create the STA VLAN on its side
+	 */
+	if (ifmgd->use_4addr)
+		ieee80211_send_4addr_nullfunc(local, sdata);
 
 	/*
 	 * Start timer to probe the connection to the AP now.
