@@ -847,6 +847,10 @@ static int taal_memory_read(struct omap_dss_device *dssdev,
 	int first = 1;
 	int plen;
 	unsigned buf_used = 0;
+	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
+
+	if (!td->enabled)
+		return -ENODEV;
 
 	if (size < w * h * 3)
 		return -ENOMEM;
@@ -854,6 +858,8 @@ static int taal_memory_read(struct omap_dss_device *dssdev,
 	size = min(w * h * 3,
 			dssdev->panel.timings.x_res *
 			dssdev->panel.timings.y_res * 3);
+
+	dsi_bus_lock();
 
 	/* plen 1 or 2 goes into short packet. until checksum error is fixed,
 	 * use short packets. plen 32 works, but bigger packets seem to cause
@@ -863,11 +869,11 @@ static int taal_memory_read(struct omap_dss_device *dssdev,
 	else
 		plen = 2;
 
-	taal_setup_update(dssdev, x, y, w, h);
+	taal_set_update_window(x, y, w, h);
 
 	r = dsi_vc_set_max_rx_packet_size(TCH, plen);
 	if (r)
-		return r;
+		goto err0;
 
 	while (buf_used < size) {
 		u8 dcs_cmd = first ? 0x2e : 0x3e;
@@ -900,7 +906,8 @@ static int taal_memory_read(struct omap_dss_device *dssdev,
 
 err:
 	dsi_vc_set_max_rx_packet_size(TCH, 1);
-
+err0:
+	dsi_bus_unlock();
 	return r;
 }
 

@@ -3584,34 +3584,6 @@ static bool dsi_display_get_mirror(struct omap_dss_device *dssdev)
 	return dssdev->driver->get_mirror(dssdev);
 }
 
-static int dsi_display_memory_read(struct omap_dss_device *dssdev,
-		void *buf, size_t size,
-		u16 x, u16 y, u16 w, u16 h)
-{
-	int r;
-
-	DSSDBGF("");
-
-	if (!dssdev->driver->memory_read)
-		return -EINVAL;
-
-	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
-		return -EIO;
-
-	dsi_bus_lock();
-
-	r = dssdev->driver->memory_read(dssdev, buf, size,
-			x, y, w, h);
-
-	/* Memory read usually changes the update area. This will
-	 * force the next update to re-set the update area */
-	dsi.active_update_region.dirty = true;
-
-	dsi_bus_unlock();
-
-	return r;
-}
-
 void dsi_get_overlay_fifo_thresholds(enum omap_plane plane,
 		u32 fifo_size, enum omap_burst_size *burst_size,
 		u32 *fifo_low, u32 *fifo_high)
@@ -3645,8 +3617,6 @@ int dsi_init_display(struct omap_dss_device *dssdev)
 
 	dssdev->get_mirror = dsi_display_get_mirror;
 	dssdev->set_mirror = dsi_display_set_mirror;
-
-	dssdev->memory_read = dsi_display_memory_read;
 
 	/* XXX these should be figured out dynamically */
 	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE |

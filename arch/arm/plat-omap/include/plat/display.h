@@ -495,10 +495,6 @@ struct omap_dss_device {
 	bool (*get_mirror)(struct omap_dss_device *dssdev);
 	int (*set_mirror)(struct omap_dss_device *dssdev, bool enable);
 
-	int (*memory_read)(struct omap_dss_device *dssdev,
-			void *buf, size_t size,
-			u16 x, u16 y, u16 w, u16 h);
-
 	int (*set_wss)(struct omap_dss_device *dssdev, u32 wss);
 	u32 (*get_wss)(struct omap_dss_device *dssdev);
 

@@ -374,7 +374,7 @@ static int omapfb_memory_read(struct fb_info *fbi,
 	void *buf;
 	int r;
 
-	if (!display || !display->memory_read)
+	if (!display || !display->driver->memory_read)
 		return -ENOENT;
 
 	if (!access_ok(VERIFY_WRITE, mr->buffer, mr->buffer_size))
@@ -389,7 +389,7 @@ static int omapfb_memory_read(struct fb_info *fbi,
 		return -ENOMEM;
 	}
 
-	r = display->memory_read(display, buf, mr->buffer_size,
+	r = display->driver->memory_read(display, buf, mr->buffer_size,
 			mr->x, mr->y, mr->w, mr->h);
 
 	if (r > 0) {
