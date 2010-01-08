@@ -1580,10 +1580,6 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 		return -ERESTARTSYS;
 
 	/* FIXME: What if a system sleep starts while a test is running? */
-	if (!intf->is_active) {
-		mutex_unlock(&dev->lock);
-		return -EHOSTUNREACH;
-	}
 
 	/* some devices, like ez-usb default devices, need a non-default
 	 * altsetting to have any active endpoints.  some tests change

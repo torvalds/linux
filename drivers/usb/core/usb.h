@@ -55,25 +55,8 @@ extern void usb_major_cleanup(void);
 extern int usb_suspend(struct device *dev, pm_message_t msg);
 extern int usb_resume(struct device *dev, pm_message_t msg);
 
-extern void usb_autosuspend_work(struct work_struct *work);
-extern void usb_autoresume_work(struct work_struct *work);
 extern int usb_port_suspend(struct usb_device *dev, pm_message_t msg);
 extern int usb_port_resume(struct usb_device *dev, pm_message_t msg);
-extern int usb_external_suspend_device(struct usb_device *udev,
-		pm_message_t msg);
-extern int usb_external_resume_device(struct usb_device *udev,
-		pm_message_t msg);
-extern int usb_remote_wakeup(struct usb_device *dev);
-
-static inline void usb_pm_lock(struct usb_device *udev)
-{
-	mutex_lock_nested(&udev->pm_mutex, udev->level);
-}
-
-static inline void usb_pm_unlock(struct usb_device *udev)
-{
-	mutex_unlock(&udev->pm_mutex);
-}
 
 #else
 
@@ -87,14 +70,6 @@ static inline int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 	return 0;
 }
 
-static inline int usb_remote_wakeup(struct usb_device *udev)
-{
-	return 0;
-}
-
-static inline void usb_pm_lock(struct usb_device *udev) {}
-static inline void usb_pm_unlock(struct usb_device *udev) {}
-
 #endif
 
 #ifdef CONFIG_USB_SUSPEND
@@ -102,6 +77,7 @@ static inline void usb_pm_unlock(struct usb_device *udev) {}
 extern void usb_autosuspend_device(struct usb_device *udev);
 extern void usb_try_autosuspend_device(struct usb_device *udev);
 extern int usb_autoresume_device(struct usb_device *udev);
+extern int usb_remote_wakeup(struct usb_device *dev);
 
 #else
 
@@ -112,9 +88,13 @@ static inline int usb_autoresume_device(struct usb_device *udev)
 	return 0;
 }
 
+static inline int usb_remote_wakeup(struct usb_device *udev)
+{
+	return 0;
+}
+
 #endif
 
-extern struct workqueue_struct *ksuspend_usb_wq;
 extern struct bus_type usb_bus_type;
 extern struct device_type usb_device_type;
 extern struct device_type usb_if_device_type;
@@ -142,23 +122,6 @@ static inline int is_usb_device_driver(struct device_driver *drv)
 {
 	return container_of(drv, struct usbdrv_wrap, driver)->
 			for_devices;
-}
-
-/* Interfaces and their "power state" are owned by usbcore */
-
-static inline void mark_active(struct usb_interface *f)
-{
-	f->is_active = 1;
-}
-
-static inline void mark_quiesced(struct usb_interface *f)
-{
-	f->is_active = 0;
-}
-
-static inline int is_active(const struct usb_interface *f)
-{
-	return f->is_active;
 }
 
 

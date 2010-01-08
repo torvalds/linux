@@ -22,6 +22,7 @@
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/freezer.h>
+#include <linux/pm_runtime.h>
 
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
@@ -71,7 +72,6 @@ struct usb_hub {
 
 	unsigned		mA_per_port;	/* current for each child */
 
-	unsigned		init_done:1;
 	unsigned		limited_power:1;
 	unsigned		quiescing:1;
 	unsigned		disconnected:1;
@@ -820,7 +820,6 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 	}
  init3:
 	hub->quiescing = 0;
-	hub->init_done = 1;
 
 	status = usb_submit_urb(hub->urb, GFP_NOIO);
 	if (status < 0)
@@ -861,11 +860,6 @@ static void hub_quiesce(struct usb_hub *hub, enum hub_quiescing_type type)
 	int i;
 
 	cancel_delayed_work_sync(&hub->init_work);
-	if (!hub->init_done) {
-		hub->init_done = 1;
-		usb_autopm_put_interface_no_suspend(
-				to_usb_interface(hub->intfdev));
-	}
 
 	/* khubd and related activity won't re-trigger */
 	hub->quiescing = 1;
@@ -1405,10 +1399,8 @@ static void recursively_mark_NOTATTACHED(struct usb_device *udev)
 		if (udev->children[i])
 			recursively_mark_NOTATTACHED(udev->children[i]);
 	}
-	if (udev->state == USB_STATE_SUSPENDED) {
-		udev->discon_suspended = 1;
+	if (udev->state == USB_STATE_SUSPENDED)
 		udev->active_duration -= jiffies;
-	}
 	udev->state = USB_STATE_NOTATTACHED;
 }
 
@@ -1532,31 +1524,6 @@ static void update_address(struct usb_device *udev, int devnum)
 		udev->devnum = devnum;
 }
 
-#ifdef	CONFIG_USB_SUSPEND
-
-static void usb_stop_pm(struct usb_device *udev)
-{
-	/* Synchronize with the ksuspend thread to prevent any more
-	 * autosuspend requests from being submitted, and decrement
-	 * the parent's count of unsuspended children.
-	 */
-	usb_pm_lock(udev);
-	if (udev->parent && !udev->discon_suspended)
-		usb_autosuspend_device(udev->parent);
-	usb_pm_unlock(udev);
-
-	/* Stop any autosuspend or autoresume requests already submitted */
-	cancel_delayed_work_sync(&udev->autosuspend);
-	cancel_work_sync(&udev->autoresume);
-}
-
-#else
-
-static inline void usb_stop_pm(struct usb_device *udev)
-{ }
-
-#endif
-
 /**
  * usb_disconnect - disconnect a device (usbcore-internal)
  * @pdev: pointer to device being disconnected
@@ -1624,8 +1591,6 @@ void usb_disconnect(struct usb_device **pdev)
 	spin_lock_irq(&device_state_lock);
 	*pdev = NULL;
 	spin_unlock_irq(&device_state_lock);
-
-	usb_stop_pm(udev);
 
 	put_device(&udev->dev);
 }
@@ -1803,9 +1768,6 @@ int usb_new_device(struct usb_device *udev)
 	int err;
 
 	if (udev->parent) {
-		/* Increment the parent's count of unsuspended children */
-		usb_autoresume_device(udev->parent);
-
 		/* Initialize non-root-hub device wakeup to disabled;
 		 * device (un)configuration controls wakeup capable
 		 * sysfs power/wakeup controls wakeup enabled/disabled
@@ -1813,6 +1775,10 @@ int usb_new_device(struct usb_device *udev)
 		device_init_wakeup(&udev->dev, 0);
 		device_set_wakeup_enable(&udev->dev, 1);
 	}
+
+	/* Tell the runtime-PM framework the device is active */
+	pm_runtime_set_active(&udev->dev);
+	pm_runtime_enable(&udev->dev);
 
 	usb_detect_quirks(udev);
 	err = usb_enumerate_device(udev);	/* Read descriptors */
@@ -1844,7 +1810,8 @@ int usb_new_device(struct usb_device *udev)
 
 fail:
 	usb_set_device_state(udev, USB_STATE_NOTATTACHED);
-	usb_stop_pm(udev);
+	pm_runtime_disable(&udev->dev);
+	pm_runtime_set_suspended(&udev->dev);
 	return err;
 }
 
@@ -2408,8 +2375,11 @@ int usb_remote_wakeup(struct usb_device *udev)
 
 	if (udev->state == USB_STATE_SUSPENDED) {
 		dev_dbg(&udev->dev, "usb %sresume\n", "wakeup-");
-		usb_mark_last_busy(udev);
-		status = usb_external_resume_device(udev, PMSG_REMOTE_RESUME);
+		status = usb_autoresume_device(udev);
+		if (status == 0) {
+			/* Let the drivers do their thing, then... */
+			usb_autosuspend_device(udev);
+		}
 	}
 	return status;
 }
@@ -2444,11 +2414,6 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 		status = usb_reset_and_verify_device(udev);
 	}
 	return status;
-}
-
-int usb_remote_wakeup(struct usb_device *udev)
-{
-	return 0;
 }
 
 #endif
@@ -3268,7 +3233,7 @@ static void hub_events(void)
 		 * disconnected while waiting for the lock to succeed. */
 		usb_lock_device(hdev);
 		if (unlikely(hub->disconnected))
-			goto loop2;
+			goto loop_disconnected;
 
 		/* If the hub has died, clean up after it */
 		if (hdev->state == USB_STATE_NOTATTACHED) {
@@ -3428,7 +3393,7 @@ static void hub_events(void)
 		 * kick_khubd() and allow autosuspend.
 		 */
 		usb_autopm_put_interface(intf);
- loop2:
+ loop_disconnected:
 		usb_unlock_device(hdev);
 		kref_put(&hub->kref, hub_release);
 

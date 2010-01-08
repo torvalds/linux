@@ -1843,7 +1843,6 @@ free_interfaces:
 		intf->dev.dma_mask = dev->dev.dma_mask;
 		INIT_WORK(&intf->reset_ws, __usb_queue_reset_device);
 		device_initialize(&intf->dev);
-		mark_quiesced(intf);
 		dev_set_name(&intf->dev, "%d-%s:%d.%d",
 			dev->bus->busnum, dev->devpath,
 			configuration, alt->desc.bInterfaceNumber);
