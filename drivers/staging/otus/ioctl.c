@@ -2227,7 +2227,8 @@ int usbdrv_wpa_ioctl(struct net_device *dev, struct athr_wlan_param *zdparm)
 	case ZD_CMD_SCAN_REQ:
 		printk(KERN_ERR "usbdrv_wpa_ioctl: ZD_CMD_SCAN_REQ\n");
 		break;
-	case ZD_CMD_SET_GENERIC_ELEMENT:
+	case ZD_CMD_SET_GENERIC_ELEMENT: {
+		u8_t len, *wpaie;
 		printk(KERN_ERR "usbdrv_wpa_ioctl:"
 					" ZD_CMD_SET_GENERIC_ELEMENT\n");
 
@@ -2250,8 +2251,8 @@ int usbdrv_wpa_ioctl(struct net_device *dev, struct athr_wlan_param *zdparm)
 		/* zfiWlanSetWpaIe(dev, zdparm->u.generic_elem.data,
 		* zdparm->u.generic_elem.len);
 		*/
-		u8_t len = zdparm->u.generic_elem.len;
-		u8_t *wpaie = (u8_t *)zdparm->u.generic_elem.data;
+		len = zdparm->u.generic_elem.len;
+		wpaie = zdparm->u.generic_elem.data;
 
 		printk(KERN_ERR "wd->ap.wpaLen : % d\n", len);
 
@@ -2273,6 +2274,7 @@ int usbdrv_wpa_ioctl(struct net_device *dev, struct athr_wlan_param *zdparm)
 		* #endif
 		*/
 		break;
+	}
 
 	/* #ifdef ZM_HOSTAPD_SUPPORT */
 	case ZD_CMD_GET_TSC:
