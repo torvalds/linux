@@ -105,7 +105,6 @@ struct netvsc_driver {
 	void (*OnLinkStatusChanged)(struct hv_device *dev, u32 Status);
 
 	/* Specific to this driver */
-	int (*OnOpen)(struct hv_device *dev);
 	int (*OnClose)(struct hv_device *dev);
 	int (*OnSend)(struct hv_device *dev, struct hv_netvsc_packet *packet);
 
@@ -119,5 +118,6 @@ struct netvsc_device_info {
 
 /* Interface */
 int NetVscInitialize(struct hv_driver *drv);
+int RndisFilterOnOpen(struct hv_device *Device);
 
 #endif /* _NETVSC_API_H_ */
