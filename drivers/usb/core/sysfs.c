@@ -256,9 +256,10 @@ set_persist(struct device *dev, struct device_attribute *attr,
 
 	if (sscanf(buf, "%d", &value) != 1)
 		return -EINVAL;
-	usb_pm_lock(udev);
+
+	usb_lock_device(udev);
 	udev->persist_enabled = !!value;
-	usb_pm_unlock(udev);
+	usb_unlock_device(udev);
 	return count;
 }
 
