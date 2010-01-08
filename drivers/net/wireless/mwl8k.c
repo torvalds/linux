@@ -1173,7 +1173,7 @@ static void mwl8k_dump_tx_rings(struct ieee80211_hw *hw)
 /*
  * Must be called with priv->fw_mutex held and tx queues stopped.
  */
-#define MWL8K_TX_WAIT_TIMEOUT_MS	1000
+#define MWL8K_TX_WAIT_TIMEOUT_MS	5000
 
 static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 {
