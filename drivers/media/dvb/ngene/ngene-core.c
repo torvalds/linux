@@ -1897,12 +1897,25 @@ static struct ngene_info ngene_info_mps2 = {
 	.fw_version	= 17,
 };
 
+static struct ngene_info ngene_info_satixs2 = {
+	.type		= NGENE_SIDEWINDER,
+	.name		= "Mystique SaTiX-S2 Dual",
+	.io_type	= {NGENE_IO_TSIN, NGENE_IO_TSIN},
+	.demod_attach	= {demod_attach_stv0900, demod_attach_stv0900},
+	.tuner_attach	= {tuner_attach_stv6110, tuner_attach_stv6110},
+	.fe_config	= {&fe_mps2, &fe_mps2},
+	.tuner_config	= {&tuner_mps2_0, &tuner_mps2_1},
+	.lnb		= {0x0b, 0x08},
+	.tsf		= {3, 3},
+	.fw_version	= 17,
+};
+
 /****************************************************************************/
 
 
 
 /****************************************************************************/
-/****************************************************************************/
+/* PCI Subsystem ID *********************************************************/
 /****************************************************************************/
 
 #define NGENE_ID(_subvend, _subdev, _driverdata) { \
@@ -1915,7 +1928,7 @@ static struct ngene_info ngene_info_mps2 = {
 static const struct pci_device_id ngene_id_tbl[] __devinitdata = {
 	NGENE_ID(0x18c3, 0xabc3, ngene_info_mps2),
 	NGENE_ID(0x18c3, 0xabc4, ngene_info_mps2),
-	NGENE_ID(0x18c3, 0xdb01, ngene_info_mps2),
+	NGENE_ID(0x18c3, 0xdb01, ngene_info_satixs2),
 	{0}
 };
 MODULE_DEVICE_TABLE(pci, ngene_id_tbl);
