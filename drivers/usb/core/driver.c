@@ -274,56 +274,55 @@ static int usb_probe_interface(struct device *dev)
 	intf->needs_binding = 0;
 
 	if (usb_device_is_owned(udev))
-		return -ENODEV;
+		return error;
 
 	if (udev->authorized == 0) {
 		dev_err(&intf->dev, "Device is not authorized for usage\n");
-		return -ENODEV;
+		return error;
 	}
 
 	id = usb_match_id(intf, driver->id_table);
 	if (!id)
 		id = usb_match_dynamic_id(intf, driver);
-	if (id) {
-		dev_dbg(dev, "%s - got id\n", __func__);
+	if (!id)
+		return error;
 
-		error = usb_autoresume_device(udev);
-		if (error)
-			return error;
+	dev_dbg(dev, "%s - got id\n", __func__);
 
-		/* Interface "power state" doesn't correspond to any hardware
-		 * state whatsoever.  We use it to record when it's bound to
-		 * a driver that may start I/0:  it's not frozen/quiesced.
-		 */
-		mark_active(intf);
-		intf->condition = USB_INTERFACE_BINDING;
+	error = usb_autoresume_device(udev);
+	if (error)
+		return error;
 
-		/* The interface should always appear to be in use
-		 * unless the driver suports autosuspend.
-		 */
-		atomic_set(&intf->pm_usage_cnt, !driver->supports_autosuspend);
+	/* Interface "power state" doesn't correspond to any hardware
+	 * state whatsoever.  We use it to record when it's bound to
+	 * a driver that may start I/0:  it's not frozen/quiesced.
+	 */
+	mark_active(intf);
+	intf->condition = USB_INTERFACE_BINDING;
 
-		/* Carry out a deferred switch to altsetting 0 */
-		if (intf->needs_altsetting0) {
-			error = usb_set_interface(udev, intf->altsetting[0].
-					desc.bInterfaceNumber, 0);
-			if (error < 0)
-				goto err;
+	/* The interface should always appear to be in use
+	 * unless the driver suports autosuspend.
+	 */
+	atomic_set(&intf->pm_usage_cnt, !driver->supports_autosuspend);
 
-			intf->needs_altsetting0 = 0;
-		}
-
-		error = driver->probe(intf, id);
-		if (error)
+	/* Carry out a deferred switch to altsetting 0 */
+	if (intf->needs_altsetting0) {
+		error = usb_set_interface(udev, intf->altsetting[0].
+				desc.bInterfaceNumber, 0);
+		if (error < 0)
 			goto err;
-
-		intf->condition = USB_INTERFACE_BOUND;
-		usb_autosuspend_device(udev);
+		intf->needs_altsetting0 = 0;
 	}
 
+	error = driver->probe(intf, id);
+	if (error)
+		goto err;
+
+	intf->condition = USB_INTERFACE_BOUND;
+	usb_autosuspend_device(udev);
 	return error;
 
-err:
+ err:
 	mark_quiesced(intf);
 	intf->needs_remote_wakeup = 0;
 	intf->condition = USB_INTERFACE_UNBOUND;
